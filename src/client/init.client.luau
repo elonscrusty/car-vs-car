@@ -153,6 +153,9 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 	elseif u.kind == "hit" then
 		local strength = u.strength or 0
 		director.shake(strength)
+		if strength > 0.5 then
+			director.punchFov(6 + 8 * strength)
+		end
 		if u.pos then
 			Effects.sparks(u.pos, strength)
 			Effects.damageNumber(u.pos, u.damage or 0, u.youHit == true, u.tag)

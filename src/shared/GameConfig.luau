@@ -14,9 +14,13 @@ local GameConfig = {
 		slotSpacing = 600, -- each player gets own arena this far apart on X
 		spawnRadius = 50, -- launch spots, studs from center
 		-- Things to hit and hide behind. x/z = studs from center. Keep them mirrored (x,z -> -x,-z)
-		-- so neither side is lucky. "block" = box (sx, sy, sz); "pillar" = round (sx = width).
+		-- so neither side is lucky. "block" = box (sx, sy, sz); "pillar" = round (sx = width);
+		-- "ramp" = a slope to jump off (sx wide, sz long, yaw = turn in degrees, climbs toward -Z at 0);
+		-- "spinner" = a bar (sx long, sy high) that turns around (x, z) at `spin` rad/sec.
 		obstacles = {
-			{ kind = "pillar", x = 0, z = 0, sx = 9, sy = 9 },
+			{ kind = "spinner", x = 0, z = 0, sx = 34, sy = 3, spin = 1.1 },
+			{ kind = "ramp", x = 32, z = 14, sx = 12, sz = 18, yaw = 0 },
+			{ kind = "ramp", x = -32, z = -14, sx = 12, sz = 18, yaw = 180 },
 			{ kind = "block", x = 40, z = 0, sx = 7, sy = 7, sz = 18 },
 			{ kind = "block", x = -40, z = 0, sx = 7, sy = 7, sz = 18 },
 			{ kind = "pillar", x = 22, z = 30, sx = 7, sy = 8 },

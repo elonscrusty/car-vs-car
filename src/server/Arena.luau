@@ -94,10 +94,59 @@ function Arena.build(origin: Vector3): Arena
 	end
 
 	-- Obstacles (flat arena): boxes and round pillars standing on the floor.
+	local spinnerBars: { Part } = {}
 	for _, o in cfg.obstacles do
-		local pos = origin + Vector3.new(o.x, o.sy / 2, o.z)
+		local pos = origin + Vector3.new(o.x, (o.sy or 0) / 2, o.z)
 		local color = Color3.fromRGB(150, 150, 165)
-		if o.kind == "pillar" then
+		if o.kind == "spinner" then
+			-- A heavy bar driven round by a motor on an invisible hub, so it shoves cars properly.
+			local hub = makePart(
+				model,
+				"SpinnerHub",
+				Vector3.one,
+				CFrame.new(origin + Vector3.new(o.x, 3, o.z)),
+				color
+			)
+			hub.Transparency = 1
+			hub.CanCollide = false
+			hub.CanQuery = false
+			local bar = makePart(
+				model,
+				"Obstacle",
+				Vector3.new(o.sx, o.sy, 2.5),
+				CFrame.new(origin + Vector3.new(o.x, 3, o.z)),
+				Color3.fromRGB(235, 70, 60)
+			)
+			bar.Anchored = false
+			bar.CustomPhysicalProperties = PhysicalProperties.new(60, 0.3, 0.2, 1, 1)
+			local a0 = Instance.new("Attachment")
+			a0.CFrame = CFrame.Angles(0, 0, math.pi / 2) -- turn the hinge axis to point up
+			a0.Parent = hub
+			local a1 = Instance.new("Attachment")
+			a1.CFrame = CFrame.Angles(0, 0, math.pi / 2)
+			a1.Parent = bar
+			local hinge = Instance.new("HingeConstraint")
+			hinge.Attachment0 = a0
+			hinge.Attachment1 = a1
+			hinge.ActuatorType = Enum.ActuatorType.Motor
+			hinge.AngularVelocity = o.spin or 1
+			hinge.MotorMaxTorque = 1e9
+			hinge.Parent = bar
+			table.insert(spinnerBars, bar)
+		elseif o.kind == "ramp" then
+			local tilt = math.rad(18)
+			local len = o.sz or o.sx
+			local rise = len / 2 * math.sin(tilt)
+			makePart(
+				model,
+				"Obstacle",
+				Vector3.new(o.sx, 1, len),
+				CFrame.new(origin + Vector3.new(o.x, rise + 0.2, o.z))
+					* CFrame.Angles(0, math.rad(o.yaw or 0), 0)
+					* CFrame.Angles(tilt, 0, 0),
+				Color3.fromRGB(240, 200, 40)
+			)
+		elseif o.kind == "pillar" then
 			local pillar = makePart(
 				model,
 				"Obstacle",
@@ -140,6 +189,9 @@ function Arena.build(origin: Vector3): Arena
 	end
 
 	model.Parent = workspace
+	for _, bar in spinnerBars do
+		bar:SetNetworkOwner(nil) -- the server turns the bar (needs to be in the workspace first)
+	end
 	return { model = model, center = origin, frames = frames }
 end
 

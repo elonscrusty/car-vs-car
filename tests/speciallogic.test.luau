@@ -40,10 +40,10 @@ test("damage bonus expires", function()
 	eq(SpecialLogic.damageMult(5, 5, 2), 1)
 end)
 
-test("every car has a special with a 6 to 12 s cooldown", function()
+test("every car has a special with a 4 to 12 s cooldown", function()
 	for _, id in CarConfig.Order do
 		local s = SpecialsConfig.ByCar[id]
 		truthy(s ~= nil, id)
-		truthy(s.cooldown >= 6 and s.cooldown <= 12, id)
+		truthy(s.cooldown >= 4 and s.cooldown <= 12, id)
 	end
 end)

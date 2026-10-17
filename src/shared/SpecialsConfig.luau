@@ -51,20 +51,20 @@ SpecialsConfig.minMassScale = 0.4
 SpecialsConfig.maxMassScale = 1.6
 
 SpecialsConfig.ByCar = {
-	Heavy = make("GroundSlam", "GROUND SLAM", "slam", 9, { radius = 22, push = 45, lift = 8 }),
-	Light = make("Dodge", "DODGE DASH", "dash", 6, { dashSide = 70 }),
+	Heavy = make("GroundSlam", "GROUND SLAM", "slam", 7, { radius = 22, push = 45, lift = 8 }),
+	Light = make("Dodge", "DODGE DASH", "dash", 4, { dashSide = 70 }),
 	Ramp = make(
 		"Flip",
 		"FLIP",
 		"cone",
-		10,
+		7,
 		{ radius = 20, coneDeg = 35, push = 10, lift = 40, spin = 8 }
 	),
-	Spike = make("SpinAttack", "SPIN ATTACK", "spin", 10, { duration = 2, damageMult = 2 }),
-	Tank = make("Smash", "SMASH", "slam", 12, { radius = 30, push = 60, lift = 5 }),
-	Drift = make("Slide", "SLIDE DASH", "dash", 7, { dashForward = 60, dashSide = 25 }),
-	Bulldozer = make("Charge", "CHARGE", "dash", 11, { dashForward = 75 }),
-	Rocket = make("Boost", "ROCKET DASH", "dash", 8, { dashForward = 110 }),
+	Spike = make("SpinAttack", "SPIN ATTACK", "spin", 7, { duration = 2, damageMult = 2 }),
+	Tank = make("Smash", "SMASH", "slam", 9, { radius = 30, push = 60, lift = 5 }),
+	Drift = make("Slide", "SLIDE DASH", "dash", 5, { dashForward = 60, dashSide = 25 }),
+	Bulldozer = make("Charge", "CHARGE", "dash", 8, { dashForward = 75 }),
+	Rocket = make("Boost", "ROCKET DASH", "dash", 6, { dashForward = 110 }),
 } :: { [string]: Special }
 
 return SpecialsConfig
