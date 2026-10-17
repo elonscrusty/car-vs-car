@@ -34,6 +34,8 @@ function Arena.build(origin: Vector3): Arena
 	local tilt = math.rad(cfg.tiltDeg)
 	local model = Instance.new("Model")
 	model.Name = "Arena"
+	-- Always send the whole arena to clients (the camera has no avatar, so streaming would skip it).
+	model.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
 
 	local function height(r: number): number
 		return ArenaMath.surfaceHeight(r, cfg.flatRadius, cfg.rimRadius, cfg.tiltDeg)

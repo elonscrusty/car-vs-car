@@ -44,7 +44,7 @@ function AimInput.new(
 		p.CanQuery = false
 		p.CastShadow = false
 		p.Material = Enum.Material.Neon
-		p.Color = Color3.fromRGB(255, 240, 60)
+		p.Color = Color3.fromRGB(255, 40, 120)
 		p.Size = size
 		return p
 	end

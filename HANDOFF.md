@@ -15,4 +15,5 @@
 3. PvP matchmaking and DataStore saves (hearts, wins, unlocked cars).
 
 ## Known gaps
-- Rojo build and Studio playtest not yet run by CI-less author; check Output for errors first.
+- Studio playtest was driven by script (fired the remotes), not by hand. Fights run slow-ish (cars rarely top 25 studs/sec): tune accel/turnGain in CarConfig/GameConfig.
+- Arena is set to always stream to clients (place may have StreamingEnabled on).

@@ -1,6 +1,6 @@
 # SNAPSHOT — Car VS Car prototype
 
-Status: code written, unit tests pass (30). Studio playtest: see HANDOFF.md.
+Status: unit tests pass (32), CI green. Studio playtest done on carter's PC: pick car -> aim -> launch -> auto-pilot fight -> damage -> hearts -> next round all ran, with a picture check. Not tested by hand: phone touch buttons, dummy ragdoll look, full YOU WIN screen.
 
 ## What exists
 - Bowl arena (built in code), 4 placeholder cars (Heavy/Light/Ramp/Spike), solo vs bot.
