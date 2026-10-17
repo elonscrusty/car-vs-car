@@ -35,6 +35,16 @@ local function makePart(kind: string, pos: Vector3, parent: Instance): (Part, { 
 	part.CanQuery = false
 	part.CanTouch = false
 	part.Size = Vector3.new(2.6, 2.6, 2.6)
+	-- Each power-up has its own shape, color and name sign.
+	if kind == "shield" or kind == "magnet" then
+		part.Shape = Enum.PartType.Ball
+	elseif kind == "rocket" then
+		part.Shape = Enum.PartType.Cylinder
+		part.Size = Vector3.new(4, 2, 2)
+	elseif kind == "speed" then
+		part.Shape = Enum.PartType.Block
+		part.Size = Vector3.new(1.6, 1.6, 4)
+	end
 	part.Material = Enum.Material.Neon
 	part.Color = colorOf(kind)
 	part.Position = pos
@@ -43,6 +53,20 @@ local function makePart(kind: string, pos: Vector3, parent: Instance): (Part, { 
 	light.Range = 14
 	light.Brightness = 3
 	light.Parent = part
+	local sign = Instance.new("BillboardGui")
+	sign.Size = UDim2.fromOffset(110, 36)
+	sign.StudsOffset = Vector3.new(0, 3.2, 0)
+	sign.AlwaysOnTop = true
+	sign.Parent = part
+	local text = Instance.new("TextLabel")
+	text.Size = UDim2.fromScale(1, 1)
+	text.BackgroundTransparency = 1
+	text.Font = Enum.Font.FredokaOne
+	text.TextScaled = true
+	text.Text = (PickupsConfig.names :: any)[kind] or kind
+	text.TextColor3 = part.Color
+	text.TextStrokeTransparency = 0
+	text.Parent = sign
 	part.Parent = parent
 
 	local bob = TweenService:Create(

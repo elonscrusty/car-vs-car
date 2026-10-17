@@ -1,6 +1,6 @@
 --!strict
--- The bowl's fun-stuff, run during a fight: boost pads on the wall (launch a car over the middle),
--- the shrinking safe ring (HP drains outside it) and the magnet power-up. Rules and numbers:
+-- The bowl's fun-stuff, run during a fight: boost pads on the wall (launch a car over the middle)
+-- and the magnet power-up. Rules and numbers:
 -- shared/BowlRules + BowlConfig. Everything is decided here on the server.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,25 +16,18 @@ local CarBuilder = require(script.Parent.CarBuilder)
 local Impulse = require(script.Parent.Impulse)
 
 export type Handle = {
-	-- Call every frame of the fight. `damage(car, amount)` is how HP is taken (the match owns HP).
-	step: (
-		dt: number,
-		now: number,
-		fightElapsed: number,
-		damage: (CarBuilder.Car, number) -> ()
-	) -> (),
+	-- Call every frame of the fight.
+	step: (dt: number, now: number) -> (),
 	destroy: () -> (),
 }
 
 local BowlHazards = {}
 
-local RING_COLOR = Color3.fromRGB(255, 70, 60)
-local PAD_COLOR = Color3.fromRGB(255, 220, 60)
+local PAD_COLOR = Color3.fromRGB(60, 200, 255) -- cyan: never confused with the yellow SPEED pickup
 
 function BowlHazards.new(arena: Arena.Arena, cars: { CarBuilder.Car }): Handle
 	local cfg = GameConfig.Arena
 	local pcfg = BowlConfig.Pads
-	local scfg = BowlConfig.Shrink
 	local center = arena.center
 	local tilt = math.rad(cfg.tiltDeg)
 	local folder = Instance.new("Folder")
@@ -69,43 +62,27 @@ function BowlHazards.new(arena: Arena.Arena, cars: { CarBuilder.Car }): Handle
 		light.Range = 16
 		light.Brightness = 2
 		light.Parent = pad
+		-- Floating sign so nobody mistakes it for a power-up.
+		local sign = Instance.new("BillboardGui")
+		sign.Size = UDim2.fromOffset(120, 44)
+		sign.StudsOffset = Vector3.new(0, 5, 0)
+		sign.AlwaysOnTop = true
+		sign.Parent = pad
+		local text = Instance.new("TextLabel")
+		text.Size = UDim2.fromScale(1, 1)
+		text.BackgroundTransparency = 1
+		text.Font = Enum.Font.FredokaOne
+		text.TextScaled = true
+		text.Text = "BOOST >>>"
+		text.TextColor3 = PAD_COLOR
+		text.TextStrokeTransparency = 0
+		text.Parent = sign
 	end
-
-	-- The safe ring, drawn as glowing blocks. Hidden until it is about to close.
-	local ring: { Part } = {}
-	for i = 1, scfg.ringParts do
-		local p = Instance.new("Part")
-		p.Name = "SafeRing"
-		p.Anchored = true
-		p.CanCollide = false
-		p.CanQuery = false
-		p.CanTouch = false
-		p.Size = Vector3.new(3, 0.5, 5)
-		p.Material = Enum.Material.Neon
-		p.Color = RING_COLOR
-		p.Transparency = 1
-		p.Parent = folder
-		ring[i] = p
-	end
-	local lastRingAt = -1
 
 	local padReadyAt: { [CarBuilder.Car]: number } = {}
 
-	local function updateRing(radius: number, visible: boolean)
-		local y = surfaceY(radius) + 0.3
-		for i, p in ring do
-			local a = i / #ring * math.pi * 2
-			p.CFrame = CFrame.new(
-				center.X + math.cos(a) * radius,
-				y,
-				center.Z + math.sin(a) * radius
-			) * CFrame.Angles(0, -a + math.pi / 2, 0)
-			p.Transparency = if visible then 0.15 else 1
-		end
-	end
-
 	local handle: Handle = {} :: any
-	handle.step = function(dt, now, fightElapsed, damage)
+	handle.step = function(dt, now)
 		-- Boost pads.
 		for _, car in cars do
 			if car.dead then
@@ -120,24 +97,6 @@ function BowlHazards.new(arena: Arena.Arena, cars: { CarBuilder.Car }): Handle
 						Impulse.linear(car.body, Vector3.new(vx, vy, vz) * car.body.AssemblyMass)
 						padReadyAt[car] = now + pcfg.cooldown
 						break
-					end
-				end
-			end
-		end
-		-- Shrinking safe ring.
-		local safe = BowlRules.safeRadius(fightElapsed, cfg.rimRadius, scfg)
-		if now - lastRingAt >= 0.1 then
-			lastRingAt = now
-			updateRing(safe, fightElapsed >= scfg.startSeconds - 6)
-		end
-		if fightElapsed >= scfg.startSeconds then
-			for _, car in cars do
-				if not car.dead then
-					local pos = car.body.Position
-					local dist = math.sqrt((pos.X - center.X) ^ 2 + (pos.Z - center.Z) ^ 2)
-					local lost = BowlRules.ringDamage(dist, safe, scfg.damagePerSecond, dt)
-					if lost > 0 then
-						damage(car, lost)
 					end
 				end
 			end

@@ -37,20 +37,6 @@ test("a car on a pad is launched toward the middle", function()
 	near(vz, 0, 0.001)
 end)
 
-test("the safe ring waits, then closes, then stops", function()
-	local sh = BowlConfig.Shrink
-	eq(BowlRules.safeRadius(0, 62, sh), 62)
-	eq(BowlRules.safeRadius(sh.startSeconds, 62, sh), 62)
-	local mid = BowlRules.safeRadius(sh.startSeconds + sh.overSeconds / 2, 62, sh)
-	truthy(mid < 62 and mid > sh.minRadius)
-	eq(BowlRules.safeRadius(999, 62, sh), sh.minRadius)
-end)
-
-test("outside the ring hurts, inside is safe", function()
-	eq(BowlRules.ringDamage(20, 30, 9, 0.5), 0)
-	near(BowlRules.ringDamage(40, 30, 9, 0.5), 4.5, 0.001)
-end)
-
 test("drift gives cooldown back only while sliding", function()
 	eq(BowlRules.driftRefund(false, 1, 1.4), 0)
 	near(BowlRules.driftRefund(true, 0.5, 1.4), 0.7, 0.001)

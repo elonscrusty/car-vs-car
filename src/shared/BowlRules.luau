@@ -1,6 +1,6 @@
 --!strict
 -- Pure rules for the bowl fun-stuff (no Roblox calls): smash hits, boost pad spots and launches,
--- the shrinking safe ring, drift charge, magnet pull. Numbers: BowlConfig. Unit tested.
+-- drift charge, magnet pull. Numbers: BowlConfig. Unit tested.
 
 local BowlRules = {}
 
@@ -46,32 +46,6 @@ function BowlRules.padLaunch(pad: Vec, kick: number, lift: number): (number, num
 		return 0, lift, 0
 	end
 	return -pad.x / len * kick, lift, -pad.z / len * kick
-end
-
--- Radius of the safe ring `elapsed` seconds into the fight: full until startSeconds, then closes
--- in a straight line to minRadius.
-function BowlRules.safeRadius(
-	elapsed: number,
-	fullRadius: number,
-	shrink: { startSeconds: number, overSeconds: number, minRadius: number }
-): number
-	local t = (elapsed - shrink.startSeconds) / math.max(shrink.overSeconds, 0.001)
-	t = math.clamp(t, 0, 1)
-	local target = math.min(shrink.minRadius, fullRadius)
-	return fullRadius + (target - fullRadius) * t
-end
-
--- HP lost this frame for being outside the safe ring.
-function BowlRules.ringDamage(
-	dist: number,
-	safeRadius: number,
-	perSecond: number,
-	dt: number
-): number
-	if dist <= safeRadius then
-		return 0
-	end
-	return perSecond * dt
 end
 
 -- Seconds of boost cooldown given back this frame while a car is sliding (drifting).

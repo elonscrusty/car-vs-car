@@ -24,5 +24,12 @@ return {
 		magnet = { 170, 90, 255 },
 		rocket = { 255, 140, 40 },
 	},
+	names = {
+		shield = "SHIELD",
+		bighit = "BIG HIT",
+		speed = "SPEED",
+		magnet = "MAGNET",
+		rocket = "ROCKET",
+	},
 	letters = { shield = "S", bighit = "B", speed = "F", magnet = "M", rocket = "R" },
 }

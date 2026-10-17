@@ -1,5 +1,5 @@
 --!strict
--- Numbers for the bowl fun-stuff: smash hits, wall boost pads, the shrinking safe ring, drift
+-- Numbers for the bowl fun-stuff: smash hits, wall boost pads, drift
 -- charge and the new power-ups. Placeholder values: change freely.
 
 return {
@@ -17,13 +17,6 @@ return {
 		lift = 34, -- speed upward (studs/s): fly over the middle
 		cooldown = 2.5, -- seconds before the same car can use a pad again
 		size = { 9, 0.4, 11 }, -- x, y, z studs
-	},
-	Shrink = {
-		startSeconds = 35, -- the safe ring starts closing this long after the fight starts
-		overSeconds = 40, -- and takes this long to close
-		minRadius = 30, -- it stops here
-		damagePerSecond = 9, -- outside the ring a car loses this much HP per second
-		ringParts = 40, -- glowing blocks that draw the ring
 	},
 	Drift = {
 		refundPerSecond = 1.4, -- sliding gives back this many seconds of boost cooldown per second

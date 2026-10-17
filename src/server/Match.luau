@@ -653,19 +653,6 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 		end
 	end
 
-	-- The safe ring burns a car outside it (HP only, no hit effects).
-	local function hazardDamage(car: CarBuilder.Car, amount: number)
-		if phase ~= "fight" or car.dead then
-			return
-		end
-		local newHp, dead = Logic.applyDamage(car.hp, amount)
-		car.hp = newHp
-		car.bar.set(newHp, car.stats.hp)
-		if dead then
-			endMatch(car, "BURNED OUT!")
-		end
-	end
-
 	local fightConn = RunService.Heartbeat:Connect(function(dt)
 		if phase ~= "fight" or frozen then
 			return
@@ -714,7 +701,7 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 		end
 		local now = os.clock()
 		if hazards then
-			hazards.step(dt, now, fightElapsed, hazardDamage)
+			hazards.step(dt, now)
 			if phase ~= "fight" then
 				return
 			end

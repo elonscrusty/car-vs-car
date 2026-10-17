@@ -51,7 +51,7 @@ function BuffUi.new(): BuffUi
 		local c = (PickupsConfig.colors :: any)[kind] or { 255, 255, 255 }
 		local icon = Instance.new("Frame")
 		icon.Name = kind
-		icon.Size = UDim2.fromOffset(52, 52)
+		icon.Size = UDim2.fromOffset(84, 52)
 		icon.BackgroundColor3 = Color3.fromRGB(c[1], c[2], c[3])
 		local corner = Instance.new("UICorner")
 		corner.CornerRadius = UDim.new(0, 12)
@@ -62,7 +62,7 @@ function BuffUi.new(): BuffUi
 		letter.Font = Enum.Font.FredokaOne
 		letter.TextScaled = true
 		letter.TextColor3 = Color3.new(1, 1, 1)
-		letter.Text = (PickupsConfig.letters :: any)[kind] or "?"
+		letter.Text = (PickupsConfig.names :: any)[kind] or "?"
 		letter.Parent = icon
 		local track = Instance.new("Frame")
 		track.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
@@ -78,6 +78,30 @@ function BuffUi.new(): BuffUi
 		bar.Parent = track
 		icon.Parent = row
 		icons[kind] = icon
+		-- Big name in the middle of the screen for a moment: "you got SHIELD".
+		local toast = Instance.new("TextLabel")
+		toast.AnchorPoint = Vector2.new(0.5, 0.5)
+		toast.Position = UDim2.fromScale(0.5, 0.3)
+		toast.Size = UDim2.fromOffset(300, 56)
+		toast.BackgroundTransparency = 1
+		toast.Font = Enum.Font.FredokaOne
+		toast.TextScaled = true
+		toast.TextColor3 = icon.BackgroundColor3
+		toast.TextStrokeTransparency = 0
+		toast.Text = (PickupsConfig.names :: any)[kind] or kind
+		toast.Parent = gui
+		TweenService:Create(
+			toast,
+			TweenInfo.new(1.1),
+			{
+				Position = UDim2.fromScale(0.5, 0.24),
+				TextTransparency = 1,
+				TextStrokeTransparency = 1,
+			}
+		):Play()
+		task.delay(1.2, function()
+			toast:Destroy()
+		end)
 		TweenService:Create(
 			bar,
 			TweenInfo.new(seconds, Enum.EasingStyle.Linear),
