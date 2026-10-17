@@ -4,11 +4,11 @@
 local Harness = require("./harness")
 
 require("./logic.test")
-require("./ai.test")
 require("./config.test")
 require("./limiter.test")
 require("./arena.test")
 require("./fight.test")
+require("./duel.test")
 require("./padlogic.test")
 require("./saves.test")
 require("./lobbylayout.test")

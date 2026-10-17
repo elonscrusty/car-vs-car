@@ -1,32 +1,31 @@
 --!strict
--- One solo match: player vs bot. The server owns everything: cars, forces, damage, hearts, rounds.
--- Phases: pick -> aim -> fight -> roundEnd -> (aim again | matchEnd). Lobby matches (opts) skip pick.
+-- One solo match: player vs bot. The server owns everything: cars, launches, damage, winner.
+-- Cars only coast after a launch. Loop: aim -> launch -> coast until both stop -> aim again,
+-- until one car is out of HP (or time is up). Lobby matches (opts) skip the pick phase.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Aim = require(ReplicatedStorage.Shared.Aim)
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
+local Duel = require(ReplicatedStorage.Shared.Duel)
+local Fight = require(ReplicatedStorage.Shared.Fight)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
-local Fight = require(ReplicatedStorage.Shared.Fight)
 local Logic = require(ReplicatedStorage.Shared.Logic)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Types = require(ReplicatedStorage.Shared.Types)
 
 local Arena = require(script.Parent.Arena)
-local Autopilot = require(script.Parent.Autopilot)
 local CarBuilder = require(script.Parent.CarBuilder)
 local Dummy = require(script.Parent.Dummy)
 local Fx = require(script.Parent.Fx)
 
-type Phase = "pick" | "aim" | "fight" | "roundEnd" | "matchEnd"
+type Phase = "pick" | "aim" | "fight" | "settle" | "roundEnd" | "matchEnd"
 
 export type Handle = {
 	selectCar: (carId: any) -> (),
 	launch: (angle: any, power: any) -> (),
-	boost: () -> (),
-	special: () -> (),
 	destroy: () -> (),
 }
 
@@ -49,12 +48,17 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 	local arena: Arena.Arena? = nil
 	local cars: { CarBuilder.Car } = {}
 	local touchConns: { RBXScriptConnection } = {}
-	local hearts = { cfg.Match.hearts, cfg.Match.hearts }
 	local round = 0
 	local playerCarId = "Heavy"
 	local aimToken = 0 -- bumps each aim phase so old timeouts do nothing
 	local lastHitAt = -math.huge
 	local frozen = false -- hit stop: cars are held still for a moment
+	local matchStart = 0
+	local quietRounds = 0 -- rounds in a row where nobody got hit
+	local hitThisRound = false
+	local suddenDeath = false -- time ran out with equal HP: the next hit wins
+	local fightElapsed = 0
+	local settleTimer = 0
 	local rayParams = RaycastParams.new()
 	rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
@@ -77,14 +81,22 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 		table.clear(cars)
 	end
 
-	local function endRound(loser: CarBuilder.Car, koText: string?)
-		if phase ~= "fight" then
+	local function setAnchored(car: CarBuilder.Car, anchored: boolean)
+		for _, part in car.model:GetChildren() do
+			if part:IsA("BasePart") then
+				part.Anchored = anchored
+			end
+		end
+	end
+
+	-- The match is over: `loser` is out.
+	local function endMatch(loser: CarBuilder.Car, koText: string?)
+		if phase == "roundEnd" or phase == "matchEnd" then
 			return
 		end
 		phase = "roundEnd"
 		send({ kind = "ko", text = koText or "K.O.!", pos = loser.body.Position })
 		loser.dead = true
-		loser.flame.Enabled = false
 		loser.hp = 0
 		loser.bar.set(0, loser.stats.hp)
 		loser.bar.hide()
@@ -95,35 +107,21 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 		if currentArena then
 			focus = Dummy.launch(loser.body.Position, currentArena.model)
 		end
-
-		local newHearts, over = Logic.loseHeart(hearts[loser.idx])
-		hearts[loser.idx] = newHearts
-		send({
-			kind = "roundEnd",
-			round = round,
-			youLost = loser.idx == 1,
-			youHearts = hearts[1],
-			enemyHearts = hearts[2],
-			focus = focus,
-		})
+		send({ kind = "roundEnd", round = round, youLost = loser.idx == 1, focus = focus })
 
 		task.delay(cfg.Match.roundEndDelay, function()
 			if destroyed then
 				return
 			end
-			if over then
-				phase = "matchEnd"
-				local youWon = hearts[2] <= 0
-				send({ kind = "matchEnd", youWon = youWon })
-				if opts then
-					task.delay(LobbyConfig.Rewards.endScreenSeconds, function()
-						if not destroyed then
-							opts.onFinished(youWon)
-						end
-					end)
-				end
-			else
-				beginAim()
+			phase = "matchEnd"
+			local youWon = loser.idx == 2
+			send({ kind = "matchEnd", youWon = youWon })
+			if opts then
+				task.delay(LobbyConfig.Rewards.endScreenSeconds, function()
+					if not destroyed then
+						opts.onFinished(youWon)
+					end
+				end)
 			end
 		end)
 	end
@@ -142,6 +140,9 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 		end
 		task.delay(duration, function()
 			frozen = false
+			if phase ~= "fight" and phase ~= "roundEnd" then
+				return -- the cars were already stopped and anchored for the next aim
+			end
 			for i, car in held do
 				if car.model.Parent ~= nil then
 					car.body.Anchored = false
@@ -153,92 +154,6 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 				end
 			end
 		end)
-	end
-
-	local function startBoost(car: CarBuilder.Car): boolean
-		if car.dead or not Logic.canBoost(car.boostLeft, car.boostCd) then
-			return false
-		end
-		car.boostLeft = cfg.Boost.duration
-		car.boostCd = cfg.Boost.cooldown
-		car.flame.Enabled = true
-		if car.idx == 1 then
-			send({ kind = "boost", cooldown = cfg.Boost.cooldown })
-		end
-		return true
-	end
-
-	-- Damage that does not come from a crash (special moves).
-	local function specialDamage(defender: CarBuilder.Car, dmg: number, pos: Vector3)
-		if defender.dead or dmg <= 0 then
-			return
-		end
-		local newHp, dead = Logic.applyDamage(defender.hp, dmg)
-		defender.hp = newHp
-		defender.bar.set(newHp, defender.stats.hp)
-		send({ kind = "hit", pos = pos, strength = 0.8, damage = dmg, youHit = defender.idx == 1 })
-		if not defender.smoking and newHp / defender.stats.hp < cfg.Feel.smokeBelow then
-			defender.smoking = true
-			Fx.smoke(defender.body)
-		end
-		if dead then
-			endRound(defender)
-		end
-	end
-
-	-- One special move per car. Returns true if it fired.
-	local function useSpecial(car: CarBuilder.Car): boolean
-		if car.dead or phase ~= "fight" or frozen or not Fight.canSpecial(car.specialCd) then
-			return false
-		end
-		local sp = cfg.Special
-		car.specialCd = sp.cooldown
-		local enemy = cars[3 - car.idx]
-		local toEnemy = if enemy then enemy.body.Position - car.body.Position else Vector3.zero
-		local dist = toEnemy.Magnitude
-		local alive = enemy ~= nil and not enemy.dead
-		if car.id == "Heavy" then
-			-- Ground slam: shockwave that shoves and hurts, weaker with distance.
-			local f = Fight.falloff(dist, sp.Heavy.radius)
-			local flat = Vector3.new(toEnemy.X, 0, toEnemy.Z)
-			if alive and f > 0 and flat.Magnitude > 0.01 and enemy then
-				enemy.body:ApplyImpulse(
-					(flat.Unit * sp.Heavy.knock * f + Vector3.yAxis * sp.Heavy.up * f)
-						* enemy.body.AssemblyMass
-				)
-				specialDamage(enemy, sp.Heavy.damage * f, enemy.body.Position)
-			else
-				send({
-					kind = "hit",
-					pos = car.body.Position,
-					strength = 0.6,
-					damage = 0,
-					youHit = false,
-				})
-			end
-		elseif car.id == "Light" then
-			-- Dash: instant burst straight ahead, plus a short boost for the flame.
-			car.body:ApplyImpulse(
-				car.body.CFrame.LookVector * car.body.AssemblyMass * sp.Light.dash
-			)
-			car.boostLeft = math.max(car.boostLeft, 0.3)
-			car.flame.Enabled = true
-		elseif car.id == "Ramp" then
-			-- Flip kick: if the enemy is right in front, launch it.
-			if alive and enemy and dist > 0.01 then
-				local dot = car.body.CFrame.LookVector:Dot(toEnemy.Unit)
-				if Fight.inCone(dist, dot, sp.Ramp.range, sp.Ramp.minDot) then
-					enemy.body:ApplyImpulse(Vector3.yAxis * enemy.body.AssemblyMass * sp.Ramp.lift)
-					specialDamage(enemy, sp.Ramp.damage, enemy.body.Position)
-				end
-			end
-		elseif car.id == "Spike" then
-			car.spikeLeft = sp.Spike.duration
-		end
-		if car.idx == 1 then
-			send({ kind = "special", cooldown = sp.cooldown })
-		end
-		return true
 	end
 
 	-- A hit between two cars. Uses velocities from the end of the last frame (before the crash).
@@ -266,24 +181,16 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 		if dmg <= 0 then
 			return
 		end
-		-- Spike with spikes out hits harder.
-		if attacker.spikeLeft > 0 then
-			dmg *= cfg.Special.Spike.damageMult
+		dmg *= Duel.escalation(quietRounds, cfg.Coast.quietDamageStep)
+		if suddenDeath then
+			dmg = defender.hp
 		end
-		-- Counter: the defender tapped boost just before this hit.
-		local now = os.clock()
-		local countered = Fight.isCountered(defender.counter, now, cfg.Counter.window)
-		if countered then
-			Fight.consume(defender.counter)
-			dmg = Fight.counterDamage(dmg, cfg.Counter.damageMult)
-		end
-		lastHitAt = now
+		lastHitAt = os.clock()
+		hitThisRound = true
 
 		local newHp, dead = Logic.applyDamage(defender.hp, dmg)
 		defender.hp = newHp
 		defender.bar.set(newHp, defender.stats.hp)
-		a.ai.hit = true
-		b.ai.hit = true
 
 		-- Feel: tell the client (shake, sparks, number), smoke when low, freeze for a blink.
 		local strength = Logic.hitStrength(rel, cfg.Feel.bigHitSpeed)
@@ -298,28 +205,14 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 			defender.smoking = true
 			Fx.smoke(defender.body)
 		end
-		local stopT = Logic.hitStopTime(
-			strength,
-			cfg.Feel.hitStopMin,
-			cfg.Feel.hitStopMax,
-			cfg.Feel.hitStopFrom
+		hitStop(
+			Logic.hitStopTime(
+				strength,
+				cfg.Feel.hitStopMin,
+				cfg.Feel.hitStopMax,
+				cfg.Feel.hitStopFrom
+			)
 		)
-		hitStop(stopT)
-		if countered then
-			local mid = (a.body.Position + b.body.Position) / 2
-			send({ kind = "counter", pos = mid })
-			local away = attacker.body.Position - defender.body.Position
-			if away.Magnitude > 0.001 then
-				-- After the freeze, so the shove is not eaten by hit stop.
-				task.delay(stopT + 0.03, function()
-					if not destroyed and not attacker.dead and attacker.model.Parent ~= nil then
-						attacker.body:ApplyImpulse(
-							away.Unit * attacker.body.AssemblyMass * cfg.Counter.knock
-						)
-					end
-				end)
-			end
-		end
 
 		-- Ramp: kick the enemy upward to flip it.
 		if attacker.stats.hitLift > 0 then
@@ -328,7 +221,7 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 			)
 		end
 		if dead then
-			endRound(defender)
+			endMatch(defender)
 		end
 	end
 
@@ -350,6 +243,7 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 		resolveHit(car, enemy)
 	end
 
+	-- Both cars start on their own side of the bowl and stay where they stop for the whole match.
 	local function spawnCars()
 		local a = arena :: Arena.Arena
 		clearCars()
@@ -374,39 +268,91 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 		end
 	end
 
-	local function launchCar(car: CarBuilder.Car, base: Vector3, angle: number, power: number)
-		for _, part in car.model:GetChildren() do
-			if part:IsA("BasePart") then
-				part.Anchored = false
-			end
+	-- Stand a stopped car upright on the bowl surface (keeps its facing), then freeze it.
+	local function settleCar(car: CarBuilder.Car)
+		local pos = car.body.Position
+		local look = car.body.CFrame.LookVector
+		local flat = Vector3.new(look.X, 0, look.Z)
+		if flat.Magnitude < 0.2 then
+			flat = Arena.inwardDirection(arena :: Arena.Arena, car.idx)
 		end
+		local hit =
+			workspace:Raycast(pos + Vector3.new(0, 10, 0), Vector3.new(0, -60, 0), rayParams)
+		local up = Vector3.yAxis
+		local target = pos
+		if hit then
+			up = hit.Normal
+			target = hit.Position + up * (car.stats.size[2] / 2 + 0.4)
+		end
+		local fwd = (flat.Unit - up * flat.Unit:Dot(up)).Unit
+		car.model:PivotTo(CFrame.fromMatrix(target, fwd:Cross(up), up))
+		car.body.AssemblyLinearVelocity = Vector3.zero
+		car.body.AssemblyAngularVelocity = Vector3.zero
+		setAnchored(car, true)
+	end
+
+	-- Turn the car toward the aim and push it once. After this it only coasts.
+	local function launchCar(car: CarBuilder.Car, angle: number, power: number)
+		local dir = Aim.direction(Vector3.zAxis, angle)
+		local up = car.body.CFrame.UpVector
+		local fwd = (dir - up * dir:Dot(up))
+		if fwd.Magnitude > 0.01 then
+			fwd = fwd.Unit
+			car.model:PivotTo(CFrame.fromMatrix(car.body.Position, fwd:Cross(up), up))
+		end
+		setAnchored(car, false)
 		pcall(function()
 			car.body:SetNetworkOwner(nil) -- server owns the car physics
 		end)
 		local speed = Logic.launchSpeed(power, cfg.Launch.minSpeed, cfg.Launch.maxSpeed)
-		local dir = Aim.direction(base, angle)
 		car.body:ApplyImpulse(dir * car.body.AssemblyMass * speed)
 	end
 
 	local function startFight(angle: number, power: number)
-		local a = arena :: Arena.Arena
 		phase = "fight"
 		lastHitAt = -math.huge
 		frozen = false
-		launchCar(cars[1], Arena.inwardDirection(a, 1), angle, power)
-		-- Bot: random aim and power
-		local botAngle = rng:NextNumber(-cfg.Match.aimMaxDeg, cfg.Match.aimMaxDeg)
-		launchCar(cars[2], Arena.inwardDirection(a, 2), botAngle, rng:NextNumber(0.5, 1))
+		hitThisRound = false
+		fightElapsed = 0
+		settleTimer = 0
+		launchCar(cars[1], angle, power)
+		-- Bot: aims at you with a little error.
+		local mine, bot = cars[1].body.Position, cars[2].body.Position
+		local noise = rng:NextNumber(-12, 12)
+		launchCar(cars[2], Duel.botAim(bot.X, bot.Z, mine.X, mine.Z, noise), rng:NextNumber(0.6, 1))
 		send({ kind = "fight", round = round })
+	end
+
+	-- Everything stopped (or took too long): stand the cars up, freeze them, aim again.
+	local function finishFight()
+		phase = "settle"
+		for _, car in cars do
+			settleCar(car)
+		end
+		quietRounds = if hitThisRound then 0 else quietRounds + 1
+		task.delay(0.5, function()
+			if not destroyed and phase == "settle" then
+				beginAim()
+			end
+		end)
 	end
 
 	function beginAim()
 		if destroyed or arena == nil then
 			return
 		end
+		-- Match clock: time up = higher HP wins; equal HP = the next hit wins.
+		if os.clock() - matchStart >= cfg.Match.maxMatchSeconds and not suddenDeath then
+			local w = Duel.timeoutWinner(cars[1].hp, cars[2].hp)
+			if w ~= 0 then
+				endMatch(cars[3 - w], "TIME UP!")
+				return
+			end
+			suddenDeath = true
+			send({ kind = "ko", text = "SUDDEN DEATH!", pos = cars[1].body.Position })
+		end
 		phase = "aim"
 		round += 1
-		spawnCars()
 		aimToken += 1
 		local token = aimToken
 		local a = arena :: Arena.Arena
@@ -415,80 +361,73 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 			round = round,
 			yourCar = cars[1].id,
 			enemyCar = cars[2].id,
-			youHearts = hearts[1],
-			enemyHearts = hearts[2],
 			center = a.center,
 			carPos = cars[1].body.Position,
-			baseDir = Arena.inwardDirection(a, 1),
+			enemyPos = cars[2].body.Position,
+			baseDir = Vector3.zAxis,
+			seconds = cfg.Match.aimTimeout,
 		})
-		-- Too slow? The server launches for you.
+		-- Too slow? The server gives you a small random push.
 		task.delay(cfg.Match.aimTimeout, function()
 			if not destroyed and phase == "aim" and token == aimToken then
-				startFight(0, 0.6)
+				startFight(rng:NextNumber(-180, 180), 0.35)
 			end
 		end)
 	end
 
-	-- Every frame during a fight: both cars auto-pilot, then remember velocity for impact math.
+	local function startMatch()
+		if arena == nil then
+			arena = Arena.build(origin)
+		end
+		round, quietRounds, suddenDeath = 0, 0, false
+		matchStart = os.clock()
+		spawnCars()
+		beginAim()
+	end
+
+	-- Every frame during a fight: slow the cars a little (coasting), remember velocity for the
+	-- impact math, catch ring-outs, and end the fight when both cars have stopped.
 	local fightConn = RunService.Heartbeat:Connect(function(dt)
 		if phase ~= "fight" or frozen then
 			return
 		end
+		local origin3 = origin
+		local factor = Duel.dragFactor(cfg.Coast.dragPerSec, dt)
+		local fastest = 0
 		for _, car in cars do
-			car.boostLeft, car.boostCd = Logic.tickBoost(car.boostLeft, car.boostCd, dt)
-			car.specialCd = math.max(0, car.specialCd - dt)
-			car.spikeLeft = math.max(0, car.spikeLeft - dt)
-			if car.boostLeft <= 0 then
-				car.flame.Enabled = false
-			end
-		end
-		-- Bot boosts now and then when the player is a good run away and in front.
-		local bot, you = cars[2], cars[1]
-		if not bot.dead and not you.dead and Logic.canBoost(bot.boostLeft, bot.boostCd) then
-			local toYou = you.body.Position - bot.body.Position
-			local dist = toYou.Magnitude
-			if
-				dist >= cfg.Boost.botMinDist
-				and dist <= cfg.Boost.botMaxDist
-				and bot.body.CFrame.LookVector:Dot(toYou.Unit) > 0.9
-				and rng:NextNumber() < 0.05
-			then
-				startBoost(bot)
-			end
-		end
-		-- Bot special: Heavy/Ramp when close, Light/Spike when there is room to run.
-		if
-			not bot.dead
-			and not you.dead
-			and Fight.canSpecial(bot.specialCd)
-			and rng:NextNumber() < 0.03
-		then
-			local dist = (you.body.Position - bot.body.Position).Magnitude
-			local close = bot.id == "Heavy" or bot.id == "Ramp"
-			if (close and dist < 20) or (not close and dist > 22) then
-				useSpecial(bot)
-			end
-		end
-		for i, car in cars do
 			if not car.dead then
-				Autopilot.step(car, cars[3 - i], dt, rayParams, origin)
+				local v = car.body.AssemblyLinearVelocity
+				car.body.AssemblyLinearVelocity = Vector3.new(v.X * factor, v.Y, v.Z * factor)
 			end
 		end
 		for _, car in cars do
 			car.prevVel = car.body.AssemblyLinearVelocity
+			fastest = math.max(fastest, car.prevVel.Magnitude)
 			-- Pushed past the rim, or fell out of the bowl = ring-out = 0 HP.
 			if not car.dead then
-				local dx, dz = car.body.Position.X - origin.X, car.body.Position.Z - origin.Z
+				local dx, dz = car.body.Position.X - origin3.X, car.body.Position.Z - origin3.Z
 				local out = Fight.isRingOut(
 					math.sqrt(dx * dx + dz * dz),
 					cfg.Arena.rimRadius,
 					cfg.RingOut.margin
 				)
-				if out or car.body.Position.Y < origin.Y - cfg.Match.outOfBoundsDrop then
-					car.hp = 0
-					endRound(car, "RING OUT!")
+				if out or car.body.Position.Y < origin3.Y - cfg.Match.outOfBoundsDrop then
+					endMatch(car, "RING OUT!")
+					return
 				end
 			end
+		end
+		fightElapsed += dt
+		settleTimer = Duel.tickSettle(settleTimer, fastest, dt, cfg.Coast.settleSpeed)
+		if
+			Duel.fightOver(
+				settleTimer,
+				fightElapsed,
+				cfg.Coast.settleTime,
+				cfg.Coast.fightMaxSeconds
+			)
+		then
+			finishFight()
 		end
 	end)
 
@@ -501,42 +440,17 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 				return
 			end
 			playerCarId = carId :: string
-			hearts = { cfg.Match.hearts, cfg.Match.hearts }
-			round = 0
-			if arena == nil then
-				arena = Arena.build(origin)
-			end
-			beginAim()
+			startMatch()
 		end,
 		launch = function(angle: any, power: any)
 			if destroyed or phase ~= "aim" then
 				return
 			end
-			local a, p = Logic.sanitizeLaunch(angle, power, cfg.Match.aimMaxDeg)
+			local a, p = Logic.sanitizeLaunch(angle, power, 180)
 			if a == nil or p == nil then
 				return
 			end
 			startFight(a, p)
-		end,
-		boost = function()
-			if destroyed or phase ~= "fight" then
-				return
-			end
-			local mine = cars[1]
-			if mine then
-				-- Every tap is also a counter try (locked for a few seconds after each tap).
-				Fight.tap(mine.counter, os.clock(), cfg.Counter.cooldown)
-				startBoost(mine)
-			end
-		end,
-		special = function()
-			if destroyed or phase ~= "fight" then
-				return
-			end
-			local mine = cars[1]
-			if mine then
-				useSpecial(mine)
-			end
 		end,
 		destroy = function()
 			destroyed = true
@@ -549,8 +463,7 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 	}
 	if opts and CarConfig.get(opts.carId) ~= nil then
 		playerCarId = opts.carId
-		arena = Arena.build(origin)
-		beginAim()
+		startMatch()
 	end
 	return handle
 end

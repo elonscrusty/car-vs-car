@@ -50,3 +50,6 @@ All positions/sizes (room, pads, gacha, store, spawn) are in the pure `src/share
 ## Fight upgrades: tweak
 - All numbers in GameConfig: Launch, Special, Counter, RingOut, Ai, Drive. Car speeds in CarConfig.
 - Ability remote now takes "boost" or "special". UiUpdate kinds added: special, counter, ko.
+
+## Update (Phase 1, coast-only duel)
+Design now follows `/mnt/project-files/car-vs-car/game-plan.md` (carter approved all star picks). Autopilot, boost, specials, counters and hearts are removed; see top of SNAPSHOT.md. Next: carter plays on phone and says how it feels, then tune `GameConfig.Coast/Launch/Drive`. Then Phase 2 (two real players, simultaneous aim). Lobby code is untouched (gacha still there; plan says claw machine in Phase 5).

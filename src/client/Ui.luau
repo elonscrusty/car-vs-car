@@ -3,38 +3,23 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
 
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
 
 local Ui = {}
 
-local READY_COLOR = Color3.fromRGB(120, 255, 140)
-
 export type Handlers = {
 	onPick: (carId: string) -> (),
-	onConfirm: () -> (), -- LAUNCH / tap button
-	onAimHold: (dir: number) -> (), -- -1 right, 0 stop, +1 left
-	onBoost: () -> (),
-	onSpecial: () -> (),
 }
 
 export type View = {
 	showPick: () -> (),
-	showAim: (
-		youHearts: number,
-		enemyHearts: number,
-		round: number,
-		youCar: string,
-		enemyCar: string
-	) -> (),
+	showAim: (round: number, youCar: string, enemyCar: string, seconds: number) -> (),
 	showPower: (power: number) -> (),
 	showFight: () -> (),
-	showRoundEnd: (youLost: boolean, youHearts: number, enemyHearts: number) -> (),
+	showRoundEnd: (youLost: boolean) -> (),
 	showMatchEnd: (youWon: boolean) -> (),
 	hideMatch: () -> (), -- back to lobby: hide every match screen
-	startBoostCooldown: (seconds: number) -> (),
-	startSpecialCooldown: (seconds: number) -> (),
 }
 
 local function label(parent: Instance, text: string, size: UDim2, pos: UDim2): TextLabel
@@ -72,10 +57,6 @@ local function button(
 	corner.CornerRadius = UDim.new(0.2, 0)
 	corner.Parent = b
 	return b
-end
-
-local function hearts(n: number): string
-	return string.rep("♥", n) .. string.rep("♡", math.max(0, 3 - n))
 end
 
 function Ui.create(h: Handlers): View
@@ -117,67 +98,19 @@ function Ui.create(h: Handlers): View
 	local msg = label(gui, "", UDim2.fromScale(0.7, 0.14), UDim2.fromScale(0.15, 0.22))
 	msg.Visible = false
 
-	-- Aim controls
+	-- Aim hint (the aiming itself is a drag on the screen, see AimInput)
 	local aimFrame = Instance.new("Frame")
 	aimFrame.Size = UDim2.fromScale(1, 1)
 	aimFrame.BackgroundTransparency = 1
 	aimFrame.Visible = false
 	aimFrame.Parent = gui
-	local leftB = button(
-		aimFrame,
-		"◀",
-		UDim2.fromScale(0.14, 0.2),
-		UDim2.fromScale(0.03, 0.74),
-		Color3.fromRGB(60, 90, 160)
-	)
-	local rightB = button(
-		aimFrame,
-		"▶",
-		UDim2.fromScale(0.14, 0.2),
-		UDim2.fromScale(0.19, 0.74),
-		Color3.fromRGB(60, 90, 160)
-	)
-	local goB = button(
-		aimFrame,
-		"LOCK AIM",
-		UDim2.fromScale(0.26, 0.2),
-		UDim2.fromScale(0.7, 0.74),
-		Color3.fromRGB(230, 90, 40)
-	)
-	local hint = label(
-		aimFrame,
-		"A / D or arrows to aim",
-		UDim2.fromScale(0.5, 0.06),
-		UDim2.fromScale(0.25, 0.88)
-	)
+	local hint = label(aimFrame, "", UDim2.fromScale(0.6, 0.08), UDim2.fromScale(0.2, 0.88))
 	hint.Font = Enum.Font.GothamBold
-
-	local function hold(b: TextButton, dir: number)
-		b.InputBegan:Connect(function(input: InputObject)
-			if
-				input.UserInputType == Enum.UserInputType.MouseButton1
-				or input.UserInputType == Enum.UserInputType.Touch
-			then
-				h.onAimHold(dir)
-			end
-		end)
-		b.InputEnded:Connect(function(input: InputObject)
-			if
-				input.UserInputType == Enum.UserInputType.MouseButton1
-				or input.UserInputType == Enum.UserInputType.Touch
-			then
-				h.onAimHold(0)
-			end
-		end)
-	end
-	hold(leftB, 1)
-	hold(rightB, -1)
-	goB.Activated:Connect(h.onConfirm)
 
 	-- Power bar
 	local powerBack = Instance.new("Frame")
-	powerBack.Size = UDim2.fromScale(0.5, 0.06)
-	powerBack.Position = UDim2.fromScale(0.25, 0.8)
+	powerBack.Size = UDim2.fromScale(0.5, 0.04)
+	powerBack.Position = UDim2.fromScale(0.25, 0.82)
 	powerBack.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 	powerBack.Visible = false
 	powerBack.Parent = gui
@@ -186,57 +119,6 @@ function Ui.create(h: Handlers): View
 	powerFill.BorderSizePixel = 0
 	powerFill.Size = UDim2.fromScale(0, 1)
 	powerFill.Parent = powerBack
-
-	-- Boost + special buttons with cooldown bars (fight only)
-	local function abilityButton(text: string, x: number, color: Color3, onTap: () -> ())
-		local b = button(gui, text, UDim2.fromScale(0.22, 0.2), UDim2.fromScale(x, 0.74), color)
-		b.Visible = false
-		local limit = Instance.new("UISizeConstraint") -- big touch target, even on small screens
-		limit.MinSize = Vector2.new(96, 64)
-		limit.Parent = b
-		local bar = Instance.new("Frame")
-		bar.AnchorPoint = Vector2.new(0, 1)
-		bar.Size = UDim2.fromScale(1, 0.14)
-		bar.Position = UDim2.fromScale(0, 1)
-		bar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-		bar.BackgroundTransparency = 0.3
-		bar.BorderSizePixel = 0
-		bar.Parent = b
-		local fill = Instance.new("Frame")
-		fill.Size = UDim2.fromScale(1, 1)
-		fill.BackgroundColor3 = READY_COLOR
-		fill.BorderSizePixel = 0
-		fill.Parent = bar
-		b.Activated:Connect(onTap)
-		return b, fill
-	end
-	local boostB, boostFill = abilityButton("BOOST", 0.74, Color3.fromRGB(255, 150, 20), h.onBoost)
-	local specialB, specialFill =
-		abilityButton("SPECIAL", 0.50, Color3.fromRGB(150, 70, 230), h.onSpecial)
-	local tokens: { [Frame]: number } = { [boostFill] = 0, [specialFill] = 0 }
-
-	local function resetFill(fill: Frame)
-		tokens[fill] += 1
-		fill.Size = UDim2.fromScale(1, 1)
-		fill.BackgroundColor3 = READY_COLOR
-	end
-
-	local function startCooldown(fill: Frame, seconds: number)
-		tokens[fill] += 1
-		local token = tokens[fill]
-		fill.BackgroundColor3 = Color3.fromRGB(255, 90, 60)
-		fill.Size = UDim2.fromScale(0, 1)
-		TweenService:Create(
-			fill,
-			TweenInfo.new(seconds, Enum.EasingStyle.Linear),
-			{ Size = UDim2.fromScale(1, 1) }
-		):Play()
-		task.delay(seconds, function()
-			if token == tokens[fill] then
-				fill.BackgroundColor3 = READY_COLOR
-			end
-		end)
-	end
 
 	-- End screen
 	local endFrame = Instance.new("Frame")
@@ -253,8 +135,6 @@ function Ui.create(h: Handlers): View
 		powerBack.Visible = false
 		endFrame.Visible = false
 		msg.Visible = false
-		boostB.Visible = false
-		specialB.Visible = false
 	end
 
 	local view: View = {} :: any
@@ -265,10 +145,10 @@ function Ui.create(h: Handlers): View
 		pick.Visible = true
 	end
 
-	view.showAim = function(youHearts, enemyHearts, round, youCar, enemyCar)
+	view.showAim = function(round, youCar, enemyCar, seconds)
 		hideAll()
 		top.Visible = true
-		top.Text = `YOU {hearts(youHearts)}  vs  {hearts(enemyHearts)} BOT   (round {round})`
+		top.Text = `YOU  vs  BOT   (round {round})`
 		msg.Visible = true
 		local matchup = `{youCar} vs {enemyCar}`
 		msg.Text = matchup
@@ -279,46 +159,35 @@ function Ui.create(h: Handlers): View
 			end
 		end)
 		aimFrame.Visible = true
-		goB.Text = "LOCK AIM"
-		hint.Text = "A / D or arrows to aim"
+		local deadline = os.clock() + seconds
+		hint.Text = "PULL BACK, LET GO TO LAUNCH"
+		task.spawn(function()
+			while aimFrame.Visible and os.clock() < deadline do
+				top.Text = `YOU  vs  BOT   (round {round})   {math.ceil(deadline - os.clock())}`
+				task.wait(0.25)
+			end
+		end)
 	end
 
 	view.showPower = function(power)
-		powerBack.Visible = true
+		powerBack.Visible = power > 0
 		powerFill.Size = UDim2.fromScale(power, 1)
-		goB.Text = "LAUNCH!"
-		hint.Text = "Tap / click / space to launch"
 	end
 
 	view.showFight = function()
 		hideAll()
 		msg.Visible = true
-		msg.Text = "FIGHT!"
-		boostB.Visible = true
-		specialB.Visible = true
-		resetFill(boostFill)
-		resetFill(specialFill)
+		msg.Text = "GO!"
 		task.delay(1, function()
-			if msg.Text == "FIGHT!" then
+			if msg.Text == "GO!" then
 				msg.Visible = false
 			end
 		end)
 	end
 
-	view.startBoostCooldown = function(seconds)
-		startCooldown(boostFill, seconds)
-	end
-
-	view.startSpecialCooldown = function(seconds)
-		startCooldown(specialFill, seconds)
-	end
-
-	view.showRoundEnd = function(youLost, youHearts, enemyHearts)
-		top.Text = `YOU {hearts(youHearts)}  vs  {hearts(enemyHearts)} BOT`
+	view.showRoundEnd = function(youLost)
 		msg.Visible = true
-		msg.Text = if youLost then "ROUND LOST" else "ROUND WON!"
-		boostB.Visible = false
-		specialB.Visible = false
+		msg.Text = if youLost then "YOU ARE OUT" else "BOT IS OUT"
 	end
 
 	view.showMatchEnd = function(youWon)

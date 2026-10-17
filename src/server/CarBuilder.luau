@@ -4,11 +4,8 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Ai = require(ReplicatedStorage.Shared.Ai)
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
-local Fight = require(ReplicatedStorage.Shared.Fight)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
-local Fx = require(script.Parent.Fx)
 local HpBar = require(script.Parent.HpBar)
 
 export type Car = {
@@ -19,17 +16,9 @@ export type Car = {
 	body: Part,
 	hp: number,
 	dead: boolean,
-	ai: Ai.Memory,
-	flipTimer: number,
 	prevVel: Vector3, -- velocity from the end of last frame (used to measure impact)
 	bar: HpBar.Bar,
-	boostLeft: number, -- seconds of boost remaining
-	boostCd: number, -- seconds until boost is ready again
-	specialCd: number, -- seconds until the special move is ready
-	spikeLeft: number, -- Spike: seconds of spikes-out left
-	counter: Fight.CounterState, -- tap timing for counter hits
 	smoking: boolean,
-	flame: ParticleEmitter,
 }
 
 local CarBuilder = {}
@@ -186,17 +175,9 @@ function CarBuilder.build(id: string, idx: number, cf: CFrame, parent: Instance)
 		body = body,
 		hp = stats.hp,
 		dead = false,
-		ai = Ai.newMemory(stats.ai, if idx == 1 then 1 else -1),
-		flipTimer = 0,
 		prevVel = Vector3.zero,
 		bar = bar,
-		boostLeft = 0,
-		boostCd = 0,
-		specialCd = 0,
-		spikeLeft = 0,
-		counter = Fight.newCounter(),
 		smoking = false,
-		flame = Fx.flame(body),
 	}
 end
 

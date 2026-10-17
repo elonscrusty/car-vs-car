@@ -21,7 +21,6 @@ local remotes = Remotes.get()
 local launchLimiter =
 	RateLimiter.new(GameConfig.Remote.maxPerWindow, GameConfig.Remote.windowSeconds)
 local selectLimiter = RateLimiter.new(3, GameConfig.Remote.windowSeconds)
-local abilityLimiter = RateLimiter.new(4, GameConfig.Remote.windowSeconds)
 local lobbyLimiter = RateLimiter.new(6, GameConfig.Remote.windowSeconds)
 
 local matches: { [Player]: Match.Handle } = {}
@@ -94,7 +93,6 @@ local function onPlayerRemoving(player: Player)
 	lobbyService.onPlayerRemoving(player)
 	launchLimiter.clear(player)
 	selectLimiter.clear(player)
-	abilityLimiter.clear(player)
 	lobbyLimiter.clear(player)
 end
 
@@ -109,17 +107,6 @@ remotes.Launch.OnServerEvent:Connect(function(player: Player, angle: any, power:
 	local m = matches[player]
 	if m and launchLimiter.allow(player, os.clock()) then
 		m.launch(angle, power)
-	end
-end)
-
-remotes.Ability.OnServerEvent:Connect(function(player: Player, kind: any)
-	local m = matches[player]
-	if m and abilityLimiter.allow(player, os.clock()) then
-		if kind == "special" then
-			m.special()
-		else
-			m.boost()
-		end
 	end
 end)
 

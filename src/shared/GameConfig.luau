@@ -15,17 +15,27 @@ local GameConfig = {
 		spawnRadius = 50, -- launch spots, studs from center
 	},
 	Match = {
-		hearts = 3,
-		aimTimeout = 20, -- seconds before the server auto launches for you
+		aimTimeout = 8, -- seconds to aim before the server launches for you
 		roundEndDelay = 3.5, -- seconds to watch the dummy fly
-		aimMaxDeg = 40, -- aim left/right limit
+		maxMatchSeconds = 240, -- time up: higher HP wins, equal HP = next hit wins
 		outOfBoundsDrop = 40, -- car this far below the arena = counts as dead
 	},
 	Launch = {
-		minSpeed = 80, -- studs/sec at 0% power
-		maxSpeed = 170, -- studs/sec at 100% power
-		powerPeriod = 1.2, -- seconds for power bar to go up and down once
-		aimDegPerSec = 60, -- how fast A/D turns the arrow
+		minSpeed = 70, -- studs/sec at 0% power
+		maxSpeed = 150, -- studs/sec at 100% power
+	},
+	-- Drag-to-launch (phone + mouse): pull back like a slingshot, let go to launch.
+	Drag = {
+		minFrac = 0.03, -- drags shorter than this share of the screen do nothing
+		maxFrac = 0.3, -- a drag this long = 100% power
+	},
+	-- Cars only coast after launch. Drag slows them; "settled" = both slow for a moment.
+	Coast = {
+		dragPerSec = 0.45, -- horizontal speed lost per second (share)
+		settleSpeed = 5, -- both cars slower than this (studs/sec) counts as stopped
+		settleTime = 0.8, -- ...for this many seconds
+		fightMaxSeconds = 15, -- hard cap per launch, then cars are forced to stop
+		quietDamageStep = 0.25, -- +25% damage for each round in a row with no hit
 	},
 	Damage = {
 		scale = 0.45, -- damage = impact speed x car multiplier x this
@@ -35,25 +45,6 @@ local GameConfig = {
 	Flip = {
 		upsideDownUpY = 0.2, -- car "up" below this = upside down / on side
 		afterSeconds = 1, -- flip back after this long
-	},
-	Drive = {
-		turnGain = 8, -- how hard the car steers toward target
-		groundFriction = 0.05, -- floor + car friction. Lower = slides more, keeps speed
-		slopeAssist = 1, -- 0..1: how much of the uphill gravity pull the gas cancels (1 = slope feels flat)
-		grip = 6, -- side slide killing (higher = less drifting)
-		groundRayExtra = 2.5, -- studs below car that still count as "on ground"
-	},
-	-- Bot / auto-pilot behavior numbers
-	Ai = {
-		chargeMax = 3, -- Heavy: longest straight charge before backing up
-		retreatTime = 1.1, -- after a hit: seconds driving away for a run-up
-		retreatDist = 28, -- how far away it aims during the run-up
-		maxRadius = 45, -- run-up target stays this close to bowl center
-		circleTime = 2, -- Light: seconds spent circling
-		diveMax = 1.5, -- Light: longest dive before circling again
-		circleRadius = 22, -- Light: circle distance around enemy
-		circleAngleDeg = 40, -- Light: how far around enemy to aim each step
-		stuckSeconds = 0.8, -- barely moving this long = nose-to-nose standoff, back up
 	},
 	Feel = {
 		bigHitSpeed = 70, -- impact speed that counts as a full-strength hit
@@ -68,32 +59,11 @@ local GameConfig = {
 		koCamBack = 20, -- KO camera distance from the dummy
 		smokeBelow = 0.35, -- car smokes when HP is under this share
 	},
-	Boost = {
-		duration = 0.8, -- seconds of extra speed
-		cooldown = 5, -- seconds until the next boost (counts from the start)
-		speedMult = 1.6, -- top speed x this while boosting
-		accelMult = 3, -- acceleration x this while boosting
-		botMinDist = 18, -- bot only boosts when the enemy is this far or more
-		botMaxDist = 60, -- ...and not farther than this
-	},
-	-- One special move per car (key Q / SPECIAL button). Cooldown counts from use.
-	Special = {
-		cooldown = 8,
-		botMinGap = 1.5, -- bot waits this long after a special before thinking about another
-		Heavy = { radius = 28, damage = 25, knock = 90, up = 30 }, -- ground slam shockwave
-		Light = { dash = 75 }, -- instant burst of speed straight ahead
-		Ramp = { range = 24, minDot = 0.7, damage = 15, lift = 40 }, -- flip kick in front
-		Spike = { duration = 3, damageMult = 1.8 }, -- spikes out: hits hurt more for a while
-	},
-	-- Tap boost right before a hit lands to counter it. A tap locks the counter for `cooldown`.
-	Counter = {
-		window = 0.25,
-		cooldown = 4,
-		damageMult = 0.35, -- damage you take on a counter
-		knock = 60, -- shove on the attacker (studs/sec)
-	},
 	-- Pushed past the rim = ring-out = lose the round.
 	RingOut = { margin = 3 },
+	Drive = {
+		groundFriction = 0.15, -- floor + car friction. Lower = slides more
+	},
 	Dummy = {
 		launchUp = 70, -- upward speed of the crash dummy (studs/sec)
 		launchSpread = 25, -- sideways speed random
