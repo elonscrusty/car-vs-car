@@ -145,7 +145,7 @@ function LobbyLife.build(folder: Folder, origin: Vector3, stage: Vector3)
 	emitterOn(
 		life,
 		Vector3.new(14, 0.5, 14),
-		origin + stage + Vector3.new(0, 2.5, 0),
+		origin + stage + Vector3.new(0, 4.8, 0),
 		CYAN,
 		function(e)
 			e.Rate = 10

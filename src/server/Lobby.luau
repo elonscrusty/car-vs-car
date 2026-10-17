@@ -747,10 +747,15 @@ function Lobby.build(): LobbyHandle
 	ring.CanCollide = false
 	glow(ring, CYAN, 28, 1.2)
 	local showcaseColor = Color3.fromRGB(230, 50, 60)
-	local pivot = world(sc.x, 5, sc.z)
-	local showcaseCar = meshCar(folder, "ShowcaseCar", 15, showcaseColor, world(sc.x, 2.2, sc.z))
+	-- The Blender stage (LobbyProps) is taller than the plain one, so the truck rides higher.
+	local modelsFolder = ServerStorage:FindFirstChild("Models")
+	local propsFolder = if modelsFolder then modelsFolder:FindFirstChild("Props") else nil
+	local stageModel = if propsFolder then propsFolder:FindFirstChild("truck_stage") else nil
+	local carY = if stageModel then 4.6 else 2.2
+	local pivot = world(sc.x, carY + 2.8, sc.z)
+	local showcaseCar = meshCar(folder, "ShowcaseCar", 15, showcaseColor, world(sc.x, carY, sc.z))
 	if showcaseCar then
-		pivot = world(sc.x, 2.2, sc.z)
+		pivot = world(sc.x, carY, sc.z)
 	else
 		showcaseCar = miniCar(folder, "ShowcaseCar", showcaseColor, 1.6, pivot)
 	end
