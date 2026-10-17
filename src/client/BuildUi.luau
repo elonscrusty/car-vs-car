@@ -193,21 +193,6 @@ function BuildUi.new(menu: Menu): Handle
 		return l
 	end
 
-	-- Cars row
-	header("YOUR CAR")
-	local carButtons: { [string]: TextButton } = {}
-	for _, id in CarConfig.Order do
-		local stats = CarConfig.Cars[id]
-		local b = button(body, stats.name, UDim2.new(1, -8, 0, 52), CELL)
-		b.LayoutOrder = nextOrder()
-		b.Activated:Connect(function()
-			if ownedCars[id] then
-				tap("buildCar", id)
-			end
-		end)
-		carButtons[id] = b
-	end
-
 	-- One block per slot: level bar + part cards
 	local slotUi: { [string]: { level: TextLabel, upgrade: TextButton } } = {}
 	local partUi: { [string]: { button: TextButton, status: TextLabel, stroke: UIStroke } } = {}
@@ -259,6 +244,21 @@ function BuildUi.new(menu: Menu): Handle
 			end)
 			partUi[id] = { button = b, status = status, stroke = st }
 		end
+	end
+
+	-- Cars row
+	header("YOUR CAR")
+	local carButtons: { [string]: TextButton } = {}
+	for _, id in CarConfig.Order do
+		local stats = CarConfig.Cars[id]
+		local b = button(body, stats.name, UDim2.new(1, -8, 0, 52), CELL)
+		b.LayoutOrder = nextOrder()
+		b.Activated:Connect(function()
+			if ownedCars[id] then
+				tap("buildCar", id)
+			end
+		end)
+		carButtons[id] = b
 	end
 
 	local function refresh()
