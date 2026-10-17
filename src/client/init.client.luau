@@ -15,6 +15,7 @@ local Ui = require(script.Ui)
 local remotes = Remotes.get()
 local director = CameraDirector.new()
 
+local camSide: Vector3? = nil -- from the middle toward your car, fixed for the whole match
 local aim: AimInput.AimInput
 local view: Ui.View
 
@@ -44,7 +45,10 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 	if u.kind == "aim" then
 		lobby.hideChoices() -- the pick card must not cover the match
 		if u.center then
-			director.overview(u.center)
+			if u.round == 1 or camSide == nil then
+				camSide = if u.carPos then u.carPos - u.center else nil
+			end
+			director.overview(u.center, camSide)
 		end
 		view.showAim(u.round or 1, u.yourCar or "", u.enemyCar or "", u.seconds or 8)
 		if u.carPos then

@@ -10,7 +10,7 @@ local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local CameraDirector = {}
 
 export type Director = {
-	overview: (center: Vector3) -> (),
+	overview: (center: Vector3, side: Vector3?) -> (), -- side: flat direction from the middle to your car
 	focus: (target: BasePart?) -> (), -- KO: follow the dummy and zoom in
 	shake: (strength: number) -> (), -- 0..1
 	punchFov: (amount: number) -> (), -- brief zoom-in punch
@@ -53,11 +53,14 @@ function CameraDirector.new(): Director
 		c.CFrame = base * CFrame.new(offset)
 	end)
 
-	local function overview(center: Vector3)
+	local function overview(center: Vector3, side: Vector3?)
 		target = nil
 		active = true
 		goalFov, fov = feel.normalFov, feel.normalFov
-		base = CFrame.lookAt(center + Vector3.new(0, 100, 88), center)
+		-- Camera sits behind YOUR car so it is the near one, bottom of the screen.
+		local flat = if side then Vector3.new(side.X, 0, side.Z) else Vector3.zero
+		local dir = if flat.Magnitude > 0.01 then flat.Unit else Vector3.zAxis
+		base = CFrame.lookAt(center + dir * 88 + Vector3.new(0, 100, 0), center)
 		local c = cam()
 		c.CameraType = Enum.CameraType.Scriptable
 	end
