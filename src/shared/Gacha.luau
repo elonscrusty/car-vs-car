@@ -1,10 +1,19 @@
 --!strict
 -- Gacha rules (pure). The server passes a Random-backed rng; tests pass a fake.
 
-local CarConfig = require("./CarConfig")
-local Inventory = require("./Inventory")
-local LobbyConfig = require("./LobbyConfig")
+-- Sibling loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
+local function sibling(name: string): any
+	if script then
+		return require((script :: any).Parent[name])
+	end
+	return require("./" .. name)
+end
 
+local CarConfig = sibling("CarConfig")
+local Inventory = sibling("Inventory")
+local LobbyConfig = sibling("LobbyConfig")
+
+type Profile = { coins: number, freePullUsed: boolean, owned: { [string]: boolean } }
 export type OddsRow = { rarity: string, percent: number, cars: { string } }
 export type PullResult = { carId: string, isNew: boolean, refund: number, free: boolean }
 
@@ -29,11 +38,11 @@ function Gacha.oddsTable(): { OddsRow }
 	return rows
 end
 
-local function isFree(p: Inventory.Profile): boolean
+local function isFree(p: Profile): boolean
 	return LobbyConfig.Gacha.firstPullFree and not p.freePullUsed
 end
 
-function Gacha.canBuy(p: Inventory.Profile): (boolean, string?)
+function Gacha.canBuy(p: Profile): (boolean, string?)
 	if isFree(p) or p.coins >= LobbyConfig.Gacha.price then
 		return true, nil
 	end
@@ -41,7 +50,7 @@ function Gacha.canBuy(p: Inventory.Profile): (boolean, string?)
 end
 
 -- Mutates p. Errors if the player can't afford it (callers check canBuy first).
-function Gacha.pull(p: Inventory.Profile, rng: () -> number): PullResult
+function Gacha.pull(p: Profile, rng: () -> number): PullResult
 	local ok = Gacha.canBuy(p)
 	if not ok then
 		error("cannot afford gacha pull")

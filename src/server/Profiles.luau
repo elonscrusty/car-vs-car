@@ -69,10 +69,7 @@ local function retryOpts(label: string): Retry.Options
 end
 
 local function copyProfile(p: Profile): Profile
-	local owned = {}
-	for id, v in p.owned do
-		owned[id] = v
-	end
+	local owned = table.clone(p.owned)
 	return {
 		version = p.version,
 		coins = p.coins,
@@ -90,7 +87,7 @@ local function acquire(state: State)
 end
 
 -- Returns "ok", "locked" or "error".
-local function tryLoad(player: Player, state: State): (string, Profile?)
+local function tryLoad(player: Player, _state: State): (string, Profile?)
 	local ds = getStore()
 	if ds == nil then
 		return "error", nil

@@ -36,7 +36,7 @@ function SessionLock.canClaim(
 end
 
 -- New record holding the lock for jobId (also used to refresh the timestamp). `data` replaces the stored data.
-function SessionLock.claim(record: Record?, jobId: string, now: number, data: any): Record
+function SessionLock.claim(_record: Record?, jobId: string, now: number, data: any): Record
 	return { lock = { jobId = jobId, t = now }, data = data }
 end
 

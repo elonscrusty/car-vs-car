@@ -1,8 +1,16 @@
 --!strict
 -- Player profile data (pure). Everything coming from a DataStore goes through migrate.
 
-local CarConfig = require("./CarConfig")
-local LobbyConfig = require("./LobbyConfig")
+-- Sibling loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
+local function sibling(name: string): any
+	if script then
+		return require((script :: any).Parent[name])
+	end
+	return require("./" .. name)
+end
+
+local CarConfig = sibling("CarConfig")
+local LobbyConfig = sibling("LobbyConfig")
 
 export type Profile = {
 	version: number,
