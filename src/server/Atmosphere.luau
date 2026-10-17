@@ -22,12 +22,12 @@ local function effect<T>(className: string, name: string): T
 end
 
 function Atmosphere.apply()
-	Lighting.ClockTime = 15
+	Lighting.ClockTime = 14
 	Lighting.GeographicLatitude = 35
-	Lighting.Brightness = 2.4
-	Lighting.Ambient = Color3.fromRGB(78, 84, 108)
-	Lighting.OutdoorAmbient = Color3.fromRGB(120, 126, 150)
-	Lighting.ColorShift_Top = Color3.fromRGB(255, 240, 220)
+	Lighting.Brightness = 3
+	Lighting.Ambient = Color3.fromRGB(100, 98, 96)
+	Lighting.OutdoorAmbient = Color3.fromRGB(135, 132, 128)
+	Lighting.ColorShift_Top = Color3.fromRGB(255, 232, 200)
 	Lighting.EnvironmentDiffuseScale = 0.6
 	Lighting.EnvironmentSpecularScale = 0.4
 	Lighting.ExposureCompensation = 0
@@ -37,24 +37,24 @@ function Atmosphere.apply()
 	local haze: Atmosphere = effect("Atmosphere", "GameAtmosphere")
 	haze.Density = 0.22
 	haze.Offset = 0.15
-	haze.Color = Color3.fromRGB(190, 205, 230)
-	haze.Decay = Color3.fromRGB(110, 120, 150)
+	haze.Color = Color3.fromRGB(215, 214, 205)
+	haze.Decay = Color3.fromRGB(140, 130, 115)
 	haze.Glare = 0
 	haze.Haze = 0.8
 
 	local bloom: BloomEffect = effect("BloomEffect", "GameBloom")
-	bloom.Intensity = 0.12
+	bloom.Intensity = 0.04
 	bloom.Size = 12
-	bloom.Threshold = 1.4
+	bloom.Threshold = 2
 
 	local grade: ColorCorrectionEffect = effect("ColorCorrectionEffect", "GameGrade")
-	grade.Saturation = 0.14
-	grade.Contrast = 0.1
+	grade.Saturation = -0.04
+	grade.Contrast = 0.06
 	grade.Brightness = 0.02
-	grade.TintColor = Color3.fromRGB(255, 249, 242)
+	grade.TintColor = Color3.fromRGB(255, 244, 228)
 
 	local rays: SunRaysEffect = effect("SunRaysEffect", "GameSunRays")
-	rays.Intensity = 0.06
+	rays.Intensity = 0.03
 	rays.Spread = 0.6
 end
 

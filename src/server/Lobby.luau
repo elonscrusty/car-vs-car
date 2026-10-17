@@ -290,8 +290,8 @@ function Lobby.build(): LobbyHandle
 		sc.x,
 		sc.z,
 		0.8,
-		CYAN,
-		Enum.Material.Neon
+		Color3.fromRGB(70, 130, 150),
+		Enum.Material.SmoothPlastic
 	)
 	for z = L.gate.z - 4, L.pads[1].z + 16, -6 do
 		mark("FloorDash", 0.8, 3.2, 0, z, YELLOW)
@@ -381,7 +381,7 @@ function Lobby.build(): LobbyHandle
 						"WindowGlass",
 						Vector3.new(segW * 0.7, 14, 0.3),
 						ucf * CFrame.new(0, 2, -room.wall / 2 - 0.2),
-						Color3.fromRGB(200, 228, 255),
+						Color3.fromRGB(255, 240, 210),
 						Enum.Material.Neon
 					)
 					win.CanCollide = false
@@ -389,9 +389,9 @@ function Lobby.build(): LobbyHandle
 					local light = Instance.new("SurfaceLight")
 					light.Face = Enum.NormalId.Front
 					light.Range = 36
-					light.Brightness = 1.6
+					light.Brightness = 1.1
 					light.Angle = 150
-					light.Color = Color3.fromRGB(205, 225, 255)
+					light.Color = Color3.fromRGB(255, 232, 195)
 					light.Shadows = false
 					light.Parent = win
 					for _, mx in { -0.25, 0.25 } do
@@ -419,7 +419,6 @@ function Lobby.build(): LobbyHandle
 				world(cx + (if cx < 0 then -1 else 1), top / 2, cz + (if cz < 0 then -1 else 1)),
 				DARK
 			)
-			glow(post, CYAN, 24, 0.5)
 		end
 	end
 	-- Above the bay door: a lintel with the rolled-up roller door under it.
@@ -511,7 +510,7 @@ function Lobby.build(): LobbyHandle
 		local light = Instance.new("SurfaceLight")
 		light.Face = Enum.NormalId.Bottom
 		light.Range = 48
-		light.Brightness = 2.2
+		light.Brightness = 1.5
 		light.Angle = 160
 		light.Color = Color3.fromRGB(255, 244, 222)
 		light.Shadows = false
@@ -591,7 +590,7 @@ function Lobby.build(): LobbyHandle
 			Enum.Material.Neon
 		)
 		gstrip.CanCollide = false
-		glow(gpost, CYAN, 24, 0.8)
+		glow(gpost, CYAN, 24, 0.3)
 	end
 	local startW = 24
 	for col = 1, 16 do
@@ -654,11 +653,10 @@ function Lobby.build(): LobbyHandle
 		"MezzEdge",
 		Vector3.new(mz.w, 0.4, 0.5),
 		world(mz.x, deckTop - 0.9, mzFront),
-		CYAN,
-		Enum.Material.Neon
+		Color3.fromRGB(235, 190, 40),
+		Enum.Material.SmoothPlastic
 	)
 	mzEdge.CanCollide = false
-	glow(mzEdge, CYAN, 30, 0.8)
 	for cx = -mz.w / 2 + 4, mz.w / 2 - 4, (mz.w - 8) / 6 do
 		part(
 			folder,
@@ -713,8 +711,8 @@ function Lobby.build(): LobbyHandle
 				"MezzRampEdge",
 				Vector3.new(0.4, 0.4, len),
 				rcf * CFrame.new(ex * (rm.w / 2 - 0.2), 0.5, 0),
-				YELLOW,
-				Enum.Material.Neon
+				Color3.fromRGB(235, 190, 40),
+				Enum.Material.SmoothPlastic
 			)
 			edge.CanCollide = false
 		end
@@ -1001,7 +999,7 @@ function Lobby.build(): LobbyHandle
 	)
 	label(board, Enum.NormalId.Front, "STAND TO PLAY", YELLOW, DARK)
 	board.CanCollide = false
-	glow(board, YELLOW, 24, 0.5)
+	glow(board, YELLOW, 24, 0.25)
 	local sub = part(
 		folder,
 		"StandToPlaySub",
@@ -1037,10 +1035,10 @@ function Lobby.build(): LobbyHandle
 			"MatchPad" .. i,
 			Vector3.new(size - 4, 0.4, size - 4),
 			world(pp.x, 1, pp.z),
-			GREEN,
-			Enum.Material.Neon
+			Color3.fromRGB(40, 150, 70),
+			Enum.Material.SmoothPlastic
 		)
-		padPart.Transparency = 0.15
+		padPart.Transparency = 0
 		-- Two white "person" icons on the pad (flat discs: head and shoulders).
 		for _, ix in { -2.6, 2.6 } do
 			local head = part(
@@ -1064,7 +1062,7 @@ function Lobby.build(): LobbyHandle
 			)
 			body.CanCollide = false
 		end
-		glow(padPart, GREEN, 18, 0.6)
+		glow(padPart, GREEN, 18, 0.25)
 		local badge = part(
 			folder,
 			"PadNumber" .. i,
@@ -1125,7 +1123,7 @@ function Lobby.build(): LobbyHandle
 	spawn.Neutral = true
 	spawn.AllowTeamChangeOnTouch = false
 	spawn.Duration = 0
-	spawn.Material = Enum.Material.Neon
+	spawn.Material = Enum.Material.SmoothPlastic
 	spawn.Color = YELLOW
 	spawn.TopSurface = Enum.SurfaceType.Smooth
 	spawn.Parent = folder

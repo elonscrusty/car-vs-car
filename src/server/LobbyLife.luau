@@ -111,8 +111,8 @@ function LobbyLife.build(folder: Folder, origin: Vector3, stage: Vector3, stageT
 		b.CanTouch = false
 		b.CastShadow = false
 		b.Material = Enum.Material.Neon
-		b.Color = if sx < 0 then CYAN else Color3.fromRGB(255, 120, 200)
-		b.Transparency = 0.93
+		b.Color = Color3.fromRGB(255, 232, 180)
+		b.Transparency = 0.95
 		b.CFrame = CFrame.lookAt(from:Lerp(to, 0.5), to) * CFrame.Angles(0, math.pi / 2, 0)
 		b.Parent = life
 		table.insert(beams, b)
@@ -239,12 +239,12 @@ function LobbyLife.build(folder: Folder, origin: Vector3, stage: Vector3, stageT
 		holo.CFrame = CFrame.new(holoBase + Vector3.new(0, math.sin(t * 1.2) * 0.6, 0))
 			* CFrame.Angles(0, t * 0.8, math.pi / 2)
 		for i, b in beams do
-			b.Transparency = 0.9 + 0.05 * math.sin(t * 0.9 + i * 2)
+			b.Transparency = 0.94 + 0.03 * math.sin(t * 0.9 + i * 2)
 		end
 
 		-- Pad lights pulse.
 		for i, l in padLights do
-			l.Brightness = 0.6 + 0.25 * math.sin(t * 2.2 + i)
+			l.Brightness = 0.3 + 0.12 * math.sin(t * 2.2 + i)
 		end
 
 		-- Big sign swaps between yellow and cyan.
