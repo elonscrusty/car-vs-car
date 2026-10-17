@@ -16,8 +16,6 @@ local Hints = sibling("Hints")
 local LobbyConfig = sibling("LobbyConfig")
 local Progress = sibling("Progress")
 local Daily = sibling("Daily")
-local Hints = sibling("Hints")
-local LobbyConfig = sibling("LobbyConfig")
 local Quests = sibling("Quests")
 local Paint = sibling("Paint")
 

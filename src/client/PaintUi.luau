@@ -445,10 +445,8 @@ function PaintUi.new(menu: Menu): Handle
 			else
 				message.Text = REASONS[u.reason or ""] or REASONS.unknown
 			end
-		elseif u.kind == "countdown" and u.seconds > 0 then
+		elseif (u.kind == "countdown" and u.seconds > 0) or u.kind == "choices" then
 			backdrop.Visible = false -- stepped on a pad
-		elseif u.kind == "choices" then
-			backdrop.Visible = false
 		end
 	end
 
