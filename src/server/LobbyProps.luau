@@ -24,8 +24,6 @@ local SPOTS: { Spot } = {
 	{ name = "pegboard_tools", x = -89.2, z = -4, face = -90, y = 7.5, scale = 1.2 },
 	{ name = "pegboard_tools", x = -89.2, z = 8, face = -90, y = 7.5, scale = 1.2 },
 	{ name = "workbench", x = -86.5, z = 22, face = -90, scale = 1.4 },
-	{ name = "tool_cart_yellow", x = -76, z = 22, face = -90, scale = 1.3 },
-	{ name = "tool_cart", x = -72, z = -6, face = 90, scale = 1.3 },
 	{ name = "tire_rack", x = -88.2, z = 42, face = -90, scale = 1.7 },
 	{ name = "tire_stack", x = -82, z = 36, face = 0, scale = 1.3 },
 	{ name = "tire_stack", x = -82, z = 48, face = 40, scale = 1.3 },
@@ -34,15 +32,10 @@ local SPOTS: { Spot } = {
 	{ name = "oil_drum_red", x = -85, z = 61, face = 130, scale = 1.2 },
 	{ name = "gas_can", x = -86, z = 12, face = 25, scale = 1.6 },
 	{ name = "gas_can", x = -85, z = 13.5, face = -20, scale = 1.6 },
-	{ name = "traffic_cone", x = -68, z = -32, face = 0, scale = 1.4 },
-	{ name = "traffic_cone", x = -68, z = -12, face = 0, scale = 1.4 },
 	{ name = "neon_sign", x = -89.2, z = -22, face = -90, y = 24, scale = 1.6 },
 	-- Claw corner (right wall): a bench to wait on, plants, cones.
-	{ name = "bench_cyan", x = 69, z = -30, face = -90, scale = 1.5 },
 	{ name = "plant_box", x = 86, z = -52, face = 90, scale = 1.3 },
 	{ name = "plant_box_yellow", x = 86, z = -8, face = 90, scale = 1.3 },
-	{ name = "traffic_cone", x = 68, z = -46, face = 0, scale = 1.4 },
-	{ name = "traffic_cone", x = 68, z = -14, face = 0, scale = 1.4 },
 	{ name = "neon_sign", x = 89.2, z = -30, face = 90, y = 24, scale = 1.6 },
 	-- Lounge (right wall, front): two sofas facing the TV.
 	{ name = "tv_stand", x = 88.4, z = 38, face = 90, scale = 1.7 },
@@ -230,62 +223,6 @@ function LobbyProps.build(folder: Folder, origin: Vector3)
 		local sign = folder:FindFirstChild("StoreSign")
 		if sign and sign:IsA("BasePart") then
 			sign.Position = origin + Vector3.new(s.x, 15.4, s.z - s.d / 2 + 5.5)
-		end
-	end
-
-	-- Car lift on the left wall, with a blue car riding on it (LobbyLife moves the LiftCar parts).
-	local l = LobbyLayout.lift
-	if has("car_lift") then
-		put("car_lift", at(l.x, 0, l.z, 0), 1.2)
-	end
-	local carBlue = Color3.fromRGB(40, 110, 230)
-	local function liftCar(
-		name: string,
-		size: Vector3,
-		dx: number,
-		y: number,
-		dz: number,
-		color: Color3,
-		shape: Enum.PartType?
-	)
-		return plain(
-			name,
-			size,
-			CFrame.new(origin + Vector3.new(l.x + dx, y, l.z + dz)),
-			color,
-			shape
-		)
-	end
-	liftCar("LiftCarBody", Vector3.new(5.6, 1.8, 11), 0, 8, 0, carBlue)
-	liftCar("LiftCarCabin", Vector3.new(4.6, 1.5, 5.2), 0, 9.6, 0.6, Color3.fromRGB(150, 210, 250))
-	liftCar("LiftCarBumper", Vector3.new(5.8, 0.8, 0.6), 0, 7.4, -5.6, Color3.fromRGB(28, 30, 38))
-	for _, sx in { -1, 1 } do
-		liftCar(
-			"LiftCarHeadlight",
-			Vector3.new(1, 0.7, 0.3),
-			sx * 2,
-			8.2,
-			-5.6,
-			Color3.fromRGB(255, 244, 200)
-		)
-		liftCar(
-			"LiftCarTaillight",
-			Vector3.new(1, 0.7, 0.3),
-			sx * 2,
-			8.2,
-			5.6,
-			Color3.fromRGB(215, 40, 40)
-		)
-		for _, sz in { -1, 1 } do
-			liftCar(
-				"LiftCarWheel",
-				Vector3.new(1, 2.4, 2.4),
-				sx * 3.1,
-				7.2,
-				sz * 3.5,
-				Color3.fromRGB(28, 30, 38),
-				Enum.PartType.Cylinder
-			)
 		end
 	end
 

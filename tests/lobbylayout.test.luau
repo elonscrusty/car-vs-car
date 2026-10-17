@@ -6,6 +6,17 @@ local test, near, truthy, eq = Harness.test, Harness.near, Harness.truthy, Harne
 
 print("LobbyLayout")
 
+test("eight garage bays, four on each side", function()
+	eq(#LobbyLayout.bays, 8)
+	local left = 0
+	for _, b in LobbyLayout.bays do
+		if b.face == 1 then
+			left += 1
+		end
+	end
+	eq(left, 4)
+end)
+
 test("four pads", function()
 	eq(#LobbyLayout.pads, 4)
 end)

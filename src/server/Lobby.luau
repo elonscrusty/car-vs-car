@@ -279,8 +279,8 @@ function Lobby.build(): LobbyHandle
 	local sc = L.showcase
 	mark("GarageFloor", 34, 92, -HW + 17, 8, Color3.fromRGB(52, 55, 64))
 	outline("GarageEdge", 34, 92, -HW + 17, 8, 0.6, YELLOW)
-	mark("ClawFloor", 26, 56, HW - 13, -30, Color3.fromRGB(52, 55, 64))
-	outline("ClawEdge", 26, 56, HW - 13, -30, 0.6, YELLOW)
+	mark("ClawFloor", 14, 56, HW - 7, -30, Color3.fromRGB(52, 55, 64))
+	outline("ClawEdge", 14, 56, HW - 7, -30, 0.6, YELLOW)
 	mark("PadApron", 112, 26, 0, L.pads[1].z, Color3.fromRGB(45, 48, 58))
 	outline("PadEdge", 112, 26, 0, L.pads[1].z, 0.6, YELLOW)
 	outline(
@@ -295,6 +295,67 @@ function Lobby.build(): LobbyHandle
 	)
 	for z = L.gate.z - 4, L.pads[1].z + 16, -6 do
 		mark("FloorDash", 0.8, 3.2, 0, z, YELLOW)
+	end
+
+	-- Garage bays: an open stall for each player down the side walls. Floor plate with a yellow
+	-- frame and a number, a low back wall with a red band, and a light bar. LobbyBays puts the
+	-- player's car, sign and "Customize" prompt in it.
+	local bayBox = L.bay
+	for i, b in L.bays do
+		local inward = b.face
+		mark("BayFloor" .. i, bayBox.w, bayBox.d, b.x, b.z, Color3.fromRGB(40, 43, 52))
+		outline("BayEdge" .. i, bayBox.w, bayBox.d, b.x, b.z, 0.5, YELLOW)
+		local number = mark("BayNumber" .. i, 3, 3, b.x + inward * (bayBox.w / 2 - 3), b.z, DARK)
+		label(number, Enum.NormalId.Top, tostring(i), YELLOW, nil).Rotation = if inward == 1
+			then 90
+			else -90
+		-- Side dividers (low walls) and the red band on the wall behind.
+		for _, side in { -1, 1 } do
+			local divider = part(
+				folder,
+				"BayDivider",
+				Vector3.new(bayBox.w, 3, 0.8),
+				world(b.x, 1.5, b.z + side * (bayBox.d / 2 + 0.4)),
+				Color3.fromRGB(60, 64, 76),
+				Enum.Material.Metal
+			)
+			divider.Color = Color3.fromRGB(60, 64, 76)
+			local cap = part(
+				folder,
+				"BayDividerCap",
+				Vector3.new(bayBox.w, 0.4, 1.0),
+				world(b.x, 3.2, b.z + side * (bayBox.d / 2 + 0.4)),
+				YELLOW
+			)
+			cap.CanCollide = false
+		end
+		local backX = b.x - inward * (bayBox.w / 2 - 0.4)
+		part(
+			folder,
+			"BayBack",
+			Vector3.new(0.8, 9, bayBox.d),
+			world(backX, 4.5, b.z),
+			Color3.fromRGB(70, 74, 86),
+			Enum.Material.Metal
+		)
+		local band = part(
+			folder,
+			"BayBand",
+			Vector3.new(0.9, 1.6, bayBox.d),
+			world(backX + inward * 0.1, 8.2, b.z),
+			RED
+		)
+		band.CanCollide = false
+		local bar = part(
+			folder,
+			"BayLight",
+			Vector3.new(0.6, 0.6, bayBox.d - 4),
+			world(b.x - inward * (bayBox.w / 2 - 3), 13, b.z),
+			Color3.fromRGB(255, 244, 220),
+			Enum.Material.Neon
+		)
+		bar.CanCollide = false
+		glow(bar, Color3.fromRGB(255, 244, 220), 26, 1.2)
 	end
 
 	-- A spot on a wall (side "L", "R", "B" back or "F" front): `along` is the z (L, R) or x (B, F)

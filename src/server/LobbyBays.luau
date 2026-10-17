@@ -1,5 +1,5 @@
 --!strict
--- Player bays on the mezzanine: one little plot per player with their equipped car doing donuts
+-- Player garage bays on the lobby floor: one stall per player with their equipped car doing donuts
 -- (look only: anchored, no collisions, tire smoke, skid ring). Assigned on join, freed on leave.
 
 local RunService = game:GetService("RunService")
@@ -24,37 +24,32 @@ export type Handle = {
 	destroy: () -> (),
 }
 
-local BAYS = 8
-local SPACING = 12
-local RADIUS = 2.6
-local SCALE = 0.4
-local SPIN = 1.7 -- radians per second around the ring
+local RADIUS = 4.2
+local SCALE = 0.7
+local SPIN = 1.5 -- radians per second around the ring
 local STEP = 1 / 20 -- seconds between car updates (cheap for the network)
 
 type Bay = {
 	center: Vector3,
 	signLabel: TextLabel,
+	prompt: ProximityPrompt,
 	player: Player?,
 	car: Model?,
 	angle: number,
-	lift: number, -- body centre height above the deck
+	lift: number, -- body centre height above the floor
 }
 
 function LobbyBays.new(folder: Folder, origin: Vector3): Handle
-	local mz = LobbyLayout.mezzanine
-	local deckTop = origin.Y + mz.height
 	local bays: { Bay } = {}
 
-	for i = 1, BAYS do
-		local x = (i - (BAYS + 1) / 2) * SPACING
-		local center = Vector3.new(origin.X + mz.x + x, deckTop, origin.Z + mz.z)
-		-- Skid ring and a lighter pad in the middle.
+	for i, spot in LobbyLayout.bays do
+		local center = Vector3.new(origin.X + spot.x + spot.face * 1.5, origin.Y, origin.Z + spot.z)
+		-- Skid ring and a lighter pad in the middle (the floor plate itself is built by Lobby).
 		local ring = Instance.new("Part")
 		ring.Name = "BayRing"
 		ring.Shape = Enum.PartType.Cylinder
 		ring.Size = Vector3.new(0.06, RADIUS * 2 + 3.6, RADIUS * 2 + 3.6)
-		ring.CFrame = CFrame.new(center + Vector3.new(0, 0.04, 0))
-			* CFrame.Angles(0, 0, math.pi / 2)
+		ring.CFrame = CFrame.new(center + Vector3.new(0, 0.1, 0)) * CFrame.Angles(0, 0, math.pi / 2)
 		ring.Color = Color3.fromRGB(22, 22, 26)
 		ring.Material = Enum.Material.SmoothPlastic
 		ring.Anchored = true
@@ -65,22 +60,27 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		local inner = ring:Clone()
 		inner.Name = "BayCenter"
 		inner.Size = Vector3.new(0.08, RADIUS * 2 - 3, RADIUS * 2 - 3)
+		inner.CFrame = ring.CFrame + Vector3.new(0, 0.02, 0)
 		inner.Color = Color3.fromRGB(70, 74, 86)
 		inner.Parent = folder
 		local edge = ring:Clone()
 		edge.Name = "BayEdge"
 		edge.Size = Vector3.new(0.05, RADIUS * 2 + 4.6, RADIUS * 2 + 4.6)
-		edge.CFrame = ring.CFrame * CFrame.new(0, 0, 0)
+		edge.CFrame = ring.CFrame - Vector3.new(0, 0.03, 0)
 		edge.Color = Color3.fromRGB(255, 205, 40)
 		edge.Transparency = 0.2
-		edge.Position = center + Vector3.new(0, 0.02, 0)
 		edge.Parent = folder
 
+		-- Name sign on the back wall, facing the hall.
 		local sign = Instance.new("Part")
 		sign.Name = "BaySign"
-		sign.Size = Vector3.new(9, 2, 0.4)
-		local signPos = center + Vector3.new(0, 7.5, 4.4)
-		sign.CFrame = CFrame.lookAt(signPos, signPos + Vector3.zAxis)
+		sign.Size = Vector3.new(14, 2.6, 0.5)
+		local signPos = Vector3.new(
+			origin.X + spot.x - spot.face * (LobbyLayout.bay.w / 2 - 1),
+			origin.Y + 11.6,
+			origin.Z + spot.z
+		)
+		sign.CFrame = CFrame.lookAt(signPos, signPos + Vector3.xAxis * spot.face)
 		sign.Color = Color3.fromRGB(14, 12, 24)
 		sign.Material = Enum.Material.SmoothPlastic
 		sign.Anchored = true
@@ -101,9 +101,22 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		lbl.TextColor3 = Color3.fromRGB(110, 120, 140)
 		lbl.Parent = gui
 
+		-- "Customize" prompt: only the owner's client opens the garage from it.
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.Name = "BayPrompt"
+		prompt.ActionText = "Customize"
+		prompt.ObjectText = "Your garage"
+		prompt.KeyboardKeyCode = Enum.KeyCode.E
+		prompt.RequiresLineOfSight = false
+		prompt.MaxActivationDistance = 14
+		prompt.HoldDuration = 0
+		prompt.Enabled = false
+		prompt.Parent = inner
+
 		bays[i] = {
 			center = center,
 			signLabel = lbl,
+			prompt = prompt,
 			player = nil,
 			car = nil,
 			angle = (i * 1.3) % 6.28,
@@ -126,6 +139,8 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 			b.car = nil
 		end
 		b.player = nil
+		b.prompt.Enabled = false
+		b.prompt:SetAttribute("OwnerUserId", nil)
 		b.signLabel.Text = "OPEN BAY"
 		b.signLabel.TextColor3 = Color3.fromRGB(110, 120, 140)
 	end
@@ -145,6 +160,8 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 			return -- all bays taken: the player simply has no plot
 		end
 		b.player = player
+		b.prompt.Enabled = true
+		b.prompt:SetAttribute("OwnerUserId", player.UserId)
 		b.signLabel.Text = sign
 		b.signLabel.TextColor3 = Color3.fromRGB(255, 205, 40)
 		if b.car then
@@ -179,7 +196,7 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		})
 		smoke.Color = ColorSequence.new(Color3.fromRGB(200, 200, 205))
 		smoke.Parent = car.body
-		b.lift = car.body.Size.Y * SCALE / 2 + 0.35
+		b.lift = car.body.Size.Y * SCALE / 2 + 0.6
 		b.car = model
 	end
 	handle.clear = function(player)

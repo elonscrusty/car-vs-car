@@ -18,6 +18,7 @@ export type Menu = {
 
 export type Handle = {
 	handleUpdate: (u: Types.LobbyUpdate) -> (),
+	open: () -> (),
 	close: () -> (),
 }
 
@@ -320,13 +321,15 @@ function BuildUi.new(menu: Menu): Handle
 		backdrop.Visible = false
 	end)
 
-	menu.add("garage", "GARAGE", 20, function()
+	local function open()
 		message.Text = ""
 		refresh()
 		backdrop.Visible = true
-	end)
+	end
+	menu.add("garage", "GARAGE", 20, open)
 
 	local handle: Handle = {} :: any
+	handle.open = open
 	handle.close = function()
 		backdrop.Visible = false
 	end

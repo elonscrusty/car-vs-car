@@ -8,8 +8,7 @@ local LobbyLayout = {}
 
 -- The lobby is a huge race HQ warehouse: a wide open bay door at the front (+z), the 4 fight pads
 -- in a row just inside (a starting grid), the hero truck turning on a big stage in the middle,
--- a raised walkway (mezzanine) with the giant sign along the back wall, a garage zone with a car
--- lift on the left wall, the claw machine and a lounge on the right wall, the store at the back left.
+-- a raised walkway (mezzanine) with the giant sign along the back wall, a garage bay for every player down both side walls, the claw machine and a lounge on the right wall, the store at the back left.
 -- The hall is `room.halfW` * 2 wide and `room.halfL` * 2 long (inside the walls); the roof is
 -- `room.wallHeight + room.upper` high.
 LobbyLayout.room = { halfW = 90, halfL = 70, wallHeight = 9, upper = 30, wall = 2 }
@@ -26,7 +25,19 @@ LobbyLayout.pads = {
 LobbyLayout.showcase = { x = 0, z = -16, radius = 14, footprint = 34 } -- hero truck stage
 LobbyLayout.store = { x = -68, z = -64, w = 20, d = 12 } -- back wall, left
 LobbyLayout.gacha = { x = 84, z = -30, w = 10, d = 12 } -- the claw machine (right wall)
-LobbyLayout.lift = { x = -80, z = -22, w = 18, d = 16 } -- car lift with a car (left wall)
+-- Garage bays: one open bay per player, 4 down each side wall on the floor. `face` is the way the
+-- bay opens (+1 = toward +x, the left wall bays; -1 = toward -x). Index = bay number.
+LobbyLayout.bay = { w = 20, d = 18 } -- w = depth from the wall (x), d = width along the wall (z)
+LobbyLayout.bays = {
+	{ x = -66, z = -44, face = 1 },
+	{ x = -66, z = -24, face = 1 },
+	{ x = -66, z = -4, face = 1 },
+	{ x = -66, z = 16, face = 1 },
+	{ x = 66, z = -44, face = -1 },
+	{ x = 66, z = -24, face = -1 },
+	{ x = 66, z = -4, face = -1 },
+	{ x = 66, z = 16, face = -1 },
+}
 -- Raised walkway along the back wall (look from above at the stage), reached by two ramps.
 LobbyLayout.mezzanine = { x = 0, z = -64, w = 106, d = 10, height = 12 }
 LobbyLayout.ramps = { { x = -50, z = -46, w = 6, d = 24 }, { x = 50, z = -46, w = 6, d = 24 } }
@@ -50,13 +61,10 @@ function LobbyLayout.footprints(): { [string]: Rect }
 			w = LobbyLayout.store.w,
 			d = LobbyLayout.store.d,
 		},
-		lift = {
-			x = LobbyLayout.lift.x,
-			z = LobbyLayout.lift.z,
-			w = LobbyLayout.lift.w,
-			d = LobbyLayout.lift.d,
-		},
 	}
+	for i, b in LobbyLayout.bays do
+		out["bay" .. i] = { x = b.x, z = b.z, w = LobbyLayout.bay.w, d = LobbyLayout.bay.d }
+	end
 	for i, r in LobbyLayout.ramps do
 		out["ramp" .. i] = { x = r.x, z = r.z, w = r.w, d = r.d }
 	end

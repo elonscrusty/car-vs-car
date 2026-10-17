@@ -1,6 +1,7 @@
 --!strict
 -- Client entry point. Shows UI, aims, and sends only: car choice, aim angle, launch power, steer and gas (-1..1).
 
+local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -94,6 +95,11 @@ end)
 ProximityPromptService.PromptTriggered:Connect(function(prompt: ProximityPrompt)
 	if prompt.Name == "GachaPrompt" and hints.loaded() then
 		hints.done("claw")
+	elseif
+		prompt.Name == "BayPrompt"
+		and prompt:GetAttribute("OwnerUserId") == Players.LocalPlayer.UserId
+	then
+		buildUi.open() -- your own bay: customize your car
 	end
 end)
 
