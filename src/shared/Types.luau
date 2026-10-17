@@ -37,6 +37,7 @@ export type LobbyUpdate =
 		carLevels: { [string]: number }?, -- progression
 		rank: string?,
 		streak: number?,
+		botLevel: string?,
 	}
 	| { kind: "gacha", carId: string, isNew: boolean, refund: number, free: boolean, coins: number }
 	| { kind: "gachaError", reason: string }

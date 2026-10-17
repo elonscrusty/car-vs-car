@@ -14,6 +14,7 @@ local Effects = require(script.Effects)
 local FightFx = require(script.FightFx)
 local HintUi = require(script.HintUi)
 local LobbyUi = require(script.LobbyUi)
+local BotLevelUi = require(script.BotLevelUi)
 local MenuBar = require(script.MenuBar)
 local ProgressUi = require(script.ProgressUi)
 local SteerInput = require(script.SteerInput)
@@ -24,6 +25,9 @@ local director = CameraDirector.new()
 local buffs = BuffUi.new()
 local menu = MenuBar.new() -- features add their own lobby buttons here (see MenuBar.luau)
 local progressUi = ProgressUi.new()
+local botLevelUi = BotLevelUi.new(menu, function(level: string)
+	remotes.LobbyAction:FireServer("setBotLevel", level)
+end)
 
 local camSide: Vector3? = nil -- from the middle toward your car, fixed for the whole match
 local aim: AimInput.AimInput
@@ -59,6 +63,7 @@ remotes.LobbyUpdate.OnClientEvent:Connect(function(u: Types.LobbyUpdate)
 	if u.kind == "profile" then
 		hints.loadSeen(u.hintsSeen)
 		progressUi.update(u.carLevels, u.rank, u.streak)
+		botLevelUi.handleProfile(u.botLevel)
 		hints.trigger("pad") -- no-op once seen
 	elseif u.kind == "countdown" and u.seconds > 0 then
 		hints.done("pad") -- stepped on a pad

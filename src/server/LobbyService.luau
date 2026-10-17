@@ -18,6 +18,7 @@ local Progress = require(ReplicatedStorage.Shared.Progress)
 local ProgressConfig = require(ReplicatedStorage.Shared.ProgressConfig)
 local Quests = require(ReplicatedStorage.Shared.Quests)
 local RateLimiter = require(ReplicatedStorage.Shared.RateLimiter)
+local BotLevels = require(ReplicatedStorage.Shared.BotLevels)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Store = require(ReplicatedStorage.Shared.Store)
 local Types = require(ReplicatedStorage.Shared.Types)
@@ -88,6 +89,7 @@ function LobbyService.start(deps: Deps): Handle
 	local gachaLimiter = RateLimiter.new(2, 3)
 	local storeLimiter = RateLimiter.new(2, 3)
 	local hintLimiter = RateLimiter.new(4, 3)
+	local botLevelLimiter = RateLimiter.new(3, 3)
 	local running = true
 	local conns: { RBXScriptConnection } = {}
 
@@ -117,6 +119,7 @@ function LobbyService.start(deps: Deps): Handle
 			carLevels = Progress.levels(p.progress),
 			rank = Progress.rankFor(p.wins),
 			streak = p.progress.streak,
+			botLevel = p.botLevel,
 		})
 	end
 
@@ -240,6 +243,10 @@ function LobbyService.start(deps: Deps): Handle
 		end
 		padAcc[padIndex] = nil
 		updatePadText(padIndex)
+		if #participants == 1 then
+			local solo = Profiles.get(participants[1].player)
+			participants[1].botLevel = if solo then solo.botLevel else nil
+		end
 		deps.startMatch(participants)
 	end
 
@@ -436,6 +443,16 @@ function LobbyService.start(deps: Deps): Handle
 		end
 	end
 
+	-- Bot difficulty for solo matches: only the three known names are accepted.
+	local function setBotLevel(player: Player, level: any)
+		local p = Profiles.get(player)
+		if p ~= nil and BotLevels.isValid(level) then
+			p.botLevel = level
+			Profiles.markDirty(player)
+			sendProfile(player)
+		end
+	end
+
 	local handle: Handle
 	handle = {
 		onPlayerAdded = function(player: Player)
@@ -464,6 +481,7 @@ function LobbyService.start(deps: Deps): Handle
 			gachaLimiter.clear(player)
 			storeLimiter.clear(player)
 			hintLimiter.clear(player)
+			botLevelLimiter.clear(player)
 		end,
 		action = function(player: Player, action: any, arg: any)
 			if action == "pickCar" then
@@ -486,6 +504,10 @@ function LobbyService.start(deps: Deps): Handle
 				if hintLimiter.allow(player, os.clock()) then
 					hintSeen(player, arg)
 				end
+			elseif action == "setBotLevel" then
+				if botLevelLimiter.allow(player, os.clock()) then
+					setBotLevel(player, arg)
+				end
 			elseif action == "leavePad" then
 				cancelPlayer(player)
 			elseif action == "devMatch" and RunService:IsStudio() then
@@ -502,6 +524,7 @@ function LobbyService.start(deps: Deps): Handle
 				deps.startMatch({
 					{
 						player = player,
+						botLevel = if p then p.botLevel else nil,
 						carId = carId,
 						appearance = { level = levelOf(player, carId) },
 						onFinished = function(won: boolean)

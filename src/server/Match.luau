@@ -22,6 +22,7 @@ local Arena = require(script.Parent.Arena)
 local Autopilot = require(script.Parent.Autopilot)
 local Buffs = require(script.Parent.Buffs)
 local Pickups = require(script.Parent.Pickups)
+local BotLevels = require(ReplicatedStorage.Shared.BotLevels)
 local Appearance = require(script.Parent.Appearance)
 local CarBuilder = require(script.Parent.CarBuilder)
 local Dummy = require(script.Parent.Dummy)
@@ -368,6 +369,9 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 		car.body:ApplyImpulse(dir * car.body.AssemblyMass * speed)
 	end
 
+	-- Bot difficulty (lone player vs bot); medium when unset or unknown.
+	local botLevel = BotLevels.get(if participants[1] then participants[1].botLevel else nil)
+
 	local function startFight()
 		phase = "fight"
 		lastHitAt = -math.huge
@@ -385,11 +389,11 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 			else
 				-- Bot: aims at the other car with a little error.
 				local me, other = car.body.Position, cars[3 - i].body.Position
-				local noise = rng:NextNumber(-12, 12)
+				local noise = rng:NextNumber(-botLevel.noiseDeg, botLevel.noiseDeg)
 				launchCar(
 					car,
 					Duel.botAim(me.X, me.Z, other.X, other.Z, noise),
-					rng:NextNumber(0.6, 1)
+					BotLevels.launchPower(botLevel, rng:NextNumber())
 				)
 			end
 		end
@@ -477,7 +481,7 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 					local mods = Moves.mods(moveStates[car.idx], car, eased, dt, os.clock())
 					Autopilot.stepManual(car, eased, dt, rayParams, mods)
 				else
-					Autopilot.step(car, cars[3 - car.idx], dt, rayParams, origin)
+					Autopilot.step(car, cars[3 - car.idx], dt, rayParams, origin, botLevel)
 				end
 			end
 		end

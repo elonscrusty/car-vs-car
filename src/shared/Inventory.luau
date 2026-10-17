@@ -11,6 +11,7 @@ local function sibling(name: string): any
 end
 
 local CarConfig = sibling("CarConfig")
+local BotLevels = sibling("BotLevels")
 local Hints = sibling("Hints")
 local LobbyConfig = sibling("LobbyConfig")
 local Progress = sibling("Progress")
@@ -23,6 +24,7 @@ export type Profile = {
 	freePullUsed: boolean,
 	hintsSeen: { [string]: boolean }, -- first-time hints already shown (see Hints)
 	progress: Progress.Data, -- car XP and win streak (see Progress)
+	botLevel: string, -- bot difficulty: "easy" | "medium" | "hard"
 }
 
 local Inventory = {}
@@ -56,6 +58,7 @@ function Inventory.default(): Profile
 		freePullUsed = false,
 		hintsSeen = {},
 		progress = Progress.default(),
+		botLevel = "medium",
 	}
 end
 
@@ -84,6 +87,7 @@ function Inventory.migrate(raw: any): Profile
 		freePullUsed = raw.freePullUsed == true,
 		hintsSeen = Hints.clean(raw.hintsSeen),
 		progress = Progress.clean(raw.progress),
+		botLevel = if BotLevels.isValid(raw.botLevel) then raw.botLevel else "medium",
 	}
 end
 
