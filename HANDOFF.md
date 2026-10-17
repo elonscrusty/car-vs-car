@@ -66,3 +66,9 @@ Design follows `/mnt/project-files/car-vs-car/game-plan.md`, but carter chose (2
 - `Autopilot.stepManual(car, steerInput, dt, rayParams)` shares flip recovery, grounded check, impulse, slope assist and grip with `Autopilot.step` (local helpers). Turn strength: `car.stats.turnRate * Drive.manualTurn`; easing speed `Steer.smoothRate`. Turning only works while grounded.
 - Client: `src/client/SteerInput.luau`, started on the "fight" UiUpdate, stopped on roundEnd/matchEnd/onToLobby; re-sends the held value every `Steer.resendSeconds` (0.1 s), sends 0 on release/stop.
 - Not verified in Studio (no Roblox runtime offline): button layout on phone, feel of turnRate/smoothRate, real touch release handling.
+
+## Fight moves and game loop (added after manual steering)
+- Fight: boost, jump, one special per car, drift, bowl power-ups (shield, big hit, speed), weak spots (back/side hit 2x), parts fly off, two-fast-hits combo. Numbers: `MovesConfig`, `SpecialsConfig`, `PickupsConfig`, `CombatConfig`. Server code: `Moves`, `Specials`, `Pickups`, `Buffs`, `Parts`; client: `ActionInput`, `BuffUi`.
+- Loop: win streak bonus, car levels (paint + badge), daily gift (free claw try), quests, paint shop, rank badges, rematch button, bot levels (easy/medium/hard). Pure rules in `Progress`, `Quests`, `Daily`, `Paint`, `Rematch`, `BotLevels`; services `RematchService`, `Appearance`, `Badge`; lobby buttons come from `client/MenuBar`.
+- Profile fields added with migration defaults: hintsSeen, progress, botLevel, quests, daily, paint.
+- Checked by Lune tests (168) and one scripted Studio fight vs a bot (no errors). Not yet played by hand on a phone; feel is untuned. Prices are placeholders.
