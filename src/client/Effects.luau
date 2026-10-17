@@ -40,7 +40,7 @@ function Effects.sparks(pos: Vector3, strength: number)
 end
 
 -- Floating "-23" that rises and fades. Red = you took it, yellow = bot took it.
-function Effects.damageNumber(pos: Vector3, damage: number, youHit: boolean)
+function Effects.damageNumber(pos: Vector3, damage: number, youHit: boolean, tag: string?)
 	local p = anchorAt(pos + Vector3.new(0, 4, 0))
 	local gui = Instance.new("BillboardGui")
 	gui.Size = UDim2.fromOffset(120, 50)
@@ -52,7 +52,7 @@ function Effects.damageNumber(pos: Vector3, damage: number, youHit: boolean)
 	l.BackgroundTransparency = 1
 	l.Font = Enum.Font.GothamBlack
 	l.TextScaled = true
-	l.Text = `-{math.floor(damage + 0.5)}`
+	l.Text = if tag then `-{math.floor(damage + 0.5)}\n{tag}` else `-{math.floor(damage + 0.5)}`
 	l.TextColor3 = if youHit then Color3.fromRGB(255, 80, 80) else Color3.fromRGB(255, 220, 60)
 	l.TextStrokeTransparency = 0.2
 	l.Parent = gui

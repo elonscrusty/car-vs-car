@@ -19,6 +19,7 @@ export type UiUpdate = {
 	strength: number?, -- hit: 0..1 how hard
 	damage: number?, -- hit: HP taken
 	youHit: boolean?, -- hit: true when the damage went to your car
+	tag: string?, -- hit: "BACK HIT!", "SIDE HIT!", "COMBO x2"
 	text: string?, -- ko: "K.O.!" or "RING OUT!"
 }
 
