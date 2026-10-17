@@ -317,7 +317,7 @@ local function enemyInReach(car: CarBuilder.Car, enemy: CarBuilder.Car, radius: 
 end
 
 -- Taps the WEAPON button. Returns the cooldown to show (seconds) when it fired, else nil.
-function Weapon.press(car: CarBuilder.Car, enemy: CarBuilder.Car, now: number): number?
+function Weapon.press(car: CarBuilder.Car, _enemy: CarBuilder.Car, now: number): number?
 	local s = states[car]
 	if s == nil or car.dead or s.def.kind ~= "active" then
 		return nil
