@@ -34,10 +34,11 @@ Session-locked UpdateAsync, jobId + timestamp lock, retries with backoff, never 
 Imports `Inventory` (A). Until A lands, B may stub `Inventory.default()` locally in tests but must not create Inventory.luau.
 
 ## Remotes (helper E edits Remotes.luau): two NEW RemoteEvents (total 6)
-`LobbyAction` client->server: `(action: string, arg: any)` actions: "pickCar" (arg carId), "buyGacha" (no arg), "leavePad".
+`LobbyAction` client->server: `(action: string, arg: any)` actions: "pickCar" (arg carId), "buyGacha" (no arg), "buyCar" (arg carId), "leavePad".
 `LobbyUpdate` server->client, one table `{ kind = ... }`:
 - `{kind="profile", coins:number, wins:number, owned:{string}, freePullAvailable:boolean}`
 - `{kind="gacha", carId:string, isNew:boolean, refund:number, free:boolean, coins:number}` · `{kind="gachaError", reason:string}`
+- `{kind="storeResult", ok:boolean, carId:string, reason:string?, coins:number}` (reason: unknown/owned/coins/busy/loading)
 - `{kind="countdown", seconds:number}` (pad countdown; seconds=0 means cancelled)
 - `{kind="choices", cars:{string}, seconds:number}` (show pick-1-of-3)
 - `{kind="toLobby", coinsEarned:number, won:boolean}` (match over, player is back in lobby)

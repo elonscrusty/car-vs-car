@@ -3,8 +3,8 @@
 --   SelectCar (client -> server): "I pick this car"
 --   Launch    (client -> server): "launch with this angle and power"
 --   UiUpdate  (server -> client): screen / HUD updates, hit effects
---   LobbyAction (client -> server): (action, arg) pickCar / buyGacha / leavePad
---   LobbyUpdate (server -> client): lobby HUD, gacha, countdown, choices, toLobby
+--   LobbyAction (client -> server): (action, arg) pickCar / buyGacha / buyCar / leavePad
+--   LobbyUpdate (server -> client): lobby HUD, gacha, storeResult, countdown, choices, toLobby
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")

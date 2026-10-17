@@ -85,4 +85,23 @@ function LobbyText.gachaErrorText(reason: string): string
 	return "Try again in a moment"
 end
 
+-- Store row label on the right: OWNED, or the price on a BUY button.
+function LobbyText.storeButtonText(isOwned: boolean, price: number): string
+	if isOwned then
+		return "OWNED"
+	end
+	return `BUY  {LobbyText.formatNumber(price)}`
+end
+
+function LobbyText.storeErrorText(reason: string): string
+	if reason == "coins" then
+		return "Not enough coins"
+	elseif reason == "owned" then
+		return "Already yours"
+	elseif reason == "busy" then
+		return "Finish your match first"
+	end
+	return "Can't buy that"
+end
+
 return LobbyText
