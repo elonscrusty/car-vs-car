@@ -96,6 +96,9 @@ function Arena.build(origin: Vector3): Arena
 	-- Obstacles (flat arena): boxes and round pillars standing on the floor.
 	local spinnerBars: { Part } = {}
 	for _, o in cfg.obstacles do
+		if GameConfig.Mode.autoFight and (o.kind == "block" or o.kind == "pillar") then
+			continue -- cars hunt each other on their own: nothing to get stuck on
+		end
 		local pos = origin + Vector3.new(o.x, (o.sy or 0) / 2, o.z)
 		local color = Color3.fromRGB(150, 150, 165)
 		if o.kind == "spinner" then

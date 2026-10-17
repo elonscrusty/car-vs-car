@@ -69,6 +69,7 @@ local lobby = LobbyUi.new({
 		driver.stop()
 		actions.stop()
 		view.hideMatch()
+		ProximityPromptService.Enabled = true
 		director.release()
 		menu.setVisible(true)
 		progressUi.setVisible(true)
@@ -142,6 +143,7 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		menu.setVisible(false)
 		progressUi.setVisible(false)
 		lobby.hideChoices()
+		ProximityPromptService.Enabled = false -- no "Join" pad prompt floating over the arena
 		if u.center then
 			camSide = if u.carPos then u.carPos - u.center else nil
 			director.overview(u.center, camSide)
@@ -156,7 +158,9 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 			steering.start() -- the server ignores Steer outside the fight
 			driver.start() -- drives your own car here once the server hands it over
 		end
-		actions.start(u.weapon ~= nil and u.weaponPassive ~= true)
+		if u.auto ~= true then
+			actions.start(u.weapon ~= nil and u.weaponPassive ~= true)
+		end
 	elseif u.kind == "move" then
 		actions.cooldown(u.move or "", u.seconds or 0)
 	elseif u.kind == "buff" then

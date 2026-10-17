@@ -67,6 +67,7 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 	local origin = Vector3.new(slot * cfg.Arena.slotSpacing, cfg.Arena.baseY, 0)
 	local rng = Random.new()
 	local auto = cfg.Mode.autoFight -- build-and-watch: the cars fight on their own
+	local autoLevel = BotLevels.get("hard") -- sharp turns, fast, goes straight for the other car
 	local gone: { [number]: boolean } = {} -- car index -> that player left
 
 	local phase: Phase = "aim"
@@ -637,12 +638,19 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 				Buffs.tick(car, dt)
 				local human = participants[car.idx]
 				if auto then
-					-- Build-and-watch: every car drives itself; a player's taps only add power moves.
-					local mods: Autopilot.Mods? = nil
-					if human and not gone[car.idx] then
-						mods = Moves.mods(moveStates[car.idx], car, 0, dt, os.clock())
+					-- Build-and-watch: every car hunts the other one and uses its own boost and
+					-- special, so fights are fast and full of hits.
+					local now = os.clock()
+					local enemy = cars[3 - car.idx]
+					local state = moveStates[car.idx]
+					local dist = (enemy.body.Position - car.body.Position).Magnitude
+					if dist > 18 then
+						Moves.press(state, "boost", car, enemy, rayParams, now)
+					elseif dist < 12 then
+						Moves.press(state, "special", car, enemy, rayParams, now)
 					end
-					Autopilot.step(car, cars[3 - car.idx], dt, rayParams, origin, botLevel, mods)
+					local mods = Moves.mods(state, car, 0, dt, now)
+					Autopilot.step(car, enemy, dt, rayParams, origin, autoLevel, mods)
 				elseif human and not gone[car.idx] and clientDriven[car.idx] then
 					-- The driver's device moves this car; the server only keeps it honest.
 					car.model:SetAttribute("SpeedMult", Buffs.speedMult(car))

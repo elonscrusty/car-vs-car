@@ -256,6 +256,7 @@ function Ui.create(h: Handlers): View
 				top.Text = `YOU  vs  {enemyName}   {math.ceil(deadline - os.clock())}`
 				task.wait(0.25)
 			end
+			top.Text = `YOU  vs  {enemyName}`
 		end)
 		task.delay(1.5, function()
 			if msg.Text == matchup then
