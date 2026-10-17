@@ -12,7 +12,7 @@ local LobbyLayout = {}
 LobbyLayout.room = { radius = 60, wallHeight = 9, wall = 2 }
 
 LobbyLayout.showcase = { x = 34, z = -24, radius = 8, footprint = 20 } -- raised truck stage
-LobbyLayout.spawn = { x = 0, z = 48, size = 6 }
+LobbyLayout.spawn = { x = 0, z = 40, size = 6 }
 LobbyLayout.gate = { z = 56, halfOpening = 7 } -- opening in the wall + checkered start line
 LobbyLayout.gacha = { x = 50, z = 12, w = 10, d = 12 } -- the claw machine
 LobbyLayout.store = { x = -38, z = -26, w = 20, d = 12 }

@@ -301,6 +301,272 @@ function Lobby.build(): LobbyHandle
 		end
 	end
 
+	-- Garage shell: a tall concrete upper wall on top of the red one, a roof of steel beams with
+	-- hanging lights, a roller door at the gate, side roller doors, tool walls and oil stains.
+	-- The roof is look-only (no collision, not seen by the camera) so the camera never gets stuck.
+	local CONCRETE = Color3.fromRGB(112, 115, 124)
+	local STEEL = Color3.fromRGB(85, 88, 98)
+	local UH = 15 -- height of the upper wall
+	local top = WH + UH
+	for i = 0, segments - 1 do
+		local a = i / segments * math.pi * 2
+		local px, pz = math.sin(a) * R, math.cos(a) * R
+		if not (pz > 0 and math.abs(px) < room.wall + L.gate.halfOpening + 3) then
+			local cf = CFrame.lookAt(
+				origin + Vector3.new(px, WH + UH / 2, pz),
+				origin + Vector3.new(0, WH + UH / 2, 0)
+			)
+			part(
+				folder,
+				"GarageWall",
+				Vector3.new(segW, UH, room.wall),
+				cf,
+				CONCRETE,
+				Enum.Material.Concrete
+			)
+			local band = part(
+				folder,
+				"GarageBand",
+				Vector3.new(segW, 0.9, 0.3),
+				cf * CFrame.new(0, -UH / 2 + 0.6, -room.wall / 2 - 0.15),
+				YELLOW
+			)
+			band.CanCollide = false
+			if i % 4 == 0 then
+				part(
+					folder,
+					"GarageColumn",
+					Vector3.new(2, UH, room.wall + 1.2),
+					cf,
+					STEEL,
+					Enum.Material.Metal
+				)
+			end
+		end
+	end
+	-- Above the entrance: a lintel with the rolled-up roller door under it.
+	local lintelW = 2 * (room.wall + L.gate.halfOpening + 3) + 2
+	part(
+		folder,
+		"GateLintel",
+		Vector3.new(lintelW, UH, room.wall),
+		world(0, WH + UH / 2, R - 1.2),
+		CONCRETE,
+		Enum.Material.Concrete
+	)
+	local lintelBand = part(
+		folder,
+		"GateHazard",
+		Vector3.new(lintelW - 2, 0.9, 0.3),
+		world(0, WH + 0.5, R - 2.4),
+		YELLOW
+	)
+	lintelBand.CanCollide = false
+	local roll = part(
+		folder,
+		"RollerDoorRoll",
+		Vector3.new(L.gate.halfOpening * 2 + 2, 2.2, 2.2),
+		world(0, WH - 0.8, R - 2.6),
+		Color3.fromRGB(150, 153, 163),
+		Enum.Material.Metal,
+		Enum.PartType.Cylinder
+	)
+	roll.CanCollide = false
+
+	-- Roof: dark steel deck, cross beams and hanging lamps.
+	local roof = part(
+		folder,
+		"GarageRoof",
+		Vector3.new(1, (R + 3) * 2, (R + 3) * 2),
+		world(0, top + 0.5, 0) * CFrame.Angles(0, 0, math.pi / 2),
+		Color3.fromRGB(38, 40, 48),
+		Enum.Material.Metal,
+		Enum.PartType.Cylinder
+	)
+	roof.CanCollide = false
+	roof.CanQuery = false
+	for c = -48, 48, 12 do
+		local len = 2 * math.sqrt(math.max(R * R - c * c, 0)) - 2
+		for _, rot in { 0, math.pi / 2 } do
+			if rot == 0 or c % 24 == 0 then
+				local beam = part(
+					folder,
+					"RoofBeam",
+					Vector3.new(1.2, 1.6, len),
+					world(0, top - 0.8, 0) * CFrame.Angles(0, rot, 0) * CFrame.new(c, 0, 0),
+					STEEL,
+					Enum.Material.Metal
+				)
+				beam.CanCollide = false
+				beam.CanQuery = false
+			end
+		end
+	end
+	for _, lx in { -30, -10, 10, 30 } do
+		for _, lz in { -30, -10, 10, 30 } do
+			local cord =
+				part(folder, "LampCord", Vector3.new(0.2, 5, 0.2), world(lx, top - 3.4, lz), DARK)
+			cord.CanCollide = false
+			cord.CanQuery = false
+			local shade = part(
+				folder,
+				"LampShade",
+				Vector3.new(5, 0.8, 2.2),
+				world(lx, top - 6, lz),
+				Color3.fromRGB(60, 62, 70),
+				Enum.Material.Metal
+			)
+			shade.CanCollide = false
+			shade.CanQuery = false
+			local bulb = part(
+				folder,
+				"LampGlow",
+				Vector3.new(4.4, 0.3, 1.6),
+				world(lx, top - 6.5, lz),
+				Color3.fromRGB(255, 244, 200),
+				Enum.Material.Neon
+			)
+			bulb.CanCollide = false
+			bulb.CanQuery = false
+			if math.abs(lx) == 10 and math.abs(lz) == 10 then
+				glow(bulb, Color3.fromRGB(255, 244, 200), 45, 0.6)
+			end
+		end
+	end
+
+	-- Closed roller doors on the wall (look only), front-left and front-right.
+	for _, deg in { -55, 55 } do
+		local a = math.rad(deg)
+		local r = R - room.wall / 2 - 0.8
+		local dcf = CFrame.lookAt(
+			origin + Vector3.new(math.sin(a) * r, 5.8, math.cos(a) * r),
+			origin + Vector3.new(0, 5.8, 0)
+		)
+		local frame = part(folder, "RollerDoorFrame", Vector3.new(15, 11.6, 0.4), dcf, YELLOW)
+		frame.CanCollide = false
+		local panel = part(
+			folder,
+			"RollerDoor",
+			Vector3.new(13.4, 10.4, 0.4),
+			dcf * CFrame.new(0, 0, -0.2),
+			Color3.fromRGB(150, 153, 163),
+			Enum.Material.Metal
+		)
+		panel.CanCollide = false
+		for k = 1, 7 do
+			local slat = part(
+				folder,
+				"RollerSlat",
+				Vector3.new(13.4, 0.18, 0.2),
+				dcf * CFrame.new(0, -5.2 + k * 1.3, -0.5),
+				Color3.fromRGB(105, 108, 118)
+			)
+			slat.CanCollide = false
+		end
+	end
+
+	-- Tool walls with a workbench (left) and a tool cabinet with oil drums (right).
+	for _, side in { -1, 1 } do
+		local a = math.rad(side * 103)
+		local r = R - room.wall / 2 - 0.6
+		local wcf = CFrame.lookAt(
+			origin + Vector3.new(math.sin(a) * r, 5.5, math.cos(a) * r),
+			origin + Vector3.new(0, 5.5, 0)
+		)
+		local peg =
+			part(folder, "ToolWall", Vector3.new(14, 6.5, 0.4), wcf, Color3.fromRGB(52, 56, 66))
+		peg.CanCollide = false
+		local toolColors = { RED, YELLOW, CYAN, Color3.fromRGB(220, 220, 225) }
+		for k = 1, 8 do
+			local tool = part(
+				folder,
+				"Tool",
+				Vector3.new(0.5, 2.6 - (k % 3) * 0.5, 0.3),
+				wcf * CFrame.new(-5.6 + (k - 1) * 1.6, 0.4 - (k % 2) * 0.8, -0.35),
+				toolColors[k % #toolColors + 1]
+			)
+			tool.CanCollide = false
+		end
+		local benchCf = wcf * CFrame.new(0, -2.3, -2.2)
+		if side == -1 then
+			part(
+				folder,
+				"Workbench",
+				Vector3.new(12, 0.6, 3.4),
+				benchCf,
+				Color3.fromRGB(150, 110, 70),
+				Enum.Material.Wood
+			)
+			for _, lx in { -5.4, 5.4 } do
+				part(
+					folder,
+					"WorkbenchLeg",
+					Vector3.new(0.6, 3.2, 3),
+					benchCf * CFrame.new(lx, -1.9, 0),
+					STEEL,
+					Enum.Material.Metal
+				)
+			end
+			local toolbox = part(
+				folder,
+				"Toolbox",
+				Vector3.new(2.6, 1.4, 1.4),
+				benchCf * CFrame.new(-3, 1, 0),
+				RED
+			)
+			toolbox.CanCollide = false
+		else
+			part(
+				folder,
+				"ToolCabinet",
+				Vector3.new(5, 6, 3),
+				wcf * CFrame.new(-3.5, -2.5, -2.2),
+				RED
+			)
+			part(
+				folder,
+				"ToolCabinetTop",
+				Vector3.new(5.2, 0.4, 3.2),
+				wcf * CFrame.new(-3.5, 0.7, -2.2),
+				DARK
+			)
+			for k = 0, 2 do
+				part(
+					folder,
+					"OilDrum",
+					Vector3.new(4, 2.8, 2.8),
+					wcf * CFrame.new(2.2 + k * 3.2, -2.1, -2.2) * CFrame.Angles(0, 0, math.pi / 2),
+					if k == 1 then YELLOW else Color3.fromRGB(40, 90, 200),
+					Enum.Material.Metal,
+					Enum.PartType.Cylinder
+				)
+			end
+		end
+	end
+
+	-- Oil stains on the floor (look only).
+	for _, st in
+		{
+			Vector3.new(-6, 0, 14),
+			Vector3.new(9, 0, 38),
+			Vector3.new(-30, 0, 12),
+			Vector3.new(30, 0, -2),
+			Vector3.new(-22, 0, 40),
+		}
+	do
+		local stain = part(
+			folder,
+			"OilStain",
+			Vector3.new(0.04, 6 + (st.X % 4), 6 + (st.X % 4)),
+			world(st.X, 0.045, st.Z) * CFrame.Angles(0, 0, math.pi / 2),
+			Color3.fromRGB(26, 26, 30),
+			Enum.Material.SmoothPlastic,
+			Enum.PartType.Cylinder
+		)
+		stain.Transparency = 0.3
+		stain.CanCollide = false
+	end
+
 	-- Entrance gate with the checkered start line (the spawn stands just inside).
 	local gz = L.gate.z
 	for _, sx in { -1, 1 } do
