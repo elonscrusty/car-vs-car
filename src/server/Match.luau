@@ -20,6 +20,8 @@ local Types = require(ReplicatedStorage.Shared.Types)
 
 local Arena = require(script.Parent.Arena)
 local Autopilot = require(script.Parent.Autopilot)
+local Buffs = require(script.Parent.Buffs)
+local Pickups = require(script.Parent.Pickups)
 local Appearance = require(script.Parent.Appearance)
 local CarBuilder = require(script.Parent.CarBuilder)
 local Dummy = require(script.Parent.Dummy)
@@ -56,6 +58,7 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 	local arena: Arena.Arena? = nil
 	local cars: { CarBuilder.Car } = {}
 	local touchConns: { RBXScriptConnection } = {}
+	local pickups: Pickups.Handle? = nil
 	local round = 0
 	local submissions: { [number]: { angle: number, power: number } } = {}
 	local lastHitAt = -math.huge
@@ -88,11 +91,16 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 	end
 
 	local function clearCars()
+		if pickups then
+			pickups.destroy()
+			pickups = nil
+		end
 		for _, c in touchConns do
 			c:Disconnect()
 		end
 		table.clear(touchConns)
 		for _, car in cars do
+			Buffs.clear(car)
 			car.model:Destroy()
 		end
 		table.clear(cars)
@@ -112,6 +120,10 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 			return
 		end
 		phase = "roundEnd"
+		if pickups then
+			pickups.destroy()
+			pickups = nil
+		end
 		local koPos = loser.body.Position
 		sendAll(function()
 			return { kind = "ko", text = koText or "K.O.!", pos = koPos }
@@ -341,6 +353,11 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 				)
 			end
 		end
+		if arena then
+			pickups = Pickups.start(arena, cars, rng, function(car, update)
+				sendTo(car.idx, update)
+			end)
+		end
 		sendAll(function()
 			return { kind = "fight", round = round }
 		end)
@@ -410,6 +427,7 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 		end
 		for _, car in cars do
 			if not car.dead then
+				Buffs.tick(car, dt)
 				local human = participants[car.idx]
 				if human and not gone[car.idx] then
 					local raw =

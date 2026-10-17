@@ -10,6 +10,7 @@ local Ai = require(ReplicatedStorage.Shared.Ai)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local Logic = require(ReplicatedStorage.Shared.Logic)
 local Steer = require(ReplicatedStorage.Shared.Steer)
+local Buffs = require(script.Parent.Buffs)
 local CarBuilder = require(script.Parent.CarBuilder)
 
 local Autopilot = {}
@@ -73,7 +74,7 @@ local function push(
 	local mass = body.AssemblyMass
 	local vel = body.AssemblyLinearVelocity
 	local forwardSpeed = vel:Dot(fwd)
-	local maxSpeed = stats.maxSpeed
+	local maxSpeed = stats.maxSpeed * Buffs.speedMult(car) -- speed power-up
 	if
 		(throttle > 0 and forwardSpeed < maxSpeed)
 		or (throttle < 0 and forwardSpeed > -maxSpeed * 0.6)
