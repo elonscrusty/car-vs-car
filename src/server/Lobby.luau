@@ -316,8 +316,9 @@ function Lobby.build(): LobbyHandle
 
 	-- Walls: a red lower wall (the Blender panels go in front), a tall concrete upper wall with
 	-- tall windows that glow, steel columns. The front wall is open in the middle: the bay door.
-	local CONCRETE = Color3.fromRGB(112, 115, 124)
-	local STEEL = Color3.fromRGB(85, 88, 98)
+	local CONCRETE = Color3.fromRGB(62, 65, 74)
+	local STEEL = RED -- red steel columns and bracing
+	local WALL_GRAY = Color3.fromRGB(48, 51, 60)
 	local gap = L.gate.halfOpening + 1
 	local sides = {
 		{ "L", Vector3.new(-HW, 0, -HL), Vector3.new(-HW, 0, HL) },
@@ -338,13 +339,13 @@ function Lobby.build(): LobbyHandle
 			if not (name == "F" and math.abs(along) < gap) then
 				local base = wallAt(name, along, -room.wall / 2, 0)
 				local cf = base * CFrame.new(0, WH / 2, 0)
-				part(folder, "Wall", Vector3.new(segW + 0.1, WH, room.wall), cf, RED)
+				part(folder, "Wall", Vector3.new(segW + 0.1, WH, room.wall), cf, WALL_GRAY)
 				local panel = part(
 					folder,
 					"WallPanel",
 					Vector3.new(segW * 0.98, WH * 0.6, 0.5),
 					cf * CFrame.new(0, -WH * 0.2, -room.wall / 2 - 0.25),
-					Color3.fromRGB(46, 49, 60),
+					Color3.fromRGB(38, 41, 50),
 					Enum.Material.Brick
 				)
 				panel.CanCollide = false
@@ -394,6 +395,20 @@ function Lobby.build(): LobbyHandle
 					light.Color = Color3.fromRGB(255, 232, 195)
 					light.Shadows = false
 					light.Parent = win
+					for _, dir in { -1, 1 } do
+						local brace = part(
+							folder,
+							"XBrace",
+							Vector3.new(math.sqrt(segW * segW + UH * UH) * 0.96, 0.7, 0.7),
+							ucf
+								* CFrame.new(0, 0, -room.wall / 2 - 0.6)
+								* CFrame.Angles(0, 0, math.atan2(UH, segW) * dir),
+							STEEL,
+							Enum.Material.Metal
+						)
+						brace.CanCollide = false
+						brace.CanQuery = false
+					end
 					for _, mx in { -0.25, 0.25 } do
 						local mull = part(
 							folder,
@@ -468,11 +483,21 @@ function Lobby.build(): LobbyHandle
 			"RoofBeam",
 			Vector3.new(1.4, 1.8, HL * 2),
 			world(bx, top - 0.9, 0),
-			STEEL,
+			DARK,
 			Enum.Material.Metal
 		)
 		beam.CanCollide = false
 		beam.CanQuery = false
+		local strip = part(
+			folder,
+			"BeamNeon",
+			Vector3.new(0.5, 0.3, HL * 2),
+			world(bx, top - 1.9, 0),
+			CYAN,
+			Enum.Material.Neon
+		)
+		strip.CanCollide = false
+		strip.CanQuery = false
 	end
 	for _, bz in { -60, -12, 12, 60 } do
 		local beam = part(
@@ -480,11 +505,21 @@ function Lobby.build(): LobbyHandle
 			"RoofBeam",
 			Vector3.new(HW * 2, 1.8, 1.4),
 			world(0, top - 0.9, bz),
-			STEEL,
+			DARK,
 			Enum.Material.Metal
 		)
 		beam.CanCollide = false
 		beam.CanQuery = false
+		local strip = part(
+			folder,
+			"BeamNeon",
+			Vector3.new(HW * 2, 0.3, 0.5),
+			world(0, top - 1.9, bz),
+			CYAN,
+			Enum.Material.Neon
+		)
+		strip.CanCollide = false
+		strip.CanQuery = false
 	end
 	-- Skylights: bright panels in the roof that pour light on the zones below.
 	for _, sk in
@@ -592,15 +627,15 @@ function Lobby.build(): LobbyHandle
 		gstrip.CanCollide = false
 		glow(gpost, CYAN, 24, 0.3)
 	end
-	local startW = 24
-	for col = 1, 16 do
+	local startW = gap * 2
+	for col = 1, 32 do
 		for row = 1, 2 do
 			local white = (col + row) % 2 == 0
 			local tile = part(
 				folder,
 				"StartLine",
-				Vector3.new(startW / 16, 0.1, 1.6),
-				world(-startW / 2 + (col - 0.5) * startW / 16, 0.05, gz - 2 + row * 1.6),
+				Vector3.new(startW / 32, 0.1, 1.6),
+				world(-startW / 2 + (col - 0.5) * startW / 32, 0.05, gz - 2 + row * 1.6),
 				if white then Color3.fromRGB(240, 240, 240) else Color3.fromRGB(20, 20, 20)
 			)
 			tile.CanCollide = false
@@ -634,6 +669,23 @@ function Lobby.build(): LobbyHandle
 			Enum.Material.SmoothPlastic
 		)
 		f.CanCollide = false
+	end
+
+	for _, fx in { -40, 40 } do
+		for col = 1, 4 do
+			for row = 1, 3 do
+				local flag = part(
+					folder,
+					"SignFlag",
+					Vector3.new(2, 2, 0.4),
+					world(fx + (col - 2.5) * 2, 33 - row * 2, -HL + 1.2),
+					if (col + row) % 2 == 0
+						then Color3.fromRGB(240, 240, 240)
+						else Color3.fromRGB(20, 20, 20)
+				)
+				flag.CanCollide = false
+			end
+		end
 	end
 
 	-- Mezzanine: a raised walkway along the back wall (look down on the stage), up two ramps.
@@ -960,14 +1012,14 @@ function Lobby.build(): LobbyHandle
 	prompt(counter, "StorePrompt", "Open", "Store")
 
 	-- Three light chevrons on the floor between the door and the pads, pointing at the pads.
-	for k = 0, 2 do
+	for k = 0, 4 do
 		for _, sx in { -1, 1 } do
 			local chev = part(
 				folder,
 				"FloorChevron",
 				Vector3.new(5, 0.06, 1.1),
 				world(sx * 2.1, 0.05, 47 - k * 3),
-				Color3.fromRGB(105, 110, 125)
+				Color3.fromRGB(240, 240, 240)
 			)
 			chev.CFrame = world(sx * 2.1, 0.05, 47 - k * 3)
 				* CFrame.Angles(0, -sx * math.rad(35), 0)
@@ -1063,6 +1115,16 @@ function Lobby.build(): LobbyHandle
 			body.CanCollide = false
 		end
 		glow(padPart, GREEN, 18, 0.25)
+		local under = part(
+			folder,
+			"PadUnderglow",
+			Vector3.new(size + 1, 0.2, size + 1),
+			world(pp.x, 0.1, pp.z),
+			CYAN,
+			Enum.Material.Neon
+		)
+		under.CanCollide = false
+		under.CanQuery = false
 		local badge = part(
 			folder,
 			"PadNumber" .. i,
