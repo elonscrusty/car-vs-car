@@ -17,3 +17,10 @@ Status: unit tests pass (32), CI green. Studio playtest done on carter's PC: pic
 
 ## Not done
 No DataStore, no abilities, no sounds, no models, no slow-mo (camera follows dummy instead).
+
+## Hit feel + boost (added)
+- Server sends `hit` (pos, strength, damage) -> client shake, sparks, damage numbers. Hit stop = server anchors both cars 0.04-0.12s on strong hits.
+- Smoke below 35% HP (Fx.luau). KO: camera pushes in on the dummy (not true slow-mo).
+- Boost: Ability remote, 0.8s, 5s cooldown, key E/Shift or BOOST button, bot boosts too. Numbers: GameConfig.Feel / Boost.
+- Studio check done by script (5 hits, 1 boost, KO, no errors); not eyeballed.
+- Lobby: waiting for a reference image carter likes (first one rejected).

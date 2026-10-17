@@ -3,6 +3,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
 
@@ -12,6 +13,7 @@ export type Handlers = {
 	onPick: (carId: string) -> (),
 	onConfirm: () -> (), -- LAUNCH / tap button
 	onAimHold: (dir: number) -> (), -- -1 right, 0 stop, +1 left
+	onBoost: () -> (),
 }
 
 export type View = {
@@ -27,6 +29,7 @@ export type View = {
 	showFight: () -> (),
 	showRoundEnd: (youLost: boolean, youHearts: number, enemyHearts: number) -> (),
 	showMatchEnd: (youWon: boolean) -> (),
+	startBoostCooldown: (seconds: number) -> (),
 }
 
 local function label(parent: Instance, text: string, size: UDim2, pos: UDim2): TextLabel
@@ -179,6 +182,31 @@ function Ui.create(h: Handlers): View
 	powerFill.Size = UDim2.fromScale(0, 1)
 	powerFill.Parent = powerBack
 
+	-- Boost button + cooldown bar (fight only)
+	local boostB = button(
+		gui,
+		"BOOST",
+		UDim2.fromScale(0.24, 0.2),
+		UDim2.fromScale(0.72, 0.74),
+		Color3.fromRGB(255, 150, 20)
+	)
+	boostB.Visible = false
+	local boostBar = Instance.new("Frame")
+	boostBar.AnchorPoint = Vector2.new(0, 1)
+	boostBar.Size = UDim2.fromScale(1, 0.14)
+	boostBar.Position = UDim2.fromScale(0, 1)
+	boostBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	boostBar.BackgroundTransparency = 0.3
+	boostBar.BorderSizePixel = 0
+	boostBar.Parent = boostB
+	local boostFill = Instance.new("Frame")
+	boostFill.Size = UDim2.fromScale(1, 1)
+	boostFill.BackgroundColor3 = Color3.fromRGB(120, 255, 140)
+	boostFill.BorderSizePixel = 0
+	boostFill.Parent = boostBar
+	local boostToken = 0
+	boostB.Activated:Connect(h.onBoost)
+
 	-- End screen
 	local endFrame = Instance.new("Frame")
 	endFrame.Size = UDim2.fromScale(1, 1)
@@ -201,6 +229,7 @@ function Ui.create(h: Handlers): View
 		powerBack.Visible = false
 		endFrame.Visible = false
 		msg.Visible = false
+		boostB.Visible = false
 	end
 
 	local view: View = {} :: any
@@ -233,9 +262,30 @@ function Ui.create(h: Handlers): View
 		hideAll()
 		msg.Visible = true
 		msg.Text = "FIGHT!"
+		boostB.Visible = true
+		boostToken += 1
+		boostFill.Size = UDim2.fromScale(1, 1)
+		boostFill.BackgroundColor3 = Color3.fromRGB(120, 255, 140)
 		task.delay(1, function()
 			if msg.Text == "FIGHT!" then
 				msg.Visible = false
+			end
+		end)
+	end
+
+	view.startBoostCooldown = function(seconds)
+		boostToken += 1
+		local token = boostToken
+		boostFill.BackgroundColor3 = Color3.fromRGB(255, 90, 60)
+		boostFill.Size = UDim2.fromScale(0, 1)
+		TweenService:Create(
+			boostFill,
+			TweenInfo.new(seconds, Enum.EasingStyle.Linear),
+			{ Size = UDim2.fromScale(1, 1) }
+		):Play()
+		task.delay(seconds, function()
+			if token == boostToken then
+				boostFill.BackgroundColor3 = Color3.fromRGB(120, 255, 140)
 			end
 		end)
 	end
@@ -244,6 +294,7 @@ function Ui.create(h: Handlers): View
 		top.Text = `YOU {hearts(youHearts)}  vs  {hearts(enemyHearts)} BOT`
 		msg.Visible = true
 		msg.Text = if youLost then "ROUND LOST" else "ROUND WON!"
+		boostB.Visible = false
 	end
 
 	view.showMatchEnd = function(youWon)

@@ -95,11 +95,14 @@ function Autopilot.step(
 	local vel = body.AssemblyLinearVelocity
 	local forwardSpeed = vel:Dot(fwd)
 	local throttle = Ai.driveScale(angle, cmd.throttle)
+	local boosting = car.boostLeft > 0
+	local maxSpeed = stats.maxSpeed * (if boosting then GameConfig.Boost.speedMult else 1)
+	local accel = stats.accel * (if boosting then GameConfig.Boost.accelMult else 1)
 	if
-		(throttle > 0 and forwardSpeed < stats.maxSpeed)
-		or (throttle < 0 and forwardSpeed > -stats.maxSpeed * 0.6)
+		(throttle > 0 and forwardSpeed < maxSpeed)
+		or (throttle < 0 and forwardSpeed > -maxSpeed * 0.6)
 	then
-		body:ApplyImpulse(fwd * throttle * stats.accel * mass * dt)
+		body:ApplyImpulse(fwd * throttle * accel * mass * dt)
 	end
 
 	-- 6. Grip: cancel part of the sideways slide so it drives like a car, not soap.

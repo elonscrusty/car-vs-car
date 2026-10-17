@@ -1,6 +1,7 @@
 --!strict
 local Harness = require("./harness")
 local CarConfig = require("../src/shared/CarConfig")
+local GameConfig = require("../src/shared/GameConfig")
 
 local test, eq, truthy = Harness.test, Harness.eq, Harness.truthy
 
@@ -35,4 +36,14 @@ test("Spike hits hardest, Heavy has most HP, Light is fastest", function()
 		truthy(c.Light.maxSpeed >= c[id].maxSpeed)
 	end
 	truthy(c.Ramp.hitLift > 0)
+end)
+
+test("feel and boost numbers are sane", function()
+	local F, B = GameConfig.Feel, GameConfig.Boost
+	truthy(F.hitStopMin <= F.hitStopMax and F.hitStopMax < 0.3, "hit stop short")
+	truthy(F.hitStopFrom >= 0 and F.hitStopFrom < 1, "hitStopFrom")
+	truthy(F.koFov < F.normalFov, "KO zooms in")
+	truthy(B.duration < B.cooldown, "cooldown longer than boost")
+	truthy(B.speedMult > 1 and B.accelMult > 1, "boost is a boost")
+	truthy(B.botMinDist < B.botMaxDist, "bot range")
 end)

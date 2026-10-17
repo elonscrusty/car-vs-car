@@ -85,4 +85,28 @@ function Logic.loseHeart(hearts: number): (number, boolean)
 	return h, h <= 0
 end
 
+-- How hard a hit was, 0..1 (1 = `bigSpeed` or faster).
+function Logic.hitStrength(relSpeed: number, bigSpeed: number): number
+	return Logic.clamp(relSpeed / bigSpeed, 0, 1)
+end
+
+-- Freeze time for a hit. Weak hits (below `from`) do not freeze at all.
+function Logic.hitStopTime(strength: number, minT: number, maxT: number, from: number): number
+	if strength < from then
+		return 0
+	end
+	local k = (strength - from) / (1 - from)
+	return minT + (maxT - minT) * Logic.clamp(k, 0, 1)
+end
+
+-- Boost timers tick down. Returns (boostLeft, cooldownLeft).
+function Logic.tickBoost(left: number, cooldown: number, dt: number): (number, number)
+	return math.max(0, left - dt), math.max(0, cooldown - dt)
+end
+
+-- Boost can start only when it is off and the cooldown is over.
+function Logic.canBoost(left: number, cooldown: number): boolean
+	return left <= 0 and cooldown <= 0
+end
+
 return Logic

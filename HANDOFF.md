@@ -19,3 +19,5 @@
 - After a hit, cars now drive away and swing back with speed (run-up) instead of reversing. Tune `Ai.retreatTime/retreatDist` in GameConfig.
 - Floor and car friction are low (`Drive.groundFriction`) so cars keep speed; `Drive.grip` stops sideways drifting; `turnRate` per car sets how well it can hit.
 - Arena is set to always stream to clients (place may have StreamingEnabled on).
+
+- Next: lobby (walkable) after carter sends an image he likes; show top-down map first.

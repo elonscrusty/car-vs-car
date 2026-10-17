@@ -54,6 +54,27 @@ local GameConfig = {
 		circleAngleDeg = 40, -- Light: how far around enemy to aim each step
 		stuckSeconds = 0.8, -- barely moving this long = nose-to-nose standoff, back up
 	},
+	Feel = {
+		bigHitSpeed = 70, -- impact speed that counts as a full-strength hit
+		hitStopMin = 0.04, -- freeze length (seconds) for a medium hit
+		hitStopMax = 0.12, -- freeze length for a full-strength hit
+		hitStopFrom = 0.4, -- hits weaker than this (0..1) do not freeze
+		shakeMax = 1.6, -- camera shake size (studs) for a full-strength hit
+		shakeTime = 0.4, -- seconds a shake lasts
+		normalFov = 65,
+		koFov = 42, -- camera zooms in to this on a knockout
+		koCamUp = 10, -- KO camera height above the dummy
+		koCamBack = 20, -- KO camera distance from the dummy
+		smokeBelow = 0.35, -- car smokes when HP is under this share
+	},
+	Boost = {
+		duration = 0.8, -- seconds of extra speed
+		cooldown = 5, -- seconds until the next boost (counts from the start)
+		speedMult = 1.6, -- top speed x this while boosting
+		accelMult = 3, -- acceleration x this while boosting
+		botMinDist = 18, -- bot only boosts when the enemy is this far or more
+		botMaxDist = 60, -- ...and not farther than this
+	},
 	Dummy = {
 		launchUp = 70, -- upward speed of the crash dummy (studs/sec)
 		launchSpread = 25, -- sideways speed random

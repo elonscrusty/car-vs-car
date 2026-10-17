@@ -16,12 +16,14 @@ local Arena = require(script.Parent.Arena)
 local Autopilot = require(script.Parent.Autopilot)
 local CarBuilder = require(script.Parent.CarBuilder)
 local Dummy = require(script.Parent.Dummy)
+local Fx = require(script.Parent.Fx)
 
 type Phase = "pick" | "aim" | "fight" | "roundEnd" | "matchEnd"
 
 export type Handle = {
 	selectCar: (carId: any) -> (),
 	launch: (angle: any, power: any) -> (),
+	boost: () -> (),
 	destroy: () -> (),
 }
 
@@ -42,6 +44,7 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet): Ha
 	local playerCarId = "Heavy"
 	local aimToken = 0 -- bumps each aim phase so old timeouts do nothing
 	local lastHitAt = -math.huge
+	local frozen = false -- hit stop: cars are held still for a moment
 	local rayParams = RaycastParams.new()
 	rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
@@ -70,6 +73,7 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet): Ha
 		end
 		phase = "roundEnd"
 		loser.dead = true
+		loser.flame.Enabled = false
 		loser.hp = 0
 		loser.bar.set(0, loser.stats.hp)
 		loser.bar.hide()
@@ -105,6 +109,46 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet): Ha
 		end)
 	end
 
+	-- Hit stop: hold both cars still for a blink, then let them go with the same speeds.
+	local function hitStop(duration: number)
+		if duration <= 0 or frozen then
+			return
+		end
+		frozen = true
+		local held = { cars[1], cars[2] }
+		local lin, ang = {}, {}
+		for i, car in held do
+			lin[i], ang[i] = car.body.AssemblyLinearVelocity, car.body.AssemblyAngularVelocity
+			car.body.Anchored = true
+		end
+		task.delay(duration, function()
+			frozen = false
+			for i, car in held do
+				if car.model.Parent ~= nil then
+					car.body.Anchored = false
+					pcall(function()
+						car.body:SetNetworkOwner(nil)
+					end)
+					car.body.AssemblyLinearVelocity = lin[i]
+					car.body.AssemblyAngularVelocity = ang[i]
+				end
+			end
+		end)
+	end
+
+	local function startBoost(car: CarBuilder.Car): boolean
+		if car.dead or not Logic.canBoost(car.boostLeft, car.boostCd) then
+			return false
+		end
+		car.boostLeft = cfg.Boost.duration
+		car.boostCd = cfg.Boost.cooldown
+		car.flame.Enabled = true
+		if car.idx == 1 then
+			send({ kind = "boost", cooldown = cfg.Boost.cooldown })
+		end
+		return true
+	end
+
 	-- A hit between two cars. Uses velocities from the end of the last frame (before the crash).
 	local function resolveHit(a: CarBuilder.Car, b: CarBuilder.Car)
 		if a.dead or b.dead or phase ~= "fight" then
@@ -137,6 +181,28 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet): Ha
 		defender.bar.set(newHp, defender.stats.hp)
 		a.ai.hit = true
 		b.ai.hit = true
+
+		-- Feel: tell the client (shake, sparks, number), smoke when low, freeze for a blink.
+		local strength = Logic.hitStrength(rel, cfg.Feel.bigHitSpeed)
+		send({
+			kind = "hit",
+			pos = (a.body.Position + b.body.Position) / 2,
+			strength = strength,
+			damage = dmg,
+			youHit = defender.idx == 1,
+		})
+		if not defender.smoking and newHp / defender.stats.hp < cfg.Feel.smokeBelow then
+			defender.smoking = true
+			Fx.smoke(defender.body)
+		end
+		hitStop(
+			Logic.hitStopTime(
+				strength,
+				cfg.Feel.hitStopMin,
+				cfg.Feel.hitStopMax,
+				cfg.Feel.hitStopFrom
+			)
+		)
 
 		-- Ramp: kick the enemy upward to flip it.
 		if attacker.stats.hitLift > 0 then
@@ -209,6 +275,7 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet): Ha
 		local a = arena :: Arena.Arena
 		phase = "fight"
 		lastHitAt = -math.huge
+		frozen = false
 		launchCar(cars[1], Arena.inwardDirection(a, 1), angle, power)
 		-- Bot: random aim and power
 		local botAngle = rng:NextNumber(-cfg.Match.aimMaxDeg, cfg.Match.aimMaxDeg)
@@ -247,8 +314,28 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet): Ha
 
 	-- Every frame during a fight: both cars auto-pilot, then remember velocity for impact math.
 	local fightConn = RunService.Heartbeat:Connect(function(dt)
-		if phase ~= "fight" then
+		if phase ~= "fight" or frozen then
 			return
+		end
+		for _, car in cars do
+			car.boostLeft, car.boostCd = Logic.tickBoost(car.boostLeft, car.boostCd, dt)
+			if car.boostLeft <= 0 then
+				car.flame.Enabled = false
+			end
+		end
+		-- Bot boosts now and then when the player is a good run away and in front.
+		local bot, you = cars[2], cars[1]
+		if not bot.dead and not you.dead and Logic.canBoost(bot.boostLeft, bot.boostCd) then
+			local toYou = you.body.Position - bot.body.Position
+			local dist = toYou.Magnitude
+			if
+				dist >= cfg.Boost.botMinDist
+				and dist <= cfg.Boost.botMaxDist
+				and bot.body.CFrame.LookVector:Dot(toYou.Unit) > 0.9
+				and rng:NextNumber() < 0.05
+			then
+				startBoost(bot)
+			end
 		end
 		for i, car in cars do
 			if not car.dead then
@@ -290,6 +377,15 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet): Ha
 				return
 			end
 			startFight(a, p)
+		end,
+		boost = function()
+			if destroyed or phase ~= "fight" then
+				return
+			end
+			local mine = cars[1]
+			if mine then
+				startBoost(mine)
+			end
 		end,
 		destroy = function()
 			destroyed = true

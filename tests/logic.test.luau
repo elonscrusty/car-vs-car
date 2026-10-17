@@ -2,7 +2,7 @@
 local Harness = require("./harness")
 local Logic = require("../src/shared/Logic")
 
-local test, eq, near = Harness.test, Harness.eq, Harness.near
+local test, eq, near, truthy = Harness.test, Harness.eq, Harness.near, Harness.truthy
 
 print("Logic")
 
@@ -96,4 +96,30 @@ test("loseHeart counts down to match over", function()
 	h, over = Logic.loseHeart(0)
 	eq(h, 0)
 	eq(over, true)
+end)
+
+test("hitStrength scales to 1 and clamps", function()
+	eq(Logic.hitStrength(0, 70), 0)
+	eq(Logic.hitStrength(35, 70), 0.5)
+	eq(Logic.hitStrength(200, 70), 1)
+end)
+
+test("hitStopTime: weak = none, strong = longest", function()
+	eq(Logic.hitStopTime(0.3, 0.04, 0.12, 0.4), 0)
+	near(Logic.hitStopTime(0.4, 0.04, 0.12, 0.4), 0.04)
+	near(Logic.hitStopTime(1, 0.04, 0.12, 0.4), 0.12)
+	truthy(Logic.hitStopTime(0.7, 0.04, 0.12, 0.4) > 0.04)
+end)
+
+test("boost timers tick and gate", function()
+	eq(Logic.canBoost(0, 0), true)
+	eq(Logic.canBoost(0.5, 0), false)
+	eq(Logic.canBoost(0, 2), false)
+	local left, cd = Logic.tickBoost(0.5, 5, 0.2)
+	near(left, 0.3)
+	near(cd, 4.8)
+	left, cd = Logic.tickBoost(0.1, 0.1, 1)
+	eq(left, 0)
+	eq(cd, 0)
+	eq(Logic.canBoost(left, cd), true)
 end)

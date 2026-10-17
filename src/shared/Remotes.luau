@@ -1,8 +1,9 @@
 --!strict
--- The only 3 RemoteEvents in the game. Server creates them, client waits for them.
+-- The only 4 RemoteEvents in the game. Server creates them, client waits for them.
 --   SelectCar (client -> server): "I pick this car"
 --   Launch    (client -> server): "launch with this angle and power"
---   UiUpdate  (server -> client): screen / HUD updates
+--   Ability   (client -> server): "boost now" (no data; server decides)
+--   UiUpdate  (server -> client): screen / HUD updates, hit effects
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -10,6 +11,7 @@ local RunService = game:GetService("RunService")
 export type RemoteSet = {
 	SelectCar: RemoteEvent,
 	Launch: RemoteEvent,
+	Ability: RemoteEvent,
 	UiUpdate: RemoteEvent,
 }
 
@@ -46,6 +48,7 @@ function Remotes.get(): RemoteSet
 	return {
 		SelectCar = getOrMake(folder, "SelectCar"),
 		Launch = getOrMake(folder, "Launch"),
+		Ability = getOrMake(folder, "Ability"),
 		UiUpdate = getOrMake(folder, "UiUpdate"),
 	}
 end

@@ -2,11 +2,13 @@
 -- Client entry point. Shows UI, aims, and sends only: car choice, aim angle, launch power.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Types = require(ReplicatedStorage.Shared.Types)
 local AimInput = require(script.AimInput)
 local CameraDirector = require(script.CameraDirector)
+local Effects = require(script.Effects)
 local Ui = require(script.Ui)
 
 local remotes = Remotes.get()
@@ -25,7 +27,20 @@ view = Ui.create({
 	onAimHold = function(dir: number)
 		aim.setHold(dir)
 	end,
+	onBoost = function()
+		remotes.Ability:FireServer()
+	end,
 })
+
+-- Keyboard: E or left shift = boost (server decides if it is ready).
+UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
+	if
+		not processed
+		and (input.KeyCode == Enum.KeyCode.E or input.KeyCode == Enum.KeyCode.LeftShift)
+	then
+		remotes.Ability:FireServer()
+	end
+end)
 
 aim = AimInput.new(function(power: number)
 	view.showPower(power)
@@ -54,6 +69,15 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 	elseif u.kind == "roundEnd" then
 		view.showRoundEnd(u.youLost == true, u.youHearts or 0, u.enemyHearts or 0)
 		director.focus(u.focus)
+	elseif u.kind == "hit" then
+		local strength = u.strength or 0
+		director.shake(strength)
+		if u.pos then
+			Effects.sparks(u.pos, strength)
+			Effects.damageNumber(u.pos, u.damage or 0, u.youHit == true)
+		end
+	elseif u.kind == "boost" then
+		view.startBoostCooldown(u.cooldown or 5)
 	elseif u.kind == "matchEnd" then
 		aim.stop()
 		view.showMatchEnd(u.youWon == true)

@@ -17,6 +17,7 @@ local remotes = Remotes.get()
 local launchLimiter =
 	RateLimiter.new(GameConfig.Remote.maxPerWindow, GameConfig.Remote.windowSeconds)
 local selectLimiter = RateLimiter.new(3, GameConfig.Remote.windowSeconds)
+local abilityLimiter = RateLimiter.new(4, GameConfig.Remote.windowSeconds)
 
 local matches: { [Player]: Match.Handle } = {}
 local slots: { [Player]: number } = {}
@@ -51,6 +52,7 @@ local function onPlayerRemoving(player: Player)
 	slots[player] = nil
 	launchLimiter.clear(player)
 	selectLimiter.clear(player)
+	abilityLimiter.clear(player)
 end
 
 remotes.SelectCar.OnServerEvent:Connect(function(player: Player, carId: any)
@@ -64,6 +66,13 @@ remotes.Launch.OnServerEvent:Connect(function(player: Player, angle: any, power:
 	local m = matches[player]
 	if m and launchLimiter.allow(player, os.clock()) then
 		m.launch(angle, power)
+	end
+end)
+
+remotes.Ability.OnServerEvent:Connect(function(player: Player)
+	local m = matches[player]
+	if m and abilityLimiter.allow(player, os.clock()) then
+		m.boost()
 	end
 end)
 
