@@ -51,6 +51,9 @@ view = Ui.create({
 	onPick = function(carId: string)
 		remotes.SelectCar:FireServer(carId)
 	end,
+	onRematch = function()
+		remotes.LobbyAction:FireServer("rematch")
+	end,
 })
 
 local lobby = LobbyUi.new({
