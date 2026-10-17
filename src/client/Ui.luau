@@ -5,6 +5,9 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
+local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
+local WinText = require(ReplicatedStorage.Shared.WinText)
+local WinFx = require(script.Parent.WinFx)
 
 local Ui = {}
 
@@ -63,6 +66,10 @@ local function button(
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0.2, 0)
 	corner.Parent = b
+	-- Never smaller than a fingertip on a phone.
+	local minSize = Instance.new("UISizeConstraint")
+	minSize.MinSize = Vector2.new(48, 48)
+	minSize.Parent = b
 	return b
 end
 
@@ -134,9 +141,33 @@ function Ui.create(h: Handlers): View
 	endFrame.BackgroundTransparency = 0.45
 	endFrame.Visible = false
 	endFrame.Parent = gui
-	local endText = label(endFrame, "", UDim2.fromScale(0.8, 0.3), UDim2.fromScale(0.1, 0.2))
+	local banner = Instance.new("Frame")
+	banner.AnchorPoint = Vector2.new(0.5, 0.5)
+	banner.Position = UDim2.fromScale(0.5, 0.45)
+	banner.Size = UDim2.fromScale(0.9, 0.4)
+	banner.BackgroundTransparency = 1
+	banner.Parent = endFrame
+	local endText = label(banner, "", UDim2.fromScale(1, 0.62), UDim2.fromScale(0, 0))
+	endText.TextStrokeTransparency = 0
+	local endSub = label(banner, "", UDim2.fromScale(0.6, 0.26), UDim2.fromScale(0.2, 0.68))
+	endSub.TextColor3 = Color3.fromRGB(255, 225, 120)
+	local endFx: WinFx.Handle? = nil
+	local endTweens: { Tween } = {}
+
+	local function clearEndFx()
+		if endFx then
+			endFx.stop()
+			endFx = nil
+		end
+		for _, t in endTweens do
+			t:Cancel()
+			t:Destroy()
+		end
+		table.clear(endTweens)
+	end
 
 	local function hideAll()
+		clearEndFx()
 		pick.Visible = false
 		aimFrame.Visible = false
 		powerBack.Visible = false
@@ -204,10 +235,15 @@ function Ui.create(h: Handlers): View
 	view.showMatchEnd = function(youWon)
 		hideAll()
 		endFrame.Visible = true
-		endText.Text = if youWon then "YOU WIN" else "YOU LOSE"
+		endText.Text = WinText.headline(youWon)
+		endSub.Text = WinText.subtitle(youWon, LobbyConfig.Rewards)
 		endText.TextColor3 = if youWon
-			then Color3.fromRGB(120, 255, 140)
-			else Color3.fromRGB(255, 100, 100)
+			then Color3.fromRGB(255, 205, 40)
+			else Color3.fromRGB(235, 90, 90)
+		WinFx.popIn(banner, youWon, endTweens)
+		if youWon then
+			endFx = WinFx.coinBurst(endFrame, math.floor(os.clock() * 1000))
+		end
 	end
 
 	view.hideMatch = function()

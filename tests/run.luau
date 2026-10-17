@@ -17,5 +17,6 @@ require("./lobby.test")
 require("./lobbytext.test")
 require("./store.test")
 require("./clawpath.test")
+require("./wintext.test")
 
 Harness.summary()
