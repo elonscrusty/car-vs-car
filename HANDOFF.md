@@ -50,3 +50,11 @@ All positions/sizes (room, pads, gacha, store, spawn) are in the pure `src/share
 ## Fight upgrades: tweak
 - All numbers in GameConfig: Launch, Special, Counter, RingOut, Ai, Drive. Car speeds in CarConfig.
 - Ability remote now takes "boost" or "special". UiUpdate kinds added: special, counter, ko.
+
+## Final note from lobby/fight thread (2026-10-17) — direction changed to game-plan.md
+- Built on branch `prototype` (PR #1, last head 58f79e6, CI green, 92 tests): racetrack-ready lobby (pads, gacha with odds, store, pick 1 of 3, session-locked saves), Studio-only DEV: BOT MATCH button, fight upgrades (specials Q, counter hit, ring-out, K.O. text), slope assist (Drive.slopeAssist) so heavy cars climb the bowl, matchup text hides after 1.5s.
+- Lobby look is still plain (neon night boxes). New style = racetrack (red/yellow/black). Reference: /mnt/project-files/car-vs-car/reference/lobby-style-racetrack.png. Tripo model list: /mnt/project-files/car-vs-car/tripo-models.md. Fight ideas: /mnt/project-files/car-vs-car/20-fight-ideas.md.
+- Gotchas: Studio baseplate top is y=0 so lobby origin y=3; a lobby built in edit mode duplicates at runtime (Lobby.build now deletes old copies); shared modules tested in Lune load siblings via a `sibling()` helper (string requires fail in Roblox and selene).
+- NOT eyeballed by a human: K.O./counter flashes, specials, phone layout, full fight feel. Hits are strong (~80-100 damage) after the speed-up; Damage.scale is the knob.
+- Tools for a fresh container: download lune 0.10.0, stylua 2.0.2, selene 0.28.0, rojo 7.5.1 release zips (rokit script 404s); selene std cannot build locally, CI does it.
+- The autopilot design is superseded by game-plan.md (aim-and-launch, no autopilot). Autopilot.luau/Ai.luau/Match.luau are the parts it replaces.
