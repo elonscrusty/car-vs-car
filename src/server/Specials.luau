@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SpecialLogic = require(ReplicatedStorage.Shared.SpecialLogic)
 local SpecialsConfig = require(ReplicatedStorage.Shared.SpecialsConfig)
 local CarBuilder = require(script.Parent.CarBuilder)
+local Impulse = require(script.Parent.Impulse)
 
 type State = {
 	readyAt: number, -- os.clock() time the special is ready again
@@ -73,9 +74,9 @@ local function knock(
 	local scale = massScale(enemy) * amount
 	local flat = Vector3.new(away.X, 0, away.Z)
 	local dir = if flat.Magnitude > 0.01 then flat.Unit else Vector3.zAxis
-	body:ApplyImpulse((dir * push + Vector3.yAxis * lift) * scale * body.AssemblyMass)
+	Impulse.linear(body, (dir * push + Vector3.yAxis * lift) * scale * body.AssemblyMass)
 	if spin > 0 then
-		body:ApplyAngularImpulse(Vector3.yAxis * spin * scale * body.AssemblyMass * 4)
+		Impulse.angular(body, Vector3.yAxis * spin * scale * body.AssemblyMass * 4)
 	end
 end
 
@@ -88,7 +89,7 @@ local function dash(car: CarBuilder.Car, sp: SpecialsConfig.Special, s: State)
 		s.flip = -s.flip
 		v += right * sp.dashSide * s.flip
 	end
-	car.body:ApplyImpulse(v * car.body.AssemblyMass)
+	Impulse.linear(car.body, v * car.body.AssemblyMass)
 end
 
 -- Tries to fire `car`'s special at `enemy`. `now` is os.clock(). Returns true if it fired

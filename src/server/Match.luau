@@ -27,6 +27,7 @@ local Appearance = require(script.Parent.Appearance)
 local CarBuilder = require(script.Parent.CarBuilder)
 local Dummy = require(script.Parent.Dummy)
 local Fx = require(script.Parent.Fx)
+local Impulse = require(script.Parent.Impulse)
 local CombatConfig = require(ReplicatedStorage.Shared.CombatConfig)
 local Damage = require(ReplicatedStorage.Shared.Damage)
 local Parts = require(script.Parent.Parts)
@@ -78,6 +79,8 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 	local steerStates: { [number]: Steer.State } = { Steer.newState(), Steer.newState() }
 	local steerSmooth: { [number]: number } = { 0, 0 } -- eased input per car
 	local throttleSmooth: { [number]: number } = { 0, 0 } -- eased gas per car
+	-- car index -> true when that player's own device drives (and owns the physics of) the car
+	local clientDriven: { [number]: boolean } = {}
 	local moveStates: { [number]: Moves.State } = { Moves.new(), Moves.new() } -- reset each fight
 	local rayParams = RaycastParams.new()
 	rayParams.FilterType = Enum.RaycastFilterType.Exclude
@@ -103,6 +106,7 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 	end
 
 	local function clearCars()
+		table.clear(clientDriven)
 		if pickups then
 			pickups.destroy()
 			pickups = nil
@@ -192,8 +196,11 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 			for i, car in held do
 				if car.model.Parent ~= nil then
 					car.body.Anchored = false
+					local part = participants[i]
 					pcall(function()
-						car.body:SetNetworkOwner(nil)
+						car.body:SetNetworkOwner(
+							if clientDriven[i] and part then part.player else nil
+						)
 					end)
 					car.body.AssemblyLinearVelocity = lin[i]
 					car.body.AssemblyAngularVelocity = ang[i]
@@ -294,7 +301,8 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 
 		-- Ramp: kick the enemy upward to flip it.
 		if attacker.stats.hitLift > 0 then
-			defender.body:ApplyImpulse(
+			Impulse.linear(
+				defender.body,
 				Vector3.yAxis * defender.body.AssemblyMass * attacker.stats.hitLift
 			)
 		end
@@ -402,6 +410,26 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 				)
 			end
 		end
+		-- Each human gets the physics of their own car a moment after the launch push, so their
+		-- device can drive it with no lag. Test players (not real Players) stay server-driven.
+		task.delay(0.15, function()
+			if destroyed or phase ~= "fight" then
+				return
+			end
+			for i, car in cars do
+				local part = participants[i]
+				if part and not gone[i] and typeof(part.player) == "Instance" then
+					local ok = pcall(function()
+						car.body:SetNetworkOwner(part.player)
+					end)
+					if ok then
+						clientDriven[i] = true
+						car.model:SetAttribute("CarId", car.id)
+						car.model:SetAttribute("DriverUserId", part.player.UserId)
+					end
+				end
+			end
+		end)
 		if arena then
 			pickups = Pickups.start(arena, cars, rng, function(car, update)
 				sendTo(car.idx, update)
@@ -470,6 +498,21 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 		return nil
 	end
 
+	-- A driver's device owns its car, so a hacked client could drive it far too fast. Slow the car
+	-- down when it passes any speed the game can legitimately give it.
+	local function limitSpeed(car: CarBuilder.Car)
+		local cap = math.max(
+			cfg.Launch.maxSpeed,
+			car.stats.maxSpeed * (1 + MovesConfig.Boost.speedBonus) * Buffs.speedMult(car)
+		) * cfg.Drive.speedCapSlack
+		local v = car.body.AssemblyLinearVelocity
+		local flat = Vector3.new(v.X, 0, v.Z)
+		if flat.Magnitude > cap then
+			local keep = flat.Unit * cap
+			car.body.AssemblyLinearVelocity = Vector3.new(keep.X, v.Y, keep.Z)
+		end
+	end
+
 	local fightConn = RunService.Heartbeat:Connect(function(dt)
 		if phase ~= "fight" or frozen then
 			return
@@ -478,7 +521,11 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 			if not car.dead then
 				Buffs.tick(car, dt)
 				local human = participants[car.idx]
-				if human and not gone[car.idx] then
+				if human and not gone[car.idx] and clientDriven[car.idx] then
+					-- The driver's device moves this car; the server only keeps it honest.
+					car.model:SetAttribute("SpeedMult", Buffs.speedMult(car))
+					limitSpeed(car)
+				elseif human and not gone[car.idx] then
 					local raw =
 						Steer.current(steerStates[car.idx], os.clock(), cfg.Steer.staleSeconds)
 					local eased = Steer.smooth(steerSmooth[car.idx], raw, dt, cfg.Steer.smoothRate)

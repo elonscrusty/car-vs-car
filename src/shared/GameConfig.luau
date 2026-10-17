@@ -72,6 +72,7 @@ local GameConfig = {
 		groundRayExtra = 2.5, -- studs below car that still count as "on ground"
 		manualTurn = 2, -- human steering: full steer input = this x the car's turnRate
 		manualTurnMin = 4, -- ...but never slower than this (radians/sec) so heavy cars still turn
+		speedCapSlack = 1.5, -- server slows a player-driven car past (legit top speed x this)
 		manualTurnMax = 7, -- ...and never faster than this so light cars do not spin like tops
 	},
 	-- Human steering input (the player turns, the server keeps the gas on)

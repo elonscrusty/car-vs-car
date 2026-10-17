@@ -8,14 +8,13 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Ai = require(ReplicatedStorage.Shared.Ai)
 local BotLevels = require(ReplicatedStorage.Shared.BotLevels)
+local CarDrive = require(ReplicatedStorage.Shared.CarDrive)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
-local Logic = require(ReplicatedStorage.Shared.Logic)
-local Steer = require(ReplicatedStorage.Shared.Steer)
 local Buffs = require(script.Parent.Buffs)
 local CarBuilder = require(script.Parent.CarBuilder)
 
 -- Per-frame move effects for a human car (boost, drift). All 1 = normal driving.
-export type Mods = { speedScale: number, accelScale: number, gripScale: number, turnScale: number }
+export type Mods = CarDrive.Mods
 
 local Autopilot = {}
 
@@ -23,49 +22,15 @@ local function flat(v: Vector3): Vector3
 	return Vector3.new(v.X, 0, v.Z)
 end
 
--- Puts a flipped car back on its wheels, same spot (a bit higher), same heading.
-local function flipUpright(car: CarBuilder.Car)
-	local cf = car.body.CFrame
-	local look = flat(cf.LookVector)
-	if look.Magnitude < 0.1 then
-		look = flat(cf.UpVector)
-	end
-	if look.Magnitude < 0.1 then
-		look = Vector3.zAxis
-	end
-	local pos = cf.Position + Vector3.new(0, 4, 0)
-	car.model:PivotTo(CFrame.lookAt(pos, pos + look.Unit))
-	car.body.AssemblyLinearVelocity = Vector3.zero
-	car.body.AssemblyAngularVelocity = Vector3.zero
-end
-
 -- Shared first part: flip recovery, then the grounded check. Returns the floor hit, or nil when
 -- the car must not be driven this frame (flipped back, or in the air: no mid-air steering).
 local function groundHit(car: CarBuilder.Car, dt: number, rayParams: RaycastParams): RaycastResult?
-	local cf = car.body.CFrame
-	local flipCfg = GameConfig.Flip
-	local timer, doFlip = Logic.updateFlipTimer(
-		car.flipTimer,
-		cf.UpVector.Y,
-		dt,
-		flipCfg.upsideDownUpY,
-		flipCfg.afterSeconds
-	)
+	local hit, timer =
+		CarDrive.groundHit(car.model, car.body, car.stats, car.flipTimer, dt, rayParams)
 	car.flipTimer = timer
-	if doFlip then
-		flipUpright(car)
-		return nil
-	end
-
-	local reach = car.stats.size[2] / 2 + GameConfig.Drive.groundRayExtra
-	local hit = workspace:Raycast(cf.Position, Vector3.new(0, -reach, 0), rayParams)
-	if hit == nil or not (hit.Instance.Name == "Floor" or hit.Instance.Name == "Slope") then
-		return nil
-	end
 	return hit
 end
 
--- Shared last part: push forward/back up to max speed (with slope assist), then grip.
 local function push(
 	car: CarBuilder.Car,
 	fwd: Vector3,
@@ -74,43 +39,10 @@ local function push(
 	dt: number,
 	mods: Mods?
 )
-	local body = car.body
-	local stats = car.stats
-	local mass = body.AssemblyMass
-	local vel = body.AssemblyLinearVelocity
-	local forwardSpeed = vel:Dot(fwd)
-	local maxSpeed = stats.maxSpeed * Buffs.speedMult(car) * (if mods then mods.speedScale else 1)
-	if
-		(throttle > 0 and forwardSpeed < maxSpeed)
-		or (throttle < 0 and forwardSpeed > -maxSpeed * 0.6)
-	then
-		-- Impulse = mass x speed change.
-		local accelScale = if mods then mods.accelScale else 1
-		body:ApplyImpulse(fwd * throttle * stats.accel * accelScale * mass * dt)
-		-- Slope assist: while driving, cancel the part of gravity that pulls back along the slope,
-		-- so a heavy car can climb the bowl instead of stalling facing uphill.
-		if throttle > 0 then
-			local g = Vector3.new(0, -workspace.Gravity, 0)
-			local along = (g - hit.Normal * g:Dot(hit.Normal)):Dot(fwd)
-			if along < 0 then
-				body:ApplyImpulse(fwd * -along * GameConfig.Drive.slopeAssist * mass * dt)
-			end
-		end
-	end
-
-	-- Grip: cancel part of the sideways slide so it drives like a car, not soap.
-	local right = Vector3.new(-fwd.Z, 0, fwd.X)
-	local sideSpeed = vel:Dot(right)
-	local gripScale = if mods then mods.gripScale else 1
-	body:ApplyImpulse(
-		-right * sideSpeed * math.min(1, GameConfig.Drive.grip * gripScale * dt) * mass
-	)
+	CarDrive.push(car.body, car.stats, fwd, throttle, hit, dt, mods, Buffs.speedMult(car))
 end
 
-local function setSpin(body: BasePart, spin: number)
-	local av = body.AssemblyAngularVelocity
-	body.AssemblyAngularVelocity = Vector3.new(av.X, spin, av.Z)
-end
+local setSpin = CarDrive.setSpin
 
 -- Bot car: the AI picks the target, the car turns toward it.
 function Autopilot.step(
@@ -186,21 +118,18 @@ function Autopilot.stepManual(
 	rayParams: RaycastParams,
 	mods: Mods?
 )
-	local hit = groundHit(car, dt, rayParams)
-	if hit == nil then
-		return
-	end
-	local fwd = flat(car.body.CFrame.LookVector)
-	if fwd.Magnitude < 0.1 then
-		return
-	end
-	fwd = fwd.Unit
-	local turnScale = if mods then mods.turnScale else 1
-	local drive = GameConfig.Drive
-	local turnRate =
-		math.clamp(car.stats.turnRate * drive.manualTurn, drive.manualTurnMin, drive.manualTurnMax)
-	setSpin(car.body, Steer.spin(steerInput, turnRate, turnScale))
-	push(car, fwd, throttle, hit, dt, mods)
+	car.flipTimer = CarDrive.manual(
+		car.model,
+		car.body,
+		car.stats,
+		car.flipTimer,
+		steerInput,
+		throttle,
+		dt,
+		rayParams,
+		mods,
+		Buffs.speedMult(car)
+	)
 end
 
 return Autopilot

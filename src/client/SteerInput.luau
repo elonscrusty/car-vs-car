@@ -14,6 +14,7 @@ local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 export type SteerInput = {
 	start: () -> (),
 	stop: () -> (),
+	read: () -> (number, number), -- steer, gas right now (for driving the own car on this device)
 }
 
 local SteerInput = {}
@@ -252,6 +253,10 @@ function SteerInput.new(send: (steer: number, gas: number) -> ()): SteerInput
 				end
 			end
 		end)
+	end
+
+	self.read = function()
+		return steerValue(), gasValue()
 	end
 
 	self.stop = function()

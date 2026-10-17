@@ -9,6 +9,7 @@ local Moves = require(ReplicatedStorage.Shared.Moves)
 local MovesConfig = require(ReplicatedStorage.Shared.MovesConfig)
 local Autopilot = require(script.Parent.Autopilot)
 local CarBuilder = require(script.Parent.CarBuilder)
+local Impulse = require(script.Parent.Impulse)
 local Specials = require(script.Parent.Specials)
 
 export type State = {
@@ -67,10 +68,11 @@ function ServerMoves.press(
 			return nil
 		end
 		state.boostAt = now
+		car.model:SetAttribute("BoostAt", workspace:GetServerTimeNow()) -- the driver's device reads this
 		local look = car.body.CFrame.LookVector
 		local fwd = Vector3.new(look.X, 0, look.Z)
 		if fwd.Magnitude > 0.1 then
-			car.body:ApplyImpulse(fwd.Unit * MovesConfig.Boost.kick * car.body.AssemblyMass)
+			Impulse.linear(car.body, fwd.Unit * MovesConfig.Boost.kick * car.body.AssemblyMass)
 		end
 		return cd
 	elseif name == "jump" then
@@ -79,7 +81,7 @@ function ServerMoves.press(
 			return nil
 		end
 		state.jumpAt = now
-		car.body:ApplyImpulse(Vector3.yAxis * MovesConfig.Jump.speed * car.body.AssemblyMass)
+		Impulse.linear(car.body, Vector3.yAxis * MovesConfig.Jump.speed * car.body.AssemblyMass)
 		return cd
 	elseif name == "special" then
 		if Specials.use(car, enemy, now) then
