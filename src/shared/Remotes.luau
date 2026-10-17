@@ -1,8 +1,7 @@
 --!strict
--- The only 6 RemoteEvents in the game. Server creates them, client waits for them.
+-- The only 5 RemoteEvents in the game. Server creates them, client waits for them.
 --   SelectCar (client -> server): "I pick this car"
 --   Launch    (client -> server): "launch with this angle and power"
---   Ability   (client -> server): "boost" or "special" (server decides if it is ready)
 --   UiUpdate  (server -> client): screen / HUD updates, hit effects
 --   LobbyAction (client -> server): (action, arg) pickCar / buyGacha / leavePad
 --   LobbyUpdate (server -> client): lobby HUD, gacha, countdown, choices, toLobby
@@ -13,7 +12,6 @@ local RunService = game:GetService("RunService")
 export type RemoteSet = {
 	SelectCar: RemoteEvent,
 	Launch: RemoteEvent,
-	Ability: RemoteEvent,
 	UiUpdate: RemoteEvent,
 	LobbyAction: RemoteEvent,
 	LobbyUpdate: RemoteEvent,
@@ -52,7 +50,6 @@ function Remotes.get(): RemoteSet
 	return {
 		SelectCar = getOrMake(folder, "SelectCar"),
 		Launch = getOrMake(folder, "Launch"),
-		Ability = getOrMake(folder, "Ability"),
 		UiUpdate = getOrMake(folder, "UiUpdate"),
 		LobbyAction = getOrMake(folder, "LobbyAction"),
 		LobbyUpdate = getOrMake(folder, "LobbyUpdate"),

@@ -1,5 +1,5 @@
 --!strict
--- Fight screen juice: gold COUNTER! flash, white KO flash and the big KO text. Cheap tweens, all cleaned up.
+-- Fight screen juice: white KO flash and the big KO text. Cheap tweens, all cleaned up.
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -35,24 +35,6 @@ local function bigText(text: string, color: Color3, size: UDim2, pos: UDim2): Te
 	l.TextStrokeTransparency = 0.2
 	l.Parent = getGui()
 	return l
-end
-
--- "COUNTER!" near screen center, 0.6s.
-function FightFx.counter()
-	local l = bigText(
-		"COUNTER!",
-		Color3.fromRGB(255, 205, 40),
-		UDim2.fromScale(0.3, 0.1),
-		UDim2.fromScale(0.5, 0.38)
-	)
-	TweenService:Create(
-		l,
-		TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-		{ TextTransparency = 1, TextStrokeTransparency = 1, Position = UDim2.fromScale(0.5, 0.33) }
-	):Play()
-	task.delay(0.6, function()
-		l:Destroy()
-	end)
 end
 
 -- Quick white flash (0.15s) plus big text that pops in and fades out (~1.2s).
