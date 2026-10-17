@@ -20,47 +20,61 @@ Players.CharacterAutoLoads = true
 local remotes = Remotes.get()
 local launchLimiter =
 	RateLimiter.new(GameConfig.Remote.maxPerWindow, GameConfig.Remote.windowSeconds)
-local selectLimiter = RateLimiter.new(3, GameConfig.Remote.windowSeconds)
 local lobbyLimiter = RateLimiter.new(6, GameConfig.Remote.windowSeconds)
 
-local matches: { [Player]: Match.Handle } = {}
-local slots: { [Player]: number } = {}
+type Group = { match: Match.Handle, slot: number, remaining: number }
+local groups: { [Player]: Group } = {} -- every player in a match -> that match
+local usedSlots: { [number]: boolean } = {}
 
 local function freeSlot(): number
-	local used: { [number]: boolean } = {}
-	for _, s in slots do
-		used[s] = true
-	end
 	local s = 0
-	while used[s] do
+	while usedSlots[s] do
 		s += 1
 	end
 	return s
 end
 
-local function endMatch(player: Player)
-	local m = matches[player]
-	if m then
-		m.destroy()
+-- A player is done with their match (end screen over, or they left). The last one out closes it.
+local function leaveGroup(player: Player)
+	local g = groups[player]
+	if g == nil then
+		return
 	end
-	matches[player] = nil
-	slots[player] = nil
+	groups[player] = nil
+	g.remaining -= 1
+	if g.remaining <= 0 then
+		g.match.destroy()
+		usedSlots[g.slot] = nil
+	end
 end
 
--- Create the player's match (only the lobby service calls this, after a validated pick).
-local function startMatch(player: Player, carId: string, onFinished: (won: boolean) -> ())
-	if matches[player] or player.Parent == nil then
+-- Start one match for 1 or 2 players (only the lobby service calls this, after validated picks).
+-- A missing second player is a bot.
+local function startMatch(participants: { Match.Participant })
+	local ok: { Match.Participant } = {}
+	for _, part in participants do
+		if part.player.Parent ~= nil and groups[part.player] == nil then
+			local player, finished = part.player, part.onFinished
+			table.insert(ok, {
+				player = player,
+				carId = part.carId,
+				onFinished = function(won: boolean)
+					leaveGroup(player)
+					finished(won)
+				end,
+			})
+		end
+	end
+	if #ok == 0 then
 		return
 	end
 	local slot = freeSlot()
-	slots[player] = slot
-	matches[player] = Match.new(player, slot, remotes, {
-		carId = carId,
-		onFinished = function(won: boolean)
-			endMatch(player)
-			onFinished(won)
-		end,
-	})
+	usedSlots[slot] = true
+	local group: Group = { match = nil :: any, slot = slot, remaining = #ok }
+	group.match = Match.new(ok, slot, remotes)
+	for _, part in ok do
+		groups[part.player] = group
+	end
 end
 
 Profiles.init()
@@ -89,24 +103,20 @@ local function onPlayerAdded(player: Player)
 end
 
 local function onPlayerRemoving(player: Player)
-	endMatch(player)
+	local g = groups[player]
+	if g then
+		g.match.playerLeft(player)
+		leaveGroup(player)
+	end
 	lobbyService.onPlayerRemoving(player)
 	launchLimiter.clear(player)
-	selectLimiter.clear(player)
 	lobbyLimiter.clear(player)
 end
 
-remotes.SelectCar.OnServerEvent:Connect(function(player: Player, carId: any)
-	local m = matches[player]
-	if m and selectLimiter.allow(player, os.clock()) then
-		m.selectCar(carId)
-	end
-end)
-
 remotes.Launch.OnServerEvent:Connect(function(player: Player, angle: any, power: any)
-	local m = matches[player]
-	if m and launchLimiter.allow(player, os.clock()) then
-		m.launch(angle, power)
+	local g = groups[player]
+	if g and launchLimiter.allow(player, os.clock()) then
+		g.match.launch(player, angle, power)
 	end
 end)
 

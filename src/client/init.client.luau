@@ -38,6 +38,7 @@ aim = AimInput.new(function(power: number)
 	view.showPower(power)
 end, function(angle: number, power: number)
 	view.showPower(0)
+	view.showWaiting()
 	remotes.Launch:FireServer(angle, power)
 end)
 
@@ -50,7 +51,13 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 			end
 			director.overview(u.center, camSide)
 		end
-		view.showAim(u.round or 1, u.yourCar or "", u.enemyCar or "", u.seconds or 8)
+		view.showAim(
+			u.round or 1,
+			u.yourCar or "",
+			u.enemyCar or "",
+			u.seconds or 8,
+			u.enemyName or "BOT"
+		)
 		if u.carPos then
 			aim.start(u.carPos)
 		end

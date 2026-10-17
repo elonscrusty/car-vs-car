@@ -166,3 +166,10 @@ test("auto pick stays inside offered", function()
 		nil
 	)
 end)
+
+test("allPicked needs everyone on the pad", function()
+	eq(PadLogic.allPicked({}, {}), false)
+	eq(PadLogic.allPicked({ "a", "b" }, { a = "Heavy" }), false)
+	eq(PadLogic.allPicked({ "a", "b" }, { a = "Heavy", b = "Light" }), true)
+	eq(PadLogic.allPicked({ "a" }, { a = "Heavy", b = "Light" }), true)
+end)

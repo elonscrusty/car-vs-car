@@ -10,7 +10,7 @@ local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local HpBar = require(script.Parent.HpBar)
 
 export type Car = {
-	idx: number, -- 1 = player, 2 = bot
+	idx: number, -- 1 or 2 (2 is the bot when only one player)
 	id: string,
 	stats: CarConfig.CarStats,
 	model: Model,
@@ -56,14 +56,21 @@ local function addPart(
 	return p
 end
 
-function CarBuilder.build(id: string, idx: number, cf: CFrame, parent: Instance): Car
+function CarBuilder.build(
+	id: string,
+	idx: number,
+	cf: CFrame,
+	parent: Instance,
+	label: string,
+	isBot: boolean
+): Car
 	local stats = CarConfig.Cars[id]
 	local sx, sy, sz = stats.size[1], stats.size[2], stats.size[3]
 	local color = Color3.fromRGB(stats.rgb[1], stats.rgb[2], stats.rgb[3])
 	local dark = Color3.fromRGB(35, 35, 40)
 
 	local model = Instance.new("Model")
-	model.Name = (if idx == 1 then "PlayerCar_" else "BotCar_") .. id
+	model.Name = (if isBot then "BotCar_" else "PlayerCar_") .. id
 
 	-- Body: the only part with weight. Density is picked so the body mass equals stats.mass.
 	local body = Instance.new("Part")
@@ -166,8 +173,7 @@ function CarBuilder.build(id: string, idx: number, cf: CFrame, parent: Instance)
 
 	model.Parent = parent
 
-	local bar =
-		HpBar.create(body, (if idx == 1 then "YOU " else "BOT ") .. stats.name, sy + 3, markerColor)
+	local bar = HpBar.create(body, label .. " " .. stats.name, sy + 3, markerColor)
 	bar.set(stats.hp, stats.hp)
 
 	return {

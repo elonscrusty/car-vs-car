@@ -129,6 +129,19 @@ function PadLogic.shown(state: State, padIndex: number): number
 	return #pad.players
 end
 
+-- True when there is at least one player and every one of them has picked a car.
+function PadLogic.allPicked(keys: { any }, picks: { [any]: string }): boolean
+	if #keys == 0 then
+		return false
+	end
+	for _, key in keys do
+		if picks[key] == nil then
+			return false
+		end
+	end
+	return true
+end
+
 -- A pick is valid only if it is one of the offered cars. Returns the car id or nil.
 function PadLogic.validatePick(offered: { string }, carId: any): string?
 	if type(carId) ~= "string" then

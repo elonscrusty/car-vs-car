@@ -9,6 +9,7 @@ export type UiUpdate = {
 	center: Vector3?, -- bowl center (camera looks here)
 	carPos: Vector3?, -- your car (arrow starts here)
 	enemyPos: Vector3?, -- the other car
+	enemyName: string?, -- aim: name of the other player ("BOT" for the bot)
 	baseDir: Vector3?, -- angle 0 direction (always +Z: aim angles are absolute)
 	seconds: number?, -- aim: time you have before the server pushes for you
 	youLost: boolean?, -- roundEnd: did you lose this round

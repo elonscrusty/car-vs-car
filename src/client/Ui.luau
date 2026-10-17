@@ -14,7 +14,14 @@ export type Handlers = {
 
 export type View = {
 	showPick: () -> (),
-	showAim: (round: number, youCar: string, enemyCar: string, seconds: number) -> (),
+	showAim: (
+		round: number,
+		youCar: string,
+		enemyCar: string,
+		seconds: number,
+		enemyName: string
+	) -> (),
+	showWaiting: () -> (),
 	showPower: (power: number) -> (),
 	showFight: () -> (),
 	showRoundEnd: (youLost: boolean) -> (),
@@ -145,10 +152,10 @@ function Ui.create(h: Handlers): View
 		pick.Visible = true
 	end
 
-	view.showAim = function(round, youCar, enemyCar, seconds)
+	view.showAim = function(round, youCar, enemyCar, seconds, enemyName)
 		hideAll()
 		top.Visible = true
-		top.Text = `YOU  vs  BOT   (round {round})`
+		top.Text = `YOU  vs  {enemyName}`
 		msg.Visible = true
 		local matchup = `{youCar} vs {enemyCar}`
 		msg.Text = matchup
@@ -163,10 +170,14 @@ function Ui.create(h: Handlers): View
 		hint.Text = "PULL BACK, LET GO TO LAUNCH"
 		task.spawn(function()
 			while aimFrame.Visible and os.clock() < deadline do
-				top.Text = `YOU  vs  BOT   (round {round})   {math.ceil(deadline - os.clock())}`
+				top.Text = `YOU  vs  {enemyName}   {math.ceil(deadline - os.clock())}`
 				task.wait(0.25)
 			end
 		end)
+	end
+
+	view.showWaiting = function()
+		hint.Text = "WAITING FOR THE OTHER PLAYER..."
 	end
 
 	view.showPower = function(power)

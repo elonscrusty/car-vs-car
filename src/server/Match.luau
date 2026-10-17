@@ -1,7 +1,7 @@
 --!strict
--- One solo match: player vs bot. The server owns everything: cars, launches, damage, winner.
--- Flow: aim (drag to launch) -> launch -> cars drive themselves (Autopilot) and ram until one car
--- is out of HP (or time is up). Lobby matches (opts) skip the pick phase.
+-- One match: one or two players (the other car is a bot). The server owns everything: cars,
+-- launches, damage, winner. Flow: everyone aims at the same time (drag to launch) -> all launch
+-- together -> cars drive themselves (Autopilot) and ram until one car is out of HP (or time is up).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -25,33 +25,33 @@ local Fx = require(script.Parent.Fx)
 type Phase = "pick" | "aim" | "fight" | "roundEnd" | "matchEnd"
 
 export type Handle = {
-	selectCar: (carId: any) -> (),
-	launch: (angle: any, power: any) -> (),
+	launch: (player: Player, angle: any, power: any) -> (),
+	playerLeft: (player: Player) -> (),
 	destroy: () -> (),
 }
 
-export type Opts = {
+export type Participant = {
+	player: Player,
 	carId: string,
-	onFinished: (won: boolean) -> (),
+	onFinished: (won: boolean) -> (), -- called once, after the end screen, if the player stayed
 }
 
 local Match = {}
 
--- With opts (lobby flow): skips the pick phase, uses opts.carId, has no play-again, and calls
--- opts.onFinished(won) once the end screen has been shown for Rewards.endScreenSeconds.
-function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opts: Opts?): Handle
+-- participants: 1 or 2 players, in car order (car 1, car 2). A missing second player is a bot.
+function Match.new(participants: { Participant }, slot: number, remotes: Remotes.RemoteSet): Handle
 	local cfg = GameConfig
 	local origin = Vector3.new(slot * cfg.Arena.slotSpacing, cfg.Arena.baseY, 0)
 	local rng = Random.new()
+	local gone: { [number]: boolean } = {} -- car index -> that player left
 
-	local phase: Phase = "pick"
+	local phase: Phase = "aim"
 	local destroyed = false
 	local arena: Arena.Arena? = nil
 	local cars: { CarBuilder.Car } = {}
 	local touchConns: { RBXScriptConnection } = {}
 	local round = 0
-	local playerCarId = "Heavy"
-	local aimToken = 0 -- bumps each aim phase so old timeouts do nothing
+	local submissions: { [number]: { angle: number, power: number } } = {}
 	local lastHitAt = -math.huge
 	local frozen = false -- hit stop: cars are held still for a moment
 	local suddenDeath = false -- time ran out with equal HP: the next hit wins
@@ -59,11 +59,23 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 	local rayParams = RaycastParams.new()
 	rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
-	local beginAim: () -> () -- defined further down (rounds call each other)
+	local function nameOf(i: number): string
+		local p = participants[i]
+		return if p then p.player.DisplayName else "BOT"
+	end
 
-	local function send(update: Types.UiUpdate)
-		if not destroyed then
-			remotes.UiUpdate:FireClient(player, update)
+	-- Sends to one player (by car index). Skips bots and players who left.
+	local function sendTo(i: number, update: Types.UiUpdate)
+		local p = participants[i]
+		if p and not gone[i] and not destroyed then
+			remotes.UiUpdate:FireClient(p.player, update)
+		end
+	end
+
+	-- Same message for everyone, or built per player (their own point of view).
+	local function sendAll(make: (i: number) -> Types.UiUpdate)
+		for i = 1, 2 do
+			sendTo(i, make(i))
 		end
 	end
 
@@ -92,7 +104,10 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 			return
 		end
 		phase = "roundEnd"
-		send({ kind = "ko", text = koText or "K.O.!", pos = loser.body.Position })
+		local koPos = loser.body.Position
+		sendAll(function()
+			return { kind = "ko", text = koText or "K.O.!", pos = koPos }
+		end)
 		loser.dead = true
 		loser.hp = 0
 		loser.bar.set(0, loser.stats.hp)
@@ -104,19 +119,21 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 		if currentArena then
 			focus = Dummy.launch(loser.body.Position, currentArena.model)
 		end
-		send({ kind = "roundEnd", round = round, youLost = loser.idx == 1, focus = focus })
+		sendAll(function(i)
+			return { kind = "roundEnd", round = round, youLost = loser.idx == i, focus = focus }
+		end)
 
 		task.delay(cfg.Match.roundEndDelay, function()
 			if destroyed then
 				return
 			end
 			phase = "matchEnd"
-			local youWon = loser.idx == 2
-			send({ kind = "matchEnd", youWon = youWon })
-			if opts then
+			for i, part in participants do
+				local youWon = loser.idx ~= i
+				sendTo(i, { kind = "matchEnd", youWon = youWon })
 				task.delay(LobbyConfig.Rewards.endScreenSeconds, function()
-					if not destroyed then
-						opts.onFinished(youWon)
+					if not destroyed and not gone[i] then
+						part.onFinished(youWon)
 					end
 				end)
 			end
@@ -188,13 +205,16 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 
 		-- Feel: tell the client (shake, sparks, number), smoke when low, freeze for a blink.
 		local strength = Logic.hitStrength(rel, cfg.Feel.bigHitSpeed)
-		send({
-			kind = "hit",
-			pos = (a.body.Position + b.body.Position) / 2,
-			strength = strength,
-			damage = dmg,
-			youHit = defender.idx == 1,
-		})
+		local hitPos = (a.body.Position + b.body.Position) / 2
+		sendAll(function(i)
+			return {
+				kind = "hit",
+				pos = hitPos,
+				strength = strength,
+				damage = dmg,
+				youHit = defender.idx == i,
+			}
+		end)
 		if not defender.smoking and newHp / defender.stats.hp < cfg.Feel.smokeBelow then
 			defender.smoking = true
 			Fx.smoke(defender.body)
@@ -240,11 +260,14 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 	local function spawnCars()
 		local a = arena :: Arena.Arena
 		clearCars()
-		local botId = CarConfig.Order[rng:NextInteger(1, #CarConfig.Order)]
-		for idx, id in { playerCarId, botId } do
+		for idx = 1, 2 do
+			local part = participants[idx]
+			local id = if part
+				then part.carId
+				else CarConfig.Order[rng:NextInteger(1, #CarConfig.Order)]
 			local stats = CarConfig.Cars[id]
 			local cf = Arena.carCFrame(a, idx, stats.size[2] / 2)
-			cars[idx] = CarBuilder.build(id, idx, cf, a.model)
+			cars[idx] = CarBuilder.build(id, idx, cf, a.model, nameOf(idx), part == nil)
 		end
 		rayParams.FilterDescendantsInstances = { cars[1].model, cars[2].model }
 		for _, car in cars do
@@ -278,58 +301,89 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 		car.body:ApplyImpulse(dir * car.body.AssemblyMass * speed)
 	end
 
-	local function startFight(angle: number, power: number)
+	local function startFight()
 		phase = "fight"
 		lastHitAt = -math.huge
 		frozen = false
 		fightElapsed = 0
-		launchCar(cars[1], angle, power)
-		-- Bot: aims at you with a little error.
-		local mine, bot = cars[1].body.Position, cars[2].body.Position
-		local noise = rng:NextNumber(-12, 12)
-		launchCar(cars[2], Duel.botAim(bot.X, bot.Z, mine.X, mine.Z, noise), rng:NextNumber(0.6, 1))
-		send({ kind = "fight", round = round })
+		for i, car in cars do
+			local sub = submissions[i]
+			if sub then
+				launchCar(car, sub.angle, sub.power)
+			else
+				-- Bot: aims at the other car with a little error.
+				local me, other = car.body.Position, cars[3 - i].body.Position
+				local noise = rng:NextNumber(-12, 12)
+				launchCar(
+					car,
+					Duel.botAim(me.X, me.Z, other.X, other.Z, noise),
+					rng:NextNumber(0.6, 1)
+				)
+			end
+		end
+		sendAll(function()
+			return { kind = "fight", round = round }
+		end)
 	end
 
-	function beginAim()
+	-- Every human who has not launched yet gets a small random push, then the fight starts.
+	local function launchAllNow()
+		for i, part in participants do
+			if part and not gone[i] and submissions[i] == nil then
+				submissions[i] = { angle = rng:NextNumber(-180, 180), power = 0.35 }
+			end
+		end
+		startFight()
+	end
+
+	local function allSubmitted(): boolean
+		for i = 1, #participants do
+			if not gone[i] and submissions[i] == nil then
+				return false
+			end
+		end
+		return true
+	end
+
+	local function beginAim()
 		if destroyed or arena == nil then
 			return
 		end
 		phase = "aim"
 		round += 1
-		aimToken += 1
-		local token = aimToken
 		local a = arena :: Arena.Arena
-		send({
-			kind = "aim",
-			round = round,
-			yourCar = cars[1].id,
-			enemyCar = cars[2].id,
-			center = a.center,
-			carPos = cars[1].body.Position,
-			enemyPos = cars[2].body.Position,
-			baseDir = Vector3.zAxis,
-			seconds = cfg.Match.aimTimeout,
-		})
-		-- Too slow? The server gives you a small random push.
+		sendAll(function(i)
+			return {
+				kind = "aim",
+				round = round,
+				yourCar = cars[i].id,
+				enemyCar = cars[3 - i].id,
+				enemyName = nameOf(3 - i),
+				center = a.center,
+				carPos = cars[i].body.Position,
+				enemyPos = cars[3 - i].body.Position,
+				baseDir = Vector3.zAxis,
+				seconds = cfg.Match.aimTimeout,
+			}
+		end)
 		task.delay(cfg.Match.aimTimeout, function()
-			if not destroyed and phase == "aim" and token == aimToken then
-				startFight(rng:NextNumber(-180, 180), 0.35)
+			if not destroyed and phase == "aim" then
+				launchAllNow()
 			end
 		end)
 	end
 
-	local function startMatch()
-		if arena == nil then
-			arena = Arena.build(origin)
-		end
-		round, suddenDeath = 0, false
-		spawnCars()
-		beginAim()
-	end
-
 	-- Every frame during a fight: cars drive themselves, remember velocity for the impact math,
 	-- catch ring-outs, and watch the match clock.
+	local function indexOf(player: Player): number?
+		for i, part in participants do
+			if part.player == player then
+				return i
+			end
+		end
+		return nil
+	end
+
 	local fightConn = RunService.Heartbeat:Connect(function(dt)
 		if phase ~= "fight" or frozen then
 			return
@@ -364,30 +418,41 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 				return
 			end
 			suddenDeath = true
-			send({ kind = "ko", text = "SUDDEN DEATH!", pos = cars[1].body.Position })
+			local pos = cars[1].body.Position
+			sendAll(function()
+				return { kind = "ko", text = "SUDDEN DEATH!", pos = pos }
+			end)
 		end
 	end)
 
 	local handle: Handle = {
-		selectCar = function(carId: any)
-			if opts or destroyed or (phase ~= "pick" and phase ~= "matchEnd") then
-				return
-			end
-			if CarConfig.get(carId) == nil then
-				return
-			end
-			playerCarId = carId :: string
-			startMatch()
-		end,
-		launch = function(angle: any, power: any)
+		launch = function(player: Player, angle: any, power: any)
 			if destroyed or phase ~= "aim" then
+				return
+			end
+			local i = indexOf(player)
+			if i == nil or gone[i] or submissions[i] ~= nil then
 				return
 			end
 			local a, p = Logic.sanitizeLaunch(angle, power, 180)
 			if a == nil or p == nil then
 				return
 			end
-			startFight(a, p)
+			submissions[i] = { angle = a, power = p }
+			if allSubmitted() then
+				startFight()
+			end
+		end,
+		playerLeft = function(player: Player)
+			local i = indexOf(player)
+			if i == nil or gone[i] then
+				return
+			end
+			gone[i] = true
+			-- The player who stays wins.
+			if phase == "aim" or phase == "fight" then
+				endMatch(cars[i], "OPPONENT LEFT")
+			end
 		end,
 		destroy = function()
 			destroyed = true
@@ -398,10 +463,9 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 			end
 		end,
 	}
-	if opts and CarConfig.get(opts.carId) ~= nil then
-		playerCarId = opts.carId
-		startMatch()
-	end
+	arena = Arena.build(origin)
+	spawnCars()
+	beginAim()
 	return handle
 end
 

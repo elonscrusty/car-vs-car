@@ -19,6 +19,12 @@ local Types = require(ReplicatedStorage.Shared.Types)
 
 local Profiles = require(script.Parent.Profiles)
 
+export type Participant = {
+	player: Player,
+	carId: string,
+	onFinished: (won: boolean) -> (),
+}
+
 -- Only the parts of the lobby handle we use (see docs/LOBBY_CONTRACT.md).
 export type PadHandle = {
 	part: BasePart,
@@ -35,7 +41,7 @@ export type Deps = {
 	lobby: LobbyHandle,
 	remotes: Remotes.RemoteSet,
 	-- Create a Match for this player; call onFinished(won) when its end screen is over.
-	startMatch: (player: Player, carId: string, onFinished: (won: boolean) -> ()) -> (),
+	startMatch: (participants: { Participant }) -> (),
 }
 
 export type Handle = {
@@ -49,6 +55,7 @@ type Stage = "pad" | "picking" | "match"
 type PlayerState = {
 	stage: Stage,
 	offered: { string },
+	picked: string?, -- chosen car; the match starts when everyone on the pad has picked
 	token: number, -- bumps whenever the pick phase ends so old timeouts do nothing
 }
 
@@ -121,6 +128,8 @@ function LobbyService.start(deps: Deps): Handle
 			<= pad.prompt.MaxActivationDistance + extra
 	end
 
+	local maybeStart: (padIndex: number) -> () -- defined below
+
 	-- Take a player off their pad (countdown or pick phase). Safe to call any time.
 	local function cancelPlayer(player: Player)
 		local ps = players[player]
@@ -135,6 +144,7 @@ function LobbyService.start(deps: Deps): Handle
 				padAcc[padIndex] = nil
 			end
 			updatePadText(padIndex)
+			maybeStart(padIndex) -- the others may all have picked already
 		end
 		send(player, { kind = "countdown", seconds = 0 })
 	end
@@ -167,21 +177,57 @@ function LobbyService.start(deps: Deps): Handle
 		sendProfile(player)
 	end
 
-	local function startPlayerMatch(player: Player, carId: string)
-		local ps = players[player]
-		if ps == nil or ps.stage ~= "picking" then
+	-- Start the pad's match once every player still on it has picked a car (a lone player
+	-- fights the bot).
+	function maybeStart(padIndex: number)
+		local pad = state.pads[padIndex]
+		if pad == nil or pad.phase ~= "locked" then
 			return
 		end
-		ps.stage = "match"
-		ps.token += 1
-		ps.offered = {}
-		local padIndex = PadLogic.leave(state, player)
-		if padIndex then
-			updatePadText(padIndex)
+		local picks: { [any]: string } = {}
+		for _, key in pad.players do
+			local ps = players[key :: Player]
+			if ps and ps.stage == "picking" and ps.picked then
+				picks[key] = ps.picked
+			end
 		end
-		deps.startMatch(player, carId, function(won: boolean)
-			finishMatch(player, won)
-		end)
+		if not PadLogic.allPicked(pad.players, picks) then
+			return
+		end
+		local participants: { Participant } = {}
+		for _, key in table.clone(pad.players) do
+			local player = key :: Player
+			local ps = players[player]
+			if ps then
+				ps.stage = "match"
+				ps.token += 1
+				ps.offered = {}
+				ps.picked = nil
+				table.insert(participants, {
+					player = player,
+					carId = picks[key],
+					onFinished = function(won: boolean)
+						finishMatch(player, won)
+					end,
+				})
+			end
+			PadLogic.leave(state, player)
+		end
+		padAcc[padIndex] = nil
+		updatePadText(padIndex)
+		deps.startMatch(participants)
+	end
+
+	local function registerPick(player: Player, carId: string)
+		local ps = players[player]
+		if ps == nil or ps.stage ~= "picking" or ps.picked ~= nil then
+			return
+		end
+		ps.picked = carId
+		local padIndex = state.playerPad[player]
+		if padIndex then
+			maybeStart(padIndex)
+		end
 	end
 
 	local function beginPicking(padIndex: number)
@@ -202,6 +248,7 @@ function LobbyService.start(deps: Deps): Handle
 			end
 			ps.stage = "picking"
 			ps.offered = offered
+			ps.picked = nil
 			ps.token += 1
 			local token = ps.token
 			send(player, { kind = "choices", cars = offered, seconds = padCfg.pickSeconds })
@@ -210,7 +257,7 @@ function LobbyService.start(deps: Deps): Handle
 				if cur and cur.stage == "picking" and cur.token == token then
 					local auto = PadLogic.autoPick(cur.offered, rng)
 					if auto then
-						startPlayerMatch(player, auto)
+						registerPick(player, auto)
 					else
 						cancelPlayer(player)
 					end
@@ -230,7 +277,7 @@ function LobbyService.start(deps: Deps): Handle
 		if not ok then
 			return
 		end
-		players[player] = { stage = "pad", offered = {}, token = 0 }
+		players[player] = { stage = "pad", offered = {}, picked = nil, token = 0 }
 		updatePadText(padIndex)
 		send(player, { kind = "countdown", seconds = state.pads[padIndex].seconds })
 	end
@@ -331,6 +378,7 @@ function LobbyService.start(deps: Deps): Handle
 					padAcc[padIndex] = nil
 				end
 				updatePadText(padIndex)
+				maybeStart(padIndex) -- the others may all have picked already
 			end
 			gachaLimiter.clear(player)
 		end,
@@ -340,7 +388,7 @@ function LobbyService.start(deps: Deps): Handle
 				if ps and ps.stage == "picking" then
 					local carId = PadLogic.validatePick(ps.offered, arg)
 					if carId then
-						startPlayerMatch(player, carId)
+						registerPick(player, carId)
 					end
 				end
 			elseif action == "buyGacha" then
@@ -359,8 +407,16 @@ function LobbyService.start(deps: Deps): Handle
 				local owned = if p then Inventory.ownedList(p) else { "Heavy" }
 				local carId = owned[math.random(1, #owned)] or "Heavy"
 				cancelPlayer(player)
-				players[player] = { stage = "picking", offered = { carId }, token = 0 }
-				startPlayerMatch(player, carId)
+				players[player] = { stage = "match", offered = {}, picked = nil, token = 0 }
+				deps.startMatch({
+					{
+						player = player,
+						carId = carId,
+						onFinished = function(won: boolean)
+							finishMatch(player, won)
+						end,
+					},
+				})
 			end
 		end,
 		stop = function()
