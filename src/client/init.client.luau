@@ -15,6 +15,7 @@ local FightFx = require(script.FightFx)
 local HintUi = require(script.HintUi)
 local LobbyUi = require(script.LobbyUi)
 local MenuBar = require(script.MenuBar)
+local ProgressUi = require(script.ProgressUi)
 local SteerInput = require(script.SteerInput)
 local Ui = require(script.Ui)
 
@@ -22,6 +23,7 @@ local remotes = Remotes.get()
 local director = CameraDirector.new()
 local buffs = BuffUi.new()
 local menu = MenuBar.new() -- features add their own lobby buttons here (see MenuBar.luau)
+local progressUi = ProgressUi.new()
 
 local camSide: Vector3? = nil -- from the middle toward your car, fixed for the whole match
 local aim: AimInput.AimInput
@@ -48,6 +50,7 @@ local lobby = LobbyUi.new({
 		view.hideMatch()
 		director.release()
 		menu.setVisible(true)
+		progressUi.setVisible(true)
 		hints.trigger("claw") -- after a match: point at the claw machine
 	end,
 })
@@ -55,6 +58,7 @@ remotes.LobbyUpdate.OnClientEvent:Connect(function(u: Types.LobbyUpdate)
 	lobby.handleUpdate(u)
 	if u.kind == "profile" then
 		hints.loadSeen(u.hintsSeen)
+		progressUi.update(u.carLevels, u.rank, u.streak)
 		hints.trigger("pad") -- no-op once seen
 	elseif u.kind == "countdown" and u.seconds > 0 then
 		hints.done("pad") -- stepped on a pad
@@ -86,6 +90,7 @@ end)
 remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 	if u.kind == "aim" then
 		menu.setVisible(false)
+		progressUi.setVisible(false)
 		lobby.hideChoices() -- the pick card must not cover the match
 		if u.center then
 			if u.round == 1 or camSide == nil then

@@ -14,6 +14,9 @@ local Inventory = require(ReplicatedStorage.Shared.Inventory)
 local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
 local PadLogic = require(ReplicatedStorage.Shared.PadLogic)
 local PickChoices = require(ReplicatedStorage.Shared.PickChoices)
+local Progress = require(ReplicatedStorage.Shared.Progress)
+local ProgressConfig = require(ReplicatedStorage.Shared.ProgressConfig)
+local Quests = require(ReplicatedStorage.Shared.Quests)
 local RateLimiter = require(ReplicatedStorage.Shared.RateLimiter)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Store = require(ReplicatedStorage.Shared.Store)
@@ -94,6 +97,11 @@ function LobbyService.start(deps: Deps): Handle
 		end
 	end
 
+	local function levelOf(player: Player, carId: string): number
+		local p = Profiles.get(player)
+		return if p then Progress.levelOf(p.progress, carId) else 1
+	end
+
 	local function sendProfile(player: Player)
 		local p = Profiles.get(player)
 		if p == nil then
@@ -106,6 +114,9 @@ function LobbyService.start(deps: Deps): Handle
 			owned = Inventory.ownedList(p),
 			freePullAvailable = LobbyConfig.Gacha.firstPullFree and not p.freePullUsed,
 			hintsSeen = Hints.seenList(p.hintsSeen),
+			carLevels = Progress.levels(p.progress),
+			rank = Progress.rankFor(p.wins),
+			streak = p.progress.streak,
 		})
 	end
 
@@ -159,7 +170,7 @@ function LobbyService.start(deps: Deps): Handle
 		send(player, { kind = "countdown", seconds = 0 })
 	end
 
-	local function finishMatch(player: Player, won: boolean)
+	local function finishMatch(player: Player, won: boolean, carId: string)
 		local ps = players[player]
 		if ps == nil or ps.stage ~= "match" then
 			return
@@ -168,6 +179,9 @@ function LobbyService.start(deps: Deps): Handle
 		local earned = if won then LobbyConfig.Rewards.winCoins else LobbyConfig.Rewards.loseCoins
 		local p = Profiles.get(player)
 		if p then
+			local result = Progress.applyMatchResult(p, carId, won, ProgressConfig)
+			Quests.onMatchEnd(p, { won = won, carId = carId, opponentIsBot = false })
+			earned += result.coinsBonus
 			Inventory.addCoins(p, earned)
 			if won then
 				p.wins += 1
@@ -216,8 +230,9 @@ function LobbyService.start(deps: Deps): Handle
 				table.insert(participants, {
 					player = player,
 					carId = picks[key],
+					appearance = { level = levelOf(player, picks[key]) },
 					onFinished = function(won: boolean)
-						finishMatch(player, won)
+						finishMatch(player, won, picks[key])
 					end,
 				})
 			end
@@ -488,8 +503,9 @@ function LobbyService.start(deps: Deps): Handle
 					{
 						player = player,
 						carId = carId,
+						appearance = { level = levelOf(player, carId) },
 						onFinished = function(won: boolean)
-							finishMatch(player, won)
+							finishMatch(player, won, carId)
 						end,
 					},
 				})

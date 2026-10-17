@@ -25,5 +25,6 @@ require("./speciallogic.test")
 require("./damage.test")
 require("./moves.test")
 require("./pickuplogic.test")
+require("./progress.test")
 
 Harness.summary()
