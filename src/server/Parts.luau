@@ -1,6 +1,7 @@
 --!strict
 -- Cosmetic parts break off a damaged car. Only the massless decoration parts CarBuilder welds on
--- leave; the heavy Body is never touched, so mass and physics stay the same.
+-- leave; the heavy Body is never touched, so mass and physics stay the same. A real car model
+-- ("Visual", see CarBuilder) is the car's whole look, so it never breaks off.
 
 local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -13,7 +14,12 @@ local Parts = {}
 local function attached(car: CarBuilder.Car): { BasePart }
 	local out = {}
 	for _, p in car.model:GetChildren() do
-		if p:IsA("BasePart") and p ~= car.body and p:FindFirstChildOfClass("WeldConstraint") then
+		if
+			p:IsA("BasePart")
+			and p ~= car.body
+			and p.Name ~= "Visual"
+			and p:FindFirstChildOfClass("WeldConstraint")
+		then
 			table.insert(out, p)
 		end
 	end
