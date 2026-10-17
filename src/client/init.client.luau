@@ -13,12 +13,17 @@ local FightFx = require(script.FightFx)
 local HintUi = require(script.HintUi)
 local LobbyUi = require(script.LobbyUi)
 local MenuBar = require(script.MenuBar)
+local QuestUi = require(script.QuestUi)
 local SteerInput = require(script.SteerInput)
 local Ui = require(script.Ui)
 
 local remotes = Remotes.get()
 local director = CameraDirector.new()
 local menu = MenuBar.new() -- features add their own lobby buttons here (see MenuBar.luau)
+
+local questUi = QuestUi.new(menu, function(action: string, arg: any?)
+	remotes.LobbyAction:FireServer(action, arg)
+end)
 
 local camSide: Vector3? = nil -- from the middle toward your car, fixed for the whole match
 local aim: AimInput.AimInput
@@ -48,6 +53,7 @@ local lobby = LobbyUi.new({
 })
 remotes.LobbyUpdate.OnClientEvent:Connect(function(u: Types.LobbyUpdate)
 	lobby.handleUpdate(u)
+	questUi.handleUpdate(u)
 	if u.kind == "profile" then
 		hints.loadSeen(u.hintsSeen)
 		hints.trigger("pad") -- no-op once seen

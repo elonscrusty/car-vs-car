@@ -8,11 +8,13 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Daily = require(ReplicatedStorage.Shared.Daily)
 local Gacha = require(ReplicatedStorage.Shared.Gacha)
 local Hints = require(ReplicatedStorage.Shared.Hints)
 local Inventory = require(ReplicatedStorage.Shared.Inventory)
 local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
 local PadLogic = require(ReplicatedStorage.Shared.PadLogic)
+local Quests = require(ReplicatedStorage.Shared.Quests)
 local PickChoices = require(ReplicatedStorage.Shared.PickChoices)
 local RateLimiter = require(ReplicatedStorage.Shared.RateLimiter)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
@@ -85,6 +87,7 @@ function LobbyService.start(deps: Deps): Handle
 	local gachaLimiter = RateLimiter.new(2, 3)
 	local storeLimiter = RateLimiter.new(2, 3)
 	local hintLimiter = RateLimiter.new(4, 3)
+	local questLimiter = RateLimiter.new(2, 3)
 	local running = true
 	local conns: { RBXScriptConnection } = {}
 
@@ -99,13 +102,19 @@ function LobbyService.start(deps: Deps): Handle
 		if p == nil then
 			return
 		end
+		if Quests.ensure(p, os.time()) then
+			Profiles.markDirty(player)
+		end
 		send(player, {
 			kind = "profile",
 			coins = p.coins,
 			wins = p.wins,
 			owned = Inventory.ownedList(p),
-			freePullAvailable = LobbyConfig.Gacha.firstPullFree and not p.freePullUsed,
+			freePullAvailable = (LobbyConfig.Gacha.firstPullFree and not p.freePullUsed)
+				or p.daily.freePulls > 0,
 			hintsSeen = Hints.seenList(p.hintsSeen),
+			quests = Quests.views(p),
+			daily = { ready = Daily.canClaim(p.daily, os.time()), freePulls = p.daily.freePulls },
 		})
 	end
 
@@ -421,6 +430,29 @@ function LobbyService.start(deps: Deps): Handle
 		end
 	end
 
+	-- Quest reward / daily gift: the server checks everything, repeats pay nothing.
+	local function claimQuest(player: Player, index: any)
+		local p = Profiles.get(player)
+		if
+			p ~= nil
+			and Quests.claim(p, index, os.time(), function(n)
+					Inventory.addCoins(p, n)
+				end)
+				> 0
+		then
+			Profiles.markDirty(player)
+			sendProfile(player)
+		end
+	end
+
+	local function claimDaily(player: Player)
+		local p = Profiles.get(player)
+		if p ~= nil and Daily.claim(p.daily, os.time()) then
+			Profiles.markDirty(player)
+			sendProfile(player)
+		end
+	end
+
 	local handle: Handle
 	handle = {
 		onPlayerAdded = function(player: Player)
@@ -449,6 +481,7 @@ function LobbyService.start(deps: Deps): Handle
 			gachaLimiter.clear(player)
 			storeLimiter.clear(player)
 			hintLimiter.clear(player)
+			questLimiter.clear(player)
 		end,
 		action = function(player: Player, action: any, arg: any)
 			if action == "pickCar" then
@@ -470,6 +503,14 @@ function LobbyService.start(deps: Deps): Handle
 			elseif action == "hintSeen" then
 				if hintLimiter.allow(player, os.clock()) then
 					hintSeen(player, arg)
+				end
+			elseif action == "claimQuest" then
+				if questLimiter.allow(player, os.clock()) then
+					claimQuest(player, arg)
+				end
+			elseif action == "claimDaily" then
+				if questLimiter.allow(player, os.clock()) then
+					claimDaily(player)
 				end
 			elseif action == "leavePad" then
 				cancelPlayer(player)

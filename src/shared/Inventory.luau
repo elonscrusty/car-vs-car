@@ -11,8 +11,10 @@ local function sibling(name: string): any
 end
 
 local CarConfig = sibling("CarConfig")
+local Daily = sibling("Daily")
 local Hints = sibling("Hints")
 local LobbyConfig = sibling("LobbyConfig")
+local Quests = sibling("Quests")
 
 export type Profile = {
 	version: number,
@@ -21,6 +23,8 @@ export type Profile = {
 	owned: { [string]: boolean },
 	freePullUsed: boolean,
 	hintsSeen: { [string]: boolean }, -- first-time hints already shown (see Hints)
+	quests: { { id: string, progress: number } }, -- active quests (see Quests)
+	daily: { lastDay: number, freePulls: number }, -- daily gift state (see Daily)
 }
 
 local Inventory = {}
@@ -53,6 +57,8 @@ function Inventory.default(): Profile
 		owned = owned,
 		freePullUsed = false,
 		hintsSeen = {},
+		quests = {},
+		daily = Daily.default(),
 	}
 end
 
@@ -80,6 +86,8 @@ function Inventory.migrate(raw: any): Profile
 		owned = owned,
 		freePullUsed = raw.freePullUsed == true,
 		hintsSeen = Hints.clean(raw.hintsSeen),
+		quests = Quests.clean(raw.quests),
+		daily = Daily.clean(raw.daily),
 	}
 end
 

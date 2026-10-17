@@ -14,7 +14,12 @@ local CarConfig = sibling("CarConfig")
 local Inventory = sibling("Inventory")
 local LobbyConfig = sibling("LobbyConfig")
 
-type Profile = { coins: number, freePullUsed: boolean, owned: { [string]: boolean } }
+type Profile = {
+	coins: number,
+	freePullUsed: boolean,
+	owned: { [string]: boolean },
+	daily: { freePulls: number }?, -- daily gift tries
+}
 export type OddsRow = { rarity: string, percent: number, cars: { string } }
 export type PullResult = { carId: string, isNew: boolean, refund: number, free: boolean }
 
@@ -43,8 +48,12 @@ local function isFree(p: Profile): boolean
 	return LobbyConfig.Gacha.firstPullFree and not p.freePullUsed
 end
 
+local function hasGift(p: Profile): boolean
+	return p.daily ~= nil and p.daily.freePulls > 0
+end
+
 function Gacha.canBuy(p: Profile): (boolean, string?)
-	if isFree(p) or p.coins >= LobbyConfig.Gacha.price then
+	if isFree(p) or hasGift(p) or p.coins >= LobbyConfig.Gacha.price then
 		return true, nil
 	end
 	return false, "coins"
@@ -57,8 +66,12 @@ function Gacha.pull(p: Profile, rng: () -> number): PullResult
 		error("cannot afford gacha pull")
 	end
 	local free = isFree(p)
+	local gift = not free and hasGift(p)
 	if free then
 		p.freePullUsed = true
+	elseif gift then
+		(p.daily :: any).freePulls -= 1
+		free = true
 	else
 		Inventory.addCoins(p, -LobbyConfig.Gacha.price)
 	end
