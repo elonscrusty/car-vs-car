@@ -8,7 +8,10 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Build = require(ReplicatedStorage.Shared.Build)
+local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
 local Daily = require(ReplicatedStorage.Shared.Daily)
+local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local Gacha = require(ReplicatedStorage.Shared.Gacha)
 local Hints = require(ReplicatedStorage.Shared.Hints)
 local Inventory = require(ReplicatedStorage.Shared.Inventory)
@@ -37,6 +40,7 @@ export type Participant = {
 	appearance: Appearance.Appearance?, -- paint, sticker, level badge
 	botLevel: string?, -- bot difficulty for a lone player
 	weaponId: string?, -- the weapon this player wears (nil = none)
+	build: Build.BuildData?, -- build-and-watch parts
 }
 
 -- Only the parts of the lobby handle we use (see docs/LOBBY_CONTRACT.md).
@@ -97,6 +101,7 @@ function LobbyService.start(deps: Deps): Handle
 	local questLimiter = RateLimiter.new(2, 3)
 	local paintLimiter = RateLimiter.new(4, 3)
 	local weaponLimiter = RateLimiter.new(4, 3)
+	local buildLimiter = RateLimiter.new(6, 3)
 	local running = true
 	local conns: { RBXScriptConnection } = {}
 
@@ -109,6 +114,23 @@ function LobbyService.start(deps: Deps): Handle
 	local function levelOf(player: Player, carId: string): number
 		local p = Profiles.get(player)
 		return if p then Progress.levelOf(p.progress, carId) else 1
+	end
+
+	local function buildView(p: Inventory.Profile): any
+		local b = p.build
+		local carId = Build.carFor(b, p.owned)
+		local owned = {}
+		for id in b.owned do
+			table.insert(owned, id)
+		end
+		table.sort(owned)
+		return {
+			carId = carId,
+			parts = b.parts,
+			owned = owned,
+			levels = b.levels,
+			power = Build.power(CarConfig.Cars[carId], b),
+		}
 	end
 
 	local function sendProfile(player: Player)
@@ -135,6 +157,7 @@ function LobbyService.start(deps: Deps): Handle
 			daily = { ready = Daily.canClaim(p.daily, os.time()), freePulls = p.daily.freePulls },
 			paint = { owned = Paint.ownedList(p.paint), equipped = p.paint.equipped },
 			weapons = { owned = Weapons.ownedList(p.weapons), equipped = p.weapons.equipped },
+			build = buildView(p),
 		})
 	end
 
@@ -146,6 +169,12 @@ function LobbyService.start(deps: Deps): Handle
 		end
 		local p = Profiles.get(player)
 		return if p then p.weapons.equipped else nil
+	end
+
+	-- A copy of this player's garage build (nil before the profile loads).
+	local function buildOf(player: Player): Build.BuildData?
+		local p = Profiles.get(player)
+		return if p then Build.copy(p.build) else nil
 	end
 
 	-- Paint and sticker this player put on `carId` (nil fields when none).
@@ -287,6 +316,7 @@ function LobbyService.start(deps: Deps): Handle
 					carId = picks[key],
 					appearance = lookFor(player, picks[key]),
 					weaponId = weaponOf(player),
+					build = buildOf(player),
 					onFinished = function(won: boolean, stay: boolean?)
 						finishMatch(player, won, picks[key], stay)
 					end,
@@ -323,6 +353,14 @@ function LobbyService.start(deps: Deps): Handle
 			local profile = Profiles.get(player)
 			if ps == nil or profile == nil then
 				cancelPlayer(player)
+				continue
+			end
+			if GameConfig.Mode.autoFight then
+				-- Build-and-watch: no picking, you fight with the car in your garage.
+				ps.stage = "picking"
+				ps.offered = {}
+				ps.picked = Build.carFor(profile.build, profile.owned)
+				ps.token += 1
 				continue
 			end
 			local offered =
@@ -456,6 +494,38 @@ function LobbyService.start(deps: Deps): Handle
 		end
 		Profiles.markDirty(player)
 		send(player, { kind = "weaponResult", ok = true })
+		sendProfile(player)
+	end
+
+	-- Garage: buy / wear parts, level up a slot, pick the car. Lobby only; the server checks all.
+	local function buildAction(player: Player, action: string, arg: any)
+		local function reply(ok: boolean, reason: string?)
+			send(player, { kind = "buildResult", ok = ok, reason = reason })
+		end
+		local ps = players[player]
+		if ps and ps.stage ~= "pad" then
+			reply(false, "busy")
+			return
+		end
+		local p = Profiles.get(player)
+		if p == nil then
+			reply(false, "loading")
+			return
+		end
+		local ok, reason
+		if action == "buildBuy" then
+			ok, reason = Build.buyPart(p, arg)
+		elseif action == "buildEquip" then
+			ok, reason = Build.equipPart(p, arg)
+		elseif action == "buildUpgrade" then
+			ok, reason = Build.upgrade(p, arg)
+		else
+			ok, reason = Build.setCar(p, arg)
+		end
+		if ok then
+			Profiles.markDirty(player)
+		end
+		reply(ok, reason)
 		sendProfile(player)
 	end
 
@@ -636,6 +706,7 @@ function LobbyService.start(deps: Deps): Handle
 			questLimiter.clear(player)
 			paintLimiter.clear(player)
 			weaponLimiter.clear(player)
+			buildLimiter.clear(player)
 		end,
 		action = function(player: Player, action: any, arg: any)
 			if action == "pickCar" then
@@ -665,6 +736,15 @@ function LobbyService.start(deps: Deps): Handle
 			elseif action == "equipWeapon" then
 				if weaponLimiter.allow(player, os.clock()) then
 					equipWeapon(player, arg)
+				end
+			elseif
+				action == "buildBuy"
+				or action == "buildEquip"
+				or action == "buildUpgrade"
+				or action == "buildCar"
+			then
+				if buildLimiter.allow(player, os.clock()) then
+					buildAction(player, action, arg)
 				end
 			elseif action == "hintSeen" then
 				if hintLimiter.allow(player, os.clock()) then
@@ -702,6 +782,7 @@ function LobbyService.start(deps: Deps): Handle
 						carId = carId,
 						appearance = lookFor(player, carId),
 						weaponId = weaponOf(player),
+						build = buildOf(player),
 						onFinished = function(won: boolean, stay: boolean?)
 							finishMatch(player, won, carId, stay)
 						end,

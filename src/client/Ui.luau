@@ -26,6 +26,7 @@ export type View = {
 		seconds: number,
 		enemyName: string
 	) -> (),
+	showReady: (youCar: string, enemyCar: string, seconds: number, enemyName: string) -> (),
 	showWaiting: () -> (),
 	showPower: (power: number) -> (),
 	showFight: () -> (),
@@ -236,6 +237,29 @@ function Ui.create(h: Handlers): View
 			while aimFrame.Visible and os.clock() < deadline do
 				top.Text = `YOU  vs  {enemyName}   {math.ceil(deadline - os.clock())}`
 				task.wait(0.25)
+			end
+		end)
+	end
+
+	view.showReady = function(youCar, enemyCar, seconds, enemyName)
+		hideAll()
+		top.Visible = true
+		top.Text = `YOU  vs  {enemyName}`
+		msg.Visible = true
+		msg.TextColor3 = Color3.new(1, 1, 1)
+		local matchup = `{youCar} vs {enemyCar}`
+		msg.Text = matchup
+		UiStyle.pop(msgScale)
+		local deadline = os.clock() + seconds
+		task.spawn(function()
+			while os.clock() < deadline and top.Visible do
+				top.Text = `YOU  vs  {enemyName}   {math.ceil(deadline - os.clock())}`
+				task.wait(0.25)
+			end
+		end)
+		task.delay(1.5, function()
+			if msg.Text == matchup then
+				msg.Visible = false
 			end
 		end)
 	end

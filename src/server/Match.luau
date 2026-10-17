@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Aim = require(ReplicatedStorage.Shared.Aim)
+local Build = require(ReplicatedStorage.Shared.Build)
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
 local Duel = require(ReplicatedStorage.Shared.Duel)
 local Fight = require(ReplicatedStorage.Shared.Fight)
@@ -37,7 +38,7 @@ local Moves = require(script.Parent.Moves)
 local MovesConfig = require(ReplicatedStorage.Shared.MovesConfig)
 local MovesRules = require(ReplicatedStorage.Shared.Moves)
 
-type Phase = "pick" | "aim" | "fight" | "roundEnd" | "matchEnd"
+type Phase = "pick" | "ready" | "aim" | "fight" | "roundEnd" | "matchEnd"
 
 export type Handle = {
 	launch: (player: Player, angle: any, power: any) -> (),
@@ -55,6 +56,7 @@ export type Participant = {
 	appearance: Appearance.Appearance?, -- paint, sticker and level badge for this player's car
 	botLevel: string?, -- bot difficulty when this lone player fights a bot ("easy" | "medium" | "hard")
 	weaponId: string?, -- the weapon this player's car wears (nil = none)
+	build: Build.BuildData?, -- build-and-watch: the parts this player's car wears
 }
 
 local Match = {}
@@ -64,6 +66,7 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 	local cfg = GameConfig
 	local origin = Vector3.new(slot * cfg.Arena.slotSpacing, cfg.Arena.baseY, 0)
 	local rng = Random.new()
+	local auto = cfg.Mode.autoFight -- build-and-watch: the cars fight on their own
 	local gone: { [number]: boolean } = {} -- car index -> that player left
 
 	local phase: Phase = "aim"
@@ -133,12 +136,17 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 		end
 	end
 
+	local hitStop: (duration: number) -> () -- defined below
+
 	-- The match is over: `loser` is out.
 	local function endMatch(loser: CarBuilder.Car, koText: string?)
 		if phase == "roundEnd" or phase == "matchEnd" then
 			return
 		end
 		phase = "roundEnd"
+		if auto and not frozen then
+			hitStop(cfg.Mode.koFreezeSeconds) -- a short freeze frame on the knockout
+		end
 		if pickups then
 			pickups.destroy()
 			pickups = nil
@@ -183,7 +191,7 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 	end
 
 	-- Hit stop: hold both cars still for a blink, then let them go with the same speeds.
-	local function hitStop(duration: number)
+	function hitStop(duration: number)
 		if duration <= 0 or frozen then
 			return
 		end
@@ -382,6 +390,20 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 				else CarConfig.Order[rng:NextInteger(1, #CarConfig.Order)]
 			local stats = CarConfig.Cars[id]
 			local cf = Arena.carCFrame(a, idx, stats.size[2] / 2)
+			local build: Build.BuildData? = nil
+			if auto then
+				if part then
+					build = part.build
+				else
+					local first = participants[1]
+					local level = if first and first.build
+						then Build.averageLevel(first.build)
+						else 1
+					build = Build.botBuild(function()
+						return rng:NextNumber()
+					end, level)
+				end
+			end
 			cars[idx] = CarBuilder.build(
 				id,
 				idx,
@@ -389,7 +411,8 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 				a.model,
 				nameOf(idx),
 				part == nil,
-				if part then part.appearance else nil
+				if part then part.appearance else nil,
+				build
 			)
 			local weaponId = if part
 				then part.weaponId
@@ -472,7 +495,7 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 		-- the character is parked (anchored) under the arena floor for the fight. The lobby brings
 		-- it back (LoadCharacter) when the player leaves the match.
 		task.delay(0.15, function()
-			if destroyed or phase ~= "fight" then
+			if destroyed or phase ~= "fight" or auto then
 				return
 			end
 			for i, car in cars do
@@ -499,6 +522,7 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 			local wid = Weapon.idOf(cars[i])
 			return {
 				kind = "fight",
+				auto = auto,
 				round = round,
 				weapon = wid,
 				weaponPassive = if wid then Weapon.isPassive(wid) else nil,
@@ -527,6 +551,31 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 
 	local function beginAim()
 		if destroyed or arena == nil then
+			return
+		end
+		if auto then
+			-- Build-and-watch: no aiming. A short "ready" countdown, then the cars go.
+			phase = "ready"
+			round += 1
+			local a = arena :: Arena.Arena
+			local wait = cfg.Mode.readySeconds
+			sendAll(function(i)
+				return {
+					kind = "ready",
+					round = round,
+					yourCar = cars[i].id,
+					enemyCar = cars[3 - i].id,
+					enemyName = nameOf(3 - i),
+					center = a.center,
+					carPos = cars[i].body.Position,
+					seconds = wait,
+				}
+			end)
+			task.delay(wait, function()
+				if not destroyed and phase == "ready" then
+					startFight()
+				end
+			end)
 			return
 		end
 		phase = "aim"
@@ -587,7 +636,14 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 			if not car.dead then
 				Buffs.tick(car, dt)
 				local human = participants[car.idx]
-				if human and not gone[car.idx] and clientDriven[car.idx] then
+				if auto then
+					-- Build-and-watch: every car drives itself; a player's taps only add power moves.
+					local mods: Autopilot.Mods? = nil
+					if human and not gone[car.idx] then
+						mods = Moves.mods(moveStates[car.idx], car, 0, dt, os.clock())
+					end
+					Autopilot.step(car, cars[3 - car.idx], dt, rayParams, origin, botLevel, mods)
+				elseif human and not gone[car.idx] and clientDriven[car.idx] then
 					-- The driver's device moves this car; the server only keeps it honest.
 					car.model:SetAttribute("SpeedMult", Buffs.speedMult(car))
 					limitSpeed(car)
@@ -613,7 +669,14 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 		end
 		local now = os.clock()
 		for _, car in cars do
-			Weapon.tick(car, cars[3 - car.idx], dt, now, participants[car.idx] == nil, weaponCtx)
+			Weapon.tick(
+				car,
+				cars[3 - car.idx],
+				dt,
+				now,
+				auto or participants[car.idx] == nil,
+				weaponCtx
+			)
 			if phase ~= "fight" then
 				return
 			end
@@ -712,7 +775,7 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 			end
 			gone[i] = true
 			-- The player who stays wins.
-			if phase == "aim" or phase == "fight" then
+			if phase == "ready" or phase == "aim" or phase == "fight" then
 				endMatch(cars[i], "OPPONENT LEFT")
 			end
 		end,

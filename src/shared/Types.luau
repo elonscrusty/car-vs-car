@@ -2,7 +2,7 @@
 -- Shapes of the messages the server sends to the client (UiUpdate remote).
 
 export type UiUpdate = {
-	kind: "aim" | "fight" | "roundEnd" | "matchEnd" | "hit" | "ko" | "move" | "buff",
+	kind: "aim" | "ready" | "fight" | "roundEnd" | "matchEnd" | "hit" | "ko" | "move" | "buff",
 	move: string?, -- move: "boost" | "jump" | "special" | "weapon" (cooldown started, `seconds` long)
 	round: number?,
 	yourCar: string?,
@@ -21,6 +21,7 @@ export type UiUpdate = {
 	damage: number?, -- hit: HP taken
 	youHit: boolean?, -- hit: true when the damage went to your car
 	tag: string?, -- hit: "BACK HIT!", "SIDE HIT!", "COMBO x2"
+	auto: boolean?, -- fight: the cars drive themselves (build-and-watch)
 	weapon: string?, -- fight: id of the weapon your car wears (see WeaponsConfig), nil = none
 	weaponPassive: boolean?, -- fight: true when the weapon needs no button
 	buff: string?, -- buff: "shield" | "bighit" | "speed" (seconds = time left, 0 = ended)
@@ -44,6 +45,13 @@ export type LobbyUpdate =
 		daily: { ready: boolean, freePulls: number }?,
 		paint: { owned: { string }, equipped: { [string]: { color: string?, sticker: string? } } }?,
 		weapons: { owned: { string }, equipped: string }?, -- weapons you own and the one you wear
+		build: {
+			carId: string,
+			parts: { [string]: string },
+			owned: { string },
+			levels: { [string]: number },
+			power: number,
+		}?, -- build-and-watch garage
 	}
 	| {
 		kind: "gacha",
@@ -58,6 +66,7 @@ export type LobbyUpdate =
 	| { kind: "storeResult", ok: boolean, carId: string, reason: string?, coins: number }
 	| { kind: "paintResult", ok: boolean, reason: string? }
 	| { kind: "weaponResult", ok: boolean, reason: string? }
+	| { kind: "buildResult", ok: boolean, reason: string? }
 	| { kind: "countdown", seconds: number }
 	| { kind: "choices", cars: { string }, seconds: number }
 	| { kind: "toLobby", coinsEarned: number, won: boolean }

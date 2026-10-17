@@ -12,7 +12,7 @@ LobbyConfig.Lobby = {
 	padCount = 4,
 }
 LobbyConfig.Pad = { maxPlayers = 2, countdownSeconds = 3, pickSeconds = 15 }
-LobbyConfig.Rewards = { winCoins = 25, loseCoins = 5, endScreenSeconds = 4 }
+LobbyConfig.Rewards = { winCoins = 60, loseCoins = 20, endScreenSeconds = 4 }
 LobbyConfig.StarterCars = { "Heavy" } -- owned by a new player
 LobbyConfig.PickChoices = 3
 LobbyConfig.Rarity = {

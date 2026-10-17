@@ -9,6 +9,7 @@ local Types = require(ReplicatedStorage.Shared.Types)
 local ActionInput = require(script.ActionInput)
 local AimInput = require(script.AimInput)
 local BuffUi = require(script.BuffUi)
+local BuildUi = require(script.BuildUi)
 local CameraDirector = require(script.CameraDirector)
 local Effects = require(script.Effects)
 local FightFx = require(script.FightFx)
@@ -38,6 +39,7 @@ local questUi = QuestUi.new(menu, function(action: string, arg: any?)
 end)
 local paintUi = PaintUi.new(menu)
 local weaponUi = WeaponUi.new(menu)
+local buildUi = BuildUi.new(menu)
 
 local camSide: Vector3? = nil -- from the middle toward your car, fixed for the whole match
 local aim: AimInput.AimInput
@@ -78,6 +80,7 @@ remotes.LobbyUpdate.OnClientEvent:Connect(function(u: Types.LobbyUpdate)
 	questUi.handleUpdate(u)
 	paintUi.handleUpdate(u)
 	weaponUi.handleUpdate(u)
+	buildUi.handleUpdate(u)
 	if u.kind == "profile" then
 		hints.loadSeen(u.hintsSeen)
 		progressUi.update(u.carLevels, u.rank, u.streak)
@@ -135,12 +138,24 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		end
 		hints.done("pad")
 		hints.trigger("aim")
+	elseif u.kind == "ready" then
+		menu.setVisible(false)
+		progressUi.setVisible(false)
+		lobby.hideChoices()
+		if u.center then
+			camSide = if u.carPos then u.carPos - u.center else nil
+			director.overview(u.center, camSide)
+		end
+		view.showReady(u.yourCar or "", u.enemyCar or "", u.seconds or 3, u.enemyName or "BOT")
+		hints.done("pad")
 	elseif u.kind == "fight" then
 		aim.stop()
 		hints.done("aim")
 		view.showFight()
-		steering.start() -- the server ignores Steer outside the fight
-		driver.start() -- drives your own car here once the server hands it over
+		if u.auto ~= true then
+			steering.start() -- the server ignores Steer outside the fight
+			driver.start() -- drives your own car here once the server hands it over
+		end
 		actions.start(u.weapon ~= nil and u.weaponPassive ~= true)
 	elseif u.kind == "move" then
 		actions.cooldown(u.move or "", u.seconds or 0)
