@@ -1,6 +1,6 @@
 --!strict
 -- The 8 placeholder cars. ALL car numbers live here.
--- hp: health. mass: weight (bigger = harder to push). maxSpeed: top auto-pilot speed.
+-- hp: health. mass: weight (bigger = harder to push). maxSpeed: top speed (auto-pilot or human gas).
 -- accel: how fast it speeds up. turnRate: max spin speed (radians/sec).
 -- damageMult: damage multiplier when this car is the one hitting.
 -- hitLift: extra upward kick given to the enemy on hit (Ramp flips things).

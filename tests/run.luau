@@ -20,5 +20,6 @@ require("./clawpath.test")
 require("./wintext.test")
 require("./hints.test")
 require("./uisize.test")
+require("./steer.test")
 
 Harness.summary()

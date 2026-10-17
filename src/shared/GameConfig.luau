@@ -59,8 +59,15 @@ local GameConfig = {
 		slopeAssist = 1, -- 0..1: how much of the uphill gravity pull the gas cancels
 		grip = 6, -- side slide killing (higher = less drifting)
 		groundRayExtra = 2.5, -- studs below car that still count as "on ground"
+		manualTurn = 1, -- human steering: full steer input = this x the car's turnRate
 	},
-	-- Auto-pilot behavior numbers (cars drive themselves after the launch)
+	-- Human steering input (the player turns, the server keeps the gas on)
+	Steer = {
+		smoothRate = 8, -- input units per second the steer eases at (0 -> 1 in ~0.12 s)
+		staleSeconds = 0.5, -- no update this long = treat the input as 0
+		resendSeconds = 0.1, -- client re-sends the held value this often
+	},
+	-- Auto-pilot behavior numbers (bot cars drive themselves after the launch; humans steer)
 	Ai = {
 		chargeMax = 3, -- Heavy: longest straight charge before backing up
 		retreatTime = 1.1, -- after a hit: seconds driving away for a run-up
@@ -80,6 +87,8 @@ local GameConfig = {
 	Remote = {
 		maxPerWindow = 6, -- calls allowed per window per player
 		windowSeconds = 2,
+		steerMaxPerWindow = 30, -- Steer remote: calls allowed per window per player
+		steerWindowSeconds = 1,
 	},
 }
 

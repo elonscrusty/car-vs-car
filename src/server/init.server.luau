@@ -20,6 +20,8 @@ Players.CharacterAutoLoads = true
 local remotes = Remotes.get()
 local launchLimiter =
 	RateLimiter.new(GameConfig.Remote.maxPerWindow, GameConfig.Remote.windowSeconds)
+local steerLimiter =
+	RateLimiter.new(GameConfig.Remote.steerMaxPerWindow, GameConfig.Remote.steerWindowSeconds)
 local lobbyLimiter = RateLimiter.new(6, GameConfig.Remote.windowSeconds)
 
 type Group = { match: Match.Handle, slot: number, remaining: number }
@@ -110,6 +112,7 @@ local function onPlayerRemoving(player: Player)
 	end
 	lobbyService.onPlayerRemoving(player)
 	launchLimiter.clear(player)
+	steerLimiter.clear(player)
 	lobbyLimiter.clear(player)
 end
 
@@ -117,6 +120,13 @@ remotes.Launch.OnServerEvent:Connect(function(player: Player, angle: any, power:
 	local g = groups[player]
 	if g and launchLimiter.allow(player, os.clock()) then
 		g.match.launch(player, angle, power)
+	end
+end)
+
+remotes.Steer.OnServerEvent:Connect(function(player: Player, value: any)
+	local g = groups[player]
+	if g and steerLimiter.allow(player, os.clock()) then
+		g.match.steer(player, value)
 	end
 end)
 

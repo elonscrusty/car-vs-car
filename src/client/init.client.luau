@@ -1,5 +1,5 @@
 --!strict
--- Client entry point. Shows UI, aims, and sends only: car choice, aim angle, launch power.
+-- Client entry point. Shows UI, aims, and sends only: car choice, aim angle, launch power, steer (-1..1).
 
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -12,6 +12,7 @@ local Effects = require(script.Effects)
 local FightFx = require(script.FightFx)
 local HintUi = require(script.HintUi)
 local LobbyUi = require(script.LobbyUi)
+local SteerInput = require(script.SteerInput)
 local Ui = require(script.Ui)
 
 local remotes = Remotes.get()
@@ -19,6 +20,7 @@ local director = CameraDirector.new()
 
 local camSide: Vector3? = nil -- from the middle toward your car, fixed for the whole match
 local aim: AimInput.AimInput
+local steering: SteerInput.SteerInput
 local view: Ui.View
 
 -- First-time hints: the server saves which ones were shown (profile.hintsSeen).
@@ -35,6 +37,7 @@ view = Ui.create({
 local lobby = LobbyUi.new({
 	onToLobby = function()
 		aim.stop()
+		steering.stop()
 		view.hideMatch()
 		director.release()
 		hints.trigger("claw") -- after a match: point at the claw machine
@@ -64,6 +67,10 @@ end, function(angle: number, power: number)
 	remotes.Launch:FireServer(angle, power)
 end)
 
+steering = SteerInput.new(function(value: number)
+	remotes.Steer:FireServer(value)
+end)
+
 remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 	if u.kind == "aim" then
 		lobby.hideChoices() -- the pick card must not cover the match
@@ -89,7 +96,9 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		aim.stop()
 		hints.done("aim")
 		view.showFight()
+		steering.start() -- the server ignores Steer outside the fight
 	elseif u.kind == "roundEnd" then
+		steering.stop()
 		view.showRoundEnd(u.youLost == true)
 		director.focus(u.focus)
 	elseif u.kind == "hit" then
@@ -105,6 +114,7 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		director.punchFov(18)
 	elseif u.kind == "matchEnd" then
 		aim.stop()
+		steering.stop()
 		view.showMatchEnd(u.youWon == true)
 	end
 end)

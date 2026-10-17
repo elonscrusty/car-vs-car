@@ -58,3 +58,11 @@ Design follows `/mnt/project-files/car-vs-car/game-plan.md`, but carter chose (2
 - Match.new takes 1-2 participants; two players aim at the same time, fight starts when both launch (or aim timeout). A lone player fights the bot. Tested in Studio headless with two fake players: both got aim/fight/hit/ko/roundEnd/matchEnd and one winner.
 - Not tested yet: two real players on two devices, a player leaving mid-match in Studio.
 - Claw machine: Lobby.luau swaps the placeholder gacha for ServerStorage.Models.ClawMachine (imported FBX, painted by name in Studio since the FBX has no colors; CLAW_YAW_DEG = -90 faces +X). The model lives only in the saved Studio place, not in the repo.
+
+## Manual steering
+- After the launch a human's car drives forward by itself (gas always on, up to maxSpeed) and the player steers with two big arrow buttons (bottom corners) or A/D / arrow keys. Bot cars keep the autopilot.
+- `src/shared/Steer.luau` (pure, tests in `tests/steer.test.luau`): `sanitize`, `spin` (steer right = NEGATIVE Y spin, same sign convention as `Ai.signedAngle`), `smooth`, and a timestamped state where input older than `GameConfig.Steer.staleSeconds` (0.5 s) counts as 0.
+- Remote `Steer` (client -> server, one number -1..1), limited to `Remote.steerMaxPerWindow` per second in `init.server.luau`, forwarded to `Match.steer(player, value)`; ignored outside the fight, reset at fight start.
+- `Autopilot.stepManual(car, steerInput, dt, rayParams)` shares flip recovery, grounded check, impulse, slope assist and grip with `Autopilot.step` (local helpers). Turn strength: `car.stats.turnRate * Drive.manualTurn`; easing speed `Steer.smoothRate`. Turning only works while grounded.
+- Client: `src/client/SteerInput.luau`, started on the "fight" UiUpdate, stopped on roundEnd/matchEnd/onToLobby; re-sends the held value every `Steer.resendSeconds` (0.1 s), sends 0 on release/stop.
+- Not verified in Studio (no Roblox runtime offline): button layout on phone, feel of turnRate/smoothRate, real touch release handling.

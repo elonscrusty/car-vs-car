@@ -1,0 +1,65 @@
+--!strict
+local Harness = require("./harness")
+local Ai = require("../src/shared/Ai")
+local Steer = require("../src/shared/Steer")
+
+local test, eq, near = Harness.test, Harness.eq, Harness.near
+
+print("Steer")
+
+test("sanitize clamps and rejects junk", function()
+	eq(Steer.sanitize(0.5), 0.5)
+	eq(Steer.sanitize(7), 1)
+	eq(Steer.sanitize(-7), -1)
+	eq(Steer.sanitize("1"), 0)
+	eq(Steer.sanitize(nil), 0)
+	eq(Steer.sanitize({}), 0)
+	eq(Steer.sanitize(0 / 0), 0)
+	eq(Steer.sanitize(math.huge), 0)
+	eq(Steer.sanitize(-math.huge), 0)
+end)
+
+test("steering right spins negative (clockwise from above)", function()
+	near(Steer.spin(1, 3, 1), -3)
+	near(Steer.spin(-1, 3, 1), 3)
+	near(Steer.spin(0.5, 4, 0.5), -1)
+	eq(Steer.spin(0, 3, 1) == 0, true)
+end)
+
+test("spin sign matches the autopilot convention", function()
+	-- Car facing -Z, target on its right (+X): signedAngle is negative, so is the spin.
+	local rightAngle = Ai.signedAngle(0, -1, 1, 0)
+	eq(rightAngle < 0, true)
+	eq(Steer.spin(1, 3, 1) < 0, rightAngle < 0)
+	local leftAngle = Ai.signedAngle(0, -1, -1, 0)
+	eq(Steer.spin(-1, 3, 1) > 0, leftAngle > 0)
+end)
+
+test("smooth eases without overshoot", function()
+	near(Steer.smooth(0, 1, 0.05, 10), 0.5)
+	near(Steer.smooth(0, 1, 1, 10), 1)
+	near(Steer.smooth(1, -1, 0.1, 10), 0)
+	near(Steer.smooth(0.2, 0.2, 0.1, 10), 0.2)
+end)
+
+test("stale input counts as 0", function()
+	local s = Steer.newState()
+	eq(Steer.current(s, 0, 0.5), 0)
+	Steer.set(s, 1, 10)
+	eq(Steer.current(s, 10.2, 0.5), 1)
+	eq(Steer.current(s, 10.5, 0.5), 1)
+	eq(Steer.current(s, 10.6, 0.5), 0)
+	Steer.set(s, -0.4, 10.6) -- a refresh revives it
+	near(Steer.current(s, 10.7, 0.5), -0.4)
+end)
+
+test("set sanitizes and reset clears", function()
+	local s = Steer.newState()
+	Steer.set(s, 99, 1)
+	eq(s.value, 1)
+	Steer.set(s, "x", 1)
+	eq(s.value, 0)
+	Steer.set(s, 1, 1)
+	Steer.reset(s)
+	eq(Steer.current(s, 1, 0.5), 0)
+end)

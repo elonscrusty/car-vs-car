@@ -1,5 +1,7 @@
 --!strict
--- Drives one car every frame: asks the AI where to go, steers, pushes, flips if upside down.
+-- Drives one car every frame, flips it if upside down, pushes it forward.
+-- Bots: step() asks the AI where to go and steers. Humans: stepManual() keeps the gas on and
+-- steers from the player's input.
 -- All forces are applied here on the server.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -7,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Ai = require(ReplicatedStorage.Shared.Ai)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local Logic = require(ReplicatedStorage.Shared.Logic)
+local Steer = require(ReplicatedStorage.Shared.Steer)
 local CarBuilder = require(script.Parent.CarBuilder)
 
 local Autopilot = {}
@@ -31,18 +34,10 @@ local function flipUpright(car: CarBuilder.Car)
 	car.body.AssemblyAngularVelocity = Vector3.zero
 end
 
-function Autopilot.step(
-	car: CarBuilder.Car,
-	enemy: CarBuilder.Car,
-	dt: number,
-	rayParams: RaycastParams,
-	center: Vector3
-)
-	local body = car.body
-	local stats = car.stats
-	local cf = body.CFrame
-
-	-- 1. Upside down for too long? Flip back.
+-- Shared first part: flip recovery, then the grounded check. Returns the floor hit, or nil when
+-- the car must not be driven this frame (flipped back, or in the air: no mid-air steering).
+local function groundHit(car: CarBuilder.Car, dt: number, rayParams: RaycastParams): RaycastResult?
+	local cf = car.body.CFrame
 	local flipCfg = GameConfig.Flip
 	local timer, doFlip = Logic.updateFlipTimer(
 		car.flipTimer,
@@ -54,18 +49,76 @@ function Autopilot.step(
 	car.flipTimer = timer
 	if doFlip then
 		flipUpright(car)
-		return
+		return nil
 	end
 
-	-- 2. Only drive when wheels are on the ground (no mid-air steering).
-	local reach = stats.size[2] / 2 + GameConfig.Drive.groundRayExtra
+	local reach = car.stats.size[2] / 2 + GameConfig.Drive.groundRayExtra
 	local hit = workspace:Raycast(cf.Position, Vector3.new(0, -reach, 0), rayParams)
-	local grounded = hit ~= nil and (hit.Instance.Name == "Floor" or hit.Instance.Name == "Slope")
-	if hit == nil or not grounded then
+	if hit == nil or not (hit.Instance.Name == "Floor" or hit.Instance.Name == "Slope") then
+		return nil
+	end
+	return hit
+end
+
+-- Shared last part: push forward/back up to max speed (with slope assist), then grip.
+local function push(
+	car: CarBuilder.Car,
+	fwd: Vector3,
+	throttle: number,
+	hit: RaycastResult,
+	dt: number
+)
+	local body = car.body
+	local stats = car.stats
+	local mass = body.AssemblyMass
+	local vel = body.AssemblyLinearVelocity
+	local forwardSpeed = vel:Dot(fwd)
+	local maxSpeed = stats.maxSpeed
+	if
+		(throttle > 0 and forwardSpeed < maxSpeed)
+		or (throttle < 0 and forwardSpeed > -maxSpeed * 0.6)
+	then
+		-- Impulse = mass x speed change.
+		body:ApplyImpulse(fwd * throttle * stats.accel * mass * dt)
+		-- Slope assist: while driving, cancel the part of gravity that pulls back along the slope,
+		-- so a heavy car can climb the bowl instead of stalling facing uphill.
+		if throttle > 0 then
+			local g = Vector3.new(0, -workspace.Gravity, 0)
+			local along = (g - hit.Normal * g:Dot(hit.Normal)):Dot(fwd)
+			if along < 0 then
+				body:ApplyImpulse(fwd * -along * GameConfig.Drive.slopeAssist * mass * dt)
+			end
+		end
+	end
+
+	-- Grip: cancel part of the sideways slide so it drives like a car, not soap.
+	local right = Vector3.new(-fwd.Z, 0, fwd.X)
+	local sideSpeed = vel:Dot(right)
+	body:ApplyImpulse(-right * sideSpeed * math.min(1, GameConfig.Drive.grip * dt) * mass)
+end
+
+local function setSpin(body: BasePart, spin: number)
+	local av = body.AssemblyAngularVelocity
+	body.AssemblyAngularVelocity = Vector3.new(av.X, spin, av.Z)
+end
+
+-- Bot car: the AI picks the target, the car turns toward it.
+function Autopilot.step(
+	car: CarBuilder.Car,
+	enemy: CarBuilder.Car,
+	dt: number,
+	rayParams: RaycastParams,
+	center: Vector3
+)
+	local body = car.body
+	local stats = car.stats
+	local cf = body.CFrame
+	local hit = groundHit(car, dt, rayParams)
+	if hit == nil then
 		return
 	end
 
-	-- 3. Ask the AI what to do.
+	-- Ask the AI what to do.
 	local flatSpeed = flat(body.AssemblyLinearVelocity).Magnitude
 	Ai.noteSpeed(car.ai, flatSpeed, dt, GameConfig.Ai.stuckSeconds, GameConfig.Ai.retreatTime)
 	local pos, epos = cf.Position, enemy.body.Position
@@ -79,44 +132,35 @@ function Autopilot.step(
 		{ x = center.X, z = center.Z }
 	)
 
-	-- 4. Steer: spin around Y toward the target point.
+	-- Steer: spin around Y toward the target point.
 	local fwd = flat(cf.LookVector)
 	if fwd.Magnitude < 0.1 then
 		return
 	end
 	fwd = fwd.Unit
 	local angle = Ai.signedAngle(fwd.X, fwd.Z, cmd.tx - pos.X, cmd.tz - pos.Z)
-	local spin = Ai.steer(angle, GameConfig.Drive.turnGain, stats.turnRate)
-	local av = body.AssemblyAngularVelocity
-	body.AssemblyAngularVelocity = Vector3.new(av.X, spin, av.Z)
+	setSpin(body, Ai.steer(angle, GameConfig.Drive.turnGain, stats.turnRate))
+	push(car, fwd, Ai.driveScale(angle, cmd.throttle), hit, dt)
+end
 
-	-- 5. Push forward/back, up to max speed. Impulse = mass x speed change.
-	local mass = body.AssemblyMass
-	local vel = body.AssemblyLinearVelocity
-	local forwardSpeed = vel:Dot(fwd)
-	local throttle = Ai.driveScale(angle, cmd.throttle)
-	local maxSpeed = stats.maxSpeed
-	local accel = stats.accel
-	if
-		(throttle > 0 and forwardSpeed < maxSpeed)
-		or (throttle < 0 and forwardSpeed > -maxSpeed * 0.6)
-	then
-		body:ApplyImpulse(fwd * throttle * accel * mass * dt)
-		-- Slope assist: while driving, cancel the part of gravity that pulls back along the slope,
-		-- so a heavy car can climb the bowl instead of stalling facing uphill.
-		if throttle > 0 then
-			local g = Vector3.new(0, -workspace.Gravity, 0)
-			local along = (g - hit.Normal * g:Dot(hit.Normal)):Dot(fwd)
-			if along < 0 then
-				body:ApplyImpulse(fwd * -along * GameConfig.Drive.slopeAssist * mass * dt)
-			end
-		end
+-- Human car: gas is always on; `steerInput` (-1 left .. 1 right, already smoothed) turns it.
+function Autopilot.stepManual(
+	car: CarBuilder.Car,
+	steerInput: number,
+	dt: number,
+	rayParams: RaycastParams
+)
+	local hit = groundHit(car, dt, rayParams)
+	if hit == nil then
+		return
 	end
-
-	-- 6. Grip: cancel part of the sideways slide so it drives like a car, not soap.
-	local right = Vector3.new(-fwd.Z, 0, fwd.X)
-	local sideSpeed = vel:Dot(right)
-	body:ApplyImpulse(-right * sideSpeed * math.min(1, GameConfig.Drive.grip * dt) * mass)
+	local fwd = flat(car.body.CFrame.LookVector)
+	if fwd.Magnitude < 0.1 then
+		return
+	end
+	fwd = fwd.Unit
+	setSpin(car.body, Steer.spin(steerInput, car.stats.turnRate, GameConfig.Drive.manualTurn))
+	push(car, fwd, 1, hit, dt)
 end
 
 return Autopilot

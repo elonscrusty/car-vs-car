@@ -1,7 +1,8 @@
 --!strict
 -- One match: one or two players (the other car is a bot). The server owns everything: cars,
 -- launches, damage, winner. Flow: everyone aims at the same time (drag to launch) -> all launch
--- together -> cars drive themselves (Autopilot) and ram until one car is out of HP (or time is up).
+-- together -> bot cars drive themselves (Autopilot); human cars drive forward on their own and
+-- the player steers (Steer remote). Cars ram until one car is out of HP (or time is up).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -14,6 +15,7 @@ local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
 local Logic = require(ReplicatedStorage.Shared.Logic)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Steer = require(ReplicatedStorage.Shared.Steer)
 local Types = require(ReplicatedStorage.Shared.Types)
 
 local Arena = require(script.Parent.Arena)
@@ -26,6 +28,7 @@ type Phase = "pick" | "aim" | "fight" | "roundEnd" | "matchEnd"
 
 export type Handle = {
 	launch: (player: Player, angle: any, power: any) -> (),
+	steer: (player: Player, value: any) -> (), -- -1 left .. 1 right, only used in the fight
 	playerLeft: (player: Player) -> (),
 	destroy: () -> (),
 }
@@ -56,6 +59,8 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 	local frozen = false -- hit stop: cars are held still for a moment
 	local suddenDeath = false -- time ran out with equal HP: the next hit wins
 	local fightElapsed = 0
+	local steerStates: { [number]: Steer.State } = { Steer.newState(), Steer.newState() }
+	local steerSmooth: { [number]: number } = { 0, 0 } -- eased input per car
 	local rayParams = RaycastParams.new()
 	rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
@@ -284,7 +289,7 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 		end
 	end
 
-	-- Turn the car toward the aim and push it once. After this the Autopilot drives it.
+	-- Turn the car toward the aim and push it once. After this it drives on (Autopilot for bots).
 	local function launchCar(car: CarBuilder.Car, angle: number, power: number)
 		local dir = Aim.direction(Vector3.zAxis, angle)
 		local up = car.body.CFrame.UpVector
@@ -306,6 +311,10 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 		lastHitAt = -math.huge
 		frozen = false
 		fightElapsed = 0
+		for i = 1, 2 do
+			Steer.reset(steerStates[i])
+			steerSmooth[i] = 0
+		end
 		for i, car in cars do
 			local sub = submissions[i]
 			if sub then
@@ -390,7 +399,16 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 		end
 		for _, car in cars do
 			if not car.dead then
-				Autopilot.step(car, cars[3 - car.idx], dt, rayParams, origin)
+				local human = participants[car.idx]
+				if human and not gone[car.idx] then
+					local raw =
+						Steer.current(steerStates[car.idx], os.clock(), cfg.Steer.staleSeconds)
+					local eased = Steer.smooth(steerSmooth[car.idx], raw, dt, cfg.Steer.smoothRate)
+					steerSmooth[car.idx] = eased
+					Autopilot.stepManual(car, eased, dt, rayParams)
+				else
+					Autopilot.step(car, cars[3 - car.idx], dt, rayParams, origin)
+				end
 			end
 		end
 		for _, car in cars do
@@ -442,6 +460,16 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 			if allSubmitted() then
 				startFight()
 			end
+		end,
+		steer = function(player: Player, value: any)
+			if destroyed or phase ~= "fight" then
+				return
+			end
+			local i = indexOf(player)
+			if i == nil or gone[i] then
+				return
+			end
+			Steer.set(steerStates[i], value, os.clock())
 		end,
 		playerLeft = function(player: Player)
 			local i = indexOf(player)
