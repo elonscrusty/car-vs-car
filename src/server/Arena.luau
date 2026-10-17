@@ -64,6 +64,7 @@ function Arena.build(origin: Vector3): Arena
 		ArenaMath.slopeLength(cfg.flatRadius, cfg.rimRadius, cfg.tiltDeg) + 2
 	)
 	local wallSize = Vector3.new(slabSize.X * 1.02, cfg.wallHeight, 3)
+	local flat = cfg.tiltDeg == 0
 	for i = 0, cfg.segments - 1 do
 		local phi = i / cfg.segments * math.pi * 2
 		local base = CFrame.new(origin) * CFrame.Angles(0, phi, 0)
@@ -75,7 +76,9 @@ function Arena.build(origin: Vector3): Arena
 		if i % 2 == 0 then
 			color = Color3.fromRGB(120, 195, 100)
 		end
-		makePart(model, "Slope", slabSize, slabCf, color)
+		if not flat then
+			makePart(model, "Slope", slabSize, slabCf, color)
+		end
 
 		local wallCf = base
 			* CFrame.new(
@@ -88,6 +91,30 @@ function Arena.build(origin: Vector3): Arena
 			wallColor = Color3.fromRGB(225, 60, 60)
 		end
 		makePart(model, "Wall", wallSize, wallCf, wallColor)
+	end
+
+	-- Obstacles (flat arena): boxes and round pillars standing on the floor.
+	for _, o in cfg.obstacles do
+		local pos = origin + Vector3.new(o.x, o.sy / 2, o.z)
+		local color = Color3.fromRGB(150, 150, 165)
+		if o.kind == "pillar" then
+			local pillar = makePart(
+				model,
+				"Obstacle",
+				Vector3.new(o.sy, o.sx, o.sx),
+				CFrame.new(pos) * CFrame.Angles(0, 0, math.pi / 2),
+				color
+			)
+			pillar.Shape = Enum.PartType.Cylinder
+		else
+			makePart(
+				model,
+				"Obstacle",
+				Vector3.new(o.sx, o.sy, o.sz or o.sx),
+				CFrame.new(pos),
+				color
+			)
+		end
 	end
 
 	-- Two launch frames on opposite sides, plus a glowing pad on each.

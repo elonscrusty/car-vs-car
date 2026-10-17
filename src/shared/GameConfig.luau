@@ -5,14 +5,23 @@
 local GameConfig = {
 	-- Bowl arena. Bigger tiltDeg = steeper bowl = cars roll back to the middle faster.
 	Arena = {
-		flatRadius = 25, -- flat middle disc (studs from center)
-		rimRadius = 62, -- where the slope ends (~124 studs across)
-		tiltDeg = 20, -- slope angle of the bowl
-		wallHeight = 7, -- low bumper walls on the rim
+		flatRadius = 40, -- flat middle disc (studs from center)
+		rimRadius = 40, -- where the slope ends (same as flatRadius = no slope, a flat arena)
+		tiltDeg = 0, -- slope angle of the bowl (0 = flat arena)
+		wallHeight = 14, -- walls on the rim
 		segments = 32, -- slabs around the bowl (more = rounder)
 		baseY = 300, -- height of arena in the world (far above the baseplate)
 		slotSpacing = 600, -- each player gets own arena this far apart on X
-		spawnRadius = 50, -- launch spots, studs from center
+		spawnRadius = 32, -- launch spots, studs from center
+		-- Things to hit and hide behind. x/z = studs from center. Keep them mirrored (x,z -> -x,-z)
+		-- so neither side is lucky. "block" = box (sx, sy, sz); "pillar" = round (sx = width).
+		obstacles = {
+			{ kind = "pillar", x = 0, z = 0, sx = 8, sy = 9 },
+			{ kind = "block", x = 27, z = 0, sx = 6, sy = 7, sz = 14 },
+			{ kind = "block", x = -27, z = 0, sx = 6, sy = 7, sz = 14 },
+			{ kind = "pillar", x = 14, z = 22, sx = 6, sy = 8 },
+			{ kind = "pillar", x = -14, z = -22, sx = 6, sy = 8 },
+		},
 	},
 	Match = {
 		aimTimeout = 8, -- seconds to aim before the server launches for you
@@ -55,9 +64,9 @@ local GameConfig = {
 	RingOut = { margin = 3 },
 	Drive = {
 		turnGain = 8, -- how hard the car steers toward target
-		groundFriction = 0.7, -- floor + car friction. Lower = slides more, keeps speed
+		groundFriction = 0.4, -- floor + car friction. Lower = slides more, keeps speed
 		slopeAssist = 1, -- 0..1: how much of the uphill gravity pull the gas cancels
-		grip = 35, -- side slide killing (higher = less drifting)
+		grip = 24, -- side slide killing (higher = less drifting)
 		groundRayExtra = 2.5, -- studs below car that still count as "on ground"
 		manualTurn = 1, -- human steering: full steer input = this x the car's turnRate
 	},
@@ -72,7 +81,7 @@ local GameConfig = {
 		chargeMax = 3, -- Heavy: longest straight charge before backing up
 		retreatTime = 1.1, -- after a hit: seconds driving away for a run-up
 		retreatDist = 28, -- how far away it aims during the run-up
-		maxRadius = 45, -- run-up target stays this close to bowl center
+		maxRadius = 30, -- run-up target stays this close to bowl center
 		circleTime = 2, -- Light: seconds spent circling
 		diveMax = 1.5, -- Light: longest dive before circling again
 		circleRadius = 22, -- Light: circle distance around enemy

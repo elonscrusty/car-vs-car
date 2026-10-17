@@ -5,7 +5,7 @@ return {
 	firstSpawnSeconds = 6, -- first pickup this long after the fight starts
 	spawnEverySeconds = 8, -- then one this often
 	maxOnFloor = 2,
-	ringMin = 6, -- pickups land between these distances from the center (flat floor)
+	ringMin = 9, -- pickups land between these distances from the center (flat floor)
 	ringMax = 22,
 	minCarDistance = 14, -- never spawn closer than this to a car
 	minPickupDistance = 10, -- or to another pickup

@@ -9,24 +9,20 @@ print("ArenaMath")
 
 local A = GameConfig.Arena
 
-test("bowl is flat in the middle and rises to the rim", function()
+test("flat arena has no slope", function()
 	eq(ArenaMath.surfaceHeight(0, A.flatRadius, A.rimRadius, A.tiltDeg), 0)
-	eq(ArenaMath.surfaceHeight(A.flatRadius, A.flatRadius, A.rimRadius, A.tiltDeg), 0)
-	local rim = ArenaMath.surfaceHeight(A.rimRadius, A.flatRadius, A.rimRadius, A.tiltDeg)
-	near(rim, (A.rimRadius - A.flatRadius) * math.tan(math.rad(A.tiltDeg)), 1e-9)
-	truthy(rim > 10)
-	-- clamped outside rim
-	near(ArenaMath.surfaceHeight(999, A.flatRadius, A.rimRadius, A.tiltDeg), rim)
+	eq(ArenaMath.surfaceHeight(A.rimRadius, A.flatRadius, A.rimRadius, A.tiltDeg), 0)
+	eq(ArenaMath.surfaceHeight(999, A.flatRadius, A.rimRadius, A.tiltDeg), 0)
 end)
 
-test("bowl is about 120 studs across", function()
-	truthy(A.rimRadius * 2 >= 110 and A.rimRadius * 2 <= 130)
+test("arena is a small one, 60 to 100 studs across", function()
+	truthy(A.rimRadius * 2 >= 60 and A.rimRadius * 2 <= 100)
 end)
 
-test("slope slab is longer than horizontal run", function()
-	local len = ArenaMath.slopeLength(A.flatRadius, A.rimRadius, A.tiltDeg)
-	truthy(len > A.rimRadius - A.flatRadius)
-	near(len * math.cos(math.rad(A.tiltDeg)), A.rimRadius - A.flatRadius, 1e-9)
+test("a sloped bowl still gets a longer slab than its run", function()
+	local len = ArenaMath.slopeLength(25, 62, 20)
+	truthy(len > 62 - 25)
+	near(len * math.cos(math.rad(20)), 62 - 25, 1e-9)
 end)
 
 test("slabs overlap at the rim", function()
@@ -34,6 +30,19 @@ test("slabs overlap at the rim", function()
 	truthy(ArenaMath.slabWidth(A.rimRadius, A.segments) * A.segments > circumference)
 end)
 
-test("spawn spots are on the slope, inside the rim", function()
-	truthy(A.spawnRadius > A.flatRadius and A.spawnRadius < A.rimRadius)
+test("spawn spots are inside the walls", function()
+	truthy(A.spawnRadius < A.rimRadius)
+end)
+
+test("obstacles stay inside the walls and are mirrored", function()
+	for _, o in A.obstacles do
+		truthy(math.sqrt(o.x * o.x + o.z * o.z) < A.rimRadius - 6)
+		local mirrored = false
+		for _, m in A.obstacles do
+			if m.kind == o.kind and m.x == -o.x and m.z == -o.z then
+				mirrored = true
+			end
+		end
+		truthy(mirrored, "obstacle has a mirror twin")
+	end
 end)
