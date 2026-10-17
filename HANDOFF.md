@@ -88,3 +88,10 @@ Design follows `/mnt/project-files/car-vs-car/game-plan.md`, but carter chose (2
 - Lobby roof is steel with skylights and hanging lamps (look-only, CanQuery off). Spawn z=54, 12+ studs inside the gate so the camera stays inside.
 - Lobby is a 180x140 warehouse race HQ (LobbyLayout + Lobby.luau): bay-door gate, pad row, hero truck stage, back mezzanine + big CAR VS CAR sign, garage corner (left), claw + lounge (right), store (back left), skylights/windows. Props are Blender v2 models swapped in by name (LobbyProps.luau); motion/glow in LobbyLife.luau. All look-only.
 - Look: src/server/Atmosphere.luau sets lighting, haze, soft bloom, colour grade at start (bloom kept low: neon washes out).
+
+## Build and watch (auto fight)
+- `GameConfig.Mode.autoFight = true` turns it on. Set it to `false` to get the old manual driving back (aim, steer, pick 1 of 3).
+- Players build a car in the GARAGE (button on the left): car, wheels, engine, armor, level per slot. Rules are in `Build`/`BuildConfig` (pure, tested). Prices are placeholders.
+- In a match the server drives every car with `Autopilot.step`; taps (boost, special) still add power moves. "ready" countdown, then fight, short freeze on the KO.
+- Bots get random parts near the player's average level. Win 60 / lose 20 coins.
+- Player bays: `LobbyBays` puts each player's car doing donuts on the mezzanine, with a name + level sign.
