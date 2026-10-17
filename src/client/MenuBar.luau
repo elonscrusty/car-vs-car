@@ -5,6 +5,8 @@
 
 local Players = game:GetService("Players")
 
+local UiStyle = require(script.Parent.UiStyle)
+
 export type MenuBar = {
 	-- Adds a button. Lower `order` sits higher. Adding the same id again replaces its label/callback.
 	add: (id: string, label: string, order: number, onClick: () -> ()) -> (),
@@ -82,6 +84,7 @@ function MenuBar.new(): MenuBar
 			dotCorner.Parent = dot
 			dot.Parent = b
 			badges[id] = dot
+			UiStyle.polish(b)
 			b.Activated:Connect(function()
 				local fn = clicks[id]
 				if fn then

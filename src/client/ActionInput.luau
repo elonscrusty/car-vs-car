@@ -8,6 +8,8 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
+local UiStyle = require(script.Parent.UiStyle)
+
 export type ActionInput = {
 	start: (hasWeaponButton: boolean?) -> (), -- true = also show the WEAPON button
 	stop: () -> (),
@@ -134,6 +136,7 @@ function ActionInput.new(send: (name: string) -> ()): ActionInput
 		label.TextColor3 = Color3.new(1, 1, 1)
 		label.ZIndex = 3
 		label.Parent = b
+		UiStyle.polish(b)
 		b.Activated:Connect(function()
 			press(def.name)
 		end)

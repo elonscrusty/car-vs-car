@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
 local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
 local WinText = require(ReplicatedStorage.Shared.WinText)
+local UiStyle = require(script.Parent.UiStyle)
 local WinFx = require(script.Parent.WinFx)
 
 local Ui = {}
@@ -71,6 +72,7 @@ local function button(
 	local minSize = Instance.new("UISizeConstraint")
 	minSize.MinSize = Vector2.new(48, 48)
 	minSize.Parent = b
+	UiStyle.polish(b)
 	return b
 end
 
@@ -112,6 +114,8 @@ function Ui.create(h: Handlers): View
 	-- Center message
 	local msg = label(gui, "", UDim2.fromScale(0.7, 0.14), UDim2.fromScale(0.15, 0.22))
 	msg.Visible = false
+	local msgScale = Instance.new("UIScale")
+	msgScale.Parent = msg
 
 	-- Aim hint (the aiming itself is a drag on the screen, see AimInput)
 	local aimFrame = Instance.new("Frame")
@@ -215,8 +219,10 @@ function Ui.create(h: Handlers): View
 		top.Visible = true
 		top.Text = `YOU  vs  {enemyName}`
 		msg.Visible = true
+		msg.TextColor3 = Color3.new(1, 1, 1)
 		local matchup = `{youCar} vs {enemyCar}`
 		msg.Text = matchup
+		UiStyle.pop(msgScale)
 		-- Only a short intro: it must not sit on top of the cars while you aim.
 		task.delay(1.5, function()
 			if msg.Text == matchup then
@@ -247,6 +253,8 @@ function Ui.create(h: Handlers): View
 		hideAll()
 		msg.Visible = true
 		msg.Text = "GO!"
+		msg.TextColor3 = Color3.fromRGB(120, 255, 150)
+		UiStyle.pop(msgScale, 0.3)
 		task.delay(1, function()
 			if msg.Text == "GO!" then
 				msg.Visible = false
@@ -257,6 +265,10 @@ function Ui.create(h: Handlers): View
 	view.showRoundEnd = function(youLost)
 		msg.Visible = true
 		msg.Text = if youLost then "YOU ARE OUT" else "BOT IS OUT"
+		msg.TextColor3 = if youLost
+			then Color3.fromRGB(255, 110, 110)
+			else Color3.fromRGB(255, 225, 120)
+		UiStyle.pop(msgScale)
 	end
 
 	view.showMatchEnd = function(youWon)

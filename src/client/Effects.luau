@@ -111,6 +111,15 @@ function Effects.damageNumber(pos: Vector3, damage: number, youHit: boolean, tag
 	l.TextColor3 = if youHit then Color3.fromRGB(255, 80, 80) else Color3.fromRGB(255, 220, 60)
 	l.TextStrokeTransparency = 0.2
 	l.Parent = gui
+	-- Pop in big, settle, then drift up and fade. Bigger hits get bigger numbers.
+	local big = math.clamp(damage / 25, 0, 1)
+	local full = UDim2.fromOffset(120 + 60 * big, 50 + 24 * big)
+	gui.Size = UDim2.fromOffset(40, 16)
+	TweenService:Create(
+		gui,
+		TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+		{ Size = full }
+	):Play()
 	local info = TweenInfo.new(0.9, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 	TweenService:Create(p, info, { Position = p.Position + Vector3.new(0, 7, 0) }):Play()
 	TweenService:Create(l, info, { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()

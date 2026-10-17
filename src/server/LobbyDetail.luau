@@ -27,6 +27,7 @@ export type Helpers = {
 		strokeColor: Color3?
 	) -> TextLabel,
 	glow: (p: BasePart, color: Color3, range: number, brightness: number) -> (),
+	wallAt: (side: string, along: number, inset: number, y: number) -> CFrame,
 }
 
 local LobbyDetail = {}
@@ -49,7 +50,7 @@ local BULBS = {
 
 function LobbyDetail.build(folder: Folder, origin: Vector3, h: Helpers)
 	local room = LobbyLayout.room
-	local R, WH = room.radius, room.wallHeight
+	local HW, HL, WH = room.halfW, room.halfL, room.wallHeight
 	local top = WH + 15 -- underside of the roof
 
 	local function world(x: number, y: number, z: number): CFrame
@@ -71,16 +72,8 @@ function LobbyDetail.build(folder: Folder, origin: Vector3, h: Helpers)
 		return p
 	end
 
-	-- A spot on the wall ring: its -Z side faces the middle of the room, `inset` studs inside the
-	-- inner wall face (0 = on it).
-	local function wallCf(deg: number, inset: number, y: number): CFrame
-		local a = math.rad(deg)
-		local r = R - room.wall / 2 - inset
-		return CFrame.lookAt(
-			origin + Vector3.new(math.sin(a) * r, y, math.cos(a) * r),
-			origin + Vector3.new(0, y, 0)
-		)
-	end
+	-- A spot on a wall (side "L", "R", "B", "F"; see Lobby.build), facing the middle of the hall.
+	local wallCf = h.wallAt
 
 	-- A long thin part along X or Z (pipes, cables, floor strips).
 	local function rod(
@@ -103,7 +96,7 @@ function LobbyDetail.build(folder: Folder, origin: Vector3, h: Helpers)
 	end
 
 	-- Car lift (left of the pads) with a blue car raised on it.
-	local lx, lz = -38, 4
+	local lx, lz = LobbyLayout.lift.x, LobbyLayout.lift.z
 	for _, sx in { -1, 1 } do
 		h.part(
 			folder,
@@ -161,7 +154,7 @@ function LobbyDetail.build(folder: Folder, origin: Vector3, h: Helpers)
 	end
 
 	-- Rolling tool carts (red, with drawers and four small wheels).
-	for _, c in { Vector3.new(-33, 0, -14), Vector3.new(41, 0, -9), Vector3.new(-45, 0, 17) } do
+	for _, c in { Vector3.new(-31, 0, -24), Vector3.new(21, 0, -27), Vector3.new(-33, 0, 6) } do
 		local ccf = world(c.X, 0, c.Z)
 		d("CartBody", Vector3.new(3.2, 3, 2.2), ccf * CFrame.new(0, 2, 0), RED)
 		d("CartTop", Vector3.new(3.5, 0.3, 2.5), ccf * CFrame.new(0, 3.65, 0), DARK)
@@ -200,7 +193,7 @@ function LobbyDetail.build(folder: Folder, origin: Vector3, h: Helpers)
 	end
 
 	-- Tire rack on the front-right wall, with gas cans next to it.
-	local rack = wallCf(32, 1.4, 0)
+	local rack = wallCf("R", 56, 1.4, 0)
 	for _, rx in { -6, 0, 6 } do
 		d(
 			"RackPost",
@@ -238,7 +231,7 @@ function LobbyDetail.build(folder: Folder, origin: Vector3, h: Helpers)
 	end
 
 	-- Lounge corner (front-left): TV on the wall, sofa, coffee table and a rug.
-	local lounge = wallCf(-30, 0.8, 0)
+	local lounge = wallCf("L", 54, 0.8, 0)
 	d(
 		"LoungeRug",
 		Vector3.new(14, 0.06, 9),
@@ -291,7 +284,7 @@ function LobbyDetail.build(folder: Folder, origin: Vector3, h: Helpers)
 	h.glow(lampBulb, WARM, 22, 0.6)
 
 	-- Pile of spare parts in the right-hand corner behind the claw: crates, an engine, rims.
-	local px, pz = 49, -22
+	local px, pz = 29, -31
 	for k = 0, 2 do
 		d(
 			"PartsCrate",
@@ -354,25 +347,43 @@ function LobbyDetail.build(folder: Folder, origin: Vector3, h: Helpers)
 		{ "GARAGE 66", Color3.fromRGB(240, 120, 30) },
 		{ "RACE DAY", Color3.fromRGB(40, 170, 90) },
 	}
-	for i, deg in { -160, -135, -110, -85, -60, -35, 35, 60, 85, 110, 135, 160 } do
+	local posterSpots = {
+		{ "L", -54 },
+		{ "L", -34 },
+		{ "L", -12 },
+		{ "L", 4 },
+		{ "L", 36 },
+		{ "L", 54 },
+		{ "R", -54 },
+		{ "R", -32 },
+		{ "R", 6 },
+		{ "R", 24 },
+		{ "R", 40 },
+		{ "R", 56 },
+		{ "B", -30 },
+		{ "B", 30 },
+		{ "F", -30 },
+		{ "F", 30 },
+	}
+	for i, spot in posterSpots do
 		local pcfg = posters[(i - 1) % #posters + 1]
-		local pcf = wallCf(deg, 0.2, WH + 7.6)
+		local pcf = wallCf(spot[1] :: string, spot[2] :: number, 0.2, WH + 7.6)
 		d("PosterFrame", Vector3.new(6.6, 8.6, 0.3), pcf, DARK)
 		local poster =
 			d("Poster", Vector3.new(6, 8, 0.3), pcf * CFrame.new(0, 0, -0.1), pcfg[2] :: Color3)
 		h.label(poster, Enum.NormalId.Front, pcfg[1] :: string, WHITE, DARK)
 	end
 	-- Neon signs high above the store and the truck stage.
-	for _, sg in { { -127, "OPEN 24H", CYAN }, { 125, "RACE ZONE", YELLOW } } do
-		local scf = wallCf(sg[1] :: number, 0.2, WH + 6)
+	for _, sg in { { "L", 20, "OPEN 24H", CYAN }, { "R", -12, "RACE ZONE", YELLOW } } do
+		local scf = wallCf(sg[1] :: string, sg[2] :: number, 0.2, WH + 6)
 		local board = d("NeonSign", Vector3.new(10, 2.6, 0.4), scf, DARK)
-		h.label(board, Enum.NormalId.Front, sg[2] :: string, sg[3] :: Color3, nil)
-		h.glow(board, sg[3] :: Color3, 18, 0.5)
+		h.label(board, Enum.NormalId.Front, sg[3] :: string, sg[4] :: Color3, nil)
+		h.glow(board, sg[4] :: Color3, 18, 0.5)
 	end
 
 	-- Hose reels high on the side walls, with a hose hanging down.
-	for _, deg in { -90, 90 } do
-		local rcf = wallCf(deg, 1.2, WH + 4.5)
+	for _, rs in { { "L", -22 }, { "R", 6 } } do
+		local rcf = wallCf(rs[1] :: string, rs[2] :: number, 1.2, WH + 4.5)
 		d(
 			"HoseBracket",
 			Vector3.new(0.6, 4.4, 0.6),
@@ -406,8 +417,8 @@ function LobbyDetail.build(folder: Folder, origin: Vector3, h: Helpers)
 	end
 
 	-- Window panes in the closed roller doors.
-	for _, deg in { -55, 55 } do
-		local dcf = wallCf(deg, 0.8, 5.8)
+	for _, ds in { { "L", -30 }, { "R", -34 } } do
+		local dcf = wallCf(ds[1] :: string, ds[2] :: number, 0.8, 5.8)
 		for _, wx in { -4.5, -1.5, 1.5, 4.5 } do
 			local pane = d(
 				"DoorWindow",
@@ -425,7 +436,7 @@ function LobbyDetail.build(folder: Folder, origin: Vector3, h: Helpers)
 		d(
 			"Extinguisher",
 			Vector3.new(1, 2.6, 1),
-			world(sx * 11.5, 1.3, 54),
+			world(sx * 16, 1.3, 70),
 			RED,
 			nil,
 			Enum.PartType.Cylinder
@@ -434,13 +445,13 @@ function LobbyDetail.build(folder: Folder, origin: Vector3, h: Helpers)
 			1.3,
 			54
 		) * CFrame.Angles(0, 0, math.pi / 2)
-		d("ExtinguisherTop", Vector3.new(0.5, 0.6, 0.5), world(sx * 11.5, 2.8, 54), DARK)
+		d("ExtinguisherTop", Vector3.new(0.5, 0.6, 0.5), world(sx * 16, 2.8, 70), DARK)
 	end
 
 	-- Ceiling: pipes, a duct with vents, cable runs.
 	local pipeY = top - 2.4
 	for _, pz2 in { -22, 34 } do
-		local half = math.sqrt(R * R - pz2 * pz2) - 2
+		local half = HW - 1
 		rod(
 			"CeilingPipe",
 			Vector3.new(-half, pipeY, pz2),
@@ -458,50 +469,56 @@ function LobbyDetail.build(folder: Folder, origin: Vector3, h: Helpers)
 			Enum.Material.Metal
 		)
 		for k = -3, 3 do
-			d("PipeClamp", Vector3.new(0.5, 2, 2), world(k * 14, pipeY + 0.4, pz2), STEEL)
+			d("PipeClamp", Vector3.new(0.5, 2, 2), world(k * 10, pipeY + 0.4, pz2), STEEL)
 		end
 	end
 	d(
 		"CeilingDuct",
-		Vector3.new(2.6, 2.4, 78),
-		world(-36, top - 2.2, 0),
+		Vector3.new(2.6, 2.4, HL * 2 - 6),
+		world(-16, top - 2.2, 0),
 		Color3.fromRGB(170, 175, 185),
 		Enum.Material.Metal
 	)
 	d(
 		"CeilingDuct",
-		Vector3.new(2.6, 2.4, 78),
-		world(36, top - 2.2, 0),
+		Vector3.new(2.6, 2.4, HL * 2 - 6),
+		world(16, top - 2.2, 0),
 		Color3.fromRGB(170, 175, 185),
 		Enum.Material.Metal
 	)
-	for _, dx in { -36, 36 } do
-		for k = -2, 2 do
-			d("VentGrille", Vector3.new(2.7, 0.2, 3.4), world(dx, top - 3.45, k * 14), DARK)
+	for _, dx in { -16, 16 } do
+		for k = -4, 4 do
+			d("VentGrille", Vector3.new(2.7, 0.2, 3.4), world(dx, top - 3.45, k * 16), DARK)
 			for s = -1, 1 do
 				d(
 					"VentSlat",
 					Vector3.new(2.5, 0.1, 0.2),
-					world(dx, top - 3.6, k * 14 + s * 1),
+					world(dx, top - 3.6, k * 16 + s * 1),
 					LIGHT_METAL
 				)
 			end
 		end
 	end
-	for _, cx in { -14, 14 } do
-		rod("CableRun", Vector3.new(cx, top - 1.9, -44), Vector3.new(cx, top - 1.9, 44), 0.3, DARK)
+	for _, cx in { -30, 30 } do
 		rod(
 			"CableRun",
-			Vector3.new(cx + 0.6, top - 1.9, -44),
-			Vector3.new(cx + 0.6, top - 1.9, 44),
+			Vector3.new(cx, top - 1.9, -(HL - 4)),
+			Vector3.new(cx, top - 1.9, HL - 4),
+			0.3,
+			DARK
+		)
+		rod(
+			"CableRun",
+			Vector3.new(cx + 0.6, top - 1.9, -(HL - 4)),
+			Vector3.new(cx + 0.6, top - 1.9, HL - 4),
 			0.3,
 			RED
 		)
 	end
 
 	-- String lights: two lines of coloured bulbs across the room, sagging in the middle.
-	for _, sz in { 12, -32 } do
-		local half = math.sqrt(R * R - sz * sz) - 4
+	for _, sz in { 36, -12 } do
+		local half = HW - 4
 		local count = 22
 		for k = 0, count - 1 do
 			local t = k / (count - 1)
@@ -522,21 +539,18 @@ function LobbyDetail.build(folder: Folder, origin: Vector3, h: Helpers)
 	end
 
 	-- Floor: dashed centre line, hazard stripes before the claw, drain grates, light pools.
-	for z = 14, 34, 5 do
-		d("FloorDash", Vector3.new(0.5, 0.05, 2.6), world(0, 0.06, z), YELLOW)
-	end
-	for z = 48, 54, 4 do
+	for z = 50, -26, -8 do
 		d("FloorDash", Vector3.new(0.5, 0.05, 2.6), world(0, 0.06, z), YELLOW)
 	end
 	for k = 0, 5 do
 		d(
 			"ClawHazard",
 			Vector3.new(1.6, 0.05, 2),
-			world(42.6, 0.07, 6 + k * 2),
+			world(22.4, 0.07, 14 + k * 2),
 			if k % 2 == 0 then YELLOW else DARK
 		)
 	end
-	for _, g in { Vector3.new(0, 0, 22), Vector3.new(0, 0, -8), Vector3.new(-30, 0, -4) } do
+	for _, g in { Vector3.new(0, 0, 28), Vector3.new(0, 0, -20), Vector3.new(-10, 0, 44) } do
 		d("DrainGrate", Vector3.new(4, 0.08, 4), world(g.X, 0.06, g.Z), Color3.fromRGB(20, 21, 26))
 		for s = -2, 2 do
 			d(
@@ -548,8 +562,8 @@ function LobbyDetail.build(folder: Folder, origin: Vector3, h: Helpers)
 			)
 		end
 	end
-	for _, px2 in { -30, -10, 10, 30 } do
-		for _, pz3 in { -30, -10, 10, 30 } do
+	for _, px2 in { -24, -8, 8, 24 } do
+		for pz3 = -54, 54, 18 do
 			local pool = d(
 				"LightPool",
 				Vector3.new(0.05, 9, 9),

@@ -24,11 +24,30 @@ function CameraDirector.new(): Director
 	local active = false
 	local target: BasePart? = nil
 	local goalFov = feel.normalFov
+	local viewCenter = Vector3.zero
+	local viewDir = Vector3.zAxis
+	local myCar: BasePart? = nil -- your own car, found once the fight starts (nil in the lobby)
+	local nextFind = 0
 	local fov = feel.normalFov
 	local shakeLeft, shakeSize = 0, 0
 
 	local function cam(): Camera
 		return workspace.CurrentCamera :: Camera
+	end
+
+	-- Your car is the model in an Arena that carries your user id (the server sets it at the fight).
+	local function findMyCar(): BasePart?
+		local uid = Players.LocalPlayer.UserId
+		for _, arena in workspace:GetChildren() do
+			if arena.Name == "Arena" then
+				for _, m in arena:GetChildren() do
+					if m:IsA("Model") and m:GetAttribute("DriverUserId") == uid then
+						return m.PrimaryPart
+					end
+				end
+			end
+		end
+		return nil
 	end
 
 	RunService.RenderStepped:Connect(function(dt)
@@ -40,6 +59,26 @@ function CameraDirector.new(): Director
 			local pos = t.Position
 			local goal = CFrame.lookAt(pos + Vector3.new(0, feel.koCamUp, feel.koCamBack), pos)
 			base = base:Lerp(goal, math.min(1, dt * 7))
+		else
+			-- Gentle follow: lean toward your car, and widen the view a little at speed.
+			local car = myCar
+			if (car == nil or car.Parent == nil) and os.clock() >= nextFind then
+				nextFind = os.clock() + 0.3
+				myCar = findMyCar()
+				car = myCar
+			end
+			if car ~= nil and car.Parent ~= nil then
+				local pos = car.Position
+				local shift = Vector3.new(pos.X - viewCenter.X, 0, pos.Z - viewCenter.Z) * 0.22
+				local goal = CFrame.lookAt(
+					viewCenter + viewDir * 66 + Vector3.new(0, 80, 0) + shift,
+					viewCenter + shift
+				)
+				base = base:Lerp(goal, math.min(1, dt * 3))
+				local v = car.AssemblyLinearVelocity
+				local speed = Vector3.new(v.X, 0, v.Z).Magnitude
+				goalFov = feel.normalFov + math.clamp((speed - 30) / 10, 0, 5)
+			end
 		end
 		fov += (goalFov - fov) * math.min(1, dt * 4)
 		local c = cam()
@@ -60,6 +99,8 @@ function CameraDirector.new(): Director
 		-- Camera sits behind YOUR car so it is the near one, bottom of the screen.
 		local flat = if side then Vector3.new(side.X, 0, side.Z) else Vector3.zero
 		local dir = if flat.Magnitude > 0.01 then flat.Unit else Vector3.zAxis
+		viewCenter, viewDir = center, dir
+		myCar = nil
 		base = CFrame.lookAt(center + dir * 66 + Vector3.new(0, 80, 0), center)
 		local c = cam()
 		c.CameraType = Enum.CameraType.Scriptable
@@ -88,6 +129,7 @@ function CameraDirector.new(): Director
 	local function release()
 		active = false
 		target = nil
+		myCar = nil
 		shakeLeft = 0
 		goalFov, fov = feel.normalFov, feel.normalFov
 		local c = cam()

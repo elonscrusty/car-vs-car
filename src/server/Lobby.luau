@@ -228,130 +228,152 @@ function Lobby.build(): LobbyHandle
 	local folder = Instance.new("Folder")
 	folder.Name = "Lobby"
 	local room = L.room
-	local R, WH = room.radius, room.wallHeight
+	local HW, HL, WH = room.halfW, room.halfL, room.wallHeight
 
-	-- Floor: one big dark disc (a cylinder on its side), with a start line at the gate.
+	-- Floor: one long dark slab with a grid of darker tile lines.
 	part(
 		folder,
 		"Floor",
-		Vector3.new(2, (R + 3) * 2, (R + 3) * 2),
-		world(0, -1, 0) * CFrame.Angles(0, 0, math.pi / 2),
+		Vector3.new(HW * 2 + 4, 2, HL * 2 + 4),
+		world(0, -1, 0),
 		FLOOR,
-		Enum.Material.Concrete,
-		Enum.PartType.Cylinder
+		Enum.Material.Concrete
 	)
-
-	-- Floor tiles: thin darker lines in a grid (look only).
-	for c = -50, 50, 10 do
-		local len = 2 * math.sqrt(math.max(R * R - c * c, 0)) - 6
-		if len > 4 then
-			for _, rot in { 0, math.pi / 2 } do
-				local line = part(
-					folder,
-					"FloorTile",
-					Vector3.new(0.3, 0.05, len),
-					world(0, 0.03, 0) * CFrame.Angles(0, rot, 0) * CFrame.new(c, 0, 0),
-					Color3.fromRGB(52, 55, 66)
-				)
-				line.CanCollide = false
-			end
-		end
+	for x = -HW + 12, HW - 12, 12 do
+		local line = part(
+			folder,
+			"FloorTile",
+			Vector3.new(0.3, 0.05, HL * 2 - 2),
+			world(x, 0.03, 0),
+			Color3.fromRGB(52, 55, 66)
+		)
+		line.CanCollide = false
+	end
+	for z = -HL + 12, HL - 12, 12 do
+		local line = part(
+			folder,
+			"FloorTile",
+			Vector3.new(HW * 2 - 2, 0.05, 0.3),
+			world(0, 0.03, z),
+			Color3.fromRGB(52, 55, 66)
+		)
+		line.CanCollide = false
 	end
 
-	-- Round wall: red segments, with a dark post and a cyan light strip between them.
-	-- The segment that would sit at the front is left out: that is the entrance gate.
-	local segments = 32
-	local segW = 2 * math.pi * R / segments * 1.04
-	for i = 0, segments - 1 do
-		local a = i / segments * math.pi * 2
-		local px, pz = math.sin(a) * R, math.cos(a) * R
-		if not (pz > 0 and math.abs(px) < room.wall + L.gate.halfOpening + 3) then
-			local pos = Vector3.new(px, WH / 2, pz)
-			local cf = CFrame.lookAt(origin + pos, origin + Vector3.new(0, WH / 2, 0))
-			part(folder, "Wall", Vector3.new(segW, WH, room.wall), cf, RED)
-			-- Dark brick-look panel on the inside, under the red cap.
-			local panel = part(
-				folder,
-				"WallPanel",
-				Vector3.new(segW * 0.98, WH * 0.6, 0.5),
-				cf * CFrame.new(0, -WH * 0.2, -room.wall / 2 - 0.25),
-				Color3.fromRGB(46, 49, 60),
-				Enum.Material.Brick
-			)
-			panel.CanCollide = false
-			if i % 2 == 0 then
-				local strip = part(
-					folder,
-					"WallStrip",
-					Vector3.new(segW * 0.6, 0.4, 0.4),
-					cf * CFrame.new(0, -WH * 0.05, -room.wall / 2 - 0.55),
-					CYAN,
-					Enum.Material.Neon
-				)
-				strip.CanCollide = false
-			else
-				local post = part(
-					folder,
-					"WallPost",
-					Vector3.new(2.4, WH + 3, room.wall + 1),
-					cf * CFrame.new(0, 1.5, 0),
-					DARK
-				)
-				glow(post, CYAN, 26, 0.6)
-			end
+	-- A spot on a wall (side "L", "R", "B" back or "F" front): `along` is the z (L, R) or x (B, F)
+	-- position, `inset` studs inside the inner wall face. Its -Z side faces the middle of the hall.
+	local function wallAt(side: string, along: number, inset: number, y: number): CFrame
+		local p: Vector3
+		local inward: Vector3
+		if side == "L" then
+			p, inward = Vector3.new(-HW + inset, y, along), Vector3.xAxis
+		elseif side == "R" then
+			p, inward = Vector3.new(HW - inset, y, along), -Vector3.xAxis
+		elseif side == "B" then
+			p, inward = Vector3.new(along, y, -HL + inset), Vector3.zAxis
+		else
+			p, inward = Vector3.new(along, y, HL - inset), -Vector3.zAxis
 		end
+		return CFrame.lookAt(origin + p, origin + p + inward)
 	end
 
-	-- Garage shell: a tall concrete upper wall on top of the red one, a roof of steel beams with
-	-- hanging lights, a roller door at the gate, side roller doors, tool walls and oil stains.
-	-- The roof is look-only (no collision, not seen by the camera) so the camera never gets stuck.
+	-- Walls: a red lower wall (brick panel and cyan lights on the inside), a concrete upper wall,
+	-- steel columns. The front wall has a gap for the roller door (the lintel closes it above).
 	local CONCRETE = Color3.fromRGB(112, 115, 124)
 	local STEEL = Color3.fromRGB(85, 88, 98)
 	local UH = 15 -- height of the upper wall
 	local top = WH + UH
-	for i = 0, segments - 1 do
-		local a = i / segments * math.pi * 2
-		local px, pz = math.sin(a) * R, math.cos(a) * R
-		if not (pz > 0 and math.abs(px) < room.wall + L.gate.halfOpening + 3) then
-			local cf = CFrame.lookAt(
-				origin + Vector3.new(px, WH + UH / 2, pz),
-				origin + Vector3.new(0, WH + UH / 2, 0)
-			)
-			part(
-				folder,
-				"GarageWall",
-				Vector3.new(segW, UH, room.wall),
-				cf,
-				CONCRETE,
-				Enum.Material.Concrete
-			)
-			local band = part(
-				folder,
-				"GarageBand",
-				Vector3.new(segW, 0.9, 0.3),
-				cf * CFrame.new(0, -UH / 2 + 0.6, -room.wall / 2 - 0.15),
-				YELLOW
-			)
-			band.CanCollide = false
-			if i % 4 == 0 then
+	local gap = L.gate.halfOpening + 1
+	local sides = {
+		{ "L", Vector3.new(-HW, 0, -HL), Vector3.new(-HW, 0, HL) },
+		{ "R", Vector3.new(HW, 0, -HL), Vector3.new(HW, 0, HL) },
+		{ "B", Vector3.new(-HW, 0, -HL), Vector3.new(HW, 0, -HL) },
+		{ "F", Vector3.new(-HW, 0, HL), Vector3.new(HW, 0, HL) },
+	}
+	for _, sd in sides do
+		local name = sd[1] :: string
+		local a, b = sd[2] :: Vector3, sd[3] :: Vector3
+		local len = (b - a).Magnitude
+		local count = math.floor(len / 12 + 0.5)
+		local segW = len / count
+		local dir = (b - a).Unit
+		for i = 0, count - 1 do
+			local center = a + dir * ((i + 0.5) * segW)
+			local along = if name == "L" or name == "R" then center.Z else center.X
+			if not (name == "F" and math.abs(along) < gap) then
+				local base = wallAt(name, along, -room.wall / 2, 0)
+				local cf = base * CFrame.new(0, WH / 2, 0)
+				part(folder, "Wall", Vector3.new(segW + 0.1, WH, room.wall), cf, RED)
+				local panel = part(
+					folder,
+					"WallPanel",
+					Vector3.new(segW * 0.98, WH * 0.6, 0.5),
+					cf * CFrame.new(0, -WH * 0.2, -room.wall / 2 - 0.25),
+					Color3.fromRGB(46, 49, 60),
+					Enum.Material.Brick
+				)
+				panel.CanCollide = false
+				if i % 2 == 0 then
+					local strip = part(
+						folder,
+						"WallStrip",
+						Vector3.new(segW * 0.6, 0.4, 0.4),
+						cf * CFrame.new(0, -WH * 0.05, -room.wall / 2 - 0.55),
+						CYAN,
+						Enum.Material.Neon
+					)
+					strip.CanCollide = false
+				end
+				local ucf = base * CFrame.new(0, WH + UH / 2, 0)
 				part(
 					folder,
-					"GarageColumn",
-					Vector3.new(2, UH, room.wall + 1.2),
-					cf,
-					STEEL,
-					Enum.Material.Metal
+					"GarageWall",
+					Vector3.new(segW + 0.1, UH, room.wall),
+					ucf,
+					CONCRETE,
+					Enum.Material.Concrete
 				)
+				local band = part(
+					folder,
+					"GarageBand",
+					Vector3.new(segW, 0.9, 0.3),
+					ucf * CFrame.new(0, -UH / 2 + 0.6, -room.wall / 2 - 0.15),
+					YELLOW
+				)
+				band.CanCollide = false
+				if i % 2 == 1 then
+					part(
+						folder,
+						"GarageColumn",
+						Vector3.new(2, UH, room.wall + 1.2),
+						ucf,
+						STEEL,
+						Enum.Material.Metal
+					)
+				end
 			end
 		end
 	end
+	-- Corner posts (dark, with a cyan glow) full height.
+	for _, cx in { -HW, HW } do
+		for _, cz in { -HL, HL } do
+			local post = part(
+				folder,
+				"WallPost",
+				Vector3.new(4, top, 4),
+				world(cx + (if cx < 0 then -1 else 1), top / 2, cz + (if cz < 0 then -1 else 1)),
+				DARK
+			)
+			glow(post, CYAN, 24, 0.5)
+		end
+	end
 	-- Above the entrance: a lintel with the rolled-up roller door under it.
-	local lintelW = 2 * (room.wall + L.gate.halfOpening + 3) + 2
+	local lintelW = gap * 2 + 2
 	part(
 		folder,
 		"GateLintel",
 		Vector3.new(lintelW, UH, room.wall),
-		world(0, WH + UH / 2, R - 1.2),
+		world(0, WH + UH / 2, HL + room.wall / 2),
 		CONCRETE,
 		Enum.Material.Concrete
 	)
@@ -359,7 +381,7 @@ function Lobby.build(): LobbyHandle
 		folder,
 		"GateHazard",
 		Vector3.new(lintelW - 2, 0.9, 0.3),
-		world(0, WH + 0.5, R - 2.4),
+		world(0, WH + 0.5, HL - 0.15),
 		YELLOW
 	)
 	lintelBand.CanCollide = false
@@ -367,44 +389,52 @@ function Lobby.build(): LobbyHandle
 		folder,
 		"RollerDoorRoll",
 		Vector3.new(L.gate.halfOpening * 2 + 2, 2.2, 2.2),
-		world(0, WH - 0.8, R - 2.6),
+		world(0, WH - 0.8, HL - 1.4),
 		Color3.fromRGB(150, 153, 163),
 		Enum.Material.Metal,
 		Enum.PartType.Cylinder
 	)
 	roll.CanCollide = false
+	-- The wall between the door posts and the first full wall piece is covered by the lintel; the
+	-- gap below it stays open (that is the way in).
 
 	-- Roof: dark steel deck, cross beams and hanging lamps.
 	local roof = part(
 		folder,
 		"GarageRoof",
-		Vector3.new(1, (R + 3) * 2, (R + 3) * 2),
-		world(0, top + 0.5, 0) * CFrame.Angles(0, 0, math.pi / 2),
+		Vector3.new(HW * 2 + room.wall * 2 + 2, 1, HL * 2 + room.wall * 2 + 2),
+		world(0, top + 0.5, 0),
 		Color3.fromRGB(38, 40, 48),
-		Enum.Material.Metal,
-		Enum.PartType.Cylinder
+		Enum.Material.Metal
 	)
 	roof.CanCollide = false
 	roof.CanQuery = false
-	for c = -48, 48, 12 do
-		local len = 2 * math.sqrt(math.max(R * R - c * c, 0)) - 2
-		for _, rot in { 0, math.pi / 2 } do
-			if rot == 0 or c % 24 == 0 then
-				local beam = part(
-					folder,
-					"RoofBeam",
-					Vector3.new(1.2, 1.6, len),
-					world(0, top - 0.8, 0) * CFrame.Angles(0, rot, 0) * CFrame.new(c, 0, 0),
-					STEEL,
-					Enum.Material.Metal
-				)
-				beam.CanCollide = false
-				beam.CanQuery = false
-			end
-		end
+	for z = -HL + 6, HL - 6, 12 do
+		local beam = part(
+			folder,
+			"RoofBeam",
+			Vector3.new(HW * 2, 1.6, 1.2),
+			world(0, top - 0.8, z),
+			STEEL,
+			Enum.Material.Metal
+		)
+		beam.CanCollide = false
+		beam.CanQuery = false
 	end
-	for _, lx in { -30, -10, 10, 30 } do
-		for _, lz in { -30, -10, 10, 30 } do
+	for _, bx in { -24, 0, 24 } do
+		local beam = part(
+			folder,
+			"RoofBeam",
+			Vector3.new(1.2, 1.6, HL * 2),
+			world(bx, top - 0.8, 0),
+			STEEL,
+			Enum.Material.Metal
+		)
+		beam.CanCollide = false
+		beam.CanQuery = false
+	end
+	for _, lx in { -24, -8, 8, 24 } do
+		for lz = -54, 54, 18 do
 			local cord =
 				part(folder, "LampCord", Vector3.new(0.2, 5, 0.2), world(lx, top - 3.4, lz), DARK)
 			cord.CanCollide = false
@@ -429,20 +459,15 @@ function Lobby.build(): LobbyHandle
 			)
 			bulb.CanCollide = false
 			bulb.CanQuery = false
-			if math.abs(lx) == 10 and math.abs(lz) == 10 then
+			if math.abs(lx) == 8 and lz % 36 == 0 then
 				glow(bulb, Color3.fromRGB(255, 244, 200), 45, 0.6)
 			end
 		end
 	end
 
-	-- Closed roller doors on the wall (look only), front-left and front-right.
-	for _, deg in { -55, 55 } do
-		local a = math.rad(deg)
-		local r = R - room.wall / 2 - 0.8
-		local dcf = CFrame.lookAt(
-			origin + Vector3.new(math.sin(a) * r, 5.8, math.cos(a) * r),
-			origin + Vector3.new(0, 5.8, 0)
-		)
+	-- Closed roller doors on the long walls (look only).
+	for _, dd in { { "L", -30 }, { "R", -34 } } do
+		local dcf = wallAt(dd[1] :: string, dd[2] :: number, 0.8, 5.8)
 		local frame = part(folder, "RollerDoorFrame", Vector3.new(15, 11.6, 0.4), dcf, YELLOW)
 		frame.CanCollide = false
 		local panel = part(
@@ -466,14 +491,9 @@ function Lobby.build(): LobbyHandle
 		end
 	end
 
-	-- Tool walls with a workbench (left) and a tool cabinet with oil drums (right).
+	-- Tool walls beside the entrance: a workbench (left) and a tool cabinet with oil drums (right).
 	for _, side in { -1, 1 } do
-		local a = math.rad(side * 103)
-		local r = R - room.wall / 2 - 0.6
-		local wcf = CFrame.lookAt(
-			origin + Vector3.new(math.sin(a) * r, 5.5, math.cos(a) * r),
-			origin + Vector3.new(0, 5.5, 0)
-		)
+		local wcf = wallAt("F", side * 24, 0.6, 5.5)
 		local peg =
 			part(folder, "ToolWall", Vector3.new(14, 6.5, 0.4), wcf, Color3.fromRGB(52, 56, 66))
 		peg.CanCollide = false
@@ -548,11 +568,11 @@ function Lobby.build(): LobbyHandle
 	-- Oil stains on the floor (look only).
 	for _, st in
 		{
-			Vector3.new(-6, 0, 14),
-			Vector3.new(9, 0, 38),
-			Vector3.new(-30, 0, 12),
-			Vector3.new(30, 0, -2),
-			Vector3.new(-22, 0, 40),
+			Vector3.new(-4, 0, 36),
+			Vector3.new(8, 0, 6),
+			Vector3.new(-6, 0, -22),
+			Vector3.new(14, 0, 46),
+			Vector3.new(-12, 0, 18),
 		}
 	do
 		local stain = part(
@@ -608,21 +628,21 @@ function Lobby.build(): LobbyHandle
 	end
 
 	-- Big CAR VS CAR sign on a red gantry at the back, with the "STAND TO PLAY" board under it.
-	local backZ = -(R - 8)
+	local backZ = -(HL - 8)
 	for _, sx in { -1, 1 } do
-		part(folder, "GantryPost", Vector3.new(3, 22, 3), world(sx * 18, 11, backZ), RED)
+		part(folder, "GantryPost", Vector3.new(3, 22, 3), world(sx * 24, 11, backZ), RED)
 	end
-	part(folder, "GantryBeam", Vector3.new(40, 2.5, 3), world(0, 22, backZ), RED)
+	part(folder, "GantryBeam", Vector3.new(52, 2.5, 3), world(0, 22, backZ), RED)
 	-- Checkered flags on poles at the top of both gantry posts.
 	for _, sx in { -1, 1 } do
-		part(folder, "FlagPole", Vector3.new(0.4, 8, 0.4), world(sx * 18, 26, backZ + 1), GRAY)
+		part(folder, "FlagPole", Vector3.new(0.4, 8, 0.4), world(sx * 24, 26, backZ + 1), GRAY)
 		for col = 1, 3 do
 			for row = 1, 3 do
 				local flagTile = part(
 					folder,
 					"FlagTile",
 					Vector3.new(1.2, 1.2, 0.2),
-					world(sx * (18.2 + 1.2 * col - 0.6), 22.6 + 1.2 * row, backZ + 1.1),
+					world(sx * (24.2 + 1.2 * col - 0.6), 22.6 + 1.2 * row, backZ + 1.1),
 					if (col + row) % 2 == 0
 						then Color3.fromRGB(240, 240, 240)
 						else Color3.fromRGB(20, 20, 20)
@@ -634,7 +654,7 @@ function Lobby.build(): LobbyHandle
 	local sign = part(
 		folder,
 		"WallSign",
-		Vector3.new(30, 9, 1),
+		Vector3.new(36, 10, 1),
 		CFrame.lookAt(origin + Vector3.new(0, 16.5, backZ + 1.6), origin + Vector3.new(0, 16.5, 0)),
 		Color3.fromRGB(14, 12, 24)
 	)
@@ -893,14 +913,14 @@ function Lobby.build(): LobbyHandle
 	glow(stSign, YELLOW, 24, 1)
 	prompt(counter, "StorePrompt", "Open", "Store")
 
-	-- Three light chevrons on the floor between the pads, pointing at the back wall.
+	-- Three light chevrons on the floor ahead of the pads, pointing at the back wall.
 	for k = 0, 2 do
 		for _, sx in { -1, 1 } do
 			local chev = part(
 				folder,
 				"FloorChevron",
 				Vector3.new(5, 0.06, 1.1),
-				world(sx * 2.1, 0.05, 6 + k * 3.2) * CFrame.Angles(0, -sx * math.rad(35), 0),
+				world(sx * 2.1, 0.05, -34 + k * 3.2) * CFrame.Angles(0, -sx * math.rad(35), 0),
 				Color3.fromRGB(105, 110, 125)
 			)
 			chev.CanCollide = false
@@ -992,22 +1012,22 @@ function Lobby.build(): LobbyHandle
 		}
 	end
 
-	-- Scenery: bench, tire stack, cones and plants (left), plants by the claw. No collision on the
+	-- Scenery: bench, tire stack and cones (front right), plants along the walls. No collision on the
 	-- small stuff so nobody gets stuck.
-	part(folder, "Bench", Vector3.new(3, 2.2, 8), world(-52, 1.1, 8), RED)
-	part(folder, "BenchBack", Vector3.new(0.8, 3, 8), world(-53.4, 3, 8), RED)
+	part(folder, "Bench", Vector3.new(3, 2.2, 8), world(33, 1.1, 40), RED)
+	part(folder, "BenchBack", Vector3.new(0.8, 3, 8), world(34.4, 3, 40), RED)
 	for k = 0, 2 do
 		part(
 			folder,
 			"Tire",
 			Vector3.new(2.2, 4.4, 4.4),
-			world(-50, 1.1 + k * 2.2, 22) * CFrame.Angles(0, 0, math.pi / 2),
+			world(33, 1.1 + k * 2.2, 32) * CFrame.Angles(0, 0, math.pi / 2),
 			DARK,
 			nil,
 			Enum.PartType.Cylinder
 		)
 	end
-	for _, cp in { Vector3.new(-44, 0, 28), Vector3.new(-41, 0, 31) } do
+	for _, cp in { Vector3.new(27, 0, 34), Vector3.new(24, 0, 37) } do
 		local cone = part(
 			folder,
 			"Cone",
@@ -1027,10 +1047,9 @@ function Lobby.build(): LobbyHandle
 	end
 	for _, pp in
 		{
-			Vector3.new(-52, 0, -6),
-			Vector3.new(-48, 0, 38),
-			Vector3.new(54, 0, -6),
-			Vector3.new(50, 0, 32),
+			Vector3.new(-33, 0, -24),
+			Vector3.new(-33, 0, 38),
+			Vector3.new(33, 0, 28),
 		}
 	do
 		part(folder, "Planter", Vector3.new(4, 2, 4), world(pp.X, 1, pp.Z), GRAY)
@@ -1043,7 +1062,7 @@ function Lobby.build(): LobbyHandle
 		)
 	end
 
-	LobbyDetail.build(folder, origin, { part = part, label = label, glow = glow })
+	LobbyDetail.build(folder, origin, { part = part, label = label, glow = glow, wallAt = wallAt })
 
 	-- Spawn: just inside the gate, looks at the middle of the pads.
 	local sp = L.spawn

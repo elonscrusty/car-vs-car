@@ -1,27 +1,28 @@
 --!strict
 -- Pure lobby geometry (no Roblox types). All numbers are studs, relative to the lobby origin.
--- x = right, z = toward the player's start (+z), floor top is y = 0. The lobby is a round arena
--- (radius `room.radius`): big sign and "stand to play" board at the back (-z), store back-left,
--- truck stage back-right, claw machine on the right wall, 4 pads (2x2) in the middle, and the
--- entrance gate at the front (+z) where the spawn is. The spawn looks toward -z.
+-- x = right, z = toward the player's start (+z), floor top is y = 0. The spawn looks toward -z.
 
 export type Rect = { x: number, z: number, w: number, d: number } -- centre + full size
 
 local LobbyLayout = {}
 
-LobbyLayout.room = { radius = 60, wallHeight = 9, wall = 2 }
+-- The lobby is a long garage hall: you walk in through the roller door at the front (+z), shops
+-- line both walls, and the 4 fight pads stand in a row at the far end (-z) under the big sign.
+-- The hall is `room.halfW` * 2 wide and `room.halfL` * 2 long (inside the walls).
+LobbyLayout.room = { halfW = 36, halfL = 72, wallHeight = 9, wall = 2 }
 
-LobbyLayout.showcase = { x = 34, z = -24, radius = 8, footprint = 20 } -- raised truck stage
-LobbyLayout.spawn = { x = 0, z = 40, size = 6 }
-LobbyLayout.gate = { z = 56, halfOpening = 7 } -- opening in the wall + checkered start line
-LobbyLayout.gacha = { x = 50, z = 12, w = 10, d = 12 } -- the claw machine
-LobbyLayout.store = { x = -38, z = -26, w = 20, d = 12 }
-LobbyLayout.padSize = 16
+LobbyLayout.showcase = { x = 26, z = -12, radius = 8, footprint = 20 } -- raised truck stage (right)
+LobbyLayout.spawn = { x = 0, z = 60, size = 6 }
+LobbyLayout.gate = { z = 70, halfOpening = 11 } -- roller door opening + checkered start line
+LobbyLayout.gacha = { x = 30, z = 20, w = 10, d = 12 } -- the claw machine (right wall)
+LobbyLayout.store = { x = -26, z = 20, w = 20, d = 12 } -- left wall
+LobbyLayout.lift = { x = -26, z = -8, w = 18, d = 16 } -- car lift with a car (left wall)
+LobbyLayout.padSize = 15
 LobbyLayout.pads = {
-	{ x = -18, z = -4 },
-	{ x = 18, z = -4 },
-	{ x = -18, z = 22 },
-	{ x = 18, z = 22 },
+	{ x = -27, z = -44 },
+	{ x = -9, z = -44 },
+	{ x = 9, z = -44 },
+	{ x = 27, z = -44 },
 }
 
 -- Footprints that must not overlap each other (floor level things only).
@@ -43,6 +44,12 @@ function LobbyLayout.footprints(): { [string]: Rect }
 			w = LobbyLayout.store.w,
 			d = LobbyLayout.store.d,
 		},
+		lift = {
+			x = LobbyLayout.lift.x,
+			z = LobbyLayout.lift.z,
+			w = LobbyLayout.lift.w,
+			d = LobbyLayout.lift.d,
+		},
 	}
 	for i, p in LobbyLayout.pads do
 		out["pad" .. i] = { x = p.x, z = p.z, w = LobbyLayout.padSize, d = LobbyLayout.padSize }
@@ -54,24 +61,16 @@ function LobbyLayout.overlaps(a: Rect, b: Rect): boolean
 	return math.abs(a.x - b.x) < (a.w + b.w) / 2 and math.abs(a.z - b.z) < (a.d + b.d) / 2
 end
 
--- All four corners must be inside the round wall.
+-- All four corners must be inside the hall walls.
 function LobbyLayout.insideRoom(r: Rect): boolean
-	local limit = LobbyLayout.room.radius - LobbyLayout.room.wall
-	for _, sx in { -1, 1 } do
-		for _, sz in { -1, 1 } do
-			local cx, cz = r.x + sx * r.w / 2, r.z + sz * r.d / 2
-			if math.sqrt(cx * cx + cz * cz) > limit then
-				return false
-			end
-		end
-	end
-	return true
+	local room = LobbyLayout.room
+	return math.abs(r.x) + r.w / 2 <= room.halfW and math.abs(r.z) + r.d / 2 <= room.halfL
 end
 
--- Unit direction (x, z) the spawn faces: straight at the middle of the pads.
+-- Unit direction (x, z) the spawn faces: straight at the middle of the row of pads.
 function LobbyLayout.spawnFacing(): (number, number)
 	local dx = 0 - LobbyLayout.spawn.x
-	local dz = 0 - LobbyLayout.spawn.z
+	local dz = LobbyLayout.pads[1].z - LobbyLayout.spawn.z
 	local len = math.sqrt(dx * dx + dz * dz)
 	return dx / len, dz / len
 end
