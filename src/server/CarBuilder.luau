@@ -120,7 +120,9 @@ function CarBuilder.build(
 		local visual = carMesh:Clone()
 		visual.Name = "Visual"
 		visual.Size = carMesh.Size * scale
-		visual.Color = color
+		if visual.TextureID == "" then
+			visual.Color = color -- an untextured model takes the car colour; a textured one keeps its own
+		end
 		visual.Anchored = true -- stays anchored until launch
 		visual.CanCollide = false
 		visual.CanQuery = false

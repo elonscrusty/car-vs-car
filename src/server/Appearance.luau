@@ -24,9 +24,10 @@ local function paintBody(model: Model, body: BasePart, color: Color3)
 	if cabin and cabin:IsA("BasePart") then
 		cabin.Color = color:Lerp(DARK, 0.5)
 	end
-	-- A car with a real model (see CarBuilder) paints the whole mesh.
+	-- A car with a real untextured model (see CarBuilder) paints the whole mesh; a textured one
+	-- keeps its own look.
 	local visual = model:FindFirstChild("Visual")
-	if visual and visual:IsA("BasePart") then
+	if visual and visual:IsA("MeshPart") and visual.TextureID == "" then
 		visual.Color = color
 	end
 end

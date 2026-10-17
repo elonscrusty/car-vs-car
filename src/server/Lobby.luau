@@ -198,7 +198,9 @@ local function meshCar(
 	local visual = template:Clone()
 	visual.Name = "Visual"
 	visual.Size = template.Size * (length / template.Size.X)
-	visual.Color = color
+	if visual.TextureID == "" then
+		visual.Color = color
+	end
 	visual.Anchored = true
 	visual.CanCollide = false
 	visual.CFrame = cf * CFrame.new(0, visual.Size.Y / 2, 0) * CFrame.Angles(0, math.rad(90), 0)
