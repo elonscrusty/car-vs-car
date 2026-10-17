@@ -9,6 +9,7 @@ local Types = require(ReplicatedStorage.Shared.Types)
 local AimInput = require(script.AimInput)
 local CameraDirector = require(script.CameraDirector)
 local Effects = require(script.Effects)
+local FightFx = require(script.FightFx)
 local LobbyUi = require(script.LobbyUi)
 local Ui = require(script.Ui)
 
@@ -42,13 +43,15 @@ local lobby = LobbyUi.new({
 })
 remotes.LobbyUpdate.OnClientEvent:Connect(lobby.handleUpdate)
 
--- Keyboard: E or left shift = boost (server decides if it is ready).
+-- Keyboard: E or left shift = boost, Q = special (server decides if ready).
 UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
-	if
-		not processed
-		and (input.KeyCode == Enum.KeyCode.E or input.KeyCode == Enum.KeyCode.LeftShift)
-	then
-		remotes.Ability:FireServer()
+	if processed then
+		return
+	end
+	if input.KeyCode == Enum.KeyCode.E or input.KeyCode == Enum.KeyCode.LeftShift then
+		remotes.Ability:FireServer("boost")
+	elseif input.KeyCode == Enum.KeyCode.Q then
+		remotes.Ability:FireServer("special")
 	end
 end)
 
@@ -89,6 +92,18 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		end
 	elseif u.kind == "boost" then
 		view.startBoostCooldown(u.cooldown or 5)
+	elseif u.kind == "special" then
+		view.startSpecialCooldown(u.cooldown or 8)
+	elseif u.kind == "counter" then
+		FightFx.counter()
+		director.shake(1)
+		if u.pos then
+			Effects.counterSparks(u.pos)
+		end
+	elseif u.kind == "ko" then
+		FightFx.ko(u.text or "K.O.!")
+		director.shake(0.8)
+		director.punchFov(18)
 	elseif u.kind == "matchEnd" then
 		aim.stop()
 		view.showMatchEnd(u.youWon == true)

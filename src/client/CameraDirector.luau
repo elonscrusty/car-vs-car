@@ -13,6 +13,7 @@ export type Director = {
 	overview: (center: Vector3) -> (),
 	focus: (target: BasePart?) -> (), -- KO: follow the dummy and zoom in
 	shake: (strength: number) -> (), -- 0..1
+	punchFov: (amount: number) -> (), -- brief zoom-in punch
 	release: () -> (), -- back to the normal Roblox camera (lobby)
 }
 
@@ -75,6 +76,12 @@ function CameraDirector.new(): Director
 		end
 	end
 
+	local function punchFov(amount: number)
+		if active then
+			fov = math.max(10, fov - amount) -- eases back to goalFov on its own
+		end
+	end
+
 	local function release()
 		active = false
 		target = nil
@@ -90,7 +97,13 @@ function CameraDirector.new(): Director
 		end
 	end
 
-	return { overview = overview, focus = focus, shake = shake, release = release }
+	return {
+		overview = overview,
+		focus = focus,
+		shake = shake,
+		punchFov = punchFov,
+		release = release,
+	}
 end
 
 return CameraDirector

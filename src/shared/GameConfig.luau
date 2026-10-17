@@ -22,8 +22,8 @@ local GameConfig = {
 		outOfBoundsDrop = 40, -- car this far below the arena = counts as dead
 	},
 	Launch = {
-		minSpeed = 60, -- studs/sec at 0% power
-		maxSpeed = 140, -- studs/sec at 100% power
+		minSpeed = 80, -- studs/sec at 0% power
+		maxSpeed = 170, -- studs/sec at 100% power
 		powerPeriod = 1.2, -- seconds for power bar to go up and down once
 		aimDegPerSec = 60, -- how fast A/D turns the arrow
 	},
@@ -37,7 +37,7 @@ local GameConfig = {
 		afterSeconds = 1, -- flip back after this long
 	},
 	Drive = {
-		turnGain = 6, -- how hard the car steers toward target
+		turnGain = 8, -- how hard the car steers toward target
 		groundFriction = 0.05, -- floor + car friction. Lower = slides more, keeps speed
 		grip = 6, -- side slide killing (higher = less drifting)
 		groundRayExtra = 2.5, -- studs below car that still count as "on ground"
@@ -45,8 +45,8 @@ local GameConfig = {
 	-- Bot / auto-pilot behavior numbers
 	Ai = {
 		chargeMax = 3, -- Heavy: longest straight charge before backing up
-		retreatTime = 1.6, -- after a hit: seconds driving away for a run-up
-		retreatDist = 35, -- how far away it aims during the run-up
+		retreatTime = 1.1, -- after a hit: seconds driving away for a run-up
+		retreatDist = 28, -- how far away it aims during the run-up
 		maxRadius = 45, -- run-up target stays this close to bowl center
 		circleTime = 2, -- Light: seconds spent circling
 		diveMax = 1.5, -- Light: longest dive before circling again
@@ -75,6 +75,24 @@ local GameConfig = {
 		botMinDist = 18, -- bot only boosts when the enemy is this far or more
 		botMaxDist = 60, -- ...and not farther than this
 	},
+	-- One special move per car (key Q / SPECIAL button). Cooldown counts from use.
+	Special = {
+		cooldown = 8,
+		botMinGap = 1.5, -- bot waits this long after a special before thinking about another
+		Heavy = { radius = 28, damage = 25, knock = 90, up = 30 }, -- ground slam shockwave
+		Light = { dash = 75 }, -- instant burst of speed straight ahead
+		Ramp = { range = 24, minDot = 0.7, damage = 15, lift = 40 }, -- flip kick in front
+		Spike = { duration = 3, damageMult = 1.8 }, -- spikes out: hits hurt more for a while
+	},
+	-- Tap boost right before a hit lands to counter it. A tap locks the counter for `cooldown`.
+	Counter = {
+		window = 0.25,
+		cooldown = 4,
+		damageMult = 0.35, -- damage you take on a counter
+		knock = 60, -- shove on the attacker (studs/sec)
+	},
+	-- Pushed past the rim = ring-out = lose the round.
+	RingOut = { margin = 3 },
 	Dummy = {
 		launchUp = 70, -- upward speed of the crash dummy (studs/sec)
 		launchSpread = 25, -- sideways speed random

@@ -112,10 +112,14 @@ remotes.Launch.OnServerEvent:Connect(function(player: Player, angle: any, power:
 	end
 end)
 
-remotes.Ability.OnServerEvent:Connect(function(player: Player)
+remotes.Ability.OnServerEvent:Connect(function(player: Player, kind: any)
 	local m = matches[player]
 	if m and abilityLimiter.allow(player, os.clock()) then
-		m.boost()
+		if kind == "special" then
+			m.special()
+		else
+			m.boost()
+		end
 	end
 end)
 

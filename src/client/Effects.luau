@@ -39,6 +39,26 @@ function Effects.sparks(pos: Vector3, strength: number)
 	Debris:AddItem(p, 1.5)
 end
 
+-- Gold burst for a well timed block.
+function Effects.counterSparks(pos: Vector3)
+	local p = anchorAt(pos)
+	local e = Instance.new("ParticleEmitter")
+	e.Color = ColorSequence.new(Color3.fromRGB(255, 245, 170), Color3.fromRGB(255, 190, 30))
+	e.LightEmission = 1
+	e.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	e.Lifetime = NumberRange.new(0.3, 0.8)
+	e.Speed = NumberRange.new(30, 70)
+	e.SpreadAngle = Vector2.new(180, 180)
+	e.Acceleration = Vector3.new(0, -40, 0)
+	e.Rate = 0
+	e.Parent = p
+	e:Emit(60)
+	Debris:AddItem(p, 1.5)
+end
+
 -- Floating "-23" that rises and fades. Red = you took it, yellow = bot took it.
 function Effects.damageNumber(pos: Vector3, damage: number, youHit: boolean)
 	local p = anchorAt(pos + Vector3.new(0, 4, 0))

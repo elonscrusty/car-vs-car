@@ -9,11 +9,14 @@ local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
 
 local Ui = {}
 
+local READY_COLOR = Color3.fromRGB(120, 255, 140)
+
 export type Handlers = {
 	onPick: (carId: string) -> (),
 	onConfirm: () -> (), -- LAUNCH / tap button
 	onAimHold: (dir: number) -> (), -- -1 right, 0 stop, +1 left
 	onBoost: () -> (),
+	onSpecial: () -> (),
 }
 
 export type View = {
@@ -31,6 +34,7 @@ export type View = {
 	showMatchEnd: (youWon: boolean) -> (),
 	hideMatch: () -> (), -- back to lobby: hide every match screen
 	startBoostCooldown: (seconds: number) -> (),
+	startSpecialCooldown: (seconds: number) -> (),
 }
 
 local function label(parent: Instance, text: string, size: UDim2, pos: UDim2): TextLabel
@@ -183,30 +187,56 @@ function Ui.create(h: Handlers): View
 	powerFill.Size = UDim2.fromScale(0, 1)
 	powerFill.Parent = powerBack
 
-	-- Boost button + cooldown bar (fight only)
-	local boostB = button(
-		gui,
-		"BOOST",
-		UDim2.fromScale(0.24, 0.2),
-		UDim2.fromScale(0.72, 0.74),
-		Color3.fromRGB(255, 150, 20)
-	)
-	boostB.Visible = false
-	local boostBar = Instance.new("Frame")
-	boostBar.AnchorPoint = Vector2.new(0, 1)
-	boostBar.Size = UDim2.fromScale(1, 0.14)
-	boostBar.Position = UDim2.fromScale(0, 1)
-	boostBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-	boostBar.BackgroundTransparency = 0.3
-	boostBar.BorderSizePixel = 0
-	boostBar.Parent = boostB
-	local boostFill = Instance.new("Frame")
-	boostFill.Size = UDim2.fromScale(1, 1)
-	boostFill.BackgroundColor3 = Color3.fromRGB(120, 255, 140)
-	boostFill.BorderSizePixel = 0
-	boostFill.Parent = boostBar
-	local boostToken = 0
-	boostB.Activated:Connect(h.onBoost)
+	-- Boost + special buttons with cooldown bars (fight only)
+	local function abilityButton(text: string, x: number, color: Color3, onTap: () -> ())
+		local b = button(gui, text, UDim2.fromScale(0.22, 0.2), UDim2.fromScale(x, 0.74), color)
+		b.Visible = false
+		local limit = Instance.new("UISizeConstraint") -- big touch target, even on small screens
+		limit.MinSize = Vector2.new(96, 64)
+		limit.Parent = b
+		local bar = Instance.new("Frame")
+		bar.AnchorPoint = Vector2.new(0, 1)
+		bar.Size = UDim2.fromScale(1, 0.14)
+		bar.Position = UDim2.fromScale(0, 1)
+		bar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+		bar.BackgroundTransparency = 0.3
+		bar.BorderSizePixel = 0
+		bar.Parent = b
+		local fill = Instance.new("Frame")
+		fill.Size = UDim2.fromScale(1, 1)
+		fill.BackgroundColor3 = READY_COLOR
+		fill.BorderSizePixel = 0
+		fill.Parent = bar
+		b.Activated:Connect(onTap)
+		return b, fill
+	end
+	local boostB, boostFill = abilityButton("BOOST", 0.74, Color3.fromRGB(255, 150, 20), h.onBoost)
+	local specialB, specialFill =
+		abilityButton("SPECIAL", 0.50, Color3.fromRGB(150, 70, 230), h.onSpecial)
+	local tokens: { [Frame]: number } = { [boostFill] = 0, [specialFill] = 0 }
+
+	local function resetFill(fill: Frame)
+		tokens[fill] += 1
+		fill.Size = UDim2.fromScale(1, 1)
+		fill.BackgroundColor3 = READY_COLOR
+	end
+
+	local function startCooldown(fill: Frame, seconds: number)
+		tokens[fill] += 1
+		local token = tokens[fill]
+		fill.BackgroundColor3 = Color3.fromRGB(255, 90, 60)
+		fill.Size = UDim2.fromScale(0, 1)
+		TweenService:Create(
+			fill,
+			TweenInfo.new(seconds, Enum.EasingStyle.Linear),
+			{ Size = UDim2.fromScale(1, 1) }
+		):Play()
+		task.delay(seconds, function()
+			if token == tokens[fill] then
+				fill.BackgroundColor3 = READY_COLOR
+			end
+		end)
+	end
 
 	-- End screen
 	local endFrame = Instance.new("Frame")
@@ -224,6 +254,7 @@ function Ui.create(h: Handlers): View
 		endFrame.Visible = false
 		msg.Visible = false
 		boostB.Visible = false
+		specialB.Visible = false
 	end
 
 	local view: View = {} :: any
@@ -257,9 +288,9 @@ function Ui.create(h: Handlers): View
 		msg.Visible = true
 		msg.Text = "FIGHT!"
 		boostB.Visible = true
-		boostToken += 1
-		boostFill.Size = UDim2.fromScale(1, 1)
-		boostFill.BackgroundColor3 = Color3.fromRGB(120, 255, 140)
+		specialB.Visible = true
+		resetFill(boostFill)
+		resetFill(specialFill)
 		task.delay(1, function()
 			if msg.Text == "FIGHT!" then
 				msg.Visible = false
@@ -268,20 +299,11 @@ function Ui.create(h: Handlers): View
 	end
 
 	view.startBoostCooldown = function(seconds)
-		boostToken += 1
-		local token = boostToken
-		boostFill.BackgroundColor3 = Color3.fromRGB(255, 90, 60)
-		boostFill.Size = UDim2.fromScale(0, 1)
-		TweenService:Create(
-			boostFill,
-			TweenInfo.new(seconds, Enum.EasingStyle.Linear),
-			{ Size = UDim2.fromScale(1, 1) }
-		):Play()
-		task.delay(seconds, function()
-			if token == boostToken then
-				boostFill.BackgroundColor3 = Color3.fromRGB(120, 255, 140)
-			end
-		end)
+		startCooldown(boostFill, seconds)
+	end
+
+	view.startSpecialCooldown = function(seconds)
+		startCooldown(specialFill, seconds)
 	end
 
 	view.showRoundEnd = function(youLost, youHearts, enemyHearts)
@@ -289,6 +311,7 @@ function Ui.create(h: Handlers): View
 		msg.Visible = true
 		msg.Text = if youLost then "ROUND LOST" else "ROUND WON!"
 		boostB.Visible = false
+		specialB.Visible = false
 	end
 
 	view.showMatchEnd = function(youWon)

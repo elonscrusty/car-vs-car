@@ -9,6 +9,7 @@ local Aim = require(ReplicatedStorage.Shared.Aim)
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
+local Fight = require(ReplicatedStorage.Shared.Fight)
 local Logic = require(ReplicatedStorage.Shared.Logic)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Types = require(ReplicatedStorage.Shared.Types)
@@ -25,6 +26,7 @@ export type Handle = {
 	selectCar: (carId: any) -> (),
 	launch: (angle: any, power: any) -> (),
 	boost: () -> (),
+	special: () -> (),
 	destroy: () -> (),
 }
 
@@ -75,11 +77,12 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 		table.clear(cars)
 	end
 
-	local function endRound(loser: CarBuilder.Car)
+	local function endRound(loser: CarBuilder.Car, koText: string?)
 		if phase ~= "fight" then
 			return
 		end
 		phase = "roundEnd"
+		send({ kind = "ko", text = koText or "K.O.!", pos = loser.body.Position })
 		loser.dead = true
 		loser.flame.Enabled = false
 		loser.hp = 0
@@ -165,6 +168,79 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 		return true
 	end
 
+	-- Damage that does not come from a crash (special moves).
+	local function specialDamage(defender: CarBuilder.Car, dmg: number, pos: Vector3)
+		if defender.dead or dmg <= 0 then
+			return
+		end
+		local newHp, dead = Logic.applyDamage(defender.hp, dmg)
+		defender.hp = newHp
+		defender.bar.set(newHp, defender.stats.hp)
+		send({ kind = "hit", pos = pos, strength = 0.8, damage = dmg, youHit = defender.idx == 1 })
+		if not defender.smoking and newHp / defender.stats.hp < cfg.Feel.smokeBelow then
+			defender.smoking = true
+			Fx.smoke(defender.body)
+		end
+		if dead then
+			endRound(defender)
+		end
+	end
+
+	-- One special move per car. Returns true if it fired.
+	local function useSpecial(car: CarBuilder.Car): boolean
+		if car.dead or phase ~= "fight" or frozen or not Fight.canSpecial(car.specialCd) then
+			return false
+		end
+		local sp = cfg.Special
+		car.specialCd = sp.cooldown
+		local enemy = cars[3 - car.idx]
+		local toEnemy = if enemy then enemy.body.Position - car.body.Position else Vector3.zero
+		local dist = toEnemy.Magnitude
+		local alive = enemy ~= nil and not enemy.dead
+		if car.id == "Heavy" then
+			-- Ground slam: shockwave that shoves and hurts, weaker with distance.
+			local f = Fight.falloff(dist, sp.Heavy.radius)
+			local flat = Vector3.new(toEnemy.X, 0, toEnemy.Z)
+			if alive and f > 0 and flat.Magnitude > 0.01 and enemy then
+				enemy.body:ApplyImpulse(
+					(flat.Unit * sp.Heavy.knock * f + Vector3.yAxis * sp.Heavy.up * f)
+						* enemy.body.AssemblyMass
+				)
+				specialDamage(enemy, sp.Heavy.damage * f, enemy.body.Position)
+			else
+				send({
+					kind = "hit",
+					pos = car.body.Position,
+					strength = 0.6,
+					damage = 0,
+					youHit = false,
+				})
+			end
+		elseif car.id == "Light" then
+			-- Dash: instant burst straight ahead, plus a short boost for the flame.
+			car.body:ApplyImpulse(
+				car.body.CFrame.LookVector * car.body.AssemblyMass * sp.Light.dash
+			)
+			car.boostLeft = math.max(car.boostLeft, 0.3)
+			car.flame.Enabled = true
+		elseif car.id == "Ramp" then
+			-- Flip kick: if the enemy is right in front, launch it.
+			if alive and enemy and dist > 0.01 then
+				local dot = car.body.CFrame.LookVector:Dot(toEnemy.Unit)
+				if Fight.inCone(dist, dot, sp.Ramp.range, sp.Ramp.minDot) then
+					enemy.body:ApplyImpulse(Vector3.yAxis * enemy.body.AssemblyMass * sp.Ramp.lift)
+					specialDamage(enemy, sp.Ramp.damage, enemy.body.Position)
+				end
+			end
+		elseif car.id == "Spike" then
+			car.spikeLeft = sp.Spike.duration
+		end
+		if car.idx == 1 then
+			send({ kind = "special", cooldown = sp.cooldown })
+		end
+		return true
+	end
+
 	-- A hit between two cars. Uses velocities from the end of the last frame (before the crash).
 	local function resolveHit(a: CarBuilder.Car, b: CarBuilder.Car)
 		if a.dead or b.dead or phase ~= "fight" then
@@ -190,7 +266,18 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 		if dmg <= 0 then
 			return
 		end
-		lastHitAt = os.clock()
+		-- Spike with spikes out hits harder.
+		if attacker.spikeLeft > 0 then
+			dmg *= cfg.Special.Spike.damageMult
+		end
+		-- Counter: the defender tapped boost just before this hit.
+		local now = os.clock()
+		local countered = Fight.isCountered(defender.counter, now, cfg.Counter.window)
+		if countered then
+			Fight.consume(defender.counter)
+			dmg = Fight.counterDamage(dmg, cfg.Counter.damageMult)
+		end
+		lastHitAt = now
 
 		local newHp, dead = Logic.applyDamage(defender.hp, dmg)
 		defender.hp = newHp
@@ -211,14 +298,28 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 			defender.smoking = true
 			Fx.smoke(defender.body)
 		end
-		hitStop(
-			Logic.hitStopTime(
-				strength,
-				cfg.Feel.hitStopMin,
-				cfg.Feel.hitStopMax,
-				cfg.Feel.hitStopFrom
-			)
+		local stopT = Logic.hitStopTime(
+			strength,
+			cfg.Feel.hitStopMin,
+			cfg.Feel.hitStopMax,
+			cfg.Feel.hitStopFrom
 		)
+		hitStop(stopT)
+		if countered then
+			local mid = (a.body.Position + b.body.Position) / 2
+			send({ kind = "counter", pos = mid })
+			local away = attacker.body.Position - defender.body.Position
+			if away.Magnitude > 0.001 then
+				-- After the freeze, so the shove is not eaten by hit stop.
+				task.delay(stopT + 0.03, function()
+					if not destroyed and not attacker.dead and attacker.model.Parent ~= nil then
+						attacker.body:ApplyImpulse(
+							away.Unit * attacker.body.AssemblyMass * cfg.Counter.knock
+						)
+					end
+				end)
+			end
+		end
 
 		-- Ramp: kick the enemy upward to flip it.
 		if attacker.stats.hitLift > 0 then
@@ -335,6 +436,8 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 		end
 		for _, car in cars do
 			car.boostLeft, car.boostCd = Logic.tickBoost(car.boostLeft, car.boostCd, dt)
+			car.specialCd = math.max(0, car.specialCd - dt)
+			car.spikeLeft = math.max(0, car.spikeLeft - dt)
 			if car.boostLeft <= 0 then
 				car.flame.Enabled = false
 			end
@@ -353,6 +456,19 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 				startBoost(bot)
 			end
 		end
+		-- Bot special: Heavy/Ramp when close, Light/Spike when there is room to run.
+		if
+			not bot.dead
+			and not you.dead
+			and Fight.canSpecial(bot.specialCd)
+			and rng:NextNumber() < 0.03
+		then
+			local dist = (you.body.Position - bot.body.Position).Magnitude
+			local close = bot.id == "Heavy" or bot.id == "Ramp"
+			if (close and dist < 20) or (not close and dist > 22) then
+				useSpecial(bot)
+			end
+		end
 		for i, car in cars do
 			if not car.dead then
 				Autopilot.step(car, cars[3 - i], dt, rayParams, origin)
@@ -360,10 +476,18 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 		end
 		for _, car in cars do
 			car.prevVel = car.body.AssemblyLinearVelocity
-			-- Safety: fell out of the bowl = counts as 0 HP.
-			if not car.dead and car.body.Position.Y < origin.Y - cfg.Match.outOfBoundsDrop then
-				car.hp = 0
-				endRound(car)
+			-- Pushed past the rim, or fell out of the bowl = ring-out = 0 HP.
+			if not car.dead then
+				local dx, dz = car.body.Position.X - origin.X, car.body.Position.Z - origin.Z
+				local out = Fight.isRingOut(
+					math.sqrt(dx * dx + dz * dz),
+					cfg.Arena.rimRadius,
+					cfg.RingOut.margin
+				)
+				if out or car.body.Position.Y < origin.Y - cfg.Match.outOfBoundsDrop then
+					car.hp = 0
+					endRound(car, "RING OUT!")
+				end
 			end
 		end
 	end)
@@ -400,7 +524,18 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 			end
 			local mine = cars[1]
 			if mine then
+				-- Every tap is also a counter try (locked for a few seconds after each tap).
+				Fight.tap(mine.counter, os.clock(), cfg.Counter.cooldown)
 				startBoost(mine)
+			end
+		end,
+		special = function()
+			if destroyed or phase ~= "fight" then
+				return
+			end
+			local mine = cars[1]
+			if mine then
+				useSpecial(mine)
 			end
 		end,
 		destroy = function()

@@ -52,7 +52,7 @@ test(
 		truthy(mem.retreatT > 0)
 		eq(c.throttle, 1, "run-up uses forward gas")
 		truthy(c.tz > -10, "aims away from the enemy")
-		for _ = 1, 40 do
+		for _ = 1, 20 do
 			Ai.decide("BackupCharge", me, enemy, mem, 0.1, P, C)
 		end
 		c = Ai.decide("BackupCharge", me, enemy, mem, 0.1, P, C)
