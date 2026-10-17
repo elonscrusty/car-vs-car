@@ -1,6 +1,7 @@
 --!strict
 -- Client entry point. Shows UI, aims, and sends only: car choice, aim angle, launch power.
 
+local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
@@ -9,6 +10,7 @@ local AimInput = require(script.AimInput)
 local CameraDirector = require(script.CameraDirector)
 local Effects = require(script.Effects)
 local FightFx = require(script.FightFx)
+local HintUi = require(script.HintUi)
 local LobbyUi = require(script.LobbyUi)
 local Ui = require(script.Ui)
 
@@ -18,6 +20,11 @@ local director = CameraDirector.new()
 local camSide: Vector3? = nil -- from the middle toward your car, fixed for the whole match
 local aim: AimInput.AimInput
 local view: Ui.View
+
+-- First-time hints: the server saves which ones were shown (profile.hintsSeen).
+local hints = HintUi.new(function(id: string)
+	remotes.LobbyAction:FireServer("hintSeen", id)
+end)
 
 view = Ui.create({
 	onPick = function(carId: string)
@@ -30,14 +37,29 @@ local lobby = LobbyUi.new({
 		aim.stop()
 		view.hideMatch()
 		director.release()
+		hints.trigger("claw") -- after a match: point at the claw machine
 	end,
 })
-remotes.LobbyUpdate.OnClientEvent:Connect(lobby.handleUpdate)
+remotes.LobbyUpdate.OnClientEvent:Connect(function(u: Types.LobbyUpdate)
+	lobby.handleUpdate(u)
+	if u.kind == "profile" then
+		hints.loadSeen(u.hintsSeen)
+		hints.trigger("pad") -- no-op once seen
+	elseif u.kind == "countdown" and u.seconds > 0 then
+		hints.done("pad") -- stepped on a pad
+	end
+end)
+ProximityPromptService.PromptTriggered:Connect(function(prompt: ProximityPrompt)
+	if prompt.Name == "GachaPrompt" and hints.loaded() then
+		hints.done("claw")
+	end
+end)
 
 aim = AimInput.new(function(power: number)
 	view.showPower(power)
 end, function(angle: number, power: number)
 	view.showPower(0)
+	hints.done("aim")
 	view.showWaiting()
 	remotes.Launch:FireServer(angle, power)
 end)
@@ -61,8 +83,11 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		if u.carPos then
 			aim.start(u.carPos)
 		end
+		hints.done("pad")
+		hints.trigger("aim")
 	elseif u.kind == "fight" then
 		aim.stop()
+		hints.done("aim")
 		view.showFight()
 	elseif u.kind == "roundEnd" then
 		view.showRoundEnd(u.youLost == true)

@@ -11,6 +11,7 @@ local function sibling(name: string): any
 end
 
 local CarConfig = sibling("CarConfig")
+local Hints = sibling("Hints")
 local LobbyConfig = sibling("LobbyConfig")
 
 export type Profile = {
@@ -19,6 +20,7 @@ export type Profile = {
 	wins: number,
 	owned: { [string]: boolean },
 	freePullUsed: boolean,
+	hintsSeen: { [string]: boolean }, -- first-time hints already shown (see Hints)
 }
 
 local Inventory = {}
@@ -44,7 +46,14 @@ end
 function Inventory.default(): Profile
 	local owned: { [string]: boolean } = {}
 	grantStarters(owned)
-	return { version = VERSION, coins = 0, wins = 0, owned = owned, freePullUsed = false }
+	return {
+		version = VERSION,
+		coins = 0,
+		wins = 0,
+		owned = owned,
+		freePullUsed = false,
+		hintsSeen = {},
+	}
 end
 
 -- Never errors. Accepts anything, returns a clean Profile.
@@ -70,6 +79,7 @@ function Inventory.migrate(raw: any): Profile
 		wins = cleanNumber(raw.wins),
 		owned = owned,
 		freePullUsed = raw.freePullUsed == true,
+		hintsSeen = Hints.clean(raw.hintsSeen),
 	}
 end
 
