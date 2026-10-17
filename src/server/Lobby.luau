@@ -11,6 +11,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local LobbyDetail = require(script.Parent.LobbyDetail)
+local LobbyProps = require(script.Parent.LobbyProps)
 
 export type PadHandle = {
 	part: BasePart,
@@ -1063,6 +1064,18 @@ function Lobby.build(): LobbyHandle
 	end
 
 	LobbyDetail.build(folder, origin, { part = part, label = label, glow = glow, wallAt = wallAt })
+	LobbyProps.build(folder, origin)
+
+	-- Invisible wall across the gate so nobody walks out of the garage into the empty world.
+	local keepIn = part(
+		folder,
+		"GateBarrier",
+		Vector3.new(L.gate.halfOpening * 2 + 2, 30, 1),
+		world(0, 15, L.gate.z + 1),
+		DARK
+	)
+	keepIn.Transparency = 1
+	keepIn.CanQuery = false
 
 	-- Spawn: just inside the gate, looks at the middle of the pads.
 	local sp = L.spawn
