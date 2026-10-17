@@ -19,6 +19,7 @@ local Daily = sibling("Daily")
 local Hints = sibling("Hints")
 local LobbyConfig = sibling("LobbyConfig")
 local Quests = sibling("Quests")
+local Paint = sibling("Paint")
 
 export type Profile = {
 	version: number,
@@ -31,6 +32,7 @@ export type Profile = {
 	botLevel: string, -- bot difficulty: "easy" | "medium" | "hard"
 	quests: { { id: string, progress: number } }, -- active quests (see Quests)
 	daily: { lastDay: number, freePulls: number }, -- daily gift state (see Daily)
+	paint: Paint.PaintData, -- owned colors/stickers and what each car wears (see Paint)
 }
 
 local Inventory = {}
@@ -67,6 +69,7 @@ function Inventory.default(): Profile
 		botLevel = "medium",
 		quests = {},
 		daily = Daily.default(),
+		paint = Paint.default(),
 	}
 end
 
@@ -98,6 +101,7 @@ function Inventory.migrate(raw: any): Profile
 		botLevel = if BotLevels.isValid(raw.botLevel) then raw.botLevel else "medium",
 		quests = Quests.clean(raw.quests),
 		daily = Daily.clean(raw.daily),
+		paint = Paint.clean(raw.paint),
 	}
 end
 

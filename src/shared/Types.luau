@@ -40,10 +40,12 @@ export type LobbyUpdate =
 		botLevel: string?,
 		quests: { { title: string, progress: number, target: number, reward: number, done: boolean } }?,
 		daily: { ready: boolean, freePulls: number }?,
+		paint: { owned: { string }, equipped: { [string]: { color: string?, sticker: string? } } }?,
 	}
 	| { kind: "gacha", carId: string, isNew: boolean, refund: number, free: boolean, coins: number }
 	| { kind: "gachaError", reason: string }
 	| { kind: "storeResult", ok: boolean, carId: string, reason: string?, coins: number }
+	| { kind: "paintResult", ok: boolean, reason: string? }
 	| { kind: "countdown", seconds: number }
 	| { kind: "choices", cars: { string }, seconds: number }
 	| { kind: "toLobby", coinsEarned: number, won: boolean }

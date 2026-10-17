@@ -11,6 +11,7 @@ local RunService = game:GetService("RunService")
 local Inventory = require(ReplicatedStorage.Shared.Inventory)
 local Progress = require(ReplicatedStorage.Shared.Progress)
 local Quests = require(ReplicatedStorage.Shared.Quests)
+local Paint = require(ReplicatedStorage.Shared.Paint)
 local Retry = require(ReplicatedStorage.Shared.Retry)
 local SessionLock = require(ReplicatedStorage.Shared.SessionLock)
 
@@ -83,6 +84,7 @@ local function copyProfile(p: Profile): Profile
 		botLevel = p.botLevel,
 		quests = Quests.clean(p.quests), -- clean makes a fresh copy
 		daily = table.clone(p.daily),
+		paint = Paint.copy(p.paint),
 	}
 end
 

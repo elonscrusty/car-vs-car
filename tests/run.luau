@@ -28,5 +28,6 @@ require("./pickuplogic.test")
 require("./progress.test")
 require("./botlevels.test")
 require("./quests.test")
+require("./paint.test")
 
 Harness.summary()
