@@ -14,6 +14,7 @@ export type RemoteSet = {
 	SelectCar: RemoteEvent,
 	Launch: RemoteEvent,
 	Steer: RemoteEvent,
+	Action: RemoteEvent, -- client -> server: "boost" | "jump" | "special"
 	UiUpdate: RemoteEvent,
 	LobbyAction: RemoteEvent,
 	LobbyUpdate: RemoteEvent,
@@ -53,6 +54,7 @@ function Remotes.get(): RemoteSet
 		SelectCar = getOrMake(folder, "SelectCar"),
 		Launch = getOrMake(folder, "Launch"),
 		Steer = getOrMake(folder, "Steer"),
+		Action = getOrMake(folder, "Action"),
 		UiUpdate = getOrMake(folder, "UiUpdate"),
 		LobbyAction = getOrMake(folder, "LobbyAction"),
 		LobbyUpdate = getOrMake(folder, "LobbyUpdate"),

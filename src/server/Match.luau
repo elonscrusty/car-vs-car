@@ -29,12 +29,16 @@ local CombatConfig = require(ReplicatedStorage.Shared.CombatConfig)
 local Damage = require(ReplicatedStorage.Shared.Damage)
 local Parts = require(script.Parent.Parts)
 local Specials = require(script.Parent.Specials)
+local Moves = require(script.Parent.Moves)
+local MovesConfig = require(ReplicatedStorage.Shared.MovesConfig)
+local MovesRules = require(ReplicatedStorage.Shared.Moves)
 
 type Phase = "pick" | "aim" | "fight" | "roundEnd" | "matchEnd"
 
 export type Handle = {
 	launch: (player: Player, angle: any, power: any) -> (),
 	steer: (player: Player, value: any) -> (), -- -1 left .. 1 right, only used in the fight
+	action: (player: Player, name: any) -> (), -- "boost" | "jump" | "special", only in the fight
 	playerLeft: (player: Player) -> (),
 	destroy: () -> (),
 }
@@ -69,6 +73,7 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 	local fightElapsed = 0
 	local steerStates: { [number]: Steer.State } = { Steer.newState(), Steer.newState() }
 	local steerSmooth: { [number]: number } = { 0, 0 } -- eased input per car
+	local moveStates: { [number]: Moves.State } = { Moves.new(), Moves.new() } -- reset each fight
 	local rayParams = RaycastParams.new()
 	rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
@@ -359,6 +364,7 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 		for i = 1, 2 do
 			Steer.reset(steerStates[i])
 			steerSmooth[i] = 0
+			moveStates[i] = Moves.new()
 		end
 		for i, car in cars do
 			local sub = submissions[i]
@@ -450,7 +456,8 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 						Steer.current(steerStates[car.idx], os.clock(), cfg.Steer.staleSeconds)
 					local eased = Steer.smooth(steerSmooth[car.idx], raw, dt, cfg.Steer.smoothRate)
 					steerSmooth[car.idx] = eased
-					Autopilot.stepManual(car, eased, dt, rayParams)
+					local mods = Moves.mods(moveStates[car.idx], car, eased, dt, os.clock())
+					Autopilot.stepManual(car, eased, dt, rayParams, mods)
 				else
 					Autopilot.step(car, cars[3 - car.idx], dt, rayParams, origin)
 				end
@@ -515,6 +522,25 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 				return
 			end
 			Steer.set(steerStates[i], value, os.clock())
+		end,
+		action = function(player: Player, name: any)
+			if
+				destroyed
+				or phase ~= "fight"
+				or frozen
+				or not MovesRules.isMove(name, MovesConfig.Names)
+			then
+				return
+			end
+			local i = indexOf(player)
+			if i == nil or gone[i] then
+				return
+			end
+			local seconds =
+				Moves.press(moveStates[i], name, cars[i], cars[3 - i], rayParams, os.clock())
+			if seconds ~= nil and seconds > 0 then
+				sendTo(i, { kind = "move", move = name, seconds = seconds })
+			end
 		end,
 		playerLeft = function(player: Player)
 			local i = indexOf(player)
