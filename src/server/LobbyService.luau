@@ -176,30 +176,6 @@ function LobbyService.start(deps: Deps): Handle
 		return if p then p.weapons.equipped else nil
 	end
 
-	-- Keep this player's bay on the mezzanine showing their car (only rebuilt when it changed).
-	function refreshBay(player: Player)
-		local p = Profiles.get(player)
-		if p == nil or player.Parent == nil then
-			return
-		end
-		local carId = Build.carFor(p.build, p.owned)
-		local look = lookFor(player, carId)
-		local key = table.concat({
-			carId,
-			p.build.parts.wheels,
-			p.build.parts.engine,
-			p.build.parts.armor,
-			tostring(look.paintColor),
-			tostring(look.sticker),
-			tostring(look.level),
-		}, "|")
-		if bayKeys[player] == key then
-			return
-		end
-		bayKeys[player] = key
-		bays.set(player, carId, look, p.build, `{player.DisplayName}  LV {look.level or 1}`)
-	end
-
 	-- A copy of this player's garage build (nil before the profile loads).
 	local function buildOf(player: Player): Build.BuildData?
 		local p = Profiles.get(player)
@@ -224,6 +200,30 @@ function LobbyService.start(deps: Deps): Handle
 		local look = paintLook(player, carId)
 		look.level = levelOf(player, carId)
 		return look
+	end
+
+	-- Keep this player's bay on the mezzanine showing their car (only rebuilt when it changed).
+	function refreshBay(player: Player)
+		local p = Profiles.get(player)
+		if p == nil or player.Parent == nil then
+			return
+		end
+		local carId = Build.carFor(p.build, p.owned)
+		local look = lookFor(player, carId)
+		local key = table.concat({
+			carId,
+			p.build.parts.wheels,
+			p.build.parts.engine,
+			p.build.parts.armor,
+			tostring(look.paintColor),
+			tostring(look.sticker),
+			tostring(look.level),
+		}, "|")
+		if bayKeys[player] == key then
+			return
+		end
+		bayKeys[player] = key
+		bays.set(player, carId, look, p.build, `{player.DisplayName}  LV {look.level or 1}`)
 	end
 
 	local function updatePadText(i: number)
