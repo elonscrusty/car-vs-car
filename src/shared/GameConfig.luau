@@ -55,9 +55,9 @@ local GameConfig = {
 	RingOut = { margin = 3 },
 	Drive = {
 		turnGain = 8, -- how hard the car steers toward target
-		groundFriction = 0.25, -- floor + car friction. Lower = slides more, keeps speed
+		groundFriction = 0.7, -- floor + car friction. Lower = slides more, keeps speed
 		slopeAssist = 1, -- 0..1: how much of the uphill gravity pull the gas cancels
-		grip = 16, -- side slide killing (higher = less drifting)
+		grip = 35, -- side slide killing (higher = less drifting)
 		groundRayExtra = 2.5, -- studs below car that still count as "on ground"
 		manualTurn = 1, -- human steering: full steer input = this x the car's turnRate
 	},
