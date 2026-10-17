@@ -13,30 +13,27 @@ type Spot = { name: string, x: number, z: number, face: number, y: number?, scal
 
 -- face: degrees. 0 looks toward the back of the hall (-Z), 180 toward the gate, 90 toward -X, -90 toward +X.
 local SPOTS: { Spot } = {
-	-- cones either side of the start line
-	{ name = "traffic_cone", x = -9, z = 66, face = 0 },
-	{ name = "traffic_cone", x = 9, z = 66, face = 0 },
-	{ name = "traffic_cone", x = -9, z = 22, face = 0 },
-	{ name = "traffic_cone", x = 9, z = 22, face = 0 },
-	-- drum cluster and gas cans by the gate
-	{ name = "oil_drum", x = 33.5, z = 62, face = 20 },
-	{ name = "oil_drum", x = 31.5, z = 64, face = 70 },
-	{ name = "oil_drum", x = 33.5, z = 65.5, face = 130 },
-	{ name = "gas_can", x = -31, z = 65, face = 25, scale = 1.6 },
-	{ name = "gas_can", x = -29.5, z = 66.5, face = -20, scale = 1.6 },
-	-- tires and a chest near the pad end
-	{ name = "tire_stack", x = -34, z = -32, face = 0 },
-	{ name = "tire_stack", x = -31.5, z = -33.5, face = 40 },
-	{ name = "tool_chest", x = 34, z = -36, face = 90 },
-	{ name = "tool_cart", x = 33, z = -42, face = 90 },
-	{ name = "plant_box", x = 34, z = -4, face = 90 },
-	{ name = "plant_box", x = -34, z = 52, face = -90 },
-	-- wall pieces
-	{ name = "pegboard_tools", x = -30, z = -70.8, face = 180, y = 7 },
-	{ name = "pegboard_tools", x = 30, z = -70.8, face = 180, y = 7 },
-	{ name = "neon_sign", x = -35.2, z = -58, face = -90, y = 10, scale = 1.2 },
-	{ name = "neon_sign", x = 35.2, z = -58, face = 90, y = 10, scale = 1.2 },
-	{ name = "tv_stand", x = -34, z = 62, face = -90 },
+	-- cones either side of the start line and the pad row
+	{ name = "traffic_cone", x = -9, z = 40, face = 0 },
+	{ name = "traffic_cone", x = 9, z = 40, face = 0 },
+	{ name = "traffic_cone", x = -38, z = 28, face = 0 },
+	{ name = "traffic_cone", x = 38, z = 24, face = 0 },
+	-- drum cluster and gas cans in the front corners
+	{ name = "oil_drum", x = 55, z = 37, face = 20 },
+	{ name = "oil_drum", x = 53, z = 39.5, face = 70 },
+	{ name = "oil_drum", x = 55, z = 41, face = 130 },
+	{ name = "gas_can", x = -54, z = 40, face = 25, scale = 1.6 },
+	{ name = "gas_can", x = -52.5, z = 41.5, face = -20, scale = 1.6 },
+	-- tires, a chest and a cart on the right side
+	{ name = "tire_stack", x = 56, z = -8, face = 0 },
+	{ name = "tire_stack", x = 53.5, z = -9.5, face = 40 },
+	{ name = "tool_chest", x = 56, z = -2, face = 90 },
+	{ name = "tool_cart", x = 36, z = -32, face = 90 },
+	{ name = "plant_box", x = -40, z = 38, face = 0 },
+	{ name = "plant_box", x = 40, z = 38, face = 0 },
+	-- wall pieces on the back wall
+	{ name = "pegboard_tools", x = -28, z = -44.6, face = 180, y = 5 },
+	{ name = "pegboard_tools", x = 28, z = -44.6, face = 180, y = 5 },
 }
 
 local SCALE = 1.4

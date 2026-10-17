@@ -6,23 +6,24 @@ export type Rect = { x: number, z: number, w: number, d: number } -- centre + fu
 
 local LobbyLayout = {}
 
--- The lobby is a long garage hall: you walk in through the roller door at the front (+z), shops
--- line both walls, and the 4 fight pads stand in a row at the far end (-z) under the big sign.
+-- The lobby is a wide garage showroom: you walk in through the roller door at the front (+z), the
+-- 4 fight pads stand in a row right ahead like a starting grid, the hero truck turns on a stage
+-- in the middle, and the shops line the back and side walls.
 -- The hall is `room.halfW` * 2 wide and `room.halfL` * 2 long (inside the walls).
-LobbyLayout.room = { halfW = 36, halfL = 72, wallHeight = 9, wall = 2 }
+LobbyLayout.room = { halfW = 60, halfL = 46, wallHeight = 9, wall = 2 }
 
-LobbyLayout.showcase = { x = 26, z = -12, radius = 8, footprint = 20 } -- raised truck stage (right)
-LobbyLayout.spawn = { x = 0, z = 60, size = 6 }
-LobbyLayout.gate = { z = 70, halfOpening = 11 } -- roller door opening + checkered start line
-LobbyLayout.gacha = { x = 30, z = 20, w = 10, d = 12 } -- the claw machine (right wall)
-LobbyLayout.store = { x = -26, z = 20, w = 20, d = 12 } -- left wall
-LobbyLayout.lift = { x = -26, z = -8, w = 18, d = 16 } -- car lift with a car (left wall)
+LobbyLayout.showcase = { x = 0, z = -14, radius = 10, footprint = 24 } -- raised truck stage (middle)
+LobbyLayout.spawn = { x = 0, z = 34, size = 6 }
+LobbyLayout.gate = { z = 44, halfOpening = 11 } -- roller door opening + checkered start line
+LobbyLayout.gacha = { x = 53, z = -24, w = 10, d = 12 } -- the claw machine (right wall)
+LobbyLayout.store = { x = -44, z = -40, w = 20, d = 12 } -- back wall, left
+LobbyLayout.lift = { x = -50, z = 6, w = 18, d = 16 } -- car lift with a car (left wall)
 LobbyLayout.padSize = 15
 LobbyLayout.pads = {
-	{ x = -27, z = -44 },
-	{ x = -9, z = -44 },
-	{ x = 9, z = -44 },
-	{ x = 27, z = -44 },
+	{ x = -27, z = 16 },
+	{ x = -9, z = 16 },
+	{ x = 9, z = 16 },
+	{ x = 27, z = 16 },
 }
 
 -- Footprints that must not overlap each other (floor level things only).
