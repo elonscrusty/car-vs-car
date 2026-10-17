@@ -20,12 +20,15 @@ local Store = require(ReplicatedStorage.Shared.Store)
 local Types = require(ReplicatedStorage.Shared.Types)
 
 local Profiles = require(script.Parent.Profiles)
+local Appearance = require(script.Parent.Appearance)
 local ClawAnim = require(script.Parent.ClawAnim)
 
 export type Participant = {
 	player: Player,
 	carId: string,
 	onFinished: (won: boolean) -> (),
+	appearance: Appearance.Appearance?, -- paint, sticker, level badge
+	botLevel: string?, -- bot difficulty for a lone player
 }
 
 -- Only the parts of the lobby handle we use (see docs/LOBBY_CONTRACT.md).

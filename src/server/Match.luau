@@ -20,6 +20,7 @@ local Types = require(ReplicatedStorage.Shared.Types)
 
 local Arena = require(script.Parent.Arena)
 local Autopilot = require(script.Parent.Autopilot)
+local Appearance = require(script.Parent.Appearance)
 local CarBuilder = require(script.Parent.CarBuilder)
 local Dummy = require(script.Parent.Dummy)
 local Fx = require(script.Parent.Fx)
@@ -37,6 +38,8 @@ export type Participant = {
 	player: Player,
 	carId: string,
 	onFinished: (won: boolean) -> (), -- called once, after the end screen, if the player stayed
+	appearance: Appearance.Appearance?, -- paint, sticker and level badge for this player's car
+	botLevel: string?, -- bot difficulty when this lone player fights a bot ("easy" | "medium" | "hard")
 }
 
 local Match = {}
@@ -272,7 +275,15 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 				else CarConfig.Order[rng:NextInteger(1, #CarConfig.Order)]
 			local stats = CarConfig.Cars[id]
 			local cf = Arena.carCFrame(a, idx, stats.size[2] / 2)
-			cars[idx] = CarBuilder.build(id, idx, cf, a.model, nameOf(idx), part == nil)
+			cars[idx] = CarBuilder.build(
+				id,
+				idx,
+				cf,
+				a.model,
+				nameOf(idx),
+				part == nil,
+				if part then part.appearance else nil
+			)
 		end
 		rayParams.FilterDescendantsInstances = { cars[1].model, cars[2].model }
 		for _, car in cars do

@@ -7,6 +7,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Ai = require(ReplicatedStorage.Shared.Ai)
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
+local Appearance = require(script.Parent.Appearance)
+local Badge = require(script.Parent.Badge)
 local HpBar = require(script.Parent.HpBar)
 
 export type Car = {
@@ -62,7 +64,8 @@ function CarBuilder.build(
 	cf: CFrame,
 	parent: Instance,
 	label: string,
-	isBot: boolean
+	isBot: boolean,
+	look: Appearance.Appearance?
 ): Car
 	local stats = CarConfig.Cars[id]
 	local sx, sy, sz = stats.size[1], stats.size[2], stats.size[3]
@@ -170,6 +173,9 @@ function CarBuilder.build(
 			)
 		end
 	end
+
+	Appearance.apply(model, body, look)
+	Badge.apply(model, body, if look then look.level else nil)
 
 	model.Parent = parent
 

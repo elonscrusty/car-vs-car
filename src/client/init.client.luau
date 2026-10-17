@@ -12,11 +12,13 @@ local Effects = require(script.Effects)
 local FightFx = require(script.FightFx)
 local HintUi = require(script.HintUi)
 local LobbyUi = require(script.LobbyUi)
+local MenuBar = require(script.MenuBar)
 local SteerInput = require(script.SteerInput)
 local Ui = require(script.Ui)
 
 local remotes = Remotes.get()
 local director = CameraDirector.new()
+local menu = MenuBar.new() -- features add their own lobby buttons here (see MenuBar.luau)
 
 local camSide: Vector3? = nil -- from the middle toward your car, fixed for the whole match
 local aim: AimInput.AimInput
@@ -40,6 +42,7 @@ local lobby = LobbyUi.new({
 		steering.stop()
 		view.hideMatch()
 		director.release()
+		menu.setVisible(true)
 		hints.trigger("claw") -- after a match: point at the claw machine
 	end,
 })
@@ -73,6 +76,7 @@ end)
 
 remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 	if u.kind == "aim" then
+		menu.setVisible(false)
 		lobby.hideChoices() -- the pick card must not cover the match
 		if u.center then
 			if u.round == 1 or camSide == nil then
