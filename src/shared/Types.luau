@@ -24,7 +24,14 @@ export type UiUpdate = {
 
 -- Lobby messages (LobbyUpdate remote), a union discriminated by `kind`.
 export type LobbyUpdate =
-	{ kind: "profile", coins: number, wins: number, owned: { string }, freePullAvailable: boolean }
+	{
+		kind: "profile",
+		coins: number,
+		wins: number,
+		owned: { string },
+		freePullAvailable: boolean,
+		hintsSeen: { string },
+	}
 	| { kind: "gacha", carId: string, isNew: boolean, refund: number, free: boolean, coins: number }
 	| { kind: "gachaError", reason: string }
 	| { kind: "storeResult", ok: boolean, carId: string, reason: string?, coins: number }

@@ -9,6 +9,7 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Gacha = require(ReplicatedStorage.Shared.Gacha)
+local Hints = require(ReplicatedStorage.Shared.Hints)
 local Inventory = require(ReplicatedStorage.Shared.Inventory)
 local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
 local PadLogic = require(ReplicatedStorage.Shared.PadLogic)
@@ -80,6 +81,7 @@ function LobbyService.start(deps: Deps): Handle
 	end
 	local gachaLimiter = RateLimiter.new(2, 3)
 	local storeLimiter = RateLimiter.new(2, 3)
+	local hintLimiter = RateLimiter.new(4, 3)
 	local running = true
 	local conns: { RBXScriptConnection } = {}
 
@@ -100,6 +102,7 @@ function LobbyService.start(deps: Deps): Handle
 			wins = p.wins,
 			owned = Inventory.ownedList(p),
 			freePullAvailable = LobbyConfig.Gacha.firstPullFree and not p.freePullUsed,
+			hintsSeen = Hints.seenList(p.hintsSeen),
 		})
 	end
 
@@ -406,6 +409,15 @@ function LobbyService.start(deps: Deps): Handle
 		end
 	end
 
+	-- First-time hint flag: the id must be a known hint; saved so it shows once per player.
+	local function hintSeen(player: Player, id: any)
+		local p = Profiles.get(player)
+		if p ~= nil and Hints.markSeen(p.hintsSeen, id) then
+			Profiles.markDirty(player)
+			sendProfile(player)
+		end
+	end
+
 	local handle: Handle
 	handle = {
 		onPlayerAdded = function(player: Player)
@@ -433,6 +445,7 @@ function LobbyService.start(deps: Deps): Handle
 			end
 			gachaLimiter.clear(player)
 			storeLimiter.clear(player)
+			hintLimiter.clear(player)
 		end,
 		action = function(player: Player, action: any, arg: any)
 			if action == "pickCar" then
@@ -450,6 +463,10 @@ function LobbyService.start(deps: Deps): Handle
 			elseif action == "buyCar" then
 				if storeLimiter.allow(player, os.clock()) then
 					buyCar(player, arg)
+				end
+			elseif action == "hintSeen" then
+				if hintLimiter.allow(player, os.clock()) then
+					hintSeen(player, arg)
 				end
 			elseif action == "leavePad" then
 				cancelPlayer(player)
