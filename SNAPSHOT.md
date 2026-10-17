@@ -76,3 +76,8 @@ All positions/sizes (room, pads, gacha, store, spawn) are in the pure `src/share
 
 ## Latest (driving rewrite)
 Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WASD), player's device owns their car during the fight. Details in HANDOFF.md, section "Driving now". Tests: 170 passing.
+
+## Car weapons
+- 8 weapons (src/shared/WeaponsConfig.luau), one worn per player, won from the claw (dupes = coins). Server runtime: src/server/Weapon.luau (called from Match). WEAPON button (Q) only for active weapons. Menu: src/client/WeaponUi.luau.
+- Studio test shortcut: set player attribute DevWeapon to a weapon id, then DEV: BOT MATCH.
+- Flame shoots from the back; bot picks a random weapon.

@@ -330,7 +330,7 @@ function Weapon.press(car: CarBuilder.Car, _enemy: CarBuilder.Car, now: number):
 		if #s.bombs >= def.maxActive then
 			return nil
 		end
-		local pos = car.body.Position - lookOf(car) * (car.stats.size[3] / 2 + 2.5)
+		local pos = car.body.Position + lookOf(car) * (car.stats.size[3] / 2 + 4) -- tossed ahead
 		local ground = Vector3.new(pos.X, car.body.Position.Y - car.stats.size[2] / 2 + 1.2, pos.Z)
 		local part = loose(
 			s.folder,
@@ -558,7 +558,7 @@ local function botThink(car: CarBuilder.Car, enemy: CarBuilder.Car, s: State, no
 	local facing = if dist > 0.01 then look:Dot(flat(off).Unit) else 0
 	local fire = false
 	if def.id == "Bomb" then
-		fire = dist < 30
+		fire = dist < 24
 	elseif def.id == "Rocket" then
 		fire = dist < 70 and facing > 0.93
 	elseif def.id == "Hammer" then

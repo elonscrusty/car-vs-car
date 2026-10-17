@@ -140,6 +140,10 @@ function LobbyService.start(deps: Deps): Handle
 
 	-- The weapon this player wears (always one: new players start with the Saw).
 	local function weaponOf(player: Player): string?
+		local dev = player:GetAttribute("DevWeapon") -- Studio-only test shortcut
+		if RunService:IsStudio() and type(dev) == "string" then
+			return dev
+		end
 		local p = Profiles.get(player)
 		return if p then p.weapons.equipped else nil
 	end

@@ -80,3 +80,8 @@ Design follows `/mnt/project-files/car-vs-car/game-plan.md`, but carter chose (2
 - Gotchas: a server `ApplyImpulse` on a client-owned part does nothing, so use `server/Impulse` (it sets velocity). A device only simulates parts near its character, so `Match.parkCharacter` anchors the character under the arena at fight start; `LoadCharacter` in the lobby flow restores it.
 - Grip numbers (`Drive.groundFriction` 0.4, `grip` 24) were picked by Carter's play: 0.25/16 too slippery, 0.7/35 too sticky.
 - Cars Heavy, Tank, Bulldozer were made faster after Carter said Heavy was not fun. Win rates need a re-check after any speed change.
+
+## Car weapons
+- 8 weapons (src/shared/WeaponsConfig.luau), one worn per player, won from the claw (dupes = coins). Server runtime: src/server/Weapon.luau (called from Match). WEAPON button (Q) only for active weapons. Menu: src/client/WeaponUi.luau.
+- Studio test shortcut: set player attribute DevWeapon to a weapon id, then DEV: BOT MATCH.
+- Flame shoots from the back; bot picks a random weapon.

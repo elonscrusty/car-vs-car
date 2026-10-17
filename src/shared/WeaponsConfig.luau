@@ -68,14 +68,14 @@ WeaponsConfig.Weapons = {
 		color = { 200, 205, 215 },
 	}),
 	Axe = make("Axe", "SPIN AXE", "An axe spins round your car.", "Common", "passive", 0, {
-		damage = 7,
+		damage = 5,
 		push = 16,
 		radius = 7.5, -- orbit radius
 		speed = 3.2, -- rad/s
-		interval = 0.7, -- time before the axe can hit the same car again
+		interval = 0.8, -- time before the axe can hit the same car again
 		color = { 150, 110, 70 },
 	}),
-	Bomb = make("Bomb", "BOMB DROP", "Drop bombs behind you.", "Common", "active", 5, {
+	Bomb = make("Bomb", "BOMB DROP", "Toss bombs ahead of you.", "Common", "active", 5, {
 		damage = 24,
 		push = 38,
 		lift = 12,
