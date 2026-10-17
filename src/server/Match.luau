@@ -208,6 +208,11 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 		if duration <= 0 or frozen then
 			return
 		end
+		-- Anchoring a car a player drives hands its physics to the server and back: that stalls
+		-- the game for a second. The client shake and sparks carry the hit feel there.
+		if clientDriven[1] or clientDriven[2] then
+			return
+		end
 		frozen = true
 		local held = { cars[1], cars[2] }
 		local lin, ang = {}, {}
