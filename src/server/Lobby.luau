@@ -412,7 +412,7 @@ function Lobby.build(): LobbyHandle
 	-- Corner posts (dark, with a cyan glow) full height.
 	for _, cx in { -HW, HW } do
 		for _, cz in { -HL, HL } do
-			local post = part(
+			part(
 				folder,
 				"WallPost",
 				Vector3.new(4, top, 4),
