@@ -53,3 +53,8 @@ All positions/sizes (room, pads, gacha, store, spawn) are in the pure `src/share
 
 ## Update (Phase 1: drag to launch, then auto-pilot)
 Design follows `/mnt/project-files/car-vs-car/game-plan.md`, but carter chose (2026-10-17) to KEEP the auto-pilot after launch (plan D3 said coast only). Boost, specials, counters, hearts are gone; see top of SNAPSHOT.md. Next: carter plays on phone and says how it feels, then tune. Then Phase 2 (two real players). Lobby code untouched (gacha still there; plan says claw machine in Phase 5).
+
+## Update: two players + claw machine
+- Match.new takes 1-2 participants; two players aim at the same time, fight starts when both launch (or aim timeout). A lone player fights the bot. Tested in Studio headless with two fake players: both got aim/fight/hit/ko/roundEnd/matchEnd and one winner.
+- Not tested yet: two real players on two devices, a player leaving mid-match in Studio.
+- Claw machine: Lobby.luau swaps the placeholder gacha for ServerStorage.Models.ClawMachine (imported FBX, painted by name in Studio since the FBX has no colors; CLAW_YAW_DEG = -90 faces +X). The model lives only in the saved Studio place, not in the repo.
