@@ -73,3 +73,6 @@ All positions/sizes (room, pads, gacha, store, spawn) are in the pure `src/share
 - Ring-out: past rim radius + 3 studs (or fell) = round lost, "RING OUT!". GameConfig.RingOut.
 - K.O. moment: server sends ko/counter/special updates; client FightFx (white flash, big text, FOV punch). Pure rules in src/shared/Fight.luau (tests/fight.test.luau).
 - Not eyeballed in Studio yet.
+
+## Latest (driving rewrite)
+Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WASD), player's device owns their car during the fight. Details in HANDOFF.md, section "Driving now". Tests: 170 passing.

@@ -59,7 +59,7 @@ Design follows `/mnt/project-files/car-vs-car/game-plan.md`, but carter chose (2
 - Not tested yet: two real players on two devices, a player leaving mid-match in Studio.
 - Claw machine: Lobby.luau swaps the placeholder gacha for ServerStorage.Models.ClawMachine (imported FBX, painted by name in Studio since the FBX has no colors; CLAW_YAW_DEG = -90 faces +X). The model lives only in the saved Studio place, not in the repo.
 
-## Manual steering
+## Manual steering (OLD: replaced by "Driving now" below)
 - After the launch a human's car drives forward by itself (gas always on, up to maxSpeed) and the player steers with two big arrow buttons (bottom corners) or A/D / arrow keys. Bot cars keep the autopilot.
 - `src/shared/Steer.luau` (pure, tests in `tests/steer.test.luau`): `sanitize`, `spin` (steer right = NEGATIVE Y spin, same sign convention as `Ai.signedAngle`), `smooth`, and a timestamped state where input older than `GameConfig.Steer.staleSeconds` (0.5 s) counts as 0.
 - Remote `Steer` (client -> server, one number -1..1), limited to `Remote.steerMaxPerWindow` per second in `init.server.luau`, forwarded to `Match.steer(player, value)`; ignored outside the fight, reset at fight start.
@@ -72,3 +72,11 @@ Design follows `/mnt/project-files/car-vs-car/game-plan.md`, but carter chose (2
 - Loop: win streak bonus, car levels (paint + badge), daily gift (free claw try), quests, paint shop, rank badges, rematch button, bot levels (easy/medium/hard). Pure rules in `Progress`, `Quests`, `Daily`, `Paint`, `Rematch`, `BotLevels`; services `RematchService`, `Appearance`, `Badge`; lobby buttons come from `client/MenuBar`.
 - Profile fields added with migration defaults: hintsSeen, progress, botLevel, quests, daily, paint.
 - Checked by Lune tests (168) and one scripted Studio fight vs a bot (no errors). Not yet played by hand on a phone; feel is untuned. Prices are placeholders.
+
+## Driving now (arena, controls, network ownership)
+- Arena: flat disc (`GameConfig.Arena`, tiltDeg 0, radius 62, walls 14 high), one per match far from the lobby. Obstacles in `Arena.obstacles` (mirrored): a motor-driven spinner bar in the middle, two ramps, two blocks, four pillars. Kinds are built in `server/Arena.luau`; add one by adding a config row.
+- Controls: joystick bottom-left (touch or mouse) plus WASD / arrows. Up/W gas, Down/S reverse, A/D steer. `client/SteerInput.luau` (sends steer + gas, throttled 25/s, server limit 60/s).
+- A human's car is driven on THEIR device: `shared/CarDrive` (shared with the bot code in `server/Autopilot`) is called every frame by `client/DriveCar`. The server calls `SetNetworkOwner(player)` at the fight start and keeps hits, HP, winner and a speed cap (`Match.limitSpeed`). Bots and fake test players stay server-driven.
+- Gotchas: a server `ApplyImpulse` on a client-owned part does nothing, so use `server/Impulse` (it sets velocity). A device only simulates parts near its character, so `Match.parkCharacter` anchors the character under the arena at fight start; `LoadCharacter` in the lobby flow restores it.
+- Grip numbers (`Drive.groundFriction` 0.4, `grip` 24) were picked by Carter's play: 0.25/16 too slippery, 0.7/35 too sticky.
+- Cars Heavy, Tank, Bulldozer were made faster after Carter said Heavy was not fun. Win rates need a re-check after any speed change.
