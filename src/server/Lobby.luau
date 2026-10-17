@@ -956,7 +956,7 @@ function Lobby.build(): LobbyHandle
 			)
 			body.CanCollide = false
 		end
-		glow(padPart, GREEN, 18, 1)
+		glow(padPart, GREEN, 18, 0.6)
 		local badge = part(
 			folder,
 			"PadNumber" .. i,

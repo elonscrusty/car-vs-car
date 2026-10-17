@@ -87,3 +87,4 @@ Design follows `/mnt/project-files/car-vs-car/game-plan.md`, but carter chose (2
 - Flame shoots from the back; bot picks a random weapon.
 - Lobby is a garage: concrete upper wall, steel roof (look-only, CanQuery off), hanging lamps, roller door gate, tool walls, oil stains. Spawn z=40 so the camera stays inside.
 - Garage small stuff lives in src/server/LobbyDetail.luau (lift+car, carts, tire rack, lounge/TV, posters, pipes, string lights, floor marks). All look-only.
+- Look: src/server/Atmosphere.luau sets lighting, haze, soft bloom, colour grade at start (bloom kept low: neon washes out).

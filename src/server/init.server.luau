@@ -10,6 +10,7 @@ local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local MovesConfig = require(ReplicatedStorage.Shared.MovesConfig)
 local RateLimiter = require(ReplicatedStorage.Shared.RateLimiter)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Atmosphere = require(script.Atmosphere)
 local Lobby = require(script.Lobby)
 local LobbyService = require(script.LobbyService)
 local Match = require(script.Match)
@@ -99,6 +100,7 @@ function startMatch(participants: { Match.Participant })
 end
 
 Profiles.init()
+Atmosphere.apply()
 local lobby = Lobby.build()
 
 -- Studio templates ship a default SpawnLocation; players must always spawn in the lobby.
