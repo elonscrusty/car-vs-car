@@ -6,7 +6,8 @@ local function sibling(name: string): any
 	if script then
 		return require((script :: any).Parent[name])
 	end
-	return require("./" .. name)
+	local luneRequire: any = require -- relative string paths only exist in Lune
+	return luneRequire("./" .. name)
 end
 
 local CarConfig = sibling("CarConfig")
