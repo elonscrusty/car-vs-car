@@ -7,8 +7,8 @@ local test, eq, truthy = Harness.test, Harness.eq, Harness.truthy
 
 print("CarConfig")
 
-test("4 cars exist with sane numbers", function()
-	eq(#CarConfig.Order, 4)
+test("8 cars exist with sane numbers", function()
+	eq(#CarConfig.Order, 8)
 	for _, id in CarConfig.Order do
 		local s = CarConfig.Cars[id]
 		truthy(s ~= nil, id .. " missing")
@@ -28,14 +28,39 @@ test("get() only accepts real ids", function()
 	eq(CarConfig.get("__index"), nil)
 end)
 
-test("Spike hits hardest, Heavy has most HP, Light is fastest", function()
+test("Spike hits hardest, Heavy has most HP, Rocket is fastest", function()
 	local c = CarConfig.Cars
 	for _, id in CarConfig.Order do
 		truthy(c.Spike.damageMult >= c[id].damageMult)
 		truthy(c.Heavy.hp >= c[id].hp)
-		truthy(c.Light.maxSpeed >= c[id].maxSpeed)
+		truthy(c.Rocket.maxSpeed >= c[id].maxSpeed)
 	end
 	truthy(c.Ramp.hitLift > 0)
+end)
+
+test("every car has a rarity and every used rarity has a car", function()
+	local LobbyConfig = require("../src/shared/LobbyConfig")
+	local used: { [string]: boolean } = {}
+	for _, id in CarConfig.Order do
+		local r = LobbyConfig.Rarity[id]
+		truthy(r ~= nil, id .. " has no rarity")
+		used[r] = true
+		truthy(LobbyConfig.Gacha.odds[r] ~= nil, id .. " rarity has no odds")
+	end
+	for r in used do
+		local count = 0
+		for _, id in CarConfig.Order do
+			if LobbyConfig.Rarity[id] == r then
+				count += 1
+			end
+		end
+		truthy(count >= 1, r .. " has no cars")
+	end
+	local sum = 0
+	for _, pct in LobbyConfig.Gacha.odds do
+		sum += pct
+	end
+	eq(sum, 100)
 end)
 
 test("feel and launch numbers are sane", function()

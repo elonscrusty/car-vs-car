@@ -15,8 +15,16 @@ LobbyConfig.Pad = { maxPlayers = 2, countdownSeconds = 3, pickSeconds = 15 }
 LobbyConfig.Rewards = { winCoins = 25, loseCoins = 5, endScreenSeconds = 4 }
 LobbyConfig.StarterCars = { "Heavy" } -- owned by a new player
 LobbyConfig.PickChoices = 3
-LobbyConfig.Rarity =
-	{ Heavy = "Common", Light = "Common", Ramp = "Rare", Spike = "Epic" } :: { [string]: string }
+LobbyConfig.Rarity = {
+	Heavy = "Common",
+	Light = "Common",
+	Tank = "Common",
+	Ramp = "Rare",
+	Drift = "Rare",
+	Bulldozer = "Rare",
+	Spike = "Epic",
+	Rocket = "Epic",
+} :: { [string]: string }
 LobbyConfig.Gacha = {
 	price = 100,
 	firstPullFree = true,

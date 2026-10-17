@@ -101,7 +101,7 @@ H.test("pull is deterministic and maps rolls to rarity", function()
 	local p = Inventory.default()
 	p.freePullUsed = true
 	p.coins = 1000
-	H.eq(Gacha.pull(p, fixed(0.3, 0.99)).carId, "Light") -- second roll picks within Common
+	H.eq(Gacha.pull(p, fixed(0.3, 0.99)).carId, "Tank") -- second roll picks within Common
 end)
 
 H.test("migrate sanitizes garbage", function()
