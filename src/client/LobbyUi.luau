@@ -382,9 +382,11 @@ function LobbyUi.new(hooks: Hooks): Handle
 		gachaMsg.Text = ""
 		refreshGacha()
 		send("buyGacha")
-		task.delay(5, function() -- safety: never stay stuck if the reply is lost
+		gachaBack.Visible = false -- watch the claw machine; the result pops up when it is done
+		task.delay(9, function() -- safety: never stay stuck if the reply is lost
 			if waitingForPull then
 				waitingForPull = false
+				gachaBack.Visible = true
 				refreshGacha()
 			end
 		end)
@@ -398,6 +400,7 @@ function LobbyUi.new(hooks: Hooks): Handle
 		coins: number,
 	})
 		waitingForPull = false
+		gachaBack.Visible = true
 		coins = u.coins
 		freePull = if u.free then false else freePull
 		refreshHud()
@@ -685,6 +688,7 @@ function LobbyUi.new(hooks: Hooks): Handle
 			end
 		elseif u.kind == "gachaError" then
 			waitingForPull = false
+			gachaBack.Visible = true
 			gachaMsg.Text = LobbyText.gachaErrorText(u.reason)
 			refreshGacha()
 		elseif u.kind == "countdown" then
