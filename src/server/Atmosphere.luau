@@ -22,6 +22,20 @@ local function effect<T>(className: string, name: string): T
 end
 
 function Atmosphere.apply()
+	-- The place file ships default Bloom, SunRays, Atmosphere and DepthOfField (Bloom at full
+	-- strength washes the whole lobby out). Ours are the "Game*" ones, so drop the others.
+	for _, c in Lighting:GetChildren() do
+		if
+			(
+				c:IsA("BloomEffect")
+				or c:IsA("SunRaysEffect")
+				or c:IsA("Atmosphere")
+				or c:IsA("DepthOfFieldEffect")
+			) and string.sub(c.Name, 1, 4) ~= "Game"
+		then
+			c:Destroy()
+		end
+	end
 	Lighting.ClockTime = 14
 	Lighting.GeographicLatitude = 35
 	Lighting.Brightness = 2.3
