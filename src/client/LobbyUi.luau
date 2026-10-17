@@ -17,6 +17,7 @@ local LobbyText = require(ReplicatedStorage.Shared.LobbyText)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Store = require(ReplicatedStorage.Shared.Store)
 local Types = require(ReplicatedStorage.Shared.Types)
+local UiSize = require(ReplicatedStorage.Shared.UiSize)
 
 local LobbyUi = {}
 
@@ -46,7 +47,7 @@ local RARITY_COLOR: { [string]: Color3 } = {
 
 local POP = TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local FAST = TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-local MIN_TOUCH = 56
+local HEADER = 68 -- modal title row (close button is 56 px inside it)
 local CLICK_GAP = 0.4
 
 local function carColor(id: string): Color3
@@ -102,6 +103,22 @@ local function label(parent: Instance, text: string, size: UDim2, pos: UDim2): T
 	return l
 end
 
+-- Body text that grows downward instead of clipping (fixed readable size).
+local function wrapLabel(parent: Instance, text: string, color: Color3): TextLabel
+	local l = Instance.new("TextLabel")
+	l.BackgroundTransparency = 1
+	l.Size = UDim2.new(1, 0, 0, 0)
+	l.AutomaticSize = Enum.AutomaticSize.Y
+	l.Text = text
+	l.TextSize = 16
+	l.TextWrapped = true
+	l.Font = Enum.Font.GothamBold
+	l.TextColor3 = color
+	l.TextXAlignment = Enum.TextXAlignment.Left
+	l.Parent = parent
+	return l
+end
+
 local function frame(parent: Instance, size: UDim2, pos: UDim2, color: Color3): Frame
 	local f = Instance.new("Frame")
 	f.Size = size
@@ -112,7 +129,7 @@ local function frame(parent: Instance, size: UDim2, pos: UDim2, color: Color3): 
 	return f
 end
 
--- Big neon button, never shorter than MIN_TOUCH px.
+-- Big neon button, never smaller than UiSize.BUTTON_MIN px either way (>= 48 even while pressed).
 local function button(
 	parent: Instance,
 	text: string,
@@ -134,7 +151,7 @@ local function button(
 	stroke(b, WHITE, 2)
 	textLimit(b, 16, 44)
 	local limit = Instance.new("UISizeConstraint")
-	limit.MinSize = Vector2.new(MIN_TOUCH, MIN_TOUCH)
+	limit.MinSize = Vector2.new(UiSize.BUTTON_MIN, UiSize.BUTTON_MIN)
 	limit.Parent = b
 	local pad = Instance.new("UIPadding")
 	pad.PaddingLeft = UDim.new(0.04, 0)
@@ -149,7 +166,7 @@ local function button(
 			input.UserInputType == Enum.UserInputType.MouseButton1
 			or input.UserInputType == Enum.UserInputType.Touch
 		then
-			TweenService:Create(scale, FAST, { Scale = 0.93 }):Play()
+			TweenService:Create(scale, FAST, { Scale = UiSize.PRESS_SCALE }):Play()
 		end
 	end)
 	b.InputEnded:Connect(function()
@@ -239,7 +256,7 @@ function LobbyUi.new(hooks: Hooks): Handle
 		backdrop.Visible = false
 		backdrop.Active = true -- swallow taps
 		backdrop.ZIndex = 10
-		local panel = frame(backdrop, UDim2.fromScale(0.9, 0.86), UDim2.fromScale(0.5, 0.5), PANEL)
+		local panel = frame(backdrop, UDim2.new(1, -24, 1, -24), UDim2.fromScale(0.5, 0.5), PANEL)
 		panel.AnchorPoint = Vector2.new(0.5, 0.5)
 		panel.ZIndex = 11
 		corner(panel, 0.04)
@@ -247,12 +264,12 @@ function LobbyUi.new(hooks: Hooks): Handle
 		local maxSize = Instance.new("UISizeConstraint")
 		maxSize.MaxSize = Vector2.new(760, 560)
 		maxSize.Parent = panel
-		local t = label(panel, title, UDim2.fromScale(0.6, 0.11), UDim2.fromScale(0.04, 0.02))
+		local t = label(panel, title, UDim2.new(1, -84, 0, 48), UDim2.fromOffset(14, 10))
 		t.TextColor3 = accent
 		t.TextXAlignment = Enum.TextXAlignment.Left
 		t.ZIndex = 12
-		local close =
-			button(panel, "X", UDim2.fromScale(0.12, 0.11), UDim2.fromScale(0.84, 0.02), PINK)
+		local close = button(panel, "X", UDim2.fromOffset(56, 56), UDim2.new(1, -8, 0, 6), PINK)
+		close.AnchorPoint = Vector2.new(1, 0)
 		close.ZIndex = 12
 		local scale = Instance.new("UIScale")
 		scale.Parent = panel
@@ -269,61 +286,75 @@ function LobbyUi.new(hooks: Hooks): Handle
 
 	-- GACHA screen
 	local gachaBack, gachaPanel, gachaOpen = modal("GACHA", PINK)
-	local oddsBox = frame(gachaPanel, UDim2.fromScale(0.92, 0.4), UDim2.fromScale(0.04, 0.16), NAVY)
-	oddsBox.ZIndex = 12
+	local gachaBody = Instance.new("ScrollingFrame")
+	gachaBody.Size = UDim2.new(1, 0, 1, -HEADER - 72)
+	gachaBody.Position = UDim2.fromOffset(0, HEADER)
+	gachaBody.BackgroundTransparency = 1
+	gachaBody.BorderSizePixel = 0
+	gachaBody.ScrollBarThickness = 6
+	gachaBody.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	gachaBody.CanvasSize = UDim2.fromScale(0, 0)
+	gachaBody.ScrollingDirection = Enum.ScrollingDirection.Y
+	gachaBody.ZIndex = 12
+	gachaBody.Parent = gachaPanel
+	local bodyPad = Instance.new("UIPadding")
+	bodyPad.PaddingLeft = UDim.new(0, 12)
+	bodyPad.PaddingRight = UDim.new(0, 14)
+	bodyPad.PaddingTop = UDim.new(0, 4)
+	bodyPad.PaddingBottom = UDim.new(0, 8)
+	bodyPad.Parent = gachaBody
+	local bodyLayout = Instance.new("UIListLayout")
+	bodyLayout.Padding = UDim.new(0, 10)
+	bodyLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	bodyLayout.Parent = gachaBody
+	local gachaMsg = wrapLabel(gachaBody, "", Color3.fromRGB(255, 120, 120))
+	gachaMsg.LayoutOrder = 1
+	local oddsBox = frame(gachaBody, UDim2.new(1, 0, 0, 0), UDim2.fromScale(0, 0), NAVY)
+	oddsBox.AutomaticSize = Enum.AutomaticSize.Y
+	oddsBox.LayoutOrder = 2
 	corner(oddsBox, 0.06)
 	stroke(oddsBox, CYAN, 2)
-	local oddsHeader =
-		label(oddsBox, "ODDS", UDim2.fromScale(0.9, 0.2), UDim2.fromScale(0.05, 0.03))
+	local oddsPad = Instance.new("UIPadding")
+	oddsPad.PaddingLeft = UDim.new(0, 10)
+	oddsPad.PaddingRight = UDim.new(0, 10)
+	oddsPad.PaddingTop = UDim.new(0, 8)
+	oddsPad.PaddingBottom = UDim.new(0, 8)
+	oddsPad.Parent = oddsBox
+	local oddsLayout = Instance.new("UIListLayout")
+	oddsLayout.Padding = UDim.new(0, 6)
+	oddsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	oddsLayout.Parent = oddsBox
+	local oddsHeader = label(oddsBox, "ODDS", UDim2.new(1, 0, 0, 26), UDim2.fromScale(0, 0))
 	oddsHeader.TextColor3 = CYAN
 	oddsHeader.TextXAlignment = Enum.TextXAlignment.Left
-	oddsHeader.ZIndex = 13
-	local oddsList = Instance.new("Frame")
-	oddsList.BackgroundTransparency = 1
-	oddsList.Size = UDim2.fromScale(0.9, 0.72)
-	oddsList.Position = UDim2.fromScale(0.05, 0.25)
-	oddsList.ZIndex = 13
-	oddsList.Parent = oddsBox
-	local oddsLayout = Instance.new("UIListLayout")
-	oddsLayout.Padding = UDim.new(0.04, 0)
-	oddsLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	oddsLayout.Parent = oddsList
+	oddsHeader.LayoutOrder = 0
 	for i, row in Gacha.oddsTable() do
 		local names = {}
 		for _, id in row.cars do
 			table.insert(names, carName(id))
 		end
-		local l = label(
-			oddsList,
+		local l = wrapLabel(
+			oddsBox,
 			LobbyText.oddsLine(row.rarity, row.percent, names),
-			UDim2.fromScale(1, 0.26),
-			UDim2.fromScale(0, 0)
+			RARITY_COLOR[row.rarity] or WHITE
 		)
 		l.LayoutOrder = i
-		l.TextColor3 = RARITY_COLOR[row.rarity] or WHITE
-		l.TextXAlignment = Enum.TextXAlignment.Left
-		l.ZIndex = 14
 	end
-	local priceLabel =
-		label(gachaPanel, "", UDim2.fromScale(0.92, 0.09), UDim2.fromScale(0.04, 0.6))
+	local priceLabel = label(gachaBody, "", UDim2.new(1, 0, 0, 36), UDim2.fromScale(0, 0))
 	priceLabel.TextColor3 = GOLD
-	priceLabel.ZIndex = 12
-	local dupeNote = label(
-		gachaPanel,
+	priceLabel.LayoutOrder = 3
+	local dupeNote = wrapLabel(
+		gachaBody,
 		`Duplicates give {LobbyConfig.Gacha.duplicateRefund} coins back`,
-		UDim2.fromScale(0.92, 0.06),
-		UDim2.fromScale(0.04, 0.69)
+		Color3.fromRGB(190, 200, 230)
 	)
-	dupeNote.Font = Enum.Font.GothamBold
-	dupeNote.TextColor3 = Color3.fromRGB(190, 200, 230)
-	dupeNote.ZIndex = 12
+	dupeNote.TextXAlignment = Enum.TextXAlignment.Center
+	dupeNote.LayoutOrder = 4
+	-- OPEN is pinned at the bottom so it is always on screen, even in landscape.
 	local buyButton =
-		button(gachaPanel, "OPEN", UDim2.fromScale(0.7, 0.16), UDim2.fromScale(0.15, 0.78), GREEN)
+		button(gachaPanel, "OPEN", UDim2.new(0.7, 0, 0, 56), UDim2.new(0.5, 0, 1, -8), GREEN)
+	buyButton.AnchorPoint = Vector2.new(0.5, 1)
 	buyButton.ZIndex = 12
-	local gachaMsg = label(gachaPanel, "", UDim2.fromScale(0.92, 0.05), UDim2.fromScale(0.04, 0.95))
-	gachaMsg.Font = Enum.Font.GothamBold
-	gachaMsg.TextColor3 = Color3.fromRGB(255, 120, 120)
-	gachaMsg.ZIndex = 12
 
 	-- Result popup (inside the gacha backdrop, above everything)
 	local resultBack = frame(gachaBack, UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), NAVY)
@@ -331,8 +362,9 @@ function LobbyUi.new(hooks: Hooks): Handle
 	resultBack.Active = true
 	resultBack.Visible = false
 	resultBack.ZIndex = 20
-	local resultCard =
-		frame(resultBack, UDim2.fromScale(0.7, 0.6), UDim2.fromScale(0.5, 0.5), PANEL)
+	-- Auto-height card: stacked rows in pixels, so nothing overflows a 360 px tall landscape screen.
+	local resultCard = frame(resultBack, UDim2.new(0.9, 0, 0, 0), UDim2.fromScale(0.5, 0.5), PANEL)
+	resultCard.AutomaticSize = Enum.AutomaticSize.Y
 	resultCard.AnchorPoint = Vector2.new(0.5, 0.5)
 	resultCard.ZIndex = 21
 	corner(resultCard, 0.06)
@@ -344,20 +376,33 @@ function LobbyUi.new(hooks: Hooks): Handle
 	resultSize.Parent = resultCard
 	local resultScale = Instance.new("UIScale")
 	resultScale.Parent = resultCard
-	local resultTitle =
-		label(resultCard, "", UDim2.fromScale(0.9, 0.2), UDim2.fromScale(0.05, 0.05))
+	local resultPad = Instance.new("UIPadding")
+	resultPad.PaddingLeft = UDim.new(0, 12)
+	resultPad.PaddingRight = UDim.new(0, 12)
+	resultPad.PaddingTop = UDim.new(0, 12)
+	resultPad.PaddingBottom = UDim.new(0, 12)
+	resultPad.Parent = resultCard
+	local resultLayout = Instance.new("UIListLayout")
+	resultLayout.Padding = UDim.new(0, 6)
+	resultLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	resultLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	resultLayout.Parent = resultCard
+	local resultTitle = label(resultCard, "", UDim2.new(1, 0, 0, 36), UDim2.fromScale(0, 0))
+	resultTitle.LayoutOrder = 1
 	resultTitle.ZIndex = 22
-	local resultSwatch =
-		frame(resultCard, UDim2.fromScale(0.5, 0.22), UDim2.fromScale(0.25, 0.28), WHITE)
+	local resultSwatch = frame(resultCard, UDim2.fromOffset(120, 52), UDim2.fromScale(0, 0), WHITE)
+	resultSwatch.LayoutOrder = 2
 	resultSwatch.ZIndex = 22
 	corner(resultSwatch, 0.2)
-	local resultName =
-		label(resultCard, "", UDim2.fromScale(0.9, 0.16), UDim2.fromScale(0.05, 0.52))
+	local resultName = label(resultCard, "", UDim2.new(1, 0, 0, 32), UDim2.fromScale(0, 0))
+	resultName.LayoutOrder = 3
 	resultName.ZIndex = 22
-	local resultSub = label(resultCard, "", UDim2.fromScale(0.9, 0.1), UDim2.fromScale(0.05, 0.69))
+	local resultSub = label(resultCard, "", UDim2.new(1, 0, 0, 22), UDim2.fromScale(0, 0))
+	resultSub.LayoutOrder = 4
 	resultSub.ZIndex = 22
 	local resultOk =
-		button(resultCard, "NICE!", UDim2.fromScale(0.5, 0.16), UDim2.fromScale(0.25, 0.8), GREEN)
+		button(resultCard, "NICE!", UDim2.new(0.8, 0, 0, 56), UDim2.fromScale(0, 0), GREEN)
+	resultOk.LayoutOrder = 5
 	resultOk.ZIndex = 22
 	resultOk.Activated:Connect(function()
 		resultBack.Visible = false
@@ -423,43 +468,49 @@ function LobbyUi.new(hooks: Hooks): Handle
 	-- STORE screen (BUY button per unowned car; the server decides and answers storeResult)
 	local storeBack, storePanel, storeOpen = modal("CARS", CYAN)
 	local storeList = Instance.new("ScrollingFrame")
-	storeList.Size = UDim2.fromScale(0.92, 0.74)
-	storeList.Position = UDim2.fromScale(0.04, 0.16)
+	storeList.Size = UDim2.new(1, -16, 1, -HEADER - 52)
+	storeList.Position = UDim2.fromOffset(8, HEADER)
 	storeList.BackgroundTransparency = 1
 	storeList.BorderSizePixel = 0
 	storeList.ScrollBarThickness = 6
 	storeList.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	storeList.CanvasSize = UDim2.fromScale(0, 0)
+	storeList.ScrollingDirection = Enum.ScrollingDirection.Y
 	storeList.ZIndex = 12
 	storeList.Parent = storePanel
 	local storeLayout = Instance.new("UIListLayout")
-	storeLayout.Padding = UDim.new(0, 8)
+	storeLayout.Padding = UDim.new(0, 10)
 	storeLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	storeLayout.Parent = storeList
-	local storeMsg = label(storePanel, "", UDim2.fromScale(0.7, 0.07), UDim2.fromScale(0.04, 0.925))
+	local storeMsg = label(storePanel, "", UDim2.new(1, -24, 0, 36), UDim2.new(0, 12, 1, -44))
 	storeMsg.TextColor3 = PINK
 	storeMsg.TextXAlignment = Enum.TextXAlignment.Left
 	storeMsg.ZIndex = 12
 	local storeRows: { [string]: { frame: Frame, buy: TextButton, name: TextLabel } } = {}
 	for i, id in CarConfig.Order do
 		local stats = CarConfig.Cars[id]
-		local row = frame(storeList, UDim2.new(1, -8, 0, 84), UDim2.fromScale(0, 0), NAVY)
+		-- Card: swatch + name/rarity/blurb on top, full-width BUY below (no overlaps at any width).
+		local row = frame(storeList, UDim2.new(1, -10, 0, 164), UDim2.fromScale(0, 0), NAVY)
 		row.LayoutOrder = i
 		row.ZIndex = 13
-		corner(row, 0.14)
-		local swatch =
-			frame(row, UDim2.fromOffset(52, 52), UDim2.new(0, 12, 0.5, -26), carColor(id))
+		corner(row, 0.08)
+		local swatch = frame(row, UDim2.fromOffset(52, 52), UDim2.fromOffset(12, 12), carColor(id))
 		swatch.ZIndex = 14
 		corner(swatch, 0.25)
-		local n = label(row, stats.name, UDim2.new(0.5, -80, 0.5, 0), UDim2.new(0, 76, 0, 4))
+		local n = label(row, stats.name, UDim2.new(1, -150, 0, 30), UDim2.fromOffset(76, 8))
 		n.TextXAlignment = Enum.TextXAlignment.Left
 		n.ZIndex = 14
-		local b = label(row, stats.blurb, UDim2.new(0.5, -80, 0.36, 0), UDim2.new(0, 76, 0.56, 0))
+		local rar = label(row, rarityOf(id), UDim2.new(1, -88, 0, 20), UDim2.fromOffset(76, 40))
+		rar.TextColor3 = RARITY_COLOR[rarityOf(id)] or WHITE
+		rar.TextXAlignment = Enum.TextXAlignment.Left
+		rar.ZIndex = 14
+		local b = label(row, stats.blurb, UDim2.new(1, -88, 0, 36), UDim2.fromOffset(76, 62))
 		b.Font = Enum.Font.GothamBold
 		b.TextColor3 = Color3.fromRGB(190, 200, 230)
 		b.TextXAlignment = Enum.TextXAlignment.Left
+		b.TextWrapped = true
 		b.ZIndex = 14
-		local buy = button(row, "", UDim2.new(0.3, 0, 0.42, 0), UDim2.new(0.68, -8, 0.06, 0), GREEN)
+		local buy = button(row, "", UDim2.new(1, -24, 0, 52), UDim2.new(0, 12, 1, -62), GREEN)
 		buy.ZIndex = 14
 		buy.Activated:Connect(debounced(function()
 			if buy.Active then
@@ -467,11 +518,6 @@ function LobbyUi.new(hooks: Hooks): Handle
 				send("buyCar", id)
 			end
 		end))
-		local rar =
-			label(row, rarityOf(id), UDim2.new(0.3, 0, 0.32, 0), UDim2.new(0.68, -8, 0.58, 0))
-		rar.TextColor3 = RARITY_COLOR[rarityOf(id)] or WHITE
-		rar.TextXAlignment = Enum.TextXAlignment.Right
-		rar.ZIndex = 14
 		storeRows[id] = { frame = row, buy = buy, name = n }
 	end
 	local function refreshStore()
@@ -490,30 +536,31 @@ function LobbyUi.new(hooks: Hooks): Handle
 	end
 
 	-- CHOICES (pick 1 of N) with timer
+	local CHOICE_TOP, CHOICE_GAP = 64, 8
 	local choicesBack = frame(gui, UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), NAVY)
 	choicesBack.BackgroundTransparency = 0.3
 	choicesBack.Active = true
 	choicesBack.Visible = false
 	choicesBack.ZIndex = 30
 	local choicesTitle =
-		label(choicesBack, "PICK YOUR CAR", UDim2.fromScale(0.6, 0.12), UDim2.fromScale(0.2, 0.04))
+		label(choicesBack, "PICK YOUR CAR", UDim2.new(0.6, 0, 0, 48), UDim2.new(0.2, 0, 0, 8))
 	choicesTitle.TextColor3 = CYAN
 	choicesTitle.ZIndex = 31
-	local timerLabel =
-		label(choicesBack, "", UDim2.fromScale(0.2, 0.12), UDim2.fromScale(0.78, 0.04))
+	local timerLabel = label(choicesBack, "", UDim2.new(0.18, 0, 0, 48), UDim2.new(0.8, 0, 0, 8))
 	timerLabel.TextColor3 = GOLD
 	timerLabel.TextXAlignment = Enum.TextXAlignment.Right
 	timerLabel.ZIndex = 31
 	local choicesRow = Instance.new("Frame")
 	choicesRow.BackgroundTransparency = 1
-	choicesRow.Size = UDim2.fromScale(0.94, 0.68)
-	choicesRow.Position = UDim2.fromScale(0.03, 0.2)
+	choicesRow.Size = UDim2.new(1, -24, 1, -CHOICE_TOP - 12)
+	choicesRow.Position = UDim2.fromOffset(12, CHOICE_TOP)
 	choicesRow.ZIndex = 31
 	choicesRow.Parent = choicesBack
 	local choicesLayout = Instance.new("UIListLayout")
 	choicesLayout.FillDirection = Enum.FillDirection.Horizontal
 	choicesLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	choicesLayout.Padding = UDim.new(0.02, 0)
+	choicesLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+	choicesLayout.Padding = UDim.new(0, CHOICE_GAP)
 	choicesLayout.Parent = choicesRow
 	local choiceDeadline = 0
 	local choiceToken = 0
@@ -536,7 +583,14 @@ function LobbyUi.new(hooks: Hooks): Handle
 		choiceDeadline = os.clock() + seconds
 		choicesBack.Visible = true
 		local count = math.max(1, #cars)
-		local width = (1 - 0.02 * (count - 1)) / count
+		-- Pixel-sized cards: a column on portrait phones, a row on landscape.
+		local view = gui.AbsoluteSize
+		local viewW = if view.X > 0 then view.X else 800
+		local viewH = if view.Y > 0 then view.Y else 360
+		local cards = UiSize.choiceCards(viewW, viewH, count, CHOICE_GAP, CHOICE_TOP, 12, 280)
+		choicesLayout.FillDirection = if cards.vertical
+			then Enum.FillDirection.Vertical
+			else Enum.FillDirection.Horizontal
 		local buttons: { TextButton } = {}
 		for _, id in cars do
 			local stats = CarConfig.get(id)
@@ -544,7 +598,7 @@ function LobbyUi.new(hooks: Hooks): Handle
 			local b = button(
 				choicesRow,
 				"",
-				UDim2.fromScale(math.min(width, 0.32), 1),
+				UDim2.fromOffset(cards.width, cards.height),
 				UDim2.fromScale(0, 0),
 				carColor(id)
 			)
@@ -601,7 +655,8 @@ function LobbyUi.new(hooks: Hooks): Handle
 	local countScale = Instance.new("UIScale")
 	countScale.Parent = countLabel
 	local leaveButton =
-		button(gui, "LEAVE", UDim2.fromScale(0.24, 0.12), UDim2.fromScale(0.38, 0.72), PINK)
+		button(gui, "LEAVE", UDim2.new(0.4, 0, 0, 56), UDim2.fromScale(0.5, 0.8), PINK)
+	leaveButton.AnchorPoint = Vector2.new(0.5, 0.5)
 	leaveButton.Visible = false
 	leaveButton.ZIndex = 25
 	leaveButton.Activated:Connect(debounced(function()

@@ -19,5 +19,6 @@ require("./store.test")
 require("./clawpath.test")
 require("./wintext.test")
 require("./hints.test")
+require("./uisize.test")
 
 Harness.summary()
