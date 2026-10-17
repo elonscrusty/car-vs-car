@@ -665,7 +665,7 @@ function Lobby.build(): LobbyHandle
 		folder,
 		"StandToPlaySign",
 		Vector3.new(22, 5, 1),
-		CFrame.lookAt(origin + Vector3.new(0, 7, backZ + 8), origin + Vector3.new(0, 7, 0)),
+		CFrame.lookAt(origin + Vector3.new(0, 8.5, backZ + 8), origin + Vector3.new(0, 8.5, 0)),
 		Color3.fromRGB(14, 12, 24)
 	)
 	label(board, Enum.NormalId.Front, "STAND TO PLAY", YELLOW, DARK)
@@ -673,7 +673,7 @@ function Lobby.build(): LobbyHandle
 		folder,
 		"StandToPlaySub",
 		Vector3.new(22, 1.6, 1),
-		CFrame.lookAt(origin + Vector3.new(0, 3.6, backZ + 8), origin + Vector3.new(0, 3.6, 0)),
+		CFrame.lookAt(origin + Vector3.new(0, 5.7, backZ + 8), origin + Vector3.new(0, 5.7, 0)),
 		Color3.fromRGB(14, 12, 24)
 	)
 	label(sub, Enum.NormalId.Front, "2 PLAYERS TO START", CYAN, DARK)
