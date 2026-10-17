@@ -6,7 +6,7 @@ return {
 	spawnEverySeconds = 8, -- then one this often
 	maxOnFloor = 2,
 	ringMin = 9, -- pickups land between these distances from the center (flat floor)
-	ringMax = 22,
+	ringMax = 32,
 	minCarDistance = 14, -- never spawn closer than this to a car
 	minPickupDistance = 10, -- or to another pickup
 	pickupRadius = 5, -- a car this close (flat distance) collects it

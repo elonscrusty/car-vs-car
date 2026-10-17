@@ -2,7 +2,7 @@
 -- The only 6 RemoteEvents in the game. Server creates them, client waits for them.
 --   SelectCar (client -> server): "I pick this car"
 --   Launch    (client -> server): "launch with this angle and power"
---   Steer     (client -> server): "steer my car" (one number, -1 left .. 1 right)
+--   Steer     (client -> server): "drive my car" (steer -1 left .. 1 right, gas -1 back .. 1 forward)
 --   UiUpdate  (server -> client): screen / HUD updates, hit effects
 --   LobbyAction (client -> server): (action, arg) pickCar / buyGacha / buyCar / leavePad
 --   LobbyUpdate (server -> client): lobby HUD, gacha, storeResult, countdown, choices, toLobby

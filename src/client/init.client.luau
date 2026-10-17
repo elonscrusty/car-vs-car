@@ -1,5 +1,5 @@
 --!strict
--- Client entry point. Shows UI, aims, and sends only: car choice, aim angle, launch power, steer (-1..1).
+-- Client entry point. Shows UI, aims, and sends only: car choice, aim angle, launch power, steer and gas (-1..1).
 
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -96,8 +96,8 @@ end, function(angle: number, power: number)
 	remotes.Launch:FireServer(angle, power)
 end)
 
-steering = SteerInput.new(function(value: number)
-	remotes.Steer:FireServer(value)
+steering = SteerInput.new(function(steer: number, gas: number)
+	remotes.Steer:FireServer(steer, gas)
 end)
 
 actions = ActionInput.new(function(name: string)

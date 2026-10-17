@@ -1,8 +1,9 @@
 --!strict
--- Steering during the fight: two big translucent arrow buttons in the bottom corners (touch or
--- mouse) plus A/D and Left/Right keys. Sends one number to the server: -1 left, 0 straight,
--- 1 right. Sends on every change and re-sends the held value every ~0.1 s, so the server (which
--- treats old values as 0) never keeps steering after a lost release.
+-- Driving during the fight: a joystick in the bottom-left corner (touch or mouse) plus WASD and
+-- the arrow keys. Up/W = gas, Down/S = reverse, Left/Right (A/D) = steer. Sends two numbers
+-- to the server: steer (-1 left .. 1 right) and gas (-1 back .. 1 forward). Sends on every
+-- change and re-sends the held values every ~0.1 s, so the server (which treats old values as
+-- 0) never keeps driving after a lost release.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -17,63 +18,99 @@ export type SteerInput = {
 
 local SteerInput = {}
 
-local MIN_SIZE = 80 -- px, smallest button side
-local MAX_SIZE = 170
+local MIN_SIZE = 130 -- px, smallest joystick base
+local MAX_SIZE = 220
+local DEADZONE = 0.15 -- share of the radius that does nothing
 local IDLE_COLOR = Color3.fromRGB(255, 255, 255)
 local PRESS_COLOR = Color3.fromRGB(255, 220, 40)
 
-function SteerInput.new(send: (value: number) -> ()): SteerInput
+-- Pushes a stick offset (px from the middle) into steer/gas, with a small dead zone and full
+-- strength at the edge.
+local function stickValue(offset: number, radius: number): number
+	local v = math.clamp(offset / radius, -1, 1)
+	if math.abs(v) < DEADZONE then
+		return 0
+	end
+	return (v - math.sign(v) * DEADZONE) / (1 - DEADZONE)
+end
+
+function SteerInput.new(send: (steer: number, gas: number) -> ()): SteerInput
 	local gui: ScreenGui? = nil
 	local running = false
 	local generation = 0
-	local pointerHeld: { [string]: boolean } = { left = false, right = false } -- on-screen buttons
-	local keyCount: { [string]: number } = { left = 0, right = 0 } -- keys down per side (A and Left can both be held)
-	local sent = 0
-	local buttons: { [string]: TextButton } = {}
+	local stickSteer, stickGas = 0, 0 -- joystick values
+	local keyCount: { [string]: number } = { left = 0, right = 0, up = 0, down = 0 } -- keys down per direction
+	local sentSteer, sentGas = 0, 0
+	local base: Frame? = nil
+	local knob: Frame? = nil
+	local activeInput: InputObject? = nil
 
-	local function isHeld(side: string): boolean
-		return pointerHeld[side] or keyCount[side] > 0
+	local function steerValue(): number
+		local keys = (if keyCount.right > 0 then 1 else 0) - (if keyCount.left > 0 then 1 else 0)
+		return math.clamp(stickSteer + keys, -1, 1)
 	end
 
-	local function value(): number
-		return (if isHeld("right") then 1 else 0) - (if isHeld("left") then 1 else 0)
-	end
-
-	local function paint()
-		for side, b in buttons do
-			local down = isHeld(side)
-			b.BackgroundTransparency = if down then 0.2 else 0.6
-			b.TextColor3 = if down then PRESS_COLOR else IDLE_COLOR
-			b.Size = if down then UDim2.fromScale(0.2, 0.2) else UDim2.fromScale(0.18, 0.18)
-		end
+	local function gasValue(): number
+		local keys = (if keyCount.up > 0 then 1 else 0) - (if keyCount.down > 0 then 1 else 0)
+		return math.clamp(stickGas + keys, -1, 1)
 	end
 
 	local function update()
-		paint()
-		local v = value()
-		if v ~= sent then
-			sent = v
-			send(v)
+		local s, g = steerValue(), gasValue()
+		if s ~= sentSteer or g ~= sentGas then
+			sentSteer, sentGas = s, g
+			send(s, g)
 		end
 	end
 
-	local function makeButton(parent: ScreenGui, side: string, text: string, xScale: number)
-		local b = Instance.new("TextButton")
-		b.Name = side .. "Steer"
-		b.AnchorPoint = Vector2.new(xScale, 1)
-		b.Position = UDim2.new(xScale, if xScale == 0 then 16 else -16, 1, -16)
-		b.Size = UDim2.fromScale(0.18, 0.18)
+	local function moveKnob(dx: number, dy: number, radius: number)
+		local k = knob
+		if k then
+			local len = math.sqrt(dx * dx + dy * dy)
+			if len > radius then
+				dx, dy = dx / len * radius, dy / len * radius
+			end
+			k.Position = UDim2.new(0.5, dx, 0.5, dy)
+			k.BackgroundTransparency = if activeInput then 0.1 else 0.4
+		end
+	end
+
+	-- Turns a pointer position into stick values.
+	local function track(position: Vector3)
+		local b = base
+		if b == nil then
+			return
+		end
+		local radius = b.AbsoluteSize.X / 2
+		local centre = b.AbsolutePosition + b.AbsoluteSize / 2
+		local dx, dy = position.X - centre.X, position.Y - centre.Y
+		stickSteer = stickValue(dx, radius * 0.85)
+		stickGas = -stickValue(dy, radius * 0.85)
+		moveKnob(dx, dy, radius * 0.85)
+		update()
+	end
+
+	local function release()
+		activeInput = nil
+		stickSteer, stickGas = 0, 0
+		moveKnob(0, 0, 1)
+		if running then
+			update()
+		end
+	end
+
+	local function makeStick(parent: ScreenGui)
+		local b = Instance.new("Frame")
+		b.Name = "Stick"
+		b.AnchorPoint = Vector2.new(0, 1)
+		b.Position = UDim2.new(0, 24, 1, -24)
+		b.Size = UDim2.fromScale(0.22, 0.22)
 		b.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-		b.BackgroundTransparency = 0.6
-		b.Text = text
-		b.TextScaled = true
-		b.Font = Enum.Font.GothamBlack
-		b.TextColor3 = IDLE_COLOR
-		b.AutoButtonColor = false
+		b.BackgroundTransparency = 0.55
 		b.Active = true
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(0.2, 0)
-		corner.Parent = b
+		local round = Instance.new("UICorner")
+		round.CornerRadius = UDim.new(0.5, 0)
+		round.Parent = b
 		local stroke = Instance.new("UIStroke")
 		stroke.Thickness = 3
 		stroke.Color = IDLE_COLOR
@@ -86,54 +123,78 @@ function SteerInput.new(send: (value: number) -> ()): SteerInput
 		local ratio = Instance.new("UIAspectRatioConstraint")
 		ratio.AspectRatio = 1
 		ratio.Parent = b
+
+		local k = Instance.new("Frame")
+		k.Name = "Knob"
+		k.AnchorPoint = Vector2.new(0.5, 0.5)
+		k.Position = UDim2.fromScale(0.5, 0.5)
+		k.Size = UDim2.fromScale(0.42, 0.42)
+		k.BackgroundColor3 = PRESS_COLOR
+		k.BackgroundTransparency = 0.4
+		local kr = Instance.new("UICorner")
+		kr.CornerRadius = UDim.new(0.5, 0)
+		kr.Parent = k
+		k.Parent = b
+
 		b.InputBegan:Connect(function(input: InputObject)
 			if
-				input.UserInputType ~= Enum.UserInputType.MouseButton1
-				and input.UserInputType ~= Enum.UserInputType.Touch
+				activeInput == nil
+				and (
+					input.UserInputType == Enum.UserInputType.MouseButton1
+					or input.UserInputType == Enum.UserInputType.Touch
+				)
 			then
-				return
+				activeInput = input
+				track(input.Position)
 			end
-			pointerHeld[side] = true
-			update()
-			-- Released anywhere (even after sliding off the button) counts as let go.
-			local conn: RBXScriptConnection? = nil
-			conn = input:GetPropertyChangedSignal("UserInputState"):Connect(function()
-				if input.UserInputState == Enum.UserInputState.End then
-					pointerHeld[side] = false
-					if conn then
-						conn:Disconnect()
-					end
-					if running then
-						update()
-					end
-				end
-			end)
 		end)
 		b.Parent = parent
-		buttons[side] = b
+		base, knob = b, k
 	end
+
+	-- Follow the finger/mouse that grabbed the stick, even when it slides off the circle.
+	UserInputService.InputChanged:Connect(function(input: InputObject)
+		if running and activeInput ~= nil then
+			if
+				input == activeInput
+				or (
+					input.UserInputType == Enum.UserInputType.MouseMovement
+					and activeInput.UserInputType == Enum.UserInputType.MouseButton1
+				)
+			then
+				track(input.Position)
+			end
+		end
+	end)
 
 	local keyMap: { [Enum.KeyCode]: string } = {
 		[Enum.KeyCode.A] = "left",
 		[Enum.KeyCode.Left] = "left",
 		[Enum.KeyCode.D] = "right",
 		[Enum.KeyCode.Right] = "right",
+		[Enum.KeyCode.W] = "up",
+		[Enum.KeyCode.Up] = "up",
+		[Enum.KeyCode.S] = "down",
+		[Enum.KeyCode.Down] = "down",
 	}
 	local keysDown: { [Enum.KeyCode]: boolean } = {}
 
 	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
-		local side = keyMap[input.KeyCode]
-		if running and side and not processed and not keysDown[input.KeyCode] then
+		local dir = keyMap[input.KeyCode]
+		if running and dir and not processed and not keysDown[input.KeyCode] then
 			keysDown[input.KeyCode] = true
-			keyCount[side] += 1
+			keyCount[dir] += 1
 			update()
 		end
 	end)
 	UserInputService.InputEnded:Connect(function(input: InputObject)
-		local side = keyMap[input.KeyCode]
-		if side and keysDown[input.KeyCode] then
+		if activeInput ~= nil and input == activeInput then
+			release()
+		end
+		local dir = keyMap[input.KeyCode]
+		if dir and keysDown[input.KeyCode] then
 			keysDown[input.KeyCode] = nil
-			keyCount[side] -= 1
+			keyCount[dir] -= 1
 			if running then
 				update()
 			end
@@ -149,10 +210,13 @@ function SteerInput.new(send: (value: number) -> ()): SteerInput
 		running = true
 		generation += 1
 		local mine = generation
-		pointerHeld.left, pointerHeld.right = false, false
-		keyCount.left, keyCount.right = 0, 0
+		stickSteer, stickGas = 0, 0
+		activeInput = nil
+		for dir in keyCount do
+			keyCount[dir] = 0
+		end
 		table.clear(keysDown)
-		sent = 0
+		sentSteer, sentGas = 0, 0
 		local newGui = Instance.new("ScreenGui")
 		newGui.Name = "SteerGui"
 		newGui.ResetOnSpawn = false
@@ -160,16 +224,14 @@ function SteerInput.new(send: (value: number) -> ()): SteerInput
 		newGui.DisplayOrder = 5
 		newGui.Parent = (Players.LocalPlayer :: Player):WaitForChild("PlayerGui")
 		gui = newGui
-		makeButton(newGui, "left", "<", 0)
-		makeButton(newGui, "right", ">", 1)
-		paint()
-		-- Keep the server fresh while a direction is held.
+		makeStick(newGui)
+		-- Keep the server fresh while something is held.
 		task.spawn(function()
 			while running and generation == mine do
 				task.wait(GameConfig.Steer.resendSeconds)
-				local v = value()
-				if running and generation == mine and v ~= 0 then
-					send(v)
+				local s, g = steerValue(), gasValue()
+				if running and generation == mine and (s ~= 0 or g ~= 0) then
+					send(s, g)
 				end
 			end
 		end)
@@ -181,13 +243,13 @@ function SteerInput.new(send: (value: number) -> ()): SteerInput
 		end
 		running = false
 		generation += 1
-		table.clear(buttons)
+		base, knob, activeInput = nil, nil, nil
 		if gui then
 			gui:Destroy()
 			gui = nil
 		end
-		sent = 0
-		send(0)
+		sentSteer, sentGas = 0, 0
+		send(0, 0)
 	end
 
 	return self

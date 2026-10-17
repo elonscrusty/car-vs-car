@@ -176,10 +176,12 @@ function Autopilot.step(
 	end
 end
 
--- Human car: gas is always on; `steerInput` (-1 left .. 1 right, already smoothed) turns it.
+-- Human car: `steerInput` (-1 left .. 1 right) turns it, `throttle` (-1 back .. 1 forward) is
+-- the gas. Both are already smoothed.
 function Autopilot.stepManual(
 	car: CarBuilder.Car,
 	steerInput: number,
+	throttle: number,
 	dt: number,
 	rayParams: RaycastParams,
 	mods: Mods?
@@ -198,7 +200,7 @@ function Autopilot.stepManual(
 		car.body,
 		Steer.spin(steerInput, car.stats.turnRate, GameConfig.Drive.manualTurn * turnScale)
 	)
-	push(car, fwd, 1, hit, dt, mods)
+	push(car, fwd, throttle, hit, dt, mods)
 end
 
 return Autopilot

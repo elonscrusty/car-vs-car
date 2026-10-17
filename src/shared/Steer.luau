@@ -5,6 +5,7 @@
 export type State = {
 	value: number, -- last sanitized input
 	at: number, -- time (seconds) it arrived
+	throttle: number, -- last sanitized gas: 1 forward, -1 back, 0 coast
 }
 
 local Steer = {}
@@ -33,18 +34,29 @@ function Steer.smooth(current: number, target: number, dt: number, rate: number)
 end
 
 function Steer.newState(): State
-	return { value = 0, at = -math.huge }
+	return { value = 0, at = -math.huge, throttle = 0 }
 end
 
--- Stores a raw client value (sanitized) with the time it arrived.
-function Steer.set(state: State, raw: any, now: number)
+-- Stores a raw client value (sanitized) with the time it arrived. `rawThrottle` is the gas
+-- (-1 back .. 1 forward); a client that sends none (nil) keeps the gas fully on.
+function Steer.set(state: State, raw: any, now: number, rawThrottle: any?)
 	state.value = Steer.sanitize(raw)
+	state.throttle = if rawThrottle == nil then 1 else Steer.sanitize(rawThrottle)
 	state.at = now
 end
 
 function Steer.reset(state: State)
 	state.value = 0
+	state.throttle = 0
 	state.at = -math.huge
+end
+
+-- The gas to use right now: 0 (coast) when nothing arrived for `staleAfter` seconds.
+function Steer.currentThrottle(state: State, now: number, staleAfter: number): number
+	if now - state.at > staleAfter then
+		return 0
+	end
+	return state.throttle
 end
 
 -- The input to use right now: 0 when nothing arrived for `staleAfter` seconds, so a lost

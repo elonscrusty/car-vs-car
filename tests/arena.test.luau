@@ -15,8 +15,8 @@ test("flat arena has no slope", function()
 	eq(ArenaMath.surfaceHeight(999, A.flatRadius, A.rimRadius, A.tiltDeg), 0)
 end)
 
-test("arena is a small one, 60 to 100 studs across", function()
-	truthy(A.rimRadius * 2 >= 60 and A.rimRadius * 2 <= 100)
+test("arena is 100 to 140 studs across", function()
+	truthy(A.rimRadius * 2 >= 100 and A.rimRadius * 2 <= 140)
 end)
 
 test("a sloped bowl still gets a longer slab than its run", function()

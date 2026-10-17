@@ -153,10 +153,10 @@ remotes.Launch.OnServerEvent:Connect(function(player: Player, angle: any, power:
 	end
 end)
 
-remotes.Steer.OnServerEvent:Connect(function(player: Player, value: any)
+remotes.Steer.OnServerEvent:Connect(function(player: Player, value: any, throttle: any)
 	local g = groups[player]
 	if g and steerLimiter.allow(player, os.clock()) then
-		g.match.steer(player, value)
+		g.match.steer(player, value, throttle)
 	end
 end)
 
