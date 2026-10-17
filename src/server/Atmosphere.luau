@@ -1,6 +1,5 @@
 --!strict
--- Look of the whole game: bright cartoon lighting (even sky-blue ambient, soft warm sun, soft shadows,
--- no haze), punchy colours, and a tiny bloom that only catches the neon signs.
+-- Look of the whole game: lighting, a little haze, bloom for the neon, and gentle colour grading.
 -- Built once at start. Cheap on purpose (no depth of field, no shadows from small stuff) so it
 -- runs fine on phones. Existing effects of the same kind are reused, not doubled.
 
@@ -39,38 +38,37 @@ function Atmosphere.apply()
 	end
 	Lighting.ClockTime = 14
 	Lighting.GeographicLatitude = 35
-	Lighting.Brightness = 2.2
-	Lighting.Ambient = Color3.fromRGB(150, 160, 185)
-	Lighting.OutdoorAmbient = Color3.fromRGB(160, 168, 188)
-	Lighting.ColorShift_Top = Color3.fromRGB(255, 236, 205)
-	Lighting.ColorShift_Bottom = Color3.fromRGB(150, 190, 255)
-	Lighting.EnvironmentDiffuseScale = 0.3
-	Lighting.EnvironmentSpecularScale = 0.1
+	Lighting.Brightness = 2.3
+	Lighting.Ambient = Color3.fromRGB(88, 86, 84)
+	Lighting.OutdoorAmbient = Color3.fromRGB(135, 132, 128)
+	Lighting.ColorShift_Top = Color3.fromRGB(255, 232, 200)
+	Lighting.EnvironmentDiffuseScale = 0.6
+	Lighting.EnvironmentSpecularScale = 0.4
 	Lighting.ExposureCompensation = 0
 	Lighting.GlobalShadows = true
-	Lighting.ShadowSoftness = 0.6
+	Lighting.ShadowSoftness = 0.35
 
 	local haze: Atmosphere = effect("Atmosphere", "GameAtmosphere")
-	haze.Density = 0
+	haze.Density = 0.22
 	haze.Offset = 0.15
 	haze.Color = Color3.fromRGB(215, 214, 205)
 	haze.Decay = Color3.fromRGB(140, 130, 115)
 	haze.Glare = 0
-	haze.Haze = 0
+	haze.Haze = 0.8
 
 	local bloom: BloomEffect = effect("BloomEffect", "GameBloom")
-	bloom.Intensity = 0.12
-	bloom.Size = 14
-	bloom.Threshold = 2.2
+	bloom.Intensity = 0.02
+	bloom.Size = 12
+	bloom.Threshold = 2
 
 	local grade: ColorCorrectionEffect = effect("ColorCorrectionEffect", "GameGrade")
-	grade.Saturation = 0.28
-	grade.Contrast = 0.14
-	grade.Brightness = 0.01
-	grade.TintColor = Color3.fromRGB(255, 249, 238)
+	grade.Saturation = -0.08
+	grade.Contrast = 0.06
+	grade.Brightness = 0.02
+	grade.TintColor = Color3.fromRGB(255, 244, 228)
 
 	local rays: SunRaysEffect = effect("SunRaysEffect", "GameSunRays")
-	rays.Intensity = 0
+	rays.Intensity = 0.03
 	rays.Spread = 0.6
 end
 
