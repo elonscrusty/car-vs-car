@@ -1,0 +1,27 @@
+--!strict
+-- All lobby numbers live here. Tweak freely.
+
+local LobbyConfig = {}
+
+-- Vector3 does not exist under plain Lune (tests), so fall back to a same-shaped table there.
+local okOrigin, origin = pcall(function()
+	return Vector3.new(0, 3, 500)
+end)
+LobbyConfig.Lobby = {
+	origin = (if okOrigin then origin else { X = 0, Y = 3, Z = 500 }) :: Vector3,
+	padCount = 3,
+}
+LobbyConfig.Pad = { maxPlayers = 2, countdownSeconds = 3, pickSeconds = 15 }
+LobbyConfig.Rewards = { winCoins = 25, loseCoins = 5, endScreenSeconds = 4 }
+LobbyConfig.StarterCars = { "Heavy" } -- owned by a new player
+LobbyConfig.PickChoices = 3
+LobbyConfig.Rarity =
+	{ Heavy = "Common", Light = "Common", Ramp = "Rare", Spike = "Epic" } :: { [string]: string }
+LobbyConfig.Gacha = {
+	price = 100,
+	firstPullFree = true,
+	odds = { Common = 60, Rare = 30, Epic = 10 } :: { [string]: number }, -- percent, must sum to 100
+	duplicateRefund = 50, -- coins back on a car you own
+}
+
+return LobbyConfig

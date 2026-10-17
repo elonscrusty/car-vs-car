@@ -1,0 +1,21 @@
+name: CI
+on:
+  push:
+  pull_request:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: CompeyDev/setup-rokit@v0.1.2
+      - name: Format check
+        run: stylua --check src tests
+      - name: Lint
+        run: |
+          selene generate-roblox-std
+          selene src
+          selene --config tests/selene.toml tests
+      - name: Unit tests
+        run: lune run tests/run
+      - name: Build place
+        run: rojo build default.project.json -o CarVsCar.rbxl
