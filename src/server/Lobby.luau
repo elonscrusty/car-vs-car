@@ -4,6 +4,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local ServerStorage = game:GetService("ServerStorage")
 
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
 local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
@@ -22,6 +23,8 @@ export type LobbyHandle = {
 }
 
 local Lobby = {}
+
+local CLAW_YAW_DEG = 90 -- turns the imported claw machine so its front faces the middle of the lobby
 
 local PINK = Color3.fromRGB(255, 60, 170)
 local BLUE = Color3.fromRGB(60, 170, 255)
@@ -417,6 +420,31 @@ function Lobby.build(): LobbyHandle
 	label(gSign, Enum.NormalId.Front, "GACHA", YELLOW, PINK)
 	glow(gSign, YELLOW, 24, 1.2)
 	prompt(gBase, "GachaPrompt", "Open", "Gacha")
+
+	-- Claw machine model (imported once in Studio, saved as ServerStorage.Models.ClawMachine).
+	-- When it exists it replaces the placeholder gacha machine above and keeps the same prompt.
+	local models = ServerStorage:FindFirstChild("Models")
+	local clawTemplate = models and models:FindFirstChild("ClawMachine")
+	if clawTemplate and clawTemplate:IsA("Model") then
+		for _, child in folder:GetChildren() do
+			if child ~= gBase and (child.Name:sub(1, 5) == "Gacha" or child.Name == "Capsule") then
+				child:Destroy()
+			end
+		end
+		-- The old body stays as an invisible anchor for "GachaPrompt".
+		gBase.Transparency = 1
+		gBase.CanCollide = false
+		local claw = clawTemplate:Clone()
+		claw.Name = "ClawMachine"
+		for _, d in claw:GetDescendants() do
+			if d:IsA("BasePart") then
+				d.Anchored = true
+			end
+		end
+		-- Floor level, facing the middle of the lobby (+X from the left wall).
+		claw:PivotTo(world(g.x, 0, g.z) * CFrame.Angles(0, math.rad(CLAW_YAW_DEG), 0))
+		claw.Parent = folder
+	end
 
 	-- Store counter: blue desk with a shelf of toy cars, sign, prompt.
 	local s = L.store
