@@ -60,6 +60,8 @@ local function startMatch(participants: { Match.Participant })
 			table.insert(ok, {
 				player = player,
 				carId = part.carId,
+				appearance = part.appearance,
+				botLevel = part.botLevel,
 				onFinished = function(won: boolean)
 					leaveGroup(player)
 					finished(won)
