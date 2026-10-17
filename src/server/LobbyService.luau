@@ -5,6 +5,7 @@
 -- The pad rules live in the pure module PadLogic (unit tested).
 
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Gacha = require(ReplicatedStorage.Shared.Gacha)
@@ -348,6 +349,18 @@ function LobbyService.start(deps: Deps): Handle
 				end
 			elseif action == "leavePad" then
 				cancelPlayer(player)
+			elseif action == "devMatch" and RunService:IsStudio() then
+				-- Studio-only shortcut: skip pads, fight the bot now with a random owned car.
+				local cur = players[player]
+				if cur and cur.stage == "match" then
+					return
+				end
+				local p = Profiles.get(player)
+				local owned = if p then Inventory.ownedList(p) else { "Heavy" }
+				local carId = owned[math.random(1, #owned)] or "Heavy"
+				cancelPlayer(player)
+				players[player] = { stage = "picking", offered = { carId }, token = 0 }
+				startPlayerMatch(player, carId)
 			end
 		end,
 		stop = function()

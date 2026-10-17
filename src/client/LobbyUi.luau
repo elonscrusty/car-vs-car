@@ -6,6 +6,7 @@
 local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
@@ -210,6 +211,20 @@ function LobbyUi.new(hooks: Hooks): Handle
 	local winsLabel = label(hud, "0 WINS", UDim2.fromScale(0.9, 0.34), UDim2.fromScale(0.05, 0.62))
 	winsLabel.TextColor3 = CYAN
 	winsLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+	-- Studio-only test button (server also checks IsStudio before doing anything).
+	if RunService:IsStudio() then
+		local dev = button(
+			gui,
+			"DEV: BOT MATCH",
+			UDim2.fromOffset(190, 52),
+			UDim2.fromOffset(12, 96),
+			Color3.fromRGB(200, 60, 40)
+		)
+		dev.Activated:Connect(function()
+			send("devMatch")
+		end)
+	end
 
 	local function refreshHud()
 		coinsLabel.Text = LobbyText.coinsText(coins)

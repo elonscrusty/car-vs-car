@@ -177,6 +177,12 @@ function Lobby.build(): LobbyHandle
 		return at * CFrame.new(x, y, z)
 	end
 
+	-- A leftover Lobby (e.g. built in edit mode) would overlap this one and flicker.
+	for _, old in workspace:GetChildren() do
+		if old.Name == "Lobby" then
+			old:Destroy()
+		end
+	end
 	local folder = Instance.new("Folder")
 	folder.Name = "Lobby"
 	local room = L.room
