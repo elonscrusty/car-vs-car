@@ -457,6 +457,11 @@ function LobbyService.start(deps: Deps): Handle
 		local p = Profiles.get(player)
 		if p ~= nil and BotLevels.isValid(level) then
 			p.botLevel = level
+			Profiles.markDirty(player)
+			sendProfile(player)
+		end
+	end
+
 	-- Quest reward / daily gift: the server checks everything, repeats pay nothing.
 	local function claimQuest(player: Player, index: any)
 		local p = Profiles.get(player)
