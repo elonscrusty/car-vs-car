@@ -384,6 +384,15 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 	-- Bot difficulty (lone player vs bot); medium when unset or unknown.
 	local botLevel = BotLevels.get(if participants[1] then participants[1].botLevel else nil)
 
+	local function parkCharacter(player: Player)
+		local char = player.Character
+		local root = if char then char:FindFirstChild("HumanoidRootPart") else nil
+		if char and root and root:IsA("BasePart") then
+			root.Anchored = true
+			char:PivotTo(CFrame.new(origin + Vector3.new(0, -12, 0)))
+		end
+	end
+
 	local function startFight()
 		phase = "fight"
 		lastHitAt = -math.huge
@@ -412,6 +421,9 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 		end
 		-- Each human gets the physics of their own car a moment after the launch push, so their
 		-- device can drive it with no lag. Test players (not real Players) stay server-driven.
+		-- A device only simulates parts near its character, and arenas are far from the lobby, so
+		-- the character is parked (anchored) under the arena floor for the fight. The lobby brings
+		-- it back (LoadCharacter) when the player leaves the match.
 		task.delay(0.15, function()
 			if destroyed or phase ~= "fight" then
 				return
@@ -419,6 +431,7 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 			for i, car in cars do
 				local part = participants[i]
 				if part and not gone[i] and typeof(part.player) == "Instance" then
+					parkCharacter(part.player)
 					local ok = pcall(function()
 						car.body:SetNetworkOwner(part.player)
 					end)
