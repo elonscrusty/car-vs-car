@@ -15,6 +15,10 @@ local BotLevels = sibling("BotLevels")
 local Hints = sibling("Hints")
 local LobbyConfig = sibling("LobbyConfig")
 local Progress = sibling("Progress")
+local Daily = sibling("Daily")
+local Hints = sibling("Hints")
+local LobbyConfig = sibling("LobbyConfig")
+local Quests = sibling("Quests")
 
 export type Profile = {
 	version: number,
@@ -25,6 +29,8 @@ export type Profile = {
 	hintsSeen: { [string]: boolean }, -- first-time hints already shown (see Hints)
 	progress: Progress.Data, -- car XP and win streak (see Progress)
 	botLevel: string, -- bot difficulty: "easy" | "medium" | "hard"
+	quests: { { id: string, progress: number } }, -- active quests (see Quests)
+	daily: { lastDay: number, freePulls: number }, -- daily gift state (see Daily)
 }
 
 local Inventory = {}
@@ -59,6 +65,8 @@ function Inventory.default(): Profile
 		hintsSeen = {},
 		progress = Progress.default(),
 		botLevel = "medium",
+		quests = {},
+		daily = Daily.default(),
 	}
 end
 
@@ -88,6 +96,8 @@ function Inventory.migrate(raw: any): Profile
 		hintsSeen = Hints.clean(raw.hintsSeen),
 		progress = Progress.clean(raw.progress),
 		botLevel = if BotLevels.isValid(raw.botLevel) then raw.botLevel else "medium",
+		quests = Quests.clean(raw.quests),
+		daily = Daily.clean(raw.daily),
 	}
 end
 

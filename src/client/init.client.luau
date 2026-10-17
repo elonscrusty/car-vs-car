@@ -17,6 +17,7 @@ local LobbyUi = require(script.LobbyUi)
 local BotLevelUi = require(script.BotLevelUi)
 local MenuBar = require(script.MenuBar)
 local ProgressUi = require(script.ProgressUi)
+local QuestUi = require(script.QuestUi)
 local SteerInput = require(script.SteerInput)
 local Ui = require(script.Ui)
 
@@ -27,6 +28,10 @@ local menu = MenuBar.new() -- features add their own lobby buttons here (see Men
 local progressUi = ProgressUi.new()
 local botLevelUi = BotLevelUi.new(menu, function(level: string)
 	remotes.LobbyAction:FireServer("setBotLevel", level)
+end)
+
+local questUi = QuestUi.new(menu, function(action: string, arg: any?)
+	remotes.LobbyAction:FireServer(action, arg)
 end)
 
 local camSide: Vector3? = nil -- from the middle toward your car, fixed for the whole match
@@ -60,6 +65,7 @@ local lobby = LobbyUi.new({
 })
 remotes.LobbyUpdate.OnClientEvent:Connect(function(u: Types.LobbyUpdate)
 	lobby.handleUpdate(u)
+	questUi.handleUpdate(u)
 	if u.kind == "profile" then
 		hints.loadSeen(u.hintsSeen)
 		progressUi.update(u.carLevels, u.rank, u.streak)

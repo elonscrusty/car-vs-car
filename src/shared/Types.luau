@@ -38,6 +38,8 @@ export type LobbyUpdate =
 		rank: string?,
 		streak: number?,
 		botLevel: string?,
+		quests: { { title: string, progress: number, target: number, reward: number, done: boolean } }?,
+		daily: { ready: boolean, freePulls: number }?,
 	}
 	| { kind: "gacha", carId: string, isNew: boolean, refund: number, free: boolean, coins: number }
 	| { kind: "gachaError", reason: string }
