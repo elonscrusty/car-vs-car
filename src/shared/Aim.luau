@@ -3,13 +3,13 @@
 
 local Aim = {}
 
--- Turn the flat "toward center" direction by angleDeg (positive = left, seen from above).
+-- Turn the flat "toward center" direction by angleDeg (positive = left on screen).
 function Aim.direction(base: Vector3, angleDeg: number): Vector3
 	local flat = Vector3.new(base.X, 0, base.Z)
 	if flat.Magnitude < 1e-4 then
 		return Vector3.zAxis
 	end
-	return CFrame.fromAxisAngle(Vector3.yAxis, math.rad(angleDeg)):VectorToWorldSpace(flat.Unit)
+	return CFrame.fromAxisAngle(Vector3.yAxis, math.rad(-angleDeg)):VectorToWorldSpace(flat.Unit)
 end
 
 return Aim

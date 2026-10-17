@@ -14,7 +14,9 @@ local Match = require(script.Match)
 Players.CharacterAutoLoads = false
 
 local remotes = Remotes.get()
-local limiter = RateLimiter.new(GameConfig.Remote.maxPerWindow, GameConfig.Remote.windowSeconds)
+local launchLimiter =
+	RateLimiter.new(GameConfig.Remote.maxPerWindow, GameConfig.Remote.windowSeconds)
+local selectLimiter = RateLimiter.new(3, GameConfig.Remote.windowSeconds)
 
 local matches: { [Player]: Match.Handle } = {}
 local slots: { [Player]: number } = {}
@@ -47,19 +49,20 @@ local function onPlayerRemoving(player: Player)
 	end
 	matches[player] = nil
 	slots[player] = nil
-	limiter.clear(player)
+	launchLimiter.clear(player)
+	selectLimiter.clear(player)
 end
 
 remotes.SelectCar.OnServerEvent:Connect(function(player: Player, carId: any)
 	local m = matches[player]
-	if m and limiter.allow(player, os.clock()) then
+	if m and selectLimiter.allow(player, os.clock()) then
 		m.selectCar(carId)
 	end
 end)
 
 remotes.Launch.OnServerEvent:Connect(function(player: Player, angle: any, power: any)
 	local m = matches[player]
-	if m and limiter.allow(player, os.clock()) then
+	if m and launchLimiter.allow(player, os.clock()) then
 		m.launch(angle, power)
 	end
 end)

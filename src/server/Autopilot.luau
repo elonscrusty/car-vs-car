@@ -58,7 +58,8 @@ function Autopilot.step(
 
 	-- 2. Only drive when wheels are on the ground (no mid-air steering).
 	local reach = stats.size[2] / 2 + GameConfig.Drive.groundRayExtra
-	local grounded = workspace:Raycast(cf.Position, Vector3.new(0, -reach, 0), rayParams) ~= nil
+	local hit = workspace:Raycast(cf.Position, Vector3.new(0, -reach, 0), rayParams)
+	local grounded = hit ~= nil and (hit.Instance.Name == "Floor" or hit.Instance.Name == "Slope")
 	if not grounded then
 		return
 	end
