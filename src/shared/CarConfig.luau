@@ -1,0 +1,104 @@
+--!strict
+-- The 4 placeholder cars. ALL car numbers live here.
+-- hp: health. mass: weight (bigger = harder to push). maxSpeed: top auto-pilot speed.
+-- accel: how fast it speeds up. turnRate: max spin speed (radians/sec).
+-- damageMult: damage multiplier when this car is the one hitting.
+-- hitLift: extra upward kick given to the enemy on hit (Ramp flips things).
+-- ai: auto-pilot style ("BackupCharge", "CircleDive", "Direct").
+
+export type AiStyle = "BackupCharge" | "CircleDive" | "Direct"
+
+export type CarStats = {
+	name: string,
+	blurb: string,
+	rgb: { number }, -- {r, g, b} 0-255
+	size: { number }, -- {x, y, z} in studs. Car faces -Z.
+	hp: number,
+	mass: number,
+	maxSpeed: number,
+	accel: number,
+	turnRate: number,
+	damageMult: number,
+	hitLift: number,
+	ai: AiStyle,
+}
+
+local CarConfig = {}
+
+-- Order shown in the pick menu.
+CarConfig.Order = { "Heavy", "Light", "Ramp", "Spike" }
+
+CarConfig.Cars = {
+	Heavy = {
+		name = "HEAVY",
+		blurb = "Tank. Slow. Charges.",
+		rgb = { 220, 50, 50 },
+		size = { 7, 3, 11 },
+		hp = 220,
+		mass = 120,
+		maxSpeed = 45,
+		accel = 55,
+		turnRate = 1.6,
+		damageMult = 1.2,
+		hitLift = 0,
+		ai = "BackupCharge",
+	},
+	Light = {
+		name = "LIGHT",
+		blurb = "Fast. Fragile. Sneaky.",
+		rgb = { 250, 210, 40 },
+		size = { 4, 2, 6 },
+		hp = 100,
+		mass = 25,
+		maxSpeed = 85,
+		accel = 110,
+		turnRate = 3.2,
+		damageMult = 0.8,
+		hitLift = 0,
+		ai = "CircleDive",
+	},
+	Ramp = {
+		name = "RAMP",
+		blurb = "Flips the enemy.",
+		rgb = { 60, 120, 240 },
+		size = { 5, 2.2, 8 },
+		hp = 150,
+		mass = 55,
+		maxSpeed = 60,
+		accel = 75,
+		turnRate = 2.4,
+		damageMult = 0.8,
+		hitLift = 22,
+		ai = "Direct",
+	},
+	Spike = {
+		name = "SPIKE",
+		blurb = "Ouch. Big damage.",
+		rgb = { 150, 70, 220 },
+		size = { 5, 2.5, 8 },
+		hp = 150,
+		mass = 60,
+		maxSpeed = 60,
+		accel = 75,
+		turnRate = 2.4,
+		damageMult = 1.7,
+		hitLift = 0,
+		ai = "Direct",
+	},
+} :: { [string]: CarStats }
+
+-- Returns the stats for an id, or nil if the id is not a real car.
+-- Takes `any` because the id can come from a client.
+function CarConfig.get(id: any): CarStats?
+	if type(id) ~= "string" then
+		return nil
+	end
+	for _, known in CarConfig.Order do
+		if known == id then
+			return CarConfig.Cars[id]
+		end
+	end
+	return nil
+end
+
+return CarConfig

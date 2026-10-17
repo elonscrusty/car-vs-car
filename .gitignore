@@ -1,0 +1,6 @@
+roblox.yml
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+sourcemap.json
