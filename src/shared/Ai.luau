@@ -14,7 +14,14 @@ export type Params = {
 }
 
 -- Per-car memory between frames. `hit` is set by the server when a hit happened.
-export type Memory = { phase: string, t: number, side: number, hit: boolean }
+export type Memory = {
+	phase: string,
+	t: number,
+	side: number,
+	hit: boolean,
+	reverseT: number, -- > 0: back up for this many more seconds
+	stuckT: number, -- seconds spent barely moving
+}
 
 export type Command = { tx: number, tz: number, throttle: number }
 
@@ -25,7 +32,7 @@ function Ai.newMemory(style: string, side: number): Memory
 	if style == "CircleDive" then
 		phase = "circle"
 	end
-	return { phase = phase, t = 0, side = side, hit = false }
+	return { phase = phase, t = 0, side = side, hit = false, reverseT = 0, stuckT = 0 }
 end
 
 -- Angle (radians) to turn from facing (fx,fz) to point at (tx,tz).
@@ -49,6 +56,20 @@ function Ai.driveScale(angle: number, throttle: number): number
 	return throttle * math.max(0.15, math.cos(angle))
 end
 
+-- Called each frame with ground speed. Barely moving for `limit` seconds = nose-to-nose
+-- standoff, so back up for `reverseTime` seconds.
+function Ai.noteSpeed(mem: Memory, speed: number, dt: number, limit: number, reverseTime: number)
+	if speed > 4 or mem.reverseT > 0 then
+		mem.stuckT = 0
+		return
+	end
+	mem.stuckT += dt
+	if mem.stuckT >= limit then
+		mem.stuckT = 0
+		mem.reverseT = reverseTime
+	end
+end
+
 local function rotate(x: number, z: number, ang: number): (number, number)
 	local c, s = math.cos(ang), math.sin(ang)
 	return x * c + z * s, -x * s + z * c
@@ -66,6 +87,16 @@ function Ai.decide(
 	mem.t += dt
 	local hit = mem.hit
 	mem.hit = false
+
+	-- Backing up (after a stand-off, or after a Direct car's hit): reverse, nose on enemy.
+	if mem.reverseT > 0 then
+		mem.reverseT -= dt
+		return { tx = enemy.x, tz = enemy.z, throttle = -1 }
+	end
+	if hit and style == "Direct" then
+		mem.reverseT = p.backupTime * 0.5
+		return { tx = enemy.x, tz = enemy.z, throttle = -1 }
+	end
 
 	if style == "BackupCharge" then
 		-- Heavy: charge straight; after a hit (or too long) back up, then charge again.

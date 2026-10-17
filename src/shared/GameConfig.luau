@@ -49,6 +49,8 @@ local GameConfig = {
 		diveMax = 1.5, -- Light: longest dive before circling again
 		circleRadius = 22, -- Light: circle distance around enemy
 		circleAngleDeg = 40, -- Light: how far around enemy to aim each step
+		stuckSeconds = 0.8, -- barely moving this long = nose-to-nose standoff, back up
+		unstickBackup = 1, -- seconds to reverse out of a standoff
 	},
 	Dummy = {
 		launchUp = 70, -- upward speed of the crash dummy (studs/sec)

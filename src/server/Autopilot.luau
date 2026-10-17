@@ -65,6 +65,8 @@ function Autopilot.step(
 	end
 
 	-- 3. Ask the AI what to do.
+	local flatSpeed = flat(body.AssemblyLinearVelocity).Magnitude
+	Ai.noteSpeed(car.ai, flatSpeed, dt, GameConfig.Ai.stuckSeconds, GameConfig.Ai.unstickBackup)
 	local pos, epos = cf.Position, enemy.body.Position
 	local cmd = Ai.decide(
 		stats.ai,

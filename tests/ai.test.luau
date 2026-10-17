@@ -86,3 +86,25 @@ test("CircleDive survives standing on top of the enemy", function()
 	local c = Ai.decide("CircleDive", enemy, enemy, mem, 0.1, P)
 	truthy(c.tx == c.tx and c.tz == c.tz, "no NaN")
 end)
+
+test("Direct backs up briefly after a hit, then charges again", function()
+	local mem = Ai.newMemory("Direct", 1)
+	mem.hit = true
+	eq(Ai.decide("Direct", me, enemy, mem, 0.1, P).throttle, -1)
+	for _ = 1, 20 do
+		Ai.decide("Direct", me, enemy, mem, 0.1, P)
+	end
+	eq(Ai.decide("Direct", me, enemy, mem, 0.1, P).throttle, 1)
+end)
+
+test("noteSpeed: stuck for a while triggers reverse, moving resets", function()
+	local mem = Ai.newMemory("Direct", 1)
+	Ai.noteSpeed(mem, 0, 0.5, 0.8, 1)
+	eq(mem.reverseT, 0)
+	Ai.noteSpeed(mem, 20, 0.1, 0.8, 1)
+	eq(mem.stuckT, 0)
+	Ai.noteSpeed(mem, 0, 0.5, 0.8, 1)
+	Ai.noteSpeed(mem, 0, 0.5, 0.8, 1)
+	eq(mem.reverseT, 1)
+	eq(Ai.decide("Direct", me, enemy, mem, 0.1, P).throttle, -1)
+end)
