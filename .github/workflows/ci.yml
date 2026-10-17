@@ -13,7 +13,8 @@ jobs:
       - name: Lint
         run: |
           selene generate-roblox-std
-          selene src tests
+          selene src
+          selene --config tests/selene.toml tests
       - name: Unit tests
         run: lune run tests/run
       - name: Build place
