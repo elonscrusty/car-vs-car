@@ -10,7 +10,11 @@ local Ai = require(ReplicatedStorage.Shared.Ai)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local Logic = require(ReplicatedStorage.Shared.Logic)
 local Steer = require(ReplicatedStorage.Shared.Steer)
+local Buffs = require(script.Parent.Buffs)
 local CarBuilder = require(script.Parent.CarBuilder)
+
+-- Per-frame move effects for a human car (boost, drift). All 1 = normal driving.
+export type Mods = { speedScale: number, accelScale: number, gripScale: number, turnScale: number }
 
 local Autopilot = {}
 
@@ -66,20 +70,22 @@ local function push(
 	fwd: Vector3,
 	throttle: number,
 	hit: RaycastResult,
-	dt: number
+	dt: number,
+	mods: Mods?
 )
 	local body = car.body
 	local stats = car.stats
 	local mass = body.AssemblyMass
 	local vel = body.AssemblyLinearVelocity
 	local forwardSpeed = vel:Dot(fwd)
-	local maxSpeed = stats.maxSpeed
+	local maxSpeed = stats.maxSpeed * Buffs.speedMult(car) * (if mods then mods.speedScale else 1)
 	if
 		(throttle > 0 and forwardSpeed < maxSpeed)
 		or (throttle < 0 and forwardSpeed > -maxSpeed * 0.6)
 	then
 		-- Impulse = mass x speed change.
-		body:ApplyImpulse(fwd * throttle * stats.accel * mass * dt)
+		local accelScale = if mods then mods.accelScale else 1
+		body:ApplyImpulse(fwd * throttle * stats.accel * accelScale * mass * dt)
 		-- Slope assist: while driving, cancel the part of gravity that pulls back along the slope,
 		-- so a heavy car can climb the bowl instead of stalling facing uphill.
 		if throttle > 0 then
@@ -94,7 +100,10 @@ local function push(
 	-- Grip: cancel part of the sideways slide so it drives like a car, not soap.
 	local right = Vector3.new(-fwd.Z, 0, fwd.X)
 	local sideSpeed = vel:Dot(right)
-	body:ApplyImpulse(-right * sideSpeed * math.min(1, GameConfig.Drive.grip * dt) * mass)
+	local gripScale = if mods then mods.gripScale else 1
+	body:ApplyImpulse(
+		-right * sideSpeed * math.min(1, GameConfig.Drive.grip * gripScale * dt) * mass
+	)
 end
 
 local function setSpin(body: BasePart, spin: number)
@@ -148,7 +157,8 @@ function Autopilot.stepManual(
 	car: CarBuilder.Car,
 	steerInput: number,
 	dt: number,
-	rayParams: RaycastParams
+	rayParams: RaycastParams,
+	mods: Mods?
 )
 	local hit = groundHit(car, dt, rayParams)
 	if hit == nil then
@@ -159,8 +169,12 @@ function Autopilot.stepManual(
 		return
 	end
 	fwd = fwd.Unit
-	setSpin(car.body, Steer.spin(steerInput, car.stats.turnRate, GameConfig.Drive.manualTurn))
-	push(car, fwd, 1, hit, dt)
+	local turnScale = if mods then mods.turnScale else 1
+	setSpin(
+		car.body,
+		Steer.spin(steerInput, car.stats.turnRate, GameConfig.Drive.manualTurn * turnScale)
+	)
+	push(car, fwd, 1, hit, dt, mods)
 end
 
 return Autopilot

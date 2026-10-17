@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Types = require(ReplicatedStorage.Shared.Types)
+local ActionInput = require(script.ActionInput)
 local AimInput = require(script.AimInput)
 local CameraDirector = require(script.CameraDirector)
 local Effects = require(script.Effects)
@@ -23,6 +24,7 @@ local menu = MenuBar.new() -- features add their own lobby buttons here (see Men
 local camSide: Vector3? = nil -- from the middle toward your car, fixed for the whole match
 local aim: AimInput.AimInput
 local steering: SteerInput.SteerInput
+local actions: ActionInput.ActionInput
 local view: Ui.View
 
 -- First-time hints: the server saves which ones were shown (profile.hintsSeen).
@@ -40,6 +42,7 @@ local lobby = LobbyUi.new({
 	onToLobby = function()
 		aim.stop()
 		steering.stop()
+		actions.stop()
 		view.hideMatch()
 		director.release()
 		menu.setVisible(true)
@@ -74,6 +77,10 @@ steering = SteerInput.new(function(value: number)
 	remotes.Steer:FireServer(value)
 end)
 
+actions = ActionInput.new(function(name: string)
+	remotes.Action:FireServer(name)
+end)
+
 remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 	if u.kind == "aim" then
 		menu.setVisible(false)
@@ -101,8 +108,12 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		hints.done("aim")
 		view.showFight()
 		steering.start() -- the server ignores Steer outside the fight
+		actions.start()
+	elseif u.kind == "move" then
+		actions.cooldown(u.move or "", u.seconds or 0)
 	elseif u.kind == "roundEnd" then
 		steering.stop()
+		actions.stop()
 		view.showRoundEnd(u.youLost == true)
 		director.focus(u.focus)
 	elseif u.kind == "hit" then
@@ -119,6 +130,7 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 	elseif u.kind == "matchEnd" then
 		aim.stop()
 		steering.stop()
+		actions.stop()
 		view.showMatchEnd(u.youWon == true)
 	end
 end)

@@ -7,6 +7,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
+local MovesConfig = require(ReplicatedStorage.Shared.MovesConfig)
 local RateLimiter = require(ReplicatedStorage.Shared.RateLimiter)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Lobby = require(script.Lobby)
@@ -22,6 +23,8 @@ local launchLimiter =
 	RateLimiter.new(GameConfig.Remote.maxPerWindow, GameConfig.Remote.windowSeconds)
 local steerLimiter =
 	RateLimiter.new(GameConfig.Remote.steerMaxPerWindow, GameConfig.Remote.steerWindowSeconds)
+local actionLimiter =
+	RateLimiter.new(MovesConfig.Remote.maxPerWindow, MovesConfig.Remote.windowSeconds)
 local lobbyLimiter = RateLimiter.new(6, GameConfig.Remote.windowSeconds)
 
 type Group = { match: Match.Handle, slot: number, remaining: number }
@@ -115,6 +118,7 @@ local function onPlayerRemoving(player: Player)
 	lobbyService.onPlayerRemoving(player)
 	launchLimiter.clear(player)
 	steerLimiter.clear(player)
+	actionLimiter.clear(player)
 	lobbyLimiter.clear(player)
 end
 
@@ -129,6 +133,13 @@ remotes.Steer.OnServerEvent:Connect(function(player: Player, value: any)
 	local g = groups[player]
 	if g and steerLimiter.allow(player, os.clock()) then
 		g.match.steer(player, value)
+	end
+end)
+
+remotes.Action.OnServerEvent:Connect(function(player: Player, name: any)
+	local g = groups[player]
+	if g and type(name) == "string" and actionLimiter.allow(player, os.clock()) then
+		g.match.action(player, name)
 	end
 end)
 

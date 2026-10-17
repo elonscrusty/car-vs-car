@@ -2,7 +2,8 @@
 -- Shapes of the messages the server sends to the client (UiUpdate remote).
 
 export type UiUpdate = {
-	kind: "aim" | "fight" | "roundEnd" | "matchEnd" | "hit" | "ko",
+	kind: "aim" | "fight" | "roundEnd" | "matchEnd" | "hit" | "ko" | "move",
+	move: string?, -- move: "boost" | "jump" | "special" (cooldown started, `seconds` long)
 	round: number?,
 	yourCar: string?,
 	enemyCar: string?,
