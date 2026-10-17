@@ -4,6 +4,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Ai = require(ReplicatedStorage.Shared.Ai)
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local HpBar = require(script.Parent.HpBar)
@@ -16,6 +17,8 @@ export type Car = {
 	body: Part,
 	hp: number,
 	dead: boolean,
+	ai: Ai.Memory,
+	flipTimer: number,
 	prevVel: Vector3, -- velocity from the end of last frame (used to measure impact)
 	bar: HpBar.Bar,
 	smoking: boolean,
@@ -175,6 +178,8 @@ function CarBuilder.build(id: string, idx: number, cf: CFrame, parent: Instance)
 		body = body,
 		hp = stats.hp,
 		dead = false,
+		ai = Ai.newMemory(stats.ai, if idx == 1 then 1 else -1),
+		flipTimer = 0,
 		prevVel = Vector3.zero,
 		bar = bar,
 		smoking = false,

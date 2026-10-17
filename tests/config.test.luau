@@ -38,15 +38,12 @@ test("Spike hits hardest, Heavy has most HP, Light is fastest", function()
 	truthy(c.Ramp.hitLift > 0)
 end)
 
-test("feel and coast numbers are sane", function()
-	local F, C, L, D = GameConfig.Feel, GameConfig.Coast, GameConfig.Launch, GameConfig.Drag
+test("feel and launch numbers are sane", function()
+	local F, L, D = GameConfig.Feel, GameConfig.Launch, GameConfig.Drag
 	truthy(F.hitStopMin <= F.hitStopMax and F.hitStopMax < 0.3, "hit stop short")
 	truthy(F.hitStopFrom >= 0 and F.hitStopFrom < 1, "hitStopFrom")
 	truthy(F.koFov < F.normalFov, "KO zooms in")
 	truthy(L.minSpeed > 0 and L.minSpeed < L.maxSpeed, "launch speeds")
 	truthy(D.minFrac > 0 and D.minFrac < D.maxFrac and D.maxFrac < 1, "drag range")
-	truthy(C.dragPerSec > 0 and C.dragPerSec < 5, "coast drag")
-	truthy(C.settleSpeed > 0 and C.settleTime > 0, "settle")
-	truthy(C.fightMaxSeconds > C.settleTime, "fight cap above settle time")
 	truthy(GameConfig.Match.aimTimeout > 0 and GameConfig.Match.maxMatchSeconds > 0, "match times")
 end)

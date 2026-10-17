@@ -30,29 +30,6 @@ function Duel.dragPower(lengthPx: number, minPx: number, maxPx: number): number
 	return math.clamp((lengthPx - minPx) / (maxPx - minPx), 0, 1)
 end
 
--- Settle timer: counts up while BOTH cars are slow, resets when either is fast.
-function Duel.tickSettle(timer: number, fastestSpeed: number, dt: number, slowBelow: number): number
-	if fastestSpeed >= slowBelow then
-		return 0
-	end
-	return timer + dt
-end
-
--- The fight phase is over when cars have been slow long enough, or the phase ran too long.
-function Duel.fightOver(
-	settleTimer: number,
-	elapsed: number,
-	settleTime: number,
-	maxTime: number
-): boolean
-	return settleTimer >= settleTime or elapsed >= maxTime
-end
-
--- Damage grows each round in a row where nobody got hit, so stalling cannot go on forever.
-function Duel.escalation(quietRounds: number, step: number): number
-	return 1 + math.max(0, quietRounds) * step
-end
-
 -- Match timer ran out? Returns winner 1 or 2 by HP, or 0 for an exact tie (sudden death).
 function Duel.timeoutWinner(hp1: number, hp2: number): number
 	if hp1 > hp2 then
@@ -79,10 +56,4 @@ function Duel.botAim(
 	end
 	return a
 end
-
--- Slow horizontal speed a bit every frame so cars coast to a stop. Returns the new multiplier.
-function Duel.dragFactor(dragPerSec: number, dt: number): number
-	return math.max(0, 1 - dragPerSec * dt)
-end
-
 return Duel

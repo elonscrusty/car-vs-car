@@ -17,7 +17,7 @@ local GameConfig = {
 	Match = {
 		aimTimeout = 8, -- seconds to aim before the server launches for you
 		roundEndDelay = 3.5, -- seconds to watch the dummy fly
-		maxMatchSeconds = 240, -- time up: higher HP wins, equal HP = next hit wins
+		maxMatchSeconds = 120, -- time up: higher HP wins, equal HP = next hit wins
 		outOfBoundsDrop = 40, -- car this far below the arena = counts as dead
 	},
 	Launch = {
@@ -28,14 +28,6 @@ local GameConfig = {
 	Drag = {
 		minFrac = 0.03, -- drags shorter than this share of the screen do nothing
 		maxFrac = 0.3, -- a drag this long = 100% power
-	},
-	-- Cars only coast after launch. Drag slows them; "settled" = both slow for a moment.
-	Coast = {
-		dragPerSec = 0.45, -- horizontal speed lost per second (share)
-		settleSpeed = 5, -- both cars slower than this (studs/sec) counts as stopped
-		settleTime = 0.8, -- ...for this many seconds
-		fightMaxSeconds = 15, -- hard cap per launch, then cars are forced to stop
-		quietDamageStep = 0.25, -- +25% damage for each round in a row with no hit
 	},
 	Damage = {
 		scale = 0.45, -- damage = impact speed x car multiplier x this
@@ -62,7 +54,23 @@ local GameConfig = {
 	-- Pushed past the rim = ring-out = lose the round.
 	RingOut = { margin = 3 },
 	Drive = {
-		groundFriction = 0.15, -- floor + car friction. Lower = slides more
+		turnGain = 8, -- how hard the car steers toward target
+		groundFriction = 0.05, -- floor + car friction. Lower = slides more, keeps speed
+		slopeAssist = 1, -- 0..1: how much of the uphill gravity pull the gas cancels
+		grip = 6, -- side slide killing (higher = less drifting)
+		groundRayExtra = 2.5, -- studs below car that still count as "on ground"
+	},
+	-- Auto-pilot behavior numbers (cars drive themselves after the launch)
+	Ai = {
+		chargeMax = 3, -- Heavy: longest straight charge before backing up
+		retreatTime = 1.1, -- after a hit: seconds driving away for a run-up
+		retreatDist = 28, -- how far away it aims during the run-up
+		maxRadius = 45, -- run-up target stays this close to bowl center
+		circleTime = 2, -- Light: seconds spent circling
+		diveMax = 1.5, -- Light: longest dive before circling again
+		circleRadius = 22, -- Light: circle distance around enemy
+		circleAngleDeg = 40, -- Light: how far around enemy to aim each step
+		stuckSeconds = 0.8, -- barely moving this long = nose-to-nose standoff, back up
 	},
 	Dummy = {
 		launchUp = 70, -- upward speed of the crash dummy (studs/sec)
