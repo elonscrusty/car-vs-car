@@ -3,6 +3,14 @@
 -- Pure data only (no Roblox calls) so unit tests can load it.
 
 local GameConfig = {
+	-- Which way a match plays. autoFight = true: build-and-watch (you build the car from parts, the
+	-- cars drive and fight by themselves, you only tap the optional power buttons).
+	-- autoFight = false: the old way (aim, launch, then steer your own car).
+	Mode = {
+		autoFight = true,
+		readySeconds = 3, -- auto fight: "get ready" countdown before the cars go
+		koFreezeSeconds = 0.35, -- auto fight: the finishing hit freezes the screen for this long
+	},
 	-- Bowl arena. Bigger tiltDeg = steeper bowl = cars roll back to the middle faster.
 	Arena = {
 		flatRadius = 62, -- flat middle disc (studs from center)

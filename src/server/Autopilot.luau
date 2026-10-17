@@ -51,7 +51,8 @@ function Autopilot.step(
 	dt: number,
 	rayParams: RaycastParams,
 	center: Vector3,
-	level: BotLevels.Level?
+	level: BotLevels.Level?,
+	mods: Mods? -- boost and such (build-and-watch: the player's power buttons)
 )
 	local lv = level or BotLevels.get(nil)
 	local body = car.body
@@ -96,7 +97,7 @@ function Autopilot.step(
 	if lv.speedMult < 1 and forwardSpeed > stats.maxSpeed * lv.speedMult then
 		throttle = 0 -- slower bot: coast above its lower top speed
 	end
-	push(car, fwd, throttle, hit, dt)
+	push(car, fwd, throttle, hit, dt, mods)
 	if
 		lv.speedMult > 1
 		and throttle > 0

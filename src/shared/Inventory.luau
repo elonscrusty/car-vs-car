@@ -19,6 +19,7 @@ local Daily = sibling("Daily")
 local Quests = sibling("Quests")
 local Paint = sibling("Paint")
 local Weapons = sibling("Weapons")
+local Build = sibling("Build")
 
 export type Profile = {
 	version: number,
@@ -33,6 +34,7 @@ export type Profile = {
 	daily: { lastDay: number, freePulls: number }, -- daily gift state (see Daily)
 	paint: Paint.PaintData, -- owned colors/stickers and what each car wears (see Paint)
 	weapons: Weapons.WeaponData, -- owned weapons and the one worn (see Weapons)
+	build: Build.BuildData, -- build-and-watch: chosen car, parts and part levels (see Build)
 }
 
 local Inventory = {}
@@ -71,6 +73,7 @@ function Inventory.default(): Profile
 		daily = Daily.default(),
 		paint = Paint.default(),
 		weapons = Weapons.default(),
+		build = Build.default(),
 	}
 end
 
@@ -104,6 +107,7 @@ function Inventory.migrate(raw: any): Profile
 		daily = Daily.clean(raw.daily),
 		paint = Paint.clean(raw.paint),
 		weapons = Weapons.clean(raw.weapons),
+		build = Build.clean(raw.build),
 	}
 end
 

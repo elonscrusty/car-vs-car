@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
 local Ai = require(ReplicatedStorage.Shared.Ai)
+local Build = require(ReplicatedStorage.Shared.Build)
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local Appearance = require(script.Parent.Appearance)
@@ -70,6 +71,107 @@ local function addPart(
 	return p
 end
 
+-- Build-and-watch parts: plain gray placeholder shapes, welded and massless (no weight, no
+-- collisions), so the physics only sees the stats. Wheels, engine and armor each look different.
+local PART_GRAY = Color3.fromRGB(150, 155, 168)
+local PART_DARK = Color3.fromRGB(70, 72, 82)
+
+local function attachBuild(model: Model, body: Part, size: Vector3, build: Build.BuildData)
+	local sx, sy, sz = size.X, size.Y, size.Z
+	local function gray(
+		name: string,
+		partSize: Vector3,
+		offset: CFrame,
+		color: Color3?,
+		round: boolean?
+	)
+		local p = addPart(model, body, name, partSize, offset, color or PART_GRAY, false)
+		if round then
+			p.Shape = Enum.PartType.Cylinder
+		end
+		p.CanQuery = false
+		p.CanTouch = false
+		return p
+	end
+	local wheels, engine, armor = build.parts.wheels, build.parts.engine, build.parts.armor
+	local wd = math.max(1.4, sy * 1.1)
+	if wheels == "racing" or wheels == "grip" then
+		local wide = if wheels == "grip" then 1.6 else 0.7
+		local diameter = if wheels == "racing" then wd * 1.15 else wd
+		for _, wx in { -1, 1 } do
+			for _, wz in { -0.32, 0.32 } do
+				gray(
+					"WheelPart",
+					Vector3.new(wide, diameter, diameter),
+					CFrame.new(wx * (sx / 2 + wide / 2), -sy / 2 + diameter * 0.35, wz * sz),
+					PART_DARK,
+					true
+				)
+			end
+		end
+	end
+	if engine == "turbo" then
+		gray(
+			"EnginePart",
+			Vector3.new(sx * 0.45, sy * 0.5, sz * 0.22),
+			CFrame.new(0, sy / 2 + sy * 0.3, sz * 0.32)
+		)
+		gray(
+			"EngineFan",
+			Vector3.new(0.3, sy * 0.5, sy * 0.5),
+			CFrame.new(0, sy / 2 + sy * 0.3, sz * 0.32 + sz * 0.12),
+			PART_DARK,
+			true
+		).CFrame *= CFrame.Angles(
+			0,
+			math.rad(90),
+			0
+		)
+	elseif engine == "power" then
+		for _, ex in { -1, 1 } do
+			gray(
+				"EnginePart",
+				Vector3.new(sz * 0.3, 0.8, 0.8),
+				CFrame.new(ex * sx * 0.28, sy / 2 + 0.6, sz * 0.38)
+					* CFrame.Angles(0, math.rad(90), 0),
+				PART_GRAY,
+				true
+			)
+		end
+	end
+	if armor == "plates" then
+		for _, ax in { -1, 1 } do
+			gray(
+				"ArmorPart",
+				Vector3.new(0.5, sy * 0.9, sz * 0.8),
+				CFrame.new(ax * (sx / 2 + 0.25), 0, 0)
+			)
+		end
+		gray("ArmorPart", Vector3.new(sx, sy * 0.7, 0.5), CFrame.new(0, 0, sz / 2 + 0.25))
+	elseif armor == "spikes" then
+		for i = -2, 2 do
+			gray(
+				"ArmorPart",
+				Vector3.new(0.7, 0.7, 2.2),
+				CFrame.new(i * sx * 0.2, sy * 0.1, -sz / 2 - 1.1)
+			)
+		end
+		for _, ax in { -1, 1 } do
+			gray(
+				"ArmorPart",
+				Vector3.new(1.8, 0.7, 0.7),
+				CFrame.new(ax * (sx / 2 + 0.9), sy * 0.1, -sz * 0.2)
+			)
+		end
+	elseif armor == "ram" then
+		gray(
+			"ArmorPart",
+			Vector3.new(sx * 0.95, sy * 0.6, sz * 0.25),
+			CFrame.new(0, -sy * 0.1, -sz / 2 - sz * 0.1) * CFrame.Angles(math.rad(-20), 0, 0)
+		)
+	end
+end
+
 function CarBuilder.build(
 	id: string,
 	idx: number,
@@ -77,9 +179,10 @@ function CarBuilder.build(
 	parent: Instance,
 	label: string,
 	isBot: boolean,
-	look: Appearance.Appearance?
+	look: Appearance.Appearance?,
+	build: Build.BuildData? -- build-and-watch: the stats come from the parts (nil = the plain car)
 ): Car
-	local stats = CarConfig.Cars[id]
+	local stats = if build then Build.stats(CarConfig.Cars[id], build) else CarConfig.Cars[id]
 	local sx, sy, sz = stats.size[1], stats.size[2], stats.size[3]
 	local color = Color3.fromRGB(stats.rgb[1], stats.rgb[2], stats.rgb[3])
 	local dark = Color3.fromRGB(35, 35, 40)
@@ -219,6 +322,9 @@ function CarBuilder.build(
 		end
 	end
 
+	if build then
+		attachBuild(model, body, Vector3.new(sx, sy, sz), build)
+	end
 	Appearance.apply(model, body, look)
 	Badge.apply(model, body, if look then look.level else nil)
 

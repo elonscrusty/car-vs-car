@@ -30,5 +30,6 @@ require("./botlevels.test")
 require("./quests.test")
 require("./paint.test")
 require("./weapons.test")
+require("./build.test")
 
 Harness.summary()
