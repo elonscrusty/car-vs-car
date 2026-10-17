@@ -1,17 +1,17 @@
 # SNAPSHOT — Car VS Car
 
-## Phase 1 (new design, see /mnt/project-files/car-vs-car/game-plan.md)
-Cars only COAST now. Loop: aim (drag back like a slingshot, let go) -> both cars launch -> they slide
-(`Coast.dragPerSec`) until both are slow -> stood upright, frozen -> aim again. HP carries over; HP 0 =
-match over. Time up (240 s): higher HP wins, equal HP = next hit wins. Rounds with no hit raise damage 25% each.
-- Removed: autopilot, bot AI, boost, special moves, counters, hearts, A/D + LOCK AIM buttons, power meter.
-- New: `src/shared/Duel.luau` (pure rules, tests in `tests/duel.test.luau`), `Coast`/`Drag` in GameConfig.
-- Aim angles are now absolute (-180..180, 0 = +Z); the server still clamps angle and power.
-- Solo vs bot still. Bot aims at you with up to 12 degrees of error. Phase 2 = two real players.
-- NOT checked in Studio: all physics feel (drag, friction, settle, upright on slope), phone drag, camera
-  direction of the drag. Only Lune unit tests ran. Tune `Coast`, `Launch`, `Drive.groundFriction` after a play test.
-- Leftovers (unused, safe to delete later): `Fight.luau` counter/special helpers, `FightFx.counter`,
-  `Effects.counterSparks`, `Ability` remote (created, not handled), `Logic.loseHeart/tickBoost/canBoost`.
+## Phase 1 (design: /mnt/project-files/car-vs-car/game-plan.md, D3 changed by carter)
+Aim once, then the cars drive themselves. Flow: drag back like a slingshot, let go -> both cars launch ->
+Autopilot (run-up + ram) drives both -> HP drops on hits -> HP 0 = match over. Time up (120 s): higher HP wins,
+equal HP = next hit wins. Camera sits behind YOUR car (it is the near one).
+- Removed: boost, specials, counters, hearts, A/D + LOCK AIM buttons, power meter, the "coast only" loop.
+- New: `src/shared/Duel.luau` (drag math, bot aim, timeout winner; tests in `tests/duel.test.luau`), `Drag` in GameConfig.
+- Aim angles are absolute (-180..180, 0 = +Z); the server clamps angle and power.
+- Solo vs bot. Phase 2 = two real players.
+- Checked in Studio by script (launch, run-up, hits, HP, no errors). NOT checked by eye or on a phone:
+  the real drag gesture, how it looks. Tune `Launch`, `Drag`, `Drive`, `Ai`, `Damage` after a play test.
+- Leftovers (unused): `Fight.luau` counter/special helpers, `FightFx.counter`, `Effects.counterSparks`,
+  `Ability` remote (created, not handled), `Logic.loseHeart/tickBoost/canBoost`.
 
 The sections below describe the OLD prototype and the lobby; parts about autopilot, boost, specials, hearts are out of date.
 
