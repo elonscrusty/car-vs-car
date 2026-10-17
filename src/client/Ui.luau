@@ -29,6 +29,7 @@ export type View = {
 	showFight: () -> (),
 	showRoundEnd: (youLost: boolean, youHearts: number, enemyHearts: number) -> (),
 	showMatchEnd: (youWon: boolean) -> (),
+	hideMatch: () -> (), -- back to lobby: hide every match screen
 	startBoostCooldown: (seconds: number) -> (),
 }
 
@@ -215,13 +216,6 @@ function Ui.create(h: Handlers): View
 	endFrame.Visible = false
 	endFrame.Parent = gui
 	local endText = label(endFrame, "", UDim2.fromScale(0.8, 0.3), UDim2.fromScale(0.1, 0.2))
-	local again = button(
-		endFrame,
-		"PLAY AGAIN",
-		UDim2.fromScale(0.36, 0.2),
-		UDim2.fromScale(0.32, 0.6),
-		Color3.fromRGB(60, 190, 90)
-	)
 
 	local function hideAll()
 		pick.Visible = false
@@ -306,11 +300,14 @@ function Ui.create(h: Handlers): View
 			else Color3.fromRGB(255, 100, 100)
 	end
 
-	again.Activated:Connect(function()
-		view.showPick()
-	end)
+	view.hideMatch = function()
+		hideAll()
+		top.Visible = false
+		powerBack.Visible = false
+	end
 
-	view.showPick()
+	-- The lobby flow skips the old pick menu (the server starts matches with the chosen car).
+	view.hideMatch()
 	return view
 end
 

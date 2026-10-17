@@ -9,6 +9,7 @@ local Types = require(ReplicatedStorage.Shared.Types)
 local AimInput = require(script.AimInput)
 local CameraDirector = require(script.CameraDirector)
 local Effects = require(script.Effects)
+local LobbyUi = require(script.LobbyUi)
 local Ui = require(script.Ui)
 
 local remotes = Remotes.get()
@@ -31,6 +32,15 @@ view = Ui.create({
 		remotes.Ability:FireServer()
 	end,
 })
+
+local lobby = LobbyUi.new({
+	onToLobby = function()
+		aim.stop()
+		view.hideMatch()
+		director.release()
+	end,
+})
+remotes.LobbyUpdate.OnClientEvent:Connect(lobby.handleUpdate)
 
 -- Keyboard: E or left shift = boost (server decides if it is ready).
 UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)

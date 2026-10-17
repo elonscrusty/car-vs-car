@@ -1,6 +1,6 @@
 --!strict
 -- One solo match: player vs bot. The server owns everything: cars, forces, damage, hearts, rounds.
--- Phases: pick -> aim -> fight -> roundEnd -> (aim again | matchEnd) -> pick again on restart.
+-- Phases: pick -> aim -> fight -> roundEnd -> (aim again | matchEnd). Lobby matches (opts) skip pick.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -8,6 +8,7 @@ local RunService = game:GetService("RunService")
 local Aim = require(ReplicatedStorage.Shared.Aim)
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
+local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
 local Logic = require(ReplicatedStorage.Shared.Logic)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Types = require(ReplicatedStorage.Shared.Types)
@@ -27,9 +28,16 @@ export type Handle = {
 	destroy: () -> (),
 }
 
+export type Opts = {
+	carId: string,
+	onFinished: (won: boolean) -> (),
+}
+
 local Match = {}
 
-function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet): Handle
+-- With opts (lobby flow): skips the pick phase, uses opts.carId, has no play-again, and calls
+-- opts.onFinished(won) once the end screen has been shown for Rewards.endScreenSeconds.
+function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opts: Opts?): Handle
 	local cfg = GameConfig
 	local origin = Vector3.new(slot * cfg.Arena.slotSpacing, cfg.Arena.baseY, 0)
 	local rng = Random.new()
@@ -102,7 +110,15 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet): Ha
 			end
 			if over then
 				phase = "matchEnd"
-				send({ kind = "matchEnd", youWon = hearts[2] <= 0 })
+				local youWon = hearts[2] <= 0
+				send({ kind = "matchEnd", youWon = youWon })
+				if opts then
+					task.delay(LobbyConfig.Rewards.endScreenSeconds, function()
+						if not destroyed then
+							opts.onFinished(youWon)
+						end
+					end)
+				end
 			else
 				beginAim()
 			end
@@ -354,7 +370,7 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet): Ha
 
 	local handle: Handle = {
 		selectCar = function(carId: any)
-			if destroyed or (phase ~= "pick" and phase ~= "matchEnd") then
+			if opts or destroyed or (phase ~= "pick" and phase ~= "matchEnd") then
 				return
 			end
 			if CarConfig.get(carId) == nil then
@@ -396,6 +412,11 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet): Ha
 			end
 		end,
 	}
+	if opts and CarConfig.get(opts.carId) ~= nil then
+		playerCarId = opts.carId
+		arena = Arena.build(origin)
+		beginAim()
+	end
 	return handle
 end
 

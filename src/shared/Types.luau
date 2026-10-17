@@ -21,4 +21,13 @@ export type UiUpdate = {
 	cooldown: number?, -- boost: seconds until you can boost again
 }
 
+-- Lobby messages (LobbyUpdate remote), a union discriminated by `kind`.
+export type LobbyUpdate =
+	{ kind: "profile", coins: number, wins: number, owned: { string }, freePullAvailable: boolean }
+	| { kind: "gacha", carId: string, isNew: boolean, refund: number, free: boolean, coins: number }
+	| { kind: "gachaError", reason: string }
+	| { kind: "countdown", seconds: number }
+	| { kind: "choices", cars: { string }, seconds: number }
+	| { kind: "toLobby", coinsEarned: number, won: boolean }
+
 return {}

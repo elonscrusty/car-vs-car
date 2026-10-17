@@ -1,6 +1,7 @@
 --!strict
 -- Camera: fixed overview of the bowl, shakes on big hits, and a push-in on the crash dummy at a KO.
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
@@ -12,6 +13,7 @@ export type Director = {
 	overview: (center: Vector3) -> (),
 	focus: (target: BasePart?) -> (), -- KO: follow the dummy and zoom in
 	shake: (strength: number) -> (), -- 0..1
+	release: () -> (), -- back to the normal Roblox camera (lobby)
 }
 
 function CameraDirector.new(): Director
@@ -73,7 +75,22 @@ function CameraDirector.new(): Director
 		end
 	end
 
-	return { overview = overview, focus = focus, shake = shake }
+	local function release()
+		active = false
+		target = nil
+		shakeLeft = 0
+		goalFov, fov = feel.normalFov, feel.normalFov
+		local c = cam()
+		c.FieldOfView = feel.normalFov
+		c.CameraType = Enum.CameraType.Custom
+		local character = Players.LocalPlayer.Character
+		local humanoid = if character then character:FindFirstChildOfClass("Humanoid") else nil
+		if humanoid then
+			c.CameraSubject = humanoid
+		end
+	end
+
+	return { overview = overview, focus = focus, shake = shake, release = release }
 end
 
 return CameraDirector
