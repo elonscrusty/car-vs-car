@@ -37,6 +37,7 @@ type Bay = {
 	player: Player?,
 	car: Model?,
 	angle: number,
+	lift: number, -- body centre height above the deck
 }
 
 function LobbyBays.new(folder: Folder, origin: Vector3): Handle
@@ -100,8 +101,14 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		lbl.TextColor3 = Color3.fromRGB(110, 120, 140)
 		lbl.Parent = gui
 
-		bays[i] =
-			{ center = center, signLabel = lbl, player = nil, car = nil, angle = (i * 1.3) % 6.28 }
+		bays[i] = {
+			center = center,
+			signLabel = lbl,
+			player = nil,
+			car = nil,
+			angle = (i * 1.3) % 6.28,
+			lift = 1,
+		}
 	end
 
 	local function bayOf(player: Player): Bay?
@@ -172,6 +179,7 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		})
 		smoke.Color = ColorSequence.new(Color3.fromRGB(200, 200, 205))
 		smoke.Parent = car.body
+		b.lift = car.body.Size.Y * SCALE / 2 + 0.35
 		b.car = model
 	end
 	handle.clear = function(player)
@@ -195,7 +203,8 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 			if model and model.Parent then
 				b.angle += SPIN * step
 				local a = b.angle
-				local pos = b.center + Vector3.new(math.cos(a) * RADIUS, 0.3, math.sin(a) * RADIUS)
+				local pos = b.center
+					+ Vector3.new(math.cos(a) * RADIUS, b.lift, math.sin(a) * RADIUS)
 				-- Tangent (counter-clockwise) turned a little toward the outside = drift angle.
 				local heading = math.pi - a + 0.45
 				model:PivotTo(CFrame.new(pos) * CFrame.Angles(0, heading, 0))
