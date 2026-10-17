@@ -30,7 +30,6 @@ local Fx = require(script.Parent.Fx)
 local Impulse = require(script.Parent.Impulse)
 local CombatConfig = require(ReplicatedStorage.Shared.CombatConfig)
 local Damage = require(ReplicatedStorage.Shared.Damage)
-local Parts = require(script.Parent.Parts)
 local Specials = require(script.Parent.Specials)
 local Moves = require(script.Parent.Moves)
 local MovesConfig = require(ReplicatedStorage.Shared.MovesConfig)
@@ -261,14 +260,8 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 		end
 		lastHitAt = os.clock()
 
-		local oldHp = defender.hp
 		local newHp, dead = Logic.applyDamage(defender.hp, dmg)
 		defender.hp = newHp
-		Parts.onDamage(
-			defender,
-			Damage.crossed(oldHp, newHp, defender.stats.hp, CombatConfig.Parts.thresholds),
-			dead
-		)
 		defender.bar.set(newHp, defender.stats.hp)
 		a.ai.hit = true
 		b.ai.hit = true

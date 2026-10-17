@@ -60,7 +60,7 @@ function CameraDirector.new(): Director
 		-- Camera sits behind YOUR car so it is the near one, bottom of the screen.
 		local flat = if side then Vector3.new(side.X, 0, side.Z) else Vector3.zero
 		local dir = if flat.Magnitude > 0.01 then flat.Unit else Vector3.zAxis
-		base = CFrame.lookAt(center + dir * 90 + Vector3.new(0, 105, 0), center)
+		base = CFrame.lookAt(center + dir * 66 + Vector3.new(0, 80, 0), center)
 		local c = cam()
 		c.CameraType = Enum.CameraType.Scriptable
 	end
