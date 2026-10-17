@@ -175,6 +175,39 @@ local function miniCar(
 	return m
 end
 
+-- The imported Heavy model (ServerStorage.Models.Car_Heavy, a MeshPart, nose toward +X), scaled to
+-- `length` studs long, sitting on the anchor point. Returns a Model
+-- you can PivotTo (the invisible "Anchor" part is its pivot), or nil when there is no model.
+local function meshCar(
+	parent: Instance,
+	name: string,
+	length: number,
+	color: Color3,
+	cf: CFrame
+): Model?
+	local models = ServerStorage:FindFirstChild("Models")
+	local template = models and models:FindFirstChild("Car_Heavy")
+	if not (template and template:IsA("MeshPart")) then
+		return nil
+	end
+	local m = Instance.new("Model")
+	m.Name = name
+	local anchor = part(m, "Anchor", Vector3.one, cf, color)
+	anchor.Transparency = 1
+	anchor.CanCollide = false
+	local visual = template:Clone()
+	visual.Name = "Visual"
+	visual.Size = template.Size * (length / template.Size.X)
+	visual.Color = color
+	visual.Anchored = true
+	visual.CanCollide = false
+	visual.CFrame = cf * CFrame.new(0, visual.Size.Y / 2, 0) * CFrame.Angles(0, math.rad(90), 0)
+	visual.Parent = m
+	m.PrimaryPart = anchor
+	m.Parent = parent
+	return m
+end
+
 function Lobby.build(): LobbyHandle
 	local L = LobbyLayout
 	local origin: Vector3 = LobbyConfig.Lobby.origin
@@ -336,12 +369,19 @@ function Lobby.build(): LobbyHandle
 	)
 	ring.CanCollide = false
 	glow(ring, CYAN, 28, 1.2)
+	local showcaseColor = Color3.fromRGB(230, 50, 60)
 	local pivot = world(sc.x, 5, sc.z)
-	local showcaseCar = miniCar(folder, "ShowcaseCar", Color3.fromRGB(230, 50, 60), 1.6, pivot)
+	local showcaseCar = meshCar(folder, "ShowcaseCar", 15, showcaseColor, world(sc.x, 2.2, sc.z))
+	if showcaseCar then
+		pivot = world(sc.x, 2.2, sc.z)
+	else
+		showcaseCar = miniCar(folder, "ShowcaseCar", showcaseColor, 1.6, pivot)
+	end
+	local spinning: Model = showcaseCar
 	local angle = 0
 	local conn = RunService.Heartbeat:Connect(function(dt: number)
 		angle = (angle + dt * 0.6) % (math.pi * 2)
-		showcaseCar:PivotTo(pivot * CFrame.Angles(0, angle, 0))
+		spinning:PivotTo(pivot * CFrame.Angles(0, angle, 0))
 	end)
 	folder.Destroying:Connect(function()
 		conn:Disconnect()

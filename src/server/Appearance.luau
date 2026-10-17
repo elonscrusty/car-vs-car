@@ -24,6 +24,11 @@ local function paintBody(model: Model, body: BasePart, color: Color3)
 	if cabin and cabin:IsA("BasePart") then
 		cabin.Color = color:Lerp(DARK, 0.5)
 	end
+	-- A car with a real model (see CarBuilder) paints the whole mesh.
+	local visual = model:FindFirstChild("Visual")
+	if visual and visual:IsA("BasePart") then
+		visual.Color = color
+	end
 end
 
 local function addSticker(body: BasePart, text: string)

@@ -3,6 +3,7 @@
 -- The car faces -Z (its LookVector). Only the Body has weight; everything else is Massless.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
 
 local Ai = require(ReplicatedStorage.Shared.Ai)
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
@@ -27,6 +28,17 @@ export type Car = {
 }
 
 local CarBuilder = {}
+
+-- A real car model, when one was imported in Studio: ServerStorage.Models.Car_<id> (a MeshPart whose
+-- length runs along its X axis, nose toward +X). Cars without one keep the box placeholders.
+local function findCarMesh(id: string): MeshPart?
+	local models = ServerStorage:FindFirstChild("Models")
+	local mesh = models and models:FindFirstChild("Car_" .. id)
+	if mesh and mesh:IsA("MeshPart") then
+		return mesh
+	end
+	return nil
+end
 
 -- Adds a welded, massless part at `offset` from the body.
 local function addPart(
@@ -96,48 +108,79 @@ function CarBuilder.build(
 	body.Parent = model
 	model.PrimaryPart = body
 
-	-- Cabin + team marker (green = you, orange = bot) so you can tell cars apart.
-	addPart(
-		model,
-		body,
-		"Cabin",
-		Vector3.new(sx * 0.8, sy * 0.6, sz * 0.35),
-		CFrame.new(0, sy * 0.8, sz * 0.1),
-		color:Lerp(dark, 0.5),
-		false
-	)
 	local markerColor = if idx == 1
 		then Color3.fromRGB(80, 255, 120)
 		else Color3.fromRGB(255, 150, 40)
+	local carMesh = findCarMesh(id)
+	local markerY = sy * 0.8 + sy * 0.3 + 0.15
+	if carMesh then
+		-- Real model: scaled so its length fills the hitbox length, bottom on the hitbox bottom,
+		-- nose to -Z. The box body stays as the (invisible) physics part.
+		local scale = sz / carMesh.Size.X
+		local visual = carMesh:Clone()
+		visual.Name = "Visual"
+		visual.Size = carMesh.Size * scale
+		visual.Color = color
+		visual.Anchored = true -- stays anchored until launch
+		visual.CanCollide = false
+		visual.CanQuery = false
+		visual.CanTouch = false
+		visual.Massless = true
+		visual.CFrame = body.CFrame
+			* CFrame.new(0, -sy / 2 + visual.Size.Y / 2, 0)
+			* CFrame.Angles(0, math.rad(90), 0)
+		visual:SetAttribute("CarIdx", idx)
+		visual.Parent = model
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = body
+		weld.Part1 = visual
+		weld.Parent = visual
+		body.Transparency = 1
+		markerY = -sy / 2 + visual.Size.Y + 0.6
+	else
+		-- Cabin (dark window block) and 4 wheels (decoration only; the car is pushed by forces,
+		-- wheels do not turn).
+		addPart(
+			model,
+			body,
+			"Cabin",
+			Vector3.new(sx * 0.8, sy * 0.6, sz * 0.35),
+			CFrame.new(0, sy * 0.8, sz * 0.1),
+			color:Lerp(dark, 0.5),
+			false
+		)
+		local wd = math.max(1.2, sy * 0.9)
+		for _, wx in { -1, 1 } do
+			for _, wz in { -0.3, 0.3 } do
+				addPart(
+					model,
+					body,
+					"Wheel",
+					Vector3.new(0.9, wd, wd),
+					CFrame.new(wx * (sx / 2 + 0.2), -sy / 2 + wd * 0.3, wz * sz),
+					dark,
+					false
+				)
+			end
+		end
+	end
+
+	-- Team marker (green = you, orange = bot) so you can tell cars apart.
 	local marker = addPart(
 		model,
 		body,
 		"Marker",
 		Vector3.new(1.2, 0.3, 1.2),
-		CFrame.new(0, sy * 0.8 + sy * 0.3 + 0.15, sz * 0.1),
+		CFrame.new(0, markerY, sz * 0.1),
 		markerColor,
 		false
 	)
 	marker.Material = Enum.Material.Neon
 
-	-- 4 wheels (decoration only; the car is pushed by forces, wheels do not turn).
-	local wd = math.max(1.2, sy * 0.9)
-	for _, wx in { -1, 1 } do
-		for _, wz in { -0.3, 0.3 } do
-			addPart(
-				model,
-				body,
-				"Wheel",
-				Vector3.new(0.9, wd, wd),
-				CFrame.new(wx * (sx / 2 + 0.2), -sy / 2 + wd * 0.3, wz * sz),
-				dark,
-				false
-			)
-		end
-	end
-
-	-- Per-type look (placeholder shapes).
-	if id == "Heavy" then
+	-- Per-type look (placeholder shapes; skipped when a real model is used).
+	if carMesh then
+		-- nothing to add
+	elseif id == "Heavy" then
 		addPart(
 			model,
 			body,
