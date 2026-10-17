@@ -5,10 +5,10 @@ local LobbyConfig = {}
 
 -- Vector3 does not exist under plain Lune (tests), so fall back to a same-shaped table there.
 local okOrigin, origin = pcall(function()
-	return Vector3.new(0, 0, 500)
+	return Vector3.new(0, 3, 500)
 end)
 LobbyConfig.Lobby = {
-	origin = (if okOrigin then origin else { X = 0, Y = 0, Z = 500 }) :: Vector3,
+	origin = (if okOrigin then origin else { X = 0, Y = 3, Z = 500 }) :: Vector3,
 	padCount = 3,
 }
 LobbyConfig.Pad = { maxPlayers = 2, countdownSeconds = 3, pickSeconds = 15 }
