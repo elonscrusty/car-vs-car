@@ -15,6 +15,7 @@ require("./saves.test")
 require("./lobbylayout.test")
 require("./lobby.test")
 require("./lobbytext.test")
+require("./store.test")
 require("./clawpath.test")
 
 Harness.summary()

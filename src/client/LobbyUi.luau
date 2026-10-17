@@ -15,6 +15,7 @@ local Inventory = require(ReplicatedStorage.Shared.Inventory)
 local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
 local LobbyText = require(ReplicatedStorage.Shared.LobbyText)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Store = require(ReplicatedStorage.Shared.Store)
 local Types = require(ReplicatedStorage.Shared.Types)
 
 local LobbyUi = {}
@@ -416,10 +417,10 @@ function LobbyUi.new(hooks: Hooks): Handle
 		TweenService:Create(resultScale, POP, { Scale = 1 }):Play()
 	end
 
-	-- STORE screen (list only, no buying)
+	-- STORE screen (BUY button per unowned car; the server decides and answers storeResult)
 	local storeBack, storePanel, storeOpen = modal("CARS", CYAN)
 	local storeList = Instance.new("ScrollingFrame")
-	storeList.Size = UDim2.fromScale(0.92, 0.8)
+	storeList.Size = UDim2.fromScale(0.92, 0.74)
 	storeList.Position = UDim2.fromScale(0.04, 0.16)
 	storeList.BackgroundTransparency = 1
 	storeList.BorderSizePixel = 0
@@ -432,7 +433,11 @@ function LobbyUi.new(hooks: Hooks): Handle
 	storeLayout.Padding = UDim.new(0, 8)
 	storeLayout.SortOrder = Enum.SortOrder.LayoutOrder
 	storeLayout.Parent = storeList
-	local storeRows: { [string]: { frame: Frame, tag: TextLabel, name: TextLabel } } = {}
+	local storeMsg = label(storePanel, "", UDim2.fromScale(0.7, 0.07), UDim2.fromScale(0.04, 0.925))
+	storeMsg.TextColor3 = PINK
+	storeMsg.TextXAlignment = Enum.TextXAlignment.Left
+	storeMsg.ZIndex = 12
+	local storeRows: { [string]: { frame: Frame, buy: TextButton, name: TextLabel } } = {}
 	for i, id in CarConfig.Order do
 		local stats = CarConfig.Cars[id]
 		local row = frame(storeList, UDim2.new(1, -8, 0, 84), UDim2.fromScale(0, 0), NAVY)
@@ -451,21 +456,32 @@ function LobbyUi.new(hooks: Hooks): Handle
 		b.TextColor3 = Color3.fromRGB(190, 200, 230)
 		b.TextXAlignment = Enum.TextXAlignment.Left
 		b.ZIndex = 14
-		local tag = label(row, "", UDim2.new(0.3, 0, 0.5, 0), UDim2.new(0.68, -8, 0.05, 0))
-		tag.TextXAlignment = Enum.TextXAlignment.Right
-		tag.ZIndex = 14
+		local buy = button(row, "", UDim2.new(0.3, 0, 0.42, 0), UDim2.new(0.68, -8, 0.06, 0), GREEN)
+		buy.ZIndex = 14
+		buy.Activated:Connect(debounced(function()
+			if buy.Active then
+				storeMsg.Text = ""
+				send("buyCar", id)
+			end
+		end))
 		local rar =
 			label(row, rarityOf(id), UDim2.new(0.3, 0, 0.32, 0), UDim2.new(0.68, -8, 0.58, 0))
 		rar.TextColor3 = RARITY_COLOR[rarityOf(id)] or WHITE
 		rar.TextXAlignment = Enum.TextXAlignment.Right
 		rar.ZIndex = 14
-		storeRows[id] = { frame = row, tag = tag, name = n }
+		storeRows[id] = { frame = row, buy = buy, name = n }
 	end
 	local function refreshStore()
 		for id, r in storeRows do
 			local has = owned[id] == true
-			r.tag.Text = if has then "OWNED" else "LOCKED"
-			r.tag.TextColor3 = if has then GREEN else Color3.fromRGB(150, 150, 170)
+			r.buy.Text = LobbyText.storeButtonText(has, Store.price(id))
+			setEnabled(r.buy, not has, GREEN)
+			if has then
+				r.buy.BackgroundColor3 = NAVY
+				r.buy.TextColor3 = GREEN
+			else
+				r.buy.TextColor3 = WHITE
+			end
 			r.name.TextTransparency = if has then 0 else 0.4
 		end
 	end
@@ -629,6 +645,7 @@ function LobbyUi.new(hooks: Hooks): Handle
 			refreshGacha()
 			gachaOpen()
 		elseif prompt.Name == "StorePrompt" then
+			storeMsg.Text = ""
 			refreshStore()
 			storeOpen()
 		end
@@ -655,6 +672,17 @@ function LobbyUi.new(hooks: Hooks): Handle
 			refreshGacha()
 		elseif u.kind == "gacha" then
 			showGachaResult(u)
+		elseif u.kind == "storeResult" then
+			if u.ok then
+				coins = u.coins
+				owned[u.carId] = true
+				storeMsg.Text = ""
+				refreshHud()
+				refreshStore()
+				refreshGacha()
+			else
+				storeMsg.Text = LobbyText.storeErrorText(u.reason or "")
+			end
 		elseif u.kind == "gachaError" then
 			waitingForPull = false
 			gachaMsg.Text = LobbyText.gachaErrorText(u.reason)

@@ -27,6 +27,7 @@ export type LobbyUpdate =
 	{ kind: "profile", coins: number, wins: number, owned: { string }, freePullAvailable: boolean }
 	| { kind: "gacha", carId: string, isNew: boolean, refund: number, free: boolean, coins: number }
 	| { kind: "gachaError", reason: string }
+	| { kind: "storeResult", ok: boolean, carId: string, reason: string?, coins: number }
 	| { kind: "countdown", seconds: number }
 	| { kind: "choices", cars: { string }, seconds: number }
 	| { kind: "toLobby", coinsEarned: number, won: boolean }

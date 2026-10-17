@@ -1,7 +1,7 @@
 --!strict
 -- Lobby brain (server only). Pads -> countdown -> bot fills -> pick 1 of 3 owned cars -> match
 -- -> rewards -> back to lobby. Also rolls the gacha and keeps clients' profile HUD in sync.
--- The server decides everything: clients only say "pickCar", "buyGacha" or "leavePad".
+-- The server decides everything: clients only say "pickCar", "buyGacha", "buyCar" or "leavePad".
 -- The pad rules live in the pure module PadLogic (unit tested).
 
 local Players = game:GetService("Players")
@@ -15,6 +15,7 @@ local PadLogic = require(ReplicatedStorage.Shared.PadLogic)
 local PickChoices = require(ReplicatedStorage.Shared.PickChoices)
 local RateLimiter = require(ReplicatedStorage.Shared.RateLimiter)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Store = require(ReplicatedStorage.Shared.Store)
 local Types = require(ReplicatedStorage.Shared.Types)
 
 local Profiles = require(script.Parent.Profiles)
@@ -78,6 +79,7 @@ function LobbyService.start(deps: Deps): Handle
 		return random:NextNumber()
 	end
 	local gachaLimiter = RateLimiter.new(2, 3)
+	local storeLimiter = RateLimiter.new(2, 3)
 	local running = true
 	local conns: { RBXScriptConnection } = {}
 
@@ -268,6 +270,40 @@ function LobbyService.start(deps: Deps): Handle
 		end
 	end
 
+	-- Store counter: the server checks everything, then answers with a storeResult.
+	local function buyCar(player: Player, carId: any)
+		local id = if type(carId) == "string" then carId else ""
+		local function fail(reason: string)
+			local p = Profiles.get(player)
+			send(player, {
+				kind = "storeResult",
+				ok = false,
+				carId = id,
+				reason = reason,
+				coins = if p then p.coins else 0,
+			})
+		end
+		local ps = players[player]
+		if ps and ps.stage ~= "pad" then
+			fail("busy")
+			return
+		end
+		local p = Profiles.get(player)
+		if p == nil then
+			fail("loading")
+			return
+		end
+		local can, reason = Store.canBuy(p, carId)
+		if not can then
+			fail(reason or "unknown")
+			return
+		end
+		Store.buy(p, id)
+		Profiles.markDirty(player)
+		send(player, { kind = "storeResult", ok = true, carId = id, coins = p.coins })
+		sendProfile(player)
+	end
+
 	local function onPadTriggered(player: Player, padIndex: number)
 		if players[player] ~= nil or Players:GetPlayerByUserId(player.UserId) ~= player then
 			return
@@ -396,6 +432,7 @@ function LobbyService.start(deps: Deps): Handle
 				maybeStart(padIndex) -- the others may all have picked already
 			end
 			gachaLimiter.clear(player)
+			storeLimiter.clear(player)
 		end,
 		action = function(player: Player, action: any, arg: any)
 			if action == "pickCar" then
@@ -409,6 +446,10 @@ function LobbyService.start(deps: Deps): Handle
 			elseif action == "buyGacha" then
 				if gachaLimiter.allow(player, os.clock()) then
 					buyGacha(player)
+				end
+			elseif action == "buyCar" then
+				if storeLimiter.allow(player, os.clock()) then
+					buyCar(player, arg)
 				end
 			elseif action == "leavePad" then
 				cancelPlayer(player)
