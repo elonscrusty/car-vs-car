@@ -392,7 +392,7 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 			local stats = CarConfig.Cars[id]
 			local cf = Arena.carCFrame(a, idx, stats.size[2] / 2)
 			local build: Build.BuildData? = nil
-			if auto then
+			if cfg.Mode.useBuild then
 				if part then
 					build = part.build
 				else

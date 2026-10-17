@@ -9,10 +9,12 @@ print("ArenaMath")
 
 local A = GameConfig.Arena
 
-test("flat arena has no slope", function()
+test("the middle is flat and the bowl rises toward the rim", function()
 	eq(ArenaMath.surfaceHeight(0, A.flatRadius, A.rimRadius, A.tiltDeg), 0)
-	eq(ArenaMath.surfaceHeight(A.rimRadius, A.flatRadius, A.rimRadius, A.tiltDeg), 0)
-	eq(ArenaMath.surfaceHeight(999, A.flatRadius, A.rimRadius, A.tiltDeg), 0)
+	eq(ArenaMath.surfaceHeight(A.flatRadius, A.flatRadius, A.rimRadius, A.tiltDeg), 0)
+	local rim = ArenaMath.surfaceHeight(A.rimRadius, A.flatRadius, A.rimRadius, A.tiltDeg)
+	truthy(if A.tiltDeg > 0 then rim > 0 else rim == 0)
+	eq(ArenaMath.surfaceHeight(999, A.flatRadius, A.rimRadius, A.tiltDeg), rim)
 end)
 
 test("arena is 100 to 140 studs across", function()

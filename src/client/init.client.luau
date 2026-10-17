@@ -121,6 +121,7 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		menu.setVisible(false)
 		progressUi.setVisible(false)
 		lobby.hideChoices() -- the pick card must not cover the match
+		ProximityPromptService.Enabled = false -- no "Join" pad prompt over the arena
 		if u.center then
 			if u.round == 1 or camSide == nil then
 				camSide = if u.carPos then u.carPos - u.center else nil

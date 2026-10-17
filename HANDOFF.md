@@ -90,7 +90,7 @@ Design follows `/mnt/project-files/car-vs-car/game-plan.md`, but carter chose (2
 - Look: src/server/Atmosphere.luau sets lighting, haze, soft bloom, colour grade at start (bloom kept low: neon washes out).
 
 ## Build and watch (auto fight)
-- `GameConfig.Mode.autoFight = true` turns it on. Set it to `false` to get the old manual driving back (aim, steer, pick 1 of 3).
+- `GameConfig.Mode.autoFight`: `false` (now) = you aim, launch and drive your own car in the bowl; `true` = the cars fight by themselves (build and watch). `Mode.useBuild = true` = the garage car and parts are used in both (no pick 1 of 3).
 - Players build a car in the GARAGE (button on the left): car, wheels, engine, armor, level per slot. Rules are in `Build`/`BuildConfig` (pure, tested). Prices are placeholders.
 - In a match the server drives every car with `Autopilot.step`; taps (boost, special) still add power moves. "ready" countdown, then fight, short freeze on the KO.
 - Bots get random parts near the player's average level. Win 60 / lose 20 coins.

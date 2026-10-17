@@ -3,20 +3,21 @@
 -- Pure data only (no Roblox calls) so unit tests can load it.
 
 local GameConfig = {
-	-- Which way a match plays. autoFight = true: build-and-watch (you build the car from parts, the
-	-- cars drive and fight by themselves, you only tap the optional power buttons).
-	-- autoFight = false: the old way (aim, launch, then steer your own car).
+	-- Which way a match plays. autoFight = true: build-and-watch (the cars drive and fight by
+	-- themselves, you only watch). autoFight = false: you aim, launch, then steer your own car.
+	-- useBuild = true: the garage car and its parts are what you fight with (no "pick 1 of 3").
 	Mode = {
-		autoFight = true,
+		autoFight = false,
+		useBuild = true,
 		readySeconds = 3, -- auto fight: "get ready" countdown before the cars go
 		koFreezeSeconds = 0.35, -- auto fight: the finishing hit freezes the screen for this long
 	},
 	-- Bowl arena. Bigger tiltDeg = steeper bowl = cars roll back to the middle faster.
 	Arena = {
-		flatRadius = 62, -- flat middle disc (studs from center)
+		flatRadius = 28, -- flat middle disc (studs from center)
 		rimRadius = 62, -- where the slope ends (same as flatRadius = no slope, a flat arena)
-		tiltDeg = 0, -- slope angle of the bowl (0 = flat arena)
-		wallHeight = 14, -- walls on the rim
+		tiltDeg = 18, -- slope angle of the bowl (0 = flat arena)
+		wallHeight = 9, -- walls on the rim
 		segments = 32, -- slabs around the bowl (more = rounder)
 		baseY = 300, -- height of arena in the world (far above the baseplate)
 		slotSpacing = 600, -- each player gets own arena this far apart on X
@@ -27,14 +28,6 @@ local GameConfig = {
 		-- "spinner" = a bar (sx long, sy high) that turns around (x, z) at `spin` rad/sec.
 		obstacles = {
 			{ kind = "spinner", x = 0, z = 0, sx = 34, sy = 3, spin = 1.1 },
-			{ kind = "ramp", x = 32, z = 14, sx = 12, sz = 18, yaw = 0 },
-			{ kind = "ramp", x = -32, z = -14, sx = 12, sz = 18, yaw = 180 },
-			{ kind = "block", x = 40, z = 0, sx = 7, sy = 7, sz = 18 },
-			{ kind = "block", x = -40, z = 0, sx = 7, sy = 7, sz = 18 },
-			{ kind = "pillar", x = 22, z = 30, sx = 7, sy = 8 },
-			{ kind = "pillar", x = -22, z = -30, sx = 7, sy = 8 },
-			{ kind = "pillar", x = 22, z = -30, sx = 7, sy = 8 },
-			{ kind = "pillar", x = -22, z = 30, sx = 7, sy = 8 },
 		},
 	},
 	Match = {

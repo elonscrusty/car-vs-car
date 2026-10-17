@@ -384,8 +384,8 @@ function LobbyService.start(deps: Deps): Handle
 				cancelPlayer(player)
 				continue
 			end
-			if GameConfig.Mode.autoFight then
-				-- Build-and-watch: no picking, you fight with the car in your garage.
+			if GameConfig.Mode.useBuild then
+				-- Garage build: no picking, you fight with the car in your garage.
 				ps.stage = "picking"
 				ps.offered = {}
 				ps.picked = Build.carFor(profile.build, profile.owned)
