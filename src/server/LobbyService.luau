@@ -32,6 +32,7 @@ local Types = require(ReplicatedStorage.Shared.Types)
 local Profiles = require(script.Parent.Profiles)
 local Appearance = require(script.Parent.Appearance)
 local ClawAnim = require(script.Parent.ClawAnim)
+local LobbyBays = require(script.Parent.LobbyBays)
 
 export type Participant = {
 	player: Player,
@@ -102,6 +103,9 @@ function LobbyService.start(deps: Deps): Handle
 	local paintLimiter = RateLimiter.new(4, 3)
 	local weaponLimiter = RateLimiter.new(4, 3)
 	local buildLimiter = RateLimiter.new(6, 3)
+	local bays = LobbyBays.new(deps.lobby.folder, LobbyConfig.Lobby.origin)
+	local bayKeys: { [Player]: string } = {}
+	local refreshBay: (player: Player) -> () -- defined below
 	local running = true
 	local conns: { RBXScriptConnection } = {}
 
@@ -159,6 +163,7 @@ function LobbyService.start(deps: Deps): Handle
 			weapons = { owned = Weapons.ownedList(p.weapons), equipped = p.weapons.equipped },
 			build = buildView(p),
 		})
+		refreshBay(player)
 	end
 
 	-- The weapon this player wears (always one: new players start with the Saw).
@@ -169,6 +174,30 @@ function LobbyService.start(deps: Deps): Handle
 		end
 		local p = Profiles.get(player)
 		return if p then p.weapons.equipped else nil
+	end
+
+	-- Keep this player's bay on the mezzanine showing their car (only rebuilt when it changed).
+	function refreshBay(player: Player)
+		local p = Profiles.get(player)
+		if p == nil or player.Parent == nil then
+			return
+		end
+		local carId = Build.carFor(p.build, p.owned)
+		local look = lookFor(player, carId)
+		local key = table.concat({
+			carId,
+			p.build.parts.wheels,
+			p.build.parts.engine,
+			p.build.parts.armor,
+			tostring(look.paintColor),
+			tostring(look.sticker),
+			tostring(look.level),
+		}, "|")
+		if bayKeys[player] == key then
+			return
+		end
+		bayKeys[player] = key
+		bays.set(player, carId, look, p.build, `{player.DisplayName}  LV {look.level or 1}`)
 	end
 
 	-- A copy of this player's garage build (nil before the profile loads).
@@ -707,6 +736,8 @@ function LobbyService.start(deps: Deps): Handle
 			paintLimiter.clear(player)
 			weaponLimiter.clear(player)
 			buildLimiter.clear(player)
+			bays.clear(player)
+			bayKeys[player] = nil
 		end,
 		action = function(player: Player, action: any, arg: any)
 			if action == "pickCar" then
@@ -792,6 +823,7 @@ function LobbyService.start(deps: Deps): Handle
 		end,
 		stop = function()
 			running = false
+			bays.destroy()
 			for _, c in conns do
 				c:Disconnect()
 			end
