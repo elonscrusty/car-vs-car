@@ -1,8 +1,6 @@
 --!strict
 -- Pure rules for the aim-and-coast duel (no Roblox objects, so they can be unit tested).
 
-local Logic = require("./Logic")
-
 local Duel = {}
 
 -- Angle (degrees, -180..180) of a flat direction. 0 = +Z. Same convention as Aim.direction.
@@ -29,7 +27,7 @@ function Duel.dragPower(lengthPx: number, minPx: number, maxPx: number): number
 	if lengthPx < minPx then
 		return 0
 	end
-	return Logic.clamp((lengthPx - minPx) / (maxPx - minPx), 0, 1)
+	return math.clamp((lengthPx - minPx) / (maxPx - minPx), 0, 1)
 end
 
 -- Settle timer: counts up while BOTH cars are slow, resets when either is fast.

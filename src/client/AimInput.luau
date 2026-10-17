@@ -31,7 +31,7 @@ function AimInput.new(
 	local arrow: Folder? = nil
 	local shaft: Part? = nil
 	local head: Part? = nil
-	local lastAngle, lastPower = 0, 0
+	local lastAngle = 0
 
 	local function makeArrowPart(size: Vector3): Part
 		local p = Instance.new("Part")
@@ -87,7 +87,7 @@ function AimInput.new(
 	RunService.RenderStepped:Connect(function()
 		if active and dragging then
 			local angle, power = readDrag()
-			lastAngle, lastPower = angle, power
+			lastAngle = angle
 			updateArrow(angle, power)
 			onPower(power)
 		end
@@ -100,7 +100,7 @@ function AimInput.new(
 		carPos = pos
 		active = true
 		dragging = nil
-		lastAngle, lastPower = 0, 0
+		lastAngle = 0
 		local folder = Instance.new("Folder")
 		folder.Name = "LocalAimArrow"
 		-- Hidden until the player starts dragging.
