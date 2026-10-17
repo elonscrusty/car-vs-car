@@ -24,6 +24,11 @@ local Appearance = require(script.Parent.Appearance)
 local CarBuilder = require(script.Parent.CarBuilder)
 local Dummy = require(script.Parent.Dummy)
 local Fx = require(script.Parent.Fx)
+local Buffs = require(script.Parent.Buffs)
+local CombatConfig = require(ReplicatedStorage.Shared.CombatConfig)
+local Damage = require(ReplicatedStorage.Shared.Damage)
+local Parts = require(script.Parent.Parts)
+local Specials = require(script.Parent.Specials)
 
 type Phase = "pick" | "aim" | "fight" | "roundEnd" | "matchEnd"
 
@@ -175,6 +180,8 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 		end)
 	end
 
+	local comboStates = { Damage.newCombo(), Damage.newCombo() }
+
 	-- A hit between two cars. Uses velocities from the end of the last frame (before the crash).
 	local function resolveHit(a: CarBuilder.Car, b: CarBuilder.Car)
 		if a.dead or b.dead or phase ~= "fight" then
@@ -200,13 +207,39 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 		if dmg <= 0 then
 			return
 		end
+		-- Weak spot (back/side), combo chain and buffs.
+		local toAttacker = attacker.body.Position - defender.body.Position
+		local look = defender.body.CFrame.LookVector
+		local zone = Damage.zone(
+			Damage.cosFlat(look.X, look.Z, toAttacker.X, toAttacker.Z),
+			CombatConfig.Zones
+		)
+		local comboCount =
+			Damage.comboHit(comboStates[attacker.idx], os.clock(), CombatConfig.Combo.window)
+		local specialMult = if type((Specials :: any).damageMult) == "function"
+			then (Specials :: any).damageMult(attacker)
+			else 1
+		dmg = Damage.final(
+			dmg,
+			Damage.zoneMult(zone, CombatConfig.Zones),
+			Damage.comboMult(comboCount, CombatConfig.Combo.mults),
+			Buffs.damageMult(attacker),
+			specialMult
+		)
+		dmg = Buffs.absorb(defender, dmg)
 		if suddenDeath then
 			dmg = defender.hp
 		end
 		lastHitAt = os.clock()
 
+		local oldHp = defender.hp
 		local newHp, dead = Logic.applyDamage(defender.hp, dmg)
 		defender.hp = newHp
+		Parts.onDamage(
+			defender,
+			Damage.crossed(oldHp, newHp, defender.stats.hp, CombatConfig.Parts.thresholds),
+			dead
+		)
 		defender.bar.set(newHp, defender.stats.hp)
 		a.ai.hit = true
 		b.ai.hit = true
@@ -221,6 +254,7 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 				strength = strength,
 				damage = dmg,
 				youHit = defender.idx == i,
+				tag = Damage.tag(zone, comboCount),
 			}
 		end)
 		if not defender.smoking and newHp / defender.stats.hp < cfg.Feel.smokeBelow then

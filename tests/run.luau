@@ -22,5 +22,6 @@ require("./hints.test")
 require("./uisize.test")
 require("./steer.test")
 require("./speciallogic.test")
+require("./damage.test")
 
 Harness.summary()
