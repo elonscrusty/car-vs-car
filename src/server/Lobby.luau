@@ -24,7 +24,7 @@ export type LobbyHandle = {
 
 local Lobby = {}
 
-local CLAW_YAW_DEG = 90 -- turns the imported claw machine so its front faces the middle of the lobby
+local CLAW_YAW_DEG = -90 -- turns the imported claw machine so its front faces the middle of the lobby
 
 local PINK = Color3.fromRGB(255, 60, 170)
 local BLUE = Color3.fromRGB(60, 170, 255)
