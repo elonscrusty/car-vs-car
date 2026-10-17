@@ -26,7 +26,7 @@ local ClawAnim = require(script.Parent.ClawAnim)
 export type Participant = {
 	player: Player,
 	carId: string,
-	onFinished: (won: boolean) -> (),
+	onFinished: (won: boolean, stay: boolean?) -> (),
 	appearance: Appearance.Appearance?, -- paint, sticker, level badge
 	botLevel: string?, -- bot difficulty for a lone player
 }
@@ -159,12 +159,15 @@ function LobbyService.start(deps: Deps): Handle
 		send(player, { kind = "countdown", seconds = 0 })
 	end
 
-	local function finishMatch(player: Player, won: boolean)
+	-- stay: the player goes straight into a rematch (rewards are paid, nothing else changes).
+	local function finishMatch(player: Player, won: boolean, stay: boolean?)
 		local ps = players[player]
 		if ps == nil or ps.stage ~= "match" then
 			return
 		end
-		players[player] = nil
+		if not stay then
+			players[player] = nil
+		end
 		local earned = if won then LobbyConfig.Rewards.winCoins else LobbyConfig.Rewards.loseCoins
 		local p = Profiles.get(player)
 		if p then
@@ -175,6 +178,10 @@ function LobbyService.start(deps: Deps): Handle
 			Profiles.markDirty(player)
 		end
 		if player.Parent == nil then
+			return
+		end
+		if stay then
+			sendProfile(player)
 			return
 		end
 		-- Fresh character at the lobby spawn.
@@ -216,8 +223,8 @@ function LobbyService.start(deps: Deps): Handle
 				table.insert(participants, {
 					player = player,
 					carId = picks[key],
-					onFinished = function(won: boolean)
-						finishMatch(player, won)
+					onFinished = function(won: boolean, stay: boolean?)
+						finishMatch(player, won, stay)
 					end,
 				})
 			end
@@ -488,8 +495,8 @@ function LobbyService.start(deps: Deps): Handle
 					{
 						player = player,
 						carId = carId,
-						onFinished = function(won: boolean)
-							finishMatch(player, won)
+						onFinished = function(won: boolean, stay: boolean?)
+							finishMatch(player, won, stay)
 						end,
 					},
 				})

@@ -13,6 +13,7 @@ local Ui = {}
 
 export type Handlers = {
 	onPick: (carId: string) -> (),
+	onRematch: (() -> ())?, -- REMATCH tapped on the end screen
 }
 
 export type View = {
@@ -151,6 +152,31 @@ function Ui.create(h: Handlers): View
 	endText.TextStrokeTransparency = 0
 	local endSub = label(banner, "", UDim2.fromScale(0.6, 0.26), UDim2.fromScale(0.2, 0.68))
 	endSub.TextColor3 = Color3.fromRGB(255, 225, 120)
+	local rematchBtn = button(
+		endFrame,
+		"REMATCH",
+		UDim2.fromScale(0.34, 0.16),
+		UDim2.fromScale(0.33, 0.76),
+		Color3.fromRGB(40, 160, 80)
+	)
+	rematchBtn.Name = "RematchButton"
+	rematchBtn.Visible = false
+	local rematchMin = rematchBtn:FindFirstChildOfClass("UISizeConstraint")
+	if rematchMin then
+		rematchMin.MinSize = Vector2.new(120, 52)
+	end
+	rematchBtn.Activated:Connect(function()
+		if not rematchBtn.Active then
+			return
+		end
+		rematchBtn.Active = false
+		rematchBtn.AutoButtonColor = false
+		rematchBtn.BackgroundColor3 = Color3.fromRGB(90, 90, 95)
+		rematchBtn.Text = "WAITING..."
+		if h.onRematch then
+			h.onRematch()
+		end
+	end)
 	local endFx: WinFx.Handle? = nil
 	local endTweens: { Tween } = {}
 
@@ -172,6 +198,7 @@ function Ui.create(h: Handlers): View
 		aimFrame.Visible = false
 		powerBack.Visible = false
 		endFrame.Visible = false
+		rematchBtn.Visible = false
 		msg.Visible = false
 	end
 
@@ -235,6 +262,11 @@ function Ui.create(h: Handlers): View
 	view.showMatchEnd = function(youWon)
 		hideAll()
 		endFrame.Visible = true
+		rematchBtn.Visible = true
+		rematchBtn.Active = true
+		rematchBtn.AutoButtonColor = true
+		rematchBtn.BackgroundColor3 = Color3.fromRGB(40, 160, 80)
+		rematchBtn.Text = "REMATCH"
 		endText.Text = WinText.headline(youWon)
 		endSub.Text = WinText.subtitle(youWon, LobbyConfig.Rewards)
 		endText.TextColor3 = if youWon

@@ -37,7 +37,8 @@ export type Handle = {
 export type Participant = {
 	player: Player,
 	carId: string,
-	onFinished: (won: boolean) -> (), -- called once, after the end screen, if the player stayed
+	onFinished: (won: boolean, stay: boolean?) -> (), -- called once, after the end screen, if the player stayed
+	onEndScreen: (() -> ())?, -- called when this player's end screen goes up
 	appearance: Appearance.Appearance?, -- paint, sticker and level badge for this player's car
 	botLevel: string?, -- bot difficulty when this lone player fights a bot ("easy" | "medium" | "hard")
 }
@@ -139,6 +140,9 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 			for i, part in participants do
 				local youWon = loser.idx ~= i
 				sendTo(i, { kind = "matchEnd", youWon = youWon })
+				if part.onEndScreen then
+					part.onEndScreen()
+				end
 				task.delay(LobbyConfig.Rewards.endScreenSeconds, function()
 					if not destroyed and not gone[i] then
 						part.onFinished(youWon)

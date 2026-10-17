@@ -13,6 +13,7 @@ local Lobby = require(script.Lobby)
 local LobbyService = require(script.LobbyService)
 local Match = require(script.Match)
 local Profiles = require(script.Profiles)
+local RematchService = require(script.RematchService)
 
 -- Real characters walk in the lobby (spawn is the lobby SpawnLocation).
 Players.CharacterAutoLoads = true
@@ -27,6 +28,8 @@ local lobbyLimiter = RateLimiter.new(6, GameConfig.Remote.windowSeconds)
 type Group = { match: Match.Handle, slot: number, remaining: number }
 local groups: { [Player]: Group } = {} -- every player in a match -> that match
 local usedSlots: { [number]: boolean } = {}
+local rematch = RematchService.new()
+local startMatch: (participants: { Match.Participant }) -> () -- defined below
 
 local function freeSlot(): number
 	local s = 0
@@ -52,8 +55,9 @@ end
 
 -- Start one match for 1 or 2 players (only the lobby service calls this, after validated picks).
 -- A missing second player is a bot.
-local function startMatch(participants: { Match.Participant })
+function startMatch(participants: { Match.Participant })
 	local ok: { Match.Participant } = {}
+	local okOriginal: { Match.Participant } = {}
 	for _, part in participants do
 		if part.player.Parent ~= nil and groups[part.player] == nil then
 			local player, finished = part.player, part.onFinished
@@ -62,16 +66,26 @@ local function startMatch(participants: { Match.Participant })
 				carId = part.carId,
 				appearance = part.appearance,
 				botLevel = part.botLevel,
+				onEndScreen = function()
+					rematch.open(player)
+				end,
 				onFinished = function(won: boolean)
+					local again = rematch.settle(player)
 					leaveGroup(player)
-					finished(won)
+					finished(won, again)
+					local restart = rematch.finish(player)
+					if restart then
+						startMatch(restart)
+					end
 				end,
 			})
+			table.insert(okOriginal, part)
 		end
 	end
 	if #ok == 0 then
 		return
 	end
+	rematch.begin(okOriginal)
 	local slot = freeSlot()
 	usedSlots[slot] = true
 	local group: Group = { match = nil :: any, slot = slot, remaining = #ok }
@@ -112,7 +126,17 @@ local function onPlayerRemoving(player: Player)
 		g.match.playerLeft(player)
 		leaveGroup(player)
 	end
+	local restart = rematch.remove(player)
 	lobbyService.onPlayerRemoving(player)
+	if restart then
+		local rest: { Match.Participant } = {}
+		for _, part in restart do
+			if part.player ~= player then
+				table.insert(rest, part)
+			end
+		end
+		startMatch(rest)
+	end
 	launchLimiter.clear(player)
 	steerLimiter.clear(player)
 	lobbyLimiter.clear(player)
@@ -137,6 +161,10 @@ remotes.LobbyAction.OnServerEvent:Connect(function(player: Player, action: any, 
 		return
 	end
 	if action == "pickCar" and type(arg) ~= "string" then
+		return
+	end
+	if action == "rematch" then
+		rematch.tap(player)
 		return
 	end
 	lobbyService.action(player, action, arg)
