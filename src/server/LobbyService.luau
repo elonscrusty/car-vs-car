@@ -11,6 +11,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Gacha = require(ReplicatedStorage.Shared.Gacha)
 local Hints = require(ReplicatedStorage.Shared.Hints)
 local Inventory = require(ReplicatedStorage.Shared.Inventory)
+local Paint = require(ReplicatedStorage.Shared.Paint)
 local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
 local PadLogic = require(ReplicatedStorage.Shared.PadLogic)
 local PickChoices = require(ReplicatedStorage.Shared.PickChoices)
@@ -85,6 +86,7 @@ function LobbyService.start(deps: Deps): Handle
 	local gachaLimiter = RateLimiter.new(2, 3)
 	local storeLimiter = RateLimiter.new(2, 3)
 	local hintLimiter = RateLimiter.new(4, 3)
+	local paintLimiter = RateLimiter.new(4, 3)
 	local running = true
 	local conns: { RBXScriptConnection } = {}
 
@@ -106,7 +108,21 @@ function LobbyService.start(deps: Deps): Handle
 			owned = Inventory.ownedList(p),
 			freePullAvailable = LobbyConfig.Gacha.firstPullFree and not p.freePullUsed,
 			hintsSeen = Hints.seenList(p.hintsSeen),
+			paint = { owned = Paint.ownedList(p.paint), equipped = p.paint.equipped },
 		})
+	end
+
+	-- Paint and sticker this player put on `carId` (nil fields when none).
+	local function paintLook(player: Player, carId: string): Appearance.Appearance
+		local p = Profiles.get(player)
+		if p == nil then
+			return {}
+		end
+		local rgb, sticker = Paint.look(p.paint, carId)
+		return {
+			paintColor = if rgb then Color3.fromRGB(rgb[1], rgb[2], rgb[3]) else nil,
+			sticker = sticker,
+		}
 	end
 
 	local function updatePadText(i: number)
@@ -216,6 +232,7 @@ function LobbyService.start(deps: Deps): Handle
 				table.insert(participants, {
 					player = player,
 					carId = picks[key],
+					appearance = paintLook(player, picks[key]),
 					onFinished = function(won: boolean)
 						finishMatch(player, won)
 					end,
@@ -307,6 +324,58 @@ function LobbyService.start(deps: Deps): Handle
 		Store.buy(p, id)
 		Profiles.markDirty(player)
 		send(player, { kind = "storeResult", ok = true, carId = id, coins = p.coins })
+		sendProfile(player)
+	end
+
+	-- Paint shop: buy a color/sticker, or wear/clear one on an owned car. Lobby only.
+	local function paintReply(player: Player, ok: boolean, reason: string?)
+		send(player, { kind = "paintResult", ok = ok, reason = reason })
+	end
+
+	local function buyPaint(player: Player, id: any)
+		local ps = players[player]
+		if ps and ps.stage ~= "pad" then
+			paintReply(player, false, "busy")
+			return
+		end
+		local p = Profiles.get(player)
+		if p == nil then
+			paintReply(player, false, "loading")
+			return
+		end
+		local can, reason = Paint.canBuy(p, id)
+		if not can then
+			paintReply(player, false, reason or "unknown")
+			return
+		end
+		Paint.buy(p, id)
+		Profiles.markDirty(player)
+		paintReply(player, true, nil)
+		sendProfile(player)
+	end
+
+	local function equipPaint(player: Player, arg: any)
+		local ps = players[player]
+		if ps and ps.stage ~= "pad" then
+			paintReply(player, false, "busy")
+			return
+		end
+		local p = Profiles.get(player)
+		if p == nil then
+			paintReply(player, false, "loading")
+			return
+		end
+		if type(arg) ~= "table" then
+			paintReply(player, false, "unknown")
+			return
+		end
+		local ok, reason = Paint.equip(p, arg.carId, arg.kind, arg.id)
+		if not ok then
+			paintReply(player, false, reason or "unknown")
+			return
+		end
+		Profiles.markDirty(player)
+		paintReply(player, true, nil)
 		sendProfile(player)
 	end
 
@@ -449,6 +518,7 @@ function LobbyService.start(deps: Deps): Handle
 			gachaLimiter.clear(player)
 			storeLimiter.clear(player)
 			hintLimiter.clear(player)
+			paintLimiter.clear(player)
 		end,
 		action = function(player: Player, action: any, arg: any)
 			if action == "pickCar" then
@@ -466,6 +536,14 @@ function LobbyService.start(deps: Deps): Handle
 			elseif action == "buyCar" then
 				if storeLimiter.allow(player, os.clock()) then
 					buyCar(player, arg)
+				end
+			elseif action == "buyPaint" then
+				if paintLimiter.allow(player, os.clock()) then
+					buyPaint(player, arg)
+				end
+			elseif action == "equipPaint" then
+				if paintLimiter.allow(player, os.clock()) then
+					equipPaint(player, arg)
 				end
 			elseif action == "hintSeen" then
 				if hintLimiter.allow(player, os.clock()) then
@@ -488,6 +566,7 @@ function LobbyService.start(deps: Deps): Handle
 					{
 						player = player,
 						carId = carId,
+						appearance = paintLook(player, carId),
 						onFinished = function(won: boolean)
 							finishMatch(player, won)
 						end,
