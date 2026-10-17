@@ -395,14 +395,14 @@ function Lobby.build(): LobbyHandle
 					light.Color = Color3.fromRGB(255, 232, 195)
 					light.Shadows = false
 					light.Parent = win
-					for _, dir in { -1, 1 } do
+					for _, tilt in { -1, 1 } do
 						local brace = part(
 							folder,
 							"XBrace",
 							Vector3.new(math.sqrt(segW * segW + UH * UH) * 0.96, 0.7, 0.7),
 							ucf
 								* CFrame.new(0, 0, -room.wall / 2 - 0.6)
-								* CFrame.Angles(0, 0, math.atan2(UH, segW) * dir),
+								* CFrame.Angles(0, 0, math.atan2(UH, segW) * tilt),
 							STEEL,
 							Enum.Material.Metal
 						)
