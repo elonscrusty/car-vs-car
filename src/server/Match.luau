@@ -183,6 +183,8 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 		local newHp, dead = Logic.applyDamage(defender.hp, dmg)
 		defender.hp = newHp
 		defender.bar.set(newHp, defender.stats.hp)
+		a.ai.hit = true
+		b.ai.hit = true
 
 		-- Feel: tell the client (shake, sparks, number), smoke when low, freeze for a blink.
 		local strength = Logic.hitStrength(rel, cfg.Feel.bigHitSpeed)
@@ -235,7 +237,6 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 		resolveHit(car, enemy)
 	end
 
-	-- Both cars start on their own side of the bowl and stay where they stop for the whole match.
 	local function spawnCars()
 		local a = arena :: Arena.Arena
 		clearCars()
@@ -260,7 +261,7 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet, opt
 		end
 	end
 
-	-- Turn the car toward the aim and push it once. After this it only coasts.
+	-- Turn the car toward the aim and push it once. After this the Autopilot drives it.
 	local function launchCar(car: CarBuilder.Car, angle: number, power: number)
 		local dir = Aim.direction(Vector3.zAxis, angle)
 		local up = car.body.CFrame.UpVector
