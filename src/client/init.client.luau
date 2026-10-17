@@ -60,6 +60,7 @@ end)
 
 remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 	if u.kind == "aim" then
+		lobby.hideChoices() -- the pick card must not cover the match
 		if u.center then
 			director.overview(u.center)
 		end

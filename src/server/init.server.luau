@@ -66,6 +66,19 @@ end
 
 Profiles.init()
 local lobby = Lobby.build()
+
+-- Studio templates ship a default SpawnLocation; players must always spawn in the lobby.
+for _, child in workspace:GetChildren() do
+	if child:IsA("SpawnLocation") and child ~= lobby.spawn then
+		child:Destroy()
+	end
+end
+Players.PlayerAdded:Connect(function(player: Player)
+	player.RespawnLocation = lobby.spawn
+end)
+for _, player in Players:GetPlayers() do
+	player.RespawnLocation = lobby.spawn
+end
 local lobbyService = LobbyService.start({
 	lobby = lobby,
 	remotes = remotes,

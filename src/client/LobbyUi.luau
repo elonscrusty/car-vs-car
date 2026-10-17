@@ -24,6 +24,7 @@ export type Hooks = {
 
 export type Handle = {
 	handleUpdate: (u: Types.LobbyUpdate) -> (),
+	hideChoices: () -> (),
 }
 
 local NAVY = Color3.fromRGB(10, 14, 32)
@@ -624,6 +625,7 @@ function LobbyUi.new(hooks: Hooks): Handle
 	end
 
 	local handle: Handle = {} :: any
+	handle.hideChoices = hideChoices
 	handle.handleUpdate = function(u: Types.LobbyUpdate)
 		if u.kind == "profile" then
 			coins = u.coins
