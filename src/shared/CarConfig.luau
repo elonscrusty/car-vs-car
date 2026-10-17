@@ -1,5 +1,5 @@
 --!strict
--- The 4 placeholder cars. ALL car numbers live here.
+-- The 8 placeholder cars. ALL car numbers live here.
 -- hp: health. mass: weight (bigger = harder to push). maxSpeed: top auto-pilot speed.
 -- accel: how fast it speeds up. turnRate: max spin speed (radians/sec).
 -- damageMult: damage multiplier when this car is the one hitting.
@@ -26,7 +26,7 @@ export type CarStats = {
 local CarConfig = {}
 
 -- Order shown in the pick menu.
-CarConfig.Order = { "Heavy", "Light", "Ramp", "Spike" }
+CarConfig.Order = { "Heavy", "Light", "Ramp", "Spike", "Tank", "Drift", "Bulldozer", "Rocket" }
 
 CarConfig.Cars = {
 	Heavy = {
@@ -82,6 +82,62 @@ CarConfig.Cars = {
 		accel = 100,
 		turnRate = 3.8,
 		damageMult = 1.7,
+		hitLift = 0,
+		ai = "Direct",
+	},
+	Tank = {
+		name = "TANK",
+		blurb = "Huge. Barely moves.",
+		rgb = { 90, 110, 70 },
+		size = { 8, 3.2, 12 },
+		hp = 210,
+		mass = 160,
+		maxSpeed = 45,
+		accel = 60,
+		turnRate = 1.8,
+		damageMult = 1.0,
+		hitLift = 0,
+		ai = "BackupCharge",
+	},
+	Drift = {
+		name = "DRIFT",
+		blurb = "Slides around you.",
+		rgb = { 40, 200, 190 },
+		size = { 4.5, 2, 7 },
+		hp = 120,
+		mass = 35,
+		maxSpeed = 85,
+		accel = 130,
+		turnRate = 5.5,
+		damageMult = 0.9,
+		hitLift = 0,
+		ai = "CircleDive",
+	},
+	Bulldozer = {
+		name = "BULLDOZER",
+		blurb = "Plows through. Hits hard.",
+		rgb = { 240, 140, 30 },
+		size = { 7.5, 3, 10 },
+		hp = 190,
+		mass = 110,
+		maxSpeed = 52,
+		accel = 70,
+		turnRate = 2.4,
+		damageMult = 1.5,
+		hitLift = 0,
+		ai = "Direct",
+	},
+	Rocket = {
+		name = "ROCKET",
+		blurb = "Fastest. Breaks easy.",
+		rgb = { 245, 245, 250 },
+		size = { 3.5, 2, 7.5 },
+		hp = 80,
+		mass = 20,
+		maxSpeed = 110,
+		accel = 170,
+		turnRate = 4.0,
+		damageMult = 1.0,
 		hitLift = 0,
 		ai = "Direct",
 	},
