@@ -109,9 +109,8 @@ function Ai.decide(
 	mem.hit = false
 
 	-- Run-up: drive away (forward, not reverse), then come back with speed.
-	if hit and (style == "Direct" or style == "BackupCharge") then
-		mem.retreatT = p.retreatTime
-	elseif style == "BackupCharge" and mem.t > p.chargeMax then
+	local hitAndRun = hit and (style == "Direct" or style == "BackupCharge")
+	if hitAndRun or (style == "BackupCharge" and mem.t > p.chargeMax) then
 		mem.retreatT = p.retreatTime
 	end
 	if mem.retreatT > 0 then
