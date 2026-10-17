@@ -8,6 +8,7 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Types = require(ReplicatedStorage.Shared.Types)
 local ActionInput = require(script.ActionInput)
 local AimInput = require(script.AimInput)
+local BuffUi = require(script.BuffUi)
 local CameraDirector = require(script.CameraDirector)
 local Effects = require(script.Effects)
 local FightFx = require(script.FightFx)
@@ -19,6 +20,7 @@ local Ui = require(script.Ui)
 
 local remotes = Remotes.get()
 local director = CameraDirector.new()
+local buffs = BuffUi.new()
 local menu = MenuBar.new() -- features add their own lobby buttons here (see MenuBar.luau)
 
 local camSide: Vector3? = nil -- from the middle toward your car, fixed for the whole match
@@ -111,7 +113,10 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		actions.start()
 	elseif u.kind == "move" then
 		actions.cooldown(u.move or "", u.seconds or 0)
+	elseif u.kind == "buff" then
+		buffs.handleUpdate(u)
 	elseif u.kind == "roundEnd" then
+		buffs.clear()
 		steering.stop()
 		actions.stop()
 		view.showRoundEnd(u.youLost == true)
@@ -128,6 +133,7 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		director.shake(0.8)
 		director.punchFov(18)
 	elseif u.kind == "matchEnd" then
+		buffs.clear()
 		aim.stop()
 		steering.stop()
 		actions.stop()

@@ -24,5 +24,6 @@ require("./steer.test")
 require("./speciallogic.test")
 require("./damage.test")
 require("./moves.test")
+require("./pickuplogic.test")
 
 Harness.summary()
