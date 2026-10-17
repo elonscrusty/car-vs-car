@@ -381,7 +381,7 @@ function Lobby.build(): LobbyHandle
 						"WindowGlass",
 						Vector3.new(segW * 0.7, 14, 0.3),
 						ucf * CFrame.new(0, 2, -room.wall / 2 - 0.2),
-						Color3.fromRGB(255, 240, 210),
+						Color3.fromRGB(205, 190, 160),
 						Enum.Material.Neon
 					)
 					win.CanCollide = false
@@ -389,7 +389,7 @@ function Lobby.build(): LobbyHandle
 					local light = Instance.new("SurfaceLight")
 					light.Face = Enum.NormalId.Front
 					light.Range = 36
-					light.Brightness = 1.1
+					light.Brightness = 0.7
 					light.Angle = 150
 					light.Color = Color3.fromRGB(255, 232, 195)
 					light.Shadows = false
@@ -502,7 +502,7 @@ function Lobby.build(): LobbyHandle
 			"Skylight",
 			Vector3.new(sk[3], 0.5, sk[4]),
 			world(sk[1], top - 0.3, sk[2]),
-			Color3.fromRGB(255, 250, 235),
+			Color3.fromRGB(226, 214, 188),
 			Enum.Material.Neon
 		)
 		panel.CanCollide = false
@@ -510,7 +510,7 @@ function Lobby.build(): LobbyHandle
 		local light = Instance.new("SurfaceLight")
 		light.Face = Enum.NormalId.Bottom
 		light.Range = 48
-		light.Brightness = 1.5
+		light.Brightness = 0.9
 		light.Angle = 160
 		light.Color = Color3.fromRGB(255, 244, 222)
 		light.Shadows = false
@@ -586,8 +586,8 @@ function Lobby.build(): LobbyHandle
 			"GateStrip",
 			Vector3.new(0.5, 9, 0.5),
 			world(sx * (L.gate.halfOpening - 0.2), 6, gz - 1.6),
-			CYAN,
-			Enum.Material.Neon
+			Color3.fromRGB(70, 130, 150),
+			Enum.Material.SmoothPlastic
 		)
 		gstrip.CanCollide = false
 		glow(gpost, CYAN, 24, 0.3)
@@ -616,7 +616,7 @@ function Lobby.build(): LobbyHandle
 		Color3.fromRGB(14, 12, 24)
 	)
 	label(sign, Enum.NormalId.Front, "CAR VS CAR", YELLOW, Color3.fromRGB(20, 60, 150))
-	glow(sign, CYAN, 60, 1)
+	glow(sign, CYAN, 60, 0.35)
 	for _, fr in
 		{
 			{ 66, 0.8, 0, 38.4 },
@@ -630,8 +630,8 @@ function Lobby.build(): LobbyHandle
 			"SignFrame",
 			Vector3.new(fr[1], fr[2], 0.6),
 			world(fr[3], fr[4], -HL + 1.2),
-			CYAN,
-			Enum.Material.Neon
+			Color3.fromRGB(70, 130, 150),
+			Enum.Material.SmoothPlastic
 		)
 		f.CanCollide = false
 	end
@@ -780,7 +780,7 @@ function Lobby.build(): LobbyHandle
 		Enum.Material.Neon
 	)
 	ring.CanCollide = false
-	glow(ring, CYAN, 28, 1.2)
+	glow(ring, CYAN, 28, 0.3)
 	local showcaseColor = Color3.fromRGB(230, 50, 60)
 	-- The Blender stage (LobbyProps) is taller than the plain one, so the truck rides higher.
 	local modelsFolder = ServerStorage:FindFirstChild("Models")
@@ -931,8 +931,8 @@ function Lobby.build(): LobbyHandle
 		"CounterGlow",
 		Vector3.new(s.w - 2, 0.3, 0.3),
 		world(s.x, 0.6, s.z + s.d / 2 + 0.2),
-		YELLOW,
-		Enum.Material.Neon
+		Color3.fromRGB(235, 190, 40),
+		Enum.Material.SmoothPlastic
 	)
 	counterGlow.CanCollide = false
 	part(folder, "StoreRoof", Vector3.new(s.w + 1, 1, s.d), world(s.x, 11, s.z), YELLOW)
@@ -956,7 +956,7 @@ function Lobby.build(): LobbyHandle
 		Color3.fromRGB(14, 12, 24)
 	)
 	label(stSign, Enum.NormalId.Front, "STORE", YELLOW, DARK)
-	glow(stSign, YELLOW, 24, 1)
+	glow(stSign, YELLOW, 24, 0.4)
 	prompt(counter, "StorePrompt", "Open", "Store")
 
 	-- Three light chevrons on the floor between the door and the pads, pointing at the pads.

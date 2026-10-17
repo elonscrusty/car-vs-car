@@ -24,8 +24,8 @@ end
 function Atmosphere.apply()
 	Lighting.ClockTime = 14
 	Lighting.GeographicLatitude = 35
-	Lighting.Brightness = 3
-	Lighting.Ambient = Color3.fromRGB(100, 98, 96)
+	Lighting.Brightness = 2.3
+	Lighting.Ambient = Color3.fromRGB(88, 86, 84)
 	Lighting.OutdoorAmbient = Color3.fromRGB(135, 132, 128)
 	Lighting.ColorShift_Top = Color3.fromRGB(255, 232, 200)
 	Lighting.EnvironmentDiffuseScale = 0.6
@@ -43,12 +43,12 @@ function Atmosphere.apply()
 	haze.Haze = 0.8
 
 	local bloom: BloomEffect = effect("BloomEffect", "GameBloom")
-	bloom.Intensity = 0.04
+	bloom.Intensity = 0.02
 	bloom.Size = 12
 	bloom.Threshold = 2
 
 	local grade: ColorCorrectionEffect = effect("ColorCorrectionEffect", "GameGrade")
-	grade.Saturation = -0.04
+	grade.Saturation = -0.08
 	grade.Contrast = 0.06
 	grade.Brightness = 0.02
 	grade.TintColor = Color3.fromRGB(255, 244, 228)
