@@ -134,16 +134,16 @@ function Arena.build(origin: Vector3): Arena
 			hinge.Parent = bar
 			table.insert(spinnerBars, bar)
 		elseif o.kind == "ramp" then
-			local tilt = math.rad(18)
+			local rampTilt = math.rad(18)
 			local len = o.sz or o.sx
-			local rise = len / 2 * math.sin(tilt)
+			local rise = len / 2 * math.sin(rampTilt)
 			makePart(
 				model,
 				"Obstacle",
 				Vector3.new(o.sx, 1, len),
 				CFrame.new(origin + Vector3.new(o.x, rise + 0.2, o.z))
 					* CFrame.Angles(0, math.rad(o.yaw or 0), 0)
-					* CFrame.Angles(tilt, 0, 0),
+					* CFrame.Angles(rampTilt, 0, 0),
 				Color3.fromRGB(240, 200, 40)
 			)
 		elseif o.kind == "pillar" then
