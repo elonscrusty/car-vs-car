@@ -18,6 +18,7 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Types = require(ReplicatedStorage.Shared.Types)
 
 local Profiles = require(script.Parent.Profiles)
+local ClawAnim = require(script.Parent.ClawAnim)
 
 export type Participant = {
 	player: Player,
@@ -72,6 +73,7 @@ function LobbyService.start(deps: Deps): Handle
 	local players: { [Player]: PlayerState } = {}
 	local padAcc: { [number]: number } = {}
 	local random = Random.new()
+	local claw = if deps.lobby.claw then ClawAnim.new(deps.lobby.claw) else nil
 	local rng = function(): number
 		return random:NextNumber()
 	end
@@ -337,6 +339,10 @@ function LobbyService.start(deps: Deps): Handle
 			send(player, { kind = "gachaError", reason = "loading" })
 			return
 		end
+		if claw and claw.busy() then
+			send(player, { kind = "gachaError", reason = "busy" })
+			return
+		end
 		local can, reason = Gacha.canBuy(p)
 		if not can then
 			send(player, { kind = "gachaError", reason = reason or "coins" })
@@ -344,15 +350,24 @@ function LobbyService.start(deps: Deps): Handle
 		end
 		local r = Gacha.pull(p, rng)
 		Profiles.markDirty(player)
-		send(player, {
-			kind = "gacha",
-			carId = r.carId,
-			isNew = r.isNew,
-			refund = r.refund,
-			free = r.free,
-			coins = p.coins,
-		})
-		sendProfile(player)
+		-- The prize is decided now; the claw machine plays its grab, then the result shows.
+		local function reveal()
+			if player.Parent == nil then
+				return
+			end
+			send(player, {
+				kind = "gacha",
+				carId = r.carId,
+				isNew = r.isNew,
+				refund = r.refund,
+				free = r.free,
+				coins = p.coins,
+			})
+			sendProfile(player)
+		end
+		if claw == nil or not claw.play(reveal) then
+			reveal()
+		end
 	end
 
 	local handle: Handle

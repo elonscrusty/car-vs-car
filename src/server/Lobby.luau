@@ -20,6 +20,7 @@ export type LobbyHandle = {
 	spawn: SpawnLocation,
 	pads: { PadHandle },
 	folder: Folder,
+	claw: Model?, -- the claw machine model, when imported
 }
 
 local Lobby = {}
@@ -424,6 +425,7 @@ function Lobby.build(): LobbyHandle
 	-- Claw machine model (imported once in Studio, saved as ServerStorage.Models.ClawMachine).
 	-- When it exists it replaces the placeholder gacha machine above and keeps the same prompt.
 	local models = ServerStorage:FindFirstChild("Models")
+	local clawModel: Model? = nil
 	local clawTemplate = models and models:FindFirstChild("ClawMachine")
 	if clawTemplate and clawTemplate:IsA("Model") then
 		for _, child in folder:GetChildren() do
@@ -444,6 +446,7 @@ function Lobby.build(): LobbyHandle
 		-- Floor level, facing the middle of the lobby (+X from the left wall).
 		claw:PivotTo(world(g.x, 0, g.z) * CFrame.Angles(0, math.rad(CLAW_YAW_DEG), 0))
 		claw.Parent = folder
+		clawModel = claw
 	end
 
 	-- Store counter: blue desk with a shelf of toy cars, sign, prompt.
@@ -564,7 +567,7 @@ function Lobby.build(): LobbyHandle
 	spawn.Parent = folder
 
 	folder.Parent = workspace
-	return { spawn = spawn, pads = pads, folder = folder }
+	return { spawn = spawn, pads = pads, folder = folder, claw = clawModel }
 end
 
 return Lobby
