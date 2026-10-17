@@ -13,6 +13,7 @@ end
 local CarConfig = sibling("CarConfig")
 local Hints = sibling("Hints")
 local LobbyConfig = sibling("LobbyConfig")
+local Progress = sibling("Progress")
 
 export type Profile = {
 	version: number,
@@ -21,6 +22,7 @@ export type Profile = {
 	owned: { [string]: boolean },
 	freePullUsed: boolean,
 	hintsSeen: { [string]: boolean }, -- first-time hints already shown (see Hints)
+	progress: Progress.Data, -- car XP and win streak (see Progress)
 }
 
 local Inventory = {}
@@ -53,6 +55,7 @@ function Inventory.default(): Profile
 		owned = owned,
 		freePullUsed = false,
 		hintsSeen = {},
+		progress = Progress.default(),
 	}
 end
 
@@ -80,6 +83,7 @@ function Inventory.migrate(raw: any): Profile
 		owned = owned,
 		freePullUsed = raw.freePullUsed == true,
 		hintsSeen = Hints.clean(raw.hintsSeen),
+		progress = Progress.clean(raw.progress),
 	}
 end
 

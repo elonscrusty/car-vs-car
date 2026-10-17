@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Inventory = require(ReplicatedStorage.Shared.Inventory)
+local Progress = require(ReplicatedStorage.Shared.Progress)
 local Retry = require(ReplicatedStorage.Shared.Retry)
 local SessionLock = require(ReplicatedStorage.Shared.SessionLock)
 
@@ -77,6 +78,7 @@ local function copyProfile(p: Profile): Profile
 		owned = owned,
 		freePullUsed = p.freePullUsed,
 		hintsSeen = table.clone(p.hintsSeen),
+		progress = Progress.copy(p.progress),
 	}
 end
 
