@@ -540,6 +540,7 @@ function LobbyService.start(deps: Deps): Handle
 			elseif action == "setBotLevel" then
 				if botLevelLimiter.allow(player, os.clock()) then
 					setBotLevel(player, arg)
+				end
 			elseif action == "claimQuest" then
 				if questLimiter.allow(player, os.clock()) then
 					claimQuest(player, arg)
