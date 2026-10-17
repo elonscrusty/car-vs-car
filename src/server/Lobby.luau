@@ -29,7 +29,7 @@ local Lobby = {}
 local CLAW_YAW_DEG = 90 -- turns the imported claw machine so its front faces the middle of the lobby (it stands on the right)
 
 local CYAN = Color3.fromRGB(60, 220, 255)
-local GREEN = Color3.fromRGB(70, 255, 130)
+local GREEN = Color3.fromRGB(60, 235, 80)
 local YELLOW = Color3.fromRGB(255, 205, 40)
 local RED = Color3.fromRGB(215, 40, 40)
 local FLOOR = Color3.fromRGB(70, 74, 86)
@@ -240,6 +240,23 @@ function Lobby.build(): LobbyHandle
 		Enum.PartType.Cylinder
 	)
 
+	-- Floor tiles: thin darker lines in a grid (look only).
+	for c = -50, 50, 10 do
+		local len = 2 * math.sqrt(math.max(R * R - c * c, 0)) - 6
+		if len > 4 then
+			for _, rot in { 0, math.pi / 2 } do
+				local line = part(
+					folder,
+					"FloorTile",
+					Vector3.new(0.3, 0.05, len),
+					world(0, 0.03, 0) * CFrame.Angles(0, rot, 0) * CFrame.new(c, 0, 0),
+					Color3.fromRGB(52, 55, 66)
+				)
+				line.CanCollide = false
+			end
+		end
+	end
+
 	-- Round wall: red segments, with a dark post and a cyan light strip between them.
 	-- The segment that would sit at the front is left out: that is the entrance gate.
 	local segments = 32
@@ -251,12 +268,22 @@ function Lobby.build(): LobbyHandle
 			local pos = Vector3.new(px, WH / 2, pz)
 			local cf = CFrame.lookAt(origin + pos, origin + Vector3.new(0, WH / 2, 0))
 			part(folder, "Wall", Vector3.new(segW, WH, room.wall), cf, RED)
+			-- Dark brick-look panel on the inside, under the red cap.
+			local panel = part(
+				folder,
+				"WallPanel",
+				Vector3.new(segW * 0.98, WH * 0.6, 0.5),
+				cf * CFrame.new(0, -WH * 0.2, -room.wall / 2 - 0.25),
+				Color3.fromRGB(46, 49, 60),
+				Enum.Material.Brick
+			)
+			panel.CanCollide = false
 			if i % 2 == 0 then
 				local strip = part(
 					folder,
 					"WallStrip",
 					Vector3.new(segW * 0.6, 0.4, 0.4),
-					cf * CFrame.new(0, WH * 0.2, -room.wall / 2 - 0.1),
+					cf * CFrame.new(0, -WH * 0.05, -room.wall / 2 - 0.55),
 					CYAN,
 					Enum.Material.Neon
 				)
@@ -319,6 +346,24 @@ function Lobby.build(): LobbyHandle
 		part(folder, "GantryPost", Vector3.new(3, 22, 3), world(sx * 18, 11, backZ), RED)
 	end
 	part(folder, "GantryBeam", Vector3.new(40, 2.5, 3), world(0, 22, backZ), RED)
+	-- Checkered flags on poles at the top of both gantry posts.
+	for _, sx in { -1, 1 } do
+		part(folder, "FlagPole", Vector3.new(0.4, 8, 0.4), world(sx * 18, 26, backZ + 1), GRAY)
+		for col = 1, 3 do
+			for row = 1, 3 do
+				local flagTile = part(
+					folder,
+					"FlagTile",
+					Vector3.new(1.2, 1.2, 0.2),
+					world(sx * (18.2 + 1.2 * col - 0.6), 22.6 + 1.2 * row, backZ + 1.1),
+					if (col + row) % 2 == 0
+						then Color3.fromRGB(240, 240, 240)
+						else Color3.fromRGB(20, 20, 20)
+				)
+				flagTile.CanCollide = false
+			end
+		end
+	end
 	local sign = part(
 		folder,
 		"WallSign",
@@ -361,6 +406,44 @@ function Lobby.build(): LobbyHandle
 		world(sc.x - sc.footprint / 2 + 1 - 1, 0.5, sc.z + sc.footprint / 2 - 0.5),
 		GRAY
 	)
+	-- Yellow rails along the front and the middle-facing side (the steps stay open).
+	local stageTop = 2
+	local railLen = sc.footprint - 2 - 9
+	local frontZ = sc.z + sc.footprint / 2 - 1.2
+	local sideX = sc.x - sc.footprint / 2 + 1.2
+	local railFront = part(
+		folder,
+		"StageRail",
+		Vector3.new(railLen, 0.4, 0.4),
+		world(sc.x + 4.5, stageTop + 1.6, frontZ),
+		YELLOW
+	)
+	railFront.CanCollide = false
+	local railSide = part(
+		folder,
+		"StageRail",
+		Vector3.new(0.4, 0.4, sc.footprint - 6),
+		world(sideX, stageTop + 1.6, sc.z - 2),
+		YELLOW
+	)
+	railSide.CanCollide = false
+	for _, rp in
+		{
+			Vector3.new(sc.x + 4.5 - railLen / 2, 0, frontZ),
+			Vector3.new(sc.x + 4.5 + railLen / 2, 0, frontZ),
+			Vector3.new(sideX, 0, sc.z - 2 - (sc.footprint - 6) / 2),
+			Vector3.new(sideX, 0, sc.z - 2 + (sc.footprint - 6) / 2),
+		}
+	do
+		local rpost = part(
+			folder,
+			"StageRailPost",
+			Vector3.new(0.5, 1.8, 0.5),
+			world(rp.X, stageTop + 0.9, rp.Z),
+			YELLOW
+		)
+		rpost.CanCollide = false
+	end
 	local ring = part(
 		folder,
 		"ShowcaseRing",
@@ -464,6 +547,61 @@ function Lobby.build(): LobbyHandle
 			Enum.Material.Metal
 		)
 	end
+	-- Stock on the shelves: two tires (dark with a yellow hub) and colourful boxes.
+	local boxColors = {
+		Color3.fromRGB(235, 90, 60),
+		Color3.fromRGB(70, 140, 240),
+		Color3.fromRGB(255, 205, 40),
+		Color3.fromRGB(80, 200, 110),
+		Color3.fromRGB(190, 90, 255),
+	}
+	for level = 1, 2 do
+		local shelfY = 2 + level * 2.6
+		for k = 1, 5 do
+			local ix = s.x - s.w / 2 + 3 + (k - 1) * (s.w - 6) / 4
+			local iz = s.z - s.d / 2 + 2
+			if level == 1 and k <= 2 then
+				local tire = part(
+					folder,
+					"ShelfTire",
+					Vector3.new(1.2, 3, 3),
+					world(ix, shelfY + 1.75, iz) * CFrame.Angles(0, math.pi / 2, 0),
+					Color3.fromRGB(22, 22, 26),
+					Enum.Material.SmoothPlastic,
+					Enum.PartType.Cylinder
+				)
+				tire.CanCollide = false
+				local hub = part(
+					folder,
+					"ShelfHub",
+					Vector3.new(1.3, 1.5, 1.5),
+					world(ix, shelfY + 1.75, iz) * CFrame.Angles(0, math.pi / 2, 0),
+					YELLOW,
+					Enum.Material.SmoothPlastic,
+					Enum.PartType.Cylinder
+				)
+				hub.CanCollide = false
+			else
+				local box = part(
+					folder,
+					"ShelfBox",
+					Vector3.new(2, 1.3, 1.6),
+					world(ix, shelfY + 0.9, iz),
+					boxColors[(k + level) % #boxColors + 1]
+				)
+				box.CanCollide = false
+			end
+		end
+	end
+	local counterGlow = part(
+		folder,
+		"CounterGlow",
+		Vector3.new(s.w - 2, 0.3, 0.3),
+		world(s.x, 0.6, s.z + s.d / 2 + 0.2),
+		YELLOW,
+		Enum.Material.Neon
+	)
+	counterGlow.CanCollide = false
 	part(folder, "StoreRoof", Vector3.new(s.w + 1, 1, s.d), world(s.x, 11, s.z), YELLOW)
 	for _, sx in { -1, 1 } do
 		part(
@@ -487,6 +625,20 @@ function Lobby.build(): LobbyHandle
 	label(stSign, Enum.NormalId.Front, "STORE", YELLOW, DARK)
 	glow(stSign, YELLOW, 24, 1)
 	prompt(counter, "StorePrompt", "Open", "Store")
+
+	-- Three light chevrons on the floor between the pads, pointing at the back wall.
+	for k = 0, 2 do
+		for _, sx in { -1, 1 } do
+			local chev = part(
+				folder,
+				"FloorChevron",
+				Vector3.new(5, 0.06, 1.1),
+				world(sx * 2.1, 0.05, 6 + k * 3.2) * CFrame.Angles(0, -sx * math.rad(35), 0),
+				Color3.fromRGB(105, 110, 125)
+			)
+			chev.CanCollide = false
+		end
+	end
 
 	-- Match pads: green slabs in a 2x2 grid. Each has a number badge and a "0/2 PLAYERS" board
 	-- on its back edge (the board text is what LobbyService updates).
@@ -514,6 +666,29 @@ function Lobby.build(): LobbyHandle
 			Enum.Material.Neon
 		)
 		padPart.Transparency = 0.15
+		-- Two white "person" icons on the pad (flat discs: head and shoulders).
+		for _, ix in { -2.6, 2.6 } do
+			local head = part(
+				folder,
+				"PadIconHead",
+				Vector3.new(0.1, 1.6, 1.6),
+				world(pp.x + ix, 1.25, pp.z - 1.4) * CFrame.Angles(0, 0, math.pi / 2),
+				Color3.fromRGB(245, 245, 245),
+				Enum.Material.SmoothPlastic,
+				Enum.PartType.Cylinder
+			)
+			head.CanCollide = false
+			local body = part(
+				folder,
+				"PadIconBody",
+				Vector3.new(0.1, 3.4, 3.4),
+				world(pp.x + ix, 1.25, pp.z + 1.2) * CFrame.Angles(0, 0, math.pi / 2),
+				Color3.fromRGB(245, 245, 245),
+				Enum.Material.SmoothPlastic,
+				Enum.PartType.Cylinder
+			)
+			body.CanCollide = false
+		end
 		glow(padPart, GREEN, 18, 1)
 		local badge = part(
 			folder,
