@@ -17,7 +17,7 @@ local GameConfig = {
 		flatRadius = 28, -- flat middle disc (studs from center)
 		rimRadius = 62, -- where the slope ends (same as flatRadius = no slope, a flat arena)
 		tiltDeg = 18, -- slope angle of the bowl (0 = flat arena)
-		wallHeight = 9, -- walls on the rim
+		wallHeight = 2.5, -- a low lip: hit hard enough and you fly over it (= ring out) -- walls on the rim
 		segments = 32, -- slabs around the bowl (more = rounder)
 		baseY = 300, -- height of arena in the world (far above the baseplate)
 		slotSpacing = 600, -- each player gets own arena this far apart on X

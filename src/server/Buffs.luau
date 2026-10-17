@@ -53,6 +53,12 @@ function Buffs.damageMult(car: CarBuilder.Car): number
 	return m
 end
 
+-- Is this (timed) buff running on the car right now?
+function Buffs.has(car: CarBuilder.Car, kind: string): boolean
+	local s = states[car]
+	return s ~= nil and PickupLogic.has(s, kind)
+end
+
 -- Damage the car takes after its shield; may consume the shield.
 function Buffs.absorb(car: CarBuilder.Car, damage: number): number
 	local s = states[car]

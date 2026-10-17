@@ -1,0 +1,33 @@
+--!strict
+-- Numbers for the bowl fun-stuff: smash hits, wall boost pads, the shrinking safe ring, drift
+-- charge and the new power-ups. Placeholder values: change freely.
+
+return {
+	Smash = {
+		from = 0.6, -- hits at least this strong (0..1) are a SMASH
+		upSpeed = 18, -- the car that got hit pops up this fast (x strength, studs/s)
+		spin = 9, -- and spins this fast (x strength, rad/s)
+		text = "SMASH!",
+	},
+	Pads = {
+		count = 4, -- boost pads on the bowl wall
+		radiusShare = 0.72, -- how far up the slope (0 = the flat edge, 1 = the rim)
+		triggerRadius = 5.5, -- a car this close to a pad (flat distance) gets launched
+		kick = 62, -- speed toward the middle (studs/s)
+		lift = 34, -- speed upward (studs/s): fly over the middle
+		cooldown = 2.5, -- seconds before the same car can use a pad again
+		size = { 9, 0.4, 11 }, -- x, y, z studs
+	},
+	Shrink = {
+		startSeconds = 35, -- the safe ring starts closing this long after the fight starts
+		overSeconds = 40, -- and takes this long to close
+		minRadius = 30, -- it stops here
+		damagePerSecond = 9, -- outside the ring a car loses this much HP per second
+		ringParts = 40, -- glowing blocks that draw the ring
+	},
+	Drift = {
+		refundPerSecond = 1.4, -- sliding gives back this many seconds of boost cooldown per second
+	},
+	Magnet = { seconds = 4, pull = 26, range = 48 }, -- pulls the enemy toward you (studs/s per second)
+	Rocket = { seconds = 1, speed = 105 }, -- an instant dash straight at the enemy
+}

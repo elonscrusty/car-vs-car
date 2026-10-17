@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
+local BowlConfig = require(ReplicatedStorage.Shared.BowlConfig)
 local PickupLogic = require(ReplicatedStorage.Shared.PickupLogic)
 local PickupsConfig = require(ReplicatedStorage.Shared.PickupsConfig)
 local Types = require(ReplicatedStorage.Shared.Types)
@@ -13,6 +14,7 @@ local Types = require(ReplicatedStorage.Shared.Types)
 local Arena = require(script.Parent.Arena)
 local Buffs = require(script.Parent.Buffs)
 local CarBuilder = require(script.Parent.CarBuilder)
+local Impulse = require(script.Parent.Impulse)
 
 export type Handle = { destroy: () -> () }
 
@@ -158,6 +160,23 @@ function Pickups.start(
 						)
 					then
 						Buffs.apply(car, pk.kind)
+						if pk.kind == "rocket" then
+							-- Dash straight at the other car.
+							for _, other in cars do
+								if other ~= car and not other.dead then
+									local d = other.body.Position - car.body.Position
+									local flat = Vector3.new(d.X, 0, d.Z)
+									if flat.Magnitude > 0.5 then
+										Impulse.linear(
+											car.body,
+											flat.Unit
+												* BowlConfig.Rocket.speed
+												* car.body.AssemblyMass
+										)
+									end
+								end
+							end
+						end
 						remove(i)
 						break
 					end

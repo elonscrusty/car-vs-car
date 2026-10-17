@@ -9,6 +9,8 @@ local RunService = game:GetService("RunService")
 
 local Aim = require(ReplicatedStorage.Shared.Aim)
 local Build = require(ReplicatedStorage.Shared.Build)
+local BowlConfig = require(ReplicatedStorage.Shared.BowlConfig)
+local BowlRules = require(ReplicatedStorage.Shared.BowlRules)
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
 local Duel = require(ReplicatedStorage.Shared.Duel)
 local Fight = require(ReplicatedStorage.Shared.Fight)
@@ -21,6 +23,7 @@ local Types = require(ReplicatedStorage.Shared.Types)
 
 local Arena = require(script.Parent.Arena)
 local Autopilot = require(script.Parent.Autopilot)
+local BowlHazards = require(script.Parent.BowlHazards)
 local Buffs = require(script.Parent.Buffs)
 local Pickups = require(script.Parent.Pickups)
 local BotLevels = require(ReplicatedStorage.Shared.BotLevels)
@@ -76,6 +79,7 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 	local cars: { CarBuilder.Car } = {}
 	local touchConns: { RBXScriptConnection } = {}
 	local pickups: Pickups.Handle? = nil
+	local hazards: BowlHazards.Handle? = nil
 	local round = 0
 	local submissions: { [number]: { angle: number, power: number } } = {}
 	local lastHitAt = -math.huge
@@ -113,6 +117,10 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 
 	local function clearCars()
 		table.clear(clientDriven)
+		if hazards then
+			hazards.destroy()
+			hazards = nil
+		end
 		if pickups then
 			pickups.destroy()
 			pickups = nil
@@ -145,6 +153,10 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 			return
 		end
 		phase = "roundEnd"
+		if hazards then
+			hazards.destroy()
+			hazards = nil
+		end
 		if auto and not frozen then
 			hitStop(cfg.Mode.koFreezeSeconds) -- a short freeze frame on the knockout
 		end
@@ -281,6 +293,7 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 
 		-- Feel: tell the client (shake, sparks, number), smoke when low, freeze for a blink.
 		local strength = Logic.hitStrength(rel, cfg.Feel.bigHitSpeed)
+		local popSpeed, spinSpeed = BowlRules.smashPop(strength, BowlConfig.Smash)
 		local hitPos = (a.body.Position + b.body.Position) / 2
 		sendAll(function(i)
 			return {
@@ -289,9 +302,14 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 				strength = strength,
 				damage = dmg,
 				youHit = defender.idx == i,
-				tag = Damage.tag(zone, comboCount),
+				tag = if popSpeed > 0 then BowlConfig.Smash.text else Damage.tag(zone, comboCount),
 			}
 		end)
+		if popSpeed > 0 then
+			-- SMASH: the car that got hit flies up and spins.
+			Impulse.linear(defender.body, Vector3.yAxis * defender.body.AssemblyMass * popSpeed)
+			defender.body.AssemblyAngularVelocity += Vector3.yAxis * spinSpeed
+		end
 		if not defender.smoking and newHp / defender.stats.hp < cfg.Feel.smokeBelow then
 			defender.smoking = true
 			Fx.smoke(defender.body)
@@ -518,6 +536,7 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 			pickups = Pickups.start(arena, cars, rng, function(car, update)
 				sendTo(car.idx, update)
 			end)
+			hazards = BowlHazards.new(arena, cars)
 		end
 		sendAll(function(i)
 			local wid = Weapon.idOf(cars[i])
@@ -629,6 +648,19 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 		end
 	end
 
+	-- The safe ring burns a car outside it (HP only, no hit effects).
+	local function hazardDamage(car: CarBuilder.Car, amount: number)
+		if phase ~= "fight" or car.dead then
+			return
+		end
+		local newHp, dead = Logic.applyDamage(car.hp, amount)
+		car.hp = newHp
+		car.bar.set(newHp, car.stats.hp)
+		if dead then
+			endMatch(car, "BURNED OUT!")
+		end
+	end
+
 	local fightConn = RunService.Heartbeat:Connect(function(dt)
 		if phase ~= "fight" or frozen then
 			return
@@ -676,6 +708,12 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 			end
 		end
 		local now = os.clock()
+		if hazards then
+			hazards.step(dt, now, fightElapsed, hazardDamage)
+			if phase ~= "fight" then
+				return
+			end
+		end
 		for _, car in cars do
 			Weapon.tick(
 				car,

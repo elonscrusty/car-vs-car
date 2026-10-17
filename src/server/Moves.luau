@@ -5,6 +5,8 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local BowlConfig = require(ReplicatedStorage.Shared.BowlConfig)
+local BowlRules = require(ReplicatedStorage.Shared.BowlRules)
 local Moves = require(ReplicatedStorage.Shared.Moves)
 local MovesConfig = require(ReplicatedStorage.Shared.MovesConfig)
 local Autopilot = require(script.Parent.Autopilot)
@@ -41,6 +43,8 @@ function ServerMoves.mods(
 	local v = car.body.AssemblyLinearVelocity
 	local speed = Vector3.new(v.X, 0, v.Z).Magnitude
 	local grip, turn = Moves.driftStep(state.drift, steer, speed, dt, MovesConfig.Drift)
+	-- Sliding sideways charges the boost: every second of drift gives cooldown back.
+	state.boostAt -= BowlRules.driftRefund(grip < 1, dt, BowlConfig.Drift.refundPerSecond)
 	local sinceBoost = now - state.boostAt
 	return {
 		speedScale = Moves.boostSpeedMult(sinceBoost, MovesConfig.Boost),
