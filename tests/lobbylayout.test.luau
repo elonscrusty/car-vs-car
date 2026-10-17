@@ -6,8 +6,8 @@ local test, near, truthy, eq = Harness.test, Harness.near, Harness.truthy, Harne
 
 print("LobbyLayout")
 
-test("three pads", function()
-	eq(#LobbyLayout.pads, 3)
+test("four pads", function()
+	eq(#LobbyLayout.pads, 4)
 end)
 
 test("everything is inside the room", function()
@@ -31,7 +31,7 @@ test("no footprints overlap (so spawn is not on a pad)", function()
 	end
 end)
 
-test("spawn faces the showcase", function()
+test("spawn faces the middle of the pads", function()
 	local dx, dz = LobbyLayout.spawnFacing()
 	near(dx, 0, 1e-9)
 	near(dz, -1, 1e-9)

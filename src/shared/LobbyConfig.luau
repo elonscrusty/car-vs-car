@@ -9,7 +9,7 @@ local okOrigin, origin = pcall(function()
 end)
 LobbyConfig.Lobby = {
 	origin = (if okOrigin then origin else { X = 0, Y = 3, Z = 500 }) :: Vector3,
-	padCount = 3,
+	padCount = 4,
 }
 LobbyConfig.Pad = { maxPlayers = 2, countdownSeconds = 3, pickSeconds = 15 }
 LobbyConfig.Rewards = { winCoins = 25, loseCoins = 5, endScreenSeconds = 4 }

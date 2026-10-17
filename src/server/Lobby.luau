@@ -1,5 +1,7 @@
 --!strict
--- Builds the night neon garage lobby from plain parts (chunky low-poly, few parts, no meshes).
+-- Builds the racetrack lobby from plain parts (chunky low-poly, few parts, no meshes): a round
+-- red-walled arena with a store, truck stage, claw machine, 4 match pads and an entrance gate.
+-- Models swap in by name (ClawMachine from ServerStorage.Models; others are named placeholders).
 -- Geometry numbers live in Shared.LobbyLayout; the origin comes from LobbyConfig.Lobby.origin.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -25,14 +27,15 @@ export type LobbyHandle = {
 
 local Lobby = {}
 
-local CLAW_YAW_DEG = -90 -- turns the imported claw machine so its front faces the middle of the lobby
+local CLAW_YAW_DEG = 90 -- turns the imported claw machine so its front faces the middle of the lobby (it stands on the right)
 
-local PINK = Color3.fromRGB(255, 60, 170)
-local BLUE = Color3.fromRGB(60, 170, 255)
+local CYAN = Color3.fromRGB(60, 220, 255)
 local GREEN = Color3.fromRGB(70, 255, 130)
 local YELLOW = Color3.fromRGB(255, 205, 40)
-local CONCRETE = Color3.fromRGB(70, 74, 86)
+local RED = Color3.fromRGB(215, 40, 40)
+local FLOOR = Color3.fromRGB(70, 74, 86)
 local DARK = Color3.fromRGB(28, 30, 38)
+local GRAY = Color3.fromRGB(150, 152, 165)
 
 local function part(
 	parent: Instance,
@@ -190,183 +193,151 @@ function Lobby.build(): LobbyHandle
 	local folder = Instance.new("Folder")
 	folder.Name = "Lobby"
 	local room = L.room
-	local W, D, H, T = room.halfW * 2, room.halfD * 2, room.height, room.wall
+	local R, WH = room.radius, room.wallHeight
 
-	-- Floor: dark and wet-shiny, with neon edge strips.
-	local floor = part(
+	-- Floor: one big dark disc (a cylinder on its side), with a start line at the gate.
+	part(
 		folder,
 		"Floor",
-		Vector3.new(W + 2 * T, 2, D + 2 * T),
-		world(0, -1, 0),
-		Color3.fromRGB(34, 36, 48),
-		Enum.Material.Concrete
+		Vector3.new(2, (R + 3) * 2, (R + 3) * 2),
+		world(0, -1, 0) * CFrame.Angles(0, 0, math.pi / 2),
+		FLOOR,
+		Enum.Material.Concrete,
+		Enum.PartType.Cylinder
 	)
-	floor.Reflectance = 0.18
+
+	-- Round wall: red segments, with a dark post and a cyan light strip between them.
+	-- The segment that would sit at the front is left out: that is the entrance gate.
+	local segments = 32
+	local segW = 2 * math.pi * R / segments * 1.04
+	for i = 0, segments - 1 do
+		local a = i / segments * math.pi * 2
+		local px, pz = math.sin(a) * R, math.cos(a) * R
+		if not (pz > 0 and math.abs(px) < room.wall + L.gate.halfOpening + 3) then
+			local pos = Vector3.new(px, WH / 2, pz)
+			local cf = CFrame.lookAt(origin + pos, origin + Vector3.new(0, WH / 2, 0))
+			part(folder, "Wall", Vector3.new(segW, WH, room.wall), cf, RED)
+			if i % 2 == 0 then
+				local strip = part(
+					folder,
+					"WallStrip",
+					Vector3.new(segW * 0.6, 0.4, 0.4),
+					cf * CFrame.new(0, WH * 0.2, -room.wall / 2 - 0.1),
+					CYAN,
+					Enum.Material.Neon
+				)
+				strip.CanCollide = false
+			else
+				local post = part(
+					folder,
+					"WallPost",
+					Vector3.new(2.4, WH + 3, room.wall + 1),
+					cf * CFrame.new(0, 1.5, 0),
+					DARK
+				)
+				glow(post, CYAN, 26, 0.6)
+			end
+		end
+	end
+
+	-- Entrance gate with the checkered start line (the spawn stands just inside).
+	local gz = L.gate.z
 	for _, sx in { -1, 1 } do
-		local strip = part(
+		local gpost = part(
 			folder,
-			"FloorStrip",
-			Vector3.new(0.6, 0.1, D - 4),
-			world(sx * (room.halfW - 2), 0.05, 0),
-			BLUE,
+			"GatePost",
+			Vector3.new(3, 9, 3),
+			world(sx * (L.gate.halfOpening + 1.5), 4.5, gz),
+			DARK
+		)
+		local gstrip = part(
+			folder,
+			"GateStrip",
+			Vector3.new(0.5, 6, 0.5),
+			world(sx * (L.gate.halfOpening - 0.2), 4.5, gz - 1.6),
+			CYAN,
 			Enum.Material.Neon
 		)
-		strip.CanCollide = false
+		gstrip.CanCollide = false
+		glow(gpost, CYAN, 24, 0.8)
 	end
-
-	-- Walls (concrete), roof slab, roof beams.
-	local wallColor = CONCRETE
-	part(
-		folder,
-		"WallBack",
-		Vector3.new(W + 2 * T, H, T),
-		world(0, H / 2, -room.halfD - T / 2),
-		wallColor,
-		Enum.Material.Concrete
-	)
-	part(
-		folder,
-		"WallFront",
-		Vector3.new(W + 2 * T, H, T),
-		world(0, H / 2, room.halfD + T / 2),
-		wallColor,
-		Enum.Material.Concrete
-	)
-	part(
-		folder,
-		"WallLeft",
-		Vector3.new(T, H, D),
-		world(-room.halfW - T / 2, H / 2, 0),
-		wallColor,
-		Enum.Material.Concrete
-	)
-	part(
-		folder,
-		"WallRight",
-		Vector3.new(T, H, D),
-		world(room.halfW + T / 2, H / 2, 0),
-		wallColor,
-		Enum.Material.Concrete
-	)
-	part(
-		folder,
-		"Roof",
-		Vector3.new(W + 2 * T, 1, D + 2 * T),
-		world(0, H + 0.5, 0),
-		DARK,
-		Enum.Material.Concrete
-	)
-	for i = -3, 3 do
-		part(
-			folder,
-			"Beam",
-			Vector3.new(W, 2, 2),
-			world(0, H - 1, i * 14),
-			Color3.fromRGB(45, 48, 60),
-			Enum.Material.Metal
-		)
-		if i % 2 == 0 then
-			local tube = part(
+	for col = 1, 12 do
+		for row = 1, 2 do
+			local white = (col + row) % 2 == 0
+			local tile = part(
 				folder,
-				"CeilingLight",
-				Vector3.new(24, 0.4, 1),
-				world(0, H - 2.2, i * 14 + 3),
-				Color3.fromRGB(235, 245, 255),
-				Enum.Material.Neon
+				"StartLine",
+				Vector3.new(L.gate.halfOpening * 2 / 12, 0.1, 1.6),
+				world(
+					-L.gate.halfOpening + (col - 0.5) * L.gate.halfOpening * 2 / 12,
+					0.05,
+					gz - 2 + row * 1.6
+				),
+				if white then Color3.fromRGB(240, 240, 240) else Color3.fromRGB(20, 20, 20)
 			)
-			tube.CanCollide = false
-			glow(tube, Color3.fromRGB(190, 210, 255), 38, 0.8)
+			tile.CanCollide = false
 		end
 	end
 
-	-- Garage doors on the front wall (inside face), slatted, with a neon frame.
-	for _, dx in { -34, 34 } do
-		local doorCf = world(dx, 9, room.halfD - 0.3)
-		part(
-			folder,
-			"GarageDoor",
-			Vector3.new(24, 18, 0.6),
-			doorCf,
-			Color3.fromRGB(120, 126, 140),
-			Enum.Material.Metal
-		)
-		for k = 1, 5 do
-			part(
-				folder,
-				"DoorSlat",
-				Vector3.new(24, 0.4, 0.9),
-				world(dx, k * 3, room.halfD - 0.6),
-				Color3.fromRGB(80, 86, 100),
-				Enum.Material.Metal
-			)
-		end
-		local frame = part(
-			folder,
-			"DoorFrame",
-			Vector3.new(25, 0.5, 0.5),
-			world(dx, 18.3, room.halfD - 0.8),
-			PINK,
-			Enum.Material.Neon
-		)
-		frame.CanCollide = false
+	-- Big CAR VS CAR sign on a red gantry at the back, with the "STAND TO PLAY" board under it.
+	local backZ = -(R - 8)
+	for _, sx in { -1, 1 } do
+		part(folder, "GantryPost", Vector3.new(3, 22, 3), world(sx * 18, 11, backZ), RED)
 	end
-
-	-- Big neon wall sign on the back wall.
+	part(folder, "GantryBeam", Vector3.new(40, 2.5, 3), world(0, 22, backZ), RED)
 	local sign = part(
 		folder,
 		"WallSign",
-		Vector3.new(46, 11, 1),
-		CFrame.lookAt(
-			origin + Vector3.new(0, 19, -room.halfD + 0.6),
-			origin + Vector3.new(0, 19, 0)
-		),
+		Vector3.new(30, 9, 1),
+		CFrame.lookAt(origin + Vector3.new(0, 16.5, backZ + 1.6), origin + Vector3.new(0, 16.5, 0)),
 		Color3.fromRGB(14, 12, 24)
 	)
-	label(sign, Enum.NormalId.Front, "CAR VS CAR", PINK, BLUE)
-	local signTrim = part(
+	label(sign, Enum.NormalId.Front, "CAR VS CAR", YELLOW, Color3.fromRGB(20, 60, 150))
+	glow(sign, CYAN, 40, 0.8)
+	local board = part(
 		folder,
-		"WallSignTrim",
-		Vector3.new(48, 0.5, 0.5),
-		world(0, 24.8, -room.halfD + 0.9),
-		BLUE,
-		Enum.Material.Neon
+		"StandToPlaySign",
+		Vector3.new(22, 5, 1),
+		CFrame.lookAt(origin + Vector3.new(0, 7, backZ + 8), origin + Vector3.new(0, 7, 0)),
+		Color3.fromRGB(14, 12, 24)
 	)
-	signTrim.CanCollide = false
-	glow(signTrim, PINK, 45, 1.5)
-	local signTrim2 = part(
+	label(board, Enum.NormalId.Front, "STAND TO PLAY", YELLOW, DARK)
+	local sub = part(
 		folder,
-		"WallSignTrim",
-		Vector3.new(48, 0.5, 0.5),
-		world(0, 13.2, -room.halfD + 0.9),
-		PINK,
-		Enum.Material.Neon
+		"StandToPlaySub",
+		Vector3.new(22, 1.6, 1),
+		CFrame.lookAt(origin + Vector3.new(0, 3.6, backZ + 8), origin + Vector3.new(0, 3.6, 0)),
+		Color3.fromRGB(14, 12, 24)
 	)
-	signTrim2.CanCollide = false
+	label(sub, Enum.NormalId.Front, "2 PLAYERS TO START", CYAN, DARK)
 
-	-- Showcase: glowing round platform with a slowly spinning car.
+	-- Truck stage (back-right): raised platform with steps, a rail, and the spinning red truck.
 	local sc = L.showcase
-	local platform = part(
+	part(
 		folder,
-		"ShowcasePlatform",
-		Vector3.new(1, sc.radius * 2, sc.radius * 2),
-		world(sc.x, 0.5, sc.z) * CFrame.Angles(0, 0, math.pi / 2),
-		Color3.fromRGB(25, 30, 45),
-		nil,
-		Enum.PartType.Cylinder
+		"ShowcaseStage",
+		Vector3.new(sc.footprint - 2, 2, sc.footprint - 2),
+		world(sc.x, 1, sc.z),
+		DARK
 	)
-	platform.Reflectance = 0.1
+	part(
+		folder,
+		"ShowcaseSteps",
+		Vector3.new(8, 1, 3),
+		world(sc.x - sc.footprint / 2 + 1 - 1, 0.5, sc.z + sc.footprint / 2 - 0.5),
+		GRAY
+	)
 	local ring = part(
 		folder,
 		"ShowcaseRing",
-		Vector3.new(0.3, sc.radius * 2 + 1.5, sc.radius * 2 + 1.5),
-		world(sc.x, 0.2, sc.z) * CFrame.Angles(0, 0, math.pi / 2),
-		BLUE,
-		Enum.Material.Neon,
-		Enum.PartType.Cylinder
+		Vector3.new(sc.footprint - 3, 0.2, sc.footprint - 3),
+		world(sc.x, 2.1, sc.z),
+		CYAN,
+		Enum.Material.Neon
 	)
 	ring.CanCollide = false
-	glow(ring, BLUE, 28, 1.5)
-	local pivot = world(sc.x, 2.6, sc.z)
+	glow(ring, CYAN, 28, 1.2)
+	local pivot = world(sc.x, 5, sc.z)
 	local showcaseCar = miniCar(folder, "ShowcaseCar", Color3.fromRGB(230, 50, 60), 1.6, pivot)
 	local angle = 0
 	local conn = RunService.Heartbeat:Connect(function(dt: number)
@@ -377,63 +348,39 @@ function Lobby.build(): LobbyHandle
 		conn:Disconnect()
 	end)
 
-	-- Gacha machine: yellow body, glass dome full of capsule balls, sign, prompt.
+	-- Claw machine (right wall). Placeholder box + the "Gacha" prompt; the imported model
+	-- (ServerStorage.Models.ClawMachine) replaces the look and keeps the prompt.
 	local g = L.gacha
-	local gBase = part(folder, "GachaBody", Vector3.new(7, 7, 7), world(g.x, 3.5, g.z), YELLOW)
-	part(folder, "GachaSlot", Vector3.new(3, 1.6, 0.4), world(g.x + 3.5, 2.2, g.z), DARK)
-	local dome = part(
+	local gBase = part(
 		folder,
-		"GachaDome",
-		Vector3.new(9, 9, 9),
-		world(g.x, 11, g.z),
-		Color3.fromRGB(200, 230, 255),
-		Enum.Material.Glass,
-		Enum.PartType.Ball
+		"GachaBody",
+		Vector3.new(g.d, 10, g.w),
+		world(g.x, 5, g.z),
+		Color3.fromRGB(190, 40, 40)
 	)
-	dome.Transparency = 0.6
-	dome.CanCollide = false
-	local ballColors =
-		{ PINK, BLUE, GREEN, YELLOW, Color3.fromRGB(255, 120, 40), Color3.fromRGB(190, 90, 255) }
-	for i = 1, 12 do
-		local a = i * 2.4
-		local r = 1 + (i % 3) * 1.1
-		local ball = part(
-			folder,
-			"Capsule",
-			Vector3.new(1.8, 1.8, 1.8),
-			world(g.x + math.cos(a) * r, 9.6 + (i % 4) * 0.9, g.z + math.sin(a) * r),
-			ballColors[i % #ballColors + 1],
-			nil,
-			Enum.PartType.Ball
-		)
-		ball.CanCollide = false
-	end
 	local gSign = part(
 		folder,
 		"GachaSign",
-		Vector3.new(0.6, 3, 8),
+		Vector3.new(0.6, 2.4, 8),
 		CFrame.lookAt(
-			origin + Vector3.new(g.x + 0.1, 17.5, g.z),
-			origin + Vector3.new(g.x + 10, 17.5, g.z)
+			origin + Vector3.new(g.x - g.d / 2 - 0.4, 11, g.z),
+			origin + Vector3.new(0, 11, g.z)
 		),
 		Color3.fromRGB(14, 12, 24)
 	)
-	label(gSign, Enum.NormalId.Front, "GACHA", YELLOW, PINK)
-	glow(gSign, YELLOW, 24, 1.2)
-	prompt(gBase, "GachaPrompt", "Open", "Gacha")
+	label(gSign, Enum.NormalId.Front, "CLAW", YELLOW, DARK)
+	prompt(gBase, "GachaPrompt", "Play", "Claw Machine")
 
-	-- Claw machine model (imported once in Studio, saved as ServerStorage.Models.ClawMachine).
-	-- When it exists it replaces the placeholder gacha machine above and keeps the same prompt.
 	local models = ServerStorage:FindFirstChild("Models")
 	local clawModel: Model? = nil
 	local clawTemplate = models and models:FindFirstChild("ClawMachine")
 	if clawTemplate and clawTemplate:IsA("Model") then
 		for _, child in folder:GetChildren() do
-			if child ~= gBase and (child.Name:sub(1, 5) == "Gacha" or child.Name == "Capsule") then
+			if child ~= gBase and child.Name:sub(1, 5) == "Gacha" then
 				child:Destroy()
 			end
 		end
-		-- The old body stays as an invisible anchor for "GachaPrompt".
+		-- The placeholder box stays as an invisible anchor for "GachaPrompt".
 		gBase.Transparency = 1
 		gBase.CanCollide = false
 		local claw = clawTemplate:Clone()
@@ -443,101 +390,113 @@ function Lobby.build(): LobbyHandle
 				d.Anchored = true
 			end
 		end
-		-- Floor level, facing the middle of the lobby (+X from the left wall).
+		-- Floor level, facing the middle of the lobby (-X from the right wall).
 		claw:PivotTo(world(g.x, 0, g.z) * CFrame.Angles(0, math.rad(CLAW_YAW_DEG), 0))
 		claw.Parent = folder
 		clawModel = claw
 	end
 
-	-- Store counter: blue desk with a shelf of toy cars, sign, prompt.
+	-- Store booth (back-left): yellow counter with a shelf behind it.
 	local s = L.store
 	local counter = part(
 		folder,
 		"StoreCounter",
-		Vector3.new(s.w, 4, s.d),
-		world(s.x, 2, s.z),
-		Color3.fromRGB(40, 110, 220)
+		Vector3.new(s.w, 4, 4),
+		world(s.x, 2, s.z + s.d / 2 - 2),
+		YELLOW
 	)
 	part(
 		folder,
 		"CounterTop",
-		Vector3.new(s.w + 0.6, 0.5, s.d + 0.6),
-		world(s.x, 4.25, s.z),
-		Color3.fromRGB(230, 235, 245)
+		Vector3.new(s.w + 0.6, 0.5, 4.6),
+		world(s.x, 4.25, s.z + s.d / 2 - 2),
+		DARK
 	)
-	local shelfX = s.x - s.w / 2 + 0.8
-	part(folder, "ShelfBack", Vector3.new(0.6, 9, s.d), world(-room.halfW + 0.5, 8.5, s.z), DARK)
-	local carColors = { "Heavy", "Light", "Ramp", "Spike" }
+	part(folder, "StoreBack", Vector3.new(s.w, 9, 1), world(s.x, 4.5, s.z - s.d / 2 + 0.5), DARK)
 	for level = 1, 2 do
 		part(
 			folder,
 			"Shelf",
-			Vector3.new(3, 0.5, s.d - 2),
-			world(-room.halfW + 2, 5 + level * 4, s.z),
-			Color3.fromRGB(150, 150, 165),
+			Vector3.new(s.w - 2, 0.5, 2.5),
+			world(s.x, 2 + level * 2.6, s.z - s.d / 2 + 2),
+			GRAY,
 			Enum.Material.Metal
 		)
-		for k = 1, 3 do
-			local id = carColors[(level + k) % #carColors + 1]
-			local c = CarConfig.Cars[id].rgb
-			miniCar(
-				folder,
-				"ToyCar",
-				Color3.fromRGB(c[1], c[2], c[3]),
-				0.28,
-				world(-room.halfW + 2, 6.3 + level * 4, s.z + (k - 2) * 7)
-					* CFrame.Angles(0, math.pi / 2, 0)
-			)
-		end
+	end
+	part(folder, "StoreRoof", Vector3.new(s.w + 1, 1, s.d), world(s.x, 11, s.z), YELLOW)
+	for _, sx in { -1, 1 } do
+		part(
+			folder,
+			"StorePost",
+			Vector3.new(1, 10, 1),
+			world(s.x + sx * (s.w / 2 - 0.5), 5, s.z + s.d / 2 - 0.5),
+			YELLOW
+		)
 	end
 	local stSign = part(
 		folder,
 		"StoreSign",
-		Vector3.new(0.6, 3, 8),
+		Vector3.new(10, 2.6, 0.6),
 		CFrame.lookAt(
-			origin + Vector3.new(shelfX + 2, 16.5, s.z),
-			origin + Vector3.new(shelfX + 12, 16.5, s.z)
+			origin + Vector3.new(s.x, 9.6, s.z + s.d / 2 + 0.4),
+			origin + Vector3.new(s.x, 9.6, s.z + 40)
 		),
 		Color3.fromRGB(14, 12, 24)
 	)
-	label(stSign, Enum.NormalId.Front, "STORE", BLUE, Color3.fromRGB(20, 60, 150))
-	glow(stSign, BLUE, 24, 1.2)
+	label(stSign, Enum.NormalId.Front, "STORE", YELLOW, DARK)
+	glow(stSign, YELLOW, 24, 1)
 	prompt(counter, "StorePrompt", "Open", "Store")
 
-	-- Match pads: glowing green discs with an upright "0/2 PLAYERS" sign behind each.
+	-- Match pads: green slabs in a 2x2 grid. Each has a number badge and a "0/2 PLAYERS" board
+	-- on its back edge (the board text is what LobbyService updates).
 	local pads: { PadHandle } = {}
 	for i, pp in L.pads do
+		local size = L.padSize
+		part(folder, "PadBase", Vector3.new(size, 0.8, size), world(pp.x, 0.4, pp.z), DARK)
+		for _, cx in { -1, 1 } do
+			for _, cz in { -1, 1 } do
+				part(
+					folder,
+					"PadCorner",
+					Vector3.new(2, 1.2, 2),
+					world(pp.x + cx * (size / 2 - 1), 0.6, pp.z + cz * (size / 2 - 1)),
+					YELLOW
+				)
+			end
+		end
 		local padPart = part(
 			folder,
 			"MatchPad" .. i,
-			Vector3.new(0.6, L.padSize - 2, L.padSize - 2),
-			world(pp.x, 0.3, pp.z) * CFrame.Angles(0, 0, math.pi / 2),
+			Vector3.new(size - 4, 0.4, size - 4),
+			world(pp.x, 1, pp.z),
 			GREEN,
-			Enum.Material.Neon,
-			Enum.PartType.Cylinder
+			Enum.Material.Neon
 		)
 		padPart.Transparency = 0.15
-		glow(padPart, GREEN, 18, 1.2)
-		local padRing = part(
+		glow(padPart, GREEN, 18, 1)
+		local badge = part(
 			folder,
-			"PadRing",
-			Vector3.new(0.2, L.padSize, L.padSize),
-			world(pp.x, 0.1, pp.z) * CFrame.Angles(0, 0, math.pi / 2),
-			DARK,
-			nil,
-			Enum.PartType.Cylinder
+			"PadNumber" .. i,
+			Vector3.new(2.6, 2.4, 0.6),
+			CFrame.lookAt(
+				origin + Vector3.new(pp.x - size / 2 + 1.6, 3, pp.z - size / 2),
+				origin + Vector3.new(pp.x - size / 2 + 1.6, 3, pp.z + 10)
+			),
+			YELLOW
 		)
-		padRing.CanCollide = false
-		local board = part(
+		label(badge, Enum.NormalId.Front, string.format("%02d", i), DARK, nil)
+		local pboard = part(
 			folder,
 			"PadSign" .. i,
-			Vector3.new(10, 4, 0.6),
-			CFrame.lookAt(origin + Vector3.new(pp.x + 7, 7, pp.z), origin + Vector3.new(0, 7, pp.z)),
+			Vector3.new(8, 2.4, 0.6),
+			CFrame.lookAt(
+				origin + Vector3.new(pp.x + 2, 3, pp.z - size / 2),
+				origin + Vector3.new(pp.x + 2, 3, pp.z + 10)
+			),
 			Color3.fromRGB(14, 12, 24)
 		)
-		part(folder, "PadSignPost", Vector3.new(0.8, 5, 0.8), world(pp.x + 7.2, 2.5, pp.z), DARK)
 		local title =
-			label(board, Enum.NormalId.Front, "0/2 PLAYERS", GREEN, Color3.fromRGB(10, 80, 40))
+			label(pboard, Enum.NormalId.Front, "0/2 PLAYERS", GREEN, Color3.fromRGB(10, 80, 40))
 		local pr = prompt(padPart, "PadPrompt", "Join", "Match Pad")
 		pr:SetAttribute("PadIndex", i)
 		padPart:SetAttribute("PadIndex", i)
@@ -550,19 +509,70 @@ function Lobby.build(): LobbyHandle
 		}
 	end
 
-	-- Spawn: faces the showcase car.
+	-- Scenery: bench, tire stack, cones and plants (left), plants by the claw. No collision on the
+	-- small stuff so nobody gets stuck.
+	part(folder, "Bench", Vector3.new(3, 2.2, 8), world(-52, 1.1, 8), RED)
+	part(folder, "BenchBack", Vector3.new(0.8, 3, 8), world(-53.4, 3, 8), RED)
+	for k = 0, 2 do
+		part(
+			folder,
+			"Tire",
+			Vector3.new(2.2, 4.4, 4.4),
+			world(-50, 1.1 + k * 2.2, 22) * CFrame.Angles(0, 0, math.pi / 2),
+			DARK,
+			nil,
+			Enum.PartType.Cylinder
+		)
+	end
+	for _, cp in { Vector3.new(-44, 0, 28), Vector3.new(-41, 0, 31) } do
+		local cone = part(
+			folder,
+			"Cone",
+			Vector3.new(1.6, 3, 1.6),
+			world(cp.X, 1.5, cp.Z),
+			Color3.fromRGB(255, 120, 30)
+		)
+		cone.CanCollide = false
+		part(
+			folder,
+			"ConeBase",
+			Vector3.new(2.4, 0.3, 2.4),
+			world(cp.X, 0.15, cp.Z),
+			Color3.fromRGB(30, 30, 35)
+		).CanCollide =
+			false
+	end
+	for _, pp in
+		{
+			Vector3.new(-52, 0, -6),
+			Vector3.new(-48, 0, 38),
+			Vector3.new(54, 0, -6),
+			Vector3.new(50, 0, 32),
+		}
+	do
+		part(folder, "Planter", Vector3.new(4, 2, 4), world(pp.X, 1, pp.Z), GRAY)
+		part(
+			folder,
+			"Plant",
+			Vector3.new(3, 3, 3),
+			world(pp.X, 3.5, pp.Z),
+			Color3.fromRGB(60, 170, 60)
+		)
+	end
+
+	-- Spawn: just inside the gate, looks at the middle of the pads.
 	local sp = L.spawn
 	local spawnPos = origin + Vector3.new(sp.x, 0.5, sp.z)
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Name = "LobbySpawn"
 	spawn.Anchored = true
 	spawn.Size = Vector3.new(sp.size, 1, sp.size)
-	spawn.CFrame = CFrame.lookAt(spawnPos, origin + Vector3.new(L.showcase.x, 0.5, L.showcase.z))
+	spawn.CFrame = CFrame.lookAt(spawnPos, origin + Vector3.new(0, 0.5, 0))
 	spawn.Neutral = true
 	spawn.AllowTeamChangeOnTouch = false
 	spawn.Duration = 0
 	spawn.Material = Enum.Material.Neon
-	spawn.Color = PINK
+	spawn.Color = YELLOW
 	spawn.TopSurface = Enum.SurfaceType.Smooth
 	spawn.Parent = folder
 
