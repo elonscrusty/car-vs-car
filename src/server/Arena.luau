@@ -77,7 +77,9 @@ function Arena.build(origin: Vector3): Arena
 			color = Color3.fromRGB(120, 195, 100)
 		end
 		if not flat then
-			makePart(model, "Slope", slabSize, slabCf, color)
+			local slab = makePart(model, "Slope", slabSize, slabCf, color)
+			-- Very slippery: a car that stops on the slope slides back down to the middle.
+			slab.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0.05, 0.1, 1, 1)
 		end
 
 		local wallCf = base
