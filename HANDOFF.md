@@ -68,7 +68,7 @@ Design follows `/mnt/project-files/car-vs-car/game-plan.md`, but carter chose (2
 - Not verified in Studio (no Roblox runtime offline): button layout on phone, feel of turnRate/smoothRate, real touch release handling.
 
 ## Fight moves and game loop (added after manual steering)
-- Fight: boost, jump, one special per car, drift, bowl power-ups (shield, big hit, speed), weak spots (back/side hit 2x), parts fly off, two-fast-hits combo. Numbers: `MovesConfig`, `SpecialsConfig`, `PickupsConfig`, `CombatConfig`. Server code: `Moves`, `Specials`, `Pickups`, `Buffs`, `Parts`; client: `ActionInput`, `BuffUi`.
+- Fight: boost, jump, one special per car, drift, bowl power-ups (shield, big hit, speed), weak spots (back/side hit 2x), two-fast-hits combo (parts breaking off was removed on request). Numbers: `MovesConfig`, `SpecialsConfig`, `PickupsConfig`, `CombatConfig`. Server code: `Moves`, `Specials`, `Pickups`, `Buffs`; client: `ActionInput`, `BuffUi`.
 - Loop: win streak bonus, car levels (paint + badge), daily gift (free claw try), quests, paint shop, rank badges, rematch button, bot levels (easy/medium/hard). Pure rules in `Progress`, `Quests`, `Daily`, `Paint`, `Rematch`, `BotLevels`; services `RematchService`, `Appearance`, `Badge`; lobby buttons come from `client/MenuBar`.
 - Profile fields added with migration defaults: hintsSeen, progress, botLevel, quests, daily, paint.
 - Checked by Lune tests (168) and one scripted Studio fight vs a bot (no errors). Not yet played by hand on a phone; feel is untuned. Prices are placeholders.
