@@ -736,7 +736,7 @@ function Lobby.build(): LobbyHandle
 		GRAY
 	)
 	-- Yellow rails along the front and the middle-facing side (the steps stay open).
-	local stageTop = 2
+	local railBase = 2
 	local railLen = sc.footprint - 2 - 9
 	local frontZ = sc.z + sc.footprint / 2 - 1.2
 	local sideX = sc.x - sc.footprint / 2 + 1.2
@@ -744,7 +744,7 @@ function Lobby.build(): LobbyHandle
 		folder,
 		"StageRail",
 		Vector3.new(railLen, 0.4, 0.4),
-		world(sc.x + 4.5, stageTop + 1.6, frontZ),
+		world(sc.x + 4.5, railBase + 1.6, frontZ),
 		YELLOW
 	)
 	railFront.CanCollide = false
@@ -752,7 +752,7 @@ function Lobby.build(): LobbyHandle
 		folder,
 		"StageRail",
 		Vector3.new(0.4, 0.4, sc.footprint - 6),
-		world(sideX, stageTop + 1.6, sc.z - 2),
+		world(sideX, railBase + 1.6, sc.z - 2),
 		YELLOW
 	)
 	railSide.CanCollide = false
@@ -768,7 +768,7 @@ function Lobby.build(): LobbyHandle
 			folder,
 			"StageRailPost",
 			Vector3.new(0.5, 1.8, 0.5),
-			world(rp.X, stageTop + 0.9, rp.Z),
+			world(rp.X, railBase + 0.9, rp.Z),
 			YELLOW
 		)
 		rpost.CanCollide = false
