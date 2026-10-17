@@ -61,7 +61,7 @@ function Autopilot.step(
 	local reach = stats.size[2] / 2 + GameConfig.Drive.groundRayExtra
 	local hit = workspace:Raycast(cf.Position, Vector3.new(0, -reach, 0), rayParams)
 	local grounded = hit ~= nil and (hit.Instance.Name == "Floor" or hit.Instance.Name == "Slope")
-	if not grounded then
+	if hit == nil or not grounded then
 		return
 	end
 
@@ -103,6 +103,15 @@ function Autopilot.step(
 		or (throttle < 0 and forwardSpeed > -maxSpeed * 0.6)
 	then
 		body:ApplyImpulse(fwd * throttle * accel * mass * dt)
+		-- Slope assist: while driving, cancel the part of gravity that pulls back along the slope,
+		-- so a heavy car can climb the bowl instead of stalling facing uphill.
+		if throttle > 0 then
+			local g = Vector3.new(0, -workspace.Gravity, 0)
+			local along = (g - hit.Normal * g:Dot(hit.Normal)):Dot(fwd)
+			if along < 0 then
+				body:ApplyImpulse(fwd * -along * GameConfig.Drive.slopeAssist * mass * dt)
+			end
+		end
 	end
 
 	-- 6. Grip: cancel part of the sideways slide so it drives like a car, not soap.

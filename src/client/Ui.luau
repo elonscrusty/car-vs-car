@@ -270,7 +270,14 @@ function Ui.create(h: Handlers): View
 		top.Visible = true
 		top.Text = `YOU {hearts(youHearts)}  vs  {hearts(enemyHearts)} BOT   (round {round})`
 		msg.Visible = true
-		msg.Text = `{youCar} vs {enemyCar}`
+		local matchup = `{youCar} vs {enemyCar}`
+		msg.Text = matchup
+		-- Only a short intro: it must not sit on top of the cars while you aim.
+		task.delay(1.5, function()
+			if msg.Text == matchup then
+				msg.Visible = false
+			end
+		end)
 		aimFrame.Visible = true
 		goB.Text = "LOCK AIM"
 		hint.Text = "A / D or arrows to aim"

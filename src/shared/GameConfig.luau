@@ -39,6 +39,7 @@ local GameConfig = {
 	Drive = {
 		turnGain = 8, -- how hard the car steers toward target
 		groundFriction = 0.05, -- floor + car friction. Lower = slides more, keeps speed
+		slopeAssist = 1, -- 0..1: how much of the uphill gravity pull the gas cancels (1 = slope feels flat)
 		grip = 6, -- side slide killing (higher = less drifting)
 		groundRayExtra = 2.5, -- studs below car that still count as "on ground"
 	},
