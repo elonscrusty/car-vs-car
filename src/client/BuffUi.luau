@@ -90,15 +90,11 @@ function BuffUi.new(): BuffUi
 		toast.TextStrokeTransparency = 0
 		toast.Text = (PickupsConfig.names :: any)[kind] or kind
 		toast.Parent = gui
-		TweenService:Create(
-			toast,
-			TweenInfo.new(1.1),
-			{
-				Position = UDim2.fromScale(0.5, 0.24),
-				TextTransparency = 1,
-				TextStrokeTransparency = 1,
-			}
-		):Play()
+		TweenService:Create(toast, TweenInfo.new(1.1), {
+			Position = UDim2.fromScale(0.5, 0.24),
+			TextTransparency = 1,
+			TextStrokeTransparency = 1,
+		}):Play()
 		task.delay(1.2, function()
 			toast:Destroy()
 		end)
