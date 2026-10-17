@@ -147,7 +147,7 @@ function BuildUi.new(menu: Menu): Handle
 	maxSize.MaxSize = Vector2.new(760, 560)
 	maxSize.Parent = panel
 
-	local title = text(panel, "GARAGE", UDim2.new(0.4, 0, 0, 40), UDim2.fromOffset(14, 14), CYAN)
+	text(panel, "GARAGE", UDim2.new(0.4, 0, 0, 40), UDim2.fromOffset(14, 14), CYAN)
 	local info = text(panel, "", UDim2.new(0.45, -70, 0, 34), UDim2.new(0.4, 0, 0, 16), GOLD)
 	info.TextXAlignment = Enum.TextXAlignment.Right
 	local close = button(panel, "X", UDim2.fromOffset(TOUCH, TOUCH), PINK)
