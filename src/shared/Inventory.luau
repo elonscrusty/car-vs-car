@@ -11,6 +11,7 @@ local function sibling(name: string): any
 end
 
 local CarConfig = sibling("CarConfig")
+local BotLevels = sibling("BotLevels")
 local Hints = sibling("Hints")
 local LobbyConfig = sibling("LobbyConfig")
 
@@ -21,6 +22,7 @@ export type Profile = {
 	owned: { [string]: boolean },
 	freePullUsed: boolean,
 	hintsSeen: { [string]: boolean }, -- first-time hints already shown (see Hints)
+	botLevel: string, -- bot difficulty: "easy" | "medium" | "hard"
 }
 
 local Inventory = {}
@@ -53,6 +55,7 @@ function Inventory.default(): Profile
 		owned = owned,
 		freePullUsed = false,
 		hintsSeen = {},
+		botLevel = "medium",
 	}
 end
 
@@ -80,6 +83,7 @@ function Inventory.migrate(raw: any): Profile
 		owned = owned,
 		freePullUsed = raw.freePullUsed == true,
 		hintsSeen = Hints.clean(raw.hintsSeen),
+		botLevel = if BotLevels.isValid(raw.botLevel) then raw.botLevel else "medium",
 	}
 end
 

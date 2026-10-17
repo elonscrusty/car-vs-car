@@ -77,6 +77,7 @@ local function copyProfile(p: Profile): Profile
 		owned = owned,
 		freePullUsed = p.freePullUsed,
 		hintsSeen = table.clone(p.hintsSeen),
+		botLevel = p.botLevel,
 	}
 end
 

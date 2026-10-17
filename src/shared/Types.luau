@@ -31,6 +31,7 @@ export type LobbyUpdate =
 		owned: { string },
 		freePullAvailable: boolean,
 		hintsSeen: { string },
+		botLevel: string?,
 	}
 	| { kind: "gacha", carId: string, isNew: boolean, refund: number, free: boolean, coins: number }
 	| { kind: "gachaError", reason: string }

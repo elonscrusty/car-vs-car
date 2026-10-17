@@ -7,6 +7,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Ai = require(ReplicatedStorage.Shared.Ai)
+local BotLevels = require(ReplicatedStorage.Shared.BotLevels)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local Logic = require(ReplicatedStorage.Shared.Logic)
 local Steer = require(ReplicatedStorage.Shared.Steer)
@@ -108,8 +109,10 @@ function Autopilot.step(
 	enemy: CarBuilder.Car,
 	dt: number,
 	rayParams: RaycastParams,
-	center: Vector3
+	center: Vector3,
+	level: BotLevels.Level?
 )
+	local lv = level or BotLevels.get(nil)
 	local body = car.body
 	local stats = car.stats
 	local cf = body.CFrame
@@ -120,7 +123,13 @@ function Autopilot.step(
 
 	-- Ask the AI what to do.
 	local flatSpeed = flat(body.AssemblyLinearVelocity).Magnitude
-	Ai.noteSpeed(car.ai, flatSpeed, dt, GameConfig.Ai.stuckSeconds, GameConfig.Ai.retreatTime)
+	Ai.noteSpeed(
+		car.ai,
+		flatSpeed,
+		dt,
+		BotLevels.stuckLimit(lv, GameConfig.Ai.stuckSeconds),
+		GameConfig.Ai.retreatTime
+	)
 	local pos, epos = cf.Position, enemy.body.Position
 	local cmd = Ai.decide(
 		stats.ai,
@@ -139,8 +148,23 @@ function Autopilot.step(
 	end
 	fwd = fwd.Unit
 	local angle = Ai.signedAngle(fwd.X, fwd.Z, cmd.tx - pos.X, cmd.tz - pos.Z)
-	setSpin(body, Ai.steer(angle, GameConfig.Drive.turnGain, stats.turnRate))
-	push(car, fwd, Ai.driveScale(angle, cmd.throttle), hit, dt)
+	angle += math.rad(BotLevels.wanderOffsetDeg(lv, os.clock(), car.idx))
+	setSpin(body, Ai.steer(angle, GameConfig.Drive.turnGain * lv.turnGainMult, stats.turnRate))
+	local throttle = Ai.driveScale(angle, cmd.throttle)
+	local forwardSpeed = body.AssemblyLinearVelocity:Dot(fwd)
+	if lv.speedMult < 1 and forwardSpeed > stats.maxSpeed * lv.speedMult then
+		throttle = 0 -- slower bot: coast above its lower top speed
+	end
+	push(car, fwd, throttle, hit, dt)
+	if
+		lv.speedMult > 1
+		and throttle > 0
+		and forwardSpeed >= stats.maxSpeed
+		and forwardSpeed < stats.maxSpeed * lv.speedMult
+	then
+		-- Faster bot: push on past the normal top speed.
+		body:ApplyImpulse(fwd * stats.accel * body.AssemblyMass * dt)
+	end
 end
 
 -- Human car: gas is always on; `steerInput` (-1 left .. 1 right, already smoothed) turns it.

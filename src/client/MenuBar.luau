@@ -11,6 +11,8 @@ export type MenuBar = {
 	-- Shows a small red dot on a button (e.g. a gift is ready).
 	setBadge: (id: string, on: boolean) -> (),
 	setVisible: (visible: boolean) -> (),
+	-- Tints a button's background (e.g. green/yellow/red for a difficulty).
+	setColor: (id: string, color: Color3) -> (),
 }
 
 local MenuBar = {}
@@ -99,6 +101,13 @@ function MenuBar.new(): MenuBar
 		local dot = badges[id]
 		if dot then
 			dot.Visible = on
+		end
+	end
+
+	bar.setColor = function(id: string, color: Color3)
+		local b = buttons[id]
+		if b then
+			b.BackgroundColor3 = color
 		end
 	end
 
