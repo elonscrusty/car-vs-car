@@ -152,7 +152,7 @@ function Ui.create(h: Handlers): View
 		pick.Visible = true
 	end
 
-	view.showAim = function(round, youCar, enemyCar, seconds, enemyName)
+	view.showAim = function(_round, youCar, enemyCar, seconds, enemyName)
 		hideAll()
 		top.Visible = true
 		top.Text = `YOU  vs  {enemyName}`
