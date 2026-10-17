@@ -70,11 +70,13 @@ local GameConfig = {
 		slopeAssist = 1, -- 0..1: how much of the uphill gravity pull the gas cancels
 		grip = 24, -- side slide killing (higher = less drifting)
 		groundRayExtra = 2.5, -- studs below car that still count as "on ground"
-		manualTurn = 1, -- human steering: full steer input = this x the car's turnRate
+		manualTurn = 2, -- human steering: full steer input = this x the car's turnRate
+		manualTurnMin = 4, -- ...but never slower than this (radians/sec) so heavy cars still turn
+		manualTurnMax = 7, -- ...and never faster than this so light cars do not spin like tops
 	},
 	-- Human steering input (the player turns, the server keeps the gas on)
 	Steer = {
-		smoothRate = 8, -- input units per second the steer eases at (0 -> 1 in ~0.12 s)
+		smoothRate = 25, -- input units per second the steer eases at (0 -> 1 in ~0.04 s)
 		staleSeconds = 0.5, -- no update this long = treat the input as 0
 		resendSeconds = 0.1, -- client re-sends the held value this often
 	},
@@ -98,7 +100,7 @@ local GameConfig = {
 	Remote = {
 		maxPerWindow = 6, -- calls allowed per window per player
 		windowSeconds = 2,
-		steerMaxPerWindow = 30, -- Steer remote: calls allowed per window per player
+		steerMaxPerWindow = 60, -- Steer remote: calls allowed per window per player
 		steerWindowSeconds = 1,
 	},
 }

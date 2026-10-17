@@ -196,10 +196,10 @@ function Autopilot.stepManual(
 	end
 	fwd = fwd.Unit
 	local turnScale = if mods then mods.turnScale else 1
-	setSpin(
-		car.body,
-		Steer.spin(steerInput, car.stats.turnRate, GameConfig.Drive.manualTurn * turnScale)
-	)
+	local drive = GameConfig.Drive
+	local turnRate =
+		math.clamp(car.stats.turnRate * drive.manualTurn, drive.manualTurnMin, drive.manualTurnMax)
+	setSpin(car.body, Steer.spin(steerInput, turnRate, turnScale))
 	push(car, fwd, throttle, hit, dt, mods)
 end
 

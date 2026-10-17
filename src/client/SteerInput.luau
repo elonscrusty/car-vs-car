@@ -20,6 +20,7 @@ local SteerInput = {}
 
 local MIN_SIZE = 130 -- px, smallest joystick base
 local MAX_SIZE = 220
+local MIN_GAP = 0.04 -- seconds between sends while the stick moves (max 25 per second)
 local DEADZONE = 0.15 -- share of the radius that does nothing
 local IDLE_COLOR = Color3.fromRGB(255, 255, 255)
 local PRESS_COLOR = Color3.fromRGB(255, 220, 40)
@@ -55,11 +56,19 @@ function SteerInput.new(send: (steer: number, gas: number) -> ()): SteerInput
 		return math.clamp(stickGas + keys, -1, 1)
 	end
 
+	-- Sends when the values changed, at most every MIN_GAP seconds (a moving thumb changes them
+	-- 60 times a second, and flooding the server would get the newest ones dropped). The
+	-- keep-alive loop below flushes whatever was held back.
+	local lastSendAt = 0
 	local function update()
 		local s, g = steerValue(), gasValue()
 		if s ~= sentSteer or g ~= sentGas then
-			sentSteer, sentGas = s, g
-			send(s, g)
+			local now = os.clock()
+			if now - lastSendAt >= MIN_GAP or (s == 0 and g == 0) then
+				lastSendAt = now
+				sentSteer, sentGas = s, g
+				send(s, g)
+			end
 		end
 	end
 
@@ -228,10 +237,18 @@ function SteerInput.new(send: (steer: number, gas: number) -> ()): SteerInput
 		-- Keep the server fresh while something is held.
 		task.spawn(function()
 			while running and generation == mine do
-				task.wait(GameConfig.Steer.resendSeconds)
+				task.wait(MIN_GAP)
 				local s, g = steerValue(), gasValue()
-				if running and generation == mine and (s ~= 0 or g ~= 0) then
-					send(s, g)
+				local now = os.clock()
+				if running and generation == mine then
+					local changed = s ~= sentSteer or g ~= sentGas
+					local stale = (s ~= 0 or g ~= 0)
+						and now - lastSendAt >= GameConfig.Steer.resendSeconds
+					if changed or stale then
+						lastSendAt = now
+						sentSteer, sentGas = s, g
+						send(s, g)
+					end
 				end
 			end
 		end)
