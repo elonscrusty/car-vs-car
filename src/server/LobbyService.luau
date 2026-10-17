@@ -13,6 +13,7 @@ local Gacha = require(ReplicatedStorage.Shared.Gacha)
 local Hints = require(ReplicatedStorage.Shared.Hints)
 local Inventory = require(ReplicatedStorage.Shared.Inventory)
 local Paint = require(ReplicatedStorage.Shared.Paint)
+local Weapons = require(ReplicatedStorage.Shared.Weapons)
 local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
 local PadLogic = require(ReplicatedStorage.Shared.PadLogic)
 local Quests = require(ReplicatedStorage.Shared.Quests)
@@ -35,6 +36,7 @@ export type Participant = {
 	onFinished: (won: boolean, stay: boolean?) -> (),
 	appearance: Appearance.Appearance?, -- paint, sticker, level badge
 	botLevel: string?, -- bot difficulty for a lone player
+	weaponId: string?, -- the weapon this player wears (nil = none)
 }
 
 -- Only the parts of the lobby handle we use (see docs/LOBBY_CONTRACT.md).
@@ -94,6 +96,7 @@ function LobbyService.start(deps: Deps): Handle
 	local botLevelLimiter = RateLimiter.new(3, 3)
 	local questLimiter = RateLimiter.new(2, 3)
 	local paintLimiter = RateLimiter.new(4, 3)
+	local weaponLimiter = RateLimiter.new(4, 3)
 	local running = true
 	local conns: { RBXScriptConnection } = {}
 
@@ -131,7 +134,14 @@ function LobbyService.start(deps: Deps): Handle
 			quests = Quests.views(p),
 			daily = { ready = Daily.canClaim(p.daily, os.time()), freePulls = p.daily.freePulls },
 			paint = { owned = Paint.ownedList(p.paint), equipped = p.paint.equipped },
+			weapons = { owned = Weapons.ownedList(p.weapons), equipped = p.weapons.equipped },
 		})
+	end
+
+	-- The weapon this player wears (always one: new players start with the Saw).
+	local function weaponOf(player: Player): string?
+		local p = Profiles.get(player)
+		return if p then p.weapons.equipped else nil
 	end
 
 	-- Paint and sticker this player put on `carId` (nil fields when none).
@@ -272,6 +282,7 @@ function LobbyService.start(deps: Deps): Handle
 					player = player,
 					carId = picks[key],
 					appearance = lookFor(player, picks[key]),
+					weaponId = weaponOf(player),
 					onFinished = function(won: boolean, stay: boolean?)
 						finishMatch(player, won, picks[key], stay)
 					end,
@@ -422,6 +433,28 @@ function LobbyService.start(deps: Deps): Handle
 		sendProfile(player)
 	end
 
+	-- Weapon menu: wear one of the weapons you own. Lobby only.
+	local function equipWeapon(player: Player, id: any)
+		local ps = players[player]
+		if ps and ps.stage ~= "pad" then
+			send(player, { kind = "weaponResult", ok = false, reason = "busy" })
+			return
+		end
+		local p = Profiles.get(player)
+		if p == nil then
+			send(player, { kind = "weaponResult", ok = false, reason = "loading" })
+			return
+		end
+		local ok, reason = Weapons.equip(p, id)
+		if not ok then
+			send(player, { kind = "weaponResult", ok = false, reason = reason or "unknown" })
+			return
+		end
+		Profiles.markDirty(player)
+		send(player, { kind = "weaponResult", ok = true })
+		sendProfile(player)
+	end
+
 	local function onPadTriggered(player: Player, padIndex: number)
 		if players[player] ~= nil or Players:GetPlayerByUserId(player.UserId) ~= player then
 			return
@@ -512,6 +545,7 @@ function LobbyService.start(deps: Deps): Handle
 			send(player, {
 				kind = "gacha",
 				carId = r.carId,
+				weaponId = r.weaponId,
 				isNew = r.isNew,
 				refund = r.refund,
 				free = r.free,
@@ -597,6 +631,7 @@ function LobbyService.start(deps: Deps): Handle
 			botLevelLimiter.clear(player)
 			questLimiter.clear(player)
 			paintLimiter.clear(player)
+			weaponLimiter.clear(player)
 		end,
 		action = function(player: Player, action: any, arg: any)
 			if action == "pickCar" then
@@ -622,6 +657,10 @@ function LobbyService.start(deps: Deps): Handle
 			elseif action == "equipPaint" then
 				if paintLimiter.allow(player, os.clock()) then
 					equipPaint(player, arg)
+				end
+			elseif action == "equipWeapon" then
+				if weaponLimiter.allow(player, os.clock()) then
+					equipWeapon(player, arg)
 				end
 			elseif action == "hintSeen" then
 				if hintLimiter.allow(player, os.clock()) then
@@ -658,6 +697,7 @@ function LobbyService.start(deps: Deps): Handle
 						botLevel = if p then p.botLevel else nil,
 						carId = carId,
 						appearance = lookFor(player, carId),
+						weaponId = weaponOf(player),
 						onFinished = function(won: boolean, stay: boolean?)
 							finishMatch(player, won, carId, stay)
 						end,

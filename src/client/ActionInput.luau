@@ -1,7 +1,7 @@
 --!strict
 -- Fight move buttons: BOOST, JUMP and SPECIAL in a vertical stack on the right edge, above the
 -- right steer arrow (SteerInput keeps the bottom corners). Keys: LeftShift = boost,
--- Space = jump, E = special. Each button shows its cooldown as a fill and a timer. The server
+-- Space = jump, E = special, Q = weapon (only when the car wears an active weapon). Each button shows its cooldown as a fill and a timer. The server
 -- decides everything; it tells us when a cooldown starts (UiUpdate kind "move").
 
 local Players = game:GetService("Players")
@@ -9,7 +9,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 export type ActionInput = {
-	start: () -> (),
+	start: (hasWeaponButton: boolean?) -> (), -- true = also show the WEAPON button
 	stop: () -> (),
 	cooldown: (move: string, seconds: number) -> (), -- the server started a cooldown
 }
@@ -41,6 +41,13 @@ local MOVES = {
 		key = Enum.KeyCode.LeftShift,
 		color = Color3.fromRGB(255, 160, 40),
 	},
+}
+
+local WEAPON = {
+	name = "weapon",
+	text = "WEAPON",
+	key = Enum.KeyCode.Q,
+	color = Color3.fromRGB(235, 70, 60),
 }
 
 type Slot = {
@@ -81,7 +88,7 @@ function ActionInput.new(send: (name: string) -> ()): ActionInput
 		end
 	end
 
-	local function makeButton(parent: Frame, index: number, def: typeof(MOVES[1]))
+	local function makeButton(parent: Frame, index: number, def: typeof(WEAPON))
 		local b = Instance.new("TextButton")
 		b.Name = def.name .. "Action"
 		b.LayoutOrder = index
@@ -138,6 +145,7 @@ function ActionInput.new(send: (name: string) -> ()): ActionInput
 	for _, def in MOVES do
 		keyMap[def.key] = def.name
 	end
+	keyMap[WEAPON.key] = WEAPON.name
 	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
 		local name = keyMap[input.KeyCode]
 		if name and not processed then
@@ -147,11 +155,15 @@ function ActionInput.new(send: (name: string) -> ()): ActionInput
 
 	local self: ActionInput = {} :: any
 
-	self.start = function()
+	self.start = function(hasWeaponButton: boolean?)
 		if running then
 			return
 		end
 		running = true
+		local defs = table.clone(MOVES)
+		if hasWeaponButton then
+			table.insert(defs, 1, WEAPON)
+		end
 		local newGui = Instance.new("ScreenGui")
 		newGui.Name = "ActionGui"
 		newGui.ResetOnSpawn = false
@@ -168,7 +180,7 @@ function ActionInput.new(send: (name: string) -> ()): ActionInput
 		stack.BackgroundTransparency = 1
 		stack.AnchorPoint = Vector2.new(1, 1)
 		stack.Position = UDim2.new(1, -EDGE, 1, -(EDGE + arrow + GAP))
-		stack.Size = UDim2.fromOffset(BUTTON, #MOVES * BUTTON + (#MOVES - 1) * GAP)
+		stack.Size = UDim2.fromOffset(BUTTON, #defs * BUTTON + (#defs - 1) * GAP)
 		stack.Parent = newGui
 		local layout = Instance.new("UIListLayout")
 		layout.FillDirection = Enum.FillDirection.Vertical
@@ -176,7 +188,7 @@ function ActionInput.new(send: (name: string) -> ()): ActionInput
 		layout.SortOrder = Enum.SortOrder.LayoutOrder
 		layout.Parent = stack
 		table.clear(slots)
-		for i, def in MOVES do
+		for i, def in defs do
 			makeButton(stack, i, def)
 		end
 		render()

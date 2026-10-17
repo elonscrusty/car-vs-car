@@ -18,6 +18,7 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Store = require(ReplicatedStorage.Shared.Store)
 local Types = require(ReplicatedStorage.Shared.Types)
 local UiSize = require(ReplicatedStorage.Shared.UiSize)
+local WeaponsConfig = require(ReplicatedStorage.Shared.WeaponsConfig)
 
 local LobbyUi = {}
 
@@ -439,6 +440,7 @@ function LobbyUi.new(hooks: Hooks): Handle
 
 	local function showGachaResult(u: {
 		carId: string,
+		weaponId: string?,
 		isNew: boolean,
 		refund: number,
 		free: boolean,
@@ -451,14 +453,17 @@ function LobbyUi.new(hooks: Hooks): Handle
 		refreshHud()
 		refreshGacha()
 		local id = u.carId
-		local rarity = rarityOf(id)
+		local weapon = WeaponsConfig.get(u.weaponId)
+		local rarity = if weapon then weapon.rarity else rarityOf(id)
 		resultTitle.Text = LobbyText.resultText(u.isNew, u.refund)
 		resultTitle.TextColor3 = if u.isNew then GREEN else GOLD
-		resultName.Text = carName(id)
+		resultName.Text = if weapon then weapon.name else carName(id)
 		resultName.TextColor3 = RARITY_COLOR[rarity] or WHITE
 		resultSub.Text = rarity
 		resultSub.TextColor3 = RARITY_COLOR[rarity] or WHITE
-		resultSwatch.BackgroundColor3 = carColor(id)
+		resultSwatch.BackgroundColor3 = if weapon
+			then Color3.fromRGB(weapon.color[1], weapon.color[2], weapon.color[3])
+			else carColor(id)
 		resultStroke.Color = RARITY_COLOR[rarity] or WHITE
 		resultBack.Visible = true
 		resultScale.Scale = 0.4

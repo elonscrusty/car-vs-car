@@ -13,15 +13,24 @@ end
 local CarConfig = sibling("CarConfig")
 local Inventory = sibling("Inventory")
 local LobbyConfig = sibling("LobbyConfig")
+local Weapons = sibling("Weapons")
 
 type Profile = {
 	coins: number,
 	freePullUsed: boolean,
 	owned: { [string]: boolean },
 	daily: { freePulls: number }?, -- daily gift tries
+	weapons: Weapons.WeaponData?, -- old test profiles have none (cars only)
 }
 export type OddsRow = { rarity: string, percent: number, cars: { string } }
-export type PullResult = { carId: string, isNew: boolean, refund: number, free: boolean }
+-- A claw win is a car (carId set) or a weapon (weaponId set, carId is "").
+export type PullResult = {
+	carId: string,
+	weaponId: string?,
+	isNew: boolean,
+	refund: number,
+	free: boolean,
+}
 
 local Gacha = {}
 
@@ -66,6 +75,7 @@ function Gacha.pull(p: Profile, rng: () -> number): PullResult
 		error("cannot afford gacha pull")
 	end
 	local free = isFree(p)
+	local firstPull = free -- the very first (free) pull always gives a car
 	local gift = not free and hasGift(p)
 	if free then
 		p.freePullUsed = true
@@ -74,6 +84,22 @@ function Gacha.pull(p: Profile, rng: () -> number): PullResult
 		free = true
 	else
 		Inventory.addCoins(p, -LobbyConfig.Gacha.price)
+	end
+
+	-- Some pulls give a weapon instead of a car.
+	if
+		not firstPull
+		and p.weapons ~= nil
+		and rng() * 100 < (LobbyConfig.Gacha.weaponChance or 0)
+	then
+		local weaponId = Weapons.roll(LobbyConfig.Gacha.odds, rng)
+		local isNew = Weapons.grant(p :: any, weaponId)
+		local refund = 0
+		if not isNew then
+			refund = LobbyConfig.Gacha.duplicateRefund
+			Inventory.addCoins(p :: any, refund)
+		end
+		return { carId = "", weaponId = weaponId, isNew = isNew, refund = refund, free = free }
 	end
 
 	-- Roll rarity, skipping rarities that have no cars.

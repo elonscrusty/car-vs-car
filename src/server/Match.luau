@@ -31,6 +31,8 @@ local Impulse = require(script.Parent.Impulse)
 local CombatConfig = require(ReplicatedStorage.Shared.CombatConfig)
 local Damage = require(ReplicatedStorage.Shared.Damage)
 local Specials = require(script.Parent.Specials)
+local Weapon = require(script.Parent.Weapon)
+local WeaponsConfig = require(ReplicatedStorage.Shared.WeaponsConfig)
 local Moves = require(script.Parent.Moves)
 local MovesConfig = require(ReplicatedStorage.Shared.MovesConfig)
 local MovesRules = require(ReplicatedStorage.Shared.Moves)
@@ -40,7 +42,7 @@ type Phase = "pick" | "aim" | "fight" | "roundEnd" | "matchEnd"
 export type Handle = {
 	launch: (player: Player, angle: any, power: any) -> (),
 	steer: (player: Player, value: any, throttle: any?) -> (), -- steer -1 left .. 1 right, gas -1 back .. 1 forward; fight only
-	action: (player: Player, name: any) -> (), -- "boost" | "jump" | "special", only in the fight
+	action: (player: Player, name: any) -> (), -- "boost" | "jump" | "special" | "weapon", only in the fight
 	playerLeft: (player: Player) -> (),
 	destroy: () -> (),
 }
@@ -52,6 +54,7 @@ export type Participant = {
 	onEndScreen: (() -> ())?, -- called when this player's end screen goes up
 	appearance: Appearance.Appearance?, -- paint, sticker and level badge for this player's car
 	botLevel: string?, -- bot difficulty when this lone player fights a bot ("easy" | "medium" | "hard")
+	weaponId: string?, -- the weapon this player's car wears (nil = none)
 }
 
 local Match = {}
@@ -116,6 +119,7 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 		table.clear(touchConns)
 		for _, car in cars do
 			Buffs.clear(car)
+			Weapon.clear(car)
 			car.model:Destroy()
 		end
 		table.clear(cars)
@@ -252,7 +256,7 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 			Damage.zoneMult(zone, CombatConfig.Zones),
 			Damage.comboMult(comboCount, CombatConfig.Combo.mults),
 			Buffs.damageMult(attacker),
-			specialMult
+			specialMult * Weapon.damageMult(attacker)
 		)
 		dmg = Buffs.absorb(defender, dmg)
 		if suddenDeath then
@@ -304,6 +308,52 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 		end
 	end
 
+	-- Damage from a weapon (not a car crash): shield and buffs count, then HP, hit message, K.O.
+	local function dealWeaponDamage(
+		attacker: CarBuilder.Car,
+		defender: CarBuilder.Car,
+		amount: number,
+		pos: Vector3,
+		tag: string
+	)
+		if attacker.dead or defender.dead or phase ~= "fight" then
+			return
+		end
+		local dmg = Buffs.absorb(defender, amount * Buffs.damageMult(attacker))
+		if suddenDeath then
+			dmg = defender.hp
+		end
+		local newHp, dead = Logic.applyDamage(defender.hp, dmg)
+		defender.hp = newHp
+		defender.bar.set(newHp, defender.stats.hp)
+		attacker.ai.hit = true
+		defender.ai.hit = true
+		local strength = math.clamp(dmg / 25, 0.15, 0.8)
+		sendAll(function(i)
+			return {
+				kind = "hit",
+				pos = pos,
+				strength = strength,
+				damage = dmg,
+				youHit = defender.idx == i,
+				tag = tag,
+			}
+		end)
+		if not defender.smoking and newHp / defender.stats.hp < cfg.Feel.smokeBelow then
+			defender.smoking = true
+			Fx.smoke(defender.body)
+		end
+		if dead then
+			endMatch(defender)
+		end
+	end
+
+	local weaponCtx: Weapon.Context = {
+		deal = dealWeaponDamage,
+		origin = origin,
+		rimRadius = cfg.Arena.rimRadius,
+	}
+
 	local function onTouched(car: CarBuilder.Car, other: BasePart)
 		if phase ~= "fight" then
 			return
@@ -341,6 +391,10 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 				part == nil,
 				if part then part.appearance else nil
 			)
+			local weaponId = if part
+				then part.weaponId
+				else WeaponsConfig.Order[rng:NextInteger(1, #WeaponsConfig.Order)]
+			Weapon.attach(cars[idx], weaponId, a.model)
 		end
 		rayParams.FilterDescendantsInstances = { cars[1].model, cars[2].model }
 		for _, car in cars do
@@ -441,8 +495,14 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 				sendTo(car.idx, update)
 			end)
 		end
-		sendAll(function()
-			return { kind = "fight", round = round }
+		sendAll(function(i)
+			local wid = Weapon.idOf(cars[i])
+			return {
+				kind = "fight",
+				round = round,
+				weapon = wid,
+				weaponPassive = if wid then Weapon.isPassive(wid) else nil,
+			}
 		end)
 	end
 
@@ -551,6 +611,13 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 				end
 			end
 		end
+		local now = os.clock()
+		for _, car in cars do
+			Weapon.tick(car, cars[3 - car.idx], dt, now, participants[car.idx] == nil, weaponCtx)
+			if phase ~= "fight" then
+				return
+			end
+		end
 		for _, car in cars do
 			car.prevVel = car.body.AssemblyLinearVelocity
 			-- Pushed past the rim, or fell out of the bowl = ring-out = 0 HP.
@@ -624,8 +691,16 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 			if i == nil or gone[i] then
 				return
 			end
-			local seconds =
-				Moves.press(moveStates[i], name, cars[i], cars[3 - i], rayParams, os.clock())
+			local seconds = if name == "weapon"
+				then Weapon.press(cars[i], cars[3 - i], os.clock())
+				else Moves.press(
+					moveStates[i],
+					name,
+					cars[i],
+					cars[3 - i],
+					rayParams,
+					os.clock()
+				)
 			if seconds ~= nil and seconds > 0 then
 				sendTo(i, { kind = "move", move = name, seconds = seconds })
 			end

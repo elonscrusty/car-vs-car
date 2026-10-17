@@ -22,6 +22,7 @@ local PaintUi = require(script.PaintUi)
 local DriveCar = require(script.DriveCar)
 local SteerInput = require(script.SteerInput)
 local Ui = require(script.Ui)
+local WeaponUi = require(script.WeaponUi)
 
 local remotes = Remotes.get()
 local director = CameraDirector.new()
@@ -36,6 +37,7 @@ local questUi = QuestUi.new(menu, function(action: string, arg: any?)
 	remotes.LobbyAction:FireServer(action, arg)
 end)
 local paintUi = PaintUi.new(menu)
+local weaponUi = WeaponUi.new(menu)
 
 local camSide: Vector3? = nil -- from the middle toward your car, fixed for the whole match
 local aim: AimInput.AimInput
@@ -75,6 +77,7 @@ remotes.LobbyUpdate.OnClientEvent:Connect(function(u: Types.LobbyUpdate)
 	lobby.handleUpdate(u)
 	questUi.handleUpdate(u)
 	paintUi.handleUpdate(u)
+	weaponUi.handleUpdate(u)
 	if u.kind == "profile" then
 		hints.loadSeen(u.hintsSeen)
 		progressUi.update(u.carLevels, u.rank, u.streak)
@@ -138,7 +141,7 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		view.showFight()
 		steering.start() -- the server ignores Steer outside the fight
 		driver.start() -- drives your own car here once the server hands it over
-		actions.start()
+		actions.start(u.weapon ~= nil and u.weaponPassive ~= true)
 	elseif u.kind == "move" then
 		actions.cooldown(u.move or "", u.seconds or 0)
 	elseif u.kind == "buff" then

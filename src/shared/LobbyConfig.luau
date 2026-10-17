@@ -29,7 +29,8 @@ LobbyConfig.Gacha = {
 	price = 100,
 	firstPullFree = true,
 	odds = { Common = 60, Rare = 30, Epic = 10 } :: { [string]: number }, -- percent, must sum to 100
-	duplicateRefund = 50, -- coins back on a car you own
+	duplicateRefund = 50, -- coins back on a car or weapon you own
+	weaponChance = 40, -- percent of pulls that give a weapon instead of a car (never the first free pull)
 }
 -- Store counter prices by rarity. PLACEHOLDER numbers: carter will give the real ones later.
 LobbyConfig.Store = {

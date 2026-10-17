@@ -77,7 +77,7 @@ H.test("paid pull deducts price, duplicate refunds", function()
 	local p = Inventory.default()
 	p.freePullUsed = true
 	p.coins = 150
-	local r = Gacha.pull(p, fixed(0.0, 0.0)) -- Common, first common = Heavy (owned)
+	local r = Gacha.pull(p, fixed(0.99, 0.0, 0.0)) -- (first roll 0.99: a car, not a weapon) Common, first common = Heavy (owned)
 	H.eq(r.carId, "Heavy")
 	H.eq(r.isNew, false)
 	H.eq(r.free, false)
@@ -90,7 +90,7 @@ H.test("pull is deterministic and maps rolls to rarity", function()
 		local p = Inventory.default()
 		p.freePullUsed = true
 		p.coins = 1000
-		return Gacha.pull(p, fixed(roll, 0)).carId
+		return Gacha.pull(p, fixed(0.99, roll, 0)).carId
 	end
 	H.eq(carFor(0.0), "Heavy")
 	H.eq(carFor(0.59), "Heavy")
@@ -101,7 +101,7 @@ H.test("pull is deterministic and maps rolls to rarity", function()
 	local p = Inventory.default()
 	p.freePullUsed = true
 	p.coins = 1000
-	H.eq(Gacha.pull(p, fixed(0.3, 0.99)).carId, "Tank") -- second roll picks within Common
+	H.eq(Gacha.pull(p, fixed(0.99, 0.3, 0.99)).carId, "Tank") -- second roll picks within Common
 end)
 
 H.test("migrate sanitizes garbage", function()

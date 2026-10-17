@@ -18,6 +18,7 @@ local Progress = sibling("Progress")
 local Daily = sibling("Daily")
 local Quests = sibling("Quests")
 local Paint = sibling("Paint")
+local Weapons = sibling("Weapons")
 
 export type Profile = {
 	version: number,
@@ -31,6 +32,7 @@ export type Profile = {
 	quests: { { id: string, progress: number } }, -- active quests (see Quests)
 	daily: { lastDay: number, freePulls: number }, -- daily gift state (see Daily)
 	paint: Paint.PaintData, -- owned colors/stickers and what each car wears (see Paint)
+	weapons: Weapons.WeaponData, -- owned weapons and the one worn (see Weapons)
 }
 
 local Inventory = {}
@@ -68,6 +70,7 @@ function Inventory.default(): Profile
 		quests = {},
 		daily = Daily.default(),
 		paint = Paint.default(),
+		weapons = Weapons.default(),
 	}
 end
 
@@ -100,6 +103,7 @@ function Inventory.migrate(raw: any): Profile
 		quests = Quests.clean(raw.quests),
 		daily = Daily.clean(raw.daily),
 		paint = Paint.clean(raw.paint),
+		weapons = Weapons.clean(raw.weapons),
 	}
 end
 
