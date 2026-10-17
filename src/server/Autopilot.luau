@@ -35,7 +35,8 @@ function Autopilot.step(
 	car: CarBuilder.Car,
 	enemy: CarBuilder.Car,
 	dt: number,
-	rayParams: RaycastParams
+	rayParams: RaycastParams,
+	center: Vector3
 )
 	local body = car.body
 	local stats = car.stats
@@ -66,7 +67,7 @@ function Autopilot.step(
 
 	-- 3. Ask the AI what to do.
 	local flatSpeed = flat(body.AssemblyLinearVelocity).Magnitude
-	Ai.noteSpeed(car.ai, flatSpeed, dt, GameConfig.Ai.stuckSeconds, GameConfig.Ai.unstickBackup)
+	Ai.noteSpeed(car.ai, flatSpeed, dt, GameConfig.Ai.stuckSeconds, GameConfig.Ai.retreatTime)
 	local pos, epos = cf.Position, enemy.body.Position
 	local cmd = Ai.decide(
 		stats.ai,
@@ -74,7 +75,8 @@ function Autopilot.step(
 		{ x = epos.X, z = epos.Z },
 		car.ai,
 		dt,
-		GameConfig.Ai
+		GameConfig.Ai,
+		{ x = center.X, z = center.Z }
 	)
 
 	-- 4. Steer: spin around Y toward the target point.

@@ -252,7 +252,7 @@ function Match.new(player: Player, slot: number, remotes: Remotes.RemoteSet): Ha
 		end
 		for i, car in cars do
 			if not car.dead then
-				Autopilot.step(car, cars[3 - i], dt, rayParams)
+				Autopilot.step(car, cars[3 - i], dt, rayParams, origin)
 			end
 		end
 		for _, car in cars do

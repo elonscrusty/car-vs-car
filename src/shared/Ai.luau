@@ -6,7 +6,9 @@ export type Point = { x: number, z: number }
 
 export type Params = {
 	chargeMax: number,
-	backupTime: number,
+	retreatTime: number, -- seconds spent driving away for a run-up
+	retreatDist: number, -- how far away (studs) it aims while retreating
+	maxRadius: number, -- retreat target stays inside this distance from bowl center
 	circleTime: number,
 	diveMax: number,
 	circleRadius: number,
@@ -19,7 +21,7 @@ export type Memory = {
 	t: number,
 	side: number,
 	hit: boolean,
-	reverseT: number, -- > 0: back up for this many more seconds
+	retreatT: number, -- > 0: drive away (run-up) for this many more seconds
 	stuckT: number, -- seconds spent barely moving
 }
 
@@ -32,7 +34,7 @@ function Ai.newMemory(style: string, side: number): Memory
 	if style == "CircleDive" then
 		phase = "circle"
 	end
-	return { phase = phase, t = 0, side = side, hit = false, reverseT = 0, stuckT = 0 }
+	return { phase = phase, t = 0, side = side, hit = false, retreatT = 0, stuckT = 0 }
 end
 
 -- Angle (radians) to turn from facing (fx,fz) to point at (tx,tz).
@@ -57,22 +59,39 @@ function Ai.driveScale(angle: number, throttle: number): number
 end
 
 -- Called each frame with ground speed. Barely moving for `limit` seconds = nose-to-nose
--- standoff, so back up for `reverseTime` seconds.
-function Ai.noteSpeed(mem: Memory, speed: number, dt: number, limit: number, reverseTime: number)
-	if speed > 4 or mem.reverseT > 0 then
+-- standoff, so drive away for `retreatTime` seconds.
+function Ai.noteSpeed(mem: Memory, speed: number, dt: number, limit: number, retreatTime: number)
+	if speed > 4 or mem.retreatT > 0 then
 		mem.stuckT = 0
 		return
 	end
 	mem.stuckT += dt
 	if mem.stuckT >= limit then
 		mem.stuckT = 0
-		mem.reverseT = reverseTime
+		mem.retreatT = retreatTime
 	end
 end
 
 local function rotate(x: number, z: number, ang: number): (number, number)
 	local c, s = math.cos(ang), math.sin(ang)
 	return x * c + z * s, -x * s + z * c
+end
+
+-- Run-up point: straight away from the enemy, kept inside the bowl, so the car gains speed
+-- on the slope and swings back for a hard hit.
+function Ai.retreatTarget(me: Point, enemy: Point, center: Point, p: Params): (number, number)
+	local dx, dz = me.x - enemy.x, me.z - enemy.z
+	local len = math.sqrt(dx * dx + dz * dz)
+	if len < 0.001 then
+		dx, dz, len = 1, 0, 1
+	end
+	local tx, tz = me.x + dx / len * p.retreatDist, me.z + dz / len * p.retreatDist
+	local cx, cz = tx - center.x, tz - center.z
+	local r = math.sqrt(cx * cx + cz * cz)
+	if r > p.maxRadius then
+		tx, tz = center.x + cx / r * p.maxRadius, center.z + cz / r * p.maxRadius
+	end
+	return tx, tz
 end
 
 -- Decide what to do this frame. Changes `mem` as phases switch.
@@ -82,30 +101,31 @@ function Ai.decide(
 	enemy: Point,
 	mem: Memory,
 	dt: number,
-	p: Params
+	p: Params,
+	center: Point
 ): Command
 	mem.t += dt
 	local hit = mem.hit
 	mem.hit = false
 
-	-- Backing up (after a stand-off, or after a Direct car's hit): reverse, nose on enemy.
-	if mem.reverseT > 0 then
-		mem.reverseT -= dt
-		return { tx = enemy.x, tz = enemy.z, throttle = -1 }
+	-- Run-up: drive away (forward, not reverse), then come back with speed.
+	if hit and (style == "Direct" or style == "BackupCharge") then
+		mem.retreatT = p.retreatTime
+	elseif style == "BackupCharge" and mem.t > p.chargeMax then
+		mem.retreatT = p.retreatTime
 	end
-	if hit and style == "Direct" then
-		mem.reverseT = p.backupTime * 0.5
-		return { tx = enemy.x, tz = enemy.z, throttle = -1 }
+	if mem.retreatT > 0 then
+		mem.retreatT -= dt
+		if mem.retreatT <= 0 then
+			mem.t = 0 -- charge timer restarts after the run-up
+		end
+		local tx, tz = Ai.retreatTarget(me, enemy, center, p)
+		return { tx = tx, tz = tz, throttle = 1 }
 	end
 
 	if style == "BackupCharge" then
-		-- Heavy: charge straight; after a hit (or too long) back up, then charge again.
-		if mem.phase == "charge" and (hit or mem.t > p.chargeMax) then
-			mem.phase, mem.t = "backup", 0
-		elseif mem.phase == "backup" and mem.t > p.backupTime then
-			mem.phase, mem.t = "charge", 0
-		end
-		return { tx = enemy.x, tz = enemy.z, throttle = if mem.phase == "charge" then 1 else -1 }
+		-- Heavy: charge straight; after a hit (or too long) run away, then charge again.
+		return { tx = enemy.x, tz = enemy.z, throttle = 1 }
 	elseif style == "CircleDive" then
 		-- Light: circle around the enemy, then dive in from the side.
 		if mem.phase == "circle" then

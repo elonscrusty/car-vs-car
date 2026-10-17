@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Ai = require(ReplicatedStorage.Shared.Ai)
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
+local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local HpBar = require(script.Parent.HpBar)
 
 export type Car = {
@@ -73,8 +74,13 @@ function CarBuilder.build(id: string, idx: number, cf: CFrame, parent: Instance)
 	body.BottomSurface = Enum.SurfaceType.Smooth
 	body.Anchored = true -- stays anchored until launch
 	body.CFrame = cf
-	body.CustomPhysicalProperties =
-		PhysicalProperties.new(stats.mass / (sx * sy * sz), 0.3, 0.45, 1, 1)
+	body.CustomPhysicalProperties = PhysicalProperties.new(
+		stats.mass / (sx * sy * sz),
+		GameConfig.Drive.groundFriction,
+		0.45,
+		1,
+		1
+	)
 	body:SetAttribute("CarIdx", idx)
 	body.Parent = model
 	model.PrimaryPart = body

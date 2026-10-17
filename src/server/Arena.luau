@@ -25,6 +25,9 @@ local function makePart(model: Model, name: string, size: Vector3, cf: CFrame, c
 	p.Material = Enum.Material.SmoothPlastic
 	p.TopSurface = Enum.SurfaceType.Smooth
 	p.BottomSurface = Enum.SurfaceType.Smooth
+	-- Slippery ground: cars slide and keep momentum (their own grip code handles steering).
+	p.CustomPhysicalProperties =
+		PhysicalProperties.new(0.7, GameConfig.Drive.groundFriction, 0.1, 1, 1)
 	p.Parent = model
 	return p
 end

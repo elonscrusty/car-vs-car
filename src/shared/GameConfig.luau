@@ -38,19 +38,21 @@ local GameConfig = {
 	},
 	Drive = {
 		turnGain = 6, -- how hard the car steers toward target
-		grip = 3, -- side slide killing (higher = less drifting)
+		groundFriction = 0.05, -- floor + car friction. Lower = slides more, keeps speed
+		grip = 6, -- side slide killing (higher = less drifting)
 		groundRayExtra = 2.5, -- studs below car that still count as "on ground"
 	},
 	-- Bot / auto-pilot behavior numbers
 	Ai = {
 		chargeMax = 3, -- Heavy: longest straight charge before backing up
-		backupTime = 1.2, -- Heavy: how long it reverses
+		retreatTime = 1.6, -- after a hit: seconds driving away for a run-up
+		retreatDist = 35, -- how far away it aims during the run-up
+		maxRadius = 45, -- run-up target stays this close to bowl center
 		circleTime = 2, -- Light: seconds spent circling
 		diveMax = 1.5, -- Light: longest dive before circling again
 		circleRadius = 22, -- Light: circle distance around enemy
 		circleAngleDeg = 40, -- Light: how far around enemy to aim each step
 		stuckSeconds = 0.8, -- barely moving this long = nose-to-nose standoff, back up
-		unstickBackup = 1, -- seconds to reverse out of a standoff
 	},
 	Dummy = {
 		launchUp = 70, -- upward speed of the crash dummy (studs/sec)

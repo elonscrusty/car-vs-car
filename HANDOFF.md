@@ -15,5 +15,7 @@
 3. PvP matchmaking and DataStore saves (hearts, wins, unlocked cars).
 
 ## Known gaps
-- Studio playtest was driven by script (fired the remotes), not by hand. Fights run slow-ish (cars rarely top 25 studs/sec): tune accel/turnGain in CarConfig/GameConfig.
+- Studio playtest was driven by script (fired the remotes), not by hand.
+- After a hit, cars now drive away and swing back with speed (run-up) instead of reversing. Tune `Ai.retreatTime/retreatDist` in GameConfig.
+- Floor and car friction are low (`Drive.groundFriction`) so cars keep speed; `Drive.grip` stops sideways drifting; `turnRate` per car sets how well it can hit.
 - Arena is set to always stream to clients (place may have StreamingEnabled on).
