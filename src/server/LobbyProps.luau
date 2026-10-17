@@ -1,9 +1,10 @@
 --!strict
 -- Real (Blender) models for the lobby. They live in ServerStorage.Models.Props, are named like
 -- the file they came from, and have their pivot at the bottom centre with the front toward -Z.
--- Lobby.build and LobbyDetail.build first make plain blocks for everything; this module then swaps
--- each block set for its model. A missing model leaves the blocks in place, so nothing breaks.
--- Everything here is look only (no collision); the invisible block colliders stay.
+-- Lobby.build first makes plain parts for the shell (walls, pads, stage, store, lamps); this module
+-- swaps each of those for its model, then places the prop clusters (garage corner, claw corner,
+-- lounge, entrance). A missing model leaves the plain parts in place, so nothing breaks.
+-- Everything placed here is look only (no collision); the plain colliders stay.
 
 local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,33 +17,50 @@ type Spot = { name: string, x: number, z: number, face: number, y: number?, scal
 
 -- face: degrees. 0 looks toward the back wall (-Z), 180 toward the gate, 90 toward -X, -90 toward +X.
 local SPOTS: { Spot } = {
-	-- cones along the pad row and at the door
-	{ name = "traffic_cone", x = -9, z = 40, face = 0, scale = 1.4 },
-	{ name = "traffic_cone", x = 9, z = 40, face = 0, scale = 1.4 },
-	-- front-left corner: gas cans, a chest and a cart
-	{ name = "gas_can", x = -54, z = 40, face = 25, scale = 1.6 },
-	{ name = "gas_can", x = -52.5, z = 41.5, face = -20, scale = 1.6 },
-	{ name = "tool_chest_yellow", x = -42, z = 43.2, face = 0, scale = 1.3 },
-	-- front-right corner: a drum cluster
-	{ name = "oil_drum", x = 55, z = 37, face = 20, scale = 1.2 },
-	{ name = "oil_drum_yellow", x = 53, z = 39.5, face = 70, scale = 1.2 },
-	{ name = "oil_drum_red", x = 55, z = 41, face = 130, scale = 1.2 },
-	-- right side: tires, a chest
-	{ name = "tire_stack", x = 56, z = -8, face = 0, scale = 1.3 },
-	{ name = "tire_stack", x = 53.5, z = -9.5, face = 40, scale = 1.3 },
-	{ name = "tool_chest_cyan", x = 56, z = -2, face = 90, scale = 1.3 },
-	{ name = "tool_cart_yellow", x = 36, z = -32, face = 90, scale = 1.2 },
-	-- back wall pegboards
-	{ name = "pegboard_tools", x = -28, z = -44.6, face = 180, y = 5, scale = 1.4 },
-	{ name = "pegboard_tools", x = 28, z = -44.6, face = 180, y = 5, scale = 1.4 },
+	-- Garage corner (left wall): chests in a row under pegboards, a workbench, carts, tire rack.
+	{ name = "tool_chest_cyan", x = -88.2, z = -4, face = -90, scale = 1.4 },
+	{ name = "tool_chest", x = -88.2, z = 1, face = -90, scale = 1.4 },
+	{ name = "tool_chest_yellow", x = -88.2, z = 6, face = -90, scale = 1.4 },
+	{ name = "pegboard_tools", x = -89.2, z = -4, face = -90, y = 7.5, scale = 1.2 },
+	{ name = "pegboard_tools", x = -89.2, z = 8, face = -90, y = 7.5, scale = 1.2 },
+	{ name = "workbench", x = -86.5, z = 22, face = -90, scale = 1.4 },
+	{ name = "tool_cart_yellow", x = -76, z = 22, face = -90, scale = 1.3 },
+	{ name = "tool_cart", x = -72, z = -6, face = 90, scale = 1.3 },
+	{ name = "tire_rack", x = -88.2, z = 42, face = -90, scale = 1.7 },
+	{ name = "tire_stack", x = -82, z = 36, face = 0, scale = 1.3 },
+	{ name = "tire_stack", x = -82, z = 48, face = 40, scale = 1.3 },
+	{ name = "oil_drum", x = -84, z = 58, face = 20, scale = 1.2 },
+	{ name = "oil_drum_yellow", x = -82, z = 60, face = 70, scale = 1.2 },
+	{ name = "oil_drum_red", x = -85, z = 61, face = 130, scale = 1.2 },
+	{ name = "gas_can", x = -86, z = 12, face = 25, scale = 1.6 },
+	{ name = "gas_can", x = -85, z = 13.5, face = -20, scale = 1.6 },
+	{ name = "traffic_cone", x = -68, z = -32, face = 0, scale = 1.4 },
+	{ name = "traffic_cone", x = -68, z = -12, face = 0, scale = 1.4 },
+	{ name = "neon_sign", x = -89.2, z = -22, face = -90, y = 24, scale = 1.6 },
+	-- Claw corner (right wall): a bench to wait on, plants, cones.
+	{ name = "bench_cyan", x = 69, z = -30, face = -90, scale = 1.5 },
+	{ name = "plant_box", x = 86, z = -52, face = 90, scale = 1.3 },
+	{ name = "plant_box_yellow", x = 86, z = -8, face = 90, scale = 1.3 },
+	{ name = "traffic_cone", x = 68, z = -46, face = 0, scale = 1.4 },
+	{ name = "traffic_cone", x = 68, z = -14, face = 0, scale = 1.4 },
+	{ name = "neon_sign", x = 89.2, z = -30, face = 90, y = 24, scale = 1.6 },
+	-- Lounge (right wall, front): two sofas facing the TV.
+	{ name = "tv_stand", x = 88.4, z = 38, face = 90, scale = 1.7 },
+	{ name = "sofa_cyan", x = 74, z = 31, face = -90, scale = 1.3 },
+	{ name = "sofa_cyan", x = 74, z = 45, face = -90, scale = 1.3 },
+	{ name = "plant_box_yellow", x = 88, z = 54, face = 90, scale = 1.3 },
+	{ name = "plant_box", x = 88, z = 22, face = 90, scale = 1.3 },
+	-- Entrance and the pad row.
+	{ name = "plant_box", x = -32, z = 63, face = 0, scale = 1.3 },
+	{ name = "plant_box_yellow", x = 32, z = 63, face = 0, scale = 1.3 },
+	{ name = "traffic_cone", x = -9, z = 58, face = 0, scale = 1.4 },
+	{ name = "traffic_cone", x = 9, z = 58, face = 0, scale = 1.4 },
+	{ name = "traffic_cone", x = -9, z = 44, face = 0, scale = 1.4 },
+	{ name = "traffic_cone", x = 9, z = 44, face = 0, scale = 1.4 },
+	{ name = "traffic_cone", x = -54, z = 40, face = 0, scale = 1.4 },
+	{ name = "traffic_cone", x = 54, z = 40, face = 0, scale = 1.4 },
 }
 
--- Names of the block parts each model replaces (all removed when the model exists).
-local CART_PARTS = { "CartBody", "CartTop", "CartDrawer", "CartHandle", "CartWheel", "CartWrench" }
-local RACK_PARTS = { "RackPost", "RackShelf", "RackTire" }
-local SOFA_PARTS = { "SofaSeat", "SofaBack", "SofaArm", "SofaCushion" }
-local DOOR_PARTS = { "RollerDoorFrame", "RollerDoor", "RollerSlat", "DoorWindow" }
-local LAMP_PARTS = { "LampCord", "LampShade" }
 local STORE_PARTS = {
 	"StoreBack",
 	"Shelf",
@@ -54,14 +72,6 @@ local STORE_PARTS = {
 	"CounterTop",
 	"CounterGlow",
 }
-
-local function names(list: { string }): { [string]: boolean }
-	local set: { [string]: boolean } = {}
-	for _, n in list do
-		set[n] = true
-	end
-	return set
-end
 
 function LobbyProps.build(folder: Folder, origin: Vector3)
 	local models = ServerStorage:FindFirstChild("Models")
@@ -106,7 +116,10 @@ function LobbyProps.build(folder: Folder, origin: Vector3)
 	end
 
 	local function remove(list: { string })
-		local set = names(list)
+		local set: { [string]: boolean } = {}
+		for _, n in list do
+			set[n] = true
+		end
 		for _, d in folder:GetChildren() do
 			if set[d.Name] then
 				d:Destroy()
@@ -114,8 +127,33 @@ function LobbyProps.build(folder: Folder, origin: Vector3)
 		end
 	end
 
+	-- A plain look-only block (the lift car and the lounge rug).
+	local function plain(
+		name: string,
+		size: Vector3,
+		cf: CFrame,
+		color: Color3,
+		shape: Enum.PartType?
+	)
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CastShadow = false
+		p.Size = size
+		p.CFrame = cf
+		p.Color = color
+		p.Material = Enum.Material.SmoothPlastic
+		if shape then
+			p.Shape = shape
+		end
+		p.Parent = folder
+		return p
+	end
+
 	local room = LobbyLayout.room
-	local top = room.wallHeight + 15 -- underside of the roof
+	local top = room.wallHeight + room.upper -- underside of the roof
 
 	-- Lower walls: panel models in front of the plain red walls.
 	if has("garage_wall_panel") then
@@ -132,42 +170,35 @@ function LobbyProps.build(folder: Folder, origin: Vector3)
 		remove({ "WallPanel", "WallStrip" })
 	end
 
-	-- Roof: trusses across the hall in three lines instead of the many plain cross beams.
+	-- Roof: trusses across the hall in two lines (the plain beams cover the rest).
 	if has("ceiling_truss") then
-		for _, b in folder:GetChildren() do
-			if b.Name == "RoofBeam" and b:IsA("BasePart") and b.Size.X > 100 then
-				b:Destroy()
-			end
-		end
-		local n = 7
+		local n = 11
 		local piece = room.halfW * 2 / n
-		for _, z in { -28, 0, 28 } do
+		local s = piece / 16.9
+		for _, z in { -36, 36 } do
 			for i = 1, n do
-				put(
-					"ceiling_truss",
-					at(-room.halfW + (i - 0.5) * piece, top - 3.7, z, 0),
-					piece / 16.9
-				)
+				put("ceiling_truss", at(-room.halfW + (i - 0.5) * piece, top - 3.8 * s, z, 0), s)
 			end
 		end
 	end
 
-	-- Lamps: a hanging lamp model at every plain lamp.
+	-- Lamps: a hanging lamp model at every plain lamp (the cords stay).
 	if has("hanging_lamp") then
 		for _, g in folder:GetChildren() do
 			if g.Name == "LampGlow" and g:IsA("BasePart") then
-				put("hanging_lamp", CFrame.new(g.Position - Vector3.new(0, 0.5, 0)), 1.3)
+				put("hanging_lamp", CFrame.new(g.Position - Vector3.new(0, 0.5, 0)), 1.4)
 				g.Transparency = 1
 			end
 		end
-		remove(LAMP_PARTS)
+		remove({ "LampShade" })
 	end
 
 	-- Match pads: the model is the frame under each glowing pad.
 	if has("match_pad") then
 		remove({ "PadBase", "PadCorner" })
+		local s = LobbyLayout.padSize / 10.9
 		for _, p in LobbyLayout.pads do
-			put("match_pad", at(p.x, -0.6, p.z, 0), LobbyLayout.padSize / 10.9)
+			put("match_pad", at(p.x, 0.8 - 1.0 * s, p.z, 0), s)
 		end
 	end
 
@@ -175,11 +206,12 @@ function LobbyProps.build(folder: Folder, origin: Vector3)
 	local sc = LobbyLayout.showcase
 	if has("truck_stage") then
 		remove({ "ShowcaseSteps", "StageRail", "StageRailPost", "ShowcaseRing" })
-		put("truck_stage", at(sc.x, 0, sc.z, 180), 1)
+		local s = sc.footprint / 24
+		put("truck_stage", at(sc.x, 0, sc.z, 180), s)
 		local st = folder:FindFirstChild("ShowcaseStage")
 		if st and st:IsA("BasePart") then
-			st.Size = Vector3.new(22, 4.4, 16)
-			st.Position = origin + Vector3.new(sc.x, 2.2, sc.z)
+			st.Size = Vector3.new(sc.footprint - 2, 4.4 * s, 18.1 * s - 2)
+			st.Position = origin + Vector3.new(sc.x, 2.2 * s, sc.z)
 			st.Transparency = 1
 		end
 	end
@@ -193,101 +225,83 @@ function LobbyProps.build(folder: Folder, origin: Vector3)
 		if c and c:IsA("BasePart") then
 			c.Transparency = 1
 			c.Size = Vector3.new(s.w, 4, 3)
-			c.Position = origin + Vector3.new(s.x, 2, s.z - s.d / 2 + 6)
+			c.Position = origin + Vector3.new(s.x, 2, s.z - s.d / 2 + 6.5)
 		end
 		local sign = folder:FindFirstChild("StoreSign")
 		if sign and sign:IsA("BasePart") then
-			sign.Position = origin + Vector3.new(s.x, 15.2, s.z - s.d / 2 + 5.5)
+			sign.Position = origin + Vector3.new(s.x, 15.4, s.z - s.d / 2 + 5.5)
 		end
 	end
 
-	-- Car lift: the model replaces the plain posts and arms; the car stays and rides up and down.
+	-- Car lift on the left wall, with a blue car riding on it (LobbyLife moves the LiftCar parts).
+	local l = LobbyLayout.lift
 	if has("car_lift") then
-		remove({ "LiftPost", "LiftBeam", "LiftArm" })
-		local l = LobbyLayout.lift
-		put("car_lift", at(l.x, 0, l.z, 0), 1.1)
+		put("car_lift", at(l.x, 0, l.z, 0), 1.2)
+	end
+	local carBlue = Color3.fromRGB(40, 110, 230)
+	local function liftCar(
+		name: string,
+		size: Vector3,
+		dx: number,
+		y: number,
+		dz: number,
+		color: Color3,
+		shape: Enum.PartType?
+	)
+		return plain(
+			name,
+			size,
+			CFrame.new(origin + Vector3.new(l.x + dx, y, l.z + dz)),
+			color,
+			shape
+		)
+	end
+	liftCar("LiftCarBody", Vector3.new(5.6, 1.8, 11), 0, 8, 0, carBlue)
+	liftCar("LiftCarCabin", Vector3.new(4.6, 1.5, 5.2), 0, 9.6, 0.6, Color3.fromRGB(150, 210, 250))
+	liftCar("LiftCarBumper", Vector3.new(5.8, 0.8, 0.6), 0, 7.4, -5.6, Color3.fromRGB(28, 30, 38))
+	for _, sx in { -1, 1 } do
+		liftCar(
+			"LiftCarHeadlight",
+			Vector3.new(1, 0.7, 0.3),
+			sx * 2,
+			8.2,
+			-5.6,
+			Color3.fromRGB(255, 244, 200)
+		)
+		liftCar(
+			"LiftCarTaillight",
+			Vector3.new(1, 0.7, 0.3),
+			sx * 2,
+			8.2,
+			5.6,
+			Color3.fromRGB(215, 40, 40)
+		)
+		for _, sz in { -1, 1 } do
+			liftCar(
+				"LiftCarWheel",
+				Vector3.new(1, 2.4, 2.4),
+				sx * 3.1,
+				7.2,
+				sz * 3.5,
+				Color3.fromRGB(28, 30, 38),
+				Enum.PartType.Cylinder
+			)
+		end
 	end
 
-	-- Side roller doors.
+	-- Lounge rug under the sofas.
+	plain(
+		"LoungeRug",
+		Vector3.new(26, 0.06, 20),
+		CFrame.new(origin + Vector3.new(76, 0.07, 38)),
+		Color3.fromRGB(40, 60, 110)
+	)
+
+	-- Roller doors under the walkway on the back wall.
 	if has("roller_door") then
-		remove(DOOR_PARTS)
-		put(
-			"roller_door",
-			CFrame.lookAt(
-				origin + Vector3.new(-room.halfW + 0.9, 0, 32),
-				origin + Vector3.new(0, 0, 32)
-			),
-			1
-		)
-		put(
-			"roller_door",
-			CFrame.lookAt(
-				origin + Vector3.new(room.halfW - 0.9, 0, 28),
-				origin + Vector3.new(0, 0, 28)
-			),
-			1
-		)
-	end
-
-	-- Tool carts.
-	if has("tool_cart") then
-		remove(CART_PARTS)
-		put("tool_cart", at(-30, 0, -26, 0), 1.25)
-		put("tool_cart_yellow", at(28, 0, -26, 0), 1.25)
-		put("tool_cart", at(-54, 0, 28, 90), 1.25)
-	end
-
-	-- Tire rack on the right wall.
-	if has("tire_rack") then
-		remove(RACK_PARTS)
-		put(
-			"tire_rack",
-			CFrame.lookAt(
-				origin + Vector3.new(room.halfW - 1.8, 0, 8),
-				origin + Vector3.new(0, 0, 8)
-			),
-			1.7
-		)
-	end
-
-	-- Lounge sofa facing the TV on the left wall.
-	if has("sofa_cyan") then
-		remove(SOFA_PARTS)
-		put("sofa_cyan", at(-room.halfW + 9.3, 0, -16, 90), 1.15)
-	end
-
-	-- Tool wall workbench (front, left) and tool chest with drums (front, right).
-	if has("workbench") then
-		remove({ "Workbench", "WorkbenchLeg", "Toolbox" })
-		put("workbench", at(-24, 0, room.halfL - 3.2, 0), 1.2)
-	end
-	if has("tool_chest") then
-		remove({ "ToolCabinet", "ToolCabinetTop", "OilDrum" })
-		put("tool_chest", at(20.5, 0, room.halfL - 3.2, 0), 1.4)
-		put("oil_drum", at(26.2, 0, room.halfL - 3.2, 0), 1.1)
-		put("oil_drum_yellow", at(29.4, 0, room.halfL - 3.2, 0), 1.1)
-		put("oil_drum_red", at(32.6, 0, room.halfL - 3.2, 0), 1.1)
-	end
-
-	-- Scenery from Lobby.build: bench, tires, cones, planters.
-	if has("bench_cyan") then
-		remove({ "Bench", "BenchBack" })
-		put("bench_cyan", at(33, 0, 40, 90), 1.4)
-	end
-	if has("tire_stack") then
-		remove({ "Tire" })
-		put("tire_stack", at(33, 0, 32, 0), 1.3)
-	end
-	if has("traffic_cone") then
-		remove({ "Cone", "ConeBase" })
-		put("traffic_cone", at(27, 0, 34, 0), 1.4)
-		put("traffic_cone", at(24, 0, 37, 0), 1.4)
-	end
-	if has("plant_box") then
-		remove({ "Planter", "Plant" })
-		put("plant_box", at(-33, 0, -8, 90), 1.3)
-		put("plant_box_yellow", at(-33, 0, 38, 90), 1.3)
-		put("plant_box", at(33, 0, 28, -90), 1.3)
+		for _, x in { -36, -12, 12, 36 } do
+			put("roller_door", at(x, 0, -room.halfL + 0.9, 180), 0.9)
+		end
 	end
 
 	for _, spot in SPOTS do

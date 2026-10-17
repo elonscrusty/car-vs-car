@@ -38,7 +38,7 @@ local function emitterOn(
 	return e
 end
 
-function LobbyLife.build(folder: Folder, origin: Vector3, stage: Vector3)
+function LobbyLife.build(folder: Folder, origin: Vector3, stage: Vector3, stageTop: number)
 	local rng = Random.new()
 	local life = Instance.new("Folder")
 	life.Name = "Life"
@@ -84,7 +84,7 @@ function LobbyLife.build(folder: Folder, origin: Vector3, stage: Vector3)
 	local holo = Instance.new("Part")
 	holo.Name = "HoloRing"
 	holo.Shape = Enum.PartType.Cylinder
-	holo.Size = Vector3.new(0.2, 15, 15)
+	holo.Size = Vector3.new(0.2, 24, 24)
 	holo.Anchored = true
 	holo.CanCollide = false
 	holo.CanQuery = false
@@ -92,19 +92,19 @@ function LobbyLife.build(folder: Folder, origin: Vector3, stage: Vector3)
 	holo.CastShadow = false
 	holo.Material = Enum.Material.Neon
 	holo.Color = CYAN
-	holo.Transparency = 0.55
+	holo.Transparency = 0.9
 	holo.Parent = life
-	local holoBase = origin + stage + Vector3.new(0, 12, 0)
+	local holoBase = origin + stage + Vector3.new(0, stageTop + 12, 0)
 
 	local beams: { Part } = {}
 	for _, sx in { -1, 1 } do
-		local from = origin + stage + Vector3.new(sx * 13, 25, 3)
-		local to = origin + stage + Vector3.new(0, 3, 0)
+		local from = origin + stage + Vector3.new(sx * 24, 36, 6)
+		local to = origin + stage + Vector3.new(0, stageTop, 0)
 		local len = (to - from).Magnitude
 		local b = Instance.new("Part")
 		b.Name = "StageBeam"
 		b.Shape = Enum.PartType.Cylinder
-		b.Size = Vector3.new(len, 5, 5)
+		b.Size = Vector3.new(len, 8, 8)
 		b.Anchored = true
 		b.CanCollide = false
 		b.CanQuery = false
@@ -121,11 +121,11 @@ function LobbyLife.build(folder: Folder, origin: Vector3, stage: Vector3)
 	-- Dust floating in the light, over the whole hall.
 	emitterOn(
 		life,
-		Vector3.new(66, 18, 130),
-		origin + Vector3.new(0, 12, 0),
+		Vector3.new(170, 30, 130),
+		origin + Vector3.new(0, 18, 0),
 		Color3.new(1, 1, 1),
 		function(e)
-			e.Rate = 6
+			e.Rate = 12
 			e.Lifetime = NumberRange.new(10, 14)
 			e.Speed = NumberRange.new(0.2, 0.7)
 			e.SpreadAngle = Vector2.new(180, 180)
@@ -144,8 +144,8 @@ function LobbyLife.build(folder: Folder, origin: Vector3, stage: Vector3)
 	-- Sparkles rising off the hero stage.
 	emitterOn(
 		life,
-		Vector3.new(14, 0.5, 14),
-		origin + stage + Vector3.new(0, 4.8, 0),
+		Vector3.new(26, 0.5, 20),
+		origin + stage + Vector3.new(0, stageTop + 0.4, 0),
 		CYAN,
 		function(e)
 			e.Rate = 10

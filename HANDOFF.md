@@ -85,6 +85,6 @@ Design follows `/mnt/project-files/car-vs-car/game-plan.md`, but carter chose (2
 - 8 weapons (src/shared/WeaponsConfig.luau), one worn per player, won from the claw (dupes = coins). Server runtime: src/server/Weapon.luau (called from Match). WEAPON button (Q) only for active weapons. Menu: src/client/WeaponUi.luau.
 - Studio test shortcut: set player attribute DevWeapon to a weapon id, then DEV: BOT MATCH.
 - Flame shoots from the back; bot picks a random weapon.
-- Lobby is a garage: concrete upper wall, steel roof (look-only, CanQuery off), hanging lamps, roller door gate, tool walls, oil stains. Spawn z=40 so the camera stays inside.
-- Garage small stuff lives in src/server/LobbyDetail.luau (lift+car, carts, tire rack, lounge/TV, posters, pipes, string lights, floor marks). All look-only.
+- Lobby roof is steel with skylights and hanging lamps (look-only, CanQuery off). Spawn z=54, 12+ studs inside the gate so the camera stays inside.
+- Lobby is a 180x140 warehouse race HQ (LobbyLayout + Lobby.luau): bay-door gate, pad row, hero truck stage, back mezzanine + big CAR VS CAR sign, garage corner (left), claw + lounge (right), store (back left), skylights/windows. Props are Blender v2 models swapped in by name (LobbyProps.luau); motion/glow in LobbyLife.luau. All look-only.
 - Look: src/server/Atmosphere.luau sets lighting, haze, soft bloom, colour grade at start (bloom kept low: neon washes out).

@@ -6,25 +6,30 @@ export type Rect = { x: number, z: number, w: number, d: number } -- centre + fu
 
 local LobbyLayout = {}
 
--- The lobby is a wide garage showroom: you walk in through the roller door at the front (+z), the
--- 4 fight pads stand in a row right ahead like a starting grid, the hero truck turns on a stage
--- in the middle, and the shops line the back and side walls.
--- The hall is `room.halfW` * 2 wide and `room.halfL` * 2 long (inside the walls).
-LobbyLayout.room = { halfW = 60, halfL = 46, wallHeight = 9, wall = 2 }
+-- The lobby is a huge race HQ warehouse: a wide open bay door at the front (+z), the 4 fight pads
+-- in a row just inside (a starting grid), the hero truck turning on a big stage in the middle,
+-- a raised walkway (mezzanine) with the giant sign along the back wall, a garage zone with a car
+-- lift on the left wall, the claw machine and a lounge on the right wall, the store at the back left.
+-- The hall is `room.halfW` * 2 wide and `room.halfL` * 2 long (inside the walls); the roof is
+-- `room.wallHeight + room.upper` high.
+LobbyLayout.room = { halfW = 90, halfL = 70, wallHeight = 9, upper = 30, wall = 2 }
 
-LobbyLayout.showcase = { x = 0, z = -14, radius = 10, footprint = 24 } -- raised truck stage (middle)
-LobbyLayout.spawn = { x = 0, z = 34, size = 6 }
-LobbyLayout.gate = { z = 44, halfOpening = 11 } -- roller door opening + checkered start line
-LobbyLayout.gacha = { x = 53, z = -24, w = 10, d = 12 } -- the claw machine (right wall)
-LobbyLayout.store = { x = -44, z = -40, w = 20, d = 12 } -- back wall, left
-LobbyLayout.lift = { x = -50, z = 6, w = 18, d = 16 } -- car lift with a car (left wall)
-LobbyLayout.padSize = 15
+LobbyLayout.gate = { z = 68, halfOpening = 24 } -- open bay door: the way in
+LobbyLayout.spawn = { x = 0, z = 54, size = 6 }
+LobbyLayout.padSize = 18
 LobbyLayout.pads = {
-	{ x = -27, z = 16 },
-	{ x = -9, z = 16 },
-	{ x = 9, z = 16 },
-	{ x = 27, z = 16 },
+	{ x = -36, z = 28 },
+	{ x = -12, z = 28 },
+	{ x = 12, z = 28 },
+	{ x = 36, z = 28 },
 }
+LobbyLayout.showcase = { x = 0, z = -16, radius = 14, footprint = 34 } -- hero truck stage
+LobbyLayout.store = { x = -68, z = -64, w = 20, d = 12 } -- back wall, left
+LobbyLayout.gacha = { x = 84, z = -30, w = 10, d = 12 } -- the claw machine (right wall)
+LobbyLayout.lift = { x = -80, z = -22, w = 18, d = 16 } -- car lift with a car (left wall)
+-- Raised walkway along the back wall (look from above at the stage), reached by two ramps.
+LobbyLayout.mezzanine = { x = 0, z = -64, w = 106, d = 10, height = 12 }
+LobbyLayout.ramps = { { x = -50, z = -46, w = 6, d = 24 }, { x = 50, z = -46, w = 6, d = 24 } }
 
 -- Footprints that must not overlap each other (floor level things only).
 function LobbyLayout.footprints(): { [string]: Rect }
@@ -52,6 +57,9 @@ function LobbyLayout.footprints(): { [string]: Rect }
 			d = LobbyLayout.lift.d,
 		},
 	}
+	for i, r in LobbyLayout.ramps do
+		out["ramp" .. i] = { x = r.x, z = r.z, w = r.w, d = r.d }
+	end
 	for i, p in LobbyLayout.pads do
 		out["pad" .. i] = { x = p.x, z = p.z, w = LobbyLayout.padSize, d = LobbyLayout.padSize }
 	end
