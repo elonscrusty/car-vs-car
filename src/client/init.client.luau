@@ -30,7 +30,10 @@ view = Ui.create({
 		aim.setHold(dir)
 	end,
 	onBoost = function()
-		remotes.Ability:FireServer()
+		remotes.Ability:FireServer("boost")
+	end,
+	onSpecial = function()
+		remotes.Ability:FireServer("special")
 	end,
 })
 
