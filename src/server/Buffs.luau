@@ -98,6 +98,14 @@ function Buffs.apply(car: CarBuilder.Car, kind: string)
 	end
 end
 
+-- Same, for an exact length (a car ability's shield lasts as long as its rarity says).
+function Buffs.applyFor(car: CarBuilder.Car, kind: string, seconds: number)
+	local given = PickupLogic.applySeconds(stateOf(car), kind, seconds)
+	if given > 0 then
+		notify(car, kind, given)
+	end
+end
+
 -- Who to tell when a buff starts or ends (nil to stop).
 function Buffs.setListener(car: CarBuilder.Car, listener: Listener?)
 	listeners[car] = listener

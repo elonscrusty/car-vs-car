@@ -2,7 +2,7 @@
 -- Numbers for the fight moves (boost, jump, drift). Placeholders: change freely.
 
 return {
-	Names = { "boost", "jump", "special", "weapon" },
+	Names = { "boost", "jump", "special" },
 	Boost = {
 		duration = 1.4, -- seconds of boost
 		fade = 0.3, -- last seconds of the boost: bonus fades out smoothly

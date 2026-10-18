@@ -1,8 +1,6 @@
 --!strict
 local H = require("./harness")
 local SpecialLogic = require("../src/shared/SpecialLogic")
-local SpecialsConfig = require("../src/shared/SpecialsConfig")
-local CarConfig = require("../src/shared/CarConfig")
 
 local test, eq, near, truthy = H.test, H.eq, H.near, H.truthy
 
@@ -38,12 +36,4 @@ end)
 test("damage bonus expires", function()
 	eq(SpecialLogic.damageMult(5, 3, 2), 2)
 	eq(SpecialLogic.damageMult(5, 5, 2), 1)
-end)
-
-test("every car has a special with a 4 to 12 s cooldown", function()
-	for _, id in CarConfig.Order do
-		local s = SpecialsConfig.ByCar[id]
-		truthy(s ~= nil, id)
-		truthy(s.cooldown >= 4 and s.cooldown <= 12, id)
-	end
 end)

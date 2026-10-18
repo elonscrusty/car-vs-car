@@ -5,6 +5,20 @@
 -- damageMult: damage multiplier when this car is the one hitting.
 -- hitLift: extra upward kick given to the enemy on hit (Ramp flips things).
 -- ai: auto-pilot style ("BackupCharge", "CircleDive", "Direct").
+-- rarity / ability: Common..Legendary and the one ability the car has (see AbilitiesConfig).
+-- model: name of the imported 3D model (nil = the plain box body).
+-- The 8 placeholder cars are written out below; the 30 pack cars come from CarCatalog.
+
+-- Sibling loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
+local function sibling(name: string): any
+	if script then
+		return require((script :: any).Parent[name])
+	end
+	local luneRequire: any = require -- relative string paths only exist in Lune
+	return luneRequire("./" .. name)
+end
+
+local CarCatalog = sibling("CarCatalog")
 
 export type AiStyle = "BackupCharge" | "CircleDive" | "Direct"
 
@@ -21,12 +35,18 @@ export type CarStats = {
 	damageMult: number,
 	hitLift: number,
 	ai: AiStyle,
+	rarity: string,
+	ability: string,
+	model: string?,
 }
 
 local CarConfig = {}
 
 -- Order shown in the pick menu.
 CarConfig.Order = { "Heavy", "Light", "Ramp", "Spike", "Tank", "Drift", "Bulldozer", "Rocket" }
+
+-- Rarity names, best last. Claw odds, store prices and ability strength all use these.
+CarConfig.Rarities = { "Common", "Rare", "Epic", "Legendary" }
 
 CarConfig.Cars = {
 	Heavy = {
@@ -42,6 +62,8 @@ CarConfig.Cars = {
 		damageMult = 1.3,
 		hitLift = 0,
 		ai = "BackupCharge",
+		rarity = "Common",
+		ability = "Slam",
 	},
 	Light = {
 		name = "LIGHT",
@@ -56,6 +78,8 @@ CarConfig.Cars = {
 		damageMult = 0.9,
 		hitLift = 0,
 		ai = "CircleDive",
+		rarity = "Common",
+		ability = "Dash",
 	},
 	Ramp = {
 		name = "RAMP",
@@ -70,6 +94,8 @@ CarConfig.Cars = {
 		damageMult = 0.8,
 		hitLift = 22,
 		ai = "Direct",
+		rarity = "Rare",
+		ability = "Jump",
 	},
 	Spike = {
 		name = "SPIKE",
@@ -84,6 +110,8 @@ CarConfig.Cars = {
 		damageMult = 1.45,
 		hitLift = 0,
 		ai = "Direct",
+		rarity = "Epic",
+		ability = "Ram",
 	},
 	Tank = {
 		name = "TANK",
@@ -98,6 +126,8 @@ CarConfig.Cars = {
 		damageMult = 1.25,
 		hitLift = 0,
 		ai = "BackupCharge",
+		rarity = "Common",
+		ability = "Shield",
 	},
 	Drift = {
 		name = "DRIFT",
@@ -112,6 +142,8 @@ CarConfig.Cars = {
 		damageMult = 0.9,
 		hitLift = 0,
 		ai = "CircleDive",
+		rarity = "Rare",
+		ability = "Dash",
 	},
 	Bulldozer = {
 		name = "BULLDOZER",
@@ -126,6 +158,8 @@ CarConfig.Cars = {
 		damageMult = 1.25,
 		hitLift = 0,
 		ai = "Direct",
+		rarity = "Rare",
+		ability = "Ram",
 	},
 	Rocket = {
 		name = "ROCKET",
@@ -140,8 +174,16 @@ CarConfig.Cars = {
 		damageMult = 1.0,
 		hitLift = 0,
 		ai = "Direct",
+		rarity = "Epic",
+		ability = "Dash",
 	},
 } :: { [string]: CarStats }
+
+for _, entry in CarCatalog.Entries do
+	assert(CarConfig.Cars[entry.id] == nil, "duplicate car id " .. entry.id)
+	CarConfig.Cars[entry.id] = CarCatalog.statsFor(entry) :: any
+	table.insert(CarConfig.Order, entry.id)
+end
 
 -- Returns the stats for an id, or nil if the id is not a real car.
 -- Takes `any` because the id can come from a client.

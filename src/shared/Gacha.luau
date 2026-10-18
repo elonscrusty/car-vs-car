@@ -13,20 +13,17 @@ end
 local CarConfig = sibling("CarConfig")
 local Inventory = sibling("Inventory")
 local LobbyConfig = sibling("LobbyConfig")
-local Weapons = sibling("Weapons")
 
 type Profile = {
 	coins: number,
 	freePullUsed: boolean,
 	owned: { [string]: boolean },
 	daily: { freePulls: number }?, -- daily gift tries
-	weapons: Weapons.WeaponData?, -- old test profiles have none (cars only)
 }
 export type OddsRow = { rarity: string, percent: number, cars: { string } }
--- A claw win is a car (carId set) or a weapon (weaponId set, carId is "").
+-- A claw win is always a car (a duplicate pays coins back).
 export type PullResult = {
 	carId: string,
-	weaponId: string?,
 	isNew: boolean,
 	refund: number,
 	free: boolean,
@@ -34,7 +31,7 @@ export type PullResult = {
 
 local Gacha = {}
 
-local RARITY_ORDER = { "Common", "Rare", "Epic", "Legendary" }
+local RARITY_ORDER = CarConfig.Rarities
 
 -- The odds the player sees AND the server rolls with. Rarities with no cars are left out and the
 -- rest are re-scaled to 100 (1 decimal), so the shown numbers are always the real ones.
@@ -66,11 +63,11 @@ function Gacha.oddsTable(): { OddsRow }
 	return rows
 end
 
--- Coins back when the prize is a car you already own.
+-- Coins back when the prize is a car you already own (more for rarer cars).
 function Gacha.refundFor(carId: string): number
 	local rarity = LobbyConfig.Rarity[carId]
-	local table_ = LobbyConfig.Gacha.duplicateRefunds :: { [string]: number }
-	return (rarity and table_[rarity]) or LobbyConfig.Gacha.duplicateRefund
+	local byRarity = LobbyConfig.Gacha.duplicateRefunds :: { [string]: number }
+	return (rarity and byRarity[rarity]) or LobbyConfig.Gacha.duplicateRefund
 end
 
 local function isFree(p: Profile): boolean
@@ -95,7 +92,6 @@ function Gacha.pull(p: Profile, rng: () -> number): PullResult
 		error("cannot afford gacha pull")
 	end
 	local free = isFree(p)
-	local firstPull = free -- the very first (free) pull always gives a car
 	local gift = not free and hasGift(p)
 	if free then
 		p.freePullUsed = true
@@ -104,22 +100,6 @@ function Gacha.pull(p: Profile, rng: () -> number): PullResult
 		free = true
 	else
 		Inventory.addCoins(p, -LobbyConfig.Gacha.price)
-	end
-
-	-- Some pulls give a weapon instead of a car.
-	if
-		not firstPull
-		and p.weapons ~= nil
-		and rng() * 100 < (LobbyConfig.Gacha.weaponChance or 0)
-	then
-		local weaponId = Weapons.roll(LobbyConfig.Gacha.odds, rng)
-		local isNew = Weapons.grant(p :: any, weaponId)
-		local refund = 0
-		if not isNew then
-			refund = LobbyConfig.Gacha.duplicateRefund
-			Inventory.addCoins(p :: any, refund)
-		end
-		return { carId = "", weaponId = weaponId, isNew = isNew, refund = refund, free = free }
 	end
 
 	-- Roll rarity from the same table the player is shown.

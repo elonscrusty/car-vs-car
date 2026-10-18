@@ -7,6 +7,14 @@ local test, eq, near = Harness.test, Harness.eq, Harness.near
 
 print("PickupLogic")
 
+test("applySeconds sets an exact length and ignores zero", function()
+	local b = PickupLogic.newBuffs()
+	eq(PickupLogic.applySeconds(b, "shield", 7.5), 7.5)
+	eq(b.shield, 7.5)
+	eq(PickupLogic.applySeconds(b, "speed", 0), 0)
+	eq(b.speed, nil)
+end)
+
 test("same kind refreshes, different kinds coexist", function()
 	local b = PickupLogic.newBuffs()
 	PickupLogic.apply(b, "speed", Config)

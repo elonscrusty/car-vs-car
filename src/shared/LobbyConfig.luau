@@ -1,6 +1,17 @@
 --!strict
 -- All lobby numbers live here. Tweak freely.
 
+-- Sibling loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
+local function sibling(name: string): any
+	if script then
+		return require((script :: any).Parent[name])
+	end
+	local luneRequire: any = require -- relative string paths only exist in Lune
+	return luneRequire("./" .. name)
+end
+
+local CarConfig = sibling("CarConfig")
+
 local LobbyConfig = {}
 
 -- Vector3 does not exist under plain Lune (tests), so fall back to a same-shaped table there.
@@ -15,26 +26,18 @@ LobbyConfig.Pad = { maxPlayers = 2, countdownSeconds = 3, pickSeconds = 15 }
 LobbyConfig.Rewards = { winCoins = 60, loseCoins = 20, endScreenSeconds = 4 }
 LobbyConfig.StarterCars = { "Heavy" } -- owned by a new player
 LobbyConfig.PickChoices = 3
-LobbyConfig.Rarity = {
-	Heavy = "Common",
-	Light = "Common",
-	Tank = "Common",
-	Ramp = "Rare",
-	Drift = "Rare",
-	Bulldozer = "Rare",
-	Spike = "Epic",
-	Rocket = "Epic",
-} :: { [string]: string }
+-- Car id -> rarity. Comes from CarConfig, so a new car only needs a rarity there.
+LobbyConfig.Rarity = {} :: { [string]: string }
+for id, car in CarConfig.Cars do
+	LobbyConfig.Rarity[id] = car.rarity
+end
 LobbyConfig.Gacha = {
 	price = 100,
 	firstPullFree = true,
-	-- PRETEND numbers: carter gives real ones. Percent, must sum to 100. A rarity with no cars yet is
-	-- skipped and the shown odds are re-scaled to 100 (see Gacha.oddsTable).
-	odds = { Common = 55, Rare = 28, Epic = 14, Legendary = 3 } :: { [string]: number },
-	duplicateRefund = 50, -- fallback coins back on a car you own
-	-- Coins back for a duplicate, by rarity (PRETEND). Higher rarity gives more.
+	odds = { Common = 55, Rare = 28, Epic = 14, Legendary = 3 } :: { [string]: number }, -- percent, must sum to 100
+	duplicateRefund = 50, -- fallback coins back on a car you already own
+	-- Coins back for a duplicate, by rarity (PRETEND numbers). Rarer gives more.
 	duplicateRefunds = { Common = 30, Rare = 60, Epic = 150, Legendary = 400 } :: { [string]: number },
-	weaponChance = 0, -- weapons are out; kept so old weapon code still compiles
 }
 -- Store counter prices by rarity. PLACEHOLDER numbers: carter will give the real ones later.
 LobbyConfig.Store = {

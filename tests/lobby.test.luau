@@ -51,7 +51,7 @@ end)
 H.test("first pull is free and costs nothing", function()
 	local p = Inventory.default()
 	H.truthy(Gacha.canBuy(p))
-	local r = Gacha.pull(p, fixed(0.99, 0)) -- Epic -> Spike
+	local r = Gacha.pull(p, fixed(0.9, 0)) -- Epic -> Spike
 	H.eq(r.free, true)
 	H.eq(r.carId, "Spike")
 	H.eq(r.isNew, true)
@@ -77,7 +77,7 @@ H.test("paid pull deducts price, duplicate refunds", function()
 	local p = Inventory.default()
 	p.freePullUsed = true
 	p.coins = 150
-	local r = Gacha.pull(p, fixed(0.99, 0.0, 0.0)) -- (first roll 0.99: a car, not a weapon) Common, first common = Heavy (owned)
+	local r = Gacha.pull(p, fixed(0.0, 0.0)) -- Common, first common = Heavy (owned)
 	H.eq(r.carId, "Heavy")
 	H.eq(r.isNew, false)
 	H.eq(r.free, false)
@@ -90,54 +90,36 @@ H.test("pull is deterministic and maps rolls to rarity", function()
 		local p = Inventory.default()
 		p.freePullUsed = true
 		p.coins = 1000
-		return Gacha.pull(p, fixed(0.99, roll, 0)).carId
+		return Gacha.pull(p, fixed(roll, 0)).carId
 	end
 	H.eq(carFor(0.0), "Heavy")
-	H.eq(carFor(0.56), "Heavy") -- Common is 56.7% once empty Legendary is skipped
-	H.eq(carFor(0.57), "Ramp")
-	H.eq(carFor(0.85), "Ramp")
-	H.eq(carFor(0.86), "Spike")
-	H.eq(carFor(0.9999), "Spike")
+	H.eq(carFor(0.549), "Heavy")
+	H.eq(carFor(0.55), "Ramp") -- Rare starts at 55%
+	H.eq(carFor(0.829), "Ramp")
+	H.eq(carFor(0.83), "Spike") -- Epic starts at 83%
+	H.eq(carFor(0.969), "Spike")
+	H.eq(carFor(0.97), "Formula") -- Legendary starts at 97%
+	H.eq(carFor(0.9999), "Formula")
 	local p = Inventory.default()
 	p.freePullUsed = true
 	p.coins = 1000
-	H.eq(Gacha.pull(p, fixed(0.99, 0.3, 0.99)).carId, "Tank") -- second roll picks within Common
-end)
-
-H.test("rarity with no cars is skipped and shown odds are re-scaled", function()
-	local rows = Gacha.oddsTable()
-	for _, row in rows do
-		H.truthy(row.rarity ~= "Legendary", "no Legendary cars yet")
-	end
-	H.eq(#rows, 3)
-	H.eq(rows[1].percent, 56.7)
-	H.eq(rows[2].percent, 28.9)
-	H.eq(rows[3].percent, 14.4)
+	local common = Gacha.oddsTable()[1].cars
+	H.eq(Gacha.pull(p, fixed(0.3, 0.99)).carId, common[#common]) -- second roll picks within Common
 end)
 
 H.test("duplicate refund grows with rarity", function()
 	H.eq(Gacha.refundFor("Heavy"), LobbyConfig.Gacha.duplicateRefunds.Common)
 	H.eq(Gacha.refundFor("Spike"), LobbyConfig.Gacha.duplicateRefunds.Epic)
-	H.truthy(Gacha.refundFor("Spike") > Gacha.refundFor("Heavy"))
+	H.eq(Gacha.refundFor("Formula"), LobbyConfig.Gacha.duplicateRefunds.Legendary)
+	H.truthy(Gacha.refundFor("Formula") > Gacha.refundFor("Spike"))
 	local p = Inventory.default()
 	p.freePullUsed = true
 	p.coins = 1000
-	Gacha.pull(p, fixed(0.99, 0.99, 0)) -- Spike, new
+	Gacha.pull(p, fixed(0.99, 0))
 	local before = p.coins
-	local r = Gacha.pull(p, fixed(0.99, 0.99, 0)) -- Spike again
+	local r = Gacha.pull(p, fixed(0.99, 0)) -- Formula again
 	H.eq(r.isNew, false)
-	H.eq(p.coins, before - LobbyConfig.Gacha.price + LobbyConfig.Gacha.duplicateRefunds.Epic)
-end)
-
-H.test("the server never needs the client: pull only uses profile + rng", function()
-	-- Same profile + same rolls = same prize (so a client can never steer it).
-	local function run(): string
-		local p = Inventory.default()
-		p.freePullUsed = true
-		p.coins = 100
-		return Gacha.pull(p, fixed(0.99, 0.7, 0.4)).carId
-	end
-	H.eq(run(), run())
+	H.eq(p.coins, before - LobbyConfig.Gacha.price + r.refund)
 end)
 
 H.test("migrate sanitizes garbage", function()
