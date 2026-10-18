@@ -38,6 +38,7 @@ require("./skidrules.test")
 require("./hudstyle.test")
 require("./abilities.test")
 require("./catalog.test")
+require("./roster.test")
 require("./leaderboard.test")
 require("./modes.test")
 

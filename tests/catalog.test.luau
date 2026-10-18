@@ -30,7 +30,7 @@ test("the pack has 30 cars with unique ids, names and models", function()
 end)
 
 test("every car is registered with a rarity, a real ability and a model", function()
-	eq(#CarConfig.Order, 38)
+	eq(#CarConfig.FullOrder, 38)
 	for _, id in CarConfig.Order do
 		local c = CarConfig.get(id)
 		truthy(c ~= nil, id)
@@ -68,7 +68,7 @@ end)
 
 test("all six abilities and all four rarities are used", function()
 	local abilities, rarities = {}, {}
-	for _, id in CarConfig.Order do
+	for _, id in CarConfig.FullOrder do
 		local c = CarConfig.Cars[id]
 		abilities[c.ability] = true
 		rarities[c.rarity] = true

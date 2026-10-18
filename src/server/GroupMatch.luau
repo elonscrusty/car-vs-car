@@ -10,6 +10,7 @@ local RunService = game:GetService("RunService")
 
 local BowlConfig = require(ReplicatedStorage.Shared.BowlConfig)
 local BowlRules = require(ReplicatedStorage.Shared.BowlRules)
+local BotNames = require(ReplicatedStorage.Shared.BotNames)
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
 local Fight = require(ReplicatedStorage.Shared.Fight)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
@@ -83,9 +84,20 @@ function GroupMatch.new(
 		return Modes.teamOf(i, teamSize)
 	end
 
+	local botNames: { [number]: string } = {}
 	local function nameOf(i: number): string
 		local p = participants[i]
-		return if p then p.player.DisplayName else "BOT"
+		if p then
+			return p.player.DisplayName
+		end
+		if not botNames[i] then -- a friendly random name, not just "BOT"
+			local taken = {}
+			for _, n in botNames do
+				table.insert(taken, n)
+			end
+			botNames[i] = BotNames.pick(rng:NextInteger(1, 1000000), taken)
+		end
+		return botNames[i]
 	end
 
 	local function sendTo(i: number, update: Types.UiUpdate)
@@ -302,7 +314,7 @@ function GroupMatch.new(
 			local part = participants[idx]
 			local id = if part
 				then part.carId
-				else CarConfig.Order[rng:NextInteger(1, #CarConfig.Order)]
+				else BotNames.pickCar(rng:NextInteger(1, 1000000), CarConfig.Order) :: string
 			local stats = CarConfig.Cars[id]
 			local spot = spots[idx]
 			local pos = ModeFx.spotPosition(origin, spot.x, spot.z, stats.size[2] / 2 + 1.5)

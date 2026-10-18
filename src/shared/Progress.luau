@@ -48,7 +48,7 @@ function Progress.clean(raw: any): Data
 	data.streak = cleanNumber(raw.streak)
 	data.bestStreak = math.max(cleanNumber(raw.bestStreak), data.streak)
 	if type(raw.carXp) == "table" then
-		for _, id in CarConfig.Order do
+		for _, id in CarConfig.FullOrder do
 			local xp = cleanNumber(raw.carXp[id])
 			if xp > 0 then
 				data.carXp[id] = xp
