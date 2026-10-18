@@ -39,7 +39,7 @@ function LobbyMore.build(folder: Folder, origin: Vector3)
 	put("VendingMachine", 61, 0, 64, RIGHT)
 	put("ArcadeCabinet", 44, 0, 66, FRONT)
 	put("ArcadeCabinet", 50, 0, 66, FRONT)
-	put("Couch", -46, 0, 66, FRONT)
+	put("Couch", -33, 0, 66, FRONT)
 
 	-- A tool and a shelf or cart in each garage, by the back wall.
 	local tools = { "TireChanger", "AirCompressor", "FloorJack", "JackStands" }

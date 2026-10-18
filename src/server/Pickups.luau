@@ -16,10 +16,11 @@ local Arena = require(script.Parent.Arena)
 local Buffs = require(script.Parent.Buffs)
 local CarBuilder = require(script.Parent.CarBuilder)
 local Impulse = require(script.Parent.Impulse)
+local LobbyDecor = require(script.Parent.LobbyDecor)
 
 export type Handle = { destroy: () -> () }
 
-type IconItem = { part: Part, offset: CFrame }
+type IconItem = { part: BasePart, offset: CFrame }
 type Pickup = {
 	kind: string,
 	model: Model,
@@ -32,6 +33,16 @@ type Pickup = {
 }
 
 local Pickups = {}
+
+-- Blender icons (ServerStorage.Models.Bowl); a missing one keeps the plain glowing shapes.
+local ICON_MODELS: { [string]: string } = {
+	shield = "Pickup_Shield",
+	bighit = "Pickup_BigHit",
+	speed = "Pickup_Speed",
+	magnet = "Pickup_Magnet",
+	rocket = "Pickup_Rocket",
+}
+local ICON_SCALE = 1.6
 
 local function colorOf(kind: string): Color3
 	local c = (PickupsConfig.colors :: any)[kind] or { 255, 255, 255 }
@@ -62,18 +73,37 @@ local function makePickup(
 	end
 
 	local items: { IconItem } = {}
-	for _, ps in PickupStyle.iconParts(kind, rgb) do
-		local part = Instance.new("Part")
-		part.Name = "Icon"
-		part.Shape = (Enum.PartType :: any)[ps.shape]
-		part.Size = Vector3.new(ps.size[1], ps.size[2], ps.size[3])
-		look(part, Enum.Material.Neon, Color3.fromRGB(ps.color[1], ps.color[2], ps.color[3]))
-		part.Parent = model
-		table.insert(items, {
-			part = part,
-			offset = CFrame.new(ps.offset[1], ps.offset[2], ps.offset[3])
-				* CFrame.Angles(0, math.rad(ps.yaw), 0),
-		})
+	local iconName = ICON_MODELS[kind]
+	local icon = if iconName and LobbyDecor.has(iconName, "Bowl")
+		then LobbyDecor.clone(iconName, model, nil, "Bowl")
+		else nil
+	if icon then
+		icon:ScaleTo(icon:GetScale() * ICON_SCALE)
+		local pivot = icon:GetPivot()
+		local _, size = icon:GetBoundingBox()
+		for _, d in icon:GetDescendants() do
+			if d:IsA("BasePart") then
+				table.insert(items, {
+					part = d,
+					offset = pivot:ToObjectSpace(d.CFrame) - Vector3.new(0, size.Y / 2, 0),
+				})
+			end
+		end
+	end
+	if #items == 0 then
+		for _, ps in PickupStyle.iconParts(kind, rgb) do
+			local part = Instance.new("Part")
+			part.Name = "Icon"
+			part.Shape = (Enum.PartType :: any)[ps.shape]
+			part.Size = Vector3.new(ps.size[1], ps.size[2], ps.size[3])
+			look(part, Enum.Material.Neon, Color3.fromRGB(ps.color[1], ps.color[2], ps.color[3]))
+			part.Parent = model
+			table.insert(items, {
+				part = part,
+				offset = CFrame.new(ps.offset[1], ps.offset[2], ps.offset[3])
+					* CFrame.Angles(0, math.rad(ps.yaw), 0),
+			})
+		end
 	end
 	local first = items[1].part
 
@@ -95,6 +125,10 @@ local function makePickup(
 	glow.Transparency = 0.6
 	glow.CFrame = flat + Vector3.new(0, 0.2, 0)
 	glow.Parent = model
+	local base = LobbyDecor.clone("PickupBase", model, nil, "Bowl")
+	if base then
+		base:PivotTo(CFrame.new(pos.X, floorSurfaceY + 0.1, pos.Z))
+	end
 
 	-- Name pill under the icon.
 	local label = (PickupsConfig.names :: any)[kind] or kind

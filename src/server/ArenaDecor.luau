@@ -25,6 +25,7 @@ local SWAP: { [string]: { string } } = {
 	Hill = { "Hill" },
 	Tree = { "Trunk", "Leaves" },
 	Rock = { "Rock" },
+	Cloud = { "Cloud" },
 }
 
 function ArenaDecor.build(model: Model, origin: Vector3)
@@ -115,6 +116,15 @@ function ArenaDecor.build(model: Model, origin: Vector3)
 		for i, s in ArenaLayout.rockSpots() do
 			local r = ROCKS[i % #ROCKS + 1]
 			put(r[1] :: string, at(s, 0), s.scale * 1.2 / (r[2] :: number))
+		end
+	end
+
+	-- Soft Blender clouds at the same sky spots as the plain white puffs.
+	local CLOUDS = { "Cloud_A", "Cloud_B", "Cloud_C" }
+	if has("Cloud_A") and has("Cloud_B") and has("Cloud_C") then
+		clearPlain("Cloud")
+		for i, s in ArenaLayout.cloudSpots() do
+			put(CLOUDS[i % #CLOUDS + 1], at(s, s.y), s.scale * 1.6)
 		end
 	end
 

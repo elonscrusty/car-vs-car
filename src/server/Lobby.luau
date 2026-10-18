@@ -13,6 +13,7 @@ local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local LobbyLife = require(script.Parent.LobbyLife)
 local LobbyDecor = require(script.Parent.LobbyDecor)
+local LobbyGarage = require(script.Parent.LobbyGarage)
 local LobbyMore = require(script.Parent.LobbyMore)
 local LobbyProps = require(script.Parent.LobbyProps)
 local LobbyShell = require(script.Parent.LobbyShell)
@@ -1693,6 +1694,7 @@ function Lobby.build(): LobbyHandle
 	LobbyDecor.build(folder, origin)
 	LobbyShell.build(folder, origin)
 	LobbyMore.build(folder, origin)
+	LobbyGarage.build(folder, origin)
 	LobbyLife.build(folder, origin, Vector3.new(L.showcase.x, 0, L.showcase.z), stageTop)
 
 	-- Invisible wall across the bay door so nobody walks out into the empty world.

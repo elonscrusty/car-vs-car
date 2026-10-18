@@ -14,3 +14,12 @@ rebuild it is in this repo now.
    then run in the command bar: `game.ServerStorage.Models:SetAttribute("SteelPalette", "rbxassetid://<id>")`.
    `LobbyDecor.clone` then swaps every lobby model's color sheet (the red becomes steel gray). The bowl keeps
    its own colors.
+
+## Models v3 and v4 (2026-10-18)
+
+Import everything in `game-models-v3` and `game-models-v4` (Home > Import 3D, Ctrl+A), then run
+`tools/studio-sort-v3v4.luau` in the command bar. Steel garage props go to `Models.Garage`
+(LobbyGarage places them: floor logo, spin wheel, two boards, fans, lamps, bin, cooler, a workstation
+in each garage). Bowl, pickups, effects and mode props go to `Models.Bowl` (pickups and clouds are
+already used; the rest wait for their modes). Not placed yet: mezzanine, roof panels, skylights,
+steel wall panels and doors, bay turntable, ice, hill, soccer and last-car-standing pieces, fx.
