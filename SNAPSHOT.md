@@ -99,3 +99,10 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 - Boost pads push SIDEWAYS along the rim (tangent), the way round follows the car's own direction; chevrons point along the rim. `BowlRules.padLaunch(pad, kick, lift, vx, vz)`.
 - Camera follows your car more (0.6 shift) and sits closer (60 back, 72 up). "Pull back, let go" text is small under the banner.
 - Not checked in Studio: launch speeds (Launch min/max 70-150) may feel slow in the bigger bowl; steep slope driving; camera framing.
+
+## Daily spin wheel (quests + daily gift were already in; spin added)
+- Quests and the daily gift (free claw try) already existed (`Quests`, `QuestsConfig`, `Daily`, `QuestUi`). New: daily spin wheel.
+- `src/shared/SpinConfig.luau` (segments + weights; ALL rewards are placeholders), `Spin.luau` (pure: one spin per UTC day, `oddsTable`, `pick`, `spin`), tests `tests/spin.test.luau`.
+- Server: `LobbyService` action `spin` (limited 2 per 3s) rolls with its Random, marks the day used BEFORE paying, sends `spinResult` + profile (`spinReady`). Save field `profile.spin = {lastDay}`.
+- Client: `src/client/SpinUi.luau` (SPIN menu button, odds list shown before spinning, wheel turns to the server's pick). Not eyeballed in Studio.
+- Also fixed: `Profiles.copyProfile` was dropping `build`, so garage builds were never saved.

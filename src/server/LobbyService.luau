@@ -19,6 +19,7 @@ local Paint = require(ReplicatedStorage.Shared.Paint)
 local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
 local PadLogic = require(ReplicatedStorage.Shared.PadLogic)
 local Quests = require(ReplicatedStorage.Shared.Quests)
+local Spin = require(ReplicatedStorage.Shared.Spin)
 local PickChoices = require(ReplicatedStorage.Shared.PickChoices)
 local Progress = require(ReplicatedStorage.Shared.Progress)
 local ProgressConfig = require(ReplicatedStorage.Shared.ProgressConfig)
@@ -98,6 +99,7 @@ function LobbyService.start(deps: Deps): Handle
 	local hintLimiter = RateLimiter.new(4, 3)
 	local botLevelLimiter = RateLimiter.new(3, 3)
 	local questLimiter = RateLimiter.new(2, 3)
+	local spinLimiter = RateLimiter.new(2, 3)
 	local paintLimiter = RateLimiter.new(4, 3)
 	local buildLimiter = RateLimiter.new(6, 3)
 	local bays = LobbyBays.new(deps.lobby.folder, LobbyConfig.Lobby.origin)
@@ -156,6 +158,7 @@ function LobbyService.start(deps: Deps): Handle
 			botLevel = p.botLevel,
 			quests = Quests.views(p),
 			daily = { ready = Daily.canClaim(p.daily, os.time()), freePulls = p.daily.freePulls },
+			spinReady = Spin.canSpin(p.spin, os.time()),
 			paint = { owned = Paint.ownedList(p.paint), equipped = p.paint.equipped },
 			build = buildView(p),
 		})
@@ -680,6 +683,24 @@ function LobbyService.start(deps: Deps): Handle
 		end
 	end
 
+	-- Daily spin: the server rolls. Day is marked used before paying, so repeats pay nothing.
+	local function spinWheel(player: Player)
+		local p = Profiles.get(player)
+		if p == nil then
+			return
+		end
+		local result = Spin.spin(p.spin, os.time(), rng, function(n)
+			Inventory.addCoins(p, n)
+		end, function(n)
+			Spin.addFreePulls(p.daily, n)
+		end)
+		if result ~= nil then
+			Profiles.markDirty(player)
+			send(player, { kind = "spinResult", index = result.index, label = result.label })
+			sendProfile(player)
+		end
+	end
+
 	local handle: Handle
 	handle = {
 		onPlayerAdded = function(player: Player)
@@ -710,6 +731,7 @@ function LobbyService.start(deps: Deps): Handle
 			hintLimiter.clear(player)
 			botLevelLimiter.clear(player)
 			questLimiter.clear(player)
+			spinLimiter.clear(player)
 			paintLimiter.clear(player)
 			buildLimiter.clear(player)
 			bays.clear(player)
@@ -764,6 +786,10 @@ function LobbyService.start(deps: Deps): Handle
 			elseif action == "claimDaily" then
 				if questLimiter.allow(player, os.clock()) then
 					claimDaily(player)
+				end
+			elseif action == "spin" then
+				if spinLimiter.allow(player, os.clock()) then
+					spinWheel(player)
 				end
 			elseif action == "leavePad" then
 				cancelPlayer(player)

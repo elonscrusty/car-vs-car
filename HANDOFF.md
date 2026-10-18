@@ -117,3 +117,6 @@ The real place was never saved and was lost with the Studio window. Now in the r
 sources (`assets/models`, Blender FBX), `tools/studio-sort.luau` and `docs/STUDIO_REBUILD.md`. Lobby is being
 re-themed from racetrack red to garage steel (`LobbyDecor.clone` + optional `SteelPalette` attribute). The 30
 cars still need their own import. Always Ctrl+S and Publish a rebuilt place first.
+
+## Daily spin wheel
+Tune rewards/odds only in `src/shared/SpinConfig.luau` (placeholders). Quests: `QuestsConfig.luau`. Daily gift: `QuestsConfig.Daily`. Spin UI not yet checked by eye on a phone or in Studio.
