@@ -14,6 +14,7 @@ export type Entry = {
 	ability: string, -- id from AbilitiesConfig
 	rgb: { number },
 	stats: { [string]: number }?, -- optional overrides of `Neutral` (hp, mass, maxSpeed, ...)
+	role: string?, -- one-line kid-sayable role, shown as the car's blurb
 }
 
 local CarCatalog = {}
@@ -82,13 +83,82 @@ CarCatalog.Entries = {
 	e("Future", "FUTURE", "30_future", "Legendary", "Slam", { 90, 230, 255 }),
 }
 
+-- Own stats + role line for the launch-roster pack cars (the 8 hand-written cars live in
+-- CarConfig). Numbers are PLACEHOLDERS tuned only so no car's power score (CarPower) is far above
+-- its rarity tier's average; carter retunes by feel. Cars not listed keep `Neutral`.
+CarCatalog.Tuned = {
+	Sedan = {
+		role = "Balanced. Good at everything.",
+		stats = {
+			hp = 160,
+			mass = 70,
+			maxSpeed = 76,
+			accel = 115,
+			turnRate = 3.4,
+			damageMult = 1.0,
+		},
+	},
+	DuneBuggy = {
+		role = "Light and bouncy. Quick turns.",
+		stats = {
+			hp = 135,
+			mass = 35,
+			maxSpeed = 90,
+			accel = 140,
+			turnRate = 4.6,
+			damageMult = 0.95,
+		},
+	},
+	MonsterTruck = {
+		role = "Big wheels. Smashes hard.",
+		stats = {
+			hp = 200,
+			mass = 130,
+			maxSpeed = 66,
+			accel = 105,
+			turnRate = 2.6,
+			damageMult = 1.15,
+		},
+	},
+	Formula = {
+		role = "Super fast. Easy to break.",
+		stats = {
+			hp = 100,
+			mass = 22,
+			maxSpeed = 115,
+			accel = 180,
+			turnRate = 4.4,
+			damageMult = 1.1,
+		},
+	},
+	ArmoredTruck = {
+		role = "Steel wall. Slow to turn.",
+		stats = {
+			hp = 230,
+			mass = 150,
+			maxSpeed = 62,
+			accel = 100,
+			turnRate = 2.0,
+			damageMult = 1.2,
+		},
+	},
+} :: { [string]: { role: string, stats: { [string]: number } } }
+
+for _, entry in CarCatalog.Entries do
+	local tuned = CarCatalog.Tuned[entry.id]
+	if tuned then
+		entry.stats = tuned.stats
+		entry.role = tuned.role
+	end
+end
+
 -- The full stat table for one entry (same shape as a CarConfig car).
 function CarCatalog.statsFor(entry: Entry): { [string]: any }
 	local n = CarCatalog.Neutral
 	local o = entry.stats or {}
 	return {
 		name = entry.name,
-		blurb = entry.rarity .. " " .. entry.ability,
+		blurb = entry.role or (entry.rarity .. " " .. entry.ability),
 		rgb = entry.rgb,
 		size = n.size,
 		hp = o.hp or n.hp,

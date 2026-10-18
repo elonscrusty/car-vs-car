@@ -70,26 +70,26 @@ H.test("progress counts by kind and car (flag on only)", function()
 	local p = Inventory.default()
 	p.quests = {
 		{ id = "win3", progress = 0 },
-		{ id = "win3_Tank", progress = 0 },
+		{ id = "win3_Bulldozer", progress = 0 },
 		{ id = "play5", progress = 0 },
 	}
 	H.truthy(Quests.onMatchEnd(p, win("Heavy")))
 	H.eq(p.quests[1].progress, 1)
 	H.eq(p.quests[2].progress, 0)
 	H.eq(p.quests[3].progress, 1)
-	Quests.onMatchEnd(p, { won = false, carId = "Tank", opponentIsBot = true })
+	Quests.onMatchEnd(p, { won = false, carId = "Bulldozer", opponentIsBot = true })
 	H.eq(p.quests[1].progress, 1)
 	H.eq(p.quests[2].progress, 0)
 	H.eq(p.quests[3].progress, 2)
-	Quests.onMatchEnd(p, win("Tank"))
+	Quests.onMatchEnd(p, win("Bulldozer"))
 	H.eq(p.quests[2].progress, 1)
 	for _ = 1, 10 do
-		Quests.onMatchEnd(p, win("Tank"))
+		Quests.onMatchEnd(p, win("Bulldozer"))
 	end
 	H.eq(p.quests[1].progress, 3)
 	H.eq(p.quests[3].progress, 5)
 	H.truthy(Quests.isDone(p.quests[1]))
-	H.eq(Quests.onMatchEnd(p, win("Tank")), false) -- everything is capped
+	H.eq(Quests.onMatchEnd(p, win("Bulldozer")), false) -- everything is capped
 end)
 
 H.test("beat-the-bot needs a bot opponent", function()

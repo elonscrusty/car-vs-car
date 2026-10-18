@@ -87,7 +87,7 @@ function Inventory.migrate(raw: any): Profile
 	local owned: { [string]: boolean } = {}
 	local rawOwned = raw.owned
 	if type(rawOwned) == "table" then
-		for _, id in CarConfig.Order do
+		for _, id in CarConfig.FullOrder do -- keep hidden (non-roster) cars a player already owns
 			if rawOwned[id] == true then
 				owned[id] = true
 			end

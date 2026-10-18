@@ -139,3 +139,8 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 - New-player menu: `MenuRules.visible(profile)` + `MenuConfig.matchesForFullMenu = 2`. Profile has a new `matches` counter (migrates to 0, +1 per finished match in `finishMatch`). `MenuBar.setShown` hides buttons.
 - `client/SaveNotice.luau`: "Progress not saving right now" text when player attribute ProfileUnsaved is true.
 - Tests: 264 pass (Lune). Not checked in Studio or by eye.
+
+## Launch roster, distinct car stats, bot names (claude/fix-cars)
+- `CarConfig.LaunchRoster` (12 cars: Heavy, Light, Sedan, DuneBuggy, Ramp, Bulldozer, Drift, Spike, Rocket, MonsterTruck, Formula, ArmoredTruck). `CarConfig.useFullRoster = false` hides the rest: `CarConfig.Order` is now the live list (claw odds, store, picks, quests, bots); `CarConfig.FullOrder` is every car (saves, remotes, `get`). `CarConfig.isLive(id)`; Store only sells live cars. Set `useFullRoster = true` to bring all 38 back.
+- Stats: roster pack cars get own numbers + one-line role (shown as the existing `blurb`) in `CarCatalog.Tuned`. `CarPower.score` + `CarConfig.PowerWeights`/`PowerTolerance` (0.2) tested in `tests/roster.test.luau`. All stat numbers and weights are PLACEHOLDERS; abilities untouched.
+- `BotNames.luau` (30 names, `pick(seed, taken)`, `pickCar(seed, roster)`); `nameOf` in Match/GroupMatch uses it, so bots show a friendly name instead of "BOT".

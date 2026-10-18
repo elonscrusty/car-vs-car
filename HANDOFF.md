@@ -134,3 +134,8 @@ See `docs/analytics.md` and SNAPSHOT.md "Analytics". After publishing, play two 
 See SNAPSHOT.md "Fight fixes". Tune in `FairnessConfig`, `GameConfig` (Arena radii, Match.aimTimeout, Ai, Feel, Pacing), `ComebackConfig`. First playtest: log time-to-first-hit, check the smaller bowl scenery fit, the HIT! flash size on a phone, and that bots now dive in sooner. Bowl FBX/scenery sized for 112 may sit too far out.
 ## Launch simplification
 See SNAPSHOT.md "Launch simplification". To bring a cut feature back, set its flag in `src/shared/FeatureFlags.luau`. Placeholders: `BotLevelsConfig.AutoScale` (3 / 15 wins), `MenuConfig.matchesForFullMenu` (2). Per-car quests saved in old profiles are dropped and refilled while the flag is off. Not checked in Studio.
+
+## Launch roster, distinct car stats, bot names (claude/fix-cars)
+- `CarConfig.LaunchRoster` (12 cars: Heavy, Light, Sedan, DuneBuggy, Ramp, Bulldozer, Drift, Spike, Rocket, MonsterTruck, Formula, ArmoredTruck). `CarConfig.useFullRoster = false` hides the rest: `CarConfig.Order` is now the live list (claw odds, store, picks, quests, bots); `CarConfig.FullOrder` is every car (saves, remotes, `get`). `CarConfig.isLive(id)`; Store only sells live cars. Set `useFullRoster = true` to bring all 38 back.
+- Stats: roster pack cars get own numbers + one-line role (shown as the existing `blurb`) in `CarCatalog.Tuned`. `CarPower.score` + `CarConfig.PowerWeights`/`PowerTolerance` (0.2) tested in `tests/roster.test.luau`. All stat numbers and weights are PLACEHOLDERS; abilities untouched.
+- `BotNames.luau` (30 names, `pick(seed, taken)`, `pickCar(seed, roster)`); `nameOf` in Match/GroupMatch uses it, so bots show a friendly name instead of "BOT".

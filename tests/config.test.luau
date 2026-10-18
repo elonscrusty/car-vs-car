@@ -30,7 +30,8 @@ end)
 
 test("Spike hits hardest, Heavy has most HP, Rocket is fastest", function()
 	local c = CarConfig.Cars
-	for _, id in CarConfig.Order do
+	for i = 1, 8 do -- the 8 hand-written cars (pack cars have their own stats)
+		local id = CarConfig.FullOrder[i]
 		truthy(c.Spike.damageMult >= c[id].damageMult)
 		truthy(c.Heavy.hp >= c[id].hp)
 		truthy(c.Rocket.maxSpeed >= c[id].maxSpeed)
