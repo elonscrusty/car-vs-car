@@ -102,3 +102,8 @@ Design follows `/mnt/project-files/car-vs-car/game-plan.md`, but carter chose (2
 - No shrinking ring (Carter said no). Boost pads are cyan with a BOOST sign; each power-up has its own shape, color and name sign, and a name pops up when grabbed.
 - Drifting gives boost cooldown back (1.4s per second). New power-ups: magnet (M), rocket (R).
 - Not done: 4-6 cars in one bowl (Match is built for 2 cars: `cars[3 - idx]`); sounds (no verified asset ids).
+
+## Claw machine prizes (claw thread)
+- Server already rolled prizes (`Gacha.pull` in `LobbyService.buyGacha`) and played `ClawAnim`. Added: Legendary tier, shown odds = rolled odds (`Gacha.oddsTable` skips rarities with no cars and re-scales to 100), duplicate coins by rarity (`LobbyConfig.Gacha.duplicateRefunds`, `Gacha.refundFor`), weapons off (`weaponChance = 0`).
+- All odds, prices and refunds are PRETEND numbers in `LobbyConfig.Gacha` / `Store`; carter gives real ones. Cars come from `CarConfig.Order` + `LobbyConfig.Rarity`: when the cars registry lands, give each new car a rarity and it joins the claw by itself.
+- Tests: `tests/lobby.test.luau`. Not checked in Studio.

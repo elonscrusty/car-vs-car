@@ -90,6 +90,8 @@ H.test("roll maps rarity and index", function()
 end)
 
 H.test("a pull can give a weapon (never on the first free pull)", function()
+	local oldChance = LobbyConfig.Gacha.weaponChance
+	LobbyConfig.Gacha.weaponChance = 40 -- weapons are off by default now
 	local first = Inventory.default()
 	local r = Gacha.pull(first, fixed(0.0, 0.99, 0)) -- weapon roll 0.0 would win, but it is the free pull
 	H.eq(r.free, true)
@@ -110,4 +112,5 @@ H.test("a pull can give a weapon (never on the first free pull)", function()
 	H.eq(dup.weaponId, "Rocket")
 	H.eq(dup.isNew, false)
 	H.eq(dup.refund, LobbyConfig.Gacha.duplicateRefund)
+	LobbyConfig.Gacha.weaponChance = oldChance
 end)

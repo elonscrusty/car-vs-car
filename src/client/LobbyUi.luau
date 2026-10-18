@@ -44,6 +44,7 @@ local RARITY_COLOR: { [string]: Color3 } = {
 	Common = Color3.fromRGB(190, 200, 220),
 	Rare = Color3.fromRGB(70, 150, 255),
 	Epic = Color3.fromRGB(200, 90, 255),
+	Legendary = Color3.fromRGB(255, 190, 40),
 }
 
 local POP = TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
@@ -346,7 +347,7 @@ function LobbyUi.new(hooks: Hooks): Handle
 	priceLabel.LayoutOrder = 3
 	local dupeNote = wrapLabel(
 		gachaBody,
-		`Duplicates give {LobbyConfig.Gacha.duplicateRefund} coins back`,
+		"Duplicates give coins back (more for rarer cars)",
 		Color3.fromRGB(190, 200, 230)
 	)
 	dupeNote.TextXAlignment = Enum.TextXAlignment.Center

@@ -81,3 +81,5 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 - 8 weapons (src/shared/WeaponsConfig.luau), one worn per player, won from the claw (dupes = coins). Server runtime: src/server/Weapon.luau (called from Match). WEAPON button (Q) only for active weapons. Menu: src/client/WeaponUi.luau.
 - Studio test shortcut: set player attribute DevWeapon to a weapon id, then DEV: BOT MATCH.
 - Flame shoots from the back; bot picks a random weapon.
+
+- Claw prizes: 4 rarities (Common/Rare/Epic/Legendary), honest odds, rarity-scaled duplicate coins, weapons off. 198 tests pass.

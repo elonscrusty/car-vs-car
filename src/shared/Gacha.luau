@@ -34,10 +34,13 @@ export type PullResult = {
 
 local Gacha = {}
 
-local RARITY_ORDER = { "Common", "Rare", "Epic" }
+local RARITY_ORDER = { "Common", "Rare", "Epic", "Legendary" }
 
+-- The odds the player sees AND the server rolls with. Rarities with no cars are left out and the
+-- rest are re-scaled to 100 (1 decimal), so the shown numbers are always the real ones.
 function Gacha.oddsTable(): { OddsRow }
 	local rows: { OddsRow } = {}
+	local total = 0
 	for _, rarity in RARITY_ORDER do
 		local cars = {}
 		for _, id in CarConfig.Order do
@@ -45,12 +48,29 @@ function Gacha.oddsTable(): { OddsRow }
 				table.insert(cars, id)
 			end
 		end
-		table.insert(
-			rows,
-			{ rarity = rarity, percent = LobbyConfig.Gacha.odds[rarity] or 0, cars = cars }
-		)
+		local raw = LobbyConfig.Gacha.odds[rarity] or 0
+		if #cars > 0 and raw > 0 then
+			total += raw
+			table.insert(rows, { rarity = rarity, percent = raw, cars = cars })
+		end
+	end
+	local used = 0
+	for i, row in rows do
+		if i == #rows then
+			row.percent = math.floor((100 - used) * 10 + 0.5) / 10
+		else
+			row.percent = math.floor(row.percent / total * 1000 + 0.5) / 10
+			used += row.percent
+		end
 	end
 	return rows
+end
+
+-- Coins back when the prize is a car you already own.
+function Gacha.refundFor(carId: string): number
+	local rarity = LobbyConfig.Rarity[carId]
+	local table_ = LobbyConfig.Gacha.duplicateRefunds :: { [string]: number }
+	return (rarity and table_[rarity]) or LobbyConfig.Gacha.duplicateRefund
 end
 
 local function isFree(p: Profile): boolean
@@ -102,14 +122,11 @@ function Gacha.pull(p: Profile, rng: () -> number): PullResult
 		return { carId = "", weaponId = weaponId, isNew = isNew, refund = refund, free = free }
 	end
 
-	-- Roll rarity, skipping rarities that have no cars.
-	local rows = {}
+	-- Roll rarity from the same table the player is shown.
+	local rows = Gacha.oddsTable()
 	local total = 0
-	for _, row in Gacha.oddsTable() do
-		if #row.cars > 0 and row.percent > 0 then
-			table.insert(rows, row)
-			total += row.percent
-		end
+	for _, row in rows do
+		total += row.percent
 	end
 	local roll = rng() * total
 	local chosen = rows[#rows]
@@ -127,7 +144,7 @@ function Gacha.pull(p: Profile, rng: () -> number): PullResult
 	local isNew = Inventory.grantCar(p, carId)
 	local refund = 0
 	if not isNew then
-		refund = LobbyConfig.Gacha.duplicateRefund
+		refund = Gacha.refundFor(carId)
 		Inventory.addCoins(p, refund)
 	end
 	return { carId = carId, isNew = isNew, refund = refund, free = free }

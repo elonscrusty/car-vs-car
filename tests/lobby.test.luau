@@ -81,8 +81,8 @@ H.test("paid pull deducts price, duplicate refunds", function()
 	H.eq(r.carId, "Heavy")
 	H.eq(r.isNew, false)
 	H.eq(r.free, false)
-	H.eq(r.refund, LobbyConfig.Gacha.duplicateRefund)
-	H.eq(p.coins, 150 - LobbyConfig.Gacha.price + LobbyConfig.Gacha.duplicateRefund)
+	H.eq(r.refund, LobbyConfig.Gacha.duplicateRefunds.Common)
+	H.eq(p.coins, 150 - LobbyConfig.Gacha.price + LobbyConfig.Gacha.duplicateRefunds.Common)
 end)
 
 H.test("pull is deterministic and maps rolls to rarity", function()
@@ -93,15 +93,51 @@ H.test("pull is deterministic and maps rolls to rarity", function()
 		return Gacha.pull(p, fixed(0.99, roll, 0)).carId
 	end
 	H.eq(carFor(0.0), "Heavy")
-	H.eq(carFor(0.59), "Heavy")
-	H.eq(carFor(0.6), "Ramp")
-	H.eq(carFor(0.89), "Ramp")
-	H.eq(carFor(0.9), "Spike")
+	H.eq(carFor(0.56), "Heavy") -- Common is 56.7% once empty Legendary is skipped
+	H.eq(carFor(0.57), "Ramp")
+	H.eq(carFor(0.85), "Ramp")
+	H.eq(carFor(0.86), "Spike")
 	H.eq(carFor(0.9999), "Spike")
 	local p = Inventory.default()
 	p.freePullUsed = true
 	p.coins = 1000
 	H.eq(Gacha.pull(p, fixed(0.99, 0.3, 0.99)).carId, "Tank") -- second roll picks within Common
+end)
+
+H.test("rarity with no cars is skipped and shown odds are re-scaled", function()
+	local rows = Gacha.oddsTable()
+	for _, row in rows do
+		H.truthy(row.rarity ~= "Legendary", "no Legendary cars yet")
+	end
+	H.eq(#rows, 3)
+	H.eq(rows[1].percent, 56.7)
+	H.eq(rows[2].percent, 28.9)
+	H.eq(rows[3].percent, 14.4)
+end)
+
+H.test("duplicate refund grows with rarity", function()
+	H.eq(Gacha.refundFor("Heavy"), LobbyConfig.Gacha.duplicateRefunds.Common)
+	H.eq(Gacha.refundFor("Spike"), LobbyConfig.Gacha.duplicateRefunds.Epic)
+	H.truthy(Gacha.refundFor("Spike") > Gacha.refundFor("Heavy"))
+	local p = Inventory.default()
+	p.freePullUsed = true
+	p.coins = 1000
+	Gacha.pull(p, fixed(0.99, 0.99, 0)) -- Spike, new
+	local before = p.coins
+	local r = Gacha.pull(p, fixed(0.99, 0.99, 0)) -- Spike again
+	H.eq(r.isNew, false)
+	H.eq(p.coins, before - LobbyConfig.Gacha.price + LobbyConfig.Gacha.duplicateRefunds.Epic)
+end)
+
+H.test("the server never needs the client: pull only uses profile + rng", function()
+	-- Same profile + same rolls = same prize (so a client can never steer it).
+	local function run(): string
+		local p = Inventory.default()
+		p.freePullUsed = true
+		p.coins = 100
+		return Gacha.pull(p, fixed(0.99, 0.7, 0.4)).carId
+	end
+	H.eq(run(), run())
 end)
 
 H.test("migrate sanitizes garbage", function()
