@@ -12,6 +12,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local LobbyLife = require(script.Parent.LobbyLife)
+local LobbyDecor = require(script.Parent.LobbyDecor)
 local LobbyProps = require(script.Parent.LobbyProps)
 
 export type PadHandle = {
@@ -1687,6 +1688,7 @@ function Lobby.build(): LobbyHandle
 	end
 
 	LobbyProps.build(folder, origin)
+	LobbyDecor.build(folder, origin)
 	LobbyLife.build(folder, origin, Vector3.new(L.showcase.x, 0, L.showcase.z), stageTop)
 
 	-- Invisible wall across the bay door so nobody walks out into the empty world.

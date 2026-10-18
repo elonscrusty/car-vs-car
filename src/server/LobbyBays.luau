@@ -9,6 +9,7 @@ local Appearance = require(script.Parent.Appearance)
 local Build = require(game:GetService("ReplicatedStorage").Shared.Build)
 local CarConfig = require(game:GetService("ReplicatedStorage").Shared.CarConfig)
 local CarBuilder = require(script.Parent.CarBuilder)
+local LobbyDecor = require(script.Parent.LobbyDecor)
 local LobbyLayout = require(game:GetService("ReplicatedStorage").Shared.LobbyLayout)
 
 local LobbyBays = {}
@@ -38,6 +39,7 @@ local LIFT_LOW, LIFT_HIGH = 2.2, 5 -- height of the runways above the floor (the
 local LIFT_SHIFT = 3 -- the lift stands this far toward the hall from the middle of the bay
 local PARK_BACK = 5.5 -- parked cars stand this far from the back wall
 local POST_X, POST_Z = 9.5, 8 -- lift posts, from the lift centre
+local REAL_LIFT_TOP = 1.45 -- height of the runways of the Blender lift
 
 local DEMO_COLORS = {
 	Color3.fromRGB(235, 60, 60),
@@ -61,6 +63,7 @@ type Bay = {
 	runways: { Part },
 	ramps: { Part },
 	phase: number,
+	real: boolean, -- stands on the Blender lift (static); otherwise the plain animated one
 }
 
 local function block(
@@ -102,50 +105,56 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		edge.CFrame = CFrame.new(center + Vector3.new(0, 0.07, 0))
 		edge.Transparency = 0.2
 
-		-- A four-post lift: four tall posts with yellow caps, two runways under the wheels with a
-		-- short ramp at each end. The runways (and the car) slowly rise and sink.
-		for _, px in { -1, 1 } do
-			for _, pz in { -1, 1 } do
-				local post = block(
-					folder,
-					"LiftPost",
-					Vector3.new(1.6, 11, 1.6),
-					METAL,
-					nil,
-					Enum.Material.Metal
-				)
-				post.CFrame = CFrame.new(center + Vector3.new(px * POST_X, 5.5, pz * POST_Z))
-				local cap = block(folder, "LiftPostCap", Vector3.new(2.2, 0.8, 2.2), YELLOW)
-				cap.CFrame = CFrame.new(center + Vector3.new(px * POST_X, 11.2, pz * POST_Z))
-			end
+		-- The real (Blender) four-post lift when it is imported; otherwise a plain stand-in: four
+		-- tall posts with yellow caps and two runways under the wheels that slowly rise and sink.
+		local realLift = LobbyDecor.clone("FourPostLift", folder, 20)
+		if realLift then
+			realLift:PivotTo(CFrame.new(center) * CFrame.Angles(0, -spot.face * math.pi / 2, 0))
 		end
 		local runways: { Part } = {}
 		local ramps: { Part } = {}
-		for _ = 1, 2 do
-			local runway = block(
-				folder,
-				"LiftRunway",
-				Vector3.new(2 * POST_X + 1, 0.9, 3),
-				Color3.fromRGB(70, 74, 86),
-				nil,
-				Enum.Material.Metal
-			)
-			table.insert(runways, runway)
-			local stripe =
-				block(folder, "LiftRunwayStripe", Vector3.new(2 * POST_X + 1, 0.2, 0.4), YELLOW)
-			stripe.Parent = runway
-			stripe.Name = "Stripe"
-			table.insert(runways, stripe)
+		if realLift == nil then
+			for _, px in { -1, 1 } do
+				for _, pz in { -1, 1 } do
+					local post = block(
+						folder,
+						"LiftPost",
+						Vector3.new(1.6, 11, 1.6),
+						METAL,
+						nil,
+						Enum.Material.Metal
+					)
+					post.CFrame = CFrame.new(center + Vector3.new(px * POST_X, 5.5, pz * POST_Z))
+					local cap = block(folder, "LiftPostCap", Vector3.new(2.2, 0.8, 2.2), YELLOW)
+					cap.CFrame = CFrame.new(center + Vector3.new(px * POST_X, 11.2, pz * POST_Z))
+				end
+			end
 			for _ = 1, 2 do
-				local ramp = block(
+				local runway = block(
 					folder,
-					"LiftRamp",
-					Vector3.new(4, 0.7, 3),
-					Color3.fromRGB(235, 190, 40),
+					"LiftRunway",
+					Vector3.new(2 * POST_X + 1, 0.9, 3),
+					Color3.fromRGB(70, 74, 86),
 					nil,
 					Enum.Material.Metal
 				)
-				table.insert(ramps, ramp)
+				table.insert(runways, runway)
+				local stripe =
+					block(folder, "LiftRunwayStripe", Vector3.new(2 * POST_X + 1, 0.2, 0.4), YELLOW)
+				stripe.Parent = runway
+				stripe.Name = "Stripe"
+				table.insert(runways, stripe)
+				for _ = 1, 2 do
+					local ramp = block(
+						folder,
+						"LiftRamp",
+						Vector3.new(4, 0.7, 3),
+						Color3.fromRGB(235, 190, 40),
+						nil,
+						Enum.Material.Metal
+					)
+					table.insert(ramps, ramp)
+				end
 			end
 		end
 
@@ -204,6 +213,7 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 			runways = runways,
 			ramps = ramps,
 			phase = i * 1.3,
+			real = realLift ~= nil,
 		}
 	end
 
@@ -284,6 +294,12 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		b.car = model
 		b.bottom = bottom
 		b.runwayZ = math.clamp(math.min(bbSize.X, bbSize.Z) * 0.3, 2.2, 4.4)
+		if b.real then
+			model:PivotTo(
+				CFrame.new(b.center.X, b.center.Y + REAL_LIFT_TOP - bottom, b.center.Z)
+					* model:GetPivot().Rotation
+			)
+		end
 	end
 
 	-- An empty bay shows a colored sample car so the wall never looks bare.
@@ -368,6 +384,9 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		acc = 0
 		local t = os.clock()
 		for _, b in bays do
+			if b.real then
+				continue
+			end
 			local y = LIFT_LOW + (LIFT_HIGH - LIFT_LOW) * (math.sin(t * 0.35 + b.phase) * 0.5 + 0.5)
 			local c = b.center
 			-- runways[1], [2] = left runway and its stripe; [3], [4] = right ones.
