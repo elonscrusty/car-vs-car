@@ -32,6 +32,7 @@ local GameConfig = {
 		aimTimeout = 8, -- seconds to aim before the server launches for you
 		roundEndDelay = 3.5, -- seconds to watch the dummy fly
 		maxMatchSeconds = 120, -- time up: higher HP wins, equal HP = next hit wins
+		outOfBoundsHeight = 120, -- car this far above the arena = flying cheat, counts as dead
 		outOfBoundsDrop = 40, -- car this far below the arena = counts as dead
 	},
 	Launch = {

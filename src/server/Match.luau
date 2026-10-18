@@ -585,17 +585,30 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 
 	-- A driver's device owns its car, so a hacked client could drive it far too fast. Slow the car
 	-- down when it passes any speed the game can legitimately give it.
-	local function limitSpeed(car: CarBuilder.Car)
-		local cap = math.max(
+	local function speedCap(car: CarBuilder.Car): number
+		return math.max(
 			cfg.Launch.maxSpeed,
 			car.stats.maxSpeed * (1 + MovesConfig.Boost.speedBonus) * Buffs.speedMult(car)
 		) * cfg.Drive.speedCapSlack
+	end
+
+	local function isFinite(v: Vector3): boolean
+		-- NaN fails the self-compare; infinity fails the huge check.
+		return v.X == v.X and v.Y == v.Y and v.Z == v.Z and v.Magnitude < math.huge
+	end
+
+	-- Slow the car down, in every direction, when it passes any speed the game can legitimately give it.
+	-- Returns false when the car's numbers are broken (NaN / infinite), which only a cheat can cause.
+	local function limitSpeed(car: CarBuilder.Car): boolean
 		local v = car.body.AssemblyLinearVelocity
-		local flat = Vector3.new(v.X, 0, v.Z)
-		if flat.Magnitude > cap then
-			local keep = flat.Unit * cap
-			car.body.AssemblyLinearVelocity = Vector3.new(keep.X, v.Y, keep.Z)
+		if not isFinite(v) or not isFinite(car.body.Position) then
+			return false
 		end
+		local cap = speedCap(car)
+		if v.Magnitude > cap then
+			car.body.AssemblyLinearVelocity = v.Unit * cap
+		end
+		return true
 	end
 
 	local fightConn = RunService.Heartbeat:Connect(function(dt)
@@ -623,7 +636,10 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 				elseif human and not gone[car.idx] and clientDriven[car.idx] then
 					-- The driver's device moves this car; the server only keeps it honest.
 					car.model:SetAttribute("SpeedMult", Buffs.speedMult(car))
-					limitSpeed(car)
+					if not limitSpeed(car) then
+						endMatch(car, "RING OUT!")
+						return
+					end
 				elseif human and not gone[car.idx] then
 					local raw =
 						Steer.current(steerStates[car.idx], os.clock(), cfg.Steer.staleSeconds)
@@ -652,7 +668,12 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 			end
 		end
 		for _, car in cars do
-			car.prevVel = car.body.AssemblyLinearVelocity
+			-- Hits use this speed, so it can never be bigger than the legit cap (a cheat can't add damage).
+			local pv = car.body.AssemblyLinearVelocity
+			local pvCap = speedCap(car)
+			car.prevVel = if pv.Magnitude == pv.Magnitude and pv.Magnitude > pvCap
+				then pv.Unit * pvCap
+				else pv
 			-- Pushed past the rim, or fell out of the bowl = ring-out = 0 HP.
 			if not car.dead then
 				local dx, dz = car.body.Position.X - origin.X, car.body.Position.Z - origin.Z
@@ -661,7 +682,11 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 					cfg.Arena.rimRadius,
 					cfg.RingOut.margin
 				)
-				if out or car.body.Position.Y < origin.Y - cfg.Match.outOfBoundsDrop then
+				if
+					out
+					or car.body.Position.Y < origin.Y - cfg.Match.outOfBoundsDrop
+					or car.body.Position.Y > origin.Y + cfg.Match.outOfBoundsHeight
+				then
 					endMatch(car, "RING OUT!")
 					return
 				end

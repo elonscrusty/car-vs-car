@@ -1262,8 +1262,15 @@ function Lobby.build(): LobbyHandle
 	end
 	local spinning: Model = showcaseCar
 	local angle = 0
+	local sinceTurn = 0
 	local conn = RunService.Heartbeat:Connect(function(dt: number)
-		angle = (angle + dt * 0.6) % (math.pi * 2)
+		-- Slow spin: 20 updates a second is smooth enough and keeps the network quiet.
+		sinceTurn += dt
+		if sinceTurn < 0.05 then
+			return
+		end
+		angle = (angle + sinceTurn * 0.6) % (math.pi * 2)
+		sinceTurn = 0
 		spinning:PivotTo(pivot * CFrame.Angles(0, angle, 0))
 	end)
 	folder.Destroying:Connect(function()
