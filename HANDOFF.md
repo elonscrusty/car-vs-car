@@ -139,3 +139,6 @@ See SNAPSHOT.md "Launch simplification". To bring a cut feature back, set its fl
 - `CarConfig.LaunchRoster` (12 cars: Heavy, Light, Sedan, DuneBuggy, Ramp, Bulldozer, Drift, Spike, Rocket, MonsterTruck, Formula, ArmoredTruck). `CarConfig.useFullRoster = false` hides the rest: `CarConfig.Order` is now the live list (claw odds, store, picks, quests, bots); `CarConfig.FullOrder` is every car (saves, remotes, `get`). `CarConfig.isLive(id)`; Store only sells live cars. Set `useFullRoster = true` to bring all 38 back.
 - Stats: roster pack cars get own numbers + one-line role (shown as the existing `blurb`) in `CarCatalog.Tuned`. `CarPower.score` + `CarConfig.PowerWeights`/`PowerTolerance` (0.2) tested in `tests/roster.test.luau`. All stat numbers and weights are PLACEHOLDERS; abilities untouched.
 - `BotNames.luau` (30 names, `pick(seed, taken)`, `pickCar(seed, roster)`); `nameOf` in Match/GroupMatch uses it, so bots show a friendly name instead of "BOT".
+
+## Car soccer small field
+See SNAPSHOT.md "Car soccer small field". Tune only in `src/shared/SoccerFieldConfig.luau` (and `ModesConfig.Soccer` for teamSize, scoreToWin, time, goal pause). First play test: ball too heavy/light, bots pile on the ball, ball sticking in corners or nets, camera view of the small field.
