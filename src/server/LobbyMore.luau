@@ -30,6 +30,9 @@ function LobbyMore.build(folder: Folder, origin: Vector3)
 	-- The start lights hang on the front wall (over the lane they hid the stage).
 	put("StartLights", -40, 17, HL - 1.5, FRONT)
 	put("Podium", 24, 0, -54, BACK)
+	put("Sign_Nitro", -52, 24, -HL + 1.5, BACK)
+	put("Sign_Turbo", 52, 24, -HL + 1.5, BACK)
+	put("Sign_Bolt", -L.room.halfW + 1, 26.5, 50, LEFT)
 	put("Leaderboard", -50, 0, -64, BACK)
 	put("TrafficLight", 12, 0, 40, BACK)
 	put("Sign_Play", 40, 22, HL - 1.5, FRONT)
@@ -40,20 +43,18 @@ function LobbyMore.build(folder: Folder, origin: Vector3)
 	put("ArcadeCabinet", 50, 0, 66, FRONT)
 	put("Couch", -46, 0, 66, FRONT)
 
-	-- A tool or two in each garage, by the back wall.
+	-- A tool and a shelf or cart in each garage, by the back wall.
 	local tools = { "TireChanger", "AirCompressor", "FloorJack", "JackStands" }
 	for i, b in L.bays do
 		local yaw = if b.face > 0 then LEFT else RIGHT
-		local first = tools[(i - 1) % #tools + 1]
-		put(first, b.x - b.face * 17, 0, b.z + 10, yaw)
-		put(
-			if i % 2 == 1 then "GasCan" else "FireExtinguisher",
-			b.x - b.face * 19,
-			0,
-			b.z - 11,
-			yaw
-		)
+		put(tools[(i - 1) % #tools + 1], b.x - b.face * 17, 0, b.z + 10, yaw)
+		put(if i % 2 == 1 then "PartsShelf" else "ToolCart", b.x - b.face * 21, 0, b.z - 10, yaw)
 	end
+
+	-- Small wall pieces by the store and the paint booth.
+	put("PlateWall", -L.room.halfW + 0.6, 8, 58, LEFT)
+	put("SteeringWheelArt", -L.room.halfW + 0.6, 12, 64, LEFT)
+	put("WallClock", L.room.halfW - 0.6, 11, 58, RIGHT)
 end
 
 return LobbyMore
