@@ -7,13 +7,18 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
+local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
 local MovesConfig = require(ReplicatedStorage.Shared.MovesConfig)
+local ProgressConfig = require(ReplicatedStorage.Shared.ProgressConfig)
 local RateLimiter = require(ReplicatedStorage.Shared.RateLimiter)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Atmosphere = require(script.Atmosphere)
 local Lobby = require(script.Lobby)
 local LobbyService = require(script.LobbyService)
+local Leaderboards = require(script.Leaderboards)
+local GroupMatch = require(script.GroupMatch)
 local Match = require(script.Match)
+local Modes = require(ReplicatedStorage.Shared.Modes)
 local Profiles = require(script.Profiles)
 local RematchService = require(script.RematchService)
 
@@ -32,6 +37,7 @@ local lobbyLimiter = RateLimiter.new(6, GameConfig.Remote.windowSeconds)
 type Group = { match: Match.Handle, slot: number, remaining: number }
 local groups: { [Player]: Group } = {} -- every player in a match -> that match
 local usedSlots: { [number]: boolean } = {}
+local matchCounter = 0 -- which fight mode comes next (Modes.pick goes round ModesConfig.Order)
 local rematch = RematchService.new()
 local startMatch: (participants: { Match.Participant }) -> () -- defined below
 
@@ -84,6 +90,9 @@ function startMatch(participants: { Match.Participant })
 				end,
 			})
 			table.insert(okOriginal, part)
+		else
+			-- Skipped (left or already fighting): release the lobby stage so they are not stuck "busy".
+			part.onFinished(false, false)
 		end
 	end
 	if #ok == 0 then
@@ -93,7 +102,11 @@ function startMatch(participants: { Match.Participant })
 	local slot = freeSlot()
 	usedSlots[slot] = true
 	local group: Group = { match = nil :: any, slot = slot, remaining = #ok }
-	group.match = Match.new(ok, slot, remotes)
+	local mode = Modes.pick(matchCounter)
+	matchCounter += 1
+	group.match = if Modes.isGroup(mode)
+		then GroupMatch.new(ok, slot, remotes, mode)
+		else Match.new(ok, slot, remotes, mode)
 	for _, part in ok do
 		groups[part.player] = group
 	end
@@ -102,6 +115,11 @@ end
 Profiles.init()
 Atmosphere.apply()
 local lobby = Lobby.build()
+Leaderboards.init(
+	lobby.folder,
+	LobbyConfig.Lobby.origin
+		+ Vector3.new(ProgressConfig.Board.spot.x, 0, ProgressConfig.Board.spot.z)
+)
 
 -- Studio templates ship a default SpawnLocation; players must always spawn in the lobby.
 for _, child in workspace:GetChildren() do

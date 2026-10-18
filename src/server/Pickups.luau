@@ -212,6 +212,7 @@ function Pickups.start(
 	local floorY = center.Y + cfg.hoverHeight
 	local pickups: { Pickup } = {}
 	local elapsed = 0
+	local sinceAnimate = 0
 	local lastSpawnAt: number? = nil
 	local destroyed = false
 
@@ -292,9 +293,17 @@ function Pickups.start(
 		then
 			spawn()
 		end
+		-- Bob and spin at 20 updates a second: smooth enough, and far less network traffic.
+		sinceAnimate += dt
+		local doAnimate = sinceAnimate >= 0.05
+		if doAnimate then
+			sinceAnimate = 0
+		end
 		for i = #pickups, 1, -1 do
 			local pk = pickups[i]
-			animate(pk, elapsed - pk.born)
+			if doAnimate then
+				animate(pk, elapsed - pk.born)
+			end
 			for _, car in cars do
 				if not car.dead then
 					local p = car.body.Position

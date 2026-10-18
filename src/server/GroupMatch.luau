@@ -1,0 +1,774 @@
+--!strict
+-- A many-car match: "lastStanding" (8 cars, last one alive wins) or "soccer" (two teams, a giant
+-- ball, goals on the bowl wall). One or two players, bots fill the rest. Same handle as Match,
+-- so init.server treats both the same. The server owns everything: spawns, hits, eliminations,
+-- ball, goals, winner. Rules and numbers: shared/Modes, shared/ModesConfig.
+-- Flow: "ready" countdown -> everyone drives (no aiming) -> match end.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local BowlConfig = require(ReplicatedStorage.Shared.BowlConfig)
+local BowlRules = require(ReplicatedStorage.Shared.BowlRules)
+local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
+local Fight = require(ReplicatedStorage.Shared.Fight)
+local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
+local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
+local Logic = require(ReplicatedStorage.Shared.Logic)
+local Modes = require(ReplicatedStorage.Shared.Modes)
+local ModesConfig = require(ReplicatedStorage.Shared.ModesConfig)
+local MovesConfig = require(ReplicatedStorage.Shared.MovesConfig)
+local MovesRules = require(ReplicatedStorage.Shared.Moves)
+local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Steer = require(ReplicatedStorage.Shared.Steer)
+local Types = require(ReplicatedStorage.Shared.Types)
+
+local Arena = require(script.Parent.Arena)
+local Autopilot = require(script.Parent.Autopilot)
+local CarBuilder = require(script.Parent.CarBuilder)
+local Dummy = require(script.Parent.Dummy)
+local Impulse = require(script.Parent.Impulse)
+local Match = require(script.Parent.Match)
+local ModeFx = require(script.Parent.ModeFx)
+local Moves = require(script.Parent.Moves)
+local Specials = require(script.Parent.Specials)
+
+local GroupMatch = {}
+
+-- Same shape as Match.new. `mode` is "lastStanding" or "soccer".
+function GroupMatch.new(
+	participants: { Match.Participant },
+	slot: number,
+	remotes: Remotes.RemoteSet,
+	mode: string
+): Match.Handle
+	local cfg = GameConfig
+	local soccerOn = mode == "soccer"
+	local origin = Vector3.new(slot * cfg.Arena.slotSpacing, cfg.Arena.baseY, 0)
+	local rng = Random.new()
+	local total = Modes.carCount(mode)
+	local teamSize = ModesConfig.Soccer.teamSize
+
+	local destroyed = false
+	local ending = false
+	local phase = "ready" -- "ready" | "fight" | "matchEnd"
+	local arena: Arena.Arena? = nil
+	local cars: { CarBuilder.Car } = {}
+	local maxHp: { number } = {}
+	local spots: { Modes.Spot } = {}
+	local gone: { [number]: boolean } = {}
+	local clientDriven: { [number]: boolean } = {}
+	local steerStates: { Steer.State } = {}
+	local steerSmooth: { number } = {}
+	local throttleSmooth: { number } = {}
+	local moveStates: { Moves.State } = {}
+	local lastHitAt: { [number]: number } = {} -- pair key -> time of the last counted hit
+	local touchConns: { RBXScriptConnection } = {}
+	local last = Modes.lastNew(total)
+	local soccer = Modes.soccerNew()
+	local ball: Part? = nil
+	local ballPausedUntil = 0 -- after a goal the ball waits in the middle until then
+	local goldenGoal = false
+	local fightElapsed = 0
+	local hudAt = 0
+	local rayParams = RaycastParams.new()
+	rayParams.FilterType = Enum.RaycastFilterType.Exclude
+	local fightConn: RBXScriptConnection? = nil
+
+	local function isHuman(i: number): boolean
+		return participants[i] ~= nil and not gone[i]
+	end
+
+	local function teamOf(i: number): number
+		return Modes.teamOf(i, teamSize)
+	end
+
+	local function nameOf(i: number): string
+		local p = participants[i]
+		return if p then p.player.DisplayName else "BOT"
+	end
+
+	local function sendTo(i: number, update: Types.UiUpdate)
+		local p = participants[i]
+		if p and not gone[i] and not destroyed then
+			remotes.UiUpdate:FireClient(p.player, update)
+		end
+	end
+
+	local function sendAll(make: (i: number) -> Types.UiUpdate)
+		for i = 1, #participants do
+			sendTo(i, make(i))
+		end
+	end
+
+	local function clearCars()
+		table.clear(clientDriven)
+		for _, c in touchConns do
+			c:Disconnect()
+		end
+		table.clear(touchConns)
+		for _, car in cars do
+			car.model:Destroy()
+		end
+		table.clear(cars)
+	end
+
+	local function setAnchored(car: CarBuilder.Car, anchored: boolean)
+		for _, part in car.model:GetChildren() do
+			if part:IsA("BasePart") then
+				part.Anchored = anchored
+			end
+		end
+	end
+
+	local function flatOf(car: CarBuilder.Car): (number, number)
+		local p = car.body.Position
+		return p.X - origin.X, p.Z - origin.Z
+	end
+
+	-- ---- Match end -------------------------------------------------------------------------
+
+	-- `won(i)` says whether car i's player won. Everyone sees the end screens.
+	local function finish(won: (i: number) -> boolean, koText: string, focus: Vector3?)
+		if ending or destroyed then
+			return
+		end
+		ending = true
+		phase = "matchEnd"
+		sendAll(function()
+			return { kind = "ko", text = koText, pos = focus }
+		end)
+		local currentArena = arena
+		local dummy: BasePart? = nil
+		if currentArena and focus then
+			dummy = Dummy.launch(focus, currentArena.model)
+		end
+		sendAll(function(i)
+			return { kind = "roundEnd", round = 1, youLost = not won(i), focus = dummy }
+		end)
+		task.delay(cfg.Match.roundEndDelay, function()
+			if destroyed then
+				return
+			end
+			for i, part in participants do
+				local youWon = won(i)
+				sendTo(i, { kind = "matchEnd", youWon = youWon })
+				if part.onEndScreen and not gone[i] then
+					part.onEndScreen()
+				end
+				task.delay(LobbyConfig.Rewards.endScreenSeconds, function()
+					if not destroyed and not gone[i] then
+						part.onFinished(youWon)
+					end
+				end)
+			end
+		end)
+	end
+
+	local function finishLast(winner: number)
+		local pos = if winner > 0
+				and cars[winner]
+				and not cars[winner].dead
+			then cars[winner].body.Position
+			else origin + Vector3.new(0, 4, 0)
+		finish(function(i)
+			return i == winner
+		end, if winner > 0 then "LAST CAR STANDING!" else "DRAW!", pos)
+	end
+
+	local function finishSoccer(team: number)
+		finish(function(i)
+			return teamOf(i) == team
+		end, if team > 0 then "GOAL! TEAM WINS!" else "DRAW!", origin + Vector3.new(0, 4, 0))
+	end
+
+	-- ---- Last car standing: eliminations and hits -------------------------------------------
+
+	local function eliminate(car: CarBuilder.Car, text: string)
+		if car.dead or not Modes.lastEliminate(last, car.idx) then
+			return
+		end
+		car.dead = true
+		car.hp = 0
+		car.bar.set(0, maxHp[car.idx])
+		car.bar.hide()
+		local pos = car.body.Position
+		local currentArena = arena
+		local dummy: BasePart? = nil
+		if currentArena then
+			dummy = Dummy.launch(pos, currentArena.model)
+		end
+		sendAll(function(i)
+			return { kind = "ko", text = if i == car.idx then "YOU ARE OUT!" else text, pos = pos }
+		end)
+		if isHuman(car.idx) then
+			-- An eliminated player films their own crash dummy and stops driving.
+			sendTo(car.idx, { kind = "roundEnd", round = 1, youLost = true, focus = dummy })
+		end
+		car.model:Destroy()
+		local winner = Modes.lastWinner(last)
+		if winner ~= 0 then
+			finishLast(winner)
+		end
+	end
+
+	local function resolveHit(a: CarBuilder.Car, b: CarBuilder.Car)
+		if a.dead or b.dead or phase ~= "fight" then
+			return
+		end
+		local offset = b.body.Position - a.body.Position
+		if offset.Magnitude < 0.001 then
+			return
+		end
+		local dir = offset.Unit
+		local attacker, defender = a, b
+		if Logic.attackerIndex(a.prevVel:Dot(dir), b.prevVel:Dot(-dir)) == 2 then
+			attacker, defender = b, a
+		end
+		local rel = (a.prevVel - b.prevVel).Magnitude
+		local dmg = Logic.impactDamage(
+			rel,
+			attacker.stats.damageMult,
+			cfg.Damage.scale,
+			cfg.Damage.minImpactSpeed
+		)
+		if dmg <= 0 then
+			return
+		end
+		local newHp, dead = Logic.applyDamage(defender.hp, dmg)
+		defender.hp = newHp
+		defender.bar.set(newHp, maxHp[defender.idx])
+		local strength = Logic.hitStrength(rel, cfg.Feel.bigHitSpeed)
+		local hitPos = (a.body.Position + b.body.Position) / 2
+		sendAll(function(i)
+			return {
+				kind = "hit",
+				pos = hitPos,
+				strength = strength,
+				damage = dmg,
+				youHit = defender.idx == i,
+			}
+		end)
+		local popSpeed, spinSpeed = BowlRules.smashPop(strength, BowlConfig.Smash)
+		if popSpeed > 0 and not dead then
+			Impulse.linear(defender.body, Vector3.yAxis * defender.body.AssemblyMass * popSpeed)
+			defender.body.AssemblyAngularVelocity += Vector3.yAxis * spinSpeed
+		end
+		if attacker.stats.hitLift > 0 and not dead then
+			Impulse.linear(
+				defender.body,
+				Vector3.yAxis * defender.body.AssemblyMass * attacker.stats.hitLift
+			)
+		end
+		if dead then
+			eliminate(defender, "K.O.!")
+		end
+	end
+
+	local function onTouched(car: CarBuilder.Car, other: BasePart)
+		if phase ~= "fight" or mode ~= "lastStanding" then
+			return
+		end
+		local otherIdx = other:GetAttribute("CarIdx")
+		if type(otherIdx) ~= "number" or otherIdx == car.idx then
+			return
+		end
+		local enemy = cars[otherIdx]
+		if enemy == nil then
+			return
+		end
+		local key = math.min(car.idx, otherIdx) * 100 + math.max(car.idx, otherIdx)
+		local now = os.clock()
+		if not Logic.canHit(now, lastHitAt[key] or -math.huge, cfg.Damage.hitCooldown) then
+			return
+		end
+		lastHitAt[key] = now
+		resolveHit(car, enemy)
+	end
+
+	-- ---- Spawning ---------------------------------------------------------------------------
+
+	local function spawnCars()
+		local a = arena :: Arena.Arena
+		clearCars()
+		spots = if soccerOn
+			then Modes.soccerSpots(
+				teamSize,
+				ModesConfig.Soccer.spawnRadius,
+				ModesConfig.Soccer.spawnSpread
+			)
+			else Modes.ringSpots(total, ModesConfig.LastStanding.spawnRadius)
+		for idx = 1, total do
+			local part = participants[idx]
+			local id = if part
+				then part.carId
+				else CarConfig.Order[rng:NextInteger(1, #CarConfig.Order)]
+			local stats = CarConfig.Cars[id]
+			local spot = spots[idx]
+			local pos = ModeFx.spotPosition(origin, spot.x, spot.z, stats.size[2] / 2 + 1.5)
+			local car = CarBuilder.build(
+				id,
+				idx,
+				CFrame.new(pos) * CFrame.Angles(0, spot.yaw, 0),
+				a.model,
+				nameOf(idx),
+				part == nil,
+				if part then part.appearance else nil,
+				nil
+			)
+			local hp = if mode == "lastStanding"
+				then stats.hp * ModesConfig.LastStanding.hpScale
+				else stats.hp
+			car.hp = hp
+			maxHp[idx] = hp
+			car.bar.set(hp, hp)
+			if soccerOn then
+				local marker = car.model:FindFirstChild("Marker")
+				local c = ModesConfig.Soccer.colors[teamOf(idx)]
+				if marker and marker:IsA("BasePart") then
+					marker.Color = Color3.fromRGB(c[1], c[2], c[3])
+				end
+				car.bar.hide() -- nobody loses HP in soccer
+			end
+			cars[idx] = car
+			steerStates[idx] = Steer.newState()
+			steerSmooth[idx] = 0
+			throttleSmooth[idx] = 0
+			moveStates[idx] = Moves.new()
+		end
+		local filter: { Instance } = {}
+		for _, car in cars do
+			table.insert(filter, car.model)
+			for _, part in car.model:GetChildren() do
+				if part:IsA("BasePart") and part.CanCollide then
+					table.insert(
+						touchConns,
+						part.Touched:Connect(function(other)
+							onTouched(car, other)
+						end)
+					)
+				end
+			end
+		end
+		rayParams.FilterDescendantsInstances = filter
+	end
+
+	local function parkCharacter(player: Player)
+		local char = player.Character
+		local root = if char then char:FindFirstChild("HumanoidRootPart") else nil
+		if char and root and root:IsA("BasePart") then
+			root.Anchored = true
+			char:PivotTo(CFrame.new(origin + Vector3.new(0, -12, 0)))
+		end
+	end
+
+	-- ---- Soccer ------------------------------------------------------------------------------
+
+	local function resetBall()
+		local b = ball
+		if b == nil then
+			return
+		end
+		b.AssemblyLinearVelocity = Vector3.zero
+		b.AssemblyAngularVelocity = Vector3.zero
+		b.Position = origin + Vector3.new(0, ModesConfig.Soccer.ballSize, 0)
+	end
+
+	local function soccerHud()
+		sendAll(function(i)
+			local mine = teamOf(i)
+			return {
+				kind = "modeInfo",
+				text = string.format(
+					"GOALS  YOU %d  -  %d THEM   (first to %d)",
+					soccer.goals[mine],
+					soccer.goals[3 - mine],
+					ModesConfig.Soccer.scoreToWin
+				),
+			}
+		end)
+	end
+
+	local function stepSoccer(now: number)
+		local b = ball
+		if b == nil or phase ~= "fight" then
+			return
+		end
+		local cfgS = ModesConfig.Soccer
+		local v = b.AssemblyLinearVelocity
+		if v.Magnitude > cfgS.ballMaxSpeed then
+			b.AssemblyLinearVelocity = v.Unit * cfgS.ballMaxSpeed
+		end
+		local bx, bz = b.Position.X - origin.X, b.Position.Z - origin.Z
+		if now < ballPausedUntil then
+			return
+		end
+		local conceded = Modes.goalConceded(bx, bz, cfgS.goalRadius, cfgS.goalHalfAngle)
+		if conceded ~= 0 then
+			local scorer = Modes.soccerGoal(soccer, conceded)
+			local pos = b.Position
+			sendAll(function(i)
+				return {
+					kind = "ko",
+					text = if teamOf(i) == scorer then "GOAL!" else "THEY SCORED!",
+					pos = pos,
+				}
+			end)
+			soccerHud()
+			local winner = Modes.soccerWinner(soccer, cfgS.scoreToWin)
+			if winner == 0 and goldenGoal then
+				winner = scorer
+			end
+			if winner ~= 0 then
+				finishSoccer(winner)
+				return
+			end
+			ballPausedUntil = now + cfgS.goalPause
+			b.Anchored = true
+			task.delay(cfgS.goalPause, function()
+				if not destroyed and phase == "fight" then
+					resetBall()
+					b.Anchored = false
+				end
+			end)
+			return
+		end
+		if
+			Modes.ballLost(bx, bz, cfg.Arena.rimRadius, cfgS.lostMargin)
+			or b.Position.Y < origin.Y - 20
+		then
+			resetBall()
+		end
+	end
+
+	-- ---- Driving -----------------------------------------------------------------------------
+
+	local function limitSpeed(car: CarBuilder.Car)
+		local cap = math.max(
+			cfg.Launch.maxSpeed,
+			car.stats.maxSpeed * (1 + MovesConfig.Boost.speedBonus)
+		) * cfg.Drive.speedCapSlack
+		local v = car.body.AssemblyLinearVelocity
+		local flat = Vector3.new(v.X, 0, v.Z)
+		if flat.Magnitude > cap then
+			local keep = flat.Unit * cap
+			car.body.AssemblyLinearVelocity = Vector3.new(keep.X, v.Y, keep.Z)
+		end
+	end
+
+	-- The car a bot (or a special move) goes after. Soccer bots aim at a point behind the ball
+	-- (then at the ball itself once they are lined up); last-standing bots hunt the nearest car.
+	local function targetFor(car: CarBuilder.Car): CarBuilder.Car?
+		if soccerOn then
+			local b = ball
+			if b == nil then
+				return nil
+			end
+			local bx, bz = b.Position.X - origin.X, b.Position.Z - origin.Z
+			local t = Modes.botTarget(bx, bz, teamOf(car.idx), ModesConfig.Soccer.botOffset)
+			local pos = origin + Vector3.new(t.x, car.body.Position.Y, t.z)
+			if (pos - car.body.Position).Magnitude < 8 then
+				pos = b.Position
+			end
+			return { body = { Position = pos } } :: any -- Autopilot only reads body.Position
+		end
+		local xs, zs = {}, {}
+		for i, c in cars do
+			xs[i], zs[i] = flatOf(c)
+		end
+		local who = Modes.nearestAlive(last, xs, zs, car.idx)
+		return if who ~= 0 then cars[who] else nil
+	end
+
+	-- Nearest car on the other side (for special moves a player presses).
+	local function enemyOf(car: CarBuilder.Car): CarBuilder.Car?
+		local best, who = math.huge, nil :: CarBuilder.Car?
+		for _, c in cars do
+			if not c.dead and c ~= car and (not soccerOn or teamOf(c.idx) ~= teamOf(car.idx)) then
+				local d = (c.body.Position - car.body.Position).Magnitude
+				if d < best then
+					best, who = d, c
+				end
+			end
+		end
+		return who
+	end
+
+	local function startFight()
+		phase = "fight"
+		fightElapsed = 0
+		for _, car in cars do
+			setAnchored(car, false)
+			pcall(function()
+				car.body:SetNetworkOwner(nil)
+			end)
+		end
+		task.delay(0.15, function()
+			if destroyed or phase ~= "fight" then
+				return
+			end
+			for i, car in cars do
+				local part = participants[i]
+				if part and not gone[i] and not car.dead and typeof(part.player) == "Instance" then
+					parkCharacter(part.player)
+					local ok = pcall(function()
+						car.body:SetNetworkOwner(part.player)
+					end)
+					if ok then
+						clientDriven[i] = true
+						car.model:SetAttribute("CarId", car.id)
+						car.model:SetAttribute("DriverUserId", part.player.UserId)
+					end
+				end
+			end
+		end)
+		if soccerOn and arena then
+			ModeFx.goals(arena.model, origin)
+			ball = ModeFx.ball(arena.model, origin + Vector3.new(0, ModesConfig.Soccer.ballSize, 0))
+			soccerHud()
+		end
+		sendAll(function(i)
+			local ability = Specials.abilityOf(cars[i])
+			return {
+				kind = "fight",
+				auto = false,
+				round = 1,
+				ability = if ability then ability.name else nil,
+			}
+		end)
+	end
+
+	fightConn = RunService.Heartbeat:Connect(function(dt)
+		if phase ~= "fight" or ending then
+			return
+		end
+		local now = os.clock()
+		for _, car in cars do
+			if not car.dead then
+				local target = targetFor(car)
+				local human = isHuman(car.idx)
+				if human and clientDriven[car.idx] then
+					limitSpeed(car)
+				elseif human then
+					local raw = Steer.current(steerStates[car.idx], now, cfg.Steer.staleSeconds)
+					local eased = Steer.smooth(steerSmooth[car.idx], raw, dt, cfg.Steer.smoothRate)
+					steerSmooth[car.idx] = eased
+					local rawGas =
+						Steer.currentThrottle(steerStates[car.idx], now, cfg.Steer.staleSeconds)
+					local gas =
+						Steer.smooth(throttleSmooth[car.idx], rawGas, dt, cfg.Steer.smoothRate)
+					throttleSmooth[car.idx] = gas
+					local mods = Moves.mods(moveStates[car.idx], car, eased, dt, now)
+					Autopilot.stepManual(car, eased, gas, dt, rayParams, mods)
+				elseif target then
+					Autopilot.step(car, target, dt, rayParams, origin)
+				end
+			end
+		end
+		for _, car in cars do
+			if not car.dead then
+				car.prevVel = car.body.AssemblyLinearVelocity
+			end
+		end
+
+		if soccerOn then
+			stepSoccer(now)
+			-- A car that leaves the bowl comes back at its start spot (nobody is out in soccer).
+			for _, car in cars do
+				local x, z = flatOf(car)
+				if
+					not car.dead
+					and (
+						Fight.isRingOut(
+							math.sqrt(x * x + z * z),
+							cfg.Arena.rimRadius,
+							cfg.RingOut.margin
+						) or car.body.Position.Y < origin.Y - cfg.Match.outOfBoundsDrop
+					)
+				then
+					local spot = spots[car.idx]
+					car.model:PivotTo(
+						CFrame.new(ModeFx.spotPosition(origin, spot.x, spot.z, 4))
+							* CFrame.Angles(0, spot.yaw, 0)
+					)
+					car.body.AssemblyLinearVelocity = Vector3.zero
+					car.body.AssemblyAngularVelocity = Vector3.zero
+				end
+			end
+			fightElapsed += dt
+			if fightElapsed >= ModesConfig.Soccer.maxSeconds and not goldenGoal then
+				local w = Modes.soccerTimeoutWinner(soccer)
+				if w ~= 0 then
+					finishSoccer(w)
+					return
+				end
+				goldenGoal = true
+				sendAll(function()
+					return { kind = "ko", text = "NEXT GOAL WINS!", pos = origin }
+				end)
+			end
+			return
+		end
+
+		-- Last car standing: ring-outs, then the clock.
+		for _, car in cars do
+			if not car.dead then
+				local x, z = flatOf(car)
+				if
+					Fight.isRingOut(
+						math.sqrt(x * x + z * z),
+						cfg.Arena.rimRadius,
+						cfg.RingOut.margin
+					) or car.body.Position.Y < origin.Y - cfg.Match.outOfBoundsDrop
+				then
+					eliminate(car, "RING OUT!")
+					if ending then
+						return
+					end
+				end
+			end
+		end
+		fightElapsed += dt
+		if fightElapsed >= ModesConfig.LastStanding.maxSeconds then
+			local hps: { number } = {}
+			for i, car in cars do
+				hps[i] = car.hp
+			end
+			local w = Modes.lastTimeoutWinner(last, hps)
+			if w == 0 then
+				-- A tie: the alive car closest to the middle takes it.
+				local best = math.huge
+				for i, car in cars do
+					if not car.dead then
+						local x, z = flatOf(car)
+						local d = x * x + z * z
+						if d < best then
+							best, w = d, i
+						end
+					end
+				end
+			end
+			finishLast(w)
+			return
+		end
+		if now - hudAt >= ModesConfig.LastStanding.hudSeconds then
+			hudAt = now
+			local n = Modes.lastAliveCount(last)
+			sendAll(function()
+				return { kind = "modeInfo", text = string.format("%d CARS LEFT", n) }
+			end)
+		end
+	end)
+
+	local function indexOf(player: Player): number?
+		for i, part in participants do
+			if part.player == player then
+				return i
+			end
+		end
+		return nil
+	end
+
+	local function begin()
+		if destroyed or arena == nil then
+			return
+		end
+		local a = arena :: Arena.Arena
+		local wait = cfg.Mode.readySeconds
+		sendAll(function(i)
+			local other = cars[if i == 1 then 2 else 1]
+			return {
+				kind = "ready",
+				round = 1,
+				yourCar = cars[i].id,
+				enemyCar = if other then other.id else cars[i].id,
+				enemyName = if soccerOn then "THE OTHER TEAM" else "EVERYONE",
+				center = a.center,
+				carPos = cars[i].body.Position,
+				seconds = wait,
+			}
+		end)
+		sendAll(function()
+			return {
+				kind = "modeInfo",
+				text = ModesConfig.Names[mode] .. ": " .. ModesConfig.Blurbs[mode],
+			}
+		end)
+		task.delay(wait, function()
+			if not destroyed and phase == "ready" then
+				startFight()
+			end
+		end)
+	end
+
+	local handle: Match.Handle = {
+		launch = function() end, -- no aiming in the many-car modes
+		steer = function(player: Player, value: any, throttle: any?)
+			if destroyed or phase ~= "fight" then
+				return
+			end
+			local i = indexOf(player)
+			if i == nil or gone[i] then
+				return
+			end
+			Steer.set(steerStates[i], value, os.clock(), throttle)
+		end,
+		action = function(player: Player, name: any)
+			if destroyed or phase ~= "fight" or not MovesRules.isMove(name, MovesConfig.Names) then
+				return
+			end
+			local i = indexOf(player)
+			if i == nil or gone[i] or cars[i] == nil or cars[i].dead then
+				return
+			end
+			local enemy = enemyOf(cars[i])
+			if enemy == nil then
+				return
+			end
+			local seconds = Moves.press(moveStates[i], name, cars[i], enemy, rayParams, os.clock())
+			if seconds ~= nil and seconds > 0 then
+				sendTo(i, { kind = "move", move = name, seconds = seconds })
+			end
+		end,
+		playerLeft = function(player: Player)
+			local i = indexOf(player)
+			if i == nil or gone[i] then
+				return
+			end
+			gone[i] = true
+			local car = cars[i]
+			if car == nil or car.dead then
+				return
+			end
+			if mode == "lastStanding" and phase ~= "matchEnd" then
+				eliminate(car, "LEFT THE GAME")
+			else
+				-- Soccer: a bot takes over the car (the server drives it again).
+				clientDriven[i] = nil
+				pcall(function()
+					car.body:SetNetworkOwner(nil)
+				end)
+			end
+		end,
+		destroy = function()
+			destroyed = true
+			if fightConn then
+				fightConn:Disconnect()
+			end
+			clearCars()
+			if ball then
+				ball:Destroy()
+			end
+			if arena then
+				arena.model:Destroy()
+			end
+		end,
+	}
+
+	arena = Arena.build(origin)
+	spawnCars()
+	begin()
+	return handle
+end
+
+return GroupMatch

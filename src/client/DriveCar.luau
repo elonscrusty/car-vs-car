@@ -52,7 +52,16 @@ function DriveCar.new(read: () -> (number, number)): DriveCar
 					return
 				end
 				sinceSearch = 0
-				for _, m in workspace:GetDescendants() do
+				-- Cars sit directly inside the "Arena" folders, so no need to scan the whole world.
+				local candidates: { Instance } = {}
+				for _, arena in workspace:GetChildren() do
+					if arena.Name == "Arena" then
+						for _, m in arena:GetChildren() do
+							table.insert(candidates, m)
+						end
+					end
+				end
+				for _, m in candidates do
 					if m:IsA("Model") and m:GetAttribute("DriverUserId") == me.UserId then
 						local b = m:FindFirstChild("Body")
 						local s = CarConfig.get(m:GetAttribute("CarId"))
@@ -86,7 +95,9 @@ function DriveCar.new(read: () -> (number, number)): DriveCar
 			local mods: CarDrive.Mods = {
 				speedScale = Moves.boostSpeedMult(sinceBoost, MovesConfig.Boost),
 				accelScale = Moves.boostAccelMult(sinceBoost, MovesConfig.Boost),
-				gripScale = gripScale,
+				gripScale = gripScale * (if type(m:GetAttribute("GripMult")) == "number"
+					then m:GetAttribute("GripMult") :: number
+					else 1),
 				turnScale = turnScale,
 			}
 			local speedMult = m:GetAttribute("SpeedMult")

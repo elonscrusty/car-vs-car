@@ -117,3 +117,10 @@ The real place was never saved and was lost with the Studio window. Now in the r
 sources (`assets/models`, Blender FBX), `tools/studio-sort.luau` and `docs/STUDIO_REBUILD.md`. Lobby is being
 re-themed from racetrack red to garage steel (`LobbyDecor.clone` + optional `SteelPalette` attribute). The 30
 cars still need their own import. Always Ctrl+S and Publish a rebuilt place first.
+
+## Level-ups, streak record, leaderboards
+See SNAPSHOT.md section "Level-ups, win streak, leaderboards". Tune in `ProgressConfig` (LevelStatBonus, LevelUpCoins, Board). Boards are server-built SurfaceGuis (`Leaderboards.init`); if they hide behind a prop, change `Board.spot`. Changing a store name in `Leaderboard.Boards` starts a fresh board.
+## Daily spin wheel
+Tune rewards/odds only in `src/shared/SpinConfig.luau` (placeholders). Quests: `QuestsConfig.luau`. Daily gift: `QuestsConfig.Daily`. Spin UI not yet checked by eye on a phone or in Studio.
+## Fight modes
+See "Fight modes" in SNAPSHOT.md. Tweak `src/shared/ModesConfig.luau` only (hill hold time, ice grip, 8-car hpScale, ball size/density, goal size, score to win). Untested in Studio: first play test should check the soccer ball (too heavy/light?), that bots do not all pile on the ball, and the top banner on a phone.

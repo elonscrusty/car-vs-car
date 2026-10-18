@@ -38,6 +38,9 @@ local Specials = require(script.Parent.Specials)
 local Moves = require(script.Parent.Moves)
 local MovesConfig = require(ReplicatedStorage.Shared.MovesConfig)
 local MovesRules = require(ReplicatedStorage.Shared.Moves)
+local Modes = require(ReplicatedStorage.Shared.Modes)
+local ModesConfig = require(ReplicatedStorage.Shared.ModesConfig)
+local ModeFx = require(script.Parent.ModeFx)
 
 type Phase = "pick" | "ready" | "aim" | "fight" | "roundEnd" | "matchEnd"
 
@@ -62,8 +65,21 @@ export type Participant = {
 local Match = {}
 
 -- participants: 1 or 2 players, in car order (car 1, car 2). A missing second player is a bot.
-function Match.new(participants: { Participant }, slot: number, remotes: Remotes.RemoteSet): Handle
+-- mode: nil = the normal duel, "hill" = king of the hill, "ice" = slippery bowl (both are still
+-- 1v1; HP and ring-outs still count). Many-car modes live in GroupMatch.
+function Match.new(
+	participants: { Participant },
+	slot: number,
+	remotes: Remotes.RemoteSet,
+	mode: string?
+): Handle
 	local cfg = GameConfig
+	local hillOn = mode == "hill"
+	local iceOn = mode == "ice"
+	local gripMult = if iceOn then Modes.iceGrip(1, ModesConfig.Ice.gripScale) else 1
+	local hillState = Modes.hillNew(2)
+	local hillFx: ModeFx.Hill? = nil
+	local hillHudAt = 0
 	local origin = Vector3.new(slot * cfg.Arena.slotSpacing, cfg.Arena.baseY, 0)
 	local rng = Random.new()
 	local auto = cfg.Mode.autoFight -- build-and-watch: the cars fight on their own
@@ -91,6 +107,20 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 	local moveStates: { [number]: Moves.State } = { Moves.new(), Moves.new() } -- reset each fight
 	local rayParams = RaycastParams.new()
 	rayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+	-- Ice: every drive step gets less side grip.
+	local function withGrip(mods: Autopilot.Mods?): Autopilot.Mods?
+		if gripMult == 1 then
+			return mods
+		end
+		local m = mods or { speedScale = 1, accelScale = 1, gripScale = 1, turnScale = 1 }
+		return {
+			speedScale = m.speedScale,
+			accelScale = m.accelScale,
+			gripScale = m.gripScale * gripMult,
+			turnScale = m.turnScale,
+		}
+	end
 
 	local function nameOf(i: number): string
 		local p = participants[i]
@@ -187,7 +217,7 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 			for i, part in participants do
 				local youWon = loser.idx ~= i
 				sendTo(i, { kind = "matchEnd", youWon = youWon })
-				if part.onEndScreen then
+				if part.onEndScreen and not gone[i] then
 					part.onEndScreen()
 				end
 				task.delay(LobbyConfig.Rewards.endScreenSeconds, function()
@@ -390,6 +420,12 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 			)
 		end
 		rayParams.FilterDescendantsInstances = { cars[1].model, cars[2].model }
+		if iceOn then
+			for _, car in cars do
+				ModeFx.iceCar(car.body)
+				car.model:SetAttribute("GripMult", gripMult) -- the driver's device reads this
+			end
+		end
 		for _, car in cars do
 			for _, part in car.model:GetChildren() do
 				if part:IsA("BasePart") and part.CanCollide then
@@ -585,17 +621,30 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 
 	-- A driver's device owns its car, so a hacked client could drive it far too fast. Slow the car
 	-- down when it passes any speed the game can legitimately give it.
-	local function limitSpeed(car: CarBuilder.Car)
-		local cap = math.max(
+	local function speedCap(car: CarBuilder.Car): number
+		return math.max(
 			cfg.Launch.maxSpeed,
 			car.stats.maxSpeed * (1 + MovesConfig.Boost.speedBonus) * Buffs.speedMult(car)
 		) * cfg.Drive.speedCapSlack
+	end
+
+	local function isFinite(v: Vector3): boolean
+		-- NaN fails the self-compare; infinity fails the huge check.
+		return v.X == v.X and v.Y == v.Y and v.Z == v.Z and v.Magnitude < math.huge
+	end
+
+	-- Slow the car down, in every direction, when it passes any speed the game can legitimately give it.
+	-- Returns false when the car's numbers are broken (NaN / infinite), which only a cheat can cause.
+	local function limitSpeed(car: CarBuilder.Car): boolean
 		local v = car.body.AssemblyLinearVelocity
-		local flat = Vector3.new(v.X, 0, v.Z)
-		if flat.Magnitude > cap then
-			local keep = flat.Unit * cap
-			car.body.AssemblyLinearVelocity = Vector3.new(keep.X, v.Y, keep.Z)
+		if not isFinite(v) or not isFinite(car.body.Position) then
+			return false
 		end
+		local cap = speedCap(car)
+		if v.Magnitude > cap then
+			car.body.AssemblyLinearVelocity = v.Unit * cap
+		end
+		return true
 	end
 
 	local fightConn = RunService.Heartbeat:Connect(function(dt)
@@ -619,11 +668,14 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 						Moves.press(state, "special", car, enemy, rayParams, now)
 					end
 					local mods = Moves.mods(state, car, 0, dt, now)
-					Autopilot.step(car, enemy, dt, rayParams, origin, autoLevel, mods)
+					Autopilot.step(car, enemy, dt, rayParams, origin, autoLevel, withGrip(mods))
 				elseif human and not gone[car.idx] and clientDriven[car.idx] then
 					-- The driver's device moves this car; the server only keeps it honest.
 					car.model:SetAttribute("SpeedMult", Buffs.speedMult(car))
-					limitSpeed(car)
+					if not limitSpeed(car) then
+						endMatch(car, "RING OUT!")
+						return
+					end
 				elseif human and not gone[car.idx] then
 					local raw =
 						Steer.current(steerStates[car.idx], os.clock(), cfg.Steer.staleSeconds)
@@ -638,9 +690,17 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 						Steer.smooth(throttleSmooth[car.idx], rawGas, dt, cfg.Steer.smoothRate)
 					throttleSmooth[car.idx] = gas
 					local mods = Moves.mods(moveStates[car.idx], car, eased, dt, os.clock())
-					Autopilot.stepManual(car, eased, gas, dt, rayParams, mods)
+					Autopilot.stepManual(car, eased, gas, dt, rayParams, withGrip(mods))
 				else
-					Autopilot.step(car, cars[3 - car.idx], dt, rayParams, origin, botLevel)
+					Autopilot.step(
+						car,
+						cars[3 - car.idx],
+						dt,
+						rayParams,
+						origin,
+						botLevel,
+						withGrip(nil)
+					)
 				end
 			end
 		end
@@ -651,8 +711,55 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 				return
 			end
 		end
+		if hillOn then
+			local onHill = {
+				not cars[1].dead and Modes.onHill(
+					cars[1].body.Position.X - origin.X,
+					cars[1].body.Position.Z - origin.Z,
+					ModesConfig.Hill.radius
+				),
+				not cars[2].dead and Modes.onHill(
+					cars[2].body.Position.X - origin.X,
+					cars[2].body.Position.Z - origin.Z,
+					ModesConfig.Hill.radius
+				),
+			}
+			local holder = Modes.hillStep(hillState, onHill, dt)
+			if hillFx then
+				hillFx.setHolder(
+					if holder == 1
+						then Color3.fromRGB(80, 255, 120)
+						elseif holder == 2 then Color3.fromRGB(255, 150, 40)
+						else nil
+				)
+			end
+			local king = Modes.hillWinner(hillState, ModesConfig.Hill.holdSeconds)
+			if king ~= 0 then
+				endMatch(cars[3 - king], "KING OF THE HILL!")
+				return
+			end
+			if now - hillHudAt >= ModesConfig.Hill.hudSeconds then
+				hillHudAt = now
+				sendAll(function(i)
+					return {
+						kind = "modeInfo",
+						text = string.format(
+							"HILL  YOU %.0f / %d   ENEMY %.0f",
+							hillState.scores[i],
+							ModesConfig.Hill.holdSeconds,
+							hillState.scores[3 - i]
+						),
+					}
+				end)
+			end
+		end
 		for _, car in cars do
-			car.prevVel = car.body.AssemblyLinearVelocity
+			-- Hits use this speed, so it can never be bigger than the legit cap (a cheat can't add damage).
+			local pv = car.body.AssemblyLinearVelocity
+			local pvCap = speedCap(car)
+			car.prevVel = if pv.Magnitude == pv.Magnitude and pv.Magnitude > pvCap
+				then pv.Unit * pvCap
+				else pv
 			-- Pushed past the rim, or fell out of the bowl = ring-out = 0 HP.
 			if not car.dead then
 				local dx, dz = car.body.Position.X - origin.X, car.body.Position.Z - origin.Z
@@ -661,7 +768,11 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 					cfg.Arena.rimRadius,
 					cfg.RingOut.margin
 				)
-				if out or car.body.Position.Y < origin.Y - cfg.Match.outOfBoundsDrop then
+				if
+					out
+					or car.body.Position.Y < origin.Y - cfg.Match.outOfBoundsDrop
+					or car.body.Position.Y > origin.Y + cfg.Match.outOfBoundsHeight
+				then
 					endMatch(car, "RING OUT!")
 					return
 				end
@@ -751,8 +862,22 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 		end,
 	}
 	arena = Arena.build(origin)
+	if iceOn then
+		ModeFx.iceBowl(arena.model)
+	elseif hillOn then
+		hillFx = ModeFx.hill(arena.model, origin, ModesConfig.Hill.radius)
+	end
 	spawnCars()
 	beginAim()
+	if hillOn or iceOn then
+		local name = mode :: string
+		sendAll(function()
+			return {
+				kind = "modeInfo",
+				text = ModesConfig.Names[name] .. ": " .. ModesConfig.Blurbs[name],
+			}
+		end)
+	end
 	return handle
 end
 

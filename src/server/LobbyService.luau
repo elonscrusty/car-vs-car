@@ -19,8 +19,10 @@ local Paint = require(ReplicatedStorage.Shared.Paint)
 local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
 local PadLogic = require(ReplicatedStorage.Shared.PadLogic)
 local Quests = require(ReplicatedStorage.Shared.Quests)
+local Spin = require(ReplicatedStorage.Shared.Spin)
 local PickChoices = require(ReplicatedStorage.Shared.PickChoices)
 local Progress = require(ReplicatedStorage.Shared.Progress)
+local Leaderboards = require(script.Parent.Leaderboards)
 local ProgressConfig = require(ReplicatedStorage.Shared.ProgressConfig)
 local RateLimiter = require(ReplicatedStorage.Shared.RateLimiter)
 local BotLevels = require(ReplicatedStorage.Shared.BotLevels)
@@ -98,6 +100,7 @@ function LobbyService.start(deps: Deps): Handle
 	local hintLimiter = RateLimiter.new(4, 3)
 	local botLevelLimiter = RateLimiter.new(3, 3)
 	local questLimiter = RateLimiter.new(2, 3)
+	local spinLimiter = RateLimiter.new(2, 3)
 	local paintLimiter = RateLimiter.new(4, 3)
 	local buildLimiter = RateLimiter.new(6, 3)
 	local bays = LobbyBays.new(deps.lobby.folder, LobbyConfig.Lobby.origin)
@@ -156,6 +159,7 @@ function LobbyService.start(deps: Deps): Handle
 			botLevel = p.botLevel,
 			quests = Quests.views(p),
 			daily = { ready = Daily.canClaim(p.daily, os.time()), freePulls = p.daily.freePulls },
+			spinReady = Spin.canSpin(p.spin, os.time()),
 			paint = { owned = Paint.ownedList(p.paint), equipped = p.paint.equipped },
 			build = buildView(p),
 		})
@@ -278,7 +282,13 @@ function LobbyService.start(deps: Deps): Handle
 	end
 
 	-- stay: the player goes straight into a rematch (rewards are paid, nothing else changes).
-	local function finishMatch(player: Player, won: boolean, carId: string, stay: boolean?)
+	local function finishMatch(
+		player: Player,
+		won: boolean,
+		carId: string,
+		vsBot: boolean,
+		stay: boolean?
+	)
 		local ps = players[player]
 		if ps == nil or ps.stage ~= "match" then
 			return
@@ -290,13 +300,14 @@ function LobbyService.start(deps: Deps): Handle
 		local p = Profiles.get(player)
 		if p then
 			local result = Progress.applyMatchResult(p, carId, won, ProgressConfig)
-			Quests.onMatchEnd(p, { won = won, carId = carId, opponentIsBot = false })
+			Quests.onMatchEnd(p, { won = won, carId = carId, opponentIsBot = vsBot })
 			earned += result.coinsBonus
 			Inventory.addCoins(p, earned)
 			if won then
 				p.wins += 1
 			end
 			Profiles.markDirty(player)
+			Leaderboards.submit(player, p)
 		end
 		if player.Parent == nil then
 			return
@@ -333,6 +344,7 @@ function LobbyService.start(deps: Deps): Handle
 			return
 		end
 		local participants: { Participant } = {}
+		local vsBot = false -- set once we know how many humans joined (read later, when the match ends)
 		for _, key in table.clone(pad.players) do
 			local player = key :: Player
 			local ps = players[player]
@@ -347,7 +359,7 @@ function LobbyService.start(deps: Deps): Handle
 					appearance = lookFor(player, picks[key]),
 					build = buildOf(player),
 					onFinished = function(won: boolean, stay: boolean?)
-						finishMatch(player, won, picks[key], stay)
+						finishMatch(player, won, picks[key], vsBot, stay)
 					end,
 				})
 			end
@@ -355,6 +367,7 @@ function LobbyService.start(deps: Deps): Handle
 		end
 		padAcc[padIndex] = nil
 		updatePadText(padIndex)
+		vsBot = #participants == 1
 		if #participants == 1 then
 			local solo = Profiles.get(participants[1].player)
 			participants[1].botLevel = if solo then solo.botLevel else nil
@@ -680,6 +693,24 @@ function LobbyService.start(deps: Deps): Handle
 		end
 	end
 
+	-- Daily spin: the server rolls. Day is marked used before paying, so repeats pay nothing.
+	local function spinWheel(player: Player)
+		local p = Profiles.get(player)
+		if p == nil then
+			return
+		end
+		local result = Spin.spin(p.spin, os.time(), rng, function(n)
+			Inventory.addCoins(p, n)
+		end, function(n)
+			Spin.addFreePulls(p.daily, n)
+		end)
+		if result ~= nil then
+			Profiles.markDirty(player)
+			send(player, { kind = "spinResult", index = result.index, label = result.label })
+			sendProfile(player)
+		end
+	end
+
 	local handle: Handle
 	handle = {
 		onPlayerAdded = function(player: Player)
@@ -710,6 +741,7 @@ function LobbyService.start(deps: Deps): Handle
 			hintLimiter.clear(player)
 			botLevelLimiter.clear(player)
 			questLimiter.clear(player)
+			spinLimiter.clear(player)
 			paintLimiter.clear(player)
 			buildLimiter.clear(player)
 			bays.clear(player)
@@ -765,6 +797,10 @@ function LobbyService.start(deps: Deps): Handle
 				if questLimiter.allow(player, os.clock()) then
 					claimDaily(player)
 				end
+			elseif action == "spin" then
+				if spinLimiter.allow(player, os.clock()) then
+					spinWheel(player)
+				end
 			elseif action == "leavePad" then
 				cancelPlayer(player)
 			elseif action == "devMatch" and RunService:IsStudio() then
@@ -786,7 +822,7 @@ function LobbyService.start(deps: Deps): Handle
 						appearance = lookFor(player, carId),
 						build = buildOf(player),
 						onFinished = function(won: boolean, stay: boolean?)
-							finishMatch(player, won, carId, stay)
+							finishMatch(player, won, carId, true, stay)
 						end,
 					},
 				})

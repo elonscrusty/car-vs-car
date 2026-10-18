@@ -18,8 +18,10 @@ local HintUi = require(script.HintUi)
 local LobbyUi = require(script.LobbyUi)
 local BotLevelUi = require(script.BotLevelUi)
 local MenuBar = require(script.MenuBar)
+local ModeBanner = require(script.ModeBanner)
 local ProgressUi = require(script.ProgressUi)
 local QuestUi = require(script.QuestUi)
+local SpinUi = require(script.SpinUi)
 local PaintUi = require(script.PaintUi)
 local DriveCar = require(script.DriveCar)
 local SkidFx = require(script.SkidFx)
@@ -28,6 +30,7 @@ local SteerInput = require(script.SteerInput)
 local Ui = require(script.Ui)
 
 local remotes = Remotes.get()
+local modeBanner = ModeBanner.new()
 local director = CameraDirector.new()
 local buffs = BuffUi.new()
 local menu = MenuBar.new() -- features add their own lobby buttons here (see MenuBar.luau)
@@ -37,6 +40,9 @@ local botLevelUi = BotLevelUi.new(menu, function(level: string)
 end)
 
 local questUi = QuestUi.new(menu, function(action: string, arg: any?)
+	remotes.LobbyAction:FireServer(action, arg)
+end)
+local spinUi = SpinUi.new(menu, function(action: string, arg: any?)
 	remotes.LobbyAction:FireServer(action, arg)
 end)
 local paintUi = PaintUi.new(menu)
@@ -72,6 +78,7 @@ local lobby = LobbyUi.new({
 		driver.stop()
 		skids.stop()
 		actions.stop()
+		modeBanner.hide()
 		view.hideMatch()
 		ProximityPromptService.Enabled = true
 		director.release()
@@ -83,6 +90,7 @@ local lobby = LobbyUi.new({
 remotes.LobbyUpdate.OnClientEvent:Connect(function(u: Types.LobbyUpdate)
 	lobby.handleUpdate(u)
 	questUi.handleUpdate(u)
+	spinUi.handleUpdate(u)
 	paintUi.handleUpdate(u)
 	buildUi.handleUpdate(u)
 	if u.kind == "profile" then
@@ -174,6 +182,8 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		if u.auto ~= true then
 			actions.start(u.ability)
 		end
+	elseif u.kind == "modeInfo" then
+		modeBanner.show(u.text or "")
 	elseif u.kind == "move" then
 		actions.cooldown(u.move or "", u.seconds or 0)
 	elseif u.kind == "buff" then
@@ -207,6 +217,7 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		driver.stop()
 		skids.stop()
 		actions.stop()
+		modeBanner.hide()
 		view.showMatchEnd(u.youWon == true)
 	end
 end)
