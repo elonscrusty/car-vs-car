@@ -105,3 +105,9 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 - Win streak bonus already existed (3/5/7+). New: `progress.bestStreak` (record, old saves migrate to 0 or current streak).
 - Leaderboards: pure `shared/Leaderboard.luau` (scores, throttle, rows, text), server `Leaderboards.luau` (OrderedDataStores `TopWins_v1`, `BestStreak_v1`; best score only, throttled, retries; top 10 refreshed every 60 s; two boards built in code at `ProgressConfig.Board.spot`). Scores are sent from `LobbyService.finishMatch`.
 - Tests: `tests/progress.test.luau`, `tests/leaderboard.test.luau` (236 pass). Not run in Studio: board position/look unchecked by eye, DataStore calls untested (Studio needs API access on).
+## Daily spin wheel (quests + daily gift were already in; spin added)
+- Quests and the daily gift (free claw try) already existed (`Quests`, `QuestsConfig`, `Daily`, `QuestUi`). New: daily spin wheel.
+- `src/shared/SpinConfig.luau` (segments + weights; ALL rewards are placeholders), `Spin.luau` (pure: one spin per UTC day, `oddsTable`, `pick`, `spin`), tests `tests/spin.test.luau`.
+- Server: `LobbyService` action `spin` (limited 2 per 3s) rolls with its Random, marks the day used BEFORE paying, sends `spinResult` + profile (`spinReady`). Save field `profile.spin = {lastDay}`.
+- Client: `src/client/SpinUi.luau` (SPIN menu button, odds list shown before spinning, wheel turns to the server's pick). Not eyeballed in Studio.
+- Also fixed: `Profiles.copyProfile` was dropping `build`, so garage builds were never saved.

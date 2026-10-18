@@ -42,6 +42,7 @@ export type LobbyUpdate =
 		botLevel: string?,
 		quests: { { title: string, progress: number, target: number, reward: number, done: boolean } }?,
 		daily: { ready: boolean, freePulls: number }?,
+		spinReady: boolean?, -- daily spin wheel not used yet today
 		paint: { owned: { string }, equipped: { [string]: { color: string?, sticker: string? } } }?,
 		build: {
 			carId: string,
@@ -60,6 +61,7 @@ export type LobbyUpdate =
 		coins: number,
 	}
 	| { kind: "gachaError", reason: string }
+	| { kind: "spinResult", index: number, label: string }
 	| { kind: "storeResult", ok: boolean, carId: string, reason: string?, coins: number }
 	| { kind: "paintResult", ok: boolean, reason: string? }
 	| { kind: "buildResult", ok: boolean, reason: string? }

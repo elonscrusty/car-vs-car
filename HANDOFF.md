@@ -120,3 +120,5 @@ cars still need their own import. Always Ctrl+S and Publish a rebuilt place firs
 
 ## Level-ups, streak record, leaderboards
 See SNAPSHOT.md section "Level-ups, win streak, leaderboards". Tune in `ProgressConfig` (LevelStatBonus, LevelUpCoins, Board). Boards are server-built SurfaceGuis (`Leaderboards.init`); if they hide behind a prop, change `Board.spot`. Changing a store name in `Leaderboard.Boards` starts a fresh board.
+## Daily spin wheel
+Tune rewards/odds only in `src/shared/SpinConfig.luau` (placeholders). Quests: `QuestsConfig.luau`. Daily gift: `QuestsConfig.Daily`. Spin UI not yet checked by eye on a phone or in Studio.

@@ -16,6 +16,7 @@ local Hints = sibling("Hints")
 local LobbyConfig = sibling("LobbyConfig")
 local Progress = sibling("Progress")
 local Daily = sibling("Daily")
+local Spin = sibling("Spin")
 local Quests = sibling("Quests")
 local Paint = sibling("Paint")
 local Build = sibling("Build")
@@ -31,6 +32,7 @@ export type Profile = {
 	botLevel: string, -- bot difficulty: "easy" | "medium" | "hard"
 	quests: { { id: string, progress: number } }, -- active quests (see Quests)
 	daily: { lastDay: number, freePulls: number }, -- daily gift state (see Daily)
+	spin: Spin.Data, -- daily spin wheel: last day spun (see Spin)
 	paint: Paint.PaintData, -- owned colors/stickers and what each car wears (see Paint)
 	build: Build.BuildData, -- build-and-watch: chosen car, parts and part levels (see Build)
 }
@@ -69,6 +71,7 @@ function Inventory.default(): Profile
 		botLevel = "medium",
 		quests = {},
 		daily = Daily.default(),
+		spin = Spin.default(),
 		paint = Paint.default(),
 		build = Build.default(),
 	}
@@ -102,6 +105,7 @@ function Inventory.migrate(raw: any): Profile
 		botLevel = if BotLevels.isValid(raw.botLevel) then raw.botLevel else "medium",
 		quests = Quests.clean(raw.quests),
 		daily = Daily.clean(raw.daily),
+		spin = Spin.clean(raw.spin),
 		paint = Paint.clean(raw.paint),
 		build = Build.clean(raw.build),
 	}
