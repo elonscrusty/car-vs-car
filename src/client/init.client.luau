@@ -23,6 +23,7 @@ local QuestUi = require(script.QuestUi)
 local PaintUi = require(script.PaintUi)
 local DriveCar = require(script.DriveCar)
 local SkidFx = require(script.SkidFx)
+local SteelLobby = require(script.SteelLobby)
 local SteerInput = require(script.SteerInput)
 local Ui = require(script.Ui)
 
@@ -46,6 +47,7 @@ local aim: AimInput.AimInput
 local steering: SteerInput.SteerInput
 local driver: DriveCar.DriveCar
 local skids = SkidFx.new()
+task.spawn(SteelLobby.start)
 local actions: ActionInput.ActionInput
 local view: Ui.View
 
