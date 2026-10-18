@@ -6,6 +6,7 @@
 local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local LobbyDecor = require(script.Parent.LobbyDecor)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 
 local LobbyProps = {}
@@ -85,9 +86,14 @@ function LobbyProps.build(folder: Folder, origin: Vector3)
 		x: number,
 		z: number,
 		face: number,
-		scale: number
+		scale: number,
+		source: string? -- the folder under ServerStorage.Models when it is not Props
 	)
-		if not has(model) then
+		if source then
+			if not LobbyDecor.has(model, source) then
+				return
+			end
+		elseif not has(model) then
 			return
 		end
 		for _, item in folder:GetChildren() do
@@ -106,7 +112,16 @@ function LobbyProps.build(folder: Folder, origin: Vector3)
 				end
 			end
 		end
-		local m = put(model, at(x, 0, z, face), scale)
+		local m: Model?
+		if source then
+			m = LobbyDecor.clone(model, group, nil, source)
+			if m then
+				m:ScaleTo(m:GetScale() * scale)
+				m:PivotTo(at(x, 0, z, face))
+			end
+		else
+			m = put(model, at(x, 0, z, face), scale)
+		end
 		if m then
 			for _, d in m:GetDescendants() do -- booths are solid: walk around them
 				if d:IsA("MeshPart") then
@@ -116,8 +131,14 @@ function LobbyProps.build(folder: Folder, origin: Vector3)
 		end
 	end
 	local st, pt = LobbyLayout.store, LobbyLayout.paint
-	swapBooth("store", "store_booth", st.x, st.z, -90, 1.1) -- front toward +x, the lane
-	swapBooth("paint", "paint_booth", pt.x, pt.z, 90, 1.1) -- front toward -x
+	-- The newer booths (Models.More) win over the first ones; either one keeps the prompt.
+	if LobbyDecor.has("Booth_Shop", "More") and LobbyDecor.has("Booth_Paint", "More") then
+		swapBooth("store", "Booth_Shop", st.x - 4, st.z, -90, 1, "More") -- front toward +x, the lane
+		swapBooth("paint", "Booth_Paint", pt.x + 4, pt.z, 90, 1, "More") -- front toward -x
+	else
+		swapBooth("store", "store_booth", st.x, st.z, -90, 1.1)
+		swapBooth("paint", "paint_booth", pt.x, pt.z, 90, 1.1)
+	end
 
 	for _, spot in SPOTS do
 		put(spot.name, at(spot.x, spot.y or 0, spot.z, spot.face), spot.scale or 1.4)
