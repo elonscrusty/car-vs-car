@@ -7,8 +7,8 @@ local test, eq, truthy = Harness.test, Harness.eq, Harness.truthy
 
 print("CarConfig")
 
-test("8 cars exist with sane numbers", function()
-	eq(#CarConfig.Order, 8)
+test("every car has sane numbers", function()
+	truthy(#CarConfig.Order >= 8)
 	for _, id in CarConfig.Order do
 		local s = CarConfig.Cars[id]
 		truthy(s ~= nil, id .. " missing")
