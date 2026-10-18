@@ -30,6 +30,7 @@ local Dummy = require(script.Parent.Dummy)
 local Impulse = require(script.Parent.Impulse)
 local Match = require(script.Parent.Match)
 local ModeFx = require(script.Parent.ModeFx)
+local Telemetry = require(script.Parent.Telemetry)
 local Moves = require(script.Parent.Moves)
 local Specials = require(script.Parent.Specials)
 
@@ -237,6 +238,7 @@ function GroupMatch.new(
 		end
 		local newHp, dead = Logic.applyDamage(defender.hp, dmg)
 		defender.hp = newHp
+		Telemetry.hit(participants)
 		defender.bar.set(newHp, maxHp[defender.idx])
 		local strength = Logic.hitStrength(rel, cfg.Feel.bigHitSpeed)
 		local hitPos = (a.body.Position + b.body.Position) / 2

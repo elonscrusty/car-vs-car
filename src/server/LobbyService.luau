@@ -34,6 +34,7 @@ local Profiles = require(script.Parent.Profiles)
 local Appearance = require(script.Parent.Appearance)
 local ClawAnim = require(script.Parent.ClawAnim)
 local LobbyBays = require(script.Parent.LobbyBays)
+local Telemetry = require(script.Parent.Telemetry)
 
 export type Participant = {
 	player: Player,
@@ -561,6 +562,7 @@ function LobbyService.start(deps: Deps): Handle
 			return
 		end
 		players[player] = { stage = "pad", offered = {}, picked = nil, token = 0 }
+		Telemetry.padStepped(player)
 		updatePadText(padIndex)
 		send(player, { kind = "countdown", seconds = state.pads[padIndex].seconds })
 	end
@@ -630,6 +632,7 @@ function LobbyService.start(deps: Deps): Handle
 			return
 		end
 		local r = Gacha.pull(p, rng)
+		Telemetry.clawPull(player)
 		Profiles.markDirty(player)
 		-- The prize is decided now; the claw machine plays its grab, then the result shows.
 		local function reveal()

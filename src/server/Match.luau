@@ -41,6 +41,7 @@ local MovesRules = require(ReplicatedStorage.Shared.Moves)
 local Modes = require(ReplicatedStorage.Shared.Modes)
 local ModesConfig = require(ReplicatedStorage.Shared.ModesConfig)
 local ModeFx = require(script.Parent.ModeFx)
+local Telemetry = require(script.Parent.Telemetry)
 
 type Phase = "pick" | "ready" | "aim" | "fight" | "roundEnd" | "matchEnd"
 
@@ -315,6 +316,7 @@ function Match.new(
 			dmg = defender.hp
 		end
 		lastHitAt = os.clock()
+		Telemetry.hit(participants)
 
 		local newHp, dead = Logic.applyDamage(defender.hp, dmg)
 		defender.hp = newHp
@@ -808,6 +810,7 @@ function Match.new(
 				return
 			end
 			submissions[i] = { angle = a, power = p }
+			Telemetry.launched(player)
 			if allSubmitted() then
 				startFight()
 			end
