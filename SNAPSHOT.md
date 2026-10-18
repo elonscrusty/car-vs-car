@@ -111,3 +111,10 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 - Server: `LobbyService` action `spin` (limited 2 per 3s) rolls with its Random, marks the day used BEFORE paying, sends `spinResult` + profile (`spinReady`). Save field `profile.spin = {lastDay}`.
 - Client: `src/client/SpinUi.luau` (SPIN menu button, odds list shown before spinning, wheel turns to the server's pick). Not eyeballed in Studio.
 - Also fixed: `Profiles.copyProfile` was dropping `build`, so garage builds were never saved.
+## Fight modes (hill, ice, last standing, soccer)
+- A match picks its mode by rotation: `Modes.pick(matchCounter)` in `init.server.luau` goes round `ModesConfig.Order` (duel, hill, ice, lastStanding, soccer). Take a name out of `Order` to stop it coming up. A rematch is the next mode.
+- Pure rules + tests: `src/shared/Modes.luau`, numbers in `ModesConfig.luau`, tests `tests/modes.test.luau`.
+- hill / ice stay 1v1 inside `Match.new(..., mode)`: hill = glowing circle (alone on it scores, hold 20 s wins, HP and ring-outs still count); ice = bowl friction and side grip way down (`GripMult` attribute on the car, read by `client/DriveCar`).
+- lastStanding / soccer = `src/server/GroupMatch.luau` (same handle as Match). 1-2 players, bots fill to 8 cars (lastStanding, 60% HP each) or 3v3 (soccer, humans on team 1). No aiming: "ready" countdown, then drive. Soccer: giant ball, goal arcs on the bowl wall, first to 3, time up = more goals, tie = next goal wins.
+- Look/props: `src/server/ModeFx.luau`. HUD line: UiUpdate `modeInfo`, shown by `src/client/ModeBanner.luau`.
+- Checked: Lune tests (244). NOT checked in Studio or by eye: soccer ball feel, bot play in soccer/8-car, goal arcs, banner. Tune only in ModesConfig.

@@ -2,7 +2,16 @@
 -- Shapes of the messages the server sends to the client (UiUpdate remote).
 
 export type UiUpdate = {
-	kind: "aim" | "ready" | "fight" | "roundEnd" | "matchEnd" | "hit" | "ko" | "move" | "buff",
+	kind: "aim"
+		| "ready"
+		| "fight"
+		| "roundEnd"
+		| "matchEnd"
+		| "hit"
+		| "ko"
+		| "move"
+		| "buff"
+		| "modeInfo",
 	move: string?, -- move: "boost" | "jump" | "special" (cooldown started, `seconds` long)
 	round: number?,
 	yourCar: string?,
@@ -24,7 +33,7 @@ export type UiUpdate = {
 	auto: boolean?, -- fight: the cars drive themselves (build-and-watch)
 	ability: string?, -- fight: name of your car's ability (the SPECIAL button), nil = none
 	buff: string?, -- buff: "shield" | "bighit" | "speed" (seconds = time left, 0 = ended)
-	text: string?, -- ko: "K.O.!" or "RING OUT!"
+	text: string?, -- ko: "K.O.!" or "RING OUT!"; modeInfo: the line shown at the top
 }
 
 -- Lobby messages (LobbyUpdate remote), a union discriminated by `kind`.

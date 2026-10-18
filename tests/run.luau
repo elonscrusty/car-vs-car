@@ -39,5 +39,6 @@ require("./hudstyle.test")
 require("./abilities.test")
 require("./catalog.test")
 require("./leaderboard.test")
+require("./modes.test")
 
 Harness.summary()

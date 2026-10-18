@@ -16,7 +16,9 @@ local Atmosphere = require(script.Atmosphere)
 local Lobby = require(script.Lobby)
 local LobbyService = require(script.LobbyService)
 local Leaderboards = require(script.Leaderboards)
+local GroupMatch = require(script.GroupMatch)
 local Match = require(script.Match)
+local Modes = require(ReplicatedStorage.Shared.Modes)
 local Profiles = require(script.Profiles)
 local RematchService = require(script.RematchService)
 
@@ -35,6 +37,7 @@ local lobbyLimiter = RateLimiter.new(6, GameConfig.Remote.windowSeconds)
 type Group = { match: Match.Handle, slot: number, remaining: number }
 local groups: { [Player]: Group } = {} -- every player in a match -> that match
 local usedSlots: { [number]: boolean } = {}
+local matchCounter = 0 -- which fight mode comes next (Modes.pick goes round ModesConfig.Order)
 local rematch = RematchService.new()
 local startMatch: (participants: { Match.Participant }) -> () -- defined below
 
@@ -96,7 +99,11 @@ function startMatch(participants: { Match.Participant })
 	local slot = freeSlot()
 	usedSlots[slot] = true
 	local group: Group = { match = nil :: any, slot = slot, remaining = #ok }
-	group.match = Match.new(ok, slot, remotes)
+	local mode = Modes.pick(matchCounter)
+	matchCounter += 1
+	group.match = if Modes.isGroup(mode)
+		then GroupMatch.new(ok, slot, remotes, mode)
+		else Match.new(ok, slot, remotes, mode)
 	for _, part in ok do
 		groups[part.player] = group
 	end

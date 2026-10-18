@@ -18,6 +18,7 @@ local HintUi = require(script.HintUi)
 local LobbyUi = require(script.LobbyUi)
 local BotLevelUi = require(script.BotLevelUi)
 local MenuBar = require(script.MenuBar)
+local ModeBanner = require(script.ModeBanner)
 local ProgressUi = require(script.ProgressUi)
 local QuestUi = require(script.QuestUi)
 local SpinUi = require(script.SpinUi)
@@ -29,6 +30,7 @@ local SteerInput = require(script.SteerInput)
 local Ui = require(script.Ui)
 
 local remotes = Remotes.get()
+local modeBanner = ModeBanner.new()
 local director = CameraDirector.new()
 local buffs = BuffUi.new()
 local menu = MenuBar.new() -- features add their own lobby buttons here (see MenuBar.luau)
@@ -76,6 +78,7 @@ local lobby = LobbyUi.new({
 		driver.stop()
 		skids.stop()
 		actions.stop()
+		modeBanner.hide()
 		view.hideMatch()
 		ProximityPromptService.Enabled = true
 		director.release()
@@ -179,6 +182,8 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		if u.auto ~= true then
 			actions.start(u.ability)
 		end
+	elseif u.kind == "modeInfo" then
+		modeBanner.show(u.text or "")
 	elseif u.kind == "move" then
 		actions.cooldown(u.move or "", u.seconds or 0)
 	elseif u.kind == "buff" then
@@ -212,6 +217,7 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		driver.stop()
 		skids.stop()
 		actions.stop()
+		modeBanner.hide()
 		view.showMatchEnd(u.youWon == true)
 	end
 end)
