@@ -108,11 +108,6 @@ Design follows `/mnt/project-files/car-vs-car/game-plan.md`, but carter chose (2
 - Not done: 4-6 cars in one bowl (Match is built for 2 cars: `cars[3 - idx]`); sounds (no verified asset ids).
 
 ## Claw machine prizes (claw thread)
-- Server already rolled prizes (`Gacha.pull` in `LobbyService.buyGacha`) and played `ClawAnim`. Added: Legendary tier, shown odds = rolled odds (`Gacha.oddsTable` skips rarities with no cars and re-scales to 100), duplicate coins by rarity (`LobbyConfig.Gacha.duplicateRefunds`, `Gacha.refundFor`), weapons off (`weaponChance = 0`).
-- All odds, prices and refunds are PRETEND numbers in `LobbyConfig.Gacha` / `Store`; carter gives real ones. Cars come from `CarConfig.Order` + `LobbyConfig.Rarity`: when the cars registry lands, give each new car a rarity and it joins the claw by itself.
-- Tests: `tests/lobby.test.luau`. Not checked in Studio.
-
-## Claw machine prizes (claw thread)
 - Prize rolled on the server (`Gacha.pull`), claw animation plays from the result. Shown odds = rolled odds (`Gacha.oddsTable` skips rarities with no cars, re-scales to 100). Duplicate coins grow with rarity: `LobbyConfig.Gacha.duplicateRefunds`, `Gacha.refundFor`. All numbers are PRETEND. New cars join the claw by getting a rarity in the catalog.
 ## Update: bowl arena makeover
 See SNAPSHOT.md section "Bowl arena makeover". Tune scenery in ArenaLookConfig, skid numbers in SkidRules.Config, pad sign numbers in BowlConfig.Pads. Outside grass beyond the road is not solid (cars fall to the out-of-bounds drop). Lighting (Atmosphere.luau) untouched.
