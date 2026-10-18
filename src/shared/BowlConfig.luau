@@ -7,7 +7,6 @@ return {
 		from = 0.6, -- hits at least this strong (0..1) are a SMASH
 		upSpeed = 18, -- the car that got hit pops up this fast (x strength, studs/s)
 		spin = 9, -- and spins this fast (x strength, rad/s)
-		text = "SMASH!",
 	},
 	Pads = {
 		count = 4, -- boost pads on the bowl wall
