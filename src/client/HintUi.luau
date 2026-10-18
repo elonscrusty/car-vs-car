@@ -92,7 +92,7 @@ function HintUi.new(onSeen: (id: string) -> ()): Handle
 	local banner = Instance.new("Frame")
 	banner.AnchorPoint = Vector2.new(0.5, 0)
 	banner.Position = UDim2.new(0.5, 0, 0, 76)
-	banner.Size = UDim2.fromScale(0.62, 0.11)
+	banner.Size = UDim2.fromScale(0.4, 0.07)
 	banner.BackgroundColor3 = NAVY
 	banner.BackgroundTransparency = 0.1
 	banner.BorderSizePixel = 0
@@ -104,8 +104,8 @@ function HintUi.new(onSeen: (id: string) -> ()): Handle
 	bannerStroke.Thickness = 3
 	bannerStroke.Parent = banner
 	local limit = Instance.new("UISizeConstraint")
-	limit.MinSize = Vector2.new(260, 64)
-	limit.MaxSize = Vector2.new(700, 110)
+	limit.MinSize = Vector2.new(220, 46)
+	limit.MaxSize = Vector2.new(440, 62)
 	limit.Parent = banner
 	local scale = Instance.new("UIScale")
 	scale.Parent = banner
@@ -121,7 +121,7 @@ function HintUi.new(onSeen: (id: string) -> ()): Handle
 	text.Parent = banner
 	local textLimit = Instance.new("UITextSizeConstraint")
 	textLimit.MinTextSize = 18
-	textLimit.MaxTextSize = 38
+	textLimit.MaxTextSize = 26
 	textLimit.Parent = text
 
 	-- Arrow hanging under the banner (only for hints that point at something).
@@ -173,6 +173,11 @@ function HintUi.new(onSeen: (id: string) -> ()): Handle
 		local myToken = token
 		text.Text = Hints.text(id)
 		banner.Visible = true
+		task.delay(7, function() -- small and short: it goes away on its own
+			if token == myToken then
+				banner.Visible = false
+			end
+		end)
 		scale.Scale = 0.7
 		TweenService:Create(scale, POP, { Scale = 1 }):Play()
 

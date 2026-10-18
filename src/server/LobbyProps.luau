@@ -72,7 +72,7 @@ function LobbyProps.build(folder: Folder, origin: Vector3)
 
 	-- Roller doors on the back wall, either side of the stage.
 	if has("roller_door") then
-		for _, x in { -36, -12, 12, 36 } do
+		for _, x in { -36, -12, 12 } do
 			put("roller_door", at(x, 0, -room.halfL + 0.9, 180), 0.9)
 		end
 	end
