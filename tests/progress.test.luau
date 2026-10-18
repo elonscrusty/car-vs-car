@@ -48,7 +48,8 @@ H.test("streak bonus at 3, 5 and 7+, reset on a loss", function()
 	local p = fresh()
 	local bonuses = {}
 	for i = 1, 8 do
-		bonuses[i] = Progress.applyMatchResult(p, "Heavy", true, ProgressConfig).coinsBonus
+		local r = Progress.applyMatchResult(p, "Heavy", true, ProgressConfig)
+		bonuses[i] = r.coinsBonus - r.levelCoins -- streak part only
 	end
 	H.eq(bonuses[1], 0)
 	H.eq(bonuses[2], 0)
@@ -94,4 +95,48 @@ H.test("saved progress is kept and cleaned", function()
 	local copy = Progress.copy(p.progress)
 	copy.carXp.Heavy = 1
 	H.eq(p.progress.carXp.Heavy, 120)
+end)
+
+H.test("level gives more hp and damage, level 1 is unchanged", function()
+	local base: any = { hp = 100, damageMult = 1 }
+	local one = Progress.applyLevel(base, 1)
+	H.eq(one.hp, 100)
+	H.eq(one.damageMult, 1)
+	local ten = Progress.applyLevel(base, 10)
+	H.eq(ten.hp, 127)
+	H.near(ten.damageMult, 1.27, 1e-9)
+	H.eq(base.hp, 100) -- input untouched
+	H.eq(Progress.applyLevel(base, nil).hp, 100)
+	H.eq(Progress.applyLevel(base, 99).hp, 127) -- clamped to max level
+	H.eq(Progress.applyLevel(base, -5).hp, 100)
+end)
+
+H.test("level-up coins are paid once per level, included in the bonus", function()
+	local c = ProgressConfig
+	H.eq(Progress.levelCoins(1, 1), 0)
+	H.eq(Progress.levelCoins(1, 2), c.LevelUpCoins[2])
+	H.eq(Progress.levelCoins(1, 3), c.LevelUpCoins[2] + c.LevelUpCoins[3])
+	local p = fresh()
+	p.progress.carXp.Heavy = c.LevelXp[2] - c.XpWin
+	local r = Progress.applyMatchResult(p, "Heavy", true, c)
+	H.eq(r.leveledUp, true)
+	H.eq(r.levelCoins, c.LevelUpCoins[2])
+	H.eq(r.coinsBonus, c.LevelUpCoins[2]) -- streak 1 has no streak bonus
+	local again = Progress.applyMatchResult(p, "Heavy", true, c)
+	H.eq(again.levelCoins, 0)
+end)
+
+H.test("best streak keeps the record after a loss and survives clean/copy", function()
+	local p = fresh()
+	for _ = 1, 4 do
+		Progress.applyMatchResult(p, "Heavy", true, ProgressConfig)
+	end
+	Progress.applyMatchResult(p, "Heavy", false, ProgressConfig)
+	Progress.applyMatchResult(p, "Heavy", true, ProgressConfig)
+	H.eq(p.progress.streak, 1)
+	H.eq(p.progress.bestStreak, 4)
+	H.eq(Progress.copy(p.progress).bestStreak, 4)
+	H.eq(Progress.clean({ streak = 6, bestStreak = 2 }).bestStreak, 6)
+	H.eq(Progress.clean({ bestStreak = "x" }).bestStreak, 0)
+	H.eq(Progress.clean(nil).bestStreak, 0)
 end)

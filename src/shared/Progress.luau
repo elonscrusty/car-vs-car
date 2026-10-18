@@ -15,15 +15,21 @@ end
 local CarConfig = sibling("CarConfig")
 local DefaultConfig = sibling("ProgressConfig")
 
-export type Data = { carXp: { [string]: number }, streak: number }
-export type Result = { coinsBonus: number, leveledUp: boolean, newLevel: number, streak: number }
+export type Data = { carXp: { [string]: number }, streak: number, bestStreak: number }
+export type Result = {
+	coinsBonus: number,
+	leveledUp: boolean,
+	newLevel: number,
+	streak: number,
+	levelCoins: number, -- part of coinsBonus paid for the new level(s)
+}
 
 local Progress = {}
 
 local MAX_NUMBER = 1e9
 
 function Progress.default(): Data
-	return { carXp = {}, streak = 0 }
+	return { carXp = {}, streak = 0, bestStreak = 0 }
 end
 
 local function cleanNumber(v: any): number
@@ -40,6 +46,7 @@ function Progress.clean(raw: any): Data
 		return data
 	end
 	data.streak = cleanNumber(raw.streak)
+	data.bestStreak = math.max(cleanNumber(raw.bestStreak), data.streak)
 	if type(raw.carXp) == "table" then
 		for _, id in CarConfig.Order do
 			local xp = cleanNumber(raw.carXp[id])
@@ -52,7 +59,7 @@ function Progress.clean(raw: any): Data
 end
 
 function Progress.copy(d: Data): Data
-	return { carXp = table.clone(d.carXp), streak = d.streak }
+	return { carXp = table.clone(d.carXp), streak = d.streak, bestStreak = d.bestStreak }
 end
 
 function Progress.maxLevel(): number
@@ -80,6 +87,31 @@ function Progress.levels(d: Data): { [string]: number }
 		out[id] = Progress.levelForXp(xp)
 	end
 	return out
+end
+
+-- HP and hit damage multiplier for a car level (level 1 = x1).
+function Progress.statMult(level: number, cfg: any?): number
+	local c = cfg or DefaultConfig
+	return 1 + c.LevelStatBonus * (math.clamp(math.floor(level), 1, Progress.maxLevel()) - 1)
+end
+
+-- Stats with the level bonus on hp and damageMult. Returns a new table (the input stays unchanged).
+function Progress.applyLevel(stats: any, level: number?, cfg: any?): any
+	local out = table.clone(stats)
+	local m = Progress.statMult(level or 1, cfg)
+	out.hp = math.max(1, math.floor(stats.hp * m + 0.5))
+	out.damageMult = stats.damageMult * m
+	return out
+end
+
+-- Coins for every level between `before` (exclusive) and `after` (inclusive).
+function Progress.levelCoins(before: number, after: number, cfg: any?): number
+	local c = cfg or DefaultConfig
+	local total = 0
+	for lv = before + 1, after do
+		total += c.LevelUpCoins[lv] or 0
+	end
+	return total
 end
 
 function Progress.rankFor(wins: number): string
@@ -113,11 +145,19 @@ function Progress.applyMatchResult(profile: any, carId: string, won: boolean, cf
 	local bonus = 0
 	if won then
 		d.streak = math.clamp(d.streak + 1, 0, MAX_NUMBER)
+		d.bestStreak = math.max(d.bestStreak, d.streak)
 		bonus = Progress.streakBonus(d.streak, c)
 	else
 		d.streak = 0
 	end
-	return { coinsBonus = bonus, leveledUp = after > before, newLevel = after, streak = d.streak }
+	local levelCoins = Progress.levelCoins(before, after, c)
+	return {
+		coinsBonus = bonus + levelCoins,
+		leveledUp = after > before,
+		newLevel = after,
+		streak = d.streak,
+		levelCoins = levelCoins,
+	}
 end
 
 return Progress

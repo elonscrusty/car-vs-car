@@ -21,6 +21,7 @@ local PadLogic = require(ReplicatedStorage.Shared.PadLogic)
 local Quests = require(ReplicatedStorage.Shared.Quests)
 local PickChoices = require(ReplicatedStorage.Shared.PickChoices)
 local Progress = require(ReplicatedStorage.Shared.Progress)
+local Leaderboards = require(script.Parent.Leaderboards)
 local ProgressConfig = require(ReplicatedStorage.Shared.ProgressConfig)
 local RateLimiter = require(ReplicatedStorage.Shared.RateLimiter)
 local BotLevels = require(ReplicatedStorage.Shared.BotLevels)
@@ -297,6 +298,7 @@ function LobbyService.start(deps: Deps): Handle
 				p.wins += 1
 			end
 			Profiles.markDirty(player)
+			Leaderboards.submit(player, p)
 		end
 		if player.Parent == nil then
 			return

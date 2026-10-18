@@ -9,6 +9,7 @@ local Ai = require(ReplicatedStorage.Shared.Ai)
 local Build = require(ReplicatedStorage.Shared.Build)
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
+local Progress = require(ReplicatedStorage.Shared.Progress)
 local Appearance = require(script.Parent.Appearance)
 local Badge = require(script.Parent.Badge)
 local HpBar = require(script.Parent.HpBar)
@@ -195,7 +196,8 @@ function CarBuilder.build(
 	look: Appearance.Appearance?,
 	build: Build.BuildData? -- build-and-watch: the stats come from the parts (nil = the plain car)
 ): Car
-	local stats = if build then Build.stats(CarConfig.Cars[id], build) else CarConfig.Cars[id]
+	local plain = if build then Build.stats(CarConfig.Cars[id], build) else CarConfig.Cars[id]
+	local stats = Progress.applyLevel(plain, if look then look.level else nil) -- car level: more HP + damage
 	local sx, sy, sz = stats.size[1], stats.size[2], stats.size[3]
 	local color = Color3.fromRGB(stats.rgb[1], stats.rgb[2], stats.rgb[3])
 	local dark = Color3.fromRGB(35, 35, 40)

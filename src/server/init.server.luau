@@ -7,12 +7,15 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
+local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
 local MovesConfig = require(ReplicatedStorage.Shared.MovesConfig)
+local ProgressConfig = require(ReplicatedStorage.Shared.ProgressConfig)
 local RateLimiter = require(ReplicatedStorage.Shared.RateLimiter)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Atmosphere = require(script.Atmosphere)
 local Lobby = require(script.Lobby)
 local LobbyService = require(script.LobbyService)
+local Leaderboards = require(script.Leaderboards)
 local Match = require(script.Match)
 local Profiles = require(script.Profiles)
 local RematchService = require(script.RematchService)
@@ -102,6 +105,11 @@ end
 Profiles.init()
 Atmosphere.apply()
 local lobby = Lobby.build()
+Leaderboards.init(
+	lobby.folder,
+	LobbyConfig.Lobby.origin
+		+ Vector3.new(ProgressConfig.Board.spot.x, 0, ProgressConfig.Board.spot.z)
+)
 
 -- Studio templates ship a default SpawnLocation; players must always spawn in the lobby.
 for _, child in workspace:GetChildren() do

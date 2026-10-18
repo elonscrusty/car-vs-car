@@ -99,3 +99,9 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 - Boost pads push SIDEWAYS along the rim (tangent), the way round follows the car's own direction; chevrons point along the rim. `BowlRules.padLaunch(pad, kick, lift, vx, vz)`.
 - Camera follows your car more (0.6 shift) and sits closer (60 back, 72 up). "Pull back, let go" text is small under the banner.
 - Not checked in Studio: launch speeds (Launch min/max 70-150) may feel slow in the bigger bowl; steep slope driving; camera framing.
+
+## Level-ups, win streak, leaderboards
+- Car levels were already in (XP per match, badge). New: each level adds +3% HP and hit damage (`Progress.applyLevel`, used in `CarBuilder`; bots stay level 1) and pays one-time level-up coins (`ProgressConfig.LevelUpCoins`, folded into `coinsBonus`). All numbers are PLACEHOLDERS.
+- Win streak bonus already existed (3/5/7+). New: `progress.bestStreak` (record, old saves migrate to 0 or current streak).
+- Leaderboards: pure `shared/Leaderboard.luau` (scores, throttle, rows, text), server `Leaderboards.luau` (OrderedDataStores `TopWins_v1`, `BestStreak_v1`; best score only, throttled, retries; top 10 refreshed every 60 s; two boards built in code at `ProgressConfig.Board.spot`). Scores are sent from `LobbyService.finishMatch`.
+- Tests: `tests/progress.test.luau`, `tests/leaderboard.test.luau` (236 pass). Not run in Studio: board position/look unchecked by eye, DataStore calls untested (Studio needs API access on).
