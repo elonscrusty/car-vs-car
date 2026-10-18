@@ -190,7 +190,7 @@ function QuestUi.new(menu: MenuBar.MenuBar, onAction: (action: string, arg: any?
 			row.root.Visible = q ~= nil
 			if q then
 				row.name.Text = `{q.title}  (+{q.reward})`
-				row.fill.Size = UDim2.fromScale(math.clamp(q.progress / q.target, 0, 1), 1)
+				row.fill.Size = UDim2.fromScale(math.clamp(q.progress / math.max(q.target, 1), 0, 1), 1)
 				row.count.Text = `{q.progress} / {q.target}`
 				row.claim.Visible = q.done
 				anyDone = anyDone or q.done

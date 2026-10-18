@@ -187,7 +187,7 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 			for i, part in participants do
 				local youWon = loser.idx ~= i
 				sendTo(i, { kind = "matchEnd", youWon = youWon })
-				if part.onEndScreen then
+				if part.onEndScreen and not gone[i] then
 					part.onEndScreen()
 				end
 				task.delay(LobbyConfig.Rewards.endScreenSeconds, function()
