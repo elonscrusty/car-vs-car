@@ -7,9 +7,9 @@ local Fx = {}
 function Fx.smoke(body: Part)
 	local e = Instance.new("ParticleEmitter")
 	e.Name = "Smoke"
-	e.Color = ColorSequence.new(Color3.fromRGB(60, 60, 60))
+	e.Color = ColorSequence.new(Color3.fromRGB(95, 95, 98))
 	e.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.3),
+		NumberSequenceKeypoint.new(0, 0.5),
 		NumberSequenceKeypoint.new(1, 1),
 	})
 	e.Size = NumberSequence.new({

@@ -81,3 +81,10 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 - 8 weapons (src/shared/WeaponsConfig.luau), one worn per player, won from the claw (dupes = coins). Server runtime: src/server/Weapon.luau (called from Match). WEAPON button (Q) only for active weapons. Menu: src/client/WeaponUi.luau.
 - Studio test shortcut: set player attribute DevWeapon to a weapon id, then DEV: BOT MATCH.
 - Flame shoots from the back; bot picks a random weapon.
+
+## Bowl arena makeover (look only, no physics changes)
+- Arena: grey concrete bowl, red/white rim, curb + steel skirt + asphalt ring road, hazard pads, tires, cones, barriers, 4 floodlight towers, trees, hills, rocks, ocean. `server/ArenaScenery.luau`, pure layout `shared/ArenaLayout.luau`, numbers `shared/ArenaLookConfig.luau`. About 330 parts per arena.
+- Boost pads: blue sign panel + cyan chevrons (`BowlHazards`), still ground push only, no hop. Power-ups: icon + name pill + glow (`Pickups`, `shared/PickupStyle.luau`).
+- Effects: skid marks + tire smoke (`client/SkidFx.luau`, `shared/SkidRules.luau`), sparks; NO "SMASH!" text, shockwave ring removed.
+- HUD: YOU vs BOT banner, name + HP bar over cars (`HpBar`), joystick, BOOST (cyan) + ABILITY (yellow) only; JUMP button gone. `shared/HudStyle.luau`.
+- Not checked by eye in Studio. Check: sign text mirrored (BowlHazards Face.Back/Front), sign clipping the wall, ocean visible from lobby, trail look.

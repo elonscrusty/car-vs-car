@@ -307,7 +307,7 @@ function Match.new(participants: { Participant }, slot: number, remotes: Remotes
 				strength = strength,
 				damage = dmg,
 				youHit = defender.idx == i,
-				tag = if popSpeed > 0 then BowlConfig.Smash.text else Damage.tag(zone, comboCount),
+				tag = Damage.tag(zone, comboCount),
 			}
 		end)
 		if popSpeed > 0 then
