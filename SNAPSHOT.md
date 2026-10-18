@@ -99,3 +99,11 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 - Boost pads push SIDEWAYS along the rim (tangent), the way round follows the car's own direction; chevrons point along the rim. `BowlRules.padLaunch(pad, kick, lift, vx, vz)`.
 - Camera follows your car more (0.6 shift) and sits closer (60 back, 72 up). "Pull back, let go" text is small under the banner.
 - Not checked in Studio: launch speeds (Launch min/max 70-150) may feel slow in the bigger bowl; steep slope driving; camera framing.
+
+## Fight modes (hill, ice, last standing, soccer)
+- A match picks its mode by rotation: `Modes.pick(matchCounter)` in `init.server.luau` goes round `ModesConfig.Order` (duel, hill, ice, lastStanding, soccer). Take a name out of `Order` to stop it coming up. A rematch is the next mode.
+- Pure rules + tests: `src/shared/Modes.luau`, numbers in `ModesConfig.luau`, tests `tests/modes.test.luau`.
+- hill / ice stay 1v1 inside `Match.new(..., mode)`: hill = glowing circle (alone on it scores, hold 20 s wins, HP and ring-outs still count); ice = bowl friction and side grip way down (`GripMult` attribute on the car, read by `client/DriveCar`).
+- lastStanding / soccer = `src/server/GroupMatch.luau` (same handle as Match). 1-2 players, bots fill to 8 cars (lastStanding, 60% HP each) or 3v3 (soccer, humans on team 1). No aiming: "ready" countdown, then drive. Soccer: giant ball, goal arcs on the bowl wall, first to 3, time up = more goals, tie = next goal wins.
+- Look/props: `src/server/ModeFx.luau`. HUD line: UiUpdate `modeInfo`, shown by `src/client/ModeBanner.luau`.
+- Checked: Lune tests (244). NOT checked in Studio or by eye: soccer ball feel, bot play in soccer/8-car, goal arcs, banner. Tune only in ModesConfig.

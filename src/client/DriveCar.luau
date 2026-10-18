@@ -86,7 +86,9 @@ function DriveCar.new(read: () -> (number, number)): DriveCar
 			local mods: CarDrive.Mods = {
 				speedScale = Moves.boostSpeedMult(sinceBoost, MovesConfig.Boost),
 				accelScale = Moves.boostAccelMult(sinceBoost, MovesConfig.Boost),
-				gripScale = gripScale,
+				gripScale = gripScale * (if type(m:GetAttribute("GripMult")) == "number"
+					then m:GetAttribute("GripMult") :: number
+					else 1),
 				turnScale = turnScale,
 			}
 			local speedMult = m:GetAttribute("SpeedMult")
