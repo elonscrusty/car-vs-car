@@ -124,3 +124,6 @@ See SNAPSHOT.md section "Level-ups, win streak, leaderboards". Tune in `Progress
 Tune rewards/odds only in `src/shared/SpinConfig.luau` (placeholders). Quests: `QuestsConfig.luau`. Daily gift: `QuestsConfig.Daily`. Spin UI not yet checked by eye on a phone or in Studio.
 ## Fight modes
 See "Fight modes" in SNAPSHOT.md. Tweak `src/shared/ModesConfig.luau` only (hill hold time, ice grip, 8-car hpScale, ball size/density, goal size, score to win). Untested in Studio: first play test should check the soccer ball (too heavy/light?), that bots do not all pile on the ball, and the top banner on a phone.
+
+## Social + safety
+See SNAPSHOT.md "Social + safety". Tune cheat limits in `src/shared/CarSanityConfig.luau` (placeholders; if honest players get snapped back, raise `teleportSlack`/`graceSeconds`). Weekly store name changes every Monday UTC automatically. Carter: set Max Players 12 to 16 in Game Settings (not settable from code).

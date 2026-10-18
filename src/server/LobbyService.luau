@@ -305,6 +305,7 @@ function LobbyService.start(deps: Deps): Handle
 			Inventory.addCoins(p, earned)
 			if won then
 				p.wins += 1
+				Leaderboards.recordWin(player)
 			end
 			Profiles.markDirty(player)
 			Leaderboards.submit(player, p)

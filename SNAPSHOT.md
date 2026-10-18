@@ -118,3 +118,11 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 - lastStanding / soccer = `src/server/GroupMatch.luau` (same handle as Match). 1-2 players, bots fill to 8 cars (lastStanding, 60% HP each) or 3v3 (soccer, humans on team 1). No aiming: "ready" countdown, then drive. Soccer: giant ball, goal arcs on the bowl wall, first to 3, time up = more goals, tie = next goal wins.
 - Look/props: `src/server/ModeFx.luau`. HUD line: UiUpdate `modeInfo`, shown by `src/client/ModeBanner.luau`.
 - Checked: Lune tests (244). NOT checked in Studio or by eye: soccer ball feel, bot play in soccer/8-car, goal arcs, banner. Tune only in ModesConfig.
+
+## Social + safety (invite, weekly board, weekly bowl look, car sanity)
+- Invite: `client/InviteUi.luau` (button on the win screen; `SocialService:CanSendGameInviteAsync` in pcall, then `PromptGameInvite`; hidden if not allowed). Hooked in `Ui.luau`.
+- Weekly wins board: `Leaderboard.weekIndex` (Monday 00:00 UTC weeks), `weeklyStore` (`TopWinsWeekly_v1_w<week>`), `addWins`; `Leaderboards.recordWin` is called from `LobbyService.finishMatch` on a win; third board built between all-time wins and best streak.
+- Weekly bowl look: `shared/ArenaThemes.luau` (4 placeholder palettes by week), applied in `ArenaScenery.build` (wall stripe colors + grass tint only; no sizes touched).
+- Car sanity: `shared/CarSanityRules.luau` + `CarSanityConfig.luau` (pure, tested) and `server/CarSanity.luau`. Per fight frame, client-driven cars are checked for teleport, height, measured speed; bad = put back at last good spot, 3 resets = forfeit. Hooked in `Match` and `GroupMatch` (soccer never forfeits, respawns call `CarSanity.rebase`). All numbers in `CarSanityConfig` are PLACEHOLDERS.
+- Docs: `docs/playtest-checklist.md`, `docs/store-page.md`. Max Players (12 to 16) must be set by carter in Game Settings.
+- Tests: 269 pass. Not checked in Studio: invite prompt, board look/position (boards now 3 wide), theme colors, false resets under real lag.

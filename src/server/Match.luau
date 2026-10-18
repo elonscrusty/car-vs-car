@@ -25,6 +25,7 @@ local Arena = require(script.Parent.Arena)
 local Autopilot = require(script.Parent.Autopilot)
 local BowlHazards = require(script.Parent.BowlHazards)
 local Buffs = require(script.Parent.Buffs)
+local CarSanity = require(script.Parent.CarSanity)
 local Pickups = require(script.Parent.Pickups)
 local BotLevels = require(ReplicatedStorage.Shared.BotLevels)
 local Appearance = require(script.Parent.Appearance)
@@ -672,7 +673,9 @@ function Match.new(
 				elseif human and not gone[car.idx] and clientDriven[car.idx] then
 					-- The driver's device moves this car; the server only keeps it honest.
 					car.model:SetAttribute("SpeedMult", Buffs.speedMult(car))
-					if not limitSpeed(car) then
+					if
+						not limitSpeed(car) or not CarSanity.step(car, origin.Y, speedCap(car), dt)
+					then
 						endMatch(car, "RING OUT!")
 						return
 					end

@@ -4,7 +4,7 @@
 
 export type Entry = { key: any, value: any } -- one OrderedDataStore row
 export type Row = { rank: number, userId: number, score: number }
-export type Kind = "wins" | "streak"
+export type Kind = "wins" | "streak" | "weekly"
 
 local Leaderboard = {}
 
@@ -13,6 +13,32 @@ Leaderboard.Boards = {
 	{ kind = "wins" :: Kind, store = "TopWins_v1", title = "MOST WINS" },
 	{ kind = "streak" :: Kind, store = "BestStreak_v1", title = "BEST WIN STREAK" },
 }
+
+-- Weekly wins board. Its OrderedDataStore name carries the week number, so each week starts empty
+-- and old weeks just stop being read. Weeks run Monday 00:00 UTC to Sunday 23:59 UTC.
+Leaderboard.Weekly =
+	{ kind = "weekly" :: Kind, store = "TopWinsWeekly_v1", title = "WINS THIS WEEK" }
+Leaderboard.WEEK_SECONDS = 604800
+local MONDAY_OFFSET = 345600 -- 1970-01-01 was a Thursday; the first Monday is 4 days later
+
+-- Whole weeks since the first Monday of 1970 (UTC). Bad or negative time gives 0.
+function Leaderboard.weekIndex(unixSeconds: number): number
+	if type(unixSeconds) ~= "number" or unixSeconds ~= unixSeconds then
+		return 0
+	end
+	return math.max(0, math.floor((unixSeconds - MONDAY_OFFSET) / Leaderboard.WEEK_SECONDS))
+end
+
+-- "TopWinsWeekly_v1_w2900" for week 2900.
+function Leaderboard.weeklyStore(week: number): string
+	return `{Leaderboard.Weekly.store}_w{math.max(0, math.floor(week))}`
+end
+
+-- New stored weekly score after `add` more wins (junk old values count as 0).
+function Leaderboard.addWins(old: any, add: number): number
+	local base = if type(old) == "number" and old == old and old >= 0 then math.floor(old) else 0
+	return math.min(base + math.max(0, math.floor(add)), 1e9)
+end
 
 -- The score a player has on a board. `profile` needs `wins` and `progress.bestStreak`.
 function Leaderboard.scoreFor(kind: Kind, profile: any): number

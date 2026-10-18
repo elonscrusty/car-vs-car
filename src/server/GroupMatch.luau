@@ -26,6 +26,7 @@ local Types = require(ReplicatedStorage.Shared.Types)
 local Arena = require(script.Parent.Arena)
 local Autopilot = require(script.Parent.Autopilot)
 local CarBuilder = require(script.Parent.CarBuilder)
+local CarSanity = require(script.Parent.CarSanity)
 local Dummy = require(script.Parent.Dummy)
 local Impulse = require(script.Parent.Impulse)
 local Match = require(script.Parent.Match)
@@ -443,7 +444,7 @@ function GroupMatch.new(
 
 	-- ---- Driving -----------------------------------------------------------------------------
 
-	local function limitSpeed(car: CarBuilder.Car)
+	local function limitSpeed(car: CarBuilder.Car): number
 		local cap = math.max(
 			cfg.Launch.maxSpeed,
 			car.stats.maxSpeed * (1 + MovesConfig.Boost.speedBonus)
@@ -454,6 +455,7 @@ function GroupMatch.new(
 			local keep = flat.Unit * cap
 			car.body.AssemblyLinearVelocity = Vector3.new(keep.X, v.Y, keep.Z)
 		end
+		return cap
 	end
 
 	-- The car a bot (or a special move) goes after. Soccer bots aim at a point behind the ball
@@ -548,7 +550,13 @@ function GroupMatch.new(
 				local target = targetFor(car)
 				local human = isHuman(car.idx)
 				if human and clientDriven[car.idx] then
-					limitSpeed(car)
+					local cap = limitSpeed(car)
+					if not CarSanity.step(car, origin.Y, cap, dt) and not soccerOn then
+						eliminate(car, "RING OUT!") -- kept breaking movement limits
+						if ending then
+							return
+						end
+					end
 				elseif human then
 					local raw = Steer.current(steerStates[car.idx], now, cfg.Steer.staleSeconds)
 					local eased = Steer.smooth(steerSmooth[car.idx], raw, dt, cfg.Steer.smoothRate)
@@ -593,6 +601,7 @@ function GroupMatch.new(
 					)
 					car.body.AssemblyLinearVelocity = Vector3.zero
 					car.body.AssemblyAngularVelocity = Vector3.zero
+					CarSanity.rebase(car) -- a legit move: do not count it as a teleport
 				end
 			end
 			fightElapsed += dt
