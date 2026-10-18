@@ -29,7 +29,7 @@ export type LobbyHandle = {
 
 local Lobby = {}
 
-local CLAW_SCALE = 1.5 -- the imported claw is about 7 studs wide; it stands on a 20 stud platform
+local CLAW_SCALE = 2.1 -- the imported claw is about 7 studs wide; it stands on a 20 stud platform
 local CLAW_YAW_DEG = 180 -- turns the imported claw machine so its front faces the hall (it stands by the back wall)
 
 local CYAN = Color3.fromRGB(60, 220, 255)
@@ -81,12 +81,13 @@ local function label(
 	face: Enum.NormalId,
 	text: string,
 	color: Color3,
-	strokeColor: Color3?
+	strokeColor: Color3?,
+	pixelsPerStud: number? -- default 40; use fewer for BIG signs (text is capped at 100 px tall)
 ): TextLabel
 	local gui = Instance.new("SurfaceGui")
 	gui.Face = face
 	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = 40
+	gui.PixelsPerStud = pixelsPerStud or 40
 	gui.LightInfluence = 0
 	gui.Parent = p
 	local t = Instance.new("TextLabel")
@@ -1180,7 +1181,8 @@ function Lobby.build(): LobbyHandle
 			Enum.NormalId.Front,
 			"CAR VS CAR",
 			face,
-			if k == 0 then Color3.fromRGB(20, 40, 140) else nil
+			if k == 0 then Color3.fromRGB(20, 40, 140) else nil,
+			9
 		)
 	end
 	local underglow = part(
@@ -1298,28 +1300,17 @@ function Lobby.build(): LobbyHandle
 	)
 	platformRing.CanCollide = false
 	glow(platformRing, YELLOW, 26, 0.5)
-	for _, px in { -1, 1 } do
-		local post = part(
-			folder,
-			"GachaPost",
-			Vector3.new(1.2, 15, 1.2),
-			world(g.x + px * (g.w / 2 + 1.5), 7.5, g.z + g.d / 2 + 0.5),
-			RED,
-			Enum.Material.Metal
-		)
-		post.CanCollide = false
-	end
 	local gSign = part(
 		folder,
 		"GachaSign",
-		Vector3.new(g.w + 5, 4, 0.8),
+		Vector3.new(22, 4.4, 0.8),
 		CFrame.lookAt(
-			origin + Vector3.new(g.x, 15, g.z + g.d / 2 + 0.5),
-			origin + Vector3.new(g.x, 15, g.z + 20)
+			origin + Vector3.new(g.x, 34.5, -HL + 1.4),
+			origin + Vector3.new(g.x, 34.5, 0)
 		),
 		Color3.fromRGB(14, 12, 40)
 	)
-	label(gSign, Enum.NormalId.Front, "PRIZE CLAW", YELLOW, Color3.fromRGB(20, 40, 140))
+	label(gSign, Enum.NormalId.Front, "PRIZE CLAW", YELLOW, Color3.fromRGB(20, 40, 140), 12)
 	glow(gSign, YELLOW, 30, 0.5)
 	prompt(gBase, "GachaPrompt", "Play", "Claw Machine")
 
