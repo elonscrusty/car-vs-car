@@ -85,3 +85,10 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 - Runtime: `server/Specials.luau` fires the car's ability on the SPECIAL button (Match -> `Moves.press`), server-checked cooldown, same rate limit as boost/jump. The fight message carries `ability` (name) and the SPECIAL button shows it. Shield = `Buffs.applyFor`; Ram = damage window read by Match; Slam/Magnet shove the enemy (mass-aware); Dash/Jump are impulses on your own car.
 - Wheels/engine/armor (Build, BuildConfig) multiply any car's stats and keep `ability/rarity/model`, so they work on all 38 cars. Swap wheels overlaying a model's own wheels is Studio work, not done here.
 - Not done: the 30 FBX models are not in the repo or used by CarBuilder yet (still box bodies; `model` names are ready for the Studio side). Not run in Studio; ability feel is untuned. selene and luau-analyze were not run locally (no Roblox API dump offline); CI lints.
+
+## Bowl arena makeover (look only, no physics changes)
+- Arena: grey concrete bowl, red/white rim, curb + steel skirt + asphalt ring road, hazard pads, tires, cones, barriers, 4 floodlight towers, trees, hills, rocks, ocean. `server/ArenaScenery.luau`, pure layout `shared/ArenaLayout.luau`, numbers `shared/ArenaLookConfig.luau`. About 330 parts per arena.
+- Boost pads: blue sign panel + cyan chevrons (`BowlHazards`), still ground push only, no hop. Power-ups: icon + name pill + glow (`Pickups`, `shared/PickupStyle.luau`).
+- Effects: skid marks + tire smoke (`client/SkidFx.luau`, `shared/SkidRules.luau`), sparks; NO "SMASH!" text, shockwave ring removed.
+- HUD: YOU vs BOT banner, name + HP bar over cars (`HpBar`), joystick, BOOST (cyan) + ABILITY (yellow) only; JUMP button gone. `shared/HudStyle.luau`.
+- Not checked by eye in Studio. Check: sign text mirrored (BowlHazards Face.Back/Front), sign clipping the wall, ocean visible from lobby, trail look.

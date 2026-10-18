@@ -106,3 +106,6 @@ Design follows `/mnt/project-files/car-vs-car/game-plan.md`, but carter chose (2
 - No shrinking ring (Carter said no). Boost pads are cyan with a BOOST sign; each power-up has its own shape, color and name sign, and a name pops up when grabbed.
 - Drifting gives boost cooldown back (1.4s per second). New power-ups: magnet (M), rocket (R).
 - Not done: 4-6 cars in one bowl (Match is built for 2 cars: `cars[3 - idx]`); sounds (no verified asset ids).
+
+## Update: bowl arena makeover
+See SNAPSHOT.md section "Bowl arena makeover". Tune scenery in ArenaLookConfig, skid numbers in SkidRules.Config, pad sign numbers in BowlConfig.Pads. Outside grass beyond the road is not solid (cars fall to the out-of-bounds drop). Lighting (Atmosphere.luau) untouched.

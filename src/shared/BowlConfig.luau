@@ -16,6 +16,11 @@ return {
 		lift = 0, -- speed upward (studs/s): 0 = no hop, just a speed burst along the ground
 		cooldown = 2.5, -- seconds before the same car can use a pad again
 		size = { 9, 0.4, 11 }, -- x, y, z studs
+		-- Look only (the blue BOOST sign standing behind each pad):
+		panelSize = { 9.5, 3.8 }, -- sign width, height (studs)
+		panelBack = 6.5, -- how far up the slope behind the pad the sign stands (flat studs)
+		panelLeanDeg = 50, -- how far the sign leans back from upright
+		pulseSeconds = 1.2, -- one glow pulse
 	},
 	Drift = {
 		refundPerSecond = 1.4, -- sliding gives back this many seconds of boost cooldown per second

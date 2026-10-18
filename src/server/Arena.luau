@@ -1,11 +1,13 @@
 --!strict
 -- Builds the bowl arena from plain parts: flat floor, 32 tilted slope slabs, low bumper walls,
--- and two launch pads. All anchored. Everything is positioned around `origin`.
+-- two launch pads and the scenery around it (ArenaScenery). All anchored. Everything is positioned around `origin`.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ArenaMath = require(ReplicatedStorage.Shared.ArenaMath)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
+
+local ArenaScenery = require(script.Parent.ArenaScenery)
 
 export type Arena = {
 	model: Model,
@@ -51,9 +53,27 @@ function Arena.build(origin: Vector3): Arena
 		"Floor",
 		Vector3.new(2, floorR * 2, floorR * 2),
 		CFrame.new(origin + Vector3.new(0, -1, 0)) * CFrame.Angles(0, 0, math.pi / 2),
-		Color3.fromRGB(110, 190, 95)
+		Color3.fromRGB(176, 178, 186)
 	)
 	floor.Shape = Enum.PartType.Cylinder
+	floor.Material = Enum.Material.Concrete
+
+	-- A faint darker ring line near the edge of the flat floor (looks only, nothing to bump into).
+	local lineR = cfg.flatRadius - 1
+	for idx, d in { { r = lineR + 0.5, c = 130 }, { r = lineR - 0.5, c = 176 } } do
+		local disc = makePart(
+			model,
+			"FloorLine",
+			Vector3.new(0.1, d.r * 2, d.r * 2),
+			CFrame.new(origin + Vector3.new(0, 0.03 * idx, 0)) * CFrame.Angles(0, 0, math.pi / 2),
+			Color3.fromRGB(d.c, d.c + 2, d.c + 10)
+		)
+		disc.Shape = Enum.PartType.Cylinder
+		disc.CanCollide = false
+		disc.CanQuery = false
+		disc.CanTouch = false
+		disc.CastShadow = false
+	end
 
 	-- Slope slabs around the circle. Each slab sits in a frame turned by phi around Y.
 	local thick = 2
@@ -72,14 +92,15 @@ function Arena.build(origin: Vector3): Arena
 			* CFrame.new(0, height(midR), -midR)
 			* CFrame.Angles(tilt, 0, 0)
 			* CFrame.new(0, -thick / 2, 0)
-		local color = Color3.fromRGB(95, 175, 85)
+		local color = Color3.fromRGB(158, 161, 170)
 		if i % 2 == 0 then
-			color = Color3.fromRGB(120, 195, 100)
+			color = Color3.fromRGB(184, 186, 194)
 		end
 		if not flat then
 			local slab = makePart(model, "Slope", slabSize, slabCf, color)
 			-- Very slippery: a car that stops on the slope slides back down to the middle.
 			slab.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0.05, 0.1, 1, 1)
+			slab.Material = Enum.Material.Concrete
 		end
 
 		local wallCf = base
@@ -88,9 +109,9 @@ function Arena.build(origin: Vector3): Arena
 				height(cfg.rimRadius) + cfg.wallHeight / 2 - 0.5,
 				-(cfg.rimRadius + 0.5)
 			)
-		local wallColor = Color3.fromRGB(245, 245, 245)
+		local wallColor = Color3.fromRGB(250, 250, 250)
 		if i % 2 == 0 then
-			wallColor = Color3.fromRGB(225, 60, 60)
+			wallColor = Color3.fromRGB(230, 55, 55)
 		end
 		makePart(model, "Wall", wallSize, wallCf, wallColor)
 	end
@@ -189,6 +210,8 @@ function Arena.build(origin: Vector3): Arena
 		pad.Material = Enum.Material.Neon
 		pad.CanCollide = false
 	end
+
+	ArenaScenery.build(model, origin)
 
 	model.Parent = workspace
 	for _, bar in spinnerBars do

@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
+local HudStyle = require(ReplicatedStorage.Shared.HudStyle)
 
 export type SteerInput = {
 	start: () -> (),
@@ -19,12 +20,10 @@ export type SteerInput = {
 
 local SteerInput = {}
 
-local MIN_SIZE = 130 -- px, smallest joystick base
-local MAX_SIZE = 220
 local MIN_GAP = 0.04 -- seconds between sends while the stick moves (max 25 per second)
 local DEADZONE = 0.15 -- share of the radius that does nothing
-local IDLE_COLOR = Color3.fromRGB(255, 255, 255)
-local PRESS_COLOR = Color3.fromRGB(255, 220, 40)
+local RIM_COLOR = Color3.fromRGB(235, 240, 250)
+local KNOB_COLOR = Color3.fromRGB(215, 218, 225)
 
 -- Pushes a stick offset (px from the middle) into steer/gas, with a small dead zone and full
 -- strength at the edge.
@@ -81,7 +80,7 @@ function SteerInput.new(send: (steer: number, gas: number) -> ()): SteerInput
 				dx, dy = dx / len * radius, dy / len * radius
 			end
 			k.Position = UDim2.new(0.5, dx, 0.5, dy)
-			k.BackgroundTransparency = if activeInput then 0.1 else 0.4
+			k.BackgroundTransparency = if activeInput then 0 else 0.1
 		end
 	end
 
@@ -110,40 +109,58 @@ function SteerInput.new(send: (steer: number, gas: number) -> ()): SteerInput
 	end
 
 	local function makeStick(parent: ScreenGui)
+		local camera = workspace.CurrentCamera
+		local side = HudStyle.joystickSize(if camera then camera.ViewportSize.Y else 400)
 		local b = Instance.new("Frame")
 		b.Name = "Stick"
 		b.AnchorPoint = Vector2.new(0, 1)
-		b.Position = UDim2.new(0, 24, 1, -24)
-		b.Size = UDim2.fromScale(0.22, 0.22)
-		b.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
-		b.BackgroundTransparency = 0.55
+		b.Position = UDim2.new(0, HudStyle.EDGE, 1, -HudStyle.EDGE)
+		b.Size = UDim2.fromOffset(side, side)
+		b.BackgroundColor3 = Color3.fromRGB(30, 34, 44)
+		b.BackgroundTransparency = 0.4
 		b.Active = true
 		local round = Instance.new("UICorner")
 		round.CornerRadius = UDim.new(0.5, 0)
 		round.Parent = b
 		local stroke = Instance.new("UIStroke")
 		stroke.Thickness = 3
-		stroke.Color = IDLE_COLOR
-		stroke.Transparency = 0.4
+		stroke.Color = RIM_COLOR
+		stroke.Transparency = 0.45
 		stroke.Parent = b
-		local limit = Instance.new("UISizeConstraint")
-		limit.MinSize = Vector2.new(MIN_SIZE, MIN_SIZE)
-		limit.MaxSize = Vector2.new(MAX_SIZE, MAX_SIZE)
-		limit.Parent = b
-		local ratio = Instance.new("UIAspectRatioConstraint")
-		ratio.AspectRatio = 1
-		ratio.Parent = b
+
+		-- Four small triangles: up, down, left, right.
+		for _, a in
+			{ { "▲", 0.5, 0.1 }, { "▼", 0.5, 0.9 }, { "◀", 0.1, 0.5 }, { "▶", 0.9, 0.5 } }
+		do
+			local arrow = Instance.new("TextLabel")
+			arrow.Name = "Arrow"
+			arrow.AnchorPoint = Vector2.new(0.5, 0.5)
+			arrow.Position = UDim2.fromScale(a[2] :: number, a[3] :: number)
+			arrow.Size = UDim2.fromScale(0.16, 0.16)
+			arrow.BackgroundTransparency = 1
+			arrow.Text = a[1] :: string
+			arrow.TextScaled = true
+			arrow.Font = Enum.Font.GothamBold
+			arrow.TextColor3 = RIM_COLOR
+			arrow.TextTransparency = 0.25
+			arrow.Parent = b
+		end
 
 		local k = Instance.new("Frame")
 		k.Name = "Knob"
 		k.AnchorPoint = Vector2.new(0.5, 0.5)
 		k.Position = UDim2.fromScale(0.5, 0.5)
 		k.Size = UDim2.fromScale(0.42, 0.42)
-		k.BackgroundColor3 = PRESS_COLOR
-		k.BackgroundTransparency = 0.4
+		k.BackgroundColor3 = KNOB_COLOR
+		k.BackgroundTransparency = 0.1
 		local kr = Instance.new("UICorner")
 		kr.CornerRadius = UDim.new(0.5, 0)
 		kr.Parent = k
+		local ks = Instance.new("UIStroke")
+		ks.Color = Color3.fromRGB(255, 255, 255)
+		ks.Thickness = 2
+		ks.Transparency = 0.3
+		ks.Parent = k
 		k.Parent = b
 
 		b.InputBegan:Connect(function(input: InputObject)

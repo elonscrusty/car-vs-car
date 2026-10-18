@@ -1,47 +1,39 @@
 --!strict
--- Fight move buttons: BOOST, JUMP and SPECIAL in a vertical stack on the right edge, above the
--- right steer arrow (SteerInput keeps the bottom corners). Keys: LeftShift = boost,
--- Space = jump, E = special (named after the car's ability). Each button shows its cooldown as a fill and a timer. The server
--- decides everything; it tells us when a cooldown starts (UiUpdate kind "move").
+-- Fight move buttons: BOOST and ABILITY side by side in the bottom-right corner. Keys:
+-- LeftShift = boost, E = ability (named after the car's ability), Space = jump (no button). Each button shows its cooldown as a fill and a timer. The server decides
+-- everything; it tells us when a cooldown starts (UiUpdate kind "move"). The ability button
+-- sends the "special" move.
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
+local HudStyle = require(ReplicatedStorage.Shared.HudStyle)
 local UiStyle = require(script.Parent.UiStyle)
 
 export type ActionInput = {
-	start: (abilityName: string?) -> (), -- names the SPECIAL button after the car's ability
+	start: (abilityName: string?) -> (), -- names the ABILITY button after the car's ability
 	stop: () -> (),
 	cooldown: (move: string, seconds: number) -> (), -- the server started a cooldown
 }
 
 local ActionInput = {}
 
-local BUTTON = 60 -- px (touch targets must stay at least 52)
-local GAP = 8
-local EDGE = 16
-local ARROW_SCALE = 0.2 -- the steer arrows are up to this fraction of the screen height
-local ARROW_MIN, ARROW_MAX = 80, 170 -- ... clamped to these pixel sizes (SteerInput)
-
 local MOVES = {
-	{
-		name = "special",
-		text = "SPECIAL",
-		key = Enum.KeyCode.E,
-		color = Color3.fromRGB(190, 90, 255),
-	},
-	{
-		name = "jump",
-		text = "JUMP",
-		key = Enum.KeyCode.Space,
-		color = Color3.fromRGB(80, 200, 255),
-	},
 	{
 		name = "boost",
 		text = "BOOST",
+		icon = ">>>",
 		key = Enum.KeyCode.LeftShift,
-		color = Color3.fromRGB(255, 160, 40),
+		color = Color3.fromRGB(40, 190, 255),
+	},
+	{
+		name = "special",
+		text = "ABILITY",
+		icon = "⚡",
+		key = Enum.KeyCode.E,
+		color = Color3.fromRGB(255, 190, 30),
 	},
 }
 
@@ -61,6 +53,12 @@ function ActionInput.new(send: (name: string) -> ()): ActionInput
 
 	local function press(name: string)
 		local slot = slots[name]
+		if name == "jump" then
+			if running then
+				send(name) -- Space only: no button, no cooldown shown
+			end
+			return
+		end
 		if not running or slot == nil or os.clock() < slot.readyAt then
 			return
 		end
@@ -75,37 +73,50 @@ function ActionInput.new(send: (name: string) -> ()): ActionInput
 				slot.fill.Visible = true
 				slot.fill.Size = UDim2.fromScale(1, math.clamp(left / slot.total, 0, 1))
 				slot.label.Text = string.format("%.1f", left)
-				slot.button.BackgroundTransparency = 0.7
+				slot.button.BackgroundTransparency = 0.55
 			else
 				slot.fill.Visible = false
-				slot.button.BackgroundTransparency = 0.35
+				slot.button.BackgroundTransparency = 0
 			end
 		end
 	end
 
-	local function makeButton(parent: Frame, index: number, def: typeof(MOVES[1]))
+	local function makeButton(parent: Frame, index: number, side: number, def: typeof(MOVES[1]))
 		local b = Instance.new("TextButton")
 		b.Name = def.name .. "Action"
 		b.LayoutOrder = index
-		b.Size = UDim2.fromOffset(BUTTON, BUTTON)
+		b.Size = UDim2.fromOffset(side, side)
 		b.BackgroundColor3 = def.color
-		b.BackgroundTransparency = 0.35
-		b.Text = def.text
-		b.TextScaled = true
-		b.Font = Enum.Font.GothamBlack
-		b.TextColor3 = Color3.new(1, 1, 1)
+		b.Text = ""
 		b.AutoButtonColor = false
 		b.ClipsDescendants = true
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0.22, 0)
+		corner.Parent = b
+		local icon = Instance.new("TextLabel")
+		icon.Name = "Icon"
+		icon.BackgroundTransparency = 1
+		icon.Position = UDim2.fromScale(0, 0.06)
+		icon.Size = UDim2.fromScale(1, 0.5)
+		icon.Text = def.icon
+		icon.TextScaled = true
+		icon.Font = Enum.Font.GothamBlack
+		icon.TextColor3 = Color3.new(1, 1, 1)
+		icon.Parent = b
+		local name = Instance.new("TextLabel")
+		name.Name = "Name"
+		name.BackgroundTransparency = 1
+		name.Position = UDim2.fromScale(0, 0.62)
+		name.Size = UDim2.fromScale(1, 0.26)
+		name.Text = def.text
+		name.TextScaled = true
+		name.Font = Enum.Font.GothamBlack
+		name.TextColor3 = Color3.new(1, 1, 1)
+		name.TextStrokeTransparency = 0.4
+		name.Parent = b
 		local pad = Instance.new("UIPadding")
 		pad.PaddingLeft, pad.PaddingRight = UDim.new(0, 4), UDim.new(0, 4)
-		pad.PaddingTop, pad.PaddingBottom = UDim.new(0, 14), UDim.new(0, 14)
-		pad.Parent = b
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(0.2, 0)
-		corner.Parent = b
-		local limit = Instance.new("UISizeConstraint")
-		limit.MinSize = Vector2.new(52, 52)
-		limit.Parent = b
+		pad.Parent = name
 		local fill = Instance.new("Frame") -- dark cover that shrinks as the cooldown runs out
 		fill.Name = "Cooldown"
 		fill.AnchorPoint = Vector2.new(0, 1)
@@ -119,9 +130,9 @@ function ActionInput.new(send: (name: string) -> ()): ActionInput
 		fill.Parent = b
 		local label = Instance.new("TextLabel")
 		label.Name = "Timer"
-		label.AnchorPoint = Vector2.new(0.5, 1)
-		label.Position = UDim2.new(0.5, 0, 1, -2)
-		label.Size = UDim2.new(1, 0, 0, 14)
+		label.AnchorPoint = Vector2.new(0.5, 0.5)
+		label.Position = UDim2.fromScale(0.5, 0.5)
+		label.Size = UDim2.fromScale(1, 0.4)
 		label.BackgroundTransparency = 1
 		label.Text = ""
 		label.TextScaled = true
@@ -141,6 +152,7 @@ function ActionInput.new(send: (name: string) -> ()): ActionInput
 	for _, def in MOVES do
 		keyMap[def.key] = def.name
 	end
+	keyMap[Enum.KeyCode.Space] = "jump"
 	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
 		local name = keyMap[input.KeyCode]
 		if name and not processed then
@@ -157,8 +169,13 @@ function ActionInput.new(send: (name: string) -> ()): ActionInput
 		running = true
 		local defs = table.clone(MOVES)
 		if abilityName then
-			defs[1] =
-				{ name = "special", text = abilityName, key = MOVES[1].key, color = MOVES[1].color }
+			defs[2] = {
+				name = "special",
+				text = abilityName,
+				icon = MOVES[2].icon,
+				key = MOVES[2].key,
+				color = MOVES[2].color,
+			}
 		end
 		local newGui = Instance.new("ScreenGui")
 		newGui.Name = "ActionGui"
@@ -167,25 +184,26 @@ function ActionInput.new(send: (name: string) -> ()): ActionInput
 		newGui.DisplayOrder = 5
 		newGui.Parent = (Players.LocalPlayer :: Player):WaitForChild("PlayerGui")
 		gui = newGui
-		-- Stack sits above the right steer arrow (its size is a clamped fraction of the height).
 		local camera = workspace.CurrentCamera
 		local height = if camera then camera.ViewportSize.Y else 400
-		local arrow = math.clamp(height * ARROW_SCALE, ARROW_MIN, ARROW_MAX)
+		local side = HudStyle.buttonSize(height)
+		local gap = HudStyle.BUTTON_GAP
 		local stack = Instance.new("Frame")
 		stack.Name = "Stack"
 		stack.BackgroundTransparency = 1
 		stack.AnchorPoint = Vector2.new(1, 1)
-		stack.Position = UDim2.new(1, -EDGE, 1, -(EDGE + arrow + GAP))
-		stack.Size = UDim2.fromOffset(BUTTON, #defs * BUTTON + (#defs - 1) * GAP)
+		stack.Position = UDim2.new(1, -HudStyle.EDGE, 1, -HudStyle.EDGE)
+		stack.Size = UDim2.fromOffset(#defs * side + (#defs - 1) * gap, side)
 		stack.Parent = newGui
 		local layout = Instance.new("UIListLayout")
-		layout.FillDirection = Enum.FillDirection.Vertical
-		layout.Padding = UDim.new(0, GAP)
+		layout.FillDirection = Enum.FillDirection.Horizontal
+		layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+		layout.Padding = UDim.new(0, gap)
 		layout.SortOrder = Enum.SortOrder.LayoutOrder
 		layout.Parent = stack
 		table.clear(slots)
 		for i, def in defs do
-			makeButton(stack, i, def)
+			makeButton(stack, i, side, def)
 		end
 		render()
 		conn = RunService.RenderStepped:Connect(render)
