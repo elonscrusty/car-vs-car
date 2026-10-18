@@ -571,7 +571,7 @@ function Lobby.build(): LobbyHandle
 					if lowerW >= 8 then
 						local hall = -room.wall / 2 - 0.7 -- in front of the wall panel (toward the hall)
 						local function onWall(
-							name: string,
+							partName: string,
 							size: Vector3,
 							x: number,
 							y: number,
@@ -581,7 +581,7 @@ function Lobby.build(): LobbyHandle
 						): Part
 							local d = part(
 								folder,
-								name,
+								partName,
 								size,
 								lbase * CFrame.new(x, y, hall),
 								color,
@@ -1020,7 +1020,7 @@ function Lobby.build(): LobbyHandle
 
 	-- The bay door is shut (players start inside): a roller door of steel slats with a yellow
 	-- hazard edge and a lit sign, so no gap shows the world outside.
-	local door = part(
+	part(
 		folder,
 		"GateDoor",
 		Vector3.new(gap * 2, WH, 1),
