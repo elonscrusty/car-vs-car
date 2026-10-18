@@ -11,9 +11,14 @@ local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local LobbyDecor = {}
 
 -- A look-only copy of a decor model (anchored, no collision, "Neon_*" parts glowing), or nil.
-function LobbyDecor.clone(name: string, parent: Instance, glowRange: number?): Model?
+function LobbyDecor.clone(
+	name: string,
+	parent: Instance,
+	glowRange: number?,
+	source: string? -- the folder under ServerStorage.Models (default "Decor")
+): Model?
 	local models = ServerStorage:FindFirstChild("Models")
-	local decor = if models then models:FindFirstChild("Decor") else nil
+	local decor = if models then models:FindFirstChild(source or "Decor") else nil
 	local src = if decor then decor:FindFirstChild(name) else nil
 	if src == nil or not src:IsA("Model") then
 		return nil

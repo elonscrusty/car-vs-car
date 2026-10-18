@@ -14,6 +14,7 @@ local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local LobbyLife = require(script.Parent.LobbyLife)
 local LobbyDecor = require(script.Parent.LobbyDecor)
 local LobbyProps = require(script.Parent.LobbyProps)
+local LobbyShell = require(script.Parent.LobbyShell)
 
 export type PadHandle = {
 	part: BasePart,
@@ -1249,7 +1250,7 @@ function Lobby.build(): LobbyHandle
 	stageTopDisc.CanCollide = false
 	local showcaseColor = Color3.fromRGB(230, 50, 60)
 	-- The Blender stage (LobbyProps) is taller than the plain one, so the truck rides higher.
-	local stageTop = 2.2
+	local stageTop = 2.8
 	local carY = stageTop + 0.1 -- the truck stands on the stage
 	local pivot = world(sc.x, carY + 4, sc.z)
 	local showcaseCar = meshCar(folder, "ShowcaseCar", 30, showcaseColor, world(sc.x, carY, sc.z))
@@ -1689,6 +1690,7 @@ function Lobby.build(): LobbyHandle
 
 	LobbyProps.build(folder, origin)
 	LobbyDecor.build(folder, origin)
+	LobbyShell.build(folder, origin)
 	LobbyLife.build(folder, origin, Vector3.new(L.showcase.x, 0, L.showcase.z), stageTop)
 
 	-- Invisible wall across the bay door so nobody walks out into the empty world.
