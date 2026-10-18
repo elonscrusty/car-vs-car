@@ -112,7 +112,7 @@ local function step(rig: Rig)
 	local down = Vector3.new(0, -(half.Y + CHECK_DOWN), 0)
 	local hit = workspace:Raycast(cf.Position, down, rig.params)
 	local speed = Vector3.new(v.X, 0, v.Z).Magnitude
-	local slip = SkidRules.slipSpeed(v, cf.LookVector)
+	local slip = SkidRules.slipSpeed(v.X, v.Z, cf.LookVector.X, cf.LookVector.Z)
 	local skid = not body.Anchored and SkidRules.isSkidding(slip, speed, hit ~= nil)
 	if hit == nil or not skid then
 		setSliding(rig, false, 0)

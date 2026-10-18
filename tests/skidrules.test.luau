@@ -8,11 +8,10 @@ local cfg = SkidRules.Config
 print("SkidRules")
 
 test("slip is the sideways part of the velocity", function()
-	local look = Vector3.new(0, 0, -1)
-	near(SkidRules.slipSpeed(Vector3.new(0, 0, -30), look), 0, 0.001)
-	near(SkidRules.slipSpeed(Vector3.new(20, 5, 0), look), 20, 0.001)
-	near(SkidRules.slipSpeed(Vector3.new(30, 0, -40), look), 30, 0.001)
-	eq(SkidRules.slipSpeed(Vector3.new(9, 0, 9), Vector3.new(0, 1, 0)), 0)
+	near(SkidRules.slipSpeed(0, -30, 0, -1), 0, 0.001)
+	near(SkidRules.slipSpeed(20, 0, 0, -1), 20, 0.001)
+	near(SkidRules.slipSpeed(30, -40, 0, -1), 30, 0.001)
+	eq(SkidRules.slipSpeed(9, 9, 0, 0), 0)
 end)
 
 test("skid needs grounded, speed and slip", function()

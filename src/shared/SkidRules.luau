@@ -18,14 +18,15 @@ SkidRules.Config = {
 } :: Config
 
 -- Sideways speed: how fast the car moves across the way it points, ignoring height.
-function SkidRules.slipSpeed(velocity: Vector3, lookVector: Vector3): number
-	local look = Vector3.new(lookVector.X, 0, lookVector.Z)
-	if look.Magnitude < 1e-3 then
+function SkidRules.slipSpeed(vx: number, vz: number, lookX: number, lookZ: number): number
+	local len = math.sqrt(lookX * lookX + lookZ * lookZ)
+	if len < 1e-3 then
 		return 0
 	end
-	look = look.Unit
-	local flat = Vector3.new(velocity.X, 0, velocity.Z)
-	return (flat - look * flat:Dot(look)).Magnitude
+	local fx, fz = lookX / len, lookZ / len
+	local along = vx * fx + vz * fz
+	local sx, sz = vx - fx * along, vz - fz * along
+	return math.sqrt(sx * sx + sz * sz)
 end
 
 function SkidRules.isSkidding(slip: number, speed: number, grounded: boolean, cfg: Config?): boolean
