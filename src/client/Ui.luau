@@ -108,12 +108,72 @@ function Ui.create(h: Handlers): View
 		end)
 	end
 
-	-- Top bar
-	local top = label(gui, "", UDim2.fromScale(0.7, 0.08), UDim2.fromScale(0.15, 0.02))
+	-- Top banner: dark slab, red edge on the left, cyan on the right. Small, at the top.
+	local top = Instance.new("Frame")
+	top.Name = "TopBanner"
+	top.AnchorPoint = Vector2.new(0.5, 0)
+	top.Position = UDim2.new(0.5, 0, 0, 8)
+	top.Size = UDim2.fromScale(0.34, 0.1)
+	top.BackgroundColor3 = Color3.fromRGB(12, 16, 28)
+	top.BackgroundTransparency = 0.08
+	top.BorderSizePixel = 0
 	top.Visible = false
+	top.Parent = gui
+	local topLimit = Instance.new("UISizeConstraint")
+	topLimit.MinSize = Vector2.new(190, 34)
+	topLimit.MaxSize = Vector2.new(380, 56)
+	topLimit.Parent = top
+	local topCorner = Instance.new("UICorner")
+	topCorner.CornerRadius = UDim.new(0, 8)
+	topCorner.Parent = top
+	local topGlow = Instance.new("UIGradient")
+	topGlow.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(70, 20, 30)),
+		ColorSequenceKeypoint.new(0.2, Color3.fromRGB(255, 255, 255)),
+		ColorSequenceKeypoint.new(0.8, Color3.fromRGB(255, 255, 255)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(15, 60, 80)),
+	})
+	topGlow.Parent = top
+	local function edge(x: number, color: Color3)
+		local e = Instance.new("Frame")
+		e.AnchorPoint = Vector2.new(x, 0)
+		e.Position = UDim2.fromScale(x, 0)
+		e.Size = UDim2.new(0, 5, 1, 0)
+		e.BackgroundColor3 = color
+		e.BorderSizePixel = 0
+		e.Parent = top
+		local c = Instance.new("UICorner")
+		c.CornerRadius = UDim.new(0, 4)
+		c.Parent = e
+	end
+	edge(0, Color3.fromRGB(235, 50, 60))
+	edge(1, Color3.fromRGB(40, 210, 240))
+	local topText = Instance.new("TextLabel")
+	topText.BackgroundTransparency = 1
+	topText.Size = UDim2.fromScale(1, 1)
+	topText.RichText = true
+	topText.TextScaled = true
+	topText.Font = Enum.Font.GothamBlack
+	topText.TextColor3 = Color3.new(1, 1, 1)
+	topText.Text = ""
+	topText.Parent = top
+	local topPad = Instance.new("UIPadding")
+	topPad.PaddingTop, topPad.PaddingBottom = UDim.new(0, 5), UDim.new(0, 5)
+	topPad.PaddingLeft, topPad.PaddingRight = UDim.new(0, 12), UDim.new(0, 12)
+	topPad.Parent = topText
 
-	-- Center message
-	local msg = label(gui, "", UDim2.fromScale(0.7, 0.14), UDim2.fromScale(0.15, 0.22))
+	-- "YOU vs BOT" with a small "vs", plus the countdown when there is one.
+	local function setTop(enemyName: string, seconds: number?)
+		local safe = enemyName:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+		local text = `YOU  <font size="14" color="#AAB4C8">vs</font>  {safe}`
+		if seconds then
+			text ..= `   <font color="#FFD84A">{seconds}</font>`
+		end
+		topText.Text = text
+	end
+
+	-- Center message (kept small and high, so the arena stays clear)
+	local msg = label(gui, "", UDim2.fromScale(0.5, 0.1), UDim2.fromScale(0.25, 0.14))
 	msg.Visible = false
 	local msgScale = Instance.new("UIScale")
 	msgScale.Parent = msg
@@ -124,7 +184,7 @@ function Ui.create(h: Handlers): View
 	aimFrame.BackgroundTransparency = 1
 	aimFrame.Visible = false
 	aimFrame.Parent = gui
-	local hint = label(aimFrame, "", UDim2.fromScale(0.6, 0.08), UDim2.fromScale(0.2, 0.88))
+	local hint = label(aimFrame, "", UDim2.fromScale(0.4, 0.04), UDim2.fromScale(0.3, 0.1))
 	hint.Font = Enum.Font.GothamBold
 
 	-- Power bar
@@ -218,7 +278,7 @@ function Ui.create(h: Handlers): View
 	view.showAim = function(_round, youCar, enemyCar, seconds, enemyName)
 		hideAll()
 		top.Visible = true
-		top.Text = `YOU  vs  {enemyName}`
+		setTop(enemyName)
 		msg.Visible = true
 		msg.TextColor3 = Color3.new(1, 1, 1)
 		local matchup = `{youCar} vs {enemyCar}`
@@ -235,7 +295,7 @@ function Ui.create(h: Handlers): View
 		hint.Text = "PULL BACK, LET GO TO LAUNCH"
 		task.spawn(function()
 			while aimFrame.Visible and os.clock() < deadline do
-				top.Text = `YOU  vs  {enemyName}   {math.ceil(deadline - os.clock())}`
+				setTop(enemyName, math.ceil(deadline - os.clock()))
 				task.wait(0.25)
 			end
 		end)
@@ -244,7 +304,7 @@ function Ui.create(h: Handlers): View
 	view.showReady = function(youCar, enemyCar, seconds, enemyName)
 		hideAll()
 		top.Visible = true
-		top.Text = `YOU  vs  {enemyName}`
+		setTop(enemyName)
 		msg.Visible = true
 		msg.TextColor3 = Color3.new(1, 1, 1)
 		local matchup = `{youCar} vs {enemyCar}`
@@ -253,10 +313,10 @@ function Ui.create(h: Handlers): View
 		local deadline = os.clock() + seconds
 		task.spawn(function()
 			while os.clock() < deadline and top.Visible do
-				top.Text = `YOU  vs  {enemyName}   {math.ceil(deadline - os.clock())}`
+				setTop(enemyName, math.ceil(deadline - os.clock()))
 				task.wait(0.25)
 			end
-			top.Text = `YOU  vs  {enemyName}`
+			setTop(enemyName)
 		end)
 		task.delay(1.5, function()
 			if msg.Text == matchup then

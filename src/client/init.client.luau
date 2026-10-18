@@ -22,6 +22,7 @@ local ProgressUi = require(script.ProgressUi)
 local QuestUi = require(script.QuestUi)
 local PaintUi = require(script.PaintUi)
 local DriveCar = require(script.DriveCar)
+local SkidFx = require(script.SkidFx)
 local SteerInput = require(script.SteerInput)
 local Ui = require(script.Ui)
 
@@ -44,6 +45,7 @@ local camSide: Vector3? = nil -- from the middle toward your car, fixed for the 
 local aim: AimInput.AimInput
 local steering: SteerInput.SteerInput
 local driver: DriveCar.DriveCar
+local skids = SkidFx.new()
 local actions: ActionInput.ActionInput
 local view: Ui.View
 
@@ -66,6 +68,7 @@ local lobby = LobbyUi.new({
 		aim.stop()
 		steering.stop()
 		driver.stop()
+		skids.stop()
 		actions.stop()
 		view.hideMatch()
 		ProximityPromptService.Enabled = true
@@ -161,6 +164,7 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		aim.stop()
 		hints.done("aim")
 		view.showFight()
+		skids.start()
 		if u.auto ~= true then
 			steering.start() -- the server ignores Steer outside the fight
 			driver.start() -- drives your own car here once the server hands it over
@@ -176,6 +180,7 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		buffs.clear()
 		steering.stop()
 		driver.stop()
+		skids.stop()
 		actions.stop()
 		view.showRoundEnd(u.youLost == true)
 		director.focus(u.focus)
@@ -198,6 +203,7 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		aim.stop()
 		steering.stop()
 		driver.stop()
+		skids.stop()
 		actions.stop()
 		view.showMatchEnd(u.youWon == true)
 	end

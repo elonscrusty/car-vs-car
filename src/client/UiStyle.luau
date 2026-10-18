@@ -2,7 +2,10 @@
 -- Shared look for buttons: a soft top-to-bottom shine, a dark outline and a little squash when
 -- pressed. One place, so every screen feels the same.
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+
+local UiSize = require(ReplicatedStorage.Shared.UiSize)
 
 local UiStyle = {}
 
@@ -16,13 +19,13 @@ function UiStyle.polish(b: GuiButton)
 	end
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = Color3.fromRGB(10, 12, 24)
-	stroke.Thickness = 2.5
+	stroke.Thickness = 3
 	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	stroke.Transparency = 0.2
+	stroke.Transparency = 0.1
 	stroke.Parent = b
 
 	local shine = Instance.new("UIGradient")
-	shine.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(205, 205, 218))
+	shine.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(190, 190, 205))
 	shine.Rotation = 90
 	shine.Parent = b
 
@@ -33,7 +36,7 @@ function UiStyle.polish(b: GuiButton)
 		TweenService:Create(scale, info, { Scale = goal }):Play()
 	end
 	b.MouseButton1Down:Connect(function()
-		to(0.92, PRESS)
+		to(UiSize.PRESS_SCALE, PRESS)
 	end)
 	b.MouseButton1Up:Connect(function()
 		to(1, RELEASE)

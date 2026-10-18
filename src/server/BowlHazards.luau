@@ -38,51 +38,129 @@ function BowlHazards.new(arena: Arena.Arena, cars: { CarBuilder.Car }): Handle
 		return center.Y + ArenaMath.surfaceHeight(r, cfg.flatRadius, cfg.rimRadius, cfg.tiltDeg)
 	end
 
-	-- Boost pads: glowing slabs lying on the slope.
+	-- Boost pads: a glowing slab with chevrons on the slope, and a BOOST sign leaning on the
+	-- wall behind it. All look-only.
 	local padRadius = cfg.flatRadius + (cfg.rimRadius - cfg.flatRadius) * pcfg.radiusShare
 	local spots = BowlRules.padSpots(pcfg.count, padRadius, math.rad(45))
+	local pulsing: { Part } = {}
+
+	local function glowPart(name: string, size: Vector3, cf: CFrame, parent: Instance): Part
+		local part = Instance.new("Part")
+		part.Name = name
+		part.Anchored = true
+		part.CanCollide = false
+		part.CanQuery = false
+		part.CanTouch = false
+		part.CastShadow = false
+		part.Material = Enum.Material.Neon
+		part.Color = PAD_COLOR
+		part.Size = size
+		part.CFrame = cf
+		part.Parent = parent
+		table.insert(pulsing, part)
+		return part
+	end
+
 	for _, s in spots do
 		local a = math.atan2(s.z, s.x)
 		local yaw = math.atan2(-math.cos(a), -math.sin(a))
-		local pad = Instance.new("Part")
-		pad.Name = "BoostPad"
-		pad.Anchored = true
-		pad.CanCollide = false
-		pad.CanQuery = false
-		pad.CanTouch = false
-		pad.Size = Vector3.new(pcfg.size[1], pcfg.size[2], pcfg.size[3])
-		pad.Material = Enum.Material.Neon
-		pad.Color = PAD_COLOR
-		pad.CFrame = CFrame.new(center.X + s.x, surfaceY(padRadius) + 0.25, center.Z + s.z)
+		-- Local -Z points out of the bowl, +Z toward the middle.
+		local model = Instance.new("Model")
+		model.Name = "BoostPad"
+		model.Parent = folder
+
+		local slabCF = CFrame.new(center.X + s.x, surfaceY(padRadius) + 0.25, center.Z + s.z)
 			* CFrame.Angles(0, yaw, 0)
 			* CFrame.Angles(tilt, 0, 0)
-		pad.Parent = folder
+		local slab =
+			glowPart("Slab", Vector3.new(pcfg.size[1], pcfg.size[2], pcfg.size[3]), slabCF, model)
+		slab.Color = Color3.fromRGB(20, 90, 140)
 		local light = Instance.new("PointLight")
 		light.Color = PAD_COLOR
-		light.Range = 16
-		light.Brightness = 2
-		light.Parent = pad
-		-- Floating sign so nobody mistakes it for a power-up.
-		local sign = Instance.new("BillboardGui")
-		sign.Size = UDim2.fromOffset(120, 44)
-		sign.StudsOffset = Vector3.new(0, 5, 0)
-		sign.AlwaysOnTop = true
-		sign.Parent = pad
-		local text = Instance.new("TextLabel")
-		text.Size = UDim2.fromScale(1, 1)
-		text.BackgroundTransparency = 1
-		text.Font = Enum.Font.FredokaOne
-		text.TextScaled = true
-		text.Text = "BOOST >>>"
-		text.TextColor3 = PAD_COLOR
-		text.TextStrokeTransparency = 0
-		text.Parent = sign
+		light.Range = 14
+		light.Brightness = 1.5
+		light.Parent = slab
+
+		-- Three cyan chevrons (two arms each) pointing sideways, along the rim.
+		local armLen, armAngle = 3.6, math.rad(55)
+		for i = -1, 1 do
+			local tipX = i * 3.6 + 1.2
+			for side = -1, 1, 2 do
+				local dirX, dirZ = -math.cos(armAngle), side * math.sin(armAngle)
+				local armCF = slabCF
+					* CFrame.new(
+						tipX + dirX * armLen / 2,
+						pcfg.size[2] / 2 + 0.08,
+						dirZ * armLen / 2
+					)
+					* CFrame.Angles(0, math.pi + side * armAngle, 0)
+				glowPart("Chevron", Vector3.new(armLen, 0.15, 0.9), armCF, model)
+			end
+		end
+
+		-- The sign: dark navy panel, cyan border, leaning back against the wall, facing the middle.
+		local pw, ph = pcfg.panelSize[1], pcfg.panelSize[2]
+		local backR = padRadius + pcfg.panelBack
+		local baseCF = CFrame.new(
+			center.X + math.cos(a) * backR,
+			surfaceY(backR) + 0.2,
+			center.Z + math.sin(a) * backR
+		) * CFrame.Angles(0, yaw, 0) * CFrame.Angles(-math.rad(pcfg.panelLeanDeg), 0, 0)
+		local panelCF = baseCF * CFrame.new(0, ph / 2, 0)
+		local panel = Instance.new("Part")
+		panel.Name = "Panel"
+		panel.Anchored = true
+		panel.CanCollide = false
+		panel.CanQuery = false
+		panel.CanTouch = false
+		panel.CastShadow = false
+		panel.Material = Enum.Material.SmoothPlastic
+		panel.Color = Color3.fromRGB(14, 24, 56)
+		panel.Size = Vector3.new(pw, ph, 0.4)
+		panel.CFrame = panelCF
+		panel.Parent = model
+		local bar = 0.35
+		local edges = {
+			{ Vector3.new(pw, bar, 0.5), Vector3.new(0, (ph - bar) / 2, 0) },
+			{ Vector3.new(pw, bar, 0.5), Vector3.new(0, -(ph - bar) / 2, 0) },
+			{ Vector3.new(bar, ph, 0.5), Vector3.new((pw - bar) / 2, 0, 0) },
+			{ Vector3.new(bar, ph, 0.5), Vector3.new(-(pw - bar) / 2, 0, 0) },
+		}
+		for _, e in edges do
+			glowPart("Border", e[1], panelCF * CFrame.new(e[2]), model)
+		end
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = Enum.NormalId.Back
+		gui.LightInfluence = 0
+		gui.Parent = panel
+		local title = Instance.new("TextLabel")
+		title.Size = UDim2.fromScale(1, 0.62)
+		title.BackgroundTransparency = 1
+		title.Font = Enum.Font.FredokaOne
+		title.TextScaled = true
+		title.Text = "BOOST"
+		title.TextColor3 = PAD_COLOR
+		title.Parent = gui
+		local arrows = Instance.new("TextLabel")
+		arrows.Position = UDim2.fromScale(0, 0.58)
+		arrows.Size = UDim2.fromScale(1, 0.34)
+		arrows.BackgroundTransparency = 1
+		arrows.Font = Enum.Font.FredokaOne
+		arrows.TextScaled = true
+		arrows.Text = ">>>"
+		arrows.TextColor3 = Color3.new(1, 1, 1)
+		arrows.Parent = gui
 	end
 
 	local padReadyAt: { [CarBuilder.Car]: number } = {}
 
 	local handle: Handle = {} :: any
 	handle.step = function(dt, now)
+		-- Gentle glow pulse on the signs and chevrons.
+		local glow = 0.15 + 0.2 * (0.5 + 0.5 * math.sin(now * 2 * math.pi / pcfg.pulseSeconds))
+		for _, part in pulsing do
+			part.Transparency = glow
+		end
 		-- Boost pads.
 		for _, car in cars do
 			if car.dead then
@@ -93,7 +171,8 @@ function BowlHazards.new(arena: Arena.Arena, cars: { CarBuilder.Car }): Handle
 			if (padReadyAt[car] or 0) <= now then
 				for _, s in spots do
 					if BowlRules.onPad(rel, s, pcfg.triggerRadius) then
-						local vx, vy, vz = BowlRules.padLaunch(s, pcfg.kick, pcfg.lift)
+						local v = car.body.AssemblyLinearVelocity
+						local vx, vy, vz = BowlRules.padLaunch(s, pcfg.kick, pcfg.lift, v.X, v.Z)
 						Impulse.linear(car.body, Vector3.new(vx, vy, vz) * car.body.AssemblyMass)
 						padReadyAt[car] = now + pcfg.cooldown
 						break
@@ -123,6 +202,7 @@ function BowlHazards.new(arena: Arena.Arena, cars: { CarBuilder.Car }): Handle
 		end
 	end
 	handle.destroy = function()
+		table.clear(pulsing)
 		folder:Destroy()
 	end
 	return handle

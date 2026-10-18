@@ -69,9 +69,9 @@ function CameraDirector.new(): Director
 			end
 			if car ~= nil and car.Parent ~= nil then
 				local pos = car.Position
-				local shift = Vector3.new(pos.X - viewCenter.X, 0, pos.Z - viewCenter.Z) * 0.22
+				local shift = Vector3.new(pos.X - viewCenter.X, 0, pos.Z - viewCenter.Z) * 0.6
 				local goal = CFrame.lookAt(
-					viewCenter + viewDir * 66 + Vector3.new(0, 80, 0) + shift,
+					viewCenter + viewDir * 60 + Vector3.new(0, 72, 0) + shift,
 					viewCenter + shift
 				)
 				base = base:Lerp(goal, math.min(1, dt * 3))
@@ -101,7 +101,7 @@ function CameraDirector.new(): Director
 		local dir = if flat.Magnitude > 0.01 then flat.Unit else Vector3.zAxis
 		viewCenter, viewDir = center, dir
 		myCar = nil
-		base = CFrame.lookAt(center + dir * 66 + Vector3.new(0, 80, 0), center)
+		base = CFrame.lookAt(center + dir * 60 + Vector3.new(0, 72, 0), center)
 		local c = cam()
 		c.CameraType = Enum.CameraType.Scriptable
 	end

@@ -23,19 +23,19 @@ end
 function Effects.sparks(pos: Vector3, strength: number)
 	local p = anchorAt(pos)
 	local e = Instance.new("ParticleEmitter")
-	e.Color = ColorSequence.new(Color3.fromRGB(255, 240, 160), Color3.fromRGB(255, 120, 30))
+	e.Color = ColorSequence.new(Color3.fromRGB(255, 235, 90), Color3.fromRGB(255, 140, 20))
 	e.LightEmission = 1
 	e.Size = NumberSequence.new({
 		NumberSequenceKeypoint.new(0, 0.7),
 		NumberSequenceKeypoint.new(1, 0),
 	})
-	e.Lifetime = NumberRange.new(0.3, 0.7)
+	e.Lifetime = NumberRange.new(0.15, 0.4)
 	e.Speed = NumberRange.new(25, 55)
 	e.SpreadAngle = Vector2.new(180, 180)
 	e.Acceleration = Vector3.new(0, -60, 0)
 	e.Rate = 0
 	e.Parent = p
-	e:Emit(math.floor(20 + 70 * strength))
+	e:Emit(math.floor(15 + 60 * strength))
 
 	-- Dust puff and flying chips for any real hit.
 	local dust = Instance.new("ParticleEmitter")
@@ -66,32 +66,6 @@ function Effects.sparks(pos: Vector3, strength: number)
 	chips.Parent = p
 	chips:Emit(math.floor(4 + 14 * strength))
 	Debris:AddItem(p, 2)
-
-	-- Hard hits also send a flat ring out across the floor.
-	if strength >= 0.3 then
-		Effects.shockwave(pos, strength)
-	end
-end
-
--- A glowing ring that races outward along the floor and fades.
-function Effects.shockwave(pos: Vector3, strength: number)
-	local ring = Instance.new("Part")
-	ring.Anchored = true
-	ring.CanCollide = false
-	ring.CanQuery = false
-	ring.CanTouch = false
-	ring.Shape = Enum.PartType.Cylinder
-	ring.Material = Enum.Material.Neon
-	ring.Color = Color3.fromRGB(255, 200, 90)
-	ring.Transparency = 0.3
-	ring.Size = Vector3.new(0.4, 4, 4)
-	ring.CFrame = CFrame.new(pos.X, pos.Y - 1, pos.Z) * CFrame.Angles(0, 0, math.pi / 2)
-	ring.Parent = workspace
-	local reach = 14 + 26 * strength
-	local info = TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	TweenService:Create(ring, info, { Size = Vector3.new(0.4, reach, reach), Transparency = 1 })
-		:Play()
-	Debris:AddItem(ring, 0.5)
 end
 
 -- Floating "-23" that rises and fades. Red = you took it, yellow = bot took it.

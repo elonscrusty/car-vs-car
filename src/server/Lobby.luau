@@ -29,6 +29,7 @@ export type LobbyHandle = {
 
 local Lobby = {}
 
+local CLAW_SCALE = 2.1 -- the imported claw is about 7 studs wide; it stands on a 20 stud platform
 local CLAW_YAW_DEG = 180 -- turns the imported claw machine so its front faces the hall (it stands by the back wall)
 
 local CYAN = Color3.fromRGB(60, 220, 255)
@@ -80,12 +81,13 @@ local function label(
 	face: Enum.NormalId,
 	text: string,
 	color: Color3,
-	strokeColor: Color3?
+	strokeColor: Color3?,
+	pixelsPerStud: number? -- default 40; use fewer for BIG signs (text is capped at 100 px tall)
 ): TextLabel
 	local gui = Instance.new("SurfaceGui")
 	gui.Face = face
 	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = 40
+	gui.PixelsPerStud = pixelsPerStud or 40
 	gui.LightInfluence = 0
 	gui.Parent = p
 	local t = Instance.new("TextLabel")
@@ -1179,7 +1181,8 @@ function Lobby.build(): LobbyHandle
 			Enum.NormalId.Front,
 			"CAR VS CAR",
 			face,
-			if k == 0 then Color3.fromRGB(20, 40, 140) else nil
+			if k == 0 then Color3.fromRGB(20, 40, 140) else nil,
+			9
 		)
 	end
 	local underglow = part(
@@ -1297,41 +1300,28 @@ function Lobby.build(): LobbyHandle
 	)
 	platformRing.CanCollide = false
 	glow(platformRing, YELLOW, 26, 0.5)
-	for _, px in { -1, 1 } do
-		local post = part(
-			folder,
-			"GachaPost",
-			Vector3.new(1.2, 15, 1.2),
-			world(g.x + px * (g.w / 2 + 1.5), 7.5, g.z + g.d / 2 + 0.5),
-			RED,
-			Enum.Material.Metal
-		)
-		post.CanCollide = false
-	end
 	local gSign = part(
 		folder,
 		"GachaSign",
-		Vector3.new(g.w + 5, 4, 0.8),
+		Vector3.new(22, 4.4, 0.8),
 		CFrame.lookAt(
-			origin + Vector3.new(g.x, 15, g.z + g.d / 2 + 0.5),
-			origin + Vector3.new(g.x, 15, g.z + 20)
+			origin + Vector3.new(g.x, 34.5, -HL + 1.4),
+			origin + Vector3.new(g.x, 34.5, 0)
 		),
 		Color3.fromRGB(14, 12, 40)
 	)
-	label(gSign, Enum.NormalId.Front, "PRIZE CLAW", YELLOW, Color3.fromRGB(20, 40, 140))
+	label(gSign, Enum.NormalId.Front, "PRIZE CLAW", YELLOW, Color3.fromRGB(20, 40, 140), 12)
 	glow(gSign, YELLOW, 30, 0.5)
 	prompt(gBase, "GachaPrompt", "Play", "Claw Machine")
 
 	local models = ServerStorage:FindFirstChild("Models")
 	local clawModel: Model? = nil
-	local clawTemplate = models and models:FindFirstChild("ClawMachine")
+	local propModels = models and models:FindFirstChild("Props")
+	local clawTemplate = (propModels and propModels:FindFirstChild("claw_machine"))
+		or (models and models:FindFirstChild("ClawMachine"))
 	if clawTemplate and clawTemplate:IsA("Model") then
-		for _, child in folder:GetChildren() do
-			if child ~= gBase and child.Name:sub(1, 5) == "Gacha" then
-				child:Destroy()
-			end
-		end
-		-- The placeholder box stays as an invisible anchor for "GachaPrompt".
+		-- The placeholder box stays as an invisible anchor for "GachaPrompt"; the platform, posts
+		-- and sign stay too.
 		gBase.Transparency = 1
 		gBase.CanCollide = false
 		local claw = clawTemplate:Clone()
@@ -1339,10 +1329,16 @@ function Lobby.build(): LobbyHandle
 		for _, d in claw:GetDescendants() do
 			if d:IsA("BasePart") then
 				d.Anchored = true
+				if d.Name:find("glass") then
+					d.Transparency = 0.6
+					d.Material = Enum.Material.Glass
+					d.CanCollide = false
+				end
 			end
 		end
-		-- Floor level, facing the middle of the lobby (-X from the right wall).
-		claw:PivotTo(world(g.x, 0, g.z) * CFrame.Angles(0, math.rad(CLAW_YAW_DEG), 0))
+		claw:ScaleTo(claw:GetScale() * CLAW_SCALE)
+		-- Floor level (on the platform), facing the hall.
+		claw:PivotTo(world(g.x, 0.6, g.z) * CFrame.Angles(0, math.rad(CLAW_YAW_DEG), 0))
 		claw.Parent = folder
 		clawModel = claw
 	end
@@ -1466,6 +1462,11 @@ function Lobby.build(): LobbyHandle
 		end
 	end
 
+	for k = storeFrom + 1, #folder:GetChildren() do
+		folder:GetChildren()[k]:SetAttribute("Booth", "store")
+	end
+	local paintFrom = #folder:GetChildren()
+
 	-- Paint / customize booth (front right): cyan counter, paint cans and a tool wall. Built in its
 	-- own frame (+z = the front) and turned toward the lane.
 	do
@@ -1566,6 +1567,9 @@ function Lobby.build(): LobbyHandle
 		label(pSign, Enum.NormalId.Front, "PAINT / CUSTOMIZE", CYAN, DARK)
 		glow(pSign, CYAN, 24, 0.4)
 		prompt(counter2, "CustomizePrompt", "Customize", "Paint & Garage")
+	end
+	for k = paintFrom + 1, #folder:GetChildren() do
+		folder:GetChildren()[k]:SetAttribute("Booth", "paint")
 	end
 
 	-- Red barriers with yellow frames, tire stacks and a cone by the spawn (like the reference).

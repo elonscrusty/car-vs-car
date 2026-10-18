@@ -32,9 +32,11 @@ test("a car on a pad is launched toward the middle", function()
 	truthy(BowlRules.onPad({ x = 38, z = 2 }, pad, 5.5))
 	truthy(not BowlRules.onPad({ x = 20, z = 0 }, pad, 5.5))
 	local vx, vy, vz = BowlRules.padLaunch(pad, 60, 30)
-	near(vx, -60, 0.001)
+	near(vx, 0, 0.001) -- sideways along the rim, not toward the middle
 	eq(vy, 30)
-	near(vz, 0, 0.001)
+	near(vz, 60, 0.001)
+	local _, _, backZ = BowlRules.padLaunch(pad, 60, 0, 0, -20) -- car going the other way round
+	near(backZ, -60, 0.001)
 end)
 
 test("drift gives cooldown back only while sliding", function()

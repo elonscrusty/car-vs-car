@@ -1,7 +1,7 @@
 --!strict
 -- Small Blender props for the lobby (roller doors, plants, cones, tires, drums). They live in
 -- ServerStorage.Models.Props, are named like the file they came from, and have their pivot at the
--- bottom centre with the front toward -Z. A missing model is simply skipped. Look only (no collision).
+-- bottom centre with the front toward -Z. A missing model is simply skipped. Props are look only (no collision); the booths are solid.
 
 local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -76,6 +76,48 @@ function LobbyProps.build(folder: Folder, origin: Vector3)
 			put("roller_door", at(x, 0, -room.halfL + 0.9, 180), 0.9)
 		end
 	end
+
+	-- The store and paint booths: the imported model stands where the plain booth was. The plain
+	-- parts go, except the counter that carries the prompt (it stays, invisible).
+	local function swapBooth(
+		tag: string,
+		model: string,
+		x: number,
+		z: number,
+		face: number,
+		scale: number
+	)
+		if not has(model) then
+			return
+		end
+		for _, item in folder:GetChildren() do
+			if item:GetAttribute("Booth") == tag then
+				if item:FindFirstChildWhichIsA("ProximityPrompt") then
+					for _, d in item:GetChildren() do
+						if not d:IsA("ProximityPrompt") then
+							d:Destroy()
+						end
+					end
+					local holder = item :: BasePart
+					holder.Transparency = 1
+					holder.CanCollide = false
+				else
+					item:Destroy()
+				end
+			end
+		end
+		local m = put(model, at(x, 0, z, face), scale)
+		if m then
+			for _, d in m:GetDescendants() do -- booths are solid: walk around them
+				if d:IsA("MeshPart") then
+					d.CanCollide = true
+				end
+			end
+		end
+	end
+	local st, pt = LobbyLayout.store, LobbyLayout.paint
+	swapBooth("store", "store_booth", st.x, st.z, -90, 1.1) -- front toward +x, the lane
+	swapBooth("paint", "paint_booth", pt.x, pt.z, 90, 1.1) -- front toward -x
 
 	for _, spot in SPOTS do
 		put(spot.name, at(spot.x, spot.y or 0, spot.z, spot.face), spot.scale or 1.4)

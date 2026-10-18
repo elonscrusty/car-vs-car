@@ -9,6 +9,7 @@ local TweenService = game:GetService("TweenService")
 local BowlConfig = require(ReplicatedStorage.Shared.BowlConfig)
 local PickupLogic = require(ReplicatedStorage.Shared.PickupLogic)
 local PickupsConfig = require(ReplicatedStorage.Shared.PickupsConfig)
+local PickupStyle = require(ReplicatedStorage.Shared.PickupStyle)
 local Types = require(ReplicatedStorage.Shared.Types)
 
 local Arena = require(script.Parent.Arena)
@@ -18,7 +19,17 @@ local Impulse = require(script.Parent.Impulse)
 
 export type Handle = { destroy: () -> () }
 
-type Pickup = { kind: string, part: Part, x: number, z: number, tweens: { Tween } }
+type IconItem = { part: Part, offset: CFrame }
+type Pickup = {
+	kind: string,
+	model: Model,
+	items: { IconItem },
+	base: Vector3, -- resting spot of the icon center
+	x: number,
+	z: number,
+	born: number, -- elapsed time when it spawned (for the bob phase)
+	tweens: { Tween },
+}
 
 local Pickups = {}
 
@@ -27,61 +38,132 @@ local function colorOf(kind: string): Color3
 	return Color3.fromRGB(c[1], c[2], c[3])
 end
 
-local function makePart(kind: string, pos: Vector3, parent: Instance): (Part, { Tween })
-	local part = Instance.new("Part")
-	part.Name = "Pickup_" .. kind
-	part.Anchored = true
-	part.CanCollide = false
-	part.CanQuery = false
-	part.CanTouch = false
-	part.Size = Vector3.new(2.6, 2.6, 2.6)
-	-- Each power-up has its own shape, color and name sign.
-	if kind == "shield" or kind == "magnet" then
-		part.Shape = Enum.PartType.Ball
-	elseif kind == "rocket" then
-		part.Shape = Enum.PartType.Cylinder
-		part.Size = Vector3.new(4, 2, 2)
-	elseif kind == "speed" then
-		part.Shape = Enum.PartType.Block
-		part.Size = Vector3.new(1.6, 1.6, 4)
+-- One floating, glowing icon with a name pill, a glow disc and a blob shadow on the floor.
+-- Parts are anchored, so animate() moves them every frame.
+local function makePickup(
+	kind: string,
+	pos: Vector3,
+	floorSurfaceY: number,
+	parent: Instance
+): Pickup
+	local color = colorOf(kind)
+	local rgb = (PickupsConfig.colors :: any)[kind] or { 255, 255, 255 }
+	local model = Instance.new("Model")
+	model.Name = "Pickup_" .. kind
+
+	local function look(part: Part, material: Enum.Material, c: Color3)
+		part.Anchored = true
+		part.CanCollide = false
+		part.CanQuery = false
+		part.CanTouch = false
+		part.CastShadow = false
+		part.Material = material
+		part.Color = c
 	end
-	part.Material = Enum.Material.Neon
-	part.Color = colorOf(kind)
-	part.Position = pos
-	local light = Instance.new("PointLight")
-	light.Color = part.Color
-	light.Range = 14
-	light.Brightness = 3
-	light.Parent = part
+
+	local items: { IconItem } = {}
+	for _, ps in PickupStyle.iconParts(kind, rgb) do
+		local part = Instance.new("Part")
+		part.Name = "Icon"
+		part.Shape = (Enum.PartType :: any)[ps.shape]
+		part.Size = Vector3.new(ps.size[1], ps.size[2], ps.size[3])
+		look(part, Enum.Material.Neon, Color3.fromRGB(ps.color[1], ps.color[2], ps.color[3]))
+		part.Parent = model
+		table.insert(items, {
+			part = part,
+			offset = CFrame.new(ps.offset[1], ps.offset[2], ps.offset[3])
+				* CFrame.Angles(0, math.rad(ps.yaw), 0),
+		})
+	end
+	local first = items[1].part
+
+	-- Dark blob shadow and a soft colored glow on the floor (flat discs, axis pointing up).
+	local flat = CFrame.new(pos.X, floorSurfaceY, pos.Z) * CFrame.Angles(0, 0, math.rad(90))
+	local shadow = Instance.new("Part")
+	shadow.Name = "Shadow"
+	shadow.Shape = Enum.PartType.Cylinder
+	shadow.Size = Vector3.new(0.1, 4, 4)
+	look(shadow, Enum.Material.SmoothPlastic, Color3.new(0, 0, 0))
+	shadow.Transparency = 0.6
+	shadow.CFrame = flat + Vector3.new(0, 0.1, 0)
+	shadow.Parent = model
+	local glow = Instance.new("Part")
+	glow.Name = "Glow"
+	glow.Shape = Enum.PartType.Cylinder
+	glow.Size = Vector3.new(0.1, 7, 7)
+	look(glow, Enum.Material.Neon, color)
+	glow.Transparency = 0.6
+	glow.CFrame = flat + Vector3.new(0, 0.2, 0)
+	glow.Parent = model
+
+	-- Name pill under the icon.
+	local label = (PickupsConfig.names :: any)[kind] or kind
 	local sign = Instance.new("BillboardGui")
-	sign.Size = UDim2.fromOffset(110, 36)
-	sign.StudsOffset = Vector3.new(0, 3.2, 0)
+	sign.Size = UDim2.fromScale(PickupStyle.pillWidth(label), 1.1)
+	sign.StudsOffset = Vector3.new(0, -3, 0)
 	sign.AlwaysOnTop = true
-	sign.Parent = part
+	sign.Adornee = first
+	sign.Parent = first
+	local pill = Instance.new("Frame")
+	pill.Size = UDim2.fromScale(1, 1)
+	pill.BackgroundColor3 = Color3.fromRGB(18, 20, 32)
+	pill.BackgroundTransparency = 0.15
+	pill.Parent = sign
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0.5, 0)
+	corner.Parent = pill
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = color
+	stroke.Thickness = 2
+	stroke.Parent = pill
 	local text = Instance.new("TextLabel")
-	text.Size = UDim2.fromScale(1, 1)
+	text.Size = UDim2.fromScale(0.86, 0.7)
+	text.Position = UDim2.fromScale(0.07, 0.15)
 	text.BackgroundTransparency = 1
 	text.Font = Enum.Font.FredokaOne
 	text.TextScaled = true
-	text.Text = (PickupsConfig.names :: any)[kind] or kind
-	text.TextColor3 = part.Color
-	text.TextStrokeTransparency = 0
-	text.Parent = sign
-	part.Parent = parent
+	text.Text = label
+	text.TextColor3 = color
+	text.Parent = pill
 
-	local bob = TweenService:Create(
-		part,
+	-- A few sparkles.
+	local sparkles = Instance.new("ParticleEmitter")
+	sparkles.Color = ColorSequence.new(color)
+	sparkles.LightEmission = 1
+	sparkles.Rate = 6
+	sparkles.Lifetime = NumberRange.new(0.8, 1.4)
+	sparkles.Speed = NumberRange.new(1, 2)
+	sparkles.SpreadAngle = Vector2.new(180, 180)
+	sparkles.Size =
+		NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 0) })
+	sparkles.Parent = first
+
+	model.Parent = parent
+	local pulse = TweenService:Create(
+		glow,
 		TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-		{ Position = pos + Vector3.new(0, 1.2, 0) }
+		{ Transparency = 0.8 }
 	)
-	local spin = TweenService:Create(
-		part,
-		TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.In, -1),
-		{ Orientation = Vector3.new(0, 360, 0) }
-	)
-	bob:Play()
-	spin:Play()
-	return part, { bob, spin }
+	pulse:Play()
+	return {
+		kind = kind,
+		model = model,
+		items = items,
+		base = pos,
+		x = 0,
+		z = 0,
+		born = 0,
+		tweens = { pulse },
+	}
+end
+
+-- Bob and spin the icon parts.
+local function animate(pk: Pickup, t: number)
+	local frame = CFrame.new(pk.base + Vector3.new(0, PickupStyle.bobOffset(t), 0))
+		* CFrame.Angles(0, math.rad(PickupStyle.spinDeg(t)), 0)
+	for _, item in pk.items do
+		item.part.CFrame = frame * item.offset
+	end
 end
 
 -- notify(car, update) sends a UiUpdate to that car's player (nil for bots / no listener).
@@ -138,9 +220,16 @@ function Pickups.start(
 			return
 		end
 		local kind = cfg.kinds[rng:NextInteger(1, #cfg.kinds)]
-		local part, tweens =
-			makePart(kind, Vector3.new(center.X + spot.x, floorY, center.Z + spot.z), arena.model)
-		table.insert(pickups, { kind = kind, part = part, x = spot.x, z = spot.z, tweens = tweens })
+		local pk = makePickup(
+			kind,
+			Vector3.new(center.X + spot.x, floorY, center.Z + spot.z),
+			center.Y,
+			arena.model
+		)
+		pk.x = spot.x
+		pk.z = spot.z
+		pk.born = elapsed
+		table.insert(pickups, pk)
 	end
 
 	local function remove(index: number)
@@ -148,7 +237,7 @@ function Pickups.start(
 		for _, t in pk.tweens do
 			t:Cancel()
 		end
-		pk.part:Destroy()
+		pk.model:Destroy()
 		table.remove(pickups, index)
 	end
 
@@ -171,6 +260,7 @@ function Pickups.start(
 		end
 		for i = #pickups, 1, -1 do
 			local pk = pickups[i]
+			animate(pk, elapsed - pk.born)
 			for _, car in cars do
 				if not car.dead then
 					local p = car.body.Position
