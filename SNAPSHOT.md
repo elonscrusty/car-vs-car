@@ -118,3 +118,10 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 - lastStanding / soccer = `src/server/GroupMatch.luau` (same handle as Match). 1-2 players, bots fill to 8 cars (lastStanding, 60% HP each) or 3v3 (soccer, humans on team 1). No aiming: "ready" countdown, then drive. Soccer: giant ball, goal arcs on the bowl wall, first to 3, time up = more goals, tie = next goal wins.
 - Look/props: `src/server/ModeFx.luau`. HUD line: UiUpdate `modeInfo`, shown by `src/client/ModeBanner.luau`.
 - Checked: Lune tests (244). NOT checked in Studio or by eye: soccer ball feel, bot play in soccer/8-car, goal arcs, banner. Tune only in ModesConfig.
+
+## Car soccer small field
+- Soccer no longer uses the bowl. It has its own flat field (120 x 70 studs, 30 high walls, 45 degree cut corners, 24 wide goal mouth with 10 deep nets, invisible lid), built in code by `src/server/SoccerArena.luau` in the match's own slot (same far-away spot as the bowl). Team 1 defends the -X goal.
+- Pure rules + tests: `src/shared/SoccerField.luau` (goal boxes + goal detection, spawn spots facing the ball, bot aim point, out-of-bounds, ball-stuck timer, ball speed cap, wall layout), numbers in `src/shared/SoccerFieldConfig.luau`, tests `tests/soccerfield.test.luau` (265 pass in total).
+- `GroupMatch` uses it only for mode "soccer" (arena pick, goal boxes replace the circular arc test, ball stuck/out-of-bounds reset, cars that leave come back at their spot). Kept: scoreToWin, teams, bots, goal pause, timer, golden goal. `ModesConfig.Soccer.teamSize` is now 2 (2v2); the old bowl goal numbers there are unused. Bowl and the other modes are untouched.
+- Empty Folders in the arena for Studio models later: `BallSpawn`, `GoalA`, `GoalB`, `ScoreBoardAnchor` (each has a `Position` attribute). No models are imported by code.
+- Placeholders / not checked in Studio: field size, wall height, ball size/density/bounce/speed cap (9 studs, 0.3, 0.7, 100), bot aim offsets, camera framing of the small field, whether cars clear the net sides, grass/line look.

@@ -124,3 +124,6 @@ See SNAPSHOT.md section "Level-ups, win streak, leaderboards". Tune in `Progress
 Tune rewards/odds only in `src/shared/SpinConfig.luau` (placeholders). Quests: `QuestsConfig.luau`. Daily gift: `QuestsConfig.Daily`. Spin UI not yet checked by eye on a phone or in Studio.
 ## Fight modes
 See "Fight modes" in SNAPSHOT.md. Tweak `src/shared/ModesConfig.luau` only (hill hold time, ice grip, 8-car hpScale, ball size/density, goal size, score to win). Untested in Studio: first play test should check the soccer ball (too heavy/light?), that bots do not all pile on the ball, and the top banner on a phone.
+
+## Car soccer small field
+See SNAPSHOT.md "Car soccer small field". Tune only in `src/shared/SoccerFieldConfig.luau` (and `ModesConfig.Soccer` for teamSize, scoreToWin, time, goal pause). First play test: ball too heavy/light, bots pile on the ball, ball sticking in corners or nets, camera view of the small field.

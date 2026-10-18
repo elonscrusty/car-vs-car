@@ -17,7 +17,7 @@ return {
 		hill = "Stay on the glowing circle. Alone on it = points. Hold 20 seconds to win!",
 		ice = "The floor is ice! Cars slide. Push your enemy off the edge!",
 		lastStanding = "8 cars. Fall off or run out of HP and you are out. Last one wins!",
-		soccer = "Push the giant ball into the other team's goal. First to 3 wins!",
+		soccer = "Push the ball into the other team's goal on the small field. First to 3 wins!",
 	},
 	Hill = {
 		radius = 16, -- the circle in the middle (studs)
@@ -38,7 +38,7 @@ return {
 		hudSeconds = 1,
 	},
 	Soccer = {
-		teamSize = 3, -- cars per team (humans first, bots fill the rest)
+		teamSize = 2, -- cars per team (humans first, bots fill the rest); small field = 2v2 (field: SoccerFieldConfig)
 		ballSize = 16, -- the giant ball (diameter, studs)
 		ballDensity = 0.25, -- low = a hit sends it flying
 		ballMaxSpeed = 140, -- the server never lets the ball go faster

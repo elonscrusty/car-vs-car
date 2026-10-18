@@ -40,5 +40,6 @@ require("./abilities.test")
 require("./catalog.test")
 require("./leaderboard.test")
 require("./modes.test")
+require("./soccerfield.test")
 
 Harness.summary()
