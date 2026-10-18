@@ -1,7 +1,7 @@
 --!strict
 -- Small Blender props for the lobby (roller doors, plants, cones, tires, drums). They live in
 -- ServerStorage.Models.Props, are named like the file they came from, and have their pivot at the
--- bottom centre with the front toward -Z. A missing model is simply skipped. Look only (no collision).
+-- bottom centre with the front toward -Z. A missing model is simply skipped. Props are look only (no collision); the booths are solid.
 
 local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -98,8 +98,9 @@ function LobbyProps.build(folder: Folder, origin: Vector3)
 							d:Destroy()
 						end
 					end
-					(item :: BasePart).Transparency = 1;
-					(item :: BasePart).CanCollide = false
+					local holder = item :: BasePart
+					holder.Transparency = 1
+					holder.CanCollide = false
 				else
 					item:Destroy()
 				end
@@ -110,7 +111,6 @@ function LobbyProps.build(folder: Folder, origin: Vector3)
 			for _, d in m:GetDescendants() do -- booths are solid: walk around them
 				if d:IsA("MeshPart") then
 					d.CanCollide = true
-					d.CollisionFidelity = Enum.CollisionFidelity.Box
 				end
 			end
 		end
