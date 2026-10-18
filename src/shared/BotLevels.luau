@@ -65,6 +65,26 @@ function BotLevels.next(level: any): string
 	return Config.Default
 end
 
+-- Bot level picked from the player's total wins (used while the bot button is hidden).
+function BotLevels.forWins(wins: any, scale: any?): string
+	local s = scale or Config.AutoScale
+	local w = if type(wins) == "number" and wins == wins then wins else 0
+	if w < s.easyUnder then
+		return "easy"
+	elseif w < s.mediumUnder then
+		return "medium"
+	end
+	return "hard"
+end
+
+-- The level a lone player's bot gets: their saved choice when the button is on, else by wins.
+function BotLevels.levelFor(wins: any, chosen: any, buttonOn: boolean): string
+	if buttonOn and BotLevels.isValid(chosen) then
+		return chosen
+	end
+	return BotLevels.forWins(wins)
+end
+
 -- Coin reward multiplier for beating this level. Pure: nothing applies it yet.
 function BotLevels.rewardMultiplier(level: any): number
 	return BotLevels.get(level).rewardMult

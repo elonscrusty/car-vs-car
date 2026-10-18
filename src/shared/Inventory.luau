@@ -25,6 +25,7 @@ export type Profile = {
 	version: number,
 	coins: number,
 	wins: number,
+	matches: number, -- finished matches in total (drives the new-player menu, see MenuRules)
 	owned: { [string]: boolean },
 	freePullUsed: boolean,
 	hintsSeen: { [string]: boolean }, -- first-time hints already shown (see Hints)
@@ -64,6 +65,7 @@ function Inventory.default(): Profile
 		version = VERSION,
 		coins = 0,
 		wins = 0,
+		matches = 0,
 		owned = owned,
 		freePullUsed = false,
 		hintsSeen = {},
@@ -98,6 +100,7 @@ function Inventory.migrate(raw: any): Profile
 		version = VERSION,
 		coins = cleanNumber(raw.coins),
 		wins = cleanNumber(raw.wins),
+		matches = cleanNumber(raw.matches), -- old saves have none: 0
 		owned = owned,
 		freePullUsed = raw.freePullUsed == true,
 		hintsSeen = Hints.clean(raw.hintsSeen),

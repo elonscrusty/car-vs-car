@@ -42,6 +42,7 @@ export type LobbyUpdate =
 		kind: "profile",
 		coins: number,
 		wins: number,
+		matches: number?, -- finished matches (new-player menu)
 		owned: { string },
 		freePullAvailable: boolean,
 		hintsSeen: { string },

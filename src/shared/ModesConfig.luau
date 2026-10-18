@@ -3,8 +3,31 @@
 -- A match picks its mode from `Order`, one after the other (server rotation). Take a mode out
 -- of `Order` to stop it coming up ("duel" is the normal 1v1).
 
+local function sibling(name: string): any
+	if script then
+		return require((script :: any).Parent[name])
+	end
+	local luneRequire: any = require -- relative string paths only exist in Lune
+	return luneRequire("./" .. name)
+end
+
+local FeatureFlags = sibling("FeatureFlags")
+
+-- Launch set: duel, hill, ice, soccer. Last standing comes back with its feature flag.
+local function orderFor(flags: { [string]: boolean }?): { string }
+	local order = { "duel", "hill", "ice" }
+	if FeatureFlags.enabled("lastStandingMode", flags) then
+		table.insert(order, "lastStanding")
+	end
+	if FeatureFlags.enabled("soccerMode", flags) then
+		table.insert(order, "soccer")
+	end
+	return order
+end
+
 return {
-	Order = { "duel", "hill", "ice", "lastStanding", "soccer" },
+	orderFor = orderFor,
+	Order = orderFor(nil),
 	Names = {
 		duel = "DUEL",
 		hill = "KING OF THE HILL",

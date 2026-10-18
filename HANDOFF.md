@@ -124,3 +124,5 @@ See SNAPSHOT.md section "Level-ups, win streak, leaderboards". Tune in `Progress
 Tune rewards/odds only in `src/shared/SpinConfig.luau` (placeholders). Quests: `QuestsConfig.luau`. Daily gift: `QuestsConfig.Daily`. Spin UI not yet checked by eye on a phone or in Studio.
 ## Fight modes
 See "Fight modes" in SNAPSHOT.md. Tweak `src/shared/ModesConfig.luau` only (hill hold time, ice grip, 8-car hpScale, ball size/density, goal size, score to win). Untested in Studio: first play test should check the soccer ball (too heavy/light?), that bots do not all pile on the ball, and the top banner on a phone.
+## Launch simplification
+See SNAPSHOT.md "Launch simplification". To bring a cut feature back, set its flag in `src/shared/FeatureFlags.luau`. Placeholders: `BotLevelsConfig.AutoScale` (3 / 15 wins), `MenuConfig.matchesForFullMenu` (2). Per-car quests saved in old profiles are dropped and refilled while the flag is off. Not checked in Studio.

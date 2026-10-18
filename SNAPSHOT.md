@@ -118,3 +118,11 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 - lastStanding / soccer = `src/server/GroupMatch.luau` (same handle as Match). 1-2 players, bots fill to 8 cars (lastStanding, 60% HP each) or 3v3 (soccer, humans on team 1). No aiming: "ready" countdown, then drive. Soccer: giant ball, goal arcs on the bowl wall, first to 3, time up = more goals, tie = next goal wins.
 - Look/props: `src/server/ModeFx.luau`. HUD line: UiUpdate `modeInfo`, shown by `src/client/ModeBanner.luau`.
 - Checked: Lune tests (244). NOT checked in Studio or by eye: soccer ball feel, bot play in soccer/8-car, goal arcs, banner. Tune only in ModesConfig.
+
+## Launch simplification (feature flags)
+- `src/shared/FeatureFlags.luau`: pure flags. Off at launch: dailySpin, rankBadges, paintShop, perCarQuests, botLevelButton, lastStandingMode. On: soccerMode (carter kept it). Hidden = not built/ignored, no code deleted.
+- ModesConfig.Order = duel, hill, ice, soccer (`ModesConfig.orderFor(flags)`). QuestsConfig.Catalog = win3, play5, bot2 (`catalogFor(flags)`). Spin and buyPaint/equipPaint server actions ignored while off; SpinUi/PaintUi/BotLevelUi not created; rank text empty.
+- Bot level: `BotLevels.forWins` / `levelFor`, thresholds `BotLevelsConfig.AutoScale` (easy under 3 wins, medium under 15, else hard; placeholders).
+- New-player menu: `MenuRules.visible(profile)` + `MenuConfig.matchesForFullMenu = 2`. Profile has a new `matches` counter (migrates to 0, +1 per finished match in `finishMatch`). `MenuBar.setShown` hides buttons.
+- `client/SaveNotice.luau`: "Progress not saving right now" text when player attribute ProfileUnsaved is true.
+- Tests: 264 pass (Lune). Not checked in Studio or by eye.

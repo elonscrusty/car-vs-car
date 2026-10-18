@@ -11,6 +11,7 @@ local function sibling(name: string): any
 end
 
 local CarConfig = sibling("CarConfig")
+local FeatureFlags = sibling("FeatureFlags")
 
 export type Def = {
 	id: string,
@@ -30,22 +31,30 @@ QuestsConfig.Daily = {
 	dayLength = 86400, -- seconds; the day number is floor(os.time() / dayLength) (UTC)
 }
 
-local list: { Def } = {
-	{ id = "win3", kind = "win", target = 3, reward = 60, title = "Win 3 matches" },
-	{ id = "play5", kind = "play", target = 5, reward = 40, title = "Play 5 matches" },
-	{ id = "bot2", kind = "beatBot", target = 2, reward = 50, title = "Beat the bot 2 times" },
-}
-for _, carId in CarConfig.Order do
-	table.insert(list, {
-		id = "win3_" .. carId,
-		kind = "win",
-		carId = carId,
-		target = 3,
-		reward = 80,
-		title = `Win 3 with {carId}`,
-	})
+-- The 3 simple quests; the per-car ones only join with the perCarQuests flag.
+local function catalogFor(flags: { [string]: boolean }?): { Def }
+	local out: { Def } = {
+		{ id = "win3", kind = "win", target = 3, reward = 60, title = "Win 3 matches" },
+		{ id = "play5", kind = "play", target = 5, reward = 40, title = "Play 5 matches" },
+		{ id = "bot2", kind = "beatBot", target = 2, reward = 50, title = "Beat the bot 2 times" },
+	}
+	if FeatureFlags.enabled("perCarQuests", flags) then
+		for _, carId in CarConfig.Order do
+			table.insert(out, {
+				id = "win3_" .. carId,
+				kind = "win",
+				carId = carId,
+				target = 3,
+				reward = 80,
+				title = `Win 3 with {carId}`,
+			})
+		end
+	end
+	return out
 end
 
+QuestsConfig.catalogFor = catalogFor
+local list = catalogFor(nil)
 QuestsConfig.Catalog = list
 
 local byId: { [string]: Def } = {}
