@@ -42,5 +42,6 @@ require("./telemetry.test")
 require("./leaderboard.test")
 require("./modes.test")
 require("./sounds.test")
+require("./fightfix.test")
 
 Harness.summary()

@@ -36,6 +36,8 @@ local CombatConfig = require(ReplicatedStorage.Shared.CombatConfig)
 local Damage = require(ReplicatedStorage.Shared.Damage)
 local Specials = require(script.Parent.Specials)
 local Moves = require(script.Parent.Moves)
+local Fairness = require(ReplicatedStorage.Shared.Fairness)
+local Comeback = require(ReplicatedStorage.Shared.Comeback)
 local MovesConfig = require(ReplicatedStorage.Shared.MovesConfig)
 local MovesRules = require(ReplicatedStorage.Shared.Moves)
 local Modes = require(ReplicatedStorage.Shared.Modes)
@@ -105,6 +107,7 @@ function Match.new(
 	local throttleSmooth: { [number]: number } = { 0, 0 } -- eased gas per car
 	-- car index -> true when that player's own device drives (and owns the physics of) the car
 	local clientDriven: { [number]: boolean } = {}
+	local fairMatch = Fairness.neutral(#participants) -- 2+ humans: no level bonus, Common abilities
 	local moveStates: { [number]: Moves.State } = { Moves.new(), Moves.new() } -- reset each fight
 	local rayParams = RaycastParams.new()
 	rayParams.FilterType = Enum.RaycastFilterType.Exclude
@@ -418,7 +421,8 @@ function Match.new(
 				nameOf(idx),
 				part == nil,
 				if part then part.appearance else nil,
-				build
+				build,
+				fairMatch
 			)
 		end
 		rayParams.FilterDescendantsInstances = { cars[1].model, cars[2].model }
@@ -626,7 +630,10 @@ function Match.new(
 	local function speedCap(car: CarBuilder.Car): number
 		return math.max(
 			cfg.Launch.maxSpeed,
-			car.stats.maxSpeed * (1 + MovesConfig.Boost.speedBonus) * Buffs.speedMult(car)
+			car.stats.maxSpeed
+				* (1 + MovesConfig.Boost.speedBonus)
+				* Buffs.speedMult(car)
+				* Comeback.maxMult()
 		) * cfg.Drive.speedCapSlack
 	end
 
@@ -673,7 +680,10 @@ function Match.new(
 					Autopilot.step(car, enemy, dt, rayParams, origin, autoLevel, withGrip(mods))
 				elseif human and not gone[car.idx] and clientDriven[car.idx] then
 					-- The driver's device moves this car; the server only keeps it honest.
-					car.model:SetAttribute("SpeedMult", Buffs.speedMult(car))
+					car.model:SetAttribute(
+						"SpeedMult",
+						Buffs.speedMult(car) * Moves.popMult(moveStates[car.idx], os.clock())
+					)
 					if not limitSpeed(car) then
 						endMatch(car, "RING OUT!")
 						return

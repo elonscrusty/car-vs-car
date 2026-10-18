@@ -15,6 +15,7 @@ local CameraDirector = require(script.CameraDirector)
 local Effects = require(script.Effects)
 local FightFx = require(script.FightFx)
 local HintUi = require(script.HintUi)
+local HitFlash = require(script.HitFlash)
 local LobbyUi = require(script.LobbyUi)
 local BotLevelUi = require(script.BotLevelUi)
 local MenuBar = require(script.MenuBar)
@@ -203,6 +204,7 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		local strength = u.strength or 0
 		SoundFx.hit(strength)
 		director.shake(strength)
+		HitFlash.play(u, director)
 		if strength > 0.5 then
 			director.punchFov(6 + 8 * strength)
 		end

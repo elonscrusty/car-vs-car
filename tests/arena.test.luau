@@ -17,8 +17,8 @@ test("the middle is flat and the bowl rises toward the rim", function()
 	eq(ArenaMath.surfaceHeight(999, A.flatRadius, A.rimRadius, A.tiltDeg), rim)
 end)
 
-test("arena is 100 to 140 studs across", function()
-	truthy(A.rimRadius * 2 >= 180 and A.rimRadius * 2 <= 260)
+test("arena is a smaller bowl, 150 to 260 studs across", function()
+	truthy(A.rimRadius * 2 >= 150 and A.rimRadius * 2 <= 260)
 end)
 
 test("a sloped bowl still gets a longer slab than its run", function()

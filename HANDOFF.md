@@ -129,3 +129,6 @@ All sound ids in `src/shared/SoundConfig.luau` are empty (silent). Fill them fro
 
 ## Analytics
 See `docs/analytics.md` and SNAPSHOT.md "Analytics". After publishing, play two matches and a claw pull, then check Creator Hub > Analytics (funnel immediately, custom events within 24 h). Step names and the event schema are in `src/shared/TelemetryConfig.luau`.
+
+## Fight fixes (fairness, pacing, hit flash, comeback)
+See SNAPSHOT.md "Fight fixes". Tune in `FairnessConfig`, `GameConfig` (Arena radii, Match.aimTimeout, Ai, Feel, Pacing), `ComebackConfig`. First playtest: log time-to-first-hit, check the smaller bowl scenery fit, the HIT! flash size on a phone, and that bots now dive in sooner. Bowl FBX/scenery sized for 112 may sit too far out.

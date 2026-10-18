@@ -2,7 +2,7 @@
 -- Numbers for the world around the bowl (ring road, props, trees, hills). Studs from the arena
 -- centre. The road starts just outside the bowl rim (rimRadius + wall + curb + skirt).
 
-local RIM = 112 -- keep equal to GameConfig.Arena.rimRadius (a test checks it)
+local RIM = 85 -- keep equal to GameConfig.Arena.rimRadius (a test checks it)
 
 return {
 	seed = 2024, -- same seed = same layout every time

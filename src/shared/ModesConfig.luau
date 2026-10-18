@@ -33,7 +33,7 @@ return {
 	LastStanding = {
 		cars = 8, -- cars in the match (humans first, bots fill the rest)
 		maxSeconds = 150, -- time up: most HP among the cars still alive wins
-		spawnRadius = 92, -- start ring, studs from the middle
+		spawnRadius = 68, -- start ring, studs from the middle
 		hpScale = 0.6, -- every car has this share of its normal HP (8 cars = quick knock-outs)
 		hudSeconds = 1,
 	},
@@ -42,11 +42,11 @@ return {
 		ballSize = 16, -- the giant ball (diameter, studs)
 		ballDensity = 0.25, -- low = a hit sends it flying
 		ballMaxSpeed = 140, -- the server never lets the ball go faster
-		goalRadius = 88, -- the ball crossing this distance from the middle, inside a goal arc = goal
+		goalRadius = 66, -- the ball crossing this distance from the middle, inside a goal arc = goal
 		goalHalfAngle = 0.55, -- radians either side of the goal's middle
 		scoreToWin = 3,
 		maxSeconds = 150, -- time up: more goals wins (tie = next goal wins)
-		spawnRadius = 90,
+		spawnRadius = 68,
 		spawnSpread = 0.3, -- radians between cars of the same team
 		goalPause = 2.5, -- seconds the cars sit still after a goal before the ball is back
 		lostMargin = 6, -- ball this far past the rim (or fell out) is put back in the middle
