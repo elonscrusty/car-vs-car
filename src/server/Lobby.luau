@@ -399,10 +399,10 @@ function Lobby.build(): LobbyHandle
 		local header = part(
 			folder,
 			"BayHeader" .. i,
-			Vector3.new(12, 3.8, 0.6),
+			Vector3.new(16, 5.2, 0.6),
 			CFrame.lookAt(
-				origin + Vector3.new(frontX + inward * 1.1, 18.4, b.z),
-				origin + Vector3.new(frontX + inward * 10, 18.4, b.z)
+				origin + Vector3.new(frontX + inward * 1.1, 19.6, b.z),
+				origin + Vector3.new(frontX + inward * 10, 19.6, b.z)
 			),
 			Color3.fromRGB(14, 16, 32)
 		)
@@ -573,20 +573,6 @@ function Lobby.build(): LobbyHandle
 					light.Color = Color3.fromRGB(255, 232, 195)
 					light.Shadows = false
 					light.Parent = win
-					for _, tilt in { -1, 1 } do
-						local brace = part(
-							folder,
-							"XBrace",
-							Vector3.new(math.sqrt(segW * segW + UH * UH) * 0.96, 0.7, 0.7),
-							ucf
-								* CFrame.new(0, 0, -room.wall / 2 - 0.6)
-								* CFrame.Angles(0, 0, math.atan2(UH, segW) * tilt),
-							STEEL,
-							Enum.Material.Metal
-						)
-						brace.CanCollide = false
-						brace.CanQuery = false
-					end
 					for _, mx in { -0.25, 0.25 } do
 						local mull = part(
 							folder,
@@ -655,44 +641,37 @@ function Lobby.build(): LobbyHandle
 	)
 	roof.CanCollide = false
 	roof.CanQuery = false
-	for _, bx in { -60, -30, 0, 30, 60 } do
+	-- Clean red steel: four long beams down the hall and three across, plus two cyan strips.
+	for _, bx in { -48, -16, 16, 48 } do
 		local beam = part(
 			folder,
 			"RoofBeam",
-			Vector3.new(1.4, 1.8, HL * 2),
-			world(bx, top - 0.9, 0),
-			DARK,
+			Vector3.new(2, 2.6, HL * 2),
+			world(bx, top - 1.3, 0),
+			RED,
 			Enum.Material.Metal
 		)
 		beam.CanCollide = false
 		beam.CanQuery = false
-		local strip = part(
-			folder,
-			"BeamNeon",
-			Vector3.new(0.5, 0.3, HL * 2),
-			world(bx, top - 1.9, 0),
-			CYAN,
-			Enum.Material.Neon
-		)
-		strip.CanCollide = false
-		strip.CanQuery = false
 	end
-	for _, bz in { -60, -12, 12, 60 } do
+	for _, bz in { -40, 0, 40 } do
 		local beam = part(
 			folder,
 			"RoofBeam",
-			Vector3.new(HW * 2, 1.8, 1.4),
-			world(0, top - 0.9, bz),
-			DARK,
+			Vector3.new(HW * 2, 2.6, 2),
+			world(0, top - 1.3, bz),
+			RED,
 			Enum.Material.Metal
 		)
 		beam.CanCollide = false
 		beam.CanQuery = false
+	end
+	for _, nx in { -32, 32 } do
 		local strip = part(
 			folder,
 			"BeamNeon",
-			Vector3.new(HW * 2, 0.3, 0.5),
-			world(0, top - 1.9, bz),
+			Vector3.new(0.7, 0.4, HL * 2),
+			world(nx, top - 0.5, 0),
 			CYAN,
 			Enum.Material.Neon
 		)
@@ -720,6 +699,7 @@ function Lobby.build(): LobbyHandle
 		)
 		panel.CanCollide = false
 		panel.CanQuery = false
+		panel.Transparency = 1 -- only the light stays; the square lamps are what you see
 		local light = Instance.new("SurfaceLight")
 		light.Face = Enum.NormalId.Bottom
 		light.Range = 48
@@ -758,7 +738,7 @@ function Lobby.build(): LobbyHandle
 		local shade = part(
 			folder,
 			"LampShade",
-			Vector3.new(5, 0.8, 2.2),
+			Vector3.new(5.6, 0.6, 5.6),
 			world(lp[1], lampY + 0.5, lp[2]),
 			Color3.fromRGB(60, 62, 70),
 			Enum.Material.Metal
@@ -768,7 +748,7 @@ function Lobby.build(): LobbyHandle
 		local bulb = part(
 			folder,
 			"LampGlow",
-			Vector3.new(4.4, 0.3, 1.6),
+			Vector3.new(4.8, 0.3, 4.8),
 			world(lp[1], lampY, lp[2]),
 			Color3.fromRGB(255, 244, 200),
 			Enum.Material.Neon
@@ -860,78 +840,46 @@ function Lobby.build(): LobbyHandle
 		end
 	end
 
-	-- Truck stage in the middle: raised platform and the spinning red truck.
-	part(
+	-- Truck stage in the middle: a round raised platform with a glowing cyan edge, and the
+	-- spinning red truck.
+	local stageD = sc.footprint - 4
+	local stageBase = part(
 		folder,
 		"ShowcaseStage",
-		Vector3.new(sc.footprint - 2, 2, sc.footprint - 2),
-		world(sc.x, 1, sc.z),
-		DARK
+		Vector3.new(2, stageD, stageD),
+		world(sc.x, 1, sc.z) * CFrame.Angles(0, 0, math.pi / 2),
+		DARK,
+		Enum.Material.SmoothPlastic,
+		Enum.PartType.Cylinder
 	)
-	part(
-		folder,
-		"ShowcaseSteps",
-		Vector3.new(8, 1, 3),
-		world(sc.x - sc.footprint / 2 + 1 - 1, 0.5, sc.z + sc.footprint / 2 - 0.5),
-		GRAY
-	)
-	-- Yellow rails along the front and the middle-facing side (the steps stay open).
-	local railBase = 2
-	local railLen = sc.footprint - 2 - 9
-	local frontZ = sc.z + sc.footprint / 2 - 1.2
-	local sideX = sc.x - sc.footprint / 2 + 1.2
-	local railFront = part(
-		folder,
-		"StageRail",
-		Vector3.new(railLen, 0.4, 0.4),
-		world(sc.x + 4.5, railBase + 1.6, frontZ),
-		YELLOW
-	)
-	railFront.CanCollide = false
-	local railSide = part(
-		folder,
-		"StageRail",
-		Vector3.new(0.4, 0.4, sc.footprint - 6),
-		world(sideX, railBase + 1.6, sc.z - 2),
-		YELLOW
-	)
-	railSide.CanCollide = false
-	for _, rp in
-		{
-			Vector3.new(sc.x + 4.5 - railLen / 2, 0, frontZ),
-			Vector3.new(sc.x + 4.5 + railLen / 2, 0, frontZ),
-			Vector3.new(sideX, 0, sc.z - 2 - (sc.footprint - 6) / 2),
-			Vector3.new(sideX, 0, sc.z - 2 + (sc.footprint - 6) / 2),
-		}
-	do
-		local rpost = part(
-			folder,
-			"StageRailPost",
-			Vector3.new(0.5, 1.8, 0.5),
-			world(rp.X, railBase + 0.9, rp.Z),
-			YELLOW
-		)
-		rpost.CanCollide = false
-	end
-	local ring = part(
+	stageBase.CanCollide = true
+	local stageGlow = part(
 		folder,
 		"ShowcaseRing",
-		Vector3.new(sc.footprint - 3, 0.2, sc.footprint - 3),
-		world(sc.x, 2.1, sc.z),
+		Vector3.new(0.6, stageD + 2.4, stageD + 2.4),
+		world(sc.x, 0.3, sc.z) * CFrame.Angles(0, 0, math.pi / 2),
 		CYAN,
-		Enum.Material.Neon
+		Enum.Material.Neon,
+		Enum.PartType.Cylinder
 	)
-	ring.CanCollide = false
-	glow(ring, CYAN, 28, 0.3)
+	stageGlow.CanCollide = false
+	glow(stageGlow, CYAN, 28, 0.4)
+	local stageTopDisc = part(
+		folder,
+		"ShowcaseTop",
+		Vector3.new(0.1, stageD - 6, stageD - 6),
+		world(sc.x, 2.05, sc.z) * CFrame.Angles(0, 0, math.pi / 2),
+		Color3.fromRGB(52, 58, 76),
+		Enum.Material.SmoothPlastic,
+		Enum.PartType.Cylinder
+	)
+	stageTopDisc.CanCollide = false
 	local showcaseColor = Color3.fromRGB(230, 50, 60)
 	-- The Blender stage (LobbyProps) is taller than the plain one, so the truck rides higher.
-	local modelsFolder = ServerStorage:FindFirstChild("Models")
-	local propsFolder = if modelsFolder then modelsFolder:FindFirstChild("Props") else nil
-	local stageModel = if propsFolder then propsFolder:FindFirstChild("truck_stage") else nil
-	local stageTop = if stageModel then 4.4 * sc.footprint / 24 + 0.2 else 2.2
-	local carY = stageTop - 3.4 -- the deck sits below the railing top
+	local stageTop = 2.2
+	local carY = stageTop + 0.1 -- the truck stands on the stage
 	local pivot = world(sc.x, carY + 4, sc.z)
-	local showcaseCar = meshCar(folder, "ShowcaseCar", 24, showcaseColor, world(sc.x, carY, sc.z))
+	local showcaseCar = meshCar(folder, "ShowcaseCar", 30, showcaseColor, world(sc.x, carY, sc.z))
 	if showcaseCar then
 		pivot = world(sc.x, carY, sc.z)
 	else
@@ -1218,27 +1166,32 @@ function Lobby.build(): LobbyHandle
 
 	-- Red barriers with yellow frames, tire stacks and a cone by the spawn (like the reference).
 	for _, sx in { -1, 1 } do
-		local bar = part(
-			folder,
-			"SpawnBarrier",
-			Vector3.new(16, 2.4, 2.6),
-			world(sx * 28, 1.3, 50) * CFrame.Angles(0, sx * math.rad(14), 0),
-			RED
-		)
-		local frameBar = part(
+		-- A low red barrier on two dark legs with a yellow top rail, sitting flat on the floor.
+		local bx = sx * 26
+		part(folder, "SpawnBarrier", Vector3.new(12, 1.5, 1.6), world(bx, 1.6, 50), RED)
+		local rail = part(
 			folder,
 			"SpawnBarrierRail",
-			Vector3.new(16.6, 0.5, 0.5),
-			bar.CFrame * CFrame.new(0, 1.6, 0),
+			Vector3.new(12.4, 0.35, 1.9),
+			world(bx, 2.5, 50),
 			YELLOW
 		)
-		frameBar.CanCollide = false
+		rail.CanCollide = false
+		for _, lx in { -4.5, 4.5 } do
+			part(
+				folder,
+				"SpawnBarrierLeg",
+				Vector3.new(1.2, 1.7, 1.2),
+				world(bx + lx, 0.85, 50),
+				DARK
+			)
+		end
 		for k = 0, 2 do
 			local tire = part(
 				folder,
 				"SpawnTire",
 				Vector3.new(1.4, 3.4, 3.4),
-				world(sx * 38, 0.7 + k * 1.4, 54) * CFrame.Angles(0, 0, math.pi / 2),
+				world(sx * 40, 0.7 + k * 1.4, 52) * CFrame.Angles(0, 0, math.pi / 2),
 				Color3.fromRGB(22, 22, 26),
 				Enum.Material.SmoothPlastic,
 				Enum.PartType.Cylinder
@@ -1263,122 +1216,62 @@ function Lobby.build(): LobbyHandle
 		end
 	end
 
-	-- "STAND TO PLAY" board hung from the roof over the pad row (no posts, so the stage stays visible).
-	local gantryZ = 8
-	for _, sx in { -1, 1 } do
-		local rod = part(
-			folder,
-			"BoardRod",
-			Vector3.new(0.4, 10, 0.4),
-			world(sx * 13, 34.5, gantryZ + 1.6),
-			DARK
-		)
-		rod.CanCollide = false
-	end
-	local board = part(
-		folder,
-		"StandToPlaySign",
-		Vector3.new(30, 5, 1),
-		CFrame.lookAt(
-			origin + Vector3.new(0, 27, gantryZ + 1.6),
-			origin + Vector3.new(0, 27, gantryZ + 10)
-		),
-		Color3.fromRGB(14, 12, 24)
-	)
-	label(board, Enum.NormalId.Front, "STAND TO PLAY", YELLOW, DARK)
-	board.CanCollide = false
-	glow(board, YELLOW, 24, 0.25)
-	local sub = part(
-		folder,
-		"StandToPlaySub",
-		Vector3.new(30, 2, 1),
-		CFrame.lookAt(
-			origin + Vector3.new(0, 23.3, gantryZ + 1.6),
-			origin + Vector3.new(0, 23.3, gantryZ + 10)
-		),
-		Color3.fromRGB(14, 12, 24)
-	)
-	label(sub, Enum.NormalId.Front, "2 PLAYERS TO START", CYAN, DARK)
-	sub.CanCollide = false
-
 	-- Match pads: green slabs in a 2x2 grid. Each has a number badge and a "0/2 PLAYERS" board
 	-- on its back edge (the board text is what LobbyService updates).
 	local pads: { PadHandle } = {}
 	for i, pp in L.pads do
 		local size = L.padSize
-		part(folder, "PadBase", Vector3.new(size, 0.8, size), world(pp.x, 0.4, pp.z), DARK)
-		for _, cx in { -1, 1 } do
-			for _, cz in { -1, 1 } do
-				part(
-					folder,
-					"PadCorner",
-					Vector3.new(2, 1.2, 2),
-					world(pp.x + cx * (size / 2 - 1), 0.6, pp.z + cz * (size / 2 - 1)),
-					YELLOW
-				)
-			end
+		-- A flat dark pad with a thick green glowing outline and its number painted on it.
+		part(
+			folder,
+			"PadBase",
+			Vector3.new(size, 0.3, size),
+			world(pp.x, 0.15, pp.z),
+			Color3.fromRGB(30, 34, 44)
+		)
+		for _, e in { -1, 1 } do
+			local across = part(
+				folder,
+				"PadOutline",
+				Vector3.new(size, 0.2, 0.9),
+				world(pp.x, 0.4, pp.z + e * (size / 2 - 0.45)),
+				GREEN,
+				Enum.Material.Neon
+			)
+			across.CanCollide = false
+			local along = part(
+				folder,
+				"PadOutline",
+				Vector3.new(0.9, 0.2, size - 1.8),
+				world(pp.x + e * (size / 2 - 0.45), 0.4, pp.z),
+				GREEN,
+				Enum.Material.Neon
+			)
+			along.CanCollide = false
 		end
 		local padPart = part(
 			folder,
 			"MatchPad" .. i,
-			Vector3.new(size - 4, 0.4, size - 4),
-			world(pp.x, 1, pp.z),
-			Color3.fromRGB(40, 150, 70),
+			Vector3.new(size - 2.4, 0.3, size - 2.4),
+			world(pp.x, 0.35, pp.z),
+			Color3.fromRGB(38, 42, 54),
 			Enum.Material.SmoothPlastic
 		)
-		padPart.Transparency = 0
-		-- Two white "person" icons on the pad (flat discs: head and shoulders).
-		for _, ix in { -2.6, 2.6 } do
-			local head = part(
-				folder,
-				"PadIconHead",
-				Vector3.new(0.1, 1.6, 1.6),
-				world(pp.x + ix, 1.25, pp.z - 1.4) * CFrame.Angles(0, 0, math.pi / 2),
-				Color3.fromRGB(245, 245, 245),
-				Enum.Material.SmoothPlastic,
-				Enum.PartType.Cylinder
-			)
-			head.CanCollide = false
-			local body = part(
-				folder,
-				"PadIconBody",
-				Vector3.new(0.1, 3.4, 3.4),
-				world(pp.x + ix, 1.25, pp.z + 1.2) * CFrame.Angles(0, 0, math.pi / 2),
-				Color3.fromRGB(245, 245, 245),
-				Enum.Material.SmoothPlastic,
-				Enum.PartType.Cylinder
-			)
-			body.CanCollide = false
-		end
+		label(
+			padPart,
+			Enum.NormalId.Top,
+			string.format("%02d", i),
+			Color3.fromRGB(235, 238, 245),
+			nil
+		)
 		glow(padPart, GREEN, 18, 0.25)
-		local under = part(
-			folder,
-			"PadUnderglow",
-			Vector3.new(size + 1, 0.2, size + 1),
-			world(pp.x, 0.1, pp.z),
-			CYAN,
-			Enum.Material.Neon
-		)
-		under.CanCollide = false
-		under.CanQuery = false
-		local badge = part(
-			folder,
-			"PadNumber" .. i,
-			Vector3.new(2.6, 2.4, 0.6),
-			CFrame.lookAt(
-				origin + Vector3.new(pp.x - size / 2 + 1.6, 3, pp.z - size / 2),
-				origin + Vector3.new(pp.x - size / 2 + 1.6, 3, pp.z + 10)
-			),
-			YELLOW
-		)
-		label(badge, Enum.NormalId.Front, string.format("%02d", i), DARK, nil)
 		local pboard = part(
 			folder,
 			"PadSign" .. i,
 			Vector3.new(8, 2.4, 0.6),
 			CFrame.lookAt(
-				origin + Vector3.new(pp.x + 2, 3, pp.z - size / 2),
-				origin + Vector3.new(pp.x + 2, 3, pp.z + 10)
+				origin + Vector3.new(pp.x, 2.6, pp.z - size / 2 + 0.6),
+				origin + Vector3.new(pp.x, 2.6, pp.z + 10)
 			),
 			Color3.fromRGB(14, 12, 24)
 		)

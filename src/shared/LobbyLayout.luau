@@ -26,7 +26,7 @@ LobbyLayout.pads = {
 	{ x = 27, z = -4 },
 	{ x = 27, z = 20 },
 }
-LobbyLayout.showcase = { x = 0, z = -40, radius = 14, footprint = 34 } -- hero truck stage
+LobbyLayout.showcase = { x = 0, z = -40, radius = 16, footprint = 40 } -- hero truck stage
 -- Booths on the side walls. They are built facing +z, then turned `yaw` degrees (90 turns the
 -- front toward +x). w / d are the size before turning.
 LobbyLayout.store = { x = -50, z = 40, w = 20, d = 12, yaw = 90 } -- front left

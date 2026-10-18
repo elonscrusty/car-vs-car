@@ -39,6 +39,12 @@ local LIFT_SHIFT = 3 -- the lift stands this far toward the hall from the middle
 local PARK_BACK = 5.5 -- parked cars stand this far from the back wall
 local POST_X, POST_Z = 9.5, 8 -- lift posts, from the lift centre
 
+local DEMO_COLORS = {
+	Color3.fromRGB(235, 60, 60),
+	Color3.fromRGB(60, 150, 255),
+	Color3.fromRGB(255, 200, 40),
+	Color3.fromRGB(70, 200, 110),
+}
 local METAL = Color3.fromRGB(110, 114, 126)
 local YELLOW = Color3.fromRGB(255, 205, 40)
 
@@ -221,8 +227,11 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		table.clear(b.extras)
 	end
 
+	local fillDemo: (b: Bay, i: number) -> ()
+
 	local function drop(b: Bay)
 		clearCars(b)
+		fillDemo(b, table.find(bays, b) or 1)
 		b.player = nil
 		b.prompt.Enabled = false
 		b.prompt:SetAttribute("OwnerUserId", nil)
@@ -260,6 +269,41 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		return model, bottom, bbSize
 	end
 
+	-- The lift car faces the hall; its length follows the car's own length (a bit of variety).
+	local function liftCar(
+		b: Bay,
+		carId: string,
+		look: Appearance.Appearance?,
+		build: Build.BuildData?
+	)
+		local cfg = CarConfig.get(carId)
+		local carLen = if cfg then math.max(cfg.size[1], cfg.size[3]) else 8
+		local model, bottom, bbSize =
+			showCar(carId, CFrame.new(b.center), 12 + 0.4 * carLen, look, build)
+		model:PivotTo(CFrame.new(b.center) * CFrame.Angles(0, -b.face * math.pi / 2, 0))
+		b.car = model
+		b.bottom = bottom
+		b.runwayZ = math.clamp(math.min(bbSize.X, bbSize.Z) * 0.3, 2.2, 4.4)
+	end
+
+	-- An empty bay shows a colored sample car so the wall never looks bare.
+	fillDemo = function(b, i)
+		local order = CarConfig.Order
+		if #order == 0 then
+			return
+		end
+		liftCar(
+			b,
+			order[(i - 1) % #order + 1],
+			{ paintColor = DEMO_COLORS[(i - 1) % #DEMO_COLORS + 1] },
+			nil
+		)
+	end
+
+	for i, b in bays do
+		fillDemo(b, i)
+	end
+
 	local handle = {} :: Handle
 	handle.set = function(player, carId, look, build, sign, owned)
 		local b = bayOf(player)
@@ -281,15 +325,7 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		b.signLabel.TextColor3 = Color3.fromRGB(255, 205, 40)
 		clearCars(b)
 
-		-- The lift car faces the hall; its length follows the car's own length (a bit of variety).
-		local cfg = CarConfig.get(carId)
-		local carLen = if cfg then math.max(cfg.size[1], cfg.size[3]) else 8
-		local model, bottom, bbSize =
-			showCar(carId, CFrame.new(b.center), 12 + 0.4 * carLen, look, build)
-		model:PivotTo(CFrame.new(b.center) * CFrame.Angles(0, -b.face * math.pi / 2, 0))
-		b.car = model
-		b.bottom = bottom
-		b.runwayZ = math.clamp(math.min(bbSize.X, bbSize.Z) * 0.3, 2.2, 4.4)
+		liftCar(b, carId, look, build)
 
 		-- The rest of the collection, parked in a row by the back wall. Newest (last owned) first,
 		-- in the middle, then outward.

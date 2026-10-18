@@ -24,7 +24,6 @@ local RANK_COLOR: { [string]: Color3 } = {
 local PANEL = Color3.fromRGB(18, 22, 48)
 local CYAN = Color3.fromRGB(60, 240, 255)
 local GREEN = Color3.fromRGB(70, 255, 140)
-local PANEL_X = 260 -- beside the coins HUD (it is at most 240 px wide, starts at x = 12)
 
 local function makeLabel(parent: Instance, pos: UDim2, size: UDim2, color: Color3): TextLabel
 	local l = Instance.new("TextLabel")
@@ -50,7 +49,7 @@ function ProgressUi.new(): ProgressUi
 	local panel = Instance.new("Frame")
 	panel.BackgroundColor3 = PANEL
 	panel.BackgroundTransparency = 0.2
-	panel.Position = UDim2.fromOffset(PANEL_X, 8)
+	panel.Position = UDim2.new(0.5, 6, 0, 8) -- top middle, right of the coin box
 	panel.Size = UDim2.fromOffset(190, 56)
 	panel.Parent = gui
 	local corner = Instance.new("UICorner")
