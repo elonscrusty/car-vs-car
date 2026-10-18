@@ -315,7 +315,7 @@ function Lobby.build(): LobbyHandle
 	local bayBox = L.bay
 	for i, b in L.bays do
 		local inward = b.face
-		mark("BayFloor" .. i, bayBox.w, bayBox.d, b.x, b.z, Color3.fromRGB(40, 43, 52))
+		mark("BayFloor" .. i, bayBox.w, bayBox.d, b.x, b.z, Color3.fromRGB(78, 82, 98))
 		outline("BayEdge" .. i, bayBox.w, bayBox.d, b.x, b.z, 0.5, YELLOW)
 		local number = mark("BayNumber" .. i, 3, 3, b.x + inward * (bayBox.w / 2 - 3), b.z, DARK)
 		label(number, Enum.NormalId.Top, tostring(i), YELLOW, nil).Rotation = if inward == 1
@@ -347,7 +347,7 @@ function Lobby.build(): LobbyHandle
 			"BayBack",
 			Vector3.new(0.8, 14.6, bayBox.d),
 			world(backX, 7.3, b.z),
-			Color3.fromRGB(70, 74, 86),
+			Color3.fromRGB(120, 126, 146),
 			Enum.Material.Metal
 		)
 		local band = part(
@@ -367,7 +367,7 @@ function Lobby.build(): LobbyHandle
 			Enum.Material.Neon
 		)
 		bar.CanCollide = false
-		glow(bar, Color3.fromRGB(255, 244, 220), 26, 1.2)
+		glow(bar, Color3.fromRGB(255, 244, 220), 40, 3)
 		-- A navy ceiling over the bay, so it reads as a recessed garage.
 		part(
 			folder,
@@ -1305,21 +1305,22 @@ function Lobby.build(): LobbyHandle
 
 	-- Spawn: just inside the gate, looks at the middle of the pads.
 	local sp = L.spawn
-	local spawnPos = origin + Vector3.new(sp.x, 0.5, sp.z)
+	local spawnPos = origin + Vector3.new(sp.x, 0.2, sp.z)
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Name = "LobbySpawn"
 	spawn.Anchored = true
-	spawn.Size = Vector3.new(sp.size, 1, sp.size)
+	spawn.Size = Vector3.new(sp.size, 0.4, sp.size)
 	spawn.CFrame = CFrame.lookAt(spawnPos, origin + Vector3.new(0, 0.5, 0))
 	spawn.Neutral = true
 	spawn.AllowTeamChangeOnTouch = false
 	spawn.Duration = 0
 	spawn.Material = Enum.Material.SmoothPlastic
-	spawn.Color = YELLOW
+	spawn.Color = Color3.fromRGB(28, 32, 46)
 	spawn.TopSurface = Enum.SurfaceType.Smooth
 	spawn.Parent = folder
 
 	folder.Parent = workspace
+	outline("SpawnPadEdge", sp.size, sp.size, sp.x, sp.z, 0.5, CYAN, Enum.Material.Neon)
 	return { spawn = spawn, pads = pads, folder = folder, claw = clawModel }
 end
 

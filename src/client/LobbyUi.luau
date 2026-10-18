@@ -215,9 +215,8 @@ function LobbyUi.new(hooks: Hooks): Handle
 		remotes.LobbyAction:FireServer(action, arg)
 	end
 
-	-- HUD: coins + wins, top middle, small
-	local hud = frame(gui, UDim2.fromScale(0.2, 0.1), UDim2.new(0.5, -6, 0, 8), PANEL)
-	hud.AnchorPoint = Vector2.new(1, 0) -- top middle, left of the rank box: nothing covers the garage signs
+	-- HUD: coins + wins, top left, small
+	local hud = frame(gui, UDim2.fromScale(0.2, 0.1), UDim2.fromOffset(176, 8), PANEL) -- top left, right of the Roblox buttons: nothing covers the signs
 	hud.BackgroundTransparency = 0.2
 	corner(hud, 0.25)
 	stroke(hud, GOLD, 2)

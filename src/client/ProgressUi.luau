@@ -49,7 +49,7 @@ function ProgressUi.new(): ProgressUi
 	local panel = Instance.new("Frame")
 	panel.BackgroundColor3 = PANEL
 	panel.BackgroundTransparency = 0.2
-	panel.Position = UDim2.new(0.5, 6, 0, 8) -- top middle, right of the coin box
+	panel.Position = UDim2.fromOffset(384, 8) -- right of the coin box
 	panel.Size = UDim2.fromOffset(190, 56)
 	panel.Parent = gui
 	local corner = Instance.new("UICorner")
