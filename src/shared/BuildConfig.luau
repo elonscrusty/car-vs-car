@@ -1,7 +1,7 @@
 --!strict
 -- Build-and-watch mode: every number for car parts lives here. Prices are PLACEHOLDERS.
--- A car has 3 part slots (wheels, engine, armor) on top of the body (one of your cars) and the
--- weapon (the claw weapons). Each slot has a few parts to pick and a level that you buy up with coins.
+-- A car has 3 part slots (wheels, engine, armor) on top of the body (one of your cars; the car brings its own
+-- ability). Each slot has a few parts to pick and a level that you buy up with coins.
 -- "mods" multiply the car's stats (1 = unchanged); hitLift is added.
 
 export type Mods = {
