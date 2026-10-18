@@ -17,6 +17,13 @@ test("eight garage bays, four on each side", function()
 	eq(left, 4)
 end)
 
+test("garages are named A1-A4 and B1-B4", function()
+	eq(LobbyLayout.bayName(1), "A1")
+	eq(LobbyLayout.bayName(4), "A4")
+	eq(LobbyLayout.bayName(5), "B1")
+	eq(LobbyLayout.bayName(8), "B4")
+end)
+
 test("four pads", function()
 	eq(#LobbyLayout.pads, 4)
 end)
@@ -42,7 +49,7 @@ test("no footprints overlap (so spawn is not on a pad)", function()
 	end
 end)
 
-test("spawn faces the middle of the pads", function()
+test("spawn faces the stage", function()
 	local dx, dz = LobbyLayout.spawnFacing()
 	near(dx, 0, 1e-9)
 	near(dz, -1, 1e-9)

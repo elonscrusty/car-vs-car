@@ -206,10 +206,10 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		-- Name sign on the back wall, facing the hall.
 		local sign = Instance.new("Part")
 		sign.Name = "BaySign"
-		sign.Size = Vector3.new(14, 2.6, 0.5)
+		sign.Size = Vector3.new(12, 2.4, 0.5)
 		local signPos = Vector3.new(
 			origin.X + spot.x - spot.face * (LobbyLayout.bay.w / 2 - 1),
-			origin.Y + 11.6,
+			origin.Y + 5.8,
 			origin.Z + spot.z
 		)
 		sign.CFrame = CFrame.lookAt(signPos, signPos + Vector3.xAxis * spot.face)
@@ -229,7 +229,7 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		lbl.BackgroundTransparency = 1
 		lbl.Font = Enum.Font.GothamBlack
 		lbl.TextScaled = true
-		lbl.Text = "OPEN BAY"
+		lbl.Text = "OPEN"
 		lbl.TextColor3 = Color3.fromRGB(110, 120, 140)
 		lbl.Parent = gui
 
@@ -286,7 +286,7 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		b.player = nil
 		b.prompt.Enabled = false
 		b.prompt:SetAttribute("OwnerUserId", nil)
-		b.signLabel.Text = "OPEN BAY"
+		b.signLabel.Text = "OPEN"
 		b.signLabel.TextColor3 = Color3.fromRGB(110, 120, 140)
 	end
 

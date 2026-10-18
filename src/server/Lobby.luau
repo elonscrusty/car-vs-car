@@ -277,12 +277,27 @@ function Lobby.build(): LobbyHandle
 	-- Zones on the floor: darker patches with yellow edges for the garage and the claw corner, a
 	-- dark apron under the pads, a cyan frame around the hero stage, and lane lines from the door.
 	local sc = L.showcase
-	mark("GarageFloor", 34, 92, -HW + 17, 8, Color3.fromRGB(52, 55, 64))
-	outline("GarageEdge", 34, 92, -HW + 17, 8, 0.6, YELLOW)
-	mark("ClawFloor", 14, 56, HW - 7, -30, Color3.fromRGB(52, 55, 64))
-	outline("ClawEdge", 14, 56, HW - 7, -30, 0.6, YELLOW)
-	mark("PadApron", 112, 26, 0, L.pads[1].z, Color3.fromRGB(45, 48, 58))
-	outline("PadEdge", 112, 26, 0, L.pads[1].z, 0.6, YELLOW)
+	for i, pp in L.pads do
+		mark("PadApron" .. i, L.padSize + 6, L.padSize + 6, pp.x, pp.z, Color3.fromRGB(45, 48, 58))
+		outline("PadEdge" .. i, L.padSize + 6, L.padSize + 6, pp.x, pp.z, 0.5, YELLOW)
+	end
+	-- Spawn pad and the cyan lane up the middle to the stage.
+	local sp0 = L.spawn
+	mark("SpawnApron", sp0.size + 6, sp0.size + 6, sp0.x, sp0.z, Color3.fromRGB(45, 48, 58))
+	outline("SpawnEdge", sp0.size + 6, sp0.size + 6, sp0.x, sp0.z, 0.5, CYAN, Enum.Material.Neon)
+	local lane = L.lane
+	local laneLen = lane.fromZ - lane.toZ
+	for _, sx in { -1, 1 } do
+		mark(
+			"LaneLine",
+			0.6,
+			laneLen,
+			sx * lane.halfWidth,
+			(lane.fromZ + lane.toZ) / 2,
+			CYAN,
+			Enum.Material.Neon
+		)
+	end
 	outline(
 		"PlazaFrame",
 		sc.footprint + 14,
@@ -293,9 +308,6 @@ function Lobby.build(): LobbyHandle
 		Color3.fromRGB(70, 130, 150),
 		Enum.Material.SmoothPlastic
 	)
-	for z = L.gate.z - 4, L.pads[1].z + 16, -6 do
-		mark("FloorDash", 0.8, 3.2, 0, z, YELLOW)
-	end
 
 	-- Garage bays: an open stall for each player down the side walls. Floor plate with a yellow
 	-- frame and a number, a low back wall with a red band, and a light bar. LobbyBays puts the
@@ -314,8 +326,8 @@ function Lobby.build(): LobbyHandle
 			local divider = part(
 				folder,
 				"BayDivider",
-				Vector3.new(bayBox.w, 3, 0.8),
-				world(b.x, 1.5, b.z + side * (bayBox.d / 2 + 0.4)),
+				Vector3.new(bayBox.w, 9.4, 0.8),
+				world(b.x, 4.7, b.z + side * (bayBox.d / 2 + 0.4)),
 				Color3.fromRGB(60, 64, 76),
 				Enum.Material.Metal
 			)
@@ -324,7 +336,7 @@ function Lobby.build(): LobbyHandle
 				folder,
 				"BayDividerCap",
 				Vector3.new(bayBox.w, 0.4, 1.0),
-				world(b.x, 3.2, b.z + side * (bayBox.d / 2 + 0.4)),
+				world(b.x, 9.5, b.z + side * (bayBox.d / 2 + 0.4)),
 				YELLOW
 			)
 			cap.CanCollide = false
@@ -350,12 +362,51 @@ function Lobby.build(): LobbyHandle
 			folder,
 			"BayLight",
 			Vector3.new(0.6, 0.6, bayBox.d - 4),
-			world(b.x - inward * (bayBox.w / 2 - 3), 13, b.z),
+			world(b.x - inward * (bayBox.w / 2 - 3), 8.8, b.z),
 			Color3.fromRGB(255, 244, 220),
 			Enum.Material.Neon
 		)
 		bar.CanCollide = false
 		glow(bar, Color3.fromRGB(255, 244, 220), 26, 1.2)
+		-- A navy ceiling over the bay, so it reads as a recessed garage.
+		part(
+			folder,
+			"BayCeiling",
+			Vector3.new(bayBox.w, 0.6, bayBox.d + 1.6),
+			world(b.x, 9.5, b.z),
+			Color3.fromRGB(26, 36, 78)
+		)
+		-- The red portal at the front: two columns, a beam and the A1 / B1 header sign.
+		local frontX = b.x + inward * (bayBox.w / 2)
+		for _, side in { -1, 1 } do
+			part(
+				folder,
+				"BayPortalPost",
+				Vector3.new(1.8, 12, 1.8),
+				world(frontX, 6, b.z + side * (bayBox.d / 2 + 0.9)),
+				RED,
+				Enum.Material.Metal
+			)
+		end
+		part(
+			folder,
+			"BayPortalBeam",
+			Vector3.new(1.8, 1.8, bayBox.d + 3.6),
+			world(frontX, 11.1, b.z),
+			RED,
+			Enum.Material.Metal
+		)
+		local header = part(
+			folder,
+			"BayHeader" .. i,
+			Vector3.new(10, 3.2, 0.6),
+			CFrame.lookAt(
+				origin + Vector3.new(frontX + inward * 1.1, 14, b.z),
+				origin + Vector3.new(frontX + inward * 10, 14, b.z)
+			),
+			Color3.fromRGB(14, 16, 32)
+		)
+		label(header, Enum.NormalId.Front, L.bayName(i), Color3.fromRGB(245, 245, 250), nil)
 		-- Tool clutter in the back corners: a red toolbox and a stack of tires.
 		local cornerX = b.x - inward * (bayBox.w / 2 - 2.2)
 		local box = part(
@@ -389,6 +440,30 @@ function Lobby.build(): LobbyHandle
 		end
 	end
 
+	-- Big "GARAGES" signs high on the side walls, with cyan neon on both sides.
+	for _, side in { -1, 1 } do
+		local wx = side * (HW - 1.4)
+		local gs = part(
+			folder,
+			"GaragesSign",
+			Vector3.new(26, 6, 0.6),
+			CFrame.lookAt(origin + Vector3.new(wx, 22, -30), origin + Vector3.new(0, 22, -30)),
+			Color3.fromRGB(14, 16, 32)
+		)
+		label(gs, Enum.NormalId.Front, "GARAGES", Color3.fromRGB(245, 245, 250), nil)
+		for _, dz in { -1, 1 } do
+			local neon = part(
+				folder,
+				"GaragesNeon",
+				Vector3.new(0.5, 0.6, 14),
+				world(wx - side * 0.1, 22, -30 + dz * 21),
+				CYAN,
+				Enum.Material.Neon
+			)
+			neon.CanCollide = false
+		end
+	end
+
 	-- A spot on a wall (side "L", "R", "B" back or "F" front): `along` is the z (L, R) or x (B, F)
 	-- position, `inset` studs inside the inner wall face. Its -Z side faces the middle of the hall.
 	local function wallAt(side: string, along: number, inset: number, y: number): CFrame
@@ -408,9 +483,9 @@ function Lobby.build(): LobbyHandle
 
 	-- Walls: a red lower wall (the Blender panels go in front), a tall concrete upper wall with
 	-- tall windows that glow, steel columns. The front wall is open in the middle: the bay door.
-	local CONCRETE = Color3.fromRGB(62, 65, 74)
+	local CONCRETE = Color3.fromRGB(26, 36, 78) -- navy upper walls
 	local STEEL = RED -- red steel columns and bracing
-	local WALL_GRAY = Color3.fromRGB(48, 51, 60)
+	local WALL_GRAY = Color3.fromRGB(96, 102, 122)
 	local gap = L.gate.halfOpening + 1
 	local sides = {
 		{ "L", Vector3.new(-HW, 0, -HL), Vector3.new(-HW, 0, HL) },
@@ -617,7 +692,7 @@ function Lobby.build(): LobbyHandle
 	for _, sk in
 		{
 			{ 0, sc.z, 34, 10 },
-			{ 0, L.pads[1].z, 100, 6 },
+			{ 0, 8, 70, 6 },
 			{ -HW + 14, 8, 10, 56 },
 			{ HW - 12, -28, 10, 40 },
 			{ HW - 14, 38, 10, 22 },
@@ -647,10 +722,11 @@ function Lobby.build(): LobbyHandle
 	local lampY = top - 15
 	for _, lp in
 		{
-			{ -36, L.pads[1].z },
-			{ -12, L.pads[1].z },
-			{ 12, L.pads[1].z },
-			{ 36, L.pads[1].z },
+			{ -27, -4 },
+			{ 27, -4 },
+			{ -27, 20 },
+			{ 27, 20 },
+			{ 0, 8 },
 			{ -20, sc.z - 14 },
 			{ 20, sc.z - 14 },
 			{ -20, sc.z + 14 },
@@ -777,88 +853,6 @@ function Lobby.build(): LobbyHandle
 				)
 				flag.CanCollide = false
 			end
-		end
-	end
-
-	-- Mezzanine: a raised walkway along the back wall (look down on the stage), up two ramps.
-	local mz = L.mezzanine
-	local deckTop = mz.height
-	local mzFront = mz.z + mz.d / 2
-	part(
-		folder,
-		"MezzDeck",
-		Vector3.new(mz.w, 1, mz.d),
-		world(mz.x, deckTop - 0.5, mz.z),
-		Color3.fromRGB(60, 64, 74),
-		Enum.Material.Metal
-	)
-	local mzEdge = part(
-		folder,
-		"MezzEdge",
-		Vector3.new(mz.w, 0.4, 0.5),
-		world(mz.x, deckTop - 0.9, mzFront),
-		Color3.fromRGB(235, 190, 40),
-		Enum.Material.SmoothPlastic
-	)
-	mzEdge.CanCollide = false
-	for cx = -mz.w / 2 + 4, mz.w / 2 - 4, (mz.w - 8) / 6 do
-		part(
-			folder,
-			"MezzColumn",
-			Vector3.new(1.6, deckTop - 1, 1.6),
-			world(mz.x + cx, (deckTop - 1) / 2, mzFront - 1),
-			STEEL,
-			Enum.Material.Metal
-		)
-	end
-	-- Railing along the front, between the ramps.
-	local railTop = deckTop + 3.2
-	for rx = -mz.w / 2 + 6, mz.w / 2 - 6, 5 do
-		local post = part(
-			folder,
-			"MezzRailPost",
-			Vector3.new(0.4, 3.2, 0.4),
-			world(mz.x + rx, deckTop + 1.6, mzFront - 0.4),
-			YELLOW
-		)
-		post.CanCollide = false
-	end
-	for _, ry in { railTop, deckTop + 1.6 } do
-		local rail = part(
-			folder,
-			"MezzRail",
-			Vector3.new(mz.w - 12, 0.3, 0.3),
-			world(mz.x, ry, mzFront - 0.4),
-			YELLOW
-		)
-		rail.CanCollide = false
-	end
-	-- The ramps up to it (wide, gentle, with a glowing edge).
-	for _, rm in L.ramps do
-		local lowZ = rm.z + rm.d / 2
-		local highZ = rm.z - rm.d / 2
-		local lo = origin + Vector3.new(rm.x, 0, lowZ)
-		local hi = origin + Vector3.new(rm.x, deckTop, highZ)
-		local len = (hi - lo).Magnitude
-		local rcf = CFrame.lookAt((lo + hi) / 2, hi) * CFrame.new(0, -0.4, 0)
-		part(
-			folder,
-			"MezzRamp",
-			Vector3.new(rm.w, 0.8, len),
-			rcf,
-			Color3.fromRGB(70, 74, 84),
-			Enum.Material.Metal
-		)
-		for _, ex in { -1, 1 } do
-			local edge = part(
-				folder,
-				"MezzRampEdge",
-				Vector3.new(0.4, 0.4, len),
-				rcf * CFrame.new(ex * (rm.w / 2 - 0.2), 0.5, 0),
-				Color3.fromRGB(235, 190, 40),
-				Enum.Material.SmoothPlastic
-			)
-			edge.CanCollide = false
 		end
 	end
 
@@ -997,7 +991,9 @@ function Lobby.build(): LobbyHandle
 		clawModel = claw
 	end
 
-	-- Store booth (back-left): yellow counter with a shelf behind it.
+	-- Store booth (front left): yellow counter with a shelf behind it. Built facing +z around its
+	-- centre, then the whole booth is turned toward the lane.
+	local storeFrom = #folder:GetChildren()
 	local s = L.store
 	local counter = part(
 		folder,
@@ -1102,6 +1098,150 @@ function Lobby.build(): LobbyHandle
 	label(stSign, Enum.NormalId.Front, "STORE", YELLOW, DARK)
 	glow(stSign, YELLOW, 24, 0.4)
 	prompt(counter, "StorePrompt", "Open", "Store")
+	do
+		local centre = origin + Vector3.new(s.x, 0, s.z)
+		local turn = CFrame.new(centre) * CFrame.Angles(0, math.rad(s.yaw), 0) * CFrame.new(-centre)
+		local made = folder:GetChildren()
+		for k = storeFrom + 1, #made do
+			local item = made[k]
+			if item:IsA("BasePart") then
+				item.CFrame = turn * item.CFrame
+			end
+		end
+	end
+
+	-- Paint / customize booth (front right): cyan counter, paint cans and a tool wall. Built in its
+	-- own frame (+z = the front) and turned toward the lane.
+	do
+		local pb = L.paint
+		local frame = CFrame.new(origin + Vector3.new(pb.x, 0, pb.z))
+			* CFrame.Angles(0, math.rad(pb.yaw), 0)
+		local function bp(
+			name: string,
+			size: Vector3,
+			x: number,
+			y: number,
+			z: number,
+			color: Color3,
+			material: Enum.Material?,
+			shape: Enum.PartType?
+		): Part
+			return part(folder, name, size, frame * CFrame.new(x, y, z), color, material, shape)
+		end
+		local counter2 = bp("PaintCounter", Vector3.new(pb.w, 4, 4), 0, 2, pb.d / 2 - 2, CYAN)
+		bp("PaintCounterTop", Vector3.new(pb.w + 0.6, 0.5, 4.6), 0, 4.25, pb.d / 2 - 2, DARK)
+		bp("PaintBack", Vector3.new(pb.w, 9, 1), 0, 4.5, -pb.d / 2 + 0.5, DARK)
+		local glowStrip = bp(
+			"PaintGlow",
+			Vector3.new(pb.w - 2, 0.3, 0.3),
+			0,
+			0.6,
+			pb.d / 2 + 0.2,
+			CYAN,
+			Enum.Material.Neon
+		)
+		glowStrip.CanCollide = false
+		local canColors = {
+			Color3.fromRGB(235, 60, 60),
+			Color3.fromRGB(70, 140, 240),
+			Color3.fromRGB(80, 200, 110),
+			Color3.fromRGB(255, 205, 40),
+			Color3.fromRGB(190, 90, 255),
+		}
+		for level = 1, 2 do
+			local shelfY = 2.2 + level * 2.6
+			bp(
+				"PaintShelf",
+				Vector3.new(pb.w / 2 - 1, 0.5, 2.5),
+				-pb.w / 4,
+				shelfY,
+				-pb.d / 2 + 2,
+				GRAY,
+				Enum.Material.Metal
+			)
+			for k = 1, 5 do
+				local can = bp(
+					"PaintCan",
+					Vector3.new(1.4, 1.3, 1.3),
+					-pb.w / 2 + 2.5 + (k - 1) * 1.8,
+					shelfY + 1,
+					-pb.d / 2 + 2,
+					canColors[(k + level) % #canColors + 1],
+					nil,
+					Enum.PartType.Cylinder
+				)
+				can.CFrame = can.CFrame * CFrame.Angles(0, 0, math.pi / 2)
+				can.CanCollide = false
+			end
+		end
+		bp(
+			"ToolWall",
+			Vector3.new(7, 4.5, 0.3),
+			pb.w / 4 + 1,
+			6.4,
+			-pb.d / 2 + 1.1,
+			Color3.fromRGB(40, 44, 58)
+		)
+		for k = 1, 4 do
+			local tool = bp(
+				"ToolBar",
+				Vector3.new(0.35, 3, 0.25),
+				pb.w / 4 - 1.2 + k * 1.2,
+				6.4,
+				-pb.d / 2 + 1.3,
+				Color3.fromRGB(190, 195, 205)
+			)
+			tool.CanCollide = false
+		end
+		bp("PaintRoof", Vector3.new(pb.w + 1, 1, pb.d), 0, 11, 0, CYAN)
+		for _, sx in { -1, 1 } do
+			bp("PaintPost", Vector3.new(1, 10, 1), sx * (pb.w / 2 - 0.5), 5, pb.d / 2 - 0.5, CYAN)
+		end
+		local pSign = bp(
+			"PaintSign",
+			Vector3.new(14, 2.6, 0.6),
+			0,
+			9.6,
+			pb.d / 2 + 0.4,
+			Color3.fromRGB(14, 12, 24)
+		)
+		pSign.CFrame = frame
+			* CFrame.lookAt(Vector3.new(0, 9.6, pb.d / 2 + 0.4), Vector3.new(0, 9.6, pb.d / 2 + 40))
+		label(pSign, Enum.NormalId.Front, "PAINT / CUSTOMIZE", CYAN, DARK)
+		glow(pSign, CYAN, 24, 0.4)
+		prompt(counter2, "CustomizePrompt", "Customize", "Paint & Garage")
+	end
+
+	-- Red barriers with yellow frames, tire stacks and a cone by the spawn (like the reference).
+	for _, sx in { -1, 1 } do
+		local bar = part(
+			folder,
+			"SpawnBarrier",
+			Vector3.new(16, 2.4, 2.6),
+			world(sx * 28, 1.3, 50) * CFrame.Angles(0, sx * math.rad(14), 0),
+			RED
+		)
+		local frameBar = part(
+			folder,
+			"SpawnBarrierRail",
+			Vector3.new(16.6, 0.5, 0.5),
+			bar.CFrame * CFrame.new(0, 1.6, 0),
+			YELLOW
+		)
+		frameBar.CanCollide = false
+		for k = 0, 2 do
+			local tire = part(
+				folder,
+				"SpawnTire",
+				Vector3.new(1.4, 3.4, 3.4),
+				world(sx * 38, 0.7 + k * 1.4, 54) * CFrame.Angles(0, 0, math.pi / 2),
+				Color3.fromRGB(22, 22, 26),
+				Enum.Material.SmoothPlastic,
+				Enum.PartType.Cylinder
+			)
+			tire.CanCollide = false
+		end
+	end
 
 	-- Three light chevrons on the floor between the door and the pads, pointing at the pads.
 	for k = 0, 4 do
@@ -1120,7 +1260,7 @@ function Lobby.build(): LobbyHandle
 	end
 
 	-- "STAND TO PLAY" board hung from the roof over the pad row (no posts, so the stage stays visible).
-	local gantryZ = L.pads[1].z
+	local gantryZ = 8
 	for _, sx in { -1, 1 } do
 		local rod = part(
 			folder,

@@ -38,11 +38,6 @@ local SPOTS: { Spot } = {
 	{ name = "plant_box_yellow", x = 86, z = -8, face = 90, scale = 1.3 },
 	{ name = "neon_sign", x = 89.2, z = -30, face = 90, y = 24, scale = 1.6 },
 	-- Lounge (right wall, front): two sofas facing the TV.
-	{ name = "tv_stand", x = 88.4, z = 38, face = 90, scale = 1.7 },
-	{ name = "sofa_cyan", x = 74, z = 31, face = -90, scale = 1.3 },
-	{ name = "sofa_cyan", x = 74, z = 45, face = -90, scale = 1.3 },
-	{ name = "plant_box_yellow", x = 88, z = 54, face = 90, scale = 1.3 },
-	{ name = "plant_box", x = 88, z = 22, face = 90, scale = 1.3 },
 	-- Entrance and the pad row.
 	{ name = "plant_box", x = -32, z = 63, face = 0, scale = 1.3 },
 	{ name = "plant_box_yellow", x = 32, z = 63, face = 0, scale = 1.3 },
@@ -120,31 +115,6 @@ function LobbyProps.build(folder: Folder, origin: Vector3)
 		end
 	end
 
-	-- A plain look-only block (the lift car and the lounge rug).
-	local function plain(
-		name: string,
-		size: Vector3,
-		cf: CFrame,
-		color: Color3,
-		shape: Enum.PartType?
-	)
-		local p = Instance.new("Part")
-		p.Name = name
-		p.Anchored = true
-		p.CanCollide = false
-		p.CanQuery = false
-		p.CastShadow = false
-		p.Size = size
-		p.CFrame = cf
-		p.Color = color
-		p.Material = Enum.Material.SmoothPlastic
-		if shape then
-			p.Shape = shape
-		end
-		p.Parent = folder
-		return p
-	end
-
 	local room = LobbyLayout.room
 	local top = room.wallHeight + room.upper -- underside of the roof
 
@@ -209,30 +179,29 @@ function LobbyProps.build(folder: Folder, origin: Vector3)
 		end
 	end
 
-	-- Store: counter model on the back wall; the plain counter stays as an invisible collider.
+	-- Store: counter model; the plain counter stays as an invisible collider. The store is built
+	-- facing +z around its centre and turned toward the lane, so everything is turned the same way.
 	local s = LobbyLayout.store
+	local centre = origin + Vector3.new(s.x, 0, s.z)
+	local turn = CFrame.new(centre) * CFrame.Angles(0, math.rad(s.yaw), 0) * CFrame.new(-centre)
 	if has("store_counter") then
 		remove(STORE_PARTS)
-		put("store_counter", at(s.x, 0, s.z - s.d / 2 + 3, 180), s.w / 13.8)
+		put("store_counter", turn * at(s.x, 0, s.z - s.d / 2 + 3, 180), s.w / 13.8)
 		local c = folder:FindFirstChild("StoreCounter")
 		if c and c:IsA("BasePart") then
 			c.Transparency = 1
 			c.Size = Vector3.new(s.w, 4, 3)
-			c.Position = origin + Vector3.new(s.x, 2, s.z - s.d / 2 + 6.5)
+			c.CFrame = turn * CFrame.new(origin + Vector3.new(s.x, 2, s.z - s.d / 2 + 6.5))
 		end
 		local sign = folder:FindFirstChild("StoreSign")
 		if sign and sign:IsA("BasePart") then
-			sign.Position = origin + Vector3.new(s.x, 15.4, s.z - s.d / 2 + 5.5)
+			sign.CFrame = turn
+				* CFrame.lookAt(
+					origin + Vector3.new(s.x, 15.4, s.z - s.d / 2 + 5.5),
+					origin + Vector3.new(s.x, 15.4, s.z + 40)
+				)
 		end
 	end
-
-	-- Lounge rug under the sofas.
-	plain(
-		"LoungeRug",
-		Vector3.new(26, 0.06, 20),
-		CFrame.new(origin + Vector3.new(76, 0.07, 38)),
-		Color3.fromRGB(40, 60, 110)
-	)
 
 	-- Roller doors under the walkway on the back wall.
 	if has("roller_door") then
