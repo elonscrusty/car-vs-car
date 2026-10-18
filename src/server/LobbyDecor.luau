@@ -59,7 +59,7 @@ function LobbyDecor.clone(
 end
 
 -- Signs high on the walls. facing: yaw so the front looks into the hall.
-local LEFT, RIGHT, BACK, FRONT = -math.pi / 2, math.pi / 2, math.pi, 0
+local LEFT, RIGHT, FRONT = -math.pi / 2, math.pi / 2, 0
 
 type Sign = { name: string, x: number, z: number, y: number, yaw: number }
 
