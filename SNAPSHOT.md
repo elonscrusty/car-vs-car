@@ -131,3 +131,11 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 - Hit feel: `client/HitFlash.luau` (screen flash, "HIT!" label, strong hits get "HIT! -dmg" and extra shake) hooked in `init.client` hit handler; rule `shared/HitFeel.luau`; numbers `GameConfig.Feel` (flashFrom, strongFrom, extraShake). No sound. Not seen in Studio.
 - Comeback: `shared/Comeback.luau` + `ComebackConfig.luau` (default on, under 25% HP, +35% speed fading over 0.9 s, once per fight on first boost/ability). Applied in server `Moves` (mods + popMult for client-driven cars; Match speed cap allows it). All numbers are placeholders.
 - Tests: `tests/fightfix.test.luau` (265 pass total).
+
+## Launch simplification (feature flags)
+- `src/shared/FeatureFlags.luau`: pure flags. Off at launch: dailySpin, rankBadges, paintShop, perCarQuests, botLevelButton, lastStandingMode. On: soccerMode (carter kept it). Hidden = not built/ignored, no code deleted.
+- ModesConfig.Order = duel, hill, ice, soccer (`ModesConfig.orderFor(flags)`). QuestsConfig.Catalog = win3, play5, bot2 (`catalogFor(flags)`). Spin and buyPaint/equipPaint server actions ignored while off; SpinUi/PaintUi/BotLevelUi not created; rank text empty.
+- Bot level: `BotLevels.forWins` / `levelFor`, thresholds `BotLevelsConfig.AutoScale` (easy under 3 wins, medium under 15, else hard; placeholders).
+- New-player menu: `MenuRules.visible(profile)` + `MenuConfig.matchesForFullMenu = 2`. Profile has a new `matches` counter (migrates to 0, +1 per finished match in `finishMatch`). `MenuBar.setShown` hides buttons.
+- `client/SaveNotice.luau`: "Progress not saving right now" text when player attribute ProfileUnsaved is true.
+- Tests: 264 pass (Lune). Not checked in Studio or by eye.

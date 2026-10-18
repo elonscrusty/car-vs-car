@@ -132,3 +132,5 @@ See `docs/analytics.md` and SNAPSHOT.md "Analytics". After publishing, play two 
 
 ## Fight fixes (fairness, pacing, hit flash, comeback)
 See SNAPSHOT.md "Fight fixes". Tune in `FairnessConfig`, `GameConfig` (Arena radii, Match.aimTimeout, Ai, Feel, Pacing), `ComebackConfig`. First playtest: log time-to-first-hit, check the smaller bowl scenery fit, the HIT! flash size on a phone, and that bots now dive in sooner. Bowl FBX/scenery sized for 112 may sit too far out.
+## Launch simplification
+See SNAPSHOT.md "Launch simplification". To bring a cut feature back, set its flag in `src/shared/FeatureFlags.luau`. Placeholders: `BotLevelsConfig.AutoScale` (3 / 15 wins), `MenuConfig.matchesForFullMenu` (2). Per-car quests saved in old profiles are dropped and refilled while the flag is off. Not checked in Studio.

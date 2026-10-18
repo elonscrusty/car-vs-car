@@ -26,6 +26,7 @@ local Leaderboards = require(script.Parent.Leaderboards)
 local ProgressConfig = require(ReplicatedStorage.Shared.ProgressConfig)
 local RateLimiter = require(ReplicatedStorage.Shared.RateLimiter)
 local BotLevels = require(ReplicatedStorage.Shared.BotLevels)
+local FeatureFlags = require(ReplicatedStorage.Shared.FeatureFlags)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Store = require(ReplicatedStorage.Shared.Store)
 local Types = require(ReplicatedStorage.Shared.Types)
@@ -150,6 +151,7 @@ function LobbyService.start(deps: Deps): Handle
 			kind = "profile",
 			coins = p.coins,
 			wins = p.wins,
+			matches = p.matches,
 			owned = Inventory.ownedList(p),
 			freePullAvailable = (LobbyConfig.Gacha.firstPullFree and not p.freePullUsed)
 				or p.daily.freePulls > 0,
@@ -307,6 +309,7 @@ function LobbyService.start(deps: Deps): Handle
 			if won then
 				p.wins += 1
 			end
+			p.matches = math.min(p.matches + 1, 1e9)
 			Profiles.markDirty(player)
 			Leaderboards.submit(player, p)
 		end
@@ -371,7 +374,13 @@ function LobbyService.start(deps: Deps): Handle
 		vsBot = #participants == 1
 		if #participants == 1 then
 			local solo = Profiles.get(participants[1].player)
-			participants[1].botLevel = if solo then solo.botLevel else nil
+			participants[1].botLevel = if solo
+				then BotLevels.levelFor(
+					solo.wins,
+					solo.botLevel,
+					FeatureFlags.enabled("botLevelButton")
+				)
+				else nil
 		end
 		deps.startMatch(participants)
 	end
@@ -699,7 +708,7 @@ function LobbyService.start(deps: Deps): Handle
 	-- Daily spin: the server rolls. Day is marked used before paying, so repeats pay nothing.
 	local function spinWheel(player: Player)
 		local p = Profiles.get(player)
-		if p == nil then
+		if p == nil or not FeatureFlags.enabled("dailySpin") then
 			return
 		end
 		local result = Spin.spin(p.spin, os.time(), rng, function(n)
@@ -768,11 +777,11 @@ function LobbyService.start(deps: Deps): Handle
 					buyCar(player, arg)
 				end
 			elseif action == "buyPaint" then
-				if paintLimiter.allow(player, os.clock()) then
+				if FeatureFlags.enabled("paintShop") and paintLimiter.allow(player, os.clock()) then
 					buyPaint(player, arg)
 				end
 			elseif action == "equipPaint" then
-				if paintLimiter.allow(player, os.clock()) then
+				if FeatureFlags.enabled("paintShop") and paintLimiter.allow(player, os.clock()) then
 					equipPaint(player, arg)
 				end
 			elseif
