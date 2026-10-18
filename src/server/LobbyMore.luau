@@ -28,13 +28,11 @@ function LobbyMore.build(folder: Folder, origin: Vector3)
 	end
 
 	-- The start lights hang on the front wall (over the lane they hid the stage).
-	put("StartLights", -40, 17, HL - 1.5, FRONT)
 	put("Podium", 24, 0, -54, BACK)
 	put("Sign_Nitro", -52, 24, -HL + 1.5, BACK)
 	put("Sign_Turbo", 52, 24, -HL + 1.5, BACK)
 	put("Sign_Bolt", -L.room.halfW + 1, 26.5, 50, LEFT)
 	put("Leaderboard", -50, 0, -64, BACK)
-	put("TrafficLight", 12, 0, 40, BACK)
 	put("Sign_Play", 40, 22, HL - 1.5, FRONT)
 
 	-- Lounge in the front corners.

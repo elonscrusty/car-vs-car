@@ -33,6 +33,7 @@ function LobbyDecor.clone(
 	end
 	local m = src:Clone()
 	local lit = false
+	local calm = source ~= "Bowl" -- the bowl keeps its red and white curbs; the lobby gets garage steel
 	for _, d in m:GetDescendants() do
 		if d:IsA("BasePart") then
 			d.Anchored = true
@@ -40,7 +41,14 @@ function LobbyDecor.clone(
 			d.CanQuery = false
 			d.CanTouch = false
 			d.CastShadow = false
-			if string.sub(d.Name, 1, 5) == "Neon_" then
+			local neon = string.sub(d.Name, 1, 5) == "Neon_"
+			if calm and not neon then
+				local c = d.Color
+				if c.R > 0.6 and c.G < 0.35 and c.B < 0.35 then
+					d.Color = Color3.fromRGB(78, 84, 96) -- racetrack red becomes garage steel
+				end
+			end
+			if neon then
 				d.Material = Enum.Material.Neon
 				if glowRange and not lit then
 					lit = true
@@ -83,12 +91,10 @@ function LobbyDecor.build(parent: Folder, origin: Vector3)
 		{ name = "Sign_Wrench", x = -HW + 1, z = -8, y = 26.5, yaw = LEFT },
 		{ name = "Sign_FlameTire", x = -HW + 1, z = 22, y = 26.5, yaw = LEFT },
 		-- Right wall.
-		{ name = "Sign_PitStop", x = HW - 1, z = -40, y = 26.5, yaw = RIGHT },
 		{ name = "Sign_Piston", x = HW - 1, z = -8, y = 26.5, yaw = RIGHT },
 		{ name = "Sign_Open247", x = HW - 1, z = 22, y = 26.5, yaw = RIGHT },
 		-- Behind the player at the start, and the flags on the back wall.
 		{ name = "Sign_CarVsCar", x = 0, z = HL - 1.5, y = 24, yaw = FRONT },
-		{ name = "Sign_CheckerFlags", x = HW - 1, z = -62, y = 26.5, yaw = RIGHT },
 	}
 	for _, s in SIGNS do
 		put(s.name, s.x, s.y, s.z, s.yaw, 24)

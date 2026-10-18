@@ -38,7 +38,7 @@ local CLAW_YAW_DEG = 180 -- turns the imported claw machine so its front faces t
 local CYAN = Color3.fromRGB(60, 220, 255)
 local GREEN = Color3.fromRGB(60, 235, 80)
 local YELLOW = Color3.fromRGB(255, 205, 40)
-local RED = Color3.fromRGB(215, 40, 40)
+local RED = Color3.fromRGB(84, 90, 102) -- steel (kept the old name): garage steel, not racetrack red
 local FLOOR = Color3.fromRGB(70, 74, 86)
 local DARK = Color3.fromRGB(28, 30, 38)
 local GRAY = Color3.fromRGB(150, 152, 165)
@@ -530,7 +530,7 @@ function Lobby.build(): LobbyHandle
 	-- Walls: a red lower wall (the Blender panels go in front), a tall concrete upper wall with
 	-- tall windows that glow, steel columns. The front wall is open in the middle: the bay door.
 	local CONCRETE = Color3.fromRGB(26, 36, 78) -- navy upper walls
-	local STEEL = RED -- red steel columns and bracing
+	local STEEL = RED -- steel columns and bracing
 	local WALL_GRAY = Color3.fromRGB(96, 102, 122)
 	local gap = L.gate.halfOpening + 1
 	local openEnd = L.bays[4].z + L.bay.d / 2 -- the garages open the side walls up to here
@@ -948,7 +948,7 @@ function Lobby.build(): LobbyHandle
 		c.CanQuery = false
 		return c
 	end
-	local TRUSS = Color3.fromRGB(190, 40, 40)
+	local TRUSS = Color3.fromRGB(78, 84, 96)
 	for _, bz in { -40, 0, 40 } do
 		ceil(
 			"TrussChord",
