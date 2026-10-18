@@ -111,3 +111,9 @@ Design follows `/mnt/project-files/car-vs-car/game-plan.md`, but carter chose (2
 - Prize rolled on the server (`Gacha.pull`), claw animation plays from the result. Shown odds = rolled odds (`Gacha.oddsTable` skips rarities with no cars, re-scales to 100). Duplicate coins grow with rarity: `LobbyConfig.Gacha.duplicateRefunds`, `Gacha.refundFor`. All numbers are PRETEND. New cars join the claw by getting a rarity in the catalog.
 ## Update: bowl arena makeover
 See SNAPSHOT.md section "Bowl arena makeover". Tune scenery in ArenaLookConfig, skid numbers in SkidRules.Config, pad sign numbers in BowlConfig.Pads. Outside grass beyond the road is not solid (cars fall to the out-of-bounds drop). Lighting (Atmosphere.luau) untouched.
+
+## 2026-10-18: Studio place lost, rebuilt from the repo
+The real place was never saved and was lost with the Studio window. Now in the repo: all 115 lobby/bowl model
+sources (`assets/models`, Blender FBX), `tools/studio-sort.luau` and `docs/STUDIO_REBUILD.md`. Lobby is being
+re-themed from racetrack red to garage steel (`LobbyDecor.clone` + optional `SteelPalette` attribute). The 30
+cars still need their own import. Always Ctrl+S and Publish a rebuilt place first.

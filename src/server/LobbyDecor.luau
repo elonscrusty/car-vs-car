@@ -34,6 +34,8 @@ function LobbyDecor.clone(
 	local m = src:Clone()
 	local lit = false
 	local calm = source ~= "Bowl" -- the bowl keeps its red and white curbs; the lobby gets garage steel
+	-- A steel-gray copy of the color sheet (red cells turned gray), set by hand once it is uploaded.
+	local steel = if calm and models then models:GetAttribute("SteelPalette") else nil
 	for _, d in m:GetDescendants() do
 		if d:IsA("BasePart") then
 			d.Anchored = true
@@ -42,6 +44,9 @@ function LobbyDecor.clone(
 			d.CanTouch = false
 			d.CastShadow = false
 			local neon = string.sub(d.Name, 1, 5) == "Neon_"
+			if steel and d:IsA("MeshPart") and d.TextureID ~= "" then
+				d.TextureID = steel :: string
+			end
 			if calm and not neon then
 				local c = d.Color
 				if c.R > 0.6 and c.G < 0.35 and c.B < 0.35 then
