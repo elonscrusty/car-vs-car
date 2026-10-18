@@ -308,6 +308,7 @@ function LobbyService.start(deps: Deps): Handle
 			Inventory.addCoins(p, earned)
 			if won then
 				p.wins += 1
+				Leaderboards.recordWin(player)
 			end
 			p.matches = math.min(p.matches + 1, 1e9)
 			Profiles.markDirty(player)

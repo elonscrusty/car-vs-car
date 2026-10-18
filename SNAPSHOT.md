@@ -151,3 +151,11 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 - `GroupMatch` uses it only for mode "soccer" (arena pick, goal boxes replace the circular arc test, ball stuck/out-of-bounds reset, cars that leave come back at their spot). Kept: scoreToWin, teams, bots, goal pause, timer, golden goal. `ModesConfig.Soccer.teamSize` is now 2 (2v2); the old bowl goal numbers there are unused. Bowl and the other modes are untouched.
 - Empty Folders in the arena for Studio models later: `BallSpawn`, `GoalA`, `GoalB`, `ScoreBoardAnchor` (each has a `Position` attribute). No models are imported by code.
 - Placeholders / not checked in Studio: field size, wall height, ball size/density/bounce/speed cap (9 studs, 0.3, 0.7, 100), bot aim offsets, camera framing of the small field, whether cars clear the net sides, grass/line look.
+
+## Social + safety (invite, weekly board, weekly bowl look, car sanity)
+- Invite: `client/InviteUi.luau` (button on the win screen; `SocialService:CanSendGameInviteAsync` in pcall, then `PromptGameInvite`; hidden if not allowed). Hooked in `Ui.luau`.
+- Weekly wins board: `Leaderboard.weekIndex` (Monday 00:00 UTC weeks), `weeklyStore` (`TopWinsWeekly_v1_w<week>`), `addWins`; `Leaderboards.recordWin` is called from `LobbyService.finishMatch` on a win; third board built between all-time wins and best streak.
+- Weekly bowl look: `shared/ArenaThemes.luau` (4 placeholder palettes by week), applied in `ArenaScenery.build` (wall stripe colors + grass tint only; no sizes touched).
+- Car sanity: `shared/CarSanityRules.luau` + `CarSanityConfig.luau` (pure, tested) and `server/CarSanity.luau`. Per fight frame, client-driven cars are checked for teleport, height, measured speed; bad = put back at last good spot, 3 resets = forfeit. Hooked in `Match` and `GroupMatch` (soccer never forfeits, respawns call `CarSanity.rebase`). All numbers in `CarSanityConfig` are PLACEHOLDERS.
+- Docs: `docs/playtest-checklist.md`, `docs/store-page.md`. Max Players (12 to 16) must be set by carter in Game Settings.
+- Tests: 269 pass. Not checked in Studio: invite prompt, board look/position (boards now 3 wide), theme colors, false resets under real lag.

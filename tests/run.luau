@@ -46,5 +46,7 @@ require("./sounds.test")
 require("./fightfix.test")
 require("./menu.test")
 require("./soccerfield.test")
+require("./arenathemes.test")
+require("./carsanity.test")
 
 Harness.summary()

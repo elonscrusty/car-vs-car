@@ -26,6 +26,7 @@ local Arena = require(script.Parent.Arena)
 local Autopilot = require(script.Parent.Autopilot)
 local BowlHazards = require(script.Parent.BowlHazards)
 local Buffs = require(script.Parent.Buffs)
+local CarSanity = require(script.Parent.CarSanity)
 local Pickups = require(script.Parent.Pickups)
 local BotLevels = require(ReplicatedStorage.Shared.BotLevels)
 local Appearance = require(script.Parent.Appearance)
@@ -696,7 +697,9 @@ function Match.new(
 						"SpeedMult",
 						Buffs.speedMult(car) * Moves.popMult(moveStates[car.idx], os.clock())
 					)
-					if not limitSpeed(car) then
+					if
+						not limitSpeed(car) or not CarSanity.step(car, origin.Y, speedCap(car), dt)
+					then
 						endMatch(car, "RING OUT!")
 						return
 					end

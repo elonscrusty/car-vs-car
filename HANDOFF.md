@@ -142,3 +142,6 @@ See SNAPSHOT.md "Launch simplification". To bring a cut feature back, set its fl
 
 ## Car soccer small field
 See SNAPSHOT.md "Car soccer small field". Tune only in `src/shared/SoccerFieldConfig.luau` (and `ModesConfig.Soccer` for teamSize, scoreToWin, time, goal pause). First play test: ball too heavy/light, bots pile on the ball, ball sticking in corners or nets, camera view of the small field.
+
+## Social + safety
+See SNAPSHOT.md "Social + safety". Tune cheat limits in `src/shared/CarSanityConfig.luau` (placeholders; if honest players get snapped back, raise `teleportSlack`/`graceSeconds`). Weekly store name changes every Monday UTC automatically. Carter: set Max Players 12 to 16 in Game Settings (not settable from code).
