@@ -24,6 +24,18 @@ test("garages are named A1-A4 and B1-B4", function()
 	eq(LobbyLayout.bayName(8), "B4")
 end)
 
+test("garages are built into the side walls, in line along the wall", function()
+	local room = LobbyLayout.room
+	for _, b in LobbyLayout.bays do
+		-- The opening (front of the garage) sits on the wall line; the room is behind it.
+		near(math.abs(b.x) - LobbyLayout.bay.w / 2, room.halfW, 1e-9)
+		truthy(math.abs(b.z) + LobbyLayout.bay.d / 2 <= room.halfL)
+	end
+	for i = 1, 3 do
+		near(LobbyLayout.bays[i + 1].z - LobbyLayout.bays[i].z, LobbyLayout.bay.d, 1e-9)
+	end
+end)
+
 test("four pads", function()
 	eq(#LobbyLayout.pads, 4)
 end)

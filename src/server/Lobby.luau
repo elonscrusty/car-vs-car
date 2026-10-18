@@ -237,7 +237,7 @@ function Lobby.build(): LobbyHandle
 	part(
 		folder,
 		"Floor",
-		Vector3.new(HW * 2 + 4, 2, HL * 2 + 4),
+		Vector3.new((HW + L.bay.w) * 2 + 4, 2, HL * 2 + 4), -- also under the garages
 		world(0, -1, 0),
 		FLOOR,
 		Enum.Material.Concrete
@@ -326,8 +326,8 @@ function Lobby.build(): LobbyHandle
 			local divider = part(
 				folder,
 				"BayDivider",
-				Vector3.new(bayBox.w, 9.4, 0.8),
-				world(b.x, 4.7, b.z + side * (bayBox.d / 2 + 0.4)),
+				Vector3.new(bayBox.w, 14.6, 0.8),
+				world(b.x, 7.3, b.z + side * (bayBox.d / 2 + 0.4)),
 				Color3.fromRGB(60, 64, 76),
 				Enum.Material.Metal
 			)
@@ -336,7 +336,7 @@ function Lobby.build(): LobbyHandle
 				folder,
 				"BayDividerCap",
 				Vector3.new(bayBox.w, 0.4, 1.0),
-				world(b.x, 9.5, b.z + side * (bayBox.d / 2 + 0.4)),
+				world(b.x, 14.7, b.z + side * (bayBox.d / 2 + 0.4)),
 				YELLOW
 			)
 			cap.CanCollide = false
@@ -345,8 +345,8 @@ function Lobby.build(): LobbyHandle
 		part(
 			folder,
 			"BayBack",
-			Vector3.new(0.8, 9, bayBox.d),
-			world(backX, 4.5, b.z),
+			Vector3.new(0.8, 14.6, bayBox.d),
+			world(backX, 7.3, b.z),
 			Color3.fromRGB(70, 74, 86),
 			Enum.Material.Metal
 		)
@@ -354,7 +354,7 @@ function Lobby.build(): LobbyHandle
 			folder,
 			"BayBand",
 			Vector3.new(0.9, 1.6, bayBox.d),
-			world(backX + inward * 0.1, 8.2, b.z),
+			world(backX + inward * 0.1, 11.8, b.z),
 			RED
 		)
 		band.CanCollide = false
@@ -362,7 +362,7 @@ function Lobby.build(): LobbyHandle
 			folder,
 			"BayLight",
 			Vector3.new(0.6, 0.6, bayBox.d - 4),
-			world(b.x - inward * (bayBox.w / 2 - 3), 8.8, b.z),
+			world(b.x - inward * (bayBox.w / 2 - 6), 14, b.z),
 			Color3.fromRGB(255, 244, 220),
 			Enum.Material.Neon
 		)
@@ -373,7 +373,7 @@ function Lobby.build(): LobbyHandle
 			folder,
 			"BayCeiling",
 			Vector3.new(bayBox.w, 0.6, bayBox.d + 1.6),
-			world(b.x, 9.5, b.z),
+			world(b.x, 14.8, b.z),
 			Color3.fromRGB(26, 36, 78)
 		)
 		-- The red portal at the front: two columns, a beam and the A1 / B1 header sign.
@@ -382,8 +382,8 @@ function Lobby.build(): LobbyHandle
 			part(
 				folder,
 				"BayPortalPost",
-				Vector3.new(1.8, 12, 1.8),
-				world(frontX, 6, b.z + side * (bayBox.d / 2 + 0.9)),
+				Vector3.new(1.8, 15.6, 1.8),
+				world(frontX, 7.8, b.z + side * (bayBox.d / 2 + 0.9)),
 				RED,
 				Enum.Material.Metal
 			)
@@ -392,17 +392,17 @@ function Lobby.build(): LobbyHandle
 			folder,
 			"BayPortalBeam",
 			Vector3.new(1.8, 1.8, bayBox.d + 3.6),
-			world(frontX, 11.1, b.z),
+			world(frontX, 14.4, b.z),
 			RED,
 			Enum.Material.Metal
 		)
 		local header = part(
 			folder,
 			"BayHeader" .. i,
-			Vector3.new(10, 3.2, 0.6),
+			Vector3.new(12, 3.8, 0.6),
 			CFrame.lookAt(
-				origin + Vector3.new(frontX + inward * 1.1, 14, b.z),
-				origin + Vector3.new(frontX + inward * 10, 14, b.z)
+				origin + Vector3.new(frontX + inward * 1.1, 18.4, b.z),
+				origin + Vector3.new(frontX + inward * 10, 18.4, b.z)
 			),
 			Color3.fromRGB(14, 16, 32)
 		)
@@ -447,7 +447,7 @@ function Lobby.build(): LobbyHandle
 			folder,
 			"GaragesSign",
 			Vector3.new(26, 6, 0.6),
-			CFrame.lookAt(origin + Vector3.new(wx, 22, -30), origin + Vector3.new(0, 22, -30)),
+			CFrame.lookAt(origin + Vector3.new(wx, 26, -22), origin + Vector3.new(0, 26, -22)),
 			Color3.fromRGB(14, 16, 32)
 		)
 		label(gs, Enum.NormalId.Front, "GARAGES", Color3.fromRGB(245, 245, 250), nil)
@@ -456,7 +456,7 @@ function Lobby.build(): LobbyHandle
 				folder,
 				"GaragesNeon",
 				Vector3.new(0.5, 0.6, 14),
-				world(wx - side * 0.1, 22, -30 + dz * 21),
+				world(wx - side * 0.1, 26, -22 + dz * 21),
 				CYAN,
 				Enum.Material.Neon
 			)
@@ -487,6 +487,7 @@ function Lobby.build(): LobbyHandle
 	local STEEL = RED -- red steel columns and bracing
 	local WALL_GRAY = Color3.fromRGB(96, 102, 122)
 	local gap = L.gate.halfOpening + 1
+	local openEnd = L.bays[4].z + L.bay.d / 2 -- the garages open the side walls up to here
 	local sides = {
 		{ "L", Vector3.new(-HW, 0, -HL), Vector3.new(-HW, 0, HL) },
 		{ "R", Vector3.new(HW, 0, -HL), Vector3.new(HW, 0, HL) },
@@ -505,17 +506,27 @@ function Lobby.build(): LobbyHandle
 			local along = if name == "L" or name == "R" then center.Z else center.X
 			if not (name == "F" and math.abs(along) < gap) then
 				local base = wallAt(name, along, -room.wall / 2, 0)
-				local cf = base * CFrame.new(0, WH / 2, 0)
-				part(folder, "Wall", Vector3.new(segW + 0.1, WH, room.wall), cf, WALL_GRAY)
-				local panel = part(
-					folder,
-					"WallPanel",
-					Vector3.new(segW * 0.98, WH * 0.6, 0.5),
-					cf * CFrame.new(0, -WH * 0.2, -room.wall / 2 - 0.25),
-					Color3.fromRGB(38, 41, 50),
-					Enum.Material.Brick
-				)
-				panel.CanCollide = false
+				-- The lower side wall stops where the garages are (they are cut into the wall).
+				local lowerAlong, lowerW = along, segW
+				if name == "L" or name == "R" then
+					local lo = math.max(along - segW / 2, openEnd)
+					local hi = along + segW / 2
+					lowerAlong, lowerW = (lo + hi) / 2, hi - lo
+				end
+				if lowerW > 0.5 then
+					local lbase = wallAt(name, lowerAlong, -room.wall / 2, 0)
+					local cf = lbase * CFrame.new(0, WH / 2, 0)
+					part(folder, "Wall", Vector3.new(lowerW + 0.1, WH, room.wall), cf, WALL_GRAY)
+					local panel = part(
+						folder,
+						"WallPanel",
+						Vector3.new(lowerW * 0.98, WH * 0.6, 0.5),
+						cf * CFrame.new(0, -WH * 0.2, -room.wall / 2 - 0.25),
+						Color3.fromRGB(38, 41, 50),
+						Enum.Material.Brick
+					)
+					panel.CanCollide = false
+				end
 				local ucf = base * CFrame.new(0, WH + UH / 2, 0)
 				part(
 					folder,
@@ -731,13 +742,6 @@ function Lobby.build(): LobbyHandle
 			{ 20, sc.z - 14 },
 			{ -20, sc.z + 14 },
 			{ 20, sc.z + 14 },
-			{ -78, -2 },
-			{ -78, 22 },
-			{ -78, 46 },
-			{ 78, -44 },
-			{ 78, -16 },
-			{ 78, 34 },
-			{ 78, 48 },
 			{ -18, 58 },
 			{ 18, 58 },
 		}

@@ -13,7 +13,7 @@ local LobbyLayout = {}
 -- left, the paint / customize booth at the front right and the claw machine in the front right corner.
 -- The hall is `room.halfW` * 2 wide and `room.halfL` * 2 long (inside the walls); the roof is
 -- `room.wallHeight + room.upper` high.
-LobbyLayout.room = { halfW = 90, halfL = 70, wallHeight = 9, upper = 30, wall = 2 }
+LobbyLayout.room = { halfW = 64, halfL = 70, wallHeight = 15, upper = 24, wall = 2 }
 
 LobbyLayout.gate = { z = 68, halfOpening = 24 } -- open bay door: the way in
 LobbyLayout.spawn = { x = 0, z = 58, size = 6 }
@@ -29,22 +29,23 @@ LobbyLayout.pads = {
 LobbyLayout.showcase = { x = 0, z = -40, radius = 14, footprint = 34 } -- hero truck stage
 -- Booths on the side walls. They are built facing +z, then turned `yaw` degrees (90 turns the
 -- front toward +x). w / d are the size before turning.
-LobbyLayout.store = { x = -72, z = 40, w = 20, d = 12, yaw = 90 } -- front left
-LobbyLayout.paint = { x = 72, z = 40, w = 20, d = 12, yaw = -90 } -- front right
-LobbyLayout.gacha = { x = 82, z = 62, w = 10, d = 12 } -- the claw machine (front right corner)
--- Garages: one open bay per player, 4 down each side wall on the floor. `face` is the way the
--- bay opens (+1 = toward +x, the left wall bays; -1 = toward -x). Index = bay number
--- (1-4 = A1-A4, 5-8 = B1-B4).
-LobbyLayout.bay = { w = 20, d = 18 } -- w = depth from the wall (x), d = width along the wall (z)
+LobbyLayout.store = { x = -50, z = 40, w = 20, d = 12, yaw = 90 } -- front left
+LobbyLayout.paint = { x = 50, z = 40, w = 20, d = 12, yaw = -90 } -- front right
+LobbyLayout.gacha = { x = 56, z = 62, w = 10, d = 12 } -- the claw machine (front right corner)
+-- Garages: one per player, built INTO the side walls: each is a big recessed room behind an opening
+-- in the wall (the opening is flush with the wall, the room goes back past it). 4 down each side
+-- (1-4 = A1-A4 on the left, 5-8 = B1-B4 on the right). `face` is the way a garage opens
+-- (+1 = toward +x, the left wall; -1 = toward -x). x is the garage centre, outside the hall.
+LobbyLayout.bay = { w = 34, d = 24 } -- w = depth into the wall (x), d = width along the wall (z)
 LobbyLayout.bays = {
-	{ x = -66, z = -58, face = 1 },
-	{ x = -66, z = -38, face = 1 },
-	{ x = -66, z = -18, face = 1 },
-	{ x = -66, z = 2, face = 1 },
-	{ x = 66, z = -58, face = -1 },
-	{ x = 66, z = -38, face = -1 },
-	{ x = 66, z = -18, face = -1 },
-	{ x = 66, z = 2, face = -1 },
+	{ x = -81, z = -58, face = 1 },
+	{ x = -81, z = -34, face = 1 },
+	{ x = -81, z = -10, face = 1 },
+	{ x = -81, z = 14, face = 1 },
+	{ x = 81, z = -58, face = -1 },
+	{ x = 81, z = -34, face = -1 },
+	{ x = 81, z = -10, face = -1 },
+	{ x = 81, z = 14, face = -1 },
 }
 
 -- "A1".."A4" for the left garages, "B1".."B4" for the right ones.
@@ -76,9 +77,6 @@ function LobbyLayout.footprints(): { [string]: Rect }
 		store = turned(LobbyLayout.store),
 		paint = turned(LobbyLayout.paint),
 	}
-	for i, b in LobbyLayout.bays do
-		out["bay" .. i] = { x = b.x, z = b.z, w = LobbyLayout.bay.w, d = LobbyLayout.bay.d }
-	end
 	for i, p in LobbyLayout.pads do
 		out["pad" .. i] = { x = p.x, z = p.z, w = LobbyLayout.padSize, d = LobbyLayout.padSize }
 	end

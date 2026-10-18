@@ -17,36 +17,18 @@ type Spot = { name: string, x: number, z: number, face: number, y: number?, scal
 
 -- face: degrees. 0 looks toward the back wall (-Z), 180 toward the gate, 90 toward -X, -90 toward +X.
 local SPOTS: { Spot } = {
-	-- Garage corner (left wall): chests in a row under pegboards, a workbench, carts, tire rack.
-	{ name = "tool_chest_cyan", x = -88.2, z = -4, face = -90, scale = 1.4 },
-	{ name = "tool_chest", x = -88.2, z = 1, face = -90, scale = 1.4 },
-	{ name = "tool_chest_yellow", x = -88.2, z = 6, face = -90, scale = 1.4 },
-	{ name = "pegboard_tools", x = -89.2, z = -4, face = -90, y = 7.5, scale = 1.2 },
-	{ name = "pegboard_tools", x = -89.2, z = 8, face = -90, y = 7.5, scale = 1.2 },
-	{ name = "workbench", x = -86.5, z = 22, face = -90, scale = 1.4 },
-	{ name = "tire_rack", x = -88.2, z = 42, face = -90, scale = 1.7 },
-	{ name = "tire_stack", x = -82, z = 36, face = 0, scale = 1.3 },
-	{ name = "tire_stack", x = -82, z = 48, face = 40, scale = 1.3 },
-	{ name = "oil_drum", x = -84, z = 58, face = 20, scale = 1.2 },
-	{ name = "oil_drum_yellow", x = -82, z = 60, face = 70, scale = 1.2 },
-	{ name = "oil_drum_red", x = -85, z = 61, face = 130, scale = 1.2 },
-	{ name = "gas_can", x = -86, z = 12, face = 25, scale = 1.6 },
-	{ name = "gas_can", x = -85, z = 13.5, face = -20, scale = 1.6 },
-	{ name = "neon_sign", x = -89.2, z = -22, face = -90, y = 24, scale = 1.6 },
-	-- Claw corner (right wall): a bench to wait on, plants, cones.
-	{ name = "plant_box", x = 86, z = -52, face = 90, scale = 1.3 },
-	{ name = "plant_box_yellow", x = 86, z = -8, face = 90, scale = 1.3 },
-	{ name = "neon_sign", x = 89.2, z = -30, face = 90, y = 24, scale = 1.6 },
-	-- Lounge (right wall, front): two sofas facing the TV.
-	-- Entrance and the pad row.
+	-- Entrance (the garages are built into the side walls, so the floor stays open).
 	{ name = "plant_box", x = -32, z = 63, face = 0, scale = 1.3 },
 	{ name = "plant_box_yellow", x = 32, z = 63, face = 0, scale = 1.3 },
-	{ name = "traffic_cone", x = -9, z = 58, face = 0, scale = 1.4 },
-	{ name = "traffic_cone", x = 9, z = 58, face = 0, scale = 1.4 },
+	{ name = "traffic_cone", x = -22, z = 58, face = 0, scale = 1.4 },
+	{ name = "traffic_cone", x = 22, z = 58, face = 0, scale = 1.4 },
 	{ name = "traffic_cone", x = -9, z = 44, face = 0, scale = 1.4 },
 	{ name = "traffic_cone", x = 9, z = 44, face = 0, scale = 1.4 },
-	{ name = "traffic_cone", x = -54, z = 40, face = 0, scale = 1.4 },
-	{ name = "traffic_cone", x = 54, z = 40, face = 0, scale = 1.4 },
+	-- Front corners, beside the store and the paint booth.
+	{ name = "tire_stack", x = -58, z = 58, face = 0, scale = 1.3 },
+	{ name = "tire_stack", x = 58, z = 54, face = 40, scale = 1.3 },
+	{ name = "oil_drum", x = -59, z = 24, face = 20, scale = 1.2 },
+	{ name = "oil_drum_yellow", x = 59, z = 26, face = 70, scale = 1.2 },
 }
 
 local STORE_PARTS = {
