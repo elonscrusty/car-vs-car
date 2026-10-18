@@ -92,13 +92,14 @@ end)
 ProximityPromptService.PromptTriggered:Connect(function(prompt: ProximityPrompt)
 	if prompt.Name == "GachaPrompt" and hints.loaded() then
 		hints.done("claw")
-	elseif prompt.Name == "CustomizePrompt" then
-		buildUi.open() -- the paint / customize booth
 	elseif
-		prompt.Name == "BayPrompt"
-		and prompt:GetAttribute("OwnerUserId") == Players.LocalPlayer.UserId
+		prompt.Name == "CustomizePrompt"
+		or (
+			prompt.Name == "BayPrompt"
+			and prompt:GetAttribute("OwnerUserId") == Players.LocalPlayer.UserId
+		)
 	then
-		buildUi.open() -- your own bay: customize your car
+		buildUi.open() -- the paint / customize booth, or your own bay
 	end
 end)
 
