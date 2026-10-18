@@ -21,6 +21,7 @@ local Match = require(script.Match)
 local Modes = require(ReplicatedStorage.Shared.Modes)
 local Profiles = require(script.Profiles)
 local RematchService = require(script.RematchService)
+local Telemetry = require(script.Telemetry)
 
 -- Real characters walk in the lobby (spawn is the lobby SpawnLocation).
 Players.CharacterAutoLoads = true
@@ -78,8 +79,10 @@ function startMatch(participants: { Match.Participant })
 				botLevel = part.botLevel,
 				onEndScreen = function()
 					rematch.open(player)
+					Telemetry.endScreen(player)
 				end,
 				onFinished = function(won: boolean)
+					Telemetry.matchEnded(player, won)
 					local again = rematch.settle(player)
 					leaveGroup(player)
 					finished(won, again)
@@ -104,6 +107,7 @@ function startMatch(participants: { Match.Participant })
 	local group: Group = { match = nil :: any, slot = slot, remaining = #ok }
 	local mode = Modes.pick(matchCounter)
 	matchCounter += 1
+	Telemetry.matchStarted(ok, mode, Modes.isGroup(mode))
 	group.match = if Modes.isGroup(mode)
 		then GroupMatch.new(ok, slot, remotes, mode)
 		else Match.new(ok, slot, remotes, mode)
@@ -140,10 +144,12 @@ local lobbyService = LobbyService.start({
 })
 
 local function onPlayerAdded(player: Player)
+	Telemetry.joined(player)
 	lobbyService.onPlayerAdded(player)
 end
 
 local function onPlayerRemoving(player: Player)
+	Telemetry.left(player)
 	local g = groups[player]
 	if g then
 		g.match.playerLeft(player)
@@ -196,6 +202,7 @@ remotes.LobbyAction.OnServerEvent:Connect(function(player: Player, action: any, 
 	end
 	if action == "rematch" then
 		rematch.tap(player)
+		Telemetry.rematchTapped(player)
 		return
 	end
 	lobbyService.action(player, action, arg)

@@ -118,3 +118,6 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 - lastStanding / soccer = `src/server/GroupMatch.luau` (same handle as Match). 1-2 players, bots fill to 8 cars (lastStanding, 60% HP each) or 3v3 (soccer, humans on team 1). No aiming: "ready" countdown, then drive. Soccer: giant ball, goal arcs on the bowl wall, first to 3, time up = more goals, tie = next goal wins.
 - Look/props: `src/server/ModeFx.luau`. HUD line: UiUpdate `modeInfo`, shown by `src/client/ModeBanner.luau`.
 - Checked: Lune tests (244). NOT checked in Studio or by eye: soccer ball feel, bot play in soccer/8-car, goal arcs, banner. Tune only in ModesConfig.
+## Analytics (review M3)
+- `src/server/Telemetry.luau` (funnel + custom events via AnalyticsService; pcall, deferred, no-op in Studio, global send cap), pure `src/shared/TelemetryRules.luau` + `TelemetryConfig.luau`, tests `tests/telemetry.test.luau`. One-line hooks in `init.server`, `LobbyService`, `Match`, `GroupMatch`. Table of events and what a bad number means: `docs/analytics.md`.
+- PLACEHOLDER: `TelemetryConfig.RateLimit` (200 per 60 s). Not verified: real sends (only work in a published game), `LogCustomEvent` customFields argument against the live API, dashboard display.
