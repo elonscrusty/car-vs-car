@@ -18,7 +18,6 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Store = require(ReplicatedStorage.Shared.Store)
 local Types = require(ReplicatedStorage.Shared.Types)
 local UiSize = require(ReplicatedStorage.Shared.UiSize)
-local WeaponsConfig = require(ReplicatedStorage.Shared.WeaponsConfig)
 
 local LobbyUi = {}
 
@@ -44,6 +43,7 @@ local RARITY_COLOR: { [string]: Color3 } = {
 	Common = Color3.fromRGB(190, 200, 220),
 	Rare = Color3.fromRGB(70, 150, 255),
 	Epic = Color3.fromRGB(200, 90, 255),
+	Legendary = Color3.fromRGB(255, 200, 60),
 }
 
 local POP = TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
@@ -440,7 +440,6 @@ function LobbyUi.new(hooks: Hooks): Handle
 
 	local function showGachaResult(u: {
 		carId: string,
-		weaponId: string?,
 		isNew: boolean,
 		refund: number,
 		free: boolean,
@@ -453,17 +452,14 @@ function LobbyUi.new(hooks: Hooks): Handle
 		refreshHud()
 		refreshGacha()
 		local id = u.carId
-		local weapon = WeaponsConfig.get(u.weaponId)
-		local rarity = if weapon then weapon.rarity else rarityOf(id)
+		local rarity = rarityOf(id)
 		resultTitle.Text = LobbyText.resultText(u.isNew, u.refund)
 		resultTitle.TextColor3 = if u.isNew then GREEN else GOLD
-		resultName.Text = if weapon then weapon.name else carName(id)
+		resultName.Text = carName(id)
 		resultName.TextColor3 = RARITY_COLOR[rarity] or WHITE
 		resultSub.Text = rarity
 		resultSub.TextColor3 = RARITY_COLOR[rarity] or WHITE
-		resultSwatch.BackgroundColor3 = if weapon
-			then Color3.fromRGB(weapon.color[1], weapon.color[2], weapon.color[3])
-			else carColor(id)
+		resultSwatch.BackgroundColor3 = carColor(id)
 		resultStroke.Color = RARITY_COLOR[rarity] or WHITE
 		resultBack.Visible = true
 		resultScale.Scale = 0.4

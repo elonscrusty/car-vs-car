@@ -81,10 +81,14 @@ Design follows `/mnt/project-files/car-vs-car/game-plan.md`, but carter chose (2
 - Grip numbers (`Drive.groundFriction` 0.4, `grip` 24) were picked by Carter's play: 0.25/16 too slippery, 0.7/35 too sticky.
 - Cars Heavy, Tank, Bulldozer were made faster after Carter said Heavy was not fun. Win rates need a re-check after any speed change.
 
-## Car weapons
-- 8 weapons (src/shared/WeaponsConfig.luau), one worn per player, won from the claw (dupes = coins). Server runtime: src/server/Weapon.luau (called from Match). WEAPON button (Q) only for active weapons. Menu: src/client/WeaponUi.luau.
-- Studio test shortcut: set player attribute DevWeapon to a weapon id, then DEV: BOT MATCH.
-- Flame shoots from the back; bot picks a random weapon.
+## Cars and abilities (replaces the weapons)
+- Weapons are gone (Weapon/WeaponUi/WeaponsConfig, the claw no longer gives weapons, no WEAPON button). Old saves with a `weapons` field just ignore it.
+- A car is DATA: `src/shared/CarCatalog.luau` has 30 rows (id, name, FBX `model` name from vehicle-pack-30, rarity, ability, color). All 30 share `CarCatalog.Neutral` stats (carter: do not tune yet; a row can override with `stats`). Add a car = add one row (ids are saved in profiles: never rename). Rarities and abilities in the rows are PLACEHOLDERS.
+- `CarConfig` still holds the 8 old cars (now with `rarity` + `ability`) and appends the catalog, so `CarConfig.Order/get/Cars` list 38 cars. `LobbyConfig.Rarity` is built from CarConfig. Rarities: Common, Rare, Epic, Legendary (`CarConfig.Rarities`). Claw odds 55/28/14/3 and the 2500 Legendary store price are placeholders.
+- Abilities: Dash, Shield, Slam, Ram, Magnet, Jump. Numbers and rarity strength in `AbilitiesConfig` (Rarity.power/cooldown); pure `Abilities.resolve(id, rarity)` / `forCar(stats)`. Tests: `tests/abilities.test.luau`, `tests/catalog.test.luau`.
+- Runtime: `server/Specials.luau` fires the car's ability on the SPECIAL button (Match -> `Moves.press`), server-checked cooldown, same rate limit as boost/jump. The fight message carries `ability` (name) and the SPECIAL button shows it. Shield = `Buffs.applyFor`; Ram = damage window read by Match; Slam/Magnet shove the enemy (mass-aware); Dash/Jump are impulses on your own car.
+- Wheels/engine/armor (Build, BuildConfig) multiply any car's stats and keep `ability/rarity/model`, so they work on all 38 cars. Swap wheels overlaying a model's own wheels is Studio work, not done here.
+- Not done: the 30 FBX models are not in the repo or used by CarBuilder yet (still box bodies; `model` names are ready for the Studio side). Not run in Studio; ability feel is untuned. selene and luau-analyze were not run locally (no Roblox API dump offline); CI lints.
 - Lobby roof is steel with skylights and hanging lamps (look-only, CanQuery off). Spawn z=54, 12+ studs inside the gate so the camera stays inside.
 - Lobby is a 180x140 warehouse race HQ (LobbyLayout + Lobby.luau): bay-door gate, pad row, hero truck stage, back mezzanine + big CAR VS CAR sign, garage corner (left), claw + lounge (right), store (back left), skylights/windows. Props are Blender v2 models swapped in by name (LobbyProps.luau); motion/glow in LobbyLife.luau. All look-only.
 - Look: src/server/Atmosphere.luau sets lighting, haze, soft bloom, colour grade at start (bloom kept low: neon washes out).

@@ -26,6 +26,15 @@ function PickupLogic.apply(buffs: Buffs, kind: string, cfg: Cfg): number
 	return seconds
 end
 
+-- Like apply, but the caller picks the seconds (a car ability's shield). Ignores seconds <= 0.
+function PickupLogic.applySeconds(buffs: Buffs, kind: string, seconds: number): number
+	if seconds <= 0 then
+		return 0
+	end
+	buffs[kind] = seconds
+	return seconds
+end
+
 function PickupLogic.tick(buffs: Buffs, dt: number)
 	for kind, left in buffs do
 		if left - dt <= 0 then

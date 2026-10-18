@@ -12,7 +12,6 @@ local Inventory = require(ReplicatedStorage.Shared.Inventory)
 local Progress = require(ReplicatedStorage.Shared.Progress)
 local Quests = require(ReplicatedStorage.Shared.Quests)
 local Paint = require(ReplicatedStorage.Shared.Paint)
-local Weapons = require(ReplicatedStorage.Shared.Weapons)
 local Retry = require(ReplicatedStorage.Shared.Retry)
 local SessionLock = require(ReplicatedStorage.Shared.SessionLock)
 
@@ -86,7 +85,6 @@ local function copyProfile(p: Profile): Profile
 		quests = Quests.clean(p.quests), -- clean makes a fresh copy
 		daily = table.clone(p.daily),
 		paint = Paint.copy(p.paint),
-		weapons = Weapons.copy(p.weapons),
 	}
 end
 

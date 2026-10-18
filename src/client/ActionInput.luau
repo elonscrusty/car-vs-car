@@ -1,7 +1,6 @@
 --!strict
 -- Fight move buttons: BOOST and ABILITY side by side in the bottom-right corner. Keys:
--- LeftShift = boost, E = ability, Space = jump (no button), Q = weapon (only when the car wears
--- an active weapon). Each button shows its cooldown as a fill and a timer. The server decides
+-- LeftShift = boost, E = ability (named after the car's ability), Space = jump (no button). Each button shows its cooldown as a fill and a timer. The server decides
 -- everything; it tells us when a cooldown starts (UiUpdate kind "move"). The ability button
 -- sends the "special" move.
 
@@ -14,7 +13,7 @@ local HudStyle = require(ReplicatedStorage.Shared.HudStyle)
 local UiStyle = require(script.Parent.UiStyle)
 
 export type ActionInput = {
-	start: (hasWeaponButton: boolean?) -> (), -- true = also show the WEAPON button
+	start: (abilityName: string?) -> (), -- names the ABILITY button after the car's ability
 	stop: () -> (),
 	cooldown: (move: string, seconds: number) -> (), -- the server started a cooldown
 }
@@ -36,14 +35,6 @@ local MOVES = {
 		key = Enum.KeyCode.E,
 		color = Color3.fromRGB(255, 190, 30),
 	},
-}
-
-local WEAPON = {
-	name = "weapon",
-	text = "WEAPON",
-	icon = "✦",
-	key = Enum.KeyCode.Q,
-	color = Color3.fromRGB(235, 70, 60),
 }
 
 type Slot = {
@@ -90,7 +81,7 @@ function ActionInput.new(send: (name: string) -> ()): ActionInput
 		end
 	end
 
-	local function makeButton(parent: Frame, index: number, side: number, def: typeof(WEAPON))
+	local function makeButton(parent: Frame, index: number, side: number, def: typeof(MOVES[1]))
 		local b = Instance.new("TextButton")
 		b.Name = def.name .. "Action"
 		b.LayoutOrder = index
@@ -161,7 +152,6 @@ function ActionInput.new(send: (name: string) -> ()): ActionInput
 	for _, def in MOVES do
 		keyMap[def.key] = def.name
 	end
-	keyMap[WEAPON.key] = WEAPON.name
 	keyMap[Enum.KeyCode.Space] = "jump"
 	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
 		local name = keyMap[input.KeyCode]
@@ -172,14 +162,20 @@ function ActionInput.new(send: (name: string) -> ()): ActionInput
 
 	local self: ActionInput = {} :: any
 
-	self.start = function(hasWeaponButton: boolean?)
+	self.start = function(abilityName: string?)
 		if running then
 			return
 		end
 		running = true
 		local defs = table.clone(MOVES)
-		if hasWeaponButton then
-			table.insert(defs, 1, WEAPON)
+		if abilityName then
+			defs[2] = {
+				name = "special",
+				text = abilityName,
+				icon = MOVES[2].icon,
+				key = MOVES[2].key,
+				color = MOVES[2].color,
+			}
 		end
 		local newGui = Instance.new("ScreenGui")
 		newGui.Name = "ActionGui"

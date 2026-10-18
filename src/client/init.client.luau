@@ -170,7 +170,7 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 			driver.start() -- drives your own car here once the server hands it over
 		end
 		if u.auto ~= true then
-			actions.start(u.weapon ~= nil and u.weaponPassive ~= true)
+			actions.start(u.ability)
 		end
 	elseif u.kind == "move" then
 		actions.cooldown(u.move or "", u.seconds or 0)
