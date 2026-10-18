@@ -356,6 +356,37 @@ function Lobby.build(): LobbyHandle
 		)
 		bar.CanCollide = false
 		glow(bar, Color3.fromRGB(255, 244, 220), 26, 1.2)
+		-- Tool clutter in the back corners: a red toolbox and a stack of tires.
+		local cornerX = b.x - inward * (bayBox.w / 2 - 2.2)
+		local box = part(
+			folder,
+			"BayToolbox",
+			Vector3.new(2.6, 2.2, 3.4),
+			world(cornerX, 1.1, b.z + bayBox.d / 2 - 2.4),
+			RED
+		)
+		box.CanCollide = false
+		local lid = part(
+			folder,
+			"BayToolboxLid",
+			Vector3.new(2.8, 0.4, 3.6),
+			world(cornerX, 2.4, b.z + bayBox.d / 2 - 2.4),
+			YELLOW
+		)
+		lid.CanCollide = false
+		for k = 0, 2 do
+			local tire = part(
+				folder,
+				"BayTire",
+				Vector3.new(1.3, 3, 3),
+				world(cornerX, 0.65 + k * 1.3, b.z - bayBox.d / 2 + 2.4)
+					* CFrame.Angles(0, 0, math.pi / 2),
+				Color3.fromRGB(22, 22, 26),
+				Enum.Material.SmoothPlastic,
+				Enum.PartType.Cylinder
+			)
+			tire.CanCollide = false
+		end
 	end
 
 	-- A spot on a wall (side "L", "R", "B" back or "F" front): `along` is the z (L, R) or x (B, F)

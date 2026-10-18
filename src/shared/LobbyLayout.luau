@@ -40,7 +40,7 @@ LobbyLayout.bays = {
 }
 -- Raised walkway along the back wall (look from above at the stage), reached by two ramps.
 LobbyLayout.mezzanine = { x = 0, z = -64, w = 106, d = 10, height = 12 }
-LobbyLayout.ramps = { { x = -50, z = -46, w = 6, d = 24 }, { x = 50, z = -46, w = 6, d = 24 } }
+LobbyLayout.ramps = {} -- none: the walkway is only for looking at; the floor is for the bays
 
 -- Footprints that must not overlap each other (floor level things only).
 function LobbyLayout.footprints(): { [string]: Rect }

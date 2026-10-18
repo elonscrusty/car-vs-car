@@ -24,7 +24,6 @@ local PaintUi = require(script.PaintUi)
 local DriveCar = require(script.DriveCar)
 local SteerInput = require(script.SteerInput)
 local Ui = require(script.Ui)
-local WeaponUi = require(script.WeaponUi)
 
 local remotes = Remotes.get()
 local director = CameraDirector.new()
@@ -39,7 +38,6 @@ local questUi = QuestUi.new(menu, function(action: string, arg: any?)
 	remotes.LobbyAction:FireServer(action, arg)
 end)
 local paintUi = PaintUi.new(menu)
-local weaponUi = WeaponUi.new(menu)
 local buildUi = BuildUi.new(menu)
 
 local camSide: Vector3? = nil -- from the middle toward your car, fixed for the whole match
@@ -81,7 +79,6 @@ remotes.LobbyUpdate.OnClientEvent:Connect(function(u: Types.LobbyUpdate)
 	lobby.handleUpdate(u)
 	questUi.handleUpdate(u)
 	paintUi.handleUpdate(u)
-	weaponUi.handleUpdate(u)
 	buildUi.handleUpdate(u)
 	if u.kind == "profile" then
 		hints.loadSeen(u.hintsSeen)

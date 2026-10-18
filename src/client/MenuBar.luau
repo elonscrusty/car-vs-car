@@ -4,6 +4,7 @@
 -- The bar is hidden while a match is on screen.
 
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 
 local UiStyle = require(script.Parent.UiStyle)
 
@@ -20,8 +21,8 @@ export type MenuBar = {
 local MenuBar = {}
 
 local BUTTON_W = 96
-local BUTTON_H = 56 -- over the 48 px thumb minimum
-local GAP = 8
+local BUTTON_H = 52 -- over the 48 px thumb minimum
+local GAP = 6
 
 function MenuBar.new(): MenuBar
 	local gui = Instance.new("ScreenGui")
@@ -32,8 +33,9 @@ function MenuBar.new(): MenuBar
 
 	local holder = Instance.new("Frame")
 	holder.BackgroundTransparency = 1
-	holder.AnchorPoint = Vector2.new(0, 0.5)
-	holder.Position = UDim2.new(0, 8, 0.5, 0)
+	holder.AnchorPoint = Vector2.new(0, 0)
+	-- Under the coins box, and under the Studio-only DEV button when it is there.
+	holder.Position = UDim2.new(0, 8, 0, if RunService:IsStudio() then 160 else 84)
 	holder.Size = UDim2.fromOffset(BUTTON_W, 0)
 	holder.AutomaticSize = Enum.AutomaticSize.Y
 	holder.Parent = gui

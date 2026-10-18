@@ -202,7 +202,7 @@ function LobbyService.start(deps: Deps): Handle
 		return look
 	end
 
-	-- Keep this player's bay on the mezzanine showing their car (only rebuilt when it changed).
+	-- Keep this player's garage bay showing their car (only rebuilt when it changed).
 	function refreshBay(player: Player)
 		local p = Profiles.get(player)
 		if p == nil or player.Parent == nil then
@@ -210,6 +210,13 @@ function LobbyService.start(deps: Deps): Handle
 		end
 		local carId = Build.carFor(p.build, p.owned)
 		local look = lookFor(player, carId)
+		-- Cars this player owns, in the shared car order (the last one counts as the newest).
+		local ownedList: { string } = {}
+		for _, id in CarConfig.Order do
+			if p.owned[id] then
+				table.insert(ownedList, id)
+			end
+		end
 		local key = table.concat({
 			carId,
 			p.build.parts.wheels,
@@ -218,12 +225,20 @@ function LobbyService.start(deps: Deps): Handle
 			tostring(look.paintColor),
 			tostring(look.sticker),
 			tostring(look.level),
+			table.concat(ownedList, ","),
 		}, "|")
 		if bayKeys[player] == key then
 			return
 		end
 		bayKeys[player] = key
-		bays.set(player, carId, look, p.build, `{player.DisplayName}  LV {look.level or 1}`)
+		bays.set(
+			player,
+			carId,
+			look,
+			p.build,
+			`{player.DisplayName}  LV {look.level or 1}`,
+			ownedList
+		)
 	end
 
 	local function updatePadText(i: number)
