@@ -39,13 +39,25 @@ function BowlRules.onPad(car: Vec, pad: Vec, radius: number): boolean
 	return (car.x - pad.x) ^ 2 + (car.z - pad.z) ^ 2 <= radius * radius
 end
 
--- Launch velocity (x, y, z) for a car on a pad: toward the bowl middle, plus lift.
-function BowlRules.padLaunch(pad: Vec, kick: number, lift: number): (number, number, number)
+-- Launch velocity (x, y, z) for a car on a pad: sideways along the rim (a tangent, round the bowl),
+-- plus lift. The way round follows the car's own flat velocity (vx, vz); a car that is standing
+-- still goes counter-clockwise.
+function BowlRules.padLaunch(
+	pad: Vec,
+	kick: number,
+	lift: number,
+	vx: number?,
+	vz: number?
+): (number, number, number)
 	local len = math.sqrt(pad.x ^ 2 + pad.z ^ 2)
 	if len < 0.001 then
 		return 0, lift, 0
 	end
-	return -pad.x / len * kick, lift, -pad.z / len * kick
+	local tx, tz = -pad.z / len, pad.x / len
+	if (vx or 0) * tx + (vz or 0) * tz < 0 then
+		tx, tz = -tx, -tz
+	end
+	return tx * kick, lift, tz * kick
 end
 
 -- Seconds of boost cooldown given back this frame while a car is sliding (drifting).

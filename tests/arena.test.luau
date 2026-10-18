@@ -18,7 +18,7 @@ test("the middle is flat and the bowl rises toward the rim", function()
 end)
 
 test("arena is 100 to 140 studs across", function()
-	truthy(A.rimRadius * 2 >= 100 and A.rimRadius * 2 <= 140)
+	truthy(A.rimRadius * 2 >= 180 and A.rimRadius * 2 <= 260)
 end)
 
 test("a sloped bowl still gets a longer slab than its run", function()

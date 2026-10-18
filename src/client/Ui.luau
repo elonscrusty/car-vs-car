@@ -184,7 +184,7 @@ function Ui.create(h: Handlers): View
 	aimFrame.BackgroundTransparency = 1
 	aimFrame.Visible = false
 	aimFrame.Parent = gui
-	local hint = label(aimFrame, "", UDim2.fromScale(0.6, 0.08), UDim2.fromScale(0.2, 0.88))
+	local hint = label(aimFrame, "", UDim2.fromScale(0.4, 0.04), UDim2.fromScale(0.3, 0.1))
 	hint.Font = Enum.Font.GothamBold
 
 	-- Power bar

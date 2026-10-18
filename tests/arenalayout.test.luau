@@ -74,6 +74,10 @@ test("road props sit on the road", function()
 	end
 end)
 
+test("the scenery rim matches the bowl rim", function()
+	truthy(L.curbInner == RIM + 2)
+end)
+
 test("tall scenery is outside the rim margin and inside the max radius", function()
 	for _, name in { "towers", "trees", "rocks", "hills" } do
 		for _, s in lists[name] do

@@ -10,12 +10,12 @@ return {
 	},
 	Pads = {
 		count = 4, -- boost pads on the bowl wall
-		radiusShare = 0.72, -- how far up the slope (0 = the flat edge, 1 = the rim)
-		triggerRadius = 5.5, -- a car this close to a pad (flat distance) gets launched
-		kick = 62, -- speed toward the middle (studs/s)
+		radiusShare = 0.6, -- how far up the slope (0 = the flat edge, 1 = the rim)
+		triggerRadius = 7, -- a car this close to a pad (flat distance) gets launched
+		kick = 62, -- speed along the rim, sideways (studs/s)
 		lift = 0, -- speed upward (studs/s): 0 = no hop, just a speed burst along the ground
 		cooldown = 2.5, -- seconds before the same car can use a pad again
-		size = { 9, 0.4, 11 }, -- x, y, z studs
+		size = { 14, 0.4, 9 }, -- x, y, z studs
 		-- Look only (the blue BOOST sign standing behind each pad):
 		panelSize = { 9.5, 3.8 }, -- sign width, height (studs)
 		panelBack = 6.5, -- how far up the slope behind the pad the sign stands (flat studs)

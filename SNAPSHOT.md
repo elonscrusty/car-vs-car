@@ -92,3 +92,10 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 - Effects: skid marks + tire smoke (`client/SkidFx.luau`, `shared/SkidRules.luau`), sparks; NO "SMASH!" text, shockwave ring removed.
 - HUD: YOU vs BOT banner, name + HP bar over cars (`HpBar`), joystick, BOOST (cyan) + ABILITY (yellow) only; JUMP button gone. `shared/HudStyle.luau`.
 - Not checked by eye in Studio. Check: sign text mirrored (BowlHazards Face.Back/Front), sign clipping the wall, ocean visible from lobby, trail look.
+
+## Bowl v2 (carter's feedback)
+- Bigger + deeper: rim radius 62 -> 112, flat middle 28 -> 50, slope 18 -> 28 degrees (rim ~33 studs above the floor), 48 slabs, arenas 1000 apart. Spawn 92, bot run-up radius 88 / retreat 55. Scenery radii follow `RIM` in ArenaLookConfig (keep it equal to GameConfig.Arena.rimRadius).
+- Spinner bar removed (no obstacles now).
+- Boost pads push SIDEWAYS along the rim (tangent), the way round follows the car's own direction; chevrons point along the rim. `BowlRules.padLaunch(pad, kick, lift, vx, vz)`.
+- Camera follows your car more (0.6 shift) and sits closer (60 back, 72 up). "Pull back, let go" text is small under the banner.
+- Not checked in Studio: launch speeds (Launch min/max 70-150) may feel slow in the bigger bowl; steep slope driving; camera framing.

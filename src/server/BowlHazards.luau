@@ -81,19 +81,19 @@ function BowlHazards.new(arena: Arena.Arena, cars: { CarBuilder.Car }): Handle
 		light.Brightness = 1.5
 		light.Parent = slab
 
-		-- Three cyan chevrons (two arms each) pointing toward the middle.
+		-- Three cyan chevrons (two arms each) pointing sideways, along the rim.
 		local armLen, armAngle = 3.6, math.rad(55)
 		for i = -1, 1 do
-			local tipZ = i * 3.2 + 1.2
+			local tipX = i * 3.6 + 1.2
 			for side = -1, 1, 2 do
-				local dirX, dirZ = side * math.sin(armAngle), -math.cos(armAngle)
+				local dirX, dirZ = -math.cos(armAngle), side * math.sin(armAngle)
 				local armCF = slabCF
 					* CFrame.new(
-						dirX * armLen / 2,
+						tipX + dirX * armLen / 2,
 						pcfg.size[2] / 2 + 0.08,
-						tipZ + dirZ * armLen / 2
+						dirZ * armLen / 2
 					)
-					* CFrame.Angles(0, math.rad(90) - side * armAngle, 0)
+					* CFrame.Angles(0, math.pi + side * armAngle, 0)
 				glowPart("Chevron", Vector3.new(armLen, 0.15, 0.9), armCF, model)
 			end
 		end
@@ -171,7 +171,8 @@ function BowlHazards.new(arena: Arena.Arena, cars: { CarBuilder.Car }): Handle
 			if (padReadyAt[car] or 0) <= now then
 				for _, s in spots do
 					if BowlRules.onPad(rel, s, pcfg.triggerRadius) then
-						local vx, vy, vz = BowlRules.padLaunch(s, pcfg.kick, pcfg.lift)
+						local v = car.body.AssemblyLinearVelocity
+						local vx, vy, vz = BowlRules.padLaunch(s, pcfg.kick, pcfg.lift, v.X, v.Z)
 						Impulse.linear(car.body, Vector3.new(vx, vy, vz) * car.body.AssemblyMass)
 						padReadyAt[car] = now + pcfg.cooldown
 						break

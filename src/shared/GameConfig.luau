@@ -14,21 +14,19 @@ local GameConfig = {
 	},
 	-- Bowl arena. Bigger tiltDeg = steeper bowl = cars roll back to the middle faster.
 	Arena = {
-		flatRadius = 28, -- flat middle disc (studs from center)
-		rimRadius = 62, -- where the slope ends (same as flatRadius = no slope, a flat arena)
-		tiltDeg = 18, -- slope angle of the bowl (0 = flat arena)
-		wallHeight = 2.5, -- a low lip: hit hard enough and you fly over it (= ring out) -- walls on the rim
-		segments = 32, -- slabs around the bowl (more = rounder)
+		flatRadius = 50, -- flat middle disc (studs from center)
+		rimRadius = 112, -- where the slope ends (same as flatRadius = no slope, a flat arena)
+		tiltDeg = 28, -- slope angle of the bowl (0 = flat arena)
+		wallHeight = 3, -- a low lip: hit hard enough and you fly over it (= ring out) -- walls on the rim
+		segments = 48, -- slabs around the bowl (more = rounder)
 		baseY = 300, -- height of arena in the world (far above the baseplate)
-		slotSpacing = 600, -- each player gets own arena this far apart on X
-		spawnRadius = 50, -- launch spots, studs from center
+		slotSpacing = 1000, -- each player gets own arena this far apart on X
+		spawnRadius = 92, -- launch spots, studs from center
 		-- Things to hit and hide behind. x/z = studs from center. Keep them mirrored (x,z -> -x,-z)
 		-- so neither side is lucky. "block" = box (sx, sy, sz); "pillar" = round (sx = width);
 		-- "ramp" = a slope to jump off (sx wide, sz long, yaw = turn in degrees, climbs toward -Z at 0);
 		-- "spinner" = a bar (sx long, sy high) that turns around (x, z) at `spin` rad/sec.
-		obstacles = {
-			{ kind = "spinner", x = 0, z = 0, sx = 34, sy = 3, spin = 1.1 },
-		},
+		obstacles = {},
 	},
 	Match = {
 		aimTimeout = 8, -- seconds to aim before the server launches for you
@@ -90,8 +88,8 @@ local GameConfig = {
 	Ai = {
 		chargeMax = 3, -- Heavy: longest straight charge before backing up
 		retreatTime = 1.1, -- after a hit: seconds driving away for a run-up
-		retreatDist = 28, -- how far away it aims during the run-up
-		maxRadius = 48, -- run-up target stays this close to bowl center
+		retreatDist = 55, -- how far away it aims during the run-up
+		maxRadius = 88, -- run-up target stays this close to bowl center
 		circleTime = 2, -- Light: seconds spent circling
 		diveMax = 1.5, -- Light: longest dive before circling again
 		circleRadius = 22, -- Light: circle distance around enemy
