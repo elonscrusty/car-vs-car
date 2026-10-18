@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ArenaMath = require(ReplicatedStorage.Shared.ArenaMath)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 
+local ArenaDecor = require(script.Parent.ArenaDecor)
 local ArenaScenery = require(script.Parent.ArenaScenery)
 
 export type Arena = {
@@ -212,6 +213,7 @@ function Arena.build(origin: Vector3): Arena
 	end
 
 	ArenaScenery.build(model, origin)
+	ArenaDecor.build(model, origin)
 
 	model.Parent = workspace
 	for _, bar in spinnerBars do

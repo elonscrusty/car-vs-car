@@ -10,6 +10,14 @@ local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 
 local LobbyDecor = {}
 
+-- Is there a model with this name (in ServerStorage.Models.<source>, default "Decor")?
+function LobbyDecor.has(name: string, source: string?): boolean
+	local models = ServerStorage:FindFirstChild("Models")
+	local dir = if models then models:FindFirstChild(source or "Decor") else nil
+	local m = if dir then dir:FindFirstChild(name) else nil
+	return m ~= nil and m:IsA("Model")
+end
+
 -- A look-only copy of a decor model (anchored, no collision, "Neon_*" parts glowing), or nil.
 function LobbyDecor.clone(
 	name: string,
