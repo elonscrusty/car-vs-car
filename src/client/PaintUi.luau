@@ -10,6 +10,7 @@ local Paint = require(ReplicatedStorage.Shared.Paint)
 local PaintConfig = require(ReplicatedStorage.Shared.PaintConfig)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Types = require(ReplicatedStorage.Shared.Types)
+local UiStyle = require(script.Parent.UiStyle)
 
 local PaintUi = {}
 
@@ -83,7 +84,7 @@ local function text(
 	l.Position = pos
 	l.Text = str
 	l.TextScaled = true
-	l.Font = Enum.Font.GothamBlack
+	l.Font = Enum.Font.FredokaOne
 	l.TextColor3 = color
 	l.Parent = parent
 	local lim = Instance.new("UITextSizeConstraint")
@@ -99,12 +100,13 @@ local function button(parent: Instance, str: string, size: UDim2, color: Color3)
 	b.BackgroundColor3 = color
 	b.Text = str
 	b.TextScaled = true
-	b.Font = Enum.Font.GothamBlack
+	b.Font = Enum.Font.FredokaOne
 	b.TextColor3 = WHITE
 	b.AutoButtonColor = true
 	b.BorderSizePixel = 0
 	b.Parent = parent
 	corner(b, 12)
+	UiStyle.polish(b)
 	local lim = Instance.new("UITextSizeConstraint")
 	lim.MinTextSize = 12
 	lim.MaxTextSize = 26

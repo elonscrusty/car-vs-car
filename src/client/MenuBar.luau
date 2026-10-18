@@ -61,7 +61,7 @@ function MenuBar.new(): MenuBar
 			b.BackgroundColor3 = Color3.fromRGB(30, 34, 52)
 			b.BorderSizePixel = 0
 			b.AutoButtonColor = true
-			b.Font = Enum.Font.GothamBlack
+			b.Font = Enum.Font.FredokaOne
 			b.TextColor3 = Color3.new(1, 1, 1)
 			b.TextScaled = true
 			local corner = Instance.new("UICorner")

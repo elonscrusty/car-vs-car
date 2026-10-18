@@ -46,7 +46,7 @@ local function addSticker(body: BasePart, text: string)
 		label.Position = UDim2.fromScale(0.275, 0.1)
 		label.BackgroundTransparency = 1
 		label.Text = text
-		label.Font = Enum.Font.GothamBlack
+		label.Font = Enum.Font.FredokaOne
 		label.TextScaled = true
 		label.TextColor3 = Color3.new(1, 1, 1)
 		label.TextStrokeColor3 = Color3.new(0, 0, 0)

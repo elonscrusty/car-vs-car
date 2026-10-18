@@ -30,7 +30,7 @@ local function makeLabel(parent: Instance, pos: UDim2, size: UDim2, color: Color
 	l.BackgroundTransparency = 1
 	l.Position = pos
 	l.Size = size
-	l.Font = Enum.Font.GothamBold
+	l.Font = Enum.Font.FredokaOne
 	l.TextScaled = true
 	l.TextColor3 = color
 	l.TextXAlignment = Enum.TextXAlignment.Left

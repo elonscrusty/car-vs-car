@@ -99,7 +99,7 @@ local function label(
 	t.BackgroundTransparency = 1
 	t.Text = text
 	t.TextColor3 = color
-	t.Font = Enum.Font.GothamBlack
+	t.Font = Enum.Font.FredokaOne
 	t.TextScaled = true
 	t.Parent = gui
 	if strokeColor then

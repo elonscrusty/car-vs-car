@@ -42,7 +42,7 @@ local function label(parent: Instance, text: string, size: UDim2, pos: UDim2): T
 	l.Position = pos
 	l.Text = text
 	l.TextScaled = true
-	l.Font = Enum.Font.GothamBlack
+	l.Font = Enum.Font.FredokaOne
 	l.TextColor3 = Color3.new(1, 1, 1)
 	l.TextStrokeTransparency = 0.3
 	l.Parent = parent
@@ -62,7 +62,7 @@ local function button(
 	b.BackgroundColor3 = color
 	b.Text = text
 	b.TextScaled = true
-	b.Font = Enum.Font.GothamBlack
+	b.Font = Enum.Font.FredokaOne
 	b.TextColor3 = Color3.new(1, 1, 1)
 	b.AutoButtonColor = true
 	b.Parent = parent
@@ -102,7 +102,7 @@ function Ui.create(h: Handlers): View
 			color
 		)
 		local sub = label(b, stats.blurb, UDim2.fromScale(0.9, 0.25), UDim2.fromScale(0.05, 0.7))
-		sub.Font = Enum.Font.GothamBold
+		sub.Font = Enum.Font.FredokaOne
 		b.Activated:Connect(function()
 			h.onPick(id)
 		end)
@@ -153,7 +153,7 @@ function Ui.create(h: Handlers): View
 	topText.Size = UDim2.fromScale(1, 1)
 	topText.RichText = true
 	topText.TextScaled = true
-	topText.Font = Enum.Font.GothamBlack
+	topText.Font = Enum.Font.FredokaOne
 	topText.TextColor3 = Color3.new(1, 1, 1)
 	topText.Text = ""
 	topText.Parent = top
@@ -185,7 +185,7 @@ function Ui.create(h: Handlers): View
 	aimFrame.Visible = false
 	aimFrame.Parent = gui
 	local hint = label(aimFrame, "", UDim2.fromScale(0.4, 0.04), UDim2.fromScale(0.3, 0.1))
-	hint.Font = Enum.Font.GothamBold
+	hint.Font = Enum.Font.FredokaOne
 
 	-- Power bar
 	local powerBack = Instance.new("Frame")

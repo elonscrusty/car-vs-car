@@ -140,7 +140,7 @@ function SteerInput.new(send: (steer: number, gas: number) -> ()): SteerInput
 			arrow.BackgroundTransparency = 1
 			arrow.Text = a[1] :: string
 			arrow.TextScaled = true
-			arrow.Font = Enum.Font.GothamBold
+			arrow.Font = Enum.Font.FredokaOne
 			arrow.TextColor3 = RIM_COLOR
 			arrow.TextTransparency = 0.25
 			arrow.Parent = b

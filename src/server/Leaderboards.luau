@@ -160,7 +160,7 @@ local function buildBoard(
 		local title = Instance.new("TextLabel")
 		title.BackgroundTransparency = 1
 		title.Size = UDim2.fromScale(1, 0.14)
-		title.Font = Enum.Font.GothamBlack
+		title.Font = Enum.Font.FredokaOne
 		title.TextScaled = true
 		title.TextColor3 = GOLD
 		title.Text = board.title
@@ -169,7 +169,7 @@ local function buildBoard(
 		body.BackgroundTransparency = 1
 		body.Position = UDim2.fromScale(0.08, 0.16)
 		body.Size = UDim2.fromScale(0.84, 0.8)
-		body.Font = Enum.Font.GothamBold
+		body.Font = Enum.Font.FredokaOne
 		body.TextScaled = true
 		body.TextColor3 = WHITE
 		body.TextXAlignment = Enum.TextXAlignment.Left

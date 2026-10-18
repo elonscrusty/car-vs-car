@@ -30,7 +30,7 @@ function ModeBanner.new(): Banner
 			l.BackgroundColor3 = Color3.fromRGB(14, 18, 30)
 			l.BackgroundTransparency = 0.25
 			l.TextColor3 = Color3.new(1, 1, 1)
-			l.Font = Enum.Font.GothamBold
+			l.Font = Enum.Font.FredokaOne
 			l.TextScaled = true
 			l.Parent = g
 			local corner = Instance.new("UICorner")

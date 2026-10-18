@@ -39,7 +39,7 @@ local function arrowLabel(parent: Instance, size: UDim2): TextLabel
 	a.Size = size
 	a.Text = "▼"
 	a.TextScaled = true
-	a.Font = Enum.Font.SourceSansBold
+	a.Font = Enum.Font.FredokaOne
 	a.TextColor3 = GOLD
 	a.TextStrokeTransparency = 0
 	a.Parent = parent
@@ -115,7 +115,7 @@ function HintUi.new(onSeen: (id: string) -> ()): Handle
 	text.Size = UDim2.fromScale(0.94, 0.76)
 	text.Position = UDim2.fromScale(0.03, 0.12)
 	text.TextScaled = true
-	text.Font = Enum.Font.GothamBlack
+	text.Font = Enum.Font.FredokaOne
 	text.TextColor3 = WHITE
 	text.TextStrokeTransparency = 0.5
 	text.Parent = banner

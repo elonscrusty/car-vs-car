@@ -9,6 +9,7 @@ local BuildConfig = require(ReplicatedStorage.Shared.BuildConfig)
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Types = require(ReplicatedStorage.Shared.Types)
+local UiStyle = require(script.Parent.UiStyle)
 
 local BuildUi = {}
 
@@ -66,7 +67,7 @@ local function text(
 	l.Position = pos
 	l.Text = str
 	l.TextScaled = true
-	l.Font = Enum.Font.GothamBlack
+	l.Font = Enum.Font.FredokaOne
 	l.TextColor3 = color
 	l.TextXAlignment = Enum.TextXAlignment.Left
 	l.Parent = parent
@@ -83,12 +84,13 @@ local function button(parent: Instance, str: string, size: UDim2, color: Color3)
 	b.BackgroundColor3 = color
 	b.Text = str
 	b.TextScaled = true
-	b.Font = Enum.Font.GothamBlack
+	b.Font = Enum.Font.FredokaOne
 	b.TextColor3 = WHITE
 	b.AutoButtonColor = true
 	b.BorderSizePixel = 0
 	b.Parent = parent
 	corner(b, 12)
+	UiStyle.polish(b)
 	local lim = Instance.new("UITextSizeConstraint")
 	lim.MinTextSize = 12
 	lim.MaxTextSize = 24

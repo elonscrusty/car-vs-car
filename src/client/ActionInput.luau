@@ -100,7 +100,7 @@ function ActionInput.new(send: (name: string) -> ()): ActionInput
 		icon.Size = UDim2.fromScale(1, 0.5)
 		icon.Text = def.icon
 		icon.TextScaled = true
-		icon.Font = Enum.Font.GothamBlack
+		icon.Font = Enum.Font.FredokaOne
 		icon.TextColor3 = Color3.new(1, 1, 1)
 		icon.Parent = b
 		local name = Instance.new("TextLabel")
@@ -110,7 +110,7 @@ function ActionInput.new(send: (name: string) -> ()): ActionInput
 		name.Size = UDim2.fromScale(1, 0.26)
 		name.Text = def.text
 		name.TextScaled = true
-		name.Font = Enum.Font.GothamBlack
+		name.Font = Enum.Font.FredokaOne
 		name.TextColor3 = Color3.new(1, 1, 1)
 		name.TextStrokeTransparency = 0.4
 		name.Parent = b
@@ -136,7 +136,7 @@ function ActionInput.new(send: (name: string) -> ()): ActionInput
 		label.BackgroundTransparency = 1
 		label.Text = ""
 		label.TextScaled = true
-		label.Font = Enum.Font.GothamBold
+		label.Font = Enum.Font.FredokaOne
 		label.TextColor3 = Color3.new(1, 1, 1)
 		label.ZIndex = 3
 		label.Parent = b
