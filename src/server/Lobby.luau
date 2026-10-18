@@ -536,7 +536,7 @@ function Lobby.build(): LobbyHandle
 		{ "F", Vector3.new(-HW, 0, HL), Vector3.new(HW, 0, HL) },
 	}
 	for _, sd in sides do
-		local name = sd[1] :: string
+		local wallName = sd[1] :: string
 		local a, b = sd[2] :: Vector3, sd[3] :: Vector3
 		local len = (b - a).Magnitude
 		local count = math.floor(len / 12 + 0.5)
@@ -544,18 +544,18 @@ function Lobby.build(): LobbyHandle
 		local dir = (b - a).Unit
 		for i = 0, count - 1 do
 			local center = a + dir * ((i + 0.5) * segW)
-			local along = if name == "L" or name == "R" then center.Z else center.X
-			if not (name == "F" and math.abs(along) < gap) then
-				local base = wallAt(name, along, -room.wall / 2, 0)
+			local along = if wallName == "L" or wallName == "R" then center.Z else center.X
+			if not (wallName == "F" and math.abs(along) < gap) then
+				local base = wallAt(wallName, along, -room.wall / 2, 0)
 				-- The lower side wall stops where the garages are (they are cut into the wall).
 				local lowerAlong, lowerW = along, segW
-				if name == "L" or name == "R" then
+				if wallName == "L" or wallName == "R" then
 					local lo = math.max(along - segW / 2, openEnd)
 					local hi = along + segW / 2
 					lowerAlong, lowerW = (lo + hi) / 2, hi - lo
 				end
 				if lowerW > 0.5 then
-					local lbase = wallAt(name, lowerAlong, -room.wall / 2, 0)
+					local lbase = wallAt(wallName, lowerAlong, -room.wall / 2, 0)
 					local cf = lbase * CFrame.new(0, WH / 2, 0)
 					part(folder, "Wall", Vector3.new(lowerW + 0.1, WH, room.wall), cf, WALL_GRAY)
 					local panel = part(
@@ -1020,7 +1020,7 @@ function Lobby.build(): LobbyHandle
 
 	-- The bay door is shut (players start inside): a roller door of steel slats with a yellow
 	-- hazard edge and a lit sign, so no gap shows the world outside.
-	local door = part(
+	local _door = part(
 		folder,
 		"GateDoor",
 		Vector3.new(gap * 2, WH, 1),
