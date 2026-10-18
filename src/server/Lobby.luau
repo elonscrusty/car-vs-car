@@ -723,7 +723,7 @@ function Lobby.build(): LobbyHandle
 						STEEL,
 						Enum.Material.Metal
 					)
-				elseif name == "L" or name == "R" then
+				elseif wallName == "L" or wallName == "R" then
 					-- A tall window of glowing glass between the columns.
 					local win = part(
 						folder,
