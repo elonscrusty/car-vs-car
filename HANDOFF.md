@@ -124,3 +124,6 @@ See SNAPSHOT.md section "Level-ups, win streak, leaderboards". Tune in `Progress
 Tune rewards/odds only in `src/shared/SpinConfig.luau` (placeholders). Quests: `QuestsConfig.luau`. Daily gift: `QuestsConfig.Daily`. Spin UI not yet checked by eye on a phone or in Studio.
 ## Fight modes
 See "Fight modes" in SNAPSHOT.md. Tweak `src/shared/ModesConfig.luau` only (hill hold time, ice grip, 8-car hpScale, ball size/density, goal size, score to win). Untested in Studio: first play test should check the soccer ball (too heavy/light?), that bots do not all pile on the ball, and the top banner on a phone.
+
+## Fight fixes (fairness, pacing, hit flash, comeback)
+See SNAPSHOT.md "Fight fixes". Tune in `FairnessConfig`, `GameConfig` (Arena radii, Match.aimTimeout, Ai, Feel, Pacing), `ComebackConfig`. First playtest: log time-to-first-hit, check the smaller bowl scenery fit, the HIT! flash size on a phone, and that bots now dive in sooner. Bowl FBX/scenery sized for 112 may sit too far out.
