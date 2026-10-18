@@ -29,7 +29,7 @@ export type LobbyHandle = {
 
 local Lobby = {}
 
-local CLAW_YAW_DEG = 90 -- turns the imported claw machine so its front faces the middle of the lobby (it stands on the right)
+local CLAW_YAW_DEG = 180 -- turns the imported claw machine so its front faces the hall (it stands by the back wall)
 
 local CYAN = Color3.fromRGB(60, 220, 255)
 local GREEN = Color3.fromRGB(60, 235, 80)
@@ -313,6 +313,7 @@ function Lobby.build(): LobbyHandle
 	-- frame and a number, a low back wall with a red band, and a light bar. LobbyBays puts the
 	-- player's car, sign and "Customize" prompt in it.
 	local bayBox = L.bay
+	local BH = WH - 0.4 -- garage height: just under the lower wall top
 	for i, b in L.bays do
 		local inward = b.face
 		mark("BayFloor" .. i, bayBox.w, bayBox.d, b.x, b.z, Color3.fromRGB(78, 82, 98))
@@ -326,8 +327,8 @@ function Lobby.build(): LobbyHandle
 			local divider = part(
 				folder,
 				"BayDivider",
-				Vector3.new(bayBox.w, 14.6, 0.8),
-				world(b.x, 7.3, b.z + side * (bayBox.d / 2 + 0.4)),
+				Vector3.new(bayBox.w, BH, 0.8),
+				world(b.x, BH / 2, b.z + side * (bayBox.d / 2 + 0.4)),
 				Color3.fromRGB(60, 64, 76),
 				Enum.Material.Metal
 			)
@@ -336,7 +337,7 @@ function Lobby.build(): LobbyHandle
 				folder,
 				"BayDividerCap",
 				Vector3.new(bayBox.w, 0.4, 1.0),
-				world(b.x, 14.7, b.z + side * (bayBox.d / 2 + 0.4)),
+				world(b.x, BH + 0.1, b.z + side * (bayBox.d / 2 + 0.4)),
 				YELLOW
 			)
 			cap.CanCollide = false
@@ -345,8 +346,8 @@ function Lobby.build(): LobbyHandle
 		part(
 			folder,
 			"BayBack",
-			Vector3.new(0.8, 14.6, bayBox.d),
-			world(backX, 7.3, b.z),
+			Vector3.new(0.8, BH, bayBox.d),
+			world(backX, BH / 2, b.z),
 			Color3.fromRGB(120, 126, 146),
 			Enum.Material.Metal
 		)
@@ -354,15 +355,55 @@ function Lobby.build(): LobbyHandle
 			folder,
 			"BayBand",
 			Vector3.new(0.9, 1.6, bayBox.d),
-			world(backX + inward * 0.1, 11.8, b.z),
+			world(backX + inward * 0.1, BH - 2.8, b.z),
 			RED
 		)
 		band.CanCollide = false
+		-- Back wall detail: dark panel seams, a pegboard of tools and a pipe along the top.
+		for k = -2, 2 do
+			local seam = part(
+				folder,
+				"BayBackSeam",
+				Vector3.new(0.3, BH - 2.4, 0.4),
+				world(backX + inward * 0.5, (BH - 2.4) / 2, b.z + k * (bayBox.d / 5)),
+				Color3.fromRGB(70, 75, 92)
+			)
+			seam.CanCollide = false
+		end
+		local pegboard = part(
+			folder,
+			"BayPegboard",
+			Vector3.new(0.3, 5, bayBox.d * 0.4),
+			world(backX + inward * 0.6, 11.2, b.z),
+			Color3.fromRGB(190, 150, 90),
+			Enum.Material.Wood
+		)
+		pegboard.CanCollide = false
+		for k, tc in { RED, YELLOW, CYAN, Color3.fromRGB(235, 235, 240), RED, YELLOW } do
+			local tool = part(
+				folder,
+				"BayTool",
+				Vector3.new(0.4, 2.4, 0.5),
+				world(backX + inward * 0.9, 11.2, b.z + (k - 3.5) * (bayBox.d * 0.4 / 7)),
+				tc
+			)
+			tool.CanCollide = false
+		end
+		local pipe = part(
+			folder,
+			"BayPipe",
+			Vector3.new(bayBox.d - 1, 1, 1),
+			world(backX + inward * 0.9, BH - 1.4, b.z) * CFrame.Angles(0, math.pi / 2, 0),
+			Color3.fromRGB(170, 174, 186),
+			Enum.Material.Metal,
+			Enum.PartType.Cylinder
+		)
+		pipe.CanCollide = false
 		local bar = part(
 			folder,
 			"BayLight",
 			Vector3.new(0.6, 0.6, bayBox.d - 4),
-			world(b.x - inward * (bayBox.w / 2 - 6), 14, b.z),
+			world(b.x - inward * (bayBox.w / 2 - 6), BH - 0.6, b.z),
 			Color3.fromRGB(255, 244, 220),
 			Enum.Material.Neon
 		)
@@ -373,7 +414,7 @@ function Lobby.build(): LobbyHandle
 			folder,
 			"BayCeiling",
 			Vector3.new(bayBox.w, 0.6, bayBox.d + 1.6),
-			world(b.x, 14.8, b.z),
+			world(b.x, BH + 0.2, b.z),
 			Color3.fromRGB(26, 36, 78)
 		)
 		-- The red portal at the front: two columns, a beam and the A1 / B1 header sign.
@@ -382,8 +423,8 @@ function Lobby.build(): LobbyHandle
 			part(
 				folder,
 				"BayPortalPost",
-				Vector3.new(1.8, 15.6, 1.8),
-				world(frontX, 7.8, b.z + side * (bayBox.d / 2 + 0.9)),
+				Vector3.new(1.8, BH + 1, 1.8),
+				world(frontX, (BH + 1) / 2, b.z + side * (bayBox.d / 2 + 0.9)),
 				RED,
 				Enum.Material.Metal
 			)
@@ -392,7 +433,7 @@ function Lobby.build(): LobbyHandle
 			folder,
 			"BayPortalBeam",
 			Vector3.new(1.8, 1.8, bayBox.d + 3.6),
-			world(frontX, 14.4, b.z),
+			world(frontX, BH - 0.2, b.z),
 			RED,
 			Enum.Material.Metal
 		)
@@ -401,8 +442,8 @@ function Lobby.build(): LobbyHandle
 			"BayHeader" .. i,
 			Vector3.new(16, 5.2, 0.6),
 			CFrame.lookAt(
-				origin + Vector3.new(frontX + inward * 1.1, 19.6, b.z),
-				origin + Vector3.new(frontX + inward * 10, 19.6, b.z)
+				origin + Vector3.new(frontX + inward * 1.1, BH + 3.6, b.z),
+				origin + Vector3.new(frontX + inward * 10, BH + 3.6, b.z)
 			),
 			Color3.fromRGB(14, 16, 32)
 		)
@@ -526,6 +567,135 @@ function Lobby.build(): LobbyHandle
 						Enum.Material.Brick
 					)
 					panel.CanCollide = false
+					-- Wall detail, a different one per segment: poster, tool board, pipes, vent.
+					if lowerW >= 8 then
+						local hall = -room.wall / 2 - 0.7 -- in front of the wall panel (toward the hall)
+						local function onWall(
+							name: string,
+							size: Vector3,
+							x: number,
+							y: number,
+							color: Color3,
+							material: Enum.Material?,
+							shape: Enum.PartType?
+						): Part
+							local d = part(
+								folder,
+								name,
+								size,
+								lbase * CFrame.new(x, y, hall),
+								color,
+								material,
+								shape
+							)
+							d.CanCollide = false
+							d.CanQuery = false
+							return d
+						end
+						local kind = i % 4
+						if kind == 0 then
+							local posters = {
+								{ "RACE\nDAY!", Color3.fromRGB(235, 60, 60) },
+								{ "TURBO", Color3.fromRGB(255, 200, 40) },
+								{ "WIN!", Color3.fromRGB(60, 200, 255) },
+							}
+							local pick = posters[(i // 4) % #posters + 1]
+							for k = -1, 1, 2 do
+								onWall(
+									"PosterFrame",
+									Vector3.new(6.4, 8.4, 0.3),
+									k * lowerW * 0.22,
+									10,
+									Color3.fromRGB(245, 245, 250)
+								)
+								local art = onWall(
+									"Poster",
+									Vector3.new(5.6, 7.6, 0.3),
+									k * lowerW * 0.22,
+									10,
+									pick[2] :: Color3
+								)
+								art.CFrame = art.CFrame * CFrame.new(0, 0, -0.1)
+								label(
+									art,
+									Enum.NormalId.Front,
+									pick[1] :: string,
+									DARK,
+									Color3.new(1, 1, 1)
+								)
+							end
+						elseif kind == 1 then
+							onWall(
+								"ToolBoard",
+								Vector3.new(lowerW * 0.7, 6, 0.3),
+								0,
+								9,
+								Color3.fromRGB(190, 150, 90),
+								Enum.Material.Wood
+							)
+							local colors = { RED, YELLOW, CYAN, Color3.fromRGB(235, 235, 240) }
+							for k = 1, 9 do
+								onWall(
+									"BoardTool",
+									Vector3.new(0.6, 3.2 + (k % 3) * 0.6, 0.4),
+									(k - 5) * lowerW * 0.7 / 10,
+									9 + ((k % 3) - 1) * 0.3,
+									colors[k % 4 + 1]
+								)
+							end
+						elseif kind == 2 then
+							for _, py in { 5, 13.5 } do
+								onWall(
+									"WallPipe",
+									Vector3.new(lowerW * 0.96, 1, 1),
+									0,
+									py,
+									Color3.fromRGB(165, 170, 184),
+									Enum.Material.Metal,
+									Enum.PartType.Cylinder
+								)
+							end
+							for k = -1, 1 do
+								onWall(
+									"PipeClamp",
+									Vector3.new(0.5, 1.6, 1.6),
+									k * lowerW * 0.3,
+									5,
+									YELLOW,
+									nil,
+									Enum.PartType.Cylinder
+								)
+							end
+						else
+							onWall(
+								"VentFrame",
+								Vector3.new(6, 5, 0.3),
+								0,
+								10,
+								Color3.fromRGB(40, 43, 54)
+							)
+							for k = -2, 2 do
+								onWall(
+									"VentSlat",
+									Vector3.new(5.2, 0.5, 0.5),
+									0,
+									10 + k * 0.9,
+									Color3.fromRGB(150, 154, 168)
+								)
+							end
+						end
+						-- Yellow / black hazard strip along the bottom.
+						onWall("WallHazard", Vector3.new(lowerW * 0.98, 0.8, 0.3), 0, 0.6, YELLOW)
+						for k = 0, math.floor(lowerW / 2) - 1 do
+							onWall(
+								"WallHazardStripe",
+								Vector3.new(0.9, 0.8, 0.35),
+								(k + 0.5) * 2 - lowerW / 2,
+								0.6,
+								DARK
+							)
+						end
+					end
 				end
 				local ucf = base * CFrame.new(0, WH + UH / 2, 0)
 				part(
@@ -758,6 +928,138 @@ function Lobby.build(): LobbyHandle
 		glow(bulb, Color3.fromRGB(255, 244, 200), 40, 0.7)
 	end
 
+	-- Ceiling detail: steel truss webs under the cross beams, two big ducts with bands, strings
+	-- of pennants and cable trays. Look only.
+	local function ceil(
+		name: string,
+		size: Vector3,
+		cf: CFrame,
+		color: Color3,
+		material: Enum.Material?,
+		shape: Enum.PartType?
+	): Part
+		local c = part(folder, name, size, cf, color, material, shape)
+		c.CanCollide = false
+		c.CanQuery = false
+		return c
+	end
+	local TRUSS = Color3.fromRGB(190, 40, 40)
+	for _, bz in { -40, 0, 40 } do
+		ceil(
+			"TrussChord",
+			Vector3.new(HW * 2, 0.7, 0.7),
+			world(0, top - 4.6, bz),
+			TRUSS,
+			Enum.Material.Metal
+		)
+		for k = 0, 31 do
+			local x = -HW + 2 + k * 4
+			local flip = if k % 2 == 0 then 1 else -1
+			ceil(
+				"TrussWeb",
+				Vector3.new(0.5, 3.2, 0.5),
+				world(x + 2, top - 3.5, bz) * CFrame.Angles(0, 0, flip * math.rad(40)),
+				TRUSS,
+				Enum.Material.Metal
+			)
+		end
+	end
+	for _, dx in { -40, 40 } do
+		ceil(
+			"Duct",
+			Vector3.new(HL * 2 - 6, 3.4, 3.4),
+			world(dx, top - 7.2, 0) * CFrame.Angles(0, math.pi / 2, 0),
+			Color3.fromRGB(170, 176, 190),
+			Enum.Material.Metal,
+			Enum.PartType.Cylinder
+		)
+		for k = -4, 4 do
+			ceil(
+				"DuctBand",
+				Vector3.new(0.9, 3.9, 3.9),
+				world(dx, top - 7.2, k * 14) * CFrame.Angles(0, math.pi / 2, 0),
+				YELLOW,
+				Enum.Material.Metal,
+				Enum.PartType.Cylinder
+			)
+		end
+	end
+	for _, tz in { -22, 24 } do
+		ceil("PennantCable", Vector3.new(HW * 2 - 8, 0.2, 0.2), world(0, top - 10, tz), DARK)
+		local colors = { RED, Color3.fromRGB(250, 250, 250), YELLOW, CYAN }
+		for k = 0, 21 do
+			ceil(
+				"Pennant",
+				Vector3.new(2, 2, 0.15),
+				world(-HW + 6 + k * 5.4, top - 11.3, tz) * CFrame.Angles(0, 0, math.pi / 4),
+				colors[k % 4 + 1]
+			)
+		end
+	end
+	for _, tx in { -8, 8 } do
+		ceil(
+			"CableTray",
+			Vector3.new(2.2, 0.5, HL * 2 - 4),
+			world(tx, top - 3, 0),
+			Color3.fromRGB(60, 64, 76),
+			Enum.Material.Metal
+		)
+		ceil(
+			"CableTrayLip",
+			Vector3.new(0.3, 0.9, HL * 2 - 4),
+			world(tx - 1.1, top - 2.8, 0),
+			YELLOW
+		)
+		ceil(
+			"CableTrayLip",
+			Vector3.new(0.3, 0.9, HL * 2 - 4),
+			world(tx + 1.1, top - 2.8, 0),
+			YELLOW
+		)
+	end
+
+	-- The bay door is shut (players start inside): a roller door of steel slats with a yellow
+	-- hazard edge and a lit sign, so no gap shows the world outside.
+	local door = part(
+		folder,
+		"GateDoor",
+		Vector3.new(gap * 2, WH, 1),
+		world(0, WH / 2, HL + 0.5),
+		Color3.fromRGB(150, 154, 168),
+		Enum.Material.Metal
+	)
+	for k = 1, math.floor(WH / 1.5) do
+		local rib = part(
+			folder,
+			"GateRib",
+			Vector3.new(gap * 2, 0.35, 0.3),
+			world(0, k * 1.5 - 0.4, HL - 0.15),
+			Color3.fromRGB(96, 100, 114),
+			Enum.Material.Metal
+		)
+		rib.CanCollide = false
+	end
+	local doorSign = part(
+		folder,
+		"GateSign",
+		Vector3.new(30, 5, 0.4),
+		CFrame.lookAt(origin + Vector3.new(0, 10, HL - 0.5), origin + Vector3.new(0, 10, 0)),
+		Color3.fromRGB(14, 12, 40)
+	)
+	label(doorSign, Enum.NormalId.Front, "RACE HQ", YELLOW, Color3.fromRGB(20, 40, 140))
+	doorSign.CanCollide = false
+	glow(doorSign, YELLOW, 24, 0.4)
+	for _, sx in { -1, 1 } do
+		local edge = part(
+			folder,
+			"GateEdge",
+			Vector3.new(1.2, WH, 0.5),
+			world(sx * (gap - 0.6), WH / 2, HL - 0.3),
+			YELLOW
+		)
+		edge.CanCollide = false
+	end
+
 	-- Big gate: two cyan posts with a checkered start line across the way in.
 	local gz = L.gate.z
 	for _, sx in { -1, 1 } do
@@ -794,34 +1096,101 @@ function Lobby.build(): LobbyHandle
 		end
 	end
 
-	-- The giant CAR VS CAR sign on the back wall, with a glowing frame.
+	-- The giant CAR VS CAR marquee on the back wall: a navy board in a thick red frame with a ring
+	-- of bulbs, and fat letters made of stacked layers (bright in front, darker behind) so they
+	-- look carved out and standing off the board.
+	local SIGN_Y = 31
 	local sign = part(
 		folder,
 		"WallSign",
-		Vector3.new(64, 14, 1),
-		CFrame.lookAt(origin + Vector3.new(0, 31, -HL + 1.6), origin + Vector3.new(0, 31, 0)),
-		Color3.fromRGB(14, 12, 24)
+		Vector3.new(64, 16, 1),
+		CFrame.lookAt(
+			origin + Vector3.new(0, SIGN_Y, -HL + 1.2),
+			origin + Vector3.new(0, SIGN_Y, 0)
+		),
+		Color3.fromRGB(14, 12, 40)
 	)
-	label(sign, Enum.NormalId.Front, "CAR VS CAR", YELLOW, Color3.fromRGB(20, 60, 150))
 	glow(sign, CYAN, 60, 0.35)
 	for _, fr in
 		{
-			{ 66, 0.8, 0, 38.4 },
-			{ 66, 0.8, 0, 23.6 },
-			{ 0.8, 15.6, -33, 31 },
-			{ 0.8, 15.6, 33, 31 },
+			{ 67, 1.6, 0, SIGN_Y + 8.6 },
+			{ 67, 1.6, 0, SIGN_Y - 8.6 },
+			{ 1.6, 19.8, -33.2, SIGN_Y },
+			{ 1.6, 19.8, 33.2, SIGN_Y },
 		}
 	do
 		local f = part(
 			folder,
 			"SignFrame",
-			Vector3.new(fr[1], fr[2], 0.6),
-			world(fr[3], fr[4], -HL + 1.2),
-			Color3.fromRGB(70, 130, 150),
-			Enum.Material.SmoothPlastic
+			Vector3.new(fr[1], fr[2], 2),
+			world(fr[3], fr[4], -HL + 1.6),
+			RED,
+			Enum.Material.Metal
 		)
 		f.CanCollide = false
 	end
+	local bulbN = 0
+	local function bulb(x: number, y: number)
+		bulbN += 1
+		local c = if bulbN % 3 == 0
+			then Color3.fromRGB(255, 255, 255)
+			elseif bulbN % 3 == 1 then Color3.fromRGB(255, 215, 60)
+			else Color3.fromRGB(255, 120, 60)
+		local bb = part(
+			folder,
+			"SignBulb",
+			Vector3.one,
+			world(x, y, -HL + 2.7),
+			c,
+			Enum.Material.Neon,
+			Enum.PartType.Ball
+		)
+		bb.CanCollide = false
+	end
+	for k = -13, 13 do
+		bulb(k * 2.4, SIGN_Y + 8.6)
+		bulb(k * 2.4, SIGN_Y - 8.6)
+	end
+	for k = -3, 3 do
+		bulb(-33.2, SIGN_Y + k * 2.6)
+		bulb(33.2, SIGN_Y + k * 2.6)
+	end
+	local LETTER_LAYERS = 7
+	for k = 0, LETTER_LAYERS - 1 do
+		local depth = k / (LETTER_LAYERS - 1) -- 0 = front, 1 = back
+		local layer = part(
+			folder,
+			"SignLetters",
+			Vector3.new(58, 11, 0.05),
+			CFrame.lookAt(
+				origin + Vector3.new(0, SIGN_Y, -HL + 1.9 + (LETTER_LAYERS - 1 - k) * 0.3),
+				origin + Vector3.new(0, SIGN_Y, 0)
+			),
+			DARK
+		)
+		layer.Transparency = 0.98
+		layer.CanCollide = false
+		layer.CanQuery = false
+		local face = if k == 0
+			then YELLOW
+			else Color3.fromRGB(190, 70, 20):Lerp(Color3.fromRGB(30, 14, 10), depth)
+		label(
+			layer,
+			Enum.NormalId.Front,
+			"CAR VS CAR",
+			face,
+			if k == 0 then Color3.fromRGB(20, 40, 140) else nil
+		)
+	end
+	local underglow = part(
+		folder,
+		"SignUnderglow",
+		Vector3.new(60, 0.5, 1),
+		world(0, SIGN_Y - 9.8, -HL + 2),
+		CYAN,
+		Enum.Material.Neon
+	)
+	underglow.CanCollide = false
 
 	for _, fx in { -40, 40 } do
 		for col = 1, 4 do
@@ -905,17 +1274,52 @@ function Lobby.build(): LobbyHandle
 		world(g.x, 5, g.z),
 		Color3.fromRGB(190, 40, 40)
 	)
+	-- The claw gets its own round feature platform by the back wall, with a glowing ring, two
+	-- posts and a big arch sign.
+	local platform = part(
+		folder,
+		"GachaPlatform",
+		Vector3.new(0.6, g.w + 4, g.w + 4),
+		world(g.x, 0.3, g.z) * CFrame.Angles(0, 0, math.pi / 2),
+		Color3.fromRGB(34, 38, 56),
+		Enum.Material.SmoothPlastic,
+		Enum.PartType.Cylinder
+	)
+	platform.CanCollide = false
+	local platformRing = part(
+		folder,
+		"GachaRing",
+		Vector3.new(0.3, g.w + 5.4, g.w + 5.4),
+		world(g.x, 0.1, g.z) * CFrame.Angles(0, 0, math.pi / 2),
+		YELLOW,
+		Enum.Material.Neon,
+		Enum.PartType.Cylinder
+	)
+	platformRing.CanCollide = false
+	glow(platformRing, YELLOW, 26, 0.5)
+	for _, px in { -1, 1 } do
+		local post = part(
+			folder,
+			"GachaPost",
+			Vector3.new(1.2, 15, 1.2),
+			world(g.x + px * (g.w / 2 + 1.5), 7.5, g.z + g.d / 2 + 0.5),
+			RED,
+			Enum.Material.Metal
+		)
+		post.CanCollide = false
+	end
 	local gSign = part(
 		folder,
 		"GachaSign",
-		Vector3.new(0.6, 2.4, 8),
+		Vector3.new(g.w + 5, 4, 0.8),
 		CFrame.lookAt(
-			origin + Vector3.new(g.x - g.d / 2 - 0.4, 11, g.z),
-			origin + Vector3.new(0, 11, g.z)
+			origin + Vector3.new(g.x, 15, g.z + g.d / 2 + 0.5),
+			origin + Vector3.new(g.x, 15, g.z + 20)
 		),
-		Color3.fromRGB(14, 12, 24)
+		Color3.fromRGB(14, 12, 40)
 	)
-	label(gSign, Enum.NormalId.Front, "CLAW", YELLOW, DARK)
+	label(gSign, Enum.NormalId.Front, "PRIZE CLAW", YELLOW, Color3.fromRGB(20, 40, 140))
+	glow(gSign, YELLOW, 30, 0.5)
 	prompt(gBase, "GachaPrompt", "Play", "Claw Machine")
 
 	local models = ServerStorage:FindFirstChild("Models")
