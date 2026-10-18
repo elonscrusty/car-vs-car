@@ -91,7 +91,7 @@ function HintUi.new(onSeen: (id: string) -> ()): Handle
 
 	local banner = Instance.new("Frame")
 	banner.AnchorPoint = Vector2.new(0.5, 0)
-	banner.Position = UDim2.new(0.5, 0, 0, 10)
+	banner.Position = UDim2.new(0.5, 0, 0, 76)
 	banner.Size = UDim2.fromScale(0.62, 0.11)
 	banner.BackgroundColor3 = NAVY
 	banner.BackgroundTransparency = 0.1
