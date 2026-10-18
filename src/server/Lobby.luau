@@ -1300,18 +1300,6 @@ function Lobby.build(): LobbyHandle
 	)
 	platformRing.CanCollide = false
 	glow(platformRing, YELLOW, 26, 0.5)
-	local gSign = part(
-		folder,
-		"GachaSign",
-		Vector3.new(22, 4.4, 0.8),
-		CFrame.lookAt(
-			origin + Vector3.new(g.x, 34.5, -HL + 1.4),
-			origin + Vector3.new(g.x, 34.5, 0)
-		),
-		Color3.fromRGB(14, 12, 40)
-	)
-	label(gSign, Enum.NormalId.Front, "PRIZE CLAW", YELLOW, Color3.fromRGB(20, 40, 140), 12)
-	glow(gSign, YELLOW, 30, 0.5)
 	prompt(gBase, "GachaPrompt", "Play", "Claw Machine")
 
 	local models = ServerStorage:FindFirstChild("Models")
@@ -1615,10 +1603,10 @@ function Lobby.build(): LobbyHandle
 				folder,
 				"FloorChevron",
 				Vector3.new(5, 0.06, 1.1),
-				world(sx * 2.1, 0.05, 47 - k * 3),
+				world(sx * 2.1, 0.05, L.spawn.z - 10 - k * 3),
 				Color3.fromRGB(240, 240, 240)
 			)
-			chev.CFrame = world(sx * 2.1, 0.05, 47 - k * 3)
+			chev.CFrame = world(sx * 2.1, 0.05, L.spawn.z - 10 - k * 3)
 				* CFrame.Angles(0, -sx * math.rad(35), 0)
 			chev.CanCollide = false
 		end
@@ -1665,13 +1653,14 @@ function Lobby.build(): LobbyHandle
 			Color3.fromRGB(38, 42, 54),
 			Enum.Material.SmoothPlastic
 		)
-		label(
+		local padNum = label(
 			padPart,
 			Enum.NormalId.Top,
 			string.format("%02d", i),
 			Color3.fromRGB(235, 238, 245),
 			nil
 		)
+		padNum.Rotation = 180
 		glow(padPart, GREEN, 18, 0.25)
 		local pboard = part(
 			folder,

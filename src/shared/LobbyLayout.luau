@@ -16,8 +16,8 @@ local LobbyLayout = {}
 LobbyLayout.room = { halfW = 64, halfL = 70, wallHeight = 18, upper = 22, wall = 2 }
 
 LobbyLayout.gate = { z = 68, halfOpening = 24 } -- open bay door: the way in
-LobbyLayout.spawn = { x = 0, z = 58, size = 6 }
-LobbyLayout.lane = { halfWidth = 7, fromZ = 52, toZ = -20 } -- cyan lines from the spawn to the stage
+LobbyLayout.spawn = { x = 0, z = 50, size = 6 } -- 20 studs from the door, so the camera behind the player stays inside the hall
+LobbyLayout.lane = { halfWidth = 7, fromZ = 46, toZ = -20 } -- cyan lines from the spawn to the stage
 LobbyLayout.padSize = 18
 -- Pads 01 (left back), 02 (left front), 03 (right back), 04 (right front).
 LobbyLayout.pads = {
