@@ -41,6 +41,19 @@ local function findCarMesh(id: string): MeshPart?
 	return nil
 end
 
+-- A catalog car's imported model: ServerStorage.Models.Cars.<catalog model name> (e.g. "02_sedan"),
+-- a Model of MeshParts (Body + Wheel_*), origin bottom-centre, nose toward -Z, about 14 studs
+-- long for a sedan. nil when it was not imported: the car keeps the box placeholders.
+local function findCatalogModel(name: string?): Model?
+	local models = ServerStorage:FindFirstChild("Models")
+	local cars = models and models:FindFirstChild("Cars")
+	local m = if cars and name then cars:FindFirstChild(name) else nil
+	if m and m:IsA("Model") then
+		return m
+	end
+	return nil
+end
+
 -- Adds a welded, massless part at `offset` from the body.
 local function addPart(
 	car: Model,
@@ -215,8 +228,46 @@ function CarBuilder.build(
 		then Color3.fromRGB(80, 255, 120)
 		else Color3.fromRGB(255, 150, 40)
 	local carMesh = findCarMesh(id)
+	local catalogModel = findCatalogModel((stats :: any).model)
 	local markerY = sy * 0.8 + sy * 0.3 + 0.15
-	if carMesh then
+	if catalogModel then
+		-- Catalog car: its own model, scaled so a sedan fills the hitbox length (longer vehicles
+		-- come out a bit bigger, shorter ones smaller, but not by the full ratio), standing on the
+		-- hitbox bottom. The box body stays as the invisible physics part.
+		local visual = catalogModel:Clone()
+		local _, extent = visual:GetBoundingBox()
+		local length = sz * math.sqrt(extent.Z / 14)
+		visual:ScaleTo(visual:GetScale() * length / extent.Z)
+		visual:PivotTo(body.CFrame * CFrame.new(0, -sy / 2, 0))
+		local top = 0
+		for _, d in visual:GetDescendants() do
+			if d:IsA("BasePart") then
+				d.Anchored = true -- stays anchored until launch
+				d.CanCollide = false
+				d.CanQuery = false
+				d.CanTouch = false
+				d.Massless = true
+				d:SetAttribute("CarIdx", idx)
+				if d.Name == "Body" then
+					d.Name = "Visual" -- Appearance paints the part with this name
+					d.Color = color
+				else
+					d.Color = dark
+				end
+				local weld = Instance.new("WeldConstraint")
+				weld.Part0 = body
+				weld.Part1 = d
+				weld.Parent = d
+				top = math.max(top, d.Position.Y + d.Size.Y / 2)
+			end
+		end
+		for _, d in visual:GetChildren() do
+			d.Parent = model
+		end
+		visual:Destroy()
+		body.Transparency = 1
+		markerY = top - body.Position.Y + 0.6
+	elseif carMesh then
 		-- Real model: scaled so its length fills the hitbox length, bottom on the hitbox bottom,
 		-- nose to -Z. The box body stays as the (invisible) physics part.
 		local scale = sz / carMesh.Size.X

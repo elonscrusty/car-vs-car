@@ -29,6 +29,7 @@ export type LobbyHandle = {
 
 local Lobby = {}
 
+local CLAW_SCALE = 1.5 -- the imported claw is about 7 studs wide; it stands on a 20 stud platform
 local CLAW_YAW_DEG = 180 -- turns the imported claw machine so its front faces the hall (it stands by the back wall)
 
 local CYAN = Color3.fromRGB(60, 220, 255)
@@ -1324,14 +1325,12 @@ function Lobby.build(): LobbyHandle
 
 	local models = ServerStorage:FindFirstChild("Models")
 	local clawModel: Model? = nil
-	local clawTemplate = models and models:FindFirstChild("ClawMachine")
+	local propModels = models and models:FindFirstChild("Props")
+	local clawTemplate = (propModels and propModels:FindFirstChild("claw_machine"))
+		or (models and models:FindFirstChild("ClawMachine"))
 	if clawTemplate and clawTemplate:IsA("Model") then
-		for _, child in folder:GetChildren() do
-			if child ~= gBase and child.Name:sub(1, 5) == "Gacha" then
-				child:Destroy()
-			end
-		end
-		-- The placeholder box stays as an invisible anchor for "GachaPrompt".
+		-- The placeholder box stays as an invisible anchor for "GachaPrompt"; the platform, posts
+		-- and sign stay too.
 		gBase.Transparency = 1
 		gBase.CanCollide = false
 		local claw = clawTemplate:Clone()
@@ -1339,10 +1338,16 @@ function Lobby.build(): LobbyHandle
 		for _, d in claw:GetDescendants() do
 			if d:IsA("BasePart") then
 				d.Anchored = true
+				if d.Name:find("glass") then
+					d.Transparency = 0.6
+					d.Material = Enum.Material.Glass
+					d.CanCollide = false
+				end
 			end
 		end
-		-- Floor level, facing the middle of the lobby (-X from the right wall).
-		claw:PivotTo(world(g.x, 0, g.z) * CFrame.Angles(0, math.rad(CLAW_YAW_DEG), 0))
+		claw:ScaleTo(claw:GetScale() * CLAW_SCALE)
+		-- Floor level (on the platform), facing the hall.
+		claw:PivotTo(world(g.x, 0.6, g.z) * CFrame.Angles(0, math.rad(CLAW_YAW_DEG), 0))
 		claw.Parent = folder
 		clawModel = claw
 	end
@@ -1466,6 +1471,11 @@ function Lobby.build(): LobbyHandle
 		end
 	end
 
+	for k = storeFrom + 1, #folder:GetChildren() do
+		folder:GetChildren()[k]:SetAttribute("Booth", "store")
+	end
+	local paintFrom = #folder:GetChildren()
+
 	-- Paint / customize booth (front right): cyan counter, paint cans and a tool wall. Built in its
 	-- own frame (+z = the front) and turned toward the lane.
 	do
@@ -1566,6 +1576,9 @@ function Lobby.build(): LobbyHandle
 		label(pSign, Enum.NormalId.Front, "PAINT / CUSTOMIZE", CYAN, DARK)
 		glow(pSign, CYAN, 24, 0.4)
 		prompt(counter2, "CustomizePrompt", "Customize", "Paint & Garage")
+	end
+	for k = paintFrom + 1, #folder:GetChildren() do
+		folder:GetChildren()[k]:SetAttribute("Booth", "paint")
 	end
 
 	-- Red barriers with yellow frames, tire stacks and a cone by the spawn (like the reference).

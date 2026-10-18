@@ -77,6 +77,48 @@ function LobbyProps.build(folder: Folder, origin: Vector3)
 		end
 	end
 
+	-- The store and paint booths: the imported model stands where the plain booth was. The plain
+	-- parts go, except the counter that carries the prompt (it stays, invisible).
+	local function swapBooth(
+		tag: string,
+		model: string,
+		x: number,
+		z: number,
+		face: number,
+		scale: number
+	)
+		if not has(model) then
+			return
+		end
+		for _, item in folder:GetChildren() do
+			if item:GetAttribute("Booth") == tag then
+				if item:FindFirstChildWhichIsA("ProximityPrompt") then
+					for _, d in item:GetChildren() do
+						if not d:IsA("ProximityPrompt") then
+							d:Destroy()
+						end
+					end
+					(item :: BasePart).Transparency = 1;
+					(item :: BasePart).CanCollide = false
+				else
+					item:Destroy()
+				end
+			end
+		end
+		local m = put(model, at(x, 0, z, face), scale)
+		if m then
+			for _, d in m:GetDescendants() do -- booths are solid: walk around them
+				if d:IsA("MeshPart") then
+					d.CanCollide = true
+					d.CollisionFidelity = Enum.CollisionFidelity.Box
+				end
+			end
+		end
+	end
+	local st, pt = LobbyLayout.store, LobbyLayout.paint
+	swapBooth("store", "store_booth", st.x, st.z, -90, 1.1) -- front toward +x, the lane
+	swapBooth("paint", "paint_booth", pt.x, pt.z, 90, 1.1) -- front toward -x
+
 	for _, spot in SPOTS do
 		put(spot.name, at(spot.x, spot.y or 0, spot.z, spot.face), spot.scale or 1.4)
 	end
