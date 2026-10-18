@@ -124,3 +124,5 @@ See SNAPSHOT.md section "Level-ups, win streak, leaderboards". Tune in `Progress
 Tune rewards/odds only in `src/shared/SpinConfig.luau` (placeholders). Quests: `QuestsConfig.luau`. Daily gift: `QuestsConfig.Daily`. Spin UI not yet checked by eye on a phone or in Studio.
 ## Fight modes
 See "Fight modes" in SNAPSHOT.md. Tweak `src/shared/ModesConfig.luau` only (hill hold time, ice grip, 8-car hpScale, ball size/density, goal size, score to win). Untested in Studio: first play test should check the soccer ball (too heavy/light?), that bots do not all pile on the ball, and the top banner on a phone.
+## Sound system
+All sound ids in `src/shared/SoundConfig.luau` are empty (silent). Fill them from `docs/sounds-needed.md` (Roblox licensed library only, test in Studio). Levels and pitch wobble are placeholders in the same file.

@@ -118,3 +118,7 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 - lastStanding / soccer = `src/server/GroupMatch.luau` (same handle as Match). 1-2 players, bots fill to 8 cars (lastStanding, 60% HP each) or 3v3 (soccer, humans on team 1). No aiming: "ready" countdown, then drive. Soccer: giant ball, goal arcs on the bowl wall, first to 3, time up = more goals, tie = next goal wins.
 - Look/props: `src/server/ModeFx.luau`. HUD line: UiUpdate `modeInfo`, shown by `src/client/ModeBanner.luau`.
 - Checked: Lune tests (244). NOT checked in Studio or by eye: soccer ball feel, bot play in soccer/8-car, goal arcs, banner. Tune only in ModesConfig.
+## Sound system (review M2)
+- `src/shared/SoundConfig.luau` (events hitSoft/hitHard/boost/ability/win/lose/click/claw/coin/music_lobby/music_arena; ALL ids EMPTY = silent; volumes/pitch are placeholders), pure `Sounds.luau` (resolve -> spec or nil, hit strength -> soft/hard, volume clamp), client `SoundFx.luau` (lazy Sounds under SoundService, looping music, mute kept in a client-only SoundService attribute).
+- Hooks: hit/win/lose/fight+lobby music in `init.client`, click in `UiStyle.polish` + `LobbyUi.button`, boost/ability in `ActionInput.press`, claw result and coin toast in `LobbyUi`. MUSIC mute button in the lobby menu.
+- Carter must fill ids: see `docs/sounds-needed.md`. Tests: `tests/sounds.test.luau`. Not heard or run in Studio.

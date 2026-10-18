@@ -25,6 +25,7 @@ local SpinUi = require(script.SpinUi)
 local PaintUi = require(script.PaintUi)
 local DriveCar = require(script.DriveCar)
 local SkidFx = require(script.SkidFx)
+local SoundFx = require(script.SoundFx)
 local SteelLobby = require(script.SteelLobby)
 local SteerInput = require(script.SteerInput)
 local Ui = require(script.Ui)
@@ -84,6 +85,7 @@ local lobby = LobbyUi.new({
 		director.release()
 		menu.setVisible(true)
 		progressUi.setVisible(true)
+		SoundFx.music("music_lobby")
 		hints.trigger("claw") -- after a match: point at the claw machine
 	end,
 })
@@ -174,6 +176,7 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		aim.stop()
 		hints.done("aim")
 		view.showFight()
+		SoundFx.music("music_arena")
 		skids.start()
 		if u.auto ~= true then
 			steering.start() -- the server ignores Steer outside the fight
@@ -198,6 +201,7 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		director.focus(u.focus)
 	elseif u.kind == "hit" then
 		local strength = u.strength or 0
+		SoundFx.hit(strength)
 		director.shake(strength)
 		if strength > 0.5 then
 			director.punchFov(6 + 8 * strength)
@@ -219,5 +223,16 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		actions.stop()
 		modeBanner.hide()
 		view.showMatchEnd(u.youWon == true)
+		SoundFx.play(if u.youWon == true then "win" else "lose")
 	end
 end)
+
+SoundFx.music("music_lobby") -- silent until carter fills the id in SoundConfig
+local addMusicButton
+function addMusicButton()
+	menu.add("music", if SoundFx.isMuted() then "MUSIC OFF" else "MUSIC", 90, function()
+		SoundFx.toggleMute()
+		addMusicButton()
+	end)
+end
+addMusicButton()
