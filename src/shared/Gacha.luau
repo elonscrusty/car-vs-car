@@ -96,7 +96,10 @@ function Gacha.pull(p: Profile, rng: () -> number): PullResult
 	if free then
 		p.freePullUsed = true
 	elseif gift then
-		(p.daily :: any).freePulls -= 1
+		local daily = p.daily
+		if daily then
+			daily.freePulls -= 1
+		end
 		free = true
 	else
 		Inventory.addCoins(p, -LobbyConfig.Gacha.price)

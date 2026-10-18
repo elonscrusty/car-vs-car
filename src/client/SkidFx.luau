@@ -163,11 +163,16 @@ function SkidFx.new()
 			sinceSearch += dt
 			if sinceSearch >= FIND_EVERY then
 				sinceSearch = 0
-				for _, m in workspace:GetDescendants() do
-					if isCar(m) and rigs[m :: Model] == nil then
-						local b = m:FindFirstChild("Body")
-						if b and b:IsA("BasePart") then
-							rigs[m :: Model] = makeRig(m :: Model, b)
+				-- Cars sit directly inside the "Arena" folders, so no need to scan the whole world.
+				for _, arena in workspace:GetChildren() do
+					if arena.Name == "Arena" then
+						for _, m in arena:GetChildren() do
+							if isCar(m) and rigs[m :: Model] == nil then
+								local b = m:FindFirstChild("Body")
+								if b and b:IsA("BasePart") then
+									rigs[m :: Model] = makeRig(m :: Model, b)
+								end
+							end
 						end
 					end
 				end

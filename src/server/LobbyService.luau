@@ -282,7 +282,13 @@ function LobbyService.start(deps: Deps): Handle
 	end
 
 	-- stay: the player goes straight into a rematch (rewards are paid, nothing else changes).
-	local function finishMatch(player: Player, won: boolean, carId: string, stay: boolean?)
+	local function finishMatch(
+		player: Player,
+		won: boolean,
+		carId: string,
+		vsBot: boolean,
+		stay: boolean?
+	)
 		local ps = players[player]
 		if ps == nil or ps.stage ~= "match" then
 			return
@@ -294,7 +300,7 @@ function LobbyService.start(deps: Deps): Handle
 		local p = Profiles.get(player)
 		if p then
 			local result = Progress.applyMatchResult(p, carId, won, ProgressConfig)
-			Quests.onMatchEnd(p, { won = won, carId = carId, opponentIsBot = false })
+			Quests.onMatchEnd(p, { won = won, carId = carId, opponentIsBot = vsBot })
 			earned += result.coinsBonus
 			Inventory.addCoins(p, earned)
 			if won then
@@ -338,6 +344,7 @@ function LobbyService.start(deps: Deps): Handle
 			return
 		end
 		local participants: { Participant } = {}
+		local vsBot = false -- set once we know how many humans joined (read later, when the match ends)
 		for _, key in table.clone(pad.players) do
 			local player = key :: Player
 			local ps = players[player]
@@ -352,7 +359,7 @@ function LobbyService.start(deps: Deps): Handle
 					appearance = lookFor(player, picks[key]),
 					build = buildOf(player),
 					onFinished = function(won: boolean, stay: boolean?)
-						finishMatch(player, won, picks[key], stay)
+						finishMatch(player, won, picks[key], vsBot, stay)
 					end,
 				})
 			end
@@ -360,6 +367,7 @@ function LobbyService.start(deps: Deps): Handle
 		end
 		padAcc[padIndex] = nil
 		updatePadText(padIndex)
+		vsBot = #participants == 1
 		if #participants == 1 then
 			local solo = Profiles.get(participants[1].player)
 			participants[1].botLevel = if solo then solo.botLevel else nil
@@ -814,7 +822,7 @@ function LobbyService.start(deps: Deps): Handle
 						appearance = lookFor(player, carId),
 						build = buildOf(player),
 						onFinished = function(won: boolean, stay: boolean?)
-							finishMatch(player, won, carId, stay)
+							finishMatch(player, won, carId, true, stay)
 						end,
 					},
 				})

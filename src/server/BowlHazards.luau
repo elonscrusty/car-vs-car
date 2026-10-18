@@ -153,13 +153,18 @@ function BowlHazards.new(arena: Arena.Arena, cars: { CarBuilder.Car }): Handle
 	end
 
 	local padReadyAt: { [CarBuilder.Car]: number } = {}
+	local lastGlow = 0
 
 	local handle: Handle = {} :: any
 	handle.step = function(dt, now)
 		-- Gentle glow pulse on the signs and chevrons.
-		local glow = 0.15 + 0.2 * (0.5 + 0.5 * math.sin(now * 2 * math.pi / pcfg.pulseSeconds))
-		for _, part in pulsing do
-			part.Transparency = glow
+		-- Updated 10 times a second, not every frame, to keep network traffic low.
+		if now - lastGlow >= 0.1 then
+			lastGlow = now
+			local glow = 0.15 + 0.2 * (0.5 + 0.5 * math.sin(now * 2 * math.pi / pcfg.pulseSeconds))
+			for _, part in pulsing do
+				part.Transparency = glow
+			end
 		end
 		-- Boost pads.
 		for _, car in cars do

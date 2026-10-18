@@ -90,6 +90,9 @@ function startMatch(participants: { Match.Participant })
 				end,
 			})
 			table.insert(okOriginal, part)
+		else
+			-- Skipped (left or already fighting): release the lobby stage so they are not stuck "busy".
+			part.onFinished(false, false)
 		end
 	end
 	if #ok == 0 then
