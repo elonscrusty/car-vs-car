@@ -536,7 +536,7 @@ function Lobby.build(): LobbyHandle
 		{ "F", Vector3.new(-HW, 0, HL), Vector3.new(HW, 0, HL) },
 	}
 	for _, sd in sides do
-		local wallName = sd[1] :: string
+		local name = sd[1] :: string
 		local a, b = sd[2] :: Vector3, sd[3] :: Vector3
 		local len = (b - a).Magnitude
 		local count = math.floor(len / 12 + 0.5)
@@ -544,18 +544,18 @@ function Lobby.build(): LobbyHandle
 		local dir = (b - a).Unit
 		for i = 0, count - 1 do
 			local center = a + dir * ((i + 0.5) * segW)
-			local along = if wallName == "L" or wallName == "R" then center.Z else center.X
-			if not (wallName == "F" and math.abs(along) < gap) then
-				local base = wallAt(wallName, along, -room.wall / 2, 0)
+			local along = if name == "L" or name == "R" then center.Z else center.X
+			if not (name == "F" and math.abs(along) < gap) then
+				local base = wallAt(name, along, -room.wall / 2, 0)
 				-- The lower side wall stops where the garages are (they are cut into the wall).
 				local lowerAlong, lowerW = along, segW
-				if wallName == "L" or wallName == "R" then
+				if name == "L" or name == "R" then
 					local lo = math.max(along - segW / 2, openEnd)
 					local hi = along + segW / 2
 					lowerAlong, lowerW = (lo + hi) / 2, hi - lo
 				end
 				if lowerW > 0.5 then
-					local lbase = wallAt(wallName, lowerAlong, -room.wall / 2, 0)
+					local lbase = wallAt(name, lowerAlong, -room.wall / 2, 0)
 					local cf = lbase * CFrame.new(0, WH / 2, 0)
 					part(folder, "Wall", Vector3.new(lowerW + 0.1, WH, room.wall), cf, WALL_GRAY)
 					local panel = part(
@@ -571,7 +571,7 @@ function Lobby.build(): LobbyHandle
 					if lowerW >= 8 then
 						local hall = -room.wall / 2 - 0.7 -- in front of the wall panel (toward the hall)
 						local function onWall(
-							name: string,
+							partName: string,
 							size: Vector3,
 							x: number,
 							y: number,
@@ -581,7 +581,7 @@ function Lobby.build(): LobbyHandle
 						): Part
 							local d = part(
 								folder,
-								name,
+								partName,
 								size,
 								lbase * CFrame.new(x, y, hall),
 								color,
@@ -723,7 +723,7 @@ function Lobby.build(): LobbyHandle
 						STEEL,
 						Enum.Material.Metal
 					)
-				elseif wallName == "L" or wallName == "R" then
+				elseif name == "L" or name == "R" then
 					-- A tall window of glowing glass between the columns.
 					local win = part(
 						folder,
@@ -1020,7 +1020,7 @@ function Lobby.build(): LobbyHandle
 
 	-- The bay door is shut (players start inside): a roller door of steel slats with a yellow
 	-- hazard edge and a lit sign, so no gap shows the world outside.
-	local _door = part(
+	part(
 		folder,
 		"GateDoor",
 		Vector3.new(gap * 2, WH, 1),
