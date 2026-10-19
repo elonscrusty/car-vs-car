@@ -13,17 +13,20 @@ end
 
 local FeatureFlags = sibling("FeatureFlags")
 
--- Launch set: duel, hill, ice, soccer. Last standing comes back with its feature flag.
+-- Rotation: soccer (main game), tag, duel, hill, ice. Last standing comes back with its flag.
 local function orderFor(flags: { [string]: boolean }?): { string }
-	local order = { "duel", "hill", "ice" }
+	local order = {}
+	if FeatureFlags.enabled("soccerMode", flags) then
+		table.insert(order, "soccer") -- car soccer is the main game: first in the rotation
+	end
 	if FeatureFlags.enabled("tagMode", flags) then
 		table.insert(order, "tag")
 	end
+	table.insert(order, "duel")
+	table.insert(order, "hill")
+	table.insert(order, "ice")
 	if FeatureFlags.enabled("lastStandingMode", flags) then
 		table.insert(order, "lastStanding")
-	end
-	if FeatureFlags.enabled("soccerMode", flags) then
-		table.insert(order, "soccer")
 	end
 	return order
 end
@@ -77,7 +80,7 @@ return {
 		fleeLook = 40, -- bots run toward a point this far away from IT
 	},
 	Soccer = {
-		teamSize = 2, -- cars per team (humans first, bots fill the rest); small field = 2v2 (field: SoccerFieldConfig)
+		teamSize = 3, -- cars per team (humans first, bots fill the rest); 3v3 on the flat field (SoccerFieldConfig)
 		ballSize = 16, -- the giant ball (diameter, studs)
 		ballDensity = 0.25, -- low = a hit sends it flying
 		ballMaxSpeed = 140, -- the server never lets the ball go faster
