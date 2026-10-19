@@ -104,3 +104,39 @@ test("global cap blocks after maxEvents and frees after the window", function()
 	eq(TelemetryRules.allow(s, 1), false)
 	eq(TelemetryRules.allow(s, cfg.windowSeconds + 1), true)
 end)
+
+test("mode_picked keeps only allowlisted mode names", function()
+	for _, m in TelemetryConfig.Modes do
+		local ev = assert(TelemetryRules.buildEvent("mode_picked", { mode = m }))
+		eq(ev.value, nil)
+		eq(assert(ev.fields).CustomField01, m)
+	end
+	local bad = assert(TelemetryRules.buildEvent("mode_picked", { mode = "my secret room" }))
+	eq(assert(bad.fields).CustomField01, "other")
+	local missing = assert(TelemetryRules.buildEvent("mode_picked", {}))
+	eq(assert(missing.fields).CustomField01, "other")
+end)
+
+test("left_match carries seconds and an allowlisted phase", function()
+	for _, p in TelemetryConfig.LeavePhases do
+		local ev = assert(TelemetryRules.buildEvent("left_match", { phase = p, seconds = 12 }))
+		eq(ev.value, 12)
+		eq(assert(ev.fields).CustomField01, p)
+	end
+	local bad =
+		assert(TelemetryRules.buildEvent("left_match", { phase = "Bob<script>", seconds = 3 }))
+	eq(assert(bad.fields).CustomField01, "other")
+	local huge =
+		assert(TelemetryRules.buildEvent("left_match", { phase = "fight", seconds = 1e12 }))
+	eq(huge.value, TelemetryConfig.MaxValue)
+end)
+
+test("allowlists are short, clean and fit the field cap", function()
+	for _, list in { TelemetryConfig.Modes, TelemetryConfig.LeavePhases } do
+		for _, v in list do
+			eq(TelemetryRules.sanitizeField(v), v)
+			assert(#v <= TelemetryConfig.MaxFieldLength)
+		end
+	end
+	assert(table.find(TelemetryConfig.Modes, "soccer") ~= nil)
+end)

@@ -137,6 +137,21 @@ function Telemetry.clawPull(player: Player)
 	event(player, "claw_pull")
 end
 
+-- The player picked a lobby mode with the MODE button (name is checked against a fixed list).
+function Telemetry.modePicked(player: Player, mode: string)
+	event(player, "mode_picked", { mode = mode })
+end
+
+-- The player tapped LOBBY to leave a match. phase: pad, pick, aim, fight or end (fixed list).
+-- seconds = time since their match started (0 when no match is running yet).
+function Telemetry.leftMatch(player: Player, phase: string)
+	local a = active[player]
+	event(player, "left_match", {
+		phase = phase,
+		seconds = if a then os.clock() - a.startedAt else 0,
+	})
+end
+
 -- Player leaves the server. Mid-match counts as a quit. Frees their records.
 function Telemetry.left(player: Player)
 	local a = active[player]

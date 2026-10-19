@@ -14,7 +14,7 @@ LobbyConfig.Pad = { maxPlayers = 2, countdownSeconds = 3, pickSeconds = 15 }
 LobbyConfig.Rewards = { winCoins = 25, loseCoins = 5, endScreenSeconds = 4 }
 LobbyConfig.StarterCars = { "Sedan" }          -- owned by a new player
 LobbyConfig.PickChoices = 3
-LobbyConfig.Rarity = { Heavy = "Common", Light = "Common", Ramp = "Rare", Spike = "Epic" }
+LobbyConfig.Rarity = built from CarConfig (Sedan, Compact, DuneBuggy, BoxTruck = Common; Muscle, Kart, DriftKing = Rare; SuperCar, MonsterTruck, Semi = Epic; Formula, ArmoredTruck = Legendary)
 LobbyConfig.Gacha = { price = 100, firstPullFree = true,
   odds = { Common = 60, Rare = 30, Epic = 10 },   -- percent, must sum to 100
   duplicateRefund = 50 }                          -- coins back on a car you own
@@ -32,6 +32,8 @@ LobbyConfig.Gacha = { price = 100, firstPullFree = true,
 `Profiles.markDirty(player)` · `Profiles.release(player)` (save + unlock) · `Profiles.init()` (autosave 60s, BindToClose).
 Session-locked UpdateAsync, jobId + timestamp lock, retries with backoff, never overwrite on load failure (player plays unsaved with a warning).
 Imports `Inventory` (A). Until A lands, B may stub `Inventory.default()` locally in tests but must not create Inventory.luau.
+
+Note: the lobby later gained a MODE button (AUTO/DUEL/HILL/ICE/SOCCER) and a LOBBY (leave match) button; their action names are in the code (`LobbyService`, `init.server`), not in this contract.
 
 ## Remotes (helper E edits Remotes.luau): two NEW RemoteEvents (total 6)
 `LobbyAction` client->server: `(action: string, arg: any)` actions: "pickCar" (arg carId), "buyGacha" (no arg), "buyCar" (arg carId), "leavePad".
