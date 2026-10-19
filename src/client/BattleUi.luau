@@ -258,7 +258,17 @@ function BattleUi.start()
 				d:Destroy()
 			end
 		end
-		clone.Parent = vp
+		for _, d in clone:GetDescendants() do
+			if d:IsA("BasePart") then
+				d.Anchored = true
+			end
+		end
+		local world = Instance.new("WorldModel")
+		world.Parent = vp
+		clone.Parent = world
+		vp.Ambient = Color3.fromRGB(190, 190, 200)
+		vp.LightColor = Color3.fromRGB(255, 255, 255)
+		vp.LightDirection = Vector3.new(-1, -2, -1)
 		local cf, size = clone:GetBoundingBox()
 		local cam = Instance.new("Camera")
 		local dist = size.Magnitude * 1.1
