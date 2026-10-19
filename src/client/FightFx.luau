@@ -7,6 +7,7 @@ local TweenService = game:GetService("TweenService")
 local FightFx = {}
 
 local gui: ScreenGui? = nil
+local koText: TextLabel? = nil -- the KO text on screen right now, if any
 
 local function getGui(): ScreenGui
 	local g = gui
@@ -50,12 +51,14 @@ function FightFx.ko(text: string)
 		flash:Destroy()
 	end)
 
+	FightFx.clearText()
 	local l = bigText(
 		text,
 		Color3.fromRGB(255, 70, 50),
 		UDim2.fromScale(0.05, 0.02),
 		UDim2.fromScale(0.5, 0.4)
 	)
+	koText = l
 	TweenService:Create(
 		l,
 		TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
@@ -68,7 +71,19 @@ function FightFx.ko(text: string)
 	end)
 	task.delay(1.2, function()
 		l:Destroy()
+		if koText == l then
+			koText = nil
+		end
 	end)
+end
+
+-- Removes the KO text at once (a winner banner is starting and must not sit on top of it).
+function FightFx.clearText()
+	local l = koText
+	koText = nil
+	if l ~= nil then
+		l:Destroy()
+	end
 end
 
 -- Remove any flash / K.O. text still on screen (the result screen starts clean).
