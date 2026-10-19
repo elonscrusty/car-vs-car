@@ -240,6 +240,7 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		if countdownSound then
 			SoundFx.play(countdownSound) -- silent until carter fills the id in SoundConfig
 		end
+		FightFx.clearText() -- a banner (round winner, countdown) never sits on top of the KO text
 		centerBanner.show(u.text or "", u.seconds or 1)
 	elseif u.kind == "buff" then
 		buffs.handleUpdate(u)
