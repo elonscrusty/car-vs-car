@@ -54,12 +54,8 @@ function LobbyGarage.build(folder: Folder, origin: Vector3)
 		end
 	end
 
-	put("LobbyFloorLogo", 0, 0.12, 13, FRONT)
-
 	-- Spin wheel in the front left corner, the two boards on the back wall.
 	put("SpinWheel", -50, 0, HL - 2.5, FRONT, 18)
-	put("Board_MostWins", -28, 0, -HL + 2.2, BACK, 18)
-	put("Board_BestStreak", 29, 0, -HL + 2.2, BACK, 18)
 
 	-- Fans high on the back wall, lamps over the hall.
 	put("WallFan", -38, 27, -HL + 2, BACK)
