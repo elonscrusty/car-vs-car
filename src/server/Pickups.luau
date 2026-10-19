@@ -3,6 +3,7 @@
 -- drives into them. Rules and numbers: PickupLogic, PickupsConfig. Effects: Buffs.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Debris = game:GetService("Debris")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
@@ -206,6 +207,7 @@ function Pickups.start(
 	cars: { CarBuilder.Car },
 	rng: Random,
 	notify: ((car: CarBuilder.Car, update: Types.UiUpdate) -> ())?,
+	onCollect: ((car: CarBuilder.Car, kind: string) -> ())?, -- repair etc. are decided by the mode
 	override: { [string]: any }? -- other kinds / ring / timing for a mode (the car fight: only SHIELD)
 ): Handle
 	local cfg: any = PickupsConfig
@@ -274,6 +276,29 @@ function Pickups.start(
 		table.insert(pickups, pk)
 	end
 
+	-- A slick puddle behind the car: low friction, so cars that drive over it slide.
+	local function dropOil(car: CarBuilder.Car)
+		local look = car.body.CFrame.LookVector
+		local flat = Vector3.new(look.X, 0, look.Z)
+		local dir = if flat.Magnitude > 0.1 then flat.Unit else Vector3.new(0, 0, 1)
+		local at = car.body.Position - dir * cfg.oil.dropBehind
+		local size = cfg.oil.puddleSize
+		local puddle = Instance.new("Part")
+		puddle.Name = "OilPuddle"
+		puddle.Shape = Enum.PartType.Cylinder
+		puddle.Size = Vector3.new(0.2, size, size)
+		puddle.CFrame = CFrame.new(at.X, center.Y + 0.1, at.Z) * CFrame.Angles(0, 0, math.pi / 2)
+		puddle.Color = Color3.fromRGB(28, 28, 44)
+		puddle.Material = Enum.Material.Glass
+		puddle.Anchored = true
+		puddle.CanQuery = false
+		puddle.CanTouch = false
+		puddle.CastShadow = false
+		puddle.CustomPhysicalProperties = PhysicalProperties.new(1, 0.01, 0, 100, 1)
+		puddle.Parent = arena.model
+		Debris:AddItem(puddle, cfg.oil.puddleSeconds)
+	end
+
 	local function remove(index: number)
 		local pk = pickups[index]
 		for _, t in pk.tweens do
@@ -324,6 +349,12 @@ function Pickups.start(
 						)
 					then
 						Buffs.apply(car, pk.kind)
+						if pk.kind == "oil" then
+							dropOil(car)
+						end
+						if onCollect then
+							onCollect(car, pk.kind)
+						end
 						if pk.kind == "rocket" then
 							-- Dash straight at the other car.
 							for _, other in cars do

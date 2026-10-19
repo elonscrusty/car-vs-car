@@ -114,12 +114,13 @@ return {
 		Shrink = { startSeconds = 40, endSeconds = 110, minRadius = 60 },
 		-- ONE item for now: a SHIELD that blocks the next hit (Pickups with this override).
 		Items = {
-			kinds = { "shield" },
+			kinds = { "shield", "oil", "repair" }, -- a FEW boxes (carter)
+			shield = { seconds = 20 }, -- blocks the next hit, then pops
 			ringMin = 12,
 			ringMax = 50,
 			firstSpawnSeconds = 8,
 			spawnEverySeconds = 14,
-			maxOnFloor = 2,
+			maxOnFloor = 3,
 		},
 		-- Big hits (BrawlRules): the car that got hit is LAUNCHED and bits fly off it.
 		Hit = {

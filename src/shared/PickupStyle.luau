@@ -91,6 +91,19 @@ function PickupStyle.iconParts(kind: string, main: Rgb): { PartSpec }
 			spec("Wedge", { 1.2, 0.3, 1.2 }, { -1.5, 0, 0.9 }, darker(main, 0.8)),
 			spec("Wedge", { 1.2, 0.3, 1.2 }, { -1.5, 0, -0.9 }, darker(main, 0.8)),
 		}
+	elseif kind == "oil" then
+		-- Dark drop on a flat slick.
+		return {
+			spec("Ball", { 2.4, 2.4, 2.4 }, { 0, 0.3, 0 }, main),
+			spec("Cylinder", { 0.4, 3.6, 3.6 }, { 0, -1.2, 0 }, DARK),
+		}
+	elseif kind == "repair" then
+		-- White box with a green cross.
+		return {
+			spec("Block", { 2.8, 2.8, 2.8 }, { 0, 0, 0 }, WHITE),
+			spec("Block", { 0.7, 2.2, 3 }, { 0, 0, 0 }, main),
+			spec("Block", { 2.2, 0.7, 3 }, { 0, 0, 0 }, main),
+		}
 	end
 	return { spec("Ball", { 2.6, 2.6, 2.6 }, { 0, 0, 0 }, main) }
 end
