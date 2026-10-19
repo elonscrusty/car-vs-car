@@ -1187,12 +1187,12 @@ function Lobby.build(): LobbyHandle
 		"ShowcaseRing",
 		Vector3.new(0.6, stageD + 2.4, stageD + 2.4),
 		world(sc.x, 0.3, sc.z) * CFrame.Angles(0, 0, math.pi / 2),
-		CYAN,
-		Enum.Material.Neon,
+		Color3.fromRGB(70, 130, 150),
+		Enum.Material.SmoothPlastic,
 		Enum.PartType.Cylinder
 	)
 	stageGlow.CanCollide = false
-	glow(stageGlow, CYAN, 28, 0.4)
+	glow(stageGlow, CYAN, 20, 0.15)
 	local stageTopDisc = part(
 		folder,
 		"ShowcaseTop",
@@ -1254,7 +1254,7 @@ function Lobby.build(): LobbyHandle
 		sl.Shadows = false
 		sl.Parent = lamp
 	end
-	warmSpot("StageSpot", world(sc.x, 30, sc.z).Position, 50, 6)
+	warmSpot("StageSpot", world(sc.x, 30, sc.z).Position, 50, 2.5)
 	warmSpot("GarageSpot", world(0, 28, 10).Position, 60, 3)
 
 	-- Soft pastel colors, plain plastic (no neon: the glow burned out in the lobby light).
@@ -1399,11 +1399,13 @@ function Lobby.build(): LobbyHandle
 	drop.Transparency = 1
 	drop:SetAttribute("Chute", gum(0, 1.8, frontZ + 0.7).Position)
 	-- A sign on the wall above it (flat on the wall, like the other plates).
+	-- 10 wide so it fits between the wall columns (they are about 11.6 apart), centred over the
+	-- machine and above the cap, in front of the wall posts.
 	LobbyDecor.plate(
 		gumModel,
 		"GUMBALLS",
-		sz(12, 3.4, 0.5),
-		CFrame.lookAt(world(g.x, 35, g.z - g.d / 2 + 0.5).Position, world(g.x, 35, 0).Position)
+		Vector3.new(10, 3, 0.5),
+		CFrame.lookAt(world(g.x, 33.5, g.z - g.d / 2 + 2).Position, world(g.x, 33.5, 0).Position)
 	)
 	gumModel.Parent = folder
 	prompt(gBase, "GachaPrompt", "Play", "Gumball Machine")
@@ -1506,10 +1508,11 @@ function Lobby.build(): LobbyHandle
 	local stSign = part(
 		folder,
 		"StoreSign",
-		Vector3.new(10, 2.6, 0.6),
+		Vector3.new(10, 2.6, 0.4),
+		-- Flat on the front of the counter (the counter is 4 high and its front is at z + d / 2).
 		CFrame.lookAt(
-			origin + Vector3.new(s.x, 9.6, s.z + s.d / 2 + 0.4),
-			origin + Vector3.new(s.x, 9.6, s.z + 40)
+			origin + Vector3.new(s.x, 2, s.z + s.d / 2 + 0.2),
+			origin + Vector3.new(s.x, 2, s.z + 40)
 		),
 		Color3.fromRGB(14, 12, 24)
 	)
@@ -1622,14 +1625,15 @@ function Lobby.build(): LobbyHandle
 		end
 		local pSign = bp(
 			"PaintSign",
-			Vector3.new(14, 2.6, 0.6),
+			Vector3.new(14, 2.6, 0.4),
 			0,
-			9.6,
-			pb.d / 2 + 0.4,
+			2,
+			pb.d / 2 + 0.2,
 			Color3.fromRGB(14, 12, 24)
 		)
+		-- Flat on the front of the counter, not hanging in the air.
 		pSign.CFrame = frame
-			* CFrame.lookAt(Vector3.new(0, 9.6, pb.d / 2 + 0.4), Vector3.new(0, 9.6, pb.d / 2 + 40))
+			* CFrame.lookAt(Vector3.new(0, 2, pb.d / 2 + 0.2), Vector3.new(0, 2, pb.d / 2 + 40))
 		label(pSign, Enum.NormalId.Front, "PAINT", CYAN, DARK)
 		glow(pSign, CYAN, 24, 0.4)
 		prompt(counter2, "CustomizePrompt", "Customize", "Paint & Garage")
@@ -1728,20 +1732,18 @@ function Lobby.build(): LobbyHandle
 			"MatchPad" .. i,
 			Vector3.new(size - 2.4, 0.3, size - 2.4),
 			world(pp.x, 0.35, pp.z),
-			Color3.fromRGB(44, 60, 92),
+			Color3.fromRGB(40, 175, 120),
 			Enum.Material.SmoothPlastic
 		)
-		local padNum = label(
-			padPart,
-			Enum.NormalId.Top,
-			string.format("%02d", i),
-			Color3.fromRGB(235, 238, 245),
-			nil
-		)
+		-- A glowing PLAY pad: a big number with PLAY under it. (The text is turned 180 degrees, so
+		-- its first line ends up at the bottom.)
+		local padNum = label(padPart, Enum.NormalId.Top, "", Color3.fromRGB(255, 255, 255), DARK)
 		padNum.Rotation = 180
-		padNum.AnchorPoint = Vector2.new(0.5, 0.5)
-		padNum.Position = UDim2.fromScale(0.5, 0.5)
-		padNum.Size = UDim2.fromScale(0.3, 0.3) -- small, same on every pad
+		padNum.TextScaled = false
+		padNum.RichText = true
+		padNum.TextSize = 120
+		padNum.Text = string.format('<font size="260">%d</font>\n<font size="110">PLAY</font>', i)
+		glow(padPart, Color3.fromRGB(90, 255, 170), 16, 0.7)
 		local pboard = part(
 			folder,
 			"PadSign" .. i,
