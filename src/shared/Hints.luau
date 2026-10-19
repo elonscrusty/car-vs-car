@@ -12,7 +12,7 @@ local Hints = {}
 Hints.Order = { "pad", "aim", "claw", "soccer", "tag", "race", "unlock" }
 
 Hints.Text = {
-	pad = "Step on a blue pad to play",
+	pad = "Tap PLAY to fight",
 	aim = "Drag back from your car and let go",
 	claw = "Try the claw, first try is free",
 	-- First time in a group mode: what the controls do (keep each under 40 characters).

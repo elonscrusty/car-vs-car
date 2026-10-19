@@ -23,14 +23,15 @@ export type Handle = {
 	close: () -> (),
 }
 
-local NAVY = Color3.fromRGB(10, 14, 32)
-local PANEL = Color3.fromRGB(18, 22, 48)
-local CELL = Color3.fromRGB(30, 34, 62)
-local CYAN = Color3.fromRGB(60, 240, 255)
-local PINK = Color3.fromRGB(255, 70, 190)
-local RED = Color3.fromRGB(255, 90, 90)
-local GREEN = Color3.fromRGB(70, 255, 140)
-local GOLD = Color3.fromRGB(255, 210, 70)
+local NAVY = Color3.fromRGB(2, 10, 20)
+local PANEL = Color3.fromRGB(12, 39, 67)
+local CELL = Color3.fromRGB(5, 23, 45)
+local CYAN = Color3.fromRGB(35, 216, 255)
+local PINK = Color3.fromRGB(238, 28, 49) -- the same red X as every menu
+local RED = Color3.fromRGB(238, 28, 49)
+local GREEN = Color3.fromRGB(136, 244, 27)
+local GOLD = Color3.fromRGB(255, 201, 35)
+local INK = Color3.fromRGB(2, 10, 20)
 local WHITE = Color3.new(1, 1, 1)
 
 local TOUCH = 56
@@ -67,7 +68,7 @@ local function text(
 	l.Position = pos
 	l.Text = str
 	l.TextScaled = true
-	l.Font = Enum.Font.FredokaOne
+	l.Font = Enum.Font.Bangers
 	l.TextColor3 = color
 	l.TextXAlignment = Enum.TextXAlignment.Left
 	l.Parent = parent
@@ -84,8 +85,8 @@ local function button(parent: Instance, str: string, size: UDim2, color: Color3)
 	b.BackgroundColor3 = color
 	b.Text = str
 	b.TextScaled = true
-	b.Font = Enum.Font.FredokaOne
-	b.TextColor3 = WHITE
+	b.Font = Enum.Font.Bangers
+	b.TextColor3 = if color == GREEN then INK else WHITE
 	b.AutoButtonColor = true
 	b.BorderSizePixel = 0
 	b.Parent = parent
@@ -119,6 +120,7 @@ function BuildUi.new(menu: Menu): Handle
 	}? =
 		nil
 	local lastTap = 0
+	local pickPending = false -- a starter / pad car pick is open or about to open
 
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "BuildUi"
@@ -150,8 +152,8 @@ function BuildUi.new(menu: Menu): Handle
 	maxSize.MaxSize = Vector2.new(760, 560)
 	maxSize.Parent = panel
 
-	text(panel, "GARAGE", UDim2.new(0.4, 0, 0, 40), UDim2.fromOffset(14, 14), CYAN)
-	local info = text(panel, "", UDim2.new(0.45, -70, 0, 34), UDim2.new(0.4, 0, 0, 16), GOLD)
+	text(panel, "GARAGE", UDim2.new(0.3, 0, 0, 40), UDim2.fromOffset(14, 14), CYAN)
+	local info = text(panel, "", UDim2.new(0.65, -80, 0, 34), UDim2.new(0.3, 0, 0, 16), GOLD)
 	info.TextXAlignment = Enum.TextXAlignment.Right
 	local close = button(panel, "X", UDim2.fromOffset(TOUCH, TOUCH), PINK)
 	close.AnchorPoint = Vector2.new(1, 0)
@@ -269,7 +271,7 @@ function BuildUi.new(menu: Menu): Handle
 		if b == nil then
 			return
 		end
-		info.Text = `POWER {b.power}   COINS {coins}`
+		info.Text = `{string.upper(CarConfig.Cars[b.carId].name)}   POWER {b.power}   COINS {coins}`
 		for id, btn in carButtons do
 			local has = ownedCars[id] == true
 			btn.BackgroundTransparency = if has then 0 else 0.6
@@ -278,7 +280,7 @@ function BuildUi.new(menu: Menu): Handle
 			btn.Text = if id == b.carId
 				then `{name}  (USING)`
 				elseif has then name
-				else `{name}  (WIN AT CLAW)`
+				else `{name}  (WIN IT IN THE GUMBALL MACHINE)`
 			btn.TextColor3 = if id == b.carId then GOLD else WHITE
 		end
 		local ownedSet: { [string]: boolean } = {}
@@ -295,9 +297,11 @@ function BuildUi.new(menu: Menu): Handle
 				ui.upgrade.AutoButtonColor = false
 				ui.upgrade.BackgroundColor3 = CELL
 			else
-				ui.upgrade.Text = `UPGRADE {cost}`
-				ui.upgrade.AutoButtonColor = true
-				ui.upgrade.BackgroundColor3 = if coins >= cost then GREEN else CELL
+				local can = coins >= cost
+				ui.upgrade.Text = if can then `UPGRADE  {cost}` else `NEED {cost - coins} MORE`
+				ui.upgrade.AutoButtonColor = can
+				ui.upgrade.BackgroundColor3 = if can then GREEN else CELL
+				ui.upgrade.TextColor3 = if can then INK else RED
 			end
 			for _, id in BuildConfig.Order[slot] do
 				local pu = partUi[id]
@@ -312,8 +316,11 @@ function BuildUi.new(menu: Menu): Handle
 					pu.status.Text = "WEAR"
 					pu.status.TextColor3 = WHITE
 				else
-					pu.status.Text = `BUY {def.cost}`
-					pu.status.TextColor3 = if coins >= def.cost then GOLD else RED
+					local can = coins >= def.cost
+					pu.status.Text = if can
+						then `BUY  {def.cost}`
+						else `NEED {def.cost - coins} MORE`
+					pu.status.TextColor3 = if can then GOLD else RED
 				end
 			end
 		end
@@ -324,6 +331,11 @@ function BuildUi.new(menu: Menu): Handle
 	end)
 
 	local function open()
+		-- One modal at a time: never over the starter pick or another open menu.
+		local champions = ReplicatedStorage:FindFirstChild("CVC_Champions")
+		if pickPending or (champions and champions:GetAttribute("MenuOpen") == true) then
+			return
+		end
 		message.Text = ""
 		refresh()
 		backdrop.Visible = true
@@ -343,10 +355,14 @@ function BuildUi.new(menu: Menu): Handle
 				ownedCars[id] = true
 			end
 			build = u.build
+			pickPending = false -- the pick (if any) is done: the profile follows it
 			refresh()
 		elseif u.kind == "buildResult" then
 			message.Text = if u.ok then "" else (REASONS[u.reason or ""] or REASONS.unknown)
-		elseif (u.kind == "countdown" and u.seconds > 0) or u.kind == "choices" then
+		elseif u.kind == "choices" then
+			pickPending = true
+			backdrop.Visible = false
+		elseif u.kind == "countdown" and u.seconds > 0 then
 			backdrop.Visible = false
 		end
 	end

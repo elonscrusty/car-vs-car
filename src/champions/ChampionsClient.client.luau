@@ -60,6 +60,56 @@ dimGui.DisplayOrder = 34
 dimGui.ScreenInsets = Enum.ScreenInsets.None
 dimGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 dimGui.Parent = playerGui
+-- Loading cover: the game name and what the game is, until the player's data is in.
+local loadingGui = Instance.new("ScreenGui")
+loadingGui.Name = "CVC_ChampionsLoading"
+loadingGui.ResetOnSpawn = false
+loadingGui.DisplayOrder = 100
+loadingGui.IgnoreGuiInset = true
+loadingGui.ScreenInsets = Enum.ScreenInsets.None
+loadingGui.Parent = playerGui
+local loadingCover = Instance.new("Frame")
+loadingCover.Size = UDim2.fromScale(1, 1)
+loadingCover.BackgroundColor3 = T.C.ink
+loadingCover.BorderSizePixel = 0
+loadingCover.Parent = loadingGui
+local loadingBox = Instance.new("Frame")
+loadingBox.AnchorPoint = Vector2.new(0.5, 0.5)
+loadingBox.Position = UDim2.fromScale(0.5, 0.5)
+loadingBox.Size = UDim2.fromOffset(760, 260)
+loadingBox.BackgroundTransparency = 1
+loadingBox.Parent = loadingCover
+local loadingFit = Instance.new("UIScale")
+loadingFit.Parent = loadingBox
+T.text(loadingBox, "Title", "CAR VS CAR", 0, 0, 760, 120, 100, T.C.gold, "Center")
+T.text(
+	loadingBox,
+	"Objective",
+	"KNOCK OUT THE OTHER CARS. LAST CAR STANDING WINS!",
+	0,
+	130,
+	760,
+	70,
+	34,
+	T.C.white,
+	"Center"
+)
+T.text(loadingBox, "Status", "LOADING...", 0, 210, 760, 40, 26, T.C.cyan, "Center")
+local loadingDone = false
+local function hideLoading()
+	if loadingDone then
+		return
+	end
+	loadingDone = true
+	loadingGui:Destroy()
+end
+task.delay(12, hideLoading) -- never trap the player behind it
+local function fitLoading()
+	local size = loadingGui.AbsoluteSize
+	loadingFit.Scale = math.clamp(math.min(size.X / 800, size.Y / 300), 0.4, 1.2)
+end
+loadingGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitLoading)
+fitLoading()
 local menuBackdrop = Instance.new("Frame")
 menuBackdrop.Name = "MenuBackdrop"
 menuBackdrop.Size = UDim2.fromScale(1, 1)
@@ -376,6 +426,9 @@ acceptState = function(snapshot)
 	end
 	local prior = state
 	state = State.normalize(snapshot)
+	if state.ready then
+		hideLoading()
+	end
 	if same(prior, state) then
 		return -- nothing changed: keep the screen as it is so buttons do not flicker
 	end

@@ -71,7 +71,7 @@ H.test("profile defaults and migrates hintsSeen (old saves lack it)", function()
 end)
 
 H.test("pad hint says blue (the pads are blue)", function()
-	H.eq(Hints.text("pad"), "Step on a blue pad to play")
+	H.eq(Hints.text("pad"), "Tap PLAY to fight")
 	H.eq(string.find(string.lower(Hints.text("pad")), "green"), nil)
 end)
 

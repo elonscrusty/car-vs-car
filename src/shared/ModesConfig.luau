@@ -108,7 +108,7 @@ return {
 		koCoins = 10, -- every knock-out pays a little (PLACEHOLDER)
 		creditSeconds = 5, -- a fall off the edge counts for whoever hit the car in the last N seconds
 		-- Best of 3: first to 2 round wins; after 3 rounds the most wins takes it.
-		Rounds = { winsNeeded = 2, maxRounds = 3, breakSeconds = 3.5 },
+		Rounds = { winsNeeded = 2, maxRounds = 3, breakSeconds = 6 },
 		-- No closing walls (carter): minRadius = full radius keeps the safe radius fixed. A car outside it is out.
 		Shrink = { startSeconds = 40, endSeconds = 110, minRadius = 60 },
 		-- ONE item for now: a SHIELD that blocks the next hit (Pickups with this override).

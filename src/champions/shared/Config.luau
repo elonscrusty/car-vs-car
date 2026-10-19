@@ -58,6 +58,15 @@ do
 		then tostring(Config.DuplicateRefund)
 		else low .. " TO " .. high
 end
+-- One short line per ability for the car cards (what it does).
+Config.AbilityLines = {
+	Dash = "BURST OF SPEED",
+	Jump = "LEAP OVER CARS",
+	Slam = "SMASH + SHOVE CARS",
+	Ram = "CHARGE FORWARD",
+	Magnet = "PULLS CARS IN",
+	Shield = "BLOCKS 1 HIT",
+}
 Config.DailyGift = 100
 Config.DailyStreak = QuestsConfig.Daily.streakCoins -- coins for login day 1, 2 ... 7
 return Config

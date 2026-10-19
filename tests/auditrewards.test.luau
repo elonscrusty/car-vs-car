@@ -415,7 +415,7 @@ H.test("next goal: first match, then closest car or an unplayed mode", function(
 	local owned = { Sedan = true }
 	local g = NextGoal.compute({ matches = 0, coins = 0, owned = owned, modesPlayed = {} })
 	H.eq(g.kind, "firstMatch")
-	H.eq(g.text, "Step on a blue pad to play")
+	H.eq(g.text, "Tap PLAY to fight")
 
 	local car = cheapestUnowned(owned)
 	local price = Store.price(car)
