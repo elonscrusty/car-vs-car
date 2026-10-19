@@ -793,7 +793,26 @@ function LobbyService.start(deps: Deps): Handle
 		if Profiles.get(player) == nil then
 			return
 		end
+		-- Party up: a pad that already holds a Roblox friend is tried first, so friends land in the
+		-- same fight (it stays free-for-all). IsFriendsWith can yield, so look before joining.
+		local order: { number } = {}
 		for padIndex = 1, #state.pads do
+			local withFriend = false
+			for _, other in state.pads[padIndex].players do
+				local okFriend, isFriend = pcall(function()
+					return player:IsFriendsWith((other :: Player).UserId)
+				end)
+				if okFriend and isFriend then
+					withFriend = true
+					break
+				end
+			end
+			table.insert(order, if withFriend then 1 else #order + 1, padIndex)
+		end
+		if players[player] ~= nil then
+			return
+		end
+		for _, padIndex in order do
 			if PadLogic.join(state, padIndex, player) then
 				players[player] =
 					{ stage = "pad", offered = {}, picked = nil, token = 0, queued = true }
