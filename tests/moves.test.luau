@@ -40,9 +40,7 @@ test("drift starts after holding a full steer, then lingers", function()
 	local d = MovesConfig.Drift
 	local s = Moves.newDrift()
 	local grip = 1
-	for _ = 1, 3 do -- 0.3 s: not yet
-		grip = Moves.driftStep(s, 1, 40, 0.1, d)
-	end
+	grip = Moves.driftStep(s, 1, 40, d.startSeconds - 0.1, d) -- not yet
 	eq(grip, 1)
 	grip = Moves.driftStep(s, 1, 40, 0.15, d)
 	near(grip, d.gripFactor)

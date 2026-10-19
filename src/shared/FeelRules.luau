@@ -325,6 +325,27 @@ function FeelRules.touchSteerRate(turnRate: number?): number?
 	return nil
 end
 
+-- Chase camera: eases an angle (radians) toward another by the short way round. Frame-rate safe.
+function FeelRules.approachAngle(cur: number, target: number, dt: number, rate: number): number
+	local diff = (target - cur + math.pi) % (2 * math.pi) - math.pi
+	return cur + diff * (1 - math.exp(-rate * dt))
+end
+
+-- Chase camera: the heading the camera wants. Straight behind the car, nudged up to `maxBias`
+-- radians (and `share` of the way) toward the ball so it stays on screen. nil ball = car heading.
+function FeelRules.chaseYaw(
+	carYaw: number,
+	ballYaw: number?,
+	share: number,
+	maxBias: number
+): number
+	if ballYaw == nil then
+		return carYaw
+	end
+	local diff = (ballYaw - carYaw + math.pi) % (2 * math.pi) - math.pi
+	return carYaw + math.clamp(diff * share, -maxBias, maxBias)
+end
+
 -- ---- Team icons (#81) ----------------------------------------------------------------------
 
 -- Shape (not just colour) above a car: "bomb" for IT, "chevron" for a teammate, nil for others.

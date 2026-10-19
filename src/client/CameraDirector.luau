@@ -48,6 +48,7 @@ function CameraDirector.new(): Director
 	local walls: { BasePart } = {} -- walls of your soccer arena, faded while they block the view
 	local wallFade: { [BasePart]: number } = {}
 	local nextWallCheck = 0
+	local chaseYaw = 0
 	local wallTarget: { [BasePart]: number } = {}
 
 	local function calm(): boolean
@@ -68,6 +69,8 @@ function CameraDirector.new(): Director
 					if m:IsA("Model") and m:GetAttribute("DriverUserId") == uid then
 						bowl = arena:FindFirstChild("Slope") ~= nil
 							and arena:FindFirstChild("Road") == nil
+						local lv = m.PrimaryPart.CFrame.LookVector
+						chaseYaw = math.atan2(lv.X, lv.Z)
 						myTeam = 0
 						local marker = m:FindFirstChild("Marker")
 						if marker and marker:IsA("BasePart") then
@@ -177,55 +180,50 @@ function CameraDirector.new(): Director
 				myCar = findMyCar()
 				car = myCar
 			end
-			if car ~= nil and car.Parent ~= nil and soccerOn then
-				local ball = ballPart
-				if (ball == nil or ball.Parent == nil) and os.clock() >= nextBallFind then
-					nextBallFind = os.clock() + 0.3
-					ballPart = findBall(car)
-					ball = ballPart
+			if car ~= nil and car.Parent ~= nil and not bowl then
+				-- Chase camera: behind the car, turns with it. Soccer leans toward the ball.
+				local look = car.CFrame.LookVector
+				local carYaw = math.atan2(look.X, look.Z)
+				local ballYaw: number? = nil
+				if soccerOn then
+					local ball = ballPart
+					if (ball == nil or ball.Parent == nil) and os.clock() >= nextBallFind then
+						nextBallFind = os.clock() + 0.3
+						ballPart = findBall(car)
+						ball = ballPart
+					end
+					if ball ~= nil and ball.Parent ~= nil then
+						local d = ball.Position - car.Position
+						if d.X * d.X + d.Z * d.Z > 25 then
+							ballYaw = math.atan2(d.X, d.Z)
+						end
+					end
 				end
-				if ball ~= nil and ball.Parent ~= nil then
-					local cp, bp = car.Position - viewCenter, ball.Position - viewCenter
-					local look = car.CFrame.LookVector
-					-- Team 1 defends the -X goal, team 2 the +X goal.
-					local goalX = if myTeam == 0
-						then nil
-						else (if myTeam == 1 then -1 else 1) * SoccerFieldConfig.length / 2
-					local f = FeelRules.soccerCamera(
-						cp.X,
-						cp.Z,
-						bp.X,
-						bp.Z,
-						look.X,
-						look.Z,
-						goalX,
-						feel.normalFov
-					)
-					local goal = CFrame.lookAt(
-						viewCenter + Vector3.new(f.camX, f.camY, f.camZ),
-						viewCenter + Vector3.new(f.lookX, f.lookY, f.lookZ)
-					)
-					base = base:Lerp(goal, math.min(1, dt * 4))
-					goalFov = feel.normalFov
-					updateWalls(base.Position, car, ball, dt)
+				local want =
+					FeelRules.chaseYaw(carYaw, ballYaw, feel.chaseBallShare, feel.chaseBallMax)
+				chaseYaw = FeelRules.approachAngle(chaseYaw, want, dt, feel.chaseYawRate)
+				local dir = Vector3.new(math.sin(chaseYaw), 0, math.cos(chaseYaw))
+				local v = car.AssemblyLinearVelocity
+				local speed = Vector3.new(v.X, 0, v.Z).Magnitude
+				local pos = car.Position
+				local camPos = pos
+					- dir * (feel.chaseBack + speed * feel.chaseSpeedBack)
+					+ Vector3.new(0, feel.chaseUp, 0)
+				local goal =
+					CFrame.lookAt(camPos, pos + dir * feel.chaseAhead + Vector3.new(0, 2, 0))
+				base = base:Lerp(goal, math.min(1, dt * feel.chaseFollow))
+				goalFov = feel.normalFov + math.clamp(speed / 100, 0, 1) * feel.chaseSpeedFov
+				if soccerOn then
+					updateWalls(base.Position, car, ballPart, dt)
 				end
 			elseif car ~= nil and car.Parent ~= nil then
 				local pos = car.Position
 				local rel = pos - viewCenter
-				local goal: CFrame
-				if bowl then
-					local f = FeelRules.bowlCamera(rel.X, rel.Z, viewDir.X, viewDir.Z)
-					goal = CFrame.lookAt(
-						viewCenter + Vector3.new(f.camX, f.camY, f.camZ),
-						viewCenter + Vector3.new(f.lookX, f.lookY, f.lookZ)
-					)
-				else
-					local shift = Vector3.new(rel.X, 0, rel.Z) * 0.6
-					goal = CFrame.lookAt(
-						viewCenter + viewDir * 40 + Vector3.new(0, 48, 0) + shift,
-						viewCenter + shift
-					)
-				end
+				local f = FeelRules.bowlCamera(rel.X, rel.Z, viewDir.X, viewDir.Z)
+				local goal = CFrame.lookAt(
+					viewCenter + Vector3.new(f.camX, f.camY, f.camZ),
+					viewCenter + Vector3.new(f.lookX, f.lookY, f.lookZ)
+				)
 				base = base:Lerp(goal, math.min(1, dt * 3))
 				local v = car.AssemblyLinearVelocity
 				local speed = Vector3.new(v.X, 0, v.Z).Magnitude

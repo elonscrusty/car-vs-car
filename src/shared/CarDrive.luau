@@ -107,13 +107,27 @@ function CarDrive.push(
 		end
 	end
 
+	-- No gas: roll to a stop instead of gliding (player cars only; bots keep their old coast).
+	if mods and math.abs(throttle) < 0.05 then
+		local k = math.min(1, GameConfig.Drive.coastDrag * dt)
+		body:ApplyImpulse(-fwd * forwardSpeed * k * mass)
+	end
+
 	-- Grip: cancel part of the sideways slide so it drives like a car, not soap.
 	local right = Vector3.new(-fwd.Z, 0, fwd.X)
 	local sideSpeed = vel:Dot(right)
 	local gripScale = (if mods then mods.gripScale else 1)
 		* CarTraits.gripFactor(traits, steerAbs or 0, frac)
 	body:ApplyImpulse(
-		-right * sideSpeed * math.min(1, GameConfig.Drive.grip * gripScale * dt) * mass
+		-right
+			* sideSpeed
+			* math.min(
+				1,
+				(if mods then GameConfig.Drive.humanGrip else GameConfig.Drive.grip)
+					* gripScale
+					* dt
+			)
+			* mass
 	)
 end
 
@@ -150,6 +164,14 @@ function CarDrive.manual(
 	local speedFrac = CarTraits.speedFrac(body.AssemblyLinearVelocity:Dot(fwd), stats.maxSpeed)
 	-- Turn rate fades toward the car's highTurn trait as it nears top speed (heavy cars push wide).
 	local turnScale = (if mods then mods.turnScale else 1) * CarTraits.turnFactor(traits, speedFrac)
+	if mods then
+		local flatSpeed = flat(body.AssemblyLinearVelocity).Magnitude
+		turnScale *= drive.turnMinShare + (1 - drive.turnMinShare) * math.clamp(
+			flatSpeed / drive.turnFullSpeed,
+			0,
+			1
+		)
+	end
 	local turnRate =
 		math.clamp(stats.turnRate * drive.manualTurn, drive.manualTurnMin, drive.manualTurnMax)
 	CarDrive.setSpin(body, Steer.spin(steerInput, turnRate, turnScale))
