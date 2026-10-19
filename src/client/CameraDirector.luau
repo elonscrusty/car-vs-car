@@ -8,8 +8,6 @@ local SoundService = game:GetService("SoundService")
 
 local FeelRules = require(ReplicatedStorage.Shared.FeelRules)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
-local ModesConfig = require(ReplicatedStorage.Shared.ModesConfig)
-local SoccerFieldConfig = require(ReplicatedStorage.Shared.SoccerFieldConfig)
 
 local CameraDirector = {}
 
@@ -43,7 +41,6 @@ function CameraDirector.new(): Director
 	local snapPos: Vector3? = nil
 	local snapStart = -1000
 	local boostStart = -1000
-	local myTeam = 0 -- 1 or 2 in soccer (read from the colour of your car's marker), 0 = unknown
 	local bowl = false -- your arena is a bowl (not the soccer field or the race track)
 	local walls: { BasePart } = {} -- walls of your soccer arena, faded while they block the view
 	local wallFade: { [BasePart]: number } = {}
@@ -69,18 +66,9 @@ function CameraDirector.new(): Director
 					if m:IsA("Model") and m:GetAttribute("DriverUserId") == uid then
 						bowl = arena:FindFirstChild("Slope") ~= nil
 							and arena:FindFirstChild("Road") == nil
-						local lv = m.PrimaryPart.CFrame.LookVector
-						chaseYaw = math.atan2(lv.X, lv.Z)
-						myTeam = 0
-						local marker = m:FindFirstChild("Marker")
-						if marker and marker:IsA("BasePart") then
-							local c = marker.Color
-							myTeam = FeelRules.teamOfColor(
-								c.R * 255,
-								c.G * 255,
-								c.B * 255,
-								ModesConfig.Soccer.colors
-							)
+						local pp = m.PrimaryPart
+						if pp then
+							chaseYaw = math.atan2(pp.CFrame.LookVector.X, pp.CFrame.LookVector.Z)
 						end
 						return m.PrimaryPart
 					end
