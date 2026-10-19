@@ -120,19 +120,35 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		ring.CFrame = CFrame.new(center + Vector3.new(0, 0.1, 0))
 		local edge = block(folder, "BayEdge", Vector3.new(25, 0.05, 19), YELLOW)
 		edge.CFrame = CFrame.new(center + Vector3.new(0, 0.07, 0))
-		edge.Transparency = 0.2
+		edge.Color = Color3.fromRGB(150, 135, 80) -- muted: bay trim must not compete with PLAY
+		edge.Transparency = 0.55
 
 		-- The real (Blender) four-post lift when it is imported; otherwise a plain stand-in: four
 		-- tall posts with yellow caps and two runways under the wheels that slowly rise and sink.
 		local realLift = LobbyDecor.clone("FourPostLift", folder, 20)
 		if realLift then
 			realLift:PivotTo(CFrame.new(center) * CFrame.Angles(0, -spot.face * math.pi / 2, 0))
+			-- The two posts on the hall side hid the car from the aisle: hide them, so every car
+			-- shows three-quarter view over the low runways and the two back posts.
+			for _, d in realLift:GetDescendants() do
+				if d:IsA("BasePart") then
+					local tall = d.Size.Y > 6 and d.Size.X < 4 and d.Size.Z < 4
+					local named = string.find(string.lower(d.Name), "post") ~= nil
+					local towardHall = (d.Position.X - center.X) * spot.face > 2
+					if (tall or named) and towardHall then
+						d.Transparency = 1
+					end
+				end
+			end
 		end
 		local runways: { Part } = {}
 		local ramps: { Part } = {}
 		if realLift == nil then
 			for _, px in { -1, 1 } do
 				for _, pz in { -1, 1 } do
+					if px == spot.face then
+						continue -- no posts on the hall side: they hid the car from the aisle
+					end
 					local post = block(
 						folder,
 						"LiftPost",

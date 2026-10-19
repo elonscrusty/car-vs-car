@@ -41,6 +41,8 @@ local RED = Color3.fromRGB(84, 90, 102) -- steel (kept the old name): garage ste
 local FLOOR = Color3.fromRGB(70, 74, 86)
 local DARK = Color3.fromRGB(28, 30, 38)
 local GRAY = Color3.fromRGB(150, 152, 165)
+local PLAY_GREEN = Color3.fromRGB(70, 255, 150) -- the one loud colour in the hall: PLAY pads and signs
+local PLAY_DARK = Color3.fromRGB(10, 90, 50)
 
 local function part(
 	parent: Instance,
@@ -72,7 +74,7 @@ local function glow(p: BasePart, color: Color3, range: number, brightness: numbe
 	local l = Instance.new("PointLight")
 	l.Color = color
 	l.Range = range
-	l.Brightness = brightness
+	l.Brightness = brightness * 0.5 -- decorative glows are kept calm (the PLAY pads have their own, brighter light)
 	l.Shadows = false
 	l.Parent = p
 end
@@ -204,6 +206,10 @@ local function meshCar(parent: Instance, name: string, length: number, cf: CFram
 		end
 	end
 	m:ScaleTo(m:GetScale() * length / 14) -- templates are 14 studs long at their own scale
+	-- Pivot at the middle of the lowest point (the tires), so `cf` puts the tires exactly on it.
+	m:PivotTo(cf)
+	local bbCf, bbSize = m:GetBoundingBox()
+	m.WorldPivot = CFrame.new(bbCf.X, bbCf.Y - bbSize.Y / 2, bbCf.Z)
 	m:PivotTo(cf)
 	m.Parent = parent
 	return m
@@ -1213,6 +1219,7 @@ function Lobby.build(): LobbyHandle
 	local carY = stageTop + 0.1 -- the truck stands on the stage
 	local pivot = world(sc.x, carY + 4, sc.z)
 	local showcaseCar = meshCar(folder, "ShowcaseCar", 30, world(sc.x, carY, sc.z))
+	local carIsMesh = showcaseCar ~= nil
 	if showcaseCar then
 		pivot = world(sc.x, carY, sc.z)
 	else
@@ -1642,13 +1649,15 @@ function Lobby.build(): LobbyHandle
 	-- Red barriers with yellow frames, tire stacks and a cone by the spawn (like the reference).
 	for _, sx in { -1, 1 } do
 		-- A low red barrier on two dark legs with a yellow top rail, sitting flat on the floor.
-		local bx = sx * 26
-		part(folder, "SpawnBarrier", Vector3.new(12, 1.5, 1.6), world(bx, 1.6, 50), RED)
+		-- Out of the walk from the spawn to the pads: along the front wall, in the corners.
+		local bx = sx * 52
+		local bz = 93.5
+		part(folder, "SpawnBarrier", Vector3.new(12, 1.5, 1.6), world(bx, 1.6, bz), RED)
 		local rail = part(
 			folder,
 			"SpawnBarrierRail",
 			Vector3.new(12.4, 0.35, 1.9),
-			world(bx, 2.5, 50),
+			world(bx, 2.5, bz),
 			YELLOW
 		)
 		rail.CanCollide = false
@@ -1657,16 +1666,16 @@ function Lobby.build(): LobbyHandle
 				folder,
 				"SpawnBarrierLeg",
 				Vector3.new(1.2, 1.7, 1.2),
-				world(bx + lx, 0.85, 50),
+				world(bx + lx, 0.85, bz),
 				DARK
 			)
 		end
-		for k = 0, 2 do
+		for k = 0, (if sx < 0 then 2 else -1) do -- tires only in the left corner (the vending machine is on the right)
 			local tire = part(
 				folder,
 				"SpawnTire",
 				Vector3.new(1.4, 3.4, 3.4),
-				world(sx * 40, 0.7 + k * 1.4, 52) * CFrame.Angles(0, 0, math.pi / 2),
+				world(sx * 62, 0.7 + k * 1.4, 91) * CFrame.Angles(0, 0, math.pi / 2),
 				Color3.fromRGB(22, 22, 26),
 				Enum.Material.SmoothPlastic,
 				Enum.PartType.Cylinder
@@ -1710,8 +1719,8 @@ function Lobby.build(): LobbyHandle
 				"PadOutline",
 				Vector3.new(size - 1.2, 0.2, 0.35),
 				world(pp.x, 0.4, pp.z + e * (size / 2 - 0.6)),
-				YELLOW,
-				Enum.Material.SmoothPlastic
+				PLAY_GREEN,
+				Enum.Material.Neon
 			)
 			across.CanCollide = false
 			local along = part(
@@ -1719,8 +1728,8 @@ function Lobby.build(): LobbyHandle
 				"PadOutline",
 				Vector3.new(0.35, 0.2, size - 1.2),
 				world(pp.x + e * (size / 2 - 0.6), 0.4, pp.z),
-				YELLOW,
-				Enum.Material.SmoothPlastic
+				PLAY_GREEN,
+				Enum.Material.Neon
 			)
 			along.CanCollide = false
 		end
@@ -1740,7 +1749,62 @@ function Lobby.build(): LobbyHandle
 		padNum.RichText = true
 		padNum.TextSize = 120
 		padNum.Text = string.format('<font size="260">%d</font>\n<font size="110">PLAY</font>', i)
-		glow(padPart, Color3.fromRGB(90, 255, 170), 16, 0.7)
+		-- The one strong accent in the hall: a bright green light on every PLAY pad.
+		local padLight = Instance.new("PointLight")
+		padLight.Color = PLAY_GREEN
+		padLight.Range = 24
+		padLight.Brightness = 1.5
+		padLight.Shadows = false
+		padLight.Parent = padPart
+		-- A gate over the pad: two posts at its back edge and a PLAY plate between them, centred
+		-- over the pad and facing the spawn, with the goal of the match under it.
+		local archZ = pp.z - size / 2 - 0.4
+		for _, sx in { -1, 1 } do
+			local post = part(
+				folder,
+				"PadPost",
+				Vector3.new(0.8, 11.4, 0.8),
+				world(pp.x + sx * (size / 2 - 1.2), 5.7, archZ),
+				Color3.fromRGB(60, 68, 86)
+			)
+			post.CanCollide = false
+		end
+		local playAt = origin + Vector3.new(pp.x, 9.2, archZ)
+		local playPlate = part(
+			folder,
+			"PadPlaySign",
+			Vector3.new(size - 3.4, 4.4, 0.5),
+			CFrame.lookAt(playAt, playAt + Vector3.new(0, 0, 10)),
+			Color3.fromRGB(16, 30, 44)
+		)
+		playPlate.CanCollide = false
+		local playTitle =
+			label(playPlate, Enum.NormalId.Front, "PLAY", Color3.new(1, 1, 1), PLAY_DARK)
+		playTitle.Size = UDim2.fromScale(1, 0.6)
+		local goal = label(
+			playPlate,
+			Enum.NormalId.Front,
+			"Knock out other cars. Last car standing wins.",
+			Color3.fromRGB(210, 220, 235),
+			nil
+		)
+		goal.Size = UDim2.fromScale(0.94, 0.26)
+		goal.Position = UDim2.fromScale(0.03, 0.68)
+		local trim = part(
+			folder,
+			"PadPlayTrim",
+			Vector3.new(size - 3.4, 0.3, 0.6),
+			CFrame.new(playAt + Vector3.new(0, -2.35, 0)),
+			PLAY_GREEN,
+			Enum.Material.Neon
+		)
+		trim.CanCollide = false
+		local signLight = Instance.new("PointLight")
+		signLight.Color = PLAY_GREEN
+		signLight.Range = 20
+		signLight.Brightness = 1
+		signLight.Shadows = false
+		signLight.Parent = playPlate
 		local pboard = part(
 			folder,
 			"PadSign" .. i,
@@ -1769,6 +1833,45 @@ function Lobby.build(): LobbyHandle
 	LobbyProps.build(folder, origin)
 	LobbyDecor.build(folder, origin)
 	LobbyShell.build(folder, origin)
+
+	-- Tires on the stage: find the top of the Blender stage and set the car down on it (it hovered
+	-- when the model's platform was taller or lower than the number guessed above), then add a soft
+	-- dark contact shadow under it.
+	if carIsMesh then
+		local stageModel = folder:FindFirstChild("TruckStage", true)
+		local topY: number? = nil
+		if stageModel then
+			local broad: number? = nil -- highest top among big flat-ish parts (the platform), else the box top
+			for _, d in stageModel:GetDescendants() do
+				if d:IsA("BasePart") and math.max(d.Size.X, d.Size.Z) >= sc.footprint * 0.4 then
+					local t = d.Position.Y + d.Size.Y / 2
+					if broad == nil or t > broad then
+						broad = t
+					end
+				end
+			end
+			if broad == nil and stageModel:IsA("Model") then
+				local bbCf, bbSize = stageModel:GetBoundingBox()
+				broad = bbCf.Y + bbSize.Y / 2
+			end
+			topY = if broad then broad - origin.Y else nil
+		end
+		local standY = (topY or carY) - 0.05
+		pivot = world(sc.x, standY, sc.z)
+		spinning:PivotTo(pivot * CFrame.Angles(0, angle, 0))
+		local shadow = part(
+			folder,
+			"ShowcaseShadow",
+			Vector3.new(0.06, 22, 22),
+			world(sc.x, standY + 0.04, sc.z) * CFrame.Angles(0, 0, math.pi / 2),
+			Color3.new(0, 0, 0),
+			Enum.Material.SmoothPlastic,
+			Enum.PartType.Cylinder
+		)
+		shadow.Transparency = 0.6
+		shadow.CanCollide = false
+		shadow.CanQuery = false
+	end
 	LobbyMore.build(folder, origin)
 	LobbyGarage.build(folder, origin)
 	LobbyLife.build(folder, origin, Vector3.new(L.showcase.x, 0, L.showcase.z), stageTop)

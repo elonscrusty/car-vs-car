@@ -18,10 +18,9 @@ local SPOTS: { Spot } = {
 	-- Entrance (the garages are built into the side walls, so the floor stays open).
 	{ name = "plant_box", x = -32, z = 63, face = 0, scale = 1.3 },
 	{ name = "plant_box_yellow", x = 32, z = 63, face = 0, scale = 1.3 },
-	{ name = "traffic_cone", x = -18, z = 56, face = 0, scale = 1.4 },
-	-- Front corners, beside the store and the paint booth.
-	{ name = "tire_stack", x = -50, z = 65, face = 0, scale = 1.3 },
-	{ name = "tire_stack", x = 50, z = 65, face = 40, scale = 1.3 },
+	-- Loose props stand grouped along the front wall, out of the walk from the spawn to the pads.
+	{ name = "traffic_cone", x = -42, z = 93, face = 0, scale = 1.4 },
+	{ name = "tire_stack", x = -62, z = 92, face = 0, scale = 1.3 },
 }
 
 function LobbyProps.build(folder: Folder, origin: Vector3)
@@ -123,8 +122,8 @@ function LobbyProps.build(folder: Folder, origin: Vector3)
 	local st, pt = LobbyLayout.store, LobbyLayout.paint
 	-- The newer booths (Models.More) win over the first ones; either one keeps the prompt.
 	if LobbyDecor.has("Booth_Shop", "More") and LobbyDecor.has("Booth_Paint", "More") then
-		swapBooth("store", "Booth_Shop", st.x - 4, st.z, -90, 1, "More") -- front toward +x, the lane
-		swapBooth("paint", "Booth_Paint", pt.x + 4, pt.z, 90, 1, "More") -- front toward -x
+		swapBooth("store", "Booth_Shop", st.x, st.z, -90, 1, "More") -- front toward +x, the lane
+		swapBooth("paint", "Booth_Paint", pt.x, pt.z, 90, 1, "More") -- front toward -x
 	else
 		swapBooth("store", "store_booth", st.x, st.z, -90, 1.1)
 		swapBooth("paint", "paint_booth", pt.x, pt.z, 90, 1.1)
