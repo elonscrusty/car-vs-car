@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
+local SoccerFieldFlow = require(ReplicatedStorage.Shared.SoccerFieldFlow)
 
 local CameraDirector = {}
 
@@ -14,6 +15,7 @@ export type Director = {
 	focus: (target: BasePart?) -> (), -- KO: follow the dummy and zoom in
 	shake: (strength: number) -> (), -- 0..1
 	punchFov: (amount: number) -> (), -- brief zoom-in punch
+	soccer: (on: boolean) -> (), -- car soccer: high behind your car, keeps the ball in frame
 	release: () -> (), -- back to the normal Roblox camera (lobby)
 }
 
@@ -28,6 +30,9 @@ function CameraDirector.new(): Director
 	local viewDir = Vector3.zAxis
 	local myCar: BasePart? = nil -- your own car, found once the fight starts (nil in the lobby)
 	local nextFind = 0
+	local soccerOn = false
+	local ballPart: BasePart? = nil
+	local nextBallFind = 0
 	local fov = feel.normalFov
 	local shakeLeft, shakeSize = 0, 0
 
@@ -50,6 +55,13 @@ function CameraDirector.new(): Director
 		return nil
 	end
 
+	-- The soccer ball is the part named "Ball" in the Arena that holds your car.
+	local function findBall(car: BasePart): BasePart?
+		local arena = car:FindFirstAncestor("Arena")
+		local b = if arena then arena:FindFirstChild("Ball") else nil
+		return if b and b:IsA("BasePart") then b else nil
+	end
+
 	RunService.RenderStepped:Connect(function(dt)
 		if not active then
 			return
@@ -67,7 +79,25 @@ function CameraDirector.new(): Director
 				myCar = findMyCar()
 				car = myCar
 			end
-			if car ~= nil and car.Parent ~= nil then
+			if car ~= nil and car.Parent ~= nil and soccerOn then
+				local ball = ballPart
+				if (ball == nil or ball.Parent == nil) and os.clock() >= nextBallFind then
+					nextBallFind = os.clock() + 0.3
+					ballPart = findBall(car)
+					ball = ballPart
+				end
+				if ball ~= nil and ball.Parent ~= nil then
+					local cp, bp = car.Position - viewCenter, ball.Position - viewCenter
+					local look = car.CFrame.LookVector
+					local f = SoccerFieldFlow.cameraFrame(cp.X, cp.Z, bp.X, bp.Z, look.X, look.Z)
+					local goal = CFrame.lookAt(
+						viewCenter + Vector3.new(f.camX, f.camY, f.camZ),
+						viewCenter + Vector3.new(f.lookX, f.lookY, f.lookZ)
+					)
+					base = base:Lerp(goal, math.min(1, dt * 4))
+					goalFov = feel.normalFov
+				end
+			elseif car ~= nil and car.Parent ~= nil then
 				local pos = car.Position
 				local shift = Vector3.new(pos.X - viewCenter.X, 0, pos.Z - viewCenter.Z) * 0.6
 				local goal = CFrame.lookAt(
@@ -126,7 +156,14 @@ function CameraDirector.new(): Director
 		end
 	end
 
+	local function soccer(on: boolean)
+		soccerOn = on
+		ballPart = nil
+	end
+
 	local function release()
+		soccerOn = false
+		ballPart = nil
 		active = false
 		target = nil
 		myCar = nil
@@ -147,6 +184,7 @@ function CameraDirector.new(): Director
 		focus = focus,
 		shake = shake,
 		punchFov = punchFov,
+		soccer = soccer,
 		release = release,
 	}
 end

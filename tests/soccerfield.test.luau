@@ -2,6 +2,8 @@
 local Harness = require("./harness")
 local SoccerField = require("../src/shared/SoccerField")
 local Config = require("../src/shared/SoccerFieldConfig")
+local Flow = require("../src/shared/SoccerFieldFlow")
+local ModesConfig = require("../src/shared/ModesConfig")
 
 local test, eq, near, truthy = Harness.test, Harness.eq, Harness.near, Harness.truthy
 
@@ -139,4 +141,132 @@ test("walls: closed outline with angled corners, only the goal mouths open", fun
 				)
 		)
 	end
+end)
+
+test("kickoff countdown text: 3, 2, 1, GO", function()
+	eq(Flow.countdownText(3), "3")
+	eq(Flow.countdownText(2.2), "3")
+	eq(Flow.countdownText(1.5), "2")
+	eq(Flow.countdownText(0.1), "1")
+	eq(Flow.countdownText(0), "GO!")
+	eq(Flow.countdownText(-1), "GO!")
+end)
+
+test("match clock text and golden goal", function()
+	eq(Flow.clockText(150, false), "2:30")
+	eq(Flow.clockText(65.2, false), "1:06")
+	eq(Flow.clockText(0, false), "0:00")
+	eq(Flow.clockText(-3, false), "0:00")
+	eq(Flow.clockText(0, true), "GOLDEN GOAL")
+	truthy(ModesConfig.Soccer.maxSeconds > 0)
+end)
+
+test("kickoff and goal-restart numbers are set in ModesConfig", function()
+	local s = ModesConfig.Soccer
+	truthy(s.kickoffSeconds >= 1 and s.restartSeconds >= 1 and s.goalPause > 0)
+	truthy(s.goSeconds > 0 and s.hudSeconds > 0 and s.readySeconds >= 0)
+end)
+
+test("stuck warning shows only in the last seconds before the reset", function()
+	truthy(not Flow.stuckWarning(0))
+	truthy(not Flow.stuckWarning(Config.stuckSeconds - Config.stuckWarnSeconds - 0.1))
+	truthy(Flow.stuckWarning(Config.stuckSeconds - Config.stuckWarnSeconds))
+	truthy(not Flow.stuckWarning(Config.stuckSeconds))
+	truthy(Config.stuckWarnSeconds < Config.stuckSeconds)
+end)
+
+test("the ball cannot leave: lid above the walls, high or far balls are put back", function()
+	truthy(Config.ceilingHeight >= Config.wallHeight + Config.ballDiameter)
+	for _, p in
+		{
+			{ 0, Config.ceilingHeight + 0.5, 0 },
+			{ Config.length / 2 + Config.goalDepth + Config.lostMargin + 1, 3, 0 },
+			{ 0, 3, Config.width / 2 + Config.lostMargin + 1 },
+			{ 0, -Config.lostMargin - 0.5, 0 },
+		}
+	do
+		truthy(SoccerField.outOfBounds(p[1], p[2], p[3]))
+	end
+	-- the corners of the field itself are in play
+	truthy(not SoccerField.outOfBounds(Config.length / 2 - 1, 1, Config.width / 2 - 1))
+end)
+
+test("keeper slot: first bot of a team with two or more cars", function()
+	eq(Flow.keeperSlot({ true, true }), 1)
+	eq(Flow.keeperSlot({ false, true }), 2)
+	eq(Flow.keeperSlot({ true, false }), 1)
+	eq(Flow.keeperSlot({ false, false }), 0)
+	eq(Flow.keeperSlot({ true }), 0) -- a lone car must attack
+end)
+
+test("keeper waits in front of its own goal and follows the ball sideways", function()
+	local x, z = Flow.keeperTarget(1, 3)
+	truthy(x < 0 and x > -Config.length / 2)
+	near(x, -(Config.length / 2 - Config.keeperDepth))
+	eq(z, 3)
+	x, z = Flow.keeperTarget(2, 50)
+	truthy(x > 0)
+	eq(z, Config.keeperRange)
+	truthy(Config.keeperRange < Config.goalWidth / 2)
+	_, z = Flow.keeperTarget(1, -50)
+	eq(z, -Config.keeperRange)
+end)
+
+test("bots: keeper stays home until the ball is near its goal, chasers attack", function()
+	-- ball in the middle: keeper stays at its post
+	local tx, tz = Flow.botAim(true, 1, 0, 0, -30, 0)
+	near(tx, -(Config.length / 2 - Config.keeperDepth))
+	eq(tz, 0)
+	-- ball close to team 1's goal: keeper drives out to clear it (aim behind the ball, toward +X goal)
+	local bx = -Config.length / 2 + 10
+	tx = Flow.botAim(true, 1, bx, 0, -45, 0)
+	truthy(tx < bx)
+	-- a chaser of team 1 aims behind the ball, on the side away from the +X goal it attacks
+	tx, tz = Flow.botAim(false, 1, 10, 5, -20, 0)
+	truthy(tx < 10)
+	-- once lined up it drives straight into the ball
+	tx, tz = Flow.botAim(false, 1, 10, 0, 10 - Config.botOffset, 0)
+	eq(tx, 10)
+	eq(tz, 0)
+	-- team 2 chaser is mirrored
+	tx = Flow.botAim(false, 2, 10, 5, 40, 0)
+	truthy(tx > 10)
+end)
+
+test("camera: behind your car, high, ball and car both in a narrow view", function()
+	local fov = math.rad(70) / 2 -- generous: real vertical half angle is 35 degrees
+	local cases = {
+		{ -40, 0, 0, 0, 1, 0 },
+		{ -50, -25, 50, 25, 1, 0 },
+		{ 50, 25, -50, -25, -1, 0 },
+		{ 0, 30, 0, -30, 0, -1 },
+		{ -55, 0, 55, 0, 1, 0 },
+		{ 10, 10, 10.2, 10, 1, 0 }, -- ball right at the car
+	}
+	for i, c in cases do
+		local f = Flow.cameraFrame(c[1], c[2], c[3], c[4], c[5], c[6])
+		truthy(f.camY >= Config.camUp and f.camY <= Config.camMaxUp)
+		local vx, vy, vz = f.lookX - f.camX, f.lookY - f.camY, f.lookZ - f.camZ
+		local vl = math.sqrt(vx * vx + vy * vy + vz * vz)
+		for _, t in { { c[3], c[4] }, { c[1], c[2] } } do
+			local dx, dy, dz = t[1] - f.camX, 0 - f.camY, t[2] - f.camZ
+			local dl = math.sqrt(dx * dx + dy * dy + dz * dz)
+			local cosA = (vx * dx + vy * dy + vz * dz) / (vl * dl)
+			truthy(math.acos(math.clamp(cosA, -1, 1)) < fov, "case " .. i .. " target out of frame")
+		end
+	end
+end)
+
+test("camera: sits on the far side of the car from the ball, rises with distance", function()
+	local near1 = Flow.cameraFrame(-10, 0, 0, 0, 1, 0)
+	local far1 = Flow.cameraFrame(-50, 0, 40, 0, 1, 0)
+	truthy(far1.camY > near1.camY)
+	truthy(far1.camX < -50 + 1) -- behind: further from the ball than the car
+	truthy(math.abs(far1.camX) <= Config.length / 2 + Config.goalDepth + Config.camMargin)
+	-- no jitter: with the ball on the car the camera falls back to behind the car's nose
+	local f = Flow.cameraFrame(0, 0, 0, 0, 1, 0)
+	truthy(f.camX < 0)
+	-- never inside-out numbers
+	local g = Flow.cameraFrame(5, 5, 5, 5, 0, 0)
+	truthy(g.camX == g.camX and g.camZ == g.camZ)
 end)

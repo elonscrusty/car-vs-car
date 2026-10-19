@@ -152,3 +152,5 @@ See SNAPSHOT.md "Social + safety". Tune cheat limits in `src/shared/CarSanityCon
 
 ## Onboarding (w2)
 - Placeholders to tune: `FirstWinConfig` (confettiCount, coinCount, bannerScale, texts), `Hints.AimNudgeSeconds`. Nothing needs Roblox ids. First win gives no bonus coins; add one in `LobbyService.finishMatch` if wanted.
+## Soccer polish (claude/w2-soccer)
+See SNAPSHOT.md "Soccer polish". Tune in `SoccerFieldConfig` (keeper*, cam*) and `ModesConfig.Soccer` (countdown/goal timings). Unverified in Studio: unfreeze re-handing of network ownership (`handOver`), camera framing, keeper play. Tests: 340 pass.

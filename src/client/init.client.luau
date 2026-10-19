@@ -22,6 +22,7 @@ local HitFlash = require(script.HitFlash)
 local LobbyUi = require(script.LobbyUi)
 local BotLevelUi = require(script.BotLevelUi)
 local MenuBar = require(script.MenuBar)
+local CenterBanner = require(script.CenterBanner)
 local ModeBanner = require(script.ModeBanner)
 local ProgressUi = require(script.ProgressUi)
 local QuestUi = require(script.QuestUi)
@@ -37,6 +38,7 @@ local Ui = require(script.Ui)
 
 local remotes = Remotes.get()
 local modeBanner = ModeBanner.new()
+local centerBanner = CenterBanner.new()
 local director = CameraDirector.new()
 local buffs = BuffUi.new()
 local menu = MenuBar.new() -- features add their own lobby buttons here (see MenuBar.luau)
@@ -206,6 +208,7 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 			camSide = if u.carPos then u.carPos - u.center else nil
 			director.overview(u.center, camSide)
 		end
+		director.soccer(u.soccer == true) -- car soccer: camera follows your car and the ball
 		view.showReady(u.yourCar or "", u.enemyCar or "", u.seconds or 3, u.enemyName or "BOT")
 		hints.done("pad")
 		hints.stopAimNudge()
@@ -225,6 +228,8 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		end
 	elseif u.kind == "modeInfo" then
 		modeBanner.show(u.text or "")
+	elseif u.kind == "banner" then
+		centerBanner.show(u.text or "", u.seconds or 1)
 	elseif u.kind == "move" then
 		actions.cooldown(u.move or "", u.seconds or 0)
 	elseif u.kind == "buff" then
@@ -262,6 +267,7 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		actions.stop()
 		modeBanner.hide()
 		hints.stopAimNudge()
+		centerBanner.hide()
 		view.showMatchEnd(u.youWon == true, FirstWin.isFirstWin(lastWins, u.youWon == true))
 		SoundFx.play(if u.youWon == true then "win" else "lose")
 	end
