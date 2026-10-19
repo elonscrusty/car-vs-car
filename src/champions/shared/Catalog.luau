@@ -146,14 +146,14 @@ local function renderCars(root, state, ctx)
 	)
 	T.vehicle(hero, "HeroCar", vehicle, 5, 20, 472, 275)
 	local details = T.panel(hero, "HeroDetails", 10, 270, 462, 120, T.C.silver)
-	T.text(details, "Name", vehicle.Name, 14, 4, 300, 34, 30, T.C.white)
-	T.rarity(details, vehicle, 14, 43, 140, 29)
-	T.text(details, "Ability", string.upper(vehicle.Ability), 169, 43, 260, 29, 22, T.C.white)
+	T.text(details, "Name", vehicle.Name, 14, 2, 300, 34, 30, T.C.white)
+	T.rarity(details, vehicle, 14, 38, 140, 30)
+	T.text(details, "Ability", string.upper(vehicle.Ability), 169, 38, 260, 30, 24, T.C.white)
 	local isOwned = owned(state, vehicle.Id)
 	local equipped = state.equipped == vehicle.Id
 	local label = loading(state)
 		or (equipped and "EQUIPPED" or (isOwned and "EQUIP CAR" or "VIEW IN SHOP"))
-	local button = T.button(details, "EquipCar", label, 14, 79, 434, 48, function()
+	local button = T.button(details, "EquipCar", label, 14, 70, 434, 42, function()
 		if not available(state, ctx) then
 			return
 		end

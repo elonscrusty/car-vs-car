@@ -74,80 +74,57 @@ local function responsive(parent, name, draw)
 	return root
 end
 
+-- Roblox's own menu + chat buttons sit in the top-left corner; our top row starts after them.
+local ROBLOX_CLEAR = 176
+
 local function lobby(parent, state, ctx)
 	return responsive(parent, "Lobby", function(root, w, h)
 		local compact = w < 760
-		local railW = math.min(w - 184, if compact then 360 else 570)
-		T.panel(root, "ProfileRail", 12, 12, railW, 72, T.C.silver)
-		T.icon(root, "Coin", "coin", 24, 27, 36, T.C.gold)
+		-- Top row, next to the chat icon: coins + level + XP.
+		local railX = ROBLOX_CLEAR
+		local railW = math.clamp(w - railX - 150, 260, if compact then 380 else 470)
+		T.panel(root, "ProfileRail", railX, 6, railW, 56, T.C.silver)
+		T.icon(root, "Coin", "coin", railX + 12, 15, 38, T.C.gold)
 		T.text(
 			root,
 			"CoinBalance",
 			T.format(state.coins or 0),
-			67,
-			21,
-			if compact then 110 else 142,
-			46,
-			if compact then 25 else 32,
+			railX + 56,
+			10,
+			if compact then 96 else 124,
+			48,
+			if compact then 24 else 28,
 			T.C.white
 		)
-		local profileX = if compact then 180 else 228
+		local profileX = railX + (if compact then 160 else 190)
 		T.text(
 			root,
 			"Level",
 			"LV " .. tostring(state.level or 1),
 			profileX,
-			19,
-			83,
-			25,
-			19,
+			8,
+			80,
+			26,
+			20,
 			T.C.gold
 		)
-		local barW = math.max(36, railW - profileX - 12)
-		T.frame(root, "XPTrack", profileX, 50, barW, 12, T.C.ink, 6)
+		local barW = math.max(36, railX + railW - profileX - 14)
+		T.frame(root, "XPTrack", profileX, 38, barW, 14, T.C.ink, 7)
 		T.frame(
 			root,
 			"XPFill",
 			profileX,
-			50,
+			38,
 			barW * math.clamp((state.xp or 0) / math.max(1, state.xpGoal or 1), 0, 1),
-			12,
+			14,
 			T.C.cyan,
-			6
+			7
 		)
-		if not compact then
-			T.text(
-				root,
-				"XPLabel",
-				tostring(state.xp or 0) .. " / " .. tostring(state.xpGoal or 1) .. " XP",
-				profileX + 82,
-				19,
-				210,
-				25,
-				17,
-				T.C.silver,
-				"Right"
-			)
-		end
-		local queue = state.queue
-		local playW = if compact then 160 else 242
-		local play = T.button(
-			root,
-			"Play",
-			if queue then "CANCEL" else "PLAY",
-			w - playW - 12,
-			12,
-			playW,
-			72,
-			function()
-				request(ctx, if queue then "CancelPlay" else "Play")
-			end,
-			if queue then T.C.red else T.C.green,
-			"duel"
-		)
-		T.disable(play, ctx.pending or not state.ready)
-		local navSize = math.clamp(h * 0.13, 58, 88)
-		local navY = math.max(100, (h - (navSize * 3 + 16)) * 0.5)
+		T.button(root, "Settings", "SETTINGS", w - 132, 6, 120, 48, function()
+			ctx.navigate("SETTINGS")
+		end, T.C.navy, "gear")
+		-- Left column: CARS / SHOP / GIFT (clear of the thumbstick below).
+		local navSize = math.clamp((h - 130) / 3 - 8, 52, 76)
 		for index, item in
 			{
 				{ "CARS", "car", T.C.red },
@@ -159,9 +136,9 @@ local function lobby(parent, state, ctx)
 				root,
 				item[1],
 				item[1],
-				w - navSize - 12,
-				navY + (index - 1) * (navSize + 8),
-				navSize,
+				12,
+				68 + (index - 1) * (navSize + 8),
+				navSize + 14,
 				navSize,
 				function()
 					ctx.navigate(item[1])
@@ -170,24 +147,40 @@ local function lobby(parent, state, ctx)
 				item[2]
 			)
 		end
-		local hintW = math.min(410, w - 210)
-		T.panel(root, "PadHint", (w - hintW) / 2, h - 66, hintW, 52, T.C.blue)
+		-- PLAY: bottom right, left of the jump button.
+		local queue = state.queue
+		local playW = if compact then 200 else 250
+		local playX = w - playW - (if compact then 112 else 130)
+		local playY = h - 80
+		local play = T.button(
+			root,
+			"Play",
+			if queue then "CANCEL" else "PLAY",
+			playX,
+			playY,
+			playW,
+			68,
+			function()
+				request(ctx, if queue then "CancelPlay" else "Play")
+			end,
+			if queue then T.C.red else T.C.green,
+			"duel"
+		)
+		T.disable(play, ctx.pending or not state.ready)
+		T.panel(root, "PadHint", playX, playY - 50, playW, 44, T.C.blue)
 		local hint = if queue then tostring(queue.status or "WAITING") else "PRESS PLAY TO FIGHT"
 		T.text(
 			root,
 			"QueueStatus",
 			hint,
-			(w - hintW) / 2 + 8,
-			h - 62,
-			hintW - 16,
-			44,
-			if compact then 15 else 20,
+			playX + 6,
+			playY - 48,
+			playW - 12,
+			40,
+			20,
 			T.C.white,
 			"Center"
 		)
-		T.button(root, "Settings", "SETTINGS", 12, h - 62, 124, 48, function()
-			ctx.navigate("SETTINGS")
-		end, T.C.navy)
 	end)
 end
 
@@ -198,7 +191,7 @@ local function matchView(parent, state, ctx)
 	return responsive(parent, "Match", function(root, w, h)
 		local small = w < 760
 		local leaveW = if small then 92 else 118
-		T.button(root, "LeaveMatch", "LOBBY", 12, 12, leaveW, 48, function()
+		T.button(root, "LeaveMatch", "LOBBY", 12, 66, leaveW, 46, function()
 			ctx.confirm(
 				"LeaveMatch",
 				{},
@@ -206,14 +199,14 @@ local function matchView(parent, state, ctx)
 				"Leave the current match and return to the garage."
 			)
 		end, T.C.navy)
-		T.button(root, "Settings", "MENU", w - leaveW - 12, 12, leaveW, 48, function()
+		T.button(root, "Settings", "MENU", w - leaveW - 12, 6, leaveW, 46, function()
 			ctx.navigate("SETTINGS")
 		end, T.C.navy)
-		local scoreW = math.min(if small then 350 else 480, w - 2 * (leaveW + 24))
+		local scoreW = math.min(if small then 340 else 440, w - 2 * (leaveW + 24))
 		local x = (w - scoreW) / 2
-		T.panel(root, "MatchScoreboard", x, 10, scoreW, 82, T.C.silver)
-		T.checkers(root, x + 8, 18, 24, 16, 8, T.C.white)
-		T.checkers(root, x + scoreW - 32, 18, 24, 16, 8, T.C.white)
+		T.panel(root, "MatchScoreboard", x, 6, scoreW, 66, T.C.silver)
+		T.checkers(root, x + 8, 12, 24, 16, 8, T.C.white)
+		T.checkers(root, x + scoreW - 32, 12, 24, 16, 8, T.C.white)
 		T.text(
 			root,
 			"MatchMode",
@@ -227,9 +220,9 @@ local function matchView(parent, state, ctx)
 						else ""
 				),
 			x + 35,
-			14,
+			8,
 			scoreW - 70,
-			22,
+			24,
 			if small then 15 else 18,
 			T.C.silver,
 			"Center"
@@ -239,16 +232,16 @@ local function matchView(parent, state, ctx)
 			local rightName = if mode == "DUEL" then "LEFT" else "RED"
 			local leftScore = if mode == "DUEL" then match.youScore else match.blueScore
 			local rightScore = if mode == "DUEL" then match.carsLeft else match.redScore
-			T.frame(root, "BlueScorePanel", x + 8, 40, scoreW * 0.29, 43, T.C.blue, 8)
-			T.frame(root, "RedScorePanel", x + scoreW * 0.71 - 8, 40, scoreW * 0.29, 43, T.C.red, 8)
+			T.frame(root, "BlueScorePanel", x + 8, 36, scoreW * 0.29, 32, T.C.blue, 8)
+			T.frame(root, "RedScorePanel", x + scoreW * 0.71 - 8, 36, scoreW * 0.29, 32, T.C.red, 8)
 			T.text(
 				root,
 				"BlueScore",
 				leftName .. " " .. tostring(leftScore or 0),
 				x + 10,
-				43,
-				scoreW * 0.29 - 4,
 				36,
+				scoreW * 0.29 - 4,
+				32,
 				if small then 17 else 22,
 				T.C.white,
 				"Center"
@@ -258,9 +251,9 @@ local function matchView(parent, state, ctx)
 				"RedScore",
 				tostring(rightScore or 0) .. " " .. rightName,
 				x + scoreW * 0.71 - 6,
-				43,
-				scoreW * 0.29 - 4,
 				36,
+				scoreW * 0.29 - 4,
+				32,
 				if small then 17 else 22,
 				T.C.white,
 				"Center"
@@ -271,9 +264,9 @@ local function matchView(parent, state, ctx)
 				match.timer,
 				match.endsAt,
 				x + scoreW * 0.3,
-				43,
-				scoreW * 0.4,
 				36,
+				scoreW * 0.4,
+				32,
 				if small then 23 else 29
 			)
 		elseif mode == "TAG" then
@@ -374,8 +367,7 @@ local function matchView(parent, state, ctx)
 		end
 		if banner then
 			local bannerW = math.min(440, w - 160)
-			local bg =
-				T.panel(root, "MatchBanner", (w - bannerW) / 2, 102, bannerW, 46, bannerColor)
+			local bg = T.panel(root, "MatchBanner", (w - bannerW) / 2, 78, bannerW, 44, bannerColor)
 			if match.goal and match.goalUntil then
 				bg:SetAttribute("HideAt", match.goalUntil)
 			end

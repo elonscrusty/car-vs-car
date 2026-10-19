@@ -52,13 +52,36 @@ stage.Name = "Stage"
 stage.BackgroundTransparency = 1
 stage.Size = UDim2.fromScale(1, 1)
 stage.Parent = viewport
+-- The dark dim covers the WHOLE screen, top bar included, so it has its own full-screen gui.
+local dimGui = Instance.new("ScreenGui")
+dimGui.Name = "CVC_ChampionsDim"
+dimGui.ResetOnSpawn = false
+dimGui.DisplayOrder = 34
+dimGui.ScreenInsets = Enum.ScreenInsets.None
+dimGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+dimGui.Parent = playerGui
 local menuBackdrop = Instance.new("Frame")
 menuBackdrop.Name = "MenuBackdrop"
 menuBackdrop.Size = UDim2.fromScale(1, 1)
 menuBackdrop.BackgroundColor3 = T.C.ink
 menuBackdrop.BackgroundTransparency = 0.15
 menuBackdrop.BorderSizePixel = 0
-menuBackdrop.Parent = stage
+menuBackdrop.Active = false
+menuBackdrop.Parent = dimGui
+-- The lobby and fight HUD use the top row next to Roblox's own buttons, so they only keep out of
+-- the device notch, not the Roblox top bar.
+local hudGui = Instance.new("ScreenGui")
+hudGui.Name = "CVC_ChampionsHud"
+hudGui.ResetOnSpawn = false
+hudGui.DisplayOrder = 35
+hudGui.ScreenInsets = Enum.ScreenInsets.DeviceSafeInsets
+hudGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+hudGui.Parent = playerGui
+local hudStage = Instance.new("Frame")
+hudStage.Name = "HudStage"
+hudStage.BackgroundTransparency = 1
+hudStage.Size = UDim2.fromScale(1, 1)
+hudStage.Parent = hudGui
 local menuHost = Instance.new("Frame")
 menuHost.Name = "MenuCanvas"
 menuHost.BackgroundTransparency = 1
@@ -226,6 +249,7 @@ render = function()
 	local menu = screen ~= "LOBBY" and screen ~= "MATCH"
 	menuHost.Visible = menu
 	menuBackdrop.Visible = menu
+	hudStage.Visible = not menu
 	touchFocus(menu)
 	local ctx = {
 		preview = preview,
@@ -259,7 +283,7 @@ render = function()
 			navigate("CONFIRM")
 		end,
 	}
-	local target = menu and menuHost or stage
+	local target = menu and menuHost or hudStage
 	local renderer = if screen == "LOBBY"
 			or screen == "MATCH"
 			or screen == "RESULTS"
