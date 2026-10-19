@@ -13,6 +13,8 @@ FeatureFlags.Flags = {
 	soccerMode = true, -- car soccer in the mode rotation (carter: kept at launch)
 	raceMode = true, -- Crazy Race (laps, ramps) in the mode rotation
 	tagMode = true, -- car tag (hot potato) in the mode rotation
+	hillMode = false, -- king of the hill (1v1 bowl): out of the rotation until soccer/tag/race are proven
+	iceMode = false, -- ice bowl (1v1): same
 	lastStandingMode = false, -- 8-car last standing in the mode rotation
 } :: { [string]: boolean }
 

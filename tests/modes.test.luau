@@ -20,7 +20,7 @@ test("every mode has a name and a blurb, and the rotation goes round", function(
 	eq(Modes.pick(n), ModesConfig.Order[1])
 	eq(Modes.pick(-3), ModesConfig.Order[1])
 	eq(Modes.pick(1.9), ModesConfig.Order[2])
-	for _, m in { "duel", "hill", "ice", "soccer" } do
+	for _, m in { "duel", "soccer", "tag", "race" } do
 		truthy(table.find(ModesConfig.Order, m) ~= nil, m .. " is in the rotation")
 	end
 end)
@@ -28,9 +28,10 @@ end)
 test(
 	"launch rotation: soccer first, then tag, duel, hill, ice; last standing only with its flag",
 	function()
-		eq(table.concat(ModesConfig.Order, ","), "soccer,tag,race,duel,hill,ice")
-		eq(table.concat(ModesConfig.orderFor({}), ","), "duel,hill,ice")
-		eq(table.concat(ModesConfig.orderFor({ tagMode = true }), ","), "tag,duel,hill,ice")
+		eq(table.concat(ModesConfig.Order, ","), "soccer,tag,race,duel")
+		eq(table.concat(ModesConfig.orderFor({}), ","), "duel")
+		eq(table.concat(ModesConfig.orderFor({ tagMode = true }), ","), "tag,duel")
+		eq(table.concat(ModesConfig.orderFor({ hillMode = true, iceMode = true }), ","), "duel,hill,ice")
 		eq(
 			table.concat(
 				ModesConfig.orderFor({
@@ -38,6 +39,8 @@ test(
 					lastStandingMode = true,
 					tagMode = true,
 					raceMode = true,
+					hillMode = true,
+					iceMode = true,
 				}),
 				","
 			),
@@ -301,4 +304,20 @@ test("flee direction: away from IT, bent to the middle near a wall", function()
 	truthy(edge.x < 1, "bent back toward the middle")
 	local same = Modes.tagFleeDir(5, 5, 5, 5, 60, 35)
 	near(math.sqrt(same.x ^ 2 + same.z ^ 2), 1, 1e-6)
+end)
+
+test("rematch repeats the mode; a real pick wins; auto rotates", function()
+	eq(Modes.choose({ "auto" }, 5, "tag"), "tag")
+	eq(Modes.choose({ "soccer" }, 5, "tag"), "soccer")
+	eq(Modes.choose({ "auto" }, 0, nil), ModesConfig.Order[1])
+	eq(Modes.choose({ "auto" }, 0, "junk"), ModesConfig.Order[1])
+	eq(Modes.choose({ "auto" }, 0, "auto"), ModesConfig.Order[1])
+end)
+
+test("new players start in soccer, others keep their pick", function()
+	eq(Modes.defaultPick(0, "auto"), "soccer")
+	eq(Modes.defaultPick(2, nil), "soccer")
+	eq(Modes.defaultPick(3, "auto"), "auto")
+	eq(Modes.defaultPick(3, nil), nil)
+	eq(Modes.defaultPick(0, "tag"), "tag")
 end)
