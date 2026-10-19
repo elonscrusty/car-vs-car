@@ -60,7 +60,7 @@ function OwnRing.start()
 			end
 		end
 		if ring and target then
-			local pos = target.Position - Vector3.new(0, target.Size.Y / 2 + 0.2, 0)
+			local pos = target.Position - Vector3.new(0, target.Size.Y / 2 - 0.3, 0) -- just above the floor under the hitbox
 			ring.CFrame = CFrame.new(pos) * CFrame.Angles(0, 0, math.rad(90))
 		end
 	end)
