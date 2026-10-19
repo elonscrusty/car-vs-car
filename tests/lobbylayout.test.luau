@@ -70,3 +70,14 @@ end)
 test("showcase platform is smaller than its footprint", function()
 	truthy(LobbyLayout.showcase.radius * 2 <= LobbyLayout.showcase.footprint)
 end)
+
+test("garages are big, open-fronted and with the store and paint booth past them", function()
+	local bay = LobbyLayout.bay
+	truthy(bay.d >= 40 and bay.w >= 30)
+	truthy(bay.gap >= 10 and bay.gap < bay.d) -- a wide walk-in gap in the low front wall
+	truthy(bay.wallHeight <= 2) -- low enough to hop over anywhere
+	local lastEnd = LobbyLayout.bays[#LobbyLayout.bays].z + bay.d / 2
+	for _, booth in { LobbyLayout.store, LobbyLayout.paint } do
+		truthy(booth.z >= lastEnd, "booth sits past the last garage")
+	end
+end)

@@ -159,3 +159,8 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 - Car sanity: `shared/CarSanityRules.luau` + `CarSanityConfig.luau` (pure, tested) and `server/CarSanity.luau`. Per fight frame, client-driven cars are checked for teleport, height, measured speed; bad = put back at last good spot, 3 resets = forfeit. Hooked in `Match` and `GroupMatch` (soccer never forfeits, respawns call `CarSanity.rebase`). All numbers in `CarSanityConfig` are PLACEHOLDERS.
 - Docs: `docs/playtest-checklist.md`, `docs/store-page.md`. Max Players (12 to 16) must be set by carter in Game Settings.
 - Tests: 269 pass. Not checked in Studio: invite prompt, board look/position (boards now 3 wide), theme colors, false resets under real lag.
+
+## Big open garages + likes
+- Hall is 192 long (`LobbyLayout.room.halfL = 96`). 8 garages, each 40 wide x 30 deep, open front: low wall (1.8 high) with a 14 wide gap (`LobbyLayout.bay`). Store/paint moved to the front corners (z 80), spawn z 76, lounge props near the door.
+- Likes: `src/shared/GarageLikes.luau` (pure, tested) saved in `profile.garage` (`received`, `given`). One like per garage ever, not your own, max 300 given. Server handler in `LobbyService.luau` (`bays.onLike`), rate limited 3 per 5s. Heart + `LikePrompt` (key F) at each door in `LobbyBays.luau`; sign shows "N LIKES". No Visit button.
+- Old GarageRoom/GarageFront models no longer placed (wrong size). Model wish list: `docs/GARAGE_MODELS_NEEDED.md`.

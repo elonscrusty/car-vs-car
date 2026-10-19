@@ -106,7 +106,7 @@ function LobbyDecor.build(parent: Folder, origin: Vector3)
 	end
 
 	-- One gas pump in the front corner, by the entrance.
-	put("GasPump", -62, 0, 64, LEFT)
+	put("GasPump", -62, 0, 92, LEFT)
 end
 
 return LobbyDecor
