@@ -51,7 +51,7 @@ function Arena.build(origin: Vector3, arenaCfg: any?): Arena
 	end
 
 	local square = cfg.square == true
-	local dirtColor = Color3.fromRGB(150, 98, 60)
+	local dirtColor = Color3.fromRGB(196, 140, 88)
 
 	-- Flat floor (a cylinder standing on its side is a disc: axis X -> rotate to Y; square = a slab).
 	local floorR = cfg.flatRadius + 4

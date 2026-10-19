@@ -9,9 +9,9 @@ CarLook.Config = {
 	shadowThickness = 0.05,
 	shadowWidth = 1.25, -- times the hitbox width
 	shadowLength = 1.1, -- times the hitbox length
-	-- Outline colour by rarity (rgb). Common = plain dark toy outline; rarer = brighter.
+	-- Outline colour by rarity (rgb). Common = plain light toy outline (shows on the dark floor); rarer = brighter.
 	outline = {
-		Common = { 25, 30, 45 },
+		Common = { 235, 238, 250 },
 		Rare = { 90, 170, 255 },
 		Epic = { 190, 110, 255 },
 		Legendary = { 255, 200, 40 },

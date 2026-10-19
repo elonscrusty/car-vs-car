@@ -79,9 +79,9 @@ local nightCount = 0
 function Atmosphere.night()
 	nightCount += 1
 	Lighting.ClockTime = 0
-	Lighting.Brightness = 1.6
-	Lighting.Ambient = Color3.fromRGB(92, 100, 150) -- bright enough to read the arena at night
-	Lighting.OutdoorAmbient = Color3.fromRGB(110, 120, 175)
+	Lighting.Brightness = 2.4
+	Lighting.Ambient = Color3.fromRGB(130, 138, 180) -- bright enough to read the floor and cars at night
+	Lighting.OutdoorAmbient = Color3.fromRGB(150, 158, 205)
 	Lighting.ColorShift_Top = Color3.fromRGB(190, 210, 255)
 	-- Stadium lamps glow: more bloom, a deep blue haze, richer colour.
 	local bloom = Lighting:FindFirstChild("GameBloom")
@@ -92,7 +92,7 @@ function Atmosphere.night()
 	end
 	local haze = Lighting:FindFirstChild("GameAtmosphere")
 	if haze and haze:IsA("Atmosphere") then
-		haze.Density = 0.22
+		haze.Density = 0.12
 		haze.Color = Color3.fromRGB(95, 115, 190)
 		haze.Decay = Color3.fromRGB(60, 70, 140)
 	end
