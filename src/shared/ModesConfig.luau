@@ -88,6 +88,7 @@ return {
 			wallHeight = 4, -- a low lip: a big hit launches you over it = out
 			spawnRadius = 48,
 			noPads = true,
+			stadium = true, -- stands, crowd and lights instead of the bowl scenery
 			obstacles = {
 				{ kind = "ramp", x = -30, z = -22, sx = 14, sz = 22, yaw = 0 },
 				{ kind = "ramp", x = 30, z = 22, sx = 14, sz = 22, yaw = 180 },
