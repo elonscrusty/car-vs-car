@@ -278,7 +278,11 @@ function T.icon(parent, name, kind, x, y, size, color)
 		bar(0.45, 0.26, 0.1, 0.4)
 		bar(0.3, 0.4, 0.4, 0.1)
 	elseif kind == "Slam" then
-		T.text(f, "Impact", "✦", 0, -size * 0.08, size, size, size * 0.95, color, "Center")
+		-- a down arrow hitting the ground
+		bar(0.45, 0.1, 0.1, 0.5)
+		bar(0.22, 0.42, 0.4, 0.11, 45)
+		bar(0.38, 0.42, 0.4, 0.11, -45)
+		bar(0.14, 0.83, 0.72, 0.09)
 	elseif kind == "Ram" then
 		local bumper = block(0.14, 0.35, 0.72, 0.37, 0.07)
 		bumper.BackgroundTransparency = 1

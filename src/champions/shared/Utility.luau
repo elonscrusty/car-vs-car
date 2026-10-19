@@ -374,9 +374,9 @@ local function reveal(root, state, ctx)
 	T.checkers(panel, 21, 18, 610, 29, 15, accent)
 	if vehicle then
 		T.vehicle(panel, "RevealedCar", vehicle, 38, 27, 578, 235)
-		local strip = T.panel(panel, "RevealDetails", 14, 265, 626, 70, accent)
-		T.text(strip, "VehicleName", vehicle.Name, 17, 3, 385, 39, 31, T.C.white)
-		T.rarity(strip, vehicle, 19, 40, 300, 32)
+		local strip = T.panel(panel, "RevealDetails", 14, 258, 626, 84, accent)
+		T.text(strip, "VehicleName", vehicle.Name, 17, 2, 385, 40, 31, T.C.white)
+		T.rarity(strip, vehicle, 19, 44, 220, 32)
 		T.icon(strip, "AbilityIcon", vehicle.Ability, 432, 12, 44, accent)
 		T.text(strip, "Ability", string.upper(vehicle.Ability), 485, 16, 130, 35, 21, T.C.white)
 	else

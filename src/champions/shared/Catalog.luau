@@ -232,7 +232,7 @@ local function renderPicker(root, state, ctx)
 				402,
 				chosen and T.C.cyan or accent(vehicle)
 			)
-			T.text(card, "Slot", "0" .. index, 24, 14, 85, 53, 42, T.C.muted)
+			T.text(card, "Slot", "0" .. index, 24, 14, 85, 53, 42, T.C.muted).ZIndex = 6
 			T.vehicle(card, "CarArt", vehicle, 3, 10, 320, 268)
 			T.frame(card, "InfoRail", 8, 263, 310, 128, T.C.navy, 9)
 			T.text(card, "Name", vehicle.Name, 14, 266, 298, 40, 31, T.C.white, "Center")
