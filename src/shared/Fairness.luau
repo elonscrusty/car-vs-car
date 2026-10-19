@@ -36,4 +36,21 @@ function Fairness.rarity(rarity: string?, neutral: boolean, cfg: any?): string?
 	return rarity
 end
 
+-- The car stats that count: the base car with the garage build applied, or the plain base car in a
+-- fair match (parts and part levels ignored, audit #51). Returns a new table; `base` is unchanged.
+-- `buildStats` is Build.stats (passed in so this file stays free of the Build dependency).
+function Fairness.stats(
+	base: any,
+	build: any?,
+	neutral: boolean,
+	buildStats: (any, any) -> any,
+	cfg: any?
+): any
+	local c = cfg or DefaultConfig
+	if build == nil or (neutral and c.neutralBuild ~= false) then
+		return table.clone(base)
+	end
+	return buildStats(base, build)
+end
+
 return Fairness

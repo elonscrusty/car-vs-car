@@ -14,8 +14,10 @@ ProgressConfig.StreakBonus = { [3] = 20, [5] = 40 } :: { [number]: number }
 ProgressConfig.StreakBonusFrom = 7 -- from this streak on, every win pays StreakBonusMax
 ProgressConfig.StreakBonusMax = 60
 
--- Each level above 1 adds this much HP and hit damage (0.03 = +3% per level, +27% at level 10).
-ProgressConfig.LevelStatBonus = 0.03
+-- Each level above 1 adds this much HP and hit damage (0.01 = +1% per level, +9% at level 10).
+-- PLACEHOLDER: kept tiny on purpose (audit #50); levels unlock cosmetics instead
+-- (CarCatalog.LevelCosmetics).
+ProgressConfig.LevelStatBonus = 0.01
 
 -- One-time coins paid when a car reaches a level (index = level). PLACEHOLDER numbers.
 ProgressConfig.LevelUpCoins = { 0, 20, 30, 40, 50, 60, 80, 100, 130, 200 }

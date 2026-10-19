@@ -103,11 +103,11 @@ H.test("level gives more hp and damage, level 1 is unchanged", function()
 	H.eq(one.hp, 100)
 	H.eq(one.damageMult, 1)
 	local ten = Progress.applyLevel(base, 10)
-	H.eq(ten.hp, 127)
-	H.near(ten.damageMult, 1.27, 1e-9)
+	H.eq(ten.hp, 109)
+	H.near(ten.damageMult, 1.09, 1e-9)
 	H.eq(base.hp, 100) -- input untouched
 	H.eq(Progress.applyLevel(base, nil).hp, 100)
-	H.eq(Progress.applyLevel(base, 99).hp, 127) -- clamped to max level
+	H.eq(Progress.applyLevel(base, 99).hp, 109) -- clamped to max level
 	H.eq(Progress.applyLevel(base, -5).hp, 100)
 end)
 

@@ -169,3 +169,9 @@ See SNAPSHOT.md "Bots feel like people". Tune in `GameConfig.Ai` and `BotLevelsC
 ## Mode button, LOBBY button, telemetry (w3)
 - Lobby has a MODE button (AUTO / DUEL / HILL / ICE / SOCCER) and a LOBBY button that leaves a match (mid-match and on the end screen). The code for these lives in `LobbyService`, `init.server` and the client UI, not in this note; see the playtest checklist "Mode button and LOBBY button" for what to check.
 - Telemetry has two new events, `mode_picked` (mode name from a fixed allowlist) and `left_match` (which phase LOBBY was tapped in). The functions `Telemetry.modePicked(player, mode)` and `Telemetry.leftMatch(player, phase)` exist and are tested; the call sites in the lobby/server code must be added by whoever owns those files. See `docs/analytics.md`.
+
+## Audit fixes: cars
+- GroupMatch owner: set attribute `GameMode` (string "soccer" | "tag" | "race"; anything else or missing = old behaviour) on the Arena folder/model that contains the cars (Specials walks up from the car model). Soccer: Slam pushes / Magnet pulls the unanchored part named `Ball` inside that instance. Tag: Shield sets `TagImmuneUntil` (server time) on the car model for 2 s; the tag rules must call `Specials.tagImmune(car)` before passing IT. NOT wired yet, GroupMatch is another helper's file.
+- UI: read car model attributes `AbilityReadyAt` / `AbilityCooldown` (fraction = `Abilities.cooldownFraction(readyAt, cooldown, workspace:GetServerTimeNow())`), `CosmeticRarity`, `TrailColor`, `AbilityEffectColor`. `CarCatalog.modeStars(id)` for pick-screen stars. Level cosmetics: `CarCatalog.LevelCosmetics`.
+- Client steering helper: ease the steer value with `Steer.smooth(cur, target, dt, CarConfig.steerSmoothRate(stats.turnRate))`.
+- Untested in Studio: ball impulses, attributes, rarity flash colors. Only the pure rules have unit tests. Tests: 448 pass.
