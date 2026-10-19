@@ -6,7 +6,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
 local Ai = require(ReplicatedStorage.Shared.Ai)
+local Abilities = require(ReplicatedStorage.Shared.Abilities)
 local Build = require(ReplicatedStorage.Shared.Build)
+local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
 local CarLook = require(ReplicatedStorage.Shared.CarLook)
 local Fairness = require(ReplicatedStorage.Shared.Fairness)
@@ -199,10 +201,12 @@ function CarBuilder.build(
 	build: Build.BuildData?, -- build-and-watch: the stats come from the parts (nil = the plain car)
 	fair: boolean? -- human vs human: ignore the level bonus and use Common ability strength
 ): Car
-	local plain = if build then Build.stats(CarConfig.Cars[id], build) else CarConfig.Cars[id]
 	local neutral = fair == true
+	-- garage parts + part levels count only outside a fair human match (audit #51)
+	local plain = Fairness.stats(CarConfig.Cars[id], build, neutral, Build.stats)
 	local stats =
 		Progress.applyLevel(plain, Fairness.level(if look then look.level else nil, neutral)) -- car level: more HP + damage (not in a fair human match)
+	local cosmeticRarity = stats.rarity -- rarity = identity: the look keeps the real one (audit #45)
 	stats.rarity = Fairness.rarity(stats.rarity, neutral)
 	local sx, sy, sz = stats.size[1], stats.size[2], stats.size[3]
 	local color = Color3.fromRGB(stats.rgb[1], stats.rgb[2], stats.rgb[3])
@@ -210,6 +214,21 @@ function CarBuilder.build(
 
 	local model = Instance.new("Model")
 	model.Name = (if isBot then "BotCar_" else "PlayerCar_") .. id
+	-- For the UI/Studio (audit #45, #48): the car's real rarity (look only) and its ability
+	-- cooldown. AbilityReadyAt is workspace server time (0 = ready); Specials updates it.
+	model:SetAttribute("CosmeticRarity", cosmeticRarity)
+	local ownAbility = Abilities.forCar(stats)
+	model:SetAttribute("AbilityCooldown", if ownAbility then ownAbility.cooldown else 0)
+	model:SetAttribute("AbilityReadyAt", 0)
+	local rarityLook = CarCatalog.styleFor(cosmeticRarity)
+	model:SetAttribute(
+		"TrailColor",
+		Color3.fromRGB(rarityLook.trailRgb[1], rarityLook.trailRgb[2], rarityLook.trailRgb[3])
+	)
+	model:SetAttribute(
+		"AbilityEffectColor",
+		Color3.fromRGB(rarityLook.effectRgb[1], rarityLook.effectRgb[2], rarityLook.effectRgb[3])
+	)
 
 	-- Body: the only part with weight. Density is picked so the body mass equals stats.mass.
 	local body = Instance.new("Part")
@@ -372,7 +391,7 @@ function CarBuilder.build(
 	shadow.CanQuery = false
 	shadow.CanTouch = false
 	-- Toy outline by rarity: dark for Common, brighter for rarer cars.
-	local rgb = CarLook.outlineRgb(stats.rarity)
+	local rgb = CarLook.outlineRgb(cosmeticRarity)
 	local outline = Instance.new("Highlight")
 	outline.Name = "CarOutline"
 	outline.Adornee = model
