@@ -95,6 +95,7 @@ function GroupMatch.new(
 	local raceT0 = 0
 	local raceHudAt = 0
 	local raceShown = ""
+	local raceDebugAt = 0
 	local raceStuck: { [number]: { passed: number, since: number } } = {}
 	local ball: Part? = nil
 	local ballIdle = 0 -- seconds the ball has hardly moved (stuck check)
@@ -875,6 +876,9 @@ function GroupMatch.new(
 					now - raceT0
 				) and c.finishedAt ~= nil
 			then
+				if RaceTrackConfig.debug then
+					warn(string.format("RACE END: car %d finished at %.1fs", car.idx, now - raceT0))
+				end
 				finishLast(car.idx)
 				return
 			end
@@ -898,7 +902,33 @@ function GroupMatch.new(
 			end
 		end
 		fightElapsed += dt
+		if RaceTrackConfig.debug and now - raceDebugAt >= 5 then
+			raceDebugAt = now
+			for _, car in cars do
+				local c = race.cars[car.idx]
+				local x, z = flatOf(car)
+				local v = car.body.AssemblyLinearVelocity
+				warn(
+					string.format(
+						"RACE t=%.0f car %d (%s%s) lap %d next %d passed %d at (%.0f,%.0f) speed %.0f",
+						now - raceT0,
+						car.idx,
+						car.id,
+						if isHuman(car.idx) then " HUMAN" else "",
+						c.lap,
+						c.next,
+						c.passed,
+						x,
+						z,
+						v.Magnitude
+					)
+				)
+			end
+		end
 		if fightElapsed >= RaceTrackConfig.maxSeconds then
+			if RaceTrackConfig.debug then
+				warn("RACE END: time up")
+			end
 			local w = Race.leader(race, toNext)
 			finishLast(w)
 			return
