@@ -544,6 +544,7 @@ function Lobby.build(): LobbyHandle
 	local WALL_GRAY = Color3.fromRGB(96, 102, 122)
 	local gap = L.gate.halfOpening + 1
 	local openEnd = L.bays[4].z + L.bay.d / 2 -- the garages open the side walls up to here
+	local closeStart = L.bays[1].z - L.bay.d / 2 -- ...and from here (the wall is solid behind it)
 	local sides = {
 		{ "L", Vector3.new(-HW, 0, -HL), Vector3.new(-HW, 0, HL) },
 		{ "R", Vector3.new(HW, 0, -HL), Vector3.new(HW, 0, HL) },
@@ -565,8 +566,17 @@ function Lobby.build(): LobbyHandle
 				-- The lower side wall stops where the garages are (they are cut into the wall).
 				local lowerAlong, lowerW = along, segW
 				if name == "L" or name == "R" then
-					local lo = math.max(along - segW / 2, openEnd)
-					local hi = along + segW / 2
+					-- Keep only the part of this segment outside the garages (closeStart..openEnd).
+					local lo, hi = along - segW / 2, along + segW / 2
+					if lo < openEnd and hi > closeStart then
+						if lo < closeStart then
+							hi = closeStart
+						elseif hi > openEnd then
+							lo = openEnd
+						else
+							hi = lo
+						end
+					end
 					lowerAlong, lowerW = (lo + hi) / 2, hi - lo
 				end
 				if lowerW > 0.5 then

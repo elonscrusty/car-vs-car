@@ -34,8 +34,16 @@ function LobbyGarage.build(folder: Folder, origin: Vector3)
 	group.Parent = folder
 
 	local spinners: { Spinner } = {}
-	local function put(name: string, x: number, y: number, z: number, yaw: number, glow: number?)
-		local m = LobbyDecor.clone(name, group, glow, "Garage")
+	local function put(
+		name: string,
+		x: number,
+		y: number,
+		z: number,
+		yaw: number,
+		glow: number?,
+		source: string?
+	)
+		local m = LobbyDecor.clone(name, group, glow, source or "Garage")
 		if m == nil then
 			return
 		end
@@ -69,6 +77,39 @@ function LobbyGarage.build(folder: Folder, origin: Vector3)
 	-- A little lounge extra and the bins.
 	put("TrashBin", 31, 0, HL - 3, FRONT)
 	put("WaterCooler", 56, 0, 66.5, RIGHT)
+
+	-- Hall dressing so the big floor does not feel bare: a tire rack, bench, shelf or locker bank
+	-- against the low wall between the garage doors, a small thing on the other side of each
+	-- door, plate tiles on the floor in every doorway, and more lamps over the side aisles.
+	local BIG = { "TireRack", "Workbench", "Lockers", "PartsShelf" }
+	local BIG_SRC =
+		{ TireRack = "Decor", Workbench = "Decor", Lockers = "Garage", PartsShelf = "More" }
+	local SMALL = { "ToolCart", "FireExtinguisher", "OilDrainCart", "SteelBench" }
+	local SMALL_SRC = {
+		ToolCart = "More",
+		FireExtinguisher = "More",
+		OilDrainCart = "Garage",
+		SteelBench = "Garage",
+	}
+	for i, b in L.bays do
+		local side = if b.face > 0 then -1 else 1
+		local yaw = if b.face > 0 then LEFT else RIGHT
+		local big = BIG[(i - 1) % #BIG + 1]
+		local small = SMALL[(i - 1) % #SMALL + 1]
+		put(big, side * 60.5, 0, b.z - 13.5, yaw, nil, BIG_SRC[big])
+		put(small, side * 61.5, 0, b.z + 13.5, yaw, nil, SMALL_SRC[small])
+		for _, dz in { -4, 4 } do
+			put("DiamondPlateTile", side * 56, 0.05, b.z + dz, 0)
+		end
+	end
+	for _, side in { -1, 1 } do
+		for _, z in { 32, 4, -24 } do
+			put("PendantLamp", side * 46, 31, z, FRONT, 30)
+		end
+		-- Back corners: lockers and a tool cabinet on the back wall.
+		put("Lockers", side * 56, 0, -HL + 1.5, BACK)
+		put("ToolWallCabinet", side * 47, 0, -HL + 1.5, BACK)
+	end
 
 	-- A workstation on the back wall of each garage.
 	for _, b in L.bays do

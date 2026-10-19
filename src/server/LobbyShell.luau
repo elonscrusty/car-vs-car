@@ -156,12 +156,13 @@ function LobbyShell.build(folder: Folder, origin: Vector3)
 	put("BayDoorFrame", 0, 0, HL + WALL_MID, FRONT)
 	-- Side walls: upper tiles all along; low panels only by the store and the paint booth.
 	local openEnd = L.bays[#L.bays].z + L.bay.d / 2
+	local closeStart = L.bays[1].z - L.bay.d / 2 -- the back end of the garages: a low panel fills the corner behind it
 	for _, sx in { -1, 1 } do
 		local yaw = if sx < 0 then LEFT else RIGHT
 		for k = 0, 13 do
 			put("Wall_Upper", sx * (HW + WALL_MID), WH, -91 + 14 * k, yaw)
 		end
-		for _, z in { openEnd + 7, openEnd + 21 } do
+		for _, z in { openEnd + 7, openEnd + 21, closeStart - 5.5 } do
 			put("Wall_Panel", sx * (HW + WALL_MID), 0, z, yaw)
 		end
 	end
