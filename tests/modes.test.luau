@@ -28,15 +28,20 @@ end)
 test(
 	"launch rotation: soccer first, then tag, duel, hill, ice; last standing only with its flag",
 	function()
-		eq(table.concat(ModesConfig.Order, ","), "soccer,tag,duel,hill,ice")
+		eq(table.concat(ModesConfig.Order, ","), "soccer,tag,race,duel,hill,ice")
 		eq(table.concat(ModesConfig.orderFor({}), ","), "duel,hill,ice")
 		eq(table.concat(ModesConfig.orderFor({ tagMode = true }), ","), "tag,duel,hill,ice")
 		eq(
 			table.concat(
-				ModesConfig.orderFor({ soccerMode = true, lastStandingMode = true, tagMode = true }),
+				ModesConfig.orderFor({
+					soccerMode = true,
+					lastStandingMode = true,
+					tagMode = true,
+					raceMode = true,
+				}),
 				","
 			),
-			"soccer,tag,duel,hill,ice,lastStanding"
+			"soccer,tag,race,duel,hill,ice,lastStanding"
 		)
 	end
 )

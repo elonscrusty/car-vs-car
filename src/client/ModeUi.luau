@@ -16,6 +16,7 @@ local SHORT: { [string]: string } = {
 	ice = "ICE",
 	soccer = "SOCCER",
 	tag = "TAG",
+	race = "RACE",
 	lastStanding = "8 CARS",
 }
 

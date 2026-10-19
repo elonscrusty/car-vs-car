@@ -22,6 +22,9 @@ local function orderFor(flags: { [string]: boolean }?): { string }
 	if FeatureFlags.enabled("tagMode", flags) then
 		table.insert(order, "tag")
 	end
+	if FeatureFlags.enabled("raceMode", flags) then
+		table.insert(order, "race")
+	end
 	table.insert(order, "duel")
 	table.insert(order, "hill")
 	table.insert(order, "ice")
@@ -41,12 +44,14 @@ return {
 		lastStanding = "LAST CAR STANDING",
 		soccer = "CAR SOCCER",
 		tag = "CAR TAG",
+		race = "CRAZY RACE",
 	},
 	Blurbs = {
 		duel = "Crash into your enemy until their HP runs out!",
 		hill = "Stay on the glowing circle. Alone on it = points. Hold 20 seconds to win!",
 		ice = "The floor is ice! Cars slide. Push your enemy off the edge!",
 		lastStanding = "8 cars. Fall off or run out of HP and you are out. Last one wins!",
+		race = "Race 3 laps over jumps! Hit the checkpoints in order. First car over the line wins!",
 		tag = "One car is IT and glows! Bump a car to pass IT on. IT when the fuse ends = BOOM. Last car wins!",
 		soccer = "Push the ball into the other team's goal on the small field. First to 3 wins!",
 	},
@@ -67,6 +72,9 @@ return {
 		spawnRadius = 68, -- start ring, studs from the middle
 		hpScale = 0.6, -- every car has this share of its normal HP (8 cars = quick knock-outs)
 		hudSeconds = 1,
+	},
+	Race = {
+		cars = 6, -- cars in the match (humans first, bots fill the rest); track: RaceTrackConfig
 	},
 	Tag = {
 		cars = 6, -- cars in the match (humans first, bots fill the rest); plays on the flat field
