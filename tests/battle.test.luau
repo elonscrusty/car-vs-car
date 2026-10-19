@@ -5,6 +5,7 @@ local BattleConfig = require("../src/shared/BattleConfig")
 local BattleQueue = require("../src/shared/BattleQueue")
 local BattleSelect = require("../src/shared/BattleSelect")
 local BattleSeries = require("../src/shared/BattleSeries")
+local Gacha = require("../src/shared/Gacha")
 local Sim = require("./battlesim")
 
 -- SERIES -------------------------------------------------------------------------------------
@@ -409,4 +410,40 @@ end)
 H.test("saves: a new player owns no fighter, so the Ram loaner applies", function()
 	local p = Inventory.default()
 	H.eq(BattleSelect.access("RamTruck", { owned = p.owned, testUnlock = false }), "loaner")
+end)
+
+H.test("gumball: drops only gumball fighters, odds add to 100, saves ownership", function()
+	Gacha.useFighters()
+	local total = 0
+	local seen: { [string]: boolean } = {}
+	for _, row in Gacha.oddsTable() do
+		total += row.percent
+		for _, id in row.cars do
+			seen[id] = true
+		end
+	end
+	Gacha.useCars()
+	H.eq(math.floor(total + 0.5), 100)
+	H.eq(seen.CannonVan, true)
+	H.eq(seen.SawBuggy, true)
+	H.eq(seen.RamTruck, nil, "the Ram is the free starter, not a drop")
+end)
+
+H.test("gumball: a pull grants a fighter once, a duplicate pays coins back", function()
+	Gacha.useFighters()
+	local p: any = Inventory.default()
+	p.coins = 1000
+	p.freePullUsed = true
+	local r1 = Gacha.pull(p, function()
+		return 0
+	end)
+	local r2 = Gacha.pull(p, function()
+		return 0
+	end)
+	Gacha.useCars()
+	H.eq(p.owned[r1.carId], true)
+	H.eq(r1.isNew, true)
+	H.eq(r2.carId, r1.carId)
+	H.eq(r2.isNew, false)
+	H.truthy(r2.refund > 0, "duplicate pays back")
 end)

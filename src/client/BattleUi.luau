@@ -1,6 +1,6 @@
 --!strict
 -- Screens and camera for the 1v1 auto-battle. The server runs everything; this only shows what it
--- sends (BattleUpdate) and sends back taps (BattleAction): queue, select, lock, buy, rematch, leave.
+-- sends (BattleUpdate) and sends back taps (BattleAction): queue, select, lock, rematch, leave.
 -- Layout uses scale sizes with size limits, so it works on phones and desktops.
 
 local Players = game:GetService("Players")
@@ -228,7 +228,6 @@ function BattleUi.start()
 		root: Frame,
 		stroke: UIStroke,
 		state: TextLabel,
-		buy: TextButton,
 		id: string,
 	}
 	local cards: { [string]: Card } = {}
@@ -337,17 +336,6 @@ function BattleUi.start()
 				Color3.fromRGB(190, 200, 225),
 				15
 			)
-			local buy = button(
-				root,
-				"BUY",
-				UDim2.fromScale(0.5, 0.1),
-				UDim2.fromScale(0.47, 0.88),
-				COL_GOOD,
-				function()
-					act("buy", id)
-				end
-			)
-			buy.Visible = false
 			local tap = Instance.new("TextButton")
 			tap.BackgroundTransparency = 1
 			tap.Text = ""
@@ -360,7 +348,7 @@ function BattleUi.start()
 					act("select", id)
 				end
 			end)
-			cards[id] = { root = root, stroke = stroke, state = st, buy = buy, id = id }
+			cards[id] = { root = root, stroke = stroke, state = st, id = id }
 		end
 	end
 
@@ -378,11 +366,10 @@ function BattleUi.start()
 			elseif c.state == "test" then
 				text, color = "TEST", Color3.fromRGB(190, 140, 255)
 			else
-				text, color = `LOCKED  {f.price} coins`, COL_BAD
+				text, color = "LOCKED  Gumball machine", COL_BAD
 			end
 			card.state.Text = text
 			card.state.TextColor3 = color
-			card.buy.Visible = c ~= nil and c.state == "locked" and f.enabled
 			card.root.BackgroundTransparency = if c and c.selectable then 0.05 else 0.35
 			card.stroke.Color = if selectedId == id then COL_GOOD else Color3.fromRGB(70, 76, 100)
 			card.stroke.Thickness = if selectedId == id then 5 else 3

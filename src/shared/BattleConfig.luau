@@ -1,7 +1,7 @@
 --!strict
 -- Numbers for the 1v1 auto-battle mode (pure data). ALL STARTING VALUES TO PLAYTEST, not final
 -- balance. Distances and speeds are in L = one car's body length, so they scale to any model.
--- Prices are PLACEHOLDER coins (carter sets them).
+-- New cars come ONLY from the gumball machine (rarity + gumball below); nothing is bought with coins.
 
 local BattleConfig = {}
 
@@ -75,7 +75,8 @@ export type Fighter = {
 	hp: number,
 	cruiseL: number, -- cruising speed, L per second
 	turnDeg: number, -- turn rate, degrees per second
-	price: number, -- PLACEHOLDER coins
+	rarity: string, -- gumball rarity (PLACEHOLDER): Common / Rare / Epic / Legendary
+	gumball: boolean, -- true = can drop from the gumball machine; false = free starter
 	enabled: boolean,
 	lengthStuds: number, -- the battle clone is scaled so its body is this long (one L)
 	-- Weapon points, in L from the middle of the body floor (forward = nose, up = +y). The supplied
@@ -97,7 +98,8 @@ BattleConfig.Fighters = {
 		hp = 150,
 		cruiseL = 2.6,
 		turnDeg = 105,
-		price = 100,
+		rarity = "Common",
+		gumball = false,
 		enabled = true,
 		lengthStuds = 16,
 		weaponForward = 0.42,
@@ -114,7 +116,8 @@ BattleConfig.Fighters = {
 		hp = 110,
 		cruiseL = 2.3,
 		turnDeg = 85,
-		price = 500,
+		rarity = "Rare",
+		gumball = true,
 		enabled = true,
 		lengthStuds = 15,
 		weaponForward = 0.425,
@@ -131,7 +134,8 @@ BattleConfig.Fighters = {
 		hp = 115,
 		cruiseL = 3.4,
 		turnDeg = 190,
-		price = 800,
+		rarity = "Epic",
+		gumball = true,
 		enabled = true,
 		lengthStuds = 17,
 		weaponForward = 0.48,
