@@ -14,6 +14,7 @@ BattleConfig.Timing = {
 	selectSeconds = 8, -- pick a car before each round
 	prepSeconds = 3, -- both cars and weapons are shown
 	fightSeconds = 45, -- longest fight; then higher HP percent wins
+	koSeconds = 1.6, -- after a knock-out: cars stop, the loser smokes, then the result shows
 	resultSeconds = 3, -- round result on screen
 	rematchSeconds = 20, -- how long the match result waits for a Rematch tap
 	queueSeconds = 120, -- longest wait in the line before it gives up
@@ -41,10 +42,14 @@ BattleConfig.Arena = {
 }
 
 BattleConfig.Camera = {
-	pitchDeg = 58, -- overhead three-quarter angle
+	pitchDeg = 60, -- overhead three-quarter angle
 	fovDeg = 50,
-	padding = 1.3, -- room around the arena (the HUD and the prep bar sit in the margins)
-	smooth = 6, -- only eased when the screen shape changes
+	padding = 1.3, -- room around the arena (used when the cars are not known yet)
+	smooth = 3.5, -- how fast the camera follows the pair (higher = snappier)
+	-- Follow camera: frames the middle of the two cars. The view holds at least `minHalfL` car
+	-- lengths to each side and grows with the gap between the cars, plus `marginL`.
+	minHalfL = 3.2,
+	marginL = 1.6,
 }
 
 -- Movement shared by every fighter (the AI asks, the server enforces these limits).
@@ -52,6 +57,9 @@ BattleConfig.Move = {
 	accel = 3.2, -- cruise speeds per second
 	brake = 5,
 	reverseScale = 0.6, -- reverse is slower than forward
+	skidBrake = 0.9, -- cruise speeds per second lost while skidding after a charge
+	skidSide = 2, -- sideways grip while skidding (normal is 8: higher = grips harder)
+	knockFriction = 2.2, -- a knocked car slides and slows by this much per second
 	turnScaleAtSpeed = 0.55, -- turn rate scale while moving fast (0..1)
 	flipUpDot = 0.3, -- body up vector below this = flipped
 	flipSeconds = 1.5, -- flipped this long -> set upright in place (no heal, no cooldown reset)
@@ -146,12 +154,19 @@ BattleConfig.Fighters = {
 
 BattleConfig.Ram = {
 	damage = 30,
-	startRangeL = 2.5, -- may start a charge this close
+	startRangeL = 3.2, -- may start a charge this close
 	startAngleDeg = 15, -- ... when facing the foe within this angle
 	telegraphSeconds = 0.6,
 	chargeMult = 2.2, -- charge speed, times cruise
 	chargeSeconds = 1.0, -- longest charge
 	cooldownSeconds = 4, -- after the charge ends
+	skidSeconds = 0.7, -- after a MISS the truck overshoots, sliding on
+	recoilSeconds = 0.5, -- after a HIT the truck bounces back
+	recoilDrive = -0.9,
+	peelAngleDeg = 65, -- while the ram recharges it veers off this far from the foe, then comes back
+	peelRangeL = 4.5, -- ... until this far away
+	knockSpeed = 60, -- studs per second the foe is shoved away
+	knockStagger = 0.55, -- seconds the foe cannot steer
 	missDowntimeSeconds = 0.9, -- slow and unable to start a charge after a miss
 	missDowntimeDrive = 0.35,
 	frontConeDeg = 55, -- a strike only counts when the foe is in front within this angle
@@ -159,15 +174,18 @@ BattleConfig.Ram = {
 
 BattleConfig.Cannon = {
 	damage = 22,
-	minRangeL = 2,
-	maxRangeL = 4,
+	minRangeL = 3, -- closer than this the van runs away from the foe
+	maxRangeL = 5.5,
+	knockSpeed = 22, -- studs per second a shell shoves the car it hits
+	knockStagger = 0.3,
 	aimToleranceDeg = 6, -- may start a shot when facing the foe within this angle
 	telegraphSeconds = 0.5,
 	cooldownSeconds = 2,
-	shellSpeedL = 6, -- L per second
-	shellLifeSeconds = 2,
+	shellSpeedL = 4.5, -- L per second (carter: easy to follow with the eyes)
+	shellLifeSeconds = 2.2,
 	shellRadiusL = 0.12,
-	repositionDrive = 0.7, -- slower than cruise when backing off or closing in
+	repositionDrive = 0.8, -- when closing in
+	fleeDrive = 1, -- when running from a close foe
 }
 
 BattleConfig.Saw = {

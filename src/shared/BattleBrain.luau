@@ -192,6 +192,7 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena): Brain
 	local chargeHit = false
 	local sawCooldown = 0
 	local sawEventCooldown = 0
+	local peelSide = 1 -- which side the ram veers to while it recharges (flips every attack)
 	local flip = 1 -- alternates the side a recovery turns to
 
 	function resetStuck()
@@ -290,20 +291,44 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena): Brain
 				chargeHit = true
 				o.damage = ram.damage
 				o.event = "Ram hit"
-				state, stateT, cooldown = "approach", 0, ram.cooldownSeconds
+				state, stateT, cooldown = "recoil", 0, ram.cooldownSeconds
 				o.state = state
 			elseif stateT >= ram.chargeSeconds then
 				o.event = "Ram missed"
-				state, stateT = "approach", 0
+				state, stateT = "skid", 0
 				cooldown = ram.cooldownSeconds
 				downtime = ram.missDowntimeSeconds
 				o.state = state
+			end
+			return o
+		elseif state == "recoil" then
+			-- a hit bounces the truck back so the cars separate
+			local o = out(0.3 * peelSide, ram.recoilDrive, readyFrac)
+			if stateT >= ram.recoilSeconds then
+				state, stateT = "approach", 0
+				peelSide = -peelSide
+			end
+			return o
+		elseif state == "skid" then
+			-- a miss: the truck rolls on past the foe, sliding (the server brakes gently)
+			local o = out(0.15 * peelSide, 0, readyFrac)
+			if stateT >= ram.skidSeconds then
+				state, stateT = "approach", 0
+				peelSide = -peelSide
 			end
 			return o
 		end
 
 		downtime = math.max(0, downtime - dt)
 		local gx, gz = steerDirection(me, dx, dz, arena, L)
+		if cooldown > 0 and dist < ram.peelRangeL * L then
+			-- recharging: veer off to the side instead of pushing on the foe, then come back
+			local a = peelSide * ram.peelAngleDeg * DEG
+			local ax, az = -dx, -dz -- directly away
+			local rx = ax * math.cos(a) - az * math.sin(a)
+			local rz = ax * math.sin(a) + az * math.cos(a)
+			gx, gz = steerDirection(me, rx, rz, arena, L)
+		end
 		local gangle = signedAngle(me.fx, me.fz, gx, gz)
 		local drive = driveForAngle(1, gangle)
 		if downtime > 0 then
@@ -329,19 +354,6 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena): Brain
 	end
 
 	-- CANNON VAN ---------------------------------------------------------------------------
-	local function rearClear(me: Body): boolean
-		local rx, rz = me.x - me.fx * 2 * L, me.z - me.fz * 2 * L
-		if math.abs(rx) > arena.halfX - L or math.abs(rz) > arena.halfZ - L then
-			return false
-		end
-		for _, ob in arena.obstacles do
-			if math.abs(rx - ob.x) < ob.hx + L and math.abs(rz - ob.z) < ob.hz + L then
-				return false
-			end
-		end
-		return true
-	end
-
 	local function stepCannon(dt: number, me: Body, foe: Body, _contact: Contact): Output
 		cooldown = math.max(0, cooldown - dt)
 		stateT += dt
@@ -365,15 +377,11 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena): Brain
 
 		local o: Output
 		if dist < cannon.minRangeL * L then
-			-- too close: back away facing the foe if there is room, otherwise turn out of the corner
-			if rearClear(me) then
-				o = out(turnFor(angle), -cannon.repositionDrive, readyFrac)
-			else
-				local gx, gz = steerDirection(me, -dx, -dz, arena, L)
-				local ox, oz = normalize(gx - me.x * 0.01, gz - me.z * 0.01)
-				local gangle = signedAngle(me.fx, me.fz, ox, oz)
-				o = out(turnFor(gangle), driveForAngle(cannon.repositionDrive, gangle), readyFrac)
-			end
+			-- too close: run away (turn tail, then full speed), steering round walls and blocks
+			local gx, gz = steerDirection(me, -dx, -dz, arena, L)
+			local gangle = signedAngle(me.fx, me.fz, gx, gz)
+			o = out(turnFor(gangle), driveForAngle(cannon.fleeDrive, gangle), readyFrac)
+			o.state = "flee"
 		elseif
 			dist > cannon.maxRangeL * L or lineBlocked(arena, me.x, me.z, foe.x, foe.z, 0.2 * L)
 		then
@@ -381,6 +389,12 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena): Brain
 			local gx, gz = steerDirection(me, dx, dz, arena, L)
 			local gangle = signedAngle(me.fx, me.fz, gx, gz)
 			o = out(turnFor(gangle), driveForAngle(cannon.repositionDrive, gangle), readyFrac)
+		elseif cooldown > 0 and dist < cannon.maxRangeL * 0.75 * L then
+			-- reloading with the foe still near: keep backing away so the next shot has room
+			local gx, gz = steerDirection(me, -dx, -dz, arena, L)
+			local gangle = signedAngle(me.fx, me.fz, gx, gz)
+			o = out(turnFor(gangle), driveForAngle(0.9, gangle), readyFrac)
+			o.state = "flee"
 		else
 			-- in the sweet spot: line up the shot
 			o = out(turnFor(angle), 0, readyFrac)

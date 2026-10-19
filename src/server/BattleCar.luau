@@ -29,6 +29,7 @@ export type Car = {
 	lastForward: Vector3,
 	standIn: boolean,
 	lastOut: BattleBrain.Output?,
+	stagger: number, -- > 0 while knocked: the car slides and cannot steer
 }
 
 local BattleCar = {}
@@ -210,6 +211,7 @@ function BattleCar.spawn(
 		lastForward = facing,
 		standIn = standIn,
 		lastOut = nil,
+		stagger = 0,
 	}
 	local at = floorMid2 * CFrame.new(0, fighter.weaponUp * L, -fighter.weaponForward * L)
 	if fighterId == "CannonVan" then
@@ -294,6 +296,13 @@ function BattleCar.drive(car: Car, out: BattleBrain.Output, dt: number)
 	local body = car.body
 	local f = BattleCar.forward(car)
 	local v = body.AssemblyLinearVelocity
+	if car.stagger > 0 then
+		-- knocked: slide and spin on the shove, no steering
+		car.stagger = math.max(0, car.stagger - dt)
+		local keep = math.max(0, 1 - mv.knockFriction * dt)
+		body.AssemblyLinearVelocity = Vector3.new(v.X * keep, v.Y, v.Z * keep)
+		return
+	end
 	local fwd = v.X * f.X + v.Z * f.Z
 	local lat = Vector3.new(v.X - f.X * fwd, 0, v.Z - f.Z * fwd)
 	local cruise = car.fighter.cruiseL * car.L
@@ -306,8 +315,12 @@ function BattleCar.drive(car: Car, out: BattleBrain.Output, dt: number)
 		rate *= 4 -- a charge gets up to speed fast
 	end
 	local step = rate * cruise * dt
+	local skidding = out.state == "skid"
+	if skidding then
+		step = mv.skidBrake * cruise * dt -- keep rolling: the truck overshoots
+	end
 	fwd += math.clamp(want - fwd, -step, step)
-	lat *= math.max(0, 1 - 8 * dt)
+	lat *= math.max(0, 1 - (if skidding then mv.skidSide else 8) * dt)
 	body.AssemblyLinearVelocity = Vector3.new(f.X * fwd + lat.X, v.Y, f.Z * fwd + lat.Z)
 	local turnScale = math.clamp(math.abs(fwd) / (0.5 * cruise) + 0.35, 0, 1)
 	if out.state == "charge" then
@@ -315,6 +328,64 @@ function BattleCar.drive(car: Car, out: BattleBrain.Output, dt: number)
 	end
 	local yaw = out.turn * math.rad(car.fighter.turnDeg) * turnScale
 	body.AssemblyAngularVelocity = Vector3.new(0, yaw, 0)
+end
+
+-- A shove along `dir` (flat): the car slides away and cannot steer for `stagger` seconds, and it
+-- spins a little. A white flash on the car shows the hit before anything else.
+function BattleCar.knock(car: Car, dir: Vector3, speed: number, stagger: number)
+	local d = planar(dir)
+	car.stagger = math.max(car.stagger, stagger)
+	local v = car.body.AssemblyLinearVelocity
+	car.body.AssemblyLinearVelocity = Vector3.new(d.X * speed, v.Y, d.Z * speed)
+	local side = if (d:Cross(car.lastForward)).Y >= 0 then 1 else -1
+	car.body.AssemblyAngularVelocity = Vector3.new(0, side * 4.5, 0)
+	local flash = Instance.new("Highlight")
+	flash.FillColor = Color3.new(1, 1, 1)
+	flash.FillTransparency = 0.25
+	flash.OutlineTransparency = 1
+	flash.DepthMode = Enum.HighlightDepthMode.Occluded
+	flash.Parent = car.model
+	task.delay(0.14, function()
+		flash:Destroy()
+	end)
+end
+
+-- Knock-out finish: the car stops, smokes and goes dark. Removed with the model.
+function BattleCar.wreck(car: Car)
+	car.brain = nil
+	car.stagger = 0.001
+	local body = car.body
+	local burn = Instance.new("Highlight")
+	burn.FillColor = Color3.fromRGB(30, 25, 25)
+	burn.FillTransparency = 0.35
+	burn.OutlineColor = Color3.fromRGB(255, 120, 30)
+	burn.OutlineTransparency = 0.2
+	burn.Parent = car.model
+	local smoke = Instance.new("Smoke")
+	smoke.Color = Color3.fromRGB(40, 40, 40)
+	smoke.Size = 0.9 * car.L
+	smoke.RiseVelocity = 0.5 * car.L
+	smoke.Opacity = 0.8
+	smoke.Parent = body
+	local fire = Instance.new("Fire")
+	fire.Size = 0.5 * car.L
+	fire.Heat = 6
+	fire.Parent = body
+	local boom = Instance.new("Explosion")
+	boom.BlastPressure = 0
+	boom.BlastRadius = 0.7 * car.L
+	boom.DestroyJointRadiusPercent = 0
+	boom.Position = body.Position + Vector3.new(0, 0.3 * car.L, 0)
+	boom.Parent = body
+end
+
+-- Rolls to a stop (used while the finish plays).
+function BattleCar.coast(car: Car, dt: number)
+	local v = car.body.AssemblyLinearVelocity
+	local keep = math.max(0, 1 - 3 * dt)
+	car.body.AssemblyLinearVelocity = Vector3.new(v.X * keep, v.Y, v.Z * keep)
+	local w = car.body.AssemblyAngularVelocity
+	car.body.AssemblyAngularVelocity = Vector3.new(0, w.Y * keep, 0)
 end
 
 -- Flipped cars are set upright in place after a short delay (no heal, attacks not restarted).

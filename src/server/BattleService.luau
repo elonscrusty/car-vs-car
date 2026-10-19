@@ -52,7 +52,7 @@ type Match = {
 	slot: number,
 	parts: { a: Part, b: Part },
 	series: BattleSeries.Series,
-	phase: string, -- select | prep | fight | result | matchResult
+	phase: string, -- select | prep | fight | ko | result | matchResult
 	t: number,
 	arena: BattleArena.Arena?,
 	cars: { a: BattleCar.Car?, b: BattleCar.Car? },
@@ -62,6 +62,7 @@ type Match = {
 	vsBot: boolean,
 	closed: boolean,
 	lastOutcome: string?,
+	koOutcome: string?, -- the round result waiting for the knock-out finish to play
 }
 
 local BattleService = {}
@@ -463,7 +464,7 @@ function BattleService.start(opts: {
 		local ball = Instance.new("Part")
 		ball.Name = "Shell"
 		ball.Shape = Enum.PartType.Ball
-		ball.Size = Vector3.one * (0.3 * car.L)
+		ball.Size = Vector3.one * (0.42 * car.L)
 		ball.Material = Enum.Material.Neon
 		ball.Color = Color3.fromRGB(255, 160, 40)
 		ball.Anchored = true
@@ -471,6 +472,19 @@ function BattleService.start(opts: {
 		ball.CanQuery = false
 		ball.CanTouch = false
 		ball.Position = pos
+		local top = Instance.new("Attachment")
+		top.Position = Vector3.new(0, 0.5 * ball.Size.Y, 0)
+		top.Parent = ball
+		local bottom = Instance.new("Attachment")
+		bottom.Position = Vector3.new(0, -0.5 * ball.Size.Y, 0)
+		bottom.Parent = ball
+		local trail = Instance.new("Trail")
+		trail.Attachment0, trail.Attachment1 = top, bottom
+		trail.Lifetime = 0.35
+		trail.Color = ColorSequence.new(Color3.fromRGB(255, 190, 60), Color3.fromRGB(255, 80, 20))
+		trail.Transparency = NumberSequence.new(0.1, 1)
+		trail.LightEmission = 1
+		trail.Parent = ball
 		ball.Parent = (m.arena :: BattleArena.Arena).folder
 		table.insert(m.shells, {
 			owner = car,
@@ -506,6 +520,12 @@ function BattleService.start(opts: {
 					else
 						dmg.b += BattleConfig.Cannon.damage
 					end
+					BattleCar.knock(
+						s.foe,
+						s.dir,
+						BattleConfig.Cannon.knockSpeed,
+						BattleConfig.Cannon.knockStagger
+					)
 					sendHit(m, hit.Position, false)
 				end
 			else
@@ -576,6 +596,15 @@ function BattleService.start(opts: {
 					else
 						dmg.b += out.damage
 					end
+					if out.damage >= 20 then
+						-- a ram shoves the foe away; the truck bounces back (its brain recoils)
+						BattleCar.knock(
+							foe,
+							foe.body.Position - car.body.Position,
+							BattleConfig.Ram.knockSpeed,
+							BattleConfig.Ram.knockStagger
+						)
+					end
 					sendHit(m, foe.body.Position, out.damage >= 20)
 				end
 				if out.event then
@@ -593,7 +622,21 @@ function BattleService.start(opts: {
 			for _, side in sides() do
 				send((m.parts :: any)[side], hudFor(m, side))
 			end
-			endRound(m, outcome)
+			if a.hp <= 0 or b.hp <= 0 then
+				-- knock-out: both cars stop, the loser is wrecked, then the result shows
+				clearShells(m)
+				for _, car in cars do
+					car.brain = nil
+					if car.hp <= 0 then
+						BattleCar.wreck(car)
+					end
+				end
+				sendEvent(m, if a.hp <= 0 then "b" else "a", "K.O.")
+				m.koOutcome = outcome
+				m.phase, m.t = "ko", 0
+			else
+				endRound(m, outcome)
+			end
 			return
 		end
 		m.hudT += dt
@@ -643,6 +686,16 @@ function BattleService.start(opts: {
 			end
 		elseif m.phase == "fight" then
 			fightStep(m, dt)
+		elseif m.phase == "ko" then
+			for _, side in sides() do
+				local car = (m.cars :: any)[side]
+				if car then
+					BattleCar.coast(car, dt)
+				end
+			end
+			if m.t >= T.koSeconds then
+				endRound(m, (m.koOutcome :: any) or "draw")
+			end
 		elseif m.phase == "result" then
 			if m.t >= T.resultSeconds then
 				if m.series.over then
@@ -711,6 +764,7 @@ function BattleService.start(opts: {
 			vsBot = a.bot or b.bot,
 			closed = false,
 			lastOutcome = nil,
+			koOutcome = nil,
 		}
 		matches[m] = true
 		for _, part in { a, b } do

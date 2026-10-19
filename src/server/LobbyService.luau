@@ -228,8 +228,11 @@ function LobbyService.start(deps: Deps): Handle
 			wins = p.wins,
 			matches = p.matches,
 			owned = Inventory.ownedList(p),
-			starterPicked = p.starterPicked,
-			starterChoices = if p.starterPicked then nil else LobbyConfig.StarterChoices,
+			-- battle mode: the Ram Truck is the free starter, so the old 3-car starter pick never opens
+			starterPicked = p.starterPicked or FeatureFlags.enabled("battleMode"),
+			starterChoices = if p.starterPicked or FeatureFlags.enabled("battleMode")
+				then nil
+				else LobbyConfig.StarterChoices,
 			freePullAvailable = (LobbyConfig.Gacha.firstPullFree and not p.freePullUsed)
 				or p.daily.freePulls > 0,
 			hintsSeen = Hints.seenList(p.hintsSeen),
