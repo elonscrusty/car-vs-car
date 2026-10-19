@@ -7,7 +7,16 @@
 --   forfeit   : reset too many times in one match
 -- A reset is a move back to the last spot that passed every check.
 
-local Config = require("./CarSanityConfig")
+-- Sibling loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
+local function sibling(name: string): any
+	if script then
+		return require((script :: any).Parent[name])
+	end
+	local luneRequire: any = require -- relative string paths only exist in Lune
+	return luneRequire("./" .. name)
+end
+
+local Config = sibling("CarSanityConfig")
 
 export type Cfg = typeof(Config)
 export type Vec = { x: number, y: number, z: number }

@@ -2,7 +2,16 @@
 -- Pure analytics rules: funnel step names/order, once-per-player-per-step, field sanitising,
 -- custom event schema, global send cap. No Roblox services here, so Lune can test it.
 
-local TelemetryConfig = require("./TelemetryConfig")
+-- Sibling loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
+local function sibling(name: string): any
+	if script then
+		return require((script :: any).Parent[name])
+	end
+	local luneRequire: any = require -- relative string paths only exist in Lune
+	return luneRequire("./" .. name)
+end
+
+local TelemetryConfig = sibling("TelemetryConfig")
 
 export type Event = { name: string, value: number?, fields: { [string]: string }? }
 

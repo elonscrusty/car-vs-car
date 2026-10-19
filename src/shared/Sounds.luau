@@ -1,7 +1,16 @@
 --!strict
 -- Pure sound rules: event name -> playable spec (or nil = stay silent). No Instances here.
 
-local SoundConfig = require("./SoundConfig")
+-- Sibling loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
+local function sibling(name: string): any
+	if script then
+		return require((script :: any).Parent[name])
+	end
+	local luneRequire: any = require -- relative string paths only exist in Lune
+	return luneRequire("./" .. name)
+end
+
+local SoundConfig = sibling("SoundConfig")
 
 export type Spec = {
 	id: string,
