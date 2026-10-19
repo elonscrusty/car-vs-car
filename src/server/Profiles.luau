@@ -63,6 +63,8 @@ local function keyFor(player: Player): string
 	return "p_" .. player.UserId
 end
 
+local studioNoted = false -- Studio has no DataStore access: say so once, not on every retry
+
 local function retryOpts(label: string): Retry.Options
 	return {
 		attempts = RETRY.attempts,
@@ -72,6 +74,13 @@ local function retryOpts(label: string): Retry.Options
 			task.wait(s)
 		end,
 		onFail = function(attempt, err)
+			if RunService:IsStudio() then
+				if not studioNoted then
+					studioNoted = true
+					warn("[Profiles] no DataStore access in Studio; retrying quietly")
+				end
+				return
+			end
 			warn(`[Profiles] {label} attempt {attempt}/{RETRY.attempts} failed: {err}`)
 		end,
 	}

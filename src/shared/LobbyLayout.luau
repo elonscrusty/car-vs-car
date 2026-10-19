@@ -21,16 +21,16 @@ LobbyLayout.lane = { halfWidth = 7, fromZ = 72, toZ = -20 } -- cyan lines from t
 LobbyLayout.padSize = 18
 -- Pads 01 (left back), 02 (left front), 03 (right back), 04 (right front).
 LobbyLayout.pads = {
-	{ x = -22, z = -3 },
-	{ x = -22, z = 19 },
-	{ x = 22, z = -3 },
-	{ x = 22, z = 19 },
+	{ x = -19, z = -1 },
+	{ x = -19, z = 19 },
+	{ x = 19, z = -1 },
+	{ x = 19, z = 19 },
 }
-LobbyLayout.showcase = { x = 0, z = -40, radius = 16, footprint = 40 } -- hero truck stage
+LobbyLayout.showcase = { x = 0, z = -36, radius = 16, footprint = 40 } -- hero truck stage
 -- Booths on the side walls. They are built facing +z, then turned `yaw` degrees (90 turns the
 -- front toward +x). w / d are the size before turning.
-LobbyLayout.store = { x = -50, z = 80, w = 20, d = 12, yaw = 90 } -- front left
-LobbyLayout.paint = { x = 50, z = 80, w = 20, d = 12, yaw = -90 } -- front right
+LobbyLayout.store = { x = -46, z = 80, w = 20, d = 12, yaw = 90 } -- front left
+LobbyLayout.paint = { x = 46, z = 80, w = 20, d = 12, yaw = -90 } -- front right
 LobbyLayout.gacha = { x = 50, z = -87.5, w = 20, d = 17 } -- the gumball machine: on the back wall, right corner
 -- Garages: one per player, built INTO the side walls: each is a big recessed room with an OPEN front
 -- (a low wall with a wide gap in the middle, so players just walk in). 4 down each side

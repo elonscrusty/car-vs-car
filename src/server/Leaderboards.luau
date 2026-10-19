@@ -6,6 +6,7 @@
 
 local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Leaderboard = require(ReplicatedStorage.Shared.Leaderboard)
@@ -32,8 +33,10 @@ local names: { [number]: string } = {}
 local labels: { [string]: { TextLabel } } = {} -- per kind, one label per surface
 local inited = false
 local LOADING = "Loading..."
-local EMPTY_TEXT = "No scores yet.\nWin a match!"
+local EMPTY_TEXT = "NO DATA YET"
 local LOADING_TIMEOUT = 5 -- seconds before a board that got no data says "No scores yet"
+
+local studioNoted = false -- Studio has no DataStore access: say so once, not on every retry
 
 local function retryOpts(label: string): Retry.Options
 	return {
@@ -44,6 +47,13 @@ local function retryOpts(label: string): Retry.Options
 			task.wait(s)
 		end,
 		onFail = function(attempt, err)
+			if RunService:IsStudio() then
+				if not studioNoted then
+					studioNoted = true
+					warn("[Leaderboards] no DataStore access in Studio; boards stay empty")
+				end
+				return
+			end
 			warn(`[Leaderboards] {label} attempt {attempt}/{RETRY.attempts} failed: {err}`)
 		end,
 	}
@@ -207,6 +217,23 @@ function Leaderboards.checkChampion(player: Player, grant: () -> ())
 	end
 end
 
+-- Sets a board's text. The empty message is big and centred (it reads as a sign, not as an error);
+-- real rows are small and left aligned.
+local function showText(label: TextLabel, text: string)
+	label.Text = text
+	if text == EMPTY_TEXT then
+		label.TextXAlignment = Enum.TextXAlignment.Center
+		label.TextYAlignment = Enum.TextYAlignment.Center
+		label.TextSize = BODY_SIZE + 12
+		label.TextColor3 = GOLD
+	else
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.TextYAlignment = Enum.TextYAlignment.Top
+		label.TextSize = BODY_SIZE
+		label.TextColor3 = WHITE
+	end
+end
+
 local function refreshBoard(board: { kind: Leaderboard.Kind, store: string, title: string })
 	local storeName = board.store
 	if board.kind == "weekly" then
@@ -231,7 +258,7 @@ local function refreshBoard(board: { kind: Leaderboard.Kind, store: string, titl
 	end
 	local text = if #lines > 0 then table.concat(lines, "\n") else EMPTY_TEXT
 	for _, label in labels[board.kind] or {} do
-		label.Text = text
+		showText(label, text)
 	end
 end
 
@@ -327,7 +354,7 @@ function Leaderboards.init(folder: Folder, center: Vector3)
 		for _, list in labels do
 			for _, label in list do
 				if label.Text == LOADING then
-					label.Text = EMPTY_TEXT
+					showText(label, EMPTY_TEXT)
 				end
 			end
 		end

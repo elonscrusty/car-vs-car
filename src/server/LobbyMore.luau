@@ -30,7 +30,7 @@ function LobbyMore.build(folder: Folder, origin: Vector3)
 	-- No podium in the middle any more. The top racers board hangs on the front wall (it used to
 	-- stand among the match pads).
 	put("Leaderboard", -47, 0, HL - 2, FRONT)
-	put("Sign_Play", 40, 22, HL - 1.5, FRONT)
+	put("Sign_Play", 40, 9, HL - 0.7, FRONT) -- low on the front wall, on the wall panel
 
 	-- Lounge in the front corners.
 	put("VendingMachine", 61, 0, 86, RIGHT)
