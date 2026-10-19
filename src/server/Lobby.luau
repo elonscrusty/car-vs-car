@@ -1315,14 +1315,6 @@ function Lobby.build(): LobbyHandle
 		nil,
 		Enum.PartType.Cylinder
 	)
-	bit(
-		"GumballKnob",
-		sz(1, 5, 5),
-		gum(0, 16.4, cabZ) * CFrame.Angles(0, 0, math.pi / 2),
-		GUM_RED,
-		nil,
-		Enum.PartType.Cylinder
-	)
 	-- Big pastel balls inside the globe: three layers settled in the bottom half.
 	local layers = {
 		{ y = 7.7, r = 2.1, n = 4 },
@@ -1400,12 +1392,13 @@ function Lobby.build(): LobbyHandle
 	drop:SetAttribute("Chute", gum(0, 1.8, frontZ + 0.7).Position)
 	-- A sign on the wall above it (flat on the wall, like the other plates).
 	-- 10 wide so it fits between the wall columns (they are about 11.6 apart), centred over the
-	-- machine and above the cap, in front of the wall posts.
+	-- machine and just above the cap (the red knob on top is gone so the sign sits lower, under the
+	-- roof beam), in front of the wall posts.
 	LobbyDecor.plate(
 		gumModel,
 		"GUMBALLS",
-		Vector3.new(10, 3, 0.5),
-		CFrame.lookAt(world(g.x, 33.5, g.z - g.d / 2 + 2).Position, world(g.x, 33.5, 0).Position)
+		Vector3.new(10, 2.6, 0.5),
+		CFrame.lookAt(world(g.x, 30.6, g.z - g.d / 2 + 2).Position, world(g.x, 30.6, 0).Position)
 	)
 	gumModel.Parent = folder
 	prompt(gBase, "GachaPrompt", "Play", "Gumball Machine")
