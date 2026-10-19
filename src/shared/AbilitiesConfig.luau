@@ -57,7 +57,7 @@ local AbilitiesConfig = {}
 AbilitiesConfig.Order = { "Dash", "Shield", "Slam", "Ram", "Magnet", "Jump" }
 
 AbilitiesConfig.Abilities = {
-	Dash = make("Dash", "DASH", "dash", "Rocket forward.", 10, { dashForward = 110 }),
+	Dash = make("Dash", "RAM DASH", "dash", "Rocket forward.", 10, { dashForward = 110 }),
 	Shield = make("Shield", "SHIELD", "shield", "Blocks hits for a while.", 18, { seconds = 5 }),
 	Slam = make(
 		"Slam",

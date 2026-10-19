@@ -56,7 +56,7 @@ end
 -- Same order as the pack (01 to 30). Rarities and abilities are PLACEHOLDERS: carter picks later.
 CarCatalog.Entries = {
 	e("Compact", "COMPACT", "01_compact", "Common", "Dash", { 240, 120, 150 }),
-	e("Sedan", "SEDAN", "02_sedan", "Common", "Shield", { 90, 150, 220 }),
+	e("Sedan", "SEDAN", "02_sedan", "Common", "Dash", { 90, 150, 220 }),
 	e("Coupe", "COUPE", "03_coupe", "Common", "Jump", { 235, 190, 60 }),
 	e("Muscle", "MUSCLE", "04_muscle", "Rare", "Ram", { 200, 40, 40 }),
 	e("SuperCar", "SUPER CAR", "05_super_car", "Epic", "Dash", { 250, 100, 30 }),
