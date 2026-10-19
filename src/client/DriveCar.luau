@@ -92,6 +92,13 @@ function DriveCar.new(read: () -> (number, number), onBoost: (() -> ())?): Drive
 				return -- frozen for a hit stop
 			end
 			local rawSteer, rawGas = read()
+			-- The stick points where the car should go ON SCREEN (the camera stays steady).
+			local cam = workspace.CurrentCamera
+			if cam ~= nil then
+				local cl, kl = cam.CFrame.LookVector, b.CFrame.LookVector
+				rawSteer, rawGas =
+					Steer.toward(rawSteer, rawGas, cl.X, cl.Z, kl.X, kl.Z, GameConfig.Steer.aimLock)
+			end
 			steer = Steer.smooth(steer, rawSteer, dt, GameConfig.Steer.smoothRate)
 			gas = Steer.smooth(gas, rawGas, dt, GameConfig.Steer.smoothRate)
 
