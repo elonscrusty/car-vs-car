@@ -203,7 +203,7 @@ local function meshCar(parent: Instance, name: string, length: number, cf: CFram
 			d.CanCollide = false
 		end
 	end
-	m:ScaleTo(length / 14)
+	m:ScaleTo(m:GetScale() * length / 14) -- templates are 14 studs long at their own scale
 	m:PivotTo(cf)
 	m.Parent = parent
 	return m
