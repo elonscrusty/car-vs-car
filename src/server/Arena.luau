@@ -115,7 +115,10 @@ function Arena.build(origin: Vector3, arenaCfg: any?): Arena
 		if i % 2 == 0 then
 			wallColor = Color3.fromRGB(55, 95, 150)
 		end
-		makePart(model, "Wall", wallSize, wallCf, wallColor)
+		local gap = cfg.gapEvery ~= nil and i % cfg.gapEvery < 2
+		if not gap then
+			makePart(model, "Wall", wallSize, wallCf, wallColor)
+		end
 	end
 
 	-- Obstacles (flat arena): boxes and round pillars standing on the floor.

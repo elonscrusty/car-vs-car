@@ -467,16 +467,22 @@ test(
 	end
 )
 
-test("fight: walls hold, then close in to the minimum", function()
-	local sh = ModesConfig.LastStanding.Shrink
+test("fight: the real fight never closes the walls (carter: no closing walls)", function()
 	local full = ModesConfig.LastStanding.Arena.rimRadius
+	local sh = ModesConfig.LastStanding.Shrink
+	eq(BrawlRules.safeRadius(9999, full, sh), full)
+	eq(ModesConfig.LastStanding.maxSeconds, 60)
+end)
+
+test("brawl rules: walls hold, then close in to the minimum (when a config asks)", function()
+	local sh = { startSeconds = 40, endSeconds = 110, minRadius = 36 }
+	local full = 60
 	eq(BrawlRules.safeRadius(0, full, sh), full)
 	eq(BrawlRules.safeRadius(sh.startSeconds, full, sh), full)
 	local mid = BrawlRules.safeRadius((sh.startSeconds + sh.endSeconds) / 2, full, sh)
 	truthy(mid < full and mid > sh.minRadius)
 	eq(BrawlRules.safeRadius(sh.endSeconds, full, sh), sh.minRadius)
 	eq(BrawlRules.safeRadius(9999, full, sh), sh.minRadius)
-	truthy(sh.minRadius > 20 and sh.endSeconds < ModesConfig.LastStanding.maxSeconds)
 end)
 
 test(

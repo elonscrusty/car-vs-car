@@ -19,12 +19,6 @@ local SHIRTS = {
 	Color3.fromRGB(255, 255, 255),
 	Color3.fromRGB(255, 150, 50),
 }
-local SKINS = {
-	Color3.fromRGB(255, 214, 170),
-	Color3.fromRGB(224, 172, 120),
-	Color3.fromRGB(150, 100, 70),
-}
-
 local function part(
 	parent: Instance,
 	name: string,
@@ -103,24 +97,16 @@ function ArenaStadium.build(model: Model, origin: Vector3, arenaCfg: any)
 				local x = across * segW * 0.9
 				local z = -(r + TIER_DEPTH * (0.35 + rng:NextNumber() * 0.3))
 				local top = h - 1.6
-				local cf = base * CFrame.new(x, top + 1.6, z)
-				part(
+				-- Just a coloured dot per fan.
+				local dot = part(
 					folder,
 					"Fan",
-					Vector3.new(1.6, 3.2, 1.4),
-					cf,
+					Vector3.new(2.4, 2.4, 2.4),
+					base * CFrame.new(x, top + 1.4, z),
 					SHIRTS[rng:NextInteger(1, #SHIRTS)],
 					false
 				)
-				local head = part(
-					folder,
-					"FanHead",
-					Vector3.new(1.4, 1.4, 1.4),
-					cf * CFrame.new(0, 2.4, 0),
-					SKINS[rng:NextInteger(1, #SKINS)],
-					false
-				)
-				head.Shape = Enum.PartType.Ball
+				dot.Shape = Enum.PartType.Ball
 			end
 		end
 		-- A tall back wall with team-colour blocks behind the top row.
