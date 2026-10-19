@@ -31,7 +31,7 @@ return {
 		{ seg = 4, t = 0.5, width = 26, length = 20, height = 3 },
 		{ seg = 6, t = 0.4, width = 26, length = 20, height = 3 },
 	},
-	debug = true, -- print race progress and why it ended to the output (turn off when it plays right)
+	debug = false, -- print race progress and why it ended to the output (turn off when it plays right)
 	laps = 3,
 	maxSeconds = 150, -- time up: furthest along the track wins
 	goSeconds = 3, -- 3-2-1 with the cars frozen
