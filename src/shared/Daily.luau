@@ -41,6 +41,15 @@ function Daily.canClaim(d: Daily, now: number): boolean
 	return Daily.dayNumber(now) ~= d.lastDay
 end
 
+-- Seconds until the next gift can be claimed (0 = claim it now). The day rolls over at UTC midnight.
+function Daily.secondsUntilNext(d: Daily, now: number): number
+	if Daily.canClaim(d, now) then
+		return 0
+	end
+	local len = QuestsConfig.Daily.dayLength
+	return math.max(0, math.ceil(len - (now % len)))
+end
+
 -- Returns true when the gift was given (once per day).
 function Daily.claim(d: Daily, now: number): boolean
 	if not Daily.canClaim(d, now) then

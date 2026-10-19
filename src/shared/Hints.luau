@@ -6,14 +6,25 @@ export type Seen = { [string]: boolean }
 
 local Hints = {}
 
--- Order = the order a new player meets them: lobby pads, first aim phase, claw machine.
-Hints.Order = { "pad", "aim", "claw" }
+-- Order = the order a new player meets them: lobby pads, first aim phase, claw machine, then the
+-- first time in each group mode (controls) and the "new menu buttons" notice. Every id here is saved
+-- in profile.hintsSeen, so each shows once per player.
+Hints.Order = { "pad", "aim", "claw", "soccer", "tag", "race", "unlock" }
 
 Hints.Text = {
-	pad = "Step on a green pad to fight",
+	pad = "Step on a blue pad to play",
 	aim = "Drag back from your car and let go",
 	claw = "Try the claw, first try is free",
+	-- First time in a group mode: what the controls do (keep each under 40 characters).
+	soccer = "Ball into the goal! BOOST = go fast",
+	tag = "You are IT? Bump a car to pass it on",
+	race = "Drive through the gates in order",
+	-- Shown when QUESTS and GARAGE appear in the menu (MenuRules.unlockNotice).
+	unlock = "New buttons: QUESTS and GARAGE",
 } :: { [string]: string }
+
+-- Mode name -> hint id shown the first time the player plays that mode (client asks, server saves).
+Hints.ModeHint = { soccer = "soccer", tag = "tag", race = "race" } :: { [string]: string }
 
 -- What the client points an arrow at: "pad" = the match pads, "claw" = the claw machine.
 Hints.Target = {
@@ -28,6 +39,14 @@ Hints.AimNudgeSeconds = 3
 
 function Hints.aimNudgeDue(secondsSinceAimStart: number, hasDragged: boolean): boolean
 	return not hasDragged and secondsSinceAimStart >= Hints.AimNudgeSeconds
+end
+
+-- The first-time hint id for a mode (nil = that mode has no hint).
+function Hints.forMode(mode: any): string?
+	if type(mode) ~= "string" then
+		return nil
+	end
+	return Hints.ModeHint[mode]
 end
 
 function Hints.isKnown(id: any): boolean

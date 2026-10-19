@@ -87,6 +87,31 @@ function BotLevels.levelFor(wins: any, chosen: any, buttonOn: boolean): string
 	return BotLevels.forWins(wins)
 end
 
+-- Like levelFor, but a new player's first matches are always "easy" (every mode, button or not).
+-- `matches` = finished matches so far (profile.matches).
+function BotLevels.levelForPlayer(matches: any, wins: any, chosen: any, buttonOn: boolean): string
+	local m = if type(matches) == "number" and matches == matches then matches else 0
+	if m < Config.FirstMatchesEasy then
+		return "easy"
+	end
+	return BotLevels.levelFor(wins, chosen, buttonOn)
+end
+
+-- The weakest of several levels (easy < medium < hard). Empty list -> medium (the default).
+function BotLevels.weakest(levels: { any }): string
+	local best: string? = nil
+	local bestIndex = math.huge
+	for _, lv in levels do
+		local name = BotLevels.get(lv).name
+		local at = table.find(Config.Names :: { string }, name) or math.huge
+		if at < bestIndex then
+			bestIndex = at
+			best = name
+		end
+	end
+	return best or Config.Default
+end
+
 -- Coin reward multiplier for beating this level. Pure: nothing applies it yet.
 function BotLevels.rewardMultiplier(level: any): number
 	return BotLevels.get(level).rewardMult

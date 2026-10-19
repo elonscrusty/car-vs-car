@@ -20,7 +20,7 @@ local function pay(p: Inventory.Profile): (number) -> ()
 end
 
 H.test("catalog is valid", function()
-	H.eq(#QuestsConfig.Catalog, QuestsConfig.Slots) -- launch: only the 3 simple quests
+	H.truthy(#QuestsConfig.Catalog >= QuestsConfig.Slots) -- launch: simple + mode-learning quests
 	for _, def in QuestsConfig.Catalog do
 		H.truthy(def.target > 0 and def.reward > 0 and #def.title > 0)
 		H.eq(QuestsConfig.get(def.id), def)
@@ -44,8 +44,10 @@ H.test("fresh profile gets distinct starters, deterministic for a seed", functio
 end)
 
 H.test("per-car quests only exist behind the perCarQuests flag", function()
-	H.eq(#QuestsConfig.catalogFor({}), 3)
-	H.eq(#QuestsConfig.catalogFor({ perCarQuests = true }), 3 + #CarConfig.Order)
+	local base = #QuestsConfig.catalogFor(nil)
+	H.truthy(base >= QuestsConfig.Slots)
+	H.eq(#QuestsConfig.catalogFor({ perCarQuests = true }), 2 + #CarConfig.Order) -- flags off: only win3, play5
+	H.eq(#QuestsConfig.catalogFor({ perCarQuests = true, tagMode = true }), 3 + #CarConfig.Order)
 end)
 
 H.test("progress counts by kind, capped at target", function()
@@ -92,13 +94,74 @@ H.test("progress counts by kind and car (flag on only)", function()
 	H.eq(Quests.onMatchEnd(p, win("Muscle")), false) -- everything is capped
 end)
 
-H.test("beat-the-bot needs a bot opponent", function()
+H.test("beat the bot 2 is gone from the catalog", function()
+	H.eq(QuestsConfig.get("bot2"), nil)
+	-- an old save that still lists it is cleaned back to a valid set
+	local cleaned = Quests.clean({ { id = "bot2", progress = 1 }, { id = "win3", progress = 2 } })
+	H.eq(#cleaned, 1)
+	H.eq(cleaned[1].id, "win3")
+end)
+
+H.test("mode-learning quests exist with small rewards", function()
+	for _, id in { "goal1", "tag2", "race1", "soccer3", "win3", "play5" } do
+		local def = QuestsConfig.get(id)
+		H.truthy(def ~= nil, id)
+		if def then
+			H.truthy(def.reward > 0 and def.reward <= 60, id)
+		end
+	end
+end)
+
+H.test("score a goal and play 3 soccer matches count only in soccer", function()
 	local p = Inventory.default()
-	p.quests = { { id = "bot2", progress = 0 } }
-	Quests.onMatchEnd(p, win("Sedan", false))
+	p.quests = { { id = "goal1", progress = 0 }, { id = "soccer3", progress = 0 } }
+	-- tag match with a "goals" field is not soccer
+	Quests.onMatchEnd(
+		p,
+		{ won = true, carId = "Sedan", opponentIsBot = true, mode = "tag", goals = 2 }
+	)
 	H.eq(p.quests[1].progress, 0)
-	Quests.onMatchEnd(p, win("Sedan", true))
+	H.eq(p.quests[2].progress, 0)
+	-- mode not reported: mode quests do not count
+	Quests.onMatchEnd(p, { won = true, carId = "Sedan", opponentIsBot = true, goals = 1 })
+	H.eq(p.quests[1].progress, 0)
+	Quests.onMatchEnd(
+		p,
+		{ won = false, carId = "Sedan", opponentIsBot = true, mode = "soccer", goals = 3 }
+	)
+	H.eq(p.quests[1].progress, 1) -- capped at the target of 1
+	H.truthy(Quests.isDone(p.quests[1]))
+	H.eq(p.quests[2].progress, 1)
+	for _ = 1, 5 do
+		Quests.onMatchEnd(
+			p,
+			{ won = false, carId = "Sedan", opponentIsBot = true, mode = "soccer" }
+		)
+	end
+	H.truthy(Quests.isDone(p.quests[2]))
+end)
+
+H.test("pass IT on 2 times adds up tags; finish a race needs a place", function()
+	local p = Inventory.default()
+	p.quests = { { id = "tag2", progress = 0 }, { id = "race1", progress = 0 } }
+	Quests.onMatchEnd(
+		p,
+		{ won = false, carId = "Sedan", opponentIsBot = true, mode = "tag", tags = 1 }
+	)
 	H.eq(p.quests[1].progress, 1)
+	Quests.onMatchEnd(
+		p,
+		{ won = false, carId = "Sedan", opponentIsBot = true, mode = "tag", tags = 5 }
+	)
+	H.eq(p.quests[1].progress, 2) -- capped
+	Quests.onMatchEnd(p, { won = false, carId = "Sedan", opponentIsBot = true, mode = "race" }) -- DNF
+	H.eq(p.quests[2].progress, 0)
+	Quests.onMatchEnd(
+		p,
+		{ won = false, carId = "Sedan", opponentIsBot = true, mode = "race", place = 4 }
+	)
+	H.eq(p.quests[2].progress, 1)
+	H.truthy(Quests.isDone(p.quests[2]))
 end)
 
 H.test("claim pays once and replaces the quest", function()

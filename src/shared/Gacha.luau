@@ -19,6 +19,7 @@ type Profile = {
 	freePullUsed: boolean,
 	owned: { [string]: boolean },
 	daily: { freePulls: number }?, -- daily gift tries
+	progress: { gachaPity: number }?, -- pulls since the last Epic or better (profile.progress)
 }
 export type OddsRow = { rarity: string, percent: number, cars: { string } }
 -- A claw win is always a car (a duplicate pays coins back).
@@ -27,6 +28,8 @@ export type PullResult = {
 	isNew: boolean,
 	refund: number,
 	free: boolean,
+	pity: number, -- pulls since the last Epic or better, after this pull
+	pityForced: boolean, -- this pull was the guaranteed Epic-or-better one
 }
 
 local Gacha = {}
@@ -61,6 +64,59 @@ function Gacha.oddsTable(): { OddsRow }
 		end
 	end
 	return rows
+end
+
+-- Rarities that count for the pity guarantee (the configured minimum and everything above it).
+local function pityRarities(): { [string]: boolean }
+	local out: { [string]: boolean } = {}
+	local at = table.find(RARITY_ORDER, LobbyConfig.Gacha.pityMinRarity)
+	if at == nil then
+		return out
+	end
+	for i = at, #RARITY_ORDER do
+		out[RARITY_ORDER[i]] = true
+	end
+	return out
+end
+
+local function pityOf(p: Profile): number
+	local d = p.progress
+	return if d and type(d.gachaPity) == "number" then d.gachaPity else 0
+end
+
+-- Pity bar for the UI: `count` pulls since the last Epic or better, guaranteed at `every`.
+function Gacha.pityView(p: Profile): { count: number, every: number, left: number }
+	local every = LobbyConfig.Gacha.pityEvery
+	local count = math.clamp(pityOf(p), 0, every)
+	return { count = count, every = every, left = math.max(0, every - count) }
+end
+
+export type OddsCar = { id: string, owned: boolean }
+export type OddsViewRow = {
+	rarity: string,
+	percent: number,
+	cars: { OddsCar },
+	refund: number, -- coins back for a duplicate of this rarity
+}
+
+-- The odds list for the claw screen: the real odds, each car marked owned or not, and the
+-- duplicate refund per rarity ("Duplicate = 25 coins back").
+function Gacha.oddsView(p: { owned: { [string]: boolean } }): { OddsViewRow }
+	local out: { OddsViewRow } = {}
+	for _, row in Gacha.oddsTable() do
+		local cars: { OddsCar } = {}
+		for _, id in row.cars do
+			table.insert(cars, { id = id, owned = p.owned[id] == true })
+		end
+		local byRarity = LobbyConfig.Gacha.duplicateRefunds :: { [string]: number }
+		table.insert(out, {
+			rarity = row.rarity,
+			percent = row.percent,
+			cars = cars,
+			refund = byRarity[row.rarity] or LobbyConfig.Gacha.duplicateRefund,
+		})
+	end
+	return out
 end
 
 -- Coins back when the prize is a car you already own (more for rarer cars).
@@ -105,8 +161,24 @@ function Gacha.pull(p: Profile, rng: () -> number): PullResult
 		Inventory.addCoins(p, -LobbyConfig.Gacha.price)
 	end
 
-	-- Roll rarity from the same table the player is shown.
+	-- Roll rarity from the same table the player is shown. When the pity counter is full the roll
+	-- only uses the Epic-or-better rows (same relative odds).
 	local rows = Gacha.oddsTable()
+	local pity = pityOf(p)
+	local forced = false
+	if pity + 1 >= LobbyConfig.Gacha.pityEvery then
+		local good = pityRarities()
+		local goodRows: { OddsRow } = {}
+		for _, row in rows do
+			if good[row.rarity] then
+				table.insert(goodRows, row)
+			end
+		end
+		if #goodRows > 0 then
+			rows = goodRows
+			forced = true
+		end
+	end
 	local total = 0
 	for _, row in rows do
 		total += row.percent
@@ -124,13 +196,27 @@ function Gacha.pull(p: Profile, rng: () -> number): PullResult
 	local index = math.clamp(math.floor(rng() * #chosen.cars) + 1, 1, #chosen.cars)
 	local carId = chosen.cars[index]
 
+	-- Epic or better (forced or lucky) resets the counter; anything else counts up.
+	local gotGood = pityRarities()[LobbyConfig.Rarity[carId]] == true
+	pity = if gotGood then 0 else pity + 1
+	if p.progress then
+		p.progress.gachaPity = pity
+	end
+
 	local isNew = Inventory.grantCar(p, carId)
 	local refund = 0
 	if not isNew then
 		refund = Gacha.refundFor(carId)
 		Inventory.addCoins(p, refund)
 	end
-	return { carId = carId, isNew = isNew, refund = refund, free = free }
+	return {
+		carId = carId,
+		isNew = isNew,
+		refund = refund,
+		free = free,
+		pity = pity,
+		pityForced = forced and gotGood,
+	}
 end
 
 return Gacha

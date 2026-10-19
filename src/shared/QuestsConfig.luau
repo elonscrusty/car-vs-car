@@ -15,8 +15,11 @@ local FeatureFlags = sibling("FeatureFlags")
 
 export type Def = {
 	id: string,
-	kind: string, -- "win" | "play" | "beatBot"
+	-- "win" | "play" | "beatBot" | "goal" (goals you score) | "tag" (cars you tag / pass IT on to)
+	-- | "raceDone" (finish a race)
+	kind: string,
 	carId: string?, -- only counts matches played with this car
+	mode: string?, -- only counts matches in this mode
 	target: number,
 	reward: number, -- coins
 	title: string,
@@ -31,13 +34,53 @@ QuestsConfig.Daily = {
 	dayLength = 86400, -- seconds; the day number is floor(os.time() / dayLength) (UTC)
 }
 
--- The 3 simple quests; the per-car ones only join with the perCarQuests flag.
+-- Starter quests: win3 and play5 plus mode-learning ones that teach each mode (small coin rewards,
+-- PLACEHOLDERS). A mode quest only exists while that mode is in the rotation. "Beat the bot 2
+-- times" is gone: in soccer / tag / race you do not duel a bot. The per-car ones only join with the
+-- perCarQuests flag.
 local function catalogFor(flags: { [string]: boolean }?): { Def }
 	local out: { Def } = {
 		{ id = "win3", kind = "win", target = 3, reward = 60, title = "Win 3 matches" },
 		{ id = "play5", kind = "play", target = 5, reward = 40, title = "Play 5 matches" },
-		{ id = "bot2", kind = "beatBot", target = 2, reward = 50, title = "Beat the bot 2 times" },
 	}
+	if FeatureFlags.enabled("soccerMode", flags) then
+		table.insert(out, {
+			id = "goal1",
+			kind = "goal",
+			mode = "soccer",
+			target = 1,
+			reward = 30,
+			title = "Score a goal",
+		})
+		table.insert(out, {
+			id = "soccer3",
+			kind = "play",
+			mode = "soccer",
+			target = 3,
+			reward = 40,
+			title = "Play 3 soccer matches",
+		})
+	end
+	if FeatureFlags.enabled("tagMode", flags) then
+		table.insert(out, {
+			id = "tag2",
+			kind = "tag",
+			mode = "tag",
+			target = 2,
+			reward = 30,
+			title = "Pass IT on 2 times",
+		})
+	end
+	if FeatureFlags.enabled("raceMode", flags) then
+		table.insert(out, {
+			id = "race1",
+			kind = "raceDone",
+			mode = "race",
+			target = 1,
+			reward = 30,
+			title = "Finish a race",
+		})
+	end
 	if FeatureFlags.enabled("perCarQuests", flags) then
 		for _, carId in CarConfig.Order do
 			table.insert(out, {
