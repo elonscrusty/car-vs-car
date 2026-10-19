@@ -13,6 +13,7 @@ local RunService = game:GetService("RunService")
 
 local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
 local BattleBrain = require(ReplicatedStorage.Shared.BattleBrain)
+local BattleRecap = require(ReplicatedStorage.Shared.BattleRecap)
 
 export type Car = {
 	side: string,
@@ -29,6 +30,7 @@ export type Car = {
 	lastForward: Vector3,
 	standIn: boolean,
 	lastOut: BattleBrain.Output?,
+	stats: BattleRecap.Stats, -- what this car's weapon did this round (for the recap)
 	stagger: number, -- > 0 while knocked: the car slides and cannot steer
 }
 
@@ -212,6 +214,7 @@ function BattleCar.spawn(
 		standIn = standIn,
 		lastOut = nil,
 		stagger = 0,
+		stats = BattleRecap.newStats(),
 	}
 	local at = floorMid2 * CFrame.new(0, fighter.weaponUp * L, -fighter.weaponForward * L)
 	if fighterId == "CannonVan" then

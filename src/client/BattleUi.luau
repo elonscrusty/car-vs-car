@@ -112,7 +112,7 @@ function BattleUi.start()
 	local player = Players.LocalPlayer
 	local playerGui = player:WaitForChild("PlayerGui")
 	local remotes = Remotes.get()
-	local function act(name: string, arg: string?)
+	local function act(name: string, arg: any)
 		remotes.BattleAction:FireServer(name, arg)
 	end
 
@@ -196,8 +196,8 @@ function BattleUi.start()
 	local cardsF = frame(
 		selectF,
 		"Cards",
-		UDim2.fromScale(0.96, 0.58),
-		UDim2.fromScale(0.02, 0.21),
+		UDim2.fromScale(0.96, 0.43),
+		UDim2.fromScale(0.02, 0.2),
 		COL_PANEL,
 		1
 	)
@@ -376,6 +376,52 @@ function BattleUi.start()
 		end
 	end
 
+	-- opening choice: where the car starts and which way it points
+	local setupSpot, setupAim = 0, 0
+	local setupBtns: { { btn: TextButton, kind: string, value: number } } = {}
+	local function refreshSetup()
+		for _, b in setupBtns do
+			local on = (b.kind == "spot" and b.value == setupSpot)
+				or (b.kind == "aim" and b.value == setupAim)
+			b.btn.BackgroundColor3 = if on then COL_GOOD else Color3.fromRGB(58, 64, 94)
+		end
+	end
+	local function setupGroup(title: string, x: number, kind: string, opts: { { string | number } })
+		label(
+			selectF,
+			title,
+			UDim2.fromScale(0.47, 0.035),
+			UDim2.fromScale(x, 0.645),
+			Color3.fromRGB(190, 200, 225),
+			18
+		)
+		for i, o in opts do
+			local btn = button(
+				selectF,
+				o[1] :: string,
+				UDim2.fromScale(0.15, 0.085),
+				UDim2.fromScale(x + (i - 1) * 0.16, 0.685),
+				Color3.fromRGB(58, 64, 94),
+				function()
+					if locked then
+						return
+					end
+					if kind == "spot" then
+						setupSpot = o[2] :: number
+					else
+						setupAim = o[2] :: number
+					end
+					refreshSetup()
+					act("setup", { spot = setupSpot, aim = setupAim })
+				end
+			)
+			table.insert(setupBtns, { btn = btn, kind = kind, value = o[2] :: number })
+		end
+	end
+	setupGroup("START SPOT", 0.02, "spot", { { "FAR", -1 }, { "MIDDLE", 0 }, { "NEAR", 1 } })
+	setupGroup("LAUNCH AIM", 0.51, "aim", { { "LEFT", 1 }, { "STRAIGHT", 0 }, { "RIGHT", -1 } })
+	refreshSetup()
+
 	lockBtn = button(
 		selectF,
 		"LOCK IN",
@@ -389,24 +435,48 @@ function BattleUi.start()
 		end
 	)
 
-	-- ---------- prep ----------
+	-- ---------- prep: the matchup card (both cars and weapons side by side) ----------
 	local prepF = frame(
 		gui,
 		"Prep",
-		UDim2.fromScale(1, 0.2),
-		UDim2.fromScale(0, 0.8),
+		UDim2.fromScale(0.94, 0.34),
+		UDim2.fromScale(0.03, 0.63),
 		Color3.fromRGB(10, 12, 22),
-		0.45
+		0.3
 	)
+	corner(prepF, 16)
 	prepF.Visible = false
 	local prepMe =
-		label(prepF, "", UDim2.fromScale(0.36, 0.8), UDim2.fromScale(0.03, 0.1), COL_ME, 22)
+		label(prepF, "", UDim2.fromScale(0.2, 0.9), UDim2.fromScale(0.245, 0.05), COL_ME, 20)
 	prepMe.TextXAlignment = Enum.TextXAlignment.Left
 	local prepOpp =
-		label(prepF, "", UDim2.fromScale(0.36, 0.8), UDim2.fromScale(0.61, 0.1), COL_OPP, 22)
+		label(prepF, "", UDim2.fromScale(0.2, 0.9), UDim2.fromScale(0.555, 0.05), COL_OPP, 20)
 	prepOpp.TextXAlignment = Enum.TextXAlignment.Right
 	local prepCount =
-		label(prepF, "3", UDim2.fromScale(0.16, 0.8), UDim2.fromScale(0.42, 0.1), COL_TEXT, 60)
+		label(prepF, "3", UDim2.fromScale(0.1, 0.6), UDim2.fromScale(0.45, 0.2), COL_TEXT, 60)
+	local prepVsLbl =
+		label(prepF, "VS", UDim2.fromScale(0.1, 0.2), UDim2.fromScale(0.45, 0.02), COL_TEXT, 24)
+	prepVsLbl.Name = "Vs"
+	local prepViews: { ViewportFrame } = {}
+	local function prepPreview(slot: number, fighterId: string, xScale: number)
+		local old = prepViews[slot]
+		if old then
+			old:Destroy()
+		end
+		local f = BattleConfig.fighter(fighterId)
+		if f == nil then
+			return
+		end
+		local vp = Instance.new("ViewportFrame")
+		vp.Size = UDim2.fromScale(0.2, 0.9)
+		vp.Position = UDim2.fromScale(xScale, 0.05)
+		vp.BackgroundColor3 = Color3.fromRGB(34, 40, 62)
+		vp.BorderSizePixel = 0
+		vp.Parent = prepF
+		corner(vp, 10)
+		previewInto(vp, f, prepF)
+		prepViews[slot] = vp
+	end
 
 	-- ---------- fight HUD ----------
 	local hudF = frame(gui, "Hud", UDim2.fromScale(1, 0.16), UDim2.fromScale(0, 0), COL_PANEL, 1)
@@ -542,21 +612,29 @@ function BattleUi.start()
 
 	-- ---------- round result ----------
 	local roundF =
-		frame(gui, "Round", UDim2.fromScale(0.5, 0.2), UDim2.fromScale(0.5, 0.36), COL_PANEL, 0.1)
+		frame(gui, "Round", UDim2.fromScale(0.6, 0.3), UDim2.fromScale(0.5, 0.4), COL_PANEL, 0.1)
 	roundF.AnchorPoint = Vector2.new(0.5, 0.5)
 	corner(roundF, 16)
 	local roundLimit = Instance.new("UISizeConstraint")
-	roundLimit.MaxSize = Vector2.new(520, 160)
+	roundLimit.MaxSize = Vector2.new(560, 230)
 	roundLimit.Parent = roundF
 	local roundTitle =
-		label(roundF, "", UDim2.fromScale(0.94, 0.42), UDim2.fromScale(0.03, 0.06), COL_TEXT, 36)
+		label(roundF, "", UDim2.fromScale(0.94, 0.28), UDim2.fromScale(0.03, 0.04), COL_TEXT, 34)
 	local roundScore =
-		label(roundF, "", UDim2.fromScale(0.94, 0.28), UDim2.fromScale(0.03, 0.48), COL_TEXT, 22)
+		label(roundF, "", UDim2.fromScale(0.94, 0.16), UDim2.fromScale(0.03, 0.33), COL_TEXT, 22)
+	local roundRecap = label(
+		roundF,
+		"",
+		UDim2.fromScale(0.94, 0.3),
+		UDim2.fromScale(0.03, 0.5),
+		Color3.fromRGB(255, 225, 150),
+		20
+	)
 	local roundNext = label(
 		roundF,
 		"",
-		UDim2.fromScale(0.94, 0.2),
-		UDim2.fromScale(0.03, 0.77),
+		UDim2.fromScale(0.94, 0.15),
+		UDim2.fromScale(0.03, 0.83),
 		Color3.fromRGB(190, 200, 225),
 		16
 	)
@@ -898,6 +976,11 @@ function BattleUi.start()
 		cameraOff()
 	end
 
+	handlers.setup = function(m)
+		setupSpot, setupAim = m.spot, m.aim
+		refreshSetup()
+	end
+
 	handlers.selected = function(m)
 		selectedId = m.id
 		if m.locked then
@@ -917,6 +1000,8 @@ function BattleUi.start()
 		cameraOn()
 		prepMe.Text = "YOU  " .. sideText(m.me)
 		prepOpp.Text = "FOE  " .. sideText(m.opp)
+		prepPreview(1, m.me.id, 0.02)
+		prepPreview(2, m.opp.id, 0.78)
 		prepEnd = os.clock() + m.seconds
 		prepF.Visible = true
 		leaveBtn.Visible = true
@@ -950,6 +1035,10 @@ function BattleUi.start()
 		showEvent((if m.mine then "You: " else "Foe: ") .. m.text)
 	end
 
+	handlers.phase = function(m)
+		showEvent(m.text)
+	end
+
 	handlers.hit = function(m)
 		sparks(m.pos, m.big == true)
 	end
@@ -967,6 +1056,7 @@ function BattleUi.start()
 			elseif m.result == "loss" then COL_BAD
 			else COL_TEXT
 		roundScore.Text = `Score  You {scoreText(m.score)} Foe`
+		roundRecap.Text = if m.recap then table.concat(m.recap, "\n") else ""
 		roundEnd = os.clock() + m.seconds
 		roundNext.Text = ""
 		roundF.Visible = true
