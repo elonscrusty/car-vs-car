@@ -82,20 +82,21 @@ return {
 		-- Flat fight floor with ramps and blocks (overrides GameConfig.Arena for this mode).
 		-- Ramps climb toward -Z at yaw 0. Mirrored round the middle so no spot is luckier.
 		Arena = {
-			flatRadius = 72,
-			rimRadius = 72,
+			flatRadius = 60,
+			rimRadius = 60,
 			tiltDeg = 0,
 			wallHeight = 4, -- a low lip: a big hit launches you over it = out
-			spawnRadius = 48,
+			spawnRadius = 40,
 			noPads = true,
+			dirt = true, -- brown dirt floor, monster-truck show
 			stadium = true, -- stands, crowd and lights instead of the bowl scenery
 			obstacles = {
-				{ kind = "ramp", x = -30, z = -22, sx = 14, sz = 22, yaw = 0 },
-				{ kind = "ramp", x = 30, z = 22, sx = 14, sz = 22, yaw = 180 },
-				{ kind = "block", x = 0, z = -28, sx = 10, sy = 7, sz = 6 },
-				{ kind = "block", x = 0, z = 28, sx = 10, sy = 7, sz = 6 },
-				{ kind = "pillar", x = -22, z = 24, sx = 6, sy = 9 },
-				{ kind = "pillar", x = 22, z = -24, sx = 6, sy = 9 },
+				{ kind = "ramp", x = -25, z = -18, sx = 14, sz = 22, yaw = 0 },
+				{ kind = "ramp", x = 25, z = 18, sx = 14, sz = 22, yaw = 180 },
+				{ kind = "block", x = 0, z = -23, sx = 10, sy = 7, sz = 6 },
+				{ kind = "block", x = 0, z = 23, sx = 10, sy = 7, sz = 6 },
+				{ kind = "pillar", x = -18, z = 20, sx = 6, sy = 9 },
+				{ kind = "pillar", x = 18, z = -20, sx = 6, sy = 9 },
 			},
 		},
 		winBonus = 60, -- BIG coins for the match winner, on top of the normal win reward (PLACEHOLDER)

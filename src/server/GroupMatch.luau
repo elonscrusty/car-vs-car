@@ -47,6 +47,7 @@ local SoccerStats = require(ReplicatedStorage.Shared.SoccerStats)
 local Types = require(ReplicatedStorage.Shared.Types)
 
 local Arena = require(script.Parent.Arena)
+local Atmosphere = require(script.Parent.Atmosphere)
 local Autopilot = require(script.Parent.Autopilot)
 local BotMoves = require(script.Parent.BotMoves)
 local CarBuilder = require(script.Parent.CarBuilder)
@@ -1973,6 +1974,9 @@ function GroupMatch.new(
 			if arena then
 				arena.model:Destroy()
 			end
+			if brawlOn then
+				Atmosphere.day()
+			end
 		end,
 	}
 
@@ -1980,6 +1984,9 @@ function GroupMatch.new(
 		then SoccerArena.build(origin, soccerOn)
 		elseif raceOn then RaceArena.build(origin)
 		else Arena.build(origin, if brawlOn then brawlArena else nil)
+	if brawlOn then
+		Atmosphere.night()
+	end
 	if arena then
 		arena.model:SetAttribute("GameMode", mode) -- Specials reads it: ability meaning per mode
 		arena.model:SetAttribute("Round", roundNo)

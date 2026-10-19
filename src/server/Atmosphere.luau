@@ -72,4 +72,24 @@ function Atmosphere.apply()
 	rays.Spread = 0.6
 end
 
+-- Night with big bright stadium lights for the fight (counted, so two fights at once do not fight
+-- over the light; the day look comes back when the last fight ends).
+local nightCount = 0
+
+function Atmosphere.night()
+	nightCount += 1
+	Lighting.ClockTime = 0
+	Lighting.Brightness = 1.2
+	Lighting.Ambient = Color3.fromRGB(70, 75, 110)
+	Lighting.OutdoorAmbient = Color3.fromRGB(85, 90, 130)
+	Lighting.ColorShift_Top = Color3.fromRGB(180, 200, 255)
+end
+
+function Atmosphere.day()
+	nightCount = math.max(0, nightCount - 1)
+	if nightCount == 0 then
+		Atmosphere.apply()
+	end
+end
+
 return Atmosphere
