@@ -10,6 +10,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ArenaLayout = require(ReplicatedStorage.Shared.ArenaLayout)
 local ArenaLookConfig = require(ReplicatedStorage.Shared.ArenaLookConfig)
 local ArenaMath = require(ReplicatedStorage.Shared.ArenaMath)
+local ArenaThemes = require(ReplicatedStorage.Shared.ArenaThemes)
+local Leaderboard = require(ReplicatedStorage.Shared.Leaderboard)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 
 local ArenaScenery = {}
@@ -26,6 +28,16 @@ local GREEN_DARK = Color3.fromRGB(80, 175, 75)
 function ArenaScenery.build(model: Model, origin: Vector3)
 	local cfg = GameConfig.Arena
 	local look = ArenaLookConfig
+	-- Weekly look: only colors change (rim wall stripes, grass tint), never sizes.
+	local theme = ArenaThemes.forWeek(Leaderboard.weekIndex(os.time()))
+	local wallIdx = 0
+	for _, w in model:GetChildren() do
+		if w.Name == "Wall" and w:IsA("BasePart") then
+			local c = if wallIdx % 2 == 0 then theme.rimA else theme.rimB
+			w.Color = Color3.fromRGB(c[1], c[2], c[3])
+			wallIdx += 1
+		end
+	end
 	-- Ground level outside the bowl = rim height.
 	local ground = origin.Y
 		+ ArenaMath.surfaceHeight(cfg.rimRadius, cfg.flatRadius, cfg.rimRadius, cfg.tiltDeg)
@@ -108,7 +120,7 @@ function ArenaScenery.build(model: Model, origin: Vector3)
 		look.grassOuter,
 		ground - 0.1,
 		6,
-		GREEN,
+		Color3.fromRGB(theme.ground[1], theme.ground[2], theme.ground[3]),
 		false
 	)
 	ring("Road", look.roadSegments, look.roadInner, look.roadOuter, ground, 3, ASPHALT, true)

@@ -124,3 +124,24 @@ See SNAPSHOT.md section "Level-ups, win streak, leaderboards". Tune in `Progress
 Tune rewards/odds only in `src/shared/SpinConfig.luau` (placeholders). Quests: `QuestsConfig.luau`. Daily gift: `QuestsConfig.Daily`. Spin UI not yet checked by eye on a phone or in Studio.
 ## Fight modes
 See "Fight modes" in SNAPSHOT.md. Tweak `src/shared/ModesConfig.luau` only (hill hold time, ice grip, 8-car hpScale, ball size/density, goal size, score to win). Untested in Studio: first play test should check the soccer ball (too heavy/light?), that bots do not all pile on the ball, and the top banner on a phone.
+## Sound system
+All sound ids in `src/shared/SoundConfig.luau` are empty (silent). Fill them from `docs/sounds-needed.md` (Roblox licensed library only, test in Studio). Levels and pitch wobble are placeholders in the same file.
+
+## Analytics
+See `docs/analytics.md` and SNAPSHOT.md "Analytics". After publishing, play two matches and a claw pull, then check Creator Hub > Analytics (funnel immediately, custom events within 24 h). Step names and the event schema are in `src/shared/TelemetryConfig.luau`.
+
+## Fight fixes (fairness, pacing, hit flash, comeback)
+See SNAPSHOT.md "Fight fixes". Tune in `FairnessConfig`, `GameConfig` (Arena radii, Match.aimTimeout, Ai, Feel, Pacing), `ComebackConfig`. First playtest: log time-to-first-hit, check the smaller bowl scenery fit, the HIT! flash size on a phone, and that bots now dive in sooner. Bowl FBX/scenery sized for 112 may sit too far out.
+## Launch simplification
+See SNAPSHOT.md "Launch simplification". To bring a cut feature back, set its flag in `src/shared/FeatureFlags.luau`. Placeholders: `BotLevelsConfig.AutoScale` (3 / 15 wins), `MenuConfig.matchesForFullMenu` (2). Per-car quests saved in old profiles are dropped and refilled while the flag is off. Not checked in Studio.
+
+## Launch roster, distinct car stats, bot names (claude/fix-cars)
+- `CarConfig.LaunchRoster` (12 cars: Heavy, Light, Sedan, DuneBuggy, Ramp, Bulldozer, Drift, Spike, Rocket, MonsterTruck, Formula, ArmoredTruck). `CarConfig.useFullRoster = false` hides the rest: `CarConfig.Order` is now the live list (claw odds, store, picks, quests, bots); `CarConfig.FullOrder` is every car (saves, remotes, `get`). `CarConfig.isLive(id)`; Store only sells live cars. Set `useFullRoster = true` to bring all 38 back.
+- Stats: roster pack cars get own numbers + one-line role (shown as the existing `blurb`) in `CarCatalog.Tuned`. `CarPower.score` + `CarConfig.PowerWeights`/`PowerTolerance` (0.2) tested in `tests/roster.test.luau`. All stat numbers and weights are PLACEHOLDERS; abilities untouched.
+- `BotNames.luau` (30 names, `pick(seed, taken)`, `pickCar(seed, roster)`); `nameOf` in Match/GroupMatch uses it, so bots show a friendly name instead of "BOT".
+
+## Car soccer small field
+See SNAPSHOT.md "Car soccer small field". Tune only in `src/shared/SoccerFieldConfig.luau` (and `ModesConfig.Soccer` for teamSize, scoreToWin, time, goal pause). First play test: ball too heavy/light, bots pile on the ball, ball sticking in corners or nets, camera view of the small field.
+
+## Social + safety
+See SNAPSHOT.md "Social + safety". Tune cheat limits in `src/shared/CarSanityConfig.luau` (placeholders; if honest players get snapped back, raise `teleportSlack`/`graceSeconds`). Weekly store name changes every Monday UTC automatically. Carter: set Max Players 12 to 16 in Game Settings (not settable from code).

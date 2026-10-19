@@ -20,9 +20,18 @@ test("every mode has a name and a blurb, and the rotation goes round", function(
 	eq(Modes.pick(n), ModesConfig.Order[1])
 	eq(Modes.pick(-3), ModesConfig.Order[1])
 	eq(Modes.pick(1.9), ModesConfig.Order[2])
-	for _, m in { "hill", "ice", "lastStanding", "soccer" } do
+	for _, m in { "duel", "hill", "ice", "soccer" } do
 		truthy(table.find(ModesConfig.Order, m) ~= nil, m .. " is in the rotation")
 	end
+end)
+
+test("launch rotation: duel, hill, ice, soccer; last standing only with its flag", function()
+	eq(table.concat(ModesConfig.Order, ","), "duel,hill,ice,soccer")
+	eq(table.concat(ModesConfig.orderFor({}), ","), "duel,hill,ice")
+	eq(
+		table.concat(ModesConfig.orderFor({ soccerMode = true, lastStandingMode = true }), ","),
+		"duel,hill,ice,lastStanding,soccer"
+	)
 end)
 
 test("car counts and bots", function()

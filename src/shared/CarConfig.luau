@@ -185,13 +185,71 @@ for _, entry in CarCatalog.Entries do
 	table.insert(CarConfig.Order, entry.id)
 end
 
+-- LAUNCH ROSTER: only these ~12 cars are live (claw prizes, store, pick choices, quests, bots,
+-- odds). The rest stay in the code and in saves, but hidden, unless `useFullRoster` is true.
+-- Spans roles and all 4 rarities. Heavy is the free starter (LobbyConfig.StarterCars).
+--   Common: Heavy (tank), Light (fast, fragile), Sedan (balanced), DuneBuggy (bouncy turner)
+--   Rare: Ramp (flipper), Bulldozer (plow), Drift (grippy turner)
+--   Epic: Spike (big damage), Rocket (fastest), MonsterTruck (heavy smasher)
+--   Legendary: Formula (speed demon), ArmoredTruck (steel wall)
+CarConfig.useFullRoster = false
+CarConfig.LaunchRoster = {
+	"Heavy",
+	"Light",
+	"Sedan",
+	"DuneBuggy",
+	"Ramp",
+	"Bulldozer",
+	"Drift",
+	"Spike",
+	"Rocket",
+	"MonsterTruck",
+	"Formula",
+	"ArmoredTruck",
+}
+
+-- Power score weights (simple sum, see CarPower). PLACEHOLDERS.
+CarConfig.PowerWeights = {
+	hp = 1,
+	mass = 0.5,
+	maxSpeed = 1.5,
+	accel = 0.3,
+	turnRate = 12,
+	damageMult = 100,
+}
+-- Max a car's power may be above the average of its rarity tier (0.2 = 20%); checked by tests.
+CarConfig.PowerTolerance = 0.2
+
+-- Every car id that exists (valid in saves/remotes), in pick-menu order.
+CarConfig.FullOrder = table.clone(CarConfig.Order)
+do
+	local live: { [string]: boolean } = {}
+	for _, id in CarConfig.LaunchRoster do
+		assert(CarConfig.Cars[id], "launch roster car missing: " .. id)
+		live[id] = true
+	end
+	local filtered: { string } = {}
+	for _, id in CarConfig.FullOrder do
+		if CarConfig.useFullRoster or live[id] then
+			table.insert(filtered, id)
+		end
+	end
+	-- Order = the live cars. Everything that lists cars (claw, store, picks, quests) uses it.
+	CarConfig.Order = filtered
+end
+
+-- True when the id is a live (launch roster) car.
+function CarConfig.isLive(id: any): boolean
+	return type(id) == "string" and table.find(CarConfig.Order, id) ~= nil
+end
+
 -- Returns the stats for an id, or nil if the id is not a real car.
 -- Takes `any` because the id can come from a client.
 function CarConfig.get(id: any): CarStats?
 	if type(id) ~= "string" then
 		return nil
 	end
-	for _, known in CarConfig.Order do
+	for _, known in CarConfig.FullOrder do
 		if known == id then
 			return CarConfig.Cars[id]
 		end

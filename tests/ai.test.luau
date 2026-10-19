@@ -84,7 +84,7 @@ test("CircleDive: circles, then dives, then flips side", function()
 	local c = Ai.decide("CircleDive", { x = 0, z = 0 }, { x = 0, z = -50 }, mem, 0.1, P, C)
 	-- circle target is NOT the enemy itself
 	truthy(c.tx ~= 0 or c.tz ~= -50)
-	for _ = 1, 25 do
+	for _ = 1, math.ceil(P.circleTime / 0.1) + 2 do
 		Ai.decide("CircleDive", me, enemy, mem, 0.1, P, C)
 	end
 	eq(mem.phase, "dive")

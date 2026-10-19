@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local UiSize = require(ReplicatedStorage.Shared.UiSize)
+local SoundFx = require(script.Parent.SoundFx)
 
 local UiStyle = {}
 
@@ -32,6 +33,11 @@ function UiStyle.polish(b: GuiButton)
 	local scale = Instance.new("UIScale")
 	scale.Name = "UiStyleScale"
 	scale.Parent = b
+	if b:GetAttribute("NoClickSound") ~= true then
+		b.Activated:Connect(function()
+			SoundFx.play("click")
+		end)
+	end
 	local function to(goal: number, info: TweenInfo)
 		TweenService:Create(scale, info, { Scale = goal }):Play()
 	end

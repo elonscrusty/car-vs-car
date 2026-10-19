@@ -15,6 +15,7 @@ local Inventory = require(ReplicatedStorage.Shared.Inventory)
 local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
 local LobbyText = require(ReplicatedStorage.Shared.LobbyText)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local SoundFx = require(script.Parent.SoundFx)
 local Store = require(ReplicatedStorage.Shared.Store)
 local Types = require(ReplicatedStorage.Shared.Types)
 local UiSize = require(ReplicatedStorage.Shared.UiSize)
@@ -148,6 +149,9 @@ local function button(
 	b.TextColor3 = WHITE
 	b.AutoButtonColor = false
 	b.Parent = parent
+	b.Activated:Connect(function()
+		SoundFx.play("click")
+	end)
 	corner(b, 0.2)
 	stroke(b, WHITE, 2)
 	textLimit(b, 16, 44)
@@ -462,6 +466,7 @@ function LobbyUi.new(hooks: Hooks): Handle
 		resultSwatch.BackgroundColor3 = carColor(id)
 		resultStroke.Color = RARITY_COLOR[rarity] or WHITE
 		resultBack.Visible = true
+		SoundFx.play("claw") -- prize result
 		resultScale.Scale = 0.4
 		TweenService:Create(resultScale, POP, { Scale = 1 }):Play()
 	end
@@ -759,6 +764,9 @@ function LobbyUi.new(hooks: Hooks): Handle
 			showCountdown(0)
 			closeModals()
 			hooks.onToLobby(u.coinsEarned, u.won)
+			if u.coinsEarned > 0 then
+				SoundFx.play("coin") -- reward toast
+			end
 			showToast(LobbyText.rewardText(u.coinsEarned, u.won), if u.won then GREEN else PINK)
 		end
 	end

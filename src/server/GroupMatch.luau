@@ -1,6 +1,6 @@
 --!strict
 -- A many-car match: "lastStanding" (8 cars, last one alive wins) or "soccer" (two teams, a giant
--- ball, goals on the bowl wall). One or two players, bots fill the rest. Same handle as Match,
+-- ball, goals on its own small field: SoccerArena, shared/SoccerField). One or two players, bots fill the rest. Same handle as Match,
 -- so init.server treats both the same. The server owns everything: spawns, hits, eliminations,
 -- ball, goals, winner. Rules and numbers: shared/Modes, shared/ModesConfig.
 -- Flow: "ready" countdown -> everyone drives (no aiming) -> match end.
@@ -10,6 +10,7 @@ local RunService = game:GetService("RunService")
 
 local BowlConfig = require(ReplicatedStorage.Shared.BowlConfig)
 local BowlRules = require(ReplicatedStorage.Shared.BowlRules)
+local BotNames = require(ReplicatedStorage.Shared.BotNames)
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
 local Fight = require(ReplicatedStorage.Shared.Fight)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
@@ -21,16 +22,21 @@ local MovesConfig = require(ReplicatedStorage.Shared.MovesConfig)
 local MovesRules = require(ReplicatedStorage.Shared.Moves)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Steer = require(ReplicatedStorage.Shared.Steer)
+local SoccerField = require(ReplicatedStorage.Shared.SoccerField)
+local SoccerFieldConfig = require(ReplicatedStorage.Shared.SoccerFieldConfig)
 local Types = require(ReplicatedStorage.Shared.Types)
 
 local Arena = require(script.Parent.Arena)
 local Autopilot = require(script.Parent.Autopilot)
 local CarBuilder = require(script.Parent.CarBuilder)
+local CarSanity = require(script.Parent.CarSanity)
 local Dummy = require(script.Parent.Dummy)
 local Impulse = require(script.Parent.Impulse)
 local Match = require(script.Parent.Match)
 local ModeFx = require(script.Parent.ModeFx)
+local Telemetry = require(script.Parent.Telemetry)
 local Moves = require(script.Parent.Moves)
+local SoccerArena = require(script.Parent.SoccerArena)
 local Specials = require(script.Parent.Specials)
 
 local GroupMatch = {}
@@ -67,6 +73,7 @@ function GroupMatch.new(
 	local last = Modes.lastNew(total)
 	local soccer = Modes.soccerNew()
 	local ball: Part? = nil
+	local ballIdle = 0 -- seconds the ball has hardly moved (stuck check)
 	local ballPausedUntil = 0 -- after a goal the ball waits in the middle until then
 	local goldenGoal = false
 	local fightElapsed = 0
@@ -83,9 +90,20 @@ function GroupMatch.new(
 		return Modes.teamOf(i, teamSize)
 	end
 
+	local botNames: { [number]: string } = {}
 	local function nameOf(i: number): string
 		local p = participants[i]
-		return if p then p.player.DisplayName else "BOT"
+		if p then
+			return p.player.DisplayName
+		end
+		if not botNames[i] then -- a friendly random name, not just "BOT"
+			local taken = {}
+			for _, n in botNames do
+				table.insert(taken, n)
+			end
+			botNames[i] = BotNames.pick(rng:NextInteger(1, 1000000), taken)
+		end
+		return botNames[i]
 	end
 
 	local function sendTo(i: number, update: Types.UiUpdate)
@@ -237,6 +255,7 @@ function GroupMatch.new(
 		end
 		local newHp, dead = Logic.applyDamage(defender.hp, dmg)
 		defender.hp = newHp
+		Telemetry.hit(participants)
 		defender.bar.set(newHp, maxHp[defender.idx])
 		local strength = Logic.hitStrength(rel, cfg.Feel.bigHitSpeed)
 		local hitPos = (a.body.Position + b.body.Position) / 2
@@ -288,24 +307,28 @@ function GroupMatch.new(
 
 	-- ---- Spawning ---------------------------------------------------------------------------
 
+	-- Where a start spot sits: on the flat soccer field, or on the bowl surface.
+	local function spotPosition(spot: Modes.Spot, lift: number): Vector3
+		if soccerOn then
+			return SoccerArena.spotPosition(origin, spot.x, spot.z, lift)
+		end
+		return ModeFx.spotPosition(origin, spot.x, spot.z, lift)
+	end
+
 	local function spawnCars()
 		local a = arena :: Arena.Arena
 		clearCars()
 		spots = if soccerOn
-			then Modes.soccerSpots(
-				teamSize,
-				ModesConfig.Soccer.spawnRadius,
-				ModesConfig.Soccer.spawnSpread
-			)
+			then SoccerField.spawnSpots(teamSize)
 			else Modes.ringSpots(total, ModesConfig.LastStanding.spawnRadius)
 		for idx = 1, total do
 			local part = participants[idx]
 			local id = if part
 				then part.carId
-				else CarConfig.Order[rng:NextInteger(1, #CarConfig.Order)]
+				else BotNames.pickCar(rng:NextInteger(1, 1000000), CarConfig.Order) :: string
 			local stats = CarConfig.Cars[id]
 			local spot = spots[idx]
-			local pos = ModeFx.spotPosition(origin, spot.x, spot.z, stats.size[2] / 2 + 1.5)
+			local pos = spotPosition(spot, stats.size[2] / 2 + 1.5)
 			local car = CarBuilder.build(
 				id,
 				idx,
@@ -371,7 +394,8 @@ function GroupMatch.new(
 		end
 		b.AssemblyLinearVelocity = Vector3.zero
 		b.AssemblyAngularVelocity = Vector3.zero
-		b.Position = origin + Vector3.new(0, ModesConfig.Soccer.ballSize, 0)
+		b.Position = SoccerArena.ballPosition(origin)
+		ballIdle = 0
 	end
 
 	local function soccerHud()
@@ -389,21 +413,22 @@ function GroupMatch.new(
 		end)
 	end
 
-	local function stepSoccer(now: number)
+	local function stepSoccer(now: number, dt: number)
 		local b = ball
 		if b == nil or phase ~= "fight" then
 			return
 		end
 		local cfgS = ModesConfig.Soccer
 		local v = b.AssemblyLinearVelocity
-		if v.Magnitude > cfgS.ballMaxSpeed then
-			b.AssemblyLinearVelocity = v.Unit * cfgS.ballMaxSpeed
+		local vx, vy, vz = SoccerField.capVelocity(v.X, v.Y, v.Z, SoccerFieldConfig.ballMaxSpeed)
+		if vx ~= v.X or vy ~= v.Y or vz ~= v.Z then
+			b.AssemblyLinearVelocity = Vector3.new(vx, vy, vz)
 		end
 		local bx, bz = b.Position.X - origin.X, b.Position.Z - origin.Z
 		if now < ballPausedUntil then
 			return
 		end
-		local conceded = Modes.goalConceded(bx, bz, cfgS.goalRadius, cfgS.goalHalfAngle)
+		local conceded = SoccerField.goalConceded(bx, bz)
 		if conceded ~= 0 then
 			local scorer = Modes.soccerGoal(soccer, conceded)
 			local pos = b.Position
@@ -433,17 +458,16 @@ function GroupMatch.new(
 			end)
 			return
 		end
-		if
-			Modes.ballLost(bx, bz, cfg.Arena.rimRadius, cfgS.lostMargin)
-			or b.Position.Y < origin.Y - 20
-		then
+		local stuck
+		ballIdle, stuck = SoccerField.stuckStep(ballIdle, v.Magnitude, dt)
+		if stuck or SoccerField.outOfBounds(bx, b.Position.Y - origin.Y, bz) then
 			resetBall()
 		end
 	end
 
 	-- ---- Driving -----------------------------------------------------------------------------
 
-	local function limitSpeed(car: CarBuilder.Car)
+	local function limitSpeed(car: CarBuilder.Car): number
 		local cap = math.max(
 			cfg.Launch.maxSpeed,
 			car.stats.maxSpeed * (1 + MovesConfig.Boost.speedBonus)
@@ -454,6 +478,7 @@ function GroupMatch.new(
 			local keep = flat.Unit * cap
 			car.body.AssemblyLinearVelocity = Vector3.new(keep.X, v.Y, keep.Z)
 		end
+		return cap
 	end
 
 	-- The car a bot (or a special move) goes after. Soccer bots aim at a point behind the ball
@@ -465,9 +490,10 @@ function GroupMatch.new(
 				return nil
 			end
 			local bx, bz = b.Position.X - origin.X, b.Position.Z - origin.Z
-			local t = Modes.botTarget(bx, bz, teamOf(car.idx), ModesConfig.Soccer.botOffset)
-			local pos = origin + Vector3.new(t.x, car.body.Position.Y, t.z)
-			if (pos - car.body.Position).Magnitude < 8 then
+			local tx, tz =
+				SoccerField.botTarget(bx, bz, teamOf(car.idx), SoccerFieldConfig.botOffset)
+			local pos = origin + Vector3.new(tx, car.body.Position.Y - origin.Y, tz)
+			if (pos - car.body.Position).Magnitude < SoccerFieldConfig.botNear then
 				pos = b.Position
 			end
 			return { body = { Position = pos } } :: any -- Autopilot only reads body.Position
@@ -523,8 +549,7 @@ function GroupMatch.new(
 			end
 		end)
 		if soccerOn and arena then
-			ModeFx.goals(arena.model, origin)
-			ball = ModeFx.ball(arena.model, origin + Vector3.new(0, ModesConfig.Soccer.ballSize, 0))
+			ball = SoccerArena.ball(arena.model, origin)
 			soccerHud()
 		end
 		sendAll(function(i)
@@ -548,7 +573,13 @@ function GroupMatch.new(
 				local target = targetFor(car)
 				local human = isHuman(car.idx)
 				if human and clientDriven[car.idx] then
-					limitSpeed(car)
+					local cap = limitSpeed(car)
+					if not CarSanity.step(car, origin.Y, cap, dt) and not soccerOn then
+						eliminate(car, "RING OUT!") -- kept breaking movement limits
+						if ending then
+							return
+						end
+					end
 				elseif human then
 					local raw = Steer.current(steerStates[car.idx], now, cfg.Steer.staleSeconds)
 					local eased = Steer.smooth(steerSmooth[car.idx], raw, dt, cfg.Steer.smoothRate)
@@ -572,27 +603,21 @@ function GroupMatch.new(
 		end
 
 		if soccerOn then
-			stepSoccer(now)
-			-- A car that leaves the bowl comes back at its start spot (nobody is out in soccer).
+			stepSoccer(now, dt)
+			-- A car that leaves the field comes back at its start spot (nobody is out in soccer).
 			for _, car in cars do
 				local x, z = flatOf(car)
 				if
 					not car.dead
-					and (
-						Fight.isRingOut(
-							math.sqrt(x * x + z * z),
-							cfg.Arena.rimRadius,
-							cfg.RingOut.margin
-						) or car.body.Position.Y < origin.Y - cfg.Match.outOfBoundsDrop
-					)
+					and SoccerField.outOfBounds(x, car.body.Position.Y - origin.Y, z)
 				then
 					local spot = spots[car.idx]
 					car.model:PivotTo(
-						CFrame.new(ModeFx.spotPosition(origin, spot.x, spot.z, 4))
-							* CFrame.Angles(0, spot.yaw, 0)
+						CFrame.new(spotPosition(spot, 4)) * CFrame.Angles(0, spot.yaw, 0)
 					)
 					car.body.AssemblyLinearVelocity = Vector3.zero
 					car.body.AssemblyAngularVelocity = Vector3.zero
+					CarSanity.rebase(car) -- a legit move: do not count it as a teleport
 				end
 			end
 			fightElapsed += dt
@@ -765,7 +790,7 @@ function GroupMatch.new(
 		end,
 	}
 
-	arena = Arena.build(origin)
+	arena = if soccerOn then SoccerArena.build(origin) else Arena.build(origin)
 	spawnCars()
 	begin()
 	return handle

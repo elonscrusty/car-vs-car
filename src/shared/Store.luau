@@ -28,7 +28,7 @@ end
 
 -- reason: "unknown" (bad car id), "owned", or "coins".
 function Store.canBuy(p: Profile, carId: any): (boolean, string?)
-	if type(carId) ~= "string" or not CarConfig.get(carId) then
+	if type(carId) ~= "string" or not CarConfig.isLive(carId) then
 		return false, "unknown"
 	end
 	if p.owned[carId] then

@@ -22,6 +22,8 @@ export type Entry = {
 local Config = {
 	Names = { "easy", "medium", "hard" },
 	Default = "medium",
+	-- Auto level while the bot button is hidden: total wins under easyUnder = easy, under mediumUnder = medium, else hard.
+	AutoScale = { easyUnder = 3, mediumUnder = 15 },
 	Levels = {
 		easy = {
 			noiseDeg = 28,
