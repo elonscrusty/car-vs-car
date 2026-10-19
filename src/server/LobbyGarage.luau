@@ -96,9 +96,15 @@ function LobbyGarage.build(folder: Folder, origin: Vector3)
 		local side = if b.face > 0 then -1 else 1
 		local yaw = if b.face > 0 then LEFT else RIGHT
 		local big = BIG[(i - 1) % #BIG + 1]
-		local small = SMALL[(i - 1) % #SMALL + 1]
+		-- Every garage gets its own mix: the small prop changes by garage and every third has none.
+		local small = SMALL[(i * 3 - 1) % #SMALL + 1]
 		put(big, side * 60.5, 0, b.z - 13.5, yaw, nil, BIG_SRC[big])
-		put(small, side * 61.5, 0, b.z + 13.5, yaw, nil, SMALL_SRC[small])
+		if i % 3 ~= 0 then
+			put(small, side * 61.5, 0, b.z + 13.5, yaw, nil, SMALL_SRC[small])
+		end
+		if i % 2 == 1 then
+			put("TireStack", side * 62, 0, b.z + 17, yaw, nil, "Bowl")
+		end
 		for _, dz in { -4, 4 } do
 			put("DiamondPlateTile", side * 56, 0.05, b.z + dz, 0)
 		end
