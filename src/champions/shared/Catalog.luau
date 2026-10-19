@@ -118,7 +118,7 @@ local function miniCard(parent, vehicle, state, ctx, x, y, w, h)
 	T.vehicle(card, "CarArt", vehicle, 3, 1, w - 6, h - 57)
 	local rail = T.frame(card, "NameRail", 5, h - 62, w - 10, 57, T.C.navy, 8)
 	T.text(rail, "CarName", vehicle.Name, 8, 0, w - 26, 27, 20, T.C.white)
-	T.rarity(rail, vehicle, 8, 29, w - 26, 22)
+	T.rarity(rail, vehicle, 8, 28, w - 26, 29)
 	if state.equipped == vehicle.Id then
 		T.frame(card, "EquippedBadge", w - 42, 8, 34, 34, T.C.green, 17)
 		T.icon(card, "Equipped", "check", w - 37, 13, 24, T.C.ink)
@@ -206,9 +206,9 @@ local function renderCars(root, state, ctx)
 end
 
 local function renderPicker(root, state, ctx)
-	T.checkers(root, 306, 117, 80, 34, 17, T.C.silver)
+	T.checkers(root, 280, 117, 80, 34, 17, T.C.silver)
 	T.text(root, "PickerTitle", "PICK 1 CAR", 392, 102, 420, 60, 43, T.C.white, "Center")
-	T.checkers(root, 816, 117, 80, 34, 17, T.C.silver)
+	T.checkers(root, 840, 117, 80, 34, 17, T.C.silver)
 	local options = state.pickerOptions or {}
 	local defaults = displayVehicles({ "Compact", "Semi", "MonsterTruck" })
 	local optionIds = #options > 0 and options or { defaults[1].Id, defaults[2].Id, defaults[3].Id }
@@ -274,14 +274,14 @@ local function shopCard(parent, vehicle, state, ctx, x)
 	T.vehicle(card, "CarArt", vehicle, 2, 6, 206, 190)
 	T.frame(card, "Details", 6, 189, 198, 157, T.C.navy, 9)
 	T.text(card, "Name", vehicle.Name, 12, 191, 186, 33, 25, T.C.white)
-	T.rarity(card, vehicle, 12, 226, 92, 25)
+	T.rarity(card, vehicle, 12, 224, 92, 29)
 	T.icon(card, "AbilityIcon", vehicle.Ability, 108, 226, 26, T.C.gold)
 	local abilityName =
 		T.text(card, "Ability", string.upper(vehicle.Ability), 136, 226, 66, 26, 20, T.C.white)
 	abilityName.TextScaled = true
 	abilityName.TextTruncate = Enum.TextTruncate.None
 	local abilityFit = Instance.new("UITextSizeConstraint")
-	abilityFit.MaxTextSize = 20
+	abilityFit.MaxTextSize = 26
 	abilityFit.MinTextSize = 10
 	abilityFit.Parent = abilityName
 	local cost = price(state, vehicle)

@@ -30,7 +30,6 @@ local function back(state, ctx)
 end
 
 local function title(parent, value, subtitle)
-	T.checkers(parent, 42, 115, 66, 40, 13, T.C.silver)
 	T.text(parent, "Title", value, 124, 104, 950, 55, 39, T.C.white, "Center")
 	if subtitle then
 		T.text(parent, "Subtitle", subtitle, 124, 158, 950, 30, 22, T.C.silver, "Center")
@@ -387,7 +386,7 @@ local function reveal(root, state, ctx)
 		T.vehicle(panel, "RevealedCar", vehicle, 38, 27, 578, 235)
 		local strip = T.panel(panel, "RevealDetails", 14, 265, 626, 70, accent)
 		T.text(strip, "VehicleName", vehicle.Name, 17, 3, 385, 39, 31, T.C.white)
-		T.rarity(strip, vehicle, 19, 43, 256, 23)
+		T.rarity(strip, vehicle, 19, 43, 256, 28)
 		T.icon(strip, "AbilityIcon", vehicle.Ability, 432, 12, 44, accent)
 		T.text(strip, "Ability", string.upper(vehicle.Ability), 485, 16, 130, 35, 21, T.C.white)
 	else

@@ -88,10 +88,15 @@ function T.panel(parent, name, x, y, w, h, accent)
 	return f
 end
 -- Smallest text the menus use (menu units; a phone shrinks the menu canvas to ~0.6).
-local MIN_SIZE = 20
+local MIN_SIZE = 26
+local MIN_BOX = 32 -- a text box is never shorter than this, so small labels can grow
 function T.text(parent, name, value, x, y, w, h, size, color, align)
 	size = size or 22
 	color = color or C.white
+	if h < MIN_BOX then
+		y -= (MIN_BOX - h) / 2
+		h = MIN_BOX
+	end
 	local label = make("TextLabel", {
 		Name = name,
 		Text = tostring(value),
@@ -466,7 +471,7 @@ function T.rarity(parent, vehicle, x, y, w, h)
 	local color = Config.RarityColors[vehicle.Rarity] or C.silver
 	local f = T.frame(parent, "Rarity", x, y, w, h, color, math.min(9, h * 0.3))
 	stroke(f, C.ink, 2)
-	T.text(
+	local label = T.text(
 		f,
 		"RarityLabel",
 		string.upper(vehicle.Rarity),
@@ -474,11 +479,18 @@ function T.rarity(parent, vehicle, x, y, w, h)
 		0,
 		w - 8,
 		h,
-		math.min(23, h * 0.62),
+		math.min(26, h * 0.74),
 		C.ink,
 		"Center"
-	).TextStrokeTransparency =
-		1
+	)
+	-- The word stays inside its chip: undo the minimum box height and cap the size by the chip.
+	label.Position = UDim2.fromOffset(4, 0)
+	label.Size = UDim2.fromOffset(w - 8, h)
+	local cap = label:FindFirstChildOfClass("UITextSizeConstraint")
+	if cap then
+		cap.MaxTextSize = math.floor(h * 0.8)
+	end
+	label.TextStrokeTransparency = 1
 	return f
 end
 function T.menu(parent, name)
