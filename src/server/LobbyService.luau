@@ -28,6 +28,7 @@ local ProgressConfig = require(ReplicatedStorage.Shared.ProgressConfig)
 local GarageLikes = require(ReplicatedStorage.Shared.GarageLikes)
 local RateLimiter = require(ReplicatedStorage.Shared.RateLimiter)
 local BotLevels = require(ReplicatedStorage.Shared.BotLevels)
+local Modes = require(ReplicatedStorage.Shared.Modes)
 local FeatureFlags = require(ReplicatedStorage.Shared.FeatureFlags)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Store = require(ReplicatedStorage.Shared.Store)
@@ -45,6 +46,7 @@ export type Participant = {
 	onFinished: (won: boolean, stay: boolean?) -> (),
 	appearance: Appearance.Appearance?, -- paint, sticker, level badge
 	botLevel: string?, -- bot difficulty for a lone player
+	mode: string?, -- the player's chosen mode
 	build: Build.BuildData?, -- build-and-watch parts
 }
 
@@ -71,6 +73,8 @@ export type Handle = {
 	onPlayerAdded: (player: Player) -> (),
 	onPlayerRemoving: (player: Player) -> (),
 	action: (player: Player, action: any, arg: any) -> (),
+	-- The match let go of this player (they tapped LOBBY): back to the lobby, nothing paid.
+	leftMatch: (player: Player) -> (),
 	stop: () -> (),
 }
 
@@ -103,6 +107,8 @@ function LobbyService.start(deps: Deps): Handle
 	local storeLimiter = RateLimiter.new(2, 3)
 	local hintLimiter = RateLimiter.new(4, 3)
 	local botLevelLimiter = RateLimiter.new(3, 3)
+	local modeLimiter = RateLimiter.new(4, 3)
+	local modePref: { [Player]: string } = {} -- lobby MODE button choice (not saved: resets per visit)
 	local questLimiter = RateLimiter.new(2, 3)
 	local spinLimiter = RateLimiter.new(2, 3)
 	local paintLimiter = RateLimiter.new(4, 3)
@@ -164,6 +170,7 @@ function LobbyService.start(deps: Deps): Handle
 			rank = Progress.rankFor(p.wins),
 			streak = p.progress.streak,
 			botLevel = p.botLevel,
+			mode = modePref[player] or "auto",
 			quests = Quests.views(p),
 			daily = { ready = Daily.canClaim(p.daily, os.time()), freePulls = p.daily.freePulls },
 			spinReady = Spin.canSpin(p.spin, os.time()),
@@ -368,6 +375,7 @@ function LobbyService.start(deps: Deps): Handle
 				table.insert(participants, {
 					player = player,
 					carId = picks[key],
+					mode = modePref[player],
 					appearance = lookFor(player, picks[key]),
 					build = buildOf(player),
 					onFinished = function(won: boolean, stay: boolean?)
@@ -796,6 +804,8 @@ function LobbyService.start(deps: Deps): Handle
 			storeLimiter.clear(player)
 			hintLimiter.clear(player)
 			botLevelLimiter.clear(player)
+			modeLimiter.clear(player)
+			modePref[player] = nil
 			questLimiter.clear(player)
 			spinLimiter.clear(player)
 			paintLimiter.clear(player)
@@ -846,6 +856,11 @@ function LobbyService.start(deps: Deps): Handle
 				if botLevelLimiter.allow(player, os.clock()) then
 					setBotLevel(player, arg)
 				end
+			elseif action == "setMode" then
+				if modeLimiter.allow(player, os.clock()) and Modes.isPick(arg) then
+					modePref[player] = arg
+					sendProfile(player)
+				end
 			elseif action == "claimQuest" then
 				if questLimiter.allow(player, os.clock()) then
 					claimQuest(player, arg)
@@ -884,6 +899,20 @@ function LobbyService.start(deps: Deps): Handle
 					},
 				})
 			end
+		end,
+		leftMatch = function(player: Player)
+			local ps = players[player]
+			if ps == nil or ps.stage ~= "match" or player.Parent == nil then
+				return
+			end
+			players[player] = nil
+			task.spawn(function()
+				pcall(function()
+					player:LoadCharacter()
+				end)
+			end)
+			send(player, { kind = "toLobby", coinsEarned = 0, won = false, left = true })
+			sendProfile(player)
 		end,
 		stop = function()
 			running = false

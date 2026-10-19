@@ -109,6 +109,7 @@ test("end screen pieces fit, do not overlap and are big enough", function()
 			sub = UiLayout.inside(banner, UiLayoutConfig.endScreen.sub),
 			rematch = UiLayout.rect(specs.rematch, w, h),
 			invite = UiLayout.rect(specs.invite, w, h),
+			lobby = UiLayout.rect(specs.lobby, w, h),
 		}
 		for name, r in rects do
 			truthy(UiLayout.inBounds(r, w, h), `{name} out of bounds at {w}x{h}`)
@@ -121,7 +122,7 @@ test("end screen pieces fit, do not overlap and are big enough", function()
 			end
 		end
 		truthy(rects.sub.h >= UiLayout.minLabelHeight(), `sub line short at {w}x{h}`)
-		for _, name in { "rematch", "invite" } do
+		for _, name in { "rematch", "invite", "lobby" } do
 			truthy(rects[name].h >= UiSize.BUTTON_MIN, `{name} short at {w}x{h}`)
 			truthy(rects[name].w >= UiSize.BUTTON_MIN, `{name} narrow at {w}x{h}`)
 		end

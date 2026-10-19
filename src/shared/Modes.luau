@@ -31,6 +31,34 @@ function Modes.pick(counter: number): string
 	return order[n % #order + 1]
 end
 
+-- Player's own mode choice: "auto" (rotation) or one of the launch modes.
+function Modes.isPick(v: any): boolean
+	return v == "auto" or (type(v) == "string" and table.find(ModesConfig.Order, v) ~= nil)
+end
+
+-- The tap order of the lobby MODE button: AUTO -> each mode -> AUTO.
+function Modes.nextPick(current: string?): string
+	local order = ModesConfig.Order
+	if current == nil or not Modes.isPick(current) then
+		return "auto"
+	end
+	if current == "auto" then
+		return order[1]
+	end
+	local at = table.find(order, current) or #order
+	return order[at + 1] or "auto"
+end
+
+-- The mode for a match: the first player who chose a real mode decides, else the rotation.
+function Modes.choose(picks: { any }, counter: number): string
+	for _, p in picks do
+		if p ~= "auto" and Modes.isPick(p) then
+			return p
+		end
+	end
+	return Modes.pick(counter)
+end
+
 -- Modes played by many cars in GroupMatch (the others are a 1v1 in Match).
 function Modes.isGroup(name: string): boolean
 	return name == "lastStanding" or name == "soccer"
