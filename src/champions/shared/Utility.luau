@@ -242,7 +242,7 @@ local function confirmation(root, state, ctx)
 	T.text(
 		panel,
 		"SpendTitle",
-		"SPEND " .. T.format(price) .. " COINS?",
+		if price == 0 then "FREE PULL!" else "SPEND " .. T.format(price) .. " COINS?",
 		194,
 		15,
 		591,
@@ -364,7 +364,10 @@ local function confirmation(root, state, ctx)
 	end
 	local enabled = valid and coins >= price and (claw or not (state.owned or {})[vehicle.Id])
 	local label = state.pending and "PROCESSING…"
-		or (coins < price and "NEED MORE COINS" or "SPEND " .. T.format(price))
+		or (
+			coins < price and "NEED MORE COINS"
+			or (price == 0 and "FREE PULL" or "SPEND " .. T.format(price))
+		)
 	T.button(panel, "CancelPurchase", "CANCEL", 30, 351, 368, 49, function()
 		back(state, ctx)
 	end, T.C.red, "close")

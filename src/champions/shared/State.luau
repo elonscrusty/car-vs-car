@@ -275,6 +275,16 @@ function State.route(prior, nextState, currentScreen, activeIntent)
 			return "MATCH"
 		end
 	end
+	-- A starter pick that already went through: nothing left to choose, leave the picker.
+	if
+		currentScreen == "PICKER"
+		and not after
+		and #(nextState.pickerOptions or {}) == 0
+		and nextState.equipped
+		and not nextState.pending
+	then
+		return "LOBBY"
+	end
 	if nextState.pending or type(activeIntent) ~= "table" then
 		return nil
 	end
