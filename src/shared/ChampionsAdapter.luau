@@ -251,6 +251,8 @@ function Adapter.new(opts: Options): Model
 				round = if type(u.round) == "number" then u.round else match.round,
 				youScore = wins,
 				carsLeft = if type(u.carsLeft) == "number" then u.carsLeft else opts.cars,
+				hp = if type(u.hp) == "number" then u.hp else nil,
+				hpMax = if type(u.hpMax) == "number" then u.hpMax else nil,
 				endsAt = now + opts.maxSeconds,
 			}
 		elseif kind == "fightHud" then

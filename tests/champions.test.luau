@@ -182,6 +182,13 @@ H.test("a whole fight: ready, fight, cooldowns, hud, end, lobby", function()
 	H.eq(match.abilityEndsAt, 119)
 	H.eq(match.carsLeft, 2)
 	H.eq(match.youScore, 1)
+	-- Your HP bar: the fight start and every HUD tick carry it.
+	m.ui({ kind = "fight", round = 1, wins = 0, carsLeft = 4, hp = 120, hpMax = 120 }, 105)
+	H.eq(m.snapshot().match.hp, 120)
+	m.ui({ kind = "fightHud", carsLeft = 3, wins = 0, round = 1, hp = 80, hpMax = 120 }, 113)
+	match = m.snapshot().match
+	H.eq(match.hp, 80)
+	H.eq(match.hpMax, 120)
 	m.ui({ kind = "matchEnd", youWon = true }, 130, { place = 1 })
 	match = m.snapshot().match
 	H.eq(match.phase, "RESULTS")
