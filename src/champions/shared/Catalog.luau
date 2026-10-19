@@ -169,7 +169,7 @@ local function renderCars(root, state, ctx)
 	filters(root, state, ctx, { "ALL", "OWNED", "LOCKED" }, 530, 108, 640)
 	local list = T.scroll(root, "Collection", 527, 169, 650, 402)
 	local count, totalOwned = 0, 0
-	for _, car in displayVehicles({ "compact", "rally", "offroad", "monster", "hyper" }) do
+	for _, car in displayVehicles({ "Sedan", "Muscle", "SuperCar", "MonsterTruck", "Formula" }) do
 		if owned(state, car.Id) then
 			totalOwned += 1
 		end
@@ -211,7 +211,7 @@ local function renderPicker(root, state, ctx)
 	T.text(root, "PickerTitle", "PICK 1 CAR", 392, 102, 420, 60, 43, T.C.white, "Center")
 	T.checkers(root, 816, 117, 80, 34, 17, T.C.silver)
 	local options = state.pickerOptions or {}
-	local defaults = displayVehicles({ "compact", "offroad", "monster" })
+	local defaults = displayVehicles({ "Compact", "Semi", "MonsterTruck" })
 	local optionIds = #options > 0 and options or { defaults[1].Id, defaults[2].Id, defaults[3].Id }
 	local selectionValid = false
 	for index, id in optionIds do

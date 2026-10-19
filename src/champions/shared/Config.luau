@@ -40,10 +40,11 @@ Config.Modes = {
 Config.ClawPrice = LobbyConfig.Gacha.price
 Config.ClawOdds = {}
 for _, row in Gacha.oddsTable() do
-	table.insert(
-		Config.ClawOdds,
-		{ Rarity = row.rarity, Chance = row.percent, PerCar = row.percent / #row.cars }
-	)
+	table.insert(Config.ClawOdds, {
+		Rarity = row.rarity,
+		Chance = row.percent,
+		PerCar = math.floor(row.percent / #row.cars * 10 + 0.5) / 10,
+	})
 end
 -- A duplicate pays coins back by rarity; show the range instead of one number.
 do

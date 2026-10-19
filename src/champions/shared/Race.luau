@@ -217,7 +217,7 @@ local function matchView(parent, state, ctx)
 		T.text(
 			root,
 			"MatchMode",
-			mode
+			(if mode == "DUEL" then "FIGHT" else mode)
 				.. (
 					if mode == "SOCCER"
 						then "  3 v 3"
