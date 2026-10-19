@@ -27,6 +27,19 @@ return {
 	stuckSeconds = 6, -- ... for this long = back to the middle
 	botOffset = 10, -- bots aim this far behind the ball, away from the goal they attack
 	botNear = 7, -- once this close to the aim point a bot drives straight into the ball
+	stuckWarnSeconds = 2, -- the "ball stuck" warning shows this long before the reset
+	-- Goalkeeper bot (one bot per team): waits on its own goal line, follows the ball sideways
+	keeperDepth = 9, -- studs in front of its own goal line
+	keeperRange = 9, -- sideways limit from the goal middle (goal half width is 12)
+	keeperClearRadius = 26, -- ball this close to its own goal middle = the keeper drives out to clear it
+	-- Camera: high behind your car, on the line from the ball through the car
+	camBack = 30, -- studs behind the car
+	camUp = 30, -- base height
+	camUpPerBallDist = 0.3, -- extra height per stud between car and ball (keeps both in frame)
+	camMaxUp = 62,
+	camLookBall = 0.5, -- look point: 0 = your car, 1 = the ball
+	camDirBlend = 14, -- ball closer than this to the car: swing toward the car's own back (no jitter)
+	camMargin = 14, -- the camera stays inside the field plus this many studs
 	-- Looks
 	grass = { 64, 140, 70 },
 	grassAlt = { 58, 128, 64 }, -- every other stripe

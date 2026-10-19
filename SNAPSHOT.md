@@ -164,3 +164,11 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 - Hall is 192 long (`LobbyLayout.room.halfL = 96`). 8 garages, each 40 wide x 30 deep, open front: low wall (1.8 high) with a 14 wide gap (`LobbyLayout.bay`). Store/paint moved to the front corners (z 80), spawn z 76, lounge props near the door.
 - Likes: `src/shared/GarageLikes.luau` (pure, tested) saved in `profile.garage` (`received`, `given`). One like per garage ever, not your own, max 300 given. Server handler in `LobbyService.luau` (`bays.onLike`), rate limited 3 per 5s. Heart + `LikePrompt` (key F) at each door in `LobbyBays.luau`; sign shows "N LIKES". No Visit button.
 - Old GarageRoom/GarageFront models no longer placed (wrong size). Model wish list: `docs/GARAGE_MODELS_NEEDED.md`.
+
+## Soccer polish (claude/w2-soccer)
+- Kickoff: cars and ball are anchored through a 3-2-1-GO countdown (`ModesConfig.Soccer.readySeconds/kickoffSeconds/restartSeconds/goSeconds`). New UiUpdate kind `banner` (text, seconds) shown by `client/CenterBanner.luau`; `ready` carries `soccer = true`.
+- Goal: score banner ("YOU 1 - 0 THEM"), everything frozen for `goalPause`, then both teams go back to their spots, ball to the middle, 3-2-1 again. Cars are handed back to their drivers (`handOver`) after each unfreeze.
+- Bots: pure `shared/SoccerFieldFlow.luau`: one keeper per team (first bot slot, teams of 2+) holds `keeperDepth` in front of its goal and follows the ball sideways, drives out to clear when the ball is within `keeperClearRadius`; the others chase and shoot (`botAim`).
+- Ball: warning banner `stuckWarnSeconds` before the stuck reset; out-of-bounds/lid reset kept (tested). Match clock (m:ss) is in the top line, "GOLDEN GOAL" in overtime (tie at time-up: next goal wins).
+- Camera: `CameraDirector.soccer(on)`; pure `SoccerFieldFlow.cameraFrame` puts the camera high behind your car on the ball-to-car line (rises with distance, clamped to the field plus margin).
+- PLACEHOLDERS: all new numbers in `SoccerFieldConfig` (keeper*, cam*, stuckWarnSeconds) and `ModesConfig.Soccer` (readySeconds, kickoffSeconds, restartSeconds, goSeconds, hudSeconds). Not checked in Studio: countdown feel, network ownership after unfreeze, keeper behaviour, camera look.
