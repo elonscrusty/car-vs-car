@@ -57,9 +57,9 @@ function Atmosphere.apply()
 	haze.Haze = 0.4
 
 	local bloom: BloomEffect = effect("BloomEffect", "GameBloom")
-	bloom.Intensity = 0.45 -- a soft glow round the lamps, neon and bright toy colours
-	bloom.Size = 22
-	bloom.Threshold = 1.1
+	bloom.Intensity = 0.3 -- a soft glow round the lamps and neon only (it burned bright plastic out)
+	bloom.Size = 20
+	bloom.Threshold = 1.5
 
 	local grade: ColorCorrectionEffect = effect("ColorCorrectionEffect", "GameGrade")
 	grade.Saturation = 0.28

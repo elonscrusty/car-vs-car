@@ -1267,24 +1267,30 @@ function Lobby.build(): LobbyHandle
 	warmSpot("ClawSpot", world(g.x, 26, g.z).Position, 40, 5)
 	warmSpot("GarageSpot", world(0, 28, 10).Position, 60, 3)
 
-	local GUM_RED = Color3.fromRGB(255, 70, 90)
+	-- Soft pastel colors, plain plastic (no neon: the glow burned out in the lobby light).
+	local GUM_RED = Color3.fromRGB(240, 110, 120)
+	local GUM_TRIM = Color3.fromRGB(255, 220, 120)
 	local GUM_COLORS = {
-		Color3.fromRGB(255, 70, 90),
-		Color3.fromRGB(70, 160, 255),
-		Color3.fromRGB(255, 205, 40),
-		Color3.fromRGB(80, 210, 120),
-		Color3.fromRGB(190, 100, 255),
-		Color3.fromRGB(255, 140, 40),
+		Color3.fromRGB(255, 150, 170),
+		Color3.fromRGB(150, 200, 255),
+		Color3.fromRGB(255, 225, 140),
+		Color3.fromRGB(160, 230, 180),
+		Color3.fromRGB(205, 165, 255),
+		Color3.fromRGB(255, 190, 140),
 	}
+	local S = 1.8 -- everything below is drawn at 1x, then made S times bigger
 	local gumModel = Instance.new("Model")
 	gumModel.Name = "ClawMachine"
 	-- x across, z toward the hall (the back of the machine touches the wall at z - d / 2).
 	local function gum(dx: number, y: number, dz: number): CFrame
-		return world(g.x + dx, y, g.z + dz)
+		return world(g.x + dx * S, y * S, g.z + dz * S)
 	end
-	local wallZ = -g.d / 2
+	local function sz(x: number, y: number, z: number): Vector3
+		return Vector3.new(x, y, z) * S
+	end
+	local wallZ = (-g.d / 2) / S -- in 1x units
 	local cabZ = wallZ + 3.5 -- middle of the 7 deep cabinet
-	local gBase = part(folder, "GachaBody", Vector3.new(9, 5, 7), gum(0, 2.5, cabZ), GUM_RED)
+	local gBase = part(folder, "GachaBody", sz(9, 5, 7), gum(0, 2.5, cabZ), GUM_RED)
 	local function bit(
 		name: string,
 		size: Vector3,
@@ -1299,92 +1305,115 @@ function Lobby.build(): LobbyHandle
 		return p
 	end
 	-- A flat backing panel on the wall behind it, so it reads as mounted on the wall.
-	bit(
-		"GumballBacking",
-		Vector3.new(13, 15, 0.4),
-		gum(0, 9, wallZ + 0.3),
-		Color3.fromRGB(255, 244, 214)
-	)
-	bit("GumballBackingEdge", Vector3.new(13.6, 15.6, 0.3), gum(0, 9, wallZ + 0.15), YELLOW)
-	bit("GumballPlinth", Vector3.new(10.4, 0.7, 7.6), gum(0, 5.35, cabZ), YELLOW)
+	bit("GumballBacking", sz(13, 15, 0.4), gum(0, 9, wallZ + 0.3), Color3.fromRGB(235, 242, 255))
+	bit("GumballBackingEdge", sz(13.6, 15.6, 0.3), gum(0, 9, wallZ + 0.15), GUM_TRIM)
+	bit("GumballPlinth", sz(10.4, 0.7, 7.6), gum(0, 5.35, cabZ), GUM_TRIM)
 	local globe = bit(
 		"GumballGlobe",
-		Vector3.new(9, 9, 9),
+		sz(9, 9, 9),
 		gum(0, 10.2, cabZ),
-		Color3.fromRGB(190, 230, 255),
+		Color3.fromRGB(200, 232, 255),
 		Enum.Material.Glass,
 		Enum.PartType.Ball
 	)
-	globe.Transparency = 0.6
+	globe.Transparency = 0.7
 	bit(
 		"GumballCap",
-		Vector3.new(1.4, 5, 5),
+		sz(1.4, 5, 5),
 		gum(0, 15.1, cabZ) * CFrame.Angles(0, 0, math.pi / 2),
-		YELLOW,
+		GUM_TRIM,
 		nil,
 		Enum.PartType.Cylinder
 	)
 	bit(
 		"GumballKnob",
-		Vector3.new(1, 5, 5),
+		sz(1, 5, 5),
 		gum(0, 16.4, cabZ) * CFrame.Angles(0, 0, math.pi / 2),
 		GUM_RED,
 		nil,
 		Enum.PartType.Cylinder
 	)
-	-- Balls inside the globe: three layers settled in the bottom half.
+	-- Big pastel balls inside the globe: three layers settled in the bottom half.
 	local layers = {
-		{ y = 7.2, r = 1.6, n = 5 },
-		{ y = 8.6, r = 2.6, n = 6 },
-		{ y = 10.0, r = 3.0, n = 7 },
+		{ y = 7.7, r = 2.1, n = 4 },
+		{ y = 10.1, r = 2.6, n = 5 },
+		{ y = 12.4, r = 1.2, n = 3 },
 	}
 	local ballCount = 0
 	for _, layer in layers do
 		for i = 1, layer.n do
 			ballCount += 1
 			local a = (i / layer.n) * math.pi * 2 + layer.y
-			bit(
+			local ball = bit(
 				"GumballBall",
-				Vector3.new(1.7, 1.7, 1.7),
-				gum(math.cos(a) * layer.r, layer.y, cabZ + math.sin(a) * layer.r),
+				sz(2.8, 2.8, 2.8),
+				gum(math.cos(a) * layer.r, layer.y, cabZ + math.sin(a) * layer.r - 0.4),
 				GUM_COLORS[ballCount % #GUM_COLORS + 1],
 				nil,
 				Enum.PartType.Ball
 			)
+			ball.Transparency = 0.1
+		end
+	end
+	-- The prize ball: a clear ball at the front of the globe with a little car inside.
+	local prizePos = gum(0, 8.9, cabZ + 2.3)
+	local prize = bit(
+		"GumballPrize",
+		sz(3.8, 3.8, 3.8),
+		prizePos,
+		Color3.fromRGB(230, 245, 255),
+		Enum.Material.Glass,
+		Enum.PartType.Ball
+	)
+	prize.Transparency = 0.55
+	local prizeCar = miniCar(
+		gumModel,
+		"GumballCar",
+		Color3.fromRGB(255, 120, 130),
+		0.2 * S,
+		prizePos * CFrame.Angles(0, math.rad(35), 0) * CFrame.new(0, -0.5 * S, 0)
+	)
+	for _, d in prizeCar:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.CanCollide = false
+			d.CanQuery = false
+			if d.Material == Enum.Material.Neon then
+				d.Material = Enum.Material.SmoothPlastic
+			end
 		end
 	end
 	-- Front of the cabinet: a title plate, a coin slot and knob, and the chute where the ball drops.
 	local frontZ = cabZ + 3.5
-	local plate = bit("GumballPlate", Vector3.new(6.4, 1.8, 0.3), gum(0, 3.9, frontZ + 0.1), DARK)
-	label(plate, Enum.NormalId.Back, "GUMBALLS", YELLOW, nil) -- Back = the side facing the hall
-	bit("GumballSlot", Vector3.new(1.6, 0.3, 0.3), gum(2.7, 2.4, frontZ + 0.15), YELLOW)
+	local plate = bit("GumballPlate", sz(6.4, 1.8, 0.3), gum(0, 3.9, frontZ + 0.1), DARK)
+	label(plate, Enum.NormalId.Back, "GUMBALLS", GUM_TRIM, nil) -- Back = the side facing the hall
+	bit("GumballSlot", sz(1.6, 0.3, 0.3), gum(2.7, 2.4, frontZ + 0.15), GUM_TRIM)
 	bit(
 		"GumballCrank",
-		Vector3.new(0.8, 2.2, 2.2),
+		sz(0.8, 2.2, 2.2),
 		gum(-2.7, 2.2, frontZ + 0.4) * CFrame.Angles(0, math.pi / 2, 0),
-		YELLOW,
+		GUM_TRIM,
 		nil,
 		Enum.PartType.Cylinder
 	)
-	bit("GumballChute", Vector3.new(2.8, 1.8, 0.3), gum(0, 1.2, frontZ + 0.1), DARK)
-	bit("GumballTray", Vector3.new(3.4, 0.4, 1.6), gum(0, 0.4, frontZ + 0.7), YELLOW)
+	bit("GumballChute", sz(2.8, 1.8, 0.3), gum(0, 1.2, frontZ + 0.1), DARK)
+	bit("GumballTray", sz(3.4, 0.4, 1.6), gum(0, 0.4, frontZ + 0.7), GUM_TRIM)
 	-- The ball that drops out when someone pays. Hidden until ClawAnim plays.
 	local drop = bit(
 		"GumballDrop",
-		Vector3.new(1.7, 1.7, 1.7),
-		gum(0, 6.2, cabZ),
+		sz(2.8, 2.8, 2.8),
+		gum(0, 6.6, cabZ),
 		GUM_COLORS[3],
 		nil,
 		Enum.PartType.Ball
 	)
 	drop.Transparency = 1
-	drop:SetAttribute("Chute", gum(0, 1.2, frontZ + 0.7).Position)
+	drop:SetAttribute("Chute", gum(0, 1.8, frontZ + 0.7).Position)
 	-- A sign on the wall above it (flat on the wall, like the other plates).
 	LobbyDecor.plate(
 		gumModel,
 		"GUMBALLS",
-		Vector3.new(12, 3.4, 0.5),
-		CFrame.lookAt(world(g.x, 21, wallZ + g.z + 0.5).Position, world(g.x, 21, 0).Position)
+		sz(12, 3.4, 0.5),
+		CFrame.lookAt(world(g.x, 35, g.z - g.d / 2 + 0.5).Position, world(g.x, 35, 0).Position)
 	)
 	gumModel.Parent = folder
 	prompt(gBase, "GachaPrompt", "Play", "Gumball Machine")
