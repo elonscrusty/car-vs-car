@@ -28,14 +28,12 @@ local GREEN_DARK = Color3.fromRGB(80, 175, 75)
 function ArenaScenery.build(model: Model, origin: Vector3)
 	local cfg = GameConfig.Arena
 	local look = ArenaLookConfig
-	-- Weekly look: only colors change (rim wall stripes, grass tint), never sizes.
+	-- Weekly look: only colors change (rim wall color, grass tint), never sizes.
 	local theme = ArenaThemes.forWeek(Leaderboard.weekIndex(os.time()))
-	local wallIdx = 0
 	for _, w in model:GetChildren() do
 		if w.Name == "Wall" and w:IsA("BasePart") then
-			local c = if wallIdx % 2 == 0 then theme.rimA else theme.rimB
+			local c = theme.rimA -- one band color, no checker stripes
 			w.Color = Color3.fromRGB(c[1], c[2], c[3])
-			wallIdx += 1
 		end
 	end
 	-- Ground level outside the bowl = rim height.
