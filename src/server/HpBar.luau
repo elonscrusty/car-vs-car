@@ -11,6 +11,7 @@ local HpBar = {}
 export type Bar = {
 	set: (hp: number, maxHp: number) -> (),
 	hide: () -> (),
+	compact: () -> (), -- car fight: no name, a thin low bar that only shows once the car is hurt
 }
 
 local PILL_H = 24
@@ -78,8 +79,13 @@ function HpBar.create(adornee: BasePart, label: string, height: number, color: C
 	fillCorner.CornerRadius = UDim.new(0.5, 0)
 	fillCorner.Parent = fill
 
+	local compactOn = false
+
 	local function set(hp: number, maxHp: number)
 		local frac = HudStyle.fillSize(if maxHp > 0 then hp / maxHp else 0)
+		if compactOn then
+			gui.Enabled = hp > 0 and hp < maxHp
+		end
 		fill.Size = UDim2.new(frac, -4 * frac, 1, -4)
 		fill.BackgroundColor3 = Color3.fromRGB(HudStyle.hpColor(frac))
 	end
@@ -88,7 +94,19 @@ function HpBar.create(adornee: BasePart, label: string, height: number, color: C
 		gui.Enabled = false
 	end
 
-	return { set = set, hide = hide }
+	local function compact()
+		compactOn = true
+		pill.Visible = false
+		gui.AlwaysOnTop = false
+		gui.Size = UDim2.fromOffset(56, 8)
+		gui.StudsOffset = Vector3.new(0, height * 0.6, 0)
+		back.Position = UDim2.fromOffset(0, 0)
+		back.Size = UDim2.fromScale(1, 1)
+		backStroke.Thickness = 1
+		gui.Enabled = false
+	end
+
+	return { set = set, hide = hide, compact = compact }
 end
 
 return HpBar
