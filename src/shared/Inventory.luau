@@ -92,24 +92,24 @@ function Inventory.default(): Profile
 	}
 end
 
+-- New players choose 1 of LobbyConfig.StarterChoices, once. The car is added and set as the garage
+-- car. reason: "done" (already chose) or "unknown" (not one of the choices).
+function Inventory.pickStarter(p: Profile, carId: any): (boolean, string?)
+	if p.starterPicked then
+		return false, "done"
+	end
+	if type(carId) ~= "string" or not table.find(LobbyConfig.StarterChoices, carId) then
+		return false, "unknown"
+	end
+	Inventory.grantCar(p, carId)
+	p.build.carId = carId
+	p.starterPicked = true
+	return true, nil
+end
+
 -- Never errors. Accepts anything, returns a clean Profile.
 function Inventory.migrate(raw: any): Profile
 	if type(raw) ~= "table" then
-		-- New players choose 1 of LobbyConfig.StarterChoices, once. The car is added and set as the garage
-		-- car. reason: "done" (already chose) or "unknown" (not one of the choices).
-		function Inventory.pickStarter(p: Profile, carId: any): (boolean, string?)
-			if p.starterPicked then
-				return false, "done"
-			end
-			if type(carId) ~= "string" or not table.find(LobbyConfig.StarterChoices, carId) then
-				return false, "unknown"
-			end
-			Inventory.grantCar(p, carId)
-			p.build.carId = carId
-			p.starterPicked = true
-			return true, nil
-		end
-
 		return Inventory.default()
 	end
 	local owned: { [string]: boolean } = {}
