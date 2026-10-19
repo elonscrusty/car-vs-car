@@ -13,6 +13,7 @@ local Progress = require(ReplicatedStorage.Shared.Progress)
 local Quests = require(ReplicatedStorage.Shared.Quests)
 local Paint = require(ReplicatedStorage.Shared.Paint)
 local Build = require(ReplicatedStorage.Shared.Build)
+local GarageLikes = require(ReplicatedStorage.Shared.GarageLikes)
 local Retry = require(ReplicatedStorage.Shared.Retry)
 local SessionLock = require(ReplicatedStorage.Shared.SessionLock)
 
@@ -93,6 +94,7 @@ local function copyProfile(p: Profile): Profile
 		spin = table.clone(p.spin),
 		paint = Paint.copy(p.paint),
 		build = Build.copy(p.build),
+		garage = GarageLikes.clean(p.garage), -- clean makes a fresh copy (likes were never saved before)
 	}
 end
 
