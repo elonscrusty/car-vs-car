@@ -138,7 +138,7 @@ test("the claw can give any car and a duplicate pays coins", function()
 	local r = Gacha.pull(p, function()
 		return 0
 	end)
-	eq(r.carId, "Heavy")
+	eq(r.carId, "Compact")
 	eq(r.isNew, false)
 	eq(p.coins, 100 - LobbyConfig.Gacha.price + LobbyConfig.Gacha.duplicateRefunds.Common)
 end)

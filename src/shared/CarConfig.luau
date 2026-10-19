@@ -195,23 +195,23 @@ end
 
 -- LAUNCH ROSTER: only these ~12 cars are live (claw prizes, store, pick choices, quests, bots,
 -- odds). The rest stay in the code and in saves, but hidden, unless `useFullRoster` is true.
--- Spans roles and all 4 rarities. Heavy is the free starter (LobbyConfig.StarterCars).
---   Common: Heavy (tank), Light (fast, fragile), Sedan (balanced), DuneBuggy (bouncy turner)
---   Rare: Ramp (flipper), Bulldozer (plow), Drift (grippy turner)
---   Epic: Spike (big damage), Rocket (fastest), MonsterTruck (heavy smasher)
---   Legendary: Formula (speed demon), ArmoredTruck (steel wall)
+-- Spans roles and all 4 rarities. Compact is the free starter (LobbyConfig.StarterCars).
+--   Common: Compact, Sedan, Coupe, DuneBuggy
+--   Rare: Muscle, Roadster, Rally
+--   Epic: SuperCar, MonsterTruck, HotRod
+--   Legendary: Formula, ArmoredTruck
 CarConfig.useFullRoster = false
 CarConfig.LaunchRoster = {
-	"Heavy",
-	"Light",
+	"Compact",
 	"Sedan",
+	"Coupe",
 	"DuneBuggy",
-	"Ramp",
-	"Bulldozer",
-	"Drift",
-	"Spike",
-	"Rocket",
+	"Muscle",
+	"Roadster",
+	"Rally",
+	"SuperCar",
 	"MonsterTruck",
+	"HotRod",
 	"Formula",
 	"ArmoredTruck",
 }

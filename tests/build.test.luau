@@ -30,7 +30,7 @@ end)
 
 H.test("new profiles have a starter build and keep it through migrate", function()
 	local p = Inventory.default()
-	H.eq(p.build.carId, "Heavy")
+	H.eq(p.build.carId, "Compact")
 	for _, slot in BuildConfig.Slots do
 		H.eq(p.build.parts[slot], BuildConfig.Starter[slot])
 		H.eq(p.build.levels[slot], 1)
@@ -48,7 +48,7 @@ H.test("clean throws out junk", function()
 		parts = { engine = "turbo", wheels = "plates", armor = "plates" },
 		levels = { wheels = 99, engine = -4, armor = 0 / 0 },
 	})
-	H.eq(b.carId, "Heavy")
+	H.eq(b.carId, "Compact")
 	H.eq(b.owned.turbo, true)
 	H.eq(b.owned.bogus, nil)
 	H.eq(b.owned.plates, nil)
@@ -58,7 +58,7 @@ H.test("clean throws out junk", function()
 	H.eq(b.levels.wheels, BuildConfig.MaxLevel)
 	H.eq(b.levels.engine, 1)
 	H.eq(b.levels.armor, 1)
-	H.eq(Build.clean("junk").carId, "Heavy")
+	H.eq(Build.clean("junk").carId, "Compact")
 end)
 
 H.test("buying a part takes coins once and checks everything", function()
@@ -95,17 +95,17 @@ end)
 
 H.test("choosing the body needs a car you own", function()
 	local p = Inventory.default()
-	local ok, why = Build.setCar(p, "Rocket")
+	local ok, why = Build.setCar(p, "HotRod")
 	H.eq(ok, false)
 	H.eq(why, "notowned")
 	H.eq(Build.setCar(p, "Banana"), false)
-	p.owned.Rocket = true
-	ok = Build.setCar(p, "Rocket")
+	p.owned.HotRod = true
+	ok = Build.setCar(p, "HotRod")
 	H.eq(ok, true)
-	H.eq(p.build.carId, "Rocket")
+	H.eq(p.build.carId, "HotRod")
 	-- If the car is gone, the build falls back to one you own.
-	H.eq(Build.carFor(p.build, { Light = true }), "Light")
-	H.eq(Build.carFor(p.build, { Rocket = true, Light = true }), "Rocket")
+	H.eq(Build.carFor(p.build, { Sedan = true }), "Sedan")
+	H.eq(Build.carFor(p.build, { HotRod = true, Sedan = true }), "HotRod")
 end)
 
 H.test("upgrades cost coins, stop at the top level", function()
@@ -130,7 +130,7 @@ H.test("upgrades cost coins, stop at the top level", function()
 end)
 
 H.test("stats: starter build is the plain car, parts and levels add up", function()
-	local base = CarConfig.Cars.Heavy
+	local base = CarConfig.Cars.Compact
 	local plain = Build.stats(base, Build.default())
 	for _, key in { "hp", "mass", "maxSpeed", "accel", "turnRate", "damageMult", "hitLift" } do
 		H.near((plain :: any)[key], (base :: any)[key], 0.51, key)
@@ -144,7 +144,7 @@ H.test("stats: starter build is the plain car, parts and levels add up", functio
 	H.truthy(s.hp > base.hp, "plates add health")
 	H.truthy(s.mass > base.mass)
 	H.truthy(s.accel > base.accel, "turbo speeds up")
-	H.eq(base.hp, CarConfig.Cars.Heavy.hp, "the base car is never changed")
+	H.eq(base.hp, CarConfig.Cars.Compact.hp, "the base car is never changed")
 
 	local lv = Build.copy(b)
 	lv.levels.armor = BuildConfig.MaxLevel
@@ -156,7 +156,7 @@ H.test("stats: starter build is the plain car, parts and levels add up", functio
 end)
 
 H.test("a better build is a stronger car", function()
-	local base = CarConfig.Cars.Light
+	local base = CarConfig.Cars.Sedan
 	local plain = Build.default()
 	local strong = Build.copy(plain)
 	strong.parts.armor = "spikes"

@@ -11,15 +11,15 @@ H.test("every car has a positive price by rarity", function()
 	for _, id in CarConfig.Order do
 		H.truthy(Store.price(id) > 0, id)
 	end
-	H.eq(Store.price("Heavy"), LobbyConfig.Store.prices.Common)
-	H.eq(Store.price("Spike"), LobbyConfig.Store.prices.Epic)
+	H.eq(Store.price("Compact"), LobbyConfig.Store.prices.Common)
+	H.eq(Store.price("SuperCar"), LobbyConfig.Store.prices.Epic)
 	H.eq(Store.price("NoSuchCar"), LobbyConfig.Store.defaultPrice)
 end)
 
 H.test("canBuy reasons", function()
 	local p = Inventory.default()
 	p.coins = 10000
-	local ok, why = Store.canBuy(p, "Heavy")
+	local ok, why = Store.canBuy(p, "Compact")
 	H.eq(ok, false)
 	H.eq(why, "owned")
 	ok, why = Store.canBuy(p, "NoSuchCar")
@@ -28,30 +28,30 @@ H.test("canBuy reasons", function()
 	H.eq(why, "unknown")
 	ok, why = Store.canBuy(p, nil)
 	H.eq(why, "unknown")
-	p.coins = Store.price("Spike") - 1
-	ok, why = Store.canBuy(p, "Spike")
+	p.coins = Store.price("SuperCar") - 1
+	ok, why = Store.canBuy(p, "SuperCar")
 	H.eq(ok, false)
 	H.eq(why, "coins")
-	p.coins = Store.price("Spike")
-	ok, why = Store.canBuy(p, "Spike")
+	p.coins = Store.price("SuperCar")
+	ok, why = Store.canBuy(p, "SuperCar")
 	H.eq(ok, true)
 	H.eq(why, nil)
 end)
 
 H.test("buy charges once and grants the car", function()
 	local p = Inventory.default()
-	p.coins = Store.price("Spike") + 7
-	H.eq(Store.buy(p, "Spike"), true)
+	p.coins = Store.price("SuperCar") + 7
+	H.eq(Store.buy(p, "SuperCar"), true)
 	H.eq(p.coins, 7)
-	H.eq(Inventory.owns(p, "Spike"), true)
-	H.eq(Store.buy(p, "Spike"), false) -- already owned: no second charge
+	H.eq(Inventory.owns(p, "SuperCar"), true)
+	H.eq(Store.buy(p, "SuperCar"), false) -- already owned: no second charge
 	H.eq(p.coins, 7)
 end)
 
 H.test("failed buys change nothing", function()
 	local p = Inventory.default()
 	p.coins = 5
-	H.eq(Store.buy(p, "Spike"), false)
+	H.eq(Store.buy(p, "SuperCar"), false)
 	H.eq(Store.buy(p, "Bogus"), false)
 	H.eq(p.coins, 5)
 	H.eq(#Inventory.ownedList(p), 1)

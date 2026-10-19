@@ -52,6 +52,13 @@ CarTraitsConfig.differBy = 0.09
 
 -- Per car. Missing fields fall back to Defaults.
 CarTraitsConfig.Cars = {
+	Compact = { grip = 0.9, drift = 0.35, punch = 0.15, highTurn = 1.05, sizeScale = 0.85 },
+	Coupe = { grip = 1.05, drift = 0.3, punch = 0.1, highTurn = 1.0 },
+	Muscle = { grip = 1.2, drift = 0.1, punch = 0.3, highTurn = 0.8, sizeScale = 1.1 },
+	Roadster = { grip = 1.0, drift = 0.15, punch = 0.25, highTurn = 1.1, sizeScale = 0.95 },
+	Rally = { grip = 1.1, drift = 0.5, punch = 0.1, highTurn = 1.15 },
+	SuperCar = { grip = 1.2, drift = 0.3, punch = 0.55, highTurn = 0.9, sizeScale = 0.95 },
+	HotRod = { grip = 0.65, drift = 0.7, punch = 0.55, highTurn = 0.85 },
 	Heavy = { grip = 1.25, drift = 0.05, punch = -0.15, highTurn = 0.7 },
 	Light = { grip = 0.7, drift = 0.7, punch = 0.35, highTurn = 1.1 },
 	Sedan = { grip = 1.0, drift = 0.2, punch = 0.0, highTurn = 0.95 },

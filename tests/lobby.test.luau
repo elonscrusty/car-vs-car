@@ -43,21 +43,21 @@ end)
 H.test("default profile owns starters only", function()
 	local p = Inventory.default()
 	H.eq(#Inventory.ownedList(p), #LobbyConfig.StarterCars)
-	H.truthy(Inventory.owns(p, "Heavy"))
-	H.eq(Inventory.owns(p, "Spike"), false)
+	H.truthy(Inventory.owns(p, "Compact"))
+	H.eq(Inventory.owns(p, "SuperCar"), false)
 	H.eq(p.coins, 0)
 end)
 
 H.test("first pull is free and costs nothing", function()
 	local p = Inventory.default()
 	H.truthy(Gacha.canBuy(p))
-	local r = Gacha.pull(p, fixed(0.9, 0)) -- Epic -> Spike
+	local r = Gacha.pull(p, fixed(0.9, 0)) -- Epic -> SuperCar
 	H.eq(r.free, true)
-	H.eq(r.carId, "Spike")
+	H.eq(r.carId, "SuperCar")
 	H.eq(r.isNew, true)
 	H.eq(p.coins, 0)
 	H.eq(p.freePullUsed, true)
-	H.truthy(Inventory.owns(p, "Spike"))
+	H.truthy(Inventory.owns(p, "SuperCar"))
 end)
 
 H.test("second pull needs coins", function()
@@ -77,8 +77,8 @@ H.test("paid pull deducts price, duplicate refunds", function()
 	local p = Inventory.default()
 	p.freePullUsed = true
 	p.coins = 150
-	local r = Gacha.pull(p, fixed(0.0, 0.0)) -- Common, first common = Heavy (owned)
-	H.eq(r.carId, "Heavy")
+	local r = Gacha.pull(p, fixed(0.0, 0.0)) -- Common, first common = Compact (owned)
+	H.eq(r.carId, "Compact")
 	H.eq(r.isNew, false)
 	H.eq(r.free, false)
 	H.eq(r.refund, LobbyConfig.Gacha.duplicateRefunds.Common)
@@ -92,12 +92,12 @@ H.test("pull is deterministic and maps rolls to rarity", function()
 		p.coins = 1000
 		return Gacha.pull(p, fixed(roll, 0)).carId
 	end
-	H.eq(carFor(0.0), "Heavy")
-	H.eq(carFor(0.549), "Heavy")
-	H.eq(carFor(0.55), "Ramp") -- Rare starts at 55%
-	H.eq(carFor(0.829), "Ramp")
-	H.eq(carFor(0.83), "Spike") -- Epic starts at 83%
-	H.eq(carFor(0.969), "Spike")
+	H.eq(carFor(0.0), "Compact")
+	H.eq(carFor(0.549), "Compact")
+	H.eq(carFor(0.55), "Muscle") -- Rare starts at 55%
+	H.eq(carFor(0.829), "Muscle")
+	H.eq(carFor(0.83), "SuperCar") -- Epic starts at 83%
+	H.eq(carFor(0.969), "SuperCar")
 	H.eq(carFor(0.97), "Formula") -- Legendary starts at 97%
 	H.eq(carFor(0.9999), "Formula")
 	local p = Inventory.default()
@@ -108,10 +108,10 @@ H.test("pull is deterministic and maps rolls to rarity", function()
 end)
 
 H.test("duplicate refund grows with rarity", function()
-	H.eq(Gacha.refundFor("Heavy"), LobbyConfig.Gacha.duplicateRefunds.Common)
-	H.eq(Gacha.refundFor("Spike"), LobbyConfig.Gacha.duplicateRefunds.Epic)
+	H.eq(Gacha.refundFor("Compact"), LobbyConfig.Gacha.duplicateRefunds.Common)
+	H.eq(Gacha.refundFor("SuperCar"), LobbyConfig.Gacha.duplicateRefunds.Epic)
 	H.eq(Gacha.refundFor("Formula"), LobbyConfig.Gacha.duplicateRefunds.Legendary)
-	H.truthy(Gacha.refundFor("Formula") > Gacha.refundFor("Spike"))
+	H.truthy(Gacha.refundFor("Formula") > Gacha.refundFor("SuperCar"))
 	local p = Inventory.default()
 	p.freePullUsed = true
 	p.coins = 1000
@@ -126,20 +126,20 @@ H.test("migrate sanitizes garbage", function()
 	for _, bad in { "x", 5, false, {}, { coins = "9", owned = 3 } } do
 		local p = Inventory.migrate(bad)
 		H.eq(p.coins, 0)
-		H.truthy(Inventory.owns(p, "Heavy"))
+		H.truthy(Inventory.owns(p, "Compact"))
 	end
 	local p = Inventory.migrate({
 		coins = -50.7,
 		wins = 1e20,
-		owned = { Light = true, Ghost = true, Ramp = "yes", Spike = false },
+		owned = { Sedan = true, Ghost = true, Muscle = "yes", SuperCar = false },
 		freePullUsed = "true",
 	})
 	H.eq(p.coins, 0)
 	H.eq(p.wins, 1e9)
 	H.eq(p.owned.Ghost, nil)
-	H.eq(p.owned.Ramp, nil)
-	H.eq(p.owned.Spike, nil)
-	H.truthy(p.owned.Light)
+	H.eq(p.owned.Muscle, nil)
+	H.eq(p.owned.SuperCar, nil)
+	H.truthy(p.owned.Sedan)
 	H.eq(p.freePullUsed, false)
 	H.eq(Inventory.migrate({ coins = 12.9 }).coins, 12)
 	H.eq(Inventory.migrate({ coins = 0 / 0 }).coins, 0)
@@ -147,12 +147,12 @@ end)
 
 H.test("ownedList follows CarConfig.Order, grantCar reports new", function()
 	local p = Inventory.default()
-	H.eq(Inventory.grantCar(p, "Spike"), true)
-	H.eq(Inventory.grantCar(p, "Spike"), false)
+	H.eq(Inventory.grantCar(p, "SuperCar"), true)
+	H.eq(Inventory.grantCar(p, "SuperCar"), false)
 	H.eq(Inventory.grantCar(p, "Nope"), false)
-	Inventory.grantCar(p, "Light")
+	Inventory.grantCar(p, "Sedan")
 	local list = Inventory.ownedList(p)
-	H.eq(table.concat(list, ","), "Heavy,Light,Spike")
+	H.eq(table.concat(list, ","), "Compact,Sedan,SuperCar")
 	Inventory.addCoins(p, 30)
 	Inventory.addCoins(p, -100)
 	H.eq(p.coins, 0)
@@ -165,7 +165,8 @@ H.test("PickChoices: no dupes, handles few owned", function()
 		return state / 2147483648
 	end
 	for _ = 1, 50 do
-		local picks = PickChoices.choose({ "Heavy", "Light", "Ramp", "Spike", "Heavy" }, 3, r)
+		local picks =
+			PickChoices.choose({ "Compact", "Sedan", "Muscle", "SuperCar", "Compact" }, 3, r)
 		H.eq(#picks, 3)
 		local seen = {}
 		for _, id in picks do
@@ -173,11 +174,11 @@ H.test("PickChoices: no dupes, handles few owned", function()
 			seen[id] = true
 		end
 	end
-	H.eq(#PickChoices.choose({ "Heavy" }, 3, r), 1)
+	H.eq(#PickChoices.choose({ "Compact" }, 3, r), 1)
 	H.eq(#PickChoices.choose({}, 3, r), 0)
-	H.eq(#PickChoices.choose({ "Heavy", "Light" }, 3, r), 2)
-	local owned = { "Heavy", "Light", "Ramp" }
+	H.eq(#PickChoices.choose({ "Compact", "Sedan" }, 3, r), 2)
+	local owned = { "Compact", "Sedan", "Muscle" }
 	PickChoices.choose(owned, 3, r)
 	H.eq(#owned, 3, "input untouched")
-	H.eq(table.concat(PickChoices.choose(owned, 2, fixed(0, 0)), ","), "Heavy,Light")
+	H.eq(table.concat(PickChoices.choose(owned, 2, fixed(0, 0)), ","), "Compact,Sedan")
 end)

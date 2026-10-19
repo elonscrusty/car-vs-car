@@ -98,6 +98,83 @@ CarCatalog.Entries = {
 -- CarConfig). Numbers are PLACEHOLDERS tuned only so no car's power score (CarPower) is far above
 -- its rarity tier's average; carter retunes by feel. Cars not listed keep `Neutral`.
 CarCatalog.Tuned = {
+	Compact = {
+		role = "Tiny and zippy. Easy to spin.",
+		stats = {
+			hp = 120,
+			mass = 40,
+			maxSpeed = 84,
+			accel = 130,
+			turnRate = 4.2,
+			damageMult = 0.9,
+		},
+	},
+	Coupe = {
+		role = "Smooth and steady. Quick start.",
+		stats = {
+			hp = 140,
+			mass = 55,
+			maxSpeed = 82,
+			accel = 120,
+			turnRate = 3.8,
+			damageMult = 1.0,
+		},
+	},
+	Muscle = {
+		role = "Heavy hitter. Wins head-on.",
+		stats = {
+			hp = 170,
+			mass = 90,
+			maxSpeed = 74,
+			accel = 100,
+			turnRate = 2.8,
+			damageMult = 1.2,
+		},
+	},
+	Roadster = {
+		role = "Fast and sharp. Dodges well.",
+		stats = {
+			hp = 130,
+			mass = 40,
+			maxSpeed = 92,
+			accel = 135,
+			turnRate = 4.4,
+			damageMult = 1.0,
+		},
+	},
+	Rally = {
+		role = "Grippy. Never slides out.",
+		stats = {
+			hp = 150,
+			mass = 60,
+			maxSpeed = 84,
+			accel = 125,
+			turnRate = 4.0,
+			damageMult = 1.0,
+		},
+	},
+	SuperCar = {
+		role = "Rocket start. Hits fast.",
+		stats = {
+			hp = 125,
+			mass = 35,
+			maxSpeed = 108,
+			accel = 165,
+			turnRate = 4.0,
+			damageMult = 1.15,
+		},
+	},
+	HotRod = {
+		role = "Loud and wild. Big smash.",
+		stats = {
+			hp = 150,
+			mass = 55,
+			maxSpeed = 96,
+			accel = 150,
+			turnRate = 3.4,
+			damageMult = 1.2,
+		},
+	},
 	Sedan = {
 		role = "Balanced. Good at everything.",
 		stats = {

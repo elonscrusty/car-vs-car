@@ -882,8 +882,8 @@ function LobbyService.start(deps: Deps): Handle
 					return
 				end
 				local p = Profiles.get(player)
-				local owned = if p then Inventory.ownedList(p) else { "Heavy" }
-				local carId = owned[math.random(1, #owned)] or "Heavy"
+				local owned = if p then Inventory.ownedList(p) else LobbyConfig.StarterCars
+				local carId = owned[math.random(1, #owned)] or LobbyConfig.StarterCars[1]
 				cancelPlayer(player)
 				players[player] = { stage = "match", offered = {}, picked = nil, token = 0 }
 				deps.startMatch({
