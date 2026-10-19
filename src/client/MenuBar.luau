@@ -89,7 +89,7 @@ function MenuBar.new(): MenuBar
 			local dot = Instance.new("Frame")
 			dot.Size = UDim2.fromOffset(16, 16)
 			dot.AnchorPoint = Vector2.new(1, 0)
-			dot.Position = UDim2.new(1, -2, 0, 2)
+			dot.Position = UDim2.new(1, 8, 0, -8) -- sits on the corner so it never hides the label
 			dot.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
 			dot.BorderSizePixel = 0
 			dot.Visible = false
@@ -97,6 +97,10 @@ function MenuBar.new(): MenuBar
 			local dotCorner = Instance.new("UICorner")
 			dotCorner.CornerRadius = UDim.new(1, 0)
 			dotCorner.Parent = dot
+			local dotStroke = Instance.new("UIStroke")
+			dotStroke.Color = Color3.new(1, 1, 1)
+			dotStroke.Thickness = 2
+			dotStroke.Parent = dot
 			dot.Parent = b
 			badges[id] = dot
 			UiStyle.polish(b)
