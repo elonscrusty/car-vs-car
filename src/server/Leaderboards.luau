@@ -16,6 +16,8 @@ type Profile = { wins: number, progress: { bestStreak: number } }
 
 local RETRY = { attempts = 3, baseDelay = 1, maxDelay = 4 }
 local BOARD_SIZE = Vector3.new(14, 11, 0.4)
+local MOUNT_HEIGHT = 5.5 -- the bottom edge of the boards above the floor (they hang on the wall)
+local BACKING = Color3.fromRGB(255, 205, 40) -- yellow frame panel behind the row
 local TITLE_SIZE = 40 -- pixels (board is 40 pixels per stud)
 local BODY_SIZE = 28
 local PANEL = Color3.fromRGB(18, 24, 48) -- the navy of the other panels
@@ -289,8 +291,9 @@ local function buildBoard(
 	end
 end
 
--- Build both boards at `center` (world position of the middle of the pair, boards stand on the floor
--- facing +Z) and start the refresh loop. Call once.
+-- Build the boards flat on the back wall and start the refresh loop. `center` is the world position
+-- on the floor in front of the wall, in the middle of the row (the boards hang MOUNT_HEIGHT above
+-- it, facing +Z, the way into the hall). Call once.
 function Leaderboards.init(folder: Folder, center: Vector3)
 	if inited then
 		return
@@ -300,11 +303,22 @@ function Leaderboards.init(folder: Folder, center: Vector3)
 	-- Left to right: all-time wins, this week's wins (the middle, main board), best streak.
 	local shown =
 		{ Leaderboard.Boards[1], Leaderboard.Weekly, Leaderboard.Smashes, Leaderboard.Boards[2] }
+	-- One backing panel behind the whole row, so the boards are mounted on something.
+	local backing = Instance.new("Part")
+	backing.Name = "BoardBacking"
+	backing.Anchored = true
+	backing.CanCollide = false
+	backing.CanQuery = false
+	backing.Size = Vector3.new(step * #shown + 1, BOARD_SIZE.Y + 1.6, 0.4)
+	backing.Color = BACKING
+	backing.Material = Enum.Material.SmoothPlastic
+	backing.CFrame = CFrame.new(center + Vector3.new(0, MOUNT_HEIGHT + BOARD_SIZE.Y / 2, -0.45))
+	backing.Parent = folder
 	for i, board in shown do
 		buildBoard(
 			folder,
 			board,
-			center + Vector3.new((i - 2.5) * step, BOARD_SIZE.Y / 2 + 1, 0),
+			center + Vector3.new((i - 2.5) * step, MOUNT_HEIGHT + BOARD_SIZE.Y / 2, 0),
 			0
 		)
 	end

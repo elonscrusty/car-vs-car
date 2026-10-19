@@ -62,8 +62,9 @@ function LobbyGarage.build(folder: Folder, origin: Vector3)
 		end
 	end
 
-	-- Spin wheel in the front left corner, the two boards on the back wall.
-	put("SpinWheel", -50, 0, HL - 2.5, FRONT, 18)
+	-- Spin wheel out in the open, beside the hero stage where everyone walking up the lane can see
+	-- it (it used to sit in the front corner). It faces the entrance.
+	put("SpinWheel", -34, 0, -46, BACK, 18)
 
 	-- Fans high on the back wall, lamps over the hall.
 	put("WallFan", -38, 27, -HL + 2, BACK)
@@ -78,9 +79,10 @@ function LobbyGarage.build(folder: Folder, origin: Vector3)
 	put("TrashBin", 31, 0, HL - 3, FRONT)
 	put("WaterCooler", 56, 0, 66.5, RIGHT)
 
-	-- Hall dressing so the big floor does not feel bare: a tire rack, bench, shelf or locker bank
-	-- with a small thing beside it between the garages, plate tiles in every doorway, and more
-	-- lamps over the side aisles.
+	-- Garage dressing: each garage keeps its LIFT on the left (LobbyBays) and the tool props on the
+	-- RIGHT side, against the right-hand divider, so the walk-in opening stays empty. (The props
+	-- used to stand in the side aisle in front of the garages.) Left and right are as seen from
+	-- the door looking in.
 	local BIG = { "TireRack", "Workbench", "Lockers", "PartsShelf" }
 	local BIG_SRC =
 		{ TireRack = "Decor", Workbench = "Decor", Lockers = "Garage", PartsShelf = "More" }
@@ -92,41 +94,33 @@ function LobbyGarage.build(folder: Folder, origin: Vector3)
 		SteelBench = "Garage",
 	}
 	local ART = { "SteeringWheelArt", "PlateWall", "WallClock", "PlateWall" }
-	-- The props stand out in the side aisle between two garage openings (never in front of a
-	-- garage), the wall art stays on the wall above each garage.
 	for i, b in L.bays do
 		local side = if b.face > 0 then -1 else 1
 		local yaw = if b.face > 0 then LEFT else RIGHT
 		local art = ART[(i - 1) % #ART + 1]
+		-- Wall art stays on the hall wall above each garage; plate tiles in the doorway.
 		put(art, side * 62.3, 9, b.z - 13.5, yaw, nil, "More")
 		for _, dz in { -4, 4 } do
 			put("DiamondPlateTile", side * 56, 0.05, b.z + dz, 0)
 		end
-		if i < 4 or (i > 4 and i < 8) then
-			-- The wall between this garage and the next one along.
-			local z = b.z + 20
-			local big = BIG[(i - 1) % #BIG + 1]
-			local small = SMALL[(i * 3 - 1) % #SMALL + 1]
-			put(big, side * 47, 0, z - 3, yaw, nil, BIG_SRC[big])
-			put(small, side * 47, 0, z + 4, yaw, nil, SMALL_SRC[small])
-			if i % 2 == 1 then
-				put("TireStack", side * 47, 0, z + 9, yaw, nil, "Bowl")
-			end
-		end
+		local rightZ = b.z - b.face * 17.5 -- against the right-hand divider
+		local big = BIG[(i - 1) % #BIG + 1]
+		local small = SMALL[(i * 3 - 1) % #SMALL + 1]
+		put(big, b.x + b.face * 1, 0, rightZ, yaw, nil, BIG_SRC[big])
+		put(small, b.x + b.face * 5, 0, rightZ, yaw, nil, SMALL_SRC[small])
 	end
 	for _, side in { -1, 1 } do
 		for _, z in { 32, 4, -24 } do
 			put("PendantLamp", side * 46, 31, z, FRONT, 30)
 		end
-		-- Back corners: lockers and a tool cabinet on the back wall.
-		put("Lockers", side * 56, 0, -HL + 1.5, BACK)
-		put("ToolWallCabinet", side * 47, 0, -HL + 1.5, BACK)
+		-- Back left corner: lockers and a tool cabinet on the back wall. (The right corner belongs
+		-- to the gumball machine and the left-center to the leaderboards.)
+		if side < 0 then
+			put("Lockers", side * 56, 0, -HL + 1.5, BACK)
+			put("ToolWallCabinet", side * 47, 0, -HL + 1.5, BACK)
+		end
 	end
-	-- A little workshop stuff in the back corners.
-	put("EngineStand", -42, 0, -HL + 5, BACK, nil, "Decor")
 	put("PalletCrates", -60, 0, -HL + 4, BACK, nil, "More")
-	put("WeldingCart", 42, 0, -HL + 5, BACK, nil, "More")
-	put("HydraulicPress", 60, 0, -HL + 4, BACK, nil, "More")
 
 	-- A workstation on the back wall of each garage.
 	for _, b in L.bays do

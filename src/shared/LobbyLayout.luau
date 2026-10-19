@@ -10,7 +10,7 @@ local LobbyLayout = {}
 -- cyan pad, a cyan-lined lane up the middle to the hero truck on its round stage under the big
 -- sign on the back wall, the 4 fight pads as 2 x 2 (two each side of the lane), a garage for
 -- every player down both side walls (A1-A4 left, B1-B4 right) at the back, the store at the front
--- left, the paint / customize booth at the front right and the claw machine on its own platform beside the hero stage.
+-- left, the paint / customize booth at the front right and the gumball machine on the back wall in the right corner.
 -- The hall is `room.halfW` * 2 wide and `room.halfL` * 2 long (inside the walls); the roof is
 -- `room.wallHeight + room.upper` high.
 LobbyLayout.room = { halfW = 64, halfL = 96, wallHeight = 18, upper = 22, wall = 2 }
@@ -31,7 +31,7 @@ LobbyLayout.showcase = { x = 0, z = -40, radius = 16, footprint = 40 } -- hero t
 -- front toward +x). w / d are the size before turning.
 LobbyLayout.store = { x = -50, z = 80, w = 20, d = 12, yaw = 90 } -- front left
 LobbyLayout.paint = { x = 50, z = 80, w = 20, d = 12, yaw = -90 } -- front right
-LobbyLayout.gacha = { x = 38, z = -60, w = 16, d = 16 } -- the claw machine (its own spot, right of the hero stage)
+LobbyLayout.gacha = { x = 50, z = -89, w = 14, d = 12 } -- the gumball machine: on the back wall, right corner
 -- Garages: one per player, built INTO the side walls: each is a big recessed room with an OPEN front
 -- (a low wall with a wide gap in the middle, so players just walk in). 4 down each side
 -- (1-4 = A1-A4 on the left, 5-8 = B1-B4 on the right). `face` is the way a garage opens

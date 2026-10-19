@@ -81,3 +81,11 @@ test("garages are big, open-fronted and with the store and paint booth past them
 		truthy(booth.z >= lastEnd, "booth sits past the last garage")
 	end
 end)
+
+test("the gumball machine stands against the back wall in the right corner", function()
+	local g = LobbyLayout.gacha
+	local room = LobbyLayout.room
+	truthy(g.x > 0, "right side")
+	near(g.z - g.d / 2, -room.halfL + 1, 1.01) -- touching the back wall (a stud for the wall panel)
+	truthy(LobbyLayout.insideRoom(LobbyLayout.footprints().gacha))
+end)

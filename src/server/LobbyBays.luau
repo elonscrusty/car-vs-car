@@ -38,11 +38,16 @@ export type Handle = {
 
 local PARK_SCALE = 0.5 -- the parked collection
 local PARK_SLOTS = { 0, 1, -1, 2 } -- row positions: the newest in the middle
-local PARK_STEP = 5.6 -- studs between parked cars (along the wall)
+local PARK_STEP = 4.2 -- studs between parked cars (along the wall)
+-- Seen from the door looking in, the lift stands in the LEFT half of the garage and the parked
+-- cars and tools in the RIGHT half, so the opening in the middle of the front stays clear.
+-- `face` is also the sign of "left" along z (walking into a face = +1 garage, left is +z).
+local LIFT_SIDE = 10 -- studs from the garage middle to the lift (left)
+local PARK_SIDE = 9 -- ...and to the middle of the parked row (right)
 local PARK_MAX = 4
 local STEP = 1 / 20 -- seconds between updates (cheap for the network)
 local LIFT_LOW, LIFT_HIGH = 2.2, 5 -- height of the runways above the floor (they slowly rise and sink)
-local LIFT_SHIFT = 3 -- the lift stands this far toward the hall from the middle of the bay
+local LIFT_SHIFT = -1 -- the lift stands this far toward the hall from the middle of the bay (negative: toward the back wall)
 local PARK_BACK = 5.5 -- parked cars stand this far from the back wall
 local POST_X, POST_Z = 9.5, 8 -- lift posts, from the lift centre
 local REAL_LIFT_TOP = 1.45 -- height of the runways of the Blender lift
@@ -103,8 +108,11 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 	local bays: { Bay } = {}
 
 	for i, spot in LobbyLayout.bays do
-		local center =
-			Vector3.new(origin.X + spot.x + spot.face * LIFT_SHIFT, origin.Y, origin.Z + spot.z)
+		local center = Vector3.new(
+			origin.X + spot.x + spot.face * LIFT_SHIFT,
+			origin.Y,
+			origin.Z + spot.z + spot.face * LIFT_SIDE
+		)
 
 		-- Floor mark under the lift: a dark pad with a yellow frame.
 		local ring = block(folder, "BayRing", Vector3.new(24, 0.06, 18), Color3.fromRGB(22, 22, 26))
@@ -166,13 +174,14 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 			end
 		end
 
-		-- Name board above the middle of the open front, same height on every garage, facing the hall.
+		-- Name board mounted on the inner back wall of the garage (never floating in the opening),
+		-- same height on every garage, facing the hall.
 		local sign = Instance.new("Part")
 		sign.Name = "BaySign"
-		sign.Size = Vector3.new(12, 3, 0.5)
+		sign.Size = Vector3.new(12, 2.6, 0.5)
 		local signPos = Vector3.new(
-			origin.X + spot.x + spot.face * (LobbyLayout.bay.w / 2 + 0.4),
-			origin.Y + 14,
+			origin.X + spot.x - spot.face * (LobbyLayout.bay.w / 2 - 1.6),
+			origin.Y + 14.9,
 			origin.Z + spot.z
 		)
 		sign.CFrame = CFrame.lookAt(signPos, signPos + Vector3.xAxis * spot.face)
@@ -203,7 +212,8 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		local inHall = Vector3.xAxis * spot.face
 		local function framePlate(name: string, z: number, text: string, color: Color3): Part
 			local plate = block(folder, name, Vector3.new(3, 3, 0.3), Color3.fromRGB(22, 36, 66))
-			local at = Vector3.new(frameX, origin.Y + 5, z)
+			-- Stands on top of the low front wall (it used to hang in the air above it).
+			local at = Vector3.new(frameX, origin.Y + LobbyLayout.bay.wallHeight + 1.8, z)
 			plate.CFrame = CFrame.lookAt(at, at + inHall)
 			local g = Instance.new("SurfaceGui")
 			g.Face = Enum.NormalId.Front
@@ -427,13 +437,13 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		local base = Vector3.new(
 			b.center.X - b.face * (LIFT_SHIFT + LobbyLayout.bay.w / 2 - PARK_BACK),
 			origin.Y,
-			b.center.Z
+			b.center.Z - b.face * (LIFT_SIDE + PARK_SIDE) -- the right half, across the middle
 		)
 		local yaw = CFrame.Angles(0, -b.face * math.pi / 2, 0)
 		for k = 1, math.min(#others, PARK_MAX) do
 			local c2 = CarConfig.get(others[k])
 			local len2 = if c2 then math.max(c2.size[1], c2.size[3]) else 8
-			local pos = base + Vector3.new(0, 0, PARK_SLOTS[k] * PARK_STEP)
+			local pos = base + Vector3.new(0, 0, -b.face * PARK_SLOTS[k] * PARK_STEP)
 			local parked, pbottom =
 				showCar(others[k], CFrame.new(pos), (12 + 0.4 * len2) * PARK_SCALE, nil, nil)
 			parked:PivotTo(CFrame.new(pos + Vector3.new(0, 0.2 - pbottom, 0)) * yaw)

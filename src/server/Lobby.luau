@@ -1,6 +1,6 @@
 --!strict
 -- Builds the lobby, a huge race HQ warehouse, from plain parts first (walls, roof, skylights,
--- mezzanine, floor zones, the store, claw machine, truck stage, 4 match pads and a bay door).
+-- mezzanine, floor zones, the store, gumball machine, truck stage, 4 match pads and a bay door).
 -- LobbyProps then swaps in the Blender models by name and places the prop clusters; LobbyLife
 -- adds the moving and glowing bits. Plain parts stay as the fallback when a model is missing.
 -- Geometry numbers live in Shared.LobbyLayout; the origin comes from LobbyConfig.Lobby.origin.
@@ -30,13 +30,10 @@ export type LobbyHandle = {
 	spawn: SpawnLocation,
 	pads: { PadHandle },
 	folder: Folder,
-	claw: Model?, -- the claw machine model, when imported
+	claw: Model?, -- the gumball machine model (still called claw: other code reads it)
 }
 
 local Lobby = {}
-
-local CLAW_SCALE = 2.1 -- the imported claw is about 7 studs wide; it stands on a 20 stud platform
-local CLAW_YAW_DEG = 180 -- turns the imported claw machine so its front faces the hall (it stands by the back wall)
 
 local CYAN = Color3.fromRGB(60, 220, 255)
 local YELLOW = Color3.fromRGB(255, 205, 40)
@@ -269,7 +266,7 @@ function Lobby.build(): LobbyHandle
 		mark(name, thick, d, x + w / 2, z, color, material)
 	end
 
-	-- Zones on the floor: darker patches with yellow edges for the garage and the claw corner, a
+	-- Zones on the floor: darker patches with yellow edges for the garage, a
 	-- dark apron under the pads, a cyan frame around the hero stage, and lane lines from the door.
 	local sc = L.showcase
 	for i, pp in L.pads do
@@ -465,21 +462,19 @@ function Lobby.build(): LobbyHandle
 			)
 			lowCap.CanCollide = false
 		end
-		-- Tool clutter in the back corners: a red toolbox and a stack of tires.
-		local cornerX = b.x - inward * (bayBox.w / 2 - 2.2)
-		local box = part(
-			folder,
-			"BayToolbox",
-			Vector3.new(2.6, 2.2, 3.4),
-			world(cornerX, 1.1, b.z + bayBox.d / 2 - 2.4),
-			RED
-		)
+		-- Tool clutter on the RIGHT side inside the garage (seen from the door), beside the low
+		-- front wall: a red toolbox and a stack of tires. The lift is on the left and the middle
+		-- of the front stays open.
+		local rightZ = b.z - inward * (bayBox.d / 2 - 2.4)
+		local boxX = b.x + inward * (bayBox.w / 2 - 6)
+		local box =
+			part(folder, "BayToolbox", Vector3.new(2.6, 2.2, 3.4), world(boxX, 1.1, rightZ), RED)
 		box.CanCollide = false
 		local lid = part(
 			folder,
 			"BayToolboxLid",
 			Vector3.new(2.8, 0.4, 3.6),
-			world(cornerX, 2.4, b.z + bayBox.d / 2 - 2.4),
+			world(boxX, 2.4, rightZ),
 			YELLOW
 		)
 		lid.CanCollide = false
@@ -488,7 +483,7 @@ function Lobby.build(): LobbyHandle
 				folder,
 				"BayTire",
 				Vector3.new(1.3, 3, 3),
-				world(cornerX, 0.65 + k * 1.3, b.z - bayBox.d / 2 + 2.4)
+				world(boxX + inward * 3.5, 0.65 + k * 1.3, rightZ)
 					* CFrame.Angles(0, 0, math.pi / 2),
 				Color3.fromRGB(22, 22, 26),
 				Enum.Material.SmoothPlastic,
@@ -1245,8 +1240,10 @@ function Lobby.build(): LobbyHandle
 		conn:Disconnect()
 	end)
 
-	-- Claw machine (right wall). Placeholder box + the "Gacha" prompt; the imported model
-	-- (ServerStorage.Models.ClawMachine) replaces the look and keeps the prompt.
+	-- Gumball machine (back wall, right corner). Pay, get a ball with a car inside. It stands flat
+	-- against the wall (no platform). The cabinet "GachaBody" carries the "GachaPrompt"; the rest is
+	-- the model "ClawMachine" (the old name, other code looks it up) with a hidden "GumballDrop"
+	-- ball that ClawAnim rolls out of the chute.
 	local g = L.gacha
 	-- Three warm yellow spot lights against the cool room: over the hero car, the claw, and the
 	-- garages. (The room itself stays steel blue.)
@@ -1269,66 +1266,129 @@ function Lobby.build(): LobbyHandle
 	warmSpot("StageSpot", world(sc.x, 30, sc.z).Position, 50, 6)
 	warmSpot("ClawSpot", world(g.x, 26, g.z).Position, 40, 5)
 	warmSpot("GarageSpot", world(0, 28, 10).Position, 60, 3)
-	local gBase = part(
-		folder,
-		"GachaBody",
-		Vector3.new(g.d, 10, g.w),
-		world(g.x, 5, g.z),
-		Color3.fromRGB(190, 40, 40)
-	)
-	-- The claw gets its own round feature platform by the back wall, with a glowing ring, two
-	-- posts and a big arch sign.
-	local platform = part(
-		folder,
-		"GachaPlatform",
-		Vector3.new(0.6, g.w + 4, g.w + 4),
-		world(g.x, 0.3, g.z) * CFrame.Angles(0, 0, math.pi / 2),
-		Color3.fromRGB(34, 38, 56),
-		Enum.Material.SmoothPlastic,
-		Enum.PartType.Cylinder
-	)
-	platform.CanCollide = false
-	local platformRing = part(
-		folder,
-		"GachaRing",
-		Vector3.new(0.3, g.w + 5.4, g.w + 5.4),
-		world(g.x, 0.1, g.z) * CFrame.Angles(0, 0, math.pi / 2),
-		YELLOW,
-		Enum.Material.Neon,
-		Enum.PartType.Cylinder
-	)
-	platformRing.CanCollide = false
-	glow(platformRing, YELLOW, 26, 0.5)
-	prompt(gBase, "GachaPrompt", "Play", "Claw Machine")
 
-	local models = ServerStorage:FindFirstChild("Models")
-	local clawModel: Model? = nil
-	local propModels = models and models:FindFirstChild("Props")
-	local clawTemplate = (propModels and propModels:FindFirstChild("claw_machine"))
-		or (models and models:FindFirstChild("ClawMachine"))
-	if clawTemplate and clawTemplate:IsA("Model") then
-		-- The placeholder box stays as an invisible anchor for "GachaPrompt"; the platform, posts
-		-- and sign stay too.
-		gBase.Transparency = 1
-		gBase.CanCollide = false
-		local claw = clawTemplate:Clone()
-		claw.Name = "ClawMachine"
-		for _, d in claw:GetDescendants() do
-			if d:IsA("BasePart") then
-				d.Anchored = true
-				if d.Name:find("glass") then
-					d.Transparency = 0.6
-					d.Material = Enum.Material.Glass
-					d.CanCollide = false
-				end
-			end
-		end
-		claw:ScaleTo(claw:GetScale() * CLAW_SCALE)
-		-- Floor level (on the platform), facing the hall.
-		claw:PivotTo(world(g.x, 0.6, g.z) * CFrame.Angles(0, math.rad(CLAW_YAW_DEG), 0))
-		claw.Parent = folder
-		clawModel = claw
+	local GUM_RED = Color3.fromRGB(255, 70, 90)
+	local GUM_COLORS = {
+		Color3.fromRGB(255, 70, 90),
+		Color3.fromRGB(70, 160, 255),
+		Color3.fromRGB(255, 205, 40),
+		Color3.fromRGB(80, 210, 120),
+		Color3.fromRGB(190, 100, 255),
+		Color3.fromRGB(255, 140, 40),
+	}
+	local gumModel = Instance.new("Model")
+	gumModel.Name = "ClawMachine"
+	-- x across, z toward the hall (the back of the machine touches the wall at z - d / 2).
+	local function gum(dx: number, y: number, dz: number): CFrame
+		return world(g.x + dx, y, g.z + dz)
 	end
+	local wallZ = -g.d / 2
+	local cabZ = wallZ + 3.5 -- middle of the 7 deep cabinet
+	local gBase = part(folder, "GachaBody", Vector3.new(9, 5, 7), gum(0, 2.5, cabZ), GUM_RED)
+	local function bit(
+		name: string,
+		size: Vector3,
+		cf: CFrame,
+		color: Color3,
+		material: Enum.Material?,
+		shape: Enum.PartType?
+	): Part
+		local p = part(gumModel, name, size, cf, color, material, shape)
+		p.CanCollide = false
+		p.CanQuery = false
+		return p
+	end
+	-- A flat backing panel on the wall behind it, so it reads as mounted on the wall.
+	bit(
+		"GumballBacking",
+		Vector3.new(13, 15, 0.4),
+		gum(0, 9, wallZ + 0.3),
+		Color3.fromRGB(255, 244, 214)
+	)
+	bit("GumballBackingEdge", Vector3.new(13.6, 15.6, 0.3), gum(0, 9, wallZ + 0.15), YELLOW)
+	bit("GumballPlinth", Vector3.new(10.4, 0.7, 7.6), gum(0, 5.35, cabZ), YELLOW)
+	local globe = bit(
+		"GumballGlobe",
+		Vector3.new(9, 9, 9),
+		gum(0, 10.2, cabZ),
+		Color3.fromRGB(190, 230, 255),
+		Enum.Material.Glass,
+		Enum.PartType.Ball
+	)
+	globe.Transparency = 0.6
+	bit(
+		"GumballCap",
+		Vector3.new(1.4, 5, 5),
+		gum(0, 15.1, cabZ) * CFrame.Angles(0, 0, math.pi / 2),
+		YELLOW,
+		nil,
+		Enum.PartType.Cylinder
+	)
+	bit(
+		"GumballKnob",
+		Vector3.new(1, 5, 5),
+		gum(0, 16.4, cabZ) * CFrame.Angles(0, 0, math.pi / 2),
+		GUM_RED,
+		nil,
+		Enum.PartType.Cylinder
+	)
+	-- Balls inside the globe: three layers settled in the bottom half.
+	local layers = {
+		{ y = 7.2, r = 1.6, n = 5 },
+		{ y = 8.6, r = 2.6, n = 6 },
+		{ y = 10.0, r = 3.0, n = 7 },
+	}
+	local ballCount = 0
+	for _, layer in layers do
+		for i = 1, layer.n do
+			ballCount += 1
+			local a = (i / layer.n) * math.pi * 2 + layer.y
+			bit(
+				"GumballBall",
+				Vector3.new(1.7, 1.7, 1.7),
+				gum(math.cos(a) * layer.r, layer.y, cabZ + math.sin(a) * layer.r),
+				GUM_COLORS[ballCount % #GUM_COLORS + 1],
+				nil,
+				Enum.PartType.Ball
+			)
+		end
+	end
+	-- Front of the cabinet: a title plate, a coin slot and knob, and the chute where the ball drops.
+	local frontZ = cabZ + 3.5
+	local plate = bit("GumballPlate", Vector3.new(6.4, 1.8, 0.3), gum(0, 3.9, frontZ + 0.1), DARK)
+	label(plate, Enum.NormalId.Back, "GUMBALLS", YELLOW, nil) -- Back = the side facing the hall
+	bit("GumballSlot", Vector3.new(1.6, 0.3, 0.3), gum(2.7, 2.4, frontZ + 0.15), YELLOW)
+	bit(
+		"GumballCrank",
+		Vector3.new(0.8, 2.2, 2.2),
+		gum(-2.7, 2.2, frontZ + 0.4) * CFrame.Angles(0, math.pi / 2, 0),
+		YELLOW,
+		nil,
+		Enum.PartType.Cylinder
+	)
+	bit("GumballChute", Vector3.new(2.8, 1.8, 0.3), gum(0, 1.2, frontZ + 0.1), DARK)
+	bit("GumballTray", Vector3.new(3.4, 0.4, 1.6), gum(0, 0.4, frontZ + 0.7), YELLOW)
+	-- The ball that drops out when someone pays. Hidden until ClawAnim plays.
+	local drop = bit(
+		"GumballDrop",
+		Vector3.new(1.7, 1.7, 1.7),
+		gum(0, 6.2, cabZ),
+		GUM_COLORS[3],
+		nil,
+		Enum.PartType.Ball
+	)
+	drop.Transparency = 1
+	drop:SetAttribute("Chute", gum(0, 1.2, frontZ + 0.7).Position)
+	-- A sign on the wall above it (flat on the wall, like the other plates).
+	LobbyDecor.plate(
+		gumModel,
+		"GUMBALLS",
+		Vector3.new(12, 3.4, 0.5),
+		CFrame.lookAt(world(g.x, 21, wallZ + g.z + 0.5).Position, world(g.x, 21, 0).Position)
+	)
+	gumModel.Parent = folder
+	prompt(gBase, "GachaPrompt", "Play", "Gumball Machine")
+	local clawModel: Model? = gumModel
 
 	-- Store booth (front left): yellow counter with a shelf behind it. Built facing +z around its
 	-- centre, then the whole booth is turned toward the lane.
