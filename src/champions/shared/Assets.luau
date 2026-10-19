@@ -22,6 +22,10 @@ return {
 		lock = "",
 		check = "",
 		claw = "", -- gumball machine / spin box
+		reset = "", -- reset arrow
+		back = "", -- back arrow
+		trophy = "", -- wins / leaderboard
+		race = "", -- checkered flag
 	},
 	Vehicles = {
 		Sedan = "rbxassetid://122958122372249", -- picture: sedan
