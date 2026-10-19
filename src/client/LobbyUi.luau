@@ -781,8 +781,9 @@ function LobbyUi.new(hooks: Hooks): Handle
 				SoundFx.play("coin") -- reward toast
 			end
 			showToast(
-				if u.firstWin == true
-					then FirstWin.toastText(u.coinsEarned)
+				if u.left == true
+					then "BACK IN THE LOBBY"
+					elseif u.firstWin == true then FirstWin.toastText(u.coinsEarned)
 					else LobbyText.rewardText(u.coinsEarned, u.won),
 				if u.won then GREEN else PINK
 			)

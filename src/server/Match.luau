@@ -65,6 +65,7 @@ export type Participant = {
 	onEndScreen: (() -> ())?, -- called when this player's end screen goes up
 	appearance: Appearance.Appearance?, -- paint, sticker and level badge for this player's car
 	botLevel: string?, -- bot difficulty when this lone player fights a bot ("easy" | "medium" | "hard")
+	mode: string?, -- the mode this player picked in the lobby (nil/"auto" = rotation)
 	build: Build.BuildData?, -- build-and-watch: the parts this player's car wears
 }
 

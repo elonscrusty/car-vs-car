@@ -77,6 +77,7 @@ function startMatch(participants: { Match.Participant })
 				carId = part.carId,
 				appearance = part.appearance,
 				botLevel = part.botLevel,
+				mode = part.mode,
 				onEndScreen = function()
 					rematch.open(player)
 					Telemetry.endScreen(player)
@@ -105,7 +106,11 @@ function startMatch(participants: { Match.Participant })
 	local slot = freeSlot()
 	usedSlots[slot] = true
 	local group: Group = { match = nil :: any, slot = slot, remaining = #ok }
-	local mode = Modes.pick(matchCounter)
+	local picks: { any } = {}
+	for _, part in ok do
+		table.insert(picks, part.mode)
+	end
+	local mode = Modes.choose(picks, matchCounter)
 	matchCounter += 1
 	Telemetry.matchStarted(ok, mode, Modes.isGroup(mode))
 	group.match = if Modes.isGroup(mode)
@@ -172,6 +177,27 @@ local function onPlayerRemoving(player: Player)
 	lobbyLimiter.clear(player)
 end
 
+-- LOBBY button: the player leaves their match (the other human, if any, wins) and goes to the lobby.
+local function leaveMatch(player: Player)
+	local g = groups[player]
+	if g == nil then
+		return
+	end
+	g.match.playerLeft(player)
+	leaveGroup(player)
+	local restart = rematch.remove(player)
+	lobbyService.leftMatch(player)
+	if restart then
+		local rest: { Match.Participant } = {}
+		for _, part in restart do
+			if part.player ~= player then
+				table.insert(rest, part)
+			end
+		end
+		startMatch(rest)
+	end
+end
+
 remotes.Launch.OnServerEvent:Connect(function(player: Player, angle: any, power: any)
 	local g = groups[player]
 	if g and launchLimiter.allow(player, os.clock()) then
@@ -198,6 +224,10 @@ remotes.LobbyAction.OnServerEvent:Connect(function(player: Player, action: any, 
 		return
 	end
 	if action == "pickCar" and type(arg) ~= "string" then
+		return
+	end
+	if action == "leaveMatch" then
+		leaveMatch(player)
 		return
 	end
 	if action == "rematch" then

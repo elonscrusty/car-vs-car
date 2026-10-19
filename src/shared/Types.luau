@@ -52,6 +52,7 @@ export type LobbyUpdate =
 		rank: string?,
 		streak: number?,
 		botLevel: string?,
+		mode: string?, -- the player's chosen mode ("auto" = rotation)
 		quests: { { title: string, progress: number, target: number, reward: number, done: boolean } }?,
 		daily: { ready: boolean, freePulls: number }?,
 		spinReady: boolean?, -- daily spin wheel not used yet today
@@ -79,6 +80,6 @@ export type LobbyUpdate =
 	| { kind: "buildResult", ok: boolean, reason: string? }
 	| { kind: "countdown", seconds: number, alone: boolean? }
 	| { kind: "choices", cars: { string }, seconds: number }
-	| { kind: "toLobby", coinsEarned: number, won: boolean, firstWin: boolean? }
+	| { kind: "toLobby", coinsEarned: number, won: boolean, firstWin: boolean?, left: boolean? }
 
 return {}

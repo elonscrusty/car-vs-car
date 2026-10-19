@@ -20,6 +20,7 @@ local Ui = {}
 export type Handlers = {
 	onPick: (carId: string) -> (),
 	onRematch: (() -> ())?, -- REMATCH tapped on the end screen
+	onLeave: (() -> ())?, -- LOBBY tapped (during a match: second tap confirms)
 }
 
 export type View = {
@@ -245,6 +246,41 @@ function Ui.create(h: Handlers): View
 			h.onRematch()
 		end
 	end)
+	local lobbyBtn =
+		button(endFrame, "LOBBY", UDim2.new(), UDim2.new(), Color3.fromRGB(60, 110, 190))
+	lobbyBtn.Name = "LobbyButton"
+	UiStyle.place(lobbyBtn, endSpecs.lobby)
+	lobbyBtn.Activated:Connect(function()
+		if h.onLeave then
+			h.onLeave()
+		end
+	end)
+	-- In a fight LOBBY needs two taps ("SURE?"), so a stray thumb does not forfeit the match.
+	local leaveBtn = button(gui, "LOBBY", UDim2.new(), UDim2.new(), Color3.fromRGB(60, 110, 190))
+	leaveBtn.Name = "LeaveButton"
+	UiStyle.place(leaveBtn, fightSpecs.leave)
+	leaveBtn.Visible = false
+	local leaveArmed = 0
+	leaveBtn.Activated:Connect(function()
+		if os.clock() > leaveArmed then
+			leaveArmed = os.clock() + 2
+			leaveBtn.Text = "SURE?"
+			leaveBtn.BackgroundColor3 = Color3.fromRGB(200, 70, 60)
+			task.delay(2, function()
+				if os.clock() >= leaveArmed and leaveBtn.Text == "SURE?" then
+					leaveBtn.Text = "LOBBY"
+					leaveBtn.BackgroundColor3 = Color3.fromRGB(60, 110, 190)
+				end
+			end)
+			return
+		end
+		leaveArmed = 0
+		leaveBtn.Text = "LOBBY"
+		leaveBtn.BackgroundColor3 = Color3.fromRGB(60, 110, 190)
+		if h.onLeave then
+			h.onLeave()
+		end
+	end)
 	local invite = InviteUi.new(endFrame)
 	local endFx: WinFx.Handle? = nil
 	local endTweens: { Tween } = {}
@@ -269,6 +305,7 @@ function Ui.create(h: Handlers): View
 		endFrame.Visible = false
 		invite.setVisible(false)
 		rematchBtn.Visible = false
+		leaveBtn.Visible = false
 		msg.Visible = false
 	end
 
@@ -282,6 +319,7 @@ function Ui.create(h: Handlers): View
 
 	view.showAim = function(_round, youCar, enemyCar, seconds, enemyName)
 		hideAll()
+		leaveBtn.Visible = true
 		top.Visible = true
 		setTop(enemyName)
 		msg.Visible = true
@@ -308,6 +346,7 @@ function Ui.create(h: Handlers): View
 
 	view.showReady = function(youCar, enemyCar, seconds, enemyName)
 		hideAll()
+		leaveBtn.Visible = true
 		top.Visible = true
 		setTop(enemyName)
 		msg.Visible = true
@@ -341,6 +380,7 @@ function Ui.create(h: Handlers): View
 
 	view.showFight = function()
 		hideAll()
+		leaveBtn.Visible = true
 		msg.Visible = true
 		msg.Text = "GO!"
 		msg.TextColor3 = Color3.fromRGB(120, 255, 150)

@@ -29,6 +29,8 @@ UiLayoutConfig.topRow = {
 }
 
 -- Bottom centre lane (between the two thumb clusters), top to bottom: message, hint, power bar.
+UiLayoutConfig.leave = { w = 100, h = 52 } -- LOBBY button during a fight (fixed px)
+
 UiLayoutConfig.lane = {
 	msgY = 0.71,
 	msgH = 0.09,
@@ -57,6 +59,8 @@ UiLayoutConfig.endScreen = {
 	rematchW = 0.34,
 	rematchMinW = 140,
 	rematchMaxW = 320,
+	lobbyW = 110, -- LOBBY button, bottom-left corner (fixed px)
+	lobbyH = 52,
 	inviteY = 0.79,
 	inviteH = 0.13,
 	inviteW = 0.3,

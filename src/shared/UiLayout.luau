@@ -156,6 +156,15 @@ function UiLayout.fight(height: number): Fight
 			minH = lane.hintMinH,
 			maxH = lane.hintMaxH,
 		}),
+		-- LOBBY (leave the match): left edge, under the top row, clear of the middle and the joystick.
+		leave = spec({
+			ox = edge,
+			oy = rowTop + top.maxH + Config.gap,
+			minW = Config.leave.w,
+			maxW = Config.leave.w,
+			minH = Config.leave.h,
+			maxH = Config.leave.h,
+		}),
 		powerBar = spec({
 			ax = 0.5,
 			px = 0.5,
@@ -229,6 +238,16 @@ function UiLayout.endScreen(): { [string]: Spec }
 			minW = e.rematchMinW,
 			minH = UiSize.BUTTON_MIN,
 			maxW = e.rematchMaxW,
+		}),
+		lobby = spec({
+			ay = 1,
+			ox = Config.edge,
+			py = 1,
+			oy = -Config.edge,
+			minW = e.lobbyW,
+			maxW = e.lobbyW,
+			minH = e.lobbyH,
+			maxH = e.lobbyH,
 		}),
 		invite = spec({
 			ax = 0.5,

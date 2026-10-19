@@ -21,6 +21,7 @@ local HintUi = require(script.HintUi)
 local HitFlash = require(script.HitFlash)
 local LobbyUi = require(script.LobbyUi)
 local BotLevelUi = require(script.BotLevelUi)
+local ModeUi = require(script.ModeUi)
 local MenuBar = require(script.MenuBar)
 local CenterBanner = require(script.CenterBanner)
 local ModeBanner = require(script.ModeBanner)
@@ -49,6 +50,9 @@ local botLevelUi = if FeatureFlags.enabled("botLevelButton")
 		remotes.LobbyAction:FireServer("setBotLevel", level)
 	end)
 	else nil
+local modeUi = ModeUi.new(menu, function(mode: string)
+	remotes.LobbyAction:FireServer("setMode", mode)
+end)
 SaveNotice.new()
 
 local questUi = QuestUi.new(menu, function(action: string, arg: any?)
@@ -86,6 +90,9 @@ view = Ui.create({
 	end,
 	onRematch = function()
 		remotes.LobbyAction:FireServer("rematch")
+	end,
+	onLeave = function()
+		remotes.LobbyAction:FireServer("leaveMatch")
 	end,
 })
 
@@ -127,6 +134,7 @@ remotes.LobbyUpdate.OnClientEvent:Connect(function(u: Types.LobbyUpdate)
 		if botLevelUi then
 			botLevelUi.handleProfile(u.botLevel)
 		end
+		modeUi.handleProfile(u.mode)
 		-- New players see only GIFT until they have finished a couple of matches.
 		local shown = MenuRules.visible({ matches = u.matches })
 		menu.setShown("gift", shown.gift)
