@@ -71,6 +71,15 @@ function Effects.sparks(pos: Vector3, strength: number)
 	chips.Rate = 0
 	chips.Parent = p
 	chips:Emit(math.floor((4 + 14 * strength) * Quality.scale()))
+	-- A big hit also lights the spot white for a moment (a flash in the world, not over the screen).
+	if strength >= 0.5 then
+		local flash = Instance.new("PointLight")
+		flash.Color = Color3.new(1, 1, 1)
+		flash.Range = 24
+		flash.Brightness = 8
+		flash.Parent = p
+		TweenService:Create(flash, TweenInfo.new(0.18), { Brightness = 0 }):Play()
+	end
 	Debris:AddItem(p, 2)
 end
 

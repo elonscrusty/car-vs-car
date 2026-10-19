@@ -743,6 +743,9 @@ function GroupMatch.new(
 			car.hp = hp
 			maxHp[idx] = hp
 			car.model:SetAttribute("RoundWins", roundWins[idx] or 0)
+			if part then
+				car.model:SetAttribute("OwnerUserId", part.player.UserId) -- the client draws a ring under its own car
+			end
 			if brawlOn and part and Crown.has(part.player.UserId) then
 				Crown.attach(car.model, car.body, carStats.size[2] / 2 + 3)
 			end

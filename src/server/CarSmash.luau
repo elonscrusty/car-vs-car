@@ -116,12 +116,65 @@ function CarSmash.peel(car: CarBuilder.Car, parent: Instance, rng: Random): bool
 	return true
 end
 
+-- Fireball, black smoke and a bright flash at `at` (looks only, gone after a few seconds).
+local function bigBoom(at: Vector3, parent: Instance)
+	local anchor = Instance.new("Part")
+	anchor.Anchored = true
+	anchor.CanCollide = false
+	anchor.CanQuery = false
+	anchor.CanTouch = false
+	anchor.Transparency = 1
+	anchor.Size = Vector3.one
+	anchor.Position = at
+	anchor.Parent = parent
+	local function emitter(
+		color0: Color3,
+		color1: Color3,
+		size: number,
+		life: number,
+		speed: number
+	)
+		local pe = Instance.new("ParticleEmitter")
+		pe.Color = ColorSequence.new(color0, color1)
+		pe.Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, size * 0.5),
+			NumberSequenceKeypoint.new(0.3, size),
+			NumberSequenceKeypoint.new(1, size * 1.6),
+		})
+		pe.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		pe.Lifetime = NumberRange.new(life * 0.6, life)
+		pe.Speed = NumberRange.new(speed * 0.5, speed)
+		pe.SpreadAngle = Vector2.new(180, 180)
+		pe.Rate = 0
+		pe.Parent = anchor
+		return pe
+	end
+	local fire = emitter(Color3.fromRGB(255, 240, 120), Color3.fromRGB(255, 90, 20), 9, 0.9, 40)
+	fire.LightEmission = 1
+	fire:Emit(40)
+	local smoke = emitter(Color3.fromRGB(70, 70, 75), Color3.fromRGB(30, 30, 35), 12, 2.6, 22)
+	smoke.Acceleration = Vector3.new(0, 14, 0)
+	smoke:Emit(26)
+	local flash = Instance.new("PointLight")
+	flash.Color = Color3.fromRGB(255, 220, 140)
+	flash.Range = 60
+	flash.Brightness = 12
+	flash.Parent = anchor
+	task.delay(0.25, function()
+		flash:Destroy()
+	end)
+	Debris:AddItem(anchor, 4)
+end
+
 -- The car blows up: fire, every visible part flies off, plenty of scrap. The caller removes the car.
 function CarSmash.blowUp(car: CarBuilder.Car, parent: Instance, rng: Random)
 	local at = car.body.Position
 	local e = Instance.new("Explosion")
 	e.Position = at
-	e.BlastRadius = 10
+	e.BlastRadius = 22 -- HUGE: fire and sparks from the Explosion, plus the fireball and smoke below
 	e.BlastPressure = 0 -- looks only: the server moves nothing
 	e.DestroyJointRadiusPercent = 0
 	e.ExplosionType = Enum.ExplosionType.NoCraters
@@ -135,9 +188,10 @@ function CarSmash.blowUp(car: CarBuilder.Car, parent: Instance, rng: Random)
 		end
 		copy.CFrame = p.CFrame
 		loose(copy, parent)
-		fling(copy, at, rng, 42, 34)
+		fling(copy, at, rng, 55, 48) -- parts fly up and out
 	end
-	CarSmash.scrap(car, 12, parent, rng, 1.5)
+	CarSmash.scrap(car, 18, parent, rng, 1.8)
+	bigBoom(at, parent)
 end
 
 return CarSmash

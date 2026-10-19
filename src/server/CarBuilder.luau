@@ -249,6 +249,19 @@ function CarBuilder.build(
 	)
 	body:SetAttribute("CarIdx", idx)
 	body.Parent = model
+	-- Rare cars glow in their rarity color (look only; Common has none).
+	if cosmeticRarity ~= "Common" and CarCatalog.RarityStyle[cosmeticRarity] then
+		local rgb = rarityLook.effectRgb
+		local light = Instance.new("PointLight")
+		light.Name = "RarityGlow"
+		light.Color = Color3.fromRGB(rgb[1], rgb[2], rgb[3])
+		light.Range = if cosmeticRarity == "Legendary"
+			then 20
+			elseif cosmeticRarity == "Epic" then 16
+			else 12
+		light.Brightness = 2.5
+		light.Parent = body
+	end
 	model.PrimaryPart = body
 
 	local markerColor = if idx == 1
