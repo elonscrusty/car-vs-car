@@ -236,16 +236,6 @@ function BattleService.start(opts: {
 		return list
 	end
 
-	local function sendChoices(part: Part)
-		local p = if part.player then Profiles.get(part.player) else nil
-		send(part, {
-			kind = "choices",
-			choices = choicesFor(part),
-			coins = if p then p.coins else 0,
-			selected = part.pick,
-		})
-	end
-
 	local function startSelect(m: Match)
 		clearShells(m)
 		clearCars(m)
