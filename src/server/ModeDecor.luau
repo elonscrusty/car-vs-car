@@ -20,9 +20,9 @@ local WHITE = Color3.fromRGB(245, 245, 245)
 local YELLOW = Color3.fromRGB(255, 205, 40)
 local BLACK = Color3.fromRGB(30, 30, 34)
 
--- Tag floor: dark steel with orange hazard stripes (soccer keeps its green grass).
-ModeDecor.TagFloor = Color3.fromRGB(78, 84, 98)
-ModeDecor.TagFloorAlt = Color3.fromRGB(88, 95, 110)
+-- Tag floor: light steel with orange hazard stripes (soccer keeps its green grass).
+ModeDecor.TagFloor = Color3.fromRGB(112, 122, 142)
+ModeDecor.TagFloorAlt = Color3.fromRGB(124, 134, 154)
 
 local function look(
 	parent: Instance,
@@ -88,8 +88,8 @@ function ModeDecor.field(model: Model, origin: Vector3, tag: boolean)
 	local ring = 38 -- width of the island around the walls
 
 	-- The island: a slab a little below the field so it never fights the field floor, with a
-	-- yellow edge stripe and a darker band right around the walls.
-	local islandColor = if tag then Color3.fromRGB(70, 74, 84) else Color3.fromRGB(88, 160, 84)
+	-- yellow edge stripe.
+	local islandColor = if tag then Color3.fromRGB(104, 110, 126) else Color3.fromRGB(88, 160, 84)
 	look(
 		group,
 		"Island",
@@ -251,7 +251,7 @@ function ModeDecor.race(model: Model, origin: Vector3)
 			for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
 				local gui = Instance.new("SurfaceGui")
 				gui.Face = face
-				gui.SizeStudsPerPixel = 0.05
+				gui.PixelsPerStud = 20
 				gui.Parent = board
 				local label = Instance.new("TextLabel")
 				label.Size = UDim2.fromScale(1, 1)
@@ -317,7 +317,7 @@ function ModeDecor.race(model: Model, origin: Vector3)
 	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
 		local gui = Instance.new("SurfaceGui")
 		gui.Face = face
-		gui.SizeStudsPerPixel = 0.05
+		gui.PixelsPerStud = 20
 		gui.Parent = banner
 		local label = Instance.new("TextLabel")
 		label.Size = UDim2.fromScale(1, 1)

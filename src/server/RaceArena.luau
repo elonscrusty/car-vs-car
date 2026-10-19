@@ -167,7 +167,7 @@ function RaceArena.build(origin: Vector3): Arena.Arena
 		end
 	end
 
-	ModeDecor.race(model, origin)
+	pcall(ModeDecor.race, model, origin) -- look only: a decor bug must never stop a match
 
 	model.Parent = workspace
 	local center = at(start.x, 0, start.z)

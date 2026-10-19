@@ -257,7 +257,7 @@ function SoccerArena.build(origin: Vector3, pads: boolean?): Arena.Arena
 		lid.CanQuery = false
 	end
 
-	ModeDecor.field(model, origin, tag)
+	pcall(ModeDecor.field, model, origin, tag) -- look only: a decor bug must never stop a match
 
 	-- Spots for Studio models (empty on purpose).
 	folder(model, "BallSpawn", origin + Vector3.new(0, c.kickoffLift + c.ballDiameter / 2, 0))
