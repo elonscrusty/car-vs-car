@@ -42,6 +42,7 @@ local Crown = require(script.Parent.Crown)
 local Tutorial = require(ReplicatedStorage.Shared.Tutorial)
 local Buffs = require(script.Parent.Buffs)
 local Pickups = require(script.Parent.Pickups)
+local Podium = require(script.Parent.Podium)
 local CombatConfig = require(ReplicatedStorage.Shared.CombatConfig)
 local Damage = require(ReplicatedStorage.Shared.Damage)
 local SoccerStats = require(ReplicatedStorage.Shared.SoccerStats)
@@ -287,7 +288,12 @@ function GroupMatch.new(
 		return r
 	end
 
-	local function finish(won: (i: number) -> boolean, koText: string, focus: Vector3?)
+	local function finish(
+		won: (i: number) -> boolean,
+		koText: string,
+		focus: Vector3?,
+		focusPart: BasePart?
+	)
 		if ending or destroyed then
 			return
 		end
@@ -301,8 +307,8 @@ function GroupMatch.new(
 			return { kind = "ko", text = koText, pos = focus }
 		end)
 		local currentArena = arena
-		local dummy: BasePart? = nil
-		if currentArena and focus then
+		local dummy: BasePart? = focusPart
+		if dummy == nil and currentArena and focus then
 			dummy = Dummy.launch(focus, currentArena.model)
 		end
 		sendAll(function(i)
@@ -393,6 +399,17 @@ function GroupMatch.new(
 				and not cars[winner].dead
 			then cars[winner].body.Position
 			else origin + Vector3.new(0, 4, 0)
+		-- The fight winner stands on a podium and spins while fireworks burst (carter's pick).
+		local podiumTop: BasePart? = nil
+		local winCar = cars[winner]
+		if brawlOn and winner > 0 and winCar and not winCar.dead and arena then
+			podiumTop = Podium.celebrate(
+				arena.model,
+				origin,
+				winCar,
+				cfg.Match.roundEndDelay + LobbyConfig.Rewards.endScreenSeconds
+			)
+		end
 		finish(
 			function(i)
 				return i == winner
@@ -403,7 +420,8 @@ function GroupMatch.new(
 					elseif raceOn then "WINNER!"
 					else "LAST CAR STANDING!")
 				else "DRAW!",
-			pos
+			pos,
+			podiumTop
 		)
 	end
 
@@ -464,9 +482,14 @@ function GroupMatch.new(
 		car.dead = true
 		car.hp = 0
 		outAt[car.idx] = fightElapsed
+		local killer: CarBuilder.Car? = nil -- the car that smashed this one out (the camera follows it)
 		if brawlOn and text ~= "LEFT THE GAME" then
 			local credit = lastHitBy[car.idx]
 			if credit and os.clock() - credit.at <= ModesConfig.LastStanding.creditSeconds then
+				local k = cars[credit.by]
+				if k and not k.dead and k ~= car then
+					killer = k
+				end
 				kos[credit.by] = (kos[credit.by] or 0) + 1
 				if car.model:GetAttribute("Crown") then
 					bounties[credit.by] = (bounties[credit.by] or 0) + 1
@@ -486,7 +509,9 @@ function GroupMatch.new(
 		end)
 		if isHuman(car.idx) then
 			-- An eliminated player films their own crash dummy and stops driving.
-			sendTo(car.idx, { kind = "roundEnd", round = 1, youLost = true, focus = dummy })
+			-- Out: watch whoever smashed you (their car), else your own crash dummy.
+			local watch: BasePart? = if killer then killer.body else dummy
+			sendTo(car.idx, { kind = "roundEnd", round = 1, youLost = true, focus = watch })
 			-- "Out" state (audit #28): the player spectates; MatchOut lets the client show it.
 			local part = participants[car.idx]
 			Telemetry.eliminated(part.player)
