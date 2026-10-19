@@ -72,7 +72,7 @@ function LobbyDecor.clone(
 end
 
 -- Signs high on the walls. facing: yaw so the front looks into the hall.
-local LEFT, RIGHT, FRONT = -math.pi / 2, math.pi / 2, 0
+local LEFT, FRONT = -math.pi / 2, 0
 
 type Sign = { name: string, x: number, z: number, y: number, yaw: number }
 
@@ -93,11 +93,7 @@ function LobbyDecor.build(parent: Folder, origin: Vector3)
 	local SIGNS: { Sign } = {
 		-- Left wall, above the garages.
 		{ name = "Sign_Garage", x = -HW + 1, z = -40, y = 26.5, yaw = LEFT },
-		{ name = "Sign_Wrench", x = -HW + 1, z = -8, y = 26.5, yaw = LEFT },
-		{ name = "Sign_FlameTire", x = -HW + 1, z = 22, y = 26.5, yaw = LEFT },
 		-- Right wall.
-		{ name = "Sign_Piston", x = HW - 1, z = -8, y = 26.5, yaw = RIGHT },
-		{ name = "Sign_Open247", x = HW - 1, z = 22, y = 26.5, yaw = RIGHT },
 		-- Behind the player at the start, and the flags on the back wall.
 		{ name = "Sign_CarVsCar", x = 0, z = HL - 1.5, y = 24, yaw = FRONT },
 	}

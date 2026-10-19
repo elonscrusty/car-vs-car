@@ -30,7 +30,7 @@ local function bigText(text: string, color: Color3, size: UDim2, pos: UDim2): Te
 	l.Position = pos
 	l.Text = text
 	l.TextScaled = true
-	l.Font = Enum.Font.GothamBlack
+	l.Font = Enum.Font.FredokaOne
 	l.TextColor3 = color
 	l.TextStrokeTransparency = 0.2
 	l.Parent = getGui()

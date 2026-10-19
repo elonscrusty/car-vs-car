@@ -190,7 +190,7 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		local lbl = Instance.new("TextLabel")
 		lbl.Size = UDim2.fromScale(1, 1)
 		lbl.BackgroundTransparency = 1
-		lbl.Font = Enum.Font.GothamBlack
+		lbl.Font = Enum.Font.FredokaOne
 		lbl.TextScaled = true
 		lbl.Text = "OPEN"
 		lbl.TextColor3 = Color3.fromRGB(110, 120, 140)

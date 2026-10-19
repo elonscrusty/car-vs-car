@@ -7,6 +7,7 @@ local TweenService = game:GetService("TweenService")
 
 local Types = require(game:GetService("ReplicatedStorage").Shared.Types)
 local MenuBar = require(script.Parent.MenuBar)
+local UiStyle = require(script.Parent.UiStyle)
 
 local NAVY = Color3.fromRGB(10, 12, 28)
 local PANEL = Color3.fromRGB(18, 22, 48)
@@ -48,7 +49,7 @@ local function label(parent: Instance, text: string, size: UDim2, pos: UDim2): T
 	l.Size = size
 	l.Position = pos
 	l.Text = text
-	l.Font = Enum.Font.GothamBlack
+	l.Font = Enum.Font.FredokaOne
 	l.TextColor3 = WHITE
 	l.TextScaled = true
 	l.Parent = parent
@@ -68,11 +69,12 @@ local function button(
 	b.BackgroundColor3 = color
 	b.BorderSizePixel = 0
 	b.Text = text
-	b.Font = Enum.Font.GothamBlack
+	b.Font = Enum.Font.FredokaOne
 	b.TextColor3 = WHITE
 	b.TextScaled = true
 	b.Parent = parent
 	corner(b, 12)
+	UiStyle.polish(b)
 	return b
 end
 
@@ -129,7 +131,7 @@ function QuestUi.new(menu: MenuBar.MenuBar, onAction: (action: string, arg: any?
 	giftText.TextColor3 = CYAN
 	local giftSub = label(gift, "", UDim2.new(1, -180, 0, 24), UDim2.fromOffset(12, 50))
 	giftSub.TextXAlignment = Enum.TextXAlignment.Left
-	giftSub.Font = Enum.Font.GothamBold
+	giftSub.Font = Enum.Font.FredokaOne
 	giftSub.TextColor3 = Color3.fromRGB(190, 200, 220)
 	local giftBtn =
 		button(gift, "CLAIM GIFT", UDim2.fromOffset(160, BTN), UDim2.new(1, -8, 0.5, 0), GREEN)
