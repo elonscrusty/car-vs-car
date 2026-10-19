@@ -378,6 +378,7 @@ function GroupMatch.new(
 			sendTo(car.idx, { kind = "roundEnd", round = 1, youLost = true, focus = dummy })
 			-- "Out" state (audit #28): the player spectates; MatchOut lets the client show it.
 			local part = participants[car.idx]
+			Telemetry.eliminated(part.player)
 			pcall(function()
 				part.player:SetAttribute("MatchOut", true)
 			end)
@@ -475,6 +476,9 @@ function GroupMatch.new(
 			then
 				if Modes.tagPass(tag, car.idx, otherIdx, os.clock(), tagCfg.immuneSeconds) then
 					tagsMade[car.idx] = (tagsMade[car.idx] or 0) + 1
+					if isHuman(car.idx) then
+						Telemetry.firstScore(participants[car.idx].player, "tag")
+					end
 					showIt()
 					sendAll(function(i)
 						return {
@@ -749,6 +753,11 @@ function GroupMatch.new(
 		if conceded ~= 0 then
 			local scorer = Modes.soccerGoal(soccer, conceded)
 			local _, ownBy = SoccerStats.goal(stats, conceded, teamSize)
+			for i, part in participants do
+				if isHuman(i) and (stats.goals[i] or 0) > 0 then
+					Telemetry.firstScore(part.player, "goal")
+				end
+			end
 			local pos = b.Position
 			sendAll(function(i)
 				-- An own goal says so (audit #26) and never costs coins: the team still gets the point.
@@ -1054,6 +1063,11 @@ function GroupMatch.new(
 			toNext[car.idx] = math.sqrt((wp.x - x) ^ 2 + (wp.z - z) ^ 2)
 		end
 		racePlace = Race.positions(race, toNext)
+		for i, part in participants do
+			if isHuman(i) then
+				Telemetry.firstScore(part.player, "finish")
+			end
+		end
 		sendAll(function(i)
 			return {
 				kind = "banner",
