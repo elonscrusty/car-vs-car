@@ -22,7 +22,8 @@ LobbyConfig.Lobby = {
 	origin = (if okOrigin then origin else { X = 0, Y = 3, Z = 500 }) :: Vector3,
 	padCount = 4,
 }
-LobbyConfig.Pad = { maxPlayers = 2, countdownSeconds = 3, pickSeconds = 15 }
+-- The fight: up to 4 cars; the wait lets friends and others join before bots fill (carter: 15 s).
+LobbyConfig.Pad = { maxPlayers = 4, countdownSeconds = 15, pickSeconds = 15 }
 -- endScreenSeconds: how long the match end screen stays (was 4: too short to read coins + rematch).
 -- endScreenMaxSeconds: the longest the end screen may wait for a tap before the player is sent
 -- back (the match code that wants "stay until tap" reads this; nothing waits longer than it).

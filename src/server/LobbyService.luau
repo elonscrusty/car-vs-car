@@ -99,6 +99,7 @@ type PlayerState = {
 	offered: { string },
 	picked: string?, -- chosen car; the match starts when everyone on the pad has picked
 	token: number, -- bumps whenever the pick phase ends so old timeouts do nothing
+	queued: boolean?, -- joined with the PLAY button: no need to stand near a pad
 }
 
 local LobbyService = {}
@@ -119,6 +120,7 @@ function LobbyService.start(deps: Deps): Handle
 		return random:NextNumber()
 	end
 	local gachaLimiter = RateLimiter.new(2, 3)
+	local playLimiter = RateLimiter.new(2, 2)
 	local storeLimiter = RateLimiter.new(2, 3)
 	local hintLimiter = RateLimiter.new(4, 3)
 	local botLevelLimiter = RateLimiter.new(3, 3)
@@ -728,6 +730,32 @@ function LobbyService.start(deps: Deps): Handle
 		})
 	end
 
+	-- The PLAY button (carter's UI sends action "play"): join the first pad that is still open,
+	-- wherever you stand. The fight waits Pad.countdownSeconds for more players, bots fill the rest.
+	local function onPlay(player: Player)
+		if players[player] ~= nil or Players:GetPlayerByUserId(player.UserId) ~= player then
+			return
+		end
+		if Profiles.get(player) == nil then
+			return
+		end
+		for padIndex = 1, #state.pads do
+			if PadLogic.join(state, padIndex, player) then
+				players[player] =
+					{ stage = "pad", offered = {}, picked = nil, token = 0, queued = true }
+				Telemetry.padStepped(player)
+				updatePadText(padIndex)
+				send(player, {
+					kind = "countdown",
+					seconds = state.pads[padIndex].seconds,
+					alone = #state.pads[padIndex].players == 1,
+				})
+				return
+			end
+		end
+		send(player, { kind = "countdown", seconds = 0, busy = true }) -- every pad is full right now
+	end
+
 	for i, pad in pads do
 		local attr = pad.prompt:GetAttribute("PadIndex")
 		local index = if type(attr) == "number" and pads[attr] == pad then attr else i
@@ -747,7 +775,7 @@ function LobbyService.start(deps: Deps): Handle
 			for player, ps in players do
 				if ps.stage ~= "match" then
 					local i = state.playerPad[player]
-					if i == nil or not nearPad(player, i, PAD_LEAVE_EXTRA) then
+					if i == nil or (not ps.queued and not nearPad(player, i, PAD_LEAVE_EXTRA)) then
 						cancelPlayer(player)
 					end
 				end
@@ -947,6 +975,7 @@ function LobbyService.start(deps: Deps): Handle
 				maybeStart(padIndex) -- the others may all have picked already
 			end
 			gachaLimiter.clear(player)
+			playLimiter.clear(player)
 			storeLimiter.clear(player)
 			hintLimiter.clear(player)
 			botLevelLimiter.clear(player)
@@ -970,6 +999,15 @@ function LobbyService.start(deps: Deps): Handle
 					if carId then
 						registerPick(player, carId)
 					end
+				end
+			elseif action == "play" then
+				if playLimiter.allow(player, os.clock()) then
+					onPlay(player)
+				end
+			elseif action == "cancelPlay" then
+				local ps = players[player]
+				if ps and ps.queued and ps.stage ~= "match" then
+					cancelPlayer(player)
 				end
 			elseif action == "buyGacha" then
 				if gachaLimiter.allow(player, os.clock()) then

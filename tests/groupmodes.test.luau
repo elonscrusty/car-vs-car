@@ -4,6 +4,7 @@
 local Harness = require("./harness")
 local Modes = require("../src/shared/Modes")
 local PickupsConfig = require("../src/shared/PickupsConfig")
+local LobbyConfig = require("../src/shared/LobbyConfig")
 local ModesConfig = require("../src/shared/ModesConfig")
 local Race = require("../src/shared/Race")
 local RaceTrack = require("../src/shared/RaceTrack")
@@ -546,3 +547,9 @@ test(
 		eq(Tutorial.finished(s), true)
 	end
 )
+
+test("fight lobby: up to 4 on a pad and a 15 s wait before the fight", function()
+	local pad = LobbyConfig.Pad
+	eq(pad.maxPlayers, ModesConfig.LastStanding.cars)
+	eq(pad.countdownSeconds, 15)
+end)
