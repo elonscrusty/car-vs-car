@@ -199,6 +199,15 @@ function SoccerArena.build(origin: Vector3): Arena.Arena
 		)
 		-- Smooth and bouncy-ish: the ball and cars slide off instead of sticking.
 		wall.CustomPhysicalProperties = PhysicalProperties.new(2, 0, 0.3, 1, 1)
+		-- Yellow trim along the top (look only).
+		part(
+			model,
+			"WallTrim",
+			Vector3.new(wall.Size.X, 0.6, wall.Size.Z + 0.2),
+			wall.CFrame * CFrame.new(0, c.wallHeight / 2 - 0.3, 0),
+			Color3.fromRGB(255, 205, 40),
+			false
+		)
 	end
 
 	-- Goal frames and nets.
