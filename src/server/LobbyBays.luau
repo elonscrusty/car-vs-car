@@ -11,7 +11,6 @@ local CarConfig = require(game:GetService("ReplicatedStorage").Shared.CarConfig)
 local CarBuilder = require(script.Parent.CarBuilder)
 local LobbyDecor = require(script.Parent.LobbyDecor)
 local GarageLikes = require(game:GetService("ReplicatedStorage").Shared.GarageLikes)
-local LobbyDecor = require(script.Parent.LobbyDecor)
 local LobbyLayout = require(game:GetService("ReplicatedStorage").Shared.LobbyLayout)
 
 local LobbyBays = {}
