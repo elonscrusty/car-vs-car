@@ -160,7 +160,6 @@ test("taken names are avoided and the roster pick is a live car", function()
 end)
 
 test("a save that owns removed blocky cars drops them and gets coins back", function()
-	local LobbyConfig = require("../src/shared/LobbyConfig")
 	local p =
 		Inventory.migrate({ coins = 10, owned = { Heavy = true, Spike = true, Sedan = true } })
 	eq(p.owned.Heavy, nil)
