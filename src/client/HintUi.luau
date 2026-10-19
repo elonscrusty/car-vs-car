@@ -25,7 +25,6 @@ export type Handle = {
 }
 
 local NAVY = Color3.fromRGB(10, 14, 32)
-local CYAN = Color3.fromRGB(60, 240, 255)
 local GOLD = Color3.fromRGB(255, 210, 70)
 local WHITE = Color3.new(1, 1, 1)
 local BOUNCE = TweenInfo.new(0.45, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
@@ -104,7 +103,7 @@ function HintUi.new(onSeen: (id: string) -> ()): Handle
 	banner.Parent = gui
 	corner(banner, 0.3)
 	local bannerStroke = Instance.new("UIStroke")
-	bannerStroke.Color = CYAN
+	bannerStroke.Color = WHITE
 	bannerStroke.Thickness = 3
 	bannerStroke.Parent = banner
 	local limit = Instance.new("UISizeConstraint")
