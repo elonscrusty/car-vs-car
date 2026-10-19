@@ -25,7 +25,9 @@ local function orderFor(flags: { [string]: boolean }?): { string }
 	if FeatureFlags.enabled("raceMode", flags) then
 		table.insert(order, "race")
 	end
-	table.insert(order, "duel")
+	if not FeatureFlags.enabled("lastStandingMode", flags) then
+		table.insert(order, "duel") -- the 4-car fight replaces the 1v1 duel when it is on
+	end
 	if FeatureFlags.enabled("hillMode", flags) then
 		table.insert(order, "hill")
 	end
@@ -72,11 +74,38 @@ return {
 		tint = { 170, 220, 255 }, -- icy blue paint on the bowl
 	},
 	LastStanding = {
-		cars = 8, -- cars in the match (humans first, bots fill the rest)
+		cars = 4, -- cars in the match (humans first, bots fill the rest)
 		maxSeconds = 150, -- time up: most HP among the cars still alive wins
-		spawnRadius = 68, -- start ring, studs from the middle
-		hpScale = 0.6, -- every car has this share of its normal HP (8 cars = quick knock-outs)
+		spawnRadius = 48, -- start ring, studs from the middle
+		hpScale = 0.8, -- every car has this share of its normal HP (quicker knock-outs)
 		hudSeconds = 1,
+		-- Flat fight floor with ramps and blocks (overrides GameConfig.Arena for this mode).
+		-- Ramps climb toward -Z at yaw 0. Mirrored round the middle so no spot is luckier.
+		Arena = {
+			flatRadius = 72,
+			rimRadius = 72,
+			tiltDeg = 0,
+			wallHeight = 4, -- a low lip: a big hit launches you over it = out
+			spawnRadius = 48,
+			noPads = true,
+			obstacles = {
+				{ kind = "ramp", x = -30, z = -22, sx = 14, sz = 22, yaw = 0 },
+				{ kind = "ramp", x = 30, z = 22, sx = 14, sz = 22, yaw = 180 },
+				{ kind = "block", x = 0, z = -28, sx = 10, sy = 7, sz = 6 },
+				{ kind = "block", x = 0, z = 28, sx = 10, sy = 7, sz = 6 },
+				{ kind = "pillar", x = -22, z = 24, sx = 6, sy = 9 },
+				{ kind = "pillar", x = 22, z = -24, sx = 6, sy = 9 },
+			},
+		},
+		-- Big hits (BrawlRules): the car that got hit is LAUNCHED and bits fly off it.
+		Hit = {
+			from = 0.3,
+			push = 70,
+			up = 34,
+			spin = 14,
+			scrapMax = 8,
+			peelFrom = 0.55,
+		},
 	},
 	Race = {
 		cars = 6, -- cars in the match (humans first, bots fill the rest); track: RaceTrackConfig

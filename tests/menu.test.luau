@@ -7,19 +7,19 @@ local MenuRules = require("../src/shared/MenuRules")
 
 print("Menu / flags / bot auto level")
 
-H.test("launch flags: cuts hidden, soccer kept", function()
+H.test("launch flags: cuts hidden, the fight kept", function()
 	local off = {
 		"dailySpin",
 		"rankBadges",
 		"paintShop",
 		"perCarQuests",
 		"botLevelButton",
-		"lastStandingMode",
 	}
 	for _, f in off do
 		H.truthy(not FeatureFlags.enabled(f), f)
 	end
-	H.truthy(FeatureFlags.enabled("soccerMode"))
+	H.truthy(FeatureFlags.enabled("lastStandingMode"))
+	H.truthy(not FeatureFlags.enabled("soccerMode") and not FeatureFlags.enabled("tagMode"))
 	H.truthy(not FeatureFlags.enabled("nope"))
 	H.truthy(FeatureFlags.enabled("x", { x = true }))
 end)

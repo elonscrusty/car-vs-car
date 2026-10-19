@@ -35,8 +35,9 @@ local function makePart(model: Model, name: string, size: Vector3, cf: CFrame, c
 	return p
 end
 
-function Arena.build(origin: Vector3): Arena
-	local cfg = GameConfig.Arena
+-- `arenaCfg` = another arena shape (the flat fight arena); nil = the normal bowl.
+function Arena.build(origin: Vector3, arenaCfg: any?): Arena
+	local cfg = arenaCfg or GameConfig.Arena
 	local tilt = math.rad(cfg.tiltDeg)
 	local model = Instance.new("Model")
 	model.Name = "Arena"
@@ -194,6 +195,9 @@ function Arena.build(origin: Vector3): Arena
 	for idx = 1, 2 do
 		local base = CFrame.new(origin) * CFrame.Angles(0, if idx == 1 then 0 else math.pi, 0)
 		frames[idx] = base
+		if cfg.noPads then
+			continue
+		end
 		local padCf = base
 			* CFrame.new(0, height(cfg.spawnRadius), -cfg.spawnRadius)
 			* CFrame.Angles(tilt, 0, 0)

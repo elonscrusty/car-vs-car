@@ -35,6 +35,8 @@ local SoccerFieldFlow = require(ReplicatedStorage.Shared.SoccerFieldFlow)
 local SoccerBoost = require(ReplicatedStorage.Shared.SoccerBoost)
 local SoccerChaos = require(ReplicatedStorage.Shared.SoccerChaos)
 local SoccerOrbs = require(ReplicatedStorage.Shared.SoccerOrbs)
+local BrawlRules = require(ReplicatedStorage.Shared.BrawlRules)
+local CarSmash = require(script.Parent.CarSmash)
 local SoccerStats = require(ReplicatedStorage.Shared.SoccerStats)
 local Types = require(ReplicatedStorage.Shared.Types)
 
@@ -68,6 +70,11 @@ function GroupMatch.new(
 	local soccerOn = mode == "soccer"
 	local tagOn = mode == "tag"
 	local raceOn = mode == "race"
+	local brawlOn = mode == "lastStanding" -- the car fight: flat floor, ramps, last car alive
+	local brawlArena = table.clone(cfg.Arena)
+	for k, v in ModesConfig.LastStanding.Arena do
+		brawlArena[k] = v
+	end
 	local onField = soccerOn or tagOn -- both play on the small flat field (SoccerArena)
 	local origin = Vector3.new(slot * cfg.Arena.slotSpacing, cfg.Arena.baseY, 0)
 	local rng = Random.new()
@@ -394,6 +401,9 @@ function GroupMatch.new(
 				text = "YOU ARE OUT - watching. The round ends when everyone is out. Tap REMATCH or LOBBY!",
 			})
 		end
+		if currentArena then
+			CarSmash.blowUp(car, currentArena.model, rng)
+		end
 		car.model:Destroy()
 		local winner = Modes.lastWinner(last)
 		if winner ~= 0 then
@@ -446,7 +456,31 @@ function GroupMatch.new(
 			}
 		end)
 		local popSpeed, spinSpeed = BowlRules.smashPop(strength, BowlConfig.Smash)
-		if popSpeed > 0 and not dead then
+		if brawlOn then
+			-- Big hit: the car that got hit is LAUNCHED away from the attacker and bits fly off.
+			local hit = ModesConfig.LastStanding.Hit
+			local push, up, spin = BrawlRules.launch(strength, hit)
+			if push > 0 and not dead then
+				local away = defender.body.Position - attacker.body.Position
+				away = Vector3.new(away.X, 0, away.Z)
+				away = if away.Magnitude > 0.1 then away.Unit else Vector3.xAxis
+				Impulse.linear(
+					defender.body,
+					(away * push + Vector3.yAxis * up) * defender.body.AssemblyMass
+				)
+				defender.body.AssemblyAngularVelocity += Vector3.new(0, spin, 0)
+			end
+			local currentArena = arena
+			if currentArena and not dead then
+				local n = BrawlRules.scrapCount(strength, hit)
+				if n > 0 then
+					CarSmash.scrap(defender, n, currentArena.model, rng, 0.6 + strength)
+				end
+				if BrawlRules.peels(strength, hit) then
+					CarSmash.peel(defender, currentArena.model, rng)
+				end
+			end
+		elseif popSpeed > 0 and not dead then
 			Impulse.linear(defender.body, Vector3.yAxis * defender.body.AssemblyMass * popSpeed)
 			defender.body.AssemblyAngularVelocity += Vector3.yAxis * spinSpeed
 		end
@@ -511,7 +545,7 @@ function GroupMatch.new(
 
 	-- Where a start spot sits: on the flat soccer field, or on the bowl surface.
 	local function spotPosition(spot: Modes.Spot, lift: number): Vector3
-		if onField or raceOn then
+		if onField or raceOn or brawlOn then
 			return SoccerArena.spotPosition(origin, spot.x, spot.z, lift)
 		end
 		return ModeFx.spotPosition(origin, spot.x, spot.z, lift)
@@ -1525,7 +1559,7 @@ function GroupMatch.new(
 				if
 					Fight.isRingOut(
 						math.sqrt(x * x + z * z),
-						cfg.Arena.rimRadius,
+						if brawlOn then brawlArena.rimRadius else cfg.Arena.rimRadius,
 						cfg.RingOut.margin
 					) or car.body.Position.Y < origin.Y - cfg.Match.outOfBoundsDrop
 				then
@@ -1740,7 +1774,7 @@ function GroupMatch.new(
 	arena = if onField
 		then SoccerArena.build(origin, soccerOn)
 		elseif raceOn then RaceArena.build(origin)
-		else Arena.build(origin)
+		else Arena.build(origin, if brawlOn then brawlArena else nil)
 	if arena then
 		arena.model:SetAttribute("GameMode", mode) -- Specials reads it: ability meaning per mode
 	end

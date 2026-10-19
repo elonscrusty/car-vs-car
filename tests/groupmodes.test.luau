@@ -10,6 +10,7 @@ local RaceConfig = require("../src/shared/RaceTrackConfig")
 local SoccerBoost = require("../src/shared/SoccerBoost")
 local SoccerChaos = require("../src/shared/SoccerChaos")
 local SoccerOrbs = require("../src/shared/SoccerOrbs")
+local BrawlRules = require("../src/shared/BrawlRules")
 local SoccerField = require("../src/shared/SoccerField")
 local SoccerFieldConfig = require("../src/shared/SoccerFieldConfig")
 local SoccerStats = require("../src/shared/SoccerStats")
@@ -427,5 +428,41 @@ test(
 		eq(vy, cfg.kickLift)
 		local ux = SoccerOrbs.kick(cfg, 0, 0)
 		eq(ux, cfg.kickSpeed)
+	end
+)
+
+test("brawl hits: under the limit nothing flies, harder hits launch and scatter more", function()
+	local hit = ModesConfig.LastStanding.Hit
+	local p0 = BrawlRules.launch(hit.from - 0.01, hit)
+	eq(p0, 0)
+	eq(BrawlRules.scrapCount(hit.from - 0.01, hit), 0)
+	local pa, ua = BrawlRules.launch(0.5, hit)
+	local pb, ub = BrawlRules.launch(1, hit)
+	truthy(pa > 0 and ua > 0 and pb > pa and ub > ua)
+	truthy(BrawlRules.scrapCount(1, hit) >= BrawlRules.scrapCount(0.5, hit))
+	eq(BrawlRules.scrapCount(1, hit), hit.scrapMax)
+	truthy(
+		BrawlRules.peels(1, hit) and not BrawlRules.peels(hit.from, hit) or hit.peelFrom <= hit.from
+	)
+end)
+
+test(
+	"fight mode: 4 cars, flat arena, mirrored obstacles, only the fight is in the rotation",
+	function()
+		local ls = ModesConfig.LastStanding
+		eq(ls.cars, 4)
+		eq(ls.Arena.tiltDeg, 0)
+		eq(ls.Arena.flatRadius, ls.Arena.rimRadius)
+		for _, o in ls.Arena.obstacles do
+			truthy(math.sqrt(o.x * o.x + o.z * o.z) < ls.Arena.rimRadius - 10)
+			local twin = false
+			for _, q in ls.Arena.obstacles do
+				if q.kind == o.kind and q.x == -o.x and q.z == -o.z then
+					twin = true
+				end
+			end
+			truthy(twin, "obstacle has a mirror twin")
+		end
+		eq(table.concat(ModesConfig.Order, ","), "lastStanding")
 	end
 )

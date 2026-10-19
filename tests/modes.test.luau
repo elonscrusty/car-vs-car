@@ -16,19 +16,18 @@ test("every mode has a name and a blurb, and the rotation goes round", function(
 	truthy(not Modes.isMode(5))
 	local n = #ModesConfig.Order
 	eq(Modes.pick(0), ModesConfig.Order[1])
-	eq(Modes.pick(1), ModesConfig.Order[2])
+	eq(Modes.pick(1), ModesConfig.Order[1 % n + 1])
 	eq(Modes.pick(n), ModesConfig.Order[1])
 	eq(Modes.pick(-3), ModesConfig.Order[1])
-	eq(Modes.pick(1.9), ModesConfig.Order[2])
-	for _, m in { "duel", "soccer", "tag", "race" } do
-		truthy(table.find(ModesConfig.Order, m) ~= nil, m .. " is in the rotation")
-	end
+	eq(Modes.pick(1.9), ModesConfig.Order[1 % n + 1])
+	truthy(table.find(ModesConfig.Order, "lastStanding") ~= nil, "the fight is in the rotation")
 end)
 
 test(
 	"launch rotation: soccer first, then tag, duel, hill, ice; last standing only with its flag",
 	function()
-		eq(table.concat(ModesConfig.Order, ","), "soccer,tag,race,duel")
+		-- Launch: only the 4-car fight (soccer / tag / race are hidden behind flags).
+		eq(table.concat(ModesConfig.Order, ","), "lastStanding")
 		eq(table.concat(ModesConfig.orderFor({}), ","), "duel")
 		eq(table.concat(ModesConfig.orderFor({ tagMode = true }), ","), "tag,duel")
 		eq(
@@ -47,7 +46,7 @@ test(
 				}),
 				","
 			),
-			"soccer,tag,race,duel,hill,ice,lastStanding"
+			"soccer,tag,race,hill,ice,lastStanding"
 		)
 	end
 )
@@ -56,12 +55,12 @@ test("car counts and bots", function()
 	eq(Modes.carCount("duel"), 2)
 	eq(Modes.carCount("hill"), 2)
 	eq(Modes.carCount("ice"), 2)
-	eq(Modes.carCount("lastStanding"), 8)
+	eq(Modes.carCount("lastStanding"), 4)
 	eq(Modes.carCount("soccer"), ModesConfig.Soccer.teamSize * 2)
 	truthy(Modes.isGroup("soccer") and Modes.isGroup("lastStanding"))
 	truthy(not Modes.isGroup("hill"))
-	eq(Modes.botsNeeded("lastStanding", 1), 7)
-	eq(Modes.botsNeeded("lastStanding", 2), 6)
+	eq(Modes.botsNeeded("lastStanding", 1), 3)
+	eq(Modes.botsNeeded("lastStanding", 2), 2)
 	eq(Modes.botsNeeded("lastStanding", 20), 0)
 end)
 
@@ -218,11 +217,11 @@ test("player mode pick: cycle and choose", function()
 	eq(Modes.nextPick("auto"), order[1])
 	eq(Modes.nextPick(order[#order]), "auto")
 	eq(Modes.nextPick("junk"), "auto")
-	eq(Modes.isPick("soccer"), true)
+	eq(Modes.isPick("lastStanding"), true)
 	eq(Modes.isPick("auto"), true)
 	eq(Modes.isPick("nope"), false)
 	eq(Modes.isPick(5), false)
-	eq(Modes.choose({ "auto", "soccer" }, 0), "soccer")
+	eq(Modes.choose({ "auto", "lastStanding" }, 0), "lastStanding")
 	eq(Modes.choose({ "auto" }, 1), Modes.pick(1))
 	eq(Modes.choose({}, 2), Modes.pick(2))
 	eq(Modes.choose({ "bogus" }, 0), Modes.pick(0))
@@ -310,17 +309,21 @@ test("flee direction: away from IT, bent to the middle near a wall", function()
 end)
 
 test("rematch repeats the mode; a real pick wins; auto rotates", function()
-	eq(Modes.choose({ "auto" }, 5, "tag"), "tag")
-	eq(Modes.choose({ "soccer" }, 5, "tag"), "soccer")
+	eq(Modes.choose({ "auto" }, 5, "lastStanding"), "lastStanding")
+	eq(Modes.choose({ "lastStanding" }, 5, "tag"), "lastStanding")
 	eq(Modes.choose({ "auto" }, 0, nil), ModesConfig.Order[1])
 	eq(Modes.choose({ "auto" }, 0, "junk"), ModesConfig.Order[1])
 	eq(Modes.choose({ "auto" }, 0, "auto"), ModesConfig.Order[1])
 end)
 
-test("new players start in soccer, others keep their pick", function()
-	eq(Modes.defaultPick(0, "auto"), "soccer")
-	eq(Modes.defaultPick(2, nil), "soccer")
-	eq(Modes.defaultPick(3, "auto"), "auto")
-	eq(Modes.defaultPick(3, nil), nil)
-	eq(Modes.defaultPick(0, "tag"), "tag")
-end)
+test(
+	"new players start in soccer only while it is in the rotation, others keep their pick",
+	function()
+		-- soccer is hidden at launch: nobody is forced into it
+		eq(Modes.defaultPick(0, "auto"), "auto")
+		eq(Modes.defaultPick(2, nil), nil)
+		eq(Modes.defaultPick(3, "auto"), "auto")
+		eq(Modes.defaultPick(3, nil), nil)
+		eq(Modes.defaultPick(0, "tag"), "tag")
+	end
+)

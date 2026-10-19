@@ -50,7 +50,7 @@ function Quests.clean(raw: any): { Quest }
 		end
 		if type(q) == "table" then
 			local def = QuestsConfig.get(q.id)
-			if def and not seen[def.id] then
+			if def and QuestsConfig.isActive(def.id) and not seen[def.id] then
 				seen[def.id] = true
 				local pr = q.progress
 				if type(pr) ~= "number" or pr ~= pr then
