@@ -80,6 +80,7 @@ return {
 	},
 	Race = {
 		cars = 6, -- cars in the match (humans first, bots fill the rest); track: RaceTrackConfig
+		placeCoins = { 60, 45, 35, 25, 20, 20 }, -- coins by finishing place (PLACEHOLDER, to test); the 1st place equals the win reward
 	},
 	Tag = {
 		cars = 6, -- cars in the match (humans first, bots fill the rest); plays on the flat field
@@ -87,13 +88,16 @@ return {
 		fuseStep = 3, -- every round the fuse is this much shorter ...
 		minFuse = 7, -- ... but never shorter than this
 		immuneSeconds = 1.5, -- the car that just passed IT cannot be tagged back this long
-		maxSeconds = 240, -- time up: nearest-to-middle alive car wins
+		maxSeconds = 90, -- time up: nearest-to-middle alive car wins (audit #28: short rounds, was 240)
+		allOutEndSeconds = 2, -- every human is out: the round ends this soon (no dead time)
+		firstItBot = true, -- audit #27: the first IT is a bot whenever the match has one
 		hudSeconds = 0.5,
 		itColor = { 255, 70, 40 },
 		fleeLook = 40, -- bots run toward a point this far away from IT
 	},
 	Soccer = {
 		teamSize = 3, -- cars per team (humans first, bots fill the rest); 3v3 on the flat field (SoccerFieldConfig)
+		-- NOTE: the ball of car soccer is SoccerFieldConfig.ball*; the three ball numbers below only feed ModeFx.
 		ballSize = 16, -- the giant ball (diameter, studs)
 		ballDensity = 0.25, -- low = a hit sends it flying
 		ballMaxSpeed = 140, -- the server never lets the ball go faster
@@ -101,6 +105,11 @@ return {
 		goalHalfAngle = 0.55, -- radians either side of the goal's middle
 		scoreToWin = 3,
 		maxSeconds = 150, -- time up: more goals wins (tie = next goal wins)
+		suddenDeathAt = 75, -- 0-0 at this many seconds = next goal wins right away (0 = never; audit #25)
+		goalCoins = 5, -- coins per goal a human scored, added on top of the normal match reward (audit #24; own goals never cost coins)
+		markSeconds = 5, -- your own car carries the KickoffMark attribute this long after every kickoff (audit #16)
+		touchCooldown = 0.4, -- stats: touches by the same car closer together than this count once
+		logStats = true, -- print one stats line per soccer match (goals, touches, idle time per car)
 		spawnRadius = 68,
 		spawnSpread = 0.3, -- radians between cars of the same team
 		goalPause = 2.5, -- seconds the cars sit frozen after a goal (score banner) before they are reset

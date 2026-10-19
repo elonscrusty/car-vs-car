@@ -32,6 +32,8 @@ local RaceTrack = require(ReplicatedStorage.Shared.RaceTrack)
 local RaceTrackConfig = require(ReplicatedStorage.Shared.RaceTrackConfig)
 local SoccerBotConfig = require(ReplicatedStorage.Shared.SoccerBotConfig)
 local SoccerFieldFlow = require(ReplicatedStorage.Shared.SoccerFieldFlow)
+local SoccerBoost = require(ReplicatedStorage.Shared.SoccerBoost)
+local SoccerStats = require(ReplicatedStorage.Shared.SoccerStats)
 local Types = require(ReplicatedStorage.Shared.Types)
 
 local Arena = require(script.Parent.Arena)
@@ -40,8 +42,10 @@ local BotMoves = require(script.Parent.BotMoves)
 local CarBuilder = require(script.Parent.CarBuilder)
 local CarSanity = require(script.Parent.CarSanity)
 local Dummy = require(script.Parent.Dummy)
+local GroupResults = require(script.Parent.GroupResults)
 local Impulse = require(script.Parent.Impulse)
 local Match = require(script.Parent.Match)
+local Profiles = require(script.Parent.Profiles)
 local RaceArena = require(script.Parent.RaceArena)
 local ModeFx = require(script.Parent.ModeFx)
 local Telemetry = require(script.Parent.Telemetry)
@@ -96,7 +100,18 @@ function GroupMatch.new(
 	local raceHudAt = 0
 	local raceShown = ""
 	local raceDebugAt = 0
-	local raceStuck: { [number]: { passed: number, since: number } } = {}
+	local raceProg: { [number]: Race.Progress } = {}
+	local raceCanReset: { [number]: boolean } = {}
+	local raceResetAt: { [number]: number } = {}
+	local racePlace: { number } = {} -- finishing place of every car, set when the race ends
+	local tagsMade: { [number]: number } = {} -- tag: cars each car tagged
+	local outAt: { [number]: number } = {} -- tag / last standing: match seconds when a car fell
+	local rematchAsked: { [number]: boolean } = {}
+	local allOutAt: number? = nil -- tag: every human is out, the round ends at this time
+	local finalWinner = 0
+	local stats = SoccerStats.new()
+	local pads = SoccerBoost.new()
+	local markUntil: number? = nil -- soccer: when the KickoffMark attribute goes off (math.huge = until play)
 	local ball: Part? = nil
 	local ballIdle = 0 -- seconds the ball has hardly moved (stuck check)
 	local goldenGoal = false
@@ -177,12 +192,61 @@ function GroupMatch.new(
 	-- ---- Match end -------------------------------------------------------------------------
 
 	-- `won(i)` says whether car i's player won. Everyone sees the end screens.
+	local function humanFlags(): { boolean }
+		local flags: { boolean } = {}
+		for i = 1, total do
+			flags[i] = isHuman(i)
+		end
+		return flags
+	end
+
+	local function clearOutFlags()
+		for _, part in participants do
+			pcall(function()
+				part.player:SetAttribute("MatchOut", nil)
+			end)
+		end
+	end
+
+	-- The result for human `i` (audit #24, #28, #32): see GroupResults for the fields.
+	local function resultFor(i: number, youWon: boolean): GroupResults.Result
+		local r: GroupResults.Result = { mode = mode, won = youWon, coinsBonus = 0 }
+		if soccerOn then
+			local goals = stats.goals[i] or 0
+			r.goals = goals
+			r.ownGoals = stats.ownGoals[i] or 0
+			r.touches = stats.touches[i] or 0
+			r.coinsBonus = SoccerStats.goalBonus(goals, ModesConfig.Soccer.goalCoins)
+		elseif raceOn then
+			local place = racePlace[i] or total
+			r.place, r.placeOf = place, total
+			r.coinsBonus = Race.placeBonus(
+				place,
+				ModesConfig.Race.placeCoins,
+				if youWon then LobbyConfig.Rewards.winCoins else LobbyConfig.Rewards.loseCoins
+			)
+		else
+			local place = Modes.lastPlace(last, i)
+			if last.alive[i] and i ~= finalWinner then
+				place = 2 -- alive at time up but not the winner
+			end
+			r.place, r.placeOf = place, total
+			r.survivedSeconds = outAt[i] or fightElapsed
+			r.tags = tagsMade[i] or 0
+		end
+		return r
+	end
+
 	local function finish(won: (i: number) -> boolean, koText: string, focus: Vector3?)
 		if ending or destroyed then
 			return
 		end
 		ending = true
 		phase = "matchEnd"
+		clearOutFlags()
+		if soccerOn and ModesConfig.Soccer.logStats then
+			print(SoccerStats.summary(stats, humanFlags(), total))
+		end
 		sendAll(function()
 			return { kind = "ko", text = koText, pos = focus }
 		end)
@@ -200,6 +264,13 @@ function GroupMatch.new(
 			end
 			for i, part in participants do
 				local youWon = won(i)
+				local result = resultFor(i, youWon)
+				GroupResults.set(part.player, result) -- the lobby reads it once (GroupResults.take)
+				pcall(function()
+					for name, value in GroupResults.attributes(result) do
+						part.player:SetAttribute(name, value)
+					end
+				end)
 				sendTo(i, { kind = "matchEnd", youWon = youWon })
 				if part.onEndScreen and not gone[i] then
 					part.onEndScreen()
@@ -214,6 +285,7 @@ function GroupMatch.new(
 	end
 
 	local function finishLast(winner: number)
+		finalWinner = winner
 		local pos = if winner > 0
 				and cars[winner]
 				and not cars[winner].dead
@@ -245,6 +317,14 @@ function GroupMatch.new(
 	local function showIt()
 		for i, car in cars do
 			local glow = car.model:FindFirstChild("TagIt")
+			-- Data for every client (audit #29): who is IT and when the fuse ends (server clock).
+			local isIt = i == tag.it and not car.dead
+			car.model:SetAttribute("TagIt", if isIt then true else nil)
+			car.model:SetAttribute(
+				"TagFuseEndsAt",
+				if isIt then workspace:GetServerTimeNow() + tag.fuse else nil
+			)
+			car.model:SetAttribute("TagFuseLeft", if isIt then math.ceil(tag.fuse) else nil)
 			if i == tag.it and not car.dead then
 				if glow == nil then
 					local h = Instance.new("Highlight")
@@ -281,6 +361,7 @@ function GroupMatch.new(
 		end
 		car.dead = true
 		car.hp = 0
+		outAt[car.idx] = fightElapsed
 		car.bar.set(0, maxHp[car.idx])
 		car.bar.hide()
 		local pos = car.body.Position
@@ -295,6 +376,15 @@ function GroupMatch.new(
 		if isHuman(car.idx) then
 			-- An eliminated player films their own crash dummy and stops driving.
 			sendTo(car.idx, { kind = "roundEnd", round = 1, youLost = true, focus = dummy })
+			-- "Out" state (audit #28): the player spectates; MatchOut lets the client show it.
+			local part = participants[car.idx]
+			pcall(function()
+				part.player:SetAttribute("MatchOut", true)
+			end)
+			sendTo(car.idx, {
+				kind = "modeInfo",
+				text = "YOU ARE OUT - watching. The round ends when everyone is out. Tap REMATCH or LOBBY!",
+			})
 		end
 		car.model:Destroy()
 		local winner = Modes.lastWinner(last)
@@ -302,6 +392,10 @@ function GroupMatch.new(
 			finishLast(winner)
 		elseif tagOn and tag.it == car.idx then
 			nextRound() -- IT left the game: someone else gets the fuse
+		end
+		-- Tag: no human left to play = end the round soon instead of watching bots for minutes.
+		if tagOn and not ending and allOutAt == nil and Modes.allHumansOut(last, humanFlags()) then
+			allOutAt = os.clock() + tagCfg.allOutEndSeconds
 		end
 	end
 
@@ -375,6 +469,7 @@ function GroupMatch.new(
 			-- Only IT's bump counts: it passes IT on to the car it touched. No damage.
 			if car.idx == tag.it and not enemy.dead and not car.dead then
 				if Modes.tagPass(tag, car.idx, otherIdx, os.clock(), tagCfg.immuneSeconds) then
+					tagsMade[car.idx] = (tagsMade[car.idx] or 0) + 1
 					showIt()
 					sendAll(function(i)
 						return {
@@ -414,14 +509,35 @@ function GroupMatch.new(
 			elseif tagOn then SoccerField.spawnSpots(tagCfg.cars // 2)
 			elseif raceOn then RaceTrack.grid(total)
 			else Modes.ringSpots(total, ModesConfig.LastStanding.spawnRadius)
+		if raceOn then
+			-- A player's first matches start on the front row (audit #33); bots fill the rest.
+			local front: { boolean } = {}
+			local humans: { boolean } = {}
+			for idx = 1, total do
+				local part = participants[idx]
+				humans[idx] = part ~= nil
+				local profile = if part then Profiles.get(part.player) else nil
+				front[idx] = part ~= nil
+					and RaceTrack.humanFront(
+						if profile then profile.matches else 0,
+						RaceTrackConfig.frontRowMatches
+					)
+			end
+			local slotOf = RaceTrack.startOrder(total, front, humans)
+			local grid = spots
+			spots = {}
+			for idx = 1, total do
+				spots[idx] = grid[slotOf[idx]]
+			end
+		end
 		for idx = 1, total do
 			local part = participants[idx]
 			local id = if part
 				then part.carId
 				else BotNames.pickCar(rng:NextInteger(1, 1000000), CarConfig.Order) :: string
-			local stats = CarConfig.Cars[id]
+			local carStats = CarConfig.Cars[id]
 			local spot = spots[idx]
-			local pos = spotPosition(spot, stats.size[2] / 2 + 1.5)
+			local pos = spotPosition(spot, carStats.size[2] / 2 + 1.5)
 			local car = CarBuilder.build(
 				id,
 				idx,
@@ -433,8 +549,8 @@ function GroupMatch.new(
 				nil
 			)
 			local hp = if mode == "lastStanding"
-				then stats.hp * ModesConfig.LastStanding.hpScale
-				else stats.hp
+				then carStats.hp * ModesConfig.LastStanding.hpScale
+				else carStats.hp
 			car.hp = hp
 			maxHp[idx] = hp
 			car.bar.set(hp, hp)
@@ -548,10 +664,46 @@ function GroupMatch.new(
 		end
 	end
 
+	-- Your own car carries KickoffMark for the first seconds of every kickoff (audit #16). The
+	-- client reads it with DriverUserId to draw the ring / arrow; the server only sets the data.
+	local function markHumans(on: boolean)
+		for i, car in cars do
+			if isHuman(i) and not car.dead then
+				car.model:SetAttribute("KickoffMark", if on then true else nil)
+			end
+		end
+	end
+
 	local function startCountdown(now: number, seconds: number)
+		markHumans(true)
+		markUntil = math.huge
 		soccerState = "countdown"
 		soccerUntil = now + seconds
 		countdownShown = ""
+	end
+
+	-- Boost pads: a car on a lit pad gets its BOOST ready again; the pad dims until it is lit again.
+	local function stepPads(now: number)
+		local model = if arena then arena.model else nil
+		for _, car in cars do
+			if not car.dead then
+				local x, z = flatOf(car)
+				local taken = SoccerBoost.take(pads, x, z, now)
+				if taken ~= 0 then
+					moveStates[car.idx].boostAt = -math.huge
+					SoccerStats.pad(stats, car.idx)
+					car.model:SetAttribute("BoostPadAt", workspace:GetServerTimeNow())
+				end
+			end
+		end
+		if model then
+			for i = 1, SoccerBoost.count() do
+				local pad = model:FindFirstChild("BoostPad" .. i)
+				if pad and pad:IsA("BasePart") then
+					pad.Transparency = if SoccerBoost.lit(pads, i, now) then 0.15 else 0.85
+				end
+			end
+		end
 	end
 
 	local function stepSoccer(now: number, dt: number)
@@ -576,6 +728,7 @@ function GroupMatch.new(
 			end
 			if remaining <= 0 then
 				soccerState = "play"
+				markUntil = now + cfgS.markSeconds
 				freezeAll(false)
 				soccerHud()
 			end
@@ -590,11 +743,13 @@ function GroupMatch.new(
 		local conceded = SoccerField.goalConceded(bx, bz)
 		if conceded ~= 0 then
 			local scorer = Modes.soccerGoal(soccer, conceded)
+			local _, ownBy = SoccerStats.goal(stats, conceded, teamSize)
 			local pos = b.Position
 			sendAll(function(i)
+				-- An own goal says so (audit #26) and never costs coins: the team still gets the point.
 				return {
 					kind = "ko",
-					text = if teamOf(i) == scorer then "GOAL!" else "THEY SCORED!",
+					text = SoccerStats.goalText(teamOf(i), scorer, ownBy ~= 0),
 					pos = pos,
 				}
 			end)
@@ -624,6 +779,40 @@ function GroupMatch.new(
 			soccerUntil = now + cfgS.goalPause
 			freezeAll(true)
 			return
+		end
+		-- Stats (audit #19) and boost pads (audit #20): touches by distance, idle time per car.
+		local ballRadius = SoccerFieldConfig.ballDiameter / 2
+		for _, car in cars do
+			if not car.dead then
+				local off = car.body.Position - b.Position
+				local half = math.max(car.stats.size[1], car.stats.size[3]) / 2
+				if
+					SoccerStats.isTouching(
+						off.X,
+						off.Y,
+						off.Z,
+						ballRadius,
+						half,
+						SoccerFieldConfig.touchSlack
+					)
+				then
+					SoccerStats.touch(stats, car.idx, now, cfgS.touchCooldown)
+				end
+				local cv = car.body.AssemblyLinearVelocity
+				SoccerStats.idleStep(
+					stats,
+					car.idx,
+					Vector3.new(cv.X, 0, cv.Z).Magnitude,
+					dt,
+					SoccerFieldConfig.statsIdleSpeed
+				)
+			end
+		end
+		stepPads(now)
+		local mu = markUntil
+		if mu ~= nil and now >= mu then
+			markUntil = nil
+			markHumans(false)
 		end
 		local stuck
 		ballIdle, stuck = SoccerField.stuckStep(ballIdle, v.Magnitude, dt)
@@ -768,6 +957,16 @@ function GroupMatch.new(
 		Autopilot.stepManual(car, steer, gas, dt, rayParams, nil)
 	end
 
+	local function tagTimeoutWinner(): number
+		local xs: { number }, zs: { number } = {}, {}
+		for i, car in cars do
+			if not car.dead then
+				xs[i], zs[i] = flatOf(car)
+			end
+		end
+		return Modes.tagTimeoutWinner(last, xs, zs)
+	end
+
 	-- Tag: the fuse, the HUD, and cars that left the field coming back.
 	local function stepTag(now: number, dt: number)
 		for _, car in cars do
@@ -790,6 +989,10 @@ function GroupMatch.new(
 		if now - tagHudAt >= tagCfg.hudSeconds then
 			tagHudAt = now
 			local left = math.ceil(tag.fuse)
+			local itCar = cars[tag.it]
+			if itCar and not itCar.dead then
+				itCar.model:SetAttribute("TagFuseLeft", left) -- everyone can show the fuse (audit #29)
+			end
 			local n = Modes.lastAliveCount(last)
 			sendAll(function(i)
 				local text = if i == tag.it
@@ -836,7 +1039,30 @@ function GroupMatch.new(
 		Autopilot.stepManual(car, steer, gas, dt, rayParams, nil)
 	end
 
-	-- Race: the 3-2-1, checkpoints and laps, falls, stuck bots, the HUD, time up.
+	-- The race is over: every car's place (1..N) for the result, and each human is told theirs
+	-- ("2ND OF 6", audit #32) instead of only win / lose.
+	local function raceFinish()
+		local toNext: { number } = {}
+		for _, car in cars do
+			local x, z = flatOf(car)
+			local wp = RaceTrack.point(race.cars[car.idx].next)
+			toNext[car.idx] = math.sqrt((wp.x - x) ^ 2 + (wp.z - z) ^ 2)
+		end
+		racePlace = Race.positions(race, toNext)
+		sendAll(function(i)
+			return {
+				kind = "banner",
+				text = string.format(
+					"%s OF %d",
+					string.upper(Race.ordinal(racePlace[i] or total)),
+					total
+				),
+				seconds = 3,
+			}
+		end)
+	end
+
+	-- Race: the 3-2-1, checkpoints and laps, falls, stuck cars, the HUD, time up.
 	local function stepRace(now: number, dt: number)
 		if not raceStarted then
 			local left = math.ceil(raceGoAt - now)
@@ -865,41 +1091,79 @@ function GroupMatch.new(
 			local x, z = flatOf(car)
 			local c = race.cars[car.idx]
 			local wp = RaceTrack.point(c.next)
-			if
-				Race.reach(
-					race,
-					car.idx,
-					x,
-					z,
-					wp.x,
-					wp.z,
-					RaceTrackConfig.checkpointRadius,
-					now - raceT0
-				) and c.finishedAt ~= nil
-			then
+			local reached = Race.reach(
+				race,
+				car.idx,
+				x,
+				z,
+				wp.x,
+				wp.z,
+				RaceTrackConfig.checkpointRadius,
+				now - raceT0
+			)
+			if reached and c.finishedAt ~= nil then
 				if RaceTrackConfig.debug then
 					warn(string.format("RACE END: car %d finished at %.1fs", car.idx, now - raceT0))
 				end
+				raceFinish()
 				finishLast(car.idx)
 				return
 			end
+			if reached and isHuman(car.idx) then
+				-- Checkpoint feedback (audit #36): the flash says the gate counted.
+				sendTo(car.idx, {
+					kind = "banner",
+					text = Race.checkpointText(
+						Race.lastPassed(race, car.idx),
+						race.count,
+						c.lap,
+						race.laps
+					),
+					seconds = 0.9,
+				})
+			end
 			wp = RaceTrack.point(c.next)
 			toNext[car.idx] = math.sqrt((wp.x - x) ^ 2 + (wp.z - z) ^ 2)
-			-- Fell off the world, or a bot that has not moved on for a while: back to the last gate.
-			local fell = car.body.Position.Y < origin.Y + RaceTrackConfig.fallBelow
-			local mark = raceStuck[car.idx]
-			if
-				mark == nil
-				or mark.passed ~= c.passed
-				or car.body.AssemblyLinearVelocity.Magnitude > 4
-			then
-				mark = { passed = c.passed, since = now }
-				raceStuck[car.idx] = mark
+			-- Fell off the world / flew out (cheat guard) / no progress for a while: back to the last gate.
+			local fell =
+				RaceTrack.outOfWorld(x, car.body.Position.Y - origin.Y, z, RaceTrackConfig.ceiling)
+			local prog = raceProg[car.idx]
+			if prog == nil then
+				prog = Race.progressNew(now)
+				raceProg[car.idx] = prog
 			end
-			local stuck = not isHuman(car.idx) and now - mark.since > RaceTrackConfig.stuckSeconds
-			if fell or stuck then
+			local noProgress = Race.progressStep(
+				prog,
+				c.passed,
+				toNext[car.idx],
+				now,
+				RaceTrackConfig.progressGain
+			)
+			local human = isHuman(car.idx)
+			-- The client may show a RESET button while this attribute is on (audit #34).
+			local canReset = human
+				and Race.canManualReset(
+					noProgress,
+					now - (raceResetAt[car.idx] or -math.huge),
+					RaceTrackConfig.resetButtonSeconds,
+					0
+				)
+			if canReset ~= (raceCanReset[car.idx] == true) then
+				raceCanReset[car.idx] = canReset
+				car.model:SetAttribute("RaceCanReset", if canReset then true else nil)
+			end
+			if
+				fell
+				or Race.shouldReset(
+					noProgress,
+					human,
+					RaceTrackConfig.stuckSeconds,
+					RaceTrackConfig.humanStuckSeconds
+				)
+			then
 				respawnRacer(car)
-				raceStuck[car.idx] = { passed = c.passed, since = now }
+				raceProg[car.idx] = Race.progressNew(now)
+				raceResetAt[car.idx] = now
 			end
 		end
 		fightElapsed += dt
@@ -931,6 +1195,7 @@ function GroupMatch.new(
 				warn("RACE END: time up")
 			end
 			local w = Race.leader(race, toNext)
+			raceFinish()
 			finishLast(w)
 			return
 		end
@@ -989,7 +1254,11 @@ function GroupMatch.new(
 			end
 		else
 			if tagOn then
-				tag = Modes.tagNew(Modes.tagNextIt(last, rng:NextNumber()), tagCfg.startFuse)
+				-- Never a human first (audit #27) when a bot is in the match.
+				local first = if tagCfg.firstItBot
+					then Modes.tagFirstIt(last, humanFlags(), rng:NextNumber())
+					else Modes.tagNextIt(last, rng:NextNumber())
+				tag = Modes.tagNew(first, tagCfg.startFuse)
 				showIt()
 			end
 			for _, car in cars do
@@ -1088,19 +1357,13 @@ function GroupMatch.new(
 				return
 			end
 			fightElapsed += dt
+			if allOutAt ~= nil and now >= allOutAt then
+				finishLast(tagTimeoutWinner()) -- every human is out: no dead time (audit #28)
+				return
+			end
 			if fightElapsed >= tagCfg.maxSeconds then
 				-- Time up: the alive car nearest the middle wins.
-				local best, w = math.huge, 0
-				for i, car in cars do
-					if not car.dead then
-						local x, z = flatOf(car)
-						local d = x * x + z * z
-						if d < best then
-							best, w = d, i
-						end
-					end
-				end
-				finishLast(w)
+				finishLast(tagTimeoutWinner())
 			end
 			return
 		end
@@ -1129,6 +1392,21 @@ function GroupMatch.new(
 			fightElapsed += dt
 			if now - clockAt >= ModesConfig.Soccer.hudSeconds then
 				clockAt = now
+				soccerHud()
+			end
+			if
+				SoccerStats.suddenDeathNow(
+					soccer.goals[1],
+					soccer.goals[2],
+					fightElapsed,
+					ModesConfig.Soccer.suddenDeathAt,
+					goldenGoal
+				)
+			then
+				goldenGoal = true -- 0-0 for too long: the next goal wins (audit #25)
+				sendAll(function()
+					return { kind = "ko", text = "SUDDEN DEATH! NEXT GOAL WINS!", pos = origin }
+				end)
 				soccerHud()
 			end
 			if fightElapsed >= ModesConfig.Soccer.maxSeconds and not goldenGoal then
@@ -1210,6 +1488,13 @@ function GroupMatch.new(
 			return
 		end
 		local a = arena :: Arena.Arena
+		for _, part in participants do
+			pcall(function()
+				for _, name in GroupResults.attributeNames do
+					part.player:SetAttribute(name, nil) -- a fresh match starts without the last result
+				end
+			end)
+		end
 		local wait = if soccerOn then ModesConfig.Soccer.readySeconds else cfg.Mode.readySeconds
 		sendAll(function(i)
 			local other = cars[if i == 1 then 2 else 1]
@@ -1254,7 +1539,44 @@ function GroupMatch.new(
 			Steer.set(steerStates[i], value, os.clock(), throttle)
 		end,
 		action = function(player: Player, name: any)
-			if destroyed or phase ~= "fight" or not MovesRules.isMove(name, MovesConfig.Names) then
+			if destroyed or phase ~= "fight" then
+				return
+			end
+			-- Race: RESET puts a stuck car back at its last gate (the client shows the button
+			-- after 3 s without progress; the server checks the time and a cooldown itself).
+			if name == "reset" and raceOn then
+				local i = indexOf(player)
+				local car = if i then cars[i] else nil
+				if i == nil or gone[i] or car == nil or car.dead or not raceStarted then
+					return
+				end
+				local now = os.clock()
+				local prog = raceProg[i]
+				local noProgress = if prog then now - prog.since else 0
+				if
+					Race.canManualReset(
+						noProgress,
+						now - (raceResetAt[i] or -math.huge),
+						RaceTrackConfig.resetButtonSeconds,
+						RaceTrackConfig.resetCooldown
+					)
+				then
+					respawnRacer(car)
+					raceProg[i] = Race.progressNew(now)
+					raceResetAt[i] = now
+				end
+				return
+			end
+			-- Tag: an eliminated player asks for the next round right away (server note; the
+			-- round ends as soon as every human is out).
+			if name == "rematch" and tagOn then
+				local i = indexOf(player)
+				if i and not gone[i] and cars[i] and cars[i].dead then
+					rematchAsked[i] = true
+				end
+				return
+			end
+			if not MovesRules.isMove(name, MovesConfig.Names) then
 				return
 			end
 			local i = indexOf(player)
@@ -1280,18 +1602,33 @@ function GroupMatch.new(
 			if car == nil or car.dead then
 				return
 			end
-			if (mode == "lastStanding" or tagOn) and phase ~= "matchEnd" then
+			if Modes.leaverRule(mode) == "eliminate" and phase ~= "matchEnd" then
 				eliminate(car, "LEFT THE GAME")
 			else
-				-- Soccer: a bot takes over the car (the server drives it again).
+				-- Soccer, tag, race: a bot takes over the car (the server drives it again).
 				clientDriven[i] = nil
+				car.model:SetAttribute("DriverUserId", nil)
+				car.model:SetAttribute("KickoffMark", nil)
+				car.model:SetAttribute("RaceCanReset", nil)
 				pcall(function()
 					car.body:SetNetworkOwner(nil)
 				end)
+				-- Tag: no human left to play = end soon.
+				if tagOn and allOutAt == nil and Modes.allHumansOut(last, humanFlags()) then
+					allOutAt = os.clock() + tagCfg.allOutEndSeconds
+				end
 			end
 		end,
 		destroy = function()
 			destroyed = true
+			clearOutFlags()
+			for _, part in participants do
+				pcall(function()
+					for _, name in GroupResults.attributeNames do
+						part.player:SetAttribute(name, nil)
+					end
+				end)
+			end
 			if fightConn then
 				fightConn:Disconnect()
 			end
@@ -1306,7 +1643,7 @@ function GroupMatch.new(
 	}
 
 	arena = if onField
-		then SoccerArena.build(origin)
+		then SoccerArena.build(origin, soccerOn)
 		elseif raceOn then RaceArena.build(origin)
 		else Arena.build(origin)
 	spawnCars()

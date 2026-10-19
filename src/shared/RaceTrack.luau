@@ -73,6 +73,53 @@ function RaceTrack.grid(count: number): { Spot }
 	return out
 end
 
+-- Grid slot (1 = front row, left) of every car. Cars with front[i] = true go first (in car order),
+-- bots follow, and a human who is not front-row sits in the middle of the pack (audit #33).
+function RaceTrack.startOrder(total: number, front: { boolean }, humans: { boolean }): { number }
+	local firsts: { number }, bots: { number }, others: { number } = {}, {}, {}
+	for i = 1, total do
+		if front[i] then
+			table.insert(firsts, i)
+		elseif humans[i] then
+			table.insert(others, i)
+		else
+			table.insert(bots, i)
+		end
+	end
+	local line: { number } = {}
+	for _, i in firsts do
+		table.insert(line, i)
+	end
+	local rest: { number } = {}
+	for _, i in bots do
+		table.insert(rest, i)
+	end
+	local at = #bots // 2 -- non-front humans start after the first half of the bots
+	for k, i in others do
+		table.insert(rest, at + k, i)
+	end
+	for _, i in rest do
+		table.insert(line, i)
+	end
+	local slotOf: { number } = {}
+	for slot, i in line do
+		slotOf[i] = slot
+	end
+	return slotOf
+end
+
+-- A player's first matches start on the front row.
+function RaceTrack.humanFront(matches: number, frontRowMatches: number): boolean
+	return matches < frontRowMatches
+end
+
+-- Out of the world: beyond the ground, under it (`fallBelow`) or above `ceiling` (a flying cheat).
+-- y is relative to the ground.
+function RaceTrack.outOfWorld(x: number, y: number, z: number, ceiling: number): boolean
+	local minX, maxX, minZ, maxZ = RaceTrack.bounds()
+	return x < minX or x > maxX or z < minZ or z > maxZ or y > ceiling or y < Config.fallBelow
+end
+
 -- Where a car goes back to after a fall: on the road at the waypoint it last passed, facing the next.
 function RaceTrack.respawn(lastPassed: number, slot: number): Spot
 	local p = RaceTrack.point(lastPassed)

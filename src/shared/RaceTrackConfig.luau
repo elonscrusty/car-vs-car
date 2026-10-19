@@ -36,7 +36,13 @@ return {
 	maxSeconds = 150, -- time up: furthest along the track wins
 	goSeconds = 3, -- 3-2-1 with the cars frozen
 	fallBelow = -20, -- a car this far under the ground goes back to its last checkpoint
-	stuckSeconds = 5, -- a bot that has not gained a checkpoint or moved this long is put back
+	stuckSeconds = 5, -- a bot with no progress this long is put back at its last checkpoint
+	humanStuckSeconds = 6, -- a human with no progress this long is put back (audit #34)
+	resetButtonSeconds = 3, -- the RESET button may be used after this long without progress
+	resetCooldown = 4, -- seconds between two manual resets of the same car
+	progressGain = 3, -- studs closer to the next gate (or a new gate) that count as progress
+	frontRowMatches = 3, -- a player's first matches (Profile.matches below this) start on the front row (audit #33)
+	ceiling = 70, -- a car this high above the ground is put back (cheat guard, audit #106)
 	hudSeconds = 0.5,
 	colors = {
 		road = { 70, 74, 86 },
