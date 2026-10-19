@@ -125,8 +125,16 @@ function LobbyShell.build(folder: Folder, origin: Vector3)
 	end
 	shellGroup.Parent = folder
 
-	local function put(name: string, x: number, y: number, z: number, yaw: number, glow: number?)
-		local m = LobbyDecor.clone(name, shellGroup, glow, "Shell")
+	local function put(
+		name: string,
+		x: number,
+		y: number,
+		z: number,
+		yaw: number,
+		glow: number?,
+		source: string?
+	)
+		local m = LobbyDecor.clone(name, shellGroup, glow, source or "Shell")
 		if m then
 			m:PivotTo(CFrame.new(origin + Vector3.new(x, y, z)) * CFrame.Angles(0, yaw, 0))
 		end
@@ -161,8 +169,14 @@ function LobbyShell.build(folder: Folder, origin: Vector3)
 		end
 	end
 
-	-- The garages are built in code (Lobby.luau): the old GarageRoom / GarageFront models fit the
-	-- old narrow bays. Bigger open-front models can replace them later (docs/GARAGE_MODELS_NEEDED.md).
+	-- Garages: a big room behind each open front, and the yellow outline for the parked cars. The
+	-- code-built walls (Lobby.luau) stay as invisible collision. Models: ServerStorage.Models.Garage.
+	for _, b in L.bays do
+		local yaw = if b.face > 0 then LEFT else RIGHT
+		put("GarageRoomBig", b.x, 0, b.z, yaw, nil, "Garage")
+		put("GarageOpenFront", b.x + b.face * L.bay.w / 2, 0, b.z, yaw, nil, "Garage")
+		put("ParkingMark", b.x - b.face * (L.bay.w / 2 - 5.5), 0.05, b.z, yaw, nil, "Garage")
+	end
 
 	-- Roof trusses across the hall.
 	for _, z in { -82, -50, -17, 16, 49, 82 } do

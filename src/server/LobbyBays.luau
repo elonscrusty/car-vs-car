@@ -11,6 +11,7 @@ local CarConfig = require(game:GetService("ReplicatedStorage").Shared.CarConfig)
 local CarBuilder = require(script.Parent.CarBuilder)
 local LobbyDecor = require(script.Parent.LobbyDecor)
 local GarageLikes = require(game:GetService("ReplicatedStorage").Shared.GarageLikes)
+local LobbyDecor = require(script.Parent.LobbyDecor)
 local LobbyLayout = require(game:GetService("ReplicatedStorage").Shared.LobbyLayout)
 
 local LobbyBays = {}
@@ -235,6 +236,27 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		likePrompt.HoldDuration = 0
 		likePrompt.Enabled = false
 		likePrompt.Parent = heart
+		-- The Blender heart (and name board) when they are imported; the code parts keep the text and prompt.
+		local heartLook = LobbyDecor.clone("LikeHeart", folder, nil, "Garage")
+		if heartLook then
+			heart.Transparency = 1
+			heartGui:Destroy()
+			heartLook:PivotTo(
+				CFrame.lookAt(
+					Vector3.new(heart.Position.X, origin.Y, heart.Position.Z),
+					Vector3.new(heart.Position.X + spot.face, origin.Y, heart.Position.Z)
+				)
+			)
+		end
+		local signLook = LobbyDecor.clone("GarageNameSign", folder, nil, "Garage")
+		if signLook then
+			signLook:PivotTo(
+				CFrame.lookAt(
+					signPos - Vector3.new(0, 2.05, 0) - Vector3.xAxis * spot.face * 0.5,
+					signPos - Vector3.new(0, 2.05, 0) + Vector3.xAxis * spot.face
+				)
+			)
+		end
 
 		-- "Customize" prompt: only the owner's client opens the garage from it.
 		local prompt = Instance.new("ProximityPrompt")
