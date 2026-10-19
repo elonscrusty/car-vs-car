@@ -79,6 +79,18 @@ function BotLevels.forWins(wins: any, scale: any?): string
 	return "hard"
 end
 
+-- Bot level picked from the player's level (1 and up): bots get harder as you level up.
+function BotLevels.forPlayerLevel(level: any, scale: any?): string
+	local s = scale or Config.LevelScale
+	local l = if type(level) == "number" and level == level then level else 1
+	if l < s.easyUnder then
+		return "easy"
+	elseif l < s.mediumUnder then
+		return "medium"
+	end
+	return "hard"
+end
+
 -- The level a lone player's bot gets: their saved choice when the button is on, else by wins.
 function BotLevels.levelFor(wins: any, chosen: any, buttonOn: boolean): string
 	if buttonOn and BotLevels.isValid(chosen) then
@@ -89,10 +101,19 @@ end
 
 -- Like levelFor, but a new player's first matches are always "easy" (every mode, button or not).
 -- `matches` = finished matches so far (profile.matches).
-function BotLevels.levelForPlayer(matches: any, wins: any, chosen: any, buttonOn: boolean): string
+function BotLevels.levelForPlayer(
+	matches: any,
+	wins: any,
+	chosen: any,
+	buttonOn: boolean,
+	playerLevel: any?
+): string
 	local m = if type(matches) == "number" and matches == matches then matches else 0
 	if m < Config.FirstMatchesEasy then
 		return "easy"
+	end
+	if playerLevel ~= nil and not (buttonOn and BotLevels.isValid(chosen)) then
+		return BotLevels.forPlayerLevel(playerLevel)
 	end
 	return BotLevels.levelFor(wins, chosen, buttonOn)
 end

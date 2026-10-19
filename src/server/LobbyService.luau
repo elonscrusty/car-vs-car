@@ -567,7 +567,8 @@ function LobbyService.start(deps: Deps): Handle
 						prof.matches,
 						prof.wins,
 						prof.botLevel,
-						FeatureFlags.enabled("botLevelButton")
+						FeatureFlags.enabled("botLevelButton"),
+						PlayerLevel.view(PlayerLevel.totalXp(prof.progress)).level
 					)
 				)
 			end
