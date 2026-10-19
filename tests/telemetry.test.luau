@@ -7,18 +7,20 @@ local test, eq = Harness.test, Harness.eq
 
 print("Telemetry rules")
 
-test("funnel has the 8 steps in the agreed order", function()
+test("funnel has the 10 steps in the agreed order", function()
 	local want = {
 		"joined",
+		"first_input",
 		"stepped_on_pad",
 		"launched",
 		"first_hit",
+		"first_score",
 		"finished_first_match",
 		"saw_end_screen",
 		"started_second_match",
 		"opened_claw",
 	}
-	eq(#TelemetryConfig.Steps, 8)
+	eq(#TelemetryConfig.Steps, 10)
 	for i, name in want do
 		eq(TelemetryRules.stepNumber(name), i)
 	end
@@ -27,9 +29,9 @@ end)
 
 test("a step is claimed once per player", function()
 	local s = TelemetryRules.new()
-	eq(TelemetryRules.claimStep(s, 1, "launched"), 3)
+	eq(TelemetryRules.claimStep(s, 1, "launched"), 4)
 	eq(TelemetryRules.claimStep(s, 1, "launched"), nil)
-	eq(TelemetryRules.claimStep(s, 2, "launched"), 3)
+	eq(TelemetryRules.claimStep(s, 2, "launched"), 4)
 	eq(TelemetryRules.claimStep(s, 1, "bogus"), nil)
 end)
 
@@ -78,10 +80,65 @@ test("values are clamped and bad numbers become 0", function()
 	eq(d.value, 0)
 end)
 
-test("counter events have no value and no fields", function()
-	local ev = assert(TelemetryRules.buildEvent("claw_pull", {}))
+test("rematch_tapped has no value and carries the mode", function()
+	local ev = assert(TelemetryRules.buildEvent("rematch_tapped", { mode = "soccer" }))
 	eq(ev.value, nil)
-	eq(ev.fields, nil)
+	eq(assert(ev.fields).CustomField01, "soccer")
+end)
+
+test("claw pulls and acquired cars carry an allowlisted source", function()
+	for _, name in { "claw_pull", "car_acquired" } do
+		for _, src in TelemetryConfig.Sources do
+			eq(
+				assert(assert(TelemetryRules.buildEvent(name, { source = src })).fields).CustomField01,
+				src
+			)
+		end
+		local bad = assert(TelemetryRules.buildEvent(name, { source = "a hack" }))
+		eq(assert(bad.fields).CustomField01, "other")
+	end
+end)
+
+test("match_result carries mode, place and score", function()
+	local ev = assert(
+		TelemetryRules.buildEvent(
+			"match_result",
+			{ seconds = 150, mode = "soccer", place = 1, score = 3 }
+		)
+	)
+	eq(ev.value, 150)
+	local f = assert(ev.fields)
+	eq(f.CustomField01, "soccer")
+	eq(f.CustomField02, "1")
+	eq(f.CustomField03, "3")
+	local none = assert(TelemetryRules.buildEvent("match_result", { mode = "race" }))
+	eq(assert(none.fields).CustomField02, "")
+end)
+
+test("first_score keeps only goal, tag or finish", function()
+	for _, k in TelemetryConfig.ScoreKinds do
+		eq(
+			assert(assert(TelemetryRules.buildEvent("first_score", { kind = k })).fields).CustomField02,
+			k
+		)
+	end
+	eq(
+		assert(assert(TelemetryRules.buildEvent("first_score", { kind = "x" })).fields).CustomField02,
+		"other"
+	)
+end)
+
+test("readResult tolerates missing or wrong fields", function()
+	eq(TelemetryRules.readResult(nil).place, nil)
+	eq(TelemetryRules.readResult("nope").score, nil)
+	local r = TelemetryRules.readResult({ place = 2, goals = 3, survivedSeconds = 41.5 })
+	eq(r.place, 2)
+	eq(r.score, 3)
+	eq(r.survivedSeconds, 41.5)
+	local t = TelemetryRules.readResult({ tags = 4, place = "1", survivedSeconds = 0 / 0 })
+	eq(t.score, 4)
+	eq(t.place, nil)
+	eq(t.survivedSeconds, nil)
 end)
 
 test("unknown event names are rejected", function()
