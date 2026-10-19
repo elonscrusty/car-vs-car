@@ -33,10 +33,10 @@ function LobbyMore.build(folder: Folder, origin: Vector3)
 	put("Sign_Play", 40, 22, HL - 1.5, FRONT)
 
 	-- Lounge in the front corners.
-	put("VendingMachine", 61, 0, 64, RIGHT)
-	put("ArcadeCabinet", 44, 0, 66, FRONT)
-	put("ArcadeCabinet", 50, 0, 66, FRONT)
-	put("Couch", -33, 0, 66, FRONT)
+	put("VendingMachine", 61, 0, 86, RIGHT)
+	put("ArcadeCabinet", 32, 0, 90, FRONT)
+	put("ArcadeCabinet", 38, 0, 90, FRONT)
+	put("Couch", -33, 0, 90, FRONT)
 
 	-- A tool and a shelf or cart in each garage, by the back wall.
 	local tools = { "TireChanger", "AirCompressor", "FloorJack", "JackStands" }
@@ -47,9 +47,9 @@ function LobbyMore.build(folder: Folder, origin: Vector3)
 	end
 
 	-- Small wall pieces by the store and the paint booth.
-	put("PlateWall", -L.room.halfW + 0.6, 8, 58, LEFT)
-	put("SteeringWheelArt", -L.room.halfW + 0.6, 12, 64, LEFT)
-	put("WallClock", L.room.halfW - 0.6, 11, 58, RIGHT)
+	put("PlateWall", -L.room.halfW + 0.6, 8, 84, LEFT)
+	put("SteeringWheelArt", -L.room.halfW + 0.6, 12, 90, LEFT)
+	put("WallClock", L.room.halfW - 0.6, 11, 84, RIGHT)
 end
 
 return LobbyMore

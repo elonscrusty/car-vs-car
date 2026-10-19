@@ -10,6 +10,7 @@ local Build = require(game:GetService("ReplicatedStorage").Shared.Build)
 local CarConfig = require(game:GetService("ReplicatedStorage").Shared.CarConfig)
 local CarBuilder = require(script.Parent.CarBuilder)
 local LobbyDecor = require(script.Parent.LobbyDecor)
+local GarageLikes = require(game:GetService("ReplicatedStorage").Shared.GarageLikes)
 local LobbyLayout = require(game:GetService("ReplicatedStorage").Shared.LobbyLayout)
 
 local LobbyBays = {}
@@ -24,8 +25,13 @@ export type Handle = {
 		look: Appearance.Appearance?,
 		build: Build.BuildData?,
 		sign: string,
-		owned: { string }
+		owned: { string },
+		likes: number
 	) -> (),
+	-- Update only the like count on this player's name sign (cheap: no car rebuild).
+	setLikes: (player: Player, likes: number) -> (),
+	-- Called when someone triggers the heart at a garage door: (liker, the garage owner).
+	onLike: (callback: (liker: Player, owner: Player) -> ()) -> (),
 	clear: (player: Player) -> (),
 	destroy: () -> (),
 }
@@ -54,7 +60,9 @@ type Bay = {
 	center: Vector3, -- the lift (floor level)
 	face: number,
 	signLabel: TextLabel,
+	signText: string, -- name part of the sign; the like count is added under it
 	prompt: ProximityPrompt,
+	likePrompt: ProximityPrompt,
 	player: Player?,
 	car: Model?,
 	extras: { Instance }, -- the parked cars
@@ -161,7 +169,7 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		-- Name sign on the back wall, facing the hall.
 		local sign = Instance.new("Part")
 		sign.Name = "BaySign"
-		sign.Size = Vector3.new(14, 2.8, 0.5)
+		sign.Size = Vector3.new(14, 3.6, 0.5)
 		local signPos = Vector3.new(
 			origin.X + spot.x - spot.face * (LobbyLayout.bay.w / 2 - 1),
 			origin.Y + 7.2,
@@ -188,6 +196,46 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		lbl.TextColor3 = Color3.fromRGB(110, 120, 140)
 		lbl.Parent = gui
 
+		-- The heart at the door: walk up and press it to like this garage (the server decides).
+		local spotX = spot.x + spot.face * (LobbyLayout.bay.w / 2 - 3)
+		local heart = block(
+			folder,
+			"BayLikeSpot",
+			Vector3.new(2.4, 2.4, 0.4),
+			Color3.fromRGB(224, 51, 79),
+			Enum.PartType.Ball
+		)
+		heart.CFrame = CFrame.new(
+			origin.X + spotX,
+			origin.Y + 3.2,
+			origin.Z + spot.z + LobbyLayout.bay.gap / 2 + 1.5
+		)
+		local heartGui = Instance.new("BillboardGui")
+		heartGui.Size = UDim2.fromOffset(60, 60)
+		heartGui.StudsOffset = Vector3.new(0, 2.4, 0)
+		heartGui.AlwaysOnTop = false
+		heartGui.MaxDistance = 60
+		heartGui.Parent = heart
+		local heartLbl = Instance.new("TextLabel")
+		heartLbl.Size = UDim2.fromScale(1, 1)
+		heartLbl.BackgroundTransparency = 1
+		heartLbl.Font = Enum.Font.FredokaOne
+		heartLbl.TextScaled = true
+		heartLbl.Text = "♥"
+		heartLbl.TextColor3 = Color3.fromRGB(255, 77, 109)
+		heartLbl.TextStrokeTransparency = 0.3
+		heartLbl.Parent = heartGui
+		local likePrompt = Instance.new("ProximityPrompt")
+		likePrompt.Name = "LikePrompt"
+		likePrompt.ActionText = "Like"
+		likePrompt.ObjectText = "Garage"
+		likePrompt.KeyboardKeyCode = Enum.KeyCode.F
+		likePrompt.RequiresLineOfSight = false
+		likePrompt.MaxActivationDistance = 12
+		likePrompt.HoldDuration = 0
+		likePrompt.Enabled = false
+		likePrompt.Parent = heart
+
 		-- "Customize" prompt: only the owner's client opens the garage from it.
 		local prompt = Instance.new("ProximityPrompt")
 		prompt.Name = "BayPrompt"
@@ -204,7 +252,9 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 			center = center,
 			face = spot.face,
 			signLabel = lbl,
+			signText = "OPEN",
 			prompt = prompt,
+			likePrompt = likePrompt,
 			player = nil,
 			car = nil,
 			extras = {},
@@ -245,6 +295,9 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		b.player = nil
 		b.prompt.Enabled = false
 		b.prompt:SetAttribute("OwnerUserId", nil)
+		b.likePrompt.Enabled = false
+		b.likePrompt:SetAttribute("OwnerUserId", nil)
+		b.signText = "OPEN"
 		b.signLabel.Text = "OPEN"
 		b.signLabel.TextColor3 = Color3.fromRGB(110, 120, 140)
 	end
@@ -321,7 +374,7 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 	end
 
 	local handle = {} :: Handle
-	handle.set = function(player, carId, look, build, sign, owned)
+	handle.set = function(player, carId, look, build, sign, owned, likes)
 		local b = bayOf(player)
 		if b == nil then
 			for _, free in bays do
@@ -337,7 +390,10 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		b.player = player
 		b.prompt.Enabled = true
 		b.prompt:SetAttribute("OwnerUserId", player.UserId)
-		b.signLabel.Text = sign
+		b.likePrompt.Enabled = true
+		b.likePrompt:SetAttribute("OwnerUserId", player.UserId)
+		b.signText = sign
+		b.signLabel.Text = `{sign}\n{GarageLikes.label(likes)}`
 		b.signLabel.TextColor3 = Color3.fromRGB(255, 205, 40)
 		clearCars(b)
 
@@ -365,6 +421,26 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 				showCar(others[k], CFrame.new(pos), (12 + 0.4 * len2) * PARK_SCALE, nil, nil)
 			parked:PivotTo(CFrame.new(pos + Vector3.new(0, 0.2 - pbottom, 0)) * yaw)
 			table.insert(b.extras, parked)
+		end
+	end
+	handle.setLikes = function(player, likes)
+		local b = bayOf(player)
+		if b then
+			b.signLabel.Text = `{b.signText}\n{GarageLikes.label(likes)}`
+		end
+	end
+	local likeConns: { RBXScriptConnection } = {}
+	handle.onLike = function(callback)
+		for _, b in bays do
+			table.insert(
+				likeConns,
+				b.likePrompt.Triggered:Connect(function(liker: Player)
+					local owner = b.player
+					if owner then
+						callback(liker, owner)
+					end
+				end)
+			)
 		end
 	end
 	handle.clear = function(player)
@@ -412,6 +488,9 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 
 	handle.destroy = function()
 		conn:Disconnect()
+		for _, c in likeConns do
+			c:Disconnect()
+		end
 		for _, b in bays do
 			clearCars(b)
 		end

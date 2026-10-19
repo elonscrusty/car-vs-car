@@ -20,6 +20,7 @@ local Spin = sibling("Spin")
 local Quests = sibling("Quests")
 local Paint = sibling("Paint")
 local Build = sibling("Build")
+local GarageLikes = sibling("GarageLikes")
 
 export type Profile = {
 	version: number,
@@ -36,6 +37,7 @@ export type Profile = {
 	spin: Spin.Data, -- daily spin wheel: last day spun (see Spin)
 	paint: Paint.PaintData, -- owned colors/stickers and what each car wears (see Paint)
 	build: Build.BuildData, -- build-and-watch: chosen car, parts and part levels (see Build)
+	garage: GarageLikes.Data, -- likes this garage got and which garages this player liked (see GarageLikes)
 }
 
 local Inventory = {}
@@ -76,6 +78,7 @@ function Inventory.default(): Profile
 		spin = Spin.default(),
 		paint = Paint.default(),
 		build = Build.default(),
+		garage = GarageLikes.default(),
 	}
 end
 
@@ -111,6 +114,7 @@ function Inventory.migrate(raw: any): Profile
 		spin = Spin.clean(raw.spin),
 		paint = Paint.clean(raw.paint),
 		build = Build.clean(raw.build),
+		garage = GarageLikes.clean(raw.garage),
 	}
 end
 

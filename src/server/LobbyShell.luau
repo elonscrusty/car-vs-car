@@ -153,27 +153,19 @@ function LobbyShell.build(folder: Folder, origin: Vector3)
 	local openEnd = L.bays[#L.bays].z + L.bay.d / 2
 	for _, sx in { -1, 1 } do
 		local yaw = if sx < 0 then LEFT else RIGHT
-		for k = 0, 9 do
-			put("Wall_Upper", sx * (HW + WALL_MID), WH, -63 + 14 * k, yaw)
+		for k = 0, 13 do
+			put("Wall_Upper", sx * (HW + WALL_MID), WH, -91 + 14 * k, yaw)
 		end
 		for _, z in { openEnd + 7, openEnd + 21 } do
 			put("Wall_Panel", sx * (HW + WALL_MID), 0, z, yaw)
 		end
 	end
 
-	-- Garages: a room behind each front.
-	local fronts = { "GarageFront_A1", "GarageFront_A2", "GarageFront_A3", "GarageFront_A4" }
-	local fronts2 = { "GarageFront_B1", "GarageFront_B2", "GarageFront_B3", "GarageFront_B4" }
-	for i, b in L.bays do
-		local sx = if b.face > 0 then -1 else 1 -- face = +1: the garage is on the left wall
-		local yaw = if sx < 0 then LEFT else RIGHT
-		put("GarageRoom", sx * (HW + L.bay.w / 2 + 0.5), 0, b.z, yaw)
-		local name = if sx < 0 then fronts[(i - 1) % 4 + 1] else fronts2[(i - 1) % 4 + 1]
-		put(name, sx * (HW + WALL_MID), 0, b.z, yaw)
-	end
+	-- The garages are built in code (Lobby.luau): the old GarageRoom / GarageFront models fit the
+	-- old narrow bays. Bigger open-front models can replace them later (docs/GARAGE_MODELS_NEEDED.md).
 
 	-- Roof trusses across the hall.
-	for _, z in { -50, -17, 16, 49 } do
+	for _, z in { -82, -50, -17, 16, 49, 82 } do
 		put("RoofTruss", 0, WH + L.room.upper - 12.8, z, 0)
 	end
 
@@ -187,7 +179,7 @@ function LobbyShell.build(folder: Folder, origin: Vector3)
 	put("LaneChevrons", 0, 0.05, L.spawn.z - 14, 0)
 	put("LaneChevrons", 0, 0.05, L.spawn.z - 30, 0)
 	for _, sx in { -1, 1 } do
-		for _, z in { 37, 21, 5, -11 } do
+		for _, z in { 69, 53, 37, 21, 5, -11 } do
 			put("LaneTrim", sx * (L.lane.halfWidth + 0.5), 0, z, math.pi / 2)
 		end
 	end

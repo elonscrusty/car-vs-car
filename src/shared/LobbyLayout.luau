@@ -6,18 +6,18 @@ export type Rect = { x: number, z: number, w: number, d: number } -- centre + fu
 
 local LobbyLayout = {}
 
--- The lobby is a huge race HQ warehouse: a wide open bay door at the front (+z) and the spawn on a
+-- The lobby is a huge race HQ warehouse (192 long so 8 big open garages fit): a wide open bay door at the front (+z) and the spawn on a
 -- cyan pad, a cyan-lined lane up the middle to the hero truck on its round stage under the big
 -- sign on the back wall, the 4 fight pads as 2 x 2 (two each side of the lane), a garage for
 -- every player down both side walls (A1-A4 left, B1-B4 right) at the back, the store at the front
 -- left, the paint / customize booth at the front right and the claw machine on its own platform beside the hero stage.
 -- The hall is `room.halfW` * 2 wide and `room.halfL` * 2 long (inside the walls); the roof is
 -- `room.wallHeight + room.upper` high.
-LobbyLayout.room = { halfW = 64, halfL = 70, wallHeight = 18, upper = 22, wall = 2 }
+LobbyLayout.room = { halfW = 64, halfL = 96, wallHeight = 18, upper = 22, wall = 2 }
 
-LobbyLayout.gate = { z = 68, halfOpening = 24 } -- open bay door: the way in
-LobbyLayout.spawn = { x = 0, z = 50, size = 6 } -- 20 studs from the door, so the camera behind the player stays inside the hall
-LobbyLayout.lane = { halfWidth = 7, fromZ = 46, toZ = -20 } -- cyan lines from the spawn to the stage
+LobbyLayout.gate = { z = 94, halfOpening = 24 } -- open bay door: the way in
+LobbyLayout.spawn = { x = 0, z = 76, size = 6 } -- 18 studs from the door, so the camera behind the player stays inside the hall
+LobbyLayout.lane = { halfWidth = 7, fromZ = 72, toZ = -20 } -- cyan lines from the spawn to the stage
 LobbyLayout.padSize = 18
 -- Pads 01 (left back), 02 (left front), 03 (right back), 04 (right front).
 LobbyLayout.pads = {
@@ -29,23 +29,23 @@ LobbyLayout.pads = {
 LobbyLayout.showcase = { x = 0, z = -40, radius = 16, footprint = 40 } -- hero truck stage
 -- Booths on the side walls. They are built facing +z, then turned `yaw` degrees (90 turns the
 -- front toward +x). w / d are the size before turning.
-LobbyLayout.store = { x = -50, z = 40, w = 20, d = 12, yaw = 90 } -- front left
-LobbyLayout.paint = { x = 50, z = 40, w = 20, d = 12, yaw = -90 } -- front right
-LobbyLayout.gacha = { x = 46, z = -60, w = 16, d = 16 } -- the claw machine (its own spot, right of the hero stage)
--- Garages: one per player, built INTO the side walls: each is a big recessed room behind an opening
--- in the wall (the opening is flush with the wall, the room goes back past it). 4 down each side
+LobbyLayout.store = { x = -50, z = 80, w = 20, d = 12, yaw = 90 } -- front left
+LobbyLayout.paint = { x = 50, z = 80, w = 20, d = 12, yaw = -90 } -- front right
+LobbyLayout.gacha = { x = 38, z = -60, w = 16, d = 16 } -- the claw machine (its own spot, right of the hero stage)
+-- Garages: one per player, built INTO the side walls: each is a big recessed room with an OPEN front
+-- (a low wall with a wide gap in the middle, so players just walk in). 4 down each side
 -- (1-4 = A1-A4 on the left, 5-8 = B1-B4 on the right). `face` is the way a garage opens
 -- (+1 = toward +x, the left wall; -1 = toward -x). x is the garage centre, outside the hall.
-LobbyLayout.bay = { w = 46, d = 28 } -- w = depth into the wall (x), d = width along the wall (z)
+LobbyLayout.bay = { w = 30, d = 40, gap = 14, wallHeight = 1.8 } -- w = depth into the wall (x), d = width along the wall (z), gap = the walk-in opening in the low front wall
 LobbyLayout.bays = {
-	{ x = -87, z = -56, face = 1 },
-	{ x = -87, z = -28, face = 1 },
-	{ x = -87, z = 0, face = 1 },
-	{ x = -87, z = 28, face = 1 },
-	{ x = 87, z = -56, face = -1 },
-	{ x = 87, z = -28, face = -1 },
-	{ x = 87, z = 0, face = -1 },
-	{ x = 87, z = 28, face = -1 },
+	{ x = -79, z = -66, face = 1 },
+	{ x = -79, z = -26, face = 1 },
+	{ x = -79, z = 14, face = 1 },
+	{ x = -79, z = 54, face = 1 },
+	{ x = 79, z = -66, face = -1 },
+	{ x = 79, z = -26, face = -1 },
+	{ x = 79, z = 14, face = -1 },
+	{ x = 79, z = 54, face = -1 },
 }
 
 -- "A1".."A4" for the left garages, "B1".."B4" for the right ones.

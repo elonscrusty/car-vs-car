@@ -454,6 +454,28 @@ function Lobby.build(): LobbyHandle
 			Color3.fromRGB(14, 16, 32)
 		)
 		label(header, Enum.NormalId.Front, L.bayName(i), Color3.fromRGB(245, 245, 250), nil)
+		-- Open front: a low wall along the opening with a wide gap in the middle, so players walk
+		-- right in (and a jump clears it anywhere).
+		local lowLen = (bayBox.d - bayBox.gap) / 2
+		for _, side in { -1, 1 } do
+			local lz = b.z + side * (bayBox.gap / 2 + lowLen / 2)
+			part(
+				folder,
+				"BayLowWall",
+				Vector3.new(1.2, bayBox.wallHeight, lowLen),
+				world(frontX, bayBox.wallHeight / 2, lz),
+				Color3.fromRGB(86, 98, 120),
+				Enum.Material.Metal
+			)
+			local lowCap = part(
+				folder,
+				"BayLowWallCap",
+				Vector3.new(1.6, 0.3, lowLen),
+				world(frontX, bayBox.wallHeight + 0.15, lz),
+				YELLOW
+			)
+			lowCap.CanCollide = false
+		end
 		-- Tool clutter in the back corners: a red toolbox and a stack of tires.
 		local cornerX = b.x - inward * (bayBox.w / 2 - 2.2)
 		local box = part(

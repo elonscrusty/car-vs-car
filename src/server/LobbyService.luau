@@ -24,6 +24,7 @@ local PickChoices = require(ReplicatedStorage.Shared.PickChoices)
 local Progress = require(ReplicatedStorage.Shared.Progress)
 local Leaderboards = require(script.Parent.Leaderboards)
 local ProgressConfig = require(ReplicatedStorage.Shared.ProgressConfig)
+local GarageLikes = require(ReplicatedStorage.Shared.GarageLikes)
 local RateLimiter = require(ReplicatedStorage.Shared.RateLimiter)
 local BotLevels = require(ReplicatedStorage.Shared.BotLevels)
 local FeatureFlags = require(ReplicatedStorage.Shared.FeatureFlags)
@@ -105,6 +106,7 @@ function LobbyService.start(deps: Deps): Handle
 	local spinLimiter = RateLimiter.new(2, 3)
 	local paintLimiter = RateLimiter.new(4, 3)
 	local buildLimiter = RateLimiter.new(6, 3)
+	local likeLimiter = RateLimiter.new(3, 5)
 	local bays = LobbyBays.new(deps.lobby.folder, LobbyConfig.Lobby.origin)
 	local bayKeys: { [Player]: string } = {}
 	local refreshBay: (player: Player) -> () -- defined below
@@ -220,6 +222,7 @@ function LobbyService.start(deps: Deps): Handle
 			tostring(look.level),
 			table.concat(ownedList, ","),
 		}, "|")
+		bays.setLikes(player, p.garage.received)
 		if bayKeys[player] == key then
 			return
 		end
@@ -230,7 +233,8 @@ function LobbyService.start(deps: Deps): Handle
 			look,
 			p.build,
 			`{player.DisplayName}  LV {look.level or 1}`,
-			ownedList
+			ownedList,
+			p.garage.received
 		)
 	end
 
@@ -724,6 +728,25 @@ function LobbyService.start(deps: Deps): Handle
 		end
 	end
 
+	-- Someone pressed the heart at a garage door. The server decides: not your own garage, once per
+	-- garage ever (saved), rate limited, and both profiles must be loaded.
+	bays.onLike(function(liker: Player, owner: Player)
+		if not likeLimiter.allow(liker, os.clock()) then
+			return
+		end
+		local giver, receiver = Profiles.get(liker), Profiles.get(owner)
+		if giver == nil or receiver == nil then
+			return
+		end
+		local ok = GarageLikes.like(giver.garage, receiver.garage, liker.UserId, owner.UserId)
+		if not ok then
+			return
+		end
+		Profiles.markDirty(liker)
+		Profiles.markDirty(owner)
+		bays.setLikes(owner, receiver.garage.received)
+	end)
+
 	local handle: Handle
 	handle = {
 		onPlayerAdded = function(player: Player)
@@ -757,6 +780,7 @@ function LobbyService.start(deps: Deps): Handle
 			spinLimiter.clear(player)
 			paintLimiter.clear(player)
 			buildLimiter.clear(player)
+			likeLimiter.clear(player)
 			bays.clear(player)
 			bayKeys[player] = nil
 		end,
