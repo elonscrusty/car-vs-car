@@ -1672,6 +1672,9 @@ function Lobby.build(): LobbyHandle
 			nil
 		)
 		padNum.Rotation = 180
+		padNum.AnchorPoint = Vector2.new(0.5, 0.5)
+		padNum.Position = UDim2.fromScale(0.5, 0.5)
+		padNum.Size = UDim2.fromScale(0.45, 0.45) -- smaller, easy to read
 		glow(padPart, GREEN, 18, 0.25)
 		local pboard = part(
 			folder,
@@ -1681,10 +1684,11 @@ function Lobby.build(): LobbyHandle
 				origin + Vector3.new(pp.x, 2.6, pp.z - size / 2 + 0.6),
 				origin + Vector3.new(pp.x, 2.6, pp.z + 10)
 			),
-			Color3.fromRGB(14, 12, 24)
+			Color3.fromRGB(18, 24, 48)
 		)
+		-- Same navy panel + white text as the other signs (not a green LED board).
 		local title =
-			label(pboard, Enum.NormalId.Front, "0/2 PLAYERS", GREEN, Color3.fromRGB(10, 80, 40))
+			label(pboard, Enum.NormalId.Front, "0/2 PLAYERS", Color3.fromRGB(235, 240, 250), nil)
 		local pr = prompt(padPart, "PadPrompt", "Join", "Match Pad")
 		pr:SetAttribute("PadIndex", i)
 		padPart:SetAttribute("PadIndex", i)

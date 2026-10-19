@@ -16,7 +16,7 @@ type Profile = { wins: number, progress: { bestStreak: number } }
 
 local RETRY = { attempts = 3, baseDelay = 1, maxDelay = 4 }
 local BOARD_SIZE = Vector3.new(14, 11, 0.4)
-local PANEL = Color3.fromRGB(28, 34, 44)
+local PANEL = Color3.fromRGB(18, 24, 48) -- the navy of the other panels
 local GOLD = Color3.fromRGB(255, 210, 70)
 local WHITE = Color3.fromRGB(240, 244, 250)
 
@@ -180,6 +180,14 @@ local function buildBoard(
 		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
 		gui.PixelsPerStud = 40
 		gui.Parent = part
+		local frame = Instance.new("Frame") -- gold outline like the other panels
+		frame.BackgroundTransparency = 1
+		frame.Size = UDim2.fromScale(1, 1)
+		frame.Parent = gui
+		local outline = Instance.new("UIStroke")
+		outline.Color = GOLD
+		outline.Thickness = 4
+		outline.Parent = frame
 		local title = Instance.new("TextLabel")
 		title.BackgroundTransparency = 1
 		title.Size = UDim2.fromScale(1, 0.14)
