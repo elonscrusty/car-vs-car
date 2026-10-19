@@ -151,7 +151,7 @@ function RaceArena.build(origin: Vector3): Arena.Arena
 		-- Two wedges back to back make a hill: up (high end ahead, verified in Studio), then down.
 		for half = 1, 2 do
 			local wedge = Instance.new("WedgePart")
-			wedge.Name = "Ramp"
+			wedge.Name = "Slope" -- CarDrive.groundHit only lets a car drive on parts named Floor or Slope
 			wedge.Anchored = true
 			wedge.Size = Vector3.new(r.width, r.height, r.length)
 			local shift = (half - 1.5) * r.length -- half 1 sits before the middle, half 2 after it

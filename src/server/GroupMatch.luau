@@ -817,7 +817,7 @@ function GroupMatch.new(
 		CarSanity.rebase(car) -- a legit move: do not count it as a teleport
 	end
 
-	-- A race bot steers at the next waypoint, leaning toward the one after it near the corner.
+	-- A race bot steers at the next waypoint.
 	local function driveRaceBot(car: CarBuilder.Car, dt: number)
 		local look = car.body.CFrame.LookVector
 		local fwd = Vector3.new(look.X, 0, look.Z)
@@ -827,10 +827,9 @@ function GroupMatch.new(
 		fwd = fwd.Unit
 		local x, z = flatOf(car)
 		local c = race.cars[car.idx]
-		local a, b = RaceTrack.point(c.next), RaceTrack.point(c.next + 1)
-		local dist = math.sqrt((a.x - x) ^ 2 + (a.z - z) ^ 2)
-		local lean = math.clamp(1 - dist / 70, 0, 0.6)
-		local tx, tz = a.x + (b.x - a.x) * lean, a.z + (b.z - a.z) * lean
+		-- Aim straight at the next gate: the checkpoint test then switches to the one after it.
+		local wp = RaceTrack.point(c.next)
+		local tx, tz = wp.x, wp.z
 		local angle = Modes.signedAngle(fwd.X, fwd.Z, tx - x, tz - z)
 		local steer = -math.clamp(angle / SoccerBotConfig.steerFullRad, -1, 1)
 		local gas = math.clamp(math.cos(angle) * 1.2, 0.45, 1)
