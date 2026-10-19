@@ -37,9 +37,9 @@ function ModeBanner.new(): Banner
 			-- Under the Champions scoreboard (it fills the top-center), not beside it.
 			l.AnchorPoint = Vector2.new(0.5, 0)
 			l.Position = UDim2.new(0.5, 0, 0, 76)
-			l.Size = UDim2.new(0.5, 0, 0, 38)
+			l.Size = UDim2.new(0.5, 0, 0, 44)
 			local cap = Instance.new("UISizeConstraint")
-			cap.MaxSize = Vector2.new(520, 44)
+			cap.MaxSize = Vector2.new(560, 50)
 			cap.Parent = l
 			l.BackgroundColor3 = Color3.fromRGB(14, 18, 30)
 			l.BackgroundTransparency = 0.25
