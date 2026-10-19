@@ -10,7 +10,6 @@ local Build = require(game:GetService("ReplicatedStorage").Shared.Build)
 local CarConfig = require(game:GetService("ReplicatedStorage").Shared.CarConfig)
 local CarBuilder = require(script.Parent.CarBuilder)
 local LobbyDecor = require(script.Parent.LobbyDecor)
-local GarageLikes = require(game:GetService("ReplicatedStorage").Shared.GarageLikes)
 local LobbyLayout = require(game:GetService("ReplicatedStorage").Shared.LobbyLayout)
 
 local LobbyBays = {}
@@ -405,7 +404,7 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 	end
 
 	local handle = {} :: Handle
-	handle.set = function(player, carId, look, build, sign, owned, likes)
+	handle.set = function(player, carId, look, build, sign, owned, _likes)
 		local b = bayOf(player)
 		if b == nil then
 			for _, free in bays do
@@ -454,7 +453,7 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 			table.insert(b.extras, parked)
 		end
 	end
-	handle.setLikes = function(player, likes)
+	handle.setLikes = function(_player, _likes)
 		-- Likes are not shown on the garage board any more; nothing to update.
 	end
 	local likeConns: { RBXScriptConnection } = {}
