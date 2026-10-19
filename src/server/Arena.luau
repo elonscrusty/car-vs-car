@@ -56,10 +56,10 @@ function Arena.build(origin: Vector3, arenaCfg: any?): Arena
 		"Floor",
 		Vector3.new(2, floorR * 2, floorR * 2),
 		CFrame.new(origin + Vector3.new(0, -1, 0)) * CFrame.Angles(0, 0, math.pi / 2),
-		Color3.fromRGB(88, 112, 150)
+		if cfg.dirt then Color3.fromRGB(150, 98, 60) else Color3.fromRGB(88, 112, 150)
 	)
 	floor.Shape = Enum.PartType.Cylinder
-	floor.Material = Enum.Material.Concrete
+	floor.Material = if cfg.dirt then Enum.Material.Ground else Enum.Material.Concrete
 
 	-- A faint darker ring line near the edge of the flat floor (looks only, nothing to bump into).
 	local lineR = cfg.flatRadius - 1
@@ -70,7 +70,7 @@ function Arena.build(origin: Vector3, arenaCfg: any?): Arena
 			Vector3.new(0.1, d.r * 2, d.r * 2),
 			CFrame.new(origin + Vector3.new(0, 0.03 * idx, 0)) * CFrame.Angles(0, 0, math.pi / 2),
 			if d.c == 88
-				then Color3.fromRGB(88, 112, 150)
+				then if cfg.dirt then Color3.fromRGB(150, 98, 60) else Color3.fromRGB(88, 112, 150)
 				else Color3.fromRGB(d.c, d.c + 10, d.c + 30)
 		)
 		disc.Shape = Enum.PartType.Cylinder

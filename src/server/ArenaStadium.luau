@@ -7,7 +7,6 @@ local ArenaStadium = {}
 local SEGMENTS = 40
 local TIERS = 4
 local PER_SEAT = 3
-local FIRST_R = 84
 local TIER_DEPTH = 7
 local TIER_RISE = 3.2
 
@@ -55,6 +54,7 @@ function ArenaStadium.build(model: Model, origin: Vector3, arenaCfg: any)
 	folder.Parent = model
 	local rng = Random.new(7)
 	local rimR = arenaCfg.rimRadius
+	local FIRST_R = rimR + 12
 
 	-- Bright ground all around the stands.
 	local ground = part(
@@ -151,7 +151,7 @@ function ArenaStadium.build(model: Model, origin: Vector3, arenaCfg: any)
 		)
 		lamp.Material = Enum.Material.Neon
 		local light = Instance.new("SpotLight")
-		light.Brightness = 6
+		light.Brightness = 10
 		light.Range = 140
 		light.Angle = 70
 		light.Face = Enum.NormalId.Front
