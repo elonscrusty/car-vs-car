@@ -109,6 +109,18 @@ local function lobby(parent, state, ctx)
 			T.C.gold
 		)
 		local barW = math.max(36, railX + railW - profileX - 14)
+		T.text(
+			root,
+			"XPLabel",
+			tostring(state.xp or 0) .. " / " .. tostring(state.xpGoal or 1) .. " XP",
+			profileX + 84,
+			8,
+			math.max(40, barW - 84),
+			26,
+			18,
+			T.C.silver,
+			"Right"
+		)
 		T.frame(root, "XPTrack", profileX, 38, barW, 14, T.C.ink, 7)
 		T.frame(
 			root,
