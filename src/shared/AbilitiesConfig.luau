@@ -57,15 +57,22 @@ local AbilitiesConfig = {}
 AbilitiesConfig.Order = { "Dash", "Shield", "Slam", "Ram", "Magnet", "Jump" }
 
 AbilitiesConfig.Abilities = {
-	Dash = make("Dash", "RAM DASH", "dash", "Rocket forward.", 10, { dashForward = 110 }),
+	Dash = make(
+		"Dash",
+		"SMASH DASH",
+		"dash",
+		"Rocket forward. Your hits hurt double for a moment.",
+		9,
+		{ dashForward = 110, seconds = 2.5, damageMult = 2 }
+	),
 	Shield = make("Shield", "SHIELD", "shield", "Blocks hits for a while.", 18, { seconds = 5 }),
 	Slam = make(
 		"Slam",
 		"SLAM",
 		"slam",
-		"Huge shockwave. Launches cars.",
+		"Huge shockwave. Launches cars, then your hits hurt more.",
 		14,
-		{ radius = 30, push = 80, lift = 16 }
+		{ radius = 30, push = 80, lift = 16, seconds = 3, damageMult = 1.5 }
 	),
 	Ram = make(
 		"Ram",
@@ -83,7 +90,14 @@ AbilitiesConfig.Abilities = {
 		15,
 		{ radius = 48, push = 40 }
 	),
-	Jump = make("Jump", "JUMP", "jump", "Giant leap.", 10, { jumpSpeed = 65 }),
+	Jump = make(
+		"Jump",
+		"SKY SMASH",
+		"jump",
+		"Giant leap. Land on cars: your hits hurt double.",
+		10,
+		{ jumpSpeed = 65, seconds = 3, damageMult = 2 }
+	),
 } :: { [string]: Ability }
 
 -- Better rarity = stronger and ready sooner.

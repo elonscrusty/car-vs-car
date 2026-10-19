@@ -175,6 +175,8 @@ function Specials.use(car: CarBuilder.Car, enemy: CarBuilder.Car, now: number): 
 			car.body,
 			car.body.CFrame.LookVector * ab.dashForward * car.body.AssemblyMass
 		)
+		s.bonusUntil = now + ab.seconds
+		s.bonusMult = ab.damageMult
 	elseif ab.kind == "shield" then
 		Buffs.applyFor(car, "shield", ab.seconds)
 		if use and use.tagImmune then
@@ -189,6 +191,8 @@ function Specials.use(car: CarBuilder.Car, enemy: CarBuilder.Car, now: number): 
 		if use and use.ball and modeRoot then
 			moveBall(car, ab, use.ball, modeRoot)
 		end
+		s.bonusUntil = now + ab.seconds
+		s.bonusMult = ab.damageMult
 	elseif ab.kind == "ram" then
 		s.bonusUntil = now + ab.seconds
 		s.bonusMult = ab.damageMult
@@ -203,6 +207,8 @@ function Specials.use(car: CarBuilder.Car, enemy: CarBuilder.Car, now: number): 
 		end
 	else -- "jump"
 		Impulse.linear(car.body, Vector3.yAxis * ab.jumpSpeed * car.body.AssemblyMass)
+		s.bonusUntil = now + ab.seconds
+		s.bonusMult = ab.damageMult
 	end
 	-- Rare and up flash in their rarity color (identity, not power; audit #45/#49); Common keeps
 	-- the per-ability color. CosmeticRarity is the real rarity even in a fair match.
