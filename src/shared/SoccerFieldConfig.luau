@@ -14,6 +14,8 @@ return {
 	goalWidth = 24, -- goal mouth, centered on each short end
 	goalDepth = 10, -- how far the net reaches behind the goal line
 	goalHeight = 12, -- crossbar height
+	-- Ball feel (audit #21): this is the LIVE ball (ModesConfig.Soccer.ball* only feeds the old bowl ball).
+	-- Tune density first (lower = flies more, higher = heavier), then elasticity, then max speed.
 	ballDiameter = 9,
 	ballDensity = 0.3, -- low = a hit moves it
 	ballFriction = 0.3,
@@ -27,6 +29,21 @@ return {
 	stuckSeconds = 6, -- ... for this long = back to the middle
 	botOffset = 10, -- bots aim this far behind the ball, away from the goal they attack
 	botNear = 7, -- once this close to the aim point a bot drives straight into the ball
+	touchSlack = 2, -- a car this many studs from the ball's surface counts as touching it (stats only)
+	statsIdleSpeed = 2, -- stats: a car slower than this is "idle" (stuck-time counter, no behaviour change)
+	-- Boost pads (audit #20): glowing spots that make a car's boost ready again. Mirrored left/right
+	-- and top/bottom so neither team gets a better side. x along the field, z across it.
+	boostPads = {
+		{ x = -30, z = -22 },
+		{ x = -30, z = 22 },
+		{ x = 30, z = -22 },
+		{ x = 30, z = 22 },
+		{ x = 0, z = -26 },
+		{ x = 0, z = 26 },
+	},
+	boostPadRadius = 5, -- a car this close (flat) to a lit pad takes it
+	boostPadRespawn = 8, -- seconds until a taken pad is lit again
+	boostPadColor = { 80, 255, 160 },
 	stuckWarnSeconds = 2, -- the "ball stuck" warning shows this long before the reset
 	-- Goalkeeper bot (one bot per team): waits on its own goal line, follows the ball sideways
 	keeperDepth = 9, -- studs in front of its own goal line

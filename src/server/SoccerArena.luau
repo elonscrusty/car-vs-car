@@ -8,6 +8,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
+local SoccerBoost = require(ReplicatedStorage.Shared.SoccerBoost)
 local SoccerField = require(ReplicatedStorage.Shared.SoccerField)
 local SoccerFieldConfig = require(ReplicatedStorage.Shared.SoccerFieldConfig)
 
@@ -101,7 +102,28 @@ local function buildGoal(model: Model, origin: Vector3, team: number)
 	folder(model, name, origin + Vector3.new(lineX, 0, 0))
 end
 
-function SoccerArena.build(origin: Vector3): Arena.Arena
+-- Glowing boost pads (audit #20): flat neon discs named BoostPad1..n, nothing to bump into.
+-- GroupMatch dims a pad (Transparency) while it is taken.
+local function buildBoostPads(model: Model, origin: Vector3)
+	local c = SoccerFieldConfig
+	for i = 1, SoccerBoost.count() do
+		local x, z = SoccerBoost.spot(i)
+		local disc = part(
+			model,
+			"BoostPad" .. i,
+			Vector3.new(0.3, c.boostPadRadius * 2, c.boostPadRadius * 2),
+			CFrame.new(origin + Vector3.new(x, 0.25, z)) * CFrame.Angles(0, 0, math.pi / 2),
+			rgb(c.boostPadColor),
+			false
+		)
+		disc.Shape = Enum.PartType.Cylinder
+		disc.Material = Enum.Material.Neon
+		disc.Transparency = 0.15
+	end
+end
+
+-- `pads`: draw the boost pads (car soccer yes, tag no).
+function SoccerArena.build(origin: Vector3, pads: boolean?): Arena.Arena
 	local c = SoccerFieldConfig
 	local model = Instance.new("Model")
 	model.Name = "Arena"
@@ -213,6 +235,10 @@ function SoccerArena.build(origin: Vector3): Arena.Arena
 	-- Goal frames and nets.
 	buildGoal(model, origin, 1)
 	buildGoal(model, origin, 2)
+
+	if pads == true then
+		buildBoostPads(model, origin)
+	end
 
 	-- Invisible lid: nothing can fly out over the walls.
 	if c.ceilingHeight > 0 then

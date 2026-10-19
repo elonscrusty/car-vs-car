@@ -307,6 +307,50 @@ function Modes.tagNextIt(l: Last, r: number): number
 	return alive[math.min(#alive, math.floor(math.clamp(r, 0, 0.9999) * #alive) + 1)]
 end
 
+-- The first IT of a match (audit #27): a bot whenever one is alive, picked by `r` in 0..1. Only when
+-- every alive car is a human does a human get it. `humans[i]` = car i is driven by a person.
+function Modes.tagFirstIt(l: Last, humans: { boolean }, r: number): number
+	local bots: { number } = {}
+	for i, a in l.alive do
+		if a and not humans[i] then
+			table.insert(bots, i)
+		end
+	end
+	if #bots == 0 then
+		return Modes.tagNextIt(l, r)
+	end
+	return bots[math.min(#bots, math.floor(math.clamp(r, 0, 0.9999) * #bots) + 1)]
+end
+
+-- No human is left in the round (all out or gone): nothing to watch for them, end it (audit #28).
+function Modes.allHumansOut(l: Last, humans: { boolean }): boolean
+	for i, a in l.alive do
+		if a and humans[i] then
+			return false
+		end
+	end
+	return true
+end
+
+-- A leaving human: "bot" = a bot drives their car on (soccer, tag, race), "eliminate" = the car is out.
+function Modes.leaverRule(mode: string): string
+	return if mode == "lastStanding" then "eliminate" else "bot"
+end
+
+-- Time up in tag: the alive car nearest the middle (0 = nobody alive). xs, zs are flat positions.
+function Modes.tagTimeoutWinner(l: Last, xs: { number }, zs: { number }): number
+	local best, who = math.huge, 0
+	for i, a in l.alive do
+		if a then
+			local d = (xs[i] or 0) ^ 2 + (zs[i] or 0) ^ 2
+			if d < best then
+				best, who = d, i
+			end
+		end
+	end
+	return who
+end
+
 -- A new round: new IT, shorter fuse, nobody immune.
 function Modes.tagNextRound(t: Tag, it: number, fuse: number)
 	t.it = it

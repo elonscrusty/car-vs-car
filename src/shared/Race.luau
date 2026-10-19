@@ -100,6 +100,68 @@ function Race.leader(s: State, toNext: { number }): number
 	return 0
 end
 
+----------------------------------------------------------------------------------------------
+-- Progress (stuck cars), checkpoint messages, placing rewards
+
+export type Progress = { passed: number, best: number, since: number }
+
+function Race.progressNew(now: number): Progress
+	return { passed = 0, best = math.huge, since = now }
+end
+
+-- One frame. Progress = a new gate passed, or `minGain` studs closer to the next gate than ever
+-- since the last progress. Returns the seconds without progress.
+function Race.progressStep(
+	p: Progress,
+	passed: number,
+	toNext: number,
+	now: number,
+	minGain: number
+): number
+	if passed ~= p.passed or toNext < p.best - minGain then
+		p.passed = passed
+		p.best = toNext
+		p.since = now
+	end
+	return now - p.since
+end
+
+-- Put a car back at its last gate (auto): bots after `botSeconds`, humans after `humanSeconds`.
+function Race.shouldReset(
+	noProgress: number,
+	isHuman: boolean,
+	botSeconds: number,
+	humanSeconds: number
+): boolean
+	return noProgress >= (if isHuman then humanSeconds else botSeconds)
+end
+
+-- The RESET button works once a car has made no progress for `minStuck` seconds, and not twice
+-- within `cooldown` seconds (the client may ask any time; the server decides).
+function Race.canManualReset(
+	noProgress: number,
+	sinceLastReset: number,
+	minStuck: number,
+	cooldown: number
+): boolean
+	return noProgress >= minStuck and sinceLastReset >= cooldown
+end
+
+-- The flash after passing waypoint `wp` (1 = the line). Gates are 2..count, shown as 1..count-1.
+function Race.checkpointText(wp: number, count: number, lap: number, laps: number): string
+	if wp == 1 then
+		return string.format("LAP %d/%d", math.min(lap, laps), laps)
+	end
+	return string.format("CHECKPOINT %d/%d", wp - 1, count - 1)
+end
+
+-- Coins for a finishing place: the table value, but never less than `base` (the normal reward
+-- already paid). Returns the EXTRA coins on top of `base`.
+function Race.placeBonus(place: number, coinsByPlace: { number }, base: number): number
+	local want = coinsByPlace[place] or coinsByPlace[#coinsByPlace] or base
+	return math.max(0, want - base)
+end
+
 function Race.ordinal(n: number): string
 	if n == 1 then
 		return "1st"
