@@ -190,8 +190,6 @@ function LobbyShell.build(folder: Folder, origin: Vector3)
 		put(string.format("JoinPad_%02d", i), p.x, 0, p.z, BACK)
 	end
 	put("SpawnPad", L.spawn.x, 0, L.spawn.z, 0)
-	put("LaneChevrons", 0, 0.05, L.spawn.z - 14, 0)
-	put("LaneChevrons", 0, 0.05, L.spawn.z - 30, 0)
 	for _, sx in { -1, 1 } do
 		for _, z in { 69, 53, 37, 21, 5, -11 } do
 			put("LaneTrim", sx * (L.lane.halfWidth + 0.5), 0, z, math.pi / 2)
