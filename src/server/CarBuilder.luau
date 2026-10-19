@@ -276,7 +276,7 @@ function CarBuilder.build(
 		-- hitbox bottom. The box body stays as the invisible physics part.
 		local visual = catalogModel:Clone()
 		local _, extent = visual:GetBoundingBox()
-		local length = sz * math.sqrt(extent.Z / 14)
+		local length = sz * math.sqrt(extent.Z / 14) * CarLook.Config.visualBoost
 		visual:ScaleTo(visual:GetScale() * length / extent.Z)
 		visual:PivotTo(body.CFrame * CFrame.new(0, -sy / 2, 0))
 		local top = 0

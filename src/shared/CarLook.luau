@@ -16,6 +16,7 @@ CarLook.Config = {
 		Epic = { 190, 110, 255 },
 		Legendary = { 255, 200, 40 },
 	} :: { [string]: { number } },
+	visualBoost = 1.25, -- the car you see is this much bigger than its hitbox (looks only; hits stay fair)
 	wheelNamePrefix = "Wheel",
 	maxWheelSpin = 60, -- radians per second, so fast cars do not strobe
 }
