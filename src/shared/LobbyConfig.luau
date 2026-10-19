@@ -51,7 +51,7 @@ LobbyConfig.ResultRewards = {
 	invitePromptMatches = 2, -- INVITE prompt after the 2nd+ match (or after any goal)
 }
 LobbyConfig.StarterCars = { "Sedan" } -- owned by a new player
-LobbyConfig.StarterChoices = { "Sedan", "Coupe", "LiftedPickup" } -- a new player picks 1 of these 3 (dash, jump, ram)
+LobbyConfig.StarterChoices = { "Sedan", "DuneBuggy", "BoxTruck" } -- a new player picks 1 of these 3 (dash, jump, slam); all live roster cars
 LobbyConfig.PickChoices = 3
 -- Car id -> rarity. Comes from CarConfig, so a new car only needs a rarity there.
 LobbyConfig.Rarity = {} :: { [string]: string }
