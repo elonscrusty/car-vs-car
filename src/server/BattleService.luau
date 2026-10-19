@@ -644,6 +644,7 @@ function BattleService.start(opts: {
 				)
 				car.lastOut = out
 				BattleCar.drive(car, out, dt)
+				BattleCar.lunge(car, dt)
 				if out.fire then
 					fireShell(m, car, foe)
 				end
