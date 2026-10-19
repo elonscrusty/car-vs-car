@@ -202,3 +202,6 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 ## Mode button, LOBBY button, telemetry (w3)
 - Lobby has a MODE button (AUTO / DUEL / HILL / ICE / SOCCER) and a LOBBY button that leaves a match (mid-match and on the end screen). The code for these lives in `LobbyService`, `init.server` and the client UI, not in this note; see the playtest checklist "Mode button and LOBBY button" for what to check.
 - Telemetry has two new events, `mode_picked` (mode name from a fixed allowlist) and `left_match` (which phase LOBBY was tapped in). The functions `Telemetry.modePicked(player, mode)` and `Telemetry.leftMatch(player, phase)` exist and are tested; the call sites in the lobby/server code must be added by whoever owns those files. See `docs/analytics.md`.
+
+## AI-look round 2 (cars, code part)
+`shared/CarLook.luau` (tests: `tests/carlook.test.luau`): soft shadow blob under each car, Highlight outline by rarity (dark for Common), wheels get a `WheelMotor` Motor6D (parts named `Wheel*` in catalog models) and `client/WheelFx.luau` rolls them from forward speed. Not eyeballed in Studio yet. Full list: project files `car-vs-car/review/ai-look-round2.md`. UI items skipped (carter makes UI himself).
