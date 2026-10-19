@@ -135,10 +135,82 @@ function Leaderboards.recordWin(player: Player)
 	end)
 end
 
+-- Knock-outs just made: add them to this player's weekly smash score.
+function Leaderboards.recordSmashes(player: Player, count: number)
+	if count < 1 then
+		return
+	end
+	local userId = player.UserId
+	local week = Leaderboard.weekIndex(os.time())
+	task.spawn(function()
+		local ds = storeFor(Leaderboard.smashesStore(week))
+		if ds == nil then
+			return
+		end
+		Retry.run(function()
+			ds:UpdateAsync(tostring(userId), function(old: any)
+				return Leaderboard.addWins(old, count)
+			end)
+			return true
+		end, retryOpts("weekly smashes"))
+	end)
+end
+
+-- Last week's #1 in wins gets the gold paint. Asks the DataStore once per server (cached), then
+-- calls `grant` on the main thread if this player was #1. Never yields the caller.
+local championId: number? = nil
+local championLoaded = false
+local championWaiting: { () -> () } = {}
+
+local function loadChampion()
+	local week = Leaderboard.weekIndex(os.time()) - 1
+	if week >= 0 then
+		local ds = storeFor(Leaderboard.weeklyStore(week))
+		if ds then
+			local ok, pages = Retry.run(function()
+				return ds:GetSortedAsync(false, 1):GetCurrentPage()
+			end, retryOpts("read champion"))
+			if ok then
+				local rows = Leaderboard.rows(pages, 1)
+				if rows[1] then
+					championId = rows[1].userId
+				end
+			end
+		end
+	end
+	championLoaded = true
+	for _, fn in championWaiting do
+		fn()
+	end
+	championWaiting = {}
+end
+
+local championStarted = false
+
+function Leaderboards.checkChampion(player: Player, grant: () -> ())
+	local userId = player.UserId
+	local function decide()
+		if championId == userId and player.Parent ~= nil then
+			grant()
+		end
+	end
+	if championLoaded then
+		decide()
+		return
+	end
+	table.insert(championWaiting, decide)
+	if not championStarted then
+		championStarted = true
+		task.spawn(loadChampion)
+	end
+end
+
 local function refreshBoard(board: { kind: Leaderboard.Kind, store: string, title: string })
 	local storeName = board.store
 	if board.kind == "weekly" then
 		storeName = Leaderboard.weeklyStore(Leaderboard.weekIndex(os.time()))
+	elseif board.kind == "smashes" then
+		storeName = Leaderboard.smashesStore(Leaderboard.weekIndex(os.time()))
 	end
 	local ds = storeFor(storeName)
 	if ds == nil then
@@ -226,9 +298,15 @@ function Leaderboards.init(folder: Folder, center: Vector3)
 	inited = true
 	local step = BOARD_SIZE.X + 2
 	-- Left to right: all-time wins, this week's wins (the middle, main board), best streak.
-	local shown = { Leaderboard.Boards[1], Leaderboard.Weekly, Leaderboard.Boards[2] }
+	local shown =
+		{ Leaderboard.Boards[1], Leaderboard.Weekly, Leaderboard.Smashes, Leaderboard.Boards[2] }
 	for i, board in shown do
-		buildBoard(folder, board, center + Vector3.new((i - 2) * step, BOARD_SIZE.Y / 2 + 1, 0), 0)
+		buildBoard(
+			folder,
+			board,
+			center + Vector3.new((i - 2.5) * step, BOARD_SIZE.Y / 2 + 1, 0),
+			0
+		)
 	end
 	-- No data after a few seconds (no DataStore, outage, empty week): say so instead of "Loading...".
 	task.delay(LOADING_TIMEOUT, function()

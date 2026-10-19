@@ -4,7 +4,7 @@
 
 export type Entry = { key: any, value: any } -- one OrderedDataStore row
 export type Row = { rank: number, userId: number, score: number }
-export type Kind = "wins" | "streak" | "weekly"
+export type Kind = "wins" | "streak" | "weekly" | "smashes"
 
 local Leaderboard = {}
 
@@ -18,6 +18,9 @@ Leaderboard.Boards = {
 -- and old weeks just stop being read. Weeks run Monday 00:00 UTC to Sunday 23:59 UTC.
 Leaderboard.Weekly =
 	{ kind = "weekly" :: Kind, store = "TopWinsWeekly_v1", title = "WINS THIS WEEK" }
+-- Smashes (knock-outs) this week. Same weekly reset as the wins board.
+Leaderboard.Smashes =
+	{ kind = "smashes" :: Kind, store = "TopSmashesWeekly_v1", title = "SMASHES THIS WEEK" }
 Leaderboard.WEEK_SECONDS = 604800
 local MONDAY_OFFSET = 345600 -- 1970-01-01 was a Thursday; the first Monday is 4 days later
 
@@ -32,6 +35,11 @@ end
 -- "TopWinsWeekly_v1_w2900" for week 2900.
 function Leaderboard.weeklyStore(week: number): string
 	return `{Leaderboard.Weekly.store}_w{math.max(0, math.floor(week))}`
+end
+
+-- "TopSmashesWeekly_v1_w2900" for week 2900.
+function Leaderboard.smashesStore(week: number): string
+	return `{Leaderboard.Smashes.store}_w{math.max(0, math.floor(week))}`
 end
 
 -- New stored weekly score after `add` more wins (junk old values count as 0).

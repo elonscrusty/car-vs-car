@@ -63,6 +63,13 @@ H.test("week index flips on Monday 00:00 UTC", function()
 	H.eq(Leaderboard.weekIndex(0 / 0), 0)
 end)
 
+H.test("smashes store name carries the week and differs from wins", function()
+	H.eq(Leaderboard.smashesStore(2900), "TopSmashesWeekly_v1_w2900")
+	H.eq(Leaderboard.smashesStore(-1), "TopSmashesWeekly_v1_w0")
+	H.eq(Leaderboard.smashesStore(5) ~= Leaderboard.weeklyStore(5), true)
+	H.eq(Leaderboard.addWins(7, 3), 10)
+end)
+
 H.test("weekly store name carries the week; wins add up safely", function()
 	H.eq(Leaderboard.weeklyStore(2900), "TopWinsWeekly_v1_w2900")
 	H.eq(Leaderboard.weeklyStore(-3), "TopWinsWeekly_v1_w0")

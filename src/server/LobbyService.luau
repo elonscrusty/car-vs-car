@@ -197,6 +197,19 @@ function LobbyService.start(deps: Deps): Handle
 		local now = os.time()
 		player:SetAttribute("CoinMultiplier", Progress.coinMultiplier(now)) -- 2 on weekends
 		setLevelAttributes(player, p)
+		if player:GetAttribute("CrownChecked") ~= true then
+			player:SetAttribute("CrownChecked", true)
+			-- Last week's #1 in wins gets the gold paint (once; later weeks keep it).
+			Leaderboards.checkChampion(player, function()
+				local cur = Profiles.get(player)
+				if cur and not cur.paint.owned.gold then
+					cur.paint.owned.gold = true
+					Profiles.markDirty(player)
+					player:SetAttribute("WeeklyChampion", true)
+					sendProfile(player)
+				end
+			end)
+		end
 		local carId = Build.carFor(p.build, p.owned)
 		local xp = Progress.xpView(p.progress, carId)
 		local goal = NextGoal.compute({
@@ -442,6 +455,9 @@ function LobbyService.start(deps: Deps): Handle
 			if won then
 				p.wins += 1
 				Leaderboards.recordWin(player)
+			end
+			if type(result) == "table" and type(result.kos) == "number" then
+				Leaderboards.recordSmashes(player, math.floor(result.kos))
 			end
 			p.matches = math.min(p.matches + 1, 1e9)
 			invitePrompt = ResultRewards.invitePrompt(info, p.matches)
