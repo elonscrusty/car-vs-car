@@ -18,6 +18,7 @@ local LobbyGarage = require(script.Parent.LobbyGarage)
 local LobbyMore = require(script.Parent.LobbyMore)
 local LobbyProps = require(script.Parent.LobbyProps)
 local LobbyShell = require(script.Parent.LobbyShell)
+local LobbyWorkArea = require(script.Parent.LobbyWorkArea)
 
 export type PadHandle = {
 	part: BasePart,
@@ -1722,6 +1723,7 @@ function Lobby.build(): LobbyHandle
 	spawn.Parent = folder
 
 	LobbyFloor.build(folder, origin)
+	LobbyWorkArea.build(folder, origin)
 	folder.Parent = workspace
 	outline("SpawnPadEdge", sp.size, sp.size, sp.x, sp.z, 0.5, CYAN, Enum.Material.Neon)
 	return { spawn = spawn, pads = pads, folder = folder, claw = clawModel }
