@@ -8,6 +8,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local Ai = require(ReplicatedStorage.Shared.Ai)
 local Build = require(ReplicatedStorage.Shared.Build)
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
+local CarLook = require(ReplicatedStorage.Shared.CarLook)
 local Fairness = require(ReplicatedStorage.Shared.Fairness)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local Progress = require(ReplicatedStorage.Shared.Progress)
@@ -261,10 +262,21 @@ function CarBuilder.build(
 				else
 					d.Color = dark
 				end
-				local weld = Instance.new("WeldConstraint")
-				weld.Part0 = body
-				weld.Part1 = d
-				weld.Parent = d
+				if CarLook.isWheel(d.Name) then
+					-- A joint (not a weld) so the client can roll the wheel by setting Transform.
+					local motor = Instance.new("Motor6D")
+					motor.Name = "WheelMotor"
+					motor.Part0 = body
+					motor.Part1 = d
+					motor.C0 = body.CFrame:ToObjectSpace(d.CFrame)
+					motor.Parent = d
+					d:SetAttribute("WheelRadius", CarLook.wheelRadius(d.Size.Y, d.Size.Z))
+				else
+					local weld = Instance.new("WeldConstraint")
+					weld.Part0 = body
+					weld.Part1 = d
+					weld.Parent = d
+				end
 				top = math.max(top, d.Position.Y + d.Size.Y / 2)
 			end
 		end
@@ -343,6 +355,32 @@ function CarBuilder.build(
 	if build then
 		attachBuild(model, body, Vector3.new(sx, sy, sz), build)
 	end
+	-- Soft shadow blob under the car (cars no longer look like they float).
+	local look3 = CarLook.Config
+	local shadow = addPart(
+		model,
+		body,
+		"Shadow",
+		Vector3.new(look3.shadowThickness, sx * look3.shadowWidth, sz * look3.shadowLength),
+		CFrame.new(0, -sy / 2 + look3.shadowThickness, 0) * CFrame.Angles(0, 0, math.rad(90)),
+		Color3.new(0, 0, 0),
+		false
+	)
+	shadow.Shape = Enum.PartType.Cylinder
+	shadow.Transparency = look3.shadowTransparency
+	shadow.CastShadow = false
+	shadow.CanQuery = false
+	shadow.CanTouch = false
+	-- Toy outline by rarity: dark for Common, brighter for rarer cars.
+	local rgb = CarLook.outlineRgb(stats.rarity)
+	local outline = Instance.new("Highlight")
+	outline.Name = "CarOutline"
+	outline.Adornee = model
+	outline.FillTransparency = 1
+	outline.OutlineColor = Color3.fromRGB(rgb[1], rgb[2], rgb[3])
+	outline.OutlineTransparency = 0
+	outline.DepthMode = Enum.HighlightDepthMode.Occluded
+	outline.Parent = model
 	Appearance.apply(model, body, look)
 	Badge.apply(model, body, if look then look.level else nil)
 
