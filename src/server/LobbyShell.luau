@@ -61,7 +61,6 @@ for _, n in
 		"SignFlag",
 		"ShowcaseRing",
 		"ShowcaseTop",
-		"PadOutline",
 		"FloorChevron",
 		"StartLine",
 		"SpawnTire",
@@ -86,8 +85,6 @@ for _, n in
 		"WallPost",
 		"WallSign",
 		"ShowcaseStage",
-		"PadBase",
-		"MatchPad",
 		"BayRing",
 	}
 do
