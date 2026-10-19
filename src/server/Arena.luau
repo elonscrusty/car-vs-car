@@ -50,39 +50,106 @@ function Arena.build(origin: Vector3, arenaCfg: any?): Arena
 		return ArenaMath.surfaceHeight(r, cfg.flatRadius, cfg.rimRadius, cfg.tiltDeg)
 	end
 
-	-- Flat floor (a cylinder standing on its side is a disc: axis X -> rotate to Y).
+	local square = cfg.square == true
+	local dirtColor = Color3.fromRGB(150, 98, 60)
+
+	-- Flat floor (a cylinder standing on its side is a disc: axis X -> rotate to Y; square = a slab).
 	local floorR = cfg.flatRadius + 4
-	local floor = makePart(
-		model,
-		"Floor",
-		Vector3.new(2, floorR * 2, floorR * 2),
-		CFrame.new(origin + Vector3.new(0, -1, 0)) * CFrame.Angles(0, 0, math.pi / 2),
-		if cfg.dirt then Color3.fromRGB(150, 98, 60) else Color3.fromRGB(88, 112, 150)
-	)
-	floor.Shape = Enum.PartType.Cylinder
+	local floor: Part
+	if square then
+		floor = makePart(
+			model,
+			"Floor",
+			Vector3.new(floorR * 2, 2, floorR * 2),
+			CFrame.new(origin + Vector3.new(0, -1, 0)),
+			dirtColor
+		)
+	else
+		floor = makePart(
+			model,
+			"Floor",
+			Vector3.new(2, floorR * 2, floorR * 2),
+			CFrame.new(origin + Vector3.new(0, -1, 0)) * CFrame.Angles(0, 0, math.pi / 2),
+			if cfg.dirt then dirtColor else Color3.fromRGB(88, 112, 150)
+		)
+		floor.Shape = Enum.PartType.Cylinder
+	end
+	if not cfg.dirt then
+		floor.Color = Color3.fromRGB(88, 112, 150)
+	end
 	floor.Material = if cfg.dirt then Enum.Material.Ground else Enum.Material.Concrete
 
 	if cfg.stadium and cfg.dirt then
-		ArenaProps.floorArt(model, origin, cfg.flatRadius, Color3.fromRGB(150, 98, 60))
+		ArenaProps.floorArt(model, origin, cfg.flatRadius, dirtColor)
 	end
 
-	-- A faint darker ring line near the edge of the flat floor (looks only, nothing to bump into).
-	local lineR = cfg.flatRadius - 1
-	for idx, d in { { r = lineR + 0.5, c = 205 }, { r = lineR - 0.5, c = 88 } } do
-		local disc = makePart(
-			model,
-			"FloorLine",
-			Vector3.new(0.1, d.r * 2, d.r * 2),
-			CFrame.new(origin + Vector3.new(0, 0.03 * idx, 0)) * CFrame.Angles(0, 0, math.pi / 2),
-			if d.c == 88
-				then if cfg.dirt then Color3.fromRGB(150, 98, 60) else Color3.fromRGB(88, 112, 150)
-				else Color3.fromRGB(d.c, d.c + 10, d.c + 30)
-		)
-		disc.Shape = Enum.PartType.Cylinder
-		disc.CanCollide = false
-		disc.CanQuery = false
-		disc.CanTouch = false
-		disc.CastShadow = false
+	if square then
+		-- A white border line round the playing floor: past it you fall (looks only).
+		local half = cfg.rimRadius
+		for side = 0, 3 do
+			local line = makePart(
+				model,
+				"FloorLine",
+				Vector3.new(2 * half, 0.1, 1.2),
+				CFrame.new(origin + Vector3.new(0, 0.1, 0))
+					* CFrame.Angles(0, side * math.pi / 2, 0)
+					* CFrame.new(0, 0, -(half - 1.5)),
+				Color3.fromRGB(245, 245, 250)
+			)
+			line.CanCollide = false
+			line.CanQuery = false
+			line.CanTouch = false
+			line.CastShadow = false
+		end
+	else
+		-- A faint darker ring line near the edge of the flat floor (looks only, nothing to bump into).
+		local lineR = cfg.flatRadius - 1
+		for idx, d in { { r = lineR + 0.5, c = 205 }, { r = lineR - 0.5, c = 88 } } do
+			local disc = makePart(
+				model,
+				"FloorLine",
+				Vector3.new(0.1, d.r * 2, d.r * 2),
+				CFrame.new(origin + Vector3.new(0, 0.03 * idx, 0))
+					* CFrame.Angles(0, 0, math.pi / 2),
+				if d.c == 88
+					then if cfg.dirt then dirtColor else Color3.fromRGB(88, 112, 150)
+					else Color3.fromRGB(d.c, d.c + 10, d.c + 30)
+			)
+			disc.Shape = Enum.PartType.Cylinder
+			disc.CanCollide = false
+			disc.CanQuery = false
+			disc.CanTouch = false
+			disc.CastShadow = false
+		end
+	end
+
+	if square then
+		-- Four straight walls, 11 pieces a side; the middle piece of each side is a gap you can fall through.
+		local perSide = 11
+		local half = cfg.rimRadius
+		local len = (2 * half + 4) / perSide
+		for side = 0, 3 do
+			local base = CFrame.new(origin) * CFrame.Angles(0, side * math.pi / 2, 0)
+			for j = 0, perSide - 1 do
+				if cfg.gapEvery ~= nil and j == (perSide - 1) / 2 then
+					continue
+				end
+				local x = -half - 2 + (j + 0.5) * len
+				local wall = makePart(
+					model,
+					"Wall",
+					Vector3.new(len * 1.02, cfg.wallHeight, 3),
+					base * CFrame.new(x, cfg.wallHeight / 2 - 0.5, -(half + 0.5)),
+					Color3.fromRGB(250, 205, 60)
+				)
+				if cfg.stadium then
+					wall.Color = if j % 2 == 0
+						then Color3.fromRGB(240, 242, 250)
+						else Color3.fromRGB(235, 60, 55)
+					ArenaProps.wallStrip(model, wall, Color3.fromRGB(120, 215, 255))
+				end
+			end
+		end
 	end
 
 	-- Slope slabs around the circle. Each slab sits in a frame turned by phi around Y.
@@ -95,7 +162,7 @@ function Arena.build(origin: Vector3, arenaCfg: any?): Arena
 	)
 	local wallSize = Vector3.new(slabSize.X * 1.02, cfg.wallHeight, 3)
 	local flat = cfg.tiltDeg == 0
-	for i = 0, cfg.segments - 1 do
+	for i = 0, if square then -1 else cfg.segments - 1 do
 		local phi = i / cfg.segments * math.pi * 2
 		local base = CFrame.new(origin) * CFrame.Angles(0, phi, 0)
 		local slabCf = base
@@ -227,7 +294,14 @@ function Arena.build(origin: Vector3, arenaCfg: any?): Arena
 	end
 
 	if cfg.stadium then
-		ArenaStadium.build(model, origin, cfg)
+		if square then
+			-- The round stands wrap the square floor: far enough out to clear its corners.
+			local roomy = table.clone(cfg)
+			roomy.rimRadius = math.ceil(cfg.rimRadius * 1.42)
+			ArenaStadium.build(model, origin, roomy)
+		else
+			ArenaStadium.build(model, origin, cfg)
+		end
 	else
 		ArenaScenery.build(model, origin)
 		ArenaDecor.build(model, origin)

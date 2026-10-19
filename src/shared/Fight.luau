@@ -8,4 +8,13 @@ function Fight.isRingOut(horizDist: number, rimRadius: number, margin: number): 
 	return horizDist > rimRadius + margin
 end
 
+-- How far out a spot is: round arenas count the straight distance, square ones the larger of |x|
+-- and |z| (so the corners are not extra safe floor).
+function Fight.edgeDistance(x: number, z: number, square: boolean): number
+	if square then
+		return math.max(math.abs(x), math.abs(z))
+	end
+	return math.sqrt(x * x + z * z)
+end
+
 return Fight

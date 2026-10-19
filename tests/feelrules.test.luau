@@ -316,21 +316,27 @@ end)
 test("whole-arena camera: every corner fits, and a bigger arena needs a farther camera", function()
 	local f = GameConfig.Feel
 	local function dist(hx: number, hz: number)
-		return FeelRules.arenaFitDistance(hx, hz, 0, f.arenaPitch, f.normalFov, 1.9, f.arenaMargin)
+		return FeelRules.arenaFitDistance(hx, hz, 0, 66, f.normalFov, 1.9, 0.94)
 	end
 	local small, big = dist(40, 30), dist(80, 40)
 	truthy(big > small)
 	truthy(small < 900 and big < 900)
 	-- at that distance the far corners are really inside the view
-	local pitch = math.rad(f.arenaPitch)
+	local pitch = math.rad(66)
 	local cam = { 0, math.sin(pitch) * big, -math.cos(pitch) * big }
 	for _, c in { { -80, -40 }, { 80, -40 }, { -80, 40 }, { 80, 40 } } do
-		truthy(
-			FeelRules.inView(cam, { 0, 0, 0 }, { c[1], 0, c[2] }, f.normalFov, 1.9, f.arenaMargin)
-		)
+		truthy(FeelRules.inView(cam, { 0, 0, 0 }, { c[1], 0, c[2] }, f.normalFov, 1.9, 0.94))
 	end
 	-- a narrower (portrait-ish) screen needs more distance for a wide arena
-	truthy(
-		FeelRules.arenaFitDistance(80, 40, 0, f.arenaPitch, f.normalFov, 1.2, f.arenaMargin) > big
-	)
+	truthy(FeelRules.arenaFitDistance(80, 40, 0, 66, f.normalFov, 1.2, 0.94) > big)
+end)
+
+test("mouse steering: dead zone, full at the edge, sign follows the side", function()
+	eq(FeelRules.mouseSteer(0.02, 0.05, 0.3), 0)
+	eq(FeelRules.mouseSteer(-0.04, 0.05, 0.3), 0)
+	near(FeelRules.mouseSteer(0.3, 0.05, 0.3), 1)
+	near(FeelRules.mouseSteer(-0.5, 0.05, 0.3), -1)
+	truthy(FeelRules.mouseSteer(0.15, 0.05, 0.3) > 0)
+	truthy(FeelRules.mouseSteer(0.15, 0.05, 0.3) < 1)
+	truthy(FeelRules.mouseSteer(0.1, 0.05, 0.3) < FeelRules.mouseSteer(0.2, 0.05, 0.3))
 end)

@@ -25,9 +25,10 @@ local DriveCar = {}
 
 local FIND_EVERY = 0.2 -- seconds between searches for the own car
 
--- `read` gives the current (steer, gas) from the stick or keys.
+-- `read` gives the current (steer, gas, aim) from the stick or keys. aim = true: the values are a
+-- screen direction (stick); false: steer/gas relative to the car (keys, mouse).
 -- `onBoost` (optional) runs when YOUR car starts a boost (the camera widens, speed lines show).
-function DriveCar.new(read: () -> (number, number), onBoost: (() -> ())?): DriveCar
+function DriveCar.new(read: () -> (number, number, boolean), onBoost: (() -> ())?): DriveCar
 	local conn: RBXScriptConnection? = nil
 
 	local function start()
@@ -93,21 +94,23 @@ function DriveCar.new(read: () -> (number, number), onBoost: (() -> ())?): Drive
 			if b.Anchored then
 				return -- frozen for a hit stop
 			end
-			local rawSteer, rawGas = read()
-			-- The stick points where the car should go ON SCREEN (the camera stays steady).
-			local cam = workspace.CurrentCamera
-			if cam ~= nil then
-				local cl, kl = cam.CFrame.LookVector, b.CFrame.LookVector
-				rawSteer, rawGas = Steer.toward(
-					rawSteer,
-					rawGas,
-					cl.X,
-					cl.Z,
-					kl.X,
-					kl.Z,
-					GameConfig.Steer.aimLock,
-					steer
-				)
+			local rawSteer, rawGas, aim = read()
+			if aim then
+				-- The stick points where the car should go ON SCREEN.
+				local cam = workspace.CurrentCamera
+				if cam ~= nil then
+					local cl, kl = cam.CFrame.LookVector, b.CFrame.LookVector
+					rawSteer, rawGas = Steer.toward(
+						rawSteer,
+						rawGas,
+						cl.X,
+						cl.Z,
+						kl.X,
+						kl.Z,
+						GameConfig.Steer.aimLock,
+						steer
+					)
+				end
 			end
 			steer = Steer.smooth(steer, rawSteer, dt, GameConfig.Steer.smoothRate)
 			gas = Steer.smooth(gas, rawGas, dt, GameConfig.Steer.smoothRate)
