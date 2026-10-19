@@ -149,3 +149,6 @@ See SNAPSHOT.md "Social + safety". Tune cheat limits in `src/shared/CarSanityCon
 ## Big open garages + likes
 - Done in code and unit tests (`lune run tests/run` 330 pass, stylua clean). NOT seen in Studio: how the longer hall, low walls and heart look is unchecked. Lobby wall props were moved by hand (`LobbyMore`, `LobbyDecor`, `LobbyShell`); check for overlaps in the picture check.
 - Studio placement of any new Blender garage models is the Studio thread's job (`docs/GARAGE_MODELS_NEEDED.md`).
+
+## Bots (w2-bots)
+See SNAPSHOT.md "Bots feel like people". Tune in `GameConfig.Ai` and `BotLevelsConfig` (placeholders, tuned on a headless sim not on live physics). If a live bot rides the rim, raise `edgeRadius` risk margin (lower it) or `edgeLook`; if bots never boost, check `moveSpeedShare`/`boostAimDeg`; `GameConfig.Ai.useMoves = false` turns bot boost/ability off. First play test: watch bots on the rim, nose-to-nose time, boost use.

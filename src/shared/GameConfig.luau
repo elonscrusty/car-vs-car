@@ -99,6 +99,33 @@ local GameConfig = {
 		circleRadius = 16, -- Light: circle distance around enemy
 		circleAngleDeg = 40, -- Light: how far around enemy to aim each step
 		stuckSeconds = 0.8, -- barely moving this long = nose-to-nose standoff, back up
+		-- Rim guard: the bowl rim is Arena.rimRadius; the guard keeps bots well inside it.
+		edgeRadius = 74, -- predicted distance from center that makes the bot turn for the middle
+		edgeLook = 0.15, -- reaction seconds added to the guard's stopping-distance guess
+		leadAfter = 1.5, -- seconds with no hit before the bot aims where the enemy will be
+		leadRamp = 5, -- ...then over this many more seconds the lead grows to a full intercept
+		ambushAfter = 8, -- seconds with no hit before one of two orbiting cars cuts through the middle
+		ambushHold = 30, -- ...and waits once it is this close to the middle
+		leadMax = 1.2, -- longest look-ahead (seconds) of that
+		turnInDeg = 30, -- chasing with the enemy this far off the nose: check the turn is possible
+		turnInSlack = 1.1, -- brake when faster than (turn rate x needed radius) x this
+		turnInMinSpeed = 22, -- ...but never slow below this
+		brakeShare = 0.9, -- share of the car's accel the guard counts on when braking (lower = brakes earlier)
+		brakeSpeed = 18, -- going out faster than this at the edge = reverse gas to brake
+		-- Pacing: no circling forever, no sitting nose-to-nose.
+		commitAfter = 3, -- seconds with no hit before a circler just dives in
+		backupDist = 30, -- Heavy only backs up when the enemy is this close
+		closeDist = 15, -- "nose-to-nose" distance
+		closeSeconds = 1.2, -- this long that close with no hit = back off for a run-up
+		-- Boost and ability use (the level's moveUse says how often a good chance is taken)
+		useMoves = true, -- bots press boost / ability (server/BotMoves); false = they never do
+		moveCheck = 0.25, -- seconds between "use a move now?" rolls
+		boostMinDist = 20,
+		boostMaxDist = 95,
+		boostAimDeg = 30, -- boost only when pointing this close to the enemy
+		boostTopShare = 1.6, -- top speed in a boost vs normal (= 1 + MovesConfig.Boost.speedBonus); used to check braking room
+		moveSpeedShare = 1.05, -- boost or dash only while slower than this share of top speed
+		lowHp = 0.35, -- under this HP share the bot panics and fires its ability early
 	},
 	Dummy = {
 		launchUp = 70, -- upward speed of the crash dummy (studs/sec)

@@ -62,10 +62,17 @@ test(
 
 test("BackupCharge runs away when a charge goes on too long", function()
 	local mem = Ai.newMemory("BackupCharge", 1)
+	local close = { x = 0, z = -20 }
 	for _ = 1, 40 do
-		Ai.decide("BackupCharge", me, enemy, mem, 0.1, P, C)
+		Ai.decide("BackupCharge", me, close, mem, 0.1, P, C)
 	end
 	truthy(mem.retreatT > 0 or mem.t < P.chargeMax)
+	-- ...but a far enemy is chased without backing up
+	local far = Ai.newMemory("BackupCharge", 1)
+	for _ = 1, 40 do
+		Ai.decide("BackupCharge", me, enemy, far, 0.1, P, C)
+	end
+	eq(far.retreatT, 0)
 end)
 
 test("retreatTarget goes away from enemy and stays inside the bowl", function()

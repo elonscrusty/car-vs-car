@@ -49,5 +49,7 @@ require("./menu.test")
 require("./soccerfield.test")
 require("./arenathemes.test")
 require("./carsanity.test")
+require("./aibehave.test")
+require("./botsim.test")
 
 Harness.summary()
