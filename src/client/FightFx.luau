@@ -42,10 +42,10 @@ function FightFx.ko(text: string)
 	local flash = Instance.new("Frame")
 	flash.Size = UDim2.fromScale(1, 1)
 	flash.BackgroundColor3 = Color3.new(1, 1, 1)
-	flash.BackgroundTransparency = 0.75 -- a soft flash: the cars stay readable
+	flash.BackgroundTransparency = 0.85 -- a faint tint, never a white-out
 	flash.BorderSizePixel = 0
 	flash.Parent = getGui()
-	TweenService:Create(flash, TweenInfo.new(0.15), { BackgroundTransparency = 1 }):Play()
+	TweenService:Create(flash, TweenInfo.new(0.12), { BackgroundTransparency = 1 }):Play()
 	task.delay(0.15, function()
 		flash:Destroy()
 	end)
