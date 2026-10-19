@@ -512,3 +512,26 @@ test("fight rewards: the winner gets big coins, a bounty beats a plain knock-out
 	local r = GroupResults.take(a) :: any
 	eq(GroupResults.attributes(r).MatchKos, 3)
 end)
+
+test(
+	"tutorial: smash first, each step ends on its action or its timer, about 30 seconds",
+	function()
+		local Tutorial = require("../src/shared/Tutorial")
+		truthy(Tutorial.total() >= 25 and Tutorial.total() <= 40)
+		eq(Tutorial.Steps[1].id, "smash")
+		local s = Tutorial.new()
+		local first = Tutorial.tick(s, 0) :: any
+		eq(first.id, "smash")
+		eq(Tutorial.tick(s, 1), nil)
+		eq(Tutorial.event(s, "boost", 2), nil) -- wrong action: stays on smash
+		local second = Tutorial.event(s, "hit", 3) :: any
+		eq(second.id, "boost")
+		local third = Tutorial.tick(s, 3 + Tutorial.Steps[2].maxSeconds) :: any -- timer
+		eq(third.id, "ability")
+		local fourth = Tutorial.event(s, "special", 20) :: any
+		eq(fourth.id, "fight")
+		eq(Tutorial.finished(s), false)
+		eq(Tutorial.tick(s, 20 + Tutorial.Steps[4].maxSeconds), nil)
+		eq(Tutorial.finished(s), true)
+	end
+)
