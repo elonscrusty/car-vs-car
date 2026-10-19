@@ -310,11 +310,14 @@ H.test("xp view: xp into the level and needed for the next", function()
 end)
 
 H.test("level bonus text", function()
+	local function pct(level: number): string
+		return `+{math.floor((level - 1) * ProgressConfig.LevelStatBonus * 100 + 0.5)}% HP and damage`
+	end
 	H.eq(Progress.bonusText(1), "")
-	H.eq(Progress.bonusText(2), "+3% HP and damage")
-	H.eq(Progress.bonusText(3), "+6% HP and damage")
-	H.eq(Progress.bonusText(10), "+27% HP and damage")
-	H.eq(Progress.bonusText(99), "+27% HP and damage") -- clamped to the top level
+	H.eq(Progress.bonusText(2), pct(2))
+	H.eq(Progress.bonusText(3), pct(3))
+	H.eq(Progress.bonusText(10), pct(10))
+	H.eq(Progress.bonusText(99), pct(10)) -- clamped to the top level
 	H.eq(Progress.bonusText(-4), "")
 end)
 
