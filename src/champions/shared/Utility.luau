@@ -119,7 +119,7 @@ local function modes(root, state, ctx)
 	end
 	action(root, "ConfirmMode", "CONFIRM MODE", 614, 527, 528, 52, state, ctx, true, function()
 		ctx.request("SetMode", { mode = selected })
-	end, T.C.blue, "check")
+	end, T.C.green, "check")
 end
 
 local function gift(root, state, ctx)
@@ -452,12 +452,12 @@ local function reveal(root, state, ctx)
 		function()
 			ctx.request("EquipCar", { vehicleId = vehicle.Id })
 		end,
-		T.C.blue,
+		T.C.green,
 		"car"
 	)
 	T.button(root, "RevealDone", "DONE", 611, 593, 314, 65, function()
 		ctx.navigate("CARS")
-	end, T.C.red, "check")
+	end, T.C.navy, "check")
 end
 
 local function settings(root, state, ctx)

@@ -329,7 +329,17 @@ function GroupMatch.new(
 						part.player:SetAttribute(name, value)
 					end
 				end)
-				sendTo(i, { kind = "matchEnd", youWon = youWon })
+				-- Coins so far (base + this fight's bonuses) so the result screen is not empty;
+				-- the lobby's final number replaces it a moment later.
+				local base = if youWon
+					then LobbyConfig.Rewards.winCoins
+					else LobbyConfig.Rewards.loseCoins
+				sendTo(i, {
+					kind = "matchEnd",
+					youWon = youWon,
+					coins = base,
+					bonus = result.coinsBonus or 0,
+				})
 				if part.onEndScreen and not gone[i] then
 					part.onEndScreen()
 				end

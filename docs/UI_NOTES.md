@@ -17,3 +17,9 @@
 
 ## Pictures
 See `docs/UI_ICONS_NEEDED.md` (what Carter makes) and `docs/CARS_FOR_MESHY.md` (cars).
+
+## Button color rule (one meaning per color)
+- GREEN = do it: PLAY, CONFIRM, EQUIP, BUY / SPEND, CLAIM, REMATCH.
+- BLUE = go somewhere or the quiet choice: CARS, SHOP, GIFT, BACK, STAY, LOBBY, VIEW ODDS.
+- RED = stop: the X close button, CANCEL, RETURN TO GARAGE (leaving a fight), cancel the queue.
+- NAVY = quiet extras: SETTINGS, MENU, DONE, an already-equipped car.

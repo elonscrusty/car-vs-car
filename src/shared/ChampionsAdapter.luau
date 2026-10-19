@@ -281,6 +281,19 @@ function Adapter.new(opts: Options): Model
 			if extra and extra.place then
 				lastPlace = extra.place
 			end
+			local rewards = {}
+			local total: number? = nil
+			if type(u.coins) == "number" then
+				table.insert(
+					rewards,
+					{ label = if u.youWon == true then "VICTORY" else "FIGHT", amount = u.coins }
+				)
+				total = u.coins
+				if type(u.bonus) == "number" and u.bonus > 0 then
+					table.insert(rewards, { label = "PLACE + SMASHES", amount = u.bonus })
+					total += u.bonus
+				end
+			end
 			match = {
 				mode = "DUEL",
 				phase = "RESULTS",
@@ -291,7 +304,8 @@ function Adapter.new(opts: Options): Model
 					mode = "DUEL",
 					won = u.youWon == true,
 					place = lastPlace,
-					rewards = {},
+					total = total,
+					rewards = rewards,
 				},
 			}
 		end
