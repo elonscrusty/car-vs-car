@@ -164,3 +164,9 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 - Hall is 192 long (`LobbyLayout.room.halfL = 96`). 8 garages, each 40 wide x 30 deep, open front: low wall (1.8 high) with a 14 wide gap (`LobbyLayout.bay`). Store/paint moved to the front corners (z 80), spawn z 76, lounge props near the door.
 - Likes: `src/shared/GarageLikes.luau` (pure, tested) saved in `profile.garage` (`received`, `given`). One like per garage ever, not your own, max 300 given. Server handler in `LobbyService.luau` (`bays.onLike`), rate limited 3 per 5s. Heart + `LikePrompt` (key F) at each door in `LobbyBays.luau`; sign shows "N LIKES". No Visit button.
 - Old GarageRoom/GarageFront models no longer placed (wrong size). Model wish list: `docs/GARAGE_MODELS_NEEDED.md`.
+
+## Economy sim + perf audit (w2)
+- `tests/economy_sim.test.luau`: pure sim of casual / daily-only / store players over 60 days with the real configs (prints medians, 7 sanity asserts). Report: `docs/economy-report.md`.
+- Config tweak: `LobbyConfig.Gacha.duplicateRefunds` 30/60/150/400 to 10/25/60/120 (old Epic/Legendary refunds beat the 100 pull price). All coin numbers are PRETEND placeholders; no Robux prices.
+- `docs/performance-audit.md`: ranked findings from reading the code (not profiled). One leak fixed: per-player `CharacterAdded` connection in `LobbyService` (`charConns`).
+- `docs/playtest-checklist.md`: new section for sound toggle, menu unlock, soccer, weekly board, invite.

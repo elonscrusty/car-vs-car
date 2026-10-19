@@ -49,5 +49,6 @@ require("./menu.test")
 require("./soccerfield.test")
 require("./arenathemes.test")
 require("./carsanity.test")
+require("./economy_sim.test")
 
 Harness.summary()

@@ -149,3 +149,7 @@ See SNAPSHOT.md "Social + safety". Tune cheat limits in `src/shared/CarSanityCon
 ## Big open garages + likes
 - Done in code and unit tests (`lune run tests/run` 330 pass, stylua clean). NOT seen in Studio: how the longer hall, low walls and heart look is unchecked. Lobby wall props were moved by hand (`LobbyMore`, `LobbyDecor`, `LobbyShell`); check for overlaps in the picture check.
 - Studio placement of any new Blender garage models is the Studio thread's job (`docs/GARAGE_MODELS_NEEDED.md`).
+
+## Economy sim + perf audit
+- Read `docs/economy-report.md` first: the 12-car collection completes by about day 30 and there is no coin sink afterwards; recommendations (higher pull price, sink, pity timer) are NOT applied. Raising the pull price needs `tests/lobby.test.luau` re-pinned (hardcodes 100).
+- `docs/performance-audit.md`: nothing measured in Studio; check part counts, `Persistent` streaming of four bowls, and garage lift replication on a phone.
