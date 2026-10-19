@@ -22,6 +22,9 @@ ProgressConfig.LevelStatBonus = 0.01
 -- One-time coins paid when a car reaches a level (index = level). PLACEHOLDER numbers.
 ProgressConfig.LevelUpCoins = { 0, 20, 30, 40, 50, 60, 80, 100, 130, 200 }
 
+-- Weekend: every coin a fight pays is multiplied (UTC days, 1 = Sunday .. 7 = Saturday). PLACEHOLDER.
+ProgressConfig.Weekend = { multiplier = 2, days = { 1, 7 } :: { number } }
+
 -- Leaderboards (Leaderboards.luau): how many rows, how often the board refreshes (seconds).
 ProgressConfig.Board = {
 	rows = 5, -- few rows = big, easy-to-read text

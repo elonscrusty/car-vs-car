@@ -140,3 +140,29 @@ H.test("best streak keeps the record after a loss and survives clean/copy", func
 	H.eq(Progress.clean({ bestStreak = "x" }).bestStreak, 0)
 	H.eq(Progress.clean(nil).bestStreak, 0)
 end)
+
+H.test("weekend: coins x2 on Saturday and Sunday (UTC), x1 on other days", function()
+	local day = 86400
+	-- 2026-10-17 was a Saturday, 2026-10-18 a Sunday, 2026-10-19 a Monday.
+	local sat = 20743 * day
+	H.eq(Progress.coinMultiplier(sat + 3600), 2)
+	H.eq(Progress.coinMultiplier(sat + day + 3600), 2)
+	H.eq(Progress.coinMultiplier(sat + 2 * day + 3600), 1)
+	H.eq(Progress.coinMultiplier(sat - day + 3600), 1)
+end)
+
+H.test("login streak: next day grows it, a missed day restarts, coins by day", function()
+	local Daily = require("../src/shared/Daily")
+	local d = Daily.default()
+	local day = 86400
+	H.eq(Daily.claim(d, 100 * day), true)
+	H.eq(d.streak, 1)
+	H.eq(Daily.claim(d, 100 * day + 5), false) -- same day: nothing
+	H.eq(Daily.claim(d, 101 * day), true)
+	H.eq(d.streak, 2)
+	H.truthy(Daily.streakCoins(d) > 0)
+	H.eq(Daily.claim(d, 103 * day), true) -- skipped a day
+	H.eq(d.streak, 1)
+	d.streak = 50
+	H.eq(Daily.streakCoins(d), Daily.streakCoins({ lastDay = 0, freePulls = 0, streak = 7 }))
+end)

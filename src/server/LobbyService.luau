@@ -186,6 +186,7 @@ function LobbyService.start(deps: Deps): Handle
 			Profiles.markDirty(player)
 		end
 		local now = os.time()
+		player:SetAttribute("CoinMultiplier", Progress.coinMultiplier(now)) -- 2 on weekends
 		local carId = Build.carFor(p.build, p.owned)
 		local xp = Progress.xpView(p.progress, carId)
 		local goal = NextGoal.compute({
@@ -420,6 +421,7 @@ function LobbyService.start(deps: Deps): Handle
 			})
 			Progress.recordMode(p.progress, reward.mode)
 			earned += progressResult.coinsBonus
+			earned = math.floor(earned * Progress.coinMultiplier(os.time()))
 			Inventory.addCoins(p, earned)
 			if won then
 				p.wins += 1
@@ -915,6 +917,8 @@ function LobbyService.start(deps: Deps): Handle
 	local function claimDaily(player: Player)
 		local p = Profiles.get(player)
 		if p ~= nil and Daily.claim(p.daily, os.time()) then
+			Inventory.addCoins(p, Daily.streakCoins(p.daily))
+			player:SetAttribute("LoginStreak", p.daily.streak)
 			Profiles.markDirty(player)
 			sendProfile(player)
 		end
