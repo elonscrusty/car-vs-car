@@ -197,29 +197,33 @@ function T.icon(parent, name, kind, x, y, size, color)
 			"Center"
 		)
 	elseif kind == "car" then
-		block(0.1, 0.4, 0.8, 0.38, 0.08)
-		block(0.25, 0.16, 0.5, 0.35, 0.06)
-		block(0.16, 0.7, 0.18, 0.22, 0.04)
-		block(0.66, 0.7, 0.18, 0.22, 0.04)
-		block(0.33, 0.24, 0.34, 0.16, 0.02, C.navy)
+		-- side view: low body, cabin with two windows, two wheels
+		block(0.05, 0.46, 0.9, 0.27, 0.09)
+		block(0.23, 0.24, 0.52, 0.28, 0.1)
+		block(0.3, 0.31, 0.17, 0.13, 0.03, C.navy)
+		block(0.51, 0.31, 0.17, 0.13, 0.03, C.navy)
+		for _, wx in { 0.15, 0.62 } do
+			local wheel = block(wx, 0.6, 0.23, 0.23, 0.115)
+			stroke(wheel, C.navy, 2)
+		end
 	elseif kind == "shop" then
-		bar(0.05, 0.13, 0.26, 0.08, 12)
-		bar(0.25, 0.24, 0.08, 0.45, -10)
-		bar(0.29, 0.28, 0.61, 0.09)
-		bar(0.33, 0.6, 0.48, 0.08)
-		bar(0.8, 0.3, 0.08, 0.33, 12)
-		block(0.35, 0.76, 0.14, 0.14, 0.07)
-		block(0.71, 0.76, 0.14, 0.14, 0.07)
+		-- cart: handle, stem, basket, two wheels
+		block(0.03, 0.14, 0.24, 0.09, 0.04)
+		bar(0.2, 0.22, 0.09, 0.5, -14)
+		block(0.3, 0.3, 0.62, 0.32, 0.06)
+		bar(0.26, 0.66, 0.62, 0.08)
+		block(0.32, 0.76, 0.16, 0.16, 0.08)
+		block(0.68, 0.76, 0.16, 0.16, 0.08)
 	elseif kind == "gift" then
-		block(0.1, 0.37, 0.8, 0.17, 0.02)
-		block(0.17, 0.55, 0.66, 0.37, 0.03)
-		block(0.44, 0.36, 0.12, 0.56, 0, C.navy)
-		local a = block(0.22, 0.06, 0.3, 0.29, 0.13)
-		a.BackgroundTransparency = 1 -- open loops, not solid blobs
-		stroke(a, color, math.max(2, size * 0.07))
-		local b = block(0.49, 0.06, 0.3, 0.29, 0.13)
-		b.BackgroundTransparency = 1
-		stroke(b, color, math.max(2, size * 0.07))
+		block(0.1, 0.38, 0.8, 0.17, 0.03)
+		block(0.17, 0.56, 0.66, 0.36, 0.03)
+		block(0.44, 0.38, 0.12, 0.54, 0, C.navy)
+		for _, lx in { 0.2, 0.54 } do
+			local loop = block(lx, 0.1, 0.26, 0.24, 0.11)
+			loop.BackgroundTransparency = 1 -- open loops that do not touch each other
+			stroke(loop, color, math.max(2, size * 0.07))
+		end
+		block(0.43, 0.28, 0.14, 0.12, 0.04)
 	elseif kind == "close" then
 		-- a plain bold X, centered
 		bar(0.1, 0.43, 0.8, 0.14, 45)
@@ -237,28 +241,35 @@ function T.icon(parent, name, kind, x, y, size, color)
 		bar(0.14, 0.1, 0.06, 0.84, 7)
 		T.checkers(f, size * 0.28, size * 0.12, size * 0.65, size * 0.46, size * 0.16, color)
 	elseif kind == "trophy" then
-		block(0.25, 0.08, 0.5, 0.46, 0.13)
-		bar(0.45, 0.5, 0.1, 0.3)
-		bar(0.27, 0.82, 0.46, 0.1)
-		local cup = block(0.06, 0.13, 0.88, 0.3, 0.13)
-		cup.BackgroundTransparency = 1
-		stroke(cup, color, 3)
+		for _, hx in { 0.05, 0.73 } do
+			local handle = block(hx, 0.14, 0.22, 0.26, 0.11)
+			handle.BackgroundTransparency = 1
+			stroke(handle, color, math.max(2, size * 0.07))
+		end
+		block(0.26, 0.08, 0.48, 0.46, 0.16)
+		block(0.44, 0.5, 0.12, 0.3, 0.02)
+		block(0.28, 0.8, 0.44, 0.1, 0.03)
 	elseif kind == "back" then
 		bar(0.16, 0.3, 0.42, 0.12, -45)
 		bar(0.16, 0.57, 0.42, 0.12, 45)
 		bar(0.32, 0.43, 0.56, 0.13)
 	elseif kind == "reset" then
-		local ring = block(0.14, 0.14, 0.72, 0.72, 0.36)
+		-- a ring with a chevron arrowhead on top
+		local ring = block(0.14, 0.2, 0.72, 0.72, 0.36)
 		ring.BackgroundTransparency = 1
-		stroke(ring, color, math.max(2, size * 0.09))
-		block(0.1, 0.05, 0.38, 0.22, 0.02)
-		bar(0.13, 0.22, 0.3, 0.12, -35)
+		stroke(ring, color, math.max(3, size * 0.1))
+		bar(0.5, 0.06, 0.3, 0.11, 38)
+		bar(0.5, 0.24, 0.3, 0.11, -38)
 	elseif kind == "claw" then
-		bar(0.45, 0.04, 0.1, 0.41)
-		bar(0.21, 0.44, 0.35, 0.1, -38)
-		bar(0.45, 0.44, 0.35, 0.1, 38)
-		bar(0.15, 0.62, 0.13, 0.27, -20)
-		bar(0.72, 0.62, 0.13, 0.27, 20)
+		-- gumball machine ball with a little car inside, on a base
+		local ball = block(0.1, 0.03, 0.8, 0.8, 0.4)
+		ball.BackgroundTransparency = 1
+		stroke(ball, color, math.max(3, size * 0.08))
+		block(0.28, 0.4, 0.44, 0.16, 0.05)
+		block(0.37, 0.27, 0.26, 0.17, 0.05)
+		block(0.3, 0.52, 0.12, 0.12, 0.06)
+		block(0.58, 0.52, 0.12, 0.12, 0.06)
+		block(0.26, 0.86, 0.48, 0.1, 0.03)
 	elseif kind == "soccer" then
 		local ball = block(0.04, 0.04, 0.92, 0.92, 0.48, C.white)
 		stroke(ball, C.ink, 2)
@@ -273,19 +284,25 @@ function T.icon(parent, name, kind, x, y, size, color)
 		tag.Rotation = 32
 		block(0.4, 0.2, 0.13, 0.13, 0.065, C.navy)
 	elseif kind == "duel" then
-		bar(0.12, 0.42, 0.77, 0.12, 45)
-		bar(0.12, 0.42, 0.77, 0.12, -45)
-		bar(0.1, 0.63, 0.32, 0.1, 45)
-		bar(0.6, 0.63, 0.32, 0.1, -45)
+		bar(0.08, 0.425, 0.84, 0.15, 45)
+		bar(0.08, 0.425, 0.84, 0.15, -45)
+		bar(0.06, 0.66, 0.36, 0.12, 45)
+		bar(0.58, 0.66, 0.36, 0.12, -45)
 	elseif kind == "gear" then
-		local ring = block(0.22, 0.22, 0.56, 0.56, 0.28)
-		ring.BackgroundTransparency = 1
-		stroke(ring, color, math.max(3, size * 0.12))
-		bar(0.43, 0.04, 0.14, 0.92, 0)
-		bar(0.04, 0.43, 0.92, 0.14, 0)
-		bar(0.43, 0.04, 0.14, 0.92, 45)
-		bar(0.43, 0.04, 0.14, 0.92, -45)
-		block(0.3, 0.3, 0.4, 0.4, 0.2, C.navy)
+		-- eight teeth around a solid disc with a hole
+		for i = 0, 7 do
+			local a = math.rad(i * 45)
+			local tooth = block(
+				0.5 + 0.35 * math.sin(a) - 0.09,
+				0.5 - 0.35 * math.cos(a) - 0.11,
+				0.18,
+				0.22,
+				0.03
+			)
+			tooth.Rotation = i * 45
+		end
+		block(0.16, 0.16, 0.68, 0.68, 0.34)
+		block(0.36, 0.36, 0.28, 0.28, 0.14, C.navy)
 	elseif kind == "boost" then
 		-- a flame-like up arrow
 		bar(0.45, 0.3, 0.1, 0.55)
@@ -298,13 +315,12 @@ function T.icon(parent, name, kind, x, y, size, color)
 			bar(0.13 + i * 0.35, 0.55, 0.4, 0.12, -45)
 		end
 	elseif kind == "Shield" then
-		local shield = block(0.16, 0.12, 0.68, 0.67, 0.23)
-		shield.BackgroundTransparency = 1 -- outline only, so the point and cross show
-		stroke(shield, color, math.max(2, size * 0.07))
-		local point = block(0.33, 0.53, 0.34, 0.34, 0.04)
+		-- solid shield with a cross cut out
+		block(0.2, 0.1, 0.6, 0.42, 0.1)
+		local point = block(0.265, 0.32, 0.47, 0.47, 0.07)
 		point.Rotation = 45
-		bar(0.45, 0.26, 0.1, 0.4)
-		bar(0.3, 0.4, 0.4, 0.1)
+		block(0.45, 0.24, 0.1, 0.4, 0.02, C.navy)
+		block(0.31, 0.38, 0.38, 0.1, 0.02, C.navy)
 	elseif kind == "Slam" then
 		-- a down arrow hitting the ground
 		bar(0.45, 0.1, 0.1, 0.5)
@@ -312,16 +328,22 @@ function T.icon(parent, name, kind, x, y, size, color)
 		bar(0.38, 0.42, 0.4, 0.11, -45)
 		bar(0.14, 0.83, 0.72, 0.09)
 	elseif kind == "Ram" then
-		local bumper = block(0.14, 0.35, 0.72, 0.37, 0.07)
-		bumper.BackgroundTransparency = 1
-		stroke(bumper, color, 3)
-		bar(0.13, 0.1, 0.27, 0.08, 45)
-		bar(0.61, 0.1, 0.27, 0.08, -45)
+		-- a car driving right with impact lines in front
+		block(0.03, 0.52, 0.6, 0.22, 0.08)
+		block(0.13, 0.36, 0.36, 0.2, 0.07)
+		block(0.1, 0.66, 0.16, 0.16, 0.08)
+		block(0.4, 0.66, 0.16, 0.16, 0.08)
+		bar(0.72, 0.32, 0.22, 0.08, -28)
+		bar(0.76, 0.52, 0.22, 0.08, 0)
+		bar(0.72, 0.72, 0.22, 0.08, 28)
 	elseif kind == "Magnet" then
-		local u = block(0.17, 0.1, 0.66, 0.77, 0.29)
-		u.BackgroundTransparency = 1
-		stroke(u, color, math.max(3, size * 0.1))
-		block(0.31, 0.07, 0.38, 0.4, 0, C.navy)
+		-- horseshoe with red tips
+		block(0.18, 0.1, 0.2, 0.5, 0.03)
+		block(0.62, 0.1, 0.2, 0.5, 0.03)
+		block(0.18, 0.4, 0.64, 0.5, 0.25)
+		block(0.38, 0.1, 0.24, 0.6, 0.1, C.navy)
+		block(0.18, 0.1, 0.2, 0.15, 0.03, C.red)
+		block(0.62, 0.1, 0.2, 0.15, 0.03, C.red)
 	elseif kind == "Jump" then
 		bar(0.2, 0.26, 0.4, 0.11, -45)
 		bar(0.4, 0.26, 0.4, 0.11, 45)
