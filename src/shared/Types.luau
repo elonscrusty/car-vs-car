@@ -12,6 +12,7 @@ export type UiUpdate = {
 		| "move"
 		| "buff"
 		| "modeInfo"
+		| "fightHud"
 		| "banner",
 	soccer: boolean?, -- ready: this is car soccer (the camera follows your car and the ball)
 	move: string?, -- move: "boost" | "jump" | "special" (cooldown started, `seconds` long)
@@ -35,6 +36,8 @@ export type UiUpdate = {
 	auto: boolean?, -- fight: the cars drive themselves (build-and-watch)
 	ability: string?, -- fight: name of your car's ability (the SPECIAL button), nil = none
 	buff: string?, -- buff: "shield" | "bighit" | "speed" (seconds = time left, 0 = ended)
+	carsLeft: number?, -- fight / fightHud: cars still alive
+	wins: number?, -- fight / fightHud: rounds you have won in this match
 	text: string?, -- ko: "K.O.!" or "RING OUT!"; modeInfo: the line shown at the top; banner: big centered text (3, 2, 1, GO!, score)
 }
 

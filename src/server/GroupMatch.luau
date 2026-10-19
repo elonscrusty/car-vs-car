@@ -1564,6 +1564,8 @@ function GroupMatch.new(
 				kind = "fight",
 				auto = false,
 				round = roundNo,
+				wins = roundWins[i] or 0,
+				carsLeft = total,
 				ability = if ability then ability.name else nil,
 			}
 		end)
@@ -1806,9 +1808,11 @@ function GroupMatch.new(
 			hudAt = now
 			local n = Modes.lastAliveCount(last)
 			for i = 1, total do
-				if tutorial[i] == nil then -- a lesson line is on screen instead
-					sendTo(i, { kind = "modeInfo", text = string.format("%d CARS LEFT", n) })
-				end
+				-- Numbers for the fight HUD (cars left, my round wins); words stay free for the lessons.
+				sendTo(
+					i,
+					{ kind = "fightHud", carsLeft = n, wins = roundWins[i] or 0, round = roundNo }
+				)
 			end
 		end
 	end)

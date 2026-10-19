@@ -5,6 +5,24 @@
     "ReplicatedStorage": {
       "Shared": {
         "$path": "src/shared"
+      },
+      "CVC_Champions": {
+        "$className": "Folder",
+        "Shared": {
+          "$path": "src/champions/shared"
+        },
+        "Actions": {
+          "$className": "BindableEvent"
+        },
+        "State": {
+          "$className": "BindableEvent"
+        },
+        "Open": {
+          "$className": "BindableEvent"
+        },
+        "Notify": {
+          "$className": "BindableEvent"
+        }
       }
     },
     "ServerScriptService": {
@@ -16,6 +34,9 @@
       "StarterPlayerScripts": {
         "Client": {
           "$path": "src/client"
+        },
+        "ChampionsClient": {
+          "$path": "src/champions/ChampionsClient.client.luau"
         }
       }
     }

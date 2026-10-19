@@ -63,5 +63,6 @@ require("./cartraits.test")
 require("./economy_sim.test")
 require("./aibehave.test")
 require("./botsim.test")
+require("./champions.test")
 
 Harness.summary()

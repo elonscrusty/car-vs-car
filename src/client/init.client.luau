@@ -12,7 +12,6 @@ local FirstWin = require(ReplicatedStorage.Shared.FirstWin)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local MenuRules = require(ReplicatedStorage.Shared.MenuRules)
 local Sounds = require(ReplicatedStorage.Shared.Sounds)
-local ActionInput = require(script.ActionInput)
 local AimInput = require(script.AimInput)
 local BallFx = require(script.BallFx)
 local BuffUi = require(script.BuffUi)
@@ -24,13 +23,11 @@ local FightFx = require(script.FightFx)
 local GoalFx = require(script.GoalFx)
 local HintUi = require(script.HintUi)
 local HitFlash = require(script.HitFlash)
-local LobbyUi = require(script.LobbyUi)
+local ChampionsBridge = require(script.ChampionsBridge)
 local BotLevelUi = require(script.BotLevelUi)
-local ModeUi = require(script.ModeUi)
 local MenuBar = require(script.MenuBar)
 local CenterBanner = require(script.CenterBanner)
 local ModeBanner = require(script.ModeBanner)
-local ProgressUi = require(script.ProgressUi)
 local Quality = require(script.Quality)
 local QuestUi = require(script.QuestUi)
 local SaveNotice = require(script.SaveNotice)
@@ -52,16 +49,12 @@ local centerBanner = CenterBanner.new()
 local director = CameraDirector.new()
 local buffs = BuffUi.new()
 local menu = MenuBar.new() -- features add their own lobby buttons here (see MenuBar.luau)
-local progressUi = ProgressUi.new()
 -- Launch cuts live behind FeatureFlags: the UI is simply not built while a flag is off.
 local botLevelUi = if FeatureFlags.enabled("botLevelButton")
 	then BotLevelUi.new(menu, function(level: string)
 		remotes.LobbyAction:FireServer("setBotLevel", level)
 	end)
 	else nil
-local modeUi = ModeUi.new(menu, function(mode: string)
-	remotes.LobbyAction:FireServer("setMode", mode)
-end)
 SaveNotice.new()
 
 local questUi = QuestUi.new(menu, function(action: string, arg: any?)
@@ -84,7 +77,6 @@ local driver: DriveCar.DriveCar
 local skids = SkidFx.new()
 task.spawn(SteelLobby.start)
 WheelFx.start()
-local actions: ActionInput.ActionInput
 local view: Ui.View
 
 local lastWins = 0 -- saved win count from the last profile (a first win is decided from it)
@@ -94,39 +86,32 @@ local hints = HintUi.new(function(id: string)
 	remotes.LobbyAction:FireServer("hintSeen", id)
 end)
 
-view = Ui.create({
-	onPick = function(carId: string)
-		remotes.SelectCar:FireServer(carId)
-	end,
-	onRematch = function()
-		remotes.LobbyAction:FireServer("rematch")
-	end,
-	onLeave = function()
-		remotes.LobbyAction:FireServer("leaveMatch")
-	end,
-})
+view = Ui.create()
 
-local lobby = LobbyUi.new({
-	onToLobby = function()
-		aim.stop()
-		steering.stop()
-		driver.stop()
-		skids.stop()
-		actions.stop()
-		BallFx.stop()
-		TeamIcons.stop()
-		modeBanner.hide()
-		view.hideMatch()
-		ProximityPromptService.Enabled = true
-		director.release()
-		menu.setVisible(true)
-		progressUi.setVisible(true)
-		SoundFx.music("music_lobby")
-		hints.trigger("claw") -- after a match: point at the claw machine
-	end,
-})
+-- Carter's Champions UI (src/champions) draws every lobby and match screen; the bridge feeds it.
+local champions = ChampionsBridge.new()
+
+-- Back at the lobby: stop every match piece and give the camera back.
+local function onToLobby()
+	aim.stop()
+	steering.stop()
+	driver.stop()
+	skids.stop()
+	BallFx.stop()
+	TeamIcons.stop()
+	modeBanner.hide()
+	view.hideMatch()
+	ProximityPromptService.Enabled = true
+	director.release()
+	menu.setVisible(true)
+	SoundFx.music("music_lobby")
+	hints.trigger("claw") -- after a match: point at the claw machine
+end
 remotes.LobbyUpdate.OnClientEvent:Connect(function(u: Types.LobbyUpdate)
-	lobby.handleUpdate(u)
+	champions.handleLobby(u)
+	if u.kind == "toLobby" then
+		onToLobby()
+	end
 	questUi.handleUpdate(u)
 	if spinUi then
 		spinUi.handleUpdate(u)
@@ -138,18 +123,11 @@ remotes.LobbyUpdate.OnClientEvent:Connect(function(u: Types.LobbyUpdate)
 	if u.kind == "profile" then
 		lastWins = u.wins
 		hints.loadSeen(u.hintsSeen)
-		progressUi.update(
-			u.carLevels,
-			if FeatureFlags.enabled("rankBadges") then u.rank else nil,
-			u.streak
-		)
 		if botLevelUi then
 			botLevelUi.handleProfile(u.botLevel)
 		end
-		modeUi.handleProfile(u.mode)
 		-- New players see only GIFT until they have finished a couple of matches.
 		local shown = MenuRules.visible({ matches = u.matches })
-		menu.setShown("gift", shown.gift)
 		menu.setShown("quests", shown.quests)
 		menu.setShown("garage", shown.garage)
 		hints.trigger("pad") -- no-op once seen
@@ -194,15 +172,10 @@ driver = DriveCar.new(steering.read, function()
 	Effects.speedLines(GameConfig.Feel.boostFxSeconds)
 end)
 
-actions = ActionInput.new(function(name: string)
-	remotes.Action:FireServer(name)
-end)
-
 remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
+	champions.handleUi(u)
 	if u.kind == "aim" then
 		menu.setVisible(false)
-		progressUi.setVisible(false)
-		lobby.hideChoices() -- the pick card must not cover the match
 		ProximityPromptService.Enabled = false -- no "Join" pad prompt over the arena
 		if u.center then
 			if u.round == 1 or camSide == nil then
@@ -225,8 +198,6 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		hints.startAimNudge(u.carPos) -- pulsing arrow if they have not dragged after 3 s
 	elseif u.kind == "ready" then
 		menu.setVisible(false)
-		progressUi.setVisible(false)
-		lobby.hideChoices()
 		ProximityPromptService.Enabled = false -- no "Join" pad prompt floating over the arena
 		if u.center then
 			camSide = if u.carPos then u.carPos - u.center else nil
@@ -237,7 +208,7 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 			BallFx.start() -- ball trail and kick sparks
 		end
 		TeamIcons.start()
-		view.showReady(u.yourCar or "", u.enemyCar or "", u.seconds or 3, u.enemyName or "BOT")
+		view.showReady()
 		hints.done("pad")
 		hints.stopAimNudge()
 	elseif u.kind == "fight" then
@@ -252,9 +223,6 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 			steering.start() -- the server ignores Steer outside the fight
 			driver.start() -- drives your own car here once the server hands it over
 		end
-		if u.auto ~= true then
-			actions.start(u.ability)
-		end
 	elseif u.kind == "modeInfo" then
 		modeBanner.show(u.text or "")
 	elseif u.kind == "banner" then
@@ -263,8 +231,6 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 			SoundFx.play(countdownSound) -- silent until carter fills the id in SoundConfig
 		end
 		centerBanner.show(u.text or "", u.seconds or 1)
-	elseif u.kind == "move" then
-		actions.cooldown(u.move or "", u.seconds or 0)
 	elseif u.kind == "buff" then
 		buffs.handleUpdate(u)
 	elseif u.kind == "roundEnd" then
@@ -272,7 +238,6 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		steering.stop()
 		driver.stop()
 		skids.stop()
-		actions.stop()
 		BallFx.stop()
 		TeamIcons.stop()
 		view.showRoundEnd(u.youLost == true)
@@ -300,7 +265,6 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		steering.stop()
 		driver.stop()
 		skids.stop()
-		actions.stop()
 		BallFx.stop()
 		TeamIcons.stop()
 		modeBanner.hide()
@@ -312,11 +276,3 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 end)
 
 SoundFx.music("music_lobby") -- silent until carter fills the id in SoundConfig
-local addMusicButton
-function addMusicButton()
-	menu.add("music", if SoundFx.isMuted() then "MUSIC OFF" else "MUSIC", 90, function()
-		SoundFx.toggleMute()
-		addMusicButton()
-	end)
-end
-addMusicButton()

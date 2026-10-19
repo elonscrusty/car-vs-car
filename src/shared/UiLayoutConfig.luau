@@ -76,8 +76,8 @@ UiLayoutConfig.menu = {
 	buttonW = 104,
 	buttonH = 52,
 	gap = 6,
-	top = 84, -- under the coins box
-	topStudio = 160, -- under the Studio-only DEV button
+	top = 96, -- under the Champions profile bar
+	topStudio = 96, -- (the Studio-only DEV button is gone)
 	bottomMargin = 8,
 }
 
