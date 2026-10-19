@@ -244,7 +244,7 @@ function LobbyLife.build(folder: Folder, origin: Vector3, stage: Vector3, stageT
 
 		-- Pad lights pulse.
 		for i, l in padLights do
-			l.Brightness = 0.3 + 0.12 * math.sin(t * 2.2 + i)
+			l.Brightness = 1.5 + 0.4 * math.sin(t * 2.2 + i) -- the PLAY pads are the brightest thing in the hall
 		end
 
 		-- Big sign swaps between yellow and cyan.
