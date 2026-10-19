@@ -6,6 +6,17 @@
 -- `model` is the FBX file name in vehicles/vehicle-pack-30.zip (without .fbx); the Studio side
 -- finds the imported model by this name.
 
+-- Sibling loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
+local function sibling(name: string): any
+	if script then
+		return require((script :: any).Parent[name])
+	end
+	local luneRequire: any = require -- relative string paths only exist in Lune
+	return luneRequire("./" .. name)
+end
+
+local CarTraitsConfig = sibling("CarTraitsConfig")
+
 export type Entry = {
 	id: string, -- saved in profiles: never rename
 	name: string, -- shown in menus (caps)
@@ -156,11 +167,15 @@ end
 function CarCatalog.statsFor(entry: Entry): { [string]: any }
 	local n = CarCatalog.Neutral
 	local o = entry.stats or {}
+	-- Body size: the neutral box x the car's sizeScale trait (CarTraitsConfig), so a big truck is
+	-- big and a buggy is small. Mass stays what the stats say (density adapts).
+	local row = CarTraitsConfig.Cars[entry.id]
+	local scale = if row and row.sizeScale then row.sizeScale else 1
 	return {
 		name = entry.name,
 		blurb = entry.role or (entry.rarity .. " " .. entry.ability),
 		rgb = entry.rgb,
-		size = n.size,
+		size = { n.size[1] * scale, n.size[2] * scale, n.size[3] * scale },
 		hp = o.hp or n.hp,
 		mass = o.mass or n.mass,
 		maxSpeed = o.maxSpeed or n.maxSpeed,

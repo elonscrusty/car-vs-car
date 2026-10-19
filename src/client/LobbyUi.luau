@@ -10,6 +10,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
+local CarStatsUi = require(script.Parent.CarStatsUi)
 local Gacha = require(ReplicatedStorage.Shared.Gacha)
 local Inventory = require(ReplicatedStorage.Shared.Inventory)
 local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
@@ -500,6 +501,7 @@ function LobbyUi.new(hooks: Hooks): Handle
 		row.LayoutOrder = i
 		row.ZIndex = 13
 		corner(row, 0.08)
+		CarStatsUi.attach(row, stats)
 		local swatch = frame(row, UDim2.fromOffset(52, 52), UDim2.fromOffset(12, 12), carColor(id))
 		swatch.ZIndex = 14
 		corner(swatch, 0.25)

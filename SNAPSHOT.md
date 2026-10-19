@@ -164,3 +164,9 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 - Hall is 192 long (`LobbyLayout.room.halfL = 96`). 8 garages, each 40 wide x 30 deep, open front: low wall (1.8 high) with a 14 wide gap (`LobbyLayout.bay`). Store/paint moved to the front corners (z 80), spawn z 76, lounge props near the door.
 - Likes: `src/shared/GarageLikes.luau` (pure, tested) saved in `profile.garage` (`received`, `given`). One like per garage ever, not your own, max 300 given. Server handler in `LobbyService.luau` (`bays.onLike`), rate limited 3 per 5s. Heart + `LikePrompt` (key F) at each door in `LobbyBays.luau`; sign shows "N LIKES". No Visit button.
 - Old GarageRoom/GarageFront models no longer placed (wrong size). Model wish list: `docs/GARAGE_MODELS_NEEDED.md`.
+
+## Car feel: handling traits (review M4, branch claude/w2-car-feel)
+- `shared/CarTraitsConfig.luau` (data + clamps) and `shared/CarTraits.luau` (pure): per-car `grip`, `drift`, `punch` (accel curve), `highTurn` (turn rate at top speed), `sizeScale`. Attached as `CarConfig.Cars[id].traits`. `CarDrive.push/manual` read them (human-driven cars; bots get accel curve + grip only). Pack cars' body size now = neutral box x `sizeScale` (CarCatalog.statsFor).
+- `CarTraits.describe` ("Fast, slippery") and `CarTraits.bars`; `client/CarStatsUi.luau` draws 4 bars (S, W, T, H) on the store card, hooked in `LobbyUi` (require + one call).
+- `CarConfig.PowerWeights` gained `grip`, `punch`, `highTurn`; balance test still passes. Test: `tests/cartraits.test.luau` (every launch car differs from every other in 2+ traits). 337 pass.
+- All trait numbers are PLACEHOLDERS, never driven in Studio. See `docs/car-feel.md`. No ability numbers changed.

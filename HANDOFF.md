@@ -149,3 +149,6 @@ See SNAPSHOT.md "Social + safety". Tune cheat limits in `src/shared/CarSanityCon
 ## Big open garages + likes
 - Done in code and unit tests (`lune run tests/run` 330 pass, stylua clean). NOT seen in Studio: how the longer hall, low walls and heart look is unchecked. Lobby wall props were moved by hand (`LobbyMore`, `LobbyDecor`, `LobbyShell`); check for overlaps in the picture check.
 - Studio placement of any new Blender garage models is the Studio thread's job (`docs/GARAGE_MODELS_NEEDED.md`).
+
+## Car feel traits
+See SNAPSHOT.md "Car feel" and `docs/car-feel.md`. Retune in `src/shared/CarTraitsConfig.luau`. First play test: does Light/Drift slide enough, does Armored/Monster push wide without feeling stuck, do bigger pack cars (Monster 1.35x, Armored 1.4x) fit the bowl and garages, do bars fit the store card at small widths.
