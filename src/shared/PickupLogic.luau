@@ -19,7 +19,9 @@ end
 -- A new buff of a kind refreshes that kind; other kinds keep running. Returns its seconds.
 function PickupLogic.apply(buffs: Buffs, kind: string, cfg: Cfg): number
 	local entry = (cfg :: any)[kind]
-	local seconds: number = if type(entry) == "table" then entry.seconds else 0
+	local seconds: number = if type(entry) == "table" and type(entry.seconds) == "number"
+		then entry.seconds
+		else 0
 	if seconds > 0 then
 		buffs[kind] = seconds
 	end
