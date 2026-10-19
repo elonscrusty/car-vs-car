@@ -10,6 +10,7 @@ local function sibling(name: string): any
 	return luneRequire("./" .. name)
 end
 
+local BattleConfig = sibling("BattleConfig")
 local CarConfig = sibling("CarConfig")
 local Inventory = sibling("Inventory")
 local LobbyConfig = sibling("LobbyConfig")
@@ -36,6 +37,41 @@ local Gacha = {}
 
 local RARITY_ORDER = CarConfig.Rarities
 
+-- What the machine hands out: the old garage cars, or (auto-battle mode) the gumball fighters.
+-- The server switches this once at start; one config row per fighter is all a new car needs.
+local poolIds: () -> { string } = function()
+	return CarConfig.Order
+end
+local poolRarity: (string) -> string? = function(id)
+	return LobbyConfig.Rarity[id]
+end
+
+function Gacha.useCars()
+	poolIds = function()
+		return CarConfig.Order
+	end
+	poolRarity = function(id)
+		return LobbyConfig.Rarity[id]
+	end
+end
+
+function Gacha.useFighters()
+	poolIds = function()
+		local ids = {}
+		for _, id in BattleConfig.Order do
+			local f = BattleConfig.Fighters[id]
+			if f and f.gumball and f.enabled then
+				table.insert(ids, id)
+			end
+		end
+		return ids
+	end
+	poolRarity = function(id)
+		local f = BattleConfig.Fighters[id]
+		return if f then f.rarity else nil
+	end
+end
+
 -- The odds the player sees AND the server rolls with. Rarities with no cars are left out and the
 -- rest are re-scaled to 100 (1 decimal), so the shown numbers are always the real ones.
 function Gacha.oddsTable(): { OddsRow }
@@ -43,8 +79,8 @@ function Gacha.oddsTable(): { OddsRow }
 	local total = 0
 	for _, rarity in RARITY_ORDER do
 		local cars = {}
-		for _, id in CarConfig.Order do
-			if LobbyConfig.Rarity[id] == rarity then
+		for _, id in poolIds() do
+			if poolRarity(id) == rarity then
 				table.insert(cars, id)
 			end
 		end
@@ -121,7 +157,7 @@ end
 
 -- Coins back when the prize is a car you already own (more for rarer cars).
 function Gacha.refundFor(carId: string): number
-	local rarity = LobbyConfig.Rarity[carId]
+	local rarity = poolRarity(carId)
 	local byRarity = LobbyConfig.Gacha.duplicateRefunds :: { [string]: number }
 	return (rarity and byRarity[rarity]) or LobbyConfig.Gacha.duplicateRefund
 end
@@ -197,13 +233,17 @@ function Gacha.pull(p: Profile, rng: () -> number): PullResult
 	local carId = chosen.cars[index]
 
 	-- Epic or better (forced or lucky) resets the counter; anything else counts up.
-	local gotGood = pityRarities()[LobbyConfig.Rarity[carId]] == true
+	local gotGood = pityRarities()[poolRarity(carId) or ""] == true
 	pity = if gotGood then 0 else pity + 1
 	if p.progress then
 		p.progress.gachaPity = pity
 	end
 
 	local isNew = Inventory.grantCar(p, carId)
+	if BattleConfig.Fighters[carId] and not p.owned[carId] then
+		p.owned[carId] = true
+		isNew = true
+	end
 	local refund = 0
 	if not isNew then
 		refund = Gacha.refundFor(carId)

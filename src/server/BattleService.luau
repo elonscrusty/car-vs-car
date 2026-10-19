@@ -230,21 +230,10 @@ function BattleService.start(opts: {
 				id = c.id,
 				state = c.state,
 				selectable = c.selectable,
-				price = f.price,
 				enabled = f.enabled,
 			})
 		end
 		return list
-	end
-
-	local function sendChoices(part: Part)
-		local p = if part.player then Profiles.get(part.player) else nil
-		send(part, {
-			kind = "choices",
-			choices = choicesFor(part),
-			coins = if p then p.coins else 0,
-			selected = part.pick,
-		})
 	end
 
 	local function startSelect(m: Match)
@@ -828,24 +817,6 @@ function BattleService.start(opts: {
 					local id = BattleSelect.resolve(part.pick or part.last, ctxFor(part))
 					part.pick, part.locked = id, true
 					send(part, { kind = "selected", id = id, locked = true })
-				end
-			elseif name == "buy" then
-				-- Spend saved coins on a fighter (price in BattleConfig, placeholder numbers).
-				local f = BattleConfig.fighter(arg)
-				local p = Profiles.get(player)
-				if
-					f
-					and p
-					and f.enabled
-					and p.owned[f.id] ~= true
-					and (m.phase == "select" or m.phase == "matchResult")
-					and p.coins >= f.price
-				then
-					Inventory.addCoins(p, -f.price)
-					p.owned[f.id] = true
-					Profiles.markDirty(player)
-					opts.sendProfile(player)
-					sendChoices(part)
 				end
 			elseif name == "rematch" then
 				if

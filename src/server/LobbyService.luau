@@ -109,6 +109,9 @@ local PAD_LEAVE_EXTRA = 10 -- studs past the prompt distance before we cancel
 local LOOP_STEP = 0.25
 
 function LobbyService.start(deps: Deps): Handle
+	if FeatureFlags.enabled("battleMode") then
+		Gacha.useFighters() -- the gumball machine drops the battle cars
+	end
 	local remotes = deps.remotes
 	local pads = deps.lobby.pads
 	local padCfg = LobbyConfig.Pad
