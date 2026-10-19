@@ -690,17 +690,6 @@ function Lobby.build(): LobbyHandle
 								)
 							end
 						end
-						-- Yellow / black hazard strip along the bottom.
-						onWall("WallHazard", Vector3.new(lowerW * 0.98, 0.8, 0.3), 0, 0.6, YELLOW)
-						for k = 0, math.floor(lowerW / 2) - 1 do
-							onWall(
-								"WallHazardStripe",
-								Vector3.new(0.9, 0.8, 0.35),
-								(k + 0.5) * 2 - lowerW / 2,
-								0.6,
-								DARK
-							)
-						end
 					end
 				end
 				local ucf = base * CFrame.new(0, WH + UH / 2, 0)
@@ -992,15 +981,6 @@ function Lobby.build(): LobbyHandle
 	end
 	for _, tz in { -22, 24 } do
 		ceil("PennantCable", Vector3.new(HW * 2 - 8, 0.2, 0.2), world(0, top - 10, tz), DARK)
-		local colors = { RED, Color3.fromRGB(250, 250, 250), YELLOW, CYAN }
-		for k = 0, 21 do
-			ceil(
-				"Pennant",
-				Vector3.new(2, 2, 0.15),
-				world(-HW + 6 + k * 5.4, top - 11.3, tz) * CFrame.Angles(0, 0, math.pi / 4),
-				colors[k % 4 + 1]
-			)
-		end
 	end
 	for _, tx in { -8, 8 } do
 		ceil(
