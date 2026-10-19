@@ -37,6 +37,7 @@ export type Profile = {
 	spin: Spin.Data, -- daily spin wheel: last day spun (see Spin)
 	paint: Paint.PaintData, -- owned colors/stickers and what each car wears (see Paint)
 	build: Build.BuildData, -- build-and-watch: chosen car, parts and part levels (see Build)
+	starterPicked: boolean, -- true once the player has chosen 1 of 3 starter cars (old saves: true)
 	garage: GarageLikes.Data, -- likes this garage got and which garages this player liked (see GarageLikes)
 }
 
@@ -50,6 +51,14 @@ local function cleanNumber(v: any): number
 		return 0
 	end
 	return math.clamp(math.floor(v), 0, MAX_NUMBER)
+end
+
+local function countOwned(owned: { [string]: boolean }): number
+	local n = 0
+	for _ in owned do
+		n += 1
+	end
+	return n
 end
 
 local function grantStarters(owned: { [string]: boolean })
@@ -79,12 +88,28 @@ function Inventory.default(): Profile
 		paint = Paint.default(),
 		build = Build.default(),
 		garage = GarageLikes.default(),
+		starterPicked = false,
 	}
 end
 
 -- Never errors. Accepts anything, returns a clean Profile.
 function Inventory.migrate(raw: any): Profile
 	if type(raw) ~= "table" then
+		-- New players choose 1 of LobbyConfig.StarterChoices, once. The car is added and set as the garage
+		-- car. reason: "done" (already chose) or "unknown" (not one of the choices).
+		function Inventory.pickStarter(p: Profile, carId: any): (boolean, string?)
+			if p.starterPicked then
+				return false, "done"
+			end
+			if type(carId) ~= "string" or not table.find(LobbyConfig.StarterChoices, carId) then
+				return false, "unknown"
+			end
+			Inventory.grantCar(p, carId)
+			p.build.carId = carId
+			p.starterPicked = true
+			return true, nil
+		end
+
 		return Inventory.default()
 	end
 	local owned: { [string]: boolean } = {}
@@ -124,6 +149,10 @@ function Inventory.migrate(raw: any): Profile
 		paint = Paint.clean(raw.paint),
 		build = Build.clean(raw.build),
 		garage = GarageLikes.clean(raw.garage),
+		-- Anyone who already played or owns more than the starter has made their choice.
+		starterPicked = raw.starterPicked == true or cleanNumber(raw.matches) > 0 or countOwned(
+			owned
+		) > 1,
 	}
 end
 

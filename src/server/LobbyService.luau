@@ -212,6 +212,8 @@ function LobbyService.start(deps: Deps): Handle
 			wins = p.wins,
 			matches = p.matches,
 			owned = Inventory.ownedList(p),
+			starterPicked = p.starterPicked,
+			starterChoices = if p.starterPicked then nil else LobbyConfig.StarterChoices,
 			freePullAvailable = (LobbyConfig.Gacha.firstPullFree and not p.freePullUsed)
 				or p.daily.freePulls > 0,
 			hintsSeen = Hints.seenList(p.hintsSeen),
@@ -1031,6 +1033,15 @@ function LobbyService.start(deps: Deps): Handle
 					if carId then
 						registerPick(player, carId)
 					end
+				end
+			elseif action == "pickStarter" then
+				-- A new player's first choice: 1 of 3 starter cars (carter).
+				local prof = Profiles.get(player)
+				if prof and hintLimiter.allow(player, os.clock()) then
+					if Inventory.pickStarter(prof, arg) then
+						Profiles.markDirty(player)
+					end
+					sendProfile(player)
 				end
 			elseif action == "play" then
 				if playLimiter.allow(player, os.clock()) then
