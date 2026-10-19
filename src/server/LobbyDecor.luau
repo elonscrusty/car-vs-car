@@ -100,13 +100,14 @@ function LobbyDecor.clone(
 				end
 			end
 			if neon then
+				d.Color = d.Color:Lerp(Color3.new(0, 0, 0), 0.3) -- calmer trim: only PLAY should shout
 				d.Material = Enum.Material.Neon
 				if glowRange and not lit then
 					lit = true
 					local l = Instance.new("PointLight")
 					l.Color = d.Color
 					l.Range = glowRange
-					l.Brightness = 0.8
+					l.Brightness = 0.35
 					l.Shadows = false
 					l.Parent = d
 				end

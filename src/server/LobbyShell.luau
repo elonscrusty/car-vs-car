@@ -176,6 +176,21 @@ function LobbyShell.build(folder: Folder, origin: Vector3)
 		put("ParkingMark", b.x - b.face * (L.bay.w / 2 - 5.5), 0.05, b.z, yaw, nil, "Garage")
 	end
 
+	-- The Blender garage rooms have bright white floors: tint any near-white flat part light steel.
+	for _, m in shellGroup:GetChildren() do
+		if m.Name == "GarageRoomBig" or m.Name == "GarageOpenFront" then
+			for _, d in m:GetDescendants() do
+				if d:IsA("BasePart") then
+					local c = d.Color
+					local flat = d.Size.Y <= 2 and math.max(d.Size.X, d.Size.Z) >= 8
+					if flat and math.min(c.R, c.G, c.B) > 0.75 then
+						d.Color = Color3.fromRGB(150, 158, 172)
+					end
+				end
+			end
+		end
+	end
+
 	-- Roof trusses across the hall.
 	for _, z in { -82, -50, -17, 16, 49, 82 } do
 		put("RoofTruss", 0, WH + L.room.upper - 12.8, z, 0)

@@ -11,7 +11,7 @@ local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 
 local LobbyMore = {}
 
-local RIGHT, FRONT = math.pi / 2, 0
+local FRONT = 0
 
 function LobbyMore.build(folder: Folder, origin: Vector3)
 	local L = LobbyLayout
@@ -30,10 +30,10 @@ function LobbyMore.build(folder: Folder, origin: Vector3)
 	-- No podium in the middle any more. The top racers board hangs on the front wall (it used to
 	-- stand among the match pads).
 	put("Leaderboard", -47, 0, HL - 2, FRONT)
-	put("Sign_Play", 40, 9, HL - 0.7, FRONT) -- low on the front wall, on the wall panel
+	-- (The PLAY sign is built over the pads in Lobby.luau now, not beside the machines.)
 
 	-- Lounge in the front corners.
-	put("VendingMachine", 61, 0, 86, RIGHT)
+	put("VendingMachine", 61, 0, HL - 2.5, FRONT) -- front wall, its front toward the hall (the paint booth has the corner)
 	put("ArcadeCabinet", 32, 0, 90, FRONT)
 	put("ArcadeCabinet", 38, 0, 90, FRONT)
 	put("Couch", -33, 0, 90, FRONT)
