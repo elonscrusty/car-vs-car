@@ -24,11 +24,12 @@ return {
 	gridSpacing = 14, -- studs between grid rows
 	gridWidth = 14, -- studs between the two columns
 	gridBack = 14, -- first row this far behind the line
-	-- Jumps: a ramp in the middle of a stretch (stretch n = from waypoint n to n+1).
+	-- Jumps: a gentle hill (up slope + down slope, no steep face a slow car could hang on) in the
+	-- middle of a stretch (stretch n = from waypoint n to n+1). `length` is each slope's length.
 	ramps = {
-		{ seg = 1, t = 0.5, width = 18, length = 22, height = 5 },
-		{ seg = 4, t = 0.5, width = 18, length = 22, height = 5 },
-		{ seg = 6, t = 0.4, width = 18, length = 22, height = 5 },
+		{ seg = 1, t = 0.5, width = 26, length = 20, height = 3 },
+		{ seg = 4, t = 0.5, width = 26, length = 20, height = 3 },
+		{ seg = 6, t = 0.4, width = 26, length = 20, height = 3 },
 	},
 	debug = true, -- print race progress and why it ended to the output (turn off when it plays right)
 	laps = 3,

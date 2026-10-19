@@ -79,7 +79,12 @@ function RaceTrack.respawn(lastPassed: number, slot: number): Spot
 	local dx, dz = RaceTrack.direction(lastPassed)
 	local sx, sz = -dz, dx
 	local side = ((slot - 1) % 3 - 1) * 10
-	return { x = p.x + sx * side, z = p.z + sz * side, yaw = RaceTrack.yawFor(dx, dz) }
+	local ahead = 12 -- a little past the gate, clear of the start grid
+	return {
+		x = p.x + dx * ahead + sx * side,
+		z = p.z + dz * ahead + sz * side,
+		yaw = RaceTrack.yawFor(dx, dz),
+	}
 end
 
 -- Corners of the world the ground must cover: min x, max x, min z, max z (with the margin).
