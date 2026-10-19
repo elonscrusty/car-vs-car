@@ -11,10 +11,17 @@ export type Stats = {
 	accel: number,
 	turnRate: number,
 	damageMult: number,
+	traits: { grip: number, punch: number, highTurn: number }?, -- counted when weights has them
 }
 
 function CarPower.score(stats: Stats, weights: { [string]: number }): number
-	return stats.hp * weights.hp
+	local traitScore = 0
+	local t = stats.traits
+	if t and weights.grip and weights.punch and weights.highTurn then
+		traitScore = t.grip * weights.grip + t.punch * weights.punch + t.highTurn * weights.highTurn
+	end
+	return traitScore
+		+ stats.hp * weights.hp
 		+ stats.mass * weights.mass
 		+ stats.maxSpeed * weights.maxSpeed
 		+ stats.accel * weights.accel

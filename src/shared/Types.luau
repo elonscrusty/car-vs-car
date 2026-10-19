@@ -11,7 +11,9 @@ export type UiUpdate = {
 		| "ko"
 		| "move"
 		| "buff"
-		| "modeInfo",
+		| "modeInfo"
+		| "banner",
+	soccer: boolean?, -- ready: this is car soccer (the camera follows your car and the ball)
 	move: string?, -- move: "boost" | "jump" | "special" (cooldown started, `seconds` long)
 	round: number?,
 	yourCar: string?,
@@ -33,7 +35,7 @@ export type UiUpdate = {
 	auto: boolean?, -- fight: the cars drive themselves (build-and-watch)
 	ability: string?, -- fight: name of your car's ability (the SPECIAL button), nil = none
 	buff: string?, -- buff: "shield" | "bighit" | "speed" (seconds = time left, 0 = ended)
-	text: string?, -- ko: "K.O.!" or "RING OUT!"; modeInfo: the line shown at the top
+	text: string?, -- ko: "K.O.!" or "RING OUT!"; modeInfo: the line shown at the top; banner: big centered text (3, 2, 1, GO!, score)
 }
 
 -- Lobby messages (LobbyUpdate remote), a union discriminated by `kind`.
@@ -75,8 +77,8 @@ export type LobbyUpdate =
 	| { kind: "storeResult", ok: boolean, carId: string, reason: string?, coins: number }
 	| { kind: "paintResult", ok: boolean, reason: string? }
 	| { kind: "buildResult", ok: boolean, reason: string? }
-	| { kind: "countdown", seconds: number }
+	| { kind: "countdown", seconds: number, alone: boolean? }
 	| { kind: "choices", cars: { string }, seconds: number }
-	| { kind: "toLobby", coinsEarned: number, won: boolean }
+	| { kind: "toLobby", coinsEarned: number, won: boolean, firstWin: boolean? }
 
 return {}

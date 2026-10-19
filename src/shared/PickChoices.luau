@@ -21,4 +21,9 @@ function PickChoices.choose(owned: { string }, count: number, rng: () -> number)
 	return result
 end
 
+-- One car to pick from is no choice: skip the screen and use it.
+function PickChoices.shouldSkip(offeredCount: number): boolean
+	return offeredCount == 1
+end
+
 return PickChoices

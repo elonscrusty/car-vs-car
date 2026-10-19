@@ -5,7 +5,11 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
+local FirstWin = require(ReplicatedStorage.Shared.FirstWin)
+local FirstWinConfig = require(ReplicatedStorage.Shared.FirstWinConfig)
 local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
+local UiLayout = require(ReplicatedStorage.Shared.UiLayout)
+local UiLayoutConfig = require(ReplicatedStorage.Shared.UiLayoutConfig)
 local WinText = require(ReplicatedStorage.Shared.WinText)
 local UiStyle = require(script.Parent.UiStyle)
 local InviteUi = require(script.Parent.InviteUi)
@@ -32,7 +36,7 @@ export type View = {
 	showPower: (power: number) -> (),
 	showFight: () -> (),
 	showRoundEnd: (youLost: boolean) -> (),
-	showMatchEnd: (youWon: boolean) -> (),
+	showMatchEnd: (youWon: boolean, firstWin: boolean?) -> (),
 	hideMatch: () -> (), -- back to lobby: hide every match screen
 }
 
@@ -47,6 +51,7 @@ local function label(parent: Instance, text: string, size: UDim2, pos: UDim2): T
 	l.TextColor3 = Color3.new(1, 1, 1)
 	l.TextStrokeTransparency = 0.3
 	l.Parent = parent
+	UiStyle.textLimit(l, UiLayoutConfig.minText, 100)
 	return l
 end
 
@@ -74,6 +79,7 @@ local function button(
 	local minSize = Instance.new("UISizeConstraint")
 	minSize.MinSize = Vector2.new(48, 48)
 	minSize.Parent = b
+	UiStyle.textLimit(b, UiLayoutConfig.minText, 40)
 	UiStyle.polish(b)
 	return b
 end
@@ -109,21 +115,20 @@ function Ui.create(h: Handlers): View
 		end)
 	end
 
-	-- Top banner: dark slab, red edge on the left, cyan on the right. Small, at the top.
+	-- Where every fight piece goes (pure numbers in UiLayout, checked by tests/uilayout.test.luau).
+	local camera = workspace.CurrentCamera
+	local fightSpecs = UiLayout.fight(if camera then camera.ViewportSize.Y else 360)
+	local endSpecs = UiLayout.endScreen()
+
+	-- Top banner: dark slab, red edge on the left, cyan on the right. Small, under the top bar.
 	local top = Instance.new("Frame")
 	top.Name = "TopBanner"
-	top.AnchorPoint = Vector2.new(0.5, 0)
-	top.Position = UDim2.new(0.5, 0, 0, 8)
-	top.Size = UDim2.fromScale(0.34, 0.1)
+	UiStyle.place(top, fightSpecs.vsBanner)
 	top.BackgroundColor3 = Color3.fromRGB(12, 16, 28)
 	top.BackgroundTransparency = 0.08
 	top.BorderSizePixel = 0
 	top.Visible = false
 	top.Parent = gui
-	local topLimit = Instance.new("UISizeConstraint")
-	topLimit.MinSize = Vector2.new(190, 34)
-	topLimit.MaxSize = Vector2.new(380, 56)
-	topLimit.Parent = top
 	local topCorner = Instance.new("UICorner")
 	topCorner.CornerRadius = UDim.new(0, 8)
 	topCorner.Parent = top
@@ -159,22 +164,26 @@ function Ui.create(h: Handlers): View
 	topText.Text = ""
 	topText.Parent = top
 	local topPad = Instance.new("UIPadding")
-	topPad.PaddingTop, topPad.PaddingBottom = UDim.new(0, 5), UDim.new(0, 5)
+	topPad.PaddingTop = UDim.new(0, UiLayoutConfig.textPad)
+	topPad.PaddingBottom = UDim.new(0, UiLayoutConfig.textPad)
 	topPad.PaddingLeft, topPad.PaddingRight = UDim.new(0, 12), UDim.new(0, 12)
 	topPad.Parent = topText
+	UiStyle.textLimit(topText, UiLayoutConfig.minText, UiLayoutConfig.maxTextBanner)
 
 	-- "YOU vs BOT" with a small "vs", plus the countdown when there is one.
 	local function setTop(enemyName: string, seconds: number?)
 		local safe = enemyName:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
-		local text = `YOU  <font size="14" color="#AAB4C8">vs</font>  {safe}`
+		local text = `YOU  <font size="{UiLayoutConfig.minText}" color="#AAB4C8">vs</font>  {safe}`
 		if seconds then
 			text ..= `   <font color="#FFD84A">{seconds}</font>`
 		end
 		topText.Text = text
 	end
 
-	-- Center message (kept small and high, so the arena stays clear)
-	local msg = label(gui, "", UDim2.fromScale(0.5, 0.1), UDim2.fromScale(0.25, 0.14))
+	-- Message ("GO!", matchup): bottom-centre lane, below the empty middle of the screen.
+	local msg = label(gui, "", UDim2.new(), UDim2.new())
+	UiStyle.place(msg, fightSpecs.msg)
+	UiStyle.textLimit(msg, UiLayoutConfig.minText, UiLayoutConfig.maxTextMsg)
 	msg.Visible = false
 	local msgScale = Instance.new("UIScale")
 	msgScale.Parent = msg
@@ -185,13 +194,13 @@ function Ui.create(h: Handlers): View
 	aimFrame.BackgroundTransparency = 1
 	aimFrame.Visible = false
 	aimFrame.Parent = gui
-	local hint = label(aimFrame, "", UDim2.fromScale(0.4, 0.04), UDim2.fromScale(0.3, 0.1))
-	hint.Font = Enum.Font.FredokaOne
+	local hint = label(aimFrame, "", UDim2.new(), UDim2.new())
+	UiStyle.place(hint, fightSpecs.hint)
+	UiStyle.textLimit(hint, UiLayoutConfig.minText, 24)
 
 	-- Power bar
 	local powerBack = Instance.new("Frame")
-	powerBack.Size = UDim2.fromScale(0.5, 0.04)
-	powerBack.Position = UDim2.fromScale(0.25, 0.82)
+	UiStyle.place(powerBack, fightSpecs.powerBar)
 	powerBack.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 	powerBack.Visible = false
 	powerBack.Parent = gui
@@ -209,28 +218,21 @@ function Ui.create(h: Handlers): View
 	endFrame.Visible = false
 	endFrame.Parent = gui
 	local banner = Instance.new("Frame")
-	banner.AnchorPoint = Vector2.new(0.5, 0.5)
-	banner.Position = UDim2.fromScale(0.5, 0.45)
-	banner.Size = UDim2.fromScale(0.9, 0.4)
+	UiStyle.place(banner, endSpecs.banner)
 	banner.BackgroundTransparency = 1
 	banner.Parent = endFrame
-	local endText = label(banner, "", UDim2.fromScale(1, 0.62), UDim2.fromScale(0, 0))
+	local head, sub = UiLayoutConfig.endScreen.head, UiLayoutConfig.endScreen.sub
+	local endText =
+		label(banner, "", UDim2.fromScale(head[3], head[4]), UDim2.fromScale(head[1], head[2]))
 	endText.TextStrokeTransparency = 0
-	local endSub = label(banner, "", UDim2.fromScale(0.6, 0.26), UDim2.fromScale(0.2, 0.68))
+	local endSub =
+		label(banner, "", UDim2.fromScale(sub[3], sub[4]), UDim2.fromScale(sub[1], sub[2]))
 	endSub.TextColor3 = Color3.fromRGB(255, 225, 120)
-	local rematchBtn = button(
-		endFrame,
-		"REMATCH",
-		UDim2.fromScale(0.34, 0.16),
-		UDim2.fromScale(0.33, 0.76),
-		Color3.fromRGB(40, 160, 80)
-	)
+	local rematchBtn =
+		button(endFrame, "REMATCH", UDim2.new(), UDim2.new(), Color3.fromRGB(40, 160, 80))
 	rematchBtn.Name = "RematchButton"
+	UiStyle.place(rematchBtn, endSpecs.rematch)
 	rematchBtn.Visible = false
-	local rematchMin = rematchBtn:FindFirstChildOfClass("UISizeConstraint")
-	if rematchMin then
-		rematchMin.MinSize = Vector2.new(120, 52)
-	end
 	rematchBtn.Activated:Connect(function()
 		if not rematchBtn.Active then
 			return
@@ -359,7 +361,7 @@ function Ui.create(h: Handlers): View
 		UiStyle.pop(msgScale)
 	end
 
-	view.showMatchEnd = function(youWon)
+	view.showMatchEnd = function(youWon, firstWin)
 		hideAll()
 		endFrame.Visible = true
 		rematchBtn.Visible = true
@@ -367,15 +369,29 @@ function Ui.create(h: Handlers): View
 		rematchBtn.AutoButtonColor = true
 		rematchBtn.BackgroundColor3 = Color3.fromRGB(40, 160, 80)
 		rematchBtn.Text = "REMATCH"
-		endText.Text = WinText.headline(youWon)
+		local big = youWon and firstWin == true
+		endText.Text = if big then FirstWin.headline() else WinText.headline(youWon)
 		endSub.Text = WinText.subtitle(youWon, LobbyConfig.Rewards)
 		endText.TextColor3 = if youWon
 			then Color3.fromRGB(255, 205, 40)
 			else Color3.fromRGB(235, 90, 90)
 		invite.setVisible(youWon)
-		WinFx.popIn(banner, youWon, endTweens)
+		WinFx.popIn(banner, youWon, endTweens, if big then FirstWinConfig.bannerScale else nil)
 		if youWon then
-			endFx = WinFx.coinBurst(endFrame, math.floor(os.clock() * 1000))
+			local seed = math.floor(os.clock() * 1000)
+			local coins =
+				WinFx.coinBurst(endFrame, seed, if big then FirstWinConfig.coinCount else nil)
+			local confetti = if big
+				then WinFx.confetti(endFrame, seed + 1, FirstWinConfig.confettiCount)
+				else nil
+			endFx = {
+				stop = function()
+					coins.stop()
+					if confetti then
+						confetti.stop()
+					end
+				end,
+			}
 		end
 	end
 

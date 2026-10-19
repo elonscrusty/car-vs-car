@@ -3,7 +3,9 @@
 
 local TweenService = game:GetService("TweenService")
 
-local WinText = require(game:GetService("ReplicatedStorage").Shared.WinText)
+local Shared = game:GetService("ReplicatedStorage").Shared
+local FirstWinConfig = require(Shared.FirstWinConfig)
+local WinText = require(Shared.WinText)
 
 local WinFx = {}
 
@@ -43,7 +45,8 @@ local function makeCoin(parent: Instance, size: number): Frame
 end
 
 -- Pop the banner in with a bounce (win) or a calm fade-in (lose). Returns tweens to cancel.
-function WinFx.popIn(banner: GuiObject, won: boolean, tweens: { Tween })
+-- `endScale` (default 1) lets a first win end bigger than a normal one.
+function WinFx.popIn(banner: GuiObject, won: boolean, tweens: { Tween }, endScale: number?)
 	local scale = banner:FindFirstChildOfClass("UIScale")
 	if not scale then
 		scale = Instance.new("UIScale")
@@ -56,14 +59,70 @@ function WinFx.popIn(banner: GuiObject, won: boolean, tweens: { Tween })
 		if won
 			then TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 			else TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{ Scale = 1 }
+		{ Scale = endScale or 1 }
 	)
 	table.insert(tweens, t)
 	t:Play()
 end
 
+-- Confetti for a first win: colored paper bits drifting down from the top. Gone after ~4 s.
+function WinFx.confetti(parent: GuiObject, seed: number, count: number): Handle
+	local rng = Random.new(seed)
+	local colors = FirstWinConfig.confettiColors
+	local tweens: { Tween } = {}
+	local stopped = false
+	local holder = Instance.new("Frame")
+	holder.BackgroundTransparency = 1
+	holder.Size = UDim2.fromScale(1, 1)
+	holder.ZIndex = 6
+	holder.Parent = parent
+	for _ = 1, math.clamp(count, 0, 120) do
+		local c = colors[rng:NextInteger(1, #colors)]
+		local bit = Instance.new("Frame")
+		bit.BorderSizePixel = 0
+		bit.BackgroundColor3 = Color3.fromRGB(c[1], c[2], c[3])
+		bit.Size = UDim2.fromOffset(rng:NextInteger(8, 14), rng:NextInteger(12, 20))
+		bit.Position = UDim2.fromScale(rng:NextNumber(0.02, 0.98), -0.08)
+		bit.Rotation = rng:NextInteger(0, 180)
+		bit.ZIndex = 6
+		bit.Parent = holder
+		local fall = TweenService:Create(
+			bit,
+			TweenInfo.new(
+				rng:NextNumber(1.8, 3.2),
+				Enum.EasingStyle.Sine,
+				Enum.EasingDirection.In,
+				0,
+				false,
+				rng:NextNumber(0, 0.8)
+			),
+			{
+				Position = UDim2.fromScale(rng:NextNumber(0.02, 0.98), 1.1),
+				Rotation = bit.Rotation + rng:NextInteger(180, 540),
+			}
+		)
+		table.insert(tweens, fall)
+		fall:Play()
+	end
+	local function stop()
+		if stopped then
+			return
+		end
+		stopped = true
+		for _, t in tweens do
+			t:Cancel()
+			t:Destroy()
+		end
+		table.clear(tweens)
+		holder:Destroy()
+	end
+	task.delay(4.5, stop)
+	return { stop = stop }
+end
+
 -- Launch the coin burst under `parent`. Everything is destroyed after ~2.5 s or on stop().
-function WinFx.coinBurst(parent: GuiObject, seed: number): Handle
+-- `count` (default WinText.DefaultCoins) makes a bigger burst for a first win.
+function WinFx.coinBurst(parent: GuiObject, seed: number, count: number?): Handle
 	local tweens: { Tween } = {}
 	local coins: { Frame } = {}
 	local stopped = false
@@ -80,7 +139,7 @@ function WinFx.coinBurst(parent: GuiObject, seed: number): Handle
 		return t
 	end
 
-	for _, p in WinText.coinParticles(seed, WinText.DefaultCoins) do
+	for _, p in WinText.coinParticles(seed, count or WinText.DefaultCoins) do
 		task.delay(p.delay, function()
 			if stopped then
 				return

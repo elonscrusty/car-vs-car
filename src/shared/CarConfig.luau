@@ -19,6 +19,8 @@ local function sibling(name: string): any
 end
 
 local CarCatalog = sibling("CarCatalog")
+local CarTraits = sibling("CarTraits")
+local CarTraitsConfig = sibling("CarTraitsConfig")
 
 export type AiStyle = "BackupCharge" | "CircleDive" | "Direct"
 
@@ -38,6 +40,7 @@ export type CarStats = {
 	rarity: string,
 	ability: string,
 	model: string?,
+	traits: CarTraits.Traits?, -- handling: grip, drift, accel curve, high-speed turn, size scale
 }
 
 local CarConfig = {}
@@ -185,6 +188,11 @@ for _, entry in CarCatalog.Entries do
 	table.insert(CarConfig.Order, entry.id)
 end
 
+-- Handling traits for every car (CarTraitsConfig rows; a car without a row drives as before).
+for id, car in CarConfig.Cars do
+	car.traits = CarTraits.resolve(CarTraitsConfig.Cars[id], car.size)
+end
+
 -- LAUNCH ROSTER: only these ~12 cars are live (claw prizes, store, pick choices, quests, bots,
 -- odds). The rest stay in the code and in saves, but hidden, unless `useFullRoster` is true.
 -- Spans roles and all 4 rarities. Heavy is the free starter (LobbyConfig.StarterCars).
@@ -216,6 +224,11 @@ CarConfig.PowerWeights = {
 	accel = 0.3,
 	turnRate = 12,
 	damageMult = 100,
+	-- Handling traits (CarTraits): good grip, a strong launch and a sharp high-speed turn are
+	-- worth a little. Only counted when a stats table has traits.
+	grip = 25,
+	punch = 20,
+	highTurn = 20,
 }
 -- Max a car's power may be above the average of its rarity tier (0.2 = 20%); checked by tests.
 CarConfig.PowerTolerance = 0.2

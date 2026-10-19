@@ -9,7 +9,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
-local HudStyle = require(ReplicatedStorage.Shared.HudStyle)
+local UiLayout = require(ReplicatedStorage.Shared.UiLayout)
+local UiLayoutConfig = require(ReplicatedStorage.Shared.UiLayoutConfig)
 local SoundFx = require(script.Parent.SoundFx)
 local UiStyle = require(script.Parent.UiStyle)
 
@@ -83,11 +84,10 @@ function ActionInput.new(send: (name: string) -> ()): ActionInput
 		end
 	end
 
-	local function makeButton(parent: Frame, index: number, side: number, def: typeof(MOVES[1]))
+	local function makeButton(parent: ScreenGui, spec: UiLayout.Spec, def: typeof(MOVES[1]))
 		local b = Instance.new("TextButton")
 		b.Name = def.name .. "Action"
-		b.LayoutOrder = index
-		b.Size = UDim2.fromOffset(side, side)
+		UiStyle.place(b, spec)
 		b.BackgroundColor3 = def.color
 		b.Text = ""
 		b.AutoButtonColor = false
@@ -115,6 +115,8 @@ function ActionInput.new(send: (name: string) -> ()): ActionInput
 		name.Font = Enum.Font.FredokaOne
 		name.TextColor3 = Color3.new(1, 1, 1)
 		name.TextStrokeTransparency = 0.4
+		name.TextTruncate = Enum.TextTruncate.AtEnd -- a long ability name is cut, never shrunk under 14 px
+		UiStyle.textLimit(name, UiLayoutConfig.minText, 20)
 		name.Parent = b
 		local pad = Instance.new("UIPadding")
 		pad.PaddingLeft, pad.PaddingRight = UDim.new(0, 4), UDim.new(0, 4)
@@ -141,6 +143,7 @@ function ActionInput.new(send: (name: string) -> ()): ActionInput
 		label.Font = Enum.Font.FredokaOne
 		label.TextColor3 = Color3.new(1, 1, 1)
 		label.ZIndex = 3
+		UiStyle.textLimit(label, UiLayoutConfig.minText, 30)
 		label.Parent = b
 		b:SetAttribute("NoClickSound", true) -- boost/ability have their own sound
 		UiStyle.polish(b)
@@ -188,26 +191,11 @@ function ActionInput.new(send: (name: string) -> ()): ActionInput
 		newGui.Parent = (Players.LocalPlayer :: Player):WaitForChild("PlayerGui")
 		gui = newGui
 		local camera = workspace.CurrentCamera
-		local height = if camera then camera.ViewportSize.Y else 400
-		local side = HudStyle.buttonSize(height)
-		local gap = HudStyle.BUTTON_GAP
-		local stack = Instance.new("Frame")
-		stack.Name = "Stack"
-		stack.BackgroundTransparency = 1
-		stack.AnchorPoint = Vector2.new(1, 1)
-		stack.Position = UDim2.new(1, -HudStyle.EDGE, 1, -HudStyle.EDGE)
-		stack.Size = UDim2.fromOffset(#defs * side + (#defs - 1) * gap, side)
-		stack.Parent = newGui
-		local layout = Instance.new("UIListLayout")
-		layout.FillDirection = Enum.FillDirection.Horizontal
-		layout.HorizontalAlignment = Enum.HorizontalAlignment.Right
-		layout.Padding = UDim.new(0, gap)
-		layout.SortOrder = Enum.SortOrder.LayoutOrder
-		layout.Parent = stack
+		local specs = UiLayout.fight(if camera then camera.ViewportSize.Y else 400)
 		table.clear(slots)
-		for i, def in defs do
-			makeButton(stack, i, side, def)
-		end
+		-- BOOST sits left of ABILITY, both in the bottom-right thumb zone (see UiLayout).
+		makeButton(newGui, specs.boost, defs[1])
+		makeButton(newGui, specs.ability, defs[2])
 		render()
 		conn = RunService.RenderStepped:Connect(render)
 	end

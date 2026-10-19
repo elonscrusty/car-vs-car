@@ -10,6 +10,8 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
+local FirstWin = require(ReplicatedStorage.Shared.FirstWin)
+local CarStatsUi = require(script.Parent.CarStatsUi)
 local Gacha = require(ReplicatedStorage.Shared.Gacha)
 local Inventory = require(ReplicatedStorage.Shared.Inventory)
 local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
@@ -500,6 +502,7 @@ function LobbyUi.new(hooks: Hooks): Handle
 		row.LayoutOrder = i
 		row.ZIndex = 13
 		corner(row, 0.08)
+		CarStatsUi.attach(row, stats)
 		local swatch = frame(row, UDim2.fromOffset(52, 52), UDim2.fromOffset(12, 12), carColor(id))
 		swatch.ZIndex = 14
 		corner(swatch, 0.25)
@@ -652,14 +655,20 @@ function LobbyUi.new(hooks: Hooks): Handle
 	end
 
 	-- COUNTDOWN (pad): big number + leave button
-	local countLabel = label(gui, "", UDim2.fromScale(0.3, 0.3), UDim2.fromScale(0.35, 0.22))
+	local countLabel = label(gui, "", UDim2.fromScale(0.7, 0.16), UDim2.fromScale(0.15, 0.22))
 	countLabel.TextColor3 = GOLD
 	countLabel.TextStrokeTransparency = 0
 	countLabel.Visible = false
 	countLabel.ZIndex = 25
-	textLimit(countLabel, 40, 200)
+	textLimit(countLabel, 24, 96)
 	local countScale = Instance.new("UIScale")
 	countScale.Parent = countLabel
+	-- "A bot will join you" under the countdown while the pad has only you.
+	local aloneLabel = label(gui, "", UDim2.fromScale(0.6, 0.08), UDim2.fromScale(0.2, 0.4))
+	aloneLabel.TextColor3 = WHITE
+	aloneLabel.Visible = false
+	aloneLabel.ZIndex = 25
+	textLimit(aloneLabel, 16, 40)
 	local leaveButton =
 		button(gui, "LEAVE", UDim2.new(0.4, 0, 0, 56), UDim2.fromScale(0.5, 0.8), PINK)
 	leaveButton.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -669,17 +678,21 @@ function LobbyUi.new(hooks: Hooks): Handle
 		send("leavePad")
 	end))
 
-	local function showCountdown(seconds: number)
+	local function showCountdown(seconds: number, alone: boolean?)
 		local text = LobbyText.countdownText(seconds)
 		if text == nil then
 			countLabel.Visible = false
+			aloneLabel.Visible = false
 			leaveButton.Visible = false
 			return
 		end
 		countLabel.Visible = true
 		leaveButton.Visible = true
 		countLabel.Text = text
-		countScale.Scale = 1.6
+		local aloneText = LobbyText.padAloneText(alone == true)
+		aloneLabel.Visible = aloneText ~= nil
+		aloneLabel.Text = aloneText or ""
+		countScale.Scale = 1.3
 		TweenService:Create(countScale, POP, { Scale = 1 }):Play()
 	end
 
@@ -754,7 +767,7 @@ function LobbyUi.new(hooks: Hooks): Handle
 			refreshGacha()
 		elseif u.kind == "countdown" then
 			closeModals()
-			showCountdown(u.seconds)
+			showCountdown(u.seconds, u.alone)
 		elseif u.kind == "choices" then
 			closeModals()
 			showCountdown(0)
@@ -767,7 +780,12 @@ function LobbyUi.new(hooks: Hooks): Handle
 			if u.coinsEarned > 0 then
 				SoundFx.play("coin") -- reward toast
 			end
-			showToast(LobbyText.rewardText(u.coinsEarned, u.won), if u.won then GREEN else PINK)
+			showToast(
+				if u.firstWin == true
+					then FirstWin.toastText(u.coinsEarned)
+					else LobbyText.rewardText(u.coinsEarned, u.won),
+				if u.won then GREEN else PINK
+			)
 		end
 	end
 

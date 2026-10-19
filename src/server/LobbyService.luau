@@ -13,6 +13,7 @@ local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
 local Daily = require(ReplicatedStorage.Shared.Daily)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local Gacha = require(ReplicatedStorage.Shared.Gacha)
+local FirstWin = require(ReplicatedStorage.Shared.FirstWin)
 local Hints = require(ReplicatedStorage.Shared.Hints)
 local Inventory = require(ReplicatedStorage.Shared.Inventory)
 local Paint = require(ReplicatedStorage.Shared.Paint)
@@ -112,6 +113,7 @@ function LobbyService.start(deps: Deps): Handle
 	local refreshBay: (player: Player) -> () -- defined below
 	local running = true
 	local conns: { RBXScriptConnection } = {}
+	local charConns: { [Player]: RBXScriptConnection } = {} -- one per player, dropped when they leave
 
 	local function send(player: Player, update: Types.LobbyUpdate)
 		if player.Parent ~= nil then
@@ -305,6 +307,7 @@ function LobbyService.start(deps: Deps): Handle
 		end
 		local earned = if won then LobbyConfig.Rewards.winCoins else LobbyConfig.Rewards.loseCoins
 		local p = Profiles.get(player)
+		local firstWin = p ~= nil and FirstWin.isFirstWin(p.wins, won)
 		if p then
 			local result = Progress.applyMatchResult(p, carId, won, ProgressConfig)
 			Quests.onMatchEnd(p, { won = won, carId = carId, opponentIsBot = vsBot })
@@ -331,7 +334,7 @@ function LobbyService.start(deps: Deps): Handle
 				player:LoadCharacter()
 			end)
 		end)
-		send(player, { kind = "toLobby", coinsEarned = earned, won = won })
+		send(player, { kind = "toLobby", coinsEarned = earned, won = won, firstWin = firstWin })
 		sendProfile(player)
 	end
 
@@ -430,6 +433,12 @@ function LobbyService.start(deps: Deps): Handle
 			ps.offered = offered
 			ps.picked = nil
 			ps.token += 1
+			if PickChoices.shouldSkip(#offered) then
+				-- Only one car owned: nothing to pick, use it (hides the pad countdown too).
+				ps.picked = offered[1]
+				send(player, { kind = "countdown", seconds = 0 })
+				continue
+			end
 			local token = ps.token
 			send(player, { kind = "choices", cars = offered, seconds = padCfg.pickSeconds })
 			task.delay(padCfg.pickSeconds, function()
@@ -444,6 +453,7 @@ function LobbyService.start(deps: Deps): Handle
 				end
 			end)
 		end
+		maybeStart(padIndex) -- everyone auto-picked (one car owned): go now
 	end
 
 	-- Store counter: the server checks everything, then answers with a storeResult.
@@ -578,7 +588,11 @@ function LobbyService.start(deps: Deps): Handle
 		players[player] = { stage = "pad", offered = {}, picked = nil, token = 0 }
 		Telemetry.padStepped(player)
 		updatePadText(padIndex)
-		send(player, { kind = "countdown", seconds = state.pads[padIndex].seconds })
+		send(player, {
+			kind = "countdown",
+			seconds = state.pads[padIndex].seconds,
+			alone = #state.pads[padIndex].players == 1,
+		})
 	end
 
 	for i, pad in pads do
@@ -613,7 +627,11 @@ function LobbyService.start(deps: Deps): Handle
 						local result, secs = PadLogic.tick(state, i)
 						if result == "counting" then
 							for _, key in pad.players do
-								send(key :: Player, { kind = "countdown", seconds = secs })
+								send(key :: Player, {
+									kind = "countdown",
+									seconds = secs,
+									alone = #pad.players == 1,
+								})
 							end
 						elseif result == "ready" then
 							beginPicking(i)
@@ -750,12 +768,9 @@ function LobbyService.start(deps: Deps): Handle
 	local handle: Handle
 	handle = {
 		onPlayerAdded = function(player: Player)
-			table.insert(
-				conns,
-				player.CharacterAdded:Connect(function()
-					sendProfile(player)
-				end)
-			)
+			charConns[player] = player.CharacterAdded:Connect(function()
+				sendProfile(player)
+			end)
 			task.spawn(function()
 				if Profiles.waitFor(player, 30) then
 					sendProfile(player)
@@ -764,6 +779,11 @@ function LobbyService.start(deps: Deps): Handle
 		end,
 		onPlayerRemoving = function(player: Player)
 			players[player] = nil -- a running Match is destroyed by the entry script
+			local charConn = charConns[player]
+			if charConn then
+				charConn:Disconnect()
+				charConns[player] = nil
+			end
 			local padIndex, nowIdle = PadLogic.leave(state, player)
 			if padIndex then
 				if nowIdle then
@@ -872,6 +892,10 @@ function LobbyService.start(deps: Deps): Handle
 				c:Disconnect()
 			end
 			table.clear(conns)
+			for _, c in charConns do
+				c:Disconnect()
+			end
+			table.clear(charConns)
 		end,
 	}
 	return handle

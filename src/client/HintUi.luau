@@ -18,6 +18,10 @@ export type Handle = {
 	-- The player did the thing: hide the hint (if it is the one showing) and save the flag.
 	done: (id: string) -> (),
 	loaded: () -> boolean,
+	-- Aim phase started: after Hints.AimNudgeSeconds with no drag, pulse an arrow on the car.
+	startAimNudge: (carPos: Vector3?) -> (),
+	-- The player dragged / launched / the phase ended: remove the arrow and cancel the timer.
+	stopAimNudge: () -> (),
 }
 
 local NAVY = Color3.fromRGB(10, 14, 32)
@@ -217,7 +221,64 @@ function HintUi.new(onSeen: (id: string) -> ()): Handle
 		end)
 	end
 
+	-- Pulsing arrow over the player's car (own token so it never clashes with the banner hint).
+	local nudgeToken = 0
+	local nudgeAnchor: Part? = nil
+	local nudgeTween: Tween? = nil
+
+	local function stopAimNudge()
+		nudgeToken += 1
+		if nudgeTween then
+			nudgeTween:Cancel()
+			nudgeTween = nil
+		end
+		if nudgeAnchor then
+			nudgeAnchor:Destroy()
+			nudgeAnchor = nil
+		end
+	end
+
+	local function startAimNudge(carPos: Vector3?)
+		stopAimNudge()
+		if carPos == nil then
+			return
+		end
+		local pos: Vector3 = carPos
+		nudgeToken += 1
+		local myToken = nudgeToken
+		local startedAt = os.clock()
+		task.delay(Hints.AimNudgeSeconds, function()
+			if nudgeToken ~= myToken or not Hints.aimNudgeDue(os.clock() - startedAt, false) then
+				return
+			end
+			local anchor = Instance.new("Part")
+			anchor.Name = "AimNudgeAnchor"
+			anchor.Anchored = true
+			anchor.CanCollide = false
+			anchor.CanQuery = false
+			anchor.CanTouch = false
+			anchor.Transparency = 1
+			anchor.Size = Vector3.new(0.2, 0.2, 0.2)
+			anchor.Position = pos + Vector3.new(0, 7, 0)
+			anchor.Parent = workspace
+			local board = Instance.new("BillboardGui")
+			board.Adornee = anchor
+			board.AlwaysOnTop = true
+			board.Size = UDim2.fromOffset(64, 64)
+			board.LightInfluence = 0
+			board.Parent = anchor
+			local arrow = arrowLabel(board, UDim2.fromScale(1, 1))
+			arrow.Position = UDim2.fromOffset(0, -6)
+			local pulse = TweenService:Create(arrow, BOUNCE, { Position = UDim2.fromOffset(0, 12) })
+			pulse:Play()
+			nudgeAnchor = anchor
+			nudgeTween = pulse
+		end)
+	end
+
 	local handle: Handle = {
+		startAimNudge = startAimNudge,
+		stopAimNudge = stopAimNudge,
 		loadSeen = function(ids: { string })
 			for _, id in ids do
 				if Hints.isKnown(id) then

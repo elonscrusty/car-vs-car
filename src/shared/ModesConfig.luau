@@ -71,7 +71,12 @@ return {
 		maxSeconds = 150, -- time up: more goals wins (tie = next goal wins)
 		spawnRadius = 68,
 		spawnSpread = 0.3, -- radians between cars of the same team
-		goalPause = 2.5, -- seconds the cars sit still after a goal before the ball is back
+		goalPause = 2.5, -- seconds the cars sit frozen after a goal (score banner) before they are reset
+		readySeconds = 1.5, -- the "get ready" screen before the first kickoff countdown
+		kickoffSeconds = 3, -- 3-2-1 before the first kickoff (cars frozen, ball in the middle)
+		restartSeconds = 3, -- 3-2-1 after a goal
+		goSeconds = 0.8, -- how long "GO!" stays up
+		hudSeconds = 1, -- how often the score and match clock are sent
 		lostMargin = 6, -- ball this far past the rim (or fell out) is put back in the middle
 		botOffset = 14, -- bots aim this far behind the ball, away from the goal they attack
 		colors = { { 70, 150, 255 }, { 255, 90, 70 } }, -- team 1 blue, team 2 red

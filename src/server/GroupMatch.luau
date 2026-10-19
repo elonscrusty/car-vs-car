@@ -24,6 +24,7 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Steer = require(ReplicatedStorage.Shared.Steer)
 local SoccerField = require(ReplicatedStorage.Shared.SoccerField)
 local SoccerFieldConfig = require(ReplicatedStorage.Shared.SoccerFieldConfig)
+local SoccerFieldFlow = require(ReplicatedStorage.Shared.SoccerFieldFlow)
 local Types = require(ReplicatedStorage.Shared.Types)
 
 local Arena = require(script.Parent.Arena)
@@ -74,8 +75,13 @@ function GroupMatch.new(
 	local soccer = Modes.soccerNew()
 	local ball: Part? = nil
 	local ballIdle = 0 -- seconds the ball has hardly moved (stuck check)
-	local ballPausedUntil = 0 -- after a goal the ball waits in the middle until then
 	local goldenGoal = false
+	-- Soccer flow: "countdown" (cars frozen, 3-2-1), "play", "goal" (frozen, score banner).
+	local soccerState = "countdown"
+	local soccerUntil = 0
+	local countdownShown = ""
+	local stuckWarned = false
+	local clockAt = 0
 	local fightElapsed = 0
 	local hudAt = 0
 	local rayParams = RaycastParams.new()
@@ -396,15 +402,26 @@ function GroupMatch.new(
 		b.AssemblyAngularVelocity = Vector3.zero
 		b.Position = SoccerArena.ballPosition(origin)
 		ballIdle = 0
+		stuckWarned = false
 	end
 
+	local function banner(text: string, seconds: number)
+		sendAll(function()
+			return { kind = "banner", text = text, seconds = seconds }
+		end)
+	end
+
+	-- Score line plus the match clock (or GOLDEN GOAL in overtime).
 	local function soccerHud()
+		local left = ModesConfig.Soccer.maxSeconds - fightElapsed
+		local clock = SoccerFieldFlow.clockText(left, goldenGoal)
 		sendAll(function(i)
 			local mine = teamOf(i)
 			return {
 				kind = "modeInfo",
 				text = string.format(
-					"GOALS  YOU %d  -  %d THEM   (first to %d)",
+					"%s   YOU %d  -  %d THEM   (first to %d)",
+					clock,
 					soccer.goals[mine],
 					soccer.goals[3 - mine],
 					ModesConfig.Soccer.scoreToWin
@@ -413,21 +430,73 @@ function GroupMatch.new(
 		end)
 	end
 
+	-- Every car back on its start spot, standing still, ball back in the middle.
+	local function resetPositions()
+		for _, car in cars do
+			local spot = spots[car.idx]
+			car.model:PivotTo(CFrame.new(spotPosition(spot, 4)) * CFrame.Angles(0, spot.yaw, 0))
+			car.body.AssemblyLinearVelocity = Vector3.zero
+			car.body.AssemblyAngularVelocity = Vector3.zero
+			car.prevVel = Vector3.zero
+			CarSanity.rebase(car) -- a legit move: do not count it as a teleport
+		end
+		resetBall()
+	end
+
+	local handOver: () -> () -- forward: gives each human the network ownership of their car
+
+	-- Frozen: nobody drives, the ball waits. `unfreeze` lets everyone go.
+	local function freezeAll(on: boolean)
+		for _, car in cars do
+			setAnchored(car, on)
+		end
+		if ball then
+			ball.Anchored = on
+		end
+		if not on then
+			handOver()
+		end
+	end
+
+	local function startCountdown(now: number, seconds: number)
+		soccerState = "countdown"
+		soccerUntil = now + seconds
+		countdownShown = ""
+	end
+
 	local function stepSoccer(now: number, dt: number)
 		local b = ball
 		if b == nil or phase ~= "fight" then
 			return
 		end
 		local cfgS = ModesConfig.Soccer
+		if soccerState == "goal" then
+			if now >= soccerUntil then
+				resetPositions()
+				startCountdown(now, cfgS.restartSeconds)
+			end
+			return
+		end
+		if soccerState == "countdown" then
+			local remaining = soccerUntil - now
+			local text = SoccerFieldFlow.countdownText(remaining)
+			if text ~= countdownShown then
+				countdownShown = text
+				banner(text, if remaining <= 0 then cfgS.goSeconds else 1)
+			end
+			if remaining <= 0 then
+				soccerState = "play"
+				freezeAll(false)
+				soccerHud()
+			end
+			return
+		end
 		local v = b.AssemblyLinearVelocity
 		local vx, vy, vz = SoccerField.capVelocity(v.X, v.Y, v.Z, SoccerFieldConfig.ballMaxSpeed)
 		if vx ~= v.X or vy ~= v.Y or vz ~= v.Z then
 			b.AssemblyLinearVelocity = Vector3.new(vx, vy, vz)
 		end
 		local bx, bz = b.Position.X - origin.X, b.Position.Z - origin.Z
-		if now < ballPausedUntil then
-			return
-		end
 		local conceded = SoccerField.goalConceded(bx, bz)
 		if conceded ~= 0 then
 			local scorer = Modes.soccerGoal(soccer, conceded)
@@ -439,6 +508,18 @@ function GroupMatch.new(
 					pos = pos,
 				}
 			end)
+			sendAll(function(i)
+				local mine = teamOf(i)
+				return {
+					kind = "banner",
+					text = string.format(
+						"YOU %d - %d THEM",
+						soccer.goals[mine],
+						soccer.goals[3 - mine]
+					),
+					seconds = cfgS.goalPause,
+				}
+			end)
 			soccerHud()
 			local winner = Modes.soccerWinner(soccer, cfgS.scoreToWin)
 			if winner == 0 and goldenGoal then
@@ -448,18 +529,22 @@ function GroupMatch.new(
 				finishSoccer(winner)
 				return
 			end
-			ballPausedUntil = now + cfgS.goalPause
-			b.Anchored = true
-			task.delay(cfgS.goalPause, function()
-				if not destroyed and phase == "fight" then
-					resetBall()
-					b.Anchored = false
-				end
-			end)
+			-- Short celebration: everything freezes, then both teams are reset.
+			soccerState = "goal"
+			soccerUntil = now + cfgS.goalPause
+			freezeAll(true)
 			return
 		end
 		local stuck
 		ballIdle, stuck = SoccerField.stuckStep(ballIdle, v.Magnitude, dt)
+		if SoccerFieldFlow.stuckWarning(ballIdle) then
+			if not stuckWarned then
+				stuckWarned = true
+				banner("BALL STUCK - RESETTING!", SoccerFieldConfig.stuckWarnSeconds)
+			end
+		else
+			stuckWarned = false
+		end
 		if stuck or SoccerField.outOfBounds(bx, b.Position.Y - origin.Y, bz) then
 			resetBall()
 		end
@@ -489,13 +574,18 @@ function GroupMatch.new(
 			if b == nil then
 				return nil
 			end
-			local bx, bz = b.Position.X - origin.X, b.Position.Z - origin.Z
-			local tx, tz =
-				SoccerField.botTarget(bx, bz, teamOf(car.idx), SoccerFieldConfig.botOffset)
-			local pos = origin + Vector3.new(tx, car.body.Position.Y - origin.Y, tz)
-			if (pos - car.body.Position).Magnitude < SoccerFieldConfig.botNear then
-				pos = b.Position
+			local team = teamOf(car.idx)
+			-- One bot per team keeps goal (the first bot slot); the others chase and shoot.
+			local bots: { boolean } = {}
+			for k = 1, teamSize do
+				bots[k] = not isHuman((team - 1) * teamSize + k)
 			end
+			local keeper = SoccerFieldFlow.keeperSlot(bots)
+			local isKeeper = keeper ~= 0 and (car.idx - 1) % teamSize + 1 == keeper
+			local bx, bz = b.Position.X - origin.X, b.Position.Z - origin.Z
+			local cx, cz = flatOf(car)
+			local tx, tz = SoccerFieldFlow.botAim(isKeeper, team, bx, bz, cx, cz)
+			local pos = origin + Vector3.new(tx, car.body.Position.Y - origin.Y, tz)
 			return { body = { Position = pos } } :: any -- Autopilot only reads body.Position
 		end
 		local xs, zs = {}, {}
@@ -520,15 +610,8 @@ function GroupMatch.new(
 		return who
 	end
 
-	local function startFight()
-		phase = "fight"
-		fightElapsed = 0
-		for _, car in cars do
-			setAnchored(car, false)
-			pcall(function()
-				car.body:SetNetworkOwner(nil)
-			end)
-		end
+	-- Gives each human the physics of their own car (they drive it); the server drives the rest.
+	function handOver()
 		task.delay(0.15, function()
 			if destroyed or phase ~= "fight" then
 				return
@@ -548,8 +631,26 @@ function GroupMatch.new(
 				end
 			end
 		end)
+	end
+
+	local function startFight()
+		phase = "fight"
+		fightElapsed = 0
+		if soccerOn then
+			-- Cars stay frozen (anchored) through the 3-2-1; the ball waits in the middle.
+			startCountdown(os.clock(), ModesConfig.Soccer.kickoffSeconds)
+		else
+			for _, car in cars do
+				setAnchored(car, false)
+				pcall(function()
+					car.body:SetNetworkOwner(nil)
+				end)
+			end
+			handOver()
+		end
 		if soccerOn and arena then
 			ball = SoccerArena.ball(arena.model, origin)
+			ball.Anchored = true
 			soccerHud()
 		end
 		sendAll(function(i)
@@ -568,8 +669,10 @@ function GroupMatch.new(
 			return
 		end
 		local now = os.clock()
+		-- Soccer: nobody drives while the kickoff countdown or a goal celebration is on.
+		local driving = not soccerOn or soccerState == "play"
 		for _, car in cars do
-			if not car.dead then
+			if driving and not car.dead then
 				local target = targetFor(car)
 				local human = isHuman(car.idx)
 				if human and clientDriven[car.idx] then
@@ -604,6 +707,9 @@ function GroupMatch.new(
 
 		if soccerOn then
 			stepSoccer(now, dt)
+			if soccerState ~= "play" then
+				return
+			end
 			-- A car that leaves the field comes back at its start spot (nobody is out in soccer).
 			for _, car in cars do
 				local x, z = flatOf(car)
@@ -621,6 +727,10 @@ function GroupMatch.new(
 				end
 			end
 			fightElapsed += dt
+			if now - clockAt >= ModesConfig.Soccer.hudSeconds then
+				clockAt = now
+				soccerHud()
+			end
 			if fightElapsed >= ModesConfig.Soccer.maxSeconds and not goldenGoal then
 				local w = Modes.soccerTimeoutWinner(soccer)
 				if w ~= 0 then
@@ -631,6 +741,7 @@ function GroupMatch.new(
 				sendAll(function()
 					return { kind = "ko", text = "NEXT GOAL WINS!", pos = origin }
 				end)
+				soccerHud()
 			end
 			return
 		end
@@ -699,7 +810,7 @@ function GroupMatch.new(
 			return
 		end
 		local a = arena :: Arena.Arena
-		local wait = cfg.Mode.readySeconds
+		local wait = if soccerOn then ModesConfig.Soccer.readySeconds else cfg.Mode.readySeconds
 		sendAll(function(i)
 			local other = cars[if i == 1 then 2 else 1]
 			return {
@@ -711,6 +822,7 @@ function GroupMatch.new(
 				center = a.center,
 				carPos = cars[i].body.Position,
 				seconds = wait,
+				soccer = soccerOn,
 			}
 		end)
 		sendAll(function()

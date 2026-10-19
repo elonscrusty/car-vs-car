@@ -5,6 +5,7 @@
 -- that owns the car, so call these only there.
 
 local CarConfig = require(script.Parent.CarConfig)
+local CarTraits = require(script.Parent.CarTraits)
 local GameConfig = require(script.Parent.GameConfig)
 local Logic = require(script.Parent.Logic)
 local Steer = require(script.Parent.Steer)
@@ -76,18 +77,24 @@ function CarDrive.push(
 	hit: RaycastResult,
 	dt: number,
 	mods: Mods?,
-	speedMult: number
+	speedMult: number,
+	steerAbs: number? -- how hard the driver is steering (0..1); drives the car's drift trait
 )
 	local mass = body.AssemblyMass
 	local vel = body.AssemblyLinearVelocity
 	local forwardSpeed = vel:Dot(fwd)
 	local maxSpeed = stats.maxSpeed * speedMult * (if mods then mods.speedScale else 1)
+	-- Handling traits (CarTraitsConfig): acceleration curve and grip depend on how close to top
+	-- speed the car is.
+	local traits = CarTraits.of(stats)
+	local frac = CarTraits.speedFrac(forwardSpeed, maxSpeed)
 	if
 		(throttle > 0 and forwardSpeed < maxSpeed)
 		or (throttle < 0 and forwardSpeed > -maxSpeed * 0.6)
 	then
 		-- Impulse = mass x speed change.
-		local accelScale = if mods then mods.accelScale else 1
+		local accelScale = (if mods then mods.accelScale else 1)
+			* CarTraits.accelFactor(traits, frac)
 		body:ApplyImpulse(fwd * throttle * stats.accel * accelScale * mass * dt)
 		-- Slope assist: while driving, cancel the part of gravity that pulls back along the slope,
 		-- so a heavy car can climb the bowl instead of stalling facing uphill.
@@ -103,7 +110,8 @@ function CarDrive.push(
 	-- Grip: cancel part of the sideways slide so it drives like a car, not soap.
 	local right = Vector3.new(-fwd.Z, 0, fwd.X)
 	local sideSpeed = vel:Dot(right)
-	local gripScale = if mods then mods.gripScale else 1
+	local gripScale = (if mods then mods.gripScale else 1)
+		* CarTraits.gripFactor(traits, steerAbs or 0, frac)
 	body:ApplyImpulse(
 		-right * sideSpeed * math.min(1, GameConfig.Drive.grip * gripScale * dt) * mass
 	)
@@ -138,11 +146,14 @@ function CarDrive.manual(
 	end
 	fwd = fwd.Unit
 	local drive = GameConfig.Drive
-	local turnScale = if mods then mods.turnScale else 1
+	local traits = CarTraits.of(stats)
+	local speedFrac = CarTraits.speedFrac(body.AssemblyLinearVelocity:Dot(fwd), stats.maxSpeed)
+	-- Turn rate fades toward the car's highTurn trait as it nears top speed (heavy cars push wide).
+	local turnScale = (if mods then mods.turnScale else 1) * CarTraits.turnFactor(traits, speedFrac)
 	local turnRate =
 		math.clamp(stats.turnRate * drive.manualTurn, drive.manualTurnMin, drive.manualTurnMax)
 	CarDrive.setSpin(body, Steer.spin(steerInput, turnRate, turnScale))
-	CarDrive.push(body, stats, fwd, throttle, hit, dt, mods, speedMult)
+	CarDrive.push(body, stats, fwd, throttle, hit, dt, mods, speedMult, math.abs(steerInput))
 	return timer
 end
 

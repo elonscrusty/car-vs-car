@@ -149,3 +149,17 @@ See SNAPSHOT.md "Social + safety". Tune cheat limits in `src/shared/CarSanityCon
 ## Big open garages + likes
 - Done in code and unit tests (`lune run tests/run` 330 pass, stylua clean). NOT seen in Studio: how the longer hall, low walls and heart look is unchecked. Lobby wall props were moved by hand (`LobbyMore`, `LobbyDecor`, `LobbyShell`); check for overlaps in the picture check.
 - Studio placement of any new Blender garage models is the Studio thread's job (`docs/GARAGE_MODELS_NEEDED.md`).
+
+## Onboarding (w2)
+- Placeholders to tune: `FirstWinConfig` (confettiCount, coinCount, bannerScale, texts), `Hints.AimNudgeSeconds`. Nothing needs Roblox ids. First win gives no bonus coins; add one in `LobbyService.finishMatch` if wanted.
+## Soccer polish (claude/w2-soccer)
+See SNAPSHOT.md "Soccer polish". Tune in `SoccerFieldConfig` (keeper*, cam*) and `ModesConfig.Soccer` (countdown/goal timings). Unverified in Studio: unfreeze re-handing of network ownership (`handOver`), camera framing, keeper play. Tests: 340 pass.
+## Car feel traits
+See SNAPSHOT.md "Car feel" and `docs/car-feel.md`. Retune in `src/shared/CarTraitsConfig.luau`. First play test: does Light/Drift slide enough, does Armored/Monster push wide without feeling stuck, do bigger pack cars (Monster 1.35x, Armored 1.4x) fit the bowl and garages, do bars fit the store card at small widths.
+## Phone UI layout (claude/w2-phone-ui)
+- Tune HUD positions only in `src/shared/UiLayoutConfig.luau`; run `lune run tests/run` (uilayout tests catch overlap, small touch targets, anything in the screen middle, anything under the 56 px top bar).
+- To check by eye: Studio device emulator at 640x360 and 800x360 landscape. Placeholders: topInset 56, edge 16, lane shares, row heights, menu column numbers.
+- Owner of SaveNotice may want to move it clear of the power bar lane (bottom centre).
+## Economy sim + perf audit
+- Read `docs/economy-report.md` first: the 12-car collection completes by about day 30 and there is no coin sink afterwards; recommendations (higher pull price, sink, pity timer) are NOT applied. Raising the pull price needs `tests/lobby.test.luau` re-pinned (hardcodes 100).
+- `docs/performance-audit.md`: nothing measured in Studio; check part counts, `Persistent` streaming of four bowls, and garage lift replication on a phone.

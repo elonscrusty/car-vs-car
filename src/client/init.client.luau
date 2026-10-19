@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Types = require(ReplicatedStorage.Shared.Types)
 local FeatureFlags = require(ReplicatedStorage.Shared.FeatureFlags)
+local FirstWin = require(ReplicatedStorage.Shared.FirstWin)
 local MenuRules = require(ReplicatedStorage.Shared.MenuRules)
 local ActionInput = require(script.ActionInput)
 local AimInput = require(script.AimInput)
@@ -21,6 +22,7 @@ local HitFlash = require(script.HitFlash)
 local LobbyUi = require(script.LobbyUi)
 local BotLevelUi = require(script.BotLevelUi)
 local MenuBar = require(script.MenuBar)
+local CenterBanner = require(script.CenterBanner)
 local ModeBanner = require(script.ModeBanner)
 local ProgressUi = require(script.ProgressUi)
 local QuestUi = require(script.QuestUi)
@@ -36,6 +38,7 @@ local Ui = require(script.Ui)
 
 local remotes = Remotes.get()
 local modeBanner = ModeBanner.new()
+local centerBanner = CenterBanner.new()
 local director = CameraDirector.new()
 local buffs = BuffUi.new()
 local menu = MenuBar.new() -- features add their own lobby buttons here (see MenuBar.luau)
@@ -69,6 +72,8 @@ local skids = SkidFx.new()
 task.spawn(SteelLobby.start)
 local actions: ActionInput.ActionInput
 local view: Ui.View
+
+local lastWins = 0 -- saved win count from the last profile (a first win is decided from it)
 
 -- First-time hints: the server saves which ones were shown (profile.hintsSeen).
 local hints = HintUi.new(function(id: string)
@@ -112,6 +117,7 @@ remotes.LobbyUpdate.OnClientEvent:Connect(function(u: Types.LobbyUpdate)
 	end
 	buildUi.handleUpdate(u)
 	if u.kind == "profile" then
+		lastWins = u.wins
 		hints.loadSeen(u.hintsSeen)
 		progressUi.update(
 			u.carLevels,
@@ -147,9 +153,13 @@ end)
 
 aim = AimInput.new(function(power: number)
 	view.showPower(power)
+	if power > 0 then
+		hints.stopAimNudge() -- they are dragging, no arrow needed
+	end
 end, function(angle: number, power: number)
 	view.showPower(0)
 	hints.done("aim")
+	hints.stopAimNudge()
 	view.showWaiting()
 	remotes.Launch:FireServer(angle, power)
 end)
@@ -188,6 +198,7 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		end
 		hints.done("pad")
 		hints.trigger("aim")
+		hints.startAimNudge(u.carPos) -- pulsing arrow if they have not dragged after 3 s
 	elseif u.kind == "ready" then
 		menu.setVisible(false)
 		progressUi.setVisible(false)
@@ -197,11 +208,14 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 			camSide = if u.carPos then u.carPos - u.center else nil
 			director.overview(u.center, camSide)
 		end
+		director.soccer(u.soccer == true) -- car soccer: camera follows your car and the ball
 		view.showReady(u.yourCar or "", u.enemyCar or "", u.seconds or 3, u.enemyName or "BOT")
 		hints.done("pad")
+		hints.stopAimNudge()
 	elseif u.kind == "fight" then
 		aim.stop()
 		hints.done("aim")
+		hints.stopAimNudge()
 		view.showFight()
 		SoundFx.music("music_arena")
 		skids.start()
@@ -214,6 +228,8 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		end
 	elseif u.kind == "modeInfo" then
 		modeBanner.show(u.text or "")
+	elseif u.kind == "banner" then
+		centerBanner.show(u.text or "", u.seconds or 1)
 	elseif u.kind == "move" then
 		actions.cooldown(u.move or "", u.seconds or 0)
 	elseif u.kind == "buff" then
@@ -250,7 +266,9 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		skids.stop()
 		actions.stop()
 		modeBanner.hide()
-		view.showMatchEnd(u.youWon == true)
+		hints.stopAimNudge()
+		centerBanner.hide()
+		view.showMatchEnd(u.youWon == true, FirstWin.isFirstWin(lastWins, u.youWon == true))
 		SoundFx.play(if u.youWon == true then "win" else "lose")
 	end
 end)
