@@ -73,13 +73,10 @@ local GameConfig = {
 		calmFlashScale = 0.35, -- flash strength x this when calm
 		calmShakeScale = 0.3, -- camera shake and FOV punches x this when calm
 		maxFlashesPerSecond = 3, -- the hit flash never fires more often than this (shake still does)
-		-- Steady high camera (every mode except the bowl): never turns, follows your car
-		chaseBack = 24, -- studs behind the focus point (the view direction never turns)
-		chaseUp = 56, -- studs above it: high, sees most of the field
-		chaseAhead = 10, -- look this far in front of the focus point
-		chaseBallShare = 0.4, -- soccer: the view centres this share of the way from your car to the ball
-		chaseFollow = 5, -- how tightly the camera follows (per second); low = calm
-		chaseSpeedFov = 12, -- FOV widens up to this much at top speed
+		-- Whole-arena camera (every mode): fixed high view of the full floor, never turns or moves
+		arenaPitch = 66, -- degrees looking down (90 = straight down)
+		arenaMargin = 0.94, -- the arena corners must sit inside this share of the view
+		arenaEase = 3, -- how fast the camera settles into its spot at the start (per second)
 		-- Soccer camera (audit #15): the pure framing in FeelRules.soccerCamera
 		soccerCamBackMult = 1.35, -- camera sits this much further back than SoccerFieldConfig.camBack
 		soccerCamUpMult = 1.3, -- ...and this much higher than camUp
