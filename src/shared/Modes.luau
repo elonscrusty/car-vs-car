@@ -61,7 +61,7 @@ end
 
 -- Modes played by many cars in GroupMatch (the others are a 1v1 in Match).
 function Modes.isGroup(name: string): boolean
-	return name == "lastStanding" or name == "soccer" or name == "tag"
+	return name == "lastStanding" or name == "soccer" or name == "tag" or name == "race"
 end
 
 -- How many cars the mode needs (2 for the 1v1 modes).
@@ -72,6 +72,8 @@ function Modes.carCount(name: string): number
 		return ModesConfig.Soccer.teamSize * 2
 	elseif name == "tag" then
 		return ModesConfig.Tag.cars
+	elseif name == "race" then
+		return ModesConfig.Race.cars
 	end
 	return 2
 end

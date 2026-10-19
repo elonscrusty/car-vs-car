@@ -1,6 +1,6 @@
 --!strict
 -- A many-car match: "lastStanding" (8 cars, last one alive wins), "tag" (hot potato on the flat
--- field: pass IT on or blow up) or "soccer" (two teams, a giant
+-- field: pass IT on or blow up), "race" (laps round a track with jumps) or "soccer" (two teams, a giant
 -- ball, goals on its own small field: SoccerArena, shared/SoccerField). One or two players, bots fill the rest. Same handle as Match,
 -- so init.server treats both the same. The server owns everything: spawns, hits, eliminations,
 -- ball, goals, winner. Rules and numbers: shared/Modes, shared/ModesConfig.
@@ -27,6 +27,9 @@ local Steer = require(ReplicatedStorage.Shared.Steer)
 local SoccerField = require(ReplicatedStorage.Shared.SoccerField)
 local SoccerFieldConfig = require(ReplicatedStorage.Shared.SoccerFieldConfig)
 local SoccerBotRules = require(ReplicatedStorage.Shared.SoccerBotRules)
+local Race = require(ReplicatedStorage.Shared.Race)
+local RaceTrack = require(ReplicatedStorage.Shared.RaceTrack)
+local RaceTrackConfig = require(ReplicatedStorage.Shared.RaceTrackConfig)
 local SoccerBotConfig = require(ReplicatedStorage.Shared.SoccerBotConfig)
 local SoccerFieldFlow = require(ReplicatedStorage.Shared.SoccerFieldFlow)
 local Types = require(ReplicatedStorage.Shared.Types)
@@ -39,6 +42,7 @@ local CarSanity = require(script.Parent.CarSanity)
 local Dummy = require(script.Parent.Dummy)
 local Impulse = require(script.Parent.Impulse)
 local Match = require(script.Parent.Match)
+local RaceArena = require(script.Parent.RaceArena)
 local ModeFx = require(script.Parent.ModeFx)
 local Telemetry = require(script.Parent.Telemetry)
 local Moves = require(script.Parent.Moves)
@@ -57,6 +61,7 @@ function GroupMatch.new(
 	local cfg = GameConfig
 	local soccerOn = mode == "soccer"
 	local tagOn = mode == "tag"
+	local raceOn = mode == "race"
 	local onField = soccerOn or tagOn -- both play on the small flat field (SoccerArena)
 	local origin = Vector3.new(slot * cfg.Arena.slotSpacing, cfg.Arena.baseY, 0)
 	local rng = Random.new()
@@ -84,6 +89,13 @@ function GroupMatch.new(
 	local tagCfg = ModesConfig.Tag
 	local tag = Modes.tagNew(1, tagCfg.startFuse)
 	local tagHudAt = 0
+	local race = Race.new(total, RaceTrackConfig.laps, RaceTrack.count())
+	local raceStarted = false
+	local raceGoAt = 0
+	local raceT0 = 0
+	local raceHudAt = 0
+	local raceShown = ""
+	local raceStuck: { [number]: { passed: number, since: number } } = {}
 	local ball: Part? = nil
 	local ballIdle = 0 -- seconds the ball has hardly moved (stuck check)
 	local goldenGoal = false
@@ -211,7 +223,10 @@ function GroupMatch.new(
 				return i == winner
 			end,
 			if winner > 0
-				then (if tagOn then "LAST ONE SAFE!" else "LAST CAR STANDING!")
+				then (if tagOn
+					then "LAST ONE SAFE!"
+					elseif raceOn then "WINNER!"
+					else "LAST CAR STANDING!")
 				else "DRAW!",
 			pos
 		)
@@ -384,7 +399,7 @@ function GroupMatch.new(
 
 	-- Where a start spot sits: on the flat soccer field, or on the bowl surface.
 	local function spotPosition(spot: Modes.Spot, lift: number): Vector3
-		if onField then
+		if onField or raceOn then
 			return SoccerArena.spotPosition(origin, spot.x, spot.z, lift)
 		end
 		return ModeFx.spotPosition(origin, spot.x, spot.z, lift)
@@ -396,6 +411,7 @@ function GroupMatch.new(
 		spots = if soccerOn
 			then SoccerField.spawnSpots(teamSize)
 			elseif tagOn then SoccerField.spawnSpots(tagCfg.cars // 2)
+			elseif raceOn then RaceTrack.grid(total)
 			else Modes.ringSpots(total, ModesConfig.LastStanding.spawnRadius)
 		for idx = 1, total do
 			local part = participants[idx]
@@ -421,8 +437,8 @@ function GroupMatch.new(
 			car.hp = hp
 			maxHp[idx] = hp
 			car.bar.set(hp, hp)
-			if tagOn then
-				car.bar.hide() -- nobody loses HP in tag
+			if tagOn or raceOn then
+				car.bar.hide() -- nobody loses HP in tag or the race
 			end
 			if soccerOn then
 				local marker = car.model:FindFirstChild("Marker")
@@ -788,6 +804,124 @@ function GroupMatch.new(
 		end
 	end
 
+	-- ---- Crazy Race ------------------------------------------------------------------------
+
+	local function respawnRacer(car: CarBuilder.Car)
+		local spot = RaceTrack.respawn(Race.lastPassed(race, car.idx), car.idx)
+		car.model:PivotTo(CFrame.new(spotPosition(spot, 4)) * CFrame.Angles(0, spot.yaw, 0))
+		car.body.AssemblyLinearVelocity = Vector3.zero
+		car.body.AssemblyAngularVelocity = Vector3.zero
+		CarSanity.rebase(car) -- a legit move: do not count it as a teleport
+	end
+
+	-- A race bot steers at the next waypoint, leaning toward the one after it near the corner.
+	local function driveRaceBot(car: CarBuilder.Car, dt: number)
+		local look = car.body.CFrame.LookVector
+		local fwd = Vector3.new(look.X, 0, look.Z)
+		if fwd.Magnitude < 0.1 then
+			return
+		end
+		fwd = fwd.Unit
+		local x, z = flatOf(car)
+		local c = race.cars[car.idx]
+		local a, b = RaceTrack.point(c.next), RaceTrack.point(c.next + 1)
+		local dist = math.sqrt((a.x - x) ^ 2 + (a.z - z) ^ 2)
+		local lean = math.clamp(1 - dist / 70, 0, 0.6)
+		local tx, tz = a.x + (b.x - a.x) * lean, a.z + (b.z - a.z) * lean
+		local angle = Modes.signedAngle(fwd.X, fwd.Z, tx - x, tz - z)
+		local steer = -math.clamp(angle / SoccerBotConfig.steerFullRad, -1, 1)
+		local gas = math.clamp(math.cos(angle) * 1.2, 0.45, 1)
+		Autopilot.stepManual(car, steer, gas, dt, rayParams, nil)
+	end
+
+	-- Race: the 3-2-1, checkpoints and laps, falls, stuck bots, the HUD, time up.
+	local function stepRace(now: number, dt: number)
+		if not raceStarted then
+			local left = math.ceil(raceGoAt - now)
+			if left > 0 then
+				local shown = tostring(left)
+				if shown ~= raceShown then
+					raceShown = shown
+					banner(shown, 1)
+				end
+				return
+			end
+			raceStarted = true
+			raceT0 = now
+			for _, car in cars do
+				setAnchored(car, false)
+				pcall(function()
+					car.body:SetNetworkOwner(nil)
+				end)
+			end
+			handOver()
+			banner("GO!", 0.8)
+			return
+		end
+		local toNext: { number } = {}
+		for _, car in cars do
+			local x, z = flatOf(car)
+			local c = race.cars[car.idx]
+			local wp = RaceTrack.point(c.next)
+			if
+				Race.reach(
+					race,
+					car.idx,
+					x,
+					z,
+					wp.x,
+					wp.z,
+					RaceTrackConfig.checkpointRadius,
+					now - raceT0
+				) and c.finishedAt ~= nil
+			then
+				finishLast(car.idx)
+				return
+			end
+			wp = RaceTrack.point(c.next)
+			toNext[car.idx] = math.sqrt((wp.x - x) ^ 2 + (wp.z - z) ^ 2)
+			-- Fell off the world, or a bot that has not moved on for a while: back to the last gate.
+			local fell = car.body.Position.Y < origin.Y + RaceTrackConfig.fallBelow
+			local mark = raceStuck[car.idx]
+			if
+				mark == nil
+				or mark.passed ~= c.passed
+				or car.body.AssemblyLinearVelocity.Magnitude > 4
+			then
+				mark = { passed = c.passed, since = now }
+				raceStuck[car.idx] = mark
+			end
+			local stuck = not isHuman(car.idx) and now - mark.since > RaceTrackConfig.stuckSeconds
+			if fell or stuck then
+				respawnRacer(car)
+				raceStuck[car.idx] = { passed = c.passed, since = now }
+			end
+		end
+		fightElapsed += dt
+		if fightElapsed >= RaceTrackConfig.maxSeconds then
+			local w = Race.leader(race, toNext)
+			finishLast(w)
+			return
+		end
+		if now - raceHudAt >= RaceTrackConfig.hudSeconds then
+			raceHudAt = now
+			local pos = Race.positions(race, toNext)
+			sendAll(function(i)
+				local c = race.cars[i]
+				return {
+					kind = "modeInfo",
+					text = string.format(
+						"LAP %d/%d   %s of %d",
+						c.lap,
+						race.laps,
+						Race.ordinal(pos[i]),
+						total
+					),
+				}
+			end)
+		end
+	end
+
 	-- Gives each human the physics of their own car (they drive it); the server drives the rest.
 	function handOver()
 		task.delay(0.15, function()
@@ -817,6 +951,11 @@ function GroupMatch.new(
 		if soccerOn then
 			-- Cars stay frozen (anchored) through the 3-2-1; the ball waits in the middle.
 			startCountdown(os.clock(), ModesConfig.Soccer.kickoffSeconds)
+		elseif raceOn then
+			raceGoAt = os.clock() + RaceTrackConfig.goSeconds -- cars stay frozen until GO
+			for _, car in cars do
+				setAnchored(car, true)
+			end
 		else
 			if tagOn then
 				tag = Modes.tagNew(Modes.tagNextIt(last, rng:NextNumber()), tagCfg.startFuse)
@@ -852,14 +991,18 @@ function GroupMatch.new(
 		end
 		local now = os.clock()
 		-- Soccer: nobody drives while the kickoff countdown or a goal celebration is on.
-		local driving = not soccerOn or soccerState == "play"
+		local driving = (not soccerOn or soccerState == "play") and (not raceOn or raceStarted)
 		for _, car in cars do
 			if driving and not car.dead then
 				local target = if soccerOn then nil else targetFor(car)
 				local human = isHuman(car.idx)
 				if human and clientDriven[car.idx] then
 					local cap = limitSpeed(car)
-					if not CarSanity.step(car, origin.Y, cap, dt) and not onField then
+					if
+						not CarSanity.step(car, origin.Y, cap, dt)
+						and not onField
+						and not raceOn
+					then
 						eliminate(car, "RING OUT!") -- kept breaking movement limits
 						if ending then
 							return
@@ -878,6 +1021,8 @@ function GroupMatch.new(
 					Autopilot.stepManual(car, eased, gas, dt, rayParams, mods)
 				elseif soccerOn then
 					driveSoccerBot(car, now, dt)
+				elseif raceOn then
+					driveRaceBot(car, dt)
 				elseif tagOn and car.idx ~= tag.it then
 					driveTagRunner(car, dt)
 				elseif target then
@@ -899,6 +1044,11 @@ function GroupMatch.new(
 			if not car.dead then
 				car.prevVel = car.body.AssemblyLinearVelocity
 			end
+		end
+
+		if raceOn then
+			stepRace(now, dt)
+			return
 		end
 
 		if tagOn then
@@ -1039,7 +1189,7 @@ function GroupMatch.new(
 				enemyCar = if other then other.id else cars[i].id,
 				enemyName = if soccerOn
 					then "THE OTHER TEAM"
-					elseif tagOn then "ALL CARS"
+					elseif tagOn or raceOn then "ALL CARS"
 					else "EVERYONE",
 				center = a.center,
 				carPos = cars[i].body.Position,
@@ -1124,7 +1274,10 @@ function GroupMatch.new(
 		end,
 	}
 
-	arena = if onField then SoccerArena.build(origin) else Arena.build(origin)
+	arena = if onField
+		then SoccerArena.build(origin)
+		elseif raceOn then RaceArena.build(origin)
+		else Arena.build(origin)
 	spawnCars()
 	begin()
 	return handle

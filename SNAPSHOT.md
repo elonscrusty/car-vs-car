@@ -208,3 +208,9 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 
 ## Car Tag mode (2026-10-19)
 New group mode "tag" (flag tagMode, in the MODE button as TAG). 6 cars on the flat soccer field; one is IT (red glow, fuse). IT bumps a car = passes IT (1.5 s no tag-back). Fuse 0 = IT car blows up; fuse shrinks each round (18s -1 step 3s, min 7s). Last car wins. Bots: IT hunts nearest, others run away. Rules: shared/Modes (tag*), numbers: ModesConfig.Tag, server: GroupMatch (tagOn). Tests: tests/modes.test.luau. Not yet played in Studio.
+
+## Soccer is the main game (2026-10-19)
+Rotation now soccer, tag, duel, hill, ice. Soccer is 3v3 on a bigger field (140x80). Bowl modes stay as small modes.
+
+## Crazy Race mode (2026-10-19)
+New group mode "race" (flag raceMode, MODE button: RACE). 6 cars, 3 laps round a looped road with 3 jump ramps, built from parts by server/RaceArena (no Studio models). Rules: shared/Race (checkpoints in order, laps, positions), geometry: shared/RaceTrack, numbers: shared/RaceTrackConfig. Bots follow waypoints, fall/stuck cars go back to the last gate. Map picture: review/race-map-top-down.png. Ramp wedge direction and bot speed not yet checked in Studio.

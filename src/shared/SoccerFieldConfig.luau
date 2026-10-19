@@ -5,8 +5,8 @@
 -- The floor top sits at y = 0. Team size lives in ModesConfig.Soccer.teamSize.
 
 return {
-	length = 120, -- studs along X (goal line to goal line)
-	width = 70, -- studs along Z
+	length = 140, -- studs along X (goal line to goal line)
+	width = 80, -- studs along Z
 	wallHeight = 30, -- walls are tall: the ball and cars stay in
 	wallThick = 3,
 	ceilingHeight = 60, -- invisible lid so nothing flies out over the walls (0 = no lid)
@@ -20,7 +20,7 @@ return {
 	ballElasticity = 0.7, -- bouncy off the walls
 	ballMaxSpeed = 100, -- the server never lets the ball go faster
 	kickoffLift = 0.5, -- ball starts this far above the floor (drops onto it)
-	spawnX = 38, -- team start spots, studs from the middle along X
+	spawnX = 46, -- team start spots, studs from the middle along X
 	spawnSpreadZ = 18, -- studs between cars of the same team
 	lostMargin = 12, -- ball or car this far outside the field (or under the floor) is put back
 	stuckSpeed = 1.5, -- ball slower than this ...

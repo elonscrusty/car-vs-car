@@ -13,17 +13,23 @@ end
 
 local FeatureFlags = sibling("FeatureFlags")
 
--- Launch set: duel, hill, ice, soccer. Last standing comes back with its feature flag.
+-- Rotation: soccer (main game), tag, duel, hill, ice. Last standing comes back with its flag.
 local function orderFor(flags: { [string]: boolean }?): { string }
-	local order = { "duel", "hill", "ice" }
+	local order = {}
+	if FeatureFlags.enabled("soccerMode", flags) then
+		table.insert(order, "soccer") -- car soccer is the main game: first in the rotation
+	end
 	if FeatureFlags.enabled("tagMode", flags) then
 		table.insert(order, "tag")
 	end
+	if FeatureFlags.enabled("raceMode", flags) then
+		table.insert(order, "race")
+	end
+	table.insert(order, "duel")
+	table.insert(order, "hill")
+	table.insert(order, "ice")
 	if FeatureFlags.enabled("lastStandingMode", flags) then
 		table.insert(order, "lastStanding")
-	end
-	if FeatureFlags.enabled("soccerMode", flags) then
-		table.insert(order, "soccer")
 	end
 	return order
 end
@@ -38,12 +44,14 @@ return {
 		lastStanding = "LAST CAR STANDING",
 		soccer = "CAR SOCCER",
 		tag = "CAR TAG",
+		race = "CRAZY RACE",
 	},
 	Blurbs = {
 		duel = "Crash into your enemy until their HP runs out!",
 		hill = "Stay on the glowing circle. Alone on it = points. Hold 20 seconds to win!",
 		ice = "The floor is ice! Cars slide. Push your enemy off the edge!",
 		lastStanding = "8 cars. Fall off or run out of HP and you are out. Last one wins!",
+		race = "Race 3 laps over jumps! Hit the checkpoints in order. First car over the line wins!",
 		tag = "One car is IT and glows! Bump a car to pass IT on. IT when the fuse ends = BOOM. Last car wins!",
 		soccer = "Push the ball into the other team's goal on the small field. First to 3 wins!",
 	},
@@ -65,6 +73,9 @@ return {
 		hpScale = 0.6, -- every car has this share of its normal HP (8 cars = quick knock-outs)
 		hudSeconds = 1,
 	},
+	Race = {
+		cars = 6, -- cars in the match (humans first, bots fill the rest); track: RaceTrackConfig
+	},
 	Tag = {
 		cars = 6, -- cars in the match (humans first, bots fill the rest); plays on the flat field
 		startFuse = 18, -- seconds on the fuse in round 1
@@ -77,7 +88,7 @@ return {
 		fleeLook = 40, -- bots run toward a point this far away from IT
 	},
 	Soccer = {
-		teamSize = 2, -- cars per team (humans first, bots fill the rest); small field = 2v2 (field: SoccerFieldConfig)
+		teamSize = 3, -- cars per team (humans first, bots fill the rest); 3v3 on the flat field (SoccerFieldConfig)
 		ballSize = 16, -- the giant ball (diameter, studs)
 		ballDensity = 0.25, -- low = a hit sends it flying
 		ballMaxSpeed = 140, -- the server never lets the ball go faster
