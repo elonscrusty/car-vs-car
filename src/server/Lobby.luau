@@ -37,7 +37,6 @@ local CLAW_SCALE = 2.1 -- the imported claw is about 7 studs wide; it stands on 
 local CLAW_YAW_DEG = 180 -- turns the imported claw machine so its front faces the hall (it stands by the back wall)
 
 local CYAN = Color3.fromRGB(60, 220, 255)
-local GREEN = Color3.fromRGB(60, 235, 80)
 local YELLOW = Color3.fromRGB(255, 205, 40)
 local RED = Color3.fromRGB(84, 90, 102) -- steel (kept the old name): garage steel, not racetrack red
 local FLOOR = Color3.fromRGB(70, 74, 86)
@@ -967,26 +966,6 @@ function Lobby.build(): LobbyHandle
 			)
 		end
 	end
-	for _, dx in { -40, 40 } do
-		ceil(
-			"Duct",
-			Vector3.new(HL * 2 - 6, 3.4, 3.4),
-			world(dx, top - 7.2, 0) * CFrame.Angles(0, math.pi / 2, 0),
-			Color3.fromRGB(170, 176, 190),
-			Enum.Material.Metal,
-			Enum.PartType.Cylinder
-		)
-		for k = -4, 4 do
-			ceil(
-				"DuctBand",
-				Vector3.new(0.9, 3.9, 3.9),
-				world(dx, top - 7.2, k * 14) * CFrame.Angles(0, math.pi / 2, 0),
-				YELLOW,
-				Enum.Material.Metal,
-				Enum.PartType.Cylinder
-			)
-		end
-	end
 	for _, tz in { -22, 24 } do
 		ceil("PennantCable", Vector3.new(HW * 2 - 8, 0.2, 0.2), world(0, top - 10, tz), DARK)
 	end
@@ -997,18 +976,6 @@ function Lobby.build(): LobbyHandle
 			world(tx, top - 3, 0),
 			Color3.fromRGB(60, 64, 76),
 			Enum.Material.Metal
-		)
-		ceil(
-			"CableTrayLip",
-			Vector3.new(0.3, 0.9, HL * 2 - 4),
-			world(tx - 1.1, top - 2.8, 0),
-			YELLOW
-		)
-		ceil(
-			"CableTrayLip",
-			Vector3.new(0.3, 0.9, HL * 2 - 4),
-			world(tx + 1.1, top - 2.8, 0),
-			YELLOW
 		)
 	end
 
@@ -1243,7 +1210,7 @@ function Lobby.build(): LobbyHandle
 	local stageTop = 2.8
 	local carY = stageTop + 0.1 -- the truck stands on the stage
 	local pivot = world(sc.x, carY + 4, sc.z)
-	local showcaseCar = meshCar(folder, "ShowcaseCar", 22, world(sc.x, carY, sc.z))
+	local showcaseCar = meshCar(folder, "ShowcaseCar", 30, world(sc.x, carY, sc.z))
 	if showcaseCar then
 		pivot = world(sc.x, carY, sc.z)
 	else
@@ -1269,6 +1236,27 @@ function Lobby.build(): LobbyHandle
 	-- Claw machine (right wall). Placeholder box + the "Gacha" prompt; the imported model
 	-- (ServerStorage.Models.ClawMachine) replaces the look and keeps the prompt.
 	local g = L.gacha
+	-- Three warm yellow spot lights against the cool room: over the hero car, the claw, and the
+	-- garages. (The room itself stays steel blue.)
+	local WARM = Color3.fromRGB(255, 196, 110)
+	local function warmSpot(name: string, pos: Vector3, range: number, brightness: number)
+		local lamp = part(folder, name, Vector3.new(1, 1, 1), CFrame.new(pos), DARK)
+		lamp.Transparency = 1
+		lamp.CanCollide = false
+		lamp.CanQuery = false
+		lamp.CanTouch = false
+		local sl = Instance.new("SpotLight")
+		sl.Face = Enum.NormalId.Bottom
+		sl.Angle = 80
+		sl.Color = WARM
+		sl.Range = range
+		sl.Brightness = brightness
+		sl.Shadows = false
+		sl.Parent = lamp
+	end
+	warmSpot("StageSpot", world(sc.x, 30, sc.z).Position, 50, 6)
+	warmSpot("ClawSpot", world(g.x, 26, g.z).Position, 40, 5)
+	warmSpot("GarageSpot", world(0, 28, 10).Position, 60, 3)
 	local gBase = part(
 		folder,
 		"GachaBody",
@@ -1616,31 +1604,31 @@ function Lobby.build(): LobbyHandle
 	local pads: { PadHandle } = {}
 	for i, pp in L.pads do
 		local size = L.padSize
-		-- A flat dark pad with a thick green glowing outline and its number painted on it.
+		-- A flat steel-blue pad with one thin yellow line round it and its number painted on it.
 		part(
 			folder,
 			"PadBase",
 			Vector3.new(size, 0.3, size),
 			world(pp.x, 0.15, pp.z),
-			Color3.fromRGB(30, 34, 44)
+			Color3.fromRGB(58, 78, 112)
 		)
 		for _, e in { -1, 1 } do
 			local across = part(
 				folder,
 				"PadOutline",
-				Vector3.new(size, 0.2, 0.9),
-				world(pp.x, 0.4, pp.z + e * (size / 2 - 0.45)),
-				GREEN,
-				Enum.Material.Neon
+				Vector3.new(size - 1.2, 0.2, 0.35),
+				world(pp.x, 0.4, pp.z + e * (size / 2 - 0.6)),
+				YELLOW,
+				Enum.Material.SmoothPlastic
 			)
 			across.CanCollide = false
 			local along = part(
 				folder,
 				"PadOutline",
-				Vector3.new(0.9, 0.2, size - 1.8),
-				world(pp.x + e * (size / 2 - 0.45), 0.4, pp.z),
-				GREEN,
-				Enum.Material.Neon
+				Vector3.new(0.35, 0.2, size - 1.2),
+				world(pp.x + e * (size / 2 - 0.6), 0.4, pp.z),
+				YELLOW,
+				Enum.Material.SmoothPlastic
 			)
 			along.CanCollide = false
 		end
@@ -1649,7 +1637,7 @@ function Lobby.build(): LobbyHandle
 			"MatchPad" .. i,
 			Vector3.new(size - 2.4, 0.3, size - 2.4),
 			world(pp.x, 0.35, pp.z),
-			Color3.fromRGB(38, 42, 54),
+			Color3.fromRGB(44, 60, 92),
 			Enum.Material.SmoothPlastic
 		)
 		local padNum = label(
@@ -1662,8 +1650,7 @@ function Lobby.build(): LobbyHandle
 		padNum.Rotation = 180
 		padNum.AnchorPoint = Vector2.new(0.5, 0.5)
 		padNum.Position = UDim2.fromScale(0.5, 0.5)
-		padNum.Size = UDim2.fromScale(0.45, 0.45) -- smaller, easy to read
-		glow(padPart, GREEN, 18, 0.25)
+		padNum.Size = UDim2.fromScale(0.3, 0.3) -- small, same on every pad
 		local pboard = part(
 			folder,
 			"PadSign" .. i,

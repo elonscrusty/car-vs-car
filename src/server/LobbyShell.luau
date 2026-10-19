@@ -186,9 +186,7 @@ function LobbyShell.build(folder: Folder, origin: Vector3)
 	-- The big sign on the back wall, the stage, the pads and the way in.
 	put("BigSign_CarVsCar", 0, 23, -HL + 3.2, BACK)
 	put("TruckStage", L.showcase.x, 0, L.showcase.z, 0)
-	for i, p in L.pads do
-		put(string.format("JoinPad_%02d", i), p.x, 0, p.z, BACK)
-	end
+	-- (No JoinPad models: Lobby.luau draws plain steel pads with one yellow line.)
 	put("SpawnPad", L.spawn.x, 0, L.spawn.z, 0)
 	for _, sx in { -1, 1 } do
 		for _, z in { 69, 53, 37, 21, 5, -11 } do
