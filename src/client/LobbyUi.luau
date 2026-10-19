@@ -734,7 +734,11 @@ function LobbyUi.new(hooks: Hooks): Handle
 	end
 
 	local handle: Handle = {} :: any
-	handle.hideChoices = hideChoices
+	-- A match starting also clears the pad countdown ("Starting in 1...", LEAVE) so it never covers the arena.
+	handle.hideChoices = function()
+		hideChoices()
+		showCountdown(0)
+	end
 	handle.handleUpdate = function(u: Types.LobbyUpdate)
 		if u.kind == "profile" then
 			coins = u.coins

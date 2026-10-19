@@ -232,6 +232,7 @@ function SoccerArena.build(origin: Vector3): Arena.Arena
 		)
 	end
 
+	model.Parent = workspace
 	return { model = model, center = origin, frames = { CFrame.new(origin) } }
 end
 
