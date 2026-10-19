@@ -381,7 +381,7 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena, momentum: b
 		if state == "telegraph" then
 			-- The direction is locked for the whole telegraph (still in the steering fight; rolling on
 			-- in the momentum fight).
-			local o = out(0, if isMomentum then 0.7 else 0, readyFrac)
+			local o = out(0, if isMomentum then 1 else 0, readyFrac)
 			o.hold = not isMomentum
 			if stateT >= cannon.telegraphSeconds then
 				o.fire = true

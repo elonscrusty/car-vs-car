@@ -30,6 +30,7 @@ export type Car = {
 	lastForward: Vector3,
 	standIn: boolean,
 	lastOut: BattleBrain.Output?,
+	lungeT: number, -- momentum: time since the last forward lunge
 	momentum: boolean, -- the momentum prototype: launch, skid, rebound, weak steering
 	stats: BattleRecap.Stats, -- what this car's weapon did this round (for the recap)
 	stagger: number, -- > 0 while knocked: the car slides and cannot steer
@@ -216,6 +217,7 @@ function BattleCar.spawn(
 		lastOut = nil,
 		stagger = 0,
 		momentum = false,
+		lungeT = 0,
 		stats = BattleRecap.newStats(),
 	}
 	local at = floorMid2 * CFrame.new(0, fighter.weaponUp * L, -fighter.weaponForward * L)
@@ -356,6 +358,27 @@ function BattleCar.drive(car: Car, out: BattleBrain.Output, dt: number)
 	end
 	local yaw = out.turn * math.rad(car.fighter.turnDeg) * turnScale
 	body.AssemblyAngularVelocity = Vector3.new(0, yaw, 0)
+end
+
+-- Momentum prototype: a car that has slowed down is thrown forward again along its heading
+-- (toward the foe, since it keeps steering that way), so the fight never goes sleepy.
+function BattleCar.lunge(car: Car, dt: number)
+	if not car.momentum or car.stagger > 0 then
+		return
+	end
+	car.lungeT += dt
+	local mom = BattleConfig.Momentum
+	if car.lungeT < mom.lungeSeconds then
+		return
+	end
+	car.lungeT = 0
+	local f = car.lastForward
+	local v = car.body.AssemblyLinearVelocity
+	local fwd = v.X * f.X + v.Z * f.Z
+	local want = mom.lungeL * car.L
+	if fwd < want then
+		car.body.AssemblyLinearVelocity = Vector3.new(f.X * want, v.Y, f.Z * want)
+	end
 end
 
 -- A shove along `dir` (flat): the car slides away and cannot steer for `stagger` seconds, and it
