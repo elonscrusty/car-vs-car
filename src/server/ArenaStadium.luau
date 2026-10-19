@@ -115,7 +115,7 @@ function ArenaStadium.build(model: Model, origin: Vector3, arenaCfg: any)
 			fence,
 			false
 		)
-		local rail = part(
+		part(
 			folder,
 			"FenceRail",
 			Vector3.new(segW, 0.3, 1.2),
