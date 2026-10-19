@@ -39,6 +39,8 @@ export type UiUpdate = {
 	buff: string?, -- buff: "shield" | "bighit" | "speed" (seconds = time left, 0 = ended)
 	carsLeft: number?, -- fight / fightHud: cars still alive
 	wins: number?, -- fight / fightHud: rounds you have won in this match
+	hp: number?, -- fightHud: your car's HP now
+	hpMax: number?, -- fightHud: your car's full HP
 	text: string?, -- ko: "K.O.!" or "RING OUT!"; modeInfo: the line shown at the top; banner: big centered text (3, 2, 1, GO!, score)
 }
 

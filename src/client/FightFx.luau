@@ -71,4 +71,12 @@ function FightFx.ko(text: string)
 	end)
 end
 
+-- Remove any flash / K.O. text still on screen (the result screen starts clean).
+function FightFx.clear()
+	local g = gui
+	if g and g.Parent then
+		g:ClearAllChildren()
+	end
+end
+
 return FightFx

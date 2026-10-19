@@ -56,7 +56,7 @@ return {
 		duel = "Crash into your enemy until their HP runs out!",
 		hill = "Stay on the glowing circle. Alone on it = points. Hold 20 seconds to win!",
 		ice = "The floor is ice! Cars slide. Push your enemy off the edge!",
-		lastStanding = "8 cars. Fall off or run out of HP and you are out. Last one wins!",
+		lastStanding = "Knock out the other cars! Fall off or run out of HP and you are out. Last car standing wins!",
 		race = "Race 3 laps over jumps! Hit the checkpoints in order. First car over the line wins!",
 		tag = "One car is IT and glows! Bump a car to pass IT on. IT when the fuse ends = BOOM. Last car wins!",
 		soccer = "Push the ball into the other team's goal on the small field. First to 3 wins!",
@@ -78,7 +78,7 @@ return {
 		maxSeconds = 60, -- time up: most HP among the cars still alive wins
 		spawnRadius = 48, -- start ring, studs from the middle
 		hpScale = 1.2, -- share of the car's normal HP: ~6-8 front hits at a normal crash speed (carter: medium health)
-		hudSeconds = 1,
+		hudSeconds = 0.25, -- cars left + your HP bar refresh this often
 		-- Flat fight floor with blocks, pillars and hammers, NO ramps (carter). Overrides GameConfig.Arena for this mode.
 		-- Mirrored round the middle so no spot is luckier.
 		Arena = {

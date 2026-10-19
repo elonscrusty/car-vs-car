@@ -281,6 +281,8 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		modeBanner.hide()
 		hints.stopAimNudge()
 		centerBanner.hide()
+		FightFx.clear() -- no HIT! / K.O. left over the result
+		HitFlash.clear()
 		view.showMatchEnd(u.youWon == true, FirstWin.isFirstWin(lastWins, u.youWon == true))
 		SoundFx.play(if u.youWon == true then "win" else "lose")
 	end

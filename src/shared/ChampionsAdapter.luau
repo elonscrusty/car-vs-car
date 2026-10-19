@@ -137,6 +137,8 @@ function Adapter.new(opts: Options): Model
 		local kind = u.kind
 		if kind == "gacha" then
 			coins = if type(u.coins) == "number" then u.coins else coins
+			fx.notify = "" -- the pull worked: clear any old BUSY notice
+			fx.notifyOk = true
 			reveal = {
 				vehicleId = u.carId,
 				duplicate = u.isNew == false,
@@ -256,6 +258,9 @@ function Adapter.new(opts: Options): Model
 				wins = if type(u.wins) == "number" then u.wins else wins
 				match.youScore = wins
 				match.carsLeft = u.carsLeft
+				if type(u.hp) == "number" and type(u.hpMax) == "number" then
+					match.hp, match.hpMax = u.hp, u.hpMax
+				end
 				match.round = if type(u.round) == "number" then u.round else match.round
 			end
 		elseif kind == "move" then

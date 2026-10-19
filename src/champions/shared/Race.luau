@@ -1,4 +1,5 @@
 -- Lobby and driving overlays remain transparent so the existing game owns the world.
+local UserInputService = game:GetService("UserInputService")
 local T = require(script.Parent.Theme)
 local Config = require(script.Parent.Config)
 local Race = {}
@@ -18,6 +19,14 @@ local function ordinal(place)
 		elseif last == 3 then "RD"
 		else "TH"
 	return tostring(place) .. suffix
+end
+
+-- Keyboard players see the key on the button; touch players do not (input-specific hints).
+local function keyLabel(name, key)
+	if UserInputService.KeyboardEnabled and not UserInputService.TouchEnabled then
+		return name .. " [" .. key .. "]"
+	end
+	return name
 end
 
 local function request(ctx, action, payload)
@@ -179,6 +188,21 @@ local function lobby(parent, state, ctx)
 			"duel"
 		)
 		T.disable(play, ctx.pending or not state.ready)
+		if not queue then
+			-- One line that says what the game is (carter's video review).
+			T.text(
+				root,
+				"Objective",
+				"KNOCK OUT THE OTHER CARS. LAST CAR STANDING WINS!",
+				playX - 20,
+				playY - 70,
+				playW + 20,
+				62,
+				20,
+				T.C.white,
+				"Center"
+			)
+		end
 		if queue then
 			T.panel(root, "PadHint", playX, playY - 50, playW, 44, T.C.blue)
 			T.text(
@@ -241,7 +265,7 @@ local function matchView(parent, state, ctx)
 			"Center"
 		)
 		if mode == "SOCCER" or mode == "DUEL" then
-			local leftName = if mode == "DUEL" then "YOU" else "BLUE"
+			local leftName = if mode == "DUEL" then "WINS" else "BLUE"
 			local rightName = if mode == "DUEL" then "LEFT" else "RED"
 			local leftScore = if mode == "DUEL" then match.youScore else match.blueScore
 			local rightScore = if mode == "DUEL" then match.carsLeft else match.redScore
@@ -433,13 +457,48 @@ local function matchView(parent, state, ctx)
 			)
 			return
 		end
+		if mode == "DUEL" and match.hp and match.hpMax and match.hpMax > 0 then
+			-- Your car's health, always on screen: it is what decides if you are out.
+			local frac = math.clamp(match.hp / match.hpMax, 0, 1)
+			local barW = math.clamp(w * 0.34, 190, 340)
+			local barX = (w - barW) / 2
+			local barY = h - 50
+			T.panel(root, "HpPanel", barX, barY, barW, 40, T.C.navy)
+			T.frame(root, "HpTrack", barX + 8, barY + 22, barW - 16, 12, T.C.ink, 6)
+			local fill = if frac > 0.5 then T.C.green elseif frac > 0.25 then T.C.gold else T.C.red
+			T.frame(
+				root,
+				"HpFill",
+				barX + 8,
+				barY + 22,
+				math.max(6, (barW - 16) * frac),
+				12,
+				fill,
+				6
+			)
+			T.text(
+				root,
+				"HpLabel",
+				"YOUR HP  "
+					.. tostring(math.ceil(match.hp))
+					.. " / "
+					.. tostring(math.ceil(match.hpMax)),
+				barX + 8,
+				barY + 2,
+				barW - 16,
+				20,
+				16,
+				if frac <= 0.25 then T.C.red else T.C.white,
+				"Center"
+			)
+		end
 		-- The native Roblox joystick owns the lower-left corner.
 		local size = math.clamp(math.min(h * 0.23, w * 0.15), 64, 136)
 		local controlsY = h - size - 20
 		local boost = T.cooldown(
 			root,
 			"Boost",
-			"BOOST",
+			keyLabel("BOOST", "SHIFT"),
 			"boost",
 			w - size * 2 - 34,
 			controlsY,
@@ -451,7 +510,7 @@ local function matchView(parent, state, ctx)
 		local ability = T.cooldown(
 			root,
 			"Ability",
-			string.upper(vehicle.Ability),
+			keyLabel(string.upper(vehicle.Ability), "E"),
 			vehicle.Ability,
 			w - size - 16,
 			controlsY,

@@ -1,5 +1,5 @@
 --!strict
--- A many-car match: "lastStanding" (8 cars, last one alive wins), "tag" (hot potato on the flat
+-- A many-car match: "lastStanding" (ModesConfig.LastStanding.cars cars, last one alive wins), "tag" (hot potato on the flat
 -- field: pass IT on or blow up), "race" (laps round a track with jumps) or "soccer" (two teams, a giant
 -- ball, goals on its own small field: SoccerArena, shared/SoccerField). One or two players, bots fill the rest. Same handle as Match,
 -- so init.server treats both the same. The server owns everything: spawns, hits, eliminations,
@@ -351,7 +351,12 @@ function GroupMatch.new(
 			part.player:SetAttribute("TutorialStep", if step then step.id else nil)
 		end)
 		if step then
-			sendTo(i, { kind = "modeInfo", text = step.text })
+			local text = step.text
+			if step.id == "ability" then
+				local ability = Specials.abilityOf(cars[i])
+				text = Tutorial.abilityLine(if ability then ability.name else nil)
+			end
+			sendTo(i, { kind = "modeInfo", text = text })
 		end
 	end
 
@@ -374,6 +379,18 @@ function GroupMatch.new(
 			local rc = ModesConfig.LastStanding.Rounds
 			winner =
 				BrawlRules.matchWinner(roundWins, roundNo, rc.winsNeeded, rc.maxRounds, roundWinner)
+			-- Show the true result at once: one car left and the new round wins (no stale "2 LEFT").
+			sendAll(function(i)
+				local mine = cars[i]
+				return {
+					kind = "fightHud",
+					carsLeft = 1,
+					wins = roundWins[i] or 0,
+					round = roundNo,
+					hp = if mine then math.max(0, mine.hp) else 0,
+					hpMax = maxHp[i],
+				}
+			end)
 			if winner == 0 then
 				phase = "roundBreak"
 				local who = nameOf(roundWinner)
@@ -1581,6 +1598,8 @@ function GroupMatch.new(
 				round = roundNo,
 				wins = roundWins[i] or 0,
 				carsLeft = total,
+				hp = maxHp[i],
+				hpMax = maxHp[i],
 				ability = if ability then ability.name else nil,
 			}
 		end)
@@ -1824,10 +1843,15 @@ function GroupMatch.new(
 			local n = Modes.lastAliveCount(last)
 			for i = 1, total do
 				-- Numbers for the fight HUD (cars left, my round wins); words stay free for the lessons.
-				sendTo(
-					i,
-					{ kind = "fightHud", carsLeft = n, wins = roundWins[i] or 0, round = roundNo }
-				)
+				local mine = cars[i]
+				sendTo(i, {
+					kind = "fightHud",
+					carsLeft = n,
+					wins = roundWins[i] or 0,
+					round = roundNo,
+					hp = if mine then math.max(0, mine.hp) else 0,
+					hpMax = maxHp[i],
+				})
 			end
 		end
 	end)
