@@ -9,6 +9,7 @@ local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 
 local ArenaDecor = require(script.Parent.ArenaDecor)
 local ArenaScenery = require(script.Parent.ArenaScenery)
+local ArenaProps = require(script.Parent.ArenaProps)
 local ArenaStadium = require(script.Parent.ArenaStadium)
 
 export type Arena = {
@@ -60,6 +61,10 @@ function Arena.build(origin: Vector3, arenaCfg: any?): Arena
 	)
 	floor.Shape = Enum.PartType.Cylinder
 	floor.Material = if cfg.dirt then Enum.Material.Ground else Enum.Material.Concrete
+
+	if cfg.stadium and cfg.dirt then
+		ArenaProps.floorArt(model, origin, cfg.flatRadius, Color3.fromRGB(150, 98, 60))
+	end
 
 	-- A faint darker ring line near the edge of the flat floor (looks only, nothing to bump into).
 	local lineR = cfg.flatRadius - 1
@@ -117,7 +122,13 @@ function Arena.build(origin: Vector3, arenaCfg: any?): Arena
 		end
 		local gap = cfg.gapEvery ~= nil and i % cfg.gapEvery < 2
 		if not gap then
-			makePart(model, "Wall", wallSize, wallCf, wallColor)
+			local wall = makePart(model, "Wall", wallSize, wallCf, wallColor)
+			if cfg.stadium then
+				wall.Color = if i % 2 == 0
+					then Color3.fromRGB(240, 242, 250)
+					else Color3.fromRGB(235, 60, 55)
+				ArenaProps.wallStrip(model, wall, Color3.fromRGB(120, 215, 255))
+			end
 		end
 	end
 
@@ -161,11 +172,14 @@ function Arena.build(origin: Vector3, arenaCfg: any?): Arena
 			hinge.MotorMaxTorque = 1e9
 			hinge.Parent = bar
 			table.insert(spinnerBars, bar)
+			if cfg.stadium then
+				ArenaProps.dressHammer(model, bar, origin + Vector3.new(o.x, 0, o.z), origin.Y)
+			end
 		elseif o.kind == "ramp" then
 			local rampTilt = math.rad(18)
 			local len = o.sz or o.sx
 			local rise = len / 2 * math.sin(rampTilt)
-			makePart(
+			local ramp = makePart(
 				model,
 				"Obstacle",
 				Vector3.new(o.sx, 1, len),
@@ -174,6 +188,9 @@ function Arena.build(origin: Vector3, arenaCfg: any?): Arena
 					* CFrame.Angles(rampTilt, 0, 0),
 				Color3.fromRGB(240, 200, 40)
 			)
+			if cfg.stadium then
+				ArenaProps.dressRamp(model, ramp)
+			end
 		elseif o.kind == "pillar" then
 			local pillar = makePart(
 				model,
@@ -183,14 +200,20 @@ function Arena.build(origin: Vector3, arenaCfg: any?): Arena
 				color
 			)
 			pillar.Shape = Enum.PartType.Cylinder
+			if cfg.stadium then
+				ArenaProps.dressPillar(model, pillar)
+			end
 		else
-			makePart(
+			local block = makePart(
 				model,
 				"Obstacle",
 				Vector3.new(o.sx, o.sy, o.sz or o.sx),
 				CFrame.new(pos),
 				color
 			)
+			if cfg.stadium then
+				ArenaProps.dressBlock(model, block)
+			end
 		end
 	end
 
