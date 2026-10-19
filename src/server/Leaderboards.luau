@@ -27,6 +27,9 @@ local lastSent: { [string]: { score: number, at: number } } = {} -- "<kind>_<use
 local names: { [number]: string } = {}
 local labels: { [string]: { TextLabel } } = {} -- per kind, one label per surface
 local inited = false
+local LOADING = "Loading..."
+local EMPTY_TEXT = "No scores yet.\nWin a match!"
+local LOADING_TIMEOUT = 5 -- seconds before a board that got no data says "No scores yet"
 
 local function retryOpts(label: string): Retry.Options
 	return {
@@ -150,7 +153,7 @@ local function refreshBoard(board: { kind: Leaderboard.Kind, store: string, titl
 	for _, row in rows do
 		table.insert(lines, Leaderboard.line(row, nameOf(row.userId)))
 	end
-	local text = if #lines > 0 then table.concat(lines, "\n") else "No scores yet.\nWin a match!"
+	local text = if #lines > 0 then table.concat(lines, "\n") else EMPTY_TEXT
 	for _, label in labels[board.kind] or {} do
 		label.Text = text
 	end
@@ -205,7 +208,7 @@ local function buildBoard(
 		body.TextColor3 = WHITE
 		body.TextXAlignment = Enum.TextXAlignment.Left
 		body.TextYAlignment = Enum.TextYAlignment.Top
-		body.Text = "Loading..."
+		body.Text = LOADING
 		body.Parent = gui
 		table.insert(labels[board.kind], body)
 	end
@@ -219,11 +222,21 @@ function Leaderboards.init(folder: Folder, center: Vector3)
 	end
 	inited = true
 	local step = BOARD_SIZE.X + 2
-	-- Left to right: all-time wins, this week's wins, best streak.
+	-- Left to right: all-time wins, this week's wins (the middle, main board), best streak.
 	local shown = { Leaderboard.Boards[1], Leaderboard.Weekly, Leaderboard.Boards[2] }
 	for i, board in shown do
 		buildBoard(folder, board, center + Vector3.new((i - 2) * step, BOARD_SIZE.Y / 2 + 1, 0), 0)
 	end
+	-- No data after a few seconds (no DataStore, outage, empty week): say so instead of "Loading...".
+	task.delay(LOADING_TIMEOUT, function()
+		for _, list in labels do
+			for _, label in list do
+				if label.Text == LOADING then
+					label.Text = EMPTY_TEXT
+				end
+			end
+		end
+	end)
 	task.spawn(function()
 		while true do
 			for _, board in shown do

@@ -6,7 +6,7 @@ local Players = game:GetService("Players")
 
 local SaveNotice = {}
 
-local TEXT = "Progress not saving right now"
+local TEXT = "Saving paused. Your coins may not be kept."
 
 function SaveNotice.new()
 	local player = Players.LocalPlayer
