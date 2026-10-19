@@ -617,6 +617,7 @@ function LobbyService.start(deps: Deps): Handle
 			return
 		end
 		Store.buy(p, id)
+		Telemetry.carAcquired(player, "store")
 		Profiles.markDirty(player)
 		send(player, { kind = "storeResult", ok = true, carId = id, coins = p.coins })
 		sendProfile(player)
@@ -797,6 +798,7 @@ function LobbyService.start(deps: Deps): Handle
 		end
 		local r = Gacha.pull(p, rng)
 		Telemetry.clawPull(player)
+		Telemetry.carAcquired(player, "claw")
 		Profiles.markDirty(player)
 		-- The prize is decided now; the claw machine plays its grab, then the result shows.
 		local function reveal()

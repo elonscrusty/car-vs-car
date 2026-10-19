@@ -61,7 +61,7 @@ export type Handle = {
 export type Participant = {
 	player: Player,
 	carId: string,
-	onFinished: (won: boolean, stay: boolean?) -> (), -- called once, after the end screen, if the player stayed
+	onFinished: (won: boolean, stay: boolean?, result: any?) -> (), -- called once, after the end screen, if the player stayed
 	onEndScreen: (() -> ())?, -- called when this player's end screen goes up
 	appearance: Appearance.Appearance?, -- paint, sticker and level badge for this player's car
 	botLevel: string?, -- bot difficulty when this lone player fights a bot ("easy" | "medium" | "hard")

@@ -467,7 +467,12 @@ function GroupMatch.new(
 		end
 		if tagOn then
 			-- Only IT's bump counts: it passes IT on to the car it touched. No damage.
-			if car.idx == tag.it and not enemy.dead and not car.dead then
+			if
+				car.idx == tag.it
+				and not enemy.dead
+				and not car.dead
+				and not Specials.tagImmune(enemy)
+			then
 				if Modes.tagPass(tag, car.idx, otherIdx, os.clock(), tagCfg.immuneSeconds) then
 					tagsMade[car.idx] = (tagsMade[car.idx] or 0) + 1
 					showIt()
@@ -1536,6 +1541,7 @@ function GroupMatch.new(
 			if i == nil or gone[i] then
 				return
 			end
+			Telemetry.firstInput(player)
 			Steer.set(steerStates[i], value, os.clock(), throttle)
 		end,
 		action = function(player: Player, name: any)
@@ -1646,6 +1652,9 @@ function GroupMatch.new(
 		then SoccerArena.build(origin, soccerOn)
 		elseif raceOn then RaceArena.build(origin)
 		else Arena.build(origin)
+	if arena then
+		arena.model:SetAttribute("GameMode", mode) -- Specials reads it: ability meaning per mode
+	end
 	spawnCars()
 	begin()
 	return handle
