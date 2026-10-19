@@ -13,14 +13,14 @@ export type Bar = {
 	hide: () -> (),
 }
 
-local PILL_H = 24
-local TRACK_H = 14
+local PILL_H = 16
+local TRACK_H = 8
 
 function HpBar.create(adornee: BasePart, label: string, height: number, color: Color3): Bar
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "HpBar"
 	gui.Adornee = adornee
-	gui.Size = UDim2.fromOffset(150, PILL_H + TRACK_H + 4)
+	gui.Size = UDim2.fromOffset(96, PILL_H + TRACK_H + 3)
 	gui.StudsOffset = Vector3.new(0, height, 0)
 	gui.AlwaysOnTop = true
 	gui.Parent = adornee
@@ -29,7 +29,7 @@ function HpBar.create(adornee: BasePart, label: string, height: number, color: C
 	pill.Name = "NamePill"
 	pill.AnchorPoint = Vector2.new(0.5, 0)
 	pill.Position = UDim2.fromScale(0.5, 0)
-	pill.Size = UDim2.new(0.8, 0, 0, PILL_H)
+	pill.Size = UDim2.new(1, 0, 0, PILL_H)
 	pill.BackgroundColor3 = Color3.fromRGB(14, 18, 30)
 	pill.BackgroundTransparency = 0.1
 	pill.BorderSizePixel = 0
@@ -48,7 +48,7 @@ function HpBar.create(adornee: BasePart, label: string, height: number, color: C
 	name.Text = label
 	name.TextColor3 = Color3.new(1, 1, 1)
 	name.Font = Enum.Font.FredokaOne
-	name.TextSize = 16
+	name.TextSize = 11
 	name.TextTruncate = Enum.TextTruncate.AtEnd
 	name.Parent = pill
 
@@ -56,7 +56,7 @@ function HpBar.create(adornee: BasePart, label: string, height: number, color: C
 	back.Name = "Track"
 	back.BackgroundColor3 = Color3.fromRGB(14, 18, 30)
 	back.BorderSizePixel = 0
-	back.Position = UDim2.new(0, 0, 0, PILL_H + 4)
+	back.Position = UDim2.new(0, 0, 0, PILL_H + 3)
 	back.Size = UDim2.new(1, 0, 0, TRACK_H)
 	back.Parent = gui
 	local backCorner = Instance.new("UICorner")

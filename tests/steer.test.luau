@@ -78,3 +78,32 @@ test("gas: a client with no gas value keeps it fully on, and stale gas coasts", 
 	Steer.reset(s)
 	eq(s.throttle, 0)
 end)
+
+test("screen-relative stick: points where the car should go on screen", function()
+	-- camera looks along -Z (right of screen = +X); car faces -Z (same way)
+	local s, g = Steer.toward(0, 1, 0, -1, 0, -1, 0.7)
+	near(s, 0)
+	near(g, 1)
+	-- stick right: want +X, car nose -Z, so turn right (steer +)
+	s, g = Steer.toward(1, 0, 0, -1, 0, -1, 0.7)
+	eq(s, 1)
+	near(g, 0.35)
+	-- stick left: steer -
+	s = Steer.toward(-1, 0, 0, -1, 0, -1, 0.7)
+	eq(s, -1)
+	-- car already faces +X, stick right: straight on, full gas
+	s, g = Steer.toward(1, 0, 0, -1, 1, 0, 0.7)
+	near(s, 0)
+	near(g, 1)
+	-- camera turned (looks +X): stick up means +X
+	s, g = Steer.toward(0, 1, 1, 0, 1, 0, 0.7)
+	near(s, 0)
+	-- released stick: nothing
+	s, g = Steer.toward(0, 0, 0, -1, 0, -1, 0.7)
+	eq(s, 0)
+	eq(g, 0)
+	-- stick behind the car: turns, creeps forward
+	s, g = Steer.toward(0, -1, 0, -1, 0, -1, 0.7)
+	near(math.abs(s), 1)
+	near(g, 0.35)
+end)

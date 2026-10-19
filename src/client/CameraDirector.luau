@@ -169,10 +169,9 @@ function CameraDirector.new(): Director
 				car = myCar
 			end
 			if car ~= nil and car.Parent ~= nil and not bowl then
-				-- Chase camera: behind the car, turns with it. Soccer leans toward the ball.
-				local look = car.CFrame.LookVector
-				local carYaw = math.atan2(look.X, look.Z)
-				local ballYaw: number? = nil
+				-- Steady high camera: the view direction is fixed (your car's heading at the start),
+				-- it only slides over the field with your car (and toward the ball in soccer).
+				local focus = car.Position
 				if soccerOn then
 					local ball = ballPart
 					if (ball == nil or ball.Parent == nil) and os.clock() >= nextBallFind then
@@ -181,26 +180,14 @@ function CameraDirector.new(): Director
 						ball = ballPart
 					end
 					if ball ~= nil and ball.Parent ~= nil then
-						local d = ball.Position - car.Position
-						if d.X * d.X + d.Z * d.Z > 25 then
-							ballYaw = math.atan2(d.X, d.Z)
-						end
+						focus = focus:Lerp(ball.Position, feel.chaseBallShare)
 					end
 				end
-				local want =
-					FeelRules.chaseYaw(carYaw, ballYaw, feel.chaseBallShare, feel.chaseBallMax)
-				chaseYaw = FeelRules.approachAngle(chaseYaw, want, dt, feel.chaseYawRate)
 				local dir = Vector3.new(math.sin(chaseYaw), 0, math.cos(chaseYaw))
-				local v = car.AssemblyLinearVelocity
-				local speed = Vector3.new(v.X, 0, v.Z).Magnitude
-				local pos = car.Position
-				local camPos = pos
-					- dir * (feel.chaseBack + speed * feel.chaseSpeedBack)
-					+ Vector3.new(0, feel.chaseUp, 0)
-				local goal =
-					CFrame.lookAt(camPos, pos + dir * feel.chaseAhead + Vector3.new(0, 2, 0))
+				local camPos = focus - dir * feel.chaseBack + Vector3.new(0, feel.chaseUp, 0)
+				local goal = CFrame.lookAt(camPos, focus + dir * feel.chaseAhead)
 				base = base:Lerp(goal, math.min(1, dt * feel.chaseFollow))
-				goalFov = feel.normalFov + math.clamp(speed / 100, 0, 1) * feel.chaseSpeedFov
+				goalFov = feel.normalFov
 				if soccerOn then
 					updateWalls(base.Position, car, ballPart, dt)
 				end
