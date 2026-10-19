@@ -22,7 +22,7 @@ ProgressConfig.LevelUpCoins = { 0, 20, 30, 40, 50, 60, 80, 100, 130, 200 }
 
 -- Leaderboards (Leaderboards.luau): how many rows, how often the board refreshes (seconds).
 ProgressConfig.Board = {
-	rows = 10,
+	rows = 5, -- few rows = big, easy-to-read text
 	refreshSeconds = 60,
 	minSubmitGap = 20,
 	spot = { x = -24, z = -60 }, -- middle of the two boards, relative to the lobby origin (move if it hides behind a prop)

@@ -80,7 +80,7 @@ function LobbyLife.build(folder: Folder, origin: Vector3, stage: Vector3, stageT
 		end
 	end
 
-	-- Hero stage extras: a floating holo ring and two light beams from the ceiling.
+	-- Hero stage extras: a floating holo ring and one light beam from the ceiling.
 	local holo = Instance.new("Part")
 	holo.Name = "HoloRing"
 	holo.Shape = Enum.PartType.Cylinder
@@ -97,7 +97,7 @@ function LobbyLife.build(folder: Folder, origin: Vector3, stage: Vector3, stageT
 	local holoBase = origin + stage + Vector3.new(0, stageTop + 12, 0)
 
 	local beams: { Part } = {}
-	for _, sx in { -1, 1 } do
+	for _, sx in { 1 } do -- one spotlight
 		local from = origin + stage + Vector3.new(sx * 24, 36, 6)
 		local to = origin + stage + Vector3.new(0, stageTop, 0)
 		local len = (to - from).Magnitude

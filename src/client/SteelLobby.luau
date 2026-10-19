@@ -8,6 +8,7 @@ local SteelLobby = {}
 
 local LIGHT = { 125, 133, 148 }
 local DARK = { 74, 83, 102 }
+local SIGN_YELLOW = { 255, 205, 60 }
 
 local function fillCell(image: EditableImage, col: number, row: number, rgb: { number })
 	local cell = image.Size.X // 8
@@ -30,10 +31,46 @@ function SteelLobby.start()
 	local broken = false
 
 	local function paint(d: Instance)
+		if
+			d:IsA("MeshPart")
+			and d.Parent
+			and d.Parent.Name == "BigSign_CarVsCar"
+			and d.Name ~= d.Parent.Name
+		then
+			d.Color = Color3.fromRGB(SIGN_YELLOW[1], SIGN_YELLOW[2], SIGN_YELLOW[3]) -- its neon strips
+		end
 		if broken or not d:IsA("MeshPart") or d.TextureID == "" then
 			return
 		end
 		local id = d.TextureID
+		if d.Name == "BigSign_CarVsCar" then
+			-- Its own copy of the sheet (the other models share one).
+			local ok, image = pcall(function()
+				local made = AssetService:CreateEditableImageAsync(Content.fromUri(id))
+				fillCell(made, 0, 7, LIGHT)
+				fillCell(made, 1, 7, DARK)
+				-- Every light cell becomes the one yellow; the dark cells stay as the outline.
+				local pixels = made:ReadPixelsBuffer(Vector2.zero, made.Size)
+				local cell = made.Size.X // 8
+				local width = made.Size.X
+				for row = 0, 7 do
+					for col = 0, 7 do
+						local o = ((row * cell + cell // 2) * width + col * cell + cell // 2) * 4
+						local sum = buffer.readu8(pixels, o)
+							+ buffer.readu8(pixels, o + 1)
+							+ buffer.readu8(pixels, o + 2)
+						if sum >= 285 then
+							fillCell(made, col, row, SIGN_YELLOW)
+						end
+					end
+				end
+				return made
+			end)
+			if ok then
+				d.TextureContent = Content.fromObject(image)
+				return
+			end
+		end
 		if images[id] == nil then
 			-- Needs the EditableImage setting (Experience Settings > Security); without it the lobby stays red.
 			local ok, image = pcall(function()
