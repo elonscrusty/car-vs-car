@@ -68,6 +68,57 @@ local GameConfig = {
 		flashFrom = 0.25, -- client "HIT!" flash starts at this hit strength (0..1)
 		strongFrom = 0.6, -- ...and gets big (bigger number, extra shake) from this strength
 		extraShake = 0.5, -- extra camera shake (x strength) on strong hits: carries the feel when there is no hit-stop
+		-- Calm effects (audit #86): a client-only flag, no button yet. A UI sets the SoundService
+		-- attribute named here to true; HitFlash and CameraDirector then tone things down.
+		calmAttribute = "CalmEffects",
+		calmFlashScale = 0.35, -- flash strength x this when calm
+		calmShakeScale = 0.3, -- camera shake and FOV punches x this when calm
+		maxFlashesPerSecond = 3, -- the hit flash never fires more often than this (shake still does)
+		-- Soccer camera (audit #15): the pure framing in FeelRules.soccerCamera
+		soccerCamBackMult = 1.35, -- camera sits this much further back than SoccerFieldConfig.camBack
+		soccerCamUpMult = 1.3, -- ...and this much higher than camUp
+		soccerCamMaxGrow = 1.8, -- the fit step never pushes the camera out more than this x
+		soccerFrameMargin = 0.9, -- targets must sit inside this share of the view (1 = the very edge)
+		soccerAspect = 1.8, -- screen width / height assumed for the fit (phone landscape)
+		wallFadeTransparency = 0.85, -- LocalTransparencyModifier of walls between the camera and your car
+		wallFadePad = 5, -- studs the see-through test inflates a wall by (fades grazing walls too)
+		wallFadeRate = 6, -- fade in/out speed (per second)
+		-- Goal burst (audit #23): everything finishes inside the 2.5 s goal pause
+		goalSnapSeconds = 1, -- camera looks at the ball this long
+		goalSnapBlendOut = 0.35, -- ...then eases back over this long
+		goalSnapFov = 50,
+		goalBurstSeconds = 2.2, -- confetti and label live this long (under 2.5)
+		goalConfetti = 70,
+		-- Ball feel (audit #91)
+		ballTrailMinSpeed = 18, -- ball slower than this leaves no trail
+		ballTrailMaxSeconds = 0.6, -- trail lifetime at ballTrailFullSpeed
+		ballTrailFullSpeed = 100,
+		kickMinDelta = 22, -- a one-frame speed-vector change this big near a car = a kick
+		kickFullDelta = 70, -- ...and this big = a full-strength kick
+		kickSparkFrom = 0.4, -- sparks (and the kick sound) from this strength
+		kickCooldown = 0.25,
+		kickCarReach = 10, -- a car body this close to the ball edge counts as the kicker
+		-- Boost feel (audit #92)
+		boostFovAdd = 9, -- degrees of extra FOV at the peak of a boost
+		boostFxSeconds = 0.8,
+		boostLines = 14, -- speed lines on screen
+		-- Bowl / duel camera (audit #99): closer behind your car than the old 40 / 48
+		bowlCamBack = 30,
+		bowlCamUp = 38,
+		bowlCamShift = 0.75, -- how far the view follows your car off the middle (0..1)
+		-- Touch steering (audit #52): small cars (turnRate at or above this) ease the stick
+		smallCarTurnRate = 4,
+		touchSteerRate = 9, -- stick steer eases at this many units per second on small cars
+		touchSteerCurve = 1.35, -- >1 = gentler near the middle of the stick
+		-- Graphics quality (audit #88): the average frame time decides the particle scale
+		quality = {
+			lowFrameTime = 1 / 28, -- average slower than this (seconds) = low quality
+			okFrameTime = 1 / 42, -- average faster than this again = back to full
+			window = 2, -- seconds the average looks back over
+			warmup = 4, -- seconds after start before it may switch
+			minHold = 5, -- seconds a level is kept before it may switch again
+			lowScale = 0.35, -- particle counts x this on low quality
+		},
 	},
 	-- Pushed past the rim = ring-out = lose the round.
 	RingOut = { margin = 3 },

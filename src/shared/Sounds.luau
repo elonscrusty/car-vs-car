@@ -38,6 +38,19 @@ function Sounds.hitEvent(strength: number?): string
 	return if s >= SoundConfig.HitHardAt then "hitHard" else "hitSoft"
 end
 
+-- Banner text -> countdown sound event: "3", "2", "1" tick, "GO!" is the start sound. Anything
+-- else (score banners, hints) is silent (nil).
+function Sounds.countdownEvent(text: string): string?
+	if text == "GO!" then
+		return "countdownGo"
+	end
+	local n = tonumber(text)
+	if n ~= nil and n >= 1 and n <= 9 and n == math.floor(n) and tostring(n) == text then
+		return "countdownTick"
+	end
+	return nil
+end
+
 -- `roll` is a number in 0..1 (math.random()); 0.5 = exact base pitch. Returns nil when there is
 -- no such event or its id is empty (silent).
 function Sounds.resolve(

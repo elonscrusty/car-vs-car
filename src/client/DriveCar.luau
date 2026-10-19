@@ -26,7 +26,8 @@ local DriveCar = {}
 local FIND_EVERY = 0.2 -- seconds between searches for the own car
 
 -- `read` gives the current (steer, gas) from the stick or keys.
-function DriveCar.new(read: () -> (number, number)): DriveCar
+-- `onBoost` (optional) runs when YOUR car starts a boost (the camera widens, speed lines show).
+function DriveCar.new(read: () -> (number, number), onBoost: (() -> ())?): DriveCar
 	local conn: RBXScriptConnection? = nil
 
 	local function start()
@@ -40,6 +41,7 @@ function DriveCar.new(read: () -> (number, number)): DriveCar
 		local sinceSearch = FIND_EVERY
 		local steer, gas = 0, 0
 		local flipTimer = 0
+		local seenBoostAt: any = nil
 		local drift = Moves.newDrift()
 		local rayParams = RaycastParams.new()
 		rayParams.FilterType = Enum.RaycastFilterType.Exclude
@@ -69,6 +71,7 @@ function DriveCar.new(read: () -> (number, number)): DriveCar
 							model, body, stats = m, b, s
 							rayParams.FilterDescendantsInstances = { m }
 							flipTimer = 0
+							seenBoostAt = m:GetAttribute("BoostAt") -- an old boost does not count
 							steer, gas = 0, 0
 							drift = Moves.newDrift()
 							break
@@ -78,6 +81,13 @@ function DriveCar.new(read: () -> (number, number)): DriveCar
 				return
 			end
 			local m, b, s = model, body :: BasePart, stats :: CarConfig.CarStats
+			local boostMark = m:GetAttribute("BoostAt")
+			if boostMark ~= seenBoostAt then
+				seenBoostAt = boostMark
+				if onBoost ~= nil and type(boostMark) == "number" then
+					onBoost()
+				end
+			end
 			if b.Anchored then
 				return -- frozen for a hit stop
 			end

@@ -5,14 +5,17 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
 
+local FeelRules = require(ReplicatedStorage.Shared.FeelRules)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local HitFeel = require(ReplicatedStorage.Shared.HitFeel)
 
 local HitFlash = {}
 
 local gui: ScreenGui? = nil
+local limiter = FeelRules.newFlashLimiter()
 
 local function getGui(): ScreenGui
 	local g = gui
@@ -36,16 +39,26 @@ function HitFlash.play(u: any, director: any)
 	if tier == 0 then
 		return
 	end
+	-- Calm effects (client flag, audit #86): fainter flash, smaller shake. And never more than
+	-- feel.maxFlashesPerSecond flashes a second, however many hits land (the shake still plays).
+	local calm = SoundService:GetAttribute(feel.calmAttribute) == true
 	local youHit = u.youHit == true
 	local strong = tier == 2
 	local power = HitFeel.emphasis(strength, feel.flashFrom)
 	-- Red when you are the one hurt, warm yellow when you land it.
 	local color = if youHit then Color3.fromRGB(255, 60, 50) else Color3.fromRGB(255, 220, 70)
 
+	if not FeelRules.allowFlash(limiter, os.clock(), feel.maxFlashesPerSecond) then
+		if strong and director and director.shake then
+			director.shake(strength * feel.extraShake)
+		end
+		return
+	end
+
 	local flash = Instance.new("Frame")
 	flash.Size = UDim2.fromScale(1, 1)
 	flash.BackgroundColor3 = color
-	flash.BackgroundTransparency = 0.88 - 0.2 * power
+	flash.BackgroundTransparency = FeelRules.flashTransparency(power, calm)
 	flash.BorderSizePixel = 0
 	flash.Parent = getGui()
 	TweenService:Create(flash, TweenInfo.new(0.18), { BackgroundTransparency = 1 }):Play()

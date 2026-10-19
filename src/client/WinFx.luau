@@ -187,4 +187,82 @@ function WinFx.coinBurst(parent: GuiObject, seed: number, count: number?): Handl
 	return { stop = stop }
 end
 
+-- Goal burst (audit #23): confetti in the scorer's team colours that pops out of the middle of
+-- the screen and falls, all gone after `seconds` (kept under the 2.5 s goal pause). `colors` is
+-- a list of Color3 (a light and a dark shade of the team colour looks best).
+function WinFx.goalBurst(
+	parent: GuiObject,
+	seed: number,
+	count: number,
+	colors: { Color3 },
+	seconds: number
+): Handle
+	local rng = Random.new(seed)
+	local tweens: { Tween } = {}
+	local stopped = false
+	local holder = Instance.new("Frame")
+	holder.BackgroundTransparency = 1
+	holder.Size = UDim2.fromScale(1, 1)
+	holder.ZIndex = 6
+	holder.Parent = parent
+	if #colors == 0 then
+		colors = { GOLD }
+	end
+	for _ = 1, math.clamp(count, 0, 120) do
+		local bit = Instance.new("Frame")
+		bit.BorderSizePixel = 0
+		bit.BackgroundColor3 = colors[rng:NextInteger(1, #colors)]
+		bit.Size = UDim2.fromOffset(rng:NextInteger(8, 14), rng:NextInteger(12, 20))
+		bit.AnchorPoint = Vector2.new(0.5, 0.5)
+		bit.Position = UDim2.fromScale(0.5, 0.45)
+		bit.Rotation = rng:NextInteger(0, 180)
+		bit.ZIndex = 6
+		bit.Parent = holder
+		local angle = rng:NextNumber(0, math.pi * 2)
+		local reach = rng:NextNumber(0.15, 0.5)
+		local out = TweenService:Create(
+			bit,
+			TweenInfo.new(seconds * 0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{
+				Position = UDim2.fromScale(
+					0.5 + math.cos(angle) * reach,
+					0.45 + math.sin(angle) * reach * 0.8
+				),
+				Rotation = bit.Rotation + rng:NextInteger(90, 270),
+			}
+		)
+		table.insert(tweens, out)
+		out:Play()
+		out.Completed:Once(function()
+			if stopped then
+				return
+			end
+			local fall = TweenService:Create(
+				bit,
+				TweenInfo.new(seconds * 0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+				{
+					Position = UDim2.fromScale(bit.Position.X.Scale, 1.1),
+					BackgroundTransparency = 1,
+				}
+			)
+			table.insert(tweens, fall)
+			fall:Play()
+		end)
+	end
+	local function stop()
+		if stopped then
+			return
+		end
+		stopped = true
+		for _, t in tweens do
+			t:Cancel()
+			t:Destroy()
+		end
+		table.clear(tweens)
+		holder:Destroy()
+	end
+	task.delay(seconds, stop)
+	return { stop = stop }
+end
+
 return WinFx
