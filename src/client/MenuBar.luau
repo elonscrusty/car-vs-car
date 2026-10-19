@@ -4,8 +4,10 @@
 -- The bar is hidden while a match is on screen.
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local UiLayoutConfig = require(ReplicatedStorage.Shared.UiLayoutConfig)
 local UiStyle = require(script.Parent.UiStyle)
 
 export type MenuBar = {
@@ -22,9 +24,9 @@ export type MenuBar = {
 
 local MenuBar = {}
 
-local BUTTON_W = 96
-local BUTTON_H = 52 -- over the 48 px thumb minimum
-local GAP = 6
+local BUTTON_W = UiLayoutConfig.menu.buttonW
+local BUTTON_H = UiLayoutConfig.menu.buttonH -- over the 48 px thumb minimum
+local GAP = UiLayoutConfig.menu.gap
 
 function MenuBar.new(): MenuBar
 	local gui = Instance.new("ScreenGui")
@@ -37,12 +39,18 @@ function MenuBar.new(): MenuBar
 	holder.BackgroundTransparency = 1
 	holder.AnchorPoint = Vector2.new(0, 0)
 	-- Under the coins box, and under the Studio-only DEV button when it is there.
-	holder.Position = UDim2.new(0, 8, 0, if RunService:IsStudio() then 160 else 84)
-	holder.Size = UDim2.fromOffset(BUTTON_W, 0)
-	holder.AutomaticSize = Enum.AutomaticSize.Y
+	local top = if RunService:IsStudio()
+		then UiLayoutConfig.menu.topStudio
+		else UiLayoutConfig.menu.top
+	holder.Position = UDim2.new(0, 8, 0, top)
+	-- Fixed height down to the bottom edge: when the buttons run out of room the column wraps
+	-- into a second one instead of running off a 360 px tall phone screen (see UiLayout.menuRows).
+	holder.Size = UDim2.new(0, 3 * (BUTTON_W + GAP), 1, -(top + UiLayoutConfig.menu.bottomMargin))
 	holder.Parent = gui
 
 	local list = Instance.new("UIListLayout")
+	list.FillDirection = Enum.FillDirection.Vertical
+	list.Wraps = true
 	list.SortOrder = Enum.SortOrder.LayoutOrder
 	list.Padding = UDim.new(0, GAP)
 	list.Parent = holder
@@ -67,6 +75,8 @@ function MenuBar.new(): MenuBar
 			b.Font = Enum.Font.FredokaOne
 			b.TextColor3 = Color3.new(1, 1, 1)
 			b.TextScaled = true
+			b.TextWrapped = true
+			UiStyle.textLimit(b, UiLayoutConfig.minText, 22)
 			local corner = Instance.new("UICorner")
 			corner.CornerRadius = UDim.new(0, 12)
 			corner.Parent = b

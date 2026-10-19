@@ -149,3 +149,8 @@ See SNAPSHOT.md "Social + safety". Tune cheat limits in `src/shared/CarSanityCon
 ## Big open garages + likes
 - Done in code and unit tests (`lune run tests/run` 330 pass, stylua clean). NOT seen in Studio: how the longer hall, low walls and heart look is unchecked. Lobby wall props were moved by hand (`LobbyMore`, `LobbyDecor`, `LobbyShell`); check for overlaps in the picture check.
 - Studio placement of any new Blender garage models is the Studio thread's job (`docs/GARAGE_MODELS_NEEDED.md`).
+
+## Phone UI layout (claude/w2-phone-ui)
+- Tune HUD positions only in `src/shared/UiLayoutConfig.luau`; run `lune run tests/run` (uilayout tests catch overlap, small touch targets, anything in the screen middle, anything under the 56 px top bar).
+- To check by eye: Studio device emulator at 640x360 and 800x360 landscape. Placeholders: topInset 56, edge 16, lane shares, row heights, menu column numbers.
+- Owner of SaveNotice may want to move it clear of the power bar lane (bottom centre).

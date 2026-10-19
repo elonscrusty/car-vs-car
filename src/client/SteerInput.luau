@@ -10,7 +10,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
-local HudStyle = require(ReplicatedStorage.Shared.HudStyle)
+local UiLayout = require(ReplicatedStorage.Shared.UiLayout)
+local UiStyle = require(script.Parent.UiStyle)
 
 export type SteerInput = {
 	start: () -> (),
@@ -110,12 +111,9 @@ function SteerInput.new(send: (steer: number, gas: number) -> ()): SteerInput
 
 	local function makeStick(parent: ScreenGui)
 		local camera = workspace.CurrentCamera
-		local side = HudStyle.joystickSize(if camera then camera.ViewportSize.Y else 400)
 		local b = Instance.new("Frame")
 		b.Name = "Stick"
-		b.AnchorPoint = Vector2.new(0, 1)
-		b.Position = UDim2.new(0, HudStyle.EDGE, 1, -HudStyle.EDGE)
-		b.Size = UDim2.fromOffset(side, side)
+		UiStyle.place(b, UiLayout.fight(if camera then camera.ViewportSize.Y else 400).joystick)
 		b.BackgroundColor3 = Color3.fromRGB(30, 34, 44)
 		b.BackgroundTransparency = 0.4
 		b.Active = true
