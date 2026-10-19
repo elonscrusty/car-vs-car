@@ -535,9 +535,9 @@ function GroupMatch.new(
 			local id = if part
 				then part.carId
 				else BotNames.pickCar(rng:NextInteger(1, 1000000), CarConfig.Order) :: string
-			local stats = CarConfig.Cars[id]
+			local carStats = CarConfig.Cars[id]
 			local spot = spots[idx]
-			local pos = spotPosition(spot, stats.size[2] / 2 + 1.5)
+			local pos = spotPosition(spot, carStats.size[2] / 2 + 1.5)
 			local car = CarBuilder.build(
 				id,
 				idx,
@@ -549,8 +549,8 @@ function GroupMatch.new(
 				nil
 			)
 			local hp = if mode == "lastStanding"
-				then stats.hp * ModesConfig.LastStanding.hpScale
-				else stats.hp
+				then carStats.hp * ModesConfig.LastStanding.hpScale
+				else carStats.hp
 			car.hp = hp
 			maxHp[idx] = hp
 			car.bar.set(hp, hp)
