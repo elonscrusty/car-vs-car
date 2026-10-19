@@ -182,12 +182,16 @@ local function miniCar(
 	return m
 end
 
--- The showcase car: carter's Sedan from ServerStorage.Models.Cars (a Model, origin bottom-centre),
+-- The showcase car: carter's ShowcaseCar (else the Sedan) from ServerStorage.Models (a Model, origin bottom-centre),
 -- scaled to `length` studs long and standing at `cf`. Returns nil when it was not imported.
 local function meshCar(parent: Instance, name: string, length: number, cf: CFrame): Model?
 	local models = ServerStorage:FindFirstChild("Models")
 	local cars = models and models:FindFirstChild("Cars")
-	local template = cars and cars:FindFirstChild("02_sedan")
+	-- carter's newest car (ServerStorage.Models.ShowcaseCar) wins; the Sedan is the fallback.
+	local template = models and models:FindFirstChild("ShowcaseCar")
+	if not template then
+		template = cars and cars:FindFirstChild("02_sedan")
+	end
 	if not (template and template:IsA("Model")) then
 		return nil
 	end
