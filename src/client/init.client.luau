@@ -19,6 +19,7 @@ local BuffUi = require(script.BuffUi)
 local BuildUi = require(script.BuildUi)
 local CameraDirector = require(script.CameraDirector)
 local Effects = require(script.Effects)
+require(script.OwnRing).start() -- glow ring under my own car
 local FightFx = require(script.FightFx)
 local GoalFx = require(script.GoalFx)
 local HintUi = require(script.HintUi)
