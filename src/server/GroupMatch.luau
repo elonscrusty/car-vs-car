@@ -278,6 +278,7 @@ function GroupMatch.new(
 				local lc = ModesConfig.LastStanding
 				r.kos = kos[i] or 0
 				r.coinsBonus = (if youWon then lc.winBonus else 0)
+					+ (lc.placeCoins[place] or 0)
 					+ (kos[i] or 0) * lc.koCoins
 					+ (bounties[i] or 0) * lc.bountyCoins
 			end

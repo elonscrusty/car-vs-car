@@ -57,7 +57,7 @@ for id, car in CarConfig.Cars do
 	LobbyConfig.Rarity[id] = car.rarity
 end
 LobbyConfig.Gacha = {
-	price = 100,
+	price = 120, -- about 5 fights of coins (carter: medium); the odds are shown in the box
 	firstPullFree = true,
 	odds = { Common = 55, Rare = 28, Epic = 14, Legendary = 3 } :: { [string]: number }, -- percent, must sum to 100
 	duplicateRefund = 50, -- fallback coins back on a car you already own
