@@ -75,7 +75,7 @@ return {
 	},
 	LastStanding = {
 		cars = 4, -- cars in the match (humans first, bots fill the rest)
-		maxSeconds = 150, -- time up: most HP among the cars still alive wins
+		maxSeconds = 60, -- time up: most HP among the cars still alive wins
 		spawnRadius = 48, -- start ring, studs from the middle
 		hpScale = 1.2, -- share of the car's normal HP: ~6-8 front hits at a normal crash speed (carter: medium health)
 		hudSeconds = 1,
@@ -97,7 +97,11 @@ return {
 				{ kind = "block", x = 0, z = 23, sx = 10, sy = 7, sz = 6 },
 				{ kind = "pillar", x = -18, z = 20, sx = 6, sy = 9 },
 				{ kind = "pillar", x = 18, z = -20, sx = 6, sy = 9 },
+				-- Two slow hammers, one each side (a red bar sweeping round).
+				{ kind = "spinner", x = -34, z = 12, sx = 18, sy = 3, spin = 0.7 },
+				{ kind = "spinner", x = 34, z = -12, sx = 18, sy = 3, spin = -0.7 },
 			},
+			gapEvery = 12, -- a gap of 2 wall pieces at every 12th: you can fall through
 		},
 		winBonus = 60, -- BIG coins for the match winner, on top of the normal win reward (PLACEHOLDER)
 		bountyCoins = 40, -- knocking out the crown car pays this to the car that did it (PLACEHOLDER)
@@ -105,8 +109,8 @@ return {
 		creditSeconds = 5, -- a fall off the edge counts for whoever hit the car in the last N seconds
 		-- Best of 3: first to 2 round wins; after 3 rounds the most wins takes it.
 		Rounds = { winsNeeded = 2, maxRounds = 3, breakSeconds = 3.5 },
-		-- The walls close in (BrawlRules.safeRadius); a car outside the safe radius is out.
-		Shrink = { startSeconds = 40, endSeconds = 110, minRadius = 36 },
+		-- No closing walls (carter): minRadius = full radius keeps the safe radius fixed. A car outside it is out.
+		Shrink = { startSeconds = 40, endSeconds = 110, minRadius = 60 },
 		-- ONE item for now: a SHIELD that blocks the next hit (Pickups with this override).
 		Items = {
 			kinds = { "shield" },
