@@ -193,7 +193,7 @@ local function lobby(parent, state, ctx)
 			T.text(
 				root,
 				"Objective",
-				"KNOCK OUT THE OTHER CARS. LAST CAR STANDING WINS!",
+				"PICK A CAR. IT FIGHTS BY ITSELF. WIN 2 OF 3 ROUNDS!",
 				playX - 20,
 				playY - 70,
 				playW + 20,
