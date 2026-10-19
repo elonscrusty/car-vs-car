@@ -22,6 +22,20 @@ function BrawlRules.launch(strength: number, cfg: HitCfg): (number, number, numb
 	return cfg.push * s, cfg.up * s, cfg.spin * s
 end
 
+-- Heavy cars push harder: the launch is scaled by sqrt(attacker mass / defender mass), kept in
+-- 0.75..1.4 so a light car still moves a heavy one a bit and a truck does not send cars into orbit.
+function BrawlRules.massFactor(attackerMass: number, defenderMass: number): number
+	if
+		attackerMass <= 0
+		or defenderMass <= 0
+		or attackerMass ~= attackerMass
+		or defenderMass ~= defenderMass
+	then
+		return 1
+	end
+	return math.clamp(math.sqrt(attackerMass / defenderMass), 0.75, 1.4)
+end
+
 -- Bits that fly off a hit: none under `from`, then growing with strength up to `scrapMax`.
 function BrawlRules.scrapCount(strength: number, cfg: HitCfg): number
 	if strength < cfg.from then

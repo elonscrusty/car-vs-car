@@ -28,6 +28,8 @@ local Config = {
 	Default = "medium",
 	-- Auto level while the bot button is hidden: total wins under easyUnder = easy, under mediumUnder = medium, else hard.
 	AutoScale = { easyUnder = 3, mediumUnder = 15 },
+	-- Same idea by PLAYER LEVEL (what the fight uses): bots get harder as you level up. PLACEHOLDER.
+	LevelScale = { easyUnder = 3, mediumUnder = 9 },
 	-- A player's first N finished matches always get the easy bots, in every mode, even if they
 	-- picked a harder level. PLACEHOLDER.
 	FirstMatchesEasy = 2,

@@ -553,3 +553,13 @@ test("fight lobby: up to 4 on a pad and a 15 s wait before the fight", function(
 	eq(pad.maxPlayers, ModesConfig.LastStanding.cars)
 	eq(pad.countdownSeconds, 15)
 end)
+
+test("heavy cars push harder, light ones less, always in range", function()
+	eq(BrawlRules.massFactor(100, 100), 1)
+	truthy(BrawlRules.massFactor(200, 100) > 1)
+	truthy(BrawlRules.massFactor(50, 100) < 1)
+	eq(BrawlRules.massFactor(10000, 1), 1.4)
+	eq(BrawlRules.massFactor(1, 10000), 0.75)
+	eq(BrawlRules.massFactor(0, 100), 1)
+	eq(BrawlRules.massFactor(0 / 0, 100), 1)
+end)

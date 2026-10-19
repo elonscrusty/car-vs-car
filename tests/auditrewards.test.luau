@@ -476,3 +476,13 @@ H.test("quest rewards stay small compared to a win", function()
 		H.truthy(def.reward <= LobbyConfig.Rewards.winCoins, def.id)
 	end
 end)
+
+H.test("bots get harder as the player level rises", function()
+	H.eq(BotLevels.forPlayerLevel(1), "easy")
+	H.eq(BotLevels.forPlayerLevel(5), "medium")
+	H.eq(BotLevels.forPlayerLevel(20), "hard")
+	H.eq(BotLevels.forPlayerLevel("x"), "easy")
+	H.eq(BotLevels.levelForPlayer(10, 0, nil, false, 20), "hard")
+	H.eq(BotLevels.levelForPlayer(1, 0, nil, false, 20), "easy") -- first matches stay easy
+	H.eq(BotLevels.levelForPlayer(10, 0, "easy", true, 20), "easy") -- button choice wins
+end)
