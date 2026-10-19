@@ -33,7 +33,7 @@ local function title(parent, value, subtitle)
 	T.checkers(parent, 42, 115, 66, 40, 13, T.C.silver)
 	T.text(parent, "Title", value, 124, 104, 950, 55, 39, T.C.white, "Center")
 	if subtitle then
-		T.text(parent, "Subtitle", subtitle, 124, 158, 950, 30, 17, T.C.muted, "Center")
+		T.text(parent, "Subtitle", subtitle, 124, 158, 950, 30, 22, T.C.silver, "Center")
 	end
 end
 

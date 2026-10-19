@@ -47,7 +47,7 @@ end
 local function section(parent, title, subtitle, x, y, w)
 	T.text(parent, "SectionTitle", title, x, y, w, 40, 34, T.C.white)
 	if subtitle then
-		T.text(parent, "SectionSubtitle", subtitle, x, y + 39, w, 22, 15, T.C.muted)
+		T.text(parent, "SectionSubtitle", subtitle, x, y + 39, w, 26, 20, T.C.silver)
 	end
 end
 
@@ -132,7 +132,6 @@ end
 local function renderCars(root, state, ctx)
 	local vehicle = selected(state)
 	section(root, "CHAMPIONS GARAGE", "YOUR COLLECTION  /  ONE CAR. ONE ABILITY.", 32, 105, 475)
-	T.checkers(root, 370, 114, 110, 28, 14, T.C.silver)
 	local hero = T.panel(root, "Hero", 26, 173, 482, 400, accent(vehicle))
 	T.text(
 		hero,
@@ -167,7 +166,7 @@ local function renderCars(root, state, ctx)
 	end, equipped and T.C.green or T.C.blue, equipped and "check" or "car")
 	T.disable(button, not available(state, ctx) or equipped)
 	filters(root, state, ctx, { "ALL", "OWNED", "LOCKED" }, 530, 108, 640)
-	local list = T.scroll(root, "Collection", 527, 169, 650, 402)
+	local list = T.scroll(root, "Collection", 527, 169, 650, 398)
 	local count, totalOwned = 0, 0
 	for _, car in displayVehicles({ "Sedan", "Muscle", "SuperCar", "MonsterTruck", "Formula" }) do
 		if owned(state, car.Id) then
@@ -195,11 +194,11 @@ local function renderCars(root, state, ctx)
 		root,
 		"CollectionCount",
 		totalOwned .. " / " .. #Config.Vehicles .. " COLLECTED",
-		923,
-		569,
-		245,
-		21,
-		15,
+		883,
+		570,
+		285,
+		24,
+		20,
 		T.C.silver,
 		"Right"
 	)

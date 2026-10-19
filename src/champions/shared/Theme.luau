@@ -87,23 +87,46 @@ function T.panel(parent, name, x, y, w, h, accent)
 	rim.BackgroundTransparency = 0.55
 	return f
 end
+-- Smallest text the menus use (menu units; a phone shrinks the menu canvas to ~0.6).
+local MIN_SIZE = 20
 function T.text(parent, name, value, x, y, w, h, size, color, align)
-	return make("TextLabel", {
+	size = size or 22
+	color = color or C.white
+	local label = make("TextLabel", {
 		Name = name,
 		Text = tostring(value),
 		Position = UDim2.fromOffset(x, y),
 		Size = UDim2.fromOffset(w, h),
 		BackgroundTransparency = 1,
 		FontFace = T.font,
-		TextSize = size or 22,
-		TextColor3 = color or C.white,
+		TextSize = size,
+		TextColor3 = color,
 		TextStrokeColor3 = C.ink,
 		TextStrokeTransparency = 0.6,
 		TextXAlignment = Enum.TextXAlignment[align or "Left"],
 		TextYAlignment = Enum.TextYAlignment.Center,
-		TextTruncate = Enum.TextTruncate.AtEnd,
+		-- Text shrinks to fit its box instead of ending in "...".
+		TextScaled = true,
+		TextTruncate = Enum.TextTruncate.None,
 		RichText = false,
 	}, parent)
+	make(
+		"UITextSizeConstraint",
+		{ MaxTextSize = math.max(size, MIN_SIZE), MinTextSize = 10 },
+		label
+	)
+	if color.R + color.G + color.B > 1.2 then
+		-- Light text gets a thick dark outline so it reads over the game.
+		label.TextStrokeTransparency = 1
+		make("UIStroke", {
+			Color = C.ink,
+			Thickness = math.clamp(size * 0.07, 1.5, 3),
+			Transparency = 0.15,
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
+			LineJoinMode = Enum.LineJoinMode.Round,
+		}, label)
+	end
+	return label
 end
 function T.checkers(parent, x, y, w, h, cell, color)
 	local f = T.frame(parent, "Checkers", x, y, w, h, C.navy, 0)
@@ -360,7 +383,7 @@ function T.button(parent, name, label, x, y, w, h, callback, color, icon)
 	if stacked then
 		caption.Position = UDim2.fromOffset(4, h * 0.64)
 		caption.Size = UDim2.fromOffset(w - 8, h * 0.3)
-		fit.MaxTextSize = math.min(22, math.max(13, h * 0.23))
+		fit.MaxTextSize = math.min(26, math.max(16, h * 0.28))
 	end
 	if bare then
 		caption.Visible = false
@@ -451,7 +474,7 @@ function T.rarity(parent, vehicle, x, y, w, h)
 		0,
 		w - 8,
 		h,
-		math.min(23, h * 0.75),
+		math.min(23, h * 0.62),
 		C.ink,
 		"Center"
 	).TextStrokeTransparency =
@@ -469,7 +492,7 @@ function T.header(parent, _title, state, ctx)
 	gradient(head, RGB(243, 249, 255), RGB(137, 165, 194))
 	local brand = T.text(head, "Brand", "CAR", 16, -1, 144, 43, 43, C.white)
 	brand.TextStrokeTransparency = 0.1
-	T.text(head, "VS", "VS", 104, 7, 32, 26, 21, C.white)
+	T.text(head, "VS", "VS", 100, 2, 46, 34, 30, C.gold).TextStrokeTransparency = 0
 	T.text(head, "BrandGold", "CAR", 39, 34, 137, 44, 43, C.gold).TextStrokeTransparency = 0.1
 	T.checkers(head, 160, 21, 106, 42, 14, C.navy)
 	for i, mode in if #Config.Modes > 1 then Config.Modes else {} do

@@ -197,6 +197,10 @@ local function layout()
 	end
 	local size = stage.AbsoluteSize
 	scale.Scale = math.max(0.1, math.min(size.X / 1200, size.Y / 675))
+	local override = gui:GetAttribute("ScaleOverride") -- Studio testing: pretend to be a small phone
+	if type(override) == "number" and override > 0 then
+		scale.Scale = override
+	end
 	toast.Size = UDim2.fromOffset(math.min(420, math.max(240, size.X - 28)), 56)
 	toastText.Size = UDim2.new(1, -20, 1, -8)
 end
