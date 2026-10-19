@@ -118,12 +118,11 @@ function ArenaStadium.build(model: Model, origin: Vector3, arenaCfg: any)
 		local rail = part(
 			folder,
 			"FenceRail",
-			Vector3.new(segW, 0.5, 1.8),
+			Vector3.new(segW, 0.3, 1.2),
 			base * CFrame.new(0, 5.2, -fenceR),
 			Color3.fromRGB(120, 215, 255),
 			false
 		)
-		rail.Material = Enum.Material.Neon
 		-- Tyre stack against the fence, every other piece.
 		if i % 2 == 0 then
 			for k = 0, 2 do

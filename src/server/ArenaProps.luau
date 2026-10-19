@@ -118,10 +118,10 @@ function ArenaProps.wallStrip(model: Model, wall: BasePart, color: Color3)
 	deco(
 		model,
 		"WallStrip",
-		Vector3.new(wall.Size.X * 0.98, 0.3, wall.Size.Z * 0.6),
+		Vector3.new(wall.Size.X * 0.98, 0.2, wall.Size.Z * 0.3),
 		up,
 		color,
-		true
+		false
 	)
 end
 
@@ -157,7 +157,7 @@ function ArenaProps.dressRamp(model: Model, ramp: BasePart)
 		Vector3.new(sx, 0.35, 0.6),
 		cf * CFrame.new(0, 0.15, -sz / 2 + 0.3),
 		NEON_BLUE,
-		true
+		false
 	)
 end
 
@@ -221,7 +221,7 @@ function ArenaProps.dressPillar(model: Model, pillar: BasePart)
 		Vector3.new(0.5, d * 0.8, d * 0.8),
 		CFrame.new(base + Vector3.new(0, h / 2 + 0.2, 0)) * CFrame.Angles(0, 0, math.pi / 2),
 		NEON_BLUE,
-		true
+		false
 	)
 	cap.Shape = Enum.PartType.Cylinder
 end
@@ -255,7 +255,7 @@ function ArenaProps.dressHammer(model: Model, bar: BasePart, center: Vector3, fl
 			Vector3.new(1.2, bar.Size.Y + 0.2, bar.Size.Z + 0.2),
 			CFrame.new(side * (len / 2 - 0.6), 0, 0),
 			YELLOW,
-			true
+			false
 		)
 	end
 	-- Hub: dark post and a bright cap above the arm.

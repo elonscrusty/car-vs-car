@@ -86,9 +86,9 @@ function Atmosphere.night()
 	-- Stadium lamps glow: more bloom, a deep blue haze, richer colour.
 	local bloom = Lighting:FindFirstChild("GameBloom")
 	if bloom and bloom:IsA("BloomEffect") then
-		bloom.Intensity = 0.7
-		bloom.Threshold = 1.0
-		bloom.Size = 24
+		bloom.Intensity = 0.35
+		bloom.Threshold = 1.5
+		bloom.Size = 16
 	end
 	local haze = Lighting:FindFirstChild("GameAtmosphere")
 	if haze and haze:IsA("Atmosphere") then
