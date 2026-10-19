@@ -60,6 +60,9 @@ function ChampionsBridge.new(): Bridge
 		end
 	end
 
+	-- A screen the UI was asked to open before it was ready (the starter pick usually arrives first).
+	local pendingOpen: string? = nil
+
 	local function apply(fx: ChampionsAdapter.Effects)
 		if fx.settings then
 			SoundFx.setMuted(not fx.settings.sfx)
@@ -68,8 +71,12 @@ function ChampionsBridge.new(): Bridge
 			notifyEvent:Fire(fx.notify, fx.notifyOk)
 		end
 		push()
-		if fx.open and namespace:GetAttribute("UIReady") == true then
-			openEvent:Fire(fx.open)
+		if fx.open then
+			if namespace:GetAttribute("UIReady") == true then
+				openEvent:Fire(fx.open)
+			else
+				pendingOpen = fx.open
+			end
 		end
 	end
 
@@ -96,7 +103,14 @@ function ChampionsBridge.new(): Bridge
 		apply(fx)
 	end)
 
-	namespace:GetAttributeChangedSignal("UIReady"):Connect(push)
+	namespace:GetAttributeChangedSignal("UIReady"):Connect(function()
+		push()
+		if pendingOpen and namespace:GetAttribute("UIReady") == true then
+			local screen = pendingOpen
+			pendingOpen = nil
+			openEvent:Fire(screen)
+		end
+	end)
 	for _, name in { "PlayerLevel", "PlayerXp", "PlayerXpNeeded" } do
 		player:GetAttributeChangedSignal(name):Connect(function()
 			readLevel()

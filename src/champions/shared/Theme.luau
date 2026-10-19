@@ -435,7 +435,7 @@ function T.button(parent, name, label, x, y, w, h, callback, color, icon)
 				:Play()
 		end
 	end
-	-- Buttons pop on hover, squash when pressed, and the big ones get a slow shine sweep.
+	-- Clean motion: a small smooth lift on hover, a small press-in, nothing bouncy or looping.
 	local pop = Instance.new("UIScale")
 	pop.Parent = b
 	local function popTo(value, seconds)
@@ -444,49 +444,28 @@ function T.button(parent, name, label, x, y, w, h, callback, color, icon)
 		end
 		TweenService:Create(
 			pop,
-			TweenInfo.new(seconds, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+			TweenInfo.new(seconds, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 			{ Scale = value }
 		):Play()
 	end
 	b.MouseButton1Down:Connect(function()
-		popTo(0.93, 0.08)
+		popTo(0.96, 0.07)
 	end)
 	b.MouseButton1Up:Connect(function()
-		popTo(1.04, 0.12)
+		popTo(1.03, 0.12)
 	end)
-	if not bare and not reducedMotion and w >= 150 and h >= 60 then
-		local clip = T.frame(b, "ShineClip", 0, 0, w, h, C.white, 10)
-		clip.BackgroundTransparency = 1
-		clip.ClipsDescendants = true
-		local shine = T.frame(clip, "Shine", -60, -h * 0.3, 26, h * 1.6, C.white, 0)
-		shine.BackgroundTransparency = 0.8
-		shine.Rotation = 20
-		task.spawn(function()
-			task.wait(math.random() * 2)
-			while b.Parent do
-				shine.Position = UDim2.fromOffset(-60, -h * 0.3)
-				local tween = TweenService:Create(
-					shine,
-					TweenInfo.new(0.8, Enum.EasingStyle.Quad),
-					{ Position = UDim2.fromOffset(w + 40, -h * 0.3) }
-				)
-				tween:Play()
-				task.wait(4.5)
-			end
-		end)
-	end
 	b.Activated:Connect(function()
 		T.activate(b)
 	end)
 	b.MouseEnter:Connect(function()
 		if not b:GetAttribute("Disabled") then
 			feedback(0.92)
-			popTo(1.04, 0.15)
+			popTo(1.03, 0.12)
 		end
 	end)
 	b.MouseLeave:Connect(function()
 		feedback(1)
-		popTo(1, 0.15)
+		popTo(1, 0.12)
 	end)
 	b.SelectionGained:Connect(function()
 		feedback(0.85)
