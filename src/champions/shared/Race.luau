@@ -121,16 +121,16 @@ local function lobby(parent, state, ctx)
 			T.C.silver,
 			"Right"
 		)
-		T.frame(root, "XPTrack", profileX, 38, barW, 14, T.C.ink, 7)
+		T.frame(root, "XPTrack", profileX, 38, barW, 18, T.C.ink, 9)
 		T.frame(
 			root,
 			"XPFill",
 			profileX,
 			38,
 			barW * math.clamp((state.xp or 0) / math.max(1, state.xpGoal or 1), 0, 1),
-			14,
+			18,
 			T.C.cyan,
-			7
+			9
 		)
 		T.button(root, "Settings", "SETTINGS", w - 132, 6, 120, 48, function()
 			ctx.navigate("SETTINGS")
@@ -179,20 +179,21 @@ local function lobby(parent, state, ctx)
 			"duel"
 		)
 		T.disable(play, ctx.pending or not state.ready)
-		T.panel(root, "PadHint", playX, playY - 50, playW, 44, T.C.blue)
-		local hint = if queue then tostring(queue.status or "WAITING") else "PRESS PLAY TO FIGHT"
-		T.text(
-			root,
-			"QueueStatus",
-			hint,
-			playX + 6,
-			playY - 48,
-			playW - 12,
-			40,
-			20,
-			T.C.white,
-			"Center"
-		)
+		if queue then
+			T.panel(root, "PadHint", playX, playY - 50, playW, 44, T.C.blue)
+			T.text(
+				root,
+				"QueueStatus",
+				tostring(queue.status or "WAITING"),
+				playX + 6,
+				playY - 48,
+				playW - 12,
+				40,
+				22,
+				T.C.white,
+				"Center"
+			)
+		end
 	end)
 end
 

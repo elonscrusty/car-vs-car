@@ -3,6 +3,7 @@
 -- (player attribute ProfileUnsaved = true, set by Profiles). Client text only; display only.
 
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 
 local SaveNotice = {}
 
@@ -37,7 +38,8 @@ function SaveNotice.new()
 	label.Parent = gui
 
 	local function refresh()
-		label.Visible = player:GetAttribute("ProfileUnsaved") == true
+		-- Studio cannot reach the DataStore, so the notice there is noise; show it only in the real game.
+		label.Visible = not RunService:IsStudio() and player:GetAttribute("ProfileUnsaved") == true
 	end
 	player:GetAttributeChangedSignal("ProfileUnsaved"):Connect(refresh)
 	refresh()

@@ -34,7 +34,7 @@ export type Model = {
 
 local GACHA_ERRORS: { [string]: string } = {
 	coins = "NOT ENOUGH COINS",
-	busy = "THE CLAW IS BUSY",
+	busy = "THE GUMBALL MACHINE IS BUSY",
 	loading = "LOADING YOUR DATA",
 }
 
@@ -143,7 +143,7 @@ function Adapter.new(opts: Options): Model
 				refund = if type(u.refund) == "number" then u.refund else 0,
 			}
 		elseif kind == "gachaError" then
-			fx.notify = GACHA_ERRORS[u.reason or ""] or "THE CLAW COULD NOT RUN"
+			fx.notify = GACHA_ERRORS[u.reason or ""] or "THE GUMBALL MACHINE COULD NOT RUN"
 			fx.notifyOk = false
 		elseif kind == "storeResult" then
 			if type(u.coins) == "number" then

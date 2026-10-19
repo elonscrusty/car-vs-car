@@ -182,8 +182,13 @@ function Ui.create(): View
 	end
 
 	view.showRoundEnd = function(youLost)
+		if youLost then
+			-- The big K.O. banner (FightFx) already says YOU ARE OUT; do not show it twice.
+			msg.Visible = false
+			return
+		end
 		msg.Visible = true
-		msg.Text = if youLost then "YOU ARE OUT" else "SOMEONE IS OUT"
+		msg.Text = "SOMEONE IS OUT"
 		msg.TextColor3 = if youLost
 			then Color3.fromRGB(255, 110, 110)
 			else Color3.fromRGB(255, 225, 120)

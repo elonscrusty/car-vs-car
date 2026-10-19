@@ -522,7 +522,7 @@ function GroupMatch.new(
 			end)
 			sendTo(car.idx, {
 				kind = "modeInfo",
-				text = "YOU ARE OUT - watching. The round ends when everyone is out. Tap REMATCH or LOBBY!",
+				text = "WATCHING THE FIGHT. TAP LOBBY TO LEAVE",
 			})
 		end
 		if currentArena and text ~= "LEFT THE GAME" then

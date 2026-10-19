@@ -333,7 +333,7 @@ local function machine(parent, x, y, w, h, compact)
 	T.text(
 		body,
 		"MachineTitle",
-		"CLAW MACHINE",
+		"GUMBALL MACHINE",
 		12,
 		9,
 		w - 24,
@@ -496,7 +496,7 @@ local function renderClaw(root, state, ctx)
 		ctx.confirm(
 			"PullClaw",
 			{},
-			"PULL THE CLAW?",
+			"SPIN THE GUMBALL MACHINE?",
 			(
 				if cost == 0
 					then "Free pull! One random car."
