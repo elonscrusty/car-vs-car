@@ -381,6 +381,17 @@ function FeelRules.arenaFitDistance(
 	return 900
 end
 
+-- Mouse steering: how far the cursor is left/right of the screen middle (share of the width,
+-- -0.5..0.5) -> steer -1..1. Nothing inside the dead zone, full at `full`, a gentle curve between.
+function FeelRules.mouseSteer(offsetShare: number, dead: number, full: number): number
+	local a = math.abs(offsetShare)
+	if a <= dead then
+		return 0
+	end
+	local t = math.clamp((a - dead) / math.max(1e-3, full - dead), 0, 1)
+	return math.sign(offsetShare) * t ^ 1.2
+end
+
 -- ---- Team icons (#81) ----------------------------------------------------------------------
 
 -- Shape (not just colour) above a car: "bomb" for IT, "chevron" for a teammate, nil for others.

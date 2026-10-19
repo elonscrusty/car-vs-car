@@ -1,5 +1,5 @@
 --!strict
--- Camera: fixed high view of the whole arena, shakes on big hits, and a push-in on the crash dummy at a KO.
+-- Camera: chase view behind your car (turns smoothly with it), shakes on big hits, and a push-in on the crash dummy at a KO.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -42,11 +42,7 @@ function CameraDirector.new(): Director
 	local walls: { BasePart } = {} -- walls of your soccer arena, faded while they block the view
 	local wallFade: { [BasePart]: number } = {}
 	local nextWallCheck = 0
-	-- Whole-arena view (set when your car is found): floor middle and half sizes, the fixed look direction
-	local arenaMid = Vector3.zero
-	local arenaHx, arenaHz = 60, 60
-	local viewYaw = 0
-	local fitAspect, fitDist = 0, 0
+	local chaseYaw = 0 -- the heading the camera looks along, eased toward your car's heading
 	local wallTarget: { [BasePart]: number } = {}
 
 	local function calm(): boolean
@@ -57,42 +53,6 @@ function CameraDirector.new(): Director
 		return workspace.CurrentCamera :: Camera
 	end
 
-	-- Floor footprint of the arena (all parts named Floor, in world space) and the fixed view
-	-- direction: along a world axis so the longer side runs left-right on screen, facing the way
-	-- your car starts.
-	local function measureArena(arena: Instance, car: BasePart?)
-		local minX, maxX, minZ, maxZ, topY =
-			math.huge, -math.huge, math.huge, -math.huge, -math.huge
-		for _, p in arena:GetChildren() do
-			if p:IsA("BasePart") and p.Name == "Floor" then
-				local h = p.Size / 2
-				for _, sx in { -1, 1 } do
-					for _, sy in { -1, 1 } do
-						for _, sz in { -1, 1 } do
-							local w = p.CFrame * Vector3.new(h.X * sx, h.Y * sy, h.Z * sz)
-							minX, maxX = math.min(minX, w.X), math.max(maxX, w.X)
-							minZ, maxZ = math.min(minZ, w.Z), math.max(maxZ, w.Z)
-							topY = math.max(topY, w.Y)
-						end
-					end
-				end
-			end
-		end
-		if minX > maxX then
-			local c = if car then car.Position else Vector3.zero
-			minX, maxX, minZ, maxZ, topY = c.X - 60, c.X + 60, c.Z - 60, c.Z + 60, c.Y
-		end
-		arenaMid = Vector3.new((minX + maxX) / 2, topY, (minZ + maxZ) / 2)
-		arenaHx, arenaHz = (maxX - minX) / 2, (maxZ - minZ) / 2
-		local look = if car then car.CFrame.LookVector else Vector3.zAxis
-		if arenaHx >= arenaHz then
-			viewYaw = if look.Z >= 0 then 0 else math.pi -- long side left-right: look along +Z / -Z
-		else
-			viewYaw = if look.X >= 0 then math.pi / 2 else -math.pi / 2
-		end
-		fitAspect = 0 -- re-fit the distance
-	end
-
 	-- Your car is the model in an Arena that carries your user id (the server sets it at the fight).
 	-- Also notes what kind of arena it is and which soccer team you are on.
 	local function findMyCar(): BasePart?
@@ -101,8 +61,11 @@ function CameraDirector.new(): Director
 			if arena.Name == "Arena" then
 				for _, m in arena:GetChildren() do
 					if m:IsA("Model") and m:GetAttribute("DriverUserId") == uid then
-						measureArena(arena, m.PrimaryPart)
-						return m.PrimaryPart
+						local pp = m.PrimaryPart
+						if pp then
+							chaseYaw = math.atan2(pp.CFrame.LookVector.X, pp.CFrame.LookVector.Z)
+						end
+						return pp
 					end
 				end
 			end
@@ -201,29 +164,11 @@ function CameraDirector.new(): Director
 				car = myCar
 			end
 			if car ~= nil and car.Parent ~= nil then
-				-- Whole-arena camera: one fixed high spot that sees the entire floor, whatever
-				-- the car does. Only the soccer walls in the way fade out.
-				local c = cam()
-				local aspect = c.ViewportSize.X / math.max(1, c.ViewportSize.Y)
-				if math.abs(aspect - fitAspect) > 0.02 then
-					fitAspect = aspect
-					fitDist = FeelRules.arenaFitDistance(
-						arenaHx,
-						arenaHz,
-						viewYaw,
-						feel.arenaPitch,
-						feel.normalFov,
-						aspect,
-						feel.arenaMargin
-					)
-				end
-				local pitch = math.rad(feel.arenaPitch)
-				local dir = Vector3.new(math.sin(viewYaw), 0, math.cos(viewYaw))
-				local camPos = arenaMid
-					+ (-dir * math.cos(pitch) + Vector3.new(0, math.sin(pitch), 0)) * fitDist
-				local goal = CFrame.lookAt(camPos, arenaMid)
-				base = base:Lerp(goal, 1 - math.exp(-feel.arenaEase * dt))
-				goalFov = feel.normalFov
+				-- Chase camera: behind your car, turning smoothly with it, a bit further back and
+				-- wider at speed. (Soccer, when on, leans toward the ball.)
+				local look = car.CFrame.LookVector
+				local carYaw = math.atan2(look.X, look.Z)
+				local ballYaw: number? = nil
 				if soccerOn then
 					local ball = ballPart
 					if (ball == nil or ball.Parent == nil) and os.clock() >= nextBallFind then
@@ -231,7 +176,29 @@ function CameraDirector.new(): Director
 						ballPart = findBall(car)
 						ball = ballPart
 					end
-					updateWalls(base.Position, car, ball, dt)
+					if ball ~= nil and ball.Parent ~= nil then
+						local d = ball.Position - car.Position
+						if d.X * d.X + d.Z * d.Z > 25 then
+							ballYaw = math.atan2(d.X, d.Z)
+						end
+					end
+				end
+				local want =
+					FeelRules.chaseYaw(carYaw, ballYaw, feel.chaseBallShare, feel.chaseBallMax)
+				chaseYaw = FeelRules.approachAngle(chaseYaw, want, dt, feel.chaseYawRate)
+				local dir = Vector3.new(math.sin(chaseYaw), 0, math.cos(chaseYaw))
+				local v = car.AssemblyLinearVelocity
+				local speed = Vector3.new(v.X, 0, v.Z).Magnitude
+				local pos = car.Position
+				local camPos = pos
+					- dir * (feel.chaseBack + speed * feel.chaseSpeedBack)
+					+ Vector3.new(0, feel.chaseUp, 0)
+				local goal =
+					CFrame.lookAt(camPos, pos + dir * feel.chaseAhead + Vector3.new(0, 1.5, 0))
+				base = base:Lerp(goal, 1 - math.exp(-feel.chaseFollow * dt))
+				goalFov = feel.normalFov + math.clamp(speed / 100, 0, 1) * feel.chaseSpeedFov
+				if soccerOn then
+					updateWalls(base.Position, car, ballPart, dt)
 				end
 			end
 		end

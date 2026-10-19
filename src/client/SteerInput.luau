@@ -19,6 +19,9 @@ export type SteerInput = {
 	start: () -> (),
 	stop: () -> (),
 	read: () -> (number, number), -- steer, gas right now (for driving the own car on this device)
+	-- (steer, gas, aim): aim = true when the thumb stick is in use (it points where to GO on screen);
+	-- false for keys (A/D steer, W/S gas and brake, relative to the car).
+	readMode: () -> (number, number, boolean),
 }
 
 local SteerInput = {}
@@ -318,6 +321,16 @@ function SteerInput.new(send: (steer: number, gas: number) -> ()): SteerInput
 
 	self.read = function()
 		return steerValue(), gasValue()
+	end
+
+	self.readMode = function()
+		local keySteer = (if keyCount.right > 0 then 1 else 0)
+			- (if keyCount.left > 0 then 1 else 0)
+		local keyGas = (if keyCount.up > 0 then 1 else 0) - (if keyCount.down > 0 then 1 else 0)
+		if keySteer ~= 0 or keyGas ~= 0 then
+			return keySteer, keyGas, false
+		end
+		return steerValue(), gasValue(), true
 	end
 
 	self.stop = function()
