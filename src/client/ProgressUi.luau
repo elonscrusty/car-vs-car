@@ -98,9 +98,10 @@ function ProgressUi.new(): ProgressUi
 	return {
 		update = function(carLevels, rank, streak)
 			local levels = carLevels or {}
+			-- rank nil = rank badges are off (FeatureFlags.rankBadges): no rank text.
 			local name = rank or "Bronze"
 			local color = RANK_COLOR[name] or RANK_COLOR.Bronze
-			rankLabel.Text = string.upper(name)
+			rankLabel.Text = if rank then string.upper(name) else ""
 			rankLabel.TextColor3 = color
 			stroke.Color = color
 			local best = 1

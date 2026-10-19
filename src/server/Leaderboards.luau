@@ -111,8 +111,31 @@ function Leaderboards.submit(player: Player, profile: Profile)
 	end
 end
 
+-- A win just happened: add 1 to this player's weekly score (week taken from the server clock).
+-- Wins are minutes apart, so one UpdateAsync per win is well inside the DataStore budget.
+function Leaderboards.recordWin(player: Player)
+	local userId = player.UserId
+	local week = Leaderboard.weekIndex(os.time())
+	task.spawn(function()
+		local ds = storeFor(Leaderboard.weeklyStore(week))
+		if ds == nil then
+			return
+		end
+		Retry.run(function()
+			ds:UpdateAsync(tostring(userId), function(old: any)
+				return Leaderboard.addWins(old, 1)
+			end)
+			return true
+		end, retryOpts("weekly win"))
+	end)
+end
+
 local function refreshBoard(board: { kind: Leaderboard.Kind, store: string, title: string })
-	local ds = storeFor(board.store)
+	local storeName = board.store
+	if board.kind == "weekly" then
+		storeName = Leaderboard.weeklyStore(Leaderboard.weekIndex(os.time()))
+	end
+	local ds = storeFor(storeName)
 	if ds == nil then
 		return
 	end
@@ -187,14 +210,15 @@ function Leaderboards.init(folder: Folder, center: Vector3)
 		return
 	end
 	inited = true
-	local gap = BOARD_SIZE.X / 2 + 1
-	for i, board in Leaderboard.Boards do
-		local side = if i == 1 then -1 else 1
-		buildBoard(folder, board, center + Vector3.new(side * gap, BOARD_SIZE.Y / 2 + 1, 0), 0)
+	local step = BOARD_SIZE.X + 2
+	-- Left to right: all-time wins, this week's wins, best streak.
+	local shown = { Leaderboard.Boards[1], Leaderboard.Weekly, Leaderboard.Boards[2] }
+	for i, board in shown do
+		buildBoard(folder, board, center + Vector3.new((i - 2) * step, BOARD_SIZE.Y / 2 + 1, 0), 0)
 	end
 	task.spawn(function()
 		while true do
-			for _, board in Leaderboard.Boards do
+			for _, board in shown do
 				refreshBoard(board)
 			end
 			task.wait(ProgressConfig.Board.refreshSeconds)

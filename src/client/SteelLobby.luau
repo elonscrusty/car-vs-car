@@ -35,15 +35,17 @@ function SteelLobby.start()
 		end
 		local id = d.TextureID
 		if images[id] == nil then
+			-- Needs the EditableImage setting (Experience Settings > Security); without it the lobby stays red.
 			local ok, image = pcall(function()
-				return AssetService:CreateEditableImageAsync(Content.fromUri(id))
+				local made = AssetService:CreateEditableImageAsync(Content.fromUri(id))
+				fillCell(made, 0, 7, LIGHT)
+				fillCell(made, 1, 7, DARK)
+				return made
 			end)
 			if not ok then
 				broken = true
 				return
 			end
-			fillCell(image, 0, 7, LIGHT)
-			fillCell(image, 1, 7, DARK)
 			images[id] = image
 		end
 		local image = images[id]

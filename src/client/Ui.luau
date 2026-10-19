@@ -8,6 +8,7 @@ local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
 local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
 local WinText = require(ReplicatedStorage.Shared.WinText)
 local UiStyle = require(script.Parent.UiStyle)
+local InviteUi = require(script.Parent.InviteUi)
 local WinFx = require(script.Parent.WinFx)
 
 local Ui = {}
@@ -242,6 +243,7 @@ function Ui.create(h: Handlers): View
 			h.onRematch()
 		end
 	end)
+	local invite = InviteUi.new(endFrame)
 	local endFx: WinFx.Handle? = nil
 	local endTweens: { Tween } = {}
 
@@ -263,6 +265,7 @@ function Ui.create(h: Handlers): View
 		aimFrame.Visible = false
 		powerBack.Visible = false
 		endFrame.Visible = false
+		invite.setVisible(false)
 		rematchBtn.Visible = false
 		msg.Visible = false
 	end
@@ -369,6 +372,7 @@ function Ui.create(h: Handlers): View
 		endText.TextColor3 = if youWon
 			then Color3.fromRGB(255, 205, 40)
 			else Color3.fromRGB(235, 90, 90)
+		invite.setVisible(youWon)
 		WinFx.popIn(banner, youWon, endTweens)
 		if youWon then
 			endFx = WinFx.coinBurst(endFrame, math.floor(os.clock() * 1000))

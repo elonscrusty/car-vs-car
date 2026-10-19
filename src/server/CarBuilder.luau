@@ -8,6 +8,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local Ai = require(ReplicatedStorage.Shared.Ai)
 local Build = require(ReplicatedStorage.Shared.Build)
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
+local Fairness = require(ReplicatedStorage.Shared.Fairness)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local Progress = require(ReplicatedStorage.Shared.Progress)
 local Appearance = require(script.Parent.Appearance)
@@ -194,10 +195,14 @@ function CarBuilder.build(
 	label: string,
 	isBot: boolean,
 	look: Appearance.Appearance?,
-	build: Build.BuildData? -- build-and-watch: the stats come from the parts (nil = the plain car)
+	build: Build.BuildData?, -- build-and-watch: the stats come from the parts (nil = the plain car)
+	fair: boolean? -- human vs human: ignore the level bonus and use Common ability strength
 ): Car
 	local plain = if build then Build.stats(CarConfig.Cars[id], build) else CarConfig.Cars[id]
-	local stats = Progress.applyLevel(plain, if look then look.level else nil) -- car level: more HP + damage
+	local neutral = fair == true
+	local stats =
+		Progress.applyLevel(plain, Fairness.level(if look then look.level else nil, neutral)) -- car level: more HP + damage (not in a fair human match)
+	stats.rarity = Fairness.rarity(stats.rarity, neutral)
 	local sx, sy, sz = stats.size[1], stats.size[2], stats.size[3]
 	local color = Color3.fromRGB(stats.rgb[1], stats.rgb[2], stats.rgb[3])
 	local dark = Color3.fromRGB(35, 35, 40)

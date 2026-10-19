@@ -118,3 +118,44 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 - lastStanding / soccer = `src/server/GroupMatch.luau` (same handle as Match). 1-2 players, bots fill to 8 cars (lastStanding, 60% HP each) or 3v3 (soccer, humans on team 1). No aiming: "ready" countdown, then drive. Soccer: giant ball, goal arcs on the bowl wall, first to 3, time up = more goals, tie = next goal wins.
 - Look/props: `src/server/ModeFx.luau`. HUD line: UiUpdate `modeInfo`, shown by `src/client/ModeBanner.luau`.
 - Checked: Lune tests (244). NOT checked in Studio or by eye: soccer ball feel, bot play in soccer/8-car, goal arcs, banner. Tune only in ModesConfig.
+## Sound system (review M2)
+- `src/shared/SoundConfig.luau` (events hitSoft/hitHard/boost/ability/win/lose/click/claw/coin/music_lobby/music_arena; ALL ids EMPTY = silent; volumes/pitch are placeholders), pure `Sounds.luau` (resolve -> spec or nil, hit strength -> soft/hard, volume clamp), client `SoundFx.luau` (lazy Sounds under SoundService, looping music, mute kept in a client-only SoundService attribute).
+- Hooks: hit/win/lose/fight+lobby music in `init.client`, click in `UiStyle.polish` + `LobbyUi.button`, boost/ability in `ActionInput.press`, claw result and coin toast in `LobbyUi`. MUSIC mute button in the lobby menu.
+- Carter must fill ids: see `docs/sounds-needed.md`. Tests: `tests/sounds.test.luau`. Not heard or run in Studio.
+## Analytics (review M3)
+- `src/server/Telemetry.luau` (funnel + custom events via AnalyticsService; pcall, deferred, no-op in Studio, global send cap), pure `src/shared/TelemetryRules.luau` + `TelemetryConfig.luau`, tests `tests/telemetry.test.luau`. One-line hooks in `init.server`, `LobbyService`, `Match`, `GroupMatch`. Table of events and what a bad number means: `docs/analytics.md`.
+- PLACEHOLDER: `TelemetryConfig.RateLimit` (200 per 60 s). Not verified: real sends (only work in a published game), `LogCustomEvent` customFields argument against the live API, dashboard display.
+## Fight fixes: fairness, pacing, hit flash, comeback (review M5, M6, V3)
+- Fairness: `shared/Fairness.luau` + `FairnessConfig.luau` (`neutralizeHumanMatches`, default on). With 2+ humans in a match, `Match` passes `fair` to `CarBuilder.build`: car level bonus ignored, ability rarity forced to Common. Bots keep all bonuses. Garage build parts (`Build.stats`) are NOT neutralized.
+- Pacing: bowl shrunk, rim radius 112 -> 85 (`ArenaLookConfig.RIM` = 85), spawn 92 -> 68, aim timeout 8 -> 6, bot run-up radius 66 / retreat 42, Light bot circles 0.7 s (was 2) at radius 16. Mode rings (`ModesConfig` spawn 68, soccer goalRadius 66) follow. `shared/Pacing.luau` + `GameConfig.Pacing` (target 8 s, detour 1.5) with a test on worst-case first contact (aim timeout + travel). The math is an estimate; real time-to-first-hit is NOT measured.
+- Hit feel: `client/HitFlash.luau` (screen flash, "HIT!" label, strong hits get "HIT! -dmg" and extra shake) hooked in `init.client` hit handler; rule `shared/HitFeel.luau`; numbers `GameConfig.Feel` (flashFrom, strongFrom, extraShake). No sound. Not seen in Studio.
+- Comeback: `shared/Comeback.luau` + `ComebackConfig.luau` (default on, under 25% HP, +35% speed fading over 0.9 s, once per fight on first boost/ability). Applied in server `Moves` (mods + popMult for client-driven cars; Match speed cap allows it). All numbers are placeholders.
+- Tests: `tests/fightfix.test.luau` (265 pass total).
+
+## Launch simplification (feature flags)
+- `src/shared/FeatureFlags.luau`: pure flags. Off at launch: dailySpin, rankBadges, paintShop, perCarQuests, botLevelButton, lastStandingMode. On: soccerMode (carter kept it). Hidden = not built/ignored, no code deleted.
+- ModesConfig.Order = duel, hill, ice, soccer (`ModesConfig.orderFor(flags)`). QuestsConfig.Catalog = win3, play5, bot2 (`catalogFor(flags)`). Spin and buyPaint/equipPaint server actions ignored while off; SpinUi/PaintUi/BotLevelUi not created; rank text empty.
+- Bot level: `BotLevels.forWins` / `levelFor`, thresholds `BotLevelsConfig.AutoScale` (easy under 3 wins, medium under 15, else hard; placeholders).
+- New-player menu: `MenuRules.visible(profile)` + `MenuConfig.matchesForFullMenu = 2`. Profile has a new `matches` counter (migrates to 0, +1 per finished match in `finishMatch`). `MenuBar.setShown` hides buttons.
+- `client/SaveNotice.luau`: "Progress not saving right now" text when player attribute ProfileUnsaved is true.
+- Tests: 264 pass (Lune). Not checked in Studio or by eye.
+
+## Launch roster, distinct car stats, bot names (claude/fix-cars)
+- `CarConfig.LaunchRoster` (12 cars: Heavy, Light, Sedan, DuneBuggy, Ramp, Bulldozer, Drift, Spike, Rocket, MonsterTruck, Formula, ArmoredTruck). `CarConfig.useFullRoster = false` hides the rest: `CarConfig.Order` is now the live list (claw odds, store, picks, quests, bots); `CarConfig.FullOrder` is every car (saves, remotes, `get`). `CarConfig.isLive(id)`; Store only sells live cars. Set `useFullRoster = true` to bring all 38 back.
+- Stats: roster pack cars get own numbers + one-line role (shown as the existing `blurb`) in `CarCatalog.Tuned`. `CarPower.score` + `CarConfig.PowerWeights`/`PowerTolerance` (0.2) tested in `tests/roster.test.luau`. All stat numbers and weights are PLACEHOLDERS; abilities untouched.
+- `BotNames.luau` (30 names, `pick(seed, taken)`, `pickCar(seed, roster)`); `nameOf` in Match/GroupMatch uses it, so bots show a friendly name instead of "BOT".
+
+## Car soccer small field
+- Soccer no longer uses the bowl. It has its own flat field (120 x 70 studs, 30 high walls, 45 degree cut corners, 24 wide goal mouth with 10 deep nets, invisible lid), built in code by `src/server/SoccerArena.luau` in the match's own slot (same far-away spot as the bowl). Team 1 defends the -X goal.
+- Pure rules + tests: `src/shared/SoccerField.luau` (goal boxes + goal detection, spawn spots facing the ball, bot aim point, out-of-bounds, ball-stuck timer, ball speed cap, wall layout), numbers in `src/shared/SoccerFieldConfig.luau`, tests `tests/soccerfield.test.luau` (265 pass in total).
+- `GroupMatch` uses it only for mode "soccer" (arena pick, goal boxes replace the circular arc test, ball stuck/out-of-bounds reset, cars that leave come back at their spot). Kept: scoreToWin, teams, bots, goal pause, timer, golden goal. `ModesConfig.Soccer.teamSize` is now 2 (2v2); the old bowl goal numbers there are unused. Bowl and the other modes are untouched.
+- Empty Folders in the arena for Studio models later: `BallSpawn`, `GoalA`, `GoalB`, `ScoreBoardAnchor` (each has a `Position` attribute). No models are imported by code.
+- Placeholders / not checked in Studio: field size, wall height, ball size/density/bounce/speed cap (9 studs, 0.3, 0.7, 100), bot aim offsets, camera framing of the small field, whether cars clear the net sides, grass/line look.
+
+## Social + safety (invite, weekly board, weekly bowl look, car sanity)
+- Invite: `client/InviteUi.luau` (button on the win screen; `SocialService:CanSendGameInviteAsync` in pcall, then `PromptGameInvite`; hidden if not allowed). Hooked in `Ui.luau`.
+- Weekly wins board: `Leaderboard.weekIndex` (Monday 00:00 UTC weeks), `weeklyStore` (`TopWinsWeekly_v1_w<week>`), `addWins`; `Leaderboards.recordWin` is called from `LobbyService.finishMatch` on a win; third board built between all-time wins and best streak.
+- Weekly bowl look: `shared/ArenaThemes.luau` (4 placeholder palettes by week), applied in `ArenaScenery.build` (wall stripe colors + grass tint only; no sizes touched).
+- Car sanity: `shared/CarSanityRules.luau` + `CarSanityConfig.luau` (pure, tested) and `server/CarSanity.luau`. Per fight frame, client-driven cars are checked for teleport, height, measured speed; bad = put back at last good spot, 3 resets = forfeit. Hooked in `Match` and `GroupMatch` (soccer never forfeits, respawns call `CarSanity.rebase`). All numbers in `CarSanityConfig` are PLACEHOLDERS.
+- Docs: `docs/playtest-checklist.md`, `docs/store-page.md`. Max Players (12 to 16) must be set by carter in Game Settings.
+- Tests: 269 pass. Not checked in Studio: invite prompt, board look/position (boards now 3 wide), theme colors, false resets under real lag.

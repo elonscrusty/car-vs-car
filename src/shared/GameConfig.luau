@@ -15,13 +15,13 @@ local GameConfig = {
 	-- Bowl arena. Bigger tiltDeg = steeper bowl = cars roll back to the middle faster.
 	Arena = {
 		flatRadius = 50, -- flat middle disc (studs from center)
-		rimRadius = 112, -- where the slope ends (same as flatRadius = no slope, a flat arena)
+		rimRadius = 85, -- where the slope ends (same as flatRadius = no slope, a flat arena)
 		tiltDeg = 28, -- slope angle of the bowl (0 = flat arena)
 		wallHeight = 3, -- a low lip: hit hard enough and you fly over it (= ring out) -- walls on the rim
 		segments = 48, -- slabs around the bowl (more = rounder)
 		baseY = 300, -- height of arena in the world (far above the baseplate)
 		slotSpacing = 1000, -- each player gets own arena this far apart on X
-		spawnRadius = 92, -- launch spots, studs from center
+		spawnRadius = 68, -- launch spots, studs from center
 		-- Things to hit and hide behind. x/z = studs from center. Keep them mirrored (x,z -> -x,-z)
 		-- so neither side is lucky. "block" = box (sx, sy, sz); "pillar" = round (sx = width);
 		-- "ramp" = a slope to jump off (sx wide, sz long, yaw = turn in degrees, climbs toward -Z at 0);
@@ -29,7 +29,7 @@ local GameConfig = {
 		obstacles = {},
 	},
 	Match = {
-		aimTimeout = 8, -- seconds to aim before the server launches for you
+		aimTimeout = 6, -- seconds to aim before the server launches for you
 		roundEndDelay = 3.5, -- seconds to watch the dummy fly
 		maxMatchSeconds = 120, -- time up: higher HP wins, equal HP = next hit wins
 		outOfBoundsHeight = 120, -- car this far above the arena = flying cheat, counts as dead
@@ -65,6 +65,9 @@ local GameConfig = {
 		koCamUp = 10, -- KO camera height above the dummy
 		koCamBack = 20, -- KO camera distance from the dummy
 		smokeBelow = 0.35, -- car smokes when HP is under this share
+		flashFrom = 0.25, -- client "HIT!" flash starts at this hit strength (0..1)
+		strongFrom = 0.6, -- ...and gets big (bigger number, extra shake) from this strength
+		extraShake = 0.5, -- extra camera shake (x strength) on strong hits: carries the feel when there is no hit-stop
 	},
 	-- Pushed past the rim = ring-out = lose the round.
 	RingOut = { margin = 3 },
@@ -89,11 +92,11 @@ local GameConfig = {
 	Ai = {
 		chargeMax = 3, -- Heavy: longest straight charge before backing up
 		retreatTime = 1.1, -- after a hit: seconds driving away for a run-up
-		retreatDist = 55, -- how far away it aims during the run-up
-		maxRadius = 88, -- run-up target stays this close to bowl center
-		circleTime = 2, -- Light: seconds spent circling
+		retreatDist = 42, -- how far away it aims during the run-up
+		maxRadius = 66, -- run-up target stays this close to bowl center
+		circleTime = 0.7, -- Light: seconds spent circling (short: go for the enemy sooner)
 		diveMax = 1.5, -- Light: longest dive before circling again
-		circleRadius = 22, -- Light: circle distance around enemy
+		circleRadius = 16, -- Light: circle distance around enemy
 		circleAngleDeg = 40, -- Light: how far around enemy to aim each step
 		stuckSeconds = 0.8, -- barely moving this long = nose-to-nose standoff, back up
 	},
@@ -101,6 +104,11 @@ local GameConfig = {
 		launchUp = 70, -- upward speed of the crash dummy (studs/sec)
 		launchSpread = 25, -- sideways speed random
 		lifetime = 8, -- seconds before dummy is cleaned up
+	},
+	-- Pacing target: the first hit should land within this many seconds of the aim phase starting.
+	Pacing = {
+		targetSeconds = 8,
+		detour = 1.5, -- path stretch for imperfect aim and turning (pessimistic)
 	},
 	Remote = {
 		maxPerWindow = 6, -- calls allowed per window per player

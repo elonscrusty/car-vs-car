@@ -10,6 +10,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local HudStyle = require(ReplicatedStorage.Shared.HudStyle)
+local SoundFx = require(script.Parent.SoundFx)
 local UiStyle = require(script.Parent.UiStyle)
 
 export type ActionInput = {
@@ -62,6 +63,7 @@ function ActionInput.new(send: (name: string) -> ()): ActionInput
 		if not running or slot == nil or os.clock() < slot.readyAt then
 			return
 		end
+		SoundFx.play(if name == "boost" then "boost" else "ability")
 		send(name)
 	end
 
@@ -140,6 +142,7 @@ function ActionInput.new(send: (name: string) -> ()): ActionInput
 		label.TextColor3 = Color3.new(1, 1, 1)
 		label.ZIndex = 3
 		label.Parent = b
+		b:SetAttribute("NoClickSound", true) -- boost/ability have their own sound
 		UiStyle.polish(b)
 		b.Activated:Connect(function()
 			press(def.name)

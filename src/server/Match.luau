@@ -11,6 +11,7 @@ local Aim = require(ReplicatedStorage.Shared.Aim)
 local Build = require(ReplicatedStorage.Shared.Build)
 local BowlConfig = require(ReplicatedStorage.Shared.BowlConfig)
 local BowlRules = require(ReplicatedStorage.Shared.BowlRules)
+local BotNames = require(ReplicatedStorage.Shared.BotNames)
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
 local Duel = require(ReplicatedStorage.Shared.Duel)
 local Fight = require(ReplicatedStorage.Shared.Fight)
@@ -25,6 +26,7 @@ local Arena = require(script.Parent.Arena)
 local Autopilot = require(script.Parent.Autopilot)
 local BowlHazards = require(script.Parent.BowlHazards)
 local Buffs = require(script.Parent.Buffs)
+local CarSanity = require(script.Parent.CarSanity)
 local Pickups = require(script.Parent.Pickups)
 local BotLevels = require(ReplicatedStorage.Shared.BotLevels)
 local Appearance = require(script.Parent.Appearance)
@@ -36,11 +38,14 @@ local CombatConfig = require(ReplicatedStorage.Shared.CombatConfig)
 local Damage = require(ReplicatedStorage.Shared.Damage)
 local Specials = require(script.Parent.Specials)
 local Moves = require(script.Parent.Moves)
+local Fairness = require(ReplicatedStorage.Shared.Fairness)
+local Comeback = require(ReplicatedStorage.Shared.Comeback)
 local MovesConfig = require(ReplicatedStorage.Shared.MovesConfig)
 local MovesRules = require(ReplicatedStorage.Shared.Moves)
 local Modes = require(ReplicatedStorage.Shared.Modes)
 local ModesConfig = require(ReplicatedStorage.Shared.ModesConfig)
 local ModeFx = require(script.Parent.ModeFx)
+local Telemetry = require(script.Parent.Telemetry)
 
 type Phase = "pick" | "ready" | "aim" | "fight" | "roundEnd" | "matchEnd"
 
@@ -104,6 +109,7 @@ function Match.new(
 	local throttleSmooth: { [number]: number } = { 0, 0 } -- eased gas per car
 	-- car index -> true when that player's own device drives (and owns the physics of) the car
 	local clientDriven: { [number]: boolean } = {}
+	local fairMatch = Fairness.neutral(#participants) -- 2+ humans: no level bonus, Common abilities
 	local moveStates: { [number]: Moves.State } = { Moves.new(), Moves.new() } -- reset each fight
 	local rayParams = RaycastParams.new()
 	rayParams.FilterType = Enum.RaycastFilterType.Exclude
@@ -122,9 +128,20 @@ function Match.new(
 		}
 	end
 
+	local botNames: { [number]: string } = {}
 	local function nameOf(i: number): string
 		local p = participants[i]
-		return if p then p.player.DisplayName else "BOT"
+		if p then
+			return p.player.DisplayName
+		end
+		if not botNames[i] then -- a friendly random name, not just "BOT"
+			local taken = {}
+			for _, n in botNames do
+				table.insert(taken, n)
+			end
+			botNames[i] = BotNames.pick(rng:NextInteger(1, 1000000), taken)
+		end
+		return botNames[i]
 	end
 
 	-- Sends to one player (by car index). Skips bots and players who left.
@@ -315,6 +332,7 @@ function Match.new(
 			dmg = defender.hp
 		end
 		lastHitAt = os.clock()
+		Telemetry.hit(participants)
 
 		local newHp, dead = Logic.applyDamage(defender.hp, dmg)
 		defender.hp = newHp
@@ -391,7 +409,7 @@ function Match.new(
 			local part = participants[idx]
 			local id = if part
 				then part.carId
-				else CarConfig.Order[rng:NextInteger(1, #CarConfig.Order)]
+				else BotNames.pickCar(rng:NextInteger(1, 1000000), CarConfig.Order) :: string
 			local stats = CarConfig.Cars[id]
 			local cf = Arena.carCFrame(a, idx, stats.size[2] / 2)
 			local build: Build.BuildData? = nil
@@ -416,7 +434,8 @@ function Match.new(
 				nameOf(idx),
 				part == nil,
 				if part then part.appearance else nil,
-				build
+				build,
+				fairMatch
 			)
 		end
 		rayParams.FilterDescendantsInstances = { cars[1].model, cars[2].model }
@@ -624,7 +643,10 @@ function Match.new(
 	local function speedCap(car: CarBuilder.Car): number
 		return math.max(
 			cfg.Launch.maxSpeed,
-			car.stats.maxSpeed * (1 + MovesConfig.Boost.speedBonus) * Buffs.speedMult(car)
+			car.stats.maxSpeed
+				* (1 + MovesConfig.Boost.speedBonus)
+				* Buffs.speedMult(car)
+				* Comeback.maxMult()
 		) * cfg.Drive.speedCapSlack
 	end
 
@@ -671,8 +693,13 @@ function Match.new(
 					Autopilot.step(car, enemy, dt, rayParams, origin, autoLevel, withGrip(mods))
 				elseif human and not gone[car.idx] and clientDriven[car.idx] then
 					-- The driver's device moves this car; the server only keeps it honest.
-					car.model:SetAttribute("SpeedMult", Buffs.speedMult(car))
-					if not limitSpeed(car) then
+					car.model:SetAttribute(
+						"SpeedMult",
+						Buffs.speedMult(car) * Moves.popMult(moveStates[car.idx], os.clock())
+					)
+					if
+						not limitSpeed(car) or not CarSanity.step(car, origin.Y, speedCap(car), dt)
+					then
 						endMatch(car, "RING OUT!")
 						return
 					end
@@ -808,6 +835,7 @@ function Match.new(
 				return
 			end
 			submissions[i] = { angle = a, power = p }
+			Telemetry.launched(player)
 			if allSubmitted() then
 				startFight()
 			end
