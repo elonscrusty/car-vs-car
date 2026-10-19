@@ -178,3 +178,8 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 - Ball: warning banner `stuckWarnSeconds` before the stuck reset; out-of-bounds/lid reset kept (tested). Match clock (m:ss) is in the top line, "GOLDEN GOAL" in overtime (tie at time-up: next goal wins).
 - Camera: `CameraDirector.soccer(on)`; pure `SoccerFieldFlow.cameraFrame` puts the camera high behind your car on the ball-to-car line (rises with distance, clamped to the field plus margin).
 - PLACEHOLDERS: all new numbers in `SoccerFieldConfig` (keeper*, cam*, stuckWarnSeconds) and `ModesConfig.Soccer` (readySeconds, kickoffSeconds, restartSeconds, goSeconds, hudSeconds). Not checked in Studio: countdown feel, network ownership after unfreeze, keeper behaviour, camera look.
+## Car feel: handling traits (review M4, branch claude/w2-car-feel)
+- `shared/CarTraitsConfig.luau` (data + clamps) and `shared/CarTraits.luau` (pure): per-car `grip`, `drift`, `punch` (accel curve), `highTurn` (turn rate at top speed), `sizeScale`. Attached as `CarConfig.Cars[id].traits`. `CarDrive.push/manual` read them (human-driven cars; bots get accel curve + grip only). Pack cars' body size now = neutral box x `sizeScale` (CarCatalog.statsFor).
+- `CarTraits.describe` ("Fast, slippery") and `CarTraits.bars`; `client/CarStatsUi.luau` draws 4 bars (S, W, T, H) on the store card, hooked in `LobbyUi` (require + one call).
+- `CarConfig.PowerWeights` gained `grip`, `punch`, `highTurn`; balance test still passes. Test: `tests/cartraits.test.luau` (every launch car differs from every other in 2+ traits). 337 pass.
+- All trait numbers are PLACEHOLDERS, never driven in Studio. See `docs/car-feel.md`. No ability numbers changed.

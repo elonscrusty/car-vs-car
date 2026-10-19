@@ -50,5 +50,6 @@ require("./soccerfield.test")
 require("./arenathemes.test")
 require("./carsanity.test")
 require("./onboarding.test")
+require("./cartraits.test")
 
 Harness.summary()

@@ -154,3 +154,5 @@ See SNAPSHOT.md "Social + safety". Tune cheat limits in `src/shared/CarSanityCon
 - Placeholders to tune: `FirstWinConfig` (confettiCount, coinCount, bannerScale, texts), `Hints.AimNudgeSeconds`. Nothing needs Roblox ids. First win gives no bonus coins; add one in `LobbyService.finishMatch` if wanted.
 ## Soccer polish (claude/w2-soccer)
 See SNAPSHOT.md "Soccer polish". Tune in `SoccerFieldConfig` (keeper*, cam*) and `ModesConfig.Soccer` (countdown/goal timings). Unverified in Studio: unfreeze re-handing of network ownership (`handOver`), camera framing, keeper play. Tests: 340 pass.
+## Car feel traits
+See SNAPSHOT.md "Car feel" and `docs/car-feel.md`. Retune in `src/shared/CarTraitsConfig.luau`. First play test: does Light/Drift slide enough, does Armored/Monster push wide without feeling stuck, do bigger pack cars (Monster 1.35x, Armored 1.4x) fit the bowl and garages, do bars fit the store card at small widths.
