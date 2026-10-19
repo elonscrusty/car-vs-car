@@ -241,7 +241,7 @@ H.test("cannon: too close it backs away, too far it closes in", function()
 	local near = b.step(
 		0.05,
 		me,
-		{ x = 1 * L, z = 0, fx = -1, fz = 0 },
+		{ x = 0, z = 1 * L, fx = -1, fz = 0 },
 		{ ram = false, saw = false }
 	)
 	H.eq(near.state, "flee", "runs away when close")
@@ -255,7 +255,7 @@ H.test("cannon: too close it backs away, too far it closes in", function()
 	H.truthy(far.drive > 0, "drives in when far")
 end)
 
-H.test("saw: damage ticks 7 at no less than 0.5 s, only with front contact", function()
+H.test("saw: damage ticks at no less than 0.5 s, only with front contact", function()
 	local L = BattleConfig.Fighters.SawBuggy.lengthStuds
 	local b = BattleBrain.new("SawBuggy", L, arena())
 	local me = { x = 0, z = 0, fx = 1, fz = 0 }
@@ -266,7 +266,7 @@ H.test("saw: damage ticks 7 at no less than 0.5 s, only with front contact", fun
 		t += 0.05
 		local o = b.step(0.05, me, foe, { ram = false, saw = true })
 		if o.damage > 0 then
-			H.eq(o.damage, 7)
+			H.eq(o.damage, BattleConfig.Saw.damage)
 			table.insert(times, t)
 		end
 	end
@@ -392,7 +392,7 @@ H.test("config: every fighter is complete", function()
 	end
 	H.eq(BattleConfig.Fighters.RamTruck.hp, 150)
 	H.eq(BattleConfig.Fighters.CannonVan.hp, 130)
-	H.eq(BattleConfig.Fighters.SawBuggy.hp, 115)
+	H.eq(BattleConfig.Fighters.SawBuggy.hp, 105)
 	local _ = FIGHTERS
 end)
 
@@ -450,4 +450,18 @@ H.test("gumball: a pull grants a fighter once, a duplicate pays coins back", fun
 	H.eq(r2.carId, r1.carId)
 	H.eq(r2.isNew, false)
 	H.truthy(r2.refund > 0, "duplicate pays back")
+end)
+
+H.test("cannon: just inside max range and a few degrees off, it still turns and creeps", function()
+	local L = BattleConfig.Fighters.CannonVan.lengthStuds
+	local b = BattleBrain.new("CannonVan", L, Sim.arena())
+	local a = math.rad(8)
+	local o = b.step(
+		0.05,
+		{ x = -40, z = 0, fx = math.cos(a), fz = math.sin(a) },
+		{ x = 40, z = 0, fx = -1, fz = 0 },
+		{ ram = false, saw = false }
+	)
+	H.truthy(math.abs(o.turn) >= 0.5, "real turn command")
+	H.truthy(o.drive > 0, "creeps so the turn bites")
 end)

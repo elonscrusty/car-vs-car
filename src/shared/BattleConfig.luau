@@ -139,7 +139,7 @@ BattleConfig.Fighters = {
 		weaponName = "Spinning Saw",
 		blurb = "Zooms in and grinds with its front saw.",
 		weakness = "Must stay close and is open to hits while it approaches.",
-		hp = 115,
+		hp = 105,
 		cruiseL = 3.4,
 		turnDeg = 190,
 		rarity = "Epic",
@@ -189,7 +189,7 @@ BattleConfig.Cannon = {
 }
 
 BattleConfig.Saw = {
-	damage = 7,
+	damage = 5, -- was 7: the saw beat everything in the Studio playtest
 	tickSeconds = 0.5, -- least time between damage ticks on the same target
 	frontConeDeg = 70,
 	approachDrive = 1,
