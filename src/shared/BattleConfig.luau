@@ -36,9 +36,9 @@ BattleConfig.Arena = {
 		{ x = 28, z = 22, hx = 7, hz = 5 },
 	} :: { { x: number, z: number, hx: number, hz: number } },
 	minGapL = 1.8,
-	floorColor = { 92, 98, 112 },
-	wallColor = { 60, 66, 82 },
-	obstacleColor = { 150, 120, 80 },
+	floorColor = { 240, 140, 60 },
+	wallColor = { 120, 80, 210 },
+	obstacleColor = { 60, 200, 190 },
 }
 
 BattleConfig.Camera = {
