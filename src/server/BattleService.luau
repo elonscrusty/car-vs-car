@@ -464,8 +464,13 @@ function BattleService.start(opts: {
 			return
 		end
 		local cfg = BattleConfig.Cannon
-		local dir = car.lastForward
 		local pos = muzzle.WorldPosition
+		-- flat aim along the car's facing, tilted to the foe's body height so a low car is not overshot
+		local flat = car.lastForward
+		local toFoe = foe.body.Position - pos
+		local run = math.max(toFoe.Magnitude, 1)
+		local rise = math.clamp(toFoe.Y / run, -0.5, 0.5)
+		local dir = Vector3.new(flat.X, rise, flat.Z).Unit
 		local ball = Instance.new("Part")
 		ball.Name = "Shell"
 		ball.Shape = Enum.PartType.Ball
@@ -500,7 +505,7 @@ function BattleService.start(opts: {
 			local include: { Instance } = table.clone(arena.solids)
 			table.insert(include, s.foe.body)
 			params.FilterDescendantsInstances = include
-			local hit = workspace:Raycast(s.pos, step, params)
+			local hit = workspace:Spherecast(s.pos, 0.15 * s.owner.L, step, params)
 			local done = false
 			local landed = false
 			if hit then
