@@ -859,6 +859,7 @@ function LobbyService.start(deps: Deps): Handle
 			elseif action == "setMode" then
 				if modeLimiter.allow(player, os.clock()) and Modes.isPick(arg) then
 					modePref[player] = arg
+					Telemetry.modePicked(player, arg)
 					sendProfile(player)
 				end
 			elseif action == "claimQuest" then

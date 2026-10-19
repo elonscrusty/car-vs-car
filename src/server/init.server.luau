@@ -156,6 +156,7 @@ end
 local function onPlayerRemoving(player: Player)
 	Telemetry.left(player)
 	local g = groups[player]
+	Telemetry.leftMatch(player, if g then "fight" else "end") -- before the match records are cleared
 	if g then
 		g.match.playerLeft(player)
 		leaveGroup(player)
