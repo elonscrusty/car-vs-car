@@ -119,11 +119,11 @@ function LobbyFloor.build(folder: Folder, origin: Vector3)
 			Vector3.new(0.06, r * 2, r * 2),
 			CFrame.new(origin + Vector3.new(sc.x, 0.07 + i * 0.01, sc.z))
 				* CFrame.Angles(0, 0, math.pi / 2),
-			if i == 1 then CYAN else YELLOW,
-			true
+			Color3.fromRGB(86, 112, 140), -- muted steel-blue, matte (the yellow neon ring was too loud)
+			false
 		)
 		ring.Shape = Enum.PartType.Cylinder
-		ring.Transparency = 0.55
+		ring.Transparency = 0.4
 	end
 end
 
