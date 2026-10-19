@@ -16,6 +16,8 @@ type Profile = { wins: number, progress: { bestStreak: number } }
 
 local RETRY = { attempts = 3, baseDelay = 1, maxDelay = 4 }
 local BOARD_SIZE = Vector3.new(14, 11, 0.4)
+local TITLE_SIZE = 40 -- pixels (board is 40 pixels per stud)
+local BODY_SIZE = 28
 local PANEL = Color3.fromRGB(18, 24, 48) -- the navy of the other panels
 local GOLD = Color3.fromRGB(255, 210, 70)
 local WHITE = Color3.fromRGB(240, 244, 250)
@@ -195,7 +197,7 @@ local function buildBoard(
 		title.BackgroundTransparency = 1
 		title.Size = UDim2.fromScale(1, 0.14)
 		title.Font = Enum.Font.FredokaOne
-		title.TextScaled = true
+		title.TextSize = TITLE_SIZE -- one fixed size on every board (TextScaled gave each board its own)
 		title.TextColor3 = GOLD
 		title.Text = board.title
 		title.Parent = gui
@@ -204,7 +206,8 @@ local function buildBoard(
 		body.Position = UDim2.fromScale(0.08, 0.16)
 		body.Size = UDim2.fromScale(0.84, 0.8)
 		body.Font = Enum.Font.FredokaOne
-		body.TextScaled = true
+		body.TextSize = BODY_SIZE
+		body.LineHeight = 1.1
 		body.TextColor3 = WHITE
 		body.TextXAlignment = Enum.TextXAlignment.Left
 		body.TextYAlignment = Enum.TextYAlignment.Top
