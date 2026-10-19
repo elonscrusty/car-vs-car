@@ -507,9 +507,7 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena, momentum: b
 		else
 			o = stepSaw(dt, me, foe, contact)
 		end
-		if isMomentum then
-			resetStuck()
-		elseif not inAttack and not o.hold and o.state ~= "charge" then
+		if not isMomentum and not inAttack and not o.hold and o.state ~= "charge" then
 			if stuckCheck(dt, me, foeDist, o.drive) then
 				startRecover()
 			end
