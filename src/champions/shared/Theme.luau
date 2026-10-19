@@ -175,9 +175,11 @@ function T.icon(parent, name, kind, x, y, size, color)
 		block(0.17, 0.55, 0.66, 0.37, 0.03)
 		block(0.44, 0.36, 0.12, 0.56, 0, C.navy)
 		local a = block(0.22, 0.06, 0.3, 0.29, 0.13)
-		stroke(a, C.navy, 2)
+		a.BackgroundTransparency = 1 -- open loops, not solid blobs
+		stroke(a, color, math.max(2, size * 0.07))
 		local b = block(0.49, 0.06, 0.3, 0.29, 0.13)
-		stroke(b, C.navy, 2)
+		b.BackgroundTransparency = 1
+		stroke(b, color, math.max(2, size * 0.07))
 	elseif kind == "close" then
 		bar(0.12, 0.44, 0.78, 0.13, 45)
 		bar(0.12, 0.44, 0.78, 0.13, -45)
@@ -241,7 +243,8 @@ function T.icon(parent, name, kind, x, y, size, color)
 		end
 	elseif kind == "Shield" then
 		local shield = block(0.16, 0.12, 0.68, 0.67, 0.23)
-		stroke(shield, color, 2)
+		shield.BackgroundTransparency = 1 -- outline only, so the point and cross show
+		stroke(shield, color, math.max(2, size * 0.07))
 		local point = block(0.33, 0.53, 0.34, 0.34, 0.04)
 		point.Rotation = 45
 		bar(0.45, 0.26, 0.1, 0.4)
