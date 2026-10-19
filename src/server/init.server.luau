@@ -66,7 +66,8 @@ end
 
 -- Start one match for 1 or 2 players (only the lobby service calls this, after validated picks).
 -- A missing second player is a bot.
-function startMatch(participants: { Match.Participant })
+function startMatch(participants: { Match.Participant }, repeatMode: string?)
+	local chosenMode: string? = nil -- set below; the rematch closures read it later
 	local ok: { Match.Participant } = {}
 	local okOriginal: { Match.Participant } = {}
 	for _, part in participants do
@@ -89,7 +90,7 @@ function startMatch(participants: { Match.Participant })
 					finished(won, again)
 					local restart = rematch.finish(player)
 					if restart then
-						startMatch(restart)
+						startMatch(restart, chosenMode)
 					end
 				end,
 			})
@@ -110,8 +111,11 @@ function startMatch(participants: { Match.Participant })
 	for _, part in ok do
 		table.insert(picks, part.mode)
 	end
-	local mode = Modes.choose(picks, matchCounter)
-	matchCounter += 1
+	local mode = Modes.choose(picks, matchCounter, repeatMode)
+	chosenMode = mode
+	if repeatMode == nil then
+		matchCounter += 1 -- the rotation moves on only for a fresh match, not a rematch
+	end
 	Telemetry.matchStarted(ok, mode, Modes.isGroup(mode))
 	group.match = if Modes.isGroup(mode)
 		then GroupMatch.new(ok, slot, remotes, mode)
