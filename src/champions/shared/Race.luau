@@ -129,20 +129,23 @@ local function lobby(parent, state, ctx)
 				"Right"
 			)
 		end
-		local modeW = if compact then 160 else 242
-		T.button(
+		local queue = state.queue
+		local playW = if compact then 160 else 242
+		local play = T.button(
 			root,
-			"ChooseMode",
-			"MODE: " .. (state.mode or "SOCCER"),
-			w - modeW - 12,
+			"Play",
+			if queue then "CANCEL" else "PLAY",
+			w - playW - 12,
 			12,
-			modeW,
+			playW,
 			72,
 			function()
-				ctx.navigate("MODES")
+				request(ctx, if queue then "CancelPlay" else "Play")
 			end,
-			T.C.blue
+			if queue then T.C.red else T.C.green,
+			"duel"
 		)
+		T.disable(play, ctx.pending or not state.ready)
 		local navSize = math.clamp(h * 0.13, 58, 88)
 		local navY = math.max(100, (h - (navSize * 3 + 16)) * 0.5)
 		for index, item in

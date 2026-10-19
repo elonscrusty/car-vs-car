@@ -506,7 +506,7 @@ local function renderClaw(root, state, ctx)
 			"Spend "
 				.. T.format(cost)
 				.. " coins for one random car. Duplicates return "
-				.. T.format(refund)
+				.. Config.RefundText
 				.. " coins. Odds are shown before every pull."
 		)
 	end, T.C.blue, "coin")
