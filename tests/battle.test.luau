@@ -5,6 +5,8 @@ local BattleConfig = require("../src/shared/BattleConfig")
 local BattleQueue = require("../src/shared/BattleQueue")
 local BattleSelect = require("../src/shared/BattleSelect")
 local BattleSeries = require("../src/shared/BattleSeries")
+local BattleRecap = require("../src/shared/BattleRecap")
+local BattleSetup = require("../src/shared/BattleSetup")
 local Gacha = require("../src/shared/Gacha")
 local Sim = require("./battlesim")
 
@@ -266,7 +268,10 @@ H.test("saw: damage ticks at no less than 0.5 s, only with front contact", funct
 		t += 0.05
 		local o = b.step(0.05, me, foe, { ram = false, saw = true })
 		if o.damage > 0 then
-			H.eq(o.damage, BattleConfig.Saw.damage)
+			H.truthy(
+				o.damage >= BattleConfig.Saw.damage
+					and o.damage <= BattleConfig.Saw.damage * BattleConfig.Saw.maxMult
+			)
 			table.insert(times, t)
 		end
 	end
@@ -464,4 +469,114 @@ H.test("cannon: just inside max range and a few degrees off, it still turns and 
 	)
 	H.truthy(math.abs(o.turn) >= 0.5, "real turn command")
 	H.truthy(o.drive > 0, "creeps so the turn bites")
+end)
+
+H.test("saw: steady contact builds damage, losing contact resets it", function()
+	local L = BattleConfig.Fighters.SawBuggy.lengthStuds
+	local b = BattleBrain.new("SawBuggy", L, Sim.arena())
+	local me = { x = 0, z = 0, fx = 1, fz = 0 }
+	local foe = { x = 0.9 * L, z = 0, fx = -1, fz = 0 }
+	local first, last = 0, 0
+	for i = 1, 100 do
+		local o = b.step(0.05, me, foe, { ram = false, saw = true })
+		if o.damage > 0 then
+			if first == 0 then
+				first = o.damage
+			end
+			last = o.damage
+		end
+		_ = i
+	end
+	H.eq(first, BattleConfig.Saw.damage)
+	H.eq(last, BattleConfig.Saw.damage * BattleConfig.Saw.maxMult)
+	for _ = 1, 10 do
+		b.step(0.05, me, foe, { ram = false, saw = false }) -- 0.5 s apart
+	end
+	local again = 0
+	for _ = 1, 20 do
+		local o = b.step(0.05, me, foe, { ram = false, saw = true })
+		if o.damage > 0 and again == 0 then
+			again = o.damage
+		end
+	end
+	H.eq(again, BattleConfig.Saw.damage, "build-up restarted")
+end)
+
+H.test("ram: a faster charge hits harder", function()
+	local L = BattleConfig.Fighters.RamTruck.lengthStuds
+	local function hitWith(speedFrac: number): number
+		local b = BattleBrain.new("RamTruck", L, Sim.arena())
+		local me = { x = 0, z = 0, fx = 1, fz = 0 }
+		local foe = { x = 2 * L, z = 0, fx = -1, fz = 0 }
+		local dmg = 0
+		for _ = 1, 80 do
+			local o = b.step(0.05, me, foe, { ram = true, saw = false, speedFrac = speedFrac })
+			if o.damage > 0 then
+				dmg = o.damage
+				break
+			end
+		end
+		return dmg
+	end
+	H.eq(hitWith(1), BattleConfig.Ram.damage)
+	H.eq(hitWith(0), BattleConfig.Ram.damageMin)
+	H.truthy(hitWith(0.5) > hitWith(0))
+end)
+
+H.test("final phase: faster tempo gives the cannon its next shot sooner", function()
+	local L = BattleConfig.Fighters.CannonVan.lengthStuds
+	local function secondShot(tempo: number): number
+		local b = BattleBrain.new("CannonVan", L, Sim.arena())
+		local me = { x = -40, z = 0, fx = 1, fz = 0 }
+		local foe = { x = 40, z = 0, fx = -1, fz = 0 }
+		local t, fired, first = 0, 0, 0
+		while t < 20 do
+			t += 0.05
+			local o = b.step(0.05, me, foe, { ram = false, saw = false, tempo = tempo })
+			if o.fire then
+				fired += 1
+				if fired == 1 then
+					first = t
+				else
+					return t - first
+				end
+			end
+		end
+		return 99
+	end
+	H.truthy(secondShot(2) < secondShot(1) - 0.5)
+end)
+
+H.test("setup: bad numbers fall back, spots and aims place the car where they say", function()
+	local spot, aim = BattleSetup.clean("x", 5)
+	H.eq(spot, 0)
+	H.eq(aim, 0)
+	H.eq(select(1, BattleSetup.clean(1, -1)), 1)
+	local x, z, fx, fz = BattleSetup.place("a", 80, 55, 18, 0, 0)
+	H.eq(x, -62)
+	H.eq(z, 0)
+	H.near(fx, 1, 1e-9)
+	H.near(fz, 0, 1e-9)
+	local _, zFar = BattleSetup.place("a", 80, 55, 18, -1, 0)
+	H.truthy(zFar < 0)
+	local bx, _, bfx, bfz = BattleSetup.place("b", 80, 55, 18, 0, 1)
+	H.eq(bx, 62)
+	H.truthy(bfx < 0)
+	H.truthy(bfz > 0, "left for the right-hand car points down the screen")
+	local _, _, lx, lz = BattleSetup.place("a", 80, 55, 18, 0, 1)
+	H.truthy(lz < 0, "left for the left-hand car points up the screen")
+	H.near(lx * lx + lz * lz, 1, 1e-9)
+end)
+
+H.test("recap: plain facts about each weapon", function()
+	local mine = BattleRecap.newStats()
+	local foe = BattleRecap.newStats()
+	mine.shots, mine.shotHits = 4, 1
+	foe.ramHits = 3
+	local lines = BattleRecap.lines("CannonVan", mine, foe)
+	H.eq(lines[1], "Your cannon landed 1 of 4 shots")
+	H.eq(lines[2], "You took 3 ram hits")
+	local quiet = BattleRecap.lines("RamTruck", BattleRecap.newStats(), BattleRecap.newStats())
+	H.eq(quiet[1], "Your ram landed 0 of 0 charges")
+	H.eq(quiet[2], "You took no hits")
 end)

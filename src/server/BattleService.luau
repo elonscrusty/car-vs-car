@@ -13,8 +13,10 @@ local RunService = game:GetService("RunService")
 local BattleBrain = require(ReplicatedStorage.Shared.BattleBrain)
 local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
 local BattleQueue = require(ReplicatedStorage.Shared.BattleQueue)
+local BattleRecap = require(ReplicatedStorage.Shared.BattleRecap)
 local BattleSelect = require(ReplicatedStorage.Shared.BattleSelect)
 local BattleSeries = require(ReplicatedStorage.Shared.BattleSeries)
+local BattleSetup = require(ReplicatedStorage.Shared.BattleSetup)
 local Inventory = require(ReplicatedStorage.Shared.Inventory)
 local Progress = require(ReplicatedStorage.Shared.Progress)
 local RateLimiter = require(ReplicatedStorage.Shared.RateLimiter)
@@ -38,6 +40,8 @@ type Part = {
 	left: boolean,
 	paid: boolean, -- this match's reward was handled
 	savedSpeed: number?,
+	spot: number, -- opening choice: start spot (-1 far, 0 middle, 1 near)
+	aim: number, -- opening choice: launch aim (-1 right, 0 straight, 1 left)
 }
 type Shell = {
 	owner: BattleCar.Car,
@@ -47,6 +51,7 @@ type Shell = {
 	dir: Vector3,
 	life: number,
 	speed: number,
+	bounces: number, -- wall bounces so far
 }
 type Match = {
 	slot: number,
@@ -63,6 +68,7 @@ type Match = {
 	closed: boolean,
 	lastOutcome: string?,
 	koOutcome: string?, -- the round result waiting for the knock-out finish to play
+	final: boolean, -- the announced final phase has begun
 }
 
 local BattleService = {}
@@ -244,9 +250,13 @@ function BattleService.start(opts: {
 		for _, side in sides() do
 			local part = (m.parts :: any)[side] :: Part
 			part.pick, part.locked, part.access = nil, false, nil
+			if not part.bot then
+				send(part, { kind = "setup", spot = part.spot, aim = part.aim })
+			end
 			if part.bot then
 				local ids = BattleConfig.activeOrder()
 				part.pick = ids[math.random(1, #ids)]
+				part.spot, part.aim = math.random(-1, 1), math.random(-1, 1)
 				part.locked = true
 			end
 		end
@@ -294,7 +304,7 @@ function BattleService.start(opts: {
 			local part = (m.parts :: any)[side] :: Part
 			-- sides swap every round so both spawn spots get used
 			local spawnSide = if (m.series.round % 2 == 1) == (side == "a") then "a" else "b"
-			local pos, facing = arena.spawnPoint(spawnSide)
+			local pos, facing = arena.spawnPoint(spawnSide, part.spot, part.aim)
 			local car, err = BattleCar.spawn(part.pick :: string, side, arena.folder, pos, facing)
 			if car == nil then
 				warn("[Battle] cannot start: " .. tostring(err))
@@ -337,6 +347,7 @@ function BattleService.start(opts: {
 			BattleCar.arm(car, BattleBrain.new(car.fighter.id, car.L, arenaTable))
 		end
 		m.phase, m.t, m.hudT = "fight", 0, 0
+		m.final = false
 		for _, side in sides() do
 			send((m.parts :: any)[side], { kind = "fight", seconds = T.fightSeconds })
 		end
@@ -437,8 +448,14 @@ function BattleService.start(opts: {
 				then "draw"
 				elseif outcome == side then "win"
 				else "loss"
+			local mineCar = (m.cars :: any)[side] :: BattleCar.Car?
+			local foeCar = (m.cars :: any)[BattleSeries.other(side :: any)] :: BattleCar.Car?
+			local recap: { string } = if mineCar and foeCar
+				then BattleRecap.lines(mineCar.fighter.id, mineCar.stats, foeCar.stats)
+				else {}
 			send((m.parts :: any)[side], {
 				kind = "roundResult",
+				recap = recap,
 				result = res,
 				round = #m.series.results,
 				score = scoreFor(m, side),
@@ -494,7 +511,9 @@ function BattleService.start(opts: {
 			dir = dir,
 			life = cfg.shellLifeSeconds,
 			speed = cfg.shellSpeedL * car.L,
+			bounces = 0,
 		})
+		car.stats.shots += 1
 	end
 
 	-- Moves every shell; returns damage dealt to each side this step.
@@ -511,10 +530,32 @@ function BattleService.start(opts: {
 			local hit = workspace:Spherecast(s.pos, 0.15 * s.owner.L, step, params)
 			local done = false
 			local landed = false
-			if hit then
+			if
+				hit
+				and hit.Instance ~= s.foe.body
+				and s.bounces < BattleConfig.Cannon.ricochets
+				and math.abs(hit.Normal.Y) < 0.5
+			then
+				-- a wall: the shell bounces off once (flat reflection) and flies on
+				local n = Vector3.new(hit.Normal.X, 0, hit.Normal.Z).Unit
+				local d = s.dir
+				local r = d - 2 * d:Dot(n) * n
+				s.dir = Vector3.new(r.X, d.Y, r.Z).Unit
+				s.pos = hit.Position + n * (0.4 * s.owner.L)
+				s.bounces += 1
+				s.life -= dt
+				if s.life <= 0 then
+					done = true
+				end
+				if s.part then
+					s.part.Position = s.pos
+				end
+				sendHit(m, hit.Position, false)
+			elseif hit then
 				done = true
 				if hit.Instance == s.foe.body then
 					landed = true
+					s.owner.stats.shotHits += 1
 					if s.foe.side == "a" then
 						dmg.a += BattleConfig.Cannon.damage
 					else
@@ -558,6 +599,12 @@ function BattleService.start(opts: {
 		m.t += dt
 		local dmg = { a = 0, b = 0 }
 		local cars = { a, b }
+		if not m.final and m.t >= BattleConfig.Final.startSeconds then
+			m.final = true
+			for _, side in sides() do
+				send((m.parts :: any)[side], { kind = "phase", text = BattleConfig.Final.text })
+			end
+		end
 		for _, car in cars do
 			BattleCar.checkFlip(car, dt)
 			local lx, lz = arena.toLocal(car.body.Position)
@@ -579,11 +626,18 @@ function BattleService.start(opts: {
 				local fx, fz = arena.toLocal(foe.body.Position)
 				local cf, ff = BattleCar.forward(car), BattleCar.forward(foe)
 				local touching = BattleCar.overlaps(car, foe)
+				local cruise = car.fighter.cruiseL * car.L
+				local fwdSpeed = car.body.AssemblyLinearVelocity:Dot(Vector3.new(cf.X, 0, cf.Z))
 				local out = brain.step(
 					dt,
 					{ x = lx, z = lz, fx = cf.X, fz = cf.Z },
 					{ x = fx, z = fz, fx = ff.X, fz = ff.Z },
-					{ ram = touching, saw = touching }
+					{
+						ram = touching,
+						saw = touching,
+						speedFrac = math.max(0, fwdSpeed) / (cruise * BattleConfig.Ram.chargeMult),
+						tempo = if m.final then BattleConfig.Final.tempo else 1,
+					}
 				)
 				car.lastOut = out
 				BattleCar.drive(car, out, dt)
@@ -596,7 +650,8 @@ function BattleService.start(opts: {
 					else
 						dmg.b += out.damage
 					end
-					if out.damage >= 20 then
+					if out.event == "Ram hit" then
+						car.stats.ramHits += 1
 						-- a ram shoves the foe away; the truck bounces back (its brain recoils)
 						BattleCar.knock(
 							foe,
@@ -605,7 +660,13 @@ function BattleService.start(opts: {
 							BattleConfig.Ram.knockStagger
 						)
 					end
-					sendHit(m, foe.body.Position, out.damage >= 20)
+					if car.fighter.id == "SawBuggy" then
+						car.stats.sawHits += 1
+					end
+					sendHit(m, foe.body.Position, out.event == "Ram hit")
+				end
+				if out.event == "Ram hit" or out.event == "Ram missed" then
+					car.stats.charges += 1
 				end
 				if out.event then
 					sendEvent(m, car.side, out.event)
@@ -727,6 +788,8 @@ function BattleService.start(opts: {
 			left = false,
 			paid = false,
 			savedSpeed = nil,
+			spot = 0,
+			aim = 0,
 		}
 	end
 
@@ -744,6 +807,8 @@ function BattleService.start(opts: {
 			left = false,
 			paid = true,
 			savedSpeed = nil,
+			spot = 0,
+			aim = 0,
 		}
 	end
 
@@ -765,6 +830,7 @@ function BattleService.start(opts: {
 			closed = false,
 			lastOutcome = nil,
 			koOutcome = nil,
+			final = false,
 		}
 		matches[m] = true
 		for _, part in { a, b } do
@@ -865,6 +931,11 @@ function BattleService.start(opts: {
 						part.pick = arg
 						send(part, { kind = "selected", id = arg, locked = false })
 					end
+				end
+			elseif name == "setup" then
+				if m.phase == "select" and not part.locked and type(arg) == "table" then
+					part.spot, part.aim = BattleSetup.clean((arg :: any).spot, (arg :: any).aim)
+					send(part, { kind = "setup", spot = part.spot, aim = part.aim })
 				end
 			elseif name == "lock" then
 				if m.phase == "select" and not part.locked then

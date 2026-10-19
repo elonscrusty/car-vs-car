@@ -24,7 +24,12 @@ export type Arena = {
 	halfZ: number,
 	obstacles: { { x: number, z: number, hx: number, hz: number } },
 }
-export type Contact = { ram: boolean, saw: boolean }
+export type Contact = {
+	ram: boolean,
+	saw: boolean,
+	speedFrac: number?, -- how fast the car is going, 0..1 of its full charge speed (ram damage scales with it)
+	tempo: number?, -- weapon cooldowns run this many times faster (the final phase); default 1
+}
 export type Output = {
 	turn: number,
 	drive: number,
@@ -194,6 +199,8 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena): Brain
 	local sawEventCooldown = 0
 	local peelSide = 1 -- which side the ram veers to while it recharges (flips every attack)
 	local flip = 1 -- alternates the side a recovery turns to
+	local tempo = 1 -- set every step from the contact info
+	local sawContactT, sawGapT = 0, 0 -- steady saw contact builds damage
 
 	function resetStuck()
 		anchorSet = false
@@ -270,7 +277,7 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena): Brain
 
 	-- RAM TRUCK ----------------------------------------------------------------------------
 	local function stepRam(dt: number, me: Body, foe: Body, contact: Contact): Output
-		cooldown = math.max(0, cooldown - dt)
+		cooldown = math.max(0, cooldown - dt * tempo)
 		stateT += dt
 		local dx, dz, dist = normalize(foe.x - me.x, foe.z - me.z)
 		local angle = signedAngle(me.fx, me.fz, dx, dz)
@@ -289,7 +296,10 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena): Brain
 			local inFront = math.abs(angle) <= ram.frontConeDeg * DEG
 			if contact.ram and inFront and not chargeHit then
 				chargeHit = true
-				o.damage = ram.damage
+				-- a faster charge hits harder
+				local fracSpeed = clamp(contact.speedFrac or 1, 0, 1)
+				o.damage =
+					math.floor(ram.damageMin + (ram.damage - ram.damageMin) * fracSpeed + 0.5)
 				o.event = "Ram hit"
 				state, stateT, cooldown = "recoil", 0, ram.cooldownSeconds
 				o.state = state
@@ -355,7 +365,7 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena): Brain
 
 	-- CANNON VAN ---------------------------------------------------------------------------
 	local function stepCannon(dt: number, me: Body, foe: Body, _contact: Contact): Output
-		cooldown = math.max(0, cooldown - dt)
+		cooldown = math.max(0, cooldown - dt * tempo)
 		stateT += dt
 		local dx, dz, dist = normalize(foe.x - me.x, foe.z - me.z)
 		local angle = signedAngle(me.fx, me.fz, dx, dz)
@@ -427,7 +437,7 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena): Brain
 
 	-- SAW BUGGY ----------------------------------------------------------------------------
 	local function stepSaw(dt: number, me: Body, foe: Body, contact: Contact): Output
-		sawCooldown = math.max(0, sawCooldown - dt)
+		sawCooldown = math.max(0, sawCooldown - dt * tempo)
 		sawEventCooldown = math.max(0, sawEventCooldown - dt)
 		local dx, dz = normalize(foe.x - me.x, foe.z - me.z)
 		local angle = signedAngle(me.fx, me.fz, dx, dz)
@@ -440,8 +450,19 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena): Brain
 		)
 		state = if contact.saw then "grind" else "approach"
 		o.state = state
-		if contact.saw and math.abs(angle) <= saw.frontConeDeg * DEG and sawCooldown <= 0 then
-			o.damage = saw.damage
+		local touching = contact.saw and math.abs(angle) <= saw.frontConeDeg * DEG
+		if touching then
+			sawContactT += dt
+			sawGapT = 0
+		else
+			sawGapT += dt
+			if sawGapT >= saw.loseContactSeconds then
+				sawContactT = 0 -- contact lost: the build-up starts over
+			end
+		end
+		if touching and sawCooldown <= 0 then
+			local build = clamp(sawContactT / saw.buildSeconds, 0, 1)
+			o.damage = math.floor(saw.damage * (1 + (saw.maxMult - 1) * build) + 0.5)
 			sawCooldown = saw.tickSeconds
 			if sawEventCooldown <= 0 then
 				o.event = "Saw contact"
@@ -456,10 +477,11 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena): Brain
 		local foeDist = math.sqrt((foe.x - me.x) ^ 2 + (foe.z - me.z) ^ 2)
 		if recoverT > 0 then
 			-- timers keep running while backing out; the weapon stays idle
-			cooldown = math.max(0, cooldown - dt)
-			sawCooldown = math.max(0, sawCooldown - dt)
+			cooldown = math.max(0, cooldown - dt * (contact.tempo or 1))
+			sawCooldown = math.max(0, sawCooldown - dt * (contact.tempo or 1))
 			return recoverStep(dt, me)
 		end
+		tempo = contact.tempo or 1
 		local o: Output
 		if fighterId == "RamTruck" then
 			o = stepRam(dt, me, foe, contact)

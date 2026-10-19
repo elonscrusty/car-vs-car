@@ -52,6 +52,19 @@ BattleConfig.Camera = {
 	marginL = 1.6,
 }
 
+-- The opening choice (start spot along the car's end of the arena, and the launch aim).
+BattleConfig.Setup = {
+	spotStep = 0.45, -- far / near spots sit this fraction of the half depth off the middle
+	aimDeg = 28, -- left / right aim turns the starting heading this far
+}
+
+-- The last stretch of a fight: announced, and every weapon recharges faster for both cars.
+BattleConfig.Final = {
+	startSeconds = 30, -- fight time when the final phase starts
+	tempo = 2, -- cooldowns run this many times faster
+	text = "FINAL PHASE: weapons recharge faster!",
+}
+
 -- Movement shared by every fighter (the AI asks, the server enforces these limits).
 BattleConfig.Move = {
 	accel = 3.2, -- cruise speeds per second
@@ -153,7 +166,8 @@ BattleConfig.Fighters = {
 } :: { [string]: Fighter }
 
 BattleConfig.Ram = {
-	damage = 30,
+	damage = 30, -- at full charge speed
+	damageMin = 15, -- a slow bump deals this; it scales up with the speed of the charge
 	startRangeL = 3.2, -- may start a charge this close
 	startAngleDeg = 15, -- ... when facing the foe within this angle
 	telegraphSeconds = 0.6,
@@ -184,11 +198,15 @@ BattleConfig.Cannon = {
 	shellSpeedL = 4.5, -- L per second (carter: easy to follow with the eyes)
 	shellLifeSeconds = 2.2,
 	shellRadiusL = 0.12,
+	ricochets = 1, -- a shell bounces off a wall this many times
 	repositionDrive = 0.8, -- when closing in
 	fleeDrive = 1, -- when running from a close foe
 }
 
 BattleConfig.Saw = {
+	buildSeconds = 3, -- steady contact this long reaches the full multiplier
+	maxMult = 2, -- damage per tick at full build-up (resets when contact is lost)
+	loseContactSeconds = 0.35, -- contact must be gone this long to reset the build-up
 	damage = 5, -- was 7: the saw beat everything in the Studio playtest
 	tickSeconds = 0.5, -- least time between damage ticks on the same target
 	frontConeDeg = 70,

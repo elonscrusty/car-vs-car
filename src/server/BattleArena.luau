@@ -5,6 +5,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
+local BattleSetup = require(ReplicatedStorage.Shared.BattleSetup)
 
 export type Arena = {
 	folder: Folder,
@@ -14,7 +15,7 @@ export type Arena = {
 	halfZ: number,
 	toWorld: (x: number, z: number) -> Vector3,
 	toLocal: (p: Vector3) -> (number, number),
-	spawnPoint: (side: string) -> (Vector3, Vector3), -- world position and facing direction
+	spawnPoint: (side: string, spot: number?, aim: number?) -> (Vector3, Vector3), -- world position and facing direction
 	destroy: () -> (),
 }
 
@@ -135,12 +136,10 @@ function BattleArena.build(slot: number): Arena
 		toLocal = function(p: Vector3): (number, number)
 			return p.X - origin.X, p.Z - origin.Z
 		end,
-		spawnPoint = function(side: string): (Vector3, Vector3)
-			local x = halfX - cfg.spawnInset
-			if side == "a" then
-				return origin + Vector3.new(-x, 0, 0), Vector3.new(1, 0, 0)
-			end
-			return origin + Vector3.new(x, 0, 0), Vector3.new(-1, 0, 0)
+		spawnPoint = function(side: string, spot: number?, aim: number?): (Vector3, Vector3)
+			local x, z, fx, fz =
+				BattleSetup.place(side, halfX, halfZ, cfg.spawnInset, spot or 0, aim or 0)
+			return origin + Vector3.new(x, 0, z), Vector3.new(fx, 0, fz)
 		end,
 		destroy = function()
 			folder:Destroy()
