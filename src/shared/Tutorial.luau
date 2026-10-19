@@ -15,10 +15,24 @@ export type Step = {
 
 Tutorial.Steps = {
 	{ id = "smash", text = "SMASH into a car!", doneBy = "hit", maxSeconds = 12 },
-	{ id = "boost", text = "Tap BOOST to go fast!", doneBy = "boost", maxSeconds = 9 },
+	{ id = "boost", text = "Use BOOST to go fast!", doneBy = "boost", maxSeconds = 9 },
 	{ id = "ability", text = "Use your ABILITY!", doneBy = "special", maxSeconds = 9 },
 	{ id = "fight", text = "Knock out everyone! Last car wins!", doneBy = nil, maxSeconds = 4 },
 } :: { Step }
+
+-- The "ability" lesson names the equipped ability and says what it does (carter's review).
+local ABILITY_LINES: { [string]: string } = {
+	Dash = "Use DASH for a burst of speed!",
+	Jump = "Use JUMP to leap over cars!",
+	Slam = "Use SLAM to smash the ground and shove cars!",
+	Ram = "Use RAM to charge into a car!",
+	Magnet = "Use MAGNET to pull cars to you!",
+	Shield = "Use SHIELD to block the next hit!",
+}
+
+function Tutorial.abilityLine(name: string?): string
+	return (name and ABILITY_LINES[name]) or "Use your ABILITY!"
+end
 
 export type State = { step: number, since: number } -- step 0 = not started, > #Steps = finished
 

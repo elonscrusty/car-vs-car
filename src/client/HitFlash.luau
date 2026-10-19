@@ -31,6 +31,14 @@ local function getGui(): ScreenGui
 	return g :: ScreenGui
 end
 
+-- Remove any flash / HIT! label still showing (the result screen starts clean).
+function HitFlash.clear()
+	local g = gui
+	if g and g.Parent then
+		g:ClearAllChildren()
+	end
+end
+
 -- u = the "hit" UiUpdate (strength, damage, youHit). director = CameraDirector (for extra shake).
 function HitFlash.play(u: any, director: any)
 	local feel = GameConfig.Feel

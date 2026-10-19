@@ -75,8 +75,8 @@ function Effects.sparks(pos: Vector3, strength: number)
 	if strength >= 0.5 then
 		local flash = Instance.new("PointLight")
 		flash.Color = Color3.new(1, 1, 1)
-		flash.Range = 24
-		flash.Brightness = 8
+		flash.Range = 14
+		flash.Brightness = 3
 		flash.Parent = p
 		TweenService:Create(flash, TweenInfo.new(0.18), { Brightness = 0 }):Play()
 	end

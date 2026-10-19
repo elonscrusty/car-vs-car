@@ -140,6 +140,17 @@ function ChampionsBridge.new(): Bridge
 		then
 			remotes.Action:FireServer("jump")
 		end
+		-- Keyboard: SHIFT = boost, E = your car's ability (touch players use the buttons).
+		if not processed and snapshot.match and snapshot.match.phase == "ACTIVE" then
+			if
+				input.KeyCode == Enum.KeyCode.LeftShift
+				or input.KeyCode == Enum.KeyCode.RightShift
+			then
+				remotes.Action:FireServer("boost")
+			elseif input.KeyCode == Enum.KeyCode.E then
+				remotes.Action:FireServer("special")
+			end
+		end
 	end)
 
 	local handle = {} :: Bridge

@@ -160,8 +160,8 @@ local function bigBoom(at: Vector3, parent: Instance)
 	smoke:Emit(26)
 	local flash = Instance.new("PointLight")
 	flash.Color = Color3.fromRGB(255, 220, 140)
-	flash.Range = 60
-	flash.Brightness = 12
+	flash.Range = 30
+	flash.Brightness = 5
 	flash.Parent = anchor
 	task.delay(0.25, function()
 		flash:Destroy()

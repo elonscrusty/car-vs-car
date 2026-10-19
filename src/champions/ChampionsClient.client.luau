@@ -99,6 +99,13 @@ local toastText = T.text(toast, "Message", "", 10, 4, 400, 48, 21, T.C.white, "C
 toastText.TextWrapped = true
 toastText.ZIndex = 101
 toast.Visible = false
+local queueBadge = T.panel(viewport, "QueueBadge", 0, 0, 300, 44, T.C.blue)
+queueBadge.AnchorPoint = Vector2.new(0.5, 0)
+queueBadge.Position = UDim2.new(0.5, 0, 0, 8)
+queueBadge.ZIndex = 100
+local queueBadgeText = T.text(queueBadge, "Status", "", 8, 2, 284, 40, 22, T.C.white, "Center")
+queueBadgeText.ZIndex = 101
+queueBadge.Visible = false
 local state = preview and Preview.initial() or State.normalize(nil)
 local selection = state.selection or state.equipped or Config.Vehicles[1].Id
 local filter = "ALL"
@@ -134,7 +141,11 @@ end
 local function message(value)
 	toastToken += 1
 	local token = toastToken
-	toastText.Text = tostring(value or "")
+	if value == nil or value == "" then
+		toast.Visible = false -- an empty notice clears the old one (e.g. a stale BUSY after a good pull)
+		return
+	end
+	toastText.Text = tostring(value)
 	toast.Visible = true
 	task.delay(4, function()
 		if alive and token == toastToken then
@@ -306,6 +317,13 @@ render = function()
 				child:Destroy()
 			end
 		end
+	end
+	-- A fight is queued but a menu covers the lobby: keep the countdown visible on top.
+	local queued = state.queue
+	local covered = screen ~= "LOBBY" and screen ~= "MATCH" and screen ~= "RESULTS"
+	queueBadge.Visible = queued ~= nil and covered
+	if queued ~= nil then
+		queueBadgeText.Text = tostring(queued.status or "FIGHT STARTING")
 	end
 	gui:SetAttribute("ActiveScreen", screen)
 	gui:SetAttribute("Ready", state.ready)

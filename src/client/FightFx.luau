@@ -42,7 +42,7 @@ function FightFx.ko(text: string)
 	local flash = Instance.new("Frame")
 	flash.Size = UDim2.fromScale(1, 1)
 	flash.BackgroundColor3 = Color3.new(1, 1, 1)
-	flash.BackgroundTransparency = 0.1
+	flash.BackgroundTransparency = 0.75 -- a soft flash: the cars stay readable
 	flash.BorderSizePixel = 0
 	flash.Parent = getGui()
 	TweenService:Create(flash, TweenInfo.new(0.15), { BackgroundTransparency = 1 }):Play()
@@ -69,6 +69,14 @@ function FightFx.ko(text: string)
 	task.delay(1.2, function()
 		l:Destroy()
 	end)
+end
+
+-- Remove any flash / K.O. text still on screen (the result screen starts clean).
+function FightFx.clear()
+	local g = gui
+	if g and g.Parent then
+		g:ClearAllChildren()
+	end
 end
 
 return FightFx
