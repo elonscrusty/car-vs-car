@@ -38,8 +38,8 @@ function BowlHazards.new(arena: Arena.Arena, cars: { CarBuilder.Car }): Handle
 		return center.Y + ArenaMath.surfaceHeight(r, cfg.flatRadius, cfg.rimRadius, cfg.tiltDeg)
 	end
 
-	-- Boost pads: a glowing slab with chevrons on the slope, and a BOOST sign leaning on the
-	-- wall behind it. All look-only.
+	-- Boost pads: a glowing slab with chevrons on the slope.
+	-- All look-only.
 	local padRadius = cfg.flatRadius + (cfg.rimRadius - cfg.flatRadius) * pcfg.radiusShare
 	local spots = BowlRules.padSpots(pcfg.count, padRadius, math.rad(45))
 	local pulsing: { Part } = {}
@@ -75,11 +75,6 @@ function BowlHazards.new(arena: Arena.Arena, cars: { CarBuilder.Car }): Handle
 		local slab =
 			glowPart("Slab", Vector3.new(pcfg.size[1], pcfg.size[2], pcfg.size[3]), slabCF, model)
 		slab.Color = Color3.fromRGB(20, 90, 140)
-		local light = Instance.new("PointLight")
-		light.Color = PAD_COLOR
-		light.Range = 14
-		light.Brightness = 1.5
-		light.Parent = slab
 
 		-- Three cyan chevrons (two arms each) pointing sideways, along the rim.
 		local armLen, armAngle = 3.6, math.rad(55)
@@ -97,59 +92,6 @@ function BowlHazards.new(arena: Arena.Arena, cars: { CarBuilder.Car }): Handle
 				glowPart("Chevron", Vector3.new(armLen, 0.15, 0.9), armCF, model)
 			end
 		end
-
-		-- The sign: dark navy panel, cyan border, leaning back against the wall, facing the middle.
-		local pw, ph = pcfg.panelSize[1], pcfg.panelSize[2]
-		local backR = padRadius + pcfg.panelBack
-		local baseCF = CFrame.new(
-			center.X + math.cos(a) * backR,
-			surfaceY(backR) + 0.2,
-			center.Z + math.sin(a) * backR
-		) * CFrame.Angles(0, yaw, 0) * CFrame.Angles(-math.rad(pcfg.panelLeanDeg), 0, 0)
-		local panelCF = baseCF * CFrame.new(0, ph / 2, 0)
-		local panel = Instance.new("Part")
-		panel.Name = "Panel"
-		panel.Anchored = true
-		panel.CanCollide = false
-		panel.CanQuery = false
-		panel.CanTouch = false
-		panel.CastShadow = false
-		panel.Material = Enum.Material.SmoothPlastic
-		panel.Color = Color3.fromRGB(14, 24, 56)
-		panel.Size = Vector3.new(pw, ph, 0.4)
-		panel.CFrame = panelCF
-		panel.Parent = model
-		local bar = 0.35
-		local edges = {
-			{ Vector3.new(pw, bar, 0.5), Vector3.new(0, (ph - bar) / 2, 0) },
-			{ Vector3.new(pw, bar, 0.5), Vector3.new(0, -(ph - bar) / 2, 0) },
-			{ Vector3.new(bar, ph, 0.5), Vector3.new((pw - bar) / 2, 0, 0) },
-			{ Vector3.new(bar, ph, 0.5), Vector3.new(-(pw - bar) / 2, 0, 0) },
-		}
-		for _, e in edges do
-			glowPart("Border", e[1], panelCF * CFrame.new(e[2]), model)
-		end
-		local gui = Instance.new("SurfaceGui")
-		gui.Face = Enum.NormalId.Back
-		gui.LightInfluence = 0
-		gui.Parent = panel
-		local title = Instance.new("TextLabel")
-		title.Size = UDim2.fromScale(1, 0.62)
-		title.BackgroundTransparency = 1
-		title.Font = Enum.Font.FredokaOne
-		title.TextScaled = true
-		title.Text = "BOOST"
-		title.TextColor3 = PAD_COLOR
-		title.Parent = gui
-		local arrows = Instance.new("TextLabel")
-		arrows.Position = UDim2.fromScale(0, 0.58)
-		arrows.Size = UDim2.fromScale(1, 0.34)
-		arrows.BackgroundTransparency = 1
-		arrows.Font = Enum.Font.FredokaOne
-		arrows.TextScaled = true
-		arrows.Text = ">>>"
-		arrows.TextColor3 = Color3.new(1, 1, 1)
-		arrows.Parent = gui
 	end
 
 	local padReadyAt: { [CarBuilder.Car]: number } = {}
