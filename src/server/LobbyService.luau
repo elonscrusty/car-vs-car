@@ -445,6 +445,12 @@ function LobbyService.start(deps: Deps): Handle
 				goals = info.goals,
 				tags = info.tags,
 				place = info.place,
+				kos = if type(result) == "table" and type(result.kos) == "number"
+					then result.kos
+					else nil,
+				items = if type(result) == "table" and type(result.items) == "number"
+					then result.items
+					else nil,
 			})
 			Progress.recordMode(p.progress, reward.mode)
 			earned += progressResult.coinsBonus

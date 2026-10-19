@@ -230,3 +230,46 @@ H.test("gacha uses gift tries when the first free pull is gone", function()
 	H.eq(p.coins, r.refund)
 	H.eq((Gacha.canBuy(p)), false)
 end)
+
+H.test("smash and items quests count knock-outs and item boxes", function()
+	local p = Inventory.default()
+	p.quests = { { id = "smash3", progress = 0 }, { id = "items2", progress = 0 } }
+	Quests.onMatchEnd(p, {
+		won = false,
+		carId = "Sedan",
+		opponentIsBot = true,
+		mode = "lastStanding",
+		kos = 2,
+		items = 1,
+	})
+	H.eq(p.quests[1].progress, 2)
+	H.eq(p.quests[2].progress, 1)
+	Quests.onMatchEnd(
+		p,
+		{ won = true, carId = "Sedan", opponentIsBot = true, mode = "soccer", kos = 5 }
+	)
+	H.eq(p.quests[1].progress, 2) -- wrong mode counts nothing
+end)
+
+H.test("new quests are a mix of kinds when the fight is on", function()
+	local flagsOn = QuestsConfig.catalogFor({ lastStandingMode = true })
+	local kinds: { [string]: boolean } = {}
+	for _, d in flagsOn do
+		kinds[d.kind] = true
+	end
+	H.truthy(kinds.smash and kinds.items and kinds.win)
+	for seed = 1, 20 do
+		local p = Inventory.default()
+		Quests.ensure(p, seed)
+		local seen: { [string]: boolean } = {}
+		local n = 0
+		for _, q in p.quests do
+			local d = QuestsConfig.get(q.id)
+			if d and not seen[d.kind] then
+				seen[d.kind] = true
+				n += 1
+			end
+		end
+		H.truthy(n >= math.min(#p.quests, 2))
+	end
+end)
