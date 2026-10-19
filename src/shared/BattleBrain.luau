@@ -376,7 +376,16 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena): Brain
 		end
 
 		local o: Output
-		if dist < cannon.minRangeL * L then
+		if
+			dist < 1.6 * L
+			and cooldown <= 0
+			and math.abs(angle) <= 2 * cannon.aimToleranceDeg * DEG
+		then
+			-- cornered by a fast foe with the gun ready and pointed at it: shoot, do not run
+			state, stateT = "telegraph", 0
+			o = out(0, 0, readyFrac)
+			o.hold = true
+		elseif dist < cannon.minRangeL * L then
 			-- too close: run away (turn tail, then full speed), steering round walls and blocks
 			local gx, gz = steerDirection(me, -dx, -dz, arena, L)
 			local gangle = signedAngle(me.fx, me.fz, gx, gz)
@@ -396,9 +405,17 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena): Brain
 			o = out(turnFor(gangle), driveForAngle(0.9, gangle), readyFrac)
 			o.state = "flee"
 		else
-			-- in the sweet spot: line up the shot
-			o = out(turnFor(angle), 0, readyFrac)
-			if cooldown <= 0 and math.abs(angle) <= cannon.aimToleranceDeg * DEG then
+			-- in the sweet spot: line up the shot. A small angle still gets a real turn command and
+			-- a creep forward, so a slow car never freezes just short of lining up.
+			local tol = cannon.aimToleranceDeg * DEG
+			local tn = turnFor(angle)
+			local creep = 0
+			if math.abs(angle) > tol then
+				tn = (if angle >= 0 then 1 else -1) * math.max(math.abs(tn), 0.5)
+				creep = 0.3
+			end
+			o = out(tn, creep, readyFrac)
+			if cooldown <= 0 and math.abs(angle) <= tol then
 				state, stateT = "telegraph", 0
 				o.state = state
 				o.hold = true
