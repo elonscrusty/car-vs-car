@@ -169,12 +169,12 @@ end)
 
 local mouseSteer = MouseSteer.new()
 driver = DriveCar.new(function()
-	local steer, gas, aim = steering.readMode()
+	local steer, gas, aimed = steering.readMode()
 	local m = mouseSteer.read()
 	if m ~= nil then
 		return m, gas, false -- right mouse button held: the cursor steers, W / S still drive
 	end
-	return steer, gas, aim
+	return steer, gas, aimed
 end, function()
 	-- Your car just boosted: widen the view and rush some speed lines for 0.8 s.
 	director.boost()
