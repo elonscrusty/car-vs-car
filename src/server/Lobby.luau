@@ -623,9 +623,7 @@ function Lobby.build(): LobbyHandle
 						local kind = i % 4
 						if kind == 0 then
 							local posters = {
-								{ "RACE\nDAY!", Color3.fromRGB(235, 60, 60) },
-								{ "TURBO", Color3.fromRGB(255, 200, 40) },
-								{ "WIN!", Color3.fromRGB(60, 200, 255) },
+								{ "GARAGE", Color3.fromRGB(255, 200, 40) },
 							}
 							local pick = posters[(i // 4) % #posters + 1]
 							for k = -1, 1, 2 do
@@ -1054,7 +1052,7 @@ function Lobby.build(): LobbyHandle
 		CFrame.lookAt(origin + Vector3.new(0, 10, HL - 0.5), origin + Vector3.new(0, 10, 0)),
 		Color3.fromRGB(14, 12, 40)
 	)
-	label(doorSign, Enum.NormalId.Front, "RACE HQ", YELLOW, Color3.fromRGB(20, 40, 140))
+	label(doorSign, Enum.NormalId.Front, "CAR VS CAR", YELLOW, Color3.fromRGB(20, 40, 140))
 	doorSign.CanCollide = false
 	glow(doorSign, YELLOW, 24, 0.4)
 	for _, sx in { -1, 1 } do
@@ -1565,7 +1563,7 @@ function Lobby.build(): LobbyHandle
 		)
 		pSign.CFrame = frame
 			* CFrame.lookAt(Vector3.new(0, 9.6, pb.d / 2 + 0.4), Vector3.new(0, 9.6, pb.d / 2 + 40))
-		label(pSign, Enum.NormalId.Front, "PAINT / CUSTOMIZE", CYAN, DARK)
+		label(pSign, Enum.NormalId.Front, "PAINT", CYAN, DARK)
 		glow(pSign, CYAN, 24, 0.4)
 		prompt(counter2, "CustomizePrompt", "Customize", "Paint & Garage")
 	end
