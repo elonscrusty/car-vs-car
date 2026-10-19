@@ -117,21 +117,12 @@ function LobbyDecor.clone(
 	return m
 end
 
-local LEFT = -math.pi / 2
-
 function LobbyDecor.build(parent: Folder, origin: Vector3)
 	local room = LobbyLayout.room
 	local HW, HL = room.halfW, room.halfL
 	local group = Instance.new("Folder")
 	group.Name = "Decor"
 	group.Parent = parent
-
-	local function put(name: string, x: number, y: number, z: number, yaw: number, glow: number?)
-		local m = LobbyDecor.clone(name, group, glow)
-		if m then
-			m:PivotTo(CFrame.new(origin + Vector3.new(x, y, z)) * CFrame.Angles(0, yaw, 0))
-		end
-	end
 
 	-- The two lobby signs share one plate look (LobbyDecor.plate).
 	LobbyDecor.plate(
@@ -146,9 +137,6 @@ function LobbyDecor.build(parent: Folder, origin: Vector3)
 		Vector3.new(28, 6.5, 0.6),
 		CFrame.lookAt(origin + Vector3.new(0, 24, HL - 1.5), origin + Vector3.new(0, 24, 0))
 	)
-
-	-- One gas pump in the front corner, by the entrance.
-	put("GasPump", -62, 0, 92, LEFT)
 end
 
 return LobbyDecor

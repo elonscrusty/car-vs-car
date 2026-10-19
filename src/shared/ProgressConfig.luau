@@ -30,7 +30,7 @@ ProgressConfig.Board = {
 	rows = 5, -- few rows = big, easy-to-read text
 	refreshSeconds = 60,
 	minSubmitGap = 20,
-	spot = { x = -24, z = -60 }, -- middle of the two boards, relative to the lobby origin (move if it hides behind a prop)
+	spot = { x = -10, z = -94.8 }, -- middle of the row of boards on the back wall (floor point in front of the wall), relative to the lobby origin
 }
 
 -- Rank by total wins, best first.

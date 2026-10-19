@@ -68,12 +68,7 @@ function LobbyProps.build(folder: Folder, origin: Vector3)
 
 	local room = LobbyLayout.room
 
-	-- Roller doors on the back wall, either side of the stage.
-	if has("roller_door") then
-		for _, x in { -36, -12, 12 } do
-			put("roller_door", at(x, 0, -room.halfL + 0.9, 180), 0.9)
-		end
-	end
+	-- (No roller doors on the back wall any more: the leaderboards hang there.)
 
 	-- The store and paint booths: the imported model stands where the plain booth was. The plain
 	-- parts go, except the counter that carries the prompt (it stays, invisible).

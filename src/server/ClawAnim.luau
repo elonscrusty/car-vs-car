@@ -1,128 +1,87 @@
 --!strict
--- Plays the claw machine's grab on the server so every player in the lobby sees it:
--- carriage and claw glide over a spot, drop, grab, lift, carry to the chute and let go.
--- The prize is already decided by the caller; this is only the show.
+-- Plays the gumball machine's drop on the server so every player in the lobby sees it:
+-- the knob turns, a ball rolls down inside, drops out of the chute and bounces once in the tray.
+-- The prize is already decided by the caller; this is only the show. (The file keeps its old
+-- name because LobbyService and the lobby handle call it "claw".)
 
 local RunService = game:GetService("RunService")
 
-local ClawPath = require(game:GetService("ReplicatedStorage").Shared.ClawPath)
-
--- Parts that slide sideways with the claw, and the ones that also go up and down with it.
-local CARRIAGE = { "X carriage", "Carriage steel face" }
-local CLAW_SLIDE = { "Winch" }
-local CLAW_DROP = { "Claw hub", "Hub collar", "Finger hinge", "Claw finger" }
-local CABLE = "Claw cable"
-
--- Studs, in the model's own space (the model is imported facing -Z with the chute at +X, -Z).
-local DEPTH = 1.5
-local CHUTE: ClawPath.Spot = { x = 2.0, z = -1.9 }
-local REACH_X = 1.4
-local REACH_Z = 1.0
+local DROP_NAME = "GumballDrop" -- the hidden ball inside the machine
+local CRANK_NAME = "GumballCrank"
+local SECONDS = 2.4
 
 export type Anim = {
 	busy: () -> boolean,
-	-- Starts the show; `onDone` runs when the claw is back home. Returns false if already running.
+	-- Starts the show; `onDone` runs when the ball has dropped. Returns false if already running.
 	play: (onDone: () -> ()) -> boolean,
 	-- Seconds a show lasts (so callers can time their reveal).
 	duration: () -> number,
 }
 
-type Item = { part: BasePart, home: CFrame, kind: string, homeSizeY: number }
-
 local ClawAnim = {}
 
-local function matches(name: string, list: { string }): boolean
-	for _, n in list do
-		if name == n or name:sub(1, #n + 1) == n .. " " or name:sub(1, #n + 1) == n .. "." then
-			return true
-		end
-	end
-	return false
+local function lerp(a: Vector3, b: Vector3, t: number): Vector3
+	return a + (b - a) * t
 end
 
 function ClawAnim.new(model: Model): Anim
-	local items: { Item } = {}
-	for _, d in model:GetDescendants() do
-		if d:IsA("BasePart") then
-			local kind = ""
-			if matches(d.Name, CARRIAGE) then
-				kind = "carriage"
-			elseif d.Name == CABLE then
-				kind = "cable"
-			elseif matches(d.Name, CLAW_SLIDE) then
-				kind = "slide"
-			elseif matches(d.Name, CLAW_DROP) then
-				kind = "drop"
-			end
-			if kind ~= "" then
-				table.insert(
-					items,
-					{ part = d, home = d.CFrame, kind = kind, homeSizeY = d.Size.Y }
-				)
-			end
-		end
-	end
-
-	local home = model:GetPivot()
+	local drop = model:FindFirstChild(DROP_NAME)
+	local crank = model:FindFirstChild(CRANK_NAME)
+	local ball: BasePart? = if drop and drop:IsA("BasePart") then drop else nil
+	local knob: BasePart? = if crank and crank:IsA("BasePart") then crank else nil
+	local home: Vector3? = if ball then ball.Position else nil
+	local chuteAttr: any = if ball then ball:GetAttribute("Chute") else nil
+	local chute: Vector3? = if typeof(chuteAttr) == "Vector3" then chuteAttr else nil
+	local knobHome: CFrame? = if knob then knob.CFrame else nil
 	local running = false
-	local random = Random.new()
 
-	local function apply(pose: ClawPath.Pose)
-		local side = home:VectorToWorldSpace(Vector3.new(pose.dx, 0, pose.dz))
-		local down = home:VectorToWorldSpace(Vector3.new(0, pose.dy, 0))
-		local along = home:VectorToWorldSpace(Vector3.new(pose.dx, 0, 0))
-		for _, it in items do
-			if it.part.Parent == nil then
-				continue
-			end
-			if it.kind == "carriage" then
-				it.part.CFrame = it.home + along
-			elseif it.kind == "slide" then
-				it.part.CFrame = it.home + side
-			elseif it.kind == "cable" then
-				-- Top stays at the winch; the cable stretches as the claw lowers.
-				it.part.Size = Vector3.new(it.part.Size.X, it.homeSizeY - pose.dy, it.part.Size.Z)
-				it.part.CFrame = it.home + side + down * 0.5
-			else
-				it.part.CFrame = it.home + side + down
-			end
-		end
-	end
-
-	local anim: Anim
-	anim = {
+	return {
 		busy = function()
 			return running
 		end,
 		duration = function()
-			return ClawPath.total()
+			return SECONDS
 		end,
 		play = function(onDone: () -> ()): boolean
-			if running or #items == 0 then
+			if running or ball == nil or home == nil or chute == nil then
 				return false
 			end
+			local b: BasePart = ball
+			local from: Vector3 = home
+			local to: Vector3 = chute
 			running = true
-			local target: ClawPath.Spot = {
-				x = random:NextNumber(-REACH_X, REACH_X),
-				z = random:NextNumber(-REACH_Z, REACH_Z),
-			}
+			b.Transparency = 0
 			local t = 0
 			local conn: RBXScriptConnection
 			conn = RunService.Heartbeat:Connect(function(dt: number)
 				t += dt
-				if t >= ClawPath.total() or model.Parent == nil then
+				if t >= SECONDS or model.Parent == nil then
 					conn:Disconnect()
-					apply(ClawPath.pose(ClawPath.total(), target, CHUTE, DEPTH))
+					b.Transparency = 1
+					b.Position = from
+					if knob and knobHome then
+						knob.CFrame = knobHome
+					end
 					running = false
 					onDone()
 					return
 				end
-				apply(ClawPath.pose(t, target, CHUTE, DEPTH))
+				local u = t / SECONDS
+				-- The first half the ball rolls down the inside (straight down), then it drops out
+				-- through the chute and settles with a small bounce.
+				local pos = lerp(from, to, u * u)
+				if u > 0.8 then
+					local bounce = math.abs(math.sin((u - 0.8) / 0.2 * math.pi)) * 0.5
+					pos += Vector3.new(0, bounce, 0)
+				end
+				b.Position = pos
+				if knob and knobHome then
+					knob.CFrame = knobHome * CFrame.Angles(math.min(u * 1.5, 1) * math.pi * 2, 0, 0)
+				end
 			end)
 			return true
 		end,
 	}
-	return anim
 end
 
 return ClawAnim
