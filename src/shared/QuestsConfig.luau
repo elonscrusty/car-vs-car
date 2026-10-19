@@ -81,6 +81,40 @@ local function catalogFor(flags: { [string]: boolean }?): { Def }
 			title = "Finish a race",
 		})
 	end
+	if FeatureFlags.enabled("lastStandingMode", flags) then
+		table.insert(out, {
+			id = "fight3",
+			kind = "play",
+			mode = "lastStanding",
+			target = 3,
+			reward = 40,
+			title = "Play 3 fights",
+		})
+		table.insert(out, {
+			id = "fightwin1",
+			kind = "win",
+			mode = "lastStanding",
+			target = 1,
+			reward = 30,
+			title = "Win a fight",
+		})
+		table.insert(out, {
+			id = "fightwin2",
+			kind = "win",
+			mode = "lastStanding",
+			target = 2,
+			reward = 50,
+			title = "Win 2 fights",
+		})
+		table.insert(out, {
+			id = "fight6",
+			kind = "play",
+			mode = "lastStanding",
+			target = 6,
+			reward = 50,
+			title = "Play 6 fights",
+		})
+	end
 	if FeatureFlags.enabled("perCarQuests", flags) then
 		for _, carId in CarConfig.Order do
 			table.insert(out, {
@@ -105,11 +139,30 @@ for _, def in list do
 	byId[def.id] = def
 end
 
+-- Every quest of every mode, hidden or not: progress rules can still read an old one.
+local byIdAll: { [string]: Def } = {}
+for _, def in catalogFor({
+	soccerMode = true,
+	tagMode = true,
+	raceMode = true,
+	lastStandingMode = true,
+}) do
+	byIdAll[def.id] = def
+end
+for _, def in list do
+	byIdAll[def.id] = def
+end
+
 function QuestsConfig.get(id: any): Def?
 	if type(id) ~= "string" then
 		return nil
 	end
-	return byId[id]
+	return byIdAll[id]
+end
+
+-- Is this quest in today's catalog (its mode is in the rotation)? A saved quest of a hidden mode is not.
+function QuestsConfig.isActive(id: any): boolean
+	return type(id) == "string" and byId[id] ~= nil
 end
 
 return QuestsConfig

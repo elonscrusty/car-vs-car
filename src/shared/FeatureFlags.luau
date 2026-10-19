@@ -10,12 +10,12 @@ FeatureFlags.Flags = {
 	paintShop = false, -- PAINT button and buyPaint/equipPaint server actions
 	perCarQuests = false, -- "Win 3 with <car>" quests (off = only win3, play5, bot2)
 	botLevelButton = false, -- BOT: EASY/MEDIUM/HARD button (off = bot level auto-scales by wins)
-	soccerMode = true, -- car soccer in the mode rotation (carter: kept at launch)
-	raceMode = true, -- Crazy Race (laps, ramps) in the mode rotation
-	tagMode = true, -- car tag (hot potato) in the mode rotation
+	soccerMode = false, -- car soccer: hidden for now (carter: fights are the only mode); the code stays
+	raceMode = false, -- Crazy Race: hidden for now
+	tagMode = false, -- car tag: hidden for now
 	hillMode = false, -- king of the hill (1v1 bowl): out of the rotation until soccer/tag/race are proven
 	iceMode = false, -- ice bowl (1v1): same
-	lastStandingMode = false, -- 8-car last standing in the mode rotation
+	lastStandingMode = true, -- the car fight: 4 cars on a flat floor with ramps, last car alive wins
 } :: { [string]: boolean }
 
 -- Unknown flag names count as off.

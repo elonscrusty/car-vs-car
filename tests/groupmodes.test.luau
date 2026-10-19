@@ -9,6 +9,8 @@ local RaceTrack = require("../src/shared/RaceTrack")
 local RaceConfig = require("../src/shared/RaceTrackConfig")
 local SoccerBoost = require("../src/shared/SoccerBoost")
 local SoccerChaos = require("../src/shared/SoccerChaos")
+local SoccerOrbs = require("../src/shared/SoccerOrbs")
+local BrawlRules = require("../src/shared/BrawlRules")
 local SoccerField = require("../src/shared/SoccerField")
 local SoccerFieldConfig = require("../src/shared/SoccerFieldConfig")
 local SoccerStats = require("../src/shared/SoccerStats")
@@ -398,4 +400,105 @@ test("soccer chaos: first event comes before the match is half over", function()
 	local cfg = ModesConfig.Soccer.Chaos
 	truthy(cfg.firstSeconds < ModesConfig.Soccer.maxSeconds / 4)
 	truthy(cfg.blastSpeed > 0)
+end)
+
+test(
+	"super kick orbs: mirrored, on the field, taken once, come back, kick away from the car",
+	function()
+		local cfg = ModesConfig.Soccer.Orbs
+		local hx, hz = SoccerField.halfLength(), SoccerField.halfWidth()
+		for _, sp in cfg.spots do
+			truthy(math.abs(sp.x) < hx - 20 and math.abs(sp.z) < hz - 8)
+			local mirrored = false
+			for _, o in cfg.spots do
+				if o.x == -sp.x and o.z == -sp.z then
+					mirrored = true
+				end
+			end
+			truthy(mirrored, "orb has a mirror twin")
+		end
+		local s = SoccerOrbs.new(cfg)
+		local sp = cfg.spots[1]
+		eq(SoccerOrbs.take(s, cfg, sp.x, sp.z, 1), 1)
+		eq(SoccerOrbs.take(s, cfg, sp.x, sp.z, 2), 0)
+		eq(SoccerOrbs.take(s, cfg, sp.x, sp.z, 1 + cfg.respawn + 0.1), 1)
+		local vx, vy, vz = SoccerOrbs.kick(cfg, 3, 4)
+		near(vx, 0.6 * cfg.kickSpeed, 1e-6)
+		near(vz, 0.8 * cfg.kickSpeed, 1e-6)
+		eq(vy, cfg.kickLift)
+		local ux = SoccerOrbs.kick(cfg, 0, 0)
+		eq(ux, cfg.kickSpeed)
+	end
+)
+
+test("brawl hits: under the limit nothing flies, harder hits launch and scatter more", function()
+	local hit = ModesConfig.LastStanding.Hit
+	local p0 = BrawlRules.launch(hit.from - 0.01, hit)
+	eq(p0, 0)
+	eq(BrawlRules.scrapCount(hit.from - 0.01, hit), 0)
+	local pa, ua = BrawlRules.launch(0.5, hit)
+	local pb, ub = BrawlRules.launch(1, hit)
+	truthy(pa > 0 and ua > 0 and pb > pa and ub > ua)
+	truthy(BrawlRules.scrapCount(1, hit) >= BrawlRules.scrapCount(0.5, hit))
+	eq(BrawlRules.scrapCount(1, hit), hit.scrapMax)
+	truthy(
+		BrawlRules.peels(1, hit) and not BrawlRules.peels(hit.from, hit) or hit.peelFrom <= hit.from
+	)
+end)
+
+test(
+	"fight mode: 4 cars, flat arena, mirrored obstacles, only the fight is in the rotation",
+	function()
+		local ls = ModesConfig.LastStanding
+		eq(ls.cars, 4)
+		eq(ls.Arena.tiltDeg, 0)
+		eq(ls.Arena.flatRadius, ls.Arena.rimRadius)
+		for _, o in ls.Arena.obstacles do
+			truthy(math.sqrt(o.x * o.x + o.z * o.z) < ls.Arena.rimRadius - 10)
+			local twin = false
+			for _, q in ls.Arena.obstacles do
+				if q.kind == o.kind and q.x == -o.x and q.z == -o.z then
+					twin = true
+				end
+			end
+			truthy(twin, "obstacle has a mirror twin")
+		end
+		eq(table.concat(ModesConfig.Order, ","), "lastStanding")
+	end
+)
+
+test("fight: walls hold, then close in to the minimum", function()
+	local sh = ModesConfig.LastStanding.Shrink
+	local full = ModesConfig.LastStanding.Arena.rimRadius
+	eq(BrawlRules.safeRadius(0, full, sh), full)
+	eq(BrawlRules.safeRadius(sh.startSeconds, full, sh), full)
+	local mid = BrawlRules.safeRadius((sh.startSeconds + sh.endSeconds) / 2, full, sh)
+	truthy(mid < full and mid > sh.minRadius)
+	eq(BrawlRules.safeRadius(sh.endSeconds, full, sh), sh.minRadius)
+	eq(BrawlRules.safeRadius(9999, full, sh), sh.minRadius)
+	truthy(sh.minRadius > 20 and sh.endSeconds < ModesConfig.LastStanding.maxSeconds)
+end)
+
+test(
+	"fight: best of 3, first to 2; after 3 rounds most wins, a tie goes to the last winner",
+	function()
+		local rc = ModesConfig.LastStanding.Rounds
+		eq(BrawlRules.matchWinner({ [2] = 1 }, 1, rc.winsNeeded, rc.maxRounds, 2), 0)
+		eq(BrawlRules.matchWinner({ [2] = 2 }, 2, rc.winsNeeded, rc.maxRounds, 2), 2)
+		eq(BrawlRules.matchWinner({ [1] = 1, [3] = 1 }, 2, rc.winsNeeded, rc.maxRounds, 3), 0)
+		eq(
+			BrawlRules.matchWinner({ [1] = 1, [3] = 1, [4] = 1 }, 3, rc.winsNeeded, rc.maxRounds, 4),
+			4
+		)
+		eq(BrawlRules.matchWinner({ [1] = 1, [3] = 1, [4] = 0 }, 3, 2, 3, 3), 3)
+		eq(BrawlRules.matchWinner({}, 3, 2, 3, 1), 1)
+	end
+)
+
+test("fight: the shield is the only item and it is a real pickup kind", function()
+	local items = ModesConfig.LastStanding.Items
+	eq(#items.kinds, 1)
+	eq(items.kinds[1], "shield")
+	truthy(items.ringMax < ModesConfig.LastStanding.Arena.rimRadius)
+	truthy(items.ringMax >= items.ringMin)
 end)

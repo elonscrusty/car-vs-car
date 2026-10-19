@@ -205,9 +205,16 @@ function Pickups.start(
 	arena: Arena.Arena,
 	cars: { CarBuilder.Car },
 	rng: Random,
-	notify: ((car: CarBuilder.Car, update: Types.UiUpdate) -> ())?
+	notify: ((car: CarBuilder.Car, update: Types.UiUpdate) -> ())?,
+	override: { [string]: any }? -- other kinds / ring / timing for a mode (the car fight: only SHIELD)
 ): Handle
-	local cfg = PickupsConfig
+	local cfg: any = PickupsConfig
+	if override then
+		cfg = table.clone(PickupsConfig)
+		for k, v in override do
+			cfg[k] = v
+		end
+	end
 	local center = arena.center
 	local floorY = center.Y + cfg.hoverHeight
 	local pickups: { Pickup } = {}

@@ -25,7 +25,9 @@ local function orderFor(flags: { [string]: boolean }?): { string }
 	if FeatureFlags.enabled("raceMode", flags) then
 		table.insert(order, "race")
 	end
-	table.insert(order, "duel")
+	if not FeatureFlags.enabled("lastStandingMode", flags) then
+		table.insert(order, "duel") -- the 4-car fight replaces the 1v1 duel when it is on
+	end
 	if FeatureFlags.enabled("hillMode", flags) then
 		table.insert(order, "hill")
 	end
@@ -72,11 +74,51 @@ return {
 		tint = { 170, 220, 255 }, -- icy blue paint on the bowl
 	},
 	LastStanding = {
-		cars = 8, -- cars in the match (humans first, bots fill the rest)
+		cars = 4, -- cars in the match (humans first, bots fill the rest)
 		maxSeconds = 150, -- time up: most HP among the cars still alive wins
-		spawnRadius = 68, -- start ring, studs from the middle
-		hpScale = 0.6, -- every car has this share of its normal HP (8 cars = quick knock-outs)
+		spawnRadius = 48, -- start ring, studs from the middle
+		hpScale = 1.2, -- share of the car's normal HP: ~6-8 front hits at a normal crash speed (carter: medium health)
 		hudSeconds = 1,
+		-- Flat fight floor with ramps and blocks (overrides GameConfig.Arena for this mode).
+		-- Ramps climb toward -Z at yaw 0. Mirrored round the middle so no spot is luckier.
+		Arena = {
+			flatRadius = 72,
+			rimRadius = 72,
+			tiltDeg = 0,
+			wallHeight = 4, -- a low lip: a big hit launches you over it = out
+			spawnRadius = 48,
+			noPads = true,
+			obstacles = {
+				{ kind = "ramp", x = -30, z = -22, sx = 14, sz = 22, yaw = 0 },
+				{ kind = "ramp", x = 30, z = 22, sx = 14, sz = 22, yaw = 180 },
+				{ kind = "block", x = 0, z = -28, sx = 10, sy = 7, sz = 6 },
+				{ kind = "block", x = 0, z = 28, sx = 10, sy = 7, sz = 6 },
+				{ kind = "pillar", x = -22, z = 24, sx = 6, sy = 9 },
+				{ kind = "pillar", x = 22, z = -24, sx = 6, sy = 9 },
+			},
+		},
+		-- Best of 3: first to 2 round wins; after 3 rounds the most wins takes it.
+		Rounds = { winsNeeded = 2, maxRounds = 3, breakSeconds = 3.5 },
+		-- The walls close in (BrawlRules.safeRadius); a car outside the safe radius is out.
+		Shrink = { startSeconds = 40, endSeconds = 110, minRadius = 36 },
+		-- ONE item for now: a SHIELD that blocks the next hit (Pickups with this override).
+		Items = {
+			kinds = { "shield" },
+			ringMin = 12,
+			ringMax = 50,
+			firstSpawnSeconds = 8,
+			spawnEverySeconds = 14,
+			maxOnFloor = 2,
+		},
+		-- Big hits (BrawlRules): the car that got hit is LAUNCHED and bits fly off it.
+		Hit = {
+			from = 0.3,
+			push = 70,
+			up = 34,
+			spin = 14,
+			scrapMax = 8,
+			peelFrom = 0.55,
+		},
 	},
 	Race = {
 		cars = 6, -- cars in the match (humans first, bots fill the rest); track: RaceTrackConfig
@@ -128,6 +170,16 @@ return {
 			kinds = { "boostAll", "blast", "blast", "boostAll" },
 			blastSpeed = 85, -- flat ball speed after a blast (SoccerFieldConfig.ballMaxSpeed still caps it)
 			blastLift = 22, -- upward speed so the ball hops
+		},
+		-- SUPER KICK orbs: drive over one, your next touch on the ball shoots it away. Mirrored spots.
+		Orbs = {
+			spots = { { x = 0, z = -14 }, { x = 0, z = 14 }, { x = -40, z = 0 }, { x = 40, z = 0 } },
+			radius = 5,
+			respawn = 10, -- seconds until a taken orb is lit again
+			holdSeconds = 8, -- the kick is lost if the ball is not touched this long
+			kickSpeed = 110, -- flat ball speed (SoccerFieldConfig.ballMaxSpeed still caps it)
+			kickLift = 6,
+			color = { 255, 200, 40 },
 		},
 		colors = { { 70, 150, 255 }, { 255, 90, 70 } }, -- team 1 blue, team 2 red
 	},
