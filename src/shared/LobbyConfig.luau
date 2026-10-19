@@ -37,7 +37,7 @@ LobbyConfig.Gacha = {
 	odds = { Common = 55, Rare = 28, Epic = 14, Legendary = 3 } :: { [string]: number }, -- percent, must sum to 100
 	duplicateRefund = 50, -- fallback coins back on a car you already own
 	-- Coins back for a duplicate, by rarity (PRETEND numbers). Rarer gives more.
-	duplicateRefunds = { Common = 30, Rare = 60, Epic = 150, Legendary = 400 } :: { [string]: number },
+	duplicateRefunds = { Common = 10, Rare = 25, Epic = 60, Legendary = 120 } :: { [string]: number },
 }
 -- Store counter prices by rarity. PLACEHOLDER numbers: carter will give the real ones later.
 LobbyConfig.Store = {

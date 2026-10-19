@@ -52,5 +52,6 @@ require("./arenathemes.test")
 require("./carsanity.test")
 require("./onboarding.test")
 require("./cartraits.test")
+require("./economy_sim.test")
 
 Harness.summary()

@@ -33,6 +33,45 @@ Tick each one on BOTH devices.
 - [ ] Nobody gets stuck in a wall, bay or pad
 - [ ] Max Players is set (see docs/store-page.md) and the 7th to 12th person can still join
 
+## Wave 1 and 2 features (sound, menu unlock, soccer, weekly board, invite)
+
+Sound toggle
+- [ ] The sound button mutes music and effects at once and shows the muted state
+- [ ] Unmuting brings the lobby music back (not the arena track while in the lobby)
+- [ ] The choice is not saved: after a rejoin sound is on again (expected, not a bug)
+- [ ] With sound ids empty (placeholders) nothing errors and the toggle does nothing audible
+
+Menu unlock after 2 matches
+- [ ] A brand-new player sees only GIFT in the menu bar
+- [ ] After the 1st finished match QUESTS and GARAGE are still hidden
+- [ ] After the 2nd finished match QUESTS and GARAGE appear (no rejoin needed)
+- [ ] A returning player (matches saved at 2 or more) sees the full menu at once
+- [ ] Leaving mid match does not count; finishing a match as the loser counts
+
+Car soccer
+- [ ] Soccer comes up in the mode rotation and the small field loads with both goals
+- [ ] Ball is visible, moves when hit, scores in the right net, resets after the goal pause
+- [ ] Score and timer on the HUD match what actually happened; first to the goal limit wins
+- [ ] Bots chase the ball and do not all pile into one corner
+- [ ] A player who leaves is replaced by a bot; nobody gets forfeited for lag in soccer
+- [ ] Match end: field, ball and cars are removed (look at Workspace in Studio test)
+
+Weekly board
+- [ ] Three boards in the lobby: all-time wins, this week, best streak; text readable
+- [ ] A win moves the weekly count up within about a minute (board refresh)
+- [ ] The weekly board name changes on Monday 00:00 UTC (check with a faked date)
+- [ ] The bowl colors for the week match the weekly theme and are not unreadable
+
+Invite
+- [ ] After a WIN an Invite a friend button shows; after a loss it does not
+- [ ] Tapping it opens Roblox's own friend picker; nothing is sent by the game itself
+- [ ] If invites are not allowed for the account the button is simply hidden
+
+Economy feel (see docs/economy-report.md, all prices are pretend)
+- [ ] First claw pull is free in the first session; a second pull needs coins or a daily gift
+- [ ] A casual player pulls a Rare in the first couple of days and a Legendary within weeks, not hours
+- [ ] Duplicates give coins back and the refund text is shown
+
 ## Phone check (do on a real phone, not the emulator)
 
 - [ ] Buttons are big enough to tap with a thumb

@@ -113,6 +113,7 @@ function LobbyService.start(deps: Deps): Handle
 	local refreshBay: (player: Player) -> () -- defined below
 	local running = true
 	local conns: { RBXScriptConnection } = {}
+	local charConns: { [Player]: RBXScriptConnection } = {} -- one per player, dropped when they leave
 
 	local function send(player: Player, update: Types.LobbyUpdate)
 		if player.Parent ~= nil then
@@ -767,12 +768,9 @@ function LobbyService.start(deps: Deps): Handle
 	local handle: Handle
 	handle = {
 		onPlayerAdded = function(player: Player)
-			table.insert(
-				conns,
-				player.CharacterAdded:Connect(function()
-					sendProfile(player)
-				end)
-			)
+			charConns[player] = player.CharacterAdded:Connect(function()
+				sendProfile(player)
+			end)
 			task.spawn(function()
 				if Profiles.waitFor(player, 30) then
 					sendProfile(player)
@@ -781,6 +779,11 @@ function LobbyService.start(deps: Deps): Handle
 		end,
 		onPlayerRemoving = function(player: Player)
 			players[player] = nil -- a running Match is destroyed by the entry script
+			local charConn = charConns[player]
+			if charConn then
+				charConn:Disconnect()
+				charConns[player] = nil
+			end
 			local padIndex, nowIdle = PadLogic.leave(state, player)
 			if padIndex then
 				if nowIdle then
@@ -889,6 +892,10 @@ function LobbyService.start(deps: Deps): Handle
 				c:Disconnect()
 			end
 			table.clear(conns)
+			for _, c in charConns do
+				c:Disconnect()
+			end
+			table.clear(charConns)
 		end,
 	}
 	return handle

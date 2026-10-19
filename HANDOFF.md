@@ -160,3 +160,6 @@ See SNAPSHOT.md "Car feel" and `docs/car-feel.md`. Retune in `src/shared/CarTrai
 - Tune HUD positions only in `src/shared/UiLayoutConfig.luau`; run `lune run tests/run` (uilayout tests catch overlap, small touch targets, anything in the screen middle, anything under the 56 px top bar).
 - To check by eye: Studio device emulator at 640x360 and 800x360 landscape. Placeholders: topInset 56, edge 16, lane shares, row heights, menu column numbers.
 - Owner of SaveNotice may want to move it clear of the power bar lane (bottom centre).
+## Economy sim + perf audit
+- Read `docs/economy-report.md` first: the 12-car collection completes by about day 30 and there is no coin sink afterwards; recommendations (higher pull price, sink, pity timer) are NOT applied. Raising the pull price needs `tests/lobby.test.luau` re-pinned (hardcodes 100).
+- `docs/performance-audit.md`: nothing measured in Studio; check part counts, `Persistent` streaming of four bowls, and garage lift replication on a phone.
