@@ -184,37 +184,25 @@ local function miniCar(
 	return m
 end
 
--- The imported Heavy model (ServerStorage.Models.Car_Heavy, a MeshPart, nose toward +X), scaled to
--- `length` studs long, sitting on the anchor point. Returns a Model
--- you can PivotTo (the invisible "Anchor" part is its pivot), or nil when there is no model.
-local function meshCar(
-	parent: Instance,
-	name: string,
-	length: number,
-	color: Color3,
-	cf: CFrame
-): Model?
+-- The showcase car: carter's Sedan from ServerStorage.Models.Cars (a Model, origin bottom-centre),
+-- scaled to `length` studs long and standing at `cf`. Returns nil when it was not imported.
+local function meshCar(parent: Instance, name: string, length: number, cf: CFrame): Model?
 	local models = ServerStorage:FindFirstChild("Models")
-	local template = models and models:FindFirstChild("Car_Heavy")
-	if not (template and template:IsA("MeshPart")) then
+	local cars = models and models:FindFirstChild("Cars")
+	local template = cars and cars:FindFirstChild("02_sedan")
+	if not (template and template:IsA("Model")) then
 		return nil
 	end
-	local m = Instance.new("Model")
+	local m = template:Clone()
 	m.Name = name
-	local anchor = part(m, "Anchor", Vector3.one, cf, color)
-	anchor.Transparency = 1
-	anchor.CanCollide = false
-	local visual = template:Clone()
-	visual.Name = "Visual"
-	visual.Size = template.Size * (length / template.Size.X)
-	if visual.TextureID == "" then
-		visual.Color = color
+	for _, d in m:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.Anchored = true
+			d.CanCollide = false
+		end
 	end
-	visual.Anchored = true
-	visual.CanCollide = false
-	visual.CFrame = cf * CFrame.new(0, visual.Size.Y / 2, 0) * CFrame.Angles(0, math.rad(90), 0)
-	visual.Parent = m
-	m.PrimaryPart = anchor
+	m:ScaleTo(length / 14)
+	m:PivotTo(cf)
 	m.Parent = parent
 	return m
 end
@@ -1255,7 +1243,7 @@ function Lobby.build(): LobbyHandle
 	local stageTop = 2.8
 	local carY = stageTop + 0.1 -- the truck stands on the stage
 	local pivot = world(sc.x, carY + 4, sc.z)
-	local showcaseCar = meshCar(folder, "ShowcaseCar", 30, showcaseColor, world(sc.x, carY, sc.z))
+	local showcaseCar = meshCar(folder, "ShowcaseCar", 22, world(sc.x, carY, sc.z))
 	if showcaseCar then
 		pivot = world(sc.x, carY, sc.z)
 	else
