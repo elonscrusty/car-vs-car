@@ -148,9 +148,9 @@ local function lobby(parent, state, ctx)
 		local navSize = math.clamp((h - 130) / 3 - 8, 52, 76)
 		for index, item in
 			{
-				{ "CARS", "car", T.C.red },
+				{ "CARS", "car", T.C.blue },
 				{ "SHOP", "shop", T.C.blue },
-				{ "GIFT", "gift", T.C.navy },
+				{ "GIFT", "gift", T.C.blue },
 			}
 		do
 			T.button(
@@ -653,10 +653,10 @@ local function results(parent, state, ctx)
 	T.checkers(root, 1087, 596, 94, 56, 14, T.C.white)
 	local rematch = T.button(root, "Rematch", "REMATCH", 135, 582, 458, 78, function()
 		request(ctx, "Rematch")
-	end, T.C.blue, "reset")
+	end, T.C.green, "reset")
 	local back = T.button(root, "Lobby", "LOBBY", 609, 582, 458, 78, function()
 		request(ctx, "LeaveMatch")
-	end, T.C.red, "back")
+	end, T.C.blue, "back")
 	T.disable(rematch, ctx.pending or not state.ready)
 	T.disable(back, ctx.pending or false)
 	return root

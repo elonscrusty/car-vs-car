@@ -178,7 +178,7 @@ local function renderCars(root, state, ctx)
 			ctx.select(vehicle.Id)
 			ctx.navigate("SHOP", { selection = vehicle.Id })
 		end
-	end, equipped and T.C.green or T.C.blue, equipped and "check" or "car")
+	end, equipped and T.C.navy or T.C.green, equipped and "check" or "car")
 	T.disable(button, not available(state, ctx) or equipped)
 	filters(root, state, ctx, { "ALL", "OWNED", "LOCKED" }, 530, 108, 640)
 	local list = T.scroll(root, "Collection", 527, 169, 650, 392)
@@ -263,7 +263,7 @@ local function renderPicker(root, state, ctx)
 	T.checkers(root, 0, 603, 1200, 52, 26, T.C.silver)
 	T.button(root, "Back", "BACK", 58, 598, 276, 66, function()
 		ctx.navigate("CARS")
-	end, T.C.red, "back")
+	end, T.C.blue, "back")
 	local confirm = T.button(
 		root,
 		"ConfirmCar",
@@ -277,7 +277,7 @@ local function renderPicker(root, state, ctx)
 				ctx.request("ChooseCar", { vehicleId = state.selection })
 			end
 		end,
-		T.C.blue,
+		T.C.green,
 		"car"
 	)
 	T.disable(confirm, not available(state, ctx) or not selectionValid)
