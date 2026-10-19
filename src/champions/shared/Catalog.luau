@@ -510,9 +510,12 @@ local function renderClaw(root, state, ctx)
 			"PullClaw",
 			{},
 			"PULL THE CLAW?",
-			"Spend "
-				.. T.format(cost)
-				.. " coins for one random car. Duplicates return "
+			(
+				if cost == 0
+					then "Free pull! One random car."
+					else "Spend " .. T.format(cost) .. " coins for one random car."
+			)
+				.. " Duplicates return "
 				.. Config.RefundText
 				.. " coins. Odds are shown before every pull."
 		)
