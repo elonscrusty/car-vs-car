@@ -140,6 +140,7 @@ local GameConfig = {
 		coastDrag = 2.2, -- no gas: forward speed fades at this share per second (stops, no ice-gliding)
 		turnMinShare = 0.55, -- turn rate at a standstill = this share of full (you can still aim)
 		turnFullSpeed = 22, -- ...and reaches full turn rate at this flat speed (studs/s)
+		groundCoyote = 0.15, -- seconds a player car keeps driving after the floor check misses (bumps)
 		groundRayExtra = 2.5, -- studs below car that still count as "on ground"
 		manualTurn = 2.4, -- human steering: full steer input = this x the car's turnRate
 		manualTurnMin = 4, -- ...but never slower than this (radians/sec) so heavy cars still turn

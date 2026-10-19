@@ -13,7 +13,14 @@ local Steer = require(script.Parent.Steer)
 -- Per-frame move effects for a human car (boost, drift). All 1 = normal driving.
 export type Mods = { speedScale: number, accelScale: number, gripScale: number, turnScale: number }
 
+-- Remembers the last floor hit so a one-frame miss (bump, seam, ramp lip) does not drop the grip.
+export type GroundMemory = { hit: RaycastResult?, age: number }
+
 local CarDrive = {}
+
+function CarDrive.newGroundMemory(): GroundMemory
+	return { hit = nil, age = math.huge }
+end
 
 local function flat(v: Vector3): Vector3
 	return Vector3.new(v.X, 0, v.Z)
@@ -148,9 +155,20 @@ function CarDrive.manual(
 	dt: number,
 	rayParams: RaycastParams,
 	mods: Mods?,
-	speedMult: number
+	speedMult: number,
+	memory: GroundMemory?
 ): number
 	local hit, timer = CarDrive.groundHit(model, body, stats, flipTimer, dt, rayParams)
+	if memory ~= nil then
+		if hit ~= nil then
+			memory.hit, memory.age = hit, 0
+		else
+			memory.age += dt
+			if memory.hit ~= nil and memory.age <= GameConfig.Drive.groundCoyote then
+				hit = memory.hit
+			end
+		end
+	end
 	if hit == nil then
 		return timer
 	end

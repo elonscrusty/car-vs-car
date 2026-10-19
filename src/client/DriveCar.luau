@@ -71,6 +71,7 @@ function DriveCar.new(read: () -> (number, number), onBoost: (() -> ())?): Drive
 							model, body, stats = m, b, s
 							rayParams.FilterDescendantsInstances = { m }
 							flipTimer = 0
+							ground = CarDrive.newGroundMemory()
 							seenBoostAt = m:GetAttribute("BoostAt") -- an old boost does not count
 							steer, gas = 0, 0
 							drift = Moves.newDrift()
@@ -96,8 +97,16 @@ function DriveCar.new(read: () -> (number, number), onBoost: (() -> ())?): Drive
 			local cam = workspace.CurrentCamera
 			if cam ~= nil then
 				local cl, kl = cam.CFrame.LookVector, b.CFrame.LookVector
-				rawSteer, rawGas =
-					Steer.toward(rawSteer, rawGas, cl.X, cl.Z, kl.X, kl.Z, GameConfig.Steer.aimLock)
+				rawSteer, rawGas = Steer.toward(
+					rawSteer,
+					rawGas,
+					cl.X,
+					cl.Z,
+					kl.X,
+					kl.Z,
+					GameConfig.Steer.aimLock,
+					steer
+				)
 			end
 			steer = Steer.smooth(steer, rawSteer, dt, GameConfig.Steer.smoothRate)
 			gas = Steer.smooth(gas, rawGas, dt, GameConfig.Steer.smoothRate)

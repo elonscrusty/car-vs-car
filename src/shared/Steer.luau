@@ -44,7 +44,8 @@ function Steer.toward(
 	camZ: number,
 	carX: number,
 	carZ: number,
-	fullLock: number
+	fullLock: number,
+	prevSteer: number? -- last steer sent; keeps the turn direction when the wanted way is straight behind
 ): (number, number)
 	local mag = math.min(1, math.sqrt(sx * sx + sy * sy))
 	local cl = math.sqrt(camX * camX + camZ * camZ)
@@ -61,6 +62,11 @@ function Steer.toward(
 	local dot = carX * wantX + carZ * wantZ
 	local err = math.atan2(cross, dot)
 	local steer = math.clamp(-err / math.max(0.05, fullLock), -1, 1) -- steer + = right = turn clockwise
+	-- Wanted way is nearly straight behind: err flips between +pi and -pi with tiny wobbles, so keep
+	-- turning the way we already were (no left-right flicker on a U-turn).
+	if dot < -0.9 and prevSteer ~= nil and math.abs(prevSteer) > 0.2 then
+		steer = math.abs(steer) * math.sign(prevSteer)
+	end
 	local gas = mag * math.max(0.35, math.cos(err))
 	return steer, gas
 end

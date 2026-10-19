@@ -46,6 +46,7 @@ function CameraDirector.new(): Director
 	local wallFade: { [BasePart]: number } = {}
 	local nextWallCheck = 0
 	local chaseYaw = 0
+	local ballLean = Vector3.zero -- soccer: how far the view leans from your car toward the ball
 	local wallTarget: { [BasePart]: number } = {}
 
 	local function calm(): boolean
@@ -179,14 +180,18 @@ function CameraDirector.new(): Director
 						ballPart = findBall(car)
 						ball = ballPart
 					end
+					local want = Vector3.zero
 					if ball ~= nil and ball.Parent ~= nil then
-						focus = focus:Lerp(ball.Position, feel.chaseBallShare)
+						want = (ball.Position - car.Position) * feel.chaseBallShare
 					end
+					-- A kicked ball must not yank the view: ease the lean toward it.
+					ballLean = ballLean:Lerp(want, 1 - math.exp(-3 * dt))
+					focus += ballLean
 				end
 				local dir = Vector3.new(math.sin(chaseYaw), 0, math.cos(chaseYaw))
 				local camPos = focus - dir * feel.chaseBack + Vector3.new(0, feel.chaseUp, 0)
 				local goal = CFrame.lookAt(camPos, focus + dir * feel.chaseAhead)
-				base = base:Lerp(goal, math.min(1, dt * feel.chaseFollow))
+				base = base:Lerp(goal, 1 - math.exp(-feel.chaseFollow * dt))
 				goalFov = feel.normalFov
 				if soccerOn then
 					updateWalls(base.Position, car, ballPart, dt)
