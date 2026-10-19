@@ -43,7 +43,7 @@ BattleConfig.Arena = {
 BattleConfig.Camera = {
 	pitchDeg = 58, -- overhead three-quarter angle
 	fovDeg = 50,
-	padding = 1.08, -- how much extra room around the arena
+	padding = 1.3, -- room around the arena (the HUD and the prep bar sit in the margins)
 	smooth = 6, -- only eased when the screen shape changes
 }
 
