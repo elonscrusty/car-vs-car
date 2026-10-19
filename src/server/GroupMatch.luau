@@ -690,6 +690,9 @@ function GroupMatch.new(
 				Crown.attach(car.model, car.body, carStats.size[2] / 2 + 3)
 			end
 			car.bar.set(hp, hp)
+			if brawlOn then
+				car.bar.compact() -- carter: names and big bars covered the cars
+			end
 			if tagOn or raceOn then
 				car.bar.hide() -- nobody loses HP in tag or the race
 			end
