@@ -41,6 +41,7 @@ function DriveCar.new(read: () -> (number, number), onBoost: (() -> ())?): Drive
 		local sinceSearch = FIND_EVERY
 		local steer, gas = 0, 0
 		local flipTimer = 0
+		local ground = CarDrive.newGroundMemory()
 		local seenBoostAt: any = nil
 		local drift = Moves.newDrift()
 		local rayParams = RaycastParams.new()
@@ -137,7 +138,8 @@ function DriveCar.new(read: () -> (number, number), onBoost: (() -> ())?): Drive
 				dt,
 				rayParams,
 				mods,
-				if type(speedMult) == "number" then speedMult else 1
+				if type(speedMult) == "number" then speedMult else 1,
+				ground
 			)
 		end)
 	end
