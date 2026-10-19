@@ -13,6 +13,8 @@ local ProgressConfig = require(ReplicatedStorage.Shared.ProgressConfig)
 local RateLimiter = require(ReplicatedStorage.Shared.RateLimiter)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Atmosphere = require(script.Atmosphere)
+local BattleService = require(script.BattleService)
+local FeatureFlags = require(ReplicatedStorage.Shared.FeatureFlags)
 local Lobby = require(script.Lobby)
 local LobbyService = require(script.LobbyService)
 local Leaderboards = require(script.Leaderboards)
@@ -154,6 +156,14 @@ local lobbyService = LobbyService.start({
 	startMatch = startMatch,
 })
 
+-- The 1v1 auto-battle: PLAY queues for it, its own remotes carry pick/lock/leave.
+local battle = BattleService.start({ remotes = remotes, sendProfile = lobbyService.sendProfile })
+remotes.BattleAction.OnServerEvent:Connect(function(player: Player, name: any, arg: any)
+	if type(name) == "string" and (arg == nil or type(arg) == "string") then
+		battle.action(player, name, arg)
+	end
+end)
+
 local function onPlayerAdded(player: Player)
 	Telemetry.joined(player)
 	lobbyService.onPlayerAdded(player)
@@ -167,6 +177,7 @@ local function onPlayerRemoving(player: Player)
 		g.match.playerLeft(player)
 		leaveGroup(player)
 	end
+	battle.playerRemoving(player)
 	local restart = rematch.remove(player)
 	lobbyService.onPlayerRemoving(player)
 	if restart then
@@ -220,6 +231,19 @@ remotes.LobbyAction.OnServerEvent:Connect(function(player: Player, action: any, 
 	end
 	if action == "pickCar" and type(arg) ~= "string" then
 		return
+	end
+	if FeatureFlags.enabled("battleMode") then
+		-- Champions UI buttons: PLAY / cancel / leave go to the battle
+		if action == "play" then
+			battle.play(player)
+			return
+		elseif action == "cancelPlay" or action == "leavePad" then
+			battle.cancel(player)
+			return
+		elseif action == "leaveMatch" then
+			battle.action(player, "leave", nil)
+			return
+		end
 	end
 	if action == "leaveMatch" then
 		leaveMatch(player)

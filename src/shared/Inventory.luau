@@ -21,6 +21,7 @@ local Quests = sibling("Quests")
 local Paint = sibling("Paint")
 local Build = sibling("Build")
 local GarageLikes = sibling("GarageLikes")
+local BattleConfig = sibling("BattleConfig")
 
 export type Profile = {
 	version: number,
@@ -116,6 +117,13 @@ function Inventory.migrate(raw: any): Profile
 	local rawOwned = raw.owned
 	if type(rawOwned) == "table" then
 		for _, id in CarConfig.FullOrder do -- keep hidden (non-roster) cars a player already owns
+			if rawOwned[id] == true then
+				owned[id] = true
+			end
+		end
+	end
+	if type(rawOwned) == "table" then
+		for id in BattleConfig.Fighters do -- auto-battle fighters live in the same collection
 			if rawOwned[id] == true then
 				owned[id] = true
 			end

@@ -18,6 +18,8 @@ export type RemoteSet = {
 	UiUpdate: RemoteEvent,
 	LobbyAction: RemoteEvent,
 	LobbyUpdate: RemoteEvent,
+	BattleAction: RemoteEvent, -- client -> server: 1v1 auto-battle (queue, select, lock, leave...)
+	BattleUpdate: RemoteEvent, -- server -> client: 1v1 auto-battle screens and HUD
 }
 
 local Remotes = {}
@@ -58,6 +60,8 @@ function Remotes.get(): RemoteSet
 		UiUpdate = getOrMake(folder, "UiUpdate"),
 		LobbyAction = getOrMake(folder, "LobbyAction"),
 		LobbyUpdate = getOrMake(folder, "LobbyUpdate"),
+		BattleAction = getOrMake(folder, "BattleAction"),
+		BattleUpdate = getOrMake(folder, "BattleUpdate"),
 	}
 end
 

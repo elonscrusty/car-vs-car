@@ -6,6 +6,10 @@
       "Shared": {
         "$path": "src/shared"
       },
+      "BattleModels": {
+        "$className": "Folder",
+        "$ignoreUnknownInstances": true
+      },
       "CVC_Champions": {
         "$className": "Folder",
         "Shared": {

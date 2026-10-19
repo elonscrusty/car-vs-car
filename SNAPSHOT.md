@@ -253,3 +253,12 @@ New pure rules `shared/FeelRules` (tests/feelrules.test.luau): soccer and bowl c
 
 ## Carter's Champions UI (this replaces the old lobby/match screens)
 Runtime UI lives in `src/champions/`, glued by `ChampionsAdapter` (pure, tested) + `client/ChampionsBridge`. Fight-only: one FIGHT mode, PLAY/CANCEL button, fight HUD (round wins, cars left, clock, boost, ability), Results screen, claw/shop/cars/gift/settings. Old LobbyUi/ModeUi/ProgressUi/ActionInput and the DEV: BOT MATCH button are removed. Details + wiring table in HANDOFF.md. Tests: 587 pass. Not yet eyeballed on phone.
+
+## 1v1 auto-battle (replaces the 4-car fight; flag `battleMode`)
+Ram Truck / Cannon Van / Saw Buggy drive and attack by themselves. PLAY queues for a 1v1; pick a car (8 s),
+3 s prep, fight (45 s), best of 3 rounds (first to 2), rewards, rematch. Server: `BattleService` (state
+machine + queue + rewards), `BattleCar` (clone, drive, hit regions), `BattleArena`. Shared pure + tested:
+`BattleConfig` (ALL numbers), `BattleBrain` (AI + weapons), `BattleSeries`, `BattleSelect`, `BattleQueue`.
+Client: `BattleUi` (screens + fixed overhead camera). Tests: `tests/battle.test.luau` (+ `battlesim.luau`, a 2D fight sim).
+Models: see `docs/BATTLE_MODELS.md`. Old pads / 4-car fight are bypassed by the flag, code kept.
+Not verified in Studio yet: see the PR body.
