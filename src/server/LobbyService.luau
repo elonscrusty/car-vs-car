@@ -143,6 +143,14 @@ function LobbyService.start(deps: Deps): Handle
 	-- Some messages carry newer fields than Types.LobbyUpdate lists, so callers may pass `any`.
 	local function send(player: Player, update: Types.LobbyUpdate | any)
 		if player.Parent ~= nil then
+			if type(update) == "table" and update.kind == "countdown" then
+				-- For carter's PLAY button: QueueSeconds = seconds left in line (nil when not in line).
+				local secs = if type(update.seconds) == "number" and update.seconds > 0
+					then update.seconds
+					else nil
+				player:SetAttribute("QueueSeconds", secs)
+				player:SetAttribute("InQueue", if secs then true else nil)
+			end
 			remotes.LobbyUpdate:FireClient(player, update)
 		end
 	end
@@ -497,6 +505,8 @@ function LobbyService.start(deps: Deps): Handle
 				})
 			end
 			PadLogic.leave(state, player)
+			player:SetAttribute("QueueSeconds", nil)
+			player:SetAttribute("InQueue", nil)
 		end
 		padAcc[padIndex] = nil
 		updatePadText(padIndex)
