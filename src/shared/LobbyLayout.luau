@@ -21,10 +21,10 @@ LobbyLayout.lane = { halfWidth = 7, fromZ = 72, toZ = -20 } -- cyan lines from t
 LobbyLayout.padSize = 18
 -- Pads 01 (left back), 02 (left front), 03 (right back), 04 (right front).
 LobbyLayout.pads = {
-	{ x = -27, z = -4 },
-	{ x = -27, z = 20 },
-	{ x = 27, z = -4 },
-	{ x = 27, z = 20 },
+	{ x = -22, z = -3 },
+	{ x = -22, z = 19 },
+	{ x = 22, z = -3 },
+	{ x = 22, z = 19 },
 }
 LobbyLayout.showcase = { x = 0, z = -40, radius = 16, footprint = 40 } -- hero truck stage
 -- Booths on the side walls. They are built facing +z, then turned `yaw` degrees (90 turns the

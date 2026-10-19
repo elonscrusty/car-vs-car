@@ -11,7 +11,7 @@ local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 
 local LobbyMore = {}
 
-local LEFT, RIGHT, BACK, FRONT = -math.pi / 2, math.pi / 2, math.pi, 0
+local RIGHT, FRONT = math.pi / 2, 0
 
 function LobbyMore.build(folder: Folder, origin: Vector3)
 	local L = LobbyLayout
@@ -27,9 +27,9 @@ function LobbyMore.build(folder: Folder, origin: Vector3)
 		end
 	end
 
-	-- The start lights hang on the front wall (over the lane they hid the stage).
-	put("Podium", 24, 0, -54, BACK)
-	put("Leaderboard", -50, 0, -64, BACK)
+	-- No podium in the middle any more. The top racers board hangs on the front wall (it used to
+	-- stand among the match pads).
+	put("Leaderboard", -47, 0, HL - 2, FRONT)
 	put("Sign_Play", 40, 22, HL - 1.5, FRONT)
 
 	-- Lounge in the front corners.
@@ -38,18 +38,8 @@ function LobbyMore.build(folder: Folder, origin: Vector3)
 	put("ArcadeCabinet", 38, 0, 90, FRONT)
 	put("Couch", -33, 0, 90, FRONT)
 
-	-- A tool and a shelf or cart in each garage, by the back wall.
-	local tools = { "TireChanger", "AirCompressor", "FloorJack", "JackStands" }
-	for i, b in L.bays do
-		local yaw = if b.face > 0 then LEFT else RIGHT
-		put(tools[(i - 1) % #tools + 1], b.x - b.face * 17, 0, b.z + 10, yaw)
-		put(if i % 2 == 1 then "PartsShelf" else "ToolCart", b.x - b.face * 21, 0, b.z - 10, yaw)
-	end
-
-	-- Small wall pieces by the store and the paint booth.
-	put("PlateWall", -L.room.halfW + 0.6, 8, 84, LEFT)
-	put("SteeringWheelArt", -L.room.halfW + 0.6, 12, 90, LEFT)
-	put("WallClock", L.room.halfW - 0.6, 11, 84, RIGHT)
+	-- (No floating wall clock, steering wheel or plate art, and the per-garage tools are in
+	-- LobbyGarage now, against the garage wall.)
 end
 
 return LobbyMore
