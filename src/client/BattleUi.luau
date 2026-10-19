@@ -396,10 +396,10 @@ function BattleUi.start()
 	local prepF = frame(
 		gui,
 		"Prep",
-		UDim2.fromScale(1, 0.34),
-		UDim2.fromScale(0, 0.66),
+		UDim2.fromScale(1, 0.24),
+		UDim2.fromScale(0, 0.76),
 		Color3.fromRGB(10, 12, 22),
-		0.25
+		0.45
 	)
 	prepF.Visible = false
 	local prepMe =
