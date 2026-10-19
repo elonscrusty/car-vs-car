@@ -580,3 +580,33 @@ H.test("recap: plain facts about each weapon", function()
 	H.eq(quiet[1], "Your ram landed 0 of 0 charges")
 	H.eq(quiet[2], "You took no hits")
 end)
+
+H.test("momentum brains keep rolling: no standing still to aim or wind up", function()
+	local Lc = BattleConfig.Fighters.CannonVan.lengthStuds
+	local c = BattleBrain.new("CannonVan", Lc, Sim.arena(), true)
+	local me = { x = -40, z = 0, fx = 1, fz = 0 }
+	local foe = { x = 40, z = 0, fx = -1, fz = 0 }
+	local fired = false
+	for _ = 1, 40 do
+		local o = c.step(0.05, me, foe, { ram = false, saw = false })
+		H.eq(o.hold, false, "never holds still")
+		H.truthy(o.drive > 0, "keeps rolling")
+		if o.fire then
+			fired = true
+		end
+	end
+	H.truthy(fired, "fires when the gun points at the foe")
+	local Lr = BattleConfig.Fighters.RamTruck.lengthStuds
+	local r = BattleBrain.new("RamTruck", Lr, Sim.arena(), true)
+	local rme = { x = 0, z = 0, fx = 1, fz = 0 }
+	local rfoe = { x = 3 * Lr, z = 0, fx = -1, fz = 0 }
+	local sawCharge = false
+	for _ = 1, 40 do
+		local o = r.step(0.05, rme, rfoe, { ram = false, saw = false })
+		H.eq(o.hold, false)
+		if o.state == "charge" then
+			sawCharge = true
+		end
+	end
+	H.truthy(sawCharge, "the ram surges into a charge")
+end)

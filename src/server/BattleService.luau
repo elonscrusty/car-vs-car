@@ -69,6 +69,7 @@ type Match = {
 	lastOutcome: string?,
 	koOutcome: string?, -- the round result waiting for the knock-out finish to play
 	final: boolean, -- the announced final phase has begun
+	momentum: boolean, -- the momentum prototype fight (else the steering fight)
 }
 
 local BattleService = {}
@@ -322,6 +323,7 @@ function BattleService.start(opts: {
 			local opp = other(m, side)
 			send(part, {
 				kind = "prep",
+				momentum = m.momentum,
 				seconds = T.prepSeconds,
 				round = m.series.round,
 				score = scoreFor(m, side),
@@ -344,7 +346,8 @@ function BattleService.start(opts: {
 	local function startFight(m: Match)
 		for _, side in sides() do
 			local car = (m.cars :: any)[side] :: BattleCar.Car
-			BattleCar.arm(car, BattleBrain.new(car.fighter.id, car.L, arenaTable))
+			BattleCar.arm(car, BattleBrain.new(car.fighter.id, car.L, arenaTable, m.momentum))
+			BattleCar.launch(car, m.momentum)
 		end
 		m.phase, m.t, m.hudT = "fight", 0, 0
 		m.final = false
@@ -812,7 +815,7 @@ function BattleService.start(opts: {
 		}
 	end
 
-	local function createMatch(a: Part, b: Part)
+	local function createMatch(a: Part, b: Part, momentum: boolean?)
 		local slot = freeSlot()
 		usedSlots[slot] = true
 		local m: Match = {
@@ -831,6 +834,7 @@ function BattleService.start(opts: {
 			lastOutcome = nil,
 			koOutcome = nil,
 			final = false,
+			momentum = if momentum == nil then BattleConfig.defaultMomentum else momentum,
 		}
 		matches[m] = true
 		for _, part in { a, b } do
@@ -912,7 +916,7 @@ function BattleService.start(opts: {
 				-- Studio only. The opponent is labeled Test Bot everywhere.
 				if isStudio and not inMatch[player] and Profiles.get(player) ~= nil then
 					BattleQueue.leave(queue, player.UserId)
-					createMatch(humanPart(player), botPart())
+					createMatch(humanPart(player), botPart(), arg == "momentum")
 				end
 				return
 			end

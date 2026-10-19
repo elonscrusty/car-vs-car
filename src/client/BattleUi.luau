@@ -151,11 +151,21 @@ function BattleUi.start()
 			act("cancel")
 		end
 	)
+	local botMomBtn = button(
+		queueF,
+		"TEST BOT: MOMENTUM",
+		UDim2.fromScale(0.44, 0.2),
+		UDim2.fromScale(0.51, 0.7),
+		Color3.fromRGB(150, 110, 60),
+		function()
+			act("queueBot", "momentum")
+		end
+	)
 	local botBtn = button(
 		queueF,
-		"TEST BOT (Studio only)",
-		UDim2.fromScale(0.44, 0.26),
-		UDim2.fromScale(0.51, 0.66),
+		"TEST BOT: STEERING",
+		UDim2.fromScale(0.44, 0.2),
+		UDim2.fromScale(0.51, 0.46),
 		Color3.fromRGB(110, 110, 130),
 		function()
 			act("queueBot")
@@ -919,6 +929,7 @@ function BattleUi.start()
 			setChampions(false) -- hide the lobby menus behind the Searching panel
 			queueF.Visible = true
 			botBtn.Visible = m.studioBot == true
+			botMomBtn.Visible = m.studioBot == true
 			qText.Text = "Searching for opponent"
 		else
 			queueF.Visible = false
@@ -1000,6 +1011,7 @@ function BattleUi.start()
 		cameraOn()
 		prepMe.Text = "YOU  " .. sideText(m.me)
 		prepOpp.Text = "FOE  " .. sideText(m.opp)
+		prepVsLbl.Text = if m.momentum then "MOMENTUM" else "VS"
 		prepPreview(1, m.me.id, 0.02)
 		prepPreview(2, m.opp.id, 0.78)
 		prepEnd = os.clock() + m.seconds
