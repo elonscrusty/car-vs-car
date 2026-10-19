@@ -57,7 +57,7 @@ function GroupMatch.new(
 	local cfg = GameConfig
 	local soccerOn = mode == "soccer"
 	local tagOn = mode == "tag"
-	local flat = soccerOn or tagOn -- both play on the small flat field (SoccerArena)
+	local onField = soccerOn or tagOn -- both play on the small flat field (SoccerArena)
 	local origin = Vector3.new(slot * cfg.Arena.slotSpacing, cfg.Arena.baseY, 0)
 	local rng = Random.new()
 	local total = Modes.carCount(mode)
@@ -384,7 +384,7 @@ function GroupMatch.new(
 
 	-- Where a start spot sits: on the flat soccer field, or on the bowl surface.
 	local function spotPosition(spot: Modes.Spot, lift: number): Vector3
-		if flat then
+		if onField then
 			return SoccerArena.spotPosition(origin, spot.x, spot.z, lift)
 		end
 		return ModeFx.spotPosition(origin, spot.x, spot.z, lift)
@@ -859,7 +859,7 @@ function GroupMatch.new(
 				local human = isHuman(car.idx)
 				if human and clientDriven[car.idx] then
 					local cap = limitSpeed(car)
-					if not CarSanity.step(car, origin.Y, cap, dt) and not flat then
+					if not CarSanity.step(car, origin.Y, cap, dt) and not onField then
 						eliminate(car, "RING OUT!") -- kept breaking movement limits
 						if ending then
 							return
@@ -1124,7 +1124,7 @@ function GroupMatch.new(
 		end,
 	}
 
-	arena = if flat then SoccerArena.build(origin) else Arena.build(origin)
+	arena = if onField then SoccerArena.build(origin) else Arena.build(origin)
 	spawnCars()
 	begin()
 	return handle
