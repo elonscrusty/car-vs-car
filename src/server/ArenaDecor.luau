@@ -13,7 +13,7 @@ local LobbyDecor = require(script.Parent.LobbyDecor)
 
 local ArenaDecor = {}
 
-local TREES = { "Tree_Round", "Tree_Palm", "Tree_Pine" }
+local TREES = { "Tree_Round" }
 local ROCKS = { { "Rock_A", 6.6 }, { "Rock_B", 4.5 } }
 
 -- Plain props that a model replaces (parts of the same prop go together).
@@ -128,57 +128,7 @@ function ArenaDecor.build(model: Model, origin: Vector3)
 		end
 	end
 
-	-- A striped rim all round the bowl, sunk so only its top edge shows above the ground.
-	if has("BowlRimSegment") then
-		local r = look.curbInner + 1
-		local count = math.ceil(2 * math.pi * r / 14.6)
-		for i = 0, count - 1 do
-			put("BowlRimSegment", polar(i / count * 360, r, -2.6), 1)
-		end
-	end
-	-- Two grandstands and four flags by the road.
-	if has("Grandstand") then
-		for _, deg in { 60, 240 } do
-			put("Grandstand", polar(deg, look.roadOuter + 16, 0), 1)
-		end
-	end
-	if has("FlagPole_Checker") and has("FlagPole_Racing") then
-		for i, deg in { 0, 90, 180, 270 } do
-			put(
-				if i % 2 == 0 then "FlagPole_Racing" else "FlagPole_Checker",
-				polar(deg + 11, look.roadOuter + 2, 0),
-				1
-			)
-		end
-	end
-
-	-- A few big pieces round the bowl (batch 2). Each: model, angle, radius, height above ground.
-	-- Fronts look at the bowl. Few and far apart so the view stays clean.
-	local road = (look.roadInner + look.roadOuter) / 2
-	local EXTRA = {
-		{ "FinishArch", 180, road, 0 },
-		{ "Jumbotron", 150, 185, 0 },
-		{ "VIPTower", 75, 150, 0 },
-		{ "CameraCrane", 120, 150, 0 },
-		{ "FireworkLauncher", 52, 150, 0 },
-		{ "FireworkLauncher", 68, 150, 0 },
-		{ "PitWall", 135, look.roadInner + 3, 0 },
-		{ "PitWall", 315, look.roadInner + 3, 0 },
-		{ "ChevronBoard", 45, look.roadOuter + 2, 0 },
-		{ "ChevronBoard", 135, look.roadOuter + 2, 0 },
-		{ "ChevronBoard", 225, look.roadOuter + 2, 0 },
-		{ "ChevronBoard", 315, look.roadOuter + 2, 0 },
-		{ "FeatherFlag", 20, look.roadOuter + 3, 0 },
-		{ "FeatherFlag", 110, look.roadOuter + 3, 0 },
-		{ "FeatherFlag", 200, look.roadOuter + 3, 0 },
-		{ "FeatherFlag", 290, look.roadOuter + 3, 0 },
-		{ "WaterTower", 20, 300, 0 },
-	}
-	for _, e in EXTRA do
-		if has(e[1] :: string) then
-			put(e[1] :: string, polar(e[2] :: number, e[3] :: number, e[4] :: number), 1)
-		end
-	end
+	-- No grandstands, flags, finish arch, pit walls, boards or towers: the ring is a plain steel band.
 end
 
 return ArenaDecor

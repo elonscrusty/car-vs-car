@@ -124,33 +124,10 @@ function ArenaScenery.build(model: Model, origin: Vector3)
 		false
 	)
 	ring("Road", look.roadSegments, look.roadInner, look.roadOuter, ground, 3, ASPHALT, true)
-	ring(
-		"Curb",
-		16,
-		look.curbInner,
-		look.curbInner + 2,
-		ground,
-		8,
-		Color3.fromRGB(theme.rimA[1], theme.rimA[2], theme.rimA[3]),
-		true
-	)
+	ring("Curb", 16, look.curbInner, look.curbInner + 2, ground, 8, STEEL, true)
 	ring("Skirt", 16, look.curbInner + 2, look.roadInner, ground, 8, STEEL, true)
-	-- Yellow hazard stripes on the skirt (a few long ones, not one per segment).
-	local skirtMid = look.curbInner + 2 + (look.roadInner - look.curbInner - 2) / 2
-	for i = 0, 7 do
-		local a = (i + 0.5) / 8 * math.pi * 2
-		part(
-			"SkirtStripe",
-			Vector3.new(8, 0.2, (look.roadInner - look.curbInner - 2) * 0.8),
-			CFrame.new(
-				origin.X + skirtMid * math.sin(a),
-				ground + 0.1,
-				origin.Z - skirtMid * math.cos(a)
-			) * CFrame.Angles(0, -a, 0),
-			YELLOW,
-			false
-		)
-	end
+	-- One yellow line along the band.
+	ring("RimLine", 16, look.curbInner + 0.8, look.curbInner + 1.2, ground + 0.15, 8, YELLOW, false)
 
 	-- Hazard pads on the road: yellow plate with three black bars.
 	local padSize = Vector3.new(look.hazardPads.sizeX, 0.2, look.hazardPads.sizeZ)
