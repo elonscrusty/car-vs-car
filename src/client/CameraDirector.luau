@@ -29,8 +29,6 @@ function CameraDirector.new(): Director
 	local active = false
 	local target: BasePart? = nil
 	local goalFov = feel.normalFov
-	local viewCenter = Vector3.zero
-	local viewDir = Vector3.zAxis
 	local myCar: BasePart? = nil -- your own car, found once the fight starts (nil in the lobby)
 	local nextFind = 0
 	local soccerOn = false
@@ -280,7 +278,6 @@ function CameraDirector.new(): Director
 		-- Camera sits behind YOUR car so it is the near one, bottom of the screen.
 		local flat = if side then Vector3.new(side.X, 0, side.Z) else Vector3.zero
 		local dir = if flat.Magnitude > 0.01 then flat.Unit else Vector3.zAxis
-		viewCenter, viewDir = center, dir
 		myCar = nil
 		base = CFrame.lookAt(center + dir * 60 + Vector3.new(0, 72, 0), center)
 		local c = cam()
