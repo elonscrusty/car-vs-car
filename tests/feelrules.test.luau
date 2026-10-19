@@ -298,3 +298,17 @@ test("quality: holds a level for minHold seconds (no flapping)", function()
 	s.since = GameConfig.Feel.quality.minHold
 	eq(FeelRules.qualityStep(s, 1 / 60), 1)
 end)
+
+test("chase camera: angle easing goes the short way and never overshoots", function()
+	local a = FeelRules.approachAngle(3.0, -3.0, 1 / 60, 5) -- 3 -> -3 is a small step across +-pi
+	truthy(a > 3.0)
+	local b = FeelRules.approachAngle(0, 1, 10, 5)
+	truthy(b > 0.99 and b <= 1)
+end)
+
+test("chase camera: leans toward the ball, capped, nil ball = straight behind", function()
+	eq(FeelRules.chaseYaw(1, nil, 0.35, 0.6), 1)
+	near(FeelRules.chaseYaw(0, 1, 0.35, 0.6), 0.35)
+	near(FeelRules.chaseYaw(0, 3, 0.35, 0.6), 0.6)
+	near(FeelRules.chaseYaw(3, -3, 0.5, 0.6), 3 + 0.5 * (-6 + 2 * math.pi))
+end)

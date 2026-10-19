@@ -74,6 +74,16 @@ local GameConfig = {
 		calmFlashScale = 0.35, -- flash strength x this when calm
 		calmShakeScale = 0.3, -- camera shake and FOV punches x this when calm
 		maxFlashesPerSecond = 3, -- the hit flash never fires more often than this (shake still does)
+		-- Chase camera (every mode except the bowl): sits behind the car, turns with it
+		chaseBack = 30, -- studs behind the car
+		chaseUp = 50, -- studs above the car
+		chaseAhead = 18, -- look this far in front of the car
+		chaseSpeedBack = 0.12, -- extra studs back per stud/s of speed
+		chaseYawRate = 2.5, -- how fast the camera swings round after the car turns (per second)
+		chaseBallShare = 0.5, -- soccer: swing this share of the way toward the ball...
+		chaseBallMax = 0.6, -- ...but never more than this many radians (about 34 degrees)
+		chaseFollow = 10, -- how tightly the camera sticks to the spot behind the car (per second)
+		chaseSpeedFov = 12, -- FOV widens up to this much at top speed
 		-- Soccer camera (audit #15): the pure framing in FeelRules.soccerCamera
 		soccerCamBackMult = 1.35, -- camera sits this much further back than SoccerFieldConfig.camBack
 		soccerCamUpMult = 1.3, -- ...and this much higher than camUp
@@ -127,11 +137,17 @@ local GameConfig = {
 		groundFriction = 0.4, -- floor + car friction. Lower = slides more, keeps speed
 		slopeAssist = 1, -- 0..1: how much of the uphill gravity pull the gas cancels
 		grip = 24, -- side slide killing (higher = less drifting)
+		humanGrip = 22, -- ...the same for a player-driven car: grippy but lets the tail swing (carter wants drifty)
+		humanAccel = 1.4, -- player cars speed up this x faster than the car's accel number
+		brakeMult = 2.5, -- pressing the opposite way of travel brakes this x harder than normal gas
+		coastDrag = 2.2, -- no gas: forward speed fades at this share per second (stops, no ice-gliding)
+		turnMinShare = 0.55, -- turn rate at a standstill = this share of full (you can still aim)
+		turnFullSpeed = 22, -- ...and reaches full turn rate at this flat speed (studs/s)
 		groundRayExtra = 2.5, -- studs below car that still count as "on ground"
-		manualTurn = 2, -- human steering: full steer input = this x the car's turnRate
+		manualTurn = 2.4, -- human steering: full steer input = this x the car's turnRate
 		manualTurnMin = 4, -- ...but never slower than this (radians/sec) so heavy cars still turn
 		speedCapSlack = 1.5, -- server slows a player-driven car past (legit top speed x this)
-		manualTurnMax = 7, -- ...and never faster than this so light cars do not spin like tops
+		manualTurnMax = 7.5, -- ...and never faster than this so light cars do not spin like tops
 	},
 	-- Human steering input (the player turns, the server keeps the gas on)
 	Steer = {

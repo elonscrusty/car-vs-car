@@ -16,11 +16,11 @@ return {
 		cooldown = 2,
 	},
 	Drift = {
-		fullSteer = 0.9, -- steer input at least this counts as "full steer"
-		startSeconds = 0.4, -- full steer held this long starts the slide
-		minSpeed = 25, -- flat speed needed (studs/s)
-		lingerSeconds = 0.35, -- slide lasts this long after the steer is released
-		gripFactor = 0.15, -- side grip while sliding (1 = normal)
+		fullSteer = 0.8, -- steer input at least this counts as "full steer"
+		startSeconds = 0.25, -- full steer held this long starts the slide
+		minSpeed = 26, -- flat speed needed (studs/s)
+		lingerSeconds = 0.5, -- slide lasts this long after the steer is released
+		gripFactor = 0.22, -- side grip while sliding (1 = normal)
 		turnBonus = 1.3, -- turn rate multiplier while sliding
 	},
 	Remote = {
