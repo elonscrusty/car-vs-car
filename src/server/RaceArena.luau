@@ -148,18 +148,22 @@ function RaceArena.build(origin: Vector3): Arena.Arena
 		local a, b = RaceTrack.point(r.seg), RaceTrack.point(r.seg + 1)
 		local px, pz = a.x + (b.x - a.x) * r.t, a.z + (b.z - a.z) * r.t
 		local rdx, rdz = RaceTrack.direction(r.seg)
-		local wedge = Instance.new("WedgePart")
-		wedge.Name = "Ramp"
-		wedge.Anchored = true
-		wedge.Size = Vector3.new(r.width, r.height, r.length)
-		-- A wedge's slope rises toward its back (-Z); turn it so the high end faces away from the cars.
-		local pos = at(px, r.height / 2, pz)
-		wedge.CFrame = CFrame.lookAt(pos, pos - Vector3.new(rdx, 0, rdz))
-		wedge.Color = rgb(c.colors.ramp)
-		wedge.Material = Enum.Material.SmoothPlastic
-		wedge.TopSurface = Enum.SurfaceType.Smooth
-		wedge.BottomSurface = Enum.SurfaceType.Smooth
-		wedge.Parent = model
+		-- Two wedges back to back make a hill: up (high end ahead, verified in Studio), then down.
+		for half = 1, 2 do
+			local wedge = Instance.new("WedgePart")
+			wedge.Name = "Ramp"
+			wedge.Anchored = true
+			wedge.Size = Vector3.new(r.width, r.height, r.length)
+			local shift = (half - 1.5) * r.length -- half 1 sits before the middle, half 2 after it
+			local pos = at(px + rdx * shift, r.height / 2, pz + rdz * shift)
+			local face = if half == 1 then -1 else 1 -- the down slope is the up slope turned round
+			wedge.CFrame = CFrame.lookAt(pos, pos + Vector3.new(rdx, 0, rdz) * face)
+			wedge.Color = rgb(c.colors.ramp)
+			wedge.Material = Enum.Material.SmoothPlastic
+			wedge.TopSurface = Enum.SurfaceType.Smooth
+			wedge.BottomSurface = Enum.SurfaceType.Smooth
+			wedge.Parent = model
+		end
 	end
 
 	model.Parent = workspace

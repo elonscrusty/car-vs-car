@@ -31,6 +31,11 @@ test("ramps sit on real stretches", function()
 		truthy(r.seg >= 1 and r.seg <= RaceTrack.count())
 		truthy(r.t > 0 and r.t < 1)
 		truthy(r.width < Config.roadWidth)
+		local len = RaceTrack.segmentLength(r.seg)
+		local half = r.length -- the hill is two slopes of this length around the spot
+		truthy(r.t * len - half > Config.checkpointRadius, "hill clear of the gate before it")
+		truthy((1 - r.t) * len - half > Config.checkpointRadius, "hill clear of the gate after it")
+		truthy(r.height <= 4, "gentle: a slow car must not hang on it")
 	end
 end)
 

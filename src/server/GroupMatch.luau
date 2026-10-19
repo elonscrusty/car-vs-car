@@ -809,7 +809,9 @@ function GroupMatch.new(
 
 	local function respawnRacer(car: CarBuilder.Car)
 		local spot = RaceTrack.respawn(Race.lastPassed(race, car.idx), car.idx)
-		car.model:PivotTo(CFrame.new(spotPosition(spot, 4)) * CFrame.Angles(0, spot.yaw, 0))
+		-- Same lift as a fresh spawn (tall cars would sink into the ground at a lower one).
+		local lift = car.stats.size[2] / 2 + 1.5
+		car.model:PivotTo(CFrame.new(spotPosition(spot, lift)) * CFrame.Angles(0, spot.yaw, 0))
 		car.body.AssemblyLinearVelocity = Vector3.zero
 		car.body.AssemblyAngularVelocity = Vector3.zero
 		CarSanity.rebase(car) -- a legit move: do not count it as a teleport
