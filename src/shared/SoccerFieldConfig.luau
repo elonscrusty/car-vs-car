@@ -17,12 +17,12 @@ return {
 	-- Ball feel (audit #21): this is the LIVE ball (ModesConfig.Soccer.ball* only feeds the old bowl ball).
 	-- Tune density first (lower = flies more, higher = heavier), then elasticity, then max speed.
 	ballDiameter = 9,
-	ballDensity = 0.3, -- low = a hit moves it
+	ballDensity = 0.22, -- low = a hit moves it
 	ballFriction = 0.3,
 	ballElasticity = 0.7, -- bouncy off the walls
-	ballMaxSpeed = 100, -- the server never lets the ball go faster
+	ballMaxSpeed = 125, -- the server never lets the ball go faster
 	kickoffLift = 0.5, -- ball starts this far above the floor (drops onto it)
-	spawnX = 46, -- team start spots, studs from the middle along X
+	spawnX = 36, -- team start spots, studs from the middle along X
 	spawnSpreadZ = 18, -- studs between cars of the same team
 	lostMargin = 12, -- ball or car this far outside the field (or under the floor) is put back
 	stuckSpeed = 1.5, -- ball slower than this ...
@@ -34,15 +34,15 @@ return {
 	-- Boost pads (audit #20): glowing spots that make a car's boost ready again. Mirrored left/right
 	-- and top/bottom so neither team gets a better side. x along the field, z across it.
 	boostPads = {
-		{ x = -30, z = -22 },
-		{ x = -30, z = 22 },
-		{ x = 30, z = -22 },
-		{ x = 30, z = 22 },
+		{ x = -22, z = -26 },
+		{ x = -22, z = 26 },
+		{ x = 22, z = -26 },
+		{ x = 22, z = 26 },
 		{ x = 0, z = -26 },
 		{ x = 0, z = 26 },
 	},
 	boostPadRadius = 5, -- a car this close (flat) to a lit pad takes it
-	boostPadRespawn = 8, -- seconds until a taken pad is lit again
+	boostPadRespawn = 5, -- seconds until a taken pad is lit again
 	boostPadColor = { 80, 255, 160 },
 	stuckWarnSeconds = 2, -- the "ball stuck" warning shows this long before the reset
 	-- Goalkeeper bot (one bot per team): waits on its own goal line, follows the ball sideways
