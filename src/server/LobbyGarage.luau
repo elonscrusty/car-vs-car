@@ -91,6 +91,7 @@ function LobbyGarage.build(folder: Folder, origin: Vector3)
 		OilDrainCart = "Garage",
 		SteelBench = "Garage",
 	}
+	local ART = { "SteeringWheelArt", "PlateWall", "WallClock", "PlateWall" }
 	for i, b in L.bays do
 		local side = if b.face > 0 then -1 else 1
 		local yaw = if b.face > 0 then LEFT else RIGHT
@@ -101,6 +102,9 @@ function LobbyGarage.build(folder: Folder, origin: Vector3)
 		for _, dz in { -4, 4 } do
 			put("DiamondPlateTile", side * 56, 0.05, b.z + dz, 0)
 		end
+		-- Something on the wall above the big thing: a clock, a poster or a plate board.
+		local art = ART[(i - 1) % #ART + 1]
+		put(art, side * 62.3, 9, b.z - 13.5, yaw, nil, "More")
 	end
 	for _, side in { -1, 1 } do
 		for _, z in { 32, 4, -24 } do
@@ -110,6 +114,11 @@ function LobbyGarage.build(folder: Folder, origin: Vector3)
 		put("Lockers", side * 56, 0, -HL + 1.5, BACK)
 		put("ToolWallCabinet", side * 47, 0, -HL + 1.5, BACK)
 	end
+	-- A little workshop stuff in the back corners.
+	put("EngineStand", -42, 0, -HL + 5, BACK, nil, "Decor")
+	put("PalletCrates", -60, 0, -HL + 4, BACK, nil, "More")
+	put("WeldingCart", 42, 0, -HL + 5, BACK, nil, "More")
+	put("HydraulicPress", 60, 0, -HL + 4, BACK, nil, "More")
 
 	-- A workstation on the back wall of each garage.
 	for _, b in L.bays do
