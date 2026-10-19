@@ -104,6 +104,7 @@ return {
 			gapEvery = 12, -- a gap of 2 wall pieces at every 12th: you can fall through
 		},
 		winBonus = 60, -- BIG coins for the match winner, on top of the normal win reward (PLACEHOLDER)
+		placeCoins = { [2] = 30, [3] = 15 } :: { [number]: number }, -- 2nd and 3rd get coins too (PLACEHOLDER); KO'd cars drop no coins
 		bountyCoins = 40, -- knocking out the crown car pays this to the car that did it (PLACEHOLDER)
 		koCoins = 10, -- every knock-out pays a little (PLACEHOLDER)
 		creditSeconds = 5, -- a fall off the edge counts for whoever hit the car in the last N seconds
