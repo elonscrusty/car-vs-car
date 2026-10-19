@@ -37,6 +37,10 @@ local SoccerChaos = require(ReplicatedStorage.Shared.SoccerChaos)
 local SoccerOrbs = require(ReplicatedStorage.Shared.SoccerOrbs)
 local BrawlRules = require(ReplicatedStorage.Shared.BrawlRules)
 local CarSmash = require(script.Parent.CarSmash)
+local Buffs = require(script.Parent.Buffs)
+local Pickups = require(script.Parent.Pickups)
+local CombatConfig = require(ReplicatedStorage.Shared.CombatConfig)
+local Damage = require(ReplicatedStorage.Shared.Damage)
 local SoccerStats = require(ReplicatedStorage.Shared.SoccerStats)
 local Types = require(ReplicatedStorage.Shared.Types)
 
@@ -140,6 +144,14 @@ function GroupMatch.new(
 	local rayParams = RaycastParams.new()
 	rayParams.FilterType = Enum.RaycastFilterType.Exclude
 	local fightConn: RBXScriptConnection? = nil
+	-- The car fight: best of 3 rounds, shield items, walls that close in.
+	local roundNo = 1
+	local roundWins: { [number]: number } = {}
+	local pickups: Pickups.Handle? = nil
+	local wallParts: { { part: BasePart, dir: Vector3, y: number } } = {}
+	local safeRadius = brawlArena.rimRadius
+	local startNextRound: (() -> ())? = nil -- defined after begin()
+	local shrinkAt = 0
 
 	local function isHuman(i: number): boolean
 		return participants[i] ~= nil and not gone[i]
@@ -184,7 +196,12 @@ function GroupMatch.new(
 			c:Disconnect()
 		end
 		table.clear(touchConns)
+		if pickups then
+			pickups.destroy()
+			pickups = nil
+		end
 		for _, car in cars do
+			Buffs.clear(car)
 			car.model:Destroy()
 		end
 		table.clear(cars)
@@ -244,6 +261,9 @@ function GroupMatch.new(
 			if last.alive[i] and i ~= finalWinner then
 				place = 2 -- alive at time up but not the winner
 			end
+			if i == finalWinner then
+				place = 1 -- best of 3: the match winner may not have won the last round
+			end
 			r.place, r.placeOf = place, total
 			r.survivedSeconds = outAt[i] or fightElapsed
 			r.tags = tagsMade[i] or 0
@@ -298,7 +318,32 @@ function GroupMatch.new(
 		end)
 	end
 
-	local function finishLast(winner: number)
+	local function finishLast(roundWinner: number)
+		local winner = roundWinner
+		if brawlOn and roundWinner > 0 and not ending then
+			-- Best of 3: a round win is not the match yet.
+			roundWins[roundWinner] = (roundWins[roundWinner] or 0) + 1
+			local rc = ModesConfig.LastStanding.Rounds
+			winner =
+				BrawlRules.matchWinner(roundWins, roundNo, rc.winsNeeded, rc.maxRounds, roundWinner)
+			if winner == 0 then
+				phase = "roundBreak"
+				local who = nameOf(roundWinner)
+				sendAll(function()
+					return {
+						kind = "banner",
+						text = string.format("ROUND %d: %s WINS!", roundNo, who),
+						seconds = rc.breakSeconds - 0.5,
+					}
+				end)
+				task.delay(rc.breakSeconds, function()
+					if not destroyed and not ending and startNextRound then
+						startNextRound()
+					end
+				end)
+				return
+			end
+		end
 		finalWinner = winner
 		local pos = if winner > 0
 				and cars[winner]
@@ -401,8 +446,8 @@ function GroupMatch.new(
 				text = "YOU ARE OUT - watching. The round ends when everyone is out. Tap REMATCH or LOBBY!",
 			})
 		end
-		if currentArena then
-			CarSmash.blowUp(car, currentArena.model, rng)
+		if currentArena and text ~= "LEFT THE GAME" then
+			CarSmash.blowUp(car, currentArena.model, rng) -- a player who leaves just vanishes
 		end
 		car.model:Destroy()
 		local winner = Modes.lastWinner(last)
@@ -439,6 +484,19 @@ function GroupMatch.new(
 		)
 		if dmg <= 0 then
 			return
+		end
+		if brawlOn then
+			-- Side and back hits hurt more; a SHIELD soaks the whole hit.
+			local toAttacker = attacker.body.Position - defender.body.Position
+			local look = defender.body.CFrame.LookVector
+			local zone = Damage.zone(
+				Damage.cosFlat(look.X, look.Z, toAttacker.X, toAttacker.Z),
+				CombatConfig.Zones
+			)
+			dmg = Buffs.absorb(defender, dmg * Damage.zoneMult(zone, CombatConfig.Zones))
+			if dmg <= 0 then
+				return
+			end
 		end
 		local newHp, dead = Logic.applyDamage(defender.hp, dmg)
 		defender.hp = newHp
@@ -603,6 +661,7 @@ function GroupMatch.new(
 				else carStats.hp
 			car.hp = hp
 			maxHp[idx] = hp
+			car.model:SetAttribute("RoundWins", roundWins[idx] or 0)
 			car.bar.set(hp, hp)
 			if tagOn or raceOn then
 				car.bar.hide() -- nobody loses HP in tag or the race
@@ -1384,12 +1443,20 @@ function GroupMatch.new(
 			ball.Anchored = true
 			soccerHud()
 		end
+		if brawlOn and arena then
+			pickups = Pickups.start(arena, cars, rng, function(car, update)
+				if update.kind == "buff" and update.buff == "shield" then
+					car.model:SetAttribute("Shielded", (update.seconds or 0) > 0 or nil)
+				end
+				sendTo(car.idx, update)
+			end, ModesConfig.LastStanding.Items)
+		end
 		sendAll(function(i)
 			local ability = Specials.abilityOf(cars[i])
 			return {
 				kind = "fight",
 				auto = false,
-				round = 1,
+				round = roundNo,
 				ability = if ability then ability.name else nil,
 			}
 		end)
@@ -1553,13 +1620,39 @@ function GroupMatch.new(
 		end
 
 		-- Last car standing: ring-outs, then the clock.
+		if brawlOn then
+			-- Walls close in over time; items run out.
+			safeRadius = BrawlRules.safeRadius(
+				fightElapsed,
+				brawlArena.rimRadius,
+				ModesConfig.LastStanding.Shrink
+			)
+			if now - shrinkAt >= 0.2 then
+				shrinkAt = now
+				for _, w in wallParts do
+					w.part.CFrame = CFrame.new(
+						origin.X + w.dir.X * (safeRadius + 0.5),
+						w.y,
+						origin.Z + w.dir.Z * (safeRadius + 0.5)
+					) * w.part.CFrame.Rotation
+				end
+				if arena then
+					arena.model:SetAttribute("SafeRadius", safeRadius)
+				end
+			end
+			for _, car in cars do
+				if not car.dead then
+					Buffs.tick(car, dt)
+				end
+			end
+		end
 		for _, car in cars do
 			if not car.dead then
 				local x, z = flatOf(car)
 				if
 					Fight.isRingOut(
 						math.sqrt(x * x + z * z),
-						if brawlOn then brawlArena.rimRadius else cfg.Arena.rimRadius,
+						if brawlOn then safeRadius else cfg.Arena.rimRadius,
 						cfg.RingOut.margin
 					) or car.body.Position.Y < origin.Y - cfg.Match.outOfBoundsDrop
 				then
@@ -1628,7 +1721,7 @@ function GroupMatch.new(
 			local other = cars[if i == 1 then 2 else 1]
 			return {
 				kind = "ready",
-				round = 1,
+				round = roundNo,
 				yourCar = cars[i].id,
 				enemyCar = if other then other.id else cars[i].id,
 				enemyName = if soccerOn
@@ -1652,6 +1745,32 @@ function GroupMatch.new(
 				startFight()
 			end
 		end)
+	end
+
+	startNextRound = function()
+		if destroyed or ending then
+			return
+		end
+		roundNo += 1
+		clearOutFlags()
+		last = Modes.lastNew(total)
+		table.clear(outAt)
+		table.clear(lastHitAt)
+		fightElapsed = 0
+		safeRadius = brawlArena.rimRadius
+		for _, w in wallParts do
+			w.part.CFrame = CFrame.new(
+				origin.X + w.dir.X * (safeRadius + 0.5),
+				w.y,
+				origin.Z + w.dir.Z * (safeRadius + 0.5)
+			) * w.part.CFrame.Rotation
+		end
+		spawnCars() -- every car is fully fixed again
+		phase = "ready"
+		if arena then
+			arena.model:SetAttribute("Round", roundNo)
+		end
+		begin()
 	end
 
 	local handle: Match.Handle = {
@@ -1777,6 +1896,18 @@ function GroupMatch.new(
 		else Arena.build(origin, if brawlOn then brawlArena else nil)
 	if arena then
 		arena.model:SetAttribute("GameMode", mode) -- Specials reads it: ability meaning per mode
+		arena.model:SetAttribute("Round", roundNo)
+		if brawlOn then
+			-- The walls the shrink pushes in (low lip round the floor edge).
+			for _, w in arena.model:GetChildren() do
+				if w:IsA("BasePart") and w.Name == "Wall" then
+					local d = Vector3.new(w.Position.X - origin.X, 0, w.Position.Z - origin.Z)
+					if d.Magnitude > 1 then
+						table.insert(wallParts, { part = w, dir = d.Unit, y = w.Position.Y })
+					end
+				end
+			end
+		end
 	end
 	spawnCars()
 	begin()

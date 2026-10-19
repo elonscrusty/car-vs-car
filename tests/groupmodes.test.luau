@@ -466,3 +466,39 @@ test(
 		eq(table.concat(ModesConfig.Order, ","), "lastStanding")
 	end
 )
+
+test("fight: walls hold, then close in to the minimum", function()
+	local sh = ModesConfig.LastStanding.Shrink
+	local full = ModesConfig.LastStanding.Arena.rimRadius
+	eq(BrawlRules.safeRadius(0, full, sh), full)
+	eq(BrawlRules.safeRadius(sh.startSeconds, full, sh), full)
+	local mid = BrawlRules.safeRadius((sh.startSeconds + sh.endSeconds) / 2, full, sh)
+	truthy(mid < full and mid > sh.minRadius)
+	eq(BrawlRules.safeRadius(sh.endSeconds, full, sh), sh.minRadius)
+	eq(BrawlRules.safeRadius(9999, full, sh), sh.minRadius)
+	truthy(sh.minRadius > 20 and sh.endSeconds < ModesConfig.LastStanding.maxSeconds)
+end)
+
+test(
+	"fight: best of 3, first to 2; after 3 rounds most wins, a tie goes to the last winner",
+	function()
+		local rc = ModesConfig.LastStanding.Rounds
+		eq(BrawlRules.matchWinner({ [2] = 1 }, 1, rc.winsNeeded, rc.maxRounds, 2), 0)
+		eq(BrawlRules.matchWinner({ [2] = 2 }, 2, rc.winsNeeded, rc.maxRounds, 2), 2)
+		eq(BrawlRules.matchWinner({ [1] = 1, [3] = 1 }, 2, rc.winsNeeded, rc.maxRounds, 3), 0)
+		eq(
+			BrawlRules.matchWinner({ [1] = 1, [3] = 1, [4] = 1 }, 3, rc.winsNeeded, rc.maxRounds, 4),
+			4
+		)
+		eq(BrawlRules.matchWinner({ [1] = 1, [3] = 1, [4] = 0 }, 3, 2, 3, 3), 3)
+		eq(BrawlRules.matchWinner({}, 3, 2, 3, 1), 1)
+	end
+)
+
+test("fight: the shield is the only item and it is a real pickup kind", function()
+	local items = ModesConfig.LastStanding.Items
+	eq(#items.kinds, 1)
+	eq(items.kinds[1], "shield")
+	truthy(items.ringMax < ModesConfig.LastStanding.Arena.rimRadius)
+	truthy(items.ringMax >= items.ringMin)
+end)

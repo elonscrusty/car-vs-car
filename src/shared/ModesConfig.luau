@@ -77,7 +77,7 @@ return {
 		cars = 4, -- cars in the match (humans first, bots fill the rest)
 		maxSeconds = 150, -- time up: most HP among the cars still alive wins
 		spawnRadius = 48, -- start ring, studs from the middle
-		hpScale = 0.8, -- every car has this share of its normal HP (quicker knock-outs)
+		hpScale = 1.2, -- share of the car's normal HP: ~6-8 front hits at a normal crash speed (carter: medium health)
 		hudSeconds = 1,
 		-- Flat fight floor with ramps and blocks (overrides GameConfig.Arena for this mode).
 		-- Ramps climb toward -Z at yaw 0. Mirrored round the middle so no spot is luckier.
@@ -96,6 +96,19 @@ return {
 				{ kind = "pillar", x = -22, z = 24, sx = 6, sy = 9 },
 				{ kind = "pillar", x = 22, z = -24, sx = 6, sy = 9 },
 			},
+		},
+		-- Best of 3: first to 2 round wins; after 3 rounds the most wins takes it.
+		Rounds = { winsNeeded = 2, maxRounds = 3, breakSeconds = 3.5 },
+		-- The walls close in (BrawlRules.safeRadius); a car outside the safe radius is out.
+		Shrink = { startSeconds = 40, endSeconds = 110, minRadius = 36 },
+		-- ONE item for now: a SHIELD that blocks the next hit (Pickups with this override).
+		Items = {
+			kinds = { "shield" },
+			ringMin = 12,
+			ringMax = 50,
+			firstSpawnSeconds = 8,
+			spawnEverySeconds = 14,
+			maxOnFloor = 2,
 		},
 		-- Big hits (BrawlRules): the car that got hit is LAUNCHED and bits fly off it.
 		Hit = {
