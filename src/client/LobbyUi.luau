@@ -225,7 +225,7 @@ function LobbyUi.new(hooks: Hooks): Handle
 	local hud = frame(gui, UDim2.fromScale(0.2, 0.1), UDim2.fromOffset(176, 8), PANEL) -- top left, right of the Roblox buttons: nothing covers the signs
 	hud.BackgroundTransparency = 0.2
 	corner(hud, 0.25)
-	stroke(hud, GOLD, 2)
+	stroke(hud, WHITE, 2) -- same outline as the buttons
 	local hudSize = Instance.new("UISizeConstraint")
 	hudSize.MinSize = Vector2.new(130, 52)
 	hudSize.MaxSize = Vector2.new(240, 80)
