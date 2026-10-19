@@ -166,7 +166,7 @@ local function renderCars(root, state, ctx)
 	end, equipped and T.C.green or T.C.blue, equipped and "check" or "car")
 	T.disable(button, not available(state, ctx) or equipped)
 	filters(root, state, ctx, { "ALL", "OWNED", "LOCKED" }, 530, 108, 640)
-	local list = T.scroll(root, "Collection", 527, 169, 650, 398)
+	local list = T.scroll(root, "Collection", 527, 169, 650, 392)
 	local count, totalOwned = 0, 0
 	for _, car in displayVehicles({ "Sedan", "Muscle", "SuperCar", "MonsterTruck", "Formula" }) do
 		if owned(state, car.Id) then
@@ -195,9 +195,9 @@ local function renderCars(root, state, ctx)
 		"CollectionCount",
 		totalOwned .. " / " .. #Config.Vehicles .. " COLLECTED",
 		883,
-		570,
+		562,
 		285,
-		24,
+		32,
 		20,
 		T.C.silver,
 		"Right"
@@ -232,11 +232,11 @@ local function renderPicker(root, state, ctx)
 				402,
 				chosen and T.C.cyan or accent(vehicle)
 			)
-			T.text(card, "Slot", "0" .. index, 16, 12, 85, 53, 42, T.C.muted)
+			T.text(card, "Slot", "0" .. index, 24, 14, 85, 53, 42, T.C.muted)
 			T.vehicle(card, "CarArt", vehicle, 3, 10, 320, 268)
 			T.frame(card, "InfoRail", 8, 263, 310, 128, T.C.navy, 9)
 			T.text(card, "Name", vehicle.Name, 14, 266, 298, 40, 31, T.C.white, "Center")
-			T.rarity(card, vehicle, 72, 310, 182, 29)
+			T.rarity(card, vehicle, 72, 306, 182, 36)
 			ability(card, vehicle, 15, 345, 296, 48)
 			if chosen then
 				T.frame(card, "SelectedBadge", 267, 12, 46, 46, T.C.green, 23)
@@ -274,7 +274,7 @@ local function shopCard(parent, vehicle, state, ctx, x)
 	T.vehicle(card, "CarArt", vehicle, 2, 6, 206, 190)
 	T.frame(card, "Details", 6, 189, 198, 157, T.C.navy, 9)
 	T.text(card, "Name", vehicle.Name, 12, 191, 186, 33, 25, T.C.white)
-	T.rarity(card, vehicle, 12, 224, 92, 29)
+	T.rarity(card, vehicle, 12, 224, 92, 32)
 	T.icon(card, "AbilityIcon", vehicle.Ability, 108, 226, 26, T.C.gold)
 	local abilityName =
 		T.text(card, "Ability", string.upper(vehicle.Ability), 136, 226, 66, 26, 20, T.C.white)
@@ -424,18 +424,6 @@ local function renderShop(root, state, ctx)
 	T.button(tile, "ViewOdds", "VIEW ODDS", 11, 307, 217, 48, function()
 		ctx.navigate("CLAW")
 	end, T.C.blue, "claw")
-	T.text(
-		root,
-		"ScrollHint",
-		"SWIPE TO EXPLORE ALL " .. #Config.Vehicles .. " CARS",
-		34,
-		557,
-		865,
-		25,
-		15,
-		T.C.muted,
-		"Center"
-	)
 	T.nav(root, "SHOP", ctx)
 end
 
@@ -481,19 +469,19 @@ local function renderClaw(root, state, ctx)
 			"PerCar",
 			tostring(entry.PerCar) .. "%",
 			432,
-			7,
+			0,
 			99,
-			27,
-			23,
+			32,
+			24,
 			T.C.white,
 			"Center"
 		)
-		T.text(row, "PerCarLabel", "PER CAR", 432, 34, 99, 17, 14, T.C.silver, "Center")
+		T.text(row, "PerCarLabel", "PER CAR", 432, 27, 99, 32, 18, T.C.silver, "Center")
 	end
 	local note = T.panel(panel, "DuplicateRefund", 15, 337, 543, 57, T.C.blue)
 	T.icon(note, "RefundIcon", "coin", 13, 10, 36, T.C.gold)
-	T.text(note, "Owned", "OWNED CAR?", 61, 4, 469, 25, 22, T.C.white)
-	T.text(note, "Refund", Config.RefundText .. " COINS BACK", 61, 28, 469, 23, 21, T.C.gold)
+	T.text(note, "Owned", "OWNED CAR?", 61, 0, 469, 32, 24, T.C.white)
+	T.text(note, "Refund", Config.RefundText .. " COINS BACK", 61, 25, 469, 32, 24, T.C.gold)
 	local cost = state.clawPrice or Config.ClawPrice
 	local affordable = (state.coins or 0) >= cost
 	local label = loading(state)

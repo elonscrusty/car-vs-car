@@ -179,15 +179,6 @@ local function gift(root, state, ctx)
 	end
 end
 
-local function representative(rarity)
-	for _, vehicle in Config.Vehicles do
-		if string.upper(vehicle.Rarity) == string.upper(rarity) then
-			return vehicle
-		end
-	end
-	return Config.Vehicles[1]
-end
-
 local function confirmation(root, state, ctx)
 	local confirm = state.confirm or {}
 	if confirm.action == "LeaveMatch" then
@@ -298,10 +289,10 @@ local function confirmation(root, state, ctx)
 				"Rarity",
 				string.upper(odd.Rarity),
 				4,
-				3,
+				0,
 				width - 8,
-				24,
-				16,
+				32,
+				22,
 				rarityColor,
 				"Center"
 			)
@@ -310,9 +301,9 @@ local function confirmation(root, state, ctx)
 				"Chance",
 				tostring(odd.Chance) .. "%",
 				4,
-				28,
+				32,
 				width - 8,
-				30,
+				32,
 				27,
 				T.C.white,
 				"Center"
@@ -322,14 +313,13 @@ local function confirmation(root, state, ctx)
 				"PerCar",
 				tostring(odd.PerCar) .. "% EACH",
 				4,
-				61,
+				70,
 				width - 8,
-				18,
-				12,
+				32,
+				20,
 				T.C.muted,
 				"Center"
 			)
-			T.vehicle(cell, "ExampleCar", representative(odd.Rarity), 17, 75, width - 34, 43)
 		end
 		T.text(
 			panel,
@@ -386,7 +376,7 @@ local function reveal(root, state, ctx)
 		T.vehicle(panel, "RevealedCar", vehicle, 38, 27, 578, 235)
 		local strip = T.panel(panel, "RevealDetails", 14, 265, 626, 70, accent)
 		T.text(strip, "VehicleName", vehicle.Name, 17, 3, 385, 39, 31, T.C.white)
-		T.rarity(strip, vehicle, 19, 43, 256, 28)
+		T.rarity(strip, vehicle, 19, 40, 300, 32)
 		T.icon(strip, "AbilityIcon", vehicle.Ability, 432, 12, 44, accent)
 		T.text(strip, "Ability", string.upper(vehicle.Ability), 485, 16, 130, 35, 21, T.C.white)
 	else
