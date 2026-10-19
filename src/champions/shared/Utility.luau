@@ -443,16 +443,9 @@ end
 
 local function settings(root, state, ctx)
 	title(root, "SETTINGS", "MAKE THE GARAGE YOURS")
-	local panel = T.panel(root, "SettingsPanel", 229, 201, 742, 360, T.C.silver)
+	local panel = T.panel(root, "SettingsPanel", 229, 201, 742, 250, T.C.silver)
 	local values = state.settings or {}
 	local entries = {
-		{
-			key = "music",
-			title = "MUSIC",
-			description = "Garage and match music",
-			icon = "flag",
-			default = true,
-		},
 		{
 			key = "sfx",
 			title = "SOUND EFFECTS",
@@ -463,7 +456,7 @@ local function settings(root, state, ctx)
 		{
 			key = "reducedMotion",
 			title = "REDUCED MOTION",
-			description = "Reduce menu movement and flashes",
+			description = "Calmer menus",
 			icon = "Shield",
 			default = false,
 		},
@@ -491,7 +484,7 @@ local function settings(root, state, ctx)
 			true,
 			function()
 				local updated = {
-					music = values.music ~= false,
+					music = false,
 					sfx = values.sfx ~= false,
 					reducedMotion = values.reducedMotion == true,
 				}
@@ -505,9 +498,9 @@ local function settings(root, state, ctx)
 	T.text(
 		panel,
 		"SettingsStatus",
-		state.pending == "SaveSettings" and "SAVING…" or "PREFERENCES SAVE TO YOUR PROFILE",
+		state.pending == "SaveSettings" and "SAVING…" or "",
 		18,
-		333,
+		220,
 		706,
 		22,
 		14,

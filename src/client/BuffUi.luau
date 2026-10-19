@@ -20,13 +20,13 @@ function BuffUi.new(): BuffUi
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "BuffUi"
 	gui.ResetOnSpawn = false
-	gui.IgnoreGuiInset = true
+	gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 
 	local row = Instance.new("Frame")
 	row.BackgroundTransparency = 1
 	row.AnchorPoint = Vector2.new(0.5, 0)
-	row.Position = UDim2.new(0.5, 0, 0, 214) -- under the scoreboard and the mode line
+	row.Position = UDim2.new(0.5, 0, 0, 148) -- under the scoreboard and the mode line
 	row.Size = UDim2.fromOffset(0, 64)
 	row.AutomaticSize = Enum.AutomaticSize.X
 	row.Parent = gui

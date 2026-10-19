@@ -233,6 +233,7 @@ function Adapter.new(opts: Options): Model
 			match = {
 				mode = "DUEL",
 				phase = "READY",
+				timer = opts.maxSeconds, -- shows the full round time until the fight starts
 				round = round,
 				youScore = wins,
 				carsLeft = opts.cars,

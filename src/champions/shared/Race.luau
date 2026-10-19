@@ -185,7 +185,7 @@ local function lobby(parent, state, ctx)
 			T.C.white,
 			"Center"
 		)
-		T.button(root, "Settings", "SETTINGS", 12, h - 62, 100, 48, function()
+		T.button(root, "Settings", "SETTINGS", 12, h - 62, 124, 48, function()
 			ctx.navigate("SETTINGS")
 		end, T.C.navy)
 	end)
@@ -197,7 +197,7 @@ local function matchView(parent, state, ctx)
 	local vehicle = T.find(state.equipped) or Config.Vehicles[1]
 	return responsive(parent, "Match", function(root, w, h)
 		local small = w < 760
-		local leaveW = if small then 78 else 118
+		local leaveW = if small then 92 else 118
 		T.button(root, "LeaveMatch", "LOBBY", 12, 12, leaveW, 48, function()
 			ctx.confirm(
 				"LeaveMatch",
@@ -206,7 +206,7 @@ local function matchView(parent, state, ctx)
 				"Leave the current match and return to the garage."
 			)
 		end, T.C.navy)
-		T.button(root, "Settings", "...", w - 60, 12, 48, 48, function()
+		T.button(root, "Settings", "MENU", w - leaveW - 12, 12, leaveW, 48, function()
 			ctx.navigate("SETTINGS")
 		end, T.C.navy)
 		local scoreW = math.min(if small then 350 else 480, w - 2 * (leaveW + 24))
