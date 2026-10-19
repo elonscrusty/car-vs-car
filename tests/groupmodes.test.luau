@@ -9,6 +9,7 @@ local RaceTrack = require("../src/shared/RaceTrack")
 local RaceConfig = require("../src/shared/RaceTrackConfig")
 local SoccerBoost = require("../src/shared/SoccerBoost")
 local SoccerChaos = require("../src/shared/SoccerChaos")
+local SoccerOrbs = require("../src/shared/SoccerOrbs")
 local SoccerField = require("../src/shared/SoccerField")
 local SoccerFieldConfig = require("../src/shared/SoccerFieldConfig")
 local SoccerStats = require("../src/shared/SoccerStats")
@@ -399,3 +400,32 @@ test("soccer chaos: first event comes before the match is half over", function()
 	truthy(cfg.firstSeconds < ModesConfig.Soccer.maxSeconds / 4)
 	truthy(cfg.blastSpeed > 0)
 end)
+
+test(
+	"super kick orbs: mirrored, on the field, taken once, come back, kick away from the car",
+	function()
+		local cfg = ModesConfig.Soccer.Orbs
+		local hx, hz = SoccerField.halfLength(), SoccerField.halfWidth()
+		for _, sp in cfg.spots do
+			truthy(math.abs(sp.x) < hx - 20 and math.abs(sp.z) < hz - 8)
+			local mirrored = false
+			for _, o in cfg.spots do
+				if o.x == -sp.x and o.z == -sp.z then
+					mirrored = true
+				end
+			end
+			truthy(mirrored, "orb has a mirror twin")
+		end
+		local s = SoccerOrbs.new(cfg)
+		local sp = cfg.spots[1]
+		eq(SoccerOrbs.take(s, cfg, sp.x, sp.z, 1), 1)
+		eq(SoccerOrbs.take(s, cfg, sp.x, sp.z, 2), 0)
+		eq(SoccerOrbs.take(s, cfg, sp.x, sp.z, 1 + cfg.respawn + 0.1), 1)
+		local vx, vy, vz = SoccerOrbs.kick(cfg, 3, 4)
+		near(vx, 0.6 * cfg.kickSpeed, 1e-6)
+		near(vz, 0.8 * cfg.kickSpeed, 1e-6)
+		eq(vy, cfg.kickLift)
+		local ux = SoccerOrbs.kick(cfg, 0, 0)
+		eq(ux, cfg.kickSpeed)
+	end
+)

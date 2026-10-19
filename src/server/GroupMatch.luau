@@ -34,6 +34,7 @@ local SoccerBotConfig = require(ReplicatedStorage.Shared.SoccerBotConfig)
 local SoccerFieldFlow = require(ReplicatedStorage.Shared.SoccerFieldFlow)
 local SoccerBoost = require(ReplicatedStorage.Shared.SoccerBoost)
 local SoccerChaos = require(ReplicatedStorage.Shared.SoccerChaos)
+local SoccerOrbs = require(ReplicatedStorage.Shared.SoccerOrbs)
 local SoccerStats = require(ReplicatedStorage.Shared.SoccerStats)
 local Types = require(ReplicatedStorage.Shared.Types)
 
@@ -114,6 +115,9 @@ function GroupMatch.new(
 	local pads = SoccerBoost.new()
 	local chaos = SoccerChaos.new(ModesConfig.Soccer.Chaos)
 	local chaosRng = Random.new()
+	local orbs = SoccerOrbs.new(ModesConfig.Soccer.Orbs)
+	local orbParts: { BasePart } = {}
+	local kickUntil: { [number]: number } = {} -- car idx -> when its SUPER KICK runs out
 	local markUntil: number? = nil -- soccer: when the KickoffMark attribute goes off (math.huge = until play)
 	local ball: Part? = nil
 	local ballIdle = 0 -- seconds the ball has hardly moved (stuck check)
@@ -718,6 +722,49 @@ function GroupMatch.new(
 		end
 	end
 
+	-- SUPER KICK orbs: glowing balls on the floor; drive over one, your next touch shoots the ball.
+	local function stepOrbs(now: number)
+		local model = if arena then arena.model else nil
+		local oc = ModesConfig.Soccer.Orbs
+		if model and #orbParts == 0 then
+			for i, spot in oc.spots do
+				local o = Instance.new("Part")
+				o.Name = "KickOrb" .. i
+				o.Shape = Enum.PartType.Ball
+				o.Size = Vector3.one * 4
+				o.Color = Color3.fromRGB(oc.color[1], oc.color[2], oc.color[3])
+				o.Material = Enum.Material.Neon
+				o.Anchored = true
+				o.CanCollide = false
+				o.CanQuery = false
+				o.Position = origin + Vector3.new(spot.x, 3.5, spot.z)
+				o.Parent = model
+				orbParts[i] = o
+			end
+		end
+		for _, car in cars do
+			if not car.dead then
+				local x, z = flatOf(car)
+				if SoccerOrbs.take(orbs, oc, x, z, now) ~= 0 then
+					kickUntil[car.idx] = now + oc.holdSeconds
+					car.model:SetAttribute("SuperKick", true)
+					if isHuman(car.idx) then
+						banner("SUPER KICK! HIT THE BALL!", 1.5)
+					end
+				end
+			end
+		end
+		for i, o in orbParts do
+			o.Transparency = if SoccerOrbs.lit(orbs, i, now) then 0.1 else 0.9
+		end
+		for idx, untilAt in kickUntil do
+			if now >= untilAt then
+				kickUntil[idx] = nil
+				cars[idx].model:SetAttribute("SuperKick", nil)
+			end
+		end
+	end
+
 	local function stepSoccer(now: number, dt: number)
 		local b = ball
 		if b == nil or phase ~= "fight" then
@@ -814,6 +861,12 @@ function GroupMatch.new(
 					)
 				then
 					SoccerStats.touch(stats, car.idx, now, cfgS.touchCooldown)
+					if kickUntil[car.idx] then
+						kickUntil[car.idx] = nil
+						car.model:SetAttribute("SuperKick", nil)
+						local kx, ky, kz = SoccerOrbs.kick(cfgS.Orbs, -off.X, -off.Z)
+						b.AssemblyLinearVelocity = Vector3.new(kx, ky, kz)
+					end
 				end
 				local cv = car.body.AssemblyLinearVelocity
 				SoccerStats.idleStep(
@@ -826,6 +879,7 @@ function GroupMatch.new(
 			end
 		end
 		stepPads(now)
+		stepOrbs(now)
 		local mu = markUntil
 		if mu ~= nil and now >= mu then
 			markUntil = nil

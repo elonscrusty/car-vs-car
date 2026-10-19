@@ -129,6 +129,16 @@ return {
 			blastSpeed = 85, -- flat ball speed after a blast (SoccerFieldConfig.ballMaxSpeed still caps it)
 			blastLift = 22, -- upward speed so the ball hops
 		},
+		-- SUPER KICK orbs: drive over one, your next touch on the ball shoots it away. Mirrored spots.
+		Orbs = {
+			spots = { { x = 0, z = -14 }, { x = 0, z = 14 }, { x = -40, z = 0 }, { x = 40, z = 0 } },
+			radius = 5,
+			respawn = 10, -- seconds until a taken orb is lit again
+			holdSeconds = 8, -- the kick is lost if the ball is not touched this long
+			kickSpeed = 110, -- flat ball speed (SoccerFieldConfig.ballMaxSpeed still caps it)
+			kickLift = 6,
+			color = { 255, 200, 40 },
+		},
 		colors = { { 70, 150, 255 }, { 255, 90, 70 } }, -- team 1 blue, team 2 red
 	},
 }
