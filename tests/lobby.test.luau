@@ -68,7 +68,7 @@ H.test("second pull needs coins", function()
 	H.eq(reason, "coins")
 	H.eq(pcall(Gacha.pull, p, fixed(0.5)), false)
 	H.eq(p.coins, 0)
-	p.coins = 100
+	p.coins = LobbyConfig.Gacha.price
 	ok = Gacha.canBuy(p)
 	H.eq(ok, true)
 end)

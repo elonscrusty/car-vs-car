@@ -6,7 +6,7 @@ local LobbyText = {}
 -- Text keys the server sends instead of words (the client shows the text for a key).
 -- claw = a random car, store = the car you pick.
 LobbyText.Keys = {
-	clawSurprise = "SURPRISE CAR",
+	clawSurprise = "SPIN BOX",
 	storeChoose = "CHOOSE YOUR CAR",
 } :: { [string]: string }
 

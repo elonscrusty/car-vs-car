@@ -134,13 +134,13 @@ test("the claw can give any car and a duplicate pays coins", function()
 	end
 	local p = Inventory.default()
 	p.freePullUsed = true
-	p.coins = 100
+	p.coins = LobbyConfig.Gacha.price
 	local r = Gacha.pull(p, function()
 		return 0
 	end)
 	eq(r.carId, "Sedan")
 	eq(r.isNew, false)
-	eq(p.coins, 100 - LobbyConfig.Gacha.price + LobbyConfig.Gacha.duplicateRefunds.Common)
+	eq(p.coins, LobbyConfig.Gacha.duplicateRefunds.Common)
 end)
 
 test("every car has a store price, Legendary the highest", function()
