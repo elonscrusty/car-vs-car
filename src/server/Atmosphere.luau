@@ -46,7 +46,7 @@ function Atmosphere.apply()
 	Lighting.EnvironmentSpecularScale = 0.4
 	Lighting.ExposureCompensation = 0
 	Lighting.GlobalShadows = true
-	Lighting.ShadowSoftness = 0.35
+	Lighting.ShadowSoftness = 0.5
 
 	local haze: Atmosphere = effect("Atmosphere", "GameAtmosphere")
 	haze.Density = 0.22
@@ -57,9 +57,9 @@ function Atmosphere.apply()
 	haze.Haze = 0.8
 
 	local bloom: BloomEffect = effect("BloomEffect", "GameBloom")
-	bloom.Intensity = 0.02
-	bloom.Size = 12
-	bloom.Threshold = 2
+	bloom.Intensity = 0.3 -- only the bright yellow lamps and neon pass the high threshold
+	bloom.Size = 14
+	bloom.Threshold = 1.7
 
 	local grade: ColorCorrectionEffect = effect("ColorCorrectionEffect", "GameGrade")
 	grade.Saturation = -0.08

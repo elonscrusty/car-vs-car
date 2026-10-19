@@ -182,14 +182,70 @@ function LobbyShell.build(folder: Folder, origin: Vector3)
 	end
 
 	-- The big sign on the back wall, the stage, the pads and the way in.
-	put("BigSign_CarVsCar", 0, 23, -HL + 3.2, BACK)
+	LobbyDecor.plate(
+		shellGroup,
+		"CAR VS CAR",
+		Vector3.new(46, 10, 0.8),
+		CFrame.lookAt(origin + Vector3.new(0, 24, -HL + 2.6), origin + Vector3.new(0, 24, 0))
+	)
 	put("TruckStage", L.showcase.x, 0, L.showcase.z, 0)
 	-- (No JoinPad models: Lobby.luau draws plain steel pads with one yellow line.)
 	put("SpawnPad", L.spawn.x, 0, L.spawn.z, 0)
-	for _, sx in { -1, 1 } do
-		for _, z in { 69, 53, 37, 21, 5, -11 } do
-			put("LaneTrim", sx * (L.lane.halfWidth + 0.5), 0, z, math.pi / 2)
-		end
+
+	-- One dashed centre stripe from the spawn to the stage (no double lane lines).
+	local function mark(
+		name: string,
+		size: Vector3,
+		x: number,
+		z: number,
+		yaw: number,
+		color: Color3,
+		alpha: number
+	)
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Size = size
+		p.CFrame = CFrame.new(origin + Vector3.new(x, 0.05, z)) * CFrame.Angles(0, yaw, 0)
+		p.Color = color
+		p.Transparency = alpha
+		p.Material = Enum.Material.SmoothPlastic
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = false
+		p.Parent = shellGroup
+		return p
+	end
+	local white = Color3.fromRGB(240, 240, 245)
+	for z = 64, -14, -9 do
+		mark("CenterStripe", Vector3.new(0.7, 0.04, 5), 0, z, 0, white, 0)
+	end
+
+	-- A few faint oil spots and tire marks near the pads (10% opacity), so the floor is not blank.
+	local dark = Color3.fromRGB(14, 14, 18)
+	for _, d in
+		{
+			{ -16, 6, 5, 4, 0.4 },
+			{ 18, 30, 4, 3, 1.1 },
+			{ -14, 36, 6, 4, 2.0 },
+			{ 15, -14, 5, 5, 0.2 },
+			{ -8, 52, 4, 3, 0.9 },
+		}
+	do
+		local spot = mark("OilSpot", Vector3.new(0.03, d[3], d[4]), d[1], d[2], d[5], dark, 0.9)
+		spot.Shape = Enum.PartType.Cylinder
+		spot.CFrame = spot.CFrame * CFrame.Angles(0, 0, math.pi / 2)
+	end
+	for _, d in
+		{
+			{ -20, 14, 22, 0.3 },
+			{ 21, 8, 26, -0.2 },
+			{ -12, 44, 20, 0.15 },
+		}
+	do
+		mark("TireMark", Vector3.new(0.9, 0.03, d[3]), d[1], d[2], d[4], dark, 0.9)
+		mark("TireMark", Vector3.new(0.9, 0.03, d[3]), d[1] + 3.2, d[2], d[4], dark, 0.9)
 	end
 end
 

@@ -166,17 +166,17 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 			end
 		end
 
-		-- Name sign on the back wall, facing the hall.
+		-- Name board above the middle of the open front, same height on every garage, facing the hall.
 		local sign = Instance.new("Part")
 		sign.Name = "BaySign"
-		sign.Size = Vector3.new(14, 3.6, 0.5)
+		sign.Size = Vector3.new(12, 3, 0.5)
 		local signPos = Vector3.new(
-			origin.X + spot.x - spot.face * (LobbyLayout.bay.w / 2 - 1),
-			origin.Y + 7.2,
+			origin.X + spot.x + spot.face * (LobbyLayout.bay.w / 2 + 0.4),
+			origin.Y + 14,
 			origin.Z + spot.z
 		)
 		sign.CFrame = CFrame.lookAt(signPos, signPos + Vector3.xAxis * spot.face)
-		sign.Color = Color3.fromRGB(14, 12, 24)
+		sign.Color = Color3.fromRGB(22, 36, 66)
 		sign.Material = Enum.Material.SmoothPlastic
 		sign.Anchored = true
 		sign.CanCollide = false
@@ -196,35 +196,42 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		lbl.TextColor3 = Color3.fromRGB(110, 120, 140)
 		lbl.Parent = gui
 
-		-- The heart at the door: walk up and press it to like this garage (the server decides).
-		local spotX = spot.x + spot.face * (LobbyLayout.bay.w / 2 - 3)
-		local heart = block(
-			folder,
+		-- The heart at the door: a flat icon on the door frame; walk up and press it to like this
+		-- garage (the server decides). Next to it, a flat number plate on the other side.
+		local frameX = origin.X + spot.x + spot.face * (LobbyLayout.bay.w / 2 + 0.2)
+		local doorZ = origin.Z + spot.z
+		local inHall = Vector3.xAxis * spot.face
+		local function framePlate(name: string, z: number, text: string, color: Color3): Part
+			local plate = block(folder, name, Vector3.new(3, 3, 0.3), Color3.fromRGB(22, 36, 66))
+			local at = Vector3.new(frameX, origin.Y + 5, z)
+			plate.CFrame = CFrame.lookAt(at, at + inHall)
+			local g = Instance.new("SurfaceGui")
+			g.Face = Enum.NormalId.Front
+			g.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+			g.PixelsPerStud = 40
+			g.Parent = plate
+			local t = Instance.new("TextLabel")
+			t.Size = UDim2.fromScale(1, 1)
+			t.BackgroundTransparency = 1
+			t.Font = Enum.Font.FredokaOne
+			t.TextScaled = true
+			t.Text = text
+			t.TextColor3 = color
+			t.Parent = g
+			return plate
+		end
+		local heart = framePlate(
 			"BayLikeSpot",
-			Vector3.new(2.4, 2.4, 0.4),
-			Color3.fromRGB(224, 51, 79),
-			Enum.PartType.Ball
+			doorZ + LobbyLayout.bay.gap / 2 + 1.8,
+			"♥",
+			Color3.fromRGB(255, 77, 109)
 		)
-		heart.CFrame = CFrame.new(
-			origin.X + spotX,
-			origin.Y + 3.2,
-			origin.Z + spot.z + LobbyLayout.bay.gap / 2 + 1.5
+		framePlate(
+			"BayNumber",
+			doorZ - LobbyLayout.bay.gap / 2 - 1.8,
+			LobbyLayout.bayName(i),
+			Color3.fromRGB(255, 205, 40)
 		)
-		local heartGui = Instance.new("BillboardGui")
-		heartGui.Size = UDim2.fromOffset(60, 60)
-		heartGui.StudsOffset = Vector3.new(0, 2.4, 0)
-		heartGui.AlwaysOnTop = false
-		heartGui.MaxDistance = 60
-		heartGui.Parent = heart
-		local heartLbl = Instance.new("TextLabel")
-		heartLbl.Size = UDim2.fromScale(1, 1)
-		heartLbl.BackgroundTransparency = 1
-		heartLbl.Font = Enum.Font.FredokaOne
-		heartLbl.TextScaled = true
-		heartLbl.Text = "♥"
-		heartLbl.TextColor3 = Color3.fromRGB(255, 77, 109)
-		heartLbl.TextStrokeTransparency = 0.3
-		heartLbl.Parent = heartGui
 		local likePrompt = Instance.new("ProximityPrompt")
 		likePrompt.Name = "LikePrompt"
 		likePrompt.ActionText = "Like"
@@ -235,18 +242,7 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		likePrompt.HoldDuration = 0
 		likePrompt.Enabled = false
 		likePrompt.Parent = heart
-		-- The Blender heart (and name board) when they are imported; the code parts keep the text and prompt.
-		local heartLook = LobbyDecor.clone("LikeHeart", folder, nil, "Garage")
-		if heartLook then
-			heart.Transparency = 1
-			heartGui:Destroy()
-			heartLook:PivotTo(
-				CFrame.lookAt(
-					Vector3.new(heart.Position.X, origin.Y, heart.Position.Z),
-					Vector3.new(heart.Position.X + spot.face, origin.Y, heart.Position.Z)
-				)
-			)
-		end
+		-- The Blender name board, when it is imported; the code board keeps the text.
 		local signLook = LobbyDecor.clone("GarageNameSign", folder, nil, "Garage")
 		if signLook then
 			signLook:PivotTo(
