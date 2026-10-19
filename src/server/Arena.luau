@@ -9,6 +9,7 @@ local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 
 local ArenaDecor = require(script.Parent.ArenaDecor)
 local ArenaScenery = require(script.Parent.ArenaScenery)
+local ArenaStadium = require(script.Parent.ArenaStadium)
 
 export type Arena = {
 	model: Model,
@@ -215,8 +216,12 @@ function Arena.build(origin: Vector3, arenaCfg: any?): Arena
 		pad.CanCollide = false
 	end
 
-	ArenaScenery.build(model, origin)
-	ArenaDecor.build(model, origin)
+	if cfg.stadium then
+		ArenaStadium.build(model, origin, cfg)
+	else
+		ArenaScenery.build(model, origin)
+		ArenaDecor.build(model, origin)
+	end
 
 	model.Parent = workspace
 	for _, bar in spinnerBars do
