@@ -876,7 +876,7 @@ function BattleUi.start()
 		leaveBtn.Visible = true
 	end
 
-	handlers.fight = function(m)
+	handlers.fight = function(_m)
 		hideAll()
 		hudF.Visible = true
 		leaveBtn.Visible = true

@@ -36,3 +36,9 @@ usually allows for one mesh: the Studio importer may reduce it, check the look a
 - `workspace:SetAttribute("BattleTestUnlock", true)`: all three cars usable, labeled **Test**.
 - `workspace:SetAttribute("BattleStandIn", true)`: plain labeled boxes while a model is missing.
 - In the queue panel the **TEST BOT (Studio only)** button starts a match against a labeled bot.
+
+## Imported in carter's place (reported by the Studio thread, 2026-10-19)
+`ReplicatedStorage.BattleModels` holds RamTruck, CannonVan, SawBuggy: one MeshPart `Body` each (PrimaryPart),
+nose already toward -Z, texture kept. The importer cut each mesh to 20,000 triangles (Ram measured; the
+others expected the same). Sizes came in near 100 studs long (Ram 105.7, Cannon 101.1, Saw 117.5), the
+server scales the clone to `lengthStuds` (15 to 17), so the authored models are left alone.
