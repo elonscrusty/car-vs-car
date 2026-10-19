@@ -54,20 +54,22 @@ function Arena.build(origin: Vector3): Arena
 		"Floor",
 		Vector3.new(2, floorR * 2, floorR * 2),
 		CFrame.new(origin + Vector3.new(0, -1, 0)) * CFrame.Angles(0, 0, math.pi / 2),
-		Color3.fromRGB(176, 178, 186)
+		Color3.fromRGB(88, 112, 150)
 	)
 	floor.Shape = Enum.PartType.Cylinder
 	floor.Material = Enum.Material.Concrete
 
 	-- A faint darker ring line near the edge of the flat floor (looks only, nothing to bump into).
 	local lineR = cfg.flatRadius - 1
-	for idx, d in { { r = lineR + 0.5, c = 130 }, { r = lineR - 0.5, c = 176 } } do
+	for idx, d in { { r = lineR + 0.5, c = 205 }, { r = lineR - 0.5, c = 88 } } do
 		local disc = makePart(
 			model,
 			"FloorLine",
 			Vector3.new(0.1, d.r * 2, d.r * 2),
 			CFrame.new(origin + Vector3.new(0, 0.03 * idx, 0)) * CFrame.Angles(0, 0, math.pi / 2),
-			Color3.fromRGB(d.c, d.c + 2, d.c + 10)
+			if d.c == 88
+				then Color3.fromRGB(88, 112, 150)
+				else Color3.fromRGB(d.c, d.c + 10, d.c + 30)
 		)
 		disc.Shape = Enum.PartType.Cylinder
 		disc.CanCollide = false
@@ -93,10 +95,7 @@ function Arena.build(origin: Vector3): Arena
 			* CFrame.new(0, height(midR), -midR)
 			* CFrame.Angles(tilt, 0, 0)
 			* CFrame.new(0, -thick / 2, 0)
-		local color = Color3.fromRGB(158, 161, 170)
-		if i % 2 == 0 then
-			color = Color3.fromRGB(184, 186, 194)
-		end
+		local color = Color3.fromRGB(116, 140, 178) -- one plain tone: no sunburst stripes
 		if not flat then
 			local slab = makePart(model, "Slope", slabSize, slabCf, color)
 			-- Very slippery: a car that stops on the slope slides back down to the middle.
@@ -110,9 +109,9 @@ function Arena.build(origin: Vector3): Arena
 				height(cfg.rimRadius) + cfg.wallHeight / 2 - 0.5,
 				-(cfg.rimRadius + 0.5)
 			)
-		local wallColor = Color3.fromRGB(250, 250, 250)
+		local wallColor = Color3.fromRGB(250, 205, 60)
 		if i % 2 == 0 then
-			wallColor = Color3.fromRGB(230, 55, 55)
+			wallColor = Color3.fromRGB(55, 95, 150)
 		end
 		makePart(model, "Wall", wallSize, wallCf, wallColor)
 	end

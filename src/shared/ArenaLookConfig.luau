@@ -18,7 +18,7 @@ return {
 	oceanDrop = 60, -- studs under the bowl floor
 	towers = { count = 4, radius = RIM + 38, startDeg = 45, height = 30 },
 	hazardPads = { count = 4, radius = RIM + 15, startDeg = 0, sizeX = 10, sizeZ = 12 },
-	tires = { count = 10, minR = RIM + 9, maxR = RIM + 21, radius = 2.4, gap = 3 },
+	tires = { count = 4, minR = RIM + 16, maxR = RIM + 24, radius = 2.4, gap = 3 }, -- a few, away from the rim
 	cones = { count = 14, minR = RIM + 8, maxR = RIM + 21, gap = 2 },
 	barriers = { count = 8, radius = RIM + 23.5, startDeg = 22.5, length = 8 },
 	trees = { count = 44, minR = RIM + 36, maxR = 300, gap = 12 },

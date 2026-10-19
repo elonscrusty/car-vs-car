@@ -8,31 +8,31 @@ export type Theme = { name: string, rimA: Rgb, rimB: Rgb, ground: Rgb }
 
 local ArenaThemes = {}
 
--- Placeholder palettes (pure looks). Index 1 matches the original red/white + green look.
+-- Placeholder palettes (pure looks). Index 1 is the steel blue + yellow garage look.
 ArenaThemes.List = {
 	{
 		name = "Classic",
-		rimA = { 230, 55, 55 },
-		rimB = { 250, 250, 250 },
-		ground = { 110, 200, 90 },
+		rimA = { 55, 95, 150 },
+		rimB = { 250, 205, 60 },
+		ground = { 125, 190, 120 },
 	},
 	{
 		name = "Ocean",
-		rimA = { 40, 130, 230 },
+		rimA = { 40, 130, 200 },
 		rimB = { 235, 248, 255 },
-		ground = { 90, 200, 190 },
+		ground = { 110, 190, 175 },
 	},
 	{
 		name = "Sunset",
-		rimA = { 255, 140, 40 },
+		rimA = { 225, 140, 50 },
 		rimB = { 255, 235, 190 },
-		ground = { 215, 185, 100 },
+		ground = { 190, 190, 120 },
 	},
 	{
 		name = "Night",
-		rimA = { 150, 80, 230 },
-		rimB = { 215, 205, 245 },
-		ground = { 80, 120, 110 },
+		rimA = { 50, 70, 120 },
+		rimB = { 200, 215, 240 },
+		ground = { 100, 145, 125 },
 	},
 } :: { Theme }
 

@@ -124,7 +124,16 @@ function ArenaScenery.build(model: Model, origin: Vector3)
 		false
 	)
 	ring("Road", look.roadSegments, look.roadInner, look.roadOuter, ground, 3, ASPHALT, true)
-	ring("Curb", 16, look.curbInner, look.curbInner + 2, ground, 8, WHITE, true)
+	ring(
+		"Curb",
+		16,
+		look.curbInner,
+		look.curbInner + 2,
+		ground,
+		8,
+		Color3.fromRGB(theme.rimA[1], theme.rimA[2], theme.rimA[3]),
+		true
+	)
 	ring("Skirt", 16, look.curbInner + 2, look.roadInner, ground, 8, STEEL, true)
 	-- Yellow hazard stripes on the skirt (a few long ones, not one per segment).
 	local skirtMid = look.curbInner + 2 + (look.roadInner - look.curbInner - 2) / 2

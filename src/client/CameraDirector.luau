@@ -71,7 +71,7 @@ function CameraDirector.new(): Director
 				local pos = car.Position
 				local shift = Vector3.new(pos.X - viewCenter.X, 0, pos.Z - viewCenter.Z) * 0.6
 				local goal = CFrame.lookAt(
-					viewCenter + viewDir * 60 + Vector3.new(0, 72, 0) + shift,
+					viewCenter + viewDir * 40 + Vector3.new(0, 48, 0) + shift,
 					viewCenter + shift
 				)
 				base = base:Lerp(goal, math.min(1, dt * 3))

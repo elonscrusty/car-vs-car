@@ -158,15 +158,12 @@ function ArenaDecor.build(model: Model, origin: Vector3)
 	local EXTRA = {
 		{ "FinishArch", 180, road, 0 },
 		{ "Jumbotron", 150, 185, 0 },
-		{ "Billboard", 210, 190, 0 },
 		{ "VIPTower", 75, 150, 0 },
 		{ "CameraCrane", 120, 150, 0 },
 		{ "FireworkLauncher", 52, 150, 0 },
 		{ "FireworkLauncher", 68, 150, 0 },
 		{ "PitWall", 135, look.roadInner + 3, 0 },
 		{ "PitWall", 315, look.roadInner + 3, 0 },
-		{ "TireWall", 200, look.roadOuter + 2, 0 },
-		{ "TireWall", 340, look.roadOuter + 2, 0 },
 		{ "ChevronBoard", 45, look.roadOuter + 2, 0 },
 		{ "ChevronBoard", 135, look.roadOuter + 2, 0 },
 		{ "ChevronBoard", 225, look.roadOuter + 2, 0 },
@@ -175,10 +172,7 @@ function ArenaDecor.build(model: Model, origin: Vector3)
 		{ "FeatherFlag", 110, look.roadOuter + 3, 0 },
 		{ "FeatherFlag", 200, look.roadOuter + 3, 0 },
 		{ "FeatherFlag", 290, look.roadOuter + 3, 0 },
-		{ "FerrisWheel", 290, 260, 0 },
 		{ "WaterTower", 20, 300, 0 },
-		{ "Blimp", 330, 230, 110 },
-		{ "HotAirBalloon", 40, 260, 90 },
 	}
 	for _, e in EXTRA do
 		if has(e[1] :: string) then
