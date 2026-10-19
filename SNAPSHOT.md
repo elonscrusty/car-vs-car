@@ -214,3 +214,4 @@ Rotation now soccer, tag, duel, hill, ice. Soccer is 3v3 on a bigger field (140x
 
 ## Crazy Race mode (2026-10-19)
 New group mode "race" (flag raceMode, MODE button: RACE). 6 cars, 3 laps round a looped road with 3 jump ramps, built from parts by server/RaceArena (no Studio models). Rules: shared/Race (checkpoints in order, laps, positions), geometry: shared/RaceTrack, numbers: shared/RaceTrackConfig. Bots follow waypoints, fall/stuck cars go back to the last gate. Map picture: review/race-map-top-down.png. Ramp wedge direction and bot speed not yet checked in Studio.
+Race update: first Studio runs found two bugs (hill wedges must be named Floor/Slope for CarDrive.groundHit; bot lean toward the gate after next made it hover). Fixed; run 3 had a bot win 3 laps in 45 s. Debug output is off (RaceTrackConfig.debug). Logs: review/race-debug-log*.txt.
