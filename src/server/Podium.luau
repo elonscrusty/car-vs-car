@@ -92,9 +92,9 @@ function Podium.celebrate(
 		if t >= nextBurst then
 			nextBurst = t + 0.35
 			local angle = rng:NextNumber() * math.pi * 2
-			local r = 8 + rng:NextNumber() * 22
+			local r = 6 + rng:NextNumber() * 14
 			local at = origin
-				+ Vector3.new(math.cos(angle) * r, 22 + rng:NextNumber() * 22, math.sin(angle) * r)
+				+ Vector3.new(math.cos(angle) * r, 12 + rng:NextNumber() * 14, math.sin(angle) * r)
 			burst(folder, at, COLORS[rng:NextInteger(1, #COLORS)])
 		end
 	end)
