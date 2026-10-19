@@ -31,6 +31,7 @@ QuestsConfig.Slots = 3 -- active quests per player
 
 QuestsConfig.Daily = {
 	maxFreePulls = 3, -- unclaimed free claw tries stop stacking here
+	streakCoins = { 10, 20, 30, 40, 60, 80, 120 } :: { number }, -- login streak: coins on day 1, 2 ... 7 (PLACEHOLDER)
 	dayLength = 86400, -- seconds; the day number is floor(os.time() / dayLength) (UTC)
 }
 

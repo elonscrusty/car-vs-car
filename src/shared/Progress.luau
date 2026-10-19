@@ -193,6 +193,16 @@ function Progress.levelCoins(before: number, after: number, cfg: any?): number
 	return total
 end
 
+-- Coin multiplier right now (2 on a weekend, else 1). `now` = os.time(); UTC day of week.
+function Progress.coinMultiplier(now: number, cfg: any?): number
+	local c = cfg or DefaultConfig
+	local wday = (math.floor(now / 86400) + 4) % 7 + 1 -- 1970-01-01 was a Thursday (wday 5)
+	if table.find(c.Weekend.days, wday) then
+		return c.Weekend.multiplier
+	end
+	return 1
+end
+
 function Progress.rankFor(wins: number): string
 	for _, r in DefaultConfig.Ranks do
 		if wins >= r.minWins then
