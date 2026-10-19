@@ -599,6 +599,7 @@ function GroupMatch.new(
 			-- Big hit: the car that got hit is LAUNCHED away from the attacker and bits fly off.
 			local hit = ModesConfig.LastStanding.Hit
 			local push, up, spin = BrawlRules.launch(strength, hit)
+			push *= BrawlRules.massFactor(attacker.body.AssemblyMass, defender.body.AssemblyMass) -- heavy cars push harder
 			if push > 0 and not dead then
 				local away = defender.body.Position - attacker.body.Position
 				away = Vector3.new(away.X, 0, away.Z)
