@@ -148,7 +148,22 @@ local function renderCars(root, state, ctx)
 	local details = T.panel(hero, "HeroDetails", 10, 270, 462, 120, T.C.silver)
 	T.text(details, "Name", vehicle.Name, 14, 2, 300, 34, 30, T.C.white)
 	T.rarity(details, vehicle, 14, 38, 140, 30)
-	T.text(details, "Ability", string.upper(vehicle.Ability), 169, 38, 260, 30, 24, T.C.white)
+	T.text(
+		details,
+		"Ability",
+		string.upper(vehicle.Ability)
+			.. (
+				if Config.AbilityLines[vehicle.Ability]
+					then " • " .. Config.AbilityLines[vehicle.Ability]
+					else ""
+			),
+		169,
+		38,
+		285,
+		30,
+		22,
+		T.C.white
+	)
 	local isOwned = owned(state, vehicle.Id)
 	local equipped = state.equipped == vehicle.Id
 	local label = loading(state)

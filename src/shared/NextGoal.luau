@@ -58,7 +58,7 @@ function NextGoal.compute(p: Input, cfg: any?, order: { string }?): Goal
 	local c = cfg or LobbyConfig.NextGoal
 	local modes = order or ModesConfig.Order
 	if p.matches <= 0 then
-		return { text = "Step on a blue pad to play", kind = "firstMatch" }
+		return { text = "Tap PLAY to fight", kind = "firstMatch" }
 	end
 	local carId, missing = NextGoal.closestCar(p.owned, p.coins)
 	local carName = if carId then CarConfig.Cars[carId].name else ""

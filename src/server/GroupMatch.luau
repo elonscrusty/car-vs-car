@@ -398,9 +398,24 @@ function GroupMatch.new(
 					return {
 						kind = "banner",
 						text = string.format("ROUND %d: %s WINS!", roundNo, who),
-						seconds = rc.breakSeconds - 0.5,
+						seconds = rc.breakSeconds - 3,
 					}
 				end)
+				-- A clear countdown into the next round (carter's review: the reset felt abrupt).
+				for step = 1, 3 do
+					task.delay(rc.breakSeconds - 4 + step, function()
+						if destroyed or ending then
+							return
+						end
+						sendAll(function()
+							return {
+								kind = "banner",
+								text = "NEXT ROUND IN " .. tostring(4 - step),
+								seconds = 1,
+							}
+						end)
+					end)
+				end
 				task.delay(rc.breakSeconds, function()
 					if not destroyed and not ending and startNextRound then
 						startNextRound()
