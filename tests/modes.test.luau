@@ -26,11 +26,15 @@ test("every mode has a name and a blurb, and the rotation goes round", function(
 end)
 
 test("launch rotation: duel, hill, ice, soccer; last standing only with its flag", function()
-	eq(table.concat(ModesConfig.Order, ","), "duel,hill,ice,soccer")
+	eq(table.concat(ModesConfig.Order, ","), "duel,hill,ice,tag,soccer")
 	eq(table.concat(ModesConfig.orderFor({}), ","), "duel,hill,ice")
+	eq(table.concat(ModesConfig.orderFor({ tagMode = true }), ","), "duel,hill,ice,tag")
 	eq(
-		table.concat(ModesConfig.orderFor({ soccerMode = true, lastStandingMode = true }), ","),
-		"duel,hill,ice,lastStanding,soccer"
+		table.concat(
+			ModesConfig.orderFor({ soccerMode = true, lastStandingMode = true, tagMode = true }),
+			","
+		),
+		"duel,hill,ice,tag,lastStanding,soccer"
 	)
 end)
 
@@ -217,4 +221,76 @@ test("mode pick: odd remote values are rejected", function()
 	eq(Modes.isPick(true), false)
 	eq(Modes.isPick(""), false)
 	eq(Modes.choose({ {}, 5, "x" }, 1), Modes.pick(1))
+end)
+
+print("Modes: car tag")
+
+test("tag is a group mode with its own car count", function()
+	truthy(Modes.isMode("tag") and Modes.isGroup("tag"))
+	eq(Modes.carCount("tag"), ModesConfig.Tag.cars)
+	eq(Modes.botsNeeded("tag", 2), ModesConfig.Tag.cars - 2)
+end)
+
+test("fuse shrinks each round and stops at the minimum", function()
+	local c = ModesConfig.Tag
+	eq(Modes.tagFuse(1, c.startFuse, c.fuseStep, c.minFuse), c.startFuse)
+	truthy(Modes.tagFuse(2, c.startFuse, c.fuseStep, c.minFuse) < c.startFuse)
+	eq(Modes.tagFuse(99, c.startFuse, c.fuseStep, c.minFuse), c.minFuse)
+	eq(Modes.tagFuse(0, c.startFuse, c.fuseStep, c.minFuse), c.startFuse)
+end)
+
+test("only IT can pass IT, and not straight back", function()
+	local t = Modes.tagNew(1, 10)
+	truthy(not Modes.tagPass(t, 2, 3, 0, 1.5), "a car that is not IT cannot pass it")
+	truthy(not Modes.tagPass(t, 1, 1, 0, 1.5))
+	truthy(Modes.tagPass(t, 1, 2, 0, 1.5))
+	eq(t.it, 2)
+	truthy(not Modes.tagPass(t, 2, 1, 1.0, 1.5), "car 1 is immune for 1.5 s")
+	eq(t.it, 2)
+	truthy(Modes.tagPass(t, 2, 1, 1.6, 1.5), "immunity ended")
+	eq(t.it, 1)
+end)
+
+test("fuse runs out and the IT car blows up", function()
+	local t = Modes.tagNew(3, 1)
+	truthy(not Modes.tagTick(t, 0.4))
+	truthy(not Modes.tagTick(t, 0.4))
+	truthy(Modes.tagTick(t, 0.4))
+end)
+
+test("next IT is an alive car and the next round resets the immunity", function()
+	local l = Modes.lastNew(4)
+	Modes.lastEliminate(l, 2)
+	Modes.lastEliminate(l, 3)
+	eq(Modes.tagNextIt(l, 0), 1)
+	eq(Modes.tagNextIt(l, 0.99), 4)
+	eq(Modes.tagNextIt(l, 5), 4, "r is clamped")
+	for i = 1, 4 do
+		Modes.lastEliminate(l, i)
+	end
+	eq(Modes.tagNextIt(l, 0.5), 0)
+	local t = Modes.tagNew(1, 10)
+	Modes.tagPass(t, 1, 2, 0, 5)
+	Modes.tagNextRound(t, 4, 7)
+	eq(t.it, 4)
+	eq(t.fuse, 7)
+	eq(t.round, 2)
+	truthy(next(t.immuneUntil) == nil)
+end)
+
+test("signed angle: left is positive", function()
+	near(Modes.signedAngle(0, -1, -1, 0), math.pi / 2, 1e-6) -- car faces -Z, target to -X
+	near(Modes.signedAngle(0, -1, 0, -1), 0, 1e-6)
+	near(math.abs(Modes.signedAngle(0, -1, 0, 1)), math.pi, 1e-6)
+end)
+
+test("flee direction: away from IT, bent to the middle near a wall", function()
+	local d = Modes.tagFleeDir(0, 0, -10, 0, 60, 35)
+	near(d.x, 1, 1e-6)
+	near(d.z, 0, 1e-6)
+	local edge = Modes.tagFleeDir(55, 0, 40, 0, 60, 35) -- IT is inside, car is by the wall
+	near(math.sqrt(edge.x ^ 2 + edge.z ^ 2), 1, 1e-6)
+	truthy(edge.x < 1, "bent back toward the middle")
+	local same = Modes.tagFleeDir(5, 5, 5, 5, 60, 35)
+	near(math.sqrt(same.x ^ 2 + same.z ^ 2), 1, 1e-6)
 end)

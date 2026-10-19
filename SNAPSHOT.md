@@ -205,3 +205,6 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 
 ## AI-look round 2 (cars, code part)
 `shared/CarLook.luau` (tests: `tests/carlook.test.luau`): soft shadow blob under each car, Highlight outline by rarity (dark for Common), wheels get a `WheelMotor` Motor6D (parts named `Wheel*` in catalog models) and `client/WheelFx.luau` rolls them from forward speed. Not eyeballed in Studio yet. Full list: project files `car-vs-car/review/ai-look-round2.md`. UI items skipped (carter makes UI himself).
+
+## Car Tag mode (2026-10-19)
+New group mode "tag" (flag tagMode, in the MODE button as TAG). 6 cars on the flat soccer field; one is IT (red glow, fuse). IT bumps a car = passes IT (1.5 s no tag-back). Fuse 0 = IT car blows up; fuse shrinks each round (18s -1 step 3s, min 7s). Last car wins. Bots: IT hunts nearest, others run away. Rules: shared/Modes (tag*), numbers: ModesConfig.Tag, server: GroupMatch (tagOn). Tests: tests/modes.test.luau. Not yet played in Studio.
