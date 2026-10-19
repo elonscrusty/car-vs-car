@@ -4,9 +4,12 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
 
+local FeelRules = require(ReplicatedStorage.Shared.FeelRules)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
-local SoccerFieldFlow = require(ReplicatedStorage.Shared.SoccerFieldFlow)
+local ModesConfig = require(ReplicatedStorage.Shared.ModesConfig)
+local SoccerFieldConfig = require(ReplicatedStorage.Shared.SoccerFieldConfig)
 
 local CameraDirector = {}
 
@@ -16,6 +19,8 @@ export type Director = {
 	shake: (strength: number) -> (), -- 0..1
 	punchFov: (amount: number) -> (), -- brief zoom-in punch
 	soccer: (on: boolean) -> (), -- car soccer: high behind your car, keeps the ball in frame
+	snap: (pos: Vector3) -> (), -- goal: look at this point for ~1 s, then ease back
+	boost: () -> (), -- boost: brief FOV widen
 	release: () -> (), -- back to the normal Roblox camera (lobby)
 }
 
@@ -35,24 +40,117 @@ function CameraDirector.new(): Director
 	local nextBallFind = 0
 	local fov = feel.normalFov
 	local shakeLeft, shakeSize = 0, 0
+	local snapPos: Vector3? = nil
+	local snapStart = -1000
+	local boostStart = -1000
+	local myTeam = 0 -- 1 or 2 in soccer (read from the colour of your car's marker), 0 = unknown
+	local bowl = false -- your arena is a bowl (not the soccer field or the race track)
+	local walls: { BasePart } = {} -- walls of your soccer arena, faded while they block the view
+	local wallFade: { [BasePart]: number } = {}
+	local nextWallCheck = 0
+	local wallTarget: { [BasePart]: number } = {}
+
+	local function calm(): boolean
+		return SoundService:GetAttribute(feel.calmAttribute) == true
+	end
 
 	local function cam(): Camera
 		return workspace.CurrentCamera :: Camera
 	end
 
 	-- Your car is the model in an Arena that carries your user id (the server sets it at the fight).
+	-- Also notes what kind of arena it is and which soccer team you are on.
 	local function findMyCar(): BasePart?
 		local uid = Players.LocalPlayer.UserId
 		for _, arena in workspace:GetChildren() do
 			if arena.Name == "Arena" then
 				for _, m in arena:GetChildren() do
 					if m:IsA("Model") and m:GetAttribute("DriverUserId") == uid then
+						bowl = arena:FindFirstChild("Slope") ~= nil
+							and arena:FindFirstChild("Road") == nil
+						myTeam = 0
+						local marker = m:FindFirstChild("Marker")
+						if marker and marker:IsA("BasePart") then
+							local c = marker.Color
+							myTeam = FeelRules.teamOfColor(
+								c.R * 255,
+								c.G * 255,
+								c.B * 255,
+								ModesConfig.Soccer.colors
+							)
+						end
 						return m.PrimaryPart
 					end
 				end
 			end
 		end
 		return nil
+	end
+
+	local function resetWalls()
+		for w in wallFade do
+			if w.Parent ~= nil then
+				w.LocalTransparencyModifier = 0
+			end
+		end
+		table.clear(wallFade)
+		table.clear(wallTarget)
+		table.clear(walls)
+	end
+
+	-- Soccer walls between the camera and your car or the ball fade out (audit #15).
+	local function updateWalls(camPos: Vector3, car: BasePart, ball: BasePart?, dt: number)
+		local now = os.clock()
+		if now >= nextWallCheck then
+			nextWallCheck = now + 0.1
+			local arena = car:FindFirstAncestor("Arena")
+			if arena and (#walls == 0 or walls[1].Parent == nil) then
+				table.clear(walls)
+				table.clear(wallFade)
+				table.clear(wallTarget)
+				for _, p in arena:GetChildren() do
+					if p:IsA("BasePart") and (p.Name == "Wall" or p.Name == "WallTrim") then
+						table.insert(walls, p)
+					end
+				end
+			end
+			local pad = feel.wallFadePad
+			for _, w in walls do
+				local half = w.Size / 2
+				local a = w.CFrame:PointToObjectSpace(camPos)
+				local blocks = false
+				local ends = { car.Position }
+				if ball ~= nil then
+					table.insert(ends, ball.Position)
+				end
+				for _, e in ends do
+					local b = w.CFrame:PointToObjectSpace(e)
+					if
+						FeelRules.segmentHitsBox(
+							{ a.X, a.Y, a.Z },
+							{ b.X, b.Y, b.Z },
+							half.X + pad,
+							half.Y + pad,
+							half.Z + pad
+						)
+					then
+						blocks = true
+						break
+					end
+				end
+				wallTarget[w] = if blocks then feel.wallFadeTransparency else 0
+			end
+		end
+		for _, w in walls do
+			if w.Parent ~= nil then
+				local cur = wallFade[w] or 0
+				local nxt = FeelRules.approach(cur, wallTarget[w] or 0, dt, feel.wallFadeRate)
+				if nxt ~= cur then
+					wallFade[w] = nxt
+					w.LocalTransparencyModifier = nxt
+				end
+			end
+		end
 	end
 
 	-- The soccer ball is the part named "Ball" in the Arena that holds your car.
@@ -89,28 +187,76 @@ function CameraDirector.new(): Director
 				if ball ~= nil and ball.Parent ~= nil then
 					local cp, bp = car.Position - viewCenter, ball.Position - viewCenter
 					local look = car.CFrame.LookVector
-					local f = SoccerFieldFlow.cameraFrame(cp.X, cp.Z, bp.X, bp.Z, look.X, look.Z)
+					-- Team 1 defends the -X goal, team 2 the +X goal.
+					local goalX = if myTeam == 0
+						then nil
+						else (if myTeam == 1 then -1 else 1) * SoccerFieldConfig.length / 2
+					local f = FeelRules.soccerCamera(
+						cp.X,
+						cp.Z,
+						bp.X,
+						bp.Z,
+						look.X,
+						look.Z,
+						goalX,
+						feel.normalFov
+					)
 					local goal = CFrame.lookAt(
 						viewCenter + Vector3.new(f.camX, f.camY, f.camZ),
 						viewCenter + Vector3.new(f.lookX, f.lookY, f.lookZ)
 					)
 					base = base:Lerp(goal, math.min(1, dt * 4))
 					goalFov = feel.normalFov
+					updateWalls(base.Position, car, ball, dt)
 				end
 			elseif car ~= nil and car.Parent ~= nil then
 				local pos = car.Position
-				local shift = Vector3.new(pos.X - viewCenter.X, 0, pos.Z - viewCenter.Z) * 0.6
-				local goal = CFrame.lookAt(
-					viewCenter + viewDir * 40 + Vector3.new(0, 48, 0) + shift,
-					viewCenter + shift
-				)
+				local rel = pos - viewCenter
+				local goal: CFrame
+				if bowl then
+					local f = FeelRules.bowlCamera(rel.X, rel.Z, viewDir.X, viewDir.Z)
+					goal = CFrame.lookAt(
+						viewCenter + Vector3.new(f.camX, f.camY, f.camZ),
+						viewCenter + Vector3.new(f.lookX, f.lookY, f.lookZ)
+					)
+				else
+					local shift = Vector3.new(rel.X, 0, rel.Z) * 0.6
+					goal = CFrame.lookAt(
+						viewCenter + viewDir * 40 + Vector3.new(0, 48, 0) + shift,
+						viewCenter + shift
+					)
+				end
 				base = base:Lerp(goal, math.min(1, dt * 3))
 				local v = car.AssemblyLinearVelocity
 				local speed = Vector3.new(v.X, 0, v.Z).Magnitude
 				goalFov = feel.normalFov + math.clamp((speed - 30) / 10, 0, 5)
 			end
 		end
-		fov += (goalFov - fov) * math.min(1, dt * 4)
+		-- Extra FOV while boosting, and the goal camera snap to the ball.
+		local now = os.clock()
+		local calmOn = calm()
+		local fovGoal = goalFov
+			+ FeelRules.boostFov(
+				now - boostStart,
+				feel.boostFxSeconds,
+				feel.boostFovAdd * FeelRules.shakeScale(calmOn)
+			)
+		local frameBase = base
+		local sp = snapPos
+		if sp ~= nil then
+			local w =
+				FeelRules.snapWeight(now - snapStart, feel.goalSnapSeconds, feel.goalSnapBlendOut)
+			if w <= 0 then
+				snapPos = nil
+			else
+				if calmOn then
+					w *= 0.5
+				end
+				frameBase = base:Lerp(CFrame.lookAt(base.Position, sp), w)
+				fovGoal += (feel.goalSnapFov - goalFov) * w
+			end
+		end
+		fov += (fovGoal - fov) * math.min(1, dt * 4)
 		local c = cam()
 		c.FieldOfView = fov
 		local offset = Vector3.zero
@@ -119,7 +265,7 @@ function CameraDirector.new(): Director
 			local k = shakeSize * (shakeLeft / feel.shakeTime)
 			offset = Vector3.new(rng:NextNumber(-k, k), rng:NextNumber(-k, k), 0)
 		end
-		c.CFrame = base * CFrame.new(offset)
+		c.CFrame = frameBase * CFrame.new(offset)
 	end)
 
 	local function overview(center: Vector3, side: Vector3?)
@@ -144,7 +290,7 @@ function CameraDirector.new(): Director
 	end
 
 	local function shake(strength: number)
-		local size = feel.shakeMax * math.clamp(strength, 0, 1)
+		local size = feel.shakeMax * math.clamp(strength, 0, 1) * FeelRules.shakeScale(calm())
 		if size >= shakeSize * (shakeLeft / feel.shakeTime) then
 			shakeSize, shakeLeft = size, feel.shakeTime
 		end
@@ -152,16 +298,29 @@ function CameraDirector.new(): Director
 
 	local function punchFov(amount: number)
 		if active then
-			fov = math.max(10, fov - amount) -- eases back to goalFov on its own
+			fov = math.max(10, fov - amount * FeelRules.shakeScale(calm())) -- eases back to goalFov on its own
 		end
 	end
 
 	local function soccer(on: boolean)
 		soccerOn = on
 		ballPart = nil
+		resetWalls()
+	end
+
+	local function snap(pos: Vector3)
+		snapPos = pos
+		snapStart = os.clock()
+	end
+
+	local function boost()
+		boostStart = os.clock()
 	end
 
 	local function release()
+		resetWalls()
+		snapPos = nil
+		boostStart = -1000
 		soccerOn = false
 		ballPart = nil
 		active = false
@@ -185,6 +344,8 @@ function CameraDirector.new(): Director
 		shake = shake,
 		punchFov = punchFov,
 		soccer = soccer,
+		snap = snap,
+		boost = boost,
 		release = release,
 	}
 end

@@ -15,6 +15,10 @@ local required = {
 	"click",
 	"claw",
 	"coin",
+	"ballKick",
+	"goal",
+	"countdownTick",
+	"countdownGo",
 	"music_lobby",
 	"music_arena",
 }
@@ -66,4 +70,15 @@ H.test("volume clamp", function()
 	H.eq(Sounds.clampVolume(0 / 0), 0)
 	H.eq(Sounds.clampVolume(99), SoundConfig.MaxVolume)
 	H.eq(Sounds.clampVolume(0.4), 0.4)
+end)
+
+H.test("countdown banner text picks tick or go", function()
+	H.eq(Sounds.countdownEvent("3"), "countdownTick")
+	H.eq(Sounds.countdownEvent("1"), "countdownTick")
+	H.eq(Sounds.countdownEvent("GO!"), "countdownGo")
+	H.eq(Sounds.countdownEvent("0"), nil)
+	H.eq(Sounds.countdownEvent("10"), nil)
+	H.eq(Sounds.countdownEvent("3.0"), nil)
+	H.eq(Sounds.countdownEvent("YOU 1 - 0 THEM"), nil)
+	H.eq(Sounds.countdownEvent(""), nil)
 end)

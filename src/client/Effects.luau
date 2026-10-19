@@ -2,7 +2,13 @@
 -- Client-only hit effects: sparks and floating damage numbers. The server only says where and how hard.
 
 local Debris = game:GetService("Debris")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
+
+local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
+local Quality = require(script.Parent.Quality)
 
 local Effects = {}
 
@@ -35,7 +41,7 @@ function Effects.sparks(pos: Vector3, strength: number)
 	e.Acceleration = Vector3.new(0, -60, 0)
 	e.Rate = 0
 	e.Parent = p
-	e:Emit(math.floor(15 + 60 * strength))
+	e:Emit(math.floor((15 + 60 * strength) * Quality.scale()))
 
 	-- Dust puff and flying chips for any real hit.
 	local dust = Instance.new("ParticleEmitter")
@@ -53,7 +59,7 @@ function Effects.sparks(pos: Vector3, strength: number)
 	dust.SpreadAngle = Vector2.new(180, 180)
 	dust.Rate = 0
 	dust.Parent = p
-	dust:Emit(math.floor(6 + 14 * strength))
+	dust:Emit(math.floor((6 + 14 * strength) * Quality.scale()))
 
 	local chips = Instance.new("ParticleEmitter")
 	chips.Color = ColorSequence.new(Color3.fromRGB(90, 90, 100))
@@ -64,7 +70,7 @@ function Effects.sparks(pos: Vector3, strength: number)
 	chips.Acceleration = Vector3.new(0, -90, 0)
 	chips.Rate = 0
 	chips.Parent = p
-	chips:Emit(math.floor(4 + 14 * strength))
+	chips:Emit(math.floor((4 + 14 * strength) * Quality.scale()))
 	Debris:AddItem(p, 2)
 end
 
@@ -98,6 +104,49 @@ function Effects.damageNumber(pos: Vector3, damage: number, youHit: boolean, tag
 	TweenService:Create(p, info, { Position = p.Position + Vector3.new(0, 7, 0) }):Play()
 	TweenService:Create(l, info, { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
 	Debris:AddItem(p, 1)
+end
+
+-- Boost speed lines (audit #92): thin white streaks that rush outward from the screen edges for
+-- `seconds`. Fewer on a slow device, and fewer and fainter with calm effects on.
+function Effects.speedLines(seconds: number)
+	local feel = GameConfig.Feel
+	local calm = SoundService:GetAttribute(feel.calmAttribute) == true
+	local count = math.ceil(feel.boostLines * Quality.scale() * (if calm then 0.5 else 1))
+	if count <= 0 then
+		return
+	end
+	local playerGui = Players.LocalPlayer:FindFirstChildOfClass("PlayerGui")
+	if playerGui == nil then
+		return
+	end
+	local g = Instance.new("ScreenGui")
+	g.Name = "CarVsCarSpeedLines"
+	g.ResetOnSpawn = false
+	g.IgnoreGuiInset = true
+	g.DisplayOrder = 8
+	g.Parent = playerGui
+	local rng = Random.new()
+	local fade = if calm then 0.75 else 0.5
+	for i = 1, count do
+		local angle = (i / count) * math.pi * 2 + rng:NextNumber(-0.12, 0.12)
+		local dx, dy = math.cos(angle), math.sin(angle)
+		local line = Instance.new("Frame")
+		line.AnchorPoint = Vector2.new(0.5, 0.5)
+		line.BorderSizePixel = 0
+		line.BackgroundColor3 = Color3.new(1, 1, 1)
+		line.BackgroundTransparency = fade
+		line.Size = UDim2.fromOffset(rng:NextInteger(70, 130), 3)
+		line.Rotation = math.deg(angle)
+		line.Position = UDim2.fromScale(0.5 + dx * 0.34, 0.5 + dy * 0.34)
+		line.Parent = g
+		TweenService
+			:Create(line, TweenInfo.new(seconds, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				Position = UDim2.fromScale(0.5 + dx * 0.62, 0.5 + dy * 0.62),
+				BackgroundTransparency = 1,
+			})
+			:Play()
+	end
+	Debris:AddItem(g, seconds + 0.1)
 end
 
 return Effects
