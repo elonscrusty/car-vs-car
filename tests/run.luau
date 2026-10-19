@@ -53,5 +53,7 @@ require("./carsanity.test")
 require("./onboarding.test")
 require("./cartraits.test")
 require("./economy_sim.test")
+require("./aibehave.test")
+require("./botsim.test")
 
 Harness.summary()

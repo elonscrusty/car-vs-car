@@ -24,6 +24,7 @@ local Types = require(ReplicatedStorage.Shared.Types)
 
 local Arena = require(script.Parent.Arena)
 local Autopilot = require(script.Parent.Autopilot)
+local BotMoves = require(script.Parent.BotMoves)
 local BowlHazards = require(script.Parent.BowlHazards)
 local Buffs = require(script.Parent.Buffs)
 local CarSanity = require(script.Parent.CarSanity)
@@ -719,15 +720,17 @@ function Match.new(
 					local mods = Moves.mods(moveStates[car.idx], car, eased, dt, os.clock())
 					Autopilot.stepManual(car, eased, gas, dt, rayParams, withGrip(mods))
 				else
-					Autopilot.step(
+					local foe = cars[3 - car.idx]
+					local botMods = BotMoves.prepare(
 						car,
-						cars[3 - car.idx],
+						foe,
+						moveStates[car.idx],
 						dt,
 						rayParams,
 						origin,
-						botLevel,
-						withGrip(nil)
+						botLevel
 					)
+					Autopilot.step(car, foe, dt, rayParams, origin, botLevel, withGrip(botMods))
 				end
 			end
 		end

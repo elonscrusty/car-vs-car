@@ -24,6 +24,8 @@ export type Level = {
 	wanderFade: number,
 	runUpMult: number,
 	rewardMult: number,
+	moveUse: number,
+	lead: number,
 }
 
 local BotLevels = {}
