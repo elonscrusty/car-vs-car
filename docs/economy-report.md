@@ -3,7 +3,7 @@
 All prices and coin amounts are PRETEND placeholders. No Robux prices exist or were invented.
 Source: `tests/economy_sim.test.luau` (part of `lune run tests/run`). It uses the real
 LobbyConfig, ProgressConfig, QuestsConfig, Daily, Gacha, Store, Inventory and the 12-car launch
-roster (4 Common, 3 Rare, 3 Epic, 2 Legendary; Heavy is the free starter). 300 fake players per
+roster (4 Common, 3 Rare, 3 Epic, 2 Legendary; Sedan is the free starter). 300 fake players per
 profile, 60 days, deterministic seeds, so the numbers reproduce exactly.
 
 Player rules in the sim: claims the daily gift each day; plays matches (win rate 50%, picks a

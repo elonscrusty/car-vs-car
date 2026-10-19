@@ -156,6 +156,7 @@ end
 local function onPlayerRemoving(player: Player)
 	Telemetry.left(player)
 	local g = groups[player]
+	Telemetry.leftMatch(player, if g then "fight" else "end") -- before the match records are cleared
 	if g then
 		g.match.playerLeft(player)
 		leaveGroup(player)
@@ -163,13 +164,7 @@ local function onPlayerRemoving(player: Player)
 	local restart = rematch.remove(player)
 	lobbyService.onPlayerRemoving(player)
 	if restart then
-		local rest: { Match.Participant } = {}
-		for _, part in restart do
-			if part.player ~= player then
-				table.insert(rest, part)
-			end
-		end
-		startMatch(rest)
+		startMatch(restart)
 	end
 	launchLimiter.clear(player)
 	steerLimiter.clear(player)
@@ -179,22 +174,16 @@ end
 
 -- LOBBY button: the player leaves their match (the other human, if any, wins) and goes to the lobby.
 local function leaveMatch(player: Player)
+	-- No group is fine: a player waiting for a rematch (their own end screen is over) has none.
 	local g = groups[player]
-	if g == nil then
-		return
+	if g then
+		g.match.playerLeft(player)
+		leaveGroup(player)
 	end
-	g.match.playerLeft(player)
-	leaveGroup(player)
 	local restart = rematch.remove(player)
-	lobbyService.leftMatch(player)
+	lobbyService.leftMatch(player) -- no-op unless the lobby thinks they are in a match
 	if restart then
-		local rest: { Match.Participant } = {}
-		for _, part in restart do
-			if part.player ~= player then
-				table.insert(rest, part)
-			end
-		end
-		startMatch(rest)
+		startMatch(restart)
 	end
 end
 

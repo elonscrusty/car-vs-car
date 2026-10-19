@@ -2,7 +2,7 @@
 
 Every car has two kinds of numbers:
 
-1. **Stats** (hp, mass, maxSpeed, accel, turnRate, damageMult): `CarConfig.Cars` (8 hand-written cars) and `CarCatalog.Tuned` (pack cars).
+1. **Stats** (hp, mass, maxSpeed, accel, turnRate, damageMult): `CarCatalog.Tuned` (the pack cars; the 8 old hand-written blocky cars were removed).
 2. **Handling traits** (how it drives): `src/shared/CarTraitsConfig.luau`, table `Cars`.
 
 ## The five traits
@@ -13,7 +13,7 @@ Every car has two kinds of numbers:
 | `drift` | extra slide when steering hard at speed | 0 to 1 |
 | `punch` | + strong launch that fades near top speed, - slow start that keeps pulling | -0.5 to 0.6 |
 | `highTurn` | turn rate multiplier at top speed (1 at standstill). Under 1 pushes wide | 0.4 to 1.3 |
-| `sizeScale` | body size vs the neutral 5 x 2.5 x 8 box (pack cars only; hand-written cars read their own size) | 0.7 to 1.6 |
+| `sizeScale` | body size vs the neutral 5 x 2.5 x 8 box (every car now) | 0.7 to 1.6 |
 
 A car with no row, or a missing field, uses `Defaults` (drives like before). Out-of-range numbers are clamped by `CarTraits.resolve`, so a typo cannot break a car.
 

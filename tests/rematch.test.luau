@@ -57,6 +57,16 @@ test("a player leaving cancels the rematch", function()
 	eq(Rematch.tap(s, "a"), false)
 end)
 
+test("without: leavers are never restarted", function()
+	local a, b = { player = "a" }, { player = "b" }
+	local kept = Rematch.without({ a, b }, { a = true })
+	eq(#kept, 1)
+	eq(kept[1], b)
+	eq(#Rematch.without({ a, b }, {}), 2)
+	eq(#Rematch.without({ a, b }, { a = true, b = true }), 0)
+	eq(#Rematch.without({}, { a = true }), 0)
+end)
+
 test("empty player list never starts", function()
 	local s = Rematch.new({})
 	Rematch.closeWindow(s)

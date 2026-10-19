@@ -99,8 +99,12 @@ function TelemetryRules.buildEvent(name: string, data: { [string]: any }?): Even
 		local fields: { [string]: string } = {}
 		for i, key in schema.fields do
 			if FieldKeys[i] then
-				fields[FieldKeys[i]] =
-					TelemetryRules.sanitizeField(if d[key] == nil then "" else d[key])
+				local text = TelemetryRules.sanitizeField(if d[key] == nil then "" else d[key])
+				local list = if schema.allowed then schema.allowed[key] else nil
+				if list and table.find(list, text) == nil then
+					text = "other"
+				end
+				fields[FieldKeys[i]] = text
 			end
 		end
 		ev.fields = fields

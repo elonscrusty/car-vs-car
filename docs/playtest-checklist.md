@@ -56,6 +56,17 @@ Car soccer
 - [ ] A player who leaves is replaced by a bot; nobody gets forfeited for lag in soccer
 - [ ] Match end: field, ball and cars are removed (look at Workspace in Studio test)
 
+Mode button and LOBBY button
+- [ ] The lobby shows a MODE button that cycles AUTO, DUEL, HILL, ICE, SOCCER and shows the current choice
+- [ ] Pick SOCCER with the MODE button, step on a pad: the soccer field loads (not a duel)
+- [ ] Pick each other mode (DUEL, HILL, ICE) once and check the match really is that mode; AUTO still rotates
+- [ ] LOBBY button mid-match: you return to the lobby cleanly (no frozen camera, car and arena cleaned up, can start a new match)
+- [ ] LOBBY button on the end screen: returns to the lobby right away
+- [ ] LOBBY button with a human opponent: the other player gets a win or a clean end, not a stuck match
+- [ ] MODE choice with 2 humans on one pad: note which rule applies (one player's pick, or AUTO) and check both see the same mode, in the match banner too
+- [ ] Both buttons are reachable on a phone in landscape and do not cover the aim or steer controls
+- [ ] Only the 12 launch cars show anywhere (no blocky old cars in the pick, store, garage or claw)
+
 Weekly board
 - [ ] Three boards in the lobby: all-time wins, this week, best streak; text readable
 - [ ] A win moves the weekly count up within about a minute (board refresh)
