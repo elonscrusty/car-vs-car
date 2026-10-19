@@ -26,6 +26,7 @@ local PadLogic = require(ReplicatedStorage.Shared.PadLogic)
 local Quests = require(ReplicatedStorage.Shared.Quests)
 local Spin = require(ReplicatedStorage.Shared.Spin)
 local PickChoices = require(ReplicatedStorage.Shared.PickChoices)
+local PlayerLevel = require(ReplicatedStorage.Shared.PlayerLevel)
 local Progress = require(ReplicatedStorage.Shared.Progress)
 local Leaderboards = require(script.Parent.Leaderboards)
 local ProgressConfig = require(ReplicatedStorage.Shared.ProgressConfig)
@@ -155,6 +156,14 @@ function LobbyService.start(deps: Deps): Handle
 		end
 	end
 
+	-- For carter's UI, on the Player: PlayerLevel, PlayerXp (into this level), PlayerXpNeeded.
+	local function setLevelAttributes(player: Player, p: Inventory.Profile)
+		local v = PlayerLevel.view(PlayerLevel.totalXp(p.progress))
+		player:SetAttribute("PlayerLevel", v.level)
+		player:SetAttribute("PlayerXp", v.into)
+		player:SetAttribute("PlayerXpNeeded", v.needed)
+	end
+
 	local function levelOf(player: Player, carId: string): number
 		local p = Profiles.get(player)
 		return if p then Progress.levelOf(p.progress, carId) else 1
@@ -187,6 +196,7 @@ function LobbyService.start(deps: Deps): Handle
 		end
 		local now = os.time()
 		player:SetAttribute("CoinMultiplier", Progress.coinMultiplier(now)) -- 2 on weekends
+		setLevelAttributes(player, p)
 		local carId = Build.carFor(p.build, p.owned)
 		local xp = Progress.xpView(p.progress, carId)
 		local goal = NextGoal.compute({
@@ -402,7 +412,9 @@ function LobbyService.start(deps: Deps): Handle
 		local p = Profiles.get(player)
 		local firstWin = p ~= nil and FirstWin.isFirstWin(p.wins, won)
 		local invitePrompt = false
+		local levelPaid: PlayerLevel.Paid? = nil
 		if p then
+			local xpBefore = PlayerLevel.totalXp(p.progress)
 			local progressResult = Progress.applyMatchResult(
 				p,
 				carId,
@@ -423,6 +435,8 @@ function LobbyService.start(deps: Deps): Handle
 			earned += progressResult.coinsBonus
 			earned = math.floor(earned * Progress.coinMultiplier(os.time()))
 			Inventory.addCoins(p, earned)
+			levelPaid = PlayerLevel.pay(p, xpBefore, PlayerLevel.totalXp(p.progress))
+			setLevelAttributes(player, p)
 			if won then
 				p.wins += 1
 				Leaderboards.recordWin(player)
@@ -461,6 +475,10 @@ function LobbyService.start(deps: Deps): Handle
 			mode = reward.mode,
 			place = info.place,
 			goals = info.goals,
+			levelUp = if levelPaid
+					and (levelPaid.coins > 0 or levelPaid.spins > 0 or #levelPaid.paints > 0)
+				then levelPaid
+				else nil, -- coins / spin tries / paints from reaching a new player level
 			invitePrompt = invitePrompt, -- after a goal or any 2nd+ match, not only wins
 		}
 		send(player, toLobby)
