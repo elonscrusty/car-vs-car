@@ -275,9 +275,16 @@ local function shopCard(parent, vehicle, state, ctx, x)
 	T.vehicle(card, "CarArt", vehicle, 2, 6, 206, 190)
 	T.frame(card, "Details", 6, 189, 198, 157, T.C.navy, 9)
 	T.text(card, "Name", vehicle.Name, 12, 191, 186, 33, 25, T.C.white)
-	T.rarity(card, vehicle, 12, 226, 105, 25)
-	T.icon(card, "AbilityIcon", vehicle.Ability, 128, 227, 22, T.C.gold)
-	T.text(card, "Ability", string.upper(vehicle.Ability), 151, 227, 51, 25, 13, T.C.white)
+	T.rarity(card, vehicle, 12, 226, 92, 25)
+	T.icon(card, "AbilityIcon", vehicle.Ability, 108, 226, 26, T.C.gold)
+	local abilityName =
+		T.text(card, "Ability", string.upper(vehicle.Ability), 136, 226, 66, 26, 20, T.C.white)
+	abilityName.TextScaled = true
+	abilityName.TextTruncate = Enum.TextTruncate.None
+	local abilityFit = Instance.new("UITextSizeConstraint")
+	abilityFit.MaxTextSize = 20
+	abilityFit.MinTextSize = 10
+	abilityFit.Parent = abilityName
 	local cost = price(state, vehicle)
 	T.icon(card, "Coin", "coin", 13, 263, 28, T.C.gold)
 	T.text(card, "Price", T.format(cost) .. " COINS", 48, 261, 149, 34, 22, T.C.white)
