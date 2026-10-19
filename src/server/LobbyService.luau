@@ -90,6 +90,7 @@ export type Handle = {
 	action: (player: Player, action: any, arg: any) -> (),
 	-- The match let go of this player (they tapped LOBBY): back to the lobby, nothing paid.
 	leftMatch: (player: Player) -> (),
+	sendProfile: (player: Player) -> (), -- push the saved coins and cars to the player's screen
 	stop: () -> (),
 }
 
@@ -765,6 +766,9 @@ function LobbyService.start(deps: Deps): Handle
 	end
 
 	local function onPadTriggered(player: Player, padIndex: number)
+		if FeatureFlags.enabled("battleMode") then
+			return -- the 1v1 auto-battle replaces the pad fights (BattleService)
+		end
 		if players[player] ~= nil or Players:GetPlayerByUserId(player.UserId) ~= player then
 			return
 		end
@@ -788,6 +792,9 @@ function LobbyService.start(deps: Deps): Handle
 	-- The PLAY button (carter's UI sends action "play"): join the first pad that is still open,
 	-- wherever you stand. The fight waits Pad.countdownSeconds for more players, bots fill the rest.
 	local function onPlay(player: Player)
+		if FeatureFlags.enabled("battleMode") then
+			return -- PLAY queues for the 1v1 auto-battle (init.server routes it)
+		end
 		if players[player] ~= nil or Players:GetPlayerByUserId(player.UserId) ~= player then
 			return
 		end
@@ -1154,6 +1161,7 @@ function LobbyService.start(deps: Deps): Handle
 				cancelPlayer(player)
 			end
 		end,
+		sendProfile = sendProfile,
 		leftMatch = function(player: Player)
 			local ps = players[player]
 			if ps == nil or ps.stage ~= "match" or player.Parent == nil then

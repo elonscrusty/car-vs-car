@@ -210,3 +210,9 @@ Tests: `lune run tests/run` all pass, stylua clean. NOT seen in Studio or on a p
 - Removed client UI he replaced: LobbyUi (coins box, claw modal, cars/store list, pick card, countdown, toast), ModeUi, ProgressUi, ActionInput (BOOST/ABILITY buttons; Space still jumps via the bridge), CarStatsUi, the old top banner/LOBBY/REMATCH buttons in Ui. Kept: QuestUi (QUESTS panel; no GIFT button any more), BuildUi garage, CenterBanner, ModeBanner (moved under his scoreboard), BuffUi, hints, all world effects.
 - Win flow: matchEnd shows the old headline + confetti for 3.5 s, then his Results screen; toLobby fills in coins and keeps Results open until he taps LOBBY or REMATCH(=PLAY).
 - Not verified by eye / phone yet: see the pictures in /mnt/project-files/car-vs-car/shots/ui/ when they exist. Settings: only SFX switch is wired (mutes all sound); music/reduced motion are display only.
+
+## 1v1 auto-battle (latest)
+All tuning is in `src/shared/BattleConfig.luau` (HP, speeds in L per second, weapon numbers, timings, prices = placeholders).
+Sim results (tests/battlesim, NOT real physics) show Saw beats Ram and Cannon, Ram beats Cannon: playtest then tune.
+Garage performance upgrades and car levels do not apply here. XP, quests and car levels are not wired to this mode.
+Flip `FeatureFlags.battleMode` to false to get the old pad fights back.

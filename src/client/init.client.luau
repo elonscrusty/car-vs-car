@@ -43,7 +43,9 @@ local SteerInput = require(script.SteerInput)
 local TeamIcons = require(script.TeamIcons)
 local WheelFx = require(script.WheelFx)
 local Ui = require(script.Ui)
+local BattleUi = require(script.BattleUi)
 
+BattleUi.start() -- 1v1 auto-battle screens and camera (server: BattleService)
 Quality.start() -- low-end phones: fewer particles when the frame time is high
 local remotes = Remotes.get()
 local modeBanner = ModeBanner.new()
