@@ -83,6 +83,25 @@ function Atmosphere.night()
 	Lighting.Ambient = Color3.fromRGB(70, 75, 110)
 	Lighting.OutdoorAmbient = Color3.fromRGB(85, 90, 130)
 	Lighting.ColorShift_Top = Color3.fromRGB(180, 200, 255)
+	-- Stadium lamps glow: more bloom, a deep blue haze, richer colour.
+	local bloom = Lighting:FindFirstChild("GameBloom")
+	if bloom and bloom:IsA("BloomEffect") then
+		bloom.Intensity = 0.7
+		bloom.Threshold = 1.0
+		bloom.Size = 24
+	end
+	local haze = Lighting:FindFirstChild("GameAtmosphere")
+	if haze and haze:IsA("Atmosphere") then
+		haze.Density = 0.28
+		haze.Color = Color3.fromRGB(70, 85, 140)
+		haze.Decay = Color3.fromRGB(40, 45, 90)
+	end
+	local grade = Lighting:FindFirstChild("GameGrade")
+	if grade and grade:IsA("ColorCorrectionEffect") then
+		grade.Saturation = 0.18
+		grade.Contrast = 0.1
+		grade.TintColor = Color3.fromRGB(235, 240, 255)
+	end
 end
 
 function Atmosphere.day()
