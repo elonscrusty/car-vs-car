@@ -38,6 +38,7 @@ local SoccerOrbs = require(ReplicatedStorage.Shared.SoccerOrbs)
 local BrawlRules = require(ReplicatedStorage.Shared.BrawlRules)
 local CarSmash = require(script.Parent.CarSmash)
 local Crown = require(script.Parent.Crown)
+local Tutorial = require(ReplicatedStorage.Shared.Tutorial)
 local Buffs = require(script.Parent.Buffs)
 local Pickups = require(script.Parent.Pickups)
 local CombatConfig = require(ReplicatedStorage.Shared.CombatConfig)
@@ -152,6 +153,7 @@ function GroupMatch.new(
 	local wallParts: { { part: BasePart, dir: Vector3, y: number } } = {}
 	local safeRadius = brawlArena.rimRadius
 	local startNextRound: (() -> ())? = nil -- defined after begin()
+	local tutorial: { [number]: Tutorial.State } = {} -- fight: a new player's first-fight lessons
 	local lastHitBy: { [number]: { by: number, at: number } } = {} -- car -> who hit it last, and when
 	local kos: { [number]: number } = {} -- fight: knock-outs made over the whole match
 	local bounties: { [number]: number } = {} -- fight: crown cars knocked out
@@ -327,6 +329,30 @@ function GroupMatch.new(
 				end)
 			end
 		end)
+	end
+
+	local function showLesson(i: number, step: Tutorial.Step?)
+		local part = participants[i]
+		if part == nil then
+			return
+		end
+		pcall(function()
+			part.player:SetAttribute("TutorialStep", if step then step.id else nil)
+		end)
+		if step then
+			sendTo(i, { kind = "modeInfo", text = step.text })
+		end
+	end
+
+	local function lessonEvent(i: number, event: string)
+		local st = tutorial[i]
+		if st == nil then
+			return
+		end
+		local nextStep = Tutorial.event(st, event, fightElapsed)
+		if nextStep then
+			showLesson(i, nextStep)
+		end
 	end
 
 	local function finishLast(roundWinner: number)
@@ -522,6 +548,7 @@ function GroupMatch.new(
 			end
 		end
 		lastHitBy[defender.idx] = { by = attacker.idx, at = os.clock() }
+		lessonEvent(attacker.idx, "hit")
 		local newHp, dead = Logic.applyDamage(defender.hp, dmg)
 		defender.hp = newHp
 		Telemetry.hit(participants)
@@ -1473,6 +1500,15 @@ function GroupMatch.new(
 			ball.Anchored = true
 			soccerHud()
 		end
+		table.clear(tutorial)
+		if brawlOn and roundNo == 1 then
+			for i, part in participants do
+				local profile = Profiles.get(part.player)
+				if profile and profile.matches == 0 and not gone[i] then
+					tutorial[i] = Tutorial.new()
+				end
+			end
+		end
 		if brawlOn and arena then
 			pickups = Pickups.start(arena, cars, rng, function(car, update)
 				if update.kind == "buff" and update.buff == "shield" then
@@ -1675,6 +1711,15 @@ function GroupMatch.new(
 					Buffs.tick(car, dt)
 				end
 			end
+			for i, st in tutorial do
+				local step = Tutorial.tick(st, fightElapsed)
+				if step then
+					showLesson(i, step)
+				elseif Tutorial.finished(st) then
+					tutorial[i] = nil
+					showLesson(i, nil)
+				end
+			end
 		end
 		for _, car in cars do
 			if not car.dead then
@@ -1719,9 +1764,11 @@ function GroupMatch.new(
 		if now - hudAt >= ModesConfig.LastStanding.hudSeconds then
 			hudAt = now
 			local n = Modes.lastAliveCount(last)
-			sendAll(function()
-				return { kind = "modeInfo", text = string.format("%d CARS LEFT", n) }
-			end)
+			for i = 1, total do
+				if tutorial[i] == nil then -- a lesson line is on screen instead
+					sendTo(i, { kind = "modeInfo", text = string.format("%d CARS LEFT", n) })
+				end
+			end
 		end
 	end)
 
@@ -1868,6 +1915,7 @@ function GroupMatch.new(
 			local seconds = Moves.press(moveStates[i], name, cars[i], enemy, rayParams, os.clock())
 			if seconds ~= nil and seconds > 0 then
 				sendTo(i, { kind = "move", move = name, seconds = seconds })
+				lessonEvent(i, name)
 				if name == "boost" then
 					-- Data for the boost meter: it refills until this server time.
 					cars[i].model:SetAttribute(
