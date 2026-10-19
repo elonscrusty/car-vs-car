@@ -20,6 +20,7 @@ local CameraDirector = require(script.CameraDirector)
 local Effects = require(script.Effects)
 require(script.OwnRing).start() -- glow ring under my own car
 local FightFx = require(script.FightFx)
+local CrowdFx = require(script.CrowdFx)
 local GoalFx = require(script.GoalFx)
 local HintUi = require(script.HintUi)
 local HitFlash = require(script.HitFlash)
@@ -268,6 +269,7 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		GoalFx.handle(u, director) -- soccer goal: confetti, camera snap to the ball, scorer name
 		director.shake(0.8)
 		director.punchFov(18)
+		CrowdFx.cheer() -- the stands hop
 	elseif u.kind == "matchEnd" then
 		buffs.clear()
 		aim.stop()
