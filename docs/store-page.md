@@ -14,7 +14,7 @@ Build a toy car and smash your rivals out of the bowl!
 Pull back, let go, and launch your car into a round arena. Steer, boost and use your car's special move to knock the other car over the rim. Last car in the bowl wins.
 
 - Quick fights: most matches last about a minute
-- Different modes that rotate: duel, king of the hill, ice, last car standing, soccer
+- Different modes: duel, king of the hill, ice, soccer (pick one with the MODE button, or leave it on AUTO to rotate)
 - Win coins and car XP, level up your cars
 - Customize your car in the garage: parts and paint
 - Try the claw machine and the daily spin for new cars and gifts

@@ -13,7 +13,7 @@ equal HP = next hit wins. Camera sits behind YOUR car (it is the near one).
 - Leftovers (unused): `Fight.luau` counter/special helpers, `FightFx.counter`, `Effects.counterSparks`,
   `Ability` remote (created, not handled), `Logic.loseHeart/tickBoost/canBoost`.
 
-The sections below describe the OLD prototype and the lobby; parts about autopilot, boost, specials, hearts are out of date.
+The sections below describe the OLD prototype (including its 4 placeholder cars Heavy/Light/Ramp/Spike, since removed) and the lobby; parts about autopilot, boost, specials, hearts are out of date.
 
 
 Status: unit tests pass (32), CI green. Studio playtest done on carter's PC: pick car -> aim -> launch -> auto-pilot fight -> damage -> hearts -> next round all ran, with a picture check. Not tested by hand: phone touch buttons, dummy ragdoll look, full YOU WIN screen.
@@ -80,10 +80,10 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 ## Cars and abilities (replaces the weapons)
 - Weapons are gone (Weapon/WeaponUi/WeaponsConfig, the claw no longer gives weapons, no WEAPON button). Old saves with a `weapons` field just ignore it.
 - A car is DATA: `src/shared/CarCatalog.luau` has 30 rows (id, name, FBX `model` name from vehicle-pack-30, rarity, ability, color). All 30 share `CarCatalog.Neutral` stats (carter: do not tune yet; a row can override with `stats`). Add a car = add one row (ids are saved in profiles: never rename). Rarities and abilities in the rows are PLACEHOLDERS.
-- `CarConfig` still holds the 8 old cars (now with `rarity` + `ability`) and appends the catalog, so `CarConfig.Order/get/Cars` list 38 cars. `LobbyConfig.Rarity` is built from CarConfig. Rarities: Common, Rare, Epic, Legendary (`CarConfig.Rarities`). Claw odds 55/28/14/3 and the 2500 Legendary store price are placeholders.
+- `CarConfig.Cars` is now the pack catalog only (the 8 old blocky cars were removed; ids kept in `CarConfig.Retired`), so `CarConfig.FullOrder` lists the pack cars and `CarConfig.Order` the 12 launch cars. `LobbyConfig.Rarity` is built from CarConfig. Rarities: Common, Rare, Epic, Legendary (`CarConfig.Rarities`). Claw odds 55/28/14/3 and the 2500 Legendary store price are placeholders.
 - Abilities: Dash, Shield, Slam, Ram, Magnet, Jump. Numbers and rarity strength in `AbilitiesConfig` (Rarity.power/cooldown); pure `Abilities.resolve(id, rarity)` / `forCar(stats)`. Tests: `tests/abilities.test.luau`, `tests/catalog.test.luau`.
 - Runtime: `server/Specials.luau` fires the car's ability on the SPECIAL button (Match -> `Moves.press`), server-checked cooldown, same rate limit as boost/jump. The fight message carries `ability` (name) and the SPECIAL button shows it. Shield = `Buffs.applyFor`; Ram = damage window read by Match; Slam/Magnet shove the enemy (mass-aware); Dash/Jump are impulses on your own car.
-- Wheels/engine/armor (Build, BuildConfig) multiply any car's stats and keep `ability/rarity/model`, so they work on all 38 cars. Swap wheels overlaying a model's own wheels is Studio work, not done here.
+- Wheels/engine/armor (Build, BuildConfig) multiply any car's stats and keep `ability/rarity/model`, so they work on every pack car. Swap wheels overlaying a model's own wheels is Studio work, not done here.
 - Not done: the 30 FBX models are not in the repo or used by CarBuilder yet (still box bodies; `model` names are ready for the Studio side). Not run in Studio; ability feel is untuned. selene and luau-analyze were not run locally (no Roblox API dump offline); CI lints.
 
 ## Bowl arena makeover (look only, no physics changes)
@@ -141,7 +141,7 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 - Tests: 264 pass (Lune). Not checked in Studio or by eye.
 
 ## Launch roster, distinct car stats, bot names (claude/fix-cars)
-- `CarConfig.LaunchRoster` (12 cars: Heavy, Light, Sedan, DuneBuggy, Ramp, Bulldozer, Drift, Spike, Rocket, MonsterTruck, Formula, ArmoredTruck). `CarConfig.useFullRoster = false` hides the rest: `CarConfig.Order` is now the live list (claw odds, store, picks, quests, bots); `CarConfig.FullOrder` is every car (saves, remotes, `get`). `CarConfig.isLive(id)`; Store only sells live cars. Set `useFullRoster = true` to bring all 38 back.
+- `CarConfig.LaunchRoster` (12 cars: Sedan, Compact, DuneBuggy, BoxTruck, Muscle, Kart, DriftKing, SuperCar, MonsterTruck, Semi, Formula, ArmoredTruck). `CarConfig.useFullRoster = false` hides the rest: `CarConfig.Order` is now the live list (claw odds, store, picks, quests, bots); `CarConfig.FullOrder` is every car (saves, remotes, `get`). `CarConfig.isLive(id)`; Store only sells live cars. Set `useFullRoster = true` to bring every pack car back. The 8 old blocky cars (Heavy, Light, Tank, Ramp, Drift, Bulldozer, Spike, Rocket) are removed from `CarConfig.Cars` and listed in `CarConfig.Retired`; old saves that own one get coins back (`Inventory.migrate`).
 - Stats: roster pack cars get own numbers + one-line role (shown as the existing `blurb`) in `CarCatalog.Tuned`. `CarPower.score` + `CarConfig.PowerWeights`/`PowerTolerance` (0.2) tested in `tests/roster.test.luau`. All stat numbers and weights are PLACEHOLDERS; abilities untouched.
 - `BotNames.luau` (30 names, `pick(seed, taken)`, `pickCar(seed, roster)`); `nameOf` in Match/GroupMatch uses it, so bots show a friendly name instead of "BOT".
 
@@ -194,7 +194,11 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 - `docs/performance-audit.md`: ranked findings from reading the code (not profiled). One leak fixed: per-player `CharacterAdded` connection in `LobbyService` (`charConns`).
 - `docs/playtest-checklist.md`: new section for sound toggle, menu unlock, soccer, weekly board, invite.
 ## Bots feel like people (w2-bots)
-- Brain (`src/shared/Ai.luau`, pure): rim guard (stopping-distance estimate, brakes with gas against the motion, never drives itself out), turn-in braking (stops two cars orbiting each other), lead aiming that ramps up if a chase drags on, one car waits in the middle if an orbit lasts 8 s, circlers commit after 3 s with no hit, Heavy only backs up when close, nose-to-nose for 1.2 s = run-up, `Ai.wantMoves` = when to boost / fire the ability (distance, aim, cooldown ready, rim safety, low HP panic).
+- Brain (`src/shared/Ai.luau`, pure): rim guard (stopping-distance estimate, brakes with gas against the motion, never drives itself out), turn-in braking (stops two cars orbiting each other), lead aiming that ramps up if a chase drags on, one car waits in the middle if an orbit lasts 8 s, circlers commit after 3 s with no hit, heavy cars only back up when close, nose-to-nose for 1.2 s = run-up, `Ai.wantMoves` = when to boost / fire the ability (distance, aim, cooldown ready, rim safety, low HP panic).
 - `src/server/BotMoves.luau` presses those moves for 1v1 bots (one line in `Match` before `Autopilot.step`). `Autopilot.step` feeds the brain velocity, nose, enemy velocity, accel and turn rate. Fix: a slow (easy) bot no longer ignores reverse gas above its speed cap. GroupMatch bots unchanged (no boost/ability, same guard via `Autopilot.step`).
 - Numbers: `GameConfig.Ai` (rim guard, pacing, move rules; `useMoves = false` turns bot moves off) and `BotLevelsConfig` (new `moveUse`, `lead`; hard is now speed 1.2, turn 1.8, run-up 1.5). All PLACEHOLDERS tuned against the headless sim only.
 - Sim: `tests/botsim.luau` (2D kinematic duel, real Ai/BotLevels/Abilities/Moves/Damage rules and config numbers, bowl radius from GameConfig; slope pull, lip, car collisions are sim guesses listed in its `SIM` table) and `tests/botsim.test.luau` (200 seeded duels per case). Latest numbers (medium v medium): first contact median 0.5 s, no zero-contact match, 0 percent accidental ring-outs; easy median 2.4 s. Win share: medium over easy 89%, hard over medium 60%, easy over a decent human 26%. Not checked in Studio: real feel, real launch speeds vs friction, GroupMatch bots.
+
+## Mode button, LOBBY button, telemetry (w3)
+- Lobby has a MODE button (AUTO / DUEL / HILL / ICE / SOCCER) and a LOBBY button that leaves a match (mid-match and on the end screen). The code for these lives in `LobbyService`, `init.server` and the client UI, not in this note; see the playtest checklist "Mode button and LOBBY button" for what to check.
+- Telemetry has two new events, `mode_picked` (mode name from a fixed allowlist) and `left_match` (which phase LOBBY was tapped in). The functions `Telemetry.modePicked(player, mode)` and `Telemetry.leftMatch(player, phase)` exist and are tested; the call sites in the lobby/server code must be added by whoever owns those files. See `docs/analytics.md`.

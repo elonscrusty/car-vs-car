@@ -30,6 +30,10 @@ API used (checked against the Roblox docs on 2026-10-18):
 | claw_pull | none (counter) | none | a claw pull is accepted | low share of players pulling: weak hook; very high: coins too easy | check odds, prices, coin rewards |
 | rematch_tapped | none | none | player taps rematch | low vs matches finished: rematch prompt missed or fight not fun | prompt placement, hit feel/sound |
 | quit_during_match | seconds | mode | player leaves while a match is running (before the end screen) | high count, or quits at a similar second: confusing or frustrating moment | watch the seconds; fix that phase (aim, long fights, a mode) |
+| mode_picked | none (counter) | mode (auto, duel, hill, ice, soccer; anything else is logged as "other") | player picks a mode with the lobby MODE button | share per mode: which modes people choose; "other" above 0 means a wrong name is being sent | check the MODE button wiring; consider which modes to promote |
+| left_match | seconds (since the match started, 0 before it starts) | phase (pad, pick, aim, fight, end; anything else is "other") | player taps LOBBY to leave a match | many in aim/fight: match is confusing or too long; many in end: end screen too slow; compare with quit_during_match | fix the phase that loses players |
+
+mode_picked and left_match are only sent once the server calls `Telemetry.modePicked(player, mode)` and `Telemetry.leftMatch(player, phase)` from the MODE and LOBBY handlers (the lobby and server code, not Telemetry itself).
 
 Time to first hit is measured from the player's own launch; in a 2-player match the first hit is counted from each player's launch, so a slow partner inflates it a little.
 
