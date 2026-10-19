@@ -346,6 +346,41 @@ function FeelRules.chaseYaw(
 	return carYaw + math.clamp(diff * share, -maxBias, maxBias)
 end
 
+-- Whole-arena camera: how far back (along the view line) a camera looking at the arena middle must
+-- sit so every corner of the arena footprint (half sizes hx, hz; floor at y = 0) is on screen.
+-- `yaw` = flat direction the camera looks (dir = sin yaw, cos yaw); pitch = degrees looking down.
+function FeelRules.arenaFitDistance(
+	hx: number,
+	hz: number,
+	yaw: number,
+	pitchDeg: number,
+	fovDeg: number,
+	aspect: number,
+	margin: number
+): number
+	local pitch = math.rad(pitchDeg)
+	local dx, dz = math.sin(yaw), math.cos(yaw)
+	local corners = { { -hx, -hz }, { hx, -hz }, { -hx, hz }, { hx, hz } }
+	local d = 20
+	while d < 900 do
+		local cam = { -dx * math.cos(pitch) * d, math.sin(pitch) * d, -dz * math.cos(pitch) * d }
+		local ok = true
+		for _, c in corners do
+			if
+				not FeelRules.inView(cam, { 0, 0, 0 }, { c[1], 0, c[2] }, fovDeg, aspect, margin)
+			then
+				ok = false
+				break
+			end
+		end
+		if ok then
+			return d
+		end
+		d += 2
+	end
+	return 900
+end
+
 -- ---- Team icons (#81) ----------------------------------------------------------------------
 
 -- Shape (not just colour) above a car: "bomb" for IT, "chevron" for a teammate, nil for others.

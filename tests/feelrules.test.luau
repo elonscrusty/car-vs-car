@@ -312,3 +312,25 @@ test("chase camera: leans toward the ball, capped, nil ball = straight behind", 
 	near(FeelRules.chaseYaw(0, 3, 0.35, 0.6), 0.6)
 	near(FeelRules.chaseYaw(3, -3, 0.5, 0.6), 3 + 0.5 * (-6 + 2 * math.pi))
 end)
+
+test("whole-arena camera: every corner fits, and a bigger arena needs a farther camera", function()
+	local f = GameConfig.Feel
+	local function dist(hx: number, hz: number)
+		return FeelRules.arenaFitDistance(hx, hz, 0, f.arenaPitch, f.normalFov, 1.9, f.arenaMargin)
+	end
+	local small, big = dist(40, 30), dist(80, 40)
+	truthy(big > small)
+	truthy(small < 900 and big < 900)
+	-- at that distance the far corners are really inside the view
+	local pitch = math.rad(f.arenaPitch)
+	local cam = { 0, math.sin(pitch) * big, -math.cos(pitch) * big }
+	for _, c in { { -80, -40 }, { 80, -40 }, { -80, 40 }, { 80, 40 } } do
+		truthy(
+			FeelRules.inView(cam, { 0, 0, 0 }, { c[1], 0, c[2] }, f.normalFov, 1.9, f.arenaMargin)
+		)
+	end
+	-- a narrower (portrait-ish) screen needs more distance for a wide arena
+	truthy(
+		FeelRules.arenaFitDistance(80, 40, 0, f.arenaPitch, f.normalFov, 1.2, f.arenaMargin) > big
+	)
+end)
