@@ -13,6 +13,7 @@ local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local LobbyLife = require(script.Parent.LobbyLife)
 local LobbyDecor = require(script.Parent.LobbyDecor)
+local LobbyFloor = require(script.Parent.LobbyFloor)
 local LobbyGarage = require(script.Parent.LobbyGarage)
 local LobbyMore = require(script.Parent.LobbyMore)
 local LobbyProps = require(script.Parent.LobbyProps)
@@ -1720,6 +1721,7 @@ function Lobby.build(): LobbyHandle
 	spawn.TopSurface = Enum.SurfaceType.Smooth
 	spawn.Parent = folder
 
+	LobbyFloor.build(folder, origin)
 	folder.Parent = workspace
 	outline("SpawnPadEdge", sp.size, sp.size, sp.x, sp.z, 0.5, CYAN, Enum.Material.Neon)
 	return { spawn = spawn, pads = pads, folder = folder, claw = clawModel }
