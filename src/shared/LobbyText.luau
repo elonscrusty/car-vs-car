@@ -14,7 +14,7 @@ function LobbyText.formatNumber(n: number): string
 end
 
 function LobbyText.coinsText(n: number): string
-	return LobbyText.formatNumber(n)
+	return `{LobbyText.formatNumber(n)} COINS`
 end
 
 function LobbyText.winsText(n: number): string
