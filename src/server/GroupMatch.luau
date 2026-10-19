@@ -75,7 +75,6 @@ function GroupMatch.new(
 	local soccer = Modes.soccerNew()
 	local ball: Part? = nil
 	local ballIdle = 0 -- seconds the ball has hardly moved (stuck check)
-	local ballPausedUntil = 0 -- after a goal the ball waits in the middle until then
 	local goldenGoal = false
 	-- Soccer flow: "countdown" (cars frozen, 3-2-1), "play", "goal" (frozen, score banner).
 	local soccerState = "countdown"
