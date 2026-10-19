@@ -8,6 +8,7 @@ local GameShared = ReplicatedStorage:WaitForChild("Shared")
 local CarConfig = require(GameShared:WaitForChild("CarConfig"))
 local Gacha = require(GameShared:WaitForChild("Gacha"))
 local LobbyConfig = require(GameShared:WaitForChild("LobbyConfig"))
+local QuestsConfig = require(GameShared:WaitForChild("QuestsConfig"))
 local Store = require(GameShared:WaitForChild("Store"))
 
 Config.Vehicles = {}
@@ -58,4 +59,5 @@ do
 		else low .. " TO " .. high
 end
 Config.DailyGift = 100
+Config.DailyStreak = QuestsConfig.Daily.streakCoins -- coins for login day 1, 2 ... 7
 return Config

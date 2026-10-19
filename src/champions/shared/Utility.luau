@@ -163,7 +163,7 @@ local function gift(root, state, ctx)
 		"Center"
 	)
 	status:SetAttribute("DailyNextAt", state.dailyNextAt)
-	-- Decorative gift markers do not imply an unsupported escalating streak reward.
+	-- Each tile shows the real login-streak reward for that day.
 	for day = 1, 7 do
 		local marker = T.panel(
 			panel,
@@ -175,7 +175,18 @@ local function gift(root, state, ctx)
 			day == 1 and T.C.cyan or T.C.silver
 		)
 		T.icon(marker, "Gift", "gift", 11, 13, 38, day == 1 and T.C.gold or T.C.muted)
-		T.text(marker, "Day", "DAY " .. day, 53, 20, 62, 27, 15, T.C.white)
+		T.text(marker, "Day", "DAY " .. day, 53, 8, 62, 27, 15, T.C.white)
+		T.text(
+			marker,
+			"Reward",
+			"+" .. T.format(Config.DailyStreak[math.min(day, #Config.DailyStreak)] or 0),
+			53,
+			36,
+			62,
+			27,
+			17,
+			T.C.gold
+		)
 	end
 end
 
@@ -197,14 +208,14 @@ local function confirmation(root, state, ctx)
 			T.C.white,
 			"Center"
 		)
-		T.button(panel, "CancelPurchase", "CANCEL", 30, 270, 368, 61, function()
+		T.button(panel, "CancelPurchase", "STAY", 30, 270, 368, 61, function()
 			back(state, ctx)
 		end, T.C.blue, "back")
 		-- Leaving remains available while player data loads or another request is pending.
 		local leave = T.button(
 			panel,
 			"ConfirmPurchase",
-			"RETURN TO LOBBY",
+			"RETURN TO GARAGE",
 			430,
 			270,
 			368,
@@ -240,24 +251,40 @@ local function confirmation(root, state, ctx)
 		31,
 		T.C.gold
 	)
-	local before = T.panel(panel, "BeforePanel", 35, 78, 329, 75, T.C.blue)
-	T.text(before, "Label", "BALANCE BEFORE", 12, 6, 305, 23, 17, T.C.muted, "Center")
-	T.text(before, "BalanceBefore", T.format(coins), 12, 31, 305, 36, 29, T.C.white, "Center")
-	T.text(panel, "BalanceArrow", ">", 377, 89, 74, 54, 41, T.C.cyan, "Center")
-	local after = T.panel(panel, "AfterPanel", 464, 78, 329, 75, T.C.blue)
-	T.text(after, "Label", "BALANCE AFTER", 12, 6, 305, 23, 17, T.C.muted, "Center")
-	T.text(
-		after,
-		"BalanceAfter",
-		T.format(coins - price),
-		12,
-		31,
-		305,
-		36,
-		29,
-		coins >= price and T.C.gold or T.C.red,
-		"Center"
-	)
+	if price == 0 then
+		-- A free pull needs no balance maths: one line, then the odds.
+		T.text(
+			panel,
+			"FreeLine",
+			"ONE RANDOM CAR, ON THE HOUSE. NO COINS NEEDED!",
+			30,
+			82,
+			768,
+			66,
+			27,
+			T.C.white,
+			"Center"
+		)
+	else
+		local before = T.panel(panel, "BeforePanel", 35, 78, 329, 75, T.C.blue)
+		T.text(before, "Label", "BALANCE BEFORE", 12, 6, 305, 23, 17, T.C.muted, "Center")
+		T.text(before, "BalanceBefore", T.format(coins), 12, 31, 305, 36, 29, T.C.white, "Center")
+		T.text(panel, "BalanceArrow", ">", 377, 89, 74, 54, 41, T.C.cyan, "Center")
+		local after = T.panel(panel, "AfterPanel", 464, 78, 329, 75, T.C.blue)
+		T.text(after, "Label", "BALANCE AFTER", 12, 6, 305, 23, 17, T.C.muted, "Center")
+		T.text(
+			after,
+			"BalanceAfter",
+			T.format(coins - price),
+			12,
+			31,
+			305,
+			36,
+			29,
+			coins >= price and T.C.gold or T.C.red,
+			"Center"
+		)
+	end
 	if claw then
 		local odds = state.clawOdds or Config.ClawOdds
 		T.text(
@@ -523,7 +550,10 @@ function Utility.render(parent, screen, state, ctx)
 	elseif screen == "SETTINGS" then
 		settings(root, state, ctx)
 	end
-	if screen ~= "REVEAL" then
+	local leaving = screen == "CONFIRM"
+		and state.confirm ~= nil
+		and state.confirm.action == "LeaveMatch"
+	if screen ~= "REVEAL" and not leaving then -- the leave dialog is a plain two-choice box
 		T.nav(root, screen == "GIFT" and "GIFT" or "", ctx)
 	end
 	return root
