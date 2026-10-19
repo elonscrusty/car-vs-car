@@ -25,18 +25,21 @@ test("every mode has a name and a blurb, and the rotation goes round", function(
 	end
 end)
 
-test("launch rotation: duel, hill, ice, soccer; last standing only with its flag", function()
-	eq(table.concat(ModesConfig.Order, ","), "duel,hill,ice,tag,soccer")
-	eq(table.concat(ModesConfig.orderFor({}), ","), "duel,hill,ice")
-	eq(table.concat(ModesConfig.orderFor({ tagMode = true }), ","), "duel,hill,ice,tag")
-	eq(
-		table.concat(
-			ModesConfig.orderFor({ soccerMode = true, lastStandingMode = true, tagMode = true }),
-			","
-		),
-		"duel,hill,ice,tag,lastStanding,soccer"
-	)
-end)
+test(
+	"launch rotation: soccer first, then tag, duel, hill, ice; last standing only with its flag",
+	function()
+		eq(table.concat(ModesConfig.Order, ","), "soccer,tag,duel,hill,ice")
+		eq(table.concat(ModesConfig.orderFor({}), ","), "duel,hill,ice")
+		eq(table.concat(ModesConfig.orderFor({ tagMode = true }), ","), "tag,duel,hill,ice")
+		eq(
+			table.concat(
+				ModesConfig.orderFor({ soccerMode = true, lastStandingMode = true, tagMode = true }),
+				","
+			),
+			"soccer,tag,duel,hill,ice,lastStanding"
+		)
+	end
+)
 
 test("car counts and bots", function()
 	eq(Modes.carCount("duel"), 2)
