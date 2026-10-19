@@ -288,8 +288,9 @@ function Pickups.start(
 		puddle.Shape = Enum.PartType.Cylinder
 		puddle.Size = Vector3.new(0.2, size, size)
 		puddle.CFrame = CFrame.new(at.X, center.Y + 0.1, at.Z) * CFrame.Angles(0, 0, math.pi / 2)
-		puddle.Color = Color3.fromRGB(28, 28, 44)
+		puddle.Color = Color3.fromRGB(40, 28, 70)
 		puddle.Material = Enum.Material.Glass
+		puddle.Reflectance = 0.35
 		puddle.Anchored = true
 		puddle.CanQuery = false
 		puddle.CanTouch = false
