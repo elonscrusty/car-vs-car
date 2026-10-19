@@ -12,6 +12,7 @@ local SoccerField = require(ReplicatedStorage.Shared.SoccerField)
 local SoccerFieldConfig = require(ReplicatedStorage.Shared.SoccerFieldConfig)
 
 local Arena = require(script.Parent.Arena)
+local LobbyDecor = require(script.Parent.LobbyDecor)
 
 local SoccerArena = {}
 
@@ -222,6 +223,15 @@ function SoccerArena.build(origin: Vector3): Arena.Arena
 	folder(model, "BallSpawn", origin + Vector3.new(0, c.kickoffLift + c.ballDiameter / 2, 0))
 	folder(model, "ScoreBoardAnchor", origin + Vector3.new(0, c.wallHeight + 6, -c.width / 2 - 4))
 
+	-- Score board model on top of the back wall, facing the field (model front is -Z).
+	local board = LobbyDecor.clone("Board_SoccerScore", model, nil, "Bowl")
+	if board then
+		board:PivotTo(
+			CFrame.new(origin + Vector3.new(0, c.wallHeight + 1, -c.width / 2 - 1))
+				* CFrame.Angles(0, math.pi, 0)
+		)
+	end
+
 	return { model = model, center = origin, frames = { CFrame.new(origin) } }
 end
 
@@ -239,6 +249,23 @@ function SoccerArena.ball(parent: Instance, origin: Vector3): Part
 	ball.Position = SoccerArena.ballPosition(origin)
 	ball.Anchored = false
 	ball.Parent = parent
+	-- The Studio ball look rides on the physics ball (which turns invisible).
+	local look = LobbyDecor.clone("SoccerBall", ball, nil, "Bowl")
+	if look then
+		look:ScaleTo(c.ballDiameter / 16)
+		look:PivotTo(ball.CFrame * CFrame.new(0, -c.ballDiameter / 2, 0))
+		for _, d in look:GetDescendants() do
+			if d:IsA("BasePart") then
+				d.Anchored = false
+				d.Massless = true
+				local w = Instance.new("WeldConstraint")
+				w.Part0 = ball
+				w.Part1 = d
+				w.Parent = d
+			end
+		end
+		ball.Transparency = 1
+	end
 	pcall(function()
 		ball:SetNetworkOwner(nil)
 	end)
