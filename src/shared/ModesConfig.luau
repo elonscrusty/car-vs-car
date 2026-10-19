@@ -83,7 +83,8 @@ return {
 		-- Mirrored round the middle so no spot is luckier.
 		Arena = {
 			flatRadius = 60,
-			rimRadius = 60,
+			rimRadius = 60, -- for a square arena: half the side length
+			square = true, -- a square floor with four straight walls (carter)
 			tiltDeg = 0,
 			wallHeight = 4, -- a low lip: a big hit launches you over it = out
 			spawnRadius = 40,

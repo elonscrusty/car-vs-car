@@ -1769,7 +1769,7 @@ function GroupMatch.new(
 				local x, z = flatOf(car)
 				if
 					Fight.isRingOut(
-						math.sqrt(x * x + z * z),
+						Fight.edgeDistance(x, z, brawlOn and brawlArena.square == true),
 						if brawlOn then safeRadius else cfg.Arena.rimRadius,
 						cfg.RingOut.margin
 					) or car.body.Position.Y < origin.Y - cfg.Match.outOfBoundsDrop
@@ -2034,8 +2034,8 @@ function GroupMatch.new(
 	if arena then
 		arena.model:SetAttribute("GameMode", mode) -- Specials reads it: ability meaning per mode
 		arena.model:SetAttribute("Round", roundNo)
-		if brawlOn then
-			-- The walls the shrink pushes in (low lip round the floor edge).
+		if brawlOn and brawlArena.square ~= true then
+			-- The walls the shrink pushes in (a square arena has fixed walls) (low lip round the floor edge).
 			for _, w in arena.model:GetChildren() do
 				if w:IsA("BasePart") and w.Name == "Wall" then
 					local d = Vector3.new(w.Position.X - origin.X, 0, w.Position.Z - origin.Z)
