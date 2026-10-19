@@ -396,8 +396,8 @@ function BattleUi.start()
 	local prepF = frame(
 		gui,
 		"Prep",
-		UDim2.fromScale(1, 0.24),
-		UDim2.fromScale(0, 0.76),
+		UDim2.fromScale(1, 0.2),
+		UDim2.fromScale(0, 0.8),
 		Color3.fromRGB(10, 12, 22),
 		0.45
 	)

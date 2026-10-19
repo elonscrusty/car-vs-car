@@ -1784,7 +1784,7 @@ function Lobby.build(): LobbyHandle
 		local goal = label(
 			playPlate,
 			Enum.NormalId.Front,
-			"Knock out other cars. Last car standing wins.",
+			"Pick a car. It fights by itself. Win 2 of 3 rounds.",
 			Color3.fromRGB(210, 220, 235),
 			nil
 		)
