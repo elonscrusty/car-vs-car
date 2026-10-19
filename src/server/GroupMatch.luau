@@ -79,7 +79,7 @@ function GroupMatch.new(
 	local soccerOn = mode == "soccer"
 	local tagOn = mode == "tag"
 	local raceOn = mode == "race"
-	local brawlOn = mode == "lastStanding" -- the car fight: flat floor, ramps, last car alive
+	local brawlOn = mode == "lastStanding" -- the car fight: flat floor, last car alive
 	local brawlArena = table.clone(cfg.Arena)
 	for k, v in ModesConfig.LastStanding.Arena do
 		brawlArena[k] = v

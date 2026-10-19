@@ -79,8 +79,8 @@ return {
 		spawnRadius = 48, -- start ring, studs from the middle
 		hpScale = 1.2, -- share of the car's normal HP: ~6-8 front hits at a normal crash speed (carter: medium health)
 		hudSeconds = 1,
-		-- Flat fight floor with ramps and blocks (overrides GameConfig.Arena for this mode).
-		-- Ramps climb toward -Z at yaw 0. Mirrored round the middle so no spot is luckier.
+		-- Flat fight floor with blocks, pillars and hammers, NO ramps (carter). Overrides GameConfig.Arena for this mode.
+		-- Mirrored round the middle so no spot is luckier.
 		Arena = {
 			flatRadius = 60,
 			rimRadius = 60,
@@ -91,8 +91,6 @@ return {
 			dirt = true, -- brown dirt floor, monster-truck show
 			stadium = true, -- stands, crowd and lights instead of the bowl scenery
 			obstacles = {
-				{ kind = "ramp", x = -25, z = -18, sx = 14, sz = 22, yaw = 0 },
-				{ kind = "ramp", x = 25, z = 18, sx = 14, sz = 22, yaw = 180 },
 				{ kind = "block", x = 0, z = -23, sx = 10, sy = 7, sz = 6 },
 				{ kind = "block", x = 0, z = 23, sx = 10, sy = 7, sz = 6 },
 				{ kind = "pillar", x = -18, z = 20, sx = 6, sy = 9 },

@@ -175,22 +175,6 @@ function Arena.build(origin: Vector3, arenaCfg: any?): Arena
 			if cfg.stadium then
 				ArenaProps.dressHammer(model, bar, origin + Vector3.new(o.x, 0, o.z), origin.Y)
 			end
-		elseif o.kind == "ramp" then
-			local rampTilt = math.rad(18)
-			local len = o.sz or o.sx
-			local rise = len / 2 * math.sin(rampTilt)
-			local ramp = makePart(
-				model,
-				"Obstacle",
-				Vector3.new(o.sx, 1, len),
-				CFrame.new(origin + Vector3.new(o.x, rise + 0.2, o.z))
-					* CFrame.Angles(0, math.rad(o.yaw or 0), 0)
-					* CFrame.Angles(rampTilt, 0, 0),
-				Color3.fromRGB(240, 200, 40)
-			)
-			if cfg.stadium then
-				ArenaProps.dressRamp(model, ramp)
-			end
 		elseif o.kind == "pillar" then
 			local pillar = makePart(
 				model,

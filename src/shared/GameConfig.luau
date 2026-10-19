@@ -24,7 +24,6 @@ local GameConfig = {
 		spawnRadius = 68, -- launch spots, studs from center
 		-- Things to hit and hide behind. x/z = studs from center. Keep them mirrored (x,z -> -x,-z)
 		-- so neither side is lucky. "block" = box (sx, sy, sz); "pillar" = round (sx = width);
-		-- "ramp" = a slope to jump off (sx wide, sz long, yaw = turn in degrees, climbs toward -Z at 0);
 		-- "spinner" = a bar (sx long, sy high) that turns around (x, z) at `spin` rad/sec.
 		obstacles = {},
 	},
