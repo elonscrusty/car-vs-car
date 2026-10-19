@@ -262,7 +262,7 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		end
 		if u.pos then
 			Effects.sparks(u.pos, strength)
-			Effects.damageNumber(u.pos, u.damage or 0, u.youHit == true, u.tag)
+			Effects.damageNumber(u.damagePos or u.pos, u.damage or 0, u.youHit == true, u.tag)
 		end
 	elseif u.kind == "ko" then
 		FightFx.ko(u.text or "K.O.!")

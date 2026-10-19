@@ -506,8 +506,20 @@ function GroupMatch.new(
 		if currentArena then
 			dummy = Dummy.launch(pos, currentArena.model)
 		end
+		-- Everyone else reads WHO is out and who did it (plain text only for the other modes).
+		local shown = text
+		if brawlOn and (text == "K.O.!" or text == "RING OUT!") then
+			local who = nameOf(car.idx)
+			if killer then
+				shown = who .. " SMASHED BY " .. nameOf(killer.idx)
+			elseif text == "RING OUT!" then
+				shown = who .. " FELL OFF!"
+			else
+				shown = who .. " IS OUT!"
+			end
+		end
 		sendAll(function(i)
-			return { kind = "ko", text = if i == car.idx then "YOU ARE OUT!" else text, pos = pos }
+			return { kind = "ko", text = if i == car.idx then "YOU ARE OUT!" else shown, pos = pos }
 		end)
 		if isHuman(car.idx) then
 			-- An eliminated player films their own crash dummy and stops driving.
@@ -585,10 +597,13 @@ function GroupMatch.new(
 		defender.bar.set(newHp, maxHp[defender.idx])
 		local strength = Logic.hitStrength(rel, cfg.Feel.bigHitSpeed)
 		local hitPos = (a.body.Position + b.body.Position) / 2
+		-- the damage number floats over the car that got hit
+		local victimPos = defender.body.Position
 		sendAll(function(i)
 			return {
 				kind = "hit",
 				pos = hitPos,
+				damagePos = victimPos,
 				strength = strength,
 				damage = dmg,
 				youHit = defender.idx == i,
@@ -1886,6 +1901,14 @@ function GroupMatch.new(
 				w.y,
 				origin.Z + w.dir.Z * (safeRadius + 0.5)
 			) * w.part.CFrame.Rotation
+		end
+		-- The wreckage from last round is swept away on purpose: a clean floor for the new round.
+		if arena then
+			for _, d in arena.model:GetChildren() do
+				if d:IsA("BasePart") and d:GetAttribute("Scrap") == true then
+					d:Destroy()
+				end
+			end
 		end
 		spawnCars() -- every car is fully fixed again
 		phase = "ready"
