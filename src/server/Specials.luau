@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Abilities = require(ReplicatedStorage.Shared.Abilities)
 local AbilitiesConfig = require(ReplicatedStorage.Shared.AbilitiesConfig)
+local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local SpecialLogic = require(ReplicatedStorage.Shared.SpecialLogic)
 local Buffs = require(script.Parent.Buffs)
 local CarBuilder = require(script.Parent.CarBuilder)
@@ -87,6 +88,60 @@ local function shove(
 	Impulse.linear(body, (unit * push + Vector3.yAxis * lift) * scale * body.AssemblyMass)
 end
 
+-- The mode GroupMatch tagged the arena with (attribute `GameMode` on the Arena folder/model:
+-- "soccer", "tag", "race"), found by walking up from the car. Returns the mode and the instance
+-- that carries it. nil = attribute missing = old behaviour.
+local function modeOf(car: CarBuilder.Car): (string?, Instance?)
+	local inst: Instance? = car.model
+	while inst do
+		local m = inst:GetAttribute("GameMode")
+		if type(m) == "string" and m ~= "" then
+			return m, inst
+		end
+		inst = inst.Parent
+	end
+	return nil, nil
+end
+
+-- The soccer ball inside the arena that carries the GameMode attribute (or nil).
+local function findBall(container: Instance): BasePart?
+	local b = container:FindFirstChild("Ball", true)
+	if b and b:IsA("BasePart") and not b.Anchored then
+		return b
+	end
+	return nil
+end
+
+-- Soccer: Slam shoves the ball, Magnet pulls it (same reach and falloff as for cars).
+local function moveBall(
+	car: CarBuilder.Car,
+	ab: Abilities.Ability,
+	how: string,
+	container: Instance
+)
+	local ball = findBall(container)
+	if ball == nil then
+		return
+	end
+	local offset = ball.Position - car.body.Position
+	local f = SpecialLogic.falloff(offset.Magnitude, ab.radius)
+	if f <= 0 then
+		return
+	end
+	local flat = Vector3.new(offset.X, 0, offset.Z)
+	local unit = if flat.Magnitude > 0.01 then flat.Unit else car.body.CFrame.LookVector
+	local dir = if how == "pull" then -unit else unit
+	local lift = if how == "push" then ab.lift else 0
+	Impulse.linear(ball, (dir * ab.push + Vector3.yAxis * lift) * f * ball.AssemblyMass)
+end
+
+-- Tag: until this server time the car cannot be tagged (set by Shield). Read it with
+-- Specials.tagImmune(car) from the tag rules. Also an attribute: `TagImmuneUntil`.
+function Specials.tagImmune(car: CarBuilder.Car): boolean
+	local untilT = car.model:GetAttribute("TagImmuneUntil")
+	return type(untilT) == "number" and workspace:GetServerTimeNow() < untilT
+end
+
 -- The ability this car has (rarity applied), or nil. For the HUD and tests.
 function Specials.abilityOf(car: CarBuilder.Car): Abilities.Ability?
 	return Abilities.forCar(car.stats)
@@ -104,6 +159,11 @@ function Specials.use(car: CarBuilder.Car, enemy: CarBuilder.Car, now: number): 
 		return false
 	end
 	s.readyAt = now + ab.cooldown
+	-- cooldown picture for the UI (server time, same clock on every client)
+	car.model:SetAttribute("AbilityCooldown", ab.cooldown)
+	car.model:SetAttribute("AbilityReadyAt", workspace:GetServerTimeNow() + ab.cooldown)
+	local mode, modeRoot = modeOf(car)
+	local use = Abilities.modeUse(ab.id, mode)
 
 	local enemyAlive = not enemy.dead
 	local offset = enemy.body.Position - car.body.Position
@@ -117,11 +177,17 @@ function Specials.use(car: CarBuilder.Car, enemy: CarBuilder.Car, now: number): 
 		)
 	elseif ab.kind == "shield" then
 		Buffs.applyFor(car, "shield", ab.seconds)
+		if use and use.tagImmune then
+			car.model:SetAttribute("TagImmuneUntil", workspace:GetServerTimeNow() + use.tagImmune)
+		end
 	elseif ab.kind == "slam" then
 		reach = ab.radius
 		local f = SpecialLogic.falloff(dist, ab.radius)
 		if enemyAlive and f > 0 then
 			shove(enemy, offset, ab.push, ab.lift, f)
+		end
+		if use and use.ball and modeRoot then
+			moveBall(car, ab, use.ball, modeRoot)
 		end
 	elseif ab.kind == "ram" then
 		s.bonusUntil = now + ab.seconds
@@ -132,10 +198,21 @@ function Specials.use(car: CarBuilder.Car, enemy: CarBuilder.Car, now: number): 
 		if enemyAlive and f > 0 then
 			shove(enemy, -offset, ab.push, 0, f)
 		end
+		if use and use.ball and modeRoot then
+			moveBall(car, ab, use.ball, modeRoot)
+		end
 	else -- "jump"
 		Impulse.linear(car.body, Vector3.yAxis * ab.jumpSpeed * car.body.AssemblyMass)
 	end
-	cue(car, COLORS[ab.kind] or Color3.new(1, 1, 1), reach)
+	-- Rare and up flash in their rarity color (identity, not power; audit #45/#49); Common keeps
+	-- the per-ability color. CosmeticRarity is the real rarity even in a fair match.
+	local cosmetic = car.model:GetAttribute("CosmeticRarity")
+	local color = COLORS[ab.kind] or Color3.new(1, 1, 1)
+	if type(cosmetic) == "string" and cosmetic ~= "Common" then
+		local rgb = CarCatalog.styleFor(cosmetic).effectRgb
+		color = Color3.fromRGB(rgb[1], rgb[2], rgb[3])
+	end
+	cue(car, color, reach)
 	return true
 end
 
@@ -160,6 +237,8 @@ end
 -- Forgets cooldown and bonuses for `car` (a new match makes new cars, so this is optional).
 function Specials.reset(car: CarBuilder.Car)
 	states[car] = nil
+	car.model:SetAttribute("AbilityReadyAt", 0)
+	car.model:SetAttribute("TagImmuneUntil", nil)
 end
 
 return Specials

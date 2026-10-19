@@ -95,3 +95,16 @@ Well inside the DataStore budget for a small server; recheck if many servers run
 Real part counts (`#workspace:GetDescendants()` in a live server), MicroProfiler captures of the
 Heartbeat loops, and network KB/s. Open question: does `Persistent` streaming of four bowls hurt
 low-end phones? Test on a phone with all four pads busy.
+
+## Phone FPS test procedure (audit #88)
+
+Goal: know the frame rate in a 6-car soccer match on the oldest phone you can borrow.
+
+1. Publish privately (a phone cannot join a Studio test, so it needs the published private place).
+2. On the phone: Roblox Settings > Graphics: leave on Automatic first, then repeat once at the lowest quality level.
+3. Show FPS: Roblox in-game menu > Settings > Performance Stats (turn on). Read the FPS number during play; if it is not available, record the screen and count with the Roblox stats overlay of a second device.
+4. Start a 6-car Car Soccer match (you plus bots, then once with a second human). Play the full round.
+5. Write down, for each of: lobby standing still, lobby walking near the 8 garages, soccer match start, soccer pile-up near the ball, goal burst, race start with 6 cars: FPS low and typical, and whether the ball felt late.
+6. Test the same with the phone on weak Wi-Fi (or one bar of mobile data) for ball touch accuracy (see audit #101).
+7. Pass line to judge against, not a rule: typical 30 FPS or more with no long freezes. If it is lower, reduce in this order: scenery parts, particle counts, the lobby 20 Hz decor loops (finding 5), then Persistent streaming of the four bowls (finding 4).
+8. Record the phone model, Roblox version, the numbers and the quality level in the playtest notes.

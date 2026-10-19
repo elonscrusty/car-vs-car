@@ -83,6 +83,33 @@ Economy feel (see docs/economy-report.md, all prices are pretend)
 - [ ] A casual player pulls a Rare in the first couple of days and a Legendary within weeks, not hours
 - [ ] Duplicates give coins back and the refund text is shown
 
+## Save, claw and payout checks (audit #103, #104, #105; needs a PUBLISHED private place)
+
+Studio cannot save (DataStore needs a published place), so these three run on the published test.
+
+Save and rejoin (#103)
+1. Join with a test account. Note coins, wins, and the cars in the garage.
+2. Win one match (soccer vs bots is fine). Note coins and wins again.
+3. Pull the claw once. Note coins and the car you got.
+4. Wait 5 seconds, then press Leave in the Roblox menu (the leave-save runs).
+5. Rejoin the same place at once (the same server if possible: join a friend, or rejoin within 10 seconds). Check: same coins, wins and cars as step 3. No "Saving paused" text.
+6. Repeat, but leave in the MIDDLE of the claw animation (right after tapping the pull). After rejoin the coins must be down by exactly 100 and the car must be in the garage, or coins unchanged and no car. Never coins gone and no car.
+7. Check the Output (server log) for "[Profiles] ... failed" lines. Any "playing UNSAVED" line means the load failed: write down the time.
+8. Warning text: "Saving paused. Your coins may not be kept." shows only when the save failed to load; it must NOT show in the normal run.
+
+Double-tap claw (#104)
+1. Use an account with exactly 100 coins and its free first pull already used (no daily gift).
+2. Tap the pull button 5 times as fast as you can.
+3. Expected: one pull. Coins end at 0, or 0 plus a duplicate refund if the car is a duplicate (the refund is less than 100). You get at most one car. The other taps do nothing or show "busy" / "not enough coins".
+4. Rejoin: the numbers must be the same. Repeat 3 times.
+
+Two-human soccer payout (#105)
+1. Two humans on the same pad, soccer (set MODE to SOCCER), different accounts. Write down both coin and win counts before.
+2. Play one full match. One team wins.
+3. Check both players after the end screen: each gets ONE payout only (win coins for the winning side, lose coins for the other, plus any progress bonus). Wins +1 only for the winners, matches +1 for everyone.
+4. Press REMATCH on both, finish the next match: again one payout each, not two.
+5. Have one player leave during the end screen: the other still gets exactly one payout.
+
 ## Phone check (do on a real phone, not the emulator)
 
 - [ ] Buttons are big enough to tap with a thumb

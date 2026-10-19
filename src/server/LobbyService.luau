@@ -367,6 +367,7 @@ function LobbyService.start(deps: Deps): Handle
 		for _, key in table.clone(pad.players) do
 			local player = key :: Player
 			local ps = players[player]
+			local prof = Profiles.get(player)
 			if ps then
 				ps.stage = "match"
 				ps.token += 1
@@ -375,7 +376,7 @@ function LobbyService.start(deps: Deps): Handle
 				table.insert(participants, {
 					player = player,
 					carId = picks[key],
-					mode = modePref[player],
+					mode = Modes.defaultPick(if prof then prof.matches else 0, modePref[player]),
 					appearance = lookFor(player, picks[key]),
 					build = buildOf(player),
 					onFinished = function(won: boolean, stay: boolean?)

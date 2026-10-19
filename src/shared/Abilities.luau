@@ -70,4 +70,23 @@ function Abilities.forCar(stats: { ability: string?, rarity: string? }): Ability
 	return Abilities.resolve(stats.ability, stats.rarity)
 end
 
+-- What an ability does in a mode (AbilitiesConfig.ModeUse), or nil for an unknown mode/ability
+-- (nil = old behaviour). `mode` is the GameMode attribute value, any case.
+function Abilities.modeUse(id: any, mode: any): { text: string, ball: string?, tagImmune: number? }?
+	if type(id) ~= "string" or type(mode) ~= "string" then
+		return nil
+	end
+	local row = AbilitiesConfig.ModeUse[string.lower(mode)]
+	return if row then row[id] else nil
+end
+
+-- Fraction of the cooldown still left, 0 (ready) .. 1 (just used). For a cooldown ring.
+-- readyAt and now must use the same clock (the server sets both attributes in server time).
+function Abilities.cooldownFraction(readyAt: number, cooldown: number, now: number): number
+	if cooldown <= 0 or now >= readyAt then
+		return 0
+	end
+	return math.clamp((readyAt - now) / cooldown, 0, 1)
+end
+
 return Abilities

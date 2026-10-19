@@ -117,6 +117,30 @@ CarConfig.PowerWeights = {
 -- Max a car's power may be above the average of its rarity tier (0.2 = 20%); checked by tests.
 CarConfig.PowerTolerance = 0.2
 
+-- Touch steering smoothing for small, twitchy cars (audit #52). The client helper eases its steer
+-- value toward the stick with Steer.smooth(current, target, dt, rate), rate = steerSmoothRate(turnRate).
+-- Cars at or below `fromTurnRate` are not smoothed (rate `offRate` = effectively instant); at or
+-- above that the rate eases from `startRate` down to `minRate` at `fullTurnRate` (full stick travel takes 1/minRate seconds).
+-- PLACEHOLDERS: phone-test with kids and tune.
+CarConfig.SteerSmooth = {
+	enabled = true,
+	fromTurnRate = 3.6,
+	fullTurnRate = 5.0,
+	startRate = 12, -- rate just above fromTurnRate
+	minRate = 4,
+	offRate = 100,
+}
+
+-- Steer-input change allowed per second for a car with this turnRate (pure).
+function CarConfig.steerSmoothRate(turnRate: number, cfg: any?): number
+	local c = cfg or CarConfig.SteerSmooth
+	if not c.enabled or turnRate ~= turnRate or turnRate <= c.fromTurnRate then
+		return c.offRate
+	end
+	local t = math.clamp((turnRate - c.fromTurnRate) / (c.fullTurnRate - c.fromTurnRate), 0, 1)
+	return c.startRate + (c.minRate - c.startRate) * t
+end
+
 -- Every car id that exists (valid in saves/remotes), in pick-menu order.
 CarConfig.FullOrder = table.clone(CarConfig.Order)
 do
