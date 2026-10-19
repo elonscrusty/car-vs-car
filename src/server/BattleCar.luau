@@ -175,7 +175,11 @@ function BattleCar.spawn(
 	body.CanCollide = true
 	body.CanQuery = true
 	if body:IsA("MeshPart") then
-		body.CollisionFidelity = Enum.CollisionFidelity.Box
+		-- A running game cannot write this (plugin only): set Box on the saved Body mesh in Studio.
+		-- The pcall just makes a model that already has it, or a stand-in, work either way.
+		pcall(function()
+			(body :: MeshPart).CollisionFidelity = Enum.CollisionFidelity.Box
+		end)
 	end
 	body.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0.1, 0.2, 1, 1)
 
