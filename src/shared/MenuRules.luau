@@ -29,4 +29,11 @@ function MenuRules.visible(profile: any, cfg: any?): Visible
 	return { gift = true, quests = full, garage = full }
 end
 
+-- Show a one-time "New: QUESTS and GARAGE" notice? True once the buttons are visible and the
+-- player has not seen the notice (hintsSeen.unlock; the client reports it with action "hintSeen").
+function MenuRules.unlockNotice(profile: any, hintsSeen: { [string]: boolean }?, cfg: any?): boolean
+	local seen = hintsSeen ~= nil and hintsSeen.unlock == true
+	return MenuRules.visible(profile, cfg).quests and not seen
+end
+
 return MenuRules

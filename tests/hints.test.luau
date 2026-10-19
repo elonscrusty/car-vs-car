@@ -5,11 +5,12 @@ local Inventory = require("../src/shared/Inventory")
 
 print("Hints")
 
-H.test("three hints in order, each with text", function()
-	H.eq(#Hints.Order, 3)
+H.test("hints in order, each with text", function()
+	H.eq(#Hints.Order, 7)
 	H.eq(Hints.Order[1], "pad")
 	H.eq(Hints.Order[2], "aim")
 	H.eq(Hints.Order[3], "claw")
+	H.eq(table.concat(Hints.Order, ",", 4), "soccer,tag,race,unlock")
 	for _, id in Hints.Order do
 		H.truthy(#Hints.text(id) > 0)
 	end
@@ -67,4 +68,28 @@ H.test("profile defaults and migrates hintsSeen (old saves lack it)", function()
 	local p = Inventory.default()
 	Hints.markSeen(p.hintsSeen, "claw")
 	H.truthy(Inventory.migrate(p).hintsSeen.claw)
+end)
+
+H.test("pad hint says blue (the pads are blue)", function()
+	H.eq(Hints.text("pad"), "Step on a blue pad to play")
+	H.eq(string.find(string.lower(Hints.text("pad")), "green"), nil)
+end)
+
+H.test("each group mode has its own once-only controls hint", function()
+	for _, mode in { "soccer", "tag", "race" } do
+		local id = Hints.forMode(mode)
+		H.eq(id, mode)
+		H.truthy(Hints.isKnown(id))
+		H.truthy(#Hints.text(id :: string) > 0)
+	end
+	H.eq(Hints.forMode("duel"), nil)
+	H.eq(Hints.forMode(5), nil)
+	local seen: Hints.Seen = {}
+	H.truthy(Hints.markSeen(seen, "soccer"))
+	H.eq(Hints.shouldShow(seen, "soccer"), false)
+	H.truthy(Hints.shouldShow(seen, "tag"))
+	-- saved in hintsSeen and survives the save round trip
+	local p = Inventory.default()
+	Hints.markSeen(p.hintsSeen, "race")
+	H.truthy(Inventory.migrate(p).hintsSeen.race)
 end)

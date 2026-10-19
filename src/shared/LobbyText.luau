@@ -3,6 +3,20 @@
 
 local LobbyText = {}
 
+-- Text keys the server sends instead of words (the client shows the text for a key).
+-- claw = a random car, store = the car you pick.
+LobbyText.Keys = {
+	clawSurprise = "SURPRISE CAR",
+	storeChoose = "CHOOSE YOUR CAR",
+} :: { [string]: string }
+
+function LobbyText.keyText(key: any): string
+	if type(key) ~= "string" then
+		return ""
+	end
+	return LobbyText.Keys[key] or ""
+end
+
 function LobbyText.formatNumber(n: number): string
 	local s = tostring(math.floor(math.max(0, n)))
 	local out = s
@@ -32,6 +46,19 @@ end
 function LobbyText.oddsLine(rarity: string, percent: number, carNames: { string }): string
 	local names = if #carNames > 0 then table.concat(carNames, ", ") else "-"
 	return `{rarity}  {LobbyText.percentText(percent)}  -  {names}`
+end
+
+-- "Duplicate = 25 coins back" for the claw odds list.
+function LobbyText.refundText(refund: number): string
+	return `Duplicate = {LobbyText.formatNumber(refund)} coins back`
+end
+
+-- "Epic or better in 4 pulls" (0 left = the next pull).
+function LobbyText.pityText(left: number, minRarity: string): string
+	if left <= 1 then
+		return `Next pull: {minRarity} or better!`
+	end
+	return `{minRarity} or better in {math.floor(left)} pulls`
 end
 
 function LobbyText.priceText(price: number, freeAvailable: boolean): string
