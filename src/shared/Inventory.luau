@@ -99,9 +99,18 @@ function Inventory.migrate(raw: any): Profile
 	if next(owned) == nil then
 		grantStarters(owned)
 	end
+	-- A removed (retired) car still in the save pays coins back, once: it is gone after this load.
+	local coins = cleanNumber(raw.coins)
+	if type(rawOwned) == "table" then
+		for id, rarity in CarConfig.Retired do
+			if rawOwned[id] == true then
+				coins = math.min(coins + (LobbyConfig.Store.prices[rarity] or 0), MAX_NUMBER)
+			end
+		end
+	end
 	return {
 		version = VERSION,
-		coins = cleanNumber(raw.coins),
+		coins = coins,
 		wins = cleanNumber(raw.wins),
 		matches = cleanNumber(raw.matches), -- old saves have none: 0
 		owned = owned,

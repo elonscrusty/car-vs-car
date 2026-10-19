@@ -340,46 +340,6 @@ function CarBuilder.build(
 	)
 	marker.Material = Enum.Material.Neon
 
-	-- Per-type look (placeholder shapes; skipped when a real model is used).
-	if carMesh == nil then
-		if id == "Heavy" then
-			addPart(
-				model,
-				body,
-				"Bumper",
-				Vector3.new(sx, 1, 1),
-				CFrame.new(0, -sy * 0.2, -sz / 2 - 0.5),
-				Color3.fromRGB(70, 70, 75),
-				true
-			)
-		elseif id == "Ramp" then
-			-- Tilted plate in front: low at the nose, rising toward the body.
-			addPart(
-				model,
-				body,
-				"RampPlate",
-				Vector3.new(sx * 0.95, 0.5, sz * 0.55),
-				CFrame.new(0, -sy * 0.15, -sz / 2 - 1.2) * CFrame.Angles(math.rad(-25), 0, 0),
-				Color3.fromRGB(150, 190, 255),
-				true
-			)
-		elseif id == "Spike" then
-			local metal = Color3.fromRGB(200, 205, 215)
-			for _, sxo in { -0.3, 0, 0.3 } do
-				local len = if sxo == 0 then 4.5 else 3
-				addPart(
-					model,
-					body,
-					"Spike",
-					Vector3.new(0.6, 0.6, len),
-					CFrame.new(sxo * sx, 0, -sz / 2 - len / 2),
-					metal,
-					true
-				)
-			end
-		end
-	end
-
 	if build then
 		attachBuild(model, body, Vector3.new(sx, sy, sz), build)
 	end

@@ -13,8 +13,8 @@ H.test("pick screen is skipped only when exactly one car is offered", function()
 	H.eq(PickChoices.shouldSkip(0), false)
 	H.eq(PickChoices.shouldSkip(2), false)
 	H.eq(PickChoices.shouldSkip(3), false)
-	-- a player who owns only Heavy gets exactly one offered car
-	local offered = PickChoices.choose({ "Heavy", "Heavy" }, 3, function()
+	-- a player who owns only Sedan gets exactly one offered car
+	local offered = PickChoices.choose({ "Sedan", "Sedan" }, 3, function()
 		return 0
 	end)
 	H.eq(#offered, 1)
@@ -29,7 +29,7 @@ H.test("first win: only a win with zero wins saved", function()
 	H.eq(FirstWin.isFirstWin(nil, true), false)
 	H.eq(FirstWin.isFirstWin("0", true), false)
 	-- an old save (no wins field) migrates to 0 wins, so the first win still counts
-	local old = Inventory.migrate({ coins = 5, owned = { Heavy = true } })
+	local old = Inventory.migrate({ coins = 5, owned = { Sedan = true } })
 	H.truthy(FirstWin.isFirstWin(old.wins, true))
 end)
 

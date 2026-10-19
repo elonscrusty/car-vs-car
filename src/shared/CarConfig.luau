@@ -1,5 +1,5 @@
 --!strict
--- The 8 placeholder cars. ALL car numbers live here.
+-- Car stats. ALL car numbers live here (the cars themselves are rows in CarCatalog: carter's 30-car pack).
 -- hp: health. mass: weight (bigger = harder to push). maxSpeed: top speed (auto-pilot or human gas).
 -- accel: how fast it speeds up. turnRate: max spin speed (radians/sec).
 -- damageMult: damage multiplier when this car is the one hitting.
@@ -7,7 +7,7 @@
 -- ai: auto-pilot style ("BackupCharge", "CircleDive", "Direct").
 -- rarity / ability: Common..Legendary and the one ability the car has (see AbilitiesConfig).
 -- model: name of the imported 3D model (nil = the plain box body).
--- The 8 placeholder cars are written out below; the 30 pack cars come from CarCatalog.
+-- The old blocky built-in cars are gone (carter: only the pack cars stay); see `Retired`.
 
 -- Sibling loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
 local function sibling(name: string): any
@@ -46,141 +46,25 @@ export type CarStats = {
 local CarConfig = {}
 
 -- Order shown in the pick menu.
-CarConfig.Order = { "Heavy", "Light", "Ramp", "Spike", "Tank", "Drift", "Bulldozer", "Rocket" }
+CarConfig.Order = {} :: { string } -- filled from CarCatalog below
 
 -- Rarity names, best last. Claw odds, store prices and ability strength all use these.
 CarConfig.Rarities = { "Common", "Rare", "Epic", "Legendary" }
 
-CarConfig.Cars = {
-	Heavy = {
-		name = "HEAVY",
-		blurb = "Tank. Slow. Charges.",
-		rgb = { 220, 50, 50 },
-		size = { 7, 3, 11 },
-		hp = 220,
-		mass = 120,
-		maxSpeed = 72,
-		accel = 125,
-		turnRate = 2.2,
-		damageMult = 1.3,
-		hitLift = 0,
-		ai = "BackupCharge",
-		rarity = "Common",
-		ability = "Slam",
-	},
-	Light = {
-		name = "LIGHT",
-		blurb = "Fast. Fragile. Sneaky.",
-		rgb = { 250, 210, 40 },
-		size = { 4, 2, 6 },
-		hp = 125,
-		mass = 25,
-		maxSpeed = 95,
-		accel = 150,
-		turnRate = 4.5,
-		damageMult = 0.9,
-		hitLift = 0,
-		ai = "CircleDive",
-		rarity = "Common",
-		ability = "Dash",
-	},
-	Ramp = {
-		name = "RAMP",
-		blurb = "Flips the enemy.",
-		rgb = { 60, 120, 240 },
-		size = { 5, 2.2, 8 },
-		hp = 150,
-		mass = 55,
-		maxSpeed = 68,
-		accel = 100,
-		turnRate = 3.8,
-		damageMult = 0.8,
-		hitLift = 22,
-		ai = "Direct",
-		rarity = "Rare",
-		ability = "Jump",
-	},
-	Spike = {
-		name = "SPIKE",
-		blurb = "Ouch. Big damage.",
-		rgb = { 150, 70, 220 },
-		size = { 5, 2.5, 8 },
-		hp = 150,
-		mass = 60,
-		maxSpeed = 68,
-		accel = 100,
-		turnRate = 3.8,
-		damageMult = 1.45,
-		hitLift = 0,
-		ai = "Direct",
-		rarity = "Epic",
-		ability = "Ram",
-	},
-	Tank = {
-		name = "TANK",
-		blurb = "Huge. Barely moves.",
-		rgb = { 90, 110, 70 },
-		size = { 8, 3.2, 12 },
-		hp = 210,
-		mass = 160,
-		maxSpeed = 60,
-		accel = 95,
-		turnRate = 1.8,
-		damageMult = 1.25,
-		hitLift = 0,
-		ai = "BackupCharge",
-		rarity = "Common",
-		ability = "Shield",
-	},
-	Drift = {
-		name = "DRIFT",
-		blurb = "Slides around you.",
-		rgb = { 40, 200, 190 },
-		size = { 4.5, 2, 7 },
-		hp = 130,
-		mass = 35,
-		maxSpeed = 85,
-		accel = 130,
-		turnRate = 5.5,
-		damageMult = 0.9,
-		hitLift = 0,
-		ai = "CircleDive",
-		rarity = "Rare",
-		ability = "Dash",
-	},
-	Bulldozer = {
-		name = "BULLDOZER",
-		blurb = "Plows through. Hits hard.",
-		rgb = { 240, 140, 30 },
-		size = { 7.5, 3, 10 },
-		hp = 190,
-		mass = 110,
-		maxSpeed = 68,
-		accel = 110,
-		turnRate = 2.4,
-		damageMult = 1.25,
-		hitLift = 0,
-		ai = "Direct",
-		rarity = "Rare",
-		ability = "Ram",
-	},
-	Rocket = {
-		name = "ROCKET",
-		blurb = "Fastest. Breaks easy.",
-		rgb = { 245, 245, 250 },
-		size = { 3.5, 2, 7.5 },
-		hp = 80,
-		mass = 20,
-		maxSpeed = 110,
-		accel = 170,
-		turnRate = 4.0,
-		damageMult = 1.0,
-		hitLift = 0,
-		ai = "Direct",
-		rarity = "Epic",
-		ability = "Dash",
-	},
-} :: { [string]: CarStats }
+CarConfig.Cars = {} :: { [string]: CarStats }
+
+-- The removed blocky cars -> the rarity they had. Old saves that still own one get coins back for
+-- it (Inventory.migrate), so nobody loses value. Never reuse these ids.
+CarConfig.Retired = {
+	Heavy = "Common",
+	Light = "Common",
+	Tank = "Common",
+	Ramp = "Rare",
+	Drift = "Rare",
+	Bulldozer = "Rare",
+	Spike = "Epic",
+	Rocket = "Epic",
+} :: { [string]: string }
 
 for _, entry in CarCatalog.Entries do
 	assert(CarConfig.Cars[entry.id] == nil, "duplicate car id " .. entry.id)
@@ -195,23 +79,23 @@ end
 
 -- LAUNCH ROSTER: only these ~12 cars are live (claw prizes, store, pick choices, quests, bots,
 -- odds). The rest stay in the code and in saves, but hidden, unless `useFullRoster` is true.
--- Spans roles and all 4 rarities. Heavy is the free starter (LobbyConfig.StarterCars).
---   Common: Heavy (tank), Light (fast, fragile), Sedan (balanced), DuneBuggy (bouncy turner)
---   Rare: Ramp (flipper), Bulldozer (plow), Drift (grippy turner)
---   Epic: Spike (big damage), Rocket (fastest), MonsterTruck (heavy smasher)
+-- Spans roles and all 4 rarities. Sedan is the free starter (LobbyConfig.StarterCars).
+--   Common: Sedan (balanced), Compact (fast, fragile), DuneBuggy (bouncy turner), BoxTruck (heavy)
+--   Rare: Muscle (plow), Kart (grippy, tiny), DriftKing (slides)
+--   Epic: SuperCar (fast), MonsterTruck (heavy smasher), Semi (huge hitter)
 --   Legendary: Formula (speed demon), ArmoredTruck (steel wall)
 CarConfig.useFullRoster = false
 CarConfig.LaunchRoster = {
-	"Heavy",
-	"Light",
 	"Sedan",
+	"Compact",
 	"DuneBuggy",
-	"Ramp",
-	"Bulldozer",
-	"Drift",
-	"Spike",
-	"Rocket",
+	"BoxTruck",
+	"Muscle",
+	"Kart",
+	"DriftKing",
+	"SuperCar",
 	"MonsterTruck",
+	"Semi",
 	"Formula",
 	"ArmoredTruck",
 }
@@ -241,13 +125,16 @@ do
 		assert(CarConfig.Cars[id], "launch roster car missing: " .. id)
 		live[id] = true
 	end
+	-- Order = the live cars, in launch roster order (Sedan the free starter first). Everything that
+	-- lists cars (claw, store, picks, quests) uses it.
 	local filtered: { string } = {}
-	for _, id in CarConfig.FullOrder do
-		if CarConfig.useFullRoster or live[id] then
+	if CarConfig.useFullRoster then
+		filtered = table.clone(CarConfig.FullOrder)
+	else
+		for _, id in CarConfig.LaunchRoster do
 			table.insert(filtered, id)
 		end
 	end
-	-- Order = the live cars. Everything that lists cars (claw, store, picks, quests) uses it.
 	CarConfig.Order = filtered
 end
 

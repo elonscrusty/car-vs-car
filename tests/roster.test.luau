@@ -37,9 +37,9 @@ test("with the flag off only roster cars are live; all ids stay valid", function
 		truthy(table.find(CarConfig.LaunchRoster, id) ~= nil, id)
 		truthy(CarConfig.isLive(id))
 	end
-	eq(CarConfig.isLive("Tank"), false)
-	truthy(CarConfig.get("Tank") ~= nil) -- still a real car (saves, remotes)
-	eq(#CarConfig.FullOrder, 38)
+	eq(CarConfig.isLive("Van"), false)
+	truthy(CarConfig.get("Van") ~= nil) -- still a real car (saves, remotes)
+	eq(#CarConfig.FullOrder, 30)
 end)
 
 test("claw odds, store, quests and picks exclude hidden cars; odds sum to 100", function()
@@ -53,10 +53,10 @@ test("claw odds, store, quests and picks exclude hidden cars; odds sum to 100", 
 	eq(sum, 100)
 	local p = Inventory.default()
 	p.coins = 100000
-	local ok, why = Store.canBuy(p, "Tank")
+	local ok, why = Store.canBuy(p, "Van")
 	eq(ok, false)
 	eq(why, "unknown")
-	ok = Store.canBuy(p, "Sedan")
+	ok = Store.canBuy(p, "Compact")
 	truthy(ok)
 	for _, def in QuestsConfig.Catalog do
 		if def.carId then
@@ -74,14 +74,14 @@ test("claw odds, store, quests and picks exclude hidden cars; odds sum to 100", 
 end)
 
 test("a hidden car a player already owns survives loading a save", function()
-	local p = Inventory.migrate({ owned = { Tank = true, Heavy = true } })
-	eq(p.owned.Tank, true)
-	eq(Inventory.owns(p, "Tank"), true)
+	local p = Inventory.migrate({ owned = { Van = true, Sedan = true } })
+	eq(p.owned.Van, true)
+	eq(Inventory.owns(p, "Van"), true)
 end)
 
 test("odds re-scale to 100 when a rarity has no live cars", function()
 	local saved = CarConfig.Order
-	CarConfig.Order = { "Heavy", "Ramp" } -- Common + Rare only
+	CarConfig.Order = { "Sedan", "Kart" } -- Common + Rare only
 	local rows = Gacha.oddsTable()
 	CarConfig.Order = saved
 	eq(#rows, 2)
@@ -157,4 +157,25 @@ test("taken names are avoided and the roster pick is a live car", function()
 		truthy(CarConfig.isLive(id))
 	end
 	eq(BotNames.pickCar(1, {}), nil)
+end)
+
+test("a save that owns removed blocky cars drops them and gets coins back", function()
+	local LobbyConfig = require("../src/shared/LobbyConfig")
+	local p =
+		Inventory.migrate({ coins = 10, owned = { Heavy = true, Spike = true, Sedan = true } })
+	eq(p.owned.Heavy, nil)
+	eq(p.owned.Spike, nil)
+	eq(p.owned.Sedan, true)
+	eq(p.coins, 10 + LobbyConfig.Store.prices.Common + LobbyConfig.Store.prices.Epic)
+	-- only blocky cars: the starter is granted so the player is never car-less
+	local q = Inventory.migrate({ owned = { Heavy = true } })
+	eq(Inventory.owns(q, "Sedan"), true)
+	eq(q.coins, LobbyConfig.Store.prices.Common)
+	-- a build/paint/progress entry for a removed car does not crash loading
+	local r = Inventory.migrate({
+		owned = { Heavy = true },
+		build = { carId = "Heavy" },
+		paint = { equipped = { Heavy = { color = "blue" } } },
+	})
+	eq(r.build.carId, "Sedan")
 end)

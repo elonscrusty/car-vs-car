@@ -20,7 +20,7 @@ test("every car has sane numbers", function()
 end)
 
 test("get() only accepts real ids", function()
-	truthy(CarConfig.get("Heavy") ~= nil)
+	truthy(CarConfig.get("Sedan") ~= nil)
 	eq(CarConfig.get("Nope"), nil)
 	eq(CarConfig.get(5), nil)
 	eq(CarConfig.get(nil), nil)
@@ -28,15 +28,20 @@ test("get() only accepts real ids", function()
 	eq(CarConfig.get("__index"), nil)
 end)
 
-test("Spike hits hardest, Heavy has most HP, Rocket is fastest", function()
+test("Semi hits hardest, ArmoredTruck has most HP, Formula is fastest (launch cars)", function()
 	local c = CarConfig.Cars
-	for i = 1, 8 do -- the 8 hand-written cars (pack cars have their own stats)
-		local id = CarConfig.FullOrder[i]
-		truthy(c.Spike.damageMult >= c[id].damageMult)
-		truthy(c.Heavy.hp >= c[id].hp)
-		truthy(c.Rocket.maxSpeed >= c[id].maxSpeed)
+	for _, id in CarConfig.LaunchRoster do
+		truthy(c.Semi.damageMult >= c[id].damageMult)
+		truthy(c.ArmoredTruck.hp >= c[id].hp)
+		truthy(c.Formula.maxSpeed >= c[id].maxSpeed)
 	end
-	truthy(c.Ramp.hitLift > 0)
+end)
+
+test("the old blocky cars are gone but their ids are known as retired", function()
+	for id in CarConfig.Retired do
+		eq(CarConfig.get(id), nil, id)
+		eq(table.find(CarConfig.FullOrder, id), nil, id)
+	end
 end)
 
 test("every car has a rarity and every used rarity has a car", function()
