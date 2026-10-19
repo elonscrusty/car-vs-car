@@ -164,3 +164,10 @@ Flat arena with spinner, ramps, blocks and pillars. Full driving (joystick / WAS
 - Hall is 192 long (`LobbyLayout.room.halfL = 96`). 8 garages, each 40 wide x 30 deep, open front: low wall (1.8 high) with a 14 wide gap (`LobbyLayout.bay`). Store/paint moved to the front corners (z 80), spawn z 76, lounge props near the door.
 - Likes: `src/shared/GarageLikes.luau` (pure, tested) saved in `profile.garage` (`received`, `given`). One like per garage ever, not your own, max 300 given. Server handler in `LobbyService.luau` (`bays.onLike`), rate limited 3 per 5s. Heart + `LikePrompt` (key F) at each door in `LobbyBays.luau`; sign shows "N LIKES". No Visit button.
 - Old GarageRoom/GarageFront models no longer placed (wrong size). Model wish list: `docs/GARAGE_MODELS_NEEDED.md`.
+
+## First 2 minutes / onboarding (review M8)
+- Pick screen skipped when exactly 1 car is owned: `PickChoices.shouldSkip`; `LobbyService.beginPicking` auto-picks it and calls `maybeStart` (no choices message).
+- Hints (`Hints.luau`): pad arrow -> "Drag back from your car and let go" -> after first match "Try the claw, first try is free". Saved via existing `hintsSeen`. New: `Hints.AimNudgeSeconds = 3` + `aimNudgeDue`; `HintUi.startAimNudge/stopAimNudge` pulse an arrow over the car if no drag after 3 s (hooked in `init.client`).
+- First win: `shared/FirstWin.luau` (`isFirstWin(winsBefore, won)`, no new saved field) + `FirstWinConfig.luau` (headline, confetti 60, coins 30, banner x1.25: all placeholders). Client decides from last profile `wins` for the banner/confetti (`WinFx.confetti`, bigger `popIn`/`coinBurst`); server sends `firstWin` in `toLobby` for the toast "FIRST WIN!   +N COINS". No extra coins are paid.
+- Pad countdown text: "Starting in 3..." (`LobbyText.countdownText`); when alone, `countdown` update has `alone=true` -> "A bot will join you" (`LobbyText.padAloneText`).
+- Tests: `tests/onboarding.test.luau` (335 pass). Not checked in Studio: arrow positions, confetti look, countdown layout, whether matchEnd arrives before the post-match profile (if not, the big first-win banner is missed but the toast still shows).

@@ -11,8 +11,8 @@ Hints.Order = { "pad", "aim", "claw" }
 
 Hints.Text = {
 	pad = "Step on a green pad to fight",
-	aim = "Drag back from your car, then let go to launch!",
-	claw = "Open the claw machine to win new cars",
+	aim = "Drag back from your car and let go",
+	claw = "Try the claw, first try is free",
 } :: { [string]: string }
 
 -- What the client points an arrow at: "pad" = the match pads, "claw" = the claw machine.
@@ -22,6 +22,13 @@ Hints.Target = {
 } :: { [string]: string }
 
 Hints.ShowSeconds = 12
+
+-- Aim phase: no drag after this many seconds shows a pulsing arrow on the car.
+Hints.AimNudgeSeconds = 3
+
+function Hints.aimNudgeDue(secondsSinceAimStart: number, hasDragged: boolean): boolean
+	return not hasDragged and secondsSinceAimStart >= Hints.AimNudgeSeconds
+end
 
 function Hints.isKnown(id: any): boolean
 	if type(id) ~= "string" then

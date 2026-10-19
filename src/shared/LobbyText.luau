@@ -70,7 +70,12 @@ function LobbyText.countdownText(seconds: number): string?
 	if seconds <= 0 then
 		return nil
 	end
-	return tostring(math.ceil(seconds))
+	return `Starting in {math.ceil(seconds)}...`
+end
+
+-- Small line under the pad countdown while nobody else is on the pad.
+function LobbyText.padAloneText(alone: boolean): string?
+	return if alone then "A bot will join you" else nil
 end
 
 function LobbyText.rewardText(coinsEarned: number, won: boolean): string

@@ -75,8 +75,8 @@ export type LobbyUpdate =
 	| { kind: "storeResult", ok: boolean, carId: string, reason: string?, coins: number }
 	| { kind: "paintResult", ok: boolean, reason: string? }
 	| { kind: "buildResult", ok: boolean, reason: string? }
-	| { kind: "countdown", seconds: number }
+	| { kind: "countdown", seconds: number, alone: boolean? }
 	| { kind: "choices", cars: { string }, seconds: number }
-	| { kind: "toLobby", coinsEarned: number, won: boolean }
+	| { kind: "toLobby", coinsEarned: number, won: boolean, firstWin: boolean? }
 
 return {}

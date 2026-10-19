@@ -149,3 +149,6 @@ See SNAPSHOT.md "Social + safety". Tune cheat limits in `src/shared/CarSanityCon
 ## Big open garages + likes
 - Done in code and unit tests (`lune run tests/run` 330 pass, stylua clean). NOT seen in Studio: how the longer hall, low walls and heart look is unchecked. Lobby wall props were moved by hand (`LobbyMore`, `LobbyDecor`, `LobbyShell`); check for overlaps in the picture check.
 - Studio placement of any new Blender garage models is the Studio thread's job (`docs/GARAGE_MODELS_NEEDED.md`).
+
+## Onboarding (w2)
+- Placeholders to tune: `FirstWinConfig` (confettiCount, coinCount, bannerScale, texts), `Hints.AimNudgeSeconds`. Nothing needs Roblox ids. First win gives no bonus coins; add one in `LobbyService.finishMatch` if wanted.

@@ -5,6 +5,8 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
+local FirstWin = require(ReplicatedStorage.Shared.FirstWin)
+local FirstWinConfig = require(ReplicatedStorage.Shared.FirstWinConfig)
 local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
 local WinText = require(ReplicatedStorage.Shared.WinText)
 local UiStyle = require(script.Parent.UiStyle)
@@ -32,7 +34,7 @@ export type View = {
 	showPower: (power: number) -> (),
 	showFight: () -> (),
 	showRoundEnd: (youLost: boolean) -> (),
-	showMatchEnd: (youWon: boolean) -> (),
+	showMatchEnd: (youWon: boolean, firstWin: boolean?) -> (),
 	hideMatch: () -> (), -- back to lobby: hide every match screen
 }
 
@@ -359,7 +361,7 @@ function Ui.create(h: Handlers): View
 		UiStyle.pop(msgScale)
 	end
 
-	view.showMatchEnd = function(youWon)
+	view.showMatchEnd = function(youWon, firstWin)
 		hideAll()
 		endFrame.Visible = true
 		rematchBtn.Visible = true
@@ -367,15 +369,29 @@ function Ui.create(h: Handlers): View
 		rematchBtn.AutoButtonColor = true
 		rematchBtn.BackgroundColor3 = Color3.fromRGB(40, 160, 80)
 		rematchBtn.Text = "REMATCH"
-		endText.Text = WinText.headline(youWon)
+		local big = youWon and firstWin == true
+		endText.Text = if big then FirstWin.headline() else WinText.headline(youWon)
 		endSub.Text = WinText.subtitle(youWon, LobbyConfig.Rewards)
 		endText.TextColor3 = if youWon
 			then Color3.fromRGB(255, 205, 40)
 			else Color3.fromRGB(235, 90, 90)
 		invite.setVisible(youWon)
-		WinFx.popIn(banner, youWon, endTweens)
+		WinFx.popIn(banner, youWon, endTweens, if big then FirstWinConfig.bannerScale else nil)
 		if youWon then
-			endFx = WinFx.coinBurst(endFrame, math.floor(os.clock() * 1000))
+			local seed = math.floor(os.clock() * 1000)
+			local coins =
+				WinFx.coinBurst(endFrame, seed, if big then FirstWinConfig.coinCount else nil)
+			local confetti = if big
+				then WinFx.confetti(endFrame, seed + 1, FirstWinConfig.confettiCount)
+				else nil
+			endFx = {
+				stop = function()
+					coins.stop()
+					if confetti then
+						confetti.stop()
+					end
+				end,
+			}
 		end
 	end
 
