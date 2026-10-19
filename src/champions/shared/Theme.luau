@@ -279,6 +279,16 @@ function T.activate(button)
 		callback()
 	end
 end
+function T.labelSize(button, size)
+	local label = button:FindFirstChild("Label")
+	if label and label:IsA("TextLabel") then
+		label.TextSize = size
+		local fit = label:FindFirstChildOfClass("UITextSizeConstraint")
+		if fit then
+			fit.MaxTextSize = size
+		end
+	end
+end
 function T.button(parent, name, label, x, y, w, h, callback, color, icon)
 	color = color or C.blue
 	local bare = label == "" and not icon
@@ -341,10 +351,16 @@ function T.button(parent, name, label, x, y, w, h, callback, color, icon)
 		color == C.green and C.ink or C.white,
 		"Center"
 	)
+	caption.TextTruncate = Enum.TextTruncate.None
+	caption.TextScaled = true
+	local fit = Instance.new("UITextSizeConstraint")
+	fit.MaxTextSize = math.min(32, math.max(17, h * 0.43))
+	fit.MinTextSize = 8
+	fit.Parent = caption
 	if stacked then
 		caption.Position = UDim2.fromOffset(4, h * 0.64)
 		caption.Size = UDim2.fromOffset(w - 8, h * 0.3)
-		caption.TextSize = math.min(22, math.max(13, h * 0.23))
+		fit.MaxTextSize = math.min(22, math.max(13, h * 0.23))
 	end
 	if bare then
 		caption.Visible = false
@@ -444,16 +460,7 @@ function T.rarity(parent, vehicle, x, y, w, h)
 end
 function T.menu(parent, name)
 	local root = T.frame(parent, name, 0, 0, 1200, 675, C.navy, 0)
-	make("ImageLabel", {
-		Name = "MenuBackdrop",
-		BackgroundTransparency = 1,
-		Size = UDim2.fromScale(1, 1),
-		Image = Assets.Backdrop,
-		ScaleType = Enum.ScaleType.Crop,
-		ImageColor3 = RGB(160, 186, 214),
-	}, root)
-	local tint = T.frame(root, "BackdropTint", 0, 0, 1200, 675, C.ink, 0)
-	tint.BackgroundTransparency = 0.55
+	root.BackgroundTransparency = 1 -- see-through: the game shows behind the panels
 	return root
 end
 function T.header(parent, _title, state, ctx)
@@ -465,7 +472,7 @@ function T.header(parent, _title, state, ctx)
 	T.text(head, "VS", "VS", 104, 7, 32, 26, 21, C.white)
 	T.text(head, "BrandGold", "CAR", 39, 34, 137, 44, 43, C.gold).TextStrokeTransparency = 0.1
 	T.checkers(head, 160, 21, 106, 42, 14, C.navy)
-	for i, mode in Config.Modes do
+	for i, mode in if #Config.Modes > 1 then Config.Modes else {} do
 		local pill = T.button(
 			head,
 			"Mode_" .. mode.Id,
@@ -482,7 +489,7 @@ function T.header(parent, _title, state, ctx)
 			C.navy,
 			string.lower(mode.Id)
 		)
-		pill.Label.TextSize = 20
+		T.labelSize(pill, 20)
 	end
 	local chip = T.panel(head, "Coins", 886, 12, 206, 56, C.navy)
 	T.icon(chip, "Coin", "coin", 8, 7, 41, C.gold)
@@ -509,7 +516,7 @@ function T.nav(parent, active, ctx)
 			entry[3],
 			entry[2]
 		)
-		b.Label.TextSize = 37
+		T.labelSize(b, 37)
 		if active == entry[1] then
 			stroke(b, C.cyan, 2)
 		end
@@ -572,7 +579,7 @@ function T.cooldown(parent, name, label, ability, x, y, size, callback)
 	b.Label.Text = label
 	b.Label.Position = UDim2.fromOffset(3, size * 0.64)
 	b.Label.Size = UDim2.fromOffset(size - 6, size * 0.28)
-	b.Label.TextSize = math.min(24, size * 0.2)
+	T.labelSize(b, math.min(24, size * 0.2))
 	return b
 end
 function T.bindHold(button, seconds, callback)
@@ -637,7 +644,6 @@ function T.preload()
 	for _, id in Assets.Vehicles do
 		table.insert(images, id)
 	end
-	table.insert(images, Assets.Backdrop)
 	task.spawn(function()
 		pcall(function()
 			ContentProvider:PreloadAsync(images)

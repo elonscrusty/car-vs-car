@@ -12,7 +12,6 @@ if not namespace then
 end
 local shared = namespace:WaitForChild("Shared")
 local T = require(shared.Theme)
-local Assets = require(shared.Assets)
 local State = require(shared.State)
 local Config = require(shared.Config)
 local Catalog = require(shared.Catalog)
@@ -53,13 +52,12 @@ stage.Name = "Stage"
 stage.BackgroundTransparency = 1
 stage.Size = UDim2.fromScale(1, 1)
 stage.Parent = viewport
-local menuBackdrop = Instance.new("ImageLabel")
+local menuBackdrop = Instance.new("Frame")
 menuBackdrop.Name = "MenuBackdrop"
 menuBackdrop.Size = UDim2.fromScale(1, 1)
-menuBackdrop.BackgroundColor3 = T.C.navy
-menuBackdrop.Image = Assets.Backdrop
-menuBackdrop.ImageColor3 = Color3.fromRGB(85, 115, 145)
-menuBackdrop.ScaleType = Enum.ScaleType.Crop
+menuBackdrop.BackgroundColor3 = T.C.ink
+menuBackdrop.BackgroundTransparency = 0.25
+menuBackdrop.BorderSizePixel = 0
 menuBackdrop.Parent = stage
 local menuHost = Instance.new("Frame")
 menuHost.Name = "MenuCanvas"

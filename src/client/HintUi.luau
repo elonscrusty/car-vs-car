@@ -92,6 +92,15 @@ function HintUi.new(onSeen: (id: string) -> ()): Handle
 	gui.DisplayOrder = 8
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 
+	-- The Champions menus cover the screen: hide the hint line while one is open.
+	local champions = game:GetService("ReplicatedStorage"):FindFirstChild("CVC_Champions")
+	if champions then
+		gui.Enabled = champions:GetAttribute("MenuOpen") ~= true
+		champions:GetAttributeChangedSignal("MenuOpen"):Connect(function()
+			gui.Enabled = champions:GetAttribute("MenuOpen") ~= true
+		end)
+	end
+
 	local banner = Instance.new("Frame")
 	banner.AnchorPoint = Vector2.new(0.5, 0)
 	banner.Position = UDim2.new(0.5, 0, 0, 76)

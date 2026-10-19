@@ -27,7 +27,7 @@ function ModeBanner.new(): Banner
 			g.Name = "CarVsCarModeBanner"
 			g.ResetOnSpawn = false
 			g.DisplayOrder = 8
-			g.IgnoreGuiInset = true -- the layout numbers count from the very top of the screen
+			g.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets -- same origin as the Champions scoreboard
 			g.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 			l = Instance.new("TextLabel")
 			-- Top row, below the scoreboard: nothing over the screen middle.
@@ -36,7 +36,7 @@ function ModeBanner.new(): Banner
 			UiStyle.place(l, UiLayout.fight(height).modeBanner)
 			-- Under the Champions scoreboard (it fills the top-center), not beside it.
 			l.AnchorPoint = Vector2.new(0.5, 0)
-			l.Position = UDim2.new(0.5, 0, 0, 168)
+			l.Position = UDim2.new(0.5, 0, 0, 100)
 			l.Size = UDim2.new(0.5, 0, 0, 38)
 			local cap = Instance.new("UISizeConstraint")
 			cap.MaxSize = Vector2.new(520, 44)
