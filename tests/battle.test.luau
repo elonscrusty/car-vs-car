@@ -204,7 +204,7 @@ H.test("ram: body contact outside the front cone deals nothing", function()
 	H.eq(total, 0)
 end)
 
-H.test("cannon: aims, locks 0.5 s, fires, then 2.5 s cooldown", function()
+H.test("cannon: aims, locks 0.5 s, fires, then cooldown", function()
 	local L = BattleConfig.Fighters.CannonVan.lengthStuds
 	local b = BattleBrain.new("CannonVan", L, arena())
 	local me = { x = 0, z = 0, fx = 1, fz = 0 }
@@ -222,7 +222,10 @@ H.test("cannon: aims, locks 0.5 s, fires, then 2.5 s cooldown", function()
 			if fired == 1 then
 				firstFire = t
 			elseif fired == 2 then
-				H.truthy(t - firstFire >= 2.5 + 0.5 - 0.1, "second shot after " .. (t - firstFire))
+				H.truthy(
+					t - firstFire >= BattleConfig.Cannon.cooldownSeconds + 0.5 - 0.1,
+					"second shot after " .. (t - firstFire)
+				)
 				break
 			end
 		end
@@ -387,7 +390,7 @@ H.test("config: every fighter is complete", function()
 		H.truthy(#f.blurb > 0 and #f.weakness > 0 and #f.weaponName > 0)
 	end
 	H.eq(BattleConfig.Fighters.RamTruck.hp, 150)
-	H.eq(BattleConfig.Fighters.CannonVan.hp, 110)
+	H.eq(BattleConfig.Fighters.CannonVan.hp, 130)
 	H.eq(BattleConfig.Fighters.SawBuggy.hp, 115)
 	local _ = FIGHTERS
 end)
