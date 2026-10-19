@@ -33,6 +33,38 @@ function Steer.smooth(current: number, target: number, dt: number, rate: number)
 	return math.max(target, current - step)
 end
 
+-- Screen-relative stick: the thumb points where the car should GO on screen, not where to turn.
+-- (sx, sy) = stick right / up (-1..1); cam* = flat direction the camera looks; car* = flat direction
+-- the car faces. Returns (steer, gas) for the normal driving code: steer toward the pushed
+-- direction, gas by how hard the stick is pushed (creeping while the car still points away).
+function Steer.toward(
+	sx: number,
+	sy: number,
+	camX: number,
+	camZ: number,
+	carX: number,
+	carZ: number,
+	fullLock: number
+): (number, number)
+	local mag = math.min(1, math.sqrt(sx * sx + sy * sy))
+	local cl = math.sqrt(camX * camX + camZ * camZ)
+	local kl = math.sqrt(carX * carX + carZ * carZ)
+	if mag < 0.05 or cl < 1e-6 or kl < 1e-6 then
+		return 0, 0
+	end
+	camX, camZ, carX, carZ = camX / cl, camZ / cl, carX / kl, carZ / kl
+	-- camera right = look x up = (-camZ, camX); stick up = along the camera look
+	local wantX = -camZ * sx + camX * sy
+	local wantZ = camX * sx + camZ * sy
+	-- signed angle from the car's nose to the wanted direction; positive = wanted is to the LEFT
+	local cross = carZ * wantX - carX * wantZ -- sin, scaled by |want|
+	local dot = carX * wantX + carZ * wantZ
+	local err = math.atan2(cross, dot)
+	local steer = math.clamp(-err / math.max(0.05, fullLock), -1, 1) -- steer + = right = turn clockwise
+	local gas = mag * math.max(0.35, math.cos(err))
+	return steer, gas
+end
+
 function Steer.newState(): State
 	return { value = 0, at = -math.huge, throttle = 0 }
 end
