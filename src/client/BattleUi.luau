@@ -409,7 +409,7 @@ function BattleUi.start()
 		label(prepF, "3", UDim2.fromScale(0.16, 0.8), UDim2.fromScale(0.42, 0.1), COL_TEXT, 60)
 
 	-- ---------- fight HUD ----------
-	local hudF = frame(gui, "Hud", UDim2.fromScale(1, 0.2), UDim2.fromScale(0, 0), COL_PANEL, 1)
+	local hudF = frame(gui, "Hud", UDim2.fromScale(1, 0.16), UDim2.fromScale(0, 0), COL_PANEL, 1)
 	hudF.Visible = false
 	type Side = { name: TextLabel, hp: Frame, hpText: TextLabel, ready: Frame }
 	local function sidePanel(xScale: number, color: Color3, mirror: boolean): Side
@@ -633,6 +633,34 @@ function BattleUi.start()
 	local camOn = false
 	local camSmooth: CFrame? = nil
 
+	-- the two cars of my arena (found by their side attribute near the arena middle)
+	local carBodies: { BasePart } = {}
+	local carScanT = 0
+	local function scanCars()
+		local c = arenaCenter
+		carBodies = {}
+		if c == nil then
+			return
+		end
+		for _, folder in workspace:GetChildren() do
+			if folder:IsA("Folder") and string.sub(folder.Name, 1, 12) == "BattleArena_" then
+				for _, m in folder:GetChildren() do
+					if m:IsA("Model") and m:GetAttribute("BattleSide") ~= nil then
+						local body = m:FindFirstChild("Body")
+						if
+							body
+							and body:IsA("BasePart")
+							and (body.Position - c).Magnitude < arenaHalf.Magnitude * 1.5
+						then
+							table.insert(carBodies, body)
+						end
+					end
+				end
+			end
+		end
+	end
+
+	local carLen = 16
 	local function cameraTarget(): CFrame?
 		local c = arenaCenter
 		if c == nil then
@@ -644,13 +672,28 @@ function BattleUi.start()
 		local aspect = math.max(vp.X / math.max(vp.Y, 1), 0.3)
 		local vHalf = math.rad(cc.fovDeg) / 2
 		local hHalf = math.atan(math.tan(vHalf) * aspect)
-		local needW = arenaHalf.X * cc.padding / math.tan(hHalf)
-		local needH = (arenaHalf.Y * math.sin(pitch) + wallH * math.cos(pitch))
-			* cc.padding
-			/ math.tan(vHalf)
-		local dist = math.max(needW, needH) * 1.15
-		local pos = c + Vector3.new(0, math.sin(pitch), math.cos(pitch)) * dist
-		return CFrame.lookAt(pos, c)
+		local focus = Vector3.new(c.X, c.Y, c.Z)
+		local halfW, halfD
+		if #carBodies >= 2 then
+			local p1, p2 = carBodies[1].Position, carBodies[2].Position
+			local mid = (p1 + p2) / 2
+			local gapX, gapZ = math.abs(p1.X - p2.X), math.abs(p1.Z - p2.Z)
+			focus = Vector3.new(
+				math.clamp(mid.X, c.X - arenaHalf.X, c.X + arenaHalf.X),
+				c.Y,
+				math.clamp(mid.Z, c.Z - arenaHalf.Y, c.Z + arenaHalf.Y)
+			)
+			halfW = math.max(cc.minHalfL * carLen, gapX / 2 + cc.marginL * carLen)
+			halfD = math.max(cc.minHalfL * carLen * 0.7, gapZ / 2 + cc.marginL * carLen)
+		else
+			halfW = arenaHalf.X * cc.padding
+			halfD = arenaHalf.Y * cc.padding
+		end
+		local needW = halfW / math.tan(hHalf)
+		local needH = (halfD * math.sin(pitch) + 6 * math.cos(pitch)) / math.tan(vHalf)
+		local dist = math.max(needW, needH, 40)
+		local pos = focus + Vector3.new(0, math.sin(pitch), math.cos(pitch)) * dist
+		return CFrame.lookAt(pos, focus)
 	end
 
 	local function cameraOn()
@@ -658,6 +701,7 @@ function BattleUi.start()
 			return
 		end
 		camOn = true
+		carScanT = 0
 		camera = workspace.CurrentCamera
 		camera.CameraType = Enum.CameraType.Scriptable
 		camera.FieldOfView = BattleConfig.Camera.fovDeg
@@ -685,6 +729,11 @@ function BattleUi.start()
 		if not camOn then
 			return
 		end
+		carScanT -= dt
+		if carScanT <= 0 then
+			carScanT = 0.5
+			scanCars()
+		end
 		local target = cameraTarget()
 		if target == nil then
 			return
@@ -694,7 +743,7 @@ function BattleUi.start()
 		if cur == nil then
 			cur = target
 		else
-			-- only eases when the screen shape changes; the pose itself never moves
+			-- eased, so the camera glides after the pair instead of snapping
 			cur = cur:Lerp(target, math.clamp(BattleConfig.Camera.smooth * dt, 0, 1))
 		end
 		camSmooth = cur

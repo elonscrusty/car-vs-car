@@ -244,7 +244,8 @@ H.test("cannon: too close it backs away, too far it closes in", function()
 		{ x = 1 * L, z = 0, fx = -1, fz = 0 },
 		{ ram = false, saw = false }
 	)
-	H.truthy(near.drive < 0, "reverses when close")
+	H.eq(near.state, "flee", "runs away when close")
+	H.truthy(math.abs(near.turn) > 0.5, "turns tail to the foe")
 	local far = b.step(
 		0.05,
 		me,
@@ -374,8 +375,8 @@ H.test("brain: nothing near a block or wall pulls a car off a straight approach"
 	local b = BattleBrain.new("CannonVan", L, Sim.arena())
 	local o = b.step(
 		1 / 60,
-		{ x = -35, z = 0, fx = 1, fz = 0 },
-		{ x = 35, z = 0, fx = -1, fz = 0 },
+		{ x = -50, z = 0, fx = 1, fz = 0 },
+		{ x = 50, z = 0, fx = -1, fz = 0 },
 		{ ram = false, saw = false }
 	)
 	H.near(o.turn, 0, 1e-6)
