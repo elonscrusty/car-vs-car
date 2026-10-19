@@ -69,12 +69,6 @@ function ArenaDecor.build(model: Model, origin: Vector3)
 		return CFrame.new(origin.X + s.x, ground + up, origin.Z + s.z)
 			* CFrame.Angles(0, math.rad(s.yawDeg), 0)
 	end
-	local function polar(deg: number, r: number, up: number): CFrame
-		local a = math.rad(deg)
-		return CFrame.new(origin.X + r * math.sin(a), ground + up, origin.Z - r * math.cos(a))
-			* CFrame.Angles(0, -a, 0)
-	end
-
 	if has("Barrier") then
 		clearPlain("Barrier")
 		for _, s in ArenaLayout.barrierSpots() do
