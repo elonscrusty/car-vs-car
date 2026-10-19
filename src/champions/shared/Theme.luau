@@ -150,6 +150,18 @@ function T.icon(parent, name, kind, x, y, size, color)
 	color = color or C.white
 	local f = T.frame(parent, name, x, y, size, size, C.ink, 0)
 	f.BackgroundTransparency = 1
+	-- Carter's own picture for this icon (Assets.Icons), when one is uploaded; otherwise it is drawn.
+	local picture = Assets.Icons[kind]
+	if picture and picture ~= "" then
+		make("ImageLabel", {
+			Name = "Picture",
+			BackgroundTransparency = 1,
+			Size = UDim2.fromScale(1, 1),
+			Image = picture,
+			ScaleType = Enum.ScaleType.Fit,
+		}, f)
+		return f
+	end
 	local function block(a, b, w, h, r, fill)
 		return T.frame(
 			f,
@@ -209,8 +221,9 @@ function T.icon(parent, name, kind, x, y, size, color)
 		b.BackgroundTransparency = 1
 		stroke(b, color, math.max(2, size * 0.07))
 	elseif kind == "close" then
-		bar(0.12, 0.44, 0.78, 0.13, 45)
-		bar(0.12, 0.44, 0.78, 0.13, -45)
+		-- a plain bold X, centered
+		bar(0.1, 0.43, 0.8, 0.14, 45)
+		bar(0.1, 0.43, 0.8, 0.14, -45)
 	elseif kind == "check" then
 		bar(0.13, 0.55, 0.36, 0.13, 45)
 		bar(0.36, 0.39, 0.58, 0.13, -45)
@@ -264,7 +277,22 @@ function T.icon(parent, name, kind, x, y, size, color)
 		bar(0.12, 0.42, 0.77, 0.12, -45)
 		bar(0.1, 0.63, 0.32, 0.1, 45)
 		bar(0.6, 0.63, 0.32, 0.1, -45)
-	elseif kind == "Dash" or kind == "boost" then
+	elseif kind == "gear" then
+		local ring = block(0.22, 0.22, 0.56, 0.56, 0.28)
+		ring.BackgroundTransparency = 1
+		stroke(ring, color, math.max(3, size * 0.12))
+		bar(0.43, 0.04, 0.14, 0.92, 0)
+		bar(0.04, 0.43, 0.92, 0.14, 0)
+		bar(0.43, 0.04, 0.14, 0.92, 45)
+		bar(0.43, 0.04, 0.14, 0.92, -45)
+		block(0.3, 0.3, 0.4, 0.4, 0.2, C.navy)
+	elseif kind == "boost" then
+		-- a flame-like up arrow
+		bar(0.45, 0.3, 0.1, 0.55)
+		bar(0.22, 0.2, 0.36, 0.11, -45)
+		bar(0.42, 0.2, 0.36, 0.11, 45)
+		bar(0.3, 0.78, 0.4, 0.1)
+	elseif kind == "Dash" then
 		for i = 0, 1 do
 			bar(0.13 + i * 0.35, 0.25, 0.4, 0.12, 45)
 			bar(0.13 + i * 0.35, 0.55, 0.4, 0.12, -45)
@@ -407,16 +435,58 @@ function T.button(parent, name, label, x, y, w, h, callback, color, icon)
 				:Play()
 		end
 	end
+	-- Buttons pop on hover, squash when pressed, and the big ones get a slow shine sweep.
+	local pop = Instance.new("UIScale")
+	pop.Parent = b
+	local function popTo(value, seconds)
+		if bare or reducedMotion then
+			return
+		end
+		TweenService:Create(
+			pop,
+			TweenInfo.new(seconds, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+			{ Scale = value }
+		):Play()
+	end
+	b.MouseButton1Down:Connect(function()
+		popTo(0.93, 0.08)
+	end)
+	b.MouseButton1Up:Connect(function()
+		popTo(1.04, 0.12)
+	end)
+	if not bare and not reducedMotion and w >= 150 and h >= 60 then
+		local clip = T.frame(b, "ShineClip", 0, 0, w, h, C.white, 10)
+		clip.BackgroundTransparency = 1
+		clip.ClipsDescendants = true
+		local shine = T.frame(clip, "Shine", -60, -h * 0.3, 26, h * 1.6, C.white, 0)
+		shine.BackgroundTransparency = 0.8
+		shine.Rotation = 20
+		task.spawn(function()
+			task.wait(math.random() * 2)
+			while b.Parent do
+				shine.Position = UDim2.fromOffset(-60, -h * 0.3)
+				local tween = TweenService:Create(
+					shine,
+					TweenInfo.new(0.8, Enum.EasingStyle.Quad),
+					{ Position = UDim2.fromOffset(w + 40, -h * 0.3) }
+				)
+				tween:Play()
+				task.wait(4.5)
+			end
+		end)
+	end
 	b.Activated:Connect(function()
 		T.activate(b)
 	end)
 	b.MouseEnter:Connect(function()
 		if not b:GetAttribute("Disabled") then
 			feedback(0.92)
+			popTo(1.04, 0.15)
 		end
 	end)
 	b.MouseLeave:Connect(function()
 		feedback(1)
+		popTo(1, 0.15)
 	end)
 	b.SelectionGained:Connect(function()
 		feedback(0.85)
@@ -506,11 +576,22 @@ function T.header(parent, _title, state, ctx)
 	local head = T.frame(parent, "Header", 12, 9, 1176, 80, C.silver, 15)
 	stroke(head, C.ink, 4)
 	gradient(head, RGB(243, 249, 255), RGB(137, 165, 194))
-	local brand = T.text(head, "Brand", "CAR", 16, -1, 144, 43, 43, C.white)
-	brand.TextStrokeTransparency = 0.1
-	T.text(head, "VS", "VS", 100, 2, 46, 34, 30, C.gold).TextStrokeTransparency = 0
-	T.text(head, "BrandGold", "CAR", 39, 34, 137, 44, 43, C.gold).TextStrokeTransparency = 0.1
-	T.checkers(head, 160, 21, 106, 42, 14, C.navy)
+	if Assets.Logo ~= "" then
+		make("ImageLabel", {
+			Name = "Logo",
+			BackgroundTransparency = 1,
+			Position = UDim2.fromOffset(14, 6),
+			Size = UDim2.fromOffset(250, 68),
+			Image = Assets.Logo,
+			ScaleType = Enum.ScaleType.Fit,
+		}, head)
+	else
+		-- One line: CAR VS CAR.
+		T.text(head, "Brand", "CAR", 14, 12, 84, 56, 44, C.white).TextStrokeTransparency = 0.1
+		T.text(head, "VS", "VS", 98, 20, 50, 44, 30, C.red).TextStrokeTransparency = 0
+		T.text(head, "BrandGold", "CAR", 150, 12, 84, 56, 44, C.gold).TextStrokeTransparency = 0.1
+	end
+	T.checkers(head, 244, 21, 72, 42, 14, C.navy)
 	for i, mode in if #Config.Modes > 1 then Config.Modes else {} do
 		local pill = T.button(
 			head,
@@ -581,8 +662,8 @@ function T.cooldown(parent, name, label, ability, x, y, size, callback)
 	corner(b, size / 2)
 	local icon = b:FindFirstChild("Icon")
 	if icon then
-		icon.Position = UDim2.fromOffset(size * 0.27, size * 0.13)
-		icon.Size = UDim2.fromOffset(size * 0.46, size * 0.46)
+		icon.Position = UDim2.fromOffset(size * 0.28, size * 0.1)
+		icon.Size = UDim2.fromOffset(size * 0.44, size * 0.44)
 	end
 	local arc = T.frame(b, "CooldownArc", 5, 5, size - 10, size - 10, C.ink, size / 2)
 	arc.BackgroundTransparency = 1
@@ -616,9 +697,9 @@ function T.cooldown(parent, name, label, ability, x, y, size, callback)
 	)
 	b.Label.Visible = true
 	b.Label.Text = label
-	b.Label.Position = UDim2.fromOffset(3, size * 0.64)
-	b.Label.Size = UDim2.fromOffset(size - 6, size * 0.28)
-	T.labelSize(b, math.min(24, size * 0.2))
+	b.Label.Position = UDim2.fromOffset(size * 0.12, size * 0.58)
+	b.Label.Size = UDim2.fromOffset(size * 0.76, size * 0.26)
+	T.labelSize(b, math.min(24, size * 0.18))
 	return b
 end
 function T.bindHold(button, seconds, callback)

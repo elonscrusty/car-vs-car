@@ -1,7 +1,28 @@
 -- Generated UI artwork uploaded to the user's Roblox assets. No world models.
 -- Keyed by game car id: the closest of the 12 generated pictures (see the note in Config.luau).
 return {
-	Backdrop = "rbxassetid://103725178587376",
+	-- Pictures Carter makes. Leave "" and the menu draws its own placeholder.
+	Logo = "", -- the CAR VS CAR logo (header + loading)
+	-- Icons are keyed by icon kind. Paste an rbxassetid:// id to use a picture.
+	Icons = {
+		coin = "", -- coin
+		duel = "", -- PLAY button
+		car = "", -- CARS button
+		shop = "", -- SHOP button
+		gift = "", -- GIFT button
+		gear = "", -- SETTINGS button
+		close = "", -- the X (close) button
+		boost = "", -- BOOST button
+		Dash = "",
+		Slam = "",
+		Ram = "",
+		Shield = "",
+		Magnet = "",
+		Jump = "",
+		lock = "",
+		check = "",
+		claw = "", -- gumball machine / spin box
+	},
 	Vehicles = {
 		Sedan = "rbxassetid://122958122372249", -- picture: sedan
 		Compact = "rbxassetid://77274576134632", -- picture: compact

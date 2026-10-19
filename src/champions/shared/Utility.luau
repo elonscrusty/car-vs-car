@@ -442,7 +442,7 @@ local function settings(root, state, ctx)
 			key = "sfx",
 			title = "SOUND EFFECTS",
 			description = "Menu and gameplay sounds",
-			icon = "boost",
+			icon = "Dash",
 			default = true,
 		},
 		{
