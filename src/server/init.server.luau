@@ -21,6 +21,7 @@ local Match = require(script.Match)
 local Modes = require(ReplicatedStorage.Shared.Modes)
 local Profiles = require(script.Profiles)
 local RematchService = require(script.RematchService)
+local GroupResults = require(script.GroupResults)
 local Telemetry = require(script.Telemetry)
 
 -- Real characters walk in the lobby (spawn is the lobby SpawnLocation).
@@ -84,10 +85,11 @@ function startMatch(participants: { Match.Participant }, repeatMode: string?)
 					Telemetry.endScreen(player)
 				end,
 				onFinished = function(won: boolean)
-					Telemetry.matchEnded(player, won)
+					local result = GroupResults.take(player) -- nil for the 1v1 modes
+					Telemetry.matchEnded(player, won, result)
 					local again = rematch.settle(player)
 					leaveGroup(player)
-					finished(won, again)
+					finished(won, again, result :: any)
 					local restart = rematch.finish(player)
 					if restart then
 						startMatch(restart, chosenMode)
