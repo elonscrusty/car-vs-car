@@ -84,11 +84,11 @@ return {
 	},
 	Tag = {
 		cars = 6, -- cars in the match (humans first, bots fill the rest); plays on the flat field
-		startFuse = 18, -- seconds on the fuse in round 1
-		fuseStep = 3, -- every round the fuse is this much shorter ...
-		minFuse = 7, -- ... but never shorter than this
+		startFuse = 12, -- seconds on the fuse in round 1 (fun pass: was 18)
+		fuseStep = 2, -- every round the fuse is this much shorter ...
+		minFuse = 5, -- ... but never shorter than this
 		immuneSeconds = 1.5, -- the car that just passed IT cannot be tagged back this long
-		maxSeconds = 90, -- time up: nearest-to-middle alive car wins (audit #28: short rounds, was 240)
+		maxSeconds = 75, -- time up: nearest-to-middle alive car wins (audit #28: short rounds, was 240)
 		allOutEndSeconds = 2, -- every human is out: the round ends this soon (no dead time)
 		firstItBot = true, -- audit #27: the first IT is a bot whenever the match has one
 		hudSeconds = 0.5,
@@ -104,22 +104,31 @@ return {
 		goalRadius = 66, -- the ball crossing this distance from the middle, inside a goal arc = goal
 		goalHalfAngle = 0.55, -- radians either side of the goal's middle
 		scoreToWin = 3,
-		maxSeconds = 150, -- time up: more goals wins (tie = next goal wins)
-		suddenDeathAt = 75, -- 0-0 at this many seconds = next goal wins right away (0 = never; audit #25)
+		maxSeconds = 120, -- time up: more goals wins (tie = next goal wins)
+		suddenDeathAt = 50, -- 0-0 at this many seconds = next goal wins right away (0 = never; audit #25)
 		goalCoins = 5, -- coins per goal a human scored, added on top of the normal match reward (audit #24; own goals never cost coins)
 		markSeconds = 5, -- your own car carries the KickoffMark attribute this long after every kickoff (audit #16)
 		touchCooldown = 0.4, -- stats: touches by the same car closer together than this count once
 		logStats = true, -- print one stats line per soccer match (goals, touches, idle time per car)
 		spawnRadius = 68,
 		spawnSpread = 0.3, -- radians between cars of the same team
-		goalPause = 2.5, -- seconds the cars sit frozen after a goal (score banner) before they are reset
+		goalPause = 2.2, -- seconds the cars sit frozen after a goal (score banner) before they are reset
 		readySeconds = 1.5, -- the "get ready" screen before the first kickoff countdown
-		kickoffSeconds = 3, -- 3-2-1 before the first kickoff (cars frozen, ball in the middle)
-		restartSeconds = 3, -- 3-2-1 after a goal
+		kickoffSeconds = 2, -- 3-2-1 before the first kickoff (cars frozen, ball in the middle)
+		restartSeconds = 2, -- 3-2-1 after a goal
 		goSeconds = 0.8, -- how long "GO!" stays up
 		hudSeconds = 1, -- how often the score and match clock are sent
 		lostMargin = 6, -- ball this far past the rim (or fell out) is put back in the middle
 		botOffset = 14, -- bots aim this far behind the ball, away from the goal they attack
+		-- Chaos moments (fun pass): every `everySeconds` of play one fires, kinds take turns.
+		-- boostAll = every pad lit + every car's BOOST ready; blast = the ball is shot across the field.
+		Chaos = {
+			firstSeconds = 14,
+			everySeconds = 18,
+			kinds = { "boostAll", "blast", "blast", "boostAll" },
+			blastSpeed = 85, -- flat ball speed after a blast (SoccerFieldConfig.ballMaxSpeed still caps it)
+			blastLift = 22, -- upward speed so the ball hops
+		},
 		colors = { { 70, 150, 255 }, { 255, 90, 70 } }, -- team 1 blue, team 2 red
 	},
 }

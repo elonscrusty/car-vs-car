@@ -8,6 +8,7 @@ local Race = require("../src/shared/Race")
 local RaceTrack = require("../src/shared/RaceTrack")
 local RaceConfig = require("../src/shared/RaceTrackConfig")
 local SoccerBoost = require("../src/shared/SoccerBoost")
+local SoccerChaos = require("../src/shared/SoccerChaos")
 local SoccerField = require("../src/shared/SoccerField")
 local SoccerFieldConfig = require("../src/shared/SoccerFieldConfig")
 local SoccerStats = require("../src/shared/SoccerStats")
@@ -379,4 +380,22 @@ test("group result attributes carry place, goals, tags and survived seconds", fu
 			name .. " is cleaned up at match start"
 		)
 	end
+end)
+
+----------------------------------------------------------------------------------------------
+-- Chaos moments (fun pass)
+
+test("soccer chaos: first event on time, then every N seconds, kinds take turns", function()
+	local cfg = ModesConfig.Soccer.Chaos
+	local s = SoccerChaos.new(cfg)
+	eq(SoccerChaos.step(s, cfg, cfg.firstSeconds - 0.1), nil)
+	eq(SoccerChaos.step(s, cfg, cfg.firstSeconds), cfg.kinds[1])
+	eq(SoccerChaos.step(s, cfg, cfg.firstSeconds + cfg.everySeconds - 0.1), nil)
+	eq(SoccerChaos.step(s, cfg, cfg.firstSeconds + cfg.everySeconds), cfg.kinds[2])
+end)
+
+test("soccer chaos: first event comes before the match is half over", function()
+	local cfg = ModesConfig.Soccer.Chaos
+	truthy(cfg.firstSeconds < ModesConfig.Soccer.maxSeconds / 4)
+	truthy(cfg.blastSpeed > 0)
 end)

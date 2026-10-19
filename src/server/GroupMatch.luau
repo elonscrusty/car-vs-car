@@ -33,6 +33,7 @@ local RaceTrackConfig = require(ReplicatedStorage.Shared.RaceTrackConfig)
 local SoccerBotConfig = require(ReplicatedStorage.Shared.SoccerBotConfig)
 local SoccerFieldFlow = require(ReplicatedStorage.Shared.SoccerFieldFlow)
 local SoccerBoost = require(ReplicatedStorage.Shared.SoccerBoost)
+local SoccerChaos = require(ReplicatedStorage.Shared.SoccerChaos)
 local SoccerStats = require(ReplicatedStorage.Shared.SoccerStats)
 local Types = require(ReplicatedStorage.Shared.Types)
 
@@ -111,6 +112,8 @@ function GroupMatch.new(
 	local finalWinner = 0
 	local stats = SoccerStats.new()
 	local pads = SoccerBoost.new()
+	local chaos = SoccerChaos.new(ModesConfig.Soccer.Chaos)
+	local chaosRng = Random.new()
 	local markUntil: number? = nil -- soccer: when the KickoffMark attribute goes off (math.huge = until play)
 	local ball: Part? = nil
 	local ballIdle = 0 -- seconds the ball has hardly moved (stuck check)
@@ -1409,6 +1412,24 @@ function GroupMatch.new(
 				end
 			end
 			fightElapsed += dt
+			local chaosKind = SoccerChaos.step(chaos, ModesConfig.Soccer.Chaos, fightElapsed)
+			if chaosKind == "boostAll" then
+				SoccerBoost.reset(pads)
+				for _, car in cars do
+					moveStates[car.idx].boostAt = -math.huge
+					car.model:SetAttribute("BoostPadAt", workspace:GetServerTimeNow())
+				end
+				banner("BOOST FOR EVERYONE!", 2)
+			elseif chaosKind == "blast" and ball then
+				local a = chaosRng:NextNumber(0, math.pi * 2)
+				local cc = ModesConfig.Soccer.Chaos
+				ball.AssemblyLinearVelocity = Vector3.new(
+					math.cos(a) * cc.blastSpeed,
+					cc.blastLift,
+					math.sin(a) * cc.blastSpeed
+				)
+				banner("BALL BLAST!", 2)
+			end
 			if now - clockAt >= ModesConfig.Soccer.hudSeconds then
 				clockAt = now
 				soccerHud()
