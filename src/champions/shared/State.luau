@@ -125,6 +125,8 @@ local function match(source)
 			"fuse",
 			"fuseEndsAt",
 			"carsLeft",
+			"hp",
+			"hpMax",
 			"goalUntil",
 			"boostEndsAt",
 			"boostDuration",
