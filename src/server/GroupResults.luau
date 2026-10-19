@@ -19,6 +19,7 @@ export type Result = {
 	touches: number?,
 	survivedSeconds: number?,
 	tags: number?, -- tag: cars this player tagged
+	kos: number?, -- fight: cars this player knocked out
 	coinsBonus: number,
 }
 
@@ -42,6 +43,7 @@ GroupResults.attributeNames = {
 	"MatchGoals",
 	"MatchOwnGoals",
 	"MatchTags",
+	"MatchKos",
 	"MatchSurvived",
 	"MatchCoinsBonus",
 	"MatchOut",
@@ -64,6 +66,9 @@ function GroupResults.attributes(r: Result): { [string]: number }
 	end
 	if r.tags then
 		out.MatchTags = r.tags
+	end
+	if r.kos then
+		out.MatchKos = r.kos
 	end
 	if r.survivedSeconds then
 		out.MatchSurvived = math.floor(r.survivedSeconds + 0.5)
