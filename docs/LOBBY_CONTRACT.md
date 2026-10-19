@@ -12,7 +12,7 @@ Players have a real Roblox character in the lobby (CharacterAutoLoads = true now
 LobbyConfig.Lobby = { origin = Vector3.new(0, 0, 500), padCount = 3 }
 LobbyConfig.Pad = { maxPlayers = 2, countdownSeconds = 3, pickSeconds = 15 }
 LobbyConfig.Rewards = { winCoins = 25, loseCoins = 5, endScreenSeconds = 4 }
-LobbyConfig.StarterCars = { "Heavy" }          -- owned by a new player
+LobbyConfig.StarterCars = { "Sedan" }          -- owned by a new player
 LobbyConfig.PickChoices = 3
 LobbyConfig.Rarity = { Heavy = "Common", Light = "Common", Ramp = "Rare", Spike = "Epic" }
 LobbyConfig.Gacha = { price = 100, firstPullFree = true,

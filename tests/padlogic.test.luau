@@ -130,34 +130,34 @@ test("cancel removes everyone", function()
 end)
 
 test("pick validation only accepts offered cars", function()
-	local offered = { "Heavy", "Light", "Ramp" }
-	eq(PadLogic.validatePick(offered, "Light"), "Light")
-	eq(PadLogic.validatePick(offered, "Spike"), nil)
+	local offered = { "Sedan", "Compact", "Kart" }
+	eq(PadLogic.validatePick(offered, "Compact"), "Compact")
+	eq(PadLogic.validatePick(offered, "Semi"), nil)
 	eq(PadLogic.validatePick(offered, 5), nil)
 	eq(PadLogic.validatePick(offered, nil), nil)
 	eq(PadLogic.validatePick(offered, {}), nil)
-	eq(PadLogic.validatePick({}, "Heavy"), nil)
+	eq(PadLogic.validatePick({}, "Sedan"), nil)
 end)
 
 test("auto pick stays inside offered", function()
-	local offered = { "Heavy", "Light", "Ramp" }
+	local offered = { "Sedan", "Compact", "Kart" }
 	eq(
 		PadLogic.autoPick(offered, function()
 			return 0
 		end),
-		"Heavy"
+		"Sedan"
 	)
 	eq(
 		PadLogic.autoPick(offered, function()
 			return 0.999
 		end),
-		"Ramp"
+		"Kart"
 	)
 	eq(
 		PadLogic.autoPick(offered, function()
 			return 1
 		end),
-		"Ramp"
+		"Kart"
 	)
 	eq(
 		PadLogic.autoPick({}, function()
@@ -169,7 +169,7 @@ end)
 
 test("allPicked needs everyone on the pad", function()
 	eq(PadLogic.allPicked({}, {}), false)
-	eq(PadLogic.allPicked({ "a", "b" }, { a = "Heavy" }), false)
-	eq(PadLogic.allPicked({ "a", "b" }, { a = "Heavy", b = "Light" }), true)
-	eq(PadLogic.allPicked({ "a" }, { a = "Heavy", b = "Light" }), true)
+	eq(PadLogic.allPicked({ "a", "b" }, { a = "Sedan" }), false)
+	eq(PadLogic.allPicked({ "a", "b" }, { a = "Sedan", b = "Compact" }), true)
+	eq(PadLogic.allPicked({ "a" }, { a = "Sedan", b = "Compact" }), true)
 end)

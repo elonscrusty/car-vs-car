@@ -36,7 +36,7 @@ function Build.default(): BuildData
 		parts[slot] = starter
 		levels[slot] = 1
 	end
-	return { carId = "Heavy", parts = parts, owned = owned, levels = levels }
+	return { carId = "Sedan", parts = parts, owned = owned, levels = levels }
 end
 
 -- Never errors. Accepts anything (old saves have no build), returns a clean BuildData.

@@ -30,7 +30,7 @@ test("the pack has 30 cars with unique ids, names and models", function()
 end)
 
 test("every car is registered with a rarity, a real ability and a model", function()
-	eq(#CarConfig.FullOrder, 38)
+	eq(#CarConfig.FullOrder, 30)
 	for _, id in CarConfig.Order do
 		local c = CarConfig.get(id)
 		truthy(c ~= nil, id)
@@ -138,7 +138,7 @@ test("the claw can give any car and a duplicate pays coins", function()
 	local r = Gacha.pull(p, function()
 		return 0
 	end)
-	eq(r.carId, "Heavy")
+	eq(r.carId, "Sedan")
 	eq(r.isNew, false)
 	eq(p.coins, 100 - LobbyConfig.Gacha.price + LobbyConfig.Gacha.duplicateRefunds.Common)
 end)

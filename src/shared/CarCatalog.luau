@@ -94,10 +94,86 @@ CarCatalog.Entries = {
 	e("Future", "FUTURE", "30_future", "Legendary", "Slam", { 90, 230, 255 }),
 }
 
--- Own stats + role line for the launch-roster pack cars (the 8 hand-written cars live in
--- CarConfig). Numbers are PLACEHOLDERS tuned only so no car's power score (CarPower) is far above
+-- Own stats + role line for the launch-roster pack cars. Numbers are PLACEHOLDERS tuned only so no car's power score (CarPower) is far above
 -- its rarity tier's average; carter retunes by feel. Cars not listed keep `Neutral`.
 CarCatalog.Tuned = {
+	Compact = {
+		role = "Small and quick. Breaks easy.",
+		stats = {
+			hp = 120,
+			mass = 28,
+			maxSpeed = 92,
+			accel = 145,
+			turnRate = 4.4,
+			damageMult = 0.9,
+		},
+	},
+	BoxTruck = {
+		role = "Heavy box. Slow, tough.",
+		stats = {
+			hp = 200,
+			mass = 120,
+			maxSpeed = 64,
+			accel = 105,
+			turnRate = 2.2,
+			damageMult = 1.2,
+		},
+	},
+	Muscle = {
+		role = "Plows through. Hits hard.",
+		stats = {
+			hp = 190,
+			mass = 110,
+			maxSpeed = 68,
+			accel = 110,
+			turnRate = 2.4,
+			damageMult = 1.25,
+		},
+	},
+	Kart = {
+		role = "Tiny. Grips and turns fast.",
+		stats = {
+			hp = 115,
+			mass = 30,
+			maxSpeed = 90,
+			accel = 140,
+			turnRate = 4.8,
+			damageMult = 0.95,
+		},
+	},
+	DriftKing = {
+		role = "Slides around you.",
+		stats = {
+			hp = 130,
+			mass = 35,
+			maxSpeed = 85,
+			accel = 130,
+			turnRate = 5.0,
+			damageMult = 0.9,
+		},
+	},
+	SuperCar = {
+		role = "Very fast. Breaks easy.",
+		stats = {
+			hp = 85,
+			mass = 22,
+			maxSpeed = 108,
+			accel = 170,
+			turnRate = 4.0,
+			damageMult = 1.0,
+		},
+	},
+	Semi = {
+		role = "Huge. Big damage.",
+		stats = {
+			hp = 190,
+			mass = 140,
+			maxSpeed = 62,
+			accel = 100,
+			turnRate = 2.0,
+			damageMult = 1.35,
+		},
+	},
 	Sedan = {
 		role = "Balanced. Good at everything.",
 		stats = {

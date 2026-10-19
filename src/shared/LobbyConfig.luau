@@ -24,7 +24,7 @@ LobbyConfig.Lobby = {
 }
 LobbyConfig.Pad = { maxPlayers = 2, countdownSeconds = 3, pickSeconds = 15 }
 LobbyConfig.Rewards = { winCoins = 60, loseCoins = 20, endScreenSeconds = 4 }
-LobbyConfig.StarterCars = { "Heavy" } -- owned by a new player
+LobbyConfig.StarterCars = { "Sedan" } -- owned by a new player
 LobbyConfig.PickChoices = 3
 -- Car id -> rarity. Comes from CarConfig, so a new car only needs a rarity there.
 LobbyConfig.Rarity = {} :: { [string]: string }

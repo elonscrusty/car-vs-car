@@ -54,7 +54,7 @@ end)
 
 H.test("profile defaults and migrates hintsSeen (old saves lack it)", function()
 	H.eq(next(Inventory.default().hintsSeen), nil)
-	local old = Inventory.migrate({ coins = 5, wins = 1, owned = { Heavy = true } })
+	local old = Inventory.migrate({ coins = 5, wins = 1, owned = { Sedan = true } })
 	H.eq(type(old.hintsSeen), "table")
 	H.eq(next(old.hintsSeen), nil)
 	H.eq(old.coins, 5)

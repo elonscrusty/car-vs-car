@@ -52,15 +52,15 @@ CarTraitsConfig.differBy = 0.09
 
 -- Per car. Missing fields fall back to Defaults.
 CarTraitsConfig.Cars = {
-	Heavy = { grip = 1.25, drift = 0.05, punch = -0.15, highTurn = 0.7 },
-	Light = { grip = 0.7, drift = 0.7, punch = 0.35, highTurn = 1.1 },
+	Compact = { grip = 0.6, drift = 0.8, punch = 0.4, highTurn = 1.0, sizeScale = 0.85 },
+	BoxTruck = { grip = 1.25, drift = 0.05, punch = -0.15, highTurn = 0.7, sizeScale = 1.2 },
+	Muscle = { grip = 1.3, drift = 0.05, punch = -0.25, highTurn = 0.65 },
+	Kart = { grip = 1.1, drift = 0.35, punch = 0.3, highTurn = 1.2, sizeScale = 0.75 },
+	DriftKing = { grip = 0.5, drift = 1.0, punch = 0.2, highTurn = 1.2 },
+	SuperCar = { grip = 0.9, drift = 0.45, punch = 0.5, highTurn = 0.8 },
+	Semi = { grip = 1.1, drift = 0.1, punch = 0.25, highTurn = 0.85, sizeScale = 1.45 },
 	Sedan = { grip = 1.0, drift = 0.2, punch = 0.0, highTurn = 0.95 },
 	DuneBuggy = { grip = 0.75, drift = 0.6, punch = 0.3, highTurn = 1.15, sizeScale = 0.85 },
-	Ramp = { grip = 0.75, drift = 0.4, punch = 0.05, highTurn = 1.0 },
-	Bulldozer = { grip = 1.3, drift = 0.05, punch = -0.25, highTurn = 0.65 },
-	Drift = { grip = 0.5, drift = 1.0, punch = 0.2, highTurn = 1.2 },
-	Spike = { grip = 1.1, drift = 0.1, punch = 0.25, highTurn = 0.85 },
-	Rocket = { grip = 0.6, drift = 0.5, punch = 0.5, highTurn = 0.8 },
 	MonsterTruck = { grip = 1.15, drift = 0.25, punch = -0.3, highTurn = 0.6, sizeScale = 1.35 },
 	Formula = { grip = 1.4, drift = 0.15, punch = 0.4, highTurn = 0.95, sizeScale = 0.9 },
 	ArmoredTruck = { grip = 1.5, drift = 0, punch = -0.4, highTurn = 0.55, sizeScale = 1.4 },
