@@ -175,8 +175,10 @@ local function driveForAngle(base: number, angle: number): number
 	return base * clamp(1 - (a - 0.5) / 1.6, 0.25, 1)
 end
 
-function BattleBrain.new(fighterId: string, L: number, arena: Arena): Brain
+function BattleBrain.new(fighterId: string, L: number, arena: Arena, momentum: boolean?): Brain
 	local move = BattleConfig.Move
+	local mom = BattleConfig.Momentum
+	local isMomentum = momentum == true
 	local ram = BattleConfig.Ram
 	local cannon = BattleConfig.Cannon
 	local saw = BattleConfig.Saw
@@ -284,9 +286,12 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena): Brain
 		local readyFrac = if cooldown <= 0 then 1 else 1 - cooldown / ram.cooldownSeconds
 
 		if state == "telegraph" then
-			local o = out(0, 0, readyFrac)
-			o.hold = true
-			if stateT >= ram.telegraphSeconds then
+			-- momentum: the wind-up is a short surge, the truck keeps rolling instead of stopping
+			local o = out(0, if isMomentum then 0.5 else 0, readyFrac)
+			o.hold = not isMomentum
+			if
+				stateT >= (if isMomentum then 0.5 * ram.telegraphSeconds else ram.telegraphSeconds)
+			then
 				state, stateT, chargeHit = "charge", 0, false
 			end
 			return o
@@ -331,7 +336,7 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena): Brain
 
 		downtime = math.max(0, downtime - dt)
 		local gx, gz = steerDirection(me, dx, dz, arena, L)
-		if cooldown > 0 and dist < ram.peelRangeL * L then
+		if cooldown > 0 and dist < ram.peelRangeL * L and not isMomentum then
 			-- recharging: veer off to the side instead of pushing on the foe, then come back
 			local a = peelSide * ram.peelAngleDeg * DEG
 			local ax, az = -dx, -dz -- directly away
@@ -352,13 +357,15 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena): Brain
 		if
 			cooldown <= 0
 			and downtime <= 0
-			and dist <= ram.startRangeL * L
-			and math.abs(angle) <= ram.startAngleDeg * DEG
+			and dist <= ram.startRangeL * (if isMomentum then 1.5 else 1) * L
+			and math.abs(angle) <= ram.startAngleDeg * (if isMomentum then 1.8 else 1) * DEG
 		then
 			state, stateT = "telegraph", 0
 			o.state = state
-			o.hold = true
-			o.drive, o.turn = 0, 0
+			o.hold = not isMomentum
+			if not isMomentum then
+				o.drive, o.turn = 0, 0
+			end
 		end
 		return o
 	end
@@ -372,9 +379,10 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena): Brain
 		local readyFrac = if cooldown <= 0 then 1 else 1 - cooldown / cannon.cooldownSeconds
 
 		if state == "telegraph" then
-			-- The direction is locked: the car stands still, aimed, for the whole telegraph.
-			local o = out(0, 0, readyFrac)
-			o.hold = true
+			-- The direction is locked for the whole telegraph (still in the steering fight; rolling on
+			-- in the momentum fight).
+			local o = out(0, if isMomentum then 0.7 else 0, readyFrac)
+			o.hold = not isMomentum
 			if stateT >= cannon.telegraphSeconds then
 				o.fire = true
 				o.hold = false
@@ -386,7 +394,16 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena): Brain
 		end
 
 		local o: Output
-		if
+		if isMomentum then
+			-- keep rolling and swinging toward the foe; shoot whenever the gun happens to point at it
+			o = out(turnFor(angle), 0.7, readyFrac)
+			if cooldown <= 0 and dist <= mom.rangeL * L and math.abs(angle) <= mom.aimDeg * DEG then
+				state, stateT = "telegraph", 0
+				o.state = state
+				o.turn = 0
+			end
+			return o
+		elseif
 			dist < 1.6 * L
 			and cooldown <= 0
 			and math.abs(angle) <= 2 * cannon.aimToleranceDeg * DEG
@@ -475,7 +492,7 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena): Brain
 	function brain.step(dt: number, me: Body, foe: Body, contact: Contact): Output
 		local inAttack = state == "telegraph" or state == "charge"
 		local foeDist = math.sqrt((foe.x - me.x) ^ 2 + (foe.z - me.z) ^ 2)
-		if recoverT > 0 then
+		if recoverT > 0 and not isMomentum then
 			-- timers keep running while backing out; the weapon stays idle
 			cooldown = math.max(0, cooldown - dt * (contact.tempo or 1))
 			sawCooldown = math.max(0, sawCooldown - dt * (contact.tempo or 1))
@@ -490,7 +507,7 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena): Brain
 		else
 			o = stepSaw(dt, me, foe, contact)
 		end
-		if not inAttack and not o.hold and o.state ~= "charge" then
+		if not isMomentum and not inAttack and not o.hold and o.state ~= "charge" then
 			if stuckCheck(dt, me, foeDist, o.drive) then
 				startRecover()
 			end

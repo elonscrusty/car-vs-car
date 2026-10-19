@@ -65,6 +65,23 @@ BattleConfig.Final = {
 	text = "FINAL PHASE: weapons recharge faster!",
 }
 
+-- The "momentum" prototype: the same cars and arena, but the cars LAUNCH from the opening choice,
+-- keep their speed, skid and rebound off walls and each other, and fire their weapons on their own
+-- with only weak steering. Compared side by side with the steering fight (carter picks one).
+BattleConfig.defaultMomentum = false -- real queue matches use the steering fight until carter picks
+BattleConfig.Momentum = {
+	launchL = 3.2, -- launch speed, L per second
+	turnScale = 0.35, -- steering is this much of the normal turn rate
+	accel = 0.9, -- cruise speeds per second gained (slow: the car keeps its launch speed)
+	brake = 0.5, -- cruise speeds per second lost
+	side = 0.9, -- sideways grip (normal 8): low = long skids
+	elasticity = 0.85, -- bounciness of the car body
+	friction = 0.05,
+	knockMult = 1.4, -- hits throw cars further
+	aimDeg = 10, -- a gun fires when the foe is this near the heading
+	rangeL = 7, -- ... and this close
+}
+
 -- Movement shared by every fighter (the AI asks, the server enforces these limits).
 BattleConfig.Move = {
 	accel = 3.2, -- cruise speeds per second

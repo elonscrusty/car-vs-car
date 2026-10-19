@@ -30,6 +30,7 @@ export type Car = {
 	lastForward: Vector3,
 	standIn: boolean,
 	lastOut: BattleBrain.Output?,
+	momentum: boolean, -- the momentum prototype: launch, skid, rebound, weak steering
 	stats: BattleRecap.Stats, -- what this car's weapon did this round (for the recap)
 	stagger: number, -- > 0 while knocked: the car slides and cannot steer
 }
@@ -214,6 +215,7 @@ function BattleCar.spawn(
 		standIn = standIn,
 		lastOut = nil,
 		stagger = 0,
+		momentum = false,
 		stats = BattleRecap.newStats(),
 	}
 	local at = floorMid2 * CFrame.new(0, fighter.weaponUp * L, -fighter.weaponForward * L)
@@ -246,6 +248,20 @@ function BattleCar.spawn(
 end
 
 -- Free the car to move. The server owns the physics of both cars.
+-- Momentum prototype: bouncy, slippery body and a launch along the opening aim.
+function BattleCar.launch(car: Car, momentum: boolean)
+	car.momentum = momentum
+	if not momentum then
+		return
+	end
+	local mom = BattleConfig.Momentum
+	car.body.CustomPhysicalProperties =
+		PhysicalProperties.new(0.7, mom.friction, mom.elasticity, 1, 100)
+	local f = car.lastForward
+	local speed = mom.launchL * car.L
+	car.body.AssemblyLinearVelocity = Vector3.new(f.X * speed, 0, f.Z * speed)
+end
+
 function BattleCar.arm(car: Car, brain: BattleBrain.Brain)
 	car.brain = brain
 	for _, d in car.model:GetDescendants() do
@@ -313,7 +329,10 @@ function BattleCar.drive(car: Car, out: BattleBrain.Output, dt: number)
 	if want < 0 then
 		want *= mv.reverseScale
 	end
-	local rate = if math.abs(want) > math.abs(fwd) then mv.accel else mv.brake
+	local mom = BattleConfig.Momentum
+	local rate = if math.abs(want) > math.abs(fwd)
+		then (if car.momentum then mom.accel else mv.accel)
+		else (if car.momentum then mom.brake else mv.brake)
 	if out.state == "charge" then
 		rate *= 4 -- a charge gets up to speed fast
 	end
@@ -323,9 +342,15 @@ function BattleCar.drive(car: Car, out: BattleBrain.Output, dt: number)
 		step = mv.skidBrake * cruise * dt -- keep rolling: the truck overshoots
 	end
 	fwd += math.clamp(want - fwd, -step, step)
-	lat *= math.max(0, 1 - (if skidding then mv.skidSide else 8) * dt)
+	lat *= math.max(
+		0,
+		1 - (if car.momentum then mom.side elseif skidding then mv.skidSide else 8) * dt
+	)
 	body.AssemblyLinearVelocity = Vector3.new(f.X * fwd + lat.X, v.Y, f.Z * fwd + lat.Z)
 	local turnScale = math.clamp(math.abs(fwd) / (0.5 * cruise) + 0.35, 0, 1)
+	if car.momentum then
+		turnScale = mom.turnScale
+	end
 	if out.state == "charge" then
 		turnScale = 0
 	end
@@ -337,6 +362,9 @@ end
 -- spins a little. A white flash on the car shows the hit before anything else.
 function BattleCar.knock(car: Car, dir: Vector3, speed: number, stagger: number)
 	local d = planar(dir)
+	if car.momentum then
+		speed *= BattleConfig.Momentum.knockMult
+	end
 	car.stagger = math.max(car.stagger, stagger)
 	local v = car.body.AssemblyLinearVelocity
 	car.body.AssemblyLinearVelocity = Vector3.new(d.X * speed, v.Y, d.Z * speed)
