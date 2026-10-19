@@ -20,8 +20,8 @@ local SPOTS: { Spot } = {
 	{ name = "plant_box_yellow", x = 32, z = 63, face = 0, scale = 1.3 },
 	{ name = "traffic_cone", x = -18, z = 56, face = 0, scale = 1.4 },
 	-- Front corners, beside the store and the paint booth.
-	{ name = "tire_stack", x = -58, z = 58, face = 0, scale = 1.3 },
-	{ name = "tire_stack", x = 58, z = 54, face = 40, scale = 1.3 },
+	{ name = "tire_stack", x = -50, z = 65, face = 0, scale = 1.3 },
+	{ name = "tire_stack", x = 50, z = 65, face = 40, scale = 1.3 },
 }
 
 function LobbyProps.build(folder: Folder, origin: Vector3)

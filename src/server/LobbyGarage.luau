@@ -79,8 +79,8 @@ function LobbyGarage.build(folder: Folder, origin: Vector3)
 	put("WaterCooler", 56, 0, 66.5, RIGHT)
 
 	-- Hall dressing so the big floor does not feel bare: a tire rack, bench, shelf or locker bank
-	-- against the low wall between the garage doors, a small thing on the other side of each
-	-- door, plate tiles on the floor in every doorway, and more lamps over the side aisles.
+	-- with a small thing beside it between the garages, plate tiles in every doorway, and more
+	-- lamps over the side aisles.
 	local BIG = { "TireRack", "Workbench", "Lockers", "PartsShelf" }
 	local BIG_SRC =
 		{ TireRack = "Decor", Workbench = "Decor", Lockers = "Garage", PartsShelf = "More" }
@@ -92,25 +92,27 @@ function LobbyGarage.build(folder: Folder, origin: Vector3)
 		SteelBench = "Garage",
 	}
 	local ART = { "SteeringWheelArt", "PlateWall", "WallClock", "PlateWall" }
+	-- The props stand out in the side aisle between two garage openings (never in front of a
+	-- garage), the wall art stays on the wall above each garage.
 	for i, b in L.bays do
 		local side = if b.face > 0 then -1 else 1
 		local yaw = if b.face > 0 then LEFT else RIGHT
-		local big = BIG[(i - 1) % #BIG + 1]
-		-- Every garage gets its own mix: the small prop changes by garage and every third has none.
-		local small = SMALL[(i * 3 - 1) % #SMALL + 1]
-		put(big, side * 60.5, 0, b.z - 13.5, yaw, nil, BIG_SRC[big])
-		if i % 3 ~= 0 then
-			put(small, side * 61.5, 0, b.z + 13.5, yaw, nil, SMALL_SRC[small])
-		end
-		if i % 2 == 1 then
-			put("TireStack", side * 62, 0, b.z + 17, yaw, nil, "Bowl")
-		end
+		local art = ART[(i - 1) % #ART + 1]
+		put(art, side * 62.3, 9, b.z - 13.5, yaw, nil, "More")
 		for _, dz in { -4, 4 } do
 			put("DiamondPlateTile", side * 56, 0.05, b.z + dz, 0)
 		end
-		-- Something on the wall above the big thing: a clock, a poster or a plate board.
-		local art = ART[(i - 1) % #ART + 1]
-		put(art, side * 62.3, 9, b.z - 13.5, yaw, nil, "More")
+		if i < 4 or (i > 4 and i < 8) then
+			-- The wall between this garage and the next one along.
+			local z = b.z + 20
+			local big = BIG[(i - 1) % #BIG + 1]
+			local small = SMALL[(i * 3 - 1) % #SMALL + 1]
+			put(big, side * 47, 0, z - 3, yaw, nil, BIG_SRC[big])
+			put(small, side * 47, 0, z + 4, yaw, nil, SMALL_SRC[small])
+			if i % 2 == 1 then
+				put("TireStack", side * 47, 0, z + 9, yaw, nil, "Bowl")
+			end
+		end
 	end
 	for _, side in { -1, 1 } do
 		for _, z in { 32, 4, -24 } do
