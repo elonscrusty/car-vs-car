@@ -75,14 +75,14 @@ local GameConfig = {
 		calmShakeScale = 0.3, -- camera shake and FOV punches x this when calm
 		maxFlashesPerSecond = 3, -- the hit flash never fires more often than this (shake still does)
 		-- Chase camera (every mode except the bowl): sits behind the car, turns with it
-		chaseBack = 24, -- studs behind the car
-		chaseUp = 12, -- studs above the car
-		chaseAhead = 14, -- look this far in front of the car
+		chaseBack = 30, -- studs behind the car
+		chaseUp = 50, -- studs above the car
+		chaseAhead = 18, -- look this far in front of the car
 		chaseSpeedBack = 0.12, -- extra studs back per stud/s of speed
-		chaseYawRate = 5, -- how fast the camera swings round after the car turns (per second)
-		chaseBallShare = 0.35, -- soccer: swing this share of the way toward the ball...
+		chaseYawRate = 2.5, -- how fast the camera swings round after the car turns (per second)
+		chaseBallShare = 0.5, -- soccer: swing this share of the way toward the ball...
 		chaseBallMax = 0.6, -- ...but never more than this many radians (about 34 degrees)
-		chaseFollow = 14, -- how tightly the camera sticks to the spot behind the car (per second)
+		chaseFollow = 10, -- how tightly the camera sticks to the spot behind the car (per second)
 		chaseSpeedFov = 12, -- FOV widens up to this much at top speed
 		-- Soccer camera (audit #15): the pure framing in FeelRules.soccerCamera
 		soccerCamBackMult = 1.35, -- camera sits this much further back than SoccerFieldConfig.camBack
@@ -137,7 +137,7 @@ local GameConfig = {
 		groundFriction = 0.4, -- floor + car friction. Lower = slides more, keeps speed
 		slopeAssist = 1, -- 0..1: how much of the uphill gravity pull the gas cancels
 		grip = 24, -- side slide killing (higher = less drifting)
-		humanGrip = 36, -- ...the same for a player-driven car: glued to the road, snappy turns
+		humanGrip = 22, -- ...the same for a player-driven car: grippy but lets the tail swing (carter wants drifty)
 		humanAccel = 1.4, -- player cars speed up this x faster than the car's accel number
 		brakeMult = 2.5, -- pressing the opposite way of travel brakes this x harder than normal gas
 		coastDrag = 2.2, -- no gas: forward speed fades at this share per second (stops, no ice-gliding)
