@@ -11,6 +11,7 @@ FeatureFlags.Flags = {
 	perCarQuests = false, -- "Win 3 with <car>" quests (off = only win3, play5, bot2)
 	botLevelButton = false, -- BOT: EASY/MEDIUM/HARD button (off = bot level auto-scales by wins)
 	soccerMode = true, -- car soccer in the mode rotation (carter: kept at launch)
+	raceMode = true, -- Crazy Race (laps, ramps) in the mode rotation
 	tagMode = true, -- car tag (hot potato) in the mode rotation
 	lastStandingMode = false, -- 8-car last standing in the mode rotation
 } :: { [string]: boolean }
