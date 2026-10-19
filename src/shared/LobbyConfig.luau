@@ -23,7 +23,32 @@ LobbyConfig.Lobby = {
 	padCount = 4,
 }
 LobbyConfig.Pad = { maxPlayers = 2, countdownSeconds = 3, pickSeconds = 15 }
-LobbyConfig.Rewards = { winCoins = 60, loseCoins = 20, endScreenSeconds = 4 }
+-- endScreenSeconds: how long the match end screen stays (was 4: too short to read coins + rematch).
+-- endScreenMaxSeconds: the longest the end screen may wait for a tap before the player is sent
+-- back (the match code that wants "stay until tap" reads this; nothing waits longer than it).
+-- PLACEHOLDER numbers.
+LobbyConfig.Rewards = {
+	winCoins = 60,
+	loseCoins = 20,
+	endScreenSeconds = 8,
+	endScreenMaxSeconds = 20,
+}
+-- Coins by what happened (see ResultRewards). ALL PLACEHOLDER numbers: carter tunes them.
+LobbyConfig.ResultRewards = {
+	baseWin = LobbyConfig.Rewards.winCoins, -- a win (soccer, tag, duel...)
+	baseOther = LobbyConfig.Rewards.loseCoins, -- finishing without a win
+	-- Race coins by finishing place (1st..6th); later places use the last number. Replaces the base.
+	racePlaceCoins = { 60, 45, 35, 25, 20, 20 } :: { number },
+	perGoal = 5, -- soccer: coins per goal you scored
+	maxGoalsPaid = 10, -- goals counted for coins (sanity cap)
+	perTag = 5, -- tag: coins per car you tagged
+	maxTagsPaid = 10,
+	tagSurviveStep = 10, -- tag: seconds survived per bonus step (not-winners only)
+	tagSurvivePerStep = 2, -- coins per full step
+	tagSurviveMax = 30, -- cap on the survive bonus
+	topHalfPlace = 3, -- tag/race: this place or better (of 6) keeps the win streak alive
+	invitePromptMatches = 2, -- INVITE prompt after the 2nd+ match (or after any goal)
+}
 LobbyConfig.StarterCars = { "Sedan" } -- owned by a new player
 LobbyConfig.PickChoices = 3
 -- Car id -> rarity. Comes from CarConfig, so a new car only needs a rarity there.
@@ -38,7 +63,16 @@ LobbyConfig.Gacha = {
 	duplicateRefund = 50, -- fallback coins back on a car you already own
 	-- Coins back for a duplicate, by rarity (PRETEND numbers). Rarer gives more.
 	duplicateRefunds = { Common = 10, Rare = 25, Epic = 60, Legendary = 120 } :: { [string]: number },
+	-- Pity: after this many pulls in a row without an Epic or better, the next pull is guaranteed
+	-- one (the odds above are still shown). PLACEHOLDER: N = 10.
+	pityEvery = 10,
+	pityMinRarity = "Epic",
 }
+-- Text keys for the two ways to get a car (the client maps key -> words; nothing is shown here).
+LobbyConfig.Labels = { claw = "clawSurprise", store = "storeChoose" } :: { [string]: string }
+-- "Next goal" chip: show the cheapest unowned car when it is within this many coins, else prefer
+-- a mode the player has not tried. PLACEHOLDER.
+LobbyConfig.NextGoal = { nearCoins = 60 }
 -- Store counter prices by rarity. PLACEHOLDER numbers: carter will give the real ones later.
 LobbyConfig.Store = {
 	prices = { Common = 150, Rare = 400, Epic = 1000, Legendary = 2500 } :: { [string]: number },

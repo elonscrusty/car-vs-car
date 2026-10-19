@@ -162,4 +162,9 @@ function PadLogic.autoPick(offered: { string }, rng: () -> number): string?
 	return offered[i]
 end
 
+-- Skip the pick-a-car step when the player owns fewer than 2 cars (nothing to choose between).
+function PadLogic.shouldSkipPick(ownedCount: number): boolean
+	return ownedCount < 2
+end
+
 return PadLogic

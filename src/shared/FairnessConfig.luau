@@ -6,5 +6,6 @@ return {
 	neutralizeHumanMatches = true,
 	humansNeeded = 2, -- this many humans in one match turns the rule on
 	neutralRarity = "Common", -- ability strength used instead of the car's rarity
+	neutralBuild = true, -- garage build parts + part levels are ignored in a fair match (audit #51)
 	neutralLevel = 1, -- car level used instead of the real one
 }

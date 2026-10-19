@@ -27,6 +27,10 @@ SoundConfig.Events = {
 	click = { id = "", volume = 0.4, pitchVariance = 0.05 },
 	claw = { id = "", volume = 0.7, pitchVariance = 0 },
 	coin = { id = "", volume = 0.6, pitchVariance = 0.05 },
+	ballKick = { id = "", volume = 0.7, pitchVariance = 0.1 },
+	goal = { id = "", volume = 0.9, pitchVariance = 0 },
+	countdownTick = { id = "", volume = 0.5, pitchVariance = 0 },
+	countdownGo = { id = "", volume = 0.7, pitchVariance = 0 },
 	music_lobby = { id = "", volume = 0.25, pitchVariance = 0, looped = true, music = true },
 	music_arena = { id = "", volume = 0.25, pitchVariance = 0, looped = true, music = true },
 } :: { [string]: Entry }

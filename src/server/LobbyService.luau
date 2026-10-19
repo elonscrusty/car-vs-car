@@ -16,6 +16,10 @@ local Gacha = require(ReplicatedStorage.Shared.Gacha)
 local FirstWin = require(ReplicatedStorage.Shared.FirstWin)
 local Hints = require(ReplicatedStorage.Shared.Hints)
 local Inventory = require(ReplicatedStorage.Shared.Inventory)
+local MenuRules = require(ReplicatedStorage.Shared.MenuRules)
+local NextGoal = require(ReplicatedStorage.Shared.NextGoal)
+local ResultRewards = require(ReplicatedStorage.Shared.ResultRewards)
+local SessionSummary = require(ReplicatedStorage.Shared.SessionSummary)
 local Paint = require(ReplicatedStorage.Shared.Paint)
 local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
 local PadLogic = require(ReplicatedStorage.Shared.PadLogic)
@@ -40,10 +44,21 @@ local ClawAnim = require(script.Parent.ClawAnim)
 local LobbyBays = require(script.Parent.LobbyBays)
 local Telemetry = require(script.Parent.Telemetry)
 
+-- What a finished match can tell the lobby about one player. Every field is optional; nil = absent.
+export type MatchResult = {
+	mode: string?,
+	place: number?,
+	goals: number?,
+	survivedSeconds: number?,
+	tags: number?,
+}
+
 export type Participant = {
 	player: Player,
 	carId: string,
-	onFinished: (won: boolean, stay: boolean?) -> (),
+	-- result: what the match reports about this player (all optional, read defensively):
+	-- mode, place (1 = first), goals, survivedSeconds, tags.
+	onFinished: (won: boolean, stay: boolean?, result: MatchResult?) -> (),
 	appearance: Appearance.Appearance?, -- paint, sticker, level badge
 	botLevel: string?, -- bot difficulty for a lone player
 	mode: string?, -- the player's chosen mode
@@ -110,6 +125,8 @@ function LobbyService.start(deps: Deps): Handle
 	local modeLimiter = RateLimiter.new(4, 3)
 	local modePref: { [Player]: string } = {} -- lobby MODE button choice (not saved: resets per visit)
 	local questLimiter = RateLimiter.new(2, 3)
+	local summaryLimiter = RateLimiter.new(2, 5)
+	local sessions: { [Player]: SessionSummary.Data } = {} -- this visit only, never saved
 	local spinLimiter = RateLimiter.new(2, 3)
 	local paintLimiter = RateLimiter.new(4, 3)
 	local buildLimiter = RateLimiter.new(6, 3)
@@ -121,7 +138,8 @@ function LobbyService.start(deps: Deps): Handle
 	local conns: { RBXScriptConnection } = {}
 	local charConns: { [Player]: RBXScriptConnection } = {} -- one per player, dropped when they leave
 
-	local function send(player: Player, update: Types.LobbyUpdate)
+	-- Some messages carry newer fields than Types.LobbyUpdate lists, so callers may pass `any`.
+	local function send(player: Player, update: Types.LobbyUpdate | any)
 		if player.Parent ~= nil then
 			remotes.LobbyUpdate:FireClient(player, update)
 		end
@@ -157,7 +175,17 @@ function LobbyService.start(deps: Deps): Handle
 		if Quests.ensure(p, os.time()) then
 			Profiles.markDirty(player)
 		end
-		send(player, {
+		local now = os.time()
+		local carId = Build.carFor(p.build, p.owned)
+		local xp = Progress.xpView(p.progress, carId)
+		local goal = NextGoal.compute({
+			matches = p.matches,
+			coins = p.coins,
+			owned = p.owned,
+			modesPlayed = p.progress.modesPlayed,
+		})
+		local menu = MenuRules.visible(p)
+		local message: any = {
 			kind = "profile",
 			coins = p.coins,
 			wins = p.wins,
@@ -172,11 +200,37 @@ function LobbyService.start(deps: Deps): Handle
 			botLevel = p.botLevel,
 			mode = modePref[player] or "auto",
 			quests = Quests.views(p),
-			daily = { ready = Daily.canClaim(p.daily, os.time()), freePulls = p.daily.freePulls },
-			spinReady = Spin.canSpin(p.spin, os.time()),
+			daily = {
+				ready = Daily.canClaim(p.daily, now),
+				freePulls = p.daily.freePulls,
+				secondsToNext = Daily.secondsUntilNext(p.daily, now), -- 0 = a gift is waiting
+			},
+			spinReady = Spin.canSpin(p.spin, now),
 			paint = { owned = Paint.ownedList(p.paint), equipped = p.paint.equipped },
 			build = buildView(p),
-		})
+			-- XP bar for the garage car: into / needed (needed 0 + maxed = top level).
+			xp = {
+				carId = carId,
+				level = xp.level,
+				into = xp.into,
+				needed = xp.needed,
+				maxed = xp.maxed,
+			},
+			levelBonus = Progress.bonusText(xp.level), -- e.g. "+6% HP and damage" ("" at level 1)
+			nextGoal = goal.text, -- one line: closest car, or a mode not played yet
+			nextGoalKind = goal.kind,
+			lastMode = p.progress.lastMode, -- the mode played last (nil before the first match)
+			menu = menu, -- which menu buttons show
+			unlockNotice = MenuRules.unlockNotice(p, p.hintsSeen), -- QUESTS/GARAGE just appeared
+			claw = {
+				odds = Gacha.oddsView(p), -- rarity rows: cars marked owned + duplicate refund
+				pity = Gacha.pityView(p), -- count / every / left until an Epic or better
+				pityMinRarity = LobbyConfig.Gacha.pityMinRarity,
+				price = LobbyConfig.Gacha.price,
+				labels = LobbyConfig.Labels, -- text keys: claw = surprise car, store = choose your car
+			},
+		}
+		send(player, message)
 		refreshBay(player)
 	end
 
@@ -297,13 +351,31 @@ function LobbyService.start(deps: Deps): Handle
 		send(player, { kind = "countdown", seconds = 0 })
 	end
 
+	-- Reads what the match said about this player. Anything missing or odd is just nil.
+	local function resultInfo(won: boolean, result: any): ResultRewards.Info
+		local r: { [string]: any } = if type(result) == "table" then result else {}
+		local function num(v: any): number?
+			return if type(v) == "number" and v == v then v else nil
+		end
+		return {
+			mode = if type(r.mode) == "string" then r.mode else nil,
+			won = won,
+			place = num(r.place),
+			goals = num(r.goals),
+			survivedSeconds = num(r.survivedSeconds),
+			tags = num(r.tags),
+		}
+	end
+
 	-- stay: the player goes straight into a rematch (rewards are paid, nothing else changes).
+	-- result: optional per-player facts from the match (see MatchResult).
 	local function finishMatch(
 		player: Player,
 		won: boolean,
 		carId: string,
 		vsBot: boolean,
-		stay: boolean?
+		stay: boolean?,
+		result: any?
 	)
 		local ps = players[player]
 		if ps == nil or ps.stage ~= "match" then
@@ -312,22 +384,48 @@ function LobbyService.start(deps: Deps): Handle
 		if not stay then
 			players[player] = nil
 		end
-		local earned = if won then LobbyConfig.Rewards.winCoins else LobbyConfig.Rewards.loseCoins
+		-- Coins by what happened (goals, place, survival), not just win or lose.
+		local info = resultInfo(won, result)
+		local reward = ResultRewards.compute(info)
+		local earned = reward.coins
 		local p = Profiles.get(player)
 		local firstWin = p ~= nil and FirstWin.isFirstWin(p.wins, won)
+		local invitePrompt = false
 		if p then
-			local result = Progress.applyMatchResult(p, carId, won, ProgressConfig)
-			Quests.onMatchEnd(p, { won = won, carId = carId, opponentIsBot = vsBot })
-			earned += result.coinsBonus
+			local progressResult = Progress.applyMatchResult(
+				p,
+				carId,
+				won,
+				ProgressConfig,
+				ResultRewards.keepsStreak(info)
+			)
+			Quests.onMatchEnd(p, {
+				won = won,
+				carId = carId,
+				opponentIsBot = vsBot,
+				mode = reward.mode,
+				goals = info.goals,
+				tags = info.tags,
+				place = info.place,
+			})
+			Progress.recordMode(p.progress, reward.mode)
+			earned += progressResult.coinsBonus
 			Inventory.addCoins(p, earned)
 			if won then
 				p.wins += 1
 				Leaderboards.recordWin(player)
 			end
 			p.matches = math.min(p.matches + 1, 1e9)
+			invitePrompt = ResultRewards.invitePrompt(info, p.matches)
 			Profiles.markDirty(player)
 			Leaderboards.submit(player, p)
 		end
+		local session = sessions[player]
+		if session == nil then
+			session = SessionSummary.new()
+			sessions[player] = session
+		end
+		SessionSummary.record(session, won, earned, info.goals)
 		if player.Parent == nil then
 			return
 		end
@@ -341,7 +439,19 @@ function LobbyService.start(deps: Deps): Handle
 				player:LoadCharacter()
 			end)
 		end)
-		send(player, { kind = "toLobby", coinsEarned = earned, won = won, firstWin = firstWin })
+		local toLobby: any = {
+			kind = "toLobby",
+			coinsEarned = earned,
+			won = won,
+			firstWin = firstWin,
+			-- Short result line ("3rd place", "Survived 1:10", "2 goals"); "" = keep the usual text.
+			resultText = reward.resultText,
+			mode = reward.mode,
+			place = info.place,
+			goals = info.goals,
+			invitePrompt = invitePrompt, -- after a goal or any 2nd+ match, not only wins
+		}
+		send(player, toLobby)
 		sendProfile(player)
 	end
 
@@ -367,6 +477,7 @@ function LobbyService.start(deps: Deps): Handle
 		for _, key in table.clone(pad.players) do
 			local player = key :: Player
 			local ps = players[player]
+			local prof = Profiles.get(player)
 			if ps then
 				ps.stage = "match"
 				ps.token += 1
@@ -375,11 +486,11 @@ function LobbyService.start(deps: Deps): Handle
 				table.insert(participants, {
 					player = player,
 					carId = picks[key],
-					mode = modePref[player],
+					mode = Modes.defaultPick(if prof then prof.matches else 0, modePref[player]),
 					appearance = lookFor(player, picks[key]),
 					build = buildOf(player),
-					onFinished = function(won: boolean, stay: boolean?)
-						finishMatch(player, won, picks[key], vsBot, stay)
+					onFinished = function(won: boolean, stay: boolean?, result: MatchResult?)
+						finishMatch(player, won, picks[key], vsBot, stay, result)
 					end,
 				})
 			end
@@ -388,15 +499,28 @@ function LobbyService.start(deps: Deps): Handle
 		padAcc[padIndex] = nil
 		updatePadText(padIndex)
 		vsBot = #participants == 1
-		if #participants == 1 then
-			local solo = Profiles.get(participants[1].player)
-			participants[1].botLevel = if solo
-				then BotLevels.levelFor(
-					solo.wins,
-					solo.botLevel,
-					FeatureFlags.enabled("botLevelButton")
+		-- Bot level for EVERY mode (group modes read participants[1].botLevel): a new player's
+		-- first matches get the easy bots; with two humans the weakest level wins.
+		local levels: { string } = {}
+		for _, part in participants do
+			local prof = Profiles.get(part.player)
+			if prof then
+				table.insert(
+					levels,
+					BotLevels.levelForPlayer(
+						prof.matches,
+						prof.wins,
+						prof.botLevel,
+						FeatureFlags.enabled("botLevelButton")
+					)
 				)
-				else nil
+			end
+		end
+		if #levels > 0 then
+			local weakest = BotLevels.weakest(levels)
+			for _, part in participants do
+				part.botLevel = weakest
+			end
 		end
 		deps.startMatch(participants)
 	end
@@ -431,8 +555,8 @@ function LobbyService.start(deps: Deps): Handle
 				ps.token += 1
 				continue
 			end
-			local offered =
-				PickChoices.choose(Inventory.ownedList(profile), LobbyConfig.PickChoices, rng)
+			local ownedCars = Inventory.ownedList(profile)
+			local offered = PickChoices.choose(ownedCars, LobbyConfig.PickChoices, rng)
 			if #offered == 0 then
 				cancelPlayer(player)
 				continue
@@ -441,8 +565,8 @@ function LobbyService.start(deps: Deps): Handle
 			ps.offered = offered
 			ps.picked = nil
 			ps.token += 1
-			if PickChoices.shouldSkip(#offered) then
-				-- Only one car owned: nothing to pick, use it (hides the pad countdown too).
+			if PadLogic.shouldSkipPick(#ownedCars) then
+				-- Fewer than 2 cars owned: nothing to pick, use it (hides the pad countdown too).
 				ps.picked = offered[1]
 				send(player, { kind = "countdown", seconds = 0 })
 				continue
@@ -686,6 +810,8 @@ function LobbyService.start(deps: Deps): Handle
 				refund = r.refund,
 				free = r.free,
 				coins = p.coins,
+				pity = r.pity, -- pulls since the last Epic or better
+				pityForced = r.pityForced, -- this was the guaranteed one
 			})
 			sendProfile(player)
 		end
@@ -711,6 +837,24 @@ function LobbyService.start(deps: Deps): Handle
 			Profiles.markDirty(player)
 			sendProfile(player)
 		end
+	end
+
+	-- Session summary card (this visit only). Sent when the client asks with action "summary".
+	local function sendSummary(player: Player)
+		local p = Profiles.get(player)
+		local session = sessions[player] or SessionSummary.new()
+		local goalText: string? = nil
+		if p then
+			goalText = NextGoal.compute({
+				matches = p.matches,
+				coins = p.coins,
+				owned = p.owned,
+				modesPlayed = p.progress.modesPlayed,
+			}).text
+		end
+		local message: any = SessionSummary.view(session, goalText)
+		message.kind = "summary"
+		send(player, message)
 	end
 
 	-- Quest reward / daily gift: the server checks everything, repeats pay nothing.
@@ -807,6 +951,8 @@ function LobbyService.start(deps: Deps): Handle
 			modeLimiter.clear(player)
 			modePref[player] = nil
 			questLimiter.clear(player)
+			summaryLimiter.clear(player)
+			sessions[player] = nil
 			spinLimiter.clear(player)
 			paintLimiter.clear(player)
 			buildLimiter.clear(player)
@@ -866,6 +1012,11 @@ function LobbyService.start(deps: Deps): Handle
 				if questLimiter.allow(player, os.clock()) then
 					claimQuest(player, arg)
 				end
+			elseif action == "summary" then
+				-- Session card: matches, coins and goals since joining, plus the next goal.
+				if summaryLimiter.allow(player, os.clock()) then
+					sendSummary(player)
+				end
 			elseif action == "claimDaily" then
 				if questLimiter.allow(player, os.clock()) then
 					claimDaily(player)
@@ -894,8 +1045,8 @@ function LobbyService.start(deps: Deps): Handle
 						carId = carId,
 						appearance = lookFor(player, carId),
 						build = buildOf(player),
-						onFinished = function(won: boolean, stay: boolean?)
-							finishMatch(player, won, carId, true, stay)
+						onFinished = function(won: boolean, stay: boolean?, result: MatchResult?)
+							finishMatch(player, won, carId, true, stay, result)
 						end,
 					},
 				})

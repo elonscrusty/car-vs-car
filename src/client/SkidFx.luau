@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local SkidRules = require(ReplicatedStorage.Shared.SkidRules)
+local Quality = require(script.Parent.Quality)
 
 local FIND_EVERY = 0.5
 local LIFT = 0.08 -- trail sits just above the floor
@@ -139,7 +140,7 @@ local function step(rig: Rig)
 		end
 	end
 	rig.holder.CFrame = CFrame.new(Vector3.new(rear.X, floorY + 0.5, rear.Z))
-	setSliding(rig, true, SkidRules.smokeRate(slip))
+	setSliding(rig, true, SkidRules.smokeRate(slip) * Quality.scale())
 end
 
 function SkidFx.new()

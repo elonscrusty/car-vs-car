@@ -9,14 +9,18 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Types = require(ReplicatedStorage.Shared.Types)
 local FeatureFlags = require(ReplicatedStorage.Shared.FeatureFlags)
 local FirstWin = require(ReplicatedStorage.Shared.FirstWin)
+local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local MenuRules = require(ReplicatedStorage.Shared.MenuRules)
+local Sounds = require(ReplicatedStorage.Shared.Sounds)
 local ActionInput = require(script.ActionInput)
 local AimInput = require(script.AimInput)
+local BallFx = require(script.BallFx)
 local BuffUi = require(script.BuffUi)
 local BuildUi = require(script.BuildUi)
 local CameraDirector = require(script.CameraDirector)
 local Effects = require(script.Effects)
 local FightFx = require(script.FightFx)
+local GoalFx = require(script.GoalFx)
 local HintUi = require(script.HintUi)
 local HitFlash = require(script.HitFlash)
 local LobbyUi = require(script.LobbyUi)
@@ -26,6 +30,7 @@ local MenuBar = require(script.MenuBar)
 local CenterBanner = require(script.CenterBanner)
 local ModeBanner = require(script.ModeBanner)
 local ProgressUi = require(script.ProgressUi)
+local Quality = require(script.Quality)
 local QuestUi = require(script.QuestUi)
 local SaveNotice = require(script.SaveNotice)
 local SpinUi = require(script.SpinUi)
@@ -35,9 +40,11 @@ local SkidFx = require(script.SkidFx)
 local SoundFx = require(script.SoundFx)
 local SteelLobby = require(script.SteelLobby)
 local SteerInput = require(script.SteerInput)
+local TeamIcons = require(script.TeamIcons)
 local WheelFx = require(script.WheelFx)
 local Ui = require(script.Ui)
 
+Quality.start() -- low-end phones: fewer particles when the frame time is high
 local remotes = Remotes.get()
 local modeBanner = ModeBanner.new()
 local centerBanner = CenterBanner.new()
@@ -105,6 +112,8 @@ local lobby = LobbyUi.new({
 		driver.stop()
 		skids.stop()
 		actions.stop()
+		BallFx.stop()
+		TeamIcons.stop()
 		modeBanner.hide()
 		view.hideMatch()
 		ProximityPromptService.Enabled = true
@@ -178,7 +187,11 @@ steering = SteerInput.new(function(steer: number, gas: number)
 	remotes.Steer:FireServer(steer, gas)
 end)
 
-driver = DriveCar.new(steering.read)
+driver = DriveCar.new(steering.read, function()
+	-- Your car just boosted: widen the view and rush some speed lines for 0.8 s.
+	director.boost()
+	Effects.speedLines(GameConfig.Feel.boostFxSeconds)
+end)
 
 actions = ActionInput.new(function(name: string)
 	remotes.Action:FireServer(name)
@@ -219,6 +232,10 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 			director.overview(u.center, camSide)
 		end
 		director.soccer(u.soccer == true) -- car soccer: camera follows your car and the ball
+		if u.soccer == true then
+			BallFx.start() -- ball trail and kick sparks
+		end
+		TeamIcons.start()
 		view.showReady(u.yourCar or "", u.enemyCar or "", u.seconds or 3, u.enemyName or "BOT")
 		hints.done("pad")
 		hints.stopAimNudge()
@@ -229,6 +246,7 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		view.showFight()
 		SoundFx.music("music_arena")
 		skids.start()
+		TeamIcons.start()
 		if u.auto ~= true then
 			steering.start() -- the server ignores Steer outside the fight
 			driver.start() -- drives your own car here once the server hands it over
@@ -239,6 +257,10 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 	elseif u.kind == "modeInfo" then
 		modeBanner.show(u.text or "")
 	elseif u.kind == "banner" then
+		local countdownSound = Sounds.countdownEvent(u.text or "")
+		if countdownSound then
+			SoundFx.play(countdownSound) -- silent until carter fills the id in SoundConfig
+		end
 		centerBanner.show(u.text or "", u.seconds or 1)
 	elseif u.kind == "move" then
 		actions.cooldown(u.move or "", u.seconds or 0)
@@ -250,6 +272,8 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		driver.stop()
 		skids.stop()
 		actions.stop()
+		BallFx.stop()
+		TeamIcons.stop()
 		view.showRoundEnd(u.youLost == true)
 		director.focus(u.focus)
 	elseif u.kind == "hit" then
@@ -266,6 +290,7 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		end
 	elseif u.kind == "ko" then
 		FightFx.ko(u.text or "K.O.!")
+		GoalFx.handle(u, director) -- soccer goal: confetti, camera snap to the ball, scorer name
 		director.shake(0.8)
 		director.punchFov(18)
 	elseif u.kind == "matchEnd" then
@@ -275,6 +300,8 @@ remotes.UiUpdate.OnClientEvent:Connect(function(u: Types.UiUpdate)
 		driver.stop()
 		skids.stop()
 		actions.stop()
+		BallFx.stop()
+		TeamIcons.stop()
 		modeBanner.hide()
 		hints.stopAimNudge()
 		centerBanner.hide()

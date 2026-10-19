@@ -13,7 +13,7 @@ end
 
 local FeatureFlags = sibling("FeatureFlags")
 
--- Rotation: soccer (main game), tag, duel, hill, ice. Last standing comes back with its flag.
+-- Rotation: soccer (main game), tag, race, duel. Hill and ice come back with their flags. Last standing comes back with its flag.
 local function orderFor(flags: { [string]: boolean }?): { string }
 	local order = {}
 	if FeatureFlags.enabled("soccerMode", flags) then
@@ -26,8 +26,12 @@ local function orderFor(flags: { [string]: boolean }?): { string }
 		table.insert(order, "race")
 	end
 	table.insert(order, "duel")
-	table.insert(order, "hill")
-	table.insert(order, "ice")
+	if FeatureFlags.enabled("hillMode", flags) then
+		table.insert(order, "hill")
+	end
+	if FeatureFlags.enabled("iceMode", flags) then
+		table.insert(order, "ice")
+	end
 	if FeatureFlags.enabled("lastStandingMode", flags) then
 		table.insert(order, "lastStanding")
 	end
@@ -55,6 +59,7 @@ return {
 		tag = "One car is IT and glows! Bump a car to pass IT on. IT when the fuse ends = BOOM. Last car wins!",
 		soccer = "Push the ball into the other team's goal on the small field. First to 3 wins!",
 	},
+	NewPlayer = { matches = 3 }, -- until this many finished matches, AUTO means soccer
 	Hill = {
 		radius = 16, -- the circle in the middle (studs)
 		holdSeconds = 20, -- alone on the circle this long = win

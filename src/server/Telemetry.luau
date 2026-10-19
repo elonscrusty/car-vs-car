@@ -18,10 +18,14 @@ type Active = {
 	vsBot: boolean,
 	launchedAt: number?,
 	hit: boolean,
+	scored: boolean,
+	eliminatedAt: number?,
 }
 
 local state = TelemetryRules.new()
 local active: { [Player]: Active } = {} -- the match this player is in (until the end screen)
+local joinedAt: { [Player]: number } = {}
+local lastMode: { [Player]: string } = {} -- mode of the player's latest match (for rematch_tapped)
 local enabled = not RunService:IsStudio()
 
 local Telemetry = {}
@@ -55,7 +59,45 @@ local function event(player: Player, name: string, data: { [string]: any }?)
 end
 
 function Telemetry.joined(player: Player)
+	joinedAt[player] = os.clock()
 	step(player, "joined")
+end
+
+-- First steer/move input of the visit (call on every input; only the first one logs).
+function Telemetry.firstInput(player: Player)
+	local t = joinedAt[player]
+	if t == nil then
+		return
+	end
+	local n = TelemetryRules.claimStep(state, player.UserId, "first_input")
+	if n then
+		send(function()
+			AnalyticsService:LogOnboardingFunnelStepEvent(player, n, "first_input")
+		end)
+		event(player, "first_input", { seconds = os.clock() - t })
+	end
+end
+
+-- First goal (soccer), tag (tag) or finish (race) of the visit. kind: goal, tag or finish.
+function Telemetry.firstScore(player: Player, kind: string)
+	local a = active[player]
+	if a and not a.scored then
+		a.scored = true
+		step(player, "first_score")
+		event(player, "first_score", {
+			seconds = os.clock() - a.startedAt,
+			mode = a.mode,
+			kind = kind,
+		})
+	end
+end
+
+-- The player was eliminated (tag, last standing) but the match goes on without them.
+function Telemetry.eliminated(player: Player)
+	local a = active[player]
+	if a and a.eliminatedAt == nil then
+		a.eliminatedAt = os.clock()
+	end
 end
 
 function Telemetry.padStepped(player: Player)
@@ -73,7 +115,9 @@ function Telemetry.matchStarted(players: { { player: Player } }, mode: string, i
 			vsBot = #players == 1,
 			launchedAt = if isGroup then now else nil,
 			hit = false,
+			scored = false,
 		}
+		lastMode[p] = mode
 		if TelemetryRules.countMatch(state, p.UserId) == 2 then
 			step(p, "started_second_match")
 		end
@@ -113,7 +157,8 @@ function Telemetry.endScreen(player: Player)
 end
 
 -- The player stayed through the end screen: the match is finished.
-function Telemetry.matchEnded(player: Player, won: boolean)
+-- `result` is optional and read defensively: place, goals, tags, survivedSeconds (group modes).
+function Telemetry.matchEnded(player: Player, won: boolean, result: any?)
 	local a = active[player]
 	active[player] = nil
 	if a == nil then
@@ -126,15 +171,34 @@ function Telemetry.matchEnded(player: Player, won: boolean)
 		won = won,
 		vs_bot = a.vsBot,
 	})
+	if result ~= nil then
+		local r = TelemetryRules.readResult(result)
+		event(player, "match_result", {
+			seconds = os.clock() - a.startedAt,
+			mode = a.mode,
+			place = if r.place then math.floor(r.place) else "",
+			score = if r.score then math.floor(r.score) else "",
+		})
+		if r.survivedSeconds then
+			event(player, "tag_survived", { seconds = r.survivedSeconds, mode = a.mode })
+		end
+	end
 end
 
 function Telemetry.rematchTapped(player: Player)
-	event(player, "rematch_tapped")
+	local a = active[player]
+	event(player, "rematch_tapped", { mode = if a then a.mode else lastMode[player] })
 end
 
-function Telemetry.clawPull(player: Player)
+-- source: "claw" (default) or "store". Only a claw pull counts as opening the claw.
+function Telemetry.clawPull(player: Player, source: string?)
 	step(player, "opened_claw")
-	event(player, "claw_pull")
+	event(player, "claw_pull", { source = source or "claw" })
+end
+
+-- A car was obtained: from the claw or bought in the store.
+function Telemetry.carAcquired(player: Player, source: string)
+	event(player, "car_acquired", { source = source })
 end
 
 -- The player picked a lobby mode with the MODE button (name is checked against a fixed list).
@@ -156,8 +220,18 @@ end
 function Telemetry.left(player: Player)
 	local a = active[player]
 	active[player] = nil
+	joinedAt[player] = nil
+	lastMode[player] = nil
 	if a then
-		event(player, "quit_during_match", { seconds = os.clock() - a.startedAt, mode = a.mode })
+		local now = os.clock()
+		event(player, "quit_during_match", { seconds = now - a.startedAt, mode = a.mode })
+		if a.eliminatedAt then
+			event(
+				player,
+				"quit_after_elimination",
+				{ seconds = now - a.eliminatedAt, mode = a.mode }
+			)
+		end
 	end
 	TelemetryRules.clear(state, player.UserId)
 end

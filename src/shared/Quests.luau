@@ -19,11 +19,21 @@ export type Def = {
 	id: string,
 	kind: string,
 	carId: string?,
+	mode: string?,
 	target: number,
 	reward: number,
 	title: string,
 }
-export type MatchInfo = { won: boolean, carId: string, opponentIsBot: boolean }
+-- mode / goals / tags / place come from the match result; nil = not reported.
+export type MatchInfo = {
+	won: boolean,
+	carId: string,
+	opponentIsBot: boolean,
+	mode: string?,
+	goals: number?,
+	tags: number?,
+	place: number?,
+}
 export type Quest = { id: string, progress: number }
 export type View = { title: string, progress: number, target: number, reward: number, done: boolean }
 
@@ -93,18 +103,37 @@ function Quests.ensure(profile: any, seed: number): boolean
 	return changed
 end
 
-local function counts(def: Def, info: MatchInfo): boolean
+local function amount(v: any): number
+	if type(v) ~= "number" or v ~= v then
+		return 0
+	end
+	return math.clamp(math.floor(v), 0, 100)
+end
+
+-- How much progress this match gives the quest (0 = none).
+local function counts(def: Def, info: MatchInfo): number
 	if def.carId ~= nil and def.carId ~= info.carId then
-		return false
+		return 0
+	end
+	if def.mode ~= nil and def.mode ~= info.mode then
+		return 0
 	end
 	if def.kind == "play" then
-		return true
+		return 1
 	elseif def.kind == "win" then
-		return info.won
+		return if info.won then 1 else 0
 	elseif def.kind == "beatBot" then
-		return info.won and info.opponentIsBot
+		-- Only a 1v1 bot fight: group modes have several cars, so it never counts there.
+		local group = info.mode == "soccer" or info.mode == "tag" or info.mode == "race"
+		return if info.won and info.opponentIsBot and not group then 1 else 0
+	elseif def.kind == "goal" then
+		return amount(info.goals)
+	elseif def.kind == "tag" then
+		return amount(info.tags)
+	elseif def.kind == "raceDone" then
+		return if info.mode == "race" and (info.place ~= nil or info.won) then 1 else 0
 	end
-	return false
+	return 0
 end
 
 -- Updates quest progress inside `profile` (a Profile table). Returns true if anything changed.
@@ -116,9 +145,12 @@ function Quests.onMatchEnd(profile: any, info: MatchInfo): boolean
 	local changed = false
 	for _, q in quests do
 		local def = QuestsConfig.get(q.id)
-		if def and q.progress < def.target and counts(def, info) then
-			q.progress += 1
-			changed = true
+		if def and q.progress < def.target then
+			local add = counts(def, info)
+			if add > 0 then
+				q.progress = math.min(q.progress + add, def.target)
+				changed = true
+			end
 		end
 	end
 	return changed

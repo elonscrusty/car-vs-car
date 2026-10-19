@@ -9,6 +9,8 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
+local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
+local FeelRules = require(ReplicatedStorage.Shared.FeelRules)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local UiLayout = require(ReplicatedStorage.Shared.UiLayout)
 local UiStyle = require(script.Parent.UiStyle)
@@ -47,9 +49,51 @@ function SteerInput.new(send: (steer: number, gas: number) -> ()): SteerInput
 	local knob: Frame? = nil
 	local activeInput: InputObject? = nil
 
+	-- Small, fast-turning cars (turnRate 4+) would over-steer under a thumb, so the STICK steer
+	-- (not the keys) gets a gentler curve and eases at a limited rate. Big cars stay instant.
+	-- CarConfig has no steer-smoothing number yet, the numbers are GameConfig.Feel.touchSteer*.
+	local easedStick = 0
+	local lastEase = os.clock()
+	local easeRate: number? = nil
+	local nextRateLookup = 0
+	local function findEaseRate()
+		local now = os.clock()
+		if now < nextRateLookup then
+			return
+		end
+		nextRateLookup = now + 0.5
+		local uid = (Players.LocalPlayer :: Player).UserId
+		for _, arena in workspace:GetChildren() do
+			if arena.Name == "Arena" then
+				for _, m in arena:GetChildren() do
+					if m:IsA("Model") and m:GetAttribute("DriverUserId") == uid then
+						local stats = CarConfig.get(m:GetAttribute("CarId"))
+						easeRate = FeelRules.touchSteerRate(if stats then stats.turnRate else nil)
+						return
+					end
+				end
+			end
+		end
+	end
+
+	local function stickSteerEased(): number
+		local now = os.clock()
+		local dt = math.min(0.1, now - lastEase)
+		lastEase = now
+		findEaseRate()
+		local rate = easeRate
+		if rate == nil then
+			easedStick = stickSteer
+			return stickSteer
+		end
+		local target = FeelRules.stickCurve(stickSteer, GameConfig.Feel.touchSteerCurve)
+		easedStick = FeelRules.approach(easedStick, target, dt, rate)
+		return easedStick
+	end
+
 	local function steerValue(): number
 		local keys = (if keyCount.right > 0 then 1 else 0) - (if keyCount.left > 0 then 1 else 0)
-		return math.clamp(stickSteer + keys, -1, 1)
+		return math.clamp(stickSteerEased() + keys, -1, 1)
 	end
 
 	local function gasValue(): number
@@ -103,6 +147,7 @@ function SteerInput.new(send: (steer: number, gas: number) -> ()): SteerInput
 	local function release()
 		activeInput = nil
 		stickSteer, stickGas = 0, 0
+		easedStick = 0
 		moveKnob(0, 0, 1)
 		if running then
 			update()
@@ -236,6 +281,7 @@ function SteerInput.new(send: (steer: number, gas: number) -> ()): SteerInput
 		generation += 1
 		local mine = generation
 		stickSteer, stickGas = 0, 0
+		easedStick, easeRate, nextRateLookup = 0, nil, 0
 		activeInput = nil
 		for dir in keyCount do
 			keyCount[dir] = 0

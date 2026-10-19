@@ -39,6 +39,10 @@ local Profiles = {}
 local store: DataStore? = nil
 local states: { [Player]: State } = {}
 local inited = false
+-- userIds whose leave-save is still running on this server. A quick rejoin to the same server
+-- must wait for it, or it would load the older stored data and lose the last match's coins.
+local releasing: { [number]: boolean } = {}
+local RELEASE_WAIT_MAX = 20
 
 local function getStore(): DataStore?
 	if store == nil then
@@ -134,6 +138,10 @@ end
 
 local function load(player: Player)
 	local state = states[player]
+	local waitUntil = os.clock() + RELEASE_WAIT_MAX
+	while releasing[player.UserId] and os.clock() < waitUntil and player.Parent ~= nil do
+		task.wait(0.2)
+	end
 	acquire(state)
 	local profile: Profile? = nil
 	local status = "error"
@@ -249,7 +257,10 @@ function Profiles.release(player: Player, stateOverride: State?)
 	end
 	state.released = true
 	if state.profile ~= nil then
+		local userId = player.UserId
+		releasing[userId] = true
 		save(player, state, true)
+		releasing[userId] = nil
 	end
 	if states[player] == state then
 		states[player] = nil

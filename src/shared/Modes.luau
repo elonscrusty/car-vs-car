@@ -50,13 +50,29 @@ function Modes.nextPick(current: string?): string
 end
 
 -- The mode for a match: the first player who chose a real mode decides, else the rotation.
-function Modes.choose(picks: { any }, counter: number): string
+-- `repeatMode`: a rematch plays the same mode again (the rotation only moves on from the lobby).
+function Modes.choose(picks: { any }, counter: number, repeatMode: string?): string
 	for _, p in picks do
 		if p ~= "auto" and Modes.isPick(p) then
 			return p
 		end
 	end
+	if repeatMode ~= nil and repeatMode ~= "auto" and Modes.isPick(repeatMode) then
+		return repeatMode
+	end
 	return Modes.pick(counter)
+end
+
+-- A new player (fewer than ModesConfig.NewPlayer.matches finished matches) who has not chosen a mode
+-- starts in the main game, soccer, so the first minutes are not a random mode.
+function Modes.defaultPick(matches: number, chosen: string?): string?
+	if chosen ~= nil and chosen ~= "auto" then
+		return chosen
+	end
+	if matches < ModesConfig.NewPlayer.matches and Modes.isPick("soccer") then
+		return "soccer"
+	end
+	return chosen
 end
 
 -- Modes played by many cars in GroupMatch (the others are a 1v1 in Match).

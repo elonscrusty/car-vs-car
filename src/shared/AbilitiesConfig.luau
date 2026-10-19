@@ -94,6 +94,40 @@ AbilitiesConfig.Rarity = {
 	Legendary = { power = 1.8, cooldown = 0.65 },
 } :: { [string]: RarityScale }
 
+-- What each ability DOES in each mode (audit #22). Pure data: the pick screen can show `text`,
+-- Specials (server) reads the effect fields. Modes are the lowercase GameMode attribute values
+-- GroupMatch sets on the Arena folder: "soccer", "tag", "race". A mode with no row for an
+-- ability (or an unknown mode) = the old behaviour.
+--   ball        "push" = shoves the ball away like it shoves cars; "pull" = pulls the ball in
+--   tagImmune   seconds the car cannot be tagged IT after using the ability (tag mode)
+AbilitiesConfig.ModeUse =
+	{
+		soccer = {
+			Slam = { text = "Shoves the ball and nearby cars away.", ball = "push" },
+			Magnet = { text = "Pulls the ball and the other car to you.", ball = "pull" },
+			Dash = { text = "Zoom to the ball." },
+			Shield = { text = "Blocks the next hit." },
+			Ram = { text = "Your next hits hurt more." },
+			Jump = { text = "Hop over the ball." },
+		},
+		tag = {
+			Shield = { text = "Nobody can tag you for 2 seconds.", tagImmune = 2 },
+			Dash = { text = "Zoom away from IT, or catch someone." },
+			Jump = { text = "Hop away." },
+			Slam = { text = "Shoves nearby cars away." },
+			Magnet = { text = "Pulls the other car to you." },
+			Ram = { text = "Your next hits hurt more." },
+		},
+		race = {
+			Dash = { text = "Speed boost down the track." },
+			Jump = { text = "Hop over bumps and gaps." },
+			Shield = { text = "Blocks the next hit." },
+			Slam = { text = "Shoves rivals aside." },
+			Magnet = { text = "Pulls the rival to you." },
+			Ram = { text = "Your next hits hurt more." },
+		},
+	} :: { [string]: { [string]: { text: string, ball: string?, tagImmune: number? } } }
+
 -- Mass that counts as "normal" when scaling knockback (heavier enemies move less).
 AbilitiesConfig.refMass = 60
 AbilitiesConfig.minMassScale = 0.4

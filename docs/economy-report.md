@@ -66,3 +66,9 @@ existing tests pin them.
    keep quests as they are; they are the main reason a low-skill player still progresses.
 5. When the real store and Robux packs exist, re-run this sim with the real coin packs: a bought
    pack of a few thousand coins buys the whole collection in one go at current prices.
+
+## Audit update (claude/audit-rewards)
+
+- Claw pity is now in (recommendation 3): `LobbyConfig.Gacha.pityEvery = 10` (PLACEHOLDER, was suggested at 25). Every 10th pull without an Epic or better is an Epic or Legendary, re-using the shown Epic:Legendary odds. Counter lives in `profile.progress.gachaPity` (free and gift pulls count). Effect in the sim: a daily-only player now owns the full collection by day 60 (still behind casual at day 30), and the Legendary arrives earlier for everyone. If that is too fast, raise `pityEvery`; the economy test compares day 30 for that reason.
+- Coins now follow effort (`LobbyConfig.ResultRewards`, all PLACEHOLDERS): base 60 win / 20 other, race 60/45/35/25/20/20 by place, +5 per goal (cap 10 goals), +5 per tag, tag survive bonus 2 coins per 10 s up to 30 (non-winners). A soccer win with 3 goals pays 75. Not re-simulated: `tests/economy_sim` still uses the flat 60/20.
+- Quests: bot2 removed; added goal1 (30), tag2 (30), race1 (30), soccer3 (40). All small compared to a win (60).
