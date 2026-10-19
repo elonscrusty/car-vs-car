@@ -97,6 +97,10 @@ return {
 				{ kind = "pillar", x = 22, z = -24, sx = 6, sy = 9 },
 			},
 		},
+		winBonus = 60, -- BIG coins for the match winner, on top of the normal win reward (PLACEHOLDER)
+		bountyCoins = 40, -- knocking out the crown car pays this to the car that did it (PLACEHOLDER)
+		koCoins = 10, -- every knock-out pays a little (PLACEHOLDER)
+		creditSeconds = 5, -- a fall off the edge counts for whoever hit the car in the last N seconds
 		-- Best of 3: first to 2 round wins; after 3 rounds the most wins takes it.
 		Rounds = { winsNeeded = 2, maxRounds = 3, breakSeconds = 3.5 },
 		-- The walls close in (BrawlRules.safeRadius); a car outside the safe radius is out.

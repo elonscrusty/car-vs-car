@@ -502,3 +502,13 @@ test("fight: the shield is the only item and it is a real pickup kind", function
 	truthy(items.ringMax < ModesConfig.LastStanding.Arena.rimRadius)
 	truthy(items.ringMax >= items.ringMin)
 end)
+
+test("fight rewards: the winner gets big coins, a bounty beats a plain knock-out", function()
+	local lc = ModesConfig.LastStanding
+	truthy(lc.winBonus > lc.bountyCoins and lc.bountyCoins > lc.koCoins and lc.koCoins > 0)
+	truthy(lc.creditSeconds > 0)
+	local a = {}
+	GroupResults.set(a, { mode = "lastStanding", won = true, kos = 3, coinsBonus = lc.winBonus })
+	local r = GroupResults.take(a) :: any
+	eq(GroupResults.attributes(r).MatchKos, 3)
+end)

@@ -37,6 +37,7 @@ local SoccerChaos = require(ReplicatedStorage.Shared.SoccerChaos)
 local SoccerOrbs = require(ReplicatedStorage.Shared.SoccerOrbs)
 local BrawlRules = require(ReplicatedStorage.Shared.BrawlRules)
 local CarSmash = require(script.Parent.CarSmash)
+local Crown = require(script.Parent.Crown)
 local Buffs = require(script.Parent.Buffs)
 local Pickups = require(script.Parent.Pickups)
 local CombatConfig = require(ReplicatedStorage.Shared.CombatConfig)
@@ -151,6 +152,9 @@ function GroupMatch.new(
 	local wallParts: { { part: BasePart, dir: Vector3, y: number } } = {}
 	local safeRadius = brawlArena.rimRadius
 	local startNextRound: (() -> ())? = nil -- defined after begin()
+	local lastHitBy: { [number]: { by: number, at: number } } = {} -- car -> who hit it last, and when
+	local kos: { [number]: number } = {} -- fight: knock-outs made over the whole match
+	local bounties: { [number]: number } = {} -- fight: crown cars knocked out
 	local shrinkAt = 0
 
 	local function isHuman(i: number): boolean
@@ -267,6 +271,13 @@ function GroupMatch.new(
 			r.place, r.placeOf = place, total
 			r.survivedSeconds = outAt[i] or fightElapsed
 			r.tags = tagsMade[i] or 0
+			if brawlOn then
+				local lc = ModesConfig.LastStanding
+				r.kos = kos[i] or 0
+				r.coinsBonus = (if youWon then lc.winBonus else 0)
+					+ (kos[i] or 0) * lc.koCoins
+					+ (bounties[i] or 0) * lc.bountyCoins
+			end
 		end
 		return r
 	end
@@ -345,6 +356,9 @@ function GroupMatch.new(
 			end
 		end
 		finalWinner = winner
+		if brawlOn and winner > 0 and isHuman(winner) then
+			Crown.set(participants[winner].player.UserId) -- worn in the next fight
+		end
 		local pos = if winner > 0
 				and cars[winner]
 				and not cars[winner].dead
@@ -421,6 +435,15 @@ function GroupMatch.new(
 		car.dead = true
 		car.hp = 0
 		outAt[car.idx] = fightElapsed
+		if brawlOn and text ~= "LEFT THE GAME" then
+			local credit = lastHitBy[car.idx]
+			if credit and os.clock() - credit.at <= ModesConfig.LastStanding.creditSeconds then
+				kos[credit.by] = (kos[credit.by] or 0) + 1
+				if car.model:GetAttribute("Crown") then
+					bounties[credit.by] = (bounties[credit.by] or 0) + 1
+				end
+			end
+		end
 		car.bar.set(0, maxHp[car.idx])
 		car.bar.hide()
 		local pos = car.body.Position
@@ -498,6 +521,7 @@ function GroupMatch.new(
 				return
 			end
 		end
+		lastHitBy[defender.idx] = { by = attacker.idx, at = os.clock() }
 		local newHp, dead = Logic.applyDamage(defender.hp, dmg)
 		defender.hp = newHp
 		Telemetry.hit(participants)
@@ -662,6 +686,9 @@ function GroupMatch.new(
 			car.hp = hp
 			maxHp[idx] = hp
 			car.model:SetAttribute("RoundWins", roundWins[idx] or 0)
+			if brawlOn and part and Crown.has(part.player.UserId) then
+				Crown.attach(car.model, car.body, carStats.size[2] / 2 + 3)
+			end
 			car.bar.set(hp, hp)
 			if tagOn or raceOn then
 				car.bar.hide() -- nobody loses HP in tag or the race
@@ -1838,6 +1865,14 @@ function GroupMatch.new(
 			local seconds = Moves.press(moveStates[i], name, cars[i], enemy, rayParams, os.clock())
 			if seconds ~= nil and seconds > 0 then
 				sendTo(i, { kind = "move", move = name, seconds = seconds })
+				if name == "boost" then
+					-- Data for the boost meter: it refills until this server time.
+					cars[i].model:SetAttribute(
+						"BoostReadyAt",
+						workspace:GetServerTimeNow() + seconds
+					)
+					cars[i].model:SetAttribute("BoostSeconds", seconds)
+				end
 			end
 		end,
 		playerLeft = function(player: Player)

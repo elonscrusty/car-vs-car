@@ -44,7 +44,7 @@ test("Common is the plain config; resolve returns a copy", function()
 	eq(r.push, base.push)
 	eq(r.cooldown, base.cooldown)
 	r.push = 1
-	eq(AbilitiesConfig.Abilities.Slam.push, 45)
+	eq(AbilitiesConfig.Abilities.Slam.push, base.push)
 end)
 
 test("better rarity means stronger and ready sooner, for every ability", function()
@@ -66,15 +66,16 @@ end)
 test("ram bonus stays above 1 and grows only by its extra", function()
 	local c = Abilities.resolve("Ram", "Common") :: any
 	local l = Abilities.resolve("Ram", "Legendary") :: any
-	H.near(c.damageMult, 1.6)
-	H.near(l.damageMult, 1 + 0.6 * AbilitiesConfig.Rarity.Legendary.power)
+	local extra = AbilitiesConfig.Abilities.Ram.damageMult - 1
+	H.near(c.damageMult, 1 + extra)
+	H.near(l.damageMult, 1 + extra * AbilitiesConfig.Rarity.Legendary.power)
 end)
 
 test("every ability has sane numbers at every rarity", function()
 	for _, id in AbilitiesConfig.Order do
 		for _, rarity in RARITIES do
 			local r = Abilities.resolve(id, rarity) :: any
-			truthy(r.cooldown >= 2 and r.cooldown <= 14, `{id} {rarity} cooldown {r.cooldown}`)
+			truthy(r.cooldown >= 2 and r.cooldown <= 20, `{id} {rarity} cooldown {r.cooldown}`)
 			truthy(r.damageMult >= 1)
 			truthy(r[MAIN[r.kind]] > 0, `{id} {rarity} main number`)
 		end
@@ -84,5 +85,8 @@ end)
 test("forCar reads ability and rarity from car stats", function()
 	local r = Abilities.forCar({ ability = "Jump", rarity = "Epic" }) :: any
 	eq(r.kind, "jump")
-	H.near(r.jumpSpeed, 45 * AbilitiesConfig.Rarity.Epic.power)
+	H.near(
+		r.jumpSpeed,
+		AbilitiesConfig.Abilities.Jump.jumpSpeed * AbilitiesConfig.Rarity.Epic.power
+	)
 end)
