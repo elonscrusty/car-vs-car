@@ -31,7 +31,10 @@ test(
 		eq(table.concat(ModesConfig.Order, ","), "soccer,tag,race,duel")
 		eq(table.concat(ModesConfig.orderFor({}), ","), "duel")
 		eq(table.concat(ModesConfig.orderFor({ tagMode = true }), ","), "tag,duel")
-		eq(table.concat(ModesConfig.orderFor({ hillMode = true, iceMode = true }), ","), "duel,hill,ice")
+		eq(
+			table.concat(ModesConfig.orderFor({ hillMode = true, iceMode = true }), ","),
+			"duel,hill,ice"
+		)
 		eq(
 			table.concat(
 				ModesConfig.orderFor({
