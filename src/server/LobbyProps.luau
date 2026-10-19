@@ -66,8 +66,6 @@ function LobbyProps.build(folder: Folder, origin: Vector3)
 		return CFrame.new(origin + Vector3.new(x, y, z)) * CFrame.Angles(0, math.rad(faceDeg), 0)
 	end
 
-	local room = LobbyLayout.room
-
 	-- (No roller doors on the back wall any more: the leaderboards hang there.)
 
 	-- The store and paint booths: the imported model stands where the plain booth was. The plain

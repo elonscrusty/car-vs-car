@@ -1338,16 +1338,16 @@ function Lobby.build(): LobbyHandle
 		{ y = 8.6, r = 2.6, n = 6 },
 		{ y = 10.0, r = 3.0, n = 7 },
 	}
-	local k = 0
+	local ballCount = 0
 	for _, layer in layers do
 		for i = 1, layer.n do
-			k += 1
+			ballCount += 1
 			local a = (i / layer.n) * math.pi * 2 + layer.y
 			bit(
 				"GumballBall",
 				Vector3.new(1.7, 1.7, 1.7),
 				gum(math.cos(a) * layer.r, layer.y, cabZ + math.sin(a) * layer.r),
-				GUM_COLORS[k % #GUM_COLORS + 1],
+				GUM_COLORS[ballCount % #GUM_COLORS + 1],
 				nil,
 				Enum.PartType.Ball
 			)
