@@ -29,7 +29,7 @@ function InviteUi.new(parent: GuiObject): InviteUi
 	button.BackgroundColor3 = Color3.fromRGB(60, 120, 220)
 	button.Text = "Invite a friend"
 	button.TextScaled = true
-	button.Font = Enum.Font.GothamBold
+	button.Font = Enum.Font.FredokaOne
 	button.TextColor3 = Color3.new(1, 1, 1)
 	button.Visible = false
 	button.ZIndex = 10
