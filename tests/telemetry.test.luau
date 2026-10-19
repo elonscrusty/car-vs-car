@@ -2,6 +2,9 @@
 local Harness = require("./harness")
 local TelemetryConfig = require("../src/shared/TelemetryConfig")
 local TelemetryRules = require("../src/shared/TelemetryRules")
+local Gacha = require("../src/shared/Gacha")
+local Inventory = require("../src/shared/Inventory")
+local LobbyConfig = require("../src/shared/LobbyConfig")
 
 local test, eq = Harness.test, Harness.eq
 
@@ -196,4 +199,28 @@ test("allowlists are short, clean and fit the field cap", function()
 		end
 	end
 	assert(table.find(TelemetryConfig.Modes, "soccer") ~= nil)
+end)
+
+print("Claw double-pull protection (audit #104)")
+
+test("exactly one claw price: a second pull right after the first is refused", function()
+	local p = Inventory.default()
+	p.freePullUsed = true
+	if p.daily then
+		p.daily.freePulls = 0
+	end
+	p.coins = LobbyConfig.Gacha.price
+	local can = Gacha.canBuy(p)
+	eq(can, true)
+	Gacha.pull(p, function()
+		return 0.99
+	end)
+	-- Whatever the prize (a duplicate refund is below the price), a second pull is not allowed.
+	assert(p.coins < LobbyConfig.Gacha.price, "refund must stay below the price")
+	eq((Gacha.canBuy(p)), false)
+	local ok = pcall(Gacha.pull, p, function()
+		return 0
+	end)
+	eq(ok, false)
+	assert(p.coins >= 0, "coins never go negative")
 end)
