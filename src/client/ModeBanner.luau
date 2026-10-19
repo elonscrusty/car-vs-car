@@ -30,10 +30,17 @@ function ModeBanner.new(): Banner
 			g.IgnoreGuiInset = true -- the layout numbers count from the very top of the screen
 			g.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 			l = Instance.new("TextLabel")
-			-- Top row under the top bar, right of the "YOU vs BOT" slab: nothing over the screen middle.
+			-- Top row, below the scoreboard: nothing over the screen middle.
 			local camera = workspace.CurrentCamera
 			local height = if camera then camera.ViewportSize.Y else 360
 			UiStyle.place(l, UiLayout.fight(height).modeBanner)
+			-- Under the Champions scoreboard (it fills the top-center), not beside it.
+			l.AnchorPoint = Vector2.new(0.5, 0)
+			l.Position = UDim2.new(0.5, 0, 0, 168)
+			l.Size = UDim2.new(0.5, 0, 0, 38)
+			local cap = Instance.new("UISizeConstraint")
+			cap.MaxSize = Vector2.new(520, 44)
+			cap.Parent = l
 			l.BackgroundColor3 = Color3.fromRGB(14, 18, 30)
 			l.BackgroundTransparency = 0.25
 			l.TextColor3 = Color3.new(1, 1, 1)

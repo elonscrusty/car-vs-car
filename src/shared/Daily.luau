@@ -73,6 +73,13 @@ function Daily.streakCoins(d: Daily): number
 	return list[math.clamp(d.streak or 0, 1, #list)] or 0
 end
 
+-- Coins the next claim would pay (pure preview of `claim` + `streakCoins`; changes nothing).
+function Daily.nextCoins(d: Daily, now: number): number
+	local list = QuestsConfig.Daily.streakCoins
+	local streak = if d.lastDay == Daily.dayNumber(now) - 1 then (d.streak or 0) + 1 else 1
+	return list[math.clamp(streak, 1, #list)] or 0
+end
+
 -- Spends one gift try. Returns true if there was one.
 function Daily.consume(d: Daily): boolean
 	if d.freePulls > 0 then

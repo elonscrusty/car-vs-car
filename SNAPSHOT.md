@@ -250,3 +250,6 @@ New pure rules `shared/FeelRules` (tests/feelrules.test.luau): soccer and bowl c
 - `ProgressConfig.LevelStatBonus` 0.03 -> 0.01; `CarCatalog.LevelCosmetics` (stripe/wheel ids per level, `cosmeticsUpTo(level)`). Nothing applies the cosmetics yet.
 - Garage build is ignored in 2+ human matches: `Fairness.stats` (CarBuilder), flag `FairnessConfig.neutralBuild`. Part visuals still show.
 - `CarConfig.SteerSmooth` + `CarConfig.steerSmoothRate(turnRate)` for the client steering helper (not wired). Tests: `tests/auditcars.test.luau`.
+
+## Carter's Champions UI (this replaces the old lobby/match screens)
+Runtime UI lives in `src/champions/`, glued by `ChampionsAdapter` (pure, tested) + `client/ChampionsBridge`. Fight-only: one FIGHT mode, PLAY/CANCEL button, fight HUD (round wins, cars left, clock, boost, ability), Results screen, claw/shop/cars/gift/settings. Old LobbyUi/ModeUi/ProgressUi/ActionInput and the DEV: BOT MATCH button are removed. Details + wiring table in HANDOFF.md. Tests: 587 pass. Not yet eyeballed on phone.

@@ -5,7 +5,6 @@
 -- The pad rules live in the pure module PadLogic (unit tested).
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Build = require(ReplicatedStorage.Shared.Build)
@@ -240,6 +239,7 @@ function LobbyService.start(deps: Deps): Handle
 				ready = Daily.canClaim(p.daily, now),
 				freePulls = p.daily.freePulls,
 				secondsToNext = Daily.secondsUntilNext(p.daily, now), -- 0 = a gift is waiting
+				coins = Daily.nextCoins(p.daily, now), -- what the next claim pays
 			},
 			spinReady = Spin.canSpin(p.spin, now),
 			paint = { owned = Paint.ownedList(p.paint), equipped = p.paint.equipped },
@@ -1152,29 +1152,6 @@ function LobbyService.start(deps: Deps): Handle
 				end
 			elseif action == "leavePad" then
 				cancelPlayer(player)
-			elseif action == "devMatch" and RunService:IsStudio() then
-				-- Studio-only shortcut: skip pads, fight the bot now with a random owned car.
-				local cur = players[player]
-				if cur and cur.stage == "match" then
-					return
-				end
-				local p = Profiles.get(player)
-				local owned = if p then Inventory.ownedList(p) else { "Sedan" }
-				local carId = owned[math.random(1, #owned)] or "Sedan"
-				cancelPlayer(player)
-				players[player] = { stage = "match", offered = {}, picked = nil, token = 0 }
-				deps.startMatch({
-					{
-						player = player,
-						botLevel = if p then p.botLevel else nil,
-						carId = carId,
-						appearance = lookFor(player, carId),
-						build = buildOf(player),
-						onFinished = function(won: boolean, stay: boolean?, result: MatchResult?)
-							finishMatch(player, won, carId, true, stay, result)
-						end,
-					},
-				})
 			end
 		end,
 		leftMatch = function(player: Player)

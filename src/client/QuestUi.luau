@@ -178,7 +178,6 @@ function QuestUi.new(menu: MenuBar.MenuBar, onAction: (action: string, arg: any?
 		backdrop.Visible = false
 	end)
 	menu.add("quests", "QUESTS", 10, open)
-	menu.add("gift", "GIFT", 11, open)
 
 	local self = {} :: QuestUi
 	self.handleUpdate = function(u: Types.LobbyUpdate)
@@ -210,7 +209,6 @@ function QuestUi.new(menu: MenuBar.MenuBar, onAction: (action: string, arg: any?
 			giftSub.Text = `Come back tomorrow. Free tries: {daily.freePulls}`
 		end
 		menu.setBadge("quests", anyDone)
-		menu.setBadge("gift", ready)
 	end
 	return self
 end
