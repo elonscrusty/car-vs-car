@@ -74,4 +74,16 @@ function Rematch.decide(state: State): Decision
 	return "lobby"
 end
 
+-- The participants of a restart without the humans who have left (a rematch never drags them back).
+-- `parts` entries have a `.player`; `left` maps player -> true.
+function Rematch.without(parts: { any }, left: { [any]: boolean }): { any }
+	local kept = {}
+	for _, part in parts do
+		if not left[part.player] then
+			table.insert(kept, part)
+		end
+	end
+	return kept
+end
+
 return Rematch

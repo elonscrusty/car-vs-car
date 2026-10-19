@@ -24,6 +24,7 @@ type Record = {
 	parts: { any },
 	pending: { [Player]: boolean }, -- humans whose end screen is not settled yet
 	decision: Rematch.Decision?,
+	left: { [Player]: boolean }, -- humans who went to the lobby / left: never restarted
 }
 
 local RematchService = {}
@@ -45,7 +46,7 @@ function RematchService.new(): Handle
 		end
 		drop(rec)
 		if rec.decision == "start" then
-			return rec.parts
+			return Rematch.without(rec.parts, rec.left)
 		end
 		return nil
 	end
@@ -58,8 +59,13 @@ function RematchService.new(): Handle
 				table.insert(players, part.player)
 				pending[part.player] = true
 			end
-			local rec: Record =
-				{ state = Rematch.new(players), parts = parts, pending = pending, decision = nil }
+			local rec: Record = {
+				state = Rematch.new(players),
+				parts = parts,
+				pending = pending,
+				decision = nil,
+				left = {},
+			}
 			for _, player in players do
 				records[player :: Player] = rec
 			end
@@ -103,6 +109,7 @@ function RematchService.new(): Handle
 			end
 			Rematch.playerLeft(rec.state, player)
 			rec.pending[player] = nil
+			rec.left[player] = true
 			records[player] = nil
 			return restartParts(rec)
 		end,
