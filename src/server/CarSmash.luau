@@ -55,6 +55,7 @@ local function loose(p: BasePart, parent: Instance)
 	p.Massless = false
 	p.CustomPhysicalProperties = PhysicalProperties.new(0.4, 0.5, 0.4, 1, 1)
 	p:SetAttribute("CarIdx", nil) -- never counts as a car in a hit
+	p:SetAttribute("Scrap", true) -- swept away when the next round starts
 	p.Parent = parent
 	Debris:AddItem(p, LIFETIME)
 end
@@ -160,10 +161,10 @@ local function bigBoom(at: Vector3, parent: Instance)
 	smoke:Emit(26)
 	local flash = Instance.new("PointLight")
 	flash.Color = Color3.fromRGB(255, 220, 140)
-	flash.Range = 60
-	flash.Brightness = 12
+	flash.Range = 26 -- a glow round the car, not a blinding flood
+	flash.Brightness = 3
 	flash.Parent = anchor
-	task.delay(0.25, function()
+	task.delay(0.15, function()
 		flash:Destroy()
 	end)
 	Debris:AddItem(anchor, 4)

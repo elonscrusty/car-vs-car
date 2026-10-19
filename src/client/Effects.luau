@@ -75,10 +75,10 @@ function Effects.sparks(pos: Vector3, strength: number)
 	if strength >= 0.5 then
 		local flash = Instance.new("PointLight")
 		flash.Color = Color3.new(1, 1, 1)
-		flash.Range = 24
-		flash.Brightness = 8
+		flash.Range = 12 -- small and dim: the cars and the floor stay readable
+		flash.Brightness = 2.5
 		flash.Parent = p
-		TweenService:Create(flash, TweenInfo.new(0.18), { Brightness = 0 }):Play()
+		TweenService:Create(flash, TweenInfo.new(0.12), { Brightness = 0 }):Play()
 	end
 	Debris:AddItem(p, 2)
 end

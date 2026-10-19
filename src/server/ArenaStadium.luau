@@ -11,20 +11,21 @@ local PER_SEAT = 3
 local TIER_DEPTH = 7
 local TIER_RISE = 3.2
 
+-- Muted on purpose: the stands are a dim backdrop, so cars, hazards and effects get the bright colours.
 local SHIRTS = {
-	Color3.fromRGB(255, 80, 80),
-	Color3.fromRGB(255, 200, 40),
-	Color3.fromRGB(70, 200, 255),
-	Color3.fromRGB(120, 230, 110),
-	Color3.fromRGB(255, 130, 220),
-	Color3.fromRGB(255, 255, 255),
-	Color3.fromRGB(255, 150, 50),
+	Color3.fromRGB(150, 80, 80),
+	Color3.fromRGB(160, 140, 80),
+	Color3.fromRGB(80, 125, 150),
+	Color3.fromRGB(90, 135, 95),
+	Color3.fromRGB(145, 95, 130),
+	Color3.fromRGB(165, 168, 178),
+	Color3.fromRGB(160, 110, 75),
 }
 local SECTIONS = {
-	Color3.fromRGB(235, 70, 65),
-	Color3.fromRGB(250, 200, 50),
-	Color3.fromRGB(70, 150, 235),
-	Color3.fromRGB(100, 210, 120),
+	Color3.fromRGB(140, 65, 65),
+	Color3.fromRGB(150, 130, 70),
+	Color3.fromRGB(65, 100, 145),
+	Color3.fromRGB(75, 130, 90),
 }
 
 local function part(

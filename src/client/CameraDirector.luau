@@ -242,11 +242,16 @@ function CameraDirector.new(): Director
 		target = nil
 		active = true
 		goalFov, fov = feel.normalFov, feel.normalFov
-		-- Camera sits behind YOUR car so it is the near one, bottom of the screen.
+		-- Start where the chase camera will be: behind YOUR car (cars start facing the middle), so your
+		-- car is fully in view before the fight and the view does not jump at "Go".
 		local flat = if side then Vector3.new(side.X, 0, side.Z) else Vector3.zero
 		local dir = if flat.Magnitude > 0.01 then flat.Unit else Vector3.zAxis
 		myCar = nil
-		base = CFrame.lookAt(center + dir * 60 + Vector3.new(0, 72, 0), center)
+		local carAt = center + flat
+		base = CFrame.lookAt(
+			carAt + dir * feel.chaseBack + Vector3.new(0, feel.chaseUp, 0),
+			carAt - dir * feel.chaseAhead + Vector3.new(0, 1.5, 0)
+		)
 		local c = cam()
 		c.CameraType = Enum.CameraType.Scriptable
 	end

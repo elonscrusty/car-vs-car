@@ -30,6 +30,7 @@ export type UiUpdate = {
 	youWon: boolean?, -- matchEnd
 	pos: Vector3?, -- hit: where the cars touched
 	strength: number?, -- hit: 0..1 how hard
+	damagePos: Vector3?, -- hit: where the car that got hit is (the damage number floats over it)
 	damage: number?, -- hit: HP taken
 	youHit: boolean?, -- hit: true when the damage went to your car
 	tag: string?, -- hit: "BACK HIT!", "SIDE HIT!", "COMBO x2"
