@@ -1007,16 +1007,7 @@ function Lobby.build(): LobbyHandle
 		)
 		rib.CanCollide = false
 	end
-	local doorSign = part(
-		folder,
-		"GateSign",
-		Vector3.new(30, 5, 0.4),
-		CFrame.lookAt(origin + Vector3.new(0, 10, HL - 0.5), origin + Vector3.new(0, 10, 0)),
-		Color3.fromRGB(14, 12, 40)
-	)
-	label(doorSign, Enum.NormalId.Front, "CAR VS CAR", YELLOW, Color3.fromRGB(20, 40, 140))
-	doorSign.CanCollide = false
-	glow(doorSign, YELLOW, 24, 0.4)
+	-- (No CAR VS CAR sign over the gate: it hung behind the spawn.)
 	for _, sx in { -1, 1 } do
 		local edge = part(
 			folder,
@@ -1264,12 +1255,11 @@ function Lobby.build(): LobbyHandle
 		sl.Parent = lamp
 	end
 	warmSpot("StageSpot", world(sc.x, 30, sc.z).Position, 50, 6)
-	warmSpot("ClawSpot", world(g.x, 26, g.z).Position, 40, 5)
 	warmSpot("GarageSpot", world(0, 28, 10).Position, 60, 3)
 
 	-- Soft pastel colors, plain plastic (no neon: the glow burned out in the lobby light).
-	local GUM_RED = Color3.fromRGB(240, 110, 120)
-	local GUM_TRIM = Color3.fromRGB(255, 220, 120)
+	local GUM_RED = Color3.fromRGB(190, 92, 112)
+	local GUM_TRIM = Color3.fromRGB(84, 74, 132) -- matte dark purple, no yellow
 	local GUM_COLORS = {
 		Color3.fromRGB(255, 110, 150),
 		Color3.fromRGB(90, 170, 255),
@@ -1385,7 +1375,7 @@ function Lobby.build(): LobbyHandle
 	-- Front of the cabinet: a title plate, a coin slot and knob, and the chute where the ball drops.
 	local frontZ = cabZ + 3.5
 	local plate = bit("GumballPlate", sz(6.4, 1.8, 0.3), gum(0, 3.9, frontZ + 0.1), DARK)
-	label(plate, Enum.NormalId.Back, "GUMBALLS", GUM_TRIM, nil) -- Back = the side facing the hall
+	label(plate, Enum.NormalId.Back, "GUMBALLS", Color3.fromRGB(225, 225, 240), nil) -- Back = the side facing the hall
 	bit("GumballSlot", sz(1.6, 0.3, 0.3), gum(2.7, 2.4, frontZ + 0.15), GUM_TRIM)
 	bit(
 		"GumballCrank",

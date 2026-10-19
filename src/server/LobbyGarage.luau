@@ -11,7 +11,7 @@ local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 
 local LobbyGarage = {}
 
-local LEFT, RIGHT, BACK, FRONT = -math.pi / 2, math.pi / 2, math.pi, 0
+local RIGHT, BACK, FRONT = math.pi / 2, math.pi, 0
 
 -- Which part of a model turns, and how fast (radians a second).
 local TURNING: { [string]: string } = {
@@ -62,10 +62,6 @@ function LobbyGarage.build(folder: Folder, origin: Vector3)
 		end
 	end
 
-	-- Spin wheel out in the open, beside the hero stage where everyone walking up the lane can see
-	-- it (it used to sit in the front corner). It faces the entrance.
-	put("SpinWheel", -34, 0, -46, BACK, 18)
-
 	-- Fans high on the back wall, lamps over the hall.
 	put("WallFan", -38, 27, -HL + 2, BACK)
 	put("WallFan", 38, 27, -HL + 2, BACK)
@@ -93,21 +89,19 @@ function LobbyGarage.build(folder: Folder, origin: Vector3)
 		OilDrainCart = "Garage",
 		SteelBench = "Garage",
 	}
-	local ART = { "SteeringWheelArt", "PlateWall", "WallClock", "PlateWall" }
 	for i, b in L.bays do
-		local side = if b.face > 0 then -1 else 1
-		local yaw = if b.face > 0 then LEFT else RIGHT
-		local art = ART[(i - 1) % #ART + 1]
-		-- Wall art stays on the hall wall above each garage; plate tiles in the doorway.
-		put(art, side * 62.3, 9, b.z - 13.5, yaw, nil, "More")
-		for _, dz in { -4, 4 } do
-			put("DiamondPlateTile", side * 56, 0.05, b.z + dz, 0)
+		-- Backs to the right-hand divider wall, so they face into the garage (not at an angle).
+		local yaw = if b.face > 0 then BACK else FRONT
+		-- The diamond plate sits under the lift (inside the garage), not out in the aisle.
+		local liftX, liftZ = b.x - b.face, b.z + b.face * 10
+		for _, dz in { -4.5, 4.5 } do
+			put("DiamondPlateTile", liftX, 0.05, liftZ + dz, 0)
 		end
-		local rightZ = b.z - b.face * 17.5 -- against the right-hand divider
+		local rightZ = b.z - b.face * 18.2
 		local big = BIG[(i - 1) % #BIG + 1]
 		local small = SMALL[(i * 3 - 1) % #SMALL + 1]
 		put(big, b.x + b.face * 1, 0, rightZ, yaw, nil, BIG_SRC[big])
-		put(small, b.x + b.face * 5, 0, rightZ, yaw, nil, SMALL_SRC[small])
+		put(small, b.x + b.face * 6, 0, rightZ, yaw, nil, SMALL_SRC[small])
 	end
 	for _, side in { -1, 1 } do
 		for _, z in { 32, 4, -24 } do
@@ -120,13 +114,8 @@ function LobbyGarage.build(folder: Folder, origin: Vector3)
 			put("ToolWallCabinet", side * 47, 0, -HL + 1.5, BACK)
 		end
 	end
-	put("PalletCrates", -60, 0, -HL + 4, BACK, nil, "More")
 
-	-- A workstation on the back wall of each garage.
-	for _, b in L.bays do
-		local yaw = if b.face > 0 then LEFT else RIGHT
-		put("Workstation", b.x - b.face * 21.5, 0, b.z, yaw)
-	end
+	-- (No floating Workstation / stats board in the garages any more.)
 
 	if #spinners == 0 then
 		return

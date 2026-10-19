@@ -10,7 +10,6 @@ local Build = require(game:GetService("ReplicatedStorage").Shared.Build)
 local CarConfig = require(game:GetService("ReplicatedStorage").Shared.CarConfig)
 local CarBuilder = require(script.Parent.CarBuilder)
 local LobbyDecor = require(script.Parent.LobbyDecor)
-local GarageLikes = require(game:GetService("ReplicatedStorage").Shared.GarageLikes)
 local LobbyLayout = require(game:GetService("ReplicatedStorage").Shared.LobbyLayout)
 
 local LobbyBays = {}
@@ -65,6 +64,8 @@ type Bay = {
 	center: Vector3, -- the lift (floor level)
 	face: number,
 	signLabel: TextLabel,
+	sign: Part,
+	signGui: SurfaceGui,
 	signText: string, -- name part of the sign; the like count is added under it
 	prompt: ProximityPrompt,
 	likePrompt: ProximityPrompt,
@@ -201,9 +202,12 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		lbl.BackgroundTransparency = 1
 		lbl.Font = Enum.Font.FredokaOne
 		lbl.TextScaled = true
-		lbl.Text = "OPEN"
-		lbl.TextColor3 = Color3.fromRGB(110, 120, 140)
+		lbl.Text = ""
+		lbl.TextColor3 = Color3.fromRGB(255, 205, 40)
 		lbl.Parent = gui
+		-- An empty garage has no board at all (no "OPEN" sign); it shows when a player is assigned.
+		sign.Transparency = 1
+		gui.Enabled = false
 
 		-- The heart at the door: a flat icon on the door frame; walk up and press it to like this
 		-- garage (the server decides). Next to it, a flat number plate on the other side.
@@ -236,6 +240,13 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 			"♥",
 			Color3.fromRGB(255, 77, 109)
 		)
+		-- No visible heart or likes in the garages any more: the prompt stays (never enabled) so
+		-- the like callback still exists, but there is nothing floating to see.
+		heart.Transparency = 1
+		local heartGui = heart:FindFirstChildWhichIsA("SurfaceGui")
+		if heartGui then
+			heartGui:Destroy()
+		end
 		framePlate(
 			"BayNumber",
 			doorZ - LobbyLayout.bay.gap / 2 - 1.8,
@@ -252,17 +263,6 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		likePrompt.HoldDuration = 0
 		likePrompt.Enabled = false
 		likePrompt.Parent = heart
-		-- The Blender name board, when it is imported; the code board keeps the text.
-		local signLook = LobbyDecor.clone("GarageNameSign", folder, nil, "Garage")
-		if signLook then
-			signLook:PivotTo(
-				CFrame.lookAt(
-					signPos - Vector3.new(0, 2.05, 0) - Vector3.xAxis * spot.face * 0.5,
-					signPos - Vector3.new(0, 2.05, 0) + Vector3.xAxis * spot.face
-				)
-			)
-		end
-
 		-- "Customize" prompt: only the owner's client opens the garage from it.
 		local prompt = Instance.new("ProximityPrompt")
 		prompt.Name = "BayPrompt"
@@ -279,7 +279,9 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 			center = center,
 			face = spot.face,
 			signLabel = lbl,
-			signText = "OPEN",
+			signText = "",
+			sign = sign,
+			signGui = gui,
 			prompt = prompt,
 			likePrompt = likePrompt,
 			player = nil,
@@ -324,9 +326,10 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		b.prompt:SetAttribute("OwnerUserId", nil)
 		b.likePrompt.Enabled = false
 		b.likePrompt:SetAttribute("OwnerUserId", nil)
-		b.signText = "OPEN"
-		b.signLabel.Text = "OPEN"
-		b.signLabel.TextColor3 = Color3.fromRGB(110, 120, 140)
+		b.signText = ""
+		b.signLabel.Text = ""
+		b.sign.Transparency = 1
+		b.signGui.Enabled = false
 	end
 
 	-- Builds a show car (look only: anchored, no collisions, no bar), scaled so its length is
@@ -401,7 +404,7 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 	end
 
 	local handle = {} :: Handle
-	handle.set = function(player, carId, look, build, sign, owned, likes)
+	handle.set = function(player, carId, look, build, sign, owned, _likes)
 		local b = bayOf(player)
 		if b == nil then
 			for _, free in bays do
@@ -417,11 +420,11 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 		b.player = player
 		b.prompt.Enabled = true
 		b.prompt:SetAttribute("OwnerUserId", player.UserId)
-		b.likePrompt.Enabled = true
-		b.likePrompt:SetAttribute("OwnerUserId", player.UserId)
 		b.signText = sign
-		b.signLabel.Text = `{sign}\n{GarageLikes.label(likes)}`
+		b.signLabel.Text = sign -- the name only: likes are not shown in the garages any more
 		b.signLabel.TextColor3 = Color3.fromRGB(255, 205, 40)
+		b.sign.Transparency = 0
+		b.signGui.Enabled = true
 		clearCars(b)
 
 		liftCar(b, carId, look, build)
@@ -450,11 +453,8 @@ function LobbyBays.new(folder: Folder, origin: Vector3): Handle
 			table.insert(b.extras, parked)
 		end
 	end
-	handle.setLikes = function(player, likes)
-		local b = bayOf(player)
-		if b then
-			b.signLabel.Text = `{b.signText}\n{GarageLikes.label(likes)}`
-		end
+	handle.setLikes = function(_player, _likes)
+		-- Likes are not shown on the garage board any more; nothing to update.
 	end
 	local likeConns: { RBXScriptConnection } = {}
 	handle.onLike = function(callback)

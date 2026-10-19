@@ -119,24 +119,19 @@ end
 
 function LobbyDecor.build(parent: Folder, origin: Vector3)
 	local room = LobbyLayout.room
-	local HW, HL = room.halfW, room.halfL
+	local HW = room.halfW
 	local group = Instance.new("Folder")
 	group.Name = "Decor"
 	group.Parent = parent
 
-	-- The two lobby signs share one plate look (LobbyDecor.plate).
+	-- The lobby signs share one plate look (LobbyDecor.plate).
 	LobbyDecor.plate(
 		group,
 		"GARAGES",
 		Vector3.new(20, 5, 0.6),
 		CFrame.lookAt(origin + Vector3.new(-HW + 1, 26.5, -40), origin + Vector3.new(0, 26.5, -40))
 	)
-	LobbyDecor.plate(
-		group,
-		"CAR VS CAR",
-		Vector3.new(28, 6.5, 0.6),
-		CFrame.lookAt(origin + Vector3.new(0, 24, HL - 1.5), origin + Vector3.new(0, 24, 0))
-	)
+	-- (The CAR VS CAR plate over the gate is gone: it hung behind the spawn.)
 end
 
 return LobbyDecor
