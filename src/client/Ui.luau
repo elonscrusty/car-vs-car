@@ -131,8 +131,13 @@ function Ui.create(h: Handlers): View
 	top.Visible = false
 	top.Parent = gui
 	local topCorner = Instance.new("UICorner")
-	topCorner.CornerRadius = UDim.new(0, 8)
+	topCorner.CornerRadius = UDim.new(0, 14)
 	topCorner.Parent = top
+	local topStroke = Instance.new("UIStroke") -- same white outline as every button
+	topStroke.Color = Color3.new(1, 1, 1)
+	topStroke.Thickness = 2
+	topStroke.Transparency = 0.2
+	topStroke.Parent = top
 	local topGlow = Instance.new("UIGradient")
 	topGlow.Color = ColorSequence.new({
 		ColorSequenceKeypoint.new(0, Color3.fromRGB(70, 20, 30)),
@@ -143,9 +148,9 @@ function Ui.create(h: Handlers): View
 	topGlow.Parent = top
 	local function edge(x: number, color: Color3)
 		local e = Instance.new("Frame")
-		e.AnchorPoint = Vector2.new(x, 0)
-		e.Position = UDim2.fromScale(x, 0)
-		e.Size = UDim2.new(0, 5, 1, 0)
+		e.AnchorPoint = Vector2.new(x, 0.5)
+		e.Position = UDim2.new(x, if x == 0 then 6 else -6, 0.5, 0)
+		e.Size = UDim2.new(0, 5, 1, -16)
 		e.BackgroundColor3 = color
 		e.BorderSizePixel = 0
 		e.Parent = top
