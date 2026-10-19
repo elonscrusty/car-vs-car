@@ -5,6 +5,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
+local UiLayout = require(ReplicatedStorage.Shared.UiLayout)
 local UiSize = require(ReplicatedStorage.Shared.UiSize)
 local SoundFx = require(script.Parent.SoundFx)
 
@@ -50,6 +51,34 @@ function UiStyle.polish(b: GuiButton)
 	b.MouseLeave:Connect(function()
 		to(1, RELEASE)
 	end)
+end
+
+-- Puts a GuiObject where a pure UiLayout spec says: anchor, scale position + pixel offset, scale
+-- size, and a UISizeConstraint with the spec's min/max pixels (reused if there is one already).
+function UiStyle.place(g: GuiObject, s: UiLayout.Spec)
+	g.AnchorPoint = Vector2.new(s.ax, s.ay)
+	g.Position = UDim2.new(s.px, s.ox, s.py, s.oy)
+	g.Size = UDim2.new(s.sw, if s.sw == 0 then s.minW else 0, s.sh, if s.sh == 0 then s.minH else 0)
+	local limit = g:FindFirstChildOfClass("UISizeConstraint")
+	if limit == nil then
+		limit = Instance.new("UISizeConstraint")
+		limit.Parent = g
+	end
+	local c = limit :: UISizeConstraint
+	c.MinSize = Vector2.new(s.minW, s.minH)
+	c.MaxSize = Vector2.new(s.maxW, s.maxH)
+end
+
+-- Keeps TextScaled text between `min` and `max` px (min 14 is the phone readability floor).
+function UiStyle.textLimit(g: GuiObject, min: number, max: number)
+	local limit = g:FindFirstChildOfClass("UITextSizeConstraint")
+	if limit == nil then
+		limit = Instance.new("UITextSizeConstraint")
+		limit.Parent = g
+	end
+	local c = limit :: UITextSizeConstraint
+	c.MinTextSize = min
+	c.MaxTextSize = max
 end
 
 -- Pops a label or frame in: grows from small with a little overshoot. `scale` is a UIScale on it.

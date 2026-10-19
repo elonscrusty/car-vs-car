@@ -156,3 +156,7 @@ See SNAPSHOT.md "Social + safety". Tune cheat limits in `src/shared/CarSanityCon
 See SNAPSHOT.md "Soccer polish". Tune in `SoccerFieldConfig` (keeper*, cam*) and `ModesConfig.Soccer` (countdown/goal timings). Unverified in Studio: unfreeze re-handing of network ownership (`handOver`), camera framing, keeper play. Tests: 340 pass.
 ## Car feel traits
 See SNAPSHOT.md "Car feel" and `docs/car-feel.md`. Retune in `src/shared/CarTraitsConfig.luau`. First play test: does Light/Drift slide enough, does Armored/Monster push wide without feeling stuck, do bigger pack cars (Monster 1.35x, Armored 1.4x) fit the bowl and garages, do bars fit the store card at small widths.
+## Phone UI layout (claude/w2-phone-ui)
+- Tune HUD positions only in `src/shared/UiLayoutConfig.luau`; run `lune run tests/run` (uilayout tests catch overlap, small touch targets, anything in the screen middle, anything under the 56 px top bar).
+- To check by eye: Studio device emulator at 640x360 and 800x360 landscape. Placeholders: topInset 56, edge 16, lane shares, row heights, menu column numbers.
+- Owner of SaveNotice may want to move it clear of the power bar lane (bottom centre).

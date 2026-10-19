@@ -5,7 +5,12 @@
 -- or place, the button stays hidden.
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SocialService = game:GetService("SocialService")
+
+local UiLayout = require(ReplicatedStorage.Shared.UiLayout)
+local UiLayoutConfig = require(ReplicatedStorage.Shared.UiLayoutConfig)
+local UiStyle = require(script.Parent.UiStyle)
 
 local InviteUi = {}
 
@@ -23,9 +28,8 @@ function InviteUi.new(parent: GuiObject): InviteUi
 	local player = Players.LocalPlayer
 	local button = Instance.new("TextButton")
 	button.Name = "InviteButton"
-	button.AnchorPoint = Vector2.new(0.5, 0)
-	button.Position = UDim2.fromScale(0.5, 0.94)
-	button.Size = UDim2.fromScale(0.22, 0.06)
+	UiStyle.place(button, UiLayout.endScreen().invite)
+	UiStyle.textLimit(button, UiLayoutConfig.minText, 26)
 	button.BackgroundColor3 = Color3.fromRGB(60, 120, 220)
 	button.Text = "Invite a friend"
 	button.TextScaled = true
@@ -37,9 +41,6 @@ function InviteUi.new(parent: GuiObject): InviteUi
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0.25, 0)
 	corner.Parent = button
-	local minSize = Instance.new("UISizeConstraint")
-	minSize.MinSize = Vector2.new(110, 36) -- still tappable on a phone
-	minSize.Parent = button
 
 	local busy = false
 	button.Activated:Connect(function()
