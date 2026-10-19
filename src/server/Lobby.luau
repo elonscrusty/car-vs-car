@@ -1271,12 +1271,12 @@ function Lobby.build(): LobbyHandle
 	local GUM_RED = Color3.fromRGB(240, 110, 120)
 	local GUM_TRIM = Color3.fromRGB(255, 220, 120)
 	local GUM_COLORS = {
-		Color3.fromRGB(255, 150, 170),
-		Color3.fromRGB(150, 200, 255),
-		Color3.fromRGB(255, 225, 140),
-		Color3.fromRGB(160, 230, 180),
-		Color3.fromRGB(205, 165, 255),
-		Color3.fromRGB(255, 190, 140),
+		Color3.fromRGB(255, 110, 150),
+		Color3.fromRGB(90, 170, 255),
+		Color3.fromRGB(255, 205, 70),
+		Color3.fromRGB(90, 210, 140),
+		Color3.fromRGB(170, 110, 255),
+		Color3.fromRGB(255, 150, 70),
 	}
 	local S = 1.8 -- everything below is drawn at 1x, then made S times bigger
 	local gumModel = Instance.new("Model")
@@ -1305,18 +1305,18 @@ function Lobby.build(): LobbyHandle
 		return p
 	end
 	-- A flat backing panel on the wall behind it, so it reads as mounted on the wall.
-	bit("GumballBacking", sz(13, 15, 0.4), gum(0, 9, wallZ + 0.3), Color3.fromRGB(235, 242, 255))
+	bit("GumballBacking", sz(13, 15, 0.4), gum(0, 9, wallZ + 0.3), Color3.fromRGB(38, 34, 92)) -- deep navy-purple, matte: the balls show up against it
 	bit("GumballBackingEdge", sz(13.6, 15.6, 0.3), gum(0, 9, wallZ + 0.15), GUM_TRIM)
 	bit("GumballPlinth", sz(10.4, 0.7, 7.6), gum(0, 5.35, cabZ), GUM_TRIM)
 	local globe = bit(
 		"GumballGlobe",
 		sz(9, 9, 9),
 		gum(0, 10.2, cabZ),
-		Color3.fromRGB(200, 232, 255),
+		Color3.fromRGB(120, 180, 255),
 		Enum.Material.Glass,
 		Enum.PartType.Ball
 	)
-	globe.Transparency = 0.7
+	globe.Transparency = 0.6
 	bit(
 		"GumballCap",
 		sz(1.4, 5, 5),
@@ -1347,30 +1347,30 @@ function Lobby.build(): LobbyHandle
 			local ball = bit(
 				"GumballBall",
 				sz(2.8, 2.8, 2.8),
-				gum(math.cos(a) * layer.r, layer.y, cabZ + math.sin(a) * layer.r - 0.4),
+				gum(math.cos(a) * layer.r, layer.y, cabZ + math.sin(a) * layer.r - 1),
 				GUM_COLORS[ballCount % #GUM_COLORS + 1],
 				nil,
 				Enum.PartType.Ball
 			)
-			ball.Transparency = 0.1
+			ball.Transparency = 0
 		end
 	end
 	-- The prize ball: a clear ball at the front of the globe with a little car inside.
-	local prizePos = gum(0, 8.9, cabZ + 2.3)
+	local prizePos = gum(0, 9.4, cabZ + 1.3)
 	local prize = bit(
 		"GumballPrize",
-		sz(3.8, 3.8, 3.8),
+		sz(5.7, 5.7, 5.7),
 		prizePos,
 		Color3.fromRGB(230, 245, 255),
 		Enum.Material.Glass,
 		Enum.PartType.Ball
 	)
-	prize.Transparency = 0.55
+	prize.Transparency = 0.45
 	local prizeCar = miniCar(
 		gumModel,
 		"GumballCar",
 		Color3.fromRGB(255, 120, 130),
-		0.2 * S,
+		0.3 * S,
 		prizePos * CFrame.Angles(0, math.rad(35), 0) * CFrame.new(0, -0.5 * S, 0)
 	)
 	for _, d in prizeCar:GetDescendants() do
