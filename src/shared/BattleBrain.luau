@@ -354,19 +354,6 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena): Brain
 	end
 
 	-- CANNON VAN ---------------------------------------------------------------------------
-	local function rearClear(me: Body): boolean
-		local rx, rz = me.x - me.fx * 2 * L, me.z - me.fz * 2 * L
-		if math.abs(rx) > arena.halfX - L or math.abs(rz) > arena.halfZ - L then
-			return false
-		end
-		for _, ob in arena.obstacles do
-			if math.abs(rx - ob.x) < ob.hx + L and math.abs(rz - ob.z) < ob.hz + L then
-				return false
-			end
-		end
-		return true
-	end
-
 	local function stepCannon(dt: number, me: Body, foe: Body, _contact: Contact): Output
 		cooldown = math.max(0, cooldown - dt)
 		stateT += dt

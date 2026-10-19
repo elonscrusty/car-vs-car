@@ -629,7 +629,6 @@ function BattleUi.start()
 	local camera = workspace.CurrentCamera
 	local arenaCenter: Vector3? = nil
 	local arenaHalf = Vector2.zero
-	local wallH = 14
 	local camOn = false
 	local camSmooth: CFrame? = nil
 
@@ -915,7 +914,6 @@ function BattleUi.start()
 		oppName = m.opp.name
 		arenaCenter = Vector3.new(m.arena.x, m.arena.y, m.arena.z)
 		arenaHalf = Vector2.new(m.arena.halfX, m.arena.halfZ)
-		wallH = m.arena.wall
 		cameraOn()
 		prepMe.Text = "YOU  " .. sideText(m.me)
 		prepOpp.Text = "FOE  " .. sideText(m.opp)
