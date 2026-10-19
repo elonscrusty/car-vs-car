@@ -215,3 +215,12 @@ Rotation now soccer, tag, duel, hill, ice. Soccer is 3v3 on a bigger field (140x
 ## Crazy Race mode (2026-10-19)
 New group mode "race" (flag raceMode, MODE button: RACE). 6 cars, 3 laps round a looped road with 3 jump ramps, built from parts by server/RaceArena (no Studio models). Rules: shared/Race (checkpoints in order, laps, positions), geometry: shared/RaceTrack, numbers: shared/RaceTrackConfig. Bots follow waypoints, fall/stuck cars go back to the last gate. Map picture: review/race-map-top-down.png. Ramp wedge direction and bot speed not yet checked in Studio.
 Race update: first Studio runs found two bugs (hill wedges must be named Floor/Slope for CarDrive.groundHit; bot lean toward the gate after next made it hover). Fixed; run 3 had a bot win 3 laps in 45 s. Debug output is off (RaceTrackConfig.debug). Logs: review/race-debug-log*.txt.
+
+## Audit fixes: cars
+- Rarity = identity (#45, #49): `CarCatalog.RarityStyle` / `styleFor(rarity)` hold trail and ability-effect colors (Legendary has `moment = true`). CarBuilder sets car-model attributes `CosmeticRarity`, `TrailColor`, `AbilityEffectColor`; outline and ability flash use the real rarity even in fair matches (power stays Common via Fairness).
+- `CarCatalog.modeStars(id)` gives SOCCER/TAG/RACE 1-3 stars from stats (`ModeStarConfig`, placeholders); no UI yet.
+- `AbilitiesConfig.ModeUse` + `Abilities.modeUse(id, mode)`: per-mode ability text and effects. Specials reads attribute `GameMode` (see HANDOFF.md); nil = old behaviour.
+- Cooldown ring data (#48): car model attributes `AbilityReadyAt` (server time, `workspace:GetServerTimeNow()`) and `AbilityCooldown`; `Abilities.cooldownFraction`.
+- `ProgressConfig.LevelStatBonus` 0.03 -> 0.01; `CarCatalog.LevelCosmetics` (stripe/wheel ids per level, `cosmeticsUpTo(level)`). Nothing applies the cosmetics yet.
+- Garage build is ignored in 2+ human matches: `Fairness.stats` (CarBuilder), flag `FairnessConfig.neutralBuild`. Part visuals still show.
+- `CarConfig.SteerSmooth` + `CarConfig.steerSmoothRate(turnRate)` for the client steering helper (not wired). Tests: `tests/auditcars.test.luau`.

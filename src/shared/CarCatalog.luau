@@ -266,4 +266,123 @@ function CarCatalog.statsFor(entry: Entry): { [string]: any }
 	}
 end
 
+-- RARITY = IDENTITY, NOT POWER (audit #45, #49). In matches with 2+ humans Fairness forces ability
+-- strength to Common, so rarity must show up as a LOOK instead. These are data fields only (colors
+-- are 0-255 rgb); Studio/UI/trail code reads them via `styleFor`. No sound ids here on purpose.
+--   trailRgb    color of the tire/exhaust trail
+--   effectRgb   color of the ability ring flash (Specials)
+--   moment      true = the car also gets an extra "look moment" while its ability runs
+--               (Legendary: a gold trail burst). Studio decides what the moment looks like.
+export type RarityLook = { trailRgb: { number }, effectRgb: { number }, moment: boolean }
+
+CarCatalog.RarityStyle = {
+	Common = { trailRgb = { 200, 200, 205 }, effectRgb = { 255, 255, 255 }, moment = false },
+	Rare = { trailRgb = { 80, 170, 255 }, effectRgb = { 90, 180, 255 }, moment = false },
+	Epic = { trailRgb = { 190, 90, 255 }, effectRgb = { 200, 110, 255 }, moment = false },
+	Legendary = { trailRgb = { 255, 205, 60 }, effectRgb = { 255, 215, 80 }, moment = true },
+} :: { [string]: RarityLook }
+
+-- The look data for a rarity (Common's if the rarity is unknown or not a string).
+function CarCatalog.styleFor(rarity: any): RarityLook
+	if type(rarity) == "string" and CarCatalog.RarityStyle[rarity] then
+		return CarCatalog.RarityStyle[rarity]
+	end
+	return CarCatalog.RarityStyle.Common
+end
+
+-- Cosmetics that car levels unlock (audit #50): the stat bonus per level is tiny, so a level-up
+-- gives a stripe color or a wheel color instead. PLACEHOLDER ids and colors. Index = level.
+CarCatalog.LevelCosmetics = {
+	[2] = { kind = "stripe", id = "StripeWhite", rgb = { 245, 245, 245 } },
+	[3] = { kind = "wheel", id = "WheelRed", rgb = { 220, 50, 50 } },
+	[4] = { kind = "stripe", id = "StripeBlack", rgb = { 30, 30, 35 } },
+	[5] = { kind = "wheel", id = "WheelBlue", rgb = { 60, 120, 235 } },
+	[6] = { kind = "stripe", id = "StripeGold", rgb = { 250, 200, 50 } },
+	[7] = { kind = "wheel", id = "WheelGreen", rgb = { 70, 200, 100 } },
+	[8] = { kind = "stripe", id = "StripePink", rgb = { 255, 120, 180 } },
+	[9] = { kind = "wheel", id = "WheelGold", rgb = { 250, 200, 50 } },
+	[10] = { kind = "stripe", id = "StripeRainbow", rgb = { 255, 140, 60 } },
+} :: { [number]: { kind: string, id: string, rgb: { number } } }
+
+-- Cosmetic ids unlocked at exactly this level (empty for level 1 or a bad level).
+function CarCatalog.cosmeticsAt(level: any): { string }
+	local out: { string } = {}
+	if type(level) == "number" and level == level then
+		local row = CarCatalog.LevelCosmetics[math.floor(level)]
+		if row then
+			table.insert(out, row.id)
+		end
+	end
+	return out
+end
+
+-- Every cosmetic id a car of this level has unlocked, lowest level first.
+function CarCatalog.cosmeticsUpTo(level: any): { string }
+	local out: { string } = {}
+	if type(level) ~= "number" or level ~= level or level > 1000 then
+		return out
+	end
+	for l = 2, math.floor(level) do
+		local row = CarCatalog.LevelCosmetics[l]
+		if row then
+			table.insert(out, row.id)
+		end
+	end
+	return out
+end
+
+-- Mode ratings (audit #46): 1-3 stars per mode, derived from a car's stats relative to the
+-- Neutral car so retuning stats retunes the stars. Each weight list is a share of
+-- (stat / neutral stat), mass ratio clamped. A score >= `three` earns 3 stars, >= `two` earns 2,
+-- otherwise 1. PLACEHOLDERS: retune with the stats.
+CarCatalog.ModeStarConfig = {
+	three = 1.12,
+	two = 0.97,
+	massClamp = { 0.4, 1.6 },
+	weights = {
+		-- soccer: get to the ball fast and line up a hit
+		SOCCER = { maxSpeed = 0.3, accel = 0.35, turnRate = 0.35 },
+		-- tag: take a bump, dodge and survive
+		TAG = { hp = 0.35, mass = 0.25, turnRate = 0.25, damageMult = 0.15 },
+		-- race: top speed and acceleration, a little steering
+		RACE = { maxSpeed = 0.5, accel = 0.3, turnRate = 0.2 },
+	},
+} :: any
+
+CarCatalog.StarModes = { "SOCCER", "TAG", "RACE" }
+
+export type ModeStars = { SOCCER: number, TAG: number, RACE: number }
+
+-- Pure: stars (1-3) per mode from a stats table (hp, mass, maxSpeed, accel, turnRate, damageMult).
+function CarCatalog.modeStarsFromStats(stats: { [string]: number }): ModeStars
+	local cfg = CarCatalog.ModeStarConfig
+	local n: { [string]: number } = CarCatalog.Neutral :: any
+	local out: any = { SOCCER = 1, TAG = 1, RACE = 1 }
+	for _, mode in CarCatalog.StarModes do
+		local score = 0
+		for stat, w in cfg.weights[mode] do
+			local ratio = (stats[stat] or n[stat]) / n[stat]
+			if stat == "mass" then
+				ratio = math.clamp(ratio, cfg.massClamp[1], cfg.massClamp[2])
+			end
+			score += ratio * w
+		end
+		out[mode] = if score >= cfg.three then 3 elseif score >= cfg.two then 2 else 1
+	end
+	return out
+end
+
+-- Stars for a catalog car id, or nil when the id is not a catalog car.
+function CarCatalog.modeStars(id: any): ModeStars?
+	if type(id) ~= "string" then
+		return nil
+	end
+	for _, entry in CarCatalog.Entries do
+		if entry.id == id then
+			return CarCatalog.modeStarsFromStats(CarCatalog.statsFor(entry) :: any)
+		end
+	end
+	return nil
+end
+
 return CarCatalog
