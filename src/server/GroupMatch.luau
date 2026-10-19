@@ -19,6 +19,7 @@ local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
 local Logic = require(ReplicatedStorage.Shared.Logic)
 local Modes = require(ReplicatedStorage.Shared.Modes)
+local PickupsConfig = require(ReplicatedStorage.Shared.PickupsConfig)
 local ModesConfig = require(ReplicatedStorage.Shared.ModesConfig)
 local MovesConfig = require(ReplicatedStorage.Shared.MovesConfig)
 local MovesRules = require(ReplicatedStorage.Shared.Moves)
@@ -1517,6 +1518,12 @@ function GroupMatch.new(
 					car.model:SetAttribute("Shielded", (update.seconds or 0) > 0 or nil)
 				end
 				sendTo(car.idx, update)
+			end, function(car, kind)
+				if kind == "repair" and not car.dead then
+					local top = maxHp[car.idx]
+					car.hp = math.min(top, car.hp + top * PickupsConfig.repair.fraction)
+					car.bar.set(car.hp, top)
+				end
 			end, ModesConfig.LastStanding.Items)
 		end
 		sendAll(function(i)

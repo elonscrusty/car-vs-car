@@ -3,6 +3,7 @@
 -- short rounds, race stuck / reset / checkpoint text / places / start order, group results.
 local Harness = require("./harness")
 local Modes = require("../src/shared/Modes")
+local PickupsConfig = require("../src/shared/PickupsConfig")
 local ModesConfig = require("../src/shared/ModesConfig")
 local Race = require("../src/shared/Race")
 local RaceTrack = require("../src/shared/RaceTrack")
@@ -501,10 +502,14 @@ test(
 	end
 )
 
-test("fight: the shield is the only item and it is a real pickup kind", function()
+test("fight: items are shield, oil and repair, all real pickup kinds with a look", function()
 	local items = ModesConfig.LastStanding.Items
-	eq(#items.kinds, 1)
-	eq(items.kinds[1], "shield")
+	eq(#items.kinds, 3)
+	for _, kind in items.kinds do
+		truthy(PickupsConfig.colors[kind] ~= nil and PickupsConfig.names[kind] ~= nil)
+	end
+	truthy(PickupsConfig.repair.fraction > 0 and PickupsConfig.repair.fraction <= 1)
+	truthy(items.maxOnFloor <= 3)
 	truthy(items.ringMax < ModesConfig.LastStanding.Arena.rimRadius)
 	truthy(items.ringMax >= items.ringMin)
 end)

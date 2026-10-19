@@ -11,18 +11,22 @@ return {
 	minPickupDistance = 10, -- or to another pickup
 	pickupRadius = 5, -- a car this close (flat distance) collects it
 	hoverHeight = 3.5, -- floating height above the floor
-	kinds = { "shield", "bighit", "speed", "magnet", "rocket" },
+	kinds = { "shield", "bighit", "speed", "magnet", "rocket" }, -- oil and repair are fight-only (ModesConfig.LastStanding.Items)
 	shield = { seconds = 6 }, -- absorbs the next hit or this long
 	bighit = { seconds = 8, damageMult = 1.6 }, -- next hit within this time
 	speed = { seconds = 5, speedMult = 1.35 },
 	magnet = { seconds = 4 }, -- pulls the enemy toward you (numbers: BowlConfig.Magnet)
 	rocket = { seconds = 1 }, -- dashes you straight at the enemy (numbers: BowlConfig.Rocket)
+	oil = { puddleSeconds = 14, puddleSize = 15, dropBehind = 11 }, -- a slick puddle dropped behind you
+	repair = { fraction = 0.5 }, -- heals this share of max health
 	colors = {
 		shield = { 70, 220, 110 },
 		bighit = { 235, 60, 60 },
 		speed = { 250, 215, 50 },
 		magnet = { 170, 90, 255 },
 		rocket = { 255, 140, 40 },
+		oil = { 60, 60, 80 },
+		repair = { 90, 230, 120 },
 	},
 	names = {
 		shield = "SHIELD",
@@ -30,6 +34,16 @@ return {
 		speed = "SPEED",
 		magnet = "MAGNET",
 		rocket = "ROCKET",
+		oil = "OIL",
+		repair = "REPAIR",
 	},
-	letters = { shield = "S", bighit = "B", speed = "F", magnet = "M", rocket = "R" },
+	letters = {
+		shield = "S",
+		bighit = "B",
+		speed = "F",
+		magnet = "M",
+		rocket = "R",
+		oil = "O",
+		repair = "+",
+	},
 }
