@@ -33,6 +33,8 @@ export type MatchInfo = {
 	goals: number?,
 	tags: number?,
 	place: number?,
+	kos: number?, -- fight: cars knocked out
+	items: number?, -- fight: item boxes used
 }
 export type Quest = { id: string, progress: number }
 export type View = { title: string, progress: number, target: number, reward: number, done: boolean }
@@ -72,11 +74,26 @@ local function pick(quests: { Quest }, seed: number): string?
 	for _, q in quests do
 		active[q.id] = true
 	end
+	local activeKinds: { [string]: boolean } = {}
+	for _, q in quests do
+		local d = QuestsConfig.get(q.id)
+		if d then
+			activeKinds[d.kind] = true
+		end
+	end
+	-- Prefer a kind the player does not have yet, so the 3 quests are a mix (smash / win / items).
 	local free: { string } = {}
+	local fresh: { string } = {}
 	for _, def in QuestsConfig.Catalog do
 		if not active[def.id] then
 			table.insert(free, def.id)
+			if not activeKinds[def.kind] then
+				table.insert(fresh, def.id)
+			end
 		end
+	end
+	if #fresh > 0 then
+		free = fresh
 	end
 	if #free == 0 then
 		return nil
@@ -130,6 +147,10 @@ local function counts(def: Def, info: MatchInfo): number
 		return amount(info.goals)
 	elseif def.kind == "tag" then
 		return amount(info.tags)
+	elseif def.kind == "smash" then
+		return amount(info.kos)
+	elseif def.kind == "items" then
+		return amount(info.items)
 	elseif def.kind == "raceDone" then
 		return if info.mode == "race" and (info.place ~= nil or info.won) then 1 else 0
 	end

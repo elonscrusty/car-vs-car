@@ -16,7 +16,7 @@ local FeatureFlags = sibling("FeatureFlags")
 export type Def = {
 	id: string,
 	-- "win" | "play" | "beatBot" | "goal" (goals you score) | "tag" (cars you tag / pass IT on to)
-	-- | "raceDone" (finish a race)
+	-- | "raceDone" (finish a race) | "smash" (cars you knock out) | "items" (item boxes you use)
 	kind: string,
 	carId: string?, -- only counts matches played with this car
 	mode: string?, -- only counts matches in this mode
@@ -114,6 +114,38 @@ local function catalogFor(flags: { [string]: boolean }?): { Def }
 			target = 6,
 			reward = 50,
 			title = "Play 6 fights",
+		})
+		table.insert(out, {
+			id = "smash3",
+			kind = "smash",
+			mode = "lastStanding",
+			target = 3,
+			reward = 40,
+			title = "Smash 3 cars",
+		})
+		table.insert(out, {
+			id = "smash8",
+			kind = "smash",
+			mode = "lastStanding",
+			target = 8,
+			reward = 60,
+			title = "Smash 8 cars",
+		})
+		table.insert(out, {
+			id = "items2",
+			kind = "items",
+			mode = "lastStanding",
+			target = 2,
+			reward = 30,
+			title = "Use 2 items",
+		})
+		table.insert(out, {
+			id = "items5",
+			kind = "items",
+			mode = "lastStanding",
+			target = 5,
+			reward = 60,
+			title = "Use 5 items",
 		})
 	end
 	if FeatureFlags.enabled("perCarQuests", flags) then

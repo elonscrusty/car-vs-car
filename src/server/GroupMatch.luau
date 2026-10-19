@@ -123,6 +123,7 @@ function GroupMatch.new(
 	local raceResetAt: { [number]: number } = {}
 	local racePlace: { number } = {} -- finishing place of every car, set when the race ends
 	local tagsMade: { [number]: number } = {} -- tag: cars each car tagged
+	local itemsUsed: { [number]: number } = {} -- fight: item boxes each car drove over
 	local outAt: { [number]: number } = {} -- tag / last standing: match seconds when a car fell
 	local rematchAsked: { [number]: boolean } = {}
 	local allOutAt: number? = nil -- tag: every human is out, the round ends at this time
@@ -279,6 +280,7 @@ function GroupMatch.new(
 			if brawlOn then
 				local lc = ModesConfig.LastStanding
 				r.kos = kos[i] or 0
+				r.items = itemsUsed[i] or 0
 				r.coinsBonus = (if youWon then lc.winBonus else 0)
 					+ (lc.placeCoins[place] or 0)
 					+ (kos[i] or 0) * lc.koCoins
@@ -1544,6 +1546,7 @@ function GroupMatch.new(
 				end
 				sendTo(car.idx, update)
 			end, function(car, kind)
+				itemsUsed[car.idx] = (itemsUsed[car.idx] or 0) + 1
 				if kind == "repair" and not car.dead then
 					local top = maxHp[car.idx]
 					car.hp = math.min(top, car.hp + top * PickupsConfig.repair.fraction)
