@@ -61,7 +61,7 @@ end
 
 -- Modes played by many cars in GroupMatch (the others are a 1v1 in Match).
 function Modes.isGroup(name: string): boolean
-	return name == "lastStanding" or name == "soccer"
+	return name == "lastStanding" or name == "soccer" or name == "tag"
 end
 
 -- How many cars the mode needs (2 for the 1v1 modes).
@@ -70,6 +70,8 @@ function Modes.carCount(name: string): number
 		return ModesConfig.LastStanding.cars
 	elseif name == "soccer" then
 		return ModesConfig.Soccer.teamSize * 2
+	elseif name == "tag" then
+		return ModesConfig.Tag.cars
 	end
 	return 2
 end
@@ -246,6 +248,101 @@ function Modes.lastPlace(l: Last, i: number): number
 	end
 	-- the last to fall is just behind the survivors
 	return alive + (#l.out - pos) + 1
+end
+
+----------------------------------------------------------------------------------------------
+-- Car tag (hot potato): one car is IT with a fuse. Bump another car to pass IT on. IT at 0 =
+-- that car blows up (out). Each new round has a shorter fuse. Last car left wins.
+
+export type Tag = { it: number, fuse: number, round: number, immuneUntil: { [number]: number } }
+
+-- Fuse length for round `round` (1, 2, 3 ...): starts long, shrinks each round, never below min.
+function Modes.tagFuse(round: number, start: number, step: number, minimum: number): number
+	return math.max(minimum, start - step * (math.max(1, round) - 1))
+end
+
+function Modes.tagNew(it: number, fuse: number): Tag
+	return { it = it, fuse = fuse, round = 1, immuneUntil = {} }
+end
+
+-- Car `from` (IT) bumped car `to`. Passes IT if `from` is IT and `to` is not just-passed-from.
+-- The old IT cannot be tagged back for `immuneSeconds`. Returns whether IT changed hands.
+function Modes.tagPass(
+	t: Tag,
+	from: number,
+	to: number,
+	now: number,
+	immuneSeconds: number
+): boolean
+	if t.it ~= from or to == from then
+		return false
+	end
+	if now < (t.immuneUntil[to] or -math.huge) then
+		return false
+	end
+	t.it = to
+	t.immuneUntil[from] = now + immuneSeconds
+	return true
+end
+
+-- One frame of the fuse. Returns true when it just ran out (the IT car blows up).
+function Modes.tagTick(t: Tag, dt: number): boolean
+	t.fuse -= dt
+	return t.fuse <= 0
+end
+
+-- Next IT after a blow-up: one of the alive cars, picked by `r` in 0..1 (0 = none alive).
+function Modes.tagNextIt(l: Last, r: number): number
+	local alive: { number } = {}
+	for i, a in l.alive do
+		if a then
+			table.insert(alive, i)
+		end
+	end
+	if #alive == 0 then
+		return 0
+	end
+	return alive[math.min(#alive, math.floor(math.clamp(r, 0, 0.9999) * #alive) + 1)]
+end
+
+-- A new round: new IT, shorter fuse, nobody immune.
+function Modes.tagNextRound(t: Tag, it: number, fuse: number)
+	t.it = it
+	t.fuse = fuse
+	t.round += 1
+	table.clear(t.immuneUntil)
+end
+
+-- Angle (radians, + = target on the left) from facing (fx, fz) to the direction (dx, dz).
+function Modes.signedAngle(fx: number, fz: number, dx: number, dz: number): number
+	return math.atan2(fz * dx - fx * dz, fx * dx + fz * dz)
+end
+
+-- Where a car running away from IT drives: straight away, bent toward the middle the closer it
+-- is to a wall (so it does not pin itself in a corner). Flat x, z; field half sizes hx, hz.
+function Modes.tagFleeDir(
+	x: number,
+	z: number,
+	itX: number,
+	itZ: number,
+	hx: number,
+	hz: number
+): Vec
+	local ax, az = x - itX, z - itZ
+	local len = math.sqrt(ax * ax + az * az)
+	if len < 0.01 then
+		ax, az, len = 1, 0, 1
+	end
+	ax, az = ax / len, az / len
+	local edge = math.max(math.abs(x) / hx, math.abs(z) / hz)
+	local k = math.clamp(edge - 0.4, 0, 1) * 2.5
+	local cx, cz = -x, -z
+	local cl = math.sqrt(cx * cx + cz * cz)
+	if cl > 0.01 then
+		ax, az = ax + cx / cl * k, az + cz / cl * k
+	end
+	local l2 = math.sqrt(ax * ax + az * az)
+	return { x = ax / l2, z = az / l2 }
 end
 
 ----------------------------------------------------------------------------------------------
