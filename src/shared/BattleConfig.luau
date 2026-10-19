@@ -59,7 +59,8 @@ BattleConfig.Move = {
 	stuckDistL = 0.45, -- less than this many L moved in the window = no progress
 	recoverReverse = 0.7, -- seconds backing up
 	recoverTurn = 0.6, -- seconds turning away after that
-	wallMarginL = 1.4, -- start steering away from a wall this close
+	wallMarginL = 0.9, -- start steering away from a wall this close
+	blockMarginL = 0.55, -- ... and from a block
 }
 
 BattleConfig.Order = { "RamTruck", "CannonVan", "SawBuggy" } :: { string }

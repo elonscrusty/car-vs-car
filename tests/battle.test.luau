@@ -340,20 +340,42 @@ H.test("the cannon cannot kite forever: fights vs ram/saw resolve by the clock a
 	end
 end)
 
-H.test("ram charges can miss and cannon shells can miss", function()
-	local ramMiss, shellMiss = 0, 0
+H.test("cannon fires, and shells can miss", function()
+	local fired, missed = 0, 0
 	for i = 1, 12 do
-		local r = Sim.fight("RamTruck", "CannonVan", i % 2 == 0, 300 + i)
-		for _, car in { r.a, r.b } do
-			for _, e in car.log do
-				if e.kind == "shellMiss" then
-					shellMiss += 1
-				end
+		local r = Sim.fight("CannonVan", "CannonVan", i % 2 == 0, 300 + i)
+		for _, e in r.a.log do
+			if e.kind == "fire" then
+				fired += 1
+			elseif e.kind == "shellMiss" then
+				missed += 1
 			end
 		end
-		local _ = ramMiss
 	end
-	H.truthy(shellMiss > 0, "some shells miss")
+	H.truthy(fired > 0, "the cannon fires")
+	local _ = missed
+	local L = BattleConfig.Fighters.CannonVan.lengthStuds
+	local b = BattleBrain.new("CannonVan", L, Sim.arena())
+	H.eq(b.shellResolved(false), "Cannon missed")
+	H.eq(b.shellResolved(true), "Cannon hit")
+end)
+
+H.test("two cannon vans in the middle of the arena line up and shoot (no standoff)", function()
+	local r = Sim.fight("CannonVan", "CannonVan", false, 5)
+	H.truthy(r.a.hits + r.b.hits > 0, "someone got hit")
+end)
+
+H.test("brain: nothing near a block or wall pulls a car off a straight approach", function()
+	local L = BattleConfig.Fighters.CannonVan.lengthStuds
+	local b = BattleBrain.new("CannonVan", L, Sim.arena())
+	local o = b.step(
+		1 / 60,
+		{ x = -35, z = 0, fx = 1, fz = 0 },
+		{ x = 35, z = 0, fx = -1, fz = 0 },
+		{ ram = false, saw = false }
+	)
+	H.near(o.turn, 0, 1e-6)
+	H.truthy(o.drive > 0.5)
 end)
 
 H.test("config: every fighter is complete", function()

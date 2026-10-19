@@ -67,6 +67,7 @@ end
 -- A push away from walls and blocks when a car is close to them (0,0 when far).
 local function avoidance(me: Body, arena: Arena, L: number): (number, number)
 	local margin = BattleConfig.Move.wallMarginL * L
+	local obMargin = BattleConfig.Move.blockMarginL * L
 	local ax, az = 0, 0
 	local dx = arena.halfX - math.abs(me.x)
 	if dx < margin then
@@ -82,14 +83,14 @@ local function avoidance(me: Body, arena: Arena, L: number): (number, number)
 		local nz = clamp(me.z, ob.z - ob.hz, ob.z + ob.hz)
 		local vx, vz = me.x - nx, me.z - nz
 		local d = math.sqrt(vx * vx + vz * vz)
-		if d < margin then
+		if d < obMargin then
 			if d < 1e-3 then
 				vx, vz = normalize(me.x - ob.x, me.z - ob.z)
 				d = 0
 			else
 				vx, vz = vx / d, vz / d
 			end
-			local s = (1 - d / margin) * 2
+			local s = (1 - d / obMargin) * 2
 			ax += vx * s
 			az += vz * s
 		end
