@@ -15,7 +15,7 @@ FeatureFlags.Flags = {
 	tagMode = false, -- car tag: hidden for now
 	hillMode = false, -- king of the hill (1v1 bowl): out of the rotation until soccer/tag/race are proven
 	iceMode = false, -- ice bowl (1v1): same
-	lastStandingMode = true, -- the car fight: 4 cars on a flat floor with ramps, last car alive wins
+	lastStandingMode = true, -- the car fight: 4 cars on a flat floor, last car alive wins
 } :: { [string]: boolean }
 
 -- Unknown flag names count as off.

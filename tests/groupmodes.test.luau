@@ -456,6 +456,7 @@ test(
 		eq(ls.Arena.tiltDeg, 0)
 		eq(ls.Arena.flatRadius, ls.Arena.rimRadius)
 		for _, o in ls.Arena.obstacles do
+			truthy(o.kind ~= "ramp", "no ramps in the fight arena (carter)")
 			truthy(math.sqrt(o.x * o.x + o.z * o.z) < ls.Arena.rimRadius - 10)
 			local twin = false
 			for _, q in ls.Arena.obstacles do

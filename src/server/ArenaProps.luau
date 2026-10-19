@@ -1,5 +1,5 @@
 --!strict
--- Looks for the fight floor: dirt-show markings, and paint on the ramps, crates, pillars and hammers.
+-- Looks for the fight floor: dirt-show markings, and paint on the crates, pillars and hammers.
 -- Nothing here changes how the arena plays: every extra piece is non-solid (CanCollide false).
 
 local ArenaProps = {}
@@ -121,42 +121,6 @@ function ArenaProps.wallStrip(model: Model, wall: BasePart, color: Color3)
 		Vector3.new(wall.Size.X * 0.98, 0.2, wall.Size.Z * 0.3),
 		up,
 		color,
-		false
-	)
-end
-
--- A ramp: dark deck, yellow side rails, chevron bars and a lit lip.
-function ArenaProps.dressRamp(model: Model, ramp: BasePart)
-	ramp.Color = Color3.fromRGB(70, 76, 98)
-	local sx, sz = ramp.Size.X, ramp.Size.Z
-	local cf = ramp.CFrame * CFrame.new(0, ramp.Size.Y / 2 + 0.03, 0)
-	for _, side in { -1, 1 } do
-		deco(
-			model,
-			"RampRail",
-			Vector3.new(0.9, 0.5, sz),
-			cf * CFrame.new(side * (sx / 2 - 0.45), 0.25, 0),
-			YELLOW
-		)
-	end
-	local bars = math.floor(sz / 3.5)
-	for i = 1, bars do
-		local z = (i / (bars + 1) - 0.5) * sz
-		deco(
-			model,
-			"RampChevron",
-			Vector3.new(sx - 2.6, 0.12, 1.1),
-			cf * CFrame.new(0, 0.04, z),
-			if i % 2 == 0 then YELLOW else WHITE
-		)
-	end
-	-- High end (toward -Z) is the lip: a glowing line.
-	deco(
-		model,
-		"RampLip",
-		Vector3.new(sx, 0.35, 0.6),
-		cf * CFrame.new(0, 0.15, -sz / 2 + 0.3),
-		NEON_BLUE,
 		false
 	)
 end
