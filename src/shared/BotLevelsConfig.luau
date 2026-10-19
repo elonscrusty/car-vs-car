@@ -6,6 +6,8 @@
 --   degrees, fading out over wanderFade seconds (0 = never wanders).
 -- runUpMult: how often it backs off for a run-up (higher = sooner and more often).
 -- rewardMult: coin reward multiplier (read through BotLevels.rewardMultiplier).
+-- lead: 0..1, how well it aims where the enemy is going once a chase drags on (0 = never).
+-- moveUse: 0..1, how often the bot takes a good chance to boost or use its ability.
 export type Entry = {
 	noiseDeg: number,
 	powerMin: number,
@@ -17,6 +19,8 @@ export type Entry = {
 	wanderFade: number,
 	runUpMult: number,
 	rewardMult: number,
+	moveUse: number,
+	lead: number,
 }
 
 local Config = {
@@ -36,6 +40,8 @@ local Config = {
 			wanderFade = 0.9,
 			runUpMult = 0.6,
 			rewardMult = 0.8,
+			moveUse = 0.2,
+			lead = 0.25,
 		},
 		medium = {
 			noiseDeg = 10,
@@ -48,18 +54,22 @@ local Config = {
 			wanderFade = 1,
 			runUpMult = 1,
 			rewardMult = 1,
+			moveUse = 0.65,
+			lead = 0.4,
 		},
 		hard = {
 			noiseDeg = 3,
 			powerMin = 0.85,
 			powerMax = 1,
-			turnGainMult = 1.4,
-			speedMult = 1.1,
+			turnGainMult = 1.8,
+			speedMult = 1.2,
 			wanderEvery = 0,
 			wanderDeg = 0,
 			wanderFade = 1,
-			runUpMult = 1.8,
+			runUpMult = 1.5,
 			rewardMult = 1.3,
+			moveUse = 1,
+			lead = 0.5,
 		},
 	} :: { [string]: Entry },
 }

@@ -163,3 +163,5 @@ See SNAPSHOT.md "Car feel" and `docs/car-feel.md`. Retune in `src/shared/CarTrai
 ## Economy sim + perf audit
 - Read `docs/economy-report.md` first: the 12-car collection completes by about day 30 and there is no coin sink afterwards; recommendations (higher pull price, sink, pity timer) are NOT applied. Raising the pull price needs `tests/lobby.test.luau` re-pinned (hardcodes 100).
 - `docs/performance-audit.md`: nothing measured in Studio; check part counts, `Persistent` streaming of four bowls, and garage lift replication on a phone.
+## Bots (w2-bots)
+See SNAPSHOT.md "Bots feel like people". Tune in `GameConfig.Ai` and `BotLevelsConfig` (placeholders, tuned on a headless sim not on live physics). If a live bot rides the rim, raise `edgeRadius` risk margin (lower it) or `edgeLook`; if bots never boost, check `moveSpeedShare`/`boostAimDeg`; `GameConfig.Ai.useMoves = false` turns bot boost/ability off. First play test: watch bots on the rim, nose-to-nose time, boost use.

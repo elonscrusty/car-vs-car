@@ -63,10 +63,21 @@ function Autopilot.step(
 		return
 	end
 
-	-- Ask the AI what to do.
-	local flatSpeed = flat(body.AssemblyLinearVelocity).Magnitude
+	-- Ask the AI what to do. It needs to know how the car is moving (rim guard, lead aiming).
+	local vel = flat(body.AssemblyLinearVelocity)
+	local flatSpeed = vel.Magnitude
+	local fwd = flat(cf.LookVector)
+	if fwd.Magnitude < 0.1 then
+		return
+	end
+	fwd = fwd.Unit
+	local mem = car.ai
+	local evel = flat(enemy.body.AssemblyLinearVelocity)
+	mem.vx, mem.vz, mem.fx, mem.fz = vel.X, vel.Z, fwd.X, fwd.Z
+	mem.evx, mem.evz, mem.lead = evel.X, evel.Z, lv.lead
+	mem.runUp, mem.accel, mem.turnRate = lv.runUpMult, stats.accel, stats.turnRate
 	Ai.noteSpeed(
-		car.ai,
+		mem,
 		flatSpeed,
 		dt,
 		BotLevels.stuckLimit(lv, GameConfig.Ai.stuckSeconds),
@@ -77,24 +88,19 @@ function Autopilot.step(
 		stats.ai,
 		{ x = pos.X, z = pos.Z },
 		{ x = epos.X, z = epos.Z },
-		car.ai,
+		mem,
 		dt,
 		GameConfig.Ai,
 		{ x = center.X, z = center.Z }
 	)
 
 	-- Steer: spin around Y toward the target point.
-	local fwd = flat(cf.LookVector)
-	if fwd.Magnitude < 0.1 then
-		return
-	end
-	fwd = fwd.Unit
 	local angle = Ai.signedAngle(fwd.X, fwd.Z, cmd.tx - pos.X, cmd.tz - pos.Z)
 	angle += math.rad(BotLevels.wanderOffsetDeg(lv, os.clock(), car.idx))
 	setSpin(body, Ai.steer(angle, GameConfig.Drive.turnGain * lv.turnGainMult, stats.turnRate))
 	local throttle = Ai.driveScale(angle, cmd.throttle)
 	local forwardSpeed = body.AssemblyLinearVelocity:Dot(fwd)
-	if lv.speedMult < 1 and forwardSpeed > stats.maxSpeed * lv.speedMult then
+	if throttle > 0 and lv.speedMult < 1 and forwardSpeed > stats.maxSpeed * lv.speedMult then
 		throttle = 0 -- slower bot: coast above its lower top speed
 	end
 	push(car, fwd, throttle, hit, dt, mods)
