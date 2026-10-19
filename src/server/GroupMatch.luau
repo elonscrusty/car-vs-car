@@ -10,6 +10,7 @@ local RunService = game:GetService("RunService")
 
 local BowlConfig = require(ReplicatedStorage.Shared.BowlConfig)
 local BowlRules = require(ReplicatedStorage.Shared.BowlRules)
+local BotLevels = require(ReplicatedStorage.Shared.BotLevels)
 local BotNames = require(ReplicatedStorage.Shared.BotNames)
 local CarConfig = require(ReplicatedStorage.Shared.CarConfig)
 local Fight = require(ReplicatedStorage.Shared.Fight)
@@ -24,11 +25,13 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Steer = require(ReplicatedStorage.Shared.Steer)
 local SoccerField = require(ReplicatedStorage.Shared.SoccerField)
 local SoccerFieldConfig = require(ReplicatedStorage.Shared.SoccerFieldConfig)
+local SoccerBotRules = require(ReplicatedStorage.Shared.SoccerBotRules)
 local SoccerFieldFlow = require(ReplicatedStorage.Shared.SoccerFieldFlow)
 local Types = require(ReplicatedStorage.Shared.Types)
 
 local Arena = require(script.Parent.Arena)
 local Autopilot = require(script.Parent.Autopilot)
+local BotMoves = require(script.Parent.BotMoves)
 local CarBuilder = require(script.Parent.CarBuilder)
 local CarSanity = require(script.Parent.CarSanity)
 local Dummy = require(script.Parent.Dummy)
@@ -69,6 +72,7 @@ function GroupMatch.new(
 	local steerSmooth: { number } = {}
 	local throttleSmooth: { number } = {}
 	local moveStates: { Moves.State } = {}
+	local botMem: { [number]: SoccerBotRules.Memory } = {}
 	local lastHitAt: { [number]: number } = {} -- pair key -> time of the last counted hit
 	local touchConns: { RBXScriptConnection } = {}
 	local last = Modes.lastNew(total)
@@ -566,28 +570,12 @@ function GroupMatch.new(
 		return cap
 	end
 
-	-- The car a bot (or a special move) goes after. Soccer bots aim at a point behind the ball
-	-- (then at the ball itself once they are lined up); last-standing bots hunt the nearest car.
+	local function botLevel(): BotLevels.Level
+		return BotLevels.get(if participants[1] then participants[1].botLevel else nil)
+	end
+
+	-- Last-standing bots hunt the nearest alive car. (Soccer bots drive in driveSoccerBot.)
 	local function targetFor(car: CarBuilder.Car): CarBuilder.Car?
-		if soccerOn then
-			local b = ball
-			if b == nil then
-				return nil
-			end
-			local team = teamOf(car.idx)
-			-- One bot per team keeps goal (the first bot slot); the others chase and shoot.
-			local bots: { boolean } = {}
-			for k = 1, teamSize do
-				bots[k] = not isHuman((team - 1) * teamSize + k)
-			end
-			local keeper = SoccerFieldFlow.keeperSlot(bots)
-			local isKeeper = keeper ~= 0 and (car.idx - 1) % teamSize + 1 == keeper
-			local bx, bz = b.Position.X - origin.X, b.Position.Z - origin.Z
-			local cx, cz = flatOf(car)
-			local tx, tz = SoccerFieldFlow.botAim(isKeeper, team, bx, bz, cx, cz)
-			local pos = origin + Vector3.new(tx, car.body.Position.Y - origin.Y, tz)
-			return { body = { Position = pos } } :: any -- Autopilot only reads body.Position
-		end
 		local xs, zs = {}, {}
 		for i, c in cars do
 			xs[i], zs[i] = flatOf(c)
@@ -608,6 +596,69 @@ function GroupMatch.new(
 			end
 		end
 		return who
+	end
+
+	-- A soccer bot's frame: SoccerBotRules decides (keeper / chaser, boost, ability), the same
+	-- manual drive a player gets carries it out. Level: the lone player's bot level.
+	local function driveSoccerBot(car: CarBuilder.Car, now: number, dt: number)
+		local b = ball
+		if b == nil then
+			return
+		end
+		local team = teamOf(car.idx)
+		local bots: { boolean } = {}
+		for k = 1, teamSize do
+			bots[k] = not isHuman((team - 1) * teamSize + k)
+		end
+		local keeper = SoccerFieldFlow.keeperSlot(bots)
+		local look = car.body.CFrame.LookVector
+		local fwd = Vector3.new(look.X, 0, look.Z)
+		if fwd.Magnitude < 0.1 then
+			return
+		end
+		fwd = fwd.Unit
+		local cx, cz = flatOf(car)
+		local vel = car.body.AssemblyLinearVelocity
+		local bvel = b.AssemblyLinearVelocity
+		local rival = enemyOf(car)
+		local rx, rz = 0, 0
+		if rival then
+			rx, rz = flatOf(rival)
+		end
+		local ability = Specials.abilityOf(car)
+		local state = moveStates[car.idx]
+		local mem = botMem[car.idx]
+		if mem == nil then
+			mem = SoccerBotRules.newMemory()
+			botMem[car.idx] = mem
+		end
+		local out = SoccerBotRules.step(mem, {
+			now = now,
+			seed = car.idx,
+			team = team,
+			isKeeper = keeper ~= 0 and (car.idx - 1) % teamSize + 1 == keeper,
+			x = cx,
+			z = cz,
+			fx = fwd.X,
+			fz = fwd.Z,
+			speed = vel.X * fwd.X + vel.Z * fwd.Z,
+			maxSpeed = car.stats.maxSpeed,
+			bx = b.Position.X - origin.X,
+			bz = b.Position.Z - origin.Z,
+			bvx = bvel.X,
+			bvz = bvel.Z,
+			hasRival = rival ~= nil,
+			rx = rx,
+			rz = rz,
+			boostReady = MovesRules.ready(state.boostAt, MovesConfig.Boost.cooldown, now),
+			specialReady = ability ~= nil and Specials.cooldownLeft(car, now) <= 0,
+			kind = if ability then ability.kind else "",
+			radius = if ability then ability.radius else 0,
+			level = botLevel(),
+			useMoves = GameConfig.Ai.useMoves,
+		}, dt)
+		local mods = BotMoves.apply(car, rival, state, dt, rayParams, out.boost, out.special)
+		Autopilot.stepManual(car, out.steer, out.throttle, dt, rayParams, mods)
 	end
 
 	-- Gives each human the physics of their own car (they drive it); the server drives the rest.
@@ -673,7 +724,7 @@ function GroupMatch.new(
 		local driving = not soccerOn or soccerState == "play"
 		for _, car in cars do
 			if driving and not car.dead then
-				local target = targetFor(car)
+				local target = if soccerOn then nil else targetFor(car)
 				local human = isHuman(car.idx)
 				if human and clientDriven[car.idx] then
 					local cap = limitSpeed(car)
@@ -694,8 +745,20 @@ function GroupMatch.new(
 					throttleSmooth[car.idx] = gas
 					local mods = Moves.mods(moveStates[car.idx], car, eased, dt, now)
 					Autopilot.stepManual(car, eased, gas, dt, rayParams, mods)
+				elseif soccerOn then
+					driveSoccerBot(car, now, dt)
 				elseif target then
-					Autopilot.step(car, target, dt, rayParams, origin)
+					local level = botLevel()
+					local botMods = BotMoves.prepare(
+						car,
+						target,
+						moveStates[car.idx],
+						dt,
+						rayParams,
+						origin,
+						level
+					)
+					Autopilot.step(car, target, dt, rayParams, origin, level, botMods)
 				end
 			end
 		end

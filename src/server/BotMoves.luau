@@ -72,4 +72,30 @@ function BotMoves.prepare(
 	return Moves.mods(state, car, 0, dt, now)
 end
 
+-- Soccer bots decide in shared/SoccerBotRules; this presses what it asked for and returns the
+-- move modifiers for this frame. Honours GameConfig.Ai.useMoves like prepare().
+function BotMoves.apply(
+	car: CarBuilder.Car,
+	enemy: CarBuilder.Car?,
+	state: Moves.State,
+	dt: number,
+	rayParams: RaycastParams,
+	wantBoost: boolean,
+	wantSpecial: boolean
+): Autopilot.Mods?
+	if not GameConfig.Ai.useMoves or car.dead then
+		return nil
+	end
+	local now = os.clock()
+	if enemy then
+		if wantBoost then
+			Moves.press(state, "boost", car, enemy, rayParams, now)
+		end
+		if wantSpecial then
+			Moves.press(state, "special", car, enemy, rayParams, now)
+		end
+	end
+	return Moves.mods(state, car, 0, dt, now)
+end
+
 return BotMoves
