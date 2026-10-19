@@ -11,6 +11,7 @@ local RaceTrack = require(ReplicatedStorage.Shared.RaceTrack)
 local RaceTrackConfig = require(ReplicatedStorage.Shared.RaceTrackConfig)
 
 local Arena = require(script.Parent.Arena)
+local ModeDecor = require(script.Parent.ModeDecor)
 
 local RaceArena = {}
 
@@ -165,6 +166,8 @@ function RaceArena.build(origin: Vector3): Arena.Arena
 			wedge.Parent = model
 		end
 	end
+
+	ModeDecor.race(model, origin)
 
 	model.Parent = workspace
 	local center = at(start.x, 0, start.z)

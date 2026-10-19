@@ -14,6 +14,7 @@ local SoccerFieldConfig = require(ReplicatedStorage.Shared.SoccerFieldConfig)
 
 local Arena = require(script.Parent.Arena)
 local LobbyDecor = require(script.Parent.LobbyDecor)
+local ModeDecor = require(script.Parent.ModeDecor)
 
 local SoccerArena = {}
 
@@ -136,10 +137,12 @@ function SoccerArena.build(origin: Vector3, pads: boolean?): Arena.Arena
 
 	-- Grass: a base slab (floor top at y = 0) with alternating stripes that look only. The base
 	-- also runs under the goals. Flat slippery ground like the bowl so cars slide a bit.
+	local tag = pads ~= true -- tag plays on the same field with a steel floor, so it does not look like soccer
+	local grass = if tag then ModeDecor.TagFloor else rgb(c.grass)
+	local grassAlt = if tag then ModeDecor.TagFloorAlt else rgb(c.grassAlt)
 	local totalLen = c.length + 2 * c.goalDepth
-	local base =
-		part(model, "Floor", Vector3.new(totalLen, 2, c.width), at(0, -1, 0), rgb(c.grass), true)
-	base.Material = Enum.Material.Grass
+	local base = part(model, "Floor", Vector3.new(totalLen, 2, c.width), at(0, -1, 0), grass, true)
+	base.Material = if tag then Enum.Material.DiamondPlate else Enum.Material.Grass
 	base.CustomPhysicalProperties =
 		PhysicalProperties.new(0.7, GameConfig.Drive.groundFriction, 0.1, 1, 1)
 	local stripeLen = c.length / c.stripes
@@ -150,10 +153,10 @@ function SoccerArena.build(origin: Vector3, pads: boolean?): Arena.Arena
 				"Stripe",
 				Vector3.new(stripeLen, 0.1, c.width),
 				at(-c.length / 2 + stripeLen * (i + 0.5), 0.03, 0),
-				rgb(c.grassAlt),
+				grassAlt,
 				false
 			)
-			s.Material = Enum.Material.Grass
+			s.Material = if tag then Enum.Material.DiamondPlate else Enum.Material.Grass
 		end
 	end
 
@@ -187,7 +190,7 @@ function SoccerArena.build(origin: Vector3, pads: boolean?): Arena.Arena
 		"CenterCircleInner",
 		Vector3.new(0.12, c.centerCircleRadius * 2 - lt * 2, c.centerCircleRadius * 2 - lt * 2),
 		at(0, 0.12, 0) * CFrame.Angles(0, 0, math.pi / 2),
-		rgb(c.grass),
+		grass,
 		false
 	)
 	inner.Shape = Enum.PartType.Cylinder
@@ -253,6 +256,8 @@ function SoccerArena.build(origin: Vector3, pads: boolean?): Arena.Arena
 		lid.Transparency = 1
 		lid.CanQuery = false
 	end
+
+	ModeDecor.field(model, origin, tag)
 
 	-- Spots for Studio models (empty on purpose).
 	folder(model, "BallSpawn", origin + Vector3.new(0, c.kickoffLift + c.ballDiameter / 2, 0))
