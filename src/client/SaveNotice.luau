@@ -23,7 +23,7 @@ function SaveNotice.new()
 	label.BackgroundColor3 = Color3.fromRGB(60, 20, 20)
 	label.BackgroundTransparency = 0.25
 	label.TextColor3 = Color3.fromRGB(255, 200, 120)
-	label.Font = Enum.Font.GothamBold
+	label.Font = Enum.Font.FredokaOne
 	label.TextScaled = true
 	label.Text = TEXT
 	label.Visible = false

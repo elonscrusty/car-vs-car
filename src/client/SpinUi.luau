@@ -10,6 +10,7 @@ local Spin = require(ReplicatedStorage.Shared.Spin)
 local SpinConfig = require(ReplicatedStorage.Shared.SpinConfig)
 local Types = require(ReplicatedStorage.Shared.Types)
 local MenuBar = require(script.Parent.MenuBar)
+local UiStyle = require(script.Parent.UiStyle)
 
 local NAVY = Color3.fromRGB(10, 12, 28)
 local PANEL = Color3.fromRGB(18, 22, 48)
@@ -52,7 +53,7 @@ local function label(parent: Instance, text: string, size: UDim2, pos: UDim2): T
 	l.Size = size
 	l.Position = pos
 	l.Text = text
-	l.Font = Enum.Font.GothamBlack
+	l.Font = Enum.Font.FredokaOne
 	l.TextColor3 = WHITE
 	l.TextScaled = true
 	l.Parent = parent
@@ -93,11 +94,12 @@ function SpinUi.new(menu: MenuBar.MenuBar, onAction: (action: string, arg: any?)
 	close.BackgroundColor3 = PINK
 	close.BorderSizePixel = 0
 	close.Text = "X"
-	close.Font = Enum.Font.GothamBlack
+	close.Font = Enum.Font.FredokaOne
 	close.TextColor3 = WHITE
 	close.TextScaled = true
 	close.Parent = panel
 	corner(close, 12)
+	UiStyle.polish(close)
 
 	-- The wheel: a round disc whose labels sit around it, a gold pointer at the top.
 	local wheel =
@@ -136,18 +138,19 @@ function SpinUi.new(menu: MenuBar.MenuBar, onAction: (action: string, arg: any?)
 	spinBtn.BackgroundColor3 = GREEN
 	spinBtn.BorderSizePixel = 0
 	spinBtn.Text = "SPIN!"
-	spinBtn.Font = Enum.Font.GothamBlack
+	spinBtn.Font = Enum.Font.FredokaOne
 	spinBtn.TextColor3 = WHITE
 	spinBtn.TextScaled = true
 	spinBtn.Parent = panel
 	corner(spinBtn, 12)
+	UiStyle.polish(spinBtn)
 
 	-- Odds, always visible (same weights the server rolls with).
 	local odds = Instance.new("TextLabel")
 	odds.BackgroundTransparency = 1
 	odds.Size = UDim2.new(1, -40, 0, 150)
 	odds.Position = UDim2.new(0, 20, 0, 80 + WHEEL + 58 + BTN + 10)
-	odds.Font = Enum.Font.GothamBold
+	odds.Font = Enum.Font.FredokaOne
 	odds.TextColor3 = Color3.fromRGB(190, 200, 220)
 	odds.TextSize = 14
 	odds.TextWrapped = true

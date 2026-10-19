@@ -34,7 +34,7 @@ local function makeCoin(parent: Instance, size: number): Frame
 	sign.Size = UDim2.fromScale(1, 1)
 	sign.Text = "$"
 	sign.TextScaled = true
-	sign.Font = Enum.Font.GothamBlack
+	sign.Font = Enum.Font.FredokaOne
 	sign.TextColor3 = Color3.fromRGB(150, 95, 0)
 	sign.ZIndex = 6
 	sign.Parent = coin

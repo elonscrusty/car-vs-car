@@ -61,7 +61,7 @@ function HitFlash.play(u: any, director: any)
 	label.Rotation = if youHit then -6 else 6
 	label.Text = if strong then "HIT! -" .. tostring(math.floor((u.damage or 0) + 0.5)) else "HIT!"
 	label.TextScaled = true
-	label.Font = Enum.Font.GothamBlack
+	label.Font = Enum.Font.FredokaOne
 	label.TextColor3 = color
 	label.TextStrokeTransparency = 0.1
 	label.Parent = getGui()

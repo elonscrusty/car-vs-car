@@ -82,7 +82,7 @@ function Badge.apply(model: Model, body: BasePart, level: number?)
 	local text = Instance.new("TextLabel")
 	text.BackgroundTransparency = 1
 	text.Size = UDim2.fromScale(1, 1)
-	text.Font = Enum.Font.GothamBlack
+	text.Font = Enum.Font.FredokaOne
 	text.TextScaled = true
 	text.TextColor3 = Color3.fromRGB(20, 20, 30)
 	text.Text = tostring(lv)

@@ -97,7 +97,7 @@ local function label(parent: Instance, text: string, size: UDim2, pos: UDim2): T
 	l.Position = pos
 	l.Text = text
 	l.TextScaled = true
-	l.Font = Enum.Font.GothamBlack
+	l.Font = Enum.Font.FredokaOne
 	l.TextColor3 = WHITE
 	l.TextStrokeTransparency = 0.5
 	l.Parent = parent
@@ -114,7 +114,7 @@ local function wrapLabel(parent: Instance, text: string, color: Color3): TextLab
 	l.Text = text
 	l.TextSize = 16
 	l.TextWrapped = true
-	l.Font = Enum.Font.GothamBold
+	l.Font = Enum.Font.FredokaOne
 	l.TextColor3 = color
 	l.TextXAlignment = Enum.TextXAlignment.Left
 	l.Parent = parent
@@ -145,7 +145,7 @@ local function button(
 	b.BackgroundColor3 = color
 	b.Text = text
 	b.TextScaled = true
-	b.Font = Enum.Font.GothamBlack
+	b.Font = Enum.Font.FredokaOne
 	b.TextColor3 = WHITE
 	b.AutoButtonColor = false
 	b.Parent = parent
@@ -511,7 +511,7 @@ function LobbyUi.new(hooks: Hooks): Handle
 		rar.TextXAlignment = Enum.TextXAlignment.Left
 		rar.ZIndex = 14
 		local b = label(row, stats.blurb, UDim2.new(1, -88, 0, 36), UDim2.fromOffset(76, 62))
-		b.Font = Enum.Font.GothamBold
+		b.Font = Enum.Font.FredokaOne
 		b.TextColor3 = Color3.fromRGB(190, 200, 230)
 		b.TextXAlignment = Enum.TextXAlignment.Left
 		b.TextWrapped = true
@@ -624,7 +624,7 @@ function LobbyUi.new(hooks: Hooks): Handle
 				UDim2.fromScale(0.9, 0.3),
 				UDim2.fromScale(0.05, 0.55)
 			)
-			blurb.Font = Enum.Font.GothamBold
+			blurb.Font = Enum.Font.FredokaOne
 			blurb.ZIndex = 33
 			b.Activated:Connect(function()
 				if choiceSent then

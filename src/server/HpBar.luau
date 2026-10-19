@@ -47,7 +47,7 @@ function HpBar.create(adornee: BasePart, label: string, height: number, color: C
 	name.Size = UDim2.fromScale(1, 1)
 	name.Text = label
 	name.TextColor3 = Color3.new(1, 1, 1)
-	name.Font = Enum.Font.GothamBlack
+	name.Font = Enum.Font.FredokaOne
 	name.TextSize = 16
 	name.TextTruncate = Enum.TextTruncate.AtEnd
 	name.Parent = pill

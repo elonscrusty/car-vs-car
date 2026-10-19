@@ -79,7 +79,7 @@ function Effects.damageNumber(pos: Vector3, damage: number, youHit: boolean, tag
 	local l = Instance.new("TextLabel")
 	l.Size = UDim2.fromScale(1, 1)
 	l.BackgroundTransparency = 1
-	l.Font = Enum.Font.GothamBlack
+	l.Font = Enum.Font.FredokaOne
 	l.TextScaled = true
 	l.Text = if tag then `-{math.floor(damage + 0.5)}\n{tag}` else `-{math.floor(damage + 0.5)}`
 	l.TextColor3 = if youHit then Color3.fromRGB(255, 80, 80) else Color3.fromRGB(255, 220, 60)
