@@ -31,7 +31,7 @@ LobbyLayout.showcase = { x = 0, z = -40, radius = 16, footprint = 40 } -- hero t
 -- front toward +x). w / d are the size before turning.
 LobbyLayout.store = { x = -50, z = 80, w = 20, d = 12, yaw = 90 } -- front left
 LobbyLayout.paint = { x = 50, z = 80, w = 20, d = 12, yaw = -90 } -- front right
-LobbyLayout.gacha = { x = 50, z = -89, w = 14, d = 12 } -- the gumball machine: on the back wall, right corner
+LobbyLayout.gacha = { x = 50, z = -87.5, w = 20, d = 17 } -- the gumball machine: on the back wall, right corner
 -- Garages: one per player, built INTO the side walls: each is a big recessed room with an OPEN front
 -- (a low wall with a wide gap in the middle, so players just walk in). 4 down each side
 -- (1-4 = A1-A4 on the left, 5-8 = B1-B4 on the right). `face` is the way a garage opens
