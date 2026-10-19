@@ -107,3 +107,13 @@ test("screen-relative stick: points where the car should go on screen", function
 	near(math.abs(s), 1)
 	near(g, 0.35)
 end)
+
+test("screen-relative stick: straight-behind U-turn keeps its turn direction", function()
+	-- wanted way is straight behind; tiny sideways wobble must not flip the turn
+	local s1 = Steer.toward(0.02, -1, 0, -1, 0, -1, 0.7, 1)
+	local s2 = Steer.toward(-0.02, -1, 0, -1, 0, -1, 0.7, 1)
+	eq(s1, 1)
+	eq(s2, 1)
+	local s3 = Steer.toward(0.02, -1, 0, -1, 0, -1, 0.7, -1)
+	eq(s3, -1)
+end)
