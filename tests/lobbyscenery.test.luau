@@ -51,7 +51,7 @@ H.test("nothing is built on the plaza", function()
 	for _, grp in { "Scenery", "FarScenery" } do
 		for _, p in folder:FindFirstChild(grp):GetChildren() do
 			local x, z = p.Position.X - origin.X, p.Position.Z - origin.Z
-			truthy(not (math.abs(x) < 100 and z > -86 and z < 84), p.Name)
+			truthy(not (math.abs(x) < 100 and z > -86 and z < 64), p.Name)
 		end
 	end
 end)

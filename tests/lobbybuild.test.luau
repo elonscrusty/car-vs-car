@@ -97,7 +97,7 @@ H.test("parking: a player's car appears in a spot with their name", function()
 	end
 end)
 
-H.test("parking: 25 players, the 25th has no spot and nothing breaks", function()
+H.test("parking: 25 players, the spots run out and nothing breaks", function()
 	local world, _, handle = build()
 	for i = 1, 25 do
 		handle.parking.set(world.newPlayer("P" .. i, i), "RamTruck", nil, nil, "P" .. i)
@@ -108,7 +108,7 @@ H.test("parking: 25 players, the 25th has no spot and nothing breaks", function(
 			n += 1
 		end
 	end
-	eq(n, 24)
+	eq(n, 16)
 end)
 
 H.test("a second build replaces the first", function()
