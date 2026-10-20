@@ -11,14 +11,6 @@
 - Removed: launch aim / start spot rows, momentum (Bounce) as default (`defaultMomentum=false`; code kept for the bot).
 - MAP CONTRACT: `BattleArena` reads spawns from parts named `SpawnA` / `SpawnB` in the arena folder (position + front
   direction); with none it uses the old default spots. Arena size for bots/borders is still `BattleConfig.Arena`.
-- "10x" pass (2026-10-20): BOOST (orange button / Shift / Q, `Human.boost*`, BattleAction "boost"), car attributes
-  Airborne/Drifting/Boosting read by `src/client/BattleFx.luau` (tire smoke, skid marks, flame, landing dust, speed
-  lines, engine sound), heavier shake + FOV kick, final wreck = orbit camera + letterbox + floaty debris
-  (`Timing.koSeconds` 2.6; physics is NOT slowed, only the camera/debris feel). Sound hooks in `SoundConfig` (ids empty).
-- Feel pass (2026-10-20): `BattleCar.driveHuman` (2x accel, tight low-speed turns, drift when steering hard at speed,
-  no forced speed in the air so map ramps launch the car; numbers in `BattleConfig.Human`). Hit juice in `BattleUi`
-  (`handlers.hit`: sparks, debris, damage number, camera shake, red flash when YOU are hit, wreck explosion on the K.O.).
-  Server `hit` message now carries dmg, victim side and ko.
 - Not verified yet: a real phone play, camera at walls (ray pulls it in), ping feel.
 
 
@@ -288,5 +280,8 @@ Not verified in Studio yet: see the PR body.
 ## Battle map "Toy Box Showdown" (new)
 `BattleArena.build` now builds the new map (docs/BATTLE_MAP.md): 200x140, central plateau with ramps, bunkers in front of each spawn, 4 cover blocks, 4 kicker ramps, corner bumpers, checker floor. Spawns are fixed and face each other (`arena.spawnPoint`, spot/aim ignored). Pure data + tests: `BattleMapLayout`, `tests/battlemap.test.luau`. NOT checked by eye in Studio yet; the old AI does not know the new obstacles.
 
-## Battle map upgrade (premium toy look)
-Toy soldiers, ABC blocks with studs, spinner hazard over the plateau (BattleMap.animate), chevrons, start lines, pennants, giant crayons/towers/balls outside. Details in docs/BATTLE_MAP.md. Studio look + spinner push NOT yet checked by eye.
+## Battle map "Toy Room Showdown" (10x upgrade)
+Giant bedroom: play-mat floor, stage with spinner, highway overpasses with sliding blocks, furniture walls (bed, bookshelf, toy chest, window), giant toys outside, lights, dust. See docs/BATTLE_MAP.md. New files: MapDecor, MapParts (server), MapFx (client, turns the big wheel). Spawns are the SpawnA/SpawnB parts. NOT yet seen in Studio.
+
+## Battle map "Toy Room Showdown" (10x upgrade)
+Giant bedroom: play-mat floor, stage with spinner, highway overpasses with sliding blocks, furniture walls (bed, bookshelf, toy chest, window), giant toys outside, lights, dust. See docs/BATTLE_MAP.md. New files: MapDecor, MapParts (server), MapFx (client, turns the big wheel). Spawns are the SpawnA/SpawnB parts. NOT yet seen in Studio.

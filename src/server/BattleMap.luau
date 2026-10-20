@@ -1,99 +1,20 @@
 --!strict
--- Builds the 1v1 battle map "Toy Box Showdown" from `BattleMapLayout` (all numbers live there).
--- Bright toy look: flat colors, chunky pieces, toy-brick studs, alphabet blocks, toy soldiers, a
--- spinner hazard over the center plateau and giant toys outside the walls. The decoration has no
--- collision and no query, so it costs the physics nothing; around 330 parts, built once per match.
+-- Builds the 1v1 battle map "Toy Room Showdown" from `BattleMapLayout` (all numbers live there):
+-- the floor, play-mat road, plateau, highway overpasses, cover, hazards and the ramps. The room
+-- around it (furniture walls, giant toys, lights, dust) is in `MapDecor`. Decoration has no
+-- collision and no query, so it costs the physics nothing.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Layout = require(ReplicatedStorage.Shared.BattleMapLayout)
+local MapDecor = require(script.Parent.MapDecor)
+local MapParts = require(script.Parent.MapParts)
 
 local BattleMap = {}
 
-local function rgb(c: { number }): Color3
-	return Color3.fromRGB(c[1], c[2], c[3])
-end
-
-local function shade(c: { number }, k: number): Color3
-	return Color3.fromRGB(
-		math.clamp(math.floor(c[1] * k), 0, 255),
-		math.clamp(math.floor(c[2] * k), 0, 255),
-		math.clamp(math.floor(c[3] * k), 0, 255)
-	)
-end
-
--- One anchored part. `solid` pieces are hit by cars and stop shells (and go in `solids`); the rest
--- are looks only.
-local function part(
-	parent: Instance,
-	name: string,
-	size: Vector3,
-	cf: CFrame,
-	color: Color3,
-	solid: boolean,
-	solids: { Instance }?
-): Part
-	local p = Instance.new("Part")
-	p.Name = name
-	p.Anchored = true
-	p.Size = size
-	p.CFrame = cf
-	p.Color = color
-	p.Material = Enum.Material.SmoothPlastic
-	p.TopSurface = Enum.SurfaceType.Smooth
-	p.BottomSurface = Enum.SurfaceType.Smooth
-	if solid then
-		if solids then
-			table.insert(solids, p)
-		end
-	else
-		p.CanCollide = false
-		p.CanQuery = false
-		p.CanTouch = false
-		p.CastShadow = false
-	end
-	p.Parent = parent
-	return p
-end
-
--- A cylinder standing up: height `h`, diameter `d`, bottom at y0.
-local function can(
-	parent: Instance,
-	name: string,
-	d: number,
-	h: number,
-	pos: Vector3,
-	color: Color3,
-	solid: boolean,
-	solids: { Instance }?
-): Part
-	local p = part(
-		parent,
-		name,
-		Vector3.new(h, d, d),
-		CFrame.new(pos + Vector3.new(0, h / 2, 0)) * CFrame.Angles(0, 0, math.pi / 2),
-		color,
-		solid,
-		solids
-	)
-	p.Shape = Enum.PartType.Cylinder
-	return p
-end
-
-local function ball(
-	parent: Instance,
-	name: string,
-	d: number,
-	pos: Vector3,
-	color: Color3,
-	solid: boolean,
-	solids: { Instance }?
-): Part
-	local p = part(parent, name, Vector3.new(d, d, d), CFrame.new(pos), color, solid, solids)
-	p.Shape = Enum.PartType.Ball
-	return p
-end
+local rgb, shade, part, can, ball, group =
+	MapParts.rgb, MapParts.shade, MapParts.part, MapParts.can, MapParts.ball, MapParts.group
 
 -- One wedge ramp. Rises toward (dx, dz). The wedge's tall face is believed to be its back (+Z); the
 -- caller checks that with `checkRamp` right after the map is in the workspace, so a wrong guess
@@ -143,138 +64,68 @@ local function checkRamp(w: WedgePart, r: Layout.Ramp, origin: Vector3)
 	end
 end
 
--- Toy-brick studs in a grid on top of a block.
-local function studs(
-	parent: Instance,
-	b: Layout.Box,
-	at: (number, number, number) -> CFrame,
-	nx: number,
-	nz: number
-)
-	local st = Layout.studSize
-	for i = 1, nx do
-		for j = 1, nz do
-			local lx = (i - 0.5) / nx * b.sx - b.sx / 2
-			local lz = (j - 0.5) / nz * b.sz - b.sz / 2
-			local cf = at(b.x, b.sy, b.z)
-				* CFrame.Angles(0, math.rad(b.yawDeg), 0)
-				* CFrame.new(lx, st.height / 2, lz)
-			local s = part(
-				parent,
-				"Stud",
-				Vector3.new(st.height, st.diameter, st.diameter),
-				cf * CFrame.Angles(0, 0, math.pi / 2),
-				shade(b.color, 1.12),
-				false
-			)
-			s.Shape = Enum.PartType.Cylinder
-		end
-	end
-end
-
--- A letter on the side and top of an alphabet block.
-local function letter(p: Part, text: string)
-	for _, face in { Enum.NormalId.Left, Enum.NormalId.Right, Enum.NormalId.Top } do
-		local g = Instance.new("SurfaceGui")
-		g.Face = face
-		g.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-		g.PixelsPerStud = 30
-		g.LightInfluence = 0
-		local t = Instance.new("TextLabel")
-		t.Size = UDim2.fromScale(1, 1)
-		t.BackgroundTransparency = 1
-		t.Text = text
-		t.Font = Enum.Font.FredokaOne
-		t.TextScaled = true
-		t.TextColor3 = Color3.fromRGB(255, 255, 255)
-		t.Parent = g
-		g.Parent = p
-	end
-end
-
--- A chunky toy soldier standing on a base plate. Its footprint is the layout box; the front looks
--- along the box's yaw.
-local function soldier(
-	parent: Instance,
-	b: Layout.Box,
-	at: (number, number, number) -> CFrame,
-	solids: { Instance }
-)
-	local c = Layout.colors
-	local m = Instance.new("Model")
-	m.Name = b.name
-	local base = CFrame.new(at(b.x, 0, b.z).Position) * CFrame.Angles(0, math.rad(b.yawDeg), 0)
-	local function piece(
-		name: string,
-		size: Vector3,
-		off: Vector3,
-		color: Color3,
-		solid: boolean
-	): Part
-		return part(m, name, size, base * CFrame.new(off), color, solid, solids)
-	end
-	local coat = rgb(b.color)
-	piece("Plate", Vector3.new(b.sx, 2, b.sz), Vector3.new(0, 1, 0), rgb(c.blocks[2]), true)
-	piece("LegL", Vector3.new(3.4, 9, 4), Vector3.new(-2.1, 6.5, 0), shade(c.hat, 1.4), true)
-	piece("LegR", Vector3.new(3.4, 9, 4), Vector3.new(2.1, 6.5, 0), shade(c.hat, 1.4), true)
-	piece("Torso", Vector3.new(8.4, 8.5, 5), Vector3.new(0, 15.2, 0), coat, true)
-	piece("Belt", Vector3.new(8.8, 1.2, 5.4), Vector3.new(0, 11.4, 0), rgb(c.white), true)
-	piece("ArmL", Vector3.new(2, 7, 2.6), Vector3.new(-5.3, 15.6, 0), coat, true)
-	piece("ArmR", Vector3.new(2, 7, 2.6), Vector3.new(5.3, 15.6, 0), coat, true)
-	ball(m, "Head", 6.4, (base * CFrame.new(0, 22, 0)).Position, rgb(c.skin), true, solids)
-	local hat =
-		can(m, "Hat", 5.6, 4.6, (base * CFrame.new(0, 22.6, 0)).Position, rgb(c.hat), true, solids)
-	hat.CFrame = base * CFrame.new(0, 25, 0) * CFrame.Angles(0, 0, math.pi / 2)
-	piece("HatBrim", Vector3.new(6.6, 0.6, 6.6), Vector3.new(0, 22.4, 0), rgb(c.hat), false)
-	piece("Badge", Vector3.new(2.2, 2.2, 0.3), Vector3.new(0, 15.6, -2.6), rgb(c.stripes[2]), false)
-	local rifle =
-		piece("Rifle", Vector3.new(1, 1, 15), Vector3.new(4.2, 15.5, -5.5), rgb(c.wood), false)
-	rifle.CFrame = base * CFrame.new(4.2, 15.5, -4.5) * CFrame.Angles(math.rad(-8), 0, 0)
-	m.Parent = parent
-end
-
 function BattleMap.build(folder: Folder, origin: Vector3, solids: { Instance })
-	local halfX, halfZ, h, t = Layout.halfX, Layout.halfZ, Layout.wallHeight, Layout.wallThickness
+	local halfX, halfZ, t = Layout.halfX, Layout.halfZ, Layout.wallThickness
 	local c = Layout.colors
 	local function at(x: number, y: number, z: number): CFrame
 		return CFrame.new(origin + Vector3.new(x, y, z))
 	end
-	local function group(name: string): Folder
-		local f = Instance.new("Folder")
-		f.Name = name
-		f.Parent = folder
-		return f
-	end
 
-	-- floor: a base slab and every other checker tile on top (tiles are looks only)
+	-- floor: wooden boards, a green play-mat on top, a grey road loop with a dashed yellow line
 	local floor = part(
 		folder,
 		"Floor",
 		Vector3.new(halfX * 2 + t * 2, 2, halfZ * 2 + t * 2),
 		at(0, -1, 0),
-		rgb(c.tileA),
+		rgb(c.wood),
 		true,
-		solids
+		solids,
+		Enum.Material.WoodPlanks
 	)
-	floor.Material = Enum.Material.Concrete
-	local tiles = group("Tiles")
-	for _, tile in Layout.tiles() do
+	floor.Name = "Floor"
+	local marks = group(folder, "FloorMarks")
+	part(
+		marks,
+		"MatEdge",
+		Vector3.new(halfX * 2 - 6, 0.05, halfZ * 2 - 6),
+		at(0, 0.025, 0),
+		shade(c.grass, 0.7),
+		false,
+		nil,
+		Enum.Material.Fabric
+	)
+	part(
+		marks,
+		"Mat",
+		Vector3.new(halfX * 2 - 10, 0.07, halfZ * 2 - 10),
+		at(0, 0.04, 0),
+		rgb(c.grass),
+		false,
+		nil,
+		Enum.Material.Fabric
+	)
+	for _, s in Layout.roadStrips() do
 		part(
-			tiles,
-			"Tile",
-			Vector3.new(Layout.tileSize, 0.1, Layout.tileSize),
-			at(tile.x, 0.05, tile.z),
-			rgb(c.tileB),
-			false
+			marks,
+			"Road",
+			Vector3.new(s.sx, 0.09, s.sz),
+			at(s.x, 0.06, s.z),
+			rgb(c.road),
+			false,
+			nil,
+			Enum.Material.Asphalt
 		)
+	end
+	for _, d in Layout.roadDashes() do
+		local size = if d.alongX then Vector3.new(7, 0.11, 1.1) else Vector3.new(1.1, 0.11, 7)
+		part(marks, "Dash", size, at(d.x, 0.075, d.z), rgb(c.dash), false)
 	end
 
 	-- start pads (looks only): red for side A, blue for side B. The fight code reads them as the
 	-- start spots (parts SpawnA / SpawnB); the front of the part is the driving direction.
-	local marks = group("FloorMarks")
 	for side, color in { a = c.padA, b = c.padB } do
 		local x, z, fx, fz = Layout.spawn(side)
-		local pos = origin + Vector3.new(x, 0.07, z)
+		local pos = origin + Vector3.new(x, 0.1, z)
 		part(
 			folder,
 			"Spawn" .. string.upper(side),
@@ -283,107 +134,46 @@ function BattleMap.build(folder: Folder, origin: Vector3, solids: { Instance })
 			rgb(color),
 			false
 		)
-		-- white start line in front of the pad
 		local lx = if side == "a" then -Layout.startLineX else Layout.startLineX
-		part(marks, "StartLine", Vector3.new(1.6, 0.12, 26), at(lx, 0.11, 0), rgb(c.white), false)
+		part(marks, "StartLine", Vector3.new(1.6, 0.12, 26), at(lx, 0.12, 0), rgb(c.white), false)
 	end
 
 	-- chevrons on the floor pointing up the plateau ramps (two thin bars make an arrow)
 	for _, cv in Layout.chevrons() do
 		for _, side in { -1, 1 } do
-			local cf = at(cv.x, 0.12, cv.z + side * 3.2)
+			local cf = at(cv.x, 0.13, cv.z + side * 3.2)
 				* CFrame.Angles(0, math.rad(side * 38 * cv.dir), 0)
-			local bar =
-				part(marks, "Chevron", Vector3.new(8.5, 0.12, 1.7), cf, rgb(c.chevron), false)
-			bar.Material = Enum.Material.Neon
-		end
-	end
-
-	-- walls: dark body, white cap, white base trim and a colored stripe on every 20-stud panel
-	local wallColor = rgb(c.wall)
-	local capColor = rgb(c.white)
-	local walls: { { name: string, size: Vector3, cf: CFrame } } = {
-		{
-			name = "WallN",
-			size = Vector3.new(halfX * 2 + t * 2, h, t),
-			cf = at(0, h / 2, -(halfZ + t / 2)),
-		},
-		{
-			name = "WallS",
-			size = Vector3.new(halfX * 2 + t * 2, h, t),
-			cf = at(0, h / 2, halfZ + t / 2),
-		},
-		{
-			name = "WallW",
-			size = Vector3.new(t, h, halfZ * 2),
-			cf = at(-(halfX + t / 2), h / 2, 0),
-		},
-		{ name = "WallE", size = Vector3.new(t, h, halfZ * 2), cf = at(halfX + t / 2, h / 2, 0) },
-	}
-	for _, w in walls do
-		part(folder, w.name, w.size, w.cf, wallColor, true, solids)
-		local lengthways = w.size.X > w.size.Z
-		part(
-			marks,
-			"WallCap",
-			Vector3.new(
-				w.size.X + (if lengthways then 0 else 1.6),
-				1.2,
-				w.size.Z + (if lengthways then 1.6 else 0)
-			),
-			w.cf * CFrame.new(0, h / 2 + 0.6, 0),
-			capColor,
-			false
-		)
-	end
-	local stripes = group("WallStripes")
-	local pw = Layout.panelWidth
-	for i = 0, halfX * 2 // pw - 1 do
-		local x = -halfX + (i + 0.5) * pw
-		local color = rgb(c.stripes[i % #c.stripes + 1])
-		part(stripes, "StripeN", Vector3.new(pw - 2, 5, 0.4), at(x, 4, -halfZ + 0.2), color, false)
-		part(stripes, "StripeS", Vector3.new(pw - 2, 5, 0.4), at(x, 4, halfZ - 0.2), color, false)
-	end
-	for i = 0, halfZ * 2 // pw - 1 do
-		local z = -halfZ + (i + 0.5) * pw
-		local color = rgb(c.stripes[(i + 1) % #c.stripes + 1])
-		part(stripes, "StripeW", Vector3.new(0.4, 5, pw - 2), at(-halfX + 0.2, 4, z), color, false)
-		part(stripes, "StripeE", Vector3.new(0.4, 5, pw - 2), at(halfX - 0.2, 4, z), color, false)
-	end
-
-	-- pennants strung along both long walls
-	local bunting = group("Bunting")
-	for _, side in { -1, 1 } do
-		part(
-			bunting,
-			"String",
-			Vector3.new(halfX * 2, 0.25, 0.25),
-			at(0, 13.4, side * (halfZ - 0.6)),
-			rgb(c.white),
-			false
-		)
-		for _, b in Layout.bunting() do
-			local color = rgb(c.crayons[b.i % #c.crayons + 1])
 			part(
-				bunting,
-				"Pennant",
-				Vector3.new(4.2, 4.2, 0.25),
-				at(b.x, 11.2, side * (halfZ - 0.6)) * CFrame.Angles(0, 0, math.pi / 4),
-				color,
-				false
+				marks,
+				"Chevron",
+				Vector3.new(8.5, 0.12, 1.7),
+				cf,
+				rgb(c.chevron),
+				false,
+				nil,
+				Enum.Material.Neon
 			)
 		end
 	end
 
-	-- chunky solid pieces: plateau, bunkers, cover blocks, corner bumpers, toy soldiers
-	local deco = group("Details")
+	-- chunky solid pieces: plateau, highway decks, bunkers, cover blocks, corner bumpers, toy soldiers
+	local deco = group(folder, "Details")
 	for _, b in Layout.boxes() do
 		if b.kind == "soldier" then
-			soldier(folder, b, at, solids)
+			MapDecor.soldier(folder, b, at, solids)
 		else
 			local cf = at(b.x, b.sy / 2, b.z) * CFrame.Angles(0, math.rad(b.yawDeg), 0)
-			local p =
-				part(folder, b.name, Vector3.new(b.sx, b.sy, b.sz), cf, rgb(b.color), true, solids)
+			local mat = if b.kind == "highway" then Enum.Material.Concrete else nil
+			local p = part(
+				folder,
+				b.name,
+				Vector3.new(b.sx, b.sy, b.sz),
+				cf,
+				rgb(b.color),
+				true,
+				solids,
+				mat
+			)
 			if b.kind == "plateau" then
 				-- lighter lip on top, darker skirt at the foot, and a glowing red ring in the middle
 				part(
@@ -409,18 +199,49 @@ function BattleMap.build(folder: Folder, origin: Vector3, solids: { Instance })
 					Vector3.new(0.2, d, d),
 					at(0, b.sy + 0.1, 0) * CFrame.Angles(0, 0, math.pi / 2),
 					rgb(c.ring),
-					false
+					false,
+					nil,
+					Enum.Material.Neon
 				)
 				ring.Shape = Enum.PartType.Cylinder
-				ring.Material = Enum.Material.Neon
 				p:SetAttribute("TopY", b.sy)
+			elseif b.kind == "highway" then
+				-- white curbs along both edges, a dashed yellow center line, a darker underside band
+				for _, side in { -1, 1 } do
+					part(
+						deco,
+						"Curb",
+						Vector3.new(b.sx, 0.5, 1),
+						at(b.x, b.sy + 0.25, b.z + side * (b.sz / 2 - 0.5)),
+						rgb(c.white),
+						false
+					)
+				end
+				for k = -4, 4 do
+					part(
+						deco,
+						"DeckDash",
+						Vector3.new(6, 0.12, 0.9),
+						at(b.x + k * 10.5, b.sy + 0.07, b.z),
+						rgb(c.dash),
+						false
+					)
+				end
+				part(
+					deco,
+					"DeckBand",
+					Vector3.new(b.sx + 0.4, 1.8, b.sz + 0.4),
+					at(b.x, 1, b.z),
+					rgb(c.stripes[2]),
+					false
+				)
 			elseif b.kind == "block" then
-				studs(deco, b, at, 2, 2)
+				MapDecor.studs(deco, b, at, 2, 2)
 				if b.letter then
-					letter(p, b.letter)
+					MapDecor.letter(p, b.letter)
 				end
 			elseif b.kind == "bunker" then
-				studs(deco, b, at, 1, 3)
+				MapDecor.studs(deco, b, at, 1, 3)
 				part(
 					deco,
 					"BunkerBand",
@@ -435,7 +256,7 @@ function BattleMap.build(folder: Folder, origin: Vector3, solids: { Instance })
 						deco,
 						"BumperBand",
 						Vector3.new(2.4, b.sy + 0.2, b.sz + 0.3),
-						cf * CFrame.new(k * 7, 0, 0),
+						cf * CFrame.new(k * 6, 0, 0),
 						rgb(c.white),
 						false
 					)
@@ -451,7 +272,8 @@ function BattleMap.build(folder: Folder, origin: Vector3, solids: { Instance })
 		table.insert(wedges, ramp(folder, origin, r, solids))
 	end
 
-	-- the hazard: a spinner arm over the plateau (turned every frame by `BattleMap.animate`)
+	-- hazard one: a spinner arm over the plateau (turned every frame by `BattleMap.animate`)
+	local hazards = group(folder, "Hazards")
 	local sp = Layout.spinner
 	local topY = Layout.plateau.height + sp.clearance
 	local spinner = Instance.new("Model")
@@ -466,7 +288,7 @@ function BattleMap.build(folder: Folder, origin: Vector3, solids: { Instance })
 		true,
 		solids
 	)
-	local arm = part(
+	part(
 		spinner,
 		"Arm",
 		Vector3.new(sp.radius * 2, sp.height, sp.width),
@@ -487,63 +309,30 @@ function BattleMap.build(folder: Folder, origin: Vector3, solids: { Instance })
 		)
 	end
 	spinner.PrimaryPart = hub
-	spinner.Parent = folder
-	arm:SetAttribute("Hazard", true)
+	spinner.Parent = hazards
 
-	-- toy scenery outside the walls (looks only, no collision): crayons, block towers, beach balls
-	local scenery = group("Scenery")
-	for _, pr in Layout.scenery() do
-		local color = rgb(c.crayons[pr.i % #c.crayons + 1])
-		local pos = origin + Vector3.new(pr.x, 0, pr.z)
-		if pr.kind == "crayon" then
-			can(scenery, "Crayon", 8, pr.size, pos, color, false)
-			can(
-				scenery,
-				"CrayonLabel",
-				8.6,
-				pr.size * 0.3,
-				pos + Vector3.new(0, pr.size * 0.3, 0),
-				rgb(c.white),
-				false
-			)
-			can(scenery, "CrayonTip1", 5.4, 4, pos + Vector3.new(0, pr.size, 0), color, false)
-			can(scenery, "CrayonTip2", 2.6, 3, pos + Vector3.new(0, pr.size + 4, 0), color, false)
-		elseif pr.kind == "tower" then
-			for k = 0, 2 do
-				local s = pr.size - k * 3
-				part(
-					scenery,
-					"ToyBlock",
-					Vector3.new(s, s, s),
-					CFrame.new(pos + Vector3.new(0, pr.size * k * 0.95 + s / 2, 0))
-						* CFrame.Angles(0, math.rad(pr.yawDeg + k * 31), 0),
-					rgb(c.crayons[(pr.i + k) % #c.crayons + 1]),
-					false
-				)
-			end
-		elseif pr.kind == "ball" then
-			ball(scenery, "BeachBall", pr.size, pos + Vector3.new(0, pr.size / 2, 0), color, false)
-			can(
-				scenery,
-				"BallBand",
-				pr.size * 0.55,
-				pr.size * 0.9,
-				pos + Vector3.new(0, pr.size * 0.05, 0),
-				rgb(c.white),
-				false
-			)
-		else -- corner flag pole
-			can(scenery, "Pole", 1, pr.size, pos, rgb(c.wall), false)
-			part(
-				scenery,
-				"Flag",
-				Vector3.new(0.4, 6, 10),
-				pos + Vector3.new(0, pr.size - 4, -math.sign(pr.z) * 5),
-				color,
-				false
-			)
+	-- hazard two: red blocks that slide across the highway decks (turned by `BattleMap.animate`)
+	for _, sl in Layout.sliders() do
+		local size = Vector3.new(sl.size[1], sl.size[2], sl.size[3])
+		local base = at(sl.x, sl.baseY + size.Y / 2 + 0.2, sl.z)
+		local p = part(hazards, sl.name, size, base, rgb(c.stripes[1]), true, solids)
+		local band = part(
+			hazards,
+			sl.name .. "Band",
+			Vector3.new(size.X + 0.2, 1.4, size.Z + 0.2),
+			base * CFrame.new(0, size.Y / 2 - 1, 0),
+			rgb(c.white),
+			false
+		)
+		for _, piece in { p, band } do
+			piece:SetAttribute("SlideAmp", sl.amplitude)
+			piece:SetAttribute("SlidePeriod", sl.periodSeconds)
+			piece:SetAttribute("SlidePhase", sl.phase)
 		end
 	end
+
+	-- the room around the arena: furniture walls, bunting, giant toys, lights and dust
+	MapDecor.room(folder, origin, solids)
 
 	return wedges, ramps
 end
@@ -555,21 +344,48 @@ function BattleMap.verify(origin: Vector3, wedges: { WedgePart }, ramps: { Layou
 	end
 end
 
--- Turns the spinner until the arena folder is destroyed.
+-- Turns the spinner and slides the blocks until the arena folder is destroyed. The sliders ride
+-- the highway decks and nudge cars toward the edge; the spinner sweeps the plateau.
 function BattleMap.animate(folder: Folder)
-	local spinner = folder:FindFirstChild("Spinner")
-	if not spinner or not spinner:IsA("Model") then
+	local hazards = folder:FindFirstChild("Hazards")
+	if not hazards then
 		return
 	end
-	local pivot = spinner:GetPivot()
-	local center = pivot.Position
-	local angle = 0
+	local spinner = hazards:FindFirstChild("Spinner")
+	local spinnerPivot: CFrame? = nil
+	local center = Vector3.zero
+	if spinner and spinner:IsA("Model") then
+		spinnerPivot = spinner:GetPivot()
+		center = (spinnerPivot :: CFrame).Position
+	end
+	local sliders: { { part: BasePart, base: CFrame, amp: number, period: number, phase: number } } =
+		{}
+	for _, child in hazards:GetChildren() do
+		local amp = child:GetAttribute("SlideAmp")
+		if child:IsA("BasePart") and type(amp) == "number" then
+			table.insert(sliders, {
+				part = child,
+				base = child.CFrame,
+				amp = amp,
+				period = child:GetAttribute("SlidePeriod") :: number,
+				phase = child:GetAttribute("SlidePhase") :: number,
+			})
+		end
+	end
+	local started = os.clock()
 	local conn: RBXScriptConnection
-	conn = RunService.Heartbeat:Connect(function(dt: number)
-		angle += dt * Layout.spinner.speed
-		spinner:PivotTo(
-			CFrame.new(center) * CFrame.Angles(0, angle, 0) * CFrame.new(-center) * pivot
-		)
+	conn = RunService.Heartbeat:Connect(function()
+		local now = os.clock() - started
+		if spinner and spinner:IsA("Model") and spinnerPivot then
+			local angle = now * Layout.spinner.speed
+			spinner:PivotTo(
+				CFrame.new(center) * CFrame.Angles(0, angle, 0) * CFrame.new(-center) * spinnerPivot
+			)
+		end
+		for _, sl in sliders do
+			local off = sl.amp * math.sin(2 * math.pi * (now / sl.period + sl.phase))
+			sl.part.CFrame = sl.base * CFrame.new(0, 0, off)
+		end
 	end)
 	folder.Destroying:Connect(function()
 		conn:Disconnect()

@@ -217,4 +217,4 @@ Sim results (tests/battlesim, NOT real physics) show Saw beats Ram and Cannon, R
 Garage performance upgrades and car levels do not apply here. XP, quests and car levels are not wired to this mode.
 Flip `FeatureFlags.battleMode` to false to get the old pad fights back.
 ## Battle map (Toy Box Showdown)
-Fight code: read spawns from `arena.spawnPoint(side)` (or `SpawnA|B` pad parts). Match slots are now 520 studs apart. To change the map, edit numbers in `src/shared/BattleMapLayout.luau`; `lune run tests/run` checks symmetry and clear lanes. Look check in Studio still to do.
+Fight code: read spawns from `arena.spawnPoint(side)` (or `SpawnA|B` pad parts). Match slots are 520 studs apart. The map is now "Toy Room Showdown" (240x160): spawns x = +-100. To change the map, edit numbers in `src/shared/BattleMapLayout.luau`; `lune run tests/run` checks symmetry and clear lanes. Look check in Studio still to do.

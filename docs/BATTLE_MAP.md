@@ -1,29 +1,25 @@
-# Battle map: "Toy Box Showdown"
+# Battle map: "Toy Room Showdown"
 
-200 x 140 studs, walls 16 high, everything built in code (about 130 parts). Numbers live in
-`src/shared/BattleMapLayout.luau`; the server builds it in `src/server/BattleMap.luau`; `BattleArena.build(slot)`
-calls it. Tests: `tests/battlemap.test.luau` (symmetry, clear lanes, ramp slopes, spawns).
+A giant kid's bedroom. The cars fight on a play-mat (green mat, grey road loop, yellow dashes) on a wooden floor.
+240 x 160 studs, walls 18 high, built in code. Numbers: `src/shared/BattleMapLayout.luau` (pure data, tested in
+`tests/battlemap.test.luau`). Builders: `src/server/BattleMap.luau` (floor, solids, ramps, hazards),
+`src/server/MapDecor.luau` (furniture walls, giant toys, lights, dust, soldiers), `src/server/MapParts.luau` (helpers).
+`BattleArena.build(slot)` calls them. Top-down picture: `/mnt/project-files/car-vs-car/map/map-plan-top-down-v2.png`.
 
-Top-down picture: `/mnt/project-files/car-vs-car/map/map-plan-top-down.png`.
+## For the fight code
+- Start spots: parts `SpawnA` (x = -100, faces +x) and `SpawnB` (x = +100, faces -x) in the arena folder; `arena.spawnPoint("a"|"b")` reads them.
+- `arena.solids` = everything collidable (shells stop at it), including the moving hazard parts.
+- Match slots are 520 studs apart.
 
-- Spawns: A at x = -84 facing +x, B at x = +84 facing -x (z = 0). Read them with `arena.spawnPoint("a" | "b")`
-  , or the pad parts `SpawnA` and `SpawnB` (the red and blue pads) in the arena folder
-  (LookVector = driving direction).
-- Center: yellow plateau (7 high) with an orange ramp from each spawn side. North and south faces are sheer drops.
-- Bunkers: a wall 22 wide and 11 high 20 studs in front of each spawn, cover from the opening cannon shot.
-- Four cover blocks and four green kicker ramps in the outer lanes (flank jumps). Four red corner bumpers.
-- `arena.solids` holds every collidable piece (shells stop at them); the checker tiles, stripes and scenery
-  have no collision and no query.
-- Ramps are wedges. After the map is in the workspace `BattleMap.verify` ray-casts each one and flips it if
-  it drops instead of rises (so a wrong guess about wedge direction cannot ship).
-- The old auto-battle AI (BattleBrain) still sees a plain 160x110 box in `BattleConfig.Arena`; it does not know
-  this map. Manual driving does not use it.
+## Pieces
+- STAGE in the middle (7 high) with a ramp from each spawn side, a neon red ring, a **spinner arm** that sweeps its top, sheer drops on the north and south faces.
+- HIGHWAY overpasses along both long sides (10 high): ramps up at both ends, a deck in the middle, white curbs, **red blocks that slide across the deck** and shove cars toward the edge.
+- Bunker in front of each spawn (cover from the opening cannon shot), four alphabet blocks A B C D with toy-brick studs, four toy soldiers by the starts, four corner bumpers.
+- Walls are furniture: north = bed (patchwork quilt, pillows), south = bookshelf, west = toy chest, east = window with sunbeams and curtains.
+- Outside: giant teddy, duck, rocket, crayons, block towers, beach balls, a lamp whose spotlight lights the arena, and a big wheel that turns (turned on each player's own screen by `client/MapFx`, no network cost).
+- Effects: floating dust, gold sparkles over the ring, warm window light. Three emitters, three lights.
 
-## Upgrade pass (premium toy look)
-- Four toy soldiers (cover and landmarks) stand beside each spawn; four alphabet blocks (A B C D, studs on top);
-  bunkers and blocks have toy-brick studs; white bands on bunkers and corner bumpers.
-- HAZARD: a slow spinner arm over the plateau (`Layout.spinner`, turned by `BattleMap.animate`, stops when the arena
-  is destroyed). It shoves cars toward the sheer drop. To switch it off, remove the Spinner model build in `BattleMap`.
-- Floor: cream/blue checker, white start lines, glowing yellow chevrons pointing up the plateau ramps, glowing red ring.
-- Walls: white caps, stripes, and pennant strings on both long walls. Plateau has a light lip and a darker skirt.
-- Outside: giant crayons, block towers, beach balls, corner flags (looks only, no collision).
+## Notes
+- Ramps are wedges; after the map is in the workspace `BattleMap.verify` ray-casts each one and flips it if it drops.
+- Cars drive about 40 studs/s, so long gap jumps are not possible (they fall short); the "big moments" are the drops off the stage and the highway.
+- The old auto-battle AI (BattleBrain) still sees a plain 160x110 box in `BattleConfig.Arena`; manual driving does not use it.
