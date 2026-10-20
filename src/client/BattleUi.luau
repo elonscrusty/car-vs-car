@@ -1,6 +1,7 @@
 --!strict
--- Screens and camera for the 1v1 auto-battle. The server runs everything; this only shows what it
--- sends (BattleUpdate) and sends back taps (BattleAction): queue, select, lock, rematch, leave.
+-- Screens, camera and driving controls for the 1v1 battle. The server runs everything; this shows what it
+-- sends (BattleUpdate) and sends back taps (BattleAction): queue, select, lock, rematch, leave, attack.
+-- You drive your own car (stick or WASD, via SteerInput) and press ATTACK (button, Space, E or F).
 -- Layout uses scale sizes with size limits, so it works on phones and desktops.
 
 local Players = game:GetService("Players")
@@ -10,6 +11,8 @@ local Debris = game:GetService("Debris")
 
 local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local SteerInput = require(script.Parent.SteerInput)
+local UserInputService = game:GetService("UserInputService")
 
 local BattleUi = {}
 
@@ -151,24 +154,14 @@ function BattleUi.start()
 			act("cancel")
 		end
 	)
-	local botMomBtn = button(
-		queueF,
-		"TEST BOT: MOMENTUM",
-		UDim2.fromScale(0.44, 0.2),
-		UDim2.fromScale(0.51, 0.7),
-		Color3.fromRGB(150, 110, 60),
-		function()
-			act("queueBot", "momentum")
-		end
-	)
 	local botBtn = button(
 		queueF,
-		"TEST BOT: STEERING",
+		"TEST BOT",
 		UDim2.fromScale(0.44, 0.2),
 		UDim2.fromScale(0.51, 0.46),
 		Color3.fromRGB(110, 110, 130),
 		function()
-			act("queueBot", "steering")
+			act("queueBot")
 		end
 	)
 	queueF.Visible = false
@@ -386,52 +379,6 @@ function BattleUi.start()
 		end
 	end
 
-	-- opening choice: where the car starts and which way it points
-	local setupSpot, setupAim = 0, 0
-	local setupBtns: { { btn: TextButton, kind: string, value: number } } = {}
-	local function refreshSetup()
-		for _, b in setupBtns do
-			local on = (b.kind == "spot" and b.value == setupSpot)
-				or (b.kind == "aim" and b.value == setupAim)
-			b.btn.BackgroundColor3 = if on then COL_GOOD else Color3.fromRGB(58, 64, 94)
-		end
-	end
-	local function setupGroup(title: string, x: number, kind: string, opts: { { string | number } })
-		label(
-			selectF,
-			title,
-			UDim2.fromScale(0.47, 0.035),
-			UDim2.fromScale(x, 0.645),
-			Color3.fromRGB(190, 200, 225),
-			18
-		)
-		for i, o in opts do
-			local btn = button(
-				selectF,
-				o[1] :: string,
-				UDim2.fromScale(0.15, 0.085),
-				UDim2.fromScale(x + (i - 1) * 0.16, 0.685),
-				Color3.fromRGB(58, 64, 94),
-				function()
-					if locked then
-						return
-					end
-					if kind == "spot" then
-						setupSpot = o[2] :: number
-					else
-						setupAim = o[2] :: number
-					end
-					refreshSetup()
-					act("setup", { spot = setupSpot, aim = setupAim })
-				end
-			)
-			table.insert(setupBtns, { btn = btn, kind = kind, value = o[2] :: number })
-		end
-	end
-	setupGroup("START SPOT", 0.02, "spot", { { "FAR", -1 }, { "MIDDLE", 0 }, { "NEAR", 1 } })
-	setupGroup("LAUNCH AIM", 0.51, "aim", { { "LEFT", 1 }, { "STRAIGHT", 0 }, { "RIGHT", -1 } })
-	refreshSetup()
-
 	lockBtn = button(
 		selectF,
 		"LOCK IN",
@@ -575,8 +522,8 @@ function BattleUi.start()
 	local leaveBtn = button(
 		gui,
 		"LEAVE",
-		UDim2.fromScale(0.14, 0.07),
-		UDim2.fromScale(0.01, 0.91),
+		UDim2.fromScale(0.12, 0.06),
+		UDim2.fromScale(0.01, 0.175),
 		Color3.fromRGB(120, 60, 60),
 		function() end
 	)
@@ -723,9 +670,13 @@ function BattleUi.start()
 	-- the two cars of my arena (found by their side attribute near the arena middle)
 	local carBodies: { BasePart } = {}
 	local carScanT = 0
+	local mySide: string? = nil -- which car is mine ("a" / "b"), from the prep message
+	local myFighter: string? = nil
+	local myBody: BasePart? = nil
 	local function scanCars()
 		local c = arenaCenter
 		carBodies = {}
+		myBody = nil
 		if c == nil then
 			return
 		end
@@ -740,6 +691,9 @@ function BattleUi.start()
 							and (body.Position - c).Magnitude < arenaHalf.Magnitude * 1.5
 						then
 							table.insert(carBodies, body)
+							if mySide ~= nil and m:GetAttribute("BattleSide") == mySide then
+								myBody = body
+							end
 						end
 					end
 				end
@@ -752,6 +706,35 @@ function BattleUi.start()
 		local c = arenaCenter
 		if c == nil then
 			return nil
+		end
+		local mine = myBody
+		if mine ~= nil and mine.Parent ~= nil then
+			-- chase view: behind my own car, looking where it points
+			local H = BattleConfig.Human
+			local lv = mine.CFrame.LookVector
+			local look = Vector3.new(lv.X, 0, lv.Z)
+			if look.Magnitude > 1e-3 then
+				look = look.Unit
+				local focus = mine.Position + Vector3.new(0, 0.3 * carLen, 0)
+				local want = focus
+					- look * (H.camDistL * carLen)
+					+ Vector3.new(0, H.camHeightL * carLen, 0)
+				-- never end up behind a wall: pull the camera in where something is in the way
+				local params = RaycastParams.new()
+				params.FilterType = Enum.RaycastFilterType.Exclude
+				local skip: { Instance } = {}
+				for _, b in carBodies do
+					if b.Parent then
+						table.insert(skip, b.Parent)
+					end
+				end
+				params.FilterDescendantsInstances = skip
+				local hit = workspace:Raycast(focus, want - focus, params)
+				if hit then
+					want = hit.Position + hit.Normal * 1.5
+				end
+				return CFrame.lookAt(want, mine.Position + look * (H.camLookL * carLen))
+			end
 		end
 		local cc = BattleConfig.Camera
 		local pitch = math.rad(cc.pitchDeg)
@@ -831,11 +814,86 @@ function BattleUi.start()
 			cur = target
 		else
 			-- eased, so the camera glides after the pair instead of snapping
-			cur = cur:Lerp(target, math.clamp(BattleConfig.Camera.smooth * dt, 0, 1))
+			local rate = if myBody ~= nil
+				then BattleConfig.Human.camSmooth
+				else BattleConfig.Camera.smooth
+			cur = cur:Lerp(target, math.clamp(rate * dt, 0, 1))
 		end
 		camSmooth = cur
 		camera.CFrame = cur :: CFrame
+		camera.FieldOfView = if myBody ~= nil
+			then BattleConfig.Human.camFov
+			else BattleConfig.Camera.fovDeg
 	end)
+
+	-- ---------- driving: stick / WASD plus the ATTACK button ----------
+	local attackNames: { [string]: string } =
+		{ RamTruck = "CHARGE", CannonVan = "FIRE", SawBuggy = "REV" }
+	local steerInput = SteerInput.new(function(steer: number, gas: number)
+		remotes.Steer:FireServer(steer, gas)
+	end)
+	local driving = false
+	local function doAttack()
+		if driving then
+			act("attack")
+		end
+	end
+	local attackBtn = button(
+		gui,
+		"ATTACK",
+		UDim2.fromScale(0.17, 0.26),
+		UDim2.fromScale(0.81, 0.66),
+		COL_GOOD,
+		doAttack
+	)
+	attackBtn.Visible = false
+	local helpL = label(
+		gui,
+		"Drive with the stick or W A S D. Attack with the big button or Space.",
+		UDim2.fromScale(0.5, 0.05),
+		UDim2.fromScale(0.25, 0.8),
+		COL_TEXT,
+		20
+	)
+	helpL.TextStrokeTransparency = 0.3
+	helpL.Visible = false
+	local helpToken = 0
+	UserInputService.InputBegan:Connect(function(input: InputObject, gp: boolean)
+		if gp or not driving then
+			return
+		end
+		local k = input.KeyCode
+		if k == Enum.KeyCode.Space or k == Enum.KeyCode.E or k == Enum.KeyCode.F then
+			doAttack()
+		end
+	end)
+	local function startDriving()
+		if driving then
+			return
+		end
+		driving = true
+		steerInput.start()
+		attackBtn.Text = attackNames[myFighter or ""] or "ATTACK"
+		attackBtn.BackgroundColor3 = COL_GOOD
+		attackBtn.Visible = true
+		helpToken += 1
+		local mine = helpToken
+		helpL.Visible = true
+		task.delay(6, function()
+			if helpToken == mine then
+				helpL.Visible = false
+			end
+		end)
+	end
+	local function stopDriving()
+		if not driving then
+			return
+		end
+		driving = false
+		steerInput.stop()
+		attackBtn.Visible = false
+		helpL.Visible = false
+	end
 
 	-- ---------- show / hide helpers ----------
 	local function setChampions(on: boolean)
@@ -848,6 +906,7 @@ function BattleUi.start()
 	end
 
 	local function hideAll()
+		stopDriving()
 		for _, f in
 			{ queueF, selectF, prepF, hudF, roundF, resF, leaveBtn, confirmF, eventL, errorL }
 		do
@@ -929,7 +988,6 @@ function BattleUi.start()
 			setChampions(false) -- hide the lobby menus behind the Searching panel
 			queueF.Visible = true
 			botBtn.Visible = m.studioBot == true
-			botMomBtn.Visible = m.studioBot == true
 			qText.Text = "Searching for opponent"
 		else
 			queueF.Visible = false
@@ -987,11 +1045,6 @@ function BattleUi.start()
 		cameraOff()
 	end
 
-	handlers.setup = function(m)
-		setupSpot, setupAim = m.spot, m.aim
-		refreshSetup()
-	end
-
 	handlers.selected = function(m)
 		selectedId = m.id
 		if m.locked then
@@ -1006,12 +1059,13 @@ function BattleUi.start()
 		hideAll()
 		myName = m.me.name
 		oppName = m.opp.name
+		mySide, myFighter, myBody = m.side, m.me.id, nil
 		arenaCenter = Vector3.new(m.arena.x, m.arena.y, m.arena.z)
 		arenaHalf = Vector2.new(m.arena.halfX, m.arena.halfZ)
 		cameraOn()
 		prepMe.Text = "YOU  " .. sideText(m.me)
 		prepOpp.Text = "FOE  " .. sideText(m.opp)
-		prepVsLbl.Text = if m.momentum then "MOMENTUM" else "VS"
+		prepVsLbl.Text = "VS"
 		prepPreview(1, m.me.id, 0.02)
 		prepPreview(2, m.opp.id, 0.78)
 		prepEnd = os.clock() + m.seconds
@@ -1023,6 +1077,7 @@ function BattleUi.start()
 		hideAll()
 		hudF.Visible = true
 		leaveBtn.Visible = true
+		startDriving()
 		midRound.Text = `ROUND {lastRound} OF {BattleConfig.Series.rounds}`
 		midScore.Text = scoreText(lastScore)
 		hudMe.name.Text = myName
@@ -1041,6 +1096,9 @@ function BattleUi.start()
 		setHud(hudMe, m.me, nil)
 		setHud(hudOpp, m.opp, nil)
 		midTime.Text = clock(m.left)
+		attackBtn.BackgroundColor3 = if m.me.ready >= 1
+			then COL_GOOD
+			else Color3.fromRGB(90, 100, 130)
 	end
 
 	handlers.event = function(m)
@@ -1056,6 +1114,7 @@ function BattleUi.start()
 	end
 
 	handlers.roundResult = function(m)
+		stopDriving()
 		hudF.Visible = false
 		eventL.Visible = false
 		lastScore = m.score

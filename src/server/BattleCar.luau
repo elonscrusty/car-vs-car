@@ -31,6 +31,7 @@ export type Car = {
 	standIn: boolean,
 	lastOut: BattleBrain.Output?,
 	lungeT: number, -- momentum: time since the last forward lunge
+	human: boolean, -- a player drives this car (manual driving)
 	momentum: boolean, -- the momentum prototype: launch, skid, rebound, weak steering
 	stats: BattleRecap.Stats, -- what this car's weapon did this round (for the recap)
 	stagger: number, -- > 0 while knocked: the car slides and cannot steer
@@ -216,6 +217,7 @@ function BattleCar.spawn(
 		standIn = standIn,
 		lastOut = nil,
 		stagger = 0,
+		human = false,
 		momentum = false,
 		lungeT = 0,
 		stats = BattleRecap.newStats(),
@@ -335,7 +337,7 @@ function BattleCar.drive(car: Car, out: BattleBrain.Output, dt: number)
 	local rate = if math.abs(want) > math.abs(fwd)
 		then (if car.momentum then mom.accel else mv.accel)
 		else (if car.momentum then mom.brake else mv.brake)
-	if out.state == "charge" then
+	if out.state == "charge" or out.state == "rev" then
 		rate *= 4 -- a charge gets up to speed fast
 	end
 	local step = rate * cruise * dt
