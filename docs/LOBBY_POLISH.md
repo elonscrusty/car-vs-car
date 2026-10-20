@@ -68,7 +68,7 @@ The coin gift (about 30 coins) is granted by the server once per player, when th
 ## Order of work
 Props first (L5), then the tutorial, then the practice yard, then the layout shrink.
 
-## Status (2026-10-20 night, after PR 204, 213 and 215)
+## Status (2026-10-20 night, after PR 204, 213, 215-217, 220 and 221)
 
 IN = built and tested on the fake Roblox. SEEN = also seen in real Studio pictures (PR 204, in
 `/mnt/project-files/car-vs-car/review/lobby204/`). TUTORIAL = built and tested, not seen in Studio yet.
@@ -90,7 +90,7 @@ OTHER = belongs to the "New lobby from picture" thread; not changed here.
 | L12 | IN, TUTORIAL | gas and steer only, no attack button |
 | L13 | IN | `shared/PracticeYard` junkyard (its look will follow the new art style) |
 | L14 | IN | the portal is built on the new player's screen only and removed after |
-| L15 | IN, TUTORIAL | `shared/BubbleLayout`: beside the button, never over the screen middle (`tests/bubblelayout`, `tutorialui`) |
+| L15 | IN, SEEN (tutorial run) | `shared/BubbleLayout`: beside the button, never over the screen middle, and off the other buttons (`avoid`, `tests/bubblelayout`, `tutorialui`) |
 | L16 | IN | SKIP pill from the first bubble |
 | L17 | IN | `TutorialConfig.text`: phone words and PC keys |
 | L18 | IN, TUTORIAL | green line to the gumball, then tap, pull, confirm, reveal, close |
@@ -125,9 +125,27 @@ OTHER = belongs to the "New lobby from picture" thread; not changed here.
 | L59 | IN | client-only portal |
 | L60 | IN | the practice ends by itself or on SKIP; no EXIT button |
 
+## Real Studio run of the tutorial (2026-10-20 21:00, Play as a new player, PC keys)
+
+Pictures and notes: `/mnt/project-files/car-vs-car/review/tutorial213/` (`report.md`, 14 pictures). The
+run was on the code of PR 215 (e91049a); PR 217, 220 and 221 and the bubble fix below came after.
+- Output: no red line, client or server.
+- Seen working: the portal bubble; the yard (Hold W, Smash 0/3 to 2/3); back at the spawn with the green
+  line (clearly visible on the path and on the plaza, weakest where it crosses the white pad ring);
+  Press E at the machine; the claw screen with the free pull; confirm; the new car; the red X; the PLAY
+  step; stepping on a pad (coins 0 to 30, then the waiting screen); SKIP inside the yard (truck gone,
+  back at the spawn, HUD back); Settings > SHOW THE TUTORIAL (starts again at the portal).
+- Found and fixed: the yard camera cut the truck off at the bottom edge at the start (PR 221); the
+  "Click again to spin!" bubble stood on the CANCEL button, and the "A new car! Click DONE" bubble on the
+  button beside DONE (a bubble now keeps off the other buttons on its screen: tests only, not seen again).
+- Not seen: the burst crate, green check and confetti; the gift bubble (it stays 4 s); the rare-pull
+  banner (the pull was only Rare); a phone.
+- Not mine: the new-car picture on the reveal screen is empty (`src/champions/shared/Assets.luau` has
+  no pictures for the three fight cars); the line "PICK A CAR. DRIVE IT AND HIT!" beside PLAY is always on.
+
 Not done or not checked:
-- Real Studio check of the whole tutorial (the Studio helper was asked; pictures go to `review/tutorial213/`).
-- A real phone and a real PC play of the tutorial buttons, bubble sizes, GAS button and stick.
+- A real phone play of the tutorial buttons, bubble sizes, GAS button and stick; the PC run above is the only real one.
+- The Studio helper has still to re-take the yard start and the spin screen with the fixes.
 - No sounds yet (no sound ids).
 - L7, L45, L46 are owned by the other thread.
 - On hold: the texture, color and detail pass. carter dislikes the bright cartoon look and is

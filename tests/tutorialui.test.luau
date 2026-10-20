@@ -120,6 +120,70 @@ H.test("the bubble stands inside the button's own screen, next to it, off the mi
 	truthy(holder:FindFirstChild("Arrow").Visible)
 end)
 
+H.test(
+	"the bubble does not stand on the CANCEL button next to the button it talks about",
+	function()
+		-- the "spin the gumball machine?" box: CANCEL and the green button side by side. A real Studio
+		-- picture showed "Click again to spin!" on top of CANCEL.
+		local e = setup()
+		local box = e.screen("CVC_Champions", {
+			{ name = "CancelPurchase", x = 330, y = 560, w = 300, h = 48 },
+			{ name = "ConfirmPurchase", x = 650, y = 560, w = 300, h = 48 },
+		})
+		e.ui.setView(view("gumballPull", "unused", "top", {
+			targets = { { find = "ConfirmPurchase", text = "Click again to spin!" } },
+		}))
+		e.frames()
+		local holder = e.holder()
+		truthy(holder.Parent == box)
+		local rect = e.bubbleRect(holder)
+		eq(Bubble.overlap(rect, { x = 330, y = 560, w = 300, h = 48 }), 0, "stands on CANCEL")
+		eq(Bubble.overlap(rect, { x = 650, y = 560, w = 300, h = 48 }), 0, "stands on the button")
+		eq(Bubble.overlap(rect, Bubble.centerBox(SCREEN)), 0, "the middle of the screen is clear")
+	end
+)
+
+H.test(
+	"an invisible hit area does not push the bubble away; a hidden button does not count",
+	function()
+		local e = setup()
+		local box = e.screen("CVC_Champions", {
+			{ name = "Pull", x = 650, y = 560, w = 300, h = 48 },
+			{ name = "TouchTarget", x = 330, y = 540, w = 300, h = 90 },
+			{ name = "Hidden", x = 330, y = 560, w = 300, h = 48 },
+		})
+		local hit = box:FindFirstChild("TouchTarget")
+		hit.BackgroundTransparency = 1
+		hit.Text = ""
+		box:FindFirstChild("Hidden").Visible = false
+		e.ui.setView(view("gumballPull", "unused", "top", {
+			targets = { { find = "Pull", text = "Tap here!" } },
+		}))
+		e.frames()
+		local rect = e.bubbleRect(e.holder())
+		-- the first choice for a button on the right: the bubble on its left, over the invisible parts
+		truthy(rect.x + rect.w <= 650, "the bubble stands left of the button: " .. rect.x)
+		truthy(rect.y > 500, "level with the button: " .. rect.y)
+		-- but a button with a picture and no background still counts
+		local icon = e.world.instance("ImageButton")
+		icon.Name = "Icon"
+		icon.BackgroundTransparency = 1
+		icon.Image = "rbxassetid://1"
+		icon.AbsolutePosition = V2.new(330, 560)
+		icon.AbsoluteSize = V2.new(300, 48)
+		icon.Parent = box
+		for _ = 1, 4 do
+			e.world.step(0.2) -- the neighbors are looked for again every 0.12 s
+		end
+		local moved = e.bubbleRect(e.holder())
+		eq(
+			Bubble.overlap(moved, { x = 330, y = 560, w = 300, h = 48 }),
+			0,
+			"stands on the picture button"
+		)
+	end
+)
+
 H.test("a screen with an inset (a top bar) gives the same place: the insets cancel", function()
 	local plain = setup()
 	plain.screen("CVC_ChampionsHud", { { name = "Play", x = 1000, y = 600, w = 200, h = 80 } })
