@@ -216,3 +216,5 @@ All tuning is in `src/shared/BattleConfig.luau` (HP, speeds in L per second, wea
 Sim results (tests/battlesim, NOT real physics) show Saw beats Ram and Cannon, Ram beats Cannon: playtest then tune.
 Garage performance upgrades and car levels do not apply here. XP, quests and car levels are not wired to this mode.
 Flip `FeatureFlags.battleMode` to false to get the old pad fights back.
+## Battle map (Toy Box Showdown)
+Fight code: read spawns from `arena.spawnPoint(side)` (or `SpawnA|B` pad parts). Match slots are now 520 studs apart. To change the map, edit numbers in `src/shared/BattleMapLayout.luau`; `lune run tests/run` checks symmetry and clear lanes. Look check in Studio still to do.

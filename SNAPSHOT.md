@@ -276,3 +276,6 @@ machine + queue + rewards), `BattleCar` (clone, drive, hit regions), `BattleAren
 Client: `BattleUi` (screens + fixed overhead camera). Tests: `tests/battle.test.luau` (+ `battlesim.luau`, a 2D fight sim).
 Models: see `docs/BATTLE_MODELS.md`. Old pads / 4-car fight are bypassed by the flag, code kept.
 Not verified in Studio yet: see the PR body.
+
+## Battle map "Toy Box Showdown" (new)
+`BattleArena.build` now builds the new map (docs/BATTLE_MAP.md): 200x140, central plateau with ramps, bunkers in front of each spawn, 4 cover blocks, 4 kicker ramps, corner bumpers, checker floor. Spawns are fixed and face each other (`arena.spawnPoint`, spot/aim ignored). Pure data + tests: `BattleMapLayout`, `tests/battlemap.test.luau`. NOT checked by eye in Studio yet; the old AI does not know the new obstacles.
