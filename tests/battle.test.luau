@@ -791,6 +791,15 @@ H.test(
 	end
 )
 
+H.test("only the round that ends the match counts as the final knock-out", function()
+	local s = BattleSeries.new()
+	H.eq(BattleSeries.endsMatch(s, "a"), false)
+	BattleSeries.record(s, "a")
+	H.eq(BattleSeries.endsMatch(s, "a"), true)
+	H.eq(BattleSeries.endsMatch(s, "b"), false)
+	H.eq(#s.results, 1) -- nothing was recorded by the question
+end)
+
 H.test("a car past the walls or below the floor is out of the arena", function()
 	H.eq(BattleCrash.outside(0, 0, 1, 85, 40), false)
 	H.eq(BattleCrash.outside(84, -39, 0.5, 85, 40), false)

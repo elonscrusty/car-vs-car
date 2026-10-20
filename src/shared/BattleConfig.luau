@@ -24,6 +24,7 @@ BattleConfig.Timing = {
 	selectSeconds = 8, -- pick a car before each round
 	prepSeconds = 3, -- both cars and weapons are shown
 	fightSeconds = 60, -- longest fight; then the car with more HP (percent) wins
+	koLastSeconds = 4.8, -- same, but when this knock-out ends the whole match: the wreck camera is slow
 	koSeconds = 2.6, -- after a knock-out: cars stop, the loser smokes, then the result shows
 	resultSeconds = 3, -- round result on screen
 	rematchSeconds = 6, -- how long the YOU WIN / YOU LOSE banner stays, then everyone goes back to the lobby
