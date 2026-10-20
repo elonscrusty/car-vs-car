@@ -8,7 +8,7 @@ Every weapon waits 6 seconds. Hits only count at the right moment, so the plan i
 - Then drive in and crash into it while it recovers. A faster car wins a crash.
 
 ## Roof Cannon (Cannon Van, middle)
-- One slow shell, 26 damage, curves a little toward you (auto-aim) and bounces off one wall.
+- One slow shell, 36 damage, curves a little toward you (auto-aim) and bounces off one wall.
 - Counter: shells are slow and easy to follow with the eyes. Move sideways right after you see the shot (the orange line shows where it will go). Get close: the van is weak up close.
 - During its 6 s wait it cannot shoot, so rush it then.
 
