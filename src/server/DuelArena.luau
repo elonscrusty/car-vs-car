@@ -228,7 +228,7 @@ local function markings(folder: Folder, origin: Vector3, teamParts: { [string]: 
 				marks,
 				"ArrowHead",
 				Vector3.new(9, 0.1, 3),
-				base * CFrame.new(3.4, 0, side * 2.6) * yaw(side * 42),
+				base * CFrame.new(-0.3, 0, side * 3) * yaw(side * 42),
 				color,
 				false
 			)
@@ -887,9 +887,15 @@ function DuelArena.build(folder: Folder, origin: Vector3, solids: { Instance }):
 		closedAt[slat] = slat.Position
 	end
 	local function slide(up: boolean)
-		for _, slat in doors do
-			local goal = closedAt[slat] :: Vector3
-				+ (if up then Vector3.new(0, Layout.garage.door, 0) else Vector3.zero)
+		for i, slat in doors do
+			-- open: the slats pile up behind the header over the doorway
+			local goal = if up
+				then Vector3.new(
+					slat.Position.X,
+					origin.Y + Layout.garage.door + 0.4 + ((i - 1) % 6) * 0.4,
+					slat.Position.Z
+				)
+				else closedAt[slat] :: Vector3
 			TweenService:Create(
 				slat,
 				TweenInfo.new(1.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
