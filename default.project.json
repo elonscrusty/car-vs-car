@@ -43,6 +43,11 @@
           "$path": "src/champions/ChampionsClient.client.luau"
         }
       }
+    },
+    "ServerStorage": {
+      "LobbyArchive": {
+        "$path": "archive/lobby_v1"
+      }
     }
   }
 }

@@ -39,7 +39,6 @@ local DriveCar = require(script.DriveCar)
 local MouseSteer = require(script.MouseSteer)
 local SkidFx = require(script.SkidFx)
 local SoundFx = require(script.SoundFx)
-local SteelLobby = require(script.SteelLobby)
 local SteerInput = require(script.SteerInput)
 local TeamIcons = require(script.TeamIcons)
 local WheelFx = require(script.WheelFx)
@@ -80,7 +79,6 @@ local aim: AimInput.AimInput
 local steering: SteerInput.SteerInput
 local driver: DriveCar.DriveCar
 local skids = SkidFx.new()
-task.spawn(SteelLobby.start)
 WheelFx.start()
 local view: Ui.View
 

@@ -6,8 +6,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local LobbyDecor = require(script.Parent.LobbyDecor)
-local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
+local LobbyDecor = require(game:GetService("ServerScriptService").Server.LobbyDecor)
+local LobbyLayout = require(script.Parent.LobbyLayout)
 
 local LobbyGarage = {}
 

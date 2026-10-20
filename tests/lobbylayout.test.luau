@@ -1,52 +1,57 @@
 --!strict
-local Harness = require("./harness")
+local H = require("./harness")
 local LobbyLayout = require("../src/shared/LobbyLayout")
-
-local test, near, truthy, eq = Harness.test, Harness.near, Harness.truthy, Harness.eq
+local eq, near, truthy = H.eq, H.near, H.truthy
 
 print("LobbyLayout")
 
-test("eight garage bays, four on each side", function()
-	eq(#LobbyLayout.bays, 8)
-	local left = 0
-	for _, b in LobbyLayout.bays do
-		if b.face == 1 then
-			left += 1
+H.test("four pads on the ring, none touching", function()
+	local pads = LobbyLayout.pads()
+	eq(#pads, 4)
+	for i = 1, #pads do
+		near(
+			math.sqrt((pads[i].x - LobbyLayout.ring.x) ^ 2 + (pads[i].z - LobbyLayout.ring.z) ^ 2),
+			LobbyLayout.padDist,
+			1e-6
+		)
+		for j = i + 1, #pads do
+			local d = math.sqrt((pads[i].x - pads[j].x) ^ 2 + (pads[i].z - pads[j].z) ^ 2)
+			truthy(d > LobbyLayout.padRadius * 2 + 2, "pads too close")
 		end
 	end
-	eq(left, 4)
 end)
 
-test("garages are named A1-A4 and B1-B4", function()
-	eq(LobbyLayout.bayName(1), "A1")
-	eq(LobbyLayout.bayName(4), "A4")
-	eq(LobbyLayout.bayName(5), "B1")
-	eq(LobbyLayout.bayName(8), "B4")
-end)
-
-test("garages are built into the side walls, in line along the wall", function()
-	local room = LobbyLayout.room
-	for _, b in LobbyLayout.bays do
-		-- The opening (front of the garage) sits on the wall line; the room is behind it.
-		near(math.abs(b.x) - LobbyLayout.bay.w / 2, room.halfW, 1e-9)
-		truthy(math.abs(b.z) + LobbyLayout.bay.d / 2 <= room.halfL)
+H.test("padAt finds the pad you stand on", function()
+	for i, p in LobbyLayout.pads() do
+		eq(LobbyLayout.padAt(p.x, p.z), i)
+		eq(LobbyLayout.padAt(p.x + LobbyLayout.padRadius - 0.5, p.z), i)
 	end
-	for i = 1, 3 do
-		near(LobbyLayout.bays[i + 1].z - LobbyLayout.bays[i].z, LobbyLayout.bay.d, 1e-9)
+	eq(LobbyLayout.padAt(LobbyLayout.ring.x, LobbyLayout.ring.z), nil)
+	eq(LobbyLayout.padAt(0, 60), nil)
+end)
+
+H.test("return spots are not on a pad and stay on the ring", function()
+	for k = 1, 16 do
+		local s = LobbyLayout.returnSpot(k)
+		eq(LobbyLayout.padAt(s.x, s.z, 1), nil)
+		truthy(LobbyLayout.onPlaza(s.x, s.z))
 	end
 end)
 
-test("four pads", function()
-	eq(#LobbyLayout.pads, 4)
-end)
-
-test("everything is inside the room", function()
+H.test("the sheet is 220 x 180 and nothing is outside the plaza", function()
+	eq(LobbyLayout.size.x, 220)
+	eq(LobbyLayout.size.z, 180)
+	eq(LobbyLayout.size.height, 32)
 	for name, r in LobbyLayout.footprints() do
-		truthy(LobbyLayout.insideRoom(r), name .. " outside room")
+		if name ~= "archLeft" and name ~= "archRight" then
+			truthy(LobbyLayout.onPlaza(r.x, r.z), name .. " centre outside plaza")
+		end
 	end
+	local sp = LobbyLayout.spawn
+	truthy(LobbyLayout.onPlaza(sp.x, sp.z))
 end)
 
-test("no footprints overlap (so spawn is not on a pad)", function()
+H.test("no two footprints overlap", function()
 	local list = {}
 	for name, r in LobbyLayout.footprints() do
 		table.insert(list, { name = name, r = r })
@@ -61,31 +66,87 @@ test("no footprints overlap (so spawn is not on a pad)", function()
 	end
 end)
 
-test("spawn faces the stage", function()
-	local dx, dz = LobbyLayout.spawnFacing()
-	near(dx, 0, 1e-9)
-	near(dz, -1, 1e-9)
+H.test("overlap test works", function()
+	truthy(
+		LobbyLayout.overlaps(
+			{ x = 0, z = 0, w = 4, d = 4, yawDeg = 0 },
+			{ x = 3, z = 0, w = 4, d = 4, yawDeg = 0 }
+		)
+	)
+	truthy(
+		not LobbyLayout.overlaps(
+			{ x = 0, z = 0, w = 4, d = 4, yawDeg = 0 },
+			{ x = 5, z = 0, w = 4, d = 4, yawDeg = 0 }
+		)
+	)
+	truthy(
+		not LobbyLayout.overlaps(
+			{ x = 0, z = 0, w = 4, d = 4, yawDeg = 45 },
+			{ x = 5, z = 0, w = 4, d = 4, yawDeg = 0 }
+		)
+	)
 end)
 
-test("showcase platform is smaller than its footprint", function()
-	truthy(LobbyLayout.showcase.radius * 2 <= LobbyLayout.showcase.footprint)
+H.test("spawn is clear of paths blockers and looks at the ring", function()
+	local sp = LobbyLayout.spawn
+	for _, b in LobbyLayout.blockers() do
+		truthy(
+			not LobbyLayout.overlaps(
+				{ x = sp.x, z = sp.z, w = sp.size, d = sp.size, yawDeg = 0 },
+				b
+			),
+			"spawn in a blocker"
+		)
+	end
+	near(LobbyLayout.spawnYaw(), math.pi, 0.01) -- ring is straight ahead (-z)
 end)
 
-test("garages are big, open-fronted and with the store and paint booth past them", function()
-	local bay = LobbyLayout.bay
-	truthy(bay.d >= 40 and bay.w >= 30)
-	truthy(bay.gap >= 10 and bay.gap < bay.d) -- a wide walk-in gap in the low front wall
-	truthy(bay.wallHeight <= 2) -- low enough to hop over anywhere
-	local lastEnd = LobbyLayout.bays[#LobbyLayout.bays].z + bay.d / 2
-	for _, booth in { LobbyLayout.store, LobbyLayout.paint } do
-		truthy(booth.z >= lastEnd, "booth sits past the last garage")
+H.test("24 parking spots, one car each, clear of the front path and the ring", function()
+	local spots = LobbyLayout.parking()
+	eq(#spots, 24)
+	for _, s in spots do
+		truthy(
+			math.abs(s.x) - LobbyLayout.parkingSize.w / 2 > 7 + 2,
+			"spot too near the front path"
+		)
+		truthy(LobbyLayout.onPlaza(s.x, s.z))
+		truthy(
+			math.sqrt((s.x - LobbyLayout.ring.x) ^ 2 + (s.z - LobbyLayout.ring.z) ^ 2)
+				> LobbyLayout.ring.radius + 6
+		)
 	end
 end)
 
-test("the gumball machine stands against the back wall in the right corner", function()
-	local g = LobbyLayout.gacha
-	local room = LobbyLayout.room
-	truthy(g.x > 0, "right side")
-	near(g.z - g.d / 2, -room.halfL + 1, 1.01) -- touching the back wall (a stud for the wall panel)
-	truthy(LobbyLayout.insideRoom(LobbyLayout.footprints().gacha))
+H.test("tire wall leaves the three entrances open", function()
+	local st = LobbyLayout.tireWall()
+	truthy(#st > 60)
+	for _, s in st do
+		truthy(not (s.z == LobbyLayout.plaza.frontZ and math.abs(s.x) < 9))
+		truthy(not (math.abs(s.x) == LobbyLayout.plaza.halfX and s.z > -29 and s.z < 5))
+	end
+end)
+
+H.test("garage mouths and the plaza edge are blocked", function()
+	truthy(#LobbyLayout.blockers() >= 7)
+end)
+
+H.test("scenery is on grass and always the same", function()
+	local a, b = LobbyLayout.scenery(), LobbyLayout.scenery()
+	eq(#a, #b)
+	truthy(#a > 150)
+	for _, s in a do
+		truthy(
+			not (
+					math.abs(s.x) < LobbyLayout.plaza.halfX
+					and s.z < LobbyLayout.plaza.frontZ
+					and s.z > LobbyLayout.plaza.backZ
+				)
+		)
+	end
+end)
+
+H.test("boards stand beside the workshop", function()
+	local w = LobbyLayout.workshop
+	truthy(math.abs(LobbyLayout.boards.weekly.x) > w.w / 2)
+	eq(LobbyLayout.boards.weekly.x, -LobbyLayout.boards.wins.x)
 end)

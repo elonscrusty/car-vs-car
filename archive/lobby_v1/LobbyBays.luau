@@ -5,12 +5,12 @@
 
 local RunService = game:GetService("RunService")
 
-local Appearance = require(script.Parent.Appearance)
+local Appearance = require(game:GetService("ServerScriptService").Server.Appearance)
 local Build = require(game:GetService("ReplicatedStorage").Shared.Build)
 local CarConfig = require(game:GetService("ReplicatedStorage").Shared.CarConfig)
-local CarBuilder = require(script.Parent.CarBuilder)
-local LobbyDecor = require(script.Parent.LobbyDecor)
-local LobbyLayout = require(game:GetService("ReplicatedStorage").Shared.LobbyLayout)
+local CarBuilder = require(game:GetService("ServerScriptService").Server.CarBuilder)
+local LobbyDecor = require(game:GetService("ServerScriptService").Server.LobbyDecor)
+local LobbyLayout = require(script.Parent.LobbyLayout)
 
 local LobbyBays = {}
 
