@@ -321,11 +321,16 @@ end
 -- A wall part the map tags "Bouncy" (the duel arena walls, cover blocks and tires) throws a car back
 -- that runs into it, instead of letting the drive code push it to a dead stop. The car loses a bit
 -- of speed, slides back for a moment and cannot steer meanwhile (the knocked state). No damage.
+-- Every car has the same top speed (spec: only weight and turning differ).
+function BattleCar.topSpeed(_car: Car): number
+	return BattleConfig.Human.topSpeed
+end
+
 local function wallBounce(car: Car, v: Vector3, dt: number): boolean
 	local body = car.body
 	local flat = Vector3.new(v.X, 0, v.Z)
 	local speed = flat.Magnitude
-	if speed < 0.3 * car.fighter.cruiseL * car.L then
+	if speed < 0.3 * BattleCar.topSpeed(car) then
 		return false
 	end
 	local params = RaycastParams.new()
@@ -382,7 +387,7 @@ function BattleCar.drive(car: Car, out: BattleBrain.Output, dt: number)
 	end
 	local fwd = v.X * f.X + v.Z * f.Z
 	local lat = Vector3.new(v.X - f.X * fwd, 0, v.Z - f.Z * fwd)
-	local cruise = car.fighter.cruiseL * car.L
+	local cruise = BattleCar.topSpeed(car)
 	local want = out.drive * cruise
 	if want < 0 then
 		want *= mv.reverseScale
@@ -422,7 +427,7 @@ function BattleCar.driveHuman(car: Car, out: BattleBrain.Output, dt: number, f: 
 	local mv = BattleConfig.Move
 	local H = BattleConfig.Human
 	local body = car.body
-	local cruise = car.fighter.cruiseL * car.L
+	local cruise = BattleCar.topSpeed(car)
 	local yawRate = out.turn * math.rad(car.fighter.turnDeg)
 
 	local params = RaycastParams.new()
@@ -467,6 +472,10 @@ function BattleCar.driveHuman(car: Car, out: BattleBrain.Output, dt: number, f: 
 	car.model:SetAttribute("Drifting", drifting)
 	local sideGrip = if skidding then mv.skidSide elseif drifting then H.driftSide else 8
 	lat *= math.max(0, 1 - sideGrip * dt)
+	local maxSlide = H.slideMaxFrac * cruise
+	if lat.Magnitude > maxSlide then
+		lat = lat.Unit * maxSlide
+	end
 	body.AssemblyLinearVelocity = Vector3.new(f.X * fwd + lat.X, v.Y, f.Z * fwd + lat.Z)
 
 	local turnScale = math.clamp(speedFrac / 0.5 + H.turnMinScale, H.turnMinScale, 1)
