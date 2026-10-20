@@ -1290,11 +1290,11 @@ function BattleUi.start()
 
 	local helpL = label(
 		gui,
-		"Steer with the wheel on the left. GAS is the green button, ATTACK is above it. SPECIAL fills when you hit. PC: W A S D, Space, Q special, H horn.",
-		UDim2.fromScale(0.5, 0.05),
-		UDim2.fromScale(0.25, 0.8),
+		"Wheel steers. GAS is green. ATTACK is above it. PC: W A S D, Space.",
+		UDim2.fromScale(0.5, 0.06),
+		UDim2.fromScale(0.25, 0.92),
 		COL_TEXT,
-		20
+		16
 	)
 	helpL.TextStrokeTransparency = 0.3
 	helpL.Visible = false
