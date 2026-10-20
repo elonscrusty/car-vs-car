@@ -270,7 +270,7 @@ BattleConfig.Human = {
 	driftSide = 3, -- sideways grip while drifting (normal 8: lower = longer slide)
 	driftYawBoost = 1.25, -- the nose swings round faster while drifting
 	airYawScale = 0.35, -- a little steering in the air
-	groundRayL = 0.6, -- grounded when something is this far (in car lengths) below
+	groundRayL = 0.3, -- grounded when something is this far (in car lengths) below
 	boostMult = 1.75, -- BOOST: speed times cruise while it burns
 	boostSeconds = 1.2,
 	boostCooldownSeconds = 5,
