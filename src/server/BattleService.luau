@@ -826,7 +826,10 @@ function BattleService.start(
 			-- about 7 studs and pushing a prop jitters its speed, so a wide position test is the honest one): put it back on the nearest road
 			local drive = if car.lastOut then math.abs(car.lastOut.drive) else 0
 			local foe = if car == a then b else a
-			if drive > 0.3 and car.stagger <= 0 and not BattleCar.bodiesTouch(car, foe) then
+			-- (a wall bounce sets the car's stagger every half second, so stagger must not reset the timer;
+			-- and a duelist circling a close foe is not stuck)
+			local foeFar = (car.body.Position - foe.body.Position).Magnitude > 2.5 * car.L
+			if drive > 0.3 and foeFar and not BattleCar.bodiesTouch(car, foe) then
 				local anchor = stuckAt[car]
 				if anchor == nil or (car.body.Position - anchor).Magnitude > 9 then
 					stuckAt[car] = car.body.Position
