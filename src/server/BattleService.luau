@@ -788,6 +788,7 @@ function BattleService.start(
 	end
 
 	local stuckFor: { [BattleCar.Car]: number } = setmetatable({}, { __mode = "k" }) :: any
+	local stuckAt: { [BattleCar.Car]: Vector3 } = setmetatable({}, { __mode = "k" }) :: any
 	-- cheat checks on device-driven cars: where each was last step, and how many strikes it has
 	local guardPos: { [BattleCar.Car]: Vector3 } = setmetatable({}, { __mode = "k" }) :: any
 	local guardStrikes: { [BattleCar.Car]: number } = setmetatable({}, { __mode = "k" }) :: any
@@ -821,25 +822,31 @@ function BattleService.start(
 		end
 		for _, car in cars do
 			BattleCar.checkFlip(car, dt)
-			-- stuck: gas held but not moving for a while: put the car back on the nearest road
+			-- stuck: gas held but the car stays within 3 studs of one spot for 2.5 s (pushing into a
+			-- prop jitters its speed, so position is the honest test): put it back on the nearest road
 			local drive = if car.lastOut then math.abs(car.lastOut.drive) else 0
-			if
-				drive > 0.3
-				and car.body.AssemblyLinearVelocity.Magnitude < 1.5
-				and car.stagger <= 0
-			then
-				stuckFor[car] = (stuckFor[car] or 0) + dt
-				if stuckFor[car] > 2.5 then
+			local foe = if car == a then b else a
+			if drive > 0.3 and car.stagger <= 0 and not BattleCar.bodiesTouch(car, foe) then
+				local anchor = stuckAt[car]
+				if anchor == nil or (car.body.Position - anchor).Magnitude > 3 then
+					stuckAt[car] = car.body.Position
 					stuckFor[car] = 0
-					local pos, face = arena.rescuePoint(car.body.Position)
-					pos = Vector3.new(pos.X, arena.origin.Y + car.body.Size.Y / 2 + 0.3, pos.Z)
-					local rel = car.body.CFrame:ToObjectSpace(car.model:GetPivot())
-					car.model:PivotTo(CFrame.lookAt(pos, pos + face) * rel)
-					car.body.AssemblyLinearVelocity = Vector3.zero
-					car.body.AssemblyAngularVelocity = Vector3.zero
+				else
+					stuckFor[car] = (stuckFor[car] or 0) + dt
+					if stuckFor[car] > 2.5 then
+						stuckFor[car] = 0
+						stuckAt[car] = nil
+						local pos, face = arena.rescuePoint(car.body.Position)
+						pos = Vector3.new(pos.X, arena.origin.Y + car.body.Size.Y / 2 + 0.3, pos.Z)
+						local rel = car.body.CFrame:ToObjectSpace(car.model:GetPivot())
+						car.model:PivotTo(CFrame.lookAt(pos, pos + face) * rel)
+						car.body.AssemblyLinearVelocity = Vector3.zero
+						car.body.AssemblyAngularVelocity = Vector3.zero
+					end
 				end
 			else
 				stuckFor[car] = 0
+				stuckAt[car] = nil
 			end
 			local lx, lz = arena.toLocal(car.body.Position)
 			-- a car that leaves the arena loses the round: all its HP is gone at once

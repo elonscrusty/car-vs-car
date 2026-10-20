@@ -21,13 +21,13 @@ Layout.ringInner = 120 -- the ring road runs from here to the wall
 Layout.groundSize = 516 -- slots are 520 apart, so neighbours never overlap -- the grass plate under and round everything
 
 Layout.colors = {
-	road = { 150, 160, 178 }, -- light blue-grey: dark cars do not melt into it
+	road = { 124, 136, 160 }, -- light blue-grey: dark cars do not melt into it
 	roadEdgeA = { 245, 130, 32 }, -- orange lane edge
 	roadEdgeB = { 37, 141, 221 }, -- blue lane edge
 	line = { 244, 246, 240 },
 	plaza = { 224, 200, 150 }, -- warm sand
 	plazaDark = { 204, 178, 128 },
-	deck = { 196, 204, 218 },
+	deck = { 138, 150, 176 },
 	deckStripe = { 245, 130, 32 },
 	ramp = { 255, 200, 64 },
 	tunnel = { 120, 128, 146 },
