@@ -304,18 +304,10 @@ local function shopCard(parent, vehicle, state, ctx, x)
 	T.text(card, "Price", T.format(cost) .. " COINS", 48, 261, 149, 34, 22, T.C.white)
 	local isOwned = owned(state, vehicle.Id)
 	local equipped = state.equipped == vehicle.Id
-	local complete = true
-	for _, vehicle in Config.Vehicles do
-		if not owned(state, vehicle.Id) then
-			complete = false
-			break
-		end
-	end
-	local affordable = (state.coins or 0) >= cost and not complete
+	local affordable = (state.coins or 0) >= cost
 	local label = loading(state)
 		or (
-			complete and "YOU HAVE EVERY CAR"
-			or equipped and "EQUIPPED"
+			equipped and "EQUIPPED"
 			or (
 				isOwned and "EQUIP"
 				or (affordable and "BUY" or "NEED " .. T.format(cost - (state.coins or 0)))
@@ -520,10 +512,18 @@ local function renderClaw(root, state, ctx)
 		T.C.gold
 	)
 	local cost = state.clawPrice or Config.ClawPrice
-	local affordable = (state.coins or 0) >= cost
+	local complete = true
+	for _, car in Config.Vehicles do
+		if not owned(state, car.Id) then
+			complete = false
+			break
+		end
+	end
+	local affordable = (state.coins or 0) >= cost and not complete
 	local label = loading(state)
 		or (
-			affordable and "PULL  •  " .. T.format(cost) .. " COINS"
+			complete and "YOU HAVE EVERY CAR"
+			or affordable and "PULL  •  " .. T.format(cost) .. " COINS"
 			or "NEED " .. T.format(cost - (state.coins or 0)) .. " MORE"
 		)
 	local pull = T.button(panel, "PullClaw", label, 15, 407, 352, 52, function()
