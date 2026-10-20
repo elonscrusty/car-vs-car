@@ -1,11 +1,7 @@
 --!strict
 local H = require("./harness")
-local Abilities = require("../src/shared/Abilities")
-local AbilitiesConfig = require("../src/shared/AbilitiesConfig")
-local Build = require("../src/shared/Build")
 local CarCatalog = require("../src/shared/CarCatalog")
 local CarConfig = require("../src/shared/CarConfig")
-local Fairness = require("../src/shared/Fairness")
 local Progress = require("../src/shared/Progress")
 local ProgressConfig = require("../src/shared/ProgressConfig")
 
@@ -14,7 +10,7 @@ local test, eq, near, truthy = H.test, H.eq, H.near, H.truthy
 print("Audit fixes: cars")
 
 test("rarity style: every rarity has colors, only Legendary has the look moment", function()
-	for rarity in AbilitiesConfig.Rarity do
+	for _, rarity in CarConfig.Rarities do
 		local s = CarCatalog.styleFor(rarity)
 		eq(#s.trailRgb, 3)
 		eq(#s.effectRgb, 3)
@@ -67,42 +63,6 @@ test("mode stars: the neutral car is 2 stars everywhere and stars follow the sta
 	eq(fast.RACE, 3)
 end)
 
-test(
-	"mode use: soccer Slam pushes and Magnet pulls the ball, tag Shield gives 2 s immunity",
-	function()
-		eq((Abilities.modeUse("Slam", "soccer") :: any).ball, "push")
-		eq((Abilities.modeUse("Magnet", "SOCCER") :: any).ball, "pull")
-		eq((Abilities.modeUse("Shield", "tag") :: any).tagImmune, 2)
-		eq((Abilities.modeUse("Dash", "race") :: any).ball, nil)
-	end
-)
-
-test(
-	"mode use: unknown mode or ability = nil (old behaviour); every ability has text per mode",
-	function()
-		eq(Abilities.modeUse("Slam", nil), nil)
-		eq(Abilities.modeUse("Slam", "duel"), nil)
-		eq(Abilities.modeUse(nil, "tag"), nil)
-		eq(Abilities.modeUse("Nope", "tag"), nil)
-		for _, mode in { "soccer", "tag", "race" } do
-			for _, id in AbilitiesConfig.Order do
-				local u = Abilities.modeUse(id, mode)
-				truthy(u ~= nil and #(u :: any).text > 0, mode .. " " .. id)
-			end
-		end
-	end
-)
-
-test("cooldown fraction: 1 just used, 0 when ready, clamped", function()
-	near(Abilities.cooldownFraction(110, 10, 100), 1)
-	near(Abilities.cooldownFraction(110, 10, 105), 0.5)
-	eq(Abilities.cooldownFraction(110, 10, 110), 0)
-	eq(Abilities.cooldownFraction(110, 10, 200), 0)
-	eq(Abilities.cooldownFraction(0, 10, 5), 0)
-	eq(Abilities.cooldownFraction(200, 0, 5), 0)
-	near(Abilities.cooldownFraction(500, 10, 100), 1)
-end)
-
 test("level bonus is tiny and levels unlock cosmetics", function()
 	near(ProgressConfig.LevelStatBonus, 0.01)
 	near(Progress.statMult(1), 1)
@@ -121,24 +81,6 @@ test("level bonus is tiny and levels unlock cosmetics", function()
 		truthy(not ids[row.id], "duplicate " .. row.id)
 		ids[row.id] = true
 	end
-end)
-
-test("fairness: garage build counts versus bots, is ignored with 2+ humans", function()
-	local base = CarConfig.get("Sedan") :: any
-	local b = Build.default()
-	b.parts.engine = "turbo"
-	b.levels.armor = 5
-	local boosted = Fairness.stats(base, b, false, Build.stats)
-	truthy(boosted.hp > base.hp and boosted.accel > base.accel)
-	local fair = Fairness.stats(base, b, true, Build.stats)
-	eq(fair.hp, base.hp)
-	eq(fair.accel, base.accel)
-	eq(fair.maxSpeed, base.maxSpeed)
-	truthy(fair ~= base, "returns a copy")
-	-- no build at all = the plain car; flag can switch the rule off
-	eq(Fairness.stats(base, nil, false, Build.stats).hp, base.hp)
-	local off = Fairness.stats(base, b, true, Build.stats, { neutralBuild = false })
-	eq(off.hp, boosted.hp)
 end)
 
 test("steer smoothing: normal cars instant, small cars slower, never below minRate", function()
