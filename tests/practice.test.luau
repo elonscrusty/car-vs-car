@@ -231,6 +231,45 @@ H.test("the camera stays inside the walls", function()
 	H.truthy(eye2.z >= -Layout.half.z + Camera.inset - 1e-6)
 end)
 
+-- The angle (degrees) between the way the camera looks and the way to the car. The view is 70
+-- degrees tall (35 to its edge) and much wider, so a car 30 degrees off the middle is still on screen.
+local function offMiddle(eye: Camera.Vec, look: Camera.Vec, car: Camera.Vec): number
+	local ax, ay, az = look.x - eye.x, look.y - eye.y, look.z - eye.z
+	local bx, by, bz = car.x - eye.x, car.y - eye.y, car.z - eye.z
+	local dot = ax * bx + ay * by + az * bz
+	local len = math.sqrt(ax * ax + ay * ay + az * az) * math.sqrt(bx * bx + by * by + bz * bz)
+	return math.deg(math.acos(math.clamp(dot / len, -1, 1)))
+end
+
+H.test("the car is on screen where it starts, with the wall pulling the camera in", function()
+	local s = Layout.spawn
+	local car: Camera.Vec = { x = s.x, y = 3, z = s.z }
+	local carYaw = math.rad(180 - s.yawDeg) -- yawDeg 0 looks toward -z: atan2(look.X, look.Z) = pi
+	local eye, look = Camera.aim(Camera.new(), car, carYaw, 16, 0.016)
+	-- the start is so near the south wall that the camera is pulled in to a few studs behind the car
+	H.truthy(math.abs(eye.z - car.z) < 0.5 * BattleConfig.Human.camDistL * 16)
+	local off = offMiddle(eye, look, car)
+	H.truthy(off < 30, `the car sits {off} degrees off the middle of the view at the start`)
+end)
+
+H.test("the car stays on screen wherever it is in the yard, whichever way it points", function()
+	local worst, where = 0, ""
+	for xi = -6, 6 do
+		for zi = -5, 5 do
+			for heading = 0, 7 do
+				local car: Camera.Vec = { x = xi * 11, y = 3, z = zi * 10 }
+				local yaw = math.rad(heading * 45)
+				local eye, look = Camera.aim(Camera.new(), car, yaw, 16, 0.016)
+				local off = offMiddle(eye, look, car)
+				if off > worst then
+					worst, where = off, `x {car.x} z {car.z} heading {heading * 45}`
+				end
+			end
+		end
+	end
+	H.truthy(worst < 30, `the car sits {worst} degrees off the middle of the view at {where}`)
+end)
+
 H.test("the camera swings after the nose, never faster than the cap", function()
 	local state = Camera.new()
 	local car: Camera.Vec = { x = 0, y = 3, z = 0 }
