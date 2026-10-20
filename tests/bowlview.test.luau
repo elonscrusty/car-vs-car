@@ -110,6 +110,47 @@ test("sparks: a car scraping round the crusher's base", function()
 	eq(BowlView.scrape(60, 0, 0, 1, 40, CAR_HALF_LEN, CAR_HALF_WID), nil)
 end)
 
+test("sparks start where the bounce turns a car round, a few studs before the tires", function()
+	-- a driven Studio test: the bounce turned every car with its nose 3 to 5 studs from the wall, and
+	-- the sparks (touching = 0.9 studs) never fired in 14 hits
+	local R = BowlLayout.wallRadius
+	for _, gap in { 3.2, 4.4 } do -- the nose, at 60 and at 30 frames a second
+		local s = BowlView.scrape(R - CAR_HALF_LEN - gap, 0, 1, 0, 30, CAR_HALF_LEN, CAR_HALF_WID)
+		truthy(s ~= nil, `nose {gap} studs from the wall`)
+	end
+	-- well clear of it: nothing
+	eq(BowlView.scrape(R - CAR_HALF_LEN - 8, 0, 1, 0, 30, CAR_HALF_LEN, CAR_HALF_WID), nil)
+	-- the same round the crusher's base (a car facing away, its tail near the base)
+	local r = Cr.baseRadius
+	truthy(BowlView.scrape(r + CAR_HALF_LEN + 3.2, 0, 1, 0, 30, CAR_HALF_LEN, CAR_HALF_WID) ~= nil)
+	eq(BowlView.scrape(r + CAR_HALF_LEN + 8, 0, 1, 0, 30, CAR_HALF_LEN, CAR_HALF_WID), nil)
+end)
+
+test(
+	"the camera looks less far ahead when a wall pushed it in, so the car stays on screen",
+	function()
+		local ahead, least, back = 41.6, 8, 35
+		near(BowlView.lookAhead(ahead, back, back, least), ahead, 1e-9) -- in the open: as usual
+		near(BowlView.lookAhead(ahead, 50, back, least), ahead, 1e-9) -- never further than usual
+		near(BowlView.lookAhead(ahead, back / 2, back, least), ahead / 2, 1e-9)
+		near(BowlView.lookAhead(ahead, 0, back, least), least, 1e-9) -- never exactly over the car
+		near(BowlView.lookAhead(ahead, 1, back, least), least, 1e-9)
+		near(BowlView.lookAhead(ahead, 10, 0, least), ahead, 1e-9) -- nothing to compare with
+		near(BowlView.lookAhead(5, 0, back, least), 5, 1e-9) -- a short look stays short
+		-- a camera 42 up and `have` studs behind the car: the car never sits more than 25 degrees below
+		-- the middle of the view (the view is 70 degrees tall, so 35 is its edge). A driven Studio test lost
+		-- the car under the bottom edge with the camera pushed in to 4 studs behind it.
+		for _, have in { 0, 2, 5, 10, 20, 35 } do
+			local a = BowlView.lookAhead(ahead, have, back, least)
+			local below = math.deg(math.atan2(42, have)) - math.deg(math.atan2(42, have + a))
+			truthy(
+				below < 25,
+				`car {below} degrees below the middle with the camera {have} behind it`
+			)
+		end
+	end
+)
+
 test("skid marks: a hard sideways slide at speed, not a straight drive or a slow wobble", function()
 	local top = 42
 	-- straight

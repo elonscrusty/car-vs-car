@@ -190,20 +190,20 @@ function BattleDrive.knockedStep(car: Mover, v: Vector3, dt: number): boolean
 	if car.stagger <= 0 then
 		return false
 	end
-	local mv = BattleConfig.Move
 	car.stagger = math.max(0, car.stagger - dt)
 	car.cmdSpeed = nil
-	local keep = math.max(0, 1 - mv.knockFriction * dt)
 	local body = car.body
 	if car.slide.Magnitude > 0 then
-		-- a wall bounce: hold the slide ourselves so the floor does not stop it in a blink
-		car.slide *= keep
+		-- a wall bounce: hold the slide ourselves so the floor does not stop it in a blink. It slows
+		-- more gently than a crash knock, so the car is thrown a good way back (the cartoon bounce)
+		car.slide *= math.max(0, 1 - BattleConfig.Human.bounceFriction * dt)
 		body.AssemblyLinearVelocity = Vector3.new(car.slide.X, v.Y, car.slide.Z)
 		if car.stagger <= 0 then
 			car.slide = Vector3.zero
 		end
 		return true
 	end
+	local keep = math.max(0, 1 - BattleConfig.Move.knockFriction * dt)
 	body.AssemblyLinearVelocity = Vector3.new(v.X * keep, v.Y, v.Z * keep)
 	return true
 end

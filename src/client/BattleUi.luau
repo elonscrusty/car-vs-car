@@ -797,9 +797,8 @@ function BattleUi.start()
 				camYaw, camYawAt = yaw, now
 				look = Vector3.new(math.sin(yaw), 0, math.cos(yaw))
 				local focus = mine.Position + Vector3.new(0, 0.3 * carLen, 0)
-				local want = focus
-					- look * ((H.camDistL + H.camCloseExtraL * foeCloseness()) * carLen)
-					+ Vector3.new(0, H.camHeightL * carLen, 0)
+				local back = (H.camDistL + H.camCloseExtraL * foeCloseness()) * carLen
+				local want = focus - look * back + Vector3.new(0, H.camHeightL * carLen, 0)
 				-- and always stay INSIDE the arena walls: a camera above a low wall would look
 				-- over it and the wall would hide the car (a car that starts next to a wall)
 				local inset = 9
@@ -837,7 +836,11 @@ function BattleUi.start()
 				if hit then
 					want = hit.Position + hit.Normal * 1.5
 				end
-				return CFrame.lookAt(want, mine.Position + look * (H.camLookL * carLen))
+				-- a camera a wall pushed in (a car backed against the tires) looks less far ahead, or the
+				-- car would slide under the bottom of the screen
+				local have = Vector3.new(want.X - focus.X, 0, want.Z - focus.Z).Magnitude
+				local ahead = BowlView.lookAhead(H.camLookL * carLen, have, back, 0.5 * carLen)
+				return CFrame.lookAt(want, mine.Position + look * ahead)
 			end
 		end
 		local cc = BattleConfig.Camera
