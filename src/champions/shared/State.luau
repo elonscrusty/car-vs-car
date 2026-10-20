@@ -346,6 +346,9 @@ function State.validateAction(state, action, payload, now)
 			if (state.owned or {})[id] then
 				return nil, "You already own this car."
 			end
+			if not Config.CoinSales then
+				return nil, "New cars come from the gumball machine."
+			end
 			local price = (state.prices or {})[id] or Config.ById[id].Price
 			if state.coins == nil or state.coins < price then
 				return nil, "Not enough coins."

@@ -42,6 +42,7 @@ local GACHA_ERRORS: { [string]: string } = {
 local STORE_ERRORS: { [string]: string } = {
 	coins = "NOT ENOUGH COINS",
 	owned = "YOU ALREADY OWN THIS CAR",
+	gumball = "NEW CARS COME FROM THE GUMBALL MACHINE",
 	unknown = "THIS CAR IS NOT FOR SALE",
 	loading = "LOADING YOUR DATA",
 	busy = "TRY AGAIN IN A MOMENT",

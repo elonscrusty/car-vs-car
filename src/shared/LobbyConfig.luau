@@ -82,6 +82,9 @@ LobbyConfig.NextGoal = { nearCoins = 60 }
 LobbyConfig.Store = {
 	prices = { Common = 150, Rare = 400, Epic = 1000, Legendary = 2500 } :: { [string]: number },
 	defaultPrice = 400, -- for a car whose rarity has no price
+	-- carter: a new car comes ONLY from the gumball machine. While false the shop shows the cars but
+	-- the server refuses every coin buy (reason "gumball"). The prices stay for the day it opens.
+	coinSales = false,
 }
 
 return LobbyConfig

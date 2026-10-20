@@ -138,6 +138,8 @@ function LobbyText.storeErrorText(reason: string): string
 		return "Not enough coins"
 	elseif reason == "owned" then
 		return "Already yours"
+	elseif reason == "gumball" then
+		return "New cars come from the gumball machine"
 	elseif reason == "busy" then
 		return "Finish your match first"
 	end

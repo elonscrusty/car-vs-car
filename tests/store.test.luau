@@ -7,6 +7,8 @@ local Store = require("../src/shared/Store")
 
 print("Store")
 
+LobbyConfig.Store.coinSales = true -- the rules below are for the day the shop sells cars again
+
 H.test("every car has a positive price by rarity", function()
 	for _, id in CarConfig.Order do
 		H.truthy(Store.price(id) > 0, id)
@@ -56,3 +58,18 @@ H.test("failed buys change nothing", function()
 	H.eq(p.coins, 5)
 	H.eq(#Inventory.ownedList(p), 1)
 end)
+
+H.test("coin sales are off by default: every buy is refused, nothing changes", function()
+	LobbyConfig.Store.coinSales = false
+	local p = Inventory.default()
+	p.coins = 5000
+	local ok, reason = Store.canBuy(p, "Semi")
+	H.eq(ok, false)
+	H.eq(reason, "gumball")
+	H.eq(Store.buy(p, "Semi"), false)
+	H.eq(p.coins, 5000)
+	H.eq(#Inventory.ownedList(p), 1)
+	LobbyConfig.Store.coinSales = true
+end)
+
+LobbyConfig.Store.coinSales = false
