@@ -14,10 +14,7 @@ local spinning: { [Model]: { base: CFrame, center: Vector3, speed: number } } = 
 
 local waving: { [Model]: { { part: BasePart, base: CFrame, k: number } } } = {}
 
-local function addWave(inst: Instance)
-	if not inst:IsA("Model") then
-		return
-	end
+local function collectStrips(inst: Instance): { { part: BasePart, base: CFrame, k: number } }
 	local strips = {}
 	for _, c in inst:GetChildren() do
 		local n = tonumber(string.match(c.Name, "^Strip(%d+)$"))
@@ -25,7 +22,14 @@ local function addWave(inst: Instance)
 			table.insert(strips, { part = c, base = c.CFrame, k = n })
 		end
 	end
-	waving[inst] = strips
+	return strips
+end
+
+local function addWave(inst: Instance)
+	if not inst:IsA("Model") then
+		return
+	end
+	waving[inst] = collectStrips(inst)
 end
 
 local function add(inst: Instance)
@@ -60,6 +64,11 @@ function MapFx.start()
 		local t = os.clock()
 		for model, strips in waving do
 			if model.Parent then
+				if #strips < 5 then
+					-- the strips may still be streaming in: look again until all five are here
+					strips = collectStrips(model)
+					waving[model] = strips
+				end
 				for _, st in strips do
 					st.part.CFrame = st.base
 						* CFrame.new(math.sin(t * 4 - st.k * 0.9) * 0.16 * st.k, 0, 0)

@@ -329,7 +329,7 @@ local function wallBounce(car: Car, v: Vector3, dt: number): boolean
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = { car.model }
-	local reach = body.Size.Z / 2 + speed * dt * 1.5 + 0.5
+	local reach = body.Size.Z / 2 + math.max(speed * dt * 3, 3) + 1
 	local hit = workspace:Raycast(body.Position, flat.Unit * reach, params)
 	if hit == nil or not CollectionService:HasTag(hit.Instance, "Bouncy") then
 		return false
