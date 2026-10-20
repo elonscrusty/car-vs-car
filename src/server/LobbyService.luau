@@ -896,8 +896,8 @@ function LobbyService.start(deps: Deps): Handle
 			return
 		end
 		local r = Gacha.pull(p, rng)
-		Telemetry.clawPull(player)
-		Telemetry.carAcquired(player, "claw")
+		Telemetry.gumballPull(player)
+		Telemetry.carAcquired(player, "gumball")
 		Profiles.markDirty(player)
 		Profiles.saveNow(player)
 		-- The prize is decided now; the claw machine plays its grab, then the result shows.
@@ -1116,7 +1116,6 @@ function LobbyService.start(deps: Deps): Handle
 			elseif action == "setMode" then
 				if modeLimiter.allow(player, os.clock()) and Modes.isPick(arg) then
 					modePref[player] = arg
-					Telemetry.modePicked(player, arg)
 					sendProfile(player)
 				end
 			elseif action == "claimQuest" then

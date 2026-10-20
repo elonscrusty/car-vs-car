@@ -14,18 +14,13 @@ local TelemetryRules = require(ReplicatedStorage.Shared.TelemetryRules)
 
 type Active = {
 	startedAt: number,
-	mode: string,
+	car: string,
 	vsBot: boolean,
-	launchedAt: number?,
 	hit: boolean,
-	scored: boolean,
-	eliminatedAt: number?,
 }
 
 local state = TelemetryRules.new()
-local active: { [Player]: Active } = {} -- the match this player is in (until the end screen)
-local joinedAt: { [Player]: number } = {}
-local lastMode: { [Player]: string } = {} -- mode of the player's latest match (for rematch_tapped)
+local active: { [Player]: Active } = {} -- the fight this player is in (until its result)
 local enabled = not RunService:IsStudio()
 
 local Telemetry = {}
@@ -59,180 +54,80 @@ local function event(player: Player, name: string, data: { [string]: any }?)
 end
 
 function Telemetry.joined(player: Player)
-	joinedAt[player] = os.clock()
 	step(player, "joined")
-end
-
--- First steer/move input of the visit (call on every input; only the first one logs).
-function Telemetry.firstInput(player: Player)
-	local t = joinedAt[player]
-	if t == nil then
-		return
-	end
-	local n = TelemetryRules.claimStep(state, player.UserId, "first_input")
-	if n then
-		send(function()
-			AnalyticsService:LogOnboardingFunnelStepEvent(player, n, "first_input")
-		end)
-		event(player, "first_input", { seconds = os.clock() - t })
-	end
-end
-
--- First goal (soccer), tag (tag) or finish (race) of the visit. kind: goal, tag or finish.
-function Telemetry.firstScore(player: Player, kind: string)
-	local a = active[player]
-	if a and not a.scored then
-		a.scored = true
-		step(player, "first_score")
-		event(player, "first_score", {
-			seconds = os.clock() - a.startedAt,
-			mode = a.mode,
-			kind = kind,
-		})
-	end
-end
-
--- The player was eliminated (tag, last standing) but the match goes on without them.
-function Telemetry.eliminated(player: Player)
-	local a = active[player]
-	if a and a.eliminatedAt == nil then
-		a.eliminatedAt = os.clock()
-	end
 end
 
 function Telemetry.padStepped(player: Player)
 	step(player, "stepped_on_pad")
 end
 
--- A match begins for these players. Group modes have no aiming, so they count as launched now.
-function Telemetry.matchStarted(players: { { player: Player } }, mode: string, isGroup: boolean)
+-- A fight (a whole match) begins for these players: the first round just started. `car` = their car id.
+function Telemetry.fightStarted(players: { { player: Player, car: string } }, vsBot: boolean)
 	local now = os.clock()
 	for _, part in players do
 		local p = part.player
-		active[p] = {
-			startedAt = now,
-			mode = mode,
-			vsBot = #players == 1,
-			launchedAt = if isGroup then now else nil,
-			hit = false,
-			scored = false,
-		}
-		lastMode[p] = mode
+		active[p] = { startedAt = now, car = part.car, vsBot = vsBot, hit = false }
 		if TelemetryRules.countMatch(state, p.UserId) == 2 then
 			step(p, "started_second_match")
 		end
-		if isGroup then
-			step(p, "launched")
-		end
+		step(p, "launched")
+		event(p, "fight_start", { car = part.car, vs_bot = vsBot })
 	end
 end
 
-function Telemetry.launched(player: Player)
-	local a = active[player]
-	if a and a.launchedAt == nil then
-		a.launchedAt = os.clock()
-	end
-	step(player, "launched")
-end
-
--- First damage of a match, for the players in it.
-function Telemetry.hit(players: { { player: Player } })
+-- First damage of a fight, for the players in it.
+function Telemetry.hit(players: { Player })
 	local now = os.clock()
-	for _, part in players do
-		local a = active[part.player]
+	for _, p in players do
+		local a = active[p]
 		if a and not a.hit then
 			a.hit = true
-			step(part.player, "first_hit")
-			event(part.player, "time_to_first_hit", {
-				seconds = now - (a.launchedAt or a.startedAt),
-				mode = a.mode,
-			})
+			step(p, "first_hit")
+			event(p, "time_to_first_hit", { seconds = now - a.startedAt, car = a.car })
 		end
 	end
 end
 
--- The win/lose screen went up.
-function Telemetry.endScreen(player: Player)
-	step(player, "saw_end_screen")
-end
-
--- The player stayed through the end screen: the match is finished.
--- `result` is optional and read defensively: place, goals, tags, survivedSeconds (group modes).
-function Telemetry.matchEnded(player: Player, won: boolean, result: any?)
+-- The whole match is decided and the player stayed for the result.
+function Telemetry.fightEnded(player: Player, won: boolean, rounds: number)
 	local a = active[player]
 	active[player] = nil
 	if a == nil then
 		return
 	end
 	step(player, "finished_first_match")
-	event(player, "match_end", {
+	event(player, "fight_end", {
 		seconds = os.clock() - a.startedAt,
-		mode = a.mode,
+		car = a.car,
 		won = won,
-		vs_bot = a.vsBot,
+		rounds = rounds,
 	})
-	if result ~= nil then
-		local r = TelemetryRules.readResult(result)
-		event(player, "match_result", {
-			seconds = os.clock() - a.startedAt,
-			mode = a.mode,
-			place = if r.place then math.floor(r.place) else "",
-			score = if r.score then math.floor(r.score) else "",
-		})
-		if r.survivedSeconds then
-			event(player, "tag_survived", { seconds = r.survivedSeconds, mode = a.mode })
-		end
+end
+
+-- The player left before the match finished. phase: where the match was (TelemetryConfig.FightPhases).
+-- Only counts once a fight had started for them.
+function Telemetry.fightQuit(player: Player, phase: string)
+	local a = active[player]
+	active[player] = nil
+	if a then
+		event(player, "quit_during_fight", { seconds = os.clock() - a.startedAt, phase = phase })
 	end
 end
 
-function Telemetry.rematchTapped(player: Player)
-	local a = active[player]
-	event(player, "rematch_tapped", { mode = if a then a.mode else lastMode[player] })
+-- A gumball pull. Only a pull counts as opening the gumball machine.
+function Telemetry.gumballPull(player: Player)
+	step(player, "opened_gumball")
+	event(player, "gumball_pull", nil)
 end
 
--- source: "claw" (default) or "store". Only a claw pull counts as opening the claw.
-function Telemetry.clawPull(player: Player, source: string?)
-	step(player, "opened_claw")
-	event(player, "claw_pull", { source = source or "claw" })
-end
-
--- A car was obtained: from the claw or bought in the store.
+-- A car was obtained: from the gumball machine or bought in the store.
 function Telemetry.carAcquired(player: Player, source: string)
 	event(player, "car_acquired", { source = source })
 end
 
--- The player picked a lobby mode with the MODE button (name is checked against a fixed list).
-function Telemetry.modePicked(player: Player, mode: string)
-	event(player, "mode_picked", { mode = mode })
-end
-
--- The player tapped LOBBY to leave a match. phase: pad, pick, aim, fight or end (fixed list).
--- seconds = time since their match started (0 when no match is running yet).
-function Telemetry.leftMatch(player: Player, phase: string)
-	local a = active[player]
-	event(player, "left_match", {
-		phase = phase,
-		seconds = if a then os.clock() - a.startedAt else 0,
-	})
-end
-
--- Player leaves the server. Mid-match counts as a quit. Frees their records.
+-- Player leaves the server. Mid-fight counts as a quit. Frees their records.
 function Telemetry.left(player: Player)
-	local a = active[player]
-	active[player] = nil
-	joinedAt[player] = nil
-	lastMode[player] = nil
-	if a then
-		local now = os.clock()
-		event(player, "quit_during_match", { seconds = now - a.startedAt, mode = a.mode })
-		if a.eliminatedAt then
-			event(
-				player,
-				"quit_after_elimination",
-				{ seconds = now - a.eliminatedAt, mode = a.mode }
-			)
-		end
-	end
+	Telemetry.fightQuit(player, "server")
 	TelemetryRules.clear(state, player.UserId)
 end
 

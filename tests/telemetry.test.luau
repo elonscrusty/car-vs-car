@@ -10,31 +10,29 @@ local test, eq = Harness.test, Harness.eq
 
 print("Telemetry rules")
 
-test("funnel has the 10 steps in the agreed order", function()
+test("funnel has the 7 steps in the agreed order", function()
 	local want = {
 		"joined",
-		"first_input",
 		"stepped_on_pad",
 		"launched",
 		"first_hit",
-		"first_score",
 		"finished_first_match",
-		"saw_end_screen",
 		"started_second_match",
-		"opened_claw",
+		"opened_gumball",
 	}
-	eq(#TelemetryConfig.Steps, 10)
+	eq(#TelemetryConfig.Steps, 7)
 	for i, name in want do
 		eq(TelemetryRules.stepNumber(name), i)
 	end
 	eq(TelemetryRules.stepNumber("nope"), nil)
+	eq(TelemetryRules.stepNumber("opened_claw"), nil)
 end)
 
 test("a step is claimed once per player", function()
 	local s = TelemetryRules.new()
-	eq(TelemetryRules.claimStep(s, 1, "launched"), 4)
+	eq(TelemetryRules.claimStep(s, 1, "launched"), 3)
 	eq(TelemetryRules.claimStep(s, 1, "launched"), nil)
-	eq(TelemetryRules.claimStep(s, 2, "launched"), 4)
+	eq(TelemetryRules.claimStep(s, 2, "launched"), 3)
 	eq(TelemetryRules.claimStep(s, 1, "bogus"), nil)
 end)
 
@@ -59,89 +57,88 @@ test("sanitizeField strips odd characters and caps length", function()
 	eq(#TelemetryRules.sanitizeField(string.rep("a", 500)), TelemetryConfig.MaxFieldLength)
 end)
 
-test("match_end carries seconds and 3 string fields", function()
+test("fight_end carries seconds and car, won, rounds", function()
 	local ev = TelemetryRules.buildEvent(
-		"match_end",
-		{ seconds = 42.5, mode = "ice", won = true, vs_bot = false }
+		"fight_end",
+		{ seconds = 42.5, car = "RamTruck", won = true, rounds = 3 }
 	)
 	assert(ev)
 	eq(ev.value, 42.5)
 	local f = assert(ev.fields)
-	eq(f.CustomField01, "ice")
+	eq(f.CustomField01, "RamTruck")
 	eq(f.CustomField02, "true")
-	eq(f.CustomField03, "false")
+	eq(f.CustomField03, "3")
+end)
+
+test("fight_start carries the car and whether the foe was a bot, with no value", function()
+	local ev =
+		assert(TelemetryRules.buildEvent("fight_start", { car = "CannonVan", vs_bot = false }))
+	eq(ev.value, nil)
+	eq(assert(ev.fields).CustomField01, "CannonVan")
+	eq(assert(ev.fields).CustomField02, "false")
 end)
 
 test("values are clamped and bad numbers become 0", function()
-	local a = assert(TelemetryRules.buildEvent("match_end", { seconds = -5 }))
+	local a = assert(TelemetryRules.buildEvent("fight_end", { seconds = -5 }))
 	eq(a.value, 0)
-	local b = assert(TelemetryRules.buildEvent("match_end", { seconds = 1e12 }))
+	local b = assert(TelemetryRules.buildEvent("fight_end", { seconds = 1e12 }))
 	eq(b.value, TelemetryConfig.MaxValue)
-	local c = assert(TelemetryRules.buildEvent("match_end", { seconds = 0 / 0 }))
+	local c = assert(TelemetryRules.buildEvent("fight_end", { seconds = 0 / 0 }))
 	eq(c.value, 0)
-	local d = assert(TelemetryRules.buildEvent("match_end", { seconds = "x" }))
+	local d = assert(TelemetryRules.buildEvent("fight_end", { seconds = "x" }))
 	eq(d.value, 0)
 end)
 
-test("rematch_tapped has no value and carries the mode", function()
-	local ev = assert(TelemetryRules.buildEvent("rematch_tapped", { mode = "soccer" }))
-	eq(ev.value, nil)
-	eq(assert(ev.fields).CustomField01, "soccer")
-end)
-
-test("claw pulls and acquired cars carry an allowlisted source", function()
-	for _, name in { "claw_pull", "car_acquired" } do
-		for _, src in TelemetryConfig.Sources do
-			eq(
-				assert(assert(TelemetryRules.buildEvent(name, { source = src })).fields).CustomField01,
-				src
-			)
-		end
-		local bad = assert(TelemetryRules.buildEvent(name, { source = "a hack" }))
-		eq(assert(bad.fields).CustomField01, "other")
+test("quit_during_fight carries seconds and an allowlisted phase", function()
+	for _, p in TelemetryConfig.FightPhases do
+		local ev =
+			assert(TelemetryRules.buildEvent("quit_during_fight", { phase = p, seconds = 12 }))
+		eq(ev.value, 12)
+		eq(assert(ev.fields).CustomField01, p)
 	end
-end)
-
-test("match_result carries mode, place and score", function()
-	local ev = assert(
-		TelemetryRules.buildEvent(
-			"match_result",
-			{ seconds = 150, mode = "soccer", place = 1, score = 3 }
-		)
+	local bad = assert(
+		TelemetryRules.buildEvent("quit_during_fight", { phase = "Bob<script>", seconds = 3 })
 	)
-	eq(ev.value, 150)
-	local f = assert(ev.fields)
-	eq(f.CustomField01, "soccer")
-	eq(f.CustomField02, "1")
-	eq(f.CustomField03, "3")
-	local none = assert(TelemetryRules.buildEvent("match_result", { mode = "race" }))
-	eq(assert(none.fields).CustomField02, "")
+	eq(assert(bad.fields).CustomField01, "other")
 end)
 
-test("first_score keeps only goal, tag or finish", function()
-	for _, k in TelemetryConfig.ScoreKinds do
+test("time_to_first_hit has seconds and the car; gumball_pull has no fields", function()
+	local ev =
+		assert(TelemetryRules.buildEvent("time_to_first_hit", { seconds = 9, car = "SawBuggy" }))
+	eq(ev.value, 9)
+	eq(assert(ev.fields).CustomField01, "SawBuggy")
+	local g = assert(TelemetryRules.buildEvent("gumball_pull", nil))
+	eq(g.value, nil)
+	eq(g.fields, nil)
+end)
+
+test("cars come from the gumball machine or the store; anything else is other", function()
+	for _, src in TelemetryConfig.Sources do
 		eq(
-			assert(assert(TelemetryRules.buildEvent("first_score", { kind = k })).fields).CustomField02,
-			k
+			assert(assert(TelemetryRules.buildEvent("car_acquired", { source = src })).fields).CustomField01,
+			src
 		)
 	end
 	eq(
-		assert(assert(TelemetryRules.buildEvent("first_score", { kind = "x" })).fields).CustomField02,
+		assert(assert(TelemetryRules.buildEvent("car_acquired", { source = "claw" })).fields).CustomField01,
 		"other"
 	)
 end)
 
-test("readResult tolerates missing or wrong fields", function()
-	eq(TelemetryRules.readResult(nil).place, nil)
-	eq(TelemetryRules.readResult("nope").score, nil)
-	local r = TelemetryRules.readResult({ place = 2, goals = 3, survivedSeconds = 41.5 })
-	eq(r.place, 2)
-	eq(r.score, 3)
-	eq(r.survivedSeconds, 41.5)
-	local t = TelemetryRules.readResult({ tags = 4, place = "1", survivedSeconds = 0 / 0 })
-	eq(t.score, 4)
-	eq(t.place, nil)
-	eq(t.survivedSeconds, nil)
+test("old mode events are gone", function()
+	for _, name in
+		{
+			"match_end",
+			"match_result",
+			"first_score",
+			"mode_picked",
+			"left_match",
+			"rematch_tapped",
+			"claw_pull",
+		}
+	do
+		eq(TelemetryRules.buildEvent(name, {}), nil)
+	end
 end)
 
 test("unknown event names are rejected", function()
@@ -165,40 +162,13 @@ test("global cap blocks after maxEvents and frees after the window", function()
 	eq(TelemetryRules.allow(s, cfg.windowSeconds + 1), true)
 end)
 
-test("mode_picked keeps only allowlisted mode names", function()
-	for _, m in TelemetryConfig.Modes do
-		local ev = assert(TelemetryRules.buildEvent("mode_picked", { mode = m }))
-		eq(ev.value, nil)
-		eq(assert(ev.fields).CustomField01, m)
-	end
-	local bad = assert(TelemetryRules.buildEvent("mode_picked", { mode = "my secret room" }))
-	eq(assert(bad.fields).CustomField01, "other")
-	local missing = assert(TelemetryRules.buildEvent("mode_picked", {}))
-	eq(assert(missing.fields).CustomField01, "other")
-end)
-
-test("left_match carries seconds and an allowlisted phase", function()
-	for _, p in TelemetryConfig.LeavePhases do
-		local ev = assert(TelemetryRules.buildEvent("left_match", { phase = p, seconds = 12 }))
-		eq(ev.value, 12)
-		eq(assert(ev.fields).CustomField01, p)
-	end
-	local bad =
-		assert(TelemetryRules.buildEvent("left_match", { phase = "Bob<script>", seconds = 3 }))
-	eq(assert(bad.fields).CustomField01, "other")
-	local huge =
-		assert(TelemetryRules.buildEvent("left_match", { phase = "fight", seconds = 1e12 }))
-	eq(huge.value, TelemetryConfig.MaxValue)
-end)
-
 test("allowlists are short, clean and fit the field cap", function()
-	for _, list in { TelemetryConfig.Modes, TelemetryConfig.LeavePhases } do
+	for _, list in { TelemetryConfig.FightPhases, TelemetryConfig.Sources } do
 		for _, v in list do
 			eq(TelemetryRules.sanitizeField(v), v)
 			assert(#v <= TelemetryConfig.MaxFieldLength)
 		end
 	end
-	assert(table.find(TelemetryConfig.Modes, "soccer") ~= nil)
 end)
 
 print("Claw double-pull protection (audit #104)")
