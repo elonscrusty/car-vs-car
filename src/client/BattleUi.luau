@@ -168,7 +168,7 @@ function BattleUi.start()
 		UDim2.fromScale(0.51, 0.46),
 		Color3.fromRGB(110, 110, 130),
 		function()
-			act("queueBot")
+			act("queueBot", "steering")
 		end
 	)
 	queueF.Visible = false
