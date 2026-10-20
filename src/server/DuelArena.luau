@@ -71,7 +71,7 @@ local function tires(parent: Instance, pos: Vector3, scale: number, solids: { In
 				rgb(C.metalDark),
 				false,
 				nil,
-				Enum.Material.Metal
+				Enum.Material.SmoothPlastic
 			)
 		end
 	end
@@ -283,7 +283,7 @@ local function walls(folder: Folder, origin: Vector3, solids: { Instance })
 				team,
 				true,
 				solids,
-				Enum.Material.Metal
+				Enum.Material.SmoothPlastic
 			)
 		)
 		-- a metal base and cap, so the module reads as painted metal
@@ -295,7 +295,7 @@ local function walls(folder: Folder, origin: Vector3, solids: { Instance })
 			rgb(C.metal),
 			false,
 			nil,
-			Enum.Material.Metal
+			Enum.Material.SmoothPlastic
 		)
 		part(
 			trim,
@@ -305,7 +305,7 @@ local function walls(folder: Folder, origin: Vector3, solids: { Instance })
 			rgb(C.metal),
 			false,
 			nil,
-			Enum.Material.Metal
+			Enum.Material.SmoothPlastic
 		)
 		-- steady glowing lights on the inner face: two to a straight module, one on a corner piece
 		local face = Vector3.new(w.nx * 0.15, 0, w.nz * 0.15)
@@ -348,7 +348,7 @@ local function blocks(folder: Folder, origin: Vector3, solids: { Instance })
 				rgb(C.metal),
 				true,
 				solids,
-				Enum.Material.Metal
+				Enum.Material.SmoothPlastic
 			)
 		)
 		for i = 0, 3 do
@@ -466,9 +466,9 @@ local function garage(
 		Color3.fromRGB(96, 102, 114),
 		Enum.Material.Concrete
 	)
-	box("Back", 1, gd.h, gd.w, depth / 2, gd.h / 2, 0, dark, Enum.Material.Metal)
+	box("Back", 1, gd.h, gd.w, depth / 2, gd.h / 2, 0, dark, Enum.Material.SmoothPlastic)
 	for _, sv in { -1, 1 } do
-		box("Side", depth, gd.h, 1, 0, gd.h / 2, sv * (gd.w / 2), dark, Enum.Material.Metal)
+		box("Side", depth, gd.h, 1, 0, gd.h / 2, sv * (gd.w / 2), dark, Enum.Material.SmoothPlastic)
 		local post = box(
 			"Post",
 			2,
@@ -478,13 +478,22 @@ local function garage(
 			gd.h / 2,
 			sv * (gd.mouth / 2 + 1),
 			rgb(C.red),
-			Enum.Material.Metal
+			Enum.Material.SmoothPlastic
 		)
 		table.insert(team, post)
 		flag(grp, P(mouthU + 1, 0, sv * (gd.mouth / 2 + 1)), rgb(C.red), sv, team)
 	end
-	local roof =
-		box("Roof", depth + 3, 1.4, gd.w + 3, 0, gd.h + 0.7, 0, rgb(C.red), Enum.Material.Metal)
+	local roof = box(
+		"Roof",
+		depth + 3,
+		1.4,
+		gd.w + 3,
+		0,
+		gd.h + 0.7,
+		0,
+		rgb(C.red),
+		Enum.Material.SmoothPlastic
+	)
 	table.insert(team, roof)
 	box(
 		"Header",
@@ -495,7 +504,7 @@ local function garage(
 		gd.door + (gd.h - gd.door) / 2,
 		0,
 		dark,
-		Enum.Material.Metal
+		Enum.Material.SmoothPlastic
 	)
 	-- the invisible gate that keeps cars out (the door is only a look)
 	local gate = part(
@@ -521,7 +530,7 @@ local function garage(
 			(i - 0.5) * gd.door / slats,
 			0,
 			Color3.fromRGB(192, 198, 208),
-			Enum.Material.Metal
+			Enum.Material.SmoothPlastic
 		)
 		table.insert(doors, slat)
 	end
@@ -545,7 +554,7 @@ local function garage(
 	lamp.Parent = ls
 	for _, sv in { -1, 1 } do
 		local v = sv * (gd.w / 2 - 3)
-		box("ToolBox", 3.4, 3, 5, depth / 2 - 3, 1.6, v, rgb(C.red), Enum.Material.Metal)
+		box("ToolBox", 3.4, 3, 5, depth / 2 - 3, 1.6, v, rgb(C.red), Enum.Material.SmoothPlastic)
 		box(
 			"ToolBoxTop",
 			3.6,
@@ -555,7 +564,7 @@ local function garage(
 			3.7,
 			v,
 			rgb(C.metalDark),
-			Enum.Material.Metal
+			Enum.Material.SmoothPlastic
 		)
 		box(
 			"Crate",
@@ -580,7 +589,17 @@ local function garage(
 			Enum.Material.WoodPlanks
 		)
 		-- tire rack: a frame with three tires lying on it
-		box("RackPost", 0.6, 7, 0.6, 2, 3.5, sv * (gd.w / 2 - 3), rgb(C.metal), Enum.Material.Metal)
+		box(
+			"RackPost",
+			0.6,
+			7,
+			0.6,
+			2,
+			3.5,
+			sv * (gd.w / 2 - 3),
+			rgb(C.metal),
+			Enum.Material.SmoothPlastic
+		)
 		box(
 			"RackPost",
 			0.6,
@@ -590,7 +609,7 @@ local function garage(
 			3.5,
 			sv * (gd.w / 2 - 3),
 			rgb(C.metal),
-			Enum.Material.Metal
+			Enum.Material.SmoothPlastic
 		)
 		for r = 1, 3 do
 			local pos = P(-1, r * 2.1 - 0.4, sv * (gd.w / 2 - 3))
@@ -618,8 +637,28 @@ local function garage(
 		Color3.fromRGB(140, 104, 66),
 		Enum.Material.WoodPlanks
 	)
-	box("BenchLegA", 0.6, 3.2, 0.6, depth / 2 - 2, 1.6, -4, rgb(C.metal), Enum.Material.Metal)
-	box("BenchLegB", 0.6, 3.2, 0.6, depth / 2 - 2, 1.6, 4, rgb(C.metal), Enum.Material.Metal)
+	box(
+		"BenchLegA",
+		0.6,
+		3.2,
+		0.6,
+		depth / 2 - 2,
+		1.6,
+		-4,
+		rgb(C.metal),
+		Enum.Material.SmoothPlastic
+	)
+	box(
+		"BenchLegB",
+		0.6,
+		3.2,
+		0.6,
+		depth / 2 - 2,
+		1.6,
+		4,
+		rgb(C.metal),
+		Enum.Material.SmoothPlastic
+	)
 	-- the glowing name sign on top of the roof, facing the arena
 	local sign = box(
 		"Sign",
@@ -630,7 +669,7 @@ local function garage(
 		gd.h + 3.6,
 		0,
 		Color3.fromRGB(30, 33, 44),
-		Enum.Material.Metal
+		Enum.Material.SmoothPlastic
 	)
 	local gui = Instance.new("SurfaceGui")
 	gui.Face = if dir < 0 then Enum.NormalId.Right else Enum.NormalId.Left
@@ -676,7 +715,7 @@ local function towers(folder: Folder, origin: Vector3)
 			rgb(C.metal),
 			false,
 			nil,
-			Enum.Material.Metal
+			Enum.Material.SmoothPlastic
 		)
 		can(grp, "Foot", 4, 1.2, base, rgb(C.metalDark), false)
 		local top = base + Vector3.new(0, Layout.tower.height, 0)
@@ -691,7 +730,7 @@ local function towers(folder: Folder, origin: Vector3)
 			rgb(C.metalDark),
 			false,
 			nil,
-			Enum.Material.Metal
+			Enum.Material.SmoothPlastic
 		)
 		for row = 0, 1 do
 			for col = 0, 2 do
@@ -721,7 +760,7 @@ local function carSign(folder: Folder, origin: Vector3)
 		Color3.fromRGB(26, 40, 78),
 		false,
 		nil,
-		Enum.Material.Metal
+		Enum.Material.SmoothPlastic
 	)
 	part(
 		grp,
@@ -742,7 +781,7 @@ local function carSign(folder: Folder, origin: Vector3)
 			rgb(C.metal),
 			false,
 			nil,
-			Enum.Material.Metal
+			Enum.Material.SmoothPlastic
 		)
 	end
 	local gui = Instance.new("SurfaceGui")

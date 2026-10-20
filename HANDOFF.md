@@ -224,3 +224,8 @@ Fight code: read spawns from `arena.spawnPoint(side)` (or `SpawnA|B` pad parts).
 - Map: Duel Car Arena is live (PR pending). Studio helper: sync, save, drive straight from each start, take pictures (top, each start, a wall + tire stack, a garage, cover block, trees outside).
 
 - Map: Duel arena 9/10 pass. Driving thread: call arena.setTeams(random), arena.setNames(player, bot name) at match start and arena.openDoors() at GO, arena.closeDoors() for the next round. Studio helper: sync, save, take the 8-10 pictures asked for.
+
+## Duel arena polish (Studio test of PR 145)
+- Wall rebound reach in `BattleCar.wallBounce` was a hair short (Studio: 0 studs back); reach is now half length + max(3 steps, 3) + 1.
+- Flags did not wave: client `MapFx` now looks for Strip1..5 every frame until all five have streamed in.
+- Garage floor covers the whole garage footprint (no grass gap); Metal parts in the arena are SmoothPlastic (roofs and cover blocks blew out white).
