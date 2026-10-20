@@ -12,17 +12,45 @@ local QuestsConfig = require(GameShared:WaitForChild("QuestsConfig"))
 local Store = require(GameShared:WaitForChild("Store"))
 
 Config.Vehicles = {}
-for index, id in CarConfig.Order do
-	local stats = CarConfig.Cars[id]
-	table.insert(Config.Vehicles, {
-		Id = id,
-		Name = string.upper(stats.name),
-		Rarity = stats.rarity,
-		Ability = stats.ability,
-		Price = Store.price(id),
-		Color = Color3.fromRGB(stats.rgb[1], stats.rgb[2], stats.rgb[3]),
-		ArtIndex = index,
-	})
+-- The live game is the car fight: the roster is the battle fighters (Ram Truck, Cannon Van, Saw Buggy
+-- and the cars still to come), not the old garage cars (Sedan, Muscle...). Pictures: carter adds one
+-- to Assets.Vehicles per car id; a car with no picture yet shows an empty tile.
+local FeatureFlags = require(GameShared:WaitForChild("FeatureFlags"))
+if FeatureFlags.enabled("battleMode") then
+	local BattleConfig = require(GameShared:WaitForChild("BattleConfig"))
+	Gacha.useFighters() -- the gumball odds below must use the fighters, as the server does
+	local prices = LobbyConfig.Store.prices :: { [string]: number }
+	local colors: { [string]: Color3 } = {
+		Common = Color3.fromRGB(186, 205, 224),
+		Rare = Color3.fromRGB(31, 188, 255),
+		Epic = Color3.fromRGB(201, 73, 255),
+		Legendary = Color3.fromRGB(255, 211, 43),
+	}
+	for index, id in BattleConfig.activeOrder() do
+		local f = BattleConfig.Fighters[id]
+		table.insert(Config.Vehicles, {
+			Id = id,
+			Name = string.upper(f.name),
+			Rarity = f.rarity,
+			Ability = f.weaponName,
+			Price = prices[f.rarity] or LobbyConfig.Store.defaultPrice,
+			Color = colors[f.rarity] or colors.Common,
+			ArtIndex = index,
+		})
+	end
+else
+	for index, id in CarConfig.Order do
+		local stats = CarConfig.Cars[id]
+		table.insert(Config.Vehicles, {
+			Id = id,
+			Name = string.upper(stats.name),
+			Rarity = stats.rarity,
+			Ability = stats.ability,
+			Price = Store.price(id),
+			Color = Color3.fromRGB(stats.rgb[1], stats.rgb[2], stats.rgb[3]),
+			ArtIndex = index,
+		})
+	end
 end
 Config.ById = {}
 for _, vehicle in Config.Vehicles do

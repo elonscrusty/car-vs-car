@@ -17,7 +17,7 @@ SpinConfig.Segments = {
 	{ label = "25 coins", weight = 25, coins = 25, freePulls = 0 },
 	{ label = "50 coins", weight = 20, coins = 50, freePulls = 0 },
 	{ label = "100 coins", weight = 12, coins = 100, freePulls = 0 },
-	{ label = "Free claw try", weight = 7, coins = 0, freePulls = 1 },
+	{ label = "Free gumball try", weight = 7, coins = 0, freePulls = 1 },
 	{ label = "200 coins", weight = 5, coins = 200, freePulls = 0 },
 	{ label = "500 coins", weight = 1, coins = 500, freePulls = 0 },
 } :: { Segment }

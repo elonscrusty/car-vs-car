@@ -204,7 +204,7 @@ function QuestUi.new(menu: MenuBar.MenuBar, onAction: (action: string, arg: any?
 		if daily == nil then
 			giftSub.Text = ""
 		elseif ready then
-			giftSub.Text = "Free claw try waiting!"
+			giftSub.Text = "Free gumball try waiting!"
 		else
 			giftSub.Text = `Come back tomorrow. Free tries: {daily.freePulls}`
 		end
