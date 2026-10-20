@@ -3,8 +3,8 @@
 carter's 50 picks (M1 to M50, 2026-10-20) replace the Wreck City chase map. One medium ROUND bowl
 with a sloped edge and a wall of stacked tires, a crusher machine in the middle that slams now and
 then, red barrels that explode, smashable props, sunny day, bright rainbow toy-junk look. The cars
-start at the two ends and charge head on. Walls bounce. NOT seen in Studio yet (built and tested on
-the Lune mock only).
+start at the two ends and charge head on. Walls bounce. First Studio look 2026-10-20 (see the end of
+this file); driving in it is not tested yet.
 
 ## What the picks became
 | Pick | In the build |
@@ -18,7 +18,7 @@ the Lune mock only).
 | M12 same breakables | 71, as before: 26 crates, 18 barrels, 8 red barrels, 8 cones, 5 signs, 6 fences (crates + barrels = 52, the most) |
 | M15 no hiding spots, M38 no shortcuts, M39 no jump pads | open floor, nothing to hide behind |
 | M16 crusher "Slams" | solid base radius 11, press above it falls every 12 s (first 8 s after GO) after a 1.8 s warning (flashing lamps, red floor); the shock ring reaches 27 studs; small damage (8 percent), clear push |
-| M17 tires | 59 stacks of 2 tires round the wall (118 tires), rainbow top tire, hub caps |
+| M17 tires | 63 stacks of 2 tires (a dark one under a rainbow one, a hub cap on top) stand shoulder to shoulder against the solid wall, on a dirt berm. The solid wall boxes are INVISIBLE: the first Studio look showed a visible wall hiding every tire as a plain dark wall |
 | M18 bigger bounce | wall elasticity 1 (was 0.9), car keeps its full speed back (was 85 percent), 0.75 s wobble (was 0.6), small hop (`BattleConfig.Human.bounce*`) |
 | M19 ground mix, M20 no oil | dirt discs in the junk patches, grey road floor between, no puddles |
 | M21 sunny, M41 no weather | `Atmosphere.apply()` (ClockTime 14) is the only lighting ever applied |
@@ -26,7 +26,7 @@ the Lune mock only).
 | M25, M26 far apart, head on | start pads at x = -64 and +64 on the lane z = 42, facing each other; the lane passes the crusher outside its shock ring and nothing stands on it |
 | M27 stuck rescue | the old rule stays (gas held, not moving), puts the car on the nearest of 12 open spots, facing along the circle |
 | M28 no edges | a solid floor disc and a closed wall all round; out-of-arena check is a circle (BattleCrash.outside, BattleCar.keepInside) |
-| M30 phones smooth | 630 BaseParts (Wreck City had 1472 descendants); `FarScenery` (113 parts) and `Detail` (59) are removed on a slow phone by MapFx |
+| M30 phones smooth | 674 BaseParts (Wreck City had 1472 descendants); `FarScenery` (113 parts), `Detail` (63) and `Berm` (32) are removed on a slow phone by MapFx, which leaves 466 |
 | M32, M33 red barrels | 8 BoomBarrels: a fireball and ring, cars within 24 studs get 5 percent damage and a push of 46 |
 | M34 reset each round | `resetBreakables()` brings every prop back at the start of each round; the crusher clock restarts at GO |
 | M35 camera moves closer, walls never fade | BattleUi: the camera stays inside a circle 9 studs in from the tires; the old ray pulls it in where something solid (wall, crusher base) is in the way; smashable props never block it |
@@ -50,11 +50,14 @@ the Lune mock only).
 - Client: `MapFx` (crusher animation from the server clock, camera shake, slow phone cut), `BattleUi` (camera, flyover, arrow flag), `BattleFx` (sparks, skid marks).
 
 ## Rules the code relies on
-- Only the floor, the slope wedges (tag `BowlSlope`, NOT bouncy), the wall boxes (tag `Bouncy`, behind the tires), the hump wedges and kerbs and the crusher base collide. Tires, props, scenery and the press are look-only.
+- Only the floor, the slope wedges (tag `BowlSlope`, NOT bouncy), the wall boxes (tag `Bouncy`, invisible; the tire stacks touch their inner face), the hump wedges and kerbs and the crusher base collide. Tires, the berm under them, props, scenery and the press are look-only. Never make the wall boxes visible again: they hide the tires.
 - Breakable models have a part `Body` (CanTouch and CanQuery, no collision) and attribute `Breakable`; a car overlapping `Body` bursts the model. Red ones also have attribute `Explosive`.
 - The crusher model has attribute `RoundStart` (server time of GO, -1 = resting) and tag `BowlCrusher`. Every client draws it from the server clock; the server only decides who the ring caught.
 - Slope wedges rise toward local +Z; `verify()` flips any that drop. Cars climb the 10.5 degree slope (the ground ray allows up to about 12).
 - Sound spots (silent until carter gives ids): `Sounds` > `Spot_<name>` > Sound `<name>`: Birds, GoHorn, Slam (plays at each slam), Boom.
 
-## Not checked in Studio (check first)
-No script errors on build; part count (`PartCount` attribute); cars climb the slope and bounce off the tire wall at speed (not stuck, no wedge masking the wall); the camera inside the bowl when a car is against the wall; the crusher press, red floor and ring look right and line up with the damage; red barrels push; colours (the sun renders tops brighter than the numbers; adjust `BowlLayout.colors`); skid marks and sparks look; the flyover; the 3 s stuck rescue; bounce size (`Human.bounceKeep`, `bounceStagger`, `bounceHop`); crusher timing (`Layout.crusher.first`, `period`, `warn`).
+## Studio check, 2026-10-20 (pictures in /mnt/project-files/car-vs-car/map/bowl/)
+Seen in Studio: the map builds with no script errors (630 parts then; 674 with the berm); bots fight in it (3 pairs, 9 series each: every series ends, nobody leaves the bowl, 1 stuck rescue, crusher slams and red barrels both fire); the crusher warning (red floor, press up), the slam and the ring look right and the first slam is at 8 s; colours are not blown out (pale blue-grey floor, sand slope, bright junk). The miss: the visible solid wall showed as a plain dark wall and hid the tires (fixed: the wall boxes are invisible now).
+
+## Not checked in Studio yet (needs a driven car)
+Cars climb the slope and bounce off the tire wall at speed (not stuck, no wedge masking the wall); the camera inside the bowl when a car is against the wall; the chase camera on the pad; the flyover; sparks and skid marks; the 3 s stuck rescue for a driven car; bounce size (`Human.bounceKeep`, `bounceStagger`, `bounceHop`); crusher damage numbers (`Layout.crusher`); colours again after the wall change (adjust `BowlLayout.colors`).

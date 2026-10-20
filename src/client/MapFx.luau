@@ -8,7 +8,7 @@
 --   and the shock ring follow the server clock (BowlView.crusher, from the model's RoundStart
 --   attribute: the server time of GO, -1 while resting), so every screen sees the same slam and the
 --   server sends nothing while it happens.
--- Also on a slow phone: the bowl's far scenery and small details are removed from this screen.
+-- Also on a slow phone: the bowl's far scenery, small details and berm are removed from this screen.
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -171,14 +171,15 @@ local function add(inst: Instance)
 	}
 end
 
--- A slow phone loses the bowl's far scenery and small details (look-only; the fight is the same).
+-- A slow phone loses the bowl's far scenery, small details and the berm under the tires
+-- (look-only; the fight is the same).
 local function cutForSlowPhones()
 	if Quality.level() < 2 then
 		return
 	end
 	for _, folder in workspace:GetChildren() do
 		if folder:IsA("Folder") and string.sub(folder.Name, 1, 12) == "BattleArena_" then
-			for _, name in { "FarScenery", "Detail" } do
+			for _, name in { "FarScenery", "Detail", "Berm" } do
 				local g = folder:FindFirstChild(name)
 				if g then
 					g:Destroy()
