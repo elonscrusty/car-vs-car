@@ -218,3 +218,5 @@ Garage performance upgrades and car levels do not apply here. XP, quests and car
 Flip `FeatureFlags.battleMode` to false to get the old pad fights back.
 ## Battle map (Toy Box Showdown)
 Fight code: read spawns from `arena.spawnPoint(side)` (or `SpawnA|B` pad parts). Match slots are 520 studs apart. The map is now "Toy Room Showdown" (240x160): spawns x = +-100. To change the map, edit numbers in `src/shared/BattleMapLayout.luau`; `lune run tests/run` checks symmetry and clear lanes. Look check in Studio still to do.
+
+- Map: spawn lanes are clear now (bunkers beside the lane). Studio helper: sync the newest map and check a straight drive from each spawn reaches the middle.

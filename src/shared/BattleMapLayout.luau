@@ -94,10 +94,10 @@ Layout.colors = {
 Layout.plateau = { hx = 20, hz = 24, height = 7 }
 Layout.plateauRamp = { length = 28, width = 32 }
 Layout.highway = { z = 58, width = 18, height = 10, rampLength = 40, deckHalf = 48 } -- deck from -deckHalf to +deckHalf
-Layout.bunker = { x = 78, sx = 6, sy = 11, sz = 22 }
-Layout.block = { x = 62, z = 30, sx = 10, sy = 9, sz = 10 }
+Layout.bunker = { x = 80, z = 20, sx = 6, sy = 11, sz = 14 } -- off the straight lane: spawn to middle stays open
+Layout.block = { x = 60, z = 31, sx = 10, sy = 9, sz = 10 }
 Layout.bumper = { x = 110, z = 70, sx = 20, sy = 8, sz = 6 }
-Layout.soldier = { x = 96, z = 32, size = 10, height = 26 } -- toy soldiers guard each start, a landmark and cover
+Layout.soldier = { x = 100, z = 32, size = 10, height = 26 } -- toy soldiers guard each start, a landmark and cover
 -- Hazard one: a slow spinner arm over the plateau that sweeps cars toward the drop.
 Layout.spinner =
 	{ radius = 15, clearance = 1.2, height = 4, width = 3.5, speed = 0.9, hubRadius = 3.5 }
@@ -149,19 +149,23 @@ function Layout.boxes(): { Box }
 			kind = "highway",
 		})
 	end
-	for i, sx in { -1, 1 } do
-		table.insert(list, {
-			name = "Bunker" .. i,
-			x = sx * bk.x,
-			z = 0,
-			sx = bk.sx,
-			sy = bk.sy,
-			sz = bk.sz,
-			yawDeg = 0,
-			color = c.bunker,
-			solid = true,
-			kind = "bunker",
-		})
+	local bn = 0
+	for _, sx in { -1, 1 } do
+		for _, sz in { -1, 1 } do
+			bn += 1
+			table.insert(list, {
+				name = "Bunker" .. bn,
+				x = sx * bk.x,
+				z = sz * bk.z,
+				sx = bk.sx,
+				sy = bk.sy,
+				sz = bk.sz,
+				yawDeg = 0,
+				color = c.bunker,
+				solid = true,
+				kind = "bunker",
+			})
+		end
 	end
 	local n = 0
 	for _, sx in { -1, 1 } do
