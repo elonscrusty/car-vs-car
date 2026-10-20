@@ -62,9 +62,10 @@ TutorialConfig.text = {
 		phone = "Tap here! Your first pull is FREE!",
 		pc = "Click here! Your first pull is FREE!",
 	},
+	-- no free pull left (a replay from Settings): a pull costs coins and none is forced
 	gumballPull = {
-		phone = "Tap here to pull a new car!",
-		pc = "Click here to pull a new car!",
+		phone = "Pulls cost coins. Tap to try, or tap the red X.",
+		pc = "Pulls cost coins. Click to try, or click the X.",
 	},
 	gumballConfirm = { phone = "Tap again to spin!", pc = "Click again to spin!" },
 	gumballReveal = { phone = "A new car! Tap DONE.", pc = "A new car! Click DONE." },

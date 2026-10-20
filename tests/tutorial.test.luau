@@ -247,6 +247,33 @@ H.test("closing the machine without a pull goes back to tapping it", function()
 	H.eq(v.anchor, Config.names.play)
 end)
 
+H.test("a replay with no free pull left is not forced to buy one: going back is enough", function()
+	local t = Tutorial.new(true)
+	t.setFree(false)
+	t.event("portal")
+	t.event("gas", 1)
+	t.event("steer", 1)
+	t.event("boxes", 3)
+	t.event("prompt")
+	H.eq(t.current(), "gumballPull")
+	local r = t.event("menuClosed")
+	H.eq(r.done, "gumballPull")
+	H.eq(t.current(), "play")
+	-- and the words say a pull costs coins
+	local t2 = Tutorial.new(true)
+	t2.setFree(false)
+	t2.event("portal")
+	t2.event("gas", 1)
+	t2.event("steer", 1)
+	t2.event("boxes", 3)
+	t2.event("prompt")
+	local targets = (t2.view() :: Tutorial.View).targets :: { Tutorial.Target }
+	H.truthy(string.find(targets[2].text, "coins", 1, true), "the pull bubble says it costs coins")
+	-- a real pull still works in a replay
+	t2.event("pulled")
+	H.eq(t2.current(), "gumballReveal")
+end)
+
 H.test("skip ends it at every step: no gift, nothing left to show", function()
 	for count = 0, 9 do
 		local t = Tutorial.new(true)

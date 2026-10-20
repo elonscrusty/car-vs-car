@@ -736,14 +736,23 @@ H.test("a player with no free pull is told to pull, not that it is free", functi
 	e.client.promptTriggered("GachaPrompt")
 	e.openClaw()
 	e.seconds(1.5)
-	eq(e.bubble(), "Tap here to pull a new car!")
+	eq(e.bubble(), e.text("gumballPull"))
+	truthy(string.find(e.bubble(), "coins", 1, true), "it says a pull costs coins")
 end)
 
 H.test(
-	"the profile can change the words, and closing the machine without a pull asks again",
+	"closing the machine asks again while the pull is free, and moves on once it is not",
 	function()
 		local e = rig({ busy = true })
 		reachMachine(e)
+		e.client.promptTriggered("GachaPrompt")
+		e.openClaw()
+		e.seconds(1.5)
+		eq(e.bubble(), e.text("gumballPullFree"))
+		-- the menu closes without the free pull: tap the machine again
+		e.closeMenu()
+		e.seconds(1)
+		eq(e.bubble(), e.text("gumballTap"))
 		e.client.promptTriggered("GachaPrompt")
 		e.openClaw()
 		e.seconds(1.5)
@@ -753,12 +762,9 @@ H.test(
 		e.toClient(e.profileMessage())
 		e.seconds(0.5)
 		eq(e.bubble(), e.text("gumballPull"))
-		-- the menu closes without a pull: tap the machine again
+		-- now closing the machine is enough: nobody is forced to buy a pull in a replay
 		e.closeMenu()
-		e.seconds(1)
-		eq(e.bubble(), e.text("gumballTap"))
-		-- and the second try works
-		pullAndFinish(e)
+		e.seconds(2) -- the finished step stays a moment with its check and confetti
 		eq(e.bubble(), e.text("play"))
 	end
 )
