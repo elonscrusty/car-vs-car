@@ -822,18 +822,18 @@ function BattleService.start(
 		end
 		for _, car in cars do
 			BattleCar.checkFlip(car, dt)
-			-- stuck: gas held but the car stays within 3 studs of one spot for 2.5 s (pushing into a
-			-- prop jitters its speed, so position is the honest test): put it back on the nearest road
+			-- stuck: gas held but the car stays within 9 studs of one spot for 3 s (a wall bounce swings it
+			-- about 7 studs and pushing a prop jitters its speed, so a wide position test is the honest one): put it back on the nearest road
 			local drive = if car.lastOut then math.abs(car.lastOut.drive) else 0
 			local foe = if car == a then b else a
 			if drive > 0.3 and car.stagger <= 0 and not BattleCar.bodiesTouch(car, foe) then
 				local anchor = stuckAt[car]
-				if anchor == nil or (car.body.Position - anchor).Magnitude > 3 then
+				if anchor == nil or (car.body.Position - anchor).Magnitude > 9 then
 					stuckAt[car] = car.body.Position
 					stuckFor[car] = 0
 				else
 					stuckFor[car] = (stuckFor[car] or 0) + dt
-					if stuckFor[car] > 2.5 then
+					if stuckFor[car] > 3 then
 						stuckFor[car] = 0
 						stuckAt[car] = nil
 						local pos, face = arena.rescuePoint(car.body.Position)
