@@ -1281,11 +1281,10 @@ function BattleService.start(
 				end
 			end
 		elseif m.phase == "matchResult" then
-			if m.sim ~= nil and m.sim.left <= 0 then
-				closeMatch(m)
-			elseif bothReady(m) then
+			local simDone = m.sim ~= nil and m.sim.left <= 0
+			if not simDone and bothReady(m) then
 				newSeries(m)
-			elseif m.t >= T.rematchSeconds then
+			elseif simDone or m.t >= T.rematchSeconds then
 				closeMatch(m)
 			end
 		end
