@@ -69,8 +69,9 @@ test("the tire stacks stand shoulder to shoulder against the wall", function()
 	for i, t in list do
 		near(math.sqrt(t.x * t.x + t.z * t.z), r, 1e-6)
 		local nxt = list[i % #list + 1]
+		-- neighbours overlap a little, so no light shows between them (and not much more than that)
 		local gap = dist(t.x, t.z, nxt.x, nxt.z) - L.tire.diameter
-		truthy(gap >= -0.01 and gap <= 1.2, "gap " .. gap)
+		truthy(gap <= 0 and gap >= -1, "gap " .. gap)
 	end
 	truthy(L.slopeRise + L.wallAboveRim >= CAR_LENGTH * 0.8, "a wall a car cannot see over")
 end)

@@ -9,8 +9,9 @@
 --     reaches. The press is drawn by every client from the server clock (MapFx, the RoundStart
 --     attribute), so the server only has to know when the ring is out and who it caught.
 -- Only the floor, the slope, the wall, the humps and the crusher's base collide. Everything else is
--- look-only. Parts tagged "Bouncy" throw a car back (BattleDrive.wallBounce); the slope wedges are
--- tagged "BowlSlope" so that sweep ignores them and sees the wall at the top.
+-- look-only (the tire stacks are what a player sees of the wall: the solid wall boxes that stop the
+-- cars are invisible). Parts tagged "Bouncy" throw a car back (BattleDrive.wallBounce); the slope
+-- wedges are tagged "BowlSlope" so that sweep ignores them and sees the wall at the top.
 
 local CollectionService = game:GetService("CollectionService")
 local Debris = game:GetService("Debris")
@@ -250,7 +251,8 @@ end
 local function wall(folder: Folder, origin: Vector3, solids: { Instance })
 	local grp = group(folder, "Wall")
 	local hgt = Layout.slopeRise + Layout.wallAboveRim
-	-- the solid wall: dark, so the gaps between the tires read as shadow
+	-- the solid wall: invisible. The tire stacks that touch its inner face are what a player sees
+	-- (Studio showed that a visible wall here hides every tire behind it: a plain dark wall).
 	for _, w in Layout.wallSegments() do
 		local center = origin + Vector3.new(w.x, hgt / 2, w.z)
 		local p = part(
@@ -258,10 +260,12 @@ local function wall(folder: Folder, origin: Vector3, solids: { Instance })
 			w.name,
 			Vector3.new(w.length, hgt, w.thickness),
 			CFrame.lookAt(center, Vector3.new(origin.X, center.Y, origin.Z)),
-			rgb(C.wallBack),
+			rgb(C.tire),
 			true,
 			solids
 		)
+		p.Transparency = 1
+		p.CastShadow = false
 		bouncy(p)
 	end
 	-- the stacks: a dark tire under a bright toy-coloured one, a pale hub on top
@@ -271,6 +275,9 @@ local function wall(folder: Folder, origin: Vector3, solids: { Instance })
 	local rainbow = C.rainbow :: { { number } }
 	local base = Layout.slopeRise - 0.2
 	for _, t in Layout.tires() do
+		-- neighbours overlap a little; their tops differ by a hair so two flat tops never fight
+		-- over the same pixels
+		local extra = (t.index % 3) * 0.02
 		local pos = origin + Vector3.new(t.x, base, t.z)
 		can(
 			tires,
@@ -285,7 +292,7 @@ local function wall(folder: Folder, origin: Vector3, solids: { Instance })
 			tires,
 			"TireHigh",
 			T.diameter,
-			T.height,
+			T.height + extra,
 			pos + Vector3.new(0, T.height, 0),
 			rgb(rainbow[(t.index - 1) % #rainbow + 1]),
 			false
@@ -295,8 +302,27 @@ local function wall(folder: Folder, origin: Vector3, solids: { Instance })
 			"Hub",
 			T.diameter * 0.48,
 			0.16,
-			pos + Vector3.new(0, T.height * 2, 0),
+			pos + Vector3.new(0, T.height * 2 + extra, 0),
 			rgb(C.hub),
+			false
+		)
+	end
+	-- a berm of dirt under the stacks, so they do not hang in the air over the ground outside. Look-only
+	-- and cut on slow phones: from inside it hides behind the lip of the slope.
+	local berm = group(folder, "Berm")
+	local rIn = Layout.wallRadius
+	local rOut = rIn + T.diameter -- the far side of the tires
+	local length = 2 * rOut * math.tan(math.pi / Layout.wallCount) + 1
+	for i = 1, Layout.wallCount do
+		local a = (i - 0.5) / Layout.wallCount * 2 * math.pi
+		local mid = (rIn + rOut) / 2
+		local center = origin + Vector3.new(math.cos(a) * mid, base / 2, math.sin(a) * mid)
+		part(
+			berm,
+			"Berm",
+			Vector3.new(length, base, rOut - rIn),
+			CFrame.lookAt(center, Vector3.new(origin.X, center.Y, origin.Z)),
+			rgb(C.dirtDark),
 			false
 		)
 	end

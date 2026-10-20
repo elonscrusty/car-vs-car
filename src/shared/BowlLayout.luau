@@ -24,7 +24,7 @@ Layout.wallBounce = 1 -- elasticity of everything a car bounces off (carter M18:
 Layout.groundRadius = 136 -- the solid floor disc runs out under the slope and the tire wall
 Layout.groundSize = 516 -- slots are 520 apart, so neighbours never overlap -- the grass plate under and round everything
 Layout.facetCount = 32 -- wedges that make the slope ring
-Layout.wallCount = 32 -- boxes that make the invisible wall behind the tires
+Layout.wallCount = 32 -- boxes that make the invisible solid wall the tire stacks touch
 
 Layout.colors = {
 	floor = { 96, 104, 126 }, -- asphalt, a blue-grey: dark cars do not melt into it (day light renders tops about 1.65 times brighter)
@@ -38,7 +38,6 @@ Layout.colors = {
 	red = { 214, 58, 52 },
 	yellow = { 255, 214, 64 },
 	ink = { 36, 39, 43 },
-	wallBack = { 30, 32, 40 }, -- what shows between the tires
 	tire = { 46, 48, 58 },
 	tireAlt = { 60, 62, 74 },
 	hub = { 198, 204, 216 },
@@ -57,7 +56,9 @@ Layout.colors = {
 } :: { [string]: any }
 
 -- The tire wall: stacks of two big tires on top of the slope, all the way round.
-Layout.tire = { diameter = 13, height = 4.6, gap = 0.4 }
+-- gap < 0: neighbours overlap a little, so no light shows between the stacks (Studio saw a plain dark
+-- wall where the tires should be; the tires now stand in view, the solid wall behind them is invisible)
+Layout.tire = { diameter = 13, height = 4.6, gap = -0.3 }
 
 -- The two starts sit on one line (z = laneZ), facing each other. Nothing stands within `laneClear`
 -- of the line between them.
@@ -149,7 +150,8 @@ export type WallSeg = {
 	thickness: number,
 }
 
--- The solid wall behind the tires (what a car really bounces off): boxes round the circle.
+-- The solid wall (what a car really bounces off): boxes round the circle. They are invisible; the
+-- tire stacks that touch their inner face are what a player sees.
 function Layout.wallSegments(): { WallSeg }
 	local list: { WallSeg } = {}
 	local n = Layout.wallCount
@@ -174,7 +176,7 @@ end
 
 export type Tire = { x: number, z: number, angle: number, index: number }
 
--- Where the tire stacks stand: round the wall, just touching it.
+-- Where the tire stacks stand: round the wall, just touching it, shoulder to shoulder.
 function Layout.tires(): { Tire }
 	local list: { Tire } = {}
 	local T = Layout.tire

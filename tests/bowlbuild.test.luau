@@ -43,9 +43,11 @@ H.test("the whole map builds and the part count is a big cut from Wreck City's 1
 	truthy(parts <= 720, "too many parts for a phone: " .. parts)
 	eq(folder:GetAttribute("PartCount"), parts)
 	-- the bits a slow phone can lose
-	local far = count(folder.FarScenery, isPart) + count(folder.Detail, isPart)
+	local far = count(folder.FarScenery, isPart)
+		+ count(folder.Detail, isPart)
+		+ count(folder.Berm, isPart)
 	print("       cuttable on a slow phone: " .. far)
-	truthy(far >= 60)
+	truthy(far >= 150)
 end)
 
 H.test("the sloped edge is 32 wedges that the bounce sweep can tell apart", function()
@@ -68,6 +70,10 @@ H.test("a bouncy wall closes the bowl at the top of the slope", function()
 		truthy(w:HasTag("Bouncy"), w.Name)
 		truthy(table.find(solids, w) ~= nil)
 		near(w.CustomPhysicalProperties[3], Layout.wallBounce)
+		-- invisible: the tire stacks against it are what a player sees (Studio showed a visible
+		-- wall hiding every tire)
+		eq(w.Transparency, 1)
+		truthy(not w.CastShadow, "an invisible wall casts no shadow")
 		-- from the floor to the top of the tire stacks
 		near(w.Size.Y, Layout.slopeRise + Layout.wallAboveRim, 0.01)
 		-- the inner face is on the wall radius
@@ -82,6 +88,22 @@ H.test("two tires and a hub on every stack, all round the wall", function()
 	local n = #Layout.tires()
 	eq(#folder.Tires:GetChildren(), n * 2)
 	eq(#folder.Detail:GetChildren(), n)
+end)
+
+H.test("a look-only dirt berm under the tire stacks, so they do not hang in the air", function()
+	local _, Layout, folder = build()
+	local list = folder.Berm:GetChildren()
+	eq(#list, Layout.wallCount)
+	local base = Layout.slopeRise - 0.2 -- where the tires start
+	for _, b in list do
+		truthy(not b.CanCollide and not b.CanQuery and not b.CanTouch, "a berm is look only")
+		local rel = b.Position - ORIGIN
+		near(rel.Y + b.Size.Y / 2, base, 0.01)
+		local r = math.sqrt(rel.X ^ 2 + rel.Z ^ 2)
+		-- from the wall's inner face to the far side of the tires
+		near(r - b.Size.Z / 2, Layout.wallRadius, 0.01)
+		near(r + b.Size.Z / 2, Layout.wallRadius + Layout.tire.diameter, 0.01)
+	end
 end)
 
 H.test("everything near stays inside the tire wall, and low enough for the camera", function()
