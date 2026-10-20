@@ -1,7 +1,7 @@
 --!nocheck
 local H = require("./harness")
 local Mock = require("./robloxmock")
-local eq, near, truthy = H.eq, H.near, H.truthy
+local eq, near = H.eq, H.near
 local Vector3, CFrame, Color3 = Mock.V3, Mock.CF, Mock.C3
 
 print("Roblox mock")
@@ -40,7 +40,7 @@ end)
 
 H.test("task.wait suspends until step", function()
 	local world = Mock.new()
-	local env = world.require("shared/LobbyLayout")
+	world.require("shared/LobbyLayout")
 	local hits = 0
 	local run = world.service("RunService")
 	run.Heartbeat:Connect(function()

@@ -12,7 +12,6 @@ local function build()
 	local world = Mock.new()
 	world.quiet = true
 	-- Lobby asks Profiles for the opener's cars; a stub keeps DataStore out of this test
-	local profiles = world.instance("ModuleScript")
 	local Layout = world.require("shared/LobbyLayout")
 	local Lobby = world.require("server/Lobby")
 	local handle = Lobby.build()
@@ -20,8 +19,7 @@ local function build()
 end
 
 H.test("the whole lobby builds and fits the sheet", function()
-	local _, Layout, handle = build()
-	local e = Mock.extent(handle.folder:FindFirstChild("Ground") or handle.folder)
+	local _, _, handle = build()
 	truthy(handle.folder.Parent ~= nil)
 	-- everything except the far world (grass, hills, scenery, clouds) stays inside 220 x 180
 	local inside = 0

@@ -135,7 +135,7 @@ end
 function C3.fromRGB(r: number, g: number, b: number)
 	return C3.new(r / 255, g / 255, b / 255)
 end
-function C3.fromHSV(h: number, s: number, v: number)
+function C3.fromHSV(_h: number, s: number, v: number)
 	return C3.new(v, v * (1 - s), v * (1 - s))
 end
 function C3.Lerp(a: any, b: any, t: number)
@@ -895,7 +895,7 @@ function Mock.new(srcRoot: string?)
 				return type(v)
 			end,
 			Random = {
-				new = function(seed: number?)
+				new = function(_seed: number?)
 					return {
 						NextNumber = function()
 							return math.random()

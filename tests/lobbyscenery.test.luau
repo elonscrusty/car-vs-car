@@ -63,7 +63,7 @@ H.test("part count stays low", function()
 end)
 
 H.test("clouds exist under terrain and are reused", function()
-	local world, folder = build(origin)
+	local world = build(origin)
 	local c = world.workspace.Terrain:FindFirstChild("LobbyClouds")
 	truthy(c ~= nil)
 	near(c.Cover, 0.55, 1e-6)

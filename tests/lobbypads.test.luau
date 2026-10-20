@@ -1,7 +1,7 @@
 --!nocheck
 local H = require("./harness")
 local Mock = require("./robloxmock")
-local eq, near, truthy = H.eq, H.near, H.truthy
+local eq, truthy = H.eq, H.truthy
 local Vector3, CFrame = Mock.V3, Mock.CF
 
 print("Lobby pads")
@@ -57,7 +57,7 @@ local function setup()
 end
 
 H.test("builds 4 pads under the height limit with a counter each", function()
-	local world, _, _, _, _, _, _, _, folder = setup()
+	local _, _, _, _, _, _, _, _, folder = setup()
 	local g = folder:FindFirstChild("Pads")
 	eq(#g:GetChildren(), 4)
 	for i = 1, 4 do
@@ -95,7 +95,7 @@ H.test("the rings are tagged so each player's screen spins them", function()
 end)
 
 H.test("PLAY walks you onto a free pad", function()
-	local world, Layout, _, handle, _, _, _, player = setup()
+	local _, Layout, _, handle, _, _, _, player = setup()
 	local a, root = player("A", 1, Vector3.new(0, ORIGIN.Y + 3, 500 + 60))
 	handle.play(a)
 	local rel = root.Position - ORIGIN
@@ -103,7 +103,7 @@ H.test("PLAY walks you onto a free pad", function()
 end)
 
 H.test("PLAY with every pad full says so and does not move you", function()
-	local world, _, _, handle, _, _, fired, player, _, counts = setup()
+	local _, _, _, handle, _, _, fired, player, _, counts = setup()
 	for i = 1, 4 do
 		counts[i] = 2
 	end
@@ -114,7 +114,7 @@ H.test("PLAY with every pad full says so and does not move you", function()
 end)
 
 H.test("park hides a fighter under the lobby and return puts them next to the pads", function()
-	local world, Layout, _, handle, _, _, _, player = setup()
+	local _, Layout, _, handle, _, _, _, player = setup()
 	local a, root = player("A", 1, Vector3.new(0, ORIGIN.Y + 3, 500 + 60))
 	handle.park(a)
 	truthy(root.Anchored)
