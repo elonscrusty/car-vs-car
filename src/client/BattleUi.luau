@@ -742,6 +742,22 @@ function BattleUi.start()
 		end,
 		cruise = cruiseSpeed(),
 	})
+	-- 0 = the enemy is far, 1 = right next to me (the camera pulls back and widens)
+	local function foeCloseness(): number
+		local mine = myBody
+		if mine == nil then
+			return 0
+		end
+		local H = BattleConfig.Human
+		for _, b in carBodies do
+			if b ~= mine and b.Parent ~= nil then
+				local d = (b.Position - mine.Position).Magnitude / carLen
+				return math.clamp(1 - d / H.camCloseL, 0, 1)
+			end
+		end
+		return 0
+	end
+
 	local function chaseTarget(): CFrame?
 		local c = arenaCenter
 		if c == nil then
@@ -757,7 +773,7 @@ function BattleUi.start()
 				look = look.Unit
 				local focus = mine.Position + Vector3.new(0, 0.3 * carLen, 0)
 				local want = focus
-					- look * (H.camDistL * carLen)
+					- look * ((H.camDistL + H.camCloseExtraL * foeCloseness()) * carLen)
 					+ Vector3.new(0, H.camHeightL * carLen, 0)
 				-- and always stay INSIDE the arena walls: a camera above a low wall would look
 				-- over it and the wall would hide the car (a car that starts next to a wall)
@@ -950,7 +966,7 @@ function BattleUi.start()
 		camera.CFrame = shaken
 		fovKick *= math.max(0, 1 - 4 * dt)
 		local baseFov = if myBody ~= nil
-			then BattleConfig.Human.camFov
+			then BattleConfig.Human.camFov + BattleConfig.Human.camCloseFov * foeCloseness()
 			else BattleConfig.Camera.fovDeg
 		local koFov = if koT > 0 then -20 * math.clamp(1 - koT / koTotal, 0, 1) else 0
 		camera.FieldOfView = baseFov + fovKick + koFov
