@@ -384,7 +384,7 @@ H.test("config: every fighter is complete", function()
 	end
 	H.eq(BattleConfig.Fighters.RamTruck.hp, 150)
 	H.eq(BattleConfig.Fighters.CannonVan.hp, 150)
-	H.eq(BattleConfig.Fighters.SawBuggy.hp, 105)
+	H.eq(BattleConfig.Fighters.SawBuggy.hp, 125)
 	local _ = FIGHTERS
 end)
 
