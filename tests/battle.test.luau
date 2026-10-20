@@ -3,6 +3,7 @@ local H = require("./harness")
 local BattleBrain = require("../src/shared/BattleBrain")
 local BattleConfig = require("../src/shared/BattleConfig")
 local BattleAim = require("../src/shared/BattleAim")
+local BattleFeel = require("../src/shared/BattleFeel")
 local BattleCrash = require("../src/shared/BattleCrash")
 local BattleSpecial = require("../src/shared/BattleSpecial")
 local BattleSelect = require("../src/shared/BattleSelect")
@@ -839,3 +840,48 @@ H.test("every weapon waits 6 seconds, rounds last 60", function()
 	H.eq(BattleConfig.Human.sawCooldownSeconds, 6)
 	H.eq(BattleConfig.Timing.fightSeconds, 60)
 end)
+
+H.test(
+	"a car has weight: about 0.7 s to top speed, rolls on when the gas is let go, turns less when fast",
+	function()
+		local top = BattleConfig.Human.topSpeed
+		local dt = 1 / 60
+		-- full gas from a standstill
+		local v, t = 0, 0
+		while v < 0.95 * top and t < 5 do
+			v = BattleFeel.nextSpeed(v, top, dt, top)
+			t += dt
+		end
+		H.eq(t >= 0.55 and t <= 0.95, true)
+		-- gas released at top speed: coasts, takes a while to stop
+		local c, ct = top, 0
+		while c > 0.05 * top and ct < 10 do
+			c = BattleFeel.nextSpeed(c, 0, dt, top)
+			ct += dt
+		end
+		H.eq(ct >= 0.7 and ct <= 1.6, true)
+		-- pulling back (gas the other way) stops sooner than coasting but not in a blink
+		local b, bt = top, 0
+		while b > 0 and bt < 10 do
+			b = BattleFeel.nextSpeed(b, -0.6 * top, dt, top)
+			bt += dt
+			if b <= 0 then
+				break
+			end
+		end
+		H.eq(bt >= 0.25 and bt < ct, true)
+		-- top speed itself is unchanged
+		H.eq(BattleFeel.nextSpeed(top, top, dt, top), top)
+		-- turning: full when crawling, about half at top speed
+		H.eq(BattleFeel.turnScale(0), 1)
+		H.eq(BattleFeel.turnScale(1), BattleConfig.Human.turnTopScale)
+		H.eq(BattleFeel.turnScale(5), BattleConfig.Human.turnTopScale) -- never below the top-speed share
+		-- the wheel swings: full lock takes about 1/6 s, not one frame
+		local w, wt = 0, 0
+		while w < 1 do
+			w = BattleFeel.smoothTurn(w, 1, dt)
+			wt += dt
+		end
+		H.eq(wt >= 0.12 and wt <= 0.25, true)
+	end
+)
