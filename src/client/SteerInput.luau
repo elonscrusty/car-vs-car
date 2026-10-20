@@ -38,17 +38,19 @@ local SteerInput = {}
 
 local MIN_GAP = 0.04 -- seconds between sends while the stick moves (max 25 per second)
 local DEADZONE = 0.15 -- share of the radius that does nothing
+local WHEEL_DEADZONE = 0.1 -- the fight wheel: a smaller dead zone, with a soft curve on top
 local RIM_COLOR = Color3.fromRGB(235, 240, 250)
 local KNOB_COLOR = Color3.fromRGB(215, 218, 225)
 
 -- Pushes a stick offset (px from the middle) into steer/gas, with a small dead zone and full
 -- strength at the edge.
-local function stickValue(offset: number, radius: number): number
+local function stickValue(offset: number, radius: number, deadzone: number?): number
+	local dz = deadzone or DEADZONE
 	local v = math.clamp(offset / radius, -1, 1)
-	if math.abs(v) < DEADZONE then
+	if math.abs(v) < dz then
 		return 0
 	end
-	return (v - math.sign(v) * DEADZONE) / (1 - DEADZONE)
+	return (v - math.sign(v) * dz) / (1 - dz)
 end
 
 function SteerInput.new(send: (steer: number, gas: number) -> (), opts: Options?): SteerInput
@@ -71,6 +73,7 @@ function SteerInput.new(send: (steer: number, gas: number) -> (), opts: Options?
 	local base: Frame? = nil
 	local knob: Frame? = nil
 	local activeInput: InputObject? = nil
+	local origin: Vector2? = nil -- where the thumb started when it touched outside the drawn stick
 
 	-- Small, fast-turning cars (turnRate 4+) would over-steer under a thumb, so the STICK steer
 	-- (not the keys) gets a gentler curve and eases at a limited rate. Big cars stay instant.
@@ -100,6 +103,10 @@ function SteerInput.new(send: (steer: number, gas: number) -> (), opts: Options?
 	end
 
 	local function stickSteerEased(): number
+		if wheel then
+			-- the fight wheel: a soft curve (small moves stay small); BattleFeel smooths the rest in the car
+			return FeelRules.stickCurve(stickSteer, GameConfig.Feel.touchSteerCurve)
+		end
 		local now = os.clock()
 		local dt = math.min(0.1, now - lastEase)
 		lastEase = now
@@ -166,10 +173,11 @@ function SteerInput.new(send: (steer: number, gas: number) -> (), opts: Options?
 			return
 		end
 		local radius = b.AbsoluteSize.X / 2
-		local centre = b.AbsolutePosition + b.AbsoluteSize / 2
+		local centre = origin or (b.AbsolutePosition + b.AbsoluteSize / 2)
 		local dx, dy = position.X - centre.X, position.Y - centre.Y
-		stickSteer = stickValue(dx, radius * 0.85)
-		stickGas = -stickValue(dy, radius * 0.85)
+		local dz = if wheel then WHEEL_DEADZONE else nil
+		stickSteer = stickValue(dx, radius * 0.85, dz)
+		stickGas = -stickValue(dy, radius * 0.85, dz)
 		if wheel then
 			stickGas = math.min(0, stickGas) -- only pulling down counts: reverse
 		end
@@ -179,6 +187,7 @@ function SteerInput.new(send: (steer: number, gas: number) -> (), opts: Options?
 
 	local function release()
 		activeInput = nil
+		origin = nil
 		stickSteer, stickGas = 0, 0
 		easedStick = 0
 		moveKnob(0, 0, 1)
@@ -256,6 +265,35 @@ function SteerInput.new(send: (steer: number, gas: number) -> (), opts: Options?
 		end)
 		b.Parent = parent
 		base, knob = b, k
+
+		if wheel then
+			-- the whole lower-left is a steering zone: the stick stays fixed and drawn, but a thumb
+			-- that lands anywhere there steers by how far it slides from where it landed
+			local zone = Instance.new("Frame")
+			zone.Name = "SteerZone"
+			zone.BackgroundTransparency = 1
+			zone.Active = true
+			zone.AnchorPoint = Vector2.new(0, 1)
+			zone.Position = UDim2.fromScale(0, 1)
+			zone.Size = UDim2.fromScale(0.42, 0.6)
+			zone.ZIndex = 0
+			zone.InputBegan:Connect(function(input: InputObject)
+				if
+					activeInput == nil
+					and (
+						input.UserInputType == Enum.UserInputType.MouseButton1
+						or input.UserInputType == Enum.UserInputType.Touch
+					)
+				then
+					activeInput = input
+					origin = Vector2.new(input.Position.X, input.Position.Y)
+					track(input.Position)
+				end
+			end)
+			zone.Parent = parent
+			b.Parent = nil
+			b.Parent = parent -- the drawn stick sits above the zone and keeps its own centre
+		end
 	end
 
 	-- Follow the finger/mouse that grabbed the stick, even when it slides off the circle.

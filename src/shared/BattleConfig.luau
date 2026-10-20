@@ -283,9 +283,11 @@ BattleConfig.Human = {
 	slideMaxFrac = 0.5, -- sideways slide never goes above this share of top speed
 	sawGrindSeconds = 3, -- hold ATTACK: the saw grinds this long at most ...
 	sawCooldownSeconds = 6, -- ... then (or when let go) it waits this long
-	camDistL = 3.0, -- chase camera: this far behind the car (in car lengths) ...
-	camHeightL = 2.8, -- ... and this high (carter: a high camera behind the car) ...
-	camLookL = 1.4, -- ... looking at a point this far ahead of the car
+	camDistL = 2.2, -- chase camera: this far behind the car (in car lengths; closer so the car is bigger) ...
+	camHeightL = 2.3, -- ... and this high (carter: a high camera behind the car) ...
+	camLookL = 2.6, -- ... looking at a point this far ahead of the car (my car sits low, the enemy above)
+	camSwingDegPerSec = 90, -- the camera trails the nose: it swings round at most this fast
+	camTrailRate = 6, -- ... catching up at this many times the gap per second (until the cap)
 	camFov = 70,
 	camSmooth = 16,
 	camCloseL = 6, -- an enemy closer than this many car lengths pulls the camera back and wider ...
@@ -313,6 +315,14 @@ BattleConfig.Crash = {
 	minSpeedFrac = 0.3, -- slower than this share of cruise speed: just a bump, no damage
 	cooldownSeconds = 0.6, -- one crash counts once, even while the cars stay in contact
 	touchPadL = 0.06, -- cars count as touching when their bodies are this close (L)
+}
+
+-- Cheat checks for a car the player's device drives (the server watches speed and jumps).
+BattleConfig.Guard = {
+	teleportSpeedMult = 3, -- more than this many top speeds of movement in one step = a teleport
+	slackStuds = 4, -- ... plus this much slack per step
+	speedSlack = 1.3, -- more than this share above the fastest legal speed = too fast
+	strikesToReclaim = 4, -- this many strikes and the server takes the car back (it drives itself)
 }
 
 -- The Studio / DEV bot: a medium opponent (turns slower than a player so it can be outdriven).
