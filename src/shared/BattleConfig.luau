@@ -256,6 +256,7 @@ BattleConfig.Saw = {
 
 -- Player-driven cars (carter: manual driving, the weapon is the ATTACK button).
 BattleConfig.Human = {
+	clientDrive = true, -- the player's own device drives their car (no input delay); false = server drives
 	topSpeed = 42, -- studs per second: the SAME top speed for every car (cars differ in weight and turning)
 	slideMaxFrac = 0.5, -- sideways slide never goes above this share of top speed
 	sawGrindSeconds = 3, -- hold ATTACK: the saw grinds this long at most ...

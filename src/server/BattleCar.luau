@@ -10,10 +10,10 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local CollectionService = game:GetService("CollectionService")
 
 local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
 local BattleBrain = require(ReplicatedStorage.Shared.BattleBrain)
+local BattleDrive = require(ReplicatedStorage.Shared.BattleDrive)
 local BattleRecap = require(ReplicatedStorage.Shared.BattleRecap)
 
 export type Car = {
@@ -33,6 +33,7 @@ export type Car = {
 	lastOut: BattleBrain.Output?,
 	lungeT: number, -- momentum: time since the last forward lunge
 	human: boolean, -- a player drives this car (manual driving)
+	clientDriven: boolean, -- ...and their device owns the physics (answers the stick at once)
 	momentum: boolean, -- the momentum prototype: launch, skid, rebound, weak steering
 	stats: BattleRecap.Stats, -- what this car's weapon did this round (for the recap)
 	stagger: number, -- > 0 while knocked: the car slides and cannot steer
@@ -224,6 +225,7 @@ function BattleCar.spawn(
 		slide = Vector3.zero,
 		prevVel = Vector3.zero,
 		human = false,
+		clientDriven = false,
 		momentum = false,
 		lungeT = 0,
 		stats = BattleRecap.newStats(),
@@ -252,6 +254,7 @@ function BattleCar.spawn(
 		end
 	end
 	model:SetAttribute("BattleSide", side)
+	model:SetAttribute("CarL", L)
 	model:SetAttribute("FighterId", fighterId)
 	model.Parent = arenaFolder
 	return car, nil
@@ -272,19 +275,42 @@ function BattleCar.launch(car: Car, momentum: boolean)
 	car.body.AssemblyLinearVelocity = Vector3.new(f.X * speed, 0, f.Z * speed)
 end
 
-function BattleCar.arm(car: Car, brain: BattleBrain.Brain)
+-- `owner`: the player whose device drives this car's physics (instant response); nil = the server.
+function BattleCar.arm(car: Car, brain: BattleBrain.Brain, owner: Player?)
 	car.brain = brain
 	for _, d in car.model:GetDescendants() do
 		if d:IsA("BasePart") then
 			d.Anchored = false
 		end
 	end
-	car.body:SetNetworkOwner(nil)
+	car.clientDriven = false
+	if owner ~= nil and BattleConfig.Human.clientDrive then
+		local ok = pcall(function()
+			car.body:SetNetworkOwner(owner)
+		end)
+		car.clientDriven = ok
+	end
+	if not car.clientDriven then
+		car.body:SetNetworkOwner(nil)
+	end
+	car.model:SetAttribute("ClientDriven", car.clientDriven)
+end
+
+-- The server takes the physics back (round over, wreck): nobody's device drives it now.
+function BattleCar.reclaim(car: Car)
+	if car.clientDriven then
+		car.clientDriven = false
+		car.model:SetAttribute("ClientDriven", false)
+		pcall(function()
+			car.body:SetNetworkOwner(nil)
+		end)
+	end
 end
 
 -- Stop dead and hold still (round over). Keeps the model for the result screen.
 function BattleCar.freeze(car: Car)
 	car.brain = nil
+	BattleCar.reclaim(car)
 	for _, d in car.model:GetDescendants() do
 		if d:IsA("BasePart") then
 			d.Anchored = true
@@ -318,83 +344,28 @@ function BattleCar.overlaps(car: Car, foe: Car): boolean
 	return #workspace:GetPartBoundsInBox(r.CFrame, r.Size, params) > 0
 end
 
--- A wall part the map tags "Bouncy" (the duel arena walls, cover blocks and tires) throws a car back
--- that runs into it, instead of letting the drive code push it to a dead stop. The car loses a bit
--- of speed, slides back for a moment and cannot steer meanwhile (the knocked state). No damage.
--- Every car has the same top speed (spec: only weight and turning differ).
-function BattleCar.topSpeed(_car: Car): number
-	return BattleConfig.Human.topSpeed
-end
-
-local function wallBounce(car: Car, v: Vector3, dt: number): boolean
-	local body = car.body
-	local flat = Vector3.new(v.X, 0, v.Z)
-	local speed = flat.Magnitude
-	if speed < 0.3 * BattleCar.topSpeed(car) then
-		return false
-	end
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.FilterDescendantsInstances = { car.model }
-	-- a box the size of the car (a little thinner, and clear of the floor) sweeps ahead, so a
-	-- corner, a block's edge or a tire the middle line would miss still throws the car back
-	local sweep = math.max(speed * dt * 3, 3) + 1
-	local size = Vector3.new(body.Size.X * 0.9, math.max(body.Size.Y * 0.5, 1), body.Size.Z * 0.9)
-	local hit = workspace:Blockcast(
-		CFrame.new(body.Position) * body.CFrame.Rotation,
-		size,
-		flat.Unit * sweep,
-		params
-	)
-	if hit == nil then
-		-- already touching: the sweep starts inside the wall, so fall back to a ray from the middle
-		hit = workspace:Raycast(body.Position, flat.Unit * (body.Size.Z / 2 + sweep), params)
-	end
-	if hit == nil or not CollectionService:HasTag(hit.Instance, "Bouncy") then
-		return false
-	end
-	local n = Vector3.new(hit.Normal.X, 0, hit.Normal.Z)
-	if n.Magnitude < 1e-3 then
-		return false
-	end
-	n = n.Unit
-	local props = (hit.Instance :: BasePart).CustomPhysicalProperties
-	local keep = (if props then props.Elasticity else 0.5) * 0.85
-	local r = (flat - 2 * flat:Dot(n) * n) * keep
-	body.AssemblyLinearVelocity = Vector3.new(r.X, v.Y, r.Z)
-	car.stagger = math.max(car.stagger, 0.6)
-	car.slide = Vector3.new(r.X, 0, r.Z)
-	return true
-end
-
 -- Turns the brain's answer into movement. Only forward speed and turning are driven, so cars
 -- steer like cars and do not slide sideways (sideways speed dies out fast); bumps still push.
+function BattleCar.topSpeed(car: Car): number
+	return BattleDrive.topSpeed(car)
+end
+
 function BattleCar.drive(car: Car, out: BattleBrain.Output, dt: number)
 	local mv = BattleConfig.Move
 	local body = car.body
 	local f = BattleCar.forward(car)
+	if car.clientDriven then
+		return -- the owner's device moves this car (BattleDrive); the server only judges
+	end
 	local v = body.AssemblyLinearVelocity
-	if car.stagger <= 0 and wallBounce(car, v, dt) then
+	if car.stagger <= 0 and BattleDrive.wallBounce(car, v, dt) then
 		return
 	end
-	if car.stagger > 0 then
-		-- knocked: slide and spin on the shove, no steering
-		car.stagger = math.max(0, car.stagger - dt)
-		local keep = math.max(0, 1 - mv.knockFriction * dt)
-		if car.slide.Magnitude > 0 then
-			-- a wall bounce: hold the slide ourselves so the floor does not stop it in a blink
-			car.slide *= keep
-			body.AssemblyLinearVelocity = Vector3.new(car.slide.X, v.Y, car.slide.Z)
-			if car.stagger <= 0 then
-				car.slide = Vector3.zero
-			end
-			return
-		end
-		body.AssemblyLinearVelocity = Vector3.new(v.X * keep, v.Y, v.Z * keep)
+	if BattleDrive.knockedStep(car, v, dt) then
 		return
 	end
 	if car.human then
-		BattleCar.driveHuman(car, out, dt, f, v)
+		BattleDrive.humanStep(car, out, dt, f, v)
 		return
 	end
 	local fwd = v.X * f.X + v.Z * f.Z
@@ -431,72 +402,6 @@ function BattleCar.drive(car: Car, out: BattleBrain.Output, dt: number)
 	end
 	local yaw = out.turn * math.rad(car.fighter.turnDeg) * turnScale * BattleConfig.Bot.turnMult
 	body.AssemblyAngularVelocity = Vector3.new(0, yaw, 0)
-end
-
--- A car the player drives: quicker getaway, tight turns from a standstill, a drift when steering
--- hard at speed, and no forced speed while airborne (so a ramp launches it properly).
-function BattleCar.driveHuman(car: Car, out: BattleBrain.Output, dt: number, f: Vector3, v: Vector3)
-	local mv = BattleConfig.Move
-	local H = BattleConfig.Human
-	local body = car.body
-	local cruise = BattleCar.topSpeed(car)
-	local yawRate = out.turn * math.rad(car.fighter.turnDeg)
-
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.FilterDescendantsInstances = { car.model }
-	local onGround = workspace:Raycast(
-		body.Position,
-		Vector3.new(0, -(body.Size.Y * 0.5 + H.groundRayL * car.L), 0),
-		params
-	) ~= nil
-	car.model:SetAttribute("Airborne", not onGround)
-	if not onGround then
-		-- in the air: keep the speed and spin the ramp gave it, steer a little
-		local w = body.AssemblyAngularVelocity
-		body.AssemblyAngularVelocity = Vector3.new(w.X, yawRate * H.airYawScale, w.Z)
-		return
-	end
-
-	local fwd = v.X * f.X + v.Z * f.Z
-	local lat = Vector3.new(v.X - f.X * fwd, 0, v.Z - f.Z * fwd)
-	local want = out.drive * cruise
-	if want < 0 then
-		want *= mv.reverseScale
-	end
-	local speeding = math.abs(want) > math.abs(fwd)
-	local rate = if speeding then mv.accel * H.accelMult else mv.brake * H.brakeMult
-	if out.state == "charge" then
-		rate = mv.accel * 4 -- a charge gets up to speed fast
-	end
-	local step = rate * cruise * dt
-	local skidding = out.state == "skid"
-	if skidding then
-		step = mv.skidBrake * cruise * dt -- a missed charge rolls on
-	end
-	fwd += math.clamp(want - fwd, -step, step)
-
-	local speedFrac = math.abs(fwd) / cruise
-	local drifting = not skidding
-		and out.state ~= "charge"
-		and math.abs(out.turn) >= H.driftSteer
-		and speedFrac >= H.driftSpeed
-	car.model:SetAttribute("Drifting", drifting)
-	local sideGrip = if skidding then mv.skidSide elseif drifting then H.driftSide else 8
-	lat *= math.max(0, 1 - sideGrip * dt)
-	local maxSlide = H.slideMaxFrac * cruise
-	if lat.Magnitude > maxSlide then
-		lat = lat.Unit * maxSlide
-	end
-	body.AssemblyLinearVelocity = Vector3.new(f.X * fwd + lat.X, v.Y, f.Z * fwd + lat.Z)
-
-	local turnScale = math.clamp(speedFrac / 0.5 + H.turnMinScale, H.turnMinScale, 1)
-	if out.state == "charge" then
-		turnScale = 0
-	elseif drifting then
-		turnScale = H.driftYawBoost
-	end
-	body.AssemblyAngularVelocity = Vector3.new(0, yawRate * turnScale, 0)
 end
 
 -- Are the two cars' bodies touching (or almost) right now?
@@ -547,6 +452,10 @@ function BattleCar.knock(car: Car, dir: Vector3, speed: number, stagger: number)
 	end
 	car.stagger = math.max(car.stagger, stagger)
 	car.slide = Vector3.zero -- a fresh shove replaces a wall slide
+	if car.clientDriven then
+		-- the owner's device runs the knocked slide; tell it until when (server time)
+		car.model:SetAttribute("KnockUntil", workspace:GetServerTimeNow() + stagger)
+	end
 	local v = car.body.AssemblyLinearVelocity
 	car.body.AssemblyLinearVelocity = Vector3.new(d.X * speed, v.Y, d.Z * speed)
 	local side = if (d:Cross(car.lastForward)).Y >= 0 then 1 else -1
@@ -565,6 +474,7 @@ end
 -- Knock-out finish: the car stops, smokes and goes dark. Removed with the model.
 function BattleCar.wreck(car: Car)
 	car.brain = nil
+	BattleCar.reclaim(car)
 	car.stagger = 0.001
 	car.slide = Vector3.zero
 	local body = car.body

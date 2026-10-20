@@ -43,6 +43,7 @@ type Part = {
 	left: boolean,
 	paid: boolean, -- this match's reward was handled
 	savedSpeed: number?,
+	savedCf: CFrame?, -- where the character stood before it was parked under the arena
 	spot: number, -- unused since manual driving: cars start on the map's spawns
 	aim: number,
 	steer: number, -- driving: stick / keys, -1 left .. 1 right
@@ -204,11 +205,36 @@ function BattleService.start(
 		end
 	end
 
+	-- A device only simulates parts near its character, and the arena is far from the lobby, so the
+	-- (still, anchored) character waits under the arena floor while the player drives their car.
+	local function park(part: Part, origin: Vector3)
+		local pl = part.player
+		local char = if pl then pl.Character else nil
+		local root = if char then char:FindFirstChild("HumanoidRootPart") else nil
+		if char and root and root:IsA("BasePart") and part.savedCf == nil then
+			part.savedCf = root.CFrame
+			root.Anchored = true
+			char:PivotTo(CFrame.new(origin + Vector3.new(0, -12, 0)))
+		end
+	end
+
+	local function unpark(part: Part)
+		local pl = part.player
+		local char = if pl then pl.Character else nil
+		local root = if char then char:FindFirstChild("HumanoidRootPart") else nil
+		if part.savedCf ~= nil and char and root and root:IsA("BasePart") then
+			char:PivotTo(part.savedCf)
+			root.Anchored = false
+		end
+		part.savedCf = nil
+	end
+
 	local function release(part: Part, toLobby: boolean)
 		local pl = part.player
 		if pl == nil or pl.Parent == nil then
 			return
 		end
+		unpark(part)
 		local hum = if pl.Character then pl.Character:FindFirstChildOfClass("Humanoid") else nil
 		if hum and part.savedSpeed ~= nil then
 			hum.WalkSpeed = part.savedSpeed
@@ -372,6 +398,9 @@ function BattleService.start(
 			(signs :: any)[(spawnOf :: any)[side]] = if part.bot then BOT_SIGN_NAME else part.name
 		end
 		arena.setNames(signs.a, signs.b)
+		for _, side in sides() do
+			park((m.parts :: any)[side], arena.origin)
+		end
 		m.phase, m.t = "prep", 0
 		for _, side in sides() do
 			local part = (m.parts :: any)[side] :: Part
@@ -407,7 +436,7 @@ function BattleService.start(
 				-- a player drives this car: stick / keys and the ATTACK button
 				car.human = true
 				part.steer, part.gas, part.attack = 0, 0, false
-				BattleCar.arm(car, BattleHuman.new(car.fighter.id))
+				BattleCar.arm(car, BattleHuman.new(car.fighter.id), part.player)
 				BattleCar.launch(car, false)
 			else
 				car.human = false
@@ -761,6 +790,25 @@ function BattleService.start(
 					}
 				)
 				car.lastOut = out
+				if car.clientDriven then
+					-- the owner's device moves the car; it needs the weapon states that force movement
+					local forced = out.state == "charge"
+						or out.state == "recoil"
+						or out.state == "skid"
+					car.model:SetAttribute("BState", if forced then out.state else "drive")
+					car.model:SetAttribute("BDrive", if forced then out.drive else 0)
+					car.model:SetAttribute("BTurn", if forced then out.turn else 0)
+					-- the device is trusted with movement, not with speed
+					local vel = car.body.AssemblyLinearVelocity
+					local flat = Vector3.new(vel.X, 0, vel.Z)
+					local cap = BattleCar.topSpeed(car)
+						* math.max(1, BattleConfig.Ram.chargeMult)
+						* 1.3
+					if flat.Magnitude > cap then
+						local k = cap / flat.Magnitude
+						car.body.AssemblyLinearVelocity = Vector3.new(vel.X * k, vel.Y, vel.Z * k)
+					end
+				end
 				BattleCar.drive(car, out, dt)
 				BattleCar.lunge(car, dt)
 				BattleCar.rememberVelocity(car)
