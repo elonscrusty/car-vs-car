@@ -703,7 +703,15 @@ function BattleService.start(
 			local include: { Instance } = table.clone(arena.solids)
 			table.insert(include, s.foe.body)
 			params.FilterDescendantsInstances = include
-			local hit = workspace:Spherecast(s.pos, 0.15 * s.owner.L, step, params)
+			-- point blank: a shell born inside the foe's box would never "hit" it, so count that as a hit
+			local rel = s.foe.body.CFrame:PointToObjectSpace(s.pos)
+			local half = s.foe.body.Size / 2 + Vector3.one * (0.15 * s.owner.L)
+			local inside = math.abs(rel.X) <= half.X
+				and math.abs(rel.Y) <= half.Y
+				and math.abs(rel.Z) <= half.Z
+			local hit = if inside
+				then nil
+				else workspace:Spherecast(s.pos, 0.15 * s.owner.L, step, params)
 			local done = false
 			local landed = false
 			if
@@ -727,9 +735,10 @@ function BattleService.start(
 					s.part.Position = s.pos
 				end
 				sendHit(m, hit.Position, false)
-			elseif hit then
+			elseif hit or inside then
 				done = true
-				if hit.Instance == s.foe.body then
+				local hitPos = if hit then hit.Position else s.pos
+				if inside or (hit and hit.Instance == s.foe.body) then
 					landed = true
 					s.owner.stats.shotHits += 1
 					if s.foe.side == "a" then
@@ -743,7 +752,7 @@ function BattleService.start(
 						BattleConfig.Cannon.knockSpeed,
 						BattleConfig.Cannon.knockStagger
 					)
-					sendHit(m, hit.Position, false, s.dmg, s.foe.side)
+					sendHit(m, hitPos, false, s.dmg, s.foe.side)
 				end
 			else
 				s.pos += step
