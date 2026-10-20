@@ -169,7 +169,8 @@ function ResultRewards.compute(info: Info, cfg: any?): Result
 		return { coins = coins, resultText = text, kind = kind, mode = mode }
 	end
 	-- Duel, hill, ice and anything unknown: the old win / not-win coins, no special line.
-	return { coins = base, resultText = "", kind = "duel", mode = mode }
+	local duel = if won then c.duelWin or base else c.duelLose or base
+	return { coins = duel, resultText = "", kind = "duel", mode = mode }
 end
 
 -- Does this finish keep the win streak alive without a win? Tag/race: top-half place (needs `place`).

@@ -546,6 +546,7 @@ function BattleService.start(
 				end
 				p.matches = math.min(p.matches + 1, 1e9)
 				Profiles.markDirty(part.player :: Player)
+				Profiles.saveNow(part.player :: Player)
 				Leaderboards.submit(part.player :: Player, p)
 			end
 			if p then

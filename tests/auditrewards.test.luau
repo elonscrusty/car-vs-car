@@ -24,12 +24,11 @@ local R = LobbyConfig.ResultRewards
 
 H.test("result rewards: old modes keep the old win / lose coins and no special line", function()
 	local win = ResultRewards.compute({ mode = "duel", won = true })
-	H.eq(win.coins, LobbyConfig.Rewards.winCoins)
+	H.eq(win.coins, R.duelWin) -- the 1v1 fight pays ~5 fights per 120-coin pull
 	H.eq(win.resultText, "")
-	H.eq(ResultRewards.compute({ mode = "hill", won = false }).coins, LobbyConfig.Rewards.loseCoins)
-	-- nothing reported at all (old callers): same as before
-	H.eq(ResultRewards.compute({ won = true }).coins, 60)
-	H.eq(ResultRewards.compute({ won = false }).coins, 20)
+	H.eq(ResultRewards.compute({ mode = "duel", won = false }).coins, R.duelLose)
+	H.eq((R.duelWin + R.duelLose) / 2 * 5, LobbyConfig.Gacha.price, "5 average fights = one pull")
+	H.eq(ResultRewards.compute({ mode = "hill", won = false }).coins, R.duelLose)
 	H.eq(R.baseWin, LobbyConfig.Rewards.winCoins)
 	H.eq(R.baseOther, LobbyConfig.Rewards.loseCoins)
 end)

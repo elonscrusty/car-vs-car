@@ -78,17 +78,16 @@ end)
 H.test("select: owned fighters are usable, others locked", function()
 	local ctx = { owned = { CannonVan = true }, testUnlock = false }
 	H.eq(BattleSelect.access("CannonVan", ctx), "owned")
-	H.eq(BattleSelect.access("RamTruck", ctx), nil, "no loaner while you own another")
+	H.eq(BattleSelect.access("RamTruck", ctx), "owned", "the free Ram Truck is always yours")
 	H.eq(BattleSelect.access("SawBuggy", ctx), nil)
 	H.eq(BattleSelect.access("Sedan", ctx), nil, "legacy cars are not fighters")
 	H.eq(BattleSelect.access(42, ctx), nil)
 end)
 
-H.test("select: nothing owned gives the Ram loaner only", function()
+H.test("select: with nothing owned only the free Ram Truck is usable", function()
 	local ctx = { owned = { Sedan = true }, testUnlock = false }
-	H.eq(BattleSelect.access("RamTruck", ctx), "loaner")
+	H.eq(BattleSelect.access("RamTruck", ctx), "owned")
 	H.eq(BattleSelect.access("CannonVan", ctx), nil)
-	H.eq(BattleSelect.label("loaner"), "Loaner")
 end)
 
 H.test("select: test unlock opens all three, owned still shows owned", function()
@@ -102,7 +101,7 @@ end)
 H.test("select: timeout uses last valid pick, then first owned, then the loaner", function()
 	local ctx = { owned = { CannonVan = true, SawBuggy = true }, testUnlock = false }
 	H.eq(BattleSelect.resolve("SawBuggy", ctx), "SawBuggy")
-	H.eq(BattleSelect.resolve("RamTruck", ctx), "CannonVan", "invalid last pick")
+	H.eq(BattleSelect.resolve("NotACar", ctx), "CannonVan", "invalid last pick")
 	H.eq(BattleSelect.resolve(nil, ctx), "CannonVan", "first in catalog order")
 	H.eq(BattleSelect.resolve(nil, { owned = {}, testUnlock = false }), "RamTruck")
 	H.eq(BattleSelect.resolve("CannonVan", { owned = {}, testUnlock = false }), "RamTruck")
@@ -402,9 +401,9 @@ H.test("saves: fighters survive migrate, old cars and coins stay", function()
 	H.eq(q.owned.RamTruck, nil, "no free fighters are added to a save")
 end)
 
-H.test("saves: a new player owns no fighter, so the Ram loaner applies", function()
+H.test("saves: a new player owns no fighter, but the Ram Truck is always theirs", function()
 	local p = Inventory.default()
-	H.eq(BattleSelect.access("RamTruck", { owned = p.owned, testUnlock = false }), "loaner")
+	H.eq(BattleSelect.access("RamTruck", { owned = p.owned, testUnlock = false }), "owned")
 end)
 
 H.test("gumball: drops only gumball fighters, odds add to 100, saves ownership", function()
@@ -424,7 +423,26 @@ H.test("gumball: drops only gumball fighters, odds add to 100, saves ownership",
 	H.eq(seen.RamTruck, nil, "the Ram is the free starter, not a drop")
 end)
 
-H.test("gumball: a pull grants a fighter once, a duplicate pays coins back", function()
+H.test(
+	"gumball: a rarity with no car is not in the odds (no Legendary until one exists)",
+	function()
+		Gacha.useFighters()
+		local have: { [string]: boolean } = {}
+		for _, id in BattleConfig.Order do
+			local f = BattleConfig.Fighters[id]
+			if f.gumball and f.enabled then
+				have[f.rarity] = true
+			end
+		end
+		for _, row in Gacha.oddsTable() do
+			H.eq(have[row.rarity], true, row.rarity .. " is shown but has no car")
+			H.truthy(#row.cars > 0)
+		end
+		Gacha.useCars()
+	end
+)
+
+H.test("gumball: a pull grants a fighter once, a duplicate gives nothing", function()
 	Gacha.useFighters()
 	local p: any = Inventory.default()
 	p.coins = 1000
@@ -440,7 +458,7 @@ H.test("gumball: a pull grants a fighter once, a duplicate pays coins back", fun
 	H.eq(r1.isNew, true)
 	H.eq(r2.carId, r1.carId)
 	H.eq(r2.isNew, false)
-	H.truthy(r2.refund > 0, "duplicate pays back")
+	H.eq(r2.refund, 0, "a duplicate gives nothing")
 end)
 
 H.test("cannon: just inside max range and a few degrees off, it still turns and creeps", function()

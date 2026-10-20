@@ -38,6 +38,9 @@ LobbyConfig.Rewards = {
 LobbyConfig.ResultRewards = {
 	baseWin = LobbyConfig.Rewards.winCoins, -- a win (soccer, tag, duel...)
 	baseOther = LobbyConfig.Rewards.loseCoins, -- finishing without a win
+	-- The 1v1 fight: a win and a loss average 24 coins, so a 120-coin gumball pull is about 5 fights.
+	duelWin = 35,
+	duelLose = 13,
 	-- Race coins by finishing place (1st..6th); later places use the last number. Replaces the base.
 	racePlaceCoins = { 60, 45, 35, 25, 20, 20 } :: { number },
 	perGoal = 5, -- soccer: coins per goal you scored
@@ -62,9 +65,9 @@ LobbyConfig.Gacha = {
 	price = 120, -- about 5 fights of coins (carter: medium); the odds are shown in the box
 	firstPullFree = true,
 	odds = { Common = 55, Rare = 28, Epic = 14, Legendary = 3 } :: { [string]: number }, -- percent, must sum to 100
-	duplicateRefund = 50, -- fallback coins back on a car you already own
-	-- Coins back for a duplicate, by rarity (PRETEND numbers). Rarer gives more.
-	duplicateRefunds = { Common = 10, Rare = 25, Epic = 60, Legendary = 120 } :: { [string]: number },
+	duplicateRefund = 0, -- a duplicate gives NOTHING (carter, 2026-10-20)
+	-- Coins back for a duplicate, by rarity: all zero, a duplicate gives nothing.
+	duplicateRefunds = { Common = 0, Rare = 0, Epic = 0, Legendary = 0 } :: { [string]: number },
 	-- Pity: after this many pulls in a row without an Epic or better, the next pull is guaranteed
 	-- one (the odds above are still shown). PLACEHOLDER: N = 10.
 	pityEvery = 10,
