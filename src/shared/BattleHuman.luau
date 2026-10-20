@@ -19,6 +19,7 @@ end
 
 local BattleConfig = sibling("BattleConfig")
 local BattleBrain = sibling("BattleBrain")
+local BattleAim = sibling("BattleAim")
 
 export type Body = { x: number, z: number, fx: number, fz: number }
 export type Contact = { ram: boolean, saw: boolean, speedFrac: number?, tempo: number? }
@@ -131,8 +132,11 @@ function BattleHuman.new(fighterId: string): Human
 
 			if fighterId == "RamTruck" then
 				if state == "charge" then
-					-- direction committed, no steering
-					local o = out(0, ram.chargeMult)
+					-- direction committed; only auto-aim nudges it toward a foe that is nearly ahead
+					local o = out(
+						BattleAim.chargeTurn(angle, ram.homingConeDeg * DEG, ram.homingTurn),
+						ram.chargeMult
+					)
 					local inFront = math.abs(angle) <= ram.frontConeDeg * DEG
 					if contact.ram and inFront and not chargeHit then
 						chargeHit = true

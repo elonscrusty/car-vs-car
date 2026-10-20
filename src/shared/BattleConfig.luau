@@ -210,6 +210,8 @@ BattleConfig.Ram = {
 	telegraphSeconds = 0.6,
 	chargeMult = 2.2, -- charge speed, times cruise
 	chargeSeconds = 1.0, -- longest charge
+	homingConeDeg = 35, -- auto-aim: a charge steers toward a foe within this angle of the nose ...
+	homingTurn = 0.5, -- ... with at most this much steering (1 = full)
 	cooldownSeconds = 6, -- after the charge ends
 	skidSeconds = 0.7, -- after a MISS the truck overshoots, sliding on
 	recoilSeconds = 0.5, -- after a HIT the truck bounces back
@@ -235,6 +237,8 @@ BattleConfig.Cannon = {
 	shellSpeedL = 4.5, -- L per second (carter: easy to follow with the eyes)
 	shellLifeSeconds = 2.2,
 	shellRadiusL = 0.12,
+	homingDegPerSec = 80, -- auto-aim: a shell curves toward the foe this fast ...
+	homingConeDeg = 45, -- ... when the foe is within this angle of its heading
 	ricochets = 1, -- a shell bounces off a wall this many times
 	repositionDrive = 0.8, -- when closing in
 	fleeDrive = 1,
@@ -278,6 +282,7 @@ BattleConfig.Human = {
 	driftSpeed = 0.8, -- ... at this share of cruise speed or more
 	driftSide = 4.5, -- sideways grip while sliding (normal 8: lower = longer slide)
 	driftYawBoost = 1.1, -- the nose swings round a bit faster while sliding
+	chargeSteerScale = 1, -- how much of the turn rate a ram charge keeps (it only steers by auto-aim)
 	airYawScale = 0.35, -- a little steering in the air
 	groundRayL = 0.12, -- grounded when something is this far (in car lengths) below the BOTTOM of the body
 }

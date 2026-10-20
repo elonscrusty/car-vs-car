@@ -12,6 +12,7 @@ local RunService = game:GetService("RunService")
 
 local BattleBrain = require(ReplicatedStorage.Shared.BattleBrain)
 local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
+local BattleAim = require(ReplicatedStorage.Shared.BattleAim)
 local BattleCrash = require(ReplicatedStorage.Shared.BattleCrash)
 local BattleHuman = require(ReplicatedStorage.Shared.BattleHuman)
 local PadSlots = require(ReplicatedStorage.Shared.PadSlots)
@@ -609,7 +610,7 @@ function BattleService.start(
 		local toFoe = foe.body.Position - pos
 		local run = math.max(toFoe.Magnitude, 1)
 		local rise = math.clamp(toFoe.Y / run, -0.5, 0.5)
-		-- carter: a straight shot, no auto aim (the shot flies where the nose points)
+		-- the shot leaves along the nose; auto-aim then curves it toward the foe in stepShells
 		local dir = Vector3.new(flat.X, rise, flat.Z).Unit
 		local ball = Instance.new("Part")
 		ball.Name = "Shell"
@@ -654,6 +655,21 @@ function BattleService.start(
 		local arena = m.arena :: BattleArena.Arena
 		for i = #m.shells, 1, -1 do
 			local s = m.shells[i]
+			-- auto-aim: the shell curves a little toward the foe it is already flying at
+			do
+				local toFoe = s.foe.body.Position - s.pos
+				local cfg = BattleConfig.Cannon
+				local nx, nz = BattleAim.curve(
+					s.dir.X,
+					s.dir.Z,
+					toFoe.X,
+					toFoe.Z,
+					math.rad(cfg.homingDegPerSec) * dt,
+					math.rad(cfg.homingConeDeg)
+				)
+				local flat = math.sqrt(s.dir.X * s.dir.X + s.dir.Z * s.dir.Z)
+				s.dir = Vector3.new(nx * flat, s.dir.Y, nz * flat).Unit
+			end
 			local step = s.dir * s.speed * dt
 			local params = RaycastParams.new()
 			params.FilterType = Enum.RaycastFilterType.Include

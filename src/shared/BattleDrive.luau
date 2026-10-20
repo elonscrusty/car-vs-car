@@ -140,7 +140,7 @@ function BattleDrive.humanStep(car: Mover, out: Out, dt: number, f: Vector3, v: 
 
 	local turnScale = math.clamp(speedFrac / 0.5 + H.turnMinScale, H.turnMinScale, 1)
 	if out.state == "charge" then
-		turnScale = 0
+		turnScale = H.chargeSteerScale
 	elseif drifting then
 		turnScale = H.driftYawBoost
 	end

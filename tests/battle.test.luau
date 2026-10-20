@@ -2,6 +2,7 @@
 local H = require("./harness")
 local BattleBrain = require("../src/shared/BattleBrain")
 local BattleConfig = require("../src/shared/BattleConfig")
+local BattleAim = require("../src/shared/BattleAim")
 local BattleCrash = require("../src/shared/BattleCrash")
 local BattleSelect = require("../src/shared/BattleSelect")
 local BattleSeries = require("../src/shared/BattleSeries")
@@ -793,6 +794,22 @@ H.test("every car has a driver and a line for the VS screen", function()
 	end
 	H.eq(BattleConfig.driverLine("nope"), "")
 	H.eq(BattleConfig.Timing.firstPrepSeconds > BattleConfig.Timing.prepSeconds, true)
+end)
+
+H.test("auto-aim curves a shot toward a foe that is nearly ahead, not one behind", function()
+	-- heading +x, foe up-left at 30 degrees: turns toward it by at most the step
+	local x, z = BattleAim.curve(1, 0, math.cos(0.52), math.sin(0.52), 0.1, 0.8)
+	H.eq(z > 0 and math.abs(math.atan2(z, x) - 0.1) < 1e-6, true)
+	-- a tiny gap is closed exactly
+	local x2, z2 = BattleAim.curve(1, 0, math.cos(0.05), math.sin(0.05), 0.1, 0.8)
+	H.eq(math.abs(math.atan2(z2, x2) - 0.05) < 1e-6, true)
+	-- foe behind (outside the cone): unchanged
+	local x3, z3 = BattleAim.curve(1, 0, -1, 0.1, 0.1, 0.8)
+	H.eq(x3 == 1 and z3 == 0, true)
+	-- charge nudge: zero outside the cone, signed inside, never above strength
+	H.eq(BattleAim.chargeTurn(1.2, 0.6, 0.5), 0)
+	H.eq(BattleAim.chargeTurn(0.3, 0.6, 0.5), 0.25)
+	H.eq(BattleAim.chargeTurn(-0.6, 0.6, 0.5), -0.5)
 end)
 
 H.test("a car past the walls or below the floor is out of the arena", function()
