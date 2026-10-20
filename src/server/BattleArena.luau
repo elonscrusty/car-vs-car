@@ -1,23 +1,25 @@
 --!strict
--- The enclosed 1v1 battle arena, one per match slot: "Duel Car Arena" (see DuelArena and
--- DuelArenaLayout). Walls all round, nothing to fall out of; HP decides. The old toy bedroom map
--- (BattleMap, BattleMapLayout, MapDecor) is kept: set THEME to "toy" to bring it back.
+-- The enclosed 1v1 battle arena, one per match slot: the round "Junkyard Bowl" (see BowlMap and
+-- BowlLayout). A tire wall all round, nothing to fall out of; HP decides. The older maps are kept:
+-- set THEME to "duel" (Duel Car Arena, see DuelArena) or "toy" (the toy bedroom, BattleMap,
+-- BattleMapLayout, MapDecor) to bring one back.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local BattleBrain = require(ReplicatedStorage.Shared.BattleBrain)
 local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
 local BattleMapLayout = require(ReplicatedStorage.Shared.BattleMapLayout)
+local BowlLayout = require(ReplicatedStorage.Shared.BowlLayout)
 local DuelArenaLayout = require(ReplicatedStorage.Shared.DuelArenaLayout)
 local BattleMap = require(script.Parent.BattleMap)
+local BowlMap = require(script.Parent.BowlMap)
 local DuelArena = require(script.Parent.DuelArena)
-local ChaseMapLayout = require(ReplicatedStorage.Shared.ChaseMapLayout)
-local ChaseMap = require(script.Parent.ChaseMap)
 
-local THEME = "chase" -- "chase" = Wreck City, "duel" = Duel Car Arena, "toy" = the toy bedroom
+local THEME = "bowl" -- "bowl" = Junkyard Bowl, "duel" = Duel Car Arena, "toy" = the toy bedroom
 local Layout: any = if THEME == "toy"
 	then BattleMapLayout
 	elseif THEME == "duel" then DuelArenaLayout
-	else ChaseMapLayout
+	else BowlLayout
 
 export type Arena = {
 	folder: Folder,
@@ -25,6 +27,10 @@ export type Arena = {
 	solids: { Instance }, -- walls and blocks (what a shell stops at)
 	halfX: number,
 	halfZ: number,
+	-- A round arena (the bowl): the wall's inner face is a circle of this radius round the middle.
+	-- nil on the rectangular maps.
+	radius: number?,
+	brain: BattleBrain.Arena, -- the bots' picture of the arena
 	toWorld: (x: number, z: number) -> Vector3,
 	toLocal: (p: Vector3) -> (number, number),
 	spawnPoint: (side: string) -> (Vector3, Vector3), -- world position and facing direction
@@ -33,9 +39,9 @@ export type Arena = {
 	setTeams: (aIsRed: boolean) -> (), -- which side is red and which blue
 	openDoors: () -> (), -- the garage roller doors roll up (at GO)
 	closeDoors: () -> (),
-	-- Wreck City live parts (no-ops on the other maps): once per fight frame, with each side's car
-	-- body. Smashes props and returns the cars the crane hit.
-	tick: (dt: number, bodies: { [string]: BasePart }) -> { ChaseMap.Hit },
+	-- Bowl live parts (no-ops on the other maps): once per fight frame, with each side's car body.
+	-- Smashes props and returns the cars the crusher or an exploding barrel caught.
+	tick: (dt: number, bodies: { [string]: BasePart }) -> { BowlMap.Hit },
 	-- where to put a stuck or fallen car back (world position, facing)
 	rescuePoint: (pos: Vector3) -> (Vector3, Vector3),
 	resetBreakables: () -> (), -- smashed props come back (new round)
@@ -50,7 +56,14 @@ function BattleArena.build(slot: number): Arena
 	local cfg = BattleConfig.Arena
 	local o = cfg.origin
 	local origin = Vector3.new(o.x + slot * SLOT_SPACING, o.y, o.z)
-	local halfX, halfZ = Layout.halfX, Layout.halfZ
+	local round = THEME == "bowl"
+	-- the bowl is a circle: its "half sizes" are the wall's radius, so anything that only knows a
+	-- box (the camera, the old out-of-bounds check) still gets a box round the circle
+	local radius: number? = if round then BowlLayout.wallRadius else nil
+	local halfX, halfZ = radius or Layout.halfX, radius or Layout.halfZ
+	local wallHeight: number = if round
+		then BowlLayout.slopeRise + BowlLayout.wallAboveRim
+		else Layout.wallHeight
 	local folder = Instance.new("Folder")
 	folder.Name = "BattleArena_" .. slot
 	folder:SetAttribute("OriginX", origin.X)
@@ -58,7 +71,10 @@ function BattleArena.build(slot: number): Arena
 	folder:SetAttribute("OriginZ", origin.Z)
 	folder:SetAttribute("HalfX", halfX)
 	folder:SetAttribute("HalfZ", halfZ)
-	folder:SetAttribute("WallHeight", Layout.wallHeight)
+	folder:SetAttribute("WallHeight", wallHeight)
+	if radius then
+		folder:SetAttribute("Radius", radius)
+	end
 	local solids: { Instance } = {}
 
 	local controls: any = nil
@@ -71,10 +87,19 @@ function BattleArena.build(slot: number): Arena
 		controls = DuelArena.build(folder, origin, solids)
 		folder.Parent = workspace
 	else
-		controls = ChaseMap.build(folder, origin, solids)
+		controls = BowlMap.build(folder, origin, solids)
 		folder.Parent = workspace
 		controls.verify()
 	end
+
+	-- what the bots know: the wall (a circle on the bowl, a box elsewhere) and the crusher's base
+	local brainArena: BattleBrain.Arena = {
+		halfX = halfX,
+		halfZ = halfZ,
+		obstacles = if round then {} else BattleConfig.Arena.obstacles,
+		radius = radius,
+		circles = if round then BowlLayout.circles() else nil,
+	}
 
 	local arena: Arena
 	arena = {
@@ -83,6 +108,8 @@ function BattleArena.build(slot: number): Arena
 		solids = solids,
 		halfX = halfX,
 		halfZ = halfZ,
+		radius = radius,
+		brain = brainArena,
 		toWorld = function(x: number, z: number): Vector3
 			return origin + Vector3.new(x, 0, z)
 		end,
@@ -121,7 +148,7 @@ function BattleArena.build(slot: number): Arena
 				controls.closeDoors()
 			end
 		end,
-		tick = function(dt: number, bodies: { [string]: BasePart }): { ChaseMap.Hit }
+		tick = function(dt: number, bodies: { [string]: BasePart }): { BowlMap.Hit }
 			if controls and controls.tick then
 				return controls.tick(dt, bodies)
 			end

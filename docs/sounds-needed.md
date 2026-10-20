@@ -55,3 +55,13 @@ In the arena folder, `Sounds` > `Spot_<name>` > Sound `<name>` (SoundId is blank
 | Birds | loops all match | gentle sunny-day birds and a little breeze, quiet |
 | GarageDoorA / GarageDoorB | both roller doors roll up at GO | rolling metal shutter, ~1 s |
 | GoHorn | at GO | short friendly air horn, under 1 s |
+
+## Junkyard Bowl sound spots (silent until you give ids)
+Same layout in the bowl's arena folder (`Sounds` > `Spot_<name>` > Sound `<name>`). Slam plays on every client at each crusher slam, the others are placed for later.
+
+| Sound | When | What it should sound like |
+|---|---|---|
+| Birds | loops all match | gentle sunny-day birds and a little breeze, quiet |
+| GoHorn | at GO | short friendly air horn, under 1 s |
+| Slam | the crusher hits the floor | big cartoon "BOOM-thud" with a metal clank, under 1 s |
+| Boom | a red barrel explodes | cartoon "pop-BOOM", not scary, under 0.8 s |

@@ -19,6 +19,7 @@ H.test("launch flags: cuts hidden, the fight kept", function()
 		H.truthy(not FeatureFlags.enabled(f), f)
 	end
 	H.truthy(FeatureFlags.enabled("lastStandingMode"))
+	H.truthy(not FeatureFlags.enabled("enemyArrow"), "no arrow pointing to the enemy")
 	H.truthy(not FeatureFlags.enabled("soccerMode") and not FeatureFlags.enabled("tagMode"))
 	H.truthy(not FeatureFlags.enabled("nope"))
 	H.truthy(FeatureFlags.enabled("x", { x = true }))

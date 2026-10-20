@@ -6,6 +6,7 @@
 local BattleBrain = require("../src/shared/BattleBrain")
 local BattleConfig = require("../src/shared/BattleConfig")
 local BattleSeries = require("../src/shared/BattleSeries")
+local BowlLayout = require("../src/shared/BowlLayout")
 
 local DEG = math.pi / 180
 
@@ -22,6 +23,13 @@ export type Car = {
 	brain: BattleBrain.Brain,
 	hits: number, -- damage events dealt
 	log: { { t: number, kind: string } },
+	-- round arena only: how far from the middle it ever got, and the seconds it spent hard against
+	-- the wall and inside the crusher's base (that must stay 0)
+	maxR: number,
+	wallTime: number,
+	wallStreak: number, -- seconds in a row against the wall right now ...
+	wallLongest: number, -- ... and the longest such stretch (a pinned car shows here)
+	baseTime: number,
 }
 
 local Sim = {}
@@ -32,7 +40,25 @@ local function arenaOf(): BattleBrain.Arena
 end
 Sim.arena = arenaOf
 
-function Sim.car(id: string, x: number, z: number, fx: number, fz: number): Car
+-- The Junkyard Bowl: a round wall, the crusher's base in the middle (the bots are told about both).
+function Sim.bowl(): BattleBrain.Arena
+	return {
+		halfX = BowlLayout.wallRadius,
+		halfZ = BowlLayout.wallRadius,
+		obstacles = {},
+		radius = BowlLayout.wallRadius,
+		circles = BowlLayout.circles(),
+	}
+end
+
+function Sim.car(
+	id: string,
+	x: number,
+	z: number,
+	fx: number,
+	fz: number,
+	arena: BattleBrain.Arena?
+): Car
 	local f = BattleConfig.Fighters[id]
 	local L = f.lengthStuds
 	return {
@@ -45,9 +71,14 @@ function Sim.car(id: string, x: number, z: number, fx: number, fz: number): Car
 		speed = 0,
 		hp = f.hp,
 		maxHp = f.hp,
-		brain = BattleBrain.new(id, L, arenaOf()),
+		brain = BattleBrain.new(id, L, arena or arenaOf()),
 		hits = 0,
 		log = {},
+		maxR = 0,
+		wallTime = 0,
+		wallStreak = 0,
+		wallLongest = 0,
+		baseTime = 0,
 	}
 end
 
@@ -67,6 +98,24 @@ local function pushOutOfBoxes(c: Car, arena: BattleBrain.Arena)
 			end
 			c.x += vx / d * (r - d)
 			c.z += vz / d * (r - d)
+			c.speed *= 0.3
+		end
+	end
+end
+
+-- a round block (the crusher's base) is solid too
+local function pushOutOfCircles(c: Car, arena: BattleBrain.Arena)
+	local circles = arena.circles
+	if not circles then
+		return
+	end
+	local r = 0.45 * c.L
+	for _, ob in circles do
+		local vx, vz = c.x - ob.x, c.z - ob.z
+		local d = math.max(math.sqrt(vx * vx + vz * vz), 1e-3)
+		if d < ob.r + r then
+			c.x = ob.x + vx / d * (ob.r + r)
+			c.z = ob.z + vz / d * (ob.r + r)
 			c.speed *= 0.3
 		end
 	end
@@ -96,13 +145,24 @@ local function move(c: Car, out: BattleBrain.Output, dt: number, arena: BattleBr
 	c.x += c.fx * c.speed * dt
 	c.z += c.fz * c.speed * dt
 	local r = 0.45 * c.L
-	local limX, limZ = arena.halfX - r, arena.halfZ - r
-	if math.abs(c.x) > limX or math.abs(c.z) > limZ then
-		c.x = math.clamp(c.x, -limX, limX)
-		c.z = math.clamp(c.z, -limZ, limZ)
-		c.speed *= 0.2
+	local radius = arena.radius
+	if radius then
+		local d = math.sqrt(c.x * c.x + c.z * c.z)
+		if d > radius - r then
+			c.x *= (radius - r) / d
+			c.z *= (radius - r) / d
+			c.speed *= 0.2
+		end
+	else
+		local limX, limZ = arena.halfX - r, arena.halfZ - r
+		if math.abs(c.x) > limX or math.abs(c.z) > limZ then
+			c.x = math.clamp(c.x, -limX, limX)
+			c.z = math.clamp(c.z, -limZ, limZ)
+			c.speed *= 0.2
+		end
 	end
 	pushOutOfBoxes(c, arena)
+	pushOutOfCircles(c, arena)
 end
 
 local function contactOf(me: Car, foe: Car): BattleBrain.Contact
@@ -115,15 +175,25 @@ end
 
 export type Result = { outcome: BattleSeries.Outcome, seconds: number, a: Car, b: Car }
 
--- One fight. `seed` mixes the start spots a little so repeats differ.
-function Sim.fight(idA: string, idB: string, swap: boolean, seed: number): Result
+-- One fight. `seed` mixes the start spots a little so repeats differ. `round` = in the Junkyard
+-- Bowl (round wall, crusher base, its own start pads) instead of the old box arena.
+function Sim.fight(idA: string, idB: string, swap: boolean, seed: number, round: boolean?): Result
 	math.randomseed(seed)
-	local arena = arenaOf()
-	local inset = BattleConfig.Arena.spawnInset
-	local ax, bx = -(arena.halfX - inset), arena.halfX - inset
+	local arena = if round then Sim.bowl() else arenaOf()
 	local jz = (math.random() * 16 - 8)
-	local a = Sim.car(idA, if swap then bx else ax, jz, if swap then -1 else 1, 0)
-	local b = Sim.car(idB, if swap then ax else bx, -jz, if swap then 1 else -1, 0)
+	local a, b
+	if round then
+		-- the two start pads, facing each other along the lane; `swap` trades the pads
+		local ax, az, afx, afz = BowlLayout.spawn(if swap then "b" else "a")
+		local bx, bz, bfx, bfz = BowlLayout.spawn(if swap then "a" else "b")
+		a = Sim.car(idA, ax, az + jz, afx, afz, arena)
+		b = Sim.car(idB, bx, bz - jz, bfx, bfz, arena)
+	else
+		local inset = BattleConfig.Arena.spawnInset
+		local ax, bx = -(arena.halfX - inset), arena.halfX - inset
+		a = Sim.car(idA, if swap then bx else ax, jz, if swap then -1 else 1, 0, arena)
+		b = Sim.car(idB, if swap then ax else bx, -jz, if swap then 1 else -1, 0, arena)
+	end
 	local dt = 1 / 30
 	local t = 0
 	local shells: { { owner: Car, foe: Car, x: number, z: number, dx: number, dz: number, life: number } } =
@@ -174,8 +244,17 @@ function Sim.fight(idA: string, idB: string, swap: boolean, seed: number): Resul
 			s.life -= dt
 			local gone = s.life <= 0
 			local hit = false
-			if math.abs(s.x) > arena.halfX or math.abs(s.z) > arena.halfZ then
+			if arena.radius then
+				if s.x * s.x + s.z * s.z > arena.radius ^ 2 then
+					gone = true
+				end
+			elseif math.abs(s.x) > arena.halfX or math.abs(s.z) > arena.halfZ then
 				gone = true
+			end
+			for _, c in arena.circles or {} do
+				if (s.x - c.x) ^ 2 + (s.z - c.z) ^ 2 < c.r ^ 2 then
+					gone = true
+				end
 			end
 			for _, ob in arena.obstacles do
 				if math.abs(s.x - ob.x) < ob.hx and math.abs(s.z - ob.z) < ob.hz then
@@ -215,6 +294,22 @@ function Sim.fight(idA: string, idB: string, swap: boolean, seed: number): Resul
 		end
 		a.hp = math.max(0, a.hp - dmgA)
 		b.hp = math.max(0, b.hp - dmgB)
+		if arena.radius then
+			for _, c in { a, b } do
+				local d = math.sqrt(c.x * c.x + c.z * c.z)
+				c.maxR = math.max(c.maxR, d)
+				if d > arena.radius - 0.55 * c.L then
+					c.wallTime += dt
+					c.wallStreak += dt
+					c.wallLongest = math.max(c.wallLongest, c.wallStreak)
+				else
+					c.wallStreak = 0
+				end
+				if d < BowlLayout.crusher.baseRadius + 0.4 * c.L then
+					c.baseTime += dt
+				end
+			end
+		end
 		outcome = BattleSeries.roundOutcome(a.hp, a.maxHp, b.hp, b.maxHp, t >= total)
 	end
 	return { outcome = outcome :: BattleSeries.Outcome, seconds = t, a = a, b = b }

@@ -309,6 +309,11 @@ BattleConfig.Human = {
 	chargeSteerScale = 1, -- how much of the turn rate a ram charge keeps (it only steers by auto-aim)
 	airYawScale = 0.35, -- a little steering in the air
 	groundRayL = 0.12, -- grounded when something is this far (in car lengths) below the BOTTOM of the body
+	-- cartoon wall bounce (carter, Junkyard Bowl M18: a BIGGER bounce): the share of its speed a car
+	-- keeps going back (was 0.85), how long it cannot steer (was 0.6 s) and a small hop (studs/s up)
+	bounceKeep = 1,
+	bounceStagger = 0.75,
+	bounceHop = 14,
 }
 
 -- Crashes between the two cars (a plain crash, no weapon): damage grows with the speed the OTHER car
