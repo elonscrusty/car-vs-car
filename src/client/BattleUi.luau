@@ -160,11 +160,14 @@ function BattleUi.start()
 			act("cancel")
 		end
 	)
+	local qTip =
+		label(queueF, "", UDim2.fromScale(0.9, 0.3), UDim2.fromScale(0.05, 0.33), COL_TEXT, 20)
+	qTip.TextTransparency = 0.25
 	local botBtn = button(
 		queueF,
 		"TEST BOT",
-		UDim2.fromScale(0.44, 0.2),
-		UDim2.fromScale(0.51, 0.46),
+		UDim2.fromScale(0.44, 0.26),
+		UDim2.fromScale(0.51, 0.66),
 		Color3.fromRGB(110, 110, 130),
 		function()
 			act("queueBot")
@@ -1592,6 +1595,8 @@ function BattleUi.start()
 	local lastRound = 1
 	local myName, oppName = player.DisplayName, "Opponent"
 
+	local tipToken = 0 -- a new waiting screen stops the old tip loop
+
 	local handlers: { [string]: (m: any) -> () } = {}
 
 	handlers.queue = function(m)
@@ -1600,7 +1605,24 @@ function BattleUi.start()
 			queueF.Visible = true
 			botBtn.Visible = m.studioBot == true
 			qText.Text = "Waiting for a player..."
+			-- a short game tip, a new one every few seconds while the panel is up
+			local tips = BattleConfig.Text.waitTips
+			local index = math.random(1, #tips)
+			qTip.Text = tips[index]
+			tipToken += 1
+			local token = tipToken
+			task.spawn(function()
+				while token == tipToken and queueF.Visible do
+					task.wait(BattleConfig.Text.waitTipSeconds)
+					if token ~= tipToken or not queueF.Visible then
+						break
+					end
+					index = index % #tips + 1
+					qTip.Text = tips[index]
+				end
+			end)
 		else
+			tipToken += 1
 			queueF.Visible = false
 			setChampions(true)
 		end

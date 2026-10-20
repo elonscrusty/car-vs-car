@@ -227,7 +227,7 @@ BattleConfig.Ram = {
 }
 
 BattleConfig.Cannon = {
-	damage = 26, -- was 22 (more punch for a car that must also run)
+	damage = 36, -- was 26, 22 before: bot-vs-bot had Ram beat the Van 6-0 (7 draws); more punch for a car that must also run
 	minRangeL = 2.3, -- closer than this the van runs away from the foe (was 3: it ran more than it shot)
 	maxRangeL = 5.5,
 	knockSpeed = 22, -- studs per second a shell shoves the car it hits
@@ -238,7 +238,7 @@ BattleConfig.Cannon = {
 	shellSpeedL = 4.5, -- L per second (carter: easy to follow with the eyes)
 	shellLifeSeconds = 2.2,
 	shellRadiusL = 0.12,
-	homingDegPerSec = 80, -- auto-aim: a shell curves toward the foe this fast ...
+	homingDegPerSec = 110, -- (was 80) auto-aim: a shell curves toward the foe this fast ...
 	homingConeDeg = 45, -- ... when the foe is within this angle of its heading
 	ricochets = 1, -- a shell bounces off a wall this many times
 	repositionDrive = 0.8, -- when closing in
@@ -359,6 +359,16 @@ BattleConfig.Test = {
 
 -- Garage performance upgrades never apply in this mode (shown in the UI).
 BattleConfig.Text = {
+	-- one short tip at a time on the waiting screen (carter L46); each is true of the current rules
+	waitTips = {
+		"Crashes hurt more at full speed.",
+		"Walls bounce you. They do no damage.",
+		"Flipped over? Your car turns back in one second.",
+		"Every car has its own weapon. Tap the big button.",
+		"Win 2 of 3 rounds to win the fight.",
+		"Win fights to get coins for the gumball machine.",
+	} :: { string },
+	waitTipSeconds = 4,
 	chooseLine = "Choose your car. You drive it and attack with the big button.",
 	rulesLine = "Most round wins after three rounds wins. Reach two wins to finish early.",
 	upgradesLine = "Garage performance upgrades do not apply to this mode.",

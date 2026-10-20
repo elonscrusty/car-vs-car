@@ -1059,3 +1059,12 @@ H.test(
 		H.eq(BattleGuard.teleported(12, 0, 1 / 60, 42), true)
 	end
 )
+
+H.test("the waiting screen has short game tips", function()
+	local tips = BattleConfig.Text.waitTips
+	H.truthy(#tips >= 3)
+	for _, tip in tips do
+		H.truthy(#tip > 0 and #tip <= 60, tip)
+	end
+	H.truthy(BattleConfig.Text.waitTipSeconds > 0)
+end)
