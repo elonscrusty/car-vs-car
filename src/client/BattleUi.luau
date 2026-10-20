@@ -13,6 +13,7 @@ local TweenService = game:GetService("TweenService")
 local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
 local BattleFeel = require(ReplicatedStorage.Shared.BattleFeel)
 local BowlView = require(ReplicatedStorage.Shared.BowlView)
+local DevDrive = require(ReplicatedStorage.Shared.DevDrive)
 local FeatureFlags = require(ReplicatedStorage.Shared.FeatureFlags)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local BattleDriver = require(script.Parent.BattleDriver)
@@ -1366,6 +1367,13 @@ function BattleUi.start()
 			else 1
 	end)
 	local driver = BattleDriver.new(function()
+		-- Studio tests steer by the Workspace attribute "DevDrive" (see DevDrive); never on a live server
+		if RunService:IsStudio() then
+			local dev = DevDrive.parse(workspace:GetAttribute("DevDrive"))
+			if dev then
+				return dev.steer, dev.gas
+			end
+		end
 		return steerInput.read()
 	end, function()
 		return myBody
