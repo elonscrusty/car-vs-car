@@ -12,6 +12,7 @@ local TweenService = game:GetService("TweenService")
 
 local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local BattleDriver = require(script.Parent.BattleDriver)
 local SteerInput = require(script.Parent.SteerInput)
 local BattleFx = require(script.Parent.BattleFx)
 local SoundFx = require(script.Parent.SoundFx)
@@ -1087,12 +1088,18 @@ function BattleUi.start()
 			then 0.1 + 0.35 * math.abs(math.sin(os.clock() * 5))
 			else 1
 	end)
+	local driver = BattleDriver.new(function()
+		return steerInput.read()
+	end, function()
+		return myBody
+	end)
 	local function startDriving()
 		if driving then
 			return
 		end
 		driving = true
 		steerInput.start()
+		driver.start()
 		attackBtn.Text = attackNames[myFighter or ""] or "ATTACK"
 		attackReady = 1
 		attackWrap.Visible = true
@@ -1112,6 +1119,7 @@ function BattleUi.start()
 		end
 		driving = false
 		steerInput.stop()
+		driver.stop()
 		attackWrap.Visible = false
 		gasWrap.Visible = false
 		helpL.Visible = false
