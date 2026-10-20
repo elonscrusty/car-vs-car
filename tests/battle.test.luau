@@ -384,7 +384,7 @@ H.test("config: every fighter is complete", function()
 	end
 	H.eq(BattleConfig.Fighters.RamTruck.hp, 150)
 	H.eq(BattleConfig.Fighters.CannonVan.hp, 135)
-	H.eq(BattleConfig.Fighters.SawBuggy.hp, 105)
+	H.eq(BattleConfig.Fighters.SawBuggy.hp, 85)
 	local _ = FIGHTERS
 end)
 
@@ -790,6 +790,13 @@ H.test(
 			BattleCrash.damage(hp, cruise * 0.6, cruise) < BattleCrash.damage(hp, cruise, cruise)
 		)
 		H.eq(BattleCrash.damage(hp, cruise * 0.1, cruise), 0)
+		-- weight: heavy over light hits harder, equal weights change nothing, the share is capped
+		local S = BattleCrash.massScale
+		H.eq(S(1, 1), 1)
+		H.truthy(S(1.6, 0.6) > 1 and S(0.6, 1.6) < 1)
+		H.eq(S(100, 1), C.massMax)
+		H.eq(S(1, 100), C.massMin)
+		H.eq(BattleCrash.damage(hp, cruise, cruise, 2), math.floor(hp / C.hitsToKill * 2 + 0.5))
 		H.eq(BattleCrash.damage(hp, cruise * 5, cruise), BattleCrash.damage(hp, cruise, cruise)) -- capped
 		H.eq(BattleCrash.speedToward(10, 0, 1, 0), 10)
 		H.eq(BattleCrash.speedToward(-10, 0, 1, 0), 0) -- moving away: no crash
