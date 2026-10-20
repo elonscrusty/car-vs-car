@@ -65,7 +65,8 @@ function ChampionsBridge.new(): Bridge
 
 	local function apply(fx: ChampionsAdapter.Effects)
 		if fx.settings then
-			SoundFx.setMuted(not fx.settings.sfx)
+			SoundFx.setMuted(not fx.settings.music)
+			SoundFx.setSfxMuted(not fx.settings.sfx)
 		end
 		if fx.notify then
 			notifyEvent:Fire(fx.notify, fx.notifyOk)

@@ -19,6 +19,7 @@ local Quality = require(script.Parent.Quality)
 local LobbyClient = {}
 
 local ORANGE = Color3.fromRGB(245, 130, 32)
+local LIKE_REMINDER_SECONDS = 300 -- carter G46: reminder only
 local NEWBIE_LEVEL = 1 -- the arrow shows at this level or lower, until the first pad
 local ARROW_Z = 44 -- where the arrow floats: on the front path, between the spawn and the pads
 local FADE_IN = 0.9
@@ -201,6 +202,11 @@ function LobbyClient.start()
 				return
 			end
 		end
+	end)
+
+	-- a plain reminder to like the game, once per visit, never a reward and never a pop-up
+	task.delay(LIKE_REMINDER_SECONDS, function()
+		say("Having fun? Tap the thumbs up on the game page!")
 	end)
 
 	remotes.LobbyUpdate.OnClientEvent:Connect(function(u: any)
