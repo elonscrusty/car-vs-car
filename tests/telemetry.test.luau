@@ -125,6 +125,31 @@ test("cars come from the gumball machine or the store; anything else is other", 
 	)
 end)
 
+test("tutorial events: start says first or replay, practice and done carry seconds", function()
+	local start = assert(TelemetryRules.buildEvent("tutorial_start", { first = true }))
+	eq(start.value, nil)
+	eq(assert(start.fields).CustomField01, "true")
+	eq(
+		assert(assert(TelemetryRules.buildEvent("tutorial_start", { first = false })).fields).CustomField01,
+		"false"
+	)
+	-- anything else a client could influence becomes "other"
+	eq(
+		assert(assert(TelemetryRules.buildEvent("tutorial_start", { first = "maybe" })).fields).CustomField01,
+		"other"
+	)
+	local practice = assert(TelemetryRules.buildEvent("tutorial_practice", { seconds = 41.5 }))
+	eq(practice.value, 41.5)
+	eq(practice.fields, nil)
+	local done = assert(TelemetryRules.buildEvent("tutorial_done", { seconds = 73, gift = true }))
+	eq(done.value, 73)
+	eq(assert(done.fields).CustomField01, "true")
+	local noGift =
+		assert(TelemetryRules.buildEvent("tutorial_done", { seconds = 900000, gift = false }))
+	eq(noGift.value, TelemetryConfig.MaxValue, "seconds are clamped")
+	eq(assert(noGift.fields).CustomField01, "false")
+end)
+
 test("old mode events are gone", function()
 	for _, name in
 		{

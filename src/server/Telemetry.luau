@@ -125,6 +125,12 @@ function Telemetry.carAcquired(player: Player, source: string)
 	event(player, "car_acquired", { source = source })
 end
 
+-- The first-time tutorial (TutorialService): tutorial_start, tutorial_practice, tutorial_done. Names
+-- outside the schema are dropped by TelemetryRules.buildEvent.
+function Telemetry.tutorial(player: Player, name: string, data: { [string]: any }?)
+	event(player, name, data)
+end
+
 -- Player leaves the server. Mid-fight counts as a quit. Frees their records.
 function Telemetry.left(player: Player)
 	Telemetry.fightQuit(player, "server")
