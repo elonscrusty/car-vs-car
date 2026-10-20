@@ -1093,7 +1093,29 @@ function BattleService.start(
 					local pa = Players:GetPlayerByUserId(ev.ids[1])
 					local pb = Players:GetPlayerByUserId(ev.ids[2])
 					if pa and pb and not inMatch[pa] and not inMatch[pb] then
-						createMatch(humanPart(pa), humanPart(pb))
+						local ok, err = pcall(createMatch, humanPart(pa), humanPart(pb))
+						if not ok then
+							warn("[BattleService] could not start a pad match: " .. tostring(err))
+							PadSlots.leave(pads, pa.UserId)
+							PadSlots.leave(pads, pb.UserId)
+							for _, x in { pa, pb } do
+								remotes.BattleUpdate:FireClient(
+									x,
+									{ kind = "queue", searching = false }
+								)
+							end
+						end
+					else
+						-- one of them left or is already fighting: free the survivor to wait again
+						for _, x in { pa, pb } do
+							if x then
+								PadSlots.leave(pads, x.UserId)
+								remotes.BattleUpdate:FireClient(
+									x,
+									{ kind = "queue", searching = false }
+								)
+							end
+						end
 					end
 				end
 			end

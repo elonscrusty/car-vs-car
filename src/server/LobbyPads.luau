@@ -5,9 +5,9 @@
 -- walks the PLAY button's player onto a pad, parks a fighter out of sight and puts them back next to
 -- the pads afterwards. All numbers come from LobbyLayout / PadSlots.
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local MapParts = require(script.Parent.MapParts)
@@ -18,7 +18,6 @@ local LobbyPads = {}
 export type Pads = {
 	group: Folder,
 	setCount: (index: number, count: number) -> (),
-	spin: (dt: number) -> (),
 	top: (index: number) -> Vector3, -- world position of the middle of a pad's top
 }
 
@@ -27,6 +26,7 @@ export type Handle = {
 	cancel: (player: Player) -> (),
 	park: (player: Player) -> (),
 	returnToLobby: (player: Player) -> (),
+	remove: (player: Player) -> (), -- the player left the game
 	stop: () -> (),
 }
 
@@ -42,7 +42,6 @@ function LobbyPads.build(folder: Folder, origin: Vector3): Pads
 	local grp = group(folder, "Pads")
 	local positions = LobbyLayout.pads()
 	local radius = LobbyLayout.padRadius
-	local rings: { Model } = {}
 	local counters: { TextLabel } = {}
 	local glows: { { Part } } = {}
 	for i, p in positions do
@@ -103,8 +102,12 @@ function LobbyPads.build(folder: Folder, origin: Vector3): Pads
 		)
 		hub.Transparency = 1
 		ring.PrimaryPart = hub
+		-- the clients turn it (a server loop would send every part's position all the time)
+		CollectionService:AddTag(ring, "LobbySpin")
+		ring:SetAttribute("SpinSpeed", 1.2)
+		ring:SetAttribute("SpinCenter", hub.Position)
+		ring:SetAttribute("SpinMode", "world")
 		ring.Parent = pad
-		table.insert(rings, ring)
 		table.insert(glows, glow)
 		-- PLAY on the pad and the counter above it
 		local face = part(
@@ -161,8 +164,6 @@ function LobbyPads.build(folder: Folder, origin: Vector3): Pads
 		table.insert(counters, count)
 	end
 
-	local angle = 0
-	local acc = 0
 	return {
 		group = grp,
 		setCount = function(index: number, count: number)
@@ -173,19 +174,6 @@ function LobbyPads.build(folder: Folder, origin: Vector3): Pads
 			end
 			for _, seg in glows[index] or {} do
 				seg.Transparency = if count > 0 then 0 else 0.15
-			end
-		end,
-		spin = function(dt: number)
-			acc += dt
-			if acc < 0.05 then
-				return
-			end
-			angle += acc * 1.2
-			acc = 0
-			for i, ring in rings do
-				local p = positions[i]
-				local center = origin + Vector3.new(p.x, TOP + 0.35, p.z)
-				ring:PivotTo(CFrame.new(center) * CFrame.Angles(0, angle, 0))
 			end
 		end,
 		top = function(index: number): Vector3
@@ -223,8 +211,8 @@ function LobbyPads.start(deps: Deps): Handle
 	local origin = deps.origin
 	local running = true
 	local cooldown: { [Player]: number } = {}
+	local pending: { [Player]: number } = {} -- PLAY pressed a moment ago (ignore repeats)
 	local returns = 0
-	local connection: RBXScriptConnection? = nil
 
 	-- What each pad shows, and the spin.
 	local function showCounts(counts: { number })
@@ -258,11 +246,14 @@ function LobbyPads.start(deps: Deps): Handle
 	task.spawn(function()
 		while running do
 			task.wait(POLL)
-			showCounts(deps.battle.padSync(observe()))
+			-- one bad tick must never end the loop: the pads would stop matching for the whole server
+			local ok, err = pcall(function()
+				showCounts(deps.battle.padSync(observe()))
+			end)
+			if not ok then
+				warn("[LobbyPads] pad tick failed: " .. tostring(err))
+			end
 		end
-	end)
-	connection = RunService.Heartbeat:Connect(function(dt: number)
-		deps.pads.spin(dt)
 	end)
 
 	local handle = {} :: Handle
@@ -273,10 +264,15 @@ function LobbyPads.start(deps: Deps): Handle
 		if deps.battle.isBusy(player) or player:GetAttribute("InBattle") == true then
 			return
 		end
+		local now = os.clock()
+		if (pending[player] or 0) > now then
+			return
+		end
 		local root = rootOf(player)
 		if root == nil then
 			return
 		end
+		pending[player] = now + 1
 		local pad = PadSlots.suggestFromCounts(deps.battle.padCounts(), LobbyLayout.padMax)
 		if pad == nil then
 			deps.remotes.BattleUpdate:FireClient(
@@ -341,9 +337,10 @@ function LobbyPads.start(deps: Deps): Handle
 
 	handle.stop = function()
 		running = false
-		if connection then
-			connection:Disconnect()
-		end
+	end
+	handle.remove = function(player: Player)
+		cooldown[player] = nil
+		pending[player] = nil
 	end
 	return handle
 end

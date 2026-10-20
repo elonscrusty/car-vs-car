@@ -3,6 +3,7 @@
 -- pads, a black fade into (and out of) the fight, and the rare gumball pulls shown in chat to
 -- everyone. Look and feel only: the server decides everything.
 
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -137,9 +138,31 @@ function LobbyClient.start()
 			arrowBase = nil
 		end
 	end
+	-- Things the server tagged "LobbySpin" (the pad rings) turn on this screen only, so the server
+	-- does not send their position all the time. Attributes: SpinSpeed (rad/s), SpinCenter.
+	local spinning: { [Instance]: CFrame } = {}
+	local function addSpin(inst: Instance)
+		if inst:IsA("Model") then
+			spinning[inst] = inst:GetPivot()
+		end
+	end
+	for _, inst in CollectionService:GetTagged("LobbySpin") do
+		addSpin(inst)
+	end
+	CollectionService:GetInstanceAddedSignal("LobbySpin"):Connect(addSpin)
+	CollectionService:GetInstanceRemovedSignal("LobbySpin"):Connect(function(inst: Instance)
+		spinning[inst] = nil
+	end)
+
 	local t = 0
 	RunService.Heartbeat:Connect(function(dt: number)
 		t += dt
+		for inst, base in spinning do
+			local speed = inst:GetAttribute("SpinSpeed")
+			if inst:IsA("Model") and type(speed) == "number" then
+				inst:PivotTo(base * CFrame.Angles(0, t * speed, 0))
+			end
+		end
 		if arrow and arrowBase then
 			arrow:PivotTo(
 				arrowBase + Vector3.new(0, math.sin(t * 3) * 0.8, math.sin(t * 1.5) * 1.5)

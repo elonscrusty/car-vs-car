@@ -86,15 +86,12 @@ H.test("pad counts and glow follow what BattleService says", function()
 	eq(folder:FindFirstChild("Pad2", true):FindFirstChild("Count", true).Text, "1/2")
 end)
 
-H.test("the rings spin", function()
+H.test("the rings are tagged so each player's screen spins them", function()
 	local world, _, _, _, _, _, _, _, folder = setup()
 	local ring = folder:FindFirstChild("Ring", true)
-	local before = ring:FindFirstChild("Seg1").CFrame.Position
-	for _ = 1, 10 do
-		world.step(0.1)
-	end
-	local after = ring:FindFirstChild("Seg1").CFrame.Position
-	truthy((after - before).Magnitude > 0.5)
+	eq(ring:GetAttribute("SpinMode"), "world")
+	truthy((ring:GetAttribute("SpinSpeed") :: number) > 0)
+	world.step(1)
 end)
 
 H.test("PLAY walks you onto a free pad", function()

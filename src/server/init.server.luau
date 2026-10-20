@@ -201,6 +201,7 @@ local function onPlayerRemoving(player: Player)
 		leaveGroup(player)
 	end
 	battle.playerRemoving(player)
+	lobbyPads.remove(player)
 	local restart = rematch.remove(player)
 	lobbyService.onPlayerRemoving(player)
 	if restart then

@@ -448,7 +448,13 @@ function Leaderboards.init(
 	task.spawn(function()
 		while true do
 			for _, s in shown do
-				refreshBoard({ kind = s.board.kind, store = s.board.store, title = s.title })
+				local ok, err = pcall(
+					refreshBoard,
+					{ kind = s.board.kind, store = s.board.store, title = s.title }
+				)
+				if not ok then
+					warn("[Leaderboards] refresh failed: " .. tostring(err))
+				end
 			end
 			task.wait(ProgressConfig.Board.refreshSeconds)
 		end
