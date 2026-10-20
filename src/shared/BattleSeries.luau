@@ -129,4 +129,9 @@ function BattleSeries.resultFor(s: Series, side: Side): string?
 	return if s.winner == side then "win" else "loss"
 end
 
+-- Coins are paid only when the match really had a fight in it (total fight seconds across rounds).
+function BattleSeries.paysCoins(fightSeconds: number, minSeconds: number): boolean
+	return fightSeconds >= minSeconds
+end
+
 return BattleSeries

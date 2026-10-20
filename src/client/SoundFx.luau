@@ -10,6 +10,7 @@ local SoundConfig = require(ReplicatedStorage.Shared.SoundConfig)
 local Sounds = require(ReplicatedStorage.Shared.Sounds)
 
 local MUTE_ATTR = "MusicMuted"
+local SFX_MUTE_ATTR = "SfxMuted"
 
 local SoundFx = {}
 
@@ -50,6 +51,18 @@ function SoundFx.isMuted(): boolean
 	return SoundService:GetAttribute(MUTE_ATTR) == true
 end
 
+function SoundFx.isSfxMuted(): boolean
+	return SoundService:GetAttribute(SFX_MUTE_ATTR) == true
+end
+
+-- Sound effects (hits, engine, buttons) on or off; the music switch is setMuted.
+function SoundFx.setSfxMuted(muted: boolean)
+	SoundService:SetAttribute(SFX_MUTE_ATTR, muted)
+	if muted then
+		SoundFx.engine(nil)
+	end
+end
+
 -- One-shot effect by event name ("boost", "win", ...). Silent when the id is empty.
 function SoundFx.play(event: string)
 	pcall(function()
@@ -59,6 +72,9 @@ function SoundFx.play(event: string)
 		end
 		if spec.music then
 			SoundFx.music(event)
+			return
+		end
+		if SoundFx.isSfxMuted() then
 			return
 		end
 		getSound(event, spec):Play()
@@ -74,7 +90,7 @@ function SoundFx.engine(speedFrac: number?)
 			return
 		end
 		local sound = getSound("engineLoop", spec)
-		if speedFrac == nil then
+		if speedFrac == nil or SoundFx.isSfxMuted() then
 			if sound.IsPlaying then
 				sound:Stop()
 			end

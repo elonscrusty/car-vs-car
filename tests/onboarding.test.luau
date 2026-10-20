@@ -44,7 +44,7 @@ end)
 
 H.test("hint texts are short and match the plan", function()
 	H.eq(Hints.text("aim"), "Drag back from your car and let go")
-	H.eq(Hints.text("claw"), "Try the claw, first try is free")
+	H.eq(Hints.text("claw"), "Spin the gumball, first one is free")
 	for _, id in Hints.Order do
 		H.truthy(#Hints.text(id) <= 40)
 	end

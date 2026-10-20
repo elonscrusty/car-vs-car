@@ -3,6 +3,8 @@ local H = require("./harness")
 local BattleBrain = require("../src/shared/BattleBrain")
 local BattleConfig = require("../src/shared/BattleConfig")
 local BattleAim = require("../src/shared/BattleAim")
+local BattleFeel = require("../src/shared/BattleFeel")
+local BattleGuard = require("../src/shared/BattleGuard")
 local BattleCrash = require("../src/shared/BattleCrash")
 local BattleSpecial = require("../src/shared/BattleSpecial")
 local BattleSelect = require("../src/shared/BattleSelect")
@@ -78,17 +80,16 @@ end)
 H.test("select: owned fighters are usable, others locked", function()
 	local ctx = { owned = { CannonVan = true }, testUnlock = false }
 	H.eq(BattleSelect.access("CannonVan", ctx), "owned")
-	H.eq(BattleSelect.access("RamTruck", ctx), nil, "no loaner while you own another")
+	H.eq(BattleSelect.access("RamTruck", ctx), "owned", "the free Ram Truck is always yours")
 	H.eq(BattleSelect.access("SawBuggy", ctx), nil)
 	H.eq(BattleSelect.access("Sedan", ctx), nil, "legacy cars are not fighters")
 	H.eq(BattleSelect.access(42, ctx), nil)
 end)
 
-H.test("select: nothing owned gives the Ram loaner only", function()
+H.test("select: with nothing owned only the free Ram Truck is usable", function()
 	local ctx = { owned = { Sedan = true }, testUnlock = false }
-	H.eq(BattleSelect.access("RamTruck", ctx), "loaner")
+	H.eq(BattleSelect.access("RamTruck", ctx), "owned")
 	H.eq(BattleSelect.access("CannonVan", ctx), nil)
-	H.eq(BattleSelect.label("loaner"), "Loaner")
 end)
 
 H.test("select: test unlock opens all three, owned still shows owned", function()
@@ -102,7 +103,7 @@ end)
 H.test("select: timeout uses last valid pick, then first owned, then the loaner", function()
 	local ctx = { owned = { CannonVan = true, SawBuggy = true }, testUnlock = false }
 	H.eq(BattleSelect.resolve("SawBuggy", ctx), "SawBuggy")
-	H.eq(BattleSelect.resolve("RamTruck", ctx), "CannonVan", "invalid last pick")
+	H.eq(BattleSelect.resolve("NotACar", ctx), "CannonVan", "invalid last pick")
 	H.eq(BattleSelect.resolve(nil, ctx), "CannonVan", "first in catalog order")
 	H.eq(BattleSelect.resolve(nil, { owned = {}, testUnlock = false }), "RamTruck")
 	H.eq(BattleSelect.resolve("CannonVan", { owned = {}, testUnlock = false }), "RamTruck")
@@ -402,9 +403,9 @@ H.test("saves: fighters survive migrate, old cars and coins stay", function()
 	H.eq(q.owned.RamTruck, nil, "no free fighters are added to a save")
 end)
 
-H.test("saves: a new player owns no fighter, so the Ram loaner applies", function()
+H.test("saves: a new player owns no fighter, but the Ram Truck is always theirs", function()
 	local p = Inventory.default()
-	H.eq(BattleSelect.access("RamTruck", { owned = p.owned, testUnlock = false }), "loaner")
+	H.eq(BattleSelect.access("RamTruck", { owned = p.owned, testUnlock = false }), "owned")
 end)
 
 H.test("gumball: drops only gumball fighters, odds add to 100, saves ownership", function()
@@ -424,7 +425,26 @@ H.test("gumball: drops only gumball fighters, odds add to 100, saves ownership",
 	H.eq(seen.RamTruck, nil, "the Ram is the free starter, not a drop")
 end)
 
-H.test("gumball: a pull grants a fighter once, a duplicate pays coins back", function()
+H.test(
+	"gumball: a rarity with no car is not in the odds (no Legendary until one exists)",
+	function()
+		Gacha.useFighters()
+		local have: { [string]: boolean } = {}
+		for _, id in BattleConfig.Order do
+			local f = BattleConfig.Fighters[id]
+			if f.gumball and f.enabled then
+				have[f.rarity] = true
+			end
+		end
+		for _, row in Gacha.oddsTable() do
+			H.eq(have[row.rarity], true, row.rarity .. " is shown but has no car")
+			H.truthy(#row.cars > 0)
+		end
+		Gacha.useCars()
+	end
+)
+
+H.test("gumball: a pull grants a fighter once, a duplicate gives nothing", function()
 	Gacha.useFighters()
 	local p: any = Inventory.default()
 	p.coins = 1000
@@ -440,7 +460,7 @@ H.test("gumball: a pull grants a fighter once, a duplicate pays coins back", fun
 	H.eq(r1.isNew, true)
 	H.eq(r2.carId, r1.carId)
 	H.eq(r2.isNew, false)
-	H.truthy(r2.refund > 0, "duplicate pays back")
+	H.eq(r2.refund, 0, "a duplicate gives nothing")
 end)
 
 H.test("cannon: just inside max range and a few degrees off, it still turns and creeps", function()
@@ -653,7 +673,9 @@ H.test("human ram: attack starts a straight charge, a hit deals damage, then it 
 	local o = b.step(0.05, me, foe, { ram = false, saw = false })
 	H.eq(o.state, "charge")
 	local hit = b.step(0.05, me, foe, { ram = true, saw = false, speedFrac = 1 })
-	H.eq(hit.turn, 0) -- the steer input is ignored during a charge
+	H.eq(math.abs(hit.turn + BattleConfig.Ram.playerSteer) < 1e-9, true) -- the stick steers a charge a little (right = negative)
+	H.eq(BattleSeries.paysCoins(14, BattleConfig.Rewards.minFightSeconds), false)
+	H.eq(BattleSeries.paysCoins(15, BattleConfig.Rewards.minFightSeconds), true)
 	H.eq(hit.damage, BattleConfig.Ram.damage)
 	H.eq(hit.event, "Ram hit")
 	H.eq(hit.state, "recoil")
@@ -839,3 +861,109 @@ H.test("every weapon waits 6 seconds, rounds last 60", function()
 	H.eq(BattleConfig.Human.sawCooldownSeconds, 6)
 	H.eq(BattleConfig.Timing.fightSeconds, 60)
 end)
+
+H.test(
+	"a car has weight: about 0.7 s to top speed, rolls on when the gas is let go, turns less when fast",
+	function()
+		local top = BattleConfig.Human.topSpeed
+		local dt = 1 / 60
+		-- full gas from a standstill
+		local v, t = 0, 0
+		while v < 0.95 * top and t < 5 do
+			v = BattleFeel.nextSpeed(v, top, dt, top)
+			t += dt
+		end
+		H.eq(t >= 0.55 and t <= 0.95, true)
+		-- gas released at top speed: coasts, takes a while to stop
+		local c, ct = top, 0
+		while c > 0.05 * top and ct < 10 do
+			c = BattleFeel.nextSpeed(c, 0, dt, top)
+			ct += dt
+		end
+		H.eq(ct >= 0.7 and ct <= 1.6, true)
+		-- pulling back (gas the other way) stops sooner than coasting but not in a blink
+		local b, bt = top, 0
+		while b > 0 and bt < 10 do
+			b = BattleFeel.nextSpeed(b, -0.6 * top, dt, top)
+			bt += dt
+			if b <= 0 then
+				break
+			end
+		end
+		H.eq(bt >= 0.25 and bt < ct, true)
+		-- top speed itself is unchanged
+		H.eq(BattleFeel.nextSpeed(top, top, dt, top), top)
+		-- turning: full when crawling, about half at top speed
+		H.eq(BattleFeel.turnScale(0), 1)
+		H.eq(BattleFeel.turnScale(1), BattleConfig.Human.turnTopScale)
+		H.eq(BattleFeel.turnScale(5), BattleConfig.Human.turnTopScale) -- never below the top-speed share
+		-- the wheel swings: full lock takes about 1/6 s, not one frame
+		local w, wt = 0, 0
+		while w < 1 do
+			w = BattleFeel.smoothTurn(w, 1, dt)
+			wt += dt
+		end
+		H.eq(wt >= 0.12 and wt <= 0.25, true)
+	end
+)
+
+H.test("the chase camera trails the nose and never swings faster than the cap", function()
+	local dt = 1 / 60
+	local cap = math.rad(BattleConfig.Human.camSwingDegPerSec)
+	-- car turned 150 degrees away at once: each step moves at most the cap
+	local y = 0
+	local steps = 0
+	while math.abs(y - math.rad(150)) > 0.01 and steps < 600 do
+		local n = BattleFeel.trailYaw(y, math.rad(150), dt)
+		H.eq(math.abs(n - y) <= cap * dt + 1e-9, true)
+		y = n
+		steps += 1
+	end
+	H.eq(steps > 60 and steps < 600, true) -- about 1.6 s or more, not instant
+	-- the short way round: from +170 to -170 degrees is a 20 degree swing, not 340
+	local a = BattleFeel.trailYaw(math.rad(170), math.rad(-170), dt)
+	H.eq(a > math.rad(170), true)
+	-- already facing the same way: stays put
+	H.eq(BattleFeel.trailYaw(1, 1, dt), 1)
+end)
+
+H.test("cheat checks: normal driving passes, a teleport and a speed hack are caught", function()
+	local top = BattleConfig.Human.topSpeed
+	local dt = 1 / 20 -- the server step
+	H.eq(BattleGuard.teleported(top * dt, 0, dt, top), false) -- top speed
+	H.eq(BattleGuard.teleported(1.5 * BattleConfig.Ram.chargeMult * top * dt, 0, dt, top), false) -- a charge
+	H.eq(BattleGuard.teleported(30, 0, dt, top), true) -- 30 studs in one step
+	H.eq(BattleGuard.teleported(0, -80, dt, top), true)
+	H.eq(BattleGuard.tooFast(top, top), false)
+	H.eq(BattleGuard.tooFast(top * BattleConfig.Ram.chargeMult, top), false) -- a full charge
+	H.eq(BattleGuard.tooFast(top * 4, top), true)
+end)
+
+H.test("crash hit power grows with the damage and stays between 0 and 1", function()
+	H.eq(BattleCrash.power(0, 150), 0)
+	H.eq(BattleCrash.power(15, 150) < BattleCrash.power(30, 150), true)
+	H.eq(BattleCrash.power(30, 150), 1)
+	H.eq(BattleCrash.power(500, 150), 1)
+	H.eq(BattleCrash.power(10, 0), 0)
+end)
+
+H.test(
+	"weapon balance on paper: best-case damage per 6 s wait is close for all three cars",
+	function()
+		local ramD = BattleConfig.Ram.damage
+		local vanD = BattleConfig.Cannon.damage
+		local S = BattleConfig.Saw
+		local grind = BattleConfig.Human.sawGrindSeconds
+		-- the saw ticks every tickSeconds for up to grindSeconds, building from x1 to maxMult over buildSeconds
+		local sawD = 0
+		local t = 0
+		while t < grind do
+			local build = math.clamp(t / S.buildSeconds, 0, 1)
+			sawD += S.damage * (1 + (S.maxMult - 1) * build)
+			t += S.tickSeconds
+		end
+		local best, worst = math.max(ramD, vanD, sawD), math.min(ramD, vanD, sawD)
+		H.eq(best / worst <= 1.5, true)
+		H.eq(worst >= 20, true)
+	end
+)

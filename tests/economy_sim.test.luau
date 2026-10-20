@@ -286,18 +286,12 @@ H.test("daily-only player still progresses, slower than casual", function()
 	H.truthy(median(col(dailyOnly, "owned30")) < median(col(casual, "owned30")))
 end)
 
-H.test("duplicates refund coins so progress keeps flowing", function()
-	H.truthy(median(col(casual, "dupes")) > 0)
-	H.truthy(median(col(casual, "totalRefund")) > 0)
-	local refunds = LobbyConfig.Gacha.duplicateRefunds
-	-- cheap duplicates pay less than a pull costs (no free-money loop)
-	H.truthy(refunds.Common < LobbyConfig.Gacha.price)
-	H.truthy(refunds.Rare < LobbyConfig.Gacha.price)
-	H.truthy(
-		refunds.Common < refunds.Rare
-			and refunds.Rare < refunds.Epic
-			and refunds.Epic < refunds.Legendary
-	)
+H.test("duplicates give nothing back (carter), so there is no refund loop", function()
+	for _, amount in LobbyConfig.Gacha.duplicateRefunds do
+		H.eq(amount, 0)
+	end
+	H.eq(LobbyConfig.Gacha.duplicateRefund, 0)
+	H.eq(median(col(casual, "totalRefund")), 0)
 end)
 
 H.test("store prices are ordered and reachable", function()

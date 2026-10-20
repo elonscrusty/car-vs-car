@@ -213,7 +213,8 @@ BattleConfig.Ram = {
 	homingConeDeg = 35, -- auto-aim: a charge steers toward a foe within this angle of the nose ...
 	homingTurn = 0.5, -- ... with at most this much steering (1 = full)
 	cooldownSeconds = 6, -- after the charge ends
-	skidSeconds = 0.7, -- after a MISS the truck overshoots, sliding on
+	skidSeconds = 0.45, -- after a MISS the truck overshoots, sliding on (was 0.7: felt stuck)
+	playerSteer = 0.3, -- the player's stick still steers a charge by this share (on top of auto-aim)
 	recoilSeconds = 0.5, -- after a HIT the truck bounces back
 	recoilDrive = -0.9,
 	peelAngleDeg = 65, -- while the ram recharges it veers off this far from the foe, then comes back
@@ -283,18 +284,22 @@ BattleConfig.Human = {
 	slideMaxFrac = 0.5, -- sideways slide never goes above this share of top speed
 	sawGrindSeconds = 3, -- hold ATTACK: the saw grinds this long at most ...
 	sawCooldownSeconds = 6, -- ... then (or when let go) it waits this long
-	camDistL = 3.0, -- chase camera: this far behind the car (in car lengths) ...
-	camHeightL = 2.8, -- ... and this high (carter: a high camera behind the car) ...
-	camLookL = 1.4, -- ... looking at a point this far ahead of the car
+	camDistL = 2.2, -- chase camera: this far behind the car (in car lengths; closer so the car is bigger) ...
+	camHeightL = 2.3, -- ... and this high (carter: a high camera behind the car) ...
+	camLookL = 2.6, -- ... looking at a point this far ahead of the car (my car sits low, the enemy above)
+	camSwingDegPerSec = 90, -- the camera trails the nose: it swings round at most this fast
+	camTrailRate = 6, -- ... catching up at this many times the gap per second (until the cap)
 	camFov = 70,
 	camSmooth = 16,
 	camCloseL = 6, -- an enemy closer than this many car lengths pulls the camera back and wider ...
 	camCloseExtraL = 1.6, -- ... by this many car lengths ...
 	camCloseFov = 12, -- ... and this many degrees of field of view -- how fast the camera swings round behind the car
 	-- driving feel
-	accelMult = 2, -- quicker getaway than the auto-pilot cars (cruise speeds per second x this)
-	brakeMult = 1.6,
-	turnMinScale = 1, -- turn rate while crawling (full: a tight turn from a standstill)
+	accelMult = 0.45, -- getaway: cruise speeds per second x this (was 2: full speed in 0.15 s, now about 0.7 s)
+	brakeMult = 0.55, -- gas the other way (was 1.6: stopped in 0.1 s)
+	coastMult = 0.25, -- letting go of the gas: the car rolls on (about 0.9 s from top speed)
+	turnTopScale = 0.5, -- share of the turn rate left at top speed (was 1: full turn at any speed)
+	steerRate = 6, -- the wheel swings this much per second (full lock in 1/6 s; was instant)
 	driftSteer = 0.8, -- a little slide only when steering this hard ...
 	driftSpeed = 0.8, -- ... at this share of cruise speed or more
 	driftSide = 4.5, -- sideways grip while sliding (normal 8: lower = longer slide)
@@ -313,12 +318,21 @@ BattleConfig.Crash = {
 	touchPadL = 0.06, -- cars count as touching when their bodies are this close (L)
 }
 
+-- Cheat checks for a car the player's device drives (the server watches speed and jumps).
+BattleConfig.Guard = {
+	teleportSpeedMult = 3, -- more than this many top speeds of movement in one step = a teleport
+	slackStuds = 4, -- ... plus this much slack per step
+	speedSlack = 1.3, -- more than this share above the fastest legal speed = too fast
+	strikesToReclaim = 4, -- this many strikes and the server takes the car back (it drives itself)
+}
+
 -- The Studio / DEV bot: a medium opponent (turns slower than a player so it can be outdriven).
 BattleConfig.Bot = {
 	turnMult = 0.75,
 }
 
 BattleConfig.Rewards = {
+	minFightSeconds = 15, -- a match with less total fight time than this pays no coins (no forfeit farming)
 	botMatchesPay = false, -- Studio test matches against a bot pay nothing
 }
 

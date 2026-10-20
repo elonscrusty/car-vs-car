@@ -17,6 +17,7 @@ local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
 local BattleAim = require(ReplicatedStorage.Shared.BattleAim)
 local BattleCrash = require(ReplicatedStorage.Shared.BattleCrash)
 local ChaseMapLayout = require(ReplicatedStorage.Shared.ChaseMapLayout)
+local BattleGuard = require(ReplicatedStorage.Shared.BattleGuard)
 local BattleSpecial = require(ReplicatedStorage.Shared.BattleSpecial)
 local BattleHuman = require(ReplicatedStorage.Shared.BattleHuman)
 local PadSlots = require(ReplicatedStorage.Shared.PadSlots)
@@ -88,6 +89,7 @@ type Match = {
 	final: boolean, -- the announced final phase has begun
 	momentum: boolean, -- the momentum prototype fight (else the steering fight)
 	crashCd: number, -- seconds until the next plain crash can hurt
+	fought: number, -- total seconds spent in the fight phase, all rounds (a too-short match pays nothing)
 	touching: boolean, -- the cars' bodies were touching at the last step
 	aIsRed: boolean?, -- which garage team is red this match (chosen once, at random)
 }
@@ -510,13 +512,15 @@ function BattleService.start(
 		big: boolean,
 		dmg: number?,
 		victim: string?,
-		ko: boolean?
+		ko: boolean?,
+		power: number?
 	)
 		for _, side in sides() do
 			send((m.parts :: any)[side], {
 				kind = "hit",
 				pos = pos,
 				big = big,
+				power = power,
 				dmg = dmg,
 				victim = victim,
 				ko = ko,
@@ -539,8 +543,10 @@ function BattleService.start(
 			if p and not part.paid and not m.vsBot then
 				part.paid = true
 				local won = result == "win"
-				coins = ResultRewards.compute({ mode = "duel", won = won }).coins
-				coins = math.floor(coins * Progress.coinMultiplier(os.time()))
+				if BattleSeries.paysCoins(m.fought, BattleConfig.Rewards.minFightSeconds) then
+					coins = ResultRewards.compute({ mode = "duel", won = won }).coins
+					coins = math.floor(coins * Progress.coinMultiplier(os.time()))
+				end
 				Inventory.addCoins(p, coins)
 				if won then
 					p.wins += 1
@@ -548,6 +554,7 @@ function BattleService.start(
 				end
 				p.matches = math.min(p.matches + 1, 1e9)
 				Profiles.markDirty(part.player :: Player)
+				Profiles.saveNow(part.player :: Player)
 				Leaderboards.submit(part.player :: Player, p)
 			end
 			if p then
@@ -781,11 +788,15 @@ function BattleService.start(
 	end
 
 	local stuckFor: { [BattleCar.Car]: number } = setmetatable({}, { __mode = "k" }) :: any
+	-- cheat checks on device-driven cars: where each was last step, and how many strikes it has
+	local guardPos: { [BattleCar.Car]: Vector3 } = setmetatable({}, { __mode = "k" }) :: any
+	local guardStrikes: { [BattleCar.Car]: number } = setmetatable({}, { __mode = "k" }) :: any
 
 	local function fightStep(m: Match, dt: number)
 		local arena = m.arena :: BattleArena.Arena
 		local a, b = m.cars.a :: BattleCar.Car, m.cars.b :: BattleCar.Car
 		m.t += dt
+		m.fought += dt
 		local dmg = { a = 0, b = 0 }
 		local cars = { a, b }
 		if not m.final and m.t >= BattleConfig.Final.startSeconds then
@@ -901,9 +912,37 @@ function BattleService.start(
 					car.model:SetAttribute("BState", if forced then out.state else "drive")
 					car.model:SetAttribute("BDrive", if forced then out.drive else 0)
 					car.model:SetAttribute("BTurn", if forced then out.turn else 0)
-					-- the device is trusted with movement, not with speed
+					-- the device is trusted with movement, not with speed or jumps
+					local pos = car.body.Position
+					local prev = guardPos[car]
+					guardPos[car] = pos
+					local struck = false
+					if
+						prev
+						and BattleGuard.teleported(
+							pos.X - prev.X,
+							pos.Z - prev.Z,
+							dt,
+							BattleCar.topSpeed(car)
+						)
+					then
+						-- a teleport: put the car back where it was
+						car.body.CFrame = CFrame.new(prev) * car.body.CFrame.Rotation
+						car.body.AssemblyLinearVelocity = Vector3.zero
+						guardPos[car] = prev
+						struck = true
+					end
 					local vel = car.body.AssemblyLinearVelocity
 					local flat = Vector3.new(vel.X, 0, vel.Z)
+					if BattleGuard.tooFast(flat.Magnitude, BattleCar.topSpeed(car)) then
+						struck = true
+					end
+					if struck then
+						guardStrikes[car] = (guardStrikes[car] or 0) + 1
+						if guardStrikes[car] >= BattleConfig.Guard.strikesToReclaim then
+							BattleCar.reclaim(car) -- the server drives this car from now on
+						end
+					end
 					local cap = BattleCar.topSpeed(car)
 						* math.max(1, BattleConfig.Ram.chargeMult)
 						* 1.3
@@ -970,10 +1009,26 @@ function BattleService.start(
 						dmg.b += hitB
 						local mid = (a.body.Position + b.body.Position) / 2
 						if hitA > 0 then
-							sendHit(m, mid, hitA >= a.maxHp * 0.15, hitA, "a")
+							sendHit(
+								m,
+								mid,
+								hitA >= a.maxHp * 0.15,
+								hitA,
+								"a",
+								nil,
+								BattleCrash.power(hitA, a.maxHp)
+							)
 						end
 						if hitB > 0 then
-							sendHit(m, mid, hitB >= b.maxHp * 0.15, hitB, "b")
+							sendHit(
+								m,
+								mid,
+								hitB >= b.maxHp * 0.15,
+								hitB,
+								"b",
+								nil,
+								BattleCrash.power(hitB, b.maxHp)
+							)
 						end
 					end
 				end
@@ -1232,6 +1287,7 @@ function BattleService.start(
 			final = false,
 			momentum = if momentum == nil then BattleConfig.defaultMomentum else momentum,
 			crashCd = 0,
+			fought = 0,
 			touching = false,
 		}
 		matches[m] = true

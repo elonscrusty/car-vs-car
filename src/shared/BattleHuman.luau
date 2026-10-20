@@ -132,11 +132,13 @@ function BattleHuman.new(fighterId: string): Human
 
 			if fighterId == "RamTruck" then
 				if state == "charge" then
-					-- direction committed; only auto-aim nudges it toward a foe that is nearly ahead
-					local o = out(
-						BattleAim.chargeTurn(angle, ram.homingConeDeg * DEG, ram.homingTurn),
-						ram.chargeMult
-					)
+					-- direction committed; auto-aim nudges it toward a foe that is nearly ahead, and the stick steers a little
+					local steered = BattleAim.chargeTurn(
+						angle,
+						ram.homingConeDeg * DEG,
+						ram.homingTurn
+					) + turn * ram.playerSteer
+					local o = out(clamp(steered, -1, 1), ram.chargeMult)
 					local inFront = math.abs(angle) <= ram.frontConeDeg * DEG
 					if contact.ram and inFront and not chargeHit then
 						chargeHit = true

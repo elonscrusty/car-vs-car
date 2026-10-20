@@ -11,6 +11,7 @@ local Debris = game:GetService("Debris")
 local TweenService = game:GetService("TweenService")
 
 local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
+local BattleFeel = require(ReplicatedStorage.Shared.BattleFeel)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local BattleDriver = require(script.Parent.BattleDriver)
 local SteerInput = require(script.Parent.SteerInput)
@@ -427,8 +428,9 @@ function BattleUi.start()
 	prepCount.TextStrokeColor3 = Color3.fromRGB(10, 12, 22)
 
 	-- ---------- fight HUD ----------
-	local hudF = frame(gui, "Hud", UDim2.fromScale(1, 0.16), UDim2.fromScale(0, 0), COL_PANEL, 1)
+	local hudF = frame(gui, "Hud", UDim2.fromScale(1, 0.19), UDim2.fromScale(0, 0), COL_PANEL, 1)
 	hudF.Visible = false
+	hudF.ZIndex = 25 -- above the letterbox bars, so the timer is never hidden
 	type Side = { name: TextLabel, hp: Frame, hpText: TextLabel, ready: Frame }
 	local function sidePanel(xScale: number, color: Color3, mirror: boolean): Side
 		local p = frame(
@@ -445,7 +447,7 @@ function BattleUi.start()
 		s.Thickness = 3
 		s.Parent = p
 		local nm =
-			label(p, "", UDim2.fromScale(0.94, 0.32), UDim2.fromScale(0.03, 0.04), COL_TEXT, 18)
+			label(p, "", UDim2.fromScale(0.94, 0.32), UDim2.fromScale(0.03, 0.04), COL_TEXT, 24)
 		nm.TextXAlignment = if mirror then Enum.TextXAlignment.Right else Enum.TextXAlignment.Left
 		local back = frame(
 			p,
@@ -462,7 +464,7 @@ function BattleUi.start()
 		if mirror then
 			fill.Position = UDim2.fromScale(1, 0)
 		end
-		local txt = label(back, "", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), COL_TEXT, 16)
+		local txt = label(back, "", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), COL_TEXT, 28)
 		local rb = frame(
 			p,
 			"ReadyBack",
@@ -487,7 +489,7 @@ function BattleUi.start()
 			UDim2.fromScale(0.3, 0.16),
 			UDim2.fromScale(if mirror then 0.03 else 0.55, 0.72),
 			Color3.fromRGB(190, 200, 225),
-			12
+			15
 		)
 		rl.TextXAlignment = if mirror then Enum.TextXAlignment.Left else Enum.TextXAlignment.Right
 		return { name = nm, hp = fill, hpText = txt, ready = rf }
@@ -657,6 +659,8 @@ function BattleUi.start()
 	local arenaHalf = Vector2.zero
 	local camOn = false
 	local camSmooth: CFrame? = nil
+	local camYaw: number? = nil -- the heading the chase camera trails behind (see BattleFeel.trailYaw)
+	local camYawAt = 0
 	local mySpawn: string? = nil -- which end my car starts at this round ("a" west / "b" east)
 	local flyStart = -100 -- when the spawn fly-over began
 	local flying = false -- the fly-over is steering the camera right now
@@ -772,7 +776,17 @@ function BattleUi.start()
 			local lv = mine.CFrame.LookVector
 			local look = Vector3.new(lv.X, 0, lv.Z)
 			if look.Magnitude > 1e-3 then
-				look = look.Unit
+				-- the camera trails the nose instead of snapping round with it
+				local carYaw = math.atan2(look.X, look.Z)
+				local now = os.clock()
+				local yaw = camYaw
+				if yaw == nil then
+					yaw = carYaw
+				else
+					yaw = BattleFeel.trailYaw(yaw, carYaw, math.min(now - camYawAt, 0.1))
+				end
+				camYaw, camYawAt = yaw, now
+				look = Vector3.new(math.sin(yaw), 0, math.cos(yaw))
 				local focus = mine.Position + Vector3.new(0, 0.3 * carLen, 0)
 				local want = focus
 					- look * ((H.camDistL + H.camCloseExtraL * foeCloseness()) * carLen)
@@ -877,6 +891,7 @@ function BattleUi.start()
 		camera.CameraType = Enum.CameraType.Scriptable
 		camera.FieldOfView = BattleConfig.Camera.fovDeg
 		camSmooth = nil
+		camYaw = nil
 	end
 
 	local function cameraOff()
@@ -1090,8 +1105,14 @@ function BattleUi.start()
 		end)
 	end
 
-	local gasWrap =
-		frame(gui, "GasWrap", UDim2.fromScale(0.19, 0.3), UDim2.fromScale(0.79, 0.66), COL_PANEL, 1)
+	local gasWrap = frame(
+		gui,
+		"GasWrap",
+		UDim2.fromScale(0.14, 0.24),
+		UDim2.fromScale(0.85, 0.74),
+		COL_PANEL,
+		1
+	)
 	gasWrap.Visible = false
 	local gasBtn = button(
 		gasWrap,
@@ -1112,8 +1133,8 @@ function BattleUi.start()
 	local attackWrap = frame(
 		gui,
 		"AttackWrap",
-		UDim2.fromScale(0.15, 0.24),
-		UDim2.fromScale(0.81, 0.39),
+		UDim2.fromScale(0.12, 0.19),
+		UDim2.fromScale(0.87, 0.52),
 		COL_PANEL,
 		1
 	)
@@ -1159,8 +1180,8 @@ function BattleUi.start()
 	local specialWrap = frame(
 		gui,
 		"SpecialWrap",
-		UDim2.fromScale(0.13, 0.2),
-		UDim2.fromScale(0.66, 0.43),
+		UDim2.fromScale(0.1, 0.17),
+		UDim2.fromScale(0.73, 0.76),
 		COL_PANEL,
 		1
 	)
@@ -1196,8 +1217,8 @@ function BattleUi.start()
 	local hornWrap = frame(
 		gui,
 		"HornWrap",
-		UDim2.fromScale(0.09, 0.13),
-		UDim2.fromScale(0.57, 0.66),
+		UDim2.fromScale(0.08, 0.12),
+		UDim2.fromScale(0.76, 0.6),
 		COL_PANEL,
 		1
 	)
@@ -1242,15 +1263,55 @@ function BattleUi.start()
 			steerInput.setAttack(false)
 		end
 	end)
+	-- Cannon Van: a thin line straight ahead of the nose while the cannon is ready (no aim assist,
+	-- it only shows where a shot would leave)
+	local aimLine = Instance.new("Part")
+	aimLine.Name = "AimLine"
+	aimLine.Anchored = true
+	aimLine.CanCollide = false
+	aimLine.CanQuery = false
+	aimLine.CanTouch = false
+	aimLine.CastShadow = false
+	aimLine.Material = Enum.Material.Neon
+	aimLine.Color = Color3.fromRGB(255, 190, 70)
+	aimLine.Transparency = 1
+	local AIM_LEN = 70
+	local function updateAim()
+		local body = myBody
+		if myFighter ~= "CannonVan" or body == nil or body.Parent == nil or attackReady < 1 then
+			aimLine.Parent = nil
+			return
+		end
+		local lv = body.CFrame.LookVector
+		local flat = Vector3.new(lv.X, 0, lv.Z)
+		if flat.Magnitude < 1e-3 then
+			aimLine.Parent = nil
+			return
+		end
+		flat = flat.Unit
+		local start = body.Position + flat * (0.55 * carLen) + Vector3.new(0, 0.2 * carLen, 0)
+		aimLine.Size = Vector3.new(0.18, 0.18, AIM_LEN)
+		aimLine.CFrame = CFrame.lookAt(start + flat * (AIM_LEN / 2), start + flat * AIM_LEN)
+		aimLine.Transparency = 0.55
+		aimLine.Parent = workspace
+	end
 	-- the READY glow pulses; the cover grows while the weapon recharges
 	RunService.RenderStepped:Connect(function()
 		if not driving then
+			aimLine.Parent = nil
 			return
 		end
+		updateAim()
 		attackWipe.Size = UDim2.fromScale(1, 1 - math.clamp(attackReady, 0, 1))
 		attackGlow.Transparency = if attackReady >= 1
 			then 0.1 + 0.35 * math.abs(math.sin(os.clock() * 5))
 			else 1
+		-- while the weapon waits, the button shows the seconds left (the clock fill is the same wait)
+		if myFighter == "RamTruck" or myFighter == "CannonVan" then
+			attackBtn.Text = if attackReady >= 1
+				then attackNames[myFighter] or "ATTACK"
+				else tostring(math.ceil((1 - attackReady) * BattleConfig.Ram.cooldownSeconds))
+		end
 		specialWipe.Size = UDim2.fromScale(1, 1 - math.clamp(specialEnergy, 0, 1))
 		specialGlow.Transparency = if specialEnergy >= 1
 			then 0.1 + 0.35 * math.abs(math.sin(os.clock() * 6))
@@ -1267,6 +1328,7 @@ function BattleUi.start()
 		end
 		driving = true
 		steerInput.start()
+		steerInput.setAttackDrives(myFighter == "SawBuggy")
 		driver.start()
 		attackBtn.Text = attackNames[myFighter or ""] or "ATTACK"
 		attackReady = 1
@@ -1424,7 +1486,15 @@ function BattleUi.start()
 		end
 	end
 
+	-- hits that land close together (saw ticks) add up into ONE number instead of stacking in a pile
+	local lastNumber: { [boolean]: { anchor: Part, total: number, at: number }? } = {}
 	local function damageNumber(pos: Vector3, dmg: number, big: boolean, mine: boolean)
+		local nowN = os.clock()
+		local prevN = lastNumber[mine]
+		if prevN and prevN.anchor.Parent ~= nil and nowN - prevN.at < 0.6 then
+			dmg += prevN.total
+			prevN.anchor:Destroy()
+		end
 		local anchor = Instance.new("Part")
 		anchor.Anchored = true
 		anchor.CanCollide = false
@@ -1459,6 +1529,7 @@ function BattleUi.start()
 			{ TextTransparency = 1, TextStrokeTransparency = 1 }
 		):Play()
 		Debris:AddItem(anchor, 0.9)
+		lastNumber[mine] = { anchor = anchor, total = dmg, at = nowN }
 	end
 
 	-- the final blow: a fireball, a shock ring and a lot of debris
@@ -1495,7 +1566,6 @@ function BattleUi.start()
 		koPos, koTotal, koT = pos, secs, secs
 		setBars(true)
 		gui:SetAttribute("WreckCamAt", os.clock()) -- lets a test see afterwards that the wreck camera ran
-		flash(Color3.fromRGB(255, 240, 200), 0.75)
 	end
 
 	local function showEvent(text: string)
@@ -1529,17 +1599,10 @@ function BattleUi.start()
 			setChampions(false) -- hide the lobby menus behind the Searching panel
 			queueF.Visible = true
 			botBtn.Visible = m.studioBot == true
-			qText.Text = "Finding player..."
+			qText.Text = "Waiting for a player..."
 		else
 			queueF.Visible = false
 			setChampions(true)
-			if m.timedOut then
-				errorL.Text = "No opponent found. Try again."
-				errorL.Visible = true
-				task.delay(3, function()
-					errorL.Visible = false
-				end)
-			end
 		end
 	end
 
@@ -1694,18 +1757,22 @@ function BattleUi.start()
 		end
 		local big = m.big == true
 		local mine = m.victim ~= nil and m.victim == mySide
+		-- crash hits carry a power (0..1) that grows with the crash speed: the juice grows with it
+		local power = if type(m.power) == "number"
+			then math.clamp(m.power, 0, 1)
+			else if big then 0.8 else 0.3
 		sparks(m.pos, big)
-		debris(m.pos, if big then 12 else 5, if big then 40 else 24)
+		debris(m.pos, math.floor(3 + 10 * power), 20 + 22 * power)
 		if type(m.dmg) == "number" and m.dmg > 0 then
 			damageNumber(m.pos, m.dmg, big, mine)
 		end
 		-- a hit on YOU shakes the view harder and flashes red
-		local amp = if big then 3.2 else 1.3
+		local amp = 0.8 + 2.6 * power
 		shakeAmp = math.max(shakeAmp, if mine then amp * 1.5 else amp)
-		fovKick = math.max(fovKick, if big then 6 else 2.5)
-		SoundFx.hit(if big then 1 else 0.3)
+		fovKick = math.max(fovKick, 1.5 + 5 * power)
+		SoundFx.hit(0.2 + 0.8 * power)
 		if mine then
-			flash(COL_BAD, if big then 0.45 else 0.25)
+			flash(COL_BAD, if big then 0.18 else 0.1) -- a soft tint only; the shake does the work
 		end
 	end
 

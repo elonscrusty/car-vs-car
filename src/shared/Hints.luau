@@ -12,9 +12,9 @@ local Hints = {}
 Hints.Order = { "pad", "aim", "claw", "soccer", "tag", "race", "unlock" }
 
 Hints.Text = {
-	pad = "Tap PLAY to fight",
+	pad = "Tap PLAY or step on a pad",
 	aim = "Drag back from your car and let go",
-	claw = "Try the claw, first try is free",
+	claw = "Spin the gumball, first one is free",
 	-- First time in a group mode: what the controls do (keep each under 40 characters).
 	soccer = "Ball into the goal! BOOST = go fast",
 	tag = "You are IT? Bump a car to pass it on",
@@ -26,7 +26,7 @@ Hints.Text = {
 -- Mode name -> hint id shown the first time the player plays that mode (client asks, server saves).
 Hints.ModeHint = { soccer = "soccer", tag = "tag", race = "race" } :: { [string]: string }
 
--- What the client points an arrow at: "pad" = the match pads, "claw" = the claw machine.
+-- What the client points an arrow at: "pad" = the match pads, "claw" = the gumball machine.
 Hints.Target = {
 	pad = "pad",
 	claw = "claw",
