@@ -48,6 +48,7 @@ type Part = {
 	gas: number, -- -1 back .. 1 forward
 	inputAt: number, -- when the last drive input arrived (old input counts as 0)
 	attack: boolean, -- ATTACK was pressed since the last step
+	boost: boolean, -- BOOST was pressed since the last step
 }
 type Shell = {
 	owner: BattleCar.Car,
@@ -353,7 +354,7 @@ function BattleService.start(opts: {
 			if part.player ~= nil then
 				-- a player drives this car: stick / keys and the ATTACK button
 				car.human = true
-				part.steer, part.gas, part.attack = 0, 0, false
+				part.steer, part.gas, part.attack, part.boost = 0, 0, false, false
 				BattleCar.arm(car, BattleHuman.new(car.fighter.id))
 				BattleCar.launch(car, false)
 			else
@@ -378,6 +379,7 @@ function BattleService.start(opts: {
 				max = c.maxHp,
 				ready = if c.lastOut then c.lastOut.ready else 1,
 				state = if c.lastOut then c.lastOut.state else "approach",
+				boost = if c.lastOut and c.lastOut.boostReady then c.lastOut.boostReady else 1,
 			}
 		end
 		return {
@@ -394,9 +396,21 @@ function BattleService.start(opts: {
 		end
 	end
 
-	local function sendHit(m: Match, pos: Vector3, big: boolean)
+	-- `dmg` and `victim` (the side that was hit) let the client pop a damage number and shake the
+	-- view harder when it is YOUR car; `ko` = the final blow (wreck explosion).
+	local function sendHit(
+		m: Match,
+		pos: Vector3,
+		big: boolean,
+		dmg: number?,
+		victim: string?,
+		ko: boolean?
+	)
 		for _, side in sides() do
-			send((m.parts :: any)[side], { kind = "hit", pos = pos, big = big })
+			send(
+				(m.parts :: any)[side],
+				{ kind = "hit", pos = pos, big = big, dmg = dmg, victim = victim, ko = ko }
+			)
 		end
 	end
 
@@ -593,7 +607,7 @@ function BattleService.start(opts: {
 						BattleConfig.Cannon.knockSpeed,
 						BattleConfig.Cannon.knockStagger
 					)
-					sendHit(m, hit.Position, false)
+					sendHit(m, hit.Position, false, BattleConfig.Cannon.damage, s.foe.side)
 				end
 			else
 				s.pos += step
@@ -659,9 +673,10 @@ function BattleService.start(opts: {
 					hb.setInput(
 						if fresh then part.steer else 0,
 						if fresh then part.gas else 0,
-						part.attack
+						part.attack,
+						part.boost
 					)
-					part.attack = false
+					part.attack, part.boost = false, false
 				end
 				local cruise = car.fighter.cruiseL * car.L
 				local fwdSpeed = car.body.AssemblyLinearVelocity:Dot(Vector3.new(cf.X, 0, cf.Z))
@@ -681,6 +696,7 @@ function BattleService.start(opts: {
 				BattleCar.lunge(car, dt)
 				if out.fire then
 					fireShell(m, car, foe)
+					sendEvent(m, car.side, "Fire!")
 				end
 				if out.damage > 0 then
 					if foe.side == "a" then
@@ -701,7 +717,7 @@ function BattleService.start(opts: {
 					if car.fighter.id == "SawBuggy" then
 						car.stats.sawHits += 1
 					end
-					sendHit(m, foe.body.Position, out.event == "Ram hit")
+					sendHit(m, foe.body.Position, out.event == "Ram hit", out.damage, foe.side)
 				end
 				if out.event == "Ram hit" or out.event == "Ram missed" then
 					car.stats.charges += 1
@@ -728,6 +744,7 @@ function BattleService.start(opts: {
 					car.brain = nil
 					if car.hp <= 0 then
 						BattleCar.wreck(car)
+						sendHit(m, car.body.Position, true, nil, car.side, true)
 					end
 				end
 				sendEvent(m, if a.hp <= 0 then "b" else "a", "K.O.")
@@ -832,6 +849,7 @@ function BattleService.start(opts: {
 			gas = 0,
 			inputAt = 0,
 			attack = false,
+			boost = false,
 		}
 	end
 
@@ -855,6 +873,7 @@ function BattleService.start(opts: {
 			gas = 0,
 			inputAt = 0,
 			attack = false,
+			boost = false,
 		}
 	end
 
@@ -995,6 +1014,10 @@ function BattleService.start(opts: {
 			elseif name == "attack" then
 				if m.phase == "fight" then
 					part.attack = true
+				end
+			elseif name == "boost" then
+				if m.phase == "fight" then
+					part.boost = true
 				end
 			elseif name == "lock" then
 				if m.phase == "select" and not part.locked then

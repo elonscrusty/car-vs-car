@@ -24,7 +24,7 @@ BattleConfig.Timing = {
 	selectSeconds = 8, -- pick a car before each round
 	prepSeconds = 3, -- both cars and weapons are shown
 	fightSeconds = 45, -- longest fight; then higher HP percent wins
-	koSeconds = 1.6, -- after a knock-out: cars stop, the loser smokes, then the result shows
+	koSeconds = 2.6, -- after a knock-out: cars stop, the loser smokes, then the result shows
 	resultSeconds = 3, -- round result on screen
 	rematchSeconds = 20, -- how long the match result waits for a Rematch tap
 	queueSeconds = 120, -- longest wait in the line before it gives up
@@ -261,6 +261,20 @@ BattleConfig.Human = {
 	camLookL = 1.4, -- ... looking at a point this far ahead of the car
 	camFov = 68,
 	camSmooth = 9, -- how fast the camera swings round behind the car
+	-- driving feel
+	accelMult = 2, -- quicker getaway than the auto-pilot cars (cruise speeds per second x this)
+	brakeMult = 1.6,
+	turnMinScale = 0.7, -- turn rate while crawling (a tight turn from standstill)
+	driftSteer = 0.55, -- steering this hard ...
+	driftSpeed = 0.75, -- ... at this share of cruise speed starts a drift
+	driftSide = 3, -- sideways grip while drifting (normal 8: lower = longer slide)
+	driftYawBoost = 1.25, -- the nose swings round faster while drifting
+	airYawScale = 0.35, -- a little steering in the air
+	groundRayL = 0.6, -- grounded when something is this far (in car lengths) below
+	boostMult = 1.75, -- BOOST: speed times cruise while it burns
+	boostSeconds = 1.2,
+	boostCooldownSeconds = 5,
+	boostAccel = 3, -- boost gets up to speed this much faster
 }
 
 BattleConfig.Rewards = {

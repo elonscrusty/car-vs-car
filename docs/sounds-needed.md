@@ -32,9 +32,17 @@ Full list (boost and click repeat from above):
 | goal | a goal is scored | big cheer + horn burst, ~1.5 s |
 | countdownTick | each "3", "2", "1" of the kickoff countdown | short clean "tick" / beep, under 0.2 s |
 | countdownGo | the "GO!" after the countdown | higher, brighter "ding" or start horn, ~0.4 s |
+| engineLoop | your car's engine, looped; the pitch rises with speed | small cartoon engine hum, seamless loop, 2-4 s |
+| skid | your car starts a drift | short tire "screech", under 0.6 s |
+| land | a car lands after a ramp jump | soft "thump" with a little suspension squeak, under 0.4 s |
+| wreck | the final blow (K.O.) | big cartoon explosion, ~1.5 s, not scary |
+| ramCharge | the Ram starts a charge | engine rev + "whoomp", ~0.5 s |
+| cannonFire | the Cannon fires | cartoon cannon "thoomp", under 0.5 s |
+| sawRev | the Saw's rev dash | buzzy saw rev-up, ~0.6 s |
+| boost | (also) the BOOST button in a fight | quick "whoosh" with a little rocket fizz, ~0.5 s |
 | music_lobby | looping in the lobby | relaxed upbeat loop, seamless, 60+ s, no vocals |
 | music_arena | looping during the fight | faster energetic racing loop, seamless, 60+ s, no vocals |
 
-That is 15 ids (13 effects, 2 music loops). The two music ones must be seamless loops.
+That is 22 ids (20 effects, 2 music loops). Hit sounds (hitSoft, hitHard), countdown and win/lose are also used in the 1v1 fight. The two music ones must be seamless loops.
 
 Players can switch music off with the MUSIC button in the lobby menu (remembered only until they rejoin; effects stay on).

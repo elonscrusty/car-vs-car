@@ -8,10 +8,13 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Debris = game:GetService("Debris")
+local TweenService = game:GetService("TweenService")
 
 local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local SteerInput = require(script.Parent.SteerInput)
+local BattleFx = require(script.Parent.BattleFx)
+local SoundFx = require(script.Parent.SoundFx)
 local UserInputService = game:GetService("UserInputService")
 
 local BattleUi = {}
@@ -666,6 +669,45 @@ function BattleUi.start()
 	local arenaHalf = Vector2.zero
 	local camOn = false
 	local camSmooth: CFrame? = nil
+	local shakeAmp = 0 -- camera shake, studs; decays by itself
+	local fovKick = 0 -- extra field of view from a boost / big hit; eases back by itself
+	-- the final wreck: the camera swings round the wreck for a moment, between two black bars
+	local koT, koTotal = 0, 1
+	local koPos: Vector3? = nil
+	local bars: { Frame } = {}
+	for i = 1, 2 do
+		local bar = Instance.new("Frame")
+		bar.Name = "KoBar"
+		bar.BackgroundColor3 = Color3.new(0, 0, 0)
+		bar.BorderSizePixel = 0
+		bar.Size = UDim2.fromScale(1, 0)
+		bar.Position = UDim2.fromScale(0, if i == 1 then 0 else 1)
+		bar.AnchorPoint = Vector2.new(0, if i == 1 then 0 else 1)
+		bar.ZIndex = 20
+		bar.Visible = false
+		bar.Parent = gui
+		bars[i] = bar
+	end
+	local function setBars(on: boolean)
+		for _, bar in bars do
+			if on then
+				bar.Visible = true
+			end
+			local t = TweenService:Create(
+				bar,
+				TweenInfo.new(0.35),
+				{ Size = UDim2.fromScale(1, if on then 0.11 else 0) }
+			)
+			t:Play()
+			if not on then
+				task.delay(0.4, function()
+					if bar.Size.Y.Scale < 0.01 then
+						bar.Visible = false
+					end
+				end)
+			end
+		end
+	end
 
 	-- the two cars of my arena (found by their side attribute near the arena middle)
 	local carBodies: { BasePart } = {}
@@ -702,6 +744,15 @@ function BattleUi.start()
 	end
 
 	local carLen = 16
+	local function cruiseSpeed(): number
+		return BattleConfig.fighter("RamTruck").cruiseL * carLen
+	end
+	local fx = BattleFx.new({
+		shake = function(amp: number)
+			shakeAmp = math.max(shakeAmp, amp)
+		end,
+		cruise = cruiseSpeed(),
+	})
 	local function cameraTarget(): CFrame?
 		local c = arenaCenter
 		if c == nil then
@@ -812,7 +863,34 @@ function BattleUi.start()
 			carScanT = 0.5
 			scanCars()
 		end
+		-- effects that follow the cars (smoke, skid marks, flame, speed lines, engine sound)
+		local models: { Model } = {}
+		for _, b in carBodies do
+			if b.Parent and b.Parent:IsA("Model") then
+				table.insert(models, b.Parent)
+			end
+		end
+		local mineModel = if myBody
+				and myBody.Parent
+				and myBody.Parent:IsA("Model")
+			then myBody.Parent
+			else nil
+		fx.step(dt, models, mineModel)
 		local target = cameraTarget()
+		local wreck = koPos
+		if koT > 0 and wreck ~= nil then
+			-- final wreck: swing round it, closing in, the view narrowing
+			koT -= dt
+			local t = math.clamp(1 - koT / koTotal, 0, 1)
+			local ang = 0.6 + t * 1.5
+			local radius = 62 - 30 * t
+			local at = wreck + Vector3.new(0, 3, 0)
+			target = CFrame.lookAt(
+				at + Vector3.new(math.sin(ang) * radius, 16 - 6 * t, math.cos(ang) * radius),
+				at
+			)
+			camSmooth = target
+		end
 		if target == nil then
 			return
 		end
@@ -828,10 +906,32 @@ function BattleUi.start()
 			cur = cur:Lerp(target, math.clamp(rate * dt, 0, 1))
 		end
 		camSmooth = cur
-		camera.CFrame = cur :: CFrame
-		camera.FieldOfView = if myBody ~= nil
+		local shaken = cur :: CFrame
+		if shakeAmp > 0.02 then
+			local r = shakeAmp
+			shaken = shaken
+				* CFrame.new((math.random() - 0.5) * r, (math.random() - 0.5) * r, 0)
+				* CFrame.Angles(
+					(math.random() - 0.5) * r * 0.012,
+					(math.random() - 0.5) * r * 0.012,
+					(math.random() - 0.5) * r * 0.02
+				)
+			shakeAmp *= math.max(0, 1 - 6 * dt)
+		else
+			shakeAmp = 0
+		end
+		camera.CFrame = shaken
+		fovKick *= math.max(0, 1 - 4 * dt)
+		local baseFov = if myBody ~= nil
 			then BattleConfig.Human.camFov
 			else BattleConfig.Camera.fovDeg
+		local speedFov = 0
+		if myBody ~= nil and myBody.Parent ~= nil then
+			speedFov = 10
+				* math.clamp(myBody.AssemblyLinearVelocity.Magnitude / (cruiseSpeed()) - 0.6, 0, 1)
+		end
+		local koFov = if koT > 0 then -20 * math.clamp(1 - koT / koTotal, 0, 1) else 0
+		camera.FieldOfView = baseFov + speedFov + fovKick + koFov
 	end)
 
 	-- ---------- driving: stick / WASD plus the ATTACK button ----------
@@ -846,6 +946,23 @@ function BattleUi.start()
 			act("attack")
 		end
 	end
+	local function doBoost()
+		if driving then
+			act("boost")
+			SoundFx.play("boost")
+			fovKick = math.max(fovKick, 8)
+			shakeAmp = math.max(shakeAmp, 1.2)
+		end
+	end
+	local boostBtn = button(
+		gui,
+		"BOOST",
+		UDim2.fromScale(0.13, 0.17),
+		UDim2.fromScale(0.67, 0.75),
+		Color3.fromRGB(255, 150, 40),
+		doBoost
+	)
+	boostBtn.Visible = false
 	local attackBtn = button(
 		gui,
 		"ATTACK",
@@ -857,7 +974,7 @@ function BattleUi.start()
 	attackBtn.Visible = false
 	local helpL = label(
 		gui,
-		"Drive with the stick or W A S D. Attack with the big button or Space.",
+		"Drive with the stick or W A S D. Attack: big button or Space. Boost: orange button or Shift.",
 		UDim2.fromScale(0.5, 0.05),
 		UDim2.fromScale(0.25, 0.8),
 		COL_TEXT,
@@ -873,6 +990,8 @@ function BattleUi.start()
 		local k = input.KeyCode
 		if k == Enum.KeyCode.Space or k == Enum.KeyCode.E or k == Enum.KeyCode.F then
 			doAttack()
+		elseif k == Enum.KeyCode.LeftShift or k == Enum.KeyCode.Q then
+			doBoost()
 		end
 	end)
 	local function startDriving()
@@ -884,6 +1003,8 @@ function BattleUi.start()
 		attackBtn.Text = attackNames[myFighter or ""] or "ATTACK"
 		attackBtn.BackgroundColor3 = COL_GOOD
 		attackBtn.Visible = true
+		boostBtn.BackgroundColor3 = Color3.fromRGB(255, 150, 40)
+		boostBtn.Visible = true
 		helpToken += 1
 		local mine = helpToken
 		helpL.Visible = true
@@ -900,6 +1021,7 @@ function BattleUi.start()
 		driving = false
 		steerInput.stop()
 		attackBtn.Visible = false
+		boostBtn.Visible = false
 		helpL.Visible = false
 	end
 
@@ -915,6 +1037,8 @@ function BattleUi.start()
 
 	local function hideAll()
 		stopDriving()
+		koT, koPos = 0, nil
+		setBars(false)
 		for _, f in
 			{ queueF, selectF, prepF, hudF, roundF, resF, leaveBtn, confirmF, eventL, errorL }
 		do
@@ -924,6 +1048,9 @@ function BattleUi.start()
 
 	local function endAll()
 		hideAll()
+		koT, koPos = 0, nil
+		setBars(false)
+		fx.stop()
 		cameraOff()
 		setChampions(true)
 		arenaCenter = nil
@@ -963,6 +1090,130 @@ function BattleUi.start()
 		p.Parent = workspace
 		e:Emit(if big then 16 else 9)
 		Debris:AddItem(p, 1)
+	end
+
+	-- ---------- hit juice: debris, damage numbers, shake, flash, wreck explosion ----------
+	local flashF = frame(gui, "HitFlash", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), COL_BAD, 1)
+	flashF.ZIndex = 20
+	flashF.Visible = true
+	local function flash(color: Color3, strength: number)
+		flashF.BackgroundColor3 = color
+		flashF.BackgroundTransparency = 1 - strength
+		TweenService:Create(
+			flashF,
+			TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ BackgroundTransparency = 1 }
+		):Play()
+	end
+
+	local DEBRIS_COLORS = {
+		Color3.fromRGB(255, 200, 70),
+		Color3.fromRGB(255, 120, 40),
+		Color3.fromRGB(150, 155, 165),
+		Color3.fromRGB(60, 60, 70),
+	}
+	local function debris(pos: Vector3, count: number, speed: number, floaty: boolean?)
+		for _ = 1, count do
+			local p = Instance.new("Part")
+			local size = 0.5 + math.random() * 1.2
+			p.Size = Vector3.new(size, size * 0.6, size)
+			p.Color = DEBRIS_COLORS[math.random(1, #DEBRIS_COLORS)]
+			p.Material = Enum.Material.SmoothPlastic
+			p.CanQuery = false
+			p.CanTouch = false
+			p.CFrame = CFrame.new(pos + Vector3.new(0, 2, 0))
+				* CFrame.Angles(math.random() * 6, math.random() * 6, math.random() * 6)
+			local dir =
+				Vector3.new(math.random() - 0.5, 0.4 + math.random() * 0.9, math.random() - 0.5)
+			p.AssemblyLinearVelocity = dir.Unit * speed * (0.5 + math.random())
+			p.AssemblyAngularVelocity =
+				Vector3.new(math.random() * 14 - 7, math.random() * 14 - 7, math.random() * 14 - 7)
+			p.Parent = workspace
+			if floaty == true then
+				-- slow-motion feel: most of gravity is cancelled, so the pieces hang in the air
+				local att = Instance.new("Attachment")
+				att.Parent = p
+				local vf = Instance.new("VectorForce")
+				vf.Attachment0 = att
+				vf.RelativeTo = Enum.ActuatorRelativeTo.World
+				vf.ApplyAtCenterOfMass = true
+				vf.Force = Vector3.new(0, p.AssemblyMass * workspace.Gravity * 0.85, 0)
+				vf.Parent = p
+			end
+			Debris:AddItem(p, if floaty == true then 2.6 else 1.6)
+		end
+	end
+
+	local function damageNumber(pos: Vector3, dmg: number, big: boolean, mine: boolean)
+		local anchor = Instance.new("Part")
+		anchor.Anchored = true
+		anchor.CanCollide = false
+		anchor.CanQuery = false
+		anchor.CanTouch = false
+		anchor.Transparency = 1
+		anchor.Size = Vector3.one
+		anchor.Position = pos + Vector3.new(0, 4, 0)
+		local bb = Instance.new("BillboardGui")
+		bb.Size = UDim2.fromOffset(if big then 150 else 110, if big then 70 else 52)
+		bb.AlwaysOnTop = true
+		bb.Adornee = anchor
+		bb.Parent = anchor
+		local t = Instance.new("TextLabel")
+		t.Size = UDim2.fromScale(1, 1)
+		t.BackgroundTransparency = 1
+		t.Font = FONT
+		t.Text = "-" .. tostring(dmg)
+		t.TextScaled = true
+		t.TextColor3 = if mine then COL_BAD else Color3.fromRGB(255, 225, 90)
+		t.TextStrokeTransparency = 0.2
+		t.Parent = bb
+		anchor.Parent = workspace
+		TweenService:Create(
+			anchor,
+			TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ Position = anchor.Position + Vector3.new(0, 7, 0) }
+		):Play()
+		TweenService:Create(
+			t,
+			TweenInfo.new(0.8, Enum.EasingStyle.Linear),
+			{ TextTransparency = 1, TextStrokeTransparency = 1 }
+		):Play()
+		Debris:AddItem(anchor, 0.9)
+	end
+
+	-- the final blow: a fireball, a shock ring and a lot of debris
+	local function wreckExplosion(pos: Vector3)
+		for i = 1, 3 do
+			task.delay((i - 1) * 0.08, function()
+				sparks(pos + Vector3.new(0, 2, 0), true)
+			end)
+		end
+		debris(pos, 34, 70)
+		debris(pos, 22, 28, true)
+		SoundFx.play("wreck")
+		local ball = Instance.new("Part")
+		ball.Shape = Enum.PartType.Ball
+		ball.Anchored = true
+		ball.CanCollide = false
+		ball.CanQuery = false
+		ball.CanTouch = false
+		ball.Material = Enum.Material.Neon
+		ball.Color = Color3.fromRGB(255, 170, 50)
+		ball.Transparency = 0.2
+		ball.Size = Vector3.one * 4
+		ball.Position = pos + Vector3.new(0, 3, 0)
+		ball.Parent = workspace
+		TweenService:Create(
+			ball,
+			TweenInfo.new(0.9, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ Size = Vector3.one * 40, Transparency = 1 }
+		):Play()
+		Debris:AddItem(ball, 1)
+		shakeAmp = math.max(shakeAmp, 7)
+		fovKick = 12
+		koPos, koTotal, koT = pos, BattleConfig.Timing.koSeconds, BattleConfig.Timing.koSeconds
+		setBars(true)
+		flash(Color3.fromRGB(255, 240, 200), 0.75)
 	end
 
 	local function showEvent(text: string)
@@ -1107,9 +1358,18 @@ function BattleUi.start()
 		attackBtn.BackgroundColor3 = if m.me.ready >= 1
 			then COL_GOOD
 			else Color3.fromRGB(90, 100, 130)
+		boostBtn.BackgroundColor3 = if (m.me.boost or 1) >= 1
+			then Color3.fromRGB(255, 150, 40)
+			else Color3.fromRGB(90, 100, 130)
 	end
 
+	local eventSounds: { [string]: string } =
+		{ ["Charge!"] = "ramCharge", ["Fire!"] = "cannonFire", ["Rev!"] = "sawRev" }
 	handlers.event = function(m)
+		local snd = eventSounds[m.text]
+		if snd ~= nil then
+			SoundFx.play(snd)
+		end
 		showEvent((if m.mine then "You: " else "Foe: ") .. m.text)
 	end
 
@@ -1118,11 +1378,31 @@ function BattleUi.start()
 	end
 
 	handlers.hit = function(m)
-		sparks(m.pos, m.big == true)
+		if m.ko == true then
+			wreckExplosion(m.pos)
+			return
+		end
+		local big = m.big == true
+		local mine = m.victim ~= nil and m.victim == mySide
+		sparks(m.pos, big)
+		debris(m.pos, if big then 12 else 5, if big then 40 else 24)
+		if type(m.dmg) == "number" and m.dmg > 0 then
+			damageNumber(m.pos, m.dmg, big, mine)
+		end
+		-- a hit on YOU shakes the view harder and flashes red
+		local amp = if big then 3.2 else 1.3
+		shakeAmp = math.max(shakeAmp, if mine then amp * 1.5 else amp)
+		fovKick = math.max(fovKick, if big then 6 else 2.5)
+		SoundFx.hit(if big then 1 else 0.3)
+		if mine then
+			flash(COL_BAD, if big then 0.45 else 0.25)
+		end
 	end
 
 	handlers.roundResult = function(m)
 		stopDriving()
+		koT, koPos = 0, nil
+		setBars(false)
 		hudF.Visible = false
 		eventL.Visible = false
 		lastScore = m.score

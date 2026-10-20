@@ -282,3 +282,6 @@ Not verified in Studio yet: see the PR body.
 
 ## Battle map "Toy Room Showdown" (10x upgrade)
 Giant bedroom: play-mat floor, stage with spinner, highway overpasses with sliding blocks, furniture walls (bed, bookshelf, toy chest, window), giant toys outside, lights, dust. See docs/BATTLE_MAP.md. New files: MapDecor, MapParts (server), MapFx (client, turns the big wheel). Spawns are the SpawnA/SpawnB parts. NOT yet seen in Studio.
+
+## Battle map "Toy Room Showdown" (10x upgrade)
+Giant bedroom: play-mat floor, stage with spinner, highway overpasses with sliding blocks, furniture walls (bed, bookshelf, toy chest, window), giant toys outside, lights, dust. See docs/BATTLE_MAP.md. New files: MapDecor, MapParts (server), MapFx (client, turns the big wheel). Spawns are the SpawnA/SpawnB parts. NOT yet seen in Studio.

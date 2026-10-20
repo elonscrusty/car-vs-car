@@ -326,6 +326,10 @@ function BattleCar.drive(car: Car, out: BattleBrain.Output, dt: number)
 		body.AssemblyLinearVelocity = Vector3.new(v.X * keep, v.Y, v.Z * keep)
 		return
 	end
+	if car.human then
+		BattleCar.driveHuman(car, out, dt, f, v)
+		return
+	end
 	local fwd = v.X * f.X + v.Z * f.Z
 	local lat = Vector3.new(v.X - f.X * fwd, 0, v.Z - f.Z * fwd)
 	local cruise = car.fighter.cruiseL * car.L
@@ -360,6 +364,73 @@ function BattleCar.drive(car: Car, out: BattleBrain.Output, dt: number)
 	end
 	local yaw = out.turn * math.rad(car.fighter.turnDeg) * turnScale
 	body.AssemblyAngularVelocity = Vector3.new(0, yaw, 0)
+end
+
+-- A car the player drives: quicker getaway, tight turns from a standstill, a drift when steering
+-- hard at speed, and no forced speed while airborne (so a ramp launches it properly).
+function BattleCar.driveHuman(car: Car, out: BattleBrain.Output, dt: number, f: Vector3, v: Vector3)
+	local mv = BattleConfig.Move
+	local H = BattleConfig.Human
+	local body = car.body
+	local cruise = car.fighter.cruiseL * car.L
+	local yawRate = out.turn * math.rad(car.fighter.turnDeg)
+
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { car.model }
+	local onGround = workspace:Raycast(
+		body.Position,
+		Vector3.new(0, -H.groundRayL * car.L, 0),
+		params
+	) ~= nil
+	car.model:SetAttribute("Airborne", not onGround)
+	local boosting = out.boost == 1 and onGround
+	car.model:SetAttribute("Boosting", boosting)
+	if not onGround then
+		-- in the air: keep the speed and spin the ramp gave it, steer a little
+		local w = body.AssemblyAngularVelocity
+		body.AssemblyAngularVelocity = Vector3.new(w.X, yawRate * H.airYawScale, w.Z)
+		return
+	end
+
+	local fwd = v.X * f.X + v.Z * f.Z
+	local lat = Vector3.new(v.X - f.X * fwd, 0, v.Z - f.Z * fwd)
+	local want = out.drive * cruise
+	if want < 0 then
+		want *= mv.reverseScale
+	end
+	local speeding = math.abs(want) > math.abs(fwd)
+	local rate = if speeding then mv.accel * H.accelMult else mv.brake * H.brakeMult
+	if boosting then
+		rate = mv.accel * H.boostAccel
+	end
+	if out.state == "charge" or out.state == "rev" then
+		rate = mv.accel * 4 -- a charge gets up to speed fast
+	end
+	local step = rate * cruise * dt
+	local skidding = out.state == "skid"
+	if skidding then
+		step = mv.skidBrake * cruise * dt -- a missed charge rolls on
+	end
+	fwd += math.clamp(want - fwd, -step, step)
+
+	local speedFrac = math.abs(fwd) / cruise
+	local drifting = not skidding
+		and out.state ~= "charge"
+		and math.abs(out.turn) >= H.driftSteer
+		and speedFrac >= H.driftSpeed
+	car.model:SetAttribute("Drifting", drifting)
+	local sideGrip = if skidding then mv.skidSide elseif drifting then H.driftSide else 8
+	lat *= math.max(0, 1 - sideGrip * dt)
+	body.AssemblyLinearVelocity = Vector3.new(f.X * fwd + lat.X, v.Y, f.Z * fwd + lat.Z)
+
+	local turnScale = math.clamp(speedFrac / 0.5 + H.turnMinScale, H.turnMinScale, 1)
+	if out.state == "charge" then
+		turnScale = 0
+	elseif drifting then
+		turnScale = H.driftYawBoost
+	end
+	body.AssemblyAngularVelocity = Vector3.new(0, yawRate * turnScale, 0)
 end
 
 -- Momentum prototype: a car that has slowed down is thrown forward again along its heading

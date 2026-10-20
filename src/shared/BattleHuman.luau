@@ -30,13 +30,15 @@ export type Output = {
 	hold: boolean,
 	state: string,
 	ready: number,
+	boost: number?,
+	boostReady: number?,
 }
 export type Human = {
 	fighterId: string,
 	step: (dt: number, me: Body, foe: Body, contact: Contact) -> Output,
 	shellResolved: (hit: boolean) -> string?,
 	resetStuck: () -> (),
-	setInput: (steer: number, gas: number, attack: boolean) -> (),
+	setInput: (steer: number, gas: number, attack: boolean, boost: boolean?) -> (),
 	human: boolean,
 }
 
@@ -56,6 +58,8 @@ function BattleHuman.new(fighterId: string): Human
 
 	local steer, gas = 0, 0
 	local wantAttack = false
+	local wantBoost = false
+	local boostT, boostCooldown = 0, 0
 
 	local state = "drive"
 	local stateT = 0
@@ -95,11 +99,14 @@ function BattleHuman.new(fighterId: string): Human
 	local brain: Human = {
 		fighterId = fighterId,
 		human = true,
-		setInput = function(s: number, g: number, attack: boolean)
+		setInput = function(s: number, g: number, attack: boolean, boost: boolean?)
 			steer = clamp(s, -1, 1)
 			gas = clamp(g, -1, 1)
 			if attack then
 				wantAttack = true -- stays set until a step can use it, then is used up
+			end
+			if boost == true then
+				wantBoost = true
 			end
 		end,
 		step = function(dt: number, me: Body, foe: Body, contact: Contact): Output
@@ -211,6 +218,26 @@ function BattleHuman.new(fighterId: string): Human
 		end,
 		resetStuck = function() end,
 	}
+	-- BOOST: a burst of speed straight ahead (steering still works), then a cooldown. It only runs
+	-- while the car is just driving (not mid-charge or rev).
+	local weaponStep = brain.step
+	brain.step = function(dt: number, me: Body, foe: Body, contact: Contact): Output
+		boostCooldown = math.max(0, boostCooldown - dt)
+		boostT = math.max(0, boostT - dt)
+		local want = wantBoost
+		wantBoost = false
+		local o = weaponStep(dt, me, foe, contact)
+		if want and boostCooldown <= 0 and o.state == "drive" then
+			boostT = H.boostSeconds
+			boostCooldown = H.boostCooldownSeconds
+		end
+		if boostT > 0 and o.state == "drive" then
+			o.drive = H.boostMult
+			o.boost = 1
+		end
+		o.boostReady = if boostCooldown <= 0 then 1 else 1 - boostCooldown / H.boostCooldownSeconds
+		return o
+	end
 	return brain
 end
 
