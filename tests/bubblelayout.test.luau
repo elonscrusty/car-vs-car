@@ -105,6 +105,53 @@ H.test("a button in the middle of the screen still gets a bubble that does not c
 	H.eq(Bubble.overlap(rectOf(p, BUBBLE), target), 0)
 end)
 
+H.test("it keeps off the other buttons next to the button it talks about", function()
+	-- the gumball machine's "spin?" box in a real Studio picture: FREE PULL (right) has CANCEL right
+	-- beside it, and the bubble used to stand on top of CANCEL
+	local screen: Bubble.Size = { w = 1914, h = 604 }
+	local size: Bubble.Size = { w = 215, h = 54 }
+	local pull: Bubble.Rect = { x = 969, y = 476, w = 295, h = 44 }
+	local cancel: Bubble.Rect = { x = 649, y = 476, w = 295, h = 44 }
+	local blind = Bubble.place(pull, screen, size)
+	H.eq(blind.side, "left")
+	H.truthy(
+		Bubble.overlap(rectOf(blind, size), cancel) > 0,
+		"without the list it stands on CANCEL"
+	)
+	local p = Bubble.place(pull, screen, size, { cancel })
+	H.eq(Bubble.overlap(rectOf(p, size), cancel), 0, "covers the other button")
+	H.eq(Bubble.overlap(rectOf(p, size), pull), 0, "covers the button")
+	-- an empty list changes nothing
+	local same = Bubble.place(pull, screen, size, {})
+	H.eq(same.side, blind.side)
+	H.eq(same.x, blind.x)
+	H.eq(same.y, blind.y)
+end)
+
+H.test("with buttons on every side it covers the least and never the button itself", function()
+	local screen: Bubble.Size = { w = 1200, h = 675 }
+	local target: Bubble.Rect = { x = 1000, y = 560, w = 160, h = 60 }
+	local around: { Bubble.Rect } = {
+		{ x = 740, y = 560, w = 240, h = 60 }, -- left, a big one
+		{ x = 1000, y = 480, w = 160, h = 60 }, -- above
+		{ x = 1000, y = 640, w = 160, h = 30 }, -- below, a thin one
+	}
+	local p = Bubble.place(target, screen, BUBBLE, around)
+	H.eq(Bubble.overlap(rectOf(p, BUBBLE), target), 0, "covers the button")
+	local hidden = 0
+	for _, other in around do
+		hidden += Bubble.overlap(rectOf(p, BUBBLE), other)
+	end
+	-- the first choice (left) would hide the big button; whatever it picks hides less than that
+	local left: Bubble.Rect = {
+		x = target.x - Bubble.gap - BUBBLE.w,
+		y = 560 + 30 - BUBBLE.h / 2,
+		w = BUBBLE.w,
+		h = BUBBLE.h,
+	}
+	H.truthy(hidden < Bubble.overlap(left, around[1] :: Bubble.Rect), "it hides " .. hidden)
+end)
+
 H.test("the pointer starts level with the button and stays on the bubble's edge", function()
 	local screen: Bubble.Size = { w = 1200, h = 675 }
 	local target: Bubble.Rect = { x = 1020, y = 560, w = 150, h = 90 }

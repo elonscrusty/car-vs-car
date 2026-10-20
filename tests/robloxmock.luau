@@ -512,6 +512,14 @@ local function newInstance(className: string): any
 	end
 	if isA(self, "GuiObject") then
 		self._props.Visible = true
+		self._props.BackgroundTransparency = 0
+	end
+	if className == "TextLabel" or className == "TextButton" then
+		self._props.Text = ""
+		self._props.TextTransparency = 0
+	elseif className == "ImageLabel" or className == "ImageButton" then
+		self._props.Image = ""
+		self._props.ImageTransparency = 0
 	end
 	if isA(self, "LayerCollector") then
 		self._props.Enabled = true

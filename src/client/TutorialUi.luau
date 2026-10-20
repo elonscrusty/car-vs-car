@@ -89,6 +89,18 @@ local function isShown(obj: GuiObject): boolean
 	return false
 end
 
+-- A button the player can see: an invisible hit area (carter's buttons carry one) is not one.
+local function isVisibleButton(obj: GuiObject): boolean
+	if obj:IsA("TextButton") then
+		local b = obj :: TextButton
+		return b.BackgroundTransparency < 0.95 or (b.Text ~= "" and b.TextTransparency < 0.95)
+	elseif obj:IsA("ImageButton") then
+		local b = obj :: ImageButton
+		return b.BackgroundTransparency < 0.95 or (b.Image ~= "" and b.ImageTransparency < 0.95)
+	end
+	return false
+end
+
 function TutorialUi.new(onSkip: () -> ()): Ui
 	local player = Players.LocalPlayer
 	local playerGui = player:WaitForChild("PlayerGui")
@@ -232,6 +244,7 @@ function TutorialUi.new(onSkip: () -> ()): Ui
 	-- ---------- state ----------
 	local view: Tutorial.View? = nil
 	local target: GuiObject? = nil -- the button the bubble stands next to
+	local neighbors: { GuiObject } = {} -- the other buttons on its screen: the bubble keeps off them
 	local text = ""
 	local mode = "none" -- "button" | "top" | "keys" | "none" (waiting for a button to appear)
 	local lookupIn = 0
@@ -260,13 +273,38 @@ function TutorialUi.new(onSkip: () -> ()): Ui
 		return nil
 	end
 
+	-- The other buttons on the target's screen that are on screen now (a CANCEL next to the button
+	-- the bubble talks about). Not the target's own parts, nor a button that holds it.
+	local function neighborsOf(tg: GuiObject): { GuiObject }
+		local list: { GuiObject } = {}
+		local screenGui = tg:FindFirstAncestorWhichIsA("ScreenGui")
+		if screenGui == nil then
+			return list
+		end
+		for _, d in screenGui:GetDescendants() do
+			if
+				d ~= tg
+				and d:IsA("GuiButton")
+				and isVisibleButton(d :: GuiObject)
+				and not tg:IsAncestorOf(d)
+				and not d:IsAncestorOf(tg)
+				and isShown(d :: GuiObject)
+			then
+				table.insert(list, d :: GuiObject)
+			end
+		end
+		return list
+	end
+
 	-- Which button does this step point at right now, and what does the bubble say?
 	local function resolve(v: Tutorial.View)
+		neighbors = {}
 		if v.targets ~= nil then
 			for _, option in v.targets do
 				local g = findShown(option.find)
 				if g ~= nil then
 					target, text, mode = g, option.text, "button"
+					neighbors = neighborsOf(g)
 					return
 				end
 			end
@@ -280,6 +318,7 @@ function TutorialUi.new(onSkip: () -> ()): Ui
 			local g = findShown(v.anchor)
 			if g ~= nil then
 				target, text, mode = g, v.text, "button"
+				neighbors = neighborsOf(g)
 			else
 				target, text, mode = nil, v.text, "top"
 			end
@@ -349,7 +388,17 @@ function TutorialUi.new(onSkip: () -> ()): Ui
 			local rel = tg.AbsolutePosition - host.AbsolutePosition
 			local rect: BubbleLayout.Rect =
 				{ x = rel.X, y = rel.Y, w = tg.AbsoluteSize.X, h = tg.AbsoluteSize.Y }
-			placement = BubbleLayout.place(rect, screen, size)
+			local avoid: { BubbleLayout.Rect } = {}
+			for _, other in neighbors do
+				if other.Parent ~= nil then
+					local at = other.AbsolutePosition - host.AbsolutePosition
+					table.insert(
+						avoid,
+						{ x = at.X, y = at.Y, w = other.AbsoluteSize.X, h = other.AbsoluteSize.Y }
+					)
+				end
+			end
+			placement = BubbleLayout.place(rect, screen, size, avoid)
 			-- the ring pulses around the button
 			local beat = 0.5 + 0.5 * math.sin(t * 6)
 			local grow = 6 + 2 * beat
@@ -402,6 +451,7 @@ function TutorialUi.new(onSkip: () -> ()): Ui
 		lookupIn = 0
 		if newView == nil then
 			target, text, mode = nil, "", "none"
+			neighbors = {}
 			holder.Visible = false
 			ring.Visible = false
 			arrow.Visible = false

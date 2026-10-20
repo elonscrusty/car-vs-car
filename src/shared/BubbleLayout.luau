@@ -18,6 +18,9 @@ export type Placement = {
 
 BubbleLayout.margin = 8 -- the bubble keeps this far from every screen edge
 BubbleLayout.gap = 14 -- space between the bubble and its target
+-- Hiding another button is worse than covering a corner of the middle (1) and far better than
+-- covering the target itself (1000).
+BubbleLayout.avoidWeight = 20
 
 -- The middle of the screen: what the bubbles must keep clear.
 function BubbleLayout.centerBox(screen: Size): Rect
@@ -58,12 +61,13 @@ function BubbleLayout.bottom(screen: Size, size: Size, bottomGap: number): Place
 	return { x = x, y = y, side = "top", tailX = size.w / 2, tailY = 0, pointsAt = nil }
 end
 
--- Next to `target`: the side with the most room that does not cover the middle of the screen.
-function BubbleLayout.place(target: Rect, screen: Size, size: Size): Placement
+-- Next to `target`: the side with the most room that does not cover the middle of the screen, nor
+-- the other buttons on that screen (`avoid`: the cancel button next to a confirm button).
+function BubbleLayout.place(target: Rect, screen: Size, size: Size, avoid: { Rect }?): Placement
 	local gap = BubbleLayout.gap
 	local cx = target.x + target.w / 2
 	local cy = target.y + target.h / 2
-	local order = if cx > screen.w / 2
+	local order: { string } = if cx > screen.w / 2
 		then { "left", "above", "below", "right" }
 		else { "right", "above", "below", "left" }
 	local center = BubbleLayout.centerBox(screen)
@@ -87,6 +91,11 @@ function BubbleLayout.place(target: Rect, screen: Size, size: Size): Placement
 		local score = BubbleLayout.overlap(box, center)
 			+ BubbleLayout.overlap(box, target) * 1000
 			+ rank * 0.01
+		if avoid ~= nil then
+			for _, other in avoid do
+				score += BubbleLayout.overlap(box, other) * BubbleLayout.avoidWeight
+			end
+		end
 		if score < bestScore then
 			bestScore = score
 			-- the pointer starts on the edge that faces the target, level with the target
