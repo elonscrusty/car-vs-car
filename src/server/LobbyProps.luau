@@ -11,6 +11,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local MapParts = require(script.Parent.MapParts)
+local MeshProps = require(script.Parent.MeshProps)
 local Props = require(ReplicatedStorage.Shared.LobbyProps)
 
 local LobbyProps = {}
@@ -210,6 +211,10 @@ local function junkPile(grp: Folder, origin: Vector3, j: Props.JunkPile)
 	-- an oil stain under it
 	local stain = can(m, "Stain", 10, 0.1, origin + Vector3.new(j.x, 0.02, j.z), rgb(C.asphaltDark))
 	stain.CFrame = base * CFrame.new(0, 0.07, 0) * CFrame.Angles(0, 0, math.pi / 2)
+	-- carter's low-poly pile of crushed cars, when it is imported
+	if MeshProps.place("ScrapPile", m, base, 5.2) then
+		return
+	end
 	-- doors and a hood stacked and leaning (bright paint)
 	put(
 		"Door",

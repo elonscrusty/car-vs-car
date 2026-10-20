@@ -44,15 +44,16 @@ Layout.colors = {
 	flowers = { { 255, 214, 64 }, { 255, 120, 150 }, { 255, 255, 255 }, { 176, 120, 255 } },
 	-- carter's polish picks (docs/LOBBY_POLISH.md): rainbow cones with no orange (L22), bright tire
 	-- stacks (L29), junk piles of old car parts (L28), puffy trees (L31), puffy clouds (L48)
+	-- low-poly sunset junk (carter, 2026-10-20): rust, faded paint and steel, still no orange
 	rainbow = {
-		{ 232, 60, 60 },
-		{ 255, 214, 48 },
-		{ 150, 220, 50 },
-		{ 46, 190, 96 },
-		{ 40, 200, 210 },
-		{ 60, 150, 255 },
-		{ 160, 90, 230 },
-		{ 255, 110, 180 },
+		{ 176, 70, 56 },
+		{ 200, 164, 72 },
+		{ 120, 132, 70 },
+		{ 70, 124, 102 },
+		{ 74, 126, 136 },
+		{ 84, 102, 140 },
+		{ 112, 82, 140 },
+		{ 160, 92, 120 },
 	},
 	puff = { { 104, 196, 72 }, { 140, 216, 90 }, { 74, 168, 64 } },
 	cloud = { 255, 255, 255 },

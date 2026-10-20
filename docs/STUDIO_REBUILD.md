@@ -23,3 +23,13 @@ Import everything in `game-models-v3` and `game-models-v4` (Home > Import 3D, Ct
 in each garage). Bowl, pickups, effects and mode props go to `Models.Bowl` (pickups and clouds are
 already used; the rest wait for their modes). Not placed yet: mezzanine, roof panels, skylights,
 steel wall panels and doors, bay turntable, ice, hill, soccer and last-car-standing pieces, fx.
+
+## Low-poly junkyard props (2026-10-20)
+
+carter's 8 low-poly props are in `assets/lowpoly/props` (shrunk from his Hunyuan models with
+`tools/prop_prep.py`, colors baked in). Import all 8 `.fbx` files (Home > Import 3D), then run
+`tools/studio-sort-junk.luau` in the command bar: they move to `ServerStorage.Models.Junk`.
+`MeshProps` places them: the bowl's tire wall ring, red barrels, crates, containers, crushed-car
+piles, light towers and claw cranes; the lobby's play pads and junk piles. Until they are imported
+the old Part props stay. Not sent yet: crusher, jump ramp, car display stand, gumball machine,
+garage building.

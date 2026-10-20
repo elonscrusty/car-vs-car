@@ -13,6 +13,7 @@
 -- hill <= 3, container 2.
 
 local MapParts = require(script.Parent.MapParts)
+local MeshProps = require(script.Parent.MeshProps)
 
 local BowlProps = {}
 
@@ -129,6 +130,20 @@ local function breakable(m: Model, body: Part, parent: Instance): Model
 	return m
 end
 
+-- Puts carter's low-poly model `name` into `m` (one MeshPart, look only). False when it is not
+-- imported yet: the caller then builds its Part version.
+local function mesh(m: Model, name: string, cf: CFrame, height: number): boolean
+	local copy = MeshProps.place(name, m, cf, height)
+	if copy == nil then
+		return false
+	end
+	local p = copy.PrimaryPart :: BasePart
+	p.Name = name
+	p.Parent = m
+	copy:Destroy()
+	return true
+end
+
 -- Ends a look-only prop (Body already made with solid=false).
 local function finish(m: Model, body: Part, parent: Instance): Model
 	m.PrimaryPart = body
@@ -152,6 +167,11 @@ function BowlProps.boomBarrel(parent: Instance, cf: CFrame): Model
 	local m = newModel("BoomBarrel")
 	local red = rgb(C.red)
 	local body = post(m, "Body", 4.7, 5.8, cf, red)
+	if mesh(m, "RedBarrel", cf, 5.8) then
+		body.Transparency = 1 -- the touch box stays; the model is what shows
+		m:SetAttribute("Explosive", true)
+		return breakable(m, body, parent)
+	end
 	post(m, "Band", 4.82, 1.3, cf * CFrame.new(0, 2.2, 0), rgb(C.yellow))
 	post(m, "Lid", 4.0, 0.14, cf * CFrame.new(0, 5.8, 0), darken(red, 0.55))
 	post(m, "Fuse", 0.9, 1.5, cf * CFrame.new(0.9, 5.9, 0), rgb(C.ink))
@@ -164,6 +184,14 @@ end
 function BowlProps.crate(parent: Instance, cf: CFrame, color: Color3): Model
 	local m = newModel("Crate")
 	local s = 3.6
+	if MeshProps.has("Crate") then
+		local big = 4.4
+		local hit =
+			box(m, "Body", Vector3.new(big, big, big), cf * CFrame.new(0, big / 2, 0), color)
+		hit.Transparency = 1
+		mesh(m, "Crate", cf, big)
+		return breakable(m, hit, parent)
+	end
 	local turn = 0.2 + hash(cf.Position, 2) * 0.4
 	local top = cf * CFrame.new(0.3, s, -0.2) * CFrame.Angles(0, turn, 0)
 	local body = box(
@@ -322,6 +350,10 @@ end
 -- A shipping container 28 long (local X), 8 wide and 8.5 tall in a bright colour, with a darker
 -- door end. Looks only. 2 parts.
 function BowlProps.container(parent: Instance, cf: CFrame, color: Color3): Model
+	local model = MeshProps.place("Container", parent, cf, 8.5)
+	if model then
+		return model
+	end
 	local m = newModel("Container")
 	local body = box(m, "Body", Vector3.new(28, 8.5, 8), cf * CFrame.new(0, 4.25, 0), color)
 	box(m, "Door", Vector3.new(0.5, 7.4, 7.4), cf * CFrame.new(14.1, 4.25, 0), darken(color, 0.7))
