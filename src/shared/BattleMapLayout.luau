@@ -28,6 +28,8 @@ export type Box = {
 	yawDeg: number,
 	color: { number },
 	solid: boolean, -- true = a car can hit it (and shells stop at it)
+	kind: string, -- "plateau" | "bunker" | "block" | "bumper" | "soldier": how the builder dresses it
+	letter: string?, -- alphabet block letter
 }
 
 export type Ramp = {
@@ -56,6 +58,21 @@ Layout.colors = {
 	bumper = { 235, 72, 72 },
 	padA = { 235, 72, 72 },
 	padB = { 60, 140, 235 },
+	white = { 250, 250, 255 },
+	chevron = { 255, 205, 50 },
+	skirt = { 214, 160, 20 }, -- darker plateau base
+	cap = { 255, 232, 120 }, -- lighter plateau lip
+	wood = { 255, 196, 90 },
+	skin = { 255, 214, 170 },
+	hat = { 40, 46, 80 },
+	crayons = {
+		{ 235, 72, 72 },
+		{ 255, 205, 50 },
+		{ 60, 140, 235 },
+		{ 80, 200, 110 },
+		{ 150, 92, 220 },
+		{ 255, 150, 40 },
+	},
 }
 
 Layout.plateau = { hx = 18, hz = 22, height = 7 }
@@ -64,6 +81,12 @@ Layout.bunker = { x = 64, sx = 6, sy = 11, sz = 22 }
 Layout.block = { x = 44, z = 40, sx = 10, sy = 9, sz = 10 }
 Layout.kicker = { x = 16, z = 56, length = 16, width = 14, height = 4 } -- middle of the footprint
 Layout.bumper = { x = 88, z = 58, sx = 24, sy = 8, sz = 6 }
+Layout.soldier = { x = 80, z = 30, size = 10, height = 26 } -- toy soldiers guard each start, a landmark and cover
+-- The one hazard: a slow spinner arm over the plateau that sweeps cars toward the drop.
+Layout.spinner =
+	{ radius = 15, clearance = 1.2, height = 4, width = 3.5, speed = 0.9, hubRadius = 3.5 }
+Layout.studSize = { diameter = 3.4, height = 0.8 } -- toy-brick studs on bunkers and blocks
+Layout.startLineX = 72 -- white start line in front of each pad
 Layout.tileSize = 20
 Layout.panelWidth = 20 -- wall stripe panels
 
@@ -90,6 +113,7 @@ function Layout.boxes(): { Box }
 		yawDeg = 0,
 		color = c.plateau,
 		solid = true,
+		kind = "plateau",
 	})
 	for i, sx in { -1, 1 } do
 		table.insert(list, {
@@ -102,6 +126,7 @@ function Layout.boxes(): { Box }
 			yawDeg = 0,
 			color = c.bunker,
 			solid = true,
+			kind = "bunker",
 		})
 	end
 	local n = 0
@@ -118,6 +143,8 @@ function Layout.boxes(): { Box }
 				yawDeg = 0,
 				color = c.blocks[(n - 1) % #c.blocks + 1],
 				solid = true,
+				kind = "block",
+				letter = ({ "A", "B", "C", "D" })[n],
 			})
 			table.insert(list, {
 				name = "Bumper" .. n,
@@ -129,6 +156,20 @@ function Layout.boxes(): { Box }
 				yawDeg = if sx * sz > 0 then 45 else -45, -- long side across the corner
 				color = c.bumper,
 				solid = true,
+				kind = "bumper",
+			})
+			local so = Layout.soldier
+			table.insert(list, {
+				name = "Soldier" .. n,
+				x = sx * so.x,
+				z = sz * so.z,
+				sx = so.size,
+				sy = so.height,
+				sz = so.size,
+				yawDeg = if sx < 0 then -90 else 90, -- faces the middle of the map
+				color = if sx < 0 then c.padA else c.padB,
+				solid = true,
+				kind = "soldier",
 			})
 		end
 	end
@@ -202,6 +243,48 @@ function Layout.tiles(): { { x: number, z: number } }
 					{ x = -Layout.halfX + (i + 0.5) * s, z = -Layout.halfZ + (j + 0.5) * s }
 				)
 			end
+		end
+	end
+	return out
+end
+
+-- Floor arrows that point up the plateau ramps: center x, z and the way they point (+1 = toward +x).
+function Layout.chevrons(): { { x: number, z: number, dir: number } }
+	local out = {}
+	for _, sx in { -1, 1 } do
+		for _, x in { 50.5, 56 } do
+			table.insert(out, { x = sx * x, z = 0, dir = -sx })
+		end
+	end
+	return out
+end
+
+-- Pennants hung along the two long walls: x, color index.
+function Layout.bunting(): { { x: number, i: number } }
+	local out = {}
+	for i = 0, 9 do
+		table.insert(out, { x = -90 + i * 20, i = i })
+	end
+	return out
+end
+
+-- Big toy landmarks outside the walls (looks only): crayons standing up, block towers and beach balls.
+export type Prop = { kind: string, x: number, z: number, size: number, i: number, yawDeg: number }
+function Layout.scenery(): { Prop }
+	local out: { Prop } = {}
+	local function add(kind: string, x: number, z: number, size: number, i: number, yaw: number)
+		table.insert(out, { kind = kind, x = x, z = z, size = size, i = i, yawDeg = yaw })
+	end
+	local hx, hz = Layout.halfX, Layout.halfZ
+	local n = 0
+	for _, sx in { -1, 1 } do
+		for _, sz in { -1, 1 } do
+			n += 1
+			add("crayon", sx * 62, sz * (hz + 22), 40, n, 0)
+			add("crayon", sx * 18, sz * (hz + 30), 52, n + 2, 0)
+			add("tower", sx * (hx + 26), sz * 52, 16, n, n * 23)
+			add("ball", sx * (hx + 48), sz * 14, 36, n, 0)
+			add("pole", sx * (hx + 4), sz * (hz + 4), 34, n, 0)
 		end
 	end
 	return out

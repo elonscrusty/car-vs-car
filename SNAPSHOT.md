@@ -279,3 +279,6 @@ Not verified in Studio yet: see the PR body.
 
 ## Battle map "Toy Box Showdown" (new)
 `BattleArena.build` now builds the new map (docs/BATTLE_MAP.md): 200x140, central plateau with ramps, bunkers in front of each spawn, 4 cover blocks, 4 kicker ramps, corner bumpers, checker floor. Spawns are fixed and face each other (`arena.spawnPoint`, spot/aim ignored). Pure data + tests: `BattleMapLayout`, `tests/battlemap.test.luau`. NOT checked by eye in Studio yet; the old AI does not know the new obstacles.
+
+## Battle map upgrade (premium toy look)
+Toy soldiers, ABC blocks with studs, spinner hazard over the plateau (BattleMap.animate), chevrons, start lines, pennants, giant crayons/towers/balls outside. Details in docs/BATTLE_MAP.md. Studio look + spinner push NOT yet checked by eye.
