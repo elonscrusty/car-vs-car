@@ -770,7 +770,15 @@ function BattleUi.start()
 				local want = focus
 					- look * (H.camDistL * carLen)
 					+ Vector3.new(0, H.camHeightL * carLen, 0)
-				-- never end up behind a wall: pull the camera in where something is in the way
+				-- and always stay INSIDE the arena walls: a camera above a low wall would look
+				-- over it and the wall would hide the car (a car that starts next to a wall)
+				local inset = 9
+				want = Vector3.new(
+					math.clamp(want.X, c.X - arenaHalf.X + inset, c.X + arenaHalf.X - inset),
+					want.Y,
+					math.clamp(want.Z, c.Z - arenaHalf.Y + inset, c.Z + arenaHalf.Y - inset)
+				)
+				-- then pull it in where something (a wall, furniture) is in the way, after the clamp so the clamp cannot push it back inside
 				local params = RaycastParams.new()
 				params.FilterType = Enum.RaycastFilterType.Exclude
 				local skip: { Instance } = {}
@@ -784,14 +792,6 @@ function BattleUi.start()
 				if hit then
 					want = hit.Position + hit.Normal * 1.5
 				end
-				-- and always stay INSIDE the arena walls: a camera above a low wall would look
-				-- over it and the wall would hide the car (a car that starts next to a wall)
-				local inset = 9
-				want = Vector3.new(
-					math.clamp(want.X, c.X - arenaHalf.X + inset, c.X + arenaHalf.X - inset),
-					want.Y,
-					math.clamp(want.Z, c.Z - arenaHalf.Y + inset, c.Z + arenaHalf.Y - inset)
-				)
 				return CFrame.lookAt(want, mine.Position + look * (H.camLookL * carLen))
 			end
 		end
