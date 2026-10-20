@@ -321,8 +321,8 @@ end
 -- of speed, slides back for a moment and cannot steer meanwhile (the knocked state). No damage.
 local function wallBounce(car: Car, v: Vector3, dt: number): boolean
 	local body = car.body
-	local planar = Vector3.new(v.X, 0, v.Z)
-	local speed = planar.Magnitude
+	local flat = Vector3.new(v.X, 0, v.Z)
+	local speed = flat.Magnitude
 	if speed < 0.3 * car.fighter.cruiseL * car.L then
 		return false
 	end
@@ -330,7 +330,7 @@ local function wallBounce(car: Car, v: Vector3, dt: number): boolean
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = { car.model }
 	local reach = body.Size.Z / 2 + speed * dt * 1.5 + 0.5
-	local hit = workspace:Raycast(body.Position, planar.Unit * reach, params)
+	local hit = workspace:Raycast(body.Position, flat.Unit * reach, params)
 	if hit == nil or not CollectionService:HasTag(hit.Instance, "Bouncy") then
 		return false
 	end
@@ -341,7 +341,7 @@ local function wallBounce(car: Car, v: Vector3, dt: number): boolean
 	n = n.Unit
 	local props = (hit.Instance :: BasePart).CustomPhysicalProperties
 	local keep = (if props then props.Elasticity else 0.5) * 0.7
-	local r = (planar - 2 * planar:Dot(n) * n) * keep
+	local r = (flat - 2 * flat:Dot(n) * n) * keep
 	body.AssemblyLinearVelocity = Vector3.new(r.X, v.Y, r.Z)
 	car.stagger = math.max(car.stagger, 0.35)
 	return true
