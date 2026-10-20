@@ -43,10 +43,10 @@ Layout.colors = {
 }
 
 -- The paved plaza (asphalt) inside the tire walls. The grass border and the world sit outside it.
-Layout.plaza = { halfX = 100, frontZ = 84, backZ = -86, corner = 14 }
+Layout.plaza = { halfX = 100, frontZ = 64, backZ = -86, corner = 14 }
 
 -- Spawn: on the front path, looks at the middle of the PLAY pads.
-Layout.spawn = { x = 0, z = 68, size = 8 }
+Layout.spawn = { x = 0, z = 48, size = 8 }
 
 -- The big PLAY ring in the middle and the four small pads on it.
 Layout.ring = { x = 0, z = 8, radius = 24, hubRadius = 6 }
@@ -112,7 +112,7 @@ Layout.boards = {
 
 -- Light gray paths: spawn -> ring, ring -> each building, two side entrances.
 Layout.paths = {
-	{ x = 0, z = 76, w = 14, d = 26, yawDeg = 0 }, -- the front path (spawn side)
+	{ x = 0, z = 48, w = 14, d = 34, yawDeg = 0 }, -- the front path (spawn side)
 	{ x = 0, z = -38, w = 18, d = 44, yawDeg = 0 }, -- ring to the workshop
 	{ x = -42, z = -30, w = 14, d = 50, yawDeg = 55 }, -- to the customize garage
 	{ x = 42, z = -30, w = 14, d = 50, yawDeg = -55 }, -- to the shop
@@ -122,8 +122,8 @@ Layout.paths = {
 
 -- Orange / blue X flags at the entrances: two poles at each, colors alternate.
 Layout.flags = {
-	{ x = -9, z = 80, color = "orange" },
-	{ x = 9, z = 80, color = "blue" },
+	{ x = -9, z = 60, color = "orange" },
+	{ x = 9, z = 60, color = "blue" },
 	{ x = -98, z = -22, color = "orange" },
 	{ x = -98, z = -2, color = "blue" },
 	{ x = 98, z = -22, color = "blue" },
@@ -131,7 +131,7 @@ Layout.flags = {
 }
 
 -- The entrance arch over the spawn path with the big CAR VS CAR sign.
-Layout.arch = { z = 82, halfOpening = 11, height = 26, signW = 34, signH = 9 }
+Layout.arch = { z = 62, halfOpening = 11, height = 26, signW = 34, signH = 9 }
 
 -- Where the music plays from (silent until carter gives a sound id).
 Layout.music = { x = 0, y = 12, z = 0 }
@@ -141,8 +141,8 @@ Layout.benches = {
 	{ x = 26, z = 40, yawDeg = -90 },
 	{ x = -30, z = -22, yawDeg = 0 },
 	{ x = 30, z = -22, yawDeg = 0 },
-	{ x = -14, z = 58, yawDeg = 90 },
-	{ x = 14, z = 58, yawDeg = -90 },
+	{ x = -14, z = 56, yawDeg = 90 },
+	{ x = 14, z = 56, yawDeg = -90 },
 }
 Layout.cones = {
 	{ x = -8, z = 50 },
@@ -153,7 +153,7 @@ Layout.cones = {
 	{ x = 50, z = -12 },
 	{ x = -22, z = -50 },
 	{ x = 22, z = -50 },
-	{ x = -9, z = 90 },
+	{ x = -9, z = 70 },
 }
 Layout.carts = {
 	{ x = -50, z = -44, yawDeg = 20 },
@@ -162,9 +162,9 @@ Layout.carts = {
 }
 
 -- Parked player cars: 2 columns on each side of the front path, nose toward the path.
--- 6 rows, so 24 spots. `side` is -1 (left) or 1 (right).
+-- 4 rows, so 16 spots. `side` is -1 (left) or 1 (right).
 Layout.parkingSize = { w = 14, d = 9.5 } -- one spot: along the car, across the car
-Layout.parkingRows = { 22, 32.5, 43, 53.5, 64, 74.5 }
+Layout.parkingRows = { 22, 32.5, 43, 53.5 }
 Layout.parkingCols = { 58, 76 } -- |x| of the two columns (the spot middles)
 
 export type Spot = { x: number, z: number, yawDeg: number, side: number }
@@ -188,7 +188,7 @@ end
 -- The tire wall round the plaza: a station every `Layout.tireStep` studs, except at the entrances.
 Layout.tireStep = 5.6
 Layout.entrances = {
-	{ axis = "z", pos = 84, from = -9, to = 9 }, -- front (spawn path), x range
+	{ axis = "z", pos = 64, from = -9, to = 9 }, -- front (spawn path), x range
 	{ axis = "x", pos = -100, from = -29, to = 5 }, -- left entrance, z range
 	{ axis = "x", pos = 100, from = -29, to = 5 }, -- right entrance
 }
@@ -366,8 +366,8 @@ end
 -- Dirt paths on the grass outside, from each entrance away from the plaza: x, z, size x, size z, yaw.
 function Layout.outsidePaths(): { { x: number, z: number, sx: number, sz: number, yawDeg: number } }
 	return {
-		{ x = 0, z = 112, sx = 14, sz = 50, yawDeg = 0 },
-		{ x = 6, z = 150, sx = 14, sz = 40, yawDeg = 18 },
+		{ x = 0, z = 92, sx = 14, sz = 50, yawDeg = 0 },
+		{ x = 6, z = 130, sx = 14, sz = 40, yawDeg = 18 },
 		{ x = -124, z = -12, sx = 44, sz = 12, yawDeg = 0 },
 		{ x = -160, z = -30, sx = 36, sz = 12, yawDeg = 25 },
 		{ x = 124, z = -12, sx = 44, sz = 12, yawDeg = 0 },

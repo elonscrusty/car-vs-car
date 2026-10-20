@@ -101,9 +101,9 @@ H.test("spawn is clear of paths blockers and looks at the ring", function()
 	near(LobbyLayout.spawnYaw(), math.pi, 0.01) -- ring is straight ahead (-z)
 end)
 
-H.test("24 parking spots, one car each, clear of the front path and the ring", function()
+H.test("16 parking spots, one car each, clear of the front path and the ring", function()
 	local spots = LobbyLayout.parking()
-	eq(#spots, 24)
+	eq(#spots, 16)
 	for _, s in spots do
 		truthy(
 			math.abs(s.x) - LobbyLayout.parkingSize.w / 2 > 7 + 2,
