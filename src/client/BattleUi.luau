@@ -16,6 +16,7 @@ local BattleDriver = require(script.Parent.BattleDriver)
 local SteerInput = require(script.Parent.SteerInput)
 local BattleFx = require(script.Parent.BattleFx)
 local SoundFx = require(script.Parent.SoundFx)
+local VsScreen = require(script.Parent.VsScreen)
 local UserInputService = game:GetService("UserInputService")
 
 local BattleUi = {}
@@ -420,6 +421,7 @@ function BattleUi.start()
 		1
 	)
 	prepF.Visible = false
+	local vsScreen = VsScreen.new(gui) -- before round 1: both cars, names, a line each, then 3-2-1
 	local prepCount = label(prepF, "3", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), COL_TEXT, 110)
 	prepCount.TextStrokeTransparency = 0
 	prepCount.TextStrokeColor3 = Color3.fromRGB(10, 12, 22)
@@ -1174,6 +1176,7 @@ function BattleUi.start()
 		do
 			f.Visible = false
 		end
+		vsScreen.hide()
 	end
 
 	local function endAll()
@@ -1449,7 +1452,12 @@ function BattleUi.start()
 		flyStart = os.clock()
 		camSmooth = nil
 		prepEnd = os.clock() + m.seconds
-		prepF.Visible = true
+		-- round 1 gets the VS screen (its own 3-2-1); later rounds keep just the big number
+		if m.round == 1 then
+			vsScreen.show(m, prepEnd)
+		else
+			prepF.Visible = true
+		end
 		leaveBtn.Visible = true
 	end
 
@@ -1610,6 +1618,7 @@ function BattleUi.start()
 		if selectF.Visible then
 			selTimer.Text = clock(selectEnd - now)
 		end
+		vsScreen.tick(now)
 		if prepF.Visible then
 			prepCount.Text = tostring(math.max(0, math.ceil(prepEnd - now)))
 		end
