@@ -849,6 +849,14 @@ function BattleService.start(
 						car.body.AssemblyLinearVelocity = Vector3.zero
 						car.body.AssemblyAngularVelocity = Vector3.zero
 						guardPos[car] = nil -- a rescue is not a teleport
+						if car.clientDriven then
+							-- the owner's device overrides this PivotTo, so it moves the car itself
+							car.model:SetAttribute("RescueCf", CFrame.lookAt(pos, pos + face))
+							car.model:SetAttribute(
+								"RescueN",
+								(car.model:GetAttribute("RescueN") or 0) + 1
+							)
+						end
 					end
 				end
 			else
