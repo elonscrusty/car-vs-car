@@ -300,17 +300,27 @@ local function shopCard(parent, vehicle, state, ctx, x)
 	abilityFit.MinTextSize = 10
 	abilityFit.Parent = abilityName
 	local cost = price(state, vehicle)
-	T.icon(card, "Coin", "coin", 13, 263, 28, T.C.gold)
-	T.text(card, "Price", T.format(cost) .. " COINS", 48, 261, 149, 34, 22, T.C.white)
 	local isOwned = owned(state, vehicle.Id)
 	local equipped = state.equipped == vehicle.Id
-	local affordable = (state.coins or 0) >= cost
+	-- carter: a new car comes only from the gumball machine, so no coin price and no BUY button
+	local gumballOnly = not Config.CoinSales and not isOwned
+	if gumballOnly then
+		T.icon(card, "Gumball", "claw", 13, 263, 28, T.C.gold)
+		T.text(card, "Price", "GUMBALL ONLY", 48, 261, 149, 34, 22, T.C.white)
+	else
+		T.icon(card, "Coin", "coin", 13, 263, 28, T.C.gold)
+		T.text(card, "Price", T.format(cost) .. " COINS", 48, 261, 149, 34, 22, T.C.white)
+	end
+	local affordable = (state.coins or 0) >= cost and Config.CoinSales
 	local label = loading(state)
 		or (
 			equipped and "EQUIPPED"
 			or (
 				isOwned and "EQUIP"
-				or (affordable and "BUY" or "NEED " .. T.format(cost - (state.coins or 0)))
+				or (
+					gumballOnly and "TO THE GUMBALL"
+					or (affordable and "BUY" or "NEED " .. T.format(cost - (state.coins or 0)))
+				)
 			)
 		)
 	local button = T.button(
@@ -327,6 +337,8 @@ local function shopCard(parent, vehicle, state, ctx, x)
 			end
 			if isOwned and not equipped then
 				ctx.request("EquipCar", { vehicleId = vehicle.Id })
+			elseif gumballOnly then
+				ctx.navigate("CLAW")
 			elseif not isOwned and affordable then
 				ctx.confirm(
 					"BuyCar",
@@ -337,9 +349,14 @@ local function shopCard(parent, vehicle, state, ctx, x)
 			end
 		end,
 		equipped and T.C.green or T.C.blue,
-		equipped and "check" or (affordable and "shop" or "lock")
+		equipped and "check" or (gumballOnly and "claw" or (affordable and "shop" or "lock"))
 	)
-	T.disable(button, not available(state, ctx) or equipped or (not isOwned and not affordable))
+	T.disable(
+		button,
+		not available(state, ctx)
+			or equipped
+			or (not isOwned and not gumballOnly and not affordable)
+	)
 end
 
 local function machine(parent, x, y, w, h, compact)

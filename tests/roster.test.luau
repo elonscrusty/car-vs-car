@@ -52,11 +52,13 @@ test("claw odds, store, quests and picks exclude hidden cars; odds sum to 100", 
 	eq(sum, 100)
 	local p = Inventory.default()
 	p.coins = 100000
+	LobbyConfig.Store.coinSales = true -- the shop rules for the day cars are sold for coins again
 	local ok, why = Store.canBuy(p, "Van")
 	eq(ok, false)
 	eq(why, "unknown")
 	ok = Store.canBuy(p, "Compact")
 	truthy(ok)
+	LobbyConfig.Store.coinSales = false
 	for _, def in QuestsConfig.Catalog do
 		if def.carId then
 			truthy(CarConfig.isLive(def.carId), def.id)

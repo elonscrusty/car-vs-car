@@ -67,6 +67,7 @@ Config.Modes = {
 	{ Id = "DUEL", Name = "FIGHT", Description = "4 cars. Last car alive wins." },
 }
 Config.ClawPrice = LobbyConfig.Gacha.price
+Config.CoinSales = LobbyConfig.Store.coinSales -- false: new cars come only from the gumball machine
 Config.ClawOdds = {}
 for _, row in Gacha.oddsTable() do
 	table.insert(Config.ClawOdds, {

@@ -26,8 +26,11 @@ function Store.price(carId: string): number
 	return (rarity and prices[rarity]) or LobbyConfig.Store.defaultPrice
 end
 
--- reason: "unknown" (bad car id), "owned", or "coins".
+-- reason: "gumball" (coin sales are off), "unknown" (bad car id), "owned", or "coins".
 function Store.canBuy(p: Profile, carId: any): (boolean, string?)
+	if not LobbyConfig.Store.coinSales then
+		return false, "gumball"
+	end
 	if type(carId) ~= "string" or not CarConfig.isLive(carId) then
 		return false, "unknown"
 	end
