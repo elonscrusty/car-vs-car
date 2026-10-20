@@ -31,25 +31,36 @@ local function yaw(deg: number): CFrame
 	return CFrame.Angles(0, math.rad(deg), 0)
 end
 
+-- Walls and cover throw a car back: their bounce wins over the car's (weight 100), so a hit is a
+-- visible rebound and not a dead stop. No damage comes from it.
+local function bouncy(p: Part): Part
+	p.CustomPhysicalProperties = PhysicalProperties.new(2, 0.1, Layout.wallBounce, 1, 100)
+	CollectionService:AddTag(p, "Bouncy") -- BattleCar throws a car that runs into a tagged part back
+	return p
+end
+
 -- A stack of tires standing at `pos` (bottom of the stack): thin gaps between the tires, each one a
 -- little off the one below, and a pale hole on the top one, so it reads as tires and not as a block.
-local function tires(parent: Instance, pos: Vector3, scale: number)
+local function tires(parent: Instance, pos: Vector3, scale: number, solids: { Instance }?)
 	local t = Layout.tire
 	local step = (t.height + 0.3) * scale
 	for k = 0, t.stack - 1 do
 		local off =
 			Vector3.new((k % 2 - 0.5) * 0.7 * scale, k * step, (1 - k % 2 * 2) * 0.25 * scale)
-		can(
+		local tire = can(
 			parent,
 			"Tire",
 			t.diameter * scale,
 			t.height * scale,
 			pos + off,
 			rgb(C.tire),
-			false,
-			nil,
+			solids ~= nil,
+			solids,
 			Enum.Material.Rubber
 		)
+		if solids then
+			bouncy(tire)
+		end
 		if k == t.stack - 1 then
 			can(
 				parent,
@@ -64,13 +75,6 @@ local function tires(parent: Instance, pos: Vector3, scale: number)
 			)
 		end
 	end
-end
-
--- Walls and cover throw a car back: their bounce wins over the car's (weight 100), so a hit is a
--- visible rebound and not a dead stop. No damage comes from it.
-local function bouncy(p: Part): Part
-	p.CustomPhysicalProperties = PhysicalProperties.new(2, 0.1, Layout.wallBounce, 1, 100)
-	return p
 end
 
 local function floor(folder: Folder, origin: Vector3, solids: { Instance })
@@ -322,10 +326,10 @@ local function walls(folder: Folder, origin: Vector3, solids: { Instance })
 			)
 		end
 	end
-	-- tire stacks where wall modules meet, half sunk into the wall face
+	-- tire stacks where wall modules meet, standing against the inner wall face (solid and bouncy)
 	local tireGroup = group(folder, "TireStacks")
 	for _, s in Layout.tireStacks() do
-		tires(tireGroup, origin + Vector3.new(s.x - s.nx * 1.5, 0, s.z - s.nz * 1.5), 1)
+		tires(tireGroup, origin + Vector3.new(s.x + s.nx * 2.9, 0, s.z + s.nz * 2.9), 1, solids)
 	end
 end
 
