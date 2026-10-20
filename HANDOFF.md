@@ -240,3 +240,4 @@ Replaces the warehouse lobby (archived in `archive/lobby_v1`, shipped to ServerS
 - Garage floor covers the whole garage footprint (no grass gap); Metal parts in the arena are SmoothPlastic (roofs and cover blocks blew out white).
 - Wall rebound (Studio: car stopped in 0.1 s, floor friction ate it): `BattleCar.slide` holds the bounce velocity by hand while knocked (0.5 s). A ram knock clears it.
 - Wall bounce now sweeps a car-sized box ahead (Blockcast) instead of one ray, so corners, cover-block edges and tires bounce too (Studio: they stopped the car dead). Falls back to the old ray when already touching.
+- CAR VS CAR sign: the glowing border is four bars now, so the outside is a dark board with the same text (it was a plain yellow slab).
