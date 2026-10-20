@@ -177,11 +177,11 @@ function LobbyGarageShell.build(
 			h - 0.4,
 			-2,
 			rgb(C.marking),
-			Enum.Material.Neon
+			Enum.Material.SmoothPlastic
 		)
 		local light = Instance.new("PointLight")
 		light.Color = Color3.fromRGB(255, 236, 205)
-		light.Brightness = 1.4
+		light.Brightness = 0.45
 		light.Range = math.max(w, d) * 0.8
 		light.Shadows = false
 		light.Parent = lamp
