@@ -41,18 +41,22 @@ Layout.colors = {
 	tire = { 46, 48, 58 },
 	tireAlt = { 60, 62, 74 },
 	hub = { 198, 204, 216 },
-	grass = { 127, 186, 66 },
+	grass = { 96, 78, 64 }, -- the yard round the bowl: packed dusty dirt
 	warn = { 255, 70, 50 }, -- the crusher's warning
-	-- bright toy junk. Red is left out on purpose: red barrels are the ones that explode.
+	-- low-poly sunset junk (carter, 2026-10-20): rust, faded paint, steel. Red is left out on
+	-- purpose: red barrels are the ones that explode.
 	rainbow = {
-		{ 245, 130, 32 }, -- orange
-		{ 255, 214, 64 }, -- yellow
-		{ 88, 200, 96 }, -- green
-		{ 40, 186, 170 }, -- teal
-		{ 37, 141, 221 }, -- blue
-		{ 150, 100, 230 }, -- purple
-		{ 255, 120, 150 }, -- pink
+		{ 168, 92, 54 }, -- rust
+		{ 200, 160, 72 }, -- faded yellow
+		{ 74, 122, 118 }, -- faded teal
+		{ 84, 102, 132 }, -- steel blue
+		{ 112, 82, 140 }, -- dusk purple
+		{ 120, 118, 78 }, -- olive
+		{ 186, 176, 156 }, -- dirty white
 	},
+	-- the far city against the sunset: dark purple blocks, warm lit windows
+	city = { { 58, 44, 84 }, { 72, 52, 98 }, { 48, 40, 72 }, { 86, 60, 104 } },
+	window = { 255, 186, 96 },
 } :: { [string]: any }
 
 -- The tire wall: stacks of two big tires on top of the slope, all the way round.

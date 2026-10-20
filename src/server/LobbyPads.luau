@@ -12,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local MapParts = require(script.Parent.MapParts)
+local MeshProps = require(script.Parent.MeshProps)
 local PadSlots = require(ReplicatedStorage.Shared.PadSlots)
 
 local LobbyPads = {}
@@ -35,6 +36,7 @@ export type Handle = {
 local rgb, part, can, group = MapParts.rgb, MapParts.part, MapParts.can, MapParts.group
 local C = LobbyLayout.colors
 local TOP = 0.5 -- a pad's top above the plaza
+local MESH_TOP = 1.1 -- the top of carter's low-poly play pad, when it is imported
 local SEGMENTS = 10 -- ring segments, alternating orange and blue
 local GLOW_IDLE = 0.62 -- the soft disc under a waiting-for-nobody pad (1 = invisible)
 local GLOW_BUSY = 0.3
@@ -54,6 +56,10 @@ function LobbyPads.build(folder: Folder, origin: Vector3): Pads
 		local center = origin + Vector3.new(p.x, 0, p.z)
 		local pad = group(grp, "Pad" .. i)
 		pad:SetAttribute("PadIndex", i)
+		-- carter's low-poly play pad (a little wider than the rim); the Part pad hides under it
+		local width = radius * 2 + 2
+		local model = MeshProps.place("PlayPad", pad, CFrame.new(center), width * 0.19, MESH_TOP)
+		local top = if model then MESH_TOP else TOP
 		-- a soft neon disc a little wider than the pad lights the road round it (L44: nicer glow)
 		local halo = can(
 			pad,
@@ -70,7 +76,7 @@ function LobbyPads.build(folder: Folder, origin: Vector3): Pads
 		halo.CastShadow = false
 		table.insert(halos, halo)
 		-- white rim, dark base, lighter inner disc
-		can(pad, "Rim", radius * 2 + 1.4, TOP - 0.05, center, rgb(C.marking), false)
+		local rim = can(pad, "Rim", radius * 2 + 1.4, TOP - 0.05, center, rgb(C.marking), false)
 		local base = can(
 			pad,
 			"Base",
@@ -81,7 +87,7 @@ function LobbyPads.build(folder: Folder, origin: Vector3): Pads
 			false
 		)
 		base.Name = "PadBase"
-		can(
+		local inner = can(
 			pad,
 			"Inner",
 			radius * 1.2,
@@ -90,6 +96,11 @@ function LobbyPads.build(folder: Folder, origin: Vector3): Pads
 			Color3.fromRGB(30, 36, 52),
 			false
 		)
+		if model then
+			rim.Transparency = 1
+			base.Transparency = 1
+			inner.Transparency = 1
+		end
 		-- the spinning ring of alternating orange / blue blocks
 		local ring = Instance.new("Model")
 		ring.Name = "Ring"
@@ -98,7 +109,7 @@ function LobbyPads.build(folder: Folder, origin: Vector3): Pads
 		local arc = (2 * math.pi * ringR / SEGMENTS) * 0.92
 		for k = 1, SEGMENTS do
 			local a = (k - 1) / SEGMENTS * 2 * math.pi
-			local pos = center + Vector3.new(math.cos(a) * ringR, TOP + 0.35, math.sin(a) * ringR)
+			local pos = center + Vector3.new(math.cos(a) * ringR, top + 0.35, math.sin(a) * ringR)
 			local seg = part(
 				ring,
 				"Seg" .. k,
@@ -117,7 +128,7 @@ function LobbyPads.build(folder: Folder, origin: Vector3): Pads
 			ring,
 			"Hub",
 			Vector3.new(0.2, 0.2, 0.2),
-			CFrame.new(center + Vector3.new(0, TOP + 0.35, 0)),
+			CFrame.new(center + Vector3.new(0, top + 0.35, 0)),
 			rgb(C.marking),
 			false
 		)
@@ -142,7 +153,7 @@ function LobbyPads.build(folder: Folder, origin: Vector3): Pads
 			pad,
 			"Face",
 			Vector3.new(radius * 1.2, 0.1, radius * 1.2),
-			CFrame.new(center + Vector3.new(0, TOP + 0.13, 0)),
+			CFrame.new(center + Vector3.new(0, top + 0.13, 0)),
 			Color3.fromRGB(30, 36, 52),
 			false
 		)

@@ -21,6 +21,7 @@ local TweenService = game:GetService("TweenService")
 local Layout = require(ReplicatedStorage.Shared.BowlLayout)
 local MapParts = require(script.Parent.MapParts)
 local BowlProps = require(script.Parent.BowlProps)
+local MeshProps = require(script.Parent.MeshProps)
 
 local rgb, part, can, group = MapParts.rgb, MapParts.part, MapParts.can, MapParts.group
 local C = Layout.colors
@@ -274,7 +275,20 @@ local function wall(folder: Folder, origin: Vector3, solids: { Instance })
 	local T = Layout.tire
 	local rainbow = C.rainbow :: { { number } }
 	local base = Layout.slopeRise - 0.2
-	for _, t in Layout.tires() do
+	-- carter's low-poly tire wall pieces, when imported: one ring of them stands in for the stacks
+	if MeshProps.has("TireWall") then
+		local h = T.height * 2 + 0.6
+		local depth = 6.4 -- about how deep a piece is at this height
+		local r = Layout.wallRadius + depth / 2 - 0.4
+		local count = math.ceil(2 * math.pi * r / (h * 2.2))
+		for i = 1, count do
+			local a = (i - 0.5) / count * 2 * math.pi
+			local pos = origin + Vector3.new(math.cos(a) * r, base, math.sin(a) * r)
+			local cf = CFrame.lookAt(pos, Vector3.new(origin.X, pos.Y, origin.Z))
+			MeshProps.place("TireWall", tires, if i % 2 == 0 then cf * yaw(180) else cf, h)
+		end
+	end
+	for _, t in (if MeshProps.has("TireWall") then {} else Layout.tires()) do
 		-- neighbours overlap a little; their tops differ by a hair so two flat tops never fight
 		-- over the same pixels
 		local extra = (t.index % 3) * 0.02
@@ -487,6 +501,35 @@ end
 -- ---------------------------------------------------------------------------------------------
 -- The world round the bowl: containers, trees, hills (all looks only, cut first on slow phones)
 
+-- A blocky city far out, dark against the sunset; some blocks have a row of lit windows.
+local function skyline(far: Folder, origin: Vector3)
+	local count = 26
+	for i = 1, count do
+		local a = (i - 0.5) / count * 2 * math.pi + math.sin(i * 7.3) * 0.08
+		local r = 300 + (i * 37 % 5) * 14
+		local w = 24 + (i * 13 % 4) * 7
+		local h = 34 + (i * 29 % 7) * 11
+		local pos = origin + Vector3.new(math.cos(a) * r, h / 2 - 1, math.sin(a) * r)
+		local cf = CFrame.lookAt(pos, Vector3.new(origin.X, pos.Y, origin.Z))
+		local block =
+			part(far, "Tower", Vector3.new(w, h, w * 0.8), cf, rgb(C.city[i % #C.city + 1]), false)
+		block.CastShadow = false
+		if i % 2 == 0 then
+			local lit = part(
+				far,
+				"Windows",
+				Vector3.new(w * 0.7, 1.4, 0.2),
+				cf * CFrame.new(0, h * 0.18, -w * 0.4 - 0.1),
+				rgb(C.window),
+				false,
+				nil,
+				Enum.Material.Neon
+			)
+			lit.CastShadow = false
+		end
+	end
+end
+
 local function scenery(folder: Folder, origin: Vector3)
 	local far = group(folder, "FarScenery")
 	local seed = 11
@@ -512,26 +555,38 @@ local function scenery(folder: Folder, origin: Vector3)
 			)
 		end
 	end
+	-- piles of crushed cars out in the yard (trees until carter's scrap pile is imported)
+	local piles = MeshProps.has("ScrapPile")
 	for i = 1, 16 do
 		local a = rnd() * math.pi * 2
 		local r = 190 + rnd() * 50
 		local pos = origin + Vector3.new(math.cos(a) * r, -0.5, math.sin(a) * r)
-		BowlProps.tree(
+		local cf = CFrame.new(pos) * yaw(rnd() * 360)
+		local scale = 1.4 + rnd() * 0.8
+		if piles then
+			MeshProps.place("ScrapPile", far, cf, 8 * scale)
+		else
+			BowlProps.tree(far, cf, if i % 3 == 0 then "pine" else "round", scale)
+		end
+	end
+	-- light towers between the containers and two claw cranes looking in (only when imported)
+	for i = 1, 4 do
+		local a = (i - 0.5) / 4 * math.pi * 2 + math.rad(10)
+		local pos = origin + Vector3.new(math.cos(a) * 140, -1, math.sin(a) * 140)
+		MeshProps.place(
+			"LightTower",
 			far,
-			CFrame.new(pos) * yaw(rnd() * 360),
-			if i % 3 == 0 then "pine" else "round",
-			1.4 + rnd() * 0.8
+			CFrame.lookAt(pos, Vector3.new(origin.X, pos.Y, origin.Z)),
+			46
 		)
 	end
-	for i = 1, 6 do
-		local a = (i - 0.5) / 6 * math.pi * 2
-		BowlProps.hill(
-			far,
-			CFrame.new(origin + Vector3.new(math.cos(a) * 232, -1, math.sin(a) * 232)),
-			34 + (i % 3) * 5,
-			18 + (i % 2) * 6
-		)
+	for i = 1, 2 do
+		local a = math.rad(if i == 1 then 60 else 240)
+		local pos = origin + Vector3.new(math.cos(a) * 176, -1, math.sin(a) * 176)
+		local face = CFrame.lookAt(pos, Vector3.new(origin.X, pos.Y, origin.Z))
+		MeshProps.place("Crane", far, face * yaw(90), 24) -- the arm (local +X) reaches toward the bowl
 	end
+	skyline(far, origin)
 end
 
 -- ---------------------------------------------------------------------------------------------
