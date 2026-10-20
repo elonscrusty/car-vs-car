@@ -457,10 +457,10 @@ local function garage(
 	-- shell: floor, back and side walls, roof, header over the door
 	box(
 		"Floor",
-		depth,
+		depth + 6,
 		0.3,
-		depth + 4,
-		0,
+		gd.w + 2,
+		-3,
 		0.1,
 		0,
 		Color3.fromRGB(96, 102, 114),
