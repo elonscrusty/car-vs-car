@@ -6,11 +6,11 @@ local Inventory = require("../src/shared/Inventory")
 print("Hints")
 
 H.test("hints in order, each with text", function()
-	H.eq(#Hints.Order, 7)
+	H.eq(#Hints.Order, 9)
 	H.eq(Hints.Order[1], "pad")
 	H.eq(Hints.Order[2], "aim")
 	H.eq(Hints.Order[3], "claw")
-	H.eq(table.concat(Hints.Order, ",", 4), "soccer,tag,race,unlock")
+	H.eq(table.concat(Hints.Order, ",", 4), "soccer,tag,race,unlock,tutorial,tutorialDone")
 	for _, id in Hints.Order do
 		H.truthy(#Hints.text(id) > 0)
 	end

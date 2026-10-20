@@ -24,9 +24,11 @@ if what == "lobby" then
 	local handle = Lobby.build()
 	folder, origin = handle.folder, handle.origin
 elseif what == "practice" then
-	local Yard = world.require("server/PracticeYard")
-	local handle = Yard.build()
-	folder, origin = handle.folder, handle.origin
+	local Yard = world.require("shared/PracticeYard")
+	local Layout = world.require("shared/PracticeLayout")
+	local at = Mock.V3.new(Layout.origin.x, Layout.origin.y, Layout.origin.z)
+	local handle = Yard.build(world.workspace, at)
+	folder, origin = handle.root, handle.origin
 else
 	error("unknown target " .. what)
 end
