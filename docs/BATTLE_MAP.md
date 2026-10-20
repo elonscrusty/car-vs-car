@@ -1,14 +1,14 @@
 # Battle map: Duel Car Arena (live)
 
-Built from carter's reference sheet "Duel Car Arena" (2026-10-20). Numbers live in `src/shared/DuelArenaLayout.luau`, the builder is `src/server/DuelArena.luau`, tests in `tests/duelarena.test.luau`. Top-down plan picture: `/mnt/project-files/car-vs-car/map/duel-arena-plan-top-down.png`.
+Built from carter's reference sheet "Duel Car Arena", then dressed up to his 45 picks (docs/DUEL_ARENA_SPEC.md). Numbers live in `src/shared/DuelArenaLayout.luau`, the builder is `src/server/DuelArena.luau`, tests in `tests/duelarena.test.luau`.
 
-- Floor: dark asphalt (#485363) rounded rectangle, 170 x 120 studs, corner radius 24, floor top y = 0. A car at about 45 studs/s crosses the long way in about 4 s. Whole scene is 240 x 200 with grass round it.
-- Walls: car height (7), 4 thick, orange modules on the red (left) half and blue on the right, with a metal base and cap, a glowing orange light panel per module, and tire stacks (3 tires) where modules meet. Corners are 4 straight pieces each. Cars bounce, nothing hurts.
-- Starts: SpawnA (red pad, x -60) and SpawnB (blue pad, x +60) at z -34, facing each other along x. The red garage and blue garage stand behind the north wall, over each pad (decoration, the wall stays closed).
-- Cover: 4 striped barriers (16 x 6 x 7), mirrored left to right. The lane between the starts (z -48 to -20) has nothing in it (tested).
-- White dashed line round the floor, orange and blue chevron pairs in the two south corners.
-- Outside: 34 trees and 16 rocks on grass (same every time), flags and crates at the garages.
-- Only floor, walls and blocks collide. `BattleArena` has `THEME = "duel"`; set it to `"toy"` to bring the toy bedroom (BattleMap, BattleMapLayout, MapDecor) back.
+- Floor: asphalt rounded rectangle, 170 x 120 studs, corner radius 24, floor top y = 0 (about 4 s to cross the long way). White dashed edge, lane lines through the middle, a center circle, big orange/blue arrows by the garages, old skid marks.
+- Walls: car height (7), bouncy (elasticity 0.9, weight 100, so a hit throws the car back), orange and blue modules alternating all the way round, two steady glowing orange lights per module, three-tire black stacks (with a pale hole on top) where modules meet.
+- Starts: SpawnA (x -60) and SpawnB (x +60) on the middle line z 0, facing each other. Straight lane between them (|z| < 14) has nothing in it (tested). Four orange-striped cover blocks sit off the lane at (+-24, +-31).
+- Garages: behind the west and east walls, 40 wide (two cars), roller door that rolls up at GO, two waving flags (client side, tag MapWave), a glowing name sign on the roof, tool boxes, tire racks, crates, a bench and a ceiling light inside. An invisible gate keeps cars out. Fight hooks on the arena object: `setNames(a, b)`, `setTeams(aIsRed)`, `openDoors()`, `closeDoors()` (see docs/DUEL_ARENA_SPEC.md).
+- Outside: 3x more greenery (puffy trees, pines, rocks big and small, bushes, flowers), dirt paths to each garage, soft green hills, four stadium light towers (neon lamps), a CAR VS CAR sign over the north wall, clouds in the sky. Far scenery is in folder `FarScenery`: delete it first if phones lag.
+- Sound spots: folder `Sounds` (Birds, GarageDoorA, GarageDoorB, GoHorn), ids blank.
+- Only floor, grass, walls, cover blocks and the two gates collide. `BattleArena` has `THEME = "duel"`; set it to `"toy"` to bring the toy bedroom (BattleMap, BattleMapLayout, MapDecor) back.
 
 ---
 

@@ -19,7 +19,8 @@ test("the whole scene fits the 240 x 200 sheet", function()
 	truthy((L.halfX + L.wallThickness) * 2 <= L.totalX)
 	truthy((L.halfZ + L.wallThickness) * 2 <= L.totalZ)
 	local g = L.garages()[1]
-	truthy(math.abs(g.z) + L.garage.sz / 2 <= L.totalZ / 2, "garage inside the footprint")
+	truthy(math.abs(g.x) + L.garage.d / 2 <= L.totalX / 2, "garage inside the footprint")
+	truthy(L.garage.w >= 2 * 16 + 4 and L.garage.mouth >= 32, "two cars wide")
 	truthy(L.wallHeight <= 8, "walls are car height")
 end)
 
@@ -34,6 +35,11 @@ test("the starts face each other on the same line, inside the floor", function()
 	near(bfz, 0)
 	truthy(math.abs(bx) + L.pad.sx / 2 < L.halfX - 4)
 	truthy(math.abs(bz) + L.pad.sz / 2 < L.halfZ - 4)
+	-- each start sits in front of its garage mouth, on the middle line
+	for _, g in L.garages() do
+		near(g.z, az)
+		truthy(math.abs(g.x) > L.halfX)
+	end
 end)
 
 test("the lane between the starts is clear of cover", function()
@@ -59,6 +65,7 @@ test("cover is mirrored left to right and stays away from the walls", function()
 		local hx, hz = L.blockHalf(b.yawDeg)
 		truthy(L.halfX - (math.abs(b.x) + hx) >= 14)
 		truthy(L.halfZ - (math.abs(b.z) + hz) >= 14)
+		truthy(math.abs(b.z) - hz >= L.lane, b.name .. " in the middle lane")
 	end
 end)
 
@@ -78,7 +85,7 @@ end)
 
 test("the walls close the rounded rectangle with no gap and no piece inside the floor", function()
 	local walls = L.walls()
-	eq(#walls, 6 * 2 + 4 * 2 + 16)
+	eq(#walls, 6 * 2 + 2 * 2 + 16) -- the end walls have their middle modules left out for the garages
 	for _, w in walls do
 		-- inner face point lies on the rounded rectangle: inside (or on) it, never beyond
 		truthy(math.abs(w.x) <= L.halfX + 0.01 and math.abs(w.z) <= L.halfZ + 0.01, w.name)
@@ -112,38 +119,107 @@ test("corner pieces follow the arc: right distance from the corner center", func
 	end
 end)
 
-test("walls are orange on the red side and blue on the blue side", function()
+test("orange and blue modules are mixed all the way round", function()
+	local orange, blue = 0, 0
 	for _, w in L.walls() do
-		eq(w.team, if w.x < 0 then "orange" else "blue")
-	end
-end)
-
-test("trees and rocks stand outside the walls and the garages", function()
-	local g = L.garage
-	local items = L.scenery()
-	truthy(#items >= 40, "enough greenery")
-	for _, s in items do
-		truthy(
-			math.abs(s.x) > L.halfX + L.wallThickness + 6
-				or math.abs(s.z) > L.halfZ + L.wallThickness + 6,
-			s.kind .. " inside the arena"
-		)
-		truthy(math.abs(s.x) <= L.totalX / 2 and math.abs(s.z) <= L.totalZ / 2)
-		for _, gar in L.garages() do
-			local inX = math.abs(s.x - gar.x) < g.sx / 2 + 2
-			local inZ = math.abs(s.z - gar.z) < g.sz / 2 + 2
-			truthy(not (inX and inZ), s.kind .. " in a garage")
+		if w.team == "orange" then
+			orange += 1
+		else
+			blue += 1
 		end
 	end
+	truthy(math.abs(orange - blue) <= 4, orange .. " orange, " .. blue .. " blue")
+	local n = {}
+	for _, w in L.walls() do
+		if w.name:find("^WallN") then
+			table.insert(n, w)
+		end
+	end
+	table.sort(n, function(a, b)
+		return a.x < b.x
+	end)
+	for i = 2, #n do
+		truthy(n[i].team ~= n[i - 1].team, "neighbours alternate")
+	end
 end)
 
-test("the dashed line and chevrons stay on the floor", function()
+test("no wall piece stands in a garage mouth", function()
+	for _, w in L.walls() do
+		if math.abs(w.x) > L.halfX - 1 and not w.arc then
+			truthy(math.abs(w.z) - w.length / 2 >= L.garage.mouth / 2 - 0.01, w.name)
+		end
+	end
+	for _, t in L.tireStacks() do
+		truthy(math.abs(t.x) < L.halfX - 1 or math.abs(t.z) >= L.garage.mouth / 2 - 0.01)
+	end
+end)
+
+test(
+	"trees, rocks and the rest stand on the grass, clear of walls, garages, paths and towers",
+	function()
+		local g = L.garage
+		local items = L.scenery()
+		truthy(#items >= 200, "lots of greenery: " .. #items)
+		local kinds: { [string]: number } = {}
+		local far = 0
+		for _, s in items do
+			kinds[s.kind] = (kinds[s.kind] or 0) + 1
+			if s.far then
+				far += 1
+			end
+			truthy(
+				math.abs(s.x) > L.halfX + L.wallThickness + 6
+					or math.abs(s.z) > L.halfZ + L.wallThickness + 6,
+				s.kind .. " inside the arena"
+			)
+			truthy(math.abs(s.x) <= L.groundX / 2 and math.abs(s.z) <= L.groundZ / 2)
+			for _, gar in L.garages() do
+				local inX = math.abs(s.x - gar.x) < g.d / 2 + 2
+				local inZ = math.abs(s.z - gar.z) < g.w / 2 + 2
+				truthy(not (inX and inZ), s.kind .. " in a garage")
+			end
+			for _, t in L.towers() do
+				truthy((t.x - s.x) ^ 2 + (t.z - s.z) ^ 2 > 36, s.kind .. " under a tower")
+			end
+		end
+		for _, k in { "tree", "pine", "rock", "bush", "flower" } do
+			truthy((kinds[k] or 0) >= 30, k .. " count " .. tostring(kinds[k]))
+		end
+		truthy(far > 0 and far < #items, "some far scenery to cut first")
+	end
+)
+
+test("paths lead out of each garage, hills and towers stand clear of the arena", function()
+	local paths = L.paths()
+	eq(#paths, 6)
+	for _, p in paths do
+		truthy(math.abs(p.x) > L.halfX + L.wallThickness)
+	end
+	eq(#L.towers(), 4)
+	for _, t in L.towers() do
+		truthy(math.abs(t.x) > L.halfX + L.wallThickness and math.abs(t.z) > L.halfZ)
+	end
+	truthy(#L.hills() >= 6)
+	for _, h in L.hills() do
+		truthy(
+			math.abs(h.x) - h.d / 2 > L.halfX or math.abs(h.z) - h.d / 2 > L.halfZ,
+			"hill over the arena"
+		)
+	end
+	truthy(L.sign.z < -(L.halfZ + L.wallThickness))
+end)
+
+test("the markings stay on the floor", function()
 	for _, d in L.dashes() do
 		truthy(math.abs(d.x) < L.halfX - 6 and math.abs(d.z) < L.halfZ - 6)
 	end
-	eq(#L.chevrons(), 2)
+	eq(#L.arrows(), 4)
 	eq(#L.garages(), 2)
-	eq(#L.tireStacks(), 7 * 2 + 5 * 2)
+	eq(#L.tireStacks(), 7 * 2 + 4 * 2)
+	truthy(#L.laneLines() > 10 and #L.skids() > 20)
+	for _, d in L.laneLines() do
+		truthy(d.x * d.x + d.z * d.z > L.circle * L.circle, "line inside the circle")
+	end
 end)
 
 test("walls bounce a car back (not a dead stop) and tires are a stack of three", function()

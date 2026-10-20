@@ -293,3 +293,6 @@ Giant bedroom: play-mat floor, stage with spinner, highway overpasses with slidi
 
 ## Duel Car Arena map (2026-10-20)
 New live map from carter's reference sheet (docs/BATTLE_MAP.md top section). `BattleArena` THEME = "duel"; toy bedroom kept behind THEME = "toy". Not seen in Studio yet. Wall height 7, start pads at x +-60, z -34.
+
+## Duel Car Arena 9/10 pass (2026-10-20)
+Carter's 45 picks built into DuelArena/DuelArenaLayout: starts moved to z 0 in front of end-wall garages (roller doors, flags, name signs, interiors), mixed orange/blue walls with steady lights, center circle, arrows, skid marks, far scenery (folder FarScenery), hills, towers, CAR VS CAR sign, clouds, silent sound spots. Arena hooks: setNames, setTeams, openDoors, closeDoors. Fight-flow bits (fly-over, out of bounds = lose round, random red/blue, door at GO) are for the driving thread.

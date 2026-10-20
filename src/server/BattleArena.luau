@@ -23,6 +23,11 @@ export type Arena = {
 	toWorld: (x: number, z: number) -> Vector3,
 	toLocal: (p: Vector3) -> (number, number),
 	spawnPoint: (side: string) -> (Vector3, Vector3), -- world position and facing direction
+	-- Duel arena dressing (no-ops on the toy map). Side a is the west garage, side b the east one.
+	setNames: (a: string, b: string) -> (), -- the glowing name signs
+	setTeams: (aIsRed: boolean) -> (), -- which side is red and which blue
+	openDoors: () -> (), -- the garage roller doors roll up (at GO)
+	closeDoors: () -> (),
 	destroy: () -> (),
 }
 
@@ -45,13 +50,14 @@ function BattleArena.build(slot: number): Arena
 	folder:SetAttribute("WallHeight", Layout.wallHeight)
 	local solids: { Instance } = {}
 
+	local controls: DuelArena.Controls? = nil
 	if THEME == "toy" then
 		local wedges, ramps = BattleMap.build(folder, origin, solids)
 		folder.Parent = workspace
 		BattleMap.verify(origin, wedges, ramps)
 		BattleMap.animate(folder)
 	else
-		DuelArena.build(folder, origin, solids)
+		controls = DuelArena.build(folder, origin, solids)
 		folder.Parent = workspace
 	end
 
@@ -79,6 +85,26 @@ function BattleArena.build(slot: number): Arena
 			end
 			local x, z, fx, fz = Layout.spawn(side)
 			return origin + Vector3.new(x, 0, z), Vector3.new(fx, 0, fz)
+		end,
+		setNames = function(a: string, b: string)
+			if controls then
+				controls.setNames(a, b)
+			end
+		end,
+		setTeams = function(aIsRed: boolean)
+			if controls then
+				controls.setTeams(aIsRed)
+			end
+		end,
+		openDoors = function()
+			if controls then
+				controls.openDoors()
+			end
+		end,
+		closeDoors = function()
+			if controls then
+				controls.closeDoors()
+			end
 		end,
 		destroy = function()
 			folder:Destroy()

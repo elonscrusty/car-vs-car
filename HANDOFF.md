@@ -222,3 +222,5 @@ Fight code: read spawns from `arena.spawnPoint(side)` (or `SpawnA|B` pad parts).
 - Map: spawn lanes are clear now (bunkers beside the lane). Studio helper: sync the newest map and check a straight drive from each spawn reaches the middle.
 
 - Map: Duel Car Arena is live (PR pending). Studio helper: sync, save, drive straight from each start, take pictures (top, each start, a wall + tire stack, a garage, cover block, trees outside).
+
+- Map: Duel arena 9/10 pass. Driving thread: call arena.setTeams(random), arena.setNames(player, bot name) at match start and arena.openDoors() at GO, arena.closeDoors() for the next round. Studio helper: sync, save, take the 8-10 pictures asked for.
