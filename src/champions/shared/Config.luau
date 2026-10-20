@@ -54,8 +54,9 @@ do
 		low, high = math.min(low, amount), math.max(high, amount)
 	end
 	Config.DuplicateRefund = LobbyConfig.Gacha.duplicateRefund
-	Config.RefundText = if low == math.huge
-		then tostring(Config.DuplicateRefund)
+	Config.RefundText = if high == 0
+		then "NOTHING"
+		elseif low == math.huge then tostring(Config.DuplicateRefund)
 		else low .. " TO " .. high
 end
 -- One short line per ability for the car cards (what it does).

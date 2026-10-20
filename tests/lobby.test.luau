@@ -107,11 +107,10 @@ H.test("pull is deterministic and maps rolls to rarity", function()
 	H.eq(Gacha.pull(p, fixed(0.3, 0.99)).carId, common[#common]) -- second roll picks within Common
 end)
 
-H.test("duplicate refund grows with rarity", function()
-	H.eq(Gacha.refundFor("Sedan"), LobbyConfig.Gacha.duplicateRefunds.Common)
-	H.eq(Gacha.refundFor("Semi"), LobbyConfig.Gacha.duplicateRefunds.Epic)
-	H.eq(Gacha.refundFor("Formula"), LobbyConfig.Gacha.duplicateRefunds.Legendary)
-	H.truthy(Gacha.refundFor("Formula") > Gacha.refundFor("Semi"))
+H.test("a duplicate gives nothing, at every rarity", function()
+	H.eq(Gacha.refundFor("Sedan"), 0)
+	H.eq(Gacha.refundFor("Semi"), 0)
+	H.eq(Gacha.refundFor("Formula"), 0)
 	local p = Inventory.default()
 	p.freePullUsed = true
 	p.coins = 1000

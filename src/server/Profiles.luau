@@ -26,6 +26,7 @@ type State = {
 	busy: boolean, -- a save/load call is in flight
 	nextSave: number,
 	released: boolean,
+	lastNow: number, -- last time an immediate save was started (throttle)
 }
 
 local STORE_NAME = "PlayerProfiles_v1"
@@ -93,6 +94,7 @@ local function copyProfile(p: Profile): Profile
 		coins = p.coins,
 		wins = p.wins,
 		matches = p.matches,
+		starterPicked = p.starterPicked, -- was missing: the starter pick was never saved
 		owned = owned,
 		freePullUsed = p.freePullUsed,
 		hintsSeen = table.clone(p.hintsSeen),
@@ -229,6 +231,10 @@ local function save(player: Player, state: State, final: boolean): boolean
 	end
 	if not ok then
 		state.dirty = state.dirty or wasDirty -- try again at next autosave
+		-- tell the player (SaveNotice) and keep trying; it clears on the next good save
+		player:SetAttribute("SaveRetrying", true)
+	else
+		player:SetAttribute("SaveRetrying", nil)
 	end
 	return ok
 end
@@ -260,6 +266,24 @@ function Profiles.markDirty(player: Player)
 	end
 end
 
+-- Save now instead of waiting for the autosave (after a gumball pull, a store buy or a match payout:
+-- a crash must not lose them). At most once every 5 s per player; the autosave covers the rest.
+local NOW_GAP = 5
+function Profiles.saveNow(player: Player)
+	local state = states[player]
+	if state == nil or state.profile == nil or state.unsaved or state.released then
+		return
+	end
+	local now = os.clock()
+	if now - state.lastNow < NOW_GAP then
+		state.nextSave = math.min(state.nextSave, state.lastNow + NOW_GAP) -- soon, once
+		return
+	end
+	state.lastNow = now
+	state.nextSave = now + AUTOSAVE_SECONDS
+	task.spawn(save, player, state, false)
+end
+
 -- Save and unlock. Safe to call twice. (Second param is internal.)
 function Profiles.release(player: Player, stateOverride: State?)
 	local state = stateOverride or states[player]
@@ -289,6 +313,7 @@ local function onAdded(player: Player)
 		busy = false,
 		nextSave = math.huge,
 		released = false,
+		lastNow = 0,
 	}
 	task.spawn(load, player)
 end

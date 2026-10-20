@@ -648,7 +648,7 @@ function LobbyService.start(deps: Deps): Handle
 			})
 		end
 		local ps = players[player]
-		if ps and ps.stage ~= "pad" then
+		if player:GetAttribute("InBattle") == true or (ps and ps.stage ~= "pad") then
 			fail("busy")
 			return
 		end
@@ -665,6 +665,7 @@ function LobbyService.start(deps: Deps): Handle
 		Store.buy(p, id)
 		Telemetry.carAcquired(player, "store")
 		Profiles.markDirty(player)
+		Profiles.saveNow(player)
 		send(player, { kind = "storeResult", ok = true, carId = id, coins = p.coins })
 		sendProfile(player)
 	end
@@ -676,7 +677,7 @@ function LobbyService.start(deps: Deps): Handle
 
 	local function buyPaint(player: Player, id: any)
 		local ps = players[player]
-		if ps and ps.stage ~= "pad" then
+		if player:GetAttribute("InBattle") == true or (ps and ps.stage ~= "pad") then
 			paintReply(player, false, "busy")
 			return
 		end
@@ -698,7 +699,7 @@ function LobbyService.start(deps: Deps): Handle
 
 	local function equipPaint(player: Player, arg: any)
 		local ps = players[player]
-		if ps and ps.stage ~= "pad" then
+		if player:GetAttribute("InBattle") == true or (ps and ps.stage ~= "pad") then
 			paintReply(player, false, "busy")
 			return
 		end
@@ -727,7 +728,7 @@ function LobbyService.start(deps: Deps): Handle
 			send(player, { kind = "buildResult", ok = ok, reason = reason })
 		end
 		local ps = players[player]
-		if ps and ps.stage ~= "pad" then
+		if player:GetAttribute("InBattle") == true or (ps and ps.stage ~= "pad") then
 			reply(false, "busy")
 			return
 		end
@@ -875,7 +876,7 @@ function LobbyService.start(deps: Deps): Handle
 
 	local function buyGacha(player: Player)
 		local ps = players[player]
-		if ps and ps.stage ~= "pad" then
+		if player:GetAttribute("InBattle") == true or (ps and ps.stage ~= "pad") then
 			send(player, { kind = "gachaError", reason = "busy" })
 			return
 		end
@@ -897,6 +898,7 @@ function LobbyService.start(deps: Deps): Handle
 		Telemetry.clawPull(player)
 		Telemetry.carAcquired(player, "claw")
 		Profiles.markDirty(player)
+		Profiles.saveNow(player)
 		-- The prize is decided now; the claw machine plays its grab, then the result shows.
 		local function reveal()
 			if player.Parent == nil then

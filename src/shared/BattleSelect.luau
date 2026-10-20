@@ -45,11 +45,12 @@ function BattleSelect.access(id: any, ctx: Context): string?
 	if ctx.owned[f.id] == true then
 		return "owned"
 	end
+	-- the free starter is always yours (carter: it must never vanish after the first pull)
+	if f.id == LOANER_ID then
+		return "owned"
+	end
 	if ctx.testUnlock then
 		return "test"
-	end
-	if f.id == LOANER_ID and not BattleSelect.ownsAny(ctx.owned) then
-		return "loaner"
 	end
 	return nil
 end

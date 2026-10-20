@@ -8,6 +8,7 @@ local RunService = game:GetService("RunService")
 local SaveNotice = {}
 
 local TEXT = "Saving paused. Your coins may not be kept."
+local RETRY_TEXT = "Could not save. Trying again..."
 
 function SaveNotice.new()
 	local player = Players.LocalPlayer
@@ -39,9 +40,13 @@ function SaveNotice.new()
 
 	local function refresh()
 		-- Studio cannot reach the DataStore, so the notice there is noise; show it only in the real game.
-		label.Visible = not RunService:IsStudio() and player:GetAttribute("ProfileUnsaved") == true
+		local unsaved = player:GetAttribute("ProfileUnsaved") == true
+		local retrying = player:GetAttribute("SaveRetrying") == true
+		label.Text = if unsaved then TEXT else RETRY_TEXT
+		label.Visible = not RunService:IsStudio() and (unsaved or retrying)
 	end
 	player:GetAttributeChangedSignal("ProfileUnsaved"):Connect(refresh)
+	player:GetAttributeChangedSignal("SaveRetrying"):Connect(refresh)
 	refresh()
 end
 
