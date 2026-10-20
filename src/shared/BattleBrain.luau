@@ -203,6 +203,7 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena, momentum: b
 	local flip = 1 -- alternates the side a recovery turns to
 	local tempo = 1 -- set every step from the contact info
 	local sawContactT, sawGapT = 0, 0 -- steady saw contact builds damage
+	local fleeT, standT = 0, 0 -- cannon: time spent running, and time left standing to fight
 
 	function resetStuck()
 		anchorSet = false
@@ -393,6 +394,13 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena, momentum: b
 			return o
 		end
 
+		-- Running for too long means the foe is faster or a wall is behind us: turn and fight instead.
+		if standT > 0 then
+			standT -= dt
+		elseif fleeT > cannon.fleeGiveUpSeconds then
+			fleeT, standT = 0, cannon.standSeconds
+		end
+
 		local o: Output
 		if isMomentum then
 			-- keep rolling and swinging toward the foe; shoot whenever the gun happens to point at it
@@ -403,6 +411,15 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena, momentum: b
 				o.turn = 0
 			end
 			return o
+		elseif standT > 0 and not isMomentum then
+			-- stand and fight: face the foe, shoot as soon as the gun points at it
+			o = out(turnFor(angle), 0, readyFrac)
+			if cooldown <= 0 and math.abs(angle) <= 3 * cannon.aimToleranceDeg * DEG then
+				state, stateT = "telegraph", 0
+				o.state = state
+				o.hold = true
+				o.turn = 0
+			end
 		elseif
 			dist < 2.2 * L
 			and cooldown <= 0
@@ -449,6 +466,7 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena, momentum: b
 				o.turn = 0
 			end
 		end
+		fleeT = if o.state == "flee" and standT <= 0 then fleeT + dt else math.max(0, fleeT - dt)
 		return o
 	end
 

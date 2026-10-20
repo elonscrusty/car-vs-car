@@ -219,12 +219,14 @@ BattleConfig.Cannon = {
 	shellRadiusL = 0.12,
 	ricochets = 1, -- a shell bounces off a wall this many times
 	repositionDrive = 0.8, -- when closing in
-	fleeDrive = 1, -- when running from a close foe
+	fleeDrive = 1,
+	fleeGiveUpSeconds = 1.2, -- running this long means it is cornered or outrun
+	standSeconds = 2, -- then it turns and fights for this long -- when running from a close foe
 }
 
 BattleConfig.Saw = {
 	buildSeconds = 3, -- steady contact this long reaches the full multiplier
-	maxMult = 2, -- damage per tick at full build-up (resets when contact is lost)
+	maxMult = 1.6, -- damage per tick at full build-up (resets when contact is lost)
 	loseContactSeconds = 0.35, -- contact must be gone this long to reset the build-up
 	damage = 5, -- was 7: the saw beat everything in the Studio playtest
 	tickSeconds = 0.5, -- least time between damage ticks on the same target
