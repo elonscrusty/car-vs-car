@@ -545,14 +545,15 @@ local function breakables(folder: Folder, origin: Vector3): { Breakable }
 	return list
 end
 
--- The pieces fly off the way the car was going, then vanish.
+-- The pieces fly off the way the car was going, then vanish. They never collide: the car is still
+-- overlapping them at the burst, and Studio saw one such overlap launch a car out of the arena.
 local function burst(b: Breakable, carVel: Vector3)
 	b.broken = true
 	local flat = Vector3.new(carVel.X, 0, carVel.Z)
 	for _, d in b.model:GetDescendants() do
 		if d:IsA("BasePart") then
 			d.Anchored = false
-			d.CanCollide = true
+			d.CanCollide = false -- pieces overlap the car at the burst; colliding would shove it out of the arena
 			d.CanTouch = false
 			d.CanQuery = false
 			d.CustomPhysicalProperties = PhysicalProperties.new(0.35, 0.3, 0.4, 1, 1)
