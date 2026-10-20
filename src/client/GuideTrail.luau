@@ -24,7 +24,10 @@ local LIME = Color3.fromRGB(190, 255, 120)
 
 local STRIP_WIDTH = 1.5
 local STRIP_HEIGHT = 0.12
-local LIFT = 0.12 -- the strip floats this high above the asphalt
+-- The strip floats this high above the plaza top. The paths (0.2), the painted lines (0.27), the PLAY ring
+-- (0.3), its hub (0.46) and the pads (0.62) stand a little proud of the asphalt, so a line lying on the
+-- ground would be hidden under them; a test checks the real lobby's floor against this number.
+local LIFT = 0.85
 local CHEVRON_SPACING = 5.5
 local CHEVRON_SPEED = 9 -- studs a second
 local ARM_LENGTH = 1.9
