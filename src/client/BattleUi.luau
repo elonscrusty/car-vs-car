@@ -1115,7 +1115,7 @@ function BattleUi.start()
 	local function debris(pos: Vector3, count: number, speed: number, floaty: boolean?)
 		for _ = 1, count do
 			local p = Instance.new("Part")
-			local size = 0.5 + math.random() * 1.2
+			local size = 0.3 + math.random() * 0.6
 			p.Size = Vector3.new(size, size * 0.6, size)
 			p.Color = DEBRIS_COLORS[math.random(1, #DEBRIS_COLORS)]
 			p.Material = Enum.Material.SmoothPlastic
@@ -1213,6 +1213,7 @@ function BattleUi.start()
 		fovKick = 12
 		koPos, koTotal, koT = pos, BattleConfig.Timing.koSeconds, BattleConfig.Timing.koSeconds
 		setBars(true)
+		gui:SetAttribute("WreckCamAt", os.clock()) -- lets a test see afterwards that the wreck camera ran
 		flash(Color3.fromRGB(255, 240, 200), 0.75)
 	end
 

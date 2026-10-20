@@ -380,7 +380,7 @@ function BattleCar.driveHuman(car: Car, out: BattleBrain.Output, dt: number, f: 
 	params.FilterDescendantsInstances = { car.model }
 	local onGround = workspace:Raycast(
 		body.Position,
-		Vector3.new(0, -H.groundRayL * car.L, 0),
+		Vector3.new(0, -(body.Size.Y * 0.5 + H.groundRayL * car.L), 0),
 		params
 	) ~= nil
 	car.model:SetAttribute("Airborne", not onGround)
