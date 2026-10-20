@@ -285,3 +285,5 @@ Giant bedroom: play-mat floor, stage with spinner, highway overpasses with slidi
 
 ## Battle map "Toy Room Showdown" (10x upgrade)
 Giant bedroom: play-mat floor, stage with spinner, highway overpasses with sliding blocks, furniture walls (bed, bookshelf, toy chest, window), giant toys outside, lights, dust. See docs/BATTLE_MAP.md. New files: MapDecor, MapParts (server), MapFx (client, turns the big wheel). Spawns are the SpawnA/SpawnB parts. NOT yet seen in Studio.
+
+**Spawn lane fix:** bunkers moved off the straight line (4 bunkers at z +-20, clear lane |z|<13); block x 60 z 31, soldier x 100. The old corner-flag Vector3 bug no longer exists in the repo (PR 133 replaced that code; all part() calls take CFrames).

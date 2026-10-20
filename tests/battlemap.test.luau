@@ -155,16 +155,16 @@ test("the highway deck is wide enough for a car and clear of the plateau drop", 
 	truthy(L.highway.height >= L.plateau.height)
 end)
 
-test("there is cover in front of each spawn that a straight shot cannot pass", function()
+test("each spawn has a clear straight lane and a bunker beside it", function()
 	local bunkers = 0
 	for _, b in L.boxes() do
 		if b.name:find("Bunker") then
 			bunkers += 1
-			truthy(b.sz >= 18 and b.sy >= 10)
-			near(b.z, 0)
+			truthy(b.sz >= 12 and b.sy >= 10)
+			truthy(math.abs(b.z) - b.sz / 2 >= 9, "bunker stays off the spawn lane")
 		end
 	end
-	eq(bunkers, 2)
+	eq(bunkers, 4)
 end)
 
 test("the spinner hazard stays over the plateau and clear of the ground", function()
