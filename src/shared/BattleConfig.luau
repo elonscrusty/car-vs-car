@@ -213,7 +213,8 @@ BattleConfig.Ram = {
 	homingConeDeg = 35, -- auto-aim: a charge steers toward a foe within this angle of the nose ...
 	homingTurn = 0.5, -- ... with at most this much steering (1 = full)
 	cooldownSeconds = 6, -- after the charge ends
-	skidSeconds = 0.7, -- after a MISS the truck overshoots, sliding on
+	skidSeconds = 0.45, -- after a MISS the truck overshoots, sliding on (was 0.7: felt stuck)
+	playerSteer = 0.3, -- the player's stick still steers a charge by this share (on top of auto-aim)
 	recoilSeconds = 0.5, -- after a HIT the truck bounces back
 	recoilDrive = -0.9,
 	peelAngleDeg = 65, -- while the ram recharges it veers off this far from the foe, then comes back
@@ -331,6 +332,7 @@ BattleConfig.Bot = {
 }
 
 BattleConfig.Rewards = {
+	minFightSeconds = 15, -- a match with less total fight time than this pays no coins (no forfeit farming)
 	botMatchesPay = false, -- Studio test matches against a bot pay nothing
 }
 
