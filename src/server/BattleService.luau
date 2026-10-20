@@ -595,7 +595,7 @@ function BattleService.start(
 		local res = BattleSeries.resultFor(m.series, "a")
 		if res == "win" then
 			t.a += 1
-		elseif res == "lose" then
+		elseif res == "loss" then
 			t.b += 1
 		else
 			t.draw += 1

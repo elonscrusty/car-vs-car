@@ -103,5 +103,6 @@ H.test("signs have text", function()
 		end
 	end)
 	truthy(seen["PLAY"], "PLAY text")
-	truthy(seen["CAR VS CAR"], "sign text")
+	-- carter's L55: no big CAR VS CAR sign where the players land
+	truthy(seen["CAR VS CAR"] == nil, "no sign over the spawn path")
 end)

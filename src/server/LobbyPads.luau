@@ -1,6 +1,7 @@
 --!strict
 -- The four mini PLAY pads in the middle of the Car Battle Lobby and everything that goes with
--- stepping on one. `build` makes the pads (orange/blue rings that glow and spin, a "1/2" counter);
+-- stepping on one. `build` makes the pads (orange/blue rings that glow and spin on a soft glow disc
+-- with a light, a "1/2" counter; the glow turns gold while someone waits on the pad);
 -- `start` watches where players stand (4 times a second), tells BattleService, shows the counts,
 -- walks the PLAY button's player onto a pad, parks a fighter out of sight and puts them back next to
 -- the pads afterwards. All numbers come from LobbyLayout / PadSlots.
@@ -34,6 +35,8 @@ local rgb, part, can, group = MapParts.rgb, MapParts.part, MapParts.can, MapPart
 local C = LobbyLayout.colors
 local TOP = 0.5 -- a pad's top above the plaza
 local SEGMENTS = 10 -- ring segments, alternating orange and blue
+local GLOW_IDLE = 0.62 -- the soft disc under a waiting-for-nobody pad (1 = invisible)
+local GLOW_BUSY = 0.3
 local POLL = 0.25
 local COOLDOWN = 2 -- seconds after CANCEL before standing on a pad counts again
 local PARK_DEPTH = -60 -- where a fighter waits (under the lobby, anchored)
@@ -44,10 +47,27 @@ function LobbyPads.build(folder: Folder, origin: Vector3): Pads
 	local radius = LobbyLayout.padRadius
 	local counters: { TextLabel } = {}
 	local glows: { { Part } } = {}
+	local halos: { Part } = {}
+	local lights: { PointLight } = {}
 	for i, p in positions do
 		local center = origin + Vector3.new(p.x, 0, p.z)
 		local pad = group(grp, "Pad" .. i)
 		pad:SetAttribute("PadIndex", i)
+		-- a soft neon disc a little wider than the pad lights the road round it (L44: nicer glow)
+		local halo = can(
+			pad,
+			"Halo",
+			radius * 2 + 4,
+			0.12,
+			center + Vector3.new(0, -0.02, 0),
+			rgb(C.blue),
+			false,
+			nil,
+			Enum.Material.Neon
+		)
+		halo.Transparency = GLOW_IDLE
+		halo.CastShadow = false
+		table.insert(halos, halo)
 		-- white rim, dark base, lighter inner disc
 		can(pad, "Rim", radius * 2 + 1.4, TOP - 0.05, center, rgb(C.marking), false)
 		local base = can(
@@ -101,6 +121,13 @@ function LobbyPads.build(folder: Folder, origin: Vector3): Pads
 			false
 		)
 		hub.Transparency = 1
+		local light = Instance.new("PointLight")
+		light.Color = rgb(C.blue)
+		light.Brightness = 1.4
+		light.Range = 15
+		light.Shadows = false
+		light.Parent = hub
+		table.insert(lights, light)
 		ring.PrimaryPart = hub
 		-- the clients turn it (a server loop would send every part's position all the time)
 		CollectionService:AddTag(ring, "LobbySpin")
@@ -174,6 +201,16 @@ function LobbyPads.build(folder: Folder, origin: Vector3): Pads
 			end
 			for _, seg in glows[index] or {} do
 				seg.Transparency = if count > 0 then 0 else 0.15
+			end
+			-- someone is waiting: the disc and the light under the ring turn gold and brighter
+			local halo, light = halos[index], lights[index]
+			if halo then
+				halo.Color = if count > 0 then rgb(C.gold) else rgb(C.blue)
+				halo.Transparency = if count > 0 then GLOW_BUSY else GLOW_IDLE
+			end
+			if light then
+				light.Color = if count > 0 then rgb(C.gold) else rgb(C.blue)
+				light.Brightness = if count > 0 then 2.4 else 1.4
 			end
 		end,
 		top = function(index: number): Vector3
