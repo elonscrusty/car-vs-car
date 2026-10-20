@@ -8,6 +8,7 @@ local BattleSeries = require("../src/shared/BattleSeries")
 local BattleRecap = require("../src/shared/BattleRecap")
 local BattleSetup = require("../src/shared/BattleSetup")
 local Gacha = require("../src/shared/Gacha")
+local BattleHuman = require("../src/shared/BattleHuman")
 local Sim = require("./battlesim")
 
 -- SERIES -------------------------------------------------------------------------------------
@@ -634,4 +635,111 @@ H.test("momentum brains keep rolling: no standing still to aim or wind up", func
 		end
 	end
 	H.truthy(sawCharge, "the ram surges into a charge")
+end)
+
+-- Manual driving ------------------------------------------------------------------------------
+
+local function bodies(dist: number): ({ x: number, z: number, fx: number, fz: number }, {
+	x: number,
+	z: number,
+	fx: number,
+	fz: number,
+})
+	return { x = 0, z = 0, fx = 1, fz = 0 }, { x = dist, z = 0, fx = -1, fz = 0 }
+end
+
+H.test("human: the stick drives and steers (stick right = turn right)", function()
+	local b = BattleHuman.new("RamTruck")
+	local me, foe = bodies(200)
+	b.setInput(1, 1, false)
+	local o = b.step(0.05, me, foe, { ram = false, saw = false })
+	H.eq(o.drive, 1)
+	H.truthy(o.turn < 0, "right is a negative (clockwise) turn")
+	b.setInput(0, -1, false)
+	local back = b.step(0.05, me, foe, { ram = false, saw = false })
+	H.eq(back.drive, -1)
+	H.eq(back.fire, false)
+end)
+
+H.test("human ram: attack starts a straight charge, a hit deals damage, then it recoils", function()
+	local b = BattleHuman.new("RamTruck")
+	local me, foe = bodies(40)
+	b.setInput(1, 1, true)
+	local o = b.step(0.05, me, foe, { ram = false, saw = false })
+	H.eq(o.state, "charge")
+	local hit = b.step(0.05, me, foe, { ram = true, saw = false, speedFrac = 1 })
+	H.eq(hit.turn, 0) -- the steer input is ignored during a charge
+	H.eq(hit.damage, BattleConfig.Ram.damage)
+	H.eq(hit.event, "Ram hit")
+	H.eq(hit.state, "recoil")
+	-- cooling down: another press does nothing
+	for _ = 1, 20 do
+		b.step(0.05, me, foe, { ram = false, saw = false })
+	end
+	b.setInput(0, 1, true)
+	local again = b.step(0.05, me, foe, { ram = false, saw = false })
+	H.truthy(again.state ~= "charge")
+end)
+
+H.test("human ram: a missed charge ends in a skid and the cooldown", function()
+	local b = BattleHuman.new("RamTruck")
+	local me, foe = bodies(500)
+	b.setInput(0, 1, true)
+	b.step(0.05, me, foe, { ram = false, saw = false })
+	local missed = false
+	for _ = 1, 40 do
+		local o = b.step(0.05, me, foe, { ram = false, saw = false })
+		if o.event == "Ram missed" then
+			missed = true
+		end
+	end
+	H.truthy(missed, "the charge timed out as a miss")
+end)
+
+H.test("human cannon: attack fires once, then waits for the cooldown", function()
+	local b = BattleHuman.new("CannonVan")
+	local me, foe = bodies(100)
+	local fired = 0
+	b.setInput(0, 0, true)
+	for i = 1, 60 do
+		if i % 10 == 1 then
+			b.setInput(0, 0, true) -- presses again and again
+		end
+		local o = b.step(0.05, me, foe, { ram = false, saw = false })
+		if o.fire then
+			fired += 1
+		end
+	end
+	-- 3 s: the first shot, then the 1.8 s cooldown allows one more
+	H.eq(fired, 2)
+end)
+
+H.test("human saw: grinds while the front touches, rev dash on attack", function()
+	local b = BattleHuman.new("SawBuggy")
+	local me, foe = bodies(14)
+	local dmg = 0
+	for _ = 1, 20 do
+		local o = b.step(0.05, me, foe, { ram = false, saw = true })
+		dmg += o.damage
+	end
+	H.truthy(dmg >= BattleConfig.Saw.damage, "damage while touching")
+	local away = { x = 0, z = 100, fx = 0, fz = -1 }
+	local idle = 0
+	for _ = 1, 20 do
+		idle += b.step(0.05, me, away, { ram = false, saw = true }).damage
+	end
+	H.eq(idle, 0) -- the foe is not in front: no grinding
+	b.setInput(0, 0, true)
+	local rev = b.step(0.05, me, foe, { ram = false, saw = false })
+	H.eq(rev.state, "rev")
+	H.eq(rev.drive, BattleConfig.Human.sawRevMult)
+end)
+
+H.test("human: input values are clamped", function()
+	local b = BattleHuman.new("CannonVan")
+	local me, foe = bodies(100)
+	b.setInput(9, -9, false)
+	local o = b.step(0.05, me, foe, { ram = false, saw = false })
+	H.eq(o.drive, -1)
+	H.truthy(o.turn >= -1 and o.turn <= 1)
 end)

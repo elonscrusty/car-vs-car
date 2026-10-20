@@ -16,7 +16,7 @@ export type Arena = {
 	halfZ: number,
 	toWorld: (x: number, z: number) -> Vector3,
 	toLocal: (p: Vector3) -> (number, number),
-	spawnPoint: (side: string, spot: number?, aim: number?) -> (Vector3, Vector3), -- world position and facing direction (always the fixed nose-to-nose spawn)
+	spawnPoint: (side: string) -> (Vector3, Vector3), -- world position and facing direction
 	destroy: () -> (),
 }
 
@@ -56,8 +56,15 @@ function BattleArena.build(slot: number): Arena
 		toLocal = function(p: Vector3): (number, number)
 			return p.X - origin.X, p.Z - origin.Z
 		end,
-		spawnPoint = function(side: string, _spot: number?, _aim: number?): (Vector3, Vector3)
-			-- manual driving: the two cars always start nose to nose (spot and aim are ignored)
+		spawnPoint = function(side: string): (Vector3, Vector3)
+			-- the map's own start pads: parts SpawnA / SpawnB in the arena folder (front = driving direction)
+			local marker = folder:FindFirstChild("Spawn" .. string.upper(side))
+			if marker and marker:IsA("BasePart") then
+				local look = marker.CFrame.LookVector
+				local flat = Vector3.new(look.X, 0, look.Z)
+				local facing = if flat.Magnitude > 1e-3 then flat.Unit else Vector3.new(1, 0, 0)
+				return Vector3.new(marker.Position.X, origin.Y, marker.Position.Z), facing
+			end
 			local x, z, fx, fz = BattleMapLayout.spawn(side)
 			return origin + Vector3.new(x, 0, z), Vector3.new(fx, 0, fz)
 		end,

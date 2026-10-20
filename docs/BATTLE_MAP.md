@@ -7,7 +7,7 @@ calls it. Tests: `tests/battlemap.test.luau` (symmetry, clear lanes, ramp slopes
 Top-down picture: `/mnt/project-files/car-vs-car/map/map-plan-top-down.png`.
 
 - Spawns: A at x = -84 facing +x, B at x = +84 facing -x (z = 0). Read them with `arena.spawnPoint("a" | "b")`
-  (spot and aim are ignored now), or the invisible parts `Spawns/SpawnA` and `Spawns/SpawnB` in the arena folder
+  , or the pad parts `SpawnA` and `SpawnB` (the red and blue pads) in the arena folder
   (LookVector = driving direction).
 - Center: yellow plateau (7 high) with an orange ramp from each spawn side. North and south faces are sheer drops.
 - Bunkers: a wall 22 wide and 11 high 20 studs in front of each spawn, cover from the opening cannon shot.

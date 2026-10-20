@@ -124,10 +124,19 @@ function BattleMap.build(folder: Folder, origin: Vector3, solids: { Instance })
 	end
 	tiles.Parent = folder
 
-	-- start pads (looks only): red for side A, blue for side B
+	-- start pads (looks only): red for side A, blue for side B. The fight code reads them as the
+	-- start spots (parts SpawnA / SpawnB); the front of the part is the driving direction.
 	for side, color in { a = c.padA, b = c.padB } do
-		local x, z = Layout.spawn(side)
-		part(folder, "Pad_" .. side, Vector3.new(18, 0.14, 26), at(x, 0.07, z), rgb(color), false)
+		local x, z, fx, fz = Layout.spawn(side)
+		local pos = origin + Vector3.new(x, 0.07, z)
+		part(
+			folder,
+			"Spawn" .. string.upper(side),
+			Vector3.new(26, 0.14, 18),
+			CFrame.lookAt(pos, pos + Vector3.new(fx, 0, fz)),
+			rgb(color),
+			false
+		)
 	end
 
 	-- walls, with a colored stripe on each 20-stud panel of the inside face
@@ -251,24 +260,6 @@ function BattleMap.build(folder: Folder, origin: Vector3, solids: { Instance })
 		end
 	end
 	scenery.Parent = folder
-
-	-- spawn markers the fight code can read: Part "SpawnA" / "SpawnB" (look = driving direction)
-	local spawns = Instance.new("Folder")
-	spawns.Name = "Spawns"
-	for side, name in { a = "SpawnA", b = "SpawnB" } do
-		local x, z, fx, fz = Layout.spawn(side)
-		local pos = origin + Vector3.new(x, 0, z)
-		local m = part(
-			spawns,
-			name,
-			Vector3.new(4, 0.2, 4),
-			CFrame.lookAt(pos, pos + Vector3.new(fx, 0, fz)),
-			rgb(c.padA),
-			false
-		)
-		m.Transparency = 1
-	end
-	spawns.Parent = folder
 
 	return wedges, ramps
 end

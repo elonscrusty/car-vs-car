@@ -81,7 +81,7 @@ BattleConfig.Final = {
 -- The "momentum" prototype: the same cars and arena, but the cars LAUNCH from the opening choice,
 -- keep their speed, skid and rebound off walls and each other, and fire their weapons on their own
 -- with only weak steering. Compared side by side with the steering fight (carter picks one).
-BattleConfig.defaultMomentum = true -- carter picked Bounce (momentum): real queue matches use it
+BattleConfig.defaultMomentum = false -- carter: no auto-fight. Players drive; only the Studio test bot uses a brain
 BattleConfig.Momentum = {
 	launchL = 4.5, -- launch speed, L per second
 	turnScale = 1.2, -- steering is this much of the normal turn rate
@@ -250,6 +250,19 @@ BattleConfig.Saw = {
 	eventSeconds = 2, -- "Saw contact" message at most this often
 }
 
+-- Player-driven cars (carter: manual driving, the weapon is the ATTACK button).
+BattleConfig.Human = {
+	sawRevMult = 1.8, -- the saw's rev dash speed, times cruise
+	sawRevSeconds = 1.0,
+	sawRevCooldownSeconds = 4,
+	assistDeg = 12, -- a shell fired within this angle of the foe is nudged flat onto it
+	camDistL = 1.9, -- chase camera: this far behind the car (in car lengths) ...
+	camHeightL = 0.85, -- ... and this high ...
+	camLookL = 1.4, -- ... looking at a point this far ahead of the car
+	camFov = 68,
+	camSmooth = 9, -- how fast the camera swings round behind the car
+}
+
 BattleConfig.Rewards = {
 	botMatchesPay = false, -- Studio test matches against a bot pay nothing
 }
@@ -262,7 +275,7 @@ BattleConfig.Test = {
 
 -- Garage performance upgrades never apply in this mode (shown in the UI).
 BattleConfig.Text = {
-	chooseLine = "Choose your car. It drives and attacks automatically.",
+	chooseLine = "Choose your car. You drive it and attack with the big button.",
 	rulesLine = "Most round wins after three rounds wins. Reach two wins to finish early.",
 	upgradesLine = "Garage performance upgrades do not apply to this mode.",
 }

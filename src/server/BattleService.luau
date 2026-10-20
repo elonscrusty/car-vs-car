@@ -12,16 +12,18 @@ local RunService = game:GetService("RunService")
 
 local BattleBrain = require(ReplicatedStorage.Shared.BattleBrain)
 local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
+local BattleHuman = require(ReplicatedStorage.Shared.BattleHuman)
 local BattleQueue = require(ReplicatedStorage.Shared.BattleQueue)
 local BattleRecap = require(ReplicatedStorage.Shared.BattleRecap)
 local BattleSelect = require(ReplicatedStorage.Shared.BattleSelect)
 local BattleSeries = require(ReplicatedStorage.Shared.BattleSeries)
-local BattleSetup = require(ReplicatedStorage.Shared.BattleSetup)
+local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
 local Inventory = require(ReplicatedStorage.Shared.Inventory)
 local Progress = require(ReplicatedStorage.Shared.Progress)
 local RateLimiter = require(ReplicatedStorage.Shared.RateLimiter)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local ResultRewards = require(ReplicatedStorage.Shared.ResultRewards)
+local Steer = require(ReplicatedStorage.Shared.Steer)
 local BattleArena = require(script.Parent.BattleArena)
 local BattleCar = require(script.Parent.BattleCar)
 local Leaderboards = require(script.Parent.Leaderboards)
@@ -40,8 +42,12 @@ type Part = {
 	left: boolean,
 	paid: boolean, -- this match's reward was handled
 	savedSpeed: number?,
-	spot: number, -- opening choice: start spot (-1 far, 0 middle, 1 near)
-	aim: number, -- opening choice: launch aim (-1 right, 0 straight, 1 left)
+	spot: number, -- unused since manual driving: cars start on the map's spawns
+	aim: number,
+	steer: number, -- driving: stick / keys, -1 left .. 1 right
+	gas: number, -- -1 back .. 1 forward
+	inputAt: number, -- when the last drive input arrived (old input counts as 0)
+	attack: boolean, -- ATTACK was pressed since the last step
 }
 type Shell = {
 	owner: BattleCar.Car,
@@ -80,6 +86,7 @@ export type Handle = {
 	action: (player: Player, name: string, arg: any) -> (),
 	playerRemoving: (player: Player) -> (),
 	isBusy: (player: Player) -> boolean,
+	steer: (player: Player, steer: any, gas: any) -> (),
 }
 
 local T = BattleConfig.Timing
@@ -251,13 +258,9 @@ function BattleService.start(opts: {
 		for _, side in sides() do
 			local part = (m.parts :: any)[side] :: Part
 			part.pick, part.locked, part.access = nil, false, nil
-			if not part.bot then
-				send(part, { kind = "setup", spot = part.spot, aim = part.aim })
-			end
 			if part.bot then
 				local ids = BattleConfig.activeOrder()
 				part.pick = ids[math.random(1, #ids)]
-				part.spot, part.aim = math.random(-1, 1), math.random(-1, 1)
 				part.locked = true
 			end
 		end
@@ -305,7 +308,7 @@ function BattleService.start(opts: {
 			local part = (m.parts :: any)[side] :: Part
 			-- sides swap every round so both spawn spots get used
 			local spawnSide = if (m.series.round % 2 == 1) == (side == "a") then "a" else "b"
-			local pos, facing = arena.spawnPoint(spawnSide, part.spot, part.aim)
+			local pos, facing = arena.spawnPoint(spawnSide)
 			local car, err = BattleCar.spawn(part.pick :: string, side, arena.folder, pos, facing)
 			if car == nil then
 				warn("[Battle] cannot start: " .. tostring(err))
@@ -346,8 +349,18 @@ function BattleService.start(opts: {
 	local function startFight(m: Match)
 		for _, side in sides() do
 			local car = (m.cars :: any)[side] :: BattleCar.Car
-			BattleCar.arm(car, BattleBrain.new(car.fighter.id, car.L, arenaTable, m.momentum))
-			BattleCar.launch(car, m.momentum)
+			local part = (m.parts :: any)[side] :: Part
+			if part.player ~= nil then
+				-- a player drives this car: stick / keys and the ATTACK button
+				car.human = true
+				part.steer, part.gas, part.attack = 0, 0, false
+				BattleCar.arm(car, BattleHuman.new(car.fighter.id))
+				BattleCar.launch(car, false)
+			else
+				car.human = false
+				BattleCar.arm(car, BattleBrain.new(car.fighter.id, car.L, arenaTable, m.momentum))
+				BattleCar.launch(car, m.momentum)
+			end
 		end
 		m.phase, m.t, m.hudT = "fight", 0, 0
 		m.final = false
@@ -480,6 +493,16 @@ function BattleService.start(opts: {
 		local toFoe = foe.body.Position - pos
 		local run = math.max(toFoe.Magnitude, 1)
 		local rise = math.clamp(toFoe.Y / run, -0.5, 0.5)
+		if car.human then
+			-- a player's shot that nearly points at the foe is nudged flat onto it
+			local flatTo = Vector3.new(toFoe.X, 0, toFoe.Z)
+			if flatTo.Magnitude > 1e-3 then
+				local cosA = flat:Dot(flatTo.Unit)
+				if cosA >= math.cos(math.rad(BattleConfig.Human.assistDeg)) then
+					flat = flatTo.Unit
+				end
+			end
+		end
 		local dir = Vector3.new(flat.X, rise, flat.Z).Unit
 		local ball = Instance.new("Part")
 		ball.Name = "Shell"
@@ -629,6 +652,17 @@ function BattleService.start(opts: {
 				local fx, fz = arena.toLocal(foe.body.Position)
 				local cf, ff = BattleCar.forward(car), BattleCar.forward(foe)
 				local touching = BattleCar.overlaps(car, foe)
+				if car.human then
+					local part = (m.parts :: any)[car.side] :: Part
+					local fresh = os.clock() - part.inputAt <= GameConfig.Steer.staleSeconds
+					local hb: any = brain
+					hb.setInput(
+						if fresh then part.steer else 0,
+						if fresh then part.gas else 0,
+						part.attack
+					)
+					part.attack = false
+				end
 				local cruise = car.fighter.cruiseL * car.L
 				local fwdSpeed = car.body.AssemblyLinearVelocity:Dot(Vector3.new(cf.X, 0, cf.Z))
 				local out = brain.step(
@@ -794,6 +828,10 @@ function BattleService.start(opts: {
 			savedSpeed = nil,
 			spot = 0,
 			aim = 0,
+			steer = 0,
+			gas = 0,
+			inputAt = 0,
+			attack = false,
 		}
 	end
 
@@ -813,6 +851,10 @@ function BattleService.start(opts: {
 			savedSpeed = nil,
 			spot = 0,
 			aim = 0,
+			steer = 0,
+			gas = 0,
+			inputAt = 0,
+			attack = false,
 		}
 	end
 
@@ -888,6 +930,15 @@ function BattleService.start(opts: {
 
 	local handle: Handle
 	handle = {
+		steer = function(player: Player, steer: any, gas: any)
+			local m = inMatch[player]
+			if m == nil or m.phase ~= "fight" then
+				return
+			end
+			local part = if m.parts.a.player == player then m.parts.a else m.parts.b
+			part.steer, part.gas, part.inputAt =
+				Steer.sanitize(steer), Steer.sanitize(gas), os.clock()
+		end,
 		isBusy = function(player: Player): boolean
 			return inMatch[player] ~= nil or BattleQueue.has(queue, player.UserId)
 		end,
@@ -941,10 +992,9 @@ function BattleService.start(opts: {
 						send(part, { kind = "selected", id = arg, locked = false })
 					end
 				end
-			elseif name == "setup" then
-				if m.phase == "select" and not part.locked and type(arg) == "table" then
-					part.spot, part.aim = BattleSetup.clean((arg :: any).spot, (arg :: any).aim)
-					send(part, { kind = "setup", spot = part.spot, aim = part.aim })
+			elseif name == "attack" then
+				if m.phase == "fight" then
+					part.attack = true
 				end
 			elseif name == "lock" then
 				if m.phase == "select" and not part.locked then
