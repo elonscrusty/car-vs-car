@@ -624,7 +624,7 @@ function BattleUi.start()
 	resLimit.MinSize = Vector2.new(280, 300)
 	resLimit.Parent = resF
 	local resTitle =
-		label(resF, "", UDim2.fromScale(0.9, 0.2), UDim2.fromScale(0.05, 0.04), COL_TEXT, 48)
+		label(resF, "", UDim2.fromScale(0.9, 0.24), UDim2.fromScale(0.05, 0.03), COL_TEXT, 80)
 	local resScore =
 		label(resF, "", UDim2.fromScale(0.9, 0.11), UDim2.fromScale(0.05, 0.25), COL_TEXT, 26)
 	local resWhy = label(
@@ -684,7 +684,7 @@ function BattleUi.start()
 	local camOn = false
 	local camSmooth: CFrame? = nil
 	local shakeAmp = 0 -- camera shake, studs; decays by itself
-	local fovKick = 0 -- extra field of view from a boost / big hit; eases back by itself
+	local fovKick = 0 -- extra field of view from a big hit; eases back by itself
 	-- the final wreck: the camera swings round the wreck for a moment, between two black bars
 	local koT, koTotal = 0, 1
 	local koPos: Vector3? = nil
@@ -939,56 +939,111 @@ function BattleUi.start()
 		local baseFov = if myBody ~= nil
 			then BattleConfig.Human.camFov
 			else BattleConfig.Camera.fovDeg
-		local speedFov = 0
-		if myBody ~= nil and myBody.Parent ~= nil then
-			speedFov = 10
-				* math.clamp(myBody.AssemblyLinearVelocity.Magnitude / (cruiseSpeed()) - 0.6, 0, 1)
-		end
 		local koFov = if koT > 0 then -20 * math.clamp(1 - koT / koTotal, 0, 1) else 0
-		camera.FieldOfView = baseFov + speedFov + fovKick + koFov
+		camera.FieldOfView = baseFov + fovKick + koFov
 	end)
 
-	-- ---------- driving: stick / WASD plus the ATTACK button ----------
+	-- ---------- driving: wheel stick (bottom-left), GAS (bottom-right) and ATTACK above it ----------
 	local attackNames: { [string]: string } =
-		{ RamTruck = "CHARGE", CannonVan = "FIRE", SawBuggy = "REV" }
+		{ RamTruck = "CHARGE", CannonVan = "FIRE", SawBuggy = "HOLD: SAW" }
 	local steerInput = SteerInput.new(function(steer: number, gas: number)
-		remotes.Steer:FireServer(steer, gas)
-	end)
+		remotes.Steer:FireServer(steer, gas, false)
+	end, {
+		wheel = true,
+		sendFull = function(steer: number, gas: number, attack: boolean)
+			remotes.Steer:FireServer(steer, gas, attack)
+		end,
+	})
 	local driving = false
-	local function doAttack()
-		if driving then
-			act("attack")
-		end
+	local attackReady = 1 -- 1 = the weapon is ready (the button is full and glows)
+
+	-- a button that is "down" while a finger / the mouse holds it
+	local function holdButton(btn: GuiButton, onDown: () -> (), onUp: () -> ())
+		local held: InputObject? = nil
+		btn.InputBegan:Connect(function(input: InputObject)
+			if
+				held == nil
+				and (
+					input.UserInputType == Enum.UserInputType.MouseButton1
+					or input.UserInputType == Enum.UserInputType.Touch
+				)
+			then
+				held = input
+				onDown()
+			end
+		end)
+		UserInputService.InputEnded:Connect(function(input: InputObject)
+			if held ~= nil and input == held then
+				held = nil
+				onUp()
+			end
+		end)
 	end
-	local function doBoost()
-		if driving then
-			act("boost")
-			SoundFx.play("boost")
-			fovKick = math.max(fovKick, 8)
-			shakeAmp = math.max(shakeAmp, 1.2)
-		end
-	end
-	local boostBtn = button(
-		gui,
-		"BOOST",
-		UDim2.fromScale(0.13, 0.17),
-		UDim2.fromScale(0.67, 0.75),
-		Color3.fromRGB(255, 150, 40),
-		doBoost
-	)
-	boostBtn.Visible = false
-	local attackBtn = button(
-		gui,
-		"ATTACK",
-		UDim2.fromScale(0.17, 0.26),
-		UDim2.fromScale(0.81, 0.66),
+
+	local gasWrap =
+		frame(gui, "GasWrap", UDim2.fromScale(0.19, 0.3), UDim2.fromScale(0.79, 0.66), COL_PANEL, 1)
+	gasWrap.Visible = false
+	local gasBtn = button(
+		gasWrap,
+		"GAS",
+		UDim2.fromScale(1, 1),
+		UDim2.fromScale(0, 0),
 		COL_GOOD,
-		doAttack
+		function() end
 	)
-	attackBtn.Visible = false
+	holdButton(gasBtn, function()
+		if driving then
+			steerInput.setGas(true)
+		end
+	end, function()
+		steerInput.setGas(false)
+	end)
+
+	local attackWrap = frame(
+		gui,
+		"AttackWrap",
+		UDim2.fromScale(0.15, 0.24),
+		UDim2.fromScale(0.81, 0.39),
+		COL_PANEL,
+		1
+	)
+	attackWrap.Visible = false
+	local attackBtn = button(
+		attackWrap,
+		"ATTACK",
+		UDim2.fromScale(1, 1),
+		UDim2.fromScale(0, 0),
+		COL_OPP,
+		function() end
+	)
+	-- the clock-fill: a dark cover that shrinks away as the weapon recharges (full = ready)
+	local attackWipe = frame(
+		attackWrap,
+		"Wipe",
+		UDim2.fromScale(1, 0),
+		UDim2.fromScale(0, 0),
+		Color3.fromRGB(10, 12, 24),
+		0.35
+	)
+	attackWipe.ZIndex = 3
+	attackWipe.Active = false
+	corner(attackWipe, 12)
+	local attackGlow = Instance.new("UIStroke")
+	attackGlow.Color = Color3.fromRGB(255, 240, 150)
+	attackGlow.Thickness = 6
+	attackGlow.Transparency = 1
+	attackGlow.Parent = attackBtn
+	holdButton(attackBtn, function()
+		if driving then
+			steerInput.setAttack(true)
+		end
+	end, function()
+		steerInput.setAttack(false)
+	end)
+
 	local helpL = label(
 		gui,
-		"Drive with the stick or W A S D. Attack: big button or Space. Boost: orange button or Shift.",
+		"Steer with the wheel on the left. GAS is the green button, ATTACK is above it. PC: W A S D and Space.",
 		UDim2.fromScale(0.5, 0.05),
 		UDim2.fromScale(0.25, 0.8),
 		COL_TEXT,
@@ -997,16 +1052,28 @@ function BattleUi.start()
 	helpL.TextStrokeTransparency = 0.3
 	helpL.Visible = false
 	local helpToken = 0
+	local function isAttackKey(k: Enum.KeyCode): boolean
+		return k == Enum.KeyCode.Space or k == Enum.KeyCode.E or k == Enum.KeyCode.F
+	end
 	UserInputService.InputBegan:Connect(function(input: InputObject, gp: boolean)
-		if gp or not driving then
+		if not gp and driving and isAttackKey(input.KeyCode) then
+			steerInput.setAttack(true)
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input: InputObject)
+		if isAttackKey(input.KeyCode) then
+			steerInput.setAttack(false)
+		end
+	end)
+	-- the READY glow pulses; the cover grows while the weapon recharges
+	RunService.RenderStepped:Connect(function()
+		if not driving then
 			return
 		end
-		local k = input.KeyCode
-		if k == Enum.KeyCode.Space or k == Enum.KeyCode.E or k == Enum.KeyCode.F then
-			doAttack()
-		elseif k == Enum.KeyCode.LeftShift or k == Enum.KeyCode.Q then
-			doBoost()
-		end
+		attackWipe.Size = UDim2.fromScale(1, 1 - math.clamp(attackReady, 0, 1))
+		attackGlow.Transparency = if attackReady >= 1
+			then 0.1 + 0.35 * math.abs(math.sin(os.clock() * 5))
+			else 1
 	end)
 	local function startDriving()
 		if driving then
@@ -1015,10 +1082,9 @@ function BattleUi.start()
 		driving = true
 		steerInput.start()
 		attackBtn.Text = attackNames[myFighter or ""] or "ATTACK"
-		attackBtn.BackgroundColor3 = COL_GOOD
-		attackBtn.Visible = true
-		boostBtn.BackgroundColor3 = Color3.fromRGB(255, 150, 40)
-		boostBtn.Visible = true
+		attackReady = 1
+		attackWrap.Visible = true
+		gasWrap.Visible = true
 		helpToken += 1
 		local mine = helpToken
 		helpL.Visible = true
@@ -1034,8 +1100,8 @@ function BattleUi.start()
 		end
 		driving = false
 		steerInput.stop()
-		attackBtn.Visible = false
-		boostBtn.Visible = false
+		attackWrap.Visible = false
+		gasWrap.Visible = false
 		helpL.Visible = false
 	end
 
@@ -1366,6 +1432,7 @@ function BattleUi.start()
 		hudF.Visible = true
 		leaveBtn.Visible = true
 		startDriving()
+		showEvent("GO!")
 		midRound.Text = `ROUND {lastRound} OF {BattleConfig.Series.rounds}`
 		midScore.Text = scoreText(lastScore)
 		hudMe.name.Text = myName
@@ -1384,16 +1451,14 @@ function BattleUi.start()
 		setHud(hudMe, m.me, nil)
 		setHud(hudOpp, m.opp, nil)
 		midTime.Text = clock(m.left)
+		attackReady = m.me.ready
 		attackBtn.BackgroundColor3 = if m.me.ready >= 1
-			then COL_GOOD
-			else Color3.fromRGB(90, 100, 130)
-		boostBtn.BackgroundColor3 = if (m.me.boost or 1) >= 1
-			then Color3.fromRGB(255, 150, 40)
-			else Color3.fromRGB(90, 100, 130)
+			then COL_OPP
+			else Color3.fromRGB(110, 90, 80)
 	end
 
 	local eventSounds: { [string]: string } =
-		{ ["Charge!"] = "ramCharge", ["Fire!"] = "cannonFire", ["Rev!"] = "sawRev" }
+		{ ["Charge!"] = "ramCharge", ["Fire!"] = "cannonFire" }
 	handlers.event = function(m)
 		local snd = eventSounds[m.text]
 		if snd ~= nil then
@@ -1473,8 +1538,8 @@ function BattleUi.start()
 			resCoins.Text = `Coins earned: +{m.coins}   (total {m.total})`
 		end
 		resNote.Text = if m.opp.left then "Opponent has left." else ""
-		rematchBtn.Visible = not m.opp.left
-		rematchBtn.Text = "REMATCH"
+		rematchBtn.Visible = false -- carter: the banner, then back to the lobby (no rematch)
+		resNote.Text = "Back to the lobby in a moment..."
 		resF.Visible = true
 		cameraOn()
 	end

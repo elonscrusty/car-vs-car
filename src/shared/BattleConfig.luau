@@ -23,10 +23,10 @@ BattleConfig.Series = {
 BattleConfig.Timing = {
 	selectSeconds = 8, -- pick a car before each round
 	prepSeconds = 3, -- both cars and weapons are shown
-	fightSeconds = 45, -- longest fight; then higher HP percent wins
+	fightSeconds = 60, -- longest fight; then the car with more HP (percent) wins
 	koSeconds = 2.6, -- after a knock-out: cars stop, the loser smokes, then the result shows
 	resultSeconds = 3, -- round result on screen
-	rematchSeconds = 20, -- how long the match result waits for a Rematch tap
+	rematchSeconds = 6, -- how long the YOU WIN / YOU LOSE banner stays, then everyone goes back to the lobby
 	queueSeconds = 120, -- longest wait in the line before it gives up
 	hudRate = 10, -- HUD updates per second during a fight
 }
@@ -73,7 +73,7 @@ BattleConfig.Setup = {
 
 -- The last stretch of a fight: announced, and every weapon recharges faster for both cars.
 BattleConfig.Final = {
-	startSeconds = 30, -- fight time when the final phase starts
+	startSeconds = 1e9, -- carter: nothing special in the last seconds, so this never starts
 	tempo = 2, -- cooldowns run this many times faster
 	text = "FINAL PHASE: weapons recharge faster!",
 }
@@ -107,7 +107,7 @@ BattleConfig.Move = {
 	knockFriction = 2.2, -- a knocked car slides and slows by this much per second
 	turnScaleAtSpeed = 0.55, -- turn rate scale while moving fast (0..1)
 	flipUpDot = 0.3, -- body up vector below this = flipped
-	flipSeconds = 1.5, -- flipped this long -> set upright in place (no heal, no cooldown reset)
+	flipSeconds = 1, -- flipped this long -> set upright in place (no heal, no cooldown reset)
 	stuckWindow = 1.2, -- seconds with almost no progress = stuck
 	stuckDistL = 0.45, -- less than this many L moved in the window = no progress
 	recoverReverse = 0.7, -- seconds backing up
@@ -138,6 +138,7 @@ export type Fighter = {
 	weaponForward: number, -- distance of the weapon point ahead of the middle
 	weaponUp: number, -- height of the weapon point
 	hitSize: { number }, -- hit region size in L (width, height, depth); nil use = no region
+	density: number, -- body weight: a heavy car shoves a light one in a crash
 }
 
 BattleConfig.Fighters = {
@@ -150,7 +151,7 @@ BattleConfig.Fighters = {
 		weakness = "Turns slowly and is stuck for a moment after a missed charge.",
 		hp = 150,
 		cruiseL = 2.6,
-		turnDeg = 105,
+		turnDeg = 155, -- was 105: carter said turning was too slow (top speed is unchanged)
 		rarity = "Common",
 		gumball = false,
 		enabled = true,
@@ -158,6 +159,7 @@ BattleConfig.Fighters = {
 		weaponForward = 0.42,
 		weaponUp = 0.17,
 		hitSize = { 0.6, 0.35, 0.35 },
+		density = 1.6,
 	},
 	CannonVan = {
 		id = "CannonVan",
@@ -168,7 +170,7 @@ BattleConfig.Fighters = {
 		weakness = "Fragile up close and slow to turn.",
 		hp = 150, -- was 110: it lost every fight to Ram and Saw in the Studio playtest
 		cruiseL = 2.7,
-		turnDeg = 100,
+		turnDeg = 150,
 		rarity = "Rare",
 		gumball = true,
 		enabled = true,
@@ -176,6 +178,7 @@ BattleConfig.Fighters = {
 		weaponForward = 0.425,
 		weaponUp = 0.633,
 		hitSize = { 0, 0, 0 },
+		density = 1,
 	},
 	SawBuggy = {
 		id = "SawBuggy",
@@ -186,7 +189,7 @@ BattleConfig.Fighters = {
 		weakness = "Must stay close and is open to hits while it approaches.",
 		hp = 105,
 		cruiseL = 3.4,
-		turnDeg = 190,
+		turnDeg = 230,
 		rarity = "Epic",
 		gumball = true,
 		enabled = true,
@@ -194,6 +197,7 @@ BattleConfig.Fighters = {
 		weaponForward = 0.48,
 		weaponUp = 0.15,
 		hitSize = { 0.55, 0.3, 0.3 },
+		density = 0.6,
 	},
 } :: { [string]: Fighter }
 
@@ -205,7 +209,7 @@ BattleConfig.Ram = {
 	telegraphSeconds = 0.6,
 	chargeMult = 2.2, -- charge speed, times cruise
 	chargeSeconds = 1.0, -- longest charge
-	cooldownSeconds = 4, -- after the charge ends
+	cooldownSeconds = 6, -- after the charge ends
 	skidSeconds = 0.7, -- after a MISS the truck overshoots, sliding on
 	recoilSeconds = 0.5, -- after a HIT the truck bounces back
 	recoilDrive = -0.9,
@@ -226,7 +230,7 @@ BattleConfig.Cannon = {
 	knockStagger = 0.3,
 	aimToleranceDeg = 6, -- may start a shot when facing the foe within this angle
 	telegraphSeconds = 0.5,
-	cooldownSeconds = 1.8,
+	cooldownSeconds = 6, -- carter: every weapon waits 6 seconds
 	shellSpeedL = 4.5, -- L per second (carter: easy to follow with the eyes)
 	shellLifeSeconds = 2.2,
 	shellRadiusL = 0.12,
@@ -252,29 +256,37 @@ BattleConfig.Saw = {
 
 -- Player-driven cars (carter: manual driving, the weapon is the ATTACK button).
 BattleConfig.Human = {
-	sawRevMult = 1.8, -- the saw's rev dash speed, times cruise
-	sawRevSeconds = 1.0,
-	sawRevCooldownSeconds = 4,
-	assistDeg = 12, -- a shell fired within this angle of the foe is nudged flat onto it
-	camDistL = 1.9, -- chase camera: this far behind the car (in car lengths) ...
-	camHeightL = 0.85, -- ... and this high ...
-	camLookL = 1.4, -- ... looking at a point this far ahead of the car
-	camFov = 68,
+	sawGrindSeconds = 3, -- hold ATTACK: the saw grinds this long at most ...
+	sawCooldownSeconds = 6, -- ... then (or when let go) it waits this long
+	camDistL = 2.3, -- chase camera: this far behind the car (in car lengths) ...
+	camHeightL = 1.7, -- ... and this high (carter: a high camera behind the car) ...
+	camLookL = 1.1, -- ... looking at a point this far ahead of the car
+	camFov = 70,
 	camSmooth = 9, -- how fast the camera swings round behind the car
 	-- driving feel
 	accelMult = 2, -- quicker getaway than the auto-pilot cars (cruise speeds per second x this)
 	brakeMult = 1.6,
-	turnMinScale = 0.7, -- turn rate while crawling (a tight turn from standstill)
-	driftSteer = 0.55, -- steering this hard ...
-	driftSpeed = 0.75, -- ... at this share of cruise speed starts a drift
-	driftSide = 3, -- sideways grip while drifting (normal 8: lower = longer slide)
-	driftYawBoost = 1.25, -- the nose swings round faster while drifting
+	turnMinScale = 1, -- turn rate while crawling (full: a tight turn from a standstill)
+	driftSteer = 0.8, -- a little slide only when steering this hard ...
+	driftSpeed = 0.8, -- ... at this share of cruise speed or more
+	driftSide = 4.5, -- sideways grip while sliding (normal 8: lower = longer slide)
+	driftYawBoost = 1.1, -- the nose swings round a bit faster while sliding
 	airYawScale = 0.35, -- a little steering in the air
 	groundRayL = 0.12, -- grounded when something is this far (in car lengths) below the BOTTOM of the body
-	boostMult = 1.75, -- BOOST: speed times cruise while it burns
-	boostSeconds = 1.2,
-	boostCooldownSeconds = 5,
-	boostAccel = 3, -- boost gets up to speed this much faster
+}
+
+-- Crashes between the two cars (a plain crash, no weapon): damage grows with the speed the OTHER car
+-- hits at, so the faster car wins the shove. Walls only bounce and never hurt.
+BattleConfig.Crash = {
+	hitsToKill = 5, -- five full-speed crashes empty a car's HP
+	minSpeedFrac = 0.3, -- slower than this share of cruise speed: just a bump, no damage
+	cooldownSeconds = 0.6, -- one crash counts once, even while the cars stay in contact
+	touchPadL = 0.06, -- cars count as touching when their bodies are this close (L)
+}
+
+-- The Studio / DEV bot: a medium opponent (turns slower than a player so it can be outdriven).
+BattleConfig.Bot = {
+	turnMult = 0.75,
 }
 
 BattleConfig.Rewards = {

@@ -211,10 +211,10 @@ remotes.Launch.OnServerEvent:Connect(function(player: Player, angle: any, power:
 	end
 end)
 
-remotes.Steer.OnServerEvent:Connect(function(player: Player, value: any, throttle: any)
+remotes.Steer.OnServerEvent:Connect(function(player: Player, value: any, throttle: any, attack: any)
 	if battle.isBusy(player) then
 		if steerLimiter.allow(player, os.clock()) then
-			battle.steer(player, value, throttle)
+			battle.steer(player, value, throttle, attack)
 		end
 		return
 	end

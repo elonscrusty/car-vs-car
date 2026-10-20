@@ -39,8 +39,6 @@ export type Output = {
 	hold: boolean, -- true while telegraphing: the car stands still on purpose
 	state: string,
 	ready: number, -- 0..1 how ready the weapon is
-	boost: number?, -- player cars: 1 while the boost burns
-	boostReady: number?, -- player cars: 0..1 how ready the boost is
 }
 export type Brain = {
 	fighterId: string,
