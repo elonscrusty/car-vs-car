@@ -1,7 +1,7 @@
 --!strict
--- The grass world round the Car Battle Lobby plaza: grass plate, far hills, dirt paths, trees,
--- rocks, bushes, flowers and puffy clouds. Everything is look-only except the grass plate (solid,
--- so nothing falls). Nothing is built on the plaza. Local coords: plaza top is y = 0.
+-- The grass world round the Car Battle Lobby plaza: grass plate, far hills, dirt paths, round puffy
+-- trees and rocks (no pines, bushes or flowers: L31, L32). Everything is look-only except the grass
+-- plate (solid, so nothing falls). Nothing is built on the plaza. Local coords: plaza top is y = 0.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -71,6 +71,19 @@ local function dirtPaths(folder: Folder, origin: Vector3)
 	end
 end
 
+-- A round puffy cartoon tree (carter's L31): a short trunk and a crown of bright balls. The far
+-- ones get a smaller crown, so they cost less.
+local function tree(grp: Instance, base: Vector3, k: number, far: boolean)
+	local puff = C.puff
+	can(grp, "Trunk", 2.4 * k, 7 * k, base, rgb(C.trunk), false, nil, Enum.Material.Wood)
+	ball(grp, "Crown", 13 * k, base + Vector3.new(0, 11 * k, 0), rgb(puff[1]), false)
+	if not far then
+		ball(grp, "Puff", 9.5 * k, base + Vector3.new(4 * k, 9.4 * k, 1.5 * k), rgb(puff[3]), false)
+		ball(grp, "Puff", 9 * k, base + Vector3.new(-3.8 * k, 10 * k, -2 * k), rgb(puff[2]), false)
+	end
+	ball(grp, "CrownTop", 8 * k, base + Vector3.new(0.5 * k, 16.4 * k, 0), rgb(puff[2]), false)
+end
+
 local function scenery(folder: Folder, origin: Vector3)
 	local near = group(folder, "Scenery")
 	local far = group(folder, "FarScenery") -- cut this first if phones lag
@@ -79,30 +92,8 @@ local function scenery(folder: Folder, origin: Vector3)
 		local base = origin + Vector3.new(s.x, GRASS_TOP - 0.05, s.z)
 		local k = s.scale
 		if s.kind == "tree" then
-			can(grp, "Trunk", 2.6 * k, 6 * k, base, rgb(C.trunk), false, nil, Enum.Material.Wood)
-			ball(grp, "Leaves", 11 * k, base + Vector3.new(0, 9.5 * k, 0), rgb(C.leaf), false)
-			ball(
-				grp,
-				"LeavesTop",
-				7.5 * k,
-				base + Vector3.new(0.8 * k, 14 * k, 0.5 * k),
-				rgb(C.leafLight),
-				false
-			)
-		elseif s.kind == "pine" then
-			can(grp, "Trunk", 2 * k, 4 * k, base, rgb(C.trunk), false, nil, Enum.Material.Wood)
-			for i = 0, 2 do
-				can(
-					grp,
-					"Pine",
-					(11 - i * 3.4) * k,
-					5.2 * k,
-					base + Vector3.new(0, (3 + i * 4.2) * k, 0),
-					rgb(if i % 2 == 0 then C.pine else C.pineLight),
-					false
-				)
-			end
-		elseif s.kind == "rock" then
+			tree(grp, base, k, s.far)
+		else
 			part(
 				grp,
 				"Rock",
@@ -127,30 +118,17 @@ local function scenery(folder: Folder, origin: Vector3)
 					Enum.Material.Slate
 				)
 			end
-		elseif s.kind == "bush" then
-			ball(grp, "Bush", 4.6 * k, base + Vector3.new(0, 1.6 * k, 0), rgb(C.bush), false)
-		else
-			local f = C.flowers[s.pick]
-			can(grp, "Stem", 0.3, 1.4, base, rgb(C.bush), false)
-			ball(grp, "Flower", 1.6, base + Vector3.new(0, 1.6, 0), rgb(f), false)
 		end
 	end
 end
 
+-- carter's L48 wants puffy cartoon clouds: LobbyProps builds them from balls. The old Terrain
+-- clouds would sit on top of them, so any left from an older build is removed.
 local function clouds()
-	local terrain = workspace.Terrain
-	local existing = terrain:FindFirstChild("LobbyClouds")
-	local c: Clouds
-	if existing and existing:IsA("Clouds") then
-		c = existing
-	else
-		c = Instance.new("Clouds")
-		c.Name = "LobbyClouds"
-		c.Parent = terrain
+	local old = workspace.Terrain:FindFirstChild("LobbyClouds")
+	if old then
+		old:Destroy()
 	end
-	c.Cover = 0.55
-	c.Density = 0.65
-	c.Color = Color3.new(1, 1, 1)
 end
 
 function LobbyScenery.build(folder: Folder, origin: Vector3)

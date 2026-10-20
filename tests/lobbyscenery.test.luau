@@ -62,18 +62,38 @@ H.test("part count stays low", function()
 	truthy(n < 2500, tostring(n))
 end)
 
-H.test("clouds exist under terrain and are reused", function()
+H.test("the old terrain clouds are gone (the lobby has cartoon clouds instead)", function()
 	local world = build(origin)
-	local c = world.workspace.Terrain:FindFirstChild("LobbyClouds")
-	truthy(c ~= nil)
-	near(c.Cover, 0.55, 1e-6)
+	local old = world.instance("Clouds")
+	old.Name = "LobbyClouds"
+	old.Parent = world.workspace.Terrain
 	local LobbyScenery = world.require("server/LobbyScenery")
 	LobbyScenery.build(world.instance("Folder"), origin)
-	local count = 0
-	for _, ch in world.workspace.Terrain:GetChildren() do
-		if ch.Name == "LobbyClouds" then
-			count += 1
+	eq(world.workspace.Terrain:FindFirstChild("LobbyClouds"), nil)
+end)
+
+H.test(
+	"trees are round and puffy: a trunk and a crown of balls, no pines, bushes or flowers",
+	function()
+		local _, folder = build(origin)
+		local names = {}
+		for _, grp in { "Scenery", "FarScenery" } do
+			for _, p in folder:FindFirstChild(grp):GetChildren() do
+				names[p.Name] = (names[p.Name] or 0) + 1
+			end
+		end
+		truthy(names.Trunk and names.Trunk >= 40, "trunks")
+		truthy(names.Crown and names.Crown == names.Trunk, "a crown on every tree")
+		truthy(names.Puff and names.Puff > 0, "puffs")
+		for _, bad in { "Pine", "Bush", "Flower", "Stem" } do
+			eq(names[bad], nil, bad)
+		end
+		for _, grp in { "Scenery", "FarScenery" } do
+			for _, p in folder:FindFirstChild(grp):GetChildren() do
+				if p.Name == "Crown" then
+					eq(p.Shape.Name, "Ball")
+				end
+			end
 		end
 	end
-	eq(count, 1)
-end)
+)

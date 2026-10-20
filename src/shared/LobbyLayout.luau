@@ -4,7 +4,9 @@
 -- builds it from this file (Lobby.luau and the Lobby* modules next to it).
 --
 -- Studs, relative to the lobby origin. x = right, z = toward the spawn (+z = front, the player
--- looks toward -z), y = up, the asphalt top is y = 0. The sheet is 220 x 180 studs and 32 high.
+-- looks toward -z), y = up, the asphalt top is y = 0. The reference sheet was 220 x 180 studs and
+-- 32 high; carter's later pick L41 ("make the lobby smaller", docs/LOBBY_POLISH.md) pulled the
+-- plaza in to 172 x 126 so the walk from the spawn to PLAY and the gumball machine is shorter.
 
 local Layout = {}
 
@@ -40,16 +42,32 @@ Layout.colors = {
 	panel = { 22, 28, 44 }, -- dark navy board / sign backs
 	gold = { 255, 205, 64 },
 	flowers = { { 255, 214, 64 }, { 255, 120, 150 }, { 255, 255, 255 }, { 176, 120, 255 } },
+	-- carter's polish picks (docs/LOBBY_POLISH.md): rainbow cones with no orange (L22), bright tire
+	-- stacks (L29), junk piles of old car parts (L28), puffy trees (L31), puffy clouds (L48)
+	rainbow = {
+		{ 232, 60, 60 },
+		{ 255, 214, 48 },
+		{ 150, 220, 50 },
+		{ 46, 190, 96 },
+		{ 40, 200, 210 },
+		{ 60, 150, 255 },
+		{ 160, 90, 230 },
+		{ 255, 110, 180 },
+	},
+	puff = { { 104, 196, 72 }, { 140, 216, 90 }, { 74, 168, 64 } },
+	cloud = { 255, 255, 255 },
+	cloudShade = { 222, 234, 250 },
+	skyBlue = { 96, 178, 255 },
 }
 
 -- The paved plaza (asphalt) inside the tire walls. The grass border and the world sit outside it.
-Layout.plaza = { halfX = 100, frontZ = 64, backZ = -86, corner = 14 }
+Layout.plaza = { halfX = 86, frontZ = 56, backZ = -70, corner = 14 }
 
 -- Spawn: on the front path, looks at the middle of the PLAY pads.
-Layout.spawn = { x = 0, z = 48, size = 8 }
+Layout.spawn = { x = 0, z = 42, size = 8 }
 
 -- The big PLAY ring in the middle and the four small pads on it.
-Layout.ring = { x = 0, z = 8, radius = 24, hubRadius = 6 }
+Layout.ring = { x = 0, z = 6, radius = 24, hubRadius = 6 }
 Layout.padRadius = 5.5 -- each mini pad (a pad is "stood on" inside radius + padSlack)
 Layout.padSlack = 0.5
 Layout.padDist = 14.5 -- from the ring middle to each mini pad
@@ -89,9 +107,9 @@ end
 
 -- Three buildings along the back, all looking at the ring. `yawDeg` turns a building that was
 -- drawn facing +z (the mouth on its +z side). w = across the mouth, d = depth, h = height.
-Layout.workshop = { x = 0, z = -68, w = 56, d = 34, h = 24, yawDeg = 0 }
-Layout.customize = { x = -74, z = -58, w = 40, d = 30, h = 18, yawDeg = 32 }
-Layout.shop = { x = 74, z = -58, w = 44, d = 30, h = 18, yawDeg = -32 }
+Layout.workshop = { x = 0, z = -52, w = 56, d = 34, h = 24, yawDeg = 0 }
+Layout.customize = { x = -57, z = -45, w = 40, d = 30, h = 18, yawDeg = 32 }
+Layout.shop = { x = 56, z = -45, w = 44, d = 30, h = 18, yawDeg = -32 }
 
 -- Inside the workshop (workshop-local: u across, v toward the mouth, from its middle).
 Layout.gumball = { u = 0, v = -8, radius = 7.5 } -- the giant machine (ball radius)
@@ -104,68 +122,35 @@ Layout.turntable = { u = 0, v = -2, radius = 8 }
 Layout.counter = { u = 0, v = -6, w = 22, d = 4 }
 Layout.shopCars = { { u = -14, v = 6 }, { u = 0, v = 8 }, { u = 14, v = 6 } }
 
--- The two physical boards, one each side of the workshop, turned a little toward the ring.
+-- The two physical boards (L47): beside the front path near the spawn, turned toward it. The
+-- readable face is the +z side before the yaw, so a board turned +-60 degrees looks at the path.
 Layout.boards = {
-	weekly = { x = -40, z = -58, w = 14, h = 12, yawDeg = 14 },
-	wins = { x = 40, z = -58, w = 14, h = 12, yawDeg = -14 },
+	weekly = { x = -19, z = 37, w = 14, h = 12, yawDeg = 60 },
+	wins = { x = 19, z = 37, w = 14, h = 12, yawDeg = -60 },
 }
 
 -- Light gray paths: spawn -> ring, ring -> each building, two side entrances.
 Layout.paths = {
-	{ x = 0, z = 48, w = 14, d = 34, yawDeg = 0 }, -- the front path (spawn side)
-	{ x = 0, z = -38, w = 18, d = 44, yawDeg = 0 }, -- ring to the workshop
-	{ x = -42, z = -30, w = 14, d = 50, yawDeg = 55 }, -- to the customize garage
-	{ x = 42, z = -30, w = 14, d = 50, yawDeg = -55 }, -- to the shop
-	{ x = -70, z = -12, w = 14, d = 62, yawDeg = 90 }, -- left entrance
-	{ x = 70, z = -12, w = 14, d = 62, yawDeg = 90 }, -- right entrance
+	{ x = 0, z = 43, w = 14, d = 30, yawDeg = 0 }, -- the front path (spawn side)
+	{ x = 0, z = -27, w = 18, d = 20, yawDeg = 0 }, -- ring to the workshop
+	{ x = -33.2, z = -19.9, w = 14, d = 42, yawDeg = 52 }, -- to the customize garage
+	{ x = 32.6, z = -20, w = 14, d = 42, yawDeg = -52 }, -- to the shop
+	{ x = -56, z = -12, w = 14, d = 64, yawDeg = 90 }, -- left entrance
+	{ x = 56, z = -12, w = 14, d = 64, yawDeg = 90 }, -- right entrance
 }
 
--- Orange / blue X flags at the entrances: two poles at each, colors alternate.
-Layout.flags = {
-	{ x = -9, z = 60, color = "orange" },
-	{ x = 9, z = 60, color = "blue" },
-	{ x = -98, z = -22, color = "orange" },
-	{ x = -98, z = -2, color = "blue" },
-	{ x = 98, z = -22, color = "blue" },
-	{ x = 98, z = -2, color = "orange" },
-}
-
--- The entrance arch over the spawn path with the big CAR VS CAR sign.
-Layout.arch = { z = 62, halfOpening = 11, height = 26, signW = 34, signH = 9 }
+-- The entrance arch over the spawn path (no sign on it: carter's L55, nothing big at the spawn).
+Layout.arch = { z = 54, halfOpening = 11, height = 16 }
 
 -- Where the music plays from (silent until carter gives a sound id).
 Layout.music = { x = 0, y = 12, z = 0 }
 
-Layout.benches = {
-	{ x = -26, z = 40, yawDeg = 90 },
-	{ x = 26, z = 40, yawDeg = -90 },
-	{ x = -30, z = -22, yawDeg = 0 },
-	{ x = 30, z = -22, yawDeg = 0 },
-	{ x = -14, z = 56, yawDeg = 90 },
-	{ x = 14, z = 56, yawDeg = -90 },
-}
-Layout.cones = {
-	{ x = -8, z = 50 },
-	{ x = 8, z = 50 },
-	{ x = -52, z = -16 },
-	{ x = -50, z = -12 },
-	{ x = 52, z = -16 },
-	{ x = 50, z = -12 },
-	{ x = -22, z = -50 },
-	{ x = 22, z = -50 },
-	{ x = -9, z = 70 },
-}
-Layout.carts = {
-	{ x = -50, z = -44, yawDeg = 20 },
-	{ x = 50, z = -44, yawDeg = -20 },
-	{ x = -18, z = -32, yawDeg = 0 },
-}
-
--- Parked player cars: 2 columns on each side of the front path, nose toward the path.
--- 4 rows, so 16 spots. `side` is -1 (left) or 1 (right).
-Layout.parkingSize = { w = 14, d = 9.5 } -- one spot: along the car, across the car
-Layout.parkingRows = { 22, 32.5, 43, 53.5 }
-Layout.parkingCols = { 58, 76 } -- |x| of the two columns (the spot middles)
+-- Parked cars on car-show stands: 2 columns on each side of the front path, nose toward the path.
+-- 4 rows, so 16 spots. `side` is -1 (left) or 1 (right). A player's car takes a spot; empty spots
+-- show a car you can win from the gumball machine (carter's L23, L24).
+Layout.parkingSize = { w = 14, d = 10.4 } -- one spot: along the car, across the car
+Layout.parkingRows = { 14, 25, 36, 47 }
+Layout.parkingCols = { 46, 62 } -- |x| of the two columns (the spot middles)
 
 export type Spot = { x: number, z: number, yawDeg: number, side: number }
 
@@ -188,9 +173,9 @@ end
 -- The tire wall round the plaza: a station every `Layout.tireStep` studs, except at the entrances.
 Layout.tireStep = 5.6
 Layout.entrances = {
-	{ axis = "z", pos = 64, from = -9, to = 9 }, -- front (spawn path), x range
-	{ axis = "x", pos = -100, from = -29, to = 5 }, -- left entrance, z range
-	{ axis = "x", pos = 100, from = -29, to = 5 }, -- right entrance
+	{ axis = "z", pos = Layout.plaza.frontZ, from = -9, to = 9 }, -- front (spawn path), x range
+	{ axis = "x", pos = -Layout.plaza.halfX, from = -29, to = 5 }, -- left entrance, z range
+	{ axis = "x", pos = Layout.plaza.halfX, from = -29, to = 5 }, -- right entrance
 }
 
 export type Station = { x: number, z: number, yawDeg: number, light: boolean }
@@ -249,7 +234,7 @@ Layout.wallSignBottom = 4
 Layout.wallSigns = {
 	{
 		x = -26,
-		z = 64,
+		z = Layout.plaza.frontZ,
 		yawDeg = 180,
 		w = 18,
 		h = 6,
@@ -258,8 +243,26 @@ Layout.wallSigns = {
 		frame = "orange",
 	},
 	-- the side signs sit just in front of the side entrances; "back" is to the viewer's right / left
-	{ x = -100, z = 14, yawDeg = 90, w = 16, h = 8, text = "GUMBALL", arrow = 1, frame = "blue" },
-	{ x = 100, z = 14, yawDeg = -90, w = 14, h = 8, text = "SHOP", arrow = -1, frame = "orange" },
+	{
+		x = -Layout.plaza.halfX,
+		z = 14,
+		yawDeg = 90,
+		w = 16,
+		h = 8,
+		text = "GUMBALL",
+		arrow = 1,
+		frame = "blue",
+	},
+	{
+		x = Layout.plaza.halfX,
+		z = 14,
+		yawDeg = -90,
+		w = 14,
+		h = 8,
+		text = "SHOP",
+		arrow = -1,
+		frame = "orange",
+	},
 }
 
 -- Invisible tall walls so nobody climbs props, walks into a garage or out of the plaza.
@@ -332,12 +335,6 @@ function Layout.footprints(): { [string]: Rect }
 		out["spot" .. i] =
 			{ x = s.x, z = s.z, w = Layout.parkingSize.w, d = Layout.parkingSize.d, yawDeg = 0 }
 	end
-	for i, b in Layout.benches do
-		out["bench" .. i] = { x = b.x, z = b.z, w = 3, d = 8, yawDeg = 0 }
-	end
-	for i, c in Layout.carts do
-		out["cart" .. i] = { x = c.x, z = c.z, w = 6, d = 4, yawDeg = c.yawDeg }
-	end
 	local a = Layout.arch
 	out.archLeft = { x = -a.halfOpening - 2, z = a.z, w = 4, d = 4, yawDeg = 0 }
 	out.archRight = { x = a.halfOpening + 2, z = a.z, w = 4, d = 4, yawDeg = 0 }
@@ -397,12 +394,12 @@ end
 -- Dirt paths on the grass outside, from each entrance away from the plaza: x, z, size x, size z, yaw.
 function Layout.outsidePaths(): { { x: number, z: number, sx: number, sz: number, yawDeg: number } }
 	return {
-		{ x = 0, z = 92, sx = 14, sz = 50, yawDeg = 0 },
-		{ x = 6, z = 130, sx = 14, sz = 40, yawDeg = 18 },
-		{ x = -124, z = -12, sx = 44, sz = 12, yawDeg = 0 },
-		{ x = -160, z = -30, sx = 36, sz = 12, yawDeg = 25 },
-		{ x = 124, z = -12, sx = 44, sz = 12, yawDeg = 0 },
-		{ x = 160, z = -30, sx = 36, sz = 12, yawDeg = -25 },
+		{ x = 0, z = 84, sx = 14, sz = 50, yawDeg = 0 },
+		{ x = 6, z = 122, sx = 14, sz = 40, yawDeg = 18 },
+		{ x = -110, z = -12, sx = 44, sz = 12, yawDeg = 0 },
+		{ x = -146, z = -30, sx = 36, sz = 12, yawDeg = 25 },
+		{ x = 110, z = -12, sx = 44, sz = 12, yawDeg = 0 },
+		{ x = 146, z = -30, sx = 36, sz = 12, yawDeg = -25 },
 	}
 end
 
@@ -421,17 +418,21 @@ function Layout.hills(): { { x: number, z: number, d: number } }
 end
 
 export type Scenery = {
-	kind: string, -- "tree" "pine" "rock" "bush" "flower"
+	kind: string, -- "tree" "rock"
 	x: number,
 	z: number,
 	yawDeg: number,
 	scale: number,
 	far: boolean, -- far away: the first thing to cut if phones lag
-	pick: number, -- which flower color
 }
 
--- Trees, rocks, bushes and flowers on the grass round the plaza, always the same ones. Nothing
--- stands on the plaza, on a dirt path or under the arch.
+-- How far outside the plaza edge the chain fence stands (see LobbyProps.fence).
+Layout.fenceGap = 10
+
+-- Round puffy trees (carter's L31) and a few rocks on the grass round the plaza, always the same
+-- ones. No pines, bushes or flowers (L32). Nothing stands inside the fence, on a dirt path or
+-- under the arch. The near ring comes first so the lobby always has trees in view; the far ones
+-- are the first thing to cut if phones lag.
 function Layout.scenery(): { Scenery }
 	local list: { Scenery } = {}
 	local seed = 20261020
@@ -441,8 +442,9 @@ function Layout.scenery(): { Scenery }
 	end
 	local p = Layout.plaza
 	local paths = Layout.outsidePaths()
+	local gap = Layout.fenceGap + 5
 	local function blocked(x: number, z: number, r: number): boolean
-		if math.abs(x) < p.halfX + 6 + r and z < p.frontZ + 6 + r and z > p.backZ - 8 - r then
+		if math.abs(x) < p.halfX + gap + r and z < p.frontZ + gap + r and z > p.backZ - gap - r then
 			return true
 		end
 		for _, q in paths do
@@ -456,50 +458,43 @@ function Layout.scenery(): { Scenery }
 		end
 		return false
 	end
-	local want = { tree = 44, pine = 30, rock = 26, bush = 40, flower = 30 }
-	local made: { [string]: number } = { tree = 0, pine = 0, rock = 0, bush = 0, flower = 0 }
-	local order = { "tree", "pine", "rock", "bush", "flower" }
-	local radius = { tree = 7, pine = 6, rock = 4, bush = 3, flower = 1.5 }
-	local tries = 0
-	local done = false
-	while not done and tries < 30000 do
-		tries += 1
-		local kind = order[tries % #order + 1]
-		if made[kind] < want[kind] then
-			-- the sheet's own grass border (x +-110, z -90 .. 90) first, then farther out
-			local x = (rnd() * 2 - 1) * 300
-			local z = (rnd() * 2 - 1) * 300
-			local far = math.abs(x) > 150 or math.abs(z) > 150
-			if (not far or rnd() < 0.5) and not blocked(x, z, radius[kind]) then
-				local close = false
-				for _, o in list do
-					local rr = radius[kind] + radius[o.kind]
-					if (o.x - x) ^ 2 + (o.z - z) ^ 2 < rr * rr then
-						close = true
-						break
-					end
-				end
-				if not close then
+	local radius = { tree = 7, rock = 4 }
+	local function crowded(kind: string, x: number, z: number): boolean
+		for _, o in list do
+			local rr = radius[kind] + radius[o.kind]
+			if (o.x - x) ^ 2 + (o.z - z) ^ 2 < rr * rr then
+				return true
+			end
+		end
+		return false
+	end
+	-- pass: `reach` = how far from the plaza centre the picks may land, `far` marks the pass
+	local function pass(want: { [string]: number }, reachX: number, reachZ: number, far: boolean)
+		local order = { "tree", "rock" }
+		local made: { [string]: number } = { tree = 0, rock = 0 }
+		local tries = 0
+		while tries < 20000 and (made.tree < want.tree or made.rock < want.rock) do
+			tries += 1
+			local kind = order[tries % #order + 1]
+			if made[kind] < want[kind] then
+				local x = (rnd() * 2 - 1) * reachX
+				local z = (rnd() * 2 - 1) * reachZ
+				if not blocked(x, z, radius[kind]) and not crowded(kind, x, z) then
 					made[kind] += 1
 					table.insert(list, {
 						kind = kind,
 						x = x,
 						z = z,
 						yawDeg = rnd() * 360,
-						scale = 0.75 + rnd() * 0.75,
+						scale = 0.8 + rnd() * 0.6,
 						far = far,
-						pick = math.floor(rnd() * 4) + 1,
 					})
 				end
 			end
 		end
-		done = true
-		for k, n in want do
-			if made[k] < n then
-				done = false
-			end
-		end
 	end
+	pass({ tree = 34, rock = 6 }, p.halfX + 70, 130, false)
+	pass({ tree = 26, rock = 8 }, 300, 300, true)
 	return list
 end
 

@@ -1,7 +1,8 @@
 --!strict
 -- The ground of the Car Battle Lobby: asphalt plaza, light gray paths, the big PLAY ring, parking
--- lines, tire wall with steady orange lights, flags, the entrance arch with the CAR VS CAR sign,
--- benches, cones, tool carts, the invisible blockers and the silent music spot.
+-- lines, tire wall with steady orange lights, the entrance arch (no sign on it), the invisible
+-- blockers and the silent music spot. The props (benches, cones, tires, junk, billboards, fence,
+-- clouds) are built by LobbyProps.
 -- Every position and color comes from LobbyLayout. Local coordinates: x right, z toward the spawn,
 -- plaza top y = 0; `origin` is added to everything. Look only, except the plaza slab (players
 -- stand on it) and the invisible blockers.
@@ -39,7 +40,6 @@ local function plaza(folder: Folder, origin: Vector3)
 	local grp = group(folder, "Plaza")
 	local p = LobbyLayout.plaza
 	local asphalt = rgb(C.asphalt)
-	local dark = rgb(C.asphaltDark)
 	local zLen = p.frontZ - p.backZ
 	local zMid = (p.frontZ + p.backZ) / 2
 	local function at(x: number, y: number, z: number): CFrame
@@ -80,55 +80,6 @@ local function plaza(folder: Folder, origin: Vector3)
 				asphalt,
 				true,
 				nil,
-				Enum.Material.Asphalt
-			)
-		end
-	end
-
-	-- darker patches (x, z, w, d, yaw)
-	local patches = {
-		{ -62, 18, 22, 14, 10 },
-		{ 58, -6, 18, 20, -15 },
-		{ -24, 66, 16, 10, 5 },
-		{ 30, 30, 12, 18, 25 },
-		{ -88, 56, 14, 12, 0 },
-		{ 86, 46, 12, 16, -8 },
-		{ -30, -46, 20, 10, -12 },
-		{ 24, -2, 10, 8, 30 },
-		{ 92, -52, 14, 14, 18 },
-		{ -94, -66, 12, 12, 0 },
-	}
-	for _, q in patches do
-		look(
-			grp,
-			"Patch",
-			Vector3.new(q[3], 0.06, q[4]),
-			at(q[1], 0.03, q[2]) * CFrame.Angles(0, math.rad(q[5]), 0),
-			dark,
-			Enum.Material.Asphalt
-		)
-	end
-	-- skid marks: pairs of thin dark strips (x, z, length, yaw)
-	local skids = {
-		{ -16, 48, 16, 12 },
-		{ 18, 56, 14, -10 },
-		{ 34, 20, 18, 70 },
-		{ -40, 30, 20, 110 },
-		{ -56, -24, 16, 35 },
-		{ 60, -30, 18, -40 },
-	}
-	for _, s in skids do
-		for k = -1, 1, 2 do
-			local yaw = math.rad(s[4])
-			-- the second strip sits 1.4 studs to the side, across the strip
-			local off = Vector3.new(math.cos(yaw), 0, -math.sin(yaw)) * 0.7 * -k
-			look(
-				grp,
-				"Skid",
-				Vector3.new(s[3], 0.05, 0.5),
-				CFrame.new(origin + Vector3.new(s[1], 0.04, s[2]) + off)
-					* CFrame.Angles(0, yaw + math.pi / 2, 0),
-				rgb(C.tire),
 				Enum.Material.Asphalt
 			)
 		end
@@ -314,44 +265,6 @@ local function tireWall(folder: Folder, origin: Vector3)
 end
 
 -- ---------------------------------------------------------------------------------------------
--- 6. flags
-
-local function flags(folder: Folder, origin: Vector3)
-	local grp = group(folder, "Flags")
-	local poleH, bw, bh = 14, 6, 4
-	for _, f in LobbyLayout.flags do
-		local base = CFrame.new(origin + Vector3.new(f.x, 0, f.z))
-		-- banners at the side entrances face along x, the front ones along z
-		if math.abs(f.x) > 50 then
-			base = base * CFrame.Angles(0, math.pi / 2, 0)
-		end
-		local color = if f.color == "orange" then rgb(C.orange) else rgb(C.blue)
-		can(grp, "Pole", 0.7, poleH, base.Position, rgb(C.metal), false, nil, Enum.Material.Metal)
-		look(
-			grp,
-			"PoleCap",
-			Vector3.new(1.1, 1.1, 1.1),
-			base * CFrame.new(0, poleH + 0.4, 0),
-			rgb(C.gold),
-			Enum.Material.Metal
-		)
-		local bannerCf = base * CFrame.new(bw / 2 + 0.35, poleH - bh / 2 - 0.6, 0)
-		look(grp, "Banner", Vector3.new(bw, bh, 0.25), bannerCf, color)
-		local len = math.sqrt((bw - 1) ^ 2 + (bh - 1) ^ 2)
-		local ang = math.atan2(bh - 1, bw - 1)
-		for _, s in { -1, 1 } do
-			look(
-				grp,
-				"BannerX",
-				Vector3.new(len, 0.45, 0.4),
-				bannerCf * CFrame.Angles(0, 0, s * ang),
-				WHITE
-			)
-		end
-	end
-end
-
--- ---------------------------------------------------------------------------------------------
 -- 7. the entrance arch
 
 local function arch(folder: Folder, origin: Vector3)
@@ -359,7 +272,7 @@ local function arch(folder: Folder, origin: Vector3)
 	local a = LobbyLayout.arch
 	local px = a.halfOpening + 2
 	local beamH = 3
-	local pillarH = a.height - a.signH -- the sign panel sits on top of the beam
+	local pillarH = a.height
 	local function at(x: number, y: number): CFrame
 		return CFrame.new(origin + Vector3.new(x, y, a.z))
 	end
@@ -383,7 +296,7 @@ local function arch(folder: Folder, origin: Vector3)
 		)
 		look(grp, "PillarBand", Vector3.new(4.3, 1.4, 4.3), at(s * px, pillarH * 0.5), WHITE)
 	end
-	-- top beam between the pillars, the sign panel above it
+	-- the top beam between the pillars: just a beam, no sign (carter's L55)
 	local beamW = px * 2 + 4
 	look(
 		grp,
@@ -395,176 +308,11 @@ local function arch(folder: Folder, origin: Vector3)
 	)
 	look(
 		grp,
-		"BeamLight",
-		Vector3.new(beamW - 2, 0.5, 0.3),
-		at(0, pillarH - beamH / 2) * CFrame.new(0, -0.4, -2.3),
-		rgb(C.light),
-		Enum.Material.Neon
-	)
-
-	local panelY = pillarH + a.signH / 2
-	local panel = look(
-		grp,
-		"SignPanel",
-		Vector3.new(a.signW, a.signH, 1.6),
-		at(0, panelY),
-		rgb(C.panel),
-		Enum.Material.Metal
-	)
-	-- chunky orange frame in front of the panel
-	local fz = -0.9
-	look(
-		grp,
-		"FrameTop",
-		Vector3.new(a.signW + 1, 0.8, 1.2),
-		at(0, panelY + a.signH / 2 + 0.2) * CFrame.new(0, 0, fz + 0.3),
+		"BeamStripe",
+		Vector3.new(beamW - 2, 0.6, 0.3),
+		at(0, pillarH - beamH / 2) * CFrame.new(0, 0, -2.3),
 		rgb(C.orange)
 	)
-	look(
-		grp,
-		"FrameBottom",
-		Vector3.new(a.signW + 1, 0.8, 1.2),
-		at(0, panelY - a.signH / 2 - 0.2) * CFrame.new(0, 0, fz + 0.3),
-		rgb(C.orange)
-	)
-	for _, s in { -1, 1 } do
-		look(
-			grp,
-			"FrameSide",
-			Vector3.new(0.8, a.signH, 1.2),
-			at(s * (a.signW / 2 + 0.2), panelY) * CFrame.new(0, 0, fz + 0.3),
-			rgb(C.orange)
-		)
-	end
-
-	-- both faces: the spawn is on the +z side (outside), the plaza on the -z side
-	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
-		local gui = Instance.new("SurfaceGui")
-		gui.Name = "SignGui" .. face.Name
-		gui.Face = face
-		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-		gui.PixelsPerStud = 24
-		gui.LightInfluence = 0
-		gui.Parent = panel
-		local label = Instance.new("TextLabel")
-		label.Size = UDim2.fromScale(0.94, 0.8)
-		label.Position = UDim2.fromScale(0.03, 0.1)
-		label.BackgroundTransparency = 1
-		label.Font = Enum.Font.FredokaOne
-		label.TextScaled = true
-		label.Text = "CAR VS CAR"
-		label.TextColor3 = rgb(C.orange)
-		label.TextStrokeTransparency = 0
-		label.TextStrokeColor3 = rgb(C.blue)
-		label.Parent = gui
-	end
-end
-
--- ---------------------------------------------------------------------------------------------
--- 8. props
-
-local function bench(grp: Folder, origin: Vector3, b: { x: number, z: number, yawDeg: number })
-	local m = group(grp, "Bench")
-	local base = CFrame.new(origin + Vector3.new(b.x, 0, b.z))
-		* CFrame.Angles(0, math.rad(b.yawDeg), 0)
-	-- yaw 0: the long side runs along z, the back is on the -x side
-	look(
-		m,
-		"Seat",
-		Vector3.new(2.6, 0.5, 8),
-		base * CFrame.new(0, 1.7, 0),
-		rgb(C.wood),
-		Enum.Material.Wood
-	)
-	look(
-		m,
-		"Back",
-		Vector3.new(0.5, 1.8, 8),
-		base * CFrame.new(-1.2, 2.9, 0),
-		rgb(C.wood),
-		Enum.Material.Wood
-	)
-	for _, s in { -1, 1 } do
-		look(
-			m,
-			"Leg",
-			Vector3.new(2.2, 1.5, 0.7),
-			base * CFrame.new(0, 0.75, s * 3.3),
-			rgb(C.metalDark),
-			Enum.Material.Metal
-		)
-	end
-end
-
-local function cone(grp: Folder, origin: Vector3, x: number, z: number)
-	local m = group(grp, "Cone")
-	local p = origin + Vector3.new(x, 0, z)
-	look(
-		m,
-		"Base",
-		Vector3.new(1.8, 0.2, 1.8),
-		CFrame.new(p + Vector3.new(0, 0.1, 0)),
-		rgb(C.asphaltDark)
-	)
-	can(m, "Lower", 1.3, 0.7, p + Vector3.new(0, 0.2, 0), rgb(C.orange))
-	can(m, "Stripe", 1.0, 0.4, p + Vector3.new(0, 0.9, 0), WHITE)
-	can(m, "Top", 0.65, 0.6, p + Vector3.new(0, 1.3, 0), rgb(C.orange))
-end
-
-local function cart(
-	grp: Folder,
-	origin: Vector3,
-	c: { x: number, z: number, yawDeg: number },
-	i: number
-)
-	local m = group(grp, "ToolCart")
-	local base = CFrame.new(origin + Vector3.new(c.x, 0, c.z))
-		* CFrame.Angles(0, math.rad(c.yawDeg), 0)
-	local body = if i % 2 == 1 then rgb(C.blue) else rgb(C.orange)
-	local drawer = shade(if i % 2 == 1 then C.blue else C.orange, 1.22)
-	-- footprint 6 x 4: long side along x, the drawers face +z
-	look(m, "Body", Vector3.new(5.6, 2.6, 3.4), base * CFrame.new(0, 1.9, 0), body)
-	look(
-		m,
-		"Top",
-		Vector3.new(6, 0.4, 3.8),
-		base * CFrame.new(0, 3.4, 0),
-		rgb(C.metalDark),
-		Enum.Material.Metal
-	)
-	for k = -1, 1 do
-		look(m, "Drawer", Vector3.new(1.6, 0.7, 0.2), base * CFrame.new(k * 1.8, 1.9, 1.75), drawer)
-		look(m, "Handle", Vector3.new(0.9, 0.15, 0.2), base * CFrame.new(k * 1.8, 1.9, 1.9), WHITE)
-	end
-	for _, sx in { -1, 1 } do
-		for _, sz in { -1, 1 } do
-			local w = look(
-				m,
-				"Wheel",
-				Vector3.new(0.6, 1.2, 1.2),
-				base * CFrame.new(sx * 2.4, 0.6, sz * 1.5) * CFrame.Angles(0, math.pi / 2, 0),
-				rgb(C.tire),
-				Enum.Material.Rubber
-			)
-			w.Shape = Enum.PartType.Cylinder
-		end
-	end
-end
-
-local function props(folder: Folder, origin: Vector3)
-	local grp = group(folder, "Props")
-	local benches = group(grp, "Benches")
-	for _, b in LobbyLayout.benches do
-		bench(benches, origin, b)
-	end
-	local cones = group(grp, "Cones")
-	for _, c in LobbyLayout.cones do
-		cone(cones, origin, c.x, c.z)
-	end
-	local carts = group(grp, "Carts")
-	for i, c in LobbyLayout.carts do
-		cart(carts, origin, c, i)
-	end
 end
 
 -- ---------------------------------------------------------------------------------------------
@@ -599,12 +347,6 @@ local function blockers(folder: Folder, origin: Vector3)
 			CFrame.new(origin + Vector3.new(x, PROP_BLOCKER_TALL / 2, z))
 				* CFrame.Angles(0, math.rad(yaw), 0)
 		)
-	end
-	for _, b in LobbyLayout.benches do
-		prop("BenchBlocker", b.x, b.z, 3.2, 8.4, b.yawDeg)
-	end
-	for _, c in LobbyLayout.carts do
-		prop("CartBlocker", c.x, c.z, 6.2, 4.2, c.yawDeg)
 	end
 	local a = LobbyLayout.arch
 	for _, s in { -1, 1 } do
@@ -643,9 +385,7 @@ function LobbyGround.build(folder: Folder, origin: Vector3)
 	ring(folder, origin)
 	parking(folder, origin)
 	tireWall(folder, origin)
-	flags(folder, origin)
 	arch(folder, origin)
-	props(folder, origin)
 	blockers(folder, origin)
 	music(folder, origin)
 end

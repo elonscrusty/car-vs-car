@@ -28,6 +28,7 @@ H.test("the whole lobby builds and fits the sheet", function()
 			child.Name ~= "Scenery"
 			and child.Name ~= "FarScenery"
 			and child.Name ~= "Hills"
+			and child.Name ~= "Clouds"
 			and child.Name ~= "GrassPlate"
 			and child.Name ~= "DirtPaths"
 			and child.Name ~= "Blockers"
@@ -104,12 +105,66 @@ H.test("parking: 25 players, the spots run out and nothing breaks", function()
 	end
 	local n = 0
 	for _, d in handle.folder:GetDescendants() do
-		if d:IsA("Model") and d.Name == "ShowCar_RamTruck" and d.Parent.Name == "Parking" then
+		if
+			d:IsA("Model")
+			and d.Name == "ShowCar_RamTruck"
+			and d.Parent.Parent.Name == "CarStands"
+		then
 			n += 1
 		end
 	end
 	eq(n, 16)
 end)
+
+H.test("parking: every spot is a spinning stand that shows a car you can win", function()
+	local _, Layout, handle = build()
+	local group = handle.folder:FindFirstChild("CarStands")
+	local stands = 0
+	for _, c in group:GetChildren() do
+		if c:IsA("Model") then
+			stands += 1
+			truthy(c:HasTag("LobbySpin"), c.Name .. " does not spin")
+			truthy(c:GetAttribute("SpinSpeed") > 0 and c:GetAttribute("SpinSpeed") < 1, "slowly")
+			truthy(c.PrimaryPart ~= nil, "a pivot in the middle")
+			local car = nil
+			for _, d in c:GetChildren() do
+				if d:IsA("Model") then
+					car = d
+				end
+			end
+			truthy(car ~= nil, c.Name .. " is empty")
+			truthy(car.Name == "ShowCar_CannonVan" or car.Name == "ShowCar_SawBuggy", car.Name)
+		end
+	end
+	eq(stands, #Layout.parking())
+end)
+
+H.test(
+	"parking: a player's car takes a spot and the show car comes back when they leave",
+	function()
+		local world, _, handle = build()
+		local p = world.newPlayer("Ana", 5)
+		local function carsNamed(name)
+			local n = 0
+			for _, d in handle.folder:FindFirstChild("CarStands"):GetDescendants() do
+				if d:IsA("Model") and d.Name == name then
+					n += 1
+				end
+			end
+			return n
+		end
+		local before = carsNamed("ShowCar_CannonVan") + carsNamed("ShowCar_SawBuggy")
+		eq(before, 16)
+		handle.parking.set(p, "RamTruck", nil, nil, "Ana  LV 3")
+		eq(carsNamed("ShowCar_RamTruck"), 1)
+		eq(carsNamed("ShowCar_CannonVan") + carsNamed("ShowCar_SawBuggy"), 15)
+		handle.parking.set(p, "RamTruck", nil, nil, "Ana  LV 4") -- the same spot again
+		eq(carsNamed("ShowCar_RamTruck"), 1)
+		handle.parking.clear(p)
+		eq(carsNamed("ShowCar_RamTruck"), 0)
+		eq(carsNamed("ShowCar_CannonVan") + carsNamed("ShowCar_SawBuggy"), 16)
+	end
+)
 
 H.test("a second build replaces the first", function()
 	local world = Mock.new()
