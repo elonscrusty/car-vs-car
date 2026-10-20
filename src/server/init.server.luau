@@ -80,12 +80,13 @@ local battle = BattleService.start({
 		end
 	end,
 })
-lobbyPads = LobbyPads.start({
+local pads = LobbyPads.start({
 	pads = lobby.pads,
 	origin = lobby.origin,
 	battle = battle,
 	remotes = remotes,
 })
+lobbyPads = pads
 -- The first-time tutorial: its flags, the coin gift, and parking the character during the practice
 -- drive (the drive itself runs on the player's device).
 local tutorial = TutorialService.start({
@@ -93,8 +94,9 @@ local tutorial = TutorialService.start({
 	sendProfile = lobbyService.sendProfile,
 	profiles = Profiles,
 	addCoins = Inventory.addCoins,
-	pads = lobbyPads,
+	pads = pads,
 	isBusy = battle.isBusy,
+	track = Telemetry.tutorial,
 })
 remotes.BattleAction.OnServerEvent:Connect(function(player: Player, name: any, arg: any)
 	if type(name) == "string" and (arg == nil or type(arg) == "string") then
@@ -110,7 +112,7 @@ end
 local function onPlayerRemoving(player: Player)
 	Telemetry.left(player)
 	battle.playerRemoving(player)
-	lobbyPads.remove(player)
+	pads.remove(player)
 	tutorial.remove(player)
 	lobbyService.onPlayerRemoving(player)
 	steerLimiter.clear(player)

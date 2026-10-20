@@ -30,6 +30,8 @@ export type Deps = {
 	pads: { park: (player: Player) -> (), toSpawn: (player: Player) -> () },
 	isBusy: (player: Player) -> boolean, -- queued or fighting
 	now: (() -> number)?, -- seconds (os.clock); the tests pass a fake one
+	-- analytics (Telemetry.tutorial): tutorial_start, tutorial_practice, tutorial_done
+	track: ((player: Player, name: string, data: { [string]: any }?) -> ())?,
 }
 
 export type Handle = {
@@ -43,7 +45,14 @@ function TutorialService.start(deps: Deps): Handle
 	local now = deps.now or os.clock
 	local startedAt: { [Player]: number } = {}
 	local practicing: { [Player]: number } = {} -- the token of the current practice
+	local practiceSince: { [Player]: number } = {}
 	local tokens = 0
+
+	local function track(player: Player, name: string, data: { [string]: any }?)
+		if deps.track ~= nil then
+			deps.track(player, name, data)
+		end
+	end
 
 	local function tell(player: Player, event: string, coins: number?)
 		deps.remotes.LobbyUpdate:FireClient(
@@ -58,12 +67,14 @@ function TutorialService.start(deps: Deps): Handle
 			return
 		end
 		startedAt[player] = now()
-		if Rules.markStart(p.hintsSeen) then
+		local first = Rules.markStart(p.hintsSeen)
+		if first then
 			deps.profiles.markDirty(player)
 			-- saved at once: a player who leaves a moment later must never see the tutorial again
 			deps.profiles.saveNow(player)
 			deps.sendProfile(player)
 		end
+		track(player, "tutorial_start", { first = first })
 	end
 
 	local function done(player: Player)
@@ -72,6 +83,8 @@ function TutorialService.start(deps: Deps): Handle
 			return
 		end
 		local ok = Rules.canGift(p.hintsSeen, startedAt[player], now())
+		local began = startedAt[player]
+		track(player, "tutorial_done", { seconds = if began then now() - began else 0, gift = ok })
 		if not ok then
 			tell(player, "gift", 0)
 			return
@@ -89,6 +102,11 @@ function TutorialService.start(deps: Deps): Handle
 			return
 		end
 		practicing[player] = nil
+		local since = practiceSince[player]
+		practiceSince[player] = nil
+		if since ~= nil then
+			track(player, "tutorial_practice", { seconds = now() - since })
+		end
 		deps.pads.toSpawn(player)
 	end
 
@@ -101,6 +119,7 @@ function TutorialService.start(deps: Deps): Handle
 		tokens += 1
 		local token = tokens
 		practicing[player] = token
+		practiceSince[player] = now()
 		deps.pads.park(player)
 		tell(player, "practiceReady")
 		-- the device ends the practice by itself; if it never says so, the character comes back anyway
@@ -135,8 +154,13 @@ function TutorialService.start(deps: Deps): Handle
 	end
 
 	handle.remove = function(player: Player)
+		local since = practiceSince[player]
+		if since ~= nil then
+			track(player, "tutorial_practice", { seconds = now() - since }) -- left while in the yard
+		end
 		startedAt[player] = nil
 		practicing[player] = nil
+		practiceSince[player] = nil
 	end
 
 	return handle

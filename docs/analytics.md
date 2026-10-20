@@ -30,13 +30,16 @@ The old soccer, tag, race and group-mode events were removed. Nothing had been p
 | time_to_first_hit | seconds since the fight started | car | first damage of a fight | over about 10 s: map too big or cars passive |
 | gumball_pull | none (counter) | none | a gumball pull is accepted | few pulls: weak hook; very many: coins too easy |
 | car_acquired | none (counter) | source (gumball, store; else "other") | a car is obtained | gumball against store share |
+| tutorial_start | none (counter) | first (true = a new player, false = a replay from Settings) | the tutorial begins (`TutorialService`) | few starts for new players: the portal is not found |
+| tutorial_practice | seconds in the practice yard | none | the player comes back from the yard, or leaves the game while in it | very long: the boxes or the driving are hard; very short: skipped |
+| tutorial_done | seconds since tutorial_start | gift (true = the coin gift was paid) | the tutorial was played to the end (a skip sends nothing) | starts far above dones: it is too long or confusing; look at the practice time first |
 
 ## Safety and numbers
 
 - Each send is deferred (`task.defer`) inside `pcall`: errors or an API change cannot stop a match.
 - Global cap per server: `TelemetryConfig.RateLimit` (200 events per 60 s) is a placeholder; Roblox does not publish its limit. Events over the cap are dropped.
 - Field text is stripped to letters, digits, space and `_-:.`, max 40 characters; numbers are clamped to 0 to 86400.
-- Roblox limit: 100 custom events per game (we use 6). Renaming a funnel step starts a new dashboard step.
+- Roblox limit: 100 custom events per game (we use 9). Renaming a funnel step starts a new dashboard step.
 - Each step is logged once per player per visit.
 
 ## Measurement plan

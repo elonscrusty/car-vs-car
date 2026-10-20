@@ -15,7 +15,12 @@ local TweenService = game:GetService("TweenService")
 local LobbyCars = require(ReplicatedStorage.Shared.LobbyCars)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Quality = require(script.Parent.Quality)
-local RareBanner = require(script.Parent.RareBanner)
+-- The rare-pull message is a nicety: if it cannot load, the rest of the lobby client still starts.
+local loaded, RareBanner: any = pcall(require, script.Parent.RareBanner)
+if not loaded then
+	warn("[LobbyClient] rare pull banner not loaded: " .. tostring(RareBanner))
+	RareBanner = nil
+end
 
 local LobbyClient = {}
 
@@ -133,13 +138,19 @@ function LobbyClient.start()
 	end)
 
 	-- a rare pull (Epic or Legendary) from the gumball machine: a small message at the top, for everyone
-	local banner = RareBanner.new()
+	local made, banner: any = false, nil
+	if RareBanner ~= nil then
+		made, banner = pcall(RareBanner.new)
+		if not made then
+			warn("[LobbyClient] rare pull banner not built: " .. tostring(banner))
+		end
+	end
 	remotes.LobbyUpdate.OnClientEvent:Connect(function(u: any)
-		if type(u) == "table" and u.kind == "announce" and type(u.text) == "string" then
+		if made and type(u) == "table" and u.kind == "announce" and type(u.text) == "string" then
 			local rgb = if type(u.carId) == "string"
 				then LobbyCars.rarityColor(u.carId)
 				else GOLD_RGB
-			banner.show(u.text, rgb)
+			pcall(banner.show, u.text, rgb)
 		end
 	end)
 end

@@ -15,7 +15,8 @@ local TutorialService = world.require("server/TutorialService")
 -- A service with fake players' profiles and a fake clock.
 local function setup(opts: { [string]: any }?)
 	local o = opts or {}
-	local env: any = { clock = 1000, log = {}, saves = 0, profiles = 0, parks = 0, spawns = 0 }
+	local env: any =
+		{ clock = 1000, log = {}, saves = 0, profiles = 0, parks = 0, spawns = 0, tracked = {} }
 	env.busy = o.busy == true
 	env.profile = { coins = 5, hintsSeen = {} }
 	env.player = world.newPlayer("Dana", 7)
@@ -56,6 +57,11 @@ local function setup(opts: { [string]: any }?)
 		now = function()
 			return env.clock
 		end,
+		track = if o.noTrack
+			then nil
+			else function(_player: any, name: string, data: any)
+				table.insert(env.tracked, { name = name, data = data })
+			end,
 	})
 	function env.do_(action: any)
 		return env.service.action(env.player, action, nil)
@@ -204,4 +210,69 @@ H.test("a player with no profile yet gets nothing and breaks nothing", function(
 	e.do_("tutorialDone")
 	eq(e.saves, 0)
 	eq(e.profiles, 0)
+end)
+
+H.test("analytics: the start, the time in the yard and the end are counted", function()
+	local e = setup()
+	e.do_("tutorialStart")
+	eq(#e.tracked, 1)
+	eq(e.tracked[1].name, "tutorial_start")
+	eq(e.tracked[1].data.first, true)
+	e.clock += 5
+	e.do_("practiceEnter")
+	e.clock += 40
+	e.do_("practiceExit")
+	eq(e.tracked[2].name, "tutorial_practice")
+	eq(e.tracked[2].data.seconds, 40)
+	e.do_("practiceExit") -- already out: counted once
+	eq(#e.tracked, 2)
+	e.clock += 20
+	e.do_("tutorialDone")
+	eq(e.tracked[3].name, "tutorial_done")
+	eq(e.tracked[3].data.seconds, 65, "seconds since the start")
+	eq(e.tracked[3].data.gift, true)
+	-- a replay from Settings: first = false, and no second gift
+	e.do_("tutorialStart")
+	eq(e.tracked[4].data.first, false)
+	e.clock += 30
+	e.do_("tutorialDone")
+	eq(e.tracked[5].data.seconds, 30)
+	eq(e.tracked[5].data.gift, false)
+end)
+
+H.test("analytics: a finish that was too fast or never started says no gift", function()
+	local e = setup()
+	e.do_("tutorialDone") -- never started
+	eq(e.tracked[1].name, "tutorial_done")
+	eq(e.tracked[1].data.seconds, 0)
+	eq(e.tracked[1].data.gift, false)
+	e.do_("tutorialStart")
+	e.clock += 3
+	e.do_("tutorialDone")
+	eq(e.tracked[3].data.seconds, 3)
+	eq(e.tracked[3].data.gift, false)
+end)
+
+H.test("analytics: a player who leaves while in the yard still counts the yard time", function()
+	local e = setup()
+	e.do_("tutorialStart")
+	e.do_("practiceEnter")
+	e.clock += 12
+	e.service.remove(e.player)
+	eq(e.tracked[#e.tracked].name, "tutorial_practice")
+	eq(e.tracked[#e.tracked].data.seconds, 12)
+	local n = #e.tracked
+	e.service.remove(e.player) -- leaving twice counts nothing more
+	eq(#e.tracked, n)
+end)
+
+H.test("analytics: the service works with no hook", function()
+	local e = setup({ noTrack = true })
+	e.do_("tutorialStart")
+	e.do_("practiceEnter")
+	e.do_("practiceExit")
+	e.clock += 30
+	e.do_("tutorialDone")
+	eq(e.profile.coins, 5 + Config.giftCoins)
+	eq(#e.tracked, 0)
 end)

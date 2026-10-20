@@ -51,6 +51,20 @@ TelemetryConfig.Events = {
 		fields = { "source" },
 		allowed = { source = TelemetryConfig.Sources },
 	},
+	-- the first-time tutorial (docs/LOBBY_POLISH.md): it started (first = true for a new player,
+	-- false for a replay from Settings), the seconds a player spent in the practice yard, and it was
+	-- played to the end (seconds since it started; gift = the coin gift was paid)
+	tutorial_start = {
+		value = nil,
+		fields = { "first" },
+		allowed = { first = { "true", "false" } },
+	},
+	tutorial_practice = { value = "seconds", fields = {} },
+	tutorial_done = {
+		value = "seconds",
+		fields = { "gift" },
+		allowed = { gift = { "true", "false" } },
+	},
 } :: { [string]: EventSchema }
 
 TelemetryConfig.MaxFieldLength = 40 -- characters kept per custom field value
