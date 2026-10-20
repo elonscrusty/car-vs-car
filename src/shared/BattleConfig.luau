@@ -259,7 +259,7 @@ BattleConfig.Special = {
 	-- Cannon Van: three shells at once, fanned out
 	tripleSpreadDeg = 16,
 	-- Saw Buggy: a big saw blade that flies at the foe and curves hard toward it
-	sawThrowDamage = 38,
+	sawThrowDamage = 30,
 	sawThrowScale = 2.2,
 	sawThrowHomingDeg = 160,
 }
@@ -268,10 +268,10 @@ BattleConfig.Saw = {
 	buildSeconds = 3, -- steady contact this long reaches the full multiplier
 	heatSeconds = 3, -- bounce fight: after this much steady contact the saw overheats ...
 	stallSeconds = 2.5, -- ... and does no damage for this long
-	maxMult = 1.5, -- damage per tick at full build-up (resets when contact is lost)
+	maxMult = 1.25, -- damage per tick at full build-up (resets when contact is lost)
 	loseContactSeconds = 0.35, -- contact must be gone this long to reset the build-up
 	damage = 4, -- was 7, then 5: the saw beat everything in the Studio playtest
-	tickSeconds = 0.5, -- least time between damage ticks on the same target
+	tickSeconds = 0.6, -- least time between damage ticks on the same target (was 0.5: the Buggy won ~100% in bot-vs-bot)
 	frontConeDeg = 70,
 	approachDrive = 1,
 	eventSeconds = 2, -- "Saw contact" message at most this often
