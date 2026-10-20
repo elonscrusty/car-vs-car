@@ -111,6 +111,22 @@ function BattleService.start(opts: {
 		obstacles = BattleConfig.Arena.obstacles,
 	}
 
+	-- who may start a fight against a bot without other players: Studio, the game's owner, and
+	-- anyone listed in BattleConfig.Test.devUserIds. Everyone else never sees the button.
+	local function devBotAllowed(player: Player): boolean
+		if isStudio or player.UserId == game.CreatorId then
+			return true
+		end
+		return table.find(BattleConfig.Test.devUserIds, player.UserId) ~= nil
+	end
+	local function markDev(player: Player)
+		player:SetAttribute(BattleConfig.Test.devBotAttribute, devBotAllowed(player))
+	end
+	Players.PlayerAdded:Connect(markDev)
+	for _, p in Players:GetPlayers() do
+		markDev(p)
+	end
+
 	local function testUnlock(): boolean
 		return isStudio and workspace:GetAttribute(BattleConfig.Test.unlockAttribute) == true
 	end
@@ -971,7 +987,7 @@ function BattleService.start(opts: {
 			BattleQueue.join(queue, player.UserId, os.clock())
 			remotes.BattleUpdate:FireClient(
 				player,
-				{ kind = "queue", searching = true, studioBot = isStudio }
+				{ kind = "queue", searching = true, studioBot = devBotAllowed(player) }
 			)
 		end,
 		cancel = function(player: Player)
@@ -984,8 +1000,12 @@ function BattleService.start(opts: {
 				return
 			end
 			if name == "queueBot" then
-				-- Studio only. The opponent is labeled Test Bot everywhere.
-				if isStudio and not inMatch[player] and Profiles.get(player) ~= nil then
+				-- Studio, the owner or a listed dev only. The opponent is labeled Test Bot everywhere.
+				if
+					devBotAllowed(player)
+					and not inMatch[player]
+					and Profiles.get(player) ~= nil
+				then
 					BattleQueue.leave(queue, player.UserId)
 					createMatch(
 						humanPart(player),
