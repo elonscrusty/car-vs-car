@@ -762,16 +762,27 @@ local function carSign(folder: Folder, origin: Vector3)
 		nil,
 		Enum.Material.SmoothPlastic
 	)
-	part(
-		grp,
-		"Border",
-		Vector3.new(s.width + 2, s.height + 2, 1),
-		CFrame.new(origin + Vector3.new(0, s.y, s.z - 0.3)),
-		rgb(C.orange),
-		false,
-		nil,
-		Enum.Material.Neon
-	)
+	-- a glowing frame round the board (four bars, so the back of the sign is a plain dark board
+	-- and not a yellow slab)
+	for _, e in
+		{
+			{ 0, s.height / 2 + 0.5, s.width + 2, 1 },
+			{ 0, -s.height / 2 - 0.5, s.width + 2, 1 },
+			{ -s.width / 2 - 0.5, 0, 1, s.height },
+			{ s.width / 2 + 0.5, 0, 1, s.height },
+		}
+	do
+		part(
+			grp,
+			"Frame",
+			Vector3.new(e[3], e[4], 1.6),
+			CFrame.new(origin + Vector3.new(e[1], s.y + e[2], s.z)),
+			rgb(C.orange),
+			false,
+			nil,
+			Enum.Material.Neon
+		)
+	end
 	for _, sx in { -1, 1 } do
 		part(
 			grp,
@@ -800,6 +811,9 @@ local function carSign(folder: Folder, origin: Vector3)
 	label.TextStrokeTransparency = 0
 	label.TextStrokeColor3 = rgb(C.blue)
 	label.Parent = gui
+	local back = gui:Clone()
+	back.Face = Enum.NormalId.Front -- the outside also reads CAR VS CAR
+	back.Parent = board
 end
 
 local function scenery(folder: Folder, origin: Vector3)
