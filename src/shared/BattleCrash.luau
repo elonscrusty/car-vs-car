@@ -46,4 +46,12 @@ function BattleCrash.outside(
 	return math.abs(localX) > halfX or math.abs(localZ) > halfZ or heightAboveFloor < -4
 end
 
+-- How hard a crash hit looks (0..1): grows with the damage as a share of the car's HP (20% = full).
+function BattleCrash.power(damage: number, maxHp: number): number
+	if maxHp <= 0 then
+		return 0
+	end
+	return math.clamp(damage / (0.2 * maxHp), 0, 1)
+end
+
 return BattleCrash

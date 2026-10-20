@@ -25,6 +25,19 @@ export type Mover = {
 
 local BattleDrive = {}
 
+-- One RaycastParams per car model (excluding the model itself), made once and reused every step.
+local paramCache: { [Model]: RaycastParams } = setmetatable({}, { __mode = "k" }) :: any
+local function paramsFor(model: Model): RaycastParams
+	local p = paramCache[model]
+	if p == nil then
+		p = RaycastParams.new()
+		p.FilterType = Enum.RaycastFilterType.Exclude
+		p.FilterDescendantsInstances = { model }
+		paramCache[model] = p
+	end
+	return p
+end
+
 -- Body facing, flat on the floor.
 function BattleDrive.forward(car: Mover): Vector3
 	local lv = car.body.CFrame.LookVector
@@ -49,9 +62,7 @@ function BattleDrive.wallBounce(car: Mover, v: Vector3, dt: number): boolean
 	if speed < 0.3 * BattleDrive.topSpeed(car) then
 		return false
 	end
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.FilterDescendantsInstances = { car.model }
+	local params = paramsFor(car.model)
 	-- a box the size of the car (a little thinner, and clear of the floor) sweeps ahead, so a
 	-- corner, a block's edge or a tire the middle line would miss still throws the car back
 	local sweep = math.max(speed * dt * 3, 3) + 1
@@ -97,9 +108,7 @@ function BattleDrive.humanStep(car: Mover, out: Out, dt: number, f: Vector3, v: 
 	car.turnNow = steerNow
 	local yawRate = steerNow * math.rad(car.fighter.turnDeg)
 
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.FilterDescendantsInstances = { car.model }
+	local params = paramsFor(car.model)
 	local onGround = workspace:Raycast(
 		body.Position,
 		Vector3.new(0, -(body.Size.Y * 0.5 + H.groundRayL * car.L), 0),
