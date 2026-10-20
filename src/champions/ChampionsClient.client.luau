@@ -85,7 +85,7 @@ T.text(loadingBox, "Title", "CAR VS CAR", 0, 0, 760, 120, 100, T.C.gold, "Center
 T.text(
 	loadingBox,
 	"Objective",
-	"PICK A CAR. IT FIGHTS BY ITSELF. WIN 2 OF 3 ROUNDS!",
+	"PICK A CAR. DRIVE IT AND HIT! WIN 2 OF 3 ROUNDS!",
 	0,
 	130,
 	760,

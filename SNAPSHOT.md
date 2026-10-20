@@ -1,5 +1,19 @@
 # SNAPSHOT — Car VS Car
 
+## NOW (2026-10-20): 1v1 with MANUAL DRIVING (carter hated the auto-fight)
+- YOU drive your car: stick (touch) or W A S D, chase camera behind your car. ATTACK = big button, Space, E or F.
+  Ram = charge (straight, no steering, faster hits harder; miss = skid), Cannon = shell along the nose (nudged
+  onto a foe within `Human.assistDeg`), Saw = grinds by itself on contact, ATTACK = rev dash.
+- Pure brain `src/shared/BattleHuman.luau` (same shape as BattleBrain; `setInput(steer, gas, attack)`), numbers in
+  `BattleConfig.Human` + Ram/Cannon/Saw. Server: `BattleService` gives a player's car a BattleHuman, a bot's car
+  the steering BattleBrain (Studio TEST BOT only). Input: Steer remote -> `handle.steer`, BattleAction "attack".
+  Server owns the physics (input has network latency; fine in Studio, check on a phone).
+- Removed: launch aim / start spot rows, momentum (Bounce) as default (`defaultMomentum=false`; code kept for the bot).
+- MAP CONTRACT: `BattleArena` reads spawns from parts named `SpawnA` / `SpawnB` in the arena folder (position + front
+  direction); with none it uses the old default spots. Arena size for bots/borders is still `BattleConfig.Arena`.
+- Not verified yet: a real phone play, camera at walls (ray pulls it in), ping feel.
+
+
 ## Phase 1 (design: /mnt/project-files/car-vs-car/game-plan.md, D3 changed by carter)
 Aim once, then the cars drive themselves. Flow: drag back like a slingshot, let go -> both cars launch ->
 Autopilot (run-up + ram) drives both -> HP drops on hits -> HP 0 = match over. Time up (120 s): higher HP wins,

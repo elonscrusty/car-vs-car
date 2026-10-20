@@ -15,7 +15,7 @@ export type Arena = {
 	halfZ: number,
 	toWorld: (x: number, z: number) -> Vector3,
 	toLocal: (p: Vector3) -> (number, number),
-	spawnPoint: (side: string, spot: number?, aim: number?) -> (Vector3, Vector3), -- world position and facing direction
+	spawnPoint: (side: string) -> (Vector3, Vector3), -- world position and facing direction
 	destroy: () -> (),
 }
 
@@ -136,9 +136,17 @@ function BattleArena.build(slot: number): Arena
 		toLocal = function(p: Vector3): (number, number)
 			return p.X - origin.X, p.Z - origin.Z
 		end,
-		spawnPoint = function(side: string, spot: number?, aim: number?): (Vector3, Vector3)
-			local x, z, fx, fz =
-				BattleSetup.place(side, halfX, halfZ, cfg.spawnInset, spot or 0, aim or 0)
+		spawnPoint = function(side: string): (Vector3, Vector3)
+			-- A map can place its own start spots: parts named SpawnA / SpawnB inside the arena
+			-- folder (the car faces the way the part's front looks).
+			local marker = folder:FindFirstChild("Spawn" .. string.upper(side))
+			if marker and marker:IsA("BasePart") then
+				local look = marker.CFrame.LookVector
+				local flat = Vector3.new(look.X, 0, look.Z)
+				local facing = if flat.Magnitude > 1e-3 then flat.Unit else Vector3.new(1, 0, 0)
+				return Vector3.new(marker.Position.X, origin.Y, marker.Position.Z), facing
+			end
+			local x, z, fx, fz = BattleSetup.place(side, halfX, halfZ, cfg.spawnInset, 0, 0)
 			return origin + Vector3.new(x, 0, z), Vector3.new(fx, 0, fz)
 		end,
 		destroy = function()
