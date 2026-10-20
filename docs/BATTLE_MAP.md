@@ -1,3 +1,17 @@
+# Battle map: Duel Car Arena (live)
+
+Built from carter's reference sheet "Duel Car Arena" (2026-10-20). Numbers live in `src/shared/DuelArenaLayout.luau`, the builder is `src/server/DuelArena.luau`, tests in `tests/duelarena.test.luau`. Top-down plan picture: `/mnt/project-files/car-vs-car/map/duel-arena-plan-top-down.png`.
+
+- Floor: dark asphalt (#485363) rounded rectangle, 170 x 120 studs, corner radius 24, floor top y = 0. A car at about 45 studs/s crosses the long way in about 4 s. Whole scene is 240 x 200 with grass round it.
+- Walls: car height (7), 4 thick, orange modules on the red (left) half and blue on the right, with a metal base and cap, a glowing orange light panel per module, and tire stacks (3 tires) where modules meet. Corners are 4 straight pieces each. Cars bounce, nothing hurts.
+- Starts: SpawnA (red pad, x -60) and SpawnB (blue pad, x +60) at z -34, facing each other along x. The red garage and blue garage stand behind the north wall, over each pad (decoration, the wall stays closed).
+- Cover: 4 striped barriers (16 x 6 x 7), mirrored left to right. The lane between the starts (z -48 to -20) has nothing in it (tested).
+- White dashed line round the floor, orange and blue chevron pairs in the two south corners.
+- Outside: 34 trees and 16 rocks on grass (same every time), flags and crates at the garages.
+- Only floor, walls and blocks collide. `BattleArena` has `THEME = "duel"`; set it to `"toy"` to bring the toy bedroom (BattleMap, BattleMapLayout, MapDecor) back.
+
+---
+
 # Battle map: "Toy Room Showdown"
 
 A giant kid's bedroom. The cars fight on a play-mat (green mat, grey road loop, yellow dashes) on a wooden floor.

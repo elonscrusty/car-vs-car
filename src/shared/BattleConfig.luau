@@ -11,7 +11,7 @@ local function sibling(name: string): any
 	return luneRequire("./" .. name)
 end
 
-local BattleMapLayout = sibling("BattleMapLayout")
+local DuelArenaLayout = sibling("DuelArenaLayout")
 
 local BattleConfig = {}
 
@@ -32,14 +32,14 @@ BattleConfig.Timing = {
 }
 
 -- Everything about the arena is a rectangle on a flat floor, centered on `origin`.
--- NOTE: the real map is now "Toy Box Showdown" (BattleMapLayout / server BattleMap). halfX, halfZ and
+-- NOTE: the real map is now "Duel Car Arena" (DuelArenaLayout / server DuelArena). halfX, halfZ and
 -- obstacles below are only the OLD auto-battle AI's picture of a plain box arena (kept so its tests
--- and simulation still run); the live arena reads its size from BattleMapLayout.
+-- and simulation still run); the live arena reads its size from DuelArenaLayout.
 BattleConfig.Arena = {
 	origin = { x = 6000, y = 40, z = 0 }, -- far from the lobby and the old fight arenas
 	halfX = 80, -- floor half width (studs)
 	halfZ = 55, -- floor half depth
-	wallHeight = BattleMapLayout.wallHeight,
+	wallHeight = DuelArenaLayout.wallHeight,
 	wallThickness = 4,
 	spawnInset = 18, -- cars start this far from the short walls
 	-- Broad blocks (center x, z and half sizes). Left and right are mirrored; at least
