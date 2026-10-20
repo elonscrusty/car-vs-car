@@ -813,6 +813,9 @@ function BattleService.start(opts: {
 		-- all damage of this update lands together, so a double knock-out is a draw
 		a.hp = math.max(0, a.hp - dmg.a)
 		b.hp = math.max(0, b.hp - dmg.b)
+		-- the clients smoke the cars more as HP drops
+		a.model:SetAttribute("HpFrac", a.hp / a.maxHp)
+		b.model:SetAttribute("HpFrac", b.hp / b.maxHp)
 		local outcome =
 			BattleSeries.roundOutcome(a.hp, a.maxHp, b.hp, b.maxHp, m.t >= T.fightSeconds)
 		if outcome then

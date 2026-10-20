@@ -1465,7 +1465,7 @@ function BattleUi.start()
 		if snd ~= nil then
 			SoundFx.play(snd)
 		end
-		showEvent((if m.mine then "You: " else "Foe: ") .. m.text)
+		-- no kill feed or announcer text (sound only)
 	end
 
 	handlers.phase = function(m)
