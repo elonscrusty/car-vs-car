@@ -435,7 +435,17 @@ local function renderShop(root, state, ctx)
 	machine(tile, 8, 8, 223, 250, true)
 	local cost = state.clawPrice or Config.ClawPrice
 	T.icon(tile, "Coin", "coin", 13, 268, 29, T.C.gold)
-	T.text(tile, "Cost", T.format(cost) .. " / PULL", 49, 268, 178, 31, 22, T.C.gold)
+	T.text(
+		tile,
+		"Cost",
+		if cost == 0 then "FREE PULL!" else T.format(cost) .. " / PULL",
+		49,
+		268,
+		178,
+		31,
+		22,
+		T.C.gold
+	)
 	T.button(tile, "ViewOdds", "VIEW ODDS", 11, 307, 217, 48, function()
 		ctx.navigate("CLAW")
 	end, T.C.blue, "claw")

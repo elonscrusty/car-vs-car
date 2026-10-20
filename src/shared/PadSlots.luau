@@ -59,7 +59,7 @@ end
 -- With `now` (seconds), two players who each wait alone on different pads for CROSS_WAIT seconds
 -- are matched with each other, so strangers on two pads still meet. Friends who share a pad are
 -- never split: the wait gives them time to join one pad first.
-PadSlots.CROSS_WAIT = 6
+PadSlots.CROSS_WAIT = 3
 
 function PadSlots.update(
 	s: State,

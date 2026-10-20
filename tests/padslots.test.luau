@@ -41,8 +41,8 @@ H.test("two strangers on different pads meet after the wait", function()
 	local s = PadSlots.new(4, 2)
 	PadSlots.update(s, { [11] = 1 }, nil, 100)
 	PadSlots.update(s, { [11] = 1, [12] = 3 }, nil, 102)
-	eq(#PadSlots.update(s, { [11] = 1, [12] = 3 }, nil, 104), 0) -- 12 has waited only 2 s
-	local ev = PadSlots.update(s, { [11] = 1, [12] = 3 }, nil, 108.5)
+	eq(#PadSlots.update(s, { [11] = 1, [12] = 3 }, nil, 103), 0) -- 12 has waited only 1 s
+	local ev = PadSlots.update(s, { [11] = 1, [12] = 3 }, nil, 105.5)
 	eq(kinds(ev), "ready@1")
 	eq(ev[1].ids[1], 11)
 	eq(ev[1].ids[2], 12)
