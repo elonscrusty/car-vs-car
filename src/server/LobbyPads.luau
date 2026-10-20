@@ -145,9 +145,9 @@ function LobbyPads.build(folder: Folder, origin: Vector3): Pads
 		)
 		post.Transparency = 1
 		local bb = Instance.new("BillboardGui")
-		bb.Size = UDim2.fromOffset(64, 30)
+		bb.Size = UDim2.fromOffset(48, 22)
 		bb.AlwaysOnTop = false
-		bb.MaxDistance = 45
+		bb.MaxDistance = 32
 		bb.LightInfluence = 0
 		bb.Parent = post
 		local count = Instance.new("TextLabel")
@@ -155,7 +155,7 @@ function LobbyPads.build(folder: Folder, origin: Vector3): Pads
 		count.Size = UDim2.fromScale(1, 1)
 		count.BackgroundTransparency = 1
 		count.Font = Enum.Font.FredokaOne
-		count.TextSize = 24
+		count.TextSize = 18
 		count.Text = `0/{LobbyLayout.padMax}`
 		count.TextColor3 = rgb(C.marking)
 		count.TextStrokeTransparency = 0

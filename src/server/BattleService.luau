@@ -137,10 +137,10 @@ function BattleService.start(
 		obstacles = BattleConfig.Arena.obstacles,
 	}
 
-	-- who may start a fight against a bot without other players: Studio, the game's owner, and
-	-- anyone listed in BattleConfig.Test.devUserIds. Everyone else never sees the button.
+	-- who may start a fight against a bot without other players: Studio, and anyone listed in
+	-- BattleConfig.Test.devUserIds. The owner is not special: a phone never shows the DEV button.
 	local function devBotAllowed(player: Player): boolean
-		if isStudio or player.UserId == game.CreatorId then
+		if isStudio then
 			return true
 		end
 		return table.find(BattleConfig.Test.devUserIds, player.UserId) ~= nil
@@ -1476,7 +1476,7 @@ function BattleService.start(
 				return
 			end
 			if name == "queueBot" then
-				-- Studio, the owner or a listed dev only. The opponent is labeled Test Bot everywhere.
+				-- Studio or a listed dev only. The opponent is labeled Test Bot everywhere.
 				if
 					devBotAllowed(player)
 					and not inMatch[player]
