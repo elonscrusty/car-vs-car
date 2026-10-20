@@ -187,6 +187,16 @@ function TutorialClient.new(deps: Deps): Handle
 		local before = m.current()
 		local r = m.event(name, value)
 		if r.done ~= nil and ui ~= nil then
+			if r.done == "smash" then
+				-- the bubble that gets the check says the last box was smashed: 3 / 3
+				ui.setView({
+					id = "smash",
+					text = Tutorial.text("smash", touch, { n = TutorialConfig.boxesNeeded }),
+					anchor = "top",
+					practice = true,
+					boxes = TutorialConfig.boxesNeeded,
+				})
+			end
 			ui.celebrate()
 			holdUntil = os.clock() + TutorialConfig.celebrateSeconds
 		end
@@ -292,12 +302,19 @@ function TutorialClient.new(deps: Deps): Handle
 	end
 
 	-- a step has been shown long enough, the lesson also watches the lobby every frame
+	local yardWasReady = false
 	RunService.Heartbeat:Connect(function()
 		local m = machine
 		if m == nil then
 			return
 		end
 		safely("tick", function()
+			-- the yard just came up (the server and the fade took their time): show the step's bubble
+			local yardReady = practice ~= nil and practice.isReady()
+			if yardReady ~= yardWasReady then
+				yardWasReady = yardReady
+				refresh()
+			end
 			if holdUntil > 0 and os.clock() >= holdUntil then
 				holdUntil = 0
 				local p = practice

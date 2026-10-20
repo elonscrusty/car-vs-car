@@ -29,7 +29,7 @@ TutorialConfig.portal = { x = 0, z = 33, radius = 4.5, enterRadius = 3.4 }
 -- The green path leads to a point in front of the gumball machine; the machine's tap prompt works
 -- from 40 studs, so "near" is a little closer than that.
 TutorialConfig.gumballStop = { x = 0, z = -29 }
-TutorialConfig.gumballMachine = { x = 0, z = -60 } -- where the prompt is (the machine body, inside the workshop)
+TutorialConfig.gumballMachine = { x = 0, z = -54.7 } -- where the prompt is (the machine's front panel, in the workshop; a test checks it)
 TutorialConfig.gumballNearStuds = 34
 
 -- Seconds a "done" bubble (check + confetti) stays before the next step starts.

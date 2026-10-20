@@ -74,6 +74,7 @@ function TutorialPortal.new(origin: Vector3, getPosition: () -> Vector3?, onEnte
 	local bars: { Part } = {}
 	for i = 1, 4 do
 		local bar = newPart("Swirl", Vector3.new(inner * 1.9, 0.45, 0.18), CYAN, 0.35)
+		bar.CFrame = base * CFrame.Angles(0, 0, i * (math.pi / 4)) -- in place from the first frame
 		bar.Parent = folder
 		bars[i] = bar
 	end

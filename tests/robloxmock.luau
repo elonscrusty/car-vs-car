@@ -102,6 +102,12 @@ V2.__mul = function(a, b)
 	end
 	return V2.new(a.X * b.X, a.Y * b.Y)
 end
+V2.__div = function(a, b)
+	if type(b) == "number" then
+		return V2.new(a.X / b, a.Y / b)
+	end
+	return V2.new(a.X / b.X, a.Y / b.Y)
+end
 V2.__index = function(t: any, k: any)
 	if k == "Magnitude" then
 		return math.sqrt(t.X * t.X + t.Y * t.Y)
@@ -308,6 +314,12 @@ local PARENTS: { [string]: { string } } = {
 	TextButton = { "TextButton", "GuiButton", "GuiObject", "GuiBase2d" },
 	ImageLabel = { "ImageLabel", "GuiLabel", "GuiObject", "GuiBase2d" },
 	Frame = { "Frame", "GuiObject", "GuiBase2d" },
+	ScrollingFrame = { "ScrollingFrame", "GuiObject", "GuiBase2d" },
+	ImageButton = { "ImageButton", "GuiButton", "GuiObject", "GuiBase2d" },
+	ScreenGui = { "ScreenGui", "LayerCollector", "GuiBase2d" },
+	PlayerGui = { "PlayerGui", "BasePlayerGui" },
+	Humanoid = { "Humanoid" },
+	Camera = { "Camera" },
 	SurfaceGui = { "SurfaceGui", "LayerCollector", "GuiBase2d" },
 	BillboardGui = { "BillboardGui", "LayerCollector", "GuiBase2d" },
 	PointLight = { "PointLight", "Light" },
@@ -341,6 +353,15 @@ local EVENTS = {
 	Activated = true,
 	PromptTriggered = true,
 	Completed = true,
+	PreSimulation = true,
+	PostSimulation = true,
+	InputBegan = true,
+	InputEnded = true,
+	InputChanged = true,
+	MouseButton1Down = true,
+	MouseButton1Up = true,
+	MouseEnter = true,
+	MouseLeave = true,
 }
 
 local Signal = newClass("RBXScriptSignal")
@@ -381,6 +402,8 @@ local PART_DEFAULTS = function(): { [string]: any }
 		Massless = false,
 		Color = C3.new(0.63, 0.63, 0.63),
 		Reflectance = 0,
+		AssemblyLinearVelocity = v3(0, 0, 0),
+		AssemblyAngularVelocity = v3(0, 0, 0),
 	}
 end
 
@@ -481,6 +504,20 @@ local function newInstance(className: string): any
 	end
 	if className == "Model" then
 		self._props.PrimaryPart = nil
+	end
+	if isA(self, "GuiBase2d") then
+		self._props.AbsoluteSize = V2.new(0, 0)
+		self._props.AbsolutePosition = V2.new(0, 0)
+		self._props.AbsoluteRotation = 0
+	end
+	if isA(self, "GuiObject") then
+		self._props.Visible = true
+	end
+	if isA(self, "LayerCollector") then
+		self._props.Enabled = true
+	end
+	if className == "ScreenGui" then
+		self._props.AbsoluteSize = V2.new(1280, 720) -- a phone held sideways
 	end
 	return self
 end
@@ -594,6 +631,29 @@ function Inst.IsDescendantOf(self: any, anc: any)
 	end
 	return false
 end
+function Inst.FindFirstAncestorWhichIsA(self: any, cn: string)
+	local p = self._parent
+	while p do
+		if isA(p, cn) then
+			return p
+		end
+		p = p._parent
+	end
+	return nil
+end
+function Inst.FindFirstAncestor(self: any, name: string)
+	local p = self._parent
+	while p do
+		if p.Name == name then
+			return p
+		end
+		p = p._parent
+	end
+	return nil
+end
+function Inst.GetJoints()
+	return {}
+end
 function Inst.GetFullName(self: any)
 	local parts = { self.Name }
 	local p = self._parent
@@ -631,7 +691,12 @@ function Inst.Clone(self: any)
 	return c
 end
 function Inst.SetAttribute(self: any, k: string, v: any)
+	local old = self._attrs[k]
 	self._attrs[k] = v
+	local signal = self._signals["attr_" .. k]
+	if signal ~= nil and old ~= v then
+		signal:Fire()
+	end
 end
 function Inst.GetAttribute(self: any, k: string)
 	return self._attrs[k]
@@ -698,20 +763,37 @@ function Inst.Play() end
 function Inst.Stop() end
 
 -- Enum: any Enum.Foo.Bar gives a table with Name and Value.
+-- The same item is the same table every time (keys of a table can be Enum.KeyCode.W).
+local enumGroups: { [string]: any } = {}
 local EnumProxy = setmetatable({}, {
 	__index = function(_, group: string)
-		return setmetatable({}, {
-			__index = function(_, item: string)
-				return { Name = item, EnumType = group, Value = 0 }
-			end,
-		})
+		local g = enumGroups[group]
+		if g == nil then
+			local items: { [string]: any } = {}
+			g = setmetatable({}, {
+				__index = function(_, item: string)
+					local v = items[item]
+					if v == nil then
+						v = { Name = item, EnumType = group, Value = 0 }
+						items[item] = v
+					end
+					return v
+				end,
+			})
+			enumGroups[group] = g
+		end
+		return g
 	end,
 })
+Mock.Enum = EnumProxy
 
 -- The world ------------------------------------------------------------------
-function Mock.new(srcRoot: string?)
+-- opts.fakeClock: `os.clock()` inside the loaded modules reads the fake clock that `world.step` moves
+-- (for client code that counts seconds with os.clock).
+function Mock.new(srcRoot: string?, opts: { fakeClock: boolean? }?)
 	local root = srcRoot or "./src"
 	local world: any = {}
+	local fakeClock = opts ~= nil and opts.fakeClock == true
 	local services: { [string]: any } = {}
 	local clock = 0
 	local waiting: { { co: thread, at: number } } = {}
@@ -738,6 +820,31 @@ function Mock.new(srcRoot: string?)
 	terrain.Name = "Terrain"
 	terrain.Parent = ws
 	world.workspace = ws
+	-- the parts of a running client that the builders never needed
+	ws._props.Gravity = 196.2
+	ws._props.Raycast = function()
+		return nil -- no physics: nothing is ever hit
+	end
+	ws._props.Blockcast = function()
+		return nil
+	end
+	ws._props.GetServerTimeNow = function()
+		return clock
+	end
+	local camera = newInstance("Camera")
+	camera.Name = "Camera"
+	camera._props.ViewportSize = V2.new(1280, 720)
+	camera._props.FieldOfView = 70
+	camera._props.CFrame = CF.identity
+	camera._props.CameraType = EnumProxy.CameraType.Custom
+	ws._props.CurrentCamera = camera
+	world.camera = camera
+	local input = service("UserInputService")
+	input._props.KeyboardEnabled = true
+	input._props.TouchEnabled = false
+	input._props.MouseEnabled = true
+	input._props.GamepadEnabled = false
+	world.input = input
 	local rs = service("ReplicatedStorage")
 	local ss = service("ServerScriptService")
 	service("ServerStorage")
@@ -801,6 +908,18 @@ function Mock.new(srcRoot: string?)
 	coll.GetTagged = function()
 		return {}
 	end
+	coll.HasTag = function(_self: any, inst: any, tag: string)
+		return inst:HasTag(tag)
+	end
+	coll.RemoveTag = function(_self: any, inst: any, tag: string)
+		inst._tags[tag] = nil
+	end
+	coll.GetInstanceAddedSignal = function()
+		return newSignal()
+	end
+	coll.GetInstanceRemovedSignal = function()
+		return newSignal()
+	end
 
 	-- module loading
 	local moduleCache: { [any]: any } = {}
@@ -843,6 +962,7 @@ function Mock.new(srcRoot: string?)
 	end
 	addModules(root .. "/shared", shared)
 	addModules(root .. "/server", server)
+	addModules(root .. "/client", client)
 	local sharedBattle = newInstance("Folder")
 	sharedBattle.Name = "BattleModels"
 	sharedBattle.Parent = rs
@@ -969,6 +1089,16 @@ function Mock.new(srcRoot: string?)
 					return {}
 				end,
 			},
+			os = if fakeClock
+				then {
+					clock = function()
+						return clock
+					end,
+					time = os.time,
+					date = os.date,
+					difftime = os.difftime,
+				}
+				else nil,
 			tick = function()
 				return clock
 			end,
@@ -995,9 +1125,32 @@ function Mock.new(srcRoot: string?)
 		end
 		return loadModule(m)
 	end
-	-- Runs Heartbeat listeners and wakes sleepers for `dt` seconds of fake time.
+	-- "Foo" in src/client (a client module; its `script.Parent` is the client folder)
+	function world.requireClient(name: string): any
+		local m = client:FindFirstChild(name)
+		if not m then
+			error("no client module " .. name)
+		end
+		return loadModule(m)
+	end
+	-- Puts a fake in place of a module before anything requires it: stub("client/SteerInput", fake).
+	function world.stub(path: string, value: any)
+		local folderName, name = string.match(path, "^(%w+)/(.+)$")
+		local folder = if folderName == "shared"
+			then shared
+			elseif folderName == "client" then client
+			else server
+		local m = folder:FindFirstChild(name)
+		if not m then
+			error("no module " .. path)
+		end
+		moduleCache[m] = { value = value }
+	end
+	-- Runs the per-frame listeners and wakes sleepers for `dt` seconds of fake time.
 	function world.step(dt: number)
 		clock += dt
+		run.RenderStepped:Fire(dt)
+		run.PreSimulation:Fire(dt)
 		run.Heartbeat:Fire(dt)
 		local due = {}
 		local keep = {}
@@ -1028,11 +1181,40 @@ function Mock.new(srcRoot: string?)
 	function world.service(name: string)
 		return service(name)
 	end
+	-- the fake clock, in seconds since the world was made
+	function world.now(): number
+		return clock
+	end
 	function world.newPlayer(name: string, userId: number)
 		local p = newInstance("Player")
 		p.Name = name
 		p.DisplayName = name
 		p.UserId = userId
+		return p
+	end
+	-- The player on this device (client code reads Players.LocalPlayer): a PlayerGui and a character
+	-- with a HumanoidRootPart standing at `at` (default: the lobby spawn).
+	function world.newLocalPlayer(name: string, userId: number, at: any?)
+		local p = world.newPlayer(name, userId)
+		local gui = newInstance("PlayerGui")
+		gui.Name = "PlayerGui"
+		gui.Parent = p
+		local character = newInstance("Model")
+		character.Name = name
+		local rootPart = newInstance("Part")
+		rootPart.Name = "HumanoidRootPart"
+		rootPart.Size = v3(2, 2, 1)
+		rootPart.Anchored = true
+		rootPart.Position = at or v3(0, 5, 542)
+		rootPart.Parent = character
+		character.PrimaryPart = rootPart
+		local humanoid = newInstance("Humanoid")
+		humanoid.Name = "Humanoid"
+		humanoid.Parent = character
+		character.Parent = ws
+		p.Character = character
+		players._props.LocalPlayer = p
+		world.localPlayer = p
 		return p
 	end
 	world.instance = newInstance
@@ -1041,6 +1223,8 @@ function Mock.new(srcRoot: string?)
 end
 
 Mock.V3 = V3
+Mock.V2 = V2
+Mock.UD2 = UD2
 Mock.CF = CF
 Mock.C3 = C3
 

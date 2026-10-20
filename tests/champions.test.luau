@@ -33,6 +33,21 @@ local function profile(extra: any?): any
 	return p
 end
 
+H.test(
+	"SHOW THE TUTORIAL (Settings) goes back to the lobby and asks for the tutorial; nothing goes to the server",
+	function()
+		local m = newModel()
+		m.profile(profile(), 0)
+		local call, fx = m.intent("ReplayTutorial", {})
+		H.eq(call, nil, "the tutorial runs on this device: no call to the server")
+		H.eq(fx.tutorial, true)
+		H.eq(fx.open, "LOBBY")
+		-- the other actions do not ask for the tutorial
+		local _, other = m.intent("SaveSettings", { music = false })
+		H.eq(other.tutorial, nil)
+	end
+)
+
 H.test("every live car has a picture", function()
 	for _, id in CarConfig.Order do
 		local image = (Assets.Vehicles :: any)[id]

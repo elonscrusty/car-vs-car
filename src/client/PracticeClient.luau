@@ -386,7 +386,13 @@ function PracticeClient.new(deps: Deps): Practice
 	local function enterSequence(): boolean
 		answers = {}
 		deps.remotes.LobbyAction:FireServer("practiceEnter")
-		if waitFor({ "practiceReady", "practiceRefused" }, ANSWER_SECONDS) ~= "practiceReady" then
+		local answer = waitFor({ "practiceReady", "practiceRefused" }, ANSWER_SECONDS)
+		if answer ~= "practiceReady" then
+			if answer == nil then
+				-- no answer in time: the server may have parked the character after all, so ask for
+				-- them back (it moves nobody who was not parked)
+				deps.remotes.LobbyAction:FireServer("practiceExit")
+			end
 			return false
 		end
 		deps.fade(true, 0.3)
