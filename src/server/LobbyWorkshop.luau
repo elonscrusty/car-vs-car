@@ -170,7 +170,7 @@ local function buildMachine(shell: LobbyGarageShell.Shell): Model
 	local model = Instance.new("Model")
 	model.Name = "GumballMachine"
 	model.Parent = shell.group
-	local blue, orange, navy, white = rgb(C.blue), rgb(C.orange), rgb(C.panel), rgb(C.marking)
+	local blue, orange, navy, white = rgb(C.blue), rgb(C.orangeWall), rgb(C.panel), rgb(C.marking)
 	local function box(
 		name: string,
 		size: Vector3,
@@ -200,7 +200,7 @@ local function buildMachine(shell: LobbyGarageShell.Shell): Model
 		11.5,
 		0.35,
 		pos(0, baseH + 0.5, 0),
-		rgb(C.light),
+		rgb(C.orangeWall),
 		false,
 		nil,
 		Enum.Material.Neon
@@ -239,7 +239,7 @@ local function buildMachine(shell: LobbyGarageShell.Shell): Model
 	topKnob.Material = Enum.Material.SmoothPlastic
 	local lamp = Instance.new("PointLight")
 	lamp.Color = rgb(C.light)
-	lamp.Brightness = 1.2
+	lamp.Brightness = 0.4
 	lamp.Range = 26
 	lamp.Shadows = false
 	lamp.Parent = cap
