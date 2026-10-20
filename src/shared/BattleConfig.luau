@@ -227,7 +227,7 @@ BattleConfig.Ram = {
 }
 
 BattleConfig.Cannon = {
-	damage = 26, -- was 22 (more punch for a car that must also run)
+	damage = 36, -- was 26, 22 before: bot-vs-bot had Ram beat the Van 6-0 (7 draws); more punch for a car that must also run
 	minRangeL = 2.3, -- closer than this the van runs away from the foe (was 3: it ran more than it shot)
 	maxRangeL = 5.5,
 	knockSpeed = 22, -- studs per second a shell shoves the car it hits
@@ -238,7 +238,7 @@ BattleConfig.Cannon = {
 	shellSpeedL = 4.5, -- L per second (carter: easy to follow with the eyes)
 	shellLifeSeconds = 2.2,
 	shellRadiusL = 0.12,
-	homingDegPerSec = 80, -- auto-aim: a shell curves toward the foe this fast ...
+	homingDegPerSec = 110, -- (was 80) auto-aim: a shell curves toward the foe this fast ...
 	homingConeDeg = 45, -- ... when the foe is within this angle of its heading
 	ricochets = 1, -- a shell bounces off a wall this many times
 	repositionDrive = 0.8, -- when closing in
