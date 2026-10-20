@@ -3,7 +3,7 @@
 -- your own car (network ownership, model attribute "ClientDriven"), so the car answers the
 -- stick or keys right away instead of after a round trip. The server still decides weapons,
 -- hits, HP and the winner, and tells this driver about knocks and weapon states through model
--- attributes: KnockUntil (server time), BState / BDrive / BTurn (a ram charge, recoil or skid).
+-- attributes: KnockUntil (server time), RescueCf / RescueN (a stuck car is moved), BState / BDrive / BTurn (a ram charge, recoil or skid).
 -- When the server drives the car instead, this does nothing.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -26,6 +26,7 @@ function BattleDriver.new(read: () -> (number, number), findBody: () -> BasePart
 	local mover: BattleDrive.Mover? = nil
 	local seenKnock: any = nil
 	local flippedFor = 0
+	local seenRescue: any = nil
 
 	local function mine(body: BasePart): BattleDrive.Mover?
 		local model = body.Parent
@@ -41,6 +42,7 @@ function BattleDriver.new(read: () -> (number, number), findBody: () -> BasePart
 			return nil
 		end
 		seenKnock = model:GetAttribute("KnockUntil")
+		seenRescue = model:GetAttribute("RescueN")
 		mover = {
 			body = body,
 			model = model,
@@ -75,6 +77,20 @@ function BattleDriver.new(read: () -> (number, number), findBody: () -> BasePart
 			if type(knock) == "number" then
 				car.stagger = math.max(car.stagger, knock - workspace:GetServerTimeNow())
 				car.slide = Vector3.zero
+			end
+		end
+		-- the server cannot move a car this device owns, so a stuck-car rescue happens here
+		local rescue = model:GetAttribute("RescueN")
+		if rescue ~= seenRescue then
+			seenRescue = rescue
+			local target = model:GetAttribute("RescueCf")
+			if typeof(target) == "CFrame" then
+				local rel = body.CFrame:ToObjectSpace(model:GetPivot())
+				model:PivotTo(target * rel)
+				body.AssemblyLinearVelocity = Vector3.zero
+				body.AssemblyAngularVelocity = Vector3.zero
+				car.slide = Vector3.zero
+				car.stagger = 0
 			end
 		end
 		-- the server cannot turn a car this device owns, so a flipped car rights itself here
