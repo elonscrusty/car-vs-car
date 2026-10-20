@@ -199,6 +199,14 @@ function LobbyClient.start()
 				if far then
 					far:Destroy()
 				end
+				-- lights cost the most on a weak phone: turn the lobby's point lights off too
+				if lobby then
+					for _, d in lobby:GetDescendants() do
+						if d:IsA("PointLight") or d:IsA("SpotLight") then
+							d.Enabled = false
+						end
+					end
+				end
 				return
 			end
 		end
