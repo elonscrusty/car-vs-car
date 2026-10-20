@@ -89,7 +89,7 @@ local hints = HintUi.new(function(id: string)
 	remotes.LobbyAction:FireServer("hintSeen", id)
 end)
 
--- Standing on a pad (or the fight starting) is the first-time hint "Tap PLAY to fight" done: it must
+-- Standing on a pad (or the fight starting) is the first-time hint "Tap PLAY or step on a pad" done: it must
 -- not stay on screen behind the VS screen.
 remotes.BattleUpdate.OnClientEvent:Connect(function(m: any)
 	if type(m) == "table" and ((m.kind == "queue" and m.searching == true) or m.kind == "prep") then
