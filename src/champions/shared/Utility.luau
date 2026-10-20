@@ -467,7 +467,7 @@ end
 
 local function settings(root, state, ctx)
 	title(root, "SETTINGS", "MAKE THE GARAGE YOURS")
-	local panel = T.panel(root, "SettingsPanel", 229, 201, 742, 250, T.C.silver)
+	local panel = T.panel(root, "SettingsPanel", 229, 201, 742, 345, T.C.silver)
 	local values = state.settings or {}
 	local entries = {
 		{
@@ -519,12 +519,30 @@ local function settings(root, state, ctx)
 			value and "check" or nil
 		)
 	end
+	-- the first-time lesson again (a third row, below the toggles)
+	local replay = T.panel(panel, "ReplayTutorialRow", 18, 228, 706, 91, T.C.blue)
+	T.icon(replay, "SettingIcon", "car", 16, 21, 43, T.C.cyan)
+	T.text(replay, "SettingTitle", "SHOW THE TUTORIAL", 77, 10, 398, 31, 24, T.C.white)
+	T.text(
+		replay,
+		"SettingDescription",
+		"Learn to drive and pull a car again",
+		77,
+		48,
+		398,
+		24,
+		16,
+		T.C.muted
+	)
+	action(replay, "ReplayTutorial", "START", 519, 17, 166, 57, state, ctx, true, function()
+		ctx.request("ReplayTutorial", {})
+	end, T.C.green, "check")
 	T.text(
 		panel,
 		"SettingsStatus",
 		state.pending == "SaveSettings" and "SAVING…" or "",
 		18,
-		220,
+		315,
 		706,
 		22,
 		14,

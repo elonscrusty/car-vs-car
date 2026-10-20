@@ -22,11 +22,14 @@ local SpinUi = require(script.SpinUi)
 local PaintUi = require(script.PaintUi)
 local SoundFx = require(script.SoundFx)
 local BattleUi = require(script.BattleUi)
+local TutorialClient = require(script.TutorialClient)
 
-require(script.LobbyClient).start() -- arrow for new players, fade into the fight, rare pulls in chat
+require(script.LobbyClient).start() -- fade into the fight, the lobby spin, rare pulls for the whole server
 BattleUi.start() -- 1v1 auto-battle screens and camera (server: BattleService)
 Quality.start() -- low-end phones: fewer particles when the frame time is high
 local remotes = Remotes.get()
+-- The first-time tutorial (portal, practice drive, green line, free pull); also run again from Settings.
+local tutorial = TutorialClient.new({ remotes = remotes })
 local menu = MenuBar.new() -- features add their own lobby buttons here (see MenuBar.luau)
 -- Launch cuts live behind FeatureFlags: the UI is simply not built while a flag is off.
 local botLevelUi = if FeatureFlags.enabled("botLevelButton")
@@ -60,10 +63,11 @@ remotes.BattleUpdate.OnClientEvent:Connect(function(m: any)
 	if type(m) == "table" and ((m.kind == "queue" and m.searching == true) or m.kind == "prep") then
 		hints.done("pad")
 	end
+	tutorial.handleBattle(m)
 end)
 
 -- Carter's Champions UI (src/champions) draws every lobby and match screen; the bridge feeds it.
-local champions = ChampionsBridge.new()
+local champions = ChampionsBridge.new(tutorial.replay)
 
 -- Back at the lobby: lobby music and the next hint.
 local function onToLobby()
@@ -74,6 +78,7 @@ local function onToLobby()
 end
 remotes.LobbyUpdate.OnClientEvent:Connect(function(u: Types.LobbyUpdate)
 	champions.handleLobby(u)
+	tutorial.handleLobby(u) -- before the pad hint below: a new player gets the tutorial instead
 	if u.kind == "toLobby" then
 		onToLobby()
 	end
@@ -94,12 +99,15 @@ remotes.LobbyUpdate.OnClientEvent:Connect(function(u: Types.LobbyUpdate)
 		-- GARAGE stay hidden (the customize garage in the lobby opens the paint / garage screen).
 		menu.setShown("quests", false)
 		menu.setShown("garage", false)
-		hints.trigger("pad") -- no-op once seen
+		if not tutorial.active() then
+			hints.trigger("pad") -- no-op once seen
+		end
 	elseif u.kind == "countdown" and u.seconds > 0 then
 		hints.done("pad") -- stepped on a pad
 	end
 end)
 ProximityPromptService.PromptTriggered:Connect(function(prompt: ProximityPrompt)
+	tutorial.promptTriggered(prompt.Name)
 	if prompt.Name == "GachaPrompt" and hints.loaded() then
 		hints.done("claw")
 	elseif

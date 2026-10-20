@@ -14,6 +14,7 @@ export type Effects = {
 	notifyOk: boolean?, -- false = the action failed (clears the UI's pending state)
 	open: string?, -- screen to open: "LOBBY", "PICKER", "RESULTS"...
 	settings: { music: boolean, sfx: boolean, reducedMotion: boolean }?,
+	tutorial: boolean?, -- show the first-time tutorial again (Settings)
 }
 
 export type Options = {
@@ -389,6 +390,11 @@ function Adapter.new(opts: Options): Model
 				end
 			end
 			fx.settings = settings
+			return nil, fx
+		elseif action == "ReplayTutorial" then
+			-- the tutorial is all on this device: back to the lobby, the bridge starts it
+			fx.open = "LOBBY"
+			fx.tutorial = true
 			return nil, fx
 		end
 		return nil, fx -- SetMode (fights only), ResetCar and the spectator arrows have no server side

@@ -9,7 +9,10 @@ local Hints = {}
 -- Order = the order a new player meets them: lobby pads, first aim phase, claw machine, then the
 -- first time in each group mode (controls) and the "new menu buttons" notice. Every id here is saved
 -- in profile.hintsSeen, so each shows once per player.
-Hints.Order = { "pad", "aim", "claw", "soccer", "tag", "race", "unlock" }
+-- "tutorial" = the first-time tutorial was started (saved at the start, so leaving half-way never
+-- shows it again); "tutorialDone" = its small coin gift was paid (once). See shared/TutorialRules.
+Hints.Order =
+	{ "pad", "aim", "claw", "soccer", "tag", "race", "unlock", "tutorial", "tutorialDone" }
 
 Hints.Text = {
 	pad = "Tap PLAY or step on a pad",
@@ -21,6 +24,9 @@ Hints.Text = {
 	race = "Drive through the gates in order",
 	-- Shown when QUESTS and GARAGE appear in the menu (MenuRules.unlockNotice).
 	unlock = "New buttons: QUESTS and GARAGE",
+	-- Flags of the tutorial (never shown as a hint line; the tutorial draws its own bubbles).
+	tutorial = "Tutorial started",
+	tutorialDone = "Tutorial coin gift paid",
 } :: { [string]: string }
 
 -- Mode name -> hint id shown the first time the player plays that mode (client asks, server saves).

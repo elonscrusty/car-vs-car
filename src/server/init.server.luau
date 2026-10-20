@@ -14,6 +14,7 @@ local Atmosphere = require(script.Atmosphere)
 local BattleService = require(script.BattleService)
 local FeatureFlags = require(ReplicatedStorage.Shared.FeatureFlags)
 local Gacha = require(ReplicatedStorage.Shared.Gacha)
+local Inventory = require(ReplicatedStorage.Shared.Inventory)
 local Lobby = require(script.Lobby)
 local LobbyPads = require(script.LobbyPads)
 local LobbyPlayers = require(script.LobbyPlayers)
@@ -21,6 +22,7 @@ local LobbyService = require(script.LobbyService)
 local Leaderboards = require(script.Leaderboards)
 local Profiles = require(script.Profiles)
 local Telemetry = require(script.Telemetry)
+local TutorialService = require(script.TutorialService)
 
 -- Real characters walk in the lobby (spawn is the lobby SpawnLocation).
 Players.CharacterAutoLoads = true
@@ -84,6 +86,16 @@ lobbyPads = LobbyPads.start({
 	battle = battle,
 	remotes = remotes,
 })
+-- The first-time tutorial: its flags, the coin gift, and parking the character during the practice
+-- drive (the drive itself runs on the player's device).
+local tutorial = TutorialService.start({
+	remotes = remotes,
+	sendProfile = lobbyService.sendProfile,
+	profiles = Profiles,
+	addCoins = Inventory.addCoins,
+	pads = lobbyPads,
+	isBusy = battle.isBusy,
+})
 remotes.BattleAction.OnServerEvent:Connect(function(player: Player, name: any, arg: any)
 	if type(name) == "string" and (arg == nil or type(arg) == "string") then
 		battle.action(player, name, arg)
@@ -99,6 +111,7 @@ local function onPlayerRemoving(player: Player)
 	Telemetry.left(player)
 	battle.playerRemoving(player)
 	lobbyPads.remove(player)
+	tutorial.remove(player)
 	lobbyService.onPlayerRemoving(player)
 	steerLimiter.clear(player)
 	lobbyLimiter.clear(player)
@@ -117,6 +130,9 @@ remotes.LobbyAction.OnServerEvent:Connect(function(player: Player, action: any, 
 		return
 	end
 	if action == "pickCar" and type(arg) ~= "string" then
+		return
+	end
+	if tutorial.action(player, action, arg) then
 		return
 	end
 	if FeatureFlags.enabled("battleMode") then

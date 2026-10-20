@@ -409,6 +409,11 @@ function State.validateAction(state, action, payload, now)
 			return {}
 		end
 		return nil, "Finish this match first."
+	elseif action == "ReplayTutorial" then
+		if current or state.queue then
+			return nil, "Finish this fight first."
+		end
+		return {}
 	elseif action == "Boost" or action == "Ability" or action == "ResetCar" then
 		if
 			not current
