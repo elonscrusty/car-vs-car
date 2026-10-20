@@ -116,9 +116,10 @@ end
 -- car's roof. The arm's PivotOffset puts Swing's pivot on the axis (y = 27.25), so another script
 -- can turn it with `rest = swing:GetPivot()` once, then
 -- `swing:PivotTo(CFrame.new(rest.Position) * CFrame.Angles(0, a, 0) * rest.Rotation)`.
-function ChaseLandmarks.crane(parent: Instance, cf: CFrame): Crane
+function ChaseLandmarks.crane(parent: Instance, cf: CFrame, reachStuds: number?): Crane
 	local m = model(parent, "WreckingCrane")
-	local reach = 34
+	m.ModelStreamingMode = Enum.ModelStreamingMode.Atomic -- the swing is animated on clients: all or nothing
+	local reach = reachStuds or 34
 	local core = part(m, "Core", Vector3.new(12, 4, 12), cf * CFrame.new(0, 2, 0), YELLOW, true)
 	part(m, "BaseBand", Vector3.new(12.3, 1.2, 12.3), cf * CFrame.new(0, 2.2, 0), BLACK, false)
 	-- the column runs 4 .. 22, banded yellow and black; the red head sits 22 .. 26
@@ -130,12 +131,29 @@ function ChaseLandmarks.crane(parent: Instance, cf: CFrame): Crane
 
 	local swing = model(m, "Swing")
 	local armY = 27.25 -- arm runs 26 .. 28.5 high, from x = -6 to x = 35
-	local arm =
-		part(swing, "Arm", Vector3.new(41, 2.5, 3), cf * CFrame.new(14.5, armY, 0), YELLOW, false)
-	arm.PivotOffset = CFrame.new(-14.5, 0, 0) -- pivot on the mast axis
+	local armLen = reach + 7 -- from x = -6 to x = reach + 1
+	local armMid = (reach - 5) / 2
+	local arm = part(
+		swing,
+		"Arm",
+		Vector3.new(armLen, 2.5, 3),
+		cf * CFrame.new(armMid, armY, 0),
+		YELLOW,
+		false
+	)
+	arm.PivotOffset = CFrame.new(-armMid, 0, 0) -- pivot on the mast axis
 	swing.PrimaryPart = arm
-	for _, x in { 5, 11, 17, 23, 29 } do
-		part(swing, "Stripe", Vector3.new(1.4, 2.7, 3.2), cf * CFrame.new(x, armY, 0), BLACK, false)
+	local sx = 5
+	while sx < reach - 3 do
+		part(
+			swing,
+			"Stripe",
+			Vector3.new(1.4, 2.7, 3.2),
+			cf * CFrame.new(sx, armY, 0),
+			BLACK,
+			false
+		)
+		sx += 6
 	end
 	part(
 		swing,
@@ -198,7 +216,6 @@ function ChaseLandmarks.crane(parent: Instance, cf: CFrame): Crane
 	local ballY = 6.8
 	local wreck =
 		ball(swing, "Ball", 12, cf:PointToWorldSpace(Vector3.new(reach, ballY, 0)), BLACK, false)
-	wreck.CanQuery = true -- the damage script looks it up; it still never collides or touches
 	-- two painted bands round the ball, crossing at the top and bottom
 	cyl(swing, "BallBand", 1.6, 12.3, cf * CFrame.new(reach, ballY, 0), RED)
 	cyl(

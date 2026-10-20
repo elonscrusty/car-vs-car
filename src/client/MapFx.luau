@@ -30,11 +30,12 @@ local cranes: {
 	{}
 
 local function addCrane(inst: Instance)
-	if not inst:IsA("Model") then
+	if not inst:IsA("Model") or cranes[inst] ~= nil then
 		return
 	end
-	local swing = inst:FindFirstChild("Swing")
-	local mast = inst:FindFirstChild("Mast")
+	-- the model streams in whole (atomic), but wait a moment for the pieces anyway
+	local swing = inst:WaitForChild("Swing", 10)
+	local mast = inst:WaitForChild("Mast", 10)
 	if swing == nil or not swing:IsA("Model") or mast == nil or not mast:IsA("BasePart") then
 		return
 	end
@@ -90,10 +91,10 @@ function MapFx.start()
 	end
 	CollectionService:GetInstanceAddedSignal("MapWave"):Connect(addWave)
 	for _, inst in CollectionService:GetTagged("MapCrane") do
-		addCrane(inst)
+		task.spawn(addCrane, inst)
 	end
 	CollectionService:GetInstanceAddedSignal("MapCrane"):Connect(function(inst)
-		task.delay(0.5, addCrane, inst) -- let the arm and ball stream in first
+		task.spawn(addCrane, inst)
 	end)
 	CollectionService:GetInstanceRemovedSignal("MapCrane"):Connect(function(inst)
 		cranes[inst :: Model] = nil
@@ -119,6 +120,20 @@ function MapFx.start()
 				end
 			else
 				waving[model] = nil
+			end
+		end
+		-- the camera rides high behind the car: while it is in the tunnel, the deck above turns see-through
+		local cam = workspace.CurrentCamera
+		if cam then
+			local focus = cam.Focus.Position
+			for _, deck in CollectionService:GetTagged("ChaseDeck") do
+				if deck:IsA("BasePart") then
+					local rel = focus - deck.Position
+					local inside = math.abs(rel.X) < deck.Size.X / 2
+						and math.abs(rel.Z) < deck.Size.Z / 2
+						and rel.Y < 0
+					deck.LocalTransparencyModifier = if inside then 0.8 else 0
+				end
 			end
 		end
 		local now = workspace:GetServerTimeNow()

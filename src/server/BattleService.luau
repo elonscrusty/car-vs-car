@@ -821,6 +821,7 @@ function BattleService.start(
 				if stuckFor[car] > 2.5 then
 					stuckFor[car] = 0
 					local pos, face = arena.rescuePoint(car.body.Position)
+					pos = Vector3.new(pos.X, arena.origin.Y + car.body.Size.Y / 2 + 0.3, pos.Z)
 					local rel = car.body.CFrame:ToObjectSpace(car.model:GetPivot())
 					car.model:PivotTo(CFrame.lookAt(pos, pos + face) * rel)
 					car.body.AssemblyLinearVelocity = Vector3.zero

@@ -244,7 +244,7 @@ test("the crane swings across the road and never leaves it", function()
 		local a = L.craneAngle(t)
 		truthy(math.abs(a) <= c.amp + 1e-6)
 		local bx, bz = L.ballPosition(a)
-		truthy(bx - c.ballRadius >= L.ringInner - 10, "ball stays out of the plaza, x=" .. bx)
+		truthy(bx - c.ballRadius >= L.ringInner + 1, "ball stays out of the plaza, x=" .. bx)
 		truthy(bz >= -L.halfZ and bz <= L.halfZ)
 		truthy(math.abs(bz) < L.ringInner + 10 or true)
 	end

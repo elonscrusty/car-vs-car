@@ -349,7 +349,7 @@ local function deck(folder: Folder, origin: Vector3, solids: { Instance })
 		true,
 		solids
 	)
-	bouncy(roof)
+	CollectionService:AddTag(roof, "ChaseDeck") -- the client fades it while the camera is in the tunnel
 	local tw = Layout.tunnel.halfWidth
 	local side = d.half - tw
 	for _, s in { -1, 1 } do
@@ -449,7 +449,7 @@ local function surroundings(folder: Folder, origin: Vector3)
 	end
 	for i = 1, 36 do
 		local a = rnd() * math.pi * 2
-		local r = 190 + rnd() * 70
+		local r = 175 + rnd() * 65
 		local pos = origin + Vector3.new(math.cos(a) * r, -0.5, math.sin(a) * r)
 		ChaseProps.tree(
 			far,
@@ -462,9 +462,9 @@ local function surroundings(folder: Folder, origin: Vector3)
 		local a = (i - 0.5) / 8 * math.pi * 2
 		ChaseProps.hill(
 			far,
-			CFrame.new(origin + Vector3.new(math.cos(a) * 330, -1, math.sin(a) * 330)),
-			55 + (i % 3) * 12,
-			26 + (i % 2) * 8
+			CFrame.new(origin + Vector3.new(math.cos(a) * 215, -1, math.sin(a) * 215)),
+			34 + (i % 3) * 5,
+			18 + (i % 2) * 6
 		)
 	end
 	for _, p in { { -112, -112 }, { 112, 112 }, { -112, 112 }, { 112, -112 } } do
@@ -609,7 +609,8 @@ function ChaseMap.build(folder: Folder, origin: Vector3, solids: { Instance }): 
 	local cr = Layout.crane
 	local crane = ChaseLandmarks.crane(
 		folder,
-		CFrame.new(origin + Vector3.new(cr.x, 0, cr.z)) * CFrame.Angles(0, math.pi, 0)
+		CFrame.new(origin + Vector3.new(cr.x, 0, cr.z)) * CFrame.Angles(0, math.pi, 0),
+		cr.armLength
 	)
 	harden(crane.model, solids)
 	crane.model:SetAttribute("Amp", cr.amp)
@@ -680,15 +681,15 @@ function ChaseMap.build(folder: Folder, origin: Vector3, solids: { Instance }): 
 		end,
 		rescuePoint = function(pos: Vector3): (Vector3, Vector3)
 			local lx, lz = pos.X - origin.X, pos.Z - origin.Z
-			local best, bestD = nil, math.huge
-			for _, r in Layout.rescuePoints() do
+			local points = Layout.rescuePoints()
+			local best, bestD = points[1], math.huge
+			for _, r in points do
 				local d = (r.x - lx) ^ 2 + (r.z - lz) ^ 2
 				if d < bestD then
 					best, bestD = r, d
 				end
 			end
-			local r = best :: { x: number, z: number, fx: number, fz: number }
-			return origin + Vector3.new(r.x, 1, r.z), Vector3.new(r.fx, 0, r.fz)
+			return origin + Vector3.new(best.x, 1, best.z), Vector3.new(best.fx, 0, best.fz)
 		end,
 		verify = function() end,
 		resetBreakables = function()

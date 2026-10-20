@@ -18,7 +18,7 @@ Layout.wallHeight = 7 -- car height: a car bounces off it, nothing more
 Layout.wallThickness = 4
 Layout.wallBounce = 0.9
 Layout.ringInner = 120 -- the ring road runs from here to the wall
-Layout.groundSize = 760 -- the grass plate under and round everything
+Layout.groundSize = 516 -- slots are 520 apart, so neighbours never overlap -- the grass plate under and round everything
 
 Layout.colors = {
 	road = { 150, 160, 178 }, -- light blue-grey: dark cars do not melt into it
@@ -70,9 +70,9 @@ Layout.hazard = {
 
 -- The wrecking-ball crane: mast at the east road edge, the arm swings over the road.
 Layout.crane = {
-	x = 154,
+	x = 151,
 	z = -70,
-	armLength = 34,
+	armLength = 24,
 	ballRadius = 6,
 	amp = 1.35, -- radians each side of straight across the road
 	period = 4.6, -- seconds for one full swing there and back
