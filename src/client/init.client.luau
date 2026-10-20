@@ -22,14 +22,41 @@ local SpinUi = require(script.SpinUi)
 local PaintUi = require(script.PaintUi)
 local SoundFx = require(script.SoundFx)
 local BattleUi = require(script.BattleUi)
-local TutorialClient = require(script.TutorialClient)
+-- The first-time tutorial is new: if it cannot load or start, the game runs without it (a bug there
+-- must never stop the lobby, the fights or the menus from starting).
+type TutorialHandle = {
+	handleLobby: (u: any) -> (),
+	handleBattle: (m: any) -> (),
+	promptTriggered: (promptName: string) -> (),
+	replay: () -> (),
+	active: () -> boolean,
+}
+local tutorialLoaded, TutorialClient: any = pcall(require, script.TutorialClient)
 
 require(script.LobbyClient).start() -- fade into the fight, the lobby spin, rare pulls for the whole server
 BattleUi.start() -- 1v1 auto-battle screens and camera (server: BattleService)
 Quality.start() -- low-end phones: fewer particles when the frame time is high
 local remotes = Remotes.get()
 -- The first-time tutorial (portal, practice drive, green line, free pull); also run again from Settings.
-local tutorial = TutorialClient.new({ remotes = remotes })
+local tutorial: TutorialHandle = {
+	handleLobby = function() end,
+	handleBattle = function() end,
+	promptTriggered = function() end,
+	replay = function() end,
+	active = function()
+		return false
+	end,
+}
+if tutorialLoaded then
+	local started, made: any = pcall(TutorialClient.new, { remotes = remotes })
+	if started then
+		tutorial = made
+	else
+		warn("[Tutorial] could not start: " .. tostring(made))
+	end
+else
+	warn("[Tutorial] could not load: " .. tostring(TutorialClient))
+end
 local menu = MenuBar.new() -- features add their own lobby buttons here (see MenuBar.luau)
 -- Launch cuts live behind FeatureFlags: the UI is simply not built while a flag is off.
 local botLevelUi = if FeatureFlags.enabled("botLevelButton")

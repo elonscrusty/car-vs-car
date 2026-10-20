@@ -131,3 +131,46 @@ H.test(
 		truthy(e.gui:FindFirstChild("LobbyFade"))
 	end
 )
+
+H.test("a banner that cannot start does not stop the rest of the lobby client", function()
+	local world = Mock.new("./src", { fakeClock = true })
+	world.quiet = true
+	world.stub("client/RareBanner", {
+		new = function()
+			error("the banner is broken")
+		end,
+	})
+	local player = world.newLocalPlayer("Dana", 7)
+	local LobbyClient = world.requireClient("LobbyClient")
+	LobbyClient.start() -- must not throw
+	truthy(player.PlayerGui:FindFirstChild("LobbyFade"), "the fade is still there")
+	local remotes = world.require("shared/Remotes").get()
+	remotes.LobbyUpdate.OnClientEvent:Fire({ kind = "announce", text = "Kim pulled a big one!" })
+	world.step(1)
+	eq(player.PlayerGui:FindFirstChild("CVC_RareBanner"), nil, "no banner, and no error")
+end)
+
+H.test("a banner that breaks while showing does not stop later messages", function()
+	local world = Mock.new("./src", { fakeClock = true })
+	world.quiet = true
+	local shown = 0
+	world.stub("client/RareBanner", {
+		new = function()
+			return {
+				show = function()
+					shown += 1
+					if shown == 1 then
+						error("the first message breaks")
+					end
+				end,
+			}
+		end,
+	})
+	world.newLocalPlayer("Dana", 7)
+	local LobbyClient = world.requireClient("LobbyClient")
+	LobbyClient.start()
+	local remotes = world.require("shared/Remotes").get()
+	remotes.LobbyUpdate.OnClientEvent:Fire({ kind = "announce", text = "one" })
+	remotes.LobbyUpdate.OnClientEvent:Fire({ kind = "announce", text = "two" })
+	eq(shown, 2, "the second message still reaches the banner")
+end)
