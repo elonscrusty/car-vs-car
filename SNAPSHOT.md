@@ -11,6 +11,10 @@
 - Removed: launch aim / start spot rows, momentum (Bounce) as default (`defaultMomentum=false`; code kept for the bot).
 - MAP CONTRACT: `BattleArena` reads spawns from parts named `SpawnA` / `SpawnB` in the arena folder (position + front
   direction); with none it uses the old default spots. Arena size for bots/borders is still `BattleConfig.Arena`.
+- Feel pass (2026-10-20): `BattleCar.driveHuman` (2x accel, tight low-speed turns, drift when steering hard at speed,
+  no forced speed in the air so map ramps launch the car; numbers in `BattleConfig.Human`). Hit juice in `BattleUi`
+  (`handlers.hit`: sparks, debris, damage number, camera shake, red flash when YOU are hit, wreck explosion on the K.O.).
+  Server `hit` message now carries dmg, victim side and ko.
 - Not verified yet: a real phone play, camera at walls (ray pulls it in), ping feel.
 
 
