@@ -261,6 +261,16 @@ BattleConfig.Human = {
 	camLookL = 1.4, -- ... looking at a point this far ahead of the car
 	camFov = 68,
 	camSmooth = 9, -- how fast the camera swings round behind the car
+	-- driving feel
+	accelMult = 2, -- quicker getaway than the auto-pilot cars (cruise speeds per second x this)
+	brakeMult = 1.6,
+	turnMinScale = 0.7, -- turn rate while crawling (a tight turn from standstill)
+	driftSteer = 0.55, -- steering this hard ...
+	driftSpeed = 0.75, -- ... at this share of cruise speed starts a drift
+	driftSide = 3, -- sideways grip while drifting (normal 8: lower = longer slide)
+	driftYawBoost = 1.25, -- the nose swings round faster while drifting
+	airYawScale = 0.35, -- a little steering in the air
+	groundRayL = 0.6, -- grounded when something is this far (in car lengths) below
 }
 
 BattleConfig.Rewards = {

@@ -394,9 +394,21 @@ function BattleService.start(opts: {
 		end
 	end
 
-	local function sendHit(m: Match, pos: Vector3, big: boolean)
+	-- `dmg` and `victim` (the side that was hit) let the client pop a damage number and shake the
+	-- view harder when it is YOUR car; `ko` = the final blow (wreck explosion).
+	local function sendHit(
+		m: Match,
+		pos: Vector3,
+		big: boolean,
+		dmg: number?,
+		victim: string?,
+		ko: boolean?
+	)
 		for _, side in sides() do
-			send((m.parts :: any)[side], { kind = "hit", pos = pos, big = big })
+			send(
+				(m.parts :: any)[side],
+				{ kind = "hit", pos = pos, big = big, dmg = dmg, victim = victim, ko = ko }
+			)
 		end
 	end
 
@@ -593,7 +605,7 @@ function BattleService.start(opts: {
 						BattleConfig.Cannon.knockSpeed,
 						BattleConfig.Cannon.knockStagger
 					)
-					sendHit(m, hit.Position, false)
+					sendHit(m, hit.Position, false, BattleConfig.Cannon.damage, s.foe.side)
 				end
 			else
 				s.pos += step
@@ -701,7 +713,7 @@ function BattleService.start(opts: {
 					if car.fighter.id == "SawBuggy" then
 						car.stats.sawHits += 1
 					end
-					sendHit(m, foe.body.Position, out.event == "Ram hit")
+					sendHit(m, foe.body.Position, out.event == "Ram hit", out.damage, foe.side)
 				end
 				if out.event == "Ram hit" or out.event == "Ram missed" then
 					car.stats.charges += 1
@@ -728,6 +740,7 @@ function BattleService.start(opts: {
 					car.brain = nil
 					if car.hp <= 0 then
 						BattleCar.wreck(car)
+						sendHit(m, car.body.Position, true, nil, car.side, true)
 					end
 				end
 				sendEvent(m, if a.hp <= 0 then "b" else "a", "K.O.")

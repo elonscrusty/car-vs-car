@@ -8,6 +8,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Debris = game:GetService("Debris")
+local TweenService = game:GetService("TweenService")
 
 local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
@@ -666,6 +667,7 @@ function BattleUi.start()
 	local arenaHalf = Vector2.zero
 	local camOn = false
 	local camSmooth: CFrame? = nil
+	local shakeAmp = 0 -- camera shake, studs; decays by itself
 
 	-- the two cars of my arena (found by their side attribute near the arena middle)
 	local carBodies: { BasePart } = {}
@@ -828,7 +830,21 @@ function BattleUi.start()
 			cur = cur:Lerp(target, math.clamp(rate * dt, 0, 1))
 		end
 		camSmooth = cur
-		camera.CFrame = cur :: CFrame
+		local shaken = cur :: CFrame
+		if shakeAmp > 0.02 then
+			local r = shakeAmp
+			shaken = shaken
+				* CFrame.new((math.random() - 0.5) * r, (math.random() - 0.5) * r, 0)
+				* CFrame.Angles(
+					(math.random() - 0.5) * r * 0.012,
+					(math.random() - 0.5) * r * 0.012,
+					(math.random() - 0.5) * r * 0.02
+				)
+			shakeAmp *= math.max(0, 1 - 6 * dt)
+		else
+			shakeAmp = 0
+		end
+		camera.CFrame = shaken
 		camera.FieldOfView = if myBody ~= nil
 			then BattleConfig.Human.camFov
 			else BattleConfig.Camera.fovDeg
@@ -963,6 +979,114 @@ function BattleUi.start()
 		p.Parent = workspace
 		e:Emit(if big then 16 else 9)
 		Debris:AddItem(p, 1)
+	end
+
+	-- ---------- hit juice: debris, damage numbers, shake, flash, wreck explosion ----------
+	local flashF = frame(gui, "HitFlash", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), COL_BAD, 1)
+	flashF.ZIndex = 20
+	flashF.Visible = true
+	local function flash(color: Color3, strength: number)
+		flashF.BackgroundColor3 = color
+		flashF.BackgroundTransparency = 1 - strength
+		TweenService:Create(
+			flashF,
+			TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ BackgroundTransparency = 1 }
+		):Play()
+	end
+
+	local DEBRIS_COLORS = {
+		Color3.fromRGB(255, 200, 70),
+		Color3.fromRGB(255, 120, 40),
+		Color3.fromRGB(150, 155, 165),
+		Color3.fromRGB(60, 60, 70),
+	}
+	local function debris(pos: Vector3, count: number, speed: number)
+		for _ = 1, count do
+			local p = Instance.new("Part")
+			local size = 0.5 + math.random() * 1.2
+			p.Size = Vector3.new(size, size * 0.6, size)
+			p.Color = DEBRIS_COLORS[math.random(1, #DEBRIS_COLORS)]
+			p.Material = Enum.Material.SmoothPlastic
+			p.CanQuery = false
+			p.CanTouch = false
+			p.CFrame = CFrame.new(pos + Vector3.new(0, 2, 0))
+				* CFrame.Angles(math.random() * 6, math.random() * 6, math.random() * 6)
+			local dir =
+				Vector3.new(math.random() - 0.5, 0.4 + math.random() * 0.9, math.random() - 0.5)
+			p.AssemblyLinearVelocity = dir.Unit * speed * (0.5 + math.random())
+			p.AssemblyAngularVelocity =
+				Vector3.new(math.random() * 14 - 7, math.random() * 14 - 7, math.random() * 14 - 7)
+			p.Parent = workspace
+			Debris:AddItem(p, 1.6)
+		end
+	end
+
+	local function damageNumber(pos: Vector3, dmg: number, big: boolean, mine: boolean)
+		local anchor = Instance.new("Part")
+		anchor.Anchored = true
+		anchor.CanCollide = false
+		anchor.CanQuery = false
+		anchor.CanTouch = false
+		anchor.Transparency = 1
+		anchor.Size = Vector3.one
+		anchor.Position = pos + Vector3.new(0, 4, 0)
+		local bb = Instance.new("BillboardGui")
+		bb.Size = UDim2.fromOffset(if big then 150 else 110, if big then 70 else 52)
+		bb.AlwaysOnTop = true
+		bb.Adornee = anchor
+		bb.Parent = anchor
+		local t = Instance.new("TextLabel")
+		t.Size = UDim2.fromScale(1, 1)
+		t.BackgroundTransparency = 1
+		t.Font = FONT
+		t.Text = "-" .. tostring(dmg)
+		t.TextScaled = true
+		t.TextColor3 = if mine then COL_BAD else Color3.fromRGB(255, 225, 90)
+		t.TextStrokeTransparency = 0.2
+		t.Parent = bb
+		anchor.Parent = workspace
+		TweenService:Create(
+			anchor,
+			TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ Position = anchor.Position + Vector3.new(0, 7, 0) }
+		):Play()
+		TweenService:Create(
+			t,
+			TweenInfo.new(0.8, Enum.EasingStyle.Linear),
+			{ TextTransparency = 1, TextStrokeTransparency = 1 }
+		):Play()
+		Debris:AddItem(anchor, 0.9)
+	end
+
+	-- the final blow: a fireball, a shock ring and a lot of debris
+	local function wreckExplosion(pos: Vector3)
+		for i = 1, 3 do
+			task.delay((i - 1) * 0.08, function()
+				sparks(pos + Vector3.new(0, 2, 0), true)
+			end)
+		end
+		debris(pos, 34, 70)
+		local ball = Instance.new("Part")
+		ball.Shape = Enum.PartType.Ball
+		ball.Anchored = true
+		ball.CanCollide = false
+		ball.CanQuery = false
+		ball.CanTouch = false
+		ball.Material = Enum.Material.Neon
+		ball.Color = Color3.fromRGB(255, 170, 50)
+		ball.Transparency = 0.2
+		ball.Size = Vector3.one * 4
+		ball.Position = pos + Vector3.new(0, 3, 0)
+		ball.Parent = workspace
+		TweenService:Create(
+			ball,
+			TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ Size = Vector3.one * 34, Transparency = 1 }
+		):Play()
+		Debris:AddItem(ball, 0.6)
+		shakeAmp = math.max(shakeAmp, 4)
+		flash(Color3.fromRGB(255, 240, 200), 0.75)
 	end
 
 	local function showEvent(text: string)
@@ -1118,7 +1242,23 @@ function BattleUi.start()
 	end
 
 	handlers.hit = function(m)
-		sparks(m.pos, m.big == true)
+		if m.ko == true then
+			wreckExplosion(m.pos)
+			return
+		end
+		local big = m.big == true
+		local mine = m.victim ~= nil and m.victim == mySide
+		sparks(m.pos, big)
+		debris(m.pos, if big then 12 else 5, if big then 40 else 24)
+		if type(m.dmg) == "number" and m.dmg > 0 then
+			damageNumber(m.pos, m.dmg, big, mine)
+		end
+		-- a hit on YOU shakes the view harder and flashes red
+		local amp = if big then 1.8 else 0.7
+		shakeAmp = math.max(shakeAmp, if mine then amp * 1.5 else amp)
+		if mine then
+			flash(COL_BAD, if big then 0.45 else 0.25)
+		end
 	end
 
 	handlers.roundResult = function(m)
