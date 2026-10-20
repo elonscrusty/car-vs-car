@@ -533,7 +533,9 @@ local function renderClaw(root, state, ctx)
 	local label = loading(state)
 		or (
 			complete and "YOU HAVE EVERY CAR"
-			or affordable and "PULL  •  " .. T.format(cost) .. " COINS"
+			or affordable and (if cost == 0
+				then "FREE PULL!"
+				else "PULL  •  " .. T.format(cost) .. " COINS")
 			or "NEED " .. T.format(cost - (state.coins or 0)) .. " MORE"
 		)
 	local pull = T.button(panel, "PullClaw", label, 15, 407, 352, 52, function()
