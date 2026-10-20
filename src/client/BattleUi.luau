@@ -169,6 +169,20 @@ function BattleUi.start()
 	)
 	queueF.Visible = false
 
+	-- DEV BOT: a small lobby button that starts a fight against a bot right away. The server
+	-- only turns the "DevBot" attribute on for Studio, the game owner and listed dev ids.
+	local devBtn = button(
+		gui,
+		"DEV: PLAY BOT",
+		UDim2.fromScale(0.16, 0.06),
+		UDim2.fromScale(0.01, 0.9),
+		Color3.fromRGB(110, 110, 130),
+		function()
+			act("queueBot")
+		end
+	)
+	devBtn.Visible = false
+
 	-- ---------- select ----------
 	local selectF = frame(
 		gui,
@@ -1034,6 +1048,20 @@ function BattleUi.start()
 			end
 		end
 	end
+
+	task.spawn(function()
+		while true do
+			task.wait(0.4)
+			local allowed = player:GetAttribute(BattleConfig.Test.devBotAttribute) == true
+			local busy = queueF.Visible
+				or selectF.Visible
+				or prepF.Visible
+				or hudF.Visible
+				or roundF.Visible
+				or resF.Visible
+			devBtn.Visible = allowed and not busy
+		end
+	end)
 
 	local function hideAll()
 		stopDriving()

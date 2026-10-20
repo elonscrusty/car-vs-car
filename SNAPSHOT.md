@@ -1,6 +1,8 @@
 # SNAPSHOT — Car VS Car
 
 ## NOW (2026-10-20): 1v1 with MANUAL DRIVING (carter hated the auto-fight)
+- DEV BOT button (lobby, bottom-left): starts a fight vs a bot with no other players. Shown only when the server sets player attribute `DevBot` (Studio, game owner via `game.CreatorId`, or `BattleConfig.Test.devUserIds`); server action `queueBot` checks the same rule.
+- Feel pass: BOOST (button/Shift/Q), `src/client/BattleFx.luau` (drift smoke, skid marks, flame, dust, speed lines, engine sound), wreck camera + bars (`WreckCamAt` attribute on the BattleUi gui), sound hooks in `SoundConfig` (ids empty).
 - YOU drive your car: stick (touch) or W A S D, chase camera behind your car. ATTACK = big button, Space, E or F.
   Ram = charge (straight, no steering, faster hits harder; miss = skid), Cannon = shell along the nose (nudged
   onto a foe within `Human.assistDeg`), Saw = grinds by itself on contact, ATTACK = rev dash.
