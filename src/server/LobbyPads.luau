@@ -4,7 +4,7 @@
 -- with a light, a "1/2" counter; the glow turns gold while someone waits on the pad);
 -- `start` watches where players stand (4 times a second), tells BattleService, shows the counts,
 -- walks the PLAY button's player onto a pad, parks a fighter out of sight and puts them back next to
--- the pads afterwards. All numbers come from LobbyLayout / PadSlots.
+-- the pads afterwards (or at the spawn, after the tutorial's practice drive). All numbers come from LobbyLayout / PadSlots.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -27,6 +27,7 @@ export type Handle = {
 	cancel: (player: Player) -> (),
 	park: (player: Player) -> (),
 	returnToLobby: (player: Player) -> (),
+	toSpawn: (player: Player) -> (),
 	remove: (player: Player) -> (), -- the player left the game
 	stop: () -> (),
 }
@@ -370,6 +371,21 @@ function LobbyPads.start(deps: Deps): Handle
 		local root = if char then char:FindFirstChild("HumanoidRootPart") :: BasePart? else nil
 		if root then
 			local s = LobbyLayout.returnSpot(returns)
+			root.Anchored = false
+			root.AssemblyLinearVelocity = Vector3.zero
+			root.CFrame = CFrame.lookAt(
+				origin + Vector3.new(s.x, 4, s.z),
+				origin + Vector3.new(LobbyLayout.ring.x, 4, LobbyLayout.ring.z)
+			)
+		end
+	end
+
+	-- The practice drive is over (the tutorial): back at the lobby spawn, facing the PLAY ring.
+	handle.toSpawn = function(player: Player)
+		local char = player.Character
+		local root = if char then char:FindFirstChild("HumanoidRootPart") :: BasePart? else nil
+		if root then
+			local s = LobbyLayout.spawn
 			root.Anchored = false
 			root.AssemblyLinearVelocity = Vector3.zero
 			root.CFrame = CFrame.lookAt(
