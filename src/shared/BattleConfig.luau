@@ -298,13 +298,14 @@ BattleConfig.Human = {
 	accelMult = 1.02, -- getaway: cruise speeds per second x this (was 2: full speed in 0.15 s, now about 0.28 s)
 	brakeMult = 1.25, -- gas the other way (was 1.6: stopped in 0.1 s)
 	coastMult = 0.62, -- letting go of the gas: the car rolls on (about 0.33 s from top speed)
-	turnTopScale = 0.85, -- share of the turn rate left at top speed (was 1: full turn at any speed)
+	turnTopScale = 0.77, -- share of the turn rate left at top speed (was 1: full turn at any speed)
 	trustGapFrac = 0.35, -- physics moved the car by more than this share of top speed from what we commanded: the real speed wins
 	steerRate = 14, -- the wheel swings this much per second (full lock in 1/14 s; was instant)
 	driftSteer = 0.8, -- a little slide only when steering this hard ...
 	driftSpeed = 0.8, -- ... at this share of cruise speed or more
-	driftSide = 4.5, -- sideways grip while sliding (normal 8: lower = longer slide)
-	driftYawBoost = 1.1, -- the nose swings round a bit faster while sliding
+	sideGrip = 11, -- sideways grip when not sliding (the car's path follows its nose in about 0.09 s; was 8)
+	driftSide = 7, -- sideways grip while sliding (lower = longer slide; was 4.5, which slid over half a second at the 144 deg/s turn)
+	driftYawBoost = 1, -- no extra nose swing while sliding (the turn is already quick)
 	chargeSteerScale = 1, -- how much of the turn rate a ram charge keeps (it only steers by auto-aim)
 	airYawScale = 0.35, -- a little steering in the air
 	groundRayL = 0.12, -- grounded when something is this far (in car lengths) below the BOTTOM of the body
