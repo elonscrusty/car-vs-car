@@ -264,7 +264,12 @@ function Tutorial.new(touch: boolean): Machine
 			if name == "pulled" then
 				return go("gumballReveal", "gumballPull")
 			elseif name == "menuClosed" then
-				return go("gumballTap", nil) -- closed the machine without pulling: tap it again
+				if free then
+					return go("gumballTap", nil) -- closed the machine without the free pull: tap it again
+				end
+				-- a replay (the free pull is gone): pulls cost coins, so no pull is forced; going back
+				-- from the machine is enough to have seen it
+				return go("play", "gumballPull")
 			end
 		elseif id == "gumballReveal" then
 			if name == "menuClosed" then
