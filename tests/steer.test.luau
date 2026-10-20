@@ -1,6 +1,5 @@
 --!strict
 local Harness = require("./harness")
-local Ai = require("../src/shared/Ai")
 local Steer = require("../src/shared/Steer")
 
 local test, eq, near = Harness.test, Harness.eq, Harness.near
@@ -24,15 +23,6 @@ test("steering right spins negative (clockwise from above)", function()
 	near(Steer.spin(-1, 3, 1), 3)
 	near(Steer.spin(0.5, 4, 0.5), -1)
 	eq(Steer.spin(0, 3, 1) == 0, true)
-end)
-
-test("spin sign matches the autopilot convention", function()
-	-- Car facing -Z, target on its right (+X): signedAngle is negative, so is the spin.
-	local rightAngle = Ai.signedAngle(0, -1, 1, 0)
-	eq(rightAngle < 0, true)
-	eq(Steer.spin(1, 3, 1) < 0, rightAngle < 0)
-	local leftAngle = Ai.signedAngle(0, -1, -1, 0)
-	eq(Steer.spin(-1, 3, 1) > 0, leftAngle > 0)
 end)
 
 test("smooth eases without overshoot", function()

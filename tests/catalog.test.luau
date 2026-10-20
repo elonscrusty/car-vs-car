@@ -1,6 +1,5 @@
 --!strict
 local H = require("./harness")
-local Abilities = require("../src/shared/Abilities")
 local Build = require("../src/shared/Build")
 local BuildConfig = require("../src/shared/BuildConfig")
 local CarCatalog = require("../src/shared/CarCatalog")
@@ -29,14 +28,13 @@ test("the pack has 30 cars with unique ids, names and models", function()
 	end
 end)
 
-test("every car is registered with a rarity, a real ability and a model", function()
+test("every car is registered with a rarity and a model", function()
 	eq(#CarConfig.FullOrder, 30)
 	for _, id in CarConfig.Order do
 		local c = CarConfig.get(id)
 		truthy(c ~= nil, id)
 		local car = c :: any
 		truthy(table.find(CarConfig.Rarities, car.rarity), id .. " rarity")
-		truthy(Abilities.forCar(car) ~= nil, id .. " ability")
 		eq(LobbyConfig.Rarity[id], car.rarity)
 	end
 	for _, e in CarCatalog.Entries do

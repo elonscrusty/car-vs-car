@@ -81,8 +81,6 @@ export type LobbyHandle = {
 export type Deps = {
 	lobby: LobbyHandle,
 	remotes: Remotes.RemoteSet,
-	-- Create a Match for this player; call onFinished(won) when its end screen is over.
-	startMatch: (participants: { Participant }) -> (),
 }
 
 export type Handle = {
@@ -568,7 +566,10 @@ function LobbyService.start(deps: Deps): Handle
 				part.botLevel = weakest
 			end
 		end
-		deps.startMatch(participants)
+		-- the old pad fights are gone (fights start from LobbyPads / BattleService): release them
+		for _, part in participants do
+			part.onFinished(false, false)
+		end
 	end
 
 	local function registerPick(player: Player, carId: string)

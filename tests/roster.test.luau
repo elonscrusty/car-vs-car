@@ -1,6 +1,5 @@
 --!strict
 local H = require("./harness")
-local BotNames = require("../src/shared/BotNames")
 local CarConfig = require("../src/shared/CarConfig")
 local CarPower = require("../src/shared/CarPower")
 local Gacha = require("../src/shared/Gacha")
@@ -128,35 +127,6 @@ test("CarPower is a plain weighted sum", function()
 	local one = { hp = 1, mass = 1, maxSpeed = 1, accel = 1, turnRate = 1, damageMult = 1 }
 	eq(CarPower.score(one, w), 21)
 	eq(CarPower.average({}, w), 0)
-end)
-
-print("BotNames")
-
-test("a bot name is deterministic, friendly and never BOT", function()
-	truthy(#BotNames.List >= 30)
-	local distinct: { [string]: boolean } = {}
-	for seed = 1, 200 do
-		local n = BotNames.pick(seed)
-		eq(n, BotNames.pick(seed))
-		truthy(#n > 0 and string.upper(n) ~= "BOT")
-		distinct[n] = true
-	end
-	local count = 0
-	for _ in distinct do
-		count += 1
-	end
-	truthy(count >= 15, "names should vary")
-end)
-
-test("taken names are avoided and the roster pick is a live car", function()
-	local taken = { BotNames.pick(5) }
-	truthy(BotNames.pick(5, taken) ~= taken[1])
-	truthy(#BotNames.pick(5, table.clone(BotNames.List)) > 0) -- all taken: still a name
-	for seed = 1, 100 do
-		local id = BotNames.pickCar(seed, CarConfig.Order)
-		truthy(CarConfig.isLive(id))
-	end
-	eq(BotNames.pickCar(1, {}), nil)
 end)
 
 test("a save that owns removed blocky cars drops them and gets coins back", function()
