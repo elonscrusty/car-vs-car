@@ -180,19 +180,22 @@ export type Billboard = {
 
 -- Board background (bright), trim and letter colors by name.
 Props.billboardColors = {
-	blue = { bg = { 37, 141, 221 }, trim = { 255, 205, 64 } },
-	yellow = { bg = { 255, 205, 64 }, trim = { 37, 141, 221 } },
-	green = { bg = { 60, 200, 110 }, trim = { 255, 255, 255 } },
-	pink = { bg = { 255, 110, 180 }, trim = { 255, 255, 255 } },
+	blue = { bg = { 64, 112, 140 }, trim = { 200, 160, 72 } },
+	yellow = { bg = { 196, 156, 64 }, trim = { 64, 112, 140 } },
+	green = { bg = { 84, 120, 84 }, trim = { 236, 230, 214 } },
+	pink = { bg = { 150, 84, 110 }, trim = { 236, 230, 214 } },
 } :: { [string]: { bg: { number }, trim: { number } } }
 
 -- Tips must be true: they come from docs and the fight rules (a harder crash hurts more, walls
 -- only bounce, your weapon, coins buy gumball pulls). Each line is at most 20 characters.
+-- The boards stand back past the fence, so seen from above they do not cover the parked cars.
+local BOARD_OUT = 17
+
 function Props.billboards(): { Billboard }
 	local p = Layout.plaza
 	return {
 		{
-			x = -(p.halfX + 5),
+			x = -(p.halfX + BOARD_OUT),
 			z = -44,
 			yawDeg = 90,
 			w = 24,
@@ -203,7 +206,7 @@ function Props.billboards(): { Billboard }
 			color = "blue",
 		},
 		{
-			x = p.halfX + 5,
+			x = p.halfX + BOARD_OUT,
 			z = -44,
 			yawDeg = -90,
 			w = 24,
@@ -214,7 +217,7 @@ function Props.billboards(): { Billboard }
 			color = "yellow",
 		},
 		{
-			x = -(p.halfX + 5),
+			x = -(p.halfX + BOARD_OUT),
 			z = 38,
 			yawDeg = 90,
 			w = 24,
@@ -225,7 +228,7 @@ function Props.billboards(): { Billboard }
 			color = "green",
 		},
 		{
-			x = p.halfX + 5,
+			x = p.halfX + BOARD_OUT,
 			z = 38,
 			yawDeg = -90,
 			w = 24,

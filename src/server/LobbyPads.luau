@@ -38,6 +38,7 @@ local C = LobbyLayout.colors
 local TOP = 0.5 -- a pad's top above the plaza
 local MESH_TOP = 1.1 -- the top of carter's low-poly play pad, when it is imported
 local SEGMENTS = 10 -- ring segments, alternating orange and blue
+local IDLE_BLUE = Color3.fromRGB(60, 150, 240) -- the free-pad glow stays a clear blue (gold = waiting)
 local GLOW_IDLE = 0.62 -- the soft disc under a waiting-for-nobody pad (1 = invisible)
 local GLOW_BUSY = 0.3
 local POLL = 0.25
@@ -67,7 +68,7 @@ function LobbyPads.build(folder: Folder, origin: Vector3): Pads
 			radius * 2 + 4,
 			0.12,
 			center + Vector3.new(0, -0.02, 0),
-			rgb(C.blue),
+			IDLE_BLUE,
 			false,
 			nil,
 			Enum.Material.Neon
@@ -134,7 +135,7 @@ function LobbyPads.build(folder: Folder, origin: Vector3): Pads
 		)
 		hub.Transparency = 1
 		local light = Instance.new("PointLight")
-		light.Color = rgb(C.blue)
+		light.Color = IDLE_BLUE
 		light.Brightness = 1.4
 		light.Range = 15
 		light.Shadows = false
@@ -217,11 +218,11 @@ function LobbyPads.build(folder: Folder, origin: Vector3): Pads
 			-- someone is waiting: the disc and the light under the ring turn gold and brighter
 			local halo, light = halos[index], lights[index]
 			if halo then
-				halo.Color = if count > 0 then rgb(C.gold) else rgb(C.blue)
+				halo.Color = if count > 0 then rgb(C.gold) else IDLE_BLUE
 				halo.Transparency = if count > 0 then GLOW_BUSY else GLOW_IDLE
 			end
 			if light then
-				light.Color = if count > 0 then rgb(C.gold) else rgb(C.blue)
+				light.Color = if count > 0 then rgb(C.gold) else IDLE_BLUE
 				light.Brightness = if count > 0 then 2.4 else 1.4
 			end
 		end,

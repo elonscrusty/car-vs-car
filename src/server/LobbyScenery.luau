@@ -1,12 +1,14 @@
 --!strict
--- The grass world round the Car Battle Lobby plaza: grass plate, far hills, dirt paths, round puffy
--- trees and rocks (no pines, bushes or flowers: L31, L32). Everything is look-only except the grass
+-- The junkyard round the Car Battle Lobby plaza (sunset look, 2026-10-20): a dirt plate, dirt
+-- mounds, dirt paths, piles of crushed cars and containers (dusty scrub until carter's models are
+-- imported), rocks, light towers, a claw crane and a blocky city on the horizon. Everything is look-only except the grass
 -- plate (solid, so nothing falls). Nothing is built on the plaza. Local coords: plaza top is y = 0.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Layout = require(ReplicatedStorage.Shared.LobbyLayout)
 local MapParts = require(script.Parent.MapParts)
+local MeshProps = require(script.Parent.MeshProps)
 
 local LobbyScenery = {}
 
@@ -34,7 +36,7 @@ local function grassPlate(folder: Folder, origin: Vector3)
 		rgb(C.grass),
 		true,
 		nil,
-		Enum.Material.Grass
+		Enum.Material.Ground
 	)
 	p.CastShadow = false
 end
@@ -50,7 +52,7 @@ local function hills(folder: Folder, origin: Vector3)
 			rgb(C.hill),
 			false,
 			nil,
-			Enum.Material.Grass
+			Enum.Material.Ground
 		)
 	end
 end
@@ -87,12 +89,19 @@ end
 local function scenery(folder: Folder, origin: Vector3)
 	local near = group(folder, "Scenery")
 	local far = group(folder, "FarScenery") -- cut this first if phones lag
-	for _, s in Layout.scenery() do
+	for i, s in Layout.scenery() do
 		local grp = if s.far then far else near
 		local base = origin + Vector3.new(s.x, GRASS_TOP - 0.05, s.z)
 		local k = s.scale
 		if s.kind == "tree" then
-			tree(grp, base, k, s.far)
+			-- carter's crushed-car piles, every third spot a container (scrub until imported)
+			local spot = CFrame.new(base) * yaw(s.yawDeg)
+			local placed = if i % 3 == 0
+				then MeshProps.place("Container", grp, spot, 8.5)
+				else MeshProps.place("ScrapPile", grp, spot, 5 + 3 * k)
+			if placed == nil then
+				tree(grp, base, k, s.far)
+			end
 		else
 			part(
 				grp,
@@ -124,6 +133,57 @@ end
 
 -- carter's L48 wants puffy cartoon clouds: LobbyProps builds them from balls. The old Terrain
 -- clouds would sit on top of them, so any left from an older build is removed.
+-- Light towers at the plaza corners, a claw crane at the back, and a blocky city on the horizon
+-- (dark against the sunset, some lit windows). The towers and crane need carter's models.
+local function junkyard(folder: Folder, origin: Vector3)
+	local far = folder:FindFirstChild("FarScenery") :: Folder
+	local p = Layout.plaza
+	local out = Layout.fenceGap + 8
+	for _, c in { { -1, p.backZ }, { 1, p.backZ }, { -1, p.frontZ }, { 1, p.frontZ } } do
+		local z = c[2] + (if c[2] < 0 then -out else out)
+		local pos = origin + Vector3.new(c[1] * (p.halfX + out), GRASS_TOP, z)
+		MeshProps.place(
+			"LightTower",
+			far,
+			CFrame.lookAt(pos, Vector3.new(origin.X, pos.Y, origin.Z)),
+			40
+		)
+	end
+	local cranePos = origin + Vector3.new(-120, GRASS_TOP, p.backZ - 50)
+	MeshProps.place(
+		"Crane",
+		far,
+		CFrame.lookAt(cranePos, Vector3.new(origin.X, cranePos.Y, origin.Z)) * yaw(90),
+		26
+	)
+	local count = 24
+	for i = 1, count do
+		local a = (i - 0.5) / count * 2 * math.pi + math.sin(i * 5.1) * 0.08
+		local r = 400 + (i * 37 % 5) * 12
+		local w = 30 + (i * 13 % 4) * 8
+		local top = 34 + (i * 29 % 7) * 9
+		local h = top + 40
+		local pos = origin + Vector3.new(math.cos(a) * r, GRASS_TOP + top - h / 2, math.sin(a) * r)
+		local cf = CFrame.lookAt(pos, Vector3.new(origin.X, pos.Y, origin.Z))
+		local block =
+			part(far, "City", Vector3.new(w, h, w * 0.8), cf, rgb(C.city[i % #C.city + 1]), false)
+		block.CastShadow = false
+		if i % 2 == 0 then
+			local lit = part(
+				far,
+				"Windows",
+				Vector3.new(w * 0.7, 1.6, 0.2),
+				cf * CFrame.new(0, h / 2 - top * 0.35, -w * 0.4 - 0.1),
+				rgb(C.window),
+				false,
+				nil,
+				Enum.Material.Neon
+			)
+			lit.CastShadow = false
+		end
+	end
+end
+
 local function clouds()
 	local old = workspace.Terrain:FindFirstChild("LobbyClouds")
 	if old then
@@ -136,6 +196,7 @@ function LobbyScenery.build(folder: Folder, origin: Vector3)
 	hills(folder, origin)
 	dirtPaths(folder, origin)
 	scenery(folder, origin)
+	junkyard(folder, origin)
 	clouds()
 end
 
