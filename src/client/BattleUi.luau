@@ -896,8 +896,83 @@ function BattleUi.start()
 		end
 	end
 
+	-- ---------- lock-on: a ring on the enemy car, or an arrow at the screen edge pointing to it ----------
+	local lockRing = Instance.new("Frame")
+	lockRing.Name = "LockRing"
+	lockRing.AnchorPoint = Vector2.new(0.5, 0.5)
+	lockRing.Size = UDim2.fromOffset(70, 70)
+	lockRing.BackgroundTransparency = 1
+	lockRing.Visible = false
+	lockRing.Parent = gui
+	corner(lockRing, 35)
+	local lockStroke = Instance.new("UIStroke")
+	lockStroke.Color = COL_BAD
+	lockStroke.Thickness = 3
+	lockStroke.Parent = lockRing
+	local lockArrow = Instance.new("TextLabel")
+	lockArrow.Name = "LockArrow"
+	lockArrow.AnchorPoint = Vector2.new(0.5, 0.5)
+	lockArrow.Size = UDim2.fromOffset(46, 46)
+	lockArrow.BackgroundTransparency = 1
+	lockArrow.Font = FONT
+	lockArrow.Text = "▲"
+	lockArrow.TextSize = 40
+	lockArrow.TextColor3 = COL_BAD
+	lockArrow.TextStrokeTransparency = 0.3
+	lockArrow.Visible = false
+	lockArrow.Parent = gui
+	local function updateLock()
+		local mine = myBody
+		local foe: BasePart? = nil
+		for _, b in carBodies do
+			if b ~= mine and b.Parent ~= nil then
+				foe = b
+			end
+		end
+		if mine == nil or foe == nil or not hudF.Visible or koT > 0 then
+			lockRing.Visible, lockArrow.Visible = false, false
+			return
+		end
+		local cam = workspace.CurrentCamera
+		local vp = cam.ViewportSize
+		local p, inFront = cam:WorldToViewportPoint(foe.Position + Vector3.new(0, 0.2 * carLen, 0))
+		local onScreen = inFront and p.X > 30 and p.X < vp.X - 30 and p.Y > 30 and p.Y < vp.Y - 30
+		if onScreen then
+			local dist = (foe.Position - cam.CFrame.Position).Magnitude
+			local size = math.clamp(2200 / math.max(dist, 20), 46, 120)
+			lockRing.Size = UDim2.fromOffset(size, size)
+			lockRing.Position = UDim2.fromOffset(p.X, p.Y)
+			-- thicker when my nose points at the enemy (a shot or a charge would land)
+			local toFoe =
+				Vector3.new(foe.Position.X - mine.Position.X, 0, foe.Position.Z - mine.Position.Z)
+			local lv = mine.CFrame.LookVector
+			local aligned = toFoe.Magnitude > 1e-3
+				and Vector3.new(lv.X, 0, lv.Z).Unit:Dot(toFoe.Unit) > math.cos(math.rad(18))
+			lockStroke.Thickness = if aligned then 6 else 3
+			lockRing.Visible, lockArrow.Visible = true, false
+		else
+			-- off screen: an arrow on the edge, pointing the way to turn
+			local cx, cy = vp.X / 2, vp.Y / 2
+			local dx, dy = p.X - cx, p.Y - cy
+			if not inFront then
+				dx, dy = -dx, -dy
+			end
+			if math.abs(dx) < 1 and math.abs(dy) < 1 then
+				dy = -1
+			end
+			local k = math.min(
+				(cx - 40) / math.max(math.abs(dx), 1e-3),
+				(cy - 40) / math.max(math.abs(dy), 1e-3)
+			)
+			lockArrow.Position = UDim2.fromOffset(cx + dx * k, cy + dy * k)
+			lockArrow.Rotation = math.deg(math.atan2(dx, -dy))
+			lockArrow.Visible, lockRing.Visible = true, false
+		end
+	end
+
 	RunService.RenderStepped:Connect(function(dt: number)
 		if not camOn then
+			lockRing.Visible, lockArrow.Visible = false, false
 			return
 		end
 		carScanT -= dt
@@ -934,6 +1009,7 @@ function BattleUi.start()
 			camSmooth = target
 		end
 		if target == nil then
+			lockRing.Visible, lockArrow.Visible = false, false
 			return
 		end
 		camera = workspace.CurrentCamera
@@ -972,6 +1048,7 @@ function BattleUi.start()
 			else BattleConfig.Camera.fovDeg
 		local koFov = if koT > 0 then -20 * math.clamp(1 - koT / koTotal, 0, 1) else 0
 		camera.FieldOfView = baseFov + fovKick + koFov
+		updateLock()
 	end)
 
 	-- ---------- driving: wheel stick (bottom-left), GAS (bottom-right) and ATTACK above it ----------
