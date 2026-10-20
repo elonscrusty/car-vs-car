@@ -8,6 +8,7 @@ local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
+local BattleFeel = require(ReplicatedStorage.Shared.BattleFeel)
 
 export type Out = { turn: number, drive: number, state: string }
 export type Mover = {
@@ -19,6 +20,7 @@ export type Mover = {
 	slide: Vector3, -- flat velocity a wall bounce keeps pushing while knocked
 	lastForward: Vector3,
 	momentum: boolean,
+	turnNow: number?, -- the steering after smoothing (-1..1): the wheel takes a moment to swing
 }
 
 local BattleDrive = {}
@@ -88,7 +90,12 @@ function BattleDrive.humanStep(car: Mover, out: Out, dt: number, f: Vector3, v: 
 	local H = BattleConfig.Human
 	local body = car.body
 	local cruise = BattleDrive.topSpeed(car)
-	local yawRate = out.turn * math.rad(car.fighter.turnDeg)
+	local steerNow = out.turn
+	if out.state ~= "charge" and out.state ~= "skid" then
+		steerNow = BattleFeel.smoothTurn(car.turnNow or 0, out.turn, dt)
+	end
+	car.turnNow = steerNow
+	local yawRate = steerNow * math.rad(car.fighter.turnDeg)
 
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
@@ -112,17 +119,15 @@ function BattleDrive.humanStep(car: Mover, out: Out, dt: number, f: Vector3, v: 
 	if want < 0 then
 		want *= mv.reverseScale
 	end
-	local speeding = math.abs(want) > math.abs(fwd)
-	local rate = if speeding then mv.accel * H.accelMult else mv.brake * H.brakeMult
 	if out.state == "charge" then
-		rate = mv.accel * 4 -- a charge gets up to speed fast
+		fwd += math.clamp(want - fwd, -mv.accel * 4 * cruise * dt, mv.accel * 4 * cruise * dt) -- a charge gets up to speed fast
+	elseif out.state == "skid" then
+		local step = mv.skidBrake * cruise * dt -- a missed charge rolls on
+		fwd += math.clamp(want - fwd, -step, step)
+	else
+		fwd = BattleFeel.nextSpeed(fwd, want, dt, cruise)
 	end
-	local step = rate * cruise * dt
 	local skidding = out.state == "skid"
-	if skidding then
-		step = mv.skidBrake * cruise * dt -- a missed charge rolls on
-	end
-	fwd += math.clamp(want - fwd, -step, step)
 
 	local speedFrac = math.abs(fwd) / cruise
 	local drifting = not skidding
@@ -138,11 +143,11 @@ function BattleDrive.humanStep(car: Mover, out: Out, dt: number, f: Vector3, v: 
 	end
 	body.AssemblyLinearVelocity = Vector3.new(f.X * fwd + lat.X, v.Y, f.Z * fwd + lat.Z)
 
-	local turnScale = math.clamp(speedFrac / 0.5 + H.turnMinScale, H.turnMinScale, 1)
+	local turnScale = BattleFeel.turnScale(speedFrac)
 	if out.state == "charge" then
 		turnScale = H.chargeSteerScale
 	elseif drifting then
-		turnScale = H.driftYawBoost
+		turnScale *= H.driftYawBoost
 	end
 	body.AssemblyAngularVelocity = Vector3.new(0, yawRate * turnScale, 0)
 end
