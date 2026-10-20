@@ -246,3 +246,7 @@ Replaces the warehouse lobby (archived in `archive/lobby_v1`, shipped to ServerS
 - New map `THEME = "chase"` in BattleArena: ChaseMapLayout (+ tests), ChaseMap, ChaseProps, ChaseLandmarks (the last two written by Opus helpers). See docs/CHASE_MAP_SPEC.md.
 - BattleService: `arena.tick` each fight frame (crane hits 10% max HP, knock), stuck rescue (gas held, not moving 2.5 s), `arena.resetBreakables()` each round.
 - MapFx swings the crane from the server clock. Untested in Studio: everything (first build). Check: no script errors, ramps rise, tunnel clear, crane hits, props burst, part count.
+
+## Wreck City fixes (map thread)
+- Stuck rescue now watches position (under 3 studs in 2.5 s with gas held, not touching the foe) instead of speed; Studio showed speed flickers when pushing a prop.
+- Road and deck colours darkened (they rendered pure white from the high camera and lost the lane colours).
