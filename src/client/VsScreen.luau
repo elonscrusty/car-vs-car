@@ -88,8 +88,8 @@ type Panel = { root: Frame, view: ViewportFrame, name: TextLabel, line: TextLabe
 local function buildPanel(parent: Instance, name: string, x: number, color: Color3): Panel
 	local root = Instance.new("Frame")
 	root.Name = name
-	root.Size = UDim2.fromScale(0.36, 0.62)
-	root.Position = UDim2.fromScale(x, 0.16)
+	root.Size = UDim2.fromScale(0.36, 0.56)
+	root.Position = UDim2.fromScale(x, 0.26) -- below the LEAVE button (top left)
 	root.BackgroundColor3 = COL_PANEL
 	root.BackgroundTransparency = 0.1
 	root.BorderSizePixel = 0
@@ -136,10 +136,10 @@ function VsScreen.new(gui: ScreenGui): Handle
 	local me = buildPanel(root, "MePanel", 0.03, COL_ME)
 	local opp = buildPanel(root, "OppPanel", 0.61, COL_OPP)
 	local vs =
-		text(root, "VsText", UDim2.fromScale(0.2, 0.2), UDim2.fromScale(0.4, 0.22), COL_TEXT, 90)
+		text(root, "VsText", UDim2.fromScale(0.2, 0.2), UDim2.fromScale(0.4, 0.28), COL_TEXT, 90)
 	vs.Text = "VS"
 	local count =
-		text(root, "Count", UDim2.fromScale(0.2, 0.22), UDim2.fromScale(0.4, 0.46), COL_TEXT, 110)
+		text(root, "Count", UDim2.fromScale(0.2, 0.22), UDim2.fromScale(0.4, 0.5), COL_TEXT, 110)
 	local endsAt = 0
 
 	local function fill(p: Panel, who: any)
