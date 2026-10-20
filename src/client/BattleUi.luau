@@ -409,48 +409,19 @@ function BattleUi.start()
 		end
 	)
 
-	-- ---------- prep: the matchup card (both cars and weapons side by side) ----------
+	-- ---------- prep: just the big 3-2-1 number, nothing else on screen ----------
 	local prepF = frame(
 		gui,
 		"Prep",
-		UDim2.fromScale(0.94, 0.34),
-		UDim2.fromScale(0.03, 0.63),
+		UDim2.fromScale(0.3, 0.22),
+		UDim2.fromScale(0.35, 0.14),
 		Color3.fromRGB(10, 12, 22),
-		0.3
+		1
 	)
-	corner(prepF, 16)
 	prepF.Visible = false
-	local prepMe =
-		label(prepF, "", UDim2.fromScale(0.2, 0.9), UDim2.fromScale(0.245, 0.05), COL_ME, 20)
-	prepMe.TextXAlignment = Enum.TextXAlignment.Left
-	local prepOpp =
-		label(prepF, "", UDim2.fromScale(0.2, 0.9), UDim2.fromScale(0.555, 0.05), COL_OPP, 20)
-	prepOpp.TextXAlignment = Enum.TextXAlignment.Right
-	local prepCount =
-		label(prepF, "3", UDim2.fromScale(0.1, 0.6), UDim2.fromScale(0.45, 0.2), COL_TEXT, 60)
-	local prepVsLbl =
-		label(prepF, "VS", UDim2.fromScale(0.1, 0.2), UDim2.fromScale(0.45, 0.02), COL_TEXT, 24)
-	prepVsLbl.Name = "Vs"
-	local prepViews: { ViewportFrame } = {}
-	local function prepPreview(slot: number, fighterId: string, xScale: number)
-		local old = prepViews[slot]
-		if old then
-			old:Destroy()
-		end
-		local f = BattleConfig.fighter(fighterId)
-		if f == nil then
-			return
-		end
-		local vp = Instance.new("ViewportFrame")
-		vp.Size = UDim2.fromScale(0.2, 0.9)
-		vp.Position = UDim2.fromScale(xScale, 0.05)
-		vp.BackgroundColor3 = Color3.fromRGB(34, 40, 62)
-		vp.BorderSizePixel = 0
-		vp.Parent = prepF
-		corner(vp, 10)
-		previewInto(vp, f, prepF)
-		prepViews[slot] = vp
-	end
+	local prepCount = label(prepF, "3", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), COL_TEXT, 110)
+	prepCount.TextStrokeTransparency = 0
+	prepCount.TextStrokeColor3 = Color3.fromRGB(10, 12, 22)
 
 	-- ---------- fight HUD ----------
 	local hudF = frame(gui, "Hud", UDim2.fromScale(1, 0.16), UDim2.fromScale(0, 0), COL_PANEL, 1)
@@ -683,6 +654,9 @@ function BattleUi.start()
 	local arenaHalf = Vector2.zero
 	local camOn = false
 	local camSmooth: CFrame? = nil
+	local mySpawn: string? = nil -- which end my car starts at this round ("a" west / "b" east)
+	local flyStart = -100 -- when the spawn fly-over began
+	local flying = false -- the fly-over is steering the camera right now
 	local shakeAmp = 0 -- camera shake, studs; decays by itself
 	local fovKick = 0 -- extra field of view from a big hit; eases back by itself
 	-- the final wreck: the camera swings round the wreck for a moment, between two black bars
@@ -767,7 +741,7 @@ function BattleUi.start()
 		end,
 		cruise = cruiseSpeed(),
 	})
-	local function cameraTarget(): CFrame?
+	local function chaseTarget(): CFrame?
 		local c = arenaCenter
 		if c == nil then
 			return nil
@@ -837,6 +811,41 @@ function BattleUi.start()
 		local dist = math.max(needW, needH, 40)
 		local pos = focus + Vector3.new(0, math.sin(pitch), math.cos(pitch)) * dist
 		return CFrame.lookAt(pos, focus)
+	end
+
+	-- The first FLY_SECONDS of every round: my garage, then theirs, then swooping in behind my car.
+	local FLY_SECONDS = 2
+	local GARAGE_X = 102 -- garage centers, from the arena middle (mouths face the arena)
+	local function garageShot(c: Vector3, spawn: string, grow: number): CFrame
+		local dir = if spawn == "a" then 1 else -1
+		local gx = c.X - dir * GARAGE_X
+		local at = Vector3.new(gx, c.Y + 6, c.Z)
+		local pos = Vector3.new(gx + dir * (46 - 8 * grow), c.Y + 14 - 2 * grow, c.Z + 16)
+		return CFrame.lookAt(pos, at)
+	end
+	local function cameraTarget(): CFrame?
+		local chase = chaseTarget()
+		local c = arenaCenter
+		local sp = mySpawn
+		local t = os.clock() - flyStart
+		flying = false
+		if c == nil or sp == nil or t >= FLY_SECONDS then
+			return chase
+		end
+		flying = true
+		local other = if sp == "a" then "b" else "a"
+		local half = FLY_SECONDS * 0.35
+		if t < half then
+			return garageShot(c, sp, t / half)
+		elseif t < 2 * half then
+			return garageShot(c, other, (t - half) / half)
+		end
+		local last = garageShot(c, other, 1)
+		if chase == nil then
+			return last
+		end
+		local k = math.clamp((t - 2 * half) / (FLY_SECONDS - 2 * half), 0, 1)
+		return last:Lerp(chase, k * k * (3 - 2 * k))
 	end
 
 	local function cameraOn()
@@ -909,6 +918,9 @@ function BattleUi.start()
 			return
 		end
 		camera = workspace.CurrentCamera
+		if flying then
+			camSmooth = target -- the fly-over is already smooth
+		end
 		local cur = camSmooth
 		if cur == nil then
 			cur = target
@@ -1149,15 +1161,6 @@ function BattleUi.start()
 		setChampions(true)
 		arenaCenter = nil
 		selectedId, locked = nil, false
-	end
-
-	local function sideText(info: any): string
-		local f = BattleConfig.fighter(info.id)
-		if f == nil then
-			return ""
-		end
-		local tag = if info.label and info.label ~= "" then ` [{info.label}]` else ""
-		return `{info.name}\n{f.name}{tag}\n{f.weaponName}: {f.blurb}`
 	end
 
 	local function scoreText(s: any): string
@@ -1417,11 +1420,9 @@ function BattleUi.start()
 		arenaCenter = Vector3.new(m.arena.x, m.arena.y, m.arena.z)
 		arenaHalf = Vector2.new(m.arena.halfX, m.arena.halfZ)
 		cameraOn()
-		prepMe.Text = "YOU  " .. sideText(m.me)
-		prepOpp.Text = "FOE  " .. sideText(m.opp)
-		prepVsLbl.Text = "VS"
-		prepPreview(1, m.me.id, 0.02)
-		prepPreview(2, m.opp.id, 0.78)
+		mySpawn = m.spawn
+		flyStart = os.clock()
+		camSmooth = nil
 		prepEnd = os.clock() + m.seconds
 		prepF.Visible = true
 		leaveBtn.Visible = true

@@ -79,6 +79,7 @@ type Match = {
 	momentum: boolean, -- the momentum prototype fight (else the steering fight)
 	crashCd: number, -- seconds until the next plain crash can hurt
 	touching: boolean, -- the cars' bodies were touching at the last step
+	aIsRed: boolean?, -- which garage team is red this match (chosen once, at random)
 }
 
 local BattleService = {}
@@ -94,6 +95,7 @@ export type Handle = {
 
 local T = BattleConfig.Timing
 local BOT_NAME = "Test Bot"
+local BOT_SIGN_NAME = "Crusher" -- what the garage sign says for the bot
 
 function BattleService.start(opts: {
 	remotes: Remotes.RemoteSet,
@@ -325,10 +327,17 @@ function BattleService.start(opts: {
 			m.arena = BattleArena.build(m.slot)
 		end
 		local arena = m.arena :: BattleArena.Arena
+		if m.aIsRed == nil then
+			m.aIsRed = math.random() < 0.5
+		end
+		arena.setTeams(m.aIsRed :: boolean)
+		arena.closeDoors()
+		local spawnOf = { a = "a", b = "b" }
 		for _, side in sides() do
 			local part = (m.parts :: any)[side] :: Part
 			-- sides swap every round so both spawn spots get used
-			local spawnSide = if (m.series.round % 2 == 1) == (side == "a") then "a" else "b"
+			local spawnSide = if (m.series.round % 2 == 1) == (side == "a") then "a" else "b";
+			(spawnOf :: any)[side] = spawnSide
 			local pos, facing = arena.spawnPoint(spawnSide)
 			local car, err = BattleCar.spawn(part.pick :: string, side, arena.folder, pos, facing)
 			if car == nil then
@@ -341,6 +350,13 @@ function BattleService.start(opts: {
 			end
 			(m.cars :: any)[side] = car
 		end
+		-- the garage signs: whoever starts at the west garage is on the left sign
+		local signs = { a = "", b = "" }
+		for _, side in sides() do
+			local part = (m.parts :: any)[side] :: Part;
+			(signs :: any)[(spawnOf :: any)[side]] = if part.bot then BOT_SIGN_NAME else part.name
+		end
+		arena.setNames(signs.a, signs.b)
 		m.phase, m.t = "prep", 0
 		for _, side in sides() do
 			local part = (m.parts :: any)[side] :: Part
@@ -360,6 +376,7 @@ function BattleService.start(opts: {
 					wall = BattleConfig.Arena.wallHeight,
 				},
 				side = side,
+				spawn = (spawnOf :: any)[side],
 				me = { id = part.pick, name = part.name, label = labelFor(part) },
 				opp = { id = opp.pick, name = opp.name, label = labelFor(opp), bot = opp.bot },
 			})
@@ -384,6 +401,9 @@ function BattleService.start(opts: {
 			end
 		end
 		m.phase, m.t, m.hudT = "fight", 0, 0
+		if m.arena then
+			m.arena.openDoors()
+		end
 		m.final = false
 		m.crashCd, m.touching = 0, false
 		for _, side in sides() do
@@ -659,6 +679,26 @@ function BattleService.start(opts: {
 		for _, car in cars do
 			BattleCar.checkFlip(car, dt)
 			local lx, lz = arena.toLocal(car.body.Position)
+			-- a car that leaves the arena loses the round: all its HP is gone at once
+			if
+				BattleCrash.outside(
+					lx,
+					lz,
+					car.body.Position.Y - arena.origin.Y,
+					arena.halfX,
+					arena.halfZ
+				)
+			then
+				if car.hp > 0 then
+					if car.side == "a" then
+						dmg.a += car.hp
+					else
+						dmg.b += car.hp
+					end
+					sendEvent(m, if car.side == "a" then "b" else "a", "Out of the arena!")
+				end
+				continue
+			end
 			BattleCar.keepInside(
 				car,
 				arena.origin.Y,
