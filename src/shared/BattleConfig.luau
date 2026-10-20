@@ -22,7 +22,8 @@ BattleConfig.Series = {
 
 BattleConfig.Timing = {
 	selectSeconds = 8, -- pick a car before each round
-	prepSeconds = 3, -- both cars and weapons are shown
+	prepSeconds = 3, -- the 3-2-1 before rounds 2 and 3
+	firstPrepSeconds = 5, -- the 3-2-1 before round 1: the VS screen needs time
 	fightSeconds = 60, -- longest fight; then the car with more HP (percent) wins
 	koLastSeconds = 4.8, -- same, but when this knock-out ends the whole match: the wreck camera is slow
 	koSeconds = 2.6, -- after a knock-out: cars stop, the loser smokes, then the result shows
@@ -313,6 +314,18 @@ BattleConfig.Text = {
 	rulesLine = "Most round wins after three rounds wins. Reach two wins to finish early.",
 	upgradesLine = "Garage performance upgrades do not apply to this mode.",
 }
+
+-- The driver of each car, for the VS screen (original names and lines).
+BattleConfig.Drivers = {
+	RamTruck = { name = "Big Bonnie", line = "I never brake for anything." },
+	CannonVan = { name = "Captain Pop", line = "Duck. Or don't. I'm fine either way." },
+	SawBuggy = { name = "Zippy Zed", line = "Hold still, this won't take long!" },
+} :: { [string]: { name: string, line: string } }
+
+function BattleConfig.driverLine(id: any): string
+	local d = if type(id) == "string" then BattleConfig.Drivers[id] else nil
+	return if d then `{d.name}: "{d.line}"` else ""
+end
 
 function BattleConfig.fighter(id: any): Fighter?
 	if type(id) ~= "string" then
