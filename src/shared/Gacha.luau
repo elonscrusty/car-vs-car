@@ -170,7 +170,21 @@ local function hasGift(p: Profile): boolean
 	return p.daily ~= nil and p.daily.freePulls > 0
 end
 
+-- True while the machine still holds a car this player does not own.
+function Gacha.hasNewCar(p: Profile): boolean
+	for _, id in poolIds() do
+		if not p.owned[id] then
+			return true
+		end
+	end
+	return false
+end
+
 function Gacha.canBuy(p: Profile): (boolean, string?)
+	-- a pull that could only hand out a duplicate is never sold (duplicates give nothing)
+	if not Gacha.hasNewCar(p) then
+		return false, "complete"
+	end
 	if isFree(p) or hasGift(p) or p.coins >= LobbyConfig.Gacha.price then
 		return true, nil
 	end

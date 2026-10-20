@@ -205,3 +205,17 @@ H.test("starter pick: a new player picks 1 of 3 once; old saves are already done
 	H.eq(Inventory.migrate({}).starterPicked, false)
 	H.eq(Inventory.migrate(Inventory.default()).starterPicked, false)
 end)
+
+H.test("a pull that could only give a duplicate is never sold", function()
+	local p = Inventory.default()
+	p.coins = 1000
+	H.eq(Gacha.hasNewCar(p), true)
+	for _, id in CarConfig.Order do
+		p.owned[id] = true
+	end
+	local ok, reason = Gacha.canBuy(p)
+	H.eq(ok, false)
+	H.eq(reason, "complete")
+	H.eq(pcall(Gacha.pull, p, fixed(0.5)), false)
+	H.eq(p.coins, 1000)
+end)

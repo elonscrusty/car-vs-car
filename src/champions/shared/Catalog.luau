@@ -435,7 +435,17 @@ local function renderShop(root, state, ctx)
 	machine(tile, 8, 8, 223, 250, true)
 	local cost = state.clawPrice or Config.ClawPrice
 	T.icon(tile, "Coin", "coin", 13, 268, 29, T.C.gold)
-	T.text(tile, "Cost", T.format(cost) .. " / PULL", 49, 268, 178, 31, 22, T.C.gold)
+	T.text(
+		tile,
+		"Cost",
+		if cost == 0 then "FREE PULL!" else T.format(cost) .. " / PULL",
+		49,
+		268,
+		178,
+		31,
+		22,
+		T.C.gold
+	)
 	T.button(tile, "ViewOdds", "VIEW ODDS", 11, 307, 217, 48, function()
 		ctx.navigate("CLAW")
 	end, T.C.blue, "claw")
@@ -512,10 +522,18 @@ local function renderClaw(root, state, ctx)
 		T.C.gold
 	)
 	local cost = state.clawPrice or Config.ClawPrice
-	local affordable = (state.coins or 0) >= cost
+	local complete = true
+	for _, car in Config.Vehicles do
+		if not owned(state, car.Id) then
+			complete = false
+			break
+		end
+	end
+	local affordable = (state.coins or 0) >= cost and not complete
 	local label = loading(state)
 		or (
-			affordable and "PULL  •  " .. T.format(cost) .. " COINS"
+			complete and "YOU HAVE EVERY CAR"
+			or affordable and "PULL  •  " .. T.format(cost) .. " COINS"
 			or "NEED " .. T.format(cost - (state.coins or 0)) .. " MORE"
 		)
 	local pull = T.button(panel, "PullClaw", label, 15, 407, 352, 52, function()

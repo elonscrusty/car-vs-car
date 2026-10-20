@@ -119,6 +119,8 @@ end
 function LobbyText.gachaErrorText(reason: string): string
 	if reason == "coins" then
 		return "Not enough coins"
+	elseif reason == "complete" then
+		return "You have every car!"
 	end
 	return "Try again in a moment"
 end
