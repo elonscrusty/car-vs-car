@@ -1757,16 +1757,20 @@ function BattleUi.start()
 		end
 		local big = m.big == true
 		local mine = m.victim ~= nil and m.victim == mySide
+		-- crash hits carry a power (0..1) that grows with the crash speed: the juice grows with it
+		local power = if type(m.power) == "number"
+			then math.clamp(m.power, 0, 1)
+			else if big then 0.8 else 0.3
 		sparks(m.pos, big)
-		debris(m.pos, if big then 12 else 5, if big then 40 else 24)
+		debris(m.pos, math.floor(3 + 10 * power), 20 + 22 * power)
 		if type(m.dmg) == "number" and m.dmg > 0 then
 			damageNumber(m.pos, m.dmg, big, mine)
 		end
 		-- a hit on YOU shakes the view harder and flashes red
-		local amp = if big then 3.2 else 1.3
+		local amp = 0.8 + 2.6 * power
 		shakeAmp = math.max(shakeAmp, if mine then amp * 1.5 else amp)
-		fovKick = math.max(fovKick, if big then 6 else 2.5)
-		SoundFx.hit(if big then 1 else 0.3)
+		fovKick = math.max(fovKick, 1.5 + 5 * power)
+		SoundFx.hit(0.2 + 0.8 * power)
 		if mine then
 			flash(COL_BAD, if big then 0.18 else 0.1) -- a soft tint only; the shake does the work
 		end

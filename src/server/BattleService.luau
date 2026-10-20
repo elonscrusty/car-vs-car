@@ -510,13 +510,15 @@ function BattleService.start(
 		big: boolean,
 		dmg: number?,
 		victim: string?,
-		ko: boolean?
+		ko: boolean?,
+		power: number?
 	)
 		for _, side in sides() do
 			send((m.parts :: any)[side], {
 				kind = "hit",
 				pos = pos,
 				big = big,
+				power = power,
 				dmg = dmg,
 				victim = victim,
 				ko = ko,
@@ -970,10 +972,26 @@ function BattleService.start(
 						dmg.b += hitB
 						local mid = (a.body.Position + b.body.Position) / 2
 						if hitA > 0 then
-							sendHit(m, mid, hitA >= a.maxHp * 0.15, hitA, "a")
+							sendHit(
+								m,
+								mid,
+								hitA >= a.maxHp * 0.15,
+								hitA,
+								"a",
+								nil,
+								BattleCrash.power(hitA, a.maxHp)
+							)
 						end
 						if hitB > 0 then
-							sendHit(m, mid, hitB >= b.maxHp * 0.15, hitB, "b")
+							sendHit(
+								m,
+								mid,
+								hitB >= b.maxHp * 0.15,
+								hitB,
+								"b",
+								nil,
+								BattleCrash.power(hitB, b.maxHp)
+							)
 						end
 					end
 				end

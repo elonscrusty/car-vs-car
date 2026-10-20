@@ -938,3 +938,32 @@ H.test("cheat checks: normal driving passes, a teleport and a speed hack are cau
 	H.eq(BattleGuard.tooFast(top * BattleConfig.Ram.chargeMult, top), false) -- a full charge
 	H.eq(BattleGuard.tooFast(top * 4, top), true)
 end)
+
+H.test("crash hit power grows with the damage and stays between 0 and 1", function()
+	H.eq(BattleCrash.power(0, 150), 0)
+	H.eq(BattleCrash.power(15, 150) < BattleCrash.power(30, 150), true)
+	H.eq(BattleCrash.power(30, 150), 1)
+	H.eq(BattleCrash.power(500, 150), 1)
+	H.eq(BattleCrash.power(10, 0), 0)
+end)
+
+H.test(
+	"weapon balance on paper: best-case damage per 6 s wait is close for all three cars",
+	function()
+		local ramD = BattleConfig.Ram.damage
+		local vanD = BattleConfig.Cannon.damage
+		local S = BattleConfig.Saw
+		local grind = BattleConfig.Human.sawGrindSeconds
+		-- the saw ticks every tickSeconds for up to grindSeconds, building from x1 to maxMult over buildSeconds
+		local sawD = 0
+		local t = 0
+		while t < grind do
+			local build = math.clamp(t / S.buildSeconds, 0, 1)
+			sawD += S.damage * (1 + (S.maxMult - 1) * build)
+			t += S.tickSeconds
+		end
+		local best, worst = math.max(ramD, vanD, sawD), math.min(ramD, vanD, sawD)
+		H.eq(best / worst <= 1.5, true)
+		H.eq(worst >= 20, true)
+	end
+)
