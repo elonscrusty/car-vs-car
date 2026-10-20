@@ -18,6 +18,7 @@ Layout.colors = {
 	asphaltDark = { 58, 66, 80 },
 	path = { 176, 181, 190 }, -- light gray paths
 	orange = { 245, 130, 32 }, -- #F58220
+	orangeWall = { 196, 88, 18 }, -- the same orange on big painted walls: the sun lights it up, so it is darker
 	blue = { 37, 141, 221 }, -- #258DDA
 	tire = { 36, 39, 43 }, -- #24272B
 	grass = { 127, 186, 66 }, -- #7FBA42
@@ -93,10 +94,10 @@ Layout.customize = { x = -74, z = -58, w = 40, d = 30, h = 18, yawDeg = 32 }
 Layout.shop = { x = 74, z = -58, w = 44, d = 30, h = 18, yawDeg = -32 }
 
 -- Inside the workshop (workshop-local: u across, v toward the mouth, from its middle).
-Layout.gumball = { u = 0, v = -8, radius = 8.5 } -- the giant machine (ball radius)
+Layout.gumball = { u = 0, v = -8, radius = 7.5 } -- the giant machine (ball radius)
 Layout.stageRare = { u = -19, v = 4, radius = 8 } -- the rarest gumball car
 Layout.stageGold = { u = 19, v = 4, radius = 8 } -- the gold car of this week's #1
-Layout.oddsSign = { u = 0, v = 11, w = 14, h = 9 } -- standing sign by the machine
+Layout.oddsSign = { u = 14, v = -10, w = 8, h = 6 } -- standing sign by the machine
 
 -- Inside the customize garage: the turntable, and the shop: the counter and the 3 display cars.
 Layout.turntable = { u = 0, v = -2, radius = 8 }

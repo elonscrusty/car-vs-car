@@ -44,8 +44,8 @@ function LobbyGarageShell.build(
 	name: string
 ): Shell
 	local grp = group(parent, name)
-	local main = if accent == "orange" then rgb(C.orange) else rgb(C.blue)
-	local other = if accent == "orange" then rgb(C.blue) else rgb(C.orange)
+	local main = if accent == "orange" then rgb(C.orangeWall) else rgb(C.blue)
+	local other = if accent == "orange" then rgb(C.blue) else rgb(C.orangeWall)
 	local base = CFrame.new(origin + Vector3.new(b.x, 0, b.z))
 		* CFrame.Angles(0, math.rad(b.yawDeg), 0)
 	local function at(u: number, y: number, v: number): CFrame

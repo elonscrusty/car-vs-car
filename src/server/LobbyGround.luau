@@ -437,24 +437,27 @@ local function arch(folder: Folder, origin: Vector3)
 		)
 	end
 
-	local gui = Instance.new("SurfaceGui")
-	gui.Name = "SignGui"
-	gui.Face = Enum.NormalId.Front -- the plaza is at -z of the arch, so the front (-z) face shows
-	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = 24
-	gui.LightInfluence = 0
-	gui.Parent = panel
-	local label = Instance.new("TextLabel")
-	label.Size = UDim2.fromScale(0.94, 0.8)
-	label.Position = UDim2.fromScale(0.03, 0.1)
-	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.FredokaOne
-	label.TextScaled = true
-	label.Text = "CAR VS CAR"
-	label.TextColor3 = rgb(C.orange)
-	label.TextStrokeTransparency = 0
-	label.TextStrokeColor3 = rgb(C.blue)
-	label.Parent = gui
+	-- both faces: the spawn is on the +z side (outside), the plaza on the -z side
+	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
+		local gui = Instance.new("SurfaceGui")
+		gui.Name = "SignGui" .. face.Name
+		gui.Face = face
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		gui.PixelsPerStud = 24
+		gui.LightInfluence = 0
+		gui.Parent = panel
+		local label = Instance.new("TextLabel")
+		label.Size = UDim2.fromScale(0.94, 0.8)
+		label.Position = UDim2.fromScale(0.03, 0.1)
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.FredokaOne
+		label.TextScaled = true
+		label.Text = "CAR VS CAR"
+		label.TextColor3 = rgb(C.orange)
+		label.TextStrokeTransparency = 0
+		label.TextStrokeColor3 = rgb(C.blue)
+		label.Parent = gui
+	end
 end
 
 -- ---------------------------------------------------------------------------------------------
