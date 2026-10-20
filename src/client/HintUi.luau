@@ -49,7 +49,7 @@ local function arrowLabel(parent: Instance, size: UDim2): TextLabel
 	return a
 end
 
--- Where the world arrow floats: above the pads, or above the claw machine.
+-- Where the world arrow floats: above the pads, or above the gumball machine.
 local function targetPoints(kind: string): { Vector3 }
 	local points: { Vector3 } = {}
 	local lobby = workspace:FindFirstChild("Lobby")
@@ -57,21 +57,17 @@ local function targetPoints(kind: string): { Vector3 }
 		return points
 	end
 	if kind == "pad" then
-		for _, child in lobby:GetChildren() do
-			if child:IsA("BasePart") and string.match(child.Name, "^MatchPad%d+$") then
+		-- the new lobby: every PLAY pad is a Pad<N> group with a PadBase disc
+		for _, child in lobby:GetDescendants() do
+			if child:IsA("BasePart") and child.Name == "PadBase" then
 				table.insert(points, child.Position + Vector3.new(0, 5, 0))
 			end
 		end
 	elseif kind == "claw" then
-		local claw = lobby:FindFirstChild("ClawMachine")
-		if claw and claw:IsA("Model") then
-			local cf, size = claw:GetBoundingBox()
+		local machine = lobby:FindFirstChild("GumballMachine", true)
+		if machine and machine:IsA("Model") then
+			local cf, size = machine:GetBoundingBox()
 			table.insert(points, cf.Position + Vector3.new(0, size.Y / 2 + 4, 0))
-		else
-			local body = lobby:FindFirstChild("GachaBody")
-			if body and body:IsA("BasePart") then
-				table.insert(points, body.Position + Vector3.new(0, body.Size.Y / 2 + 4, 0))
-			end
 		end
 	end
 	return points
