@@ -172,7 +172,8 @@ function BattleHuman.new(fighterId: string): Human
 				return o
 			elseif fighterId == "CannonVan" then
 				local o = out(turn, drive)
-				if attack and cooldown <= 0 then
+				-- a held button fires again as soon as the cannon is ready
+				if (attack or attackHeld) and cooldown <= 0 then
 					o.fire = true
 					cooldown = cannon.cooldownSeconds
 					o.ready = 0
