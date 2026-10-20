@@ -324,14 +324,23 @@ BattleConfig.Crash = {
 -- Cheat checks for a car the player's device drives (the server watches speed and jumps).
 BattleConfig.Guard = {
 	teleportSpeedMult = 3, -- more than this many top speeds of movement in one step = a teleport
-	slackStuds = 4, -- ... plus this much slack per step
+	slackStuds = 6, -- ... plus this much slack per step (a laggy phone delivers several steps at once)
 	speedSlack = 1.3, -- more than this share above the fastest legal speed = too fast
 	strikesToReclaim = 4, -- this many strikes and the server takes the car back (it drives itself)
+	strikeDecaySeconds = 8, -- every this many clean seconds a strike is forgiven (lag spikes are not cheating)
 }
 
 -- The Studio / DEV bot: a medium opponent (turns slower than a player so it can be outdriven).
+-- Each level: `turn` = share of the car's turn rate it can use, `aimErrL` = how far (car lengths) its idea of
+-- where the foe is can be off, `reroll` = seconds before it picks a new error. Hard is close to a player.
 BattleConfig.Bot = {
-	turnMult = 0.75,
+	turnMult = 1,
+	default = "medium",
+	levels = {
+		easy = { turn = 0.55, aimErrL = 2.2, reroll = 0.8 },
+		medium = { turn = 0.75, aimErrL = 0.8, reroll = 1.2 },
+		hard = { turn = 0.95, aimErrL = 0.15, reroll = 2 },
+	} :: { [string]: { turn: number, aimErrL: number, reroll: number } },
 }
 
 BattleConfig.Rewards = {

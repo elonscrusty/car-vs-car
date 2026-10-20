@@ -28,6 +28,7 @@ export type Car = {
 	hitRegion: BasePart?,
 	muzzle: Attachment?,
 	flipT: number,
+	owner: Player?, -- the player whose device drives the physics (nil = the server)
 	lastForward: Vector3,
 	standIn: boolean,
 	lastOut: BattleBrain.Output?,
@@ -220,6 +221,7 @@ function BattleCar.spawn(
 		hitRegion = nil,
 		muzzle = nil,
 		flipT = 0,
+		owner = nil,
 		lastForward = facing,
 		standIn = standIn,
 		lastOut = nil,
@@ -288,6 +290,7 @@ function BattleCar.arm(car: Car, brain: BattleBrain.Brain, owner: Player?)
 		end
 	end
 	car.clientDriven = false
+	car.owner = owner
 	if owner ~= nil and BattleConfig.Human.clientDrive then
 		local ok = pcall(function()
 			car.body:SetNetworkOwner(owner)
@@ -298,6 +301,29 @@ function BattleCar.arm(car: Car, brain: BattleBrain.Brain, owner: Player?)
 		car.body:SetNetworkOwner(nil)
 	end
 	car.model:SetAttribute("ClientDriven", car.clientDriven)
+end
+
+-- Moves a car somewhere by force. The owner's device overrides a server write, so the server takes the
+-- physics for a moment, moves the car, and hands it back.
+function BattleCar.putBack(car: Car, cf: CFrame)
+	local owner = car.owner
+	if car.clientDriven and owner ~= nil then
+		pcall(function()
+			car.body:SetNetworkOwner(nil)
+		end)
+	end
+	car.body.CFrame = cf
+	car.body.AssemblyLinearVelocity = Vector3.zero
+	car.body.AssemblyAngularVelocity = Vector3.zero
+	if car.clientDriven and owner ~= nil then
+		task.delay(0.3, function()
+			if car.clientDriven and car.body.Parent ~= nil then
+				pcall(function()
+					car.body:SetNetworkOwner(owner)
+				end)
+			end
+		end)
+	end
 end
 
 -- The server takes the physics back (round over, wreck): nobody's device drives it now.
