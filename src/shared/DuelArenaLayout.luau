@@ -24,6 +24,7 @@ Layout.colors = {
 	orange = { 245, 130, 32 }, -- #F58220
 	blue = { 37, 141, 221 }, -- #258DDA
 	tire = { 36, 39, 43 }, -- #24272B
+	rim = { 92, 98, 108 }, -- hole in the top tire
 	grass = { 127, 186, 66 }, -- #7FBA42
 	marking = { 237, 240, 234 }, -- #EDF0EA
 	padRed = { 214, 58, 52 },
@@ -37,6 +38,7 @@ Layout.colors = {
 	crate = { 176, 128, 76 },
 }
 
+Layout.wallBounce = 0.9 -- how much speed a car keeps when it hits a wall or cover
 Layout.pad = { sx = 26, sz = 18 } -- start pad size, along the driving direction and across
 Layout.lane = 14 -- nothing but floor markings within this far of the start line z, between the pads
 Layout.block = { sx = 16, sy = 6, sz = 7 } -- cover barrier size

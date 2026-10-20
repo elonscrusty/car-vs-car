@@ -19,22 +19,46 @@ local function yaw(deg: number): CFrame
 	return CFrame.Angles(0, math.rad(deg), 0)
 end
 
--- A stack of tires standing at `pos` (bottom of the stack).
+-- A stack of tires standing at `pos` (bottom of the stack): thin gaps between the tires, each one a
+-- little off the one below, and a pale hole on the top one, so it reads as tires and not as a block.
 local function tires(parent: Instance, pos: Vector3, scale: number)
 	local t = Layout.tire
+	local step = (t.height + 0.3) * scale
 	for k = 0, t.stack - 1 do
+		local off =
+			Vector3.new((k % 2 - 0.5) * 0.7 * scale, k * step, (1 - k % 2 * 2) * 0.25 * scale)
 		can(
 			parent,
 			"Tire",
 			t.diameter * scale,
 			t.height * scale,
-			pos + Vector3.new(0, k * t.height * scale, 0),
+			pos + off,
 			rgb(Layout.colors.tire),
 			false,
 			nil,
 			Enum.Material.Rubber
 		)
+		if k == t.stack - 1 then
+			can(
+				parent,
+				"TireRim",
+				t.diameter * 0.55 * scale,
+				0.3 * scale,
+				pos + off + Vector3.new(0, t.height * scale - 0.1, 0),
+				rgb(Layout.colors.rim),
+				false,
+				nil,
+				Enum.Material.Metal
+			)
+		end
 	end
+end
+
+-- Walls and cover throw a car back: their bounce wins over the car's (weight 100), so a hit is a
+-- visible rebound and not a dead stop. No damage comes from it.
+local function bouncy(p: Part): Part
+	p.CustomPhysicalProperties = PhysicalProperties.new(2, 0.1, Layout.wallBounce, 1, 100)
+	return p
 end
 
 local function floor(folder: Folder, origin: Vector3, solids: { Instance })
@@ -160,15 +184,17 @@ local function walls(folder: Folder, origin: Vector3, solids: { Instance })
 		local center = origin + Vector3.new(w.x - w.nx * t / 2, h / 2, w.z - w.nz * t / 2)
 		local cf = CFrame.new(center) * yaw(w.yawDeg)
 		local team = rgb(if w.team == "orange" then c.orange else c.blue)
-		part(
-			group_,
-			w.name,
-			Vector3.new(w.length * 1.12, h, t),
-			cf,
-			team,
-			true,
-			solids,
-			Enum.Material.Metal
+		bouncy(
+			part(
+				group_,
+				w.name,
+				Vector3.new(w.length * 1.12, h, t),
+				cf,
+				team,
+				true,
+				solids,
+				Enum.Material.Metal
+			)
 		)
 		-- a dark base strip and a pale cap, so the module reads as painted metal
 		part(
