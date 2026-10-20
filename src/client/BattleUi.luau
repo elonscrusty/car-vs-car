@@ -1149,9 +1149,76 @@ function BattleUi.start()
 		steerInput.setAttack(false)
 	end)
 
+	-- ---------- SPECIAL (energy bar fills by hitting) and HORN ----------
+	local specialNames: { [string]: string } =
+		{ RamTruck = "SHOCK", CannonVan = "TRIPLE", SawBuggy = "SAW THROW" }
+	local specialEnergy = 0
+	local COL_SPECIAL = Color3.fromRGB(235, 175, 40)
+	local specialWrap = frame(
+		gui,
+		"SpecialWrap",
+		UDim2.fromScale(0.13, 0.2),
+		UDim2.fromScale(0.66, 0.43),
+		COL_PANEL,
+		1
+	)
+	specialWrap.Visible = false
+	local specialBtn = button(
+		specialWrap,
+		"SPECIAL",
+		UDim2.fromScale(1, 1),
+		UDim2.fromScale(0, 0),
+		COL_SPECIAL,
+		function()
+			if driving then
+				act("special")
+			end
+		end
+	)
+	local specialWipe = frame(
+		specialWrap,
+		"Wipe",
+		UDim2.fromScale(1, 1),
+		UDim2.fromScale(0, 0),
+		Color3.fromRGB(10, 12, 24),
+		0.35
+	)
+	specialWipe.ZIndex = 3
+	specialWipe.Active = false
+	corner(specialWipe, 12)
+	local specialGlow = Instance.new("UIStroke")
+	specialGlow.Color = Color3.fromRGB(255, 255, 200)
+	specialGlow.Thickness = 6
+	specialGlow.Transparency = 1
+	specialGlow.Parent = specialBtn
+	local hornWrap = frame(
+		gui,
+		"HornWrap",
+		UDim2.fromScale(0.09, 0.13),
+		UDim2.fromScale(0.57, 0.66),
+		COL_PANEL,
+		1
+	)
+	hornWrap.Visible = false
+	button(hornWrap, "HORN", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), COL_GOOD, function()
+		if driving then
+			act("horn")
+		end
+	end)
+	UserInputService.InputBegan:Connect(function(input: InputObject, gp: boolean)
+		if gp or not driving then
+			return
+		end
+		if input.KeyCode == Enum.KeyCode.Q then
+			act("special")
+		elseif input.KeyCode == Enum.KeyCode.H then
+			act("horn")
+		end
+	end)
+
 	local helpL = label(
 		gui,
-		"Steer with the wheel on the left. GAS is the green button, ATTACK is above it. PC: W A S D and Space.",
+		"Steer with the wheel on the left. GAS is the green button, ATTACK is above it. SPECIAL fills when you hit. PC: W A S D, Space, Q special, H horn.",
 		UDim2.fromScale(0.5, 0.05),
 		UDim2.fromScale(0.25, 0.8),
 		COL_TEXT,
@@ -1182,6 +1249,10 @@ function BattleUi.start()
 		attackGlow.Transparency = if attackReady >= 1
 			then 0.1 + 0.35 * math.abs(math.sin(os.clock() * 5))
 			else 1
+		specialWipe.Size = UDim2.fromScale(1, 1 - math.clamp(specialEnergy, 0, 1))
+		specialGlow.Transparency = if specialEnergy >= 1
+			then 0.1 + 0.35 * math.abs(math.sin(os.clock() * 6))
+			else 1
 	end)
 	local driver = BattleDriver.new(function()
 		return steerInput.read()
@@ -1199,6 +1270,10 @@ function BattleUi.start()
 		attackReady = 1
 		attackWrap.Visible = true
 		gasWrap.Visible = true
+		specialBtn.Text = specialNames[myFighter or ""] or "SPECIAL"
+		specialEnergy = 0
+		specialWrap.Visible = true
+		hornWrap.Visible = true
 		helpToken += 1
 		local mine = helpToken
 		helpL.Visible = true
@@ -1217,6 +1292,8 @@ function BattleUi.start()
 		driver.stop()
 		attackWrap.Visible = false
 		gasWrap.Visible = false
+		specialWrap.Visible = false
+		hornWrap.Visible = false
 		helpL.Visible = false
 	end
 
@@ -1563,6 +1640,7 @@ function BattleUi.start()
 		setHud(hudOpp, m.opp, nil)
 		midTime.Text = clock(m.left)
 		attackReady = m.me.ready
+		specialEnergy = if type(m.me.energy) == "number" then m.me.energy else 0
 		attackBtn.BackgroundColor3 = if m.me.ready >= 1
 			then COL_OPP
 			else Color3.fromRGB(110, 90, 80)
@@ -1576,6 +1654,31 @@ function BattleUi.start()
 			SoundFx.play(snd)
 		end
 		-- no kill feed or announcer text (sound only)
+	end
+
+	handlers.special = function(m)
+		SoundFx.play("special")
+		if m.side == mySide then
+			shakeAmp = math.max(shakeAmp, 3)
+			fovKick = math.max(fovKick, 6)
+		end
+	end
+
+	handlers.horn = function(m)
+		SoundFx.play("horn")
+		for _, b in carBodies do
+			if b.Parent and b.Parent:GetAttribute("BattleSide") == m.side then
+				local bb = Instance.new("BillboardGui")
+				bb.Size = UDim2.fromOffset(110, 40)
+				bb.StudsOffsetWorldSpace = Vector3.new(0, b.Size.Y * 0.5 + 9, 0)
+				bb.AlwaysOnTop = true
+				local t =
+					label(bb, "BEEP!", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), COL_TEXT, 30)
+				t.TextStrokeTransparency = 0
+				bb.Parent = b
+				Debris:AddItem(bb, 1)
+			end
+		end
 	end
 
 	handlers.phase = function(m)

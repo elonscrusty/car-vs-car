@@ -246,6 +246,23 @@ BattleConfig.Cannon = {
 	standSeconds = 2, -- then it turns and fights for this long -- when running from a close foe
 }
 
+-- One special move per car (the SPECIAL button). The energy bar fills by hitting the foe.
+BattleConfig.Special = {
+	energyPerDamage = 0.012, -- about 80 HP of damage dealt fills the bar
+	hornSeconds = 1.5, -- wait between horn honks
+	-- Ram Truck: a shockwave that shoves and hurts a foe close by
+	shockRadiusL = 4.5,
+	shockDamage = 30,
+	shockKnockSpeed = 55,
+	shockStagger = 0.6,
+	-- Cannon Van: three shells at once, fanned out
+	tripleSpreadDeg = 16,
+	-- Saw Buggy: a big saw blade that flies at the foe and curves hard toward it
+	sawThrowDamage = 38,
+	sawThrowScale = 2.2,
+	sawThrowHomingDeg = 160,
+}
+
 BattleConfig.Saw = {
 	buildSeconds = 3, -- steady contact this long reaches the full multiplier
 	heatSeconds = 3, -- bounce fight: after this much steady contact the saw overheats ...

@@ -4,6 +4,7 @@ local BattleBrain = require("../src/shared/BattleBrain")
 local BattleConfig = require("../src/shared/BattleConfig")
 local BattleAim = require("../src/shared/BattleAim")
 local BattleCrash = require("../src/shared/BattleCrash")
+local BattleSpecial = require("../src/shared/BattleSpecial")
 local BattleSelect = require("../src/shared/BattleSelect")
 local BattleSeries = require("../src/shared/BattleSeries")
 local BattleRecap = require("../src/shared/BattleRecap")
@@ -810,6 +811,18 @@ H.test("auto-aim curves a shot toward a foe that is nearly ahead, not one behind
 	H.eq(BattleAim.chargeTurn(1.2, 0.6, 0.5), 0)
 	H.eq(BattleAim.chargeTurn(0.3, 0.6, 0.5), 0.25)
 	H.eq(BattleAim.chargeTurn(-0.6, 0.6, 0.5), -0.5)
+end)
+
+H.test("special energy fills by hitting and is ready only when full", function()
+	local e = 0
+	H.eq(BattleSpecial.ready(e), false)
+	e = BattleSpecial.gain(e, 30) -- about one ram hit
+	H.eq(e > 0.3 and e < 0.4, true)
+	H.eq(BattleSpecial.ready(e), false)
+	e = BattleSpecial.gain(e, 100)
+	H.eq(e, 1) -- capped
+	H.eq(BattleSpecial.ready(e), true)
+	H.eq(BattleSpecial.gain(0.5, -20), 0.5) -- no negative gain
 end)
 
 H.test("a car past the walls or below the floor is out of the arena", function()

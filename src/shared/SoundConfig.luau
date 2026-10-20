@@ -38,6 +38,8 @@ SoundConfig.Events = {
 	wreck = { id = "", volume = 1, pitchVariance = 0.05 },
 	ramCharge = { id = "", volume = 0.7, pitchVariance = 0.05 },
 	cannonFire = { id = "", volume = 0.8, pitchVariance = 0.08 },
+	special = { id = "", volume = 0.9, pitchVariance = 0.05 },
+	horn = { id = "", volume = 0.8, pitchVariance = 0.1 },
 	sawRev = { id = "", volume = 0.7, pitchVariance = 0.05 },
 	music_lobby = { id = "", volume = 0.25, pitchVariance = 0, looped = true, music = true },
 	music_arena = { id = "", volume = 0.25, pitchVariance = 0, looped = true, music = true },
