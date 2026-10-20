@@ -67,3 +67,69 @@ The coin gift (about 30 coins) is granted by the server once per player, when th
 
 ## Order of work
 Props first (L5), then the tutorial, then the practice yard, then the layout shrink.
+
+## Status (2026-10-20 night, after PR 204, 213 and 215)
+
+IN = built and tested on the fake Roblox. SEEN = also seen in real Studio pictures (PR 204, in
+`/mnt/project-files/car-vs-car/review/lobby204/`). TUTORIAL = built and tested, not seen in Studio yet.
+OTHER = belongs to the "New lobby from picture" thread; not changed here.
+
+| Pick | State | Where |
+|---|---|---|
+| L1 | IN, TUTORIAL | `client/GuideTrail` green line (floats 0.85 above the floor); tests `tutorialworld`, `tutorialclient` |
+| L2 | IN, TUTORIAL | `client/TutorialUi`: text bubble, ring, arrow; no character |
+| L3 | IN, TUTORIAL | `Tutorial.isNew`, `TutorialRules.markStart`, SKIP pill, Settings row SHOW THE TUTORIAL (`ChampionsAdapter`) |
+| L4 | IN, TUTORIAL | `client/PracticeClient`, `PracticeCar` (Ram), `shared/PracticeYard`; no bot |
+| L5 | IN | order of work: props (PR 204) before the tutorial (PR 213) |
+| L6 | IN, TUTORIAL | yard at (-6000, 40, 0); `server/TutorialService` parks the character, `PracticeClient` fades in and out |
+| L7 | OTHER | PLAY pad queues for the 1v1 (`BattleService`); waiting screen is not mine |
+| L8 | IN, SEEN | cones look-only, no seats, no bounce pads (`tests/lobbyprops`) |
+| L9 | IN, SEEN | `server/Atmosphere`: ClockTime 14, no cycle; blue sky and clouds seen |
+| L10 | IN | `TutorialConfig.giftCoins = 30`, paid once by the server, not sooner than 20 s after the start |
+| L11 | IN, not timed | 3 boxes, two short walks, hard stop at 150 s; the real time needs a person to measure |
+| L12 | IN, TUTORIAL | gas and steer only, no attack button |
+| L13 | IN | `shared/PracticeYard` junkyard (its look will follow the new art style) |
+| L14 | IN | the portal is built on the new player's screen only and removed after |
+| L15 | IN, TUTORIAL | `shared/BubbleLayout`: beside the button, never over the screen middle (`tests/bubblelayout`, `tutorialui`) |
+| L16 | IN | SKIP pill from the first bubble |
+| L17 | IN | `TutorialConfig.text`: phone words and PC keys |
+| L18 | IN, TUTORIAL | green line to the gumball, then tap, pull, confirm, reveal, close |
+| L19 | IN | no special move or horn steps |
+| L20 | IN | flag saved at the START; Settings replay works, no second gift |
+| L21, L49 | IN, SEEN | wooden benches, plain parts, never seats |
+| L22 | IN, SEEN | rainbow cones, look-only (colors will follow the new art style) |
+| L23, L24 | IN, SEEN | `LobbyParking`, `LobbyCarModels`: real game cars on slowly spinning stands |
+| L25, L26 | IN, SEEN | 4 billboards with true tips |
+| L27 | IN | no street lamps (the tire wall keeps its small orange lights) |
+| L28, L29, L30 | IN, SEEN | junk piles, tire stacks, chain fence |
+| L31, L32, L48 | IN, SEEN | round trees, no flowers or bushes, puffy clouds |
+| L33, L34 | IN, SEEN | dark road, painted lines, black skid marks |
+| L35, L37, L38 | IN | nothing built; `tests/lobbyprops` lists the forbidden things |
+| L36 | IN | toolboxes, jacks, wrench rack, cart by the Customize garage |
+| L39, L40 | IN | chunky props; `LobbyProps.accentAt` colors a prop like the nearest building |
+| L41 | IN, SEEN | plaza 172 x 126 studs |
+| L42 | IN | the spawn looks at the PLAY ring (`tests/lobbybuild`, `lobbylayout`) |
+| L43 | IN | `LobbyLayout.walkSpeed = 24` |
+| L44 | IN, SEEN | glowing pad rings |
+| L45, L46 | OTHER | pad match start and the waiting screen with Cancel and a tip |
+| L47 | IN, SEEN | boards beside the front path, near the spawn |
+| L50 | IN | `server/GumballAnim` runs on the server, so everyone sees it (`tests/lobbyworkshop`) |
+| L51 | IN, TUTORIAL | Epic or better: server announce, `client/RareBanner` (`tests/rarebanner`) |
+| L52 | IN | part budget test: lobby under 2300 parts (1965 now) |
+| L53 | IN | the line is green |
+| L54 | IN | green check and 18 confetti bits per finished step |
+| L55 | IN | no sign at the spawn (the arch has none) |
+| L56 | IN | flat junkyard, no ramps |
+| L57 | IN | `TutorialConfig.boxesNeeded = 3` |
+| L58 | IN | back at the normal spawn |
+| L59 | IN | client-only portal |
+| L60 | IN | the practice ends by itself or on SKIP; no EXIT button |
+
+Not done or not checked:
+- Real Studio check of the whole tutorial (the Studio helper was asked; pictures go to `review/tutorial213/`).
+- A real phone and a real PC play of the tutorial buttons, bubble sizes, GAS button and stick.
+- No sounds yet (no sound ids).
+- L7, L45, L46 are owned by the other thread.
+- On hold: the texture, color and detail pass. carter dislikes the bright cartoon look and is
+  choosing a new art style. Colors live in `LobbyLayout.colors` (and `LobbyProps.billboardColors`),
+  so a re-skin is mostly a palette and material swap.

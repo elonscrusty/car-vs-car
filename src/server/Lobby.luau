@@ -1,6 +1,6 @@
 --!strict
 -- Builds the Car Battle Lobby (carter's reference sheet + 70 picks, docs/LOBBY_SPEC.md) at
--- LobbyConfig.Lobby.origin: 220 x 180 studs of asphalt plaza with the PLAY pads in the middle, the
+-- LobbyConfig.Lobby.origin: 172 x 126 studs of asphalt plaza (L41) with the PLAY pads in the middle, the
 -- workshop with the giant gumball machine at the back, the customize garage and the shop beside it,
 -- the two boards, parked cars, props and a grassy world outside. All positions live in
 -- Shared.LobbyLayout; each piece is built by its own module and this file only puts them together.
