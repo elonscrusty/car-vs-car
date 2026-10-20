@@ -791,6 +791,14 @@ H.test(
 	end
 )
 
+H.test("a car past the walls or below the floor is out of the arena", function()
+	H.eq(BattleCrash.outside(0, 0, 1, 85, 40), false)
+	H.eq(BattleCrash.outside(84, -39, 0.5, 85, 40), false)
+	H.eq(BattleCrash.outside(86, 0, 1, 85, 40), true)
+	H.eq(BattleCrash.outside(0, -41, 1, 85, 40), true)
+	H.eq(BattleCrash.outside(0, 0, -5, 85, 40), true)
+end)
+
 H.test("every weapon waits 6 seconds, rounds last 60", function()
 	H.eq(BattleConfig.Ram.cooldownSeconds, 6)
 	H.eq(BattleConfig.Cannon.cooldownSeconds, 6)
