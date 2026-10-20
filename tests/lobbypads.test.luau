@@ -88,6 +88,33 @@ H.test("pad counts and glow follow what BattleService says", function()
 	eq(folder:FindFirstChild("Pad2", true):FindFirstChild("Count", true).Text, "1/2")
 end)
 
+H.test(
+	"each pad glows on a soft disc with a light: blue when empty, gold and brighter while waiting",
+	function()
+		local world, _, _, _, _, _, _, _, folder, counts = setup()
+		counts[2] = 1
+		world.step(0.3)
+		local empty, busy = folder:FindFirstChild("Pad1", true), folder:FindFirstChild("Pad2", true)
+		local emptyHalo, busyHalo = empty:FindFirstChild("Halo"), busy:FindFirstChild("Halo")
+		truthy(emptyHalo and busyHalo, "no glow disc")
+		truthy(emptyHalo.Color.R < 0.3 and emptyHalo.Color.B > 0.7, "idle glow is blue")
+		truthy(busyHalo.Color.R > 0.9 and busyHalo.Color.B < 0.5, "waiting glow is gold")
+		truthy(busyHalo.Transparency < emptyHalo.Transparency, "brighter while waiting")
+		local lights = {}
+		for _, d in busy:GetDescendants() do
+			if d:IsA("PointLight") then
+				table.insert(lights, d)
+			end
+		end
+		eq(#lights, 1)
+		truthy(lights[1].Brightness > 2 and lights[1].Shadows == false)
+		-- nobody on a pad again: the glow goes back to blue
+		counts[2] = 0
+		world.step(0.3)
+		truthy(busyHalo.Color.R < 0.3 and busyHalo.Transparency == emptyHalo.Transparency)
+	end
+)
+
 H.test("the rings are tagged so each player's screen spins them", function()
 	local world, _, _, _, _, _, _, _, folder = setup()
 	local ring = folder:FindFirstChild("Ring", true)

@@ -308,3 +308,9 @@ Replaces the warehouse lobby (archived in `archive/lobby_v1`, shipped to ServerS
 
 ## Chase map "Wreck City" (built, not yet seen in Studio)
 Replaces the Duel Car Arena as the live battle map (THEME "chase"). Duel arena and toy room kept. Spec: docs/CHASE_MAP_SPEC.md.
+
+## Lobby polish: smaller lobby + props (2026-10-20, carter's L1-L60, docs/LOBBY_POLISH.md)
+- Plaza is 172 x 126 now (shorter walk, spawn faces PLAY). New `LobbyProps` (pure data in `shared`, builder in `server`): wooden benches (no seats), rainbow cones (look-only), tire stacks, junk piles, 4 tip billboards, tool props by the Customize garage, a chain fence round the edge, painted lines + black skid marks, puffy clouds (group `Clouds`). Trees are round and puffy; no lamps, flowers, bushes, flags, banners, statue, gas station or spawn sign.
+- `LobbyParking` = 16 car-show stands (`CarStands`, tagged `LobbySpin`, the client turns them). A player's car takes a stand with their name; every other stand shows a car you can win from the gumball.
+- PLAY pads keep the spinning ring and now sit on a soft glow disc with a light (blue empty, gold while someone waits).
+- Tests: `tests/lobbyprops.test.luau` (no overlaps, nothing on a path, nothing kickable, no banned names, whole lobby under 2300 parts for phones). `tools/preview` draws the lobby offline (`lune run tools/preview/dump lobby out.json`, `python3 tools/preview/render.py out.json out.png --view top|spawn|iso`). NOT seen in Studio yet.

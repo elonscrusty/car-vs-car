@@ -130,23 +130,47 @@ H.test("garage mouths and the plaza edge are blocked", function()
 	truthy(#LobbyLayout.blockers() >= 7)
 end)
 
-H.test("scenery is on grass and always the same", function()
+H.test("scenery is round trees and rocks on grass outside the fence, always the same", function()
 	local a, b = LobbyLayout.scenery(), LobbyLayout.scenery()
 	eq(#a, #b)
-	truthy(#a > 150)
-	for _, s in a do
+	truthy(#a >= 60)
+	local p, g = LobbyLayout.plaza, LobbyLayout.fenceGap
+	local trees = 0
+	for i, s in a do
+		eq(s.x, b[i].x)
+		-- carter's L31 / L32: round trees only, no pines, bushes or flowers
+		truthy(s.kind == "tree" or s.kind == "rock", s.kind)
+		if s.kind == "tree" then
+			trees += 1
+		end
 		truthy(
-			not (
-					math.abs(s.x) < LobbyLayout.plaza.halfX
-					and s.z < LobbyLayout.plaza.frontZ
-					and s.z > LobbyLayout.plaza.backZ
-				)
+			not (math.abs(s.x) < p.halfX + g and s.z < p.frontZ + g and s.z > p.backZ - g),
+			"inside the fence"
 		)
 	end
+	truthy(trees >= 40, "trees: " .. trees)
 end)
 
-H.test("boards stand beside the workshop", function()
-	local w = LobbyLayout.workshop
-	truthy(math.abs(LobbyLayout.boards.weekly.x) > w.w / 2)
-	eq(LobbyLayout.boards.weekly.x, -LobbyLayout.boards.wins.x)
-end)
+H.test(
+	"the boards stand near the spawn, one each side of the front path, turned toward it",
+	function()
+		local sp = LobbyLayout.spawn
+		local weekly, wins = LobbyLayout.boards.weekly, LobbyLayout.boards.wins
+		eq(weekly.x, -wins.x)
+		eq(weekly.z, wins.z)
+		eq(weekly.yawDeg, -wins.yawDeg)
+		for _, b in { weekly, wins } do
+			truthy(math.abs(b.x) > 7 + b.w / 2, "not on the path") -- the front path is 14 wide
+			truthy(
+				math.sqrt((b.x - sp.x) ^ 2 + (b.z - sp.z) ^ 2) < 30,
+				"within 30 studs of the spawn"
+			)
+			-- the readable face (local +z) looks toward the path middle
+			local a = math.rad(b.yawDeg)
+			truthy(
+				math.sin(a) * (0 - b.x) + math.cos(a) * (sp.z - b.z) > 0,
+				"faces away from the path"
+			)
+		end
+	end
+)

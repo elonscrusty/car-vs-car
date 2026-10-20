@@ -65,6 +65,36 @@ function LobbyCars.isRarePull(carId: string): boolean
 	return rankOf(carId) >= RANK.Epic
 end
 
+-- The cars an empty parking spot shows (carter's L23): the real cars you can win from the gumball
+-- machine, in catalog order. A build with none shows every enabled car instead.
+function LobbyCars.decorCars(): { string }
+	local out: { string } = {}
+	local all: { string } = {}
+	for _, id in BattleConfig.Order do
+		local f = BattleConfig.Fighters[id]
+		if f and f.enabled then
+			table.insert(all, id)
+			if f.gumball then
+				table.insert(out, id)
+			end
+		end
+	end
+	return if #out > 0 then out else all
+end
+
+-- The glow color of a car-show stand by rarity (r, g, b): blue, green, purple, gold.
+local RARITY_COLORS: { [string]: { number } } = {
+	Common = { 37, 141, 221 },
+	Rare = { 46, 190, 96 },
+	Epic = { 160, 90, 230 },
+	Legendary = { 255, 205, 64 },
+}
+
+function LobbyCars.rarityColor(carId: string): { number }
+	local f = BattleConfig.Fighters[carId]
+	return RARITY_COLORS[if f then f.rarity else "Common"] or RARITY_COLORS.Common
+end
+
 function LobbyCars.nameOf(carId: string): string
 	local f = BattleConfig.Fighters[carId]
 	return if f then f.name else carId

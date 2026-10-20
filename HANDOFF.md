@@ -250,3 +250,6 @@ Replaces the warehouse lobby (archived in `archive/lobby_v1`, shipped to ServerS
 ## Wreck City fixes (map thread)
 - Stuck rescue now watches position (under 3 studs in 2.5 s with gas held, not touching the foe) instead of speed; Studio showed speed flickers when pushing a prop.
 - Road and deck colours darkened (they rendered pure white from the high camera and lost the lane colours).
+
+## Lobby polish PR 1 (smaller lobby + props), for the game plan thread
+Sync it, save, then take pictures: from the spawn looking at the pads, the PLAY pads close up (one empty, one with a player), a row of car stands, a junk pile + tire stack at the side wall, one billboard, the tool props at the Customize garage, the chain fence from outside, the sky. Look for: nothing floating or inside a wall, no flat black panels, trees round, no script errors in the output. Spec: docs/LOBBY_POLISH.md (it wins over docs/LOBBY_SPEC.md).
