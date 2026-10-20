@@ -20,6 +20,7 @@ export type Mover = {
 	slide: Vector3, -- flat velocity a wall bounce keeps pushing while knocked
 	lastForward: Vector3,
 	momentum: boolean,
+	cmdSpeed: number?, -- the forward speed this device commanded last step (see BattleFeel.trust)
 	turnNow: number?, -- the steering after smoothing (-1..1): the wheel takes a moment to swing
 }
 
@@ -91,6 +92,7 @@ function BattleDrive.wallBounce(car: Mover, v: Vector3, dt: number): boolean
 	body.AssemblyLinearVelocity = Vector3.new(r.X, v.Y, r.Z)
 	car.stagger = math.max(car.stagger, 0.6)
 	car.slide = Vector3.new(r.X, 0, r.Z)
+	car.cmdSpeed = nil
 	return true
 end
 
@@ -119,11 +121,13 @@ function BattleDrive.humanStep(car: Mover, out: Out, dt: number, f: Vector3, v: 
 		-- in the air: keep the speed and spin the ramp gave it, steer a little
 		local w = body.AssemblyAngularVelocity
 		body.AssemblyAngularVelocity = Vector3.new(w.X, yawRate * H.airYawScale, w.Z)
+		car.cmdSpeed = nil
 		return
 	end
 
-	local fwd = v.X * f.X + v.Z * f.Z
-	local lat = Vector3.new(v.X - f.X * fwd, 0, v.Z - f.Z * fwd)
+	local fwdReal = v.X * f.X + v.Z * f.Z
+	local lat = Vector3.new(v.X - f.X * fwdReal, 0, v.Z - f.Z * fwdReal)
+	local fwd = BattleFeel.trust(car.cmdSpeed, fwdReal, cruise)
 	local want = out.drive * cruise
 	if want < 0 then
 		want *= mv.reverseScale
@@ -136,6 +140,7 @@ function BattleDrive.humanStep(car: Mover, out: Out, dt: number, f: Vector3, v: 
 	else
 		fwd = BattleFeel.nextSpeed(fwd, want, dt, cruise)
 	end
+	car.cmdSpeed = fwd
 	local skidding = out.state == "skid"
 
 	local speedFrac = math.abs(fwd) / cruise
@@ -168,6 +173,7 @@ function BattleDrive.knockedStep(car: Mover, v: Vector3, dt: number): boolean
 	end
 	local mv = BattleConfig.Move
 	car.stagger = math.max(0, car.stagger - dt)
+	car.cmdSpeed = nil
 	local keep = math.max(0, 1 - mv.knockFriction * dt)
 	local body = car.body
 	if car.slide.Magnitude > 0 then

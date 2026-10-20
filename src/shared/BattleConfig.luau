@@ -299,6 +299,7 @@ BattleConfig.Human = {
 	brakeMult = 0.55, -- gas the other way (was 1.6: stopped in 0.1 s)
 	coastMult = 0.25, -- letting go of the gas: the car rolls on (about 0.9 s from top speed)
 	turnTopScale = 0.5, -- share of the turn rate left at top speed (was 1: full turn at any speed)
+	trustGapFrac = 0.35, -- physics moved the car by more than this share of top speed from what we commanded: the real speed wins
 	steerRate = 6, -- the wheel swings this much per second (full lock in 1/6 s; was instant)
 	driftSteer = 0.8, -- a little slide only when steering this hard ...
 	driftSpeed = 0.8, -- ... at this share of cruise speed or more
