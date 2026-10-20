@@ -229,3 +229,4 @@ Fight code: read spawns from `arena.spawnPoint(side)` (or `SpawnA|B` pad parts).
 - Wall rebound reach in `BattleCar.wallBounce` was a hair short (Studio: 0 studs back); reach is now half length + max(3 steps, 3) + 1.
 - Flags did not wave: client `MapFx` now looks for Strip1..5 every frame until all five have streamed in.
 - Garage floor covers the whole garage footprint (no grass gap); Metal parts in the arena are SmoothPlastic (roofs and cover blocks blew out white).
+- Wall rebound (Studio: car stopped in 0.1 s, floor friction ate it): `BattleCar.slide` holds the bounce velocity by hand while knocked (0.5 s). A ram knock clears it.
