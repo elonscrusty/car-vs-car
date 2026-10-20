@@ -347,10 +347,10 @@ local function wallBounce(car: Car, v: Vector3, dt: number): boolean
 	end
 	n = n.Unit
 	local props = (hit.Instance :: BasePart).CustomPhysicalProperties
-	local keep = (if props then props.Elasticity else 0.5) * 0.7
+	local keep = (if props then props.Elasticity else 0.5) * 0.85
 	local r = (flat - 2 * flat:Dot(n) * n) * keep
 	body.AssemblyLinearVelocity = Vector3.new(r.X, v.Y, r.Z)
-	car.stagger = math.max(car.stagger, 0.5)
+	car.stagger = math.max(car.stagger, 0.6)
 	car.slide = Vector3.new(r.X, 0, r.Z)
 	return true
 end
