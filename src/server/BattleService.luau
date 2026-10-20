@@ -48,6 +48,7 @@ type Part = {
 	gas: number, -- -1 back .. 1 forward
 	inputAt: number, -- when the last drive input arrived (old input counts as 0)
 	attack: boolean, -- ATTACK was pressed since the last step
+	boost: boolean, -- BOOST was pressed since the last step
 }
 type Shell = {
 	owner: BattleCar.Car,
@@ -353,7 +354,7 @@ function BattleService.start(opts: {
 			if part.player ~= nil then
 				-- a player drives this car: stick / keys and the ATTACK button
 				car.human = true
-				part.steer, part.gas, part.attack = 0, 0, false
+				part.steer, part.gas, part.attack, part.boost = 0, 0, false, false
 				BattleCar.arm(car, BattleHuman.new(car.fighter.id))
 				BattleCar.launch(car, false)
 			else
@@ -378,6 +379,7 @@ function BattleService.start(opts: {
 				max = c.maxHp,
 				ready = if c.lastOut then c.lastOut.ready else 1,
 				state = if c.lastOut then c.lastOut.state else "approach",
+				boost = if c.lastOut and c.lastOut.boostReady then c.lastOut.boostReady else 1,
 			}
 		end
 		return {
@@ -671,9 +673,10 @@ function BattleService.start(opts: {
 					hb.setInput(
 						if fresh then part.steer else 0,
 						if fresh then part.gas else 0,
-						part.attack
+						part.attack,
+						part.boost
 					)
-					part.attack = false
+					part.attack, part.boost = false, false
 				end
 				local cruise = car.fighter.cruiseL * car.L
 				local fwdSpeed = car.body.AssemblyLinearVelocity:Dot(Vector3.new(cf.X, 0, cf.Z))
@@ -693,6 +696,7 @@ function BattleService.start(opts: {
 				BattleCar.lunge(car, dt)
 				if out.fire then
 					fireShell(m, car, foe)
+					sendEvent(m, car.side, "Fire!")
 				end
 				if out.damage > 0 then
 					if foe.side == "a" then
@@ -845,6 +849,7 @@ function BattleService.start(opts: {
 			gas = 0,
 			inputAt = 0,
 			attack = false,
+			boost = false,
 		}
 	end
 
@@ -868,6 +873,7 @@ function BattleService.start(opts: {
 			gas = 0,
 			inputAt = 0,
 			attack = false,
+			boost = false,
 		}
 	end
 
@@ -1008,6 +1014,10 @@ function BattleService.start(opts: {
 			elseif name == "attack" then
 				if m.phase == "fight" then
 					part.attack = true
+				end
+			elseif name == "boost" then
+				if m.phase == "fight" then
+					part.boost = true
 				end
 			elseif name == "lock" then
 				if m.phase == "select" and not part.locked then
