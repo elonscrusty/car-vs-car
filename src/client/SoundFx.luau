@@ -65,6 +65,29 @@ function SoundFx.play(event: string)
 	end)
 end
 
+-- The looping engine of the player's car. `speedFrac` ~0..1.5 sets pitch and volume; nil stops it.
+-- Silent while the engineLoop id is empty.
+function SoundFx.engine(speedFrac: number?)
+	pcall(function()
+		local spec = Sounds.resolve("engineLoop", 0.5)
+		if spec == nil then
+			return
+		end
+		local sound = getSound("engineLoop", spec)
+		if speedFrac == nil then
+			if sound.IsPlaying then
+				sound:Stop()
+			end
+			return
+		end
+		sound.PlaybackSpeed = spec.pitch * (0.75 + math.clamp(speedFrac, 0, 1.6) * 0.9)
+		sound.Volume = spec.volume * (0.5 + math.clamp(speedFrac, 0, 1) * 0.5)
+		if not sound.IsPlaying then
+			sound:Play()
+		end
+	end)
+end
+
 -- Hit strength 0..1 picks hitSoft or hitHard.
 function SoundFx.hit(strength: number?)
 	SoundFx.play(Sounds.hitEvent(strength))

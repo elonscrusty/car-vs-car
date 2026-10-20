@@ -384,6 +384,8 @@ function BattleCar.driveHuman(car: Car, out: BattleBrain.Output, dt: number, f: 
 		params
 	) ~= nil
 	car.model:SetAttribute("Airborne", not onGround)
+	local boosting = out.boost == 1 and onGround
+	car.model:SetAttribute("Boosting", boosting)
 	if not onGround then
 		-- in the air: keep the speed and spin the ramp gave it, steer a little
 		local w = body.AssemblyAngularVelocity
@@ -399,6 +401,9 @@ function BattleCar.driveHuman(car: Car, out: BattleBrain.Output, dt: number, f: 
 	end
 	local speeding = math.abs(want) > math.abs(fwd)
 	local rate = if speeding then mv.accel * H.accelMult else mv.brake * H.brakeMult
+	if boosting then
+		rate = mv.accel * H.boostAccel
+	end
 	if out.state == "charge" or out.state == "rev" then
 		rate = mv.accel * 4 -- a charge gets up to speed fast
 	end

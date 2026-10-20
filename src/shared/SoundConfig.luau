@@ -31,6 +31,14 @@ SoundConfig.Events = {
 	goal = { id = "", volume = 0.9, pitchVariance = 0 },
 	countdownTick = { id = "", volume = 0.5, pitchVariance = 0 },
 	countdownGo = { id = "", volume = 0.7, pitchVariance = 0 },
+	-- driving and fighting (manual driving)
+	engineLoop = { id = "", volume = 0.35, pitchVariance = 0, looped = true },
+	skid = { id = "", volume = 0.5, pitchVariance = 0.1 },
+	land = { id = "", volume = 0.6, pitchVariance = 0.1 },
+	wreck = { id = "", volume = 1, pitchVariance = 0.05 },
+	ramCharge = { id = "", volume = 0.7, pitchVariance = 0.05 },
+	cannonFire = { id = "", volume = 0.8, pitchVariance = 0.08 },
+	sawRev = { id = "", volume = 0.7, pitchVariance = 0.05 },
 	music_lobby = { id = "", volume = 0.25, pitchVariance = 0, looped = true, music = true },
 	music_arena = { id = "", volume = 0.25, pitchVariance = 0, looped = true, music = true },
 } :: { [string]: Entry }

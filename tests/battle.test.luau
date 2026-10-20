@@ -743,3 +743,39 @@ H.test("human: input values are clamped", function()
 	H.eq(o.drive, -1)
 	H.truthy(o.turn >= -1 and o.turn <= 1)
 end)
+
+H.test("human boost: a burst of speed, then a cooldown before the next one", function()
+	local b = BattleHuman.new("CannonVan")
+	local me, foe = bodies(300)
+	local H2 = BattleConfig.Human
+	b.setInput(0, 0, false, true)
+	local o = b.step(0.05, me, foe, { ram = false, saw = false })
+	H.eq(o.boost, 1)
+	H.eq(o.drive, H2.boostMult)
+	H.truthy((o.boostReady :: number) < 1, "the boost meter drops")
+	-- it burns for boostSeconds, then stops
+	local burning = 0
+	for _ = 1, 60 do
+		local x = b.step(0.05, me, foe, { ram = false, saw = false })
+		if x.boost == 1 then
+			burning += 1
+		end
+	end
+	H.truthy(burning > 0 and burning < 60, "it ends")
+	-- pressing again during the cooldown does nothing
+	b.setInput(0, 0, false, true)
+	local again = b.step(0.05, me, foe, { ram = false, saw = false })
+	H.eq(again.boost, nil)
+end)
+
+H.test("human boost: no boost in the middle of a charge", function()
+	local b = BattleHuman.new("RamTruck")
+	local me, foe = bodies(300)
+	b.setInput(0, 1, true, true)
+	local o = b.step(0.05, me, foe, { ram = false, saw = false })
+	H.eq(o.state, "charge")
+	H.eq(o.boost, nil)
+	local after = b.step(0.05, me, foe, { ram = false, saw = false })
+	H.eq(after.drive, BattleConfig.Ram.chargeMult)
+	H.eq(after.boost, nil)
+end)

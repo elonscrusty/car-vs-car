@@ -11,6 +11,10 @@
 - Removed: launch aim / start spot rows, momentum (Bounce) as default (`defaultMomentum=false`; code kept for the bot).
 - MAP CONTRACT: `BattleArena` reads spawns from parts named `SpawnA` / `SpawnB` in the arena folder (position + front
   direction); with none it uses the old default spots. Arena size for bots/borders is still `BattleConfig.Arena`.
+- "10x" pass (2026-10-20): BOOST (orange button / Shift / Q, `Human.boost*`, BattleAction "boost"), car attributes
+  Airborne/Drifting/Boosting read by `src/client/BattleFx.luau` (tire smoke, skid marks, flame, landing dust, speed
+  lines, engine sound), heavier shake + FOV kick, final wreck = orbit camera + letterbox + floaty debris
+  (`Timing.koSeconds` 2.6; physics is NOT slowed, only the camera/debris feel). Sound hooks in `SoundConfig` (ids empty).
 - Feel pass (2026-10-20): `BattleCar.driveHuman` (2x accel, tight low-speed turns, drift when steering hard at speed,
   no forced speed in the air so map ramps launch the car; numbers in `BattleConfig.Human`). Hit juice in `BattleUi`
   (`handlers.hit`: sparks, debris, damage number, camera shake, red flash when YOU are hit, wreck explosion on the K.O.).
