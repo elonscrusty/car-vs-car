@@ -967,3 +967,27 @@ H.test(
 		H.eq(worst >= 20, true)
 	end
 )
+
+H.test(
+	"floor friction does not eat the getaway: the commanded speed carries on, a crash resets it",
+	function()
+		local top = BattleConfig.Human.topSpeed
+		local dt = 1 / 60
+		local cmd: number? = nil
+		local actual = 0
+		local t = 0
+		while actual < 0.9 * top and t < 5 do
+			local base = BattleFeel.trust(cmd, actual, top)
+			local nextV = BattleFeel.nextSpeed(base, top, dt, top)
+			cmd = nextV
+			actual = nextV - 2.5 -- the floor takes up to 2.5 studs/s off every step
+			t += dt
+		end
+		H.eq(t >= 0.55 and t <= 1.2, true)
+		-- a crash or shove that moves the car a lot: the real speed wins
+		H.eq(BattleFeel.trust(40, 5, top), 5)
+		-- a small difference (friction): the commanded speed stays
+		H.eq(BattleFeel.trust(40, 37.5, top), 40)
+		H.eq(BattleFeel.trust(nil, 12, top), 12)
+	end
+)

@@ -32,6 +32,20 @@ function BattleFeel.nextSpeed(fwd: number, want: number, dt: number, cruise: num
 	return fwd + math.clamp(want - fwd, -step, step)
 end
 
+-- The speed the car is COMMANDED to have. The floor's friction takes a little speed off every step, so
+-- reading the speed back from physics each step would eat a slow build-up (the car would never get going).
+-- So the commanded speed carries on from step to step, unless physics moved the car a lot (a crash, a
+-- wall, a shove): then the real speed wins.
+function BattleFeel.trust(commanded: number?, actual: number, cruise: number): number
+	if commanded == nil then
+		return actual
+	end
+	if math.abs(commanded - actual) > BattleConfig.Human.trustGapFrac * cruise then
+		return actual
+	end
+	return commanded
+end
+
 -- Share of the full turn rate at this share of top speed: full when crawling, `turnTopScale` at top speed.
 function BattleFeel.turnScale(speedFrac: number): number
 	local top = BattleConfig.Human.turnTopScale
