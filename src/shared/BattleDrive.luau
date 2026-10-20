@@ -149,7 +149,7 @@ function BattleDrive.humanStep(car: Mover, out: Out, dt: number, f: Vector3, v: 
 		and math.abs(out.turn) >= H.driftSteer
 		and speedFrac >= H.driftSpeed
 	car.model:SetAttribute("Drifting", drifting)
-	local sideGrip = if skidding then mv.skidSide elseif drifting then H.driftSide else 8
+	local sideGrip = if skidding then mv.skidSide elseif drifting then H.driftSide else H.sideGrip
 	lat *= math.max(0, 1 - sideGrip * dt)
 	local maxSlide = H.slideMaxFrac * cruise
 	if lat.Magnitude > maxSlide then
