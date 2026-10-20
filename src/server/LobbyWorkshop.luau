@@ -377,21 +377,22 @@ local function buildOddsSign(shell: LobbyGarageShell.Shell)
 	local g = gui(panel, o.w, o.h)
 	local W, H = o.w * 40, o.h * 40
 	local white = rgb(C.marking)
-	text(g, "GUMBALL ODDS", UDim2.new(0, 0, 0, 14), UDim2.new(1, 0, 0, 62), 52, orange)
+	local k = W / 560 -- the layout below was drawn for a 14 stud sign; sizes follow the real width
+	text(g, "GUMBALL ODDS", UDim2.new(0, 0, 0, 14 * k), UDim2.new(1, 0, 0, 62 * k), 52 * k, orange)
 	local priceLine = `1 PULL = {LobbyText.formatNumber(LobbyConfig.Gacha.price)} COINS`
-	text(g, priceLine, UDim2.new(0, 0, 0, 78), UDim2.new(1, 0, 0, 40), 30, rgb(C.gold))
+	text(g, priceLine, UDim2.new(0, 0, 0, 78 * k), UDim2.new(1, 0, 0, 40 * k), 30 * k, rgb(C.gold))
 	local rows = Gacha.oddsTable()
-	local top = 130
-	local rowH = math.min(56, (H - top - 16) / math.max(1, #rows))
+	local top = 130 * k
+	local rowH = math.min(56 * k, (H - top - 16 * k) / math.max(1, #rows))
 	for i, row in rows do
 		local y = top + (i - 1) * rowH
 		local color = RARITY_COLORS[row.rarity] or white
 		text(
 			g,
 			string.upper(row.rarity),
-			UDim2.new(0, 36, 0, y),
+			UDim2.new(0, 36 * k, 0, y),
 			UDim2.new(0, W * 0.5, 0, rowH),
-			38,
+			38 * k,
 			color,
 			Enum.TextXAlignment.Left
 		)
@@ -399,8 +400,8 @@ local function buildOddsSign(shell: LobbyGarageShell.Shell)
 			g,
 			percent(row.percent),
 			UDim2.new(0, W * 0.5, 0, y),
-			UDim2.new(0, W * 0.5 - 36, 0, rowH),
-			38,
+			UDim2.new(0, W * 0.5 - 36 * k, 0, rowH),
+			38 * k,
 			white,
 			Enum.TextXAlignment.Right
 		)

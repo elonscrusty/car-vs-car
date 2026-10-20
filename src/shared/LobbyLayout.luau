@@ -97,7 +97,7 @@ Layout.shop = { x = 74, z = -58, w = 44, d = 30, h = 18, yawDeg = -32 }
 Layout.gumball = { u = 0, v = -8, radius = 7.5 } -- the giant machine (ball radius)
 Layout.stageRare = { u = -19, v = 4, radius = 8 } -- the rarest gumball car
 Layout.stageGold = { u = 19, v = 4, radius = 8 } -- the gold car of this week's #1
-Layout.oddsSign = { u = 14, v = -10, w = 8, h = 6 } -- standing sign by the machine
+Layout.oddsSign = { u = 14, v = -14.2, w = 9, h = 6.4 } -- standing sign by the machine
 
 -- Inside the customize garage: the turntable, and the shop: the counter and the 3 display cars.
 Layout.turntable = { u = 0, v = -2, radius = 8 }
