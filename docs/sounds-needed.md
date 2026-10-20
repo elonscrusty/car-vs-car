@@ -46,3 +46,12 @@ Full list (boost and click repeat from above):
 That is 22 ids (20 effects, 2 music loops). Hit sounds (hitSoft, hitHard), countdown and win/lose are also used in the 1v1 fight. The two music ones must be seamless loops.
 
 Players can switch music off with the MUSIC button in the lobby menu (remembered only until they rejoin; effects stay on).
+
+## Duel arena sound spots (silent until you give ids)
+In the arena folder, `Sounds` > `Spot_<name>` > Sound `<name>` (SoundId is blank). Paste the id into that Sound in Studio, or tell a helper to set it:
+
+| Sound | When | What it should sound like |
+|---|---|---|
+| Birds | loops all match | gentle sunny-day birds and a little breeze, quiet |
+| GarageDoorA / GarageDoorB | both roller doors roll up at GO | rolling metal shutter, ~1 s |
+| GoHorn | at GO | short friendly air horn, under 1 s |

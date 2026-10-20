@@ -10,6 +10,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local CollectionService = game:GetService("CollectionService")
 
 local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
 local BattleBrain = require(ReplicatedStorage.Shared.BattleBrain)
@@ -315,6 +316,37 @@ function BattleCar.overlaps(car: Car, foe: Car): boolean
 	return #workspace:GetPartBoundsInBox(r.CFrame, r.Size, params) > 0
 end
 
+-- A wall part the map tags "Bouncy" (the duel arena walls, cover blocks and tires) throws a car back
+-- that runs into it, instead of letting the drive code push it to a dead stop. The car loses a bit
+-- of speed, slides back for a moment and cannot steer meanwhile (the knocked state). No damage.
+local function wallBounce(car: Car, v: Vector3, dt: number): boolean
+	local body = car.body
+	local flat = Vector3.new(v.X, 0, v.Z)
+	local speed = flat.Magnitude
+	if speed < 0.3 * car.fighter.cruiseL * car.L then
+		return false
+	end
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { car.model }
+	local reach = body.Size.Z / 2 + speed * dt * 1.5 + 0.5
+	local hit = workspace:Raycast(body.Position, flat.Unit * reach, params)
+	if hit == nil or not CollectionService:HasTag(hit.Instance, "Bouncy") then
+		return false
+	end
+	local n = Vector3.new(hit.Normal.X, 0, hit.Normal.Z)
+	if n.Magnitude < 1e-3 then
+		return false
+	end
+	n = n.Unit
+	local props = (hit.Instance :: BasePart).CustomPhysicalProperties
+	local keep = (if props then props.Elasticity else 0.5) * 0.7
+	local r = (flat - 2 * flat:Dot(n) * n) * keep
+	body.AssemblyLinearVelocity = Vector3.new(r.X, v.Y, r.Z)
+	car.stagger = math.max(car.stagger, 0.35)
+	return true
+end
+
 -- Turns the brain's answer into movement. Only forward speed and turning are driven, so cars
 -- steer like cars and do not slide sideways (sideways speed dies out fast); bumps still push.
 function BattleCar.drive(car: Car, out: BattleBrain.Output, dt: number)
@@ -322,6 +354,9 @@ function BattleCar.drive(car: Car, out: BattleBrain.Output, dt: number)
 	local body = car.body
 	local f = BattleCar.forward(car)
 	local v = body.AssemblyLinearVelocity
+	if car.stagger <= 0 and wallBounce(car, v, dt) then
+		return
+	end
 	if car.stagger > 0 then
 		-- knocked: slide and spin on the shove, no steering
 		car.stagger = math.max(0, car.stagger - dt)

@@ -1,11 +1,13 @@
 --!strict
--- "Duel Car Arena": the 1v1 battle map from carter's reference sheet. Pure data, no Roblox objects,
--- so the tests can check every number. The server builds it in DuelArena.
+-- "Duel Car Arena": the 1v1 battle map from carter's reference sheet, dressed up to his picks
+-- (docs/DUEL_ARENA_SPEC.md). Pure data, no Roblox objects, so the tests can check every number.
+-- The server builds it in DuelArena.
 --
 -- Arena-local studs: x runs along the long side (between the two start pads), z across, y up; the
--- floor top is y = 0. The playable floor is a rounded rectangle (170 x 120): a car at about 45 studs
--- per second crosses the long way in about 4 seconds. Garages, trees and rocks stand outside the
--- walls and fill the overall 240 x 200 footprint of the sheet.
+-- floor top is y = 0. The playable floor is a rounded rectangle (170 x 120): a car at about 45
+-- studs per second crosses the long way in about 4 seconds. The garages stand behind the two end
+-- walls, their doors look into the arena; trees, rocks, paths, hills and light towers fill the
+-- grass round it.
 
 local Layout = {}
 
@@ -14,36 +16,50 @@ Layout.halfZ = 60
 Layout.corner = 24 -- radius of the rounded corners
 Layout.wallHeight = 7 -- car height: a car bounces off it, nothing more
 Layout.wallThickness = 4
-Layout.totalX = 240 -- footprint of the whole scene (floor, garages, grass outside)
+Layout.totalX = 240 -- footprint of the sheet (floor, garages, a strip of grass)
 Layout.totalZ = 200
+Layout.groundX = 460 -- the whole grass plate
+Layout.groundZ = 420
 Layout.spawnX = 60
-Layout.spawnZ = -34 -- both starts sit in front of their garage on the north side
+Layout.spawnZ = 0 -- both starts on the middle line, each in front of its garage
 
 Layout.colors = {
 	asphalt = { 72, 83, 99 }, -- #485363 on the sheet
+	asphaltDark = { 58, 66, 80 },
 	orange = { 245, 130, 32 }, -- #F58220
 	blue = { 37, 141, 221 }, -- #258DDA
 	tire = { 36, 39, 43 }, -- #24272B
-	rim = { 92, 98, 108 }, -- hole in the top tire
 	grass = { 127, 186, 66 }, -- #7FBA42
+	hill = { 142, 200, 84 },
 	marking = { 237, 240, 234 }, -- #EDF0EA
-	padRed = { 214, 58, 52 },
-	padBlue = { 37, 141, 221 },
-	light = { 255, 168, 60 }, -- glowing wall lights
+	red = { 214, 58, 52 },
+	light = { 255, 168, 60 }, -- glowing lights, steady
 	metal = { 128, 134, 146 },
+	metalDark = { 70, 76, 88 },
 	trunk = { 120, 82, 52 },
 	leaf = { 86, 160, 58 },
 	leafLight = { 118, 190, 70 },
+	pine = { 52, 128, 78 },
+	pineLight = { 72, 152, 92 },
 	rock = { 138, 142, 150 },
+	rockDark = { 108, 112, 122 },
 	crate = { 176, 128, 76 },
+	dirt = { 168, 128, 86 },
+	skid = { 38, 43, 54 },
+	bush = { 70, 150, 64 },
+	flowers = { { 255, 214, 64 }, { 255, 120, 150 }, { 255, 255, 255 }, { 176, 120, 255 } },
 }
 
-Layout.wallBounce = 0.9 -- how much speed a car keeps when it hits a wall or cover
 Layout.pad = { sx = 26, sz = 18 } -- start pad size, along the driving direction and across
-Layout.lane = 14 -- nothing but floor markings within this far of the start line z, between the pads
+Layout.lane = 14 -- nothing but floor markings within this far of the middle line, between the pads
 Layout.block = { sx = 16, sy = 6, sz = 7 } -- cover barrier size
 Layout.tire = { diameter = 5.4, height = 1.9, stack = 3 }
-Layout.garage = { sx = 44, sy = 13, sz = 24, x = 60 } -- behind the north wall, red at -x and blue at +x
+Layout.wallBounce = 0.9 -- how much speed a car keeps when it hits a wall or cover
+-- Garage: width across the mouth (z), depth into the grass (x), height. Two cars wide.
+Layout.garage = { w = 40, d = 26, h = 15, mouth = 36, door = 12 }
+Layout.circle = 15 -- radius of the painted center circle
+Layout.tower = { x = 96, z = 70, height = 36 } -- stadium light towers, one per corner outside the walls
+Layout.sign = { z = -92, width = 56, height = 11, y = 24 } -- "CAR VS CAR" over the north wall
 
 export type Wall = {
 	name: string,
@@ -51,7 +67,7 @@ export type Wall = {
 	z: number,
 	length: number,
 	yawDeg: number, -- the long side runs along this heading (0 = along x)
-	team: string, -- "orange" or "blue"
+	team: string, -- "orange" or "blue", mixed all the way round
 	arc: boolean,
 	nx: number, -- unit vector pointing to the middle of the arena (the inner face looks this way)
 	nz: number,
@@ -70,29 +86,31 @@ local function cornerCenters(): { { number } }
 	return { { -cx, -cz, -1, -1 }, { cx, -cz, 1, -1 }, { cx, cz, 1, 1 }, { -cx, cz, -1, 1 } }
 end
 
-local function teamAt(x: number): string
-	return if x < 0 then "orange" else "blue"
+local function teamOf(n: number): string
+	return if n % 2 == 0 then "orange" else "blue"
 end
 
--- The wall pieces. Each is a box `length` long and wallThickness thick whose INNER face passes
--- through (x, z) shifted by `wallThickness / 2` away from the middle: callers place it at
--- (x + -nx * t/2, z + -nz * t/2).
+-- The wall pieces. Each is a box `length` long and wallThickness thick; its INNER face passes
+-- through (x, z) and the box sits wallThickness / 2 behind that, away from the middle. The two end
+-- walls have an opening where the garage mouths are.
 function Layout.walls(): { Wall }
 	local list: { Wall } = {}
 	local hx, hz, r = Layout.halfX, Layout.halfZ, Layout.corner
 	local runX = (hx - r) * 2 -- straight stretch of the north and south walls
 	local runZ = (hz - r) * 2
 	local nX, nZ = 6, 4 -- modules along each straight
+	local n = 0
 	for i = 1, nX do
 		local x = -(hx - r) + (i - 0.5) * runX / nX
 		for _, sz in { -1, 1 } do
+			n += 1
 			table.insert(list, {
 				name = (if sz < 0 then "WallN" else "WallS") .. i,
 				x = x,
 				z = sz * hz,
 				length = runX / nX,
 				yawDeg = 0,
-				team = teamAt(x),
+				team = teamOf(i + (if sz < 0 then 0 else 1)),
 				arc = false,
 				nx = 0,
 				nz = -sz,
@@ -101,18 +119,20 @@ function Layout.walls(): { Wall }
 	end
 	for i = 1, nZ do
 		local z = -(hz - r) + (i - 0.5) * runZ / nZ
-		for _, sx in { -1, 1 } do
-			table.insert(list, {
-				name = (if sx < 0 then "WallW" else "WallE") .. i,
-				x = sx * hx,
-				z = z,
-				length = runZ / nZ,
-				yawDeg = -90,
-				team = teamAt(sx),
-				arc = false,
-				nx = -sx,
-				nz = 0,
-			})
+		if math.abs(z) > Layout.garage.mouth / 2 then -- the middle modules are the garage openings
+			for _, sx in { -1, 1 } do
+				table.insert(list, {
+					name = (if sx < 0 then "WallW" else "WallE") .. i,
+					x = sx * hx,
+					z = z,
+					length = runZ / nZ,
+					yawDeg = -90,
+					team = teamOf(i + (if sx < 0 then 0 else 1)),
+					arc = false,
+					nx = -sx,
+					nz = 0,
+				})
+			end
 		end
 	end
 	local steps = 4
@@ -126,14 +146,13 @@ function Layout.walls(): { Wall }
 			local dx, dz = c[3] * math.cos(am), c[4] * math.sin(am)
 			-- the chord's midpoint is a little inside the circle
 			local mid = r * math.cos(math.pi / (4 * steps))
-			local x, z = c[1] + dx * mid, c[2] + dz * mid
 			table.insert(list, {
 				name = "WallCorner" .. ci .. "_" .. k,
-				x = x,
-				z = z,
+				x = c[1] + dx * mid,
+				z = c[2] + dz * mid,
 				length = chord,
-				yawDeg = math.deg(math.atan2(-dx, -dz)), -- along the tangent, square to the radius (dx, dz)
-				team = teamAt(x),
+				yawDeg = math.deg(math.atan2(-dx, -dz)), -- along the tangent, square to the radius
+				team = teamOf(ci + k),
 				arc = true,
 				nx = -dx,
 				nz = -dz,
@@ -143,7 +162,7 @@ function Layout.walls(): { Wall }
 	return list
 end
 
--- Tire stacks stand where two straight wall modules meet.
+-- Tire stacks stand where two straight wall modules meet (not in a garage opening).
 function Layout.tireStacks(): { { x: number, z: number, nx: number, nz: number } }
 	local list = {}
 	local hx, hz, r = Layout.halfX, Layout.halfZ, Layout.corner
@@ -155,6 +174,9 @@ function Layout.tireStacks(): { { x: number, z: number, nx: number, nz: number }
 	end
 	for i = 0, 4 do
 		local z = -(hz - r) + i * (hz - r) * 2 / 4
+		if math.abs(z) < 1 then
+			continue
+		end
 		for _, sx in { -1, 1 } do
 			table.insert(list, { x = sx * hx, z = z, nx = -sx, nz = 0 })
 		end
@@ -162,15 +184,18 @@ function Layout.tireStacks(): { { x: number, z: number, nx: number, nz: number }
 	return list
 end
 
--- Four orange-striped cover barriers on the floor, mirrored left to right.
+-- Four orange-striped cover barriers on the floor, mirrored left to right and top to bottom, out of
+-- the lane between the starts.
 function Layout.blocks(): { { name: string, x: number, z: number, yawDeg: number } }
 	local list = {}
-	local spots = { { 16, -2, 35 }, { 42, 24, -25 } }
 	local n = 0
-	for _, s in spots do
-		for _, sx in { -1, 1 } do
+	for _, sx in { -1, 1 } do
+		for _, sz in { -1, 1 } do
 			n += 1
-			table.insert(list, { name = "Cover" .. n, x = sx * s[1], z = s[2], yawDeg = sx * s[3] })
+			table.insert(
+				list,
+				{ name = "Cover" .. n, x = sx * 24, z = sz * 31, yawDeg = sx * sz * 28 }
+			)
 		end
 	end
 	return list
@@ -189,15 +214,11 @@ function Layout.dashes(): { { x: number, z: number, length: number, yawDeg: numb
 	local hx, hz = Layout.halfX - inset, Layout.halfZ - inset
 	local r = Layout.corner - inset
 	local pts: { { number } } = {}
-	local function add(x: number, z: number)
-		table.insert(pts, { x, z })
-	end
-	-- walk clockwise from the top left corner arc's start
 	local function arc(cx: number, cz: number, a0: number, a1: number)
 		local steps = 5
 		for k = 0, steps do
 			local a = a0 + (a1 - a0) * k / steps
-			add(cx + r * math.cos(a), cz + r * math.sin(a))
+			table.insert(pts, { cx + r * math.cos(a), cz + r * math.sin(a) })
 		end
 	end
 	arc(-(hx - r), -(hz - r), math.pi, 1.5 * math.pi) -- north west
@@ -211,7 +232,6 @@ function Layout.dashes(): { { x: number, z: number, length: number, yawDeg: numb
 		local a, b = pts[i], pts[i % n + 1]
 		local dx, dz = b[1] - a[1], b[2] - a[2]
 		local len = math.sqrt(dx * dx + dz * dz)
-		-- long straight stretches get several dashes, short arc chords one each
 		local pieces = math.max(1, math.floor(len / 14))
 		for k = 1, pieces do
 			seg += 1
@@ -229,77 +249,210 @@ function Layout.dashes(): { { x: number, z: number, length: number, yawDeg: numb
 	return list
 end
 
--- Painted arrows in the south corners: orange on the red side, blue on the blue side. They point
--- toward the middle of the arena.
-function Layout.chevrons(): { { x: number, z: number, yawDeg: number, team: string } }
+-- Lane lines through the middle: a dashed line along x and one along z, with a gap for the circle.
+function Layout.laneLines(): { { x: number, z: number, length: number, yawDeg: number } }
 	local list = {}
-	for _, sx in { -1, 1 } do
-		table.insert(list, {
-			x = sx * 60,
-			z = 38,
-			yawDeg = if sx < 0 then 35 else 145,
-			team = teamAt(sx),
-		})
+	local gap = Layout.circle + 4
+	local x = gap
+	while x < Layout.halfX - 22 do
+		for _, sx in { -1, 1 } do
+			table.insert(list, { x = sx * (x + 3), z = 0, length = 6, yawDeg = 0 })
+		end
+		x += 12
+	end
+	local z = gap
+	while z < Layout.halfZ - 14 do
+		for _, sz in { -1, 1 } do
+			table.insert(list, { x = 0, z = sz * (z + 3), length = 6, yawDeg = 90 })
+		end
+		z += 12
 	end
 	return list
 end
 
--- Where the garages stand: the red one behind the north wall's west end, the blue one at the east.
-function Layout.garages(): { { side: string, x: number, z: number } }
-	local g = Layout.garage
-	local zc = -(Layout.halfZ + Layout.wallThickness + g.sz / 2)
-	return { { side = "a", x = -g.x, z = zc }, { side = "b", x = g.x, z = zc } }
+-- Big painted arrows by the garages, pointing from the garage toward the middle: orange at the
+-- left garage, blue at the right one. yawDeg is the pointing direction (0 = +x, 180 = -x).
+function Layout.arrows(): { { x: number, z: number, yawDeg: number, team: string } }
+	local list = {}
+	for _, sx in { -1, 1 } do
+		for _, sz in { -1, 1 } do
+			table.insert(list, {
+				x = sx * 76,
+				z = sz * 22,
+				yawDeg = if sx < 0 then 0 else 180,
+				team = if sx < 0 then "orange" else "blue",
+			})
+		end
+	end
+	return list
 end
 
--- Trees and rocks on the grass, always the same ones. Nothing stands inside the walls or in a garage.
-function Layout.scenery(): { { kind: string, x: number, z: number, yawDeg: number, scale: number } }
+-- Old skid marks: short dark bars laid along arcs, always the same.
+function Layout.skids(): { { x: number, z: number, length: number, yawDeg: number } }
 	local list = {}
+	local sets = {
+		{ -30, -34, 0.3, 5 }, -- cx, cz of the arc start, heading, curve
+		{ 34, 38, 2.9, -5 },
+		{ -8, 18, 1.2, 4 },
+		{ 18, -16, 4.4, -6 },
+		{ 46, -4, 3.5, 5 },
+		{ -50, 20, 5.2, -4 },
+	}
+	for _, s in sets do
+		for lane = 0, 1 do
+			local x, z, h =
+				s[1] + lane * 2.2 * math.cos(s[3] + 1.57),
+				s[2] + lane * 2.2 * math.sin(s[3] + 1.57),
+				s[3]
+			for _ = 1, 7 do
+				table.insert(list, { x = x, z = z, length = 4, yawDeg = -math.deg(h) })
+				x += 4 * math.cos(h)
+				z += 4 * math.sin(h)
+				h += s[4] * 0.02
+			end
+		end
+	end
+	return list
+end
+
+-- Where the garages stand: side a (red or blue each match) behind the west wall, side b behind the east.
+function Layout.garages(): { { side: string, x: number, z: number, dir: number } }
+	local g = Layout.garage
+	local xc = Layout.halfX + Layout.wallThickness + g.d / 2
+	return { { side = "a", x = -xc, z = 0, dir = -1 }, { side = "b", x = xc, z = 0, dir = 1 } }
+end
+
+-- Four stadium light towers outside the corners.
+function Layout.towers(): { { x: number, z: number } }
+	local t = Layout.tower
+	return {
+		{ x = -t.x, z = -t.z },
+		{ x = t.x, z = -t.z },
+		{ x = t.x, z = t.z },
+		{ x = -t.x, z = t.z },
+	}
+end
+
+-- Dirt paths from each garage back out onto the grass: rectangles (x, z, size x, size z, yaw).
+function Layout.paths(): { { x: number, z: number, sx: number, sz: number, yawDeg: number } }
+	local list = {}
+	local g = Layout.garage
+	local back = Layout.halfX + Layout.wallThickness + g.d
+	for _, s in { -1, 1 } do
+		table.insert(list, { x = s * (back + 22), z = 0, sx = 44, sz = 9, yawDeg = 0 })
+		table.insert(list, { x = s * (back + 56), z = s * 14, sx = 36, sz = 9, yawDeg = s * -22 })
+		table.insert(list, { x = s * (back + 88), z = s * 36, sx = 36, sz = 9, yawDeg = s * -40 })
+	end
+	return list
+end
+
+-- Soft green hills far away: x, z, diameter.
+function Layout.hills(): { { x: number, z: number, d: number } }
+	return {
+		{ x = -190, z = -170, d = 190 },
+		{ x = 20, z = -200, d = 230 },
+		{ x = 210, z = -160, d = 200 },
+		{ x = 250, z = 20, d = 170 },
+		{ x = 200, z = 180, d = 210 },
+		{ x = -30, z = 210, d = 220 },
+		{ x = -220, z = 170, d = 190 },
+		{ x = -260, z = -10, d = 180 },
+	}
+end
+
+export type Scenery = {
+	kind: string, -- "tree" "pine" "rock" "bush" "flower"
+	x: number,
+	z: number,
+	yawDeg: number,
+	scale: number,
+	far: boolean, -- far away: the first thing to cut if phones lag
+	pick: number, -- which flower color
+}
+
+-- Trees, rocks, bushes and flowers on the grass, always the same ones. Nothing stands inside the
+-- walls, in a garage, on a path or under a tower or the sign.
+function Layout.scenery(): { Scenery }
+	local list: { Scenery } = {}
 	local seed = 20261020
 	local function rnd(): number
 		seed = (seed * 1103515245 + 12345) % 2147483648
 		return seed / 2147483648
 	end
 	local g = Layout.garage
-	local keepX = Layout.halfX + Layout.wallThickness + 9
-	local keepZ = Layout.halfZ + Layout.wallThickness + 9
+	local keepX = Layout.halfX + Layout.wallThickness + 8
+	local keepZ = Layout.halfZ + Layout.wallThickness + 8
+	local paths = Layout.paths()
+	local towers = Layout.towers()
+	local function blocked(x: number, z: number, r: number): boolean
+		if math.abs(x) < keepX + r and math.abs(z) < keepZ + r then
+			return true
+		end
+		-- garages and their doorways, with a margin
+		if math.abs(x) < keepX + g.d + r and math.abs(z) < g.w / 2 + 5 + r then
+			return true
+		end
+		for _, p in paths do
+			local c, s = math.cos(math.rad(p.yawDeg)), math.sin(math.rad(p.yawDeg))
+			local dx, dz = x - p.x, z - p.z
+			local lx = math.abs(dx * c - dz * s)
+			local lz = math.abs(dx * s + dz * c)
+			if lx < p.sx / 2 + r and lz < p.sz / 2 + r + 1 then
+				return true
+			end
+		end
+		for _, t in towers do
+			if (t.x - x) ^ 2 + (t.z - z) ^ 2 < (9 + r) ^ 2 then
+				return true
+			end
+		end
+		local sg = Layout.sign
+		if math.abs(x) < sg.width / 2 + 6 + r and math.abs(z - sg.z) < 10 + r then
+			return true
+		end
+		return false
+	end
+	local want = { tree = 56, pine = 40, rock = 46, bush = 50, flower = 36 }
+	local made: { [string]: number } = { tree = 0, pine = 0, rock = 0, bush = 0, flower = 0 }
+	local order = { "tree", "pine", "rock", "bush", "flower" }
+	local radius = { tree = 7, pine = 6, rock = 4, bush = 3, flower = 1.5 }
 	local tries = 0
-	local trees, rocks = 0, 0
-	while (trees < 34 or rocks < 16) and tries < 4000 do
+	local done = false
+	while not done and tries < 30000 do
 		tries += 1
-		local x = (rnd() * 2 - 1) * (Layout.totalX / 2 - 6)
-		local z = (rnd() * 2 - 1) * (Layout.totalZ / 2 - 6)
-		local inside = math.abs(x) < keepX and math.abs(z) < keepZ
-		local inGarage = z < -(Layout.halfZ + Layout.wallThickness - 2)
-			and math.abs(math.abs(x) - g.x) < g.sx / 2 + 12
-			and z > -(Layout.halfZ + Layout.wallThickness + g.sz + 10)
-		if not inside and not inGarage then
-			local tooClose = false
-			for _, o in list do
-				if (o.x - x) ^ 2 + (o.z - z) ^ 2 < 144 then
-					tooClose = true
-					break
+		local kind = order[tries % #order + 1]
+		if made[kind] < want[kind] then
+			local x = (rnd() * 2 - 1) * (Layout.groundX / 2 - 30)
+			local z = (rnd() * 2 - 1) * (Layout.groundZ / 2 - 30)
+			-- thicker near the arena: skip a share of the far picks
+			local far = math.abs(x) > 150 or math.abs(z) > 140
+			if (not far or rnd() < 0.45) and not blocked(x, z, radius[kind]) then
+				local close = false
+				for _, o in list do
+					local rr = radius[kind] + radius[o.kind]
+					if (o.x - x) ^ 2 + (o.z - z) ^ 2 < rr * rr then
+						close = true
+						break
+					end
+				end
+				if not close then
+					made[kind] += 1
+					table.insert(list, {
+						kind = kind,
+						x = x,
+						z = z,
+						yawDeg = rnd() * 360,
+						scale = 0.75 + rnd() * 0.75,
+						far = far,
+						pick = math.floor(rnd() * 4) + 1,
+					})
 				end
 			end
-			if not tooClose then
-				if trees < 34 and (rocks >= 16 or rnd() < 0.68) then
-					trees += 1
-					table.insert(list, {
-						kind = "tree",
-						x = x,
-						z = z,
-						yawDeg = rnd() * 360,
-						scale = 0.8 + rnd() * 0.5,
-					})
-				elseif rocks < 16 then
-					rocks += 1
-					table.insert(list, {
-						kind = "rock",
-						x = x,
-						z = z,
-						yawDeg = rnd() * 360,
-						scale = 0.7 + rnd() * 0.9,
-					})
-				end
+		end
+		done = true
+		for k, n in want do
+			if made[k] < n then
+				done = false
 			end
 		end
 	end
