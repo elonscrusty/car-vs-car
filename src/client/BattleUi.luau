@@ -1549,17 +1549,10 @@ function BattleUi.start()
 			setChampions(false) -- hide the lobby menus behind the Searching panel
 			queueF.Visible = true
 			botBtn.Visible = m.studioBot == true
-			qText.Text = "Finding player..."
+			qText.Text = "Waiting for a player..."
 		else
 			queueF.Visible = false
 			setChampions(true)
-			if m.timedOut then
-				errorL.Text = "No opponent found. Try again."
-				errorL.Visible = true
-				task.delay(3, function()
-					errorL.Visible = false
-				end)
-			end
 		end
 	end
 

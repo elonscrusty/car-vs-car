@@ -50,6 +50,9 @@ end
 
 -- "Duplicate = 25 coins back" for the claw odds list.
 function LobbyText.refundText(refund: number): string
+	if refund <= 0 then
+		return "Duplicate = nothing"
+	end
 	return `Duplicate = {LobbyText.formatNumber(refund)} coins back`
 end
 
@@ -89,6 +92,9 @@ end
 function LobbyText.resultText(isNew: boolean, refund: number): string
 	if isNew then
 		return "NEW!"
+	end
+	if refund <= 0 then
+		return "DUPLICATE"
 	end
 	return `DUPLICATE  +{LobbyText.formatNumber(refund)} COINS`
 end
