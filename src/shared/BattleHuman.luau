@@ -19,7 +19,23 @@ end
 local BattleConfig = sibling("BattleConfig")
 local BattleBrain = sibling("BattleBrain")
 
-export type Human = BattleBrain.Brain & {
+export type Body = { x: number, z: number, fx: number, fz: number }
+export type Contact = { ram: boolean, saw: boolean, speedFrac: number?, tempo: number? }
+export type Output = {
+	turn: number,
+	drive: number,
+	fire: boolean,
+	damage: number,
+	event: string?,
+	hold: boolean,
+	state: string,
+	ready: number,
+}
+export type Human = {
+	fighterId: string,
+	step: (dt: number, me: Body, foe: Body, contact: Contact) -> Output,
+	shellResolved: (hit: boolean) -> string?,
+	resetStuck: () -> (),
 	setInput: (steer: number, gas: number, attack: boolean) -> (),
 	human: boolean,
 }
@@ -64,7 +80,7 @@ function BattleHuman.new(fighterId: string): Human
 		return if c <= 0 then 1 else 1 - c / cooldownTotal()
 	end
 
-	local function out(turn: number, drive: number): BattleBrain.Output
+	local function out(turn: number, drive: number): Output
 		return {
 			turn = turn,
 			drive = drive,
@@ -86,12 +102,7 @@ function BattleHuman.new(fighterId: string): Human
 				wantAttack = true -- stays set until a step can use it, then is used up
 			end
 		end,
-		step = function(
-			dt: number,
-			me: BattleBrain.Body,
-			foe: BattleBrain.Body,
-			contact: BattleBrain.Contact
-		): BattleBrain.Output
+		step = function(dt: number, me: Body, foe: Body, contact: Contact): Output
 			local tempo = contact.tempo or 1
 			cooldown = math.max(0, cooldown - dt * tempo)
 			sawCooldown = math.max(0, sawCooldown - dt * tempo)
