@@ -207,7 +207,7 @@ BattleConfig.Ram = {
 
 BattleConfig.Cannon = {
 	damage = 26, -- was 22 (more punch for a car that must also run)
-	minRangeL = 3, -- closer than this the van runs away from the foe
+	minRangeL = 2.3, -- closer than this the van runs away from the foe (was 3: it ran more than it shot)
 	maxRangeL = 5.5,
 	knockSpeed = 22, -- studs per second a shell shoves the car it hits
 	knockStagger = 0.3,
