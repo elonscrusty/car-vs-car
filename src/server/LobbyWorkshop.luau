@@ -331,20 +331,9 @@ local function buildOddsSign(shell: LobbyGarageShell.Shell)
 	local at = shell.at
 	local o = LobbyLayout.oddsSign
 	local navy, orange = rgb(C.panel), rgb(C.orange)
-	local bottom = 3
+	-- hung high on the back wall, above the show cars: from the mouth nothing stands in front of it
+	local bottom = 9
 	local midY = bottom + o.h / 2
-	for _, s in { -1, 1 } do
-		part(
-			grp,
-			"OddsPost",
-			Vector3.new(0.9, bottom + 1, 0.9),
-			at(o.u + s * (o.w / 2 - 1.2), (bottom + 1) / 2, o.v),
-			rgb(C.metalDark),
-			false,
-			nil,
-			Enum.Material.Metal
-		)
-	end
 	local panel =
 		part(grp, "OddsPanel", Vector3.new(o.w, o.h, 0.8), at(o.u, midY, o.v), navy, false)
 	part(
