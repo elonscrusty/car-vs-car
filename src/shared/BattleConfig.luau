@@ -226,6 +226,8 @@ BattleConfig.Cannon = {
 
 BattleConfig.Saw = {
 	buildSeconds = 3, -- steady contact this long reaches the full multiplier
+	heatSeconds = 3, -- bounce fight: after this much steady contact the saw overheats ...
+	stallSeconds = 2.5, -- ... and does no damage for this long
 	maxMult = 1.5, -- damage per tick at full build-up (resets when contact is lost)
 	loseContactSeconds = 0.35, -- contact must be gone this long to reset the build-up
 	damage = 4, -- was 7, then 5: the saw beat everything in the Studio playtest
