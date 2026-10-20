@@ -242,11 +242,8 @@ Replaces the warehouse lobby (archived in `archive/lobby_v1`, shipped to ServerS
 - Wall bounce now sweeps a car-sized box ahead (Blockcast) instead of one ray, so corners, cover-block edges and tires bounce too (Studio: they stopped the car dead). Falls back to the old ray when already touching.
 - CAR VS CAR sign: the glowing border is four bars now, so the outside is a dark board with the same text (it was a plain yellow slab).
 
-## Wreck City chase map (2026-10-20, carter: Twisted Metal style)
-- New map `THEME = "chase"` in BattleArena: ChaseMapLayout (+ tests), ChaseMap, ChaseProps, ChaseLandmarks (the last two written by Opus helpers). See docs/CHASE_MAP_SPEC.md.
-- BattleService: `arena.tick` each fight frame (crane hits 10% max HP, knock), stuck rescue (gas held, not moving 2.5 s), `arena.resetBreakables()` each round.
-- MapFx swings the crane from the server clock. Untested in Studio: everything (first build). Check: no script errors, ramps rise, tunnel clear, crane hits, props burst, part count.
-
-## Wreck City fixes (map thread)
-- Stuck rescue now watches position (under 3 studs in 2.5 s with gas held, not touching the foe) instead of speed; Studio showed speed flickers when pushing a prop.
-- Road and deck colours darkened (they rendered pure white from the high camera and lost the lane colours).
+## Junkyard Bowl (2026-10-20, carter's 50 map picks; replaces Wreck City)
+- New map `THEME = "bowl"` in BattleArena. Spec + pick table: `docs/BOWL_MAP_SPEC.md`. Files: `shared/BowlLayout`, `shared/BowlView`, `server/BowlMap`, `server/BowlProps` (+ tests `bowlmap`, `bowlview`, `bowlbuild`, `bowlfight`, `wallbounce`). The Wreck City files and `docs/CHASE_MAP_SPEC.md` are deleted.
+- BattleService: `arena.tick` each fight frame (crusher slam and red barrel hits carry their own damage, knock and stagger), stuck rescue (gas held, within 9 studs for 3 s -> nearest of 12 open spots), `arena.resetBreakables()` and `arena.closeDoors()` at round ends, `arena.openDoors()` at GO (starts the crusher clock). Round arena: `arena.radius`, `arena.brain`; the sim tally also counts rescues, outs, slams, booms.
+- BattleDrive.wallBounce: looks past parts tagged `BowlSlope`; bounce numbers in `BattleConfig.Human` (`bounceKeep`, `bounceStagger`, `bounceHop`).
+- Untested in Studio: everything (first build). Check: no script errors, `PartCount`, cars climb the slope and bounce off the tires (not stuck), the camera inside the bowl, crusher animation vs damage, red barrels, sparks, skid marks, flyover, colours (the sun renders tops brighter than the numbers), bounce size, crusher timing.

@@ -564,6 +564,7 @@ function BattleCar.checkFlip(car: Car, dt: number): boolean
 end
 
 -- Safety net: a car pushed or dropped outside the walls is put back just inside, where it was.
+-- The walls are a box (halfX, halfZ), or a circle round the middle when `radius` is given.
 function BattleCar.keepInside(
 	car: Car,
 	originY: number,
@@ -571,17 +572,27 @@ function BattleCar.keepInside(
 	localZ: number,
 	halfX: number,
 	halfZ: number,
-	origin: Vector3
+	origin: Vector3,
+	radius: number?
 )
 	local m = 0.4 * car.L
-	local out = math.abs(localX) > halfX - m + 2
-		or math.abs(localZ) > halfZ - m + 2
-		or car.body.Position.Y < originY - 4
+	local out = car.body.Position.Y < originY - 4
+	local x, z = localX, localZ
+	if radius then
+		local r = math.sqrt(localX * localX + localZ * localZ)
+		out = out or r > radius - m + 2
+		if r > radius - m and r > 1e-3 then
+			local k = (radius - m) / r
+			x, z = localX * k, localZ * k
+		end
+	else
+		out = out or math.abs(localX) > halfX - m + 2 or math.abs(localZ) > halfZ - m + 2
+		x = math.clamp(localX, -(halfX - m), halfX - m)
+		z = math.clamp(localZ, -(halfZ - m), halfZ - m)
+	end
 	if not out then
 		return
 	end
-	local x = math.clamp(localX, -(halfX - m), halfX - m)
-	local z = math.clamp(localZ, -(halfZ - m), halfZ - m)
 	local pos = origin + Vector3.new(x, 0.6 * car.L, z)
 	local rel = car.body.CFrame:ToObjectSpace(car.model:GetPivot())
 	car.model:PivotTo(CFrame.lookAt(pos, pos + car.lastForward) * rel)

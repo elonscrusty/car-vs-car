@@ -1,11 +1,16 @@
 --!strict
--- Car effects for the 1v1 fight that follow the cars every frame: a dust burst and a thump when a
--- car lands from a jump, and the engine sound of YOUR car. (carter removed the boost flame, drift
--- smoke, skid marks and speed lines.) The server only sets the "Airborne" attribute on each car
--- model; everything here is local to this player's screen.
+-- Car effects for the 1v1 fight that follow the cars every frame: a thump when a car lands from a
+-- jump, the engine sound of YOUR car, damage smoke and flames, the enemy's HP bar, sparks where a
+-- car scrapes the bowl's tire wall or the crusher, and skid marks that fade after a few seconds when
+-- a car slides sideways (carter, Junkyard Bowl: sparks M42, skid marks M43, no dust clouds M44). The
+-- server only sets the "Airborne" attribute (and, for a car it drives, "Drifting") on each car model;
+-- everything here is local to this player's screen.
 
 local Debris = game:GetService("Debris")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local BowlView = require(ReplicatedStorage.Shared.BowlView)
+local Quality = require(script.Parent.Quality)
 local SoundFx = require(script.Parent.SoundFx)
 
 export type Options = {
@@ -13,13 +18,21 @@ export type Options = {
 	cruise: number, -- a typical cruise speed in studs per second (for the engine pitch)
 }
 
+-- Set on the round bowl only: where its middle is (sparks need it; the box arenas have no scraping).
+export type ArenaInfo = { center: Vector3 }
+
 export type Fx = {
-	step: (dt: number, models: { Model }, mine: Model?) -> (),
+	step: (dt: number, models: { Model }, mine: Model?, arena: ArenaInfo?) -> (),
 	stop: () -> (),
 }
 
 type CarFx = {
-	dust: ParticleEmitter,
+	sparkPart: Part, -- an invisible part that sits where the car scrapes, holding the sparks
+	sparks: ParticleEmitter,
+	scraping: boolean,
+	skidAt: number, -- when this car last left a skid mark
+	lastLeft: Vector3?, -- where each rear wheel's mark ended (nil = the car was not skidding)
+	lastRight: Vector3?,
 	smoke: ParticleEmitter,
 	fire: ParticleEmitter,
 	bar: BillboardGui?, -- the enemy's HP bar above its car
@@ -31,28 +44,39 @@ type CarFx = {
 local BattleFx = {}
 
 local function build(body: BasePart): CarFx
-	local rear = Instance.new("Attachment")
-	rear.Name = "FxRear"
-	rear.CFrame = CFrame.new(0, -0.25 * body.Size.Y - 0.5, math.max(body.Size.Z * 0.42, 3))
-	rear.Parent = body
-
-	local dust = Instance.new("ParticleEmitter")
-	dust.Name = "LandDust"
-	dust.Rate = 0
-	dust.Enabled = false
-	dust.Lifetime = NumberRange.new(0.5, 0.9)
-	dust.Speed = NumberRange.new(10, 22)
-	dust.SpreadAngle = Vector2.new(180, 40)
-	dust.Size = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 2),
-		NumberSequenceKeypoint.new(1, 7),
+	-- sparks fly from where the car scrapes a wall: a hidden part that follows the contact point
+	local sparkPart = Instance.new("Part")
+	sparkPart.Name = "WallSparks"
+	sparkPart.Anchored = true
+	sparkPart.CanCollide = false
+	sparkPart.CanQuery = false
+	sparkPart.CanTouch = false
+	sparkPart.CastShadow = false
+	sparkPart.Transparency = 1
+	sparkPart.Size = Vector3.new(0.4, 0.4, 0.4)
+	sparkPart.CFrame = body.CFrame
+	sparkPart.Parent = workspace
+	local sparkAtt = Instance.new("Attachment")
+	sparkAtt.Parent = sparkPart
+	local sparks = Instance.new("ParticleEmitter")
+	sparks.Name = "Sparks"
+	sparks.Rate = 0
+	sparks.EmissionDirection = Enum.NormalId.Front -- along the attachment's look: away from the wall
+	sparks.Lifetime = NumberRange.new(0.25, 0.5)
+	sparks.Speed = NumberRange.new(14, 32)
+	sparks.SpreadAngle = Vector2.new(32, 32)
+	sparks.Acceleration = Vector3.new(0, -70, 0)
+	sparks.LightEmission = 1
+	sparks.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.55),
+		NumberSequenceKeypoint.new(1, 0.1),
 	})
-	dust.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.4),
+	sparks.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
 		NumberSequenceKeypoint.new(1, 1),
 	})
-	dust.Color = ColorSequence.new(Color3.fromRGB(215, 205, 190))
-	dust.Parent = rear
+	sparks.Color = ColorSequence.new(Color3.fromRGB(255, 240, 170), Color3.fromRGB(255, 120, 30))
+	sparks.Parent = sparkAtt
 
 	-- damage smoke from the hood: none above 60% HP, thicker and darker as HP drops
 	local hood = Instance.new("Attachment")
@@ -97,7 +121,12 @@ local function build(body: BasePart): CarFx
 	fire.Color = ColorSequence.new(Color3.fromRGB(255, 200, 60), Color3.fromRGB(255, 70, 20))
 	fire.Parent = hood
 	return {
-		dust = dust,
+		sparkPart = sparkPart,
+		sparks = sparks,
+		scraping = false,
+		skidAt = 0,
+		lastLeft = nil,
+		lastRight = nil,
 		smoke = smoke,
 		fire = fire,
 		bar = nil,
@@ -165,11 +194,171 @@ local function enemyBar(body: BasePart): (BillboardGui, Frame)
 	return gui, fill
 end
 
+-- Skid marks: dark strips left on the ground by the rear wheels while a car slides sideways. A
+-- fixed pool is reused (the oldest strip is taken first); each one fades out after a few seconds.
+local MAX_MARKS = 90
+local MARK_LIFE = 4 -- seconds until a strip is gone
+local MARK_SOLID = 1.5 -- ... and it starts fading after this long
+local MARK_EVERY = 0.07 -- seconds between strips while skidding
+
+type Marks = { pool: { Part }, born: { [Part]: number }, next: number, folder: Folder? }
+
+local function newMarks(): Marks
+	return { pool = {}, born = {}, next = 1, folder = nil }
+end
+
+local function putMark(marks: Marks, from: Vector3, to: Vector3, normal: Vector3, now: number)
+	local along = to - from
+	local len = along.Magnitude
+	if len < 0.2 or len > 9 then
+		return -- a gap (the car was in the air, or the first point): no strip
+	end
+	if marks.folder == nil then
+		local f = Instance.new("Folder")
+		f.Name = "SkidMarks"
+		f.Parent = workspace
+		marks.folder = f
+	end
+	local old: Part? = marks.pool[marks.next]
+	local p: Part
+	if old then
+		p = old
+	else
+		p = Instance.new("Part")
+		p.Name = "SkidMark"
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = false
+		p.Material = Enum.Material.SmoothPlastic
+		p.Color = Color3.fromRGB(34, 34, 38)
+		p.Parent = marks.folder
+		marks.pool[marks.next] = p
+	end
+	marks.next = marks.next % MAX_MARKS + 1
+	local mid = (from + to) / 2 + normal * 0.05
+	p.Size = Vector3.new(0.9, 0.05, len + 0.4)
+	p.CFrame = CFrame.lookAt(mid, mid + along, normal)
+	p.Transparency = 0.2
+	marks.born[p] = now
+end
+
+local function fadeMarks(marks: Marks, now: number)
+	for p, born in marks.born do
+		local age = now - born
+		if age >= MARK_LIFE then
+			p.Transparency = 1
+			marks.born[p] = nil
+		else
+			p.Transparency = 0.2
+				+ 0.8 * math.clamp((age - MARK_SOLID) / (MARK_LIFE - MARK_SOLID), 0, 1)
+		end
+	end
+end
+
+-- A flat copy of a vector's direction (zero if it points straight up or down).
+local function flatUnit(v: Vector3): Vector3?
+	local f = Vector3.new(v.X, 0, v.Z)
+	if f.Magnitude < 1e-3 then
+		return nil
+	end
+	return f.Unit
+end
+
 function BattleFx.new(opts: Options): Fx
 	local states: { [Model]: CarFx } = {}
+	local marks = newMarks()
+	local fadeAt = 0
+	local groundParams = RaycastParams.new()
+	groundParams.FilterType = Enum.RaycastFilterType.Exclude
 
-	local function step(_dt: number, models: { Model }, mine: Model?)
+	-- sparks where the car scrapes the tire wall or the crusher (round bowl only)
+	local function scrape(st: CarFx, body: BasePart, arena: ArenaInfo)
+		local fwd = flatUnit(body.CFrame.LookVector)
+		local rel = body.Position - arena.center
+		local vel = body.AssemblyLinearVelocity
+		local speed = Vector3.new(vel.X, 0, vel.Z).Magnitude
+		local hit = if fwd
+			then BowlView.scrape(
+				rel.X,
+				rel.Z,
+				fwd.X,
+				fwd.Z,
+				speed,
+				body.Size.Z / 2,
+				body.Size.X / 2
+			)
+			else nil
+		if hit == nil then
+			st.sparks.Rate = 0
+			st.scraping = false
+			return
+		end
+		local at = Vector3.new(
+			arena.center.X + hit.x,
+			body.Position.Y - body.Size.Y * 0.15,
+			arena.center.Z + hit.z
+		)
+		st.sparkPart.CFrame = CFrame.lookAt(at, at + Vector3.new(hit.nx, 0.35, hit.nz))
+		st.sparks.Rate = if Quality.level() >= 2 then 30 else 70
+		if not st.scraping then
+			st.sparks:Emit(12) -- a burst the moment it touches
+		end
+		st.scraping = true
+	end
+
+	-- skid marks behind the rear wheels while the car slides sideways
+	local function skid(st: CarFx, model: Model, body: BasePart, now: number)
+		local fwd = flatUnit(body.CFrame.LookVector)
+		local vel = body.AssemblyLinearVelocity
+		local amount = 0
+		if fwd and model:GetAttribute("Airborne") ~= true then
+			local drifting = model:GetAttribute("Drifting") == true
+			amount = BowlView.skid(vel.X, vel.Z, fwd.X, fwd.Z, opts.cruise, drifting)
+		end
+		if amount < 0.15 or Quality.level() >= 2 then
+			st.lastLeft, st.lastRight = nil, nil
+			return
+		end
+		if now - st.skidAt < MARK_EVERY then
+			return
+		end
+		st.skidAt = now
+		groundParams.FilterDescendantsInstances = if marks.folder
+			then { model, marks.folder }
+			else { model }
+		local ray = workspace:Raycast(
+			body.Position,
+			Vector3.new(0, -(body.Size.Y * 0.5 + 6), 0),
+			groundParams
+		)
+		if ray == nil then
+			st.lastLeft, st.lastRight = nil, nil
+			return
+		end
+		local right = body.CFrame.RightVector
+		local back = -body.CFrame.LookVector
+		local n = ray.Normal
+		-- each rear wheel's spot on the ground plane under the car
+		local function wheel(side: number): Vector3
+			local off = right * (side * 0.36 * body.Size.X) + back * (0.3 * body.Size.Z)
+			local rise = -(n.X * off.X + n.Z * off.Z) / math.max(n.Y, 0.2)
+			return ray.Position + Vector3.new(off.X, rise, off.Z)
+		end
+		local left, rightW = wheel(-1), wheel(1)
+		if st.lastLeft then
+			putMark(marks, st.lastLeft, left, n, now)
+		end
+		if st.lastRight then
+			putMark(marks, st.lastRight, rightW, n, now)
+		end
+		st.lastLeft, st.lastRight = left, rightW
+	end
+
+	local function step(_dt: number, models: { Model }, mine: Model?, arena: ArenaInfo?)
 		local seen: { [Model]: boolean } = {}
+		local now = os.clock()
 		for _, model in models do
 			local body = model:FindFirstChild("Body")
 			if body == nil or not body:IsA("BasePart") then
@@ -183,15 +372,18 @@ function BattleFx.new(opts: Options): Fx
 			end
 			local isMine = model == mine
 			local airborne = model:GetAttribute("Airborne") == true
-			-- landing: dust burst and a thump
+			-- landing: a thump (no dust cloud)
 			if st.airborne and not airborne then
-				st.dust:Emit(18)
 				if isMine then
 					opts.shake(2.4)
 					SoundFx.play("land")
 				end
 			end
 			st.airborne = airborne
+			if arena then
+				scrape(st, body :: BasePart, arena)
+			end
+			skid(st, model, body :: BasePart, now)
 			local frac = model:GetAttribute("HpFrac")
 			local f = if type(frac) == "number" then frac else 1
 			-- panels fly off at 60% and 30%
@@ -219,11 +411,16 @@ function BattleFx.new(opts: Options): Fx
 				SoundFx.engine(speed / math.max(opts.cruise, 1))
 			end
 		end
+		-- the marks fade a few times a second, not every frame
+		if now - fadeAt > 0.12 then
+			fadeAt = now
+			fadeMarks(marks, now)
+		end
 		-- forget cars that are gone
 		for model, st in states do
 			if not seen[model] then
 				pcall(function()
-					st.dust:Destroy()
+					st.sparkPart:Destroy()
 					st.smoke:Destroy()
 					st.fire:Destroy()
 					if st.bar then
@@ -237,7 +434,17 @@ function BattleFx.new(opts: Options): Fx
 
 	local function stop()
 		SoundFx.engine(nil)
+		for _, st in states do
+			pcall(function()
+				st.sparkPart:Destroy()
+			end)
+		end
 		table.clear(states)
+		-- the marks go with the fight
+		if marks.folder then
+			marks.folder:Destroy()
+		end
+		marks = newMarks()
 	end
 
 	return { step = step, stop = stop }

@@ -42,14 +42,19 @@ function BattleCrash.speedToward(vx: number, vz: number, dx: number, dz: number)
 	return math.max(0, (vx * dx + vz * dz) / len)
 end
 
--- True when a car's middle is past the arena walls or has dropped below the floor.
+-- True when a car's middle is past the arena walls or has dropped below the floor. The walls are
+-- a box (halfX, halfZ), or a circle round the middle when `radius` is given (the bowl).
 function BattleCrash.outside(
 	localX: number,
 	localZ: number,
 	heightAboveFloor: number,
 	halfX: number,
-	halfZ: number
+	halfZ: number,
+	radius: number?
 ): boolean
+	if radius then
+		return localX * localX + localZ * localZ > (radius + 2) ^ 2 or heightAboveFloor < -4
+	end
 	return math.abs(localX) > halfX or math.abs(localZ) > halfZ or heightAboveFloor < -4
 end
 

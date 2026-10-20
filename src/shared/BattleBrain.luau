@@ -23,6 +23,11 @@ export type Arena = {
 	halfX: number,
 	halfZ: number,
 	obstacles: { { x: number, z: number, hx: number, hz: number } },
+	-- A round arena (the bowl): the wall is a circle of this radius round (0, 0), and halfX / halfZ
+	-- are ignored for the wall. nil = the box given by halfX and halfZ.
+	radius: number?,
+	-- round blocks (the crusher's base): middle and radius
+	circles: { { x: number, z: number, r: number } }?,
 }
 export type Contact = {
 	ram: boolean,
@@ -74,13 +79,25 @@ local function avoidance(me: Body, arena: Arena, L: number): (number, number)
 	local margin = BattleConfig.Move.wallMarginL * L
 	local obMargin = BattleConfig.Move.blockMarginL * L
 	local ax, az = 0, 0
-	local dx = arena.halfX - math.abs(me.x)
-	if dx < margin then
-		ax -= (if me.x >= 0 then 1 else -1) * (1 - dx / margin) * 2
-	end
-	local dz = arena.halfZ - math.abs(me.z)
-	if dz < margin then
-		az -= (if me.z >= 0 then 1 else -1) * (1 - dz / margin) * 2
+	local radius = arena.radius
+	if radius then
+		-- a round wall: the push points straight back toward the middle
+		local d = math.sqrt(me.x * me.x + me.z * me.z)
+		local edge = radius - d
+		if edge < margin and d > 1e-3 then
+			local k = (1 - edge / margin) * 2
+			ax -= me.x / d * k
+			az -= me.z / d * k
+		end
+	else
+		local dx = arena.halfX - math.abs(me.x)
+		if dx < margin then
+			ax -= (if me.x >= 0 then 1 else -1) * (1 - dx / margin) * 2
+		end
+		local dz = arena.halfZ - math.abs(me.z)
+		if dz < margin then
+			az -= (if me.z >= 0 then 1 else -1) * (1 - dz / margin) * 2
+		end
 	end
 	for _, ob in arena.obstacles do
 		-- nearest point of the block to the car
@@ -98,6 +115,23 @@ local function avoidance(me: Body, arena: Arena, L: number): (number, number)
 			local s = (1 - d / obMargin) * 2
 			ax += vx * s
 			az += vz * s
+		end
+	end
+	local circles = arena.circles
+	if circles then
+		for _, c in circles do
+			local ox, oz = me.x - c.x, me.z - c.z
+			local len = math.sqrt(ox * ox + oz * oz)
+			local d = math.max(len - c.r, 0)
+			if d < obMargin then
+				local ux, uz = 1, 0
+				if len > 1e-3 then
+					ux, uz = ox / len, oz / len
+				end
+				local s = (1 - d / obMargin) * 2
+				ax += ux * s
+				az += uz * s
+			end
 		end
 	end
 	return ax, az
@@ -163,6 +197,22 @@ local function lineBlocked(
 		end
 		if hit then
 			return true
+		end
+	end
+	local circles = arena.circles
+	if circles then
+		-- a round block stops the line when the segment passes within its radius (plus the pad)
+		local len2 = dx * dx + dz * dz
+		for _, c in circles do
+			local t = 0
+			if len2 > 1e-9 then
+				t = clamp(((c.x - ax) * dx + (c.z - az) * dz) / len2, 0, 1)
+			end
+			local px, pz = ax + dx * t, az + dz * t
+			local r = c.r + pad
+			if (px - c.x) ^ 2 + (pz - c.z) ^ 2 < r * r then
+				return true
+			end
 		end
 	end
 	return false

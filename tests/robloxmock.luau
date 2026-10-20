@@ -801,6 +801,9 @@ function Mock.new(srcRoot: string?)
 	coll.GetTagged = function()
 		return {}
 	end
+	coll.HasTag = function(_self: any, inst: any, tag: string)
+		return inst:HasTag(tag)
+	end
 
 	-- module loading
 	local moduleCache: { [any]: any } = {}

@@ -1,0 +1,60 @@
+# Junkyard Bowl (the round battle map)
+
+carter's 50 picks (M1 to M50, 2026-10-20) replace the Wreck City chase map. One medium ROUND bowl
+with a sloped edge and a wall of stacked tires, a crusher machine in the middle that slams now and
+then, red barrels that explode, smashable props, sunny day, bright rainbow toy-junk look. The cars
+start at the two ends and charge head on. Walls bounce. NOT seen in Studio yet (built and tested on
+the Lune mock only).
+
+## What the picks became
+| Pick | In the build |
+|---|---|
+| M1 junkyard theme | junk props, tire wall, containers and hills far away, dirt patches |
+| M2 medium | rim radius 120, wall radius 121 (about 242 studs across) |
+| M3 round bowl, sloped edges | flat floor radius 92, then a 28 wide slope that rises 5.2 (10.5 degrees), then the wall |
+| M4 ground only, no deck; M7 no loop; M8 no tunnel; M9 no crane; M14 no secret gate; M29 no moving platforms | none of those exist |
+| M5, M6 fewer ramps, no huge jump | two low tent humps (2.8 high, 24 long); Wreck City had five ramps |
+| M10, M11 dangers small | only the crusher and the red barrels; each does 5 to 8 percent of max HP (a full speed crash is 20) |
+| M12 same breakables | 71, as before: 26 crates, 18 barrels, 8 red barrels, 8 cones, 5 signs, 6 fences (crates + barrels = 52, the most) |
+| M15 no hiding spots, M38 no shortcuts, M39 no jump pads | open floor, nothing to hide behind |
+| M16 crusher "Slams" | solid base radius 11, press above it falls every 12 s (first 8 s after GO) after a 1.8 s warning (flashing lamps, red floor); the shock ring reaches 27 studs; small damage (8 percent), clear push |
+| M17 tires | 59 stacks of 2 tires round the wall (118 tires), rainbow top tire, hub caps |
+| M18 bigger bounce | wall elasticity 1 (was 0.9), car keeps its full speed back (was 85 percent), 0.75 s wobble (was 0.6), small hop (`BattleConfig.Human.bounce*`) |
+| M19 ground mix, M20 no oil | dirt discs in the junk patches, grey road floor between, no puddles |
+| M21 sunny, M41 no weather | `Atmosphere.apply()` (ClockTime 14) is the only lighting ever applied |
+| M22 bright junk, M31 no car piles, M23 no crowd, M24 no sign | rainbow colours (never red barrels or crates; red is for the exploding ones), no car piles, no people, no WRECK CITY sign |
+| M25, M26 far apart, head on | start pads at x = -64 and +64 on the lane z = 42, facing each other; the lane passes the crusher outside its shock ring and nothing stands on it |
+| M27 stuck rescue | the old rule stays (gas held, not moving), puts the car on the nearest of 12 open spots, facing along the circle |
+| M28 no edges | a solid floor disc and a closed wall all round; out-of-arena check is a circle (BattleCrash.outside, BattleCar.keepInside) |
+| M30 phones smooth | 630 BaseParts (Wreck City had 1472 descendants); `FarScenery` (113 parts) and `Detail` (59) are removed on a slow phone by MapFx |
+| M32, M33 red barrels | 8 BoomBarrels: a fireball and ring, cars within 24 studs get 5 percent damage and a push of 46 |
+| M34 reset each round | `resetBreakables()` brings every prop back at the start of each round; the crusher clock restarts at GO |
+| M35 camera moves closer, walls never fade | BattleUi: the camera stays inside a circle 9 studs in from the tires; the old ray pulls it in where something solid (wall, crusher base) is in the way; smashable props never block it |
+| M36 no mini map | none |
+| M37 no arrow to the enemy | `FeatureFlags.enemyArrow = false` hides the edge arrow; the lock ring on the enemy stays |
+| M40 one look, M44 no dust | one palette, no zones; the landing dust cloud is removed (the thump stays) |
+| M42 sparks | `BattleFx`: sparks where a moving car scrapes the tire wall or the crusher base |
+| M43 skid marks | `BattleFx`: dark strips behind the rear wheels in a hard sideways slide, gone after 4 s, none on a slow phone |
+| M45 no shrink, M46 same map | one fixed map |
+| M47 flyover | BattleUi: the camera sweeps from high over the far end, along the lane over the crusher, down to behind my car (4 s behind the VS screen in round 1, 2 s later) |
+| M48 no lookout | none |
+| M49 bot-vs-bot | `tests/bowlfight.test.luau` (2D copy, round wall, crusher) now; Studio `BattleSimRequest` after the map is synced (the tally also counts rescues, outs, slams, booms) |
+| M50 just build | no plan picture first |
+
+## Files
+- `src/shared/BowlLayout.luau` (+ `tests/bowlmap.test.luau`): every number, the prop plan (deterministic), the crusher clock (`crusherState`, `crusherLift`, `shockFront`), rescue points, circles for the bots.
+- `src/shared/BowlView.luau` (+ `tests/bowlview.test.luau`): pure client maths: crusher look, spark contact, skid amount, camera clamp, flyover path.
+- `src/server/BowlMap.luau`, `src/server/BowlProps.luau` (+ `tests/bowlbuild.test.luau`): builds the map and runs the live parts (`tick`: props burst, red barrels explode, the crusher slams; `rescuePoint`; `resetBreakables`; `verify`).
+- `src/server/BattleArena.luau`: `THEME = "bowl"` (set `"duel"` or `"toy"` to bring the older maps back).
+- Fight code touched: `BattleService` (arena brain, hits with their own damage, radius, round end), `BattleBrain` (round wall, round blocks), `BattleCrash.outside`, `BattleCar.keepInside`, `BattleDrive.wallBounce` (looks past `BowlSlope`, bounce numbers), `BattleConfig.Human.bounce*`.
+- Client: `MapFx` (crusher animation from the server clock, camera shake, slow phone cut), `BattleUi` (camera, flyover, arrow flag), `BattleFx` (sparks, skid marks).
+
+## Rules the code relies on
+- Only the floor, the slope wedges (tag `BowlSlope`, NOT bouncy), the wall boxes (tag `Bouncy`, behind the tires), the hump wedges and kerbs and the crusher base collide. Tires, props, scenery and the press are look-only.
+- Breakable models have a part `Body` (CanTouch and CanQuery, no collision) and attribute `Breakable`; a car overlapping `Body` bursts the model. Red ones also have attribute `Explosive`.
+- The crusher model has attribute `RoundStart` (server time of GO, -1 = resting) and tag `BowlCrusher`. Every client draws it from the server clock; the server only decides who the ring caught.
+- Slope wedges rise toward local +Z; `verify()` flips any that drop. Cars climb the 10.5 degree slope (the ground ray allows up to about 12).
+- Sound spots (silent until carter gives ids): `Sounds` > `Spot_<name>` > Sound `<name>`: Birds, GoHorn, Slam (plays at each slam), Boom.
+
+## Not checked in Studio (check first)
+No script errors on build; part count (`PartCount` attribute); cars climb the slope and bounce off the tire wall at speed (not stuck, no wedge masking the wall); the camera inside the bowl when a car is against the wall; the crusher press, red floor and ring look right and line up with the damage; red barrels push; colours (the sun renders tops brighter than the numbers; adjust `BowlLayout.colors`); skid marks and sparks look; the flyover; the 3 s stuck rescue; bounce size (`Human.bounceKeep`, `bounceStagger`, `bounceHop`); crusher timing (`Layout.crusher.first`, `period`, `warn`).
