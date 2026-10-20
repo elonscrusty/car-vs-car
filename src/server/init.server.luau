@@ -7,15 +7,17 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
-local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
+local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local MovesConfig = require(ReplicatedStorage.Shared.MovesConfig)
-local ProgressConfig = require(ReplicatedStorage.Shared.ProgressConfig)
 local RateLimiter = require(ReplicatedStorage.Shared.RateLimiter)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Atmosphere = require(script.Atmosphere)
 local BattleService = require(script.BattleService)
 local FeatureFlags = require(ReplicatedStorage.Shared.FeatureFlags)
+local Gacha = require(ReplicatedStorage.Shared.Gacha)
 local Lobby = require(script.Lobby)
+local LobbyPads = require(script.LobbyPads)
+local LobbyPlayers = require(script.LobbyPlayers)
 local LobbyService = require(script.LobbyService)
 local Leaderboards = require(script.Leaderboards)
 local GroupMatch = require(script.GroupMatch)
@@ -131,12 +133,17 @@ end
 
 Profiles.init()
 Atmosphere.apply()
+-- the odds sign reads the gumball pool when it is built, so the battle cars must be in first
+if FeatureFlags.enabled("battleMode") then
+	Gacha.useFighters()
+end
 local lobby = Lobby.build()
-Leaderboards.init(
-	lobby.folder,
-	LobbyConfig.Lobby.origin
-		+ Vector3.new(ProgressConfig.Board.spot.x, 0, ProgressConfig.Board.spot.z)
-)
+local lobbyPlayers = LobbyPlayers.start() -- faster walk + name tags
+-- The two physical boards; the weekly #1 gets the gold car on the workshop stage and a crown tag.
+Leaderboards.init(lobby.boards, Enum.NormalId.Back, function(userId: number?, name: string)
+	lobby.showcase.setChampion(if userId then name else nil)
+	lobbyPlayers.setChampion(userId)
+end)
 
 -- Studio templates ship a default SpawnLocation; players must always spawn in the lobby.
 for _, child in workspace:GetChildren() do
@@ -157,7 +164,28 @@ local lobbyService = LobbyService.start({
 })
 
 -- The 1v1 auto-battle: PLAY queues for it, its own remotes carry pick/lock/leave.
-local battle = BattleService.start({ remotes = remotes, sendProfile = lobbyService.sendProfile })
+local lobbyPads: LobbyPads.Handle? = nil -- made right below (it needs `battle`)
+local battle = BattleService.start({
+	remotes = remotes,
+	sendProfile = lobbyService.sendProfile,
+	padCount = #LobbyLayout.pads(),
+	park = function(player: Player)
+		if lobbyPads then
+			lobbyPads.park(player)
+		end
+	end,
+	returnToLobby = function(player: Player)
+		if lobbyPads then
+			lobbyPads.returnToLobby(player)
+		end
+	end,
+})
+lobbyPads = LobbyPads.start({
+	pads = lobby.pads,
+	origin = lobby.origin,
+	battle = battle,
+	remotes = remotes,
+})
 remotes.BattleAction.OnServerEvent:Connect(function(player: Player, name: any, arg: any)
 	if type(name) == "string" and (arg == nil or type(arg) == "string") then
 		battle.action(player, name, arg)
@@ -178,6 +206,7 @@ local function onPlayerRemoving(player: Player)
 		leaveGroup(player)
 	end
 	battle.playerRemoving(player)
+	lobbyPads.remove(player)
 	local restart = rematch.remove(player)
 	lobbyService.onPlayerRemoving(player)
 	if restart then
@@ -241,10 +270,14 @@ remotes.LobbyAction.OnServerEvent:Connect(function(player: Player, action: any, 
 	if FeatureFlags.enabled("battleMode") then
 		-- Champions UI buttons: PLAY / cancel / leave go to the battle
 		if action == "play" then
-			battle.play(player)
+			if lobbyPads then
+				lobbyPads.play(player) -- walks you onto a PLAY pad
+			end
 			return
 		elseif action == "cancelPlay" or action == "leavePad" then
-			battle.cancel(player)
+			if lobbyPads then
+				lobbyPads.cancel(player)
+			end
 			return
 		elseif action == "leaveMatch" then
 			battle.action(player, "leave", nil)

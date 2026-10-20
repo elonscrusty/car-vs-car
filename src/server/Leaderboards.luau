@@ -1,7 +1,8 @@
 --!strict
--- Global leaderboards: most wins and best win streak. Scores go to OrderedDataStores (best only,
--- throttled), the top rows are read every ProgressConfig.Board.refreshSeconds and drawn on two
--- boards beside the lobby's top racers sign. Server only; every DataStore call is pcall + retry.
+-- Global leaderboards: wins this week (TOP DRIVERS, resets Monday) and wins of all time (WINS).
+-- Scores go to OrderedDataStores (best only, throttled), the top 5 rows are read every
+-- ProgressConfig.Board.refreshSeconds and drawn with avatar heads on the two physical boards of the
+-- lobby (LobbyBoards makes the panels). Server only; every DataStore call is pcall + retry.
 -- Boards fail quietly (they show "no scores yet"): a board outage never touches gameplay or saves.
 
 local DataStoreService = game:GetService("DataStoreService")
@@ -16,11 +17,11 @@ local Retry = require(ReplicatedStorage.Shared.Retry)
 type Profile = { wins: number, progress: { bestStreak: number } }
 
 local RETRY = { attempts = 3, baseDelay = 1, maxDelay = 4 }
-local BOARD_SIZE = Vector3.new(14, 11, 0.4)
-local MOUNT_HEIGHT = 5.5 -- the bottom edge of the boards above the floor (they hang on the wall)
-local BACKING = Color3.fromRGB(255, 205, 40) -- yellow frame panel behind the row
-local TITLE_SIZE = 40 -- pixels (board is 40 pixels per stud)
-local BODY_SIZE = 28
+local PPS = 40 -- pixels per stud on the board
+local TITLE_SIZE = 46
+local ROW_SIZE = 30
+local ORANGE = Color3.fromRGB(245, 130, 32)
+local BLUE = Color3.fromRGB(37, 141, 221)
 local PANEL = Color3.fromRGB(18, 24, 48) -- the navy of the other panels
 local GOLD = Color3.fromRGB(255, 210, 70)
 local WHITE = Color3.fromRGB(240, 244, 250)
@@ -30,10 +31,11 @@ local Leaderboards = {}
 local stores: { [string]: OrderedDataStore } = {}
 local lastSent: { [string]: { score: number, at: number } } = {} -- "<kind>_<userId>"
 local names: { [number]: string } = {}
-local labels: { [string]: { TextLabel } } = {} -- per kind, one label per surface
+local rowGuis: { [string]: { Rows } } = {} -- per kind, the rows of each surface
 local inited = false
 local LOADING = "Loading..."
 local EMPTY_TEXT = "NO DATA YET"
+local ROWS = 5
 local LOADING_TIMEOUT = 5 -- seconds before a board that got no data says "No scores yet"
 
 local studioNoted = false -- Studio has no DataStore access: say so once, not on every retry
@@ -217,20 +219,22 @@ function Leaderboards.checkChampion(player: Player, grant: () -> ())
 	end
 end
 
--- Sets a board's text. The empty message is big and centred (it reads as a sign, not as an error);
--- real rows are small and left aligned.
-local function showText(label: TextLabel, text: string)
-	label.Text = text
-	if text == EMPTY_TEXT then
-		label.TextXAlignment = Enum.TextXAlignment.Center
-		label.TextYAlignment = Enum.TextYAlignment.Center
-		label.TextSize = BODY_SIZE + 12
-		label.TextColor3 = GOLD
-	else
-		label.TextXAlignment = Enum.TextXAlignment.Left
-		label.TextYAlignment = Enum.TextYAlignment.Top
-		label.TextSize = BODY_SIZE
-		label.TextColor3 = WHITE
+type Rows = {
+	status: TextLabel, -- "NO DATA YET" / "Loading..." over the rows
+	heads: { ImageLabel },
+	names: { TextLabel },
+	scores: { TextLabel },
+	rowFrames: { Frame },
+}
+
+local onChampion: ((userId: number?, name: string) -> ())? = nil
+local lastChampion: number? = nil
+
+local function showStatus(r: Rows, text: string?)
+	r.status.Visible = text ~= nil
+	r.status.Text = text or ""
+	for _, f in r.rowFrames do
+		f.Visible = text == nil
 	end
 end
 
@@ -246,123 +250,211 @@ local function refreshBoard(board: { kind: Leaderboard.Kind, store: string, titl
 		return
 	end
 	local ok, pages = Retry.run(function()
-		return ds:GetSortedAsync(false, ProgressConfig.Board.rows):GetCurrentPage()
+		return ds:GetSortedAsync(false, ROWS):GetCurrentPage()
 	end, retryOpts("read " .. board.kind))
 	if not ok then
 		return
 	end
-	local rows = Leaderboard.rows(pages, ProgressConfig.Board.rows)
-	local lines: { string } = {}
-	for _, row in rows do
-		table.insert(lines, Leaderboard.line(row, nameOf(row.userId)))
+	local rows = Leaderboard.rows(pages, ROWS)
+	for _, r in rowGuis[board.kind] or {} do
+		if #rows == 0 then
+			showStatus(r, EMPTY_TEXT)
+		else
+			showStatus(r, nil)
+			for i = 1, ROWS do
+				local row = rows[i]
+				r.rowFrames[i].Visible = row ~= nil
+				if row then
+					r.heads[i].Image = `rbxthumb://type=AvatarHeadShot&id={row.userId}&w=150&h=150`
+					r.names[i].Text = nameOf(row.userId)
+					r.scores[i].Text = tostring(row.score)
+				end
+			end
+		end
 	end
-	local text = if #lines > 0 then table.concat(lines, "\n") else EMPTY_TEXT
-	for _, label in labels[board.kind] or {} do
-		showText(label, text)
+	if board.kind == "weekly" then
+		local top = if rows[1] then rows[1].userId else nil
+		if top ~= lastChampion and onChampion then
+			lastChampion = top
+			onChampion(top, if top then nameOf(top) else "")
+		end
 	end
 end
 
--- One board: a panel with a title and 10 lines, readable from both sides.
-local function buildBoard(
-	folder: Folder,
+local function label(
+	parent: Instance,
+	size: UDim2,
+	pos: UDim2,
+	text: string,
+	px: number,
+	color: Color3,
+	align: Enum.TextXAlignment
+): TextLabel
+	local l = Instance.new("TextLabel")
+	l.BackgroundTransparency = 1
+	l.Size = size
+	l.Position = pos
+	l.Font = Enum.Font.FredokaOne
+	l.TextSize = px
+	l.Text = text
+	l.TextColor3 = color
+	l.TextXAlignment = align
+	l.TextStrokeTransparency = 0.5
+	l.TextStrokeColor3 = Color3.fromRGB(10, 14, 26)
+	l.Parent = parent
+	return l
+end
+
+-- One board face: a title and 5 rows (rank, avatar head, name, score). `face` is the side of the
+-- panel that looks at the lobby's middle.
+local function buildFace(
+	panel: Part,
 	board: { kind: Leaderboard.Kind, store: string, title: string },
-	pos: Vector3,
-	yaw: number
+	face: Enum.NormalId,
+	accent: Color3
 )
-	local part = Instance.new("Part")
-	part.Name = "Board_" .. board.kind
-	part.Anchored = true
-	part.CanCollide = false
-	part.CanQuery = false
-	part.Size = BOARD_SIZE
-	part.Color = PANEL
-	part.Material = Enum.Material.SmoothPlastic
-	part.CFrame = CFrame.new(pos) * CFrame.Angles(0, yaw, 0)
-	part.Parent = folder
-	labels[board.kind] = {}
-	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
-		local gui = Instance.new("SurfaceGui")
-		gui.Face = face
-		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-		gui.PixelsPerStud = 40
-		gui.Parent = part
-		local frame = Instance.new("Frame") -- gold outline like the other panels
-		frame.BackgroundTransparency = 1
-		frame.Size = UDim2.fromScale(1, 1)
-		frame.Parent = gui
-		local outline = Instance.new("UIStroke")
-		outline.Color = GOLD
-		outline.Thickness = 4
-		outline.Parent = frame
-		local title = Instance.new("TextLabel")
-		title.BackgroundTransparency = 1
-		title.Size = UDim2.fromScale(1, 0.14)
-		title.Font = Enum.Font.FredokaOne
-		title.TextSize = TITLE_SIZE -- one fixed size on every board (TextScaled gave each board its own)
-		title.TextColor3 = GOLD
-		title.Text = board.title
-		title.Parent = gui
-		local body = Instance.new("TextLabel")
-		body.BackgroundTransparency = 1
-		body.Position = UDim2.fromScale(0.08, 0.16)
-		body.Size = UDim2.fromScale(0.84, 0.8)
-		body.Font = Enum.Font.FredokaOne
-		body.TextSize = BODY_SIZE
-		body.LineHeight = 1.1
-		body.TextColor3 = WHITE
-		body.TextXAlignment = Enum.TextXAlignment.Left
-		body.TextYAlignment = Enum.TextYAlignment.Top
-		body.Text = LOADING
-		body.Parent = gui
-		table.insert(labels[board.kind], body)
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "BoardGui"
+	gui.Face = face
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = PPS
+	gui.LightInfluence = 0
+	gui.Parent = panel
+	local frame = Instance.new("Frame")
+	frame.BackgroundColor3 = PANEL
+	frame.BorderSizePixel = 0
+	frame.Size = UDim2.fromScale(1, 1)
+	frame.Parent = gui
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = accent
+	stroke.Thickness = 6
+	stroke.Parent = frame
+	label(
+		frame,
+		UDim2.fromScale(1, 0.15),
+		UDim2.fromScale(0, 0.01),
+		board.title,
+		TITLE_SIZE,
+		accent,
+		Enum.TextXAlignment.Center
+	)
+	local r: Rows = {
+		status = label(
+			frame,
+			UDim2.fromScale(0.9, 0.7),
+			UDim2.fromScale(0.05, 0.2),
+			LOADING,
+			ROW_SIZE + 8,
+			GOLD,
+			Enum.TextXAlignment.Center
+		),
+		heads = {},
+		names = {},
+		scores = {},
+		rowFrames = {},
+	}
+	for i = 1, ROWS do
+		local row = Instance.new("Frame")
+		row.BackgroundTransparency = 1
+		row.Size = UDim2.fromScale(0.92, 0.15)
+		row.Position = UDim2.fromScale(0.04, 0.17 + (i - 1) * 0.162)
+		row.Visible = false
+		row.Parent = frame
+		label(
+			row,
+			UDim2.fromScale(0.1, 1),
+			UDim2.fromScale(0, 0),
+			tostring(i),
+			ROW_SIZE,
+			if i == 1 then GOLD else WHITE,
+			Enum.TextXAlignment.Center
+		)
+		local head = Instance.new("ImageLabel")
+		head.BackgroundColor3 = Color3.fromRGB(40, 48, 72)
+		head.Size = UDim2.fromScale(0.15, 1)
+		head.SizeConstraint = Enum.SizeConstraint.RelativeYY
+		head.Position = UDim2.fromScale(0.11, 0)
+		head.Parent = row
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0.5, 0)
+		corner.Parent = head
+		table.insert(r.heads, head)
+		table.insert(
+			r.names,
+			label(
+				row,
+				UDim2.fromScale(0.5, 1),
+				UDim2.fromScale(0.3, 0),
+				"",
+				ROW_SIZE,
+				WHITE,
+				Enum.TextXAlignment.Left
+			)
+		)
+		table.insert(
+			r.scores,
+			label(
+				row,
+				UDim2.fromScale(0.2, 1),
+				UDim2.fromScale(0.8, 0),
+				"",
+				ROW_SIZE,
+				GOLD,
+				Enum.TextXAlignment.Right
+			)
+		)
+		table.insert(r.rowFrames, row)
 	end
+	rowGuis[board.kind] = rowGuis[board.kind] or {}
+	table.insert(rowGuis[board.kind], r)
 end
 
--- Build the boards flat on the back wall and start the refresh loop. `center` is the world position
--- on the floor in front of the wall, in the middle of the row (the boards hang MOUNT_HEIGHT above
--- it, facing +Z, the way into the hall). Call once.
-function Leaderboards.init(folder: Folder, center: Vector3)
+-- Draw the two boards on the lobby's panels and start the refresh loop. Call once.
+-- `faces` is the NormalId of each panel that looks at the lobby. `champion` is called when the
+-- weekly #1 changes (userId nil = nobody yet).
+function Leaderboards.init(
+	panels: { weekly: Part, wins: Part },
+	faces: Enum.NormalId,
+	champion: ((userId: number?, name: string) -> ())?
+)
 	if inited then
 		return
 	end
 	inited = true
-	local step = BOARD_SIZE.X + 2
-	-- Left to right: all-time wins, this week's wins (the middle, main board), best streak.
-	local shown =
-		{ Leaderboard.Boards[1], Leaderboard.Weekly, Leaderboard.Smashes, Leaderboard.Boards[2] }
-	-- One backing panel behind the whole row, so the boards are mounted on something.
-	local backing = Instance.new("Part")
-	backing.Name = "BoardBacking"
-	backing.Anchored = true
-	backing.CanCollide = false
-	backing.CanQuery = false
-	backing.Size = Vector3.new(step * #shown + 1, BOARD_SIZE.Y + 1.6, 0.4)
-	backing.Color = BACKING
-	backing.Material = Enum.Material.SmoothPlastic
-	backing.CFrame = CFrame.new(center + Vector3.new(0, MOUNT_HEIGHT + BOARD_SIZE.Y / 2, -0.45))
-	backing.Parent = folder
-	for i, board in shown do
-		buildBoard(
-			folder,
-			board,
-			center + Vector3.new((i - 2.5) * step, MOUNT_HEIGHT + BOARD_SIZE.Y / 2, 0),
-			0
-		)
+	onChampion = champion
+	local shown = {
+		{
+			board = Leaderboard.Weekly,
+			panel = panels.weekly,
+			accent = ORANGE,
+			title = "TOP DRIVERS",
+		},
+		{ board = Leaderboard.Boards[1], panel = panels.wins, accent = BLUE, title = "WINS" },
+	}
+	for _, s in shown do
+		local board = { kind = s.board.kind, store = s.board.store, title = s.title }
+		buildFace(s.panel, board, faces, s.accent)
 	end
 	-- No data after a few seconds (no DataStore, outage, empty week): say so instead of "Loading...".
 	task.delay(LOADING_TIMEOUT, function()
-		for _, list in labels do
-			for _, label in list do
-				if label.Text == LOADING then
-					showText(label, EMPTY_TEXT)
+		for _, list in rowGuis do
+			for _, r in list do
+				if r.status.Text == LOADING then
+					showStatus(r, EMPTY_TEXT)
 				end
 			end
 		end
 	end)
 	task.spawn(function()
 		while true do
-			for _, board in shown do
-				refreshBoard(board)
+			for _, s in shown do
+				local ok, err = pcall(
+					refreshBoard,
+					{ kind = s.board.kind, store = s.board.store, title = s.title }
+				)
+				if not ok then
+					warn("[Leaderboards] refresh failed: " .. tostring(err))
+				end
 			end
 			task.wait(ProgressConfig.Board.refreshSeconds)
 		end

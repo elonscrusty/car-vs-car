@@ -28,7 +28,6 @@ BattleConfig.Timing = {
 	koSeconds = 2.6, -- after a knock-out: cars stop, the loser smokes, then the result shows
 	resultSeconds = 3, -- round result on screen
 	rematchSeconds = 6, -- how long the YOU WIN / YOU LOSE banner stays, then everyone goes back to the lobby
-	queueSeconds = 120, -- longest wait in the line before it gives up
 	hudRate = 10, -- HUD updates per second during a fight
 }
 

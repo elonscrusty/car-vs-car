@@ -1,3 +1,5 @@
+> SUPERSEDED 2026-10-20: the old warehouse lobby and its pad flow are archived. See docs/LOBBY_SPEC.md and the 'New Car Battle Lobby' section of SNAPSHOT.md. The persistence and remote parts below still apply.
+
 # Lobby contract (all helpers code against this; do not change it, ask the coordinator)
 
 Look: night neon garage, chunky low-poly. Reference: spawn bottom-center, spinning showcase car center,

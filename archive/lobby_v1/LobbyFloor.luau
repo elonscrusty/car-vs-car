@@ -4,7 +4,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
+local LobbyLayout = require(script.Parent.LobbyLayout)
 
 local LobbyFloor = {}
 

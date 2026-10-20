@@ -1346,7 +1346,7 @@ function BattleUi.start()
 			setChampions(false) -- hide the lobby menus behind the Searching panel
 			queueF.Visible = true
 			botBtn.Visible = m.studioBot == true
-			qText.Text = "Searching for opponent"
+			qText.Text = "Finding player..."
 		else
 			queueF.Visible = false
 			setChampions(true)
