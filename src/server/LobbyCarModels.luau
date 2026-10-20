@@ -6,6 +6,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
+local CarWheels = require(ReplicatedStorage.Shared.CarWheels)
 
 local LobbyCarModels = {}
 
@@ -64,6 +65,9 @@ function LobbyCarModels.make(parent: Instance, fighterId: string, length: number
 	local body = model:FindFirstChild("Body", true)
 	if body and body:IsA("BasePart") then
 		model.PrimaryPart = body
+		if fighter then
+			CarWheels.attach(body, fighter.model) -- before the loop below, so they are look-only too
+		end
 	end
 	for _, d in model:GetDescendants() do
 		if d:IsA("BasePart") then

@@ -15,7 +15,7 @@ local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
 local BattleBrain = require(ReplicatedStorage.Shared.BattleBrain)
 local BattleDrive = require(ReplicatedStorage.Shared.BattleDrive)
 local BattleRecap = require(ReplicatedStorage.Shared.BattleRecap)
-local CarWheels = require(script.Parent.CarWheels)
+local CarWheels = require(ReplicatedStorage.Shared.CarWheels)
 
 export type Car = {
 	side: string,

@@ -6,7 +6,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local CarRig = require(ReplicatedStorage.Shared.CarRig)
+local CarRig = require(script.Parent.CarRig)
 
 export type Handle = {
 	part: MeshPart,
