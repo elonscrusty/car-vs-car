@@ -224,3 +224,12 @@ Fight code: read spawns from `arena.spawnPoint(side)` (or `SpawnA|B` pad parts).
 - Map: Duel Car Arena is live (PR pending). Studio helper: sync, save, drive straight from each start, take pictures (top, each start, a wall + tire stack, a garage, cover block, trees outside).
 
 - Map: Duel arena 9/10 pass. Driving thread: call arena.setTeams(random), arena.setNames(player, bot name) at match start and arena.openDoors() at GO, arena.closeDoors() for the next round. Studio helper: sync, save, take the 8-10 pictures asked for.
+
+## New Car Battle Lobby (2026-10-20, carter's 70 picks)
+Replaces the warehouse lobby (archived in `archive/lobby_v1`, shipped to ServerStorage.LobbyArchive, never run). Spec: `docs/LOBBY_SPEC.md`. NOT seen in Studio yet.
+- Layout numbers: `src/shared/LobbyLayout.luau` (pure, `tests/lobbylayout.test.luau`). Builders: `Lobby.luau` (entry, `Lobby.build()` returns spawn, folder, claw anim, parking, pads, boards, showcase) + `LobbyGround`, `LobbyScenery`, `LobbyGarageShell` + `LobbyWorkshop` / `LobbyCustomize` / `LobbyShop` / `LobbyBoards`, `GumballAnim`, `LobbyPads`, `LobbyParking`, `LobbyShowcase`, `LobbyCarModels`, `LobbyPlayers` (walk speed 24 + name tags + crown tag).
+- PLAY: 4 mini pads, 2 players each (`PadSlots`, pure). Standing on a pad (checked 4x/second in `LobbyPads.start`) or the PLAY button (walks you onto a pad) joins it; two on one pad start a fight (`BattleService.padSync`); one player waits forever, no bot. `BattleService` parks fighters under the lobby (anchored) and `returnToLobby` puts them next to the pads. The old global queue (`BattleQueue`, `queueSeconds`) is gone.
+- Prompts by name: `GachaPrompt` (gumball), `CustomizePrompt` (paint + garage), `StorePrompt` (shop). Boards: `Leaderboards.init(panels, face, onChampion)`; the weekly #1 gets the gold car on the workshop stage + a crown tag.
+- Client: `LobbyClient` (arrow for new players, fade into/out of the fight, rare pulls in chat via LobbyUpdate `announce`, cuts FarScenery on a slow phone). QUESTS/GARAGE menu buttons stay hidden: the screen has PLAY, CARS, SHOP and GIFT.
+- Tests: `tests/robloxmock.luau` is a small fake Roblox so builders run under Lune (`lobbybuild.test`, `lobbyground.test`, ...). It checks sizes, heights and errors, NOT looks.
+- Still needed from carter: sound ids (lobby music spot is silent), coin pack / VIP ids + prices, icons. Shop contents are carter's Champions UI.

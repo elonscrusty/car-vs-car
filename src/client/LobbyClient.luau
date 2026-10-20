@@ -13,6 +13,7 @@ local TweenService = game:GetService("TweenService")
 local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
+local Quality = require(script.Parent.Quality)
 
 local LobbyClient = {}
 
@@ -161,6 +162,21 @@ function LobbyClient.start()
 			hideArrow()
 		elseif m.kind == "prep" or m.kind == "end" then
 			fadeIn() -- into the fight, and back out of it
+		end
+	end)
+
+	-- A slow phone cuts the far trees first (carter): only on this player's screen, only once.
+	task.spawn(function()
+		while true do
+			task.wait(3)
+			if Quality.level() >= 2 then
+				local lobby = workspace:FindFirstChild("Lobby")
+				local far = if lobby then lobby:FindFirstChild("FarScenery") else nil
+				if far then
+					far:Destroy()
+				end
+				return
+			end
 		end
 	end)
 
