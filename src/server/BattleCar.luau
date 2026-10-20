@@ -33,6 +33,8 @@ export type Car = {
 	lastOut: BattleBrain.Output?,
 	lungeT: number, -- momentum: time since the last forward lunge
 	human: boolean, -- a player drives this car (manual driving)
+	energy: number, -- special move bar, 0..1
+	hornAt: number, -- when the horn last honked (os.clock)
 	clientDriven: boolean, -- ...and their device owns the physics (answers the stick at once)
 	momentum: boolean, -- the momentum prototype: launch, skid, rebound, weak steering
 	stats: BattleRecap.Stats, -- what this car's weapon did this round (for the recap)
@@ -225,6 +227,8 @@ function BattleCar.spawn(
 		slide = Vector3.zero,
 		prevVel = Vector3.zero,
 		human = false,
+		energy = 0,
+		hornAt = -100,
 		clientDriven = false,
 		momentum = false,
 		lungeT = 0,

@@ -9,11 +9,14 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
 
 local BattleBrain = require(ReplicatedStorage.Shared.BattleBrain)
 local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
 local BattleAim = require(ReplicatedStorage.Shared.BattleAim)
 local BattleCrash = require(ReplicatedStorage.Shared.BattleCrash)
+local BattleSpecial = require(ReplicatedStorage.Shared.BattleSpecial)
 local BattleHuman = require(ReplicatedStorage.Shared.BattleHuman)
 local PadSlots = require(ReplicatedStorage.Shared.PadSlots)
 local BattleRecap = require(ReplicatedStorage.Shared.BattleRecap)
@@ -61,6 +64,8 @@ type Shell = {
 	life: number,
 	speed: number,
 	bounces: number, -- wall bounces so far
+	dmg: number, -- damage when it lands
+	homing: number, -- degrees per second it curves toward the foe
 }
 type Match = {
 	slot: number,
@@ -478,6 +483,7 @@ function BattleService.start(
 				max = c.maxHp,
 				ready = if c.lastOut then c.lastOut.ready else 1,
 				state = if c.lastOut then c.lastOut.state else "approach",
+				energy = c.energy,
 			}
 		end
 		return {
@@ -598,13 +604,29 @@ function BattleService.start(
 		end
 	end
 
-	local function fireShell(m: Match, car: BattleCar.Car, foe: BattleCar.Car)
+	local function fireShell(
+		m: Match,
+		car: BattleCar.Car,
+		foe: BattleCar.Car,
+		shellOpts: {
+			yawDeg: number?,
+			dmg: number?,
+			scale: number?,
+			homing: number?,
+			color: Color3?,
+		}?
+	)
+		local o = shellOpts or {}
 		local muzzle = car.muzzle
-		if muzzle == nil then
-			return
-		end
 		local cfg = BattleConfig.Cannon
-		local pos = muzzle.WorldPosition
+		-- only the van has a muzzle; other cars' specials launch from just ahead of the nose
+		local pos = if muzzle
+			then muzzle.WorldPosition
+			else car.body.Position + car.body.CFrame.LookVector * (0.6 * car.L) + Vector3.new(
+				0,
+				0.2 * car.L,
+				0
+			)
 		-- flat aim along the car's facing, tilted to the foe's body height so a low car is not overshot
 		local flat = car.lastForward
 		local toFoe = foe.body.Position - pos
@@ -612,12 +634,15 @@ function BattleService.start(
 		local rise = math.clamp(toFoe.Y / run, -0.5, 0.5)
 		-- the shot leaves along the nose; auto-aim then curves it toward the foe in stepShells
 		local dir = Vector3.new(flat.X, rise, flat.Z).Unit
+		if o.yawDeg then
+			dir = (CFrame.Angles(0, math.rad(o.yawDeg), 0) * dir).Unit
+		end
 		local ball = Instance.new("Part")
 		ball.Name = "Shell"
 		ball.Shape = Enum.PartType.Ball
-		ball.Size = Vector3.one * (0.42 * car.L)
+		ball.Size = Vector3.one * (0.42 * car.L * (o.scale or 1))
 		ball.Material = Enum.Material.Neon
-		ball.Color = Color3.fromRGB(255, 160, 40)
+		ball.Color = o.color or Color3.fromRGB(255, 160, 40)
 		ball.Anchored = true
 		ball.CanCollide = false
 		ball.CanQuery = false
@@ -646,6 +671,8 @@ function BattleService.start(
 			life = cfg.shellLifeSeconds,
 			speed = cfg.shellSpeedL * car.L,
 			bounces = 0,
+			dmg = o.dmg or cfg.damage,
+			homing = o.homing or cfg.homingDegPerSec,
 		})
 		car.stats.shots += 1
 	end
@@ -664,7 +691,7 @@ function BattleService.start(
 					s.dir.Z,
 					toFoe.X,
 					toFoe.Z,
-					math.rad(cfg.homingDegPerSec) * dt,
+					math.rad(s.homing) * dt,
 					math.rad(cfg.homingConeDeg)
 				)
 				local flat = math.sqrt(s.dir.X * s.dir.X + s.dir.Z * s.dir.Z)
@@ -706,9 +733,9 @@ function BattleService.start(
 					landed = true
 					s.owner.stats.shotHits += 1
 					if s.foe.side == "a" then
-						dmg.a += BattleConfig.Cannon.damage
+						dmg.a += s.dmg
 					else
-						dmg.b += BattleConfig.Cannon.damage
+						dmg.b += s.dmg
 					end
 					BattleCar.knock(
 						s.foe,
@@ -716,7 +743,7 @@ function BattleService.start(
 						BattleConfig.Cannon.knockSpeed,
 						BattleConfig.Cannon.knockStagger
 					)
-					sendHit(m, hit.Position, false, BattleConfig.Cannon.damage, s.foe.side)
+					sendHit(m, hit.Position, false, s.dmg, s.foe.side)
 				end
 			else
 				s.pos += step
@@ -910,6 +937,13 @@ function BattleService.start(
 		-- all damage of this update lands together, so a double knock-out is a draw
 		a.hp = math.max(0, a.hp - dmg.a)
 		b.hp = math.max(0, b.hp - dmg.b)
+		-- hitting the foe fills the special energy bar
+		if dmg.b > 0 and a.hp > 0 then
+			a.energy = BattleSpecial.gain(a.energy, dmg.b)
+		end
+		if dmg.a > 0 and b.hp > 0 then
+			b.energy = BattleSpecial.gain(b.energy, dmg.a)
+		end
 		-- the clients smoke the cars more as HP drops
 		a.model:SetAttribute("HpFrac", a.hp / a.maxHp)
 		b.model:SetAttribute("HpFrac", b.hp / b.maxHp)
@@ -946,6 +980,73 @@ function BattleService.start(
 			for _, side in sides() do
 				send((m.parts :: any)[side], hudFor(m, side))
 			end
+		end
+	end
+
+	-- SPECIAL button: spends a full energy bar on the car's own special move.
+	local function useSpecial(m: Match, side: string)
+		local car = (m.cars :: any)[side] :: BattleCar.Car?
+		local foe = (m.cars :: any)[BattleSeries.other(side :: any)] :: BattleCar.Car?
+		if car == nil or foe == nil or car.brain == nil or not BattleSpecial.ready(car.energy) then
+			return
+		end
+		car.energy = 0
+		local S = BattleConfig.Special
+		local id = car.fighter.id
+		if id == "RamTruck" then
+			-- shockwave: a ring blasts out; a foe inside it is hurt and shoved away
+			local ring = Instance.new("Part")
+			ring.Name = "Shockwave"
+			ring.Shape = Enum.PartType.Cylinder
+			ring.Anchored = true
+			ring.CanCollide = false
+			ring.CanQuery = false
+			ring.CanTouch = false
+			ring.Material = Enum.Material.Neon
+			ring.Color = Color3.fromRGB(255, 220, 90)
+			ring.Transparency = 0.2
+			ring.Size = Vector3.new(1, 2, 2)
+			ring.CFrame = CFrame.new(car.body.Position) * CFrame.Angles(0, 0, math.rad(90))
+			ring.Parent = (m.arena :: BattleArena.Arena).folder
+			local reach = S.shockRadiusL * car.L
+			TweenService:Create(
+				ring,
+				TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{ Size = Vector3.new(1, reach * 2, reach * 2), Transparency = 1 }
+			):Play()
+			Debris:AddItem(ring, 0.6)
+			local d = foe.body.Position - car.body.Position
+			if Vector3.new(d.X, 0, d.Z).Magnitude <= reach then
+				foe.hp = math.max(0, foe.hp - S.shockDamage)
+				BattleCar.knock(foe, d, S.shockKnockSpeed, S.shockStagger)
+				sendHit(m, foe.body.Position, true, S.shockDamage, foe.side)
+			end
+		elseif id == "CannonVan" then
+			for _, yaw in { -S.tripleSpreadDeg, 0, S.tripleSpreadDeg } do
+				fireShell(m, car, foe, { yawDeg = yaw })
+			end
+		else
+			fireShell(m, car, foe, {
+				dmg = S.sawThrowDamage,
+				scale = S.sawThrowScale,
+				homing = S.sawThrowHomingDeg,
+				color = Color3.fromRGB(215, 220, 232),
+			})
+		end
+		for _, sd in sides() do
+			send((m.parts :: any)[sd], { kind = "special", side = side, id = id })
+		end
+	end
+
+	-- HORN button: a honk everyone in the match hears and sees.
+	local function honk(m: Match, side: string)
+		local car = (m.cars :: any)[side] :: BattleCar.Car?
+		if car == nil or os.clock() - car.hornAt < BattleConfig.Special.hornSeconds then
+			return
+		end
+		car.hornAt = os.clock()
+		for _, sd in sides() do
+			send((m.parts :: any)[sd], { kind = "horn", side = side })
 		end
 	end
 
@@ -1219,6 +1320,18 @@ function BattleService.start(
 		end,
 		action = function(player: Player, name: string, arg: any)
 			if not limiter.allow(player, os.clock()) then
+				return
+			end
+			if name == "special" or name == "horn" then
+				local m = inMatch[player]
+				if m ~= nil and m.phase == "fight" then
+					local side = if m.parts.a.player == player then "a" else "b"
+					if name == "special" then
+						useSpecial(m, side)
+					else
+						honk(m, side)
+					end
+				end
 				return
 			end
 			if name == "queueBot" then
