@@ -13,6 +13,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 
+local Telemetry = require(script.Parent.Telemetry)
 local BattleBrain = require(ReplicatedStorage.Shared.BattleBrain)
 local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
 local BattleAim = require(ReplicatedStorage.Shared.BattleAim)
@@ -94,6 +95,7 @@ type Match = {
 	crashCd: number, -- seconds until the next plain crash can hurt
 	crashChain: number, -- plain crashes in a row with less than chainWindow seconds between them
 	crashQuiet: number, -- seconds since the last plain crash
+	told: boolean, -- Telemetry heard that this match's fight started
 	sim: { key: string, left: number }?, -- Studio only: a bot-vs-bot balance run (left = series still to play)
 	fought: number, -- total seconds spent in the fight phase, all rounds (a too-short match pays nothing)
 	touching: boolean, -- the cars' bodies were touching at the last step
@@ -483,6 +485,17 @@ function BattleService.start(
 			end
 		end
 		m.phase, m.t, m.hudT = "fight", 0, 0
+		if not m.told then
+			m.told = true
+			local who: { { player: Player, car: string } } = {}
+			for _, side in sides() do
+				local part = (m.parts :: any)[side] :: Part
+				if part.player then
+					table.insert(who, { player = part.player, car = part.pick or "" })
+				end
+			end
+			Telemetry.fightStarted(who, m.vsBot)
+		end
 		if m.arena then
 			m.arena.openDoors()
 		end
@@ -600,6 +613,9 @@ function BattleService.start(
 			end
 			if p then
 				total, wins = p.coins, p.wins
+			end
+			if part.player and not part.left then
+				Telemetry.fightEnded(part.player, result == "win", m.series.round)
 			end
 			send(part, {
 				kind = "matchResult",
@@ -1118,6 +1134,16 @@ function BattleService.start(
 		-- all damage of this update lands together, so a double knock-out is a draw
 		a.hp = math.max(0, a.hp - dmg.a)
 		b.hp = math.max(0, b.hp - dmg.b)
+		if dmg.a > 0 or dmg.b > 0 then
+			local who: { Player } = {}
+			for _, side in sides() do
+				local pl = ((m.parts :: any)[side] :: Part).player
+				if pl then
+					table.insert(who, pl)
+				end
+			end
+			Telemetry.hit(who)
+		end
 		-- hitting the foe fills the special energy bar
 		if dmg.b > 0 and a.hp > 0 then
 			a.energy = BattleSpecial.gain(a.energy, dmg.b)
@@ -1234,6 +1260,7 @@ function BattleService.start(
 	local function newSeries(m: Match)
 		m.series = BattleSeries.new()
 		m.settled = false
+		m.told = false
 		for _, side in sides() do
 			local part = (m.parts :: any)[side] :: Part
 			part.paid, part.rematch = false, false
@@ -1371,6 +1398,7 @@ function BattleService.start(
 			crashCd = 0,
 			crashChain = 0,
 			crashQuiet = 99,
+			told = false,
 			sim = nil,
 			fought = 0,
 			touching = false,
@@ -1398,6 +1426,9 @@ function BattleService.start(
 		local side = if m.parts.a == part then "a" else "b"
 		local foe = other(m, side)
 		part.left = true
+		if part.player then
+			Telemetry.fightQuit(part.player, m.phase)
+		end
 		if part.player and inMatch[part.player] == m then
 			inMatch[part.player] = nil
 		end

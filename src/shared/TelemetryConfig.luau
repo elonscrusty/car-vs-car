@@ -4,37 +4,23 @@
 
 local TelemetryConfig = {}
 
--- Funnel steps, in order. Step number = position in this list.
+-- Funnel steps, in order. Step number = position in this list. "launched" = the first fight starts.
 TelemetryConfig.Steps = {
 	"joined",
-	"first_input", -- first steer/move input (audit G: time from join to first input)
 	"stepped_on_pad",
-	"launched",
-	"first_hit",
-	"first_score", -- first goal (soccer), first tag (tag) or finish line (race) of the visit
-	"finished_first_match",
-	"saw_end_screen",
+	"launched", -- a fight starts (3-2-1 over, the first round begins)
+	"first_hit", -- first damage in a fight
+	"finished_first_match", -- stayed through to the result of a whole match
 	"started_second_match",
-	"opened_claw",
+	"opened_gumball", -- first gumball pull
 } :: { string }
 
--- Fixed lists for the mode_picked / left_match fields. Mode names match the lobby MODE button.
-TelemetryConfig.Modes = {
-	"auto",
-	"duel",
-	"hill",
-	"ice",
-	"soccer",
-	"tag",
-	"race",
-	"lastStanding",
-} :: { string }
--- Where LOBBY was tapped: waiting at the pad, picking a car, aiming/countdown, mid-fight, end screen.
-TelemetryConfig.LeavePhases = { "pad", "pick", "aim", "fight", "end" } :: { string }
--- Where a car came from: the claw machine or the car store.
-TelemetryConfig.Sources = { "claw", "store" } :: { string }
--- What counted as the first score: soccer goal, a tag, a race finish.
-TelemetryConfig.ScoreKinds = { "goal", "tag", "finish" } :: { string }
+-- Where the match was when a player left: car pick, 3-2-1, a round running, between rounds, the result screen,
+-- or they left the server without the match noticing ("server").
+TelemetryConfig.FightPhases =
+	{ "select", "prep", "fight", "result", "matchResult", "server" } :: { string }
+-- Where a car came from: the gumball machine or the car store.
+TelemetryConfig.Sources = { "gumball", "store" } :: { string }
 
 -- Custom events (Roblox allows 100 per game). `value` names the numeric data field (or nil);
 -- `fields` lists up to 3 string fields, mapped in order to CustomField01..03.
@@ -46,46 +32,24 @@ export type EventSchema = {
 	allowed: { [string]: { string } }?,
 }
 TelemetryConfig.Events = {
-	match_end = { value = "seconds", fields = { "mode", "won", "vs_bot" } },
-	-- Per-mode result (audit #108/#111): place 1..6 ("" if unknown), score = goals (soccer) or
-	-- tags (tag). Group modes only; fields come from the match result and may be missing.
-	match_result = { value = "seconds", fields = { "mode", "place", "score" } },
-	tag_survived = { value = "seconds", fields = { "mode" } },
-	-- claw_pull = a pull; car_acquired = a car obtained from the claw or bought in the store.
-	claw_pull = {
-		value = nil,
-		fields = { "source" },
-		allowed = { source = TelemetryConfig.Sources },
+	-- a fight (a whole match, rounds included) begins: car = the player's car id
+	fight_start = { value = nil, fields = { "car", "vs_bot" } },
+	-- a fight finished: seconds = time since fight_start, rounds = rounds played
+	fight_end = { value = "seconds", fields = { "car", "won", "rounds" } },
+	-- the player left before the match finished: seconds since fight_start, phase = where it was
+	quit_during_fight = {
+		value = "seconds",
+		fields = { "phase" },
+		allowed = { phase = TelemetryConfig.FightPhases },
 	},
+	-- seconds from the first round starting to the first damage
+	time_to_first_hit = { value = "seconds", fields = { "car" } },
+	-- a gumball pull; car_acquired = a car obtained from the gumball machine or bought in the store
+	gumball_pull = { value = nil, fields = {} },
 	car_acquired = {
 		value = nil,
 		fields = { "source" },
 		allowed = { source = TelemetryConfig.Sources },
-	},
-	-- mode = the mode that was just played (so a per-mode rematch rate can be read).
-	rematch_tapped = { value = nil, fields = { "mode" } },
-	-- first goal / tag / finish: seconds since the match started.
-	first_score = {
-		value = "seconds",
-		fields = { "mode", "kind" },
-		allowed = { kind = TelemetryConfig.ScoreKinds },
-	},
-	-- seconds from joining the server to the first steer/move input.
-	first_input = { value = "seconds", fields = {} },
-	quit_during_match = { value = "seconds", fields = { "mode" } },
-	-- player left after being eliminated and before the match ended; seconds = time since the
-	-- elimination (dead time that lost them).
-	quit_after_elimination = { value = "seconds", fields = { "mode" } },
-	time_to_first_hit = { value = "seconds", fields = { "mode" } },
-	mode_picked = {
-		value = nil,
-		fields = { "mode" },
-		allowed = { mode = TelemetryConfig.Modes },
-	},
-	left_match = {
-		value = "seconds",
-		fields = { "phase" },
-		allowed = { phase = TelemetryConfig.LeavePhases },
 	},
 } :: { [string]: EventSchema }
 

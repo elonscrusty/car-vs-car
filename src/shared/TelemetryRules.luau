@@ -112,27 +112,6 @@ function TelemetryRules.buildEvent(name: string, data: { [string]: any }?): Even
 	return ev
 end
 
--- Defensive read of a group-match result. Fields may be missing or the wrong type (the match
--- result shape is owned by GroupMatch/LobbyService): place, goals, tags, survivedSeconds.
-export type Result = { place: number?, score: number?, survivedSeconds: number? }
-function TelemetryRules.readResult(result: any): Result
-	local out: Result = {}
-	if type(result) ~= "table" then
-		return out
-	end
-	local function num(key: string): number?
-		local v = result[key]
-		if type(v) == "number" and v == v and v >= 0 then
-			return v
-		end
-		return nil
-	end
-	out.place = num("place")
-	out.score = num("goals") or num("tags")
-	out.survivedSeconds = num("survivedSeconds")
-	return out
-end
-
 -- Global cap: true if one more event may be sent at `now` (and records it).
 function TelemetryRules.allow(state: State, now: number): boolean
 	local cfg = TelemetryConfig.RateLimit
