@@ -17,6 +17,15 @@
 - Not verified yet: a real phone play, camera at walls (ray pulls it in), ping feel.
 
 
+## Lobby polish + first-time tutorial (2026-10-20, picks L1-L60 in docs/LOBBY_POLISH.md, status table at its end)
+- Lobby: plaza 172 x 126 studs (L41); props = pure data `src/shared/LobbyProps` + builder `src/server/LobbyProps`; car-show stands, boards by the spawn. 1965 parts, test limit 2300 (`tests/lobbyprops`).
+- Tutorial (first join, replay in Settings): rules/steps/text in `src/shared/Tutorial*.luau`; server `TutorialService` (flags "tutorial", "pad", "claw" saved at the START in profile.hintsSeen, coin gift 30 paid once); client `TutorialClient` (brain), `TutorialUi` (bubble, ring, arrow, SKIP, check + confetti), `GuideTrail` (green line, floats 0.85 above the floor), `TutorialPortal` (blue portal, client only), `PracticeClient` + `PracticeCar` + `shared/PracticeYard` (junkyard at (-6000, 40, 0), built on the client, Ram truck, 3 boxes).
+- Rare pulls (Epic or better): server `announce` message -> `client/RareBanner` for the whole server.
+- Flat things on the lobby floor must stay under 0.35 high: the green line floats at 0.85 and a test reads the real floor (`tests/tutorialworld`).
+- Offline picture of the lobby or the yard (no textures, not Studio): `tools/preview` (dump.luau, render.py).
+- Verified: fake-Roblox tests play the whole tutorial with the real server part and the real screens. NOT verified: real Studio, a real phone, the real length (aim: about 1 minute).
+- On hold: texture, color and detail polish (carter dislikes the bright cartoon look; new art style pending).
+
 ## Phase 1 (design: /mnt/project-files/car-vs-car/game-plan.md, D3 changed by carter)
 Aim once, then the cars drive themselves. Flow: drag back like a slingshot, let go -> both cars launch ->
 Autopilot (run-up + ram) drives both -> HP drops on hits -> HP 0 = match over. Time up (120 s): higher HP wins,
