@@ -231,6 +231,37 @@ function Layout.tireWall(): { Station }
 	return list
 end
 
+-- Big painted signs on the tire wall, all looking at the PLAY ring. x, z = the middle of the board
+-- on the wall line; `yawDeg` turns a sign drawn facing +z (180 = front wall, 90 = left, -90 =
+-- right). w, h = board size, the bottom sits `signBottom` up so it stands above the tires.
+-- `arrow`: 1 = points right, -1 = left, 0 = none (as seen from the plaza); `frame` = trim color.
+export type WallSign = {
+	x: number,
+	z: number,
+	yawDeg: number,
+	w: number,
+	h: number,
+	text: string,
+	arrow: number,
+	frame: string,
+}
+Layout.wallSignBottom = 4
+Layout.wallSigns = {
+	{
+		x = -26,
+		z = 64,
+		yawDeg = 180,
+		w = 18,
+		h = 6,
+		text = "PLAY HERE",
+		arrow = 0,
+		frame = "orange",
+	},
+	-- the side signs sit just in front of the side entrances; "back" is to the viewer's right / left
+	{ x = -100, z = 14, yawDeg = 90, w = 16, h = 8, text = "GUMBALL", arrow = 1, frame = "blue" },
+	{ x = 100, z = 14, yawDeg = -90, w = 14, h = 8, text = "SHOP", arrow = -1, frame = "orange" },
+}
+
 -- Invisible tall walls so nobody climbs props, walks into a garage or out of the plaza.
 -- Rect: centre + size, all of them 40 studs tall.
 function Layout.blockers(): { Rect }
