@@ -36,6 +36,7 @@ export type Car = {
 	momentum: boolean, -- the momentum prototype: launch, skid, rebound, weak steering
 	stats: BattleRecap.Stats, -- what this car's weapon did this round (for the recap)
 	stagger: number, -- > 0 while knocked: the car slides and cannot steer
+	slide: Vector3, -- flat velocity a wall bounce keeps pushing while knocked (floor friction would eat it)
 	prevVel: Vector3, -- velocity at the end of the last step (before any crash changed it)
 }
 
@@ -220,6 +221,7 @@ function BattleCar.spawn(
 		standIn = standIn,
 		lastOut = nil,
 		stagger = 0,
+		slide = Vector3.zero,
 		prevVel = Vector3.zero,
 		human = false,
 		momentum = false,
@@ -343,7 +345,8 @@ local function wallBounce(car: Car, v: Vector3, dt: number): boolean
 	local keep = (if props then props.Elasticity else 0.5) * 0.7
 	local r = (flat - 2 * flat:Dot(n) * n) * keep
 	body.AssemblyLinearVelocity = Vector3.new(r.X, v.Y, r.Z)
-	car.stagger = math.max(car.stagger, 0.35)
+	car.stagger = math.max(car.stagger, 0.5)
+	car.slide = Vector3.new(r.X, 0, r.Z)
 	return true
 end
 
@@ -361,6 +364,15 @@ function BattleCar.drive(car: Car, out: BattleBrain.Output, dt: number)
 		-- knocked: slide and spin on the shove, no steering
 		car.stagger = math.max(0, car.stagger - dt)
 		local keep = math.max(0, 1 - mv.knockFriction * dt)
+		if car.slide.Magnitude > 0 then
+			-- a wall bounce: hold the slide ourselves so the floor does not stop it in a blink
+			car.slide *= keep
+			body.AssemblyLinearVelocity = Vector3.new(car.slide.X, v.Y, car.slide.Z)
+			if car.stagger <= 0 then
+				car.slide = Vector3.zero
+			end
+			return
+		end
 		body.AssemblyLinearVelocity = Vector3.new(v.X * keep, v.Y, v.Z * keep)
 		return
 	end
@@ -513,6 +525,7 @@ function BattleCar.knock(car: Car, dir: Vector3, speed: number, stagger: number)
 		speed *= BattleConfig.Momentum.knockMult
 	end
 	car.stagger = math.max(car.stagger, stagger)
+	car.slide = Vector3.zero -- a fresh shove replaces a wall slide
 	local v = car.body.AssemblyLinearVelocity
 	car.body.AssemblyLinearVelocity = Vector3.new(d.X * speed, v.Y, d.Z * speed)
 	local side = if (d:Cross(car.lastForward)).Y >= 0 then 1 else -1
@@ -532,6 +545,7 @@ end
 function BattleCar.wreck(car: Car)
 	car.brain = nil
 	car.stagger = 0.001
+	car.slide = Vector3.zero
 	local body = car.body
 	local burn = Instance.new("Highlight")
 	burn.FillColor = Color3.fromRGB(30, 25, 25)
