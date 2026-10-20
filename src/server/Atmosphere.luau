@@ -36,7 +36,7 @@ function Atmosphere.apply()
 			c:Destroy()
 		end
 	end
-	Lighting.ClockTime = 17.6 -- the sun low over the city: long orange light
+	Lighting.ClockTime = 17.8 -- the sun just over the city: the whole sky turns orange and purple
 	Lighting.GeographicLatitude = 35
 	Lighting.Brightness = 2.6
 	Lighting.Ambient = Color3.fromRGB(122, 104, 128) -- warm purple fill: shadows stay readable
@@ -49,12 +49,12 @@ function Atmosphere.apply()
 	Lighting.ShadowSoftness = 0.6
 
 	local haze: Atmosphere = effect("Atmosphere", "GameAtmosphere")
-	haze.Density = 0.24
+	haze.Density = 0.32 -- thick enough to tint the sky everywhere, not only near the sun
 	haze.Offset = 0.1
 	haze.Color = Color3.fromRGB(255, 160, 120) -- orange near the sun
 	haze.Decay = Color3.fromRGB(110, 72, 140) -- purple away from it
-	haze.Glare = 0.4
-	haze.Haze = 1.2
+	haze.Glare = 0.6
+	haze.Haze = 2.2
 
 	local bloom: BloomEffect = effect("BloomEffect", "GameBloom")
 	bloom.Intensity = 0.3 -- a soft glow round the lamps and neon only (it burned bright plastic out)
@@ -79,7 +79,7 @@ local nightCount = 0
 
 function Atmosphere.night()
 	nightCount += 1
-	Lighting.ClockTime = 17.9
+	Lighting.ClockTime = 17.95
 	Lighting.Brightness = 2.4
 	Lighting.Ambient = Color3.fromRGB(128, 106, 140) -- bright enough to read the floor and cars
 	Lighting.OutdoorAmbient = Color3.fromRGB(170, 136, 160)
@@ -92,7 +92,7 @@ function Atmosphere.night()
 	end
 	local haze = Lighting:FindFirstChild("GameAtmosphere")
 	if haze and haze:IsA("Atmosphere") then
-		haze.Density = 0.26
+		haze.Density = 0.32
 		haze.Color = Color3.fromRGB(240, 140, 120)
 		haze.Decay = Color3.fromRGB(96, 64, 140)
 	end

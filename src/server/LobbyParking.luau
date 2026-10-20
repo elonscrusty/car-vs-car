@@ -32,7 +32,7 @@ export type Handle = {
 }
 
 -- A car turns on its stand, so it must fit a spot (10.4 studs deep) all the way round.
-local CAR_LENGTH = 9
+local CAR_LENGTH = 7.6 -- room to spare inside the glowing rim
 local STAND_D = 9.6
 local STAND_H = 0.8
 local SPIN_SPEED = 0.45 -- radians a second: one turn in about 14 seconds

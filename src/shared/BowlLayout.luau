@@ -24,19 +24,21 @@ Layout.wallBounce = 1 -- elasticity of everything a car bounces off (carter M18:
 Layout.groundRadius = 136 -- the solid floor disc runs out under the slope and the tire wall
 Layout.groundSize = 516 -- slots are 520 apart, so neighbours never overlap -- the grass plate under and round everything
 Layout.facetCount = 32 -- wedges that make the slope ring
+Layout.yardRadius = 250 -- the yard outside the tire wall is level with the slope's top out to here
 Layout.wallCount = 32 -- boxes that make the invisible solid wall the tire stacks touch
 
 Layout.colors = {
-	floor = { 96, 104, 126 }, -- asphalt, a blue-grey: dark cars do not melt into it (day light renders tops about 1.65 times brighter)
+	floor = { 88, 82, 88 }, -- old warm asphalt (sunset light renders tops brighter)
+	floorPatch = { { 74, 70, 76 }, { 104, 92, 84 }, { 66, 60, 62 } }, -- worn spots, oil, packed dirt
 	dirt = { 128, 98, 68 }, -- the junk patches
 	dirtDark = { 112, 84, 58 },
 	slope = { 152, 128, 92 }, -- the sloped edge, warm sand
 	slopeAlt = { 140, 118, 84 },
 	line = { 244, 246, 240 },
-	orange = { 245, 130, 32 },
+	orange = { 196, 98, 42 }, -- rusty orange
 	blue = { 37, 141, 221 },
 	red = { 214, 58, 52 },
-	yellow = { 255, 214, 64 },
+	yellow = { 186, 146, 60 }, -- worn hazard yellow
 	ink = { 36, 39, 43 },
 	tire = { 46, 48, 58 },
 	tireAlt = { 60, 62, 74 },
@@ -247,7 +249,7 @@ end
 
 Layout.propMinRadius = 34 -- keep the crusher's surroundings open
 Layout.propMaxRadius = 80 -- and a car's width of floor between the props and the slope
-Layout.propSpacing = 7.4 -- middle to middle
+Layout.propSpacing = 8.6 -- middle to middle
 Layout.boomSpacing = 14 -- red barrels stay this far from each other
 
 -- Is the flat spot (x, z) clear of everything big, with `margin` studs to spare? Props are placed
@@ -364,7 +366,7 @@ function Layout.breakables(): { Prop }
 				local placed = false
 				for _ = 1, 800 do
 					local a = rnd() * 2 * math.pi
-					local d = math.sqrt(rnd()) * patch.radius * 1.2 -- junk spills a little past the dirt
+					local d = math.sqrt(rnd()) * patch.radius * 1.35 -- junk spills a little past the dirt
 					local x = patch.x + math.cos(a) * d
 					local z = patch.z + math.sin(a) * d
 					local yaw = if kind == "fence" then math.floor(rnd() * 12) * 15 else rnd() * 360

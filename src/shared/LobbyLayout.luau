@@ -19,12 +19,12 @@ Layout.colors = {
 	asphalt = { 72, 83, 99 }, -- #485363
 	asphaltDark = { 58, 66, 80 },
 	path = { 176, 181, 190 }, -- light gray paths
-	orange = { 245, 130, 32 }, -- #F58220
-	orangeWall = { 196, 88, 18 }, -- the same orange on big painted walls: the sun lights it up, so it is darker
-	blue = { 37, 141, 221 }, -- #258DDA
+	orange = { 204, 104, 44 }, -- rusty orange (sunset junkyard, 2026-10-20)
+	orangeWall = { 160, 76, 34 }, -- the same orange on big painted walls: the sun lights it up, so it is darker
+	blue = { 64, 112, 140 }, -- weathered steel blue
 	tire = { 36, 39, 43 }, -- #24272B
-	grass = { 127, 186, 66 }, -- #7FBA42
-	hill = { 142, 200, 84 },
+	grass = { 112, 92, 72 }, -- packed junkyard dirt (the name stays)
+	hill = { 100, 82, 66 }, -- dirt mounds
 	marking = { 237, 240, 234 }, -- #EDF0EA
 	light = { 255, 168, 60 }, -- steady glow
 	metal = { 128, 134, 146 },
@@ -55,10 +55,13 @@ Layout.colors = {
 		{ 112, 82, 140 },
 		{ 160, 92, 120 },
 	},
-	puff = { { 104, 196, 72 }, { 140, 216, 90 }, { 74, 168, 64 } },
-	cloud = { 255, 255, 255 },
-	cloudShade = { 222, 234, 250 },
+	puff = { { 112, 112, 70 }, { 128, 124, 80 }, { 96, 98, 62 } }, -- dusty scrub
+	cloud = { 255, 196, 176 }, -- lit by the sunset
+	cloudShade = { 156, 112, 150 },
 	skyBlue = { 96, 178, 255 },
+	-- the far city against the sunset: dark purple blocks, warm lit windows
+	city = { { 58, 44, 84 }, { 72, 52, 98 }, { 48, 40, 72 }, { 86, 60, 104 } },
+	window = { 255, 186, 96 },
 }
 
 -- The paved plaza (asphalt) inside the tire walls. The grass border and the world sit outside it.
@@ -231,13 +234,13 @@ export type WallSign = {
 	arrow: number,
 	frame: string,
 }
-Layout.wallSignBottom = 4
+Layout.wallSignBottom = 6 -- clear of the tire tops
 Layout.wallSigns = {
 	{
 		x = -26,
 		z = Layout.plaza.frontZ,
 		yawDeg = 180,
-		w = 18,
+		w = 14,
 		h = 6,
 		text = "PLAY HERE",
 		arrow = 0,

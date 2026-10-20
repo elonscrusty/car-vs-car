@@ -90,27 +90,30 @@ H.test("two tires and a hub on every stack, all round the wall", function()
 	eq(#folder.Detail:GetChildren(), n)
 end)
 
-H.test("a look-only dirt berm under the tire stacks, so they do not hang in the air", function()
-	local _, Layout, folder = build()
-	local list = folder.Berm:GetChildren()
-	eq(#list, Layout.wallCount)
-	local base = Layout.slopeRise - 0.2 -- where the tires start
-	for _, b in list do
-		truthy(not b.CanCollide and not b.CanQuery and not b.CanTouch, "a berm is look only")
-		local rel = b.Position - ORIGIN
-		near(rel.Y + b.Size.Y / 2, base, 0.01)
-		local r = math.sqrt(rel.X ^ 2 + rel.Z ^ 2)
-		-- from the wall's inner face to the far side of the tires
-		near(r - b.Size.Z / 2, Layout.wallRadius, 0.01)
-		near(r + b.Size.Z / 2, Layout.wallRadius + Layout.tire.diameter, 0.01)
+H.test(
+	"a look-only dirt yard under the tire stacks and the far props, level with the slope top",
+	function()
+		local _, Layout, folder = build()
+		local list = folder.Berm:GetChildren()
+		eq(#list, Layout.wallCount)
+		local base = Layout.slopeRise - 0.2 -- where the tires start
+		for _, b in list do
+			truthy(not b.CanCollide and not b.CanQuery and not b.CanTouch, "a berm is look only")
+			local rel = b.Position - ORIGIN
+			near(rel.Y + b.Size.Y / 2, base, 0.01)
+			local r = math.sqrt(rel.X ^ 2 + rel.Z ^ 2)
+			-- from the wall's inner face out to the yard's edge
+			near(r - b.Size.Z / 2, Layout.wallRadius, 0.01)
+			near(r + b.Size.Z / 2, Layout.yardRadius, 0.01)
+		end
 	end
-end)
+)
 
 H.test("everything near stays inside the tire wall, and low enough for the camera", function()
 	local _, Layout, folder = build()
 	local limit = Layout.wallRadius + Layout.tire.diameter + 1
 	for _, child in folder:GetChildren() do
-		if child.Name ~= "FarScenery" and child.Name ~= "Ground" then
+		if child.Name ~= "FarScenery" and child.Name ~= "Ground" and child.Name ~= "Berm" then
 			local e = Mock.extent(child)
 			if e.parts > 0 then
 				truthy(

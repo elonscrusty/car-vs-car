@@ -179,6 +179,23 @@ local function ground(folder: Folder, origin: Vector3, solids: { Instance })
 	for _, p in Layout.patches() do
 		disc(dirt, origin, p.name, p.x, p.z, p.radius * 2, 0.06, rgb(C.dirt))
 	end
+	-- worn spots, oil and packed dirt on the open floor, so it is not one flat colour
+	local worn = C.floorPatch :: { { number } }
+	for i = 1, 8 do
+		local a = math.rad(i * 45 + 20)
+		local r = 30 + (i * 17 % 5) * 11
+		local d = 10 + (i * 7 % 4) * 4
+		disc(
+			dirt,
+			origin,
+			"Worn",
+			math.cos(a) * r,
+			math.sin(a) * r,
+			d,
+			0.04,
+			rgb(worn[i % #worn + 1])
+		)
+	end
 	-- the lane between the starts: white dashes down the middle
 	local white = rgb(C.line)
 	local marks = group(g, "Marks")
@@ -248,6 +265,11 @@ local function slope(folder: Folder, origin: Vector3, solids: { Instance }, rise
 		})
 	end
 end
+
+-- The yard outside the tire wall: a flat ring at the height of the slope's top, out to here. The
+-- containers, piles, towers and cranes stand on it.
+local YARD_RADIUS = Layout.yardRadius
+local YARD_TOP = Layout.slopeRise - 0.2
 
 local function wall(folder: Folder, origin: Vector3, solids: { Instance })
 	local grp = group(folder, "Wall")
@@ -325,16 +347,17 @@ local function wall(folder: Folder, origin: Vector3, solids: { Instance })
 	-- and cut on slow phones: from inside it hides behind the lip of the slope.
 	local berm = group(folder, "Berm")
 	local rIn = Layout.wallRadius
-	local rOut = rIn + T.diameter -- the far side of the tires
+	local rOut = YARD_RADIUS -- the yard round the bowl is level with the top of the slope
 	local length = 2 * rOut * math.tan(math.pi / Layout.wallCount) + 1
 	for i = 1, Layout.wallCount do
 		local a = (i - 0.5) / Layout.wallCount * 2 * math.pi
 		local mid = (rIn + rOut) / 2
-		local center = origin + Vector3.new(math.cos(a) * mid, base / 2, math.sin(a) * mid)
+		-- down past the grass plate (top -1.1), so the yard's outer edge never shows a gap
+		local center = origin + Vector3.new(math.cos(a) * mid, (base - 1.2) / 2, math.sin(a) * mid)
 		part(
 			berm,
 			"Berm",
-			Vector3.new(length, base, rOut - rIn),
+			Vector3.new(length, base + 1.2, rOut - rIn),
 			CFrame.lookAt(center, Vector3.new(origin.X, center.Y, origin.Z)),
 			rgb(C.dirtDark),
 			false
@@ -501,15 +524,17 @@ end
 -- ---------------------------------------------------------------------------------------------
 -- The world round the bowl: containers, trees, hills (all looks only, cut first on slow phones)
 
--- A blocky city far out, dark against the sunset; some blocks have a row of lit windows.
+-- A blocky city on the horizon past the yard, dark against the sunset; every other block has a row
+-- of lit windows. The blocks start well below the ground, so none of them floats.
 local function skyline(far: Folder, origin: Vector3)
 	local count = 26
 	for i = 1, count do
 		local a = (i - 0.5) / count * 2 * math.pi + math.sin(i * 7.3) * 0.08
-		local r = 300 + (i * 37 % 5) * 14
-		local w = 24 + (i * 13 % 4) * 7
-		local h = 34 + (i * 29 % 7) * 11
-		local pos = origin + Vector3.new(math.cos(a) * r, h / 2 - 1, math.sin(a) * r)
+		local r = YARD_RADIUS + 16 + (i * 37 % 5) * 10
+		local w = 26 + (i * 13 % 4) * 7
+		local top = 26 + (i * 29 % 7) * 7 -- above the yard
+		local h = top + 40
+		local pos = origin + Vector3.new(math.cos(a) * r, YARD_TOP + top - h / 2, math.sin(a) * r)
 		local cf = CFrame.lookAt(pos, Vector3.new(origin.X, pos.Y, origin.Z))
 		local block =
 			part(far, "Tower", Vector3.new(w, h, w * 0.8), cf, rgb(C.city[i % #C.city + 1]), false)
@@ -519,7 +544,7 @@ local function skyline(far: Folder, origin: Vector3)
 				far,
 				"Windows",
 				Vector3.new(w * 0.7, 1.4, 0.2),
-				cf * CFrame.new(0, h * 0.18, -w * 0.4 - 0.1),
+				cf * CFrame.new(0, h / 2 - top * 0.35, -w * 0.4 - 0.1),
 				rgb(C.window),
 				false,
 				nil,
@@ -543,7 +568,7 @@ local function scenery(folder: Folder, origin: Vector3)
 	for i = 1, count do
 		local a = (i - 0.5) / count * 2 * math.pi
 		local r = 156
-		local pos = origin + Vector3.new(math.cos(a) * r, -1, math.sin(a) * r)
+		local pos = origin + Vector3.new(math.cos(a) * r, YARD_TOP, math.sin(a) * r)
 		-- the long side runs along the circle (the grass plate is a bit below the floor)
 		local cf = CFrame.lookAt(pos, Vector3.new(origin.X, pos.Y, origin.Z))
 		BowlProps.container(far, cf, rgb(rainbow[(i * 3) % #rainbow + 1]))
@@ -559,8 +584,8 @@ local function scenery(folder: Folder, origin: Vector3)
 	local piles = MeshProps.has("ScrapPile")
 	for i = 1, 16 do
 		local a = rnd() * math.pi * 2
-		local r = 190 + rnd() * 50
-		local pos = origin + Vector3.new(math.cos(a) * r, -0.5, math.sin(a) * r)
+		local r = 180 + rnd() * 50
+		local pos = origin + Vector3.new(math.cos(a) * r, YARD_TOP, math.sin(a) * r)
 		local cf = CFrame.new(pos) * yaw(rnd() * 360)
 		local scale = 1.4 + rnd() * 0.8
 		if piles then
@@ -572,7 +597,7 @@ local function scenery(folder: Folder, origin: Vector3)
 	-- light towers between the containers and two claw cranes looking in (only when imported)
 	for i = 1, 4 do
 		local a = (i - 0.5) / 4 * math.pi * 2 + math.rad(10)
-		local pos = origin + Vector3.new(math.cos(a) * 140, -1, math.sin(a) * 140)
+		local pos = origin + Vector3.new(math.cos(a) * 140, YARD_TOP, math.sin(a) * 140)
 		MeshProps.place(
 			"LightTower",
 			far,
@@ -582,7 +607,7 @@ local function scenery(folder: Folder, origin: Vector3)
 	end
 	for i = 1, 2 do
 		local a = math.rad(if i == 1 then 60 else 240)
-		local pos = origin + Vector3.new(math.cos(a) * 176, -1, math.sin(a) * 176)
+		local pos = origin + Vector3.new(math.cos(a) * 176, YARD_TOP, math.sin(a) * 176)
 		local face = CFrame.lookAt(pos, Vector3.new(origin.X, pos.Y, origin.Z))
 		MeshProps.place("Crane", far, face * yaw(90), 24) -- the arm (local +X) reaches toward the bowl
 	end

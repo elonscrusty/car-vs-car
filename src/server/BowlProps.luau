@@ -185,7 +185,7 @@ function BowlProps.crate(parent: Instance, cf: CFrame, color: Color3): Model
 	local m = newModel("Crate")
 	local s = 3.6
 	if MeshProps.has("Crate") then
-		local big = 4.4
+		local big = 3.8
 		local hit =
 			box(m, "Body", Vector3.new(big, big, big), cf * CFrame.new(0, big / 2, 0), color)
 		hit.Transparency = 1
