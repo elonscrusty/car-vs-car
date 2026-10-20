@@ -25,6 +25,19 @@ export type State = { yaw: number? } -- the heading the camera trails behind
 -- wall would hide the car.
 PracticeCamera.inset = 9
 
+-- How far ahead of the car the camera looks. `ahead` is the usual look-ahead, `have` how far behind
+-- the car the camera really is and `want` how far it wants to be (both flat). A camera the walls
+-- pulled in (the car starts a few studs from the south wall) would look past the car and lose it
+-- under the bottom of the screen, so it looks less far ahead, down to `least`: never exactly at the
+-- car (a camera straight above a point has no side to put at the top of the screen). The fight
+-- camera does the same (BowlView.lookAhead).
+local function lookAhead(ahead: number, have: number, want: number, least: number): number
+	if want <= 1e-3 then
+		return ahead
+	end
+	return math.clamp(ahead * math.clamp(have / want, 0, 1), math.min(least, ahead), ahead)
+end
+
 function PracticeCamera.new(): State
 	return { yaw = nil }
 end
@@ -39,32 +52,34 @@ function PracticeCamera.aim(
 	dt: number
 ): (Vec, Vec)
 	local H = BattleConfig.Human
-	local yaw = state.yaw
-	if yaw == nil then
-		yaw = carYaw
-	else
-		yaw = BattleFeel.trailYaw(yaw, carYaw, math.min(dt, 0.1))
+	local yaw = carYaw
+	local last = state.yaw
+	if last ~= nil then
+		yaw = BattleFeel.trailYaw(last, carYaw, math.min(dt, 0.1))
 	end
 	state.yaw = yaw
 	local lx, lz = math.sin(yaw), math.cos(yaw)
 	local half = Layout.half
+	local back = H.camDistL * carL
 	local eye: Vec = {
 		x = math.clamp(
-			car.x - lx * H.camDistL * carL,
+			car.x - lx * back,
 			-half.x + PracticeCamera.inset,
 			half.x - PracticeCamera.inset
 		),
 		y = car.y + 0.3 * carL + H.camHeightL * carL,
 		z = math.clamp(
-			car.z - lz * H.camDistL * carL,
+			car.z - lz * back,
 			-half.z + PracticeCamera.inset,
 			half.z - PracticeCamera.inset
 		),
 	}
+	local have = math.sqrt((eye.x - car.x) ^ 2 + (eye.z - car.z) ^ 2)
+	local ahead = lookAhead(H.camLookL * carL, have, back, 0.5 * carL)
 	local look: Vec = {
-		x = car.x + lx * H.camLookL * carL,
+		x = car.x + lx * ahead,
 		y = car.y,
-		z = car.z + lz * H.camLookL * carL,
+		z = car.z + lz * ahead,
 	}
 	return eye, look
 end
