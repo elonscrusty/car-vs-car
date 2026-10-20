@@ -714,16 +714,16 @@ H.test("human cannon: each new press fires once, then the 6 s wait", function()
 	end
 	-- the first shot at once, the next one only after 6 s
 	H.eq(fired, 2)
-	-- a held button fires once, not over and over
+	-- a held button fires once per wait: at once, then again when the 6 s are up
 	local c = BattleHuman.new("CannonVan")
 	local shots = 0
-	for _ = 1, 40 do
+	for _ = 1, 140 do -- 7 s
 		c.setInput(0, 0, true)
 		if c.step(0.05, me, foe, { ram = false, saw = false }).fire then
 			shots += 1
 		end
 	end
-	H.eq(shots, 1)
+	H.eq(shots, 2)
 end)
 
 H.test("human saw: hold ATTACK to grind, then a 6 s wait", function()
