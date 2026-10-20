@@ -23,9 +23,8 @@ local function rects(): { { name: string, r: Rect } }
 		table.insert(out, { name = b.name, r = { x0 = x0, x1 = x1, z0 = z0, z1 = z1 } })
 	end
 	for _, r in L.ramps() do
-		local ex, ez =
-			math.abs(r.dx) * r.length / 2 + math.abs(r.dz) * r.width / 2,
-			math.abs(r.dz) * r.length / 2 + math.abs(r.dx) * r.width / 2
+		local ex = math.abs(r.dx) * r.length / 2 + math.abs(r.dz) * r.width / 2
+		local ez = math.abs(r.dz) * r.length / 2 + math.abs(r.dx) * r.width / 2
 		table.insert(
 			out,
 			{ name = r.name, r = { x0 = r.x - ex, x1 = r.x + ex, z0 = r.z - ez, z1 = r.z + ez } }
@@ -40,6 +39,12 @@ local function gap(a: Rect, b: Rect): number
 	return math.sqrt(dx * dx + dz * dz)
 end
 
+local function key(r: Rect, flipX: boolean, flipZ: boolean): string
+	local x0, x1 = if flipX then -r.x1 else r.x0, if flipX then -r.x0 else r.x1
+	local z0, z1 = if flipZ then -r.z1 else r.z0, if flipZ then -r.z0 else r.z1
+	return string.format("%d,%d,%d,%d", x0 + 0.5, x1 + 0.5, z0 + 0.5, z1 + 0.5)
+end
+
 test("every piece sits inside the walls", function()
 	for _, e in rects() do
 		truthy(e.r.x0 >= -L.halfX and e.r.x1 <= L.halfX, e.name .. " x")
@@ -50,26 +55,20 @@ end)
 test("the map is the same from both spawns (turn it half way round: nothing changes)", function()
 	local set: { [string]: boolean } = {}
 	for _, e in rects() do
-		set[string.format("%d,%d,%d,%d", e.r.x0 + 0.5, e.r.x1 + 0.5, e.r.z0 + 0.5, e.r.z1 + 0.5)] =
-			true
+		set[key(e.r, false, false)] = true
 	end
 	for _, e in rects() do
-		local k =
-			string.format("%d,%d,%d,%d", -e.r.x1 + 0.5, -e.r.x0 + 0.5, -e.r.z1 + 0.5, -e.r.z0 + 0.5)
-		truthy(set[k], e.name .. " has no twin")
+		truthy(set[key(e.r, true, true)], e.name .. " has no twin")
 	end
 end)
 
 test("the map is the same top and bottom (mirror)", function()
 	local set: { [string]: boolean } = {}
 	for _, e in rects() do
-		set[string.format("%d,%d,%d,%d", e.r.x0 + 0.5, e.r.x1 + 0.5, e.r.z0 + 0.5, e.r.z1 + 0.5)] =
-			true
+		set[key(e.r, false, false)] = true
 	end
 	for _, e in rects() do
-		local k =
-			string.format("%d,%d,%d,%d", e.r.x0 + 0.5, e.r.x1 + 0.5, -e.r.z1 + 0.5, -e.r.z0 + 0.5)
-		truthy(set[k], e.name .. " has no mirror")
+		truthy(set[key(e.r, false, true)], e.name .. " has no mirror")
 	end
 end)
 
@@ -93,14 +92,22 @@ test("spawns face each other, are level, and start in the open", function()
 	end
 end)
 
-test("cars can squeeze between every pair of solids (no wedge traps)", function()
+local function belongsTogether(a: string, b: string): boolean
+	local function plateau(n: string): boolean
+		return n == "Plateau" or n:find("PlateauRamp") ~= nil
+	end
+	local function highway(n: string): boolean
+		return n:find("Highway") ~= nil
+	end
+	return (plateau(a) and plateau(b)) or (highway(a) and highway(b))
+end
+
+test("cars can squeeze between every pair of separate pieces (no wedge traps)", function()
 	local list = rects()
 	for i = 1, #list do
 		for j = i + 1, #list do
 			local a, b = list[i], list[j]
-			local touching = a.name:find("PlateauRamp") ~= nil and b.name == "Plateau"
-				or b.name:find("PlateauRamp") ~= nil and a.name == "Plateau"
-			if not touching then
+			if not belongsTogether(a.name, b.name) then
 				truthy(
 					gap(a.r, b.r) >= CLEAR,
 					`{a.name} and {b.name} are only {gap(a.r, b.r)} apart`
@@ -120,6 +127,7 @@ test("every piece keeps a car-wide lane to the walls", function()
 end)
 
 test("ramps are gentle enough to drive up without flipping", function()
+	eq(#L.ramps(), 6)
 	for _, r in L.ramps() do
 		local s = L.slopeDeg(r)
 		truthy(s >= 10 and s <= 18, `{r.name} slope {s}`)
@@ -128,13 +136,23 @@ test("ramps are gentle enough to drive up without flipping", function()
 	end
 end)
 
-test("a plateau ramp meets the plateau edge with no step", function()
+test("ramps meet their plateau or deck with no step", function()
 	for _, r in L.ramps() do
 		if r.name:find("PlateauRamp") then
 			near(r.height, L.plateau.height)
 			near(math.abs(r.x) - r.length / 2, L.plateau.hx)
+		else
+			near(r.height, L.highway.height)
+			near(math.abs(r.x) - r.length / 2, L.highway.deckHalf)
+			near(math.abs(r.z), L.highway.z)
 		end
 	end
+end)
+
+test("the highway deck is wide enough for a car and clear of the plateau drop", function()
+	truthy(L.highway.width >= 16)
+	truthy(L.highway.z - L.highway.width / 2 - L.plateau.hz >= 20, "lane between plateau and deck")
+	truthy(L.highway.height >= L.plateau.height)
 end)
 
 test("there is cover in front of each spawn that a straight shot cannot pass", function()
@@ -149,21 +167,36 @@ test("there is cover in front of each spawn that a straight shot cannot pass", f
 	eq(bunkers, 2)
 end)
 
-test("the floor checker covers the floor evenly", function()
-	local t = L.tiles()
-	eq(#t, 35)
-	for _, p in t do
-		truthy(math.abs(p.x) < L.halfX and math.abs(p.z) < L.halfZ)
-	end
-end)
-
 test("the spinner hazard stays over the plateau and clear of the ground", function()
 	local sp, p = L.spinner, L.plateau
 	truthy(sp.radius < p.hx, "arm tip must not pass the plateau ramp edge")
-	truthy(sp.radius + sp.hubRadius > 0 and sp.clearance > 0.5 and sp.height >= 3)
+	truthy(sp.clearance > 0.5 and sp.height >= 3)
 	truthy(sp.speed > 0.3 and sp.speed < 2, "slow enough to dodge")
 	truthy(sp.radius * sp.speed < 20, "tip speed stays dodgeable")
 end)
+
+test(
+	"the sliding blocks cross the deck but never leave it, and are slow enough to dodge",
+	function()
+		local list = L.sliders()
+		eq(#list, 4)
+		local phases: { [number]: boolean } = {}
+		for _, s in list do
+			truthy(
+				s.amplitude + s.size[3] / 2 <= L.highway.width / 2 + 1,
+				s.name .. " pokes off the deck"
+			)
+			truthy(
+				s.amplitude + s.size[3] / 2 >= L.highway.width / 2 - 1,
+				s.name .. " leaves a safe gap"
+			)
+			truthy(math.abs(s.x) < L.highway.deckHalf - 8, s.name .. " not on the flat deck")
+			truthy(s.amplitude * 2 * math.pi / s.periodSeconds < 14, s.name .. " too fast")
+			phases[s.phase] = true
+		end
+		eq(phases[0] and phases[0.25] and phases[0.5] and phases[0.75], true)
+	end
+)
 
 test("four toy soldiers, one each side of both spawns, facing the middle", function()
 	local n = 0
@@ -189,10 +222,21 @@ test("alphabet blocks carry four different letters", function()
 		end
 	end
 	eq(n, 4)
-	eq(#(L.boxes()) > 0 and (seen.A and seen.B and seen.C and seen.D), true)
+	eq(seen.A and seen.B and seen.C and seen.D, true)
 end)
 
-test("scenery stays outside the walls, decorations stay on the floor", function()
+test("the road loop and its dashes stay on the floor", function()
+	for _, s in L.roadStrips() do
+		truthy(math.abs(s.x) + s.sx / 2 <= L.halfX and math.abs(s.z) + s.sz / 2 <= L.halfZ)
+	end
+	eq(#L.roadStrips(), 4)
+	truthy(#L.roadDashes() > 20)
+	for _, d in L.roadDashes() do
+		truthy(math.abs(d.x) <= L.halfX and math.abs(d.z) <= L.halfZ)
+	end
+end)
+
+test("scenery stays outside the walls, floor marks stay on the lane", function()
 	for _, pr in L.scenery() do
 		if pr.kind ~= "pole" then
 			truthy(
@@ -206,7 +250,7 @@ test("scenery stays outside the walls, decorations stay on the floor", function(
 			math.abs(cv.x) < L.bunker.x - 4 and math.abs(cv.x) > L.plateau.hx + L.plateauRamp.length
 		)
 	end
-	eq(#L.bunting(), 10)
+	eq(#L.bunting(), 12)
 end)
 
 test("the old AI rectangles cover the plateau with its ramps and the bunkers", function()
