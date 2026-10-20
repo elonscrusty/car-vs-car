@@ -336,8 +336,20 @@ local function wallBounce(car: Car, v: Vector3, dt: number): boolean
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = { car.model }
-	local reach = body.Size.Z / 2 + math.max(speed * dt * 3, 3) + 1
-	local hit = workspace:Raycast(body.Position, flat.Unit * reach, params)
+	-- a box the size of the car (a little thinner, and clear of the floor) sweeps ahead, so a
+	-- corner, a block's edge or a tire the middle line would miss still throws the car back
+	local sweep = math.max(speed * dt * 3, 3) + 1
+	local size = Vector3.new(body.Size.X * 0.9, math.max(body.Size.Y * 0.5, 1), body.Size.Z * 0.9)
+	local hit = workspace:Blockcast(
+		CFrame.new(body.Position) * body.CFrame.Rotation,
+		size,
+		flat.Unit * sweep,
+		params
+	)
+	if hit == nil then
+		-- already touching: the sweep starts inside the wall, so fall back to a ray from the middle
+		hit = workspace:Raycast(body.Position, flat.Unit * (body.Size.Z / 2 + sweep), params)
+	end
 	if hit == nil or not CollectionService:HasTag(hit.Instance, "Bouncy") then
 		return false
 	end
