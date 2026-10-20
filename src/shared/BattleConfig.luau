@@ -359,6 +359,16 @@ BattleConfig.Test = {
 
 -- Garage performance upgrades never apply in this mode (shown in the UI).
 BattleConfig.Text = {
+	-- one short tip at a time on the waiting screen (carter L46); each is true of the current rules
+	waitTips = {
+		"Crashes hurt more at full speed.",
+		"Walls bounce you. They do no damage.",
+		"Flipped over? Your car turns back in one second.",
+		"Every car has its own weapon. Tap the big button.",
+		"Win 2 of 3 rounds to win the fight.",
+		"Win fights to get coins for the gumball machine.",
+	} :: { string },
+	waitTipSeconds = 4,
 	chooseLine = "Choose your car. You drive it and attack with the big button.",
 	rulesLine = "Most round wins after three rounds wins. Reach two wins to finish early.",
 	upgradesLine = "Garage performance upgrades do not apply to this mode.",
