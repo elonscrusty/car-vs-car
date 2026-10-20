@@ -23,9 +23,10 @@ export type Rig = {
 CarRig.MaxSteer = math.rad(30) -- most a front wheel turns
 CarRig.SteerPerYaw = 0.25 -- seconds: wheel angle (radians) per radian/second of body yaw
 
--- Measured on RedTruck_lowpoly.fbx (1.09 long, 0.52 wide, 0.44 tall). The wheel arches are about
--- 0.19 L tall and 0.25-0.3 L long, so the tire (0.18 L across) fills about 90% of an arch. The "roof" spot is in the
--- truck bed behind the cab (the truck has no roof to bolt a turret on).
+-- Measured on RedTruck_lowpoly.fbx (1.09 long, 0.52 wide, 0.44 tall). Each wheel sits in the middle
+-- of its arch with its bottom on the body floor; the tire top tucks just under the fender. Checked
+-- with a Blender render of the body plus four wheels. The "roof" spot is in the truck bed behind
+-- the cab (the truck has no roof to bolt a turret on).
 CarRig.Rigs = {
 	RedTruck = {
 		wheelRadius = 0.09,
