@@ -29,6 +29,7 @@ TutorialConfig.portal = { x = 0, z = 33, radius = 4.5, enterRadius = 3.4 }
 -- The green path leads to a point in front of the gumball machine; the machine's tap prompt works
 -- from 40 studs, so "near" is a little closer than that.
 TutorialConfig.gumballStop = { x = 0, z = -29 }
+TutorialConfig.gumballMachine = { x = 0, z = -60 } -- where the prompt is (the machine body, inside the workshop)
 TutorialConfig.gumballNearStuds = 34
 
 -- Seconds a "done" bubble (check + confetti) stays before the next step starts.
@@ -76,6 +77,8 @@ TutorialConfig.text = {
 		pc = "Click PLAY, or step on a glowing pad!",
 	},
 	done = { phone = "Great job! You got {coins} coins!", pc = "Great job! You got {coins} coins!" },
+	-- the coin gift was not paid (the tutorial was played before, or the server said no)
+	doneNoGift = { phone = "Great job!", pc = "Great job!" },
 } :: { [string]: { phone: string, pc: string } }
 
 -- The practice yard controls named for the bubbles (UI names, see TutorialUi / PracticeClient).

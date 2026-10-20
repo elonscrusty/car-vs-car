@@ -1,7 +1,8 @@
 --!strict
--- Small client pieces of the Car Battle Lobby: a glowing arrow that points new players at the PLAY
--- pads, a black fade into (and out of) the fight, and the rare gumball pulls shown in chat to
--- everyone. Look and feel only: the server decides everything.
+-- Small client pieces of the Car Battle Lobby: a black fade into (and out of) the fight, the turning
+-- PLAY pad rings, the far scenery cut on a slow phone, a plain like reminder, and the rare gumball
+-- pulls shown at the top of everyone's screen. The first-time guide (green line, blue portal) is
+-- TutorialClient. Look and feel only: the server decides everything.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -11,66 +12,17 @@ local StarterGui = game:GetService("StarterGui")
 local TextChatService = game:GetService("TextChatService")
 local TweenService = game:GetService("TweenService")
 
-local LobbyConfig = require(ReplicatedStorage.Shared.LobbyConfig)
-local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
+local LobbyCars = require(ReplicatedStorage.Shared.LobbyCars)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Quality = require(script.Parent.Quality)
+local RareBanner = require(script.Parent.RareBanner)
 
 local LobbyClient = {}
 
 local ORANGE = Color3.fromRGB(245, 130, 32)
 local LIKE_REMINDER_SECONDS = 300 -- carter G46: reminder only
-local NEWBIE_LEVEL = 1 -- the arrow shows at this level or lower, until the first pad
-local ARROW_Z = 40 -- where the arrow floats: on the front path, between the spawn and the pads
 local FADE_IN = 0.9
-
--- An arrow made of a shaft and a head, built from parts, pointing at -Z (toward the pads).
-local function buildArrow(origin: Vector3): Model
-	local model = Instance.new("Model")
-	model.Name = "PlayArrow"
-	local function piece(name: string, size: Vector3, offset: Vector3, shape: Enum.PartType?)
-		local p = Instance.new("Part")
-		p.Name = name
-		p.Size = size
-		p.Anchored = true
-		p.CanCollide = false
-		p.CanQuery = false
-		p.CanTouch = false
-		p.CastShadow = false
-		p.Material = Enum.Material.Neon
-		p.Color = ORANGE
-		p.CFrame = CFrame.new(origin + offset)
-		if shape then
-			p.Shape = shape
-		end
-		p.Parent = model
-		return p
-	end
-	local shaft = piece("Shaft", Vector3.new(1.2, 0.5, 3), Vector3.new(0, 0, 1.5))
-	model.PrimaryPart = shaft
-	-- the head: a square turned 45 degrees, its corner points at -Z
-	local head = piece("Head", Vector3.new(2.5, 0.5, 2.5), Vector3.new(0, 0, -1.1))
-	head.CFrame = head.CFrame * CFrame.Angles(0, math.pi / 4, 0)
-	-- a label that says what to do
-	local anchor = piece("LabelAnchor", Vector3.new(0.2, 0.2, 0.2), Vector3.new(0, 2.5, 1))
-	anchor.Transparency = 1
-	local gui = Instance.new("BillboardGui")
-	gui.Size = UDim2.fromOffset(160, 32)
-	gui.LightInfluence = 0
-	gui.AlwaysOnTop = true
-	gui.Parent = anchor
-	local text = Instance.new("TextLabel")
-	text.Size = UDim2.fromScale(1, 1)
-	text.BackgroundTransparency = 1
-	text.Font = Enum.Font.FredokaOne
-	text.TextSize = 20
-	text.Text = "STEP ON A PAD!"
-	text.TextColor3 = Color3.fromRGB(255, 255, 255)
-	text.TextStrokeTransparency = 0
-	text.TextStrokeColor3 = Color3.fromRGB(37, 141, 221)
-	text.Parent = gui
-	return model
-end
+local GOLD_RGB = { 255, 205, 64 }
 
 local function say(text: string)
 	local ok = pcall(function()
@@ -92,7 +44,6 @@ end
 function LobbyClient.start()
 	local player = Players.LocalPlayer
 	local remotes = Remotes.get()
-	local origin: Vector3 = LobbyConfig.Lobby.origin
 
 	-- fade layer
 	local gui = Instance.new("ScreenGui")
@@ -117,28 +68,6 @@ function LobbyClient.start()
 		):Play()
 	end
 
-	-- arrow for new players: bobs up and down, gone for good after the first pad
-	local arrow: Model? = nil
-	local arrowBase: CFrame? = nil
-	local done = false
-	local function wantArrow(): boolean
-		local level = player:GetAttribute("PlayerLevel")
-		return not done and (type(level) ~= "number" or level <= NEWBIE_LEVEL)
-	end
-	local function showArrow()
-		if arrow == nil and wantArrow() then
-			arrow = buildArrow(origin + Vector3.new(LobbyLayout.spawn.x, 5, ARROW_Z))
-			arrow.Parent = workspace
-			arrowBase = arrow:GetPivot()
-		end
-	end
-	local function hideArrow()
-		if arrow then
-			arrow:Destroy()
-			arrow = nil
-			arrowBase = nil
-		end
-	end
 	-- Things the server tagged "LobbySpin" (the pad rings) turn on this screen only, so the server
 	-- does not send their position all the time. Attributes: SpinSpeed (rad/s), SpinCenter.
 	local spinning: { [Instance]: CFrame } = {}
@@ -164,27 +93,13 @@ function LobbyClient.start()
 				inst:PivotTo(base * CFrame.Angles(0, t * speed, 0))
 			end
 		end
-		if arrow and arrowBase then
-			arrow:PivotTo(
-				arrowBase + Vector3.new(0, math.sin(t * 3) * 0.8, math.sin(t * 1.5) * 1.5)
-			)
-		end
-	end)
-	task.delay(2, showArrow)
-	player:GetAttributeChangedSignal("PlayerLevel"):Connect(function()
-		if not wantArrow() then
-			hideArrow()
-		end
 	end)
 
 	remotes.BattleUpdate.OnClientEvent:Connect(function(m: any)
 		if type(m) ~= "table" then
 			return
 		end
-		if m.kind == "queue" and m.searching == true then
-			done = true -- stepped on a pad: the arrow has done its job
-			hideArrow()
-		elseif m.kind == "prep" or m.kind == "end" then
+		if m.kind == "prep" or m.kind == "end" then
 			fadeIn() -- into the fight, and back out of it
 		end
 	end)
@@ -217,9 +132,14 @@ function LobbyClient.start()
 		say("Having fun? Tap the thumbs up on the game page!")
 	end)
 
+	-- a rare pull (Epic or Legendary) from the gumball machine: a small message at the top, for everyone
+	local banner = RareBanner.new()
 	remotes.LobbyUpdate.OnClientEvent:Connect(function(u: any)
 		if type(u) == "table" and u.kind == "announce" and type(u.text) == "string" then
-			say(u.text)
+			local rgb = if type(u.carId) == "string"
+				then LobbyCars.rarityColor(u.carId)
+				else GOLD_RGB
+			banner.show(u.text, rgb)
 		end
 	end)
 end

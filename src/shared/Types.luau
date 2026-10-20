@@ -89,5 +89,9 @@ export type LobbyUpdate =
 	| { kind: "countdown", seconds: number, alone: boolean? }
 	| { kind: "choices", cars: { string }, seconds: number }
 	| { kind: "toLobby", coinsEarned: number, won: boolean, firstWin: boolean?, left: boolean? }
+	-- the first-time tutorial (TutorialService): "practiceReady" | "practiceRefused" | "practiceExited" |
+	-- "gift" (coins = what was paid, 0 when nothing was)
+	| { kind: "tutorial", event: string, coins: number? }
+	| { kind: "announce", text: string, carId: string? } -- a rare gumball pull, for everyone
 
 return {}

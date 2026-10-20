@@ -24,7 +24,8 @@ export type Bridge = {
 	handleUi: (u: Types.UiUpdate) -> (),
 }
 
-function ChampionsBridge.new(): Bridge
+-- `onReplayTutorial` runs when the player asks for the tutorial again (Settings).
+function ChampionsBridge.new(onReplayTutorial: (() -> ())?): Bridge
 	local player = Players.LocalPlayer
 	local remotes = Remotes.get()
 	local namespace = ReplicatedStorage:WaitForChild("CVC_Champions")
@@ -78,6 +79,9 @@ function ChampionsBridge.new(): Bridge
 			else
 				pendingOpen = fx.open
 			end
+		end
+		if fx.tutorial and onReplayTutorial then
+			onReplayTutorial() -- after the menu has closed, so the first bubble is not behind it
 		end
 	end
 
