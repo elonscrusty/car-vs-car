@@ -1,8 +1,9 @@
 --!strict
 -- What the client draws for the Junkyard Bowl, worked out in plain numbers (pure, unit tested): the
 -- crusher's press, lamps and shock ring from the server clock, where a car scrapes the wall for
--- sparks, when it leaves skid marks, the camera flyover and the camera's radial clamp. Positions are
--- arena-local (the middle of the bowl is 0, 0; x east, z south).
+-- sparks, when it leaves skid marks, the camera flyover, the camera's radial clamp and how far ahead
+-- the chase camera looks when a wall pushes it in. Positions are arena-local (the middle of the bowl
+-- is 0, 0; x east, z south).
 
 local function sibling(name: string): any
 	if script then
@@ -92,7 +93,10 @@ export type Scrape = {
 	nz: number,
 }
 
-local TOUCH = 0.9 -- closer than this counts as touching (studs)
+-- A car never gets closer to the wall than the bounce lets it: BattleDrive.wallBounce throws it back
+-- once its nose is about 3 studs from the tires (4 at 30 frames a second), so "touching" means
+-- within this reach (a driven Studio test saw 0 sparks in 14 hits when this was 0.9).
+local TOUCH = 6 -- closer than this counts as touching (studs)
 local MIN_SPEED = 8 -- slower than this just rests against it
 
 function BowlView.scrape(
@@ -169,6 +173,18 @@ function BowlView.keepInside(x: number, z: number, maxR: number): (number, numbe
 	end
 	local k = maxR / d
 	return x * k, z * k
+end
+
+-- How far ahead of my car the chase camera looks. `ahead` is the usual look-ahead, `have` how far
+-- behind the car the camera really is and `want` how far it wants to be (both flat). A camera that
+-- a wall pushed in (a car backed against the tires) would look past the car and lose it under the
+-- bottom of the screen, so it looks less far ahead, down to `least` (never exactly at the car: a
+-- camera straight above a point would have no side to put at the top of the screen).
+function BowlView.lookAhead(ahead: number, have: number, want: number, least: number): number
+	if want <= 1e-3 then
+		return ahead
+	end
+	return clamp(ahead * clamp(have / want, 0, 1), math.min(least, ahead), ahead)
 end
 
 -- The flyover at the start of a round. `k` runs 0..1 through it and `dir` is +1 when my car starts

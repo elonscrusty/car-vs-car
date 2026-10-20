@@ -74,7 +74,46 @@ H.test("the bounce numbers are a real step up from the old ones, without gaining
 	local H2 = Config.Human
 	truthy(H2.bounceKeep > 0.85 and H2.bounceKeep <= 1, "keeps more, never more than it had")
 	truthy(H2.bounceStagger > 0.6 and H2.bounceStagger <= 1, "a longer wobble, not a long lock")
+	truthy(H2.bounceFriction > 0 and H2.bounceFriction < Config.Move.knockFriction, "slows gently")
 	truthy(H2.bounceHop > 0 and H2.bounceHop <= 30, "a small hop")
+end)
+
+H.test("a full-speed head-on hit throws the car back about a car length and a half", function()
+	-- a driven Studio test: 1 / 0.75 s / friction 2.2 threw it back 6 to 9 studs in half a second
+	local world, Drive, Config = setup()
+	local car = newCar(world, Config.Human.topSpeed)
+	local w = wall(world, { "Bouncy" }, 1)
+	world.workspace.Blockcast = function()
+		return hitOf(w, -1, 0)
+	end
+	world.workspace.Raycast = function()
+		return nil
+	end
+	truthy(Drive.wallBounce(car, car.body.AssemblyLinearVelocity, DT))
+	local back, seconds, steps = 0, 0, 0
+	while Drive.knockedStep(car, car.body.AssemblyLinearVelocity, DT) do
+		back -= car.body.AssemblyLinearVelocity.X * DT
+		seconds += DT
+		steps += 1
+		truthy(steps < 600, "the knock ends")
+	end
+	local lengths = back / car.L
+	truthy(lengths > 1.4 and lengths < 2.2, `thrown back {lengths} car lengths`)
+	near(seconds, Config.Human.bounceStagger, 2 * DT)
+	eq(car.slide.Magnitude, 0, "the slide is over")
+	truthy(
+		math.abs(car.body.AssemblyLinearVelocity.X) < Config.Human.topSpeed,
+		"back under top speed when control returns"
+	)
+end)
+
+H.test("a crash knock still slows at the crash rate: only a wall slide is gentler", function()
+	local world, Drive, Config = setup()
+	local car = newCar(world, 30)
+	car.stagger = 0.5
+	-- no slide: a shove from a crash
+	truthy(Drive.knockedStep(car, car.body.AssemblyLinearVelocity, DT))
+	near(car.body.AssemblyLinearVelocity.X, 30 * (1 - Config.Move.knockFriction * DT), 1e-9)
 end)
 
 H.test("a glancing hit reflects about the wall's face", function()
