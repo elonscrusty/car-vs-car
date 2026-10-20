@@ -295,12 +295,12 @@ BattleConfig.Human = {
 	camCloseExtraL = 1.6, -- ... by this many car lengths ...
 	camCloseFov = 12, -- ... and this many degrees of field of view -- how fast the camera swings round behind the car
 	-- driving feel
-	accelMult = 0.75, -- getaway: cruise speeds per second x this (was 2: full speed in 0.15 s, now about 0.4 s)
-	brakeMult = 0.9, -- gas the other way (was 1.6: stopped in 0.1 s)
-	coastMult = 0.43, -- letting go of the gas: the car rolls on (about 0.45 s from top speed)
-	turnTopScale = 0.68, -- share of the turn rate left at top speed (was 1: full turn at any speed)
+	accelMult = 1.02, -- getaway: cruise speeds per second x this (was 2: full speed in 0.15 s, now about 0.28 s)
+	brakeMult = 1.25, -- gas the other way (was 1.6: stopped in 0.1 s)
+	coastMult = 0.62, -- letting go of the gas: the car rolls on (about 0.33 s from top speed)
+	turnTopScale = 0.85, -- share of the turn rate left at top speed (was 1: full turn at any speed)
 	trustGapFrac = 0.35, -- physics moved the car by more than this share of top speed from what we commanded: the real speed wins
-	steerRate = 10, -- the wheel swings this much per second (full lock in 1/10 s; was instant)
+	steerRate = 14, -- the wheel swings this much per second (full lock in 1/14 s; was instant)
 	driftSteer = 0.8, -- a little slide only when steering this hard ...
 	driftSpeed = 0.8, -- ... at this share of cruise speed or more
 	driftSide = 4.5, -- sideways grip while sliding (normal 8: lower = longer slide)
