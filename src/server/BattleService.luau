@@ -75,6 +75,7 @@ type Match = {
 	vsBot: boolean,
 	closed: boolean,
 	lastOutcome: string?,
+	prepSeconds: number, -- how long this 3-2-1 lasts (longer before round 1)
 	koSeconds: number, -- how long this knock-out lasts (longer when it ends the match)
 	koOutcome: string?, -- the round result waiting for the knock-out finish to play
 	final: boolean, -- the announced final phase has begun
@@ -401,6 +402,7 @@ function BattleService.start(
 		for _, side in sides() do
 			park((m.parts :: any)[side], arena.origin)
 		end
+		m.prepSeconds = if m.series.round == 1 then T.firstPrepSeconds else T.prepSeconds
 		m.phase, m.t = "prep", 0
 		for _, side in sides() do
 			local part = (m.parts :: any)[side] :: Part
@@ -408,7 +410,7 @@ function BattleService.start(
 			send(part, {
 				kind = "prep",
 				momentum = m.momentum,
-				seconds = T.prepSeconds,
+				seconds = m.prepSeconds,
 				round = m.series.round,
 				score = scoreFor(m, side),
 				arena = {
@@ -421,8 +423,19 @@ function BattleService.start(
 				},
 				side = side,
 				spawn = (spawnOf :: any)[side],
-				me = { id = part.pick, name = part.name, label = labelFor(part) },
-				opp = { id = opp.pick, name = opp.name, label = labelFor(opp), bot = opp.bot },
+				me = {
+					id = part.pick,
+					name = part.name,
+					label = labelFor(part),
+					line = BattleConfig.driverLine(part.pick),
+				},
+				opp = {
+					id = opp.pick,
+					name = opp.name,
+					label = labelFor(opp),
+					bot = opp.bot,
+					line = BattleConfig.driverLine(opp.pick),
+				},
 			})
 		end
 		return true
@@ -953,7 +966,7 @@ function BattleService.start(
 				end
 			end
 		elseif m.phase == "prep" then
-			if m.t >= T.prepSeconds then
+			if m.t >= m.prepSeconds then
 				startFight(m)
 			end
 		elseif m.phase == "fight" then
@@ -1049,6 +1062,7 @@ function BattleService.start(
 			vsBot = a.bot or b.bot,
 			closed = false,
 			lastOutcome = nil,
+			prepSeconds = T.prepSeconds,
 			koSeconds = T.koSeconds,
 			koOutcome = nil,
 			final = false,

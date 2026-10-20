@@ -787,6 +787,14 @@ H.test("one top speed for every car, and a capped slide", function()
 	H.eq(BattleConfig.Human.slideMaxFrac <= 0.5, true)
 end)
 
+H.test("every car has a driver and a line for the VS screen", function()
+	for id in BattleConfig.Fighters do
+		H.eq(#BattleConfig.driverLine(id) > 0, true)
+	end
+	H.eq(BattleConfig.driverLine("nope"), "")
+	H.eq(BattleConfig.Timing.firstPrepSeconds > BattleConfig.Timing.prepSeconds, true)
+end)
+
 H.test("a car past the walls or below the floor is out of the arena", function()
 	H.eq(BattleCrash.outside(0, 0, 1, 85, 40), false)
 	H.eq(BattleCrash.outside(84, -39, 0.5, 85, 40), false)
