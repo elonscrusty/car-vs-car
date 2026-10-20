@@ -29,4 +29,10 @@ function BattleGuard.tooFast(speed: number, topSpeed: number): boolean
 	return speed > topSpeed * math.max(1, BattleConfig.Ram.chargeMult) * G.speedSlack
 end
 
+-- Strikes left after `quietSeconds` without a new one: one forgiven per strikeDecaySeconds.
+function BattleGuard.decay(strikes: number, quietSeconds: number): number
+	local per = BattleConfig.Guard.strikeDecaySeconds
+	return math.max(0, strikes - math.floor(quietSeconds / per))
+end
+
 return BattleGuard

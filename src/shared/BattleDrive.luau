@@ -155,7 +155,11 @@ function BattleDrive.humanStep(car: Mover, out: Out, dt: number, f: Vector3, v: 
 	if lat.Magnitude > maxSlide then
 		lat = lat.Unit * maxSlide
 	end
-	body.AssemblyLinearVelocity = Vector3.new(f.X * fwd + lat.X, v.Y, f.Z * fwd + lat.Z)
+	local vx, vz = f.X * fwd + lat.X, f.Z * fwd + lat.Z
+	if out.state == "drive" and math.abs(fwd) <= cruise then
+		vx, vz = BattleFeel.capFlat(vx, vz, cruise) -- sliding sideways must not beat top speed
+	end
+	body.AssemblyLinearVelocity = Vector3.new(vx, v.Y, vz)
 
 	local turnScale = BattleFeel.turnScale(speedFrac)
 	if out.state == "charge" then

@@ -52,6 +52,16 @@ function BattleFeel.turnScale(speedFrac: number): number
 	return 1 - (1 - top) * math.clamp(speedFrac, 0, 1)
 end
 
+-- Scales a flat velocity down so it is never faster than `maxSpeed` (a hard turn must not beat top speed).
+function BattleFeel.capFlat(vx: number, vz: number, maxSpeed: number): (number, number)
+	local s = math.sqrt(vx * vx + vz * vz)
+	if s <= maxSpeed or s < 1e-6 then
+		return vx, vz
+	end
+	local k = maxSpeed / s
+	return vx * k, vz * k
+end
+
 -- Moves the steering toward the stick at `steerRate` per second (1 = full lock in 1/steerRate seconds).
 function BattleFeel.smoothTurn(current: number, target: number, dt: number): number
 	local step = BattleConfig.Human.steerRate * dt

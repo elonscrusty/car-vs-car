@@ -1006,3 +1006,56 @@ H.test(
 		H.eq(BattleFeel.trust(nil, 12, top), 12)
 	end
 )
+
+H.test(
+	"bot levels: hard aims closer and turns more than easy; a charge is never steered",
+	function()
+		local L = BattleConfig.Fighters.CannonVan.lengthStuds
+		local function worstTurn(level: string): number
+			local seed = 7
+			local rng = function()
+				seed = (seed * 1103515245 + 12345) % 2147483648
+				return seed / 2147483648
+			end
+			local b = BattleBrain.withLevel(BattleBrain.new("CannonVan", L, arena()), level, L, rng)
+			local me = { x = -40, z = 0, fx = 1, fz = 0 }
+			local foe = { x = 0, z = 40, fx = -1, fz = 0 }
+			local biggest = 0
+			for _ = 1, 40 do
+				local o = b.step(0.1, me, foe, { ram = false, saw = false })
+				biggest = math.max(biggest, math.abs(o.turn))
+			end
+			return biggest
+		end
+		H.eq(worstTurn("easy") <= BattleConfig.Bot.levels.easy.turn + 1e-9, true)
+		H.eq(worstTurn("hard") > worstTurn("easy"), true)
+		H.eq(BattleConfig.Bot.levels.hard.aimErrL < BattleConfig.Bot.levels.easy.aimErrL, true)
+		-- an unknown level name falls back to the default
+		local b = BattleBrain.withLevel(
+			BattleBrain.new("RamTruck", 20, arena()),
+			"nonsense",
+			20,
+			math.random
+		)
+		H.eq(type(b.step), "function")
+	end
+)
+
+H.test(
+	"a hard turn never beats top speed; strikes of the cheat guard are forgiven over time",
+	function()
+		local x, z = BattleFeel.capFlat(46.6, 0, 42)
+		H.near(x, 42)
+		H.near(z, 0)
+		local x2, z2 = BattleFeel.capFlat(10, 10, 42)
+		H.eq(x2, 10)
+		H.eq(z2, 10)
+		local per = BattleConfig.Guard.strikeDecaySeconds
+		H.eq(BattleGuard.decay(3, 0), 3)
+		H.eq(BattleGuard.decay(3, per * 1.5), 2)
+		H.eq(BattleGuard.decay(3, per * 10), 0)
+		-- a lag spike (150 ms at top speed) is not a teleport, a 10-stud jump still is
+		H.eq(BattleGuard.teleported(6.3, 0, 1 / 60, 42), false)
+		H.eq(BattleGuard.teleported(12, 0, 1 / 60, 42), true)
+	end
+)

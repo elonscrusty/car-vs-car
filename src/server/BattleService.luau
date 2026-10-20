@@ -8,6 +8,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
@@ -56,6 +57,8 @@ type Part = {
 	gas: number, -- -1 back .. 1 forward
 	inputAt: number, -- when the last drive input arrived (old input counts as 0)
 	attack: boolean, -- ATTACK is held down right now (sent with the drive input)
+	botLevel: string?, -- bots: easy | medium | hard (nil = the default)
+	forcePick: string?, -- bots in a Studio simulation: always this car
 }
 type Shell = {
 	owner: BattleCar.Car,
@@ -91,6 +94,7 @@ type Match = {
 	crashCd: number, -- seconds until the next plain crash can hurt
 	crashChain: number, -- plain crashes in a row with less than chainWindow seconds between them
 	crashQuiet: number, -- seconds since the last plain crash
+	sim: { key: string, left: number }?, -- Studio only: a bot-vs-bot balance run (left = series still to play)
 	fought: number, -- total seconds spent in the fight phase, all rounds (a too-short match pays nothing)
 	touching: boolean, -- the cars' bodies were touching at the last step
 	aIsRed: boolean?, -- which garage team is red this match (chosen once, at random)
@@ -334,7 +338,7 @@ function BattleService.start(
 			part.pick, part.locked, part.access = nil, false, nil
 			if part.bot then
 				local ids = BattleConfig.activeOrder()
-				part.pick = ids[math.random(1, #ids)]
+				part.pick = part.forcePick or ids[math.random(1, #ids)]
 				part.locked = true
 			end
 		end
@@ -465,7 +469,16 @@ function BattleService.start(
 				BattleCar.launch(car, false)
 			else
 				car.human = false
-				BattleCar.arm(car, BattleBrain.new(car.fighter.id, car.L, arenaTable, m.momentum))
+				local brain = BattleBrain.new(car.fighter.id, car.L, arenaTable, m.momentum)
+				if part.bot then
+					brain = BattleBrain.withLevel(
+						brain,
+						part.botLevel or BattleConfig.Bot.default,
+						car.L,
+						math.random
+					)
+				end
+				BattleCar.arm(car, brain)
 				BattleCar.launch(car, m.momentum)
 			end
 		end
@@ -533,6 +546,31 @@ function BattleService.start(
 	end
 
 	-- Pays the match result ONCE per player. A bot match pays nothing.
+	-- Studio only: tallies of the bot-vs-bot runs, published as Workspace attribute "BattleSimTally" (JSON).
+	local simTally: { [string]: { a: number, b: number, draw: number, rounds: number } } = {}
+	local function recordSim(m: Match)
+		local sim = m.sim
+		if sim == nil then
+			return
+		end
+		local t = simTally[sim.key]
+		if t == nil then
+			t = { a = 0, b = 0, draw = 0, rounds = 0 }
+			simTally[sim.key] = t
+		end
+		local res = BattleSeries.resultFor(m.series, "a")
+		if res == "win" then
+			t.a += 1
+		elseif res == "lose" then
+			t.b += 1
+		else
+			t.draw += 1
+		end
+		t.rounds += m.series.round
+		sim.left -= 1
+		workspace:SetAttribute("BattleSimTally", HttpService:JSONEncode(simTally))
+	end
+
 	local function settle(m: Match)
 		if m.settled then
 			return
@@ -580,6 +618,7 @@ function BattleService.start(
 				opts.sendProfile(part.player)
 			end
 		end
+		recordSim(m)
 		m.phase, m.t = "matchResult", 0
 	end
 
@@ -795,6 +834,7 @@ function BattleService.start(
 	-- cheat checks on device-driven cars: where each was last step, and how many strikes it has
 	local guardPos: { [BattleCar.Car]: Vector3 } = setmetatable({}, { __mode = "k" }) :: any
 	local guardStrikes: { [BattleCar.Car]: number } = setmetatable({}, { __mode = "k" }) :: any
+	local guardAt: { [BattleCar.Car]: number } = setmetatable({}, { __mode = "k" }) :: any
 
 	local function fightStep(m: Match, dt: number)
 		local arena = m.arena :: BattleArena.Arena
@@ -941,8 +981,7 @@ function BattleService.start(
 						)
 					then
 						-- a teleport: put the car back where it was
-						car.body.CFrame = CFrame.new(prev) * car.body.CFrame.Rotation
-						car.body.AssemblyLinearVelocity = Vector3.zero
+						BattleCar.putBack(car, CFrame.new(prev) * car.body.CFrame.Rotation)
 						guardPos[car] = prev
 						struck = true
 					end
@@ -952,7 +991,11 @@ function BattleService.start(
 						struck = true
 					end
 					if struck then
-						guardStrikes[car] = (guardStrikes[car] or 0) + 1
+						local now = os.clock()
+						local kept =
+							BattleGuard.decay(guardStrikes[car] or 0, now - (guardAt[car] or now))
+						guardStrikes[car] = kept + 1
+						guardAt[car] = now
 						if guardStrikes[car] >= BattleConfig.Guard.strikesToReclaim then
 							BattleCar.reclaim(car) -- the server drives this car from now on
 						end
@@ -1238,7 +1281,9 @@ function BattleService.start(
 				end
 			end
 		elseif m.phase == "matchResult" then
-			if bothReady(m) then
+			if m.sim ~= nil and m.sim.left <= 0 then
+				closeMatch(m)
+			elseif bothReady(m) then
 				newSeries(m)
 			elseif m.t >= T.rematchSeconds then
 				closeMatch(m)
@@ -1289,10 +1334,12 @@ function BattleService.start(
 			gas = 0,
 			inputAt = 0,
 			attack = false,
+			botLevel = nil,
+			forcePick = nil,
 		}
 	end
 
-	local function createMatch(a: Part, b: Part, momentum: boolean?)
+	local function createMatch(a: Part, b: Part, momentum: boolean?): Match
 		local slot = freeSlot()
 		usedSlots[slot] = true
 		local m: Match = {
@@ -1317,6 +1364,7 @@ function BattleService.start(
 			crashCd = 0,
 			crashChain = 0,
 			crashQuiet = 99,
+			sim = nil,
 			fought = 0,
 			touching = false,
 		}
@@ -1332,6 +1380,7 @@ function BattleService.start(
 			end
 		end
 		startSelect(m)
+		return m
 	end
 
 	-- A player leaves (voluntarily or by disconnecting). The other side wins by forfeit, once.
@@ -1531,6 +1580,39 @@ function BattleService.start(
 	}
 
 	-- One loop for every match.
+	-- Studio only: set Workspace attribute "BattleSimRequest" to JSON like
+	-- {"a":"RamTruck","b":"CannonVan","la":"medium","lb":"medium","series":5,"parallel":2} and bot-vs-bot matches
+	-- start; the results build up in Workspace attribute "BattleSimTally".
+	if isStudio then
+		workspace:GetAttributeChangedSignal("BattleSimRequest"):Connect(function()
+			local raw = workspace:GetAttribute("BattleSimRequest")
+			if type(raw) ~= "string" or raw == "" then
+				return
+			end
+			workspace:SetAttribute("BattleSimRequest", "")
+			local ok, req = pcall(function()
+				return HttpService:JSONDecode(raw)
+			end)
+			if not ok or type(req) ~= "table" then
+				return
+			end
+			local key = string.format(
+				"%s:%s vs %s:%s",
+				req.a,
+				req.la or "medium",
+				req.b,
+				req.lb or "medium"
+			)
+			for _ = 1, math.clamp(tonumber(req.parallel) or 1, 1, 3) do
+				local pa, pb = botPart(), botPart()
+				pa.forcePick, pb.forcePick = req.a, req.b
+				pa.botLevel, pb.botLevel = req.la, req.lb
+				local sm = createMatch(pa, pb, nil)
+				sm.sim = { key = key, left = math.clamp(tonumber(req.series) or 1, 1, 50) }
+			end
+		end)
+	end
+
 	RunService.Heartbeat:Connect(function(dt: number)
 		for m in matches do
 			local ok, err = pcall(update, m, dt)

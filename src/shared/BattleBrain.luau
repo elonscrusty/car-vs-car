@@ -555,4 +555,34 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena, momentum: b
 	return brain
 end
 
+-- A bot level on top of a brain: it steers with `turn` of the full rate and aims at where it THINKS the foe is,
+-- which is off by up to aimErrL car lengths and changes every `reroll` seconds. `rng` gives 0..1.
+function BattleBrain.withLevel(brain: Brain, levelName: string, L: number, rng: () -> number): Brain
+	local lv = BattleConfig.Bot.levels[levelName]
+		or BattleConfig.Bot.levels[BattleConfig.Bot.default]
+	local errX, errZ, left = 0, 0, 0
+	local baseStep = brain.step
+	local leveled: Brain = {
+		fighterId = brain.fighterId,
+		step = nil :: any,
+		shellResolved = brain.shellResolved,
+		resetStuck = brain.resetStuck,
+	}
+	leveled.step = function(dt: number, me: Body, foe: Body, contact: Contact): Output
+		left -= dt
+		if left <= 0 then
+			left = lv.reroll
+			local a, r = rng() * 2 * math.pi, rng() * lv.aimErrL * L
+			errX, errZ = math.cos(a) * r, math.sin(a) * r
+		end
+		local seen: Body = { x = foe.x + errX, z = foe.z + errZ, fx = foe.fx, fz = foe.fz }
+		local o = baseStep(dt, me, seen, contact)
+		if o.state ~= "charge" then
+			o.turn = clamp(o.turn * lv.turn, -1, 1)
+		end
+		return o
+	end
+	return leveled
+end
+
 return BattleBrain
