@@ -568,12 +568,23 @@ function BattleService.start(
 		outs: number, -- cars that left the arena
 		slams: number, -- cars the crusher caught
 		booms: number, -- cars a red barrel caught
+		dmg: { [string]: number }, -- damage taken, by "side:source" (a:crash = what car A took from crashes)
 	}
 	local simTally: { [string]: Tally } = {}
 	local function tallyFor(key: string): Tally
 		local t = simTally[key]
 		if t == nil then
-			t = { a = 0, b = 0, draw = 0, rounds = 0, rescues = 0, outs = 0, slams = 0, booms = 0 }
+			t = {
+				a = 0,
+				b = 0,
+				draw = 0,
+				rounds = 0,
+				rescues = 0,
+				outs = 0,
+				slams = 0,
+				booms = 0,
+				dmg = {},
+			}
 			simTally[key] = t
 		end
 		return t
@@ -584,6 +595,15 @@ function BattleService.start(
 		if sim ~= nil then
 			local t: any = tallyFor(sim.key)
 			t[field] += 1
+		end
+	end
+	-- counts damage by who took it and where it came from (no-op in a real match)
+	local function simDamage(m: Match, victim: string, source: string, amount: number)
+		local sim = m.sim
+		if sim ~= nil and amount > 0 then
+			local t = tallyFor(sim.key)
+			local k = victim .. ":" .. source
+			t.dmg[k] = (t.dmg[k] or 0) + amount
 		end
 	end
 	local function recordSim(m: Match)
@@ -829,6 +849,7 @@ function BattleService.start(
 				if inside or (hit and hit.Instance == s.foe.body) then
 					landed = true
 					s.owner.stats.shotHits += 1
+					simDamage(m, s.foe.side, "shell", s.dmg)
 					if s.foe.side == "a" then
 						dmg.a += s.dmg
 					else
@@ -892,6 +913,7 @@ function BattleService.start(
 			local victim = if hit.side == "a" then a else b
 			BattleCar.knock(victim, hit.dir, hit.knockSpeed, hit.stagger)
 			local amount = victim.maxHp * hit.damageFrac
+			simDamage(m, hit.side, "arena", amount)
 			if hit.side == "a" then
 				dmg.a += amount
 			else
@@ -1084,6 +1106,15 @@ function BattleService.start(
 					if car.fighter.id == "SawBuggy" then
 						car.stats.sawHits += 1
 					end
+					simDamage(
+						m,
+						foe.side,
+						if out.event == "Ram hit"
+							then "ram"
+							elseif car.fighter.id == "SawBuggy" then "saw"
+							else "other",
+						out.damage
+					)
 					sendHit(m, foe.body.Position, out.event == "Ram hit", out.damage, foe.side)
 				end
 				if out.event == "Ram hit" or out.event == "Ram missed" then
@@ -1128,6 +1159,8 @@ function BattleService.start(
 						m.crashCd = BattleConfig.Crash.cooldownSeconds
 						dmg.a += hitA
 						dmg.b += hitB
+						simDamage(m, "a", "crash", hitA)
+						simDamage(m, "b", "crash", hitB)
 						local mid = (a.body.Position + b.body.Position) / 2
 						if hitA > 0 then
 							sendHit(
