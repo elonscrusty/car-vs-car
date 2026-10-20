@@ -42,6 +42,7 @@ function BattleArena.build(slot: number): Arena
 	local wedges, ramps = BattleMap.build(folder, origin, solids)
 	folder.Parent = workspace
 	BattleMap.verify(origin, wedges, ramps)
+	BattleMap.animate(folder)
 
 	local arena: Arena
 	arena = {

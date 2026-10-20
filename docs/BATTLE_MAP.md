@@ -18,3 +18,12 @@ Top-down picture: `/mnt/project-files/car-vs-car/map/map-plan-top-down.png`.
   it drops instead of rises (so a wrong guess about wedge direction cannot ship).
 - The old auto-battle AI (BattleBrain) still sees a plain 160x110 box in `BattleConfig.Arena`; it does not know
   this map. Manual driving does not use it.
+
+## Upgrade pass (premium toy look)
+- Four toy soldiers (cover and landmarks) stand beside each spawn; four alphabet blocks (A B C D, studs on top);
+  bunkers and blocks have toy-brick studs; white bands on bunkers and corner bumpers.
+- HAZARD: a slow spinner arm over the plateau (`Layout.spinner`, turned by `BattleMap.animate`, stops when the arena
+  is destroyed). It shoves cars toward the sheer drop. To switch it off, remove the Spinner model build in `BattleMap`.
+- Floor: cream/blue checker, white start lines, glowing yellow chevrons pointing up the plateau ramps, glowing red ring.
+- Walls: white caps, stripes, and pennant strings on both long walls. Plateau has a light lip and a darker skirt.
+- Outside: giant crayons, block towers, beach balls, corner flags (looks only, no collision).

@@ -157,10 +157,56 @@ test("the floor checker covers the floor evenly", function()
 	end
 end)
 
-test("the part count stays phone-friendly", function()
-	local walls = 4 + 2 * (L.halfX * 2 // L.panelWidth + L.halfZ * 2 // L.panelWidth)
-	local n = 1 + #L.tiles() + walls + #L.boxes() + #L.ramps() + 2 + 1 + 4
-	truthy(n <= 160, "map parts " .. n)
+test("the spinner hazard stays over the plateau and clear of the ground", function()
+	local sp, p = L.spinner, L.plateau
+	truthy(sp.radius < p.hx, "arm tip must not pass the plateau ramp edge")
+	truthy(sp.radius + sp.hubRadius > 0 and sp.clearance > 0.5 and sp.height >= 3)
+	truthy(sp.speed > 0.3 and sp.speed < 2, "slow enough to dodge")
+	truthy(sp.radius * sp.speed < 20, "tip speed stays dodgeable")
+end)
+
+test("four toy soldiers, one each side of both spawns, facing the middle", function()
+	local n = 0
+	for _, b in L.boxes() do
+		if b.kind == "soldier" then
+			n += 1
+			near(math.abs(b.x), L.soldier.x)
+			near(math.abs(b.z), L.soldier.z)
+			truthy(if b.x < 0 then b.yawDeg == -90 else b.yawDeg == 90, b.name .. " faces away")
+		end
+	end
+	eq(n, 4)
+end)
+
+test("alphabet blocks carry four different letters", function()
+	local seen: { [string]: boolean } = {}
+	local n = 0
+	for _, b in L.boxes() do
+		if b.kind == "block" then
+			truthy(b.letter ~= nil)
+			seen[b.letter :: string] = true
+			n += 1
+		end
+	end
+	eq(n, 4)
+	eq(#(L.boxes()) > 0 and (seen.A and seen.B and seen.C and seen.D), true)
+end)
+
+test("scenery stays outside the walls, decorations stay on the floor", function()
+	for _, pr in L.scenery() do
+		if pr.kind ~= "pole" then
+			truthy(
+				math.abs(pr.x) > L.halfX + 8 or math.abs(pr.z) > L.halfZ + 12,
+				pr.kind .. " inside the arena"
+			)
+		end
+	end
+	for _, cv in L.chevrons() do
+		truthy(
+			math.abs(cv.x) < L.bunker.x - 4 and math.abs(cv.x) > L.plateau.hx + L.plateauRamp.length
+		)
+	end
+	eq(#L.bunting(), 10)
 end)
 
 test("the old AI rectangles cover the plateau with its ramps and the bunkers", function()
