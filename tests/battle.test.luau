@@ -863,7 +863,7 @@ H.test("every weapon waits 6 seconds, rounds last 60", function()
 end)
 
 H.test(
-	"a car has weight: about 0.7 s to top speed, rolls on when the gas is let go, turns less when fast",
+	"a car has weight: about 0.4 s to top speed, rolls on when the gas is let go, turns less when fast",
 	function()
 		local top = BattleConfig.Human.topSpeed
 		local dt = 1 / 60
@@ -873,14 +873,14 @@ H.test(
 			v = BattleFeel.nextSpeed(v, top, dt, top)
 			t += dt
 		end
-		H.eq(t >= 0.55 and t <= 0.95, true)
+		H.eq(t >= 0.3 and t <= 0.6, true)
 		-- gas released at top speed: coasts, takes a while to stop
 		local c, ct = top, 0
 		while c > 0.05 * top and ct < 10 do
 			c = BattleFeel.nextSpeed(c, 0, dt, top)
 			ct += dt
 		end
-		H.eq(ct >= 0.7 and ct <= 1.6, true)
+		H.eq(ct >= 0.35 and ct <= 1.0, true)
 		-- pulling back (gas the other way) stops sooner than coasting but not in a blink
 		local b, bt = top, 0
 		while b > 0 and bt < 10 do
@@ -890,20 +890,20 @@ H.test(
 				break
 			end
 		end
-		H.eq(bt >= 0.25 and bt < ct, true)
+		H.eq(bt >= 0.15 and bt < ct, true)
 		-- top speed itself is unchanged
 		H.eq(BattleFeel.nextSpeed(top, top, dt, top), top)
 		-- turning: full when crawling, about half at top speed
 		H.eq(BattleFeel.turnScale(0), 1)
 		H.eq(BattleFeel.turnScale(1), BattleConfig.Human.turnTopScale)
 		H.eq(BattleFeel.turnScale(5), BattleConfig.Human.turnTopScale) -- never below the top-speed share
-		-- the wheel swings: full lock takes about 1/6 s, not one frame
+		-- the wheel swings: full lock takes about 1/10 s, not one frame
 		local w, wt = 0, 0
 		while w < 1 do
 			w = BattleFeel.smoothTurn(w, 1, dt)
 			wt += dt
 		end
-		H.eq(wt >= 0.12 and wt <= 0.25, true)
+		H.eq(wt >= 0.07 and wt <= 0.15, true)
 	end
 )
 
@@ -983,7 +983,7 @@ H.test(
 			actual = nextV - 2.5 -- the floor takes up to 2.5 studs/s off every step
 			t += dt
 		end
-		H.eq(t >= 0.55 and t <= 1.2, true)
+		H.eq(t >= 0.3 and t <= 0.8, true)
 		-- a crash or shove that moves the car a lot: the real speed wins
 		H.eq(BattleFeel.trust(40, 5, top), 5)
 		-- a small difference (friction): the commanded speed stays
