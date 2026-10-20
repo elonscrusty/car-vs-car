@@ -17,13 +17,25 @@ local BattleCrash = {}
 
 -- Damage to the victim. `speedToward` = how fast the other car was moving toward it (studs/s,
 -- before the crash); `cruise` = that car's cruising speed (studs/s).
-function BattleCrash.damage(victimMaxHp: number, speedToward: number, cruise: number): number
+function BattleCrash.damage(
+	victimMaxHp: number,
+	speedToward: number,
+	cruise: number,
+	massScale: number?
+): number
 	local C = BattleConfig.Crash
 	local frac = math.clamp(speedToward / math.max(cruise, 1e-6), 0, 1)
 	if frac < C.minSpeedFrac then
 		return 0
 	end
-	return math.max(1, math.floor(victimMaxHp / C.hitsToKill * frac + 0.5))
+	return math.max(1, math.floor(victimMaxHp / C.hitsToKill * frac * (massScale or 1) + 0.5))
+end
+
+-- A heavy car hits harder than a light one: damage share by the attacker's weight over the victim's.
+function BattleCrash.massScale(attackerDensity: number, victimDensity: number): number
+	local C = BattleConfig.Crash
+	local ratio = attackerDensity / math.max(victimDensity, 1e-6)
+	return math.clamp(ratio ^ C.massPower, C.massMin, C.massMax)
 end
 
 -- Share of the full crash damage for the Nth crash in a chain (0 = first). Holding the gas into the other

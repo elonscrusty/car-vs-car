@@ -1140,8 +1140,19 @@ function BattleService.start(
 					local ab = b.body.Position - a.body.Position
 					local sA = BattleCrash.speedToward(a.prevVel.X, a.prevVel.Z, ab.X, ab.Z)
 					local sB = BattleCrash.speedToward(b.prevVel.X, b.prevVel.Z, -ab.X, -ab.Z)
-					local hitB = BattleCrash.damage(b.maxHp, sA, BattleCar.topSpeed(a))
-					local hitA = BattleCrash.damage(a.maxHp, sB, BattleCar.topSpeed(b))
+					local dA, dB = a.fighter.density, b.fighter.density
+					local hitB = BattleCrash.damage(
+						b.maxHp,
+						sA,
+						BattleCar.topSpeed(a),
+						BattleCrash.massScale(dA, dB)
+					)
+					local hitA = BattleCrash.damage(
+						a.maxHp,
+						sB,
+						BattleCar.topSpeed(b),
+						BattleCrash.massScale(dB, dA)
+					)
 					if hitA > 0 or hitB > 0 then
 						-- pushing on into the other car re-hits again and again: later hits of a chain hurt less
 						if m.crashQuiet > BattleConfig.Crash.chainWindow then
