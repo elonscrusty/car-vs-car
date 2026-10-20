@@ -25,6 +25,8 @@ export type SteerInput = {
 	-- fight mode only: the big GAS button and the ATTACK button / key (held)
 	setGas: (on: boolean) -> (),
 	setAttack: (on: boolean) -> (),
+	-- fight mode: holding ATTACK also holds the gas (a thumb on ATTACK need not hold GAS too)
+	setAttackDrives: (on: boolean) -> (),
 }
 
 export type Options = {
@@ -62,6 +64,7 @@ function SteerInput.new(send: (steer: number, gas: number) -> (), opts: Options?
 	local sentSteer, sentGas = 0, 0
 	local wheel = opts ~= nil and opts.wheel == true
 	local gasHeld, attackHeld, sentAttack = false, false, false
+	local attackDrives = false
 	local function emit(s: number, g: number)
 		local full = if opts then opts.sendFull else nil
 		if full then
@@ -130,7 +133,7 @@ function SteerInput.new(send: (steer: number, gas: number) -> (), opts: Options?
 		local keys = (if keyCount.up > 0 then 1 else 0) - (if keyCount.down > 0 then 1 else 0)
 		if wheel then
 			-- the GAS button or W drives; pulling the stick (or S) down reverses
-			if gasHeld or keys > 0 then
+			if gasHeld or keys > 0 or (attackDrives and attackHeld) then
 				return 1
 			end
 			return math.clamp(stickGas + keys, -1, 0)
@@ -426,6 +429,10 @@ function SteerInput.new(send: (steer: number, gas: number) -> (), opts: Options?
 		if running then
 			update()
 		end
+	end
+
+	self.setAttackDrives = function(on: boolean)
+		attackDrives = on
 	end
 
 	self.setAttack = function(on: boolean)

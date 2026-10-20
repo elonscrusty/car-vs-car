@@ -428,8 +428,9 @@ function BattleUi.start()
 	prepCount.TextStrokeColor3 = Color3.fromRGB(10, 12, 22)
 
 	-- ---------- fight HUD ----------
-	local hudF = frame(gui, "Hud", UDim2.fromScale(1, 0.16), UDim2.fromScale(0, 0), COL_PANEL, 1)
+	local hudF = frame(gui, "Hud", UDim2.fromScale(1, 0.19), UDim2.fromScale(0, 0), COL_PANEL, 1)
 	hudF.Visible = false
+	hudF.ZIndex = 25 -- above the letterbox bars, so the timer is never hidden
 	type Side = { name: TextLabel, hp: Frame, hpText: TextLabel, ready: Frame }
 	local function sidePanel(xScale: number, color: Color3, mirror: boolean): Side
 		local p = frame(
@@ -446,7 +447,7 @@ function BattleUi.start()
 		s.Thickness = 3
 		s.Parent = p
 		local nm =
-			label(p, "", UDim2.fromScale(0.94, 0.32), UDim2.fromScale(0.03, 0.04), COL_TEXT, 18)
+			label(p, "", UDim2.fromScale(0.94, 0.32), UDim2.fromScale(0.03, 0.04), COL_TEXT, 24)
 		nm.TextXAlignment = if mirror then Enum.TextXAlignment.Right else Enum.TextXAlignment.Left
 		local back = frame(
 			p,
@@ -463,7 +464,7 @@ function BattleUi.start()
 		if mirror then
 			fill.Position = UDim2.fromScale(1, 0)
 		end
-		local txt = label(back, "", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), COL_TEXT, 16)
+		local txt = label(back, "", UDim2.fromScale(1, 1), UDim2.fromScale(0, 0), COL_TEXT, 28)
 		local rb = frame(
 			p,
 			"ReadyBack",
@@ -488,7 +489,7 @@ function BattleUi.start()
 			UDim2.fromScale(0.3, 0.16),
 			UDim2.fromScale(if mirror then 0.03 else 0.55, 0.72),
 			Color3.fromRGB(190, 200, 225),
-			12
+			15
 		)
 		rl.TextXAlignment = if mirror then Enum.TextXAlignment.Left else Enum.TextXAlignment.Right
 		return { name = nm, hp = fill, hpText = txt, ready = rf }
@@ -1262,15 +1263,55 @@ function BattleUi.start()
 			steerInput.setAttack(false)
 		end
 	end)
+	-- Cannon Van: a thin line straight ahead of the nose while the cannon is ready (no aim assist,
+	-- it only shows where a shot would leave)
+	local aimLine = Instance.new("Part")
+	aimLine.Name = "AimLine"
+	aimLine.Anchored = true
+	aimLine.CanCollide = false
+	aimLine.CanQuery = false
+	aimLine.CanTouch = false
+	aimLine.CastShadow = false
+	aimLine.Material = Enum.Material.Neon
+	aimLine.Color = Color3.fromRGB(255, 190, 70)
+	aimLine.Transparency = 1
+	local AIM_LEN = 70
+	local function updateAim()
+		local body = myBody
+		if myFighter ~= "CannonVan" or body == nil or body.Parent == nil or attackReady < 1 then
+			aimLine.Parent = nil
+			return
+		end
+		local lv = body.CFrame.LookVector
+		local flat = Vector3.new(lv.X, 0, lv.Z)
+		if flat.Magnitude < 1e-3 then
+			aimLine.Parent = nil
+			return
+		end
+		flat = flat.Unit
+		local start = body.Position + flat * (0.55 * carLen) + Vector3.new(0, 0.2 * carLen, 0)
+		aimLine.Size = Vector3.new(0.18, 0.18, AIM_LEN)
+		aimLine.CFrame = CFrame.lookAt(start + flat * (AIM_LEN / 2), start + flat * AIM_LEN)
+		aimLine.Transparency = 0.55
+		aimLine.Parent = workspace
+	end
 	-- the READY glow pulses; the cover grows while the weapon recharges
 	RunService.RenderStepped:Connect(function()
 		if not driving then
+			aimLine.Parent = nil
 			return
 		end
+		updateAim()
 		attackWipe.Size = UDim2.fromScale(1, 1 - math.clamp(attackReady, 0, 1))
 		attackGlow.Transparency = if attackReady >= 1
 			then 0.1 + 0.35 * math.abs(math.sin(os.clock() * 5))
 			else 1
+		-- while the weapon waits, the button shows the seconds left (the clock fill is the same wait)
+		if myFighter == "RamTruck" or myFighter == "CannonVan" then
+			attackBtn.Text = if attackReady >= 1
+				then attackNames[myFighter] or "ATTACK"
+				else tostring(math.ceil((1 - attackReady) * BattleConfig.Ram.cooldownSeconds))
+		end
 		specialWipe.Size = UDim2.fromScale(1, 1 - math.clamp(specialEnergy, 0, 1))
 		specialGlow.Transparency = if specialEnergy >= 1
 			then 0.1 + 0.35 * math.abs(math.sin(os.clock() * 6))
@@ -1287,6 +1328,7 @@ function BattleUi.start()
 		end
 		driving = true
 		steerInput.start()
+		steerInput.setAttackDrives(myFighter == "SawBuggy")
 		driver.start()
 		attackBtn.Text = attackNames[myFighter or ""] or "ATTACK"
 		attackReady = 1
@@ -1444,7 +1486,15 @@ function BattleUi.start()
 		end
 	end
 
+	-- hits that land close together (saw ticks) add up into ONE number instead of stacking in a pile
+	local lastNumber: { [boolean]: { anchor: Part, total: number, at: number }? } = {}
 	local function damageNumber(pos: Vector3, dmg: number, big: boolean, mine: boolean)
+		local nowN = os.clock()
+		local prevN = lastNumber[mine]
+		if prevN and prevN.anchor.Parent ~= nil and nowN - prevN.at < 0.6 then
+			dmg += prevN.total
+			prevN.anchor:Destroy()
+		end
 		local anchor = Instance.new("Part")
 		anchor.Anchored = true
 		anchor.CanCollide = false
@@ -1479,6 +1529,7 @@ function BattleUi.start()
 			{ TextTransparency = 1, TextStrokeTransparency = 1 }
 		):Play()
 		Debris:AddItem(anchor, 0.9)
+		lastNumber[mine] = { anchor = anchor, total = dmg, at = nowN }
 	end
 
 	-- the final blow: a fireball, a shock ring and a lot of debris
@@ -1515,7 +1566,6 @@ function BattleUi.start()
 		koPos, koTotal, koT = pos, secs, secs
 		setBars(true)
 		gui:SetAttribute("WreckCamAt", os.clock()) -- lets a test see afterwards that the wreck camera ran
-		flash(Color3.fromRGB(255, 240, 200), 0.75)
 	end
 
 	local function showEvent(text: string)
@@ -1718,7 +1768,7 @@ function BattleUi.start()
 		fovKick = math.max(fovKick, if big then 6 else 2.5)
 		SoundFx.hit(if big then 1 else 0.3)
 		if mine then
-			flash(COL_BAD, if big then 0.45 else 0.25)
+			flash(COL_BAD, if big then 0.18 else 0.1) -- a soft tint only; the shake does the work
 		end
 	end
 

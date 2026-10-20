@@ -673,7 +673,9 @@ H.test("human ram: attack starts a straight charge, a hit deals damage, then it 
 	local o = b.step(0.05, me, foe, { ram = false, saw = false })
 	H.eq(o.state, "charge")
 	local hit = b.step(0.05, me, foe, { ram = true, saw = false, speedFrac = 1 })
-	H.eq(hit.turn, 0) -- the steer input is ignored during a charge
+	H.eq(math.abs(hit.turn + BattleConfig.Ram.playerSteer) < 1e-9, true) -- the stick steers a charge a little (right = negative)
+	H.eq(BattleSeries.paysCoins(14, BattleConfig.Rewards.minFightSeconds), false)
+	H.eq(BattleSeries.paysCoins(15, BattleConfig.Rewards.minFightSeconds), true)
 	H.eq(hit.damage, BattleConfig.Ram.damage)
 	H.eq(hit.event, "Ram hit")
 	H.eq(hit.state, "recoil")

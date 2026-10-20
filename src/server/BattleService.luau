@@ -88,6 +88,7 @@ type Match = {
 	final: boolean, -- the announced final phase has begun
 	momentum: boolean, -- the momentum prototype fight (else the steering fight)
 	crashCd: number, -- seconds until the next plain crash can hurt
+	fought: number, -- total seconds spent in the fight phase, all rounds (a too-short match pays nothing)
 	touching: boolean, -- the cars' bodies were touching at the last step
 	aIsRed: boolean?, -- which garage team is red this match (chosen once, at random)
 }
@@ -538,8 +539,10 @@ function BattleService.start(
 			if p and not part.paid and not m.vsBot then
 				part.paid = true
 				local won = result == "win"
-				coins = ResultRewards.compute({ mode = "duel", won = won }).coins
-				coins = math.floor(coins * Progress.coinMultiplier(os.time()))
+				if BattleSeries.paysCoins(m.fought, BattleConfig.Rewards.minFightSeconds) then
+					coins = ResultRewards.compute({ mode = "duel", won = won }).coins
+					coins = math.floor(coins * Progress.coinMultiplier(os.time()))
+				end
 				Inventory.addCoins(p, coins)
 				if won then
 					p.wins += 1
@@ -788,6 +791,7 @@ function BattleService.start(
 		local arena = m.arena :: BattleArena.Arena
 		local a, b = m.cars.a :: BattleCar.Car, m.cars.b :: BattleCar.Car
 		m.t += dt
+		m.fought += dt
 		local dmg = { a = 0, b = 0 }
 		local cars = { a, b }
 		if not m.final and m.t >= BattleConfig.Final.startSeconds then
@@ -1228,6 +1232,7 @@ function BattleService.start(
 			final = false,
 			momentum = if momentum == nil then BattleConfig.defaultMomentum else momentum,
 			crashCd = 0,
+			fought = 0,
 			touching = false,
 		}
 		matches[m] = true
