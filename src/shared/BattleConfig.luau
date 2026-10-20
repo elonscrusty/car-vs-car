@@ -71,17 +71,17 @@ BattleConfig.Final = {
 BattleConfig.defaultMomentum = true -- carter picked Bounce (momentum): real queue matches use it
 BattleConfig.Momentum = {
 	launchL = 4.5, -- launch speed, L per second
-	turnScale = 0.8, -- steering is this much of the normal turn rate
+	turnScale = 1.2, -- steering is this much of the normal turn rate
 	accel = 2.2, -- cruise speeds per second gained (the car keeps moving: a sleepy playtest drifted apart)
 	brake = 0.5, -- cruise speeds per second lost
 	side = 2.2, -- sideways grip (normal 8): low = long skids
 	elasticity = 0.85, -- bounciness of the car body
 	friction = 0.05,
 	knockMult = 1.4, -- hits throw cars further
-	aimDeg = 14,
-	lungeSeconds = 2.5, -- a car that has slowed down is thrown forward again this often
+	aimDeg = 24,
+	lungeSeconds = 1.6, -- a car that has slowed down is thrown forward again this often
 	lungeL = 3.6, -- ... at this speed (L per second) -- a gun fires when the foe is this near the heading
-	rangeL = 9, -- ... and this close
+	rangeL = 11, -- ... and this close
 }
 
 -- Movement shared by every fighter (the AI asks, the server enforces these limits).
@@ -226,9 +226,9 @@ BattleConfig.Cannon = {
 
 BattleConfig.Saw = {
 	buildSeconds = 3, -- steady contact this long reaches the full multiplier
-	maxMult = 1.6, -- damage per tick at full build-up (resets when contact is lost)
+	maxMult = 1.5, -- damage per tick at full build-up (resets when contact is lost)
 	loseContactSeconds = 0.35, -- contact must be gone this long to reset the build-up
-	damage = 5, -- was 7: the saw beat everything in the Studio playtest
+	damage = 4, -- was 7, then 5: the saw beat everything in the Studio playtest
 	tickSeconds = 0.5, -- least time between damage ticks on the same target
 	frontConeDeg = 70,
 	approachDrive = 1,

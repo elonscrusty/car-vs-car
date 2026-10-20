@@ -358,8 +358,8 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena, momentum: b
 		if
 			cooldown <= 0
 			and downtime <= 0
-			and dist <= ram.startRangeL * (if isMomentum then 1.5 else 1) * L
-			and math.abs(angle) <= ram.startAngleDeg * (if isMomentum then 1.8 else 1) * DEG
+			and dist <= ram.startRangeL * (if isMomentum then 2.2 else 1) * L
+			and math.abs(angle) <= ram.startAngleDeg * (if isMomentum then 2.5 else 1) * DEG
 		then
 			state, stateT = "telegraph", 0
 			o.state = state
