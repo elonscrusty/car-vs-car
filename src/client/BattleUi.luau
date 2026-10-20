@@ -960,9 +960,11 @@ function BattleUi.start()
 			if math.abs(dx) < 1 and math.abs(dy) < 1 then
 				dy = -1
 			end
+			-- the top edge stays clear of the score and HP bars
+			local topRoom = if dy < 0 then cy - 130 else cy - 40
 			local k = math.min(
 				(cx - 40) / math.max(math.abs(dx), 1e-3),
-				(cy - 40) / math.max(math.abs(dy), 1e-3)
+				topRoom / math.max(math.abs(dy), 1e-3)
 			)
 			lockArrow.Position = UDim2.fromOffset(cx + dx * k, cy + dy * k)
 			lockArrow.Rotation = math.deg(math.atan2(dx, -dy))
