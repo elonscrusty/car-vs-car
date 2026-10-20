@@ -733,7 +733,7 @@ function BattleService.start(opts: {
 						fresh and part.attack
 					)
 				end
-				local cruise = car.fighter.cruiseL * car.L
+				local cruise = BattleCar.topSpeed(car)
 				local fwdSpeed = car.body.AssemblyLinearVelocity:Dot(Vector3.new(cf.X, 0, cf.Z))
 				local out = brain.step(
 					dt,
@@ -797,8 +797,8 @@ function BattleService.start(opts: {
 					local ab = b.body.Position - a.body.Position
 					local sA = BattleCrash.speedToward(a.prevVel.X, a.prevVel.Z, ab.X, ab.Z)
 					local sB = BattleCrash.speedToward(b.prevVel.X, b.prevVel.Z, -ab.X, -ab.Z)
-					local hitB = BattleCrash.damage(b.maxHp, sA, a.fighter.cruiseL * a.L)
-					local hitA = BattleCrash.damage(a.maxHp, sB, b.fighter.cruiseL * b.L)
+					local hitB = BattleCrash.damage(b.maxHp, sA, BattleCar.topSpeed(a))
+					local hitA = BattleCrash.damage(a.maxHp, sB, BattleCar.topSpeed(b))
 					if hitA > 0 or hitB > 0 then
 						m.crashCd = BattleConfig.Crash.cooldownSeconds
 						dmg.a += hitA

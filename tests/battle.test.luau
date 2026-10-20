@@ -800,6 +800,11 @@ H.test("only the round that ends the match counts as the final knock-out", funct
 	H.eq(#s.results, 1) -- nothing was recorded by the question
 end)
 
+H.test("one top speed for every car, and a capped slide", function()
+	H.eq(BattleConfig.Human.topSpeed, 42)
+	H.eq(BattleConfig.Human.slideMaxFrac <= 0.5, true)
+end)
+
 H.test("a car past the walls or below the floor is out of the arena", function()
 	H.eq(BattleCrash.outside(0, 0, 1, 85, 40), false)
 	H.eq(BattleCrash.outside(84, -39, 0.5, 85, 40), false)
