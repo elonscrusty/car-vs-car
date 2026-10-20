@@ -842,6 +842,7 @@ function BattleService.start(
 						car.model:PivotTo(CFrame.lookAt(pos, pos + face) * rel)
 						car.body.AssemblyLinearVelocity = Vector3.zero
 						car.body.AssemblyAngularVelocity = Vector3.zero
+						guardPos[car] = nil -- a rescue is not a teleport
 					end
 				end
 			else
