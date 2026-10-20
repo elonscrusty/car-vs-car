@@ -3,6 +3,16 @@
 -- balance. Distances and speeds are in L = one car's body length, so they scale to any model.
 -- New cars come ONLY from the gumball machine (rarity + gumball below); nothing is bought with coins.
 
+local function sibling(name: string): any
+	if script then
+		return require((script :: any).Parent[name])
+	end
+	local luneRequire: any = require -- relative string paths only exist in Lune
+	return luneRequire("./" .. name)
+end
+
+local BattleMapLayout = sibling("BattleMapLayout")
+
 local BattleConfig = {}
 
 BattleConfig.Series = {
@@ -22,11 +32,14 @@ BattleConfig.Timing = {
 }
 
 -- Everything about the arena is a rectangle on a flat floor, centered on `origin`.
+-- NOTE: the real map is now "Toy Box Showdown" (BattleMapLayout / server BattleMap). halfX, halfZ and
+-- obstacles below are only the OLD auto-battle AI's picture of a plain box arena (kept so its tests
+-- and simulation still run); the live arena reads its size from BattleMapLayout.
 BattleConfig.Arena = {
 	origin = { x = 6000, y = 40, z = 0 }, -- far from the lobby and the old fight arenas
 	halfX = 80, -- floor half width (studs)
 	halfZ = 55, -- floor half depth
-	wallHeight = 14,
+	wallHeight = BattleMapLayout.wallHeight,
 	wallThickness = 4,
 	spawnInset = 18, -- cars start this far from the short walls
 	-- Broad blocks (center x, z and half sizes). Left and right are mirrored; at least

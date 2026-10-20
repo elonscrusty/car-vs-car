@@ -5,6 +5,7 @@ local Harness = require("./harness")
 
 require("./logic.test")
 require("./battle.test")
+require("./battlemap.test")
 require("./ai.test")
 require("./config.test")
 require("./limiter.test")
