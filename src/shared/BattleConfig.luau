@@ -188,7 +188,7 @@ BattleConfig.Fighters = {
 		weaponName = "Spinning Saw",
 		blurb = "Zooms in and grinds with its front saw.",
 		weakness = "Must stay close and is open to hits while it approaches.",
-		hp = 105,
+		hp = 125, -- was 105: the Van beat it 27-0 in bot-vs-bot
 		cruiseL = 3.4,
 		turnDeg = 230,
 		rarity = "Epic",
@@ -203,8 +203,8 @@ BattleConfig.Fighters = {
 } :: { [string]: Fighter }
 
 BattleConfig.Ram = {
-	damage = 30, -- at full charge speed
-	damageMin = 15, -- a slow bump deals this; it scales up with the speed of the charge
+	damage = 34, -- at full charge speed (was 30: bot-vs-bot, Ram lost to Van 9-20 and to Buggy 5-21)
+	damageMin = 17, -- a slow bump deals this; it scales up with the speed of the charge
 	startRangeL = 3.2, -- may start a charge this close
 	startAngleDeg = 15, -- ... when facing the foe within this angle
 	telegraphSeconds = 0.6,
@@ -227,7 +227,7 @@ BattleConfig.Ram = {
 }
 
 BattleConfig.Cannon = {
-	damage = 26, -- was 22 (more punch for a car that must also run). 36 was tried: Van then won about 85% against Ram in bot-vs-bot
+	damage = 24, -- was 26 (bot-vs-bot: Van beat Ram 20-9 and Buggy 27-0); 36 was tried and won 85% against Ram
 	minRangeL = 2.3, -- closer than this the van runs away from the foe (was 3: it ran more than it shot)
 	maxRangeL = 5.5,
 	knockSpeed = 22, -- studs per second a shell shoves the car it hits
@@ -238,7 +238,7 @@ BattleConfig.Cannon = {
 	shellSpeedL = 4.5, -- L per second (carter: easy to follow with the eyes)
 	shellLifeSeconds = 2.2,
 	shellRadiusL = 0.12,
-	homingDegPerSec = 80, -- auto-aim: a shell curves toward the foe this fast ...
+	homingDegPerSec = 70, -- auto-aim: a shell curves toward the foe this fast ...
 	homingConeDeg = 45, -- ... when the foe is within this angle of its heading
 	ricochets = 1, -- a shell bounces off a wall this many times
 	repositionDrive = 0.8, -- when closing in
