@@ -74,6 +74,7 @@ type Match = {
 	vsBot: boolean,
 	closed: boolean,
 	lastOutcome: string?,
+	koSeconds: number, -- how long this knock-out lasts (longer when it ends the match)
 	koOutcome: string?, -- the round result waiting for the knock-out finish to play
 	final: boolean, -- the announced final phase has begun
 	momentum: boolean, -- the momentum prototype fight (else the steering fight)
@@ -447,10 +448,15 @@ function BattleService.start(opts: {
 		ko: boolean?
 	)
 		for _, side in sides() do
-			send(
-				(m.parts :: any)[side],
-				{ kind = "hit", pos = pos, big = big, dmg = dmg, victim = victim, ko = ko }
-			)
+			send((m.parts :: any)[side], {
+				kind = "hit",
+				pos = pos,
+				big = big,
+				dmg = dmg,
+				victim = victim,
+				ko = ko,
+				koSeconds = m.koSeconds,
+			})
 		end
 	end
 
@@ -825,6 +831,9 @@ function BattleService.start(opts: {
 			if a.hp <= 0 or b.hp <= 0 then
 				-- knock-out: both cars stop, the loser is wrecked, then the result shows
 				clearShells(m)
+				m.koSeconds = if BattleSeries.endsMatch(m.series, outcome)
+					then T.koLastSeconds
+					else T.koSeconds
 				for _, car in cars do
 					car.brain = nil
 					if car.hp <= 0 then
@@ -894,7 +903,7 @@ function BattleService.start(opts: {
 					BattleCar.coast(car, dt)
 				end
 			end
-			if m.t >= T.koSeconds then
+			if m.t >= m.koSeconds then
 				endRound(m, (m.koOutcome :: any) or "draw")
 			end
 		elseif m.phase == "result" then
@@ -978,6 +987,7 @@ function BattleService.start(opts: {
 			vsBot = a.bot or b.bot,
 			closed = false,
 			lastOutcome = nil,
+			koSeconds = T.koSeconds,
 			koOutcome = nil,
 			final = false,
 			momentum = if momentum == nil then BattleConfig.defaultMomentum else momentum,

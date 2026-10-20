@@ -92,6 +92,17 @@ function BattleSeries.record(s: Series, outcome: Outcome): boolean
 	return true
 end
 
+-- True when recording `outcome` now would end the match (nothing is changed).
+function BattleSeries.endsMatch(s: Series, outcome: Outcome): boolean
+	if s.over then
+		return false
+	end
+	local copy: Series = table.clone(s)
+	copy.results = table.clone(s.results)
+	BattleSeries.record(copy, outcome)
+	return copy.over
+end
+
 -- The side `leaver` left: the other side wins the match. Only counts once.
 function BattleSeries.forfeit(s: Series, leaver: Side): boolean
 	if s.over then
