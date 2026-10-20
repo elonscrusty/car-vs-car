@@ -404,9 +404,9 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena, momentum: b
 			end
 			return o
 		elseif
-			dist < 1.6 * L
+			dist < 2.2 * L
 			and cooldown <= 0
-			and math.abs(angle) <= 2 * cannon.aimToleranceDeg * DEG
+			and math.abs(angle) <= 3 * cannon.aimToleranceDeg * DEG
 		then
 			-- cornered by a fast foe with the gun ready and pointed at it: shoot, do not run
 			state, stateT = "telegraph", 0
