@@ -316,7 +316,7 @@ local function walls(folder: Folder, origin: Vector3, solids: { Instance })
 				"Wallpaper",
 				Vector3.new(0.4, 17, 9),
 				at(halfX - 0.2, 8.6, -halfZ + 6 + k * 13),
-				rgb({ 255, 190, 214 }),
+				rgb({ 236, 150, 186 }),
 				false
 			)
 		end
@@ -742,11 +742,11 @@ local function effects(folder: Folder, origin: Vector3)
 	glow.Parent = top
 
 	-- warm light from the window and a soft fill from the lamp side
-	local sun = anchor("SunLight", Vector3.new(2, 2, 2), Vector3.new(Layout.halfX - 12, 12, 0))
+	local sun = anchor("SunLight", Vector3.new(2, 2, 2), Vector3.new(Layout.halfX - 55, 16, 0))
 	local sl = Instance.new("PointLight")
 	sl.Color = Color3.fromRGB(255, 232, 170)
-	sl.Brightness = 1.4
-	sl.Range = 90
+	sl.Brightness = 0.8
+	sl.Range = 70
 	sl.Shadows = false
 	sl.Parent = sun
 	-- dust drifting in the sunbeam
