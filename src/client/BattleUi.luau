@@ -11,6 +11,7 @@ local Debris = game:GetService("Debris")
 local TweenService = game:GetService("TweenService")
 
 local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
+local BattleFeel = require(ReplicatedStorage.Shared.BattleFeel)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local BattleDriver = require(script.Parent.BattleDriver)
 local SteerInput = require(script.Parent.SteerInput)
@@ -657,6 +658,8 @@ function BattleUi.start()
 	local arenaHalf = Vector2.zero
 	local camOn = false
 	local camSmooth: CFrame? = nil
+	local camYaw: number? = nil -- the heading the chase camera trails behind (see BattleFeel.trailYaw)
+	local camYawAt = 0
 	local mySpawn: string? = nil -- which end my car starts at this round ("a" west / "b" east)
 	local flyStart = -100 -- when the spawn fly-over began
 	local flying = false -- the fly-over is steering the camera right now
@@ -772,7 +775,17 @@ function BattleUi.start()
 			local lv = mine.CFrame.LookVector
 			local look = Vector3.new(lv.X, 0, lv.Z)
 			if look.Magnitude > 1e-3 then
-				look = look.Unit
+				-- the camera trails the nose instead of snapping round with it
+				local carYaw = math.atan2(look.X, look.Z)
+				local now = os.clock()
+				local yaw = camYaw
+				if yaw == nil then
+					yaw = carYaw
+				else
+					yaw = BattleFeel.trailYaw(yaw, carYaw, math.min(now - camYawAt, 0.1))
+				end
+				camYaw, camYawAt = yaw, now
+				look = Vector3.new(math.sin(yaw), 0, math.cos(yaw))
 				local focus = mine.Position + Vector3.new(0, 0.3 * carLen, 0)
 				local want = focus
 					- look * ((H.camDistL + H.camCloseExtraL * foeCloseness()) * carLen)
@@ -877,6 +890,7 @@ function BattleUi.start()
 		camera.CameraType = Enum.CameraType.Scriptable
 		camera.FieldOfView = BattleConfig.Camera.fovDeg
 		camSmooth = nil
+		camYaw = nil
 	end
 
 	local function cameraOff()
@@ -1090,8 +1104,14 @@ function BattleUi.start()
 		end)
 	end
 
-	local gasWrap =
-		frame(gui, "GasWrap", UDim2.fromScale(0.19, 0.3), UDim2.fromScale(0.79, 0.66), COL_PANEL, 1)
+	local gasWrap = frame(
+		gui,
+		"GasWrap",
+		UDim2.fromScale(0.14, 0.24),
+		UDim2.fromScale(0.85, 0.74),
+		COL_PANEL,
+		1
+	)
 	gasWrap.Visible = false
 	local gasBtn = button(
 		gasWrap,
@@ -1112,8 +1132,8 @@ function BattleUi.start()
 	local attackWrap = frame(
 		gui,
 		"AttackWrap",
-		UDim2.fromScale(0.15, 0.24),
-		UDim2.fromScale(0.81, 0.39),
+		UDim2.fromScale(0.12, 0.19),
+		UDim2.fromScale(0.87, 0.52),
 		COL_PANEL,
 		1
 	)
@@ -1159,8 +1179,8 @@ function BattleUi.start()
 	local specialWrap = frame(
 		gui,
 		"SpecialWrap",
-		UDim2.fromScale(0.13, 0.2),
-		UDim2.fromScale(0.66, 0.43),
+		UDim2.fromScale(0.1, 0.17),
+		UDim2.fromScale(0.73, 0.76),
 		COL_PANEL,
 		1
 	)
@@ -1196,8 +1216,8 @@ function BattleUi.start()
 	local hornWrap = frame(
 		gui,
 		"HornWrap",
-		UDim2.fromScale(0.09, 0.13),
-		UDim2.fromScale(0.57, 0.66),
+		UDim2.fromScale(0.08, 0.12),
+		UDim2.fromScale(0.76, 0.6),
 		COL_PANEL,
 		1
 	)
@@ -1529,17 +1549,10 @@ function BattleUi.start()
 			setChampions(false) -- hide the lobby menus behind the Searching panel
 			queueF.Visible = true
 			botBtn.Visible = m.studioBot == true
-			qText.Text = "Finding player..."
+			qText.Text = "Waiting for a player..."
 		else
 			queueF.Visible = false
 			setChampions(true)
-			if m.timedOut then
-				errorL.Text = "No opponent found. Try again."
-				errorL.Visible = true
-				task.delay(3, function()
-					errorL.Visible = false
-				end)
-			end
 		end
 	end
 

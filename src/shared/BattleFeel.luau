@@ -44,4 +44,13 @@ function BattleFeel.smoothTurn(current: number, target: number, dt: number): num
 	return current + math.clamp(target - current, -step, step)
 end
 
+-- The chase camera trails the car's nose: its heading (radians) chases the car's heading, at most
+-- `camSwingDegPerSec` per second, so a fast spin does not whip the whole view round.
+function BattleFeel.trailYaw(current: number, target: number, dt: number): number
+	local H = BattleConfig.Human
+	local diff = (target - current + math.pi) % (2 * math.pi) - math.pi
+	local cap = math.rad(H.camSwingDegPerSec) * dt
+	return current + math.clamp(diff * H.camTrailRate * dt, -cap, cap)
+end
+
 return BattleFeel

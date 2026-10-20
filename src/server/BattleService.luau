@@ -16,6 +16,7 @@ local BattleBrain = require(ReplicatedStorage.Shared.BattleBrain)
 local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
 local BattleAim = require(ReplicatedStorage.Shared.BattleAim)
 local BattleCrash = require(ReplicatedStorage.Shared.BattleCrash)
+local BattleGuard = require(ReplicatedStorage.Shared.BattleGuard)
 local BattleSpecial = require(ReplicatedStorage.Shared.BattleSpecial)
 local BattleHuman = require(ReplicatedStorage.Shared.BattleHuman)
 local PadSlots = require(ReplicatedStorage.Shared.PadSlots)
@@ -779,6 +780,10 @@ function BattleService.start(
 		end
 	end
 
+	-- cheat checks on device-driven cars: where each was last step, and how many strikes it has
+	local guardPos: { [BattleCar.Car]: Vector3 } = setmetatable({}, { __mode = "k" }) :: any
+	local guardStrikes: { [BattleCar.Car]: number } = setmetatable({}, { __mode = "k" }) :: any
+
 	local function fightStep(m: Match, dt: number)
 		local arena = m.arena :: BattleArena.Arena
 		local a, b = m.cars.a :: BattleCar.Car, m.cars.b :: BattleCar.Car
@@ -864,9 +869,37 @@ function BattleService.start(
 					car.model:SetAttribute("BState", if forced then out.state else "drive")
 					car.model:SetAttribute("BDrive", if forced then out.drive else 0)
 					car.model:SetAttribute("BTurn", if forced then out.turn else 0)
-					-- the device is trusted with movement, not with speed
+					-- the device is trusted with movement, not with speed or jumps
+					local pos = car.body.Position
+					local prev = guardPos[car]
+					guardPos[car] = pos
+					local struck = false
+					if
+						prev
+						and BattleGuard.teleported(
+							pos.X - prev.X,
+							pos.Z - prev.Z,
+							dt,
+							BattleCar.topSpeed(car)
+						)
+					then
+						-- a teleport: put the car back where it was
+						car.body.CFrame = CFrame.new(prev) * car.body.CFrame.Rotation
+						car.body.AssemblyLinearVelocity = Vector3.zero
+						guardPos[car] = prev
+						struck = true
+					end
 					local vel = car.body.AssemblyLinearVelocity
 					local flat = Vector3.new(vel.X, 0, vel.Z)
+					if BattleGuard.tooFast(flat.Magnitude, BattleCar.topSpeed(car)) then
+						struck = true
+					end
+					if struck then
+						guardStrikes[car] = (guardStrikes[car] or 0) + 1
+						if guardStrikes[car] >= BattleConfig.Guard.strikesToReclaim then
+							BattleCar.reclaim(car) -- the server drives this car from now on
+						end
+					end
 					local cap = BattleCar.topSpeed(car)
 						* math.max(1, BattleConfig.Ram.chargeMult)
 						* 1.3

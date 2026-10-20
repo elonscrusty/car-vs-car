@@ -4,6 +4,7 @@ local BattleBrain = require("../src/shared/BattleBrain")
 local BattleConfig = require("../src/shared/BattleConfig")
 local BattleAim = require("../src/shared/BattleAim")
 local BattleFeel = require("../src/shared/BattleFeel")
+local BattleGuard = require("../src/shared/BattleGuard")
 local BattleCrash = require("../src/shared/BattleCrash")
 local BattleSpecial = require("../src/shared/BattleSpecial")
 local BattleSelect = require("../src/shared/BattleSelect")
@@ -903,3 +904,35 @@ H.test(
 		H.eq(wt >= 0.12 and wt <= 0.25, true)
 	end
 )
+
+H.test("the chase camera trails the nose and never swings faster than the cap", function()
+	local dt = 1 / 60
+	local cap = math.rad(BattleConfig.Human.camSwingDegPerSec)
+	-- car turned 150 degrees away at once: each step moves at most the cap
+	local y = 0
+	local steps = 0
+	while math.abs(y - math.rad(150)) > 0.01 and steps < 600 do
+		local n = BattleFeel.trailYaw(y, math.rad(150), dt)
+		H.eq(math.abs(n - y) <= cap * dt + 1e-9, true)
+		y = n
+		steps += 1
+	end
+	H.eq(steps > 60 and steps < 600, true) -- about 1.6 s or more, not instant
+	-- the short way round: from +170 to -170 degrees is a 20 degree swing, not 340
+	local a = BattleFeel.trailYaw(math.rad(170), math.rad(-170), dt)
+	H.eq(a > math.rad(170), true)
+	-- already facing the same way: stays put
+	H.eq(BattleFeel.trailYaw(1, 1, dt), 1)
+end)
+
+H.test("cheat checks: normal driving passes, a teleport and a speed hack are caught", function()
+	local top = BattleConfig.Human.topSpeed
+	local dt = 1 / 20 -- the server step
+	H.eq(BattleGuard.teleported(top * dt, 0, dt, top), false) -- top speed
+	H.eq(BattleGuard.teleported(1.5 * BattleConfig.Ram.chargeMult * top * dt, 0, dt, top), false) -- a charge
+	H.eq(BattleGuard.teleported(30, 0, dt, top), true) -- 30 studs in one step
+	H.eq(BattleGuard.teleported(0, -80, dt, top), true)
+	H.eq(BattleGuard.tooFast(top, top), false)
+	H.eq(BattleGuard.tooFast(top * BattleConfig.Ram.chargeMult, top), false) -- a full charge
+	H.eq(BattleGuard.tooFast(top * 4, top), true)
+end)
