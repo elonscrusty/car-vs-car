@@ -15,6 +15,7 @@ local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
 local BattleBrain = require(ReplicatedStorage.Shared.BattleBrain)
 local BattleDrive = require(ReplicatedStorage.Shared.BattleDrive)
 local BattleRecap = require(ReplicatedStorage.Shared.BattleRecap)
+local CarWheels = require(script.Parent.CarWheels)
 
 export type Car = {
 	side: string,
@@ -42,6 +43,7 @@ export type Car = {
 	stagger: number, -- > 0 while knocked: the car slides and cannot steer
 	slide: Vector3, -- flat velocity a wall bounce keeps pushing while knocked (floor friction would eat it)
 	prevVel: Vector3, -- velocity at the end of the last step (before any crash changed it)
+	wheels: CarWheels.Wheels?, -- the four spinning wheels, for a body that has a CarRig
 }
 
 local BattleCar = {}
@@ -228,6 +230,7 @@ function BattleCar.spawn(
 		stagger = 0,
 		slide = Vector3.zero,
 		prevVel = Vector3.zero,
+		wheels = CarWheels.attach(body, fighter.model),
 		human = false,
 		energy = 0,
 		hornAt = -100,
@@ -384,6 +387,9 @@ function BattleCar.drive(car: Car, out: BattleBrain.Output, dt: number)
 	local mv = BattleConfig.Move
 	local body = car.body
 	local f = BattleCar.forward(car)
+	if car.wheels then
+		CarWheels.step(car.wheels, body, dt)
+	end
 	if car.clientDriven then
 		return -- the owner's device moves this car (BattleDrive); the server only judges
 	end
