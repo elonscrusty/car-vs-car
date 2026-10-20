@@ -49,23 +49,27 @@ local function build(body: BasePart): CarFx
 	dust.Parent = rear
 
 	-- damage smoke from the hood: none above 60% HP, thicker and darker as HP drops
+	local hood = Instance.new("Attachment")
+	hood.Name = "FxHood"
+	hood.CFrame = CFrame.new(0, 0.5 * body.Size.Y, -body.Size.Z * 0.3)
+	hood.Parent = body
 	local smoke = Instance.new("ParticleEmitter")
 	smoke.Name = "DamageSmoke"
 	smoke.Rate = 0
-	smoke.Lifetime = NumberRange.new(0.8, 1.4)
-	smoke.Speed = NumberRange.new(4, 8)
+	smoke.Lifetime = NumberRange.new(1.2, 2)
+	smoke.Speed = NumberRange.new(8, 14)
 	smoke.EmissionDirection = Enum.NormalId.Top
 	smoke.SpreadAngle = Vector2.new(25, 25)
 	smoke.Size = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 1.5),
-		NumberSequenceKeypoint.new(1, 5),
+		NumberSequenceKeypoint.new(0, 3),
+		NumberSequenceKeypoint.new(1, 10),
 	})
 	smoke.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.35),
+		NumberSequenceKeypoint.new(0, 0.2),
 		NumberSequenceKeypoint.new(1, 1),
 	})
 	smoke.Color = ColorSequence.new(Color3.fromRGB(150, 150, 150))
-	smoke.Parent = rear
+	smoke.Parent = hood
 	return { dust = dust, smoke = smoke, airborne = false }
 end
 
@@ -99,7 +103,7 @@ function BattleFx.new(opts: Options): Fx
 			local frac = model:GetAttribute("HpFrac")
 			local f = if type(frac) == "number" then frac else 1
 			local hurt = math.clamp((0.6 - f) / 0.6, 0, 1)
-			st.smoke.Rate = hurt * 40
+			st.smoke.Rate = if hurt > 0 then 12 + hurt * 48 else 0
 			local grey = math.floor(150 - 110 * hurt)
 			st.smoke.Color = ColorSequence.new(Color3.fromRGB(grey, grey, grey))
 			if isMine then
