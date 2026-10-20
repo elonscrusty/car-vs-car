@@ -786,7 +786,7 @@ function BattleUi.start()
 				end
 				-- and always stay INSIDE the arena walls: a camera above a low wall would look
 				-- over it and the wall would hide the car (a car that starts next to a wall)
-				local inset = 3
+				local inset = 9
 				want = Vector3.new(
 					math.clamp(want.X, c.X - arenaHalf.X + inset, c.X + arenaHalf.X - inset),
 					want.Y,
