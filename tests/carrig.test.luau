@@ -16,6 +16,10 @@ test("every rig has four wheels, two of them steering, left and right mirrored",
 				truthy(w.at[3] < 0, id .. " front wheels are toward the nose (-Z)")
 			end
 			truthy(w.at[2] >= rig.wheelRadius - 1e-6, id .. " wheel does not sink into the floor")
+			truthy(
+				rig.rideHeight >= 0 and rig.rideHeight < 2 * rig.wheelRadius,
+				id .. " body floor is below the tire tops"
+			)
 		end
 		eq(steering, 2, id)
 		near(rig.wheels[1].at[1], -rig.wheels[2].at[1], 1e-9, id .. " FL/FR mirror")

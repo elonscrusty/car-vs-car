@@ -19,6 +19,7 @@ export type Handle = {
 export type Wheels = {
 	list: { Handle },
 	radiusStuds: number,
+	rideStuds: number, -- how high the body floor rides above the ground
 	spin: number,
 }
 
@@ -48,8 +49,10 @@ local function axleFix(size: Vector3): CFrame
 	return CFrame.identity
 end
 
--- Adds the four wheels to `body` (the car's Body part, `body.Size.Z` long). Returns nil when this
--- model has no rig or the wheel model is missing (the car just has no wheels).
+-- Adds the four wheels to `body` (the car's Body part, `body.Size.Z` long), standing on the floor
+-- under it. For a rig with a ride height it also adds an invisible skid under the body and lifts
+-- the car by that much, so the body rides up off the ground. Returns nil when this model has no rig
+-- or the wheel model is missing (the car just has no wheels).
 function CarWheels.attach(body: BasePart, modelId: string): Wheels?
 	local rig = CarRig.of(modelId)
 	local template = findTemplate()
@@ -75,7 +78,8 @@ function CarWheels.attach(body: BasePart, modelId: string): Wheels?
 				c:Destroy()
 			end
 		end
-		local rest = CFrame.new(w.at[1] * L, w.at[2] * L - body.Size.Y / 2, w.at[3] * L)
+		local rest =
+			CFrame.new(w.at[1] * L, (w.at[2] - rig.rideHeight) * L - body.Size.Y / 2, w.at[3] * L)
 		part.CFrame = body.CFrame * rest * fix
 		local weld = Instance.new("Weld")
 		weld.Part0 = body
@@ -85,7 +89,34 @@ function CarWheels.attach(body: BasePart, modelId: string): Wheels?
 		part.Parent = body.Parent
 		table.insert(list, { part = part, weld = weld, rest = rest, fix = fix, front = w.front })
 	end
-	return { list = list, radiusStuds = rig.wheelRadius * L, spin = 0 }
+	local ride = rig.rideHeight * L
+	if ride > 0 then
+		-- what the car stands on: smaller than the body so the body still does all the crashing
+		local skid = Instance.new("Part")
+		skid.Name = "Skid"
+		skid.Size = Vector3.new(0.8 * body.Size.X, ride + 0.2, 0.8 * body.Size.Z)
+		skid.CFrame = body.CFrame * CFrame.new(0, -body.Size.Y / 2 - ride / 2 + 0.1, 0)
+		skid.Transparency = 1
+		skid.Anchored = body.Anchored
+		skid.CanCollide = true
+		skid.CanQuery = false
+		skid.CanTouch = false
+		skid.Massless = true
+		skid.CustomPhysicalProperties = body.CustomPhysicalProperties
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = body
+		weld.Part1 = skid
+		weld.Parent = skid
+		skid.Parent = body.Parent
+		local model = body.Parent
+		while model and model.Parent and model.Parent:IsA("Model") do
+			model = model.Parent
+		end
+		if model and model:IsA("Model") then
+			model:PivotTo(model:GetPivot() + Vector3.new(0, ride, 0))
+		end
+	end
+	return { list = list, radiusStuds = rig.wheelRadius * L, rideStuds = ride, spin = 0 }
 end
 
 -- Rolls and steers the wheels from how the body is moving. Call every step.

@@ -944,7 +944,12 @@ function BattleService.start(
 						stuckAt[car] = nil
 						simCount(m, "rescues")
 						local pos, face = arena.rescuePoint(car.body.Position)
-						pos = Vector3.new(pos.X, arena.origin.Y + car.body.Size.Y / 2 + 0.3, pos.Z)
+						local ride = if car.wheels then car.wheels.rideStuds else 0
+						pos = Vector3.new(
+							pos.X,
+							arena.origin.Y + car.body.Size.Y / 2 + ride + 0.3,
+							pos.Z
+						)
 						local rel = car.body.CFrame:ToObjectSpace(car.model:GetPivot())
 						car.model:PivotTo(CFrame.lookAt(pos, pos + face) * rel)
 						car.body.AssemblyLinearVelocity = Vector3.zero

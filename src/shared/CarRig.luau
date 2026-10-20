@@ -1,7 +1,7 @@
 --!strict
 -- Where one car body's four wheels and its three weapon snap spots are, and the wheel maths.
--- Every number is in body lengths (L) from the floor-middle of the body: x right, y up, z toward
--- the tail (the nose points -Z). All cars share ONE wheel model: the rig only says where the four
+-- Every number is in body lengths (L) from the ground under the middle of the body: x right, y up,
+-- z toward the tail (the nose points -Z). The body floor rides `rideHeight` above the ground. All cars share ONE wheel model: the rig only says where the four
 -- copies go and how big they are. Weapons are separate models that snap onto a spot.
 
 local CarRig = {}
@@ -16,6 +16,7 @@ export type Wheel = {
 
 export type Rig = {
 	wheelRadius: number, -- in body lengths
+	rideHeight: number, -- body floor above the ground, in body lengths
 	wheels: { Wheel },
 	snaps: { roof: Spot, front: Spot, back: Spot },
 }
@@ -24,17 +25,18 @@ CarRig.MaxSteer = math.rad(30) -- most a front wheel turns
 CarRig.SteerPerYaw = 0.25 -- seconds: wheel angle (radians) per radian/second of body yaw
 
 -- Measured on RedTruck_lowpoly.fbx (1.09 long, 0.52 wide, 0.44 tall). Each wheel sits in the middle
--- of its arch with its bottom on the body floor; the tire top tucks just under the fender. Checked
--- with a Blender render of the body plus four wheels. The "roof" spot is in the truck bed behind
--- the cab (the truck has no roof to bolt a turret on).
+-- of its arch opening; the body rides up so the whole tire shows under the fender. Checked with a
+-- Blender render of the body plus four wheels. The "roof" spot is in the truck bed behind the cab
+-- (the truck has no roof to bolt a turret on).
 CarRig.Rigs = {
 	RedTruck = {
 		wheelRadius = 0.09,
+		rideHeight = 0.045,
 		wheels = {
-			{ name = "FL", at = { -0.165, 0.09, -0.33 }, front = true },
-			{ name = "FR", at = { 0.165, 0.09, -0.33 }, front = true },
-			{ name = "RL", at = { -0.165, 0.09, 0.25 }, front = false },
-			{ name = "RR", at = { 0.165, 0.09, 0.25 }, front = false },
+			{ name = "FL", at = { -0.165, 0.09, -0.335 }, front = true },
+			{ name = "FR", at = { 0.165, 0.09, -0.335 }, front = true },
+			{ name = "RL", at = { -0.165, 0.09, 0.255 }, front = false },
+			{ name = "RR", at = { 0.165, 0.09, 0.255 }, front = false },
 		},
 		snaps = {
 			roof = { 0, 0.23, 0.35 },
