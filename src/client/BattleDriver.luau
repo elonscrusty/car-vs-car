@@ -25,6 +25,7 @@ function BattleDriver.new(read: () -> (number, number), findBody: () -> BasePart
 	local conn: RBXScriptConnection? = nil
 	local mover: BattleDrive.Mover? = nil
 	local seenKnock: any = nil
+	local flippedFor = 0
 
 	local function mine(body: BasePart): BattleDrive.Mover?
 		local model = body.Parent
@@ -76,6 +77,25 @@ function BattleDriver.new(read: () -> (number, number), findBody: () -> BasePart
 				car.slide = Vector3.zero
 			end
 		end
+		-- the server cannot turn a car this device owns, so a flipped car rights itself here
+		if body.CFrame.UpVector.Y < BattleConfig.Move.flipUpDot then
+			flippedFor += dt
+			if flippedFor >= BattleConfig.Move.flipSeconds then
+				flippedFor = 0
+				local look = body.CFrame.LookVector
+				local flat = Vector3.new(look.X, 0, look.Z)
+				if flat.Magnitude < 0.1 then
+					flat = car.lastForward
+				end
+				local pos = body.Position + Vector3.new(0, 0.25 * car.L, 0)
+				local rel = body.CFrame:ToObjectSpace(model:GetPivot())
+				model:PivotTo(CFrame.lookAt(pos, pos + flat) * rel)
+				body.AssemblyLinearVelocity = Vector3.zero
+				body.AssemblyAngularVelocity = Vector3.zero
+			end
+		else
+			flippedFor = 0
+		end
 		local out: BattleDrive.Out
 		local state = model:GetAttribute("BState")
 		if state == "charge" or state == "recoil" or state == "skid" then
@@ -96,7 +116,7 @@ function BattleDriver.new(read: () -> (number, number), findBody: () -> BasePart
 		if conn then
 			return
 		end
-		mover, seenKnock = nil, nil
+		mover, seenKnock, flippedFor = nil, nil, 0
 		conn = RunService.PreSimulation:Connect(step)
 	end
 
