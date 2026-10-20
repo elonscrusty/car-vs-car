@@ -212,6 +212,7 @@ function LobbyPads.start(deps: Deps): Handle
 	local running = true
 	local cooldown: { [Player]: number } = {}
 	local pending: { [Player]: number } = {} -- PLAY pressed a moment ago (ignore repeats)
+	local lastPad: { [Player]: number } = {} -- where each player stood on the previous poll
 	local returns = 0
 
 	-- What each pad shows, and the spin.
@@ -223,6 +224,7 @@ function LobbyPads.start(deps: Deps): Handle
 
 	local function observe(): { [Player]: number }
 		local out: { [Player]: number } = {}
+		local seen: { [Player]: number } = {}
 		local now = os.clock()
 		for _, player in Players:GetPlayers() do
 			local root = rootOf(player)
@@ -235,11 +237,16 @@ function LobbyPads.start(deps: Deps): Handle
 				if rel.Y < 8 and rel.Y > -3 then
 					local pad = LobbyLayout.padAt(rel.X, rel.Z)
 					if pad then
-						out[player] = pad
+						seen[player] = pad
+						-- a pad counts after two polls in a row: running past one must not match anyone
+						if lastPad[player] == pad then
+							out[player] = pad
+						end
 					end
 				end
 			end
 		end
+		lastPad = seen
 		return out
 	end
 

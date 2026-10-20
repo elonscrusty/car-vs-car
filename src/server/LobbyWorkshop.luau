@@ -315,7 +315,7 @@ local function buildMachine(shell: LobbyGarageShell.Shell): Model
 	prompt.ObjectText = "Gumball Machine"
 	prompt.KeyboardKeyCode = Enum.KeyCode.E
 	prompt.RequiresLineOfSight = false
-	prompt.MaxActivationDistance = 22
+	prompt.MaxActivationDistance = 40
 	prompt.HoldDuration = 0
 	prompt.Parent = body
 	return model

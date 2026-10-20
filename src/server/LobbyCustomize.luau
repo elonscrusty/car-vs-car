@@ -247,7 +247,7 @@ function LobbyCustomize.build(folder: Folder, origin: Vector3): Result
 	prompt.ObjectText = "Paint & Garage"
 	prompt.KeyboardKeyCode = Enum.KeyCode.E
 	prompt.RequiresLineOfSight = false
-	prompt.MaxActivationDistance = 22
+	prompt.MaxActivationDistance = 40
 	prompt.HoldDuration = 0
 	prompt.Enabled = true
 	prompt.Parent = counter

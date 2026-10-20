@@ -105,16 +105,16 @@ Layout.shopCars = { { u = -14, v = 6 }, { u = 0, v = 8 }, { u = 14, v = 6 } }
 
 -- The two physical boards, one each side of the workshop, turned a little toward the ring.
 Layout.boards = {
-	weekly = { x = -36, z = -58, w = 15, h = 12, yawDeg = 14 },
-	wins = { x = 36, z = -58, w = 15, h = 12, yawDeg = -14 },
+	weekly = { x = -40, z = -58, w = 14, h = 12, yawDeg = 14 },
+	wins = { x = 40, z = -58, w = 14, h = 12, yawDeg = -14 },
 }
 
 -- Light gray paths: spawn -> ring, ring -> each building, two side entrances.
 Layout.paths = {
 	{ x = 0, z = 76, w = 14, d = 26, yawDeg = 0 }, -- the front path (spawn side)
 	{ x = 0, z = -38, w = 18, d = 44, yawDeg = 0 }, -- ring to the workshop
-	{ x = -42, z = -30, w = 14, d = 50, yawDeg = -55 }, -- to the customize garage
-	{ x = 42, z = -30, w = 14, d = 50, yawDeg = 55 }, -- to the shop
+	{ x = -42, z = -30, w = 14, d = 50, yawDeg = 55 }, -- to the customize garage
+	{ x = 42, z = -30, w = 14, d = 50, yawDeg = -55 }, -- to the shop
 	{ x = -70, z = -12, w = 14, d = 62, yawDeg = 90 }, -- left entrance
 	{ x = 70, z = -12, w = 14, d = 62, yawDeg = 90 }, -- right entrance
 }
@@ -254,6 +254,22 @@ function Layout.blockers(): { Rect }
 			d = 2,
 			yawDeg = b.yawDeg,
 		})
+		-- the back and both side walls are solid too (the shell itself has no collision)
+		for _, wall in
+			{
+				{ u = 0, v = -b.d / 2 - 1, w = b.w + 4, d = 2 },
+				{ u = -b.w / 2 - 1, v = 0, w = 2, d = b.d },
+				{ u = b.w / 2 + 1, v = 0, w = 2, d = b.d },
+			}
+		do
+			table.insert(list, {
+				x = b.x + c * wall.u + s * wall.v,
+				z = b.z - s * wall.u + c * wall.v,
+				w = wall.w,
+				d = wall.d,
+				yawDeg = b.yawDeg,
+			})
+		end
 	end
 	return list
 end

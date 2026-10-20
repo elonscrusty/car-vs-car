@@ -14,6 +14,7 @@ local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local Atmosphere = require(script.Atmosphere)
 local BattleService = require(script.BattleService)
 local FeatureFlags = require(ReplicatedStorage.Shared.FeatureFlags)
+local Gacha = require(ReplicatedStorage.Shared.Gacha)
 local Lobby = require(script.Lobby)
 local LobbyPads = require(script.LobbyPads)
 local LobbyPlayers = require(script.LobbyPlayers)
@@ -132,6 +133,10 @@ end
 
 Profiles.init()
 Atmosphere.apply()
+-- the odds sign reads the gumball pool when it is built, so the battle cars must be in first
+if FeatureFlags.enabled("battleMode") then
+	Gacha.useFighters()
+end
 local lobby = Lobby.build()
 local lobbyPlayers = LobbyPlayers.start() -- faster walk + name tags
 -- The two physical boards; the weekly #1 gets the gold car on the workshop stage and a crown tag.

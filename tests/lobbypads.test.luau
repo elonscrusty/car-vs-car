@@ -74,6 +74,8 @@ H.test("the watcher reports who stands on which pad", function()
 	local a = player("A", 1, Vector3.new(p.x, ORIGIN.Y + 3, 500 + p.z))
 	local b = player("B", 2, Vector3.new(0, ORIGIN.Y + 3, 500 + 60))
 	world.step(0.3)
+	eq(synced[#synced][a], nil) -- one poll is only passing by
+	world.step(0.3)
 	local seen = synced[#synced]
 	eq(seen[a], 3)
 	eq(seen[b], nil)

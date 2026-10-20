@@ -31,7 +31,7 @@ local function checkPrompt(prompt, action, object)
 	eq(prompt.ActionText, action)
 	eq(prompt.ObjectText, object)
 	eq(prompt.RequiresLineOfSight, false)
-	eq(prompt.MaxActivationDistance, 22)
+	eq(prompt.MaxActivationDistance, 40)
 	eq(prompt.HoldDuration, 0)
 end
 
