@@ -18,7 +18,6 @@ local BattleBrain = require(ReplicatedStorage.Shared.BattleBrain)
 local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
 local BattleAim = require(ReplicatedStorage.Shared.BattleAim)
 local BattleCrash = require(ReplicatedStorage.Shared.BattleCrash)
-local ChaseMapLayout = require(ReplicatedStorage.Shared.ChaseMapLayout)
 local BattleGuard = require(ReplicatedStorage.Shared.BattleGuard)
 local BattleSpecial = require(ReplicatedStorage.Shared.BattleSpecial)
 local BattleHuman = require(ReplicatedStorage.Shared.BattleHuman)
@@ -136,12 +135,6 @@ function BattleService.start(
 	local usedSlots: { [number]: boolean } = {}
 	local limiter = RateLimiter.new(12, 2)
 	local isStudio = RunService:IsStudio()
-
-	local arenaTable: BattleBrain.Arena = {
-		halfX = BattleConfig.Arena.halfX,
-		halfZ = BattleConfig.Arena.halfZ,
-		obstacles = BattleConfig.Arena.obstacles,
-	}
 
 	-- who may start a fight against a bot without other players: Studio, and anyone listed in
 	-- BattleConfig.Test.devUserIds. The owner is not special: a phone never shows the DEV button.
@@ -437,7 +430,8 @@ function BattleService.start(
 					z = arena.origin.Z,
 					halfX = arena.halfX,
 					halfZ = arena.halfZ,
-					wall = BattleConfig.Arena.wallHeight,
+					radius = arena.radius,
+					wall = arena.folder:GetAttribute("WallHeight") or BattleConfig.Arena.wallHeight,
 				},
 				side = side,
 				spawn = (spawnOf :: any)[side],
@@ -471,7 +465,12 @@ function BattleService.start(
 				BattleCar.launch(car, false)
 			else
 				car.human = false
-				local brain = BattleBrain.new(car.fighter.id, car.L, arenaTable, m.momentum)
+				local brain = BattleBrain.new(
+					car.fighter.id,
+					car.L,
+					(m.arena :: BattleArena.Arena).brain,
+					m.momentum
+				)
 				if part.bot then
 					brain = BattleBrain.withLevel(
 						brain,
@@ -560,17 +559,59 @@ function BattleService.start(
 
 	-- Pays the match result ONCE per player. A bot match pays nothing.
 	-- Studio only: tallies of the bot-vs-bot runs, published as Workspace attribute "BattleSimTally" (JSON).
-	local simTally: { [string]: { a: number, b: number, draw: number, rounds: number } } = {}
+	type Tally = {
+		a: number,
+		b: number,
+		draw: number,
+		rounds: number,
+		rescues: number, -- stuck cars the game had to put back (map trouble spots)
+		outs: number, -- cars that left the arena
+		slams: number, -- cars the crusher caught
+		booms: number, -- cars a red barrel caught
+		dmg: { [string]: number }, -- damage taken, by "side:source" (a:crash = what car A took from crashes)
+	}
+	local simTally: { [string]: Tally } = {}
+	local function tallyFor(key: string): Tally
+		local t = simTally[key]
+		if t == nil then
+			t = {
+				a = 0,
+				b = 0,
+				draw = 0,
+				rounds = 0,
+				rescues = 0,
+				outs = 0,
+				slams = 0,
+				booms = 0,
+				dmg = {},
+			}
+			simTally[key] = t
+		end
+		return t
+	end
+	-- counts one event of a bot-vs-bot run (no-op in a real match)
+	local function simCount(m: Match, field: string)
+		local sim = m.sim
+		if sim ~= nil then
+			local t: any = tallyFor(sim.key)
+			t[field] += 1
+		end
+	end
+	-- counts damage by who took it and where it came from (no-op in a real match)
+	local function simDamage(m: Match, victim: string, source: string, amount: number)
+		local sim = m.sim
+		if sim ~= nil and amount > 0 then
+			local t = tallyFor(sim.key)
+			local k = victim .. ":" .. source
+			t.dmg[k] = (t.dmg[k] or 0) + amount
+		end
+	end
 	local function recordSim(m: Match)
 		local sim = m.sim
 		if sim == nil then
 			return
 		end
-		local t = simTally[sim.key]
-		if t == nil then
-			t = { a = 0, b = 0, draw = 0, rounds = 0 }
-			simTally[sim.key] = t
-		end
+		local t = tallyFor(sim.key)
 		local res = BattleSeries.resultFor(m.series, "a")
 		if res == "win" then
 			t.a += 1
@@ -808,6 +849,7 @@ function BattleService.start(
 				if inside or (hit and hit.Instance == s.foe.body) then
 					landed = true
 					s.owner.stats.shotHits += 1
+					simDamage(m, s.foe.side, "shell", s.dmg)
 					if s.foe.side == "a" then
 						dmg.a += s.dmg
 					else
@@ -865,19 +907,21 @@ function BattleService.start(
 				send((m.parts :: any)[side], { kind = "phase", text = BattleConfig.Final.text })
 			end
 		end
-		-- Wreck City: props burst under the cars, the crane hurts whoever its ball touches
+		-- the bowl: props burst under the cars, a red barrel blasts the cars near it, the crusher's
+		-- shock ring hurts whoever it reaches (each hit carries its own damage and push)
 		for _, hit in arena.tick(dt, { a = a.body, b = b.body }) do
 			local victim = if hit.side == "a" then a else b
-			local hz = ChaseMapLayout.hazard
-			BattleCar.knock(victim, hit.dir, hz.knockSpeed, hz.stagger)
-			local amount = victim.maxHp * hz.damageFrac
+			BattleCar.knock(victim, hit.dir, hit.knockSpeed, hit.stagger)
+			local amount = victim.maxHp * hit.damageFrac
+			simDamage(m, hit.side, "arena", amount)
 			if hit.side == "a" then
 				dmg.a += amount
 			else
 				dmg.b += amount
 			end
 			sendHit(m, victim.body.Position, true, amount, hit.side)
-			sendEvent(m, if hit.side == "a" then "b" else "a", "Crane smash!")
+			sendEvent(m, if hit.side == "a" then "b" else "a", hit.text)
+			simCount(m, if hit.text == "Crusher slam!" then "slams" else "booms")
 		end
 		for _, car in cars do
 			BattleCar.checkFlip(car, dt)
@@ -898,6 +942,7 @@ function BattleService.start(
 					if stuckFor[car] > 3 then
 						stuckFor[car] = 0
 						stuckAt[car] = nil
+						simCount(m, "rescues")
 						local pos, face = arena.rescuePoint(car.body.Position)
 						pos = Vector3.new(pos.X, arena.origin.Y + car.body.Size.Y / 2 + 0.3, pos.Z)
 						local rel = car.body.CFrame:ToObjectSpace(car.model:GetPivot())
@@ -927,7 +972,8 @@ function BattleService.start(
 					lz,
 					car.body.Position.Y - arena.origin.Y,
 					arena.halfX,
-					arena.halfZ
+					arena.halfZ,
+					arena.radius
 				)
 			then
 				if car.hp > 0 then
@@ -937,6 +983,7 @@ function BattleService.start(
 						dmg.b += car.hp
 					end
 					sendEvent(m, if car.side == "a" then "b" else "a", "Out of the arena!")
+					simCount(m, "outs")
 				end
 				continue
 			end
@@ -947,7 +994,8 @@ function BattleService.start(
 				lz,
 				arena.halfX,
 				arena.halfZ,
-				arena.origin
+				arena.origin,
+				arena.radius
 			)
 		end
 		for _, car in cars do
@@ -1058,6 +1106,15 @@ function BattleService.start(
 					if car.fighter.id == "SawBuggy" then
 						car.stats.sawHits += 1
 					end
+					simDamage(
+						m,
+						foe.side,
+						if out.event == "Ram hit"
+							then "ram"
+							elseif car.fighter.id == "SawBuggy" then "saw"
+							else "other",
+						out.damage
+					)
 					sendHit(m, foe.body.Position, out.event == "Ram hit", out.damage, foe.side)
 				end
 				if out.event == "Ram hit" or out.event == "Ram missed" then
@@ -1102,6 +1159,8 @@ function BattleService.start(
 						m.crashCd = BattleConfig.Crash.cooldownSeconds
 						dmg.a += hitA
 						dmg.b += hitB
+						simDamage(m, "a", "crash", hitA)
+						simDamage(m, "b", "crash", hitB)
 						local mid = (a.body.Position + b.body.Position) / 2
 						if hitA > 0 then
 							sendHit(
@@ -1157,6 +1216,7 @@ function BattleService.start(
 		local outcome =
 			BattleSeries.roundOutcome(a.hp, a.maxHp, b.hp, b.maxHp, m.t >= T.fightSeconds)
 		if outcome then
+			arena.closeDoors() -- the crusher rests
 			for _, side in sides() do
 				send((m.parts :: any)[side], hudFor(m, side))
 			end

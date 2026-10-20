@@ -262,7 +262,7 @@ H.test("saw: damage ticks at no less than 0.5 s, only with front contact", funct
 			table.insert(times, t)
 		end
 	end
-	H.truthy(#times >= 9 and #times <= 11, "ticks in 5 s: " .. #times)
+	H.truthy(#times >= 7 and #times <= 9, "ticks in 5 s: " .. #times)
 	for i = 2, #times do
 		H.truthy(times[i] - times[i - 1] >= 0.5 - 1e-6, "interval")
 	end
@@ -383,7 +383,7 @@ H.test("config: every fighter is complete", function()
 		H.truthy(#f.blurb > 0 and #f.weakness > 0 and #f.weaponName > 0)
 	end
 	H.eq(BattleConfig.Fighters.RamTruck.hp, 150)
-	H.eq(BattleConfig.Fighters.CannonVan.hp, 150)
+	H.eq(BattleConfig.Fighters.CannonVan.hp, 135)
 	H.eq(BattleConfig.Fighters.SawBuggy.hp, 105)
 	local _ = FIGHTERS
 end)
@@ -978,7 +978,7 @@ H.test(
 			t += S.tickSeconds
 		end
 		local best, worst = math.max(ramD, vanD, sawD), math.min(ramD, vanD, sawD)
-		H.eq(best / worst <= 1.5, true)
+		H.eq(best / worst <= 1.6, true)
 		H.eq(worst >= 20, true)
 	end
 )

@@ -12,10 +12,14 @@ local TweenService = game:GetService("TweenService")
 
 local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
 local BattleFeel = require(ReplicatedStorage.Shared.BattleFeel)
+local BowlView = require(ReplicatedStorage.Shared.BowlView)
+local DevDrive = require(ReplicatedStorage.Shared.DevDrive)
+local FeatureFlags = require(ReplicatedStorage.Shared.FeatureFlags)
 local Remotes = require(ReplicatedStorage.Shared.Remotes)
 local BattleDriver = require(script.Parent.BattleDriver)
 local SteerInput = require(script.Parent.SteerInput)
 local BattleFx = require(script.Parent.BattleFx)
+local MapFx = require(script.Parent.MapFx)
 local SoundFx = require(script.Parent.SoundFx)
 local VsScreen = require(script.Parent.VsScreen)
 local UserInputService = game:GetService("UserInputService")
@@ -660,6 +664,8 @@ function BattleUi.start()
 	local camera = workspace.CurrentCamera
 	local arenaCenter: Vector3? = nil
 	local arenaHalf = Vector2.zero
+	local arenaRadius: number? = nil -- the round bowl's wall radius; nil on a box arena
+	local flySeconds = 2 -- how long the bowl flyover lasts this round
 	local camOn = false
 	local camSmooth: CFrame? = nil
 	local camYaw: number? = nil -- the heading the chase camera trails behind (see BattleFeel.trailYaw)
@@ -797,11 +803,18 @@ function BattleUi.start()
 				-- and always stay INSIDE the arena walls: a camera above a low wall would look
 				-- over it and the wall would hide the car (a car that starts next to a wall)
 				local inset = 9
-				want = Vector3.new(
-					math.clamp(want.X, c.X - arenaHalf.X + inset, c.X + arenaHalf.X - inset),
-					want.Y,
-					math.clamp(want.Z, c.Z - arenaHalf.Y + inset, c.Z + arenaHalf.Y - inset)
-				)
+				local radius = arenaRadius
+				if radius then
+					-- the bowl is round: stay inside a circle, a little in from the tires
+					local rx, rz = BowlView.keepInside(want.X - c.X, want.Z - c.Z, radius - inset)
+					want = Vector3.new(c.X + rx, want.Y, c.Z + rz)
+				else
+					want = Vector3.new(
+						math.clamp(want.X, c.X - arenaHalf.X + inset, c.X + arenaHalf.X - inset),
+						want.Y,
+						math.clamp(want.Z, c.Z - arenaHalf.Y + inset, c.Z + arenaHalf.Y - inset)
+					)
+				end
 				-- then pull it in where something (a wall, furniture) is in the way, after the clamp so the clamp cannot push it back inside
 				local params = RaycastParams.new()
 				params.FilterType = Enum.RaycastFilterType.Exclude
@@ -809,6 +822,14 @@ function BattleUi.start()
 				for _, b in carBodies do
 					if b.Parent then
 						table.insert(skip, b.Parent)
+						-- smashable props never block the view (they burst when a car hits them)
+						local arenaFolder = b.Parent.Parent
+						local props = if arenaFolder
+							then arenaFolder:FindFirstChild("Breakables")
+							else nil
+						if props and not table.find(skip, props) then
+							table.insert(skip, props)
+						end
 					end
 				end
 				params.FilterDescendantsInstances = skip
@@ -849,7 +870,9 @@ function BattleUi.start()
 		return CFrame.lookAt(pos, focus)
 	end
 
-	-- The first FLY_SECONDS of every round: my garage, then theirs, then swooping in behind my car.
+	-- The first seconds of every round. The duel arena: my garage, then theirs, then swooping in
+	-- behind my car (FLY_SECONDS). The bowl: one sweep over the whole map from the far end, along the
+	-- lane over the crusher, down to behind my car (flySeconds, behind the VS screen).
 	local FLY_SECONDS = 2
 	local GARAGE_X = 102 -- garage centers, from the arena middle (mouths face the arena)
 	local function garageShot(c: Vector3, spawn: string, grow: number): CFrame
@@ -865,10 +888,20 @@ function BattleUi.start()
 		local sp = mySpawn
 		local t = os.clock() - flyStart
 		flying = false
-		if c == nil or sp == nil or t >= FLY_SECONDS then
+		local total = if arenaRadius then flySeconds else FLY_SECONDS
+		if c == nil or sp == nil or t >= total then
 			return chase
 		end
 		flying = true
+		if arenaRadius then
+			local dir = if sp == "a" then 1 else -1
+			local px, py, pz, lx, ly, lz, blend = BowlView.fly(t / total, dir)
+			local wide = CFrame.lookAt(c + Vector3.new(px, py, pz), c + Vector3.new(lx, ly, lz))
+			if chase == nil then
+				return wide
+			end
+			return wide:Lerp(chase, blend)
+		end
 		local other = if sp == "a" then "b" else "a"
 		local half = FLY_SECONDS * 0.35
 		if t < half then
@@ -968,6 +1001,9 @@ function BattleUi.start()
 				and Vector3.new(lv.X, 0, lv.Z).Unit:Dot(toFoe.Unit) > math.cos(math.rad(18))
 			lockStroke.Thickness = if aligned then 6 else 3
 			lockRing.Visible, lockArrow.Visible = true, false
+		elseif not FeatureFlags.enabled("enemyArrow") then
+			-- off screen: no arrow (carter turned it off); the ring comes back when the enemy is in view
+			lockRing.Visible, lockArrow.Visible = false, false
 		else
 			-- off screen: an arrow on the edge, pointing the way to turn
 			local cx, cy = vp.X / 2, vp.Y / 2
@@ -1012,7 +1048,17 @@ function BattleUi.start()
 				and myBody.Parent:IsA("Model")
 			then myBody.Parent
 			else nil
-		fx.step(dt, models, mineModel)
+		local bowl = if arenaRadius ~= nil and arenaCenter ~= nil
+			then { center = arenaCenter }
+			else nil
+		fx.step(dt, models, mineModel, bowl)
+		-- the crusher's slam shakes the camera (more the closer my car is to it)
+		if myBody ~= nil then
+			local jolt = MapFx.crusherShake(myBody.Position)
+			if jolt > 0 then
+				shakeAmp = math.max(shakeAmp, jolt)
+			end
+		end
 		local target = cameraTarget()
 		local wreck = koPos
 		if koT > 0 and wreck ~= nil then
@@ -1321,6 +1367,13 @@ function BattleUi.start()
 			else 1
 	end)
 	local driver = BattleDriver.new(function()
+		-- Studio tests steer by the Workspace attribute "DevDrive" (see DevDrive); never on a live server
+		if RunService:IsStudio() then
+			local dev = DevDrive.parse(workspace:GetAttribute("DevDrive"))
+			if dev then
+				return dev.steer, dev.gas
+			end
+		end
 		return steerInput.read()
 	end, function()
 		return myBody
@@ -1688,9 +1741,12 @@ function BattleUi.start()
 		mySide, myFighter, myBody = m.side, m.me.id, nil
 		arenaCenter = Vector3.new(m.arena.x, m.arena.y, m.arena.z)
 		arenaHalf = Vector2.new(m.arena.halfX, m.arena.halfZ)
+		arenaRadius = if type(m.arena.radius) == "number" then m.arena.radius else nil
 		cameraOn()
 		mySpawn = m.spawn
 		flyStart = os.clock()
+		-- the bowl flyover fills the VS screen (4 s in round 1) or most of the 3-2-1 (2 s)
+		flySeconds = math.clamp(m.seconds - 1, 1.5, 4)
 		camSmooth = nil
 		prepEnd = os.clock() + m.seconds
 		-- round 1 gets the VS screen (its own 3-2-1); later rounds keep just the big number

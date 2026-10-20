@@ -242,14 +242,13 @@ Replaces the warehouse lobby (archived in `archive/lobby_v1`, shipped to ServerS
 - Wall bounce now sweeps a car-sized box ahead (Blockcast) instead of one ray, so corners, cover-block edges and tires bounce too (Studio: they stopped the car dead). Falls back to the old ray when already touching.
 - CAR VS CAR sign: the glowing border is four bars now, so the outside is a dark board with the same text (it was a plain yellow slab).
 
-## Wreck City chase map (2026-10-20, carter: Twisted Metal style)
-- New map `THEME = "chase"` in BattleArena: ChaseMapLayout (+ tests), ChaseMap, ChaseProps, ChaseLandmarks (the last two written by Opus helpers). See docs/CHASE_MAP_SPEC.md.
-- BattleService: `arena.tick` each fight frame (crane hits 10% max HP, knock), stuck rescue (gas held, not moving 2.5 s), `arena.resetBreakables()` each round.
-- MapFx swings the crane from the server clock. Untested in Studio: everything (first build). Check: no script errors, ramps rise, tunnel clear, crane hits, props burst, part count.
-
-## Wreck City fixes (map thread)
-- Stuck rescue now watches position (under 3 studs in 2.5 s with gas held, not touching the foe) instead of speed; Studio showed speed flickers when pushing a prop.
-- Road and deck colours darkened (they rendered pure white from the high camera and lost the lane colours).
+## Junkyard Bowl (2026-10-20, carter's 50 map picks; replaces Wreck City)
+- New map `THEME = "bowl"` in BattleArena. Spec + pick table: `docs/BOWL_MAP_SPEC.md`. Files: `shared/BowlLayout`, `shared/BowlView`, `server/BowlMap`, `server/BowlProps` (+ tests `bowlmap`, `bowlview`, `bowlbuild`, `bowlfight`, `wallbounce`). The Wreck City files and `docs/CHASE_MAP_SPEC.md` are deleted.
+- BattleService: `arena.tick` each fight frame (crusher slam and red barrel hits carry their own damage, knock and stagger), stuck rescue (gas held, within 9 studs for 3 s -> nearest of 12 open spots), `arena.resetBreakables()` and `arena.closeDoors()` at round ends, `arena.openDoors()` at GO (starts the crusher clock). Round arena: `arena.radius`, `arena.brain`; the sim tally also counts rescues, outs, slams, booms.
+- BattleDrive.wallBounce: looks past parts tagged `BowlSlope`; bounce numbers in `BattleConfig.Human` (`bounceKeep`, `bounceStagger`, `bounceHop`).
+- Seen in Studio (2026-10-20, report `car-vs-car/map/bowl/studio-report.md` in project files): builds with no script errors, bots fight in it (every series ends, nobody leaves the bowl), crusher warning, slam and ring look right, colours not blown out. The first pictures showed the visible solid wall hiding the tires (a plain dark wall), so the wall boxes are invisible now and the tire stacks (63, overlapping, on a dirt berm) are what shows: look at that first.
+- Studio test hook `shared/DevDrive` (read by `BattleUi`, Studio only): set Workspace attribute `DevDrive` to "steer,gas" (for example "0,1" straight ahead at full gas, "0.3,1" a gentle right curve, "-1,1" a hard left) and YOUR car in a fight drives itself on the real client path; "" gives the keys back. Use it with the DEV: PLAY BOT fight to test the slope, the wall bounce, the camera, sparks and skid marks without a keyboard.
+- Untested (needs a DRIVEN car): cars climb the slope and bounce off the tires (not stuck), the camera inside the bowl, the chase camera on the pad, the flyover, sparks, skid marks, bounce size (`Human.bounce*`), crusher damage.
 
 ## Lobby polish PR 1 (smaller lobby + props), for the game plan thread
 Sync it, save, then take pictures: from the spawn looking at the pads, the PLAY pads close up (one empty, one with a player), a row of car stands, a junk pile + tire stack at the side wall, one billboard, the tool props at the Customize garage, the chain fence from outside, the sky. Look for: nothing floating or inside a wall, no flat black panels, trees round, no script errors in the output. Spec: docs/LOBBY_POLISH.md (it wins over docs/LOBBY_SPEC.md).

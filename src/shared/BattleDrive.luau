@@ -63,20 +63,34 @@ function BattleDrive.wallBounce(car: Mover, v: Vector3, dt: number): boolean
 	if speed < 0.3 * BattleDrive.topSpeed(car) then
 		return false
 	end
-	local params = paramsFor(car.model)
+	local H = BattleConfig.Human
 	-- a box the size of the car (a little thinner, and clear of the floor) sweeps ahead, so a
 	-- corner, a block's edge or a tire the middle line would miss still throws the car back
 	local sweep = math.max(speed * dt * 3, 3) + 1
 	local size = Vector3.new(body.Size.X * 0.9, math.max(body.Size.Y * 0.5, 1), body.Size.Z * 0.9)
-	local hit = workspace:Blockcast(
-		CFrame.new(body.Position) * body.CFrame.Rotation,
-		size,
-		flat.Unit * sweep,
-		params
-	)
-	if hit == nil then
-		-- already touching: the sweep starts inside the wall, so fall back to a ray from the middle
-		hit = workspace:Raycast(body.Position, flat.Unit * (body.Size.Z / 2 + sweep), params)
+	local origin = CFrame.new(body.Position) * body.CFrame.Rotation
+	local function cast(params: RaycastParams): RaycastResult?
+		local found = workspace:Blockcast(origin, size, flat.Unit * sweep, params)
+		if found == nil then
+			-- already touching: the sweep starts inside the wall, so fall back to a ray from the middle
+			found = workspace:Raycast(body.Position, flat.Unit * (body.Size.Z / 2 + sweep), params)
+		end
+		return found
+	end
+	local hit = cast(paramsFor(car.model))
+	-- the sloped edge of the bowl is floor to drive up, not a wall: look past it to the wall on top
+	if hit and CollectionService:HasTag(hit.Instance, "BowlSlope") then
+		local skip: { Instance } = { car.model }
+		for _ = 1, 3 do
+			if hit == nil or not CollectionService:HasTag(hit.Instance, "BowlSlope") then
+				break
+			end
+			table.insert(skip, hit.Instance)
+			local past = RaycastParams.new()
+			past.FilterType = Enum.RaycastFilterType.Exclude
+			past.FilterDescendantsInstances = skip
+			hit = cast(past)
+		end
 	end
 	if hit == nil or not CollectionService:HasTag(hit.Instance, "Bouncy") then
 		return false
@@ -87,10 +101,11 @@ function BattleDrive.wallBounce(car: Mover, v: Vector3, dt: number): boolean
 	end
 	n = n.Unit
 	local props = (hit.Instance :: BasePart).CustomPhysicalProperties
-	local keep = (if props then props.Elasticity else 0.5) * 0.85
+	local keep = (if props then props.Elasticity else 0.5) * H.bounceKeep
 	local r = (flat - 2 * flat:Dot(n) * n) * keep
-	body.AssemblyLinearVelocity = Vector3.new(r.X, v.Y, r.Z)
-	car.stagger = math.max(car.stagger, 0.6)
+	-- a small hop with the rebound (never cancels a climb the car already had)
+	body.AssemblyLinearVelocity = Vector3.new(r.X, math.max(v.Y, H.bounceHop), r.Z)
+	car.stagger = math.max(car.stagger, H.bounceStagger)
 	car.slide = Vector3.new(r.X, 0, r.Z)
 	car.cmdSpeed = nil
 	return true

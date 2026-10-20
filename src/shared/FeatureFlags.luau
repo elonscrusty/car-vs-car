@@ -17,6 +17,7 @@ FeatureFlags.Flags = {
 	iceMode = false, -- ice bowl (1v1): same
 	battleMode = true, -- 1v1 auto-battle (Ram Truck / Cannon Van / Saw Buggy): PLAY queues for it; the 4-car fight is bypassed
 	lastStandingMode = true, -- the car fight: 4 cars on a flat floor, last car alive wins
+	enemyArrow = false, -- the arrow at the screen edge that points to the enemy car (carter: off; the lock ring stays)
 } :: { [string]: boolean }
 
 -- Unknown flag names count as off.

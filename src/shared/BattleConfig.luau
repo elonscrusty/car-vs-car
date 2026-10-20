@@ -152,7 +152,7 @@ BattleConfig.Fighters = {
 		weakness = "Turns slowly and is stuck for a moment after a missed charge.",
 		hp = 150,
 		cruiseL = 2.6,
-		turnDeg = 155, -- was 105: carter said turning was too slow (top speed is unchanged)
+		turnDeg = 175, -- was 155, 105 before: carter said turning was too slow; bot-vs-bot: the Ram could not catch anyone (top speed is unchanged)
 		rarity = "Common",
 		gumball = false,
 		enabled = true,
@@ -169,7 +169,7 @@ BattleConfig.Fighters = {
 		weaponName = "Roof Cannon",
 		blurb = "Fires powerful shells from a distance.",
 		weakness = "Fragile up close and slow to turn.",
-		hp = 150, -- was 110: it lost every fight to Ram and Saw in the Studio playtest
+		hp = 135, -- was 150 (110 before that): on the bowl map the Van beat the Ram 10-2 in bot-vs-bot
 		cruiseL = 2.7,
 		turnDeg = 150,
 		rarity = "Rare",
@@ -188,9 +188,9 @@ BattleConfig.Fighters = {
 		weaponName = "Spinning Saw",
 		blurb = "Zooms in and grinds with its front saw.",
 		weakness = "Must stay close and is open to hits while it approaches.",
-		hp = 105,
+		hp = 105, -- (110 and 125 were tried): on the bowl map the Buggy still beat everything in bot-vs-bot, so its turn rate came down instead
 		cruiseL = 3.4,
-		turnDeg = 230,
+		turnDeg = 185, -- was 230: too quick to catch or hit
 		rarity = "Epic",
 		gumball = true,
 		enabled = true,
@@ -203,8 +203,8 @@ BattleConfig.Fighters = {
 } :: { [string]: Fighter }
 
 BattleConfig.Ram = {
-	damage = 30, -- at full charge speed
-	damageMin = 15, -- a slow bump deals this; it scales up with the speed of the charge
+	damage = 34, -- at full charge speed (was 30: bot-vs-bot, Ram lost to Van 9-20 and to Buggy 5-21)
+	damageMin = 17, -- a slow bump deals this; it scales up with the speed of the charge
 	startRangeL = 3.2, -- may start a charge this close
 	startAngleDeg = 15, -- ... when facing the foe within this angle
 	telegraphSeconds = 0.6,
@@ -227,7 +227,7 @@ BattleConfig.Ram = {
 }
 
 BattleConfig.Cannon = {
-	damage = 26, -- was 22 (more punch for a car that must also run). 36 was tried: Van then won about 85% against Ram in bot-vs-bot
+	damage = 24, -- was 26 (bot-vs-bot: Van beat Ram 20-9 and Buggy 27-0); 36 was tried and won 85% against Ram
 	minRangeL = 2.3, -- closer than this the van runs away from the foe (was 3: it ran more than it shot)
 	maxRangeL = 5.5,
 	knockSpeed = 22, -- studs per second a shell shoves the car it hits
@@ -238,7 +238,7 @@ BattleConfig.Cannon = {
 	shellSpeedL = 4.5, -- L per second (carter: easy to follow with the eyes)
 	shellLifeSeconds = 2.2,
 	shellRadiusL = 0.12,
-	homingDegPerSec = 80, -- auto-aim: a shell curves toward the foe this fast ...
+	homingDegPerSec = 70, -- auto-aim: a shell curves toward the foe this fast ...
 	homingConeDeg = 45, -- ... when the foe is within this angle of its heading
 	ricochets = 1, -- a shell bounces off a wall this many times
 	repositionDrive = 0.8, -- when closing in
@@ -259,7 +259,7 @@ BattleConfig.Special = {
 	-- Cannon Van: three shells at once, fanned out
 	tripleSpreadDeg = 16,
 	-- Saw Buggy: a big saw blade that flies at the foe and curves hard toward it
-	sawThrowDamage = 38,
+	sawThrowDamage = 30,
 	sawThrowScale = 2.2,
 	sawThrowHomingDeg = 160,
 }
@@ -268,10 +268,10 @@ BattleConfig.Saw = {
 	buildSeconds = 3, -- steady contact this long reaches the full multiplier
 	heatSeconds = 3, -- bounce fight: after this much steady contact the saw overheats ...
 	stallSeconds = 2.5, -- ... and does no damage for this long
-	maxMult = 1.5, -- damage per tick at full build-up (resets when contact is lost)
+	maxMult = 1.25, -- damage per tick at full build-up (resets when contact is lost)
 	loseContactSeconds = 0.35, -- contact must be gone this long to reset the build-up
 	damage = 4, -- was 7, then 5: the saw beat everything in the Studio playtest
-	tickSeconds = 0.5, -- least time between damage ticks on the same target
+	tickSeconds = 0.6, -- least time between damage ticks on the same target (was 0.5: the Buggy won ~100% in bot-vs-bot)
 	frontConeDeg = 70,
 	approachDrive = 1,
 	eventSeconds = 2, -- "Saw contact" message at most this often
@@ -309,6 +309,11 @@ BattleConfig.Human = {
 	chargeSteerScale = 1, -- how much of the turn rate a ram charge keeps (it only steers by auto-aim)
 	airYawScale = 0.35, -- a little steering in the air
 	groundRayL = 0.12, -- grounded when something is this far (in car lengths) below the BOTTOM of the body
+	-- cartoon wall bounce (carter, Junkyard Bowl M18: a BIGGER bounce): the share of its speed a car
+	-- keeps going back (was 0.85), how long it cannot steer (was 0.6 s) and a small hop (studs/s up)
+	bounceKeep = 1,
+	bounceStagger = 0.75,
+	bounceHop = 14,
 }
 
 -- Crashes between the two cars (a plain crash, no weapon): damage grows with the speed the OTHER car
