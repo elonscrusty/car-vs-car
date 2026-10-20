@@ -117,9 +117,10 @@ end
 function LobbyCarModels.paint(model: Model, color: Color3)
 	for _, d in model:GetDescendants() do
 		local name: string = d.Name
-		if d:IsA("MeshPart") and d.TextureID == "" and name ~= "Wheel" then
-			d.Color = color
-		elseif d:IsA("Part") and name == "Body" then
+		if
+			(d:IsA("MeshPart") and d.TextureID == "" and name ~= "Wheel")
+			or (d:IsA("Part") and name == "Body")
+		then
 			d.Color = color
 		end
 	end
