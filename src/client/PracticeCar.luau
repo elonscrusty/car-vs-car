@@ -7,6 +7,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
+local CarWheels = require(ReplicatedStorage.Shared.CarWheels)
 
 local PracticeCar = {}
 
@@ -125,6 +126,9 @@ function PracticeCar.spawn(parent: Instance, spawnCf: CFrame): (Car?, string?)
 	end
 	-- the same weight, grip and bounce as in a fight
 	body.CustomPhysicalProperties = PhysicalProperties.new(fighter.density, 0.2, 0.55, 1, 1)
+
+	-- the shared wheels (still, they do not spin here); the box below then reaches down to them
+	CarWheels.attach(body, fighter.model)
 
 	-- stand on the floor: the floor middle of the body goes on the spawn point
 	local bbCf, bbSize = model:GetBoundingBox()
