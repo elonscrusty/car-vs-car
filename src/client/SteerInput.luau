@@ -22,6 +22,16 @@ export type SteerInput = {
 	-- (steer, gas, aim): aim = true when the thumb stick is in use (it points where to GO on screen);
 	-- false for keys (A/D steer, W/S gas and brake, relative to the car).
 	readMode: () -> (number, number, boolean),
+	-- fight mode only: the big GAS button and the ATTACK button / key (held)
+	setGas: (on: boolean) -> (),
+	setAttack: (on: boolean) -> (),
+}
+
+export type Options = {
+	-- fight mode: the stick only steers left / right like a wheel (pull down = reverse), gas comes
+	-- from the GAS button or W, and `sendFull` also carries whether ATTACK is held.
+	wheel: boolean?,
+	sendFull: ((steer: number, gas: number, attack: boolean) -> ())?,
 }
 
 local SteerInput = {}
@@ -41,13 +51,23 @@ local function stickValue(offset: number, radius: number): number
 	return (v - math.sign(v) * DEADZONE) / (1 - DEADZONE)
 end
 
-function SteerInput.new(send: (steer: number, gas: number) -> ()): SteerInput
+function SteerInput.new(send: (steer: number, gas: number) -> (), opts: Options?): SteerInput
 	local gui: ScreenGui? = nil
 	local running = false
 	local generation = 0
 	local stickSteer, stickGas = 0, 0 -- joystick values
 	local keyCount: { [string]: number } = { left = 0, right = 0, up = 0, down = 0 } -- keys down per direction
 	local sentSteer, sentGas = 0, 0
+	local wheel = opts ~= nil and opts.wheel == true
+	local gasHeld, attackHeld, sentAttack = false, false, false
+	local function emit(s: number, g: number)
+		local full = if opts then opts.sendFull else nil
+		if full then
+			full(s, g, attackHeld)
+		else
+			send(s, g)
+		end
+	end
 	local base: Frame? = nil
 	local knob: Frame? = nil
 	local activeInput: InputObject? = nil
@@ -101,6 +121,13 @@ function SteerInput.new(send: (steer: number, gas: number) -> ()): SteerInput
 
 	local function gasValue(): number
 		local keys = (if keyCount.up > 0 then 1 else 0) - (if keyCount.down > 0 then 1 else 0)
+		if wheel then
+			-- the GAS button or W drives; pulling the stick (or S) down reverses
+			if gasHeld or keys > 0 then
+				return 1
+			end
+			return math.clamp(stickGas + keys, -1, 0)
+		end
 		return math.clamp(stickGas + keys, -1, 1)
 	end
 
@@ -110,12 +137,12 @@ function SteerInput.new(send: (steer: number, gas: number) -> ()): SteerInput
 	local lastSendAt = 0
 	local function update()
 		local s, g = steerValue(), gasValue()
-		if s ~= sentSteer or g ~= sentGas then
+		if s ~= sentSteer or g ~= sentGas or attackHeld ~= sentAttack then
 			local now = os.clock()
-			if now - lastSendAt >= MIN_GAP or (s == 0 and g == 0) then
+			if now - lastSendAt >= MIN_GAP or (s == 0 and g == 0) or attackHeld ~= sentAttack then
 				lastSendAt = now
-				sentSteer, sentGas = s, g
-				send(s, g)
+				sentSteer, sentGas, sentAttack = s, g, attackHeld
+				emit(s, g)
 			end
 		end
 	end
@@ -143,6 +170,9 @@ function SteerInput.new(send: (steer: number, gas: number) -> ()): SteerInput
 		local dx, dy = position.X - centre.X, position.Y - centre.Y
 		stickSteer = stickValue(dx, radius * 0.85)
 		stickGas = -stickValue(dy, radius * 0.85)
+		if wheel then
+			stickGas = math.min(0, stickGas) -- only pulling down counts: reverse
+		end
 		moveKnob(dx, dy, radius * 0.85)
 		update()
 	end
@@ -178,6 +208,9 @@ function SteerInput.new(send: (steer: number, gas: number) -> ()): SteerInput
 		for _, a in
 			{ { "▲", 0.5, 0.1 }, { "▼", 0.5, 0.9 }, { "◀", 0.1, 0.5 }, { "▶", 0.9, 0.5 } }
 		do
+			if wheel and a[1] == "▲" then
+				continue -- a wheel has no "up": the GAS button drives
+			end
 			local arrow = Instance.new("TextLabel")
 			arrow.Name = "Arrow"
 			arrow.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -290,7 +323,8 @@ function SteerInput.new(send: (steer: number, gas: number) -> ()): SteerInput
 			keyCount[dir] = 0
 		end
 		table.clear(keysDown)
-		sentSteer, sentGas = 0, 0
+		sentSteer, sentGas, sentAttack = 0, 0, false
+		gasHeld, attackHeld = false, false
 		local newGui = Instance.new("ScreenGui")
 		newGui.Name = "SteerGui"
 		newGui.ResetOnSpawn = false
@@ -306,13 +340,13 @@ function SteerInput.new(send: (steer: number, gas: number) -> ()): SteerInput
 				local s, g = steerValue(), gasValue()
 				local now = os.clock()
 				if running and generation == mine then
-					local changed = s ~= sentSteer or g ~= sentGas
-					local stale = (s ~= 0 or g ~= 0)
+					local changed = s ~= sentSteer or g ~= sentGas or attackHeld ~= sentAttack
+					local stale = (s ~= 0 or g ~= 0 or attackHeld)
 						and now - lastSendAt >= GameConfig.Steer.resendSeconds
 					if changed or stale then
 						lastSendAt = now
-						sentSteer, sentGas = s, g
-						send(s, g)
+						sentSteer, sentGas, sentAttack = s, g, attackHeld
+						emit(s, g)
 					end
 				end
 			end
@@ -344,8 +378,23 @@ function SteerInput.new(send: (steer: number, gas: number) -> ()): SteerInput
 			gui:Destroy()
 			gui = nil
 		end
-		sentSteer, sentGas = 0, 0
-		send(0, 0)
+		sentSteer, sentGas, sentAttack = 0, 0, false
+		gasHeld, attackHeld = false, false
+		emit(0, 0)
+	end
+
+	self.setGas = function(on: boolean)
+		gasHeld = on
+		if running then
+			update()
+		end
+	end
+
+	self.setAttack = function(on: boolean)
+		attackHeld = on
+		if running then
+			update()
+		end
 	end
 
 	return self

@@ -35,6 +35,7 @@ export type Car = {
 	momentum: boolean, -- the momentum prototype: launch, skid, rebound, weak steering
 	stats: BattleRecap.Stats, -- what this car's weapon did this round (for the recap)
 	stagger: number, -- > 0 while knocked: the car slides and cannot steer
+	prevVel: Vector3, -- velocity at the end of the last step (before any crash changed it)
 }
 
 local BattleCar = {}
@@ -187,7 +188,8 @@ function BattleCar.spawn(
 			(body :: MeshPart).CollisionFidelity = Enum.CollisionFidelity.Box
 		end)
 	end
-	body.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0.1, 0.2, 1, 1)
+	-- a heavy car shoves a light one in a crash; walls bounce a car without hurting it
+	body.CustomPhysicalProperties = PhysicalProperties.new(fighter.density, 0.2, 0.55, 1, 1)
 
 	-- stand on the floor, nose toward `facing`; the floor-middle of the body goes on the spawn point
 	local bbCf, bbSize = model:GetBoundingBox()
@@ -217,6 +219,7 @@ function BattleCar.spawn(
 		standIn = standIn,
 		lastOut = nil,
 		stagger = 0,
+		prevVel = Vector3.zero,
 		human = false,
 		momentum = false,
 		lungeT = 0,
@@ -362,7 +365,7 @@ function BattleCar.drive(car: Car, out: BattleBrain.Output, dt: number)
 	if out.state == "charge" then
 		turnScale = 0
 	end
-	local yaw = out.turn * math.rad(car.fighter.turnDeg) * turnScale
+	local yaw = out.turn * math.rad(car.fighter.turnDeg) * turnScale * BattleConfig.Bot.turnMult
 	body.AssemblyAngularVelocity = Vector3.new(0, yaw, 0)
 end
 
@@ -384,8 +387,6 @@ function BattleCar.driveHuman(car: Car, out: BattleBrain.Output, dt: number, f: 
 		params
 	) ~= nil
 	car.model:SetAttribute("Airborne", not onGround)
-	local boosting = out.boost == 1 and onGround
-	car.model:SetAttribute("Boosting", boosting)
 	if not onGround then
 		-- in the air: keep the speed and spin the ramp gave it, steer a little
 		local w = body.AssemblyAngularVelocity
@@ -401,10 +402,7 @@ function BattleCar.driveHuman(car: Car, out: BattleBrain.Output, dt: number, f: 
 	end
 	local speeding = math.abs(want) > math.abs(fwd)
 	local rate = if speeding then mv.accel * H.accelMult else mv.brake * H.brakeMult
-	if boosting then
-		rate = mv.accel * H.boostAccel
-	end
-	if out.state == "charge" or out.state == "rev" then
+	if out.state == "charge" then
 		rate = mv.accel * 4 -- a charge gets up to speed fast
 	end
 	local step = rate * cruise * dt
@@ -431,6 +429,24 @@ function BattleCar.driveHuman(car: Car, out: BattleBrain.Output, dt: number, f: 
 		turnScale = H.driftYawBoost
 	end
 	body.AssemblyAngularVelocity = Vector3.new(0, yawRate * turnScale, 0)
+end
+
+-- Are the two cars' bodies touching (or almost) right now?
+function BattleCar.bodiesTouch(a: Car, b: Car): boolean
+	local pad = BattleConfig.Crash.touchPadL * a.L
+	local params = OverlapParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = { b.body }
+	return #workspace:GetPartBoundsInBox(
+		a.body.CFrame,
+		a.body.Size + Vector3.one * (2 * pad),
+		params
+	) > 0
+end
+
+-- Remember this step's velocity (the next step reads it as the speed from BEFORE a crash).
+function BattleCar.rememberVelocity(car: Car)
+	car.prevVel = car.body.AssemblyLinearVelocity
 end
 
 -- Momentum prototype: a car that has slowed down is thrown forward again along its heading

@@ -12,6 +12,7 @@ local RunService = game:GetService("RunService")
 
 local BattleBrain = require(ReplicatedStorage.Shared.BattleBrain)
 local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
+local BattleCrash = require(ReplicatedStorage.Shared.BattleCrash)
 local BattleHuman = require(ReplicatedStorage.Shared.BattleHuman)
 local BattleQueue = require(ReplicatedStorage.Shared.BattleQueue)
 local BattleRecap = require(ReplicatedStorage.Shared.BattleRecap)
@@ -47,8 +48,7 @@ type Part = {
 	steer: number, -- driving: stick / keys, -1 left .. 1 right
 	gas: number, -- -1 back .. 1 forward
 	inputAt: number, -- when the last drive input arrived (old input counts as 0)
-	attack: boolean, -- ATTACK was pressed since the last step
-	boost: boolean, -- BOOST was pressed since the last step
+	attack: boolean, -- ATTACK is held down right now (sent with the drive input)
 }
 type Shell = {
 	owner: BattleCar.Car,
@@ -77,6 +77,8 @@ type Match = {
 	koOutcome: string?, -- the round result waiting for the knock-out finish to play
 	final: boolean, -- the announced final phase has begun
 	momentum: boolean, -- the momentum prototype fight (else the steering fight)
+	crashCd: number, -- seconds until the next plain crash can hurt
+	touching: boolean, -- the cars' bodies were touching at the last step
 }
 
 local BattleService = {}
@@ -87,7 +89,7 @@ export type Handle = {
 	action: (player: Player, name: string, arg: any) -> (),
 	playerRemoving: (player: Player) -> (),
 	isBusy: (player: Player) -> boolean,
-	steer: (player: Player, steer: any, gas: any) -> (),
+	steer: (player: Player, steer: any, gas: any, attack: any) -> (),
 }
 
 local T = BattleConfig.Timing
@@ -305,6 +307,8 @@ function BattleService.start(opts: {
 	end
 
 	local function startPrep(m: Match): boolean
+		clearShells(m)
+		clearCars(m)
 		-- lock in everyone's car for this round
 		for _, side in sides() do
 			local part = (m.parts :: any)[side] :: Part
@@ -370,7 +374,7 @@ function BattleService.start(opts: {
 			if part.player ~= nil then
 				-- a player drives this car: stick / keys and the ATTACK button
 				car.human = true
-				part.steer, part.gas, part.attack, part.boost = 0, 0, false, false
+				part.steer, part.gas, part.attack = 0, 0, false
 				BattleCar.arm(car, BattleHuman.new(car.fighter.id))
 				BattleCar.launch(car, false)
 			else
@@ -381,6 +385,7 @@ function BattleService.start(opts: {
 		end
 		m.phase, m.t, m.hudT = "fight", 0, 0
 		m.final = false
+		m.crashCd, m.touching = 0, false
 		for _, side in sides() do
 			send((m.parts :: any)[side], { kind = "fight", seconds = T.fightSeconds })
 		end
@@ -395,7 +400,6 @@ function BattleService.start(opts: {
 				max = c.maxHp,
 				ready = if c.lastOut then c.lastOut.ready else 1,
 				state = if c.lastOut then c.lastOut.state else "approach",
-				boost = if c.lastOut and c.lastOut.boostReady then c.lastOut.boostReady else 1,
 			}
 		end
 		return {
@@ -523,16 +527,7 @@ function BattleService.start(opts: {
 		local toFoe = foe.body.Position - pos
 		local run = math.max(toFoe.Magnitude, 1)
 		local rise = math.clamp(toFoe.Y / run, -0.5, 0.5)
-		if car.human then
-			-- a player's shot that nearly points at the foe is nudged flat onto it
-			local flatTo = Vector3.new(toFoe.X, 0, toFoe.Z)
-			if flatTo.Magnitude > 1e-3 then
-				local cosA = flat:Dot(flatTo.Unit)
-				if cosA >= math.cos(math.rad(BattleConfig.Human.assistDeg)) then
-					flat = flatTo.Unit
-				end
-			end
-		end
+		-- carter: a straight shot, no auto aim (the shot flies where the nose points)
 		local dir = Vector3.new(flat.X, rise, flat.Z).Unit
 		local ball = Instance.new("Part")
 		ball.Name = "Shell"
@@ -689,10 +684,8 @@ function BattleService.start(opts: {
 					hb.setInput(
 						if fresh then part.steer else 0,
 						if fresh then part.gas else 0,
-						part.attack,
-						part.boost
+						fresh and part.attack
 					)
-					part.attack, part.boost = false, false
 				end
 				local cruise = car.fighter.cruiseL * car.L
 				local fwdSpeed = car.body.AssemblyLinearVelocity:Dot(Vector3.new(cf.X, 0, cf.Z))
@@ -710,6 +703,7 @@ function BattleService.start(opts: {
 				car.lastOut = out
 				BattleCar.drive(car, out, dt)
 				BattleCar.lunge(car, dt)
+				BattleCar.rememberVelocity(car)
 				if out.fire then
 					fireShell(m, car, foe)
 					sendEvent(m, car.side, "Fire!")
@@ -742,6 +736,38 @@ function BattleService.start(opts: {
 					sendEvent(m, car.side, out.event)
 				end
 			end
+		end
+		-- plain crashes: the car that gets hit takes damage by how fast the OTHER car drove into it
+		-- (a charge, a saw or a shell has its own damage). Walls only bounce.
+		if a.brain and b.brain then
+			m.crashCd = math.max(0, m.crashCd - dt)
+			local touching = BattleCar.bodiesTouch(a, b)
+			if touching and not m.touching and m.crashCd <= 0 then
+				local function striking(c: BattleCar.Car): boolean
+					local st = if c.lastOut then c.lastOut.state else "drive"
+					return st == "charge" or st == "recoil"
+				end
+				if not striking(a) and not striking(b) then
+					local ab = b.body.Position - a.body.Position
+					local sA = BattleCrash.speedToward(a.prevVel.X, a.prevVel.Z, ab.X, ab.Z)
+					local sB = BattleCrash.speedToward(b.prevVel.X, b.prevVel.Z, -ab.X, -ab.Z)
+					local hitB = BattleCrash.damage(b.maxHp, sA, a.fighter.cruiseL * a.L)
+					local hitA = BattleCrash.damage(a.maxHp, sB, b.fighter.cruiseL * b.L)
+					if hitA > 0 or hitB > 0 then
+						m.crashCd = BattleConfig.Crash.cooldownSeconds
+						dmg.a += hitA
+						dmg.b += hitB
+						local mid = (a.body.Position + b.body.Position) / 2
+						if hitA > 0 then
+							sendHit(m, mid, hitA >= a.maxHp * 0.15, hitA, "a")
+						end
+						if hitB > 0 then
+							sendHit(m, mid, hitB >= b.maxHp * 0.15, hitB, "b")
+						end
+					end
+				end
+			end
+			m.touching = touching
 		end
 		stepShells(m, dt, dmg)
 		-- all damage of this update lands together, so a double knock-out is a draw
@@ -832,8 +858,9 @@ function BattleService.start(opts: {
 			if m.t >= T.resultSeconds then
 				if m.series.over then
 					settle(m)
-				else
-					startSelect(m)
+				elseif not startPrep(m) then
+					-- same cars, straight to the next 3-2-1 (the pick screen is only before round 1)
+					closeMatch(m)
 				end
 			end
 		elseif m.phase == "matchResult" then
@@ -865,7 +892,6 @@ function BattleService.start(opts: {
 			gas = 0,
 			inputAt = 0,
 			attack = false,
-			boost = false,
 		}
 	end
 
@@ -889,7 +915,6 @@ function BattleService.start(opts: {
 			gas = 0,
 			inputAt = 0,
 			attack = false,
-			boost = false,
 		}
 	end
 
@@ -913,6 +938,8 @@ function BattleService.start(opts: {
 			koOutcome = nil,
 			final = false,
 			momentum = if momentum == nil then BattleConfig.defaultMomentum else momentum,
+			crashCd = 0,
+			touching = false,
 		}
 		matches[m] = true
 		for _, part in { a, b } do
@@ -965,7 +992,7 @@ function BattleService.start(opts: {
 
 	local handle: Handle
 	handle = {
-		steer = function(player: Player, steer: any, gas: any)
+		steer = function(player: Player, steer: any, gas: any, attack: any)
 			local m = inMatch[player]
 			if m == nil or m.phase ~= "fight" then
 				return
@@ -973,6 +1000,7 @@ function BattleService.start(opts: {
 			local part = if m.parts.a.player == player then m.parts.a else m.parts.b
 			part.steer, part.gas, part.inputAt =
 				Steer.sanitize(steer), Steer.sanitize(gas), os.clock()
+			part.attack = attack == true
 		end,
 		isBusy = function(player: Player): boolean
 			return inMatch[player] ~= nil or BattleQueue.has(queue, player.UserId)
@@ -1030,14 +1058,6 @@ function BattleService.start(opts: {
 						part.pick = arg
 						send(part, { kind = "selected", id = arg, locked = false })
 					end
-				end
-			elseif name == "attack" then
-				if m.phase == "fight" then
-					part.attack = true
-				end
-			elseif name == "boost" then
-				if m.phase == "fight" then
-					part.boost = true
 				end
 			elseif name == "lock" then
 				if m.phase == "select" and not part.locked then

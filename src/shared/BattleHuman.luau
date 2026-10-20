@@ -6,7 +6,8 @@
 -- stick or keys, and the weapon fires when the player presses ATTACK.
 --   Ram Truck:  ATTACK = a straight charge (no steering while it lasts). Faster hits harder.
 --   Cannon Van: ATTACK = fire a shell along the nose (the server nudges it onto a foe it nearly faces).
---   Saw Buggy:  the saw grinds by itself while its front touches the foe; ATTACK = a short rev dash.
+--   Saw Buggy:  HOLD ATTACK to grind while its front touches the foe (up to a few seconds), then it waits.
+-- Every weapon has the same long wait (6 s); the HUD button fills up like a clock during it.
 
 local function sibling(name: string): any
 	if script then
@@ -30,15 +31,13 @@ export type Output = {
 	hold: boolean,
 	state: string,
 	ready: number,
-	boost: number?,
-	boostReady: number?,
 }
 export type Human = {
 	fighterId: string,
 	step: (dt: number, me: Body, foe: Body, contact: Contact) -> Output,
 	shellResolved: (hit: boolean) -> string?,
 	resetStuck: () -> (),
-	setInput: (steer: number, gas: number, attack: boolean, boost: boolean?) -> (),
+	setInput: (steer: number, gas: number, attackHeld: boolean) -> (),
 	human: boolean,
 }
 
@@ -57,9 +56,8 @@ function BattleHuman.new(fighterId: string): Human
 	local H = BattleConfig.Human
 
 	local steer, gas = 0, 0
-	local wantAttack = false
-	local wantBoost = false
-	local boostT, boostCooldown = 0, 0
+	local attackHeld = false -- ATTACK is down right now
+	local attackPressed = false -- ATTACK went down since the last step (kept until a step uses it)
 
 	local state = "drive"
 	local stateT = 0
@@ -68,7 +66,9 @@ function BattleHuman.new(fighterId: string): Human
 	local sawCooldown = 0
 	local sawEventCooldown = 0
 	local sawContactT, sawGapT = 0, 0
-	local revCooldown = 0
+	local grindCooldown = 0 -- the saw's wait after a grind
+	local grindT = 0
+	local grinding = false
 
 	local function cooldownTotal(): number
 		if fighterId == "RamTruck" then
@@ -76,11 +76,15 @@ function BattleHuman.new(fighterId: string): Human
 		elseif fighterId == "CannonVan" then
 			return cannon.cooldownSeconds
 		end
-		return H.sawRevCooldownSeconds
+		return H.sawCooldownSeconds
 	end
 
+	-- 1 = ready (the HUD button is full and glows); during the wait it fills up
 	local function readyFrac(): number
-		local c = if fighterId == "SawBuggy" then revCooldown else cooldown
+		if fighterId == "SawBuggy" and grinding then
+			return 1 - grindT / H.sawGrindSeconds -- the grind time left drains
+		end
+		local c = if fighterId == "SawBuggy" then grindCooldown else cooldown
 		return if c <= 0 then 1 else 1 - c / cooldownTotal()
 	end
 
@@ -99,25 +103,22 @@ function BattleHuman.new(fighterId: string): Human
 	local brain: Human = {
 		fighterId = fighterId,
 		human = true,
-		setInput = function(s: number, g: number, attack: boolean, boost: boolean?)
+		setInput = function(s: number, g: number, held: boolean)
 			steer = clamp(s, -1, 1)
 			gas = clamp(g, -1, 1)
-			if attack then
-				wantAttack = true -- stays set until a step can use it, then is used up
+			if held and not attackHeld then
+				attackPressed = true -- a new press: stays set until a step can use it
 			end
-			if boost == true then
-				wantBoost = true
-			end
+			attackHeld = held
 		end,
 		step = function(dt: number, me: Body, foe: Body, contact: Contact): Output
 			local tempo = contact.tempo or 1
 			cooldown = math.max(0, cooldown - dt * tempo)
 			sawCooldown = math.max(0, sawCooldown - dt * tempo)
-			revCooldown = math.max(0, revCooldown - dt * tempo)
 			sawEventCooldown = math.max(0, sawEventCooldown - dt)
 			stateT += dt
-			local attack = wantAttack
-			wantAttack = false
+			local attack = attackPressed
+			attackPressed = false
 			-- the stick's turn: steer +1 is RIGHT, the brain's turn +1 is LEFT
 			local turn = -steer
 			local drive = gas
@@ -179,19 +180,22 @@ function BattleHuman.new(fighterId: string): Human
 				return o
 			end
 
-			-- Saw Buggy: the rev dash, then the grinding below
-			if state == "rev" and stateT >= H.sawRevSeconds then
-				state, stateT = "drive", 0
+			-- Saw Buggy: hold ATTACK to grind (the saw only hurts while it is spinning)
+			grindCooldown = math.max(0, grindCooldown - dt * tempo)
+			if grinding then
+				grindT += dt
+				if not attackHeld or grindT >= H.sawGrindSeconds then
+					grinding = false
+					grindT = 0
+					grindCooldown = H.sawCooldownSeconds
+					state = "drive"
+				end
+			elseif attackHeld and grindCooldown <= 0 then
+				grinding, grindT = true, 0
+				state = "grind"
 			end
-			local o = out(turn, if state == "rev" then H.sawRevMult else drive)
-			if state ~= "rev" and attack and revCooldown <= 0 then
-				state, stateT = "rev", 0
-				revCooldown = H.sawRevCooldownSeconds
-				o.state = state
-				o.event = "Rev!"
-				o.drive = H.sawRevMult
-			end
-			local touching = contact.saw and math.abs(angle) <= saw.frontConeDeg * DEG
+			local o = out(turn, drive)
+			local touching = grinding and contact.saw and math.abs(angle) <= saw.frontConeDeg * DEG
 			if touching then
 				sawContactT += dt
 				sawGapT = 0
@@ -218,26 +222,6 @@ function BattleHuman.new(fighterId: string): Human
 		end,
 		resetStuck = function() end,
 	}
-	-- BOOST: a burst of speed straight ahead (steering still works), then a cooldown. It only runs
-	-- while the car is just driving (not mid-charge or rev).
-	local weaponStep = brain.step
-	brain.step = function(dt: number, me: Body, foe: Body, contact: Contact): Output
-		boostCooldown = math.max(0, boostCooldown - dt)
-		boostT = math.max(0, boostT - dt)
-		local want = wantBoost
-		wantBoost = false
-		local o = weaponStep(dt, me, foe, contact)
-		if want and boostCooldown <= 0 and o.state == "drive" then
-			boostT = H.boostSeconds
-			boostCooldown = H.boostCooldownSeconds
-		end
-		if boostT > 0 and o.state == "drive" then
-			o.drive = H.boostMult
-			o.boost = 1
-		end
-		o.boostReady = if boostCooldown <= 0 then 1 else 1 - boostCooldown / H.boostCooldownSeconds
-		return o
-	end
 	return brain
 end
 

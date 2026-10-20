@@ -2,6 +2,7 @@
 local H = require("./harness")
 local BattleBrain = require("../src/shared/BattleBrain")
 local BattleConfig = require("../src/shared/BattleConfig")
+local BattleCrash = require("../src/shared/BattleCrash")
 local BattleQueue = require("../src/shared/BattleQueue")
 local BattleSelect = require("../src/shared/BattleSelect")
 local BattleSeries = require("../src/shared/BattleSeries")
@@ -346,7 +347,7 @@ H.test("the cannon cannot kite forever: fights vs ram/saw resolve by the clock a
 	for _, foe in { "RamTruck", "SawBuggy" } do
 		for i = 1, 6 do
 			local r = Sim.fight("CannonVan", foe, i % 2 == 0, 77 + i)
-			H.truthy(r.seconds <= 45.1)
+			H.truthy(r.seconds <= BattleConfig.Timing.fightSeconds + 0.1)
 		end
 	end
 end)
@@ -673,12 +674,14 @@ H.test("human ram: attack starts a straight charge, a hit deals damage, then it 
 	H.eq(hit.event, "Ram hit")
 	H.eq(hit.state, "recoil")
 	-- cooling down: another press does nothing
+	b.setInput(0, 1, false)
 	for _ = 1, 20 do
 		b.step(0.05, me, foe, { ram = false, saw = false })
 	end
 	b.setInput(0, 1, true)
 	local again = b.step(0.05, me, foe, { ram = false, saw = false })
 	H.truthy(again.state ~= "charge")
+	H.truthy(again.ready < 1, "the button is still filling up")
 end)
 
 H.test("human ram: a missed charge ends in a skid and the cooldown", function()
@@ -696,43 +699,69 @@ H.test("human ram: a missed charge ends in a skid and the cooldown", function()
 	H.truthy(missed, "the charge timed out as a miss")
 end)
 
-H.test("human cannon: attack fires once, then waits for the cooldown", function()
+H.test("human cannon: each new press fires once, then the 6 s wait", function()
 	local b = BattleHuman.new("CannonVan")
 	local me, foe = bodies(100)
+	H.eq(BattleConfig.Cannon.cooldownSeconds, 6)
 	local fired = 0
-	b.setInput(0, 0, true)
-	for i = 1, 60 do
-		if i % 10 == 1 then
-			b.setInput(0, 0, true) -- presses again and again
-		end
+	-- 8 s of pressing again and again (a press every half second)
+	for i = 1, 160 do
+		b.setInput(0, 0, (i // 10) % 2 == 0)
 		local o = b.step(0.05, me, foe, { ram = false, saw = false })
 		if o.fire then
 			fired += 1
 		end
 	end
-	-- 3 s: the first shot, then the 1.8 s cooldown allows one more
+	-- the first shot at once, the next one only after 6 s
 	H.eq(fired, 2)
+	-- a held button fires once, not over and over
+	local c = BattleHuman.new("CannonVan")
+	local shots = 0
+	for _ = 1, 40 do
+		c.setInput(0, 0, true)
+		if c.step(0.05, me, foe, { ram = false, saw = false }).fire then
+			shots += 1
+		end
+	end
+	H.eq(shots, 1)
 end)
 
-H.test("human saw: grinds while the front touches, rev dash on attack", function()
+H.test("human saw: hold ATTACK to grind, then a 6 s wait", function()
 	local b = BattleHuman.new("SawBuggy")
 	local me, foe = bodies(14)
-	local dmg = 0
-	for _ = 1, 20 do
-		local o = b.step(0.05, me, foe, { ram = false, saw = true })
-		dmg += o.damage
-	end
-	H.truthy(dmg >= BattleConfig.Saw.damage, "damage while touching")
-	local away = { x = 0, z = 100, fx = 0, fz = -1 }
+	-- touching but not holding: no grinding
 	local idle = 0
 	for _ = 1, 20 do
-		idle += b.step(0.05, me, away, { ram = false, saw = true }).damage
+		b.setInput(0, 0, false)
+		idle += b.step(0.05, me, foe, { ram = false, saw = true }).damage
 	end
-	H.eq(idle, 0) -- the foe is not in front: no grinding
-	b.setInput(0, 0, true)
-	local rev = b.step(0.05, me, foe, { ram = false, saw = false })
-	H.eq(rev.state, "rev")
-	H.eq(rev.drive, BattleConfig.Human.sawRevMult)
+	H.eq(idle, 0)
+	-- holding: damage while touching
+	local dmg = 0
+	for _ = 1, 20 do
+		b.setInput(0, 0, true)
+		dmg += b.step(0.05, me, foe, { ram = false, saw = true }).damage
+	end
+	H.truthy(dmg >= BattleConfig.Saw.damage, "damage while holding and touching")
+	-- the foe is not in front: no grinding even when held
+	local away = { x = 0, z = 100, fx = 0, fz = -1 }
+	local c = BattleHuman.new("SawBuggy")
+	local none = 0
+	for _ = 1, 20 do
+		c.setInput(0, 0, true)
+		none += c.step(0.05, me, away, { ram = false, saw = true }).damage
+	end
+	H.eq(none, 0)
+	-- the grind lasts at most sawGrindSeconds even if held, then the wait
+	local d = BattleHuman.new("SawBuggy")
+	local grindSteps = 0
+	for _ = 1, 150 do -- 7.5 s held: one grind, then the wait
+		d.setInput(0, 0, true)
+		if d.step(0.05, me, foe, { ram = false, saw = true }).state == "grind" then
+			grindSteps += 1
+		end
+	end
+	H.truthy(grindSteps * 0.05 <= BattleConfig.Human.sawGrindSeconds + 0.1, "grind time is capped")
 end)
 
 H.test("human: input values are clamped", function()
@@ -744,38 +773,27 @@ H.test("human: input values are clamped", function()
 	H.truthy(o.turn >= -1 and o.turn <= 1)
 end)
 
-H.test("human boost: a burst of speed, then a cooldown before the next one", function()
-	local b = BattleHuman.new("CannonVan")
-	local me, foe = bodies(300)
-	local H2 = BattleConfig.Human
-	b.setInput(0, 0, false, true)
-	local o = b.step(0.05, me, foe, { ram = false, saw = false })
-	H.eq(o.boost, 1)
-	H.eq(o.drive, H2.boostMult)
-	H.truthy((o.boostReady :: number) < 1, "the boost meter drops")
-	-- it burns for boostSeconds, then stops
-	local burning = 0
-	for _ = 1, 60 do
-		local x = b.step(0.05, me, foe, { ram = false, saw = false })
-		if x.boost == 1 then
-			burning += 1
-		end
+H.test(
+	"crash damage: faster car hurts more, 5 full-speed crashes kill, slow bumps do nothing",
+	function()
+		local C = BattleConfig.Crash
+		local hp = 150
+		local cruise = 43
+		H.eq(BattleCrash.damage(hp, cruise, cruise) * C.hitsToKill, hp)
+		H.truthy(
+			BattleCrash.damage(hp, cruise * 0.6, cruise) < BattleCrash.damage(hp, cruise, cruise)
+		)
+		H.eq(BattleCrash.damage(hp, cruise * 0.1, cruise), 0)
+		H.eq(BattleCrash.damage(hp, cruise * 5, cruise), BattleCrash.damage(hp, cruise, cruise)) -- capped
+		H.eq(BattleCrash.speedToward(10, 0, 1, 0), 10)
+		H.eq(BattleCrash.speedToward(-10, 0, 1, 0), 0) -- moving away: no crash
+		H.eq(BattleCrash.speedToward(0, 10, 1, 0), 0) -- sideways to the line between them
 	end
-	H.truthy(burning > 0 and burning < 60, "it ends")
-	-- pressing again during the cooldown does nothing
-	b.setInput(0, 0, false, true)
-	local again = b.step(0.05, me, foe, { ram = false, saw = false })
-	H.eq(again.boost, nil)
-end)
+)
 
-H.test("human boost: no boost in the middle of a charge", function()
-	local b = BattleHuman.new("RamTruck")
-	local me, foe = bodies(300)
-	b.setInput(0, 1, true, true)
-	local o = b.step(0.05, me, foe, { ram = false, saw = false })
-	H.eq(o.state, "charge")
-	H.eq(o.boost, nil)
-	local after = b.step(0.05, me, foe, { ram = false, saw = false })
-	H.eq(after.drive, BattleConfig.Ram.chargeMult)
-	H.eq(after.boost, nil)
+H.test("every weapon waits 6 seconds, rounds last 60", function()
+	H.eq(BattleConfig.Ram.cooldownSeconds, 6)
+	H.eq(BattleConfig.Cannon.cooldownSeconds, 6)
+	H.eq(BattleConfig.Human.sawCooldownSeconds, 6)
+	H.eq(BattleConfig.Timing.fightSeconds, 60)
 end)
