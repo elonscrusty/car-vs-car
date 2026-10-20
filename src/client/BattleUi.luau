@@ -173,7 +173,7 @@ function BattleUi.start()
 	queueF.Visible = false
 
 	-- DEV BOT: a small lobby button that starts a fight against a bot right away. The server
-	-- only turns the "DevBot" attribute on for Studio, the game owner and listed dev ids.
+	-- only turns the "DevBot" attribute on for Studio and listed dev ids.
 	local devBtn = button(
 		gui,
 		"DEV: PLAY BOT",

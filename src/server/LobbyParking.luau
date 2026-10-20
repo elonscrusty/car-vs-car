@@ -46,8 +46,8 @@ function LobbyParking.new(folder: Folder, origin: Vector3): Handle
 		)
 		anchor.Transparency = 1
 		local gui = Instance.new("BillboardGui")
-		gui.Size = UDim2.fromOffset(190, 34)
-		gui.MaxDistance = 110
+		gui.Size = UDim2.fromOffset(150, 26)
+		gui.MaxDistance = 45
 		gui.LightInfluence = 0
 		gui.Enabled = false
 		gui.Parent = anchor
@@ -55,7 +55,7 @@ function LobbyParking.new(folder: Folder, origin: Vector3): Handle
 		label.Size = UDim2.fromScale(1, 1)
 		label.BackgroundTransparency = 1
 		label.Font = Enum.Font.FredokaOne
-		label.TextSize = 22
+		label.TextSize = 17
 		label.TextColor3 = Color3.fromRGB(237, 240, 234)
 		label.TextStrokeTransparency = 0.2
 		label.TextStrokeColor3 = Color3.fromRGB(20, 26, 40)

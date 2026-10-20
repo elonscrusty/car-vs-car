@@ -344,7 +344,7 @@ BattleConfig.Test = {
 	unlockAttribute = "BattleTestUnlock", -- set on Workspace in Studio: all cars usable, labeled Test, never saved
 	standInAttribute = "BattleStandIn", -- set on Workspace in Studio: plain test boxes while the models are missing
 	devBotAttribute = "DevBot", -- set on a player the server trusts: shows the DEV BOT button, allows queueBot
-	devUserIds = {} :: { number }, -- extra Roblox user ids allowed to start a fight against a bot (the game owner always is)
+	devUserIds = {} :: { number }, -- extra Roblox user ids allowed to start a fight against a bot
 }
 
 -- Garage performance upgrades never apply in this mode (shown in the UI).

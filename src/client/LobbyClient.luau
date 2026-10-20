@@ -21,7 +21,7 @@ local LobbyClient = {}
 local ORANGE = Color3.fromRGB(245, 130, 32)
 local LIKE_REMINDER_SECONDS = 300 -- carter G46: reminder only
 local NEWBIE_LEVEL = 1 -- the arrow shows at this level or lower, until the first pad
-local ARROW_Z = 44 -- where the arrow floats: on the front path, between the spawn and the pads
+local ARROW_Z = 40 -- where the arrow floats: on the front path, between the spawn and the pads
 local FADE_IN = 0.9
 
 -- An arrow made of a shaft and a head, built from parts, pointing at -Z (toward the pads).
@@ -46,16 +46,16 @@ local function buildArrow(origin: Vector3): Model
 		p.Parent = model
 		return p
 	end
-	local shaft = piece("Shaft", Vector3.new(2.4, 1, 6), Vector3.new(0, 0, 3))
+	local shaft = piece("Shaft", Vector3.new(1.2, 0.5, 3), Vector3.new(0, 0, 1.5))
 	model.PrimaryPart = shaft
 	-- the head: a square turned 45 degrees, its corner points at -Z
-	local head = piece("Head", Vector3.new(5, 1, 5), Vector3.new(0, 0, -2.2))
+	local head = piece("Head", Vector3.new(2.5, 0.5, 2.5), Vector3.new(0, 0, -1.1))
 	head.CFrame = head.CFrame * CFrame.Angles(0, math.pi / 4, 0)
 	-- a label that says what to do
-	local anchor = piece("LabelAnchor", Vector3.new(0.2, 0.2, 0.2), Vector3.new(0, 4.5, 2))
+	local anchor = piece("LabelAnchor", Vector3.new(0.2, 0.2, 0.2), Vector3.new(0, 2.5, 1))
 	anchor.Transparency = 1
 	local gui = Instance.new("BillboardGui")
-	gui.Size = UDim2.fromOffset(240, 50)
+	gui.Size = UDim2.fromOffset(160, 32)
 	gui.LightInfluence = 0
 	gui.AlwaysOnTop = true
 	gui.Parent = anchor
@@ -63,7 +63,7 @@ local function buildArrow(origin: Vector3): Model
 	text.Size = UDim2.fromScale(1, 1)
 	text.BackgroundTransparency = 1
 	text.Font = Enum.Font.FredokaOne
-	text.TextSize = 28
+	text.TextSize = 20
 	text.Text = "STEP ON A PAD!"
 	text.TextColor3 = Color3.fromRGB(255, 255, 255)
 	text.TextStrokeTransparency = 0
@@ -127,7 +127,7 @@ function LobbyClient.start()
 	end
 	local function showArrow()
 		if arrow == nil and wantArrow() then
-			arrow = buildArrow(origin + Vector3.new(LobbyLayout.spawn.x, 7, ARROW_Z))
+			arrow = buildArrow(origin + Vector3.new(LobbyLayout.spawn.x, 5, ARROW_Z))
 			arrow.Parent = workspace
 			arrowBase = arrow:GetPivot()
 		end
