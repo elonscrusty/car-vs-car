@@ -608,7 +608,7 @@ function BattleService.start(
 		m: Match,
 		car: BattleCar.Car,
 		foe: BattleCar.Car,
-		opts: {
+		shellOpts: {
 			yawDeg: number?,
 			dmg: number?,
 			scale: number?,
@@ -616,7 +616,7 @@ function BattleService.start(
 			color: Color3?,
 		}?
 	)
-		local o = opts or {}
+		local o = shellOpts or {}
 		local muzzle = car.muzzle
 		local cfg = BattleConfig.Cannon
 		-- only the van has a muzzle; other cars' specials launch from just ahead of the nose
