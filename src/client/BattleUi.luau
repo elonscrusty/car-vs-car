@@ -161,13 +161,13 @@ function BattleUi.start()
 		end
 	)
 	local qTip =
-		label(queueF, "", UDim2.fromScale(0.9, 0.2), UDim2.fromScale(0.05, 0.4), COL_TEXT, 18)
+		label(queueF, "", UDim2.fromScale(0.9, 0.3), UDim2.fromScale(0.05, 0.33), COL_TEXT, 20)
 	qTip.TextTransparency = 0.25
 	local botBtn = button(
 		queueF,
 		"TEST BOT",
-		UDim2.fromScale(0.44, 0.2),
-		UDim2.fromScale(0.51, 0.46),
+		UDim2.fromScale(0.44, 0.26),
+		UDim2.fromScale(0.51, 0.66),
 		Color3.fromRGB(110, 110, 130),
 		function()
 			act("queueBot")
