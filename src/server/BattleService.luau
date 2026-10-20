@@ -16,6 +16,7 @@ local BattleBrain = require(ReplicatedStorage.Shared.BattleBrain)
 local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
 local BattleAim = require(ReplicatedStorage.Shared.BattleAim)
 local BattleCrash = require(ReplicatedStorage.Shared.BattleCrash)
+local ChaseMapLayout = require(ReplicatedStorage.Shared.ChaseMapLayout)
 local BattleGuard = require(ReplicatedStorage.Shared.BattleGuard)
 local BattleSpecial = require(ReplicatedStorage.Shared.BattleSpecial)
 local BattleHuman = require(ReplicatedStorage.Shared.BattleHuman)
@@ -407,6 +408,7 @@ function BattleService.start(
 			(signs :: any)[(spawnOf :: any)[side]] = if part.bot then BOT_SIGN_NAME else part.name
 		end
 		arena.setNames(signs.a, signs.b)
+		arena.resetBreakables()
 		for _, side in sides() do
 			park((m.parts :: any)[side], arena.origin)
 		end
@@ -785,6 +787,7 @@ function BattleService.start(
 		end
 	end
 
+	local stuckFor: { [BattleCar.Car]: number } = setmetatable({}, { __mode = "k" }) :: any
 	-- cheat checks on device-driven cars: where each was last step, and how many strikes it has
 	local guardPos: { [BattleCar.Car]: Vector3 } = setmetatable({}, { __mode = "k" }) :: any
 	local guardStrikes: { [BattleCar.Car]: number } = setmetatable({}, { __mode = "k" }) :: any
@@ -802,8 +805,42 @@ function BattleService.start(
 				send((m.parts :: any)[side], { kind = "phase", text = BattleConfig.Final.text })
 			end
 		end
+		-- Wreck City: props burst under the cars, the crane hurts whoever its ball touches
+		for _, hit in arena.tick(dt, { a = a.body, b = b.body }) do
+			local victim = if hit.side == "a" then a else b
+			local hz = ChaseMapLayout.hazard
+			BattleCar.knock(victim, hit.dir, hz.knockSpeed, hz.stagger)
+			local amount = victim.maxHp * hz.damageFrac
+			if hit.side == "a" then
+				dmg.a += amount
+			else
+				dmg.b += amount
+			end
+			sendHit(m, victim.body.Position, true, amount, hit.side)
+			sendEvent(m, if hit.side == "a" then "b" else "a", "Crane smash!")
+		end
 		for _, car in cars do
 			BattleCar.checkFlip(car, dt)
+			-- stuck: gas held but not moving for a while: put the car back on the nearest road
+			local drive = if car.lastOut then math.abs(car.lastOut.drive) else 0
+			if
+				drive > 0.3
+				and car.body.AssemblyLinearVelocity.Magnitude < 1.5
+				and car.stagger <= 0
+			then
+				stuckFor[car] = (stuckFor[car] or 0) + dt
+				if stuckFor[car] > 2.5 then
+					stuckFor[car] = 0
+					local pos, face = arena.rescuePoint(car.body.Position)
+					pos = Vector3.new(pos.X, arena.origin.Y + car.body.Size.Y / 2 + 0.3, pos.Z)
+					local rel = car.body.CFrame:ToObjectSpace(car.model:GetPivot())
+					car.model:PivotTo(CFrame.lookAt(pos, pos + face) * rel)
+					car.body.AssemblyLinearVelocity = Vector3.zero
+					car.body.AssemblyAngularVelocity = Vector3.zero
+				end
+			else
+				stuckFor[car] = 0
+			end
 			local lx, lz = arena.toLocal(car.body.Position)
 			-- a car that leaves the arena loses the round: all its HP is gone at once
 			if

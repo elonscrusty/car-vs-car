@@ -305,3 +305,6 @@ Replaces the warehouse lobby (archived in `archive/lobby_v1`, shipped to ServerS
 - Client: `LobbyClient` (arrow for new players, fade into/out of the fight, rare pulls in chat via LobbyUpdate `announce`, cuts FarScenery on a slow phone). QUESTS/GARAGE menu buttons stay hidden: the screen has PLAY, CARS, SHOP and GIFT.
 - Tests: `tests/robloxmock.luau` is a small fake Roblox so builders run under Lune (`lobbybuild.test`, `lobbyground.test`, ...). It checks sizes, heights and errors, NOT looks.
 - Still needed from carter: sound ids (lobby music spot is silent), coin pack / VIP ids + prices, icons. Shop contents are carter's Champions UI.
+
+## Chase map "Wreck City" (built, not yet seen in Studio)
+Replaces the Duel Car Arena as the live battle map (THEME "chase"). Duel arena and toy room kept. Spec: docs/CHASE_MAP_SPEC.md.

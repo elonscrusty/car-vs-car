@@ -10,9 +10,14 @@ local BattleMapLayout = require(ReplicatedStorage.Shared.BattleMapLayout)
 local DuelArenaLayout = require(ReplicatedStorage.Shared.DuelArenaLayout)
 local BattleMap = require(script.Parent.BattleMap)
 local DuelArena = require(script.Parent.DuelArena)
+local ChaseMapLayout = require(ReplicatedStorage.Shared.ChaseMapLayout)
+local ChaseMap = require(script.Parent.ChaseMap)
 
-local THEME = "duel" -- "duel" = Duel Car Arena, "toy" = the toy bedroom
-local Layout: any = if THEME == "toy" then BattleMapLayout else DuelArenaLayout
+local THEME = "chase" -- "chase" = Wreck City, "duel" = Duel Car Arena, "toy" = the toy bedroom
+local Layout: any = if THEME == "toy"
+	then BattleMapLayout
+	elseif THEME == "duel" then DuelArenaLayout
+	else ChaseMapLayout
 
 export type Arena = {
 	folder: Folder,
@@ -28,6 +33,12 @@ export type Arena = {
 	setTeams: (aIsRed: boolean) -> (), -- which side is red and which blue
 	openDoors: () -> (), -- the garage roller doors roll up (at GO)
 	closeDoors: () -> (),
+	-- Wreck City live parts (no-ops on the other maps): once per fight frame, with each side's car
+	-- body. Smashes props and returns the cars the crane hit.
+	tick: (dt: number, bodies: { [string]: BasePart }) -> { ChaseMap.Hit },
+	-- where to put a stuck or fallen car back (world position, facing)
+	rescuePoint: (pos: Vector3) -> (Vector3, Vector3),
+	resetBreakables: () -> (), -- smashed props come back (new round)
 	destroy: () -> (),
 }
 
@@ -50,15 +61,19 @@ function BattleArena.build(slot: number): Arena
 	folder:SetAttribute("WallHeight", Layout.wallHeight)
 	local solids: { Instance } = {}
 
-	local controls: DuelArena.Controls? = nil
+	local controls: any = nil
 	if THEME == "toy" then
 		local wedges, ramps = BattleMap.build(folder, origin, solids)
 		folder.Parent = workspace
 		BattleMap.verify(origin, wedges, ramps)
 		BattleMap.animate(folder)
-	else
+	elseif THEME == "duel" then
 		controls = DuelArena.build(folder, origin, solids)
 		folder.Parent = workspace
+	else
+		controls = ChaseMap.build(folder, origin, solids)
+		folder.Parent = workspace
+		controls.verify()
 	end
 
 	local arena: Arena
@@ -104,6 +119,23 @@ function BattleArena.build(slot: number): Arena
 		closeDoors = function()
 			if controls then
 				controls.closeDoors()
+			end
+		end,
+		tick = function(dt: number, bodies: { [string]: BasePart }): { ChaseMap.Hit }
+			if controls and controls.tick then
+				return controls.tick(dt, bodies)
+			end
+			return {}
+		end,
+		rescuePoint = function(pos: Vector3): (Vector3, Vector3)
+			if controls and controls.rescuePoint then
+				return controls.rescuePoint(pos)
+			end
+			return origin + Vector3.new(0, 1, 0), Vector3.new(1, 0, 0)
+		end,
+		resetBreakables = function()
+			if controls and controls.resetBreakables then
+				controls.resetBreakables()
 			end
 		end,
 		destroy = function()
