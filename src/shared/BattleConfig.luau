@@ -68,7 +68,7 @@ BattleConfig.Final = {
 -- The "momentum" prototype: the same cars and arena, but the cars LAUNCH from the opening choice,
 -- keep their speed, skid and rebound off walls and each other, and fire their weapons on their own
 -- with only weak steering. Compared side by side with the steering fight (carter picks one).
-BattleConfig.defaultMomentum = false -- real queue matches use the steering fight until carter picks
+BattleConfig.defaultMomentum = true -- carter picked Bounce (momentum): real queue matches use it
 BattleConfig.Momentum = {
 	launchL = 4.5, -- launch speed, L per second
 	turnScale = 0.8, -- steering is this much of the normal turn rate

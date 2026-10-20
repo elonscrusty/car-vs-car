@@ -917,7 +917,11 @@ function BattleService.start(opts: {
 				-- Studio only. The opponent is labeled Test Bot everywhere.
 				if isStudio and not inMatch[player] and Profiles.get(player) ~= nil then
 					BattleQueue.leave(queue, player.UserId)
-					createMatch(humanPart(player), botPart(), arg == "momentum")
+					createMatch(
+						humanPart(player),
+						botPart(),
+						if arg == "momentum" then true elseif arg == "steering" then false else nil
+					)
 				end
 				return
 			end
