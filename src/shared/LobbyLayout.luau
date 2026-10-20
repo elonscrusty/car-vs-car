@@ -89,8 +89,8 @@ end
 -- Three buildings along the back, all looking at the ring. `yawDeg` turns a building that was
 -- drawn facing +z (the mouth on its +z side). w = across the mouth, d = depth, h = height.
 Layout.workshop = { x = 0, z = -68, w = 56, d = 34, h = 24, yawDeg = 0 }
-Layout.customize = { x = -76, z = -58, w = 40, d = 30, h = 18, yawDeg = 32 }
-Layout.shop = { x = 76, z = -58, w = 44, d = 30, h = 18, yawDeg = -32 }
+Layout.customize = { x = -74, z = -58, w = 40, d = 30, h = 18, yawDeg = 32 }
+Layout.shop = { x = 74, z = -58, w = 44, d = 30, h = 18, yawDeg = -32 }
 
 -- Inside the workshop (workshop-local: u across, v toward the mouth, from its middle).
 Layout.gumball = { u = 0, v = -8, radius = 8.5 } -- the giant machine (ball radius)
@@ -105,8 +105,8 @@ Layout.shopCars = { { u = -14, v = 6 }, { u = 0, v = 8 }, { u = 14, v = 6 } }
 
 -- The two physical boards, one each side of the workshop, turned a little toward the ring.
 Layout.boards = {
-	weekly = { x = -39, z = -58, w = 15, h = 12, yawDeg = 14 },
-	wins = { x = 39, z = -58, w = 15, h = 12, yawDeg = -14 },
+	weekly = { x = -36, z = -58, w = 15, h = 12, yawDeg = 14 },
+	wins = { x = 36, z = -58, w = 15, h = 12, yawDeg = -14 },
 }
 
 -- Light gray paths: spawn -> ring, ring -> each building, two side entrances.

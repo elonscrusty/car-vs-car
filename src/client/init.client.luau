@@ -10,7 +10,6 @@ local Types = require(ReplicatedStorage.Shared.Types)
 local FeatureFlags = require(ReplicatedStorage.Shared.FeatureFlags)
 local FirstWin = require(ReplicatedStorage.Shared.FirstWin)
 local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
-local MenuRules = require(ReplicatedStorage.Shared.MenuRules)
 local Sounds = require(ReplicatedStorage.Shared.Sounds)
 local AimInput = require(script.AimInput)
 local BallFx = require(script.BallFx)
@@ -45,6 +44,7 @@ local WheelFx = require(script.WheelFx)
 local Ui = require(script.Ui)
 local BattleUi = require(script.BattleUi)
 
+require(script.LobbyClient).start() -- arrow for new players, fade into the fight, rare pulls in chat
 BattleUi.start() -- 1v1 auto-battle screens and camera (server: BattleService)
 Quality.start() -- low-end phones: fewer particles when the frame time is high
 local remotes = Remotes.get()
@@ -129,10 +129,10 @@ remotes.LobbyUpdate.OnClientEvent:Connect(function(u: Types.LobbyUpdate)
 		if botLevelUi then
 			botLevelUi.handleProfile(u.botLevel)
 		end
-		-- New players see only GIFT until they have finished a couple of matches.
-		local shown = MenuRules.visible({ matches = u.matches })
-		menu.setShown("quests", shown.quests)
-		menu.setShown("garage", shown.garage)
+		-- The lobby screen has only PLAY, CARS, SHOP and the daily GIFT (carter): QUESTS and
+		-- GARAGE stay hidden (the customize garage in the lobby opens the paint / garage screen).
+		menu.setShown("quests", false)
+		menu.setShown("garage", false)
 		hints.trigger("pad") -- no-op once seen
 	elseif u.kind == "countdown" and u.seconds > 0 then
 		hints.done("pad") -- stepped on a pad

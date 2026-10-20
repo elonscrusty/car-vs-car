@@ -1,5 +1,5 @@
 --!strict
--- The 1v1 auto-battle: queue, car pick, preparation, automatic fight, round and match results,
+-- The 1v1 auto-battle: pads, car pick, preparation, automatic fight, round and match results,
 -- rewards, rematch and leaving. The server decides everything; clients only show screens and send
 -- (queue, select, lock, leave...). One Heartbeat drives every match through explicit phases, so two
 -- fights, pick screens or reward handlers can never overlap:
@@ -14,7 +14,7 @@ local BattleBrain = require(ReplicatedStorage.Shared.BattleBrain)
 local BattleConfig = require(ReplicatedStorage.Shared.BattleConfig)
 local BattleCrash = require(ReplicatedStorage.Shared.BattleCrash)
 local BattleHuman = require(ReplicatedStorage.Shared.BattleHuman)
-local BattleQueue = require(ReplicatedStorage.Shared.BattleQueue)
+local PadSlots = require(ReplicatedStorage.Shared.PadSlots)
 local BattleRecap = require(ReplicatedStorage.Shared.BattleRecap)
 local BattleSelect = require(ReplicatedStorage.Shared.BattleSelect)
 local BattleSeries = require(ReplicatedStorage.Shared.BattleSeries)
@@ -85,8 +85,11 @@ type Match = {
 local BattleService = {}
 
 export type Handle = {
-	play: (player: Player) -> (),
-	cancel: (player: Player) -> (),
+	-- Called by the lobby about 4 times a second: which pad (1..) each player physically stands
+	-- on. Two on one pad start a fight. Returns how many wait on each pad (for the pad texts).
+	padSync: (observed: { [Player]: number }) -> { number },
+	padCounts: () -> { number },
+	cancel: (player: Player) -> (), -- off the pad (CANCEL button / walked off)
 	action: (player: Player, name: string, arg: any) -> (),
 	playerRemoving: (player: Player) -> (),
 	isBusy: (player: Player) -> boolean,
@@ -97,12 +100,17 @@ local T = BattleConfig.Timing
 local BOT_NAME = "Test Bot"
 local BOT_SIGN_NAME = "Crusher" -- what the garage sign says for the bot
 
-function BattleService.start(opts: {
-	remotes: Remotes.RemoteSet,
-	sendProfile: (player: Player) -> (),
-}): Handle
+function BattleService.start(
+	opts: {
+		remotes: Remotes.RemoteSet,
+		sendProfile: (player: Player) -> (),
+		padCount: number?, -- PLAY pads in the lobby (default 4); 2 players on one pad fight
+		park: ((player: Player) -> ())?, -- a fight begins: take the character out of the lobby
+		returnToLobby: ((player: Player) -> ())?, -- a fight is over: put the character back by the pads
+	}
+): Handle
 	local remotes = opts.remotes
-	local queue = BattleQueue.new()
+	local pads = PadSlots.new(opts.padCount or 4, 2)
 	local matches: { [Match]: boolean } = {}
 	local inMatch: { [Player]: Match } = {}
 	local usedSlots: { [number]: boolean } = {}
@@ -189,6 +197,9 @@ function BattleService.start(opts: {
 		end
 		if pl then
 			pl:SetAttribute("InBattle", true)
+			if opts.park then
+				opts.park(pl)
+			end
 		end
 	end
 
@@ -204,6 +215,9 @@ function BattleService.start(opts: {
 		end
 		part.savedSpeed = nil
 		pl:SetAttribute("InBattle", nil)
+		if opts.returnToLobby then
+			opts.returnToLobby(pl)
+		end
 		if toLobby then
 			remotes.BattleUpdate:FireClient(pl, { kind = "end" })
 			remotes.LobbyUpdate:FireClient(
@@ -1043,23 +1057,50 @@ function BattleService.start(opts: {
 			part.attack = attack == true
 		end,
 		isBusy = function(player: Player): boolean
-			return inMatch[player] ~= nil or BattleQueue.has(queue, player.UserId)
+			return inMatch[player] ~= nil or PadSlots.padOf(pads, player.UserId) ~= nil
 		end,
-		play = function(player: Player)
-			if inMatch[player] or BattleQueue.has(queue, player.UserId) then
-				return
+		padCounts = function(): { number }
+			return PadSlots.counts(pads)
+		end,
+		padSync = function(observed: { [Player]: number }): { number }
+			local ids: { [number]: number } = {}
+			local byId: { [number]: Player } = {}
+			local busy: { [number]: boolean } = {}
+			for player, pad in observed do
+				ids[player.UserId] = pad
+				byId[player.UserId] = player
+				if inMatch[player] or Profiles.get(player) == nil then
+					busy[player.UserId] = true -- in a fight, or the profile is still loading
+				end
 			end
-			if Profiles.get(player) == nil then
-				return
+			for _, ev in PadSlots.update(pads, ids, busy) do
+				local pl = if ev.id then byId[ev.id] or Players:GetPlayerByUserId(ev.id) else nil
+				if ev.kind == "joined" and pl then
+					remotes.BattleUpdate:FireClient(pl, {
+						kind = "queue",
+						searching = true,
+						pad = ev.pad,
+						studioBot = devBotAllowed(pl),
+					})
+				elseif ev.kind == "left" and pl then
+					remotes.BattleUpdate:FireClient(pl, { kind = "queue", searching = false })
+				elseif ev.kind == "full" and pl then
+					remotes.BattleUpdate:FireClient(
+						pl,
+						{ kind = "error", text = "That pad is full." }
+					)
+				elseif ev.kind == "ready" and ev.ids then
+					local pa = Players:GetPlayerByUserId(ev.ids[1])
+					local pb = Players:GetPlayerByUserId(ev.ids[2])
+					if pa and pb and not inMatch[pa] and not inMatch[pb] then
+						createMatch(humanPart(pa), humanPart(pb))
+					end
+				end
 			end
-			BattleQueue.join(queue, player.UserId, os.clock())
-			remotes.BattleUpdate:FireClient(
-				player,
-				{ kind = "queue", searching = true, studioBot = devBotAllowed(player) }
-			)
+			return PadSlots.counts(pads)
 		end,
 		cancel = function(player: Player)
-			if BattleQueue.leave(queue, player.UserId) then
+			if PadSlots.leave(pads, player.UserId) then
 				remotes.BattleUpdate:FireClient(player, { kind = "queue", searching = false })
 			end
 		end,
@@ -1074,7 +1115,7 @@ function BattleService.start(opts: {
 					and not inMatch[player]
 					and Profiles.get(player) ~= nil
 				then
-					BattleQueue.leave(queue, player.UserId)
+					PadSlots.leave(pads, player.UserId)
 					createMatch(
 						humanPart(player),
 						botPart(),
@@ -1120,7 +1161,7 @@ function BattleService.start(opts: {
 			end
 		end,
 		playerRemoving = function(player: Player)
-			BattleQueue.leave(queue, player.UserId)
+			PadSlots.leave(pads, player.UserId)
 			local m = inMatch[player]
 			if m then
 				local part = if m.parts.a.player == player then m.parts.a else m.parts.b
@@ -1130,35 +1171,8 @@ function BattleService.start(opts: {
 		end,
 	}
 
-	-- One loop for the line and for every match.
+	-- One loop for every match.
 	RunService.Heartbeat:Connect(function(dt: number)
-		for _, id in BattleQueue.expire(queue, os.clock(), T.queueSeconds) do
-			local pl = Players:GetPlayerByUserId(id)
-			if pl then
-				remotes.BattleUpdate:FireClient(
-					pl,
-					{ kind = "queue", searching = false, timedOut = true }
-				)
-			end
-		end
-		while true do
-			local ida, idb = BattleQueue.popPair(queue)
-			if ida == nil or idb == nil then
-				break
-			end
-			local pa, pb = Players:GetPlayerByUserId(ida), Players:GetPlayerByUserId(idb)
-			if pa and pb and Profiles.get(pa) and Profiles.get(pb) then
-				createMatch(humanPart(pa), humanPart(pb))
-			else
-				-- one of them is gone: the other goes back in line
-				for _, pl in { pa, pb } do
-					if pl then
-						BattleQueue.join(queue, pl.UserId, os.clock())
-					end
-				end
-				break
-			end
-		end
 		for m in matches do
 			local ok, err = pcall(update, m, dt)
 			if not ok then

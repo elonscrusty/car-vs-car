@@ -29,7 +29,6 @@ local PlayerLevel = require(ReplicatedStorage.Shared.PlayerLevel)
 local Progress = require(ReplicatedStorage.Shared.Progress)
 local Leaderboards = require(script.Parent.Leaderboards)
 local ProgressConfig = require(ReplicatedStorage.Shared.ProgressConfig)
-local GarageLikes = require(ReplicatedStorage.Shared.GarageLikes)
 local RateLimiter = require(ReplicatedStorage.Shared.RateLimiter)
 local BotLevels = require(ReplicatedStorage.Shared.BotLevels)
 local Modes = require(ReplicatedStorage.Shared.Modes)
@@ -40,8 +39,9 @@ local Types = require(ReplicatedStorage.Shared.Types)
 
 local Profiles = require(script.Parent.Profiles)
 local Appearance = require(script.Parent.Appearance)
-local ClawAnim = require(script.Parent.ClawAnim)
-local LobbyBays = require(script.Parent.LobbyBays)
+local GumballAnim = require(script.Parent.GumballAnim)
+local LobbyCars = require(ReplicatedStorage.Shared.LobbyCars)
+local LobbyParking = require(script.Parent.LobbyParking)
 local Telemetry = require(script.Parent.Telemetry)
 
 -- What a finished match can tell the lobby about one player. Every field is optional; nil = absent.
@@ -73,8 +73,9 @@ export type PadHandle = {
 }
 export type LobbyHandle = {
 	spawn: SpawnLocation,
-	pads: { PadHandle },
 	folder: Folder,
+	claw: GumballAnim.Anim?, -- the gumball machine show (still called claw: other code reads it)
+	parking: LobbyParking.Handle, -- each player's car in its spot, with their name
 }
 
 export type Deps = {
@@ -113,13 +114,13 @@ function LobbyService.start(deps: Deps): Handle
 		Gacha.useFighters() -- the gumball machine drops the battle cars
 	end
 	local remotes = deps.remotes
-	local pads = deps.lobby.pads
+	local pads: { PadHandle } = {} -- the old pad fights are gone; PLAY pads live in LobbyPads
 	local padCfg = LobbyConfig.Pad
 	local state = PadLogic.new(#pads, padCfg.maxPlayers, padCfg.countdownSeconds)
 	local players: { [Player]: PlayerState } = {}
 	local padAcc: { [number]: number } = {}
 	local random = Random.new()
-	local claw = if deps.lobby.claw then ClawAnim.new(deps.lobby.claw) else nil
+	local claw = deps.lobby.claw
 	local rng = function(): number
 		return random:NextNumber()
 	end
@@ -136,8 +137,7 @@ function LobbyService.start(deps: Deps): Handle
 	local spinLimiter = RateLimiter.new(2, 3)
 	local paintLimiter = RateLimiter.new(4, 3)
 	local buildLimiter = RateLimiter.new(6, 3)
-	local likeLimiter = RateLimiter.new(3, 5)
-	local bays = LobbyBays.new(deps.lobby.folder, LobbyConfig.Lobby.origin)
+	local parking = deps.lobby.parking
 	local bayKeys: { [Player]: string } = {}
 	local refreshBay: (player: Player) -> () -- defined below
 	local running = true
@@ -303,44 +303,26 @@ function LobbyService.start(deps: Deps): Handle
 		return look
 	end
 
-	-- Keep this player's garage bay showing their car (only rebuilt when it changed).
+	-- Keep this player's parking spot showing their rarest car (only rebuilt when it changed).
 	function refreshBay(player: Player)
 		local p = Profiles.get(player)
 		if p == nil or player.Parent == nil then
 			return
 		end
-		local carId = Build.carFor(p.build, p.owned)
-		local look = lookFor(player, carId)
-		-- Cars this player owns, in the shared car order (the last one counts as the newest).
-		local ownedList: { string } = {}
-		for _, id in CarConfig.Order do
-			if p.owned[id] then
-				table.insert(ownedList, id)
-			end
-		end
-		local key = table.concat({
-			carId,
-			p.build.parts.wheels,
-			p.build.parts.engine,
-			p.build.parts.armor,
-			tostring(look.paintColor),
-			tostring(look.sticker),
-			tostring(look.level),
-			table.concat(ownedList, ","),
-		}, "|")
-		bays.setLikes(player, p.garage.received)
+		local carId = LobbyCars.bestOwned(p.owned)
+		local look = paintLook(player, carId)
+		local level = player:GetAttribute("PlayerLevel")
+		local key = table.concat({ carId, tostring(look.paintColor), tostring(level) }, "|")
 		if bayKeys[player] == key then
 			return
 		end
 		bayKeys[player] = key
-		bays.set(
+		parking.set(
 			player,
 			carId,
 			look,
 			p.build,
-			`{player.DisplayName}  LV {look.level or 1}`,
-			ownedList,
-			p.garage.received
+			`{player.DisplayName}  LV {if type(level) == "number" then level else 1}`
 		)
 	end
 
@@ -931,6 +913,14 @@ function LobbyService.start(deps: Deps): Handle
 				pityForced = r.pityForced, -- this was the guaranteed one
 			})
 			sendProfile(player)
+			if LobbyCars.isRarePull(r.carId) then
+				-- everyone in the lobby hears about a rare pull (the client shows it in chat)
+				remotes.LobbyUpdate:FireAllClients({
+					kind = "announce",
+					text = `{player.DisplayName} pulled a {LobbyCars.nameOf(r.carId)} from the gumball machine!`,
+					carId = r.carId,
+				})
+			end
 		end
 		if claw == nil or not claw.play(reveal) then
 			reveal()
@@ -1017,25 +1007,6 @@ function LobbyService.start(deps: Deps): Handle
 		end
 	end
 
-	-- Someone pressed the heart at a garage door. The server decides: not your own garage, once per
-	-- garage ever (saved), rate limited, and both profiles must be loaded.
-	bays.onLike(function(liker: Player, owner: Player)
-		if not likeLimiter.allow(liker, os.clock()) then
-			return
-		end
-		local giver, receiver = Profiles.get(liker), Profiles.get(owner)
-		if giver == nil or receiver == nil then
-			return
-		end
-		local ok = GarageLikes.like(giver.garage, receiver.garage, liker.UserId, owner.UserId)
-		if not ok then
-			return
-		end
-		Profiles.markDirty(liker)
-		Profiles.markDirty(owner)
-		bays.setLikes(owner, receiver.garage.received)
-	end)
-
 	local handle: Handle
 	handle = {
 		onPlayerAdded = function(player: Player)
@@ -1076,8 +1047,7 @@ function LobbyService.start(deps: Deps): Handle
 			spinLimiter.clear(player)
 			paintLimiter.clear(player)
 			buildLimiter.clear(player)
-			likeLimiter.clear(player)
-			bays.clear(player)
+			parking.clear(player)
 			bayKeys[player] = nil
 		end,
 		action = function(player: Player, action: any, arg: any)
@@ -1184,7 +1154,7 @@ function LobbyService.start(deps: Deps): Handle
 		end,
 		stop = function()
 			running = false
-			bays.destroy()
+			parking.destroy()
 			for _, c in conns do
 				c:Disconnect()
 			end
