@@ -14,6 +14,41 @@ local spinning: { [Model]: { base: CFrame, center: Vector3, speed: number } } = 
 
 local waving: { [Model]: { { part: BasePart, base: CFrame, k: number } } } = {}
 
+-- Wrecking-ball cranes: the "Swing" model turns about the mast's vertical axis. The angle comes
+-- from the server clock (same formula as ChaseMapLayout.craneAngle), so every client and the
+-- server see the ball in the same place without sending anything.
+local cranes: {
+	[Model]: {
+		swing: Model,
+		rest: CFrame,
+		axis: Vector3,
+		amp: number,
+		period: number,
+		phase: number,
+	},
+} =
+	{}
+
+local function addCrane(inst: Instance)
+	if not inst:IsA("Model") then
+		return
+	end
+	local swing = inst:FindFirstChild("Swing")
+	local mast = inst:FindFirstChild("Mast")
+	if swing == nil or not swing:IsA("Model") or mast == nil or not mast:IsA("BasePart") then
+		return
+	end
+	local rest = swing:GetPivot()
+	cranes[inst] = {
+		swing = swing,
+		rest = rest,
+		axis = mast.Position,
+		amp = (inst:GetAttribute("Amp") :: number?) or 1.3,
+		period = (inst:GetAttribute("Period") :: number?) or 4.6,
+		phase = (inst:GetAttribute("Phase") :: number?) or 0,
+	}
+end
+
 local function collectStrips(inst: Instance): { { part: BasePart, base: CFrame, k: number } }
 	local strips = {}
 	for _, c in inst:GetChildren() do
@@ -54,6 +89,15 @@ function MapFx.start()
 		addWave(inst)
 	end
 	CollectionService:GetInstanceAddedSignal("MapWave"):Connect(addWave)
+	for _, inst in CollectionService:GetTagged("MapCrane") do
+		addCrane(inst)
+	end
+	CollectionService:GetInstanceAddedSignal("MapCrane"):Connect(function(inst)
+		task.delay(0.5, addCrane, inst) -- let the arm and ball stream in first
+	end)
+	CollectionService:GetInstanceRemovedSignal("MapCrane"):Connect(function(inst)
+		cranes[inst :: Model] = nil
+	end)
 	CollectionService:GetInstanceRemovedSignal("MapWave"):Connect(function(inst)
 		waving[inst :: Model] = nil
 	end)
@@ -75,6 +119,17 @@ function MapFx.start()
 				end
 			else
 				waving[model] = nil
+			end
+		end
+		local now = workspace:GetServerTimeNow()
+		for model, c in cranes do
+			if model.Parent then
+				local a = c.amp * math.sin(now / c.period * 2 * math.pi + c.phase)
+				c.swing:PivotTo(
+					CFrame.new(c.axis) * CFrame.Angles(0, a, 0) * CFrame.new(-c.axis) * c.rest
+				)
+			else
+				cranes[model] = nil
 			end
 		end
 		for model, s in spinning do

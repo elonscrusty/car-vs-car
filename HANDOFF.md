@@ -241,3 +241,8 @@ Replaces the warehouse lobby (archived in `archive/lobby_v1`, shipped to ServerS
 - Wall rebound (Studio: car stopped in 0.1 s, floor friction ate it): `BattleCar.slide` holds the bounce velocity by hand while knocked (0.5 s). A ram knock clears it.
 - Wall bounce now sweeps a car-sized box ahead (Blockcast) instead of one ray, so corners, cover-block edges and tires bounce too (Studio: they stopped the car dead). Falls back to the old ray when already touching.
 - CAR VS CAR sign: the glowing border is four bars now, so the outside is a dark board with the same text (it was a plain yellow slab).
+
+## Wreck City chase map (2026-10-20, carter: Twisted Metal style)
+- New map `THEME = "chase"` in BattleArena: ChaseMapLayout (+ tests), ChaseMap, ChaseProps, ChaseLandmarks (the last two written by Opus helpers). See docs/CHASE_MAP_SPEC.md.
+- BattleService: `arena.tick` each fight frame (crane hits 10% max HP, knock), stuck rescue (gas held, not moving 2.5 s), `arena.resetBreakables()` each round.
+- MapFx swings the crane from the server clock. Untested in Studio: everything (first build). Check: no script errors, ramps rise, tunnel clear, crane hits, props burst, part count.
