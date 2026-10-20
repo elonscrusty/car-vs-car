@@ -68,10 +68,10 @@ H.test(
 		-- the first strip begins under the character
 		local first = folder:FindFirstChild("Cap")
 		truthy(first)
-		-- everything lies flat on the asphalt
+		-- everything lies flat, floating just above the paths and the painted floor (see the floor test below)
 		for _, p in folder:GetChildren() do
 			if p.Name == "Strip" or p.Name == "Cap" then
-				near(p.Position.Y, e.origin.Y + 0.12, 0.5, p.Name .. " height")
+				near(p.Position.Y, e.origin.Y + 0.85, 0.05, p.Name .. " height")
 			end
 		end
 		truthy(
@@ -255,6 +255,117 @@ H.test("the portal's doorway is on open ground, in line with the spawn", functio
 		GuidePath.length(route) < (spawnZ - cfg.z) * 1.25 + 1,
 		"no detour: " .. GuidePath.length(route)
 	)
+end)
+
+-- ---------- the line and the portal over the real floor ----------
+
+-- The light paths, the painted lines, the PLAY ring, its hub and the pads all stand a little proud of
+-- the asphalt. A line lying on the ground was hidden under them, so these tests look at the real
+-- lobby's floor and check that the green line and the portal's glow float above all of it.
+
+local function floorTop(e: any, lobby: any, groups: { string }, padOnly: boolean): (number, string)
+	local top, what = 0, "the plaza"
+	local function scan(folder: any, names: any?)
+		for _, d in folder:GetDescendants() do
+			if d:IsA("BasePart") and (names == nil or names[d.Name]) then
+				local _, hi = Mock.partBox(d)
+				if hi.Y - e.origin.Y > top then
+					top, what = hi.Y - e.origin.Y, d.Name
+				end
+			end
+		end
+	end
+	for _, name in groups do
+		scan(lobby:FindFirstChild(name))
+	end
+	if padOnly then
+		scan(
+			lobby:FindFirstChild("Pads"),
+			{ Halo = true, Rim = true, PadBase = true, Inner = true, Face = true }
+		)
+	end
+	return top, what
+end
+
+H.test("the green line floats above the paths, the painted floor, the ring and the pads", function()
+	local e = setup()
+	local Lobby = e.world.require("server/Lobby")
+	local handle = Lobby.build()
+	local lobby = handle.folder
+	local top, what = floorTop(e, lobby, { "Plaza", "Paths", "PlayRing", "Parking" }, true)
+	local paint = lobby:FindFirstChild("Props"):FindFirstChild("Paint")
+	for _, d in paint:GetDescendants() do
+		local _, hi = Mock.partBox(d)
+		if hi.Y - e.origin.Y > top then
+			top, what = hi.Y - e.origin.Y, d.Name
+		end
+	end
+	truthy(top > 0.4, "the floor really has raised parts (" .. what .. " " .. top .. ")")
+
+	local GuideTrail = e.world.requireClient("GuideTrail")
+	local trail = GuideTrail.new(e.origin, e.position)
+	for _, kind in { "gumball", "pad" } do
+		e.moveTo(0, 42)
+		trail.hide()
+		trail.show(kind)
+		e.frames(3)
+		local folder = e.world.workspace:FindFirstChild("GuideTrail")
+		local lowest, who = math.huge, ""
+		for _, p in folder:GetChildren() do
+			local lo = Mock.partBox(p)
+			-- the tall green light is the only part that starts on the ground
+			if p.Name ~= "Beacon" and lo.Y - e.origin.Y < lowest then
+				lowest, who = lo.Y - e.origin.Y, p.Name
+			end
+		end
+		truthy(
+			lowest > top + 0.05,
+			string.format(
+				"%s line: the lowest part (%s, %.2f) must float above the floor (%s, %.2f)",
+				kind,
+				who,
+				lowest,
+				what,
+				top
+			)
+		)
+	end
+	trail.destroy()
+end)
+
+H.test("the portal's glow pad floats above the path and the yellow dashes under it", function()
+	local e = setup()
+	local Lobby = e.world.require("server/Lobby")
+	local handle = Lobby.build()
+	local top, what = floorTop(e, handle.folder, { "Paths" }, false)
+	for _, d in handle.folder:FindFirstChild("Props"):FindFirstChild("Paint"):GetDescendants() do
+		local lo, hi = Mock.partBox(d)
+		local cfg = e.config.portal
+		-- only what lies in the doorway
+		if
+			math.abs((lo.X + hi.X) / 2 - (e.origin.X + cfg.x)) < cfg.radius * 1.4
+			and math.abs((lo.Z + hi.Z) / 2 - (e.origin.Z + cfg.z)) < cfg.radius * 1.4
+			and hi.Y - e.origin.Y > top
+		then
+			top, what = hi.Y - e.origin.Y, d.Name
+		end
+	end
+	local TutorialPortal = e.world.requireClient("TutorialPortal")
+	local portal = TutorialPortal.new(e.origin, e.position, function() end)
+	portal.show()
+	local pool = e.world.workspace:FindFirstChild("TutorialPortal"):FindFirstChild("Pool")
+	truthy(pool)
+	local lo = Mock.partBox(pool)
+	truthy(
+		lo.Y - e.origin.Y > top,
+		string.format(
+			"the glow pad (%.2f) must float above %s (%.2f)",
+			lo.Y - e.origin.Y,
+			what,
+			top
+		)
+	)
+	portal.destroy()
 end)
 
 -- ---------- the gumball machine the lesson points at ----------

@@ -22,6 +22,7 @@ local CYAN = Color3.fromRGB(35, 216, 255)
 local DEEP = Color3.fromRGB(20, 90, 255)
 local BLOCKS = 20
 local HEIGHT = 5.4 -- the middle of the ring above the asphalt
+local POOL_LIFT = 0.36 -- the glow pad's middle above the plaza top
 
 local function newPart(name: string, size: Vector3, color: Color3, transparency: number): Part
 	local p = Instance.new("Part")
@@ -79,10 +80,11 @@ function TutorialPortal.new(origin: Vector3, getPosition: () -> Vector3?, onEnte
 		bars[i] = bar
 	end
 
-	-- a glowing pad on the asphalt under it
+	-- a glowing pad under it; it floats over the light path (0.2) and the yellow dashes (0.27), or the
+	-- path would hide it
 	local pool = newPart("Pool", Vector3.new(0.14, radius * 2.8, radius * 2.8), BLUE, 0.6)
 	pool.Shape = Enum.PartType.Cylinder
-	pool.CFrame = CFrame.new(origin.X + cfg.x, origin.Y + 0.14, origin.Z + cfg.z)
+	pool.CFrame = CFrame.new(origin.X + cfg.x, origin.Y + POOL_LIFT, origin.Z + cfg.z)
 		* CFrame.Angles(0, 0, math.pi / 2)
 	pool.Parent = folder
 
