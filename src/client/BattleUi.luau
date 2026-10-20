@@ -733,6 +733,14 @@ function BattleUi.start()
 				if hit then
 					want = hit.Position + hit.Normal * 1.5
 				end
+				-- and always stay INSIDE the arena walls: a camera above a low wall would look
+				-- over it and the wall would hide the car (a car that starts next to a wall)
+				local inset = 3
+				want = Vector3.new(
+					math.clamp(want.X, c.X - arenaHalf.X + inset, c.X + arenaHalf.X - inset),
+					want.Y,
+					math.clamp(want.Z, c.Z - arenaHalf.Y + inset, c.Z + arenaHalf.Y - inset)
+				)
 				return CFrame.lookAt(want, mine.Position + look * (H.camLookL * carLen))
 			end
 		end
