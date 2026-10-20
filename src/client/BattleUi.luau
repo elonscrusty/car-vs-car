@@ -936,7 +936,7 @@ function BattleUi.start()
 		local cam = workspace.CurrentCamera
 		local vp = cam.ViewportSize
 		local p, inFront = cam:WorldToViewportPoint(foe.Position + Vector3.new(0, 0.2 * carLen, 0))
-		local onScreen = inFront and p.X > 30 and p.X < vp.X - 30 and p.Y > 30 and p.Y < vp.Y - 30
+		local onScreen = inFront and p.X > 30 and p.X < vp.X - 30 and p.Y > 120 and p.Y < vp.Y - 30
 		if onScreen then
 			local dist = (foe.Position - cam.CFrame.Position).Magnitude
 			local size = math.clamp(2200 / math.max(dist, 20), 46, 120)
