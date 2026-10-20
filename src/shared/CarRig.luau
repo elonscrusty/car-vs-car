@@ -29,10 +29,10 @@ CarRig.Rigs = {
 	RedTruck = {
 		wheelRadius = 0.135,
 		wheels = {
-			{ name = "FL", at = { -0.19, 0.135, -0.32 }, front = true },
-			{ name = "FR", at = { 0.19, 0.135, -0.32 }, front = true },
-			{ name = "RL", at = { -0.19, 0.135, 0.28 }, front = false },
-			{ name = "RR", at = { 0.19, 0.135, 0.28 }, front = false },
+			{ name = "FL", at = { -0.15, 0.135, -0.32 }, front = true },
+			{ name = "FR", at = { 0.15, 0.135, -0.32 }, front = true },
+			{ name = "RL", at = { -0.15, 0.135, 0.28 }, front = false },
+			{ name = "RR", at = { 0.15, 0.135, 0.28 }, front = false },
 		},
 		snaps = {
 			roof = { 0, 0.23, 0.35 },
