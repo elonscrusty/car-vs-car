@@ -8,6 +8,7 @@ export type Event = { kind: string, id: number?, pad: number, ids: { number }? }
 export type State = {
 	pads: { { number } }, -- per pad, the ids standing there, in arrival order
 	at: { [number]: number }, -- id -> pad
+	since: { [number]: number }, -- id -> the time they started waiting
 	cap: number,
 }
 
@@ -18,7 +19,7 @@ function PadSlots.new(count: number, cap: number): State
 	for _ = 1, count do
 		table.insert(pads, {})
 	end
-	return { pads = pads, at = {}, cap = cap }
+	return { pads = pads, at = {}, since = {}, cap = cap }
 end
 
 function PadSlots.counts(s: State): { number }
@@ -45,6 +46,7 @@ function PadSlots.leave(s: State, id: number): boolean
 		table.remove(list, k)
 	end
 	s.at[id] = nil
+	s.since[id] = nil
 	return true
 end
 
@@ -54,10 +56,16 @@ end
 --   joined(id, pad)          the id now waits on that pad
 --   full  (id, pad)          the id stands on a pad that already has `cap` waiting: not counted
 --   ready (pad, ids)         the pad is full: these ids fight now (they are taken off the pad)
+-- With `now` (seconds), two players who each wait alone on different pads for CROSS_WAIT seconds
+-- are matched with each other, so strangers on two pads still meet. Friends who share a pad are
+-- never split: the wait gives them time to join one pad first.
+PadSlots.CROSS_WAIT = 6
+
 function PadSlots.update(
 	s: State,
 	observed: { [number]: number },
-	ignore: { [number]: boolean }?
+	ignore: { [number]: boolean }?,
+	now: number?
 ): { Event }
 	local events: { Event } = {}
 	local skip = ignore or {}
@@ -87,6 +95,7 @@ function PadSlots.update(
 			if #list < s.cap then
 				table.insert(list, id)
 				s.at[id] = pad
+				s.since[id] = now or 0
 				table.insert(events, { kind = "joined", id = id, pad = pad })
 			else
 				table.insert(events, { kind = "full", id = id, pad = pad })
@@ -100,6 +109,27 @@ function PadSlots.update(
 				PadSlots.leave(s, id)
 			end
 			table.insert(events, { kind = "ready", pad = pad, ids = ids })
+		end
+	end
+	if now ~= nil and s.cap == 2 then
+		-- the two longest-waiting singles on different pads fight each other
+		local singles: { { id: number, pad: number, since: number } } = {}
+		for pad, list in s.pads do
+			if #list == 1 and now - (s.since[list[1]] or now) >= PadSlots.CROSS_WAIT then
+				table.insert(singles, { id = list[1], pad = pad, since = s.since[list[1]] or now })
+			end
+		end
+		table.sort(singles, function(a, b)
+			if a.since ~= b.since then
+				return a.since < b.since
+			end
+			return a.id < b.id
+		end)
+		if #singles >= 2 then
+			local a, b = singles[1], singles[2]
+			PadSlots.leave(s, a.id)
+			PadSlots.leave(s, b.id)
+			table.insert(events, { kind = "ready", pad = a.pad, ids = { a.id, b.id } })
 		end
 	end
 	return events

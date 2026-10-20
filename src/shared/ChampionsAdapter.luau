@@ -35,6 +35,7 @@ export type Model = {
 local GACHA_ERRORS: { [string]: string } = {
 	coins = "NOT ENOUGH COINS",
 	busy = "THE GUMBALL MACHINE IS BUSY",
+	complete = "YOU HAVE EVERY CAR!",
 	loading = "LOADING YOUR DATA",
 }
 

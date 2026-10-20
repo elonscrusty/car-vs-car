@@ -1379,7 +1379,7 @@ function BattleService.start(
 					busy[player.UserId] = true -- in a fight, or the profile is still loading
 				end
 			end
-			for _, ev in PadSlots.update(pads, ids, busy) do
+			for _, ev in PadSlots.update(pads, ids, busy, os.clock()) do
 				local pl = if ev.id then byId[ev.id] or Players:GetPlayerByUserId(ev.id) else nil
 				if ev.kind == "joined" and pl then
 					remotes.BattleUpdate:FireClient(pl, {

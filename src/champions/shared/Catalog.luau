@@ -304,10 +304,18 @@ local function shopCard(parent, vehicle, state, ctx, x)
 	T.text(card, "Price", T.format(cost) .. " COINS", 48, 261, 149, 34, 22, T.C.white)
 	local isOwned = owned(state, vehicle.Id)
 	local equipped = state.equipped == vehicle.Id
-	local affordable = (state.coins or 0) >= cost
+	local complete = true
+	for _, vehicle in Config.Vehicles do
+		if not owned(state, vehicle.Id) then
+			complete = false
+			break
+		end
+	end
+	local affordable = (state.coins or 0) >= cost and not complete
 	local label = loading(state)
 		or (
-			equipped and "EQUIPPED"
+			complete and "YOU HAVE EVERY CAR"
+			or equipped and "EQUIPPED"
 			or (
 				isOwned and "EQUIP"
 				or (affordable and "BUY" or "NEED " .. T.format(cost - (state.coins or 0)))
