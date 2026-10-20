@@ -940,6 +940,21 @@ H.test("cheat checks: normal driving passes, a teleport and a speed hack are cau
 end)
 
 H.test("crash hit power grows with the damage and stays between 0 and 1", function()
+	-- holding the gas into the other car: later hits of a chain hurt less, and the whole chain stays well short of a knock-out
+	do
+		local C = BattleConfig.Crash
+		local hp = 150
+		local full = BattleCrash.damage(hp, 40, 40)
+		H.eq(BattleCrash.chainScale(0), 1)
+		H.eq(BattleCrash.chainScale(1) < BattleCrash.chainScale(0), true)
+		H.eq(BattleCrash.chainScale(3), BattleCrash.chainScale(9))
+		local total = 0
+		for i = 0, 11 do -- 12 crashes in a row, one every 0.6 s = 7 s of pushing
+			total += math.max(1, math.floor(full * BattleCrash.chainScale(i) + 0.5))
+		end
+		H.eq(total < hp * 0.6, true)
+		H.eq(C.chainWindow > C.cooldownSeconds, true)
+	end
 	H.eq(BattleCrash.power(0, 150), 0)
 	H.eq(BattleCrash.power(15, 150) < BattleCrash.power(30, 150), true)
 	H.eq(BattleCrash.power(30, 150), 1)

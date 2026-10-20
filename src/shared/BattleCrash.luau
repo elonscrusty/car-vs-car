@@ -26,6 +26,13 @@ function BattleCrash.damage(victimMaxHp: number, speedToward: number, cruise: nu
 	return math.max(1, math.floor(victimMaxHp / C.hitsToKill * frac + 0.5))
 end
 
+-- Share of the full crash damage for the Nth crash in a chain (0 = first). Holding the gas into the other
+-- car bounces and re-hits every moment; later hits of the chain hurt less so it cannot empty the HP bar.
+function BattleCrash.chainScale(chain: number): number
+	local scales = BattleConfig.Crash.chainScales
+	return scales[math.clamp(chain + 1, 1, #scales)]
+end
+
 -- How fast something moving with velocity (vx, vz) goes toward a point in direction (dx, dz).
 function BattleCrash.speedToward(vx: number, vz: number, dx: number, dz: number): number
 	local len = math.sqrt(dx * dx + dz * dz)

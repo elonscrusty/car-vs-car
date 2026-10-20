@@ -317,6 +317,8 @@ BattleConfig.Crash = {
 	minSpeedFrac = 0.3, -- slower than this share of cruise speed: just a bump, no damage
 	cooldownSeconds = 0.6, -- one crash counts once, even while the cars stay in contact
 	touchPadL = 0.06, -- cars count as touching when their bodies are this close (L)
+	chainWindow = 2.5, -- crashes closer together than this (seconds) form a chain: pushing on the gas into a car
+	chainScales = { 1, 0.5, 0.25, 0.1 }, -- damage share of the 1st, 2nd, 3rd, 4th+ crash of a chain
 }
 
 -- Cheat checks for a car the player's device drives (the server watches speed and jumps).

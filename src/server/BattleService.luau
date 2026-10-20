@@ -89,6 +89,8 @@ type Match = {
 	final: boolean, -- the announced final phase has begun
 	momentum: boolean, -- the momentum prototype fight (else the steering fight)
 	crashCd: number, -- seconds until the next plain crash can hurt
+	crashChain: number, -- plain crashes in a row with less than chainWindow seconds between them
+	crashQuiet: number, -- seconds since the last plain crash
 	fought: number, -- total seconds spent in the fight phase, all rounds (a too-short match pays nothing)
 	touching: boolean, -- the cars' bodies were touching at the last step
 	aIsRed: boolean?, -- which garage team is red this match (chosen once, at random)
@@ -473,6 +475,7 @@ function BattleService.start(
 		end
 		m.final = false
 		m.crashCd, m.touching = 0, false
+		m.crashChain, m.crashQuiet = 0, 99
 		for _, side in sides() do
 			send((m.parts :: any)[side], { kind = "fight", seconds = T.fightSeconds })
 		end
@@ -1002,6 +1005,7 @@ function BattleService.start(
 		-- (a charge, a saw or a shell has its own damage). Walls only bounce.
 		if a.brain and b.brain then
 			m.crashCd = math.max(0, m.crashCd - dt)
+			m.crashQuiet += dt
 			local touching = BattleCar.bodiesTouch(a, b)
 			if touching and not m.touching and m.crashCd <= 0 then
 				local function striking(c: BattleCar.Car): boolean
@@ -1015,6 +1019,19 @@ function BattleService.start(
 					local hitB = BattleCrash.damage(b.maxHp, sA, BattleCar.topSpeed(a))
 					local hitA = BattleCrash.damage(a.maxHp, sB, BattleCar.topSpeed(b))
 					if hitA > 0 or hitB > 0 then
+						-- pushing on into the other car re-hits again and again: later hits of a chain hurt less
+						if m.crashQuiet > BattleConfig.Crash.chainWindow then
+							m.crashChain = 0
+						end
+						local share = BattleCrash.chainScale(m.crashChain)
+						m.crashChain += 1
+						m.crashQuiet = 0
+						if hitA > 0 then
+							hitA = math.max(1, math.floor(hitA * share + 0.5))
+						end
+						if hitB > 0 then
+							hitB = math.max(1, math.floor(hitB * share + 0.5))
+						end
 						m.crashCd = BattleConfig.Crash.cooldownSeconds
 						dmg.a += hitA
 						dmg.b += hitB
@@ -1298,6 +1315,8 @@ function BattleService.start(
 			final = false,
 			momentum = if momentum == nil then BattleConfig.defaultMomentum else momentum,
 			crashCd = 0,
+			crashChain = 0,
+			crashQuiet = 99,
 			fought = 0,
 			touching = false,
 		}
