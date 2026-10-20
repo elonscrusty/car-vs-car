@@ -233,3 +233,9 @@ Replaces the warehouse lobby (archived in `archive/lobby_v1`, shipped to ServerS
 - Client: `LobbyClient` (arrow for new players, fade into/out of the fight, rare pulls in chat via LobbyUpdate `announce`, cuts FarScenery on a slow phone). QUESTS/GARAGE menu buttons stay hidden: the screen has PLAY, CARS, SHOP and GIFT.
 - Tests: `tests/robloxmock.luau` is a small fake Roblox so builders run under Lune (`lobbybuild.test`, `lobbyground.test`, ...). It checks sizes, heights and errors, NOT looks.
 - Still needed from carter: sound ids (lobby music spot is silent), coin pack / VIP ids + prices, icons. Shop contents are carter's Champions UI.
+
+## Duel arena polish (Studio test of PR 145)
+- Wall rebound reach in `BattleCar.wallBounce` was a hair short (Studio: 0 studs back); reach is now half length + max(3 steps, 3) + 1.
+- Flags did not wave: client `MapFx` now looks for Strip1..5 every frame until all five have streamed in.
+- Garage floor covers the whole garage footprint (no grass gap); Metal parts in the arena are SmoothPlastic (roofs and cover blocks blew out white).
+- Wall rebound (Studio: car stopped in 0.1 s, floor friction ate it): `BattleCar.slide` holds the bounce velocity by hand while knocked (0.5 s). A ram knock clears it.

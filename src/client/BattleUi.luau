@@ -1279,7 +1279,7 @@ function BattleUi.start()
 	end
 
 	-- the final blow: a fireball, a shock ring and a lot of debris
-	local function wreckExplosion(pos: Vector3)
+	local function wreckExplosion(pos: Vector3, seconds: number?)
 		for i = 1, 3 do
 			task.delay((i - 1) * 0.08, function()
 				sparks(pos + Vector3.new(0, 2, 0), true)
@@ -1308,7 +1308,8 @@ function BattleUi.start()
 		Debris:AddItem(ball, 1)
 		shakeAmp = math.max(shakeAmp, 7)
 		fovKick = 12
-		koPos, koTotal, koT = pos, BattleConfig.Timing.koSeconds, BattleConfig.Timing.koSeconds
+		local secs = seconds or BattleConfig.Timing.koSeconds
+		koPos, koTotal, koT = pos, secs, secs
 		setBars(true)
 		gui:SetAttribute("WreckCamAt", os.clock()) -- lets a test see afterwards that the wreck camera ran
 		flash(Color3.fromRGB(255, 240, 200), 0.75)
@@ -1465,7 +1466,7 @@ function BattleUi.start()
 		if snd ~= nil then
 			SoundFx.play(snd)
 		end
-		showEvent((if m.mine then "You: " else "Foe: ") .. m.text)
+		-- no kill feed or announcer text (sound only)
 	end
 
 	handlers.phase = function(m)
@@ -1474,7 +1475,7 @@ function BattleUi.start()
 
 	handlers.hit = function(m)
 		if m.ko == true then
-			wreckExplosion(m.pos)
+			wreckExplosion(m.pos, if type(m.koSeconds) == "number" then m.koSeconds else nil)
 			return
 		end
 		local big = m.big == true

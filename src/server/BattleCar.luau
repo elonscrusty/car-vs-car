@@ -36,6 +36,7 @@ export type Car = {
 	momentum: boolean, -- the momentum prototype: launch, skid, rebound, weak steering
 	stats: BattleRecap.Stats, -- what this car's weapon did this round (for the recap)
 	stagger: number, -- > 0 while knocked: the car slides and cannot steer
+	slide: Vector3, -- flat velocity a wall bounce keeps pushing while knocked (floor friction would eat it)
 	prevVel: Vector3, -- velocity at the end of the last step (before any crash changed it)
 }
 
@@ -220,6 +221,7 @@ function BattleCar.spawn(
 		standIn = standIn,
 		lastOut = nil,
 		stagger = 0,
+		slide = Vector3.zero,
 		prevVel = Vector3.zero,
 		human = false,
 		momentum = false,
@@ -319,17 +321,22 @@ end
 -- A wall part the map tags "Bouncy" (the duel arena walls, cover blocks and tires) throws a car back
 -- that runs into it, instead of letting the drive code push it to a dead stop. The car loses a bit
 -- of speed, slides back for a moment and cannot steer meanwhile (the knocked state). No damage.
+-- Every car has the same top speed (spec: only weight and turning differ).
+function BattleCar.topSpeed(_car: Car): number
+	return BattleConfig.Human.topSpeed
+end
+
 local function wallBounce(car: Car, v: Vector3, dt: number): boolean
 	local body = car.body
 	local flat = Vector3.new(v.X, 0, v.Z)
 	local speed = flat.Magnitude
-	if speed < 0.3 * car.fighter.cruiseL * car.L then
+	if speed < 0.3 * BattleCar.topSpeed(car) then
 		return false
 	end
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = { car.model }
-	local reach = body.Size.Z / 2 + speed * dt * 1.5 + 0.5
+	local reach = body.Size.Z / 2 + math.max(speed * dt * 3, 3) + 1
 	local hit = workspace:Raycast(body.Position, flat.Unit * reach, params)
 	if hit == nil or not CollectionService:HasTag(hit.Instance, "Bouncy") then
 		return false
@@ -343,7 +350,8 @@ local function wallBounce(car: Car, v: Vector3, dt: number): boolean
 	local keep = (if props then props.Elasticity else 0.5) * 0.7
 	local r = (flat - 2 * flat:Dot(n) * n) * keep
 	body.AssemblyLinearVelocity = Vector3.new(r.X, v.Y, r.Z)
-	car.stagger = math.max(car.stagger, 0.35)
+	car.stagger = math.max(car.stagger, 0.5)
+	car.slide = Vector3.new(r.X, 0, r.Z)
 	return true
 end
 
@@ -361,6 +369,15 @@ function BattleCar.drive(car: Car, out: BattleBrain.Output, dt: number)
 		-- knocked: slide and spin on the shove, no steering
 		car.stagger = math.max(0, car.stagger - dt)
 		local keep = math.max(0, 1 - mv.knockFriction * dt)
+		if car.slide.Magnitude > 0 then
+			-- a wall bounce: hold the slide ourselves so the floor does not stop it in a blink
+			car.slide *= keep
+			body.AssemblyLinearVelocity = Vector3.new(car.slide.X, v.Y, car.slide.Z)
+			if car.stagger <= 0 then
+				car.slide = Vector3.zero
+			end
+			return
+		end
 		body.AssemblyLinearVelocity = Vector3.new(v.X * keep, v.Y, v.Z * keep)
 		return
 	end
@@ -370,7 +387,7 @@ function BattleCar.drive(car: Car, out: BattleBrain.Output, dt: number)
 	end
 	local fwd = v.X * f.X + v.Z * f.Z
 	local lat = Vector3.new(v.X - f.X * fwd, 0, v.Z - f.Z * fwd)
-	local cruise = car.fighter.cruiseL * car.L
+	local cruise = BattleCar.topSpeed(car)
 	local want = out.drive * cruise
 	if want < 0 then
 		want *= mv.reverseScale
@@ -410,7 +427,7 @@ function BattleCar.driveHuman(car: Car, out: BattleBrain.Output, dt: number, f: 
 	local mv = BattleConfig.Move
 	local H = BattleConfig.Human
 	local body = car.body
-	local cruise = car.fighter.cruiseL * car.L
+	local cruise = BattleCar.topSpeed(car)
 	local yawRate = out.turn * math.rad(car.fighter.turnDeg)
 
 	local params = RaycastParams.new()
@@ -455,6 +472,10 @@ function BattleCar.driveHuman(car: Car, out: BattleBrain.Output, dt: number, f: 
 	car.model:SetAttribute("Drifting", drifting)
 	local sideGrip = if skidding then mv.skidSide elseif drifting then H.driftSide else 8
 	lat *= math.max(0, 1 - sideGrip * dt)
+	local maxSlide = H.slideMaxFrac * cruise
+	if lat.Magnitude > maxSlide then
+		lat = lat.Unit * maxSlide
+	end
 	body.AssemblyLinearVelocity = Vector3.new(f.X * fwd + lat.X, v.Y, f.Z * fwd + lat.Z)
 
 	local turnScale = math.clamp(speedFrac / 0.5 + H.turnMinScale, H.turnMinScale, 1)
@@ -513,6 +534,7 @@ function BattleCar.knock(car: Car, dir: Vector3, speed: number, stagger: number)
 		speed *= BattleConfig.Momentum.knockMult
 	end
 	car.stagger = math.max(car.stagger, stagger)
+	car.slide = Vector3.zero -- a fresh shove replaces a wall slide
 	local v = car.body.AssemblyLinearVelocity
 	car.body.AssemblyLinearVelocity = Vector3.new(d.X * speed, v.Y, d.Z * speed)
 	local side = if (d:Cross(car.lastForward)).Y >= 0 then 1 else -1
@@ -532,6 +554,7 @@ end
 function BattleCar.wreck(car: Car)
 	car.brain = nil
 	car.stagger = 0.001
+	car.slide = Vector3.zero
 	local body = car.body
 	local burn = Instance.new("Highlight")
 	burn.FillColor = Color3.fromRGB(30, 25, 25)

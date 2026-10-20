@@ -74,6 +74,7 @@ type Match = {
 	vsBot: boolean,
 	closed: boolean,
 	lastOutcome: string?,
+	koSeconds: number, -- how long this knock-out lasts (longer when it ends the match)
 	koOutcome: string?, -- the round result waiting for the knock-out finish to play
 	final: boolean, -- the announced final phase has begun
 	momentum: boolean, -- the momentum prototype fight (else the steering fight)
@@ -461,10 +462,15 @@ function BattleService.start(
 		ko: boolean?
 	)
 		for _, side in sides() do
-			send(
-				(m.parts :: any)[side],
-				{ kind = "hit", pos = pos, big = big, dmg = dmg, victim = victim, ko = ko }
-			)
+			send((m.parts :: any)[side], {
+				kind = "hit",
+				pos = pos,
+				big = big,
+				dmg = dmg,
+				victim = victim,
+				ko = ko,
+				koSeconds = m.koSeconds,
+			})
 		end
 	end
 
@@ -741,7 +747,7 @@ function BattleService.start(
 						fresh and part.attack
 					)
 				end
-				local cruise = car.fighter.cruiseL * car.L
+				local cruise = BattleCar.topSpeed(car)
 				local fwdSpeed = car.body.AssemblyLinearVelocity:Dot(Vector3.new(cf.X, 0, cf.Z))
 				local out = brain.step(
 					dt,
@@ -805,8 +811,8 @@ function BattleService.start(
 					local ab = b.body.Position - a.body.Position
 					local sA = BattleCrash.speedToward(a.prevVel.X, a.prevVel.Z, ab.X, ab.Z)
 					local sB = BattleCrash.speedToward(b.prevVel.X, b.prevVel.Z, -ab.X, -ab.Z)
-					local hitB = BattleCrash.damage(b.maxHp, sA, a.fighter.cruiseL * a.L)
-					local hitA = BattleCrash.damage(a.maxHp, sB, b.fighter.cruiseL * b.L)
+					local hitB = BattleCrash.damage(b.maxHp, sA, BattleCar.topSpeed(a))
+					local hitA = BattleCrash.damage(a.maxHp, sB, BattleCar.topSpeed(b))
 					if hitA > 0 or hitB > 0 then
 						m.crashCd = BattleConfig.Crash.cooldownSeconds
 						dmg.a += hitA
@@ -827,6 +833,9 @@ function BattleService.start(
 		-- all damage of this update lands together, so a double knock-out is a draw
 		a.hp = math.max(0, a.hp - dmg.a)
 		b.hp = math.max(0, b.hp - dmg.b)
+		-- the clients smoke the cars more as HP drops
+		a.model:SetAttribute("HpFrac", a.hp / a.maxHp)
+		b.model:SetAttribute("HpFrac", b.hp / b.maxHp)
 		local outcome =
 			BattleSeries.roundOutcome(a.hp, a.maxHp, b.hp, b.maxHp, m.t >= T.fightSeconds)
 		if outcome then
@@ -836,6 +845,9 @@ function BattleService.start(
 			if a.hp <= 0 or b.hp <= 0 then
 				-- knock-out: both cars stop, the loser is wrecked, then the result shows
 				clearShells(m)
+				m.koSeconds = if BattleSeries.endsMatch(m.series, outcome)
+					then T.koLastSeconds
+					else T.koSeconds
 				for _, car in cars do
 					car.brain = nil
 					if car.hp <= 0 then
@@ -905,7 +917,7 @@ function BattleService.start(
 					BattleCar.coast(car, dt)
 				end
 			end
-			if m.t >= T.koSeconds then
+			if m.t >= m.koSeconds then
 				endRound(m, (m.koOutcome :: any) or "draw")
 			end
 		elseif m.phase == "result" then
@@ -989,6 +1001,7 @@ function BattleService.start(
 			vsBot = a.bot or b.bot,
 			closed = false,
 			lastOutcome = nil,
+			koSeconds = T.koSeconds,
 			koOutcome = nil,
 			final = false,
 			momentum = if momentum == nil then BattleConfig.defaultMomentum else momentum,
