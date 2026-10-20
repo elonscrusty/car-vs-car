@@ -351,7 +351,12 @@ local function confirmation(root, state, ctx)
 		T.text(
 			panel,
 			"RefundPolicy",
-			"DUPLICATE CAR: " .. Config.RefundText .. " COINS BACK",
+			"DUPLICATE CAR: "
+				.. (
+					if Config.RefundText == "NOTHING"
+						then "NOTHING BACK"
+						else Config.RefundText .. " COINS BACK"
+				),
 			30,
 			320,
 			768,

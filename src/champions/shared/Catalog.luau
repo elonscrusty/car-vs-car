@@ -496,7 +496,21 @@ local function renderClaw(root, state, ctx)
 	local note = T.panel(panel, "DuplicateRefund", 15, 337, 543, 57, T.C.blue)
 	T.icon(note, "RefundIcon", "coin", 13, 10, 36, T.C.gold)
 	T.text(note, "Owned", "OWNED CAR?", 61, 0, 469, 32, 24, T.C.white)
-	T.text(note, "Refund", Config.RefundText .. " COINS BACK", 61, 25, 469, 32, 24, T.C.gold)
+	T.text(
+		note,
+		"Refund",
+		(
+			if Config.RefundText == "NOTHING"
+				then "NOTHING BACK"
+				else Config.RefundText .. " COINS BACK"
+		),
+		61,
+		25,
+		469,
+		32,
+		24,
+		T.C.gold
+	)
 	local cost = state.clawPrice or Config.ClawPrice
 	local affordable = (state.coins or 0) >= cost
 	local label = loading(state)
@@ -517,9 +531,10 @@ local function renderClaw(root, state, ctx)
 					then "Free pull! One random car."
 					else "Spend " .. T.format(cost) .. " coins for one random car."
 			)
-				.. " Duplicates return "
-				.. Config.RefundText
-				.. " coins. Odds are shown before every pull."
+				.. (if Config.RefundText == "NOTHING"
+					then " A car you already have gives nothing."
+					else " Duplicates return " .. Config.RefundText .. " coins.")
+				.. " Odds are shown before every pull."
 		)
 	end, T.C.blue, "coin")
 	T.disable(pull, not available(state, ctx) or not affordable)

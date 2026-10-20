@@ -48,7 +48,7 @@ function LobbyText.oddsLine(rarity: string, percent: number, carNames: { string 
 	return `{rarity}  {LobbyText.percentText(percent)}  -  {names}`
 end
 
--- "Duplicate = 25 coins back" for the claw odds list.
+-- "Duplicate = 25 coins back" for the gumball odds list.
 function LobbyText.refundText(refund: number): string
 	return `Duplicate = {LobbyText.formatNumber(refund)} coins back`
 end
