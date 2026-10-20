@@ -383,8 +383,8 @@ H.test("config: every fighter is complete", function()
 		H.truthy(#f.blurb > 0 and #f.weakness > 0 and #f.weaponName > 0)
 	end
 	H.eq(BattleConfig.Fighters.RamTruck.hp, 150)
-	H.eq(BattleConfig.Fighters.CannonVan.hp, 150)
-	H.eq(BattleConfig.Fighters.SawBuggy.hp, 125)
+	H.eq(BattleConfig.Fighters.CannonVan.hp, 135)
+	H.eq(BattleConfig.Fighters.SawBuggy.hp, 105)
 	local _ = FIGHTERS
 end)
 
