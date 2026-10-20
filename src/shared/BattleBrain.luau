@@ -203,6 +203,7 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena, momentum: b
 	local flip = 1 -- alternates the side a recovery turns to
 	local tempo = 1 -- set every step from the contact info
 	local sawContactT, sawGapT = 0, 0 -- steady saw contact builds damage
+	local sawHeat, sawStallT = 0, 0 -- bounce fight: the saw overheats and stalls after long contact
 	local fleeT, standT = 0, 0 -- cannon: time spent running, and time left standing to fight
 
 	function resetStuck()
@@ -489,11 +490,22 @@ function BattleBrain.new(fighterId: string, L: number, arena: Arena, momentum: b
 		if touching then
 			sawContactT += dt
 			sawGapT = 0
+			if isMomentum then
+				sawHeat += dt
+				if sawHeat >= saw.heatSeconds then
+					sawHeat, sawStallT, sawContactT = 0, saw.stallSeconds, 0
+				end
+			end
 		else
 			sawGapT += dt
 			if sawGapT >= saw.loseContactSeconds then
 				sawContactT = 0 -- contact lost: the build-up starts over
 			end
+		end
+		if sawStallT > 0 then
+			sawStallT -= dt
+			touching = false
+			sawHeat = 0
 		end
 		if touching and sawCooldown <= 0 then
 			local build = clamp(sawContactT / saw.buildSeconds, 0, 1)

@@ -471,6 +471,31 @@ H.test("cannon: just inside max range and a few degrees off, it still turns and 
 	H.truthy(o.drive > 0, "creeps so the turn bites")
 end)
 
+H.test("saw (bounce): long steady contact overheats and pauses the damage", function()
+	local L = BattleConfig.Fighters.SawBuggy.lengthStuds
+	local b = BattleBrain.new("SawBuggy", L, Sim.arena(), true)
+	local me = { x = 0, z = 0, fx = 1, fz = 0 }
+	local foe = { x = 0.9 * L, z = 0, fx = -1, fz = 0 }
+	local pauseStart = BattleConfig.Saw.heatSeconds + 0.3
+	local ticksAfter, ticksBefore = 0, 0
+	for i = 1, 200 do
+		local t = i * 0.05
+		local o = b.step(0.05, me, foe, { ram = false, saw = true })
+		if o.damage > 0 then
+			if t < BattleConfig.Saw.heatSeconds then
+				ticksBefore += 1
+			elseif
+				t > pauseStart
+				and t < BattleConfig.Saw.heatSeconds + BattleConfig.Saw.stallSeconds
+			then
+				ticksAfter += 1
+			end
+		end
+	end
+	H.truthy(ticksBefore > 0, "damage before the overheat")
+	H.eq(ticksAfter, 0)
+end)
+
 H.test("saw: steady contact builds damage, losing contact resets it", function()
 	local L = BattleConfig.Fighters.SawBuggy.lengthStuds
 	local b = BattleBrain.new("SawBuggy", L, Sim.arena())
