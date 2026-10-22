@@ -41,6 +41,8 @@ local FRONT = 72 -- depth of the front area (stand spot, parking, sign, entrance
 -- Front area (z from FRONT_Z to the front edge) belongs to the base: the player stands here.
 Kit.FRONT_Z = Kit.DEPTH / 2 - FRONT
 Kit.STAND = { x = 0, z = Kit.DEPTH / 2 - 44 }
+-- The driver stand is raised like at a real RC track, so the whole plot is easy to see.
+Kit.STAND_H = 12
 -- The track must stay inside this box (plot-local x and z, with room for the outer walls).
 Kit.AREA = {
 	minX = -Kit.WIDTH / 2 + 8,

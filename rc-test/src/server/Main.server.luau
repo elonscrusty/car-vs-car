@@ -106,9 +106,11 @@ local function placePerson(player: Player, t: TrackData.Track, rc: boolean)
 	local spot, lookX, lookZ = TrackData.standSpot(t)
 	local x, _, z = TrackData.toWorld(t, true, spot.x, 0, spot.z)
 	local fx, _, fz = TrackData.toWorld(t, true, lookX, 0, lookZ)
-	local pos = Vector3.new(x, 3, z)
+	-- on top of the raised driver stand
+	local y = 3 + TrackData.STAND_H * TrackData.RC_SCALE
+	local pos = Vector3.new(x, y, z)
 	root.Anchored = true -- the keys drive the car, not the person
-	char:PivotTo(CFrame.lookAt(pos, Vector3.new(fx, 3, fz)))
+	char:PivotTo(CFrame.lookAt(pos, Vector3.new(fx, y, fz)))
 end
 
 remote.OnServerEvent:Connect(function(player: Player, kind: unknown, rc: unknown, index: unknown)

@@ -35,10 +35,12 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 	local heading = flat(body.CFrame.LookVector)
 	local pos = body.Position - heading * Tuning.camDistance + Vector3.new(0, Tuning.camHeight, 0)
 	local lookAt = body.Position
-	-- the chase cam follows the car's position exactly and only eases its offset, so it never
-	-- falls behind at speed
-	local offset = pos - body.Position
-	local focusY = body.Position.Y + 1.5 * Tuning.scale
+	-- the chase cam moves with the car's speed and only gently pulls onto the car, so tiny
+	-- tyre and spring shakes never reach the view, but it never falls behind either
+	local focus = body.Position + Vector3.new(0, 1.5 * Tuning.scale, 0)
+	local flatSpeed = 0 -- smoothed ground speed (spring bounce up and down is not speed)
+	local reach = 1 -- share of the full distance the camera is out (walls pull it in)
+	local floorLift = 0 -- extra height to stay above the ground under the camera
 	local zoomFov = Tuning.driverFovMax
 	-- driver view: how far the eyes are lifted to see over a wall, and walls see-through for now
 	local lift = 0
@@ -58,6 +60,36 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 			return hit.Instance :: BasePart
 		end
 		return nil
+	end
+
+	-- Track the car smoothly (both views use this): ground speed, heading and the focus point.
+	local function follow(dt: number)
+		local cf = body.CFrame
+		local vel = body.AssemblyLinearVelocity
+		local flatVel = Vector3.new(vel.X, 0, vel.Z)
+		flatSpeed += (flatVel.Magnitude - flatSpeed) * (1 - math.exp(-3 * dt))
+		local want = flat(cf.LookVector)
+		-- lean toward the real direction of travel when moving forward
+		if flatSpeed > 8 * Tuning.scale and flatVel:Dot(cf.LookVector) > 0 then
+			local w = 0.55
+				* CarMath.clamp((flatSpeed - 8 * Tuning.scale) / (20 * Tuning.scale), 0, 1)
+			want = flat(want * (1 - w) + flat(flatVel) * w)
+		end
+		heading = flat(heading:Lerp(want, 1 - math.exp(-5 * dt)))
+
+		-- carry the focus along at the car's speed, then pull it onto the car: no lag, no shake
+		local raw = cf.Position + Vector3.new(0, 1.5 * Tuning.scale, 0)
+		focus += flatVel * dt
+		local kSide = 1 - math.exp(-10 * dt)
+		local kUp = 1 - math.exp(-6 * dt)
+		focus = Vector3.new(
+			focus.X + (raw.X - focus.X) * kSide,
+			focus.Y + (raw.Y - focus.Y) * kUp,
+			focus.Z + (raw.Z - focus.Z) * kSide
+		)
+		if (raw - focus).Magnitude > 6 * Tuning.scale then
+			focus = raw -- jumped (reset or teleport): catch up at once
+		end
 	end
 
 	local driver = false
@@ -83,8 +115,10 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 		heading = flat(body.CFrame.LookVector)
 		pos = body.Position - heading * Tuning.camDistance + Vector3.new(0, Tuning.camHeight, 0)
 		lookAt = body.Position
-		focusY = body.Position.Y + 1.5 * Tuning.scale
-		offset = pos - (body.Position + Vector3.new(0, 1.5 * Tuning.scale, 0))
+		focus = body.Position + Vector3.new(0, 1.5 * Tuning.scale, 0)
+		flatSpeed = 0
+		reach = 1
+		floorLift = 0
 	end
 
 	function cam.setDriver(on: boolean)
@@ -104,8 +138,9 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 			camera.CameraType = Enum.CameraType.Scriptable
 		end
 		if driver then
+			follow(dt)
 			local base = eye()
-			local target = body.Position
+			local target = focus
 			-- a wall between the eyes and the car: look from a bit higher, the lowest height that
 			-- sees the car; if even the highest is blocked, make the wall see-through
 			local maxLift = Tuning.driverLiftMax
@@ -163,54 +198,38 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 			return
 		end
 		local cf = body.CFrame
-		local vel = body.AssemblyLinearVelocity
-		local speed = vel.Magnitude
-		local want = flat(cf.LookVector)
-		-- lean toward the real direction of travel when moving forward
-		if speed > 8 * Tuning.scale and vel:Dot(cf.LookVector) > 0 then
-			local w = 0.55 * CarMath.clamp((speed - 8 * Tuning.scale) / (20 * Tuning.scale), 0, 1)
-			want = flat(want * (1 - w) + flat(vel) * w)
-		end
-		local a = 1 - math.exp(-5 * dt)
-		heading = flat(heading:Lerp(want, a))
+		follow(dt)
 
-		-- follow the car exactly sideways, but ease the height so bumps and springs don't shake
-		-- the view
-		local raw = cf.Position + Vector3.new(0, 1.5 * Tuning.scale, 0)
-		focusY += (raw.Y - focusY) * (1 - math.exp(-6 * dt))
-		local focus = Vector3.new(raw.X, focusY, raw.Z)
-		local dist = Tuning.camDistance + speed * 0.05
-		local desired = focus - heading * dist + Vector3.new(0, Tuning.camHeight, 0)
-		-- keep the view out of walls and hills
-		local toCam = desired - focus
-		local hit = workspace:Raycast(focus, toCam, params)
+		local dist = Tuning.camDistance
+			* (1 + 0.2 * CarMath.clamp(flatSpeed / Tuning.topSpeed, 0, 1))
+		local back = -heading * dist + Vector3.new(0, Tuning.camHeight, 0)
+		-- a wall behind: slide in smoothly (fast in, slow out) instead of jumping every frame
+		local limit = 1
+		local hit = workspace:Raycast(focus, back, params)
 		if hit then
-			desired = hit.Position + hit.Normal * 0.6 * Tuning.scale
+			limit = CarMath.clamp((hit.Distance - 0.6 * Tuning.scale) / back.Magnitude, 0.15, 1)
 		end
+		local rate = if limit < reach then 20 else 2.5
+		reach += (limit - reach) * (1 - math.exp(-rate * dt))
+		pos = focus + back * reach
 
-		if hit then
-			-- pulled in by a wall: jump there (no flip-flopping between two spots)
-			offset = desired - focus
-		else
-			offset = offset:Lerp(desired - focus, 1 - math.exp(-8 * dt))
-		end
-		pos = focus + offset
-		-- never dip into the floor
+		-- never dip into the floor (eased, so bumps under the camera don't jolt it)
+		local need = 0
 		local down = workspace:Raycast(
 			pos + Vector3.new(0, Tuning.camHeight, 0),
 			Vector3.new(0, -Tuning.camHeight * 3, 0),
 			params
 		)
 		if down then
-			local minY = down.Position.Y + Tuning.camHeight * 0.4
-			if pos.Y < minY then
-				pos = Vector3.new(pos.X, minY, pos.Z)
-				offset = pos - focus
-			end
+			need = math.max(0, down.Position.Y + Tuning.camHeight * 0.4 - pos.Y)
 		end
+		local liftRate = if need > floorLift then 15 else 3
+		floorLift += (need - floorLift) * (1 - math.exp(-liftRate * dt))
+		pos += Vector3.new(0, floorLift, 0)
+
 		lookAt = focus + heading * 5 * Tuning.scale
 		camera.CFrame = CFrame.lookAt(pos, lookAt)
-		camera.FieldOfView = CarMath.fov(speed)
+		camera.FieldOfView = CarMath.fov(flatSpeed)
 	end
 
 	return cam
