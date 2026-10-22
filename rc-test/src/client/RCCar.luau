@@ -345,6 +345,19 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 			end
 		end
 
+		-- crawler: lean on its side past a little and it eases back upright, so a tall, soft car
+		-- doesn't topple off a slope (like a heavy battery low in a real crawler)
+		if Tuning.uprightAssist > 0 then
+			local look = cf.LookVector
+			local tipped = up:Cross(Vector3.yAxis):Dot(look) -- sin of the side lean, signed
+			local over = math.sign(tipped) * math.max(0, math.abs(tipped) - 0.25)
+			local rollRate = body.AssemblyAngularVelocity:Dot(look)
+			local inertia = mass * (Tuning.bodyX ^ 2 + Tuning.bodyY ^ 2) / 12
+			local accel = Tuning.uprightAssist * over
+				- 4 * rollRate * math.min(1, math.abs(tipped) * 4)
+			body:ApplyAngularImpulse(look * accel * inertia * dt)
+		end
+
 		-- upside down for a while = flip back over
 		if S < 1 then
 			body:ApplyImpulse(Vector3.yAxis * mass * (workspace.Gravity - gravity) * dt)
