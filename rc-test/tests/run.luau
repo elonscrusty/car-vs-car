@@ -10,5 +10,6 @@ require("./plot_drift.test")
 require("./plot_race.test")
 require("./plot_rock.test")
 require("./plot_show.test")
+require("./lobby.test")
 
 Harness.summary()

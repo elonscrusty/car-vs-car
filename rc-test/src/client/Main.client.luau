@@ -1,5 +1,6 @@
 --!strict
 -- RC car feel test, player side: drives the car, runs the camera, switches tracks, times laps.
+-- Starts walking in the lobby; the server says "drive" (E on a stand) and "walk" (E again).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -17,13 +18,17 @@ local ChaseCamera = require(script.Parent.ChaseCamera)
 local Controls = require(script.Parent.Controls)
 local Effects = require(script.Parent.Effects)
 local Hud = require(script.Parent.Hud)
+local Lobby = require(script.Parent.Lobby)
 local RCCar = require(script.Parent.RCCar)
 
 local player = Players.LocalPlayer
 local remote = ReplicatedStorage:WaitForChild("RCControl") :: RemoteEvent
 local carName = "Car_" .. player.UserId
 
--- The person's own walking controls would fight the car keys (and show a phone stick).
+-- The person's own walking controls: on in the lobby, off while driving (they would fight the
+-- car keys and show a second phone stick).
+local walking = true
+local walkControls: any = nil
 task.spawn(function()
 	local ok, playerModule = pcall(function(): any
 		-- not every place has one; don't wait forever
@@ -31,7 +36,12 @@ task.spawn(function()
 		return if module then require(module :: ModuleScript) else nil
 	end)
 	if ok and playerModule then
-		playerModule:GetControls():Disable()
+		walkControls = playerModule:GetControls()
+		if walking then
+			walkControls:Enable()
+		else
+			walkControls:Disable()
+		end
 	end
 end)
 
@@ -44,6 +54,15 @@ local function waitForCar(): (Model, BasePart)
 end
 
 local model, body = waitForCar()
+-- the server parks an RC-size car on the street and puts the person on it; wait for them so
+-- the wheels and the camera ignore the person
+setScale(TrackData.RC_SCALE)
+do
+	local t0 = os.clock()
+	while player.Character == nil and os.clock() - t0 < 5 do
+		task.wait()
+	end
+end
 local function ignoreList(): { Instance }
 	local list: { Instance } = { model }
 	if player.Character then
@@ -64,7 +83,7 @@ local car = RCCar.new(model, ignoreList())
 local camera = ChaseCamera.new(body, ignoreList(), eye)
 camera.setDriver(driverView)
 local effects = Effects.new(car.telemetry)
-local rc = false -- flipped to real RC size right after start-up
+local rc = true -- T flips to the big test size while driving
 local swapping = false
 
 local tracks: { TrackData.Track } = {}
@@ -90,7 +109,7 @@ local driftChain, driftTotal, driftHold = 0, 0, 0
 
 local hud: Hud.Hud
 local function goTo(index: number)
-	if swapping then
+	if swapping or walking then
 		return
 	end
 	current = index
@@ -112,7 +131,7 @@ end
 
 -- The server builds a new car at the other size; hook everything onto it.
 local function swapSize()
-	if swapping then
+	if swapping or walking then
 		return
 	end
 	swapping = true
@@ -158,6 +177,9 @@ beep.Parent = script
 local stuckTime = 0
 local stuckFrom = Vector3.zero
 local function reset()
+	if walking then
+		return
+	end
 	stuckTime = 0
 	beep:Play()
 	goTo(current)
@@ -179,8 +201,59 @@ end, function()
 	camera.setDriver(driverView)
 	hud.flash(if driverView then "DRIVER VIEW" else "CHASE CAM")
 end)
-goTo(1)
-task.spawn(swapSize)
+
+-- Walking <-> driving. Only the server switches (E on a stand, or WALK), this side follows.
+-- leave from RC size only (at the big test size the person is gone): T first
+local lobby = Lobby.new(remote, function(): boolean
+	return rc and not swapping
+end)
+local function setWalking(on: boolean)
+	walking = on
+	gui.Enabled = not on
+	lobby.setDriving(not on)
+	if walkControls then
+		if on then
+			walkControls:Enable()
+		else
+			walkControls:Disable()
+		end
+	end
+	local cam = workspace.CurrentCamera
+	local char = player.Character
+	if on then
+		camera.setDriver(false) -- clears see-through walls
+		cam.CameraType = Enum.CameraType.Custom
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if hum then
+			cam.CameraSubject = hum
+		end
+		if char then
+			for _, d in char:GetDescendants() do
+				if d:IsA("BasePart") then
+					d.LocalTransparencyModifier = 0
+				end
+			end
+		end
+	end
+end
+
+remote.OnClientEvent:Connect(function(kind: unknown, index: unknown)
+	if kind == "walk" then
+		setWalking(true)
+	elseif kind == "drive" and type(index) == "number" and tracks[index] then
+		setWalking(false)
+		-- fresh hooks: the person may have respawned since the last drive
+		car.destroy()
+		effects.destroy()
+		car = RCCar.new(model, ignoreList())
+		camera = ChaseCamera.new(body, ignoreList(), eye)
+		camera.setDriver(driverView)
+		showCam = false
+		effects = Effects.new(car.telemetry)
+		goTo(index)
+	end
+end)
+setWalking(true)
 
 local function timerText(): string
 	local t = tracks[current]
@@ -210,7 +283,7 @@ local function timerText(): string
 end
 
 RunService.PreSimulation:Connect(function(dt: number)
-	if swapping or body.Parent == nil then
+	if walking or swapping or body.Parent == nil then
 		return
 	end
 	local input = controls.read()
@@ -268,6 +341,17 @@ RunService.PreSimulation:Connect(function(dt: number)
 end)
 
 RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, function(dt: number)
+	if walking then
+		-- a respawn can hand the camera a new person: follow them
+		local cam = workspace.CurrentCamera
+		local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+		if hum and cam.CameraSubject ~= hum then
+			cam.CameraType = Enum.CameraType.Custom
+			cam.CameraSubject = hum
+		end
+		car.render(dt) -- keep the parked car's wheels drawn
+		return
+	end
 	if swapping or body.Parent == nil then
 		return
 	end
