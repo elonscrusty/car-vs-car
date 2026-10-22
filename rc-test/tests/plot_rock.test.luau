@@ -53,8 +53,8 @@ test("it only climbs, never too steep, with two steep climbs to show off", funct
 	local steepRuns, inSteep = 0, false
 	for i, s in slopes() do
 		truthy(s >= -1e-9, `piece {i} goes downhill`)
-		truthy(s <= 0.6, `piece {i} is too steep to crawl ({s})`)
-		local steep = s > 0.4
+		truthy(s <= 0.45, `piece {i} is too steep to crawl ({s})`)
+		local steep = s > 0.35
 		if steep and not inSteep then
 			steepRuns += 1
 		end
@@ -63,6 +63,16 @@ test("it only climbs, never too steep, with two steep climbs to show off", funct
 	eq(steepRuns, 2, "steep climbs")
 	eq(Plot.height(1), 0)
 	truthy(Plot.height(Plot.LAST_U) >= 60, "the flag should be up high")
+end)
+
+test("steep climbs run straight, never round a bend", function()
+	for i, s in slopes() do
+		if s > 0.3 and i < #path - 1 then
+			local a, b = path[i], path[i + 1]
+			local turn = math.abs(math.atan2(a.tx * b.tz - a.tz * b.tx, a.tx * b.tx + a.tz * b.tz))
+			truthy(turn < 0.06, `piece {i} climbs ({s}) while turning ({turn})`)
+		end
+	end
 end)
 
 test("everything on the trail is on the trail, and small ones can be crawled over", function()
