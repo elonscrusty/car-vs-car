@@ -224,7 +224,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 		hud.flash("GO!")
 	end
 
-	-- gas or brake held but the car gets nowhere for 3 s = stuck (wedged, on a wall, spinning its
+	-- gas or brake held but the car gets nowhere for a while (Tuning.stuckWait) = stuck (wedged, on a wall, spinning its
 	-- wheels on a slope): start over. Slow rock crawling covers far more than this.
 	local pressing = input.throttle > 0 or input.brake > 0
 	if pressing and (p - stuckFrom).Magnitude < 2 * Tuning.scale then
@@ -233,7 +233,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 		stuckTime = 0
 		stuckFrom = p
 	end
-	if stuckTime > 3 then
+	if stuckTime > Tuning.stuckWait then
 		reset()
 		hud.flash("STUCK - BACK TO START")
 	end
