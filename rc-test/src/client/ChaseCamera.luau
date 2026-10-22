@@ -70,7 +70,12 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 		flatSpeed += (flatVel.Magnitude - flatSpeed) * (1 - math.exp(-3 * dt))
 		local want = flat(cf.LookVector)
 		-- lean toward the real direction of travel when moving forward
-		if flatSpeed > 8 * Tuning.scale and flatVel:Dot(cf.LookVector) > 0 then
+		-- (only while really moving now: pinned on a wall, the tiny speed points anywhere)
+		if
+			flatSpeed > 8 * Tuning.scale
+			and flatVel.Magnitude > 8 * Tuning.scale
+			and flatVel:Dot(cf.LookVector) > 0
+		then
 			local w = 0.55
 				* CarMath.clamp((flatSpeed - 8 * Tuning.scale) / (20 * Tuning.scale), 0, 1)
 			want = flat(want * (1 - w) + flat(flatVel) * w)
@@ -94,6 +99,25 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 			focus = raw -- jumped (reset or teleport): catch up at once
 		end
 	end
+
+	-- driver view: a small arrow over the car when something stands between the eyes and it
+	local marker = Instance.new("BillboardGui")
+	marker.Name = "CarMarker"
+	marker.AlwaysOnTop = true
+	marker.Size = UDim2.fromOffset(26, 26)
+	marker.StudsOffsetWorldSpace = Vector3.new(0, 2.5 * Tuning.scale, 0)
+	marker.Enabled = false
+	marker.Adornee = body
+	local arrow = Instance.new("TextLabel")
+	arrow.Size = UDim2.fromScale(1, 1)
+	arrow.BackgroundTransparency = 1
+	arrow.Font = Enum.Font.GothamBlack
+	arrow.TextScaled = true
+	arrow.Text = "▼"
+	arrow.TextColor3 = Color3.fromRGB(255, 220, 40)
+	arrow.TextStrokeTransparency = 0
+	arrow.Parent = marker
+	marker.Parent = body
 
 	local driver = false
 	local orbiting = false
@@ -136,6 +160,7 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 
 	function cam.update(dt: number)
 		dt = math.min(dt, 0.1)
+		marker.Enabled = false
 		-- a person spawning resets the camera; keep it ours
 		if camera.CameraType ~= Enum.CameraType.Scriptable then
 			camera.CameraType = Enum.CameraType.Scriptable
@@ -170,6 +195,7 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 			if next(faded) then
 				params.FilterDescendantsInstances = ignore
 			end
+			marker.Enabled = next(faded) ~= nil
 			local dist = (target - from).Magnitude
 			-- auto zoom: narrow the view as the car gets far away so it stays easy to see
 			local want = math.deg(2 * math.atan(Tuning.driverWidth / 2 / math.max(dist, 0.01)))

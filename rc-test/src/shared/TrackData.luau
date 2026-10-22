@@ -103,6 +103,11 @@ end
 -- Height of the driver stand's top, in big-size units.
 TrackData.STAND_H = Kit.STAND_H
 
+-- True when a plot-local point is inside the plot's outer walls (with a little room).
+function TrackData.inPlot(x: number, z: number): boolean
+	return math.abs(x) <= Kit.WIDTH / 2 + 4 and math.abs(z) <= Kit.DEPTH / 2 + 4
+end
+
 -- Where the player stands with the remote (same spot on every plot), facing the car's start.
 function TrackData.standSpot(t: Track): (Spawn, number, number)
 	local s = t.spawn
