@@ -80,6 +80,37 @@ function CarMath.tractionCircle(
 	return x, CarMath.clamp(fy, -limit, limit)
 end
 
+-- Sideways tyre force: grows with the tyre's slip angle up to full grip at `peakSlip`, so the
+-- car leans into a small slide at speed instead of turning on rails. Never more than what
+-- stops the slide this frame (no wobble when slow).
+function CarMath.lateralForce(
+	vLat: number,
+	vLong: number,
+	cap: number,
+	wm: number,
+	dt: number
+): number
+	local slip = math.atan2(vLat, math.max(math.abs(vLong), 4))
+	local f = -cap * CarMath.clamp(slip / Tuning.peakSlip, -1, 1)
+	local stop = math.abs(vLat) * wm * Tuning.gripResponse / dt
+	return CarMath.clamp(f, -stop, stop)
+end
+
+-- Keeps a drift catchable: past `driftAngleMax` the spin that would make the slide worse is
+-- turned around into a push back toward straight. `yaw` is positive turning left.
+function CarMath.driftYaw(yaw: number, slip: number, vLong: number, dt: number): number
+	local excess = math.abs(slip) - Tuning.driftAngleMax
+	if vLong < 10 or excess <= 0 then
+		return yaw
+	end
+	-- sliding right (slip > 0) means the nose is left of travel: turning left makes it worse
+	local target = -math.sign(slip) * excess * Tuning.driftYawPush
+	if yaw * math.sign(slip) > 0 or math.abs(yaw) < math.abs(target) then
+		return CarMath.approach(yaw, target, 30 * dt)
+	end
+	return yaw
+end
+
 function CarMath.fov(speed: number): number
 	local t = CarMath.clamp(speed / Tuning.topSpeed, 0, 1)
 	return Tuning.camFovLow + (Tuning.camFovHigh - Tuning.camFovLow) * t

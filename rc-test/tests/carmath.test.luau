@@ -89,3 +89,27 @@ test("time text", function()
 	eq(CarMath.formatTime(65.43), "1:05.4")
 	eq(CarMath.formatTime(-3), "0:00.0")
 end)
+
+test("tyre slips a little before full grip, never overshoots", function()
+	-- small slip at speed: partial force
+	local f = CarMath.lateralForce(2, 80, 100, 1, 1 / 60)
+	truthy(f < 0 and f > -100)
+	-- big slip: full grip, opposite the slide
+	near(CarMath.lateralForce(-30, 80, 100, 1, 1 / 60), 100)
+	-- nearly stopped: only what stops the slide this frame
+	local tiny = CarMath.lateralForce(0.01, 0, 1000, 1, 1 / 60)
+	near(tiny, -0.01 * Tuning.gripResponse * 60)
+end)
+
+test("drift angle limiter turns a spin into a push back", function()
+	-- small slide: untouched
+	eq(CarMath.driftYaw(2, 0.3, 50, 1 / 60), 2)
+	-- slow: untouched
+	eq(CarMath.driftYaw(2, 1.2, 5, 1 / 60), 2)
+	-- sliding right past the limit while turning left (making it worse): yaw pulled down
+	truthy(CarMath.driftYaw(3, 1.0, 50, 1 / 60) < 3)
+	-- mirror
+	truthy(CarMath.driftYaw(-3, -1.0, 50, 1 / 60) > -3)
+	-- already turning back hard enough: untouched
+	eq(CarMath.driftYaw(-5, 1.0, 50, 1 / 60), -5)
+end)

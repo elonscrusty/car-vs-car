@@ -15,7 +15,7 @@ local Tuning = {
 	-- Suspension
 	maxSusp = 2.0, -- longest the spring can be
 	springOmega = 14, -- stiffness (rad/s). Higher = harder
-	springZeta = 0.3, -- bounciness. Lower = boingier
+	springZeta = 0.4, -- bounciness. Lower = boingier
 	bumpStop = 6, -- extra push when the wheel is crushed flat
 
 	-- Engine and brakes (studs/s^2)
@@ -31,7 +31,10 @@ local Tuning = {
 
 	-- Grip
 	baseMu = 1.1,
-	gripResponse = 0.5,
+	gripResponse = 0.5, -- most of the sideways slide a tyre can stop in one frame
+	peakSlip = 0.14, -- tyre angle (rad) where grip is full; below it the car slips a little
+	driftAngleMax = 0.6, -- body slide angle (rad) the car settles at in a drift
+	driftYawPush = 8,
 	handbrakeRearGrip = 0.55, -- rear grip left while the drift button is held
 	handbrakeBleed = 0.3,
 	maxYaw = 3, -- rad/s: hard cap on spinning so drifts stay catchable
