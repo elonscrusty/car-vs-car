@@ -219,9 +219,10 @@ Plot.features = {
 	rock(23.2, 0.35, 2.4, 1.3),
 } :: { Feature }
 
--- Start a little in front of the first point, facing along the trail.
+-- Start 10 in front of the first point (so the chase cam clears the wall behind), facing
+-- along the trail.
 local path = Plot.path()
-Plot.spawn = Kit.spawnAt(path[1], 0)
+Plot.spawn = Kit.spawnAt(path[1], -10)
 Plot.START_U = 1.5
 Plot.FINISH_U = 23.6
 
