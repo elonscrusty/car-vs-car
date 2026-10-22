@@ -44,6 +44,7 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }): Cam
 		orbiting = not orbiting
 		local back = -flat(body.CFrame.LookVector)
 		orbitAngle = math.atan2(back.Z, back.X) + 0.8
+		cam.snap()
 		return orbiting
 	end
 
@@ -64,6 +65,10 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }): Cam
 			local hit = workspace:Raycast(center, want - center, params)
 			if hit then
 				want = hit.Position + hit.Normal * 0.6
+				-- too close to the car: look down from above instead
+				if (want - center).Magnitude < 6 then
+					want = center + Vector3.new(0, Tuning.orbitDistance * 0.8, 0)
+				end
 			end
 			pos = pos:Lerp(want, 1 - math.exp(-4 * dt))
 			lookAt = lookAt:Lerp(center, 1 - math.exp(-8 * dt))

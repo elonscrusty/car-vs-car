@@ -63,20 +63,24 @@ local Tuning = {
 
 	-- Gas while sliding keeps the back loose (0 = off). Only the drift track turns it on.
 	powerSlide = 0,
+	driftThrust = 0, -- push along the slide while on the gas, so drifts keep their speed
+	lowGear = 0, -- 1 = the engine holds the top speed going downhill too
 }
 
 -- Each track can change some numbers. Anything not listed uses the base value above.
 local MODES: { [string]: { [string]: number } } = {
 	-- Tokyo drift: easy to throw sideways, gas holds the slide, deep held angles.
 	drift = {
-		driftAngleMax = 0.95,
-		handbrakeRearGrip = 0.35,
+		driftAngleMax = 0.75,
+		driftYawPush = 12,
+		handbrakeRearGrip = 0.4,
 		frontDrive = 0.15,
-		powerSlide = 0.55,
+		powerSlide = 0.4,
+		driftThrust = 45,
 		counterMax = 0.85,
 		steerMax = 0.95,
 		steerHigh = 0.2,
-		maxYaw = 3.4,
+		maxYaw = 2.4,
 	},
 	-- Rock crawler: slow, strong, soft long springs you can watch flex, sticky tyres.
 	rock = {
@@ -93,6 +97,8 @@ local MODES: { [string]: { [string]: number } } = {
 		steerHigh = 0.5,
 		reverseTop = 15,
 		downforce = 0,
+		lowGear = 1,
+		coastDrag = 2.5,
 	},
 }
 

@@ -227,6 +227,7 @@ function RCCar.new(model: Model): Car
 				else
 					fx = -vLong * wm * Tuning.coastDrag
 				end
+				fx += CarMath.governor(vLong, wm, dt)
 				if rear and handbrake > 0 then
 					fx -= vLong * wm * Tuning.handbrakeBleed * handbrake
 				end
@@ -259,6 +260,13 @@ function RCCar.new(model: Model): Car
 		local t = CarMath.clamp(speed / Tuning.topSpeed, 0, 1)
 		if grounded > 0 then
 			body:ApplyImpulse(-up * mass * workspace.Gravity * Tuning.downforce * t * t * dt)
+			local thrust = CarMath.driftThrust(speed, slip, throttle)
+			if thrust > 0 and vLongBody > 0 then
+				local flatVel = Vector3.new(vel.X, 0, vel.Z)
+				if flatVel.Magnitude > 1 then
+					body:ApplyImpulse(flatVel.Unit * mass * thrust * dt)
+				end
+			end
 			-- cap the spin so a drift stays a slide, not a spin-out
 			local ang = body.AssemblyAngularVelocity
 			local yaw = ang:Dot(up)
