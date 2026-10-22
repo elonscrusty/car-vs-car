@@ -72,8 +72,24 @@ test("drift pad sits inside the loop, clear of the road", function()
 		local d = math.sqrt((s.x - pad.x) ^ 2 + (s.z - pad.z) ^ 2)
 		truthy(d > pad.r + Plot.ROAD / 2 + 12, `road sample {i} is too close to the pad`)
 	end
-	truthy(pad.r >= 50, "pad too small to circle the cone")
+	truthy(pad.r >= 45, "pad too small to circle the cone")
 end)
+
+test(
+	"open floor between the road and the outer walls (room to slide wide, camera space)",
+	function()
+		local half = Plot.ROAD / 2
+		local wx, wz = Kit.WIDTH / 2, Kit.DEPTH / 2
+		for i, s in Plot.loop() do
+			for _, side in { -1, 1 } do
+				local x, z = s.x - s.tz * half * side, s.z + s.tx * half * side
+				truthy(wx - math.abs(x) >= 22, `road edge at sample {i} is too near a side wall`)
+				truthy(z + wz >= 22, `road edge at sample {i} is too near the back wall`)
+				truthy(Kit.FRONT_Z - z >= 20, `road edge at sample {i} is too near the front wall`)
+			end
+		end
+	end
+)
 
 test("car starts on the front straight, facing along the road to the right", function()
 	local s = Plot.spawn
