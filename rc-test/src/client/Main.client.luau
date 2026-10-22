@@ -223,10 +223,11 @@ RunService.PreSimulation:Connect(function(dt: number)
 		hud.flash("GO!")
 	end
 
-	-- gas held but the car barely moves for 3 s = stuck: start over (slow rock crawling is
-	-- still far faster than this)
+	-- gas or brake held but the car barely moves for 3 s = stuck (wedged, on a wall, off the trail):
+	-- start over. Slow rock crawling is still far faster than this.
 	local v = body.AssemblyLinearVelocity
-	if input.throttle > 0 and Vector3.new(v.X, 0, v.Z).Magnitude < 1 * Tuning.scale then
+	local pressing = input.throttle > 0 or input.brake > 0
+	if pressing and Vector3.new(v.X, 0, v.Z).Magnitude < 1 * Tuning.scale then
 		stuckTime += dt
 	else
 		stuckTime = 0
