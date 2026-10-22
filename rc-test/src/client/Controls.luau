@@ -262,7 +262,7 @@ function Controls.new(
 	local camBtn = resetBtn:Clone()
 	camBtn.Name = "Cam"
 	camBtn.Text = "CAM"
-	camBtn.Position = UDim2.new(0.84, 0, 0, 64)
+	camBtn.Position = UDim2.new(0.98, 0, 0, 64)
 	camBtn.Size = UDim2.fromScale(0.065, 0.09)
 	camBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 	camBtn.Parent = gui
@@ -271,7 +271,7 @@ function Controls.new(
 	local sizeBtn = resetBtn:Clone()
 	sizeBtn.Name = "Size"
 	sizeBtn.Text = "SIZE"
-	sizeBtn.Position = UDim2.new(0.98, 0, 0, 64)
+	sizeBtn.Position = UDim2.new(0.84, 0, 0, 64)
 	sizeBtn.Size = UDim2.fromScale(0.065, 0.09)
 	sizeBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 	sizeBtn.Parent = gui
