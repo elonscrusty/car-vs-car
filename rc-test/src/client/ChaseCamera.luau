@@ -56,17 +56,21 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }): Cam
 
 	function cam.update(dt: number)
 		dt = math.min(dt, 0.1)
+		-- a person spawning resets the camera; keep it ours
+		if camera.CameraType ~= Enum.CameraType.Scriptable then
+			camera.CameraType = Enum.CameraType.Scriptable
+		end
 		if orbiting then
 			orbitAngle += Tuning.orbitSpeed * dt
-			local center = body.Position + Vector3.new(0, 0.5, 0)
+			local center = body.Position + Vector3.new(0, 0.5 * Tuning.scale, 0)
 			local want = center
 				+ Vector3.new(math.cos(orbitAngle), 0, math.sin(orbitAngle)) * Tuning.orbitDistance
 				+ Vector3.new(0, Tuning.orbitHeight, 0)
 			local hit = workspace:Raycast(center, want - center, params)
 			if hit then
-				want = hit.Position + hit.Normal * 0.6
+				want = hit.Position + hit.Normal * 0.6 * Tuning.scale
 				-- too close to the car: look down from above instead
-				if (want - center).Magnitude < 6 then
+				if (want - center).Magnitude < 6 * Tuning.scale then
 					want = center + Vector3.new(0, Tuning.orbitDistance * 0.8, 0)
 				end
 			end
@@ -81,21 +85,21 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }): Cam
 		local speed = vel.Magnitude
 		local want = flat(cf.LookVector)
 		-- lean toward the real direction of travel when moving forward
-		if speed > 8 and vel:Dot(cf.LookVector) > 0 then
-			local w = 0.55 * CarMath.clamp((speed - 8) / 20, 0, 1)
+		if speed > 8 * Tuning.scale and vel:Dot(cf.LookVector) > 0 then
+			local w = 0.55 * CarMath.clamp((speed - 8 * Tuning.scale) / (20 * Tuning.scale), 0, 1)
 			want = flat(want * (1 - w) + flat(vel) * w)
 		end
 		local a = 1 - math.exp(-5 * dt)
 		heading = flat(heading:Lerp(want, a))
 
-		local focus = cf.Position + Vector3.new(0, 1.5, 0)
+		local focus = cf.Position + Vector3.new(0, 1.5 * Tuning.scale, 0)
 		local dist = Tuning.camDistance + speed * 0.05
 		local desired = focus - heading * dist + Vector3.new(0, Tuning.camHeight, 0)
 		-- keep the view out of walls and hills
 		local toCam = desired - focus
 		local hit = workspace:Raycast(focus, toCam, params)
 		if hit then
-			desired = hit.Position + hit.Normal * 0.6
+			desired = hit.Position + hit.Normal * 0.6 * Tuning.scale
 		end
 
 		local ax = 1 - math.exp(-9 * dt)
@@ -108,7 +112,7 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }): Cam
 		if hit then
 			pos = desired
 		end
-		lookAt = lookAt:Lerp(focus + heading * 5, 1 - math.exp(-12 * dt))
+		lookAt = lookAt:Lerp(focus + heading * 5 * Tuning.scale, 1 - math.exp(-12 * dt))
 		camera.CFrame = CFrame.lookAt(pos, lookAt)
 		camera.FieldOfView = CarMath.fov(speed)
 	end

@@ -28,7 +28,7 @@ end
 
 -- Angle between where the car points and where it slides. 0 = straight, positive = sliding right.
 function CarMath.slipAngle(vLat: number, vLong: number): number
-	return math.atan2(vLat, math.max(math.abs(vLong), 1))
+	return math.atan2(vLat, math.max(math.abs(vLong), Tuning.scale))
 end
 
 -- Biggest wheel angle allowed at this speed: wide when slow, small when fast.
@@ -41,7 +41,7 @@ end
 function CarMath.steerTarget(input: number, vLong: number, slip: number): number
 	local i = CarMath.clamp(input, -1, 1)
 	local target = i * CarMath.steerLimit(vLong)
-	if vLong > 8 then
+	if vLong > 8 * Tuning.scale then
 		local counter =
 			CarMath.clamp(slip * Tuning.counterSteer, -Tuning.counterMax, Tuning.counterMax)
 		target += counter * (1 - 0.5 * math.abs(i))
@@ -90,7 +90,7 @@ function CarMath.lateralForce(
 	wm: number,
 	dt: number
 ): number
-	local slip = math.atan2(vLat, math.max(math.abs(vLong), 4))
+	local slip = math.atan2(vLat, math.max(math.abs(vLong), 4 * Tuning.scale))
 	local f = -cap * CarMath.clamp(slip / Tuning.peakSlip, -1, 1)
 	local stop = math.abs(vLat) * wm * Tuning.gripResponse / dt
 	return CarMath.clamp(f, -stop, stop)
@@ -100,7 +100,7 @@ end
 -- turned around into a push back toward straight. `yaw` is positive turning left.
 function CarMath.driftYaw(yaw: number, slip: number, vLong: number, dt: number): number
 	local excess = math.abs(slip) - Tuning.driftAngleMax
-	if vLong < 10 or excess <= 0 then
+	if vLong < 10 * Tuning.scale or excess <= 0 then
 		return yaw
 	end
 	-- sliding right (slip > 0) means the nose is left of travel: turning left makes it worse
@@ -152,10 +152,12 @@ end
 -- Drift score earned this frame: only when really sideways and fast.
 function CarMath.driftPoints(speed: number, slip: number, dt: number): number
 	local a = math.abs(slip)
-	if speed < 15 or a < 0.25 then
+	-- scored in big-size units so the numbers match at any size
+	local s = speed / Tuning.scale
+	if s < 15 or a < 0.25 then
 		return 0
 	end
-	return speed * math.min(a, 1) * dt * 2
+	return s * math.min(a, 1) * dt * 2
 end
 
 -- m:ss.t

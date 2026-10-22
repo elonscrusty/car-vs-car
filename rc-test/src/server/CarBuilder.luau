@@ -34,7 +34,7 @@ local function addPart(
 	return p
 end
 
-function CarBuilder.build(name: string, cf: CFrame): Model
+function CarBuilder.build(name: string, cf: CFrame, scale: number): Model
 	local model = Instance.new("Model")
 	model.Name = name
 
@@ -72,6 +72,9 @@ function CarBuilder.build(name: string, cf: CFrame): Model
 	local lamp = Color3.fromRGB(255, 240, 170)
 	addPart(model, body, "LampLeft", Vector3.new(0.6, 0.3, 0.2), CFrame.new(-1, 0.1, -2.75), lamp)
 	addPart(model, body, "LampRight", Vector3.new(0.6, 0.3, 0.2), CFrame.new(1, 0.1, -2.75), lamp)
+	if scale ~= 1 then
+		model:ScaleTo(scale)
+	end
 	return model
 end
 

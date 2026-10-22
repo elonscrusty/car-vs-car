@@ -11,6 +11,7 @@ local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
 
 local setMode: (id: string) -> () = (Tuning :: any).setMode
+local setScale: (s: number) -> () = (Tuning :: any).setScale
 
 local ChaseCamera = require(script.Parent.ChaseCamera)
 local Controls = require(script.Parent.Controls)
@@ -19,15 +20,42 @@ local Hud = require(script.Parent.Hud)
 local RCCar = require(script.Parent.RCCar)
 
 local player = Players.LocalPlayer
-local model = workspace:WaitForChild("Car_" .. player.UserId) :: Model
-while model.PrimaryPart == nil do
-	task.wait()
-end
-local body = model.PrimaryPart :: BasePart
+local remote = ReplicatedStorage:WaitForChild("RCControl") :: RemoteEvent
+local carName = "Car_" .. player.UserId
 
-local car = RCCar.new(model)
-local camera = ChaseCamera.new(body, { model })
+-- The person's own walking controls would fight the car keys (and show a phone stick).
+task.spawn(function()
+	local ok, playerModule = pcall(function(): any
+		return require(
+			player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule") :: ModuleScript
+		)
+	end)
+	if ok and playerModule then
+		playerModule:GetControls():Disable()
+	end
+end)
+
+local function waitForCar(): (Model, BasePart)
+	local model = workspace:WaitForChild(carName) :: Model
+	while model.PrimaryPart == nil do
+		task.wait()
+	end
+	return model, model.PrimaryPart :: BasePart
+end
+
+local model, body = waitForCar()
+local function ignoreList(): { Instance }
+	local list: { Instance } = { model }
+	if player.Character then
+		table.insert(list, player.Character)
+	end
+	return list
+end
+local car = RCCar.new(model, ignoreList())
+local camera = ChaseCamera.new(body, ignoreList())
 local effects = Effects.new(car.telemetry)
+local rc = false -- flipped to real RC size right after start-up
+local swapping = false
 
 local tracks: { TrackData.Track } = {}
 local timers: { LapTimer.State } = {}
@@ -44,18 +72,62 @@ local driftChain, driftTotal, driftHold = 0, 0, 0
 
 local hud: Hud.Hud
 local function goTo(index: number)
+	if swapping then
+		return
+	end
 	current = index
 	local t = tracks[index]
+	setScale(if rc then TrackData.RC_SCALE else 1)
 	setMode(t.id)
 	effects.clear()
 	LapTimer.reset(timers[index])
 	driftChain, driftTotal, driftHold = 0, 0, 0
 	local s = t.spawn
-	local pos = Vector3.new(t.originX + s.x, s.y, s.z)
+	local x, y, z = TrackData.toWorld(t, rc, s.x, s.y, s.z)
+	local pos = Vector3.new(x, y, z)
+	remote:FireServer("place", rc, index)
 	car.teleport(CFrame.lookAt(pos, pos + Vector3.new(s.dx, 0, s.dz)))
 	camera.snap()
 	hud.setActiveTrack(index)
 	hud.setDrift(0, 0, t.id == "drift")
+end
+
+-- The server builds a new car at the other size; hook everything onto it.
+local function swapSize()
+	if swapping then
+		return
+	end
+	swapping = true
+	rc = not rc
+	hud.flash(if rc then "RC SIZE" else "BIG SIZE")
+	local old = model
+	remote:FireServer("place", rc, current)
+	local t0 = os.clock()
+	while workspace:FindFirstChild(carName) == old do
+		if os.clock() - t0 > 5 then
+			-- the server didn't answer: stay at the old size
+			rc = not rc
+			swapping = false
+			return
+		end
+		task.wait()
+	end
+	car.destroy()
+	effects.destroy()
+	model, body = waitForCar()
+	if rc then
+		-- wait a moment for the person to appear so the camera and wheels ignore them
+		local t0 = os.clock()
+		while player.Character == nil and os.clock() - t0 < 3 do
+			task.wait()
+		end
+	end
+	setScale(if rc then TrackData.RC_SCALE else 1)
+	car = RCCar.new(model, ignoreList())
+	camera = ChaseCamera.new(body, ignoreList())
+	effects = Effects.new(car.telemetry)
+	swapping = false
+	goTo(current)
 end
 
 local gui = Hud.createGui()
@@ -69,9 +141,13 @@ local controls = Controls.new(
 	function()
 		local on = camera.toggleOrbit()
 		hud.flash(if on then "SHOW CAM" else "CHASE CAM")
+	end,
+	function()
+		task.spawn(swapSize)
 	end
 )
 goTo(1)
+task.spawn(swapSize)
 
 local function timerText(): string
 	local t = tracks[current]
@@ -101,11 +177,15 @@ local function timerText(): string
 end
 
 RunService.PreSimulation:Connect(function(dt: number)
+	if swapping or body.Parent == nil then
+		return
+	end
 	car.step(dt, controls.read())
 
 	local t = tracks[current]
 	local p = body.Position
-	local event = LapTimer.update(timers[current], os.clock(), p.X - t.originX, p.Y, p.Z)
+	local lx, ly, lz = TrackData.toLocal(t, rc, p.X, p.Y, p.Z)
+	local event = LapTimer.update(timers[current], os.clock(), lx, ly, lz)
 	if event == "lap" then
 		hud.flash(`LAP  {CarMath.formatTime(timers[current].last :: number)}`)
 	elseif event == "finish" then
@@ -127,7 +207,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 			driftHold = 0.8
 		elseif driftChain > 0 then
 			driftHold -= dt
-			if driftHold <= 0 or tel.speed < 8 then
+			if driftHold <= 0 or tel.speed < 8 * Tuning.scale then
 				driftTotal += driftChain
 				hud.flash(`+{math.floor(driftChain)}`)
 				driftChain = 0
@@ -138,9 +218,13 @@ RunService.PreSimulation:Connect(function(dt: number)
 end)
 
 RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, function(dt: number)
+	if swapping or body.Parent == nil then
+		return
+	end
 	car.render(dt)
 	effects.update(dt)
 	camera.update(dt)
-	hud.setSpeed(car.telemetry.speed)
+	-- speed shown in big-size numbers so both sizes read the same
+	hud.setSpeed(car.telemetry.speed / Tuning.scale)
 	hud.setTimer(timerText())
 end)

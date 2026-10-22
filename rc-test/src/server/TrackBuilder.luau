@@ -233,15 +233,15 @@ local function buildRock(folder: Folder, t: TrackData.Track)
 	start.CanCollide = false
 end
 
+-- Builds every track twice: big test size, and a shrunk copy at real RC size.
 function TrackBuilder.build()
 	local root = Instance.new("Folder")
 	root.Name = "Tracks"
 	root.Parent = workspace
 	for _, id in TrackData.order do
 		local t = TrackData.get(id)
-		local folder = Instance.new("Folder")
-		folder.Name = id
-		folder.Parent = root
+		local holder = Instance.new("Folder")
+		local folder = holder :: any
 		if id == "drift" then
 			buildDrift(folder, t)
 		elseif id == "race" then
@@ -249,6 +249,21 @@ function TrackBuilder.build()
 		else
 			buildRock(folder, t)
 		end
+		local big = Instance.new("Model")
+		big.Name = id
+		for _, child in holder:GetChildren() do
+			child.Parent = big
+		end
+		holder:Destroy()
+		big.WorldPivot = CFrame.new(t.originX, 0, 0)
+		big.Parent = root
+
+		local small = big:Clone()
+		small.Name = id .. "_rc"
+		small:ScaleTo(TrackData.RC_SCALE)
+		local ox, oz = TrackData.origin(t, true)
+		small:PivotTo(CFrame.new(ox, 0, oz))
+		small.Parent = root
 	end
 end
 
