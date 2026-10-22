@@ -33,8 +33,8 @@ test("race loop does not touch itself (road width fits)", function()
 	truthy(closestApproach(Plot.loop(), 10) > Plot.ROAD + 6, "too close")
 end)
 
-test("whole road and its walls stay inside the track area", function()
-	local edge = Plot.ROAD / 2 + 2
+test("whole road and its curbs stay inside the track area", function()
+	local edge = Plot.ROAD / 2 + Plot.CURB_WIDTH
 	for i, s in Plot.loop() do
 		for _, side in { -1, 1 } do
 			local x, z = s.x - s.tz * edge * side, s.z + s.tx * edge * side
