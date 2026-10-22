@@ -5,6 +5,7 @@
 -- top-down view (straight above, for drifting) and the free view (drag to look from any side).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 
 local CarMath = require(ReplicatedStorage.Shared.CarMath)
@@ -21,18 +22,38 @@ export type View = "driver" | "chase" | "top" | "free"
 
 local ChaseCamera = {}
 
--- Free view input, shared by every camera made (hooked up once): right mouse drag or a finger
--- dragged on open screen turns the view, the mouse wheel or a pinch zooms.
+-- Free view input, shared by every camera made (hooked up once): a mouse drag (either button) or
+-- a finger dragged on open screen turns the view, the mouse wheel or a pinch zooms.
+-- Roblox's own camera scripts mark the right button, wheel and touches as "used", so that flag
+-- is not trusted here; instead a press that lands on one of our buttons or the stick is skipped.
 local turnX, turnY, zoomBy = 0, 0, 1
 do
-	local dragging = false
-	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
-		if processed then
-			return
+	local player = Players.LocalPlayer
+	local function onButton(pos: Vector3): boolean
+		local playerGui = player:FindFirstChildOfClass("PlayerGui")
+		if not playerGui then
+			return false
 		end
-		if input.UserInputType == Enum.UserInputType.MouseButton2 then
-			dragging = true
-		elseif input.UserInputType == Enum.UserInputType.Touch then
+		for _, g in playerGui:GetGuiObjectsAtPosition(pos.X, pos.Y) do
+			if g.Active and g.Visible then
+				return true
+			end
+		end
+		return false
+	end
+	local dragging = false
+	local lastMouse = Vector3.zero
+	UserInputService.InputBegan:Connect(function(input: InputObject)
+		local kind = input.UserInputType
+		if kind == Enum.UserInputType.MouseButton2 or kind == Enum.UserInputType.MouseButton1 then
+			if not onButton(input.Position) then
+				dragging = true
+				lastMouse = input.Position
+			end
+		elseif kind == Enum.UserInputType.Touch then
+			if onButton(input.Position) then
+				return
+			end
 			local last = input.Position
 			local conn: RBXScriptConnection
 			conn = input.Changed:Connect(function()
@@ -48,30 +69,28 @@ do
 		end
 	end)
 	UserInputService.InputEnded:Connect(function(input: InputObject)
-		if input.UserInputType == Enum.UserInputType.MouseButton2 then
-			dragging = false
+		local kind = input.UserInputType
+		if kind == Enum.UserInputType.MouseButton2 or kind == Enum.UserInputType.MouseButton1 then
+			dragging = UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+				or UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
 		end
 	end)
-	UserInputService.InputChanged:Connect(function(input: InputObject, processed: boolean)
-		if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
-			turnX += input.Delta.X * 0.008
-			turnY += input.Delta.Y * 0.008
-		elseif input.UserInputType == Enum.UserInputType.MouseWheel and not processed then
+	UserInputService.InputChanged:Connect(function(input: InputObject)
+		if input.UserInputType == Enum.UserInputType.MouseMovement then
+			-- screen position change, not Delta: Delta is only filled in while the mouse is locked
+			local d = input.Position - lastMouse
+			lastMouse = input.Position
+			if dragging then
+				turnX += d.X * 0.008
+				turnY += d.Y * 0.008
+			end
+		elseif input.UserInputType == Enum.UserInputType.MouseWheel then
 			zoomBy *= 1 - input.Position.Z * 0.12
 		end
 	end)
 	local lastPinch = 1
 	UserInputService.TouchPinch:Connect(
-		function(
-			_: { Vector2 },
-			scale: number,
-			_: number,
-			state: Enum.UserInputState,
-			processed: boolean
-		)
-			if processed then
-				return
-			end
+		function(_: { Vector2 }, scale: number, _: number, state: Enum.UserInputState)
 			if state == Enum.UserInputState.Begin then
 				lastPinch = 1
 			end
