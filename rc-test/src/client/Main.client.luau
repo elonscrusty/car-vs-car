@@ -146,30 +146,34 @@ local function swapSize()
 	goTo(current)
 end
 
+-- Back to the plot's start with a short beep (fell off, stuck, or the R key).
+local beep = Instance.new("Sound")
+beep.Name = "ResetBeep"
+beep.SoundId = "rbxasset://sounds/electronicpingshort.wav"
+beep.Volume = 0.5
+beep.Parent = script
+local stuckTime = 0
+local function reset()
+	stuckTime = 0
+	beep:Play()
+	goTo(current)
+end
+
 local gui = Hud.createGui()
 hud = Hud.new(gui, labels, goTo)
-local controls = Controls.new(
-	gui,
-	function()
-		goTo(current)
-	end,
-	goTo,
-	function()
-		local on = camera.toggleOrbit()
-		if on then
-			driverView = false
-		end
-		hud.flash(if on then "SHOW CAM" elseif driverView then "DRIVER VIEW" else "CHASE CAM")
-	end,
-	function()
-		task.spawn(swapSize)
-	end,
-	function()
-		driverView = not driverView
-		camera.setDriver(driverView)
-		hud.flash(if driverView then "DRIVER VIEW" else "CHASE CAM")
+local controls = Controls.new(gui, reset, goTo, function()
+	local on = camera.toggleOrbit()
+	if on then
+		driverView = false
 	end
-)
+	hud.flash(if on then "SHOW CAM" elseif driverView then "DRIVER VIEW" else "CHASE CAM")
+end, function()
+	task.spawn(swapSize)
+end, function()
+	driverView = not driverView
+	camera.setDriver(driverView)
+	hud.flash(if driverView then "DRIVER VIEW" else "CHASE CAM")
+end)
 goTo(1)
 task.spawn(swapSize)
 
@@ -204,7 +208,8 @@ RunService.PreSimulation:Connect(function(dt: number)
 	if swapping or body.Parent == nil then
 		return
 	end
-	car.step(dt, controls.read())
+	local input = controls.read()
+	car.step(dt, input)
 
 	local t = tracks[current]
 	local p = body.Position
@@ -218,9 +223,22 @@ RunService.PreSimulation:Connect(function(dt: number)
 		hud.flash("GO!")
 	end
 
+	-- gas held but the car barely moves for 3 s = stuck: start over (slow rock crawling is
+	-- still far faster than this)
+	local v = body.AssemblyLinearVelocity
+	if input.throttle > 0 and Vector3.new(v.X, 0, v.Z).Magnitude < 1 * Tuning.scale then
+		stuckTime += dt
+	else
+		stuckTime = 0
+	end
+	if stuckTime > 3 then
+		reset()
+		hud.flash("STUCK - BACK TO START")
+	end
+
 	-- fell off the world
-	if p.Y < -40 then
-		goTo(current)
+	if p.Y < -8 * Tuning.scale / TrackData.RC_SCALE then
+		reset()
 	end
 
 	if t.id == "drift" then
@@ -260,6 +278,8 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 		end
 	end
 	-- speed shown in big-size numbers so both sizes read the same
-	hud.setSpeed(car.telemetry.speed / Tuning.scale)
+	-- flat speed, so a car settling on its springs reads 0
+	local v = body.AssemblyLinearVelocity
+	hud.setSpeed(Vector3.new(v.X, 0, v.Z).Magnitude / Tuning.scale)
 	hud.setTimer(timerText())
 end)

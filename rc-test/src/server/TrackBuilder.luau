@@ -43,7 +43,9 @@ local function buildBase(parent: Instance, origin: CFrame, label: string, grip: 
 
 	-- front area: a line across, the stand spot, parking, the entrance path and the sign
 	local front = Kit.FRONT_Z
-	Kit.line(parent, origin, 0, 0, front, 0, -1, w - 4, C.white)
+	-- low wall between the track and the front area: the car stays on its side, people can
+	-- still see over it
+	Kit.part(parent, "Wall", origin, Vector3.new(w, 3, 2), CFrame.new(0, 1.5, front), C.white)
 	local stand =
 		Kit.disc(parent, "StandPad", origin, Kit.STAND.x, 0.1, Kit.STAND.z, 14, 0.2, C.pad)
 	stand.CanCollide = false
