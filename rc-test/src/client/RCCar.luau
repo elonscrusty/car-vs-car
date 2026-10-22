@@ -121,6 +121,7 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 	local handbrake = 0
 	local flippedFor = 0
 	local stuckFor = 0
+	local unsticking = false
 	local infos: { WheelInfo } = {}
 	for i, w in wheels do
 		infos[i] = w.info
@@ -325,6 +326,12 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 			-- the tyres and the yaw limit would otherwise hold the car straight)
 			body.AssemblyAngularVelocity = up * (-math.sign(input.steer) * 1.6)
 			body:ApplyImpulse(noseHit.Normal * mass * 12 * S * dt)
+			unsticking = true
+		elseif unsticking then
+			-- nose is free: stop the helper's spin so the car doesn't keep turning
+			unsticking = false
+			local spin = body.AssemblyAngularVelocity
+			body.AssemblyAngularVelocity = spin - up * spin:Dot(up)
 		end
 
 		-- upside down for a while = flip back over
