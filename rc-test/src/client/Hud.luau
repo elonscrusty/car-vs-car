@@ -81,12 +81,13 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }, onTrack: (index: numbe
 	timer.TextXAlignment = Enum.TextXAlignment.Left
 	timer.TextYAlignment = Enum.TextYAlignment.Top
 
+	-- top right, under the CAM / VIEW / SIZE buttons, so it never sits on the car
 	local speed = label(
 		gui,
 		"Speed",
-		Vector2.new(0.5, 1),
-		UDim2.fromScale(0.5, 0.9),
-		UDim2.fromScale(0.12, 0.06)
+		Vector2.new(1, 0),
+		UDim2.new(0.98, 0, 0.1, 72),
+		UDim2.fromScale(0.1, 0.06)
 	)
 	speed.TextTransparency = 0.2
 

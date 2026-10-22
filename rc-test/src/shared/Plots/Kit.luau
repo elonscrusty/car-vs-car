@@ -42,7 +42,7 @@ local FRONT = 72 -- depth of the front area (stand spot, parking, sign, entrance
 Kit.FRONT_Z = Kit.DEPTH / 2 - FRONT
 Kit.STAND = { x = 0, z = Kit.DEPTH / 2 - 44 }
 -- The driver stand is raised like at a real RC track, so the whole plot is easy to see.
-Kit.STAND_H = 12
+Kit.STAND_H = 48 -- about 12 studs at RC size: high enough to see the back corners of the plot
 -- The track must stay inside this box (plot-local x and z, with room for the outer walls).
 Kit.AREA = {
 	minX = -Kit.WIDTH / 2 + 8,
