@@ -1,6 +1,8 @@
 --!strict
--- DRIFT plot. Starter: the old drift test loop moved onto the plot. To be redone to match the
--- plot picture: wide sweeping corners and a big round drift pad.
+-- DRIFT plot: one wide loop with long sweeping corners (Tokyo-drift style held slides), an
+-- S-shaped "big sweeper" on the right, and a big round drift pad in the middle with a cone to
+-- circle around. Everything is flat and level so a slide never gets broken by a bump.
+-- Matches /mnt/project-files/car-vs-car/rc-plot/plot-drift.png.
 
 -- Sibling loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
 local function sibling(name: string): any
@@ -14,19 +16,69 @@ end
 local Kit = sibling("Kit")
 local C = Kit.COLORS
 
-local ROAD = 44
-local S = 0.62 -- the old big test loop, shrunk to fit the plot
-local POINTS = {
-	{ x = -120, z = -140 },
-	{ x = 40, z = -170 },
-	{ x = 170, z = -100 },
-	{ x = 200, z = 20 },
-	{ x = 120, z = 110 },
-	{ x = 0, z = 60 },
-	{ x = -110, z = 120 },
-	{ x = -190, z = 40 },
-	{ x = -200, z = -70 },
+local ROAD = 52 -- wide, so a car can hold a long slide without running off
+local TOP = 0.1 -- road and pad top: both level, so crossing from one to the other is smooth
+
+-- The centre line is drawn like a turtle: drive straight, or turn through an angle on a set
+-- radius. Driven order: front straight to the right, the right-hand sweeper, the "big sweeper"
+-- S-bend on the right, across the back, then the long slide down the left. Plot-local big
+-- units, +Z is the front. Every corner has a big radius so a slide can be held all the way.
+local START = { x = -40, z = 110 }
+local R_RIGHT = 60 -- right-hand corners
+local R_LEFT = 80 -- left-hand corners: the long slide
+local R_S = 60 -- the S-bend
+local S_ANGLE = math.acos(0.8) -- S-bend goes in 24 and back out (2 * R_S * (1 - 0.8))
+local SIDE = 170 - 4 * R_S * math.sin(S_ANGLE) -- straight left over on the right side
+
+type Step = { straight: number?, turn: number?, radius: number? }
+local STEPS: { Step } = {
+	{ straight = 100 },
+	{ turn = -90, radius = R_RIGHT },
+	{ straight = SIDE / 2 },
+	{ turn = -math.deg(S_ANGLE), radius = R_S },
+	{ turn = 2 * math.deg(S_ANGLE), radius = R_S },
+	{ turn = -math.deg(S_ANGLE), radius = R_S },
+	{ straight = SIDE / 2 },
+	{ turn = -90, radius = R_RIGHT },
+	{ straight = 100 },
+	{ turn = -90, radius = R_LEFT },
+	{ straight = 130 },
+	{ turn = -90, radius = R_LEFT },
 }
+local SPACING = 12
+
+-- Points along the steps, about SPACING apart (the last one, back at the start, is left off).
+local function turtle(): { Kit.Pt }
+	local pts: { Kit.Pt } = {}
+	local x, z, h = START.x, START.z, 0
+	for _, step in STEPS do
+		local straight, turnDeg, radius = step.straight, step.turn, step.radius
+		if straight then
+			local n = math.max(1, math.round(straight / SPACING))
+			local d = straight / n
+			for _ = 1, n do
+				pts[#pts + 1] = { x = x, z = z }
+				x += math.cos(h) * d
+				z += math.sin(h) * d
+			end
+		elseif turnDeg and radius then
+			local turn = math.rad(turnDeg)
+			local n = math.max(1, math.round(math.abs(turn) * radius / SPACING))
+			local side = if turn < 0 then -1 else 1
+			-- centre of the turn sits to that side of the heading
+			local cx = x - math.sin(h) * radius * side
+			local cz = z + math.cos(h) * radius * side
+			for _ = 1, n do
+				pts[#pts + 1] = { x = x, z = z }
+				h += turn / n
+				x = cx + math.sin(h) * radius * side
+				z = cz - math.cos(h) * radius * side
+			end
+		end
+	end
+	return pts
+end
+local POINTS = turtle()
 
 local Plot = {}
 Plot.id = "drift"
@@ -34,23 +86,40 @@ Plot.label = "DRIFT"
 Plot.mode = "free"
 Plot.grip = 0.45
 Plot.ROAD = ROAD
+Plot.POINTS = POINTS
+-- The round drift pad in the middle, and the cone you circle around.
+Plot.PAD = { x = -8, z = -35, r = 52 }
+Plot.CONE = { r = 3, h = 8 }
 
 function Plot.loop()
-	local pts = {}
-	for i, p in POINTS do
-		pts[i] = { x = p.x * S, z = p.z * S }
-	end
-	return Kit.loop(pts, 8)
+	return Kit.loop(POINTS, 2)
 end
 
-Plot.spawn = Kit.spawnAt(Plot.loop()[1], 14)
+local start = Plot.loop()[1]
+Plot.start = start
+Plot.spawn = Kit.spawnAt(start, 14)
 Plot.gates = {}
 
 function Plot.build(parent: Instance, origin: CFrame)
 	Kit.ribbon(parent, origin, Plot.loop(), ROAD, { grip = Plot.grip })
-	local donut = Kit.disc(parent, "Donut", origin, 0, 0.15, -31, 22, 0.2, C.road)
-	donut:SetAttribute("Grip", Plot.grip)
-	Kit.ramp(parent, "Ramp", origin, Vector3.new(0, 0, 128), Vector3.new(0, 3, 116), 16, C.road)
+
+	-- Start line across the road (painted, no bump).
+	Kit.line(parent, origin, start.x, TOP, start.z, start.tx, start.tz, ROAD, C.white)
+
+	-- Drift pad: flush with the road, same grip, a painted white ring, and the cone.
+	local pad = Plot.PAD
+	local disc = Kit.disc(parent, "DriftPad", origin, pad.x, TOP / 2, pad.z, pad.r, TOP, C.road)
+	disc:SetAttribute("Grip", Plot.grip)
+	local bits = 40
+	local seg = 2 * math.pi * pad.r / bits + 1
+	for i = 1, bits do
+		local a = (i - 0.5) / bits * 2 * math.pi
+		local x, z = pad.x + math.cos(a) * pad.r, pad.z + math.sin(a) * pad.r
+		-- Kit.line runs its length across (dx, dz), so face it outward to lay it along the ring.
+		Kit.line(parent, origin, x, TOP, z, math.cos(a), math.sin(a), seg, C.white)
+	end
+	local cone = Plot.CONE
+	Kit.disc(parent, "Cone", origin, pad.x, cone.h / 2, pad.z, cone.r, cone.h, C.orange)
 end
 
 return Plot
