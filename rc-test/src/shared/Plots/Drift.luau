@@ -23,16 +23,18 @@ local TOP = 0.1 -- road and pad top: both level, so crossing from one to the oth
 -- radius. Driven order: front straight to the right, the right-hand sweeper, the "big sweeper"
 -- S-bend on the right, across the back, then the long slide down the left. Plot-local big
 -- units, +Z is the front. Every corner has a big radius so a slide can be held all the way.
-local START = { x = -40, z = 110 }
-local R_RIGHT = 60 -- right-hand corners
-local R_LEFT = 80 -- left-hand corners: the long slide
-local R_S = 60 -- the S-bend
-local S_ANGLE = math.acos(0.8) -- S-bend goes in 24 and back out (2 * R_S * (1 - 0.8))
-local SIDE = 170 - 4 * R_S * math.sin(S_ANGLE) -- straight left over on the right side
+-- The loop keeps about 25 of open floor to the outer walls on every side: room to run wide in
+-- a slide, and the chase camera sits over open floor instead of up against a wall.
+local START = { x = -32, z = 100 }
+local R_RIGHT = 56 -- right-hand corners
+local R_LEFT = 76 -- left-hand corners: the long slide
+local R_S = 56 -- the S-bend
+local S_ANGLE = math.acos(0.8) -- S-bend goes in 22 and back out (2 * R_S * (1 - 0.8))
+local SIDE = 156 - 4 * R_S * math.sin(S_ANGLE) -- straight left over on the right side
 
 type Step = { straight: number?, turn: number?, radius: number? }
 local STEPS: { Step } = {
-	{ straight = 100 },
+	{ straight = 84 },
 	{ turn = -90, radius = R_RIGHT },
 	{ straight = SIDE / 2 },
 	{ turn = -math.deg(S_ANGLE), radius = R_S },
@@ -40,9 +42,9 @@ local STEPS: { Step } = {
 	{ turn = -math.deg(S_ANGLE), radius = R_S },
 	{ straight = SIDE / 2 },
 	{ turn = -90, radius = R_RIGHT },
-	{ straight = 100 },
+	{ straight = 84 },
 	{ turn = -90, radius = R_LEFT },
-	{ straight = 130 },
+	{ straight = 116 },
 	{ turn = -90, radius = R_LEFT },
 }
 local SPACING = 12
@@ -88,7 +90,7 @@ Plot.grip = 0.45
 Plot.ROAD = ROAD
 Plot.POINTS = POINTS
 -- The round drift pad in the middle, and the cone you circle around.
-Plot.PAD = { x = -8, z = -35, r = 52 }
+Plot.PAD = { x = -12, z = -34, r = 46 }
 Plot.CONE = { r = 3, h = 8 }
 
 function Plot.loop()
