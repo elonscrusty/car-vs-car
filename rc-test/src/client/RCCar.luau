@@ -120,6 +120,7 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 	local steer = 0 -- right is positive
 	local handbrake = 0
 	local flippedFor = 0
+	local holdLook: Vector3? = nil -- crawler: the heading to keep while the stick is centred
 	local stuckFor = 0
 	local unstickTime = 0 -- seconds left of the helper's turn
 	local unstickDir = 0
@@ -293,12 +294,23 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 			if capped ~= yaw then
 				body.AssemblyAngularVelocity = ang - up * (yaw - capped)
 			end
-			-- crawler: hold the heading while the stick is centred, so bumpy ground doesn't
-			-- slowly turn the car off its line
+			-- crawler: keep the heading the car had when the stick was let go, so slopes and
+			-- bumps don't slowly turn it off its line (springs back like a soft spring)
 			if Tuning.yawHold > 0 and math.abs(input.steer) < 0.05 then
-				local yawRate = body.AssemblyAngularVelocity:Dot(up)
-				local inertiaYaw = mass * (Tuning.bodyX ^ 2 + Tuning.bodyZ ^ 2) / 12
-				body:ApplyAngularImpulse(-up * yawRate * Tuning.yawHold * inertiaYaw * dt)
+				local look = Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z)
+				if look.Magnitude > 0.1 then
+					look = look.Unit
+					local want = holdLook or look
+					holdLook = want
+					local err = math.asin(CarMath.clamp(want:Cross(look).Y, -1, 1))
+					local yawRate = body.AssemblyAngularVelocity.Y
+					local c = Tuning.yawHold
+					local accel = -(c * c / 4) * err - c * yawRate
+					local inertiaYaw = mass * (Tuning.bodyX ^ 2 + Tuning.bodyZ ^ 2) / 12
+					body:ApplyAngularImpulse(Vector3.yAxis * accel * inertiaYaw * dt)
+				end
+			else
+				holdLook = nil
 			end
 		else
 			-- in the air: settle the spin so jumps land flat-ish
@@ -421,6 +433,7 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 		steer = 0
 		handbrake = 0
 		flippedFor = 0
+		holdLook = nil
 		for _, w in wheels do
 			w.shown = Tuning.maxSusp
 			w.susp = Tuning.maxSusp
