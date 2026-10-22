@@ -53,7 +53,9 @@ end
 function CarMath.engineAccel(vLong: number, forward: boolean): number
 	if forward then
 		local t = CarMath.clamp(vLong / Tuning.topSpeed, 0, 1)
-		return Tuning.accel * (1 - t * t)
+		local crawl = Tuning.crawlBoost
+			* CarMath.clamp(1 - math.max(vLong, 0) / Tuning.crawlSpeed, 0, 1)
+		return Tuning.accel * (1 - t * t) + crawl
 	end
 	local t = CarMath.clamp(-vLong / Tuning.reverseTop, 0, 1)
 	return Tuning.accel * 0.6 * (1 - t * t)

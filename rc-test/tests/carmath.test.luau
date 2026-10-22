@@ -39,7 +39,11 @@ test("slip angle", function()
 end)
 
 test("engine fades to zero at top speed", function()
-	near(CarMath.engineAccel(0, true), Tuning.accel)
+	near(CarMath.engineAccel(0, true), Tuning.accel + Tuning.crawlBoost)
+	near(
+		CarMath.engineAccel(Tuning.crawlSpeed, true),
+		Tuning.accel * (1 - (Tuning.crawlSpeed / Tuning.topSpeed) ^ 2)
+	)
 	near(CarMath.engineAccel(Tuning.topSpeed, true), 0)
 	near(CarMath.engineAccel(Tuning.topSpeed * 2, true), 0)
 	truthy(CarMath.engineAccel(0, false) < Tuning.accel)

@@ -75,8 +75,8 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }, onTrack: (index: numbe
 		gui,
 		"Timer",
 		Vector2.new(0, 0),
-		UDim2.fromScale(0.02, 0.03),
-		UDim2.fromScale(0.26, 0.16)
+		UDim2.fromScale(0.02, 0.16),
+		UDim2.fromScale(0.24, 0.14)
 	)
 	timer.TextXAlignment = Enum.TextXAlignment.Left
 	timer.TextYAlignment = Enum.TextYAlignment.Top
@@ -85,8 +85,8 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }, onTrack: (index: numbe
 		gui,
 		"Speed",
 		Vector2.new(0.5, 1),
-		UDim2.fromScale(0.5, 0.98),
-		UDim2.fromScale(0.12, 0.07)
+		UDim2.fromScale(0.5, 0.9),
+		UDim2.fromScale(0.12, 0.06)
 	)
 	speed.TextTransparency = 0.2
 
