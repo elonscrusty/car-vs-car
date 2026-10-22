@@ -290,6 +290,20 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 			body.AssemblyAngularVelocity *= math.max(0, 1 - 1.5 * dt)
 		end
 
+		-- parked (no keys, barely moving, all four wheels down): settle on the springs instead of
+		-- shimmering, which shows most on the small car
+		if
+			grounded == 4
+			and input.throttle == 0
+			and input.brake == 0
+			and math.abs(input.steer) < 0.05
+			and speed < Tuning.holdSpeed
+		then
+			local keep = math.max(0, 1 - 10 * dt)
+			body.AssemblyLinearVelocity *= keep
+			body.AssemblyAngularVelocity *= keep
+		end
+
 		-- upside down for a while = flip back over
 		if S < 1 then
 			body:ApplyImpulse(Vector3.yAxis * mass * (workspace.Gravity - gravity) * dt)

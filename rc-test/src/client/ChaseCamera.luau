@@ -1,6 +1,7 @@
 --!strict
 -- Camera that sits behind the car, swings toward where the car is really going (so drifts show
--- their side), and widens the view with speed.
+-- their side), and widens the view with speed. Also: the show cam (circles the car) and the driver
+-- view (watch from the person's eyes like real RC, zooming in when the car is far away).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -11,6 +12,7 @@ export type Cam = {
 	update: (dt: number) -> (),
 	snap: () -> (),
 	toggleOrbit: () -> boolean,
+	setDriver: (on: boolean) -> (),
 }
 
 local ChaseCamera = {}
@@ -23,7 +25,7 @@ local function flat(v: Vector3): Vector3
 	return f.Unit
 end
 
-function ChaseCamera.new(body: BasePart, ignore: { Instance }): Cam
+function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector3): Cam
 	local camera = workspace.CurrentCamera :: Camera
 	camera.CameraType = Enum.CameraType.Scriptable
 	local params = RaycastParams.new()
@@ -33,7 +35,12 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }): Cam
 	local heading = flat(body.CFrame.LookVector)
 	local pos = body.Position - heading * Tuning.camDistance + Vector3.new(0, Tuning.camHeight, 0)
 	local lookAt = body.Position
+	-- the chase cam follows the car's position exactly and only eases its offset, so it never
+	-- falls behind at speed
+	local offset = pos - body.Position
+	local zoomFov = Tuning.driverFovMax
 
+	local driver = false
 	local orbiting = false
 	local orbitAngle = 0
 
@@ -44,6 +51,9 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }): Cam
 		orbiting = not orbiting
 		local back = -flat(body.CFrame.LookVector)
 		orbitAngle = math.atan2(back.Z, back.X) + 0.8
+		if orbiting then
+			driver = false
+		end
 		cam.snap()
 		return orbiting
 	end
@@ -52,6 +62,15 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }): Cam
 		heading = flat(body.CFrame.LookVector)
 		pos = body.Position - heading * Tuning.camDistance + Vector3.new(0, Tuning.camHeight, 0)
 		lookAt = body.Position
+		offset = pos - (body.Position + Vector3.new(0, 1.5 * Tuning.scale, 0))
+	end
+
+	function cam.setDriver(on: boolean)
+		driver = on
+		if on then
+			orbiting = false
+		end
+		cam.snap()
 	end
 
 	function cam.update(dt: number)
@@ -59,6 +78,19 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }): Cam
 		-- a person spawning resets the camera; keep it ours
 		if camera.CameraType ~= Enum.CameraType.Scriptable then
 			camera.CameraType = Enum.CameraType.Scriptable
+		end
+		if driver then
+			local from = eye()
+			local target = body.Position
+			local dist = (target - from).Magnitude
+			-- auto zoom: narrow the view as the car gets far away so it stays easy to see
+			local want = math.deg(2 * math.atan(Tuning.driverWidth / 2 / math.max(dist, 0.01)))
+			want = CarMath.clamp(want, Tuning.driverFovMin, Tuning.driverFovMax)
+			zoomFov += (want - zoomFov) * (1 - math.exp(-3 * dt))
+			lookAt = lookAt:Lerp(target, 1 - math.exp(-20 * dt))
+			camera.CFrame = CFrame.lookAt(from, lookAt)
+			camera.FieldOfView = zoomFov
+			return
 		end
 		if orbiting then
 			orbitAngle += Tuning.orbitSpeed * dt
@@ -102,17 +134,12 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }): Cam
 			desired = hit.Position + hit.Normal * 0.6 * Tuning.scale
 		end
 
-		local ax = 1 - math.exp(-9 * dt)
-		local ay = 1 - math.exp(-6 * dt)
-		pos = Vector3.new(
-			pos.X + (desired.X - pos.X) * ax,
-			pos.Y + (desired.Y - pos.Y) * ay,
-			pos.Z + (desired.Z - pos.Z) * ax
-		)
+		offset = offset:Lerp(desired - focus, 1 - math.exp(-8 * dt))
+		pos = focus + offset
 		if hit then
 			pos = desired
 		end
-		lookAt = lookAt:Lerp(focus + heading * 5 * Tuning.scale, 1 - math.exp(-12 * dt))
+		lookAt = focus + heading * 5 * Tuning.scale
 		camera.CFrame = CFrame.lookAt(pos, lookAt)
 		camera.FieldOfView = CarMath.fov(speed)
 	end
