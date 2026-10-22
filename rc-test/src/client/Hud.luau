@@ -42,8 +42,8 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }, onTrack: (index: numbe
 	row.Name = "TrackRow"
 	row.BackgroundTransparency = 1
 	row.AnchorPoint = Vector2.new(0.5, 0)
-	row.Position = UDim2.fromScale(0.5, 0.11) -- below the Roblox top bar
-	row.Size = UDim2.fromScale(0.6, 0.1)
+	row.Position = UDim2.new(0.5, 0, 0, 64) -- below the Roblox top bar (58 px)
+	row.Size = UDim2.fromScale(0.44, 0.1) -- clear of the timer (left) and CAM / VIEW / SIZE (right)
 	row.Parent = gui
 	local layout = Instance.new("UIListLayout")
 	layout.FillDirection = Enum.FillDirection.Horizontal
@@ -75,7 +75,7 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }, onTrack: (index: numbe
 		gui,
 		"Timer",
 		Vector2.new(0, 0),
-		UDim2.fromScale(0.02, 0.22),
+		UDim2.new(0.02, 0, 0, 64),
 		UDim2.fromScale(0.24, 0.14)
 	)
 	timer.TextXAlignment = Enum.TextXAlignment.Left

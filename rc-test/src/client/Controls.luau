@@ -245,7 +245,7 @@ function Controls.new(
 		)
 	end
 
-	-- Right side: a row of small CAM / VIEW / SIZE buttons below the Roblox top bar and above
+	-- Right side: a row of small CAM / VIEW / SIZE buttons below the Roblox top bar (58 px) and above
 	-- the DRIFT button. No reset button: the car resets by itself when it falls off (R still
 	-- works on a keyboard).
 	local resetBtn = Instance.new("TextButton") -- template for the small buttons
@@ -262,7 +262,7 @@ function Controls.new(
 	local camBtn = resetBtn:Clone()
 	camBtn.Name = "Cam"
 	camBtn.Text = "CAM"
-	camBtn.Position = UDim2.fromScale(0.84, 0.11)
+	camBtn.Position = UDim2.new(0.84, 0, 0, 64)
 	camBtn.Size = UDim2.fromScale(0.065, 0.09)
 	camBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 	camBtn.Parent = gui
@@ -271,7 +271,7 @@ function Controls.new(
 	local sizeBtn = resetBtn:Clone()
 	sizeBtn.Name = "Size"
 	sizeBtn.Text = "SIZE"
-	sizeBtn.Position = UDim2.fromScale(0.98, 0.11)
+	sizeBtn.Position = UDim2.new(0.98, 0, 0, 64)
 	sizeBtn.Size = UDim2.fromScale(0.065, 0.09)
 	sizeBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 	sizeBtn.Parent = gui
@@ -280,7 +280,7 @@ function Controls.new(
 	local viewBtn = resetBtn:Clone()
 	viewBtn.Name = "View"
 	viewBtn.Text = "VIEW"
-	viewBtn.Position = UDim2.fromScale(0.91, 0.11)
+	viewBtn.Position = UDim2.new(0.91, 0, 0, 64)
 	viewBtn.Size = UDim2.fromScale(0.065, 0.09)
 	viewBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 	viewBtn.Parent = gui
