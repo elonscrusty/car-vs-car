@@ -112,6 +112,7 @@ getEye = function(): Vector3
 	return Vector3.new(x, (TrackData.STAND_H + 4.5 / TrackData.RC_SCALE) * Tuning.scale, z)
 end
 local driftChain, driftTotal, driftHold = 0, 0, 0
+local driftHeld = 0 -- seconds this slide has been held (longer = bigger multiplier)
 
 local hud: Hud.Hud
 local function goTo(index: number)
@@ -131,7 +132,7 @@ local function goTo(index: number)
 		effects.clear()
 	end
 	LapTimer.reset(timers[index])
-	driftChain, driftTotal, driftHold = 0, 0, 0
+	driftChain, driftTotal, driftHold, driftHeld = 0, 0, 0, 0
 	local s = t.spawn
 	local x, y, z = TrackData.toWorld(t, rc, s.x, s.y, s.z)
 	local pos = Vector3.new(x, y, z)
@@ -349,17 +350,18 @@ RunService.PreSimulation:Connect(function(dt: number)
 		local tel = car.telemetry
 		local gain = CarMath.driftPoints(tel.speed, tel.slip, dt)
 		if gain > 0 and tel.grounded > 0 then
-			driftChain += gain
+			driftHeld += dt
+			driftChain += gain * CarMath.driftCombo(driftHeld)
 			driftHold = 0.8
 		elseif driftChain > 0 then
 			driftHold -= dt
 			if driftHold <= 0 or tel.speed < 8 * Tuning.scale then
 				driftTotal += driftChain
-				hud.flash(`+{math.floor(driftChain)}`)
-				driftChain = 0
+				hud.popScore(driftChain)
+				driftChain, driftHeld = 0, 0
 			end
 		end
-		hud.setDrift(driftChain, driftTotal, true)
+		hud.setDrift(driftChain, driftTotal, true, CarMath.driftCombo(driftHeld))
 	end
 end)
 
@@ -373,6 +375,7 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 			cam.CameraSubject = hum
 		end
 		car.render(dt) -- keep the parked car's wheels drawn
+		effects.quiet()
 		return
 	end
 	if swapping or body.Parent == nil then

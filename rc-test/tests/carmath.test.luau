@@ -101,6 +101,14 @@ test("tyre slips a little before full grip, never overshoots", function()
 	near(tiny, -0.01 * Tuning.gripResponse * 60)
 end)
 
+test("a longer held slide scores more per second", function()
+	eq(CarMath.driftCombo(0), 1)
+	eq(CarMath.driftCombo(1.4), 1)
+	eq(CarMath.driftCombo(1.5), 2)
+	eq(CarMath.driftCombo(4.6), 4)
+	eq(CarMath.driftCombo(100), 5)
+end)
+
 test("drift angle limiter turns a spin into a push back", function()
 	-- small slide: untouched
 	eq(CarMath.driftYaw(2, 0.3, 50, 1 / 60), 2)

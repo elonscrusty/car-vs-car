@@ -2,13 +2,15 @@
 -- On-screen words: track buttons, timer, speed, drift score, short messages.
 
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 
 export type Hud = {
 	gui: ScreenGui,
 	setActiveTrack: (index: number) -> (),
 	setTimer: (text: string) -> (),
 	setSpeed: (n: number) -> (),
-	setDrift: (chain: number, total: number, visible: boolean) -> (),
+	setDrift: (chain: number, total: number, visible: boolean, combo: number?) -> (),
+	popScore: (points: number) -> (),
 	flash: (text: string) -> (),
 }
 
@@ -111,6 +113,20 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }, onTrack: (index: numbe
 	msg.TextTransparency = 1
 	msg.TextStrokeTransparency = 1
 
+	-- the big number that pops up when a slide ends
+	local pop = label(
+		gui,
+		"DriftPop",
+		Vector2.new(0.5, 0.5),
+		UDim2.fromScale(0.5, 0.45),
+		UDim2.fromScale(0.5, 0.16)
+	)
+	pop.TextColor3 = Color3.fromRGB(255, 205, 80)
+	pop.TextTransparency = 1
+	pop.TextStrokeTransparency = 1
+	local popScale = Instance.new("UIScale")
+	popScale.Parent = pop
+
 	local flashId = 0
 	local hud = {} :: Hud
 	hud.gui = gui
@@ -131,13 +147,39 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }, onTrack: (index: numbe
 		speed.Text = tostring(math.floor(n + 0.5))
 	end
 
-	function hud.setDrift(chain: number, total: number, visible: boolean)
+	function hud.setDrift(chain: number, total: number, visible: boolean, combo: number?)
 		drift.Visible = visible
 		if chain > 0 then
-			drift.Text = `DRIFT  {math.floor(chain)}`
+			local c = combo or 1
+			drift.Text = if c > 1
+				then `DRIFT  {math.floor(chain)}  x{c}`
+				else `DRIFT  {math.floor(chain)}`
 		else
 			drift.Text = `SCORE  {math.floor(total)}`
 		end
+	end
+
+	local popId = 0
+	function hud.popScore(points: number)
+		popId += 1
+		local mine = popId
+		pop.Text = `+{math.floor(points)}`
+		pop.TextTransparency = 0
+		pop.TextStrokeTransparency = 0.3
+		popScale.Scale = 0.5
+		TweenService:Create(
+			popScale,
+			TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+			{ Scale = 1.3 }
+		):Play()
+		task.delay(1.4, function()
+			if mine == popId then
+				TweenService:Create(pop, TweenInfo.new(0.5), {
+					TextTransparency = 1,
+					TextStrokeTransparency = 1,
+				}):Play()
+			end
+		end)
 	end
 
 	function hud.flash(text: string)

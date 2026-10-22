@@ -1,5 +1,5 @@
 --!strict
--- Tyre smoke and skid marks while the car slides. Only on this player's screen.
+-- Tyre smoke, skid marks and car sounds (motor and tyre squeal). Only on this player's screen.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -9,6 +9,7 @@ local RCCar = require(script.Parent.RCCar)
 
 export type Effects = {
 	update: (dt: number) -> (),
+	quiet: () -> (),
 	clear: () -> (),
 	destroy: () -> (),
 }
@@ -21,6 +22,22 @@ local MARK_STEP = 0.8 -- studs between skid mark pieces
 local MAX_MARKS = 600 -- oldest marks go first past this, so phones stay smooth
 local MARK_LIFE = 25 -- seconds a skid mark stays dark
 local MARK_FADE = 5 -- then it fades away over this long
+-- Sound ids (free Creator Store sounds, checked to load in Studio). Empty = no sound.
+local MOTOR_SOUND = ""
+local SQUEAL_SOUND = ""
+
+local function loopSound(id: string, parent: Instance): Sound?
+	if id == "" then
+		return nil
+	end
+	local snd = Instance.new("Sound")
+	snd.SoundId = id
+	snd.Looped = true
+	snd.Volume = 0
+	snd.Parent = parent
+	snd:Play()
+	return snd
+end
 
 function Effects.new(telemetry: RCCar.Telemetry): Effects
 	local S = Tuning.scale -- effects are made for the car size at the time
@@ -96,9 +113,43 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 		end
 	end
 
+	local motor = loopSound(MOTOR_SOUND, folder)
+	local squeal = loopSound(SQUEAL_SOUND, folder)
+	local squealLevel = 0
+
 	local fx = {} :: Effects
 
+	function fx.quiet()
+		if motor then
+			motor.Volume = 0
+		end
+		if squeal then
+			squeal.Volume = 0
+		end
+		squealLevel = 0
+	end
+
 	function fx.update(dt: number)
+		-- motor buzz rises with speed; squeal follows the hardest sliding back tyre
+		local share = math.clamp(telemetry.speed / math.max(Tuning.topSpeed, 0.01), 0, 1)
+		if motor then
+			motor.PlaybackSpeed = 0.7 + 1.1 * share
+			motor.Volume = 0.15 + 0.35 * share
+		end
+		if squeal then
+			local slide = 0
+			for _, info in telemetry.wheels do
+				if info.rear and info.touching then
+					slide = math.max(slide, info.slide)
+				end
+			end
+			local want = if telemetry.speed > 12 * S
+				then math.clamp((slide - SLIDE_START * S) / (20 * S), 0, 1)
+				else 0
+			squealLevel += (want - squealLevel) * (1 - math.exp(-10 * dt))
+			squeal.Volume = 0.5 * squealLevel
+			squeal.PlaybackSpeed = 0.9 + 0.2 * squealLevel
+		end
 		-- old marks fade out, oldest first
 		local now = os.clock()
 		while marks[1] and now - marks[1].born > MARK_LIFE + MARK_FADE do
