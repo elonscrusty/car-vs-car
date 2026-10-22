@@ -62,6 +62,7 @@ local Tuning = {
 	driverWidth = 28, -- driver view zooms so about this much ground fits around the car
 	driverFovMin = 10,
 	driverFovMax = 70,
+	driverLiftMax = 40, -- driver view rises up to this much to see the car over a wall
 	orbitSpeed = 0.35, -- rad/s the show-off camera circles the car
 
 	-- Gas while sliding keeps the back loose (0 = off). Only the drift track turns it on.
@@ -99,10 +100,10 @@ local MODES: { [string]: { [string]: number } } = {
 	},
 	-- Rock crawler: slow, strong, soft long springs you can watch flex, sticky tyres.
 	rock = {
-		topSpeed = 22,
-		accel = 120,
-		crawlBoost = 40,
-		crawlSpeed = 10,
+		topSpeed = 11, -- walking pace, so you can watch every spring work over the rocks
+		accel = 110,
+		crawlBoost = 60,
+		crawlSpeed = 6,
 		frontDrive = 0.5,
 		maxSusp = 2.8,
 		springOmega = 11.5,
@@ -111,7 +112,7 @@ local MODES: { [string]: { [string]: number } } = {
 		steerLow = 0.4,
 		steerHigh = 0.4,
 		steerRate = 2, -- gentle steering while crawling, so short taps don't swing the car
-		reverseTop = 15,
+		reverseTop = 8,
 		downforce = 0,
 		lowGear = 1,
 		coastDrag = 2.5,
@@ -140,6 +141,7 @@ local SCALED = {
 	"camDistance",
 	"camHeight",
 	"driverWidth",
+	"driverLiftMax",
 	"orbitDistance",
 	"orbitHeight",
 }

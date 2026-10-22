@@ -130,11 +130,11 @@ test("track modes change numbers and switch back cleanly", function()
 	local T = Tuning :: any
 	local baseTop = Tuning.topSpeed
 	T.setMode("rock")
-	truthy(Tuning.topSpeed < 30, "rock is slow")
+	truthy(Tuning.topSpeed < 15, "rock is crawl slow")
 	truthy(Tuning.maxSusp > 2.5, "rock has long springs")
 	-- rock must still be able to climb a 0.6 slope at walking pace
 	truthy(
-		CarMath.engineAccel(8, true) > 196.2 * math.sin(math.atan(0.6)),
+		CarMath.engineAccel(4, true) > 196.2 * math.sin(math.atan(0.6)),
 		"rock too weak to climb"
 	)
 	-- springs must not sit bottomed out at rest

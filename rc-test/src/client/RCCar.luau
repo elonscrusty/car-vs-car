@@ -238,6 +238,11 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 					fx = -vLong * wm * Tuning.coastDrag
 				end
 				fx += CarMath.governor(vLong, wm, dt)
+				-- rough ground like grass slows the car all the time (no attribute = none)
+				local dragAttr = hit.Instance:GetAttribute("Drag")
+				if type(dragAttr) == "number" then
+					fx -= vLong * wm * dragAttr
+				end
 				if rear and handbrake > 0 then
 					fx -= vLong * wm * Tuning.handbrakeBleed * handbrake
 				end
