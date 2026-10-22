@@ -129,8 +129,8 @@ local lastPrompt: { [Player]: number } = {}
 local function setSign(index: number)
 	local who = driverOf[index]
 	lobby.signs[index].Text = if who
-		then `{slots[index].label}\n{who.DisplayName} is driving`
-		else `{slots[index].label}\nFREE - press E on the pad`
+		then `{slots[index].label}\n{who.DisplayName}`
+		else `{slots[index].label}\nFREE`
 end
 for i in slots do
 	setSign(i)
