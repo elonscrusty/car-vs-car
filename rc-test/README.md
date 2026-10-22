@@ -3,8 +3,9 @@
 One small RC car and four grey plots (drift, race, rock climb, show car). Only job: find out if driving
 feels great. Nothing from the old Car VS Car game is used at run time.
 
-Lobby: you start walking on the street in front of the RC plots. Walk onto a plot's driver stand
-and press E (or tap the Drive prompt) to drive there; E or WALK goes back to walking.
+Lobby: you start walking on a street of small garden-size copies of the plots. Stand on the
+yellow pad in front of one and press E (or tap Drive) to drive its full-size track; E or WALK
+brings you back to that pad.
 
 - Serve in Studio: `rojo serve rc-test/default.project.json` (fresh Baseplate place; the script
   removes the baseplate and spawn).
