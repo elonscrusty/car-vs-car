@@ -43,7 +43,7 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }, onTrack: (index: numbe
 	row.BackgroundTransparency = 1
 	row.AnchorPoint = Vector2.new(0.5, 0)
 	row.Position = UDim2.fromScale(0.5, 0.03)
-	row.Size = UDim2.fromScale(0.5, 0.1)
+	row.Size = UDim2.fromScale(0.6, 0.1)
 	row.Parent = gui
 	local layout = Instance.new("UIListLayout")
 	layout.FillDirection = Enum.FillDirection.Horizontal
@@ -53,7 +53,7 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }, onTrack: (index: numbe
 	for i, text in trackLabels do
 		local b = Instance.new("TextButton")
 		b.Name = "Track" .. i
-		b.Size = UDim2.fromScale(0.3, 1)
+		b.Size = UDim2.fromScale(0.23, 1)
 		b.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 		b.BackgroundTransparency = 0.25
 		b.Font = Enum.Font.GothamBold

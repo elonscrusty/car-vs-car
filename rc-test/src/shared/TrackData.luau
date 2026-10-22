@@ -1,6 +1,18 @@
 --!strict
--- The three grey tracks as plain numbers (no Roblox objects, so Lune can test them).
--- All positions are local to the track; add `originX` to X to get the world spot.
+-- The plots as plain numbers (no Roblox objects at load time, so Lune can test them).
+-- Each plot lives in Plots/<Type>.luau; this file lines them up in the world.
+-- All positions are plot-local and BIG size; add the origin to get the world spot.
+
+-- Loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
+local function plotModule(name: string): any
+	if script then
+		return require((script :: any).Parent.Plots[name])
+	end
+	local luneRequire: any = require
+	return luneRequire("./Plots/" .. name)
+end
+
+local Kit = plotModule("Kit")
 
 export type Gate = {
 	x: number,
@@ -11,9 +23,6 @@ export type Gate = {
 	halfWidth: number,
 	depth: number,
 }
-export type Pt = { x: number, z: number }
-export type Sample = { x: number, z: number, tx: number, tz: number }
-export type Rock = { x: number, y: number, z: number, r: number }
 export type Spawn = { x: number, y: number, z: number, dx: number, dz: number }
 
 export type Track = {
@@ -21,215 +30,43 @@ export type Track = {
 	label: string,
 	originX: number,
 	mode: string, -- "free", "loop" or "oneway"
-	grip: number, -- ground grip multiplier (1 = normal)
+	grip: number, -- floor grip multiplier (1 = normal)
 	spawn: Spawn,
 	gates: { Gate },
 }
 
 local TrackData = {}
 
-TrackData.order = { "drift", "race", "rock" }
-TrackData.ROAD_DRIFT = 56
-TrackData.ROAD_RACE = 30
-TrackData.ROCK_HALF_WIDTH = 35
--- Real RC size: everything is this much smaller than the big test tracks.
+TrackData.order = { "drift", "race", "rock", "show" }
+TrackData.modules = { drift = "Drift", race = "Race", rock = "Rock", show = "Show" }
+-- Real RC size: everything is this much smaller than the big build.
 TrackData.RC_SCALE = 0.25
-TrackData.RC_Z = 1500 -- the small tracks sit here, away from the big ones
+TrackData.RC_Z = 1500 -- the small plots sit here, away from the big ones
+TrackData.GAP = 120 -- space between plots (big units)
 
-local DRIFT_POINTS: { Pt } = {
-	{ x = -120, z = -140 },
-	{ x = 40, z = -170 },
-	{ x = 170, z = -100 },
-	{ x = 200, z = 20 },
-	{ x = 120, z = 110 },
-	{ x = 0, z = 60 },
-	{ x = -110, z = 120 },
-	{ x = -190, z = 40 },
-	{ x = -200, z = -70 },
-}
-
-local RACE_POINTS: { Pt } = {
-	{ x = -110, z = -110 },
-	{ x = 0, z = -120 },
-	{ x = 90, z = -130 },
-	{ x = 170, z = -90 },
-	{ x = 190, z = -20 },
-	{ x = 140, z = 40 },
-	{ x = 60, z = 30 },
-	{ x = 30, z = 90 },
-	{ x = 80, z = 150 },
-	{ x = 10, z = 190 },
-	{ x = -90, z = 170 },
-	{ x = -150, z = 100 },
-	{ x = -130, z = 20 },
-	{ x = -170, z = -50 },
-}
-
--- Rock climb: ground height along the course. { z, y } from the start (z high) up to the top.
-TrackData.rockProfile = {
-	{ z = 150, y = 0 },
-	{ z = 110, y = 0 },
-	{ z = 60, y = 14 },
-	{ z = 30, y = 14 },
-	{ z = -10, y = 38 },
-	{ z = -50, y = 38 },
-	{ z = -90, y = 60 },
-	{ z = -140, y = 60 },
-}
-
--- Smooth closed loop through the points (Catmull-Rom). Returns evenly-ish spaced samples with
--- the unit direction of travel.
-function TrackData.loop(points: { Pt }, perSegment: number): { Sample }
-	local n = #points
-	local out: { Sample } = {}
-	for i = 1, n do
-		local p0 = points[((i - 2) % n) + 1]
-		local p1 = points[i]
-		local p2 = points[(i % n) + 1]
-		local p3 = points[((i + 1) % n) + 1]
-		for s = 0, perSegment - 1 do
-			local t = s / perSegment
-			local t2, t3 = t * t, t * t * t
-			local function cr(a: number, b: number, c: number, d: number): number
-				return 0.5
-					* (
-						2 * b
-						+ (-a + c) * t
-						+ (2 * a - 5 * b + 4 * c - d) * t2
-						+ (-a + 3 * b - 3 * c + d) * t3
-					)
-			end
-			out[#out + 1] =
-				{ x = cr(p0.x, p1.x, p2.x, p3.x), z = cr(p0.z, p1.z, p2.z, p3.z), tx = 0, tz = 0 }
-		end
-	end
-	local count = #out
-	for i = 1, count do
-		local a, b = out[i], out[(i % count) + 1]
-		local dx, dz = b.x - a.x, b.z - a.z
-		local len = math.sqrt(dx * dx + dz * dz)
-		a.tx, a.tz = dx / len, dz / len
-	end
-	return out
+-- The plot module itself (Plots/<Type>.luau).
+function TrackData.plot(id: string): any
+	return plotModule(TrackData.modules[id])
 end
 
-function TrackData.driftLoop(): { Sample }
-	return TrackData.loop(DRIFT_POINTS, 8)
-end
-
-function TrackData.raceLoop(): { Sample }
-	return TrackData.loop(RACE_POINTS, 6)
-end
-
--- Ground height on the rock course at this z.
-function TrackData.rockHeight(z: number): number
-	local p = TrackData.rockProfile
-	if z >= p[1].z then
-		return p[1].y
-	end
-	for i = 2, #p do
-		if z >= p[i].z then
-			local a, b = p[i - 1], p[i]
-			local t = (a.z - z) / (a.z - b.z)
-			return a.y + (b.y - a.y) * t
-		end
-	end
-	return p[#p].y
-end
-
--- Slope (rise over run, positive uphill going forward) at this z.
-function TrackData.rockSlope(z: number): number
-	return (TrackData.rockHeight(z - 1) - TrackData.rockHeight(z + 1)) / 2
-end
-
--- Rocks, the same every time (tiny seeded random).
-function TrackData.rocks(): { Rock }
-	local seed = 12345
-	local function rand(): number
-		seed = (seed * 1103515245 + 12345) % 2147483648
-		return seed / 2147483648
-	end
-	local out: { Rock } = {}
-	local half = TrackData.ROCK_HALF_WIDTH - 4
-	local tries = 0
-	while #out < 70 and tries < 4000 do
-		tries += 1
-		local z = 100 - rand() * 185
-		local x = (rand() * 2 - 1) * half
-		local steep = math.abs(TrackData.rockSlope(z)) > 0.4
-		local r = 1.2 + rand() * (steep and 1.0 or 2.2)
-		if rand() < 0.1 and not steep then
-			r = 4 + rand() * 1.5
-		end
-		local ok = true
-		for _, o in out do
-			local dx, dz = o.x - x, o.z - z
-			local gap = o.r + r + 4.5
-			if dx * dx + dz * dz < gap * gap then
-				ok = false
-				break
-			end
-		end
-		if ok then
-			out[#out + 1] = { x = x, y = TrackData.rockHeight(z) - r * 0.35, z = z, r = r }
-		end
-	end
-	return out
-end
-
-local function gateAt(s: Sample, y: number, halfWidth: number, depth: number): Gate
-	return { x = s.x, y = y, z = s.z, dx = s.tx, dz = s.tz, halfWidth = halfWidth, depth = depth }
+function TrackData.index(id: string): number
+	return table.find(TrackData.order, id) or 1
 end
 
 function TrackData.get(id: string): Track
-	if id == "drift" then
-		local ring = TrackData.driftLoop()
-		local s = ring[1]
-		return {
-			id = id,
-			label = "DRIFT",
-			originX = 0,
-			mode = "free",
-			grip = 0.45,
-			spawn = { x = s.x - s.tx * 14, y = 2.5, z = s.z - s.tz * 14, dx = s.tx, dz = s.tz },
-			gates = {},
-		}
-	elseif id == "race" then
-		local ring = TrackData.raceLoop()
-		local count = #ring
-		local s = ring[1]
-		local gates = {
-			gateAt(ring[1], 0, 22, 6),
-			gateAt(ring[count // 4 + 1], 0, 24, 12),
-			gateAt(ring[count // 2 + 1], 0, 24, 12),
-			gateAt(ring[(count * 3) // 4 + 1], 0, 24, 12),
-		}
-		return {
-			id = id,
-			label = "RACE",
-			originX = 700,
-			mode = "loop",
-			grip = 0.75,
-			spawn = { x = s.x - s.tx * 14, y = 2.5, z = s.z - s.tz * 14, dx = s.tx, dz = s.tz },
-			gates = gates,
-		}
-	end
-	local half = TrackData.ROCK_HALF_WIDTH
+	local p = TrackData.plot(id)
 	return {
-		id = "rock",
-		label = "ROCKS",
-		originX = 1400,
-		mode = "oneway",
-		grip = 1,
-		spawn = { x = 0, y = 2.5, z = 140, dx = 0, dz = -1 },
-		gates = {
-			{ x = 0, y = 0, z = 128, dx = 0, dz = -1, halfWidth = half, depth = 4 },
-			{ x = 0, y = 60, z = -115, dx = 0, dz = -1, halfWidth = half, depth = 25 },
-		},
+		id = p.id,
+		label = p.label,
+		originX = (TrackData.index(id) - 1) * (Kit.WIDTH + TrackData.GAP),
+		mode = p.mode,
+		grip = p.grip,
+		spawn = p.spawn,
+		gates = p.gates,
 	}
 end
 
--- Where a track's (0, 0) sits in the world at this size.
+-- Where a plot's middle sits in the world at this size.
 function TrackData.origin(t: Track, rc: boolean): (number, number)
 	if rc then
 		return t.originX * TrackData.RC_SCALE, TrackData.RC_Z
@@ -237,7 +74,7 @@ function TrackData.origin(t: Track, rc: boolean): (number, number)
 	return t.originX, 0
 end
 
--- Local track spot -> world spot at this size.
+-- Plot-local spot -> world spot at this size.
 function TrackData.toWorld(
 	t: Track,
 	rc: boolean,
@@ -250,7 +87,7 @@ function TrackData.toWorld(
 	return ox + x * s, y * s, oz + z * s
 end
 
--- World spot -> local track spot (for the lap timer).
+-- World spot -> plot-local spot (for the lap timer).
 function TrackData.toLocal(
 	t: Track,
 	rc: boolean,
@@ -263,20 +100,11 @@ function TrackData.toLocal(
 	return (x - ox) / s, y / s, (z - oz) / s
 end
 
--- Where the player stands with the remote (local spot, plus the spot to face).
+-- Where the player stands with the remote (same spot on every plot), facing the car's start.
 function TrackData.standSpot(t: Track): (Spawn, number, number)
 	local s = t.spawn
-	local rx, rz = -s.dz, s.dx
-	local back = if t.id == "rock" then 20 else 10
-	local side = if t.id == "rock" then 0 else 25
-	local spot = {
-		x = s.x - s.dx * back + rx * side,
-		y = 0,
-		z = s.z - s.dz * back + rz * side,
-		dx = s.dx,
-		dz = s.dz,
-	}
-	return spot, s.x + s.dx * 20, s.z + s.dz * 20
+	local spot = { x = Kit.STAND.x, y = 0, z = Kit.STAND.z, dx = 0, dz = -1 }
+	return spot, s.x, s.z
 end
 
 return TrackData

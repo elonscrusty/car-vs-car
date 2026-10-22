@@ -1,261 +1,122 @@
 --!strict
--- Builds the three grey tracks out of plain parts, from the numbers in TrackData.
+-- Builds every plot: the shared base (floor, outer walls, front area) plus the plot's own track
+-- from Plots/<Type>.luau. Each plot is built big, then copied and shrunk to real RC size.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
+local Kit = require(ReplicatedStorage.Shared.Plots.Kit)
 
-local ROAD_TOP = 0.1
-local GROUND = Color3.fromRGB(88, 88, 92)
-local ROAD = Color3.fromRGB(150, 150, 156)
-local ROCK = Color3.fromRGB(118, 116, 114)
-local WALL = Color3.fromRGB(190, 190, 195)
+local C = Kit.COLORS
 
 local TrackBuilder = {}
 
-local function part(parent: Instance, name: string, size: Vector3, cf: CFrame, color: Color3): Part
-	local p = Instance.new("Part")
-	p.Name = name
-	p.Anchored = true
-	p.Size = size
-	p.CFrame = cf
-	p.Color = color
-	p.Material = Enum.Material.SmoothPlastic
-	p.TopSurface = Enum.SurfaceType.Smooth
-	p.BottomSurface = Enum.SurfaceType.Smooth
-	p.Parent = parent
-	return p
-end
+-- The part every plot shares. Plot-local, big size.
+local function buildBase(parent: Instance, origin: CFrame, label: string, grip: number)
+	local w, d = Kit.WIDTH, Kit.DEPTH
+	local floor =
+		Kit.part(parent, "Ground", origin, Vector3.new(w, 4, d), CFrame.new(0, -2, 0), C.ground)
+	floor:SetAttribute("Grip", grip)
 
--- A flat slab lying between two points on the ground plane (y = center height).
-local function slab(
-	parent: Instance,
-	name: string,
-	a: Vector3,
-	b: Vector3,
-	width: number,
-	height: number,
-	extra: number,
-	color: Color3
-): Part
-	local mid = (a + b) / 2
-	local len = (b - a).Magnitude + extra
-	return part(parent, name, Vector3.new(width, height, len), CFrame.lookAt(mid, b), color)
-end
-
-local function ground(folder: Folder, ox: number, cz: number, sx: number, sz: number, grip: number)
-	local g = part(folder, "Ground", Vector3.new(sx, 4, sz), CFrame.new(ox, -2, cz), GROUND)
-	g:SetAttribute("Grip", grip)
-end
-
-local function ribbon(
-	folder: Folder,
-	ox: number,
-	ring: { TrackData.Sample },
-	width: number,
-	grip: number,
-	walls: boolean
-)
-	local n = #ring
-	for i = 1, n do
-		local a, b = ring[i], ring[(i % n) + 1]
-		local road = slab(
-			folder,
-			"Road",
-			Vector3.new(ox + a.x, ROAD_TOP / 2, a.z),
-			Vector3.new(ox + b.x, ROAD_TOP / 2, b.z),
-			width,
-			ROAD_TOP,
-			1.5,
-			ROAD
+	-- outer walls, with a gap at the front for the entrance
+	local h, gap = 6, 80
+	Kit.part(parent, "Wall", origin, Vector3.new(w, h, 2), CFrame.new(0, h / 2, -d / 2), C.wall)
+	for _, side in { -1, 1 } do
+		Kit.part(
+			parent,
+			"Wall",
+			origin,
+			Vector3.new(2, h, d),
+			CFrame.new(side * w / 2, h / 2, 0),
+			C.wall
 		)
-		road:SetAttribute("Grip", grip)
-		if walls then
-			for _, side in { -1, 1 } do
-				local off = (width / 2 + 1) * side
-				local pa = Vector3.new(ox + a.x - a.tz * off, 2, a.z + a.tx * off)
-				local pb = Vector3.new(ox + b.x - b.tz * off, 2, b.z + b.tx * off)
-				slab(folder, "Wall", pa, pb, 1.5, 4, 1.5, WALL)
-			end
-		end
+		local len = (w - gap) / 2
+		Kit.part(
+			parent,
+			"Wall",
+			origin,
+			Vector3.new(len, h, 2),
+			CFrame.new(side * (gap / 2 + len / 2), h / 2, d / 2),
+			C.wall
+		)
+	end
+
+	-- front area: a line across, the stand spot, parking, the entrance path and the sign
+	local front = Kit.FRONT_Z
+	Kit.line(parent, origin, 0, 0, front, 0, -1, w - 4, C.white)
+	local stand =
+		Kit.disc(parent, "StandPad", origin, Kit.STAND.x, 0.1, Kit.STAND.z, 14, 0.2, C.pad)
+	stand.CanCollide = false
+	local park = Kit.part(
+		parent,
+		"Parking",
+		origin,
+		Vector3.new(64, 0.2, 40),
+		CFrame.new(-w / 2 + 72, 0.1, front + 48),
+		Color3.fromRGB(170, 170, 170)
+	)
+	park.CanCollide = false
+	for i = -1, 1 do
+		Kit.line(parent, origin, -w / 2 + 72 + i * 21, 0.1, front + 48, 1, 0, 36, C.white)
+	end
+	local path = Kit.part(
+		parent,
+		"Entrance",
+		origin,
+		Vector3.new(gap, 0.2, 30),
+		CFrame.new(0, 0.1, d / 2 - 15),
+		Color3.fromRGB(201, 195, 181)
+	)
+	path.CanCollide = false
+
+	local sx, sz = w / 2 - 72, front + 50
+	for _, side in { -1, 1 } do
+		Kit.part(
+			parent,
+			"SignPost",
+			origin,
+			Vector3.new(2, 14, 2),
+			CFrame.new(sx + side * 28, 7, sz),
+			C.wall
+		)
+	end
+	local board = Kit.part(
+		parent,
+		"Sign",
+		origin,
+		Vector3.new(72, 24, 2),
+		CFrame.new(sx, 24, sz),
+		Color3.fromRGB(230, 230, 230)
+	)
+	for _, face in { Enum.NormalId.Back, Enum.NormalId.Front } do
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = face
+		gui.Parent = board
+		local text = Instance.new("TextLabel")
+		text.Size = UDim2.fromScale(1, 1)
+		text.BackgroundTransparency = 1
+		text.Font = Enum.Font.GothamBlack
+		text.TextScaled = true
+		text.TextColor3 = Color3.fromRGB(30, 30, 34)
+		text.Text = label .. " PLOT"
+		text.Parent = gui
 	end
 end
 
-local function box(folder: Folder, name: string, size: Vector3, cf: CFrame, color: Color3): Part
-	return part(folder, name, size, cf, color)
-end
-
-local function outerWalls(folder: Folder, ox: number, cz: number, half: number)
-	local h = 6
-	box(folder, "Wall", Vector3.new(half * 2, h, 2), CFrame.new(ox, h / 2, cz - half), WALL)
-	box(folder, "Wall", Vector3.new(half * 2, h, 2), CFrame.new(ox, h / 2, cz + half), WALL)
-	box(folder, "Wall", Vector3.new(2, h, half * 2), CFrame.new(ox - half, h / 2, cz), WALL)
-	box(folder, "Wall", Vector3.new(2, h, half * 2), CFrame.new(ox + half, h / 2, cz), WALL)
-end
-
-local function ramp(folder: Folder, ox: number, x: number, z: number, rise: number, len: number)
-	-- low end at (x, z + len/2), high end at (x, z - len/2): drive toward -Z to jump
-	local a = Vector3.new(ox + x, 0, z + len / 2)
-	local b = Vector3.new(ox + x, rise, z - len / 2)
-	local dir = (b - a).Unit
-	local right = Vector3.xAxis
-	local back = -dir
-	local up = back:Cross(right)
-	local mid = (a + b) / 2
-	local p = part(
-		folder,
-		"Ramp",
-		Vector3.new(16, 1, (b - a).Magnitude),
-		CFrame.fromMatrix(mid - up * 0.5, right, up, back),
-		ROAD
-	)
-	p.Material = Enum.Material.SmoothPlastic
-end
-
-local function buildDrift(folder: Folder, t: TrackData.Track)
-	local ox = t.originX
-	ground(folder, ox, 0, 560, 560, t.grip)
-	ribbon(folder, ox, TrackData.driftLoop(), TrackData.ROAD_DRIFT, t.grip, false)
-	outerWalls(folder, ox, 0, 280)
-	-- practice donut in the middle of the track
-	local ringPart = part(
-		folder,
-		"Donut",
-		Vector3.new(0.2, 70, 70),
-		CFrame.new(ox, 0.15, -50) * CFrame.Angles(0, 0, math.rad(90)),
-		ROAD
-	)
-	ringPart.Shape = Enum.PartType.Cylinder
-	ringPart:SetAttribute("Grip", t.grip)
-	-- a small jump to play with
-	ramp(folder, ox, 0, 160, 3, 18)
-end
-
-local function buildRace(folder: Folder, t: TrackData.Track)
-	local ox = t.originX
-	ground(folder, ox, 20, 560, 600, t.grip)
-	ribbon(folder, ox, TrackData.raceLoop(), TrackData.ROAD_RACE, 1, true)
-	outerWalls(folder, ox, 20, 280)
-	-- start line
-	local g = t.gates[1]
-	local line = part(
-		folder,
-		"StartLine",
-		Vector3.new(TrackData.ROAD_RACE, 0.1, 3),
-		CFrame.lookAt(
-			Vector3.new(ox + g.x, ROAD_TOP + 0.06, g.z),
-			Vector3.new(ox + g.x + g.dx, ROAD_TOP + 0.06, g.z + g.dz)
-		),
-		Color3.fromRGB(245, 245, 245)
-	)
-	line.CanCollide = false
-end
-
-local function buildRock(folder: Folder, t: TrackData.Track)
-	local ox = t.originX
-	local half = TrackData.ROCK_HALF_WIDTH
-	ground(folder, ox, 0, 160, 360, 1)
-	local prof = TrackData.rockProfile
-	for i = 2, #prof do
-		local a = Vector3.new(ox, prof[i - 1].y, prof[i - 1].z)
-		local b = Vector3.new(ox, prof[i].y, prof[i].z)
-		local dir = (b - a).Unit
-		local right = Vector3.xAxis
-		local back = -dir
-		local up = back:Cross(right)
-		local mid = (a + b) / 2
-		local len = (b - a).Magnitude + 2
-		part(
-			folder,
-			"Hill",
-			Vector3.new(half * 2, 2, len),
-			CFrame.fromMatrix(mid - up, right, up, back),
-			GROUND
-		)
-		for _, side in { -1, 1 } do
-			part(
-				folder,
-				"Wall",
-				Vector3.new(2, 16, len),
-				CFrame.fromMatrix(mid + right * (half + 1) * side + up * 7, right, up, back),
-				WALL
-			)
-		end
-	end
-	-- wall across the very back, behind the summit
-	part(folder, "Wall", Vector3.new(half * 2 + 4, 20, 2), CFrame.new(ox, 76, -142), WALL)
-	part(folder, "Wall", Vector3.new(half * 2 + 4, 14, 2), CFrame.new(ox, 6, 152), WALL)
-	for _, r in TrackData.rocks() do
-		local rock = part(
-			folder,
-			"Rock",
-			Vector3.new(r.r * 2, r.r * 2, r.r * 2),
-			CFrame.new(ox + r.x, r.y, r.z),
-			ROCK
-		)
-		rock.Shape = Enum.PartType.Ball
-		rock.Material = Enum.Material.Slate
-	end
-	-- summit flag
-	local top = prof[#prof].y
-	local pole = part(
-		folder,
-		"Flag",
-		Vector3.new(0.6, 14, 0.6),
-		CFrame.new(ox, top + 7, -125),
-		Color3.fromRGB(240, 240, 240)
-	)
-	pole.CanCollide = false
-	local flag = part(
-		folder,
-		"Flag",
-		Vector3.new(7, 4, 0.3),
-		CFrame.new(ox + 3.8, top + 12, -125),
-		Color3.fromRGB(235, 90, 40)
-	)
-	flag.CanCollide = false
-	local pad = part(
-		folder,
-		"SummitPad",
-		Vector3.new(half * 2, 0.1, 4),
-		CFrame.new(ox, top + 0.06, -108),
-		Color3.fromRGB(245, 245, 245)
-	)
-	pad.CanCollide = false
-	-- start line
-	local start = part(
-		folder,
-		"StartLine",
-		Vector3.new(half * 2, 0.1, 3),
-		CFrame.new(ox, 0.06, 128),
-		Color3.fromRGB(245, 245, 245)
-	)
-	start.CanCollide = false
-end
-
--- Builds every track twice: big test size, and a shrunk copy at real RC size.
+-- Builds every plot twice: big test size, and a shrunk copy at real RC size.
 function TrackBuilder.build()
 	local root = Instance.new("Folder")
-	root.Name = "Tracks"
+	root.Name = "Plots"
 	root.Parent = workspace
 	for _, id in TrackData.order do
 		local t = TrackData.get(id)
-		local holder = Instance.new("Folder")
-		local folder = holder :: any
-		if id == "drift" then
-			buildDrift(folder, t)
-		elseif id == "race" then
-			buildRace(folder, t)
-		else
-			buildRock(folder, t)
-		end
+		local plot = TrackData.plot(id)
+		local origin = CFrame.new(t.originX, 0, 0)
 		local big = Instance.new("Model")
 		big.Name = id
-		for _, child in holder:GetChildren() do
-			child.Parent = big
-		end
-		holder:Destroy()
-		big.WorldPivot = CFrame.new(t.originX, 0, 0)
+		buildBase(big, origin, t.label, t.grip)
+		plot.build(big, origin)
+		big.WorldPivot = origin
 		big.Parent = root
 
 		local small = big:Clone()
