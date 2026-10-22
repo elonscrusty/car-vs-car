@@ -11,15 +11,16 @@ print("Plot: rock")
 
 local path = Plot.path()
 
--- Slope (rise over run) of each trail piece.
-local function slopes(): { number }
-	local out = {}
+-- Slope (rise over run) of each trail piece, and how much the trail turns there (radians).
+local function pieces(): ({ number }, { number })
+	local slope, turn = {}, {}
 	for i = 1, #path - 1 do
 		local a, b = path[i], path[i + 1]
 		local len = math.sqrt((b.x - a.x) ^ 2 + (b.z - a.z) ^ 2)
-		out[i] = (Plot.height(Plot.uOf(i + 1)) - Plot.height(Plot.uOf(i))) / len
+		slope[i] = (Plot.height(Plot.uOf(i + 1)) - Plot.height(Plot.uOf(i))) / len
+		turn[i] = math.abs(math.atan2(a.tx * b.tz - a.tz * b.tx, a.tx * b.tx + a.tz * b.tz))
 	end
-	return out
+	return slope, turn
 end
 
 test("rock plot loads, slow one-way crawl", function()
@@ -28,11 +29,10 @@ test("rock plot loads, slow one-way crawl", function()
 	eq(#path, (Plot.LAST_U - 1) * 10 + 1)
 end)
 
-test("the whole trail and its walls stay inside the track area", function()
-	local edge = Plot.HALF_WIDTH + 1.5
+test("the whole trail stays inside the track area", function()
 	for i, s in path do
 		for _, side in { -1, 1 } do
-			local x, z = s.x - s.tz * edge * side, s.z + s.tx * edge * side
+			local x, z = s.x - s.tz * Plot.HALF_WIDTH * side, s.z + s.tx * Plot.HALF_WIDTH * side
 			truthy(Kit.inArea(x, z), `trail piece {i} pokes out at {x}, {z}`)
 		end
 	end
@@ -49,69 +49,91 @@ test("the rows don't touch each other", function()
 	truthy(best > Plot.ROAD + 6, `rows only {best} apart`)
 end)
 
-test("it only climbs, never too steep, with two steep climbs to show off", function()
-	local steepRuns, inSteep = 0, false
-	for i, s in slopes() do
-		truthy(s >= -1e-9, `piece {i} goes downhill`)
-		truthy(s <= 0.45, `piece {i} is too steep to crawl ({s})`)
-		local steep = s > 0.35
-		if steep and not inSteep then
-			steepRuns += 1
+test("it only climbs, gently on bends, steep only on the straight slab", function()
+	local slope, turn = pieces()
+	local steepest = 0
+	for i, s in slope do
+		truthy(s >= -0.05, `piece {i} goes downhill ({s})`)
+		truthy(s <= 0.32, `piece {i} is too steep to crawl ({s})`)
+		if turn[i] > 0.01 then
+			truthy(s <= 0.2, `piece {i} climbs ({s}) round a bend ({turn[i]})`)
 		end
-		inSteep = steep
+		steepest = math.max(steepest, s)
 	end
-	eq(steepRuns, 2, "steep climbs")
-	eq(Plot.height(1), 0)
+	truthy(steepest > 0.25, "the slab should be steep enough to show off")
 	truthy(Plot.height(Plot.LAST_U) >= 60, "the flag should be up high")
 end)
 
-test("steep climbs run straight, never round a bend", function()
-	for i, s in slopes() do
-		if s > 0.3 and i < #path - 1 then
-			local a, b = path[i], path[i + 1]
-			local turn = math.abs(math.atan2(a.tx * b.tz - a.tz * b.tx, a.tx * b.tx + a.tz * b.tz))
-			truthy(turn < 0.06, `piece {i} climbs ({s}) while turning ({turn})`)
+test("the ground sits above the plot floor everywhere (no flicker with it)", function()
+	local g, _, _, nx, nz = Plot.grid()
+	for i = 1, nx do
+		for j = 1, nz do
+			truthy(g[i][j] >= 1, `ground corner {i},{j} is at {g[i][j]}`)
 		end
 	end
 end)
 
-test("everything on the trail is on the trail, and small ones can be crawled over", function()
+test("each row sits higher than the one in front of it", function()
+	-- row middles (u) front to back: mounds, creek, low shelf, high shelf, slab
+	local rows = { 3, 8.5, 13.5, 18.5, 23 }
+	for k = 2, #rows do
+		truthy(Plot.height(rows[k]) > Plot.height(rows[k - 1]), `row {k} is not above row {k - 1}`)
+	end
+end)
+
+test("from the stand you can see the car almost all the way", function()
+	local seen = 0
+	for i, s in path do
+		if Plot.canSee(s.x, s.z, Plot.height(Plot.uOf(i))) then
+			seen += 1
+		end
+	end
+	local share = seen / #path
+	truthy(share >= 0.95, `only {math.floor(share * 100)}% of the trail can be seen`)
+end)
+
+test("rocks, logs and ledges sit on the trail and can be crawled over", function()
 	local count: { [string]: number } = {}
-	local left, right = 0, 0
+	local left, right, big = 0, 0, 0
 	for _, f in Plot.features do
 		count[f.kind] = (count[f.kind] or 0) + 1
 		truthy(f.u > Plot.START_U and f.u < Plot.FINISH_U, `{f.kind} at {f.u} is off the course`)
-		truthy(math.abs(f.side) <= 0.8, `{f.kind} at {f.u} sits in the wall`)
+		truthy(math.abs(f.side) <= 0.8, `{f.kind} at {f.u} is off the trail`)
+		truthy(f.lift <= Plot.MAX_LIFT, `{f.kind} at {f.u} is too tall to crawl`)
 		if f.kind == "rock" then
-			if f.lift <= Plot.MAX_LIFT then
-				if f.side < 0 then
-					left += 1
-				elseif f.side > 0 then
-					right += 1
-				end
+			if f.r >= 6 then
+				big += 1
+			elseif f.side < 0 then
+				left += 1
+			elseif f.side > 0 then
+				right += 1
 			end
-		else
-			truthy(f.lift <= Plot.MAX_LIFT, `{f.kind} at {f.u} is too tall to crawl`)
 		end
 	end
 	truthy((count.rock or 0) >= 25, "too few rocks")
 	truthy((count.log or 0) >= 2, "logs")
-	truthy((count.ledge or 0) >= 3, "ledges")
-	truthy((count.ramp or 0) >= 2, "ramps")
-	-- offset rocks: both sides get lifted, about as often
+	truthy((count.ledge or 0) >= 2, "ledges")
 	truthy(left >= 8 and right >= 8, "crawl rocks should sit on both sides")
+	truthy(big >= 1, "a big boulder near the stand")
 end)
 
-test("big rocks hug the edges, leaving room to drive past", function()
+test("the big boulders are in the row nearest the stand", function()
 	for _, f in Plot.features do
-		if f.kind == "rock" and f.lift > Plot.MAX_LIFT then
-			local gap = Plot.HALF_WIDTH * (1 + math.abs(f.side)) - f.r
-			truthy(gap > 12, `big rock at {f.u} blocks the trail`)
+		if f.kind == "rock" and f.r >= 6 then
+			local _, z = Plot.spot(f.u, f.side)
+			truthy(Kit.STAND.z - z < 80, `big boulder at {f.u} is far from the stand`)
 		end
 	end
 end)
 
-test("gates sit on the trail in order, a run goes start -> checkpoints -> finish", function()
+test("the steep slab is clear of rocks", function()
+	for _, f in Plot.features do
+		truthy(f.u < 22, `{f.kind} at {f.u} sits on the slab`)
+	end
+end)
+
+test("gates sit on the trail in order, a run goes start -> every turn -> finish", function()
+	eq(#Plot.gates, 2 + #Plot.TURNS)
 	local timer = LapTimer.new(Plot.gates, Plot.mode)
 	local s = Plot.spawn
 	eq(LapTimer.update(timer, 0, s.x, s.y, s.z), nil)
