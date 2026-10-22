@@ -317,9 +317,13 @@ RunService.PreSimulation:Connect(function(dt: number)
 		hud.flash("STUCK - BACK TO START")
 	end
 
-	-- fell off the world
+	-- fell off the world, or got out of the plot
+	local lx, _, lz = TrackData.toLocal(t, rc, p.X, p.Y, p.Z)
 	if p.Y < -8 * Tuning.scale / TrackData.RC_SCALE then
 		reset()
+	elseif not TrackData.inPlot(lx, lz) then
+		reset()
+		hud.flash("OUT - BACK TO START")
 	end
 
 	if t.id == "drift" then

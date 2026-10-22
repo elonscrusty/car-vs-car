@@ -69,6 +69,7 @@ local Tuning = {
 	powerSlide = 0,
 	driftThrust = 0, -- push along the slide while on the gas, so drifts keep their speed
 	lowGear = 0, -- 1 = the engine holds the top speed going downhill too
+	yawHold = 0, -- rad/s per rad/s: stops slow turning while the stick is centred (rock only)
 	uprightAssist = 0, -- rad/s^2 that eases a car leaning on its side back up (rock only)
 	stuckWait = 3, -- seconds of pressing the pedals without moving before the car goes back to start
 
@@ -118,6 +119,7 @@ local MODES: { [string]: { [string]: number } } = {
 		downforce = 0,
 		lowGear = 1,
 		coastDrag = 2.5,
+		yawHold = 6,
 		uprightAssist = 30,
 		stuckWait = 10, -- being stuck is part of crawling: give time to wiggle free
 	},

@@ -293,6 +293,13 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 			if capped ~= yaw then
 				body.AssemblyAngularVelocity = ang - up * (yaw - capped)
 			end
+			-- crawler: hold the heading while the stick is centred, so bumpy ground doesn't
+			-- slowly turn the car off its line
+			if Tuning.yawHold > 0 and math.abs(input.steer) < 0.05 then
+				local yawRate = body.AssemblyAngularVelocity:Dot(up)
+				local inertiaYaw = mass * (Tuning.bodyX ^ 2 + Tuning.bodyZ ^ 2) / 12
+				body:ApplyAngularImpulse(-up * yawRate * Tuning.yawHold * inertiaYaw * dt)
+			end
 		else
 			-- in the air: settle the spin so jumps land flat-ish
 			body.AssemblyAngularVelocity *= math.max(0, 1 - 1.5 * dt)

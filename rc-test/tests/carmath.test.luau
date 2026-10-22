@@ -134,6 +134,7 @@ test("track modes change numbers and switch back cleanly", function()
 	truthy(Tuning.maxSusp >= 4, "rock has long springs")
 	eq(Tuning.stuckWait, 10)
 	truthy(Tuning.uprightAssist > 0, "rock eases back upright")
+	truthy(Tuning.yawHold > 0, "rock holds its line")
 	-- rock must still be able to climb a 0.6 slope at walking pace
 	truthy(
 		CarMath.engineAccel(4, true) > 196.2 * math.sin(math.atan(0.6)),
@@ -150,6 +151,7 @@ test("track modes change numbers and switch back cleanly", function()
 	eq(Tuning.camHeight, 3)
 	eq(Tuning.stuckWait, 3)
 	eq(Tuning.uprightAssist, 0)
+	eq(Tuning.yawHold, 0)
 	eq(Tuning.powerSlide, 0)
 	eq(Tuning.driftAngleMax, 0.6)
 end)
