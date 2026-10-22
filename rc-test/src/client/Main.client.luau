@@ -26,9 +26,9 @@ local carName = "Car_" .. player.UserId
 -- The person's own walking controls would fight the car keys (and show a phone stick).
 task.spawn(function()
 	local ok, playerModule = pcall(function(): any
-		return require(
-			player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule") :: ModuleScript
-		)
+		-- not every place has one; don't wait forever
+		local module = player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule", 10)
+		return if module then require(module :: ModuleScript) else nil
 	end)
 	if ok and playerModule then
 		playerModule:GetControls():Disable()
@@ -51,8 +51,15 @@ local function ignoreList(): { Instance }
 	end
 	return list
 end
+-- Driver view watches from the person's eyes at the stand spot (set up below).
+local getEye: () -> Vector3
+local function eye(): Vector3
+	return getEye()
+end
+local driverView = false
+
 local car = RCCar.new(model, ignoreList())
-local camera = ChaseCamera.new(body, ignoreList())
+local camera = ChaseCamera.new(body, ignoreList(), eye)
 local effects = Effects.new(car.telemetry)
 local rc = false -- flipped to real RC size right after start-up
 local swapping = false
@@ -68,6 +75,14 @@ for i, id in TrackData.order do
 end
 
 local current = 1
+
+getEye = function(): Vector3
+	local t = tracks[current]
+	local spot = TrackData.standSpot(t)
+	local x, _, z = TrackData.toWorld(t, rc, spot.x, 0, spot.z)
+	-- eye height of a person at real RC size (18 at the big size)
+	return Vector3.new(x, 4.5 / TrackData.RC_SCALE * Tuning.scale, z)
+end
 local driftChain, driftTotal, driftHold = 0, 0, 0
 
 local hud: Hud.Hud
@@ -124,7 +139,8 @@ local function swapSize()
 	end
 	setScale(if rc then TrackData.RC_SCALE else 1)
 	car = RCCar.new(model, ignoreList())
-	camera = ChaseCamera.new(body, ignoreList())
+	camera = ChaseCamera.new(body, ignoreList(), eye)
+	camera.setDriver(driverView)
 	effects = Effects.new(car.telemetry)
 	swapping = false
 	goTo(current)
@@ -140,10 +156,18 @@ local controls = Controls.new(
 	goTo,
 	function()
 		local on = camera.toggleOrbit()
-		hud.flash(if on then "SHOW CAM" else "CHASE CAM")
+		if on then
+			driverView = false
+		end
+		hud.flash(if on then "SHOW CAM" elseif driverView then "DRIVER VIEW" else "CHASE CAM")
 	end,
 	function()
 		task.spawn(swapSize)
+	end,
+	function()
+		driverView = not driverView
+		camera.setDriver(driverView)
+		hud.flash(if driverView then "DRIVER VIEW" else "CHASE CAM")
 	end
 )
 goTo(1)

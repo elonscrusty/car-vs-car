@@ -53,12 +53,15 @@ local Tuning = {
 	steerReturn = 10, -- rad/s turning back
 
 	-- Camera
-	camDistance = 15,
-	camHeight = 6,
+	camDistance = 10, -- low chase cam, close behind like an RC chase
+	camHeight = 3,
 	camFovLow = 70,
 	camFovHigh = 92,
 	orbitDistance = 13,
 	orbitHeight = 3.5,
+	driverWidth = 28, -- driver view zooms so about this much ground fits around the car
+	driverFovMin = 10,
+	driverFovMax = 70,
 	orbitSpeed = 0.35, -- rad/s the show-off camera circles the car
 
 	-- Gas while sliding keeps the back loose (0 = off). Only the drift track turns it on.
@@ -127,6 +130,7 @@ local SCALED = {
 	"driftThrust",
 	"camDistance",
 	"camHeight",
+	"driverWidth",
 	"orbitDistance",
 	"orbitHeight",
 }
