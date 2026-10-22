@@ -67,7 +67,7 @@ Plot.mode = "loop"
 Plot.grip = 0.75 -- off the road is slower
 Plot.ROAD = ROAD
 Plot.CURB_WIDTH = CURB_WIDTH
-Plot.GRASS_DRAG = 1 -- extra rolling drag on the grass (the car reads the "Drag" attribute)
+Plot.GRASS_DRAG = 0.5 -- extra rolling drag on the grass (the car reads the "Drag" attribute)
 
 function Plot.loop(): { Kit.Sample }
 	return Kit.loop(POINTS, 8)
