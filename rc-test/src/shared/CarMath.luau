@@ -111,6 +111,18 @@ function CarMath.driftYaw(yaw: number, slip: number, vLong: number, dt: number):
 	return yaw
 end
 
+-- Share of the engine sent to the front axle: even 4x4 when crawling, rear-heavy when fast.
+function CarMath.frontShare(speed: number): number
+	local t = CarMath.clamp(math.abs(speed) / Tuning.crawlSpeed, 0, 1)
+	return Tuning.crawlFrontDrive + (Tuning.frontDrive - Tuning.crawlFrontDrive) * t
+end
+
+-- Push one wheel needs to stop gravity rolling the car along `fwdY` (the up part of the wheel's
+-- forward direction): positive when the nose points uphill.
+function CarMath.holdForce(wheelMass: number, gravity: number, fwdY: number): number
+	return wheelMass * gravity * fwdY
+end
+
 function CarMath.fov(speed: number): number
 	local t = CarMath.clamp(speed / Tuning.topSpeed, 0, 1)
 	return Tuning.camFovLow + (Tuning.camFovHigh - Tuning.camFovLow) * t

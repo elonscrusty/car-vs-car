@@ -65,11 +65,10 @@ local function makeWheel(folder: Folder, attach: Vector3, front: boolean): Wheel
 	bar.CanQuery = false
 	bar.CanTouch = false
 	bar.Parent = folder
-	local share = front and Tuning.frontDrive / 2 or (1 - Tuning.frontDrive) / 2
 	return {
 		attach = attach,
 		front = front,
-		drive = share,
+		drive = 0,
 		susp = Tuning.maxSusp,
 		shown = Tuning.maxSusp,
 		spin = 0,
@@ -150,6 +149,11 @@ function RCCar.new(model: Model): Car
 			end
 		end
 
+		local front = CarMath.frontShare(vLongBody)
+		for _, w in wheels do
+			w.drive = if w.front then front / 2 else (1 - front) / 2
+		end
+
 		local grounded = 0
 		for _, w in wheels do
 			local attachWorld = cf * w.attach
@@ -195,7 +199,8 @@ function RCCar.new(model: Model): Car
 					fx = -math.sign(vLong)
 						* math.min(Tuning.brakeAccel * wm * brake, math.abs(want))
 				elseif math.abs(vLong) < Tuning.holdSpeed then
-					fx = -vLong * wm * 0.3 / dt -- park on hills
+					-- park on hills: cancel the roll and the pull of gravity
+					fx = -vLong * wm * 0.3 / dt + CarMath.holdForce(wm, workspace.Gravity, fwd.Y)
 				else
 					fx = -vLong * wm * Tuning.coastDrag
 				end
