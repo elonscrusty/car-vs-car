@@ -1,0 +1,291 @@
+--!strict
+-- The RC car's driving: four ray-cast springs, tyres that can slide, a rear-biased engine and a
+-- drift button. The player's own device owns the body, so these pushes answer instantly.
+-- All the numbers live in Shared/Tuning and the maths in Shared/CarMath.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local CarMath = require(ReplicatedStorage.Shared.CarMath)
+local Tuning = require(ReplicatedStorage.Shared.Tuning)
+
+export type Input = { steer: number, throttle: number, brake: number, drift: boolean }
+
+export type Telemetry = {
+	speed: number,
+	vLong: number,
+	slip: number,
+	grounded: number, -- how many wheels touch
+	drifting: boolean,
+}
+
+export type Car = {
+	model: Model,
+	body: BasePart,
+	telemetry: Telemetry,
+	step: (dt: number, input: Input) -> (),
+	render: (dt: number) -> (),
+	teleport: (cf: CFrame) -> (),
+	destroy: () -> (),
+}
+
+type Wheel = {
+	attach: Vector3, -- local spot the spring hangs from
+	front: boolean,
+	drive: number, -- share of the engine
+	susp: number, -- current spring length
+	shown: number, -- smoothed length for drawing
+	spin: number,
+	part: Part,
+	bar: Part,
+}
+
+local RCCar = {}
+
+local function makeWheel(folder: Folder, attach: Vector3, front: boolean): Wheel
+	local d = Tuning.wheelRadius * 2
+	local part = Instance.new("Part")
+	part.Name = "Wheel"
+	part.Shape = Enum.PartType.Cylinder
+	part.Size = Vector3.new(Tuning.wheelWidth, d, d)
+	part.Color = Color3.fromRGB(30, 30, 33)
+	part.Material = Enum.Material.SmoothPlastic
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.CanTouch = false
+	part.Parent = folder
+	-- a light bar across the wheel so you can see it spin
+	local bar = Instance.new("Part")
+	bar.Name = "WheelBar"
+	bar.Size = Vector3.new(Tuning.wheelWidth + 0.1, 0.3, d * 0.7)
+	bar.Color = Color3.fromRGB(215, 215, 220)
+	bar.Material = Enum.Material.SmoothPlastic
+	bar.Anchored = true
+	bar.CanCollide = false
+	bar.CanQuery = false
+	bar.CanTouch = false
+	bar.Parent = folder
+	local share = front and Tuning.frontDrive / 2 or (1 - Tuning.frontDrive) / 2
+	return {
+		attach = attach,
+		front = front,
+		drive = share,
+		susp = Tuning.maxSusp,
+		shown = Tuning.maxSusp,
+		spin = 0,
+		part = part,
+		bar = bar,
+	}
+end
+
+function RCCar.new(model: Model): Car
+	local body = model.PrimaryPart :: BasePart
+	local folder = Instance.new("Folder")
+	folder.Name = "RCWheels"
+	folder.Parent = workspace
+
+	local wheels: { Wheel } = {}
+	for _, fz in { -1, 1 } do
+		for _, sx in { -1, 1 } do
+			local attach = Vector3.new(sx * Tuning.wheelX, Tuning.attachY, fz * Tuning.wheelZ)
+			table.insert(wheels, makeWheel(folder, attach, fz < 0))
+		end
+	end
+
+	local rayParams = RaycastParams.new()
+	rayParams.FilterType = Enum.RaycastFilterType.Exclude
+	rayParams.FilterDescendantsInstances = { model, folder }
+
+	local rayLen = Tuning.wheelRadius + Tuning.maxSusp
+	local steer = 0 -- right is positive
+	local handbrake = 0
+	local flippedFor = 0
+	local telemetry: Telemetry = { speed = 0, vLong = 0, slip = 0, grounded = 0, drifting = false }
+
+	local car = {} :: Car
+	car.model = model
+	car.body = body
+	car.telemetry = telemetry
+
+	function car.step(dt: number, input: Input)
+		if dt <= 0 or dt > 0.1 then
+			return
+		end
+		local cf = body.CFrame
+		local up = cf.UpVector
+		local mass = body.AssemblyMass
+		local wm = mass / 4
+		local k = wm * Tuning.springOmega * Tuning.springOmega
+		local c = 2 * Tuning.springZeta * wm * Tuning.springOmega
+		local vel = body.AssemblyLinearVelocity
+
+		local vLongBody = vel:Dot(cf.LookVector)
+		local vLatBody = vel:Dot(cf.RightVector)
+		local slip = CarMath.slipAngle(vLatBody, vLongBody)
+
+		-- steering, with a little automatic counter-steer when the tail slides
+		local target = CarMath.steerTarget(input.steer, vLongBody, slip)
+		local rate = if math.abs(target) > math.abs(steer)
+			then Tuning.steerRate
+			else Tuning.steerReturn
+		steer = CarMath.approach(steer, target, rate * dt)
+
+		handbrake = CarMath.approach(
+			handbrake,
+			if input.drift then 1 else 0,
+			(if input.drift then 9 else 3) * dt
+		)
+
+		-- what the pedals mean this frame
+		local throttle = CarMath.clamp(input.throttle, 0, 1)
+		local brake = CarMath.clamp(input.brake, 0, 1)
+		local driveForward = throttle > 0
+		local reversing = false
+		local braking = false
+		if not driveForward and brake > 0 then
+			if vLongBody > 3 then
+				braking = true
+			else
+				reversing = true
+			end
+		end
+
+		local grounded = 0
+		for _, w in wheels do
+			local attachWorld = cf * w.attach
+			local hit = workspace:Raycast(attachWorld, -up * rayLen, rayParams)
+			if hit and hit.Normal:Dot(up) > 0.25 then
+				grounded += 1
+				local n = hit.Normal
+				local dist = hit.Distance
+				w.susp = CarMath.clamp(dist - Tuning.wheelRadius, 0, Tuning.maxSusp)
+				local compression = Tuning.maxSusp - w.susp
+
+				local vPoint = body:GetVelocityAtPosition(attachWorld)
+				local spring = CarMath.springForce(compression, -vPoint:Dot(n), k, c)
+				if dist < Tuning.wheelRadius then
+					spring += k * Tuning.bumpStop * (Tuning.wheelRadius - dist)
+				end
+
+				local gripAttr = hit.Instance:GetAttribute("Grip")
+				local surfaceGrip = if type(gripAttr) == "number" then gripAttr else 1
+				local mu = Tuning.baseMu * surfaceGrip
+
+				-- the wheel's own forward / sideways directions, flat on the ground
+				local ang = if w.front then -steer else 0
+				local dir = CFrame.fromAxisAngle(up, ang) * cf.LookVector
+				dir = dir - n * dir:Dot(n)
+				if dir.Magnitude < 0.01 then
+					dir = cf.LookVector
+				end
+				local fwd = dir.Unit
+				local right = fwd:Cross(n)
+				local vLong = vPoint:Dot(fwd)
+				local vLat = vPoint:Dot(right)
+
+				-- forward / back push
+				local fx = 0
+				local rear = not w.front
+				if driveForward then
+					fx = mass * CarMath.engineAccel(vLong, true) * w.drive * throttle
+				elseif reversing then
+					fx = -mass * CarMath.engineAccel(vLong, false) * w.drive * brake
+				elseif braking then
+					local want = vLong * wm / dt
+					fx = -math.sign(vLong)
+						* math.min(Tuning.brakeAccel * wm * brake, math.abs(want))
+				elseif math.abs(vLong) < Tuning.holdSpeed then
+					fx = -vLong * wm * 0.6 / dt -- park on hills
+				else
+					fx = -vLong * wm * Tuning.coastDrag
+				end
+				if rear and handbrake > 0 then
+					fx -= vLong * wm * Tuning.handbrakeBleed * handbrake
+				end
+
+				-- sideways grip, weaker at the back while the drift button is down
+				local latScale = if rear then 1 - (1 - Tuning.handbrakeRearGrip) * handbrake else 1
+				local fy = -vLat * wm * Tuning.gripResponse / dt
+				fx, fy = CarMath.tractionCircle(fx, fy, mu * spring, mu * spring * latScale)
+
+				local force = n * spring + fwd * fx + right * fy
+				body:ApplyImpulseAtPosition(force * dt, attachWorld)
+			else
+				w.susp = Tuning.maxSusp
+			end
+		end
+
+		-- a little push down at speed keeps the car stuck to the road
+		local speed = vel.Magnitude
+		local t = CarMath.clamp(speed / Tuning.topSpeed, 0, 1)
+		if grounded > 0 then
+			body:ApplyImpulse(-up * mass * workspace.Gravity * Tuning.downforce * t * t * dt)
+		else
+			-- in the air: settle the spin so jumps land flat-ish
+			body.AssemblyAngularVelocity *= math.max(0, 1 - 1.5 * dt)
+		end
+
+		-- upside down for a while = flip back over
+		if up.Y < 0.15 and speed < 12 then
+			flippedFor += dt
+			if flippedFor > 1.2 then
+				flippedFor = 0
+				local look = Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z)
+				if look.Magnitude < 0.1 then
+					look = Vector3.zAxis
+				end
+				car.teleport(CFrame.lookAt(cf.Position + Vector3.new(0, 3, 0), cf.Position + look))
+			end
+		else
+			flippedFor = 0
+		end
+
+		telemetry.speed = speed
+		telemetry.vLong = vLongBody
+		telemetry.slip = slip
+		telemetry.grounded = grounded
+		telemetry.drifting = grounded > 0 and speed > 15 and math.abs(slip) > 0.25
+	end
+
+	-- Draws the wheels on the springs. Call every frame.
+	function car.render(dt: number)
+		local cf = body.CFrame
+		local up = cf.UpVector
+		local rot = cf.Rotation
+		local vLong = telemetry.vLong
+		for _, w in wheels do
+			w.shown += (w.susp - w.shown) * math.min(1, 25 * dt)
+			w.spin -= vLong / Tuning.wheelRadius * dt
+			local center = cf * w.attach - up * w.shown
+			local yaw = if w.front then -steer else 0
+			local wcf = CFrame.new(center)
+				* rot
+				* CFrame.Angles(0, yaw, 0)
+				* CFrame.Angles(w.spin, 0, 0)
+			w.part.CFrame = wcf
+			w.bar.CFrame = wcf
+		end
+	end
+
+	-- Puts the car somewhere, standing still.
+	function car.teleport(cf: CFrame)
+		model:PivotTo(cf)
+		body.AssemblyLinearVelocity = Vector3.zero
+		body.AssemblyAngularVelocity = Vector3.zero
+		steer = 0
+		handbrake = 0
+		flippedFor = 0
+		for _, w in wheels do
+			w.shown = Tuning.maxSusp
+			w.susp = Tuning.maxSusp
+		end
+	end
+
+	function car.destroy()
+		folder:Destroy()
+	end
+
+	return car
+end
+
+return RCCar
