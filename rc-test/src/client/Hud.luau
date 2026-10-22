@@ -94,7 +94,7 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }, onTrack: (index: numbe
 		gui,
 		"Drift",
 		Vector2.new(0.5, 0),
-		UDim2.fromScale(0.5, 0.15),
+		UDim2.new(0.5, 0, 0.1, 72), -- under the plot buttons
 		UDim2.fromScale(0.34, 0.1)
 	)
 	drift.TextColor3 = Color3.fromRGB(255, 205, 80)
