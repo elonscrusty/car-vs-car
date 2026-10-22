@@ -133,7 +133,7 @@ function RCCar.new(model: Model): Car
 		handbrake = CarMath.approach(
 			handbrake,
 			if input.drift then 1 else 0,
-			(if input.drift then 9 else 3) * dt
+			(if input.drift then 5 else 3) * dt
 		)
 
 		-- what the pedals mean this frame
@@ -220,6 +220,13 @@ function RCCar.new(model: Model): Car
 		local t = CarMath.clamp(speed / Tuning.topSpeed, 0, 1)
 		if grounded > 0 then
 			body:ApplyImpulse(-up * mass * workspace.Gravity * Tuning.downforce * t * t * dt)
+			-- cap the spin so a drift stays a slide, not a spin-out
+			local ang = body.AssemblyAngularVelocity
+			local yaw = ang:Dot(up)
+			local capped = CarMath.clamp(yaw, -Tuning.maxYaw, Tuning.maxYaw)
+			if capped ~= yaw then
+				body.AssemblyAngularVelocity = ang - up * (yaw - capped)
+			end
 		else
 			-- in the air: settle the spin so jumps land flat-ish
 			body.AssemblyAngularVelocity *= math.max(0, 1 - 1.5 * dt)

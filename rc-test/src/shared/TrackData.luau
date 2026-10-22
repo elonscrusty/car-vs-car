@@ -46,6 +46,7 @@ local DRIFT_POINTS: { Pt } = {
 }
 
 local RACE_POINTS: { Pt } = {
+	{ x = -110, z = -110 },
 	{ x = 0, z = -120 },
 	{ x = 90, z = -130 },
 	{ x = 170, z = -90 },
@@ -59,7 +60,6 @@ local RACE_POINTS: { Pt } = {
 	{ x = -150, z = 100 },
 	{ x = -130, z = 20 },
 	{ x = -170, z = -50 },
-	{ x = -110, z = -110 },
 }
 
 -- Rock climb: ground height along the course. { z, y } from the start (z high) up to the top.
@@ -70,8 +70,8 @@ TrackData.rockProfile = {
 	{ z = 30, y = 14 },
 	{ z = -10, y = 38 },
 	{ z = -50, y = 38 },
-	{ z = -90, y = 66 },
-	{ z = -140, y = 66 },
+	{ z = -90, y = 60 },
+	{ z = -140, y = 60 },
 }
 
 -- Smooth closed loop through the points (Catmull-Rom). Returns evenly-ish spaced samples with
@@ -168,7 +168,7 @@ function TrackData.rocks(): { Rock }
 			end
 		end
 		if ok then
-			out[#out + 1] = { x = x, y = TrackData.rockHeight(z) + r * 0.3, z = z, r = r }
+			out[#out + 1] = { x = x, y = TrackData.rockHeight(z) - r * 0.35, z = z, r = r }
 		end
 	end
 	return out
@@ -221,7 +221,7 @@ function TrackData.get(id: string): Track
 		spawn = { x = 0, y = 2.5, z = 140, dx = 0, dz = -1 },
 		gates = {
 			{ x = 0, y = 0, z = 128, dx = 0, dz = -1, halfWidth = half, depth = 4 },
-			{ x = 0, y = 66, z = -115, dx = 0, dz = -1, halfWidth = half, depth = 25 },
+			{ x = 0, y = 60, z = -115, dx = 0, dz = -1, halfWidth = half, depth = 25 },
 		},
 	}
 end

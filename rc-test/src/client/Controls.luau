@@ -252,8 +252,8 @@ function Controls.new(gui: ScreenGui, onReset: () -> (), onTrack: (index: number
 		local help = Instance.new("TextLabel")
 		help.BackgroundTransparency = 1
 		help.AnchorPoint = Vector2.new(0.5, 1)
-		help.Position = UDim2.fromScale(0.5, 0.93)
-		help.Size = UDim2.fromScale(0.6, 0.04)
+		help.Position = UDim2.fromScale(0.5, 0.985)
+		help.Size = UDim2.fromScale(0.6, 0.035)
 		help.Font = Enum.Font.GothamBold
 		help.TextScaled = true
 		help.TextColor3 = Color3.fromRGB(255, 255, 255)

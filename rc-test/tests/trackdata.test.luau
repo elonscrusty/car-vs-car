@@ -62,7 +62,7 @@ end)
 
 test("rock course: heights climb, rocks stay on the course and apart", function()
 	eq(TrackData.rockHeight(200), 0)
-	eq(TrackData.rockHeight(-200), 66)
+	eq(TrackData.rockHeight(-200), 60)
 	truthy(TrackData.rockHeight(0) > TrackData.rockHeight(50))
 	local rocks = TrackData.rocks()
 	truthy(#rocks >= 40, "too few rocks")
@@ -83,7 +83,7 @@ test("rock course: spawn is behind the start gate, summit gate sits on the top",
 	local timer = LapTimer.new(t.gates, t.mode)
 	eq(LapTimer.update(timer, 0, t.spawn.x, 0, t.spawn.z), nil)
 	eq(LapTimer.update(timer, 1, 0, 0, 128), "start")
-	eq(LapTimer.update(timer, 90, 0, 66, -120), "finish")
+	eq(LapTimer.update(timer, 90, 0, 60, -120), "finish")
 end)
 
 test("rocks are the same every time", function()
