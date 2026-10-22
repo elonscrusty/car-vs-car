@@ -57,8 +57,8 @@ function LobbyLayout.slots(): { Slot }
 			standZ = sz,
 			exitX = ex,
 			exitZ = LobbyLayout.FRONT_Z + LobbyLayout.EXIT,
-			-- beside the entrance gap, on the street edge
-			signX = ex + 20,
+			-- left of the entrance gap, on the street edge (the plot's own big sign is on the right)
+			signX = ex - 20,
 			signZ = LobbyLayout.FRONT_Z + 3,
 		})
 	end
@@ -94,10 +94,11 @@ function LobbyLayout.spawn(): (number, number, number)
 	return (st.minX + st.maxX) / 2, 3, st.maxZ - 20
 end
 
--- Where a parked car waits on the street before its first drive (spread out, one per player).
+-- Where a parked car waits on the street before its first drive (spread out, one per player),
+-- just in front of the start pad so it is in view.
 function LobbyLayout.parkSpot(n: number): (number, number)
 	local x, _, z = LobbyLayout.spawn()
-	return x - 12 + ((n - 1) % 8) * 3.5, z + 8
+	return x - 12 + ((n - 1) % 8) * 3.5, z - 8
 end
 
 -- Close enough to the stand to start driving? (flat distance)
