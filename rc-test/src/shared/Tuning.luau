@@ -100,10 +100,10 @@ local MODES: { [string]: { [string]: number } } = {
 	},
 	-- Rock crawler: slow, strong, soft long springs you can watch flex, sticky tyres.
 	rock = {
-		topSpeed = 22,
-		accel = 120,
-		crawlBoost = 40,
-		crawlSpeed = 10,
+		topSpeed = 11, -- walking pace, so you can watch every spring work over the rocks
+		accel = 110,
+		crawlBoost = 60,
+		crawlSpeed = 6,
 		frontDrive = 0.5,
 		maxSusp = 2.8,
 		springOmega = 11.5,
@@ -112,7 +112,7 @@ local MODES: { [string]: { [string]: number } } = {
 		steerLow = 0.4,
 		steerHigh = 0.4,
 		steerRate = 2, -- gentle steering while crawling, so short taps don't swing the car
-		reverseTop = 15,
+		reverseTop = 8,
 		downforce = 0,
 		lowGear = 1,
 		coastDrag = 2.5,
