@@ -67,6 +67,7 @@ Plot.mode = "loop"
 Plot.grip = 0.75 -- off the road is slower
 Plot.ROAD = ROAD
 Plot.CURB_WIDTH = CURB_WIDTH
+Plot.GRASS_DRAG = 1 -- extra rolling drag on the grass (the car reads the "Drag" attribute)
 
 function Plot.loop(): { Kit.Sample }
 	return Kit.loop(POINTS, 8)
@@ -109,6 +110,7 @@ function Plot.build(parent: Instance, origin: CFrame)
 		GRASS_COLOR
 	)
 	grass:SetAttribute("Grip", Plot.grip)
+	grass:SetAttribute("Drag", Plot.GRASS_DRAG) -- the car slows down on it
 	grass.Material = Enum.Material.Grass
 
 	local loop = Plot.loop()
