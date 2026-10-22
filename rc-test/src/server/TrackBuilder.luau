@@ -118,6 +118,12 @@ function TrackBuilder.build()
 		big.Name = id
 		buildBase(big, origin, t.label, t.grip)
 		plot.build(big, origin)
+		-- walls are slippery and a little bouncy: the car pushes off instead of grinding along
+		for _, d in big:GetDescendants() do
+			if d:IsA("BasePart") and string.find(d.Name, "Wall") then
+				d.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0, 0.45, 100, 100)
+			end
+		end
 		big.WorldPivot = origin
 		big.Parent = root
 

@@ -321,9 +321,9 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 			stuckFor = 0
 		end
 		if stuckFor > 0.25 and noseHit then
-			local side = cf.RightVector * math.sign(input.steer)
-			local nose = cf.Position + cf.LookVector * (Tuning.bodyZ / 2)
-			body:ApplyImpulseAtPosition(side * mass * 25 * S * dt, nose)
+			-- turn the way the stick points and ease off the wall (setting the spin directly:
+			-- the tyres and the yaw limit would otherwise hold the car straight)
+			body.AssemblyAngularVelocity = up * (-math.sign(input.steer) * 1.6)
 			body:ApplyImpulse(noseHit.Normal * mass * 12 * S * dt)
 		end
 
