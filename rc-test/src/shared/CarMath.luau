@@ -160,6 +160,11 @@ function CarMath.driftPoints(speed: number, slip: number, dt: number): number
 	return s * math.min(a, 1) * dt * 2
 end
 
+-- Holding one slide longer multiplies its points: x1, then one step more every 1.5 s, up to x5.
+function CarMath.driftCombo(held: number): number
+	return math.min(1 + math.floor(math.max(held, 0) / 1.5), 5)
+end
+
 -- m:ss.t
 function CarMath.formatTime(seconds: number): string
 	local s = math.max(seconds, 0)
