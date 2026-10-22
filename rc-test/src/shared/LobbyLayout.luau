@@ -46,6 +46,9 @@ LobbyLayout.FRONT_Z = 1000 -- every small plot's front edge; the street starts h
 LobbyLayout.STREET_W = 40 -- street depth (z)
 LobbyLayout.REACH = 8 -- how close to the pad you must be to start driving
 LobbyLayout.PAD = 6 -- pad size
+-- The copy car on a small plot is drawn this much bigger than true scale (true scale is only
+-- half a stud long: too small to see from the street).
+LobbyLayout.MINI_CAR = 3
 
 function LobbyLayout.slots(): { Slot }
 	local out: { Slot } = {}
@@ -106,6 +109,21 @@ end
 function LobbyLayout.parkSpot(n: number): (number, number)
 	local x, _, z = LobbyLayout.spawn()
 	return x - 12 + ((n - 1) % 8) * 3.5, z - 6
+end
+
+-- A spot on a real plot (plot-local, big units) -> the same spot on its small lobby copy, or nil
+-- when it is off the plot (falling, or the car is somewhere else).
+function LobbyLayout.toMini(
+	slot: Slot,
+	lx: number,
+	ly: number,
+	lz: number
+): (number?, number, number)
+	if math.abs(lx) > Kit.WIDTH / 2 or math.abs(lz) > Kit.DEPTH / 2 then
+		return nil, 0, 0
+	end
+	local s = LobbyLayout.MINI
+	return slot.plotX + lx * s, ly * s, slot.plotZ + lz * s
 end
 
 -- Close enough to the pad to start driving? (flat distance)
