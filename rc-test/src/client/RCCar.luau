@@ -301,16 +301,17 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 				if look.Magnitude > 0.1 then
 					look = look.Unit
 					local yawRate = body.AssemblyAngularVelocity.Y
-					-- pick the heading only once the wheels are straight and the turn has
-					-- settled, so the end of a tap isn't pulled back; until then just calm the spin
-					if holdLook == nil and math.abs(steer) < 0.02 and math.abs(yawRate) < 0.2 then
-						holdLook = look
+					local c = Tuning.yawHold
+					-- pick the heading once the wheels are straight: where the car is pointing
+					-- plus the little bit it will still swing, so the end of a tap isn't pulled
+					-- back and a slope can't slowly turn it either
+					if holdLook == nil and math.abs(steer) < 0.02 then
+						holdLook = CFrame.Angles(0, yawRate / c, 0):VectorToWorldSpace(look)
 					end
 					local err = 0
 					if holdLook then
 						err = math.asin(CarMath.clamp(holdLook:Cross(look).Y, -1, 1))
 					end
-					local c = Tuning.yawHold
 					local accel = -(c * c / 4) * err - c * yawRate
 					local inertiaYaw = mass * (Tuning.bodyX ^ 2 + Tuning.bodyZ ^ 2) / 12
 					body:ApplyAngularImpulse(Vector3.yAxis * accel * inertiaYaw * dt)

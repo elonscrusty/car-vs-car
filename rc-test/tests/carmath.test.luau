@@ -138,7 +138,7 @@ test("track modes change numbers and switch back cleanly", function()
 	local T = Tuning :: any
 	local baseTop = Tuning.topSpeed
 	T.setMode("rock")
-	truthy(Tuning.topSpeed < 15, "rock is crawl slow")
+	truthy(Tuning.topSpeed < 20, "rock is crawl slow")
 	truthy(Tuning.maxSusp >= 4, "rock has long springs")
 	eq(Tuning.stuckWait, 10)
 	truthy(Tuning.uprightAssist > 0, "rock eases back upright")
