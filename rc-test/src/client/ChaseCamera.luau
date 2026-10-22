@@ -38,6 +38,7 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 	-- the chase cam follows the car's position exactly and only eases its offset, so it never
 	-- falls behind at speed
 	local offset = pos - body.Position
+	local focusY = body.Position.Y + 1.5 * Tuning.scale
 	local zoomFov = Tuning.driverFovMax
 
 	local driver = false
@@ -62,6 +63,7 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 		heading = flat(body.CFrame.LookVector)
 		pos = body.Position - heading * Tuning.camDistance + Vector3.new(0, Tuning.camHeight, 0)
 		lookAt = body.Position
+		focusY = body.Position.Y + 1.5 * Tuning.scale
 		offset = pos - (body.Position + Vector3.new(0, 1.5 * Tuning.scale, 0))
 	end
 
@@ -124,7 +126,11 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 		local a = 1 - math.exp(-5 * dt)
 		heading = flat(heading:Lerp(want, a))
 
-		local focus = cf.Position + Vector3.new(0, 1.5 * Tuning.scale, 0)
+		-- follow the car exactly sideways, but ease the height so bumps and springs don't shake
+		-- the view
+		local raw = cf.Position + Vector3.new(0, 1.5 * Tuning.scale, 0)
+		focusY += (raw.Y - focusY) * (1 - math.exp(-6 * dt))
+		local focus = Vector3.new(raw.X, focusY, raw.Z)
 		local dist = Tuning.camDistance + speed * 0.05
 		local desired = focus - heading * dist + Vector3.new(0, Tuning.camHeight, 0)
 		-- keep the view out of walls and hills
@@ -134,10 +140,25 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 			desired = hit.Position + hit.Normal * 0.6 * Tuning.scale
 		end
 
-		offset = offset:Lerp(desired - focus, 1 - math.exp(-8 * dt))
-		pos = focus + offset
 		if hit then
-			pos = desired
+			-- pulled in by a wall: jump there (no flip-flopping between two spots)
+			offset = desired - focus
+		else
+			offset = offset:Lerp(desired - focus, 1 - math.exp(-8 * dt))
+		end
+		pos = focus + offset
+		-- never dip into the floor
+		local down = workspace:Raycast(
+			pos + Vector3.new(0, Tuning.camHeight, 0),
+			Vector3.new(0, -Tuning.camHeight * 3, 0),
+			params
+		)
+		if down then
+			local minY = down.Position.Y + Tuning.camHeight * 0.4
+			if pos.Y < minY then
+				pos = Vector3.new(pos.X, minY, pos.Z)
+				offset = pos - focus
+			end
 		end
 		lookAt = focus + heading * 5 * Tuning.scale
 		camera.CFrame = CFrame.lookAt(pos, lookAt)
