@@ -75,21 +75,13 @@ function LobbyBuilder.build(): Built
 	local built: Built = { prompts = {}, signs = {} }
 	local plots = workspace:WaitForChild("Plots")
 	for _, slot in LobbyLayout.slots() do
-		-- sign on the street edge: who is driving this plot
-		for _, side in { -1, 1 } do
-			block(
-				folder,
-				"SignPost",
-				Vector3.new(0.4, 5, 0.4),
-				Vector3.new(slot.signX + side * 4.5, 2.5, slot.signZ),
-				Color3.fromRGB(190, 190, 195)
-			)
-		end
+		-- low sign on the street edge, beside the pad: who is driving this plot (kept knee high
+		-- so it never hides the small plot behind it)
 		local board = block(
 			folder,
 			"Sign_" .. slot.id,
-			Vector3.new(10, 3.5, 0.4),
-			Vector3.new(slot.signX, 5.5, slot.signZ),
+			Vector3.new(8, 2.4, 0.4),
+			Vector3.new(slot.signX, 1.2, slot.signZ),
 			Color3.fromRGB(235, 235, 235)
 		)
 		local gui = Instance.new("SurfaceGui")
