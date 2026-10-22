@@ -123,6 +123,27 @@ function CarMath.holdForce(wheelMass: number, gravity: number, fwdY: number): nu
 	return wheelMass * gravity * fwdY
 end
 
+-- Push (studs/s^2) along the slide that keeps a drift fast while the gas is down.
+function CarMath.driftThrust(speed: number, slip: number, throttle: number): number
+	if Tuning.driftThrust <= 0 or math.abs(slip) < 0.25 or throttle <= 0 then
+		return 0
+	end
+	local t = CarMath.clamp(speed / Tuning.topSpeed, 0, 1)
+	return Tuning.driftThrust * throttle * (1 - t)
+end
+
+-- Low gear: brake force (per wheel) that stops the car running past its top speed downhill.
+function CarMath.governor(vLong: number, wheelMass: number, dt: number): number
+	if Tuning.lowGear <= 0 then
+		return 0
+	end
+	local over = math.abs(vLong) - Tuning.topSpeed
+	if over <= 0 then
+		return 0
+	end
+	return -math.sign(vLong) * over * wheelMass * 0.5 / dt
+end
+
 function CarMath.fov(speed: number): number
 	local t = CarMath.clamp(speed / Tuning.topSpeed, 0, 1)
 	return Tuning.camFovLow + (Tuning.camFovHigh - Tuning.camFovLow) * t
