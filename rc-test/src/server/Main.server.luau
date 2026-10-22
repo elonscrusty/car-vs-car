@@ -5,12 +5,14 @@
 -- WALK) goes back to walking in the lobby.
 
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local CarBuilder = require(script.Parent.CarBuilder)
 local LobbyBuilder = require(script.Parent.LobbyBuilder)
+local MiniCars = require(script.Parent.MiniCars)
 local TrackBuilder = require(script.Parent.TrackBuilder)
 
 Players.CharacterAutoLoads = false
@@ -26,6 +28,7 @@ end
 TrackBuilder.build()
 local lobby = LobbyBuilder.build()
 local slots = LobbyLayout.slots()
+local miniCars = MiniCars.new(workspace:WaitForChild("Lobby"))
 
 -- Client -> server: ("place", rc: boolean, trackIndex: number) when the size or track changes
 -- (only while driving), ("walk") to leave the stand.
@@ -174,6 +177,7 @@ local function claim(player: Player, index: number)
 end
 
 local function release(player: Player)
+	miniCars.remove(player)
 	local old = driving[player]
 	if old then
 		driverOf[old] = nil
@@ -285,4 +289,33 @@ Players.PlayerRemoving:Connect(function(player)
 	lastAsk[player] = nil
 	lastPrompt[player] = nil
 	release(player)
+end)
+
+-- Copy cars: about 15 times a second, every driver's car is mirrored onto their plot's small
+-- copy in the lobby (the car's physics runs on the driver's device; the server sees where it is).
+local mirrorWait = 0
+RunService.Heartbeat:Connect(function(dt: number)
+	mirrorWait -= dt
+	if mirrorWait > 0 then
+		return
+	end
+	mirrorWait = 1 / 15
+	for player, index in driving do
+		local car = workspace:FindFirstChild("Car_" .. player.UserId)
+		local body = car and (car :: Model).PrimaryPart
+		if not body then
+			miniCars.place(player, nil)
+			continue
+		end
+		local t = TrackData.get(TrackData.order[index])
+		local rc = carScale[player] ~= 1
+		local p = body.Position
+		local lx, ly, lz = TrackData.toLocal(t, rc, p.X, p.Y, p.Z)
+		local mx, my, mz = LobbyLayout.toMini(slots[index], lx, ly, lz)
+		if mx == nil then
+			miniCars.place(player, nil)
+		else
+			miniCars.place(player, body.CFrame.Rotation + Vector3.new(mx, my, mz))
+		end
+	end
 end)
