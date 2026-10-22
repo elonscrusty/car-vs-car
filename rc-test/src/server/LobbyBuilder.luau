@@ -1,7 +1,7 @@
 --!strict
--- Builds the walking lobby around the RC-size plots (LobbyLayout): grass under everything, the
--- street in front, the start pad, a sign per plot, and a DRIVE prompt on each driver stand.
--- Grey blocks only. Run after TrackBuilder.build() (the plots must exist).
+-- Builds the walking lobby (LobbyLayout): grass, the street, the start pad, and per plot a small
+-- garden-size copy of it, a sign and a DRIVE pad with a prompt. Grey blocks only.
+-- Run after TrackBuilder.build() (the RC plots are copied from workspace.Plots).
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -58,7 +58,7 @@ function LobbyBuilder.build(): Built
 	folder.Name = "Lobby"
 	folder.Parent = workspace
 
-	-- grass sits a hair under the plot floors so they never flicker
+	-- grass sits a hair under the small plots' floors so they never flicker
 	slab(folder, "Grass", LobbyLayout.ground(), -0.05, 2, Color3.fromRGB(120, 150, 110))
 	slab(folder, "Street", LobbyLayout.street(), 0, 1, Color3.fromRGB(140, 140, 144))
 
@@ -104,14 +104,25 @@ function LobbyBuilder.build(): Built
 		text.Parent = gui
 		built.signs[slot.index] = text
 
-		-- DRIVE prompt at the foot of the tall driver stand, on the street side (E on a keyboard,
-		-- a tap button on a phone); driving puts the person on top
-		local plot = plots:WaitForChild(slot.id .. "_rc")
-		local stand = plot:WaitForChild("StandPad") :: BasePart
+		-- the small garden-size copy of this plot (looks only: driving happens on the real one)
+		local mini = (plots:WaitForChild(slot.id .. "_rc") :: Model):Clone()
+		mini.Name = "Mini_" .. slot.id
+		mini:ScaleTo(LobbyLayout.MINI)
+		mini:PivotTo(CFrame.new(slot.plotX, 0, slot.plotZ))
+		mini.Parent = folder
+
+		-- DRIVE pad in front of it (E on a keyboard, a tap button on a phone)
+		local pad = block(
+			folder,
+			"DrivePad_" .. slot.id,
+			Vector3.new(LobbyLayout.PAD, 0.3, LobbyLayout.PAD),
+			Vector3.new(slot.padX, 0.15, slot.padZ),
+			Color3.fromRGB(255, 207, 102)
+		)
 		local at = Instance.new("Attachment")
 		at.Name = "DriveSpot"
-		at.Parent = stand
-		at.WorldPosition = Vector3.new(slot.standX, 2.5, slot.standZ + stand.Size.Z / 2 + 1)
+		at.Position = Vector3.new(0, 2.5, 0)
+		at.Parent = pad
 		local prompt = Instance.new("ProximityPrompt")
 		prompt.Name = "DrivePrompt"
 		prompt.ActionText = "Drive"

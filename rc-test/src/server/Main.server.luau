@@ -1,7 +1,8 @@
 --!strict
 -- RC car feel test: builds the tracks, gives every player a car and hands them its physics.
--- People start walking in the lobby street; on a plot's driver stand, E (or the prompt's tap
--- button) drives their car on that plot, and E again (or WALK) goes back to walking.
+-- People start walking in the lobby (small copies of the plots); on a plot's pad, E (or the
+-- prompt's tap button) drives their car on the full-size plot from its stand, and E again (or
+-- WALK) goes back to walking in the lobby.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -129,7 +130,7 @@ local function setSign(index: number)
 	local who = driverOf[index]
 	lobby.signs[index].Text = if who
 		then `{slots[index].label}\n{who.DisplayName} is driving`
-		else `{slots[index].label}\nFREE - press E on the stand`
+		else `{slots[index].label}\nFREE - press E on the pad`
 end
 for i in slots do
 	setSign(i)
@@ -181,7 +182,7 @@ local function release(player: Player)
 	end
 end
 
--- Off the stand, back on the street in front of the plot, walking.
+-- Off the stand, back in the lobby in front of that small plot, walking.
 local function walk(player: Player)
 	local index = driving[player]
 	if index == nil then
@@ -201,7 +202,7 @@ local function walk(player: Player)
 	remote:FireClient(player, "walk")
 end
 
--- E on a stand: drive there (if nobody else is), or stop driving.
+-- E on a lobby pad: drive that plot (if nobody else is), or stop driving.
 for index, prompt in lobby.prompts do
 	prompt.Triggered:Connect(function(player: Player)
 		local now = os.clock()
