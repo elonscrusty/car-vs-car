@@ -55,7 +55,7 @@ Plot.grip = 1
 Plot.ROAD = ROAD
 Plot.HALF_WIDTH = HALF
 Plot.CELL = CELL
-Plot.GRASS_DRAG = 4 -- extra rolling drag on the grass (the car reads the "Drag" attribute); high,
+Plot.GRASS_DRAG = 10 -- extra rolling drag on the grass (the car reads the "Drag" attribute); high,
 -- because drag grows with speed and the crawler is slow
 Plot.RIM = 10 -- the rock wall round the back and sides stands this high above the ground
 Plot.FRONT_RIM = 3 -- and this high along the front, under the stand's view
