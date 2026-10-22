@@ -195,7 +195,7 @@ function RCCar.new(model: Model): Car
 					fx = -math.sign(vLong)
 						* math.min(Tuning.brakeAccel * wm * brake, math.abs(want))
 				elseif math.abs(vLong) < Tuning.holdSpeed then
-					fx = -vLong * wm * 0.6 / dt -- park on hills
+					fx = -vLong * wm * 0.3 / dt -- park on hills
 				else
 					fx = -vLong * wm * Tuning.coastDrag
 				end
@@ -205,7 +205,7 @@ function RCCar.new(model: Model): Car
 
 				-- sideways grip, weaker at the back while the drift button is down
 				local latScale = if rear then 1 - (1 - Tuning.handbrakeRearGrip) * handbrake else 1
-				local fy = -vLat * wm * Tuning.gripResponse / dt
+				local fy = CarMath.lateralForce(vLat, vLong, mu * spring * latScale, wm, dt)
 				fx, fy = CarMath.tractionCircle(fx, fy, mu * spring, mu * spring * latScale)
 
 				local force = n * spring + fwd * fx + right * fy
@@ -223,7 +223,11 @@ function RCCar.new(model: Model): Car
 			-- cap the spin so a drift stays a slide, not a spin-out
 			local ang = body.AssemblyAngularVelocity
 			local yaw = ang:Dot(up)
-			local capped = CarMath.clamp(yaw, -Tuning.maxYaw, Tuning.maxYaw)
+			local capped = CarMath.clamp(
+				CarMath.driftYaw(yaw, slip, vLongBody, dt),
+				-Tuning.maxYaw,
+				Tuning.maxYaw
+			)
 			if capped ~= yaw then
 				body.AssemblyAngularVelocity = ang - up * (yaw - capped)
 			end
