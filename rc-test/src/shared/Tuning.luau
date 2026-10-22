@@ -83,11 +83,19 @@ local MODES: { [string]: { [string]: number } } = {
 		handbrakeRearGrip = 0.4,
 		frontDrive = 0.15,
 		powerSlide = 0.4,
-		driftThrust = 45,
+		driftThrust = 32,
 		counterMax = 0.85,
 		steerMax = 0.95,
 		steerHigh = 0.2,
-		maxYaw = 2.4,
+		-- Slow and long: lower speed, softer grip and a slower spin, so each slide lasts and is easy to watch.
+		topSpeed = 60,
+		accel = 40,
+		baseMu = 0.9,
+		maxYaw = 1.7,
+		steerRate = 5,
+		-- Higher, further back camera so the next corner is in view.
+		camDistance = 14,
+		camHeight = 6,
 	},
 	-- Rock crawler: slow, strong, soft long springs you can watch flex, sticky tyres.
 	rock = {
