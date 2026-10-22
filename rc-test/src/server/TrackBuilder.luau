@@ -69,8 +69,8 @@ local function buildBase(parent: Instance, origin: CFrame, label: string, grip: 
 			parent,
 			"StandStep",
 			origin,
-			Vector3.new(4, 1, 10),
-			CFrame.new(sx + 14 + (steps - i + 0.5) * 4, top - 0.5, sz + 9),
+			Vector3.new(8, 1, 10), -- 2 studs deep at RC size: easy to walk up
+			CFrame.new(sx + 14 + (steps - i + 0.5) * 8, top - 0.5, sz + 9),
 			C.pad
 		)
 	end

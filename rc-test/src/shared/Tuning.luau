@@ -120,6 +120,7 @@ local MODES: { [string]: { [string]: number } } = {
 		lowGear = 1,
 		coastDrag = 2.5,
 		yawHold = 6,
+		minLatShare = 0.8, -- climbing hard still keeps most sideways grip, so it doesn't slide off
 		uprightAssist = 30,
 		stuckWait = 10, -- being stuck is part of crawling: give time to wiggle free
 	},

@@ -101,7 +101,8 @@ local current = 1
 getEye = function(): Vector3
 	local t = tracks[current]
 	local spot = TrackData.standSpot(t)
-	local x, _, z = TrackData.toWorld(t, rc, spot.x, 0, spot.z)
+	-- at the front rail of the deck (toward the track), so the deck floor doesn't fill the view
+	local x, _, z = TrackData.toWorld(t, rc, spot.x, 0, spot.z - 13)
 	-- eye height of a person standing on the raised stand (4.5 above it at real RC size)
 	return Vector3.new(x, (TrackData.STAND_H + 4.5 / TrackData.RC_SCALE) * Tuning.scale, z)
 end
