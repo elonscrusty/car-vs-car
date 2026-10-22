@@ -300,10 +300,16 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 				local look = Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z)
 				if look.Magnitude > 0.1 then
 					look = look.Unit
-					local want = holdLook or look
-					holdLook = want
-					local err = math.asin(CarMath.clamp(want:Cross(look).Y, -1, 1))
 					local yawRate = body.AssemblyAngularVelocity.Y
+					-- pick the heading only once the wheels are straight and the turn has
+					-- settled, so the end of a tap isn't pulled back; until then just calm the spin
+					if holdLook == nil and math.abs(steer) < 0.02 and math.abs(yawRate) < 0.2 then
+						holdLook = look
+					end
+					local err = 0
+					if holdLook then
+						err = math.asin(CarMath.clamp(holdLook:Cross(look).Y, -1, 1))
+					end
 					local c = Tuning.yawHold
 					local accel = -(c * c / 4) * err - c * yawRate
 					local inertiaYaw = mass * (Tuning.bodyX ^ 2 + Tuning.bodyZ ^ 2) / 12

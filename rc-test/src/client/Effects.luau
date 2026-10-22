@@ -23,8 +23,8 @@ local MAX_MARKS = 600 -- oldest marks go first past this, so phones stay smooth
 local MARK_LIFE = 25 -- seconds a skid mark stays dark
 local MARK_FADE = 5 -- then it fades away over this long
 -- Sound ids (free Creator Store sounds, checked to load in Studio). Empty = no sound.
-local MOTOR_SOUND = ""
-local SQUEAL_SOUND = ""
+local MOTOR_SOUND = "rbxassetid://137730930796096" -- "ENV Electric Motor Steady"
+local SQUEAL_SOUND = "rbxassetid://109487442763183" -- "Tire Squealing / Screeching Loop"
 
 local function loopSound(id: string, parent: Instance): Sound?
 	if id == "" then
