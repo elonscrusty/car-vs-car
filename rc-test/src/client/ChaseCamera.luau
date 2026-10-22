@@ -75,7 +75,10 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 				* CarMath.clamp((flatSpeed - 8 * Tuning.scale) / (20 * Tuning.scale), 0, 1)
 			want = flat(want * (1 - w) + flat(flatVel) * w)
 		end
-		heading = flat(heading:Lerp(want, 1 - math.exp(-5 * dt)))
+		-- tumbling or on its side: the nose points anywhere, so hold the heading still
+		if cf.UpVector.Y > 0.7 then
+			heading = flat(heading:Lerp(want, 1 - math.exp(-5 * dt)))
+		end
 
 		-- carry the focus along at the car's speed, then pull it onto the car: no lag, no shake
 		local raw = cf.Position + Vector3.new(0, 1.5 * Tuning.scale, 0)

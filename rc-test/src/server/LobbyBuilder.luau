@@ -104,13 +104,14 @@ function LobbyBuilder.build(): Built
 		text.Parent = gui
 		built.signs[slot.index] = text
 
-		-- DRIVE prompt on top of the driver stand (E on a keyboard, a tap button on a phone)
+		-- DRIVE prompt at the foot of the tall driver stand, on the street side (E on a keyboard,
+		-- a tap button on a phone); driving puts the person on top
 		local plot = plots:WaitForChild(slot.id .. "_rc")
 		local stand = plot:WaitForChild("StandPad") :: BasePart
 		local at = Instance.new("Attachment")
 		at.Name = "DriveSpot"
 		at.Parent = stand
-		at.WorldPosition = Vector3.new(slot.standX, slot.standY + 2, slot.standZ)
+		at.WorldPosition = Vector3.new(slot.standX, 2.5, slot.standZ + stand.Size.Z / 2 + 1)
 		local prompt = Instance.new("ProximityPrompt")
 		prompt.Name = "DrivePrompt"
 		prompt.ActionText = "Drive"
