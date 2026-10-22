@@ -1,11 +1,16 @@
 --!strict
 -- Tyre smoke and skid marks while the car slides. Only on this player's screen.
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Tuning = require(ReplicatedStorage.Shared.Tuning)
+
 local RCCar = require(script.Parent.RCCar)
 
 export type Effects = {
 	update: (dt: number) -> (),
 	clear: () -> (),
+	destroy: () -> (),
 }
 
 local Effects = {}
@@ -16,6 +21,7 @@ local MARK_STEP = 0.8 -- studs between skid mark pieces
 local MAX_MARKS = 500
 
 function Effects.new(telemetry: RCCar.Telemetry): Effects
+	local S = Tuning.scale -- effects are made for the car size at the time
 	local folder = Instance.new("Folder")
 	folder.Name = "RCEffects"
 	folder.Parent = workspace
@@ -39,14 +45,14 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 		e.Texture = "rbxasset://textures/particles/smoke_main.dds"
 		e.Rate = 0
 		e.Lifetime = NumberRange.new(0.9, 1.6)
-		e.Speed = NumberRange.new(2, 5)
+		e.Speed = NumberRange.new(2 * S, 5 * S)
 		e.SpreadAngle = Vector2.new(35, 35)
 		e.Drag = 2
-		e.Acceleration = Vector3.new(0, 4, 0)
+		e.Acceleration = Vector3.new(0, 4 * S, 0)
 		e.Color = ColorSequence.new(Color3.fromRGB(235, 235, 235))
 		e.Size = NumberSequence.new({
-			NumberSequenceKeypoint.new(0, 1.2),
-			NumberSequenceKeypoint.new(1, 5),
+			NumberSequenceKeypoint.new(0, 1.2 * S),
+			NumberSequenceKeypoint.new(1, 5 * S),
 		})
 		e.Transparency = NumberSequence.new({
 			NumberSequenceKeypoint.new(0, 0.45),
@@ -62,10 +68,10 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 
 	local function addMark(a: Vector3, b: Vector3, normal: Vector3, strength: number)
 		local len = (b - a).Magnitude
-		if len < 0.05 then
+		if len < 0.05 * S then
 			return
 		end
-		local mid = (a + b) / 2 + normal * 0.03
+		local mid = (a + b) / 2 + normal * 0.03 * S
 		local p = Instance.new("Part")
 		p.Name = "Skid"
 		p.Anchored = true
@@ -76,8 +82,8 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 		p.Material = Enum.Material.SmoothPlastic
 		p.Color = Color3.fromRGB(25, 25, 28)
 		p.Transparency = 0.75 - 0.4 * strength
-		p.Size = Vector3.new(0.5, 0.02, len + 0.1)
-		p.CFrame = CFrame.lookAt(mid, b + normal * 0.03, normal)
+		p.Size = Vector3.new(0.5 * S, 0.02, len + 0.1 * S)
+		p.CFrame = CFrame.lookAt(mid, b + normal * 0.03 * S, normal)
 		p.Parent = folder
 		table.insert(marks, p)
 		if #marks > MAX_MARKS then
@@ -88,13 +94,13 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 	local fx = {} :: Effects
 
 	function fx.update(dt: number)
-		local fast = telemetry.speed > 12
+		local fast = telemetry.speed > 12 * S
 		for i, info in telemetry.wheels do
 			local t = tracks[i]
-			local sliding = fast and info.touching and info.slide > SLIDE_START
+			local sliding = fast and info.touching and info.slide > SLIDE_START * S
 			if sliding then
-				local strength = math.clamp((info.slide - SLIDE_START) / 20, 0, 1)
-				t.attach.WorldPosition = info.contact + info.normal * 0.3
+				local strength = math.clamp((info.slide - SLIDE_START * S) / (20 * S), 0, 1)
+				t.attach.WorldPosition = info.contact + info.normal * 0.3 * S
 				if info.rear then
 					t.owed += SMOKE_PER_SECOND * (0.3 + strength) * dt
 					local n = math.floor(t.owed)
@@ -106,8 +112,8 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 				local last = t.last
 				if last == nil then
 					t.last = info.contact
-				elseif (info.contact - last).Magnitude >= MARK_STEP then
-					if (info.contact - last).Magnitude < 6 then
+				elseif (info.contact - last).Magnitude >= MARK_STEP * S then
+					if (info.contact - last).Magnitude < 6 * S then
 						addMark(last, info.contact, info.normal, strength)
 					end
 					t.last = info.contact
@@ -127,6 +133,10 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 		for _, t in tracks do
 			t.last = nil
 		end
+	end
+
+	function fx.destroy()
+		folder:Destroy()
 	end
 
 	return fx

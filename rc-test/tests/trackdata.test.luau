@@ -91,3 +91,29 @@ test("rocks are the same every time", function()
 	eq(#a, #b)
 	eq(a[5].x, b[5].x)
 end)
+
+test("RC size: world and local spots round-trip, small tracks don't overlap", function()
+	for _, id in TrackData.order do
+		local t = TrackData.get(id)
+		for _, rc in { false, true } do
+			local wx, wy, wz = TrackData.toWorld(t, rc, 12, 3, -40)
+			local lx, ly, lz = TrackData.toLocal(t, rc, wx, wy, wz)
+			truthy(
+				math.abs(lx - 12) < 1e-6 and math.abs(ly - 3) < 1e-6 and math.abs(lz + 40) < 1e-6
+			)
+		end
+	end
+	-- big plots are about 560 wide; at RC size they must not touch each other
+	local a = TrackData.origin(TrackData.get("drift"), true)
+	local b = TrackData.origin(TrackData.get("race"), true)
+	truthy(math.abs(b - a) > 560 * TrackData.RC_SCALE + 10)
+end)
+
+test("player stands off the road, outside the rock course", function()
+	local race = TrackData.get("race")
+	local spot = TrackData.standSpot(race)
+	local d = math.sqrt((spot.x - race.spawn.x) ^ 2 + (spot.z - race.spawn.z) ^ 2)
+	truthy(d > TrackData.ROAD_RACE / 2 + 2)
+	local rock = TrackData.standSpot(TrackData.get("rock"))
+	truthy(rock.z > 152, "behind the back wall")
+end)

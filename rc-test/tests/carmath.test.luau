@@ -168,3 +168,28 @@ test("low gear holds the rock crawler to its top speed downhill", function()
 	T.setMode("race")
 	eq(CarMath.governor(500, 1, 1 / 60), 0)
 end)
+
+test("RC size shrinks lengths and speeds but not angles or grip", function()
+	local T = Tuning :: any
+	T.setMode("race")
+	local bigTop, bigLen, bigMu, bigOmega =
+		Tuning.topSpeed, Tuning.bodyZ, Tuning.baseMu, Tuning.springOmega
+	T.setScale(0.25)
+	near(Tuning.topSpeed, bigTop * 0.25)
+	near(Tuning.bodyZ, bigLen * 0.25)
+	eq(Tuning.baseMu, bigMu)
+	eq(Tuning.springOmega, bigOmega)
+	-- modes still work at RC size
+	T.setMode("rock")
+	truthy(Tuning.topSpeed < 30 * 0.25)
+	-- the steering curve is the same shape at the same fraction of top speed
+	local smallSteer = CarMath.steerLimit(Tuning.topSpeed * 0.5)
+	T.setScale(1)
+	near(CarMath.steerLimit(Tuning.topSpeed * 0.5), smallSteer)
+	-- drift score is the same at both sizes
+	T.setScale(0.25)
+	local small = CarMath.driftPoints(60 * 0.25, 0.6, 1)
+	T.setScale(1)
+	near(CarMath.driftPoints(60, 0.6, 1), small)
+	T.setMode("race")
+end)

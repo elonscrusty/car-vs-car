@@ -65,6 +65,10 @@ local Tuning = {
 	powerSlide = 0,
 	driftThrust = 0, -- push along the slide while on the gas, so drifts keep their speed
 	lowGear = 0, -- 1 = the engine holds the top speed going downhill too
+
+	-- Size of the whole world for the car. 1 = big test size, 0.25 = real RC size next to a player.
+	-- Lengths, speeds, pushes and the car's own gravity all shrink together, so it drives the same.
+	scale = 1,
 }
 
 -- Each track can change some numbers. Anything not listed uses the base value above.
@@ -102,20 +106,62 @@ local MODES: { [string]: { [string]: number } } = {
 	},
 }
 
-local base: { [string]: any } = table.clone(Tuning)
+-- Numbers that are lengths, speeds or pushes: these shrink with `scale`.
+local SCALED = {
+	"bodyX",
+	"bodyY",
+	"bodyZ",
+	"wheelRadius",
+	"wheelWidth",
+	"wheelX",
+	"wheelZ",
+	"attachY",
+	"maxSusp",
+	"accel",
+	"crawlBoost",
+	"crawlSpeed",
+	"topSpeed",
+	"reverseTop",
+	"brakeAccel",
+	"holdSpeed",
+	"driftThrust",
+	"camDistance",
+	"camHeight",
+	"orbitDistance",
+	"orbitHeight",
+}
 
--- Switch to a track's numbers ("race" or unknown = base numbers).
-local function setMode(id: string)
+local base: { [string]: any } = table.clone(Tuning)
+local currentMode = "race"
+local currentScale = 1
+
+local function apply()
 	local t = Tuning :: any
 	for key, value in base do
 		t[key] = value
 	end
-	local mode = MODES[id]
+	local mode = MODES[currentMode]
 	if mode then
 		for key, value in mode do
 			t[key] = value
 		end
 	end
+	for _, key in SCALED do
+		t[key] *= currentScale
+	end
+	t.scale = currentScale
 end
 
-return setmetatable(Tuning, { __index = { setMode = setMode } })
+-- Switch to a track's numbers ("race" or unknown = base numbers).
+local function setMode(id: string)
+	currentMode = id
+	apply()
+end
+
+-- Switch the size of everything (1 = big, 0.25 = real RC).
+local function setScale(s: number)
+	currentScale = s
+	apply()
+end
+
+return setmetatable(Tuning, { __index = { setMode = setMode, setScale = setScale } })

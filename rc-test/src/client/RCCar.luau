@@ -95,7 +95,7 @@ local function makeWheel(folder: Folder, attach: Vector3, front: boolean): Wheel
 	}
 end
 
-function RCCar.new(model: Model): Car
+function RCCar.new(model: Model, ignore: { Instance }): Car
 	local body = model.PrimaryPart :: BasePart
 	local folder = Instance.new("Folder")
 	folder.Name = "RCWheels"
@@ -111,7 +111,11 @@ function RCCar.new(model: Model): Car
 
 	local rayParams = RaycastParams.new()
 	rayParams.FilterType = Enum.RaycastFilterType.Exclude
-	rayParams.FilterDescendantsInstances = { model, folder }
+	local skip: { Instance } = { model, folder }
+	for _, inst in ignore do
+		table.insert(skip, inst)
+	end
+	rayParams.FilterDescendantsInstances = skip
 
 	local steer = 0 -- right is positive
 	local handbrake = 0
@@ -132,6 +136,9 @@ function RCCar.new(model: Model): Car
 		if dt <= 0 or dt > 0.1 then
 			return
 		end
+		local S = Tuning.scale
+		-- the car's own gravity shrinks with its size, so a small car moves like the big one
+		local gravity = workspace.Gravity * S
 		local cf = body.CFrame
 		local up = cf.UpVector
 		local mass = body.AssemblyMass
@@ -223,7 +230,7 @@ function RCCar.new(model: Model): Car
 						* math.min(Tuning.brakeAccel * wm * brake, math.abs(want))
 				elseif math.abs(vLong) < Tuning.holdSpeed then
 					-- park on hills: cancel the roll and the pull of gravity
-					fx = -vLong * wm * 0.3 / dt + CarMath.holdForce(wm, workspace.Gravity, fwd.Y)
+					fx = -vLong * wm * 0.3 / dt + CarMath.holdForce(wm, gravity, fwd.Y)
 				else
 					fx = -vLong * wm * Tuning.coastDrag
 				end
@@ -259,7 +266,7 @@ function RCCar.new(model: Model): Car
 		local speed = vel.Magnitude
 		local t = CarMath.clamp(speed / Tuning.topSpeed, 0, 1)
 		if grounded > 0 then
-			body:ApplyImpulse(-up * mass * workspace.Gravity * Tuning.downforce * t * t * dt)
+			body:ApplyImpulse(-up * mass * gravity * Tuning.downforce * t * t * dt)
 			local thrust = CarMath.driftThrust(speed, slip, throttle)
 			if thrust > 0 and vLongBody > 0 then
 				local flatVel = Vector3.new(vel.X, 0, vel.Z)
@@ -284,7 +291,11 @@ function RCCar.new(model: Model): Car
 		end
 
 		-- upside down for a while = flip back over
-		if up.Y < 0.15 and speed < 12 then
+		if S < 1 then
+			body:ApplyImpulse(Vector3.yAxis * mass * (workspace.Gravity - gravity) * dt)
+		end
+
+		if up.Y < 0.15 and speed < 12 * S then
 			flippedFor += dt
 			if flippedFor > 1.2 then
 				flippedFor = 0
@@ -292,7 +303,9 @@ function RCCar.new(model: Model): Car
 				if look.Magnitude < 0.1 then
 					look = Vector3.zAxis
 				end
-				car.teleport(CFrame.lookAt(cf.Position + Vector3.new(0, 3, 0), cf.Position + look))
+				car.teleport(
+					CFrame.lookAt(cf.Position + Vector3.new(0, 3 * S, 0), cf.Position + look)
+				)
 			end
 		else
 			flippedFor = 0
@@ -302,7 +315,7 @@ function RCCar.new(model: Model): Car
 		telemetry.vLong = vLongBody
 		telemetry.slip = slip
 		telemetry.grounded = grounded
-		telemetry.drifting = grounded > 0 and speed > 15 and math.abs(slip) > 0.25
+		telemetry.drifting = grounded > 0 and speed > 15 * S and math.abs(slip) > 0.25
 	end
 
 	-- Draws the wheels on the springs. Call every frame.

@@ -83,7 +83,8 @@ function Controls.new(
 	gui: ScreenGui,
 	onReset: () -> (),
 	onTrack: (index: number) -> (),
-	onCam: () -> ()
+	onCam: () -> (),
+	onSize: () -> ()
 ): Controls
 	local keys: { [Enum.KeyCode]: boolean } = {}
 	local padSteer, padGas, padBrake = 0, 0, 0
@@ -100,6 +101,8 @@ function Controls.new(
 				onReset()
 			elseif input.KeyCode == Enum.KeyCode.C then
 				onCam()
+			elseif input.KeyCode == Enum.KeyCode.T then
+				onSize()
 			elseif input.KeyCode == Enum.KeyCode.One then
 				onTrack(1)
 			elseif input.KeyCode == Enum.KeyCode.Two then
@@ -262,6 +265,13 @@ function Controls.new(
 	camBtn.Parent = gui
 	camBtn.Activated:Connect(onCam)
 
+	local sizeBtn = resetBtn:Clone()
+	sizeBtn.Name = "Size"
+	sizeBtn.Text = "SIZE"
+	sizeBtn.Position = UDim2.fromScale(0.98, 0.27)
+	sizeBtn.Parent = gui
+	sizeBtn.Activated:Connect(onSize)
+
 	if not touchUi then
 		local help = Instance.new("TextLabel")
 		help.BackgroundTransparency = 1
@@ -273,7 +283,7 @@ function Controls.new(
 		help.TextColor3 = Color3.fromRGB(255, 255, 255)
 		help.TextTransparency = 0.35
 		help.Text =
-			"W/S gas + brake    A/D steer    SPACE drift    R reset    C camera    1 2 3 tracks"
+			"W/S gas + brake    A/D steer    SPACE drift    R reset    C camera    T size    1 2 3 tracks"
 		help.Parent = gui
 	end
 

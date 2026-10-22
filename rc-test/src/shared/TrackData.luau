@@ -32,6 +32,9 @@ TrackData.order = { "drift", "race", "rock" }
 TrackData.ROAD_DRIFT = 56
 TrackData.ROAD_RACE = 30
 TrackData.ROCK_HALF_WIDTH = 35
+-- Real RC size: everything is this much smaller than the big test tracks.
+TrackData.RC_SCALE = 0.25
+TrackData.RC_Z = 1500 -- the small tracks sit here, away from the big ones
 
 local DRIFT_POINTS: { Pt } = {
 	{ x = -120, z = -140 },
@@ -224,6 +227,56 @@ function TrackData.get(id: string): Track
 			{ x = 0, y = 60, z = -115, dx = 0, dz = -1, halfWidth = half, depth = 25 },
 		},
 	}
+end
+
+-- Where a track's (0, 0) sits in the world at this size.
+function TrackData.origin(t: Track, rc: boolean): (number, number)
+	if rc then
+		return t.originX * TrackData.RC_SCALE, TrackData.RC_Z
+	end
+	return t.originX, 0
+end
+
+-- Local track spot -> world spot at this size.
+function TrackData.toWorld(
+	t: Track,
+	rc: boolean,
+	x: number,
+	y: number,
+	z: number
+): (number, number, number)
+	local s = if rc then TrackData.RC_SCALE else 1
+	local ox, oz = TrackData.origin(t, rc)
+	return ox + x * s, y * s, oz + z * s
+end
+
+-- World spot -> local track spot (for the lap timer).
+function TrackData.toLocal(
+	t: Track,
+	rc: boolean,
+	x: number,
+	y: number,
+	z: number
+): (number, number, number)
+	local s = if rc then TrackData.RC_SCALE else 1
+	local ox, oz = TrackData.origin(t, rc)
+	return (x - ox) / s, y / s, (z - oz) / s
+end
+
+-- Where the player stands with the remote (local spot, plus the spot to face).
+function TrackData.standSpot(t: Track): (Spawn, number, number)
+	local s = t.spawn
+	local rx, rz = -s.dz, s.dx
+	local back = if t.id == "rock" then 20 else 10
+	local side = if t.id == "rock" then 0 else 25
+	local spot = {
+		x = s.x - s.dx * back + rx * side,
+		y = 0,
+		z = s.z - s.dz * back + rz * side,
+		dx = s.dx,
+		dz = s.dz,
+	}
+	return spot, s.x + s.dx * 20, s.z + s.dz * 20
 end
 
 return TrackData
