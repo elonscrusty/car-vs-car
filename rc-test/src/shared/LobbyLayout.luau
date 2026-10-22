@@ -49,6 +49,8 @@ LobbyLayout.PAD = 6 -- pad size
 -- The copy car on a small plot is drawn this much bigger than true scale (true scale is only
 -- half a stud long: too small to see from the street).
 LobbyLayout.MINI_CAR = 3
+-- ...so keep its middle this far inside the small plot's walls, or its nose pokes through.
+LobbyLayout.MINI_CAR_EDGE = 1.2
 
 function LobbyLayout.slots(): { Slot }
 	local out: { Slot } = {}
@@ -123,7 +125,11 @@ function LobbyLayout.toMini(
 		return nil, 0, 0
 	end
 	local s = LobbyLayout.MINI
-	return slot.plotX + lx * s, ly * s, slot.plotZ + lz * s
+	local hw = LobbyLayout.PLOT_W / 2 - LobbyLayout.MINI_CAR_EDGE
+	local hd = LobbyLayout.PLOT_D / 2 - LobbyLayout.MINI_CAR_EDGE
+	return slot.plotX + math.clamp(lx * s, -hw, hw),
+		ly * s,
+		slot.plotZ + math.clamp(lz * s, -hd, hd)
 end
 
 -- Close enough to the pad to start driving? (flat distance)

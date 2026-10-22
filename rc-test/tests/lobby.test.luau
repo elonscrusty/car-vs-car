@@ -91,11 +91,14 @@ test("copy car: real plot spot -> same spot on the small plot, off the plot -> n
 	H.near(x :: number, s.plotX)
 	H.near(y, 0)
 	H.near(z, s.plotZ)
-	-- the front-right corner of the real plot lands on the small plot's front-right corner
-	x, y, z = L.toMini(s, Kit.WIDTH / 2, 10, Kit.DEPTH / 2)
-	H.near(x :: number, s.plotX + L.PLOT_W / 2)
+	x, y, z = L.toMini(s, 40, 10, -60)
+	H.near(x :: number, s.plotX + 4)
 	H.near(y, 10 * L.MINI)
-	H.near(z, L.FRONT_Z)
+	H.near(z, s.plotZ - 6)
+	-- at the real wall the copy car stays inside the small plot's wall
+	x, _, z = L.toMini(s, Kit.WIDTH / 2, 0, Kit.DEPTH / 2)
+	H.near(x :: number, s.plotX + L.PLOT_W / 2 - L.MINI_CAR_EDGE)
+	H.near(z, L.FRONT_Z - L.MINI_CAR_EDGE)
 	x = L.toMini(s, Kit.WIDTH, 0, 0)
 	eq(x, nil)
 	x = L.toMini(s, 0, 0, -Kit.DEPTH)
