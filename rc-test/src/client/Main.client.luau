@@ -75,13 +75,18 @@ local getEye: () -> Vector3
 local function eye(): Vector3
 	return getEye()
 end
--- the game is played from the driver stand; V swaps to the chase cam
-local driverView = true
+-- each track has its own starting view; V tries the others
+local VIEWS: { ChaseCamera.View } = { "chase", "driver", "top", "free" }
+local VIEW_NAMES =
+	{ chase = "CHASE CAM", driver = "DRIVER VIEW", top = "TOP VIEW", free = "FREE CAM" }
+local TRACK_VIEW: { [string]: ChaseCamera.View } = { drift = "top", race = "chase", rock = "free" }
+local view: ChaseCamera.View = "chase"
+local viewTrack = "" -- the track the view was picked for
 local showCam = false
 
 local car = RCCar.new(model, ignoreList())
 local camera = ChaseCamera.new(body, ignoreList(), eye)
-camera.setDriver(driverView)
+camera.setView(view)
 local effects = Effects.new(car.telemetry)
 local rc = true -- T flips to the big test size while driving
 local swapping = false
@@ -117,7 +122,14 @@ local function goTo(index: number)
 	local t = tracks[index]
 	setScale(if rc then TrackData.RC_SCALE else 1)
 	setMode(t.id)
-	effects.clear()
+	-- a new track: its own view, and the old track's skid marks go
+	if t.id ~= viewTrack then
+		viewTrack = t.id
+		view = TRACK_VIEW[t.id] or "chase"
+		showCam = false
+		camera.setView(view)
+		effects.clear()
+	end
 	LapTimer.reset(timers[index])
 	driftChain, driftTotal, driftHold = 0, 0, 0
 	local s = t.spawn
@@ -163,7 +175,7 @@ local function swapSize()
 	setScale(if rc then TrackData.RC_SCALE else 1)
 	car = RCCar.new(model, ignoreList())
 	camera = ChaseCamera.new(body, ignoreList(), eye)
-	camera.setDriver(driverView)
+	camera.setView(view)
 	effects = Effects.new(car.telemetry)
 	swapping = false
 	goTo(current)
@@ -192,16 +204,17 @@ hud = Hud.new(gui, labels, goTo)
 local controls = Controls.new(gui, reset, goTo, function()
 	showCam = camera.toggleOrbit()
 	if not showCam then
-		camera.setDriver(driverView) -- back to the view picked before
+		camera.setView(view) -- back to the view picked before
 	end
-	hud.flash(if showCam then "SHOW CAM" elseif driverView then "DRIVER VIEW" else "CHASE CAM")
+	hud.flash(if showCam then "SHOW CAM" else VIEW_NAMES[view])
 end, function()
 	task.spawn(swapSize)
 end, function()
-	driverView = not driverView
+	local i = table.find(VIEWS, view) or 0
+	view = VIEWS[i % #VIEWS + 1]
 	showCam = false
-	camera.setDriver(driverView)
-	hud.flash(if driverView then "DRIVER VIEW" else "CHASE CAM")
+	camera.setView(view)
+	hud.flash(VIEW_NAMES[view])
 end)
 
 -- Walking <-> driving. Only the server switches (E on a stand, or WALK), this side follows.
@@ -223,7 +236,7 @@ local function setWalking(on: boolean)
 	local cam = workspace.CurrentCamera
 	local char = player.Character
 	if on then
-		camera.setDriver(false) -- clears see-through walls
+		camera.setView("chase") -- clears see-through walls
 		cam.CameraType = Enum.CameraType.Custom
 		local hum = char and char:FindFirstChildOfClass("Humanoid")
 		if hum then
@@ -249,7 +262,7 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown)
 		effects.destroy()
 		car = RCCar.new(model, ignoreList())
 		camera = ChaseCamera.new(body, ignoreList(), eye)
-		camera.setDriver(driverView)
+		camera.setView(view)
 		showCam = false
 		effects = Effects.new(car.telemetry)
 		goTo(index)
@@ -372,7 +385,7 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 	-- don't block the view
 	local char = player.Character
 	if char then
-		local hide = if driverView and not showCam then 1 else 0
+		local hide = if view == "driver" and not showCam then 1 else 0
 		for _, d in char:GetDescendants() do
 			if d:IsA("BasePart") and d.LocalTransparencyModifier ~= hide then
 				d.LocalTransparencyModifier = hide

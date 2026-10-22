@@ -1,9 +1,11 @@
 --!strict
 -- Camera that sits behind the car, swings toward where the car is really going (so drifts show
--- their side), and widens the view with speed. Also: the show cam (circles the car) and the driver
--- view (watch from the person's eyes like real RC, zooming in when the car is far away).
+-- their side), and widens the view with speed. Also: the show cam (circles the car), the driver
+-- view (watch from the person's eyes like real RC, zooming in when the car is far away), the
+-- top-down view (straight above, for drifting) and the free view (drag to look from any side).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
 local CarMath = require(ReplicatedStorage.Shared.CarMath)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
@@ -12,10 +14,72 @@ export type Cam = {
 	update: (dt: number) -> (),
 	snap: () -> (),
 	toggleOrbit: () -> boolean,
-	setDriver: (on: boolean) -> (),
+	setView: (view: View) -> (),
 }
 
+export type View = "driver" | "chase" | "top" | "free"
+
 local ChaseCamera = {}
+
+-- Free view input, shared by every camera made (hooked up once): right mouse drag or a finger
+-- dragged on open screen turns the view, the mouse wheel or a pinch zooms.
+local turnX, turnY, zoomBy = 0, 0, 1
+do
+	local dragging = false
+	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
+		if processed then
+			return
+		end
+		if input.UserInputType == Enum.UserInputType.MouseButton2 then
+			dragging = true
+		elseif input.UserInputType == Enum.UserInputType.Touch then
+			local last = input.Position
+			local conn: RBXScriptConnection
+			conn = input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					conn:Disconnect()
+					return
+				end
+				local d = input.Position - last
+				last = input.Position
+				turnX += d.X * 0.012
+				turnY += d.Y * 0.012
+			end)
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input: InputObject)
+		if input.UserInputType == Enum.UserInputType.MouseButton2 then
+			dragging = false
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input: InputObject, processed: boolean)
+		if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+			turnX += input.Delta.X * 0.008
+			turnY += input.Delta.Y * 0.008
+		elseif input.UserInputType == Enum.UserInputType.MouseWheel and not processed then
+			zoomBy *= 1 - input.Position.Z * 0.12
+		end
+	end)
+	local lastPinch = 1
+	UserInputService.TouchPinch:Connect(
+		function(
+			_: { Vector2 },
+			scale: number,
+			_: number,
+			state: Enum.UserInputState,
+			processed: boolean
+		)
+			if processed then
+				return
+			end
+			if state == Enum.UserInputState.Begin then
+				lastPinch = 1
+			end
+			zoomBy *= lastPinch / math.max(scale, 0.01)
+			lastPinch = scale
+		end
+	)
+end
 
 local function flat(v: Vector3): Vector3
 	local f = Vector3.new(v.X, 0, v.Z)
@@ -119,9 +183,12 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 	arrow.Parent = marker
 	marker.Parent = body
 
-	local driver = false
+	local view: View = "chase"
 	local orbiting = false
 	local orbitAngle = 0
+	-- free view: angle around the car, angle up, and how far out
+	local freeYaw, freePitch, freeZoom = 0, 0.5, 1
+	local freeReach = 1
 
 	local cam = {} :: Cam
 
@@ -131,9 +198,6 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 		clearFaded()
 		local back = -flat(body.CFrame.LookVector)
 		orbitAngle = math.atan2(back.Z, back.X) + 0.8
-		if orbiting then
-			driver = false
-		end
 		cam.snap()
 		return orbiting
 	end
@@ -146,15 +210,18 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 		flatSpeed = 0
 		reach = 1
 		floorLift = 0
+		-- the free view starts behind the car
+		local back = -heading
+		freeYaw = math.atan2(back.Z, back.X)
+		freePitch, freeZoom, freeReach = 0.5, 1, 1
+		turnX, turnY, zoomBy = 0, 0, 1
 	end
 
-	function cam.setDriver(on: boolean)
-		driver = on
+	function cam.setView(v: View)
+		view = v
 		lift = 0
 		clearFaded()
-		if on then
-			orbiting = false
-		end
+		orbiting = false
 		cam.snap()
 	end
 
@@ -165,7 +232,7 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 		if camera.CameraType ~= Enum.CameraType.Scriptable then
 			camera.CameraType = Enum.CameraType.Scriptable
 		end
-		if driver then
+		if view == "driver" and not orbiting then
 			follow(dt)
 			local base = eye()
 			local target = focus
@@ -226,7 +293,47 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 			camera.FieldOfView = 60
 			return
 		end
-		local cf = body.CFrame
+		if view == "top" then
+			-- straight above the car, a little ahead of where it is going, track's far end up
+			follow(dt)
+			local vel = body.AssemblyLinearVelocity
+			local lead = Vector3.new(vel.X, 0, vel.Z) * 0.35
+			if lead.Magnitude > Tuning.topHeight * 0.3 then
+				lead = lead.Unit * Tuning.topHeight * 0.3
+			end
+			lookAt = lookAt:Lerp(focus + lead, 1 - math.exp(-4 * dt))
+			local height = Tuning.topHeight
+				* (1 + 0.25 * CarMath.clamp(flatSpeed / Tuning.topSpeed, 0, 1))
+			pos = lookAt + Vector3.new(0, height, height * 0.12)
+			camera.CFrame = CFrame.lookAt(pos, lookAt, -Vector3.zAxis)
+			camera.FieldOfView = 50
+			return
+		end
+		if view == "free" then
+			follow(dt)
+			freeYaw += turnX
+			freePitch = CarMath.clamp(freePitch + turnY, 0.08, 1.45)
+			freeZoom = CarMath.clamp(freeZoom * zoomBy, 0.35, 3)
+			turnX, turnY, zoomBy = 0, 0, 1
+			local dist = Tuning.freeDistance * freeZoom
+			local out = Vector3.new(
+				math.cos(freeYaw) * math.cos(freePitch),
+				math.sin(freePitch),
+				math.sin(freeYaw) * math.cos(freePitch)
+			) * dist
+			-- a rock or wall in the way: slide in (fast in, slow out)
+			local limit = 1
+			local hit = workspace:Raycast(focus, out, params)
+			if hit then
+				limit = CarMath.clamp((hit.Distance - 0.6 * Tuning.scale) / dist, 0.1, 1)
+			end
+			local rate = if limit < freeReach then 20 else 2.5
+			freeReach += (limit - freeReach) * (1 - math.exp(-rate * dt))
+			pos = focus + out * freeReach
+			camera.CFrame = CFrame.lookAt(pos, focus)
+			camera.FieldOfView = 65
+			return
+		end
 		follow(dt)
 
 		local dist = Tuning.camDistance
