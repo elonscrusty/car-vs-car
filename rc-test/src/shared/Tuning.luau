@@ -57,6 +57,59 @@ local Tuning = {
 	camHeight = 6,
 	camFovLow = 70,
 	camFovHigh = 92,
+	orbitDistance = 13,
+	orbitHeight = 3.5,
+	orbitSpeed = 0.35, -- rad/s the show-off camera circles the car
+
+	-- Gas while sliding keeps the back loose (0 = off). Only the drift track turns it on.
+	powerSlide = 0,
 }
 
-return Tuning
+-- Each track can change some numbers. Anything not listed uses the base value above.
+local MODES: { [string]: { [string]: number } } = {
+	-- Tokyo drift: easy to throw sideways, gas holds the slide, deep held angles.
+	drift = {
+		driftAngleMax = 0.95,
+		handbrakeRearGrip = 0.35,
+		frontDrive = 0.15,
+		powerSlide = 0.55,
+		counterMax = 0.85,
+		steerMax = 0.95,
+		steerHigh = 0.2,
+		maxYaw = 3.4,
+	},
+	-- Rock crawler: slow, strong, soft long springs you can watch flex, sticky tyres.
+	rock = {
+		topSpeed = 22,
+		accel = 120,
+		crawlBoost = 40,
+		crawlSpeed = 10,
+		frontDrive = 0.5,
+		maxSusp = 2.8,
+		springOmega = 11.5,
+		springZeta = 0.45,
+		baseMu = 1.6,
+		steerLow = 0.7,
+		steerHigh = 0.5,
+		reverseTop = 15,
+		downforce = 0,
+	},
+}
+
+local base: { [string]: any } = table.clone(Tuning)
+
+-- Switch to a track's numbers ("race" or unknown = base numbers).
+local function setMode(id: string)
+	local t = Tuning :: any
+	for key, value in base do
+		t[key] = value
+	end
+	local mode = MODES[id]
+	if mode then
+		for key, value in mode do
+			t[key] = value
+		end
+	end
+end
+
+return setmetatable(Tuning, { __index = { setMode = setMode } })

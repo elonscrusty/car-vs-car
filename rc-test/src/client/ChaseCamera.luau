@@ -10,6 +10,7 @@ local Tuning = require(ReplicatedStorage.Shared.Tuning)
 export type Cam = {
 	update: (dt: number) -> (),
 	snap: () -> (),
+	toggleOrbit: () -> boolean,
 }
 
 local ChaseCamera = {}
@@ -33,7 +34,18 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }): Cam
 	local pos = body.Position - heading * Tuning.camDistance + Vector3.new(0, Tuning.camHeight, 0)
 	local lookAt = body.Position
 
+	local orbiting = false
+	local orbitAngle = 0
+
 	local cam = {} :: Cam
+
+	-- Show-off view: circles slowly and low around the car to watch the springs work.
+	function cam.toggleOrbit(): boolean
+		orbiting = not orbiting
+		local back = -flat(body.CFrame.LookVector)
+		orbitAngle = math.atan2(back.Z, back.X) + 0.8
+		return orbiting
+	end
 
 	function cam.snap()
 		heading = flat(body.CFrame.LookVector)
@@ -43,6 +55,22 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }): Cam
 
 	function cam.update(dt: number)
 		dt = math.min(dt, 0.1)
+		if orbiting then
+			orbitAngle += Tuning.orbitSpeed * dt
+			local center = body.Position + Vector3.new(0, 0.5, 0)
+			local want = center
+				+ Vector3.new(math.cos(orbitAngle), 0, math.sin(orbitAngle)) * Tuning.orbitDistance
+				+ Vector3.new(0, Tuning.orbitHeight, 0)
+			local hit = workspace:Raycast(center, want - center, params)
+			if hit then
+				want = hit.Position + hit.Normal * 0.6
+			end
+			pos = pos:Lerp(want, 1 - math.exp(-4 * dt))
+			lookAt = lookAt:Lerp(center, 1 - math.exp(-8 * dt))
+			camera.CFrame = CFrame.lookAt(pos, lookAt)
+			camera.FieldOfView = 60
+			return
+		end
 		local cf = body.CFrame
 		local vel = body.AssemblyLinearVelocity
 		local speed = vel.Magnitude

@@ -16,6 +16,16 @@ export type Telemetry = {
 	slip: number,
 	grounded: number, -- how many wheels touch
 	drifting: boolean,
+	wheels: { WheelInfo },
+}
+
+-- What each wheel is doing, for smoke and skid marks.
+export type WheelInfo = {
+	rear: boolean,
+	touching: boolean,
+	contact: Vector3, -- where the tyre meets the ground
+	normal: Vector3,
+	slide: number, -- sideways sliding speed of the tyre (studs/s)
 }
 
 export type Car = {
@@ -37,6 +47,7 @@ type Wheel = {
 	spin: number,
 	part: Part,
 	bar: Part,
+	info: WheelInfo,
 }
 
 local RCCar = {}
@@ -74,6 +85,13 @@ local function makeWheel(folder: Folder, attach: Vector3, front: boolean): Wheel
 		spin = 0,
 		part = part,
 		bar = bar,
+		info = {
+			rear = not front,
+			touching = false,
+			contact = Vector3.zero,
+			normal = Vector3.yAxis,
+			slide = 0,
+		},
 	}
 end
 
@@ -95,11 +113,15 @@ function RCCar.new(model: Model): Car
 	rayParams.FilterType = Enum.RaycastFilterType.Exclude
 	rayParams.FilterDescendantsInstances = { model, folder }
 
-	local rayLen = Tuning.wheelRadius + Tuning.maxSusp
 	local steer = 0 -- right is positive
 	local handbrake = 0
 	local flippedFor = 0
-	local telemetry: Telemetry = { speed = 0, vLong = 0, slip = 0, grounded = 0, drifting = false }
+	local infos: { WheelInfo } = {}
+	for i, w in wheels do
+		infos[i] = w.info
+	end
+	local telemetry: Telemetry =
+		{ speed = 0, vLong = 0, slip = 0, grounded = 0, drifting = false, wheels = infos }
 
 	local car = {} :: Car
 	car.model = model
@@ -157,6 +179,7 @@ function RCCar.new(model: Model): Car
 		local grounded = 0
 		for _, w in wheels do
 			local attachWorld = cf * w.attach
+			local rayLen = Tuning.wheelRadius + Tuning.maxSusp
 			local hit = workspace:Raycast(attachWorld, -up * rayLen, rayParams)
 			if hit and hit.Normal:Dot(up) > 0.25 then
 				grounded += 1
@@ -210,6 +233,15 @@ function RCCar.new(model: Model): Car
 
 				-- sideways grip, weaker at the back while the drift button is down
 				local latScale = if rear then 1 - (1 - Tuning.handbrakeRearGrip) * handbrake else 1
+				if rear and Tuning.powerSlide > 0 then
+					-- gas while already sideways keeps the back loose
+					local sideways = CarMath.clamp((math.abs(slip) - 0.15) / 0.3, 0, 1)
+					latScale *= 1 - Tuning.powerSlide * throttle * sideways
+				end
+				w.info.touching = true
+				w.info.contact = hit.Position
+				w.info.normal = n
+				w.info.slide = math.abs(vLat)
 				local fy = CarMath.lateralForce(vLat, vLong, mu * spring * latScale, wm, dt)
 				fx, fy = CarMath.tractionCircle(fx, fy, mu * spring, mu * spring * latScale)
 
@@ -217,6 +249,8 @@ function RCCar.new(model: Model): Car
 				body:ApplyImpulseAtPosition(force * dt, attachWorld)
 			else
 				w.susp = Tuning.maxSusp
+				w.info.touching = false
+				w.info.slide = 0
 			end
 		end
 

@@ -1,0 +1,135 @@
+--!strict
+-- Tyre smoke and skid marks while the car slides. Only on this player's screen.
+
+local RCCar = require(script.Parent.RCCar)
+
+export type Effects = {
+	update: (dt: number) -> (),
+	clear: () -> (),
+}
+
+local Effects = {}
+
+local SLIDE_START = 7 -- sideways tyre speed (studs/s) where smoke and marks begin
+local SMOKE_PER_SECOND = 70
+local MARK_STEP = 0.8 -- studs between skid mark pieces
+local MAX_MARKS = 500
+
+function Effects.new(telemetry: RCCar.Telemetry): Effects
+	local folder = Instance.new("Folder")
+	folder.Name = "RCEffects"
+	folder.Parent = workspace
+
+	local anchor = Instance.new("Part")
+	anchor.Name = "SmokeAnchor"
+	anchor.Anchored = true
+	anchor.CanCollide = false
+	anchor.CanQuery = false
+	anchor.CanTouch = false
+	anchor.Transparency = 1
+	anchor.Size = Vector3.new(0.2, 0.2, 0.2)
+	anchor.Parent = folder
+
+	type Track = { emitter: ParticleEmitter, attach: Attachment, owed: number, last: Vector3? }
+	local tracks: { Track } = {}
+	for i = 1, #telemetry.wheels do
+		local attach = Instance.new("Attachment")
+		attach.Parent = anchor
+		local e = Instance.new("ParticleEmitter")
+		e.Texture = "rbxasset://textures/particles/smoke_main.dds"
+		e.Rate = 0
+		e.Lifetime = NumberRange.new(0.9, 1.6)
+		e.Speed = NumberRange.new(2, 5)
+		e.SpreadAngle = Vector2.new(35, 35)
+		e.Drag = 2
+		e.Acceleration = Vector3.new(0, 4, 0)
+		e.Color = ColorSequence.new(Color3.fromRGB(235, 235, 235))
+		e.Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1.2),
+			NumberSequenceKeypoint.new(1, 5),
+		})
+		e.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.45),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		e.Rotation = NumberRange.new(0, 360)
+		e.RotSpeed = NumberRange.new(-40, 40)
+		e.Parent = attach
+		tracks[i] = { emitter = e, attach = attach, owed = 0, last = nil }
+	end
+
+	local marks: { BasePart } = {}
+
+	local function addMark(a: Vector3, b: Vector3, normal: Vector3, strength: number)
+		local len = (b - a).Magnitude
+		if len < 0.05 then
+			return
+		end
+		local mid = (a + b) / 2 + normal * 0.03
+		local p = Instance.new("Part")
+		p.Name = "Skid"
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = false
+		p.Material = Enum.Material.SmoothPlastic
+		p.Color = Color3.fromRGB(25, 25, 28)
+		p.Transparency = 0.75 - 0.4 * strength
+		p.Size = Vector3.new(0.5, 0.02, len + 0.1)
+		p.CFrame = CFrame.lookAt(mid, b + normal * 0.03, normal)
+		p.Parent = folder
+		table.insert(marks, p)
+		if #marks > MAX_MARKS then
+			table.remove(marks, 1):Destroy()
+		end
+	end
+
+	local fx = {} :: Effects
+
+	function fx.update(dt: number)
+		local fast = telemetry.speed > 12
+		for i, info in telemetry.wheels do
+			local t = tracks[i]
+			local sliding = fast and info.touching and info.slide > SLIDE_START
+			if sliding then
+				local strength = math.clamp((info.slide - SLIDE_START) / 20, 0, 1)
+				t.attach.WorldPosition = info.contact + info.normal * 0.3
+				if info.rear then
+					t.owed += SMOKE_PER_SECOND * (0.3 + strength) * dt
+					local n = math.floor(t.owed)
+					if n > 0 then
+						t.emitter:Emit(n)
+						t.owed -= n
+					end
+				end
+				local last = t.last
+				if last == nil then
+					t.last = info.contact
+				elseif (info.contact - last).Magnitude >= MARK_STEP then
+					if (info.contact - last).Magnitude < 6 then
+						addMark(last, info.contact, info.normal, strength)
+					end
+					t.last = info.contact
+				end
+			else
+				t.last = nil
+				t.owed = 0
+			end
+		end
+	end
+
+	function fx.clear()
+		for _, m in marks do
+			m:Destroy()
+		end
+		table.clear(marks)
+		for _, t in tracks do
+			t.last = nil
+		end
+	end
+
+	return fx
+end
+
+return Effects
