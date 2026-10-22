@@ -176,6 +176,7 @@ beep.Volume = 0.5
 beep.Parent = script
 local stuckTime = 0
 local stuckFrom = Vector3.zero
+local creep = 0 -- average ground speed lately (for the stuck check)
 local function reset()
 	if walking then
 		return
@@ -301,16 +302,20 @@ RunService.PreSimulation:Connect(function(dt: number)
 		hud.flash("GO!")
 	end
 
-	-- gas or brake held but the car gets nowhere for a while (Tuning.stuckWait) = stuck (wedged, on a wall, spinning its
-	-- wheels on a slope): start over. Slow rock crawling covers far more than this.
+	-- gas or brake held but the car gets nowhere for a while (Tuning.stuckWait) = stuck (wedged,
+	-- on a wall, spinning its wheels on a slope): start over. Uses the car's average ground speed
+	-- over about half a second, so a car creeping or pivoting along a wall still counts as stuck, while
+	-- slow rock crawling (several times faster) never does.
 	local pressing = input.throttle > 0 or input.brake > 0
-	-- a longer wait also allows a little more wiggle (a car pivoting on a wall is still stuck)
-	local wiggle = 2 * Tuning.scale * math.max(1, Tuning.stuckWait / 3)
-	if pressing and (p - stuckFrom).Magnitude < wiggle then
+	local moved = Vector3.new(p.X - stuckFrom.X, 0, p.Z - stuckFrom.Z).Magnitude
+	stuckFrom = p
+	-- (capped, so a teleport back to the start doesn't hide being stuck for long)
+	local rate = math.min(moved / math.max(dt, 1e-3), 20 * Tuning.scale)
+	creep += (rate - creep) * (1 - math.exp(-2 * dt))
+	if pressing and creep < 1.6 * Tuning.scale then
 		stuckTime += dt
 	else
 		stuckTime = 0
-		stuckFrom = p
 	end
 	if stuckTime > Tuning.stuckWait then
 		reset()
