@@ -248,6 +248,17 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 	car.render(dt)
 	effects.update(dt)
 	camera.update(dt)
+	-- driver view looks out of the person's eyes: hide them on this screen so the head and hat
+	-- don't block the view
+	local char = player.Character
+	if char then
+		local hide = if driverView then 1 else 0
+		for _, d in char:GetDescendants() do
+			if d:IsA("BasePart") and d.LocalTransparencyModifier ~= hide then
+				d.LocalTransparencyModifier = hide
+			end
+		end
+	end
 	-- speed shown in big-size numbers so both sizes read the same
 	hud.setSpeed(car.telemetry.speed / Tuning.scale)
 	hud.setTimer(timerText())

@@ -299,9 +299,9 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 			and math.abs(input.steer) < 0.05
 			and speed < Tuning.holdSpeed
 		then
-			local keep = math.max(0, 1 - 10 * dt)
-			body.AssemblyLinearVelocity *= keep
-			body.AssemblyAngularVelocity *= keep
+			-- as a push, not by setting the speed: setting it would throw away this step's
+			-- spring and lift pushes and make the car hop
+			body:ApplyImpulse(-vel * mass * math.min(1, 10 * dt))
 		end
 
 		-- upside down for a while = flip back over
