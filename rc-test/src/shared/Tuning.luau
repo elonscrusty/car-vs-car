@@ -95,9 +95,9 @@ local MODES: { [string]: { [string]: number } } = {
 		-- back steps out easily and the long slides keep going.
 		topSpeed = 105,
 		accel = 70,
-		baseMu = 0.7,
-		handbrakeRearGrip = 0.3,
-		driftThrust = 48,
+		baseMu = 0.8,
+		handbrakeRearGrip = 0.35,
+		driftThrust = 40,
 		maxYaw = 2.2,
 		steerRate = 6,
 		-- Higher, further back camera so the next corner is in view.
