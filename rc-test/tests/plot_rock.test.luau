@@ -54,7 +54,7 @@ test("it only climbs, never too steep, with two steep climbs to show off", funct
 	for i, s in slopes() do
 		truthy(s >= -1e-9, `piece {i} goes downhill`)
 		truthy(s <= 0.45, `piece {i} is too steep to crawl ({s})`)
-		local steep = s > 0.35
+		local steep = s > 0.3
 		if steep and not inSteep then
 			steepRuns += 1
 		end
@@ -65,12 +65,14 @@ test("it only climbs, never too steep, with two steep climbs to show off", funct
 	truthy(Plot.height(Plot.LAST_U) >= 60, "the flag should be up high")
 end)
 
-test("steep climbs run straight, never round a bend", function()
-	for i, s in slopes() do
-		if s > 0.3 and i < #path - 1 then
+test("every climb runs dead straight, never round a bend", function()
+	local sl = slopes()
+	for i, s in sl do
+		-- two climbing pieces in a row must point the same way
+		if s > 0.01 and i < #sl and sl[i + 1] > 0.01 then
 			local a, b = path[i], path[i + 1]
 			local turn = math.abs(math.atan2(a.tx * b.tz - a.tz * b.tx, a.tx * b.tx + a.tz * b.tz))
-			truthy(turn < 0.06, `piece {i} climbs ({s}) while turning ({turn})`)
+			truthy(turn < 0.001, `piece {i} climbs ({s}) while turning ({turn})`)
 		end
 	end
 end)

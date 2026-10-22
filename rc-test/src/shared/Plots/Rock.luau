@@ -1,9 +1,10 @@
 --!strict
 -- ROCK plot: a slow zigzag dirt trail from the start (front left) up to the flag (back right).
--- Five long rows joined by four flat-ish turns. Two steep climbs sit on the straights just after
--- turns 2 and 4; turns 1 and 3 climb gently.
--- The rows are full of things that tip the car one way and the other so the springs flex:
--- offset rocks, half-road ledges, logs across the trail and little ramps of different steepness.
+-- Five long straight rows joined by four flat turns. Every climb sits on the straight middle of
+-- a row (climbing round a bend made the car swing round and roll back): two gentle ones (rows 1
+-- and 4) and two steep ones (rows 3 and 5). The climbs are kept clear; the flat parts are full of
+-- things that tip the car one way and the other so the springs flex: offset rocks, half-road
+-- ledges, logs across the trail and little ramps of different steepness.
 
 -- Sibling loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
 local function sibling(name: string): any
@@ -40,7 +41,7 @@ export type Feature = {
 	lift: number,
 }
 
-local ROAD = 26 -- trail width
+local ROAD = 34 -- trail width (8.5 studs at RC size)
 local HALF = ROAD / 2
 local WALL = 6 -- side wall height above the trail: too tall for the wheels to ride up on
 local PER = 10 -- samples between two points
@@ -56,50 +57,54 @@ Plot.WALL = WALL
 -- Highest bump the car can crawl over (its body clears about 1.9 at rest).
 Plot.MAX_LIFT = 1.6
 
--- The trail, front (start) to back (flag). Rows run across the plot, turns bulge to the sides.
+-- The trail, front (start) to back (flag). Each row is 5 points in a line, so the middle of
+-- each row is dead straight; the turns bulge out to the sides.
 local POINTS: { Pt } = {
 	{ x = -125, z = 115 }, -- 1 start
-	{ x = -40, z = 118 },
-	{ x = 40, z = 112 },
+	{ x = -62, z = 115 },
+	{ x = 0, z = 115 },
+	{ x = 50, z = 115 },
 	{ x = 100, z = 115 },
-	{ x = 136, z = 80 }, -- 5 turn 1 (gentle)
+	{ x = 132, z = 80 }, -- 6 turn 1
 	{ x = 100, z = 45 },
-	{ x = 30, z = 48 },
-	{ x = -40, z = 42 },
+	{ x = 50, z = 45 },
+	{ x = 0, z = 45 },
+	{ x = -50, z = 45 },
 	{ x = -100, z = 45 },
-	{ x = -136, z = 10 }, -- 10 turn 2 (steep climb)
+	{ x = -132, z = 10 }, -- 12 turn 2
 	{ x = -100, z = -25 },
-	{ x = -30, z = -22 },
-	{ x = 40, z = -28 },
+	{ x = -50, z = -25 },
+	{ x = 0, z = -25 },
+	{ x = 50, z = -25 },
 	{ x = 100, z = -25 },
-	{ x = 136, z = -60 }, -- 15 turn 3 (gentle)
+	{ x = 132, z = -60 }, -- 18 turn 3
 	{ x = 100, z = -95 },
-	{ x = 30, z = -92 },
-	{ x = -40, z = -98 },
+	{ x = 50, z = -95 },
+	{ x = 0, z = -95 },
+	{ x = -50, z = -95 },
 	{ x = -100, z = -95 },
-	{ x = -136, z = -130 }, -- 20 turn 4 (steep climb)
+	{ x = -132, z = -130 }, -- 24 turn 4
 	{ x = -100, z = -165 },
-	{ x = -30, z = -162 },
-	{ x = 40, z = -168 },
-	{ x = 95, z = -165 }, -- 24 flag
+	{ x = -50, z = -165 },
+	{ x = 0, z = -165 },
+	{ x = 50, z = -165 },
+	{ x = 95, z = -165 }, -- 29 flag
 }
 Plot.POINTS = POINTS
 Plot.LAST_U = #POINTS
 
--- Trail height along the way: { u, y }. Flat rows, climbs in the turns.
+-- Trail height along the way: { u, y }. Flat turns; every climb on a straight (see the top).
 Plot.profile = {
 	{ u = 1, y = 0 },
-	{ u = 4.2, y = 0 },
-	{ u = 5.8, y = 10 }, -- turn 1: gentle
-	-- the steep climbs sit on straights just after a flat turn: climbing round a bend made the
-	-- car swing round and roll back off the edge
-	{ u = 11.2, y = 10 },
-	{ u = 12.4, y = 34 }, -- climb 2: steep, straight
-	{ u = 14.2, y = 34 },
-	{ u = 15.8, y = 44 }, -- turn 3: gentle
-	{ u = 21.2, y = 44 },
-	{ u = 22.4, y = 68 }, -- climb 4: steep, straight
-	{ u = 24, y = 68 },
+	{ u = 2.5, y = 0 },
+	{ u = 4, y = 10 }, -- climb 1: gentle (row 1)
+	{ u = 14, y = 10 },
+	{ u = 16, y = 34 }, -- climb 2: steep (row 3)
+	{ u = 20, y = 34 },
+	{ u = 22, y = 44 }, -- climb 3: gentle (row 4)
+	{ u = 26, y = 44 },
+	{ u = 28, y = 68 }, -- climb 4: steep (row 5)
+	{ u = 29, y = 68 },
 }
 
 -- Trail height at u.
@@ -171,55 +176,55 @@ end
 -- side of the car climbs while the other drops. A few big rocks (lift over MAX_LIFT) sit near the
 -- edges to steer around.
 Plot.features = {
-	-- row 1: warm up
+	-- row 1: warm up, then climb 1 (clear)
 	rock(1.8, -0.35, 2.2, 1.0),
 	rock(2.1, 0.3, 2.4, 1.1),
-	ledge(2.6, 0.5, 0.9),
-	rock(3.1, -0.4, 2.6, 1.3),
-	ramp(3.6, 6, 1.0), -- gentle bump
-	rock(3.9, 0.75, 3.5, 2.6), -- big, steer around
-	-- turn 1 (gentle climb)
-	rock(4.7, -0.6, 2.0, 0.9),
-	rock(5.3, 0.55, 2.2, 1.0),
+	ledge(2.35, 0.5, 0.9),
+	ramp(4.4, 6, 1.0), -- gentle bump
+	rock(4.7, -0.4, 2.6, 1.3),
+	rock(4.85, 0.8, 3.5, 2.6), -- big, steer around
+	-- turn 1
+	rock(5.6, -0.6, 2.0, 0.9),
+	rock(6.3, 0.55, 2.2, 1.0),
 	-- row 2: offset rocks, a log, a ledge
-	rock(6.5, -0.4, 2.4, 1.2),
-	rock(6.8, 0.35, 2.4, 1.3),
-	log(7.4, 0.9),
-	rock(8.0, 0.4, 2.8, 1.4),
-	rock(8.3, -0.3, 2.6, 1.3),
-	ledge(8.8, -0.5, 1.1),
-	rock(7.1, -0.8, 3.8, 2.8), -- big, edge
-	-- turn 2 (flat), a few small rocks
-	rock(9.9, 0.45, 1.8, 0.8),
-	rock(10.2, -0.4, 1.8, 0.8),
-	-- row 3: steep climb (clear), then a rock garden and a steep little ramp
-	rock(12.5, -0.8, 3.6, 2.7), -- big, edge
-	rock(12.75, -0.45, 2.4, 1.2),
-	rock(12.95, 0.4, 2.6, 1.4),
-	rock(13.15, -0.2, 2.2, 1.0),
-	ramp(13.4, 3, 1.4), -- steep bump
-	rock(13.6, 0.45, 2.6, 1.5),
-	rock(13.8, -0.45, 2.6, 1.5),
-	rock(14.0, 0.1, 2.2, 1.1),
-	-- turn 3 (gentle climb) and a log on the way out
-	rock(14.7, 0.5, 2.0, 0.9),
-	log(15.6, 1.0),
-	-- row 4: ledges left and right, more pairs
-	ledge(16.6, -0.5, 1.0),
-	ledge(17.2, 0.5, 1.2),
-	rock(17.8, -0.35, 2.6, 1.4),
-	rock(18.1, 0.4, 2.6, 1.5),
-	ramp(18.6, 4.5, 1.2), -- middle bump
-	rock(17.5, -0.8, 3.8, 2.8), -- big, edge
-	-- turn 4 (flat), a few small rocks
-	rock(19.9, -0.45, 1.8, 0.8),
-	rock(20.2, 0.45, 1.8, 0.8),
-	-- row 5: steep climb (clear), then the last pairs to the flag
-	rock(22.6, 0.4, 2.6, 1.5),
-	rock(22.8, -0.4, 2.6, 1.5),
-	log(23.05, 1.0),
-	rock(23.3, -0.35, 2.4, 1.3),
-	rock(23.45, 0.35, 2.4, 1.3),
+	rock(7.4, -0.4, 2.4, 1.2),
+	rock(7.7, 0.35, 2.4, 1.3),
+	rock(8.0, -0.8, 3.8, 2.8), -- big, edge
+	log(8.5, 0.9),
+	rock(9.0, 0.4, 2.8, 1.4),
+	rock(9.3, -0.3, 2.6, 1.3),
+	ledge(9.9, -0.5, 1.1),
+	rock(10.5, 0.4, 2.4, 1.2),
+	-- turn 2
+	rock(11.9, 0.45, 1.8, 0.8),
+	rock(12.3, -0.4, 1.8, 0.8),
+	-- row 3: a pair, steep climb 2 (clear), then a rock garden with a steep little ramp
+	rock(13.3, -0.4, 2.4, 1.2),
+	rock(13.6, 0.4, 2.4, 1.2),
+	rock(16.2, -0.8, 3.6, 2.7), -- big, edge
+	rock(16.35, 0.4, 2.6, 1.4),
+	ramp(16.6, 3, 1.4), -- steep bump
+	rock(16.8, -0.45, 2.6, 1.5),
+	rock(16.95, 0.45, 2.6, 1.5),
+	-- turn 3
+	rock(17.6, 0.5, 2.0, 0.9),
+	log(18.5, 1.0),
+	-- row 4: ledges left and right, climb 3 (clear), more pairs
+	ledge(19.4, -0.5, 1.0),
+	ledge(19.75, 0.5, 1.2),
+	rock(22.2, -0.35, 2.6, 1.4),
+	rock(22.4, 0.4, 2.6, 1.5),
+	ramp(22.65, 4.5, 1.2), -- middle bump
+	rock(22.9, -0.8, 3.8, 2.8), -- big, edge
+	-- turn 4
+	rock(23.9, -0.45, 1.8, 0.8),
+	rock(24.2, 0.45, 1.8, 0.8),
+	-- row 5: a pair, steep climb 4 (clear), then a log and the last pair to the flag
+	rock(25.3, 0.4, 2.6, 1.5),
+	rock(25.6, -0.4, 2.6, 1.5),
+	log(28.15, 1.0),
+	rock(28.35, -0.35, 2.4, 1.3),
+	rock(28.5, 0.35, 2.4, 1.3),
 } :: { Feature }
 
 -- Start 10 in front of the first point (so the chase cam clears the wall behind), facing
@@ -227,18 +232,18 @@ Plot.features = {
 local path = Plot.path()
 Plot.spawn = Kit.spawnAt(path[1], -10)
 Plot.START_U = 1.5
-Plot.FINISH_U = 23.6
+Plot.FINISH_U = 28.7
 
 local function gate(u: number, depth: number): Gate
 	local x, z, h, tx, tz = Plot.at(u)
 	return { x = x, y = h, z = z, dx = tx, dz = tz, halfWidth = HALF, depth = depth }
 end
 
--- Start, two checkpoints at the top of each steep climb, finish just before the flag.
+-- Start, a checkpoint at the top of climb 2 and one in turn 4, finish just before the flag.
 Plot.gates = {
 	gate(Plot.START_U, 4),
-	gate(12.6, 6),
-	gate(22.5, 6),
+	gate(16.3, 6),
+	gate(24, 6),
 	gate(Plot.FINISH_U, 6),
 }
 
@@ -255,8 +260,11 @@ local function buildTrail(parent: Instance, origin: CFrame)
 		local a, b = path[i], path[i + 1]
 		local ha, hb = Plot.height(Plot.uOf(i)), Plot.height(Plot.uOf(i + 1))
 		local len = math.sqrt((b.x - a.x) ^ 2 + (b.z - a.z) ^ 2)
-		local steep = math.abs(hb - ha) / len > 0.3
-		-- the trail top, 1 thick, its top surface on the line a-b
+		local sloped = math.abs(hb - ha) > 0.01
+		local steep = math.abs(hb - ha) / len > 0.2
+		-- the trail top, 1 thick, its top surface on the line a-b. Climbs are dead straight, so
+		-- their pieces meet edge to edge with no overlap (overlapping tilted pieces left lips that
+		-- tipped the car); flat pieces overlap a little to close the gaps round the bends.
 		local road = Kit.slab(
 			parent,
 			"Road",
@@ -265,7 +273,7 @@ local function buildTrail(parent: Instance, origin: CFrame)
 			Vector3.new(b.x, hb - 0.5, b.z),
 			ROAD,
 			1,
-			3,
+			if sloped then 0 else 3,
 			if steep then C.orange else C.dirt
 		)
 		road:SetAttribute("Grip", Plot.grip)
