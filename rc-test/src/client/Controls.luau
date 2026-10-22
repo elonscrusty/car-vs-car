@@ -79,7 +79,12 @@ local function holdButton(
 	end
 end
 
-function Controls.new(gui: ScreenGui, onReset: () -> (), onTrack: (index: number) -> ()): Controls
+function Controls.new(
+	gui: ScreenGui,
+	onReset: () -> (),
+	onTrack: (index: number) -> (),
+	onCam: () -> ()
+): Controls
 	local keys: { [Enum.KeyCode]: boolean } = {}
 	local padSteer, padGas, padBrake = 0, 0, 0
 	local touchSteer = 0
@@ -93,6 +98,8 @@ function Controls.new(gui: ScreenGui, onReset: () -> (), onTrack: (index: number
 			keys[input.KeyCode] = true
 			if input.KeyCode == Enum.KeyCode.R then
 				onReset()
+			elseif input.KeyCode == Enum.KeyCode.C then
+				onCam()
 			elseif input.KeyCode == Enum.KeyCode.One then
 				onTrack(1)
 			elseif input.KeyCode == Enum.KeyCode.Two then
@@ -248,6 +255,13 @@ function Controls.new(gui: ScreenGui, onReset: () -> (), onTrack: (index: number
 	rc.Parent = resetBtn
 	resetBtn.Activated:Connect(onReset)
 
+	local camBtn = resetBtn:Clone()
+	camBtn.Name = "Cam"
+	camBtn.Text = "CAM"
+	camBtn.Position = UDim2.fromScale(0.98, 0.15)
+	camBtn.Parent = gui
+	camBtn.Activated:Connect(onCam)
+
 	if not touchUi then
 		local help = Instance.new("TextLabel")
 		help.BackgroundTransparency = 1
@@ -258,7 +272,8 @@ function Controls.new(gui: ScreenGui, onReset: () -> (), onTrack: (index: number
 		help.TextScaled = true
 		help.TextColor3 = Color3.fromRGB(255, 255, 255)
 		help.TextTransparency = 0.35
-		help.Text = "W/S gas + brake    A/D steer    SPACE drift    R reset    1 2 3 tracks"
+		help.Text =
+			"W/S gas + brake    A/D steer    SPACE drift    R reset    C camera    1 2 3 tracks"
 		help.Parent = gui
 	end
 

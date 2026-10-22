@@ -125,3 +125,24 @@ test("hill hold pushes uphill against gravity", function()
 	truthy(CarMath.holdForce(1, 196.2, -0.5) < 0)
 	eq(CarMath.holdForce(1, 196.2, 0), 0)
 end)
+
+test("track modes change numbers and switch back cleanly", function()
+	local T = Tuning :: any
+	local baseTop = Tuning.topSpeed
+	T.setMode("rock")
+	truthy(Tuning.topSpeed < 30, "rock is slow")
+	truthy(Tuning.maxSusp > 2.5, "rock has long springs")
+	-- rock must still be able to climb a 0.6 slope at walking pace
+	truthy(
+		CarMath.engineAccel(8, true) > 196.2 * math.sin(math.atan(0.6)),
+		"rock too weak to climb"
+	)
+	-- springs must not sit bottomed out at rest
+	truthy(196.2 / Tuning.springOmega ^ 2 < Tuning.maxSusp * 0.7, "rock springs too soft")
+	T.setMode("drift")
+	eq(Tuning.topSpeed, baseTop)
+	truthy(Tuning.powerSlide > 0)
+	T.setMode("race")
+	eq(Tuning.powerSlide, 0)
+	eq(Tuning.driftAngleMax, 0.6)
+end)

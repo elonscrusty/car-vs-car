@@ -8,9 +8,13 @@ local RunService = game:GetService("RunService")
 local CarMath = require(ReplicatedStorage.Shared.CarMath)
 local LapTimer = require(ReplicatedStorage.Shared.LapTimer)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
+local Tuning = require(ReplicatedStorage.Shared.Tuning)
+
+local setMode: (id: string) -> () = (Tuning :: any).setMode
 
 local ChaseCamera = require(script.Parent.ChaseCamera)
 local Controls = require(script.Parent.Controls)
+local Effects = require(script.Parent.Effects)
 local Hud = require(script.Parent.Hud)
 local RCCar = require(script.Parent.RCCar)
 
@@ -23,6 +27,7 @@ local body = model.PrimaryPart :: BasePart
 
 local car = RCCar.new(model)
 local camera = ChaseCamera.new(body, { model })
+local effects = Effects.new(car.telemetry)
 
 local tracks: { TrackData.Track } = {}
 local timers: { LapTimer.State } = {}
@@ -41,6 +46,8 @@ local hud: Hud.Hud
 local function goTo(index: number)
 	current = index
 	local t = tracks[index]
+	setMode(t.id)
+	effects.clear()
 	LapTimer.reset(timers[index])
 	driftChain, driftTotal, driftHold = 0, 0, 0
 	local s = t.spawn
@@ -53,9 +60,17 @@ end
 
 local gui = Hud.createGui()
 hud = Hud.new(gui, labels, goTo)
-local controls = Controls.new(gui, function()
-	goTo(current)
-end, goTo)
+local controls = Controls.new(
+	gui,
+	function()
+		goTo(current)
+	end,
+	goTo,
+	function()
+		local on = camera.toggleOrbit()
+		hud.flash(if on then "SHOW CAM" else "CHASE CAM")
+	end
+)
 goTo(1)
 
 local function timerText(): string
@@ -124,6 +139,7 @@ end)
 
 RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, function(dt: number)
 	car.render(dt)
+	effects.update(dt)
 	camera.update(dt)
 	hud.setSpeed(car.telemetry.speed)
 	hud.setTimer(timerText())
