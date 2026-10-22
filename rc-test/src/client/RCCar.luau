@@ -120,6 +120,7 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 	local steer = 0 -- right is positive
 	local handbrake = 0
 	local flippedFor = 0
+	local stuckFor = 0
 	local infos: { WheelInfo } = {}
 	for i, w in wheels do
 		infos[i] = w.info
@@ -302,6 +303,28 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 			-- as a push, not by setting the speed: setting it would throw away this step's
 			-- spring and lift pushes and make the car hop
 			body:ApplyImpulse(-vel * mass * math.min(1, 10 * dt))
+		end
+
+		-- nose stuck against a wall with the gas on and the stick turned: help it turn away,
+		-- like bumping off the wall (only the gas would otherwise just keep pushing into it)
+		local noseHit =
+			workspace:Raycast(cf.Position, cf.LookVector * (Tuning.bodyZ / 2 + 0.6 * S), rayParams)
+		if
+			throttle > 0
+			and math.abs(input.steer) > 0.2
+			and noseHit
+			and math.abs(noseHit.Normal.Y) < 0.6
+			and math.abs(vLongBody) < 3 * S
+		then
+			stuckFor += dt
+		else
+			stuckFor = 0
+		end
+		if stuckFor > 0.25 and noseHit then
+			local side = cf.RightVector * math.sign(input.steer)
+			local nose = cf.Position + cf.LookVector * (Tuning.bodyZ / 2)
+			body:ApplyImpulseAtPosition(side * mass * 25 * S * dt, nose)
+			body:ApplyImpulse(noseHit.Normal * mass * 12 * S * dt)
 		end
 
 		-- upside down for a while = flip back over

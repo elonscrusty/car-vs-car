@@ -245,13 +245,15 @@ function Controls.new(
 		)
 	end
 
-	-- reset button, always there
+	-- Right side, top to bottom: a big RESET, then a row of small CAM / VIEW / SIZE buttons,
+	-- all below the Roblox top bar and above the DRIFT button.
+	-- reset button, always there: puts the car back at the plot's start
 	local resetBtn = Instance.new("TextButton")
 	resetBtn.Name = "Reset"
 	resetBtn.AnchorPoint = Vector2.new(1, 0)
-	resetBtn.Position = UDim2.fromScale(0.98, 0.03)
-	resetBtn.Size = UDim2.fromScale(0.12, 0.1)
-	resetBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
+	resetBtn.Position = UDim2.fromScale(0.98, 0.11)
+	resetBtn.Size = UDim2.fromScale(0.15, 0.12)
+	resetBtn.BackgroundColor3 = Color3.fromRGB(200, 70, 60)
 	resetBtn.BackgroundTransparency = 0.25
 	resetBtn.Font = Enum.Font.GothamBold
 	resetBtn.TextScaled = true
@@ -266,21 +268,27 @@ function Controls.new(
 	local camBtn = resetBtn:Clone()
 	camBtn.Name = "Cam"
 	camBtn.Text = "CAM"
-	camBtn.Position = UDim2.fromScale(0.98, 0.15)
+	camBtn.Position = UDim2.fromScale(0.84, 0.245)
+	camBtn.Size = UDim2.fromScale(0.065, 0.09)
+	camBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 	camBtn.Parent = gui
 	camBtn.Activated:Connect(onCam)
 
 	local sizeBtn = resetBtn:Clone()
 	sizeBtn.Name = "Size"
 	sizeBtn.Text = "SIZE"
-	sizeBtn.Position = UDim2.fromScale(0.98, 0.27)
+	sizeBtn.Position = UDim2.fromScale(0.98, 0.245)
+	sizeBtn.Size = UDim2.fromScale(0.065, 0.09)
+	sizeBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 	sizeBtn.Parent = gui
 	sizeBtn.Activated:Connect(onSize)
 
 	local viewBtn = resetBtn:Clone()
 	viewBtn.Name = "View"
 	viewBtn.Text = "VIEW"
-	viewBtn.Position = UDim2.fromScale(0.98, 0.39)
+	viewBtn.Position = UDim2.fromScale(0.91, 0.245)
+	viewBtn.Size = UDim2.fromScale(0.065, 0.09)
+	viewBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 	viewBtn.Parent = gui
 	viewBtn.Activated:Connect(onView)
 

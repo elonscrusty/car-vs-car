@@ -260,6 +260,8 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 		end
 	end
 	-- speed shown in big-size numbers so both sizes read the same
-	hud.setSpeed(car.telemetry.speed / Tuning.scale)
+	-- flat speed, so a car settling on its springs reads 0
+	local v = body.AssemblyLinearVelocity
+	hud.setSpeed(Vector3.new(v.X, 0, v.Z).Magnitude / Tuning.scale)
 	hud.setTimer(timerText())
 end)
