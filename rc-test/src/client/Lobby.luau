@@ -23,7 +23,9 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 	local button = Instance.new("TextButton")
 	button.Name = "Walk"
-	button.Position = UDim2.fromOffset(16, 64) -- top left, clear of the steer stick
+	-- bottom, between the steer stick zone (left half) and BRAKE, above the PC key help line
+	button.AnchorPoint = Vector2.new(0.5, 1)
+	button.Position = UDim2.fromScale(0.58, 0.9)
 	button.Size = UDim2.fromOffset(110, 48)
 	button.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 	button.BackgroundTransparency = 0.2
