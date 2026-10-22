@@ -100,6 +100,9 @@ function TrackData.toLocal(
 	return (x - ox) / s, y / s, (z - oz) / s
 end
 
+-- Height of the driver stand's top, in big-size units.
+TrackData.STAND_H = Kit.STAND_H
+
 -- Where the player stands with the remote (same spot on every plot), facing the car's start.
 function TrackData.standSpot(t: Track): (Spawn, number, number)
 	local s = t.spawn

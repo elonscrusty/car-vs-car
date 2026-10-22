@@ -56,10 +56,13 @@ local getEye: () -> Vector3
 local function eye(): Vector3
 	return getEye()
 end
-local driverView = false
+-- the game is played from the driver stand; V swaps to the chase cam
+local driverView = true
+local showCam = false
 
 local car = RCCar.new(model, ignoreList())
 local camera = ChaseCamera.new(body, ignoreList(), eye)
+camera.setDriver(driverView)
 local effects = Effects.new(car.telemetry)
 local rc = false -- flipped to real RC size right after start-up
 local swapping = false
@@ -80,8 +83,8 @@ getEye = function(): Vector3
 	local t = tracks[current]
 	local spot = TrackData.standSpot(t)
 	local x, _, z = TrackData.toWorld(t, rc, spot.x, 0, spot.z)
-	-- eye height of a person at real RC size (18 at the big size)
-	return Vector3.new(x, 4.5 / TrackData.RC_SCALE * Tuning.scale, z)
+	-- eye height of a person standing on the raised stand (4.5 above it at real RC size)
+	return Vector3.new(x, (TrackData.STAND_H + 4.5 / TrackData.RC_SCALE) * Tuning.scale, z)
 end
 local driftChain, driftTotal, driftHold = 0, 0, 0
 
@@ -163,15 +166,16 @@ end
 local gui = Hud.createGui()
 hud = Hud.new(gui, labels, goTo)
 local controls = Controls.new(gui, reset, goTo, function()
-	local on = camera.toggleOrbit()
-	if on then
-		driverView = false
+	showCam = camera.toggleOrbit()
+	if not showCam then
+		camera.setDriver(driverView) -- back to the view picked before
 	end
-	hud.flash(if on then "SHOW CAM" elseif driverView then "DRIVER VIEW" else "CHASE CAM")
+	hud.flash(if showCam then "SHOW CAM" elseif driverView then "DRIVER VIEW" else "CHASE CAM")
 end, function()
 	task.spawn(swapSize)
 end, function()
 	driverView = not driverView
+	showCam = false
 	camera.setDriver(driverView)
 	hud.flash(if driverView then "DRIVER VIEW" else "CHASE CAM")
 end)
@@ -272,7 +276,7 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 	-- don't block the view
 	local char = player.Character
 	if char then
-		local hide = if driverView then 1 else 0
+		local hide = if driverView and not showCam then 1 else 0
 		for _, d in char:GetDescendants() do
 			if d:IsA("BasePart") and d.LocalTransparencyModifier ~= hide then
 				d.LocalTransparencyModifier = hide

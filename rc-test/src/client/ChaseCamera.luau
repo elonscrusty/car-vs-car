@@ -62,6 +62,36 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 		return nil
 	end
 
+	-- Track the car smoothly (both views use this): ground speed, heading and the focus point.
+	local function follow(dt: number)
+		local cf = body.CFrame
+		local vel = body.AssemblyLinearVelocity
+		local flatVel = Vector3.new(vel.X, 0, vel.Z)
+		flatSpeed += (flatVel.Magnitude - flatSpeed) * (1 - math.exp(-3 * dt))
+		local want = flat(cf.LookVector)
+		-- lean toward the real direction of travel when moving forward
+		if flatSpeed > 8 * Tuning.scale and flatVel:Dot(cf.LookVector) > 0 then
+			local w = 0.55
+				* CarMath.clamp((flatSpeed - 8 * Tuning.scale) / (20 * Tuning.scale), 0, 1)
+			want = flat(want * (1 - w) + flat(flatVel) * w)
+		end
+		heading = flat(heading:Lerp(want, 1 - math.exp(-5 * dt)))
+
+		-- carry the focus along at the car's speed, then pull it onto the car: no lag, no shake
+		local raw = cf.Position + Vector3.new(0, 1.5 * Tuning.scale, 0)
+		focus += flatVel * dt
+		local kSide = 1 - math.exp(-10 * dt)
+		local kUp = 1 - math.exp(-6 * dt)
+		focus = Vector3.new(
+			focus.X + (raw.X - focus.X) * kSide,
+			focus.Y + (raw.Y - focus.Y) * kUp,
+			focus.Z + (raw.Z - focus.Z) * kSide
+		)
+		if (raw - focus).Magnitude > 6 * Tuning.scale then
+			focus = raw -- jumped (reset or teleport): catch up at once
+		end
+	end
+
 	local driver = false
 	local orbiting = false
 	local orbitAngle = 0
@@ -108,8 +138,9 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 			camera.CameraType = Enum.CameraType.Scriptable
 		end
 		if driver then
+			follow(dt)
 			local base = eye()
-			local target = body.Position
+			local target = focus
 			-- a wall between the eyes and the car: look from a bit higher, the lowest height that
 			-- sees the car; if even the highest is blocked, make the wall see-through
 			local maxLift = Tuning.driverLiftMax
@@ -167,31 +198,7 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 			return
 		end
 		local cf = body.CFrame
-		local vel = body.AssemblyLinearVelocity
-		local flatVel = Vector3.new(vel.X, 0, vel.Z)
-		flatSpeed += (flatVel.Magnitude - flatSpeed) * (1 - math.exp(-3 * dt))
-		local want = flat(cf.LookVector)
-		-- lean toward the real direction of travel when moving forward
-		if flatSpeed > 8 * Tuning.scale and flatVel:Dot(cf.LookVector) > 0 then
-			local w = 0.55
-				* CarMath.clamp((flatSpeed - 8 * Tuning.scale) / (20 * Tuning.scale), 0, 1)
-			want = flat(want * (1 - w) + flat(flatVel) * w)
-		end
-		heading = flat(heading:Lerp(want, 1 - math.exp(-5 * dt)))
-
-		-- carry the focus along at the car's speed, then pull it onto the car: no lag, no shake
-		local raw = cf.Position + Vector3.new(0, 1.5 * Tuning.scale, 0)
-		focus += flatVel * dt
-		local kSide = 1 - math.exp(-10 * dt)
-		local kUp = 1 - math.exp(-6 * dt)
-		focus = Vector3.new(
-			focus.X + (raw.X - focus.X) * kSide,
-			focus.Y + (raw.Y - focus.Y) * kUp,
-			focus.Z + (raw.Z - focus.Z) * kSide
-		)
-		if (raw - focus).Magnitude > 6 * Tuning.scale then
-			focus = raw -- jumped (reset or teleport): catch up at once
-		end
+		follow(dt)
 
 		local dist = Tuning.camDistance
 			* (1 + 0.2 * CarMath.clamp(flatSpeed / Tuning.topSpeed, 0, 1))

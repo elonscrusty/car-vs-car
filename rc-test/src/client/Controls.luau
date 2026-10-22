@@ -297,7 +297,7 @@ function Controls.new(
 		help.TextColor3 = Color3.fromRGB(255, 255, 255)
 		help.TextTransparency = 0.35
 		help.Text =
-			"W/S gas + brake    A/D steer    SPACE drift    C show cam    V driver view    T size    1-4 plots"
+			"W/S gas + brake    A/D steer    SPACE drift    C show cam    V chase cam    T size    1-4 plots"
 		help.Parent = gui
 	end
 
