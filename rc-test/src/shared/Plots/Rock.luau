@@ -94,9 +94,10 @@ Plot.POINTS = POINTS
 Plot.LAST_U = #POINTS
 
 -- Trail height along the way: { u, y }. Flat turns; every climb on a straight (see the top).
+-- Row 1 sits a little above the plot floor (y 0) so the two tops don't flicker into each other.
 Plot.profile = {
-	{ u = 1, y = 0 },
-	{ u = 2.5, y = 0 },
+	{ u = 1, y = 0.3 },
+	{ u = 2.5, y = 0.3 },
 	{ u = 4, y = 10 }, -- climb 1: gentle (row 1)
 	{ u = 14, y = 10 },
 	{ u = 16, y = 34 }, -- climb 2: steep (row 3)
@@ -265,12 +266,16 @@ local function buildTrail(parent: Instance, origin: CFrame)
 		-- the trail top, 1 thick, its top surface on the line a-b. Climbs are dead straight, so
 		-- their pieces meet edge to edge with no overlap (overlapping tilted pieces left lips that
 		-- tipped the car); flat pieces overlap a little to close the gaps round the bends.
+		-- Overlapping pieces must never share a surface, or it flickers: neighbours take turns
+		-- sitting a hair higher (flat road, walls) or wider (fill, walls).
+		local odd = i % 2 == 1
+		local up = if sloped or not odd then 0 else 0.2
 		local road = Kit.slab(
 			parent,
 			"Road",
 			origin,
-			Vector3.new(a.x, ha - 0.5, a.z),
-			Vector3.new(b.x, hb - 0.5, b.z),
+			Vector3.new(a.x, ha - 0.5 + up, a.z),
+			Vector3.new(b.x, hb - 0.5 + up, b.z),
 			ROAD,
 			1,
 			if sloped then 0 else 3,
@@ -282,12 +287,13 @@ local function buildTrail(parent: Instance, origin: CFrame)
 		local low = math.min(ha, hb) - 1
 		if low > 0.5 then
 			local mx, mz = (a.x + b.x) / 2, (a.z + b.z) / 2
+			-- from just inside the floor (not flush with it) up to under the road
 			Kit.part(
 				parent,
 				"Fill",
 				origin,
-				Vector3.new(ROAD + 3, low, len + 3),
-				yawCF(mx, low / 2, mz, b.x - a.x, b.z - a.z),
+				Vector3.new(ROAD + (if odd then 3.4 else 3), low + 0.5, len + 3),
+				yawCF(mx, (low - 0.5) / 2, mz, b.x - a.x, b.z - a.z),
 				C.ground
 			)
 		end
@@ -297,13 +303,14 @@ local function buildTrail(parent: Instance, origin: CFrame)
 			local off = (HALF + 0.75) * side
 			local pa = Vector3.new(a.x - a.tz * off, ha + WALL / 2 - 0.5, a.z + a.tx * off)
 			local pb = Vector3.new(b.x - b.tz * off, hb + WALL / 2 - 0.5, b.z + b.tx * off)
-			Kit.slab(parent, "Wall", origin, pa, pb, 1.5, WALL + 1, 3, C.wall)
+			local thick, tall = if odd then 1.9 else 1.5, if odd then WALL + 1.2 else WALL + 1
+			Kit.slab(parent, "Wall", origin, pa, pb, thick, tall, 3, C.wall)
 			Kit.part(
 				parent,
 				"Wall",
 				origin,
-				Vector3.new(2, WALL + 1, 2),
-				yawCF(pb.X, pb.Y, pb.Z, b.tx, b.tz),
+				Vector3.new(2.3, WALL + 1.4, 2.3),
+				yawCF(pb.X, pb.Y + 0.2, pb.Z, b.tx, b.tz),
 				C.wall
 			)
 		end

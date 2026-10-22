@@ -61,7 +61,7 @@ test("it only climbs, never too steep, with two steep climbs to show off", funct
 		inSteep = steep
 	end
 	eq(steepRuns, 2, "steep climbs")
-	eq(Plot.height(1), 0)
+	truthy(Plot.height(1) > 0.2, "row 1 should sit above the floor, not flush with it")
 	truthy(Plot.height(Plot.LAST_U) >= 60, "the flag should be up high")
 end)
 
