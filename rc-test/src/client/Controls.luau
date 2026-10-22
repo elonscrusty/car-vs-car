@@ -245,30 +245,24 @@ function Controls.new(
 		)
 	end
 
-	-- Right side, top to bottom: a big RESET, then a row of small CAM / VIEW / SIZE buttons,
-	-- all below the Roblox top bar and above the DRIFT button.
-	-- reset button, always there: puts the car back at the plot's start
-	local resetBtn = Instance.new("TextButton")
-	resetBtn.Name = "Reset"
+	-- Right side: a row of small CAM / VIEW / SIZE buttons below the Roblox top bar and above
+	-- the DRIFT button. No reset button: the car resets by itself when it falls off (R still
+	-- works on a keyboard).
+	local resetBtn = Instance.new("TextButton") -- template for the small buttons
 	resetBtn.AnchorPoint = Vector2.new(1, 0)
-	resetBtn.Position = UDim2.fromScale(0.98, 0.11)
-	resetBtn.Size = UDim2.fromScale(0.15, 0.12)
-	resetBtn.BackgroundColor3 = Color3.fromRGB(200, 70, 60)
+	resetBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 	resetBtn.BackgroundTransparency = 0.25
 	resetBtn.Font = Enum.Font.GothamBold
 	resetBtn.TextScaled = true
 	resetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	resetBtn.Text = "RESET"
-	resetBtn.Parent = gui
 	local rc = Instance.new("UICorner")
 	rc.CornerRadius = UDim.new(0.3, 0)
 	rc.Parent = resetBtn
-	resetBtn.Activated:Connect(onReset)
 
 	local camBtn = resetBtn:Clone()
 	camBtn.Name = "Cam"
 	camBtn.Text = "CAM"
-	camBtn.Position = UDim2.fromScale(0.84, 0.245)
+	camBtn.Position = UDim2.fromScale(0.84, 0.11)
 	camBtn.Size = UDim2.fromScale(0.065, 0.09)
 	camBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 	camBtn.Parent = gui
@@ -277,7 +271,7 @@ function Controls.new(
 	local sizeBtn = resetBtn:Clone()
 	sizeBtn.Name = "Size"
 	sizeBtn.Text = "SIZE"
-	sizeBtn.Position = UDim2.fromScale(0.98, 0.245)
+	sizeBtn.Position = UDim2.fromScale(0.98, 0.11)
 	sizeBtn.Size = UDim2.fromScale(0.065, 0.09)
 	sizeBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 	sizeBtn.Parent = gui
@@ -286,7 +280,7 @@ function Controls.new(
 	local viewBtn = resetBtn:Clone()
 	viewBtn.Name = "View"
 	viewBtn.Text = "VIEW"
-	viewBtn.Position = UDim2.fromScale(0.91, 0.245)
+	viewBtn.Position = UDim2.fromScale(0.91, 0.11)
 	viewBtn.Size = UDim2.fromScale(0.065, 0.09)
 	viewBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 	viewBtn.Parent = gui
@@ -303,7 +297,7 @@ function Controls.new(
 		help.TextColor3 = Color3.fromRGB(255, 255, 255)
 		help.TextTransparency = 0.35
 		help.Text =
-			"W/S gas + brake    A/D steer    SPACE drift    R reset    C show cam    V driver view    T size    1-4 plots"
+			"W/S gas + brake    A/D steer    SPACE drift    C show cam    V driver view    T size    1-4 plots"
 		help.Parent = gui
 	end
 
