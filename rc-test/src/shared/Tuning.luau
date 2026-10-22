@@ -20,14 +20,15 @@ local Tuning = {
 
 	-- Engine and brakes (studs/s^2)
 	accel = 60,
-	crawlBoost = 110, -- extra push at crawling speed so it can climb steep rocks
-	crawlSpeed = 15,
+	crawlBoost = 150, -- extra push at crawling speed so it can climb steep rocks
+	crawlSpeed = 18,
 	topSpeed = 95,
 	reverseTop = 35,
 	brakeAccel = 170,
 	coastDrag = 0.5,
 	holdSpeed = 4, -- under this, with no pedals, the car holds still on hills
-	frontDrive = 0.35, -- share of power sent to the front wheels
+	frontDrive = 0.35, -- share of power sent to the front wheels at speed
+	crawlFrontDrive = 0.5, -- at crawling speed: even 4x4 so it can climb
 
 	-- Grip
 	baseMu = 1.1,

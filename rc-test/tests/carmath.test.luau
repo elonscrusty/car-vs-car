@@ -113,3 +113,15 @@ test("drift angle limiter turns a spin into a push back", function()
 	-- already turning back hard enough: untouched
 	eq(CarMath.driftYaw(-5, 1.0, 50, 1 / 60), -5)
 end)
+
+test("4x4 when crawling, rear-heavy when fast", function()
+	near(CarMath.frontShare(0), Tuning.crawlFrontDrive)
+	near(CarMath.frontShare(80), Tuning.frontDrive)
+	near(CarMath.frontShare(-80), Tuning.frontDrive)
+end)
+
+test("hill hold pushes uphill against gravity", function()
+	truthy(CarMath.holdForce(1, 196.2, 0.5) > 0)
+	truthy(CarMath.holdForce(1, 196.2, -0.5) < 0)
+	eq(CarMath.holdForce(1, 196.2, 0), 0)
+end)
