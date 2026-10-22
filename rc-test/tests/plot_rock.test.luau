@@ -49,19 +49,20 @@ test("the rows don't touch each other", function()
 	truthy(best > Plot.ROAD + 6, `rows only {best} apart`)
 end)
 
-test("it only climbs, gently on bends, steep only on the straight slab", function()
+test("it only climbs, gently on bends, steep only on the straight rock face", function()
 	local slope, turn = pieces()
 	local steepest = 0
 	for i, s in slope do
+		local onFace = Plot.uOf(i) >= 23 and Plot.uOf(i + 1) <= 24
 		truthy(s >= -0.05, `piece {i} goes downhill ({s})`)
-		truthy(s <= 0.32, `piece {i} is too steep to crawl ({s})`)
+		truthy(s <= (if onFace then 0.42 else 0.32), `piece {i} is too steep to crawl ({s})`)
 		if turn[i] > 0.01 then
 			truthy(s <= 0.2, `piece {i} climbs ({s}) round a bend ({turn[i]})`)
 		end
 		steepest = math.max(steepest, s)
 	end
-	truthy(steepest > 0.25, "the slab should be steep enough to show off")
-	truthy(Plot.height(Plot.LAST_U) >= 60, "the flag should be up high")
+	truthy(steepest > 0.35, "the rock face should be steep enough to show off")
+	truthy(Plot.height(Plot.LAST_U) >= 95, "the flag should be up high")
 end)
 
 test("the ground sits above the plot floor everywhere (no flicker with it)", function()
@@ -132,6 +133,57 @@ test("the big boulders are in the row nearest the stand", function()
 			local _, z = Plot.spot(f.u, f.side)
 			truthy(Kit.STAND.z - z < 80, `big boulder at {f.u} is far from the stand`)
 		end
+	end
+end)
+
+test(
+	"big rock domes: taller than a wheel, round enough to crawl over, nothing buried in them",
+	function()
+		truthy(#Plot.domes >= 5, "too few domes")
+		for _, d in Plot.domes do
+			truthy(d.h >= 4, `dome at {d.u} is small`)
+			-- steepest side of the dome is about 0.86 * h / r
+			truthy(0.86 * d.h / d.r <= 0.5, `dome at {d.u} is too steep`)
+			truthy(math.abs(d.side) <= 0.5, `dome at {d.u} is off the trail`)
+			for _, t in Plot.TURNS do
+				truthy(math.abs(d.u - t) > 0.6, `dome at {d.u} sits in a turn`)
+			end
+			for _, f in Plot.features do
+				local x, z = Plot.spot(f.u, f.side)
+				local q = ((x - d.x) ^ 2 + (z - d.z) ^ 2) / d.r ^ 2
+				truthy(d.h * math.exp(-q) < 0.3, `{f.kind} at {f.u} is buried in the dome at {d.u}`)
+			end
+		end
+	end
+)
+
+test("the creek dips the trail, and the log bridge over it can be crawled onto", function()
+	local c = Plot.CREEK
+	local x, z, h = Plot.at(c.u)
+	truthy(h - Plot.groundAt(x, z) >= 4, "the creek is too shallow")
+	truthy(c.lift <= Plot.MAX_LIFT, "the bridge is too tall to climb on")
+	truthy(c.depth * math.pi / (2 * c.half) <= 0.5, "the creek banks are too steep")
+	for _, f in Plot.features do
+		truthy(math.abs(f.u - c.u) * 60 > c.half + f.r, `{f.kind} at {f.u} is in the creek`)
+	end
+end)
+
+test("rock steps: small steps up, on a straight, nothing else on them", function()
+	local st = Plot.STEPS
+	local blocks = Plot.stepBlocks()
+	eq(#blocks, st.n)
+	for _, b in blocks do
+		local rise = b.top - Plot.height(b.u0)
+		truthy(rise >= 1 and rise <= Plot.MAX_LIFT, `step at {b.u0} rises {rise}`)
+	end
+	local _, _, _, ax, az = Plot.at(st.from)
+	local _, _, _, bx, bz = Plot.at(st.to)
+	truthy(ax * bx + az * bz > 0.98, "the steps should be on a straight")
+	for _, f in Plot.features do
+		truthy(f.u < st.from - 0.2 or f.u > st.to + 0.2, `{f.kind} at {f.u} sits on the steps`)
+	end
+	for _, d in Plot.domes do
+		truthy(d.u < st.from - 0.4 or d.u > st.to + 0.4, `dome at {d.u} sits on the steps`)
 	end
 end)
 

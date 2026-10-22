@@ -1,7 +1,9 @@
 --!strict
 -- ROCK plot: a hill that rises like stadium steps facing the driver stand, so the whole crawl can
--- be watched from the stand. The trail zigzags up it in five rows: grass and bumpy mounds at the
--- front, a boulder creek, a low shelf, a high shelf, then a steep rock slab up to the flag.
+-- be watched from the stand. The trail zigzags up it in five rows: grass and mounds with big
+-- boulders at the front, a boulder field with a creek and a log bridge, a low shelf with rock
+-- steps, a high shelf with big rock domes, then a steep rock face with a line painted up it to
+-- the flag. Mountains rise behind the summit.
 --
 -- The ground is one smooth sheet of triangles (two wedges each) that share edges exactly: no
 -- gaps, no lips, and no two parts lie flat on top of each other, so nothing flickers. Each row
@@ -72,27 +74,27 @@ local PICTURE = {
 	{ 24, 27, 0.9 },
 	{ 40, 25, 0.6 }, -- 3 big boulders, right in front of the stand
 	{ 56, 28, 1.1 },
-	{ 68, 27, 0.8 },
-	{ 72, 36, 1.0 }, -- 6 turn 1
-	{ 66, 45, 1.0 }, -- boulder creek
-	{ 48, 44, 1.0 },
-	{ 30, 45, 1.0 },
-	{ 14, 44, 1.2 },
-	{ 9, 54, 2.6 }, -- 11 turn 2
-	{ 14, 63, 3.2 }, -- low shelf
-	{ 32, 62, 4.0 },
-	{ 50, 63, 4.8 },
-	{ 66, 62, 5.6 },
-	{ 72, 71, 6.6 }, -- 16 turn 3
-	{ 66, 80, 7.4 }, -- high shelf
-	{ 48, 79, 8.4 },
-	{ 30, 80, 9.4 },
-	{ 16, 79, 10.0 },
-	{ 9.5, 88, 11.4 }, -- 21 turn 4
-	{ 18, 96, 12.2 },
-	{ 32, 97.5, 13.2 }, -- 23 to 24: the steep rock slab, dead straight
-	{ 46, 99, 17.0 }, -- 24 top of the slab: finish and flag
-	{ 60, 100.5, 17.0 }, -- 25 flat summit (keeps the slab evenly steep to the top)
+	{ 68, 27, 1.2 },
+	{ 72, 36, 2.0 }, -- 6 turn 1
+	{ 66, 45, 2.8 }, -- boulder field, the creek and its log bridge
+	{ 48, 44, 3.2 },
+	{ 30, 45, 3.6 },
+	{ 14, 44, 4.0 },
+	{ 9, 54, 5.6 }, -- 11 turn 2
+	{ 14, 63, 7.2 }, -- low shelf
+	{ 32, 62, 8.0 }, -- 13 to 14: rock steps
+	{ 50, 63, 10.0 },
+	{ 66, 62, 10.8 },
+	{ 72, 71, 12.4 }, -- 16 turn 3
+	{ 66, 80, 14.0 }, -- high shelf: big rock domes
+	{ 48, 79, 14.8 },
+	{ 30, 80, 15.6 },
+	{ 16, 79, 16.4 },
+	{ 9.5, 88, 17.8 }, -- 21 turn 4
+	{ 18, 96, 19.2 },
+	{ 32, 97.5, 20.0 }, -- 23 to 24: the steep rock face, dead straight, a line painted up it
+	{ 46, 99, 25.6 }, -- 24 top of the face: finish and flag
+	{ 60, 100.5, 25.6 }, -- 25 flat summit (keeps the face evenly steep to the top)
 }
 
 local POINTS: { Pt } = {}
@@ -159,11 +161,69 @@ do
 		MOUNDS[#MOUNDS + 1] = {
 			x = (rand() * 58 + 12 - 40) * 4,
 			z = (55 - (rand() * 12 + 21)) * 4,
-			r = 10.4,
-			h = (rand() * 0.6 + 0.3) * 4,
+			r = 14,
+			h = (rand() * 1.0 + 0.5) * 4,
 		}
 	end
 end
+
+-- Big rock domes on the trail, part of the ground itself: taller than the car's wheels, but
+-- gently rounded so it can crawl right over the top (or steer round them).
+export type Dome = { u: number, side: number, r: number, h: number, x: number, z: number }
+local function dome(u: number, side: number, r: number, h: number): Dome
+	local x, z = Plot.spot(u, side)
+	return { u = u, side = side, r = r, h = h, x = x, z = z }
+end
+Plot.domes = {
+	dome(3.7, 0.15, 11, 5.5), -- row 1, beside the big boulders
+	dome(9.0, -0.3, 10, 5), -- row 2: the boulder field
+	dome(9.75, 0.4, 9, 4.5),
+	dome(14.9, -0.3, 10, 5), -- row 3, after the steps
+	dome(17.9, 0.3, 11, 6), -- row 4: big domes
+	dome(18.9, -0.35, 10, 5.5),
+} :: { Dome }
+
+-- A dry creek across the trail in row 2. A bridge of two logs crosses it on the left; the
+-- right side dips down through the creek bed.
+Plot.CREEK =
+	{ u = 8.1, half = 16, depth = 5, reach = HALF + 14, logSide = -0.35, logR = 1.5, lift = 0.9 }
+local creekX, creekZ, _, creekTX, creekTZ = Plot.at(Plot.CREEK.u)
+
+-- How far the creek bed dips the ground at (x, z).
+function Plot.creekDip(x: number, z: number): number
+	local c = Plot.CREEK
+	local s = (x - creekX) * creekTX + (z - creekZ) * creekTZ
+	local l = math.abs((z - creekZ) * creekTX - (x - creekX) * creekTZ)
+	if math.abs(s) >= c.half or l >= c.reach then
+		return 0
+	end
+	local fade = math.clamp((c.reach - l) / 8, 0, 1)
+	return c.depth * (1 + math.cos(math.pi * s / c.half)) / 2 * fade
+end
+
+-- Rock steps up the low shelf: flat blocks, each a small step up from the one before.
+Plot.STEPS = { from = 13.05, to = 13.95, n = 5 }
+
+-- The step blocks: from u0 to u1, top and bottom heights.
+function Plot.stepBlocks(): { { u0: number, u1: number, top: number, bottom: number } }
+	local st = Plot.STEPS
+	local out = {}
+	for k = 0, st.n - 1 do
+		local u0 = st.from + (st.to - st.from) * k / st.n
+		local u1 = st.from + (st.to - st.from) * (k + 1) / st.n
+		table.insert(out, { u0 = u0, u1 = u1, top = Plot.height(u1), bottom = Plot.height(u0) - 3 })
+	end
+	return out
+end
+
+-- Mountain peaks along the back wall, behind the summit, so the hill rises into real mountains.
+Plot.PEAKS = {
+	{ x = -165, z = -230, r = 45, h = 60 },
+	{ x = -70, z = -232, r = 32, h = 50 },
+	{ x = 20, z = -230, r = 30, h = 60 },
+	{ x = 110, z = -232, r = 34, h = 55 },
+	{ x = 168, z = -230, r = 45, h = 60 },
+}
 
 -- Distance from (x, z) to the trail centre line, and the trail height at the closest sample.
 -- Also: is the spot in front of (closer to the stand than) that sample, and the trail height
@@ -205,7 +265,23 @@ function Plot.groundAt(x: number, z: number): number
 			local mx, mz = (x - m.x) / m.r, (z - m.z) / m.r
 			h += m.h * away * math.exp(-(mx * mx + mz * mz))
 		end
+		-- mountains only well away from the trail
+		local far = math.clamp((d - edge - 4) / 24, 0, 1)
+		if far > 0 then
+			for _, p in Plot.PEAKS do
+				local px, pz = (x - p.x) / p.r, (z - p.z) / p.r
+				h += p.h * far * math.exp(-(px * px + pz * pz))
+			end
+		end
 	end
+	for _, m in Plot.domes do
+		local mx, mz = (x - m.x) / m.r, (z - m.z) / m.r
+		local q = mx * mx + mz * mz
+		if q < 9 then
+			h += m.h * math.exp(-q)
+		end
+	end
+	h -= Plot.creekDip(x, z)
 	return math.max(h, Plot.LOWEST)
 end
 
@@ -260,51 +336,53 @@ local function log(u: number, r: number): Feature
 end
 
 -- Everything on the trail, start to flag. Rocks come in left/right pairs a little apart, so one
--- side of the car climbs while the other drops. The steep slab is kept clear.
+-- side of the car climbs while the other drops. Wide and flat, so they look big but stay
+-- crawlable. The steep face at the top is kept clear.
 Plot.features = {
 	-- row 1: grass and mounds, and two big boulders right in front of the stand
-	rock(1.8, -0.35, 2.2, 1.0),
-	rock(2.2, 0.3, 2.4, 1.1),
+	rock(1.8, -0.35, 3.4, 1.0),
+	rock(2.2, 0.3, 3.6, 1.1),
 	rock(2.85, 0.3, 9, 1.6), -- big boulder: watch the springs up close
 	rock(3.25, -0.35, 8, 1.5), -- big boulder, the other side
-	rock(4.0, -0.4, 2.6, 1.3),
-	rock(4.4, 0.4, 2.4, 1.2),
-	ledge(4.75, 0.5, 0.9),
+	rock(4.3, -0.4, 3.8, 1.3),
+	rock(4.5, 0.45, 3.6, 1.2),
+	ledge(4.85, 0.5, 0.9),
 	-- turn 1
-	rock(5.6, -0.5, 2.0, 0.9),
-	rock(6.4, 0.5, 2.2, 1.0),
-	-- row 2: the boulder creek
-	rock(7.3, -0.4, 2.4, 1.2),
-	rock(7.6, 0.35, 2.4, 1.3),
-	log(8.1, 0.9),
-	rock(8.6, 0.4, 2.8, 1.4),
-	rock(8.9, -0.3, 2.6, 1.3),
-	rock(9.3, 0.1, 2.2, 1.0),
-	rock(9.7, -0.45, 2.4, 1.2),
-	rock(10.1, 0.4, 2.4, 1.2),
+	rock(5.6, -0.5, 3.0, 0.9),
+	rock(6.4, 0.5, 3.2, 1.0),
+	-- row 2: the boulder field, then the creek (8.1)
+	rock(7.2, -0.4, 3.6, 1.2),
+	rock(7.4, 0.35, 3.8, 1.3),
+	rock(7.65, 0.1, 3.4, 1.4),
+	rock(8.6, 0.4, 4.2, 1.4),
+	rock(8.65, -0.5, 4.0, 1.3),
+	rock(9.35, 0.3, 3.4, 1.2),
+	rock(9.4, -0.6, 3.4, 1.0),
+	rock(10.35, 0.45, 3.6, 1.2),
+	rock(10.2, -0.4, 3.6, 1.3),
 	-- turn 2
-	rock(10.8, 0.45, 1.8, 0.8),
-	rock(11.3, -0.4, 1.8, 0.8),
-	-- row 3: the low shelf
-	rock(12.3, -0.4, 2.4, 1.2),
-	rock(12.6, 0.4, 2.6, 1.4),
-	ledge(13.1, -0.5, 1.0),
-	rock(13.6, 0.45, 2.6, 1.5),
-	rock(13.9, -0.45, 2.6, 1.5),
-	log(14.5, 1.0),
+	rock(10.8, 0.45, 2.8, 0.8),
+	rock(11.3, -0.4, 2.8, 0.8),
+	-- row 3: the low shelf, the rock steps (13.05 to 13.95), a dome
+	rock(12.2, -0.4, 3.6, 1.2),
+	rock(12.5, 0.4, 3.8, 1.4),
+	ledge(12.8, -0.5, 1.0),
+	log(14.35, 1.0),
+	rock(15.3, 0.45, 3.4, 1.2),
 	-- turn 3
-	rock(15.7, 0.5, 2.0, 0.9),
-	rock(16.4, -0.5, 2.0, 0.9),
-	-- row 4: the high shelf
+	rock(15.7, -0.5, 3.0, 0.9),
+	rock(16.4, -0.5, 3.0, 0.9),
+	-- row 4: the high shelf with the big domes
 	ledge(17.3, 0.5, 1.2),
-	rock(17.8, -0.35, 2.6, 1.4),
-	rock(18.1, 0.4, 2.6, 1.5),
-	rock(18.6, -0.4, 2.4, 1.3),
-	rock(19.0, 0.4, 2.4, 1.3),
-	log(19.5, 1.0),
+	rock(17.45, -0.45, 3.8, 1.4),
+	rock(18.4, 0.5, 3.8, 1.5),
+	rock(18.45, -0.6, 3.6, 1.3),
+	rock(19.35, 0.4, 3.6, 1.3),
+	rock(19.3, -0.45, 3.4, 1.2),
+	log(19.7, 1.0),
 	-- turn 4
-	rock(20.6, -0.45, 1.8, 0.8),
-	rock(21.3, 0.45, 1.8, 0.8),
+	rock(20.6, -0.45, 2.8, 0.8),
+	rock(21.3, 0.45, 2.8, 0.8),
 } :: { Feature }
 
 -- Start a little in front of the first point, facing along the trail, just above the ground.
@@ -412,6 +490,17 @@ local function looks(): { [string]: Look }
 			drag = Plot.GRASS_DRAG,
 		},
 		rock = { name = "Ground", color = C.rock, material = Enum.Material.Slate },
+		-- domes on the trail: drivable rock, a little lighter so they stand out
+		dome = {
+			name = "Road",
+			color = Color3.fromRGB(140, 134, 126),
+			material = Enum.Material.Slate,
+		},
+		creek = {
+			name = "Road",
+			color = Color3.fromRGB(96, 112, 122),
+			material = Enum.Material.Pebble,
+		},
 	}
 end
 
@@ -422,7 +511,13 @@ local function buildGround(parent: Instance, origin: CFrame)
 		return Vector3.new(x0 + (i - 1) * dx, g[i][j], z0 + (j - 1) * dz)
 	end
 	local function lookFor(mid: Vector3, steep: number): Look
-		local d = Plot.nearest(mid.X, mid.Z)
+		local d, th = Plot.nearest(mid.X, mid.Z)
+		if Plot.creekDip(mid.X, mid.Z) > 1.5 then
+			return L.creek
+		end
+		if d < HALF + Plot.SHOULDER and mid.Y > th + 1.5 then
+			return L.dome
+		end
 		if d < HALF then
 			return if steep > 0.2 then L.slab else L.trail
 		end
@@ -511,11 +606,75 @@ local function buildFeature(parent: Instance, origin: CFrame, f: Feature)
 	end
 end
 
+-- Rock steps: each block's top sits at the trail height at its far end, so its near end is a
+-- small step up from the ground and its far end meets the ground. Blocks overlap a little.
+local function buildSteps(parent: Instance, origin: CFrame)
+	for _, st in Plot.stepBlocks() do
+		local ax, az = Plot.at(st.u0)
+		local bx, bz = Plot.at(st.u1)
+		local len = math.sqrt((bx - ax) ^ 2 + (bz - az) ^ 2) + 1
+		local _, _, _, tx, tz = Plot.at((st.u0 + st.u1) / 2)
+		local p = Kit.part(
+			parent,
+			"Ledge",
+			origin,
+			Vector3.new(ROAD + 2 * Plot.SHOULDER - 2, st.top - st.bottom, len),
+			yawCF((ax + bx) / 2, (st.top + st.bottom) / 2, (az + bz) / 2, tx, tz),
+			C.rock
+		)
+		p.Material = Enum.Material.Slate
+	end
+end
+
+-- Two logs side by side along the trail, over the creek, one under each row of wheels.
+local function buildLogBridge(parent: Instance, origin: CFrame)
+	local c = Plot.CREEK
+	local x, z, h, tx, tz = Plot.at(c.u)
+	local cx, cz = x - tz * c.logSide * HALF, z + tx * c.logSide * HALF
+	for _, off in { -2, 2 } do
+		local p = Kit.part(
+			parent,
+			"Log",
+			origin,
+			Vector3.new(c.half * 2 + 10, c.logR * 2, c.logR * 2),
+			-- a cylinder lies along its X: point X along the trail
+			yawCF(cx - tz * off, h + c.lift - c.logR, cz + tx * off, -tz, tx),
+			C.ground
+		)
+		p.Shape = Enum.PartType.Cylinder
+		p.Material = Enum.Material.Wood
+	end
+end
+
+-- A painted line up the middle of the steep face: thin dashes just above the rock.
+local function buildFaceLine(parent: Instance, origin: CFrame)
+	local u = 23.1
+	while u < 23.95 do
+		local ax, az = Plot.at(u)
+		local bx, bz = Plot.at(u + 0.05)
+		local a = Vector3.new(ax, Plot.groundAt(ax, az) + 0.5, az)
+		local b = Vector3.new(bx, Plot.groundAt(bx, bz) + 0.5, bz)
+		local dash = Kit.part(
+			parent,
+			"Line",
+			origin,
+			Vector3.new(1.4, 0.2, (b - a).Magnitude),
+			CFrame.lookAt((a + b) / 2, b),
+			Color3.fromRGB(240, 200, 40)
+		)
+		dash.CanCollide = false
+		u += 0.1
+	end
+end
+
 function Plot.build(parent: Instance, origin: CFrame)
 	buildGround(parent, origin)
 	for _, f in Plot.features do
 		buildFeature(parent, origin, f)
 	end
+	buildSteps(parent, origin)
+	buildLogBridge(parent, origin)
+	buildFaceLine(parent, origin)
 	-- the flag at the summit, beside the trail
 	local fx, fz, top, tx, tz = Plot.at(Plot.FLAG_U)
 	local px, pz = fx - tz * (HALF - 3), fz + tx * (HALF - 3)
