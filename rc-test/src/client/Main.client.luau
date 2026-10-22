@@ -153,6 +153,7 @@ beep.SoundId = "rbxasset://sounds/electronicpingshort.wav"
 beep.Volume = 0.5
 beep.Parent = script
 local stuckTime = 0
+local stuckFrom = Vector3.zero
 local function reset()
 	stuckTime = 0
 	beep:Play()
@@ -223,14 +224,14 @@ RunService.PreSimulation:Connect(function(dt: number)
 		hud.flash("GO!")
 	end
 
-	-- gas or brake held but the car barely moves for 3 s = stuck (wedged, on a wall, off the trail):
-	-- start over. Slow rock crawling is still far faster than this.
-	local v = body.AssemblyLinearVelocity
+	-- gas or brake held but the car gets nowhere for 3 s = stuck (wedged, on a wall, spinning its
+	-- wheels on a slope): start over. Slow rock crawling covers far more than this.
 	local pressing = input.throttle > 0 or input.brake > 0
-	if pressing and Vector3.new(v.X, 0, v.Z).Magnitude < 1 * Tuning.scale then
+	if pressing and (p - stuckFrom).Magnitude < 2 * Tuning.scale then
 		stuckTime += dt
 	else
 		stuckTime = 0
+		stuckFrom = p
 	end
 	if stuckTime > 3 then
 		reset()
