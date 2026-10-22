@@ -73,6 +73,15 @@ test("the ground sits above the plot floor everywhere (no flicker with it)", fun
 	end
 end)
 
+test("the ground reaches the outer walls and the front wall (no trench to fall into)", function()
+	local _, x0, z0, nx, nz, dx, dz = Plot.grid()
+	truthy(x0 <= -Kit.WIDTH / 2 + 2 and x0 + (nx - 1) * dx >= Kit.WIDTH / 2 - 2, "sides")
+	truthy(z0 <= -Kit.DEPTH / 2 + 2, "back")
+	truthy(z0 + (nz - 1) * dz >= Kit.FRONT_Z - 2, "front")
+	truthy(dx <= Plot.CELL and dz <= Plot.CELL, "cells")
+	truthy(Plot.RIM >= 8, "the rim round the back and sides is too low to stop the car")
+end)
+
 test("each row sits higher than the one in front of it", function()
 	-- row middles (u) front to back: mounds, creek, low shelf, high shelf, slab
 	local rows = { 3, 8.5, 13.5, 18.5, 23 }

@@ -55,7 +55,10 @@ Plot.grip = 1
 Plot.ROAD = ROAD
 Plot.HALF_WIDTH = HALF
 Plot.CELL = CELL
-Plot.GRASS_DRAG = 0.8 -- extra rolling drag on the grass (the car reads the "Drag" attribute)
+Plot.GRASS_DRAG = 4 -- extra rolling drag on the grass (the car reads the "Drag" attribute); high,
+-- because drag grows with speed and the crawler is slow
+Plot.RIM = 10 -- the rock wall round the back and sides stands this high above the ground
+Plot.FRONT_RIM = 3 -- and this high along the front, under the stand's view
 Plot.GRASS_TOP = 14 -- ground below this height (off the trail) is grass, higher is rock
 -- Highest bump the car can crawl over.
 Plot.MAX_LIFT = 1.6
@@ -206,27 +209,29 @@ function Plot.groundAt(x: number, z: number): number
 	return math.max(h, Plot.LOWEST)
 end
 
--- Corner heights of the ground grid over the whole track area. grid[i][j] sits at
--- x = x0 + (i - 1) * CELL, z = z0 + (j - 1) * CELL.
+-- Corner heights of the ground grid. It covers the whole plot inside the outer walls (so there
+-- is no gap at the walls to fall into), from the back wall up to the low wall in front of the
+-- stand. grid[i][j] sits at x = x0 + (i - 1) * dx, z = z0 + (j - 1) * dz.
 local cachedGrid: { { number } }? = nil
-function Plot.grid(): ({ { number } }, number, number, number, number)
-	local a = Kit.AREA
-	local x0, z0 = a.minX + 2, a.minZ + 2
-	local nx = math.floor((a.maxX - 2 - x0) / CELL) + 1
-	local nz = math.floor((a.maxZ - z0) / CELL) + 1
+function Plot.grid(): ({ { number } }, number, number, number, number, number, number)
+	local x0, x1 = -Kit.WIDTH / 2 + 1, Kit.WIDTH / 2 - 1
+	local z0, z1 = -Kit.DEPTH / 2 + 1, Kit.FRONT_Z - 1
+	local nx = math.ceil((x1 - x0) / CELL) + 1
+	local nz = math.ceil((z1 - z0) / CELL) + 1
+	local dx, dz = (x1 - x0) / (nx - 1), (z1 - z0) / (nz - 1)
 	local g = cachedGrid
 	if g == nil then
 		g = {}
 		for i = 1, nx do
 			local col = {}
 			for j = 1, nz do
-				col[j] = Plot.groundAt(x0 + (i - 1) * CELL, z0 + (j - 1) * CELL)
+				col[j] = Plot.groundAt(x0 + (i - 1) * dx, z0 + (j - 1) * dz)
 			end
 			g[i] = col
 		end
 		cachedGrid = g
 	end
-	return g :: { { number } }, x0, z0, nx, nz
+	return g :: { { number } }, x0, z0, nx, nz, dx, dz
 end
 
 -- Can the person on the stand see the top of the car at this trail spot? Walks the line of
@@ -412,9 +417,9 @@ end
 
 local function buildGround(parent: Instance, origin: CFrame)
 	local L = looks()
-	local g, x0, z0, nx, nz = Plot.grid()
+	local g, x0, z0, nx, nz, dx, dz = Plot.grid()
 	local function corner(i: number, j: number): Vector3
-		return Vector3.new(x0 + (i - 1) * CELL, g[i][j], z0 + (j - 1) * CELL)
+		return Vector3.new(x0 + (i - 1) * dx, g[i][j], z0 + (j - 1) * dz)
 	end
 	local function lookFor(mid: Vector3, steep: number): Look
 		local d = Plot.nearest(mid.X, mid.Z)
@@ -434,23 +439,44 @@ local function buildGround(parent: Instance, origin: CFrame)
 				local mid = (tri[1] + tri[2] + tri[3]) / 3
 				local lo = math.min(tri[1].Y, tri[2].Y, tri[3].Y)
 				local hi = math.max(tri[1].Y, tri[2].Y, tri[3].Y)
-				triangle(parent, origin, tri[1], tri[2], tri[3], lookFor(mid, (hi - lo) / CELL))
+				triangle(
+					parent,
+					origin,
+					tri[1],
+					tri[2],
+					tri[3],
+					lookFor(mid, (hi - lo) / math.min(dx, dz))
+				)
 			end
 		end
 	end
-	-- skirts: close the edge of the ground sheet down into the floor
-	local function skirt(a: Vector3, b: Vector3)
-		local fa, fb = Vector3.new(a.X, -1, a.Z), Vector3.new(b.X, -1, b.Z)
-		triangle(parent, origin, a, b, fb, L.rock)
-		triangle(parent, origin, a, fb, fa, L.rock)
+	-- rim: a rock wall right round the edge of the ground, from inside the floor to well above
+	-- the ground, so the car can't drop off the hill and out of the plot. Low at the front so it
+	-- doesn't block the view from the stand.
+	local function rim(a: Vector3, b: Vector3, above: number)
+		local top = math.max(a.Y, b.Y) + above
+		local mid = (a + b) / 2
+		local len = (b - a).Magnitude
+		local p = Kit.part(
+			parent,
+			"Wall",
+			origin,
+			Vector3.new(2, top + 1, len),
+			CFrame.lookAt(
+				Vector3.new(mid.X, (top - 1) / 2, mid.Z),
+				Vector3.new(b.X, (top - 1) / 2, b.Z)
+			),
+			C.rock
+		)
+		p.Material = Enum.Material.Slate
 	end
 	for i = 1, nx - 1 do
-		skirt(corner(i, 1), corner(i + 1, 1))
-		skirt(corner(i, nz), corner(i + 1, nz))
+		rim(corner(i, 1), corner(i + 1, 1), Plot.RIM)
+		rim(corner(i, nz), corner(i + 1, nz), Plot.FRONT_RIM)
 	end
 	for j = 1, nz - 1 do
-		skirt(corner(1, j), corner(1, j + 1))
-		skirt(corner(nx, j), corner(nx, j + 1))
+		rim(corner(1, j), corner(1, j + 1), Plot.RIM)
+		rim(corner(nx, j), corner(nx, j + 1), Plot.RIM)
 	end
 end
 
