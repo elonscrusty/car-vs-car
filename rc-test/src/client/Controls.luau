@@ -109,6 +109,8 @@ function Controls.new(
 				onTrack(2)
 			elseif input.KeyCode == Enum.KeyCode.Three then
 				onTrack(3)
+			elseif input.KeyCode == Enum.KeyCode.Four then
+				onTrack(4)
 			end
 		elseif input.KeyCode == Enum.KeyCode.ButtonY then
 			onReset()
@@ -283,7 +285,7 @@ function Controls.new(
 		help.TextColor3 = Color3.fromRGB(255, 255, 255)
 		help.TextTransparency = 0.35
 		help.Text =
-			"W/S gas + brake    A/D steer    SPACE drift    R reset    C camera    T size    1 2 3 tracks"
+			"W/S gas + brake    A/D steer    SPACE drift    R reset    C camera    T size    1-4 plots"
 		help.Parent = gui
 	end
 

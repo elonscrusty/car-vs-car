@@ -5,6 +5,10 @@ local Harness = require("./harness")
 
 require("./carmath.test")
 require("./laptimer.test")
-require("./trackdata.test")
+require("./plots.test")
+require("./plot_drift.test")
+require("./plot_race.test")
+require("./plot_rock.test")
+require("./plot_show.test")
 
 Harness.summary()
