@@ -40,6 +40,25 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 	local offset = pos - body.Position
 	local focusY = body.Position.Y + 1.5 * Tuning.scale
 	local zoomFov = Tuning.driverFovMax
+	-- driver view: how far the eyes are lifted to see over a wall, and walls see-through for now
+	local lift = 0
+	local faded: { [BasePart]: boolean } = {}
+
+	local function clearFaded()
+		for part in faded do
+			part.LocalTransparencyModifier = 0
+		end
+		table.clear(faded)
+	end
+
+	local function blocker(from: Vector3, target: Vector3): BasePart?
+		local d = target - from
+		local hit = workspace:Raycast(from, d - d.Unit * 0.5 * Tuning.scale, params)
+		if hit and hit.Instance:IsA("BasePart") then
+			return hit.Instance :: BasePart
+		end
+		return nil
+	end
 
 	local driver = false
 	local orbiting = false
@@ -50,6 +69,7 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 	-- Show-off view: circles slowly and low around the car to watch the springs work.
 	function cam.toggleOrbit(): boolean
 		orbiting = not orbiting
+		clearFaded()
 		local back = -flat(body.CFrame.LookVector)
 		orbitAngle = math.atan2(back.Z, back.X) + 0.8
 		if orbiting then
@@ -69,6 +89,8 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 
 	function cam.setDriver(on: boolean)
 		driver = on
+		lift = 0
+		clearFaded()
 		if on then
 			orbiting = false
 		end
@@ -82,8 +104,34 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 			camera.CameraType = Enum.CameraType.Scriptable
 		end
 		if driver then
-			local from = eye()
+			local base = eye()
 			local target = body.Position
+			-- a wall between the eyes and the car: look from a bit higher, the lowest height that
+			-- sees the car; if even the highest is blocked, make the wall see-through
+			local maxLift = Tuning.driverLiftMax
+			local wantLift = maxLift
+			for i = 0, 6 do
+				local h = maxLift * i / 6
+				if not blocker(base + Vector3.new(0, h, 0), target) then
+					wantLift = h
+					break
+				end
+			end
+			lift += (wantLift - lift) * (1 - math.exp(-4 * dt))
+			local from = base + Vector3.new(0, lift, 0)
+			clearFaded()
+			for _ = 1, 3 do
+				local part = blocker(from, target)
+				if not part or faded[part] then
+					break
+				end
+				part.LocalTransparencyModifier = 0.75
+				faded[part] = true
+				params:AddToFilter(part)
+			end
+			if next(faded) then
+				params.FilterDescendantsInstances = ignore
+			end
 			local dist = (target - from).Magnitude
 			-- auto zoom: narrow the view as the car gets far away so it stays easy to see
 			local want = math.deg(2 * math.atan(Tuning.driverWidth / 2 / math.max(dist, 0.01)))

@@ -62,6 +62,7 @@ local Tuning = {
 	driverWidth = 28, -- driver view zooms so about this much ground fits around the car
 	driverFovMin = 10,
 	driverFovMax = 70,
+	driverLiftMax = 40, -- driver view rises up to this much to see the car over a wall
 	orbitSpeed = 0.35, -- rad/s the show-off camera circles the car
 
 	-- Gas while sliding keeps the back loose (0 = off). Only the drift track turns it on.
@@ -140,6 +141,7 @@ local SCALED = {
 	"camDistance",
 	"camHeight",
 	"driverWidth",
+	"driverLiftMax",
 	"orbitDistance",
 	"orbitHeight",
 }
