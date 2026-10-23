@@ -225,3 +225,20 @@ test("rubber donut rings stay on the drift pad", function()
 		truthy(math.abs(toCone - d.r) > Plot.CONE.r + 2, `donut {i} runs over the cone`)
 	end
 end)
+
+test("touch zones sit on the road at the outside of every corner, apart from each other", function()
+	local zones = Plot.ZONES
+	truthy(#zones >= 6, `only {#zones} touch zones`)
+	for i, z in zones do
+		-- the whole zone is on the road
+		truthy(nearestRoad(z.x, z.z) + z.r <= Plot.ROAD / 2 + 1, `zone {i} hangs off the road`)
+		truthy(Kit.inArea(z.x, z.z), `zone {i} is outside the area`)
+		eq(Plot.touchZone(z.x, z.z), i)
+		for j = i + 1, #zones do
+			local o = zones[j]
+			truthy(math.sqrt((z.x - o.x) ^ 2 + (z.z - o.z) ^ 2) > z.r + o.r + 10, "zones overlap")
+		end
+	end
+	eq(Plot.touchZone(Plot.PAD.x, Plot.PAD.z), nil)
+	truthy(Plot.TOUCH_BONUS > 0)
+end)

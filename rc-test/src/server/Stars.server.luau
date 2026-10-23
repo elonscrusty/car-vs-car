@@ -19,8 +19,6 @@ local Profile = require(ReplicatedStorage.Shared.Profile)
 local RunCheck = require(ReplicatedStorage.Shared.RunCheck)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local PlayerData = require(script.Parent.PlayerData)
-local PlotLooks = require(ReplicatedStorage.Shared.PlotLooks)
-local PlotLooksBuilder = require(script.Parent.PlotLooksBuilder)
 
 local LOOK = 0.1 -- seconds between looks at the cars
 local TEST_OWNER = -1 -- Studio only: who owns an empty plot
@@ -179,30 +177,19 @@ local function showBoard(slotIndex: number)
 	boards[slotIndex].Text = `{title}\n<font color="#FFD54F">{best}</font>\n{goals}`
 end
 
--- ===== plot looks: the owner's stars grow their plot (phase 2) =====
-
-local function starsOf(slotIndex: number): number
-	local m = plotModel(slotIndex)
-	-- Studio only: TestStars on a plot model shows that look without playing for it
-	local test = m and m:GetAttribute("TestStars")
-	if studio and type(test) == "number" then
-		return test
-	end
-	local owner = ownerPlayer(slotIndex)
-	local data = owner and PlayerData.get(owner)
-	return if data then data.stars else 0
-end
+-- ===== plot looks: the owner's stars grow their plot (PlotLooksBuilder reads OwnerStars) =====
 
 local function showLooks(slotIndex: number)
 	local m = plotModel(slotIndex)
-	if not (m and m:IsA("Model")) then
+	if not m then
 		return
 	end
-	local stars = starsOf(slotIndex)
-	m:SetAttribute("OwnerStars", stars)
-	local slot = slots[slotIndex]
-	local pivot = CFrame.new(slot.plotX, 0, slot.plotZ) * CFrame.Angles(0, slot.angle, 0)
-	PlotLooksBuilder.apply(m, pivot, PlotLooks.tier(stars))
+	local owner = ownerPlayer(slotIndex)
+	local data = owner and PlayerData.get(owner)
+	local stars = if data then data.stars else 0
+	if m:GetAttribute("OwnerStars") ~= stars then
+		m:SetAttribute("OwnerStars", stars)
+	end
 end
 
 local function showAll()
@@ -411,7 +398,6 @@ task.spawn(function()
 		for _, m in plots:GetChildren() do
 			m:GetAttributeChangedSignal("OwnerId"):Connect(showAll)
 			m:GetAttributeChangedSignal("PlotType"):Connect(showAll)
-			m:GetAttributeChangedSignal("TestStars"):Connect(showAll)
 		end
 	end
 	showAll()

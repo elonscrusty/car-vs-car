@@ -1,20 +1,16 @@
 --!strict
--- Carter's stars loop, phase 2: a plot grows with its owner's stars (his picks, 2026-10-23).
--- 10 stars = night (the plot goes dark blue and lamp posts light up), 25 = snow (white wall
--- tops, snow patches, falling snow), 50 = party (string lights, fans on the walls, two
--- searchlights). Each look keeps the ones below it. Looks only: nothing here is solid or can be
--- hit by the car's rays (the builder makes every piece CanCollide/CanQuery off), so driving
--- never changes. The sky is shared, so "night" is the plot's own tint and lamps.
--- Plot-local, real RC size, like PlotDecor: (0, 0, 0) = middle of the plot on the floor, +Z =
--- front (the road), x -40..40, z -55..55. Plain numbers (Lune tests load it).
+-- A plot's look grows with its owner's stars (carter's pick 2026-10-23): 10 stars = night,
+-- 25 = snow, 50 = lights + fans. Each look keeps the ones below it. Looks only: never on the
+-- driving line, no collisions, the track and its feel stay exactly the same.
+-- Plan: /mnt/project-files/rc-game/ideas/stars-phase2-plot-looks.md
+--
+-- Plot-local space at real RC size, as in PlotDecor: +Z is the front (the road), x from -40 to
+-- 40, z from -55 to 55, the front area (where people stand) from z 37 to 55.
+-- Plain numbers (Lune tests load this); PlotLooksBuilder makes the parts.
 
 local function sibling(name: string): any
 	if script then
-		local node: any = (script :: any).Parent
-		for _, part in string.split(name, "/") do
-			node = node[part]
-		end
-		return require(node)
+		return require((script :: any).Parent[name])
 	end
 	local luneRequire: any = require
 	return luneRequire("./" .. name)
@@ -23,17 +19,17 @@ end
 local Garage = sibling("Garage")
 local PlotDecor = sibling("PlotDecor")
 
+type V3 = Garage.V3
 type Piece = Garage.Piece
 
 local PlotLooks = {}
 
-PlotLooks.TIERS = { 10, 25, 50 } -- stars for night, snow, party
-PlotLooks.NAMES = { "NIGHT", "SNOW", "PARTY" }
-PlotLooks.NIGHT_TINT = { 20, 28, 60 } -- the plot's colours go this way at night
-PlotLooks.NIGHT_AMOUNT = 0.45
-PlotLooks.MAX_LIGHTS = 12 -- PointLights + SpotLights per plot (phones)
+PlotLooks.TIERS = { 10, 25, 50 } -- stars for night, snow, lights + fans
+PlotLooks.NIGHT_TINT = 0.5 -- night multiplies the plot's colours by this (neon stays bright)
+PlotLooks.MAX_LIGHTS = 12 -- PointLights per plot, phone budget
+PlotLooks.SNOW_RATE = 20 -- snowflakes a second over one plot
 
--- 0 = day, 1 = night, 2 = snow, 3 = party
+-- 0 = day, 1 = night, 2 = snow, 3 = lights + fans
 function PlotLooks.tier(stars: number): number
 	local t = 0
 	for i, need in PlotLooks.TIERS do
@@ -44,186 +40,170 @@ function PlotLooks.tier(stars: number): number
 	return t
 end
 
--- a colour toward the night tint (plain 0..255 numbers)
-function PlotLooks.nightColor(c: { number }): { number }
-	local a = PlotLooks.NIGHT_AMOUNT
-	local out = {}
-	for i = 1, 3 do
-		out[i] = math.floor(c[i] + (PlotLooks.NIGHT_TINT[i] - c[i]) * a + 0.5)
-	end
-	return out
-end
-
-local function v(x: number, y: number, z: number): Garage.V3
+local function v(x: number, y: number, z: number): V3
 	return { x = x, y = y, z = z }
 end
 
-local W, D = PlotDecor.HALF_W, PlotDecor.HALF_D -- 40, 55
-local TOP = PlotDecor.WALL_H + 0.3 -- top of the wall caps
-
-local BULBS = {
-	{ 255, 80, 80 },
-	{ 255, 210, 70 },
-	{ 90, 220, 120 },
-	{ 80, 170, 255 },
-	{ 230, 110, 255 },
-}
+local WARM = { 255, 214, 140 }
+local SNOW = { 248, 250, 255 }
+local BULBS = { { 255, 70, 70 }, { 255, 210, 60 }, { 70, 220, 110 }, { 70, 160, 255 } }
 local SHIRTS = {
-	{ 230, 70, 60 },
-	{ 60, 130, 230 },
-	{ 250, 200, 60 },
-	{ 80, 190, 110 },
-	{ 240, 240, 240 },
-	{ 170, 90, 220 },
+	{ 214, 48, 44 },
+	{ 38, 104, 214 },
+	{ 255, 196, 40 },
+	{ 70, 190, 90 },
+	{ 176, 70, 255 },
+	{ 255, 130, 40 },
 }
-local SKIN = { { 255, 214, 170 }, { 205, 150, 110 }, { 140, 95, 65 } }
+local SKIN = { { 255, 214, 170 }, { 214, 160, 110 }, { 150, 100, 66 }, { 240, 190, 140 } }
 
-local function night(add: Garage.Add)
-	-- lamp posts on the side walls (3 a side): pole + warm glowing head with a light
-	for _, sx in { -1, 1 } do
-		for _, z in { -35, -5, 25 } do
-			add("Night", "LampPole", v(0.3, 4.5, 0.3), v(sx * W, TOP + 2.25, z), { 50, 52, 58 }, {
-				collide = false,
-			})
-			add(
-				"Night",
-				"LampHead",
-				v(0.8, 0.5, 0.8),
-				v(sx * W, TOP + 4.7, z),
-				{ 255, 226, 160 },
-				{ collide = false, material = "Neon", light = 16 }
-			)
-		end
-	end
-end
-
-local function snow(add: Garage.Add)
-	local white = { 245, 248, 255 }
-	local opts = { collide = false, material = "Snow" }
-	-- snow on every wall top
-	for _, sx in { -1, 1 } do
-		add("Snow", "WallSnow", v(1.1, 0.25, 2 * D + 1), v(sx * W, TOP + 0.12, 0), white, opts)
-	end
-	add("Snow", "WallSnow", v(2 * W, 0.25, 1.1), v(0, TOP + 0.12, -D), white, opts)
-	-- drifts piled against the inside of the walls (thin, flat, low)
-	local drifts = {
-		{ -W + 2, -40, 3, 14 },
-		{ W - 2, -20, 3, 18 },
-		{ -W + 2, 10, 3, 12 },
-		{ W - 2, 22, 3, 10 },
-		{ -20, -D + 2, 16, 3 },
-		{ 18, -D + 2, 12, 3 },
-	}
-	for _, d in drifts do
-		add("Snow", "Drift", v(d[3], 0.3, d[4]), v(d[1], 0.15, d[2]), white, opts)
-	end
-	-- the falling snow comes from this (the builder adds the particles)
-	add("Snow", "SnowCloud", v(2 * W, 0.2, 2 * D), v(0, 22, 0), white, {
-		collide = false,
-		material = "SmoothPlastic",
-	})
-end
-
-local function party(add: Garage.Add)
-	-- string lights along both side walls, just over the lamp poles' feet
-	local n = 0
-	for _, sx in { -1, 1 } do
-		for z = -D + 3, D - 3, 4 do
-			n += 1
-			add(
-				"Party",
-				"Bulb",
-				v(0.35, 0.35, 0.35),
-				v(sx * W, TOP + 1.6 + 0.25 * math.sin(z * 0.8), z),
-				BULBS[(n % #BULBS) + 1],
-				{ collide = false, material = "Neon", shape = "Ball" }
-			)
-		end
-		add("Party", "Wire", v(0.06, 0.06, 2 * D - 4), v(sx * W, TOP + 1.75, 0), { 30, 30, 30 }, {
-			collide = false,
-		})
-	end
-	-- fans sitting on the side walls, looking in at the track
-	local k = 0
-	for _, sx in { -1, 1 } do
-		for _, z in { -42, -30, -14, 2, 14, 30 } do
-			k += 1
-			local shirt = SHIRTS[(k % #SHIRTS) + 1]
-			local skin = SKIN[(k % #SKIN) + 1]
-			local x = sx * W
-			add(
-				"Party",
-				"FanBody",
-				v(0.9, 1.1, 0.6),
-				v(x, TOP + 0.55, z),
-				shirt,
-				{ collide = false }
-			)
-			add(
-				"Party",
-				"FanHead",
-				v(0.7, 0.7, 0.7),
-				v(x, TOP + 1.45, z),
-				skin,
-				{ collide = false }
-			)
-			-- arms up: cheering
-			for _, side in { -1, 1 } do
+-- The extra pieces for tier `t` (only that tier's own; the builder adds every tier up to the
+-- plot's one). Group names: "Night", "Snow", "Party". Lamps carry `light`.
+function PlotLooks.parts(kind: string, t: number): { Piece }
+	local out: { Piece } = {}
+	local add = Garage.adder(out)
+	local W, D, H = PlotDecor.HALF_W, PlotDecor.HALF_D, PlotDecor.WALL_H
+	local noHit = { collide = false }
+	if t == 1 then
+		-- four lamp posts on the side walls, warm bulbs that light the track at night
+		for _, sx in { -1, 1 } do
+			for _, z in { -30, 10 } do
+				-- standing on the wall top, leaning over the track
+				local x = sx * W
+				add("Night", "LampPost", v(0.4, 5.5, 0.4), v(x, H + 2.75, z), { 50, 50, 56 }, noHit)
 				add(
-					"Party",
-					"FanArm",
-					v(0.25, 0.8, 0.25),
-					v(x, TOP + 1.4, z + side * 0.6),
-					shirt,
-					{ collide = false, rot = v(side * 25, 0, 0) }
+					"Night",
+					"LampArm",
+					v(1.6, 0.3, 0.3),
+					v(x - sx * 0.7, H + 5.5, z),
+					{ 50, 50, 56 },
+					noHit
+				)
+				add(
+					"Night",
+					"Lamp",
+					v(0.8, 0.5, 0.8),
+					v(x - sx * 1.3, H + 5.15, z),
+					WARM,
+					{ material = "Neon", collide = false, light = 26 }
 				)
 			end
 		end
-	end
-	-- two searchlights at the back corners
-	for _, sx in { -1, 1 } do
-		add("Party", "SearchBase", v(1.6, 1.2, 1.6), v(sx * (W - 3), 0.6, -D + 3), { 60, 62, 70 }, {
+	elseif t == 2 then
+		-- snow on the wall tops (over PlotDecor's caps) and the arch, drifts in the front area
+		local capY = H + 0.3 + 0.1
+		local w = PlotDecor.WALL_T + 0.4
+		for _, sx in { -1, 1 } do
+			add("Snow", "WallSnow", v(w, 0.2, 2 * D + w), v(sx * W, capY, 0), SNOW, noHit)
+		end
+		add("Snow", "WallSnow", v(2 * W - w, 0.2, w), v(0, capY, -D), SNOW, noHit)
+		local G = PlotDecor.GATE
+		for _, sx in { -1, 1 } do
+			local len = W - G - w / 2
+			add("Snow", "WallSnow", v(len, 0.2, w), v(sx * (G + len / 2), capY, D), SNOW, noHit)
+		end
+		-- on top of the arch (PlotDecor: rock log top 12.7, race checker 12.4, drift beam 11.6)
+		local archTop = if kind == "rock" then 12.7 elseif kind == "race" then 12.4 else 11.6
+		add("Snow", "ArchSnow", v(2 * G + 2, 0.35, 1.4), v(0, archTop + 0.17, D), SNOW, noHit)
+		-- flat drifts on the front area floor (thin, not solid: walking is the same)
+		for _, d in
+			{
+				{ -33, 52, 7, 4 },
+				{ -14, 40, 6, 3 },
+				{ 18, 51, 8, 3.5 },
+				{ 36, 47, 5, 4 },
+				{ 0, 38.6, 5, 2.4 },
+			}
+		do
+			add("Snow", "Drift", v(d[3], 0.12, d[4]), v(d[1], 0.06, d[2]), SNOW, noHit)
+		end
+		-- the snowfall: an invisible sheet high over the plot (the builder hangs the emitter)
+		add("Snow", "SnowCloud", v(2 * W, 0.2, 2 * D), v(0, 30, 0), SNOW, noHit)
+		-- a snowman by the gate
+		local sx, sz = -14, 52.5
+		add("Snow", "SnowmanBase", v(1.6, 1.6, 1.6), v(sx, 0.8, sz), SNOW, { shape = "Ball" })
+		add("Snow", "SnowmanTop", v(1.1, 1.1, 1.1), v(sx, 2.05, sz), SNOW, {
+			shape = "Ball",
 			collide = false,
 		})
 		add(
-			"Party",
-			"SearchLamp",
-			v(1.2, 1.2, 1.6),
-			v(sx * (W - 3), 1.9, -D + 3),
-			{ 255, 250, 220 },
-			{ collide = false, material = "Neon" }
+			"Snow",
+			"SnowmanNose",
+			v(0.12, 0.12, 0.4),
+			v(sx, 2.1, sz + 0.65),
+			{ 255, 130, 30 },
+			noHit
 		)
-	end
-end
-
--- Every extra piece for this tier (0 = none).
-function PlotLooks.pieces(tier: number): { Piece }
-	local out: { Piece } = {}
-	local add = Garage.adder(out)
-	if tier >= 1 then
-		night(add)
-	end
-	if tier >= 2 then
-		snow(add)
-	end
-	if tier >= 3 then
-		party(add)
+		add("Snow", "SnowmanHat", v(0.8, 0.5, 0.8), v(sx, 2.8, sz), { 30, 30, 34 }, noHit)
+	elseif t == 3 then
+		-- string lights along both side walls, bulbs in turn
+		local n = 0
+		for _, sx in { -1, 1 } do
+			local z = -D + 4
+			while z < D - 3 do
+				n += 1
+				add(
+					"Party",
+					"Bulb",
+					v(0.45, 0.45, 0.45),
+					v(sx * W, H + 0.75, z),
+					BULBS[n % #BULBS + 1],
+					{ shape = "Ball", material = "Neon", collide = false }
+				)
+				z += 6
+			end
+		end
+		-- fans along the low wall, watching the track (front area, clear of the stand and steps)
+		local i = 0
+		for _, x in { -9, -6, 6, 9, 12, 15, 18, 21 } do
+			i += 1
+			local z = PlotDecor.FRONT_Z + 1.3
+			add("Party", "FanBody", v(0.9, 1.5, 0.6), v(x, 0.75, z), SHIRTS[i % #SHIRTS + 1], noHit)
+			add("Party", "FanHead", v(0.75, 0.75, 0.75), v(x, 1.9, z), SKIN[i % #SKIN + 1], noHit)
+			-- every other fan has an arm up, cheering
+			if i % 2 == 0 then
+				add(
+					"Party",
+					"FanArm",
+					v(0.25, 1, 0.25),
+					v(x + 0.55, 2, z),
+					SKIN[i % #SKIN + 1],
+					{ rot = v(0, 0, -20), collide = false }
+				)
+			end
+		end
+		-- two searchlight beams from the back corners, crossing over the plot
+		for _, sx in { -1, 1 } do
+			add(
+				"Party",
+				"SearchBase",
+				v(1.4, 1, 1.4),
+				v(sx * (W - 2), H + 0.5, -D + 2),
+				{ 60, 60, 66 },
+				noHit
+			)
+			add(
+				"Party",
+				"SearchBeam",
+				v(1.2, 26, 1.2),
+				v(sx * (W - 2) - sx * 4.4, H + 1 + 12.5, -D + 2),
+				{ 255, 250, 210 },
+				{ rot = v(0, 0, sx * 20), material = "Neon", collide = false }
+			)
+		end
 	end
 	return out
 end
 
--- How many lights a tier makes (PointLights on pieces + the 2 searchlights' SpotLights).
-function PlotLooks.lightCount(tier: number): number
-	local n = 0
-	for _, p in PlotLooks.pieces(tier) do
-		if p.light then
-			n += 1
-		end
-		if p.name == "SearchLamp" then
-			n += 1
+-- Every piece a plot shows at tier `t` (all looks up to it).
+function PlotLooks.allParts(kind: string, t: number): { Piece }
+	local out: { Piece } = {}
+	for i = 1, t do
+		for _, p in PlotLooks.parts(kind, i) do
+			table.insert(out, p)
 		end
 	end
-	return n
+	return out
 end
 
 return PlotLooks

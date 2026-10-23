@@ -1065,6 +1065,66 @@ local function buildSkills(parent: Instance, origin: CFrame)
 	ramp.Parent = parent
 end
 
+-- Gold bolts hidden in tricky spots, a reason to come back: each sits on top of a climb that
+-- the easy way round skips, so only a driver who takes it on gets the bolt. Touch one to
+-- collect it (the "Bolt" part carries a BoltIndex attribute, 1-5). Plot-local spots.
+Plot.BOLT_LIFT = 1.6 -- how far above the climb's top each bolt floats
+export type Bolt = { x: number, y: number, z: number }
+function Plot.bolts(): { Bolt }
+	local S = Plot.SKILLS
+	local out = {}
+	local function at(u: number, side: number, top: number)
+		local x, z = Plot.spot(u, side)
+		table.insert(out, { x = x, y = top + Plot.BOLT_LIFT, z = z })
+	end
+	-- 1: on the notch ledge
+	local n = S.notch
+	at(n.u, n.side, Plot.notchBase() + n.ledge.lip)
+	-- 2: on the top rock step
+	local blocks = Plot.stepBlocks()
+	local last = blocks[#blocks]
+	at((last.u0 + last.u1) / 2, Plot.STEPS.side, last.top)
+	-- 3: on the big step-up block
+	local st = S.stepUp
+	at(st.u, st.side, Plot.stepUpBase() + st.lift)
+	-- 4: on the kicker block
+	local k = S.kicker
+	at(k.u, k.side, Plot.trailY(k.u, k.side) + k.lift)
+	-- 5: right up in the far corner of the summit, by the end wall
+	local u5 = Plot.LAST_U - 0.3
+	at(u5, 0.85, Plot.trailY(u5, 0.85))
+	return out
+end
+
+-- A spinning-looking gold bolt: a hex head on a short shaft, standing up. Cars drive through it.
+local function buildBolt(parent: Instance, origin: CFrame, index: number, b: Bolt)
+	local at = Vector3.new(b.x, b.y, b.z)
+	local gold = Color3.fromRGB(255, 196, 40)
+	local head = Kit.part(
+		parent,
+		"Bolt",
+		origin,
+		Vector3.new(0.8, 2.4, 2.4),
+		CFrame.new(at + Vector3.new(0, 0.6, 0)) * CFrame.Angles(0, 0, math.pi / 2),
+		gold
+	)
+	head.Shape = Enum.PartType.Cylinder
+	local shaft = Kit.part(
+		parent,
+		"BoltShaft",
+		origin,
+		Vector3.new(1.8, 1, 1),
+		CFrame.new(at - Vector3.new(0, 0.6, 0)) * CFrame.Angles(0, 0, math.pi / 2),
+		gold
+	)
+	shaft.Shape = Enum.PartType.Cylinder
+	for _, p in { head, shaft } do
+		p.Material = Enum.Material.Neon
+		p.CanCollide = false
+		p:SetAttribute("BoltIndex", index)
+	end
+end
+
 -- A copy of Meshy prop `name` (see Plot.MESH_PROPS), `height` tall, standing at `at` (plot
 -- local). nil when it isn't imported. Import 3D brings models in huge with the front at +Z.
 local function meshProp(
@@ -1210,6 +1270,9 @@ function Plot.build(parent: Instance, origin: CFrame)
 	buildLogBridge(parent, origin)
 	buildFaceLine(parent, origin)
 	buildSkills(parent, origin)
+	for i, at in Plot.bolts() do
+		buildBolt(parent, origin, i, at)
+	end
 	for _, pr in Plot.PROPS do
 		buildProp(parent, origin, pr)
 	end
