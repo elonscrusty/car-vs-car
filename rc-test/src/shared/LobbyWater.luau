@@ -1,7 +1,7 @@
 --!strict
 -- The lake at the end of the lobby street (past LobbyLayout.ground() on the LAKE_SIDE edge): a
--- grass bank, a wavy sand beach, shallow then deep water, two plank docks with a rowboat and life
--- rings. A real lake, not the sea: grass and sand all round it, with the landscaping's hills on the
+-- grass bank, a wavy sand beach, shallow then deep water, two plank docks with a rowboat each and
+-- life rings. A real lake, not the sea: grass and sand all round it, with the landscaping's hills on the
 -- far side and the ends (LobbyWater.landBox()).
 -- Looks only. Plain numbers (Lune tests load this); LobbyWaterBuilder turns the pieces into Parts.
 
@@ -403,13 +403,34 @@ local function docks(): { Landing & { len: number } }
 	}
 end
 
--- The rowboat: middle (x, z) and which way its bow points (degrees round the up axis; 0 = +z).
--- It's tied up on the outer side of the right dock.
-function LobbyWater.boatSpot(): (number, number, number)
-	local bd = docks()[2]
-	local along = LobbyWater.SAND + 14
-	local beside = 3 + 0.4 + 2 -- half the dock, a gap, half the boat
-	return bd.x + beside, bd.z + bd.dz * along, if bd.dz > 0 then 0 else 180
+-- The rowboats: middle (x, z) and which way each bow points (degrees round the up axis; 0 = +z).
+-- One is tied up on the outer side of each dock.
+function LobbyWater.boatSpots(): { { x: number, z: number, ry: number } }
+	local out = {}
+	for i, d in docks() do
+		local along = LobbyWater.SAND + 14
+		local beside = 3 + 0.4 + 2 -- half the dock, a gap, half the boat
+		local sx = if i == 2 then 1 else -1 -- the outer side
+		table.insert(out, {
+			x = d.x + sx * beside,
+			z = d.z + d.dz * along,
+			ry = if d.dz > 0 then 0 else 180,
+		})
+	end
+	return out
+end
+
+-- The far end of each dock: middle of its last plank's outer edge (x, z) and which way it points
+-- out (dz), for the fishing spots.
+function LobbyWater.dockEnds(): { { x: number, z: number, dz: number } }
+	local out = {}
+	local plank, gap = 1.1, 0.2
+	for _, d in docks() do
+		local n = math.floor(d.len / (plank + gap))
+		local e = -LobbyWater.DOCK_FREE + 0.5 + n * (plank + gap) - gap
+		table.insert(out, { x = d.x, z = d.z + d.dz * e, dz = d.dz })
+	end
+	return out
 end
 
 -- The life ring posts: where each stands on a dock edge, and `ry` turning local +z from the post
@@ -468,8 +489,9 @@ function LobbyWater.pieces(): { Piece }
 	for _, d in docks() do
 		dock(out, d.x, d.z, d.dx, d.dz, d.len)
 	end
-	local bx, bz, bry = W.boatSpot()
-	boat(out, bx, bz, bry)
+	for _, b in W.boatSpots() do
+		boat(out, b.x, b.z, b.ry)
+	end
 	for _, r in W.ringSpots() do
 		lifebuoy(out, r.x, r.z, r.ry)
 	end
