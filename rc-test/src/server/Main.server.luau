@@ -218,6 +218,12 @@ LobbyPlots.onDrive = function(player: Player, slotIndex: number)
 	remote:FireClient(player, "drive", slotIndex)
 end
 
+-- The spawn lobby's drift / race / rock pads: stand on one to go drive an open plot of that kind.
+require(script.Parent.QueuePads).start({
+	findOpen = LobbyPlots.findOpen,
+	sendTo = LobbyPlots.sendTo,
+})
+
 -- Off the stand, back on that plot's pad, walking.
 local function walk(player: Player)
 	local slotIndex = LobbyPlots.release(player)
