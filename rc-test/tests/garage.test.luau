@@ -64,3 +64,29 @@ test("there is a lift with a car, a bench, a tool board, a chest and tires", fun
 		truthy(groups[g], g)
 	end
 end)
+
+test(
+	"each Meshy prop has a home: its stand-in group, a spot in the box, real kept names",
+	function()
+		local names: { [string]: { [string]: boolean } } = {}
+		for _, p in G.parts() do
+			names[p.group] = names[p.group] or {}
+			names[p.group][p.name] = true
+		end
+		local b = G.BOX
+		for _, m in G.MESHES do
+			truthy(names[m.group], m.model .. " group " .. m.group)
+			truthy(m.long == "x" or m.long == "z", m.model .. " long")
+			local hx, hz = m.fit.x / 2, m.fit.z / 2
+			if m.long == "z" then
+				hx, hz = m.fit.z / 2, m.fit.x / 2
+			end
+			truthy(m.at.x - hx >= b.minX and m.at.x + hx <= b.maxX, m.model .. " x")
+			truthy(m.at.z - hz >= b.minZ and m.at.z + hz <= b.maxZ, m.model .. " z")
+			truthy(m.at.y + m.fit.y <= b.maxY, m.model .. " y")
+			for _, k in m.keep do
+				truthy(names[m.group][k], m.model .. " keeps " .. k)
+			end
+		end
+	end
+)
