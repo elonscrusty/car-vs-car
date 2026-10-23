@@ -241,6 +241,148 @@ function TrackTiles.remove(grid: Grid, c: number, r: number): (boolean, string?)
 	return false, "Nothing there"
 end
 
+-- ===== Drag and drop (carter 22:03: "make it a drag and drop", "all tiles without paying") =====
+
+TrackTiles.ALL_FREE = true -- testing: every tile unlocked for everyone (false = TileShop decides)
+
+local STRAIGHTS = { start = true, straight = true, boost = true, oil = true, chicane = true }
+local BENDS = { turn = true, sharp = true }
+
+-- The world edges a placed tile's road touches.
+local function edgesOf(t: Tile): { number }
+	local def = BY_ID[t.piece]
+	local out = {}
+	if def then
+		for e = 0, 3 do
+			if opens(def, t.rot, e) then
+				table.insert(out, e)
+			end
+		end
+	end
+	return out
+end
+
+-- Edge of cell a that faces cell b (nil if not side by side).
+local function edgeTo(ac: number, ar: number, bc: number, br: number): number?
+	for e = 0, 3 do
+		if ac + STEP[e + 1][1] == bc and ar + STEP[e + 1][2] == br then
+			return e
+		end
+	end
+	return nil
+end
+
+local function connected(grid: Grid, c: number, r: number, e: number): boolean
+	local n = TrackTiles.get(grid, c + STEP[e + 1][1], r + STEP[e + 1][2])
+	return n ~= nil and table.find(edgesOf(n), (e + 2) % 4) ~= nil
+end
+
+-- Make the cell's road join edges a and b, keeping its special piece when it still fits.
+local function setLink(grid: Grid, c: number, r: number, a: number, b: number)
+	local old = TrackTiles.get(grid, c, r)
+	local straight = (a + 2) % 4 == b
+	local id = if straight then "straight" else "turn"
+	if old then
+		if straight and STRAIGHTS[old.piece] then
+			id = old.piece
+		elseif not straight and BENDS[old.piece] then
+			id = old.piece
+		elseif old.piece == "start" then
+			return -- the START stays a straight
+		end
+	end
+	local rot = TrackTiles.fit(id, a, b) :: number
+	if old and (old.piece == "start") and (old.rot - rot) % 2 == 0 then
+		rot = old.rot -- keep which way the START points
+	end
+	TrackTiles.place(grid, c, r, id, rot)
+end
+
+-- Finger dragged across these cells (each next to the last): lay road along them. Straights
+-- and turns are picked and turned automatically. Crossing a straight road at right angles
+-- makes a CROSS. Returns ok, why.
+function TrackTiles.drawPath(grid: Grid, cells: { { number } }): (boolean, string?)
+	local n = #cells
+	if n < 2 then
+		return false, "Drag across squares"
+	end
+	for i, cell in cells do
+		if type(cell) ~= "table" or not inside(grid, cell[1], cell[2]) then
+			return false, "Off the plot"
+		end
+		if i > 1 and not edgeTo(cells[i - 1][1], cells[i - 1][2], cell[1], cell[2]) then
+			return false, "Drag square by square"
+		end
+	end
+	for i, cell in cells do
+		local c, r = cell[1], cell[2]
+		local inE = if i > 1 then edgeTo(c, r, cells[i - 1][1], cells[i - 1][2]) else nil
+		local outE = if i < n then edgeTo(c, r, cells[i + 1][1], cells[i + 1][2]) else nil
+		local old = TrackTiles.get(grid, c, r)
+		local a, b = inE, outE
+		if not a or not b then
+			-- an end of the drag: join the road that is already here, or carry straight on
+			local new = (a or b) :: number
+			local keep: number? = nil
+			if old then
+				for _, e in edgesOf(old) do
+					if
+						e ~= new
+						and connected(grid, c, r, e)
+						and (keep == nil or e == (new + 2) % 4)
+					then
+						keep = e
+					end
+				end
+			end
+			a, b = new, keep or (new + 2) % 4
+		end
+		local ea, eb = a :: number, b :: number
+		if old and (ea + 2) % 4 == eb and #edgesOf(old) == 2 then
+			local oe = edgesOf(old)
+			local crossing = (oe[1] + 2) % 4 == oe[2] and oe[1] % 2 ~= ea % 2
+			if crossing and old.piece == "straight" and inE and outE then
+				TrackTiles.place(grid, c, r, "cross", 0)
+				continue
+			end
+		end
+		if old and old.piece == "cross" and (ea + 2) % 4 == eb and inE and outE then
+			continue -- driving straight through a crossing keeps it
+		end
+		setLink(grid, c, r, ea, eb)
+	end
+	return true, nil
+end
+
+-- Drop a special tile on a road square: it turns itself to fit the road there.
+function TrackTiles.drop(grid: Grid, c: number, r: number, id: string): (boolean, string?)
+	local old = TrackTiles.get(grid, c, r)
+	if not old then
+		return false, "Drop it on the road"
+	end
+	if not BY_ID[id] or id == "start" then
+		return false, "Unknown piece"
+	end
+	if old.piece == "start" then
+		return false, "Not on the START"
+	end
+	local e = edgesOf(old)
+	if id == "cross" then
+		if #e == 2 and (e[1] + 2) % 4 == e[2] then
+			return TrackTiles.place(grid, c, r, "cross", 0)
+		end
+		return false, "Cross goes on a straight"
+	end
+	if #e ~= 2 then
+		return false, "Doesn't fit here"
+	end
+	local rot = TrackTiles.fit(id, e[1], e[2])
+	if not rot then
+		return false, if STRAIGHTS[id] then "Needs a straight" else "Needs a turn"
+	end
+	return TrackTiles.place(grid, c, r, id, rot)
+end
+
 -- The starter track: a ring round the edge of the grid, START in the front row going east.
 function TrackTiles.circle(cols: number, rows: number): Grid
 	local grid: Grid = { cols = cols, rows = rows, tiles = {} }
