@@ -59,7 +59,7 @@ LobbyDecor.BIT_DZ = -30 -- hydrant / bin / mailbox: this far up the street
 LobbyDecor.PATH_X = EDGE - 1.2 -- footpath things stand by the outer edge
 LobbyDecor.FLAG_X = EDGE + 5 -- flags and flower beds in the gaps
 LobbyDecor.CORNER = { x = 94, z = L.PLAZA.minZ + 40 } -- the RC corners (x mirrored)
-LobbyDecor.CORNER_CONES = { { -11, 12 }, { -7, 14 }, { 10, -12 } } -- round a corner (x mirrored)
+LobbyDecor.CORNER_CONES = { { -17, 14 }, { -12, 17 }, { 15, -15 } } -- round a corner (x mirrored)
 
 local function v(x: number, y: number, z: number): V3
 	return { x = x, y = y, z = z }
@@ -97,17 +97,17 @@ LobbyDecor.BRIGHT = {
 }
 local BRIGHT = LobbyDecor.BRIGHT
 
--- Bunting across the road at every lamp pair: one rope and 9 pennants.
+-- Bunting across the road at every lamp pair: one rope and 11 big pennants.
 local function bunting(add: Garage.Add, z: number, n: number)
 	local g = "Bunting" .. n
 	local half = L.EDGE - 1 -- the lamps stand here (LobbyLayout.lamps)
 	local top = LobbyDecor.BUNTING_Y
-	add(g, "Rope", v(2 * half, 0.12, 0.12), v(0, top, z), C.rope, { collide = false })
-	local flags = 9
+	add(g, "Rope", v(2 * half, 0.2, 0.2), v(0, top, z), C.rope, { collide = false })
+	local flags = 11
 	for i = 1, flags do
 		local x = -half + i * (2 * half / (flags + 1))
 		-- a wedge pointing down: its slope faces -z, the point at the bottom
-		add(g, "Pennant", v(0.08, 1.3, 1.2), v(x, top - 0.6, z), BRIGHT[(i + n) % #BRIGHT + 1], {
+		add(g, "Pennant", v(0.08, 2.2, 1.9), v(x, top - 1.1, z), BRIGHT[(i + n) % #BRIGHT + 1], {
 			shape = "Wedge",
 			rot = v(180, 90, 0),
 			collide = false,
@@ -211,7 +211,7 @@ local function scaled(add: Garage.Add, k: number, x: number, z: number): Garage.
 	end
 end
 
-LobbyDecor.GIANT = 1.6 -- how much bigger than the stand-in sizes below the giant props are
+LobbyDecor.GIANT = 2.2 -- how much bigger than the stand-in sizes below the giant props are
 
 -- A giant RC remote lying back on a slope, two sticks up, antenna up.
 local function giantRemote(add0: Garage.Add, g: string, x: number, z: number)
@@ -241,7 +241,7 @@ end
 
 -- A wooden jump ramp (rising toward +x), for looks.
 local function ramp(add: Garage.Add, g: string, x: number, z: number)
-	add(g, "Ramp", v(6, 2.4, 8), v(x, 1.2, z), C.wood, { shape = "Wedge", rot = v(0, -90, 0) })
+	add(g, "Ramp", v(10, 4, 14), v(x, 2, z), C.wood, { shape = "Wedge", rot = v(0, -90, 0) })
 end
 
 -- The block pieces (world space). The meshes in MESHES take the place of some groups.
@@ -324,11 +324,11 @@ function LobbyDecor.parts(): { Piece }
 	local cx, cz = LobbyDecor.CORNER.x, LobbyDecor.CORNER.z
 	giantRemote(add, "GiantRemote", -cx, cz)
 	giantBattery(add, "GiantBattery", cx, cz)
-	ramp(add, "Ramp", -cx + 2, cz + 16)
+	ramp(add, "Ramp", -cx + 2, cz + 20)
 	for _, side in { -1, 1 } do
-		tireStack(add, "CornerTires" .. side, side * (cx + 13), cz - 8, 3)
-		tireStack(add, "CornerTires2" .. side, side * (cx + 15.5), cz - 6, 2)
-		tireStack(add, "CornerTires3" .. side, side * (cx - 13), cz + 9, 2)
+		tireStack(add, "CornerTires" .. side, side * (cx + 17), cz - 11, 3)
+		tireStack(add, "CornerTires2" .. side, side * (cx + 19.5), cz - 8.5, 2)
+		tireStack(add, "CornerTires3" .. side, side * (cx - 17), cz + 11, 2)
 		for i, d in LobbyDecor.CORNER_CONES do
 			cone(add, "CornerCone" .. side .. "_" .. i, side * (cx + d[1]), cz + d[2])
 		end
@@ -384,14 +384,14 @@ do
 		end
 	end
 	local cx, cz = LobbyDecor.CORNER.x, LobbyDecor.CORNER.z
-	mesh("RCRemote", "GiantRemote", v(-cx, 0, cz), v(17, 19, 12), true)
-	mesh("Battery", "GiantBattery", v(cx, 0, cz), v(19, 8, 8), true)
-	mesh("WoodRamp", "Ramp", v(-cx + 2, 0, cz + 16), v(8, 2.6, 6), true)
+	mesh("RCRemote", "GiantRemote", v(-cx, 0, cz), v(24, 28, 16), true)
+	mesh("Battery", "GiantBattery", v(cx, 0, cz), v(26, 11, 11), true)
+	mesh("WoodRamp", "Ramp", v(-cx + 2, 0, cz + 20), v(14, 4.5, 10), true)
 	for _, side in { -1, 1 } do
 		for _, g in { "CornerTires", "CornerTires2", "CornerTires3" } do
 			local tall = if g == "CornerTires" then 2.4 else 1.6
-			local dx = if g == "CornerTires" then 13 elseif g == "CornerTires2" then 15.5 else -13
-			local dz = if g == "CornerTires" then -8 elseif g == "CornerTires2" then -6 else 9
+			local dx = if g == "CornerTires" then 17 elseif g == "CornerTires2" then 19.5 else -17
+			local dz = if g == "CornerTires" then -11 elseif g == "CornerTires2" then -8.5 else 11
 			mesh("TireStack", g .. side, v(side * (cx + dx), 0, cz + dz), v(2.6, tall, 2.6), true)
 		end
 		for i, d in LobbyDecor.CORNER_CONES do
