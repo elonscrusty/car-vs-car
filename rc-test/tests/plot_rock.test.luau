@@ -375,3 +375,21 @@ test("backyard props stand on the plot, well clear of the trail", function()
 		)
 	end
 end)
+
+test("five gold bolts, each on a climb, inside the walls, apart", function()
+	local bolts = Plot.bolts()
+	eq(#bolts, 5)
+	for i, b in bolts do
+		truthy(math.abs(b.x) < Kit.WIDTH / 2 - 4, `bolt {i} inside the side walls`)
+		truthy(
+			b.z > -Kit.DEPTH / 2 + 4 and b.z < Kit.FRONT_Z - 2,
+			`bolt {i} inside the back and front`
+		)
+		truthy(b.y > Plot.groundAt(b.x, b.z) + 1, `bolt {i} floats above the ground`)
+		for j = i + 1, #bolts do
+			local o = bolts[j]
+			local d = math.sqrt((b.x - o.x) ^ 2 + (b.y - o.y) ^ 2 + (b.z - o.z) ^ 2)
+			truthy(d > 20, `bolts {i} and {j} are apart`)
+		end
+	end
+end)
