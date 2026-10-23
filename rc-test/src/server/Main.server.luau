@@ -12,6 +12,7 @@ local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local CarBuilder = require(script.Parent.CarBuilder)
 local LobbyBuilder = require(script.Parent.LobbyBuilder)
 local TrackBuilder = require(script.Parent.TrackBuilder)
+local PlotDecorBuilder = require(script.Parent.PlotDecorBuilder)
 
 Players.CharacterAutoLoads = false
 
@@ -24,6 +25,7 @@ for _, name in { "Baseplate", "SpawnLocation" } do
 end
 
 TrackBuilder.build()
+PlotDecorBuilder.build()
 local lobby = LobbyBuilder.build()
 local slots = LobbyLayout.slots()
 
