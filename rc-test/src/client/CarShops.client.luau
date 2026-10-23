@@ -394,14 +394,23 @@ local function showTiles(s: State, result: string?)
 			table.insert(list, t)
 		end
 	end
+	-- five rows show at once; more scroll (swipe on a phone)
 	local rows = #list
+	local pages = math.max(rows / 5, 1)
+	local scroller = Instance.new("ScrollingFrame")
+	scroller.Size = UDim2.fromScale(0.62, 0.78)
+	scroller.BackgroundTransparency = 1
+	scroller.BorderSizePixel = 0
+	scroller.ScrollBarThickness = 8
+	scroller.ScrollingDirection = Enum.ScrollingDirection.Y
+	scroller.CanvasSize = UDim2.fromScale(0, pages)
+	scroller.Parent = body
 	for i, t in list do
-		local y = (i - 1) / rows * 0.78
 		local row = Instance.new("Frame")
-		row.Position = UDim2.fromScale(0, y)
-		row.Size = UDim2.fromScale(0.62, 0.78 / rows - 0.02)
+		row.Position = UDim2.fromScale(0, (i - 1) / math.max(rows, 5))
+		row.Size = UDim2.new(1, -12, 1 / math.max(rows, 5), -6)
 		row.BackgroundColor3 = Color3.fromRGB(48, 48, 58)
-		row.Parent = body
+		row.Parent = scroller
 		corner(row, 0.25)
 		local dot = Instance.new("Frame")
 		dot.Position = UDim2.fromScale(0.02, 0.15)
