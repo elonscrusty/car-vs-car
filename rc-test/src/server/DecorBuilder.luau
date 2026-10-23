@@ -21,6 +21,7 @@ function DecorBuilder.build(parent: Instance): Model
 		local group = groups[f.group]
 		local at = Vector3.new(f.at.x, f.at.y, f.at.z)
 		local cf = CFrame.lookAt(at, at + Vector3.new(f.face.x, f.face.y, f.face.z))
+			* CFrame.Angles(0, math.rad(f.turn), 0)
 		local prop = group and MeshProps.place(group, f.model, cf, f.height)
 		if prop then
 			for _, d in prop:GetDescendants() do

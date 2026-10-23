@@ -36,6 +36,7 @@ export type Faced = {
 	face: V3,
 	keep: { string },
 	collide: boolean,
+	turn: number, -- extra turn (degrees about y) after facing, see FRONT_TURN
 }
 
 export type Flyer = {
@@ -84,6 +85,7 @@ export type Extra = {
 	size: { number },
 	color: { number },
 	solid: boolean,
+	turn: number?,
 }
 LobbyDecor.CORNER_CONES = { { -17, 14 }, { -12, 17 }, { 15, -15 } } -- round a corner (x mirrored)
 
@@ -270,6 +272,10 @@ local function ramp(add: Garage.Add, g: string, x: number, z: number)
 	add(g, "Ramp", v(10, 4, 14), v(x, 2, z), C.wood, { shape = "Wedge", rot = v(0, -90, 0) })
 end
 
+-- MeshProps.place turns a prop's +Z side to the look direction, but these props have their
+-- real front (door, latch) at -Z (props/HANDOFF.md "FRONT DIRECTION"), so they turn round.
+LobbyDecor.FRONT_TURN = { Mailbox = 180, Toolbox = 180 } :: { [string]: number }
+
 local function extras(): { Extra }
 	local out: { Extra } = {}
 	local function put(
@@ -281,7 +287,8 @@ local function extras(): { Extra }
 		fz: number,
 		size: { number },
 		color: { number },
-		solid: boolean
+		solid: boolean,
+		turn: number?
 	)
 		table.insert(out, {
 			model = model,
@@ -293,6 +300,7 @@ local function extras(): { Extra }
 			size = size,
 			color = color,
 			solid = solid,
+			turn = turn,
 		})
 	end
 	local n = 0
@@ -343,7 +351,20 @@ local function extras(): { Extra }
 			C.cone,
 			true
 		)
-		put("ArrowSign", side * (L.EDGE + 4.5), mouth + 5, 4, 0, -1, { 0.3, 4, 2.4 }, C.white, true)
+		-- its face to the road; its arrow (the mesh's -X) points down the street, which on the
+		-- right side needs it turned round (it is flat, so both sides show)
+		put(
+			"ArrowSign",
+			side * (L.EDGE + 4.5),
+			mouth + 5,
+			4,
+			-side,
+			0,
+			{ 0.3, 4, 2.4 },
+			C.white,
+			true,
+			if side > 0 then 180 else 0
+		)
 	end
 	-- RC workshop bits round the giant corners
 	local cx, cz = LobbyDecor.CORNER.x, LobbyDecor.CORNER.z
@@ -518,7 +539,8 @@ do
 		height: number,
 		face: V3,
 		keep: { string }?,
-		collide: boolean?
+		collide: boolean?,
+		turn: number?
 	)
 		table.insert(F, {
 			model = model,
@@ -528,6 +550,7 @@ do
 			face = face,
 			keep = keep or {},
 			collide = collide ~= false,
+			turn = (turn or 0) + (LobbyDecor.FRONT_TURN[model] or 0),
 		})
 	end
 	local n = 0
@@ -570,7 +593,7 @@ do
 		end
 	end
 	for i, e in extras() do
-		faced(e.model, "Extra" .. i, v(e.x, 0, e.z), e.h, v(e.fx, 0, e.fz), {}, e.solid)
+		faced(e.model, "Extra" .. i, v(e.x, 0, e.z), e.h, v(e.fx, 0, e.fz), {}, e.solid, e.turn)
 	end
 end
 
