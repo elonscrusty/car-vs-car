@@ -1,7 +1,8 @@
 --!strict
--- The spawn lobby at the top of the street (carter's plan v5): where everyone appears. A warm
--- paved square with the car shop (left) and the upgrades garage (right) at the back, everyone's
--- car on a row of turntables between them, a giant toy car on a plinth in the middle, three
+-- The spawn lobby at the top of the street (carter's plan v5, shops from his v2 idea): where
+-- everyone appears. A warm paved square with a drift car shop and a race car shop down the left,
+-- a rock crawler shop and the upgrades garage down the right, everyone's car on a row of
+-- turntables at the back, a giant toy car on a plinth in the middle, three
 -- play pads at the front (drift, race, rock: stand on one and QueuePads sends you to an open plot
 -- of that kind), and a checkered arch where the street starts. Lamps, bunting and trees round it. No text.
 --
@@ -30,8 +31,15 @@ SpawnLobby.WIDTH = 120 -- x
 SpawnLobby.DEPTH = 72 -- z
 -- Everything fits in here (trees stand just behind the back edge).
 SpawnLobby.BOX = { minX = -60, maxX = 60, minZ = -45, maxZ = 36, maxY = 15 }
-SpawnLobby.SHOP = { x = -40, z = -24 } -- car shop, open front toward the street
-SpawnLobby.GARAGE = { x = 40, z = -24 } -- upgrades garage, same
+-- The buildings down the two sides, open fronts facing the middle (yaw: which way the open front
+-- turns, in degrees; 90 = toward +X). Drift and race shops on the left, rock shop and the
+-- upgrades garage on the right (carter's spawn plan v2).
+SpawnLobby.BUILDINGS = {
+	{ kind = "drift", x = -50, z = -20, yaw = 90 },
+	{ kind = "race", x = -50, z = 12, yaw = 90 },
+	{ kind = "rock", x = 50, z = -22, yaw = -90 },
+	{ kind = "garage", x = 50, z = 10, yaw = -90 },
+}
 SpawnLobby.SPAWN = { x = 0, z = 15 } -- where people appear, looking at the statue (-Z)
 SpawnLobby.GAP = 13 -- the front edge is open for |x| < GAP: the walk onto the street
 SpawnLobby.STATUE = { x = 0, z = -6 }
@@ -40,16 +48,16 @@ SpawnLobby.STANDS = { -19.25, -13.75, -8.25, -2.75, 2.75, 8.25, 13.75, 19.25 } -
 SpawnLobby.PAD_Z = 23
 -- play pads (queue pads), one per plot kind, each in its own colour
 SpawnLobby.PADS = {
-	{ x = -36, kind = "drift", color = { 150, 70, 210 } },
+	{ x = -27, kind = "drift", color = { 150, 70, 210 } },
 	{ x = 0, kind = "race", color = { 226, 52, 46 } },
-	{ x = 36, kind = "rock", color = { 70, 176, 64 } },
+	{ x = 27, kind = "rock", color = { 70, 176, 64 } },
 }
 SpawnLobby.ARCH_Z = 33.5
 SpawnLobby.LAMPS = {
-	{ x = -57, z = -32 },
-	{ x = 57, z = -32 },
-	{ x = -57, z = 0 },
-	{ x = 57, z = 0 },
+	{ x = -34, z = -33 },
+	{ x = 34, z = -33 },
+	{ x = -38, z = -5 },
+	{ x = 38, z = -5 },
 	{ x = -57, z = 32 },
 	{ x = 57, z = 32 },
 	{ x = -10, z = 31 },
@@ -58,10 +66,8 @@ SpawnLobby.LAMPS = {
 SpawnLobby.TREES = { -54, -38, -22, -8, 8, 22, 38, 54 } -- x, behind the back edge
 SpawnLobby.TREE_Z = -40
 SpawnLobby.BUSHES = {
-	{ x = -57, z = -16 },
-	{ x = 57, z = -16 },
-	{ x = -57, z = 16 },
-	{ x = 57, z = 16 },
+	{ x = -36, z = 31 },
+	{ x = 36, z = 31 },
 	{ x = -27, z = -13 },
 	{ x = 27, z = -13 },
 }
@@ -336,11 +342,14 @@ end
 -- Every piece, the shop and the garage too (shifted to their spots). For pictures and tests.
 function SpawnLobby.allParts(): { Piece }
 	local out = SpawnLobby.parts()
-	for _, spot in { { SpawnLobby.SHOP, "shop" }, { SpawnLobby.GARAGE, "garage" } } do
-		local at, kind = spot[1] :: any, spot[2] :: string
-		for _, p in Garage.parts(kind) do
-			p.group = kind .. "/" .. p.group
-			p.pos = v(p.pos.x + at.x, p.pos.y, p.pos.z + at.z)
+	for _, b in SpawnLobby.BUILDINGS do
+		local r = math.rad(b.yaw)
+		local c, sn = math.cos(r), math.sin(r)
+		for _, p in Garage.parts(b.kind) do
+			p.group = b.kind .. "/" .. p.group
+			-- turned like CFrame.Angles(0, yaw, 0), then moved to its spot
+			p.pos = v(b.x + c * p.pos.x + sn * p.pos.z, p.pos.y, b.z - sn * p.pos.x + c * p.pos.z)
+			p.rot = v(p.rot.x, p.rot.y + b.yaw, p.rot.z)
 			table.insert(out, p)
 		end
 	end
@@ -439,14 +448,16 @@ function SpawnLobby.build(parent: Instance, at: CFrame): Model
 		game:GetService("CollectionService"):AddTag(base, "QueuePad")
 	end
 	Garage.useMeshes(groups, origin, SpawnLobby.MESHES)
-	for _, spot in { { SpawnLobby.SHOP, "shop" }, { SpawnLobby.GARAGE, "garage" } } do
-		local p, kind = spot[1] :: any, spot[2] :: string
+	for _, b in SpawnLobby.BUILDINGS do
 		Garage.build(
 			model,
-			origin * CFrame.new(p.x, 0, p.z) * CFrame.Angles(0, math.pi, 0),
+			origin
+				* CFrame.new(b.x, 0, b.z)
+				* CFrame.Angles(0, math.rad(b.yaw), 0)
+				* CFrame.Angles(0, math.pi, 0),
 			nil,
 			nil,
-			kind
+			b.kind
 		)
 	end
 	model.Parent = parent
