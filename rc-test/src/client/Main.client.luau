@@ -113,6 +113,12 @@ for i in LobbyLayout.slots() do
 	tracks[i] = t
 	timers[i] = LapTimer.new(t.gates, t.mode)
 end
+-- a plot whose owner built their own track: refresh its copy and its lap timer
+require(ReplicatedStorage.Shared.PlotTracks).watch(function(i: number)
+	local t: TrackData.Track = LobbyLayout.track(i)
+	tracks[i] = t
+	timers[i] = LapTimer.new(t.gates, t.mode)
+end)
 local labels: { string } = {}
 for i, id in TrackData.order do
 	labels[i] = TrackData.get(id).label

@@ -206,10 +206,22 @@ function LobbyLayout.parkSpot(n: number): (number, number)
 	return -5.25 + ((n - 1) % 4) * 3.5, LobbyLayout.road().minZ + 4
 end
 
--- A lobby plot as a track: its kind's data, placed and turned where that plot sits.
+-- Lobby plots whose owner built their own track: its driving data (mode, spawn, gates,
+-- checkpoints, plot-local big studs like a Plots/<Type>), by slot. Set by PlotTracks.
+LobbyLayout.custom = {} :: { [number]: any }
+
+-- A lobby plot as a track: its kind's data (or its owner's own track), placed and turned where
+-- that plot sits.
 function LobbyLayout.track(slotIndex: number): any
 	local slot = LobbyLayout.slots()[slotIndex]
 	local t = TrackData.get(slot.id)
+	local own = LobbyLayout.custom[slotIndex]
+	if own then
+		t.mode = own.mode or t.mode
+		t.spawn = own.spawn or t.spawn
+		t.gates = own.gates or t.gates
+		t.checkpoints = own.checkpoints
+	end
 	t.rcX, t.rcZ, t.rcAngle = slot.plotX, slot.plotZ, slot.angle
 	return t
 end
