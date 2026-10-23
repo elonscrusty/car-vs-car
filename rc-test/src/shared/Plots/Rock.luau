@@ -61,6 +61,7 @@ Plot.GRASS_DRAG = 10 -- extra rolling drag on the grass (the car reads the "Drag
 -- because drag grows with speed and the crawler is slow
 Plot.RIM = 10 -- the rock wall round the back and sides stands this high above the ground
 Plot.FRONT_RIM = 3 -- and this high along the front, under the stand's view
+Plot.SUMMIT_WALL = 5 -- the wall across the far end of the summit stands this high
 Plot.GRASS_TOP = 14 -- ground below this height (off the trail) is grass, higher is rock
 -- Highest bump the car can crawl over.
 Plot.MAX_LIFT = 1.6
@@ -216,7 +217,9 @@ function Plot.creekDip(x: number, z: number): number
 end
 
 -- Rock steps up the low shelf: flat blocks, each a small step up from the one before.
-Plot.STEPS = { from = 13.05, to = 13.95, n = 5 }
+-- Three tall steps on the hill side of the trail: too tall to just hold the gas up, it takes
+-- backing up and trying again. The front side of the trail is the easy way round.
+Plot.STEPS = { from = 13.05, to = 13.95, n = 3, side = -0.3, width = 26 }
 
 -- The step blocks: from u0 to u1, top and bottom heights.
 function Plot.stepBlocks(): { { u0: number, u1: number, top: number, bottom: number } }
@@ -236,16 +239,18 @@ end
 -- * stepUp: a tall rock block on the hill side; put one wheel on the small rock in front first.
 -- * kicker: a steep ramp up onto a high block on the front side; it needs a run-up.
 Plot.SKILLS = {
-	notch = { u = 4.45, side = 0.1, gap = 0.18, r = 7, lift = 2.4 },
+	notch = { u = 4.45, side = 0.1, gap = 0.15, r = 7, lift = 3.2 },
 	stepUp = {
 		u = 12.35,
-		side = -0.45,
-		width = 15,
+		side = -0.55,
+		width = 12,
 		length = 10,
 		lift = 2.6,
-		helper = { u = 12.23, side = -0.55, r = 2.6, lift = 1.3 },
+		-- a low block right in front, on the line to the middle of the big one: about half its
+		-- height, so the car goes up in two steps
+		helper = { width = 6, length = 5, lift = 1.4 },
 	},
-	kicker = { u = 18.4, side = -0.5, width = 14, length = 8, lift = 2.6, ramp = 4.5 },
+	kicker = { u = 18.4, side = -0.5, width = 14, length = 8, lift = 3.2, ramp = 4 },
 }
 
 -- Mountain peaks along the back wall, behind the summit, so the hill rises into real mountains.
@@ -676,8 +681,9 @@ local function buildSteps(parent: Instance, origin: CFrame)
 			parent,
 			"Ledge",
 			origin,
-			Vector3.new(ROAD + 2 * Plot.SHOULDER - 2, st.top - st.bottom, len),
-			Plot.bankCF((st.u0 + st.u1) / 2, (ax + bx) / 2, (st.top + st.bottom) / 2, (az + bz) / 2),
+			Vector3.new(Plot.STEPS.width, st.top - st.bottom, len),
+			Plot.bankCF((st.u0 + st.u1) / 2, (ax + bx) / 2, (st.top + st.bottom) / 2, (az + bz) / 2)
+				* CFrame.new(Plot.STEPS.side * HALF, 0, 0),
 			C.rock
 		)
 		p.Material = Enum.Material.Slate
@@ -776,8 +782,16 @@ local function buildSkills(parent: Instance, origin: CFrame)
 		)
 	)
 	local hp = st.helper
-	local hx, hz = Plot.spot(hp.u, hp.side)
-	Kit.rock(parent, origin, hx, Plot.trailY(hp.u, hp.side) + hp.lift - hp.r, hz, hp.r)
+	slate(Kit.part(
+		parent,
+		"Ledge",
+		origin,
+		Vector3.new(hp.width, hp.lift + 2, hp.length),
+		-- in front of the big block (the bank frame's +Z points back down the trail)
+		Plot.bankCF(st.u, x, y, z)
+			* CFrame.new(0, hp.lift / 2 - 1, st.length / 2 + hp.length / 2 - 0.5),
+		C.rock
+	))
 	-- the kicker: a block with a steep ramp up to it from behind (the bank frame's +Z points
 	-- back down the trail)
 	local k = S.kicker
@@ -819,6 +833,17 @@ function Plot.build(parent: Instance, origin: CFrame)
 	buildLogBridge(parent, origin)
 	buildFaceLine(parent, origin)
 	buildSkills(parent, origin)
+	-- a rock wall across the end of the summit, so holding the gas doesn't drive off the back
+	local ex, ez, eh = Plot.at(Plot.LAST_U - 0.05)
+	local endWall = Kit.part(
+		parent,
+		"Wall",
+		origin,
+		Vector3.new(ROAD + 2 * Plot.SHOULDER, Plot.SUMMIT_WALL + 3, 3),
+		Plot.bankCF(Plot.LAST_U - 0.05, ex, eh + (Plot.SUMMIT_WALL - 3) / 2, ez),
+		C.rock
+	)
+	endWall.Material = Enum.Material.Slate
 	-- the flag at the summit, beside the trail
 	local fx, fz, _, tx, tz = Plot.at(Plot.FLAG_U)
 	local px, pz = fx - tz * (HALF - 3), fz + tx * (HALF - 3)
