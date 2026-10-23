@@ -1,0 +1,228 @@
+--!strict
+-- Build your own track, server side (carter 2026-10-23, rc-game/build-track/PLAN.md).
+-- Every race plot starts as the starter circle. Its owner swaps tiles during the server race
+-- break (workspace.BuildOpen, set by ServerRaceRunner). The client only asks; this checks the
+-- owner, the break, the cell, the piece and TileShop, then saves (Profile.setTrack), rebuilds the
+-- plot's track (TrackBuilder.rebuild) and hands the driving data to PlotTracks. The plot model
+-- gets TrackReady = true/false, which the server race uses to pick a plot.
+--
+-- Remote ReplicatedStorage.TrackBuildEvent:
+--   client -> ("place", c, r, pieceId, rot) | ("remove", c, r) | ("done")
+--   server -> ("state", { cols, rows, cells = { {c, r, piece, rot} }, ready, why })
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
+local PlotTracks = require(ReplicatedStorage.Shared.PlotTracks)
+local Profile = require(ReplicatedStorage.Shared.Profile)
+local TrackTiles = require(ReplicatedStorage.Shared.TrackTiles)
+local LobbyPlots = require(script.Parent.LobbyPlots)
+local PlayerData = require(script.Parent.PlayerData)
+local TrackBuilder = require(script.Parent.TrackBuilder)
+
+-- TileShop (Spawn lobby thread) says which pieces a save owns; until it ships, free ones only.
+local function owns(d: any, id: string): boolean
+	local mod = ReplicatedStorage.Shared:FindFirstChild("TileShop")
+	if mod then
+		return (require(mod) :: any).owns(d, id)
+	end
+	local p = TrackTiles.piece(id)
+	return p ~= nil and p.tier == "free"
+end
+
+local TrackBuild = {}
+
+local RATE = 12 -- requests a second per player
+local RACE = "race" -- only race plots are built from tiles for now
+
+local remote = Instance.new("RemoteEvent")
+remote.Name = "TrackBuildEvent"
+remote.Parent = ReplicatedStorage
+
+local grids: { [number]: TrackTiles.Grid } = {} -- slot -> grid now on that plot
+local results: { [number]: TrackTiles.Result } = {}
+local pending: { [number]: boolean } = {}
+local budget: { [Player]: { t: number, n: number } } = {}
+
+local function plotModel(slot: number): Instance?
+	local s = LobbyLayout.slots()[slot]
+	local plots = workspace:FindFirstChild("Plots")
+	return if s and plots then plots:FindFirstChild(slot .. "_" .. s.id) else nil
+end
+
+local function isRace(slot: number): boolean
+	local s = LobbyLayout.slots()[slot]
+	return s ~= nil and s.id == RACE
+end
+
+-- The grid a player should have: their save, sized by their stars (tiles past the edge drop).
+local function gridFor(player: Player?): TrackTiles.Grid
+	local d = if player then PlayerData.get(player) else nil
+	local cols, rows = TrackTiles.sizeFor(if d then d.stars else 0)
+	local saved = if d then Profile.getTrack(d) else nil
+	if not saved then
+		return TrackTiles.circle(cols, rows)
+	end
+	local grid: TrackTiles.Grid = { cols = cols, rows = rows, tiles = {} }
+	for _, t in saved.tiles do
+		if t.c <= cols and t.r <= rows and TrackTiles.piece(t.piece) then
+			table.insert(grid.tiles, { c = t.c, r = t.r, piece = t.piece, rot = t.rot })
+		end
+	end
+	return grid
+end
+
+local function stateOf(slot: number): { [string]: any }
+	local g = grids[slot]
+	local res = results[slot]
+	return {
+		cols = g.cols,
+		rows = g.rows,
+		cells = TrackTiles.copy(g).tiles,
+		ready = res ~= nil and res.ok,
+		why = if res then res.why else nil,
+	}
+end
+
+local function sendState(slot: number)
+	local owner = LobbyPlots.ownerOf(slot)
+	if owner and grids[slot] then
+		remote:FireClient(owner, "state", stateOf(slot))
+	end
+end
+
+-- Rebuild the plot from its grid (batched: many taps in a row = one rebuild).
+local function rebuild(slot: number)
+	if pending[slot] then
+		return
+	end
+	pending[slot] = true
+	task.delay(0.25, function()
+		pending[slot] = nil
+		local grid = grids[slot]
+		if not grid then
+			return
+		end
+		local res = TrackTiles.trace(grid)
+		results[slot] = res
+		TrackBuilder.rebuild(slot, function(parent: Instance, origin: CFrame)
+			TrackTiles.build(parent, origin, grid)
+		end)
+		PlotTracks.set(slot, TrackTiles.track(res))
+		local m = plotModel(slot)
+		if m then
+			m:SetAttribute("TrackReady", res.ok)
+		end
+		sendState(slot)
+	end)
+end
+
+-- Put the right grid on a race plot (owner's save, or the starter circle when nobody owns it).
+local function load(slot: number)
+	if not isRace(slot) then
+		return
+	end
+	grids[slot] = gridFor(LobbyPlots.ownerOf(slot))
+	rebuild(slot)
+end
+
+local function allowed(player: Player): boolean
+	local now = os.clock()
+	local b = budget[player]
+	if not b or now - b.t >= 1 then
+		budget[player] = { t = now, n = 1 }
+		return true
+	end
+	b.n += 1
+	return b.n <= RATE
+end
+
+local function onRequest(player: Player, kind: any, c: any, r: any, piece: any, rot: any)
+	if not allowed(player) or type(kind) ~= "string" then
+		return
+	end
+	local slot = LobbyPlots.slotOf(player)
+	if not slot or not isRace(slot) or not grids[slot] then
+		return
+	end
+	if kind == "done" then
+		sendState(slot)
+		return
+	end
+	if workspace:GetAttribute("BuildOpen") ~= true then
+		sendState(slot)
+		return
+	end
+	if type(c) ~= "number" or type(r) ~= "number" then
+		return
+	end
+	local d = PlayerData.get(player)
+	if not d then
+		return
+	end
+	local grid = grids[slot]
+	local ok = false
+	if kind == "place" then
+		if type(piece) ~= "string" or type(rot) ~= "number" or not TrackTiles.piece(piece) then
+			return
+		end
+		if not owns(d, piece) then
+			sendState(slot)
+			return
+		end
+		ok = TrackTiles.place(grid, c, r, piece, rot)
+	elseif kind == "remove" then
+		ok = TrackTiles.remove(grid, c, r)
+	end
+	if ok then
+		Profile.setTrack(d, TrackTiles.copy(grid).tiles)
+		PlayerData.touch(player)
+		rebuild(slot)
+	else
+		sendState(slot)
+	end
+end
+
+-- The traced track on a plot (loop, gates, spawn, lineSample), or nil if it isn't ready.
+function TrackBuild.trackFor(slot: number): TrackTiles.Result?
+	local res = results[slot]
+	return if res and res.ok then res else nil
+end
+
+function TrackBuild.start()
+	remote.OnServerEvent:Connect(onRequest)
+	for slot in LobbyLayout.slots() do
+		load(slot)
+	end
+	-- owner changed (claim, leave): show their track, or the circle again
+	local owners: { [number]: number } = {}
+	LobbyPlots.changed:Connect(function(slot: number)
+		local owner = LobbyPlots.ownerOf(slot)
+		local id = if owner then owner.UserId else 0
+		if owners[slot] ~= id then
+			owners[slot] = id
+			load(slot)
+		end
+	end)
+	-- a save that loads after the claim
+	PlayerData.loaded:Connect(function(player: Player)
+		local slot = LobbyPlots.slotOf(player)
+		if slot then
+			load(slot)
+		end
+	end)
+	-- break starts: hand every owner their grid so the build screen opens
+	workspace:GetAttributeChangedSignal("BuildOpen"):Connect(function()
+		if workspace:GetAttribute("BuildOpen") == true then
+			for slot in grids do
+				sendState(slot)
+			end
+		end
+	end)
+	Players.PlayerRemoving:Connect(function(player)
+		budget[player] = nil
+	end)
+end
+
+return TrackBuild
