@@ -68,7 +68,7 @@ joinSize.Parent = join
 local call = Instance.new("Frame")
 call.Name = "Call"
 call.AnchorPoint = Vector2.new(0.5, 0)
-call.Position = UDim2.new(0.5, 0, 0, 58)
+call.Position = UDim2.new(0.5, 0, 0.22, 0) -- under the top-row buttons (FRIENDS, LOOKS)
 call.Size = UDim2.fromScale(0.5, 0.36)
 call.BackgroundTransparency = 1
 call.Visible = false
@@ -292,17 +292,20 @@ local function showResult(rows: { any })
 		`<font color="#9AA0AA">NEXT RACE IN {ServerRace.clock(ServerRace.BREAK)}</font>`
 	)
 	rowsText.Text = table.concat(lines, "\n")
+	-- the card fits its rows (one racer = a short card, no empty gap)
+	local tall = 0.2 + 0.045 * #lines
+	rowsText.Size = UDim2.fromScale(0.86, (0.045 * #lines) / tall)
 	showId += 1
 	local me = showId
 	card.Visible = true
-	card.Size = UDim2.fromScale(0.3, 0.26)
-	TweenService
-		:Create(
-			card,
-			TweenInfo.new(0.35, Enum.EasingStyle.Back),
-			{ Size = UDim2.fromScale(0.46, 0.4) }
-		)
-		:Play()
+	card.Size = UDim2.fromScale(0.3, tall * 0.65)
+	title.Size = UDim2.fromScale(0.9, 0.14 / tall)
+	rowsText.Position = UDim2.fromScale(0.07, 0.05 + 0.16 / tall)
+	TweenService:Create(
+		card,
+		TweenInfo.new(0.35, Enum.EasingStyle.Back),
+		{ Size = UDim2.fromScale(0.46, tall) }
+	):Play()
 	task.delay(ServerRace.SHOW, function()
 		if me == showId then
 			card.Visible = false

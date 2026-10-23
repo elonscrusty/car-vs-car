@@ -17,12 +17,13 @@ export type RoadArrow = {
 local RoadArrow = {}
 
 local COLOR = Color3.fromRGB(255, 220, 60)
-local LONG = 14 -- arrow length along the road (big units)
-local WIDE = 9 -- arrow width (big units)
+local LONG = 22 -- arrow length along the road (big units)
+local WIDE = 14 -- arrow width (big units)
 
 function RoadArrow.new(ignore: { Instance }): RoadArrow
 	-- a flat see-through plate with two big glowing ▲ drawn on its top face (a crisp shape from
-	-- any camera; on a Top face the picture's top edge is the plate's front, -Z)
+	-- any camera; on a Top face the picture's top edge is the plate's -X, so the plate is turned
+	-- a quarter to put -X forward)
 	local model = Instance.new("Model")
 	model.Name = "RoadArrow"
 	local plate = Instance.new("Part")
@@ -37,7 +38,7 @@ function RoadArrow.new(ignore: { Instance }): RoadArrow
 	local face = Instance.new("SurfaceGui")
 	face.Face = Enum.NormalId.Top
 	face.LightInfluence = 0
-	face.Brightness = 2
+	face.Brightness = 4
 	face.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
 	face.PixelsPerStud = 60
 	face.Parent = plate
@@ -93,11 +94,12 @@ function RoadArrow.new(ignore: { Instance }): RoadArrow
 		local from = Vector3.new(wx, wy + 20 * s, wz)
 		local hit = workspace:Raycast(from, Vector3.new(0, -60 * s, 0), params)
 		local y = if hit then hit.Position.Y + 0.06 else wy
-		plate.Size = Vector3.new(WIDE * s, 0.05, LONG * s)
+		plate.Size = Vector3.new(LONG * s, 0.05, WIDE * s) -- X runs along the road (see above)
 		plate.CFrame = CFrame.lookAt(Vector3.new(wx, y, wz), Vector3.new(wx + fx, y, wz + fz))
-		local glow = 0.1 + 0.25 * (0.5 + 0.5 * math.sin(os.clock() * 6))
+			* CFrame.Angles(0, -math.pi / 2, 0)
+		local glow = 0.05 * (0.5 + 0.5 * math.sin(os.clock() * 6))
 		for i, t in marks do
-			t.TextTransparency = glow + (i - 1) * 0.3
+			t.TextTransparency = glow + (i - 1) * 0.25
 		end
 		model.Parent = workspace
 	end

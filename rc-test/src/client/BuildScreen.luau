@@ -35,6 +35,7 @@ export type State = {
 	cells: { Cell },
 	pieces: { Piece }, -- every tile, to draw the grid
 	specials: { string }, -- ids in the drag bar, in order
+	stray: { [string]: boolean }?, -- "c,r" of tiles the loop skips (drawn dimmed)
 	locks: { [string]: string }?, -- id -> what opens it ("150", "5 STARS"); missing = yours
 	ready: boolean,
 	why: string?, -- when not ready: "Road has a gap"
@@ -150,7 +151,12 @@ local function drawRoad(parent: GuiObject, piece: Piece, rot: number)
 		l.AnchorPoint = Vector2.new(0.5, 0.5)
 		l.Position = UDim2.fromScale(0.5, 0.5)
 		l.Size = UDim2.fromScale(w, w)
-		l.Rotation = rot * 90
+		-- arrows turn with the road (» is drawn pointing right, so a quarter back); words stay
+		-- upright so they read
+		l.Rotation = if piece.icon == "»"
+			then rot * 90 - 90
+			elseif piece.icon == "▲" then rot * 90
+			else 0
 		l.ZIndex = 3
 	end
 end
@@ -322,6 +328,17 @@ function BuildScreen.new(opts: Options): BuildScreen
 				if here and piece then
 					f.Name = cellKey(c, r)
 					drawRoad(f, piece, here.rot)
+					-- a tile off the loop: dimmed, so it doesn't look broken next to READY
+					if state.stray and state.stray[cellKey(c, r)] then
+						local dim = Instance.new("Frame")
+						dim.Name = "Stray"
+						dim.BackgroundColor3 = DARK
+						dim.BackgroundTransparency = 0.45
+						dim.BorderSizePixel = 0
+						dim.Size = UDim2.fromScale(1, 1)
+						dim.ZIndex = 4
+						dim.Parent = f
+					end
 					if selected == cellKey(c, r) and not erasing then
 						-- a ring and a turn badge: "tap me to turn"
 						rim(f, YELLOW, 3)
@@ -626,6 +643,10 @@ function BuildScreen.new(opts: Options): BuildScreen
 	function screen.show(on: boolean)
 		gui.Enabled = on
 		Players.LocalPlayer:SetAttribute("Building", on) -- lobby buttons hide under the screen
+		-- and the DRIVE (E) prompts in the world don't show through the tile bar
+		pcall(function()
+			(game:GetService("ProximityPromptService") :: any).Enabled = not on
+		end)
 		if on then
 			relayout()
 		else
