@@ -147,7 +147,11 @@ RunService.RenderStepped:Connect(function()
 	local secs = startAt - workspace:GetServerTimeNow()
 	-- the call: the small chip steps aside for the huge banner
 	call.Visible = phase == "call" and startAt > 0
-	join.Visible = phase ~= "racing" and phase ~= "call" and startAt > 0
+	-- (the build screen has its own clock)
+	join.Visible = phase ~= "racing"
+		and phase ~= "call"
+		and startAt > 0
+		and player:GetAttribute("Building") ~= true
 	if call.Visible then
 		callWhere.Text = if where ~= "" then `RACE ON {where}` else "RACE!"
 		callClock.Text = ServerRace.clock(secs)

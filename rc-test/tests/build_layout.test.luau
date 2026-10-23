@@ -107,30 +107,14 @@ test("countdown and status words", function()
 	eq(BuildLayout.clock(300), "5:00")
 	eq(BuildLayout.clock(272.2), "4:33")
 	eq(BuildLayout.clock(-3), "0:00")
-	eq(BuildLayout.statusText(true), "✓ RACE READY")
-	eq(BuildLayout.statusText(false), "NOT READY")
-end)
-
-local function key(path: { BuildLayout.Spot }): string
-	local out = {}
-	for _, p in path do
-		table.insert(out, `{p.c},{p.r}`)
-	end
-	return table.concat(out, " ")
-end
-
-test("a drag grows the road one square at a time", function()
-	local path = {}
-	BuildLayout.extend(path, 2, 2)
-	BuildLayout.extend(path, 2, 2) -- same square: nothing
-	BuildLayout.extend(path, 3, 2)
-	eq(key(path), "2,2 3,2")
-	BuildLayout.extend(path, 5, 4) -- a fast swipe skips squares: they get filled in
-	eq(key(path), "2,2 3,2 4,2 5,2 5,3 5,4")
-	BuildLayout.extend(path, 5, 3) -- back one square: undo
-	eq(key(path), "2,2 3,2 4,2 5,2 5,3")
-	for i = 2, #path do
-		truthy(BuildLayout.side(path[i - 1], path[i]) ~= nil, "every step touches the last")
+	eq(BuildLayout.statusText(true), "✓ READY")
+	eq(BuildLayout.statusText(false), "GAP!")
+	eq(BuildLayout.hint(false, false, false), "DRAG A TILE")
+	eq(BuildLayout.hint(false, true, false), "FIX THE GAP")
+	eq(BuildLayout.hint(true, false, false), "TAP DONE!")
+	eq(BuildLayout.hint(true, false, true), "TAP TO ERASE")
+	for _, w in { BuildLayout.hint(false, false, false), BuildLayout.hint(false, true, false) } do
+		truthy(#string.split(w, " ") <= 3, "hint is 3 words or less")
 	end
 end)
 
