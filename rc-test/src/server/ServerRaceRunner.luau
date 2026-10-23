@@ -18,6 +18,38 @@ local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local LobbyPlots = require(script.Parent.LobbyPlots)
 
+-- The track builder's traced tracks (built plots): loop(), lineSample() like Plots/Race.
+local function tracedFor(slot: number): any?
+	local mod = script.Parent:FindFirstChild("TrackBuild")
+	if not (mod and mod:IsA("ModuleScript")) then
+		return nil
+	end
+	local ok, res = pcall(function(): any
+		return (require(mod) :: any).trackFor(slot)
+	end)
+	return if ok then res else nil
+end
+
+-- Grid spot k on this plot, plot-local: lined up behind its start line (a built track's, else
+-- the street race plot's), or the plot's own start spot when it has neither.
+local function gridSpot(slot: number, t: TrackData.Track, k: number): ServerRace.Spawn
+	local src = tracedFor(slot)
+	if
+		src == nil
+		and LobbyLayout.slots()[slot].id == "race"
+		and LobbyLayout.custom[slot] == nil
+	then
+		src = TrackData.plot("race")
+	end
+	if src then
+		local ok, spot = pcall(ServerRace.gridOn, src, k, t.spawn.y)
+		if ok then
+			return spot
+		end
+	end
+	return t.spawn
+end
+
 export type Hooks = {
 	remote: RemoteEvent, -- RCControl: ("drive", slot, grid) puts a player on the grid
 	walk: (player: Player) -> (), -- off the plot, back to walking
@@ -205,7 +237,7 @@ local function runRace(hooks: Hooks, slot: number)
 				hooks.walk(p)
 			end
 			LobbyPlots.claim(p, slot)
-			hooks.remote:FireClient(p, "drive", slot, k)
+			hooks.remote:FireClient(p, "drive", slot, gridSpot(slot, t, k))
 			table.insert(racers, {
 				player = p,
 				name = p.DisplayName,
