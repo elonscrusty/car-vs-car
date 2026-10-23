@@ -156,15 +156,12 @@ function LobbyLayout.cones(): { Spot }
 	for _, s in LobbyLayout.slots() do
 		for _, dz in { -1, 1 } do
 			local face = if s.padX < 0 then 1 else -1
-			table.insert(
-				out,
-				{
-					x = s.padX,
-					z = s.padZ + dz * (LobbyLayout.PAD / 2 + 1.2),
-					faceX = face,
-					faceZ = 0,
-				}
-			)
+			table.insert(out, {
+				x = s.padX,
+				z = s.padZ + dz * (LobbyLayout.PAD / 2 + 1.2),
+				faceX = face,
+				faceZ = 0,
+			})
 		end
 	end
 	return out
