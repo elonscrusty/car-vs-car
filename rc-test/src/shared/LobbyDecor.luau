@@ -26,6 +26,18 @@ type V3 = Garage.V3
 type Piece = Garage.Piece
 type Mesh = Garage.Mesh
 
+-- A Meshy prop that must look one way (MeshProps.place turns its front to `face`), standing
+-- `height` tall on `at`; it takes the place of its group's block stand-ins, but `keep`.
+export type Faced = {
+	model: string,
+	group: string,
+	at: V3,
+	height: number,
+	face: V3,
+	keep: { string },
+	collide: boolean,
+}
+
 export type Flyer = {
 	kind: string, -- "Butterfly" or "Bird"
 	x: number, -- middle of its loop
@@ -379,23 +391,6 @@ do
 				v(1.8, 2.4, 4.8),
 				true
 			)
-			local kind = n % 3
-			local at = v(x, 0, z + LobbyDecor.BIT_DZ)
-			if kind == 0 then
-				mesh("Hydrant", "Hydrant" .. n, at, v(1.6, 2.2, 1.6), true)
-			elseif kind == 1 then
-				mesh("TrashCan", "TrashCan" .. n, at, v(1.8, 3, 1.8), true)
-			else
-				mesh("Mailbox", "Mailbox" .. n, at, v(1.6, 3.4, 1.8), true)
-			end
-		end
-	end
-	n = 0
-	for _, z in GAP_Z do
-		for _, side in { -1, 1 } do
-			n += 1
-			local model = if n % 2 == 0 then "BlueFlag" else "Flag"
-			mesh(model, "Flag" .. n, v(side * LobbyDecor.FLAG_X, 0, z - 2), v(4, 11.5, 4), true)
 		end
 	end
 	local cx, cz = LobbyDecor.CORNER.x, LobbyDecor.CORNER.z
@@ -417,6 +412,62 @@ do
 				v(1.3, 1.4, 1.3),
 				false
 			)
+		end
+	end
+end
+
+-- Meshy props that face the road: hydrant / bin / mailbox, the gap flags, and flower pots and a
+-- bush on each gap's flower bed.
+LobbyDecor.FACED = {} :: { Faced }
+do
+	local F = LobbyDecor.FACED
+	local function faced(
+		model: string,
+		group: string,
+		at: V3,
+		height: number,
+		face: V3,
+		keep: { string }?,
+		collide: boolean?
+	)
+		table.insert(F, {
+			model = model,
+			group = group,
+			at = at,
+			height = height,
+			face = face,
+			keep = keep or {},
+			collide = collide ~= false,
+		})
+	end
+	local n = 0
+	for _, z in ROW_Z do
+		for _, side in { -1, 1 } do
+			n += 1
+			local road = v(-side, 0, 0)
+			local at = v(side * LobbyDecor.PATH_X, 0, z + LobbyDecor.BIT_DZ)
+			local kind = n % 3
+			if kind == 0 then
+				faced("Hydrant", "Hydrant" .. n, at, 2.2, road)
+			elseif kind == 1 then
+				faced("TrashCan", "TrashCan" .. n, at, 3, road)
+			else
+				faced("Mailbox", "Mailbox" .. n, at, 3.4, road)
+			end
+		end
+	end
+	n = 0
+	for _, z in GAP_Z do
+		for _, side in { -1, 1 } do
+			n += 1
+			local road = v(-side, 0, 0)
+			local model = if n % 2 == 0 then "BlueFlag" else "Flag"
+			faced(model, "Flag" .. n, v(side * LobbyDecor.FLAG_X, 0, z - 2), 11.5, road)
+			local bx = side * (LobbyDecor.FLAG_X + 5)
+			local bed = "FlowerBed" .. n
+			faced("Bush", bed, v(bx + side * 0.6, 0.2, z - 0.6), 2.2, road, { "Bed" }, false)
+			faced("FlowerPot", bed, v(bx - side * 0.8, 0.2, z - 2.2), 1.8, road, { "Bed" }, false)
+			faced("FlowerPot", bed, v(bx - side * 0.8, 0.2, z + 1.8), 1.8, road, { "Bed" }, false)
 		end
 	end
 end
