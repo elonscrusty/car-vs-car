@@ -3,6 +3,7 @@
 -- back to walking, and the stand prompts are hidden on this screen. While walking, the stand
 -- prompts (E or tap) ask the server to drive; the server answers with "drive" / "walk".
 -- Standing on a pad also shows a big DRIVE button in the same spot, for a thumb on a phone.
+-- While walking, a FRIENDS button at the top lets the owner of a plot let others drive it.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -49,6 +50,40 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 	local driveGui, driveButton = bigButton("Drive", "DRIVE (E)")
 	driveButton.BackgroundColor3 = Color3.fromRGB(230, 180, 30)
 	driveButton.TextColor3 = Color3.fromRGB(30, 30, 34)
+
+	-- FRIENDS: ON / OFF for the plot you own (the server says which one, and its state)
+	local friendsGui, friendsButton = bigButton("Friends", "FRIENDS: OFF")
+	friendsButton.AnchorPoint = Vector2.new(0.5, 0)
+	friendsButton.Position = UDim2.new(0.5, 0, 0, 12)
+	friendsButton.Size = UDim2.fromOffset(170, 44)
+	friendsButton.TextSize = 18
+	local ownSlot: number? = nil
+	local friendsOn = false
+	local function showFriends()
+		friendsButton.Text = if friendsOn then "FRIENDS: ON" else "FRIENDS: OFF"
+		friendsButton.BackgroundColor3 = if friendsOn
+			then Color3.fromRGB(60, 170, 80)
+			else Color3.fromRGB(40, 40, 46)
+		friendsGui.Enabled = ownSlot ~= nil and not driving
+	end
+	friendsButton.Activated:Connect(function()
+		if ownSlot then
+			remote:FireServer("open", not friendsOn)
+		end
+	end)
+	remote.OnClientEvent:Connect(function(kind: unknown, slot: unknown, open: unknown)
+		if kind == "own" and type(slot) == "number" and type(open) == "boolean" then
+			ownSlot = slot
+			friendsOn = open
+			showFriends()
+		elseif kind == "closed" then
+			-- not your plot and not open (or someone is on it): say so on the DRIVE button
+			driveButton.Text = "NOT OPEN"
+			task.delay(1.5, function()
+				driveButton.Text = "DRIVE (E)"
+			end)
+		end
+	end)
 
 	local function askWalk()
 		if driving and canWalk() then
@@ -106,6 +141,7 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 	function lobby.setDriving(on: boolean)
 		driving = on
 		gui.Enabled = on
+		showFriends()
 		if on then
 			shown = nil
 			driveGui.Enabled = false

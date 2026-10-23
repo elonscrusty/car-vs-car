@@ -153,4 +153,13 @@ end)
 test("signs show the plot kind until someone drives that plot, then their name", function()
 	eq(L.signText(nil, "Race"), "RACE")
 	eq(L.signText("carter", "Race"), "carter")
+	eq(L.signText("carter", "Race", true), "carter - OPEN")
+end)
+
+test("a plot can be driven when it is free and yours, nobody's, or opened to friends", function()
+	eq(L.canDrive(nil, 1, false, false), true) -- nobody's
+	eq(L.canDrive(1, 1, false, false), true) -- yours
+	eq(L.canDrive(2, 1, false, false), false) -- someone else's, closed
+	eq(L.canDrive(2, 1, true, false), true) -- someone else's, open
+	eq(L.canDrive(1, 1, true, true), false) -- someone is on it
 end)
