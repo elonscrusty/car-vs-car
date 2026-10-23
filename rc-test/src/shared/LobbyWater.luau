@@ -213,6 +213,85 @@ local function wavy(
 	end
 end
 
+-- Something placed in its own little frame: local (lx, ly, lz) turned by `ry` round the up axis
+-- and moved to (x, y, z). Local +z is the thing's front.
+local function framed(out: { Piece }, x: number, y: number, z: number, ry: number)
+	local c, sn = math.cos(math.rad(ry)), math.sin(math.rad(ry))
+	return function(
+		name: string,
+		lx: number,
+		ly: number,
+		lz: number,
+		sx: number,
+		sy: number,
+		sz: number,
+		color: { number },
+		ryExtra: number?,
+		rz: number?
+	): Piece
+		return piece(
+			out,
+			name,
+			x + lx * c + lz * sn,
+			y + ly,
+			z - lx * sn + lz * c,
+			sx,
+			sy,
+			sz,
+			color,
+			true,
+			ry + (ryExtra or 0),
+			rz
+		)
+	end
+end
+
+local BOAT_WHITE = { 236, 236, 230 }
+local BOAT_RED = { 205, 60, 50 }
+
+-- A little rowboat floating at (x, z), its bow pointing along `ry`: white hull, red sides, two
+-- seats and a pair of oars. You can climb in.
+local function boat(out: { Piece }, x: number, z: number, ry: number)
+	local put = framed(out, x, LobbyWater.WATER_TOP - 0.2, z, ry)
+	put("BoatHull", 0, 0, 0, 3.4, 0.6, 7, BOAT_WHITE)
+	put("BoatFloor", 0, 0.35, 0, 3.3, 0.1, 6.9, PLANK_A)
+	for _, side in { -1, 1 } do
+		put("BoatSide", side * 1.85, 0.35, 0, 0.35, 1.3, 7, BOAT_RED)
+		put("BoatTrim", side * 1.85, 1.1, 0, 0.45, 0.2, 7.05, BOAT_WHITE)
+		put("BoatOar", side * 0.9, 0.95, 0.3, 0.25, 0.15, 5.5, PLANK_B, side * 8)
+	end
+	put("BoatStern", 0, 0.35, -3.6, 4.05, 1.3, 0.35, BOAT_RED)
+	-- a stepped low-poly bow
+	put("BoatBow", 0, 0.2, 4.1, 2.8, 1.6, 1.2, BOAT_RED)
+	put("BoatBow", 0, 0.2, 5.1, 1.5, 1.6, 0.9, BOAT_RED)
+	put("BoatBowTrim", 0, 1.1, 4.5, 2.9, 0.2, 2.2, BOAT_WHITE)
+	put("BoatSeat", 0, 0.75, -1.6, 3.4, 0.25, 0.9, PLANK_B)
+	put("BoatSeat", 0, 0.75, 1.8, 3.4, 0.25, 0.9, PLANK_B)
+end
+
+-- A red and white life ring hanging on a post. The post stands at (x, z) on a dock's edge; the
+-- ring hangs on the post's deck side (local +z points at the deck).
+local function lifebuoy(out: { Piece }, x: number, z: number, ry: number)
+	local put = framed(out, x, LobbyWater.DECK_TOP, z, ry)
+	put("BuoyPost", 0, 1.8, 0, 0.5, 3.6, 0.5, POST)
+	local r, n = 1.0, 8
+	for i = 0, n - 1 do
+		local a = (i + 0.5) / n * 2 * math.pi
+		put(
+			"Buoy",
+			math.cos(a) * r,
+			2.3 + math.sin(a) * r,
+			0.5,
+			2 * (r + 0.21) * math.tan(math.pi / n), -- outer edges meet: no gaps
+			0.42,
+			0.42,
+			if i % 2 == 0 then BOAT_RED else BOAT_WHITE,
+			0,
+			math.deg(a) + 90
+		)
+	end
+end
+
 -- A dock from (x, z) on the bank edge out over the water in direction (dx, dz) (one of the 4
 -- sides), `len` long, 6 wide: plank deck on posts, two short posts at the far end.
 local function dock(out: { Piece }, x: number, z: number, dx: number, dz: number, len: number)
@@ -449,6 +528,12 @@ local function islandSpot(): (number, number, number)
 	return LobbyWater.bankBox().maxX + 38, g.minZ + 40, 14
 end
 
+-- The island footbridge: from x0 (on the bank) to x1 (on the island) along depth z.
+function LobbyWater.bridgeSpan(): (number, number, number)
+	local isX, isZ, isR = islandSpot()
+	return LobbyWater.bankBox().maxX - LobbyWater.DOCK_FREE + 0.5, isX - isR + 2, isZ
+end
+
 -- Every dock and the footbridge, where it meets the bank edge and which way it points out
 -- (landscaping opens its fence and keeps a walking lane clear in line with each one).
 function LobbyWater.landings(): { Landing }
@@ -496,7 +581,31 @@ function LobbyWater.pieces(): { Piece }
 	-- a small island off the back-right, reached by an arched footbridge from the right bank
 	local isX, isZ, isR = islandSpot()
 	island(out, isX, isZ, isR)
-	footbridge(out, bank.maxX - LobbyWater.DOCK_FREE + 0.5, isX - isR + 2, isZ)
+	local b0, b1, bz = LobbyWater.bridgeSpan()
+	footbridge(out, b0, b1, bz)
+
+	-- a rowboat tied up beside the right dock, and life rings by two docks
+	local ds = docks()
+	local bd = ds[3]
+	local along = LobbyWater.DOCK_FREE + LobbyWater.SAND + 9
+	local beside = 3 + 0.4 + 2 -- half the dock, a gap, half the boat
+	boat(
+		out,
+		bd.x + bd.dx * along - bd.dz * beside,
+		bd.z + bd.dz * along + bd.dx * beside,
+		if bd.dx ~= 0 then 90 * bd.dx else 0
+	)
+	for _, i in { 1, 3 } do
+		local d = ds[i]
+		local at = LobbyWater.DOCK_FREE + LobbyWater.SAND + 1
+		-- on the side away from the boat, ring facing across the deck
+		local side = -1
+		local px = d.x + d.dx * at - d.dz * side * 3.3
+		local pz = d.z + d.dz * at + d.dx * side * 3.3
+		-- local +z must point from the post back toward the deck middle
+		local tx, tz = d.dz * side, -d.dx * side
+		lifebuoy(out, px, pz, math.deg(math.atan2(tx, tz)))
+	end
 
 	-- invisible walls so people cannot wander off across the lake floor
 	local wall = grow(bank, LobbyWater.WALL)
