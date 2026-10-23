@@ -110,8 +110,10 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 				})
 			end
 		end
+		-- a BillboardGui only draws reliably from PlayerGui; Adornee puts it over the car
 		local tag = nameTag(body, playerName(model), s)
-		tag.Parent = f
+		tag.ResetOnSpawn = false
+		tag.Parent = Players.LocalPlayer:FindFirstChildOfClass("PlayerGui") or f
 		local o = { body = body, folder = f, wheels = wheels, scale = s, tag = tag }
 		others[model] = o
 		return o
@@ -121,6 +123,7 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 		local o = others[model]
 		if o then
 			o.folder:Destroy()
+			o.tag:Destroy()
 			others[model] = nil
 		end
 	end
@@ -155,6 +158,7 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 			local cf = body.CFrame
 			local near = (cf.Position - eye).Magnitude < FAR
 			o.folder.Parent = if near then folder else nil
+			o.tag.Enabled = near
 			if not near then
 				continue
 			end
