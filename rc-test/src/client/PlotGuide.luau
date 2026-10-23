@@ -154,6 +154,7 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 		driving = on
 		if on and padDistance() < NEAR * 2 then
 			driven = true -- drove from their own pad
+			player:SetAttribute("HasDriven", true) -- the build screen may now open by itself
 		end
 	end
 	return guide

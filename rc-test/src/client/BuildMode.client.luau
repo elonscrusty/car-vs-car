@@ -271,14 +271,50 @@ event.OnClientEvent:Connect(function(kind: unknown, data: unknown)
 	end
 end)
 
+-- BUILD on foot in the break: opens the screen again after DONE (or before your first drive)
+local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
+local buildGui = Instance.new("ScreenGui")
+buildGui.Name = "BuildButton"
+buildGui.ResetOnSpawn = false
+buildGui.IgnoreGuiInset = true
+buildGui.DisplayOrder = HudLayout.HUD
+buildGui.Parent = player:WaitForChild("PlayerGui")
+local buildBtn = Instance.new("TextButton")
+buildBtn.Name = "Build"
+HudLayout.place(buildBtn, "Build", "walk")
+buildBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 40)
+buildBtn.TextColor3 = Color3.fromRGB(40, 30, 0)
+buildBtn.Font = Enum.Font.GothamBlack
+buildBtn.TextScaled = true
+buildBtn.Text = "BUILD!"
+buildBtn.Visible = false
+buildBtn.Parent = buildGui
+local buildCorner = Instance.new("UICorner")
+buildCorner.CornerRadius = UDim.new(0.3, 0)
+buildCorner.Parent = buildBtn
+local buildPad = Instance.new("UIPadding")
+buildPad.PaddingTop = UDim.new(0.2, 0)
+buildPad.PaddingBottom = UDim.new(0.2, 0)
+buildPad.Parent = buildBtn
+local asked = false -- tapped BUILD this break
+buildBtn.Activated:Connect(function()
+	closed, asked = false, true
+end)
+
 local open = false
 local lastEnd = 0
 RunService.Heartbeat:Connect(function()
 	local e = endsAt()
 	if e ~= lastEnd then
-		lastEnd, closed = e, false -- a new break
+		lastEnd, closed, asked = e, false, false -- a new break
 	end
-	local want = e > now() and last ~= nil and not closed and player:GetAttribute("Driving") ~= true
+	local inBreak = e > now() and last ~= nil
+	local walking = player:GetAttribute("Driving") ~= true
+	-- by itself only once you've driven your plot (PlotGuide sets HasDriven): a brand new player
+	-- follows the arrows first, and BUILD! is there when they want it
+	local auto = player:GetAttribute("HasDriven") == true
+	local want = inBreak and not closed and walking and (auto or asked)
+	buildBtn.Visible = inBreak and walking and not want
 	if want ~= open then
 		open = want
 		screen.show(want)
