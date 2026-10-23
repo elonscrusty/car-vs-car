@@ -15,7 +15,7 @@ local C = Kit.COLORS
 local TrackBuilder = {}
 
 -- The part every plot shares. Plot-local, big size.
-local function buildBase(parent: Instance, origin: CFrame, label: string, grip: number)
+local function buildBase(parent: Instance, origin: CFrame, grip: number)
 	local w, d = Kit.WIDTH, Kit.DEPTH
 	local floor =
 		Kit.part(parent, "Ground", origin, Vector3.new(w, 4, d), CFrame.new(0, -2, 0), C.ground)
@@ -44,7 +44,8 @@ local function buildBase(parent: Instance, origin: CFrame, label: string, grip: 
 		)
 	end
 
-	-- front area: a line across, the stand spot, parking, the entrance path and the sign
+	-- front area: a line across, the stand spot, parking and the entrance path (the lobby puts
+	-- the name sign by the road)
 	local front = Kit.FRONT_Z
 	-- low wall between the track and the front area: the car stays on its side, people can
 	-- still see over it
@@ -98,39 +99,6 @@ local function buildBase(parent: Instance, origin: CFrame, label: string, grip: 
 		Color3.fromRGB(201, 195, 181)
 	)
 	path.CanCollide = false
-
-	local sx, sz = w / 2 - 72, front + 50
-	for _, side in { -1, 1 } do
-		Kit.part(
-			parent,
-			"SignPost",
-			origin,
-			Vector3.new(2, 14, 2),
-			CFrame.new(sx + side * 28, 7, sz),
-			C.wall
-		)
-	end
-	local board = Kit.part(
-		parent,
-		"Sign",
-		origin,
-		Vector3.new(72, 24, 2),
-		CFrame.new(sx, 24, sz),
-		Color3.fromRGB(230, 230, 230)
-	)
-	for _, face in { Enum.NormalId.Back, Enum.NormalId.Front } do
-		local gui = Instance.new("SurfaceGui")
-		gui.Face = face
-		gui.Parent = board
-		local text = Instance.new("TextLabel")
-		text.Size = UDim2.fromScale(1, 1)
-		text.BackgroundTransparency = 1
-		text.Font = Enum.Font.GothamBlack
-		text.TextScaled = true
-		text.TextColor3 = Color3.fromRGB(30, 30, 34)
-		text.Text = label .. " PLOT"
-		text.Parent = gui
-	end
 end
 
 -- Builds each kind of plot big, then a real-size copy on every lobby plot of that kind.
@@ -145,7 +113,7 @@ function TrackBuilder.build()
 		local origin = CFrame.new(t.originX, 0, 0)
 		local m = Instance.new("Model")
 		m.Name = id
-		buildBase(m, origin, t.label, t.grip)
+		buildBase(m, origin, t.grip)
 		plot.build(m, origin)
 		-- walls are slippery and a little bouncy: the car pushes off instead of grinding along
 		for _, d in m:GetDescendants() do

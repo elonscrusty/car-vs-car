@@ -51,6 +51,17 @@ function LobbyBuilder.build(): Built
 	-- grass a hair under the plots' floors so they never flicker, the light footpaths, the dark
 	-- road on top (the spawn lobby is SpawnLobby's; water, shore, hills: LobbyWater, scenery)
 	slab(folder, "Grass", LobbyLayout.ground(), -0.05, 2, Color3.fromRGB(116, 186, 82))
+	-- a wide field a hair lower, under the hills round the street and the spawn end, so nothing
+	-- stands over the sky (the lake end has its own ground)
+	local g = LobbyLayout.ground()
+	slab(
+		folder,
+		"Field",
+		{ minX = g.minX - 190, maxX = g.maxX + 190, minZ = g.minZ - 220, maxZ = g.maxZ },
+		-0.15,
+		2,
+		Color3.fromRGB(116, 186, 82)
+	)
 	slab(folder, "Footpath", LobbyLayout.walks(), 0.05, 1, Color3.fromRGB(217, 214, 207))
 	local road = LobbyLayout.road()
 	slab(folder, "Road", road, 0.1, 1, Color3.fromRGB(58, 58, 64))
@@ -120,6 +131,8 @@ function LobbyBuilder.build(): Built
 		prompt.HoldDuration = 0
 		prompt.MaxActivationDistance = LobbyLayout.REACH
 		prompt.RequiresLineOfSight = false
+		-- no Roblox prompt box: our own DRIVE (E) button stands in for it (one button on a phone)
+		prompt.Style = Enum.ProximityPromptStyle.Custom
 		prompt:SetAttribute("Slot", slot.index)
 		prompt.Parent = at
 		CollectionService:AddTag(prompt, "DrivePrompt")
