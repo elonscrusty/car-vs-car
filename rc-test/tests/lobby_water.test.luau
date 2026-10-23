@@ -1,5 +1,5 @@
 --!strict
--- Lobby water (LobbyWater.luau): bank, shore, water, docks, island, footbridge round the lobby.
+-- Lobby lake (LobbyWater.luau): bank, beach, water, docks and boat past the end of the street.
 local H = require("./harness")
 local L = require("../src/shared/LobbyLayout")
 local W = require("../src/shared/LobbyWater")
@@ -78,35 +78,36 @@ test("you can walk from the grass onto a dock (low step) and wade the water", fu
 	end
 end)
 
-test("the footbridge reaches the island", function()
-	local isl = named("IslandGrass")[1]
-	truthy(isl ~= nil and isl.round == true, "round island")
-	local farX = -math.huge
-	for _, p in named("BridgeDeck") do
-		farX = math.max(farX, p.x + p.sx / 2)
-	end
-	truthy(farX > isl.x - isl.sx / 2, "bridge lands on the island grass")
-end)
-
-test("an invisible wall keeps people near the lobby", function()
-	eq(#named("EdgeWall"), 4)
+test("invisible walls keep people from wandering off across the lake", function()
+	eq(#named("EdgeWall"), 3)
 	for _, p in named("EdgeWall") do
 		eq(p.hidden, true)
 		truthy(p.y + p.sy / 2 > 10, "tall enough")
 	end
 end)
 
-test("landings: one per dock plus the footbridge, on the bank edge, pointing out", function()
+test("the lake is only past the street end: nothing beside or behind the lobby", function()
+	local g = L.ground()
+	local s = L.LAKE_SIDE or 1
+	local edge = if s > 0 then g.maxZ else g.minZ
+	for _, p in pieces do
+		if p.name ~= "Bank" and not p.hidden then
+			local r = math.max(p.sx, p.sz) / 2
+			truthy((p.z - edge) * s > -r - 0.01, `{p.name} at z {p.z} is on the wrong side`)
+		end
+	end
+end)
+
+test("landings: one per dock, on the bank edge, pointing out over the lake", function()
 	local bank = W.bankBox()
+	local s = L.LAKE_SIDE or 1
 	local ls = W.landings()
-	eq(#ls, #named("DockFrame") + 1)
+	eq(#ls, #named("DockFrame"))
+	eq(#ls, 2)
 	for _, l in ls do
-		eq(math.abs(l.dx) + math.abs(l.dz), 1, "points straight out")
-		local onEdge = (l.dx == -1 and l.x == bank.minX)
-			or (l.dx == 1 and l.x == bank.maxX)
-			or (l.dz == -1 and l.z == bank.minZ)
-			or (l.dz == 1 and l.z == bank.maxZ)
-		truthy(onEdge, `landing at {l.x}, {l.z}`)
+		eq(l.dx, 0)
+		eq(l.dz, s)
+		H.near(l.z, if s > 0 then bank.maxZ else bank.minZ)
 	end
 end)
 
@@ -120,7 +121,6 @@ test(
 			last = top
 		end
 		truthy(W.SAND_TOP - last <= 0.55, "last step up to the sand")
-		eq(#named("IslandStep"), #W.STEPS)
 	end
 )
 

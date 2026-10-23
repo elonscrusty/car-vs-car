@@ -1,9 +1,9 @@
 --!strict
--- The water round the walking lobby: a grass bank ring just outside LobbyLayout.ground(), a sand
--- shore, shallow and deep water, wooden docks, and a small island with an arched footbridge.
+-- The lake at the end of the lobby street (past LobbyLayout.ground() on the LAKE_SIDE edge): a
+-- grass bank, a wavy sand beach, shallow then deep water, two plank docks with a rowboat and life
+-- rings. A real lake, not the sea: grass and sand all round it, with the landscaping's hills on the
+-- far side and the ends (LobbyWater.landBox()).
 -- Looks only. Plain numbers (Lune tests load this); LobbyWaterBuilder turns the pieces into Parts.
--- Trees, bushes, rocks and fences belong to the landscaping file: it keeps off the outer
--- DOCK_FREE studs of the bank, where the docks start.
 
 local function sibling(name: string): any
 	if script then
@@ -34,12 +34,13 @@ export type Piece = {
 
 local LobbyWater = {}
 
-LobbyWater.BANK = 24 -- grass bank ring past ground() on every side
+LobbyWater.BANK = 10 -- grass between the lobby's end edge and the beach
 LobbyWater.DOCK_FREE = 4 -- outer strip of the bank kept clear for docks
-LobbyWater.SAND = 6 -- sand shore past the bank
+LobbyWater.SAND = 8 -- sand beach past the bank
 LobbyWater.SHALLOW = 16 -- light water past the sand
-LobbyWater.REACH = 600 -- deep water goes this far
-LobbyWater.WALL = 70 -- invisible wall this far past the bank (people cannot wander off)
+LobbyWater.LAKE_D = 130 -- water from the beach to the far shore
+LobbyWater.LAKE_OVER = 30 -- the water runs this far past the lobby's sides
+LobbyWater.SHORE = 60 -- grass round the lake's ends and far side (for hills)
 
 LobbyWater.GRASS_TOP = -0.15 -- a hair under the lobby grass (-0.05)
 LobbyWater.SAND_TOP = -0.5
@@ -61,13 +62,54 @@ local PLANK_A = { 160, 110, 70 }
 local PLANK_B = { 140, 95, 60 }
 local POST = { 105, 72, 45 }
 
+-- Which edge of ground() the lake is past: +1 = maxZ (the street end), -1 = minZ.
+local function side(): number
+	return LobbyLayout.LAKE_SIDE or 1
+end
+
+-- The z of a line `d` studs out from the lobby's lake edge.
+local function out(d: number): number
+	local g = LobbyLayout.ground()
+	local s = side()
+	return (if s > 0 then g.maxZ else g.minZ) + s * d
+end
+
 local function grow(b: Box, d: number): Box
 	return { minX = b.minX - d, maxX = b.maxX + d, minZ = b.minZ - d, maxZ = b.maxZ + d }
 end
 
--- The bank box: ground() plus the grass bank. Landscaping props stay inside grow(bank, -DOCK_FREE).
+-- The waterline: where the sand meets the water, all round the lake.
+function LobbyWater.lakeBox(): Box
+	local g = LobbyLayout.ground()
+	local a, b =
+		out(LobbyWater.BANK + LobbyWater.SAND),
+		out(LobbyWater.BANK + LobbyWater.SAND + LobbyWater.LAKE_D)
+	return {
+		minX = g.minX - LobbyWater.LAKE_OVER,
+		maxX = g.maxX + LobbyWater.LAKE_OVER,
+		minZ = math.min(a, b),
+		maxZ = math.max(a, b),
+	}
+end
+
+-- All the ground this file lays: the lake, its sand and the grass round it, from the lobby's edge.
+function LobbyWater.landBox(): Box
+	local l = grow(LobbyWater.lakeBox(), LobbyWater.SAND + LobbyWater.SHORE)
+	local edge = out(-2)
+	if side() > 0 then
+		l.minZ = edge
+	else
+		l.maxZ = edge
+	end
+	return l
+end
+
+-- The grass bank between the lobby and the beach. Landscaping props stay off its outer
+-- DOCK_FREE studs, where the docks start.
 function LobbyWater.bankBox(): Box
-	return grow(LobbyLayout.ground(), LobbyWater.BANK)
+	local l = LobbyWater.landBox()
+	local a, b = out(0), out(LobbyWater.BANK)
+	return { minX = l.minX, maxX = l.maxX, minZ = math.min(a, b), maxZ = math.max(a, b) }
 end
 
 local function piece(
@@ -125,57 +167,8 @@ local function slab(
 	)
 end
 
--- a square ring between box `inner` and box `outer`, as 4 slabs that never overlap
-local function ring(
-	out: { Piece },
-	name: string,
-	inner: Box,
-	outer: Box,
-	top: number,
-	thick: number,
-	color: { number },
-	collide: boolean
-)
-	slab(
-		out,
-		name,
-		{ minX = outer.minX, maxX = outer.maxX, minZ = outer.minZ, maxZ = inner.minZ },
-		top,
-		thick,
-		color,
-		collide
-	)
-	slab(
-		out,
-		name,
-		{ minX = outer.minX, maxX = outer.maxX, minZ = inner.maxZ, maxZ = outer.maxZ },
-		top,
-		thick,
-		color,
-		collide
-	)
-	slab(
-		out,
-		name,
-		{ minX = outer.minX, maxX = inner.minX, minZ = inner.minZ, maxZ = inner.maxZ },
-		top,
-		thick,
-		color,
-		collide
-	)
-	slab(
-		out,
-		name,
-		{ minX = inner.maxX, maxX = outer.maxX, minZ = inner.minZ, maxZ = inner.maxZ },
-		top,
-		thick,
-		color,
-		collide
-	)
-end
-
 -- Turned squares every ~`step` studs round box b's edge, middles pushed `push` studs out, sizes
--- and turns picked by a fixed little number sequence (same shore every time).
+-- and turns from a fixed little number sequence (same shore every time).
 local function wavy(
 	out: { Piece },
 	name: string,
@@ -189,26 +182,48 @@ local function wavy(
 	seed: number
 )
 	local n = seed
-	local function nextSize(): number
-		n = (n * 37 + 11) % 101
-		return step * (0.6 + 0.9 * n / 100)
-	end
-	local sides = {
-		{ b.minX, b.minZ, b.maxX, b.minZ, 0, -1 },
-		{ b.maxX, b.minZ, b.maxX, b.maxZ, 1, 0 },
-		{ b.maxX, b.maxZ, b.minX, b.maxZ, 0, 1 },
-		{ b.minX, b.maxZ, b.minX, b.minZ, -1, 0 },
-	}
-	for _, sd in sides do
+	for _, sd in
+		{
+			{ b.minX, b.minZ, b.maxX, b.minZ, 0, -1 },
+			{ b.maxX, b.minZ, b.maxX, b.maxZ, 1, 0 },
+			{ b.maxX, b.maxZ, b.minX, b.maxZ, 0, 1 },
+			{ b.minX, b.maxZ, b.minX, b.minZ, -1, 0 },
+		}
+	do
 		local x0, z0, x1, z1, nx, nz = sd[1], sd[2], sd[3], sd[4], sd[5], sd[6]
-		local len = math.abs(x1 - x0) + math.abs(z1 - z0)
-		local count = math.max(1, math.floor(len / step))
+		local count = math.max(1, math.floor((math.abs(x1 - x0) + math.abs(z1 - z0)) / step))
 		for i = 0, count - 1 do
+			n = (n * 37 + 11) % 101
+			local size = step * (0.6 + 0.9 * n / 100)
 			local t = (i + 0.5) / count
-			local size = nextSize()
 			local x = x0 + (x1 - x0) * t + nx * push
 			local z = z0 + (z1 - z0) * t + nz * push
 			piece(out, name, x, top - thick / 2, z, size, thick, size, color, collide, 20 + n % 50)
+		end
+	end
+end
+
+-- A square ring between box `inner` and box `outer`, as 4 slabs that never overlap.
+local function ring(
+	out: { Piece },
+	name: string,
+	inner: Box,
+	outer: Box,
+	top: number,
+	thick: number,
+	color: { number },
+	collide: boolean
+)
+	for _, b in
+		{
+			{ minX = outer.minX, maxX = outer.maxX, minZ = outer.minZ, maxZ = inner.minZ },
+			{ minX = outer.minX, maxX = outer.maxX, minZ = inner.maxZ, maxZ = outer.maxZ },
+			{ minX = outer.minX, maxX = inner.minX, minZ = inner.minZ, maxZ = inner.maxZ },
+			{ minX = inner.maxX, maxX = outer.maxX, minZ = inner.minZ, maxZ = inner.maxZ },
+		}
+	do
+		if b.maxX - b.minX > 0.01 and b.maxZ - b.minZ > 0.01 then
+			slab(out, name, b, top, thick, color, collide)
 		end
 	end
 end
@@ -373,169 +388,28 @@ local function dock(out: { Piece }, x: number, z: number, dx: number, dz: number
 	end
 end
 
--- A round island: a sand disc with a grass disc on top.
-local function island(out: { Piece }, x: number, z: number, r: number)
-	-- the same underwater steps round it as round the shore
-	for i, st in LobbyWater.STEPS do
-		local w = r * 2 + 5 + i * 6
-		piece(out, "IslandStep", x, st[1] - 0.5, z, w, 1, w, SAND, true).round = true
-	end
-	piece(out, "IslandSand", x, LobbyWater.SAND_TOP - 2, z, r * 2 + 5, 4, r * 2 + 5, SAND, true).round =
-		true
-	piece(out, "IslandGrass", x, LobbyWater.GRASS_TOP - 1, z, r * 2, 2, r * 2, GRASS, true).round =
-		true
-end
-
--- An arched footbridge along x from x0 to x1 at depth z: ramp up, flat top, ramp down, rails.
-local function footbridge(out: { Piece }, x0: number, x1: number, z: number)
-	local w = 5
-	local len = x1 - x0
-	local rise = 2.4
-	local rampLen = len * 0.3
-	local flatLen = len - rampLen * 2
-	local tilt = math.deg(math.atan2(rise, rampLen))
-	local slope = math.sqrt(rampLen * rampLen + rise * rise)
-	local base = LobbyWater.DECK_TOP - 0.25
-	-- up ramp (west half rises toward +x), flat, down ramp
-	piece(
-		out,
-		"BridgeDeck",
-		x0 + rampLen / 2,
-		base + rise / 2,
-		z,
-		slope,
-		0.5,
-		w,
-		PLANK_A,
-		true,
-		0,
-		tilt
-	)
-	piece(
-		out,
-		"BridgeDeck",
-		x0 + rampLen + flatLen / 2,
-		base + rise,
-		z,
-		flatLen,
-		0.5,
-		w,
-		PLANK_B,
-		true
-	)
-	piece(
-		out,
-		"BridgeDeck",
-		x1 - rampLen / 2,
-		base + rise / 2,
-		z,
-		slope,
-		0.5,
-		w,
-		PLANK_A,
-		true,
-		0,
-		-tilt
-	)
-	-- a rail each side: posts plus a top bar over the flat part and down the ramps
-	for _, side in { -1, 1 } do
-		local rz = z + side * (w / 2 - 0.2)
-		piece(
-			out,
-			"BridgeRail",
-			x0 + rampLen / 2,
-			base + rise / 2 + 2.2,
-			rz,
-			slope,
-			0.3,
-			0.3,
-			POST,
-			true,
-			0,
-			tilt
-		)
-		piece(
-			out,
-			"BridgeRail",
-			x0 + rampLen + flatLen / 2,
-			base + rise + 2.2,
-			rz,
-			flatLen,
-			0.3,
-			0.3,
-			POST,
-			true
-		)
-		piece(
-			out,
-			"BridgeRail",
-			x1 - rampLen / 2,
-			base + rise / 2 + 2.2,
-			rz,
-			slope,
-			0.3,
-			0.3,
-			POST,
-			true,
-			0,
-			-tilt
-		)
-		for i = 0, 4 do
-			local px = x0 + len * i / 4
-			local h = if i == 0 or i == 4 then 0 elseif i == 2 then rise else rise * 0.75
-			piece(out, "BridgePost", px, base + h + 1.1, rz, 0.4, 2.4, 0.4, POST, true)
-		end
-	end
-	-- posts down into the water under the middle
-	for _, px in { x0 + rampLen, x1 - rampLen } do
-		for _, side in { -1, 1 } do
-			local hTop = base + rise
-			local h = hTop - LobbyWater.BED_TOP
-			piece(
-				out,
-				"BridgePier",
-				px,
-				LobbyWater.BED_TOP + h / 2,
-				z + side * (w / 2 - 0.4),
-				0.8,
-				h,
-				0.8,
-				POST,
-				true
-			)
-		end
-	end
-end
-
 export type Landing = { x: number, z: number, dx: number, dz: number }
 
--- Where each dock meets the bank edge (x, z), which way it points out (dx, dz) and how long it is.
+-- Where each dock meets the bank edge (x, z), which way it points out (dx, dz) and how long it is:
+-- two, a quarter of the lobby's width either side of the road.
 local function docks(): { Landing & { len: number } }
 	local g = LobbyLayout.ground()
-	local bank = LobbyWater.bankBox()
-	local midZ = (g.minZ + g.maxZ) / 2
+	local mid = (g.minX + g.maxX) / 2
+	local off = (g.maxX - g.minX) / 4
+	local z = out(LobbyWater.BANK)
 	return {
-		{ x = bank.minX, z = midZ - 20, dx = -1, dz = 0, len = 32 },
-		{ x = bank.minX, z = g.maxZ - 40, dx = -1, dz = 0, len = 26 },
-		{ x = bank.maxX, z = midZ + 60, dx = 1, dz = 0, len = 32 },
-		{ x = (g.minX + g.maxX) / 2 + 30, z = bank.minZ, dx = 0, dz = -1, len = 28 },
+		{ x = mid - off, z = z, dx = 0, dz = side(), len = 30 },
+		{ x = mid + off, z = z, dx = 0, dz = side(), len = 34 },
 	}
 end
 
--- The island's middle (x, z) and radius; the footbridge leaves the right bank in line with it.
-local function islandSpot(): (number, number, number)
-	local g = LobbyLayout.ground()
-	return LobbyWater.bankBox().maxX + 38, g.minZ + 40, 14
-end
-
 -- The rowboat: middle (x, z) and which way its bow points (degrees round the up axis; 0 = +z).
+-- It's tied up on the outer side of the right dock.
 function LobbyWater.boatSpot(): (number, number, number)
-	local bd = docks()[3]
-	local along = LobbyWater.DOCK_FREE + LobbyWater.SAND + 9
+	local bd = docks()[2]
+	local along = LobbyWater.SAND + 14
 	local beside = 3 + 0.4 + 2 -- half the dock, a gap, half the boat
-	return bd.x + bd.dx * along - bd.dz * beside,
-		bd.z + bd.dz * along + bd.dx * beside,
-		if bd.dx ~= 0 then 90 * bd.dx else 0
+	return bd.x + beside, bd.z + bd.dz * along, if bd.dz > 0 then 0 else 180
 end
 
 -- The life ring posts: where each stands on a dock edge, and `ry` turning local +z from the post
@@ -543,97 +417,75 @@ end
 LobbyWater.RING_UP = 2.3
 function LobbyWater.ringSpots(): { { x: number, z: number, ry: number } }
 	local out = {}
-	local ds = docks()
-	for _, i in { 1, 3 } do
-		local d = ds[i]
-		local at = LobbyWater.DOCK_FREE + LobbyWater.SAND + 1
-		local side = -1 -- the side away from the boat
-		local tx, tz = d.dz * side, -d.dx * side
+	for i, d in docks() do
+		local at = LobbyWater.SAND + 2
+		local sx = if i == 2 then -1 else 1 -- the side away from the boat
 		table.insert(out, {
-			x = d.x + d.dx * at - d.dz * side * 3.3,
-			z = d.z + d.dz * at + d.dx * side * 3.3,
-			ry = math.deg(math.atan2(tx, tz)),
+			x = d.x + sx * 3.3,
+			z = d.z + d.dz * at,
+			ry = if sx > 0 then -90 else 90,
 		})
 	end
 	return out
 end
 
--- The island footbridge: from x0 (on the bank) to x1 (on the island) along depth z.
-function LobbyWater.bridgeSpan(): (number, number, number)
-	local isX, isZ, isR = islandSpot()
-	return LobbyWater.bankBox().maxX - LobbyWater.DOCK_FREE + 0.5, isX - isR + 2, isZ
-end
-
--- Every dock and the footbridge, where it meets the bank edge and which way it points out
--- (landscaping opens its fence and keeps a walking lane clear in line with each one).
+-- Every dock, where it meets the bank edge and which way it points out (landscaping keeps a
+-- walking lane clear in line with each one).
 function LobbyWater.landings(): { Landing }
 	local out: { Landing } = {}
 	for _, d in docks() do
 		table.insert(out, { x = d.x, z = d.z, dx = d.dx, dz = d.dz })
 	end
-	local _, isZ = islandSpot()
-	table.insert(out, { x = LobbyWater.bankBox().maxX, z = isZ, dx = 1, dz = 0 })
 	return out
 end
 
--- Every piece of the water scenery.
+-- Every piece of the lake.
 function LobbyWater.pieces(): { Piece }
 	local out: { Piece } = {}
-	local g = LobbyLayout.ground()
-	local bank = LobbyWater.bankBox()
-	local sand = grow(bank, LobbyWater.SAND)
-	local shallow = grow(sand, LobbyWater.SHALLOW)
-	local far = grow(bank, LobbyWater.REACH)
+	local W = LobbyWater
+	local lake = W.lakeBox()
+	local sand = grow(lake, W.SAND)
+	local shallow = grow(lake, -W.SHALLOW)
 
-	-- grass under everything (the lobby's own grass sits on top inside ground())
-	slab(out, "Bank", bank, LobbyWater.GRASS_TOP, 2, GRASS, true)
-	ring(out, "Shore", bank, sand, LobbyWater.SAND_TOP, 4.5, SAND, true)
-	-- a wavy shore: turned sand squares along the bank edge poke out into the water, and turned
-	-- light-water squares along the sand edge poke into the deep water
-	wavy(out, "ShoreBump", bank, 0, 18, LobbyWater.SAND_TOP, 4.5, SAND, true, 1)
-	wavy(out, "ShallowBump", shallow, -6, 28, LobbyWater.SHALLOW_TOP - 0.02, 0.3, SHALLOW, false, 7)
-	-- water: light near the shore, deep further out; you can walk in (no collide)
-	ring(out, "Shallow", sand, shallow, LobbyWater.SHALLOW_TOP, 0.3, SHALLOW, false)
-	ring(out, "Water", shallow, far, LobbyWater.WATER_TOP, 0.3, DEEP, false)
-	local inner = bank
-	for _, st in LobbyWater.STEPS do
-		local outer = grow(bank, st[2])
-		ring(out, "ShoreStep", inner, outer, st[1], 1, SAND, true)
-		inner = outer
+	-- grass from the lobby's edge round the lake, a sand rim with a wavy edge into the water
+	ring(out, "Bank", sand, W.landBox(), W.GRASS_TOP, 2, GRASS, true)
+	ring(out, "Shore", lake, sand, W.SAND_TOP, 4.5, SAND, true)
+	wavy(out, "ShoreBump", lake, 0, 18, W.SAND_TOP, 4.5, SAND, true, 1)
+	wavy(out, "ShallowBump", shallow, 4, 28, W.SHALLOW_TOP - 0.02, 0.3, SHALLOW, false, 7)
+	-- water: light near the shore, deep in the middle; you can walk in (no collide)
+	ring(out, "Shallow", shallow, lake, W.SHALLOW_TOP, 0.3, SHALLOW, false)
+	slab(out, "Water", shallow, W.WATER_TOP, 0.3, DEEP, false)
+	-- small underwater steps from the lake floor up to the sand, so you can walk back out
+	-- (STEPS distances count from the outer edge of the sand)
+	local last = lake
+	for _, st in W.STEPS do
+		local inner = grow(sand, -st[2])
+		ring(out, "ShoreStep", inner, last, st[1], 1, SAND, true)
+		last = inner
 	end
-	ring(out, "LakeBed", inner, far, LobbyWater.BED_TOP, 1, BED, true)
+	slab(out, "LakeBed", last, W.BED_TOP, 1, BED, true)
 
-	-- docks: two on the left, one on the right, one off the back
 	for _, d in docks() do
 		dock(out, d.x, d.z, d.dx, d.dz, d.len)
 	end
-
-	-- a small island off the back-right, reached by an arched footbridge from the right bank
-	local isX, isZ, isR = islandSpot()
-	island(out, isX, isZ, isR)
-	local b0, b1, bz = LobbyWater.bridgeSpan()
-	footbridge(out, b0, b1, bz)
-
-	-- a rowboat tied up beside the right dock, and life rings by two docks
-	local bx, bz2, bry = LobbyWater.boatSpot()
-	boat(out, bx, bz2, bry)
-	for _, r in LobbyWater.ringSpots() do
+	local bx, bz, bry = W.boatSpot()
+	boat(out, bx, bz, bry)
+	for _, r in W.ringSpots() do
 		lifebuoy(out, r.x, r.z, r.ry)
 	end
 
-	-- invisible walls so people cannot wander off across the lake floor
-	local wall = grow(bank, LobbyWater.WALL)
+	-- invisible walls round the land's three outer sides, so people cannot wander off
+	local l = W.landBox()
 	local h = 30
+	local farZ = if side() > 0 then l.maxZ else l.minZ
 	for _, w in
 		{
-			{ (wall.minX + wall.maxX) / 2, wall.minZ, wall.maxX - wall.minX, 1 },
-			{ (wall.minX + wall.maxX) / 2, wall.maxZ, wall.maxX - wall.minX, 1 },
-			{ wall.minX, (wall.minZ + wall.maxZ) / 2, 1, wall.maxZ - wall.minZ },
-			{ wall.maxX, (wall.minZ + wall.maxZ) / 2, 1, wall.maxZ - wall.minZ },
+			{ (l.minX + l.maxX) / 2, farZ, l.maxX - l.minX, 1 },
+			{ l.minX, (l.minZ + l.maxZ) / 2, 1, l.maxZ - l.minZ },
+			{ l.maxX, (l.minZ + l.maxZ) / 2, 1, l.maxZ - l.minZ },
 		}
 	do
-		local p =
-			piece(out, "EdgeWall", w[1], LobbyWater.BED_TOP + h / 2, w[2], w[3], h, w[4], BED, true)
+		local p = piece(out, "EdgeWall", w[1], W.BED_TOP + h / 2, w[2], w[3], h, w[4], BED, true)
 		p.hidden = true
 	end
 	return out
