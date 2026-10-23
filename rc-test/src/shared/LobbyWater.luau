@@ -280,7 +280,7 @@ local function lifebuoy(out: { Piece }, x: number, z: number, ry: number)
 		put(
 			"Buoy",
 			math.cos(a) * r,
-			2.3 + math.sin(a) * r,
+			LobbyWater.RING_UP + math.sin(a) * r,
 			0.5,
 			2 * (r + 0.21) * math.tan(math.pi / n), -- outer edges meet: no gaps
 			0.42,
@@ -528,6 +528,36 @@ local function islandSpot(): (number, number, number)
 	return LobbyWater.bankBox().maxX + 38, g.minZ + 40, 14
 end
 
+-- The rowboat: middle (x, z) and which way its bow points (degrees round the up axis; 0 = +z).
+function LobbyWater.boatSpot(): (number, number, number)
+	local bd = docks()[3]
+	local along = LobbyWater.DOCK_FREE + LobbyWater.SAND + 9
+	local beside = 3 + 0.4 + 2 -- half the dock, a gap, half the boat
+	return bd.x + bd.dx * along - bd.dz * beside,
+		bd.z + bd.dz * along + bd.dx * beside,
+		if bd.dx ~= 0 then 90 * bd.dx else 0
+end
+
+-- The life ring posts: where each stands on a dock edge, and `ry` turning local +z from the post
+-- toward the deck middle (the ring hangs on that side, LobbyWater.RING_UP above the deck).
+LobbyWater.RING_UP = 2.3
+function LobbyWater.ringSpots(): { { x: number, z: number, ry: number } }
+	local out = {}
+	local ds = docks()
+	for _, i in { 1, 3 } do
+		local d = ds[i]
+		local at = LobbyWater.DOCK_FREE + LobbyWater.SAND + 1
+		local side = -1 -- the side away from the boat
+		local tx, tz = d.dz * side, -d.dx * side
+		table.insert(out, {
+			x = d.x + d.dx * at - d.dz * side * 3.3,
+			z = d.z + d.dz * at + d.dx * side * 3.3,
+			ry = math.deg(math.atan2(tx, tz)),
+		})
+	end
+	return out
+end
+
 -- The island footbridge: from x0 (on the bank) to x1 (on the island) along depth z.
 function LobbyWater.bridgeSpan(): (number, number, number)
 	local isX, isZ, isR = islandSpot()
@@ -585,26 +615,10 @@ function LobbyWater.pieces(): { Piece }
 	footbridge(out, b0, b1, bz)
 
 	-- a rowboat tied up beside the right dock, and life rings by two docks
-	local ds = docks()
-	local bd = ds[3]
-	local along = LobbyWater.DOCK_FREE + LobbyWater.SAND + 9
-	local beside = 3 + 0.4 + 2 -- half the dock, a gap, half the boat
-	boat(
-		out,
-		bd.x + bd.dx * along - bd.dz * beside,
-		bd.z + bd.dz * along + bd.dx * beside,
-		if bd.dx ~= 0 then 90 * bd.dx else 0
-	)
-	for _, i in { 1, 3 } do
-		local d = ds[i]
-		local at = LobbyWater.DOCK_FREE + LobbyWater.SAND + 1
-		-- on the side away from the boat, ring facing across the deck
-		local side = -1
-		local px = d.x + d.dx * at - d.dz * side * 3.3
-		local pz = d.z + d.dz * at + d.dx * side * 3.3
-		-- local +z must point from the post back toward the deck middle
-		local tx, tz = d.dz * side, -d.dx * side
-		lifebuoy(out, px, pz, math.deg(math.atan2(tx, tz)))
+	local bx, bz2, bry = LobbyWater.boatSpot()
+	boat(out, bx, bz2, bry)
+	for _, r in LobbyWater.ringSpots() do
+		lifebuoy(out, r.x, r.z, r.ry)
 	end
 
 	-- invisible walls so people cannot wander off across the lake floor
