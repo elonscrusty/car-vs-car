@@ -86,12 +86,12 @@ local MODES: { [string]: { [string]: number } } = {
 	-- Tokyo drift: easy to throw sideways, gas holds the slide, deep held angles.
 	drift = {
 		driftAngleMax = 0.75,
-		driftYawPush = 12,
+		driftYawPush = 15,
 		frontDrive = 0.15,
 		powerSlide = 0.4,
 		counterMax = 0.85,
 		steerMax = 0.95,
-		steerHigh = 0.2,
+		steerHigh = 0.3,
 		-- Fast and slippery: more speed, less grip and a stronger push along the slide, so the
 		-- back steps out easily and the long slides keep going.
 		topSpeed = 105,
@@ -99,8 +99,10 @@ local MODES: { [string]: { [string]: number } } = {
 		baseMu = 0.8,
 		handbrakeRearGrip = 0.35,
 		driftThrust = 40,
-		maxYaw = 2.2,
-		steerRate = 6,
+		-- Quick hands: fast turn-in and a fast catch, so a slide answers the stick right away.
+		maxYaw = 2.8,
+		steerRate = 11,
+		steerReturn = 14,
 		-- Higher, further back camera so the next corner is in view.
 		camDistance = 14,
 		camHeight = 6,
@@ -109,13 +111,13 @@ local MODES: { [string]: { [string]: number } } = {
 	rock = {
 		topSpeed = 16, -- slow crawl, so you can watch every spring work over the rocks
 		accel = 110,
-		crawlBoost = 60,
+		crawlBoost = 35,
 		crawlSpeed = 6,
 		frontDrive = 0.5,
 		maxSusp = 4, -- long travel: wheels droop into holes and tuck up over rocks
 		springOmega = 9.5,
 		springZeta = 0.45,
-		baseMu = 1.6,
+		baseMu = 1.15, -- grip enough to crawl, not enough to just drive up anything
 		steerLow = 0.4,
 		steerHigh = 0.4,
 		steerRate = 2, -- gentle steering while crawling, so short taps don't swing the car
@@ -125,8 +127,8 @@ local MODES: { [string]: { [string]: number } } = {
 		coastDrag = 2.5,
 		yawHold = 6,
 		minLatShare = 0.8, -- climbing hard still keeps most sideways grip, so it doesn't slide off
-		uprightAssist = 30,
-		sideHold = 8,
+		uprightAssist = 20,
+		sideHold = 5,
 		stuckWait = 10, -- being stuck is part of crawling: give time to wiggle free
 	},
 }
