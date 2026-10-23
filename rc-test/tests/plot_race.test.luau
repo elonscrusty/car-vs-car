@@ -85,3 +85,37 @@ test("a short cut across the middle doesn't count", function()
 	eq(LapTimer.update(timer, 1, g[4].x, 0, g[4].z), nil)
 	eq(LapTimer.update(timer, 2, g[1].x, 0, g[1].z), nil)
 end)
+
+local function distToRoad(x: number, z: number): number
+	local best = math.huge
+	for _, s in Plot.loop() do
+		local dx, dz = s.x - x, s.z - z
+		best = math.min(best, math.sqrt(dx * dx + dz * dz))
+	end
+	return best
+end
+
+test("scenery you can bump stays well off the road (runoff stays grass)", function()
+	for _, e in Plot.DECOR do
+		if e.solid then
+			local hw, hd = (e.w or e.h * 0.6) / 2, (e.d or e.h * 0.6) / 2
+			for _, c in { { 0, 0 }, { -hw, -hd }, { hw, -hd }, { -hw, hd }, { hw, hd } } do
+				local x, z = e.x + c[1], e.z + c[2]
+				local gap = distToRoad(x, z)
+				truthy(gap >= Plot.DECOR_CLEAR, `{e.kind} at {e.x}, {e.z} is {gap} from the road`)
+				truthy(Kit.inArea(x, z), `{e.kind} at {e.x}, {e.z} is outside the track area`)
+			end
+		end
+	end
+end)
+
+test("start arch posts stand outside the curbs", function()
+	truthy(Plot.ARCH_WIDTH / 2 - 3 > Plot.ROAD / 2 + Plot.CURB_WIDTH, "posts on the curb")
+	truthy(Plot.ARCH_HEIGHT >= 20, "arch too low")
+end)
+
+test("every scenery kind has a Meshy name or is a block-only kind", function()
+	for _, e in Plot.DECOR do
+		truthy(Plot.DECOR_MESH[e.kind] ~= nil, `no mesh name for {e.kind}`)
+	end
+end)
