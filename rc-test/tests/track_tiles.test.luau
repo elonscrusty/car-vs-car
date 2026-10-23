@@ -200,3 +200,59 @@ test("road off the edge is caught", function()
 	eq(ok, false)
 	eq(why, "Road runs off the plot")
 end)
+
+-- ===== drag and drop =====
+
+local function emptyWithStart(): T.Grid
+	local g: T.Grid = { cols = 4, rows = 4, tiles = {} }
+	table.insert(g.tiles, { c = 2, r = 1, piece = "start", rot = 1 }) -- going east
+	return g
+end
+
+test("dragging a ring of squares from the START makes a ready track", function()
+	local g = emptyWithStart()
+	local ok = T.drawPath(
+		g,
+		{ { 2, 1 }, { 3, 1 }, { 3, 2 }, { 3, 3 }, { 2, 3 }, { 1, 3 }, { 1, 2 }, { 1, 1 }, { 2, 1 } }
+	)
+	eq(ok, true)
+	local res = T.trace(g)
+	truthy(res.ok, res.why)
+	eq((T.get(g, 2, 1) :: any).piece, "start")
+end)
+
+test("drag must go square by square and stay on the plot", function()
+	local g = emptyWithStart()
+	eq((T.drawPath(g, { { 1, 1 }, { 3, 1 } })), false)
+	eq((T.drawPath(g, { { 4, 1 }, { 5, 1 } })), false)
+	eq((T.drawPath(g, { { 1, 1 } })), false)
+end)
+
+test("dragging across a straight road makes a crossing", function()
+	local g = T.circle(4, 4)
+	T.drawPath(g, { { 1, 2 }, { 2, 2 }, { 3, 2 }, { 4, 2 } })
+	-- (1,2) and (4,2) were straights on the sides: the ends join the old road (turns / tees)
+	eq((T.get(g, 2, 2) :: any).piece, "straight")
+	local g2 = T.circle(5, 5)
+	-- an end of the drag joins the old road instead of making a crossing
+	T.drawPath(g2, { { 3, 3 }, { 3, 2 }, { 3, 1 } })
+	truthy((T.get(g2, 3, 1) :: any).piece ~= "cross")
+	-- a north-south straight, then a drag straight across it
+	T.place(g2, 3, 2, "straight", 0)
+	T.drawPath(g2, { { 2, 2 }, { 3, 2 }, { 4, 2 } })
+	eq((T.get(g2, 3, 2) :: any).piece, "cross")
+end)
+
+test("dropping special tiles turns them to fit the road", function()
+	local g = T.circle(4, 4)
+	eq((T.drop(g, 3, 1, "boost")), true) -- front straight
+	eq((T.get(g, 3, 1) :: any).piece, "boost")
+	eq((T.drop(g, 1, 1, "sharp")), true) -- corner turn
+	eq((T.drop(g, 1, 2, "sharp")), false) -- a straight
+	eq((T.drop(g, 4, 4, "oil")), false) -- a corner
+	eq((T.drop(g, 2, 2, "boost")), false) -- grass
+	eq((T.drop(g, 2, 1, "oil")), false) -- the START
+	eq((T.drop(g, 4, 2, "cross")), true)
+	truthy(T.trace(g).ok)
+	truthy(T.ALL_FREE)
+end)

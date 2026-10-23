@@ -7,7 +7,8 @@
 -- gets TrackReady = true/false, which the server race uses to pick a plot.
 --
 -- Remote ReplicatedStorage.TrackBuildEvent:
---   client -> ("place", c, r, pieceId, rot) | ("remove", c, r) | ("done")
+--   client -> ("path", { {c, r}, ... }) finger drag lays road | ("drop", c, r, pieceId) special
+--             tile onto road | ("place", c, r, pieceId, rot) | ("remove", c, r) | ("done")
 --   server -> ("state", { cols, rows, cells = { {c, r, piece, rot} }, ready, why })
 
 local Players = game:GetService("Players")
@@ -23,6 +24,9 @@ local TrackBuilder = require(script.Parent.TrackBuilder)
 
 -- TileShop (Spawn lobby thread) says which pieces a save owns; until it ships, free ones only.
 local function owns(d: any, id: string): boolean
+	if TrackTiles.ALL_FREE then
+		return true
+	end
 	local mod = ReplicatedStorage.Shared:FindFirstChild("TileShop")
 	if mod then
 		return (require(mod) :: any).owns(d, id)
@@ -154,16 +158,34 @@ local function onRequest(player: Player, kind: any, c: any, r: any, piece: any, 
 		sendState(slot)
 		return
 	end
-	if type(c) ~= "number" or type(r) ~= "number" then
-		return
-	end
 	local d = PlayerData.get(player)
 	if not d then
 		return
 	end
 	local grid = grids[slot]
 	local ok = false
-	if kind == "place" then
+	if kind == "path" then
+		-- c = { {c, r}, ... } from a finger drag
+		if type(c) ~= "table" or #c > 64 then
+			return
+		end
+		local cells = {}
+		for _, cell in c do
+			if type(cell) ~= "table" or type(cell[1]) ~= "number" or type(cell[2]) ~= "number" then
+				return
+			end
+			table.insert(cells, { cell[1], cell[2] })
+		end
+		ok = TrackTiles.drawPath(grid, cells)
+	elseif type(c) ~= "number" or type(r) ~= "number" then
+		return
+	elseif kind == "drop" then
+		if type(piece) ~= "string" or not TrackTiles.piece(piece) or not owns(d, piece) then
+			sendState(slot)
+			return
+		end
+		ok = TrackTiles.drop(grid, c, r, piece)
+	elseif kind == "place" then
 		if type(piece) ~= "string" or type(rot) ~= "number" or not TrackTiles.piece(piece) then
 			return
 		end
