@@ -248,13 +248,13 @@ end
 
 -- Skill climbs: too tall to just hold the gas over. Each takes up part of the trail and leaves
 -- an easy way round beside it.
--- * notch: two big boulders side by side with a V between them; straddle it with a wheel on each.
+-- * notch: two boulders side by side, one under each wheel: drive straight up both at once.
 -- * stepUp: a tall rock block on the hill side; put one wheel on the small rock in front first.
--- * kicker: a steep ramp up to a lip, then a high block, on the front side.
+-- * kicker: a steep ramp, a short flat, a lip up onto a high block, and a ramp down off it.
 Plot.SKILLS = {
-	-- the boulders stand close, so with the car centred each wheel rides about 2 up a
-	-- boulder side (Studio: further apart, the wheels slid down the steep flanks: W only)
-	notch = { u = 4.45, side = 0.2, gap = 0.27, r = 7, lift = 2.6 },
+	-- a boulder right under each wheel line (Studio: with a V between two big boulders the
+	-- wheels rolled down the inner faces and it was W only), so each wheel climbs one
+	notch = { u = 4.45, side = 0.2, gap = 0.12, r = 4.5, lift = 1.8 },
 	stepUp = {
 		u = 12.35,
 		side = -0.55,
@@ -271,12 +271,14 @@ Plot.SKILLS = {
 		side = -0.5,
 		width = 14,
 		length = 8,
-		lift = 4.39,
+		lift = 4.6,
 		ramp = 5,
 		rampLift = 2.7,
 		-- level ground between the ramp and the lip (Studio: a lip straight off the slope
 		-- stalled every time, each back-up just rolled down the ramp)
 		flat = 4.5,
+		-- and a ramp down off the far end (Studio: dropping off the sheer back flipped the car)
+		down = 9,
 	},
 }
 
@@ -874,18 +876,17 @@ local function buildSkills(parent: Instance, origin: CFrame)
 	))
 	-- a low rail just beside the helper on the hill side: stalled cars slid sideways downhill
 	-- off it and round (Studio), so a back-up and retry stays square to the face
-	local railLen = hp.length + 6
+	-- (from in front of the helper all the way past the block: cars slid along the block face
+	-- and off its end, Studio round 29)
+	local railFrom = st.length / 2 + hp.length + 6
+	local railTo = -st.length / 2 - 2
 	local rail = Kit.part(
 		parent,
 		"Wall",
 		origin,
-		Vector3.new(1.5, Plot.CURB + 3, railLen),
+		Vector3.new(1.2, Plot.CURB + 3, railFrom - railTo),
 		Plot.bankCF(st.u, x, y, z)
-			* CFrame.new(
-				-(hp.width / 2 + 0.75),
-				Plot.CURB / 2 - 0.9,
-				st.length / 2 + railLen / 2 - 0.5
-			),
+			* CFrame.new(-(hp.width / 2 + 0.4), Plot.CURB / 2 - 0.9, (railFrom + railTo) / 2),
 		C.rock
 	)
 	rail.Material = Enum.Material.Slate
@@ -914,6 +915,18 @@ local function buildSkills(parent: Instance, origin: CFrame)
 			C.rock
 		)
 	)
+	-- the ramp down: its high end (+Z) against the block's far end
+	local downRamp = Instance.new("WedgePart")
+	downRamp.Name = "Ledge"
+	downRamp.Anchored = true
+	downRamp.Size = Vector3.new(k.width, k.lift + 0.3, k.down)
+	downRamp.CFrame = origin * frame * CFrame.new(0, (k.lift - 0.3) / 2, -k.length / 2 - k.down / 2)
+	downRamp.Color = C.rock
+	downRamp.Material = Enum.Material.Slate
+	downRamp.TopSurface = Enum.SurfaceType.Smooth
+	downRamp.BottomSurface = Enum.SurfaceType.Smooth
+	downRamp:SetAttribute("Grip", Plot.grip)
+	downRamp.Parent = parent
 	local ramp = Instance.new("WedgePart")
 	ramp.Name = "Ledge"
 	ramp.Anchored = true
