@@ -12,6 +12,7 @@ local CarMath = require(ReplicatedStorage.Shared.CarMath)
 local LapTimer = require(ReplicatedStorage.Shared.LapTimer)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local RaceStart = require(ReplicatedStorage.Shared.RaceStart)
+local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
 local SmokeColors = require(ReplicatedStorage.Shared.SmokeColors)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
@@ -145,6 +146,8 @@ local jumped = false -- went over the line before GO: no timed lap until the car
 -- got its GO
 local grid: TrackData.Spawn? = nil
 local gridGone = false
+local raceGo: number? = nil -- server race: when this car got its GO (race clock)
+local raceDone: number? = nil -- server race: this car's finish time (its laps are all done)
 
 local hud: Hud.Hud
 local function goTo(index: number)
@@ -163,7 +166,10 @@ local function goTo(index: number)
 		camera.setView(view)
 		effects.clear()
 	end
-	LapTimer.reset(timers[index])
+	-- (a reset in a server race keeps its laps: the server keeps counting them too)
+	if not gridGone then
+		LapTimer.reset(timers[index])
+	end
 	checkpoint = 0
 	StartLights.show(lamps, 0)
 	countdown, jumped = nil, false
@@ -321,7 +327,7 @@ end
 
 remote.OnClientEvent:Connect(function(kind: unknown, index: unknown, gridSpot: unknown)
 	if kind == "walk" then
-		grid, gridGone = nil, false
+		grid, gridGone, raceGo, raceDone = nil, false, nil, nil
 		setWalking(true)
 		LobbyLife.start() -- butterflies and birds (looks only, this screen)
 		LobbyWelcome.start() -- first time only: street lights on, confetti
@@ -350,7 +356,7 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown, gridSpot: u
 				grid = { x = g.x, y = g.y, z = g.z, dx = g.dx, dz = g.dz }
 			end
 		end
-		gridGone = false
+		gridGone, raceGo, raceDone = false, nil, nil
 		goTo(index)
 	end
 end)
@@ -367,7 +373,17 @@ local function timerText(): string
 	end
 	local now = os.clock()
 	local lines = {}
-	if t.mode == "loop" then
+	local go = raceGo
+	if grid and go then
+		-- server race: laps out of the race's laps, and the race clock (stops at the finish)
+		local done = raceDone
+		if done then
+			table.insert(lines, `FINISHED   {CarMath.formatTime(done)}`)
+		else
+			local lap = math.min(s.laps + 1, ServerRace.LAPS)
+			table.insert(lines, `LAP {lap}/{ServerRace.LAPS}   {CarMath.formatTime(now - go)}`)
+		end
+	elseif t.mode == "loop" then
 		local cur = if s.running then CarMath.formatTime(now - s.startTime) else "-:--.-"
 		table.insert(lines, `LAP {s.laps + 1}   {cur}`)
 		if s.last then
@@ -410,6 +426,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 		if step == RaceStart.GO then
 			countdown = nil
 			gridGone = grid ~= nil
+			raceGo = if grid then os.clock() else nil
 			LapTimer.go(timer, os.clock())
 		elseif LapTimer.inside(timer.gates[1], lx, ly, lz) then
 			-- over the line before green: no clock this time (drive round, or R twice to start over)
@@ -419,8 +436,15 @@ RunService.PreSimulation:Connect(function(dt: number)
 		end
 	elseif jumped then
 		jumped = LapTimer.inside(timer.gates[1], lx, ly, lz)
-	else
+	elseif raceDone == nil then
 		event = LapTimer.update(timer, os.clock(), lx, ly, lz)
+	end
+	-- server race: the last lap is the finish (the server keeps the real order)
+	local go = raceGo
+	if event == "lap" and grid and go and timer.laps >= ServerRace.LAPS then
+		event = nil
+		raceDone = os.clock() - go
+		hud.flash(`FINISH!  {CarMath.formatTime(raceDone :: number)}`)
 	end
 	if event == "lap" then
 		hud.flash(`LAP  {CarMath.formatTime(timers[current].last :: number)}`)
