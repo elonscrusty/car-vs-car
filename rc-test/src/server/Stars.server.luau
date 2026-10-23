@@ -171,9 +171,19 @@ for i, slot in slots do
 	likePrompts[i] = prompt
 end
 
+-- A built race track's medal times, stretched to its length (nil = the plot's own targets).
+local raceGates = (TrackData.get("race") :: any).gates
+local function scaleOf(slotIndex: number, mode: string): number?
+	local custom = LobbyLayout.custom[slotIndex]
+	if mode ~= "race" or type(custom) ~= "table" or type(custom.gates) ~= "table" then
+		return nil
+	end
+	return Medals.loopScale(custom.gates, raceGates)
+end
+
 local function showBoard(slotIndex: number)
 	local mode = plotType(slotIndex)
-	local t = Medals.target(mode)
+	local t = Medals.target(mode, scaleOf(slotIndex, mode))
 	if not t then
 		return
 	end
@@ -352,13 +362,14 @@ local function beat(player: Player, old: Profile.Record, mode: string)
 end
 
 local function onRun(player: Player, slotIndex: number, mode: string, value: number)
-	if not Medals.valid(mode, value) then
+	local scale = scaleOf(slotIndex, mode)
+	if not Medals.valid(mode, value, scale) then
 		return
 	end
 	local records, owner = recordsOf(slotIndex)
 	local record = false
 	local beaten: Profile.Record? = nil
-	if records and Medals.better(mode, value, records[mode] and records[mode].value) then
+	if records and Medals.better(mode, value, records[mode] and records[mode].value, scale) then
 		beaten = records[mode]
 		records[mode] = { value = value, name = player.DisplayName, userId = player.UserId }
 		record = true
@@ -371,7 +382,7 @@ local function onRun(player: Player, slotIndex: number, mode: string, value: num
 		beat(player, beaten, mode)
 		job(player, "beat")
 	end
-	local medal = Medals.medal(mode, value)
+	local medal = Medals.medal(mode, value, scale)
 	local oid = ownerId(slotIndex)
 	local own = oid == player.UserId
 	if mode == "race" then
