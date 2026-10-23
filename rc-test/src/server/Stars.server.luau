@@ -811,9 +811,17 @@ local function sendGoal(player: Player, force: boolean?)
 	remote:FireClient(player, "goal", goalOf(data))
 end
 task.spawn(function()
+	local tick = 0
 	while true do
 		for _, p in Players:GetPlayers() do
 			sendGoal(p)
+		end
+		-- boards: a rebuilt track clears its records and stretches its medal times
+		tick += 1
+		if tick % 3 == 0 then
+			for i in slots do
+				showBoard(i)
+			end
 		end
 		task.wait(1)
 	end
