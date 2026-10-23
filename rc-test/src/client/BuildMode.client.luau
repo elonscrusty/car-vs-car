@@ -224,6 +224,25 @@ local function endsAt(): number
 	local t = workspace:GetAttribute("BuildEndsAt")
 	return if type(t) == "number" then t else 0
 end
+-- the tiles you don't own yet, and what opens each: stars first, then its coin price
+local TileShop = require(shared:WaitForChild("TileShop") :: ModuleScript) :: any
+local function locksFor(owned: unknown): { [string]: string }?
+	if type(owned) ~= "table" then
+		return nil -- an older server: everything is yours
+	end
+	local stars = player:GetAttribute("Stars")
+	local have = if type(stars) == "number" then stars else 0
+	local out: { [string]: string } = {}
+	for _, id in bar do
+		if (owned :: any)[id] ~= true then
+			local need = TileShop.unlockAt(id)
+			local t = TileShop.get(id)
+			out[id] = if have < need then `{need} STARS` elseif t then tostring(t.price) else "?"
+		end
+	end
+	return out
+end
+
 local function push()
 	if last == nil then
 		return
@@ -234,11 +253,14 @@ local function push()
 		cells = last.cells,
 		pieces = pieces,
 		specials = bar,
+		locks = locksFor(last.owned),
 		ready = last.ready == true,
 		why = if type(last.why) == "string" then last.why else nil,
 		secondsLeft = endsAt() - now(),
 	})
 end
+
+player:GetAttributeChangedSignal("Stars"):Connect(push) -- a star can open a tile
 
 event.OnClientEvent:Connect(function(kind: unknown, data: unknown)
 	if kind == "state" and type(data) == "table" then

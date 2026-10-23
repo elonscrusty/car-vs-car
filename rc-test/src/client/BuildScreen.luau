@@ -35,6 +35,7 @@ export type State = {
 	cells: { Cell },
 	pieces: { Piece }, -- every tile, to draw the grid
 	specials: { string }, -- ids in the drag bar, in order
+	locks: { [string]: string }?, -- id -> what opens it ("150", "5 STARS"); missing = yours
 	ready: boolean,
 	why: string?, -- when not ready: "Road has a gap"
 	secondsLeft: number,
@@ -142,7 +143,10 @@ local function drawRoad(parent: GuiObject, piece: Piece, rot: number)
 		bar(m + w, m, m, w)
 	end
 	if piece.icon then
-		local l = label(parent, piece.icon, YELLOW)
+		-- dark mark on a bright road (JUMP, SAND), yellow on dark
+		local col = piece.color
+		local bright = col ~= nil and (col.R * 0.3 + col.G * 0.59 + col.B * 0.11) > 0.55
+		local l = label(parent, piece.icon, if bright then DARK else YELLOW)
 		l.AnchorPoint = Vector2.new(0.5, 0.5)
 		l.Position = UDim2.fromScale(0.5, 0.5)
 		l.Size = UDim2.fromScale(w, w)
@@ -310,6 +314,9 @@ function BuildScreen.new(opts: Options): BuildScreen
 			for c = 1, state.cols do
 				local f = square(tiles, c, r)
 				f.BackgroundColor3 = if (c + r) % 2 == 0 then GRASS else GRASS_2
+				-- a thin line round every square, so you can see where each tile ends
+				local edge = rim(f, DARK, 1)
+				edge.Transparency = 0.55
 				local here = byKey[cellKey(c, r)]
 				local piece = if here then pieceById(here.piece) else nil
 				if here and piece then
@@ -388,8 +395,31 @@ function BuildScreen.new(opts: Options): BuildScreen
 			local name = label(card, piece.name, DARK)
 			name.Position = UDim2.new(0, 3, 1, -19)
 			name.Size = UDim2.new(1, -6, 0, 16)
+			-- not yours yet: greyed, with a lock and what opens it (coins, or stars first)
+			local lock = if state.locks then state.locks[id] else nil
+			if lock then
+				local shade = Instance.new("Frame")
+				shade.Name = "Locked"
+				shade.BackgroundColor3 = DARK
+				shade.BackgroundTransparency = 0.3
+				shade.Size = UDim2.fromScale(1, 1)
+				shade.ZIndex = 4
+				shade.Parent = tile
+				round(shade, 6)
+				local lockText = label(shade, `🔒\n{lock}`, YELLOW)
+				lockText.ZIndex = 5
+				pad(lockText, 0.12, 0.08)
+				name.TextColor3 = Color3.fromRGB(130, 130, 140)
+			end
 			card.InputBegan:Connect(function(input: InputObject)
 				if not isPress(input) or dropping then
+					return
+				end
+				if lock then
+					-- the server refuses locked tiles: say where they come from instead
+					whyText.Text = "BUY IN THE SHOP"
+					whyText.TextColor3 = YELLOW
+					task.delay(2, drawTop)
 					return
 				end
 				dropping, dropInput = id, input
@@ -531,6 +561,11 @@ function BuildScreen.new(opts: Options): BuildScreen
 		place(status, layout.status)
 		place(whyText, layout.why)
 		place(tray, layout.tray)
+		-- cards grow to fill the bar: as many ~100 px columns as fit, at least 2
+		local cw = layout.tray.w - 16
+		local cols = math.max(2, math.floor((cw + 8) / 108))
+		local card = math.min(130, math.floor((cw - 8 * (cols - 1)) / cols))
+		cardGrid.CellSize = UDim2.fromOffset(card, card + 16)
 		place(eraseBtn, layout.erase)
 		place(doneBtn, layout.done)
 		drawGrid()
@@ -551,7 +586,17 @@ function BuildScreen.new(opts: Options): BuildScreen
 	local screen = {} :: BuildScreen
 	function screen.setState(s: State)
 		local resized = s.cols ~= state.cols or s.rows ~= state.rows
-		local newTray = #s.specials ~= #state.specials or #s.pieces ~= #state.pieces
+		local function lockKey(l: { [string]: string }?): string
+			local out = {}
+			for id, v in l or {} do
+				table.insert(out, id .. "=" .. v)
+			end
+			table.sort(out)
+			return table.concat(out, ",")
+		end
+		local newTray = #s.specials ~= #state.specials
+			or #s.pieces ~= #state.pieces
+			or lockKey(s.locks) ~= lockKey(state.locks)
 		state = s
 		byKey = {}
 		for _, cell in s.cells do
