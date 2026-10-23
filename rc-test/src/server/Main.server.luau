@@ -11,6 +11,7 @@ local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local CarBuilder = require(script.Parent.CarBuilder)
 local LobbyBuilder = require(script.Parent.LobbyBuilder)
+local ServerRaceRunner = require(script.Parent.ServerRaceRunner)
 local LobbyPlots = require(script.Parent.LobbyPlots)
 local TrackBuilder = require(script.Parent.TrackBuilder)
 local PlotDecorBuilder = require(script.Parent.PlotDecorBuilder)
@@ -40,7 +41,7 @@ local slots = LobbyLayout.slots()
 -- while driving that plot), ("walk") to leave the stand, ("open", on: boolean) to let friends
 -- drive your plot, ("quick") for QUICK RACE (a free race plot).
 -- Server -> client: ("drive", slotIndex), ("walk"), ("own", slotIndex, open) for your plot,
--- ("closed") when a pad tap can't drive that plot and ("noRace") when QUICK RACE found none.
+-- ("closed") when a pad tap can't drive that plot and ("noRace") when QUICK RACE found none and ("raceJoined") when it joined the server race.
 local remote = Instance.new("RemoteEvent")
 remote.Name = "RCControl"
 remote.Parent = ReplicatedStorage
@@ -250,7 +251,7 @@ local function walk(player: Player)
 end
 
 -- The server race every 15 minutes: everyone who joins races on one race plot.
-require(script.Parent.ServerRaceRunner).start({ remote = remote, walk = walk })
+ServerRaceRunner.start({ remote = remote, walk = walk })
 
 -- E on a lobby pad: drive that plot (if it's yours, nobody's or open, and free), or stop.
 for slotIndex, prompt in lobby.prompts do
@@ -291,6 +292,11 @@ remote.OnServerEvent:Connect(function(player: Player, kind: unknown, rc: unknown
 			return
 		end
 		lastPrompt[player] = now
+		-- the server race's join window comes first: racing friends beats racing alone
+		if ServerRaceRunner.joinOpen(player) then
+			remote:FireClient(player, "raceJoined")
+			return
+		end
 		local slot = LobbyPlots.findOpen("race", player)
 		if not slot or not LobbyPlots.sendTo(player, slot) then
 			remote:FireClient(player, "noRace")

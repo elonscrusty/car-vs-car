@@ -205,9 +205,9 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 		end
 	end)
 	remote.OnClientEvent:Connect(function(kind: unknown)
-		if kind == "noRace" then
-			quickButton.Text = "ALL RACES BUSY"
-			task.delay(1.5, function()
+		if kind == "noRace" or kind == "raceJoined" then
+			quickButton.Text = if kind == "noRace" then "ALL RACES BUSY" else "IN THE NEXT RACE!"
+			task.delay(2, function()
 				quickButton.Text = "QUICK RACE"
 			end)
 		end
