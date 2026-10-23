@@ -8,6 +8,7 @@ local RCCar = require(script.Parent.RCCar)
 
 export type Controls = {
 	read: () -> RCCar.Input,
+	setRock: (on: boolean) -> (),
 }
 
 local Controls = {}
@@ -286,8 +287,10 @@ function Controls.new(
 	viewBtn.Parent = gui
 	viewBtn.Activated:Connect(onView)
 
+	local help: TextLabel? = nil
 	if not touchUi then
-		local help = Instance.new("TextLabel")
+		help = Instance.new("TextLabel")
+		assert(help)
 		help.BackgroundTransparency = 1
 		help.AnchorPoint = Vector2.new(0.5, 1)
 		help.Position = UDim2.fromScale(0.5, 0.985)
@@ -302,6 +305,22 @@ function Controls.new(
 	end
 
 	local controls = {} :: Controls
+	local NORMAL_HELP =
+		"W/S gas + brake    A/D steer    SPACE drift    C show cam    V chase cam    T size    1-4 plots"
+	local ROCK_HELP =
+		"W/S gas + brake    A/D steer    drag to look    wheel to zoom    T size    1-4 plots"
+	local onRock: boolean? = nil
+	-- rocks is free cam only: no view swap button, and the help says how to look around
+	function controls.setRock(on: boolean)
+		if on == onRock then
+			return
+		end
+		onRock = on
+		viewBtn.Visible = not on
+		if help then
+			help.Text = if on then ROCK_HELP else NORMAL_HELP
+		end
+	end
 	function controls.read(): RCCar.Input
 		local function down(code: Enum.KeyCode): boolean
 			return keys[code] == true
