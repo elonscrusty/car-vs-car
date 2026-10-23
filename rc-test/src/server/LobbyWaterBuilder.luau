@@ -146,18 +146,48 @@ local function meshBridge(folder: Instance, x0: number, x1: number, z: number): 
 	end
 	probe:Destroy()
 	local len, height = hi.X - lo.X, hi.Y - lo.Y
-	local n = math.max(1, math.floor(gap / len + 0.5))
-	local scale = gap / n / len -- stretch evenly so the copies meet both ends
-	for i = 0, n - 1 do
+	-- two copies with a square wooden landing between them, so the join reads as a rest stop
+	-- (copies butted end to end showed double posts and rails that didn't line up)
+	local landing = 7
+	local seg = (gap - landing) / 2
+	local scale = seg / len
+	for i = 0, 1 do
 		local m = MeshProps.place(folder, "Footbridge", look, height * scale) :: Model
 		local a, b = extents(m)
 		-- its deck sits about a third of the way up; put that at deck height
-		local target = Vector3.new(x0 + gap * i / n, deck - (b.Y - a.Y) * 0.35, z - (b.Z - a.Z) / 2)
+		local target =
+			Vector3.new(x0 + i * (seg + landing), deck - (b.Y - a.Y) * 0.35, z - (b.Z - a.Z) / 2)
 		m:PivotTo(m:GetPivot() + (target - a))
 		for _, d in m:GetDescendants() do
 			if d:IsA("BasePart") then
 				d.CanCollide = false
 			end
+		end
+	end
+	local mid = x0 + seg + landing / 2
+	local wood = Color3.fromRGB(160, 110, 70)
+	local post = Color3.fromRGB(105, 72, 45)
+	LobbyProps.part(
+		folder,
+		"BridgeLanding",
+		Vector3.new(landing, 0.5, landing),
+		CFrame.new(mid, deck - 0.25, z),
+		wood
+	)
+	local postH = deck - LobbyWater.BED_TOP + 1.2
+	for _, sx in { -1, 1 } do
+		for _, sz in { -1, 1 } do
+			LobbyProps.part(
+				folder,
+				"BridgeLandingPost",
+				Vector3.new(0.8, postH, 0.8),
+				CFrame.new(
+					mid + sx * (landing / 2 - 0.4),
+					LobbyWater.BED_TOP + postH / 2,
+					z + sz * (landing / 2 - 0.4)
+				),
+				post
+			)
 		end
 	end
 	local walk = LobbyProps.part(
