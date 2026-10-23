@@ -141,6 +141,7 @@ test("track modes change numbers and switch back cleanly", function()
 	truthy(Tuning.topSpeed < 20, "rock is crawl slow")
 	truthy(Tuning.maxSusp >= 4, "rock has long springs")
 	eq(Tuning.stuckWait, 10)
+	truthy(Tuning.sideHold > 0, "rock tyres should stop side slides")
 	truthy(Tuning.uprightAssist > 0, "rock eases back upright")
 	truthy(Tuning.yawHold > 0, "rock holds its line")
 	-- rock must still be able to climb a 0.6 slope at walking pace

@@ -306,7 +306,8 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 					-- plus the little bit it will still swing, so the end of a tap isn't pulled
 					-- back and a slope can't slowly turn it either
 					if holdLook == nil and math.abs(steer) < 0.02 then
-						holdLook = CFrame.Angles(0, yawRate / c, 0):VectorToWorldSpace(look)
+						local ahead = CarMath.clamp(yawRate / c, -0.15, 0.15)
+						holdLook = CFrame.Angles(0, ahead, 0):VectorToWorldSpace(look)
 					end
 					local err = 0
 					if holdLook then
@@ -373,6 +374,13 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 
 		-- crawler: lean on its side past a little and it eases back upright, so a tall, soft car
 		-- doesn't topple off a slope (like a heavy battery low in a real crawler)
+		-- crawler: sticky tyres, so a side slope can't slide the car sideways off its line
+		if Tuning.sideHold > 0 and grounded >= 2 then
+			local right = cf.RightVector
+			local vSide = body.AssemblyLinearVelocity:Dot(right)
+			body:ApplyImpulse(-right * vSide * math.min(1, Tuning.sideHold * dt) * mass)
+		end
+
 		if Tuning.uprightAssist > 0 then
 			local look = cf.LookVector
 			local tipped = up:Cross(Vector3.yAxis):Dot(look) -- sin of the side lean, signed
