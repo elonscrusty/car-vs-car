@@ -8,8 +8,8 @@
 --
 -- Remote ReplicatedStorage.TrackBuildEvent:
 --   client -> ("path", { {c, r}, ... }) finger drag lays road | ("drop", c, r, pieceId) special
---             tile onto road | ("rotate", c, r) quarter turn | ("place", c, r, pieceId, rot) | ("remove", c, r) | ("done")
---   server -> ("state", { cols, rows, cells = { {c, r, piece, rot} }, ready, why, owned = {[id]=bool},
+--             tile onto road | ("kind", "race" | "drift") what the plot is | ("rotate", c, r) quarter turn | ("place", c, r, pieceId, rot) | ("remove", c, r) | ("done")
+--   server -> ("state", { cols, rows, cells = { {c, r, piece, rot} }, ready, why, kind, owned = {[id]=bool},
 --             stray = { {c, r} } tiles the loop skips })
 
 local Players = game:GetService("Players")
@@ -51,6 +51,7 @@ remote.Parent = ReplicatedStorage
 
 local grids: { [number]: TrackTiles.Grid } = {} -- slot -> grid now on that plot
 local results: { [number]: TrackTiles.Result } = {}
+local kinds: { [number]: string } = {} -- slot -> "race" | "drift" (the owner's pick)
 local pending: { [number]: boolean } = {}
 local budget: { [Player]: { t: number, n: number } } = {}
 
@@ -106,6 +107,7 @@ local function stateOf(slot: number): { [string]: any }
 		end
 	end
 	return {
+		kind = kinds[slot] or "race",
 		stray = stray,
 		owned = owned,
 		cols = g.cols,
@@ -140,10 +142,12 @@ local function rebuild(slot: number)
 		TrackBuilder.rebuild(slot, function(parent: Instance, origin: CFrame)
 			TrackTiles.build(parent, origin, grid)
 		end)
-		PlotTracks.set(slot, TrackTiles.track(res))
+		local kind = kinds[slot] or "race"
+		PlotTracks.set(slot, TrackTiles.track(res, kind))
 		local m = plotModel(slot)
 		if m then
 			m:SetAttribute("TrackReady", res.ok)
+			m:SetAttribute("TrackKind", kind)
 		end
 		sendState(slot)
 	end)
@@ -154,7 +158,10 @@ local function load(slot: number)
 	if not isRace(slot) then
 		return
 	end
-	grids[slot] = gridFor(LobbyPlots.ownerOf(slot))
+	local owner = LobbyPlots.ownerOf(slot)
+	local d = if owner then PlayerData.get(owner) else nil
+	grids[slot] = gridFor(owner)
+	kinds[slot] = if d and d.trackKind == "drift" then "drift" else "race"
 	rebuild(slot)
 end
 
@@ -191,7 +198,20 @@ local function onRequest(player: Player, kind: any, c: any, r: any, piece: any, 
 	end
 	local grid = grids[slot]
 	local ok = false
-	if kind == "path" then
+	if kind == "kind" then
+		-- race or drift: the same road, a different way to drive it
+		if c ~= "race" and c ~= "drift" then
+			return
+		end
+		if Profile.setTrackKind(d, c) then
+			kinds[slot] = c
+			PlayerData.touch(player)
+			rebuild(slot)
+		else
+			sendState(slot)
+		end
+		return
+	elseif kind == "path" then
 		-- c = { {c, r}, ... } from a finger drag
 		if type(c) ~= "table" or #c > 64 then
 			return

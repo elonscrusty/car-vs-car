@@ -126,7 +126,9 @@ function ServerRaceRunner.isReady(slot: number): boolean
 	if plots then
 		for _, m in plots:GetChildren() do
 			if m:GetAttribute("Slot") == slot and m:GetAttribute("TrackReady") ~= nil then
+				-- a drift plot (owner's pick) isn't a lap race (yet)
 				return m:GetAttribute("TrackReady") == true
+					and m:GetAttribute("TrackKind") ~= "drift"
 			end
 		end
 	end
