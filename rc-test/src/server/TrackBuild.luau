@@ -256,6 +256,26 @@ function TrackBuild.start()
 			end
 		end
 	end)
+	-- stars won mid-session (Stars attribute, set by Stars.server): grow the owner's grid in place
+	local function watchStars(player: Player)
+		player:GetAttributeChangedSignal("Stars"):Connect(function()
+			local slot = LobbyPlots.slotOf(player)
+			local grid = if slot then grids[slot] else nil
+			local stars = player:GetAttribute("Stars")
+			if not slot or not grid or type(stars) ~= "number" then
+				return
+			end
+			local cols, rows = TrackTiles.sizeFor(stars)
+			if cols > grid.cols or rows > grid.rows then
+				grid.cols, grid.rows = math.max(cols, grid.cols), math.max(rows, grid.rows)
+				rebuild(slot)
+			end
+		end)
+	end
+	Players.PlayerAdded:Connect(watchStars)
+	for _, player in Players:GetPlayers() do
+		watchStars(player)
+	end
 	Players.PlayerRemoving:Connect(function(player)
 		budget[player] = nil
 	end)
