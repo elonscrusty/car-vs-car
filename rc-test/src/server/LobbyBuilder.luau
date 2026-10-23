@@ -8,6 +8,7 @@ local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
+local SpawnLobby = require(ReplicatedStorage.Shared.SpawnLobby)
 local LobbyProps = require(script.Parent.LobbyProps)
 local MeshProps = require(script.Parent.MeshProps)
 local LobbyWaterBuilder = require(script.Parent.LobbyWaterBuilder)
@@ -160,16 +161,12 @@ function LobbyBuilder.build(): Built
 		end
 	end
 	-- the spawn lobby at the top of the road, looking down it (shop, upgrades, car stands, race
-	-- pads: its own thread's module, built once it is there)
-	local spawnLobby = script.Parent:FindFirstChild("SpawnLobby")
-	if spawnLobby then
-		local p = LobbyLayout.PLAZA
-		local mid = Vector3.new(0, 0, (p.minZ + p.maxZ) / 2)
-		local SpawnLobby: any = require(spawnLobby :: ModuleScript)
-		local at = CFrame.lookAt(mid, mid + Vector3.new(0, 0, 1))
-		SpawnLobby.build(folder, at)
-		built.spawn = SpawnLobby.spawnCFrame(at)
-	end
+	-- pads)
+	local p = LobbyLayout.PLAZA
+	local mid = Vector3.new(0, 0, (p.minZ + p.maxZ) / 2)
+	local at = CFrame.lookAt(mid, mid + Vector3.new(0, 0, 1))
+	SpawnLobby.build(folder, at)
+	built.spawn = SpawnLobby.spawnCFrame(at)
 
 	LobbyWaterBuilder.build(folder)
 
