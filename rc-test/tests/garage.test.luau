@@ -91,7 +91,7 @@ test(
 		end
 		local b = G.BOX
 		for _, m in G.MESHES do
-			truthy(names[m.group], m.model .. " group " .. m.group)
+			truthy(m.group == "Extras" or names[m.group], m.model .. " group " .. m.group)
 			truthy(m.long == "x" or m.long == "z", m.model .. " long")
 			local hx, hz = m.fit.x / 2, m.fit.z / 2
 			if m.long == "z" then
@@ -101,6 +101,7 @@ test(
 			truthy(m.at.z - hz >= b.minZ and m.at.z + hz <= b.maxZ, m.model .. " z")
 			truthy(m.at.y + m.fit.y <= b.maxY, m.model .. " y")
 			for _, k in m.keep do
+				assert(names[m.group], m.model)
 				truthy(names[m.group][k], m.model .. " keeps " .. k)
 			end
 		end

@@ -62,11 +62,12 @@ local function v(x: number, y: number, z: number): V3
 	return { x = x, y = y, z = z }
 end
 
--- carter's Meshy props. When ReplicatedStorage.PropModels has a model with this name, it is
+-- carter's Meshy props. When ServerStorage.LobbyMeshes has a model with this name, it is
 -- fitted into `fit` (studs, garage-local x/y/z, kept in proportion), stood on the floor at `at`,
 -- turned so its long side runs along `long` ("x" or "z"), and the block stand-ins of `group` are
 -- removed, all but the `keep` ones. `onTop` stands it on another prop instead of the floor.
--- No model, no change: the block stand-ins stay.
+-- No model, no change: the block stand-ins stay. Group "Extras" has no stand-ins: those props
+-- only show up once imported.
 export type Mesh = {
 	model: string,
 	group: string,
@@ -142,6 +143,62 @@ Garage.MESHES = {
 		group = "TiresOut2",
 		at = v(Garage.WIDTH / 2 + 2.6, 0, 2.6),
 		fit = v(2.6, 2.6, 2.6),
+		long = "x",
+		keep = {},
+		collide = true,
+	},
+	-- extras: Meshy only, no block stand-ins
+	{
+		model = "WheelRack", -- back right corner, against the right wall
+		group = "Extras",
+		at = v(Garage.WIDTH / 2 - 1.6, Garage.FLOOR, -4.7),
+		fit = v(1.6, 3.4, 3.6),
+		long = "z",
+		keep = {},
+		collide = true,
+	},
+	{
+		model = "Barrel", -- front left, between the lift and the gas pump
+		group = "Extras",
+		at = v(-Garage.WIDTH / 2 + 1.8, Garage.FLOOR, 2.2),
+		fit = v(1.5, 2.1, 1.5),
+		long = "x",
+		keep = {},
+		collide = true,
+	},
+	{
+		model = "GasCan", -- on the floor beside the gas pump
+		group = "Extras",
+		at = v(-Garage.WIDTH / 2 + 4.6, Garage.FLOOR, Garage.DEPTH / 2 - 1.8),
+		fit = v(1, 1.1, 0.6),
+		long = "x",
+		keep = {},
+		collide = false,
+	},
+	{
+		model = "FloorJack", -- by the lift, handle toward the door
+		group = "Extras",
+		at = v(0.6, Garage.FLOOR, 5.2),
+		fit = v(1, 1, 2.2),
+		long = "z",
+		keep = {},
+		collide = false,
+	},
+	{
+		model = "OilCan", -- on the bench, left end
+		group = "Extras",
+		at = v(Garage.BENCH.x - 2.6, Garage.FLOOR + 3.3, Garage.BENCH.z + 0.3),
+		fit = v(0.8, 0.9, 0.5),
+		long = "x",
+		keep = {},
+		onTop = "Workbench",
+		collide = false,
+	},
+	{
+		model = "Crate", -- outside, behind the tire stacks
+		group = "Extras",
+		at = v(Garage.WIDTH / 2 + 2.5, 0, -0.6),
+		fit = v(2.2, 2.2, 2.2),
 		long = "x",
 		keep = {},
 		collide = true,
@@ -630,19 +687,32 @@ end
 
 -- Puts carter's Meshy props in place of the block stand-ins (see Garage.MESHES).
 function Garage.useMeshes(groups: { [string]: Model }, origin: CFrame)
-	local ReplicatedStorage = game:GetService("ReplicatedStorage")
-	local folder = ReplicatedStorage:FindFirstChild("PropModels")
+	local folder = game:GetService("ServerStorage"):FindFirstChild("LobbyMeshes")
 	if not folder then
 		return
 	end
 	local tops: { [string]: number } = {} -- prop top height, garage-local
 	for _, m in Garage.MESHES do
 		local template = folder:FindFirstChild(m.model)
-		local group = groups[m.group]
-		if not (template and template:IsA("Model") and group) then
+		if not (template and (template:IsA("Model") or template:IsA("BasePart"))) then
 			continue
 		end
-		local prop = template:Clone()
+		local group = groups[m.group]
+		if not group then
+			group = Instance.new("Model")
+			group.Name = m.group
+			group.Parent = (groups.Shell :: Model).Parent
+			groups[m.group] = group
+		end
+		local prop: Model
+		if template:IsA("Model") then
+			prop = template:Clone()
+		else
+			prop = Instance.new("Model")
+			local p = (template :: BasePart):Clone()
+			p.Parent = prop
+			prop.PrimaryPart = p
+		end
 		prop.Name = m.model
 		for _, d in prop:GetDescendants() do
 			if d:IsA("BasePart") then
