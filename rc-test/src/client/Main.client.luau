@@ -326,6 +326,7 @@ end)
 setWalking(true)
 LobbyLife.start() -- butterflies and birds (looks only, this screen)
 LobbyWelcome.start() -- the first moment here: street lights on, confetti
+LakeLife.start() -- the lake moves from the start: sailboats drift, ducks paddle, glints
 
 local function timerText(): string
 	local t = tracks[current]
