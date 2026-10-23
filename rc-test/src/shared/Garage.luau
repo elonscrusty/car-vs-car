@@ -34,6 +34,8 @@ Garage.FLOOR = 0.3 -- floor top (a small step up from the plaza)
 Garage.BOX = { minX = -14, maxX = 16, minZ = -8.5, maxZ = 9.5, maxY = 11 }
 -- Walking lane from the front to the middle of the floor: nothing solid stands here.
 Garage.LANE = { minX = 2, maxX = 8, minZ = -3, maxZ = 8 }
+Garage.SHOP_STANDS = { -7, 0, 7 } -- x of the shop's three turntables (z = 1.5)
+Garage.SHOP_CARS = { { 214, 48, 44 }, { 40, 110, 220 }, { 246, 196, 40 } }
 
 local C = {
 	shell = { 52, 54, 60 },
@@ -56,7 +58,10 @@ local C = {
 	gold = { 255, 196, 40 },
 	planter = { 110, 112, 118 },
 	bush = { 92, 172, 72 },
+	blue = { 38, 104, 214 },
+	white = { 238, 238, 242 },
 }
+Garage.COLORS = C
 
 local function v(x: number, y: number, z: number): V3
 	return { x = x, y = y, z = z }
@@ -77,6 +82,7 @@ export type Mesh = {
 	keep: { string },
 	onTop: string?,
 	faceMinusX: boolean?, -- when turned, look toward -x (default +x)
+	carSkin: boolean?, -- take it from ReplicatedStorage.CarSkins instead of LobbyMeshes
 	collide: boolean,
 }
 
@@ -225,23 +231,39 @@ Garage.MESHES = {
 	},
 } :: { Mesh }
 
-function Garage.parts(): { Piece }
-	local out: { Piece } = {}
-	local function add(
-		group: string,
-		name: string,
-		size: V3,
-		pos: V3,
-		color: { number },
-		opts: {
-			shape: string?,
-			rot: V3?,
-			material: string?,
-			collide: boolean?,
-			light: number?,
-		}?
-	)
-		local o = opts or {}
+Garage.SHOP_MESHES = {} :: { Mesh }
+for i, x in Garage.SHOP_STANDS do
+	table.insert(Garage.SHOP_MESHES, {
+		model = "Turntable",
+		group = "Stand" .. i,
+		at = v(x, Garage.FLOOR, 1.5),
+		fit = v(4.8, 0.7, 4.8),
+		long = "x",
+		keep = { "Ring" },
+		collide = true,
+	})
+end
+
+export type Opts = {
+	shape: string?,
+	rot: V3?,
+	material: string?,
+	collide: boolean?,
+	light: number?,
+}
+export type Add = (
+	group: string,
+	name: string,
+	size: V3,
+	pos: V3,
+	color: { number },
+	opts: Opts?
+) -> ()
+
+-- A function that appends pieces to `out` (used by the garage, the shop and the spawn lobby).
+function Garage.adder(out: { Piece }): Add
+	return function(group: string, name: string, size: V3, pos: V3, color: { number }, opts: Opts?)
+		local o: Opts = opts or {}
 		table.insert(out, {
 			group = group,
 			name = name,
@@ -255,6 +277,57 @@ function Garage.parts(): { Piece }
 			light = o.light,
 		})
 	end
+end
+
+-- A chunky toy car, `s` times the size of a 3.6-stud one, standing with its bottom middle on
+-- `at`, nose toward -Z turned by `yaw` degrees. Looks only (not solid).
+function Garage.toyCar(add: Add, group: string, at: V3, yaw: number, color: { number }, s: number)
+	local r = math.rad(yaw)
+	local c, sn = math.cos(r), math.sin(r)
+	local function put(
+		name: string,
+		size: V3,
+		x: number,
+		y: number,
+		z: number,
+		col: { number },
+		o: Opts?
+	)
+		local opts: Opts = o or {}
+		local rot = opts.rot or v(0, 0, 0)
+		opts.rot = v(rot.x, rot.y + yaw, rot.z)
+		opts.collide = false
+		add(
+			group,
+			name,
+			v(size.x * s, size.y * s, size.z * s),
+			v(at.x + (c * x + sn * z) * s, at.y + y * s, at.z + (-sn * x + c * z) * s),
+			col,
+			opts
+		)
+	end
+	for _, wx in { -1.05, 1.05 } do
+		for _, wz in { -1.2, 1.2 } do
+			put("Wheel", v(0.45, 0.9, 0.9), wx, 0.45, wz, C.tire, { shape = "Cylinder" })
+			put("Hub", v(0.47, 0.4, 0.4), wx * 1.01, 0.45, wz, C.rim, { shape = "Cylinder" })
+		end
+	end
+	put("Body", v(2, 0.7, 3.6), 0, 0.85, 0, color)
+	put("Cab", v(1.6, 0.6, 1.5), 0, 1.5, 0.25, C.glass)
+	put("Roof", v(1.7, 0.15, 1.6), 0, 1.85, 0.25, color)
+	put("Spoiler", v(2, 0.12, 0.5), 0, 1.65, 1.6, C.dark)
+	for _, sx in { -0.6, 0.6 } do
+		put("SpoilerPost", v(0.12, 0.4, 0.12), sx, 1.4, 1.6, C.dark)
+		put("Headlight", v(0.4, 0.2, 0.06), sx, 0.95, -1.82, C.light, { material = "Neon" })
+	end
+end
+
+-- kind: "garage" (default, the upgrades garage) or "shop" (the same building with a blue frame,
+-- three cars on turntables and a counter).
+function Garage.parts(kind: string?): { Piece }
+	local out: { Piece } = {}
+	local add = Garage.adder(out)
+	local shop = kind == "shop"
 
 	local W, D, H, F = Garage.WIDTH, Garage.DEPTH, Garage.HEIGHT, Garage.FLOOR
 	local front = D / 2
@@ -657,17 +730,68 @@ function Garage.parts(): { Piece }
 		{ material = "Grass" }
 	)
 
+	if shop then
+		-- keep only the building, turn the orange trim blue, then fill it like a showroom
+		local shell: { Piece } = {}
+		for _, piece in out do
+			if piece.group == "Shell" then
+				if piece.color == C.orange then
+					piece.color = C.blue
+				end
+				table.insert(shell, piece)
+			end
+		end
+		out = shell
+		add = Garage.adder(out)
+		add("Counter", "Desk", v(8, 3, 1.8), v(0, F + 1.5, -front + 2.4), C.white)
+		add("Counter", "Top", v(8.4, 0.3, 2.2), v(0, F + 3.15, -front + 2.4), C.blue)
+		add("Counter", "Stripe", v(0.1, 0.4, 8), v(-W / 2 + 1.05, F + 6, -0.5), C.blue, {
+			material = "Neon",
+			collide = false,
+		})
+		add("Counter", "Stripe", v(0.1, 0.4, 8), v(W / 2 - 1.05, F + 6, -0.5), C.blue, {
+			material = "Neon",
+			collide = false,
+		})
+		for i, x in Garage.SHOP_STANDS do
+			local g = "Stand" .. i
+			add(g, "Ring", v(0.08, 5.2, 5.2), v(x, F + 0.04, 1.5), C.cyan, {
+				shape = "Cylinder",
+				rot = v(0, 0, 90),
+				material = "Neon",
+				collide = false,
+			})
+			add(
+				g,
+				"Plinth",
+				v(0.6, 4.8, 4.8),
+				v(x, F + 0.3, 1.5),
+				C.dark,
+				{ shape = "Cylinder", rot = v(0, 0, 90) }
+			)
+			add(g, "Top", v(0.15, 4.4, 4.4), v(x, F + 0.67, 1.5), C.board, {
+				shape = "Cylinder",
+				rot = v(0, 0, 90),
+				collide = false,
+			})
+			Garage.toyCar(
+				add,
+				"Cars",
+				v(x, F + 0.75, 1.5),
+				-30 + (i - 1) * 30,
+				Garage.SHOP_CARS[i],
+				1
+			)
+		end
+	end
 	return out
 end
 
--- Builds the garage under `parent`. `at` is the middle of the floor at plaza height, its
--- LookVector pointing out of the open front. Returns the Model "UpgradesGarage".
-function Garage.build(parent: Instance, at: CFrame, _width: number?, _depth: number?): Model
-	local origin = at * CFrame.Angles(0, math.pi, 0) -- garage-local +Z = the LookVector
-	local model = Instance.new("Model")
-	model.Name = "UpgradesGarage"
+-- Makes real parts for `pieces` under `model`, one Model per group, placed with `origin`
+-- (local +Z = front). Returns the groups by name.
+function Garage.makeParts(pieces: { Piece }, model: Instance, origin: CFrame): { [string]: Model }
 	local groups: { [string]: Model } = {}
-	for _, p in Garage.parts() do
+	for _, p in pieces do
 		local group = groups[p.group]
 		if not group then
 			group = Instance.new("Model")
@@ -699,21 +823,36 @@ function Garage.build(parent: Instance, at: CFrame, _width: number?, _depth: num
 		end
 		part.Parent = group
 	end
+	return groups
+end
+
+-- Builds the garage (or with kind "shop", the car shop) under `parent`. `at` is the middle of
+-- the floor at plaza height, its LookVector pointing out of the open front.
+function Garage.build(
+	parent: Instance,
+	at: CFrame,
+	_width: number?,
+	_depth: number?,
+	kind: string?
+): Model
+	local origin = at * CFrame.Angles(0, math.pi, 0) -- garage-local +Z = the LookVector
+	local model = Instance.new("Model")
+	model.Name = if kind == "shop" then "CarShop" else "UpgradesGarage"
+	local groups = Garage.makeParts(Garage.parts(kind), model, origin)
 	model.PrimaryPart = (groups.Shell :: Model):FindFirstChild("Floor") :: BasePart
-	Garage.useMeshes(groups, origin)
+	Garage.useMeshes(groups, origin, if kind == "shop" then Garage.SHOP_MESHES else Garage.MESHES)
 	model.Parent = parent
 	return model
 end
 
 -- Puts carter's Meshy props in place of the block stand-ins (see Garage.MESHES).
-function Garage.useMeshes(groups: { [string]: Model }, origin: CFrame)
+function Garage.useMeshes(groups: { [string]: Model }, origin: CFrame, meshes: { Mesh }?)
 	local folder = game:GetService("ServerStorage"):FindFirstChild("LobbyMeshes")
-	if not folder then
-		return
-	end
+	local skins = game:GetService("ReplicatedStorage"):FindFirstChild("CarSkins")
 	local tops: { [string]: number } = {} -- prop top height, garage-local
-	for _, m in Garage.MESHES do
-		local template = folder:FindFirstChild(m.model)
+	for _, m in meshes or Garage.MESHES do
+		local from = if m.carSkin then skins else folder
+		local template = from and from:FindFirstChild(m.model)
 		if not (template and (template:IsA("Model") or template:IsA("BasePart"))) then
 			continue
 		end
@@ -721,7 +860,8 @@ function Garage.useMeshes(groups: { [string]: Model }, origin: CFrame)
 		if not group then
 			group = Instance.new("Model")
 			group.Name = m.group
-			group.Parent = (groups.Shell :: Model).Parent
+			local first = next(groups)
+			group.Parent = if first then (groups[first] :: Model).Parent else nil
 			groups[m.group] = group
 		end
 		local prop: Model
