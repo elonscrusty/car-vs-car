@@ -77,6 +77,36 @@ local function blockHill(parent: Instance, h: LobbyHills.Hill, at: CFrame)
 	model.Parent = parent
 end
 
+-- a thin trail of grey smoke from the cabin's roof (a few slow puffs: cheap on phones)
+local function chimneySmoke(cabin: Model)
+	local box, size = cabin:GetBoundingBox()
+	local holder = Instance.new("Part")
+	holder.Name = "Smoke"
+	holder.Size = Vector3.new(0.2, 0.2, 0.2)
+	holder.Transparency = 1
+	holder.CFrame = CFrame.new(box.Position + Vector3.new(0, size.Y / 2 + 0.3, 0))
+	tidy(holder, false)
+	holder.CastShadow = false
+	local smoke = Instance.new("ParticleEmitter")
+	smoke.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	smoke.Rate = 3
+	smoke.Lifetime = NumberRange.new(3, 5)
+	smoke.Speed = NumberRange.new(1.5, 2.5)
+	smoke.SpreadAngle = Vector2.new(8, 8)
+	smoke.Acceleration = Vector3.new(0.5, 0.3, 0.3)
+	smoke.Size =
+		NumberSequence.new({ NumberSequenceKeypoint.new(0, 1.2), NumberSequenceKeypoint.new(1, 4) })
+	smoke.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.35),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	smoke.Color = ColorSequence.new(Color3.fromRGB(228, 228, 232))
+	smoke.RotSpeed = NumberRange.new(-20, 20)
+	smoke.LightInfluence = 1
+	smoke.Parent = holder
+	holder.Parent = cabin
+end
+
 function LobbyHillsBuilder.build(parent: Instance): Folder
 	local folder = Instance.new("Folder")
 	folder.Name = "Hills"
@@ -251,6 +281,9 @@ function LobbyHillsBuilder.build(parent: Instance): Folder
 					d.CanCollide = true
 					d.CanTouch = false
 				end
+			end
+			if l.mesh == "Cabin" then
+				chimneySmoke(m)
 			end
 		end
 		-- the path: a flat yard patch, then planks of dirt down the slope
