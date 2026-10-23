@@ -391,6 +391,7 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 	car.render(dt)
 	effects.update(dt)
 	camera.update(dt)
+	controls.setRock(tracks[current].id == "rock")
 	-- driver view looks out of the person's eyes: hide them on this screen so the head and hat
 	-- don't block the view
 	local char = player.Character

@@ -165,7 +165,7 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 			if look.Magnitude > 0.1 then
 				local err = math.asin(CarMath.clamp(held:Cross(look.Unit).Y, -1, 1))
 				local dir = if vLongBody < -0.2 * Tuning.scale then -1 else 1
-				stick = CarMath.clamp(err * 2.5 * dir, -1, 1)
+				stick = CarMath.clamp(err * 4 * dir, -1, 1)
 			end
 		end
 		local target = CarMath.steerTarget(stick, vLongBody, slip)

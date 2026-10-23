@@ -144,10 +144,14 @@ test("track modes change numbers and switch back cleanly", function()
 	truthy(Tuning.sideHold > 0, "rock tyres should stop side slides")
 	truthy(Tuning.uprightAssist > 0, "rock eases back upright")
 	truthy(Tuning.yawHold > 0, "rock holds its line")
-	-- rock must still be able to climb a 0.6 slope at walking pace
+	-- rock must still crawl up a 0.45 slope (the face is 0.40); steeper takes a run-up and skill
 	truthy(
-		CarMath.engineAccel(4, true) > 196.2 * math.sin(math.atan(0.6)),
+		CarMath.engineAccel(4, true) > 196.2 * math.sin(math.atan(0.45)),
 		"rock too weak to climb"
+	)
+	truthy(
+		CarMath.engineAccel(4, true) < 196.2 * math.sin(math.atan(0.7)),
+		"rock should not crawl straight up anything"
 	)
 	-- springs must not sit bottomed out at rest
 	truthy(196.2 / Tuning.springOmega ^ 2 < Tuning.maxSusp * 0.7, "rock springs too soft")
