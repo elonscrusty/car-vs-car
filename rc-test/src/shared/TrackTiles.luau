@@ -11,7 +11,11 @@
 -- Sibling loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
 local function sibling(name: string): any
 	if script then
-		return require((script :: any).Parent[name])
+		local node: any = (script :: any).Parent
+		for _, part in string.split(name, "/") do
+			node = node[part]
+		end
+		return require(node)
 	end
 	local luneRequire: any = require
 	return luneRequire("./" .. name)
