@@ -21,6 +21,7 @@ export type Data = {
 	rivals: { [string]: Rival }, -- other player's user id -> my score against them
 	dailyDay: number, -- the day the daily gift was last taken (0 = never)
 	dayStreak: number, -- days in a row the daily gift was taken
+	jobs: { day: number, have: { number } }, -- daily jobs: the day, and how far each job got
 }
 -- My score against one other player: wins = I beat their record, losses = they beat mine.
 export type Rival = { name: string, wins: number, losses: number, at: number }
@@ -28,7 +29,7 @@ export type Lock = { job: string, at: number }
 
 local Profile = {}
 
-Profile.VERSION = 5 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift
+Profile.VERSION = 6 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift. 6: daily jobs
 Profile.MAX_OWNERS = 500 -- keeps the save small; stars from more owners than this stop counting
 Profile.LOCK_TIMEOUT = 300 -- a server that hasn't saved for this long is gone: its lock is stale
 Profile.MODES = { "race", "drift", "rock" }
@@ -59,6 +60,7 @@ function Profile.new(): Data
 		rivals = {},
 		dailyDay = 0,
 		dayStreak = 0,
+		jobs = { day = -1, have = { 0, 0, 0 } },
 	}
 end
 
@@ -178,6 +180,19 @@ function Profile.migrate(raw: any): Data
 	if goodNumber(raw.dailyDay) and goodNumber(raw.dayStreak) then
 		d.dailyDay = math.max(math.floor(raw.dailyDay), 0)
 		d.dayStreak = math.clamp(math.floor(raw.dayStreak), 0, 100000)
+	end
+	if
+		type(raw.jobs) == "table"
+		and goodNumber(raw.jobs.day)
+		and type(raw.jobs.have) == "table"
+	then
+		d.jobs.day = math.floor(raw.jobs.day)
+		for i = 1, 3 do
+			local v = raw.jobs.have[i]
+			if goodNumber(v) and v > 0 then
+				d.jobs.have[i] = math.min(math.floor(v), 999)
+			end
+		end
 	end
 	local stars = 0
 	for _, modes in d.starsFrom do
