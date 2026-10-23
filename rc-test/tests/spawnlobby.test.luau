@@ -144,8 +144,9 @@ test("each car shop has a name and a price for every car on show", function()
 		eq(#shop.cars, #G.SHOP_STANDS)
 		eq(#shop.names, #shop.cars)
 		eq(#shop.prices, #shop.cars)
-		for _, p in shop.prices do
-			truthy(p > 0, kind .. " price")
+		eq(shop.prices[1], 0) -- the starter is free
+		for i = 2, #shop.prices do
+			truthy(shop.prices[i] > shop.prices[i - 1], kind .. " prices go up")
 		end
 	end
 end)
