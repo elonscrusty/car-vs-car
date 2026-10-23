@@ -3,15 +3,59 @@
 -- back to walking, and the stand prompts are hidden on this screen. While walking, the stand
 -- prompts (E or tap) ask the server to drive; the server answers with "drive" / "walk".
 -- Standing on a pad also shows a big DRIVE button in the same spot, for a thumb on a phone.
--- While walking, a FRIENDS button at the top lets the owner of a plot let others drive it.
+-- While walking, a FRIENDS button at the top lets the owner of a plot let others drive it, and a
+-- light column with a YOUR PLOT sign stands on your own plot's pad (this screen only), so a new
+-- player sees from the spawn lobby where to go.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
+local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
+
 local Lobby = {}
+
+-- A see-through light column on a pad with a YOUR PLOT sign on top, seen from far away.
+local function makeMarker(x: number, z: number): Model
+	local marker = Instance.new("Model")
+	marker.Name = "YourPlotMarker"
+	local height = 30
+	local column = Instance.new("Part")
+	column.Name = "Light"
+	column.Shape = Enum.PartType.Cylinder
+	column.Size = Vector3.new(height, 3, 3)
+	column.CFrame = CFrame.new(x, height / 2, z) * CFrame.Angles(0, 0, math.pi / 2)
+	column.Material = Enum.Material.Neon
+	column.Color = Color3.fromRGB(255, 220, 90)
+	column.Transparency = 0.65
+	column.Anchored = true
+	column.CanCollide = false
+	column.CanQuery = false
+	column.CanTouch = false
+	column.CastShadow = false
+	column.Parent = marker
+	local sign = Instance.new("BillboardGui")
+	sign.Size = UDim2.fromOffset(150, 56)
+	sign.StudsOffsetWorldSpace = Vector3.new(0, height / 2 + 2, 0) -- above the column top
+	sign.AlwaysOnTop = true
+	sign.LightInfluence = 0
+	sign.Parent = column
+	local text = Instance.new("TextLabel")
+	text.Size = UDim2.fromScale(1, 1)
+	text.BackgroundColor3 = Color3.fromRGB(255, 210, 63)
+	text.TextColor3 = Color3.fromRGB(30, 30, 34)
+	text.Font = Enum.Font.GothamBlack
+	text.TextScaled = true
+	text.Text = "YOUR PLOT"
+	text.Parent = sign
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 10)
+	corner.Parent = text
+	return marker
+end
 
 export type Lobby = {
 	setDriving: (on: boolean) -> (),
@@ -59,12 +103,16 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 	friendsButton.TextSize = 18
 	local ownSlot: number? = nil
 	local friendsOn = false
+	local marker: Model? = nil
 	local function showFriends()
 		friendsButton.Text = if friendsOn then "FRIENDS: ON" else "FRIENDS: OFF"
 		friendsButton.BackgroundColor3 = if friendsOn
 			then Color3.fromRGB(60, 170, 80)
 			else Color3.fromRGB(40, 40, 46)
 		friendsGui.Enabled = ownSlot ~= nil and not driving
+		if marker then
+			marker.Parent = if driving then nil else workspace
+		end
 	end
 	friendsButton.Activated:Connect(function()
 		if ownSlot then
@@ -73,6 +121,13 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 	end)
 	remote.OnClientEvent:Connect(function(kind: unknown, slot: unknown, open: unknown)
 		if kind == "own" and type(slot) == "number" and type(open) == "boolean" then
+			local s = LobbyLayout.slots()[slot]
+			if s and slot ~= ownSlot then
+				if marker then
+					marker:Destroy()
+				end
+				marker = makeMarker(s.padX, s.padZ)
+			end
 			ownSlot = slot
 			friendsOn = open
 			showFriends()
