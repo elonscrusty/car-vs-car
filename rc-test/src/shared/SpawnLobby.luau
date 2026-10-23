@@ -1,9 +1,9 @@
 --!strict
 -- The spawn lobby at the top of the street (carter's plan v5): where everyone appears. A warm
 -- paved square with the car shop (left) and the upgrades garage (right) at the back, everyone's
--- car on a row of turntables between them, a giant toy car on a plinth in the middle, four race
--- pads at the front (stand on one with a friend to race; looks + pad only for now), and a
--- checkered arch where the street starts. Lamps, bunting and trees round it. No text.
+-- car on a row of turntables between them, a giant toy car on a plinth in the middle, three
+-- play pads at the front (drift, race, rock: stand on one and QueuePads sends you to an open plot
+-- of that kind), and a checkered arch where the street starts. Lamps, bunting and trees round it. No text.
 --
 -- Lobby-local space: (0, 0, 0) is the middle of the square on the floor. +Z is the front (the
 -- street), -Z the back. SpawnLobby.build() takes a CFrame whose LookVector points down the
@@ -38,7 +38,12 @@ SpawnLobby.STATUE = { x = 0, z = -6 }
 SpawnLobby.STAND_Z = -28
 SpawnLobby.STANDS = { -19.25, -13.75, -8.25, -2.75, 2.75, 8.25, 13.75, 19.25 } -- everyone's car
 SpawnLobby.PAD_Z = 23
-SpawnLobby.PADS = { -42, -22, 22, 42 } -- race pads (x)
+-- play pads (queue pads), one per plot kind, each in its own colour
+SpawnLobby.PADS = {
+	{ x = -36, kind = "drift", color = { 150, 70, 210 } },
+	{ x = 0, kind = "race", color = { 226, 52, 46 } },
+	{ x = 36, kind = "rock", color = { 70, 176, 64 } },
+}
 SpawnLobby.ARCH_Z = 33.5
 SpawnLobby.LAMPS = {
 	{ x = -57, z = -32 },
@@ -190,21 +195,28 @@ function SpawnLobby.parts(): { Piece }
 		)
 	end
 
-	-- ===== Race pads at the front: a two-lane start grid with a start light behind it =====
-	for i, px in SpawnLobby.PADS do
-		local g = "RacePad" .. i
-		local pz = SpawnLobby.PAD_Z
+	-- ===== Play pads at the front: a start grid in the pad's colour, a start light beside it =====
+	for i, pad in SpawnLobby.PADS do
+		local g = "QueuePad" .. i
+		local px, pz = pad.x, SpawnLobby.PAD_Z
 		add(
 			g,
 			"Rim",
 			v(12.6, 0.06, 10.6),
 			v(px, 0.03, pz),
-			L.yellow,
+			pad.color,
 			{ material = "Neon", collide = false }
 		)
 		add(g, "Base", v(12, 0.08, 10), v(px, 0.04, pz), C.dark, { collide = false })
 		for _, lx in { -2.8, 2.8 } do
-			add(g, "Lane", v(4.6, 0.1, 7), v(px + lx, 0.05, pz + 0.8), L.white, { collide = false })
+			add(
+				g,
+				"Lane",
+				v(4.6, 0.1, 7),
+				v(px + lx, 0.05, pz + 0.8),
+				pad.color,
+				{ collide = false }
+			)
 			add(
 				g,
 				"LaneIn",
@@ -226,12 +238,13 @@ function SpawnLobby.parts(): { Piece }
 				)
 			end
 		end
+		-- beside the pad (not behind it: the middle pad sits on the walk to the street)
 		local sg = "StartLight" .. i
-		local lz = pz - 6.4
-		add(sg, "Post", v(0.5, 5, 0.5), v(px, 2.5, lz), L.iron)
-		add(sg, "Box", v(3.8, 1.4, 0.8), v(px, 5.6, lz), L.iron)
+		local lx, lz = px + 8, pz - 3
+		add(sg, "Post", v(0.5, 5, 0.5), v(lx, 2.5, lz), L.iron)
+		add(sg, "Box", v(3.8, 1.4, 0.8), v(lx, 5.6, lz), L.iron)
 		for k, col in { L.red, L.yellow, L.green } do
-			add(sg, "Light", v(0.2, 0.9, 0.9), v(px - 2.2 + k * 1.1, 5.6, lz + 0.45), col, {
+			add(sg, "Light", v(0.2, 0.9, 0.9), v(lx - 2.2 + k * 1.1, 5.6, lz + 0.45), col, {
 				shape = "Cylinder",
 				rot = v(0, 90, 0),
 				material = "Neon",
@@ -377,11 +390,11 @@ do
 			true
 		)
 	end
-	for i, px in SpawnLobby.PADS do
+	for i, pad in SpawnLobby.PADS do
 		mesh(
 			"StartLight",
 			"StartLight" .. i,
-			v(px, 0, SpawnLobby.PAD_Z - 6.4),
+			v(pad.x + 8, 0, SpawnLobby.PAD_Z - 3),
 			v(4, 6.4, 1.2),
 			{},
 			true
@@ -411,17 +424,19 @@ function SpawnLobby.spawnCFrame(at: CFrame): CFrame
 end
 
 -- Builds it under `parent`. `at` is the middle of the square on the floor, its LookVector
--- pointing down the street. Race pad bases are tagged "RacePad" (attribute Pad = 1..4).
+-- pointing down the street. Play pad bases are tagged "QueuePad" (attributes Pad = 1..3 and
+-- PlotType = "drift" / "race" / "rock"); QueuePads (server) watches them.
 function SpawnLobby.build(parent: Instance, at: CFrame): Model
 	local origin = at * CFrame.Angles(0, math.pi, 0) -- lobby-local +Z = the LookVector
 	local model = Instance.new("Model")
 	model.Name = "SpawnLobby"
 	local groups = Garage.makeParts(SpawnLobby.parts(), model, origin)
 	model.PrimaryPart = (groups.Ground :: Model):FindFirstChild("Floor") :: BasePart
-	for i = 1, #SpawnLobby.PADS do
-		local base = (groups["RacePad" .. i] :: Model):FindFirstChild("Base") :: BasePart
+	for i, pad in SpawnLobby.PADS do
+		local base = (groups["QueuePad" .. i] :: Model):FindFirstChild("Base") :: BasePart
 		base:SetAttribute("Pad", i)
-		game:GetService("CollectionService"):AddTag(base, "RacePad")
+		base:SetAttribute("PlotType", pad.kind)
+		game:GetService("CollectionService"):AddTag(base, "QueuePad")
 	end
 	Garage.useMeshes(groups, origin, SpawnLobby.MESHES)
 	for _, spot in { { SpawnLobby.SHOP, "shop" }, { SpawnLobby.GARAGE, "garage" } } do

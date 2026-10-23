@@ -1,6 +1,6 @@
 --!strict
 -- Spawn lobby (SpawnLobby.luau): everything fits, the walk from the spawn to the street is open,
--- and it has the shop, the garage, a stand per player and the race pads.
+-- and it has the shop, the garage, a stand per player and the play pads.
 local H = require("./harness")
 local S = require("../src/shared/SpawnLobby")
 local TrackData = require("../src/shared/TrackData")
@@ -52,9 +52,16 @@ test("nothing solid between the spawn and the street", function()
 	end
 end)
 
-test("a car stand for every plot, four race pads, a shop and a garage", function()
+test("a car stand for every plot, a play pad per plot kind, a shop and a garage", function()
 	truthy(#S.STANDS >= #TrackData.order, "stands")
-	eq(#S.PADS, 4)
+	eq(#S.PADS, 3)
+	local kinds: { [string]: boolean } = {}
+	for _, pad in S.PADS do
+		kinds[pad.kind] = true
+	end
+	for _, k in { "drift", "race", "rock" } do
+		truthy(kinds[k], "pad for " .. k)
+	end
 	local groups: { [string]: boolean } = {}
 	for _, p in S.allParts() do
 		groups[p.group] = true
@@ -63,8 +70,8 @@ test("a car stand for every plot, four race pads, a shop and a garage", function
 		{
 			"Ground",
 			"Statue",
-			"RacePad1",
-			"RacePad4",
+			"QueuePad1",
+			"QueuePad3",
 			"Stand8",
 			"Arch",
 			"shop/Shell",
