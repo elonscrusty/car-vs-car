@@ -65,6 +65,8 @@ type Racer = {
 	waitLeave: boolean, -- jumped and still on the line
 	started: boolean,
 	out: boolean, -- walked off or left the game
+	place: number, -- live place (1 = in front)
+	finishedNow: boolean?, -- crossed the line for the last time this frame
 }
 
 local ServerRaceRunner = {}
@@ -72,7 +74,9 @@ local ServerRaceRunner = {}
 -- Server -> client: ("state", phase, startAt, count, joined, where) with phase "wait" | "call" |
 -- "racing" (startAt = workspace:GetServerTimeNow() time of the start, count/joined = unused now
 -- that everyone races, where = "MIA'S TRACK" once picked), ("result", rows) when a race ends:
--- rows = { { name, time?, laps } } best first.
+-- rows = { { name, time?, laps } } best first. To one racer: ("finished", place) when its car
+-- crosses the line for the last time, ("ends", endsAt) when the winner is in (the others have
+-- until endsAt). Live places: the racer's attributes RacePlace / RaceCars (nil = no race).
 local event = Instance.new("RemoteEvent")
 event.Name = "ServerRace"
 event.Parent = ReplicatedStorage
@@ -248,6 +252,7 @@ local function runRace(hooks: Hooks, slot: number)
 				waitLeave = false,
 				started = false,
 				out = false,
+				place = k,
 			})
 		end
 	end
@@ -255,6 +260,8 @@ local function runRace(hooks: Hooks, slot: number)
 	local goAt = os.clock() + ServerRace.GO_DELAY + 0.3
 	local firstAt: number? = nil
 	local gate1 = t.gates[1]
+	local gates = #t.gates
+	local placesAt = 0
 	while true do
 		RunService.Heartbeat:Wait()
 		local clock = os.clock()
@@ -284,12 +291,73 @@ local function runRace(hooks: Hooks, slot: number)
 					r.laps += 1
 					if r.laps >= ServerRace.LAPS then
 						r.time = clock - goAt
-						firstAt = firstAt or (clock - goAt)
+						if firstAt == nil then
+							firstAt = clock - goAt
+							-- the others now race the clock
+							local endsAt = now()
+								+ math.min(
+									ServerRace.AFTER_WIN,
+									ServerRace.TIME_LIMIT - (clock - goAt)
+								)
+							for _, o in racers do
+								if o ~= r and o.player.Parent then
+									event:FireClient(o.player, "ends", endsAt)
+								end
+							end
+						end
+						r.finishedNow = true
 					end
 				end
 			end
 			if p.Parent then
 				table.insert(entries, { name = r.name, laps = r.laps, time = r.time })
+			end
+		end
+		-- live places, a few times a second (finishers by time, then how far round)
+		if clock >= placesAt then
+			placesAt = clock + 0.25
+			local runs: { ServerRace.Run } = {}
+			for _, r in racers do
+				local s = r.timer
+				local passed = if s.running then s.next - 1 else 0
+				local g = t.gates[((s.next - 1) % math.max(gates, 1)) + 1]
+				local dist = 0
+				local body = if r.out then nil else carBody(r.player)
+				if body and g then
+					local pos = body.Position
+					local lx, _, lz = TrackData.toLocal(t, true, pos.X, pos.Y, pos.Z)
+					dist = math.sqrt((lx - g.x) ^ 2 + (lz - g.z) ^ 2)
+				end
+				local out = r.out and r.time == nil
+				table.insert(runs, {
+					time = r.time,
+					-- walked off: behind everyone still in
+					progress = if out then -1 else ServerRace.progress(r.laps, passed, gates, dist),
+				})
+			end
+			local place = ServerRace.places(runs)
+			for i, r in racers do
+				r.place = place[i]
+				if r.player.Parent then
+					r.player:SetAttribute("RacePlace", r.place)
+					r.player:SetAttribute("RaceCars", #racers)
+				end
+			end
+		end
+		for _, r in racers do
+			if r.finishedNow then
+				r.finishedNow = nil
+				-- its place among the finishers (all faster ones are in already)
+				local ahead = 1
+				for _, o in racers do
+					local ot, rt = o.time, r.time
+					if o ~= r and ot and rt and ot < rt then
+						ahead += 1
+					end
+				end
+				if r.player.Parent then
+					event:FireClient(r.player, "finished", ahead)
+				end
 			end
 		end
 		-- nobody left racing, or the race is done
@@ -305,6 +373,12 @@ local function runRace(hooks: Hooks, slot: number)
 			end
 			event:FireAllClients("result", rows)
 			break
+		end
+	end
+	for _, r in racers do
+		if r.player.Parent then
+			r.player:SetAttribute("RacePlace", nil)
+			r.player:SetAttribute("RaceCars", nil)
 		end
 	end
 	task.wait(ServerRace.SHOW)
