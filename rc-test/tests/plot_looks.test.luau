@@ -9,6 +9,13 @@ local test, truthy, eq = H.test, H.truthy, H.eq
 
 print("Plot looks")
 
+test("every look builds something", function()
+	for _, id in L.IDS do
+		truthy(#L.parts("race", id) > 0, id)
+	end
+	eq(table.concat(L.fromStars(30), ","), "night,snow")
+end)
+
 test("tiers: day, night at 10, snow at 25, lights + fans at 50", function()
 	for _, c in
 		{ { 0, 0 }, { 9, 0 }, { 10, 1 }, { 24, 1 }, { 25, 2 }, { 49, 2 }, { 50, 3 }, { 400, 3 } }
@@ -20,7 +27,7 @@ end)
 for _, kind in { "race", "drift", "rock" } do
 	test(kind .. ": nothing low on the track, everything over the plot", function()
 		local W, D = P.HALF_W, P.HALF_D
-		for t = 1, 3 do
+		for _, t in L.IDS do
 			for _, p in L.parts(kind, t) do
 				local x0, x1 = p.pos.x - p.size.x / 2, p.pos.x + p.size.x / 2
 				local z0, z1 = p.pos.z - p.size.z / 2, p.pos.z + p.size.z / 2
@@ -39,7 +46,7 @@ for _, kind in { "race", "drift", "rock" } do
 
 	test(kind .. ": the walk to the stand stays open", function()
 		local lane = P.LANE
-		for _, p in L.allParts(kind, 3) do
+		for _, p in L.allParts(kind, L.IDS) do
 			local hit = p.collide
 				and p.pos.x + p.size.x / 2 > lane.minX
 				and p.pos.x - p.size.x / 2 < lane.maxX
@@ -53,7 +60,7 @@ for _, kind in { "race", "drift", "rock" } do
 		kind .. ": lights within the phone budget (with the decor's lanterns and booth)",
 		function()
 			local n = 5 -- PlotDecor: 4 lanterns lit at night + the booth light
-			for _, p in L.allParts(kind, 3) do
+			for _, p in L.allParts(kind, L.IDS) do
 				if p.light then
 					n += 1
 				end

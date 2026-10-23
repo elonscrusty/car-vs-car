@@ -22,6 +22,8 @@ export type Data = {
 	dailyDay: number, -- the day the daily gift was last taken (0 = never)
 	dayStreak: number, -- days in a row the daily gift was taken
 	jobs: { day: number, have: { number } }, -- daily jobs: the day, and how far each job got
+	looks: { [string]: boolean }, -- plot looks bought in the plot shop (PlotShop ids)
+	lookOff: { [string]: boolean }, -- plot looks I have but turned off
 }
 -- My score against one other player: wins = I beat their record, losses = they beat mine.
 export type Rival = { name: string, wins: number, losses: number, at: number }
@@ -29,7 +31,8 @@ export type Lock = { job: string, at: number }
 
 local Profile = {}
 
-Profile.VERSION = 6 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift. 6: daily jobs
+Profile.VERSION = 7 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift.
+-- 6: daily jobs. 7: looks, lookOff
 Profile.MAX_OWNERS = 500 -- keeps the save small; stars from more owners than this stop counting
 Profile.LOCK_TIMEOUT = 300 -- a server that hasn't saved for this long is gone: its lock is stale
 Profile.MODES = { "race", "drift", "rock" }
@@ -42,6 +45,7 @@ Profile.MAX_RIVALS = 50 -- the least recent rival goes when full
 -- The daily gift by days in a row (day 1, day 2, ...); from day 7 on it stays at the last one.
 -- Miss a day and it starts again at day 1. (Guess amounts, like the visit gift.)
 Profile.DAILY = { 10, 15, 20, 30, 40, 50, 75 }
+Profile.MAX_LOOKS = 32 -- look ids kept (the shop has fewer)
 
 function Profile.new(): Data
 	return {
@@ -61,6 +65,8 @@ function Profile.new(): Data
 		dailyDay = 0,
 		dayStreak = 0,
 		jobs = { day = -1, have = { 0, 0, 0 } },
+		looks = {},
+		lookOff = {},
 	}
 end
 
@@ -191,6 +197,17 @@ function Profile.migrate(raw: any): Data
 			local v = raw.jobs.have[i]
 			if goodNumber(v) and v > 0 then
 				d.jobs.have[i] = math.min(math.floor(v), 999)
+			end
+		end
+	end
+	for _, k in { "looks", "lookOff" } do
+		local raw2 = raw[k]
+		if type(raw2) == "table" then
+			local set = (d :: any)[k]
+			for id, yes in raw2 do
+				if type(id) == "string" and yes == true and count(set) < Profile.MAX_LOOKS then
+					set[string.sub(id, 1, 20)] = true
+				end
 			end
 		end
 	end

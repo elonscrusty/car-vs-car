@@ -1,7 +1,9 @@
 --!strict
--- A plot's look grows with its owner's stars (carter's pick 2026-10-23): 10 stars = night,
--- 25 = snow, 50 = lights + fans. Each look keeps the ones below it. Looks only: never on the
--- driving line, no collisions, the track and its feel stay exactly the same.
+-- A plot's looks (carter's picks 2026-10-23). Stars unlock the themes for free (10 stars =
+-- night, 25 = snow, 50 = lights + fans) and coins buy any look in the plot shop (PlotShop), the
+-- themes and the decor (balloons, glow trim, confetti). Each look is its own, and the owner turns
+-- them on and off. Looks only: never on the driving line, no collisions, the track and its feel
+-- stay exactly the same.
 -- Plan: /mnt/project-files/rc-game/ideas/stars-phase2-plot-looks.md
 --
 -- Plot-local space at real RC size, as in PlotDecor: +Z is the front (the road), x from -40 to
@@ -25,9 +27,13 @@ type Piece = Garage.Piece
 local PlotLooks = {}
 
 PlotLooks.TIERS = { 10, 25, 50 } -- stars for night, snow, lights + fans
-PlotLooks.NIGHT_TINT = 0.5 -- night multiplies the plot's colours by this (neon stays bright)
+PlotLooks.STAR_LOOKS = { "night", "snow", "party" } -- what each tier unlocks
+-- every look, in build order
+PlotLooks.IDS = { "night", "snow", "party", "balloons", "neon", "confetti" }
+PlotLooks.NIGHT_TINT = 0.38 -- night keeps this much of the plot's colours (neon stays bright)
 PlotLooks.MAX_LIGHTS = 12 -- PointLights per plot, phone budget
 PlotLooks.SNOW_RATE = 20 -- snowflakes a second over one plot
+PlotLooks.CONFETTI_RATE = 12 -- confetti bits a second over one plot (all colours together)
 
 -- 0 = day, 1 = night, 2 = snow, 3 = lights + fans
 function PlotLooks.tier(stars: number): number
@@ -38,6 +44,15 @@ function PlotLooks.tier(stars: number): number
 		end
 	end
 	return t
+end
+
+-- The looks `stars` unlock for free.
+function PlotLooks.fromStars(stars: number): { string }
+	local out = {}
+	for i = 1, PlotLooks.tier(stars) do
+		table.insert(out, PlotLooks.STAR_LOOKS[i])
+	end
+	return out
 end
 
 local function v(x: number, y: number, z: number): V3
@@ -55,16 +70,18 @@ local SHIRTS = {
 	{ 176, 70, 255 },
 	{ 255, 130, 40 },
 }
+local BALLOONS =
+	{ { 255, 80, 90 }, { 255, 200, 50 }, { 80, 170, 255 }, { 255, 130, 210 }, { 110, 220, 120 } }
 local SKIN = { { 255, 214, 170 }, { 214, 160, 110 }, { 150, 100, 66 }, { 240, 190, 140 } }
 
--- The extra pieces for tier `t` (only that tier's own; the builder adds every tier up to the
--- plot's one). Group names: "Night", "Snow", "Party". Lamps carry `light`.
-function PlotLooks.parts(kind: string, t: number): { Piece }
+-- The pieces of look `id`. Group names: "Night", "Snow", "Party", "Balloons", "Neon",
+-- "Confetti". Lamps carry `light`.
+function PlotLooks.parts(kind: string, id: string): { Piece }
 	local out: { Piece } = {}
 	local add = Garage.adder(out)
 	local W, D, H = PlotDecor.HALF_W, PlotDecor.HALF_D, PlotDecor.WALL_H
 	local noHit = { collide = false }
-	if t == 1 then
+	if id == "night" then
 		-- four lamp posts on the side walls, warm bulbs that light the track at night
 		for _, sx in { -1, 1 } do
 			for _, z in { -30, 10 } do
@@ -89,7 +106,7 @@ function PlotLooks.parts(kind: string, t: number): { Piece }
 				)
 			end
 		end
-	elseif t == 2 then
+	elseif id == "snow" then
 		-- snow on the wall tops (over PlotDecor's caps) and the arch, drifts in the front area
 		local capY = H + 0.3 + 0.1
 		local w = PlotDecor.WALL_T + 0.4
@@ -135,7 +152,7 @@ function PlotLooks.parts(kind: string, t: number): { Piece }
 			noHit
 		)
 		add("Snow", "SnowmanHat", v(0.8, 0.5, 0.8), v(sx, 2.8, sz), { 30, 30, 34 }, noHit)
-	elseif t == 3 then
+	elseif id == "party" then
 		-- string lights along both side walls, bulbs in turn
 		local n = 0
 		for _, sx in { -1, 1 } do
@@ -191,16 +208,73 @@ function PlotLooks.parts(kind: string, t: number): { Piece }
 				{ rot = v(0, 0, sx * 20), material = "Neon", collide = false }
 			)
 		end
+	elseif id == "balloons" then
+		-- a big bunch of balloons tied down in each road-side corner (clear of the walk, the
+		-- booth and the canopy)
+		local n = 0
+		for _, sx in { -1, 1 } do
+			local x, z = sx * (W - 2.5), D - 2.5
+			add("Balloons", "Weight", v(0.6, 0.4, 0.6), v(x, 0.2, z), { 70, 70, 76 }, noHit)
+			for _, b in
+				{
+					{ -0.7, 6.2, 0.3 },
+					{ 0.7, 6.6, -0.3 },
+					{ 0, 7.4, 0.5 },
+					{ -0.4, 8.1, -0.5 },
+					{ 0.6, 8.6, 0.4 },
+				}
+			do
+				n += 1
+				local bx, by, bz = x + b[1], b[2], z + b[3]
+				add(
+					"Balloons",
+					"String",
+					v(0.06, by - 0.4, 0.06),
+					v(bx, 0.4 + (by - 0.4) / 2, bz),
+					{ 240, 240, 240 },
+					noHit
+				)
+				add(
+					"Balloons",
+					"Balloon",
+					v(1.3, 1.3, 1.3),
+					v(bx, by + 0.65, bz),
+					BALLOONS[n % #BALLOONS + 1],
+					{ shape = "Ball", collide = false }
+				)
+			end
+		end
+	elseif id == "neon" then
+		-- a glowing strip along the outside of the walls, in the plot's own trim colour (no
+		-- lights: neon glows on its own)
+		local c = PlotDecor.theme(kind).trim
+		local glow = { material = "Neon", collide = false }
+		local T = PlotDecor.WALL_T
+		local y, out = H - 0.3, T / 2 + 0.06
+		for _, sx in { -1, 1 } do
+			add("Neon", "Glow", v(0.12, 0.2, 2 * D), v(sx * (W + out), y, 0), c, glow)
+		end
+		add("Neon", "Glow", v(2 * W, 0.2, 0.12), v(0, y, -D - out), c, glow)
+		local G = PlotDecor.GATE
+		for _, sx in { -1, 1 } do
+			local len = W - G
+			add("Neon", "Glow", v(len, 0.2, 0.12), v(sx * (G + len / 2), y, D + out), c, glow)
+		end
+	elseif id == "confetti" then
+		-- the confetti: an invisible sheet high over the plot (the builder hangs the emitters)
+		add("Confetti", "ConfettiCloud", v(2 * W, 0.2, 2 * D), v(0, 24, 0), SNOW, noHit)
 	end
 	return out
 end
 
--- Every piece a plot shows at tier `t` (all looks up to it).
-function PlotLooks.allParts(kind: string, t: number): { Piece }
+-- Every piece of the looks in `ids`, in build order (unknown ids are left out).
+function PlotLooks.allParts(kind: string, ids: { string }): { Piece }
 	local out: { Piece } = {}
-	for i = 1, t do
-		for _, p in PlotLooks.parts(kind, i) do
-			table.insert(out, p)
+	for _, id in PlotLooks.IDS do
+		if table.find(ids, id) then
+			for _, p in PlotLooks.parts(kind, id) do
+				table.insert(out, p)
+			end
 		end
 	end
 	return out
