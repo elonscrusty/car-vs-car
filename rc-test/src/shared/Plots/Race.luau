@@ -113,6 +113,7 @@ export type Decor = {
 	solid: boolean, -- can the car bump it?
 	w: number?, -- footprint width (grandstand, tent)
 	d: number?, -- footprint depth
+	meshH: number?, -- tallest the Meshy model may be (it fills the footprint up to this)
 }
 
 Plot.DECOR_CLEAR = 30 -- solid scenery keeps this far from the road centre (curb edge is 18)
@@ -128,24 +129,35 @@ local function decor(
 	h: number,
 	solid: boolean,
 	w: number?,
-	d: number?
+	d: number?,
+	meshH: number?
 ): Decor
-	return { kind = kind, x = x, z = z, yaw = yaw, h = h, solid = solid, w = w, d = d }
+	return {
+		kind = kind,
+		x = x,
+		z = z,
+		yaw = yaw,
+		h = h,
+		solid = solid,
+		w = w,
+		d = d,
+		meshH = meshH,
+	}
 end
 
 local DECOR: { Decor } = {
 	-- grandstand in the infield, facing the main straight and the driver stand
-	decor("grandstand", -20, 66, PI, 12, true, 70, 24),
+	decor("grandstand", -20, 66, PI, 12, true, 70, 24, 22),
 	decor("speaker", -60, 64, PI, 7, true),
 	decor("speaker", 20, 64, PI, 7, true),
 	decor("startLight", -70, 90, PI, 10, false),
 	-- pit corner in the pocket right of the chicane
-	decor("tent", 130, 0, -PI / 2, 12, true, 20, 20),
+	decor("tent", 130, 0, -PI / 2, 12, true, 20, 20, 18),
 	decor("wheelRack", 150, 12, -PI / 2, 6, true),
 	decor("toolbox", 150, -8, -PI / 2, 3, true),
 	decor("gasCan", 112, 2, 0.4, 2.5, true),
 	-- race control tower in the V behind the hairpin, with a windsock
-	decor("tower", -8, -198, PI, 30, true, 12, 12),
+	decor("tower", -8, -198, PI, 30, true, 12, 12, 40),
 	decor("windsock", 18, -210, PI, 16, false),
 	-- trees: leafy ones in the infield, pines in the back corners
 	decor("leafyTree", -78, -72, 0.3, 18, true),
@@ -211,14 +223,16 @@ local function setSolid(m: Instance, solid: boolean)
 	end
 end
 
--- A copy of a Meshy model sized to `h` tall (or `width` wide), standing at `at`. nil when it
--- isn't imported. Import 3D brings models in huge with the front at +Z.
+-- A copy of a Meshy model standing at `at`, `h` tall, or with a footprint (w wide, d deep) as
+-- big as fits in w x d and at most h tall. nil when it isn't imported. Import 3D brings models
+-- in huge with the front at +Z.
 local function meshProp(
 	parent: Instance,
 	name: string,
 	at: CFrame,
 	h: number,
-	width: number?
+	w: number?,
+	d: number?
 ): Model?
 	local folder = game:GetService("ServerStorage"):FindFirstChild("LobbyMeshes")
 	local t = folder and folder:FindFirstChild(name)
@@ -236,22 +250,16 @@ local function meshProp(
 		m.PrimaryPart = part
 	end
 	local _, size = m:GetBoundingBox()
-	local turn = 0
-	if width then
-		-- span across X; turn a model that spans Z
-		if size.Z > size.X then
-			turn = PI / 2
+	if size.Y > 0 then
+		local k = h / size.Y
+		if w and d and size.X > 0 and size.Z > 0 then
+			k = math.min(k, w / size.X, d / size.Z)
 		end
-		local span = math.max(size.X, size.Z)
-		if span > 0 then
-			m:ScaleTo(m:GetScale() * width / span)
-		end
-	elseif size.Y > 0 then
-		m:ScaleTo(m:GetScale() * h / size.Y)
+		m:ScaleTo(m:GetScale() * k)
 	end
 	local box, sized = m:GetBoundingBox()
 	m.WorldPivot = CFrame.new(box.Position - Vector3.new(0, sized.Y / 2, 0))
-		* CFrame.Angles(0, PI + turn, 0)
+		* CFrame.Angles(0, PI, 0)
 	m:PivotTo(at)
 	m.Parent = parent
 	return m
@@ -480,7 +488,7 @@ local function buildDecor(parent: Instance, origin: CFrame, loop: { Kit.Sample }
 		local name = MESH[e.kind]
 		local m: Instance? = nil
 		if name then
-			m = meshProp(folder, name, at, e.h, nil)
+			m = meshProp(folder, name, at, e.meshH or e.h, e.w, e.d)
 		end
 		if not m then
 			m = blocks(folder, e, at)
