@@ -8,6 +8,7 @@ local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
+local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local LobbyProps = require(script.Parent.LobbyProps)
 local MeshProps = require(script.Parent.MeshProps)
 local LobbyWaterBuilder = require(script.Parent.LobbyWaterBuilder)
@@ -42,6 +43,27 @@ local function slab(
 	)
 end
 
+-- The ground heightfield's parts (Rock plot): swapped for a coarse one in the lobby copy
+local GROUND = { Ground = true, Road = true, Grass = true, Wall = true }
+
+-- A copy of a plot for the lobby. A plot with a lowGround (Rock: thousands of ground triangles)
+-- gets its fine ground swapped for a coarse one, so the copy looks the same from the street
+-- with far fewer parts. Copied from the full-size plot, whose pivot is the plot's origin.
+local function lowCopy(plots: Instance, id: string): Model
+	local plot = TrackData.plot(id)
+	if not plot.lowGround then
+		return (plots:WaitForChild(id .. "_rc") :: Model):Clone()
+	end
+	local m = (plots:WaitForChild(id) :: Model):Clone()
+	for _, d in m:GetChildren() do
+		if d:IsA("WedgePart") and GROUND[d.Name] then
+			d:Destroy()
+		end
+	end
+	plot.lowGround(m, m.WorldPivot)
+	return m
+end
+
 function LobbyBuilder.build(): Built
 	local folder = Instance.new("Folder")
 	folder.Name = "Lobby"
@@ -73,7 +95,7 @@ function LobbyBuilder.build(): Built
 		local turn = CFrame.Angles(0, slot.angle, 0)
 		-- the small garden-size copy of this plot, front to the road (looks only: driving happens
 		-- on the real one)
-		local mini = (plots:WaitForChild(slot.id .. "_rc") :: Model):Clone()
+		local mini = lowCopy(plots, slot.id)
 		mini.Name = "Mini_" .. slot.index .. "_" .. slot.id
 		mini:ScaleTo(LobbyLayout.MINI)
 		mini:PivotTo(CFrame.new(slot.plotX, 0, slot.plotZ) * turn)
