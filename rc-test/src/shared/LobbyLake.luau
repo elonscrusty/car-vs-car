@@ -397,7 +397,7 @@ local function campfire(m: Maker, u: number, v: number)
 	end
 	local glow = put("FireLight", 0, 2, 0, 0.5, 0.5, 0.5, ORANGE)
 	glow.hidden, glow.collide, glow.light = true, false, true
-
+end
 
 -- A small bait shack facing the lake: back and side walls, a counter, a striped awning and a
 -- fish-shaped sign on the roof (no words).
