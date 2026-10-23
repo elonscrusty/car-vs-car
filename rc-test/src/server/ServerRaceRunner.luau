@@ -76,7 +76,7 @@ local ServerRaceRunner = {}
 -- Server -> client: ("state", phase, startAt, count, joined, where) with phase "wait" | "call" |
 -- "racing" (startAt = workspace:GetServerTimeNow() time of the start, count/joined = unused now
 -- that everyone races, where = "MIA'S TRACK" once picked), ("result", rows) when a race ends:
--- rows = { { name, time?, laps, coins? } } best first (coins = what that racer was paid). To one
+-- rows = { { name, time?, laps, coins?, stars? } } best first (what that racer was paid). To one
 -- racer: ("finished", place) when its car crosses the line for the last time, ("ends", endsAt)
 -- when the winner is in (the others have until endsAt). Live places: the racer's attributes
 -- RacePlace / RaceCars (nil = no race).
@@ -237,18 +237,34 @@ local function pay(player: Player, coins: number, why: string)
 	end
 end
 
--- Every racer gets coins by place; the plot's owner gets a bonus for a picked track.
--- Returns uid -> coins for the result card.
+-- Stars for a race (ServerRace.starsFor): saved, then the star chip and the car hear of it.
+local function giveStars(player: Player, n: number)
+	local data = PlayerData.get(player)
+	if not data or n <= 0 or Profile.addRaceStars(data, n) <= 0 then
+		return
+	end
+	PlayerData.touch(player)
+	player:SetAttribute("Stars", data.stars)
+	local stars = ReplicatedStorage:FindFirstChild("StarsEvent")
+	if stars and stars:IsA("RemoteEvent") then
+		stars:FireClient(player, "stars", data.stars)
+		stars:FireClient(player, "toast", `+{n} ⭐ for the race`)
+	end
+end
+
+-- Every racer gets coins (and finishers stars) by place; the plot's owner gets a bonus for a
+-- picked track. Returns uid -> coins and uid -> stars for the result card.
 local function payRace(
 	ranked: { ServerRace.Entry },
 	racers: { Racer },
 	slot: number
-): { [number]: number }
+): ({ [number]: number }, { [number]: number })
 	local byId: { [number]: Player } = {}
 	for _, r in racers do
 		byId[r.player.UserId] = r.player
 	end
 	local paid: { [number]: number } = {}
+	local starred: { [number]: number } = {}
 	for place, e in ranked do
 		local p = if e.uid then byId[e.uid] else nil
 		if p and p.Parent then
@@ -256,13 +272,16 @@ local function payRace(
 			paid[p.UserId] = coins * Profile.boost(os.time())
 			local nth = ({ "1st", "2nd", "3rd" })[place] or `{place}th`
 			pay(p, coins, if place == 1 and e.time then "you WON!" else `{nth} place`)
+			local n = ServerRace.starsFor(place, e.time ~= nil, #ranked)
+			starred[p.UserId] = n
+			giveStars(p, n)
 		end
 	end
 	local owner = LobbyPlots.ownerOf(slot)
 	if owner and owner.Parent then
 		pay(owner, ServerRace.PAY_OWNER, "your track was picked!")
 	end
-	return paid
+	return paid, starred
 end
 
 local function runRace(hooks: Hooks, slot: number)
@@ -418,11 +437,15 @@ local function runRace(hooks: Hooks, slot: number)
 		local since = clock - goAt
 		if (not anyIn and since > 0) or ServerRace.over(entries, since, firstAt) then
 			local ranked = ServerRace.rank(entries)
-			local paid = payRace(ranked, racers, slot)
+			local paid, starred = payRace(ranked, racers, slot)
 			local rows = {}
 			for _, e in ranked do
 				local coins = if e.uid then paid[e.uid] else nil
-				table.insert(rows, { name = e.name, time = e.time, laps = e.laps, coins = coins })
+				local stars = if e.uid then starred[e.uid] else nil
+				table.insert(
+					rows,
+					{ name = e.name, time = e.time, laps = e.laps, coins = coins, stars = stars }
+				)
 			end
 			event:FireAllClients("result", rows)
 			break

@@ -152,6 +152,19 @@ function ServerRace.payFor(place: number, finished: boolean): number
 	return ServerRace.PAY[place] or ServerRace.PAY_FINISH
 end
 
+-- Stars for a server race: 1st 3, 2nd 2, 3rd 1, any other finish 1. Racing alone only gets the
+-- finish star (no one to beat).
+ServerRace.STARS = { 3, 2, 1 }
+function ServerRace.starsFor(place: number, finished: boolean, racers: number): number
+	if not finished then
+		return 0
+	end
+	if racers <= 1 then
+		return 1
+	end
+	return ServerRace.STARS[place] or 1
+end
+
 -- Is the race over? (`since` = seconds from GO, `firstAt` = when the winner finished)
 function ServerRace.over(entries: { Entry }, since: number, firstAt: number?): boolean
 	if since >= ServerRace.TIME_LIMIT then
