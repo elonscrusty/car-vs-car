@@ -25,6 +25,14 @@ export type Built = {
 
 local part = LobbyProps.part
 
+-- name sign colours by plot kind (the arch colours on the plots: race red, drift purple, rocks
+-- brown)
+local SIGN_COLORS: { [string]: Color3 } = {
+	race = Color3.fromRGB(200, 45, 45),
+	drift = Color3.fromRGB(110, 60, 180),
+	rock = Color3.fromRGB(130, 90, 50),
+}
+
 -- a slab whose top is at `top`
 local function slab(
 	parent: Instance,
@@ -81,14 +89,15 @@ function LobbyBuilder.build(): Built
 
 	local built: Built = { prompts = {}, signs = {} }
 	for _, slot in LobbyLayout.slots() do
-		-- name sign on the footpath edge by the plot's front: who is driving it (blank if nobody)
+		-- name sign on the footpath edge by the plot's front, in the plot kind's colour: who is
+		-- driving it, or the kind when nobody is
 		local toRoad = if slot.plotX < 0 then 1 else -1
 		local board = part(
 			folder,
 			"Sign_" .. slot.index,
 			Vector3.new(0.4, 3, 10),
 			CFrame.new(slot.signX, 4, slot.signZ),
-			Color3.fromRGB(245, 245, 245)
+			SIGN_COLORS[slot.id] or Color3.fromRGB(60, 60, 66)
 		)
 		for _, sz in { -1, 1 } do
 			part(
@@ -107,7 +116,7 @@ function LobbyBuilder.build(): Built
 		text.BackgroundTransparency = 1
 		text.Font = Enum.Font.GothamBlack
 		text.TextScaled = true
-		text.TextColor3 = Color3.fromRGB(30, 30, 34)
+		text.TextColor3 = Color3.new(1, 1, 1)
 		text.Parent = gui
 		built.signs[slot.index] = text
 

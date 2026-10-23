@@ -214,9 +214,10 @@ function LobbyLayout.track(slotIndex: number): any
 	return t
 end
 
--- What a plot's sign says: the name of whoever is driving that plot, blank when nobody is.
-function LobbyLayout.signText(driver: string?): string
-	return driver or ""
+-- What a plot's sign says: the name of whoever is driving that plot, or what kind of plot it is
+-- when nobody is (so it never stands there blank).
+function LobbyLayout.signText(driver: string?, label: string): string
+	return driver or string.upper(label)
 end
 
 -- Close enough to the pad to start driving? (flat distance)

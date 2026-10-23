@@ -129,7 +129,8 @@ local lastPrompt: { [Player]: number } = {}
 
 local function setSign(slotIndex: number)
 	local who = driverOf[slotIndex]
-	lobby.signs[slotIndex].Text = LobbyLayout.signText(if who then who.DisplayName else nil)
+	lobby.signs[slotIndex].Text =
+		LobbyLayout.signText(if who then who.DisplayName else nil, slots[slotIndex].label)
 end
 for i in slots do
 	setSign(i)
