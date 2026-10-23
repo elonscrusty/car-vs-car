@@ -134,6 +134,9 @@ test("footpath props and gap flags face the road", function()
 	for _, f in D.FACED do
 		local toRoad = f.face.x * f.at.x < 0 and f.face.z == 0
 		local toSpawn = f.face.z < 0 and f.at.z < L.FIRST_Z
+		if f.model == "Mailbox" or f.model == "Toolbox" then
+			truthy(f.turn == 180, f.model .. " front is its -Z: must turn round")
+		end
 		truthy(toRoad or toSpawn, f.group .. " faces away from the road")
 	end
 end)
