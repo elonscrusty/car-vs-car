@@ -9,12 +9,14 @@ local test, eq, truthy = H.test, H.eq, H.truthy
 print("Plot stands")
 
 test("the owner's cars: known ones only, no repeats, at most 3, a starter when none", function()
-	local cars = P.parse("race:2, drift:1,race:2,boat:1,rock:9,rock:3,race:1", "race")
+	-- rock crawlers were dropped: an old "rock:3" is skipped like any unknown car
+	local cars = P.parse("race:2, drift:1,race:2,boat:1,rock:3,race:99,drift:3,race:1", "race")
 	eq(#cars, 3)
 	eq(cars[1].kind, "race")
 	eq(cars[1].index, 2)
 	eq(cars[2].kind, "drift")
-	eq(cars[3].kind, "rock")
+	eq(cars[3].kind, "drift")
+	eq(cars[3].index, 3)
 	local starter = P.parse(nil, "drift")
 	eq(#starter, 1)
 	eq(starter[1].kind, "drift")

@@ -1,11 +1,11 @@
 --!strict
--- One big word over each play pad at the spawn (DRIFT! / RACE! / CLIMB!) and "STAND HERE" under
+-- One big word over each play pad at the spawn (DRIFT! / RACE! / BUILD!) and "STAND HERE" under
 -- it, so a new player knows what the pads are for. Looks only, on this screen. The pads are the
 -- "QueuePad" bases (attribute PlotType) that the spawn lobby builds.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 
-local WORDS: { [string]: string } = { drift = "DRIFT!", race = "RACE!", rock = "CLIMB!" }
+local WORDS: { [string]: string } = { drift = "DRIFT!", race = "RACE!", build = "BUILD!" }
 
 local holder = Instance.new("ScreenGui")
 holder.Name = "PadWords"

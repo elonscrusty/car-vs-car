@@ -1,5 +1,5 @@
 --!strict
--- The spawn lobby's play pads (SpawnLobby's "QueuePad" tags): one each for drift, race and rock.
+-- The spawn lobby's play pads (SpawnLobby's "QueuePad" tags): drift, race, and build (your plot).
 -- Stand on one for a moment and it sends you to an open plot of that kind, the same as tapping
 -- that plot's own pad. Walking across a pad (on the way to the street) does nothing.
 -- Plots, owners and the "open" tick are LobbyPlots'; this only watches the pads and asks it.

@@ -152,14 +152,21 @@ function LobbyPlots.sendTo(player: Player, slot: number): boolean
 	return true
 end
 
+-- What a plot drives as now: a built plot's owner pick (TrackKind race / drift), else its slot.
+local function kindOf(slot: number): string
+	local m = model(slot)
+	local picked = m and m:GetAttribute("TrackKind")
+	return if type(picked) == "string" then picked else slots[slot].id
+end
+
 -- The best plot of this kind for this player: their own, else an open one nobody is on.
 function LobbyPlots.findOpen(plotType: string, player: Player): number?
 	local mine = ownSlot[player]
-	if mine and slots[mine].id == plotType and LobbyPlots.canDrive(player, mine) then
+	if mine and kindOf(mine) == plotType and LobbyPlots.canDrive(player, mine) then
 		return mine
 	end
-	for i, s in slots do
-		if s.id == plotType and LobbyPlots.canDrive(player, i) then
+	for i in slots do
+		if kindOf(i) == plotType and LobbyPlots.canDrive(player, i) then
 			return i
 		end
 	end

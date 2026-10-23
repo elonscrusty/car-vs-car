@@ -6,6 +6,7 @@
 --   { coins, owned = { id }, equipped = { mode = id }, tiles = { tile id }, stars, ok, why?,
 --     car? (spin), tile? (spinTile), new? (spin, spinTile) }
 -- Track tiles are TileShop's (the build screen asks TileShop.owns / count on the save).
+-- A car bought, or new from the gumball, is put on straight away.
 -- Each player's chosen car per mode is also on the Player as attributes Car_drift, Car_race and
 -- Car_rock (car ids), for whoever draws the cars, and the shop cars owned are in "Cars"
 -- ("<kind>:<index>" into Garage.SHOPS, comma separated: the plot stands show them).
@@ -92,6 +93,7 @@ remote.OnServerInvoke = function(player: Player, action: unknown, id: unknown): 
 	elseif action == "buy" then
 		local ok, why = CarCatalog.buy(data, id)
 		if ok then
+			CarCatalog.equip(data, id) -- a new car: drive it straight away
 			PlayerData.touch(player)
 			showCoins(player, data.coins)
 			setAttributes(player, data)
@@ -111,6 +113,10 @@ remote.OnServerInvoke = function(player: Player, action: unknown, id: unknown): 
 	elseif action == "spin" then
 		local car, new = CarCatalog.spin(data, math.random() * 100)
 		if car then
+			if new then
+				CarCatalog.equip(data, car.id) -- a new car: drive it straight away
+				setAttributes(player, data)
+			end
 			PlayerData.touch(player)
 			showCoins(player, data.coins)
 		end
