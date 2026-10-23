@@ -177,23 +177,28 @@ close.Activated:Connect(function()
 end)
 
 -- the LOOKS button only while you own a plot
-local function myPlot(): boolean
+-- (owns a plot, is driving one): LOOKS shows only while walking with a plot of your own
+local function myPlot(): (boolean, boolean)
 	local plots = workspace:FindFirstChild("Plots")
 	if not plots then
-		return false
+		return false, false
 	end
+	local mine, driving = false, false
 	for _, m in plots:GetChildren() do
 		if m:GetAttribute("OwnerId") == player.UserId then
-			return true
+			mine = true
+		end
+		if m:GetAttribute("DriverId") == player.UserId then
+			driving = true
 		end
 	end
-	return false
+	return mine, driving
 end
 while true do
-	local mine = myPlot()
-	openBtn.Visible = mine
+	local mine, driving = myPlot()
+	openBtn.Visible = mine and not driving
 	if not mine then
 		panel.Visible = false
 	end
-	task.wait(1)
+	task.wait(0.5)
 end
