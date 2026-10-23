@@ -341,7 +341,7 @@ function Garage.parts(): { Piece }
 	local wr = 0.8
 	local wy = railTop + wr
 	for _, side in { -1, 1 } do
-		for _, wz in { lz - 1.8, lz + 1.8 } do
+		for _, wz in { lz - 1.45, lz + 1.45 } do
 			add("Lift", "Wheel", v(0.7, wr * 2, wr * 2), v(lx + side * 1.6, wy, wz), C.tire, {
 				shape = "Cylinder",
 			})
@@ -351,7 +351,7 @@ function Garage.parts(): { Piece }
 			})
 		end
 	end
-	add("Lift", "CarBody", v(2.8, 1.1, 5.6), v(lx, wy + 0.5, lz), C.car)
+	add("Lift", "CarBody", v(2.8, 1.1, 4.6), v(lx, wy + 0.5, lz), C.car)
 	add("Lift", "CarCab", v(2.3, 0.9, 2.4), v(lx, wy + 1.5, lz + 0.5), C.glass, { collide = false })
 	add(
 		"Lift",
@@ -361,7 +361,7 @@ function Garage.parts(): { Piece }
 		C.car,
 		{ collide = false }
 	)
-	add("Lift", "CarBumper", v(3, 0.4, 0.4), v(lx, wy + 0.2, lz - 2.9), C.dark, { collide = false })
+	add("Lift", "CarBumper", v(3, 0.4, 0.4), v(lx, wy + 0.2, lz - 2.4), C.dark, { collide = false })
 
 	-- turn the whole lift a quarter round so the car shows its side to the door
 	for _, piece in out do
