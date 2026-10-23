@@ -74,7 +74,7 @@ LobbyHills.ROWS = {
 		h = { 46, 64 },
 		d = { 60, 76 },
 		color = { 116, 156, 130 },
-		step = 0.85,
+		step = 0.68,
 	},
 }
 LobbyHills.SAND = 8 -- sand rim round the lake water
@@ -93,7 +93,7 @@ local LOOK = {
 	forest = { w = 1, h = 1.05, d = 1, color = { 82, 152, 80 } },
 	autumn = { w = 1, h = 0.9, d = 1, color = { 156, 182, 82 } },
 	rock = { w = 0.62, h = 1.45, d = 0.7, color = { 146, 140, 132 } },
-	peak = { w = 1, h = 1, d = 1, color = { 116, 152, 136 } },
+	peak = { w = 0.74, h = 1.3, d = 0.78, color = { 116, 152, 136 } }, -- pointy, not boulders
 }
 local AUTUMN = { { 236, 142, 52 }, { 242, 198, 66 }, { 206, 80, 58 }, { 244, 172, 204 } }
 
@@ -224,7 +224,7 @@ function LobbyHills.layout(): ({ Hill }, { Tree }, { Prop })
 				g = look.color[2] * shade + rand(-9, 9),
 				b = look.color[3] * shade + rand(-7, 7),
 			}
-			h.snow = row == 3 and h.h > 60
+			h.snow = row == 3 and h.h > 78
 			local tries = 0
 			while LobbyHills.touches(h, keep) and tries < 60 do
 				h.x += dx * 2
