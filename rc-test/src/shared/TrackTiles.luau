@@ -596,6 +596,17 @@ function TrackTiles.build(parent: Instance, origin: CFrame, grid: Grid)
 		end
 	end
 
+	-- extra looks per tile (Prettier plots thread's TileLooks: never collide, never change grip)
+	local looksMod = if script then (script :: any).Parent:FindFirstChild("TileLooks") else nil
+	if looksMod then
+		local TileLooks: any = require(looksMod)
+		for _, t in grid.tiles do
+			local cx, cz = TrackTiles.cellCenter(grid, t.c, t.r)
+			local at = origin * CFrame.new(cx, 0, cz) * CFrame.Angles(0, -t.rot * math.pi / 2, 0)
+			pcall(TileLooks.make, t.piece, parent, at, TrackTiles.CELL)
+		end
+	end
+
 	-- checkered start line across the START tile
 	local res = TrackTiles.trace(grid)
 	local st: Tile? = nil

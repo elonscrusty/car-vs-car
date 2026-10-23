@@ -37,6 +37,7 @@ local lobby = LobbyBuilder.build()
 LobbyPlots.init()
 require(ReplicatedStorage.Shared.PlotTracks).watch() -- owners' own tracks (LobbyLayout.custom)
 require(script.Parent.PlotStandsBuilder).start() -- owners' cars on their plot's stands
+require(script.Parent.TrackBuild).start() -- race plots: starter circle, owners swap tiles in the break
 local slots = LobbyLayout.slots()
 
 -- Client -> server: ("place", rc: boolean, slotIndex: number) when a drive (re)starts (only
