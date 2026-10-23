@@ -106,7 +106,10 @@ test("RC corners sit on the grass beside the spawn lobby", function()
 	local g = L.ground()
 	local plaza = L.PLAZA
 	for _, p in parts do
-		if p.pos.z < L.road().minZ then
+		if p.name == "Speaker" then
+			-- the music speakers stand in the gaps between the spawn lobby's shops
+			truthy(math.abs(p.pos.x) > 42 and math.abs(p.pos.x) < 50, "speaker between the shops")
+		elseif p.pos.z < L.road().minZ then
 			local x0, x1, _, _, z0, z1 = flat(p)
 			local name = p.group .. "/" .. p.name
 			truthy(x0 > g.minX + 4 and x1 < g.maxX - 4 and z0 > g.minZ and z1 < plaza.maxZ, name)

@@ -92,8 +92,12 @@ export type Extra = {
 -- "Citrus Daydream" (DistrokidOfficial, free, 166 s), checked to load in Studio 10-23.
 LobbyDecor.MUSIC = "rbxassetid://84797666595507"
 LobbyDecor.MUSIC_VOLUME = 0.2
-LobbyDecor.SPEAKER_X = 70
-LobbyDecor.SPEAKER_Z = L.PLAZA.maxZ - 36 - 24 -- beside the shop / garage (SpawnLobby.SHOP)
+-- in the gap between the two shops on each side of the spawn lobby (SpawnLobby.BUILDINGS, whose
+-- fronts are at x ±42), facing the middle. Spawn lobby z 0 = PLAZA.maxZ - 36.
+LobbyDecor.SPEAKERS = {
+	{ x = -45, z = L.PLAZA.maxZ - 36 - 3.5 }, -- between the drift and race shops
+	{ x = 45, z = L.PLAZA.maxZ - 36 - 6.5 }, -- between the rock shop and the garage
+}
 LobbyDecor.CORNER_CONES = { { -17, 14 }, { -12, 17 }, { 15, -15 } } -- round a corner (x mirrored)
 
 local function v(x: number, y: number, z: number): V3
@@ -373,20 +377,10 @@ local function extras(): { Extra }
 			if side > 0 then 180 else 0
 		)
 	end
-	-- music speakers just outside the spawn lobby, beside the shop (left) and the garage (right),
-	-- facing in (the music itself: MUSIC)
-	for _, side in { -1, 1 } do
-		put(
-			"Speaker",
-			side * LobbyDecor.SPEAKER_X,
-			LobbyDecor.SPEAKER_Z,
-			4.5,
-			-side,
-			0,
-			{ 2, 4.5, 1.6 },
-			C.dark,
-			true
-		)
+	-- music speakers between the shops, facing in (the music itself: MUSIC)
+	for _, sp in LobbyDecor.SPEAKERS do
+		local side = if sp.x < 0 then -1 else 1
+		put("Speaker", sp.x, sp.z, 4.5, -side, 0, { 2, 4.5, 1.6 }, C.dark, true)
 	end
 	-- RC workshop bits round the giant corners
 	local cx, cz = LobbyDecor.CORNER.x, LobbyDecor.CORNER.z
@@ -528,7 +522,7 @@ do
 	end
 	local cx, cz = LobbyDecor.CORNER.x, LobbyDecor.CORNER.z
 	mesh("RCRemote", "GiantRemote", v(-cx, 0, cz), v(24, 28, 16), true)
-	mesh("Battery", "GiantBattery", v(cx, 0, cz), v(26, 11, 11), true)
+	mesh("Battery", "GiantBattery", v(cx, 0, cz), v(34, 15, 15), true) -- as big as the remote
 	mesh("WoodRamp", "Ramp", v(-cx + 2, 0, cz + 20), v(14, 4.5, 10), true)
 	for _, side in { -1, 1 } do
 		for _, g in { "CornerTires", "CornerTires2", "CornerTires3" } do
