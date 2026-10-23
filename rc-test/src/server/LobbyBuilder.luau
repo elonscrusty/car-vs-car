@@ -13,6 +13,7 @@ local LobbyProps = require(script.Parent.LobbyProps)
 local MeshProps = require(script.Parent.MeshProps)
 local LobbyWaterBuilder = require(script.Parent.LobbyWaterBuilder)
 local LobbyPerf = require(script.Parent.LobbyPerf)
+local LobbyHillsBuilder = require(script.Parent.LobbyHillsBuilder)
 
 local LobbyBuilder = {}
 
@@ -129,7 +130,8 @@ function LobbyBuilder.build(): Built
 	local props = Instance.new("Folder")
 	props.Name = "Props"
 	props.Parent = folder
-	-- (hills, trees and fences round the lobby: the landscaping thread's LobbyHills)
+	-- hills and their trees round the lobby
+	LobbyHillsBuilder.build(folder)
 	-- street lamps, cones by the pads, tyres where the road stops: carter's meshes once they
 	-- are imported (MeshProps), block stand-ins until then
 	local function spot(s: LobbyLayout.Spot): CFrame

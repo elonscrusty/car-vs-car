@@ -15,5 +15,6 @@ require("./lobby_water.test")
 require("./lobby_sky.test")
 require("./garage.test")
 require("./spawnlobby.test")
+require("./lobby_hills.test")
 
 Harness.summary()
