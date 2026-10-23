@@ -25,6 +25,22 @@ gui.IgnoreGuiInset = true
 gui.DisplayOrder = 5
 gui.Parent = player:WaitForChild("PlayerGui")
 
+-- the lobby HUD (stars, coins, rivals, jobs, weekend banner): hidden while driving
+local hud = Instance.new("ScreenGui")
+hud.Name = "StarsHud"
+hud.ResetOnSpawn = false
+hud.IgnoreGuiInset = true
+hud.DisplayOrder = 5
+hud.Parent = gui.Parent
+
+-- pop-up cards (the daily gift) sit on top of every other button
+local top = Instance.new("ScreenGui")
+top.Name = "StarsTop"
+top.ResetOnSpawn = false
+top.IgnoreGuiInset = true
+top.DisplayOrder = 20
+top.Parent = gui.Parent
+
 local chip = Instance.new("TextLabel")
 chip.Name = "StarCount"
 chip.AnchorPoint = Vector2.new(0, 0)
@@ -36,7 +52,7 @@ chip.TextColor3 = Color3.fromRGB(255, 213, 79)
 chip.Font = Enum.Font.GothamBlack
 chip.TextScaled = true
 chip.Text = "⭐ 0"
-chip.Parent = gui
+chip.Parent = hud
 local chipCorner = Instance.new("UICorner")
 chipCorner.CornerRadius = UDim.new(0.3, 0)
 chipCorner.Parent = chip
@@ -49,7 +65,7 @@ coinChip.Name = "CoinCount"
 coinChip.Position = UDim2.new(0.16, 0, 0.14, 70)
 coinChip.TextColor3 = Color3.fromRGB(255, 236, 150)
 coinChip.Text = "0"
-coinChip.Parent = gui
+coinChip.Parent = hud
 -- a drawn coin (the coin emoji is missing from Roblox's font): gold disc, darker rim, a lighter
 -- inner ring. The number sits to its right.
 local coinPad = Instance.new("UIPadding")
@@ -126,7 +142,7 @@ rivalsBtn.TextColor3 = Color3.new(1, 1, 1)
 rivalsBtn.Font = Enum.Font.GothamBlack
 rivalsBtn.TextScaled = true
 rivalsBtn.Text = "RIVALS"
-rivalsBtn.Parent = gui
+rivalsBtn.Parent = hud
 local rivalsBtnCorner = Instance.new("UICorner")
 rivalsBtnCorner.CornerRadius = UDim.new(0.3, 0)
 rivalsBtnCorner.Parent = rivalsBtn
@@ -139,7 +155,7 @@ panel.Size = UDim2.fromScale(0.42, 0.62)
 panel.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 panel.BackgroundTransparency = 0.1
 panel.Visible = false
-panel.Parent = gui
+panel.Parent = hud
 local panelCorner = Instance.new("UICorner")
 panelCorner.CornerRadius = UDim.new(0.06, 0)
 panelCorner.Parent = panel
@@ -217,7 +233,7 @@ jobs.Size = UDim2.fromScale(0.27, 0.2)
 jobs.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 jobs.BackgroundTransparency = 0.3
 jobs.Visible = false -- until the server sends them
-jobs.Parent = gui
+jobs.Parent = hud
 local jobsCorner = Instance.new("UICorner")
 jobsCorner.CornerRadius = UDim.new(0.08, 0)
 jobsCorner.Parent = jobs
@@ -383,15 +399,15 @@ end
 local banner = Instance.new("TextLabel")
 banner.Name = "WeekendBanner"
 banner.AnchorPoint = Vector2.new(0.5, 0)
-banner.Position = UDim2.new(0.5, 0, 0, 122) -- under the friends button
-banner.Size = UDim2.fromScale(0.34, 0.055)
+banner.Position = UDim2.new(0.5, 0, 0, 180) -- under FRIENDS and QUICK RACE
+banner.Size = UDim2.fromScale(0.26, 0.045)
 banner.BackgroundColor3 = Color3.fromRGB(255, 190, 40)
 banner.TextColor3 = Color3.fromRGB(70, 35, 0)
 banner.Font = Enum.Font.GothamBlack
 banner.TextScaled = true
 banner.Text = "2X COINS WEEKEND!"
 banner.Visible = false
-banner.Parent = gui
+banner.Parent = hud
 local bannerCorner = Instance.new("UICorner")
 bannerCorner.CornerRadius = UDim.new(0.4, 0)
 bannerCorner.Parent = banner
@@ -425,7 +441,7 @@ card.Size = UDim2.fromScale(0.62, 0.36)
 card.BackgroundColor3 = Color3.fromRGB(30, 32, 44)
 card.BackgroundTransparency = 0.08
 card.Visible = false
-card.Parent = gui
+card.Parent = top
 local cardRatio = Instance.new("UIAspectRatioConstraint")
 cardRatio.AspectRatio = 2.3
 cardRatio.Parent = card
@@ -606,5 +622,23 @@ remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unkn
 	showPop(table.concat(lines, "\n"), if medal > 0 then COLORS[medal] else Color3.new(1, 1, 1))
 	if type(r.stars) == "number" then
 		setStars(r.stars, type(r.gained) == "number" and r.gained > 0)
+	end
+end)
+
+-- hide the lobby HUD while this player drives a plot (the plot's DriverId is them)
+task.spawn(function()
+	while true do
+		local driving = false
+		local plots = workspace:FindFirstChild("Plots")
+		if plots then
+			for _, m in plots:GetChildren() do
+				if m:GetAttribute("DriverId") == player.UserId then
+					driving = true
+					break
+				end
+			end
+		end
+		hud.Enabled = not driving
+		task.wait(0.25)
 	end
 end)
