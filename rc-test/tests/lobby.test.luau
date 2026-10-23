@@ -1,5 +1,6 @@
 --!strict
--- Lobby layout (LobbyLayout.luau): small plots on a street, a DRIVE pad in front of each.
+-- Lobby layout (LobbyLayout.luau): one road, small plots on both sides facing it, a DRIVE pad in
+-- front of each, the plaza at the road's end.
 local H = require("./harness")
 local TrackData = require("../src/shared/TrackData")
 local Kit = require("../src/shared/Plots/Kit")
@@ -9,98 +10,122 @@ local test, eq, truthy = H.test, H.eq, H.truthy
 
 print("Lobby")
 
-test("one slot per plot, same order as the plot keys", function()
+local function inside(b: L.Box, x: number, z: number): boolean
+	return x > b.minX and x < b.maxX and z > b.minZ and z < b.maxZ
+end
+
+test("8 slots, both sides of the road, cycling drift / race / rock", function()
 	local slots = L.slots()
-	eq(#slots, #TrackData.order)
+	eq(#slots, L.ROWS * 2)
 	for i, s in slots do
 		eq(s.index, i)
-		eq(s.id, TrackData.order[i])
+		eq(s.track, L.TRACKS[(i - 1) % #L.TRACKS + 1])
+		eq(s.id, TrackData.order[s.track])
+		truthy((s.plotX < 0) == (i % 2 == 1), "odd slots on the left")
 	end
+	for track in L.TRACKS do
+		truthy(L.slotFor(track) ~= nil, "every lobby track has a slot")
+	end
+	eq(L.slotFor(1), 1)
+	eq(L.slotFor(99), nil)
 end)
 
-test("small plots are garden size, side by side with grass between, fronts on one line", function()
-	H.near(L.PLOT_W, Kit.WIDTH * L.MINI)
+test("small plots are garden size, fronts on the footpath edge, grass between", function()
 	truthy(L.PLOT_W <= 40 and L.PLOT_D <= 50, "small plot")
 	local slots = L.slots()
 	for i, s in slots do
-		H.near(s.plotZ + L.PLOT_D / 2, L.FRONT_Z)
-		if i > 1 then
-			H.near(s.plotX - slots[i - 1].plotX, L.PLOT_W + L.GAP)
+		H.near(math.abs(s.plotX) - L.PLOT_D / 2, L.EDGE)
+		if i > 2 then
+			H.near(s.plotZ - slots[i - 2].plotZ, L.PLOT_W + L.GAP)
 		end
 	end
 end)
 
-test("the small plots sit far from the real driving plots", function()
+test("the lobby sits far from the real driving plots", function()
+	local g = L.ground()
 	for _, id in TrackData.order do
 		local t = TrackData.get(id)
 		local _, rz = TrackData.origin(t, true)
 		local _, bz = TrackData.origin(t, false)
-		local g = L.ground()
-		local half = Kit.DEPTH / 2
-		truthy(g.maxZ < rz - half * TrackData.RC_SCALE, "clear of the RC plots")
-		truthy(g.minZ > bz + half, "clear of the big plots")
+		truthy(g.maxZ < rz - Kit.DEPTH / 2 * TrackData.RC_SCALE, "clear of the RC plots")
+		truthy(g.minZ > bz + Kit.DEPTH / 2, "clear of the big plots")
 	end
 end)
 
-test("pads, exits and the spawn are on the street; exits and spawn can't start a drive", function()
-	local st = L.street()
-	local function onStreet(x: number, z: number): boolean
-		return x > st.minX and x < st.maxX and z > st.minZ and z < st.maxZ
-	end
+test("pads, exits and signs are on the footpaths or road; exits can't start a drive", function()
+	local w = L.walks()
 	for _, s in L.slots() do
-		truthy(onStreet(s.padX, s.padZ), "pad on the street")
-		truthy(onStreet(s.exitX, s.exitZ), "exit on the street")
-		truthy(onStreet(s.signX, s.signZ), "sign on the street")
+		truthy(inside(w, s.padX, s.padZ), "pad on the footpath")
+		truthy(inside(L.road(), s.exitX, s.exitZ), "exit on the road")
+		truthy(inside(w, s.signX, s.signZ), "sign on the footpath")
 		truthy(not L.inReach(s, s.exitX, s.exitZ), "stepping off must not start driving again")
-		truthy(math.abs(s.signX - s.padX) > L.PAD, "sign clear of the pad")
+		truthy(math.abs(s.signZ - s.padZ) > L.PAD, "sign clear of the pad")
 	end
+end)
+
+test("spawn and parked cars are in the plaza, away from pads and buildings", function()
 	local x, _, z = L.spawn()
-	truthy(onStreet(x, z), "spawn on the street")
-	for _, s in L.slots() do
-		truthy(not L.inReach(s, x, z), "spawn too close to a pad")
-	end
+	truthy(inside(L.PLAZA, x, z), "spawn in the plaza")
 	for n = 1, 8 do
 		local px, pz = L.parkSpot(n)
-		truthy(onStreet(px, pz), "parked car on the street")
+		truthy(inside(L.PLAZA, px, pz) or inside(L.road(), px, pz), "parked car on hard ground")
 		for _, s in L.slots() do
 			truthy(not L.inReach(s, px, pz), "parked car on a pad")
 		end
+	end
+	for _, b in { L.shop(), L.garage() } do
+		truthy(inside(L.PLAZA, b.x, b.z), "building in the plaza")
+		truthy(math.abs(b.x - x) > 20, "building clear of the spawn")
 	end
 end)
 
 test("reach: on the pad yes, the next pad no", function()
 	local slots = L.slots()
-	local a, b = slots[1], slots[2]
+	local a = slots[1]
 	truthy(L.inReach(a, a.padX, a.padZ))
 	truthy(L.inReach(a, a.padX + 3, a.padZ + 3))
-	truthy(not L.inReach(a, b.padX, b.padZ))
+	truthy(not L.inReach(a, slots[2].padX, slots[2].padZ), "across the road")
+	truthy(not L.inReach(a, slots[3].padX, slots[3].padZ), "next along")
 end)
 
-test("the grass covers every small plot and the whole street", function()
-	local g, st = L.ground(), L.street()
+test("the grass covers every small plot, the road and the plaza", function()
+	local g = L.ground()
 	for _, s in L.slots() do
-		truthy(s.plotX - L.PLOT_W / 2 > g.minX and s.plotX + L.PLOT_W / 2 < g.maxX)
-		truthy(s.plotZ - L.PLOT_D / 2 > g.minZ)
+		truthy(math.abs(s.plotX) + L.PLOT_D / 2 < g.maxX)
+		truthy(s.plotZ - L.PLOT_W / 2 > g.minZ)
 	end
-	truthy(g.maxZ > st.maxZ)
+	local r = L.road()
+	truthy(r.minZ > g.minZ and L.PLAZA.maxZ < g.maxZ and L.PLAZA.maxX < g.maxX)
+	for _, t in L.trees() do
+		truthy(inside(g, t.x, t.z), "tree on the grass")
+		truthy(not inside(L.walks(), t.x, t.z), "tree off the footpath")
+	end
 end)
 
-test("copy car: real plot spot -> same spot on the small plot, off the plot -> nothing", function()
-	local s = L.slots()[2]
-	local x, y, z = L.toMini(s, 0, 0, 0)
-	H.near(x :: number, s.plotX)
+test("copy car: real plot spot -> same spot on the turned small plot", function()
+	local left, right = L.slots()[1], L.slots()[2]
+	local x, y, z = L.toMini(left, 0, 0, 0)
+	H.near(x :: number, left.plotX)
 	H.near(y, 0)
-	H.near(z, s.plotZ)
-	x, y, z = L.toMini(s, 40, 10, -60)
-	H.near(x :: number, s.plotX + 4)
+	H.near(z, left.plotZ)
+	-- the real plot's front (+z) is the road side of the small plot
+	x, _, z = L.toMini(left, 0, 0, 100)
+	H.near(x :: number, left.plotX + 10)
+	H.near(z, left.plotZ)
+	x, _, z = L.toMini(right, 0, 0, 100)
+	H.near(x :: number, right.plotX - 10)
+	H.near(z, right.plotZ)
+	-- the real plot's +x: along the road, mirrored on the two sides
+	x, y, z = L.toMini(left, 40, 10, 0)
+	H.near(x :: number, left.plotX)
 	H.near(y, 10 * L.MINI)
-	H.near(z, s.plotZ - 6)
+	H.near(z, left.plotZ - 4)
+	x, _, z = L.toMini(right, 40, 0, 0)
+	H.near(z, right.plotZ + 4)
 	-- at the real wall the copy car stays inside the small plot's wall
-	x, _, z = L.toMini(s, Kit.WIDTH / 2, 0, Kit.DEPTH / 2)
-	H.near(x :: number, s.plotX + L.PLOT_W / 2 - L.MINI_CAR_EDGE)
-	H.near(z, L.FRONT_Z - L.MINI_CAR_EDGE)
-	x = L.toMini(s, Kit.WIDTH, 0, 0)
-	eq(x, nil)
-	x = L.toMini(s, 0, 0, -Kit.DEPTH)
-	eq(x, nil)
+	x, _, z = L.toMini(left, Kit.WIDTH / 2, 0, Kit.DEPTH / 2)
+	H.near(x :: number, left.plotX + L.PLOT_D / 2 - L.MINI_CAR_EDGE)
+	H.near(z, left.plotZ - (L.PLOT_W / 2 - L.MINI_CAR_EDGE))
+	eq((L.toMini(left, Kit.WIDTH, 0, 0)), nil)
+	eq((L.toMini(left, 0, 0, -Kit.DEPTH)), nil)
 end)

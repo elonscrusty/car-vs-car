@@ -1,8 +1,11 @@
 --!strict
--- The walking lobby: a small garden-size copy of every plot, side by side, fronts on one street.
--- Stand on the pad in front of a small plot and press E to drive the full-size track (the RC
--- plots TrackBuilder builds far away); walking again brings you back to that pad.
--- Plain numbers only (Lune tests load this). Real studs, world space.
+-- The walking lobby (carter's picture, /mnt/project-files/rc-game/lobby-target.png): one road with
+-- 4 small garden-size plots on each side, fronts facing the road, a yellow DRIVE pad and a sign
+-- at each front, and a plaza at the road's end with the car shop and the garage.
+-- Stand on a pad and press E to drive that plot's full-size track (the RC plots TrackBuilder
+-- builds far away); walking again brings you back to that pad.
+-- Plain numbers only (Lune tests load this). Real studs, world space. The road runs along z;
+-- the plaza is at its +z end.
 
 -- Loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
 local function sibling(name: string): any
@@ -22,99 +25,184 @@ local Kit = sibling("Plots/Kit")
 
 export type Box = { minX: number, maxX: number, minZ: number, maxZ: number }
 export type Slot = {
-	index: number, -- same order as TrackData.order (keys 1-4)
+	index: number, -- 1..8: left row 1, right row 1, left row 2, ...
+	track: number, -- which real track it drives (index into TrackData.order)
 	id: string,
 	label: string,
 	plotX: number, -- middle of the small plot on the floor
 	plotZ: number,
+	angle: number, -- turn of the small plot (radians about y): its front faces the road
 	padX: number, -- the DRIVE pad in front of the small plot
 	padZ: number,
 	exitX: number, -- where a person is put back after driving
 	exitZ: number,
-	signX: number, -- the street sign that says who is driving
+	signX: number, -- the sign at the plot's front corner
 	signZ: number,
 }
+-- A thing to build somewhere: x, z = middle on the floor; face = the way its open side looks.
+export type Spot = { x: number, z: number, faceX: number, faceZ: number }
 
 local LobbyLayout = {}
 
--- Small plots are the plot shrunk to this (from big size): 320 x 440 -> 32 x 44 studs.
+-- Small plots are the plot shrunk to this (from big size): 320 x 440 -> 32 wide x 44 deep.
 LobbyLayout.MINI = 0.1
-LobbyLayout.PLOT_W = Kit.WIDTH * LobbyLayout.MINI
-LobbyLayout.PLOT_D = Kit.DEPTH * LobbyLayout.MINI
-LobbyLayout.GAP = 10 -- grass between two small plots
-LobbyLayout.FRONT_Z = 1000 -- every small plot's front edge; the street starts here
-LobbyLayout.STREET_W = 40 -- street depth (z)
+LobbyLayout.PLOT_W = Kit.WIDTH * LobbyLayout.MINI -- along the road (z)
+LobbyLayout.PLOT_D = Kit.DEPTH * LobbyLayout.MINI -- away from the road (x)
+LobbyLayout.GAP = 8 -- grass between two small plots on the same side
+LobbyLayout.ROAD_W = 14 -- the dark road
+LobbyLayout.WALK_W = 6 -- the light footpath on each side of the road
+LobbyLayout.EDGE = LobbyLayout.ROAD_W / 2 + LobbyLayout.WALK_W -- plot fronts are this far from x = 0
+LobbyLayout.ROWS = 4
+LobbyLayout.FIRST_Z = 880 -- middle of the first row of plots (the far end of the road)
+LobbyLayout.STEP = LobbyLayout.PLOT_W + LobbyLayout.GAP
 LobbyLayout.REACH = 8 -- how close to the pad you must be to start driving
-LobbyLayout.PAD = 6 -- pad size
+LobbyLayout.PAD = 5 -- pad size
+-- The plots in the lobby cycle through these tracks (show is on hold, so it is not in the lobby;
+-- key 4 still drives it).
+LobbyLayout.TRACKS = { 1, 2, 3 }
 -- The copy car on a small plot is drawn this much bigger than true scale (true scale is only
 -- half a stud long: too small to see from the street).
 LobbyLayout.MINI_CAR = 3
 -- ...so keep its middle this far inside the small plot's walls, or its nose pokes through.
 LobbyLayout.MINI_CAR_EDGE = 1.2
 
+local LAST_Z = LobbyLayout.FIRST_Z + (LobbyLayout.ROWS - 1) * LobbyLayout.STEP
+-- The plaza: from the end of the plots to the back fence.
+LobbyLayout.PLAZA = {
+	minX = -62,
+	maxX = 62,
+	minZ = LAST_Z + LobbyLayout.PLOT_W / 2 + 10,
+	maxZ = LAST_Z + LobbyLayout.PLOT_W / 2 + 80,
+}
+
 function LobbyLayout.slots(): { Slot }
 	local out: { Slot } = {}
-	local n = #TrackData.order
-	local step = LobbyLayout.PLOT_W + LobbyLayout.GAP
-	for i, id in TrackData.order do
-		local t = TrackData.get(id)
-		local x = (i - (n + 1) / 2) * step -- the row is centred on x = 0
-		local padZ = LobbyLayout.FRONT_Z + 5
-		table.insert(out, {
-			index = i,
-			id = id,
-			label = t.label,
-			plotX = x,
-			plotZ = LobbyLayout.FRONT_Z - LobbyLayout.PLOT_D / 2,
-			padX = x,
-			padZ = padZ,
-			exitX = x,
-			exitZ = padZ + LobbyLayout.REACH + 3,
-			signX = x + 11,
-			signZ = LobbyLayout.FRONT_Z + 2,
-		})
+	for row = 1, LobbyLayout.ROWS do
+		local z = LobbyLayout.FIRST_Z + (row - 1) * LobbyLayout.STEP
+		for _, side in { -1, 1 } do -- -1 = left of the road (-x), 1 = right
+			local index = #out + 1
+			local track = LobbyLayout.TRACKS[(index - 1) % #LobbyLayout.TRACKS + 1]
+			local t = TrackData.get(TrackData.order[track])
+			local front = side * LobbyLayout.EDGE -- x of the plot's front edge
+			local padX = front - side * (LobbyLayout.WALK_W / 2) -- on the footpath
+			table.insert(out, {
+				index = index,
+				track = track,
+				id = t.id,
+				label = t.label,
+				plotX = side * (LobbyLayout.EDGE + LobbyLayout.PLOT_D / 2),
+				plotZ = z,
+				-- a plot's front is its local +z; left plots face +x, right plots face -x
+				angle = -side * math.pi / 2,
+				padX = padX,
+				padZ = z + 6,
+				exitX = -side * 1, -- the middle of the road, in front of the pad
+				exitZ = z + 6,
+				signX = front - side * 0.8, -- on the footpath edge
+				signZ = z - 9,
+			})
+		end
 	end
 	return out
 end
 
--- The street box, with 20 studs past each end plot.
-function LobbyLayout.street(): Box
-	local slots = LobbyLayout.slots()
-	local half = LobbyLayout.PLOT_W / 2
+-- The road (dark) and its footpaths (light), from the far end to the plaza.
+function LobbyLayout.road(): Box
 	return {
-		minX = slots[1].plotX - half - 20,
-		maxX = slots[#slots].plotX + half + 20,
-		minZ = LobbyLayout.FRONT_Z,
-		maxZ = LobbyLayout.FRONT_Z + LobbyLayout.STREET_W,
+		minX = -LobbyLayout.ROAD_W / 2,
+		maxX = LobbyLayout.ROAD_W / 2,
+		minZ = LobbyLayout.FIRST_Z - LobbyLayout.PLOT_W / 2 - 14,
+		maxZ = LobbyLayout.PLAZA.minZ,
 	}
 end
+function LobbyLayout.walks(): Box
+	local r = LobbyLayout.road()
+	return { minX = -LobbyLayout.EDGE, maxX = LobbyLayout.EDGE, minZ = r.minZ, maxZ = r.maxZ }
+end
 
--- Grass under the small plots, the gaps between them and the street.
+-- Grass under everything (the water and shore go round it).
 function LobbyLayout.ground(): Box
-	local st = LobbyLayout.street()
+	local far = LobbyLayout.EDGE + LobbyLayout.PLOT_D + 18
 	return {
-		minX = st.minX,
-		maxX = st.maxX,
-		minZ = LobbyLayout.FRONT_Z - LobbyLayout.PLOT_D - 20,
-		maxZ = st.maxZ + 20,
+		minX = -far,
+		maxX = far,
+		minZ = LobbyLayout.road().minZ - 6,
+		maxZ = LobbyLayout.PLAZA.maxZ + 14,
 	}
 end
 
--- Where people appear: middle of the street, looking at the plots.
-function LobbyLayout.spawn(): (number, number, number)
-	local st = LobbyLayout.street()
-	return (st.minX + st.maxX) / 2, 3, st.maxZ - 10
+-- The plaza buildings (looks only for now).
+function LobbyLayout.shop(): Spot -- car shop, left, open to the plaza middle
+	return { x = -40, z = LobbyLayout.PLAZA.minZ + 18, faceX = 1, faceZ = 0 }
+end
+function LobbyLayout.garage(): Spot -- upgrades garage, right
+	return { x = 40, z = LobbyLayout.PLAZA.minZ + 18, faceX = -1, faceZ = 0 }
+end
+-- Lamps along both footpaths (between plots) and at the plaza corners.
+function LobbyLayout.lamps(): { Spot }
+	local out: { Spot } = {}
+	for row = 0, LobbyLayout.ROWS do
+		local z = LobbyLayout.FIRST_Z - LobbyLayout.STEP / 2 + row * LobbyLayout.STEP
+		for _, side in { -1, 1 } do
+			table.insert(out, { x = side * (LobbyLayout.EDGE - 1), z = z, faceX = 0, faceZ = 1 })
+		end
+	end
+	local p = LobbyLayout.PLAZA
+	for _, c in { { -1, 0.55 }, { 1, 0.55 }, { -1, 0.95 }, { 1, 0.95 } } do
+		local z = p.minZ + (p.maxZ - p.minZ) * c[2]
+		table.insert(out, { x = c[1] * 24, z = z, faceX = 0, faceZ = 1 })
+	end
+	return out
 end
 
--- Where a parked car waits on the street before its first drive (spread out, one per player),
--- just in front of the start pad so it is in view.
+-- Trees: in the grass between plots (at the back), along the outer edges, around the plaza.
+function LobbyLayout.trees(): { Spot }
+	local out: { Spot } = {}
+	local g = LobbyLayout.ground()
+	for row = 0, LobbyLayout.ROWS do
+		local z = LobbyLayout.FIRST_Z - LobbyLayout.STEP / 2 + row * LobbyLayout.STEP
+		for _, side in { -1, 1 } do
+			table.insert(out, {
+				x = side * (LobbyLayout.EDGE + LobbyLayout.PLOT_D - 4),
+				z = z,
+				faceX = 0,
+				faceZ = 1,
+			})
+			table.insert(out, { x = side * (g.maxX - 8), z = z + 10, faceX = 0, faceZ = 1 })
+		end
+	end
+	local p = LobbyLayout.PLAZA
+	for _, c in
+		{
+			{ -57, 0.04 },
+			{ 57, 0.04 },
+			{ -56, 0.7 },
+			{ 56, 0.7 },
+			{ -40, 0.97 },
+			{ 40, 0.97 },
+			{ -21, 0.62 },
+			{ 21, 0.62 },
+		}
+	do
+		table.insert(out, { x = c[1], z = p.minZ + (p.maxZ - p.minZ) * c[2], faceX = 0, faceZ = 1 })
+	end
+	return out
+end
+
+-- Where people appear: the plaza, just past the end of the road, looking up the road.
+function LobbyLayout.spawn(): (number, number, number)
+	return 0, 3, LobbyLayout.PLAZA.minZ + 14
+end
+
+-- Where a parked car waits before its first drive (spread out, one per player): in front of the
+-- spawn, so it is in view.
 function LobbyLayout.parkSpot(n: number): (number, number)
 	local x, _, z = LobbyLayout.spawn()
-	return x - 12 + ((n - 1) % 8) * 3.5, z - 6
+	return x - 7 + ((n - 1) % 5) * 3.5, z - 7
 end
 
--- A spot on a real plot (plot-local, big units) -> the same spot on its small lobby copy, or nil
--- when it is off the plot (falling, or the car is somewhere else).
+-- A spot on a real plot (plot-local, big units) -> the same spot on its small lobby copy (turned
+-- like the copy), or nil when it is off the plot (falling, or the car is somewhere else).
 function LobbyLayout.toMini(
 	slot: Slot,
 	lx: number,
@@ -127,15 +215,27 @@ function LobbyLayout.toMini(
 	local s = LobbyLayout.MINI
 	local hw = LobbyLayout.PLOT_W / 2 - LobbyLayout.MINI_CAR_EDGE
 	local hd = LobbyLayout.PLOT_D / 2 - LobbyLayout.MINI_CAR_EDGE
-	return slot.plotX + math.clamp(lx * s, -hw, hw),
-		ly * s,
-		slot.plotZ + math.clamp(lz * s, -hd, hd)
+	local x = math.clamp(lx * s, -hw, hw)
+	local z = math.clamp(lz * s, -hd, hd)
+	-- same turn as CFrame.Angles(0, angle, 0)
+	local c, n = math.cos(slot.angle), math.sin(slot.angle)
+	return slot.plotX + x * c + z * n, ly * s, slot.plotZ - x * n + z * c
 end
 
 -- Close enough to the pad to start driving? (flat distance)
 function LobbyLayout.inReach(slot: Slot, x: number, z: number): boolean
 	local dx, dz = x - slot.padX, z - slot.padZ
 	return dx * dx + dz * dz <= LobbyLayout.REACH * LobbyLayout.REACH
+end
+
+-- The first lobby slot that drives this track (for the plot keys while driving).
+function LobbyLayout.slotFor(track: number): number?
+	for _, s in LobbyLayout.slots() do
+		if s.track == track then
+			return s.index
+		end
+	end
+	return nil
 end
 
 return LobbyLayout

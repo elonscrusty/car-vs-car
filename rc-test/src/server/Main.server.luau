@@ -124,16 +124,22 @@ local function placePerson(player: Player, t: TrackData.Track, rc: boolean)
 	char:PivotTo(CFrame.lookAt(pos, Vector3.new(fx, y, fz)))
 end
 
--- Who drives which plot (one driver per plot). Walking people are in neither table.
-local driving: { [Player]: number } = {}
-local driverOf: { [number]: Player } = {}
+-- Who drives what. A real track has one driver at a time; the lobby slot is the small plot they
+-- started from (its sign, its copy car, where they come back to). Walking people are in none.
+local driving: { [Player]: number } = {} -- player -> real track index
+local drivingSlot: { [Player]: number } = {} -- player -> lobby slot index
+local driverOf: { [number]: Player } = {} -- real track index -> player
 local lastPrompt: { [Player]: number } = {}
 
-local function setSign(index: number)
-	local who = driverOf[index]
-	lobby.signs[index].Text = if who
-		then `{slots[index].label}\n{who.DisplayName}`
-		else `{slots[index].label}\nFREE`
+local function setSign(slotIndex: number)
+	local slot = slots[slotIndex]
+	local who: Player? = nil
+	for p, si in drivingSlot do
+		if si == slotIndex then
+			who = p
+		end
+	end
+	lobby.signs[slotIndex].Text = if who then `{slot.label}\n{who.DisplayName}` else slot.label
 end
 for i in slots do
 	setSign(i)
@@ -165,15 +171,20 @@ local function loadWalker(player: Player)
 	end
 end
 
-local function claim(player: Player, index: number)
+-- Start (or move) a player's drive: real track `track`, shown on lobby slot `slotIndex`.
+local function claim(player: Player, track: number, slotIndex: number)
 	local old = driving[player]
 	if old then
 		driverOf[old] = nil
-		setSign(old)
 	end
-	driving[player] = index
-	driverOf[index] = player
-	setSign(index)
+	local oldSlot = drivingSlot[player]
+	driving[player] = track
+	drivingSlot[player] = slotIndex
+	driverOf[track] = player
+	if oldSlot and oldSlot ~= slotIndex then
+		setSign(oldSlot)
+	end
+	setSign(slotIndex)
 end
 
 local function release(player: Player)
@@ -182,14 +193,18 @@ local function release(player: Player)
 	if old then
 		driverOf[old] = nil
 		driving[player] = nil
-		setSign(old)
+	end
+	local oldSlot = drivingSlot[player]
+	drivingSlot[player] = nil
+	if oldSlot then
+		setSign(oldSlot)
 	end
 end
 
 -- Off the stand, back in the lobby in front of that small plot, walking.
 local function walk(player: Player)
-	local index = driving[player]
-	if index == nil then
+	local slotIndex = drivingSlot[player]
+	if slotIndex == nil then
 		return
 	end
 	release(player)
@@ -197,36 +212,38 @@ local function walk(player: Player)
 	if not root then
 		loadWalker(player)
 	else
-		local slot = slots[index]
+		local slot = slots[slotIndex]
 		local pos = Vector3.new(slot.exitX, 3, slot.exitZ)
 		local char = player.Character :: Model
 		root.Anchored = false
+		-- look along the road, toward the plaza
 		char:PivotTo(CFrame.lookAt(pos, pos + Vector3.new(0, 0, 1)))
 	end
 	remote:FireClient(player, "walk")
 end
 
--- E on a lobby pad: drive that plot (if nobody else is), or stop driving.
-for index, prompt in lobby.prompts do
+-- E on a lobby pad: drive that plot's track (if nobody else is), or stop driving.
+for slotIndex, prompt in lobby.prompts do
+	local slot = slots[slotIndex]
 	prompt.Triggered:Connect(function(player: Player)
 		local now = os.clock()
 		if now - (lastPrompt[player] or 0) < 0.5 then
 			return
 		end
 		lastPrompt[player] = now
-		if driving[player] == index then
+		if drivingSlot[player] == slotIndex then
 			walk(player)
 			return
 		end
-		if driving[player] ~= nil or driverOf[index] ~= nil then
+		if driving[player] ~= nil or driverOf[slot.track] ~= nil then
 			return
 		end
 		local root = rootOf(player)
-		if not (root and LobbyLayout.inReach(slots[index], root.Position.X, root.Position.Z)) then
+		if not (root and LobbyLayout.inReach(slot, root.Position.X, root.Position.Z)) then
 			return
 		end
-		claim(player, index)
-		remote:FireClient(player, "drive", index)
+		claim(player, slot.track, slotIndex)
+		remote:FireClient(player, "drive", slot.track)
 	end)
 end
 
@@ -250,7 +267,13 @@ remote.OnServerEvent:Connect(function(player: Player, kind: unknown, rc: unknown
 	if driving[player] == nil or (driverOf[i] ~= nil and driverOf[i] ~= player) then
 		return
 	end
-	claim(player, i)
+	-- keep the slot they started from when it shows this track, else the first one that does
+	-- (show has no lobby slot: keep the old one)
+	local slotIndex = drivingSlot[player] :: number
+	if slots[slotIndex].track ~= i then
+		slotIndex = LobbyLayout.slotFor(i) or slotIndex
+	end
+	claim(player, i, slotIndex)
 	local t = TrackData.get(TrackData.order[i])
 	local want = if rc then TrackData.RC_SCALE else 1
 	if carScale[player] ~= want then
@@ -265,7 +288,7 @@ remote.OnServerEvent:Connect(function(player: Player, kind: unknown, rc: unknown
 	placePerson(player, t, rc)
 end)
 
--- Start walking on the street, car parked beside the start pad.
+-- Start walking in the plaza, car parked in front of the start pad.
 local joined = 0
 local function onJoin(player: Player)
 	joined += 1
@@ -301,6 +324,7 @@ RunService.Heartbeat:Connect(function(dt: number)
 	end
 	mirrorWait = 1 / 15
 	for player, index in driving do
+		local slot = slots[drivingSlot[player]]
 		local car = workspace:FindFirstChild("Car_" .. player.UserId)
 		local body = car and (car :: Model).PrimaryPart
 		if not body then
@@ -311,11 +335,13 @@ RunService.Heartbeat:Connect(function(dt: number)
 		local rc = carScale[player] ~= 1
 		local p = body.Position
 		local lx, ly, lz = TrackData.toLocal(t, rc, p.X, p.Y, p.Z)
-		local mx, my, mz = LobbyLayout.toMini(slots[index], lx, ly, lz)
-		if mx == nil then
+		-- the copy car only shows on a small plot of the same track (not while on show)
+		local mx, my, mz = LobbyLayout.toMini(slot, lx, ly, lz)
+		if mx == nil or slot.track ~= index then
 			miniCars.place(player, nil)
 		else
-			miniCars.place(player, body.CFrame.Rotation + Vector3.new(mx, my, mz))
+			local turn = CFrame.Angles(0, slot.angle, 0)
+			miniCars.place(player, turn * body.CFrame.Rotation + Vector3.new(mx, my, mz))
 		end
 	end
 end)
