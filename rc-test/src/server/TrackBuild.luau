@@ -9,7 +9,8 @@
 -- Remote ReplicatedStorage.TrackBuildEvent:
 --   client -> ("path", { {c, r}, ... }) finger drag lays road | ("drop", c, r, pieceId) special
 --             tile onto road | ("rotate", c, r) quarter turn | ("place", c, r, pieceId, rot) | ("remove", c, r) | ("done")
---   server -> ("state", { cols, rows, cells = { {c, r, piece, rot} }, ready, why, owned = {[id]=bool} })
+--   server -> ("state", { cols, rows, cells = { {c, r, piece, rot} }, ready, why, owned = {[id]=bool},
+--             stray = { {c, r} } tiles the loop skips })
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -91,7 +92,21 @@ local function stateOf(slot: number): { [string]: any }
 	for _, p in TrackTiles.PIECES do
 		owned[p.id] = d ~= nil and owns(d, p.id)
 	end
+	-- tiles not on the loop (the race skips them; the screen can dim them)
+	local stray: { { number } } = {}
+	if res and res.ok then
+		local onLoop: { [string]: boolean } = {}
+		for _, t in res.order do
+			onLoop[t.c .. "," .. t.r] = true
+		end
+		for _, t in g.tiles do
+			if not onLoop[t.c .. "," .. t.r] then
+				table.insert(stray, { t.c, t.r })
+			end
+		end
+	end
 	return {
+		stray = stray,
 		owned = owned,
 		cols = g.cols,
 		rows = g.rows,
