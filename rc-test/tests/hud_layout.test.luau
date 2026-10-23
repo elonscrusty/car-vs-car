@@ -8,8 +8,16 @@ local test, eq, truthy = H.test, H.eq, H.truthy
 print("HudLayout")
 
 -- small phone, big phone, wide Studio window, PC
-local SCREENS =
-	{ { 667, 375 }, { 844, 390 }, { 932, 430 }, { 1914, 753 }, { 1366, 768 }, { 1920, 1080 } }
+local SCREENS = {
+	{ 667, 375 },
+	{ 1024, 768 },
+	{ 1180, 820 },
+	{ 844, 390 },
+	{ 932, 430 },
+	{ 1914, 753 },
+	{ 1366, 768 },
+	{ 1920, 1080 },
+}
 
 test("nothing covers anything else, in walk or drive", function()
 	for _, s in SCREENS do

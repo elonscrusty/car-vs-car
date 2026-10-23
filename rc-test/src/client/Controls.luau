@@ -236,6 +236,15 @@ function Controls.new(
 			0.22,
 			Color3.fromRGB(70, 130, 235)
 		)
+		-- BRAKE sits just left of GAS on every screen (GAS is 0.34 of the height wide, so on a
+		-- 4:3 tablet a fixed 0.76 would push them together). See HudLayout "Brake".
+		local brakePad = gui:FindFirstChild("BRAKE") :: Frame
+		local function fitBrake()
+			brakePad.Position =
+				UDim2.new(0.97, -math.floor(gui.AbsoluteSize.Y * 0.34 + 12), 0.95, 0)
+		end
+		gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitBrake)
+		fitBrake()
 	end
 
 	-- Right side: a row of small CAM / VIEW buttons below the Roblox top bar (58 px) and above
