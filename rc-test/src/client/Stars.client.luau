@@ -4,6 +4,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
@@ -544,14 +545,23 @@ local function showDaily(coins: number, streak: number, boost: number)
 		rim.Thickness = if i == today then 3 else 0
 	end
 	-- a brand new player sees the way to their plot first: the gift waits until they have driven
-	-- once (PlotGuide sets HasDriven) and are back on foot, so it never covers the road
+	-- once (PlotGuide sets HasDriven) and are back on foot, so it never covers the road; and no
+	-- race, race card or prize card is up (three cards stacked in the middle, tour3-03)
 	local me = Players.LocalPlayer
-	local waited = 0
-	while
-		(me:GetAttribute("HasDriven") ~= true or me:GetAttribute("Driving") == true)
-		and waited < 600
-	do
-		waited += task.wait(1)
+	local pg = me:WaitForChild("PlayerGui")
+	local function calm(): boolean
+		local race = pg:FindFirstChild("ServerRace")
+		local prizeCard = pg:FindFirstChild("RacePrize", true)
+		return me:GetAttribute("HasDriven") == true
+			and me:GetAttribute("Driving") ~= true
+			and not (race and race:GetAttribute("Busy") == true)
+			and not (prizeCard and (prizeCard :: GuiObject).Visible)
+	end
+	local waited, still = 0, 0
+	while still < 3 and waited < 600 do
+		local dt = task.wait(1)
+		waited += dt
+		still = if calm() then still + dt else 0
 	end
 	if cards ~= mine then
 		return
@@ -579,6 +589,12 @@ end
 
 local GOLD = Color3.fromRGB(255, 213, 79)
 local GREEN = Color3.fromRGB(110, 225, 120)
+
+-- every tile free (the server's test switch: AllTilesFree, or Studio unless it is set false)
+local function tilesFree(): boolean
+	local free = workspace:GetAttribute("AllTilesFree")
+	return free == true or (free ~= false and RunService:IsStudio())
+end
 
 local function goalText(g: any): (string, string, number)
 	-- (what it is, how far, fill 0..1)
@@ -664,7 +680,7 @@ nextHow.Position = UDim2.fromScale(0, 0.47)
 
 local function showGoal(g: any)
 	-- every tile is free (Studio switch): no tile to save up for
-	local allFree = workspace:GetAttribute("AllTilesFree") == true
+	local allFree = tilesFree()
 	if
 		type(g) ~= "table"
 		or type(g.name) ~= "string"
@@ -741,7 +757,8 @@ local function showPrize(before: any)
 		prizeRim.Color = Color3.fromRGB(120, 120, 130)
 	end
 	local what, how, fill = goalText(g)
-	prizeGoal.Text = `{what}   {how}`
+	prizeGoal.Text = if tilesFree() and g.kind == "tile" then "" else `{what}   {how}`
+	prizeBar.Visible = prizeGoal.Text ~= ""
 	prizeGoal.TextColor3 = if g.ready then GREEN else Color3.new(1, 1, 1)
 	local f = prizeBar:FindFirstChild("Fill") :: Frame
 	f.BackgroundColor3 = if g.ready then GREEN else GOLD

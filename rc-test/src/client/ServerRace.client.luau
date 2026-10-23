@@ -186,6 +186,8 @@ RunService.RenderStepped:Connect(function()
 	local secs = startAt - workspace:GetServerTimeNow()
 	-- the call: the small chip steps aside for the huge banner
 	call.Visible = phase == "call" and startAt > 0
+	-- the daily gift (Stars) waits while a race or its card is on screen
+	gui:SetAttribute("Busy", phase == "racing" or phase == "call" or card.Visible)
 	local hurryLeft = endsAt - workspace:GetServerTimeNow()
 	hurry.Visible = phase == "racing" and endsAt > 0 and not finished and hurryLeft > 0
 	if hurry.Visible then
