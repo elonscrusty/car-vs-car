@@ -53,6 +53,7 @@ SpawnLobby.PADS = {
 	{ x = 27, kind = "rock", color = { 70, 176, 64 } },
 }
 SpawnLobby.ARCH_Z = 33.5
+SpawnLobby.GUMBALL = { x = 17, z = 7 } -- the gumball machine (rare cars), by the spawn
 SpawnLobby.LAMPS = {
 	{ x = -34, z = -33 },
 	{ x = 34, z = -33 },
@@ -293,6 +294,52 @@ function SpawnLobby.parts(): { Piece }
 		{ collide = false }
 	)
 
+	-- ===== Gumball machine: a big toy one, a dome of coloured balls on a red stand =====
+	do
+		local g, gx, gz = "Gumball", SpawnLobby.GUMBALL.x, SpawnLobby.GUMBALL.z
+		add(g, "Base", v(3.6, 3.6, 3.6), v(gx, 1.8, gz), L.statue)
+		add(g, "Chute", v(1.4, 1, 0.5), v(gx, 1.3, gz + 1.9), L.iron)
+		add(g, "Knob", v(0.4, 1.1, 1.1), v(gx, 2.7, gz + 1.95), C.white, {
+			shape = "Cylinder",
+			rot = v(0, 90, 0),
+		})
+		add(g, "Neck", v(0.6, 3.2, 3.2), v(gx, 3.9, gz), L.iron, {
+			shape = "Cylinder",
+			rot = v(0, 0, 90),
+		})
+		-- the balls, in three rings and a top one
+		local cols = { L.red, L.yellow, L.green, C.blue, L.ring, { 255, 120, 190 }, C.white }
+		local n = 0
+		for ring, r in { 1.5, 1.7, 1.1 } do
+			local y = 4.7 + (ring - 1) * 0.95
+			local count = if ring == 3 then 5 else 8
+			for k = 1, count do
+				n += 1
+				local a = (k + ring * 0.5) / count * 2 * math.pi
+				add(
+					g,
+					"Ball",
+					v(1.1, 1.1, 1.1),
+					v(gx + math.cos(a) * r, y, gz + math.sin(a) * r),
+					cols[(n % #cols) + 1],
+					{ shape = "Ball", collide = false }
+				)
+			end
+		end
+		add(
+			g,
+			"Ball",
+			v(1.1, 1.1, 1.1),
+			v(gx, 7.2, gz),
+			L.yellow,
+			{ shape = "Ball", collide = false }
+		)
+		add(g, "Cap", v(0.8, 2, 2), v(gx, 7.9, gz), L.statue, {
+			shape = "Cylinder",
+			rot = v(0, 0, 90),
+		})
+	end
+
 	-- ===== Lamps =====
 	for i, p in SpawnLobby.LAMPS do
 		local g = "Lamp" .. i
@@ -447,6 +494,9 @@ function SpawnLobby.build(parent: Instance, at: CFrame): Model
 		base:SetAttribute("PlotType", pad.kind)
 		game:GetService("CollectionService"):AddTag(base, "QueuePad")
 	end
+	-- CarShops (client) puts the "spin" prompt on it
+	local gumball = (groups.Gumball :: Model):FindFirstChild("Base") :: BasePart
+	game:GetService("CollectionService"):AddTag(gumball, "Gumball")
 	Garage.useMeshes(groups, origin, SpawnLobby.MESHES)
 	for _, b in SpawnLobby.BUILDINGS do
 		Garage.build(

@@ -24,6 +24,17 @@ export type Piece = {
 	light: number?, -- PointLight range, for lamps
 }
 
+-- Loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
+local function sibling(name: string): any
+	if script then
+		return require((script :: any).Parent[name])
+	end
+	local luneRequire: any = require
+	return luneRequire("./" .. name)
+end
+
+local CarCatalog = sibling("CarCatalog")
+
 local Garage = {}
 
 Garage.WIDTH = 24 -- x, wall to wall
@@ -35,39 +46,36 @@ Garage.BOX = { minX = -14, maxX = 16, minZ = -8.5, maxZ = 9.5, maxY = 11 }
 -- Walking lane from the front to the middle of the floor: nothing solid stands here.
 Garage.LANE = { minX = 2, maxX = 8, minZ = -3, maxZ = 8 }
 Garage.SHOP_STANDS = { -7, 0, 7 } -- x of the shop's three turntables (z = 1.5)
--- The spawn lobby's three car shops: the building's trim colour, the three cars on show, and
--- how those cars look (Garage.toyCar's style). Rock shops show carter's RockCrawler when it's there.
-Garage.SHOPS = {
-	drift = {
-		color = { 150, 70, 210 },
-		cars = { { 245, 245, 250 }, { 40, 200, 220 }, { 255, 120, 190 } },
-		style = "drift",
-		names = { "Slide Kid", "Neon Ghost", "Pink Fury" },
-		prices = { 250, 600, 1200 }, -- coins
-	},
-	race = {
-		color = { 226, 52, 46 },
-		cars = { { 246, 196, 40 }, { 40, 110, 220 }, { 230, 60, 50 } },
-		style = "race",
-		names = { "Bolt", "Blue Dart", "Red Rocket" },
-		prices = { 250, 600, 1200 },
-	},
-	rock = {
-		color = { 70, 176, 64 },
-		cars = { { 230, 120, 30 }, { 214, 48, 44 }, { 40, 110, 220 } },
-		style = "rock",
-		names = { "Mud Pup", "Boulder Bud", "Big Blue" },
-		prices = { 250, 600, 1200 },
-	},
-} :: {
+-- The spawn lobby's three car shops: the building's trim colour, and the cars on show (from
+-- CarCatalog, in shop order: colour, Garage.toyCar style, name, price in coins, id).
+local SHOP_TRIM = { drift = { 150, 70, 210 }, race = { 226, 52, 46 }, rock = { 70, 176, 64 } }
+Garage.SHOPS = {} :: {
 	[string]: {
 		color: { number },
 		cars: { { number } },
 		style: string,
 		names: { string },
 		prices: { number },
+		ids: { string },
 	},
 }
+for kind, list in CarCatalog.SHOP do
+	local shop = {
+		color = SHOP_TRIM[kind],
+		cars = {},
+		style = kind,
+		names = {},
+		prices = {},
+		ids = {},
+	}
+	for _, car in list do
+		table.insert(shop.cars, car.color)
+		table.insert(shop.names, car.name)
+		table.insert(shop.prices, car.price)
+		table.insert(shop.ids, car.id)
+	end
+	Garage.SHOPS[kind] = shop
+end
 
 local C = {
 	shell = { 52, 54, 60 },
@@ -266,8 +274,9 @@ Garage.MESHES = {
 	},
 } :: { Mesh }
 
--- Meshy props for a car shop of that kind: a turntable per stand, and (rock) carter's truck.
-function Garage.shopMeshes(kind: string): { Mesh }
+-- Meshy props for a car shop: a turntable per stand. (The cars stay toy cars so each shows its
+-- own colour.)
+function Garage.shopMeshes(_kind: string): { Mesh }
 	local out: { Mesh } = {}
 	for i, x in Garage.SHOP_STANDS do
 		table.insert(out, {
@@ -279,18 +288,6 @@ function Garage.shopMeshes(kind: string): { Mesh }
 			keep = { "Ring" },
 			collide = true,
 		})
-		if kind == "rock" then
-			table.insert(out, {
-				model = "RockCrawler",
-				group = "Car" .. i,
-				at = v(x, Garage.FLOOR + 0.75, 1.5),
-				fit = v(3.4, 3.2, 4.6),
-				long = "z",
-				keep = {},
-				collide = false,
-				carSkin = true,
-			})
-		end
 	end
 	return out
 end

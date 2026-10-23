@@ -24,6 +24,8 @@ export type Data = {
 	jobs: { day: number, have: { number } }, -- daily jobs: the day, and how far each job got
 	looks: { [string]: boolean }, -- plot looks bought in the plot shop (PlotShop ids)
 	lookOff: { [string]: boolean }, -- plot looks I have but turned off
+	cars: { [string]: boolean }, -- CarCatalog ids bought or won (starters are everyone's anyway)
+	equipped: { [string]: string }, -- mode -> the car id driven in that mode
 }
 -- My score against one other player: wins = I beat their record, losses = they beat mine.
 export type Rival = { name: string, wins: number, losses: number, at: number }
@@ -31,8 +33,8 @@ export type Lock = { job: string, at: number }
 
 local Profile = {}
 
-Profile.VERSION = 7 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift.
--- 6: daily jobs. 7: looks, lookOff
+Profile.VERSION = 8 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift.
+-- 6: daily jobs. 7: looks, lookOff. 8: cars, equipped
 Profile.MAX_OWNERS = 500 -- keeps the save small; stars from more owners than this stop counting
 Profile.LOCK_TIMEOUT = 300 -- a server that hasn't saved for this long is gone: its lock is stale
 Profile.MODES = { "race", "drift", "rock" }
@@ -46,6 +48,7 @@ Profile.MAX_RIVALS = 50 -- the least recent rival goes when full
 -- Miss a day and it starts again at day 1. (Guess amounts, like the visit gift.)
 Profile.DAILY = { 10, 15, 20, 30, 40, 50, 75 }
 Profile.MAX_LOOKS = 32 -- look ids kept (the shop has fewer)
+Profile.MAX_CARS = 200 -- car ids kept (far more cars than exist)
 
 function Profile.new(): Data
 	return {
@@ -67,6 +70,8 @@ function Profile.new(): Data
 		jobs = { day = -1, have = { 0, 0, 0 } },
 		looks = {},
 		lookOff = {},
+		cars = {},
+		equipped = {},
 	}
 end
 
@@ -208,6 +213,25 @@ function Profile.migrate(raw: any): Data
 				if type(id) == "string" and yes == true and count(set) < Profile.MAX_LOOKS then
 					set[string.sub(id, 1, 20)] = true
 				end
+			end
+		end
+	end
+	if type(raw.cars) == "table" then
+		for id, yes in raw.cars do
+			if
+				type(id) == "string"
+				and #id <= 40
+				and yes == true
+				and count(d.cars) < Profile.MAX_CARS
+			then
+				d.cars[id] = true
+			end
+		end
+	end
+	if type(raw.equipped) == "table" then
+		for mode, id in raw.equipped do
+			if isMode(mode) and type(id) == "string" and #id <= 40 then
+				d.equipped[mode] = id
 			end
 		end
 	end
