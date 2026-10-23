@@ -49,6 +49,36 @@ coinChip.TextColor3 = Color3.fromRGB(255, 236, 150)
 coinChip.Text = "🪙 0"
 coinChip.Parent = gui
 
+-- gold bolts found, only while on a rock plot
+local boltChip = chip:Clone()
+boltChip.Name = "BoltCount"
+boltChip.Position = UDim2.new(0.30, 0, 0.14, 70)
+boltChip.TextColor3 = Color3.fromRGB(255, 200, 70)
+boltChip.Text = "🔩 0/5"
+boltChip.Visible = false
+boltChip.Parent = gui
+
+-- found bolts are hidden on this screen (the server says which)
+local foundBolts: { [number]: boolean } = {}
+local function hideFound()
+	local plots = workspace:FindFirstChild("Plots")
+	if not plots then
+		return
+	end
+	for _, d in plots:GetDescendants() do
+		local id = d:GetAttribute("BoltId")
+		if type(id) == "number" and foundBolts[id] then
+			for _, p in { d, table.unpack(d:GetDescendants()) } do
+				if p:IsA("BasePart") then
+					p.LocalTransparencyModifier = 1
+				elseif p:IsA("Light") or p:IsA("ParticleEmitter") then
+					(p :: any).Enabled = false
+				end
+			end
+		end
+	end
+end
+
 -- short messages: likes, visit gifts
 local toast = Instance.new("TextLabel")
 toast.Name = "Toast"
@@ -141,7 +171,7 @@ local function setStars(n: number, bump: boolean)
 	end
 end
 
-remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unknown)
+remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unknown, ...: unknown)
 	if kind == "stars" and type(info) == "number" then
 		setStars(info, false)
 		noSave.Visible = saving == false
@@ -149,6 +179,27 @@ remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unkn
 	end
 	if kind == "coins" and type(info) == "number" then
 		coinChip.Text = `🪙 {info}`
+		return
+	end
+	if kind == "bolts" and type(info) == "number" then
+		-- ("bolts", found, total, onRock)
+		local total = saving
+		boltChip.Text = `🔩 {info}/{if type(total) == "number" then total else 5}`
+		boltChip.Visible = select(1, ...) == true
+		return
+	end
+	if kind == "bolt" and type(info) == "number" then
+		foundBolts[info] = true
+		hideFound()
+		return
+	end
+	if kind == "boltsFound" and type(info) == "table" then
+		for _, id in info :: { any } do
+			if type(id) == "number" then
+				foundBolts[id] = true
+			end
+		end
+		hideFound()
 		return
 	end
 	if kind == "toast" and type(info) == "string" then
