@@ -440,6 +440,28 @@ local function buildArch(parent: Instance, origin: CFrame)
 			)
 		end
 	end
+	-- start lights under the beam, facing the cars on the grid: 3 lamps the player's screen turns
+	-- red, red, red, then green (client/StartLights). Dark until then.
+	local lightY = h - 6
+	Kit.part(
+		arch,
+		"StartLights",
+		at,
+		Vector3.new(12, 4, 1.2),
+		CFrame.new(0, lightY, 0),
+		rgb(24, 24, 28)
+	)
+	for i = 1, 3 do
+		local lamp = Kit.part(
+			arch,
+			"StartLamp" .. i,
+			at,
+			Vector3.new(2.6, 2.6, 2.6),
+			CFrame.new((i - 2) * 3.6, lightY, 0.6),
+			rgb(40, 40, 44)
+		)
+		lamp.Shape = Enum.PartType.Ball
+	end
 	setSolid(arch, true)
 end
 

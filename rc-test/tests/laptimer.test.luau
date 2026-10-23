@@ -53,3 +53,35 @@ test("no gates = nothing happens", function()
 	local s = LapTimer.new({}, "free")
 	eq(LapTimer.update(s, 1, 0, 0, 0), nil)
 end)
+
+test("go: a standing start runs the clock, the line just ahead doesn't restart it", function()
+	local s = LapTimer.new({ gate(0, 0), gate(0, -50) }, "loop")
+	LapTimer.go(s, 2)
+	truthy(s.running)
+	eq(LapTimer.update(s, 2.5, 0, 0, 0), nil)
+	eq(LapTimer.update(s, 5, 0, 0, -50), "checkpoint")
+	eq(LapTimer.update(s, 12, 0, 0, 0), "lap")
+	near(s.last :: number, 10)
+end)
+
+local RaceStart = require("../src/shared/RaceStart")
+
+test("race start: 3 red lamps then green, one at a time", function()
+	local s = RaceStart.new()
+	local got = {}
+	for _ = 1, 400 do
+		local step = RaceStart.update(s, 1 / 60)
+		if step then
+			table.insert(got, step)
+		end
+	end
+	eq(table.concat(got, ","), "1,2,3,4")
+	eq(RaceStart.update(s, 10), nil)
+	-- green comes WAIT + 3 steps after landing
+	local t = RaceStart.new()
+	eq(RaceStart.update(t, RaceStart.WAIT - 0.01), nil)
+	eq(RaceStart.update(t, 0.02), 1)
+	eq(RaceStart.label(1), "3")
+	eq(RaceStart.label(3), "1")
+	eq(RaceStart.label(RaceStart.GO), "GO!")
+end)

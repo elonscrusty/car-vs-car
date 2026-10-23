@@ -11,6 +11,7 @@ local RunService = game:GetService("RunService")
 local CarMath = require(ReplicatedStorage.Shared.CarMath)
 local LapTimer = require(ReplicatedStorage.Shared.LapTimer)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
+local RaceStart = require(ReplicatedStorage.Shared.RaceStart)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
 
@@ -26,6 +27,7 @@ local Lobby = require(script.Parent.Lobby)
 local LobbyLife = require(script.Parent.LobbyLife)
 local LobbySky = require(script.Parent.LobbySky)
 local RCCar = require(script.Parent.RCCar)
+local StartLights = require(script.Parent.StartLights)
 
 local player = Players.LocalPlayer
 local remote = ReplicatedStorage:WaitForChild("RCControl") :: RemoteEvent
@@ -123,6 +125,10 @@ end
 local driftChain, driftTotal, driftHold = 0, 0, 0
 local checkpoint = 0 -- last checkpoint flag driven through on this plot (0 = none)
 local driftHeld = 0 -- seconds this slide has been held (longer = bigger multiplier)
+-- race: 3-2-1 lights on the start arch after landing on the start, then the clock starts (GO)
+local countdown: RaceStart.State? = nil
+local lamps: { BasePart } = {}
+local jumped = false -- went over the line before GO: no timed lap until the car leaves the line
 
 local hud: Hud.Hud
 local function goTo(index: number)
@@ -143,6 +149,14 @@ local function goTo(index: number)
 	end
 	LapTimer.reset(timers[index])
 	checkpoint = 0
+	StartLights.show(lamps, 0)
+	countdown, jumped = nil, false
+	lamps = {}
+	if t.id == "race" then
+		countdown = RaceStart.new()
+		lamps = StartLights.find(index)
+		StartLights.show(lamps, 0)
+	end
 	driftChain, driftTotal, driftHold, driftHeld = 0, 0, 0, 0
 	local s = t.spawn
 	local x, y, z = TrackData.toWorld(t, rc, s.x, s.y, s.z)
@@ -164,6 +178,12 @@ beep.Name = "ResetBeep"
 beep.SoundId = "rbxasset://sounds/electronicpingshort.wav"
 beep.Volume = 0.5
 beep.Parent = script
+-- start lights: a low beep for each red lamp, a high one for green
+local startBeep = Instance.new("Sound")
+startBeep.Name = "StartBeep"
+startBeep.SoundId = "rbxasset://sounds/electronicpingshort.wav"
+startBeep.Volume = 0.6
+startBeep.Parent = script
 local stuckTime = 0
 local stuckFrom = Vector3.zero
 local creep = 0 -- average ground speed lately (for the stuck check)
@@ -313,7 +333,31 @@ RunService.PreSimulation:Connect(function(dt: number)
 	local t = tracks[current]
 	local p = body.Position
 	local lx, ly, lz = TrackData.toLocal(t, rc, p.X, p.Y, p.Z)
-	local event = LapTimer.update(timers[current], os.clock(), lx, ly, lz)
+	local timer = timers[current]
+	local event: string? = nil
+	local cd = countdown
+	if cd then
+		local step = RaceStart.update(cd, dt)
+		if step then
+			StartLights.show(lamps, step)
+			startBeep.PlaybackSpeed = if step >= RaceStart.GO then 1.6 else 0.8
+			startBeep:Play()
+			hud.flash(RaceStart.label(step))
+		end
+		if step == RaceStart.GO then
+			countdown = nil
+			LapTimer.go(timer, os.clock())
+		elseif LapTimer.inside(timer.gates[1], lx, ly, lz) then
+			-- over the line before green: no clock this time (drive round, or R twice to start over)
+			countdown, jumped = nil, true
+			StartLights.show(lamps, 0)
+			hud.flash("TOO EARLY!")
+		end
+	elseif jumped then
+		jumped = LapTimer.inside(timer.gates[1], lx, ly, lz)
+	else
+		event = LapTimer.update(timer, os.clock(), lx, ly, lz)
+	end
 	if event == "lap" then
 		hud.flash(`LAP  {CarMath.formatTime(timers[current].last :: number)}`)
 	elseif event == "finish" then
