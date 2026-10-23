@@ -53,7 +53,31 @@ export type Spot = {
 	height: number,
 }
 
+-- Something that moves on players' screens (client LakeLife): a sailboat drifting at anchor
+-- round (x, z), or a duck paddling round a circle (centre cx, cz, radius r) `lag` radians behind
+-- the first duck. `ry` is the way it faces when built.
+export type Motion = {
+	id: string, -- the spot's Model under Lobby.Water
+	kind: string, -- "sail" or "duck"
+	x: number,
+	y: number,
+	z: number,
+	ry: number,
+	seed: number,
+	cx: number?,
+	cz: number?,
+	r: number?,
+	a0: number?, -- the mother duck's start angle round the loop (radians)
+	lag: number?,
+}
+
 local LobbyLake = {}
+
+LobbyLake.SAIL_DRIFT = 4 -- studs a sailboat swings round its anchor
+LobbyLake.DUCK_R = 14 -- radius of the ducks' loop
+LobbyLake.DUCK_LAP = 70 -- seconds for one lap
+LobbyLake.SPARKLES = 14
+LobbyLake.SPARKLE_TIME = 2.4 -- seconds each glint lasts
 
 local WHITE = { 240, 240, 234 }
 local RED = { 214, 64, 54 }
@@ -98,6 +122,7 @@ local function maker()
 	local out: { Piece } = {}
 	local spots: { Spot } = {}
 	local group: string? = nil
+	local motions: { Motion } = {}
 	local count: { [string]: number } = {}
 
 	local self = {}
@@ -160,18 +185,27 @@ local function maker()
 		end
 	end
 	-- start a mesh spot; blocks added until the next call stand in for it
-	function self.spot(mesh: string?, x: number, y: number, z: number, ry: number, height: number)
+	function self.spot(
+		mesh: string?,
+		x: number,
+		y: number,
+		z: number,
+		ry: number,
+		height: number
+	): string
 		if not mesh then
 			group = nil
-			return
+			return ""
 		end
 		count[mesh] = (count[mesh] or 0) + 1
 		local id = mesh .. count[mesh]
 		table.insert(spots, { id = id, mesh = mesh, x = x, y = y, z = z, ry = ry, height = height })
 		group = id
+		return id
 	end
 	self.out = out
 	self.spots = spots
+	self.motions = motions
 	return self
 end
 
@@ -296,7 +330,11 @@ local function sailboat(
 	local y = LobbyWater.WATER_TOP - 0.3
 	-- carter's Sailboat mesh came in end-on to the street (its hull along its local x), so turn it
 	-- a quarter round to show its side and sail like the blocks do
-	m.spot("Sailboat", x, y - 0.5, z, ry + 90, 13)
+	local id = m.spot("Sailboat", x, y - 0.5, z, ry + 90, 13)
+	table.insert(
+		m.motions,
+		{ id = id, kind = "sail", x = x, y = y, z = z, ry = ry, seed = #m.motions }
+	)
 	local put = m.frame(x, y, z, ry)
 	put("SailHull", 0, 0, 0, 3.6, 1.0, 9, WHITE)
 	put("SailBow", 0, 0, 5.0, 2.4, 1.0, 1.2, WHITE)
@@ -312,10 +350,17 @@ local function sailboat(
 end
 
 -- A plain duck floating, `size` 1 for a grown-up.
-local function duck(m: Maker, x: number, z: number, ry: number, size: number, body: { number })
+local function duck(
+	m: Maker,
+	x: number,
+	z: number,
+	ry: number,
+	size: number,
+	body: { number }
+): string
 	local y = LobbyWater.WATER_TOP
 	-- carter's Duck mesh has its beak at -Z (props HANDOFF.md), MeshProps turns +Z to the front
-	m.spot("Duck", x, y - 0.2 * size, z, ry + 180, 1.5 * size)
+	local id = m.spot("Duck", x, y - 0.2 * size, z, ry + 180, 1.5 * size)
 	local put = m.frame(x, y, z, ry)
 	local function p(
 		name: string,
@@ -335,6 +380,7 @@ local function duck(m: Maker, x: number, z: number, ry: number, size: number, bo
 	p("DuckHead", 0, 1.05, 0.75, 0.8, 0.8, 0.8, body)
 	p("DuckBeak", 0, 0.95, 1.3, 0.55, 0.2, 0.45, ORANGE)
 	m.spot(nil, 0, 0, 0, 0, 0)
+	return id
 end
 
 -- A little sandy beach in a near corner of the lake, from `u0` to `u1` across: a flat sand slab
@@ -607,11 +653,85 @@ function LobbyLake.build(): ({ Piece }, { Spot })
 	local dx, dz = at(mid - w * 0.18, 44)
 	local dry = face(70)
 	local fx, fz = math.sin(math.rad(dry)), math.cos(math.rad(dry))
-	duck(m, dx, dz, dry, 1, WHITE)
-	for i = 1, 3 do
-		duck(m, dx - fx * (1.6 + 1.5 * i), dz - fz * (1.6 + 1.5 * i), dry, 0.55, YELLOW)
+	-- on screen they paddle round a loop that starts at the mother's spot, ducklings in her wake
+	local r = LobbyLake.DUCK_R
+	local cx, cz = dx - fz * r, dz + fx * r -- the loop's middle, off her right side
+	local a0 = math.atan2(dx - cx, dz - cz) -- her angle round it
+	for i = 0, 3 do
+		local back = if i == 0 then 0 else 1.6 + 1.5 * i
+		local id = duck(
+			m,
+			dx - fx * back,
+			dz - fz * back,
+			dry,
+			if i == 0 then 1 else 0.55,
+			if i == 0 then WHITE else YELLOW
+		)
+		local seed = #m.motions
+		table.insert(m.motions, {
+			id = id,
+			kind = "duck",
+			x = dx - fx * back,
+			y = LobbyWater.WATER_TOP,
+			z = dz - fz * back,
+			ry = dry,
+			seed = seed,
+			cx = cx,
+			cz = cz,
+			r = r,
+			a0 = a0,
+			lag = back / r,
+		})
 	end
-	return m.out, m.spots
+	return m.out, m.spots, m.motions
+end
+
+-- Everything that moves on screen, with the Model id of each.
+function LobbyLake.motions(): { Motion }
+	local _, _, mo = LobbyLake.build()
+	return mo
+end
+
+-- Where a moving thing is at time `t` (seconds): world x, y, z, the way it faces (ry, degrees)
+-- and how far it rolls (degrees). At t = 0 a duck sits on its built spot.
+function LobbyLake.pose(mo: Motion, t: number): (number, number, number, number, number)
+	local k = mo.seed * 1.7
+	if mo.kind == "sail" then
+		local d = LobbyLake.SAIL_DRIFT
+		local x = mo.x + d * math.sin(2 * math.pi * t / 80 + k)
+		local z = mo.z + d * 0.6 * math.sin(2 * math.pi * t / 53 + k)
+		local y = mo.y + 0.25 * math.sin(2 * math.pi * t / 4.5 + k)
+		local ry = mo.ry + 6 * math.sin(2 * math.pi * t / 40 + k)
+		local roll = 3 * math.sin(2 * math.pi * t / 6 + k)
+		return x, y, z, ry, roll
+	end
+	-- a duck: round the loop the way she was facing, ducklings `lag` behind
+	local cx, cz, r = mo.cx :: number, mo.cz :: number, mo.r :: number
+	local a = (mo.a0 :: number) - (mo.lag :: number) - 2 * math.pi * t / LobbyLake.DUCK_LAP
+	local x, z = cx + r * math.sin(a), cz + r * math.cos(a)
+	-- a falls over time, so she moves along (-cos a, sin a)
+	local ry = math.deg(math.atan2(-math.cos(a), math.sin(a)))
+	local y = mo.y + 0.08 * math.sin(t * 3 + k)
+	return x, y, z, ry + 4 * math.sin(t * 2.2 + k), 0
+end
+
+local function hash(a: number, b: number): number
+	local n = math.sin(a * 127.1 + b * 311.7) * 43758.5453
+	return n - math.floor(n)
+end
+
+-- Glint `i` at time `t`: where it is on the water (x, z) and how bright (0..1). Each glint
+-- flashes once every SPARKLE_TIME seconds at a new spot.
+function LobbyLake.sparkle(i: number, t: number): (number, number, number)
+	local l = LobbyWater.lakeBox()
+	local inset = LobbyWater.SHALLOW + 6
+	local span = LobbyLake.SPARKLE_TIME
+	local u = t / span + i / LobbyLake.SPARKLES
+	local cycle = math.floor(u)
+	local phase = u - cycle
+	local x = l.minX + inset + hash(i, cycle) * (l.maxX - l.minX - 2 * inset)
+	local z = l.minZ + inset + hash(cycle, i + 0.5) * (l.maxZ - l.minZ - 2 * inset)
+	return x, z, math.sin(math.pi * phase)
 end
 
 function LobbyLake.pieces(): { Piece }
