@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local LobbyProps = require(script.Parent.LobbyProps)
 local LobbyWaterBuilder = require(script.Parent.LobbyWaterBuilder)
+local PlazaBuilder = require(script.Parent.PlazaBuilder)
 
 local LobbyBuilder = {}
 
@@ -44,12 +45,11 @@ function LobbyBuilder.build(): Built
 	folder.Parent = workspace
 
 	-- grass a hair under the small plots' floors so they never flicker, the light footpaths,
-	-- the dark road on top, the plaza (water, shore and fences round it: LobbyWater, scenery)
+	-- the dark road on top. The plaza is PlazaBuilder's (water, shore, fences: LobbyWater, scenery)
 	slab(folder, "Grass", LobbyLayout.ground(), -0.05, 2, Color3.fromRGB(116, 186, 82))
 	slab(folder, "Footpath", LobbyLayout.walks(), 0.05, 1, Color3.fromRGB(217, 214, 207))
 	local road = LobbyLayout.road()
 	slab(folder, "Road", road, 0.1, 1, Color3.fromRGB(58, 58, 64))
-	slab(folder, "Plaza", LobbyLayout.PLAZA, 0.05, 1, Color3.fromRGB(220, 216, 207))
 	-- dashed white middle line
 	local z = road.minZ + 4
 	while z < road.maxZ - 4 do
@@ -142,10 +142,12 @@ function LobbyBuilder.build(): Built
 	for _, l in LobbyLayout.lamps() do
 		LobbyProps.lamp(props, l.x, l.z)
 	end
-	local s = LobbyLayout.shop()
-	LobbyProps.carShop(props, s.x, s.z, s.faceX, s.faceZ)
-	local gr = LobbyLayout.garage()
-	LobbyProps.garage(props, gr.x, gr.z, gr.faceX, gr.faceZ)
+	-- the plaza (paving, lamps, car shop, and the garage from Shared/Garage)
+	local p = LobbyLayout.PLAZA
+	PlazaBuilder.build(
+		folder,
+		CFrame.lookAt(Vector3.new(0, 0, p.minZ), Vector3.new(0, 0, p.minZ + 1))
+	)
 
 	-- start pad
 	local sx, _, sz = LobbyLayout.spawn()
