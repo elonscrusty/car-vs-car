@@ -22,6 +22,7 @@ export type Spot = {
 	h: number,
 	ho: number,
 	square: boolean?, -- width = height (UIAspectRatioConstraint on height)
+	leftOf: string?, -- sits just left of this spot (same mode), bottoms lined up; x is ignored
 }
 
 local HudLayout = {}
@@ -29,6 +30,8 @@ local HudLayout = {}
 -- ScreenGui.DisplayOrder: popups always draw over the HUD buttons
 HudLayout.HUD = 5
 HudLayout.POPUP = 20
+-- pixels between BRAKE and GAS
+HudLayout.PAD_GAP = 12
 
 local function spot(
 	name: string,
@@ -73,7 +76,7 @@ HudLayout.SPOTS = {
 	spot("WeekendBanner", "walk", "Stars", TC, { 0.5, 0, 0, 156 }, { 0, 200, 0, 30 }),
 	spot("Join", "walk", "ServerRace", TC, { 0.5, 0, 0, 194 }, { 0, 220, 0, 46 }),
 	-- ===== walk: bottom middle =====
-	spot("Drive", "walk", "Lobby", BC, { 0.54, 0, 0.9, 0 }, { 0, 120, 0, 52 }),
+	spot("Drive", "walk", "Lobby", BC, { 0.47, 0, 0.9, 0 }, { 0, 120, 0, 52 }),
 
 	-- ===== drive: top (made by the RC car thread; driving is locked, so these stay put) =====
 	spot("Timer", "drive", "Hud", TL, { 0.02, 0, 0, 64 }, { 0.24, 0, 0.14, 0 }),
@@ -88,8 +91,14 @@ HudLayout.SPOTS = {
 	spot("Speed", "drive", "Hud", TR, { 0.98, 0, 0.1, 72 }, { 0.1, 0, 0.06, 0 }),
 	-- ===== drive: thumbs =====
 	spot("SteerHint", "drive", "Controls", BC, { 0.22, 0, 0.93, 0 }, { 0.3, 0, 0.08, 0 }),
-	spot("Walk", "drive", "Lobby", BC, { 0.54, 0, 0.9, 0 }, { 0, 120, 0, 52 }),
-	spot("Brake", "drive", "Controls", BR, { 0.76, 0, 0.95, 0 }, { 0, 0, 0.22, 0 }, true),
+	-- 0.47: clear of the steer hint on a small phone and of BRAKE on a 4:3 tablet
+	spot("Walk", "drive", "Lobby", BC, { 0.47, 0, 0.9, 0 }, { 0, 120, 0, 52 }),
+	-- BRAKE hugs GAS (Controls moves it when the screen size changes), so they never touch
+	(function()
+		local s = spot("Brake", "drive", "Controls", BR, { 0, 0, 0.95, 0 }, { 0, 0, 0.22, 0 }, true)
+		s.leftOf = "Gas"
+		return s
+	end)(),
 	spot("Drift", "drive", "Controls", BR, { 0.97, 0, 0.58, 0 }, { 0, 0, 0.22, 0 }, true), -- big RESET on rocks
 	spot("Gas", "drive", "Controls", BR, { 0.97, 0, 0.95, 0 }, { 0, 0, 0.34, 0 }, true),
 }
@@ -109,6 +118,11 @@ function HudLayout.box(s: Spot, sw: number, sh: number): (number, number, number
 	local wid = if s.square then hgt else s.w * sw + s.wo
 	local left = s.x * sw + s.xo - s.ax * wid
 	local top = s.y * sh + s.yo - s.ay * hgt
+	local other = if s.leftOf then HudLayout.find(s.leftOf, s.mode) else nil
+	if other then
+		local ol, _, _, ob = HudLayout.box(other, sw, sh)
+		left, top = ol - HudLayout.PAD_GAP - wid, ob - hgt
+	end
 	return left, top, left + wid, top + hgt
 end
 
