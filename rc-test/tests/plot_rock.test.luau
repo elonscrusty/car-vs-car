@@ -200,7 +200,7 @@ test("rock steps: tall steps up, on a straight, an easy way round, nothing else 
 	for _, b in blocks do
 		local rise = b.top - Plot.height(b.u0)
 		-- tall: holding the gas stalls, it takes backing up and another go
-		truthy(rise >= 2 and rise <= 2.6, `step at {b.u0} rises {rise}`)
+		truthy(rise > Plot.MAX_LIFT and rise <= Plot.SKILL_STEP, `step at {b.u0} rises {rise}`)
 	end
 	local edge = Plot.HALF_WIDTH + Plot.SHOULDER
 	local lo, hi =
@@ -270,18 +270,17 @@ test("skill climbs: too tall to just drive over, with an easy way round each", f
 			)
 		end
 	end
-	truthy(n.lift > Plot.MAX_LIFT and n.lift <= 3.5, "notch boulders")
-	truthy(S.stepUp.lift > Plot.MAX_LIFT and S.stepUp.lift <= 3, "step-up height")
-	truthy(
-		S.stepUp.helper.lift <= Plot.MAX_LIFT,
-		"the rock in front of the step-up must be climbable"
-	)
-	truthy(
-		S.stepUp.lift - S.stepUp.helper.lift <= Plot.MAX_LIFT,
-		"from the small rock up is too far"
-	)
-	truthy(S.kicker.lift / S.kicker.ramp >= 0.7, "the kicker ramp should need a run-up")
-	truthy(S.kicker.lift <= 3.5, "kicker height")
+	truthy(n.lift > Plot.MAX_LIFT and n.lift <= 4, "notch boulders")
+	-- every sheer face is a skill step: more than holding the gas gets up, never more than a
+	-- careful driver can
+	local st = S.stepUp
+	truthy(st.helper.lift >= Plot.MAX_LIFT and st.helper.lift <= Plot.SKILL_STEP, "step-up helper")
+	local rest = st.lift - st.helper.lift
+	truthy(rest > Plot.MAX_LIFT and rest <= Plot.SKILL_STEP, "from the helper up to the block")
+	local k = S.kicker
+	truthy(k.rampLift / k.ramp >= 0.5 and k.rampLift / k.ramp <= 0.6, "the kicker ramp slope")
+	local lip = k.lift - k.rampLift
+	truthy(lip > Plot.MAX_LIFT and lip <= Plot.SKILL_STEP, "the kicker lip")
 end)
 
 test("the steep slab is clear of rocks", function()
