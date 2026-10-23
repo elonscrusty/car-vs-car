@@ -156,7 +156,19 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 		local slip = CarMath.slipAngle(vLatBody, vLongBody)
 
 		-- steering, with a little automatic counter-steer when the tail slides
-		local target = CarMath.steerTarget(input.steer, vLongBody, slip)
+		local stick = input.steer
+		-- crawler: like a gyro in a real RC crawler, steer the nose back to the held heading
+		-- after a bump knocks it off (the tyres grip too well to just twist the car back)
+		local held = holdLook
+		if Tuning.yawHold > 0 and held and math.abs(input.steer) < 0.05 then
+			local look = Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z)
+			if look.Magnitude > 0.1 then
+				local err = math.asin(CarMath.clamp(held:Cross(look.Unit).Y, -1, 1))
+				local dir = if vLongBody < -0.2 * Tuning.scale then -1 else 1
+				stick = CarMath.clamp(err * 2.5 * dir, -1, 1)
+			end
+		end
+		local target = CarMath.steerTarget(stick, vLongBody, slip)
 		local rate = if math.abs(target) > math.abs(steer)
 			then Tuning.steerRate
 			else Tuning.steerReturn
