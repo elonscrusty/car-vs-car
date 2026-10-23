@@ -1,8 +1,10 @@
 --!strict
 -- How the build-your-own-track tiles look (carter's grid tiles, 2026-10-23), on top of the road
 -- and curbs TrackTiles builds: lane lines, a start gantry, glowing arrows on the boost pad, a
--- shiny oil puddle with a tipped barrel, chevron signs round the sharp turn, and a few bushes
--- and tyre stacks on the grass. Looks only: nothing solid, nothing the car can hit or feel
+-- shiny oil puddle with a tipped barrel, chevron signs round the sharp turn, warning signs and
+-- splats by the hazards, and a few bushes and tyre stacks on the grass. Names starting "Skin"
+-- draw TrackTiles' own cones, barrels, bumps, squeeze blocks and island, which it hides
+-- (Transparency 1) when this module is there: same spots (u / v in cells), same sizes. Looks only: nothing solid, nothing the car can hit or feel
 -- (the builder also turns CanQuery off), and nothing on the road taller than a painted line.
 --
 -- Tile-local space in plot BIG units (like Race.luau; the plot is shrunk later): centre (0, 0),
@@ -25,14 +27,32 @@ type Piece = Garage.Piece
 
 local TileLooks = {}
 
-TileLooks.CELL = 56
+TileLooks.CELL = 58 -- TrackTiles.CELL
 TileLooks.ROAD = 30 -- Race.luau ROAD
 TileLooks.CURB = 3 -- Race.luau CURB_WIDTH
 TileLooks.ROAD_TOP = 0.1 -- Kit.ribbon's road slab top
 TileLooks.PAINT = 0.04 -- painted lines and puddles: this thin, just over the road
-TileLooks.SHARP_R = 11 -- the sharp turn's arc radius (TrackTiles)
-TileLooks.MAX_PARTS = 16 -- per tile, phone budget (a big grid has many tiles)
-TileLooks.IDS = { "start", "straight", "turn", "chicane", "cross", "boost", "oil", "sharp" }
+TileLooks.SHARP = 0.2 -- the sharp turn's arc radius, in cells (TrackTiles bend(0.2))
+TileLooks.MAX_PARTS = 24 -- per tile, phone budget (a big grid has many tiles)
+TileLooks.IDS = {
+	"start",
+	"straight",
+	"turn",
+	"sharp",
+	"chicane",
+	"cross",
+	"split",
+	"narrow",
+	"cones",
+	"barrels",
+	"bumps",
+	"mud",
+	"puddle",
+	"sand",
+	"oil",
+	"boost",
+	"jump",
+}
 
 local WHITE = { 240, 240, 240 }
 local YELLOW = { 255, 210, 50 }
@@ -43,6 +63,11 @@ local BUSH2 = { 100, 186, 80 }
 local TYRE = { 34, 34, 38 }
 local BOOST = { 60, 220, 255 }
 local OIL = { 16, 16, 22 }
+local ORANGE = { 255, 130, 30 }
+local BLUE = { 40, 110, 220 }
+local MUD = { 110, 78, 46 }
+local SAND = { 222, 196, 130 }
+local WATER = { 70, 140, 210 }
 
 local function v(x: number, y: number, z: number): V3
 	return { x = x, y = y, z = z }
@@ -55,7 +80,7 @@ function TileLooks.centre(id: string, cell: number): { { number } }
 	local out = {}
 	if id == "turn" or id == "sharp" then
 		-- from the N edge to the E edge round the NE corner
-		local r = if id == "turn" then H else TileLooks.SHARP_R
+		local r = if id == "turn" then H else TileLooks.SHARP * cell
 		local cx, cz = r, -r -- the arc's centre (the turn's is the NE corner itself)
 		-- the N straight (sharp only), the arc, the E straight (sharp only)
 		if id == "sharp" then
@@ -115,6 +140,23 @@ function TileLooks.parts(id: string, cell: number?): { Piece }
 			add(G, "Tyre", v(1.2, 3, 3), v(x, 0.6 + i * 1.2, z), TYRE, {
 				shape = "Cylinder",
 				rot = v(0, 0, 90),
+				collide = false,
+			})
+		end
+	end
+
+	-- a yellow warning diamond on the grass before the tile (both ways), with a picture dot
+	local function sign(icon: { number })
+		for _, s in { -1, 1 } do
+			local x, z = s * (edge + 4), s * (H - 6)
+			add(G, "WarnPost", v(0.5, 4.5, 0.5), v(x, 2.25, z), DARK, noHit)
+			add(G, "WarnSign", v(3, 3, 0.3), v(x, 5.4, z), YELLOW, {
+				rot = v(0, 0, 45),
+				collide = false,
+			})
+			add(G, "WarnIcon", v(0.5, 1.4, 1.4), v(x, 5.4, z), icon, {
+				shape = "Cylinder",
+				rot = v(0, 90, 0),
 				collide = false,
 			})
 		end
@@ -237,7 +279,7 @@ function TileLooks.parts(id: string, cell: number?): { Piece }
 		})
 	elseif id == "sharp" then
 		-- three red chevron boards round the outside of the hairpin, facing the driver
-		local r = TileLooks.SHARP_R
+		local r = TileLooks.SHARP * C
 		local cx, cz = r, -r
 		local dist = r + edge + 3
 		for _, deg in { 112, 135, 158 } do
@@ -262,6 +304,151 @@ function TileLooks.parts(id: string, cell: number?): { Piece }
 				})
 			end
 		end
+	elseif id == "cones" then
+		-- skins over TrackTiles' cone colliders (3 x 4 x 3 at these u / v spots): striped cones
+		for _, sp in { { -0.13, -0.3 }, { 0.13, -0.1 }, { -0.13, 0.1 }, { 0.13, 0.3 } } do
+			local x, z = sp[1] * C, -sp[2] * C
+			add(G, "SkinConeBase", v(3.2, 0.4, 3.2), v(x, 0.2, z), DARK, noHit)
+			for i, c in { { 2.8, ORANGE }, { 2.1, WHITE }, { 1.4, ORANGE } } do
+				add(
+					G,
+					"SkinCone",
+					v(1.2, c[1] :: number, c[1] :: number),
+					v(x, 0.4 + (i - 0.5) * 1.2, z),
+					c[2] :: { number },
+					{
+						shape = "Cylinder",
+						rot = v(0, 0, 90),
+						collide = false,
+					}
+				)
+			end
+		end
+		sign(ORANGE)
+	elseif id == "barrels" then
+		-- skins over the two 12 x 5 x 6 barrel blocks: two red drums each, white bands
+		for _, sp in { { -0.15, -0.2 }, { 0.15, 0.2 } } do
+			local x, z = sp[1] * C, -sp[2] * C
+			for _, dx in { -3, 3 } do
+				add(G, "SkinDrum", v(5, 6, 6), v(x + dx, 2.5, z), RED, {
+					shape = "Cylinder",
+					rot = v(0, 0, 90),
+					collide = false,
+				})
+				add(G, "SkinDrumBand", v(0.6, 6.15, 6.15), v(x + dx, 3.4, z), WHITE, {
+					shape = "Cylinder",
+					rot = v(0, 0, 90),
+					collide = false,
+				})
+			end
+		end
+		sign(RED)
+	elseif id == "bumps" then
+		-- skins over the three speed bumps: yellow with black stripes
+		local w = TileLooks.ROAD - 2
+		for _, vv in { -0.25, 0, 0.25 } do
+			local z = -vv * C
+			add(G, "SkinBump", v(w, 0.8, 3), v(0, 0.4, z), YELLOW, noHit)
+			for i = -1, 1 do
+				add(G, "SkinBumpStripe", v(3, 0.06, 3.02), v(i * 8, 0.83, z), DARK, noHit)
+			end
+		end
+		sign(DARK)
+	elseif id == "narrow" then
+		-- skins over the squeeze blocks: grey barriers with red / white tops
+		local len = C * 0.4
+		for _, s in { -1, 1 } do
+			local x = s * (TileLooks.ROAD / 2 - 3.5)
+			add(G, "SkinBarrier", v(7, 2.6, len), v(x, 1.3, 0), { 170, 170, 176 }, noHit)
+			local n = 5
+			for i = 1, n do
+				local z = (i - (n + 1) / 2) * len / n
+				add(
+					G,
+					"SkinBarrierTop",
+					v(7.05, 0.45, len / n),
+					v(x, 2.8, z),
+					if i % 2 == 0 then WHITE else RED,
+					noHit
+				)
+			end
+		end
+		sign(RED)
+	elseif id == "split" then
+		-- the island: a curb round it, a bush at each end, a sign with an arrow each way
+		local len = C * 0.55
+		for _, s in { -1, 1 } do
+			add(G, "SkinIslandCurb", v(0.6, 2.1, len), v(s * 4.05, 1.05, 0), WHITE, noHit)
+			add(
+				G,
+				"SkinIslandCurb",
+				v(8.7, 2.1, 0.6),
+				v(0, 1.05, s * (len / 2 + 0.05)),
+				WHITE,
+				noHit
+			)
+		end
+		bush(0, len / 2 - 4)
+		add(G, "SplitPost", v(0.5, 4, 0.5), v(0, 4, -len / 2 + 4), DARK, noHit)
+		add(G, "SplitSign", v(3, 3, 0.3), v(0, 6.6, -len / 2 + 4), BLUE, {
+			shape = "Cylinder",
+			rot = v(0, 90, 0),
+			collide = false,
+		})
+		for _, s in { -1, 1 } do
+			add(G, "SplitArrow", v(1.4, 0.4, 0.45), v(s * 0.6, 6.6, -len / 2 + 4), WHITE, {
+				rot = v(0, 0, s * 35),
+				collide = false,
+			})
+		end
+	elseif id == "jump" then
+		-- yellow / black posts and flags either side of the ramp, chevrons on the run-up
+		for _, s in { -1, 1 } do
+			for _, z in { -C * 0.3, C * 0.3 } do
+				add(G, "JumpPost", v(0.6, 7, 0.6), v(s * (edge + 2), 3.5, z), DARK, noHit)
+				add(
+					G,
+					"JumpFlag",
+					v(0.15, 2, 3),
+					v(s * (edge + 2), 6, z + 1.6),
+					if s > 0 then YELLOW else ORANGE,
+					noHit
+				)
+			end
+		end
+		for _, z in { -C * 0.45, C * 0.45 } do
+			for _, s in { -1, 1 } do
+				add(G, "JumpArrow", v(6, TileLooks.PAINT, 1), v(s * 2.2, paintY, z), YELLOW, {
+					rot = v(0, s * (if z > 0 then 30 else -30), 0),
+					collide = false,
+				})
+			end
+		end
+	elseif id == "mud" or id == "sand" or id == "puddle" then
+		-- splats on the grass beside the patch, ripples on a puddle, and a picture sign
+		local col = if id == "mud" then MUD elseif id == "sand" then SAND else WATER
+		for _, sp in { { -1, -8 }, { 1, 6 }, { -1, 10 } } do
+			local x = sp[1] * (edge + 3)
+			add(G, "Splat", v(0.3, 5, 3.5), v(x, 0.15, sp[2] :: number), col, {
+				shape = "Cylinder",
+				rot = v(0, 30, 90),
+				collide = false,
+			})
+		end
+		if id == "puddle" then
+			for _, r in { { -3, -4, 6 }, { 4, 5, 4 } } do
+				add(G, "Ripple", v(0.06, r[3], r[3]), v(r[1], 0.17, r[2]), { 150, 200, 240 }, {
+					shape = "Cylinder",
+					rot = v(0, 0, 90),
+					material = "Glass",
+					collide = false,
+				})
+			end
+		elseif id == "sand" then
+			add(G, "Cactus", v(1.2, 5, 1.2), v(edge + 5, 2.5, -4), { 70, 150, 80 }, noHit)
+			add(G, "CactusArm", v(2, 0.9, 0.9), v(edge + 5.8, 3.2, -4), { 70, 150, 80 }, noHit)
+		end
+		sign(col)
 	end
 	return out
 end
