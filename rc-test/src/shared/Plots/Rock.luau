@@ -230,6 +230,24 @@ function Plot.stepBlocks(): { { u0: number, u1: number, top: number, bottom: num
 	return out
 end
 
+-- Skill climbs: too tall to just hold the gas over. Each takes up part of the trail and leaves
+-- an easy way round beside it.
+-- * notch: two big boulders side by side with a V between them; straddle it with a wheel on each.
+-- * stepUp: a tall rock block on the hill side; put one wheel on the small rock in front first.
+-- * kicker: a steep ramp up onto a high block on the front side; it needs a run-up.
+Plot.SKILLS = {
+	notch = { u = 4.45, side = 0.1, gap = 0.18, r = 7, lift = 2.4 },
+	stepUp = {
+		u = 12.35,
+		side = -0.45,
+		width = 15,
+		length = 10,
+		lift = 2.6,
+		helper = { u = 12.23, side = -0.55, r = 2.6, lift = 1.3 },
+	},
+	kicker = { u = 18.4, side = -0.5, width = 14, length = 8, lift = 2.6, ramp = 4.5 },
+}
+
 -- Mountain peaks along the back wall, behind the summit, so the hill rises into real mountains.
 Plot.PEAKS = {
 	{ x = -165, z = -230, r = 45, h = 60 },
@@ -396,8 +414,6 @@ Plot.features = {
 	-- The first sits right on the driving line, so going straight means going over the top.
 	rock(2.7, 0.05, 12, 2.4),
 	rock(3.3, -0.5, 11, 2.2),
-	rock(4.3, -0.4, 3.8, 1.3),
-	rock(4.5, 0.45, 3.6, 1.2),
 	ledge(4.85, 0.5, 0.9),
 	-- turn 1
 	rock(5.6, -0.5, 3.0, 0.9),
@@ -416,8 +432,6 @@ Plot.features = {
 	rock(10.8, 0.45, 2.8, 0.8),
 	rock(11.3, -0.4, 2.8, 0.8),
 	-- row 3: the low shelf, the rock steps (13.05 to 13.95), a dome
-	rock(12.2, -0.4, 3.6, 1.2),
-	rock(12.5, 0.4, 3.8, 1.4),
 	ledge(12.8, -0.5, 1.0),
 	log(14.35, 1.0),
 	rock(15.3, 0.45, 3.4, 1.2),
@@ -428,7 +442,6 @@ Plot.features = {
 	ledge(17.3, 0.5, 1.2),
 	rock(17.45, -0.45, 3.8, 1.4),
 	rock(18.4, 0.5, 3.8, 1.5),
-	rock(18.45, -0.6, 3.6, 1.3),
 	rock(19.35, 0.4, 3.6, 1.3),
 	rock(19.3, -0.45, 3.4, 1.2),
 	log(19.7, 1.0),
@@ -737,6 +750,66 @@ local function buildFaceLine(parent: Instance, origin: CFrame)
 	end
 end
 
+local function buildSkills(parent: Instance, origin: CFrame)
+	local S = Plot.SKILLS
+	local function slate(p: Part)
+		p.Material = Enum.Material.Slate
+	end
+	-- the V-notch: two boulders either side of the driving line
+	local n = S.notch
+	for _, d in { -n.gap, n.gap } do
+		local x, z = Plot.spot(n.u, n.side + d)
+		Kit.rock(parent, origin, x, Plot.trailY(n.u, n.side + d) + n.lift - n.r, z, n.r)
+	end
+	-- the step-up block, and the small rock in front of it
+	local st = S.stepUp
+	local x, z = Plot.spot(st.u, st.side)
+	local y = Plot.trailY(st.u, st.side)
+	slate(
+		Kit.part(
+			parent,
+			"Ledge",
+			origin,
+			Vector3.new(st.width, st.lift + 2, st.length),
+			Plot.bankCF(st.u, x, y + st.lift / 2 - 1, z),
+			C.rock
+		)
+	)
+	local hp = st.helper
+	local hx, hz = Plot.spot(hp.u, hp.side)
+	Kit.rock(parent, origin, hx, Plot.trailY(hp.u, hp.side) + hp.lift - hp.r, hz, hp.r)
+	-- the kicker: a block with a steep ramp up to it from behind (the bank frame's +Z points
+	-- back down the trail)
+	local k = S.kicker
+	local kx, kz = Plot.spot(k.u, k.side)
+	local frame = Plot.bankCF(k.u, kx, Plot.trailY(k.u, k.side), kz)
+	slate(
+		Kit.part(
+			parent,
+			"Ledge",
+			origin,
+			Vector3.new(k.width, k.lift + 2, k.length),
+			frame * CFrame.new(0, k.lift / 2 - 1, 0),
+			C.rock
+		)
+	)
+	local ramp = Instance.new("WedgePart")
+	ramp.Name = "Ledge"
+	ramp.Anchored = true
+	-- a wedge's high end is at its +Z: turn it round so the high end meets the block
+	ramp.Size = Vector3.new(k.width, k.lift + 0.3, k.ramp)
+	ramp.CFrame = origin
+		* frame
+		* CFrame.new(0, (k.lift - 0.3) / 2, k.length / 2 + k.ramp / 2)
+		* CFrame.Angles(0, math.pi, 0)
+	ramp.Color = C.rock
+	ramp.Material = Enum.Material.Slate
+	ramp.TopSurface = Enum.SurfaceType.Smooth
+	ramp.BottomSurface = Enum.SurfaceType.Smooth
+	ramp:SetAttribute("Grip", Plot.grip)
+	ramp.Parent = parent
+end
+
 function Plot.build(parent: Instance, origin: CFrame)
 	buildGround(parent, origin)
 	for _, f in Plot.features do
@@ -745,6 +818,7 @@ function Plot.build(parent: Instance, origin: CFrame)
 	buildSteps(parent, origin)
 	buildLogBridge(parent, origin)
 	buildFaceLine(parent, origin)
+	buildSkills(parent, origin)
 	-- the flag at the summit, beside the trail
 	local fx, fz, _, tx, tz = Plot.at(Plot.FLAG_U)
 	local px, pz = fx - tz * (HALF - 3), fz + tx * (HALF - 3)
