@@ -27,7 +27,27 @@ function StartLights.find(slot: number): { BasePart }
 					table.insert(lamps, p)
 				end
 			end
+			if #lamps == 0 then
+				-- a built track: its start tile's gantry has three lamps all called "StartLamp"
+				for _, d in m:GetDescendants() do
+					if d.Name == "StartLamp" and d:IsA("BasePart") then
+						table.insert(lamps, d)
+					end
+				end
+			end
 		end
+	end
+	-- left to right along the beam (the way the lamps are spread out most)
+	if #lamps > 1 then
+		local lo, hi = lamps[1].Position, lamps[1].Position
+		for _, p in lamps do
+			lo, hi = lo:Min(p.Position), hi:Max(p.Position)
+		end
+		local spread = hi - lo
+		local alongX = spread.X >= spread.Z
+		table.sort(lamps, function(a: BasePart, b: BasePart): boolean
+			return if alongX then a.Position.X < b.Position.X else a.Position.Z < b.Position.Z
+		end)
 	end
 	return lamps
 end
