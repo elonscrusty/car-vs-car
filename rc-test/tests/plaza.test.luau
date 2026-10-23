@@ -81,3 +81,45 @@ test("the garage spot matches the lobby's garage", function()
 	local b = (s :: any).box
 	truthy(inside(b, g.x, g.z - L.PLAZA.minZ), "garage middle in its spot")
 end)
+
+test(
+	"decor sits on the paving, out of the lane, buildings, spawn, parked cars and trees",
+	function()
+		local sx, _, sz = L.spawn()
+		local lane = { minX = -P.MOUTH / 2, maxX = P.MOUTH / 2, minZ = 0, maxZ = 30 }
+		for i, d in P.decor do
+			local where = d.name .. " #" .. i
+			truthy(
+				P.onPaving(d.x - d.r, d.z) and P.onPaving(d.x + d.r, d.z),
+				where .. " on the paving"
+			)
+			truthy(not inside(lane, d.x, d.z, d.r), where .. " in the lane")
+			for _, s in P.spots do
+				truthy(not inside(s.box, d.x, d.z, d.r + 1), where .. " in " .. s.name)
+			end
+			local wz = d.z + L.PLAZA.minZ
+			truthy(math.abs(d.x - sx) > 8 or math.abs(wz - sz) > 8, where .. " on the spawn")
+			for n = 1, 8 do
+				local px, pz = L.parkSpot(n)
+				truthy(
+					math.abs(d.x - px) > d.r + 2 or math.abs(wz - pz) > d.r + 2,
+					where .. " on a parked car"
+				)
+			end
+			for _, tree in L.trees() do
+				local dx, dz = tree.x - d.x, tree.z - wz
+				truthy(dx * dx + dz * dz > (d.r + 3) ^ 2, where .. " in a tree")
+			end
+			for _, l in P.lamps do
+				local dx, dz = l[1] - d.x, l[2] - d.z
+				truthy(dx * dx + dz * dz > (d.r + 1.5) ^ 2, where .. " on a lamp")
+			end
+			for j, e in P.decor do
+				if j > i then
+					local dx, dz = e.x - d.x, e.z - d.z
+					truthy(dx * dx + dz * dz > (d.r + e.r) ^ 2, where .. " on " .. e.name)
+				end
+			end
+		end
+	end
+)

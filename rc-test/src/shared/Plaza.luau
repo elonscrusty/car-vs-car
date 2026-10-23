@@ -61,6 +61,31 @@ Plaza.planters = {
 	{ 32, 54, 3, 8 },
 }
 
+-- Little things on the paving, from carter's Meshy props (ServerStorage.LobbyMeshes) with block
+-- stand-ins. name = the prop, x/z = spot, face = which way its front looks (degrees, like
+-- Spot.face), h = height in studs, r = how far it reaches from its spot (for the tests).
+export type Decor = { name: string, x: number, z: number, face: number, h: number, r: number }
+Plaza.decor = {
+	-- benches along the open lane, looking in at it, a bin between each pair
+	{ name = "ParkBench", x = -19, z = 21, face = 90, h = 2.6, r = 2.6 },
+	{ name = "ParkBench", x = -19, z = 33, face = 90, h = 2.6, r = 2.6 },
+	{ name = "ParkBench", x = 19, z = 21, face = -90, h = 2.6, r = 2.6 },
+	{ name = "ParkBench", x = 19, z = 33, face = -90, h = 2.6, r = 2.6 },
+	{ name = "TrashCan", x = -19, z = 27, face = 90, h = 2.4, r = 1 },
+	{ name = "TrashCan", x = 19, z = 27, face = -90, h = 2.4, r = 1 },
+	-- picnic tables on the open paving at the back
+	{ name = "PicnicTable", x = -11, z = 57, face = 0, h = 2.6, r = 3.2 },
+	{ name = "PicnicTable", x = 11, z = 57, face = 0, h = 2.6, r = 3.2 },
+	-- flower pots by the shop and garage fronts
+	{ name = "FlowerPot", x = -28, z = 3.5, face = 180, h = 2, r = 1 },
+	{ name = "FlowerPot", x = 28, z = 3.5, face = 180, h = 2, r = 1 },
+	{ name = "FlowerPot", x = -28, z = 37, face = 180, h = 2, r = 1 },
+	{ name = "FlowerPot", x = 28, z = 37, face = 180, h = 2, r = 1 },
+	-- a mailbox and a hydrant either side of where people appear
+	{ name = "Mailbox", x = -16.5, z = 9.5, face = 90, h = 3.4, r = 1 },
+	{ name = "Hydrant", x = 16.5, z = 9.5, face = -90, h = 2.2, r = 0.8 },
+} :: { Decor }
+
 -- Inside the cut-off corners and the box? (plaza-local)
 function Plaza.onPaving(x: number, z: number): boolean
 	local b = Plaza.box()

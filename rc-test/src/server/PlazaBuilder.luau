@@ -8,6 +8,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Plaza = require(ReplicatedStorage.Shared.Plaza)
+local MeshProps = require(script.Parent.MeshProps)
 
 local PlazaBuilder = {}
 
@@ -115,6 +116,54 @@ local function paving(parent: Instance, f: CFrame)
 	)
 end
 
+local PAVING_TOP = 0.05
+
+-- Block stand-ins for the Meshy decor props (front = -Z of `at`, which sits on the floor).
+local WOOD = Color3.fromRGB(150, 104, 62)
+local GREEN_BIN = Color3.fromRGB(60, 120, 80)
+local POT = Color3.fromRGB(196, 110, 70)
+local RED = Color3.fromRGB(206, 52, 46)
+local function standIn(parent: Instance, d: Plaza.Decor, at: CFrame)
+	local m = Instance.new("Model")
+	m.Name = d.name
+	local function b(name: string, size: Vector3, x: number, y: number, z: number, color: Color3)
+		block(m, name, size, at * CFrame.new(x, y, z), color)
+	end
+	if d.name == "ParkBench" then
+		b("Seat", Vector3.new(5, 0.3, 1.4), 0, 1.2, 0, WOOD)
+		b("Back", Vector3.new(5, 1.2, 0.3), 0, 2, 0.65, WOOD)
+		for _, sx in { -2, 2 } do
+			b("Leg", Vector3.new(0.3, 1.1, 1.2), sx, 0.55, 0, IRON)
+		end
+	elseif d.name == "TrashCan" then
+		b("Bin", Vector3.new(1.4, 2.2, 1.4), 0, 1.1, 0, GREEN_BIN)
+		b("Lid", Vector3.new(1.6, 0.2, 1.6), 0, 2.3, 0, IRON)
+	elseif d.name == "PicnicTable" then
+		b("Top", Vector3.new(5, 0.3, 2.4), 0, 2.4, 0, WOOD)
+		for _, sz in { -1.9, 1.9 } do
+			b("Seat", Vector3.new(5, 0.25, 0.9), 0, 1.3, sz, WOOD)
+		end
+		for _, sx in { -1.8, 1.8 } do
+			b("Leg", Vector3.new(0.3, 2.3, 4.6), sx, 1.15, 0, WOOD)
+		end
+	elseif d.name == "FlowerPot" then
+		b("Pot", Vector3.new(1.6, 1.2, 1.6), 0, 0.6, 0, POT)
+		b("Flowers", Vector3.new(1.4, 0.9, 1.4), 0, 1.6, 0, BUSH)
+	elseif d.name == "Mailbox" then
+		b("Post", Vector3.new(0.3, 2.4, 0.3), 0, 1.2, 0, IRON)
+		b("Box", Vector3.new(0.9, 0.9, 1.6), 0, 2.85, 0, Color3.fromRGB(46, 90, 180))
+	else -- Hydrant
+		b("Body", Vector3.new(0.8, 1.8, 0.8), 0, 0.9, 0, RED)
+		b("Cap", Vector3.new(1, 0.3, 1), 0, 1.95, 0, RED)
+	end
+	for _, p in m:GetDescendants() do
+		if p:IsA("BasePart") then
+			p.CanCollide = d.name ~= "Flowers"
+		end
+	end
+	m.Parent = parent
+end
+
 -- A building module, in server/PlazaParts or ReplicatedStorage.Shared, or nil.
 local function partModule(name: string): ModuleScript?
 	local parts = script.Parent:FindFirstChild("PlazaParts")
@@ -151,6 +200,19 @@ function PlazaBuilder.build(parent: Instance, anchor: CFrame): Model
 			BUSH
 		)
 		bush.CanCollide = false
+	end
+
+	local decor = Instance.new("Folder")
+	decor.Name = "Decor"
+	decor.Parent = plaza
+	for _, d in Plaza.decor do
+		local pos = at(d.x, d.z).Position + Vector3.new(0, PAVING_TOP, 0)
+		local a = math.rad(d.face)
+		local look = f:VectorToWorldSpace(Vector3.new(math.sin(a), 0, math.cos(a)))
+		local cf = CFrame.lookAt(pos, pos + look)
+		if not MeshProps.place(decor, d.name, cf, d.h) then
+			standIn(decor, d, cf)
+		end
 	end
 
 	for _, spot in Plaza.spots do
