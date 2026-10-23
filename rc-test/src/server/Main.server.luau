@@ -12,6 +12,7 @@ local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local CarBuilder = require(script.Parent.CarBuilder)
 local LobbyBuilder = require(script.Parent.LobbyBuilder)
 local ServerRaceRunner = require(script.Parent.ServerRaceRunner)
+local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local LobbyPlots = require(script.Parent.LobbyPlots)
 local TrackBuilder = require(script.Parent.TrackBuilder)
 local PlotDecorBuilder = require(script.Parent.PlotDecorBuilder)
@@ -57,6 +58,21 @@ local function spawnCF(t: TrackData.Track, rc: boolean): CFrame
 	return CFrame.lookAt(pos, pos + Vector3.new(dx, 0, dz))
 end
 
+-- The car's paint: the car the player picked in the shop for the kind of plot being driven
+-- (looks only; the server paints it, so everyone sees it). The lobby car keeps the plain red.
+local carMode: { [Player]: string } = {}
+local function paint(player: Player)
+	local car = workspace:FindFirstChild("Car_" .. player.UserId)
+	local body = car and car:IsA("Model") and car.PrimaryPart
+	if not body then
+		return
+	end
+	local mode = carMode[player]
+	local pick = mode and CarCatalog.get(player:GetAttribute("Car_" .. mode))
+	local rgb = if pick then pick.color else { 220, 50, 47 }
+	body.Color = Color3.fromRGB(rgb[1], rgb[2], rgb[3])
+end
+
 local function giveCar(player: Player, t: TrackData.Track, rc: boolean, at: CFrame?)
 	local name = "Car_" .. player.UserId
 	local old = workspace:FindFirstChild(name)
@@ -71,6 +87,7 @@ local function giveCar(player: Player, t: TrackData.Track, rc: boolean, at: CFra
 		body:SetNetworkOwner(player)
 	end
 	carScale[player] = scale
+	paint(player)
 end
 
 local function addRemote(character: Model)
@@ -328,12 +345,19 @@ remote.OnServerEvent:Connect(function(player: Player, kind: unknown, rc: unknown
 		lastAsk[player] = now
 		giveCar(player, t, rc)
 	end
+	carMode[player] = t.id
+	paint(player)
 	placePerson(player, t, rc)
 end)
 
 -- Start walking in the spawn lobby, car parked at the top of the road.
 local joined = 0
 local function onJoin(player: Player)
+	for _, mode in CarCatalog.MODES do
+		player:GetAttributeChangedSignal("Car_" .. mode):Connect(function()
+			paint(player)
+		end)
+	end
 	joined += 1
 	local px, pz = LobbyLayout.parkSpot(joined)
 	local park = CFrame.lookAt(Vector3.new(px, 1, pz), Vector3.new(px, 1, pz + 1))
@@ -353,6 +377,7 @@ Players.PlayerRemoving:Connect(function(player)
 		car:Destroy()
 	end
 	carScale[player] = nil
+	carMode[player] = nil
 	lastAsk[player] = nil
 	lastPrompt[player] = nil
 	LobbyPlots.removePlayer(player)
