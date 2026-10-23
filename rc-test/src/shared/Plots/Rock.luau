@@ -64,6 +64,8 @@ Plot.FRONT_RIM = 3 -- and this high along the front, under the stand's view
 Plot.GRASS_TOP = 14 -- ground below this height (off the trail) is grass, higher is rock
 -- Highest bump the car can crawl over.
 Plot.MAX_LIFT = 1.6
+-- The big wide boulders can stand taller: their sides are gentle enough to climb.
+Plot.BIG_LIFT = 2.5
 -- The person's eyes on the driver stand (see Main.client: stand top + 4.5 studs at RC size).
 Plot.EYE = { x = Kit.STAND.x, y = Kit.STAND_H + 18, z = Kit.STAND.z }
 
@@ -189,7 +191,7 @@ Plot.domes = {
 -- A dry creek across the trail in row 2. A bridge of two logs crosses it on the left; the
 -- right side dips down through the creek bed.
 Plot.CREEK =
-	{ u = 8.1, half = 16, depth = 5, reach = HALF + 14, logSide = -0.35, logR = 1.5, lift = 0.9 }
+	{ u = 8.1, half = 16, depth = 5, reach = HALF + 14, logSide = -0.25, logR = 1.5, lift = 0.9 }
 local creekX, creekZ, _, creekTX, creekTZ = Plot.at(Plot.CREEK.u)
 
 -- How far the creek bed dips the ground at (x, z).
@@ -382,8 +384,8 @@ Plot.features = {
 	rock(1.8, -0.35, 3.4, 1.0),
 	rock(2.2, 0.3, 3.6, 1.1),
 	-- two big boulders, wide so they get climbed, not pushed past: watch the springs up close
-	rock(2.85, 0.3, 12, 1.6),
-	rock(3.25, -0.35, 11, 1.5),
+	rock(2.85, 0.3, 12, 2.4),
+	rock(3.25, -0.35, 11, 2.2),
 	rock(4.3, -0.4, 3.8, 1.3),
 	rock(4.5, 0.45, 3.6, 1.2),
 	ledge(4.85, 0.5, 0.9),
@@ -559,7 +561,8 @@ local function buildGround(parent: Instance, origin: CFrame)
 			return L.dome
 		end
 		if d < HALF then
-			return if steep > 0.2 then L.slab else L.trail
+			-- orange only on the steep face at the top
+			return if steep > 0.2 and mid.Y > Plot.height(23) - 2 then L.slab else L.trail
 		end
 		if steep > 0.8 or mid.Y >= Plot.GRASS_TOP then
 			return L.rock
@@ -658,13 +661,13 @@ local function buildSteps(parent: Instance, origin: CFrame)
 	end
 end
 
--- Two logs side by side along the trail, over the creek, one under each row of wheels.
+-- Three logs side by side along the trail, over the creek: a bridge wide enough to stay on.
 local function buildLogBridge(parent: Instance, origin: CFrame)
 	local c = Plot.CREEK
 	local x, z, _, tx, tz = Plot.at(c.u)
 	local cx, cz = x - tz * c.logSide * HALF, z + tx * c.logSide * HALF
 	local h = Plot.trailY(c.u, c.logSide)
-	for _, off in { -2, 2 } do
+	for _, off in { -3.2, 0, 3.2 } do
 		local p = Kit.part(
 			parent,
 			"Log",
