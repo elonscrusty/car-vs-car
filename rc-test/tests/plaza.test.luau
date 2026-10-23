@@ -38,12 +38,10 @@ test("every building spot is on the paving and they never overlap", function()
 	end
 end)
 
-test("the middle lane from the road to the stage stays open", function()
+test("the middle lane in from the road stays open", function()
 	local lane = { minX = -P.MOUTH / 2, maxX = P.MOUTH / 2, minZ = 0, maxZ = 30 }
 	for _, s in P.spots do
-		if s.name ~= "Stage" then
-			truthy(not overlap(s.box, lane), s.name .. " in the lane")
-		end
+		truthy(not overlap(s.box, lane), s.name .. " in the lane")
 	end
 	for _, l in P.lamps do
 		truthy(

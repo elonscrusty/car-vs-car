@@ -1,6 +1,6 @@
 --!strict
 -- Builds the lobby plaza (Plaza.luau) at the end of the street: paving, kerb, lamps, planters,
--- then each building in Plaza.spots whose module is in PlazaParts (Shop, Garage, Stage).
+-- then each building in Plaza.spots whose module is in PlazaParts (Shop, Garage).
 -- Each building module: build(parent, origin, width, depth) where origin is the middle of its
 -- spot on the floor, LookVector = its open front, width across the front, depth front to back.
 -- Looks only: flat colours, no text.
@@ -60,7 +60,7 @@ local function frame(anchor: CFrame): CFrame
 end
 
 -- The paving: a big slab with the two far corners cut off, a kerb on the outside, and a slightly
--- darker band down the middle lane so the way from the street to the stage reads at a glance.
+-- darker band down the middle lane so the way in from the street reads at a glance.
 local function paving(parent: Instance, f: CFrame)
 	local b = Plaza.box()
 	local c = Plaza.CORNER
@@ -105,8 +105,7 @@ local function paving(parent: Instance, f: CFrame)
 	end
 	block(parent, "KerbBack", Vector3.new(w - 2 * c, 0.4, k), at(0, 0.2, d - k / 2), KERB)
 	-- middle lane band (a hair above the paving so it never flickers)
-	local stage = Plaza.spot("Stage")
-	local laneEnd = if stage then stage.box.minZ else d
+	local laneEnd = d - c
 	block(
 		parent,
 		"Lane",

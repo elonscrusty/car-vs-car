@@ -141,7 +141,7 @@ function LobbyBuilder.build(): Built
 	for _, l in LobbyLayout.lamps() do
 		LobbyProps.lamp(props, l.x, l.z)
 	end
-	-- the plaza (paving, lamps, car shop, and the garage/stage when their modules exist)
+	-- the plaza (paving, lamps, car shop, and the garage once Shared/Garage exists)
 	local p = LobbyLayout.PLAZA
 	PlazaBuilder.build(
 		folder,

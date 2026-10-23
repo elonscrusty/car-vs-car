@@ -1,6 +1,6 @@
 --!strict
 -- The lobby plaza at the end of the street: paving, lamps, and a spot for each big building
--- (car shop, upgrades garage, tournament stage). Looks only for now.
+-- (car shop, upgrades garage). Looks only for now.
 -- Plain numbers only (Lune tests load this). Plaza-local studs: x = right, z = away from the
 -- street (0 = the street's end edge), y = up. PlazaBuilder turns them into world space with an
 -- anchor CFrame (LookVector = into the plaza).
@@ -18,7 +18,7 @@ local Plaza = {}
 Plaza.WIDTH = 124
 Plaza.DEPTH = 70
 Plaza.CORNER = 16 -- the two far corners are cut off at 45 degrees
-Plaza.MOUTH = 28 -- open lane from the street to the stage: nothing stands in it
+Plaza.MOUTH = 28 -- open lane from the street into the plaza: nothing stands in it
 Plaza.BORDER = 2 -- darker kerb around the edge
 
 function Plaza.box(): Box
@@ -26,11 +26,10 @@ function Plaza.box(): Box
 end
 
 -- Buildings sit around the open middle. Shop on the left and garage on the right open toward the
--- middle lane; the stage at the back faces the street so people walking in see the screen.
+-- middle lane; the back of the plaza stays open paving.
 Plaza.spots = {
 	{ name = "Shop", box = { minX = -58, maxX = -30, minZ = 6, maxZ = 34 }, face = 90 },
 	{ name = "Garage", box = { minX = 32, maxX = 48, minZ = 6, maxZ = 30 }, face = -90 },
-	{ name = "Stage", box = { minX = -24, maxX = 24, minZ = 34, maxZ = 66 }, face = 180 },
 } :: { Spot }
 
 function Plaza.spot(name: string): Spot?
@@ -42,7 +41,7 @@ function Plaza.spot(name: string): Spot?
 	return nil
 end
 
--- Street lamps (x, z): a pair at the street mouth, then down both sides around the stage.
+-- Street lamps (x, z): a pair at the street mouth, then down both sides.
 Plaza.lamps = {
 	{ -16, 3 },
 	{ 16, 3 },
