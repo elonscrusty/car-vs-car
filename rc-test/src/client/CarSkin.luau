@@ -148,7 +148,9 @@ function CarSkin.new()
 	function self.update(car: RCCar.Car, name: string?)
 		local want = name ~= nil and enabled and car.body.Parent ~= nil
 		local cur = shown
-		if cur and (not want or cur.car ~= car or cur.name ~= name or cur.scale ~= Tuning.scale) then
+		if
+			cur and (not want or cur.car ~= car or cur.name ~= name or cur.scale ~= Tuning.scale)
+		then
 			hide(cur)
 			shown = nil
 			cur = nil
