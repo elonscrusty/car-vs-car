@@ -252,19 +252,22 @@ end
 
 -- Skill climbs: too tall to just hold the gas over. Each takes up part of the trail and leaves
 -- an easy way round beside it.
--- * notch: two boulders side by side, one under each wheel: drive straight up both at once.
+-- * notch: a ledge between two boulders: back up and take a run at the lip.
 -- * stepUp: a tall rock block on the hill side; put one wheel on the small rock in front first.
 -- * kicker: a steep ramp, a short flat, a lip up onto a high block, and a ramp down off it.
 Plot.SKILLS = {
-	-- a boulder right under each wheel line (Studio: with a V between two big boulders the
-	-- wheels rolled down the inner faces and it was W only), so each wheel climbs one; 1.8 tall
-	-- was still W only (the round sides are easy), so they stand taller with steeper feet;
-	-- 2.3 stood only 0.6 RC over the road and the car rolled straight over (Studio round 31);
-	-- 3.2 (0.7 RC) was a slow W-only push even with snug rails (round 33), so taller and
-	-- smaller round, for a steeper face where the wheels meet them; 4 (1.1 RC) stalled about
-	-- 1 s then crept over on W (round 34); 4.6 and 4.3 flipped back every time, even with a
-	-- run-up (rounds 35-36): just over the W-only height
-	notch = { u = 4.45, side = 0.2, gap = 0.12, r = 3.8, lift = 4.1 },
+	-- round boulders under the wheels were luck, not skill: 4.0-4.1 tall went over on W after
+	-- a stall (or hung), 4.3+ flipped back every time (Studio rounds 31-37). So the climb is a
+	-- flat slate ledge with a lip like the kicker's (a back-up and go gets up it, holding W
+	-- stalls), and the boulders stand either side of it as the notch's walls.
+	notch = {
+		u = 4.45,
+		side = 0.2,
+		ledge = { width = 9, length = 8, lip = 1.79 },
+		gap = 0.55,
+		r = 3.8,
+		lift = 3,
+	},
 	stepUp = {
 		u = 12.35,
 		side = -0.55,
@@ -298,6 +301,12 @@ function Plot.uBefore(u: number, studs: number): number
 	local ax, az = Plot.at(u - 0.01)
 	local bx, bz = Plot.at(u + 0.01)
 	return u - studs * 0.02 / math.sqrt((bx - ax) ^ 2 + (bz - az) ^ 2)
+end
+
+-- Ground height the notch's ledge counts from: just in front of it.
+function Plot.notchBase(): number
+	local n = Plot.SKILLS.notch
+	return Plot.trailY(Plot.uBefore(n.u, n.ledge.length / 2 + 1.5), n.side)
 end
 
 -- Ground height the step-up's helper and block count from: just in front of the helper.
@@ -920,26 +929,41 @@ local function buildSkills(parent: Instance, origin: CFrame)
 	local function slate(p: Part)
 		p.Material = Enum.Material.Slate
 	end
-	-- the V-notch: two boulders either side of the driving line
+	-- the notch: a ledge between two boulders
 	local n = S.notch
+	local lg = n.ledge
+	local nx, nz = Plot.spot(n.u, n.side)
+	local ny = Plot.notchBase()
 	for _, d in { -n.gap, n.gap } do
 		local x, z = Plot.spot(n.u, n.side + d)
-		-- both from the trail height on the line between them, so the V is even
-		Kit.rock(parent, origin, x, Plot.trailY(n.u, n.side) + n.lift - n.r, z, n.r)
+		Kit.rock(parent, origin, x, ny + n.lift - n.r, z, n.r)
 	end
-	-- low rails either side, so the car can't squeeze round the boulders (Studio round 30:
-	-- it got shoved sideways and slipped past them); snug to the boulders' outer sides (round
-	-- 32: the car slid into the gap between a boulder and the rail and squeezed over slowly)
-	local nx, nz = Plot.spot(n.u, n.side)
-	local outer = n.gap * HALF + n.r * 0.3
+	slate(
+		Kit.part(
+			parent,
+			"Ledge",
+			origin,
+			Vector3.new(lg.width, lg.lip + 2, lg.length),
+			Plot.bankCF(n.u, nx, ny + lg.lip / 2 - 1, nz),
+			C.rock
+		)
+	)
+	-- rails either side, from in front of the ledge to its far end, so a stalled car backs up
+	-- square to the lip instead of sliding off sideways (as on the step-up)
+	local railFrom = lg.length / 2 + 8
+	local railTo = -lg.length / 2
 	for _, sgn in { -1, 1 } do
 		local wall = Kit.part(
 			parent,
 			"Wall",
 			origin,
-			Vector3.new(1.2, Plot.CURB + 3, n.r * 4),
-			Plot.bankCF(n.u, nx, Plot.trailY(n.u, n.side), nz)
-				* CFrame.new(sgn * outer, Plot.CURB / 2 - 0.9, 0),
+			Vector3.new(1.2, Plot.CURB + 3, railFrom - railTo),
+			Plot.bankCF(n.u, nx, ny, nz)
+				* CFrame.new(
+					sgn * (lg.width / 2 + 0.6),
+					Plot.CURB / 2 - 0.9,
+					(railFrom + railTo) / 2
+				),
 			C.rock
 		)
 		wall.Material = Enum.Material.Slate

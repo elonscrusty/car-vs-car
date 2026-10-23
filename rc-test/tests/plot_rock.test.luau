@@ -279,7 +279,16 @@ test("skill climbs: too tall to just drive over, with an easy way round each", f
 			)
 		end
 	end
-	truthy(n.lift > Plot.MAX_LIFT and n.lift <= 5, "notch boulders")
+	-- the notch ledge: a lip like the kicker's off level ground, the boulders tall enough to wall
+	-- it in, and the far end of the ledge still above the trail
+	truthy(n.ledge.lip > 1.7 and n.ledge.lip < 1.9, "the notch lip")
+	truthy(n.lift > n.ledge.lip + 0.5, "notch boulders stand above the ledge")
+	truthy(
+		n.gap * Plot.HALF_WIDTH - half > n.ledge.width / 2 + 0.6,
+		"notch boulders clear the rails"
+	)
+	local far = Plot.trailY(n.u + 0.06, n.side)
+	truthy(Plot.notchBase() + n.ledge.lip > far + 0.5, "the notch ledge top stays above the trail")
 	-- every sheer face is a skill step: more than holding the gas gets up, never more than a
 	-- careful driver can
 	local st = S.stepUp
