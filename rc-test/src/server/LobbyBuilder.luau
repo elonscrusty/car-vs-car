@@ -141,14 +141,12 @@ function LobbyBuilder.build(): Built
 	for _, l in LobbyLayout.lamps() do
 		LobbyProps.lamp(props, l.x, l.z)
 	end
-	-- the plaza (paving, lamps, car shop, and the garage once Shared/Garage exists)
+	-- the plaza (paving, lamps, car shop, and the garage from Shared/Garage)
 	local p = LobbyLayout.PLAZA
 	PlazaBuilder.build(
 		folder,
 		CFrame.lookAt(Vector3.new(0, 0, p.minZ), Vector3.new(0, 0, p.minZ + 1))
 	)
-	local gr = LobbyLayout.garage()
-	LobbyProps.garage(props, gr.x, gr.z, gr.faceX, gr.faceZ)
 
 	-- start pad
 	local sx, _, sz = LobbyLayout.spawn()

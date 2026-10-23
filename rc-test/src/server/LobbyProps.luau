@@ -1,9 +1,7 @@
 --!strict
--- Low-poly lobby props from plain blocks (flat colours, no text or logos): trees, lamps and the
--- upgrades garage (the car shop is PlazaParts/Shop). Stand-ins: the garage and scenery threads
--- replace them. Looks only for now: no shop or upgrade logic.
-
-local CollectionService = game:GetService("CollectionService")
+-- Low-poly lobby props from plain blocks (flat colours, no text or logos): trees and lamps (the
+-- car shop is PlazaParts/Shop, the garage Shared/Garage). Stand-ins: the scenery thread replaces
+-- them. Looks only for now: no shop or upgrade logic.
 
 local LobbyProps = {}
 
@@ -94,108 +92,6 @@ function LobbyProps.lamp(parent: Instance, x: number, z: number)
 	light.Color = rgb(255, 214, 150)
 	light.Parent = glow
 	m.Parent = parent
-end
--- A display car (body, cab, 4 wheels) standing on its floor point `cf`, `len` studs long.
-local function displayCar(parent: Instance, cf: CFrame, len: number, color: Color3): Model
-	local m = Instance.new("Model")
-	m.Name = "DisplayCar"
-	local k = len / 5.5
-	part(m, "Body", Vector3.new(3, 1, 5.5) * k, cf * CFrame.new(0, 1.3 * k, 0), color)
-	part(m, "Cab", Vector3.new(2.2, 0.9, 2.4) * k, cf * CFrame.new(0, 2.2 * k, 0.5 * k), DARK)
-	for _, sx in { -1, 1 } do
-		for _, sz in { -1, 1 } do
-			part(
-				m,
-				"Wheel",
-				Vector3.new(0.8, 1.6, 1.6) * k,
-				cf * CFrame.new(sx * 1.6 * k, 0.8 * k, sz * 1.8 * k),
-				rgb(30, 30, 34),
-				Enum.PartType.Cylinder
-			)
-		end
-	end
-	m.Parent = parent
-	return m
-end
-
--- Box building with one open side. `cf` = floor middle, its look vector = the open side.
-local function shed(
-	parent: Instance,
-	cf: CFrame,
-	w: number,
-	d: number,
-	h: number,
-	wall: Color3,
-	roof: Color3
-): Model
-	local m = Instance.new("Model")
-	m.Name = "Building"
-	part(m, "Floor", Vector3.new(w, 0.4, d), cf * CFrame.new(0, 0.2, 0), CONCRETE)
-	part(m, "Back", Vector3.new(w, h, 1), cf * CFrame.new(0, h / 2, d / 2 - 0.5), wall)
-	for _, sx in { -1, 1 } do
-		part(m, "Side", Vector3.new(1, h, d), cf * CFrame.new(sx * (w / 2 - 0.5), h / 2, 0), wall)
-	end
-	part(m, "Roof", Vector3.new(w + 2, 1.2, d + 2), cf * CFrame.new(0, h + 0.6, 0), roof)
-	-- a coloured band over the open front
-	part(m, "Band", Vector3.new(w + 2, 1.6, 0.6), cf * CFrame.new(0, h - 0.4, -d / 2 - 0.7), roof)
-	m.Parent = parent
-	return m
-end
-
-local function facing(x: number, z: number, fx: number, fz: number): CFrame
-	-- floor point whose look vector points out of the open side
-	return CFrame.lookAt(Vector3.new(x, 0, z), Vector3.new(x + fx, 0, z + fz))
-end
-
--- Upgrades garage: orange and dark, a car up on a lift, a tool bench, tyre stacks.
-function LobbyProps.garage(parent: Instance, x: number, z: number, fx: number, fz: number)
-	local cf = facing(x, z, fx, fz)
-	local m = shed(parent, cf, 28, 20, 12, rgb(60, 60, 68), rgb(232, 121, 45))
-	m.Name = "Garage"
-	-- lift: two posts and a platform with a car on it
-	local lift = cf * CFrame.new(-3, 0, 2)
-	for _, sx in { -3.6, 3.6 } do
-		part(
-			m,
-			"LiftPost",
-			Vector3.new(0.8, 7, 0.8),
-			lift * CFrame.new(sx, 3.5, 0),
-			rgb(232, 121, 45)
-		)
-	end
-	part(m, "LiftDeck", Vector3.new(6, 0.4, 7), lift * CFrame.new(0, 3, 0), DARK)
-	displayCar(m, lift * CFrame.new(0, 3.2, 0), 5.5, rgb(240, 196, 40))
-	-- bench with tools on the back wall
-	local bench = cf * CFrame.new(7, 0, 7.5)
-	part(m, "Bench", Vector3.new(7, 0.4, 2.4), bench * CFrame.new(0, 3, 0), WOOD)
-	for _, sx in { -3, 3 } do
-		part(m, "BenchLeg", Vector3.new(0.4, 3, 2), bench * CFrame.new(sx, 1.5, 0), DARK)
-	end
-	part(m, "ToolBoard", Vector3.new(7, 3.5, 0.3), bench * CFrame.new(0, 6, 1.2), rgb(90, 90, 98))
-	for i = 0, 4 do
-		part(
-			m,
-			"Tool",
-			Vector3.new(0.3, 1.6, 0.2),
-			bench * CFrame.new(-2.4 + i * 1.2, 6, 1),
-			rgb(190, 190, 200)
-		)
-	end
-	-- tyre stacks, inside by the door and outside by the wall
-	for _, spot in
-		{ cf * CFrame.new(11, 0, -6), cf * CFrame.new(-11, 0, -6), cf * CFrame.new(15.8, 0, -8) }
-	do
-		for i = 0, 2 do
-			part(
-				m,
-				"Tyre",
-				Vector3.new(1, 2.4, 2.4),
-				upright(spot * CFrame.new(0, 0.5 + i * 1, 0)),
-				rgb(28, 28, 32),
-				Enum.PartType.Cylinder
-			)
-		end
-	end
 end
 
 return LobbyProps
