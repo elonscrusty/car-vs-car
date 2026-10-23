@@ -136,6 +136,9 @@ for _, d in workspace.Plots:GetDescendants() do
 	if d:IsA("BasePart") and d:GetAttribute("NameBoard") and typeof(slotIndex) == "number" then
 		local gui = Instance.new("SurfaceGui")
 		gui.Face = (Enum.NormalId :: any)[d:GetAttribute("NameFace") or "Back"]
+		-- one canvas pixel per 1/50 stud, so the letters keep their shape on a long thin board
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		gui.PixelsPerStud = 50
 		gui.Parent = d
 		local text = Instance.new("TextLabel")
 		text.Size = UDim2.fromScale(1, 1)
@@ -144,6 +147,12 @@ for _, d in workspace.Plots:GetDescendants() do
 		text.TextScaled = true
 		text.TextColor3 = Color3.fromRGB(30, 30, 34)
 		text.Parent = gui
+		local padding = Instance.new("UIPadding")
+		padding.PaddingLeft = UDim.new(0.06, 0)
+		padding.PaddingRight = UDim.new(0.06, 0)
+		padding.PaddingTop = UDim.new(0.1, 0)
+		padding.PaddingBottom = UDim.new(0.1, 0)
+		padding.Parent = text
 		archNames[slotIndex] = text
 	end
 end

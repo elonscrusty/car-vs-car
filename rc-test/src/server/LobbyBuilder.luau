@@ -111,6 +111,9 @@ function LobbyBuilder.build(): Built
 		end
 		local gui = Instance.new("SurfaceGui")
 		gui.Face = if toRoad > 0 then Enum.NormalId.Right else Enum.NormalId.Left
+		-- one canvas pixel per 1/50 stud, so the letters keep their shape on a long thin board
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		gui.PixelsPerStud = 50
 		gui.Parent = board
 		local text = Instance.new("TextLabel")
 		text.Size = UDim2.fromScale(1, 1)
@@ -119,6 +122,12 @@ function LobbyBuilder.build(): Built
 		text.TextScaled = true
 		text.TextColor3 = Color3.new(1, 1, 1)
 		text.Parent = gui
+		local padding = Instance.new("UIPadding")
+		padding.PaddingLeft = UDim.new(0.06, 0)
+		padding.PaddingRight = UDim.new(0.06, 0)
+		padding.PaddingTop = UDim.new(0.1, 0)
+		padding.PaddingBottom = UDim.new(0.1, 0)
+		padding.Parent = text
 		built.signs[slot.index] = text
 
 		-- DRIVE pad at the plot's entrance (E on a keyboard, the DRIVE button on a phone)
