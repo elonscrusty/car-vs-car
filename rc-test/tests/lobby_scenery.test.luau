@@ -127,6 +127,11 @@ test("each Meshy prop has its block stand-in, a known model name, a size and a t
 		Log = true,
 		RockPile = true,
 		HayBale = true,
+		Mushroom = true,
+		Gnome = true,
+		DirtMound = true,
+		BirdBath = true,
+		WaterTower = true,
 	}
 	local count: { [number]: number } = {}
 	for _, p in all do
@@ -142,7 +147,7 @@ test("each Meshy prop has its block stand-in, a known model name, a size and a t
 		eq(pr.id, i)
 		truthy(known[pr.mesh], "model name " .. pr.mesh)
 		truthy((count[i] or 0) > 0, "prop has blocks")
-		truthy(pr.height > 1 and pr.height < 25, "height")
+		truthy(pr.height > 0.5 and pr.height < 25, "height")
 		truthy(pr.turn >= 0 and pr.turn <= 360, "turn")
 		seen[pr.mesh] = (seen[pr.mesh] or 0) + 1
 	end
@@ -151,4 +156,21 @@ test("each Meshy prop has its block stand-in, a known model name, a size and a t
 	end
 	-- phones: about 3k triangles each, so keep the count of models down
 	truthy(#props <= 400, `props: {#props}`)
+end)
+
+test("the water towers stand alone on the bank", function()
+	local _, props = S.layout()
+	local towers = 0
+	for _, a in props do
+		if a.mesh == "WaterTower" then
+			towers += 1
+			for _, b in props do
+				if b ~= a then
+					local d = math.sqrt((a.x - b.x) ^ 2 + (a.z - b.z) ^ 2)
+					truthy(d > S.RESERVE - 1, `{b.mesh} too close to a water tower`)
+				end
+			end
+		end
+	end
+	eq(towers, 2)
 end)
