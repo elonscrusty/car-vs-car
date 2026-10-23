@@ -258,3 +258,48 @@ test("run check: a gap in the car's updates doesn't end a slide", function()
 	eq(ended, false)
 	truthy(s.chain > 0)
 end)
+
+-- ===== phase 2: plot looks by stars =====
+local PlotLooks = require("../src/shared/PlotLooks")
+
+test("looks: tier edges at 10 / 25 / 50 stars", function()
+	eq(PlotLooks.tier(0), 0)
+	eq(PlotLooks.tier(9), 0)
+	eq(PlotLooks.tier(10), 1)
+	eq(PlotLooks.tier(24), 1)
+	eq(PlotLooks.tier(25), 2)
+	eq(PlotLooks.tier(49), 2)
+	eq(PlotLooks.tier(50), 3)
+	eq(PlotLooks.tier(999), 3)
+end)
+
+test("looks: each tier keeps the ones below and adds more", function()
+	eq(#PlotLooks.pieces(0), 0)
+	local last = 0
+	for tier = 1, 3 do
+		local n = #PlotLooks.pieces(tier)
+		truthy(n > last, "tier " .. tier)
+		last = n
+	end
+	local groups = {}
+	for _, p in PlotLooks.pieces(3) do
+		groups[p.group] = true
+	end
+	truthy(groups.Night and groups.Snow and groups.Party)
+end)
+
+test("looks: nothing is solid, all inside the plot, lights within the phone budget", function()
+	for tier = 1, 3 do
+		for _, p in PlotLooks.pieces(tier) do
+			eq(p.collide, false, p.name)
+			truthy(math.abs(p.pos.x) <= 41 and math.abs(p.pos.z) <= 56, p.name)
+		end
+		truthy(PlotLooks.lightCount(tier) <= PlotLooks.MAX_LIGHTS, "lights tier " .. tier)
+	end
+end)
+
+test("looks: night colours go darker and bluer", function()
+	local c = PlotLooks.nightColor({ 120, 180, 90 })
+	truthy(c[1] < 120 and c[2] < 180)
+	truthy(c[3] - c[1] > 90 - 120, "bluer")
+end)

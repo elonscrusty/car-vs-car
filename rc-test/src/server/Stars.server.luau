@@ -18,6 +18,8 @@ local Profile = require(ReplicatedStorage.Shared.Profile)
 local RunCheck = require(ReplicatedStorage.Shared.RunCheck)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local PlayerData = require(script.Parent.PlayerData)
+local PlotLooks = require(ReplicatedStorage.Shared.PlotLooks)
+local PlotLooksBuilder = require(script.Parent.PlotLooksBuilder)
 
 local LOOK = 0.1 -- seconds between looks at the cars
 local TEST_OWNER = -1 -- Studio only: who owns an empty plot
@@ -68,6 +70,17 @@ end
 local function ownerPlayer(slotIndex: number): Player?
 	local id = ownerId(slotIndex)
 	return if id and id > 0 then Players:GetPlayerByUserId(id) else nil
+end
+
+-- the slot this player owns (OwnerId on the plot models), or nil
+local function ownedSlot(player: Player): number?
+	for i in slots do
+		local m = plotModel(i)
+		if m and m:GetAttribute("OwnerId") == player.UserId then
+			return i
+		end
+	end
+	return nil
 end
 
 -- this plot's record list: the owner's save, or the loose list
@@ -150,9 +163,36 @@ local function showBoard(slotIndex: number)
 	boards[slotIndex].Text = `{title}\n<font color="#FFD54F">{best}</font>\n{goals}`
 end
 
+-- ===== plot looks: the owner's stars grow their plot (phase 2) =====
+
+local function starsOf(slotIndex: number): number
+	local m = plotModel(slotIndex)
+	-- Studio only: TestStars on a plot model shows that look without playing for it
+	local test = m and m:GetAttribute("TestStars")
+	if studio and type(test) == "number" then
+		return test
+	end
+	local owner = ownerPlayer(slotIndex)
+	local data = owner and PlayerData.get(owner)
+	return if data then data.stars else 0
+end
+
+local function showLooks(slotIndex: number)
+	local m = plotModel(slotIndex)
+	if not (m and m:IsA("Model")) then
+		return
+	end
+	local stars = starsOf(slotIndex)
+	m:SetAttribute("OwnerStars", stars)
+	local slot = slots[slotIndex]
+	local pivot = CFrame.new(slot.plotX, 0, slot.plotZ) * CFrame.Angles(0, slot.angle, 0)
+	PlotLooksBuilder.apply(m, pivot, PlotLooks.tier(stars))
+end
+
 local function showAll()
 	for i in slots do
 		showBoard(i)
+		showLooks(i)
 	end
 end
 
@@ -181,6 +221,11 @@ local function onRun(player: Player, slotIndex: number, mode: string, value: num
 		gained = Profile.award(data, player.UserId, oid, mode, medal)
 		if gained > 0 then
 			PlayerData.touch(player)
+			-- their own plot may reach a new look
+			local mine = ownedSlot(player)
+			if mine then
+				showLooks(mine)
+			end
 		end
 	end
 	print(
@@ -289,6 +334,7 @@ task.spawn(function()
 		for _, m in plots:GetChildren() do
 			m:GetAttributeChangedSignal("OwnerId"):Connect(showAll)
 			m:GetAttributeChangedSignal("PlotType"):Connect(showAll)
+			m:GetAttributeChangedSignal("TestStars"):Connect(showAll)
 		end
 	end
 	showAll()
