@@ -83,9 +83,7 @@ end
 function Controls.new(
 	gui: ScreenGui,
 	onReset: () -> (),
-	onTrack: (index: number) -> (),
 	onCam: () -> (),
-	onSize: () -> (),
 	onView: () -> ()
 ): Controls
 	local keys: { [Enum.KeyCode]: boolean } = {}
@@ -103,18 +101,8 @@ function Controls.new(
 				onReset()
 			elseif input.KeyCode == Enum.KeyCode.C then
 				onCam()
-			elseif input.KeyCode == Enum.KeyCode.T then
-				onSize()
 			elseif input.KeyCode == Enum.KeyCode.V then
 				onView()
-			elseif input.KeyCode == Enum.KeyCode.One then
-				onTrack(1)
-			elseif input.KeyCode == Enum.KeyCode.Two then
-				onTrack(2)
-			elseif input.KeyCode == Enum.KeyCode.Three then
-				onTrack(3)
-			elseif input.KeyCode == Enum.KeyCode.Four then
-				onTrack(4)
 			end
 		elseif input.KeyCode == Enum.KeyCode.ButtonY then
 			onReset()
@@ -246,7 +234,7 @@ function Controls.new(
 		)
 	end
 
-	-- Right side: a row of small CAM / VIEW / SIZE buttons below the Roblox top bar (58 px) and above
+	-- Right side: a row of small CAM / VIEW buttons below the Roblox top bar (58 px) and above
 	-- the DRIFT button. No reset button: the car resets by itself when it falls off (R still
 	-- works on a keyboard).
 	local resetBtn = Instance.new("TextButton") -- template for the small buttons
@@ -269,15 +257,6 @@ function Controls.new(
 	camBtn.Parent = gui
 	camBtn.Activated:Connect(onCam)
 
-	local sizeBtn = resetBtn:Clone()
-	sizeBtn.Name = "Size"
-	sizeBtn.Text = "SIZE"
-	sizeBtn.Position = UDim2.new(0.84, 0, 0, 64)
-	sizeBtn.Size = UDim2.fromScale(0.065, 0.09)
-	sizeBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
-	sizeBtn.Parent = gui
-	sizeBtn.Activated:Connect(onSize)
-
 	local viewBtn = resetBtn:Clone()
 	viewBtn.Name = "View"
 	viewBtn.Text = "VIEW"
@@ -291,7 +270,7 @@ function Controls.new(
 	local backBtn = resetBtn:Clone()
 	backBtn.Name = "Reset"
 	backBtn.Text = "RESET"
-	backBtn.Position = UDim2.new(0.91, 0, 0, 64)
+	backBtn.Position = UDim2.new(0.98, 0, 0, 64)
 	backBtn.Size = UDim2.fromScale(0.065, 0.09)
 	backBtn.Visible = false
 	backBtn.Parent = gui
@@ -365,15 +344,15 @@ function Controls.new(
 		help.TextColor3 = Color3.fromRGB(255, 255, 255)
 		help.TextTransparency = 0.35
 		help.Text =
-			"W/S gas + brake    A/D steer    SPACE drift    C show cam    V chase cam    T size    1-4 plots"
+			"W/S gas + brake    A/D steer    SPACE drift    C show cam    V chase cam    E walk"
 		help.Parent = gui
 	end
 
 	local controls = {} :: Controls
 	local NORMAL_HELP =
-		"W/S gas + brake    A/D steer    SPACE drift    C show cam    V chase cam    T size    1-4 plots"
+		"W/S gas + brake    A/D steer    SPACE drift    C show cam    V chase cam    E walk"
 	local ROCK_HELP =
-		"W/S gas + brake    A/D steer    drag to look    wheel to zoom    R back to flag    T size    1-4 plots"
+		"W/S gas + brake    A/D steer    drag to look    wheel to zoom    R back to flag    E walk"
 	local onRock: boolean? = nil
 	-- rocks is free cam only: no camera buttons, and the help says how to look around
 	function controls.setRock(on: boolean)
@@ -394,7 +373,6 @@ function Controls.new(
 		if lookHint then
 			lookHint.Visible = on
 		end
-		sizeBtn.Position = if on then UDim2.new(0.98, 0, 0, 64) else UDim2.new(0.84, 0, 0, 64)
 		if help then
 			help.Text = if on then ROCK_HELP else NORMAL_HELP
 		end

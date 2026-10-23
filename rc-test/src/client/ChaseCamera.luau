@@ -16,6 +16,7 @@ export type Cam = {
 	snap: () -> (),
 	toggleOrbit: () -> boolean,
 	setView: (view: View) -> (),
+	setUp: (dir: Vector3) -> (),
 }
 
 export type View = "driver" | "chase" | "top" | "free"
@@ -208,6 +209,8 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 	-- free view: angle around the car, angle up, and how far out
 	local freeYaw, freePitch, freeZoom = 0, 0.5, 1
 	local freeReach = 1
+	-- top view: screen-up points this way (the plot's far end; plots face the road)
+	local topUp = -Vector3.zAxis
 
 	local cam = {} :: Cam
 
@@ -234,6 +237,10 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 		freeYaw = math.atan2(back.Z, back.X)
 		freePitch, freeZoom, freeReach = 0.5, 1, 1
 		turnX, turnY, zoomBy = 0, 0, 1
+	end
+
+	function cam.setUp(dir: Vector3)
+		topUp = flat(dir)
 	end
 
 	function cam.setView(v: View)
@@ -323,8 +330,8 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 			lookAt = lookAt:Lerp(focus + lead, 1 - math.exp(-4 * dt))
 			local height = Tuning.topHeight
 				* (1 + 0.25 * CarMath.clamp(flatSpeed / Tuning.topSpeed, 0, 1))
-			pos = lookAt + Vector3.new(0, height, height * 0.12)
-			camera.CFrame = CFrame.lookAt(pos, lookAt, -Vector3.zAxis)
+			pos = lookAt + Vector3.new(0, height, 0) - topUp * (height * 0.12)
+			camera.CFrame = CFrame.lookAt(pos, lookAt, topUp)
 			camera.FieldOfView = 50
 			return
 		end

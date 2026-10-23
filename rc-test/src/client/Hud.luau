@@ -38,8 +38,9 @@ local function label(
 	return l
 end
 
-function Hud.new(gui: ScreenGui, trackLabels: { string }, onTrack: (index: number) -> ()): Hud
-	local buttons: { TextButton } = {}
+-- The top row names the plot being driven (plots are picked by walking to them in the lobby).
+function Hud.new(gui: ScreenGui, trackLabels: { string }): Hud
+	local buttons: { TextLabel } = {}
 	local row = Instance.new("Frame")
 	row.Name = "TrackRow"
 	row.BackgroundTransparency = 1
@@ -53,7 +54,7 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }, onTrack: (index: numbe
 	layout.Padding = UDim.new(0.02, 0)
 	layout.Parent = row
 	for i, text in trackLabels do
-		local b = Instance.new("TextButton")
+		local b = Instance.new("TextLabel")
 		b.Name = "Track" .. i
 		b.Size = UDim2.fromScale(0.23, 1)
 		b.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
@@ -61,15 +62,12 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }, onTrack: (index: numbe
 		b.Font = Enum.Font.GothamBold
 		b.TextScaled = true
 		b.TextColor3 = Color3.fromRGB(255, 255, 255)
-		b.Text = `{i}  {text}`
-		b.AutoButtonColor = true
+		b.Text = text
+		b.Visible = false
 		b.Parent = row
 		local corner = Instance.new("UICorner")
 		corner.CornerRadius = UDim.new(0.3, 0)
 		corner.Parent = b
-		b.Activated:Connect(function()
-			onTrack(i)
-		end)
 		table.insert(buttons, b)
 	end
 
@@ -133,9 +131,8 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }, onTrack: (index: numbe
 
 	function hud.setActiveTrack(index: number)
 		for i, b in buttons do
-			b.BackgroundColor3 = if i == index
-				then Color3.fromRGB(235, 120, 40)
-				else Color3.fromRGB(40, 40, 46)
+			b.Visible = i == index
+			b.BackgroundColor3 = Color3.fromRGB(235, 120, 40)
 		end
 	end
 
