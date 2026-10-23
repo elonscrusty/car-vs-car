@@ -14,7 +14,7 @@ local function inside(b: L.Box, x: number, z: number): boolean
 	return x > b.minX and x < b.maxX and z > b.minZ and z < b.maxZ
 end
 
-test("8 plots, both sides of the road, every one a build (race) plot", function()
+test("8 plots, both sides of the road, kinds as in carter's picture", function()
 	local slots = L.slots()
 	eq(#slots, L.ROWS * 2)
 	for i, s in slots do
@@ -23,7 +23,7 @@ test("8 plots, both sides of the road, every one a build (race) plot", function(
 		eq(s.id, TrackData.order[s.track])
 		truthy((s.plotX < 0) == (i % 2 == 1), "odd slots on the left")
 	end
-	for _, track in L.TRACKS do
+	for track in L.TRACKS do
 		truthy(L.slotFor(track) ~= nil, "every lobby track has a slot")
 	end
 	eq(L.slotFor(2), 1) -- race is the first plot
