@@ -322,7 +322,9 @@ Plot.PIT_PROPS = {
 }
 
 -- Bleachers on the open floor behind the back straight, facing the stand side.
-Plot.BLEACHERS = { x = 0, z = -206, w = 110, d = 12, rows = 3, rowH = 5 }
+-- It reaches back past the fence line (the fence stops either side of it) so carter's model,
+-- sized to fit this footprint, comes out big enough to read from the stand.
+Plot.BLEACHERS = { x = 0, z = -208.5, w = 110, d = 17, rows = 3, rowH = 5 }
 
 Plot.GRANDSTAND_YAW = 0 -- turns carter's Grandstand model to face the track
 
@@ -587,7 +589,7 @@ local function bleachers(parent: Instance, origin: CFrame)
 	-- carter's Meshy grandstand (shared with the race plot) if imported, else block steps. At
 	-- yaw pi it showed its back to the track in Studio, so the model's seats face its -Z.
 	local at = CFrame.new(b.x, 0, b.z) * CFrame.Angles(0, Plot.GRANDSTAND_YAW, 0)
-	if meshProp(parent, origin, "Grandstand", at, 22, b.w, b.d) then
+	if meshProp(parent, origin, "Grandstand", at, 28, b.w, b.d) then
 		return
 	end
 	local rowD = b.d / b.rows
@@ -611,8 +613,12 @@ local function fence(parent: Instance, origin: CFrame)
 	local a = Kit.AREA
 	local x0, x1 = a.minX + f.inset - 8, a.maxX - f.inset + 8
 	local z0, z1 = a.minZ + f.inset - 8, a.maxZ + 8
+	local b = Plot.BLEACHERS
+	local gx0, gx1 = b.x - b.w / 2 - 2, b.x + b.w / 2 + 2
 	local runs = {
-		{ Vector3.new(x0, 0, z0), Vector3.new(x1, 0, z0) },
+		-- the back run stops either side of the grandstand
+		{ Vector3.new(x0, 0, z0), Vector3.new(gx0, 0, z0) },
+		{ Vector3.new(gx1, 0, z0), Vector3.new(x1, 0, z0) },
 		{ Vector3.new(x0, 0, z0), Vector3.new(x0, 0, z1) },
 		{ Vector3.new(x1, 0, z0), Vector3.new(x1, 0, z1) },
 	}
