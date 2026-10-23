@@ -76,6 +76,7 @@ export type Mesh = {
 	long: string,
 	keep: { string },
 	onTop: string?,
+	faceMinusX: boolean?, -- when turned, look toward -x (default +x)
 	collide: boolean,
 }
 
@@ -147,9 +148,28 @@ Garage.MESHES = {
 		keep = {},
 		collide = true,
 	},
+	{
+		model = "GasPump",
+		group = "GasPump",
+		at = v(-Garage.WIDTH / 2 + 2.6, Garage.FLOOR, Garage.DEPTH / 2 - 2.4),
+		fit = v(2.4, 4.4, 1.8),
+		long = "x",
+		keep = {},
+		collide = true,
+	},
+	{
+		model = "TrophyShelf", -- up on the left wall, over the lift, looking into the garage
+		group = "TrophyShelf",
+		at = v(-Garage.WIDTH / 2 + 1.6, Garage.FLOOR + 4.2, -2.5),
+		fit = v(1.2, 4.2, 7),
+		long = "z",
+		keep = {},
+		collide = false,
+	},
 	-- extras: Meshy only, no block stand-ins
 	{
 		model = "WheelRack", -- back right corner, against the right wall
+		faceMinusX = true,
 		group = "Extras",
 		at = v(Garage.WIDTH / 2 - 1.6, Garage.FLOOR, -4.7),
 		fit = v(1.6, 3.4, 3.6),
@@ -724,7 +744,8 @@ function Garage.useMeshes(groups: { [string]: Model }, origin: CFrame)
 		-- turn the long side the right way, then shrink it to fit
 		prop:PivotTo(CFrame.identity)
 		local _, size = prop:GetBoundingBox()
-		local turn = if (m.long == "z") == (size.X > size.Z) then math.pi / 2 else 0
+		local quarter = if m.faceMinusX then -math.pi / 2 else math.pi / 2 -- model front is +Z
+		local turn = if (m.long == "z") == (size.X > size.Z) then quarter else 0
 		if turn ~= 0 then
 			size = Vector3.new(size.Z, size.Y, size.X)
 		end
