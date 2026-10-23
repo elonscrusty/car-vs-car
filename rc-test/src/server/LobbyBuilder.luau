@@ -14,6 +14,7 @@ local MeshProps = require(script.Parent.MeshProps)
 local LobbyWaterBuilder = require(script.Parent.LobbyWaterBuilder)
 local LobbyPerf = require(script.Parent.LobbyPerf)
 local LobbyHillsBuilder = require(script.Parent.LobbyHillsBuilder)
+local DecorBuilder = require(script.Parent.DecorBuilder)
 
 local LobbyBuilder = {}
 
@@ -186,6 +187,8 @@ function LobbyBuilder.build(): Built
 	built.spawn = SpawnLobby.spawnCFrame(at)
 
 	LobbyWaterBuilder.build(folder)
+	-- street decorations: bunting, planters, flags, road paint, the giant RC corners
+	DecorBuilder.build(folder)
 
 	-- phone speed pass over everything above (shadows/collisions off on small bits)
 	local before, after = LobbyPerf.apply(folder)

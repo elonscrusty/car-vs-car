@@ -23,6 +23,7 @@ local Controls = require(script.Parent.Controls)
 local Effects = require(script.Parent.Effects)
 local Hud = require(script.Parent.Hud)
 local Lobby = require(script.Parent.Lobby)
+local LobbyLife = require(script.Parent.LobbyLife)
 local LobbySky = require(script.Parent.LobbySky)
 local RCCar = require(script.Parent.RCCar)
 
@@ -259,6 +260,7 @@ end
 remote.OnClientEvent:Connect(function(kind: unknown, index: unknown)
 	if kind == "walk" then
 		setWalking(true)
+		LobbyLife.start() -- butterflies and birds (looks only, this screen)
 	elseif kind == "drive" and type(index) == "number" and tracks[index] then
 		setWalking(false)
 		-- fresh hooks: the person may have respawned since the last drive
