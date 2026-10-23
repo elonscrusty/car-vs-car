@@ -315,9 +315,60 @@ test("bolts: each of the 5 counts once, junk ids never", function()
 	eq(#Profile.boltList(d), 2)
 	eq(Profile.boltList(d)[1], 1)
 	local back = Profile.migrate(d)
-	eq(back.version, 3)
+	eq(back.version, Profile.VERSION)
 	eq(#Profile.boltList(back), 2)
 	local junk = Profile.migrate({ bolts = { ["9"] = true, ["2"] = "yes", ["4"] = true } })
 	eq(#Profile.boltList(junk), 1)
 	eq(Profile.boltList(junk)[1], 4)
+end)
+
+-- ===== daily gift and weekend coins =====
+
+test("daily gift: once a day, grows each day in a row, back to day 1 after a missed day", function()
+	local d = Profile.new()
+	eq(select(1, Profile.daily(d, 100)), Profile.DAILY[1])
+	eq(select(1, Profile.daily(d, 100)), 0) -- same day: nothing
+	local coins, streak = Profile.daily(d, 101)
+	eq(coins, Profile.DAILY[2])
+	eq(streak, 2)
+	for day = 102, 110 do
+		Profile.daily(d, day)
+	end
+	eq(d.streak, 11)
+	eq(select(1, Profile.daily(d, 111)), Profile.DAILY[#Profile.DAILY]) -- stays at the top
+	coins, streak = Profile.daily(d, 113) -- missed day 112
+	eq(coins, Profile.DAILY[1])
+	eq(streak, 1)
+	eq(select(1, Profile.daily(d, 114, 2)), Profile.DAILY[2] * 2) -- weekend: doubled
+end)
+
+test("daily gift: coins add up and the streak saves", function()
+	local d = Profile.new()
+	d.coins = 5
+	Profile.daily(d, 200)
+	Profile.daily(d, 201)
+	eq(d.coins, 5 + Profile.DAILY[1] + Profile.DAILY[2])
+	local back = Profile.migrate(d)
+	eq(back.dailyDay, 201)
+	eq(back.streak, 2)
+	eq(back.coins, d.coins)
+	local old = Profile.migrate({ version = 3, coins = 9 })
+	eq(old.dailyDay, 0)
+	eq(old.streak, 0)
+	local junk = Profile.migrate({ dailyDay = "x", streak = 0 / 0 })
+	eq(junk.dailyDay, 0)
+end)
+
+test("weekend: Saturday and Sunday (UTC) pay double", function()
+	-- 2026-10-24 is a Saturday, 10-25 Sunday, 10-26 Monday, 10-23 Friday
+	local sat = 1792800000 -- 2026-10-24 00:00 UTC
+	eq(Profile.weekend(sat), true)
+	eq(Profile.weekend(sat + 86400 + 3600 * 23), true)
+	eq(Profile.weekend(sat + 2 * 86400), false)
+	eq(Profile.weekend(sat - 1), false)
+	eq(Profile.boost(sat), 2)
+	eq(Profile.boost(sat - 3600), 1)
+	local d = Profile.new()
+	Profile.visit(d, 1, 2, 300, 2)
+	eq(d.coins, Profile.VISIT_COINS * 2)
 end)

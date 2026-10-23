@@ -15,12 +15,14 @@ export type Data = {
 	liked: { [string]: boolean }, -- plot owners I liked (once each, ever)
 	visited: { [string]: number }, -- plot owner -> the day I last got their visit gift
 	bolts: { [string]: boolean }, -- gold bolts found on the rock climb ("1".."5")
+	dailyDay: number, -- the day the daily gift was last taken (0 = never)
+	streak: number, -- days in a row the daily gift was taken
 }
 export type Lock = { job: string, at: number }
 
 local Profile = {}
 
-Profile.VERSION = 3 -- 2: likes, liked, visited. 3: bolts
+Profile.VERSION = 4 -- 2: likes, liked, visited. 3: bolts. 4: daily gift streak
 Profile.MAX_OWNERS = 500 -- keeps the save small; stars from more owners than this stop counting
 Profile.LOCK_TIMEOUT = 300 -- a server that hasn't saved for this long is gone: its lock is stale
 Profile.MODES = { "race", "drift", "rock" }
@@ -28,6 +30,9 @@ Profile.MAX_LIST = 500 -- liked / visited entries kept
 Profile.VISIT_COINS = 20 -- the visitor's gift (once per plot owner per day)
 Profile.HOST_COINS = 10 -- the owner's share of it
 Profile.BOLTS = 5 -- gold bolts hidden on the rock climb, each on top of a hard climb
+-- The daily gift by days in a row (day 1, day 2, ...); from day 7 on it stays at the last one.
+-- Miss a day and it starts again at day 1. (Guess amounts, like the visit gift.)
+Profile.DAILY = { 10, 15, 20, 30, 40, 50, 75 }
 
 function Profile.new(): Data
 	return {
@@ -40,6 +45,8 @@ function Profile.new(): Data
 		liked = {},
 		visited = {},
 		bolts = {},
+		dailyDay = 0,
+		streak = 0,
 	}
 end
 
@@ -131,6 +138,10 @@ function Profile.migrate(raw: any): Data
 			end
 		end
 	end
+	if goodNumber(raw.dailyDay) and goodNumber(raw.streak) then
+		d.dailyDay = math.max(math.floor(raw.dailyDay), 0)
+		d.streak = math.clamp(math.floor(raw.streak), 0, 100000)
+	end
 	local stars = 0
 	for _, modes in d.starsFrom do
 		for _, m in modes do
@@ -177,6 +188,30 @@ function Profile.day(now: number): number
 	return math.floor(now / 86400)
 end
 
+-- Saturday or Sunday (UTC): every coin gift is doubled.
+function Profile.weekend(now: number): boolean
+	local wday = (Profile.day(now) + 4) % 7 -- day 0 (1 Jan 1970) was a Thursday: 0 = Sunday
+	return wday == 0 or wday == 6
+end
+
+-- How many times the coin gifts pay right now (2 on weekends).
+function Profile.boost(now: number): number
+	return if Profile.weekend(now) then 2 else 1
+end
+
+-- The daily gift for `day`: (coins, days in a row) the first time each day, (0, streak) after.
+-- `mult` = Profile.boost.
+function Profile.daily(d: Data, day: number, mult: number?): (number, number)
+	if d.dailyDay == day then
+		return 0, d.streak
+	end
+	d.streak = if d.dailyDay == day - 1 then d.streak + 1 else 1
+	d.dailyDay = day
+	local coins = Profile.DAILY[math.min(d.streak, #Profile.DAILY)] * (mult or 1)
+	d.coins += coins
+	return coins, d.streak
+end
+
 -- `d` likes `ownerId`'s plot: true the first time only (never your own plot).
 function Profile.like(d: Data, selfId: number, ownerId: number): boolean
 	local key = tostring(ownerId)
@@ -195,8 +230,14 @@ function Profile.like(d: Data, selfId: number, ownerId: number): boolean
 end
 
 -- `d` drove `ownerId`'s plot today: true (and the visitor's coins) the first time each day.
--- The caller gives the owner Profile.HOST_COINS.
-function Profile.visit(d: Data, selfId: number, ownerId: number, day: number): boolean
+-- The caller gives the owner Profile.HOST_COINS (both times `mult`, Profile.boost).
+function Profile.visit(
+	d: Data,
+	selfId: number,
+	ownerId: number,
+	day: number,
+	mult: number?
+): boolean
 	local key = tostring(ownerId)
 	if ownerId == selfId or d.visited[key] == day then
 		return false
@@ -214,7 +255,7 @@ function Profile.visit(d: Data, selfId: number, ownerId: number, day: number): b
 		end
 	end
 	d.visited[key] = day
-	d.coins += Profile.VISIT_COINS
+	d.coins += Profile.VISIT_COINS * (mult or 1)
 	return true
 end
 

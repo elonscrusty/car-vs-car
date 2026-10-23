@@ -7,7 +7,9 @@
 -- workspace.Plots model). In Studio an unowned plot counts as a test owner, so one person can
 -- try the stars.
 -- Server -> client (StarsEvent): ("stars", count, saving), ("run", info), ("coins", count),
--- ("toast", text), ("bolts", found, total, onRock), ("bolt", id) and ("boltsFound", ids). The client never sends.
+-- ("toast", text), ("bolts", found, total, onRock), ("bolt", id), ("boltsFound", ids) and
+-- ("daily", coins, days in a row, boost). The client never sends. workspace "CoinBoost" = 2 on
+-- weekends (every coin gift doubled).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -233,26 +235,27 @@ local function onRun(player: Player, slotIndex: number, mode: string, value: num
 		end
 	end
 	-- the visit gift: driving someone else's plot pays you both, once per owner per day
+	local boost = Profile.boost(os.time()) -- double coins on weekends
 	if
 		data
 		and oid
 		and not own
-		and Profile.visit(data, player.UserId, oid, Profile.day(os.time()))
+		and Profile.visit(data, player.UserId, oid, Profile.day(os.time()), boost)
 	then
 		PlayerData.touch(player)
 		remote:FireClient(player, "coins", data.coins)
 		remote:FireClient(player, "boltsFound", Profile.boltList(data))
-		remote:FireClient(player, "toast", `+{Profile.VISIT_COINS} coins: visit gift`)
+		remote:FireClient(player, "toast", `+{Profile.VISIT_COINS * boost} coins: visit gift`)
 		local host = ownerPlayer(slotIndex)
 		local hostData = host and PlayerData.get(host)
 		if host and hostData then
-			hostData.coins += Profile.HOST_COINS
+			hostData.coins += Profile.HOST_COINS * boost
 			PlayerData.touch(host)
 			remote:FireClient(host, "coins", hostData.coins)
 			remote:FireClient(
 				host,
 				"toast",
-				`+{Profile.HOST_COINS} coins: {player.DisplayName} visited your plot!`
+				`+{Profile.HOST_COINS * boost} coins: {player.DisplayName} visited your plot!`
 			)
 		end
 	end
@@ -455,12 +458,44 @@ for i, prompt in likePrompts do
 	end)
 end
 
+-- ===== daily gift and weekend coins =====
+
+-- The daily gift, the first time each day (on join, or at midnight UTC if they're still here).
+-- The client shows the 7-day strip with ("daily", coins, days in a row, boost).
+local function dailyGift(player: Player, data: Profile.Data)
+	local now = os.time()
+	local boost = Profile.boost(now)
+	local coins, streak = Profile.daily(data, Profile.day(now), boost)
+	if coins > 0 then
+		PlayerData.touch(player)
+		remote:FireClient(player, "coins", data.coins)
+		remote:FireClient(player, "daily", coins, streak, boost)
+		print(`[Stars] daily gift {player.Name} day {streak} +{coins} coins (x{boost})`)
+	end
+end
+
+-- Double coins on weekends: the client's banner reads this.
+task.spawn(function()
+	while true do
+		local now = os.time()
+		workspace:SetAttribute("CoinBoost", Profile.boost(now))
+		for _, p in Players:GetPlayers() do
+			local data = PlayerData.get(p)
+			if data and data.dailyDay ~= Profile.day(now) then
+				dailyGift(p, data)
+			end
+		end
+		task.wait(30)
+	end
+end)
+
 PlayerData.loaded:Connect(function(player: Player, data: Profile.Data, saving: boolean)
 	player:SetAttribute("Stars", data.stars) -- read by the car (smoke colours open with stars)
 	remote:FireClient(player, "stars", data.stars, saving)
 	remote:FireClient(player, "coins", data.coins)
 	remote:FireClient(player, "boltsFound", Profile.boltList(data))
 	showAll() -- their plot's board shows their saved record
+	dailyGift(player, data)
 end)
 
 Players.PlayerRemoving:Connect(function(player)
