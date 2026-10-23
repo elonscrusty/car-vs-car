@@ -96,7 +96,7 @@ remote.OnServerInvoke = function(player: Player, action: unknown, id: unknown): 
 			setAttributes(player, data)
 		end
 		local out = state(data)
-		out.ok = ok
+		out.ok, out.why = ok, if ok then nil else "not owned"
 		return out
 	elseif action == "spin" then
 		local car, new = CarCatalog.spin(data, math.random() * 100)

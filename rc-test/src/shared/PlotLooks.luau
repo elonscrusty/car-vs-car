@@ -30,9 +30,9 @@ PlotLooks.TIERS = { 10, 25, 50 } -- stars for night, snow, lights + fans
 PlotLooks.STAR_LOOKS = { "night", "snow", "party" } -- what each tier unlocks
 -- every look, in build order
 PlotLooks.IDS = { "night", "snow", "party", "balloons", "neon", "confetti" }
-PlotLooks.NIGHT_TINT = 0.38 -- night keeps this much of the plot's colours (neon stays bright)
+PlotLooks.NIGHT_TINT = 0.22 -- night keeps this much of the plot's colours (neon stays bright)
 PlotLooks.MAX_LIGHTS = 12 -- PointLights per plot, phone budget
-PlotLooks.SNOW_RATE = 20 -- snowflakes a second over one plot
+PlotLooks.SNOW_RATE = 45 -- snowflakes a second over one plot
 PlotLooks.CONFETTI_RATE = 12 -- confetti bits a second over one plot (all colours together)
 
 -- 0 = day, 1 = night, 2 = snow, 3 = lights + fans

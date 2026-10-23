@@ -22,6 +22,7 @@ type Entry = { data: Profile.Data, canSave: boolean, dirty: boolean, gone: boole
 
 local job = if game.JobId ~= "" then game.JobId else "studio-" .. HttpService:GenerateGUID(false)
 local entries: { [Player]: Entry } = {}
+local loading: { [Player]: true } = {}
 local loaded = Instance.new("BindableEvent")
 PlayerData.loaded = loaded.Event -- (player, data, saving)
 
@@ -76,9 +77,12 @@ function PlayerData.touch(player: Player)
 end
 
 function PlayerData.load(player: Player)
-	if entries[player] then
+	-- PlayerAdded can come after the GetPlayers() loop already started loading this player
+	-- (deferred events): load once, or `loaded` fires twice (two daily gifts)
+	if entries[player] or loading[player] then
 		return
 	end
+	loading[player] = true
 	local data: Profile.Data? = nil
 	local canSave = false
 	if store then
@@ -112,6 +116,7 @@ function PlayerData.load(player: Player)
 			warn(`[PlayerData] {player.Name}: DataStore is down, playing without saving`)
 		end
 	end
+	loading[player] = nil
 	if player.Parent == nil then
 		-- left while loading: let the lock go again
 		if canSave then

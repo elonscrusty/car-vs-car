@@ -26,20 +26,21 @@ gui.IgnoreGuiInset = true
 gui.DisplayOrder = HudLayout.HUD
 gui.Parent = player:WaitForChild("PlayerGui")
 
--- the rivals panel and the gift card draw over every HUD button
-local popGui = Instance.new("ScreenGui")
-popGui.Name = "StarsPopups"
-popGui.ResetOnSpawn = false
-popGui.IgnoreGuiInset = true
-popGui.DisplayOrder = HudLayout.POPUP
-popGui.Parent = player:WaitForChild("PlayerGui")
+-- the lobby HUD (stars, coins, rivals, jobs, weekend banner): hidden while driving
+local hud = Instance.new("ScreenGui")
+hud.Name = "StarsHud"
+hud.ResetOnSpawn = false
+hud.IgnoreGuiInset = true
+hud.DisplayOrder = HudLayout.HUD
+hud.Parent = gui.Parent
 
--- the lobby chips and buttons hide while you drive (the car has its own buttons there)
-local walkHud = Instance.new("Frame")
-walkHud.Name = "WalkHud"
-walkHud.BackgroundTransparency = 1
-walkHud.Size = UDim2.fromScale(1, 1)
-walkHud.Parent = gui
+-- pop-up cards (daily gift, rivals, toasts) sit on top of every other button
+local top = Instance.new("ScreenGui")
+top.Name = "StarsTop"
+top.ResetOnSpawn = false
+top.IgnoreGuiInset = true
+top.DisplayOrder = HudLayout.POPUP
+top.Parent = gui.Parent
 
 local chip = Instance.new("TextLabel")
 chip.Name = "StarCount"
@@ -50,7 +51,7 @@ chip.TextColor3 = Color3.fromRGB(255, 213, 79)
 chip.Font = Enum.Font.GothamBlack
 chip.TextScaled = true
 chip.Text = "⭐ 0"
-chip.Parent = walkHud
+chip.Parent = hud
 local chipCorner = Instance.new("UICorner")
 chipCorner.CornerRadius = UDim.new(0.3, 0)
 chipCorner.Parent = chip
@@ -63,7 +64,7 @@ coinChip.Name = "CoinCount"
 HudLayout.place(coinChip, "CoinCount")
 coinChip.TextColor3 = Color3.fromRGB(255, 236, 150)
 coinChip.Text = "0"
-coinChip.Parent = walkHud
+coinChip.Parent = hud
 -- a drawn coin (the coin emoji is missing from Roblox's font): gold disc, darker rim, a lighter
 -- inner ring. The number sits to its right.
 local coinPad = Instance.new("UIPadding")
@@ -139,7 +140,7 @@ rivalsBtn.TextColor3 = Color3.new(1, 1, 1)
 rivalsBtn.Font = Enum.Font.GothamBlack
 rivalsBtn.TextScaled = true
 rivalsBtn.Text = "RIVALS"
-rivalsBtn.Parent = walkHud
+rivalsBtn.Parent = hud
 local rivalsBtnCorner = Instance.new("UICorner")
 rivalsBtnCorner.CornerRadius = UDim.new(0.3, 0)
 rivalsBtnCorner.Parent = rivalsBtn
@@ -152,7 +153,7 @@ panel.Size = UDim2.fromScale(0.42, 0.62)
 panel.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 panel.BackgroundTransparency = 0.1
 panel.Visible = false
-panel.Parent = popGui
+panel.Parent = top
 local panelCorner = Instance.new("UICorner")
 panelCorner.CornerRadius = UDim.new(0.06, 0)
 panelCorner.Parent = panel
@@ -229,7 +230,7 @@ HudLayout.place(jobs, "DailyJobs")
 jobs.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 jobs.BackgroundTransparency = 0.3
 jobs.Visible = false -- until the server sends them
-jobs.Parent = walkHud
+jobs.Parent = hud
 local jobsCorner = Instance.new("UICorner")
 jobsCorner.CornerRadius = UDim.new(0.08, 0)
 jobsCorner.Parent = jobs
@@ -321,7 +322,7 @@ toast.TextColor3 = Color3.new(1, 1, 1)
 toast.TextTransparency = 1
 toast.Font = Enum.Font.GothamBold
 toast.TextScaled = true
-toast.Parent = popGui
+toast.Parent = top
 local toastCorner = Instance.new("UICorner")
 toastCorner.CornerRadius = UDim.new(0.4, 0)
 toastCorner.Parent = toast
@@ -369,7 +370,7 @@ pop.TextColor3 = Color3.new(1, 1, 1)
 pop.TextStrokeColor3 = Color3.new(0, 0, 0)
 pop.TextTransparency = 1
 pop.TextStrokeTransparency = 1
-pop.Parent = popGui
+pop.Parent = top
 local popScale = Instance.new("UIScale")
 popScale.Parent = pop
 
@@ -404,7 +405,7 @@ banner.Font = Enum.Font.GothamBlack
 banner.TextScaled = true
 banner.Text = "2X COINS WEEKEND!"
 banner.Visible = false
-banner.Parent = walkHud
+banner.Parent = hud
 local bannerCorner = Instance.new("UICorner")
 bannerCorner.CornerRadius = UDim.new(0.4, 0)
 bannerCorner.Parent = banner
@@ -438,7 +439,7 @@ card.Size = UDim2.fromScale(0.62, 0.36)
 card.BackgroundColor3 = Color3.fromRGB(30, 32, 44)
 card.BackgroundTransparency = 0.08
 card.Visible = false
-card.Parent = popGui
+card.Parent = top
 local cardRatio = Instance.new("UIAspectRatioConstraint")
 cardRatio.AspectRatio = 2.3
 cardRatio.Parent = card
@@ -622,8 +623,9 @@ remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unkn
 	end
 end)
 
+-- hide the lobby HUD while this player drives (Lobby.setDriving sets the attribute)
 local function showWalkHud()
-	walkHud.Visible = player:GetAttribute("Driving") ~= true
+	hud.Enabled = player:GetAttribute("Driving") ~= true
 end
 player:GetAttributeChangedSignal("Driving"):Connect(showWalkHud)
 showWalkHud()
