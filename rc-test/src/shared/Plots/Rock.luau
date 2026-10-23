@@ -228,6 +228,9 @@ Plot.STEPS =
 	{ from = 13.05, to = 13.85, n = 4, rise = 1.79, side = -0.45, width = 20, frontSide = 1 }
 Plot.CURB = 1.2 -- the curb along the front edge beside the steps
 Plot.CURB_TO = 14.9 -- it runs on past the steps: cars on the easy side drift out (Studio)
+-- and along the drop side of the last row up to the flag (Studio round 31: a car at the 4th
+-- flag fell off the left side all the way down to the row below)
+Plot.TOP_CURB = { from = 16.3, to = 20.95, side = -1 }
 
 -- The step blocks: from u0 to u1, top and bottom heights.
 function Plot.stepBlocks(): { { u0: number, u1: number, top: number, bottom: number } }
@@ -254,8 +257,9 @@ end
 Plot.SKILLS = {
 	-- a boulder right under each wheel line (Studio: with a V between two big boulders the
 	-- wheels rolled down the inner faces and it was W only), so each wheel climbs one; 1.8 tall
-	-- was still W only (the round sides are easy), so they stand taller with steeper feet
-	notch = { u = 4.45, side = 0.2, gap = 0.12, r = 4.5, lift = 2.3 },
+	-- was still W only (the round sides are easy), so they stand taller with steeper feet;
+	-- 2.3 stood only 0.6 RC over the road and the car rolled straight over (Studio round 31)
+	notch = { u = 4.45, side = 0.2, gap = 0.12, r = 4.5, lift = 3.2 },
 	stepUp = {
 		u = 12.35,
 		side = -0.55,
@@ -276,8 +280,9 @@ Plot.SKILLS = {
 		ramp = 5,
 		rampLift = 2.7,
 		-- level ground between the ramp and the lip (Studio: a lip straight off the slope
-		-- stalled every time, each back-up just rolled down the ramp)
-		flat = 4.5,
+		-- stalled every time, each back-up just rolled down the ramp); long enough to back up on
+		-- and take a run at the lip (Studio round 31: 4.5 was too short, it still rolled back)
+		flat = 12,
 		-- and a ramp down off the far end (Studio: dropping off the sheer back flipped the car)
 		down = 9,
 	},
@@ -761,32 +766,36 @@ end
 
 -- Rock steps: each block's top sits at the trail height at its far end, so its near end is a
 -- small step up from the ground and its far end meets the ground. Blocks overlap a little.
-local function buildSteps(parent: Instance, origin: CFrame)
-	-- a low curb along the front edge beside the steps, so a car on the easy side doesn't drive
-	-- off the front of the row
-	-- (short pieces, each at its own height, since the trail climbs along it)
-	local st = Plot.STEPS
+-- A low curb along the outer edge of the shoulder from u0 to u1 on `side` (+1/-1): short
+-- pieces, each at its own height, since the trail climbs along it.
+local function curb(parent: Instance, origin: CFrame, u0: number, u1: number, side: number)
 	local edge = HALF + Plot.SHOULDER - 1
-	local u0 = st.from - 0.1
-	local pieces = math.ceil((Plot.CURB_TO - u0) / 0.1)
+	local pieces = math.ceil((u1 - u0) / 0.1)
 	for k = 0, pieces - 1 do
-		local a = u0 + (Plot.CURB_TO - u0) * k / pieces
-		local b = u0 + (Plot.CURB_TO - u0) * (k + 1) / pieces
+		local a = u0 + (u1 - u0) * k / pieces
+		local b = u0 + (u1 - u0) * (k + 1) / pieces
 		local cu = (a + b) / 2
 		local fx, fz = Plot.spot(cu, 0)
 		local ax, az = Plot.at(a)
 		local bx, bz = Plot.at(b)
-		local curb = Kit.part(
+		local wall = Kit.part(
 			parent,
 			"Wall",
 			origin,
 			Vector3.new(1.5, Plot.CURB + 2, math.sqrt((bx - ax) ^ 2 + (bz - az) ^ 2) + 0.5),
-			Plot.bankCF(cu, fx, Plot.height(cu), fz)
-				* CFrame.new(st.frontSide * edge, Plot.CURB / 2 - 1, 0),
+			Plot.bankCF(cu, fx, Plot.height(cu), fz) * CFrame.new(side * edge, Plot.CURB / 2 - 1, 0),
 			C.rock
 		)
-		curb.Material = Enum.Material.Slate
+		wall.Material = Enum.Material.Slate
 	end
+end
+
+local function buildSteps(parent: Instance, origin: CFrame)
+	-- a low curb along the front edge beside the steps, so a car on the easy side doesn't drive
+	-- off the front of the row
+	curb(parent, origin, Plot.STEPS.from - 0.1, Plot.CURB_TO, Plot.STEPS.frontSide)
+	local tc = Plot.TOP_CURB
+	curb(parent, origin, tc.from, tc.to, tc.side)
 	for _, st in Plot.stepBlocks() do
 		local ax, az = Plot.at(st.u0)
 		local bx, bz = Plot.at(st.u1)
