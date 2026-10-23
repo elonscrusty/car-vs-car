@@ -15,6 +15,7 @@ local LobbyPlots = require(script.Parent.LobbyPlots)
 local TrackBuilder = require(script.Parent.TrackBuilder)
 local PlotDecorBuilder = require(script.Parent.PlotDecorBuilder)
 local PlotLooksBuilder = require(script.Parent.PlotLooksBuilder)
+local PlotShop = require(script.Parent.PlotShop)
 
 Players.CharacterAutoLoads = false
 
@@ -29,6 +30,7 @@ end
 TrackBuilder.build()
 PlotDecorBuilder.build()
 PlotLooksBuilder.start()
+PlotShop.start()
 local lobby = LobbyBuilder.build()
 LobbyPlots.init()
 require(script.Parent.PlotStandsBuilder).start() -- owners' cars on their plot's stands

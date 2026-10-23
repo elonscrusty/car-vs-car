@@ -1,9 +1,11 @@
 --!strict
--- Shows each lobby plot's look for its owner's stars (PlotLooks): watches the plot model's
--- OwnerStars attribute (set by Stars.server; a Studio-only TestStars attribute wins over it for
--- tests) and, when the tier changes, rebuilds the plot's Looks folder: night tints the plot and
--- turns its lamps on, snow adds snow and a light snowfall, the top tier adds string lights,
--- fans and searchlights. Looks only: colours change, sizes and collisions never do.
+-- Shows each lobby plot's looks (PlotLooks): watches the plot model's OwnerLooks attribute (set by
+-- PlotShop from the owner's save: bought looks and star themes, minus the ones turned off), or
+-- OwnerStars (Stars.server) while that isn't there. Studio-only TestLooks / TestStars win over
+-- both for tests. When the looks change it rebuilds the plot's Looks folder: night tints the
+-- plot and turns its lamps on, snow adds snow and a light snowfall, party adds string lights,
+-- fans and searchlights; balloons, glow walls and confetti are the decor. Looks only: colours
+-- change, sizes and collisions never do.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -11,6 +13,7 @@ local RunService = game:GetService("RunService")
 local Garage = require(ReplicatedStorage.Shared.Garage)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local PlotLooks = require(ReplicatedStorage.Shared.PlotLooks)
+local PlotShop = require(ReplicatedStorage.Shared.PlotShop)
 
 local PlotLooksBuilder = {}
 
@@ -49,39 +52,68 @@ local function snowfall(cloud: BasePart)
 	e.Parent = cloud
 end
 
-local function apply(plot: Model, pivot: CFrame, kind: string, t: number)
+local CONFETTI = {
+	Color3.fromRGB(255, 80, 90),
+	Color3.fromRGB(255, 210, 60),
+	Color3.fromRGB(80, 170, 255),
+	Color3.fromRGB(110, 220, 120),
+	Color3.fromRGB(255, 130, 210),
+}
+
+local function confetti(cloud: BasePart)
+	cloud.Transparency = 1
+	for _, c in CONFETTI do
+		local e = Instance.new("ParticleEmitter")
+		e.Rate = PlotLooks.CONFETTI_RATE / #CONFETTI
+		e.Lifetime = NumberRange.new(7, 9)
+		e.Speed = NumberRange.new(2.5, 3.5)
+		e.EmissionDirection = Enum.NormalId.Bottom
+		e.SpreadAngle = Vector2.new(20, 20)
+		e.Size = NumberSequence.new(0.35)
+		e.Rotation = NumberRange.new(0, 360)
+		e.RotSpeed = NumberRange.new(-200, 200)
+		e.Color = ColorSequence.new(c)
+		e.LightEmission = 0.2
+		e.Parent = cloud
+	end
+end
+
+local function apply(plot: Model, pivot: CFrame, kind: string, ids: { string })
+	local night = table.find(ids, "night") ~= nil
 	local old = plot:FindFirstChild("Looks")
 	if old then
 		old:Destroy()
 	end
-	tint(plot, t >= 1)
+	tint(plot, night)
 	-- PlotDecor's lanterns glow brighter at night
 	for _, d in plot:GetDescendants() do
 		if d:IsA("BasePart") and (d.Name == "Lantern" or d.Name == "Light") then
 			local light = d:FindFirstChildOfClass("PointLight")
-			if t >= 1 and not light and d.Name == "Lantern" then
+			if night and not light and d.Name == "Lantern" then
 				local glow = Instance.new("PointLight")
 				glow.Name = "NightLight"
 				glow.Range = 14
 				glow.Brightness = 1.5
 				glow.Color = d.Color
 				glow.Parent = d
-			elseif t == 0 and light and light.Name == "NightLight" then
+			elseif not night and light and light.Name == "NightLight" then
 				light:Destroy()
 			end
 		end
 	end
-	if t == 0 then
+	if #ids == 0 then
 		return
 	end
 	local looks = Instance.new("Model")
 	looks.Name = "Looks"
-	Garage.makeParts(PlotLooks.allParts(kind, t), looks, pivot)
+	Garage.makeParts(PlotLooks.allParts(kind, ids), looks, pivot)
 	for _, d in looks:GetDescendants() do
 		if d:IsA("BasePart") then
 			d.CastShadow = false
 			if d.Name == "SnowCloud" then
 				snowfall(d)
+			elseif d.Name == "ConfettiCloud" then
+				confetti(d)
 			elseif d.Name == "SearchBeam" then
 				d.Transparency = 0.75
 			end
@@ -90,13 +122,24 @@ local function apply(plot: Model, pivot: CFrame, kind: string, t: number)
 	looks.Parent = plot
 end
 
-local function stars(plot: Model): number
-	local test = plot:GetAttribute("TestStars")
-	if RunService:IsStudio() and typeof(test) == "number" then
-		return test
+-- the looks this plot shows, in build order
+local function looksOf(plot: Model): { string }
+	if RunService:IsStudio() then
+		local testLooks = plot:GetAttribute("TestLooks")
+		if typeof(testLooks) == "string" then
+			return PlotShop.decode(testLooks)
+		end
+		local test = plot:GetAttribute("TestStars")
+		if typeof(test) == "number" then
+			return PlotLooks.fromStars(test)
+		end
+	end
+	local owned = plot:GetAttribute("OwnerLooks")
+	if typeof(owned) == "string" then
+		return PlotShop.decode(owned)
 	end
 	local s = plot:GetAttribute("OwnerStars")
-	return if typeof(s) == "number" then s else 0
+	return PlotLooks.fromStars(if typeof(s) == "number" then s else 0)
 end
 
 function PlotLooksBuilder.start()
@@ -110,16 +153,18 @@ function PlotLooksBuilder.start()
 			continue
 		end
 		local pivot = CFrame.new(slot.plotX, 0, slot.plotZ) * CFrame.Angles(0, slot.angle, 0)
-		local shown = 0
+		local shown = ""
 		local function update()
-			local t = PlotLooks.tier(stars(plot))
-			if t ~= shown then
-				shown = t
-				apply(plot, pivot, slot.id, t)
+			local ids = looksOf(plot)
+			local key = table.concat(ids, ",")
+			if key ~= shown then
+				shown = key
+				apply(plot, pivot, slot.id, ids)
 			end
 		end
-		plot:GetAttributeChangedSignal("OwnerStars"):Connect(update)
-		plot:GetAttributeChangedSignal("TestStars"):Connect(update)
+		for _, a in { "OwnerLooks", "OwnerStars", "TestLooks", "TestStars" } do
+			plot:GetAttributeChangedSignal(a):Connect(update)
+		end
 		update()
 	end
 end
