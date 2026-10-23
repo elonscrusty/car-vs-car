@@ -62,6 +62,10 @@ export type Lobby = {
 	setDriving: (on: boolean) -> (),
 }
 
+local function building(): boolean
+	return Players.LocalPlayer:GetAttribute("Building") == true
+end
+
 function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 	local driving = false
 
@@ -107,7 +111,7 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 		friendsButton.BackgroundColor3 = if friendsOn
 			then Color3.fromRGB(60, 170, 80)
 			else Color3.fromRGB(40, 40, 46)
-		friendsGui.Enabled = ownSlot ~= nil and not driving
+		friendsGui.Enabled = ownSlot ~= nil and not driving and not building()
 		if marker then
 			marker.Parent = if driving then nil else workspace
 		end
@@ -209,12 +213,18 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 		end
 	end)
 
+	-- the build screen covers the lobby: hide QUICK RACE and FRIENDS under it (BuildScreen sets it)
+	Players.LocalPlayer:GetAttributeChangedSignal("Building"):Connect(function()
+		quickGui.Enabled = not driving and not building()
+		showFriends()
+	end)
+
 	local lobby = {} :: Lobby
 	function lobby.setDriving(on: boolean)
 		driving = on
 		Players.LocalPlayer:SetAttribute("Driving", on) -- lobby chips and buttons hide while driving
 		gui.Enabled = on
-		quickGui.Enabled = not on
+		quickGui.Enabled = not on and not building()
 		showFriends()
 		if on then
 			shown = nil

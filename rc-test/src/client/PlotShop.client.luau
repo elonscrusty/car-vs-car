@@ -36,8 +36,10 @@ hudGui.DisplayOrder = HudLayout.HUD
 hudGui.Parent = player:WaitForChild("PlayerGui")
 local function showButton()
 	hudGui.Enabled = player:GetAttribute("Driving") ~= true
+		and player:GetAttribute("Building") ~= true
 end
 player:GetAttributeChangedSignal("Driving"):Connect(showButton)
+player:GetAttributeChangedSignal("Building"):Connect(showButton)
 showButton()
 
 local function corner(parent: Instance, r: number)

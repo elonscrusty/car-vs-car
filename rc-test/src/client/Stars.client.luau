@@ -625,7 +625,8 @@ end)
 
 -- hide the lobby HUD while this player drives (Lobby.setDriving sets the attribute)
 local function showWalkHud()
-	hud.Enabled = player:GetAttribute("Driving") ~= true
+	hud.Enabled = player:GetAttribute("Driving") ~= true and player:GetAttribute("Building") ~= true
 end
 player:GetAttributeChangedSignal("Driving"):Connect(showWalkHud)
+player:GetAttributeChangedSignal("Building"):Connect(showWalkHud)
 showWalkHud()

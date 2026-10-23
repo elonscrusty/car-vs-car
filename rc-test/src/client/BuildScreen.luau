@@ -471,7 +471,9 @@ function BuildScreen.new(opts: Options): BuildScreen
 		if size.X < 1 or size.Y < 1 then
 			return
 		end
-		layout = BuildLayout.fit(size.X, size.Y, state.cols, state.rows)
+		-- keep clear of Roblox's own top-left buttons (taller than 58 px on some screens)
+		local top = math.max(BuildLayout.TOP, GuiService.TopbarInset.Max.Y + 6)
+		layout = BuildLayout.fit(size.X, size.Y, state.cols, state.rows, top)
 		place(grid, layout.grid)
 		place(timer, layout.timer)
 		place(status, layout.status)
@@ -517,6 +519,7 @@ function BuildScreen.new(opts: Options): BuildScreen
 	end
 	function screen.show(on: boolean)
 		gui.Enabled = on
+		Players.LocalPlayer:SetAttribute("Building", on) -- lobby buttons hide under the screen
 		if on then
 			relayout()
 		else
