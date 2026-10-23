@@ -319,7 +319,16 @@ Plot.MESH_PROPS = {
 	{ name = "TreeStump", x = 70, z = 143, yaw = 1.0, height = 5 },
 	{ name = "RockPile", x = -130, z = -208, yaw = 0.6, height = 4 },
 	{ name = "HayBale", x = 140, z = -165, yaw = -0.4, height = 4 },
+	{ name = "Mushroom", x = 150, z = -110, yaw = 0.8, height = 3.5 },
 }
+-- Backyard props that have a Meshy model (ServerStorage.LobbyMeshes): used instead of the block
+-- version when imported. The lying can and the leaves stay blocks (the models stand up).
+Plot.PROP_MESHES = {
+	standingCan = { name = "SodaCan", height = 3.4 },
+	sneaker = { name = "Sneaker", height = 3.2 },
+	gnome = { name = "Gnome", height = 8.7 },
+	bucket = { name = "Bucket", height = 5.8 },
+} :: { [string]: { name: string, height: number } }
 Plot.SUMMIT_FLAG_HEIGHT = 14 -- the Meshy flag, when imported, stands in for the summit flag
 
 -- Mountain peaks along the back wall, behind the summit, so the hill rises into real mountains.
@@ -1034,6 +1043,11 @@ local function buildProp(
 	pr: { kind: string, x: number, z: number, yaw: number }
 )
 	local base = CFrame.new(pr.x, Plot.groundAt(pr.x, pr.z), pr.z) * CFrame.Angles(0, pr.yaw, 0)
+	-- carter's Meshy model when it's imported, else the block version below
+	local mesh = Plot.PROP_MESHES[pr.kind]
+	if mesh and meshProp(parent, origin, mesh.name, base, mesh.height) then
+		return
+	end
 	local function piece(size: Vector3, cf: CFrame, color: Color3, shape: Enum.PartType?): Part
 		local p = Kit.part(parent, "Prop", origin, size, base * cf, color)
 		if shape then
