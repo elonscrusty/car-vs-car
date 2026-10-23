@@ -481,9 +481,10 @@ end
 local function bleachers(parent: Instance, origin: CFrame)
 	local L = Plot.LOOK
 	local b = Plot.BLEACHERS
-	-- carter's Meshy bleachers if imported (turned to face the track), else block steps
+	-- carter's Meshy grandstand (shared with the race plot) if imported, facing the track, else
+	-- block steps
 	local at = CFrame.new(b.x, 0, b.z) * CFrame.Angles(0, math.pi, 0)
-	if meshProp(parent, origin, "Bleachers", at, b.rows * b.rowH + 4) then
+	if meshProp(parent, origin, "Grandstand", at, b.rows * b.rowH + 4) then
 		return
 	end
 	local rowD = b.d / b.rows
