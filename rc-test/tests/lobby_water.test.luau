@@ -124,11 +124,15 @@ test(
 	end
 )
 
-test("a rowboat floats beside a dock, and two docks have a life ring", function()
+test("a rowboat floats beside each dock, and two docks have a life ring", function()
 	local hull = named("BoatHull")
-	eq(#hull, 1)
-	local h = hull[1]
-	truthy(h.y - h.sy / 2 < W.WATER_TOP and h.y + h.sy / 2 > W.WATER_TOP, "hull sits in the water")
+	eq(#hull, 2)
+	for _, h in hull do
+		truthy(
+			h.y - h.sy / 2 < W.WATER_TOP and h.y + h.sy / 2 > W.WATER_TOP,
+			"hull sits in the water"
+		)
+	end
 	eq(#named("BuoyPost"), 2)
 	local ring = 0
 	for _, p in pieces do
