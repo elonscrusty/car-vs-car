@@ -246,6 +246,9 @@ local function walk(player: Player)
 	remote:FireClient(player, "walk")
 end
 
+-- The server race every 15 minutes: everyone who joins races on one race plot.
+require(script.Parent.ServerRaceRunner).start({ remote = remote, walk = walk })
+
 -- E on a lobby pad: drive that plot (if it's yours, nobody's or open, and free), or stop.
 for slotIndex, prompt in lobby.prompts do
 	local slot = slots[slotIndex]

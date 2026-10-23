@@ -90,6 +90,10 @@ end
 local ring = Plot.loop()
 local line = nearest(ring, 47.5, 34) -- the checkered line
 Plot.spawn = Kit.spawnAt(line, 14)
+-- Where the start line sits in Plot.loop() (the server race grid lines up behind it).
+function Plot.lineSample(): number
+	return table.find(ring, line) :: number
+end
 Plot.gates = {
 	Kit.gateAt(line, 0, 22, 6),
 	Kit.gateAt(nearest(ring, 72, 76), 0, 24, 12), -- chicane

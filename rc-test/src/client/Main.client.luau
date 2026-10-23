@@ -12,6 +12,7 @@ local CarMath = require(ReplicatedStorage.Shared.CarMath)
 local LapTimer = require(ReplicatedStorage.Shared.LapTimer)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local RaceStart = require(ReplicatedStorage.Shared.RaceStart)
+local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
 local SmokeColors = require(ReplicatedStorage.Shared.SmokeColors)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
@@ -133,6 +134,9 @@ local touched: { [number]: boolean } = {} -- drift touch zones already scored in
 local countdown: RaceStart.State? = nil
 local lamps: { BasePart } = {}
 local jumped = false -- went over the line before GO: no timed lap until the car leaves the line
+-- server race: this car's grid spot (nil = the plot's own start), and whether it got its GO
+local grid: number? = nil
+local gridGone = false
 
 local hud: Hud.Hud
 local function goTo(index: number)
@@ -156,7 +160,8 @@ local function goTo(index: number)
 	StartLights.show(lamps, 0)
 	countdown, jumped = nil, false
 	lamps = {}
-	if t.id == "race" then
+	-- (a reset in a server race after its GO goes back to the grid without the lights again)
+	if t.id == "race" and not gridGone then
 		countdown = RaceStart.new()
 		lamps = StartLights.find(index)
 		StartLights.show(lamps, 0)
@@ -164,6 +169,10 @@ local function goTo(index: number)
 	driftChain, driftTotal, driftHold, driftHeld = 0, 0, 0, 0
 	touched = {}
 	local s = t.spawn
+	local g = grid
+	if g and t.id == "race" then
+		s = ServerRace.gridOn(TrackData.plot(t.id), g, s.y)
+	end
 	local x, y, z = TrackData.toWorld(t, rc, s.x, s.y, s.z)
 	local dx, dz = TrackData.dirToWorld(t, rc, s.dx, s.dz)
 	local pos = Vector3.new(x, y, z)
@@ -304,8 +313,9 @@ local function setWalking(on: boolean)
 	end
 end
 
-remote.OnClientEvent:Connect(function(kind: unknown, index: unknown)
+remote.OnClientEvent:Connect(function(kind: unknown, index: unknown, gridSpot: unknown)
 	if kind == "walk" then
+		grid, gridGone = nil, false
 		setWalking(true)
 		LobbyLife.start() -- butterflies and birds (looks only, this screen)
 		LobbyWelcome.start() -- first time only: street lights on, confetti
@@ -320,6 +330,11 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown)
 		camera.setView(view)
 		showCam = false
 		effects = Effects.new(car.telemetry)
+		-- ("drive", slot, k): the server race puts this car on grid spot k
+		grid = if type(gridSpot) == "number"
+			then math.clamp(math.floor(gridSpot), 1, ServerRace.MAX)
+			else nil
+		gridGone = false
 		goTo(index)
 	end
 end)
@@ -378,6 +393,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 		end
 		if step == RaceStart.GO then
 			countdown = nil
+			gridGone = grid ~= nil
 			LapTimer.go(timer, os.clock())
 		elseif LapTimer.inside(timer.gates[1], lx, ly, lz) then
 			-- over the line before green: no clock this time (drive round, or R twice to start over)
