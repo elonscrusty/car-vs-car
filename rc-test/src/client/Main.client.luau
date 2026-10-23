@@ -528,7 +528,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 			driftHold = 0.8
 			-- sliding through a glowing touch zone: a bonus, once per zone per chain
 			local plot = TrackData.plot(t.id)
-			local zone = plot.touchZone and plot.touchZone(lx, lz)
+			local zone = not (t :: any).custom and plot.touchZone and plot.touchZone(lx, lz)
 			if zone and not touched[zone] then
 				touched[zone] = true
 				local bonus = plot.TOUCH_BONUS * CarMath.driftCombo(driftHeld)
