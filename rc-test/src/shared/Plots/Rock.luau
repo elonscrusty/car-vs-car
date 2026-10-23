@@ -190,8 +190,17 @@ Plot.domes = {
 
 -- A dry creek across the trail in row 2. A bridge of logs crosses it down the middle, on the
 -- driving line; either side dips down through the creek bed.
-Plot.CREEK =
-	{ u = 8.1, half = 16, depth = 5, reach = HALF + 14, logSide = 0, logR = 1.5, lift = 0.9 }
+Plot.CREEK = {
+	u = 8.1,
+	half = 16,
+	depth = 5,
+	reach = HALF + 14,
+	logSide = 0,
+	logR = 1.5,
+	lift = 0.9, -- bridge deck top above the trail
+	deckWidth = 10,
+	rail = 0.8,
+}
 local creekX, creekZ, _, creekTX, creekTZ = Plot.at(Plot.CREEK.u)
 
 -- How far the creek bed dips the ground at (x, z).
@@ -662,24 +671,48 @@ local function buildSteps(parent: Instance, origin: CFrame)
 	end
 end
 
--- Three logs side by side along the trail, over the creek: a bridge wide enough to stay on.
+-- A log bridge over the creek: three logs side by side along the trail, with a flat plank deck
+-- on top (round logs alone twist the wheels off) and a low rail along each side of the deck.
 local function buildLogBridge(parent: Instance, origin: CFrame)
 	local c = Plot.CREEK
 	local x, z, _, tx, tz = Plot.at(c.u)
 	local cx, cz = x - tz * c.logSide * HALF, z + tx * c.logSide * HALF
 	local h = Plot.trailY(c.u, c.logSide)
+	local len = c.half * 2 + 20
+	local deck = 0.6
 	for _, off in { -3.2, 0, 3.2 } do
 		local p = Kit.part(
 			parent,
 			"Log",
 			origin,
-			Vector3.new(c.half * 2 + 20, c.logR * 2, c.logR * 2),
+			Vector3.new(len, c.logR * 2, c.logR * 2),
 			-- a cylinder lies along its X: point X along the trail
-			yawCF(cx - tz * off, h + c.lift - c.logR, cz + tx * off, -tz, tx),
+			yawCF(cx - tz * off, h + c.lift - deck - c.logR, cz + tx * off, -tz, tx),
 			C.ground
 		)
 		p.Shape = Enum.PartType.Cylinder
 		p.Material = Enum.Material.Wood
+	end
+	local frame = Plot.bankCF(c.u, cx, h + c.lift - deck / 2, cz)
+	local planks = Kit.part(
+		parent,
+		"Bridge",
+		origin,
+		Vector3.new(c.deckWidth, deck, len),
+		frame,
+		Color3.fromRGB(150, 110, 70)
+	)
+	planks.Material = Enum.Material.WoodPlanks
+	for _, side in { -1, 1 } do
+		local rail = Kit.part(
+			parent,
+			"Wall",
+			origin,
+			Vector3.new(0.6, c.rail, len),
+			frame * CFrame.new(side * (c.deckWidth / 2 - 0.3), deck / 2 + c.rail / 2, 0),
+			Color3.fromRGB(120, 85, 55)
+		)
+		rail.Material = Enum.Material.Wood
 	end
 end
 
