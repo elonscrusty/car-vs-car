@@ -296,6 +296,21 @@ function Plot.stepUpBase(): number
 	return Plot.trailY(Plot.uBefore(st.u, front + 1.5), st.side)
 end
 
+-- Giant backyard things round the edges, well off the trail (the RC car is toy sized, so a
+-- soda can or a sneaker is big next to it). Decor only: none of them are on the trail.
+Plot.PROPS = {
+	{ kind = "can", x = -60, z = 143, yaw = 0.4 }, -- lying on its side in the front grass
+	{ kind = "standingCan", x = 150, z = -100, yaw = 0 },
+	{ kind = "sneaker", x = 150, z = 0, yaw = 1.4 },
+	{ kind = "gnome", x = 150, z = -120, yaw = -1.2 },
+	{ kind = "bucket", x = -150, z = 90, yaw = 0.3 },
+	{ kind = "leaf", x = -90, z = 143, yaw = 0.5 },
+	{ kind = "leaf", x = 40, z = 143, yaw = 2.1 },
+	{ kind = "leaf", x = 110, z = 143, yaw = 4.0 },
+	{ kind = "leaf", x = 60, z = 80, yaw = 1.0 },
+	{ kind = "leaf", x = 150, z = 10, yaw = 3.0 },
+}
+
 -- Mountain peaks along the back wall, behind the summit, so the hill rises into real mountains.
 Plot.PEAKS = {
 	{ x = -165, z = -230, r = 45, h = 60 },
@@ -944,6 +959,96 @@ local function buildSkills(parent: Instance, origin: CFrame)
 	ramp.Parent = parent
 end
 
+-- One backyard prop, standing on the ground at its spot.
+local function buildProp(
+	parent: Instance,
+	origin: CFrame,
+	pr: { kind: string, x: number, z: number, yaw: number }
+)
+	local base = CFrame.new(pr.x, Plot.groundAt(pr.x, pr.z), pr.z) * CFrame.Angles(0, pr.yaw, 0)
+	local function piece(size: Vector3, cf: CFrame, color: Color3, shape: Enum.PartType?): Part
+		local p = Kit.part(parent, "Prop", origin, size, base * cf, color)
+		if shape then
+			p.Shape = shape
+		end
+		return p
+	end
+	local silver = Color3.fromRGB(200, 200, 205)
+	if pr.kind == "can" or pr.kind == "standingCan" then
+		-- a red soda can with silver ends (a cylinder part runs along its X)
+		local lying = pr.kind == "can"
+		local turn = if lying
+			then CFrame.new(0, 1.05, 0)
+			else CFrame.new(0, 1.7, 0) * CFrame.Angles(0, 0, math.pi / 2)
+		piece(Vector3.new(3.4, 2.1, 2.1), turn, Color3.fromRGB(205, 30, 40), Enum.PartType.Cylinder)
+		piece(
+			Vector3.new(0.15, 1.9, 1.9),
+			turn * CFrame.new(1.72, 0, 0),
+			silver,
+			Enum.PartType.Cylinder
+		)
+		piece(
+			Vector3.new(0.15, 1.9, 1.9),
+			turn * CFrame.new(-1.72, 0, 0),
+			silver,
+			Enum.PartType.Cylinder
+		)
+	elseif pr.kind == "sneaker" then
+		-- a sneaker: thick sole, white upper, toe cap and laces
+		piece(Vector3.new(2.6, 0.6, 7), CFrame.new(0, 0.3, 0), Color3.fromRGB(40, 40, 44))
+		piece(Vector3.new(2.4, 1.6, 4.4), CFrame.new(0, 1.4, 1.2), C.white)
+		piece(Vector3.new(2.4, 1.2, 2.6), CFrame.new(0, 1.2, -2.2), C.white)
+		piece(Vector3.new(2.42, 0.5, 2.4), CFrame.new(0, 2.0, -0.6), C.blue)
+		piece(Vector3.new(2.2, 1.2, 1.6), CFrame.new(0, 2.6, 2.6), C.white)
+		piece(Vector3.new(0.3, 0.2, 2.2), CFrame.new(0, 2.3, -0.6), C.red)
+	elseif pr.kind == "gnome" then
+		-- a garden gnome: boots, blue coat, face, white beard, tall red hat
+		piece(Vector3.new(2.6, 0.8, 2), CFrame.new(0, 0.4, 0), Color3.fromRGB(70, 45, 30))
+		piece(Vector3.new(2.6, 3, 2.2), CFrame.new(0, 2.3, 0), C.blue)
+		piece(
+			Vector3.new(1.8, 1.8, 1.8),
+			CFrame.new(0, 4.6, 0),
+			Color3.fromRGB(240, 200, 170),
+			Enum.PartType.Ball
+		)
+		piece(Vector3.new(1.8, 1.8, 0.8), CFrame.new(0, 3.8, -0.8), C.white)
+		local hat = Instance.new("WedgePart")
+		hat.Name = "Prop"
+		hat.Anchored = true
+		hat.Size = Vector3.new(2.2, 3.4, 2.2)
+		hat.CFrame = origin * base * CFrame.new(0, 7, 0)
+		hat.Color = C.red
+		hat.Material = Enum.Material.SmoothPlastic
+		hat.Parent = parent
+	elseif pr.kind == "bucket" then
+		-- a yellow sand bucket standing up, with a handle
+		local up = CFrame.Angles(0, 0, math.pi / 2)
+		piece(
+			Vector3.new(4.4, 5, 5),
+			CFrame.new(0, 2.2, 0) * up,
+			Color3.fromRGB(245, 200, 40),
+			Enum.PartType.Cylinder
+		)
+		piece(
+			Vector3.new(0.3, 4.4, 4.4),
+			CFrame.new(0, 4.45, 0) * up,
+			Color3.fromRGB(60, 50, 40),
+			Enum.PartType.Cylinder
+		)
+		piece(Vector3.new(0.3, 0.3, 5.2), CFrame.new(0, 5.6, 0), Color3.fromRGB(60, 150, 220))
+		piece(Vector3.new(0.3, 1.4, 0.3), CFrame.new(0, 4.9, 2.5), Color3.fromRGB(60, 150, 220))
+		piece(Vector3.new(0.3, 1.4, 0.3), CFrame.new(0, 4.9, -2.5), Color3.fromRGB(60, 150, 220))
+	elseif pr.kind == "leaf" then
+		-- a big fallen leaf lying flat: blade and stem
+		local leaf =
+			piece(Vector3.new(3, 0.1, 4.6), CFrame.new(0, 0.08, 0), Color3.fromRGB(205, 110, 35))
+		leaf.CanCollide = false
+		local stem =
+			piece(Vector3.new(0.2, 0.12, 1.6), CFrame.new(0, 0.1, 2.9), Color3.fromRGB(120, 70, 30))
+		stem.CanCollide = false
+	end
+end
+
 function Plot.build(parent: Instance, origin: CFrame)
 	buildGround(parent, origin)
 	for _, f in Plot.features do
@@ -953,6 +1058,9 @@ function Plot.build(parent: Instance, origin: CFrame)
 	buildLogBridge(parent, origin)
 	buildFaceLine(parent, origin)
 	buildSkills(parent, origin)
+	for _, pr in Plot.PROPS do
+		buildProp(parent, origin, pr)
+	end
 	-- a rock wall across the end of the summit, so holding the gas doesn't drive off the back
 	local ex, ez, eh = Plot.at(Plot.LAST_U - 0.05)
 	local endWall = Kit.part(
