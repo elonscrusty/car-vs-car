@@ -10,19 +10,34 @@ export type Data = {
 	-- plot owner's user id (as text, DataStore keys must be text) -> plot kind -> best medal 1..3
 	starsFrom: { [string]: { [string]: number } },
 	plotRecords: { [string]: Record }, -- plot kind -> the best run anyone made on MY plot
-	coins: number, -- phase 3
+	coins: number,
+	likes: number, -- likes my plot got
+	liked: { [string]: boolean }, -- plot owners I liked (once each, ever)
+	visited: { [string]: number }, -- plot owner -> the day I last got their visit gift
 }
 export type Lock = { job: string, at: number }
 
 local Profile = {}
 
-Profile.VERSION = 1
+Profile.VERSION = 2 -- 2: likes, liked, visited
 Profile.MAX_OWNERS = 500 -- keeps the save small; stars from more owners than this stop counting
 Profile.LOCK_TIMEOUT = 300 -- a server that hasn't saved for this long is gone: its lock is stale
 Profile.MODES = { "race", "drift", "rock" }
+Profile.MAX_LIST = 500 -- liked / visited entries kept
+Profile.VISIT_COINS = 20 -- the visitor's gift (once per plot owner per day)
+Profile.HOST_COINS = 10 -- the owner's share of it
 
 function Profile.new(): Data
-	return { version = Profile.VERSION, stars = 0, starsFrom = {}, plotRecords = {}, coins = 0 }
+	return {
+		version = Profile.VERSION,
+		stars = 0,
+		starsFrom = {},
+		plotRecords = {},
+		coins = 0,
+		likes = 0,
+		liked = {},
+		visited = {},
+	}
 end
 
 local function count(t: { [string]: any }): number
@@ -84,6 +99,27 @@ function Profile.migrate(raw: any): Data
 	if goodNumber(raw.coins) then
 		d.coins = math.max(math.floor(raw.coins), 0)
 	end
+	if goodNumber(raw.likes) then
+		d.likes = math.max(math.floor(raw.likes), 0)
+	end
+	if type(raw.liked) == "table" then
+		for owner, yes in raw.liked do
+			if type(owner) == "string" and yes == true and count(d.liked) < Profile.MAX_LIST then
+				d.liked[owner] = true
+			end
+		end
+	end
+	if type(raw.visited) == "table" then
+		for owner, day in raw.visited do
+			if
+				type(owner) == "string"
+				and goodNumber(day)
+				and count(d.visited) < Profile.MAX_LIST
+			then
+				d.visited[owner] = math.floor(day)
+			end
+		end
+	end
 	local stars = 0
 	for _, modes in d.starsFrom do
 		for _, m in modes do
@@ -123,6 +159,52 @@ function Profile.award(
 	modes[mode] = m
 	d.stars += m - had
 	return m - had
+end
+
+-- The day number for once-a-day gifts.
+function Profile.day(now: number): number
+	return math.floor(now / 86400)
+end
+
+-- `d` likes `ownerId`'s plot: true the first time only (never your own plot).
+function Profile.like(d: Data, selfId: number, ownerId: number): boolean
+	local key = tostring(ownerId)
+	if ownerId == selfId or d.liked[key] then
+		return false
+	end
+	if count(d.liked) >= Profile.MAX_LIST then
+		-- full: forget one old like to make room (it can't be liked twice in one session anyway)
+		local first = next(d.liked)
+		if first then
+			d.liked[first] = nil
+		end
+	end
+	d.liked[key] = true
+	return true
+end
+
+-- `d` drove `ownerId`'s plot today: true (and the visitor's coins) the first time each day.
+-- The caller gives the owner Profile.HOST_COINS.
+function Profile.visit(d: Data, selfId: number, ownerId: number, day: number): boolean
+	local key = tostring(ownerId)
+	if ownerId == selfId or d.visited[key] == day then
+		return false
+	end
+	if d.visited[key] == nil and count(d.visited) >= Profile.MAX_LIST then
+		-- full: drop the oldest visit day
+		local oldKey, oldDay = nil, math.huge
+		for k, v in d.visited do
+			if v < oldDay then
+				oldKey, oldDay = k, v
+			end
+		end
+		if oldKey then
+			d.visited[oldKey] = nil
+		end
+	end
+	d.visited[key] = day
+	d.coins += Profile.VISIT_COINS
+	return true
 end
 
 -- May this server (job) take the save? Free, ours already, or the other server stopped saving.
