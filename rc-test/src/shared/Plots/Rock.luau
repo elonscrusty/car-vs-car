@@ -863,6 +863,22 @@ local function buildSkills(parent: Instance, origin: CFrame)
 		-- both from the trail height on the line between them, so the V is even
 		Kit.rock(parent, origin, x, Plot.trailY(n.u, n.side) + n.lift - n.r, z, n.r)
 	end
+	-- low rails either side, so the car can't squeeze round the boulders (Studio round 30:
+	-- it got shoved sideways and slipped past them)
+	local nx, nz = Plot.spot(n.u, n.side)
+	local outer = n.gap * HALF + n.r * 0.6
+	for _, sgn in { -1, 1 } do
+		local wall = Kit.part(
+			parent,
+			"Wall",
+			origin,
+			Vector3.new(1.2, Plot.CURB + 3, n.r * 4),
+			Plot.bankCF(n.u, nx, Plot.trailY(n.u, n.side), nz)
+				* CFrame.new(sgn * outer, Plot.CURB / 2 - 0.9, 0),
+			C.rock
+		)
+		wall.Material = Enum.Material.Slate
+	end
 	-- the step-up block, and the small rock in front of it
 	local st = S.stepUp
 	local x, z = Plot.spot(st.u, st.side)
