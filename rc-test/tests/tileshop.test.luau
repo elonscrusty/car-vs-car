@@ -20,6 +20,15 @@ test("the agreed tile ids, each with its tier", function()
 		boost = "legendary",
 		oil = "legendary",
 		sharp = "legendary",
+		split = "coins",
+		narrow = "coins",
+		cones = "coins",
+		barrels = "coins",
+		bumps = "coins",
+		mud = "coins",
+		puddle = "coins",
+		sand = "coins",
+		jump = "legendary",
 	}
 	local n = 0
 	for _, t in Tiles.TILES do
@@ -27,7 +36,7 @@ test("the agreed tile ids, each with its tier", function()
 		eq(t.tier, want[t.id])
 		eq(t.price == 0, t.tier == "free")
 	end
-	eq(n, 8)
+	eq(n, 17)
 end)
 
 test("same ids and tiers as the build pieces (TrackTiles)", function()

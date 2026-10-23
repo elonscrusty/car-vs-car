@@ -243,16 +243,41 @@ test("dragging across a straight road makes a crossing", function()
 	eq((T.get(g2, 3, 2) :: any).piece, "cross")
 end)
 
-test("dropping special tiles turns them to fit the road", function()
+test("dropping a tile swaps it in, turned to join the road around it", function()
 	local g = T.circle(4, 4)
 	eq((T.drop(g, 3, 1, "boost")), true) -- front straight
 	eq((T.get(g, 3, 1) :: any).piece, "boost")
 	eq((T.drop(g, 1, 1, "sharp")), true) -- corner turn
-	eq((T.drop(g, 1, 2, "sharp")), false) -- a straight
-	eq((T.drop(g, 4, 4, "oil")), false) -- a corner
-	eq((T.drop(g, 2, 2, "boost")), false) -- grass
 	eq((T.drop(g, 2, 1, "oil")), false) -- the START
 	eq((T.drop(g, 4, 2, "cross")), true)
 	truthy(T.trace(g).ok)
+	-- every straight-type tile swaps onto a straight and keeps the loop ready
+	for _, p in T.PIECES do
+		local ends = p.ends :: any
+		if p.id ~= "start" and ends.N and ends.S and not ends.E then
+			local g2 = T.circle(5, 5)
+			eq((T.drop(g2, 1, 3, p.id)), true, p.id)
+			local res = T.trace(g2)
+			truthy(res.ok, p.id .. ": " .. tostring(res.why))
+		end
+	end
+	-- a turn dropped on a straight turns to join one side: the loop breaks (gap), no crash
+	eq((T.drop(g, 1, 2, "turn")), true)
+	eq((T.ready(g)), false)
+	-- on grass it still goes down, turned toward the road next to it
+	local g3 = T.circle(5, 5)
+	eq((T.drop(g3, 2, 2, "straight")), true)
 	truthy(T.ALL_FREE)
+end)
+
+test("there are lots of tiles: shapes, hazards and powers, each with a card tip", function()
+	local kinds = { road = 0, hazard = 0, power = 0 }
+	for _, p in T.PIECES do
+		truthy(kinds[p.kind] ~= nil, p.id)
+		kinds[p.kind] += 1
+		truthy(#p.tip > 0, p.id)
+	end
+	truthy(#T.PIECES >= 16)
+	truthy(kinds.hazard >= 5 and kinds.power >= 2 and kinds.road >= 6)
+	truthy(T.piece("jump") ~= nil and T.piece("cones") ~= nil)
 end)

@@ -31,6 +31,8 @@ export type Piece = {
 	name: string,
 	ends: Ends, -- which edges the road touches at rot 0
 	tier: string, -- "free" | "coins" | "legendary" (TileShop owns prices and odds)
+	kind: string, -- "road" (a shape) | "hazard" (slows / blocks) | "power" (helps) - for the tray
+	tip: string, -- tiny words for the tile card
 }
 export type Pad = { kind: string, x: number, z: number, dx: number, dz: number, len: number }
 export type Result = {
@@ -110,15 +112,39 @@ local function bend(r: number): Path
 end
 
 type Def = Piece & { paths: { Path } }
+local function def(
+	id: string,
+	name: string,
+	tier: string,
+	kind: string,
+	tip: string,
+	paths: { Path }
+): any
+	return { id = id, name = name, tier = tier, kind = kind, tip = tip, paths = paths }
+end
+-- carter 22:36: "way more tiles. jump and cones and variety". Every hazard and power hits every
+-- racer the same (fair races). All are one square with road ends on N/E/S/W, so they swap in.
 local DEFS: { Def } = {
-	{ id = "start", name = "START", tier = "free", paths = { line(2, 0) } },
-	{ id = "straight", name = "STRAIGHT", tier = "free", paths = { line(2, 0) } },
-	{ id = "turn", name = "TURN", tier = "free", paths = { bend(0.5) } },
-	{ id = "chicane", name = "WIGGLE", tier = "coins", paths = { wiggle() } },
-	{ id = "cross", name = "CROSS", tier = "coins", paths = { line(2, 0), line(3, 1) } },
-	{ id = "boost", name = "BOOST", tier = "legendary", paths = { line(2, 0) } },
-	{ id = "oil", name = "OIL SPILL", tier = "legendary", paths = { line(2, 0) } },
-	{ id = "sharp", name = "SHARP TURN", tier = "legendary", paths = { bend(0.2) } },
+	def("start", "START", "free", "road", "Start line", { line(2, 0) }),
+	-- road shapes
+	def("straight", "STRAIGHT", "free", "road", "Plain road", { line(2, 0) }),
+	def("turn", "TURN", "free", "road", "Round corner", { bend(0.5) }),
+	def("sharp", "SHARP TURN", "legendary", "road", "Tight corner", { bend(0.2) }),
+	def("chicane", "WIGGLE", "coins", "road", "Left-right wiggle", { wiggle() }),
+	def("cross", "CROSS", "coins", "road", "Roads cross (figure 8)", { line(2, 0), line(3, 1) }),
+	def("split", "SPLIT", "coins", "road", "Pick a side of the island", { line(2, 0) }),
+	def("narrow", "SQUEEZE", "coins", "road", "Road gets thin", { line(2, 0) }),
+	-- hazards
+	def("cones", "CONES", "coins", "hazard", "Weave the cones", { line(2, 0) }),
+	def("barrels", "BARRELS", "coins", "hazard", "Dodge left, then right", { line(2, 0) }),
+	def("bumps", "BUMPS", "coins", "hazard", "Bumpy ride", { line(2, 0) }),
+	def("mud", "MUD", "coins", "hazard", "Slow and slippy", { line(2, 0) }),
+	def("puddle", "PUDDLE", "coins", "hazard", "Splash, less grip", { line(2, 0) }),
+	def("sand", "SAND", "coins", "hazard", "Heavy and slow", { line(2, 0) }),
+	def("oil", "OIL SPILL", "legendary", "hazard", "Super slippy", { line(2, 0) }),
+	-- powers
+	def("boost", "BOOST", "legendary", "power", "Speed burst", { line(2, 0) }),
+	def("jump", "JUMP", "legendary", "power", "Ramp: fly!", { line(2, 0) }),
 } :: any
 for _, d in DEFS do
 	local e = { N = false, E = false, S = false, W = false }
@@ -244,8 +270,13 @@ end
 
 TrackTiles.ALL_FREE = true -- testing: every tile unlocked for everyone (false = TileShop decides)
 
-local STRAIGHTS = { start = true, straight = true, boost = true, oil = true, chicane = true }
-local BENDS = { turn = true, sharp = true }
+local STRAIGHTS: { [string]: boolean } = {}
+local BENDS: { [string]: boolean } = { turn = true, sharp = true }
+for _, d in DEFS do
+	if #d.paths == 1 and (d.paths[1].a + 2) % 4 == d.paths[1].b then
+		STRAIGHTS[d.id] = true
+	end
+end
 
 -- The world edges a placed tile's road touches.
 local function edgesOf(t: Tile): { number }
@@ -355,31 +386,37 @@ end
 
 -- Drop a special tile on a road square: it turns itself to fit the road there.
 function TrackTiles.drop(grid: Grid, c: number, r: number, id: string): (boolean, string?)
-	local old = TrackTiles.get(grid, c, r)
-	if not old then
-		return false, "Drop it on the road"
+	if not inside(grid, c, r) then
+		return false, "Off the plot"
 	end
-	if not BY_ID[id] or id == "start" then
+	local d = BY_ID[id]
+	if not d or id == "start" then
 		return false, "Unknown piece"
 	end
-	if old.piece == "start" then
+	local old = TrackTiles.get(grid, c, r)
+	if old and old.piece == "start" then
 		return false, "Not on the START"
 	end
-	local e = edgesOf(old)
-	if id == "cross" then
-		if #e == 2 and (e[1] + 2) % 4 == e[2] then
-			return TrackTiles.place(grid, c, r, "cross", 0)
+	-- pick the turn that joins the most road around it (ties: keep the old tile's ends)
+	local oldEnds = if old then edgesOf(old) else {}
+	local bestRot, bestScore = 0, -1
+	for rot = 0, 3 do
+		local score = 0
+		for e = 0, 3 do
+			if opens(d, rot, e) then
+				if connected(grid, c, r, e) then
+					score += 10
+				end
+				if table.find(oldEnds, e) then
+					score += 1
+				end
+			end
 		end
-		return false, "Cross goes on a straight"
+		if score > bestScore then
+			bestRot, bestScore = rot, score
+		end
 	end
-	if #e ~= 2 then
-		return false, "Doesn't fit here"
-	end
-	local rot = TrackTiles.fit(id, e[1], e[2])
-	if not rot then
-		return false, if STRAIGHTS[id] then "Needs a straight" else "Needs a turn"
-	end
-	return TrackTiles.place(grid, c, r, id, rot)
+	return TrackTiles.place(grid, c, r, id, bestRot)
 end
 
 -- The starter track: a ring round the edge of the grid, START in the front row going east.
@@ -630,6 +667,86 @@ local function pathPoints(grid: Grid, t: Tile, pth: Path): { Kit.Pt }
 	return out
 end
 
+local SURFACES: { [string]: { name: string, color: Color3, grip: number, drag: number?, mat: string } } =
+	{
+		boost = { name = "BoostPad", color = BOOST_COLOR, grip = 1, mat = "Neon" },
+		oil = { name = "OilPatch", color = OIL_COLOR, grip = 0.35, mat = "Glass" },
+		mud = { name = "MudPatch", color = rgb(110, 78, 46), grip = 0.6, drag = 0.8, mat = "Mud" },
+		puddle = { name = "Puddle", color = rgb(70, 140, 210), grip = 0.5, mat = "Glass" },
+		sand = {
+			name = "SandPatch",
+			color = rgb(222, 196, 130),
+			grip = 0.8,
+			drag = 1.2,
+			mat = "Sand",
+		},
+	}
+
+-- Hazards and powers sitting on a tile: plot-local CFrame from tile spots (u across, v along the
+-- rot-0 road, in cells), so everything turns with the tile.
+local function buildExtras(parent: Instance, origin: CFrame, grid: Grid, t: Tile)
+	local cell = TrackTiles.CELL
+	local ROAD = TrackTiles.ROAD
+	local cx, cz = TrackTiles.cellCenter(grid, t.c, t.r)
+	local yaw = CFrame.Angles(0, -t.rot * math.pi / 2, 0)
+	local function at(u: number, y: number, v: number): CFrame
+		return CFrame.new(cx, 0, cz) * yaw * CFrame.new(u * cell, y, -v * cell)
+	end
+	local function box(name: string, size: Vector3, cf: CFrame, color: Color3): Part
+		local p = Kit.part(parent, name, origin, size, cf, color)
+		p:SetAttribute("Grip", 1)
+		return p
+	end
+	local id = t.piece
+	local surf = SURFACES[id]
+	if surf then
+		-- a patch just on top of the road along the middle of the tile
+		local pad =
+			box(surf.name, Vector3.new(ROAD - 6, 0.04, cell * 0.6), at(0, 0.12, 0), surf.color)
+		pad.Material = (Enum.Material :: any)[surf.mat]
+		pad:SetAttribute("Grip", surf.grip)
+		if surf.drag then
+			pad:SetAttribute("Drag", surf.drag)
+		end
+		if id == "boost" then
+			pad:SetAttribute("Boost", true) -- the car pushes forward while on it
+		elseif id == "oil" then
+			pad:SetAttribute("Oil", true)
+		end
+	elseif id == "jump" then
+		-- a hump: up, flat top, down (works whichever way the loop runs)
+		local h, w = 4, ROAD - 4
+		local a, b2 = at(0, 0, -0.42).Position, at(0, h, -0.12).Position
+		local c2, d2 = at(0, h, 0.12).Position, at(0, 0, 0.42).Position
+		Kit.ramp(parent, "JumpRamp", origin, a, b2, w, BOOST_COLOR):SetAttribute("Grip", 1)
+		Kit.ramp(parent, "JumpRamp", origin, d2, c2, w, BOOST_COLOR):SetAttribute("Grip", 1)
+		box("JumpTop", Vector3.new(w, 1, cell * 0.24), at(0, h - 0.5, 0), ROAD_COLOR)
+	elseif id == "cones" then
+		for i, sp in { { -0.13, -0.3 }, { 0.13, -0.1 }, { -0.13, 0.1 }, { 0.13, 0.3 } } do
+			box("Cone", Vector3.new(3, 4, 3), at(sp[1], 2, sp[2]), Kit.COLORS.orange).Name = "Cone"
+				.. i
+		end
+	elseif id == "barrels" then
+		box("Barrel", Vector3.new(12, 5, 6), at(-0.15, 2.5, -0.2), Kit.COLORS.red)
+		box("Barrel", Vector3.new(12, 5, 6), at(0.15, 2.5, 0.2), Kit.COLORS.red)
+	elseif id == "bumps" then
+		for _, v in { -0.25, 0, 0.25 } do
+			box("Bump", Vector3.new(ROAD - 2, 0.8, 3), at(0, 0.4, v), Kit.COLORS.white)
+		end
+	elseif id == "narrow" then
+		for _, side in { -1, 1 } do
+			box(
+				"Squeeze",
+				Vector3.new(7, 3, cell * 0.4),
+				at(side * (ROAD / 2 - 3.5) / cell, 1.5, 0),
+				Kit.COLORS.red
+			)
+		end
+	elseif id == "split" then
+		box("Island", Vector3.new(8, 2, cell * 0.55), at(0, 1, 0), rgb(86, 150, 70))
+	end
+end
+
 -- Road, curbs, grass, the start line and boost / oil pads for every tile (loose ones too, so
 -- the owner sees what they put down). Big studs, plot-local around origin, like Race.build.
 function TrackTiles.build(parent: Instance, origin: CFrame, grid: Grid)
@@ -715,29 +832,8 @@ function TrackTiles.build(parent: Instance, origin: CFrame, grid: Grid)
 				end
 			end
 		end
-		-- pads sit just on top of the road along the middle of the tile
-		if t.piece == "boost" or t.piece == "oil" then
-			local p, q = pts[3], pts[#pts - 2]
-			local pad = Kit.slab(
-				parent,
-				if t.piece == "boost" then "BoostPad" else "OilPatch",
-				origin,
-				Vector3.new(p.x, 0.12, p.z),
-				Vector3.new(q.x, 0.12, q.z),
-				ROAD - 6,
-				0.04,
-				0,
-				if t.piece == "boost" then BOOST_COLOR else OIL_COLOR
-			)
-			if t.piece == "boost" then
-				pad.Material = Enum.Material.Neon
-				pad:SetAttribute("Grip", 1)
-				pad:SetAttribute("Boost", true) -- the car pushes forward while on it
-			else
-				pad.Material = Enum.Material.Glass
-				pad:SetAttribute("Grip", TrackTiles.OIL_GRIP)
-				pad:SetAttribute("Oil", true)
-			end
+		if k == 1 or owners[k - 1] ~= t then
+			buildExtras(parent, origin, grid, t)
 		end
 	end
 
