@@ -9,7 +9,8 @@
 -- Server -> client (StarsEvent): ("stars", count, saving), ("run", info), ("coins", count),
 -- ("toast", text), ("bolts", found, total, onRock), ("bolt", id), ("boltsFound", ids) and
 -- ("rivals", list, streak, winPoints), ("daily", coins, days in a row, boost) and ("jobs", lines,
--- secondsToNewJobs). The client never sends. workspace "CoinBoost" = 2 on weekends (every coin
+-- secondsToNewJobs), ("goal", goal or nil) = Rewards.next (what to save up for).
+-- The client never sends. workspace "CoinBoost" = 2 on weekends (every coin
 -- gift doubled).
 
 local Players = game:GetService("Players")
@@ -22,6 +23,7 @@ local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local Medals = require(ReplicatedStorage.Shared.Medals)
 local Profile = require(ReplicatedStorage.Shared.Profile)
 local RunCheck = require(ReplicatedStorage.Shared.RunCheck)
+local Rewards = require(ReplicatedStorage.Shared.Rewards)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local PlayerData = require(script.Parent.PlayerData)
 local Pings = require(script.Parent.Pings)
@@ -765,6 +767,48 @@ task.spawn(function()
 			end
 		end
 	end
+end)
+
+-- ===== race prizes and the next unlock =====
+
+-- The goal to save up for, sent again whenever coins, stars or cars change (from any shop).
+local goalSeen: { [Player]: string } = {}
+local function goalOf(data: Profile.Data): Rewards.Goal?
+	return Rewards.next(data :: any)
+end
+local function sendGoal(player: Player, force: boolean?)
+	local data = PlayerData.get(player)
+	if not data then
+		return
+	end
+	local n = 0
+	for _ in data.cars do
+		n += 1
+	end
+	for _ in data.tiles do
+		n += 1
+	end
+	local key = `{data.coins}/{data.stars}/{n}`
+	if goalSeen[player] == key and not force then
+		return
+	end
+	local first = goalSeen[player] == nil
+	goalSeen[player] = key
+	if not first then
+		remote:FireClient(player, "coins", data.coins)
+	end
+	remote:FireClient(player, "goal", goalOf(data))
+end
+task.spawn(function()
+	while true do
+		for _, p in Players:GetPlayers() do
+			sendGoal(p)
+		end
+		task.wait(1)
+	end
+end)
+Players.PlayerRemoving:Connect(function(p)
+	goalSeen[p] = nil
 end)
 
 local acc = 0
