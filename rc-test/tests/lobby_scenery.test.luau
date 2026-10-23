@@ -123,6 +123,10 @@ test("each Meshy prop has its block stand-in, a known model name, a size and a t
 		BigRock = true,
 		FlatRock = true,
 		Cactus = true,
+		TreeStump = true,
+		Log = true,
+		RockPile = true,
+		HayBale = true,
 	}
 	local count: { [number]: number } = {}
 	for _, p in all do

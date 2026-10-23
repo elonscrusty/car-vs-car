@@ -372,6 +372,60 @@ function LobbyScenery.layout(): ({ Piece }, { Prop })
 		end
 	end
 
+	local WOOD = { 128, 88, 54 }
+	-- tree stump or a fallen log, beside a tree
+	local function stumpOrLog(x: number, z: number)
+		if rand(0, 1) < 0.5 then
+			begin("TreeStump", x, z, 1.4, 1.4, true)
+			add("Stump", "Block", x, 0.6, z, 1.6, 1.2, 1.6, 0, rand(0, 90), 0, WOOD, true)
+		else
+			begin("Log", x, z, 1.3, 0, true)
+			add("Log", "Block", x, 0.6, z, 3.6, 1.2, 1.2, 0, rand(0, 180), 0, WOOD, true)
+		end
+	end
+
+	-- a small heap of grey stones
+	local function rockPile(x: number, z: number, s: number)
+		begin("RockPile", x, z, 2.2 * s, 0, true)
+		for i = 1, 3 do
+			local a = i * 2.1
+			add(
+				"RockPile",
+				"Block",
+				x + math.cos(a) * 0.9 * s,
+				0.6 * s,
+				z + math.sin(a) * 0.9 * s,
+				1.6 * s,
+				1.3 * s,
+				1.5 * s,
+				rand(-20, 20),
+				rand(0, 90),
+				rand(-20, 20),
+				pick(ROCK),
+				true
+			)
+		end
+	end
+
+	local function hayBale(x: number, z: number)
+		begin("HayBale", x, z, 1.8, 0, true)
+		add(
+			"HayBale",
+			"Block",
+			x,
+			0.9,
+			z,
+			3.4,
+			1.8,
+			1.8,
+			0,
+			rand(0, 180),
+			0,
+			{ 222, 190, 100 },
+			true
+		)
+	end
+
 	-- cactus: a green column with two arms
 	local function cactus(x: number, z: number, s: number)
 		begin("Cactus", x, z, 4.5 * s, 0.9 * s, false)
@@ -430,6 +484,17 @@ function LobbyScenery.layout(): ({ Piece }, { Prop })
 			tree(x, z, s)
 		else
 			pine(x, z, s)
+		end
+		-- now and then a stump or a fallen log at its foot (toward the lobby, kept off the paths)
+		if rand(0, 1) < 0.14 then
+			local g = LobbyLayout.ground()
+			local dx, dz = (g.minX + g.maxX) / 2 - x, (g.minZ + g.maxZ) / 2 - z
+			local len = math.sqrt(dx * dx + dz * dz)
+			local sx, sz =
+				x + dx / len * 3.5 + rand(-1.5, 1.5), z + dz / len * 3.5 + rand(-1.5, 1.5)
+			if LobbyScenery.clear(sx, sz, 2) and not LobbyScenery.inLane(sx, sz, 2) then
+				stumpOrLog(sx, sz)
+			end
 		end
 	end
 
@@ -590,7 +655,11 @@ function LobbyScenery.layout(): ({ Piece }, { Prop })
 	end)
 	ring(14, 12, 1, function(x, z)
 		if not nearOpening(x, z, 4) then
-			rock(x, z, rand(1, 1.4), "Rock")
+			if rand(0, 1) < 0.3 then
+				rockPile(x, z, rand(1, 1.3))
+			else
+				rock(x, z, rand(1, 1.4), "Rock")
+			end
 			-- now and then a cactus beside the rock, on its lobby side
 			if rand(0, 1) < 0.22 then
 				local mx, mz = (g.minX + g.maxX) / 2, (g.minZ + g.maxZ) / 2
@@ -613,6 +682,15 @@ function LobbyScenery.layout(): ({ Piece }, { Prop })
 		local cx = if c[1] < 0 then o.minX + 9 else o.maxX - 9
 		local cz = if c[2] < 0 then o.minZ + 9 else o.maxZ - 9
 		rock(cx, cz, 1.6, "Cliff")
+	end
+
+	-- hay bales: a pair at each far corner past the plaza
+	for _, side in { -1, 1 } do
+		local hx, hz = side * (g.maxX - 9), g.maxZ - 6
+		if free(hx, hz, 2) and not nearOpening(hx, hz, 2) then
+			hayBale(hx, hz)
+			hayBale(hx - side * 0.5, hz - 2.2)
+		end
 	end
 
 	-- 5. the island: a pine, a leafy tree and a rock
