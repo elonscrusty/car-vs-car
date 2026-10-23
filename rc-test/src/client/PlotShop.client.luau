@@ -141,6 +141,13 @@ local function row(kind: string, y: number)
 		button.Size = UDim2.fromScale(0.8, 0.22)
 		button.BackgroundTransparency = 0
 		corner(button, 0.3)
+		-- the price words stay inside the pill
+		local pad = Instance.new("UIPadding")
+		pad.PaddingLeft = UDim.new(0.1, 0)
+		pad.PaddingRight = UDim.new(0.1, 0)
+		pad.PaddingTop = UDim.new(0.16, 0)
+		pad.PaddingBottom = UDim.new(0.16, 0)
+		pad.Parent = button
 		button.Activated:Connect(function()
 			local has = table.find(state.have, it.id) ~= nil
 			remote:FireServer(if has then "toggle" else "buy", it.id)

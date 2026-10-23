@@ -4,8 +4,8 @@
 -- test it; client/RoadArrow draws it (looks only).
 local RaceArrow = {}
 
-RaceArrow.AHEAD = 16 -- how far in front of the car (big units)
-RaceArrow.NEAR = 24 -- closer than this to the gate: point the way the gate faces
+RaceArrow.AHEAD = 44 -- how far in front of the car (big units): clear of the car in chase view
+RaceArrow.NEAR = 50 -- closer than this to the gate: point the way the gate faces
 RaceArrow.MIN = 4 -- closer than this: no arrow (the next one takes over after the gate)
 
 export type Gate = { x: number, y: number, z: number, dx: number, dz: number }
