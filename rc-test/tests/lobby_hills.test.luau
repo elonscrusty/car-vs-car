@@ -146,12 +146,8 @@ test("the ring mixes kinds of hill, tree and foot detail", function()
 		truthy(t.mesh ~= "BlockTree" or t.color ~= nil, "block tree has a colour")
 	end
 	truthy(
-		meshes.PineTree
-			and meshes.LeafyTree
-			and meshes.BlockTree
-			and meshes.AutumnTree
-			and meshes.BirchTree,
-		"five kinds of tree"
+		meshes.PineTree and meshes.LeafyTree and meshes.AutumnTree and meshes.BirchTree,
+		"four kinds of tree"
 	)
 	truthy(#props > 40 and #props <= Hills.MAX_PROPS, `props: {#props}`)
 	local keep = Hills.keepBox()

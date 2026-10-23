@@ -449,12 +449,7 @@ function LobbyHills.layout(): ({ Hill }, { Tree }, { Prop }, { Landmark })
 				for _ = 1, math.floor(rand(2, 4.99)) do
 					-- carter's autumn tree, with block trees for the yellow / red / blossom ones
 					local c = AUTUMN[math.floor(rand(1, #AUTUMN + 0.99))]
-					tree(
-						h,
-						if rand(0, 1) < 0.55 then "AutumnTree" else "BlockTree",
-						rand(0.8, 1.3),
-						c
-					)
+					tree(h, "AutumnTree", rand(0.8, 1.3), c)
 				end
 				if rand(0, 1) < 0.5 then
 					tree(h, "LeafyTree", rand(0.9, 1.2))
