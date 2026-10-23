@@ -244,25 +244,35 @@ function SpawnLobby.parts(): { Piece }
 	local az = SpawnLobby.ARCH_Z
 	local ax = SpawnLobby.GAP + 1.5
 	for _, sx in { -1, 1 } do
-		add("Arch", "Pillar", v(2, 11, 2), v(sx * ax, 5.5, az), C.blue)
-		add("Arch", "Foot", v(2.8, 0.8, 2.8), v(sx * ax, 0.4, az), L.iron)
+		add("Arch", "Pillar", v(2.4, 13.6, 2.4), v(sx * ax, 6.8, az), C.blue)
+		add("Arch", "Foot", v(3.2, 0.8, 3.2), v(sx * ax, 0.4, az), L.iron)
+		add("Arch", "Cap", v(3, 0.6, 3), v(sx * ax, 13.9, az), C.blue)
 	end
-	add("Arch", "Beam", v(2 * ax + 2, 2.4, 2), v(0, 12.2, az), C.blue)
-	local span = 2 * ax - 1
-	local tw = span / 14
-	for t = 0, 13 do
+	add("Arch", "Beam", v(2 * ax, 0.8, 1.6), v(0, 13.2, az), C.blue)
+	-- the banner is solid black and white blocks, so it stays crisp from both sides
+	local span = 2 * ax - 2.4
+	local tw = span / 16
+	for t = 0, 15 do
 		local x = -span / 2 + tw / 2 + t * tw
-		for row = 0, 1 do
+		for row = 0, 2 do
 			add(
 				"Arch",
 				"Check",
-				v(tw, 0.6, 0.1),
-				v(x, 11.9 + row * 0.6, az + 1.05),
+				v(tw, tw, 1.2),
+				v(x, 12.8 - tw / 2 - row * tw, az),
 				if (t + row) % 2 == 0 then L.black else L.white,
 				{ collide = false }
 			)
 		end
 	end
+	add(
+		"Arch",
+		"Trim",
+		v(span, 0.3, 1.4),
+		v(0, 12.8 - 3 * tw - 0.15, az),
+		C.blue,
+		{ collide = false }
+	)
 
 	-- ===== Lamps =====
 	for i, p in SpawnLobby.LAMPS do
@@ -377,14 +387,6 @@ do
 			true
 		)
 	end
-	mesh(
-		"FinishArch",
-		"Arch",
-		v(0, 0, SpawnLobby.ARCH_Z),
-		v(2 * SpawnLobby.GAP + 5, 14, 3),
-		{},
-		true
-	)
 	for i, p in SpawnLobby.LAMPS do
 		mesh("StreetLamp", "Lamp" .. i, v(p.x, 0, p.z), v(2, 11.5, 2), {}, true)
 	end
