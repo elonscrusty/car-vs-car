@@ -314,7 +314,8 @@ end
 -- A plain duck floating, `size` 1 for a grown-up.
 local function duck(m: Maker, x: number, z: number, ry: number, size: number, body: { number })
 	local y = LobbyWater.WATER_TOP
-	m.spot("Duck", x, y - 0.2 * size, z, ry, 1.5 * size)
+	-- carter's Duck mesh has its beak at -Z (props HANDOFF.md), MeshProps turns +Z to the front
+	m.spot("Duck", x, y - 0.2 * size, z, ry + 180, 1.5 * size)
 	local put = m.frame(x, y, z, ry)
 	local function p(
 		name: string,
