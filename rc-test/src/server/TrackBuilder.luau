@@ -1,9 +1,12 @@
 --!strict
 -- Builds every plot: the shared base (floor, outer walls, front area) plus the plot's own track
--- from Plots/<Type>.luau. Each plot is built big, then copied and shrunk to real RC size.
+-- from Plots/<Type>.luau. Each kind of plot is built big once (kept out of the world), then
+-- copied, shrunk to real RC size and turned onto every lobby plot of that kind
+-- (workspace.Plots.<slot>_<id>): the lobby plots are the tracks.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local Kit = require(ReplicatedStorage.Shared.Plots.Kit)
 
@@ -130,34 +133,38 @@ local function buildBase(parent: Instance, origin: CFrame, label: string, grip: 
 	end
 end
 
--- Builds every plot twice: big test size, and a shrunk copy at real RC size.
+-- Builds each kind of plot big, then a real-size copy on every lobby plot of that kind.
 function TrackBuilder.build()
 	local root = Instance.new("Folder")
 	root.Name = "Plots"
 	root.Parent = workspace
+	local big: { [string]: Model } = {}
 	for _, id in TrackData.order do
 		local t = TrackData.get(id)
 		local plot = TrackData.plot(id)
 		local origin = CFrame.new(t.originX, 0, 0)
-		local big = Instance.new("Model")
-		big.Name = id
-		buildBase(big, origin, t.label, t.grip)
-		plot.build(big, origin)
+		local m = Instance.new("Model")
+		m.Name = id
+		buildBase(m, origin, t.label, t.grip)
+		plot.build(m, origin)
 		-- walls are slippery and a little bouncy: the car pushes off instead of grinding along
-		for _, d in big:GetDescendants() do
+		for _, d in m:GetDescendants() do
 			if d:IsA("BasePart") and string.find(d.Name, "Wall") then
 				d.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0, 0.45, 100, 100)
 			end
 		end
-		big.WorldPivot = origin
-		big.Parent = root
-
-		local small = big:Clone()
-		small.Name = id .. "_rc"
-		small:ScaleTo(TrackData.RC_SCALE)
-		local ox, oz = TrackData.origin(t, true)
-		small:PivotTo(CFrame.new(ox, 0, oz))
-		small.Parent = root
+		m.WorldPivot = origin
+		big[id] = m
+	end
+	for _, slot in LobbyLayout.slots() do
+		local copy = big[slot.id]:Clone()
+		copy.Name = slot.index .. "_" .. slot.id
+		copy:ScaleTo(TrackData.RC_SCALE)
+		copy:PivotTo(CFrame.new(slot.plotX, 0, slot.plotZ) * CFrame.Angles(0, slot.angle, 0))
+		copy.Parent = root
+	end
+	for _, m in big do
+		m:Destroy()
 	end
 end
 

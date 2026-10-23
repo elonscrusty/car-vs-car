@@ -1,18 +1,16 @@
 --!strict
 -- RC car feel test: builds the tracks, gives every player a car and hands them its physics.
--- People start walking in the lobby (small copies of the plots); on a plot's pad, E (or the
--- prompt's tap button) drives their car on the full-size plot from its stand, and E again (or
--- WALK) goes back to walking in the lobby.
+-- People start walking in the lobby, whose plots ARE the tracks: on a plot's pad, E (or the
+-- DRIVE button) drives their car on that plot right there, from its stand, and E again (or
+-- WALK) goes back to walking. Everyone on the street sees every drive live.
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local CarBuilder = require(script.Parent.CarBuilder)
 local LobbyBuilder = require(script.Parent.LobbyBuilder)
-local MiniCars = require(script.Parent.MiniCars)
 local TrackBuilder = require(script.Parent.TrackBuilder)
 
 Players.CharacterAutoLoads = false
@@ -28,11 +26,10 @@ end
 TrackBuilder.build()
 local lobby = LobbyBuilder.build()
 local slots = LobbyLayout.slots()
-local miniCars = MiniCars.new(workspace:WaitForChild("Lobby"))
 
--- Client -> server: ("place", rc: boolean, trackIndex: number) when the size or track changes
--- (only while driving), ("walk") to leave the stand.
--- Server -> client: ("drive", trackIndex) and ("walk").
+-- Client -> server: ("place", rc: boolean, slotIndex: number) when a drive (re)starts (only
+-- while driving that plot), ("walk") to leave the stand.
+-- Server -> client: ("drive", slotIndex) and ("walk").
 local remote = Instance.new("RemoteEvent")
 remote.Name = "RCControl"
 remote.Parent = ReplicatedStorage
@@ -43,8 +40,9 @@ local lastAsk: { [Player]: number } = {}
 local function spawnCF(t: TrackData.Track, rc: boolean): CFrame
 	local s = t.spawn
 	local x, y, z = TrackData.toWorld(t, rc, s.x, s.y, s.z)
+	local dx, dz = TrackData.dirToWorld(t, rc, s.dx, s.dz)
 	local pos = Vector3.new(x, y, z)
-	return CFrame.lookAt(pos, pos + Vector3.new(s.dx, 0, s.dz))
+	return CFrame.lookAt(pos, pos + Vector3.new(dx, 0, dz))
 end
 
 local function giveCar(player: Player, t: TrackData.Track, rc: boolean, at: CFrame?)
@@ -124,20 +122,13 @@ local function placePerson(player: Player, t: TrackData.Track, rc: boolean)
 	char:PivotTo(CFrame.lookAt(pos, Vector3.new(fx, y, fz)))
 end
 
--- Who drives what. A real track has one driver at a time; the lobby slot is the small plot they
--- started from (its sign, its copy car, where they come back to). Walking people are in none.
-local driving: { [Player]: number } = {} -- player -> real track index
-local drivingSlot: { [Player]: number } = {} -- player -> lobby slot index
-local driverOf: { [number]: Player } = {} -- real track index -> player
+-- Who drives what: a lobby plot has one driver at a time. Walking people are in none.
+local driving: { [Player]: number } = {} -- player -> lobby plot (slot) index
+local driverOf: { [number]: Player } = {} -- slot index -> player
 local lastPrompt: { [Player]: number } = {}
 
 local function setSign(slotIndex: number)
-	local who: Player? = nil
-	for p, si in drivingSlot do
-		if si == slotIndex then
-			who = p
-		end
-	end
+	local who = driverOf[slotIndex]
 	lobby.signs[slotIndex].Text = LobbyLayout.signText(if who then who.DisplayName else nil)
 end
 for i in slots do
@@ -158,7 +149,7 @@ local function loadWalker(player: Player)
 	end
 	addRemote(char)
 	local x, y, z = LobbyLayout.spawn()
-	char:PivotTo(CFrame.lookAt(Vector3.new(x, y, z), Vector3.new(x, y, z - 1)))
+	char:PivotTo(CFrame.lookAt(Vector3.new(x, y, z), Vector3.new(x, y, z + 1)))
 	local hum = char:FindFirstChildOfClass("Humanoid")
 	if hum then
 		hum.Died:Connect(function()
@@ -170,39 +161,24 @@ local function loadWalker(player: Player)
 	end
 end
 
--- Start (or move) a player's drive: real track `track`, shown on lobby slot `slotIndex`.
-local function claim(player: Player, track: number, slotIndex: number)
-	local old = driving[player]
-	if old then
-		driverOf[old] = nil
-	end
-	local oldSlot = drivingSlot[player]
-	driving[player] = track
-	drivingSlot[player] = slotIndex
-	driverOf[track] = player
-	if oldSlot and oldSlot ~= slotIndex then
-		setSign(oldSlot)
-	end
+local function claim(player: Player, slotIndex: number)
+	driving[player] = slotIndex
+	driverOf[slotIndex] = player
 	setSign(slotIndex)
 end
 
 local function release(player: Player)
-	miniCars.remove(player)
 	local old = driving[player]
 	if old then
 		driverOf[old] = nil
 		driving[player] = nil
-	end
-	local oldSlot = drivingSlot[player]
-	drivingSlot[player] = nil
-	if oldSlot then
-		setSign(oldSlot)
+		setSign(old)
 	end
 end
 
--- Off the stand, back in the lobby in front of that small plot, walking.
+-- Off the stand, back on that plot's pad, walking.
 local function walk(player: Player)
-	local slotIndex = drivingSlot[player]
+	local slotIndex = driving[player]
 	if slotIndex == nil then
 		return
 	end
@@ -215,13 +191,13 @@ local function walk(player: Player)
 		local pos = Vector3.new(slot.exitX, 3, slot.exitZ)
 		local char = player.Character :: Model
 		root.Anchored = false
-		-- look along the road, toward the plaza
-		char:PivotTo(CFrame.lookAt(pos, pos + Vector3.new(0, 0, 1)))
+		-- facing the road
+		char:PivotTo(CFrame.lookAt(pos, Vector3.new(0, 3, slot.exitZ)))
 	end
 	remote:FireClient(player, "walk")
 end
 
--- E on a lobby pad: drive that plot's track (if nobody else is), or stop driving.
+-- E on a lobby pad: drive that plot (if nobody else is), or stop driving.
 for slotIndex, prompt in lobby.prompts do
 	local slot = slots[slotIndex]
 	prompt.Triggered:Connect(function(player: Player)
@@ -230,19 +206,19 @@ for slotIndex, prompt in lobby.prompts do
 			return
 		end
 		lastPrompt[player] = now
-		if drivingSlot[player] == slotIndex then
+		if driving[player] == slotIndex then
 			walk(player)
 			return
 		end
-		if driving[player] ~= nil or driverOf[slot.track] ~= nil then
+		if driving[player] ~= nil or driverOf[slotIndex] ~= nil then
 			return
 		end
 		local root = rootOf(player)
 		if not (root and LobbyLayout.inReach(slot, root.Position.X, root.Position.Z)) then
 			return
 		end
-		claim(player, slot.track, slotIndex)
-		remote:FireClient(player, "drive", slot.track)
+		claim(player, slotIndex)
+		remote:FireClient(player, "drive", slotIndex)
 	end)
 end
 
@@ -258,22 +234,12 @@ remote.OnServerEvent:Connect(function(player: Player, kind: unknown, rc: unknown
 	if kind ~= "place" or type(rc) ~= "boolean" or type(index) ~= "number" then
 		return
 	end
+	-- only the plot being driven (the big test size is gone with the big plots)
 	local i = math.floor(index)
-	if i < 1 or i > #TrackData.order then
+	if not rc or driving[player] ~= i then
 		return
 	end
-	-- only drivers move their car; the plot keys may switch to a plot nobody else is driving
-	if driving[player] == nil or (driverOf[i] ~= nil and driverOf[i] ~= player) then
-		return
-	end
-	-- keep the slot they started from when it shows this track, else the first one that does
-	-- (show has no lobby slot: keep the old one)
-	local slotIndex = drivingSlot[player] :: number
-	if slots[slotIndex].track ~= i then
-		slotIndex = LobbyLayout.slotFor(i) or slotIndex
-	end
-	claim(player, i, slotIndex)
-	local t = TrackData.get(TrackData.order[i])
+	local t: TrackData.Track = LobbyLayout.track(i)
 	local want = if rc then TrackData.RC_SCALE else 1
 	if carScale[player] ~= want then
 		-- rebuilding the car is the costly part: at most 4 times a second
@@ -287,12 +253,12 @@ remote.OnServerEvent:Connect(function(player: Player, kind: unknown, rc: unknown
 	placePerson(player, t, rc)
 end)
 
--- Start walking in the plaza, car parked in front of the start pad.
+-- Start walking in the spawn lobby, car parked at the top of the road.
 local joined = 0
 local function onJoin(player: Player)
 	joined += 1
 	local px, pz = LobbyLayout.parkSpot(joined)
-	local park = CFrame.lookAt(Vector3.new(px, 1, pz), Vector3.new(px, 1, pz - 1))
+	local park = CFrame.lookAt(Vector3.new(px, 1, pz), Vector3.new(px, 1, pz + 1))
 	giveCar(player, TrackData.get(TrackData.order[1]), true, park)
 	loadWalker(player)
 end
@@ -311,36 +277,4 @@ Players.PlayerRemoving:Connect(function(player)
 	lastAsk[player] = nil
 	lastPrompt[player] = nil
 	release(player)
-end)
-
--- Copy cars: about 15 times a second, every driver's car is mirrored onto their plot's small
--- copy in the lobby (the car's physics runs on the driver's device; the server sees where it is).
-local mirrorWait = 0
-RunService.Heartbeat:Connect(function(dt: number)
-	mirrorWait -= dt
-	if mirrorWait > 0 then
-		return
-	end
-	mirrorWait = 1 / 15
-	for player, index in driving do
-		local slot = slots[drivingSlot[player]]
-		local car = workspace:FindFirstChild("Car_" .. player.UserId)
-		local body = car and (car :: Model).PrimaryPart
-		if not body then
-			miniCars.place(player, nil)
-			continue
-		end
-		local t = TrackData.get(TrackData.order[index])
-		local rc = carScale[player] ~= 1
-		local p = body.Position
-		local lx, ly, lz = TrackData.toLocal(t, rc, p.X, p.Y, p.Z)
-		-- the copy car only shows on a small plot of the same track (not while on show)
-		local mx, my, mz = LobbyLayout.toMini(slot, lx, ly, lz)
-		if mx == nil or slot.track ~= index then
-			miniCars.place(player, nil)
-		else
-			local turn = CFrame.Angles(0, slot.angle, 0)
-			miniCars.place(player, turn * body.CFrame.Rotation + Vector3.new(mx, my, mz))
-		end
-	end
 end)

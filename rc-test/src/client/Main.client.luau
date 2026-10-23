@@ -1,6 +1,7 @@
 --!strict
--- RC car feel test, player side: drives the car, runs the camera, switches tracks, times laps.
--- Starts walking in the lobby; the server says "drive" (E on a stand) and "walk" (E again).
+-- RC car feel test, player side: drives the car, runs the camera, times laps.
+-- Starts walking in the lobby; the server says "drive" (E on a plot's pad: drive that lobby plot,
+-- right there) and "walk" (E again). `current` is the lobby plot being driven.
 
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
@@ -9,6 +10,7 @@ local RunService = game:GetService("RunService")
 
 local CarMath = require(ReplicatedStorage.Shared.CarMath)
 local LapTimer = require(ReplicatedStorage.Shared.LapTimer)
+local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
 
@@ -95,14 +97,17 @@ local skin = CarSkin.new() -- the truck model on the rock car (look only)
 local rc = true -- T flips to the big test size while driving
 local swapping = false
 
+-- one track per lobby plot (its kind's data, placed where that plot sits)
 local tracks: { TrackData.Track } = {}
 local timers: { LapTimer.State } = {}
-local labels: { string } = {}
-for i, id in TrackData.order do
-	local t = TrackData.get(id)
+for i in LobbyLayout.slots() do
+	local t: TrackData.Track = LobbyLayout.track(i)
 	tracks[i] = t
 	timers[i] = LapTimer.new(t.gates, t.mode)
-	labels[i] = t.label
+end
+local labels: { string } = {}
+for i, id in TrackData.order do
+	labels[i] = TrackData.get(id).label
 end
 
 local current = 1
@@ -141,16 +146,21 @@ local function goTo(index: number)
 	driftChain, driftTotal, driftHold, driftHeld = 0, 0, 0, 0
 	local s = t.spawn
 	local x, y, z = TrackData.toWorld(t, rc, s.x, s.y, s.z)
+	local dx, dz = TrackData.dirToWorld(t, rc, s.dx, s.dz)
 	local pos = Vector3.new(x, y, z)
 	remote:FireServer("place", rc, index)
-	car.teleport(CFrame.lookAt(pos, pos + Vector3.new(s.dx, 0, s.dz)))
+	car.teleport(CFrame.lookAt(pos, pos + Vector3.new(dx, 0, dz)))
 	camera.snap()
-	hud.setActiveTrack(index)
+	hud.setActiveTrack(TrackData.index(t.id))
 	hud.setDrift(0, 0, t.id == "drift")
 end
 
 -- The server builds a new car at the other size; hook everything onto it.
 local function swapSize()
+	-- the big plots are gone (the lobby plots are the tracks): nothing to swap to for now
+	if true then
+		return
+	end
 	if swapping or walking then
 		return
 	end
@@ -214,8 +224,9 @@ local function reset(why: string?)
 	if cps and checkpoint > 0 and not again then
 		local s = cps[checkpoint].spawn
 		local x, y, z = TrackData.toWorld(t, rc, s.x, s.y, s.z)
+		local dx, dz = TrackData.dirToWorld(t, rc, s.dx, s.dz)
 		local pos = Vector3.new(x, y, z)
-		car.teleport(CFrame.lookAt(pos, pos + Vector3.new(s.dx, 0, s.dz)))
+		car.teleport(CFrame.lookAt(pos, pos + Vector3.new(dx, 0, dz)))
 		camera.snap()
 		hud.flash("BACK TO CHECKPOINT")
 		return
@@ -226,9 +237,13 @@ local function reset(why: string?)
 	end
 end
 
+-- the plot buttons and keys: the plots are on the street now, so walking there is the way
+local function pickPlot(_: number)
+	hud.flash("WALK TO A PLOT TO DRIVE IT")
+end
 local gui = Hud.createGui()
-hud = Hud.new(gui, labels, goTo)
-local controls = Controls.new(gui, reset, goTo, function()
+hud = Hud.new(gui, labels, pickPlot)
+local controls = Controls.new(gui, reset, pickPlot, function()
 	if tracks[current].id == "rock" then
 		return -- rocks is free cam only
 	end

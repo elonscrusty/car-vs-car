@@ -1,7 +1,6 @@
 --!strict
--- Low-poly lobby props from plain blocks (flat colours, no text or logos): trees and lamps (the
--- car shop is PlazaParts/Shop, the garage Shared/Garage). Stand-ins: the scenery thread replaces
--- them. Looks only for now: no shop or upgrade logic.
+-- Low-poly lobby props from plain blocks (flat colours, no text or logos): trees, lamps, cones
+-- and tyres, the stand-ins for carter's meshes (MeshProps) until they are imported.
 
 local LobbyProps = {}
 

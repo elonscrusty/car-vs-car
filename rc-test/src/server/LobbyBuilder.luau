@@ -1,20 +1,17 @@
 --!strict
--- Builds the walking lobby (LobbyLayout, carter's picture): grass, the road with its
--- footpaths, the plaza, and per slot a small garden-size copy of a plot, a sign and a DRIVE pad
--- with a prompt; then the props (LobbyProps). Low-poly flat colours, no text or logos.
--- Run after TrackBuilder.build() (the RC plots are copied from workspace.Plots).
+-- Builds the walking lobby (LobbyLayout, carter's plan v5): grass, the road with its
+-- footpaths, and per lobby plot a name sign and a DRIVE pad with a prompt (the plots themselves
+-- are the real tracks, TrackBuilder's); then the props (LobbyProps, MeshProps), the spawn lobby
+-- (SpawnLobby), the scenery and the water. Low-poly flat colours, no text or logos.
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
-local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local LobbyProps = require(script.Parent.LobbyProps)
 local MeshProps = require(script.Parent.MeshProps)
 local LobbyWaterBuilder = require(script.Parent.LobbyWaterBuilder)
 local LobbyPerf = require(script.Parent.LobbyPerf)
-local PlazaBuilder = require(script.Parent.PlazaBuilder)
-local SceneryBuilder = require(script.Parent.SceneryBuilder)
 
 local LobbyBuilder = {}
 
@@ -43,34 +40,13 @@ local function slab(
 	)
 end
 
--- The ground heightfield's parts (Rock plot): swapped for a coarse one in the lobby copy
-local GROUND = { Ground = true, Road = true, Grass = true, Wall = true }
-
--- A copy of a plot for the lobby. A plot with a lowGround (Rock: thousands of ground triangles)
--- gets its fine ground swapped for a coarse one, so the copy looks the same from the street
--- with far fewer parts. Copied from the full-size plot, whose pivot is the plot's origin.
-local function lowCopy(plots: Instance, id: string): Model
-	local plot = TrackData.plot(id)
-	if not plot.lowGround then
-		return (plots:WaitForChild(id .. "_rc") :: Model):Clone()
-	end
-	local m = (plots:WaitForChild(id) :: Model):Clone()
-	for _, d in m:GetChildren() do
-		if d:IsA("WedgePart") and GROUND[d.Name] then
-			d:Destroy()
-		end
-	end
-	plot.lowGround(m, m.WorldPivot)
-	return m
-end
-
 function LobbyBuilder.build(): Built
 	local folder = Instance.new("Folder")
 	folder.Name = "Lobby"
 	folder.Parent = workspace
 
-	-- grass a hair under the small plots' floors so they never flicker, the light footpaths,
-	-- the dark road on top. The plaza is PlazaBuilder's (water, shore, fences: LobbyWater, scenery)
+	-- grass a hair under the plots' floors so they never flicker, the light footpaths, the dark
+	-- road on top (the spawn lobby is SpawnLobby's; water, shore, hills: LobbyWater, scenery)
 	slab(folder, "Grass", LobbyLayout.ground(), -0.05, 2, Color3.fromRGB(116, 186, 82))
 	slab(folder, "Footpath", LobbyLayout.walks(), 0.05, 1, Color3.fromRGB(217, 214, 207))
 	local road = LobbyLayout.road()
@@ -90,32 +66,22 @@ function LobbyBuilder.build(): Built
 	end
 
 	local built: Built = { prompts = {}, signs = {} }
-	local plots = workspace:WaitForChild("Plots")
 	for _, slot in LobbyLayout.slots() do
-		local turn = CFrame.Angles(0, slot.angle, 0)
-		-- the small garden-size copy of this plot, front to the road (looks only: driving happens
-		-- on the real one)
-		local mini = lowCopy(plots, slot.id)
-		mini.Name = "Mini_" .. slot.index .. "_" .. slot.id
-		mini:ScaleTo(LobbyLayout.MINI)
-		mini:PivotTo(CFrame.new(slot.plotX, 0, slot.plotZ) * turn)
-		mini.Parent = folder
-
-		-- sign on the footpath edge at the plot's front corner: the plot, or who is driving it
+		-- name sign on the footpath edge by the plot's front: who is driving it (blank if nobody)
 		local toRoad = if slot.plotX < 0 then 1 else -1
 		local board = part(
 			folder,
 			"Sign_" .. slot.index,
-			Vector3.new(0.4, 3, 7),
-			CFrame.new(slot.signX, 2.6, slot.signZ),
+			Vector3.new(0.4, 3, 10),
+			CFrame.new(slot.signX, 4, slot.signZ),
 			Color3.fromRGB(245, 245, 245)
 		)
 		for _, sz in { -1, 1 } do
 			part(
 				folder,
 				"SignPost",
-				Vector3.new(0.4, 1.2, 0.4),
-				CFrame.new(slot.signX, 0.6, slot.signZ + sz * 2.8),
+				Vector3.new(0.4, 2.5, 0.4),
+				CFrame.new(slot.signX, 1.25, slot.signZ + sz * 4.2),
 				Color3.fromRGB(140, 98, 60)
 			)
 		end
@@ -131,7 +97,7 @@ function LobbyBuilder.build(): Built
 		text.Parent = gui
 		built.signs[slot.index] = text
 
-		-- DRIVE pad in front of it (E on a keyboard, a tap button on a phone)
+		-- DRIVE pad at the plot's entrance (E on a keyboard, the DRIVE button on a phone)
 		local pad = part(
 			folder,
 			"DrivePad_" .. slot.index,
@@ -161,14 +127,7 @@ function LobbyBuilder.build(): Built
 	local props = Instance.new("Folder")
 	props.Name = "Props"
 	props.Parent = folder
-	-- plaza trees only: the rest of the lobby's trees, bushes, rocks and fences are SceneryBuilder's
-	local plaza = LobbyLayout.PLAZA
-	for i, t in LobbyLayout.trees() do
-		if t.x >= plaza.minX and t.x <= plaza.maxX and t.z >= plaza.minZ and t.z <= plaza.maxZ then
-			LobbyProps.tree(props, t.x, t.z, 0.9 + (i % 3) * 0.15)
-		end
-	end
-	SceneryBuilder.build(folder)
+	-- (hills, trees and fences round the lobby: the landscaping thread's LobbyHills)
 	-- street lamps, cones by the pads, tyres where the road stops: carter's meshes once they
 	-- are imported (MeshProps), block stand-ins until then
 	local function spot(s: LobbyLayout.Spot): CFrame
@@ -199,27 +158,19 @@ function LobbyBuilder.build(): Built
 			LobbyProps.tires(props, t.x, t.z)
 		end
 	end
-	-- the plaza (paving, lamps, car shop, and the garage from Shared/Garage)
-	local p = LobbyLayout.PLAZA
-	PlazaBuilder.build(
-		folder,
-		CFrame.lookAt(Vector3.new(0, 0, p.minZ), Vector3.new(0, 0, p.minZ + 1))
-	)
-
-	-- start pad
-	local sx, _, sz = LobbyLayout.spawn()
-	local start = part(
-		folder,
-		"StartPad",
-		Vector3.new(8, 0.2, 8),
-		CFrame.new(sx, 0.12, sz),
-		Color3.fromRGB(127, 214, 127)
-	)
-	start.CanCollide = false
+	-- the spawn lobby at the top of the road, looking down it (shop, upgrades, car stands, race
+	-- pads: its own thread's module, built once it is there)
+	local spawnLobby = script.Parent:FindFirstChild("SpawnLobby")
+	if spawnLobby then
+		local p = LobbyLayout.PLAZA
+		local mid = Vector3.new(0, 0, (p.minZ + p.maxZ) / 2)
+		local SpawnLobby: any = require(spawnLobby :: ModuleScript)
+		SpawnLobby.build(folder, CFrame.lookAt(mid, mid + Vector3.new(0, 0, 1)))
+	end
 
 	LobbyWaterBuilder.build(folder)
 
-	-- phone speed pass over everything above (shadows/collisions off on small bits and the minis)
+	-- phone speed pass over everything above (shadows/collisions off on small bits)
 	local before, after = LobbyPerf.apply(folder)
 	print(
 		string.format(
