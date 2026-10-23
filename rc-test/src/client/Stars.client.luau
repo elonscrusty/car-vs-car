@@ -46,8 +46,42 @@ local coinChip = chip:Clone()
 coinChip.Name = "CoinCount"
 coinChip.Position = UDim2.new(0.16, 0, 0.14, 70)
 coinChip.TextColor3 = Color3.fromRGB(255, 236, 150)
-coinChip.Text = "🪙 0"
+coinChip.Text = "0"
 coinChip.Parent = gui
+-- a drawn coin (the coin emoji is missing from Roblox's font): gold disc, darker rim, a lighter
+-- inner ring. The number sits to its right.
+local coinPad = Instance.new("UIPadding")
+coinPad.PaddingLeft = UDim.new(0.42, 0)
+coinPad.PaddingRight = UDim.new(0.08, 0)
+coinPad.Parent = coinChip
+local coin = Instance.new("Frame")
+coin.Name = "Coin"
+coin.AnchorPoint = Vector2.new(0, 0.5)
+coin.Position = UDim2.new(-0.42 / 0.5, 6, 0.5, 0) -- back over the left padding
+coin.Size = UDim2.fromScale(0.7, 0.7)
+coin.SizeConstraint = Enum.SizeConstraint.RelativeYY
+coin.BackgroundColor3 = Color3.fromRGB(255, 196, 40)
+coin.Parent = coinChip
+local coinRound = Instance.new("UICorner")
+coinRound.CornerRadius = UDim.new(0.5, 0)
+coinRound.Parent = coin
+local coinRim = Instance.new("UIStroke")
+coinRim.Color = Color3.fromRGB(176, 112, 10)
+coinRim.Thickness = 2
+coinRim.Parent = coin
+local coinInner = Instance.new("Frame")
+coinInner.AnchorPoint = Vector2.new(0.5, 0.5)
+coinInner.Position = UDim2.fromScale(0.5, 0.5)
+coinInner.Size = UDim2.fromScale(0.55, 0.55)
+coinInner.BackgroundTransparency = 1
+coinInner.Parent = coin
+local innerRound = Instance.new("UICorner")
+innerRound.CornerRadius = UDim.new(0.5, 0)
+innerRound.Parent = coinInner
+local innerRing = Instance.new("UIStroke")
+innerRing.Color = Color3.fromRGB(255, 232, 140)
+innerRing.Thickness = 1.5
+innerRing.Parent = coinInner
 
 -- gold bolts found, only while on a rock plot
 local boltChip = chip:Clone()
@@ -178,7 +212,7 @@ remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unkn
 		return
 	end
 	if kind == "coins" and type(info) == "number" then
-		coinChip.Text = `🪙 {info}`
+		coinChip.Text = tostring(info)
 		return
 	end
 	if kind == "bolts" and type(info) == "number" then

@@ -242,7 +242,7 @@ local function onRun(player: Player, slotIndex: number, mode: string, value: num
 		PlayerData.touch(player)
 		remote:FireClient(player, "coins", data.coins)
 		remote:FireClient(player, "boltsFound", Profile.boltList(data))
-		remote:FireClient(player, "toast", `+{Profile.VISIT_COINS} 🪙 visit gift`)
+		remote:FireClient(player, "toast", `+{Profile.VISIT_COINS} coins: visit gift`)
 		local host = ownerPlayer(slotIndex)
 		local hostData = host and PlayerData.get(host)
 		if host and hostData then
@@ -252,7 +252,7 @@ local function onRun(player: Player, slotIndex: number, mode: string, value: num
 			remote:FireClient(
 				host,
 				"toast",
-				`+{Profile.HOST_COINS} 🪙 {player.DisplayName} visited your plot!`
+				`+{Profile.HOST_COINS} coins: {player.DisplayName} visited your plot!`
 			)
 		end
 	end
