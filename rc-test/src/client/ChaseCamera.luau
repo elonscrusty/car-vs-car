@@ -63,8 +63,8 @@ do
 				end
 				local d = input.Position - last
 				last = input.Position
-				turnX += d.X * 0.012
-				turnY += d.Y * 0.012
+				turnX += d.X * 0.006
+				turnY += d.Y * 0.006
 			end)
 		end
 	end)

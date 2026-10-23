@@ -2,6 +2,7 @@
 -- RC car feel test, player side: drives the car, runs the camera, switches tracks, times laps.
 -- Starts walking in the lobby; the server says "drive" (E on a stand) and "walk" (E again).
 
+local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -260,6 +261,8 @@ local function setWalking(on: boolean)
 	walking = on
 	gui.Enabled = not on
 	lobby.setDriving(not on)
+	-- Roblox's own thumbstick and jump button sit under STEER and GAS on a phone: only while walking
+	GuiService.TouchControlsEnabled = on
 	if walkControls then
 		if on then
 			walkControls:Enable()

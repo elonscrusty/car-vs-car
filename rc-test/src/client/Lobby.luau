@@ -30,7 +30,7 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 		local button = Instance.new("TextButton")
 		button.Name = name
 		button.AnchorPoint = Vector2.new(0.5, 1)
-		button.Position = UDim2.fromScale(0.58, 0.9)
+		button.Position = UDim2.fromScale(0.54, 0.9) -- clear of BRAKE on a 16:9 phone
 		button.Size = UDim2.fromOffset(120, 52)
 		button.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 		button.BackgroundTransparency = 0.2
