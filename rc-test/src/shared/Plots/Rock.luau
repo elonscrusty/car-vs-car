@@ -668,9 +668,23 @@ local function looks(): { [string]: Look }
 	}
 end
 
-local function buildGround(parent: Instance, origin: CFrame)
+-- grid indices 1, 1 + step, ... always ending on n
+local function strided(n: number, step: number): { number }
+	local out = {}
+	for i = 1, n, step do
+		table.insert(out, i)
+	end
+	if out[#out] ~= n then
+		table.insert(out, n)
+	end
+	return out
+end
+
+-- step 1 = the real ground; a bigger step skips grid points for the far-fewer-parts lobby copy
+local function buildGround(parent: Instance, origin: CFrame, step: number?)
 	local L = looks()
 	local g, x0, z0, nx, nz, dx, dz = Plot.grid()
+	local is, js = strided(nx, step or 1), strided(nz, step or 1)
 	local function corner(i: number, j: number): Vector3
 		return Vector3.new(x0 + (i - 1) * dx, g[i][j], z0 + (j - 1) * dz)
 	end
@@ -691,10 +705,11 @@ local function buildGround(parent: Instance, origin: CFrame)
 		end
 		return L.grass
 	end
-	for i = 1, nx - 1 do
-		for j = 1, nz - 1 do
-			local p00, p10 = corner(i, j), corner(i + 1, j)
-			local p01, p11 = corner(i, j + 1), corner(i + 1, j + 1)
+	for a = 1, #is - 1 do
+		for b = 1, #js - 1 do
+			local i, i2, j, j2 = is[a], is[a + 1], js[b], js[b + 1]
+			local p00, p10 = corner(i, j), corner(i2, j)
+			local p01, p11 = corner(i, j2), corner(i2, j2)
 			for _, tri in { { p00, p10, p11 }, { p00, p11, p01 } } do
 				local mid = (tri[1] + tri[2] + tri[3]) / 3
 				local lo = math.min(tri[1].Y, tri[2].Y, tri[3].Y)
@@ -705,7 +720,7 @@ local function buildGround(parent: Instance, origin: CFrame)
 					tri[1],
 					tri[2],
 					tri[3],
-					lookFor(mid, (hi - lo) / math.min(dx, dz))
+					lookFor(mid, (hi - lo) / math.min(p10.X - p00.X, p01.Z - p00.Z))
 				)
 			end
 		end
@@ -723,14 +738,23 @@ local function buildGround(parent: Instance, origin: CFrame)
 	end
 	local back, front = Vector3.new(0, 0, -0.5), Vector3.new(0, 0, 0.5)
 	local left, right = Vector3.new(-0.5, 0, 0), Vector3.new(0.5, 0, 0)
-	for i = 1, nx - 1 do
-		rim(corner(i, 1), corner(i + 1, 1), Plot.RIM, back)
-		rim(corner(i, nz), corner(i + 1, nz), Plot.FRONT_RIM, front)
+	for a = 1, #is - 1 do
+		local i, i2 = is[a], is[a + 1]
+		rim(corner(i, 1), corner(i2, 1), Plot.RIM, back)
+		rim(corner(i, nz), corner(i2, nz), Plot.FRONT_RIM, front)
 	end
-	for j = 1, nz - 1 do
-		rim(corner(1, j), corner(1, j + 1), Plot.RIM, left)
-		rim(corner(nx, j), corner(nx, j + 1), Plot.RIM, right)
+	for b = 1, #js - 1 do
+		local j, j2 = js[b], js[b + 1]
+		rim(corner(1, j), corner(1, j2), Plot.RIM, left)
+		rim(corner(nx, j), corner(nx, j2), Plot.RIM, right)
 	end
+end
+
+-- The ground and rim walls again with STEP times bigger triangles, for the small looks-only
+-- copies in the lobby (about 1/4 of the parts; 3 loses the trail). Same names, so the lobby can swap them in.
+Plot.LOW_STEP = 2
+function Plot.lowGround(parent: Instance, origin: CFrame)
+	buildGround(parent, origin, Plot.LOW_STEP)
 end
 
 local function buildFeature(parent: Instance, origin: CFrame, f: Feature)
