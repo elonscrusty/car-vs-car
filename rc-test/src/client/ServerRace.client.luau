@@ -63,6 +63,46 @@ local joinSize = Instance.new("UITextSizeConstraint")
 joinSize.MaxTextSize = 40
 joinSize.Parent = join
 
+-- the last seconds before a race: a huge banner up top, whose track and a giant clock
+local call = Instance.new("Frame")
+call.Name = "Call"
+call.AnchorPoint = Vector2.new(0.5, 0)
+call.Position = UDim2.new(0.5, 0, 0, 58)
+call.Size = UDim2.fromScale(0.5, 0.36)
+call.BackgroundTransparency = 1
+call.Visible = false
+call.Parent = gui
+local callAspect = Instance.new("UIAspectRatioConstraint")
+callAspect.AspectRatio = 2.6
+callAspect.Parent = call
+local callWhere = Instance.new("TextLabel")
+callWhere.Size = UDim2.fromScale(1, 0.3)
+callWhere.BackgroundColor3 = DARK
+callWhere.BackgroundTransparency = 0.15
+callWhere.Font = Enum.Font.GothamBlack
+callWhere.TextScaled = true
+callWhere.TextColor3 = Color3.new(1, 1, 1)
+callWhere.Parent = call
+corner(callWhere, 0.5)
+local callWherePad = Instance.new("UIPadding")
+callWherePad.PaddingTop = UDim.new(0.12, 0)
+callWherePad.PaddingBottom = UDim.new(0.12, 0)
+callWherePad.PaddingLeft = UDim.new(0.05, 0)
+callWherePad.PaddingRight = UDim.new(0.05, 0)
+callWherePad.Parent = callWhere
+local callClock = Instance.new("TextLabel")
+callClock.Position = UDim2.fromScale(0, 0.32)
+callClock.Size = UDim2.fromScale(1, 0.68)
+callClock.BackgroundTransparency = 1
+callClock.Font = Enum.Font.GothamBlack
+callClock.TextScaled = true
+callClock.TextColor3 = YELLOW
+callClock.Parent = call
+local callStroke = Instance.new("UIStroke")
+callStroke.Thickness = 4
+callStroke.Color = DARK
+callStroke.Parent = callClock
+
 -- the winner pop-up in the middle
 local card = Instance.new("Frame")
 card.Name = "Result"
@@ -104,11 +144,21 @@ local startAt = 0
 local where = ""
 
 RunService.RenderStepped:Connect(function()
-	join.Visible = phase ~= "racing" and startAt > 0
+	local secs = startAt - workspace:GetServerTimeNow()
+	-- the call: the small chip steps aside for the huge banner
+	call.Visible = phase == "call" and startAt > 0
+	join.Visible = phase ~= "racing" and phase ~= "call" and startAt > 0
+	if call.Visible then
+		callWhere.Text = if where ~= "" then `RACE ON {where}` else "RACE!"
+		callClock.Text = ServerRace.clock(secs)
+		-- a little pulse each second
+		local f = secs % 1
+		callClock.Size = UDim2.fromScale(1, 0.62 + 0.06 * f)
+	end
 	if not join.Visible then
 		return
 	end
-	local left = ServerRace.clock(startAt - workspace:GetServerTimeNow())
+	local left = ServerRace.clock(secs)
 	if phase == "call" then
 		join.BackgroundColor3 = YELLOW
 		join.TextColor3 = DARK

@@ -32,6 +32,7 @@ local LobbyWelcome = require(script.Parent.LobbyWelcome)
 local LobbySky = require(script.Parent.LobbySky)
 local OtherCars = require(script.Parent.OtherCars)
 local RCCar = require(script.Parent.RCCar)
+local RoadArrow = require(script.Parent.RoadArrow)
 local StartLights = require(script.Parent.StartLights)
 
 local player = Players.LocalPlayer
@@ -101,6 +102,7 @@ local car = RCCar.new(model, ignoreList())
 local camera = ChaseCamera.new(body, ignoreList(), eye)
 camera.setView(view)
 local effects = Effects.new(car.telemetry)
+local roadArrow = RoadArrow.new(ignoreList()) -- where to go next in a race (looks only)
 local skin = CarSkin.new() -- real car models over the grey car (look only)
 local SKINS: { [string]: string } = { rock = "RockCrawler", drift = "DriftCoupe" } -- track id -> CarSkins model
 local rc = true -- always RC size: the lobby plots are the tracks
@@ -296,6 +298,9 @@ local function setWalking(on: boolean)
 	LobbySky.set(on)
 	walking = on
 	gui.Enabled = not on
+	if on then
+		roadArrow.hide()
+	end
 	lobby.setDriving(not on)
 	-- Roblox's own thumbstick and jump button sit under STEER and GAS on a phone: only while walking
 	GuiService.TouchControlsEnabled = on
@@ -446,6 +451,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 		raceDone = os.clock() - go
 		hud.flash(`FINISH!  {CarMath.formatTime(raceDone :: number)}`)
 	end
+	roadArrow.update(t, timer, rc, lx, lz)
 	if event == "lap" then
 		hud.flash(`LAP  {CarMath.formatTime(timers[current].last :: number)}`)
 	elseif event == "finish" then
