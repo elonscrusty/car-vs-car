@@ -227,7 +227,7 @@ end
 Plot.STEPS =
 	{ from = 13.05, to = 13.85, n = 4, rise = 1.79, side = -0.45, width = 20, frontSide = 1 }
 Plot.CURB = 1.2 -- the curb along the front edge beside the steps
-Plot.CURB_TO = 14.5 -- it runs on past the steps: cars on the easy side drift out (Studio)
+Plot.CURB_TO = 14.9 -- it runs on past the steps: cars on the easy side drift out (Studio)
 
 -- The step blocks: from u0 to u1, top and bottom heights.
 function Plot.stepBlocks(): { { u0: number, u1: number, top: number, bottom: number } }
@@ -252,18 +252,18 @@ end
 -- * stepUp: a tall rock block on the hill side; put one wheel on the small rock in front first.
 -- * kicker: a steep ramp up to a lip, then a high block, on the front side.
 Plot.SKILLS = {
-	-- the boulders stand close, so with the car centred each wheel rides up a boulder side about
-	-- 1.9 (Studio: further apart, the wheels slid down the steep flanks and it was W only)
-	notch = { u = 4.45, side = 0.2, gap = 0.31, r = 7, lift = 2.8 },
+	-- the boulders stand close, so with the car centred each wheel rides about 2 up a
+	-- boulder side (Studio: further apart, the wheels slid down the steep flanks: W only)
+	notch = { u = 4.45, side = 0.2, gap = 0.27, r = 7, lift = 2.6 },
 	stepUp = {
 		u = 12.35,
 		side = -0.55,
 		width = 12,
 		length = 10,
-		lift = 3.3,
-		-- a lower block right in front, on the line to the middle of the big one: half its
-		-- height, so the car goes up in two skill steps
-		helper = { width = 6, length = 5, lift = 1.6 },
+		lift = 3.19,
+		-- a lower block right in front, on the line to the middle of the big one, so the car
+		-- goes up in two steps: an easy one (Studio: 0.44 RC was too much), then a skill one
+		helper = { width = 6, length = 5, lift = 1.4 },
 	},
 	-- a short steep ramp up to a lip below the block's top: holding the gas stalls on the lip
 	kicker = {
@@ -274,6 +274,9 @@ Plot.SKILLS = {
 		lift = 4.39,
 		ramp = 5,
 		rampLift = 2.7,
+		-- level ground between the ramp and the lip (Studio: a lip straight off the slope
+		-- stalled every time, each back-up just rolled down the ramp)
+		flat = 4.5,
 	},
 }
 
@@ -869,8 +872,8 @@ local function buildSkills(parent: Instance, origin: CFrame)
 			* CFrame.new(0, hp.lift / 2 - 1, st.length / 2 + hp.length / 2 - 0.5),
 		C.rock
 	))
-	-- a low rail along the hill-side end of the helper and block: stalled cars slid sideways
-	-- off that end and round (Studio), so a back-up and retry stays square to the face
+	-- a low rail just beside the helper on the hill side: stalled cars slid sideways downhill
+	-- off it and round (Studio), so a back-up and retry stays square to the face
 	local railLen = hp.length + 6
 	local rail = Kit.part(
 		parent,
@@ -879,7 +882,7 @@ local function buildSkills(parent: Instance, origin: CFrame)
 		Vector3.new(1.5, Plot.CURB + 3, railLen),
 		Plot.bankCF(st.u, x, y, z)
 			* CFrame.new(
-				-(st.width / 2 + 0.75),
+				-(hp.width / 2 + 0.75),
 				Plot.CURB / 2 - 0.9,
 				st.length / 2 + railLen / 2 - 0.5
 			),
@@ -901,6 +904,16 @@ local function buildSkills(parent: Instance, origin: CFrame)
 			C.rock
 		)
 	)
+	slate(
+		Kit.part(
+			parent,
+			"Ledge",
+			origin,
+			Vector3.new(k.width, k.rampLift + 0.3, k.flat + 0.2),
+			frame * CFrame.new(0, (k.rampLift - 0.3) / 2, k.length / 2 + k.flat / 2),
+			C.rock
+		)
+	)
 	local ramp = Instance.new("WedgePart")
 	ramp.Name = "Ledge"
 	ramp.Anchored = true
@@ -908,7 +921,7 @@ local function buildSkills(parent: Instance, origin: CFrame)
 	ramp.Size = Vector3.new(k.width, k.rampLift + 0.3, k.ramp)
 	ramp.CFrame = origin
 		* frame
-		* CFrame.new(0, (k.rampLift - 0.3) / 2, k.length / 2 + k.ramp / 2)
+		* CFrame.new(0, (k.rampLift - 0.3) / 2, k.length / 2 + k.flat + k.ramp / 2)
 		* CFrame.Angles(0, math.pi, 0)
 	ramp.Color = C.rock
 	ramp.Material = Enum.Material.Slate
