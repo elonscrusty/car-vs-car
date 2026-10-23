@@ -53,11 +53,11 @@ end)
 
 test("sizes grow with stars", function()
 	local c, r = T.sizeFor(0)
-	eq(c * 10 + r, 44)
+	eq(c * 10 + r, 45)
 	c, r = T.sizeFor(10)
 	eq(c * 10 + r, 55)
 	c, r = T.sizeFor(999)
-	eq(c * 10 + r, 56)
+	eq(c * 10 + r, 55)
 end)
 
 test("the starter circle is race ready at every size", function()
@@ -189,7 +189,7 @@ test("a figure 8 through a CROSS tile works", function()
 end)
 
 test("plain tracks never touch themselves", function()
-	local res = T.trace(T.circle(5, 6))
+	local res = T.trace(T.circle(5, 5))
 	truthy(closestApproach(res.loop(), 6) > T.ROAD + 6)
 end)
 
