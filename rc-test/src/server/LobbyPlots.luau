@@ -68,12 +68,14 @@ function LobbyPlots.drivingOf(player: Player): number?
 	return driving[player]
 end
 
--- Give a joining player the first plot nobody owns (none when all are taken).
+-- Give a joining player the first plot nobody owns, race plots first: those are the ones you
+-- build your own track on (none when all are taken).
+local claimOrder = LobbyLayout.claimOrder()
 function LobbyPlots.addPlayer(player: Player): number?
 	if ownSlot[player] then
 		return ownSlot[player]
 	end
-	for i in slots do
+	for _, i in claimOrder do
 		if owners[i] == nil then
 			owners[i] = player
 			ownSlot[player] = i

@@ -104,6 +104,17 @@ function LobbyLayout.slots(): { Slot }
 	return out
 end
 
+-- The order joining players get plots in: race plots first (the plots you build a track on,
+-- carter's game shape v3), then the rest. Slot indexes.
+function LobbyLayout.claimOrder(): { number }
+	local race, other = {}, {}
+	for _, s in LobbyLayout.slots() do
+		table.insert(if s.id == "race" then race else other, s.index)
+	end
+	table.move(other, 1, #other, #race + 1, race)
+	return race
+end
+
 -- The road (dark) and its footpaths (light), from the spawn lobby to the lake.
 function LobbyLayout.road(): Box
 	return {

@@ -53,6 +53,15 @@ test("every grid spot is on the race road, apart, behind the line", function()
 	end
 end)
 
+test("pay: every racer gets coins, the winner most", function()
+	eq(ServerRace.payFor(1, true), ServerRace.PAY[1])
+	truthy(ServerRace.payFor(1, true) > ServerRace.payFor(2, true), "1st beats 2nd")
+	truthy(ServerRace.payFor(3, true) > ServerRace.payFor(4, true), "3rd beats 4th")
+	eq(ServerRace.payFor(8, true), ServerRace.PAY_FINISH)
+	truthy(ServerRace.payFor(1, false) > 0, "a try still pays")
+	truthy(ServerRace.payFor(1, false) < ServerRace.PAY_FINISH, "finishing pays more")
+end)
+
 test("rank: finishers by time, then by laps; race ends when all are in", function()
 	local r = ServerRace.rank({
 		{ name = "c", laps = 1 },
