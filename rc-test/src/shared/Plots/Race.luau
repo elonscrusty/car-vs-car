@@ -373,30 +373,42 @@ local function blocks(parent: Instance, e: Decor, at: CFrame): Model
 	return m
 end
 
--- The start / finish arch over the line (FinishArch model or blue posts with a checker beam).
+-- The start / finish arch over the line: blue posts out on the grass past the curbs, a
+-- checker beam high over the road. Always blocks: the FinishArch model's wide feet land on
+-- the curbs at this size.
+function Plot.archPostInner(): number
+	return Plot.ARCH_WIDTH / 2 - 3 -- inner face of a post, from the road centre
+end
+
 local function buildArch(parent: Instance, origin: CFrame)
 	local g = Plot.gates[1]
 	local yaw = math.atan2(-g.dx, -g.dz) -- front looks along the road
 	local at = origin * CFrame.new(g.x, 0, g.z) * CFrame.Angles(0, yaw, 0)
-	local m = meshProp(parent, "FinishArch", at, Plot.ARCH_HEIGHT, Plot.ARCH_WIDTH)
-	if m then
-		setSolid(m, true)
-		return
-	end
 	local arch = Instance.new("Model")
 	arch.Name = "FinishArch"
 	arch.Parent = parent
 	local w, h = Plot.ARCH_WIDTH, Plot.ARCH_HEIGHT
+	local inner = Plot.archPostInner()
 	for _, s in { -1, 1 } do
+		-- post (3 thick) and a wider foot, both starting at `inner` and going outwards
 		Kit.part(
 			arch,
 			"ArchPost",
 			at,
 			Vector3.new(3, h, 3),
-			CFrame.new(s * (w / 2 - 1.5), h / 2, 0),
+			CFrame.new(s * (inner + 1.5), h / 2, 0),
+			C.blue
+		)
+		Kit.part(
+			arch,
+			"ArchFoot",
+			at,
+			Vector3.new(4, 3, 6),
+			CFrame.new(s * (inner + 2), 1.5, 0),
 			C.blue
 		)
 	end
+	local span = 2 * (inner + 3)
 	local cells = 10
 	for row = 0, 1 do
 		for i = 0, cells - 1 do
@@ -404,12 +416,13 @@ local function buildArch(parent: Instance, origin: CFrame)
 				arch,
 				"ArchBeam",
 				at,
-				Vector3.new(w / cells, 2, 1.5),
-				CFrame.new((i + 0.5) * w / cells - w / 2, h - 1 - row * 2, 0),
+				Vector3.new(span / cells, 2, 1.5),
+				CFrame.new((i + 0.5) * span / cells - span / 2, h - 1 - row * 2, 0),
 				if (i + row) % 2 == 0 then C.white else rgb(30, 30, 34)
 			)
 		end
 	end
+	setSolid(arch, true)
 end
 
 -- Paint on the road: a dashed white centre line and two grid boxes behind the start line.
@@ -495,6 +508,12 @@ function Plot.build(parent: Instance, origin: CFrame)
 
 	local loop = Plot.loop()
 	Kit.ribbon(parent, origin, loop, ROAD, { grip = 1, color = ROAD_COLOR })
+	-- A flat round patch of road at every joint fills the little wedges the straight road pieces
+	-- leave on the outside of bends (the grass showed through there). Same height and grip.
+	for _, s in loop do
+		local patch = Kit.disc(parent, "Road", origin, s.x, 0.05, s.z, ROAD / 2, 0.1, ROAD_COLOR)
+		patch:SetAttribute("Grip", 1)
+	end
 
 	-- Low red and white curbs on both edges instead of walls.
 	local n = #loop

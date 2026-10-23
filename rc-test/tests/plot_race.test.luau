@@ -110,7 +110,7 @@ test("scenery you can bump stays well off the road (runoff stays grass)", functi
 end)
 
 test("start arch posts stand outside the curbs", function()
-	truthy(Plot.ARCH_WIDTH / 2 - 3 > Plot.ROAD / 2 + Plot.CURB_WIDTH, "posts on the curb")
+	truthy(Plot.archPostInner() >= Plot.ROAD / 2 + Plot.CURB_WIDTH + 3, "posts on the curb")
 	truthy(Plot.ARCH_HEIGHT >= 20, "arch too low")
 end)
 
