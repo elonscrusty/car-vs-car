@@ -61,3 +61,49 @@ for _, id in T.IDS do
 		end
 	end)
 end
+
+local Kit = require("../src/shared/Plots/Kit")
+
+test("empty cells: every kind on its square, low, nothing solid", function()
+	local seen = {}
+	for c = 1, 5 do
+		for r = 1, 6 do
+			local parts = T.emptyParts(c, r, CELL)
+			seen[(c * 7 + r * 13) % T.EMPTY_KINDS] = true
+			truthy(#parts <= 12, tostring(#parts))
+			for _, p in parts do
+				truthy(not p.collide, p.name)
+				truthy(math.abs(p.pos.x) + p.size.x / 2 <= CELL / 2, p.name .. " x")
+				truthy(math.abs(p.pos.z) + p.size.z / 2 <= CELL / 2, p.name .. " z")
+				truthy(p.pos.y + p.size.y / 2 <= 6, p.name .. " low")
+			end
+		end
+	end
+	for k = 0, T.EMPTY_KINDS - 1 do
+		truthy(seen[k], "kind " .. k)
+	end
+end)
+
+test("surround: in the strips round a 5x5 grid, nothing on a 5x6 grid's road", function()
+	local a = Kit.AREA
+	local function grid(rows: number): (number, number, number, number)
+		local midZ = (a.minZ + a.maxZ) / 2
+		return -2.5 * CELL, 2.5 * CELL, midZ - rows / 2 * CELL, midZ + rows / 2 * CELL
+	end
+	for _, rows in { 5, 6 } do
+		local x0, x1, z0, z1 = grid(rows)
+		local parts = T.surroundParts(x0, x1, z0, z1, a)
+		truthy(#parts <= 80, tostring(#parts))
+		for _, p in parts do
+			truthy(not p.collide, p.name)
+			local px0, px1 = p.pos.x - p.size.x / 2, p.pos.x + p.size.x / 2
+			local pz0, pz1 = p.pos.z - p.size.z / 2, p.pos.z + p.size.z / 2
+			truthy(
+				px0 >= a.minX and px1 <= a.maxX and pz0 >= a.minZ and pz1 <= a.maxZ,
+				p.name .. " area"
+			)
+			local inGrid = px1 > x0 and px0 < x1 and pz1 > z0 and pz0 < z1
+			truthy(not inGrid, p.name .. " on the grid")
+		end
+	end
+end)
