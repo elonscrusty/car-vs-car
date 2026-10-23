@@ -584,7 +584,7 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 		hud.flash("BOOST!")
 	end
 	boosting = tel.boost > 0
-	if tel.landed > 0 and airTime > 0.8 then
+	if tel.landed > 0 and airTime > 0.45 then
 		hud.flash("BIG AIR!")
 	end
 	airTime = tel.air
