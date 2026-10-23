@@ -224,6 +224,7 @@ local function onRun(player: Player, slotIndex: number, mode: string, value: num
 		gained = Profile.award(data, player.UserId, oid, mode, medal)
 		if gained > 0 then
 			PlayerData.touch(player)
+			player:SetAttribute("Stars", data.stars) -- read by the car (smoke colours open with stars)
 			-- their own plot may reach a new look
 			local mine = ownedSlot(player)
 			if mine then
@@ -378,6 +379,7 @@ for i, prompt in likePrompts do
 end
 
 PlayerData.loaded:Connect(function(player: Player, data: Profile.Data, saving: boolean)
+	player:SetAttribute("Stars", data.stars) -- read by the car (smoke colours open with stars)
 	remote:FireClient(player, "stars", data.stars, saving)
 	remote:FireClient(player, "coins", data.coins)
 	showAll() -- their plot's board shows their saved record

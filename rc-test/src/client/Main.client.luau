@@ -202,25 +202,12 @@ local function reset(why: string?)
 	end
 end
 
--- tyre smoke colour pick, and the star count that opens more colours (sent by the stars server)
+-- tyre smoke colour pick; the player's star count (set by the stars server) opens more colours
 local smokeIndex = 1
-local stars = 0
-task.spawn(function()
-	local starsEvent = ReplicatedStorage:WaitForChild("StarsEvent", 30)
-	if starsEvent and starsEvent:IsA("RemoteEvent") then
-		starsEvent.OnClientEvent:Connect(function(kind: unknown, info: unknown)
-			if kind == "stars" and type(info) == "number" then
-				stars = info
-			elseif
-				kind == "run"
-				and type(info) == "table"
-				and type((info :: any).stars) == "number"
-			then
-				stars = (info :: any).stars
-			end
-		end)
-	end
-end)
+local function starCount(): number
+	local n = player:GetAttribute("Stars")
+	return if type(n) == "number" then n else 0
+end
 
 local gui = Hud.createGui()
 hud = Hud.new(gui, labels)
@@ -247,6 +234,7 @@ end, function()
 	-- tyre smoke colour: the next one this player's stars have opened (all of them in Studio,
 	-- where nobody can win stars yet)
 	local all = RunService:IsStudio()
+	local stars = starCount()
 	local nextIndex = SmokeColors.nextOpen(smokeIndex, stars, all)
 	if nextIndex == smokeIndex then
 		local locked = SmokeColors.nextLocked(stars)
