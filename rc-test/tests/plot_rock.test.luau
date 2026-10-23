@@ -289,8 +289,9 @@ test("skill climbs: too tall to just drive over, with an easy way round each", f
 	local k = S.kicker
 	truthy(k.rampLift / k.ramp >= 0.5 and k.rampLift / k.ramp <= 0.6, "the kicker ramp slope")
 	local lip = k.lift - k.rampLift
-	-- a lip off level ground can stand a bit taller (Studio: 1.7 off the flat was W only)
-	truthy(lip > Plot.SKILL_STEP and lip <= 2, "the kicker lip")
+	-- a lip off level ground can stand a bit taller (Studio: 1.7 off the flat was W only, 1.9
+	-- too hard)
+	truthy(lip > 1.7 and lip < 1.9, "the kicker lip")
 	truthy(k.lift / k.down <= 0.55, "the ramp down off the kicker")
 end)
 
