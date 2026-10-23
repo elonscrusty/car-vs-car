@@ -407,9 +407,9 @@ local function baitShack(m: Maker, u: number, v: number)
 	local x, z = at(u, v)
 	local y = LobbyWater.SAND_TOP
 	local wood, light = { 150, 105, 70 }, { 196, 150, 100 }
-	-- carter's BaitShack mesh has its door on its side (local +x), so turn it a quarter round to
-	-- face the lake
-	m.spot("BaitShack", x, y, z, face(-90), 5.4)
+	-- carter's BaitShack mesh has its door on its back (Studio: face(0) put the door toward the
+	-- street, face(-90) along the beach), so turn it right round to face the lake
+	m.spot("BaitShack", x, y, z, face(180), 5.4)
 	local put = m.frame(x, y, z, face(0))
 	put("ShackBack", 0, 2, -1.8, 5, 4, 0.4, wood)
 	for _, sx in { -1, 1 } do
