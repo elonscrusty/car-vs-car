@@ -23,7 +23,7 @@ test("8 plots, both sides of the road, kinds as in carter's picture", function()
 		eq(s.id, TrackData.order[s.track])
 		truthy((s.plotX < 0) == (i % 2 == 1), "odd slots on the left")
 	end
-	for track in L.TRACKS do
+	for _, track in L.TRACKS do
 		truthy(L.slotFor(track) ~= nil, "every lobby track has a slot")
 	end
 	eq(L.slotFor(2), 1) -- race is the first plot
