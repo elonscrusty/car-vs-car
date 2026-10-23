@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local LobbyProps = require(script.Parent.LobbyProps)
+local LobbyWaterBuilder = require(script.Parent.LobbyWaterBuilder)
 
 local LobbyBuilder = {}
 
@@ -156,6 +157,8 @@ function LobbyBuilder.build(): Built
 		Color3.fromRGB(127, 214, 127)
 	)
 	start.CanCollide = false
+
+	LobbyWaterBuilder.build(folder)
 	return built
 end
 
