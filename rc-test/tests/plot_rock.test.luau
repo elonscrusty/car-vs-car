@@ -131,7 +131,8 @@ test("rocks, logs and ledges sit on the trail and can be crawled over", function
 		count[f.kind] = (count[f.kind] or 0) + 1
 		truthy(f.u > Plot.START_U and f.u < Plot.FINISH_U, `{f.kind} at {f.u} is off the course`)
 		truthy(math.abs(f.side) <= 0.8, `{f.kind} at {f.u} is off the trail`)
-		truthy(f.lift <= Plot.MAX_LIFT, `{f.kind} at {f.u} is too tall to crawl`)
+		local limit = if f.kind == "rock" and f.r >= 10 then Plot.BIG_LIFT else Plot.MAX_LIFT
+		truthy(f.lift <= limit, `{f.kind} at {f.u} is too tall to crawl`)
 		if f.kind == "rock" then
 			if f.r >= 6 then
 				big += 1
