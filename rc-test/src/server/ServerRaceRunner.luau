@@ -1,8 +1,9 @@
 --!strict
--- The server race (carter's loop): every 15 minutes, on the clock. A sign over the top of the
--- street counts down; for the last minute a JOIN button shows on every screen. At the start,
--- everyone who joined is put on the grid of one race plot and the start lights run (their
--- screens). The server counts each car's laps from where its car is (the same gates as the lap
+-- The server race (carter's loop, rc-game/build-track/PLAN.md): a 5 minute break, then the
+-- whole server races on one random player's plot. A sign over the top of the street and a chip
+-- on every screen count the break down; 10 s before the start the plot is picked and named. At
+-- the start everyone (up to ServerRace.MAX) is put on that plot's grid and the start lights run
+-- (their screens). The server counts each car's laps from where its car is (the same gates as the lap
 -- timer): first to finish ServerRace.LAPS laps wins, and everyone sees who won. Then the racers
 -- walk again. Driving is not touched: the cars are the players' own.
 -- Plain maths (times, grid, order) is ServerRace's.
@@ -36,53 +37,62 @@ type Racer = {
 
 local ServerRaceRunner = {}
 
--- Client -> server: ("join") / ("leave") while the join window is open.
--- Server -> client: ("state", phase, startAt, count, joined) with phase "wait" | "call" | "racing"
--- (startAt = workspace:GetServerTimeNow() time of the start), ("result", rows) when a race ends:
+-- Server -> client: ("state", phase, startAt, count, joined, where) with phase "wait" | "call" |
+-- "racing" (startAt = workspace:GetServerTimeNow() time of the start, count/joined = unused now
+-- that everyone races, where = "MIA'S TRACK" once picked), ("result", rows) when a race ends:
 -- rows = { { name, time?, laps } } best first.
 local event = Instance.new("RemoteEvent")
 event.Name = "ServerRace"
 event.Parent = ReplicatedStorage
 
-local joined: { Player } = {}
 local phase = "wait"
 local startAt = 0
-local lastAsk: { [Player]: number } = {}
+local picked: number? = nil -- the plot this round is on (from CALL seconds before the start)
+local where = "" -- its name for the sign and the screens
+local random = Random.new()
 
 local function now(): number
 	return workspace:GetServerTimeNow()
 end
 
+-- For the track builder (TrackBuild): BuildOpen = true while the break is on (plots may be
+-- edited), false from the moment the round's plot is picked until the race is over;
+-- BuildEndsAt = os.time() when building closes.
+local function setBuild()
+	workspace:SetAttribute("BuildOpen", phase == "wait")
+	workspace:SetAttribute("BuildEndsAt", math.floor(startAt - ServerRace.CALL))
+end
+
 local function sendState(to: Player?)
+	if to == nil then
+		setBuild()
+	end
 	local list = if to then { to } else Players:GetPlayers()
 	for _, p in list do
-		event:FireClient(p, "state", phase, startAt, #joined, table.find(joined, p) ~= nil)
+		event:FireClient(p, "state", phase, startAt, 0, false, where)
 	end
 end
 
--- Join the race whose JOIN window is open now (QUICK RACE uses it too). False when no window
--- is open or the grid is full.
-function ServerRaceRunner.joinOpen(player: Player): boolean
-	if phase ~= "call" then
-		return false
-	end
-	if table.find(joined, player) then
-		return true
-	end
-	if #joined >= ServerRace.MAX then
-		return false
-	end
-	table.insert(joined, player)
-	sendState()
-	return true
+-- QUICK RACE asks this first. Everyone races in the server race now (no join window), so it
+-- never takes them: QUICK RACE goes on to a free race plot for the break.
+function ServerRaceRunner.joinOpen(_player: Player): boolean
+	return false
 end
 
-local function leave(player: Player)
-	local i = table.find(joined, player)
-	if i then
-		table.remove(joined, i)
-		sendState()
+-- Can this plot hold the server race? A built track says so with TrackReady on its plot model
+-- (TrackBuild: a closed loop through the start); until a plot has that, the street's race
+-- plots are.
+function ServerRaceRunner.isReady(slot: number): boolean
+	local plots = workspace:FindFirstChild("Plots")
+	if plots then
+		for _, m in plots:GetChildren() do
+			if m:GetAttribute("Slot") == slot and m:GetAttribute("TrackReady") ~= nil then
+				return m:GetAttribute("TrackReady") == true
+			end
+		end
 	end
+	local s = LobbyLayout.slots()[slot]
+	return s ~= nil and s.id == "race"
 end
 
 -- The sign over the top of the street (the spawn lobby end), readable from both sides.
@@ -150,14 +160,20 @@ local function buildSign(): { TextLabel }
 	return labels
 end
 
--- The race plot the server race uses: the first race plot on the street.
-local function raceSlot(): number?
+-- This round's plot: a random race-ready plot someone owns, else one of the street's own.
+local function pickSlot(): number?
+	local owned, spare = {}, {}
 	for _, s in LobbyLayout.slots() do
-		if s.id == "race" then
-			return s.index
+		if ServerRaceRunner.isReady(s.index) then
+			table.insert(if LobbyPlots.ownerOf(s.index) then owned else spare, s.index)
 		end
 	end
-	return nil
+	return ServerRace.pick(owned, spare, random:NextNumber())
+end
+
+local function nameOf(slot: number): string
+	local owner = LobbyPlots.ownerOf(slot)
+	return ServerRace.trackName(if owner then owner.DisplayName else "the street")
 end
 
 local function carBody(player: Player): BasePart?
@@ -167,12 +183,17 @@ local function carBody(player: Player): BasePart?
 end
 
 local function runRace(hooks: Hooks, slot: number)
-	local list = joined
-	joined = {}
+	-- everyone in the server (the first MAX)
+	local list: { Player } = {}
+	for _, p in Players:GetPlayers() do
+		if #list < ServerRace.MAX then
+			table.insert(list, p)
+		end
+	end
 	phase = "racing"
 	sendState()
 	local t: TrackData.Track = LobbyLayout.track(slot)
-	-- whoever is on that plot and didn't join gets off it first
+	-- whoever is on that plot and isn't racing gets off it first
 	local other = LobbyPlots.driverOf(slot)
 	if other and not table.find(list, other) then
 		hooks.walk(other)
@@ -261,32 +282,18 @@ local function runRace(hooks: Hooks, slot: number)
 		end
 	end
 	phase = "wait"
-	startAt = ServerRace.nextStart(now())
+	picked, where = nil, ""
+	startAt = now() + ServerRace.BREAK
 	sendState()
 end
 
 function ServerRaceRunner.start(hooks: Hooks)
 	local signs = buildSign()
-	startAt = ServerRace.nextStart(now())
+	startAt = now() + ServerRace.BREAK
+	setBuild()
 
-	event.OnServerEvent:Connect(function(player: Player, kind: unknown)
-		local t = os.clock()
-		if t - (lastAsk[player] or 0) < 0.3 then
-			return
-		end
-		lastAsk[player] = t
-		if kind == "join" then
-			ServerRaceRunner.joinOpen(player)
-		elseif kind == "leave" then
-			leave(player)
-		end
-	end)
 	Players.PlayerAdded:Connect(function(player: Player)
 		sendState(player)
-	end)
-	Players.PlayerRemoving:Connect(function(player: Player)
-		leave(player)
-		lastAsk[player] = nil
 	end)
 
 	task.spawn(function()
@@ -298,29 +305,31 @@ function ServerRaceRunner.start(hooks: Hooks)
 				if phase ~= "racing" then
 					startAt = now() + 20
 					phase = "wait"
+					sendState()
 				end
 			end
 			local left = startAt - now()
-			for _, s in signs do
-				s.Text = ServerRace.signText(left, phase == "racing")
+			for _, sign in signs do
+				sign.Text = ServerRace.signText(left, phase == "racing", where)
 			end
 			if phase == "wait" and left <= ServerRace.CALL then
 				phase = "call"
+				picked = pickSlot()
+				where = if picked then nameOf(picked) else ""
 				sendState()
 			elseif phase == "call" and left <= 0 then
-				local slot = raceSlot()
-				if #joined == 0 or slot == nil then
-					-- nobody joined: on to the next one
-					joined = {}
-					phase = "wait"
-					startAt = ServerRace.nextStart(now())
+				local slot = picked
+				if slot == nil or #Players:GetPlayers() == 0 then
+					-- no plot can hold it (or nobody here): next break
+					phase, picked, where = "wait", nil, ""
+					startAt = now() + ServerRace.BREAK
 					sendState()
 				else
 					local ok, err = pcall(runRace, hooks, slot)
 					if not ok then
 						warn("server race: " .. tostring(err))
-						phase = "wait"
-						startAt = ServerRace.nextStart(now())
+						phase, picked, where = "wait", nil, ""
+						startAt = now() + ServerRace.BREAK
 						sendState()
 					end
 				end

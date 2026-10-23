@@ -1,7 +1,7 @@
 --!strict
--- The server race on screen: for the last minute before a race a big JOIN button (tap again to
--- leave), and when a race ends a pop-up with who won, for everyone. The server decides
--- everything (ServerRaceRunner); this only shows it and sends the taps.
+-- The server race on screen: a chip counting down the break to the next race (and, for the last
+-- 10 s, whose track it is on), and when a race ends a pop-up with who won, for everyone. The
+-- server decides everything (ServerRaceRunner); this only shows it.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,7 +16,6 @@ local event = ReplicatedStorage:WaitForChild("ServerRace") :: RemoteEvent
 local player = Players.LocalPlayer
 
 local YELLOW = Color3.fromRGB(255, 205, 60)
-local GREEN = Color3.fromRGB(70, 200, 90)
 local DARK = Color3.fromRGB(25, 25, 30)
 
 local gui = Instance.new("ScreenGui")
@@ -32,7 +31,7 @@ local function corner(parent: Instance, r: number)
 	c.Parent = parent
 end
 
--- JOIN: a big round pill at the top middle (thumbs stay free at the bottom corners)
+-- the countdown chip: a round pill at the top middle (thumbs stay free at the bottom corners)
 local join = Instance.new("TextButton")
 join.Name = "Join"
 -- under QUICK RACE on foot, under the drift score in a car
@@ -49,7 +48,8 @@ join.BackgroundColor3 = YELLOW
 join.TextColor3 = DARK
 join.Font = Enum.Font.GothamBlack
 join.TextScaled = true
-join.AutoButtonColor = true
+join.AutoButtonColor = false
+join.Active = false
 join.Visible = false
 join.Parent = gui
 corner(join, 0.5)
@@ -101,25 +101,22 @@ rowsSize.Parent = rowsText
 
 local phase = "wait"
 local startAt = 0
-local count = 0
-local mine = false
-
-join.Activated:Connect(function()
-	event:FireServer(if mine then "leave" else "join")
-end)
+local where = ""
 
 RunService.RenderStepped:Connect(function()
-	join.Visible = phase == "call"
-	if phase ~= "call" then
+	join.Visible = phase ~= "racing" and startAt > 0
+	if not join.Visible then
 		return
 	end
 	local left = ServerRace.clock(startAt - workspace:GetServerTimeNow())
-	if mine then
-		join.BackgroundColor3 = GREEN
-		join.Text = `JOINED!  {left}  ({count} racing)`
-	else
+	if phase == "call" then
 		join.BackgroundColor3 = YELLOW
-		join.Text = `SERVER RACE  {left}  TAP TO JOIN`
+		join.TextColor3 = DARK
+		join.Text = if where ~= "" then `RACE IN {left}  {where}` else `RACE IN {left}`
+	else
+		join.BackgroundColor3 = DARK
+		join.TextColor3 = YELLOW
+		join.Text = `NEXT RACE  {left}`
 	end
 end)
 
@@ -157,10 +154,13 @@ local function showResult(rows: { any })
 	end)
 end
 
-event.OnClientEvent:Connect(function(kind: unknown, a: unknown, b: unknown, c: unknown, d: unknown)
-	if kind == "state" and type(a) == "string" and type(b) == "number" and type(c) == "number" then
-		phase, startAt, count, mine = a, b, c, d == true
-	elseif kind == "result" and type(a) == "table" then
-		showResult(a :: { any })
+event.OnClientEvent:Connect(
+	function(kind: unknown, a: unknown, b: unknown, _c: unknown, _d: unknown, e: unknown)
+		if kind == "state" and type(a) == "string" and type(b) == "number" then
+			phase, startAt = a, b
+			where = if type(e) == "string" then e else ""
+		elseif kind == "result" and type(a) == "table" then
+			showResult(a :: { any })
+		end
 	end
-end)
+)

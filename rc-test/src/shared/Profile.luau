@@ -26,15 +26,19 @@ export type Data = {
 	lookOff: { [string]: boolean }, -- plot looks I have but turned off
 	cars: { [string]: boolean }, -- CarCatalog ids bought or won (starters are everyone's anyway)
 	equipped: { [string]: string }, -- mode -> the car id driven in that mode
+	track: Track?, -- my built track (nil = the starter circle); the grid size comes from stars
 }
+-- One placed tile: column, row (from 1), TrackTiles piece id, quarter turns 0..3.
+export type Tile = { c: number, r: number, piece: string, rot: number }
+export type Track = { tiles: { Tile } }
 -- My score against one other player: wins = I beat their record, losses = they beat mine.
 export type Rival = { name: string, wins: number, losses: number, at: number }
 export type Lock = { job: string, at: number }
 
 local Profile = {}
 
-Profile.VERSION = 8 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift.
--- 6: daily jobs. 7: looks, lookOff. 8: cars, equipped
+Profile.VERSION = 9 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift.
+-- 6: daily jobs. 7: looks, lookOff. 8: cars, equipped. 9: track
 Profile.MAX_OWNERS = 500 -- keeps the save small; stars from more owners than this stop counting
 Profile.LOCK_TIMEOUT = 300 -- a server that hasn't saved for this long is gone: its lock is stale
 Profile.MODES = { "race", "drift", "rock" }
@@ -49,6 +53,8 @@ Profile.MAX_RIVALS = 50 -- the least recent rival goes when full
 Profile.DAILY = { 10, 15, 20, 30, 40, 50, 75 }
 Profile.MAX_LOOKS = 32 -- look ids kept (the shop has fewer)
 Profile.MAX_CARS = 200 -- car ids kept (far more cars than exist)
+Profile.MAX_GRID = 16 -- tiles outside 1..MAX_GRID columns / rows are dropped
+Profile.MAX_TILES = Profile.MAX_GRID * Profile.MAX_GRID
 
 function Profile.new(): Data
 	return {
@@ -93,6 +99,55 @@ end
 
 -- Any saved value (old, broken or missing) -> a clean save. Stars are counted again from
 -- starsFrom, so the two can never disagree.
+-- A clean copy of a tile list (from a save or the build code): bad tiles dropped, one tile per
+-- cell (the last one wins). nil when the list isn't a list. The caller checks the grid size and
+-- that the pieces are owned; this only keeps the save sane.
+function Profile.cleanTrack(raw: any): Track?
+	if type(raw) ~= "table" then
+		return nil
+	end
+	local byCell: { [number]: Tile } = {}
+	local order: { number } = {}
+	for _, t in raw do
+		if
+			type(t) == "table"
+			and goodNumber(t.c)
+			and goodNumber(t.r)
+			and goodNumber(t.rot)
+			and type(t.piece) == "string"
+			and #t.piece > 0
+			and #t.piece <= 32
+		then
+			local c, r = math.floor(t.c), math.floor(t.r)
+			if c >= 1 and c <= Profile.MAX_GRID and r >= 1 and r <= Profile.MAX_GRID then
+				local key = (r - 1) * Profile.MAX_GRID + c
+				if not byCell[key] then
+					table.insert(order, key)
+				end
+				byCell[key] = { c = c, r = r, piece = t.piece, rot = math.floor(t.rot) % 4 }
+			end
+		end
+		if #order >= Profile.MAX_TILES then
+			break
+		end
+	end
+	local tiles: { Tile } = {}
+	for _, key in order do
+		table.insert(tiles, byCell[key])
+	end
+	return { tiles = tiles }
+end
+
+-- My saved track (nil = the starter circle).
+function Profile.getTrack(d: Data): Track?
+	return d.track
+end
+
+-- Save a new track (`tiles` nil = back to the starter circle). The caller then PlayerData.touch.
+function Profile.setTrack(d: Data, tiles: { Tile }?)
+	d.track = if tiles then Profile.cleanTrack(tiles) else nil
+end
+
 function Profile.migrate(raw: any): Data
 	local d = Profile.new()
 	if type(raw) ~= "table" then
@@ -234,6 +289,9 @@ function Profile.migrate(raw: any): Data
 				d.equipped[mode] = id
 			end
 		end
+	end
+	if type(raw.track) == "table" then
+		d.track = Profile.cleanTrack(raw.track.tiles)
 	end
 	local stars = 0
 	for _, modes in d.starsFrom do
