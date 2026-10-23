@@ -1,8 +1,7 @@
 --!strict
--- What a race pays and what you're saving up for (the polish pass: "after each race, show what
--- you earned and what it unlocks next"). Pure, so Lune can test it; Stars.server pays and sends,
--- Stars.client shows it.
--- Server race: the top 3 get coins, the rest nothing (carter's loop: "loser gets nothing").
+-- What you're saving up for (the polish pass: "after each race, show what you earned and what
+-- it unlocks next"). Pure, so Lune can test it; Stars.server sends it, Stars.client shows it.
+-- (Race pay is ServerRace.payFor.)
 
 -- Sibling loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
 local function sibling(name: string): any
@@ -18,9 +17,6 @@ local TileShop = sibling("TileShop")
 local TrackTiles = sibling("TrackTiles")
 
 local Rewards = {}
-
--- coins for 1st, 2nd, 3rd in the server race (times the weekend boost); first guesses
-Rewards.PLACE_COINS = { 60, 35, 20 }
 
 export type Save = {
 	coins: number,
@@ -39,27 +35,6 @@ export type Goal = {
 	have: number, -- coins (car, tile) or stars (grid) you have now
 	ready: boolean, -- you can get it now
 }
-
-function Rewards.placeCoins(place: number, boost: number?): number
-	local c = Rewards.PLACE_COINS[place]
-	if c == nil then
-		return 0
-	end
-	return c * (boost or 1)
-end
-
--- "1st", "2nd", "3rd", "4th" ...
-function Rewards.placeName(place: number): string
-	local last = place % 10
-	local teen = place % 100 >= 11 and place % 100 <= 13
-	local suffix = if teen
-		then "th"
-		elseif last == 1 then "st"
-		elseif last == 2 then "nd"
-		elseif last == 3 then "rd"
-		else "th"
-	return `{place}{suffix}`
-end
 
 -- Everything coins can still buy, cheapest first (cars before tiles at the same price, race
 -- cars first: the server race is the main game).

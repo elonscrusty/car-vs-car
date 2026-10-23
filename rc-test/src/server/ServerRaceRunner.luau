@@ -16,7 +16,9 @@ local LapTimer = require(ReplicatedStorage.Shared.LapTimer)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
+local Profile = require(ReplicatedStorage.Shared.Profile)
 local LobbyPlots = require(script.Parent.LobbyPlots)
+local PlayerData = require(script.Parent.PlayerData)
 
 -- The track builder's traced tracks (built plots): loop(), lineSample() like Plots/Race.
 local function tracedFor(slot: number): any?
@@ -65,24 +67,19 @@ type Racer = {
 	waitLeave: boolean, -- jumped and still on the line
 	started: boolean,
 	out: boolean, -- walked off or left the game
+	place: number, -- live place (1 = in front)
+	finishedNow: boolean?, -- crossed the line for the last time this frame
 }
 
 local ServerRaceRunner = {}
 
--- `finished` (player, place, finished, racers): fired once per racer still in the game when a
--- race ends (Stars.server pays the top 3 and shows what they earned).
-type FinishListener = (Player, number, boolean, number) -> ()
-local finishListeners: { FinishListener } = {}
-ServerRaceRunner.finished = {
-	Connect = function(_self: any, fn: FinishListener)
-		table.insert(finishListeners, fn)
-	end,
-}
-
 -- Server -> client: ("state", phase, startAt, count, joined, where) with phase "wait" | "call" |
 -- "racing" (startAt = workspace:GetServerTimeNow() time of the start, count/joined = unused now
 -- that everyone races, where = "MIA'S TRACK" once picked), ("result", rows) when a race ends:
--- rows = { { name, time?, laps } } best first.
+-- rows = { { name, time?, laps, coins? } } best first (coins = what that racer was paid). To one
+-- racer: ("finished", place) when its car crosses the line for the last time, ("ends", endsAt)
+-- when the winner is in (the others have until endsAt). Live places: the racer's attributes
+-- RacePlace / RaceCars (nil = no race).
 local event = Instance.new("RemoteEvent")
 event.Name = "ServerRace"
 event.Parent = ReplicatedStorage
@@ -224,6 +221,50 @@ local function carBody(player: Player): BasePart?
 	return body
 end
 
+-- Pay a player coins and tell their screen (the coin chip and a toast, Stars.server's remote).
+local function pay(player: Player, coins: number, why: string)
+	local data = PlayerData.get(player)
+	if not data or coins <= 0 then
+		return
+	end
+	coins *= Profile.boost(os.time()) -- double coins on weekends
+	data.coins += coins
+	PlayerData.touch(player)
+	local stars = ReplicatedStorage:FindFirstChild("StarsEvent")
+	if stars and stars:IsA("RemoteEvent") then
+		stars:FireClient(player, "coins", data.coins)
+		stars:FireClient(player, "toast", `+{coins} coins: {why}`)
+	end
+end
+
+-- Every racer gets coins by place; the plot's owner gets a bonus for a picked track.
+-- Returns uid -> coins for the result card.
+local function payRace(
+	ranked: { ServerRace.Entry },
+	racers: { Racer },
+	slot: number
+): { [number]: number }
+	local byId: { [number]: Player } = {}
+	for _, r in racers do
+		byId[r.player.UserId] = r.player
+	end
+	local paid: { [number]: number } = {}
+	for place, e in ranked do
+		local p = if e.uid then byId[e.uid] else nil
+		if p and p.Parent then
+			local coins = ServerRace.payFor(place, e.time ~= nil)
+			paid[p.UserId] = coins * Profile.boost(os.time())
+			local nth = ({ "1st", "2nd", "3rd" })[place] or `{place}th`
+			pay(p, coins, if place == 1 and e.time then "you WON!" else `{nth} place`)
+		end
+	end
+	local owner = LobbyPlots.ownerOf(slot)
+	if owner and owner.Parent then
+		pay(owner, ServerRace.PAY_OWNER, "your track was picked!")
+	end
+	return paid
+end
+
 local function runRace(hooks: Hooks, slot: number)
 	-- everyone in the server (the first MAX)
 	local list: { Player } = {}
@@ -258,6 +299,7 @@ local function runRace(hooks: Hooks, slot: number)
 				waitLeave = false,
 				started = false,
 				out = false,
+				place = k,
 			})
 		end
 	end
@@ -265,11 +307,12 @@ local function runRace(hooks: Hooks, slot: number)
 	local goAt = os.clock() + ServerRace.GO_DELAY + 0.3
 	local firstAt: number? = nil
 	local gate1 = t.gates[1]
+	local gates = #t.gates
+	local placesAt = 0
 	while true do
 		RunService.Heartbeat:Wait()
 		local clock = os.clock()
 		local entries: { ServerRace.Entry } = {}
-		local who: { [ServerRace.Entry]: Player } = {}
 		for _, r in racers do
 			local p = r.player
 			if not r.out and (p.Parent == nil or LobbyPlots.drivingOf(p) ~= slot) then
@@ -295,14 +338,76 @@ local function runRace(hooks: Hooks, slot: number)
 					r.laps += 1
 					if r.laps >= ServerRace.LAPS then
 						r.time = clock - goAt
-						firstAt = firstAt or (clock - goAt)
+						if firstAt == nil then
+							firstAt = clock - goAt
+							-- the others now race the clock
+							local endsAt = now()
+								+ math.min(
+									ServerRace.AFTER_WIN,
+									ServerRace.TIME_LIMIT - (clock - goAt)
+								)
+							for _, o in racers do
+								if o ~= r and o.player.Parent then
+									event:FireClient(o.player, "ends", endsAt)
+								end
+							end
+						end
+						r.finishedNow = true
 					end
 				end
 			end
 			if p.Parent then
-				local e = { name = r.name, laps = r.laps, time = r.time }
-				who[e] = p
-				table.insert(entries, e)
+				table.insert(
+					entries,
+					{ name = r.name, uid = p.UserId, laps = r.laps, time = r.time }
+				)
+			end
+		end
+		-- live places, a few times a second (finishers by time, then how far round)
+		if clock >= placesAt then
+			placesAt = clock + 0.25
+			local runs: { ServerRace.Run } = {}
+			for _, r in racers do
+				local s = r.timer
+				local passed = if s.running then s.next - 1 else 0
+				local g = t.gates[((s.next - 1) % math.max(gates, 1)) + 1]
+				local dist = 0
+				local body = if r.out then nil else carBody(r.player)
+				if body and g then
+					local pos = body.Position
+					local lx, _, lz = TrackData.toLocal(t, true, pos.X, pos.Y, pos.Z)
+					dist = math.sqrt((lx - g.x) ^ 2 + (lz - g.z) ^ 2)
+				end
+				local out = r.out and r.time == nil
+				table.insert(runs, {
+					time = r.time,
+					-- walked off: behind everyone still in
+					progress = if out then -1 else ServerRace.progress(r.laps, passed, gates, dist),
+				})
+			end
+			local place = ServerRace.places(runs)
+			for i, r in racers do
+				r.place = place[i]
+				if r.player.Parent then
+					r.player:SetAttribute("RacePlace", r.place)
+					r.player:SetAttribute("RaceCars", #racers)
+				end
+			end
+		end
+		for _, r in racers do
+			if r.finishedNow then
+				r.finishedNow = nil
+				-- its place among the finishers (all faster ones are in already)
+				local ahead = 1
+				for _, o in racers do
+					local ot, rt = o.time, r.time
+					if o ~= r and ot and rt and ot < rt then
+						ahead += 1
+					end
+				end
+				if r.player.Parent then
+					event:FireClient(r.player, "finished", ahead)
+				end
 			end
 		end
 		-- nobody left racing, or the race is done
@@ -312,21 +417,21 @@ local function runRace(hooks: Hooks, slot: number)
 		end
 		local since = clock - goAt
 		if (not anyIn and since > 0) or ServerRace.over(entries, since, firstAt) then
-			local rows = {}
 			local ranked = ServerRace.rank(entries)
+			local paid = payRace(ranked, racers, slot)
+			local rows = {}
 			for _, e in ranked do
-				table.insert(rows, { name = e.name, time = e.time, laps = e.laps })
+				local coins = if e.uid then paid[e.uid] else nil
+				table.insert(rows, { name = e.name, time = e.time, laps = e.laps, coins = coins })
 			end
 			event:FireAllClients("result", rows)
-			for place, e in ranked do
-				local p = who[e]
-				if p then
-					for _, fn in finishListeners do
-						task.spawn(fn, p, place, e.time ~= nil, #ranked)
-					end
-				end
-			end
 			break
+		end
+	end
+	for _, r in racers do
+		if r.player.Parent then
+			r.player:SetAttribute("RacePlace", nil)
+			r.player:SetAttribute("RaceCars", nil)
 		end
 	end
 	task.wait(ServerRace.SHOW)

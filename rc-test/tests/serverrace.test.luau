@@ -14,7 +14,7 @@ test("sign: break countdown, then whose track, then racing", function()
 	eq(ServerRace.clock(-3), "0:00")
 	eq(ServerRace.trackName("Mia"), "MIA'S TRACK")
 	eq(ServerRace.trackName(nil), "")
-	eq(ServerRace.signText(300, false, ""), "NEXT RACE IN\n5:00")
+	eq(ServerRace.signText(300, false, ""), "BUILD YOUR TRACK!\nRACE IN 5:00")
 	eq(ServerRace.signText(8, false, "MIA'S TRACK"), "RACE IN 0:08\nMIA'S TRACK")
 	eq(ServerRace.signText(0, true, "MIA'S TRACK"), "RACING NOW!\nMIA'S TRACK")
 end)
@@ -51,6 +51,15 @@ test("every grid spot is on the race road, apart, behind the line", function()
 			truthy(math.sqrt((g.x - o.x) ^ 2 + (g.z - o.z) ^ 2) >= 10, `grid {j} and {k} too close`)
 		end
 	end
+end)
+
+test("pay: every racer gets coins, the winner most", function()
+	eq(ServerRace.payFor(1, true), ServerRace.PAY[1])
+	truthy(ServerRace.payFor(1, true) > ServerRace.payFor(2, true), "1st beats 2nd")
+	truthy(ServerRace.payFor(3, true) > ServerRace.payFor(4, true), "3rd beats 4th")
+	eq(ServerRace.payFor(8, true), ServerRace.PAY_FINISH)
+	truthy(ServerRace.payFor(1, false) > 0, "a try still pays")
+	truthy(ServerRace.payFor(1, false) < ServerRace.PAY_FINISH, "finishing pays more")
 end)
 
 test("rank: finishers by time, then by laps; race ends when all are in", function()
@@ -102,3 +111,32 @@ test(
 		end
 	end
 )
+
+test("places, ordinals, medals and the wrong-way check", function()
+	eq(ServerRace.ordinal(1), "1ST")
+	eq(ServerRace.ordinal(2), "2ND")
+	eq(ServerRace.ordinal(3), "3RD")
+	eq(ServerRace.ordinal(4), "4TH")
+	eq(ServerRace.ordinal(11), "11TH")
+	eq(ServerRace.ordinal(22), "22ND")
+	eq(ServerRace.medal(1), "🥇")
+	eq(ServerRace.medal(4), "")
+	-- a new lap beats every gate of the lap before
+	truthy(ServerRace.progress(1, 1, 6, 50) > ServerRace.progress(0, 6, 6, 1), "lap order")
+	-- same gate: closer to the next one is ahead
+	truthy(ServerRace.progress(0, 3, 6, 10) > ServerRace.progress(0, 3, 6, 40), "dist order")
+	local place = ServerRace.places({
+		{ progress = ServerRace.progress(1, 2, 6, 20) },
+		{ time = 70, progress = 0 },
+		{ progress = ServerRace.progress(2, 0, 6, 5) },
+		{ time = 65, progress = 0 },
+	})
+	eq(place[4], 1)
+	eq(place[2], 2)
+	eq(place[3], 3)
+	eq(place[1], 4)
+	eq(ServerRace.wrongWay(-30, 0, 1, 0, 10), true)
+	eq(ServerRace.wrongWay(30, 0, 1, 0, 10), false)
+	eq(ServerRace.wrongWay(0, 30, 1, 0, 10), false) -- side on (a bend) is fine
+	eq(ServerRace.wrongWay(-5, 0, 1, 0, 10), false) -- too slow to count
+end)

@@ -7,7 +7,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
-local Rewards = require(ReplicatedStorage.Shared.Rewards)
 local Profile = require(ReplicatedStorage.Shared.Profile)
 
 local remote = ReplicatedStorage:WaitForChild("StarsEvent") :: RemoteEvent
@@ -681,45 +680,46 @@ prizeGoal.TextXAlignment = Enum.TextXAlignment.Center
 local prizeBar = bar(prize, 0.78, 0.18)
 local prizeShows = 0
 
-local function showPrize(info: any)
-	local place = if type(info.place) == "number" then info.place else 0
-	local coins = if type(info.coins) == "number" then info.coins else 0
-	if coins > 0 then
-		prizeTitle.Text = `{Rewards.placeName(place)} place!  +{coins} coins`
+-- After a server race (its result card shows first): how far your coins got you to the goal.
+local lastGoal: any = nil
+local function showPrize(before: any)
+	local g = lastGoal
+	if type(g) ~= "table" or type(g.name) ~= "string" or type(g.price) ~= "number" then
+		return
+	end
+	local gained = if type(before) == "table"
+			and before.kind ~= "grid"
+			and g.kind ~= "grid"
+		then g.have - before.have
+		else 0
+	if gained > 0 then
+		prizeTitle.Text = `+{gained} coins!`
 		prizeTitle.TextColor3 = GOLD
 		prizeRim.Color = GOLD
 	else
-		local where = if info.finished
-			then `{Rewards.placeName(place)} place.`
-			else "Didn't finish."
-		prizeTitle.Text = `{where}  Top 3 win coins!`
+		prizeTitle.Text = "race again to win coins!"
 		prizeTitle.TextColor3 = Color3.new(1, 1, 1)
 		prizeRim.Color = Color3.fromRGB(120, 120, 130)
 	end
-	local g = info.goal
+	local what, how, fill = goalText(g)
+	prizeGoal.Text = `{what}   {how}`
+	prizeGoal.TextColor3 = if g.ready then GREEN else Color3.new(1, 1, 1)
 	local f = prizeBar:FindFirstChild("Fill") :: Frame
-	if type(g) == "table" and type(g.name) == "string" and type(g.price) == "number" then
-		local what, how, fill = goalText(g)
-		prizeGoal.Text = `{what}   {how}`
-		prizeGoal.TextColor3 = if g.ready then GREEN else Color3.new(1, 1, 1)
-		prizeBar.Visible = true
-		f.BackgroundColor3 = if g.ready then GREEN else GOLD
-		-- the bar fills from what you had to what you have now
-		local before = if g.kind ~= "grid" and g.price > 0
-			then math.clamp((g.have - coins) / g.price, 0, 1)
-			else fill
-		f.Size = UDim2.fromScale(before, 1)
-		task.delay(0.6, function()
-			TweenService:Create(
+	f.BackgroundColor3 = if g.ready then GREEN else GOLD
+	-- the bar fills from what you had to what you have now
+	local from = if gained > 0 and g.price > 0
+		then math.clamp((g.have - gained) / g.price, 0, 1)
+		else fill
+	f.Size = UDim2.fromScale(from, 1)
+	task.delay(0.6, function()
+		TweenService
+			:Create(
 				f,
 				TweenInfo.new(0.8, Enum.EasingStyle.Quad),
 				{ Size = UDim2.fromScale(fill, 1) }
-			):Play()
-		end)
-	else
-		prizeGoal.Text = "you have everything!"
-		prizeBar.Visible = false
-	end
+			)
+			:Play()
+	end)
 	prizeShows += 1
 	local mine = prizeShows
 	prize.Visible = true
@@ -732,6 +732,18 @@ local function showPrize(info: any)
 		end
 	end)
 end
+task.spawn(function()
+	local raceEvent = ReplicatedStorage:WaitForChild("ServerRace") :: RemoteEvent
+	raceEvent.OnClientEvent:Connect(function(kind: unknown)
+		if kind == "result" then
+			-- the race pay comes in the next second or two: show the goal after it
+			local before = lastGoal
+			task.delay(2.5, function()
+				showPrize(before)
+			end)
+		end
+	end)
+end)
 
 remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unknown, ...: unknown)
 	if kind == "stars" and type(info) == "number" then
@@ -740,11 +752,8 @@ remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unkn
 		return
 	end
 	if kind == "goal" then
+		lastGoal = info
 		showGoal(info)
-		return
-	end
-	if kind == "prize" and type(info) == "table" then
-		showPrize(info)
 		return
 	end
 	if kind == "coins" and type(info) == "number" then

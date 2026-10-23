@@ -1,5 +1,5 @@
 --!strict
--- What a server race pays, and the "next unlock" goal shown after it.
+-- The "next unlock" goal shown in the lobby and after each race.
 local H = require("./harness")
 local Rewards = require("../src/shared/Rewards")
 local Profile = require("../src/shared/Profile")
@@ -9,43 +9,40 @@ local test, eq, truthy = H.test, H.eq, H.truthy
 
 print("Rewards")
 
-test("rewards: top 3 get coins, the rest nothing, weekends double", function()
-	eq(Rewards.placeCoins(1), Rewards.PLACE_COINS[1])
-	eq(Rewards.placeCoins(3), Rewards.PLACE_COINS[3])
-	eq(Rewards.placeCoins(4), 0)
-	eq(Rewards.placeCoins(1, 2), Rewards.PLACE_COINS[1] * 2)
-	truthy(Rewards.PLACE_COINS[1] > Rewards.PLACE_COINS[2])
-	truthy(Rewards.PLACE_COINS[2] > Rewards.PLACE_COINS[3])
-	eq(Rewards.placeName(1), "1st")
-	eq(Rewards.placeName(2), "2nd")
-	eq(Rewards.placeName(3), "3rd")
-	eq(Rewards.placeName(4), "4th")
-	eq(Rewards.placeName(11), "11th")
-	eq(Rewards.placeName(22), "22nd")
-end)
-
-test("rewards: next goal is the cheapest car you don't have, race cars first", function()
+test("rewards: next goal is the cheapest thing you don't have, cheapest first", function()
 	local d = Profile.new()
-	local g = Rewards.next(d :: any)
-	truthy(g)
-	local goal = g :: Rewards.Goal
-	eq(goal.kind, "car")
-	eq(goal.mode, "race")
-	eq(goal.ready, false)
-	eq(goal.have, 0)
-	d.coins = goal.price
+	local goals = Rewards.coinGoals(d :: any)
+	truthy(#goals > 0)
+	for i = 2, #goals do
+		truthy(goals[i - 1].price <= goals[i].price)
+	end
+	local g = Rewards.next(d :: any) :: Rewards.Goal
+	eq(g.price, goals[1].price)
+	eq(g.ready, false)
+	eq(g.have, 0)
+	d.coins = g.price
 	eq((Rewards.next(d :: any) :: Rewards.Goal).ready, true)
-	-- own every shop car: the next goal is tiles (if they cost) or the bigger grid
+	-- the race cars come before the other cars at the same price
+	local firstCar: Rewards.Goal? = nil
+	for _, x in goals do
+		if x.kind == "car" then
+			firstCar = x
+			break
+		end
+	end
+	eq((firstCar :: Rewards.Goal).mode, "race")
+	-- own every shop car and tile: the next goal is the bigger grid (or nothing)
 	for _, list in (require("../src/shared/CarCatalog") :: any).SHOP do
 		for _, c in list do
 			d.cars[c.id] = true
 		end
 	end
+	for _, t in (require("../src/shared/TileShop") :: any).TILES do
+		d.tiles[t.id] = 1
+	end
 	local after = Rewards.next(d :: any)
-	if TrackTiles.ALL_FREE then
+	if #TrackTiles.SIZES > 1 then
 		eq((after :: Rewards.Goal).kind, "grid")
-	else
-		eq((after :: Rewards.Goal).kind, "tile")
 	end
 end)
 

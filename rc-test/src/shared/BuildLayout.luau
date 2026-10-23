@@ -147,10 +147,13 @@ function BuildLayout.statusText(ready: boolean): string
 	return if ready then "✓ READY" else "GAP!"
 end
 
--- the hint line: 1-3 big words (carter: new players must get it at once)
-function BuildLayout.hint(ready: boolean, gap: boolean, erasing: boolean): string
+-- the hint line: 1-3 big words (carter: new players must get it at once). turnTip: a tile
+-- was just dropped and the player has never turned one, so teach the tap.
+function BuildLayout.hint(ready: boolean, gap: boolean, erasing: boolean, turnTip: boolean?): string
 	if erasing then
 		return "TAP TO ERASE"
+	elseif turnTip then
+		return "TAP TO TURN"
 	elseif ready then
 		return "TAP DONE!"
 	elseif gap then

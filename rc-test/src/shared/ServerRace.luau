@@ -18,6 +18,7 @@ local RaceStart = sibling("RaceStart")
 export type Spawn = { x: number, y: number, z: number, dx: number, dz: number }
 export type Entry = {
 	name: string,
+	uid: number?, -- the racer's UserId (who gets the coins)
 	laps: number, -- laps done
 	time: number?, -- seconds from GO to the finish (nil = didn't finish)
 }
@@ -62,7 +63,7 @@ function ServerRace.signText(left: number, racing: boolean, where: string?): str
 	if left <= ServerRace.CALL then
 		return "RACE IN " .. ServerRace.clock(left) .. at
 	end
-	return "NEXT RACE IN\n" .. ServerRace.clock(left)
+	return "BUILD YOUR TRACK!\nRACE IN " .. ServerRace.clock(left) -- tells a new player what the break is for
 end
 
 -- Which plot the round is on: a random one of the race-ready player plots (`owned`), else a
@@ -138,6 +139,19 @@ function ServerRace.rank(entries: { Entry }): { Entry }
 	return out
 end
 
+-- Coins for a server race (the game's main pay: every race pays, the best pay most). Coin
+-- prices are guesses to tune: a win is most of a 150-coin car or tile.
+ServerRace.PAY = { 100, 70, 50 } -- 1st, 2nd, 3rd
+ServerRace.PAY_FINISH = 30 -- finished all the laps, 4th or later
+ServerRace.PAY_TRY = 10 -- raced but didn't finish
+ServerRace.PAY_OWNER = 40 -- the plot's owner: "your track was picked!"
+function ServerRace.payFor(place: number, finished: boolean): number
+	if not finished then
+		return ServerRace.PAY_TRY
+	end
+	return ServerRace.PAY[place] or ServerRace.PAY_FINISH
+end
+
 -- Is the race over? (`since` = seconds from GO, `firstAt` = when the winner finished)
 function ServerRace.over(entries: { Entry }, since: number, firstAt: number?): boolean
 	if since >= ServerRace.TIME_LIMIT then
@@ -152,6 +166,76 @@ function ServerRace.over(entries: { Entry }, since: number, firstAt: number?): b
 		end
 	end
 	return #entries > 0
+end
+
+-- 1 -> "1ST", 2 -> "2ND", 11 -> "11TH"
+function ServerRace.ordinal(n: number): string
+	local suffix = "TH"
+	local tens = n % 100
+	if tens < 11 or tens > 13 then
+		local d = n % 10
+		suffix = if d == 1 then "ST" elseif d == 2 then "ND" elseif d == 3 then "RD" else "TH"
+	end
+	return `{n}{suffix}`
+end
+
+-- How far round a racer is, for the live places (bigger = further ahead): `laps` done,
+-- `passed` gates of this lap (the lap timer's next gate - 1), out of `gates`, and `dist` to the
+-- next gate (big units).
+function ServerRace.progress(laps: number, passed: number, gates: number, dist: number): number
+	return laps * (gates + 1) + passed - math.clamp(dist, 0, 9999) / 10000
+end
+
+export type Run = { time: number?, progress: number }
+
+-- Live places: finishers first by time, then the rest by how far round. place[i] for runs[i].
+function ServerRace.places(runs: { Run }): { number }
+	local order = {}
+	for i in runs do
+		table.insert(order, i)
+	end
+	table.sort(order, function(a: number, b: number): boolean
+		local ta, tb = runs[a].time, runs[b].time
+		if ta and tb then
+			return ta < tb
+		elseif ta or tb then
+			return ta ~= nil
+		elseif runs[a].progress ~= runs[b].progress then
+			return runs[a].progress > runs[b].progress
+		end
+		return a < b
+	end)
+	local place = {}
+	for k, i in order do
+		place[i] = k
+	end
+	return place
+end
+
+-- Driving the wrong way? The flat velocity (vx, vz) points back, away from the way to the next
+-- gate (tx, tz). Slower than `minSpeed` never counts (turning round, bumping a wall).
+function ServerRace.wrongWay(
+	vx: number,
+	vz: number,
+	tx: number,
+	tz: number,
+	minSpeed: number
+): boolean
+	local speed = math.sqrt(vx * vx + vz * vz)
+	local len = math.sqrt(tx * tx + tz * tz)
+	if speed < minSpeed or len < 1e-6 then
+		return false
+	end
+	return (vx * tx + vz * tz) / (speed * len) < -0.5
+end
+
+-- The medal for a finishing place on the results ("" past 3rd).
+function ServerRace.medal(place: number): string
+	return if place == 1
+		then "🥇"
+		elseif place == 2 then "🥈"
+		elseif place == 3 then "🥉"
+		else ""
 end
 
 return ServerRace

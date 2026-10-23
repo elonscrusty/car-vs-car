@@ -9,7 +9,7 @@
 -- Server -> client (StarsEvent): ("stars", count, saving), ("run", info), ("coins", count),
 -- ("toast", text), ("bolts", found, total, onRock), ("bolt", id), ("boltsFound", ids) and
 -- ("rivals", list, streak, winPoints), ("daily", coins, days in a row, boost) and ("jobs", lines,
--- secondsToNewJobs), ("goal", goal or nil) = Rewards.next, ("prize", info) after a server race.
+-- secondsToNewJobs), ("goal", goal or nil) = Rewards.next (what to save up for).
 -- The client never sends. workspace "CoinBoost" = 2 on weekends (every coin
 -- gift doubled).
 
@@ -27,7 +27,6 @@ local Rewards = require(ReplicatedStorage.Shared.Rewards)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local PlayerData = require(script.Parent.PlayerData)
 local Pings = require(script.Parent.Pings)
-local ServerRaceRunner = require(script.Parent.ServerRaceRunner)
 
 local LOOK = 0.1 -- seconds between looks at the cars
 local TEST_OWNER = -1 -- Studio only: who owns an empty plot
@@ -811,41 +810,6 @@ end)
 Players.PlayerRemoving:Connect(function(p)
 	goalSeen[p] = nil
 end)
-
--- Server race over: the top 3 finishers get coins, everyone sees what they got and what's next.
-ServerRaceRunner.finished:Connect(
-	function(player: Player, place: number, finished: boolean, racers: number)
-		local data = PlayerData.get(player)
-		if not data or player.Parent == nil then
-			return
-		end
-		local boost = Profile.boost(os.time())
-		local coins = if finished then Rewards.placeCoins(place, boost) else 0
-		if coins > 0 then
-			data.coins += coins
-			PlayerData.touch(player)
-			remote:FireClient(player, "coins", data.coins)
-		end
-		print(
-			`[Stars] server race {player.Name} place {place}/{racers} finished={finished} +{coins} coins`
-		)
-		-- after the result card (ServerRace.client shows it first)
-		task.delay(1.5, function()
-			if player.Parent == nil then
-				return
-			end
-			remote:FireClient(player, "prize", {
-				place = place,
-				racers = racers,
-				finished = finished,
-				coins = coins,
-				boost = boost,
-				goal = goalOf(data),
-			})
-			sendGoal(player, true)
-		end)
-	end
-)
 
 local acc = 0
 RunService.Heartbeat:Connect(function(dt: number)
