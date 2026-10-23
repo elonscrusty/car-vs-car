@@ -428,3 +428,31 @@ test("weekend: Saturday and Sunday (UTC) pay double", function()
 	Profile.win(d, 1, 3, "Mia", sat)
 	eq(d.coins, Profile.VISIT_COINS * 2 + Profile.WIN_COINS * 2)
 end)
+
+test("track: saved tiles survive a save, junk tiles are dropped", function()
+	local d = Profile.new()
+	eq(Profile.getTrack(d), nil) -- the starter circle
+	Profile.setTrack(d, {
+		{ c = 1, r = 1, piece = "turn", rot = 1 },
+		{ c = 2, r = 1, piece = "straight", rot = 5 }, -- rot wraps to 1
+		{ c = 1, r = 1, piece = "straight", rot = 0 }, -- same cell: the last one wins
+		{ c = 0, r = 1, piece = "straight", rot = 0 }, -- off the grid
+		{ c = 3, r = 1, piece = "", rot = 0 },
+		{ c = 3, r = 1, piece = "straight", rot = 0 / 0 },
+		"junk" :: any,
+	})
+	local t = Profile.getTrack(d)
+	truthy(t)
+	local tiles = (t :: Profile.Track).tiles
+	eq(#tiles, 2)
+	eq(tiles[1].piece, "straight")
+	eq(tiles[1].rot, 0)
+	eq(tiles[2].rot, 1)
+	local back = Profile.migrate(d)
+	eq(#(back.track :: Profile.Track).tiles, 2)
+	eq((back.track :: Profile.Track).tiles[2].piece, "straight")
+	Profile.setTrack(d, nil)
+	eq(Profile.getTrack(d), nil)
+	eq(Profile.migrate({ version = 8, coins = 3 }).track, nil)
+	eq(Profile.migrate({ track = { tiles = "x" } }).track, nil)
+end)
