@@ -157,3 +157,8 @@ test("tyres close the far end of the road, on the grass, clear of the first plot
 		truthy(t.z < L.FIRST_Z - L.PLOT_W / 2, "before the first plots")
 	end
 end)
+
+test("signs are blank until someone drives that plot, then show their name", function()
+	eq(L.signText(nil), "")
+	eq(L.signText("carter"), "carter")
+end)
