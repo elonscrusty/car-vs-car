@@ -147,6 +147,7 @@ Garage.MESHES = {
 		at = v(Garage.BENCH.x, Garage.FLOOR, Garage.BENCH.z),
 		fit = v(8, 3.4, 2.8),
 		long = "x",
+		yaw = 180, -- its drawers are on its -Z side: turn them out of the back wall, to the door
 		keep = {},
 		collide = true,
 	},
@@ -155,6 +156,7 @@ Garage.MESHES = {
 		group = "Workbench",
 		at = v(Garage.BENCH.x + 1.6, Garage.FLOOR + 3.3, Garage.BENCH.z), -- y: block bench top
 		fit = v(1.8, 1.2, 1),
+		yaw = 180, -- latch to the door, like the bench
 		long = "x",
 		keep = { "Top", "Leg", "Shelf", "Drawers", "Handle" }, -- only the small bits on top go
 		onTop = "Workbench",
