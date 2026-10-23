@@ -72,6 +72,19 @@ LobbyDecor.BIT_DZ = -30 -- hydrant / bin / mailbox: this far up the street
 LobbyDecor.PATH_X = EDGE - 1.2 -- footpath things stand by the outer edge
 LobbyDecor.FLAG_X = EDGE + 5 -- flags and flower beds in the gaps
 LobbyDecor.CORNER = { x = 94, z = L.PLAZA.minZ + 40 } -- the RC corners (x mirrored)
+-- Small lived-in props (carter's Meshy ones, a plain block until imported), each facing the
+-- road or the spawn: { model, x, z, height, faceX, faceZ, block size, block colour, solid }.
+export type Extra = {
+	model: string,
+	x: number,
+	z: number,
+	h: number,
+	fx: number,
+	fz: number,
+	size: { number },
+	color: { number },
+	solid: boolean,
+}
 LobbyDecor.CORNER_CONES = { { -17, 14 }, { -12, 17 }, { 15, -15 } } -- round a corner (x mirrored)
 
 local function v(x: number, y: number, z: number): V3
@@ -257,6 +270,91 @@ local function ramp(add: Garage.Add, g: string, x: number, z: number)
 	add(g, "Ramp", v(10, 4, 14), v(x, 2, z), C.wood, { shape = "Wedge", rot = v(0, -90, 0) })
 end
 
+local function extras(): { Extra }
+	local out: { Extra } = {}
+	local function put(
+		model: string,
+		x: number,
+		z: number,
+		h: number,
+		fx: number,
+		fz: number,
+		size: { number },
+		color: { number },
+		solid: boolean
+	)
+		table.insert(out, {
+			model = model,
+			x = x,
+			z = z,
+			h = h,
+			fx = fx,
+			fz = fz,
+			size = size,
+			color = color,
+			solid = solid,
+		})
+	end
+	local n = 0
+	for row, z in ROW_Z do
+		for _, side in { -1, 1 } do
+			n += 1
+			-- bags by every bin
+			if n % 3 == 1 then
+				put(
+					"TrashBags",
+					side * LobbyDecor.PATH_X,
+					z + LobbyDecor.BIT_DZ + 2.2,
+					1.2,
+					-side,
+					0,
+					{ 1.4, 1.2, 1.4 },
+					C.dark,
+					false
+				)
+			end
+			-- a drain grate in the road's edge, every other plot
+			if (row + (if side > 0 then 1 else 0)) % 2 == 0 then
+				put(
+					"DrainGrate",
+					side * (L.ROAD_W / 2 - 0.8),
+					z - 8,
+					0.15,
+					-side,
+					0,
+					{ 1.2, 0.1, 2 },
+					C.dark,
+					false
+				)
+			end
+		end
+	end
+	-- where the street leaves the spawn lobby: a traffic barrel and an arrow sign each side
+	local mouth = L.road().minZ
+	for _, side in { -1, 1 } do
+		put(
+			"TrafficBarrel",
+			side * (L.EDGE + 2.5),
+			mouth + 4,
+			2.4,
+			-side,
+			0,
+			{ 1.5, 2.4, 1.5 },
+			C.cone,
+			true
+		)
+		put("ArrowSign", side * (L.EDGE + 4.5), mouth + 5, 4, 0, -1, { 0.3, 4, 2.4 }, C.white, true)
+	end
+	-- RC workshop bits round the giant corners
+	local cx, cz = LobbyDecor.CORNER.x, LobbyDecor.CORNER.z
+	put("GasCan", -cx + 12, cz + 6, 1.6, 1, 0, { 1.2, 1.6, 0.8 }, C.red, false)
+	put("OilCan", -cx + 14, cz + 5, 1.2, 1, 0, { 0.7, 1.2, 0.7 }, C.cell, false)
+	put("ToolCart", cx - 14, cz + 12, 3.5, -1, 0, { 2.4, 3.5, 1.6 }, C.red, true)
+	put("Toolbox", cx - 17, cz + 14, 1.4, -1, 0, { 1.8, 1.2, 1 }, C.red, false)
+	return out
+end
+LobbyDecor.extras = extras
+
 -- The block pieces (world space). The meshes in MESHES take the place of some groups.
 function LobbyDecor.parts(): { Piece }
 	local out: { Piece } = {}
@@ -359,6 +457,13 @@ function LobbyDecor.parts(): { Piece }
 		for i, d in LobbyDecor.CORNER_CONES do
 			cone(add, "CornerCone" .. side .. "_" .. i, side * (cx + d[1]), cz + d[2])
 		end
+	end
+	-- the small lived-in props' stand-ins
+	for i, e in extras() do
+		local sz = e.size
+		add("Extra" .. i, e.model, v(sz[1], sz[2], sz[3]), v(e.x, sz[2] / 2, e.z), e.color, {
+			collide = e.solid,
+		})
 	end
 	return out
 end
@@ -463,6 +568,9 @@ do
 			faced("FlowerPot", bed, v(bx - side * 0.8, 0.2, z - 2.2), 1.8, road, { "Bed" }, false)
 			faced("FlowerPot", bed, v(bx - side * 0.8, 0.2, z + 1.8), 1.8, road, { "Bed" }, false)
 		end
+	end
+	for i, e in extras() do
+		faced(e.model, "Extra" .. i, v(e.x, 0, e.z), e.h, v(e.fx, 0, e.fz), {}, e.solid)
 	end
 end
 

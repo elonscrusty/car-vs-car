@@ -132,7 +132,9 @@ end)
 test("footpath props and gap flags face the road", function()
 	truthy(#D.FACED >= 8 + 6 * 4, "faced props")
 	for _, f in D.FACED do
-		truthy(f.face.x * f.at.x < 0 and f.face.z == 0, f.group .. " faces away from the road")
+		local toRoad = f.face.x * f.at.x < 0 and f.face.z == 0
+		local toSpawn = f.face.z < 0 and f.at.z < L.FIRST_Z
+		truthy(toRoad or toSpawn, f.group .. " faces away from the road")
 	end
 end)
 
