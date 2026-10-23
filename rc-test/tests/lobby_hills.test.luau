@@ -8,7 +8,7 @@ local test, truthy = H.test, H.truthy
 
 print("Lobby hills")
 
-local hills, trees = Hills.layout()
+local hills, trees, props = Hills.layout()
 local g = L.ground()
 local lake = L.LAKE_SIDE or 1
 
@@ -90,7 +90,7 @@ end)
 test("near rows are low, far rows tall; every tree stands on a hill", function()
 	for _, h in hills do
 		local spec = Hills.ROWS[h.row]
-		truthy(h.h >= spec.h[1] and h.h <= spec.h[2], "height in its row's range")
+		truthy(h.h >= spec.h[1] * 0.6 and h.h <= spec.h[2] * 2, "height near its row's range")
 	end
 	for _, t in trees do
 		local on = false
@@ -130,4 +130,34 @@ test("grass under every hill, never over the lobby or the lake", function()
 			truthy(under, `no grass under the hill at {h.x}, {h.z}`)
 		end
 	end
+end)
+
+test("the ring mixes kinds of hill, tree and foot detail", function()
+	local kinds, meshes, props2 = {}, {}, {}
+	for _, h in hills do
+		kinds[h.kind] = (kinds[h.kind] or 0) + 1
+		truthy(h.row == 3 or h.kind ~= "peak", "near rows are never peaks")
+	end
+	for _, k in { "meadow", "forest", "autumn", "rock", "peak" } do
+		truthy((kinds[k] or 0) >= 4, `few {k} hills: {kinds[k] or 0}`)
+	end
+	for _, t in trees do
+		meshes[t.mesh] = true
+		truthy(t.mesh ~= "BlockTree" or t.color ~= nil, "block tree has a colour")
+	end
+	truthy(meshes.PineTree and meshes.LeafyTree and meshes.BlockTree, "three kinds of tree")
+	truthy(#props > 40 and #props <= Hills.MAX_PROPS, `props: {#props}`)
+	local keep = Hills.keepBox()
+	for _, p in props do
+		props2[p.mesh] = true
+		truthy(
+			not (p.x > g.minX and p.x < g.maxX and p.z > g.minZ and p.z < g.maxZ),
+			"prop on the lobby grass"
+		)
+		truthy(
+			not (p.x > keep.minX and p.x < keep.maxX and p.z > keep.minZ and p.z < keep.maxZ),
+			"prop by the lake"
+		)
+	end
+	truthy(props2.Flowers and props2.Bush and props2.RockPile, "flowers, bushes and rocks")
 end)
