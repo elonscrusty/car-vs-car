@@ -8,13 +8,16 @@
 -- try the stars.
 -- Server -> client (StarsEvent): ("stars", count, saving), ("run", info), ("coins", count),
 -- ("toast", text), ("bolts", found, total, onRock), ("bolt", id), ("boltsFound", ids) and
--- ("rivals", list, streak, winPoints) and ("daily", coins, days in a row, boost). The client never
--- sends. workspace "CoinBoost" = 2 on weekends (every coin gift doubled).
+-- ("rivals", list, streak, winPoints), ("daily", coins, days in a row, boost) and ("jobs", lines,
+-- secondsToNewJobs). The client never sends. workspace "CoinBoost" = 2 on weekends (every coin
+-- gift doubled).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local DailyJobs = require(ReplicatedStorage.Shared.DailyJobs)
+local LapTimer = require(ReplicatedStorage.Shared.LapTimer)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local Medals = require(ReplicatedStorage.Shared.Medals)
 local Profile = require(ReplicatedStorage.Shared.Profile)
@@ -212,6 +215,52 @@ local function showAll()
 	end
 end
 
+-- ===== daily jobs (DailyJobs): 3 a day, paid in coins =====
+
+local function sendJobs(player: Player)
+	local data = PlayerData.get(player)
+	if not data then
+		return
+	end
+	local now = os.time()
+	local day = Profile.day(now)
+	DailyJobs.today(data, day)
+	remote:FireClient(
+		player,
+		"jobs",
+		DailyJobs.lines(data, player.UserId, day),
+		(day + 1) * 86400 - now
+	)
+end
+
+-- Something a job may want happened to `player`.
+local function job(player: Player, event: string, n: number?)
+	local data = PlayerData.get(player)
+	if not data then
+		return
+	end
+	local day = Profile.day(os.time())
+	local before = table.clone(data.jobs.have)
+	local boost = Profile.boost(os.time()) -- double coins on weekends
+	local done = DailyJobs.add(data, player.UserId, day, event, n, boost)
+	local changed = data.jobs.day ~= day or #done > 0
+	for i, v in data.jobs.have do
+		changed = changed or before[i] ~= v
+	end
+	if not changed then
+		return
+	end
+	PlayerData.touch(player)
+	for _, j in done do
+		remote:FireClient(player, "toast", `+{j.coins * boost} coins: job done! {j.text}`)
+		print(`[Stars] job {j.id} done by {player.Name} +{j.coins * boost} coins`)
+	end
+	if #done > 0 then
+		remote:FireClient(player, "coins", data.coins)
+	end
+	sendJobs(player)
+end
+
 -- ===== runs =====
 
 -- ===== beating friends: wins, the streak on your car, rivals =====
@@ -320,10 +369,26 @@ local function onRun(player: Player, slotIndex: number, mode: string, value: num
 	end
 	if beaten and beaten.userId ~= player.UserId then
 		beat(player, beaten, mode)
+		job(player, "beat")
 	end
 	local medal = Medals.medal(mode, value)
 	local oid = ownerId(slotIndex)
 	local own = oid == player.UserId
+	if mode == "race" then
+		job(player, "lap")
+	elseif mode == "rock" then
+		job(player, "climb")
+	elseif mode == "drift" then
+		if value >= 500 then
+			job(player, "slide500")
+		end
+		if value >= 1500 then
+			job(player, "slide1500")
+		end
+	end
+	if oid and not own and medal > 0 then
+		job(player, "medal")
+	end
 	local gained = 0
 	local data = PlayerData.get(player)
 	if data and oid and not own then
@@ -381,7 +446,14 @@ local function onRun(player: Player, slotIndex: number, mode: string, value: num
 	})
 end
 
-type Watch = { car: Instance, slot: number, mode: string, run: RunCheck.State }
+type Watch = {
+	car: Instance,
+	slot: number,
+	mode: string,
+	run: RunCheck.State,
+	touched: { [number]: boolean }, -- drift: glow spots slid through in this slide
+	flag: number, -- rock: the last checkpoint flag reached on this climb
+}
 local watching: { [Player]: Watch } = {}
 local tracks: { [number]: TrackData.Track } = {}
 
@@ -514,6 +586,8 @@ local function look(now: number)
 				slot = slotIndex,
 				mode = t.id,
 				run = RunCheck.new(t.gates, t.mode, t.id, localSpot(t.spawn), cps, now, lx, ly, lz),
+				touched = {},
+				flag = 0,
 			}
 			continue
 		end
@@ -526,6 +600,32 @@ local function look(now: number)
 		for _, e in RunCheck.step(w.run, now, lx, ly, lz, bx - ax, bz - az, hit ~= nil) do
 			if e.kind == "lap" or e.kind == "finish" or e.kind == "drift" then
 				onRun(player, slotIndex, w.mode, e.value)
+			elseif e.kind == "void" then
+				w.flag = 0
+			end
+		end
+		if w.mode == "drift" then
+			-- a glow spot counts once per slide, only while sliding (like the client's bonus)
+			if w.run.chain > 0 then
+				local zone = TrackData.plot("drift").touchZone(lx, lz)
+				if zone and not w.touched[zone] then
+					w.touched[zone] = true
+					job(player, "touch")
+				end
+			elseif next(w.touched) then
+				w.touched = {}
+			end
+		elseif w.mode == "rock" then
+			local cps = t.checkpoints or {}
+			local dx, dz = lx - t.spawn.x, lz - t.spawn.z
+			if dx * dx + dz * dz <= RunCheck.SNAP * RunCheck.SNAP then
+				w.flag = 0 -- back at the start: a new climb
+			end
+			for k = w.flag + 1, #cps do
+				if LapTimer.inside(cps[k].gate, lx, ly, lz) then
+					w.flag = k
+					job(player, "flag" .. k)
+				end
 			end
 		end
 	end
@@ -626,6 +726,7 @@ PlayerData.loaded:Connect(function(player: Player, data: Profile.Data, saving: b
 		sendRivals(player)
 		showStreak(player)
 	end)
+	sendJobs(player)
 	showAll() -- their plot's board shows their saved record
 	dailyGift(player, data)
 end)
@@ -649,6 +750,21 @@ task.spawn(function()
 		end
 	end
 	showAll()
+end)
+
+-- a new day: new jobs on everyone's panel
+task.spawn(function()
+	local shownDay = Profile.day(os.time())
+	while true do
+		task.wait(30)
+		local day = Profile.day(os.time())
+		if day ~= shownDay then
+			shownDay = day
+			for _, p in Players:GetPlayers() do
+				sendJobs(p)
+			end
+		end
+	end
 end)
 
 local acc = 0

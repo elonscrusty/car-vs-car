@@ -209,6 +209,91 @@ local function showRivals(list: { any }, streak: number, points: number)
 end
 showRivals({}, 0, 0)
 
+-- daily jobs: a small panel under the chips (tap the title to fold it)
+local jobs = Instance.new("Frame")
+jobs.Name = "DailyJobs"
+jobs.Position = UDim2.new(0.02, 0, 0.26, 80) -- under the rivals button
+jobs.Size = UDim2.fromScale(0.27, 0.2)
+jobs.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+jobs.BackgroundTransparency = 0.3
+jobs.Visible = false -- until the server sends them
+jobs.Parent = gui
+local jobsCorner = Instance.new("UICorner")
+jobsCorner.CornerRadius = UDim.new(0.08, 0)
+jobsCorner.Parent = jobs
+local jobsPad = Instance.new("UIPadding")
+jobsPad.PaddingLeft = UDim.new(0.04, 0)
+jobsPad.PaddingRight = UDim.new(0.04, 0)
+jobsPad.PaddingTop = UDim.new(0.04, 0)
+jobsPad.PaddingBottom = UDim.new(0.04, 0)
+jobsPad.Parent = jobs
+local jobsTitle = Instance.new("TextButton")
+jobsTitle.Name = "Title"
+jobsTitle.Size = UDim2.fromScale(1, 0.22)
+jobsTitle.BackgroundTransparency = 1
+jobsTitle.TextColor3 = Color3.fromRGB(255, 213, 79)
+jobsTitle.Font = Enum.Font.GothamBlack
+jobsTitle.TextScaled = true
+jobsTitle.TextXAlignment = Enum.TextXAlignment.Left
+jobsTitle.Text = "DAILY JOBS"
+jobsTitle.Parent = jobs
+local jobRows: { TextLabel } = {}
+for i = 1, 3 do
+	local row = Instance.new("TextLabel")
+	row.Name = "Job" .. i
+	row.Position = UDim2.fromScale(0, 0.26 * i)
+	row.Size = UDim2.fromScale(1, 0.22)
+	row.BackgroundTransparency = 1
+	row.TextColor3 = Color3.new(1, 1, 1)
+	row.Font = Enum.Font.GothamBold
+	row.TextScaled = true
+	row.RichText = true
+	row.TextXAlignment = Enum.TextXAlignment.Left
+	row.Parent = jobs
+	jobRows[i] = row
+end
+local folded = false
+local resetAt = 0 -- os.time() when new jobs come
+local function showFold()
+	for _, row in jobRows do
+		row.Visible = not folded
+	end
+	jobs.Size = UDim2.fromScale(0.27, if folded then 0.06 else 0.2)
+	jobsTitle.Size = UDim2.fromScale(1, if folded then 1 else 0.22)
+end
+jobsTitle.Activated:Connect(function()
+	folded = not folded
+	showFold()
+end)
+local function showJobs(lines: { any })
+	for i, row in jobRows do
+		local l = lines[i]
+		if type(l) == "table" and type(l.text) == "string" then
+			if l.done then
+				row.Text = `<font color="#7CE08A">✓ {l.text}</font>`
+			else
+				row.Text = `{l.text}  <font color="#FFD54F">{l.have}/{l.goal}  +{l.coins}</font>`
+			end
+		else
+			row.Text = ""
+		end
+	end
+	jobs.Visible = true
+end
+-- how long until new jobs, in the title
+task.spawn(function()
+	while true do
+		local left = resetAt - os.time()
+		if resetAt > 0 and left > 0 then
+			local h, m = math.floor(left / 3600), math.floor(left % 3600 / 60)
+			local wait = if h > 0 then `{h}h` else `{math.max(m, 1)}m`
+			jobsTitle.Text = `DAILY JOBS  <font color="#AAB2BD">new in {wait}</font>`
+		end
+		task.wait(20)
+	end
+end)
+jobsTitle.RichText = true
+
 -- short messages: likes, visit gifts
 local toast = Instance.new("TextLabel")
 toast.Name = "Toast"
@@ -484,6 +569,14 @@ remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unkn
 		-- ("daily", coins, days in a row, boost)
 		local boost = select(1, ...)
 		showDaily(info, saving, if type(boost) == "number" then boost else 1)
+		return
+	end
+	if kind == "jobs" and type(info) == "table" then
+		-- ("jobs", lines, secondsToNewJobs)
+		if type(saving) == "number" then
+			resetAt = os.time() + saving
+		end
+		showJobs(info :: { any })
 		return
 	end
 	if kind == "toast" and type(info) == "string" then
