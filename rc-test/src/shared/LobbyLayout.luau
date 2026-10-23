@@ -55,13 +55,14 @@ LobbyLayout.FIRST_Z = 1000 -- middle of the first row of plots (next to the spaw
 LobbyLayout.STEP = LobbyLayout.PLOT_W + LobbyLayout.GAP
 LobbyLayout.REACH = 8 -- how close to the pad you must be to start driving
 LobbyLayout.PAD = 5 -- pad size
--- The kinds of plot in the lobby (index into TrackData.order; show is on hold).
-LobbyLayout.TRACKS = { 1, 2, 3 }
+-- The kinds of plot in the lobby (index into TrackData.order; rocks dropped 2026-10-23, show
+-- is on hold).
+LobbyLayout.TRACKS = { 1, 2 }
 -- What each lobby plot is, by slot (left row 1, right row 1, left row 2, ...). Race plots are
--- the ones players own and build their track on (carter's game shape v3), so 6 of them; one
--- drift and one rock track stay open for everyone (2026-10-23 polish pass): race, race /
--- drift, rocks / race, race / race, race.
-LobbyLayout.SLOT_TRACKS = { 2, 2, 1, 3, 2, 2, 2, 2 }
+-- the ones players own and build their track on (the owner then picks race or drift for it), so
+-- 7 of them; one ready-made drift track stays open for everyone so the DRIFT pad always works
+-- (carter dropped rocks 2026-10-23): race, race / drift, race / race, race / race, race.
+LobbyLayout.SLOT_TRACKS = { 2, 2, 1, 2, 2, 2, 2, 2 }
 -- The lake is past this end of the road (+z).
 LobbyLayout.LAKE_SIDE = 1
 
