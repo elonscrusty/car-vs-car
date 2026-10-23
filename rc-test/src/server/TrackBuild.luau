@@ -13,6 +13,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local PlotTracks = require(ReplicatedStorage.Shared.PlotTracks)
@@ -24,8 +25,10 @@ local TrackBuilder = require(script.Parent.TrackBuilder)
 
 -- TileShop (Spawn lobby thread) says which pieces a save owns; until it ships, free ones only.
 local function owns(d: any, id: string): boolean
-	-- test switch: TrackTiles.ALL_FREE, or set workspace attribute AllTilesFree = true in Studio
-	if TrackTiles.ALL_FREE or workspace:GetAttribute("AllTilesFree") == true then
+	-- test switch: TrackTiles.ALL_FREE, workspace attribute AllTilesFree = true, or playing in
+	-- Studio (carter tests there with every tile; set AllTilesFree = false to try the unlocks)
+	local free = workspace:GetAttribute("AllTilesFree")
+	if TrackTiles.ALL_FREE or free == true or (free ~= false and RunService:IsStudio()) then
 		return true
 	end
 	local mod = ReplicatedStorage.Shared:FindFirstChild("TileShop")
