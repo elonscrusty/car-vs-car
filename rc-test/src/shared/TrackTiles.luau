@@ -268,7 +268,9 @@ end
 
 -- ===== Drag and drop (carter 22:03: "make it a drag and drop", "all tiles without paying") =====
 
-TrackTiles.ALL_FREE = true -- testing: every tile unlocked for everyone (false = TileShop decides)
+-- testing switch: true = every tile unlocked for everyone. false (carter 22:51 "plenty of tiles to
+-- unlock") = TileShop decides; workspace attribute AllTilesFree = true still frees them in Studio.
+TrackTiles.ALL_FREE = false
 
 local STRAIGHTS: { [string]: boolean } = {}
 local BENDS: { [string]: boolean } = { turn = true, sharp = true }
@@ -417,6 +419,17 @@ function TrackTiles.drop(grid: Grid, c: number, r: number, id: string): (boolean
 		end
 	end
 	return TrackTiles.place(grid, c, r, id, bestRot)
+end
+
+-- Turn the tile in a square a quarter turn clockwise (tap / ROTATE button). A straight shows
+-- the other way; the START flips which way the race goes only on its own square.
+function TrackTiles.rotate(grid: Grid, c: number, r: number): (boolean, string?)
+	local t = TrackTiles.get(grid, c, r)
+	if not t then
+		return false, "Nothing there"
+	end
+	t.rot = (t.rot + 1) % 4
+	return true, nil
 end
 
 -- The starter track: a ring round the edge of the grid, START in the front row going east.

@@ -8,8 +8,8 @@
 --
 -- Remote ReplicatedStorage.TrackBuildEvent:
 --   client -> ("path", { {c, r}, ... }) finger drag lays road | ("drop", c, r, pieceId) special
---             tile onto road | ("place", c, r, pieceId, rot) | ("remove", c, r) | ("done")
---   server -> ("state", { cols, rows, cells = { {c, r, piece, rot} }, ready, why })
+--             tile onto road | ("rotate", c, r) quarter turn | ("place", c, r, pieceId, rot) | ("remove", c, r) | ("done")
+--   server -> ("state", { cols, rows, cells = { {c, r, piece, rot} }, ready, why, owned = {[id]=bool} })
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -24,7 +24,8 @@ local TrackBuilder = require(script.Parent.TrackBuilder)
 
 -- TileShop (Spawn lobby thread) says which pieces a save owns; until it ships, free ones only.
 local function owns(d: any, id: string): boolean
-	if TrackTiles.ALL_FREE then
+	-- test switch: TrackTiles.ALL_FREE, or set workspace attribute AllTilesFree = true in Studio
+	if TrackTiles.ALL_FREE or workspace:GetAttribute("AllTilesFree") == true then
 		return true
 	end
 	local mod = ReplicatedStorage.Shared:FindFirstChild("TileShop")
@@ -80,7 +81,15 @@ end
 local function stateOf(slot: number): { [string]: any }
 	local g = grids[slot]
 	local res = results[slot]
+	-- which tiles the owner can put down (the tray shows the rest locked)
+	local owner = LobbyPlots.ownerOf(slot)
+	local d = if owner then PlayerData.get(owner) else nil
+	local owned: { [string]: boolean } = {}
+	for _, p in TrackTiles.PIECES do
+		owned[p.id] = d ~= nil and owns(d, p.id)
+	end
 	return {
+		owned = owned,
 		cols = g.cols,
 		rows = g.rows,
 		cells = TrackTiles.copy(g).tiles,
@@ -196,6 +205,8 @@ local function onRequest(player: Player, kind: any, c: any, r: any, piece: any, 
 		ok = TrackTiles.place(grid, c, r, piece, rot)
 	elseif kind == "remove" then
 		ok = TrackTiles.remove(grid, c, r)
+	elseif kind == "rotate" then
+		ok = TrackTiles.rotate(grid, c, r)
 	end
 	if ok then
 		Profile.setTrack(d, TrackTiles.copy(grid).tiles)
