@@ -42,18 +42,32 @@ Garage.SHOPS = {
 		color = { 150, 70, 210 },
 		cars = { { 245, 245, 250 }, { 40, 200, 220 }, { 255, 120, 190 } },
 		style = "drift",
+		names = { "Slide Kid", "Neon Ghost", "Pink Fury" },
+		prices = { 250, 600, 1200 }, -- coins
 	},
 	race = {
 		color = { 226, 52, 46 },
 		cars = { { 246, 196, 40 }, { 40, 110, 220 }, { 230, 60, 50 } },
 		style = "race",
+		names = { "Bolt", "Blue Dart", "Red Rocket" },
+		prices = { 250, 600, 1200 },
 	},
 	rock = {
 		color = { 70, 176, 64 },
 		cars = { { 230, 120, 30 }, { 214, 48, 44 }, { 40, 110, 220 } },
 		style = "rock",
+		names = { "Mud Pup", "Boulder Bud", "Big Blue" },
+		prices = { 250, 600, 1200 },
 	},
-} :: { [string]: { color: { number }, cars: { { number } }, style: string } }
+} :: {
+	[string]: {
+		color: { number },
+		cars: { { number } },
+		style: string,
+		names: { string },
+		prices: { number },
+	},
+}
 
 local C = {
 	shell = { 52, 54, 60 },
@@ -909,6 +923,9 @@ function Garage.build(
 		else "UpgradesGarage"
 	local groups = Garage.makeParts(Garage.parts(kind), model, origin)
 	model.PrimaryPart = (groups.Shell :: Model):FindFirstChild("Floor") :: BasePart
+	if shop then
+		model:SetAttribute("ShopKind", kind) -- CarShops (client) spins its cars and opens its screen
+	end
 	Garage.useMeshes(
 		groups,
 		origin,

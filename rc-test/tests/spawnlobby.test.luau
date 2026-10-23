@@ -137,3 +137,15 @@ test("the buildings stay clear of the pads, the stands and each other", function
 		end
 	end
 end)
+
+test("each car shop has a name and a price for every car on show", function()
+	local G = require("../src/shared/Garage")
+	for kind, shop in G.SHOPS do
+		eq(#shop.cars, #G.SHOP_STANDS)
+		eq(#shop.names, #shop.cars)
+		eq(#shop.prices, #shop.cars)
+		for _, p in shop.prices do
+			truthy(p > 0, kind .. " price")
+		end
+	end
+end)
