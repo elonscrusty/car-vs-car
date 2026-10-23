@@ -736,13 +736,14 @@ local function buildExtras(parent: Instance, origin: CFrame, grid: Grid, t: Tile
 			pad:SetAttribute("Oil", true)
 		end
 	elseif id == "jump" then
-		-- a hump: up, flat top, down (works whichever way the loop runs)
-		local h, w = 4, ROAD - 4
-		local a, b2 = at(0, 0, -0.42).Position, at(0, h, -0.12).Position
-		local c2, d2 = at(0, h, 0.12).Position, at(0, 0, 0.42).Position
+		-- a hump: up, flat top, down (works whichever way the loop runs). About 23 degrees so a car
+		-- at normal speed flies ~0.9 s (Studio 23:20: 4 high / 13 degrees gave a 0.5 s hop)
+		local h, w = 7, ROAD - 4
+		local a, b2 = at(0, 0, -0.42).Position, at(0, h, -0.14).Position
+		local c2, d2 = at(0, h, 0.14).Position, at(0, 0, 0.42).Position
 		Kit.ramp(parent, "JumpRamp", origin, a, b2, w, BOOST_COLOR):SetAttribute("Grip", 1)
 		Kit.ramp(parent, "JumpRamp", origin, d2, c2, w, BOOST_COLOR):SetAttribute("Grip", 1)
-		box("JumpTop", Vector3.new(w, 1, cell * 0.24), at(0, h - 0.5, 0), ROAD_COLOR)
+		box("JumpTop", Vector3.new(w, 1, cell * 0.28), at(0, h - 0.5, 0), ROAD_COLOR)
 	elseif id == "cones" then
 		for i, sp in { { -0.13, -0.3 }, { 0.13, -0.1 }, { -0.13, 0.1 }, { 0.13, 0.3 } } do
 			solid("Cone", Vector3.new(3, 4, 3), at(sp[1], 2, sp[2]), Kit.COLORS.orange).Name = "Cone"
