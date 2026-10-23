@@ -81,7 +81,7 @@ function LobbyHillsBuilder.build(parent: Instance): Folder
 	local folder = Instance.new("Folder")
 	folder.Name = "Hills"
 	folder.Parent = parent
-	local hills, trees, props = LobbyHills.layout()
+	local hills, trees, props, marks = LobbyHills.layout()
 	for i, b in LobbyHills.baseBoxes(hills) do
 		local base = Instance.new("Part")
 		base.Name = `HillGrass{i}`
@@ -122,7 +122,9 @@ function LobbyHillsBuilder.build(parent: Instance): Folder
 	end
 	for _, t in trees do
 		local at = CFrame.new(t.x, drop(t.x, t.z, t.y), t.z) * CFrame.Angles(0, math.rad(t.turn), 0)
-		local m = if t.color then nil else MeshProps.place(treeFolder, t.mesh, at, t.height)
+		local m = if t.mesh == "BlockTree"
+			then nil
+			else MeshProps.place(treeFolder, t.mesh, at, t.height)
 		if m then
 			for _, d in m:GetDescendants() do
 				if d:IsA("BasePart") then
@@ -170,7 +172,18 @@ function LobbyHillsBuilder.build(parent: Instance): Folder
 	}
 	for i, p in props do
 		local at = CFrame.new(p.x, drop(p.x, p.z, 0), p.z) * CFrame.Angles(0, math.rad(p.turn), 0)
-		if p.mesh == "Flowers" then
+		local mesh = if p.mesh == "Flowers"
+			then MeshProps.place(propFolder, "Flowers", at, p.height * 1.6)
+			else nil
+		if mesh then
+			for _, d in mesh:GetDescendants() do
+				if d:IsA("BasePart") then
+					d.CanCollide = false
+					d.CanTouch = false
+					d.CanQuery = false
+				end
+			end
+		elseif p.mesh == "Flowers" then
 			local c = FLOWER[i % #FLOWER + 1]
 			for j = 1, 5 do
 				local a = j * 2.4 + i
@@ -200,6 +213,95 @@ function LobbyHillsBuilder.build(parent: Instance): Folder
 		end
 	end
 	propFolder.Parent = folder
+
+	-- set pieces: cabin / windmill / watch tower on a hill top, a dirt path down to the foot, a
+	-- little fence round the yard (open on the path side), a campfire and log seats
+	local markFolder = Instance.new("Folder")
+	markFolder.Name = "HillLandmarks"
+	local function ground(x: number, z: number): Vector3
+		return Vector3.new(x, drop(x, z, 0) + 0.4, z)
+	end
+	local function plank(
+		a: Vector3,
+		b: Vector3,
+		width: number,
+		thick: number,
+		color: Color3,
+		y: number
+	)
+		local p = Instance.new("Part")
+		local mid = (a + b) / 2 + Vector3.new(0, y, 0)
+		p.Size = Vector3.new(width, thick, (b - a).Magnitude + 0.6)
+		p.CFrame = CFrame.lookAt(mid, mid + (b - a))
+		p.Color = color
+		tidy(p, false)
+		p.CastShadow = false
+		p.Parent = markFolder
+	end
+	local DIRT = Color3.fromRGB(176, 132, 84)
+	local WOOD = Color3.fromRGB(132, 92, 56)
+	for _, l in marks do
+		local base = ground(l.x, l.z)
+		local turn = math.rad(l.turn)
+		local at = CFrame.new(base - Vector3.new(0, 0.6, 0)) * CFrame.Angles(0, turn, 0)
+		local m = MeshProps.place(markFolder, l.mesh, at, l.height)
+		if m then
+			for _, d in m:GetDescendants() do
+				if d:IsA("BasePart") then
+					d.CanCollide = true
+					d.CanTouch = false
+				end
+			end
+		end
+		-- the path: a flat yard patch, then planks of dirt down the slope
+		local last = base
+		for _, pt in l.path do
+			local here = ground(pt[1], pt[2])
+			plank(last, here, 3.4, 0.3, DIRT, -0.3)
+			last = here
+		end
+		if l.fence then
+			-- posts round a square yard, rails on three sides (the path side stays open)
+			local fwd = Vector3.new(math.sin(turn), 0, math.cos(turn))
+			local side = Vector3.new(fwd.Z, 0, -fwd.X)
+			local r = 10
+			local corners = {
+				base + (fwd + side) * r,
+				base + (-fwd + side) * r,
+				base + (-fwd - side) * r,
+				base + (fwd - side) * r,
+			}
+			for i, c in corners do
+				corners[i] = ground(c.X, c.Z)
+				local post = Instance.new("Part")
+				post.Size = Vector3.new(0.6, 2.6, 0.6)
+				post.CFrame = CFrame.new(corners[i] + Vector3.new(0, 0.9, 0))
+				post.Color = WOOD
+				tidy(post, false)
+				post.Parent = markFolder
+			end
+			for i = 1, 3 do
+				local a, b = corners[i], corners[i + 1]
+				plank(a, b, 0.3, 0.35, WOOD, 1.6)
+				plank(a, b, 0.3, 0.35, WOOD, 0.7)
+			end
+		end
+		for _, e in l.extras do
+			local eat = CFrame.new(ground(e.x, e.z) - Vector3.new(0, 0.4, 0))
+				* CFrame.Angles(0, math.rad(e.turn), 0)
+			local em = MeshProps.place(markFolder, e.mesh, eat, e.height)
+			if em then
+				for _, d in em:GetDescendants() do
+					if d:IsA("BasePart") then
+						d.CanCollide = false
+						d.CanTouch = false
+						d.CanQuery = false
+					end
+				end
+			end
+		end
+	end
+	markFolder.Parent = folder
 	return folder
 end
 
