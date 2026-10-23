@@ -11,6 +11,7 @@ require("./plot_race.test")
 require("./plot_rock.test")
 require("./plot_show.test")
 require("./lobby.test")
+require("./plaza.test")
 require("./garage.test")
 
 Harness.summary()
