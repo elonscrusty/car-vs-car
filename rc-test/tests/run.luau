@@ -33,5 +33,6 @@ require("./smoke.test")
 require("./hud_layout.test")
 require("./build_layout.test")
 require("./track_tiles.test")
+require("./race_arrow.test")
 
 Harness.summary()

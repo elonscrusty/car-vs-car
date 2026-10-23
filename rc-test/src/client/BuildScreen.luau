@@ -1,10 +1,11 @@
 --!strict
--- The build screen for the 5-min break (carter: "make it a drag and drop").
--- DRAW: press a square and drag your finger across the grid; the road follows it. Let go and
---   the path goes to the server, which picks straights and turns and turns them itself.
---   Dragging back onto START closes the loop.
--- DROP: drag a special tile (boost, oil, ...) from the bar onto a road square.
--- ERASE: hold a square, or turn ERASE on and drag over squares.
+-- The build screen for the 5-min break (carter: "tiles that swap in with different road shapes
+-- and some have hazards or powerups").
+-- SWAP: drag a tile from the bar onto any square and it swaps in; the server turns it to fit the
+--   road around it.
+-- TURN: tap a tile on the grid to turn it a quarter.
+-- ERASE: turn ERASE on, then tap squares.
+-- First time: a big hand shows one drag from the bar to the grid, until you do it yourself.
 -- This screen only draws and reports; the server checks everything and sends back the state.
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
@@ -21,6 +22,7 @@ export type Piece = {
 	ends: BuildLayout.Ends, -- at rotation 0
 	icon: string?, -- a short mark drawn on the road
 	color: Color3?, -- road colour (default asphalt)
+	kind: string?, -- "road" | "hazard" | "power": the card's rim colour
 }
 -- c = column (1 = left), r = row (1 = front, next to the stand; drawn at the bottom)
 export type Cell = { c: number, r: number, piece: string, rot: number }
@@ -29,14 +31,14 @@ export type State = {
 	rows: number,
 	cells: { Cell },
 	pieces: { Piece }, -- every tile, to draw the grid
-	specials: { string }, -- ids in the drag bar
+	specials: { string }, -- ids in the drag bar, in order
 	ready: boolean,
 	why: string?, -- when not ready: "Road has a gap"
 	secondsLeft: number,
 }
 export type Options = {
-	onPath: (path: { BuildLayout.Spot }) -> (),
-	onDrop: (c: number, r: number, piece: string) -> (),
+	onDrop: (c: number, r: number, piece: string) -> (), -- swap in, turned to fit
+	onPlace: (c: number, r: number, piece: string, rot: number) -> (), -- as it is, turned rot
 	onRemove: (c: number, r: number) -> (),
 	onDone: () -> (),
 }
@@ -57,6 +59,12 @@ local YELLOW = Color3.fromRGB(255, 200, 40)
 local GREEN = Color3.fromRGB(60, 190, 90)
 local RED = Color3.fromRGB(225, 70, 70)
 local WHITE = Color3.new(1, 1, 1)
+-- card rims: hazards red, powerups green (they hit every racer the same)
+local KIND_RIM: { [string]: Color3 } = {
+	road = DARK,
+	hazard = Color3.fromRGB(225, 80, 50),
+	power = Color3.fromRGB(40, 170, 80),
+}
 
 local function cellKey(c: number, r: number): string
 	return `{c},{r}`
@@ -177,12 +185,10 @@ function BuildScreen.new(opts: Options): BuildScreen
 	local grid = Instance.new("Frame")
 	grid.Name = "Grid"
 	grid.BackgroundColor3 = GRASS
-	grid.Active = true -- the camera doesn't turn while you draw
+	grid.Active = true -- the camera doesn't turn while you build
 	grid.Parent = gui
 	local tiles = Instance.new("Folder")
 	tiles.Parent = grid
-	local trail = Instance.new("Folder") -- yellow squares under your finger while drawing
-	trail.Parent = grid
 	round(grid, 10)
 	rim(grid, DARK, 3)
 
@@ -193,7 +199,7 @@ function BuildScreen.new(opts: Options): BuildScreen
 	timer.Parent = gui
 	round(timer, 22)
 	rim(timer, Color3.fromRGB(176, 112, 10), 2)
-	local timerText = label(timer, "5:00", Color3.fromRGB(70, 35, 0))
+	local timerText = label(timer, "RACE IN 5:00", Color3.fromRGB(70, 35, 0))
 	pad(timerText, 0.14, 0.06)
 
 	local status = Instance.new("Frame")
@@ -204,29 +210,30 @@ function BuildScreen.new(opts: Options): BuildScreen
 	local statusText = label(status, "", WHITE)
 	pad(statusText, 0.14, 0.06)
 
-	local whyText = label(gui, BuildLayout.HELP, WHITE)
+	local whyText = label(gui, BuildLayout.hint(false, false, false), WHITE)
 	whyText.Name = "Why"
 	local whyStroke = rim(whyText, DARK, 2)
 	whyStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
 
-	-- ===== special tiles bar =====
+	-- ===== tile bar: every road shape, hazard and powerup =====
 	local tray = Instance.new("Frame")
-	tray.Name = "Specials"
+	tray.Name = "Tiles"
 	tray.BackgroundColor3 = DARK
-	tray.BackgroundTransparency = 0.15
+	tray.BackgroundTransparency = 0.1
 	tray.Parent = gui
-	round(tray, 12)
-	local trayTitle = label(tray, "DRAG ONTO THE ROAD", Color3.fromRGB(200, 200, 210))
-	trayTitle.Position = UDim2.fromOffset(10, 6)
-	trayTitle.Size = UDim2.new(1, -20, 0, 18)
-	trayTitle.TextXAlignment = Enum.TextXAlignment.Left
-	local cards = Instance.new("Frame")
+	round(tray, 14)
+	local cards = Instance.new("ScrollingFrame")
 	cards.BackgroundTransparency = 1
-	cards.Position = UDim2.fromOffset(8, 28)
-	cards.Size = UDim2.new(1, -16, 1, -34)
+	cards.BorderSizePixel = 0
+	cards.Position = UDim2.fromOffset(8, 8)
+	cards.Size = UDim2.new(1, -16, 1, -16)
+	cards.ScrollBarThickness = 6
+	cards.ScrollingDirection = Enum.ScrollingDirection.Y
+	cards.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	cards.CanvasSize = UDim2.new()
 	cards.Parent = tray
 	local cardGrid = Instance.new("UIGridLayout")
-	cardGrid.CellSize = UDim2.fromOffset(BuildLayout.CARD, BuildLayout.CARD)
+	cardGrid.CellSize = UDim2.fromOffset(BuildLayout.CARD, BuildLayout.CARD + 16)
 	cardGrid.CellPadding = UDim2.fromOffset(8, 8)
 	cardGrid.SortOrder = Enum.SortOrder.LayoutOrder
 	cardGrid.Parent = cards
@@ -246,7 +253,7 @@ function BuildScreen.new(opts: Options): BuildScreen
 		pad(b, 0.22, 0.08)
 		return b
 	end
-	local eraseBtn = bigButton("Erase", "ERASE", RED)
+	local eraseBtn = bigButton("Erase", "ERASE", Color3.fromRGB(80, 86, 106))
 	local doneBtn = bigButton("Done", "DONE", GREEN)
 
 	-- the tile under the finger while dragging a special tile
@@ -259,6 +266,19 @@ function BuildScreen.new(opts: Options): BuildScreen
 	ghost.ZIndex = 10
 	ghost.Parent = gui
 	round(ghost, 6)
+
+	-- the teaching hand (first build only)
+	local hand = Instance.new("TextLabel")
+	hand.Name = "Hand"
+	hand.BackgroundTransparency = 1
+	hand.AnchorPoint = Vector2.new(0.3, 0)
+	hand.Size = UDim2.fromOffset(64, 64)
+	hand.TextScaled = true
+	hand.Text = "👆"
+	hand.ZIndex = 20
+	hand.Visible = false
+	hand.Parent = gui
+	local taught = Players.LocalPlayer:GetAttribute("BuildTaught") == true
 
 	local function pieceById(id: string): Piece?
 		for _, p in state.pieces do
@@ -294,35 +314,20 @@ function BuildScreen.new(opts: Options): BuildScreen
 		end
 	end
 
-	local function drawTrail(path: { BuildLayout.Spot })
-		trail:ClearAllChildren()
-		for _, p in path do
-			local f = square(trail, p.c, p.r)
-			f.BackgroundColor3 = if erasing then RED else YELLOW
-			f.BackgroundTransparency = 0.45
-			f.ZIndex = 5
-		end
-	end
-
 	local function drawTop()
-		timerText.Text = BuildLayout.clock(state.secondsLeft)
+		timerText.Text = "RACE IN " .. BuildLayout.clock(state.secondsLeft)
 		status.BackgroundColor3 = if state.ready then GREEN else RED
 		statusText.Text = BuildLayout.statusText(state.ready)
-		if state.ready then
-			whyText.Text = "Tap DONE, or keep building"
-			whyText.TextColor3 = WHITE
-		elseif state.why and #state.cells > 1 then
-			whyText.Text = state.why
-			whyText.TextColor3 = Color3.fromRGB(255, 140, 130)
-		else
-			whyText.Text = BuildLayout.HELP
-			whyText.TextColor3 = WHITE
-		end
+		local gap = not state.ready and state.why ~= nil and #state.cells > 1
+		whyText.Text = BuildLayout.hint(state.ready, gap, erasing)
+		whyText.TextColor3 = if gap and not erasing then Color3.fromRGB(255, 140, 130) else WHITE
 	end
 
 	-- ===== drag a special tile =====
 	local dropping: string? = nil
 	local dropInput: InputObject? = nil
+	local dropFrom = Vector2.zero -- where the press on the card began
+	local dragged = false -- moved far enough to count as a drag
 	local function moveGhost(at: Vector2)
 		ghost.Position = UDim2.fromOffset(at.X, at.Y)
 	end
@@ -346,7 +351,7 @@ function BuildScreen.new(opts: Options): BuildScreen
 			card.BackgroundColor3 = Color3.fromRGB(245, 245, 240)
 			card.Parent = cards
 			round(card, 10)
-			rim(card, DARK, 2)
+			rim(card, KIND_RIM[piece.kind or "road"] or DARK, 4)
 			local tile = Instance.new("Frame")
 			tile.BackgroundColor3 = GRASS
 			tile.BorderSizePixel = 0
@@ -363,37 +368,38 @@ function BuildScreen.new(opts: Options): BuildScreen
 					return
 				end
 				dropping, dropInput = id, input
+				dropFrom, dragged = pointer(input), false
 				ghost:ClearAllChildren()
 				round(ghost, 6)
 				ghost.Size = UDim2.fromOffset(layout.cell * 1.3, layout.cell * 1.3)
 				drawRoad(ghost, piece, 0)
-				ghost.Visible = true
 				moveGhost(pointer(input))
 			end)
 		end
 	end
 
-	-- ===== draw / erase on the grid =====
-	local drawing: { BuildLayout.Spot }? = nil
-	local drawInput: InputObject? = nil
-	local pressedAt = 0
-	local held = false -- a long press already erased its square
-
+	-- ===== tap the grid: turn a tile, or erase it =====
 	local function cellUnder(at: Vector2): (number?, number?)
 		return BuildLayout.cellAt(layout, at.X, at.Y, state.cols, state.rows)
 	end
 
 	grid.InputBegan:Connect(function(input: InputObject)
-		if not isPress(input) or drawing or dropping then
+		if not isPress(input) or dropping then
 			return
 		end
 		local c, r = cellUnder(pointer(input))
 		if not (c and r) then
 			return
 		end
-		drawing, drawInput = BuildLayout.extend({}, c, r), input
-		pressedAt, held = os.clock(), false
-		drawTrail(drawing :: { BuildLayout.Spot })
+		local here = byKey[cellKey(c, r)]
+		if not here then
+			return
+		end
+		if erasing then
+			opts.onRemove(c, r)
+		else
+			opts.onPlace(c, r, here.piece, (here.rot + 1) % 4)
+		end
 	end)
 
 	local function sameFinger(input: InputObject, started: InputObject?): boolean
@@ -406,64 +412,53 @@ function BuildScreen.new(opts: Options): BuildScreen
 	UserInputService.InputChanged:Connect(function(input: InputObject)
 		local moving = input.UserInputType == Enum.UserInputType.Touch
 			or input.UserInputType == Enum.UserInputType.MouseMovement
-		if not moving then
+		if not (moving and dropping and sameFinger(input, dropInput)) then
 			return
 		end
 		local at = pointer(input)
-		if dropping and sameFinger(input, dropInput) then
-			moveGhost(at)
-		elseif drawing and not held and sameFinger(input, drawInput) then
-			local c, r = cellUnder(at)
-			if c and r then
-				local path = drawing :: { BuildLayout.Spot }
-				local before = #path
-				BuildLayout.extend(path, c, r)
-				if #path ~= before or path[#path].c ~= c then
-					drawTrail(path)
-				end
-			end
+		if not dragged and (at - dropFrom).Magnitude >= BuildLayout.DRAG then
+			dragged = true
+			ghost.Visible = true
 		end
+		moveGhost(at)
 	end)
 
 	UserInputService.InputEnded:Connect(function(input: InputObject)
-		if not isPress(input) then
+		if not (isPress(input) and dropping and sameFinger(input, dropInput)) then
 			return
 		end
-		if dropping and sameFinger(input, dropInput) then
-			local id = dropping :: string
-			dropping, dropInput = nil, nil
-			ghost.Visible = false
-			local c, r = cellUnder(pointer(input))
-			if c and r then
-				opts.onDrop(c, r, id)
-			end
-		elseif drawing and sameFinger(input, drawInput) then
-			local path = drawing :: { BuildLayout.Spot }
-			drawing, drawInput = nil, nil
-			trail:ClearAllChildren()
-			if held then
-				return
-			end
-			if erasing then
-				for _, p in path do
-					opts.onRemove(p.c, p.r)
-				end
-			elseif #path >= 2 then
-				opts.onPath(path)
+		local id = dropping :: string
+		local wasDrag = dragged
+		dropping, dropInput, dragged = nil, nil, false
+		ghost.Visible = false
+		-- a tap on a card (no drag) drops nothing
+		local c, r = cellUnder(pointer(input))
+		if wasDrag and c and r then
+			opts.onDrop(c, r, id)
+			if not taught then
+				taught = true
+				Players.LocalPlayer:SetAttribute("BuildTaught", true)
+				hand.Visible = false
 			end
 		end
 	end)
 
-	-- hold one square still to erase it
+	-- the teaching hand: from the first card to the middle of the grid, again and again
 	RunService.Heartbeat:Connect(function()
-		local path = drawing
-		if path and not held and #path == 1 and os.clock() - pressedAt >= BuildLayout.HOLD then
-			held = true
-			trail:ClearAllChildren()
-			if byKey[cellKey(path[1].c, path[1].r)] then
-				opts.onRemove(path[1].c, path[1].r)
-			end
+		local first = cards:FindFirstChildWhichIsA("Frame")
+		local want = gui.Enabled and not taught and dropping == nil and first ~= nil
+		hand.Visible = want
+		if not (want and first) then
+			return
 		end
+		local t = (os.clock() % 2.2) / 1.6 -- 0..1 moving, then a short rest
+		local u = math.clamp(t, 0, 1)
+		u = u * u * (3 - 2 * u)
+		local from = first.AbsolutePosition + first.AbsoluteSize / 2
+		local to = Vector2.new(layout.grid.x + layout.grid.w / 2, layout.grid.y + layout.grid.h / 2)
+		local at = from:Lerp(to, u)
+		hand.Position = UDim2.fromOffset(at.X, at.Y)
+		hand.TextTransparency = if t > 1 then 0.5 else 0
 	end)
 
 	local function relayout()
@@ -487,7 +482,8 @@ function BuildScreen.new(opts: Options): BuildScreen
 	eraseBtn.Activated:Connect(function()
 		erasing = not erasing
 		eraseBtn.Text = if erasing then "ERASE: ON" else "ERASE"
-		eraseBtn.BackgroundColor3 = if erasing then Color3.fromRGB(150, 30, 30) else RED
+		eraseBtn.BackgroundColor3 = if erasing then RED else Color3.fromRGB(80, 86, 106)
+		drawTop()
 	end)
 	doneBtn.Activated:Connect(function()
 		opts.onDone()
@@ -515,7 +511,7 @@ function BuildScreen.new(opts: Options): BuildScreen
 	end
 	function screen.setSeconds(seconds: number)
 		state.secondsLeft = seconds
-		timerText.Text = BuildLayout.clock(seconds)
+		timerText.Text = "RACE IN " .. BuildLayout.clock(seconds)
 	end
 	function screen.show(on: boolean)
 		gui.Enabled = on
@@ -523,9 +519,8 @@ function BuildScreen.new(opts: Options): BuildScreen
 		if on then
 			relayout()
 		else
-			drawing, dropping = nil, nil
+			dropping, dropInput, dragged = nil, nil, false
 			ghost.Visible = false
-			trail:ClearAllChildren()
 		end
 	end
 	function screen.destroy()

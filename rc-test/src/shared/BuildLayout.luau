@@ -1,9 +1,9 @@
 --!strict
--- The build screen for the 5-min break: drag your finger across the grid to draw the road,
--- drag special tiles onto it. Phone first, landscape: the plot grid fills the left; the right
--- holds the countdown, the big RACE READY chip, a help / why line, the special tile bar, and
--- ERASE / DONE. Pure numbers and tables, so Lune can test it on phone and PC sizes. Also: the
--- path a drag makes, and which road tile fits a square from the sides its road leaves by.
+-- The build screen for the 5-min break: drag a road tile from the bar onto a square and it
+-- swaps in (carter: "tiles that swap in with different road shapes"). Phone first, landscape:
+-- the plot grid fills the left; the right holds the countdown, the big READY / GAP chip, a
+-- 1-3 word hint, the tile bar, and ERASE / DONE. Pure numbers and tables, so Lune can test it
+-- on phone and PC sizes. Also: which road tile fits a square from the sides its road leaves by.
 
 export type Rect = { x: number, y: number, w: number, h: number }
 export type Layout = {
@@ -30,7 +30,7 @@ BuildLayout.WHY = 24 -- the help / "Road has a gap" line
 BuildLayout.BUTTON = 56 -- bottom button row
 BuildLayout.MIN_TAP = 36 -- smallest grid square a thumb can hit
 BuildLayout.CARD = 76 -- special tile card size
-BuildLayout.HOLD = 0.6 -- seconds pressing one square to erase it
+BuildLayout.DRAG = 12 -- pixels a finger moves before a press on a card is a drag
 
 local function rect(x: number, y: number, w: number, h: number): Rect
 	return { x = x, y = y, w = w, h = h }
@@ -108,34 +108,6 @@ function BuildLayout.turn(e: Ends, rot: number): Ends
 	return out
 end
 
--- the finger moved onto square (c, r): grow the drawn path one square at a time (a fast swipe
--- that skips squares gets them filled in), and going back onto the square before undoes a step.
--- Changes and returns path.
-function BuildLayout.extend(path: { Spot }, c: number, r: number): { Spot }
-	if #path == 0 then
-		table.insert(path, { c = c, r = r })
-		return path
-	end
-	local guard = 0
-	while guard < 64 do
-		guard += 1
-		local last = path[#path]
-		if last.c == c and last.r == r then
-			break
-		end
-		local dc, dr = c - last.c, r - last.r
-		local nc = last.c + (if dc ~= 0 then math.sign(dc) else 0)
-		local nr = last.r + (if dc == 0 then math.sign(dr) else 0)
-		local back = path[#path - 1]
-		if back and back.c == nc and back.r == nr then
-			table.remove(path) -- stepped back: undo
-		else
-			table.insert(path, { c = nc, r = nr })
-		end
-	end
-	return path
-end
-
 -- which side of square a the square b is on (they touch)
 function BuildLayout.side(a: Spot, b: Spot): string?
 	if b.c == a.c and b.r == a.r + 1 then
@@ -172,9 +144,19 @@ function BuildLayout.clock(seconds: number): string
 end
 
 function BuildLayout.statusText(ready: boolean): string
-	return if ready then "✓ RACE READY" else "NOT READY"
+	return if ready then "✓ READY" else "GAP!"
 end
 
-BuildLayout.HELP = "Drag your finger to draw the road"
+-- the hint line: 1-3 big words (carter: new players must get it at once)
+function BuildLayout.hint(ready: boolean, gap: boolean, erasing: boolean): string
+	if erasing then
+		return "TAP TO ERASE"
+	elseif ready then
+		return "TAP DONE!"
+	elseif gap then
+		return "FIX THE GAP"
+	end
+	return "DRAG A TILE"
+end
 
 return BuildLayout
