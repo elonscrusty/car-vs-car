@@ -25,12 +25,27 @@ export type Hill = {
 	d: number,
 	turn: number, -- degrees about y
 	row: number, -- 1 near, 2 middle, 3 far
+	kind: string, -- "meadow", "forest", "autumn", "rock" (near rows) or "peak" (far row)
+	mesh: string, -- carter's model it is built from: DirtMound, or BigRock / FlatRock for cliffs
+	snow: boolean, -- a white cap on top (tall far peaks)
 	r: number, -- colour 0-255
 	g: number,
 	b: number,
 }
 export type Box = { minX: number, maxX: number, minZ: number, maxZ: number }
-export type Tree = { mesh: string, x: number, y: number, z: number, height: number, turn: number }
+-- mesh "BlockTree" is a low-poly block tree in `color` (autumn and blossom trees)
+export type Tree = {
+	mesh: string,
+	x: number,
+	y: number,
+	z: number,
+	height: number,
+	turn: number,
+	color: { number }?,
+}
+-- small things at a near hill's foot: carter's Bush / Mushroom / TreeStump / Log / RockPile /
+-- FlatRock, or "Flowers" (a little patch of coloured blocks); the builder drops them onto the hill
+export type Prop = { mesh: string, x: number, z: number, height: number, turn: number }
 
 local LobbyHills = {}
 
@@ -64,8 +79,23 @@ LobbyHills.ROWS = {
 }
 LobbyHills.SAND = 8 -- sand rim round the lake water
 LobbyHills.KEEP_OFF = 6 -- hills stay this far off the sand
-LobbyHills.MAX_HILLS = 190
-LobbyHills.MAX_TREES = 230
+LobbyHills.MAX_HILLS = 230
+LobbyHills.MAX_TREES = 320
+LobbyHills.MAX_PROPS = 200
+
+-- The near rows come in stretches (ZONE studs long) of one kind, so the ring reads as meadows,
+-- pine woods, autumn groves and rocky cliffs instead of one hill over and over.
+LobbyHills.ZONE = 95
+LobbyHills.KINDS = { "forest", "meadow", "forest", "autumn", "meadow", "rock", "forest", "autumn" }
+-- per kind: size stretch (w, h, d), grass colour, row-2 shade
+local LOOK = {
+	meadow = { w = 1.15, h = 0.72, d = 1.1, color = { 136, 200, 88 } },
+	forest = { w = 1, h = 1.05, d = 1, color = { 82, 152, 80 } },
+	autumn = { w = 1, h = 0.9, d = 1, color = { 156, 182, 82 } },
+	rock = { w = 0.62, h = 1.45, d = 0.7, color = { 146, 140, 132 } },
+	peak = { w = 1, h = 1, d = 1, color = { 116, 152, 136 } },
+}
+local AUTUMN = { { 236, 142, 52 }, { 242, 198, 66 }, { 206, 80, 58 }, { 244, 172, 204 } }
 
 local function rng(seed: number): (number, number) -> number
 	local state = seed
@@ -141,9 +171,10 @@ function LobbyHills.touches(hill: Hill, b: Box): boolean
 	return false
 end
 
-function LobbyHills.layout(): ({ Hill }, { Tree })
+function LobbyHills.layout(): ({ Hill }, { Tree }, { Prop })
 	local hills: { Hill } = {}
 	local trees: { Tree } = {}
+	local props: { Prop } = {}
 	local rand = rng(20261023 + 17)
 	local g = LobbyLayout.ground()
 	local keep = LobbyHills.keepBox()
@@ -157,19 +188,43 @@ function LobbyHills.layout(): ({ Hill }, { Tree })
 
 	for row, spec in LobbyHills.ROWS do
 		-- push the hill out (dx, dz) until it is clear of the lake keep box
-		local function hill(x: number, z: number, turn: number, dx: number, dz: number)
+		-- `along` is where it is round the ring (picks its zone's kind); `side` -1 left, 1 right, 0 end
+		local function hill(
+			x: number,
+			z: number,
+			turn: number,
+			dx: number,
+			dz: number,
+			along: number
+		)
+			local kind = "peak"
+			if row < 3 then
+				local zone = math.floor(along / LobbyHills.ZONE)
+				kind = LobbyHills.KINDS[zone % #LobbyHills.KINDS + 1]
+			end
+			local look = LOOK[kind]
+			local shade = if row == 2 then 0.88 else 1
+			local tall = rand(spec.h[1], spec.h[2])
 			local h: Hill = {
 				x = x,
 				z = z,
-				w = rand(spec.w[1], spec.w[2]),
-				h = rand(spec.h[1], spec.h[2]),
-				d = rand(spec.d[1], spec.d[2]),
+				w = rand(spec.w[1], spec.w[2]) * look.w,
+				-- a few far peaks shoot up much higher
+				h = math.min(tall * look.h, spec.h[2] * 1.45)
+					* (if row == 3 and rand(0, 1) < 0.22 then 1.35 else 1),
+				d = rand(spec.d[1], spec.d[2]) * look.d,
 				turn = turn + rand(-12, 12),
 				row = row,
-				r = spec.color[1] + rand(-8, 8),
-				g = spec.color[2] + rand(-8, 8),
-				b = spec.color[3] + rand(-6, 6),
+				kind = kind,
+				mesh = if kind == "rock"
+					then (if rand(0, 1) < 0.6 then "BigRock" else "FlatRock")
+					else "DirtMound",
+				snow = false,
+				r = look.color[1] * shade + rand(-9, 9),
+				g = look.color[2] * shade + rand(-9, 9),
+				b = look.color[3] * shade + rand(-7, 7),
 			}
+			h.snow = row == 3 and h.h > 60
 			local tries = 0
 			while LobbyHills.touches(h, keep) and tries < 60 do
 				h.x += dx * 2
@@ -181,6 +236,9 @@ function LobbyHills.layout(): ({ Hill }, { Tree })
 		local step = (spec.w[1] + spec.w[2]) / 2 * spec.step
 		local wobble = step * 0.15
 		local farOut = lakeFar + inward * (spec.out + LobbyHills.KEEP_OFF)
+		-- round the ring: down the left side, across the dry end, up the right, across the far side
+		local sideLen = math.abs(lakeFar - endZ)
+		local width = g.maxX - g.minX
 		-- left and right sides: from behind the dry end, along the street, round the lake's ends
 		for _, side in { -1, 1 } do
 			local streetX = if side < 0 then g.minX - spec.out else g.maxX + spec.out
@@ -190,7 +248,10 @@ function LobbyHills.layout(): ({ Hill }, { Tree })
 			local z = endZ - inward * spec.out
 			while (z - farOut) * inward < 0 do
 				local x = if (z - lakeNear) * inward > -step / 2 then lakeX else streetX
-				hill(x + rand(-wobble, wobble), z + rand(-wobble, wobble), 90, side, 0)
+				local along = if side < 0
+					then (lakeFar - z) * inward
+					else sideLen + width + (z - endZ) * inward
+				hill(x + rand(-wobble, wobble), z + rand(-wobble, wobble), 90, side, 0, along)
 				z += inward * step
 			end
 		end
@@ -198,57 +259,124 @@ function LobbyHills.layout(): ({ Hill }, { Tree })
 		local zEnd = endZ - inward * spec.out
 		local x = g.minX - spec.out + step
 		while x < g.maxX + spec.out - step / 2 do
-			hill(x + rand(-wobble, wobble), zEnd + rand(-wobble, wobble), 0, 0, -inward)
+			hill(
+				x + rand(-wobble, wobble),
+				zEnd + rand(-wobble, wobble),
+				0,
+				0,
+				-inward,
+				sideLen + x - g.minX
+			)
 			x += step
 		end
 		local farPad = spec.out + LobbyHills.KEEP_OFF
 		x = keep.minX - farPad + step
 		while x < keep.maxX + farPad - step / 2 do
-			hill(x + rand(-wobble, wobble), farOut + rand(-wobble, wobble), 0, 0, inward)
+			local along = 2 * sideLen + width + g.maxX - x
+			hill(x + rand(-wobble, wobble), farOut + rand(-wobble, wobble), 0, 0, inward, along)
 			x += step
 		end
 	end
 
-	-- trees on the near two rows (only the near row past the lake): a few on each hill's
-	-- lobby-facing slope and top
+	-- trees on the near two rows (only the near row past the lake), by the hill's kind:
+	-- pine woods are thick with pines of mixed size, meadows have a lone tree or two, autumn
+	-- groves have orange / yellow / red / blossom block trees, cliffs a stray pine
 	local mid = { x = (g.minX + g.maxX) / 2, z = (g.minZ + g.maxZ) / 2 }
+	local function clear(tx: number, tz: number): boolean
+		local onGround = tx > g.minX and tx < g.maxX and tz > g.minZ and tz < g.maxZ
+		local inKeep = tx > keep.minX and tx < keep.maxX and tz > keep.minZ and tz < keep.maxZ
+		return not onGround and not inKeep
+	end
+	-- a spot on the hill at rr (0 middle, 1 foot), pulled `pull` toward the lobby
+	local function spot(h: Hill, rr: number, pull: number): (number, number)
+		local a = rand(0, math.pi * 2)
+		local tx = h.x + math.cos(a) * h.w / 2 * rr
+		local tz = h.z + math.sin(a) * h.d / 2 * rr
+		local dx, dz = mid.x - h.x, mid.z - h.z
+		local len = math.sqrt(dx * dx + dz * dz)
+		return tx + dx / len * h.d * pull, tz + dz / len * h.d * pull
+	end
+	local function tree(h: Hill, mesh: string, size: number, color: { number }?)
+		local tx, tz = spot(h, rand(0.05, 0.7), if h.kind == "forest" then 0.04 else 0.12)
+		local y = LobbyHills.surface(h, tx, tz)
+		if y and y > 1.5 and clear(tx, tz) then
+			local base = if mesh == "PineTree" then 13 elseif mesh == "LeafyTree" then 12 else 11
+			table.insert(trees, {
+				mesh = mesh,
+				x = tx,
+				y = y - 0.6,
+				z = tz,
+				height = base * size * (if h.row == 2 then 1.3 else 1),
+				turn = rand(0, 360),
+				color = color,
+			})
+		end
+	end
 	for _, h in hills do
 		local pastLake = (h.z - lakeNear) * inward > 0
 		if h.row == 1 or (h.row == 2 and not pastLake) then
-			local n = if h.row == 1 then math.floor(rand(1, 2.99)) else math.floor(rand(1, 3.99))
-			for _ = 1, n do
-				-- a spot on the hill, pulled toward the lobby side so it shows
-				local a = rand(0, math.pi * 2)
-				local rr = rand(0.1, 0.6)
-				local tx = h.x + math.cos(a) * h.w / 2 * rr
-				local tz = h.z + math.sin(a) * h.d / 2 * rr
-				local dx, dz = mid.x - h.x, mid.z - h.z
-				local len = math.sqrt(dx * dx + dz * dz)
-				tx += dx / len * h.d * 0.12
-				tz += dz / len * h.d * 0.12
-				local y = LobbyHills.surface(h, tx, tz)
-				-- stay off the lobby grass and only on this hill
-				local onGround = tx > g.minX and tx < g.maxX and tz > g.minZ and tz < g.maxZ
-				local inKeep = tx > keep.minX
-					and tx < keep.maxX
-					and tz > keep.minZ
-					and tz < keep.maxZ
-				if y and y > 1.5 and not onGround and not inKeep then
-					local s = if h.row == 1 then rand(0.9, 1.25) else rand(1.2, 1.6)
-					local pine = rand(0, 1) < 0.55
-					table.insert(trees, {
-						mesh = if pine then "PineTree" else "LeafyTree",
+			if h.kind == "forest" then
+				for _ = 1, math.floor(rand(3, if h.row == 1 then 5.99 else 6.99)) do
+					tree(h, if rand(0, 1) < 0.85 then "PineTree" else "LeafyTree", rand(0.7, 1.5))
+				end
+			elseif h.kind == "meadow" then
+				for _ = 1, math.floor(rand(0, 2.6)) do
+					tree(h, "LeafyTree", rand(0.9, 1.3))
+				end
+			elseif h.kind == "autumn" then
+				for _ = 1, math.floor(rand(2, 4.99)) do
+					tree(
+						h,
+						"BlockTree",
+						rand(0.8, 1.3),
+						AUTUMN[math.floor(rand(1, #AUTUMN + 0.99))]
+					)
+				end
+				if rand(0, 1) < 0.5 then
+					tree(h, "LeafyTree", rand(0.9, 1.2))
+				end
+			elseif rand(0, 1) < 0.5 then
+				tree(h, "PineTree", rand(0.7, 1.1))
+			end
+		end
+	end
+
+	-- little things round the near row's foot, on the lobby side, by kind
+	local FOOT = {
+		meadow = { "Flowers", "Flowers", "Bush", "Flowers" },
+		forest = { "Bush", "TreeStump", "Mushroom", "Log" },
+		autumn = { "Bush", "Flowers", "Mushroom" },
+		rock = { "RockPile", "FlatRock", "BigRock" },
+	}
+	local SIZE = {
+		Flowers = 1.2,
+		Bush = 3.2,
+		TreeStump = 2.2,
+		Mushroom = 1.8,
+		Log = 1.6,
+		RockPile = 3,
+		FlatRock = 2.4,
+		BigRock = 4.5,
+	}
+	for _, h in hills do
+		local list = FOOT[h.kind]
+		if h.row == 1 and list then
+			for _ = 1, math.floor(rand(2, 3.99)) do
+				local mesh = list[math.floor(rand(1, #list + 0.99))]
+				local tx, tz = spot(h, rand(0.78, 0.98), 0.08)
+				if clear(tx, tz) then
+					table.insert(props, {
+						mesh = mesh,
 						x = tx,
-						y = y - 0.6,
 						z = tz,
-						height = (if pine then 13 else 12) * s,
+						height = SIZE[mesh] * rand(0.8, 1.3),
 						turn = rand(0, 360),
 					})
 				end
 			end
 		end
 	end
-	return hills, trees
+	return hills, trees, props
 end
 
 LobbyHills.BASE_TOP = -0.2 -- grass under the hills: a hair under the lobby grass
