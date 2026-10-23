@@ -204,18 +204,11 @@ local bar = barOf(pieces)
 
 local closed = false -- DONE hides the screen until the next break
 local screen = BuildScreen.new({
-	onPath = function(path)
-		local list = {}
-		for i, p in path do
-			if i > 64 then
-				break -- the server takes up to 64 squares a drag
-			end
-			table.insert(list, { p.c, p.r })
-		end
-		event:FireServer("path", list)
-	end,
 	onDrop = function(c, r, id)
 		event:FireServer("drop", c, r, id)
+	end,
+	onPlace = function(c, r, id, rot)
+		event:FireServer("place", c, r, id, rot)
 	end,
 	onRemove = function(c, r)
 		event:FireServer("remove", c, r)
@@ -240,7 +233,7 @@ local function push()
 		rows = last.rows,
 		cells = last.cells,
 		pieces = pieces,
-		specials = specials,
+		specials = bar,
 		ready = last.ready == true,
 		why = if type(last.why) == "string" then last.why else nil,
 		secondsLeft = endsAt() - now(),
