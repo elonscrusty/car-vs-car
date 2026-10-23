@@ -253,6 +253,11 @@ function Shop.build(parent: Instance, origin: CFrame, _width: number?, _depth: n
 	-- a small counter in the back corner
 	block(parent, "Counter", Vector3.new(2, 3, 6), at(-11.5, 1.5, 9.5), BLUE)
 	block(parent, "CounterTop", Vector3.new(2.6, 0.3, 6.6), at(-11.5, 3.15, 9.5), WHITE)
+	-- carter's RC remote and a battery pack on the counter (when imported), facing the shop
+	local counterTop = 3.3
+	local face = CFrame.Angles(0, math.rad(-90), 0) -- front toward the middle of the shop (+x)
+	MeshProps.place(parent, "RCRemote", at(-11.5, counterTop, 8) * face, 0.8)
+	MeshProps.place(parent, "Battery", at(-11.5, counterTop, 11) * face, 0.5)
 end
 
 return Shop
