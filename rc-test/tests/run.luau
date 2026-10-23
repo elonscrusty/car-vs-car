@@ -22,5 +22,6 @@ require("./lobby_decor.test")
 require("./plot_decor.test")
 require("./plot_looks.test")
 require("./stars.test")
+require("./smoke.test")
 
 Harness.summary()
