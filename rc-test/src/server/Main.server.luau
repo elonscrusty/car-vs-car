@@ -14,6 +14,7 @@ local LobbyBuilder = require(script.Parent.LobbyBuilder)
 local LobbyPlots = require(script.Parent.LobbyPlots)
 local TrackBuilder = require(script.Parent.TrackBuilder)
 local PlotDecorBuilder = require(script.Parent.PlotDecorBuilder)
+local PlotLooksBuilder = require(script.Parent.PlotLooksBuilder)
 
 Players.CharacterAutoLoads = false
 
@@ -27,6 +28,7 @@ end
 
 TrackBuilder.build()
 PlotDecorBuilder.build()
+PlotLooksBuilder.start()
 local lobby = LobbyBuilder.build()
 LobbyPlots.init()
 local slots = LobbyLayout.slots()

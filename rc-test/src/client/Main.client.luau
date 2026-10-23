@@ -12,6 +12,7 @@ local CarMath = require(ReplicatedStorage.Shared.CarMath)
 local LapTimer = require(ReplicatedStorage.Shared.LapTimer)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local RaceStart = require(ReplicatedStorage.Shared.RaceStart)
+local SmokeColors = require(ReplicatedStorage.Shared.SmokeColors)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
 
@@ -24,7 +25,9 @@ local Controls = require(script.Parent.Controls)
 local Effects = require(script.Parent.Effects)
 local Hud = require(script.Parent.Hud)
 local Lobby = require(script.Parent.Lobby)
+local LakeLife = require(script.Parent.LakeLife)
 local LobbyLife = require(script.Parent.LobbyLife)
+local LobbyWelcome = require(script.Parent.LobbyWelcome)
 local LobbySky = require(script.Parent.LobbySky)
 local RCCar = require(script.Parent.RCCar)
 local StartLights = require(script.Parent.StartLights)
@@ -219,6 +222,26 @@ local function reset(why: string?)
 	end
 end
 
+-- tyre smoke colour pick, and the star count that opens more colours (sent by the stars server)
+local smokeIndex = 1
+local stars = 0
+task.spawn(function()
+	local starsEvent = ReplicatedStorage:WaitForChild("StarsEvent", 30)
+	if starsEvent and starsEvent:IsA("RemoteEvent") then
+		starsEvent.OnClientEvent:Connect(function(kind: unknown, info: unknown)
+			if kind == "stars" and type(info) == "number" then
+				stars = info
+			elseif
+				kind == "run"
+				and type(info) == "table"
+				and type((info :: any).stars) == "number"
+			then
+				stars = (info :: any).stars
+			end
+		end)
+	end
+end)
+
 local gui = Hud.createGui()
 hud = Hud.new(gui, labels)
 local controls = Controls.new(gui, reset, function()
@@ -240,6 +263,20 @@ end, function()
 	showCam = false
 	camera.setView(view)
 	hud.flash(VIEW_NAMES[view])
+end, function()
+	-- tyre smoke colour: the next one this player's stars have opened (all of them in Studio,
+	-- where nobody can win stars yet)
+	local all = RunService:IsStudio()
+	local nextIndex = SmokeColors.nextOpen(smokeIndex, stars, all)
+	if nextIndex == smokeIndex then
+		local locked = SmokeColors.nextLocked(stars)
+		hud.flash(if locked then `{locked.name} SMOKE: ⭐ {locked.stars}` else "SMOKE")
+		return
+	end
+	smokeIndex = nextIndex
+	local c = SmokeColors.LIST[smokeIndex]
+	effects.setSmokeColor(Color3.fromRGB(c.rgb[1], c.rgb[2], c.rgb[3]))
+	hud.flash(`{c.name} SMOKE`)
 end)
 
 -- Walking <-> driving. Only the server switches (E on a stand, or WALK), this side follows.
@@ -283,6 +320,8 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown)
 	if kind == "walk" then
 		setWalking(true)
 		LobbyLife.start() -- butterflies and birds (looks only, this screen)
+		LobbyWelcome.start() -- first time only: street lights on, confetti
+		LakeLife.start() -- sailboats drift, ducks paddle, the water glints (this screen)
 	elseif kind == "drive" and type(index) == "number" and tracks[index] then
 		setWalking(false)
 		-- fresh hooks: the person may have respawned since the last drive
@@ -297,6 +336,8 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown)
 	end
 end)
 setWalking(true)
+LobbyLife.start() -- butterflies and birds (looks only, this screen)
+LobbyWelcome.start() -- the first moment here: street lights on, confetti
 
 local function timerText(): string
 	local t = tracks[current]

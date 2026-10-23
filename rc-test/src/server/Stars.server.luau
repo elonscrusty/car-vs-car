@@ -6,7 +6,8 @@
 -- once per medal per owner. Owners come from the lobby plots (attribute OwnerId on each
 -- workspace.Plots model). In Studio an unowned plot counts as a test owner, so one person can
 -- try the stars.
--- Server -> client (StarsEvent): ("stars", count, saving) and ("run", info). The client never sends.
+-- Server -> client (StarsEvent): ("stars", count, saving), ("run", info), ("coins", count) and
+-- ("toast", text). The client never sends.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -70,6 +71,17 @@ local function ownerPlayer(slotIndex: number): Player?
 	return if id and id > 0 then Players:GetPlayerByUserId(id) else nil
 end
 
+-- the slot this player owns (OwnerId on the plot models), or nil
+local function ownedSlot(player: Player): number?
+	for i in slots do
+		local m = plotModel(i)
+		if m and m:GetAttribute("OwnerId") == player.UserId then
+			return i
+		end
+	end
+	return nil
+end
+
 -- this plot's record list: the owner's save, or the loose list
 local function recordsOf(slotIndex: number): ({ [string]: Profile.Record }?, Player?)
 	local owner = ownerPlayer(slotIndex)
@@ -95,6 +107,7 @@ boardFolder.Name = "StarBoards"
 boardFolder.Parent = workspace
 
 local boards: { [number]: TextLabel } = {}
+local likePrompts: { [number]: ProximityPrompt } = {}
 for i, slot in slots do
 	local anchor = Instance.new("Part")
 	anchor.Name = "Board_" .. i
@@ -130,6 +143,16 @@ for i, slot in slots do
 	pad.PaddingBottom = UDim.new(0.06, 0)
 	pad.Parent = text
 	boards[i] = text
+	-- the like button: walk up to the board
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText = "Like"
+	prompt.ObjectText = "❤"
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 14
+	prompt.RequiresLineOfSight = false
+	prompt.KeyboardKeyCode = Enum.KeyCode.F
+	prompt.Parent = anchor
+	likePrompts[i] = prompt
 end
 
 local function showBoard(slotIndex: number)
@@ -140,6 +163,10 @@ local function showBoard(slotIndex: number)
 	end
 	local owner = ownerPlayer(slotIndex)
 	local title = if owner then string.upper(owner.DisplayName) .. "'S PLOT" else "OPEN PLOT"
+	local ownerData = owner and PlayerData.get(owner)
+	if ownerData then
+		title ..= `  ❤ {ownerData.likes}`
+	end
 	local records = recordsOf(slotIndex)
 	local r = records and records[mode]
 	local best = if r then `BEST {Medals.format(mode, r.value)}  {r.name}` else "BEST  none yet"
@@ -150,9 +177,25 @@ local function showBoard(slotIndex: number)
 	boards[slotIndex].Text = `{title}\n<font color="#FFD54F">{best}</font>\n{goals}`
 end
 
+-- ===== plot looks: the owner's stars grow their plot (PlotLooksBuilder reads OwnerStars) =====
+
+local function showLooks(slotIndex: number)
+	local m = plotModel(slotIndex)
+	if not m then
+		return
+	end
+	local owner = ownerPlayer(slotIndex)
+	local data = owner and PlayerData.get(owner)
+	local stars = if data then data.stars else 0
+	if m:GetAttribute("OwnerStars") ~= stars then
+		m:SetAttribute("OwnerStars", stars)
+	end
+end
+
 local function showAll()
 	for i in slots do
 		showBoard(i)
+		showLooks(i)
 	end
 end
 
@@ -181,6 +224,34 @@ local function onRun(player: Player, slotIndex: number, mode: string, value: num
 		gained = Profile.award(data, player.UserId, oid, mode, medal)
 		if gained > 0 then
 			PlayerData.touch(player)
+			-- their own plot may reach a new look
+			local mine = ownedSlot(player)
+			if mine then
+				showLooks(mine)
+			end
+		end
+	end
+	-- the visit gift: driving someone else's plot pays you both, once per owner per day
+	if
+		data
+		and oid
+		and not own
+		and Profile.visit(data, player.UserId, oid, Profile.day(os.time()))
+	then
+		PlayerData.touch(player)
+		remote:FireClient(player, "coins", data.coins)
+		remote:FireClient(player, "toast", `+{Profile.VISIT_COINS} 🪙 visit gift`)
+		local host = ownerPlayer(slotIndex)
+		local hostData = host and PlayerData.get(host)
+		if host and hostData then
+			hostData.coins += Profile.HOST_COINS
+			PlayerData.touch(host)
+			remote:FireClient(host, "coins", hostData.coins)
+			remote:FireClient(
+				host,
+				"toast",
+				`+{Profile.HOST_COINS} 🪙 {player.DisplayName} visited your plot!`
+			)
 		end
 	end
 	print(
@@ -270,13 +341,51 @@ local function look(now: number)
 	end
 end
 
+-- ===== likes =====
+
+local lastLike: { [Player]: number } = {}
+for i, prompt in likePrompts do
+	prompt.Triggered:Connect(function(player: Player)
+		local now = os.clock()
+		if now - (lastLike[player] or 0) < 0.5 then
+			return
+		end
+		lastLike[player] = now
+		local owner = ownerPlayer(i)
+		if owner == nil then
+			remote:FireClient(player, "toast", "nobody owns this plot yet")
+			return
+		end
+		if owner == player then
+			remote:FireClient(player, "toast", "that's your plot!")
+			return
+		end
+		local data, ownerData = PlayerData.get(player), PlayerData.get(owner)
+		if not (data and ownerData) then
+			return
+		end
+		if not Profile.like(data, player.UserId, owner.UserId) then
+			remote:FireClient(player, "toast", "you liked this plot already ❤")
+			return
+		end
+		ownerData.likes += 1
+		PlayerData.touch(player)
+		PlayerData.touch(owner)
+		showBoard(i)
+		remote:FireClient(player, "toast", `❤ you liked {owner.DisplayName}'s plot`)
+		remote:FireClient(owner, "toast", `❤ {player.DisplayName} liked your plot!`)
+	end)
+end
+
 PlayerData.loaded:Connect(function(player: Player, data: Profile.Data, saving: boolean)
 	remote:FireClient(player, "stars", data.stars, saving)
+	remote:FireClient(player, "coins", data.coins)
 	showAll() -- their plot's board shows their saved record
 end)
 
 Players.PlayerRemoving:Connect(function(player)
 	watching[player] = nil
+	lastLike[player] = nil
 	task.defer(showAll)
 end)
 

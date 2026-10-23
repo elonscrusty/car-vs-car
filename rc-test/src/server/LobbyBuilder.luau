@@ -138,6 +138,7 @@ function LobbyBuilder.build(): Built
 			CFrame.new(slot.padX, 0.2, slot.padZ),
 			Color3.fromRGB(255, 210, 63)
 		)
+		pad.Material = Enum.Material.Neon -- glows: "stand here"
 		local at = Instance.new("Attachment")
 		at.Name = "DriveSpot"
 		at.Position = Vector3.new(0, 2.5, 0)

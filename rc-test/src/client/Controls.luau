@@ -84,7 +84,8 @@ function Controls.new(
 	gui: ScreenGui,
 	onReset: () -> (),
 	onCam: () -> (),
-	onView: () -> ()
+	onView: () -> (),
+	onSmoke: () -> ()
 ): Controls
 	local keys: { [Enum.KeyCode]: boolean } = {}
 	local padSteer, padGas, padBrake = 0, 0, 0
@@ -103,6 +104,8 @@ function Controls.new(
 				onCam()
 			elseif input.KeyCode == Enum.KeyCode.V then
 				onView()
+			elseif input.KeyCode == Enum.KeyCode.K then
+				onSmoke()
 			end
 		elseif input.KeyCode == Enum.KeyCode.ButtonY then
 			onReset()
@@ -266,6 +269,17 @@ function Controls.new(
 	viewBtn.Parent = gui
 	viewBtn.Activated:Connect(onView)
 
+	-- tyre smoke colour (looks only); not on rocks, which hardly slide
+	local smokeBtn = resetBtn:Clone()
+	smokeBtn.Name = "Smoke"
+	smokeBtn.Text = "SMOKE"
+	smokeBtn.Position = UDim2.new(0.84, 0, 0, 64)
+	smokeBtn.Size = UDim2.fromScale(0.065, 0.09)
+	smokeBtn.Parent = gui
+	smokeBtn.Activated:Connect(function()
+		onSmoke()
+	end)
+
 	-- rocks only: a RESET button (where CAM sits elsewhere) that puts the car back a bit
 	local backBtn = resetBtn:Clone()
 	backBtn.Name = "Reset"
@@ -344,13 +358,13 @@ function Controls.new(
 		help.TextColor3 = Color3.fromRGB(255, 255, 255)
 		help.TextTransparency = 0.35
 		help.Text =
-			"W/S gas + brake    A/D steer    SPACE drift    C show cam    V chase cam    E walk"
+			"W/S gas + brake    A/D steer    SPACE drift    C show cam    V chase cam    K smoke    E walk"
 		help.Parent = gui
 	end
 
 	local controls = {} :: Controls
 	local NORMAL_HELP =
-		"W/S gas + brake    A/D steer    SPACE drift    C show cam    V chase cam    E walk"
+		"W/S gas + brake    A/D steer    SPACE drift    C show cam    V chase cam    K smoke    E walk"
 	local ROCK_HELP =
 		"W/S gas + brake    A/D steer    drag to look    wheel to zoom    R back to flag    E walk"
 	local onRock: boolean? = nil
@@ -362,6 +376,7 @@ function Controls.new(
 		onRock = on
 		-- CAM and VIEW do nothing there, so hide both and close the gap
 		viewBtn.Visible = not on
+		smokeBtn.Visible = not on
 		camBtn.Visible = not on
 		backBtn.Visible = on and not touchUi
 		if driftBtn then

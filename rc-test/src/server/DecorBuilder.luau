@@ -41,6 +41,24 @@ function DecorBuilder.build(parent: Instance): Model
 			end
 		end
 	end
+	-- quiet music from the speakers, heard only near them
+	if LobbyDecor.MUSIC ~= "" then
+		for i, e in LobbyDecor.extras() do
+			local group = e.model == "Speaker" and groups["Extra" .. i]
+			local part = group and group:FindFirstChildWhichIsA("BasePart", true)
+			if part then
+				local music = Instance.new("Sound")
+				music.Name = "Music"
+				music.SoundId = LobbyDecor.MUSIC
+				music.Looped = true
+				music.Volume = LobbyDecor.MUSIC_VOLUME
+				music.RollOffMinDistance = 12
+				music.RollOffMaxDistance = 70
+				music.Parent = part
+				music:Play()
+			end
+		end
+	end
 	model.Parent = parent
 	return model
 end

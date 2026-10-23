@@ -41,6 +41,46 @@ chipCorner.Parent = chip
 local chipScale = Instance.new("UIScale")
 chipScale.Parent = chip
 
+-- coins, beside the stars
+local coinChip = chip:Clone()
+coinChip.Name = "CoinCount"
+coinChip.Position = UDim2.new(0.16, 0, 0.14, 70)
+coinChip.TextColor3 = Color3.fromRGB(255, 236, 150)
+coinChip.Text = "🪙 0"
+coinChip.Parent = gui
+
+-- short messages: likes, visit gifts
+local toast = Instance.new("TextLabel")
+toast.Name = "Toast"
+toast.AnchorPoint = Vector2.new(0.5, 0.5)
+toast.Position = UDim2.fromScale(0.5, 0.76)
+toast.Size = UDim2.fromScale(0.5, 0.06)
+toast.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+toast.BackgroundTransparency = 1
+toast.TextColor3 = Color3.new(1, 1, 1)
+toast.TextTransparency = 1
+toast.Font = Enum.Font.GothamBold
+toast.TextScaled = true
+toast.Parent = gui
+local toastCorner = Instance.new("UICorner")
+toastCorner.CornerRadius = UDim.new(0.4, 0)
+toastCorner.Parent = toast
+local toasts = 0
+local function showToast(text: string)
+	toasts += 1
+	local mine = toasts
+	toast.Text = text
+	toast.TextTransparency = 0
+	toast.BackgroundTransparency = 0.3
+	task.delay(2.5, function()
+		if toasts == mine then
+			local info = TweenInfo.new(0.4)
+			TweenService:Create(toast, info, { TextTransparency = 1, BackgroundTransparency = 1 })
+				:Play()
+		end
+	end)
+end
+
 -- shown when this server can't save (Studio without API access, DataStore down)
 local noSave = Instance.new("TextLabel")
 noSave.Name = "NotSaving"
@@ -105,6 +145,14 @@ remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unkn
 	if kind == "stars" and type(info) == "number" then
 		setStars(info, false)
 		noSave.Visible = saving == false
+		return
+	end
+	if kind == "coins" and type(info) == "number" then
+		coinChip.Text = `🪙 {info}`
+		return
+	end
+	if kind == "toast" and type(info) == "string" then
+		showToast(info)
 		return
 	end
 	if kind ~= "run" or type(info) ~= "table" then

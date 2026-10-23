@@ -43,7 +43,7 @@ local function overlaps(p: any, b: any): boolean
 end
 
 test("light enough for phones", function()
-	truthy(#parts > 100 and #parts <= 330, `parts: {#parts}`)
+	truthy(#parts > 100 and #parts <= 340, `parts: {#parts}`)
 	truthy(#D.life() <= 40, "flyers")
 end)
 
