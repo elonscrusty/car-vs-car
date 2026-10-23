@@ -212,6 +212,72 @@ test("rock steps: small steps up, on a straight, nothing else on them", function
 	end
 end)
 
+test("skill climbs: too tall to just drive over, with an easy way round each", function()
+	local S = Plot.SKILLS
+	local edge = Plot.HALF_WIDTH + Plot.SHOULDER
+	-- lateral span (big studs from the trail centre) each one blocks, and its spot
+	local function ground(r: number, lift: number): number
+		return math.sqrt(r * r - (r - lift) ^ 2)
+	end
+	local n = S.notch
+	local half = ground(n.r, n.lift)
+	local blocks = {
+		{
+			name = "notch",
+			u = n.u,
+			lo = (n.side - n.gap) * Plot.HALF_WIDTH - half,
+			hi = (n.side + n.gap) * Plot.HALF_WIDTH + half,
+			reach = n.r,
+		},
+		{
+			name = "step-up",
+			u = S.stepUp.u,
+			lo = S.stepUp.side * Plot.HALF_WIDTH - S.stepUp.width / 2,
+			hi = S.stepUp.side * Plot.HALF_WIDTH + S.stepUp.width / 2,
+			reach = S.stepUp.length,
+		},
+		{
+			name = "kicker",
+			u = S.kicker.u,
+			lo = S.kicker.side * Plot.HALF_WIDTH - S.kicker.width / 2,
+			hi = S.kicker.side * Plot.HALF_WIDTH + S.kicker.width / 2,
+			reach = S.kicker.length + S.kicker.ramp,
+		},
+	}
+	for _, b in blocks do
+		local easy = math.max(b.lo + edge, edge - b.hi)
+		truthy(easy >= 12, `{b.name}: the easy way round is only {easy} wide`)
+		truthy(b.lo > -edge and b.hi < edge, `{b.name} pokes off the trail`)
+		local bx, bz = Plot.spot(b.u, 0)
+		for _, f in Plot.features do
+			local fx, fz = Plot.spot(f.u, 0)
+			local along = math.sqrt((fx - bx) ^ 2 + (fz - bz) ^ 2)
+			if along < b.reach + f.r + 2 then
+				local at = f.side * Plot.HALF_WIDTH
+				truthy(at - f.r > b.hi or at + f.r < b.lo, `{f.kind} at {f.u} is in the {b.name}`)
+			end
+		end
+		for _, d in Plot.domes do
+			truthy(
+				d.h * math.exp(-((d.x - bx) ^ 2 + (d.z - bz) ^ 2) / d.r ^ 2) < 0.3,
+				`dome at {d.u} is under the {b.name}`
+			)
+		end
+	end
+	truthy(n.lift > Plot.MAX_LIFT and n.lift <= 3, "notch boulders")
+	truthy(S.stepUp.lift > Plot.MAX_LIFT and S.stepUp.lift <= 3, "step-up height")
+	truthy(
+		S.stepUp.helper.lift <= Plot.MAX_LIFT,
+		"the rock in front of the step-up must be climbable"
+	)
+	truthy(
+		S.stepUp.lift - S.stepUp.helper.lift <= Plot.MAX_LIFT,
+		"from the small rock up is too far"
+	)
+	truthy(S.kicker.lift / S.kicker.ramp >= 0.5, "the kicker ramp should need a run-up")
+	truthy(S.kicker.lift <= 3, "kicker height")
+end)
+
 test("the steep slab is clear of rocks", function()
 	for _, f in Plot.features do
 		truthy(f.u < 22, `{f.kind} at {f.u} sits on the slab`)
