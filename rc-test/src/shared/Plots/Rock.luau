@@ -64,8 +64,8 @@ Plot.GRASS_TOP = 14 -- ground below this height (off the trail) is grass, higher
 -- Highest bump the car can crawl over.
 Plot.MAX_LIFT = 1.6
 -- Highest sheer step a careful driver can get up (backing up and trying again); much over this
--- and nobody can (Studio: about 0.45 studs at RC size).
-Plot.SKILL_STEP = 1.8
+-- and nobody can (Studio: about 0.45 studs at RC size; carter found that too big, so 0.425).
+Plot.SKILL_STEP = 1.7
 -- The big wide boulders can stand taller: their sides are gentle enough to climb.
 Plot.BIG_LIFT = 2.5
 -- The person's eyes on the driver stand (see Main.client: stand top + 4.5 studs at RC size).
@@ -220,7 +220,7 @@ end
 -- Rock steps up the low shelf: flat blocks, each a small step up from the one before.
 -- Four tall steps on the hill side of the trail: too tall to just hold the gas up, it takes
 -- backing up and trying again. The front side of the trail is the easy way round.
-Plot.STEPS = { from = 13.05, to = 13.95, n = 4, side = -0.45, width = 20, frontSide = 1 }
+Plot.STEPS = { from = 13.08, to = 13.92, n = 4, side = -0.45, width = 20, frontSide = 1 }
 Plot.CURB = 1.2 -- the curb along the front edge beside the steps
 
 -- The step blocks: from u0 to u1, top and bottom heights.
@@ -242,13 +242,13 @@ end
 -- * kicker: a steep ramp up to a lip, then a high block, on the front side.
 Plot.SKILLS = {
 	-- the boulders stand apart by less than the car's track, so the wheels ride up their sides
-	notch = { u = 4.45, side = 0.2, gap = 0.395, r = 7, lift = 3.6 },
+	notch = { u = 4.45, side = 0.2, gap = 0.395, r = 7, lift = 3.3 },
 	stepUp = {
 		u = 12.35,
 		side = -0.55,
 		width = 12,
 		length = 10,
-		lift = 3.4,
+		lift = 3.3,
 		-- a lower block right in front, on the line to the middle of the big one: half its
 		-- height, so the car goes up in two skill steps
 		helper = { width = 6, length = 5, lift = 1.6 },
@@ -259,7 +259,7 @@ Plot.SKILLS = {
 		side = -0.5,
 		width = 14,
 		length = 8,
-		lift = 3.2,
+		lift = 3.15,
 		ramp = 2.6,
 		rampLift = 1.45,
 	},
