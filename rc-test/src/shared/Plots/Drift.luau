@@ -373,9 +373,10 @@ do
 	table.insert(Plot.LAMPS, { x = p[1], z = p[2], yaw = math.atan2(-dx, -dz) })
 end
 Plot.LAMP_H = 34
--- carter's FloodLight model shines out of its -Z side (in Studio it faced away from the track
--- when its +Z was turned inward), so it gets an extra half turn
-Plot.FLOODLIGHT_FLIP = math.pi
+-- Extra turn for carter's FloodLight model. With a half turn here the Studio check (2026-10-23)
+-- saw the corner lights point out of the plot, so the lens is on the side meshProp turns to
+-- face the middle: no extra turn.
+Plot.FLOODLIGHT_FLIP = 0
 
 -- Pit garage in the infield behind the pad, open toward the stand: a concrete floor, three
 -- walls and a red roof, with a workbench, toolbox, tyre rack, gas cans and a jack inside.
