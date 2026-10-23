@@ -65,6 +65,9 @@ Plot.SUMMIT_WALL = 5 -- the wall across the far end of the summit stands this hi
 Plot.GRASS_TOP = 14 -- ground below this height (off the trail) is grass, higher is rock
 -- Highest bump the car can crawl over.
 Plot.MAX_LIFT = 1.6
+-- Highest sheer step a careful driver can get up (backing up and trying again); much over this
+-- and nobody can (Studio: about 0.45 studs at RC size).
+Plot.SKILL_STEP = 1.8
 -- The big wide boulders can stand taller: their sides are gentle enough to climb.
 Plot.BIG_LIFT = 2.5
 -- The person's eyes on the driver stand (see Main.client: stand top + 4.5 studs at RC size).
@@ -217,9 +220,10 @@ function Plot.creekDip(x: number, z: number): number
 end
 
 -- Rock steps up the low shelf: flat blocks, each a small step up from the one before.
--- Three tall steps on the hill side of the trail: too tall to just hold the gas up, it takes
+-- Four tall steps on the hill side of the trail: too tall to just hold the gas up, it takes
 -- backing up and trying again. The front side of the trail is the easy way round.
-Plot.STEPS = { from = 13.05, to = 13.95, n = 3, side = -0.3, width = 26 }
+Plot.STEPS = { from = 13.05, to = 13.95, n = 4, side = -0.45, width = 20, frontSide = 1 }
+Plot.CURB = 1.2 -- the curb along the front edge beside the steps
 
 -- The step blocks: from u0 to u1, top and bottom heights.
 function Plot.stepBlocks(): { { u0: number, u1: number, top: number, bottom: number } }
@@ -237,20 +241,30 @@ end
 -- an easy way round beside it.
 -- * notch: two big boulders side by side with a V between them; straddle it with a wheel on each.
 -- * stepUp: a tall rock block on the hill side; put one wheel on the small rock in front first.
--- * kicker: a steep ramp up onto a high block on the front side; it needs a run-up.
+-- * kicker: a steep ramp up to a lip, then a high block, on the front side.
 Plot.SKILLS = {
-	notch = { u = 4.45, side = 0.1, gap = 0.15, r = 7, lift = 3.2 },
+	-- the boulders stand apart by less than the car's track, so the wheels ride up their sides
+	notch = { u = 4.45, side = 0.2, gap = 0.395, r = 7, lift = 3.6 },
 	stepUp = {
 		u = 12.35,
 		side = -0.55,
 		width = 12,
 		length = 10,
-		lift = 2.6,
-		-- a low block right in front, on the line to the middle of the big one: about half its
-		-- height, so the car goes up in two steps
-		helper = { width = 6, length = 5, lift = 1.4 },
+		lift = 3.4,
+		-- a lower block right in front, on the line to the middle of the big one: half its
+		-- height, so the car goes up in two skill steps
+		helper = { width = 6, length = 5, lift = 1.6 },
 	},
-	kicker = { u = 18.4, side = -0.5, width = 14, length = 8, lift = 3.2, ramp = 4 },
+	-- a short steep ramp up to a lip below the block's top: holding the gas stalls on the lip
+	kicker = {
+		u = 18.4,
+		side = -0.5,
+		width = 14,
+		length = 8,
+		lift = 3.2,
+		ramp = 2.6,
+		rampLift = 1.45,
+	},
 }
 
 -- Mountain peaks along the back wall, behind the summit, so the hill rises into real mountains.
@@ -673,6 +687,24 @@ end
 -- Rock steps: each block's top sits at the trail height at its far end, so its near end is a
 -- small step up from the ground and its far end meets the ground. Blocks overlap a little.
 local function buildSteps(parent: Instance, origin: CFrame)
+	-- a low curb along the front edge beside the steps, so a car on the easy side doesn't drive
+	-- off the front of the row
+	local st = Plot.STEPS
+	local cu = (st.from + st.to) / 2
+	local fx, fz = Plot.spot(cu, 0)
+	local ax, az = Plot.at(st.from - 0.1)
+	local bx, bz = Plot.at(st.to + 0.1)
+	local edge = HALF + Plot.SHOULDER - 1
+	local curb = Kit.part(
+		parent,
+		"Wall",
+		origin,
+		Vector3.new(1.5, Plot.CURB + 2, math.sqrt((bx - ax) ^ 2 + (bz - az) ^ 2)),
+		Plot.bankCF(cu, fx, Plot.height(cu), fz)
+			* CFrame.new(st.frontSide * edge, Plot.CURB / 2 - 1, 0),
+		C.rock
+	)
+	curb.Material = Enum.Material.Slate
 	for _, st in Plot.stepBlocks() do
 		local ax, az = Plot.at(st.u0)
 		local bx, bz = Plot.at(st.u1)
@@ -811,10 +843,10 @@ local function buildSkills(parent: Instance, origin: CFrame)
 	ramp.Name = "Ledge"
 	ramp.Anchored = true
 	-- a wedge's high end is at its +Z: turn it round so the high end meets the block
-	ramp.Size = Vector3.new(k.width, k.lift + 0.3, k.ramp)
+	ramp.Size = Vector3.new(k.width, k.rampLift + 0.3, k.ramp)
 	ramp.CFrame = origin
 		* frame
-		* CFrame.new(0, (k.lift - 0.3) / 2, k.length / 2 + k.ramp / 2)
+		* CFrame.new(0, (k.rampLift - 0.3) / 2, k.length / 2 + k.ramp / 2)
 		* CFrame.Angles(0, math.pi, 0)
 	ramp.Color = C.rock
 	ramp.Material = Enum.Material.Slate
