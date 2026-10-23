@@ -28,6 +28,7 @@ export type Data = {
 	equipped: { [string]: string }, -- mode -> the car id driven in that mode
 	track: Track?, -- my built track (nil = the starter circle); the grid size comes from stars
 	tiles: { [string]: number }, -- TileShop ids -> copies owned (free tiles are everyone's anyway)
+	raceStars: number, -- stars won in server races (on top of the medal stars in starsFrom)
 }
 -- One placed tile: column, row (from 1), TrackTiles piece id, quarter turns 0..3.
 export type Tile = { c: number, r: number, piece: string, rot: number }
@@ -38,8 +39,9 @@ export type Lock = { job: string, at: number }
 
 local Profile = {}
 
-Profile.VERSION = 10 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift.
--- 6: daily jobs. 7: looks, lookOff. 8: cars, equipped. 9: track. 10: tiles (owned)
+Profile.VERSION = 11 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift.
+-- 6: daily jobs. 7: looks, lookOff. 8: cars, equipped. 9: track. 10: tiles (owned).
+-- 11: raceStars
 Profile.MAX_OWNERS = 500 -- keeps the save small; stars from more owners than this stop counting
 Profile.LOCK_TIMEOUT = 300 -- a server that hasn't saved for this long is gone: its lock is stale
 Profile.MODES = { "race", "drift", "rock" }
@@ -81,6 +83,7 @@ function Profile.new(): Data
 		cars = {},
 		equipped = {},
 		tiles = {},
+		raceStars = 0,
 	}
 end
 
@@ -188,6 +191,9 @@ function Profile.migrate(raw: any): Data
 					{ value = r.value, name = string.sub(r.name, 1, 40), userId = r.userId }
 			end
 		end
+	end
+	if goodNumber(raw.raceStars) then
+		d.raceStars = math.clamp(math.floor(raw.raceStars), 0, Profile.MAX_RACE_STARS)
 	end
 	if goodNumber(raw.coins) then
 		d.coins = math.max(math.floor(raw.coins), 0)
@@ -316,7 +322,7 @@ function Profile.migrate(raw: any): Data
 			stars += m
 		end
 	end
-	d.stars = stars
+	d.stars = stars + d.raceStars
 	return d
 end
 
@@ -349,6 +355,16 @@ function Profile.award(
 	modes[mode] = m
 	d.stars += m - had
 	return m - had
+end
+
+-- Stars won in a server race (ServerRace.starsFor). Unlike medal stars these keep adding up:
+-- racing is how you climb (bigger grid, tiles open), even with no friends' plots around.
+Profile.MAX_RACE_STARS = 100000
+function Profile.addRaceStars(d: Data, n: number): number
+	local add = math.clamp(math.floor(n), 0, Profile.MAX_RACE_STARS - d.raceStars)
+	d.raceStars += add
+	d.stars += add
+	return add
 end
 
 -- The day number for once-a-day gifts.

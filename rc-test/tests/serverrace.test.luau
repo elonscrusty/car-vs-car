@@ -53,6 +53,24 @@ test("every grid spot is on the race road, apart, behind the line", function()
 	end
 end)
 
+test("pay: every racer gets coins, the winner most", function()
+	eq(ServerRace.payFor(1, true), ServerRace.PAY[1])
+	truthy(ServerRace.payFor(1, true) > ServerRace.payFor(2, true), "1st beats 2nd")
+	truthy(ServerRace.payFor(3, true) > ServerRace.payFor(4, true), "3rd beats 4th")
+	eq(ServerRace.payFor(8, true), ServerRace.PAY_FINISH)
+	truthy(ServerRace.payFor(1, false) > 0, "a try still pays")
+	truthy(ServerRace.payFor(1, false) < ServerRace.PAY_FINISH, "finishing pays more")
+end)
+
+test("stars: finishers get stars by place, alone only the finish star", function()
+	eq(ServerRace.starsFor(1, true, 4), 3)
+	eq(ServerRace.starsFor(2, true, 4), 2)
+	eq(ServerRace.starsFor(3, true, 4), 1)
+	eq(ServerRace.starsFor(4, true, 4), 1)
+	eq(ServerRace.starsFor(1, false, 4), 0)
+	eq(ServerRace.starsFor(1, true, 1), 1)
+end)
+
 test("rank: finishers by time, then by laps; race ends when all are in", function()
 	local r = ServerRace.rank({
 		{ name = "c", laps = 1 },
@@ -102,3 +120,32 @@ test(
 		end
 	end
 )
+
+test("places, ordinals, medals and the wrong-way check", function()
+	eq(ServerRace.ordinal(1), "1ST")
+	eq(ServerRace.ordinal(2), "2ND")
+	eq(ServerRace.ordinal(3), "3RD")
+	eq(ServerRace.ordinal(4), "4TH")
+	eq(ServerRace.ordinal(11), "11TH")
+	eq(ServerRace.ordinal(22), "22ND")
+	eq(ServerRace.medal(1), "🥇")
+	eq(ServerRace.medal(4), "")
+	-- a new lap beats every gate of the lap before
+	truthy(ServerRace.progress(1, 1, 6, 50) > ServerRace.progress(0, 6, 6, 1), "lap order")
+	-- same gate: closer to the next one is ahead
+	truthy(ServerRace.progress(0, 3, 6, 10) > ServerRace.progress(0, 3, 6, 40), "dist order")
+	local place = ServerRace.places({
+		{ progress = ServerRace.progress(1, 2, 6, 20) },
+		{ time = 70, progress = 0 },
+		{ progress = ServerRace.progress(2, 0, 6, 5) },
+		{ time = 65, progress = 0 },
+	})
+	eq(place[4], 1)
+	eq(place[2], 2)
+	eq(place[3], 3)
+	eq(place[1], 4)
+	eq(ServerRace.wrongWay(-30, 0, 1, 0, 10), true)
+	eq(ServerRace.wrongWay(30, 0, 1, 0, 10), false)
+	eq(ServerRace.wrongWay(0, 30, 1, 0, 10), false) -- side on (a bend) is fine
+	eq(ServerRace.wrongWay(-5, 0, 1, 0, 10), false) -- too slow to count
+end)

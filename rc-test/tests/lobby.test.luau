@@ -174,3 +174,21 @@ test("a plot can be driven when it is free and yours, nobody's, or opened to fri
 	eq(L.canDrive(2, 1, true, false), true) -- someone else's, open
 	eq(L.canDrive(1, 1, true, true), false) -- someone is on it
 end)
+
+test("claim order: race plots first (you build on them), every plot once", function()
+	local order = L.claimOrder()
+	local slots = L.slots()
+	eq(#order, #slots)
+	local seen = {}
+	local pastRace = false
+	for _, i in order do
+		truthy(not seen[i], "slot twice")
+		seen[i] = true
+		if slots[i].id ~= "race" then
+			pastRace = true
+		else
+			truthy(not pastRace, "a race plot after a non-race one")
+		end
+	end
+	eq(slots[order[1]].id, "race")
+end)

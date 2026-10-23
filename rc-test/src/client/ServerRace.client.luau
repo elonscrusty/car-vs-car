@@ -1,6 +1,7 @@
 --!strict
 -- The server race on screen: a chip counting down the break to the next race (and, for the last
--- 10 s, whose track it is on), and when a race ends a pop-up with who won, for everyone. The
+-- 10 s, whose track it is on), a big "2ND PLACE!" when your car finishes, the clock the others
+-- have left once someone has won, and when a race ends a pop-up with who won, for everyone. The
 -- server decides everything (ServerRaceRunner); this only shows it.
 
 local Players = game:GetService("Players")
@@ -140,14 +141,56 @@ local rowsSize = Instance.new("UITextSizeConstraint")
 rowsSize.MaxTextSize = 34
 rowsSize.Parent = rowsText
 
+-- your finish: a huge place in the middle, then it slides up out of the way
+local placeText = Instance.new("TextLabel")
+placeText.Name = "Place"
+placeText.AnchorPoint = Vector2.new(0.5, 0.5)
+placeText.Position = UDim2.fromScale(0.5, 0.36)
+placeText.Size = UDim2.fromScale(0.6, 0.16)
+placeText.BackgroundTransparency = 1
+placeText.Font = Enum.Font.GothamBlack
+placeText.TextScaled = true
+placeText.TextColor3 = YELLOW
+placeText.Visible = false
+placeText.Parent = gui
+local placeStroke = Instance.new("UIStroke")
+placeStroke.Thickness = 5
+placeStroke.Color = DARK
+placeStroke.Parent = placeText
+
+-- once someone has won: how long the rest have to finish (a red pill up top)
+local hurry = Instance.new("TextLabel")
+hurry.Name = "Hurry"
+hurry.AnchorPoint = Vector2.new(0.5, 0)
+hurry.Position = UDim2.new(0.5, 0, 0, 58)
+hurry.Size = UDim2.fromScale(0.34, 0.07)
+hurry.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
+hurry.TextColor3 = Color3.new(1, 1, 1)
+hurry.Font = Enum.Font.GothamBlack
+hurry.TextScaled = true
+hurry.Visible = false
+hurry.Parent = gui
+corner(hurry, 0.5)
+local hurryPad = Instance.new("UIPadding")
+hurryPad.PaddingTop = UDim.new(0.14, 0)
+hurryPad.PaddingBottom = UDim.new(0.14, 0)
+hurryPad.Parent = hurry
+
 local phase = "wait"
 local startAt = 0
 local where = ""
+local endsAt = 0 -- server time the race ends for the ones still driving (0 = nobody won yet)
+local finished = false -- this player's car is over the line
 
 RunService.RenderStepped:Connect(function()
 	local secs = startAt - workspace:GetServerTimeNow()
 	-- the call: the small chip steps aside for the huge banner
 	call.Visible = phase == "call" and startAt > 0
+	local hurryLeft = endsAt - workspace:GetServerTimeNow()
+	hurry.Visible = phase == "racing" and endsAt > 0 and not finished and hurryLeft > 0
+	if hurry.Visible then
+		hurry.Text = `FINISH IN {ServerRace.clock(hurryLeft)}!`
+	end
 	-- (the build screen has its own clock)
 	join.Visible = phase ~= "racing"
 		and phase ~= "call"
@@ -176,41 +219,70 @@ RunService.RenderStepped:Connect(function()
 end)
 
 local showId = 0
+local function showPlace(place: number)
+	finished = true
+	placeText.Text = `{ServerRace.medal(place)} {ServerRace.ordinal(place)} PLACE!`
+	placeText.TextColor3 = if place == 1 then YELLOW else Color3.new(1, 1, 1)
+	placeText.Visible = true
+	placeText.Position = UDim2.fromScale(0.5, 0.36)
+	placeText.Size = UDim2.fromScale(0.3, 0.08)
+	TweenService:Create(
+		placeText,
+		TweenInfo.new(0.4, Enum.EasingStyle.Back),
+		{ Size = UDim2.fromScale(0.6, 0.16) }
+	):Play()
+	task.delay(2.5, function()
+		if finished then
+			-- out of the way of the results, still there while the others finish
+			TweenService:Create(placeText, TweenInfo.new(0.5), {
+				Position = UDim2.fromScale(0.5, 0.2),
+				Size = UDim2.fromScale(0.36, 0.09),
+			}):Play()
+		end
+	end)
+end
+
 local function showResult(rows: { any })
+	placeText.Visible = false
 	if #rows == 0 then
 		return
 	end
 	local first = rows[1]
 	title.Text = if first.time then `🏆 {first.name} WINS!` else "TIME UP!"
 	local lines = {}
-	local function isMe(r: any): boolean
-		return r.name == player.Name or r.name == player.DisplayName
-	end
-	-- the top 4, and your own row under them if you came lower
-	local show = {}
-	for i = 1, math.min(#rows, 4) do
-		table.insert(show, i)
-	end
-	for i = 5, #rows do
-		if isMe(rows[i]) then
-			table.insert(show, i)
+	local mine: number? = nil
+	for i, r in rows do
+		if r.name == player.DisplayName then
+			mine = i
 		end
 	end
-	for _, i in show do
+	for i = 1, math.min(#rows, 4) do
 		local r = rows[i]
 		local what = if type(r.time) == "number"
 			then CarMath.formatTime(r.time)
 			else `{r.laps}/{ServerRace.LAPS} laps`
+		-- coins each racer got (the server sends them per row)
 		local paid = if type(r.coins) == "number" and r.coins > 0
 			then `   <font color="#FFD54F">+{r.coins}</font>`
 			else ""
-		local line = `{i}. {r.name}   {what}{paid}`
-		-- you, in gold, so you find yourself at once
-		if isMe(r) then
-			line = `<font color="#FFD54F"><b>{i}. YOU   {what}</b></font>{paid}`
-		end
-		table.insert(lines, line)
+		local medal = ServerRace.medal(i)
+		local line = `{if medal ~= "" then medal else `{i}.`} {r.name}   {what}`
+		-- your own row in yellow, so you find yourself at once
+		table.insert(
+			lines,
+			if i == mine then `<font color="#FFCD3C">{line}  ◀ YOU</font>{paid}` else line .. paid
+		)
 	end
+	-- not in the top 4: your place still shows at the bottom
+	if mine and mine > 4 then
+		local r = rows[mine]
+		local paid = if type(r.coins) == "number" and r.coins > 0 then `  +{r.coins}` else ""
+		table.insert(lines, `<font color="#FFCD3C">{mine}. YOU{paid}</font>`)
+	end
+	table.insert(
+		lines,
+		`<font color="#9AA0AA">NEXT RACE IN {ServerRace.clock(ServerRace.BREAK)}</font>`
+	)
 	rowsText.Text = table.concat(lines, "\n")
 	showId += 1
 	local me = showId
@@ -235,6 +307,14 @@ event.OnClientEvent:Connect(
 		if kind == "state" and type(a) == "string" and type(b) == "number" then
 			phase, startAt = a, b
 			where = if type(e) == "string" then e else ""
+			if phase ~= "racing" then
+				endsAt, finished = 0, false
+				placeText.Visible = false
+			end
+		elseif kind == "finished" and type(a) == "number" then
+			showPlace(a)
+		elseif kind == "ends" and type(a) == "number" then
+			endsAt = a
 		elseif kind == "result" and type(a) == "table" then
 			showResult(a :: { any })
 		end

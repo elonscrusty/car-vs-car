@@ -150,6 +150,7 @@ local grid: TrackData.Spawn? = nil
 local gridGone = false
 local raceGo: number? = nil -- server race: when this car got its GO (race clock)
 local raceDone: number? = nil -- server race: this car's finish time (its laps are all done)
+local wrongFor = 0 -- server race: seconds this car has been driving the wrong way
 
 local hud: Hud.Hud
 local function goTo(index: number)
@@ -388,6 +389,11 @@ local function timerText(): string
 			local lap = math.min(s.laps + 1, ServerRace.LAPS)
 			table.insert(lines, `LAP {lap}/{ServerRace.LAPS}   {CarMath.formatTime(now - go)}`)
 		end
+		-- the live place the server works out
+		local place, cars = player:GetAttribute("RacePlace"), player:GetAttribute("RaceCars")
+		if type(place) == "number" and type(cars) == "number" and cars > 1 then
+			table.insert(lines, `{ServerRace.ordinal(place)} OF {cars}`)
+		end
 	elseif t.mode == "loop" then
 		local cur = if s.running then CarMath.formatTime(now - s.startTime) else "-:--.-"
 		table.insert(lines, `LAP {s.laps + 1}   {cur}`)
@@ -452,6 +458,20 @@ RunService.PreSimulation:Connect(function(dt: number)
 		hud.flash(`FINISH!  {CarMath.formatTime(raceDone :: number)}`)
 	end
 	roadArrow.update(t, timer, rc, lx, lz)
+	-- server race: driving away from the next gate for a while = a big WRONG WAY!
+	if grid and go and raceDone == nil and timer.running and #timer.gates > 0 then
+		local g = timer.gates[((timer.next - 1) % #timer.gates) + 1]
+		local wx, _, wz = TrackData.toWorld(t, rc, g.x, ly, g.z)
+		local v = body.AssemblyLinearVelocity
+		local back = ServerRace.wrongWay(v.X, v.Z, wx - p.X, wz - p.Z, 12 * Tuning.scale)
+		wrongFor = if back then wrongFor + dt else 0
+		if wrongFor >= 1.2 then
+			wrongFor = -1.3 -- show it again in a bit if they keep going
+			hud.flash("WRONG WAY!")
+		end
+	else
+		wrongFor = 0
+	end
 	if event == "lap" then
 		hud.flash(`LAP  {CarMath.formatTime(timers[current].last :: number)}`)
 	elseif event == "finish" then
@@ -531,6 +551,9 @@ local otherCars = OtherCars.new(function(): string
 	return carName
 end)
 
+local boosting = false -- was on a boost last frame
+local airTime = 0 -- seconds in the air up to last frame
+
 RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, function(dt: number)
 	otherCars.update(dt)
 	if walking then
@@ -552,6 +575,17 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 	car.render(dt)
 	skin.update(car, SKINS[tracks[current].id])
 	effects.update(dt)
+	-- boost pads and jumps: a wider view and a word on screen so you know what happened
+	local tel = car.telemetry
+	if tel.boost > 0 and not boosting then
+		camera.kick(14)
+		hud.flash("BOOST!")
+	end
+	boosting = tel.boost > 0
+	if tel.landed > 0 and airTime > 0.8 then
+		hud.flash("BIG AIR!")
+	end
+	airTime = tel.air
 	camera.update(dt)
 	controls.setRock(tracks[current].id == "rock")
 	controls.setRace(grid ~= nil)
