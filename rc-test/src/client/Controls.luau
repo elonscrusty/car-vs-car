@@ -9,6 +9,7 @@ local RCCar = require(script.Parent.RCCar)
 export type Controls = {
 	read: () -> RCCar.Input,
 	setRock: (on: boolean) -> (),
+	setRace: (on: boolean) -> (), -- server race: fewer buttons (SMOKE and CAM hide)
 }
 
 local Controls = {}
@@ -408,6 +409,21 @@ function Controls.new(
 	local ROCK_HELP =
 		"W/S gas + brake    A/D steer    drag to look    wheel to zoom    R back to flag    E walk"
 	local onRock: boolean? = nil
+	local inRace = false
+	-- the PC key line shows for a few seconds each time things change, then gets out of the way
+	local helpShown = 0
+	local function flashHelp()
+		helpShown += 1
+		local me = helpShown
+		if help then
+			help.Visible = true
+		end
+		task.delay(12, function()
+			if me == helpShown and help then
+				help.Visible = false
+			end
+		end)
+	end
 	-- rocks is free cam only: no camera buttons, and the help says how to look around
 	function controls.setRock(on: boolean)
 		if on == onRock then
@@ -418,8 +434,8 @@ function Controls.new(
 		viewBtn.Visible = not on
 		onRockNow = on
 		autoBtn.Visible = not on
-		smokeBtn.Visible = not on
-		camBtn.Visible = not on
+		smokeBtn.Visible = not on and not inRace
+		camBtn.Visible = not on and not inRace
 		backBtn.Visible = on and not touchUi
 		if driftBtn then
 			driftBtn.Visible = not on
@@ -433,6 +449,15 @@ function Controls.new(
 		if help then
 			help.Text = if on then ROCK_HELP else NORMAL_HELP
 		end
+		flashHelp()
+	end
+	function controls.setRace(on: boolean)
+		if on == inRace then
+			return
+		end
+		inRace = on
+		smokeBtn.Visible = not on and not onRockNow
+		camBtn.Visible = not on and not onRockNow
 	end
 	function controls.read(): RCCar.Input
 		local function down(code: Enum.KeyCode): boolean

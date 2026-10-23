@@ -203,6 +203,8 @@ end)
 
 local function showRivals(list: { any }, streak: number, points: number)
 	streakLine.Text = `win streak {streak}   wins {points}`
+	-- a new player has no rivals yet: no button to wonder about until they do
+	rivalsBtn.Visible = #list > 0 or points > 0
 	for i, row in rows do
 		local r = list[i]
 		if type(r) == "table" and type(r.name) == "string" then

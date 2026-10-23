@@ -134,6 +134,7 @@ rowsText.Font = Enum.Font.GothamBold
 rowsText.TextScaled = true
 rowsText.TextColor3 = Color3.new(1, 1, 1)
 rowsText.TextYAlignment = Enum.TextYAlignment.Top
+rowsText.RichText = true
 rowsText.Parent = card
 local rowsSize = Instance.new("UITextSizeConstraint")
 rowsSize.MaxTextSize = 34
@@ -182,12 +183,33 @@ local function showResult(rows: { any })
 	local first = rows[1]
 	title.Text = if first.time then `🏆 {first.name} WINS!` else "TIME UP!"
 	local lines = {}
+	local function isMe(r: any): boolean
+		return r.name == player.Name or r.name == player.DisplayName
+	end
+	-- the top 4, and your own row under them if you came lower
+	local show = {}
 	for i = 1, math.min(#rows, 4) do
+		table.insert(show, i)
+	end
+	for i = 5, #rows do
+		if isMe(rows[i]) then
+			table.insert(show, i)
+		end
+	end
+	for _, i in show do
 		local r = rows[i]
 		local what = if type(r.time) == "number"
 			then CarMath.formatTime(r.time)
 			else `{r.laps}/{ServerRace.LAPS} laps`
-		table.insert(lines, `{i}. {r.name}   {what}`)
+		local paid = if type(r.coins) == "number" and r.coins > 0
+			then `   <font color="#FFD54F">+{r.coins}</font>`
+			else ""
+		local line = `{i}. {r.name}   {what}{paid}`
+		-- you, in gold, so you find yourself at once
+		if isMe(r) then
+			line = `<font color="#FFD54F"><b>{i}. YOU   {what}</b></font>{paid}`
+		end
+		table.insert(lines, line)
 	end
 	rowsText.Text = table.concat(lines, "\n")
 	showId += 1
