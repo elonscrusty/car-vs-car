@@ -83,6 +83,28 @@ test("the ground reaches the outer walls and the front wall (no trench to fall i
 	truthy(Plot.RIM >= 8, "the rim round the back and sides is too low to stop the car")
 end)
 
+test("each row leans back into the hill, so a car that wanders rolls away from the edge", function()
+	for _, u in { 3, 8.5, 13.5, 18.5, 23.5 } do
+		local _, fz = Plot.spot(u, 0)
+		local _, _, _, tx = Plot.at(u)
+		-- the side of the trail nearer the stand (+z) is the front edge
+		local frontSide = if tx > 0 then 1 else -1
+		local ax, az = Plot.spot(u, frontSide)
+		local bx, bz = Plot.spot(u, -frontSide)
+		truthy(az > fz and bz < fz, `row at {u}: front side is not toward the stand`)
+		local drop = Plot.groundAt(ax, az) - Plot.groundAt(bx, bz)
+		truthy(drop > 2, `row at {u} doesn't lean back into the hill ({drop})`)
+		truthy(drop < 4, `row at {u} leans too much ({drop})`)
+	end
+end)
+
+test("the domes sit on the hill side of the trail, away from the front edge", function()
+	for _, d in Plot.domes do
+		local _, cz = Plot.at(d.u)
+		truthy(d.z < cz, `dome at {d.u} is on the front-edge side`)
+	end
+end)
+
 test("each row sits higher than the one in front of it", function()
 	-- row middles (u) front to back: mounds, creek, low shelf, high shelf, slab
 	local rows = { 3, 8.5, 13.5, 18.5, 23 }
@@ -143,7 +165,7 @@ test(
 		for _, d in Plot.domes do
 			truthy(d.h >= 4, `dome at {d.u} is small`)
 			-- steepest side of the dome is about 0.86 * h / r
-			truthy(0.86 * d.h / d.r <= 0.5, `dome at {d.u} is too steep`)
+			truthy(0.86 * d.h / d.r <= 0.42, `dome at {d.u} is too steep`)
 			truthy(math.abs(d.side) <= 0.5, `dome at {d.u} is off the trail`)
 			for _, t in Plot.TURNS do
 				truthy(math.abs(d.u - t) > 0.6, `dome at {d.u} sits in a turn`)

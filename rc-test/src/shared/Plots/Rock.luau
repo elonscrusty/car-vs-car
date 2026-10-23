@@ -175,12 +175,15 @@ local function dome(u: number, side: number, r: number, h: number): Dome
 	return { u = u, side = side, r = r, h = h, x = x, z = z }
 end
 Plot.domes = {
-	dome(3.7, 0.15, 11, 5.5), -- row 1, beside the big boulders
-	dome(9.0, -0.3, 10, 5), -- row 2: the boulder field
-	dome(9.75, 0.4, 9, 4.5),
-	dome(14.9, -0.3, 10, 5), -- row 3, after the steps
-	dome(17.9, 0.3, 11, 6), -- row 4: big domes
-	dome(18.9, -0.35, 10, 5.5),
+	-- all on the hill side of the trail (away from the front edge): rolling off one sends the
+	-- car toward the hill, not over the edge. Rows 1 and 3 run left to right, so the hill side
+	-- is the left (-); rows 2 and 4 run right to left, so it's the right (+).
+	dome(3.7, -0.3, 12, 5), -- row 1, beside the big boulders
+	dome(9.0, 0.3, 11, 4.5), -- row 2: the boulder field
+	dome(9.75, 0.3, 10, 4.5),
+	dome(14.9, -0.3, 12, 5), -- row 3, after the steps
+	dome(17.9, 0.3, 12, 5.5), -- row 4: big domes
+	dome(18.9, 0.35, 11, 5),
 } :: { Dome }
 
 -- A dry creek across the trail in row 2. A bridge of two logs crosses it on the left; the
@@ -226,9 +229,11 @@ Plot.PEAKS = {
 }
 
 -- Distance from (x, z) to the trail centre line, and the trail height at the closest sample.
--- Also: is the spot in front of (closer to the stand than) that sample, and the trail height
--- of the closest sample that is in front of the spot (the row below), or nil if none.
-function Plot.nearest(x: number, z: number): (number, number, boolean, number?)
+-- Also: is the spot in front of (closer to the stand than) that sample, the trail height of the
+-- closest sample that is in front of the spot (the row below, or nil if none), and how far the
+-- spot sits in front of that sample (z, scaled by how much the trail runs across the stand's
+-- view there: full along a row, nothing in a turn).
+function Plot.nearest(x: number, z: number): (number, number, boolean, number?, number)
 	local path = Plot.path()
 	local best, bestI = math.huge, 1
 	local front, frontI = math.huge, nil
@@ -243,19 +248,37 @@ function Plot.nearest(x: number, z: number): (number, number, boolean, number?)
 		end
 	end
 	local below = if frontI then Plot.height(Plot.uOf(frontI)) else nil
-	return math.sqrt(best), Plot.height(Plot.uOf(bestI)), z > path[bestI].z, below
+	local s = path[bestI]
+	return math.sqrt(best), Plot.height(Plot.uOf(bestI)), z > s.z, below, (z - s.z) * s.tx * s.tx
 end
 
 Plot.SHOULDER = 6 -- flat ground beside the trail before the rock face drops away
 Plot.FACE = 1.5 -- steepness of the rock faces down to the row below (too steep to drive up)
 Plot.LOWEST = 1.6 -- the ground never goes lower than this (stays clear of the plot floor)
+-- Each row leans back into the hill by this much (rise over run), front edge highest, so a car
+-- that wanders sideways rolls toward the hill and not off the front edge.
+Plot.BANK = 0.08
 
--- Ground height anywhere on the plot. Behind each row its shelf carries on flat up to the next
+-- How much the rock domes lift the ground at (x, z).
+function Plot.domeLift(x: number, z: number): number
+	local h = 0
+	for _, m in Plot.domes do
+		local mx, mz = (x - m.x) / m.r, (z - m.z) / m.r
+		local q = mx * mx + mz * mz
+		if q < 9 then
+			h += m.h * math.exp(-q)
+		end
+	end
+	return h
+end
+
+-- Ground height anywhere on the plot. Behind each row its shelf carries on up to the next
 -- row's rock face. In front of a row the ground drops away down a steep rock face to the row
 -- below, so the shelf never hides the car from the stand. Mounds bump up the low grass.
 function Plot.groundAt(x: number, z: number): number
-	local d, h, inFront, below = Plot.nearest(x, z)
+	local d, h, inFront, below, lean = Plot.nearest(x, z)
 	local edge = HALF + Plot.SHOULDER
+	h += Plot.BANK * math.clamp(lean, -edge, edge)
 	if inFront and d > edge then
 		h = math.max(h - Plot.FACE * (d - edge), below or Plot.LOWEST)
 	end
@@ -274,15 +297,31 @@ function Plot.groundAt(x: number, z: number): number
 			end
 		end
 	end
-	for _, m in Plot.domes do
-		local mx, mz = (x - m.x) / m.r, (z - m.z) / m.r
-		local q = mx * mx + mz * mz
-		if q < 9 then
-			h += m.h * math.exp(-q)
-		end
-	end
+	h += Plot.domeLift(x, z)
 	h -= Plot.creekDip(x, z)
 	return math.max(h, Plot.LOWEST)
+end
+
+-- The tilt of the trail at u: a frame at (x, y, z) facing along the trail, leaning back into the
+-- hill like the ground does, for things laid on the trail.
+function Plot.bankCF(u: number, x: number, y: number, z: number): CFrame
+	local _, _, _, tx, tz = Plot.at(u)
+	local fwd = Vector3.new(tx, 0, tz)
+	-- across the trail, rising toward the front (+z) by BANK * tx^2 per stud of z
+	local across = Vector3.new(-tz, Plot.BANK * tx * tx * tx, tx).Unit
+	local up = across:Cross(fwd).Unit
+	if up.Y < 0 then
+		up = -up
+	end
+	return CFrame.fromMatrix(Vector3.new(x, y, z), across, up)
+end
+
+-- Ground height on the trail at u, `side` across it (-1 left .. 1 right), before domes and the
+-- creek: the trail height plus the lean back into the hill.
+function Plot.trailY(u: number, side: number): number
+	local _, cz, h, tx = Plot.at(u)
+	local _, z = Plot.spot(u, side)
+	return h + Plot.BANK * (z - cz) * tx * tx
 end
 
 -- Corner heights of the ground grid. It covers the whole plot inside the outer walls (so there
@@ -342,8 +381,9 @@ Plot.features = {
 	-- row 1: grass and mounds, and two big boulders right in front of the stand
 	rock(1.8, -0.35, 3.4, 1.0),
 	rock(2.2, 0.3, 3.6, 1.1),
-	rock(2.85, 0.3, 9, 1.6), -- big boulder: watch the springs up close
-	rock(3.25, -0.35, 8, 1.5), -- big boulder, the other side
+	-- two big boulders, wide so they get climbed, not pushed past: watch the springs up close
+	rock(2.85, 0.3, 12, 1.6),
+	rock(3.25, -0.35, 11, 1.5),
 	rock(4.3, -0.4, 3.8, 1.3),
 	rock(4.5, 0.45, 3.6, 1.2),
 	ledge(4.85, 0.5, 0.9),
@@ -511,11 +551,11 @@ local function buildGround(parent: Instance, origin: CFrame)
 		return Vector3.new(x0 + (i - 1) * dx, g[i][j], z0 + (j - 1) * dz)
 	end
 	local function lookFor(mid: Vector3, steep: number): Look
-		local d, th = Plot.nearest(mid.X, mid.Z)
-		if Plot.creekDip(mid.X, mid.Z) > 1.5 then
+		local d = Plot.nearest(mid.X, mid.Z)
+		if Plot.creekDip(mid.X, mid.Z) > 0.3 then
 			return L.creek
 		end
-		if d < HALF + Plot.SHOULDER and mid.Y > th + 1.5 then
+		if Plot.domeLift(mid.X, mid.Z) > 0.6 then
 			return L.dome
 		end
 		if d < HALF then
@@ -547,37 +587,30 @@ local function buildGround(parent: Instance, origin: CFrame)
 	end
 	-- rim: a rock wall right round the edge of the ground, from inside the floor to well above
 	-- the ground, so the car can't drop off the hill and out of the plot. Low at the front so it
-	-- doesn't block the view from the stand.
-	local function rim(a: Vector3, b: Vector3, above: number)
-		local top = math.max(a.Y, b.Y) + above
-		local mid = (a + b) / 2
-		local len = (b - a).Magnitude
-		local p = Kit.part(
-			parent,
-			"Wall",
-			origin,
-			Vector3.new(2, top + 1, len),
-			CFrame.lookAt(
-				Vector3.new(mid.X, (top - 1) / 2, mid.Z),
-				Vector3.new(b.X, (top - 1) / 2, b.Z)
-			),
-			C.rock
-		)
-		p.Material = Enum.Material.Slate
+	-- doesn't block the view from the stand. Its top follows the ground smoothly (two triangles
+	-- per piece), and it sits just outside the ground's edge so no faces line up.
+	local wall: Look = { name = "Wall", color = C.rock, material = Enum.Material.Slate }
+	local function rim(a: Vector3, b: Vector3, above: number, out: Vector3)
+		local a0, b0 = Vector3.new(a.X, -1, a.Z) + out, Vector3.new(b.X, -1, b.Z) + out
+		local a1, b1 = a + Vector3.new(0, above, 0) + out, b + Vector3.new(0, above, 0) + out
+		triangle(parent, origin, a0, b0, b1, wall)
+		triangle(parent, origin, a0, b1, a1, wall)
 	end
+	local back, front = Vector3.new(0, 0, -0.5), Vector3.new(0, 0, 0.5)
+	local left, right = Vector3.new(-0.5, 0, 0), Vector3.new(0.5, 0, 0)
 	for i = 1, nx - 1 do
-		rim(corner(i, 1), corner(i + 1, 1), Plot.RIM)
-		rim(corner(i, nz), corner(i + 1, nz), Plot.FRONT_RIM)
+		rim(corner(i, 1), corner(i + 1, 1), Plot.RIM, back)
+		rim(corner(i, nz), corner(i + 1, nz), Plot.FRONT_RIM, front)
 	end
 	for j = 1, nz - 1 do
-		rim(corner(1, j), corner(1, j + 1), Plot.RIM)
-		rim(corner(nx, j), corner(nx, j + 1), Plot.RIM)
+		rim(corner(1, j), corner(1, j + 1), Plot.RIM, left)
+		rim(corner(nx, j), corner(nx, j + 1), Plot.RIM, right)
 	end
 end
 
 local function buildFeature(parent: Instance, origin: CFrame, f: Feature)
-	local x, z, h = Plot.spot(f.u, f.side)
-	local _, _, _, tx, tz = Plot.at(f.u)
+	local x, z = Plot.spot(f.u, f.side)
+	local h = Plot.trailY(f.u, f.side)
 	if f.kind == "rock" then
 		Kit.rock(parent, origin, x, h + f.lift - f.r, z, f.r)
 	elseif f.kind == "ledge" then
@@ -587,7 +620,7 @@ local function buildFeature(parent: Instance, origin: CFrame, f: Feature)
 			"Ledge",
 			origin,
 			Vector3.new(HALF, f.lift + 2, f.r),
-			yawCF(x, h + f.lift / 2 - 1, z, tx, tz),
+			Plot.bankCF(f.u, x, h + f.lift / 2 - 1, z),
 			C.rock
 		)
 		p.Material = Enum.Material.Slate
@@ -598,7 +631,7 @@ local function buildFeature(parent: Instance, origin: CFrame, f: Feature)
 			"Log",
 			origin,
 			Vector3.new(ROAD, f.r * 2, f.r * 2),
-			yawCF(x, h + f.lift - f.r, z, tx, tz),
+			Plot.bankCF(f.u, x, h + f.lift - f.r, z),
 			C.ground
 		)
 		p.Shape = Enum.PartType.Cylinder
@@ -613,13 +646,12 @@ local function buildSteps(parent: Instance, origin: CFrame)
 		local ax, az = Plot.at(st.u0)
 		local bx, bz = Plot.at(st.u1)
 		local len = math.sqrt((bx - ax) ^ 2 + (bz - az) ^ 2) + 1
-		local _, _, _, tx, tz = Plot.at((st.u0 + st.u1) / 2)
 		local p = Kit.part(
 			parent,
 			"Ledge",
 			origin,
 			Vector3.new(ROAD + 2 * Plot.SHOULDER - 2, st.top - st.bottom, len),
-			yawCF((ax + bx) / 2, (st.top + st.bottom) / 2, (az + bz) / 2, tx, tz),
+			Plot.bankCF((st.u0 + st.u1) / 2, (ax + bx) / 2, (st.top + st.bottom) / 2, (az + bz) / 2),
 			C.rock
 		)
 		p.Material = Enum.Material.Slate
@@ -629,8 +661,9 @@ end
 -- Two logs side by side along the trail, over the creek, one under each row of wheels.
 local function buildLogBridge(parent: Instance, origin: CFrame)
 	local c = Plot.CREEK
-	local x, z, h, tx, tz = Plot.at(c.u)
+	local x, z, _, tx, tz = Plot.at(c.u)
 	local cx, cz = x - tz * c.logSide * HALF, z + tx * c.logSide * HALF
+	local h = Plot.trailY(c.u, c.logSide)
 	for _, off in { -2, 2 } do
 		local p = Kit.part(
 			parent,
@@ -676,14 +709,14 @@ function Plot.build(parent: Instance, origin: CFrame)
 	buildLogBridge(parent, origin)
 	buildFaceLine(parent, origin)
 	-- the flag at the summit, beside the trail
-	local fx, fz, top, tx, tz = Plot.at(Plot.FLAG_U)
+	local fx, fz, _, tx, tz = Plot.at(Plot.FLAG_U)
 	local px, pz = fx - tz * (HALF - 3), fz + tx * (HALF - 3)
 	local pole = Kit.part(
 		parent,
 		"Flag",
 		origin,
 		Vector3.new(0.6, 14, 0.6),
-		CFrame.new(px, top + 7, pz),
+		CFrame.new(px, Plot.groundAt(px, pz) + 6.5, pz),
 		C.white
 	)
 	pole.CanCollide = false
@@ -692,14 +725,22 @@ function Plot.build(parent: Instance, origin: CFrame)
 		"Flag",
 		origin,
 		Vector3.new(7, 4, 0.3),
-		yawCF(px - 3.5 * tx, top + 12, pz - 3.5 * tz, -tz, tx),
+		yawCF(px - 3.5 * tx, Plot.groundAt(px, pz) + 11.5, pz - 3.5 * tz, -tz, tx),
 		C.red
 	)
 	cloth.CanCollide = false
-	-- start and finish lines, floating a hair above the ground
+	-- start and finish lines, floating just above the ground and leaning with it
 	for _, u in { Plot.START_U, Plot.FINISH_U } do
-		local x, z, h, dx, dz = Plot.at(u)
-		Kit.line(parent, origin, x, h + 0.1, z, dx, dz, ROAD, C.white)
+		local x, z, h = Plot.at(u)
+		local line = Kit.part(
+			parent,
+			"Line",
+			origin,
+			Vector3.new(ROAD, 0.2, 2),
+			Plot.bankCF(u, x, h + 0.25, z),
+			C.white
+		)
+		line.CanCollide = false
 	end
 end
 
