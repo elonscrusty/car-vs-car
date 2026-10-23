@@ -125,6 +125,7 @@ end
 local driftChain, driftTotal, driftHold = 0, 0, 0
 local checkpoint = 0 -- last checkpoint flag driven through on this plot (0 = none)
 local driftHeld = 0 -- seconds this slide has been held (longer = bigger multiplier)
+local touched: { [number]: boolean } = {} -- drift touch zones already scored in this chain
 -- race: 3-2-1 lights on the start arch after landing on the start, then the clock starts (GO)
 local countdown: RaceStart.State? = nil
 local lamps: { BasePart } = {}
@@ -158,6 +159,7 @@ local function goTo(index: number)
 		StartLights.show(lamps, 0)
 	end
 	driftChain, driftTotal, driftHold, driftHeld = 0, 0, 0, 0
+	touched = {}
 	local s = t.spawn
 	local x, y, z = TrackData.toWorld(t, rc, s.x, s.y, s.z)
 	local dx, dz = TrackData.dirToWorld(t, rc, s.dx, s.dz)
@@ -410,12 +412,22 @@ RunService.PreSimulation:Connect(function(dt: number)
 			driftHeld += dt
 			driftChain += gain * CarMath.driftCombo(driftHeld)
 			driftHold = 0.8
+			-- sliding through a glowing touch zone: a bonus, once per zone per chain
+			local plot = TrackData.plot(t.id)
+			local zone = plot.touchZone and plot.touchZone(lx, lz)
+			if zone and not touched[zone] then
+				touched[zone] = true
+				local bonus = plot.TOUCH_BONUS * CarMath.driftCombo(driftHeld)
+				driftChain += bonus
+				hud.flash(`TOUCH +{math.floor(bonus)}`)
+			end
 		elseif driftChain > 0 then
 			driftHold -= dt
 			if driftHold <= 0 or tel.speed < 8 * Tuning.scale then
 				driftTotal += driftChain
 				hud.popScore(driftChain)
 				driftChain, driftHeld = 0, 0
+				touched = {}
 			end
 		end
 		hud.setDrift(driftChain, driftTotal, true, CarMath.driftCombo(driftHeld))
