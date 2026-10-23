@@ -502,39 +502,52 @@ end
 function PlotDecor.meshes(kind: string): { Mesh }
 	local b, c = PlotDecor.BOOTH, PlotDecor.CANOPY
 	local counterZ = b.z + 4.5 / 2 - 0.6
+	-- { model, at, fit, yaw (degrees), group }. carter's Meshy models come in facing -Z, so
+	-- yaw 180 turns their front to the road and the people; yaw 0 faces the track. A group
+	-- other than "Extras" swaps out that group's block stand-ins.
+	local f = PlotDecor.FEATURE
 	local list: { { any } } = if kind == "drift"
 		then {
-			{ "Speaker", v(b.x - 3, 1.6, counterZ), v(1.2, 1.6, 1.2), 180 }, -- came in backwards
+			{ "Speaker", v(b.x - 3, 1.6, counterZ), v(1.2, 1.6, 1.2), 180 },
 			{ "Speaker", v(b.x + 3, 1.6, counterZ), v(1.2, 1.6, 1.2), 180 },
 			{ "TireStack", v(c.x - 1.5, 0, c.z - 1), v(2, 2.6, 2) },
 			{ "TireStack", v(c.x + 1.6, 0, c.z - 1.6), v(2, 1.8, 2) },
-			{ "GasCan", v(c.x, 0, c.z + 1.8), v(0.9, 1.1, 0.7) },
+			{ "Cooler", v(c.x, 0, c.z + 1.8), v(1.4, 1, 1), 180 },
 			-- a little tyre wall along the low wall
-			{ "TireStack", v(PlotDecor.FEATURE.x - 4.5, 0, PlotDecor.FEATURE.z), v(2.2, 2.2, 2.2) },
-			{ "TireStack", v(PlotDecor.FEATURE.x - 2.2, 0, PlotDecor.FEATURE.z), v(2.2, 1.6, 2.2) },
-			{ "TireStack", v(PlotDecor.FEATURE.x + 0.1, 0, PlotDecor.FEATURE.z), v(2.2, 2.2, 2.2) },
-			{ "TireStack", v(PlotDecor.FEATURE.x + 2.4, 0, PlotDecor.FEATURE.z), v(2.2, 1.6, 2.2) },
+			{ "TireStack", v(f.x - 4.5, 0, f.z), v(2.2, 2.2, 2.2) },
+			{ "TireStack", v(f.x - 2.2, 0, f.z), v(2.2, 1.6, 2.2) },
+			{ "TireStack", v(f.x + 0.1, 0, f.z), v(2.2, 2.2, 2.2) },
+			{ "TireStack", v(f.x + 2.4, 0, f.z), v(2.2, 1.6, 2.2) },
+			-- two spotlights on the track, one each side of the front area
+			{ "FloodLight", v(-12, 0, 39), v(1.8, 5, 1.8), 0 },
+			{ "FloodLight", v(29.5, 0, 39), v(1.8, 5, 1.8), 0 },
 		}
 		elseif kind == "rock" then {
-			{ "Bucket", v(b.x - 2.5, 1.6, counterZ), v(1, 1, 1) },
-			{ "Toolbox", v(b.x + 2, 1.6, counterZ), v(1.6, 0.9, 0.8) },
-			{ "HayBale", v(c.x - 1, 0, c.z - 1.5), v(2.6, 1.6, 1.8) },
-			{ "Crate", v(c.x + 1.8, 0, c.z + 1.2), v(1.4, 1.4, 1.4) },
-			{ "Log", v(c.x, 0, c.z + 3), v(4, 0.8, 0.8) },
+			{ "Cooler", v(b.x - 2.5, 1.6, counterZ), v(1.4, 1, 1), 180 },
+			{ "Toolbox", v(b.x + 2, 1.6, counterZ), v(1.6, 0.9, 0.8), 180 },
+			-- a lookout tower instead of the canopy, a campfire and a log beside it
+			{ "WatchTower", v(c.x - 1, 0, c.z - 1), v(5, 10, 5), 180, "Canopy" },
+			{ "Campfire", v(c.x + 2.2, 0, c.z + 2.6), v(1.6, 1, 1.6) },
+			{ "Log", v(c.x + 2.2, 0, c.z + 4.4), v(3, 0.8, 0.8) },
+			{ "Crate", v(c.x + 2.4, 0, c.z - 2.2), v(1.4, 1.4, 1.4) },
 		}
 		else {
-			{ "Toolbox", v(b.x - 2.4, 1.6, counterZ), v(1.6, 0.9, 0.8) },
-			{ "Battery", v(b.x + 2.2, 1.6, counterZ), v(1, 0.8, 0.6) },
-			{ "WheelRack", v(c.x - 1.4, 0, c.z - 2), v(3, 2.6, 1.2) },
+			{ "Toolbox", v(b.x - 2.4, 1.6, counterZ), v(1.6, 0.9, 0.8), 180 },
+			{ "Battery", v(b.x + 2.2, 1.6, counterZ), v(1, 0.8, 0.6), 180 },
+			-- carter's pit tent instead of the block canopy
+			{ "PitTent", v(c.x, 0, c.z), v(7, 4.9, 7), 180, "Canopy" },
+			{ "WheelRack", v(c.x - 1.4, 0, c.z - 2), v(3, 2.6, 1.2), 180 },
 			{ "TireStack", v(c.x + 2, 0, c.z + 1), v(2, 2, 2) },
-			{ "GasCan", v(c.x - 1.5, 0, c.z + 1.6), v(0.9, 1.1, 0.7) },
+			{ "Cooler", v(c.x - 1.5, 0, c.z + 1.6), v(1.4, 1, 1), 180 },
+			-- the winner's trophy on the podium's top step
+			{ "Trophy", v(f.x, 1.6, f.z - 0.8), v(1, 1.4, 0.8), 180 },
 		}
 	local out: { Mesh } = {}
 	for _, m in list do
 		local fit: V3 = m[3]
 		table.insert(out, {
 			model = m[1],
-			group = "Extras",
+			group = m[5] or "Extras",
 			at = m[2],
 			fit = fit,
 			long = if fit.z > fit.x then "z" else "x",
