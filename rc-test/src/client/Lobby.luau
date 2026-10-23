@@ -5,6 +5,7 @@
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local Lobby = {}
@@ -57,6 +58,15 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 			end
 		end
 	end
+
+	-- the car shop's stands turn slowly (looks only, so each screen turns its own)
+	RunService.RenderStepped:Connect(function(dt: number)
+		for _, stand in CollectionService:GetTagged("LobbySpin") do
+			if stand:IsA("Model") then
+				stand:PivotTo(stand:GetPivot() * CFrame.Angles(0, dt * 0.6, 0))
+			end
+		end
+	end)
 
 	local lobby = {} :: Lobby
 	function lobby.setDriving(on: boolean)
