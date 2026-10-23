@@ -218,6 +218,18 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
+-- what a racer won (the server sends coins and stars per row): "   +100 🪙  +1 ⭐"
+local function paidText(r: any): string
+	local out = ""
+	if type(r.coins) == "number" and r.coins > 0 then
+		out ..= `   <font color="#FFD54F">+{r.coins} 🪙</font>`
+	end
+	if type(r.stars) == "number" and r.stars > 0 then
+		out ..= `  <font color="#FFD54F">+{r.stars} ⭐</font>`
+	end
+	return out
+end
+
 local showId = 0
 local function showPlace(place: number)
 	finished = true
@@ -261,17 +273,19 @@ local function showResult(rows: { any })
 		local what = if type(r.time) == "number"
 			then CarMath.formatTime(r.time)
 			else `{r.laps}/{ServerRace.LAPS} laps`
+		local paid = paidText(r)
 		local medal = ServerRace.medal(i)
 		local line = `{if medal ~= "" then medal else `{i}.`} {r.name}   {what}`
 		-- your own row in yellow, so you find yourself at once
 		table.insert(
 			lines,
-			if i == mine then `<font color="#FFCD3C">{line}  ◀ YOU</font>` else line
+			if i == mine then `<font color="#FFCD3C">{line}  ◀ YOU</font>{paid}` else line .. paid
 		)
 	end
 	-- not in the top 4: your place still shows at the bottom
 	if mine and mine > 4 then
-		table.insert(lines, `<font color="#FFCD3C">{mine}. YOU</font>`)
+		local r = rows[mine]
+		table.insert(lines, `<font color="#FFCD3C">{mine}. YOU</font>{paidText(r)}`)
 	end
 	table.insert(
 		lines,

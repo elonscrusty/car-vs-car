@@ -121,7 +121,8 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 		local m = folder
 		local busy = driving or driven or building() or slot == nil
 		local near = padDistance() < NEAR
-		gui.Enabled = not busy
+		-- after the first drive the arrows are done, but on your pad the line still says DRIVE
+		gui.Enabled = not busy or (near and not driving and not building() and slot ~= nil)
 		line.Text = if near then "TAP DRIVE!" else "FOLLOW THE ARROWS"
 		if m then
 			local show = not busy and not near
@@ -153,6 +154,7 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 		driving = on
 		if on and padDistance() < NEAR * 2 then
 			driven = true -- drove from their own pad
+			player:SetAttribute("HasDriven", true) -- the build screen may now open by itself
 		end
 	end
 	return guide

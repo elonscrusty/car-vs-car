@@ -79,6 +79,7 @@ HudLayout.SPOTS = {
 	spot("Join", "walk", "ServerRace", TC, { 0.5, 0, 0, 194 }, { 0, 220, 0, 46 }),
 	-- ===== walk: bottom middle =====
 	spot("Drive", "walk", "Lobby", BC, { 0.47, 0, 0.9, 0 }, { 0, 120, 0, 52 }),
+	spot("Build", "walk", "BuildMode", BC, { 0.47, 136, 0.9, 0 }, { 0, 120, 0, 52 }), -- reopen the build screen in the break (right of DRIVE)
 	spot("Goal", "walk", "PlotGuide", BC, { 0.5, 0, 0.9, -60 }, { 0, 230, 0, 34 }), -- what to do next (clear of DailyJobs on a small phone)
 
 	-- ===== drive: top (made by the RC car thread; driving is locked, so these stay put) =====
