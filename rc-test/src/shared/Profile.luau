@@ -15,14 +15,20 @@ export type Data = {
 	liked: { [string]: boolean }, -- plot owners I liked (once each, ever)
 	visited: { [string]: number }, -- plot owner -> the day I last got their visit gift
 	bolts: { [string]: boolean }, -- gold bolts found on the rock climb ("1".."5")
+	winPoints: number, -- one per record beaten (ranks go up by winning)
+	streak: number, -- records beaten in a row; someone beating one of mine ends it
+	bestStreak: number,
+	rivals: { [string]: Rival }, -- other player's user id -> my score against them
 	dailyDay: number, -- the day the daily gift was last taken (0 = never)
-	streak: number, -- days in a row the daily gift was taken
+	dayStreak: number, -- days in a row the daily gift was taken
 }
+-- My score against one other player: wins = I beat their record, losses = they beat mine.
+export type Rival = { name: string, wins: number, losses: number, at: number }
 export type Lock = { job: string, at: number }
 
 local Profile = {}
 
-Profile.VERSION = 4 -- 2: likes, liked, visited. 3: bolts. 4: daily gift streak
+Profile.VERSION = 5 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift
 Profile.MAX_OWNERS = 500 -- keeps the save small; stars from more owners than this stop counting
 Profile.LOCK_TIMEOUT = 300 -- a server that hasn't saved for this long is gone: its lock is stale
 Profile.MODES = { "race", "drift", "rock" }
@@ -30,6 +36,8 @@ Profile.MAX_LIST = 500 -- liked / visited entries kept
 Profile.VISIT_COINS = 20 -- the visitor's gift (once per plot owner per day)
 Profile.HOST_COINS = 10 -- the owner's share of it
 Profile.BOLTS = 5 -- gold bolts hidden on the rock climb, each on top of a hard climb
+Profile.WIN_COINS = 30 -- beating someone else's record (first guess)
+Profile.MAX_RIVALS = 50 -- the least recent rival goes when full
 -- The daily gift by days in a row (day 1, day 2, ...); from day 7 on it stays at the last one.
 -- Miss a day and it starts again at day 1. (Guess amounts, like the visit gift.)
 Profile.DAILY = { 10, 15, 20, 30, 40, 50, 75 }
@@ -45,8 +53,12 @@ function Profile.new(): Data
 		liked = {},
 		visited = {},
 		bolts = {},
-		dailyDay = 0,
+		winPoints = 0,
 		streak = 0,
+		bestStreak = 0,
+		rivals = {},
+		dailyDay = 0,
+		dayStreak = 0,
 	}
 end
 
@@ -138,9 +150,34 @@ function Profile.migrate(raw: any): Data
 			end
 		end
 	end
-	if goodNumber(raw.dailyDay) and goodNumber(raw.streak) then
+	for _, k in { "winPoints", "streak", "bestStreak" } do
+		if goodNumber(raw[k]) then
+			(d :: any)[k] = math.max(math.floor(raw[k]), 0)
+		end
+	end
+	d.bestStreak = math.max(d.bestStreak, d.streak)
+	if type(raw.rivals) == "table" then
+		for id, r in raw.rivals do
+			if
+				type(id) == "string"
+				and type(r) == "table"
+				and type(r.name) == "string"
+				and goodNumber(r.wins)
+				and goodNumber(r.losses)
+				and count(d.rivals) < Profile.MAX_RIVALS
+			then
+				d.rivals[id] = {
+					name = string.sub(r.name, 1, 40),
+					wins = math.max(math.floor(r.wins), 0),
+					losses = math.max(math.floor(r.losses), 0),
+					at = if goodNumber(r.at) then r.at else 0,
+				}
+			end
+		end
+	end
+	if goodNumber(raw.dailyDay) and goodNumber(raw.dayStreak) then
 		d.dailyDay = math.max(math.floor(raw.dailyDay), 0)
-		d.streak = math.clamp(math.floor(raw.streak), 0, 100000)
+		d.dayStreak = math.clamp(math.floor(raw.dayStreak), 0, 100000)
 	end
 	local stars = 0
 	for _, modes in d.starsFrom do
@@ -203,13 +240,13 @@ end
 -- `mult` = Profile.boost.
 function Profile.daily(d: Data, day: number, mult: number?): (number, number)
 	if d.dailyDay == day then
-		return 0, d.streak
+		return 0, d.dayStreak
 	end
-	d.streak = if d.dailyDay == day - 1 then d.streak + 1 else 1
+	d.dayStreak = if d.dailyDay == day - 1 then d.dayStreak + 1 else 1
 	d.dailyDay = day
-	local coins = Profile.DAILY[math.min(d.streak, #Profile.DAILY)] * (mult or 1)
+	local coins = Profile.DAILY[math.min(d.dayStreak, #Profile.DAILY)] * (mult or 1)
 	d.coins += coins
-	return coins, d.streak
+	return coins, d.dayStreak
 end
 
 -- `d` likes `ownerId`'s plot: true the first time only (never your own plot).
@@ -279,6 +316,75 @@ function Profile.boltList(d: Data): { number }
 	end
 	table.sort(out)
 	return out
+end
+
+local function rival(d: Data, otherId: number, name: string, now: number): Rival
+	local key = tostring(otherId)
+	local r = d.rivals[key]
+	if r == nil then
+		if count(d.rivals) >= Profile.MAX_RIVALS then
+			-- full: the one played longest ago goes
+			local oldKey, oldAt = nil, math.huge
+			for k, v in d.rivals do
+				if v.at < oldAt then
+					oldKey, oldAt = k, v.at
+				end
+			end
+			if oldKey then
+				d.rivals[oldKey] = nil
+			end
+		end
+		r = { name = name, wins = 0, losses = 0, at = now }
+		d.rivals[key] = r
+	end
+	r.name = string.sub(name, 1, 40)
+	r.at = now
+	return r
+end
+
+-- I beat `otherId`'s record: a win against them, a win point, the streak goes up and coins.
+-- (Beating your own record is not a win.) Returns false when it doesn't count.
+function Profile.win(d: Data, selfId: number, otherId: number, name: string, now: number): boolean
+	if otherId == selfId then
+		return false
+	end
+	local r = rival(d, otherId, name, now)
+	r.wins += 1
+	d.winPoints += 1
+	d.streak += 1
+	d.bestStreak = math.max(d.bestStreak, d.streak)
+	d.coins += Profile.WIN_COINS * Profile.boost(now) -- double on weekends
+	return true
+end
+
+-- `otherId` beat my record: a loss against them and my streak ends. Nothing else is taken.
+function Profile.lose(d: Data, selfId: number, otherId: number, name: string, now: number)
+	if otherId == selfId then
+		return
+	end
+	local r = rival(d, otherId, name, now)
+	r.losses += 1
+	d.streak = 0
+end
+
+-- My rivals, most recent first (for the list on screen).
+function Profile.rivalList(
+	d: Data,
+	max: number
+): { { id: string, name: string, wins: number, losses: number } }
+	local out = {}
+	for id, r in d.rivals do
+		table.insert(out, { id = id, name = r.name, wins = r.wins, losses = r.losses, at = r.at })
+	end
+	table.sort(out, function(a, b)
+		return a.at > b.at
+	end)
+	local list = {}
+	for i = 1, math.min(max, #out) do
+		local r = out[i]
+		list[i] = { id = r.id, name = r.name, wins = r.wins, losses = r.losses }
+	end
+	return list
 end
 
 -- May this server (job) take the save? Free, ours already, or the other server stopped saving.
