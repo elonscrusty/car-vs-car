@@ -21,6 +21,7 @@ export type Entry = {
 	uid: number?, -- the racer's UserId (who gets the coins)
 	laps: number, -- laps done
 	time: number?, -- seconds from GO to the finish (nil = didn't finish)
+	score: number?, -- a drift round: drift points (the server's own count)
 }
 
 local ServerRace = {}
@@ -31,6 +32,7 @@ ServerRace.LAPS = 3
 ServerRace.MAX = 8 -- cars on the grid
 ServerRace.TIME_LIMIT = 240 -- seconds from GO: the race ends even if nobody finished
 ServerRace.AFTER_WIN = 30 -- the others get this long to finish after the winner
+ServerRace.DRIFT_TIME = 90 -- a drift round (the plot's owner picked drift): best score in this long
 ServerRace.SHOW = 7 -- seconds the result shows before the racers walk back
 -- GO comes when the start lights go green (the player's screen starts them as the car lands)
 ServerRace.GO_DELAY = RaceStart.WAIT + 3 * RaceStart.STEP
@@ -249,6 +251,25 @@ function ServerRace.medal(place: number): string
 		elseif place == 2 then "🥈"
 		elseif place == 3 then "🥉"
 		else ""
+end
+
+-- A drift round's order: most points first (a tie by name).
+function ServerRace.rankDrift(entries: { Entry }): { Entry }
+	local out = table.clone(entries)
+	table.sort(out, function(a: Entry, b: Entry): boolean
+		local sa, sb = a.score or 0, b.score or 0
+		if sa ~= sb then
+			return sa > sb
+		end
+		return a.name < b.name
+	end)
+	return out
+end
+
+-- Did this entry finish (gets finisher pay and stars)? A race: all the laps. A drift round: any
+-- points at all (sitting still all round gets the try pay only).
+function ServerRace.finished(e: Entry): boolean
+	return e.time ~= nil or (e.score or 0) > 0
 end
 
 return ServerRace
