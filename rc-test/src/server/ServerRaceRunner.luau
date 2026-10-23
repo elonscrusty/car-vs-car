@@ -55,7 +55,18 @@ local function now(): number
 	return workspace:GetServerTimeNow()
 end
 
+-- For the track builder (TrackBuild): BuildOpen = true while the break is on (plots may be
+-- edited), false from the moment the round's plot is picked until the race is over;
+-- BuildEndsAt = os.time() when building closes.
+local function setBuild()
+	workspace:SetAttribute("BuildOpen", phase == "wait")
+	workspace:SetAttribute("BuildEndsAt", math.floor(startAt - ServerRace.CALL))
+end
+
 local function sendState(to: Player?)
+	if to == nil then
+		setBuild()
+	end
 	local list = if to then { to } else Players:GetPlayers()
 	for _, p in list do
 		event:FireClient(p, "state", phase, startAt, 0, false, where)
@@ -68,9 +79,18 @@ function ServerRaceRunner.joinOpen(_player: Player): boolean
 	return false
 end
 
--- Can this plot hold the server race? For now: the street's race plots (the built tracks join
--- in when the track builder hands them over: a closed loop through the start = race ready).
+-- Can this plot hold the server race? A built track says so with TrackReady on its plot model
+-- (TrackBuild: a closed loop through the start); until a plot has that, the street's race
+-- plots are.
 function ServerRaceRunner.isReady(slot: number): boolean
+	local plots = workspace:FindFirstChild("Plots")
+	if plots then
+		for _, m in plots:GetChildren() do
+			if m:GetAttribute("Slot") == slot and m:GetAttribute("TrackReady") ~= nil then
+				return m:GetAttribute("TrackReady") == true
+			end
+		end
+	end
 	local s = LobbyLayout.slots()[slot]
 	return s ~= nil and s.id == "race"
 end
@@ -270,6 +290,7 @@ end
 function ServerRaceRunner.start(hooks: Hooks)
 	local signs = buildSign()
 	startAt = now() + ServerRace.BREAK
+	setBuild()
 
 	Players.PlayerAdded:Connect(function(player: Player)
 		sendState(player)
@@ -284,6 +305,7 @@ function ServerRaceRunner.start(hooks: Hooks)
 				if phase ~= "racing" then
 					startAt = now() + 20
 					phase = "wait"
+					sendState()
 				end
 			end
 			local left = startAt - now()
