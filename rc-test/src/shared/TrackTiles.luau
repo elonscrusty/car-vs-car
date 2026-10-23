@@ -176,12 +176,13 @@ function TrackTiles.sizeFor(stars: number): (number, number)
 	return cols, rows
 end
 
--- Plot-local centre of a cell. The grid is centred in x and starts at the front of the track
--- area.
+-- Plot-local centre of a cell. The grid is centred in x and in depth on the track area (a
+-- 5 x 5 grid leaves an even strip front and back; 5 x 6 fills it).
 function TrackTiles.cellCenter(grid: Grid, c: number, r: number): (number, number)
 	local cell = TrackTiles.CELL
+	local midZ = (Kit.AREA.minZ + Kit.AREA.maxZ) / 2
 	local x = (c - (grid.cols + 1) / 2) * cell
-	local z = Kit.AREA.maxZ - 4 - (r - 0.5) * cell
+	local z = midZ + ((grid.rows + 1) / 2 - r) * cell
 	return x, z
 end
 
@@ -696,8 +697,9 @@ local SURFACES: { [string]: { name: string, color: Color3, grip: number, drag: n
 	}
 
 -- Hazards and powers sitting on a tile: plot-local CFrame from tile spots (u across, v along the
--- rot-0 road, in cells), so everything turns with the tile.
-local function buildExtras(parent: Instance, origin: CFrame, grid: Grid, t: Tile)
+-- rot-0 road, in cells), so everything turns with the tile. With TileLooks around, the solid
+-- blocks go see-through (same collide and grip) and TileLooks draws the real shapes on the spots.
+local function buildExtras(parent: Instance, origin: CFrame, grid: Grid, t: Tile, hide: boolean)
 	local cell = TrackTiles.CELL
 	local ROAD = TrackTiles.ROAD
 	local cx, cz = TrackTiles.cellCenter(grid, t.c, t.r)
@@ -708,6 +710,13 @@ local function buildExtras(parent: Instance, origin: CFrame, grid: Grid, t: Tile
 	local function box(name: string, size: Vector3, cf: CFrame, color: Color3): Part
 		local p = Kit.part(parent, name, origin, size, cf, color)
 		p:SetAttribute("Grip", 1)
+		return p
+	end
+	local function solid(name: string, size: Vector3, cf: CFrame, color: Color3): Part
+		local p = box(name, size, cf, color)
+		if hide then
+			p.Transparency = 1
+		end
 		return p
 	end
 	local id = t.piece
@@ -736,19 +745,19 @@ local function buildExtras(parent: Instance, origin: CFrame, grid: Grid, t: Tile
 		box("JumpTop", Vector3.new(w, 1, cell * 0.24), at(0, h - 0.5, 0), ROAD_COLOR)
 	elseif id == "cones" then
 		for i, sp in { { -0.13, -0.3 }, { 0.13, -0.1 }, { -0.13, 0.1 }, { 0.13, 0.3 } } do
-			box("Cone", Vector3.new(3, 4, 3), at(sp[1], 2, sp[2]), Kit.COLORS.orange).Name = "Cone"
+			solid("Cone", Vector3.new(3, 4, 3), at(sp[1], 2, sp[2]), Kit.COLORS.orange).Name = "Cone"
 				.. i
 		end
 	elseif id == "barrels" then
-		box("Barrel", Vector3.new(12, 5, 6), at(-0.15, 2.5, -0.2), Kit.COLORS.red)
-		box("Barrel", Vector3.new(12, 5, 6), at(0.15, 2.5, 0.2), Kit.COLORS.red)
+		solid("Barrel", Vector3.new(12, 5, 6), at(-0.15, 2.5, -0.2), Kit.COLORS.red)
+		solid("Barrel", Vector3.new(12, 5, 6), at(0.15, 2.5, 0.2), Kit.COLORS.red)
 	elseif id == "bumps" then
 		for _, v in { -0.25, 0, 0.25 } do
-			box("Bump", Vector3.new(ROAD - 2, 0.8, 3), at(0, 0.4, v), Kit.COLORS.white)
+			solid("Bump", Vector3.new(ROAD - 2, 0.8, 3), at(0, 0.4, v), Kit.COLORS.white)
 		end
 	elseif id == "narrow" then
 		for _, side in { -1, 1 } do
-			box(
+			solid(
 				"Squeeze",
 				Vector3.new(7, 3, cell * 0.4),
 				at(side * (ROAD / 2 - 3.5) / cell, 1.5, 0),
@@ -756,13 +765,15 @@ local function buildExtras(parent: Instance, origin: CFrame, grid: Grid, t: Tile
 			)
 		end
 	elseif id == "split" then
-		box("Island", Vector3.new(8, 2, cell * 0.55), at(0, 1, 0), rgb(86, 150, 70))
+		solid("Island", Vector3.new(8, 2, cell * 0.55), at(0, 1, 0), rgb(86, 150, 70))
 	end
 end
 
 -- Road, curbs, grass, the start line and boost / oil pads for every tile (loose ones too, so
 -- the owner sees what they put down). Big studs, plot-local around origin, like Race.build.
 function TrackTiles.build(parent: Instance, origin: CFrame, grid: Grid)
+	local looksMod = if script then (script :: any).Parent:FindFirstChild("TileLooks") else nil
+	local hide = looksMod ~= nil
 	local C = Kit.COLORS
 	local ROAD, CW, CH = TrackTiles.ROAD, TrackTiles.CURB_WIDTH, TrackTiles.CURB_HEIGHT
 	local a = Kit.AREA
@@ -846,12 +857,11 @@ function TrackTiles.build(parent: Instance, origin: CFrame, grid: Grid)
 			end
 		end
 		if k == 1 or owners[k - 1] ~= t then
-			buildExtras(parent, origin, grid, t)
+			buildExtras(parent, origin, grid, t, hide)
 		end
 	end
 
 	-- extra looks per tile (Prettier plots thread's TileLooks: never collide, never change grip)
-	local looksMod = if script then (script :: any).Parent:FindFirstChild("TileLooks") else nil
 	if looksMod then
 		local TileLooks: any = require(looksMod)
 		for _, t in grid.tiles do
