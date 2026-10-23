@@ -48,6 +48,19 @@ test("all parts on screen, under the top bar, apart", function()
 	end
 end)
 
+test("a 4x5 grid and a tall top bar still fit, apart", function()
+	for _, s in SCREENS do
+		local sw, sh = s[1], s[2]
+		for _, top in { 64, 100 } do
+			local l = BuildLayout.fit(sw, sh, 4, 5, top)
+			truthy(l.grid.y >= top and l.timer.y >= top, `under a {top} px top bar on {sw}x{sh}`)
+			truthy(l.grid.y + l.grid.h <= sh and l.grid.w == l.cell * 4, `4x5 grid on {sw}x{sh}`)
+			truthy(l.grid.x + l.grid.w < l.tray.x, `grid left of the tray on {sw}x{sh}`)
+			truthy(l.cell >= BuildLayout.MIN_TAP, `cell {l.cell} on {sw}x{sh}`)
+		end
+	end
+end)
+
 test("8x8 squares are thumb size on the smallest phone; tray fits a card", function()
 	for _, s in SCREENS do
 		local l = BuildLayout.fit(s[1], s[2], 8, 8)

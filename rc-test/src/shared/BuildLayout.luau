@@ -36,8 +36,16 @@ local function rect(x: number, y: number, w: number, h: number): Rect
 	return { x = x, y = y, w = w, h = h }
 end
 
-function BuildLayout.fit(sw: number, sh: number, cols: number, rows: number): Layout
-	local edge, gap, top = BuildLayout.EDGE, BuildLayout.GAP, BuildLayout.TOP
+-- topBar: first pixel row free of Roblox's top bar (default TOP)
+function BuildLayout.fit(
+	sw: number,
+	sh: number,
+	cols: number,
+	rows: number,
+	topBar: number?
+): Layout
+	local edge, gap = BuildLayout.EDGE, BuildLayout.GAP
+	local top = topBar or BuildLayout.TOP
 	local availH = sh - top - edge
 	-- the grid gets up to half the width; the right side needs room for two tray cards
 	local availW = math.min(sw * 0.5, sw - edge * 3 - BuildLayout.CARD * 2 - gap)
