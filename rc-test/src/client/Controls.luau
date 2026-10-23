@@ -299,6 +299,59 @@ function Controls.new(
 		onReset()
 	end)
 
+	-- phones on rocks: there is no drifting, so a big RESET takes the DRIFT button's spot, and a
+	-- faint label shows where a thumb can drag to look around (open screen, not on a button)
+	local driftBtn = gui:FindFirstChild("DRIFT") :: GuiObject?
+	local bigReset: TextButton? = nil
+	local lookHint: TextLabel? = nil
+	if touchUi then
+		local b = Instance.new("TextButton")
+		b.Name = "BigReset"
+		b.Text = "RESET"
+		b.AnchorPoint = Vector2.new(1, 1)
+		b.Position = UDim2.fromScale(0.97, 0.58)
+		b.Size = UDim2.fromScale(0.22, 0.22)
+		b.BackgroundColor3 = Color3.fromRGB(235, 150, 40)
+		b.BackgroundTransparency = 0.25
+		b.Font = Enum.Font.GothamBold
+		b.TextScaled = true
+		b.TextColor3 = Color3.fromRGB(255, 255, 255)
+		b.Visible = false
+		local ratio = Instance.new("UIAspectRatioConstraint")
+		ratio.AspectRatio = 1
+		ratio.DominantAxis = Enum.DominantAxis.Height
+		ratio.Parent = b
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0.5, 0)
+		corner.Parent = b
+		local pad = Instance.new("UIPadding")
+		pad.PaddingTop = UDim.new(0.32, 0)
+		pad.PaddingBottom = UDim.new(0.32, 0)
+		pad.PaddingLeft = UDim.new(0.1, 0)
+		pad.PaddingRight = UDim.new(0.1, 0)
+		pad.Parent = b
+		b.Parent = gui
+		b.Activated:Connect(function()
+			onReset()
+		end)
+		bigReset = b
+
+		local l = Instance.new("TextLabel")
+		l.Name = "LookHint"
+		l.BackgroundTransparency = 1
+		l.AnchorPoint = Vector2.new(0.5, 0.5)
+		l.Position = UDim2.fromScale(0.62, 0.4)
+		l.Size = UDim2.fromScale(0.2, 0.06)
+		l.Font = Enum.Font.GothamBold
+		l.TextScaled = true
+		l.TextColor3 = Color3.fromRGB(255, 255, 255)
+		l.TextTransparency = 0.5
+		l.Text = "◄  DRAG TO LOOK  ►"
+		l.Visible = false
+		l.Parent = gui
+		lookHint = l
+	end
+
 	local help: TextLabel? = nil
 	if not touchUi then
 		help = Instance.new("TextLabel")
@@ -320,7 +373,7 @@ function Controls.new(
 	local NORMAL_HELP =
 		"W/S gas + brake    A/D steer    SPACE drift    C show cam    V chase cam    T size    1-4 plots"
 	local ROCK_HELP =
-		"W/S gas + brake    A/D steer    drag to look    wheel to zoom    R reset    T size    1-4 plots"
+		"W/S gas + brake    A/D steer    drag to look    wheel to zoom    R back to flag    T size    1-4 plots"
 	local onRock: boolean? = nil
 	-- rocks is free cam only: no camera buttons, and the help says how to look around
 	function controls.setRock(on: boolean)
@@ -331,7 +384,16 @@ function Controls.new(
 		-- CAM and VIEW do nothing there, so hide both and close the gap
 		viewBtn.Visible = not on
 		camBtn.Visible = not on
-		backBtn.Visible = on
+		backBtn.Visible = on and not touchUi
+		if driftBtn then
+			driftBtn.Visible = not on
+		end
+		if bigReset then
+			bigReset.Visible = on
+		end
+		if lookHint then
+			lookHint.Visible = on
+		end
 		sizeBtn.Position = if on then UDim2.new(0.98, 0, 0, 64) else UDim2.new(0.84, 0, 0, 64)
 		if help then
 			help.Text = if on then ROCK_HELP else NORMAL_HELP
