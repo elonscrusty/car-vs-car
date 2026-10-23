@@ -86,12 +86,12 @@ local MODES: { [string]: { [string]: number } } = {
 	-- Tokyo drift: easy to throw sideways, gas holds the slide, deep held angles.
 	drift = {
 		driftAngleMax = 0.75,
-		driftYawPush = 12,
+		driftYawPush = 15,
 		frontDrive = 0.15,
 		powerSlide = 0.4,
 		counterMax = 0.85,
 		steerMax = 0.95,
-		steerHigh = 0.2,
+		steerHigh = 0.3,
 		-- Fast and slippery: more speed, less grip and a stronger push along the slide, so the
 		-- back steps out easily and the long slides keep going.
 		topSpeed = 105,
@@ -99,8 +99,10 @@ local MODES: { [string]: { [string]: number } } = {
 		baseMu = 0.8,
 		handbrakeRearGrip = 0.35,
 		driftThrust = 40,
-		maxYaw = 2.2,
-		steerRate = 6,
+		-- Quick hands: fast turn-in and a fast catch, so a slide answers the stick right away.
+		maxYaw = 2.8,
+		steerRate = 11,
+		steerReturn = 14,
 		-- Higher, further back camera so the next corner is in view.
 		camDistance = 14,
 		camHeight = 6,
