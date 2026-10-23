@@ -16,7 +16,9 @@ local LapTimer = require(ReplicatedStorage.Shared.LapTimer)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
+local Profile = require(ReplicatedStorage.Shared.Profile)
 local LobbyPlots = require(script.Parent.LobbyPlots)
+local PlayerData = require(script.Parent.PlayerData)
 
 -- The track builder's traced tracks (built plots): loop(), lineSample() like Plots/Race.
 local function tracedFor(slot: number): any?
@@ -74,9 +76,10 @@ local ServerRaceRunner = {}
 -- Server -> client: ("state", phase, startAt, count, joined, where) with phase "wait" | "call" |
 -- "racing" (startAt = workspace:GetServerTimeNow() time of the start, count/joined = unused now
 -- that everyone races, where = "MIA'S TRACK" once picked), ("result", rows) when a race ends:
--- rows = { { name, time?, laps } } best first. To one racer: ("finished", place) when its car
--- crosses the line for the last time, ("ends", endsAt) when the winner is in (the others have
--- until endsAt). Live places: the racer's attributes RacePlace / RaceCars (nil = no race).
+-- rows = { { name, time?, laps, coins? } } best first (coins = what that racer was paid). To one
+-- racer: ("finished", place) when its car crosses the line for the last time, ("ends", endsAt)
+-- when the winner is in (the others have until endsAt). Live places: the racer's attributes
+-- RacePlace / RaceCars (nil = no race).
 local event = Instance.new("RemoteEvent")
 event.Name = "ServerRace"
 event.Parent = ReplicatedStorage
@@ -218,6 +221,50 @@ local function carBody(player: Player): BasePart?
 	return body
 end
 
+-- Pay a player coins and tell their screen (the coin chip and a toast, Stars.server's remote).
+local function pay(player: Player, coins: number, why: string)
+	local data = PlayerData.get(player)
+	if not data or coins <= 0 then
+		return
+	end
+	coins *= Profile.boost(os.time()) -- double coins on weekends
+	data.coins += coins
+	PlayerData.touch(player)
+	local stars = ReplicatedStorage:FindFirstChild("StarsEvent")
+	if stars and stars:IsA("RemoteEvent") then
+		stars:FireClient(player, "coins", data.coins)
+		stars:FireClient(player, "toast", `+{coins} coins: {why}`)
+	end
+end
+
+-- Every racer gets coins by place; the plot's owner gets a bonus for a picked track.
+-- Returns uid -> coins for the result card.
+local function payRace(
+	ranked: { ServerRace.Entry },
+	racers: { Racer },
+	slot: number
+): { [number]: number }
+	local byId: { [number]: Player } = {}
+	for _, r in racers do
+		byId[r.player.UserId] = r.player
+	end
+	local paid: { [number]: number } = {}
+	for place, e in ranked do
+		local p = if e.uid then byId[e.uid] else nil
+		if p and p.Parent then
+			local coins = ServerRace.payFor(place, e.time ~= nil)
+			paid[p.UserId] = coins * Profile.boost(os.time())
+			local nth = ({ "1st", "2nd", "3rd" })[place] or `{place}th`
+			pay(p, coins, if place == 1 and e.time then "you WON!" else `{nth} place`)
+		end
+	end
+	local owner = LobbyPlots.ownerOf(slot)
+	if owner and owner.Parent then
+		pay(owner, ServerRace.PAY_OWNER, "your track was picked!")
+	end
+	return paid
+end
+
 local function runRace(hooks: Hooks, slot: number)
 	-- everyone in the server (the first MAX)
 	local list: { Player } = {}
@@ -310,7 +357,10 @@ local function runRace(hooks: Hooks, slot: number)
 				end
 			end
 			if p.Parent then
-				table.insert(entries, { name = r.name, laps = r.laps, time = r.time })
+				table.insert(
+					entries,
+					{ name = r.name, uid = p.UserId, laps = r.laps, time = r.time }
+				)
 			end
 		end
 		-- live places, a few times a second (finishers by time, then how far round)
@@ -367,9 +417,12 @@ local function runRace(hooks: Hooks, slot: number)
 		end
 		local since = clock - goAt
 		if (not anyIn and since > 0) or ServerRace.over(entries, since, firstAt) then
+			local ranked = ServerRace.rank(entries)
+			local paid = payRace(ranked, racers, slot)
 			local rows = {}
-			for _, e in ServerRace.rank(entries) do
-				table.insert(rows, { name = e.name, time = e.time, laps = e.laps })
+			for _, e in ranked do
+				local coins = if e.uid then paid[e.uid] else nil
+				table.insert(rows, { name = e.name, time = e.time, laps = e.laps, coins = coins })
 			end
 			event:FireAllClients("result", rows)
 			break
