@@ -158,29 +158,34 @@ test("stars open a coin tile, then coins buy it; legendary tiles need no stars",
 	local d = Profile.new()
 	d.coins = 10000
 	eq(Tiles.unlockAt("straight"), 0)
-	eq(Tiles.unlockAt("chicane"), 3)
+	eq(Tiles.unlockAt("chicane"), 0)
+	eq(Tiles.unlockAt("bumps"), 1)
 	eq(Tiles.unlockAt("boost"), 0)
-	eq(select(2, Tiles.buy(d, "chicane")), "stars")
-	d.stars = 3
-	eq(Tiles.owns(d, "chicane"), false) -- open is not owned
-	eq(Tiles.buy(d, "chicane"), true)
-	eq(Tiles.owns(d, "chicane"), true)
 	eq(select(2, Tiles.buy(d, "bumps")), "stars")
+	d.stars = 1
+	eq(Tiles.owns(d, "bumps"), false) -- open is not owned
+	eq(Tiles.buy(d, "bumps"), true)
+	eq(Tiles.owns(d, "bumps"), true)
+	eq(select(2, Tiles.buy(d, "cones")), "stars")
+	eq(Tiles.buy(d, "chicane"), true) -- the first coin tile needs no stars
 	eq(Tiles.buy(d, "boost"), true)
 end)
 
-test("every coin tile has a star gate, and the gates and the prices go up together", function()
-	local coin: { Tiles.Tile } = {}
-	for _, t in Tiles.TILES do
-		if t.tier == "coins" then
-			truthy(Tiles.unlockAt(t.id) > 0, t.id)
-			table.insert(coin, t)
+test(
+	"every coin tile is on the star ladder, and the gates and the prices go up together",
+	function()
+		local coin: { Tiles.Tile } = {}
+		for _, t in Tiles.TILES do
+			if t.tier == "coins" then
+				truthy(Tiles.UNLOCK_STARS[t.id] ~= nil, t.id)
+				table.insert(coin, t)
+			end
+		end
+		table.sort(coin, function(a, b)
+			return Tiles.unlockAt(a.id) < Tiles.unlockAt(b.id)
+		end)
+		for i = 2, #coin do
+			truthy(coin[i].price > coin[i - 1].price, coin[i].id)
 		end
 	end
-	table.sort(coin, function(a, b)
-		return Tiles.unlockAt(a.id) < Tiles.unlockAt(b.id)
-	end)
-	for i = 2, #coin do
-		truthy(coin[i].price > coin[i - 1].price, coin[i].id)
-	end
-end)
+)
