@@ -1,8 +1,8 @@
 --!strict
 -- Things to do at the lake (LobbyWater lays the water, beach and docks): fishing spots with stools
--- at the dock ends, a swim raft with a diving board, a sailboat, two little beaches (a campfire
--- with log seats and a bait shack on the left, umbrellas, deck chairs and a canoe on the right),
--- reeds, lily pads and a family of ducks.
+-- at the dock ends, a swim raft with a diving board, two sailboats, two little beaches (a campfire
+-- and a bait shack on the left, umbrellas, towels and a canoe on the right), reeds, lily pads and
+-- a family of ducks.
 -- Looks only, plain numbers (Lune tests load this); LobbyWaterBuilder turns the pieces into Parts.
 -- Pieces with a `group` are one of carter's Meshy props (LobbyLake.spots()): the builder skips them
 -- when that mesh is imported.
@@ -374,8 +374,7 @@ local function beach(m: Maker, u0: number, u1: number)
 	end
 end
 
--- A campfire with stones round it, and log seats round that facing the fire (open on the lake
--- side so you look at the water past the fire).
+-- A campfire with stones round it.
 local function campfire(m: Maker, u: number, v: number)
 	local x, z = at(u, v)
 	local y = LobbyWater.SAND_TOP
@@ -398,13 +397,7 @@ local function campfire(m: Maker, u: number, v: number)
 	end
 	local glow = put("FireLight", 0, 2, 0, 0.5, 0.5, 0.5, ORANGE)
 	glow.hidden, glow.collide, glow.light = true, false, true
-	-- log seats: left, right, and two behind (away from the lake)
-	for _, a in { 90, 150, 210, 270 } do
-		local r = 4.6
-		local lx, lz = math.sin(math.rad(a)) * r, math.cos(math.rad(a)) * r
-		put("LogSeat", lx, 0.55, lz, 3.4, 1.1, 1.2, BARK, a).seat = true
-	end
-end
+
 
 -- A small bait shack facing the lake: back and side walls, a counter, a striped awning and a
 -- fish-shaped sign on the roof (no words).
@@ -438,7 +431,7 @@ local function baitShack(m: Maker, u: number, v: number)
 	end
 end
 
--- A beach umbrella with a towel and a deck chair under it, the chair facing the lake.
+-- A beach umbrella with a towel under it.
 local function umbrella(m: Maker, u: number, v: number, a: { number }, b: { number })
 	local x, z = at(u, v)
 	local y = LobbyWater.SAND_TOP
@@ -450,10 +443,6 @@ local function umbrella(m: Maker, u: number, v: number, a: { number }, b: { numb
 	put("UmbrellaTip", 0, 5.2, 0, 1.0, 0.3, 1.0, a).round = true
 	m.spot(nil, 0, 0, 0, 0, 0)
 	put("Towel", -1.8, 0.05, 1.0, 2.0, 0.1, 3.6, b)
-	-- a deck chair: legs, a seat facing out over the lake, a back leaning behind it
-	put("ChairBase", 1.4, 0.3, 0.6, 1.8, 0.6, 2.0, WHITE)
-	put("ChairSeat", 1.4, 0.7, 0.6, 1.8, 0.2, 2.2, a, 180).seat = true
-	put("ChairBack", 1.4, 1.48, -0.95, 1.8, 0.2, 1.8, a, 90, 60)
 end
 
 -- A canoe pulled up on the sand with its paddle beside it, lying across (along u).

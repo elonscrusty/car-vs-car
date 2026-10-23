@@ -46,7 +46,7 @@ test("everything is past the street end, on the lake's land", function()
 	end
 end)
 
-test("places to sit: stools at each dock end, logs round the fire, deck chairs", function()
+test("the only seats are the fishing stools at the dock ends", function()
 	local seats = 0
 	for _, p in pieces do
 		if p.seat then
@@ -54,9 +54,7 @@ test("places to sit: stools at each dock end, logs round the fire, deck chairs",
 		end
 	end
 	eq(#named("FishSeat"), 4)
-	eq(#named("LogSeat"), 4)
-	eq(#named("ChairSeat"), 2)
-	eq(seats, 10)
+	eq(seats, 4)
 end)
 
 test("each fishing line hangs from its rod tip down to a float on the water", function()
