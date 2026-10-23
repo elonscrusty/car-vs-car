@@ -294,7 +294,9 @@ local function sailboat(
 	local x, z = at(u, v)
 	local ry = face(a)
 	local y = LobbyWater.WATER_TOP - 0.3
-	m.spot("Sailboat", x, y - 0.5, z, ry, 13)
+	-- carter's Sailboat mesh came in end-on to the street (its hull along its local x), so turn it
+	-- a quarter round to show its side and sail like the blocks do
+	m.spot("Sailboat", x, y - 0.5, z, ry + 90, 13)
 	local put = m.frame(x, y, z, ry)
 	put("SailHull", 0, 0, 0, 3.6, 1.0, 9, WHITE)
 	put("SailBow", 0, 0, 5.0, 2.4, 1.0, 1.2, WHITE)
@@ -506,7 +508,7 @@ local function canoe(m: Maker, u: number, v: number)
 	local x, z = at(u, v)
 	local y = LobbyWater.SAND_TOP
 	local ry = face(90)
-	m.spot("Canoe", x, y, z, ry, 1.0)
+	m.spot("Canoe", x, y, z, ry, 2.2) -- carter's mesh: about 8 long at this height
 	local put = m.frame(x, y, z, ry)
 	put("CanoeHull", 0, 0.35, 0, 1.8, 0.7, 7, ORANGE)
 	put("CanoeEnd", 0, 0.5, 3.9, 1.1, 0.7, 0.9, ORANGE)
