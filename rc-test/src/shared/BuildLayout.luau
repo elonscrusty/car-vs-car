@@ -2,7 +2,7 @@
 -- The build screen for the 5-min break: drag a road tile from the bar onto a square and it
 -- swaps in (carter: "tiles that swap in with different road shapes"). Phone first, landscape:
 -- the plot grid fills the left; the right holds the countdown, the big READY / GAP chip, a
--- 1-3 word hint, the tile bar, and ERASE / DONE. Pure numbers and tables, so Lune can test it
+-- 1-3 word hint, the tile bar, and UNDO / TURN / ERASE / DONE. Pure numbers and tables, so Lune can test it
 -- on phone and PC sizes. Also: which road tile fits a square from the sides its road leaves by.
 
 export type Rect = { x: number, y: number, w: number, h: number }
@@ -13,6 +13,8 @@ export type Layout = {
 	status: Rect,
 	why: Rect, -- one line: how to build, or why the road is not a loop yet
 	tray: Rect, -- special tiles to drag onto the road
+	undo: Rect,
+	turn: Rect, -- turns the ringed tile (the one just dropped or tapped)
 	erase: Rect,
 	done: Rect,
 }
@@ -60,9 +62,13 @@ function BuildLayout.fit(
 	local status = rect(rx + timerW + gap, top, rw - timerW - gap, BuildLayout.ROW)
 	local why = rect(rx, top + BuildLayout.ROW + 6, rw, BuildLayout.WHY)
 	local by = sh - edge - BuildLayout.BUTTON
-	local half = math.floor((rw - gap) / 2)
-	local erase = rect(rx, by, half, BuildLayout.BUTTON)
-	local done = rect(rx + half + gap, by, rw - half - gap, BuildLayout.BUTTON)
+	-- four buttons in a row; DONE takes what is left over
+	local quarter = math.floor((rw - gap * 3) / 4)
+	local undo = rect(rx, by, quarter, BuildLayout.BUTTON)
+	local turn = rect(rx + (quarter + gap), by, quarter, BuildLayout.BUTTON)
+	local erase = rect(rx + (quarter + gap) * 2, by, quarter, BuildLayout.BUTTON)
+	local dx = rx + (quarter + gap) * 3
+	local done = rect(dx, by, rx + rw - dx, BuildLayout.BUTTON)
 	local ty = why.y + why.h + 6
 	local tray = rect(rx, ty, rw, by - gap - ty)
 	return {
@@ -72,6 +78,8 @@ function BuildLayout.fit(
 		status = status,
 		why = why,
 		tray = tray,
+		undo = undo,
+		turn = turn,
 		erase = erase,
 		done = done,
 	}
@@ -136,6 +144,33 @@ function BuildLayout.roadFor(e: Ends): (string?, number)
 		end
 	end
 	return nil, 0
+end
+
+-- where the loop is broken: every side a tile's road leaves by that doesn't meet a road coming
+-- back (an empty square, the grid's edge, or a tile facing the other way). tiles: ends already
+-- turned. Drawn as red marks on the build screen while the track is not READY.
+export type Placed = { c: number, r: number, ends: Ends }
+export type OpenEnd = { c: number, r: number, side: string }
+local STEP: { [string]: { number } } = { N = { 0, 1 }, E = { 1, 0 }, S = { 0, -1 }, W = { -1, 0 } }
+local BACK: { [string]: string } = { N = "S", E = "W", S = "N", W = "E" }
+function BuildLayout.openEnds(tiles: { Placed }): { OpenEnd }
+	local at: { [string]: Ends } = {}
+	for _, t in tiles do
+		at[`{t.c},{t.r}`] = t.ends
+	end
+	local out = {}
+	for _, t in tiles do
+		for _, side in { "N", "E", "S", "W" } do
+			if (t.ends :: any)[side] then
+				local d = STEP[side]
+				local there = at[`{t.c + d[1]},{t.r + d[2]}`]
+				if not (there and (there :: any)[BACK[side]]) then
+					table.insert(out, { c = t.c, r = t.r, side = side })
+				end
+			end
+		end
+	end
+	return out
 end
 
 function BuildLayout.clock(seconds: number): string

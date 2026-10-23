@@ -17,6 +17,8 @@ local function parts(l: BuildLayout.Layout): { [string]: BuildLayout.Rect }
 		status = l.status,
 		why = l.why,
 		tray = l.tray,
+		undo = l.undo,
+		turn = l.turn,
 		erase = l.erase,
 		done = l.done,
 	}
@@ -69,7 +71,9 @@ test("8x8 squares are thumb size on the smallest phone; tray fits a card", funct
 			l.tray.h >= BuildLayout.CARD and l.tray.w >= BuildLayout.CARD * 2,
 			`tray on {s[1]}x{s[2]}`
 		)
-		truthy(l.erase.w >= 44 and l.done.h >= 44, "big buttons")
+		for _, b in { l.undo, l.turn, l.erase, l.done } do
+			truthy(b.w >= 60 and b.h >= 44, `big buttons on {s[1]}x{s[2]}`)
+		end
 	end
 end)
 
@@ -147,4 +151,33 @@ test("the right road tile for each pair of sides", function()
 	eq(BuildLayout.side({ c = 2, r = 2 }, { c = 2, r = 3 }), "N")
 	eq(BuildLayout.side({ c = 2, r = 2 }, { c = 1, r = 2 }), "W")
 	eq(BuildLayout.side({ c = 2, r = 2 }, { c = 3, r = 3 }), nil)
+end)
+
+test("open ends: a closed loop has none, a gap shows on both sides", function()
+	local function e(n: boolean, ea: boolean, so: boolean, w: boolean): BuildLayout.Ends
+		return { N = n, E = ea, S = so, W = w }
+	end
+	-- a 2x2 loop: front row (r 1) and back row (r 2)
+	local loop = {
+		{ c = 1, r = 1, ends = e(true, true, false, false) },
+		{ c = 2, r = 1, ends = e(true, false, false, true) },
+		{ c = 1, r = 2, ends = e(false, true, true, false) },
+		{ c = 2, r = 2, ends = e(false, false, true, true) },
+	}
+	eq(#BuildLayout.openEnds(loop), 0)
+	-- take one corner out: its two neighbours each point at the hole
+	table.remove(loop, 4)
+	local open = BuildLayout.openEnds(loop)
+	eq(#open, 2)
+	local seen = {}
+	for _, o in open do
+		seen[`{o.c},{o.r},{o.side}`] = true
+	end
+	truthy(seen["2,1,N"] and seen["1,2,E"], "both ends at the hole")
+	-- a tile facing the wrong way is a gap too
+	local wrong = {
+		{ c = 1, r = 1, ends = e(false, true, false, false) },
+		{ c = 2, r = 1, ends = e(true, false, true, false) },
+	}
+	eq(#BuildLayout.openEnds(wrong), 3)
 end)
