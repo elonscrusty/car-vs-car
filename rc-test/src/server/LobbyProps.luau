@@ -94,4 +94,30 @@ function LobbyProps.lamp(parent: Instance, x: number, z: number)
 	m.Parent = parent
 end
 
+-- Traffic cone (block stand-in for the Cone mesh).
+function LobbyProps.cone(parent: Instance, x: number, z: number)
+	local m = Instance.new("Model")
+	m.Name = "Cone"
+	part(m, "Base", Vector3.new(1.2, 0.2, 1.2), CFrame.new(x, 0.1, z), DARK)
+	part(m, "Cone", Vector3.new(0.7, 1.2, 0.7), CFrame.new(x, 0.8, z), rgb(240, 120, 40))
+	m.Parent = parent
+end
+
+-- Stack of three tyres (block stand-in for the TireStack mesh).
+function LobbyProps.tires(parent: Instance, x: number, z: number)
+	local m = Instance.new("Model")
+	m.Name = "TireStack"
+	for i = 0, 2 do
+		part(
+			m,
+			"Tire",
+			Vector3.new(0.8, 2.4, 2.4),
+			upright(CFrame.new(x, 0.4 + i * 0.8, z)),
+			rgb(35, 35, 38),
+			Enum.PartType.Cylinder
+		)
+	end
+	m.Parent = parent
+end
+
 return LobbyProps

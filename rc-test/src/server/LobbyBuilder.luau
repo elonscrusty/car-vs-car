@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local LobbyProps = require(script.Parent.LobbyProps)
+local MeshProps = require(script.Parent.MeshProps)
 local LobbyWaterBuilder = require(script.Parent.LobbyWaterBuilder)
 local PlazaBuilder = require(script.Parent.PlazaBuilder)
 local SceneryBuilder = require(script.Parent.SceneryBuilder)
@@ -145,8 +146,35 @@ function LobbyBuilder.build(): Built
 		end
 	end
 	SceneryBuilder.build(folder)
+	-- street lamps, cones by the pads, tyres where the road stops: carter's meshes once they
+	-- are imported (MeshProps), block stand-ins until then
+	local function spot(s: LobbyLayout.Spot): CFrame
+		return CFrame.lookAt(
+			Vector3.new(s.x, 0.1, s.z),
+			Vector3.new(s.x + s.faceX, 0.1, s.z + s.faceZ)
+		)
+	end
 	for _, l in LobbyLayout.lamps() do
-		LobbyProps.lamp(props, l.x, l.z)
+		local lamp = MeshProps.place(props, "StreetLamp", spot(l), 9)
+		if lamp then
+			local glow = Instance.new("PointLight")
+			glow.Range = 16
+			glow.Brightness = 1.2
+			glow.Color = Color3.fromRGB(255, 220, 160)
+			glow.Parent = lamp:FindFirstChildWhichIsA("BasePart", true)
+		else
+			LobbyProps.lamp(props, l.x, l.z)
+		end
+	end
+	for _, c in LobbyLayout.cones() do
+		if not MeshProps.place(props, "Cone", spot(c), 1.4) then
+			LobbyProps.cone(props, c.x, c.z)
+		end
+	end
+	for _, t in LobbyLayout.tires() do
+		if not MeshProps.place(props, "TireStack", spot(t), 2.4) then
+			LobbyProps.tires(props, t.x, t.z)
+		end
 	end
 	-- the plaza (paving, lamps, car shop, and the garage from Shared/Garage)
 	local p = LobbyLayout.PLAZA
