@@ -76,3 +76,29 @@ test("rank: finishers by time, then by laps; race ends when all are in", functio
 	eq(ServerRace.over({ { name = "b", laps = 1 } }, ServerRace.TIME_LIMIT, nil), true)
 	near(ServerRace.GO_DELAY, 3.0, 1e-9)
 end)
+
+test(
+	"a built track (the starter circle) gives every grid spot on its road, behind its line",
+	function()
+		local TrackTiles = require("../src/shared/TrackTiles")
+		local res = TrackTiles.trace(TrackTiles.circle(4, 4))
+		truthy(res.ok, "circle not ready")
+		local loop = res.loop()
+		local line = res.gates[1]
+		for k = 1, ServerRace.MAX do
+			local g = ServerRace.gridOn(res, k, 2.5)
+			local best = math.huge
+			for i, a in loop do
+				local b = loop[i % #loop + 1]
+				local ex, ez = b.x - a.x, b.z - a.z
+				local u =
+					math.clamp(((g.x - a.x) * ex + (g.z - a.z) * ez) / (ex * ex + ez * ez), 0, 1)
+				best =
+					math.min(best, math.sqrt((g.x - a.x - ex * u) ^ 2 + (g.z - a.z - ez * u) ^ 2))
+			end
+			truthy(best <= TrackTiles.ROAD / 2 - 5, `grid {k} off the road ({best})`)
+			local along = (g.x - line.x) * line.dx + (g.z - line.z) * line.dz
+			truthy(along < -line.depth or along > 0, `grid {k} on the line ({along})`)
+		end
+	end
+)

@@ -12,7 +12,6 @@ local CarMath = require(ReplicatedStorage.Shared.CarMath)
 local LapTimer = require(ReplicatedStorage.Shared.LapTimer)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local RaceStart = require(ReplicatedStorage.Shared.RaceStart)
-local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
 local SmokeColors = require(ReplicatedStorage.Shared.SmokeColors)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
@@ -142,8 +141,9 @@ local touched: { [number]: boolean } = {} -- drift touch zones already scored in
 local countdown: RaceStart.State? = nil
 local lamps: { BasePart } = {}
 local jumped = false -- went over the line before GO: no timed lap until the car leaves the line
--- server race: this car's grid spot (nil = the plot's own start), and whether it got its GO
-local grid: number? = nil
+-- server race: this car's grid spot, plot-local (nil = the plot's own start), and whether it
+-- got its GO
+local grid: TrackData.Spawn? = nil
 local gridGone = false
 
 local hud: Hud.Hud
@@ -169,18 +169,14 @@ local function goTo(index: number)
 	countdown, jumped = nil, false
 	lamps = {}
 	-- (a reset in a server race after its GO goes back to the grid without the lights again)
-	if t.id == "race" and not gridGone then
+	if (t.id == "race" or grid ~= nil) and not gridGone then
 		countdown = RaceStart.new()
 		lamps = StartLights.find(index)
 		StartLights.show(lamps, 0)
 	end
 	driftChain, driftTotal, driftHold, driftHeld = 0, 0, 0, 0
 	touched = {}
-	local s = t.spawn
-	local g = grid
-	if g and t.id == "race" then
-		s = ServerRace.gridOn(TrackData.plot(t.id), g, s.y)
-	end
+	local s = grid or t.spawn
 	local x, y, z = TrackData.toWorld(t, rc, s.x, s.y, s.z)
 	local dx, dz = TrackData.dirToWorld(t, rc, s.dx, s.dz)
 	local pos = Vector3.new(x, y, z)
@@ -340,10 +336,20 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown, gridSpot: u
 		camera.setView(view)
 		showCam = false
 		effects = Effects.new(car.telemetry)
-		-- ("drive", slot, k): the server race puts this car on grid spot k
-		grid = if type(gridSpot) == "number"
-			then math.clamp(math.floor(gridSpot), 1, ServerRace.MAX)
-			else nil
+		-- ("drive", slot, spot): the server race puts this car on its grid spot (plot-local)
+		grid = nil
+		if type(gridSpot) == "table" then
+			local g = gridSpot :: any
+			if
+				type(g.x) == "number"
+				and type(g.y) == "number"
+				and type(g.z) == "number"
+				and type(g.dx) == "number"
+				and type(g.dz) == "number"
+			then
+				grid = { x = g.x, y = g.y, z = g.z, dx = g.dx, dz = g.dz }
+			end
+		end
 		gridGone = false
 		goTo(index)
 	end
