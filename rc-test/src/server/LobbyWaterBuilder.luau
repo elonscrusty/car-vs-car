@@ -188,18 +188,34 @@ function LobbyWaterBuilder.build(lobby: Instance)
 		makePart(folder, pc)
 	end
 
-	local pieces, spots = LobbyLake.build()
+	-- each Meshy spot is its own Model (mesh or blocks), so the ones that move (LobbyLake.motions,
+	-- client LakeLife) move as one; its pivot is where it stands and the way it faces when built
+	local pieces, spots, motions = LobbyLake.build()
+	local models: { [string]: Model } = {}
 	local meshed: { [string]: boolean } = {}
 	for _, s in spots do
+		local model = Instance.new("Model")
+		model.Name = s.id
+		model.Parent = folder
+		models[s.id] = model
 		local at = CFrame.new(s.x, s.y, s.z) * CFrame.Angles(0, math.rad(s.ry) + math.pi, 0)
-		if MeshProps.place(folder, s.mesh, at, s.height) then
+		if MeshProps.place(model, s.mesh, at, s.height) then
 			meshed[s.id] = true
+		end
+		model.WorldPivot = CFrame.new(s.x, s.y, s.z) * CFrame.Angles(0, math.rad(s.ry), 0)
+	end
+	for _, mo in motions do
+		local model = models[mo.id]
+		if model then
+			model.WorldPivot = CFrame.new(mo.x, mo.y, mo.z) * CFrame.Angles(0, math.rad(mo.ry), 0)
 		end
 	end
 	for _, pc in pieces do
-		if not (pc.group and meshed[pc.group]) then
-			makePart(folder, pc)
+		local group = pc.group
+		if group and meshed[group] then
+			continue
 		end
+		makePart(if group then models[group] else folder, pc)
 	end
 	folder.Parent = lobby
 end

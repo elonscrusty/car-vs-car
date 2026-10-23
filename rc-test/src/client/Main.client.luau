@@ -23,6 +23,7 @@ local Controls = require(script.Parent.Controls)
 local Effects = require(script.Parent.Effects)
 local Hud = require(script.Parent.Hud)
 local Lobby = require(script.Parent.Lobby)
+local LakeLife = require(script.Parent.LakeLife)
 local LobbyLife = require(script.Parent.LobbyLife)
 local LobbyWelcome = require(script.Parent.LobbyWelcome)
 local LobbySky = require(script.Parent.LobbySky)
@@ -265,6 +266,7 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown)
 		setWalking(true)
 		LobbyLife.start() -- butterflies and birds (looks only, this screen)
 		LobbyWelcome.start() -- first time only: street lights on, confetti
+		LakeLife.start() -- sailboats drift, ducks paddle, the water glints (this screen)
 	elseif kind == "drive" and type(index) == "number" and tracks[index] then
 		setWalking(false)
 		-- fresh hooks: the person may have respawned since the last drive

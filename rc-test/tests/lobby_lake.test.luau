@@ -159,3 +159,89 @@ test("same lake every run", function()
 		)
 	end
 end)
+
+local motions = K.motions()
+
+test("two sailboats and four ducks move on screen, each a Meshy spot", function()
+	local kinds: { [string]: number } = {}
+	for _, mo in motions do
+		kinds[mo.kind] = (kinds[mo.kind] or 0) + 1
+		local found = false
+		for _, s in spots do
+			found = found or s.id == mo.id
+		end
+		truthy(found, mo.id .. " has no spot")
+	end
+	eq(kinds.sail, 2)
+	eq(kinds.duck, 4)
+end)
+
+test("ducks start on their spot at time 0 and paddle the way they face", function()
+	for _, mo in motions do
+		if mo.kind == "duck" and mo.lag == 0 then
+			local x, _, z, ry = K.pose(mo, 0)
+			truthy(math.abs(x - mo.x) < 0.01 and math.abs(z - mo.z) < 0.01, "mother on her spot")
+			truthy(math.abs(((ry - mo.ry + 180) % 360) - 180) < 5, "facing her way")
+			local x2, _, z2 = K.pose(mo, 0.5)
+			local f = math.rad(mo.ry)
+			truthy((x2 - x) * math.sin(f) + (z2 - z) * math.cos(f) > 0, "moves forward")
+		end
+	end
+end)
+
+test("ducks and sailboats stay out in open water, clear of the raft and each other", function()
+	local l = W.lakeBox()
+	local inset = W.SHALLOW
+	local raftX, raftZ = 0, 0
+	for _, p in named("RaftFrame") do
+		raftX, raftZ = p.x, p.z
+	end
+	for t = 0, 120, 0.5 do
+		local spots: { { number } } = {}
+		for _, mo in motions do
+			local x, _, z = K.pose(mo, t)
+			truthy(x > l.minX + inset and x < l.maxX - inset, mo.id .. " too near the shore (x)")
+			truthy(z > l.minZ + inset and z < l.maxZ - inset, mo.id .. " too near the shore (z)")
+			truthy(math.max(math.abs(x - raftX), math.abs(z - raftZ)) > 18, mo.id .. " at the raft")
+			if mo.kind == "sail" then
+				table.insert(spots, { x, z })
+			end
+		end
+		for _, mo in motions do
+			if mo.kind == "duck" then
+				local x, _, z = K.pose(mo, t)
+				for _, s in spots do
+					truthy(math.abs(x - s[1]) + math.abs(z - s[2]) > 12, "duck under a sailboat")
+				end
+			end
+		end
+	end
+end)
+
+test("ducklings keep their place behind their mother", function()
+	local ducks = {}
+	for _, mo in motions do
+		if mo.kind == "duck" then
+			table.insert(ducks, mo)
+		end
+	end
+	for t = 0, 60, 5 do
+		for i = 2, #ducks do
+			local ax, _, az = K.pose(ducks[i - 1], t)
+			local bx, _, bz = K.pose(ducks[i], t)
+			local d = math.sqrt((ax - bx) ^ 2 + (az - bz) ^ 2)
+			truthy(d > 1 and d < 4, `duck {i} is {d} from the one ahead`)
+		end
+	end
+end)
+
+test("glints flash on open water", function()
+	local l = W.lakeBox()
+	for i = 1, K.SPARKLES do
+		for t = 0, 10, 0.37 do
+			local x, z, b = K.sparkle(i, t)
+			truthy(x > l.minX and x < l.maxX and z > l.minZ and z < l.maxZ, "on the lake")
+			truthy(b >= 0 and b <= 1, "brightness")
+		end
+	end
+end)
