@@ -64,8 +64,8 @@ Plot.GRASS_TOP = 14 -- ground below this height (off the trail) is grass, higher
 -- Highest bump the car can crawl over.
 Plot.MAX_LIFT = 1.6
 -- Highest sheer step a careful driver can get up (backing up and trying again); much over this
--- and nobody can (Studio: about 0.45 studs at RC size).
-Plot.SKILL_STEP = 1.8
+-- and nobody can (Studio: about 0.45 studs at RC size; carter found that too big, so 0.425).
+Plot.SKILL_STEP = 1.7
 -- The big wide boulders can stand taller: their sides are gentle enough to climb.
 Plot.BIG_LIFT = 2.5
 -- The person's eyes on the driver stand (see Main.client: stand top + 4.5 studs at RC size).
@@ -220,17 +220,26 @@ end
 -- Rock steps up the low shelf: flat blocks, each a small step up from the one before.
 -- Four tall steps on the hill side of the trail: too tall to just hold the gas up, it takes
 -- backing up and trying again. The front side of the trail is the easy way round.
-Plot.STEPS = { from = 13.05, to = 13.95, n = 4, side = -0.45, width = 20, frontSide = 1 }
+-- `lead`: the trail still climbs right up to the first step, so its rise counts from the ground
+-- this far before it (Studio measured the first rise 0.57 RC when it counted from `from`).
+Plot.STEPS =
+	{ from = 13.08, to = 13.84, lead = 0.08, n = 4, side = -0.45, width = 20, frontSide = 1 }
 Plot.CURB = 1.2 -- the curb along the front edge beside the steps
 
 -- The step blocks: from u0 to u1, top and bottom heights.
 function Plot.stepBlocks(): { { u0: number, u1: number, top: number, bottom: number } }
 	local st = Plot.STEPS
 	local out = {}
+	-- equal rises from the ground in front of the first step up to the trail after the last
+	local base = Plot.height(st.from - st.lead)
+	local rise = (Plot.height(st.to) - base) / st.n
 	for k = 0, st.n - 1 do
 		local u0 = st.from + (st.to - st.from) * k / st.n
 		local u1 = st.from + (st.to - st.from) * (k + 1) / st.n
-		table.insert(out, { u0 = u0, u1 = u1, top = Plot.height(u1), bottom = Plot.height(u0) - 3 })
+		table.insert(
+			out,
+			{ u0 = u0, u1 = u1, top = base + rise * (k + 1), bottom = base + rise * k - 3 }
+		)
 	end
 	return out
 end
@@ -248,7 +257,7 @@ Plot.SKILLS = {
 		side = -0.55,
 		width = 12,
 		length = 10,
-		lift = 3.4,
+		lift = 3.3,
 		-- a lower block right in front, on the line to the middle of the big one: half its
 		-- height, so the car goes up in two skill steps
 		helper = { width = 6, length = 5, lift = 1.6 },
@@ -259,11 +268,25 @@ Plot.SKILLS = {
 		side = -0.5,
 		width = 14,
 		length = 8,
-		lift = 3.2,
+		lift = 3.15,
 		ramp = 2.6,
 		rampLift = 1.45,
 	},
 }
+
+-- The u this many studs back down the trail from u.
+function Plot.uBefore(u: number, studs: number): number
+	local ax, az = Plot.at(u - 0.01)
+	local bx, bz = Plot.at(u + 0.01)
+	return u - studs * 0.02 / math.sqrt((bx - ax) ^ 2 + (bz - az) ^ 2)
+end
+
+-- Ground height the step-up's helper and block count from: just in front of the helper.
+function Plot.stepUpBase(): number
+	local st = Plot.SKILLS.stepUp
+	local front = st.length / 2 + st.helper.length - 0.5
+	return Plot.trailY(Plot.uBefore(st.u, front + 1.5), st.side)
+end
 
 -- Mountain peaks along the back wall, behind the summit, so the hill rises into real mountains.
 Plot.PEAKS = {
@@ -811,7 +834,9 @@ local function buildSkills(parent: Instance, origin: CFrame)
 	-- the step-up block, and the small rock in front of it
 	local st = S.stepUp
 	local x, z = Plot.spot(st.u, st.side)
-	local y = Plot.trailY(st.u, st.side)
+	-- heights count from the ground in front of the helper: the trail climbs on the way in, so
+	-- it is lower there than at the block (Studio measured the helper 0.56 RC when it wasn't)
+	local y = Plot.stepUpBase()
 	slate(
 		Kit.part(
 			parent,
