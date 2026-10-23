@@ -543,10 +543,14 @@ local function showDaily(coins: number, streak: number, boost: number)
 			else Color3.fromRGB(60, 64, 80)
 		rim.Thickness = if i == today then 3 else 0
 	end
-	-- a brand new player sees the way to their plot first: the gift waits for their first drive
-	-- (PlotGuide sets HasDriven), or a minute at most
+	-- a brand new player sees the way to their plot first: the gift waits until they have driven
+	-- once (PlotGuide sets HasDriven) and are back on foot, so it never covers the road
+	local me = Players.LocalPlayer
 	local waited = 0
-	while Players.LocalPlayer:GetAttribute("HasDriven") ~= true and waited < 60 do
+	while
+		(me:GetAttribute("HasDriven") ~= true or me:GetAttribute("Driving") == true)
+		and waited < 600
+	do
 		waited += task.wait(1)
 	end
 	if cards ~= mine then

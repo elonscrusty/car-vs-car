@@ -363,17 +363,18 @@ local function showGumball(s: State, result: string?)
 		dot.BackgroundColor3 = rgb(g.car.color)
 		dot.Parent = row
 		corner(dot, 0.5)
-		text(row, g.car.name, 0.12, 0.1, 0.45, 0.8, Color3.new(1, 1, 1), true)
+		-- name | kind | odds, each in its own box (long names ran into the kind word)
+		text(row, g.car.name, 0.12, 0.12, 0.38, 0.76, Color3.new(1, 1, 1), true)
 		text(
 			row,
 			MODE_WORDS[g.car.mode] or "",
-			0.55,
-			0.15,
-			0.18,
-			0.7,
+			0.52,
+			0.25,
+			0.16,
+			0.5,
 			Color3.fromRGB(180, 180, 190)
 		)
-		text(row, g.chance .. "%", 0.74, 0.1, 0.16, 0.8, GOLD)
+		text(row, g.chance .. "%", 0.7, 0.12, 0.16, 0.76, GOLD)
 		if owned[g.car.id] then
 			text(row, "HAVE", 0.9, 0.2, 0.09, 0.6, Color3.fromRGB(90, 220, 110))
 		end
@@ -392,7 +393,8 @@ local function showGumball(s: State, result: string?)
 		button(body, `SPIN  {CarCatalog.GUMBALL_PRICE} coins`, Color3.fromRGB(255, 120, 190), can)
 	spin.Position = UDim2.fromScale(0.66, 0.62)
 	spin.Size = UDim2.fromScale(0.34, 0.2)
-	local out = text(body, result or "", 0.66, 0.05, 0.34, 0.5, Color3.new(1, 1, 1))
+	-- before a spin, a big gumball fills the space where the prize will show
+	local out = text(body, result or "🍬", 0.66, 0.05, 0.34, 0.5, Color3.new(1, 1, 1))
 	out.TextWrapped = true
 	if can then
 		spin.Activated:Connect(function()

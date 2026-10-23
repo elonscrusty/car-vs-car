@@ -301,7 +301,7 @@ buildBtn.Name = "Build"
 HudLayout.place(buildBtn, "Build", "walk")
 -- dark with yellow words: DRIVE (yellow) stays the main button on your pad
 buildBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
-buildBtn.TextColor3 = Color3.fromRGB(255, 200, 40)
+buildBtn.TextColor3 = Color3.fromRGB(230, 190, 80)
 buildBtn.Font = Enum.Font.GothamBlack
 buildBtn.TextScaled = true
 buildBtn.Text = "BUILD!"
@@ -311,9 +311,12 @@ local buildCorner = Instance.new("UICorner")
 buildCorner.CornerRadius = UDim.new(0.3, 0)
 buildCorner.Parent = buildBtn
 local buildPad = Instance.new("UIPadding")
-buildPad.PaddingTop = UDim.new(0.2, 0)
-buildPad.PaddingBottom = UDim.new(0.2, 0)
+buildPad.PaddingTop = UDim.new(0.3, 0)
+buildPad.PaddingBottom = UDim.new(0.3, 0)
 buildPad.Parent = buildBtn
+local buildSize = Instance.new("UITextSizeConstraint")
+buildSize.MaxTextSize = 20 -- no louder than DRIVE (E)
+buildSize.Parent = buildBtn
 local asked = false -- tapped BUILD this break
 buildBtn.Activated:Connect(function()
 	closed, asked = false, true
