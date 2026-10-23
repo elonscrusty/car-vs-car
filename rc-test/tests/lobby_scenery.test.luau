@@ -112,3 +112,39 @@ test("gap fences leave the gap's mouth open by the footpath", function()
 		end
 	end
 end)
+
+test("each Meshy prop has its block stand-in, a known model name, a size and a turn", function()
+	local all, props = S.layout()
+	eq(#all, #pieces)
+	local known = {
+		LeafyTree = true,
+		PineTree = true,
+		Bush = true,
+		BigRock = true,
+		FlatRock = true,
+		Cactus = true,
+	}
+	local count: { [number]: number } = {}
+	for _, p in all do
+		if p.prop ~= 0 then
+			truthy(props[p.prop], "piece points at a prop")
+			count[p.prop] = (count[p.prop] or 0) + 1
+		else
+			truthy(p.kind == "Fence" or p.kind == "Hedge", `{p.kind} without a prop`)
+		end
+	end
+	local seen: { [string]: number } = {}
+	for i, pr in props do
+		eq(pr.id, i)
+		truthy(known[pr.mesh], "model name " .. pr.mesh)
+		truthy((count[i] or 0) > 0, "prop has blocks")
+		truthy(pr.height > 1 and pr.height < 25, "height")
+		truthy(pr.turn >= 0 and pr.turn <= 360, "turn")
+		seen[pr.mesh] = (seen[pr.mesh] or 0) + 1
+	end
+	for name in known do
+		truthy((seen[name] or 0) > 0, "no " .. name)
+	end
+	-- phones: about 3k triangles each, so keep the count of models down
+	truthy(#props <= 400, `props: {#props}`)
+end)

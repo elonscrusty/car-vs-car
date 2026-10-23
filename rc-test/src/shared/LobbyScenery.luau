@@ -42,6 +42,18 @@ export type Piece = {
 	g: number,
 	b: number,
 	solid: boolean, -- people and cars bump into it
+	prop: number, -- which Prop it is the block stand-in for (0 = none: fences, hedges)
+}
+-- One thing that carter's Meshy model can stand in for (MeshProps, ServerStorage.LobbyMeshes).
+export type Prop = {
+	id: number,
+	mesh: string, -- LeafyTree, PineTree, Bush, BigRock, FlatRock, Cactus
+	x: number, -- middle of its foot
+	z: number,
+	height: number, -- studs tall
+	turn: number, -- degrees about y
+	trunk: number, -- width of the solid trunk under a tree or cactus (0 = whole mesh is solid / not solid)
+	solid: boolean,
 }
 
 local LobbyScenery = {}
@@ -172,9 +184,37 @@ local function rng(seed: number): (number, number) -> number
 	end
 end
 
-function LobbyScenery.pieces(): { Piece }
+-- Every block piece, and the props they make up (a Meshy model replaces a prop's pieces).
+function LobbyScenery.layout(): ({ Piece }, { Prop })
 	local out: { Piece } = {}
+	local props: { Prop } = {}
+	local current = 0
 	local rand = rng(20261023)
+
+	-- start a new prop: the pieces added until done() are its block stand-in
+	local function begin(
+		mesh: string,
+		x: number,
+		z: number,
+		height: number,
+		trunk: number,
+		solid: boolean
+	)
+		current = #props + 1
+		table.insert(props, {
+			id = current,
+			mesh = mesh,
+			x = x,
+			z = z,
+			height = height,
+			turn = rand(0, 360),
+			trunk = trunk,
+			solid = solid,
+		})
+	end
+	local function done()
+		current = 0
+	end
 
 	local function add(
 		kind: string,
@@ -207,6 +247,7 @@ function LobbyScenery.pieces(): { Piece }
 			g = c[2],
 			b = c[3],
 			solid = solid,
+			prop = current,
 		})
 	end
 
@@ -218,6 +259,7 @@ function LobbyScenery.pieces(): { Piece }
 
 	-- leafy tree: trunk + three tilted blocks
 	local function tree(x: number, z: number, s: number)
+		begin("LeafyTree", x, z, 12 * s, 1.2 * s, false)
 		local h = 5 * s
 		add("Tree", "Block", x, h / 2, z, 1.2 * s, h, 1.2 * s, 0, rand(0, 90), 0, TRUNK, true)
 		local c = pick(LEAF)
@@ -245,6 +287,7 @@ function LobbyScenery.pieces(): { Piece }
 
 	-- pine: trunk + two four-sided tiers (each tier = 4 wedges whose tall sides meet in the middle)
 	local function pine(x: number, z: number, s: number)
+		begin("PineTree", x, z, 13 * s, 1 * s, false)
 		local h = 3 * s
 		add("Pine", "Block", x, h / 2, z, 1 * s, h, 1 * s, 0, 0, 0, TRUNK, true)
 		local c = pick(PINE)
@@ -262,6 +305,7 @@ function LobbyScenery.pieces(): { Piece }
 	end
 
 	local function bush(x: number, z: number, s: number)
+		begin("Bush", x, z, 2.2 * s, 0, false)
 		local c = pick(BUSH)
 		add(
 			"Bush",
@@ -297,6 +341,13 @@ function LobbyScenery.pieces(): { Piece }
 
 	-- boulder: a few tilted grey blocks; cliffs are big tall ones
 	local function rock(x: number, z: number, s: number, kind: string)
+		if kind == "Cliff" then
+			begin("BigRock", x, z, 6 * s, 0, true)
+		elseif rand(0, 1) < 0.5 then
+			begin("BigRock", x, z, 3.5 * s, 0, true)
+		else
+			begin("FlatRock", x, z, 2.2 * s, 0, true)
+		end
 		local n = if kind == "Cliff" then 4 else 2
 		for i = 1, n do
 			local w = rand(3, 5) * s
@@ -321,6 +372,59 @@ function LobbyScenery.pieces(): { Piece }
 		end
 	end
 
+	-- cactus: a green column with two arms
+	local function cactus(x: number, z: number, s: number)
+		begin("Cactus", x, z, 4.5 * s, 0.9 * s, false)
+		local c = { 86, 150, 78 }
+		add("Cactus", "Block", x, 2.2 * s, z, 1.1 * s, 4.4 * s, 1.1 * s, 0, 0, 0, c, true)
+		add("Cactus", "Block", x - 0.9 * s, 2 * s, z, 0.8 * s, 0.6 * s, 0.7 * s, 0, 0, 0, c, false)
+		add(
+			"Cactus",
+			"Block",
+			x - 1.2 * s,
+			2.7 * s,
+			z,
+			0.7 * s,
+			1.6 * s,
+			0.7 * s,
+			0,
+			0,
+			0,
+			c,
+			false
+		)
+		add(
+			"Cactus",
+			"Block",
+			x + 0.9 * s,
+			2.8 * s,
+			z,
+			0.8 * s,
+			0.6 * s,
+			0.7 * s,
+			0,
+			0,
+			0,
+			c,
+			false
+		)
+		add(
+			"Cactus",
+			"Block",
+			x + 1.2 * s,
+			3.4 * s,
+			z,
+			0.7 * s,
+			1.3 * s,
+			0.7 * s,
+			0,
+			0,
+			0,
+			c,
+			false
+		)
+	end
+
 	local function treeAny(x: number, z: number, s: number)
 		if rand(0, 1) < 0.5 then
 			tree(x, z, s)
@@ -331,6 +435,7 @@ function LobbyScenery.pieces(): { Piece }
 
 	-- fence along x (dir = "x") or z, from a to b at the other coordinate c
 	local function fence(dir: string, a: number, b: number, c: number, height: number)
+		done()
 		local len = b - a
 		if len < 1 then
 			return
@@ -428,6 +533,7 @@ function LobbyScenery.pieces(): { Piece }
 			runs(g.minZ + 6, g.maxZ - 6, cuts[if side < 0 then "left" else "right"], OPEN + 2)
 		do
 			local a, b = run[1], run[2]
+			done()
 			add("Hedge", "Block", hx, 0.9, (a + b) / 2, 1.8, 1.8, b - a, 0, 0, 0, HEDGE, true)
 		end
 	end
@@ -485,6 +591,17 @@ function LobbyScenery.pieces(): { Piece }
 	ring(14, 12, 1, function(x, z)
 		if not nearOpening(x, z, 4) then
 			rock(x, z, rand(1, 1.4), "Rock")
+			-- now and then a cactus beside the rock, on its lobby side
+			if rand(0, 1) < 0.22 then
+				local mx, mz = (g.minX + g.maxX) / 2, (g.minZ + g.maxZ) / 2
+				local dx, dz = mx - x, mz - z
+				local len = math.sqrt(dx * dx + dz * dz)
+				local cx, cz =
+					x + dx / len * 4.5 + rand(-1.5, 1.5), z + dz / len * 4.5 + rand(-1.5, 1.5)
+				if not nearOpening(cx, cz, 2) then
+					cactus(cx, cz, rand(0.9, 1.2))
+				end
+			end
 		end
 	end)
 	ring(2.5, 13, 1, function(x, z)
@@ -505,6 +622,13 @@ function LobbyScenery.pieces(): { Piece }
 		tree(ix + ir * 0.35, iz + ir * 0.3, 1)
 		rock(ix + ir * 0.2, iz - ir * 0.5, 0.9, "Rock")
 	end
+	done()
+	return out, props
+end
+
+-- Just the block pieces (everything, as if no Meshy model is imported).
+function LobbyScenery.pieces(): { Piece }
+	local out = LobbyScenery.layout()
 	return out
 end
 
