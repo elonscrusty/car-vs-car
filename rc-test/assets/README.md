@@ -8,3 +8,8 @@ To use it in Studio: File > Import 3D > pick the file > Import. Then move the im
 into ReplicatedStorage, put it in a Folder named `CarSkins`, and name the model `RockCrawler`.
 It needs MeshParts `Body`, `WheelFL`, `WheelFR`, `WheelRL`, `WheelRR` (front is -Z).
 `src/client/CarSkin.luau` draws it on the rock car; B turns it off and on.
+
+`DriftCoupe.fbx`: the drift car's coupe skin (look only), made the same way from carter's Meshy
+coupe. The back badge was painted out, and the front wheels are copies of the clean back wheels.
+Import it the same way and name the model `DriftCoupe` in `CarSkins`. `Main.client.luau` picks
+the skin per track (`SKINS`).
