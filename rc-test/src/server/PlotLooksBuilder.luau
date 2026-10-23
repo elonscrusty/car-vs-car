@@ -17,22 +17,41 @@ local PlotShop = require(ReplicatedStorage.Shared.PlotShop)
 
 local PlotLooksBuilder = {}
 
-local DAY = "DayColor" -- attribute holding a part's own colour while it is tinted
+local DAY = "DayColor" -- attribute holding a part's own colour while a look recolours it
+local SNOW_GROUND = Color3.fromRGB(236, 242, 250)
+local NIGHT_SKY = Color3.fromRGB(10, 14, 40)
 
--- night tint on the plot's own parts (called with the Looks folder gone; neon stays bright)
-local function tint(plot: Model, on: boolean)
+-- grass and ground parts (snow turns these white; colour only, the material and its grip stay)
+local function isGround(d: BasePart): boolean
+	local m = d.Material
+	return m == Enum.Material.Grass
+		or m == Enum.Material.LeafyGrass
+		or m == Enum.Material.Ground
+		or d.Name == "Grass"
+		or d.Name == "Ground"
+end
+
+-- recolour the plot's own parts (called with the Looks folder gone; neon stays bright): snow
+-- whitens the grass, night darkens everything. Colours only: sizes, materials, grip never change.
+local function restyle(plot: Model, night: boolean, snow: boolean)
 	for _, d in plot:GetDescendants() do
 		if not d:IsA("BasePart") or d.Material == Enum.Material.Neon then
 			continue
 		end
 		local day = d:GetAttribute(DAY)
-		if on then
-			if day == nil then
-				d:SetAttribute(DAY, d.Color)
-				d.Color = d.Color:Lerp(Color3.fromRGB(20, 26, 60), 1 - PlotLooks.NIGHT_TINT)
-			end
-		elseif typeof(day) == "Color3" then
-			d.Color = day
+		local base = if typeof(day) == "Color3" then day else d.Color
+		local c = base
+		if snow and isGround(d) then
+			c = SNOW_GROUND
+		end
+		if night then
+			c = c:Lerp(NIGHT_SKY, 1 - PlotLooks.NIGHT_TINT)
+		end
+		if c ~= base then
+			d:SetAttribute(DAY, base)
+			d.Color = c
+		elseif day ~= nil then
+			d.Color = base
 			d:SetAttribute(DAY, nil)
 		end
 	end
@@ -46,7 +65,7 @@ local function snowfall(cloud: BasePart)
 	e.Speed = NumberRange.new(3, 4)
 	e.EmissionDirection = Enum.NormalId.Bottom
 	e.SpreadAngle = Vector2.new(10, 10)
-	e.Size = NumberSequence.new(0.25)
+	e.Size = NumberSequence.new(0.45)
 	e.Color = ColorSequence.new(Color3.new(1, 1, 1))
 	e.LightEmission = 0.3
 	e.Parent = cloud
@@ -84,7 +103,7 @@ local function apply(plot: Model, pivot: CFrame, kind: string, ids: { string })
 	if old then
 		old:Destroy()
 	end
-	tint(plot, night)
+	restyle(plot, night, table.find(ids, "snow") ~= nil)
 	-- PlotDecor's lanterns glow brighter at night
 	for _, d in plot:GetDescendants() do
 		if d:IsA("BasePart") and (d.Name == "Lantern" or d.Name == "Light") then
@@ -92,8 +111,8 @@ local function apply(plot: Model, pivot: CFrame, kind: string, ids: { string })
 			if night and not light and d.Name == "Lantern" then
 				local glow = Instance.new("PointLight")
 				glow.Name = "NightLight"
-				glow.Range = 14
-				glow.Brightness = 1.5
+				glow.Range = 16
+				glow.Brightness = 2.5
 				glow.Color = d.Color
 				glow.Parent = d
 			elseif not night and light and light.Name == "NightLight" then
