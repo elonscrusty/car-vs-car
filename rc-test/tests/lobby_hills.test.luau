@@ -40,7 +40,37 @@ test("no hill or tree reaches onto the lobby grass", function()
 	end
 end)
 
-test("hills on the left, right and dry end; none across the lake", function()
+test("hills wrap the lake, off the sand, near bank open", function()
+	local keep = Hills.keepBox()
+	local lk = Hills.lakeBox()
+	truthy(
+		keep.maxX - lk.maxX >= Hills.SAND + 6 and lk.minX - keep.minX >= Hills.SAND + 6,
+		"6 off the sand"
+	)
+	for _, h in hills do
+		truthy(not Hills.touches(h, keep), `hill on the lake/sand/near bank at {h.x}, {h.z}`)
+	end
+	for _, t in trees do
+		truthy(
+			not (t.x > keep.minX and t.x < keep.maxX and t.z > keep.minZ and t.z < keep.maxZ),
+			"tree by the lake"
+		)
+	end
+	local far = 0
+	for _, h in hills do
+		if
+			h.x > lk.minX
+			and h.x < lk.maxX
+			and ((lake > 0 and h.z > keep.maxZ) or (lake < 0 and h.z < keep.minZ))
+		then
+			far += 1
+		end
+	end
+	truthy(far > 3, `hills on the lake's far side: {far}`)
+end)
+
+test("hills on the left, right and dry end; none between street and lake", function()
+	local keep = Hills.keepBox()
 	local left, right, dry, lakeEnd = 0, 0, 0, 0
 	for _, h in hills do
 		if h.x < g.minX then
@@ -49,7 +79,7 @@ test("hills on the left, right and dry end; none across the lake", function()
 			right += 1
 		elseif (lake > 0 and h.z < g.minZ) or (lake < 0 and h.z > g.maxZ) then
 			dry += 1
-		else
+		elseif not ((lake > 0 and h.z > keep.maxZ) or (lake < 0 and h.z < keep.minZ)) then
 			lakeEnd += 1
 		end
 	end
