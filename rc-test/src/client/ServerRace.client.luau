@@ -181,11 +181,16 @@ local startAt = 0
 local where = ""
 local endsAt = 0 -- server time the race ends for the ones still driving (0 = nobody won yet)
 local finished = false -- this player's car is over the line
+local racingAt = 0 -- os.clock() when this race started (the banner stays up over the 3-2-1)
+local BANNER = 5 -- seconds the "RACE ON MIA'S TRACK!" banner stays up once the race is on
 
 RunService.RenderStepped:Connect(function()
 	local secs = startAt - workspace:GetServerTimeNow()
 	-- the call: the small chip steps aside for the huge banner
-	call.Visible = phase == "call" and startAt > 0
+	-- the call, and on through the 3-2-1: whose track this is
+	local starting = phase == "racing" and os.clock() - racingAt < BANNER
+	call.Visible = (phase == "call" and startAt > 0) or starting
+	callClock.Visible = not starting -- the giant 3-2-1 takes over from the clock
 	local hurryLeft = endsAt - workspace:GetServerTimeNow()
 	hurry.Visible = phase == "racing" and endsAt > 0 and not finished and hurryLeft > 0
 	if hurry.Visible then
@@ -197,7 +202,7 @@ RunService.RenderStepped:Connect(function()
 		and startAt > 0
 		and player:GetAttribute("Building") ~= true
 	if call.Visible then
-		callWhere.Text = if where ~= "" then `RACE ON {where}` else "RACE!"
+		callWhere.Text = if where ~= "" then `RACE ON {where}!` else "RACE!"
 		callClock.Text = ServerRace.clock(secs)
 		-- a little pulse each second
 		local f = secs % 1
@@ -316,6 +321,9 @@ end
 event.OnClientEvent:Connect(
 	function(kind: unknown, a: unknown, b: unknown, _c: unknown, _d: unknown, e: unknown)
 		if kind == "state" and type(a) == "string" and type(b) == "number" then
+			if a == "racing" and phase ~= "racing" then
+				racingAt = os.clock()
+			end
 			phase, startAt = a, b
 			where = if type(e) == "string" then e else ""
 			if phase ~= "racing" then
