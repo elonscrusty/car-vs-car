@@ -393,6 +393,15 @@ function PlotDecor.parts(kind: string): { Piece }
 				t.cap,
 				o({ material = "Neon" })
 			)
+			-- street-car underglow: a thin neon strip on the floor under the counter
+			add(
+				"Booth",
+				"Underglow",
+				v(BW - 0.4, 0.06, 0.5),
+				v(b.x, 0.03, b.z + BD / 2 - 0.1),
+				t.cap,
+				o({ material = "Neon", light = 8 })
+			)
 		end
 	end
 	add(

@@ -275,6 +275,41 @@ function Plot.tires(): { Spot }
 	return out
 end
 
+-- Tyre smoke: a slow grey puff where each corner lets out, on the outside half of the road
+-- (where a held slide ends up). Looks only: no part you can hit.
+Plot.SMOKE_IN = 10 -- this far in from the outer road edge
+
+function Plot.smoke(): { Spot }
+	local ring = Plot.loop()
+	local n = #ring
+	local corner = cornerFlags(ring)
+	local out: { Spot } = {}
+	local side = 1
+	for i = 1, n do
+		local a, b = ring[i], ring[(i % n) + 1]
+		local cross = a.tx * b.tz - a.tz * b.tx
+		if math.abs(cross) > Plot.CORNER_TURN then
+			side = if cross < 0 then 1 else -1
+		end
+		if corner[i] and not corner[(i % n) + 1] then
+			local d = ROAD / 2 - Plot.SMOKE_IN
+			out[#out + 1] = {
+				x = a.x - a.tz * d * side,
+				z = a.z + a.tx * d * side,
+				yaw = math.atan2(a.tx, a.tz),
+			}
+		end
+	end
+	return out
+end
+
+-- Rubber donut rings burnt into the drift pad: { x, z, r } each, inside the pad.
+Plot.DONUTS = {
+	{ x = -26, z = -44, r = 12 },
+	{ x = 6, z = -24, r = 14 },
+	{ x = -12, z = -58, r = 10 },
+}
+
 -- Light poles on the open floor outside the loop, and the start gantry over the line.
 -- Each one turns to face the middle of the track (yaw: the look direction is
 -- (-sin yaw, -cos yaw), like CFrame.Angles(0, yaw, 0).LookVector).
@@ -321,10 +356,11 @@ Plot.PIT_PROPS = {
 	{ name = "TireStack", x = -30, z = -125, yaw = 0, h = 6, size = { 7, 6, 7 }, color = "tire" },
 }
 
--- Bleachers on the open floor behind the back straight, facing the stand side.
--- It reaches back past the fence line (the fence stops either side of it) so carter's model,
--- sized to fit this footprint, comes out big enough to read from the stand.
-Plot.BLEACHERS = { x = 0, z = -208.5, w = 110, d = 17, rows = 3, rowH = 5 }
+-- Bleachers in the infield between the pad and the front straight, facing the front straight
+-- and the street. The strip behind the back straight is only about 20 deep and carter's model is
+-- about 1.4 times wider than deep, so there it came out tiny (Studio: 6 x 4 studs). Here it gets
+-- a 46 x 32 footprint, kept to 24 tall so it does not hide the pad from the stand.
+Plot.BLEACHERS = { x = 2, z = 52, w = 46, d = 32, h = 24, rows = 3, rowH = 5 }
 
 Plot.GRANDSTAND_YAW = 0 -- turns carter's Grandstand model to face the track
 
@@ -589,13 +625,13 @@ local function bleachers(parent: Instance, origin: CFrame)
 	-- carter's Meshy grandstand (shared with the race plot) if imported, else block steps. At
 	-- yaw pi it showed its back to the track in Studio, so the model's seats face its -Z.
 	local at = CFrame.new(b.x, 0, b.z) * CFrame.Angles(0, Plot.GRANDSTAND_YAW, 0)
-	if meshProp(parent, origin, "Grandstand", at, 28, b.w, b.d) then
+	if meshProp(parent, origin, "Grandstand", at, b.h, b.w, b.d) then
 		return
 	end
 	local rowD = b.d / b.rows
 	for r = 1, b.rows do
 		local h = r * b.rowH
-		-- each row a step higher and further back (away from the track, toward the wall)
+		-- each row a step higher and further back (away from the front straight)
 		local z = b.z + b.d / 2 - (r - 0.5) * rowD
 		Kit.part(
 			parent,
@@ -608,17 +644,67 @@ local function bleachers(parent: Instance, origin: CFrame)
 	end
 end
 
+local function smokePuff(parent: Instance, origin: CFrame, spot: Spot)
+	local p = Kit.part(
+		parent,
+		"TyreSmoke",
+		origin,
+		Vector3.new(4, 1, 4),
+		CFrame.new(spot.x, TOP + 0.5, spot.z),
+		C.white
+	)
+	p.Transparency = 1
+	paint(p)
+	local e = Instance.new("ParticleEmitter")
+	e.Color = ColorSequence.new(Color3.fromRGB(225, 225, 230), Color3.fromRGB(170, 170, 178))
+	e.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 5),
+		NumberSequenceKeypoint.new(1, 16),
+	})
+	e.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.55),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	e.Lifetime = NumberRange.new(3, 5)
+	e.Rate = 2
+	e.Speed = NumberRange.new(1, 3)
+	e.SpreadAngle = Vector2.new(40, 40)
+	e.Acceleration = Vector3.new(0, 1.5, 0)
+	e.Drag = 1
+	e.RotSpeed = NumberRange.new(-20, 20)
+	e.Rotation = NumberRange.new(0, 360)
+	e.LightInfluence = 1
+	e.Parent = p
+end
+
+-- A thin dark rubber ring painted on the pad.
+local function donut(parent: Instance, origin: CFrame, d: { x: number, z: number, r: number })
+	local bits = 24
+	local seg = 2 * math.pi * d.r / bits + 0.6
+	for i = 1, bits do
+		local a = (i - 0.5) / bits * 2 * math.pi
+		local pos = Vector3.new(d.x + math.cos(a) * d.r, TOP + 0.08, d.z + math.sin(a) * d.r)
+		-- length along the ring: look across it (outward), the part's X then runs along it
+		local p = Kit.part(
+			parent,
+			"Rubber",
+			origin,
+			Vector3.new(seg, 0.1, 3.5),
+			CFrame.lookAt(pos, pos + Vector3.new(math.cos(a), 0, math.sin(a))),
+			Plot.LOOK.tire
+		)
+		p.Transparency = 0.45
+		paint(p)
+	end
+end
+
 local function fence(parent: Instance, origin: CFrame)
 	local f = Plot.FENCE
 	local a = Kit.AREA
 	local x0, x1 = a.minX + f.inset - 8, a.maxX - f.inset + 8
 	local z0, z1 = a.minZ + f.inset - 8, a.maxZ + 8
-	local b = Plot.BLEACHERS
-	local gx0, gx1 = b.x - b.w / 2 - 2, b.x + b.w / 2 + 2
 	local runs = {
-		-- the back run stops either side of the grandstand
-		{ Vector3.new(x0, 0, z0), Vector3.new(gx0, 0, z0) },
-		{ Vector3.new(gx1, 0, z0), Vector3.new(x1, 0, z0) },
+		{ Vector3.new(x0, 0, z0), Vector3.new(x1, 0, z0) },
 		{ Vector3.new(x0, 0, z0), Vector3.new(x0, 0, z1) },
 		{ Vector3.new(x1, 0, z0), Vector3.new(x1, 0, z1) },
 	}
@@ -798,6 +884,12 @@ function Plot.build(parent: Instance, origin: CFrame)
 	local cone = Plot.CONE
 	Kit.disc(parent, "Cone", origin, pad.x, cone.h / 2, pad.z, cone.r, cone.h, C.orange)
 	padCones(parent, origin)
+	for _, d in Plot.DONUTS do
+		donut(parent, origin, d)
+	end
+	for _, spot in Plot.smoke() do
+		smokePuff(parent, origin, spot)
+	end
 
 	for _, t in Plot.tires() do
 		tireStack(parent, origin, t.x, t.z, t.yaw)

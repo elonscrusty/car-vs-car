@@ -200,3 +200,28 @@ test("lamps face the middle of the track", function()
 		truthy((lx * dx + lz * dz) / d > 0.99, `lamp {i} does not face the track`)
 	end
 end)
+
+test("grandstand has room to come out big, and stays low enough to see the pad", function()
+	local b = Plot.BLEACHERS
+	truthy(b.w >= 40 and b.d >= 28, "grandstand footprint too small for carter's model")
+	truthy(b.h <= 26, "grandstand too tall: hides the pad from the stand")
+end)
+
+test("tyre smoke sits on the road at every corner exit", function()
+	local puffs = Plot.smoke()
+	truthy(#puffs >= 3, `only {#puffs} smoke spots`)
+	for i, p in puffs do
+		truthy(nearestRoad(p.x, p.z) < Plot.ROAD / 2, `smoke {i} is off the road`)
+		truthy(Kit.inArea(p.x, p.z), `smoke {i} is outside the area`)
+	end
+end)
+
+test("rubber donut rings stay on the drift pad", function()
+	local pad = Plot.PAD
+	for i, d in Plot.DONUTS do
+		local far = math.sqrt((d.x - pad.x) ^ 2 + (d.z - pad.z) ^ 2) + d.r + 2
+		truthy(far < pad.r, `donut {i} runs off the pad`)
+		local toCone = math.sqrt((d.x - pad.x) ^ 2 + (d.z - pad.z) ^ 2)
+		truthy(math.abs(toCone - d.r) > Plot.CONE.r + 2, `donut {i} runs over the cone`)
+	end
+end)
