@@ -129,6 +129,7 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 	local flippedFor = 0
 	local holdLook: Vector3? = nil -- crawler: the heading to keep while the stick is centred
 	local stuckFor = 0
+	local boostLeft = 0 -- seconds of boost-pad push left
 	local unstickTime = 0 -- seconds left of the helper's turn
 	local unstickDir = 0
 	local infos: { WheelInfo } = {}
@@ -206,6 +207,7 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 			w.drive = if w.front then front / 2 else (1 - front) / 2
 		end
 
+		boostLeft = math.max(0, boostLeft - dt)
 		local grounded = 0
 		for _, w in wheels do
 			local attachWorld = cf * w.attach
@@ -224,6 +226,9 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 					spring += k * Tuning.bumpStop * (Tuning.wheelRadius - dist)
 				end
 
+				if hit.Instance:GetAttribute("Boost") == true then
+					boostLeft = CarMath.BOOST_TIME
+				end
 				local gripAttr = hit.Instance:GetAttribute("Grip")
 				local surfaceGrip = if type(gripAttr) == "number" then gripAttr else 1
 				local mu = Tuning.baseMu * surfaceGrip
@@ -257,7 +262,9 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 				else
 					fx = -vLong * wm * Tuning.coastDrag
 				end
-				fx += CarMath.governor(vLong, wm, dt)
+				if boostLeft <= 0 then
+					fx += CarMath.governor(vLong, wm, dt)
+				end
 				-- rough ground like grass slows the car all the time (no attribute = none)
 				local dragAttr = hit.Instance:GetAttribute("Drag")
 				if type(dragAttr) == "number" then
@@ -295,6 +302,11 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 		local t = CarMath.clamp(speed / Tuning.topSpeed, 0, 1)
 		if grounded > 0 then
 			body:ApplyImpulse(-up * mass * gravity * Tuning.downforce * t * t * dt)
+			-- boost pad: push straight ahead for a moment, even past top speed
+			if boostLeft > 0 then
+				local ahead = cf.LookVector
+				body:ApplyImpulse(ahead * mass * CarMath.boostAccel(vLongBody) * dt)
+			end
 			local thrust = CarMath.driftThrust(speed, slip, throttle)
 			if thrust > 0 and vLongBody > 0 then
 				local flatVel = Vector3.new(vel.X, 0, vel.Z)
