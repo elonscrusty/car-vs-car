@@ -519,8 +519,8 @@ function PlotDecor.meshes(kind: string): { Mesh }
 			{ "TireStack", v(f.x + 0.1, 0, f.z), v(2.2, 2.2, 2.2) },
 			{ "TireStack", v(f.x + 2.4, 0, f.z), v(2.2, 1.6, 2.2) },
 			-- two spotlights on the track, one each side of the front area
-			{ "FloodLight", v(-12, 0, 39), v(1.8, 5, 1.8), 0 },
-			{ "FloodLight", v(29.5, 0, 39), v(1.8, 5, 1.8), 0 },
+			{ "FloodLight", v(-12, 0, 39), v(1.8, 5, 1.9), 0 }, -- long on z like the model: no quarter turn
+			{ "FloodLight", v(29.5, 0, 39), v(1.8, 5, 1.9), 0 },
 		}
 		elseif kind == "rock" then {
 			{ "Cooler", v(b.x - 2.5, 1.6, counterZ), v(1.4, 1, 1), 180 },
