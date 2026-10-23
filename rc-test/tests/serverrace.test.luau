@@ -62,6 +62,15 @@ test("pay: every racer gets coins, the winner most", function()
 	truthy(ServerRace.payFor(1, false) < ServerRace.PAY_FINISH, "finishing pays more")
 end)
 
+test("stars: finishers get stars by place, alone only the finish star", function()
+	eq(ServerRace.starsFor(1, true, 4), 3)
+	eq(ServerRace.starsFor(2, true, 4), 2)
+	eq(ServerRace.starsFor(3, true, 4), 1)
+	eq(ServerRace.starsFor(4, true, 4), 1)
+	eq(ServerRace.starsFor(1, false, 4), 0)
+	eq(ServerRace.starsFor(1, true, 1), 1)
+end)
+
 test("rank: finishers by time, then by laps; race ends when all are in", function()
 	local r = ServerRace.rank({
 		{ name = "c", laps = 1 },

@@ -456,3 +456,17 @@ test("track: saved tiles survive a save, junk tiles are dropped", function()
 	eq(Profile.migrate({ version = 8, coins = 3 }).track, nil)
 	eq(Profile.migrate({ track = { tiles = "x" } }).track, nil)
 end)
+
+test("race stars: add up, count in stars, survive a save, junk is cleaned", function()
+	local d = Profile.new()
+	d.starsFrom["2"] = { race = 2 }
+	d.stars = 2
+	eq(Profile.addRaceStars(d, 3), 3)
+	eq(d.stars, 5)
+	eq(Profile.addRaceStars(d, -4), 0)
+	local back = Profile.migrate(d)
+	eq(back.raceStars, 3)
+	eq(back.stars, 5)
+	eq(Profile.migrate({ version = 10, raceStars = "lots" }).raceStars, 0)
+	eq(Profile.migrate({ version = 10, raceStars = -9 }).raceStars, 0)
+end)

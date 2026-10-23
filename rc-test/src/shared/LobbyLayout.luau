@@ -57,9 +57,11 @@ LobbyLayout.REACH = 8 -- how close to the pad you must be to start driving
 LobbyLayout.PAD = 5 -- pad size
 -- The kinds of plot in the lobby (index into TrackData.order; show is on hold).
 LobbyLayout.TRACKS = { 1, 2, 3 }
--- What each lobby plot is, by slot (left row 1, right row 1, left row 2, ...), as in carter's
--- picture: race, drift / drift, rocks / rocks, drift / race, race.
-LobbyLayout.SLOT_TRACKS = { 2, 1, 1, 3, 3, 1, 2, 2 }
+-- What each lobby plot is, by slot (left row 1, right row 1, left row 2, ...). Race plots are
+-- the ones players own and build their track on (carter's game shape v3), so 6 of them; one
+-- drift and one rock track stay open for everyone (2026-10-23 polish pass): race, race /
+-- drift, rocks / race, race / race, race.
+LobbyLayout.SLOT_TRACKS = { 2, 2, 1, 3, 2, 2, 2, 2 }
 -- The lake is past this end of the road (+z).
 LobbyLayout.LAKE_SIDE = 1
 
