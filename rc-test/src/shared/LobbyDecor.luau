@@ -89,7 +89,8 @@ export type Extra = {
 }
 -- Spawn lobby music: a looped Creator Store track, played quietly from the two speakers (only
 -- near them). Empty = no music (an id must be checked to load in Studio before it goes in).
-LobbyDecor.MUSIC = ""
+-- "Citrus Daydream" (DistrokidOfficial, free, 166 s), checked to load in Studio 10-23.
+LobbyDecor.MUSIC = "rbxassetid://84797666595507"
 LobbyDecor.MUSIC_VOLUME = 0.2
 LobbyDecor.SPEAKER_X = 70
 LobbyDecor.SPEAKER_Z = L.PLAZA.maxZ - 36 - 24 -- beside the shop / garage (SpawnLobby.SHOP)
