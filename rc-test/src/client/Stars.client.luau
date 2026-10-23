@@ -223,7 +223,8 @@ local function showRivals(list: { any }, streak: number, points: number)
 end
 showRivals({}, 0, 0)
 
--- daily jobs: a small panel under the chips (tap the title to fold it)
+-- daily jobs: a small JOBS 1/3 chip under the chips; tap it to open the list (new players see
+-- one short chip, not a wall of words)
 local jobs = Instance.new("Frame")
 jobs.Name = "DailyJobs"
 HudLayout.place(jobs, "DailyJobs")
@@ -265,26 +266,41 @@ for i = 1, 3 do
 	row.Parent = jobs
 	jobRows[i] = row
 end
-local folded = false
+local folded = true
 local resetAt = 0 -- os.time() when new jobs come
+local jobsDone, jobsAll = 0, 0
+local waitText = ""
+local function showTitle()
+	if folded then
+		jobsTitle.Text = `JOBS {jobsDone}/{jobsAll}  ▼`
+	else
+		jobsTitle.Text = if waitText ~= ""
+			then `DAILY JOBS  <font color="#AAB2BD">new in {waitText}</font>`
+			else "DAILY JOBS"
+	end
+end
 local function showFold()
 	for _, row in jobRows do
 		row.Visible = not folded
 	end
 	HudLayout.place(jobs, "DailyJobs")
 	if folded then
-		jobs.Size = UDim2.new(jobs.Size.X, UDim.new(0, 30))
+		jobs.Size = UDim2.fromOffset(130, 34)
 	end
 	jobsTitle.Size = UDim2.fromScale(1, if folded then 1 else 0.22)
+	showTitle()
 end
 jobsTitle.Activated:Connect(function()
 	folded = not folded
 	showFold()
 end)
 local function showJobs(lines: { any })
+	jobsDone, jobsAll = 0, 0
 	for i, row in jobRows do
 		local l = lines[i]
 		if type(l) == "table" and type(l.text) == "string" then
+			jobsAll += 1
+			jobsDone += if l.done then 1 else 0
 			if l.done then
 				row.Text = `<font color="#7CE08A">✓ {l.text}</font>`
 			else
@@ -295,6 +311,7 @@ local function showJobs(lines: { any })
 		end
 	end
 	jobs.Visible = true
+	showFold()
 end
 -- how long until new jobs, in the title
 task.spawn(function()
@@ -303,7 +320,8 @@ task.spawn(function()
 		if resetAt > 0 and left > 0 then
 			local h, m = math.floor(left / 3600), math.floor(left % 3600 / 60)
 			local wait = if h > 0 then `{h}h` else `{math.max(m, 1)}m`
-			jobsTitle.Text = `DAILY JOBS  <font color="#AAB2BD">new in {wait}</font>`
+			waitText = wait
+			showTitle()
 		end
 		task.wait(20)
 	end
