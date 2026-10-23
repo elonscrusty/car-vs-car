@@ -24,6 +24,7 @@ require("./plot_decor.test")
 require("./plot_looks.test")
 require("./plot_shop.test")
 require("./stars.test")
+require("./serverrace.test")
 require("./daily_jobs.test")
 require("./smoke.test")
 
