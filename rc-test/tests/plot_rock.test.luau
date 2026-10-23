@@ -256,7 +256,7 @@ test("skill climbs: too tall to just drive over, with an easy way round each", f
 			u = S.kicker.u,
 			lo = S.kicker.side * Plot.HALF_WIDTH - S.kicker.width / 2,
 			hi = S.kicker.side * Plot.HALF_WIDTH + S.kicker.width / 2,
-			reach = S.kicker.length + S.kicker.ramp,
+			reach = S.kicker.length + S.kicker.flat + math.max(S.kicker.ramp, S.kicker.down),
 		},
 	}
 	for _, b in blocks do
@@ -289,7 +289,9 @@ test("skill climbs: too tall to just drive over, with an easy way round each", f
 	local k = S.kicker
 	truthy(k.rampLift / k.ramp >= 0.5 and k.rampLift / k.ramp <= 0.6, "the kicker ramp slope")
 	local lip = k.lift - k.rampLift
-	truthy(lip > Plot.MAX_LIFT and lip <= Plot.SKILL_STEP, "the kicker lip")
+	-- a lip off level ground can stand a bit taller (Studio: 1.7 off the flat was W only)
+	truthy(lip > Plot.SKILL_STEP and lip <= 2, "the kicker lip")
+	truthy(k.lift / k.down <= 0.55, "the ramp down off the kicker")
 end)
 
 test("the steep slab is clear of rocks", function()
