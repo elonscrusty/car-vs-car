@@ -123,3 +123,12 @@ test(
 		eq(#named("IslandStep"), #W.STEPS)
 	end
 )
+
+test("a rowboat floats beside a dock, and two docks have a life ring", function()
+	local hull = named("BoatHull")
+	eq(#hull, 1)
+	local h = hull[1]
+	truthy(h.y - h.sy / 2 < W.WATER_TOP and h.y + h.sy / 2 > W.WATER_TOP, "hull sits in the water")
+	eq(#named("BuoyPost"), 2)
+	eq(#named("Buoy") % 8, 0)
+end)
