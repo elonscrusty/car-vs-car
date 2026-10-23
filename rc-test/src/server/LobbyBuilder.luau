@@ -163,8 +163,10 @@ function LobbyBuilder.build(): Built
 	-- the spawn lobby at the top of the road, looking down it (shop, upgrades, car stands, race
 	-- pads)
 	local p = LobbyLayout.PLAZA
-	local mid = Vector3.new(0, 0, (p.minZ + p.maxZ) / 2)
-	local at = CFrame.lookAt(mid, mid + Vector3.new(0, 0, 1))
+	-- SpawnLobby's origin: its footprint runs from 45 behind it to 36 in front, so the open front
+	-- meets the road
+	local origin = Vector3.new(0, 0, p.maxZ - 36)
+	local at = CFrame.lookAt(origin, origin + Vector3.new(0, 0, 1))
 	SpawnLobby.build(folder, at)
 	built.spawn = SpawnLobby.spawnCFrame(at)
 
