@@ -181,6 +181,8 @@ local startAt = 0
 local where = ""
 local endsAt = 0 -- server time the race ends for the ones still driving (0 = nobody won yet)
 local finished = false -- this player's car is over the line
+local kind = "race" -- this round: "race" | "drift" (the picked plot's)
+local driftEnds = false -- endsAt is a drift round's end (shown to everyone still in)
 local racingAt = 0 -- os.clock() when this race started (the banner stays up over the 3-2-1)
 local BANNER = 5 -- seconds the "RACE ON MIA'S TRACK!" banner stays up once the race is on
 
@@ -196,7 +198,9 @@ RunService.RenderStepped:Connect(function()
 	local hurryLeft = endsAt - workspace:GetServerTimeNow()
 	hurry.Visible = phase == "racing" and endsAt > 0 and not finished and hurryLeft > 0
 	if hurry.Visible then
-		hurry.Text = `FINISH IN {ServerRace.clock(hurryLeft)}!`
+		hurry.Text = if driftEnds
+			then `DRIFT!  {ServerRace.clock(hurryLeft)} LEFT`
+			else `FINISH IN {ServerRace.clock(hurryLeft)}!`
 	end
 	-- (the build screen has its own clock)
 	join.Visible = phase ~= "racing"
@@ -204,7 +208,8 @@ RunService.RenderStepped:Connect(function()
 		and startAt > 0
 		and player:GetAttribute("Building") ~= true
 	if call.Visible then
-		callWhere.Text = if where ~= "" then `RACE ON {where}!` else "RACE!"
+		local verb = if kind == "drift" then "DRIFT" else "RACE"
+		callWhere.Text = if where ~= "" then `{verb} ON {where}!` else `{verb}!`
 		callClock.Text = ServerRace.clock(secs)
 		-- a little pulse each second
 		local f = secs % 1
@@ -267,7 +272,8 @@ local function showResult(rows: { any })
 		return
 	end
 	local first = rows[1]
-	title.Text = if first.time then `🏆 {first.name} WINS!` else "TIME UP!"
+	local won = first.time or (type(first.score) == "number" and first.score > 0)
+	title.Text = if won then `🏆 {first.name} WINS!` else "TIME UP!"
 	local lines = {}
 	local mine: number? = nil
 	for i, r in rows do
@@ -277,8 +283,9 @@ local function showResult(rows: { any })
 	end
 	for i = 1, math.min(#rows, 4) do
 		local r = rows[i]
-		local what = if type(r.time) == "number"
-			then CarMath.formatTime(r.time)
+		local what = if type(r.score) == "number"
+			then `{r.score} pts`
+			elseif type(r.time) == "number" then CarMath.formatTime(r.time)
 			else `{r.laps}/{ServerRace.LAPS} laps`
 		local paid = paidText(r)
 		local medal = ServerRace.medal(i)
@@ -321,22 +328,23 @@ local function showResult(rows: { any })
 end
 
 event.OnClientEvent:Connect(
-	function(kind: unknown, a: unknown, b: unknown, _c: unknown, _d: unknown, e: unknown)
-		if kind == "state" and type(a) == "string" and type(b) == "number" then
+	function(what: unknown, a: unknown, b: unknown, _c: unknown, d: unknown, e: unknown)
+		if what == "state" and type(a) == "string" and type(b) == "number" then
+			kind = if d == "drift" then "drift" else "race"
 			if a == "racing" and phase ~= "racing" then
 				racingAt = os.clock()
 			end
 			phase, startAt = a, b
 			where = if type(e) == "string" then e else ""
 			if phase ~= "racing" then
-				endsAt, finished = 0, false
+				endsAt, finished, driftEnds = 0, false, false
 				placeText.Visible = false
 			end
-		elseif kind == "finished" and type(a) == "number" then
+		elseif what == "finished" and type(a) == "number" then
 			showPlace(a)
-		elseif kind == "ends" and type(a) == "number" then
-			endsAt = a
-		elseif kind == "result" and type(a) == "table" then
+		elseif what == "ends" and type(a) == "number" then
+			endsAt, driftEnds = a, b == "drift"
+		elseif what == "result" and type(a) == "table" then
 			showResult(a :: { any })
 		end
 	end

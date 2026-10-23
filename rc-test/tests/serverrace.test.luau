@@ -149,3 +149,18 @@ test("places, ordinals, medals and the wrong-way check", function()
 	eq(ServerRace.wrongWay(0, 30, 1, 0, 10), false) -- side on (a bend) is fine
 	eq(ServerRace.wrongWay(-5, 0, 1, 0, 10), false) -- too slow to count
 end)
+
+test("a drift round ranks by score and counts any points as a finish", function()
+	local ranked = ServerRace.rankDrift({
+		{ name = "a", laps = 0, score = 1200 },
+		{ name = "b", laps = 0, score = 3400 },
+		{ name = "c", laps = 0 },
+	})
+	eq(ranked[1].name, "b")
+	eq(ranked[2].name, "a")
+	eq(ranked[3].name, "c")
+	eq(ServerRace.finished(ranked[1]), true)
+	eq(ServerRace.finished(ranked[3]), false)
+	eq(ServerRace.finished({ name = "d", laps = 3, time = 61 }), true)
+	truthy(ServerRace.DRIFT_TIME > 30, "drift round too short")
+end)
