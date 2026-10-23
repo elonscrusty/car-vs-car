@@ -869,6 +869,31 @@ function TrackTiles.build(parent: Instance, origin: CFrame, grid: Grid)
 			local at = origin * CFrame.new(cx, 0, cz) * CFrame.Angles(0, -t.rot * math.pi / 2, 0)
 			pcall(TileLooks.make, t.piece, parent, at, TrackTiles.CELL)
 		end
+		-- empty cells and the strips between the grid and the plot edge (decor only)
+		local cell = TrackTiles.CELL
+		if TileLooks.makeEmpty then
+			for c = 1, grid.cols do
+				for r = 1, grid.rows do
+					if not TrackTiles.get(grid, c, r) then
+						local cx, cz = TrackTiles.cellCenter(grid, c, r)
+						pcall(
+							TileLooks.makeEmpty,
+							parent,
+							origin * CFrame.new(cx, 0, cz),
+							cell,
+							c,
+							r
+						)
+					end
+				end
+			end
+		end
+		if TileLooks.makeSurround then
+			local x1, z1 = TrackTiles.cellCenter(grid, 1, grid.rows)
+			local x2, z2 = TrackTiles.cellCenter(grid, grid.cols, 1)
+			local h = cell / 2
+			pcall(TileLooks.makeSurround, parent, origin, x1 - h, x2 + h, z1 - h, z2 + h)
+		end
 	end
 
 	-- checkered start line across the START tile
