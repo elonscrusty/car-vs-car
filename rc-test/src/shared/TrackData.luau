@@ -36,6 +36,10 @@ export type Track = {
 	spawn: Spawn,
 	gates: { Gate },
 	checkpoints: { Checkpoint }?,
+	-- where this copy of the plot sits at RC size (a lobby plot); unset = the old RC row
+	rcX: number?,
+	rcZ: number?,
+	rcAngle: number?, -- turn about y (radians), like CFrame.Angles(0, rcAngle, 0)
 }
 
 local TrackData = {}
@@ -70,12 +74,12 @@ function TrackData.get(id: string): Track
 	}
 end
 
--- Where a plot's middle sits in the world at this size.
-function TrackData.origin(t: Track, rc: boolean): (number, number)
+-- Where a plot's middle sits in the world at this size, and its turn about y.
+function TrackData.origin(t: Track, rc: boolean): (number, number, number)
 	if rc then
-		return t.originX * TrackData.RC_SCALE, TrackData.RC_Z
+		return t.rcX or t.originX * TrackData.RC_SCALE, t.rcZ or TrackData.RC_Z, t.rcAngle or 0
 	end
-	return t.originX, 0
+	return t.originX, 0, 0
 end
 
 -- Plot-local spot -> world spot at this size.
@@ -87,8 +91,16 @@ function TrackData.toWorld(
 	z: number
 ): (number, number, number)
 	local s = if rc then TrackData.RC_SCALE else 1
-	local ox, oz = TrackData.origin(t, rc)
-	return ox + x * s, y * s, oz + z * s
+	local ox, oz, a = TrackData.origin(t, rc)
+	local c, n = math.cos(a), math.sin(a)
+	return ox + (x * c + z * n) * s, y * s, oz + (z * c - x * n) * s
+end
+
+-- Plot-local direction -> world direction (for spawns and checkpoints).
+function TrackData.dirToWorld(t: Track, rc: boolean, dx: number, dz: number): (number, number)
+	local _, _, a = TrackData.origin(t, rc)
+	local c, n = math.cos(a), math.sin(a)
+	return dx * c + dz * n, dz * c - dx * n
 end
 
 -- World spot -> plot-local spot (for the lap timer).
@@ -100,8 +112,10 @@ function TrackData.toLocal(
 	z: number
 ): (number, number, number)
 	local s = if rc then TrackData.RC_SCALE else 1
-	local ox, oz = TrackData.origin(t, rc)
-	return (x - ox) / s, y / s, (z - oz) / s
+	local ox, oz, a = TrackData.origin(t, rc)
+	local c, n = math.cos(a), math.sin(a)
+	local wx, wz = (x - ox) / s, (z - oz) / s
+	return wx * c - wz * n, y / s, wx * n + wz * c
 end
 
 -- Height of the driver stand's top, in big-size units.
