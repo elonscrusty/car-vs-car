@@ -401,7 +401,8 @@ function LobbyHills.layout(): ({ Hill }, { Tree }, { Prop }, { Landmark })
 				z = h.z,
 				height = spec.height,
 				-- the model's front faces -z (MeshProps turns it half round), so face the lobby
-				turn = math.deg(math.atan2(dx, dz)),
+				-- (the watch tower's ladder is on its -x side: turn that to the lobby instead)
+				turn = math.deg(math.atan2(dx, dz)) - (if spec.mesh == "WatchTower" then 90 else 0),
 				path = path,
 				fence = spec.fence,
 				extras = extras,
