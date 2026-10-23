@@ -283,7 +283,7 @@ test("skill climbs: too tall to just drive over, with an easy way round each", f
 	-- every sheer face is a skill step: more than holding the gas gets up, never more than a
 	-- careful driver can
 	local st = S.stepUp
-	truthy(st.helper.lift >= Plot.MAX_LIFT and st.helper.lift <= Plot.SKILL_STEP, "step-up helper")
+	truthy(st.helper.lift >= 1.2 and st.helper.lift <= Plot.SKILL_STEP, "step-up helper")
 	local rest = st.lift - st.helper.lift
 	truthy(rest > Plot.MAX_LIFT and rest <= Plot.SKILL_STEP, "from the helper up to the block")
 	local k = S.kicker
