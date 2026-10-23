@@ -124,7 +124,7 @@ local function goTo(index: number)
 	setScale(if rc then TrackData.RC_SCALE else 1)
 	setMode(t.id)
 	-- a new track: its own view, and the old track's skid marks go
-	if t.id ~= viewTrack then
+	if t.id ~= viewTrack or t.id == "rock" then
 		viewTrack = t.id
 		view = TRACK_VIEW[t.id] or "chase"
 		showCam = false
@@ -203,6 +203,9 @@ end
 local gui = Hud.createGui()
 hud = Hud.new(gui, labels, goTo)
 local controls = Controls.new(gui, reset, goTo, function()
+	if tracks[current].id == "rock" then
+		return -- rocks is free cam only
+	end
 	showCam = camera.toggleOrbit()
 	if not showCam then
 		camera.setView(view) -- back to the view picked before
@@ -211,6 +214,10 @@ local controls = Controls.new(gui, reset, goTo, function()
 end, function()
 	task.spawn(swapSize)
 end, function()
+	if tracks[current].id == "rock" then
+		hud.flash(VIEW_NAMES.free) -- rocks is free cam only
+		return
+	end
 	local i = table.find(VIEWS, view) or 0
 	view = VIEWS[i % #VIEWS + 1]
 	showCam = false

@@ -111,13 +111,13 @@ local MODES: { [string]: { [string]: number } } = {
 	rock = {
 		topSpeed = 16, -- slow crawl, so you can watch every spring work over the rocks
 		accel = 110,
-		crawlBoost = 60,
+		crawlBoost = 35,
 		crawlSpeed = 6,
 		frontDrive = 0.5,
 		maxSusp = 4, -- long travel: wheels droop into holes and tuck up over rocks
 		springOmega = 9.5,
 		springZeta = 0.45,
-		baseMu = 1.6,
+		baseMu = 1.15, -- grip enough to crawl, not enough to just drive up anything
 		steerLow = 0.4,
 		steerHigh = 0.4,
 		steerRate = 2, -- gentle steering while crawling, so short taps don't swing the car
@@ -127,8 +127,8 @@ local MODES: { [string]: { [string]: number } } = {
 		coastDrag = 2.5,
 		yawHold = 6,
 		minLatShare = 0.8, -- climbing hard still keeps most sideways grip, so it doesn't slide off
-		uprightAssist = 30,
-		sideHold = 8,
+		uprightAssist = 20,
+		sideHold = 5,
 		stuckWait = 10, -- being stuck is part of crawling: give time to wiggle free
 	},
 }
