@@ -94,8 +94,7 @@ local camera = ChaseCamera.new(body, ignoreList(), eye)
 camera.setView(view)
 local effects = Effects.new(car.telemetry)
 local skin = CarSkin.new() -- the truck model on the rock car (look only)
-local rc = true -- T flips to the big test size while driving
-local swapping = false
+local rc = true -- always RC size: the lobby plots are the tracks
 
 -- one track per lobby plot (its kind's data, placed where that plot sits)
 local tracks: { TrackData.Track } = {}
@@ -126,7 +125,7 @@ local driftHeld = 0 -- seconds this slide has been held (longer = bigger multipl
 
 local hud: Hud.Hud
 local function goTo(index: number)
-	if swapping or walking then
+	if walking then
 		return
 	end
 	current = index
@@ -150,52 +149,12 @@ local function goTo(index: number)
 	local pos = Vector3.new(x, y, z)
 	remote:FireServer("place", rc, index)
 	car.teleport(CFrame.lookAt(pos, pos + Vector3.new(dx, 0, dz)))
+	-- top view: the plot's far end up the screen, whichever way the plot is turned
+	local ux, uz = TrackData.dirToWorld(t, rc, 0, -1)
+	camera.setUp(Vector3.new(ux, 0, uz))
 	camera.snap()
 	hud.setActiveTrack(TrackData.index(t.id))
 	hud.setDrift(0, 0, t.id == "drift")
-end
-
--- The server builds a new car at the other size; hook everything onto it.
-local function swapSize()
-	-- the big plots are gone (the lobby plots are the tracks): nothing to swap to for now
-	if true then
-		return
-	end
-	if swapping or walking then
-		return
-	end
-	swapping = true
-	rc = not rc
-	hud.flash(if rc then "RC SIZE" else "BIG SIZE")
-	local old = model
-	remote:FireServer("place", rc, current)
-	local t0 = os.clock()
-	while workspace:FindFirstChild(carName) == old do
-		if os.clock() - t0 > 5 then
-			-- the server didn't answer: stay at the old size
-			rc = not rc
-			swapping = false
-			return
-		end
-		task.wait()
-	end
-	car.destroy()
-	effects.destroy()
-	model, body = waitForCar()
-	if rc then
-		-- wait a moment for the person to appear so the camera and wheels ignore them
-		local t0 = os.clock()
-		while player.Character == nil and os.clock() - t0 < 3 do
-			task.wait()
-		end
-	end
-	setScale(if rc then TrackData.RC_SCALE else 1)
-	car = RCCar.new(model, ignoreList())
-	camera = ChaseCamera.new(body, ignoreList(), eye)
-	camera.setView(view)
-	effects = Effects.new(car.telemetry)
-	swapping = false
-	goTo(current)
 end
 
 -- Back to the plot's start with a short beep (fell off, stuck, or the R key).
@@ -237,13 +196,9 @@ local function reset(why: string?)
 	end
 end
 
--- the plot buttons and keys: the plots are on the street now, so walking there is the way
-local function pickPlot(_: number)
-	hud.flash("WALK TO A PLOT TO DRIVE IT")
-end
 local gui = Hud.createGui()
-hud = Hud.new(gui, labels, pickPlot)
-local controls = Controls.new(gui, reset, pickPlot, function()
+hud = Hud.new(gui, labels)
+local controls = Controls.new(gui, reset, function()
 	if tracks[current].id == "rock" then
 		return -- rocks is free cam only
 	end
@@ -252,8 +207,6 @@ local controls = Controls.new(gui, reset, pickPlot, function()
 		camera.setView(view) -- back to the view picked before
 	end
 	hud.flash(if showCam then "SHOW CAM" else VIEW_NAMES[view])
-end, function()
-	task.spawn(swapSize)
 end, function()
 	if tracks[current].id == "rock" then
 		hud.flash(VIEW_NAMES.free) -- rocks is free cam only
@@ -267,9 +220,8 @@ end, function()
 end)
 
 -- Walking <-> driving. Only the server switches (E on a stand, or WALK), this side follows.
--- leave from RC size only (at the big test size the person is gone): T first
 local lobby = Lobby.new(remote, function(): boolean
-	return rc and not swapping
+	return true
 end)
 local function setWalking(on: boolean)
 	LobbySky.set(on)
@@ -350,7 +302,7 @@ local function timerText(): string
 end
 
 RunService.PreSimulation:Connect(function(dt: number)
-	if walking or swapping or body.Parent == nil then
+	if walking or body.Parent == nil then
 		return
 	end
 	local input = controls.read()
@@ -438,7 +390,7 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 		effects.quiet()
 		return
 	end
-	if swapping or body.Parent == nil then
+	if body.Parent == nil then
 		return
 	end
 	car.render(dt)
