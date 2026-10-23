@@ -188,10 +188,10 @@ Plot.domes = {
 	dome(18.9, 0.35, 11, 5),
 } :: { Dome }
 
--- A dry creek across the trail in row 2. A bridge of two logs crosses it on the left; the
--- right side dips down through the creek bed.
+-- A dry creek across the trail in row 2. A bridge of logs crosses it down the middle, on the
+-- driving line; either side dips down through the creek bed.
 Plot.CREEK =
-	{ u = 8.1, half = 16, depth = 5, reach = HALF + 14, logSide = -0.25, logR = 1.5, lift = 0.9 }
+	{ u = 8.1, half = 16, depth = 5, reach = HALF + 14, logSide = 0, logR = 1.5, lift = 0.9 }
 local creekX, creekZ, _, creekTX, creekTZ = Plot.at(Plot.CREEK.u)
 
 -- How far the creek bed dips the ground at (x, z).
@@ -383,9 +383,10 @@ Plot.features = {
 	-- row 1: grass and mounds, and two big boulders right in front of the stand
 	rock(1.8, -0.35, 3.4, 1.0),
 	rock(2.2, 0.3, 3.6, 1.1),
-	-- two big boulders, wide so they get climbed, not pushed past: watch the springs up close
-	rock(2.85, 0.3, 12, 2.4),
-	rock(3.25, -0.35, 11, 2.2),
+	-- two big boulders, wide so they get climbed, not pushed past: watch the springs up close.
+	-- The first sits right on the driving line, so going straight means going over the top.
+	rock(2.7, 0.05, 12, 2.4),
+	rock(3.3, -0.5, 11, 2.2),
 	rock(4.3, -0.4, 3.8, 1.3),
 	rock(4.5, 0.45, 3.6, 1.2),
 	ledge(4.85, 0.5, 0.9),
@@ -395,7 +396,7 @@ Plot.features = {
 	-- row 2: the boulder field, then the creek (8.1)
 	rock(7.2, -0.4, 3.6, 1.2),
 	rock(7.4, 0.35, 3.8, 1.3),
-	rock(7.65, 0.1, 3.4, 1.4),
+	rock(7.6, 0.6, 3.4, 1.4),
 	rock(8.6, 0.4, 4.2, 1.4),
 	rock(8.65, -0.5, 4.0, 1.3),
 	rock(9.35, 0.3, 3.4, 1.2),
@@ -672,7 +673,7 @@ local function buildLogBridge(parent: Instance, origin: CFrame)
 			parent,
 			"Log",
 			origin,
-			Vector3.new(c.half * 2 + 10, c.logR * 2, c.logR * 2),
+			Vector3.new(c.half * 2 + 20, c.logR * 2, c.logR * 2),
 			-- a cylinder lies along its X: point X along the trail
 			yawCF(cx - tz * off, h + c.lift - c.logR, cz + tx * off, -tz, tx),
 			C.ground
