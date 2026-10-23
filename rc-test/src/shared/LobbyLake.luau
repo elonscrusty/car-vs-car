@@ -294,7 +294,9 @@ local function sailboat(
 	local x, z = at(u, v)
 	local ry = face(a)
 	local y = LobbyWater.WATER_TOP - 0.3
-	m.spot("Sailboat", x, y - 0.5, z, ry, 13)
+	-- carter's Sailboat mesh came in end-on to the street (its hull along its local x), so turn it
+	-- a quarter round to show its side and sail like the blocks do
+	m.spot("Sailboat", x, y - 0.5, z, ry + 90, 13)
 	local put = m.frame(x, y, z, ry)
 	put("SailHull", 0, 0, 0, 3.6, 1.0, 9, WHITE)
 	put("SailBow", 0, 0, 5.0, 2.4, 1.0, 1.2, WHITE)
@@ -312,7 +314,8 @@ end
 -- A plain duck floating, `size` 1 for a grown-up.
 local function duck(m: Maker, x: number, z: number, ry: number, size: number, body: { number })
 	local y = LobbyWater.WATER_TOP
-	m.spot("Duck", x, y - 0.2 * size, z, ry, 1.5 * size)
+	-- carter's Duck mesh has its beak at -Z (props HANDOFF.md), MeshProps turns +Z to the front
+	m.spot("Duck", x, y - 0.2 * size, z, ry + 180, 1.5 * size)
 	local put = m.frame(x, y, z, ry)
 	local function p(
 		name: string,
@@ -506,7 +509,7 @@ local function canoe(m: Maker, u: number, v: number)
 	local x, z = at(u, v)
 	local y = LobbyWater.SAND_TOP
 	local ry = face(90)
-	m.spot("Canoe", x, y, z, ry, 1.0)
+	m.spot("Canoe", x, y, z, ry, 2.2) -- carter's mesh: about 8 long at this height
 	local put = m.frame(x, y, z, ry)
 	put("CanoeHull", 0, 0.35, 0, 1.8, 0.7, 7, ORANGE)
 	put("CanoeEnd", 0, 0.5, 3.9, 1.1, 0.7, 0.9, ORANGE)
