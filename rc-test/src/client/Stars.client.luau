@@ -34,6 +34,22 @@ hud.ResetOnSpawn = false
 hud.IgnoreGuiInset = true
 hud.DisplayOrder = HudLayout.HUD
 hud.Parent = gui.Parent
+-- fewer buttons for a brand new player: RIVALS, JOBS and the NEXT bar wait until the first
+-- drive in any car (Lobby sets DroveOnce) or once you have a star; until then it is just stars,
+-- coins and the way to DRIVE
+local later = Instance.new("Frame")
+later.Name = "AfterFirstDrive"
+later.BackgroundTransparency = 1
+later.Size = UDim2.fromScale(1, 1)
+later.Parent = hud
+local function showLater()
+	local stars = player:GetAttribute("Stars")
+	later.Visible = player:GetAttribute("DroveOnce") == true
+		or (type(stars) == "number" and stars > 0)
+end
+player:GetAttributeChangedSignal("DroveOnce"):Connect(showLater)
+player:GetAttributeChangedSignal("Stars"):Connect(showLater)
+showLater()
 
 -- pop-up cards (daily gift, rivals, toasts) sit on top of every other button
 local top = Instance.new("ScreenGui")
@@ -141,7 +157,7 @@ rivalsBtn.TextColor3 = Color3.new(1, 1, 1)
 rivalsBtn.Font = Enum.Font.GothamBlack
 rivalsBtn.TextScaled = true
 rivalsBtn.Text = "RIVALS"
-rivalsBtn.Parent = hud
+rivalsBtn.Parent = later
 local rivalsBtnCorner = Instance.new("UICorner")
 rivalsBtnCorner.CornerRadius = UDim.new(0.3, 0)
 rivalsBtnCorner.Parent = rivalsBtn
@@ -234,7 +250,7 @@ HudLayout.place(jobs, "DailyJobs")
 jobs.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 jobs.BackgroundTransparency = 0.3
 jobs.Visible = false -- until the server sends them
-jobs.Parent = hud
+jobs.Parent = later
 local jobsCorner = Instance.new("UICorner")
 jobsCorner.CornerRadius = UDim.new(0.08, 0)
 jobsCorner.Parent = jobs
@@ -656,7 +672,7 @@ HudLayout.place(nextBox, "NextUnlock")
 nextBox.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 nextBox.BackgroundTransparency = 0.3
 nextBox.Visible = false -- until the server sends a goal
-nextBox.Parent = hud
+nextBox.Parent = later
 local nextCorner = Instance.new("UICorner")
 nextCorner.CornerRadius = UDim.new(0.2, 0)
 nextCorner.Parent = nextBox

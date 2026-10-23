@@ -218,7 +218,8 @@ local function myPlot(): (boolean, boolean)
 end
 while true do
 	local mine, driving = myPlot()
-	openBtn.Visible = mine and not driving
+	-- (and not for a brand new player: fewer buttons until the first drive)
+	openBtn.Visible = mine and not driving and player:GetAttribute("DroveOnce") == true
 	if not mine then
 		panel.Visible = false
 	end

@@ -113,7 +113,11 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 		friendsButton.BackgroundColor3 = if friendsOn
 			then Color3.fromRGB(60, 170, 80)
 			else Color3.fromRGB(40, 40, 46)
-		friendsGui.Enabled = ownSlot ~= nil and not driving and not building()
+		-- (not for a brand new player: fewer buttons until the first drive)
+		friendsGui.Enabled = ownSlot ~= nil
+			and not driving
+			and not building()
+			and Players.LocalPlayer:GetAttribute("DroveOnce") == true
 		if marker then
 			marker.Parent = if driving then nil else workspace
 		end
@@ -223,12 +227,16 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 		quickGui.Enabled = QUICK and not driving and not building()
 		showFriends()
 	end)
+	Players.LocalPlayer:GetAttributeChangedSignal("DroveOnce"):Connect(showFriends)
 
 	local lobby = {} :: Lobby
 	function lobby.setDriving(on: boolean)
 		driving = on
 		guide.setDriving(on)
 		Players.LocalPlayer:SetAttribute("Driving", on) -- lobby chips and buttons hide while driving
+		if on then
+			Players.LocalPlayer:SetAttribute("DroveOnce", true) -- the rest of the lobby buttons show
+		end
 		gui.Enabled = on
 		quickGui.Enabled = QUICK and not on and not building()
 		showFriends()
