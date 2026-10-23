@@ -69,8 +69,8 @@ TileShop.MAX_COPIES = 99
 -- One path (carter 22:51 "plenty of tiles to unlock"): stars open a coin tile, then coins buy
 -- it. Legendary tiles need no stars: coins or the tile spin.
 TileShop.UNLOCK_STARS = {
-	chicane = 3,
-	bumps = 6,
+	chicane = 0, -- open from the start: buy one after your first race
+	bumps = 1,
 	cones = 10,
 	split = 15,
 	mud = 20,
