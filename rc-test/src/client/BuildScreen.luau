@@ -6,7 +6,9 @@
 -- TURN: tap a tile on the grid to turn it a quarter (it spins; PC: R turns the last one). The tile
 --   you just dropped or turned wears a yellow ring and a turn badge, and until you turn one the
 --   hint says TAP TO TURN (carter: "add a way to rotate tiles").
--- ERASE: turn ERASE on, then tap squares.
+--   The big TURN button turns the ringed tile too.
+-- ERASE: turn ERASE on, then tap squares. UNDO takes back the last drop, turn or erase.
+-- GAP: while the track is not READY, red marks show each road end that goes nowhere.
 -- First time: a big hand shows one drag from the bar to the grid, until you do it yourself.
 -- This screen only draws and reports; the server checks everything and sends back the state.
 local GuiService = game:GetService("GuiService")
@@ -195,6 +197,10 @@ function BuildScreen.new(opts: Options): BuildScreen
 	local erasing = false
 	local selected: string? = nil -- the tile just dropped or turned: ringed, R turns it
 	local turnTaught = Players.LocalPlayer:GetAttribute("TurnTaught") == true
+	-- UNDO: what each square held before each change (nil = empty), newest last
+	type Step = { c: number, r: number, before: Cell? }
+	local undoList: { Step } = {}
+	local UNDO_MAX = 40
 
 	-- ===== grid =====
 	local grid = Instance.new("Frame")
@@ -268,7 +274,10 @@ function BuildScreen.new(opts: Options): BuildScreen
 		pad(b, 0.22, 0.08)
 		return b
 	end
-	local eraseBtn = bigButton("Erase", "ERASE", Color3.fromRGB(80, 86, 106))
+	local GREY = Color3.fromRGB(80, 86, 106)
+	local undoBtn = bigButton("Undo", "UNDO", GREY)
+	local turnBtn = bigButton("Turn", "TURN", Color3.fromRGB(70, 120, 220))
+	local eraseBtn = bigButton("Erase", "ERASE", GREY)
 	local doneBtn = bigButton("Done", "DONE", GREEN)
 
 	-- the tile under the finger while dragging a special tile
@@ -316,6 +325,51 @@ function BuildScreen.new(opts: Options): BuildScreen
 
 	local function drawGrid()
 		tiles:ClearAllChildren()
+		-- where the loop is broken: a red mark on each road end that goes nowhere
+		local placed: { BuildLayout.Placed } = {}
+		for _, cell in state.cells do
+			local p = pieceById(cell.piece)
+			if p then
+				table.insert(
+					placed,
+					{ c = cell.c, r = cell.r, ends = BuildLayout.turn(p.ends, cell.rot) }
+				)
+			end
+		end
+		local open = if state.ready
+				or #state.cells < 2
+				or erasing
+			then {}
+			else BuildLayout.openEnds(placed)
+		local EDGE_AT: { [string]: Vector2 } = {
+			N = Vector2.new(0.5, 0),
+			E = Vector2.new(1, 0.5),
+			S = Vector2.new(0.5, 1),
+			W = Vector2.new(0, 0.5),
+		}
+		for _, o in open do
+			local px, py = BuildLayout.cellPos(layout, o.c, o.r, state.rows)
+			local at = EDGE_AT[o.side]
+			local mark = Instance.new("TextLabel")
+			mark.Name = "Gap"
+			mark.AnchorPoint = Vector2.new(0.5, 0.5)
+			mark.Position = UDim2.fromOffset(px + at.X * layout.cell, py + at.Y * layout.cell)
+			mark.Size = UDim2.fromOffset(layout.cell * 0.5, layout.cell * 0.5)
+			mark.BackgroundColor3 = RED
+			mark.Font = Enum.Font.GothamBlack
+			mark.TextScaled = true
+			mark.TextColor3 = WHITE
+			mark.Text = "!"
+			mark.ZIndex = 6
+			mark.Parent = tiles
+			round(mark, 100)
+			rim(mark, WHITE, 2)
+			TweenService:Create(
+				mark,
+				TweenInfo.new(0.45, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+				{ BackgroundTransparency = 0.5 }
+			):Play()
+		end
 		for r = 1, state.rows do
 			for c = 1, state.cols do
 				local f = square(tiles, c, r)
@@ -377,6 +431,24 @@ function BuildScreen.new(opts: Options): BuildScreen
 		local turnTip = selected ~= nil and not turnTaught
 		whyText.Text = BuildLayout.hint(state.ready, gap, erasing, turnTip)
 		whyText.TextColor3 = if gap and not erasing then Color3.fromRGB(255, 140, 130) else WHITE
+		-- TURN and UNDO look off when there is nothing for them to do
+		local canTurn = selected ~= nil and byKey[selected] ~= nil and not erasing
+		turnBtn.BackgroundTransparency = if canTurn then 0 else 0.55
+		turnBtn.TextTransparency = if canTurn then 0 else 0.5
+		undoBtn.BackgroundTransparency = if #undoList > 0 then 0 else 0.55
+		undoBtn.TextTransparency = if #undoList > 0 then 0 else 0.5
+	end
+
+	local function remember(c: number, r: number)
+		local was = byKey[cellKey(c, r)]
+		table.insert(undoList, {
+			c = c,
+			r = r,
+			before = if was then { c = c, r = r, piece = was.piece, rot = was.rot } else nil,
+		})
+		if #undoList > UNDO_MAX then
+			table.remove(undoList, 1)
+		end
 	end
 
 	-- ===== drag a special tile =====
@@ -478,6 +550,7 @@ function BuildScreen.new(opts: Options): BuildScreen
 			TweenService:Create(f, TweenInfo.new(0.15, Enum.EasingStyle.Quad), { Rotation = 90 })
 				:Play()
 		end
+		remember(c, r)
 		opts.onPlace(c, r, here.piece, (here.rot + 1) % 4)
 		drawTop()
 	end
@@ -495,6 +568,7 @@ function BuildScreen.new(opts: Options): BuildScreen
 			return
 		end
 		if erasing then
+			remember(c, r)
 			opts.onRemove(c, r)
 		else
 			turnTile(c, r)
@@ -545,6 +619,7 @@ function BuildScreen.new(opts: Options): BuildScreen
 		local c, r = cellUnder(pointer(input))
 		if wasDrag and c and r then
 			selected = cellKey(c, r)
+			remember(c, r)
 			opts.onDrop(c, r, id)
 			if not taught then
 				taught = true
@@ -590,6 +665,8 @@ function BuildScreen.new(opts: Options): BuildScreen
 		local cols = math.max(2, math.floor((cw + 8) / 108))
 		local card = math.min(130, math.floor((cw - 8 * (cols - 1)) / cols))
 		cardGrid.CellSize = UDim2.fromOffset(card, card + 16)
+		place(undoBtn, layout.undo)
+		place(turnBtn, layout.turn)
 		place(eraseBtn, layout.erase)
 		place(doneBtn, layout.done)
 		drawGrid()
@@ -598,8 +675,28 @@ function BuildScreen.new(opts: Options): BuildScreen
 	eraseBtn.Activated:Connect(function()
 		erasing = not erasing
 		eraseBtn.Text = if erasing then "ERASE: ON" else "ERASE"
-		eraseBtn.BackgroundColor3 = if erasing then RED else Color3.fromRGB(80, 86, 106)
+		eraseBtn.BackgroundColor3 = if erasing then RED else GREY
 		drawGrid()
+		drawTop()
+	end)
+	turnBtn.Activated:Connect(function()
+		local at = if selected and not erasing then byKey[selected] else nil
+		if at then
+			turnTile(at.c, at.r)
+		end
+	end)
+	undoBtn.Activated:Connect(function()
+		local step = table.remove(undoList)
+		if not step then
+			return
+		end
+		selected = cellKey(step.c, step.r)
+		local was = step.before
+		if was then
+			opts.onPlace(step.c, step.r, was.piece, was.rot)
+		else
+			opts.onRemove(step.c, step.r)
+		end
 		drawTop()
 	end)
 	doneBtn.Activated:Connect(function()
@@ -652,6 +749,7 @@ function BuildScreen.new(opts: Options): BuildScreen
 		else
 			dropping, dropInput, dragged = nil, nil, false
 			ghost.Visible = false
+			undoList = {} -- the next break starts fresh
 		end
 	end
 	function screen.destroy()

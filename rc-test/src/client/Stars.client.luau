@@ -4,6 +4,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
@@ -33,6 +34,22 @@ hud.ResetOnSpawn = false
 hud.IgnoreGuiInset = true
 hud.DisplayOrder = HudLayout.HUD
 hud.Parent = gui.Parent
+-- fewer buttons for a brand new player: RIVALS, JOBS and the NEXT bar wait until the first
+-- drive in any car (Lobby sets DroveOnce) or once you have a star; until then it is just stars,
+-- coins and the way to DRIVE
+local later = Instance.new("Frame")
+later.Name = "AfterFirstDrive"
+later.BackgroundTransparency = 1
+later.Size = UDim2.fromScale(1, 1)
+later.Parent = hud
+local function showLater()
+	local stars = player:GetAttribute("Stars")
+	later.Visible = player:GetAttribute("DroveOnce") == true
+		or (type(stars) == "number" and stars > 0)
+end
+player:GetAttributeChangedSignal("DroveOnce"):Connect(showLater)
+player:GetAttributeChangedSignal("Stars"):Connect(showLater)
+showLater()
 
 -- pop-up cards (daily gift, rivals, toasts) sit on top of every other button
 local top = Instance.new("ScreenGui")
@@ -140,7 +157,7 @@ rivalsBtn.TextColor3 = Color3.new(1, 1, 1)
 rivalsBtn.Font = Enum.Font.GothamBlack
 rivalsBtn.TextScaled = true
 rivalsBtn.Text = "RIVALS"
-rivalsBtn.Parent = hud
+rivalsBtn.Parent = later
 local rivalsBtnCorner = Instance.new("UICorner")
 rivalsBtnCorner.CornerRadius = UDim.new(0.3, 0)
 rivalsBtnCorner.Parent = rivalsBtn
@@ -233,7 +250,7 @@ HudLayout.place(jobs, "DailyJobs")
 jobs.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 jobs.BackgroundTransparency = 0.3
 jobs.Visible = false -- until the server sends them
-jobs.Parent = hud
+jobs.Parent = later
 local jobsCorner = Instance.new("UICorner")
 jobsCorner.CornerRadius = UDim.new(0.08, 0)
 jobsCorner.Parent = jobs
@@ -418,7 +435,7 @@ end
 -- "2X COINS" over the top of the screen while workspace.CoinBoost is 2 (Saturday and Sunday)
 local banner = Instance.new("TextLabel")
 banner.Name = "WeekendBanner"
-HudLayout.place(banner, "WeekendBanner") -- under QUICK RACE
+HudLayout.place(banner, "WeekendBanner") -- under the NEXT RACE chip
 banner.BackgroundColor3 = Color3.fromRGB(255, 190, 40)
 banner.TextColor3 = Color3.fromRGB(70, 35, 0)
 banner.Font = Enum.Font.GothamBlack
@@ -544,14 +561,23 @@ local function showDaily(coins: number, streak: number, boost: number)
 		rim.Thickness = if i == today then 3 else 0
 	end
 	-- a brand new player sees the way to their plot first: the gift waits until they have driven
-	-- once (PlotGuide sets HasDriven) and are back on foot, so it never covers the road
+	-- once (PlotGuide sets HasDriven) and are back on foot, so it never covers the road; and no
+	-- race, race card or prize card is up (three cards stacked in the middle, tour3-03)
 	local me = Players.LocalPlayer
-	local waited = 0
-	while
-		(me:GetAttribute("HasDriven") ~= true or me:GetAttribute("Driving") == true)
-		and waited < 600
-	do
-		waited += task.wait(1)
+	local pg = me:WaitForChild("PlayerGui")
+	local function calm(): boolean
+		local race = pg:FindFirstChild("ServerRace")
+		local prizeCard = pg:FindFirstChild("RacePrize", true)
+		return me:GetAttribute("HasDriven") == true
+			and me:GetAttribute("Driving") ~= true
+			and not (race and race:GetAttribute("Busy") == true)
+			and not (prizeCard and (prizeCard :: GuiObject).Visible)
+	end
+	local waited, still = 0, 0
+	while still < 3 and waited < 600 do
+		local dt = task.wait(1)
+		waited += dt
+		still = if calm() then still + dt else 0
 	end
 	if cards ~= mine then
 		return
@@ -696,6 +722,12 @@ end
 local GOLD = Color3.fromRGB(255, 213, 79)
 local GREEN = Color3.fromRGB(110, 225, 120)
 
+-- every tile free (the server's test switch: AllTilesFree, or Studio unless it is set false)
+local function tilesFree(): boolean
+	local free = workspace:GetAttribute("AllTilesFree")
+	return free == true or (free ~= false and RunService:IsStudio())
+end
+
 local function goalText(g: any): (string, string, number)
 	-- (what it is, how far, fill 0..1)
 	local what = if g.kind == "car"
@@ -756,7 +788,7 @@ HudLayout.place(nextBox, "NextUnlock")
 nextBox.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 nextBox.BackgroundTransparency = 0.3
 nextBox.Visible = false -- until the server sends a goal
-nextBox.Parent = hud
+nextBox.Parent = later
 local nextCorner = Instance.new("UICorner")
 nextCorner.CornerRadius = UDim.new(0.2, 0)
 nextCorner.Parent = nextBox
@@ -780,7 +812,7 @@ nextHow.Position = UDim2.fromScale(0, 0.47)
 
 local function showGoalBar(g: any)
 	-- every tile is free (Studio switch): no tile to save up for
-	local allFree = workspace:GetAttribute("AllTilesFree") == true
+	local allFree = tilesFree()
 	if
 		type(g) ~= "table"
 		or type(g.name) ~= "string"
@@ -867,7 +899,8 @@ local function showPrize(before: any)
 		prizeRim.Color = Color3.fromRGB(120, 120, 130)
 	end
 	local what, how, fill = goalText(g)
-	prizeGoal.Text = `{what}   {how}`
+	prizeGoal.Text = if tilesFree() and g.kind == "tile" then "" else `{what}   {how}`
+	prizeBar.Visible = prizeGoal.Text ~= ""
 	prizeGoal.TextColor3 = if g.ready then GREEN else Color3.new(1, 1, 1)
 	local f = prizeBar:FindFirstChild("Fill") :: Frame
 	f.BackgroundColor3 = if g.ready then GREEN else GOLD

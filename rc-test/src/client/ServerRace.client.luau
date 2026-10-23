@@ -35,7 +35,7 @@ end
 -- the countdown chip: a round pill at the top middle (thumbs stay free at the bottom corners)
 local join = Instance.new("TextButton")
 join.Name = "Join"
--- under QUICK RACE on foot, under the drift score in a car
+-- under FRIENDS on foot, under the drift score in a car
 local function placeJoin()
 	HudLayout.place(
 		join,
@@ -191,6 +191,8 @@ RunService.RenderStepped:Connect(function()
 	local starting = phase == "racing" and os.clock() - racingAt < BANNER
 	call.Visible = (phase == "call" and startAt > 0) or starting
 	callClock.Visible = not starting -- the giant 3-2-1 takes over from the clock
+	-- the daily gift (Stars) waits while a race or its card is on screen
+	gui:SetAttribute("Busy", phase == "racing" or phase == "call" or card.Visible)
 	local hurryLeft = endsAt - workspace:GetServerTimeNow()
 	hurry.Visible = phase == "racing" and endsAt > 0 and not finished and hurryLeft > 0
 	if hurry.Visible then
