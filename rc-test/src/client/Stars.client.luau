@@ -113,6 +113,100 @@ local function hideFound()
 	end
 end
 
+-- rivals: a button under the coins opens your score against each player you raced
+local rivalsBtn = Instance.new("TextButton")
+rivalsBtn.Name = "Rivals"
+rivalsBtn.Position = UDim2.new(0.16, 0, 0.2, 76) -- under the coins
+rivalsBtn.Size = UDim2.fromScale(0.13, 0.05)
+rivalsBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+rivalsBtn.BackgroundTransparency = 0.3
+rivalsBtn.TextColor3 = Color3.new(1, 1, 1)
+rivalsBtn.Font = Enum.Font.GothamBlack
+rivalsBtn.TextScaled = true
+rivalsBtn.Text = "RIVALS"
+rivalsBtn.Parent = gui
+local rivalsBtnCorner = Instance.new("UICorner")
+rivalsBtnCorner.CornerRadius = UDim.new(0.3, 0)
+rivalsBtnCorner.Parent = rivalsBtn
+
+local panel = Instance.new("Frame")
+panel.Name = "RivalsPanel"
+panel.AnchorPoint = Vector2.new(0.5, 0.5)
+panel.Position = UDim2.fromScale(0.5, 0.5)
+panel.Size = UDim2.fromScale(0.42, 0.62)
+panel.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+panel.BackgroundTransparency = 0.1
+panel.Visible = false
+panel.Parent = gui
+local panelCorner = Instance.new("UICorner")
+panelCorner.CornerRadius = UDim.new(0.06, 0)
+panelCorner.Parent = panel
+local function panelLabel(name: string, y: number, h: number): TextLabel
+	local l = Instance.new("TextLabel")
+	l.Name = name
+	l.Position = UDim2.fromScale(0.05, y)
+	l.Size = UDim2.fromScale(0.9, h)
+	l.BackgroundTransparency = 1
+	l.TextColor3 = Color3.new(1, 1, 1)
+	l.Font = Enum.Font.GothamBold
+	l.TextScaled = true
+	l.TextXAlignment = Enum.TextXAlignment.Left
+	l.Parent = panel
+	return l
+end
+local title = panelLabel("Title", 0.03, 0.1)
+title.Font = Enum.Font.GothamBlack
+title.Text = "RIVALS"
+local streakLine = panelLabel("Streak", 0.14, 0.07)
+streakLine.TextColor3 = Color3.fromRGB(255, 150, 40)
+local rows: { TextLabel } = {}
+for i = 1, 8 do
+	rows[i] = panelLabel("Row" .. i, 0.23 + (i - 1) * 0.085, 0.075)
+end
+local close = Instance.new("TextButton")
+close.Name = "Close"
+close.AnchorPoint = Vector2.new(1, 0)
+close.Position = UDim2.fromScale(0.97, 0.03)
+close.Size = UDim2.fromScale(0.14, 0.1)
+close.SizeConstraint = Enum.SizeConstraint.RelativeYY
+close.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+close.TextColor3 = Color3.new(1, 1, 1)
+close.Font = Enum.Font.GothamBlack
+close.TextScaled = true
+close.Text = "X"
+close.Parent = panel
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0.5, 0)
+closeCorner.Parent = close
+rivalsBtn.Activated:Connect(function()
+	panel.Visible = not panel.Visible
+end)
+close.Activated:Connect(function()
+	panel.Visible = false
+end)
+
+local function showRivals(list: { any }, streak: number, points: number)
+	streakLine.Text = `win streak {streak}   wins {points}`
+	for i, row in rows do
+		local r = list[i]
+		if type(r) == "table" and type(r.name) == "string" then
+			local w = if type(r.wins) == "number" then r.wins else 0
+			local l = if type(r.losses) == "number" then r.losses else 0
+			row.Text = `{r.name}    you {w} - {l} them`
+			row.TextColor3 = if w > l
+				then Color3.fromRGB(120, 230, 120)
+				elseif w < l then Color3.fromRGB(255, 120, 110)
+				else Color3.new(1, 1, 1)
+		elseif i == 1 then
+			row.Text = "beat a friend's time to start!"
+			row.TextColor3 = Color3.fromRGB(200, 200, 205)
+		else
+			row.Text = ""
+		end
+	end
+end
+showRivals({}, 0, 0)
+
 -- short messages: likes, visit gifts
 local toast = Instance.new("TextLabel")
 toast.Name = "Toast"
@@ -220,6 +314,12 @@ remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unkn
 		local total = saving
 		boltChip.Text = `BOLTS {info}/{if type(total) == "number" then total else 5}`
 		boltChip.Visible = select(1, ...) == true
+		return
+	end
+	if kind == "rivals" and type(info) == "table" then
+		local streak = if type(saving) == "number" then saving else 0
+		local points = select(1, ...)
+		showRivals(info :: { any }, streak, if type(points) == "number" then points else 0)
 		return
 	end
 	if kind == "bolt" and type(info) == "number" then
