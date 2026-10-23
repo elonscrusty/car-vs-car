@@ -218,11 +218,11 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
--- what a racer won (the server sends coins and stars per row): "   +100 🪙  +1 ⭐"
+-- what a racer won (the server sends coins and stars per row): "   +100 coins  +1 ⭐"
 local function paidText(r: any): string
 	local out = ""
 	if type(r.coins) == "number" and r.coins > 0 then
-		out ..= `   <font color="#FFD54F">+{r.coins} 🪙</font>`
+		out ..= `   <font color="#FFD54F">+{r.coins} coins</font>`
 	end
 	if type(r.stars) == "number" and r.stars > 0 then
 		out ..= `  <font color="#FFD54F">+{r.stars} ⭐</font>`

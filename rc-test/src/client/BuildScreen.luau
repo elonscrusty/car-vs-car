@@ -325,7 +325,14 @@ function BuildScreen.new(opts: Options): BuildScreen
 					if selected == cellKey(c, r) and not erasing then
 						-- a ring and a turn badge: "tap me to turn"
 						rim(f, YELLOW, 3)
+						-- above its neighbours; the road bars come up with it (ZIndex is global
+						-- here, so bars left at 1 would hide under the square's own grass)
 						f.ZIndex = 2
+						for _, road in f:GetChildren() do
+							if road:IsA("Frame") then
+								road.ZIndex = 2
+							end
+						end
 						local badge = Instance.new("TextLabel")
 						badge.Name = "Turn"
 						badge.AnchorPoint = Vector2.new(1, 0)
@@ -335,7 +342,7 @@ function BuildScreen.new(opts: Options): BuildScreen
 						badge.Font = Enum.Font.GothamBlack
 						badge.TextScaled = true
 						badge.TextColor3 = DARK
-						badge.Text = "↻"
+						badge.Text = "🔄" -- (↻ has no glyph in Roblox fonts)
 						badge.ZIndex = 5
 						badge.Parent = f
 						round(badge, 100)
