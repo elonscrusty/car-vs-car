@@ -11,6 +11,7 @@ local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local LobbyProps = require(script.Parent.LobbyProps)
 local LobbyWaterBuilder = require(script.Parent.LobbyWaterBuilder)
 local PlazaBuilder = require(script.Parent.PlazaBuilder)
+local SceneryBuilder = require(script.Parent.SceneryBuilder)
 
 local LobbyBuilder = {}
 
@@ -136,9 +137,14 @@ function LobbyBuilder.build(): Built
 	local props = Instance.new("Folder")
 	props.Name = "Props"
 	props.Parent = folder
+	-- plaza trees only: the rest of the lobby's trees, bushes, rocks and fences are SceneryBuilder's
+	local plaza = LobbyLayout.PLAZA
 	for i, t in LobbyLayout.trees() do
-		LobbyProps.tree(props, t.x, t.z, 0.9 + (i % 3) * 0.15)
+		if t.x >= plaza.minX and t.x <= plaza.maxX and t.z >= plaza.minZ and t.z <= plaza.maxZ then
+			LobbyProps.tree(props, t.x, t.z, 0.9 + (i % 3) * 0.15)
+		end
 	end
+	SceneryBuilder.build(folder)
 	for _, l in LobbyLayout.lamps() do
 		LobbyProps.lamp(props, l.x, l.z)
 	end
