@@ -2,7 +2,10 @@
 -- DRIFT plot: one wide loop with long sweeping corners (Tokyo-drift style held slides), an
 -- S-shaped "big sweeper" on the right, and a big round drift pad in the middle with a cone to
 -- circle around. Everything is flat and level so a slide never gets broken by a bump.
--- Matches /mnt/project-files/car-vs-car/rc-plot/plot-drift.png.
+-- Dressed like a real drift track: grass, red and white curbs, tyre walls, lamps, a pit
+-- garage, bleachers, a safety fence and a DRIFT gantry over the start line. carter's Meshy
+-- models are used when imported (ServerStorage.LobbyMeshes), else block stand-ins.
+-- Layout: /mnt/project-files/car-vs-car/rc-plot/drift-look/drift-look-top.png.
 
 -- Sibling loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
 local function sibling(name: string): any
@@ -102,15 +105,564 @@ Plot.start = start
 Plot.spawn = Kit.spawnAt(start, 14)
 Plot.gates = {}
 
-function Plot.build(parent: Instance, origin: CFrame)
-	Kit.ribbon(parent, origin, Plot.loop(), ROAD, { grip = Plot.grip })
+-- ===== Looks (pure data, so the tests can check nothing sits on the road) =====
+-- Only looks: grip, speed and the road shape are not touched. Paint (curbs, lines) lies flat
+-- and nothing can hit it or stand on it, so a slide is never broken.
 
-	-- Start line across the road (painted, no bump).
+-- Colour helper that also loads in Lune (tests have no Color3).
+local function rgb(r: number, g: number, b: number): Color3
+	local c: any = Color3
+	return if c then c.fromRGB(r, g, b) else nil :: any
+end
+
+Plot.LOOK = {
+	grass = rgb(96, 168, 82),
+	asphalt = rgb(104, 104, 110), -- mid grey: the dark skid marks still show on it
+	tire = rgb(32, 32, 34),
+	concrete = rgb(200, 196, 188),
+	metal = rgb(70, 74, 82),
+	roof = rgb(200, 60, 50),
+	wood = rgb(150, 110, 70),
+	yellow = rgb(240, 200, 60),
+} :: { [string]: Color3 }
+Plot.CURB_W = 6 -- red/white curb stripes just outside the road edge in every corner
+Plot.CORNER_TURN = 0.02 -- heading change per sample (radians) that counts as a corner
+Plot.RUNOFF = 12 -- tyre walls stand this far out from the road edge
+
+export type Stripe = { x: number, z: number, tx: number, tz: number, len: number, red: boolean }
+export type Spot = { x: number, z: number, yaw: number }
+
+-- Is this sample in a corner?
+local function cornerFlags(ring: { Kit.Sample }): { boolean }
+	local n = #ring
+	local out = {}
+	for i = 1, n do
+		local a, b = ring[i], ring[(i % n) + 1]
+		local turn = math.acos(math.clamp(a.tx * b.tx + a.tz * b.tz, -1, 1))
+		out[i] = turn > Plot.CORNER_TURN
+	end
+	-- widen each corner by one sample both ways so the curbs start before the turn-in
+	local wide = table.clone(out)
+	for i = 1, n do
+		if out[i] then
+			wide[((i - 2) % n) + 1] = true
+			wide[(i % n) + 1] = true
+		end
+	end
+	return wide
+end
+
+-- Curb stripes (both edges of every corner) and the white edge lines (straights, one long
+-- piece per straight run).
+function Plot.paint(): ({ Stripe }, { Stripe })
+	local ring = Plot.loop()
+	local n = #ring
+	local corner = cornerFlags(ring)
+	local curbs: { Stripe } = {}
+	local lines: { Stripe } = {}
+	local off = ROAD / 2 + Plot.CURB_W / 2
+	for i = 1, n do
+		local a, b = ring[i], ring[(i % n) + 1]
+		if corner[i] then
+			local mx, mz = (a.x + b.x) / 2, (a.z + b.z) / 2
+			local dx, dz = b.x - a.x, b.z - a.z
+			local len = math.sqrt(dx * dx + dz * dz)
+			for _, side in { -1, 1 } do
+				curbs[#curbs + 1] = {
+					x = mx - (dz / len) * off * side,
+					z = mz + (dx / len) * off * side,
+					tx = dx / len,
+					tz = dz / len,
+					len = len + 0.6,
+					red = i % 2 == 0,
+				}
+			end
+		end
+	end
+	-- straight runs: from the first non-corner sample to the last
+	local start = 1
+	while corner[start] and start < n do
+		start += 1
+	end
+	local i = start
+	local count = 0
+	while count < n do
+		if not corner[i] then
+			local j = i
+			local steps = 0
+			while not corner[(j % n) + 1] and steps < n do
+				j = (j % n) + 1
+				steps += 1
+			end
+			local a, b = ring[i], ring[(j % n) + 1]
+			local dx, dz = b.x - a.x, b.z - a.z
+			local len = math.sqrt(dx * dx + dz * dz)
+			if len > 1 then
+				for _, side in { -1, 1 } do
+					local o = ROAD / 2 - 2
+					lines[#lines + 1] = {
+						x = (a.x + b.x) / 2 - (dz / len) * o * side,
+						z = (a.z + b.z) / 2 + (dx / len) * o * side,
+						tx = dx / len,
+						tz = dz / len,
+						len = len,
+						red = false,
+					}
+				end
+			end
+			count += steps + 1
+			i = (j % n) + 1
+		else
+			count += 1
+			i = (i % n) + 1
+		end
+	end
+	return curbs, lines
+end
+
+-- Tyre stacks along the outside of each corner, RUNOFF out from the road edge, one about every
+-- 14 along the corner.
+function Plot.tires(): { Spot }
+	local ring = Plot.loop()
+	local n = #ring
+	local corner = cornerFlags(ring)
+	local out: { Spot } = {}
+	local walked = 0
+	for i = 1, n do
+		local a, b = ring[i], ring[(i % n) + 1]
+		if corner[i] then
+			-- outside of the turn: the side the heading turns away from
+			local cross = a.tx * b.tz - a.tz * b.tx
+			local side = if cross < 0 then 1 else -1
+			local d = ROAD / 2 + Plot.RUNOFF
+			walked += math.sqrt((b.x - a.x) ^ 2 + (b.z - a.z) ^ 2)
+			if walked >= 14 and math.abs(cross) > Plot.CORNER_TURN then
+				walked = 0
+				local x, z = a.x - a.tz * d * side, a.z + a.tx * d * side
+				if Kit.inArea(x, z) then
+					out[#out + 1] = { x = x, z = z, yaw = math.atan2(a.tx, a.tz) }
+				end
+			end
+		else
+			walked = 14
+		end
+	end
+	return out
+end
+
+-- Light poles on the open floor outside the loop, and the start gantry over the line.
+Plot.LAMPS = {
+	{ x = -148, z = 130, yaw = 0 },
+	{ x = 148, z = 130, yaw = 0 },
+	{ x = 148, z = -40, yaw = 0 },
+	{ x = 148, z = -204, yaw = 0 },
+	{ x = -148, z = -204, yaw = 0 },
+	{ x = -148, z = -40, yaw = 0 },
+} :: { Spot }
+Plot.LAMP_H = 34
+
+-- Pit garage in the infield behind the pad, open toward the stand: a concrete floor, three
+-- walls and a red roof, with a workbench, toolbox, tyre rack, gas cans and a jack inside.
+Plot.PIT = { x = 2, z = -117, w = 70, d = 28, h = 20 }
+Plot.PIT_PROPS = {
+	{ name = "Workbench", x = -14, z = -127, yaw = 0, h = 7, size = { 18, 7, 7 }, color = "wood" },
+	{ name = "Toolbox", x = 2, z = -128, yaw = 0, h = 6, size = { 8, 6, 5 }, color = "roof" },
+	{
+		name = "WheelRack",
+		x = 24,
+		z = -127,
+		yaw = 0,
+		h = 10,
+		size = { 14, 10, 6 },
+		color = "metal",
+	},
+	{ name = "GasCan", x = 28, z = -125, yaw = 0.4, h = 4, size = { 3, 4, 2 }, color = "roof" },
+	{ name = "OilCan", x = 32, z = -121, yaw = -0.3, h = 3, size = { 2, 3, 2 }, color = "metal" },
+	{
+		name = "FloorJack",
+		x = -26,
+		z = -111,
+		yaw = 0.6,
+		h = 2.5,
+		size = { 4, 2.5, 9 },
+		color = "metal",
+	},
+	{ name = "TireStack", x = -30, z = -125, yaw = 0, h = 6, size = { 7, 6, 7 }, color = "tire" },
+}
+
+-- Bleachers on the open floor behind the back straight, facing the stand side.
+Plot.BLEACHERS = { x = 0, z = -207, w = 110, d = 10, rows = 3, rowH = 3 }
+
+-- Low red and white safety fence just inside the side and back walls.
+Plot.FENCE = { inset = 6, h = 5, post = 40 }
+
+-- Start gantry over the start line: two posts beyond the road edges and a beam with a sign.
+Plot.GANTRY = { h = 28, beam = 4 }
+
+-- Marker cones round the drift pad edge (paint-like: the car drives through them).
+Plot.PAD_CONES = 8
+
+-- A copy of carter's Meshy prop `name` (ServerStorage.LobbyMeshes, imported in Studio, so it
+-- can be missing: then nil and the caller builds a block stand-in), `height` tall, standing at
+-- `at` (plot local). Import 3D brings models in huge with the front at +Z.
+local function meshProp(
+	parent: Instance,
+	origin: CFrame,
+	name: string,
+	at: CFrame,
+	height: number
+): Model?
+	local folder = game:GetService("ServerStorage"):FindFirstChild("LobbyMeshes")
+	local t = folder and folder:FindFirstChild(name)
+	if not t or not (t:IsA("Model") or t:IsA("BasePart")) then
+		return nil
+	end
+	local m: Model
+	if t:IsA("Model") then
+		m = t:Clone()
+	else
+		m = Instance.new("Model")
+		m.Name = name
+		local part = (t :: BasePart):Clone()
+		part.Parent = m
+		m.PrimaryPart = part
+	end
+	for _, d in m:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.Anchored = true
+		end
+	end
+	local _, size = m:GetBoundingBox()
+	if size.Y > 0 then
+		m:ScaleTo(m:GetScale() * height / size.Y)
+	end
+	local box, sized = m:GetBoundingBox()
+	m.WorldPivot = CFrame.new(box.Position - Vector3.new(0, sized.Y / 2, 0))
+		* CFrame.Angles(0, math.pi, 0)
+	m:PivotTo(origin * at)
+	m.Parent = parent
+	return m
+end
+
+-- Paint: flat, and nothing can hit it, stand on it or ray-cast it (the car's wheels look
+-- straight through it to the road or the ground below).
+local function paint(p: BasePart)
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.CastShadow = false
+end
+
+local function stripe(parent: Instance, origin: CFrame, s: Stripe, width: number, color: Color3)
+	local pos = Vector3.new(s.x, TOP + 0.06, s.z)
+	local p = Kit.part(
+		parent,
+		"Paint",
+		origin,
+		Vector3.new(width, 0.1, s.len),
+		CFrame.lookAt(pos, pos + Vector3.new(s.tx, 0, s.tz)),
+		color
+	)
+	paint(p)
+end
+
+-- A tyre stack: carter's Meshy one, or three black rings.
+local function tireStack(parent: Instance, origin: CFrame, x: number, z: number, yaw: number)
+	local at = CFrame.new(x, 0, z) * CFrame.Angles(0, yaw, 0)
+	if meshProp(parent, origin, "TireStack", at, 6) then
+		return
+	end
+	local L = Plot.LOOK
+	for k = 0, 2 do
+		local ring = Kit.disc(parent, "Tire", origin, x, 1 + k * 2, z, 3.2, 2, L.tire)
+		ring.Material = Enum.Material.Rubber
+		if k == 1 then
+			ring.Color = C.white
+		end
+	end
+end
+
+local function lamp(parent: Instance, origin: CFrame, spot: Spot)
+	local h = Plot.LAMP_H
+	local at = CFrame.new(spot.x, 0, spot.z) * CFrame.Angles(0, spot.yaw, 0)
+	-- carter's Meshy floodlight if imported, else his street lamp, else blocks
+	if
+		meshProp(parent, origin, "FloodLight", at, h)
+		or meshProp(parent, origin, "StreetLamp", at, h)
+	then
+		return
+	end
+	local L = Plot.LOOK
+	Kit.part(
+		parent,
+		"Lamp",
+		origin,
+		Vector3.new(2, h, 2),
+		CFrame.new(spot.x, h / 2, spot.z),
+		L.metal
+	)
+	Kit.part(
+		parent,
+		"Lamp",
+		origin,
+		Vector3.new(8, 2, 5),
+		CFrame.new(spot.x, h + 1, spot.z),
+		L.metal
+	)
+	local glow = Kit.part(
+		parent,
+		"LampGlow",
+		origin,
+		Vector3.new(7, 0.4, 4),
+		CFrame.new(spot.x, h - 0.2, spot.z),
+		rgb(255, 244, 200)
+	)
+	glow.Material = Enum.Material.Neon
+	paint(glow)
+end
+
+local function pit(parent: Instance, origin: CFrame)
+	local L = Plot.LOOK
+	local p = Plot.PIT
+	local floor = Kit.part(
+		parent,
+		"PitFloor",
+		origin,
+		Vector3.new(p.w, TOP, p.d),
+		CFrame.new(p.x, TOP / 2, p.z),
+		L.concrete
+	)
+	floor:SetAttribute("Grip", Plot.grip)
+	local back = p.z - p.d / 2
+	Kit.part(
+		parent,
+		"PitWall",
+		origin,
+		Vector3.new(p.w, p.h, 1.5),
+		CFrame.new(p.x, p.h / 2, back),
+		L.concrete
+	)
+	for _, side in { -1, 1 } do
+		Kit.part(
+			parent,
+			"PitWall",
+			origin,
+			Vector3.new(1.5, p.h, p.d),
+			CFrame.new(p.x + side * p.w / 2, p.h / 2, p.z),
+			L.concrete
+		)
+	end
+	-- red roof, a little past the walls, and a yellow stripe along its front edge
+	Kit.part(
+		parent,
+		"PitRoof",
+		origin,
+		Vector3.new(p.w + 4, 1.5, p.d + 4),
+		CFrame.new(p.x, p.h + 0.75, p.z + 1),
+		L.roof
+	)
+	Kit.part(
+		parent,
+		"PitRoof",
+		origin,
+		Vector3.new(p.w + 4, 3, 1),
+		CFrame.new(p.x, p.h, p.z + p.d / 2 + 3),
+		L.yellow
+	)
+	for _, pr in Plot.PIT_PROPS do
+		local at = CFrame.new(pr.x, TOP, pr.z) * CFrame.Angles(0, pr.yaw, 0)
+		if not meshProp(parent, origin, pr.name, at, pr.h) then
+			local sz = Vector3.new(pr.size[1], pr.size[2], pr.size[3])
+			Kit.part(parent, pr.name, origin, sz, at * CFrame.new(0, sz.Y / 2, 0), L[pr.color])
+		end
+	end
+end
+
+local function bleachers(parent: Instance, origin: CFrame)
+	local L = Plot.LOOK
+	local b = Plot.BLEACHERS
+	-- carter's Meshy bleachers if imported (turned to face the track), else block steps
+	local at = CFrame.new(b.x, 0, b.z) * CFrame.Angles(0, math.pi, 0)
+	if meshProp(parent, origin, "Bleachers", at, b.rows * b.rowH + 4) then
+		return
+	end
+	local rowD = b.d / b.rows
+	for r = 1, b.rows do
+		local h = r * b.rowH
+		-- each row a step higher and further back (away from the track, toward the wall)
+		local z = b.z + b.d / 2 - (r - 0.5) * rowD
+		Kit.part(
+			parent,
+			"Bleacher",
+			origin,
+			Vector3.new(b.w, h, rowD),
+			CFrame.new(b.x, h / 2, z),
+			if r % 2 == 1 then L.wood else L.concrete
+		)
+	end
+end
+
+local function fence(parent: Instance, origin: CFrame)
+	local f = Plot.FENCE
+	local a = Kit.AREA
+	local x0, x1 = a.minX + f.inset - 8, a.maxX - f.inset + 8
+	local z0, z1 = a.minZ + f.inset - 8, a.maxZ + 8
+	local runs = {
+		{ Vector3.new(x0, 0, z0), Vector3.new(x1, 0, z0) },
+		{ Vector3.new(x0, 0, z0), Vector3.new(x0, 0, z1) },
+		{ Vector3.new(x1, 0, z0), Vector3.new(x1, 0, z1) },
+	}
+	for _, run in runs do
+		local from, to = run[1], run[2]
+		local len = (to - from).Magnitude
+		local n = math.max(1, math.round(len / f.post))
+		for k = 0, n do
+			local p = from:Lerp(to, k / n)
+			Kit.part(
+				parent,
+				"FencePost",
+				origin,
+				Vector3.new(1.2, f.h, 1.2),
+				CFrame.new(p.X, f.h / 2, p.Z),
+				C.white
+			)
+		end
+		for r, y in { f.h - 0.6, f.h * 0.5 } do
+			Kit.slab(
+				parent,
+				"FenceRail",
+				origin,
+				from + Vector3.new(0, y, 0),
+				to + Vector3.new(0, y, 0),
+				0.6,
+				0.8,
+				0,
+				if r == 1 then C.red else C.white
+			)
+		end
+	end
+end
+
+local function gantry(parent: Instance, origin: CFrame)
+	local L = Plot.LOOK
+	local g = Plot.GANTRY
+	local s = start
+	local rx, rz = -s.tz, s.tx -- across the road
+	local half = ROAD / 2 + 10 -- posts well out, where a wide slide won't reach
+	for _, side in { -1, 1 } do
+		Kit.part(
+			parent,
+			"Gantry",
+			origin,
+			Vector3.new(2.5, g.h, 2.5),
+			CFrame.new(s.x + rx * half * side, g.h / 2, s.z + rz * half * side),
+			L.metal
+		)
+	end
+	local mid = Vector3.new(s.x, g.h - g.beam / 2, s.z)
+	local beam = Kit.part(
+		parent,
+		"Gantry",
+		origin,
+		Vector3.new(half * 2 + 2.5, g.beam, 2),
+		-- lookAt's right vector runs across the road, so the beam's length (X) spans it
+		CFrame.lookAt(mid, mid + Vector3.new(s.tx, 0, s.tz)),
+		L.tire
+	)
+	-- the sign faces the cars coming to the line (they drive along +tx) and the stand
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 20
+	local text = Instance.new("TextLabel")
+	text.Size = UDim2.fromScale(1, 1)
+	text.BackgroundTransparency = 1
+	text.Text = "DRIFT"
+	text.TextScaled = true
+	text.Font = Enum.Font.GothamBlack
+	text.TextColor3 = L.yellow
+	text.Parent = gui
+	gui.Parent = beam
+	local back = gui:Clone()
+	back.Face = Enum.NormalId.Back
+	back.Parent = beam
+	meshProp(
+		parent,
+		origin,
+		"StartLight",
+		CFrame.new(s.x, g.h, s.z) * CFrame.Angles(0, math.atan2(s.tx, s.tz), 0),
+		6
+	)
+end
+
+local function padCones(parent: Instance, origin: CFrame)
+	local pad = Plot.PAD
+	for k = 1, Plot.PAD_CONES do
+		local a = (k - 1) / Plot.PAD_CONES * 2 * math.pi
+		local x, z = pad.x + math.cos(a) * (pad.r + 4), pad.z + math.sin(a) * (pad.r + 4)
+		local at = CFrame.new(x, TOP, z)
+		local m = meshProp(parent, origin, "Cone", at, 4)
+		if m then
+			for _, d in m:GetDescendants() do
+				if d:IsA("BasePart") then
+					paint(d)
+				end
+			end
+		else
+			local base = Kit.part(
+				parent,
+				"PadCone",
+				origin,
+				Vector3.new(3, 0.4, 3),
+				at * CFrame.new(0, 0.2, 0),
+				C.orange
+			)
+			local top = Kit.disc(parent, "PadCone", origin, x, TOP + 2, z, 0.9, 3.6, C.orange)
+			top.Size = Vector3.new(3.6, 1.8, 1.8)
+			top.CFrame = origin * CFrame.new(x, TOP + 2.2, z) * CFrame.Angles(0, 0, math.rad(90))
+			paint(base)
+			paint(top)
+		end
+	end
+end
+
+function Plot.build(parent: Instance, origin: CFrame)
+	local L = Plot.LOOK
+
+	-- grass on the plot floor (the base built it grey; same grip, only the look changes)
+	local ground = parent:FindFirstChild("Ground")
+	if ground and ground:IsA("BasePart") then
+		ground.Color = L.grass
+		ground.Material = Enum.Material.Grass
+	end
+
+	-- the road: asphalt, same shape and grip as before
+	local road = Instance.new("Folder")
+	road.Name = "DriftRoad"
+	road.Parent = parent
+	Kit.ribbon(road, origin, Plot.loop(), ROAD, { grip = Plot.grip, color = L.asphalt })
+	for _, d in road:GetChildren() do
+		if d:IsA("BasePart") then
+			d.Material = Enum.Material.Asphalt
+		end
+	end
+
+	local curbs, lines = Plot.paint()
+	for _, s in curbs do
+		stripe(parent, origin, s, Plot.CURB_W, if s.red then C.red else C.white)
+	end
+	for _, s in lines do
+		stripe(parent, origin, s, 1.6, C.white)
+	end
+
+	-- Start line across the road (painted, no bump) and the gantry over it.
 	Kit.line(parent, origin, start.x, TOP, start.z, start.tx, start.tz, ROAD, C.white)
+	gantry(parent, origin)
 
 	-- Drift pad: flush with the road, same grip, a painted white ring, and the cone.
 	local pad = Plot.PAD
-	local disc = Kit.disc(parent, "DriftPad", origin, pad.x, TOP / 2, pad.z, pad.r, TOP, C.road)
+	local disc = Kit.disc(parent, "DriftPad", origin, pad.x, TOP / 2, pad.z, pad.r, TOP, L.asphalt)
+	disc.Material = Enum.Material.Asphalt
 	disc:SetAttribute("Grip", Plot.grip)
 	local bits = 40
 	local seg = 2 * math.pi * pad.r / bits + 1
@@ -118,10 +670,32 @@ function Plot.build(parent: Instance, origin: CFrame)
 		local a = (i - 0.5) / bits * 2 * math.pi
 		local x, z = pad.x + math.cos(a) * pad.r, pad.z + math.sin(a) * pad.r
 		-- Kit.line runs its length across (dx, dz), so face it outward to lay it along the ring.
-		Kit.line(parent, origin, x, TOP, z, math.cos(a), math.sin(a), seg, C.white)
+		local ring = Kit.line(
+			parent,
+			origin,
+			x,
+			TOP,
+			z,
+			math.cos(a),
+			math.sin(a),
+			seg,
+			if i % 2 == 0 then C.red else C.white
+		)
+		paint(ring)
 	end
 	local cone = Plot.CONE
 	Kit.disc(parent, "Cone", origin, pad.x, cone.h / 2, pad.z, cone.r, cone.h, C.orange)
+	padCones(parent, origin)
+
+	for _, t in Plot.tires() do
+		tireStack(parent, origin, t.x, t.z, t.yaw)
+	end
+	for _, spot in Plot.LAMPS do
+		lamp(parent, origin, spot)
+	end
+	pit(parent, origin)
+	bleachers(parent, origin)
+	fence(parent, origin)
 end
 
 return Plot
