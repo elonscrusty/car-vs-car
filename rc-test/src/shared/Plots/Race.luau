@@ -157,7 +157,7 @@ local DECOR: { Decor } = {
 	decor("toolbox", 150, -8, -PI / 2, 3, true),
 	decor("gasCan", 112, 2, 0.4, 2.5, true),
 	-- race control tower in the V behind the hairpin, with a windsock
-	decor("tower", -8, -198, PI, 30, true, 12, 12, 40),
+	decor("tower", -8, -196, PI, 30, true, 20, 20, 44),
 	decor("windsock", 18, -210, PI, 16, false),
 	-- trees: leafy ones in the infield, pines in the back corners
 	decor("leafyTree", -78, -72, 0.3, 18, true),
@@ -180,12 +180,16 @@ for i = 0, 6 do
 	table.insert(DECOR, decor("tires", -10 + 46 * math.sin(a), -108 + 46 * math.cos(a), a, 5, true))
 end
 -- flags on the outer walls: red on the left, blue on the right, yellow at the back
+-- (each flag turned to face the middle of the plot, so its cloth reads from inside the track)
+local function inward(x: number, z: number): number
+	return math.atan2(x, z) -- yaw whose front looks from (x, z) towards (0, 0)
+end
 for z = -180, 120, 60 do
-	table.insert(DECOR, decor("flag", -153, z, -PI / 2, 14, false))
-	table.insert(DECOR, decor("blueFlag", 153, z, PI / 2, 14, false))
+	table.insert(DECOR, decor("flag", -153, z, inward(-153, z), 14, false))
+	table.insert(DECOR, decor("blueFlag", 153, z, inward(153, z), 14, false))
 end
 for x = -120, 120, 60 do
-	table.insert(DECOR, decor("flag", x, -213, 0, 14, false))
+	table.insert(DECOR, decor("flag", x, -213, inward(x, -213), 14, false))
 end
 Plot.DECOR = DECOR
 
@@ -209,6 +213,10 @@ local MESH: { [string]: string } = {
 	blueFlag = "BlueFlag",
 }
 Plot.DECOR_MESH = MESH
+-- Meshy models whose front is the other way round from the rest (carter saw them backwards).
+local MESH_TURN: { [string]: number } = {
+	grandstand = PI, -- seats face the main straight and the stand
+}
 
 local function setSolid(m: Instance, solid: boolean)
 	local all = m:GetDescendants()
@@ -407,16 +415,18 @@ local function buildArch(parent: Instance, origin: CFrame)
 			CFrame.new(s * (inner + 1.5), h / 2, 0),
 			C.blue
 		)
+		-- the foot wraps the post's bottom (bigger on every side, so no faces share a plane)
 		Kit.part(
 			arch,
 			"ArchFoot",
 			at,
-			Vector3.new(4, 3, 6),
-			CFrame.new(s * (inner + 2), 1.5, 0),
+			Vector3.new(4.6, 3, 6),
+			CFrame.new(s * (inner + 1.5), 1.5, 0),
 			C.blue
 		)
 	end
-	local span = 2 * (inner + 3)
+	-- the beam runs between the posts' inner faces (it used to run into them and flicker)
+	local span = 2 * inner
 	local cells = 10
 	for row = 0, 1 do
 		for i = 0, cells - 1 do
@@ -488,7 +498,8 @@ local function buildDecor(parent: Instance, origin: CFrame, loop: { Kit.Sample }
 		local name = MESH[e.kind]
 		local m: Instance? = nil
 		if name then
-			m = meshProp(folder, name, at, e.meshH or e.h, e.w, e.d)
+			local turn = MESH_TURN[e.kind] or 0
+			m = meshProp(folder, name, at * CFrame.Angles(0, turn, 0), e.meshH or e.h, e.w, e.d)
 		end
 		if not m then
 			m = blocks(folder, e, at)
