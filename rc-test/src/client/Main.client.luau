@@ -14,6 +14,7 @@ local Tuning = require(ReplicatedStorage.Shared.Tuning)
 local setMode: (id: string) -> () = (Tuning :: any).setMode
 local setScale: (s: number) -> () = (Tuning :: any).setScale
 
+local CarSkin = require(script.Parent.CarSkin)
 local ChaseCamera = require(script.Parent.ChaseCamera)
 local Controls = require(script.Parent.Controls)
 local Effects = require(script.Parent.Effects)
@@ -88,6 +89,7 @@ local car = RCCar.new(model, ignoreList())
 local camera = ChaseCamera.new(body, ignoreList(), eye)
 camera.setView(view)
 local effects = Effects.new(car.telemetry)
+local skin = CarSkin.new() -- the truck model on the rock car (look only)
 local rc = true -- T flips to the big test size while driving
 local swapping = false
 
@@ -382,6 +384,7 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 			cam.CameraSubject = hum
 		end
 		car.render(dt) -- keep the parked car's wheels drawn
+		skin.update(car, tracks[current].id == "rock")
 		effects.quiet()
 		return
 	end
@@ -389,6 +392,7 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 		return
 	end
 	car.render(dt)
+	skin.update(car, tracks[current].id == "rock")
 	effects.update(dt)
 	camera.update(dt)
 	controls.setRock(tracks[current].id == "rock")
