@@ -20,6 +20,7 @@ local Controls = require(script.Parent.Controls)
 local Effects = require(script.Parent.Effects)
 local Hud = require(script.Parent.Hud)
 local Lobby = require(script.Parent.Lobby)
+local LobbySky = require(script.Parent.LobbySky)
 local RCCar = require(script.Parent.RCCar)
 
 local player = Players.LocalPlayer
@@ -255,6 +256,7 @@ local lobby = Lobby.new(remote, function(): boolean
 	return rc and not swapping
 end)
 local function setWalking(on: boolean)
+	LobbySky.set(on)
 	walking = on
 	gui.Enabled = not on
 	lobby.setDriving(not on)
