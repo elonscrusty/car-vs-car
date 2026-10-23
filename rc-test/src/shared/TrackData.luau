@@ -24,6 +24,8 @@ export type Gate = {
 	depth: number,
 }
 export type Spawn = { x: number, y: number, z: number, dx: number, dz: number }
+-- a flag partway along a plot: drive through its gate and a reset brings you back here
+export type Checkpoint = { u: number, gate: Gate, spawn: Spawn }
 
 export type Track = {
 	id: string,
@@ -33,6 +35,7 @@ export type Track = {
 	grip: number, -- floor grip multiplier (1 = normal)
 	spawn: Spawn,
 	gates: { Gate },
+	checkpoints: { Checkpoint }?,
 }
 
 local TrackData = {}
@@ -63,6 +66,7 @@ function TrackData.get(id: string): Track
 		grip = p.grip,
 		spawn = p.spawn,
 		gates = p.gates,
+		checkpoints = (p :: any).checkpoints, -- only some plots have them
 	}
 end
 

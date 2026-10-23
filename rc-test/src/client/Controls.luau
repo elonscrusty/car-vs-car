@@ -287,6 +287,16 @@ function Controls.new(
 	viewBtn.Parent = gui
 	viewBtn.Activated:Connect(onView)
 
+	-- rocks only: a RESET button (where CAM sits elsewhere) that puts the car back a bit
+	local backBtn = resetBtn:Clone()
+	backBtn.Name = "Reset"
+	backBtn.Text = "RESET"
+	backBtn.Position = UDim2.new(0.91, 0, 0, 64)
+	backBtn.Size = UDim2.fromScale(0.065, 0.09)
+	backBtn.Visible = false
+	backBtn.Parent = gui
+	backBtn.Activated:Connect(onReset)
+
 	local help: TextLabel? = nil
 	if not touchUi then
 		help = Instance.new("TextLabel")
@@ -308,7 +318,7 @@ function Controls.new(
 	local NORMAL_HELP =
 		"W/S gas + brake    A/D steer    SPACE drift    C show cam    V chase cam    T size    1-4 plots"
 	local ROCK_HELP =
-		"W/S gas + brake    A/D steer    drag to look    wheel to zoom    T size    1-4 plots"
+		"W/S gas + brake    A/D steer    drag to look    wheel to zoom    R reset    T size    1-4 plots"
 	local onRock: boolean? = nil
 	-- rocks is free cam only: no camera buttons, and the help says how to look around
 	function controls.setRock(on: boolean)
@@ -319,6 +329,7 @@ function Controls.new(
 		-- CAM and VIEW do nothing there, so hide both and close the gap
 		viewBtn.Visible = not on
 		camBtn.Visible = not on
+		backBtn.Visible = on
 		sizeBtn.Position = if on then UDim2.new(0.98, 0, 0, 64) else UDim2.new(0.84, 0, 0, 64)
 		if help then
 			help.Text = if on then ROCK_HELP else NORMAL_HELP

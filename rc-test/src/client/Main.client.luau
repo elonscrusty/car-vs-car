@@ -114,6 +114,7 @@ getEye = function(): Vector3
 	return Vector3.new(x, (TrackData.STAND_H + 4.5 / TrackData.RC_SCALE) * Tuning.scale, z)
 end
 local driftChain, driftTotal, driftHold = 0, 0, 0
+local checkpoint = 0 -- last checkpoint flag driven through on this plot (0 = none)
 local driftHeld = 0 -- seconds this slide has been held (longer = bigger multiplier)
 
 local hud: Hud.Hud
@@ -134,6 +135,7 @@ local function goTo(index: number)
 		effects.clear()
 	end
 	LapTimer.reset(timers[index])
+	checkpoint = 0
 	driftChain, driftTotal, driftHold, driftHeld = 0, 0, 0, 0
 	local s = t.spawn
 	local x, y, z = TrackData.toWorld(t, rc, s.x, s.y, s.z)
@@ -193,12 +195,29 @@ beep.Parent = script
 local stuckTime = 0
 local stuckFrom = Vector3.zero
 local creep = 0 -- average ground speed lately (for the stuck check)
+-- Plots with checkpoint flags: a reset (R, RESET, fell off, out) brings the car back to the last
+-- flag it drove through instead of the start. R twice quickly = start.
+local lastReset = -10
 local function reset()
 	if walking then
 		return
 	end
 	stuckTime = 0
 	beep:Play()
+	local now = os.clock()
+	local again = now - lastReset < 1.5
+	lastReset = now
+	local t = tracks[current]
+	local cps = t.checkpoints
+	if cps and checkpoint > 0 and not again then
+		local s = cps[checkpoint].spawn
+		local x, y, z = TrackData.toWorld(t, rc, s.x, s.y, s.z)
+		local pos = Vector3.new(x, y, z)
+		car.teleport(CFrame.lookAt(pos, pos + Vector3.new(s.dx, 0, s.dz)))
+		camera.snap()
+		hud.flash("BACK TO CHECKPOINT")
+		return
+	end
 	goTo(current)
 end
 
@@ -341,13 +360,23 @@ RunService.PreSimulation:Connect(function(dt: number)
 	else
 		stuckTime = 0
 	end
-	if stuckTime > Tuning.stuckWait then
+	-- rocks: being stuck is part of crawling, so it never resets by itself (R or RESET does)
+	if stuckTime > Tuning.stuckWait and t.id ~= "rock" then
 		reset()
 		hud.flash("STUCK - BACK TO START")
 	end
 
 	-- fell off the world, or got out of the plot
 	local lx, _, lz = TrackData.toLocal(t, rc, p.X, p.Y, p.Z)
+	local cps = t.checkpoints
+	if cps then
+		for k = checkpoint + 1, #cps do
+			if LapTimer.inside(cps[k].gate, lx, ly, lz) then
+				checkpoint = k
+				hud.flash("CHECKPOINT")
+			end
+		end
+	end
 	if p.Y < -8 * Tuning.scale / TrackData.RC_SCALE then
 		reset()
 	elseif not TrackData.inPlot(lx, lz) then
