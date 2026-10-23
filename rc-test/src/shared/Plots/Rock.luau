@@ -57,8 +57,6 @@ Plot.grip = 1
 Plot.ROAD = ROAD
 Plot.HALF_WIDTH = HALF
 Plot.CELL = CELL
-Plot.GRASS_DRAG = 10 -- extra rolling drag on the grass (the car reads the "Drag" attribute); high,
--- because drag grows with speed and the crawler is slow
 Plot.RIM = 10 -- the rock wall round the back and sides stands this high above the ground
 Plot.FRONT_RIM = 3 -- and this high along the front, under the stand's view
 Plot.SUMMIT_WALL = 5 -- the wall across the far end of the summit stands this high
@@ -491,7 +489,7 @@ table.insert(Plot.gates, gate(Plot.FINISH_U, 6))
 
 -- ===== Building (Roblox only) =====
 
-type Look = { name: string, color: Color3, material: Enum.Material, drag: number? }
+type Look = { name: string, color: Color3, material: Enum.Material }
 
 local function yawCF(x: number, y: number, z: number, tx: number, tz: number): CFrame
 	local pos = Vector3.new(x, y, z)
@@ -509,9 +507,6 @@ local function wedge(parent: Instance, origin: CFrame, size: Vector3, cf: CFrame
 	w.TopSurface = Enum.SurfaceType.Smooth
 	w.BottomSurface = Enum.SurfaceType.Smooth
 	w:SetAttribute("Grip", Plot.grip)
-	if look.drag then
-		w:SetAttribute("Drag", look.drag)
-	end
 	w.Parent = parent
 end
 
@@ -571,7 +566,6 @@ local function looks(): { [string]: Look }
 			name = "Grass",
 			color = Color3.fromRGB(86, 150, 70),
 			material = Enum.Material.Grass,
-			drag = Plot.GRASS_DRAG,
 		},
 		rock = { name = "Ground", color = C.rock, material = Enum.Material.Slate },
 		-- domes on the trail: drivable rock, a little lighter so they stand out
