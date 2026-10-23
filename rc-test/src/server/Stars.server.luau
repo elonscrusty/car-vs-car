@@ -6,8 +6,8 @@
 -- once per medal per owner. Owners come from the lobby plots (attribute OwnerId on each
 -- workspace.Plots model). In Studio an unowned plot counts as a test owner, so one person can
 -- try the stars.
--- Server -> client (StarsEvent): ("stars", count, saving), ("run", info), ("coins", count) and
--- ("toast", text). The client never sends.
+-- Server -> client (StarsEvent): ("stars", count, saving), ("run", info), ("coins", count),
+-- ("toast", text), ("bolts", found, total, onRock), ("bolt", id) and ("boltsFound", ids). The client never sends.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -240,6 +240,7 @@ local function onRun(player: Player, slotIndex: number, mode: string, value: num
 	then
 		PlayerData.touch(player)
 		remote:FireClient(player, "coins", data.coins)
+		remote:FireClient(player, "boltsFound", Profile.boltList(data))
 		remote:FireClient(player, "toast", `+{Profile.VISIT_COINS} 🪙 visit gift`)
 		local host = ownerPlayer(slotIndex)
 		local hostData = host and PlayerData.get(host)
@@ -295,6 +296,76 @@ end
 local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
+-- ===== gold bolts on the rock climb =====
+-- The Rock plot puts them in: any BasePart under a plot with a number attribute BoltId (1..5).
+-- Drive the car right up to one to pick it up; found ones stay found (saved) and are hidden on
+-- the finder's screen.
+
+local BOLT_REACH = 3.5 -- studs from the car's middle
+local boltCache: { [number]: { { id: number, part: BasePart } } } = {}
+local boltWatch: { [number]: boolean } = {}
+local onRock: { [Player]: boolean } = {}
+
+local function boltsOf(slotIndex: number): { { id: number, part: BasePart } }
+	local cached = boltCache[slotIndex]
+	if cached then
+		return cached
+	end
+	local out = {}
+	local m = plotModel(slotIndex)
+	if m then
+		for _, d in m:GetDescendants() do
+			local id = d:GetAttribute("BoltId")
+			if d:IsA("BasePart") and type(id) == "number" then
+				table.insert(out, { id = id, part = d })
+			end
+		end
+		-- the plot can change (bolts added later): look again then
+		if not boltWatch[slotIndex] then
+			boltWatch[slotIndex] = true
+			m.DescendantAdded:Connect(function(d)
+				if d:GetAttribute("BoltId") ~= nil then
+					boltCache[slotIndex] = nil
+				end
+			end)
+		end
+	end
+	boltCache[slotIndex] = out
+	return out
+end
+
+local function sendBolts(player: Player, rock: boolean)
+	local data = PlayerData.get(player)
+	local found = if data then #Profile.boltList(data) else 0
+	remote:FireClient(player, "bolts", found, Profile.BOLTS, rock)
+end
+
+local function setRock(player: Player, rock: boolean)
+	if (onRock[player] or false) ~= rock then
+		onRock[player] = rock
+		sendBolts(player, rock)
+	end
+end
+
+local function checkBolts(player: Player, slotIndex: number, pos: Vector3)
+	local data = PlayerData.get(player)
+	if not data then
+		return
+	end
+	for _, b in boltsOf(slotIndex) do
+		if b.part.Parent and (b.part.Position - pos).Magnitude <= BOLT_REACH then
+			if Profile.findBolt(data, b.id) then
+				PlayerData.touch(player)
+				local n = #Profile.boltList(data)
+				remote:FireClient(player, "bolt", b.id)
+				remote:FireClient(player, "toast", `🔩 gold bolt! {n}/{Profile.BOLTS}`)
+				sendBolts(player, true)
+				print(`[Stars] bolt {b.id} by {player.Name} ({n}/{Profile.BOLTS})`)
+			end
+		end
+	end
+end
+
 local function look(now: number)
 	for i in slots do
 		tracks[i] = trackOf(i)
@@ -304,6 +375,7 @@ local function look(now: number)
 		local body = car and (car :: Model).PrimaryPart
 		if not (car and body) then
 			watching[player] = nil
+			setRock(player, false)
 			continue
 		end
 		local cf = body.CFrame
@@ -311,9 +383,14 @@ local function look(now: number)
 		local w = watching[player]
 		if slotIndex == nil then
 			watching[player] = nil
+			setRock(player, false)
 			continue
 		end
 		local t = tracks[slotIndex]
+		setRock(player, t.id == "rock")
+		if t.id == "rock" then
+			checkBolts(player, slotIndex, cf.Position)
+		end
 		if not (w and w.car == car and w.slot == slotIndex and w.mode == t.id) then
 			local cps: { RunCheck.Spot } = {}
 			for _, cp in t.checkpoints or {} do
@@ -380,12 +457,14 @@ end
 PlayerData.loaded:Connect(function(player: Player, data: Profile.Data, saving: boolean)
 	remote:FireClient(player, "stars", data.stars, saving)
 	remote:FireClient(player, "coins", data.coins)
+	remote:FireClient(player, "boltsFound", Profile.boltList(data))
 	showAll() -- their plot's board shows their saved record
 end)
 
 Players.PlayerRemoving:Connect(function(player)
 	watching[player] = nil
 	lastLike[player] = nil
+	onRock[player] = nil
 	task.defer(showAll)
 end)
 

@@ -14,18 +14,20 @@ export type Data = {
 	likes: number, -- likes my plot got
 	liked: { [string]: boolean }, -- plot owners I liked (once each, ever)
 	visited: { [string]: number }, -- plot owner -> the day I last got their visit gift
+	bolts: { [string]: boolean }, -- gold bolts found on the rock climb ("1".."5")
 }
 export type Lock = { job: string, at: number }
 
 local Profile = {}
 
-Profile.VERSION = 2 -- 2: likes, liked, visited
+Profile.VERSION = 3 -- 2: likes, liked, visited. 3: bolts
 Profile.MAX_OWNERS = 500 -- keeps the save small; stars from more owners than this stop counting
 Profile.LOCK_TIMEOUT = 300 -- a server that hasn't saved for this long is gone: its lock is stale
 Profile.MODES = { "race", "drift", "rock" }
 Profile.MAX_LIST = 500 -- liked / visited entries kept
 Profile.VISIT_COINS = 20 -- the visitor's gift (once per plot owner per day)
 Profile.HOST_COINS = 10 -- the owner's share of it
+Profile.BOLTS = 5 -- gold bolts hidden on the rock climb, each on top of a hard climb
 
 function Profile.new(): Data
 	return {
@@ -37,6 +39,7 @@ function Profile.new(): Data
 		likes = 0,
 		liked = {},
 		visited = {},
+		bolts = {},
 	}
 end
 
@@ -117,6 +120,14 @@ function Profile.migrate(raw: any): Data
 				and count(d.visited) < Profile.MAX_LIST
 			then
 				d.visited[owner] = math.floor(day)
+			end
+		end
+	end
+	if type(raw.bolts) == "table" then
+		for id, yes in raw.bolts do
+			local n = tonumber(id)
+			if yes == true and n and n == math.floor(n) and n >= 1 and n <= Profile.BOLTS then
+				d.bolts[tostring(n)] = true
 			end
 		end
 	end
@@ -205,6 +216,28 @@ function Profile.visit(d: Data, selfId: number, ownerId: number, day: number): b
 	d.visited[key] = day
 	d.coins += Profile.VISIT_COINS
 	return true
+end
+
+-- Found gold bolt `id` (1..BOLTS): true the first time.
+function Profile.findBolt(d: Data, id: number): boolean
+	if id ~= math.floor(id) or id < 1 or id > Profile.BOLTS then
+		return false
+	end
+	local key = tostring(id)
+	if d.bolts[key] then
+		return false
+	end
+	d.bolts[key] = true
+	return true
+end
+
+function Profile.boltList(d: Data): { number }
+	local out = {}
+	for key in d.bolts do
+		table.insert(out, tonumber(key) :: number)
+	end
+	table.sort(out)
+	return out
 end
 
 -- May this server (job) take the save? Free, ours already, or the other server stopped saving.
