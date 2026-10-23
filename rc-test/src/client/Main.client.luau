@@ -193,12 +193,30 @@ beep.Parent = script
 local stuckTime = 0
 local stuckFrom = Vector3.zero
 local creep = 0 -- average ground speed lately (for the stuck check)
+-- Rocks: a few recent safe spots (all wheels down, upright, in the plot), so a reset puts the
+-- car back a little way behind where it was instead of at the start. R twice quickly = start.
+local safeSpots: { CFrame } = {}
+local safeClock = 0
+local lastReset = -10
 local function reset()
 	if walking then
 		return
 	end
 	stuckTime = 0
 	beep:Play()
+	local now = os.clock()
+	local again = now - lastReset < 1.5
+	lastReset = now
+	local spot = safeSpots[1]
+	if tracks[current].id == "rock" and spot and not again then
+		table.clear(safeSpots)
+		safeClock = 0
+		car.teleport(spot + Vector3.new(0, 0.5 * Tuning.scale, 0))
+		camera.snap()
+		hud.flash("BACK A BIT")
+		return
+	end
+	table.clear(safeSpots)
 	goTo(current)
 end
 
@@ -341,13 +359,31 @@ RunService.PreSimulation:Connect(function(dt: number)
 	else
 		stuckTime = 0
 	end
-	if stuckTime > Tuning.stuckWait then
+	-- rocks: being stuck is part of crawling, so it never resets by itself (R or RESET does)
+	if stuckTime > Tuning.stuckWait and t.id ~= "rock" then
 		reset()
 		hud.flash("STUCK - BACK TO START")
 	end
 
 	-- fell off the world, or got out of the plot
 	local lx, _, lz = TrackData.toLocal(t, rc, p.X, p.Y, p.Z)
+	if t.id == "rock" then
+		safeClock += dt
+		if
+			safeClock > 1
+			and car.telemetry.grounded == 4
+			and body.CFrame.UpVector.Y > 0.9
+			and TrackData.inPlot(lx, lz)
+		then
+			safeClock = 0
+			table.insert(safeSpots, body.CFrame)
+			if #safeSpots > 3 then
+				table.remove(safeSpots, 1)
+			end
+		end
+	elseif #safeSpots > 0 then
+		table.clear(safeSpots)
+	end
 	if p.Y < -8 * Tuning.scale / TrackData.RC_SCALE then
 		reset()
 	elseif not TrackData.inPlot(lx, lz) then
