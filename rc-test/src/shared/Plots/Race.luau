@@ -147,7 +147,7 @@ end
 
 local DECOR: { Decor } = {
 	-- grandstand in the infield, facing the main straight and the driver stand
-	decor("grandstand", -20, 66, PI, 12, true, 70, 24, 22),
+	decor("grandstand", -20, 62, PI, 12, true, 70, 36, 30),
 	decor("speaker", -60, 64, PI, 7, true),
 	decor("speaker", 20, 64, PI, 7, true),
 	decor("startLight", -70, 90, PI, 10, false),
@@ -172,7 +172,7 @@ local DECOR: { Decor } = {
 	decor("pineTree", -34, -204, 2.4, 22, true),
 	decor("bush", 144, 134, 0, 5, true),
 	decor("bush", -144, 134, 1, 5, true),
-	decor("bush", 0, 44, 2, 5, true),
+	decor("bush", -4, 32, 2, 5, true),
 }
 -- tyre wall round the outside of the hairpin (out in the infield grass)
 for i = 0, 6 do
