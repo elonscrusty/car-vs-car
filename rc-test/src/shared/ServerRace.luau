@@ -1,7 +1,8 @@
 --!strict
--- The server race: every 15 minutes everyone can join one race on a race plot (carter's loop,
--- /mnt/project-files/rc-game/loop-answers.md). Pure maths here (plain tables, Lune tests it):
--- when the next race is, what the street sign says, the grid spots and the finishing order.
+-- The server race (carter's loop, /mnt/project-files/rc-game/build-track/PLAN.md): a 5 minute
+-- break to build and shop, then the whole server races on one random player's plot, then the
+-- next break. Pure maths here (plain tables, Lune tests it): what the street sign says, which
+-- plot, the grid spots and the finishing order.
 
 -- Loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
 local function sibling(name: string): any
@@ -23,8 +24,8 @@ export type Entry = {
 
 local ServerRace = {}
 
-ServerRace.PERIOD = 15 * 60 -- a race every 15 minutes (on the clock, the same on every server)
-ServerRace.CALL = 60 -- the JOIN button shows this long before the start
+ServerRace.BREAK = 5 * 60 -- the break between races (build, shop, drive your own plot)
+ServerRace.CALL = 10 -- the plot is picked and named this long before the start
 ServerRace.LAPS = 3
 ServerRace.MAX = 8 -- cars on the grid
 ServerRace.TIME_LIMIT = 240 -- seconds from GO: the race ends even if nobody finished
@@ -37,26 +38,41 @@ ServerRace.GRID_SIDE = 7
 ServerRace.GRID_ROW = 12
 ServerRace.BACK = 14 -- the pole's distance behind the line (the plot's own start spot)
 
--- The next start (clock seconds) after `now`.
-function ServerRace.nextStart(now: number): number
-	return (math.floor(now / ServerRace.PERIOD) + 1) * ServerRace.PERIOD
-end
-
 -- 754 -> "12:34"
 function ServerRace.clock(secs: number): string
 	local s = math.max(0, math.ceil(secs))
 	return string.format("%d:%02d", s // 60, s % 60)
 end
 
--- What the sign over the street says, `left` seconds before the start (racing = a race is on).
-function ServerRace.signText(left: number, racing: boolean): string
+-- Whose track it is, for the sign and the screens: "MIA'S TRACK" ("" = not picked yet).
+function ServerRace.trackName(owner: string?): string
+	if owner == nil or owner == "" then
+		return ""
+	end
+	return string.upper(owner) .. "'S TRACK"
+end
+
+-- What the sign over the street says, `left` seconds before the start (racing = a race is on;
+-- where = trackName of the picked plot).
+function ServerRace.signText(left: number, racing: boolean, where: string?): string
+	local at = if where and where ~= "" then "\n" .. where else ""
 	if racing then
-		return "SERVER RACE\nRACING NOW!"
+		return "RACING NOW!" .. at
 	end
 	if left <= ServerRace.CALL then
-		return "SERVER RACE\nJOIN NOW! " .. ServerRace.clock(left)
+		return "RACE IN " .. ServerRace.clock(left) .. at
 	end
-	return "SERVER RACE IN\n" .. ServerRace.clock(left)
+	return "NEXT RACE IN\n" .. ServerRace.clock(left)
+end
+
+-- Which plot the round is on: a random one of the race-ready player plots (`owned`), else a
+-- random one of the rest (`spare`, the street's own race plots). r = a random number 0..1.
+function ServerRace.pick(owned: { number }, spare: { number }, r: number): number?
+	local list = if #owned > 0 then owned else spare
+	if #list == 0 then
+		return nil
+	end
+	return list[math.clamp(math.floor(r * #list) + 1, 1, #list)]
 end
 
 -- A point of the road's centre line, with its travel direction (Kit samples are like this).
