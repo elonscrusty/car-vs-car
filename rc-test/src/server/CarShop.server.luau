@@ -3,7 +3,7 @@
 -- Looks only: a car changes how you look, never how fast you go.
 -- Client -> server (RemoteFunction CarShop): ("state") / ("buy", id) / ("equip", id) /
 -- ("spin") / ("buyTile", id) / ("spinTile"). Every call answers with the player's state:
---   { coins, owned = { id }, equipped = { mode = id }, tiles = { tile id }, ok, why?,
+--   { coins, owned = { id }, equipped = { mode = id }, tiles = { tile id }, stars, ok, why?,
 --     car? (spin), tile? (spinTile), new? (spin, spinTile) }
 -- Track tiles are TileShop's (the build screen asks TileShop.owns / count on the save).
 -- Each player's chosen car per mode is also on the Player as attributes Car_drift, Car_race and
@@ -61,6 +61,7 @@ local function state(data: any): { [string]: any }
 		owned = owned,
 		equipped = equipped,
 		tiles = TileShop.owned(data),
+		stars = data.stars or 0,
 		ok = true,
 	}
 end

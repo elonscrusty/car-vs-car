@@ -33,6 +33,7 @@ type State = {
 	owned: { string },
 	equipped: { [string]: string },
 	tiles: { string }?,
+	stars: number?,
 	ok: boolean,
 	why: string?,
 	car: string?,
@@ -453,9 +454,10 @@ local function showTiles(s: State, result: string?)
 		corner(dot, 0.5)
 		local legendary = t.tier == "legendary"
 		text(row, t.name, 0.1, 0.08, 0.3, 0.5, Color3.new(1, 1, 1), true)
+		local at = TileShop.unlockAt(t.id)
 		text(
 			row,
-			TIER_WORDS[t.tier] or "",
+			if at > 0 then `opens at {at} stars` else TIER_WORDS[t.tier] or "",
 			0.1,
 			0.58,
 			0.3,
@@ -472,6 +474,9 @@ local function showTiles(s: State, result: string?)
 			b = button(row, "HAVE", Color3.fromRGB(60, 180, 80), false)
 			b.BackgroundColor3 = Color3.fromRGB(60, 180, 80)
 			b.TextColor3 = Color3.new(1, 1, 1)
+		elseif (s.stars or 0) < at then
+			-- not open yet: win stars on other people's tracks
+			b = button(row, `{at} stars`, GOLD, false)
 		else
 			local can = s.coins >= t.price
 			b = button(row, needWords(t.price, s.coins), Color3.fromRGB(240, 170, 20), can)
