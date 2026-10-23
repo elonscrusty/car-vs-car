@@ -129,10 +129,33 @@ local driving: { [Player]: number } = {} -- player -> lobby plot (slot) index
 local driverOf: { [number]: Player } = {} -- slot index -> player
 local lastPrompt: { [Player]: number } = {}
 
+-- the name board over each plot's entrance arch (PlotDecor's), road side: same text as the sign
+local archNames: { [number]: TextLabel } = {}
+for _, d in workspace.Plots:GetDescendants() do
+	local slotIndex = d:GetAttribute("Slot")
+	if d:IsA("BasePart") and d:GetAttribute("NameBoard") and typeof(slotIndex) == "number" then
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = (Enum.NormalId :: any)[d:GetAttribute("NameFace") or "Back"]
+		gui.Parent = d
+		local text = Instance.new("TextLabel")
+		text.Size = UDim2.fromScale(1, 1)
+		text.BackgroundTransparency = 1
+		text.Font = Enum.Font.GothamBlack
+		text.TextScaled = true
+		text.TextColor3 = Color3.fromRGB(30, 30, 34)
+		text.Parent = gui
+		archNames[slotIndex] = text
+	end
+end
+
 local function setSign(slotIndex: number)
 	local who = driverOf[slotIndex]
-	lobby.signs[slotIndex].Text =
-		LobbyLayout.signText(if who then who.DisplayName else nil, slots[slotIndex].label)
+	local text = LobbyLayout.signText(if who then who.DisplayName else nil, slots[slotIndex].label)
+	lobby.signs[slotIndex].Text = text
+	local arch = archNames[slotIndex]
+	if arch then
+		arch.Text = text
+	end
 end
 for i in slots do
 	setSign(i)
