@@ -23,8 +23,15 @@ type Entry = { data: Profile.Data, canSave: boolean, dirty: boolean, gone: boole
 local job = if game.JobId ~= "" then game.JobId else "studio-" .. HttpService:GenerateGUID(false)
 local entries: { [Player]: Entry } = {}
 local loading: { [Player]: true } = {}
-local loaded = Instance.new("BindableEvent")
-PlayerData.loaded = loaded.Event -- (player, data, saving)
+-- `loaded` (player, data, saving). Not a BindableEvent: Fire would hand each listener a COPY of
+-- `data`, so changes made there (the daily gift, pings) never reached the saved table.
+type Listener = (Player, Profile.Data, boolean) -> ()
+local listeners: { Listener } = {}
+PlayerData.loaded = {
+	Connect = function(_self: any, fn: Listener)
+		table.insert(listeners, fn)
+	end,
+}
 
 local store: DataStore? = nil
 do
@@ -131,7 +138,9 @@ function PlayerData.load(player: Player)
 	end
 	local final = data or Profile.new()
 	entries[player] = { data = final, canSave = canSave, dirty = false, gone = false }
-	loaded:Fire(player, final, canSave)
+	for _, fn in listeners do
+		task.spawn(fn, player, final, canSave)
+	end
 end
 
 function PlayerData.save(player: Player, letGo: boolean)
