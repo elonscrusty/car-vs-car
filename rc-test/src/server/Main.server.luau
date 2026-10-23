@@ -31,6 +31,7 @@ PlotDecorBuilder.build()
 PlotLooksBuilder.start()
 local lobby = LobbyBuilder.build()
 LobbyPlots.init()
+require(script.Parent.PlotStandsBuilder).start() -- owners' cars on their plot's stands
 local slots = LobbyLayout.slots()
 
 -- Client -> server: ("place", rc: boolean, slotIndex: number) when a drive (re)starts (only
