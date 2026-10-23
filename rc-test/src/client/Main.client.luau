@@ -266,6 +266,8 @@ end, function()
 	local c = SmokeColors.LIST[smokeIndex]
 	effects.setSmokeColor(Color3.fromRGB(c.rgb[1], c.rgb[2], c.rgb[3]))
 	hud.flash(`{c.name} SMOKE`)
+end, function(on: boolean)
+	hud.flash(if on then "AUTO GAS ON" else "AUTO GAS OFF")
 end)
 
 -- Walking <-> driving. Only the server switches (E on a stand, or WALK), this side follows.
