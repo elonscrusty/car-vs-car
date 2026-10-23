@@ -197,8 +197,11 @@ test("rock steps: tall steps up, on a straight, an easy way round, nothing else 
 	local st = Plot.STEPS
 	local blocks = Plot.stepBlocks()
 	eq(#blocks, st.n)
+	-- the first rise counts from the ground in front (the trail climbs right up to it)
+	local below = Plot.height(st.from - st.lead)
 	for _, b in blocks do
-		local rise = b.top - Plot.height(b.u0)
+		local rise = b.top - below
+		below = b.top
 		-- tall: holding the gas stalls, it takes backing up and another go
 		truthy(rise > Plot.MAX_LIFT and rise <= Plot.SKILL_STEP, `step at {b.u0} rises {rise}`)
 	end
