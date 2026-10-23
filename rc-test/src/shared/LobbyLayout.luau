@@ -65,11 +65,11 @@ LobbyLayout.LAKE_SIDE = 1
 
 local LAST_Z = LobbyLayout.FIRST_Z + (LobbyLayout.ROWS - 1) * LobbyLayout.STEP
 local ROAD_MIN_Z = LobbyLayout.FIRST_Z - LobbyLayout.PLOT_W / 2 - 10
--- The spawn lobby (SpawnLobby's): 120 x 72 at the top of the road, open toward it.
+-- The spawn lobby (SpawnLobby's): 120 x 81 at the top of the road, open toward it.
 LobbyLayout.PLAZA = {
 	minX = -60,
 	maxX = 60,
-	minZ = ROAD_MIN_Z - 72,
+	minZ = ROAD_MIN_Z - 81,
 	maxZ = ROAD_MIN_Z,
 }
 

@@ -18,6 +18,7 @@ local LobbyBuilder = {}
 export type Built = {
 	prompts: { [number]: ProximityPrompt }, -- by slot index
 	signs: { [number]: TextLabel },
+	spawn: CFrame?, -- where people appear (the spawn lobby's spot, once it is built)
 }
 
 local part = LobbyProps.part
@@ -165,7 +166,9 @@ function LobbyBuilder.build(): Built
 		local p = LobbyLayout.PLAZA
 		local mid = Vector3.new(0, 0, (p.minZ + p.maxZ) / 2)
 		local SpawnLobby: any = require(spawnLobby :: ModuleScript)
-		SpawnLobby.build(folder, CFrame.lookAt(mid, mid + Vector3.new(0, 0, 1)))
+		local at = CFrame.lookAt(mid, mid + Vector3.new(0, 0, 1))
+		SpawnLobby.build(folder, at)
+		built.spawn = SpawnLobby.spawnCFrame(at)
 	end
 
 	LobbyWaterBuilder.build(folder)

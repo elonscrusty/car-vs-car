@@ -149,7 +149,7 @@ local function loadWalker(player: Player)
 	end
 	addRemote(char)
 	local x, y, z = LobbyLayout.spawn()
-	char:PivotTo(CFrame.lookAt(Vector3.new(x, y, z), Vector3.new(x, y, z + 1)))
+	char:PivotTo(lobby.spawn or CFrame.lookAt(Vector3.new(x, y, z), Vector3.new(x, y, z + 1)))
 	local hum = char:FindFirstChildOfClass("Humanoid")
 	if hum then
 		hum.Died:Connect(function()
