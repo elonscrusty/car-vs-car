@@ -2,8 +2,10 @@
 -- The car shops and the gumball machine (CarCatalog's rules, the player's save from PlayerData).
 -- Looks only: a car changes how you look, never how fast you go.
 -- Client -> server (RemoteFunction CarShop): ("state") / ("buy", id) / ("equip", id) /
--- ("spin"). Every call answers with the player's car state:
---   { coins, owned = { id }, equipped = { mode = id }, ok, why?, car? (spin), new? (spin) }
+-- ("spin") / ("buyTile", id) / ("spinTile"). Every call answers with the player's state:
+--   { coins, owned = { id }, equipped = { mode = id }, tiles = { tile id }, ok, why?,
+--     car? (spin), tile? (spinTile), new? (spin, spinTile) }
+-- Track tiles are TileShop's (the build screen asks TileShop.owns / count on the save).
 -- Each player's chosen car per mode is also on the Player as attributes Car_drift, Car_race and
 -- Car_rock (car ids), for whoever draws the cars, and the shop cars owned are in "Cars"
 -- ("<kind>:<index>" into Garage.SHOPS, comma separated: the plot stands show them).
@@ -12,6 +14,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
+local TileShop = require(ReplicatedStorage.Shared.TileShop)
 local PlayerData = require(script.Parent.PlayerData)
 
 local GAP = 0.3 -- seconds between calls from one player
@@ -35,7 +38,7 @@ local function setAttributes(player: Player, data: CarCatalog.Save)
 	player:SetAttribute("Cars", table.concat(shown, ","))
 end
 
-local function state(data: CarCatalog.Save): { [string]: any }
+local function state(data: any): { [string]: any }
 	local owned = {}
 	for _, list in CarCatalog.SHOP do
 		for _, c in list do
@@ -53,7 +56,13 @@ local function state(data: CarCatalog.Save): { [string]: any }
 	for _, mode in CarCatalog.MODES do
 		equipped[mode] = CarCatalog.equipped(data, mode).id
 	end
-	return { coins = data.coins, owned = owned, equipped = equipped, ok = true }
+	return {
+		coins = data.coins,
+		owned = owned,
+		equipped = equipped,
+		tiles = TileShop.owned(data),
+		ok = true,
+	}
 end
 
 -- The coin chip on screen is Stars' (StarsEvent "coins"): keep it right after a spend.
@@ -107,6 +116,25 @@ remote.OnServerInvoke = function(player: Player, action: unknown, id: unknown): 
 		local out = state(data)
 		out.ok, out.why = car ~= nil, if car then nil else "coins"
 		out.car, out.new = if car then car.id else nil, new
+		return out
+	elseif action == "buyTile" then
+		local ok, why = TileShop.buy(data, id)
+		if ok then
+			PlayerData.touch(player)
+			showCoins(player, data.coins)
+		end
+		local out = state(data)
+		out.ok, out.why = ok, why
+		return out
+	elseif action == "spinTile" then
+		local tile, new = TileShop.spin(data, math.random() * 100)
+		if tile then
+			PlayerData.touch(player)
+			showCoins(player, data.coins)
+		end
+		local out = state(data)
+		out.ok, out.why = tile ~= nil, if tile then nil else "coins"
+		out.tile, out.new = if tile then tile.id else nil, new
 		return out
 	end
 	return { ok = false, why = "unknown" }

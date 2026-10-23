@@ -27,6 +27,7 @@ export type Data = {
 	cars: { [string]: boolean }, -- CarCatalog ids bought or won (starters are everyone's anyway)
 	equipped: { [string]: string }, -- mode -> the car id driven in that mode
 	track: Track?, -- my built track (nil = the starter circle); the grid size comes from stars
+	tiles: { [string]: number }, -- TileShop ids -> copies owned (free tiles are everyone's anyway)
 }
 -- One placed tile: column, row (from 1), TrackTiles piece id, quarter turns 0..3.
 export type Tile = { c: number, r: number, piece: string, rot: number }
@@ -37,8 +38,8 @@ export type Lock = { job: string, at: number }
 
 local Profile = {}
 
-Profile.VERSION = 9 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift.
--- 6: daily jobs. 7: looks, lookOff. 8: cars, equipped. 9: track
+Profile.VERSION = 10 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift.
+-- 6: daily jobs. 7: looks, lookOff. 8: cars, equipped. 9: track. 10: tiles (owned)
 Profile.MAX_OWNERS = 500 -- keeps the save small; stars from more owners than this stop counting
 Profile.LOCK_TIMEOUT = 300 -- a server that hasn't saved for this long is gone: its lock is stale
 Profile.MODES = { "race", "drift", "rock" }
@@ -55,6 +56,7 @@ Profile.MAX_LOOKS = 32 -- look ids kept (the shop has fewer)
 Profile.MAX_CARS = 200 -- car ids kept (far more cars than exist)
 Profile.MAX_GRID = 16 -- tiles outside 1..MAX_GRID columns / rows are dropped
 Profile.MAX_TILES = Profile.MAX_GRID * Profile.MAX_GRID
+Profile.MAX_TILE_IDS = 64 -- owned tile ids kept (far more than exist)
 
 function Profile.new(): Data
 	return {
@@ -78,6 +80,7 @@ function Profile.new(): Data
 		lookOff = {},
 		cars = {},
 		equipped = {},
+		tiles = {},
 	}
 end
 
@@ -280,6 +283,20 @@ function Profile.migrate(raw: any): Data
 				and count(d.cars) < Profile.MAX_CARS
 			then
 				d.cars[id] = true
+			end
+		end
+	end
+	if type(raw.tiles) == "table" then
+		for id, n in raw.tiles do
+			-- true (one copy) is fine too
+			local copies = if n == true then 1 elseif goodNumber(n) then math.floor(n) else 0
+			if
+				type(id) == "string"
+				and #id <= 40
+				and copies > 0
+				and count(d.tiles) < Profile.MAX_TILE_IDS
+			then
+				d.tiles[id] = math.min(copies, 99)
 			end
 		end
 	end
