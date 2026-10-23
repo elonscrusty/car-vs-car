@@ -173,3 +173,20 @@ test("lamps, pit and bleachers stay off the road and the pad", function()
 		)
 	end
 end)
+
+test("road pieces close the gap on the outside of every bend", function()
+	local pieces = Plot.roadPieces()
+	local n = #pieces
+	for i = 1, n do
+		local a, b = pieces[i], pieces[(i % n) + 1]
+		-- heading change between this piece and the next
+		local ax, az = a.bx - a.ax, a.bz - a.az
+		local bx, bz = b.bx - b.ax, b.bz - b.az
+		local la, lb = math.sqrt(ax * ax + az * az), math.sqrt(bx * bx + bz * bz)
+		local turn = math.acos(math.clamp((ax * bx + az * bz) / (la * lb), -1, 1))
+		-- each piece reaches extra / 2 past the joint; the outside gap needs half width * tan
+		local need = (Plot.ROAD / 2) * math.tan(turn / 2)
+		truthy(a.extra / 2 >= need and b.extra / 2 >= need, `gap at joint {i}`)
+		truthy(a.bx == b.ax and a.bz == b.az, "pieces must join end to start")
+	end
+end)
