@@ -149,9 +149,38 @@ function Profile.getTrack(d: Data): Track?
 	return d.track
 end
 
+local function sameTrack(a: Track?, b: Track?): boolean
+	local at, bt = if a then a.tiles else {}, if b then b.tiles else {}
+	if #at ~= #bt then
+		return false
+	end
+	local key = function(t: Tile): string
+		return `{t.c},{t.r},{t.piece},{t.rot}`
+	end
+	local seen: { [string]: boolean } = {}
+	for _, t in at do
+		seen[key(t)] = true
+	end
+	for _, t in bt do
+		if not seen[key(t)] then
+			return false
+		end
+	end
+	return true
+end
+
 -- Save a new track (`tiles` nil = back to the starter circle). The caller then PlayerData.touch.
-function Profile.setTrack(d: Data, tiles: { Tile }?)
-	d.track = if tiles then Profile.cleanTrack(tiles) else nil
+-- A changed track clears my plot's records: old times on another road don't compare. Returns
+-- whether the track changed.
+function Profile.setTrack(d: Data, tiles: { Tile }?): boolean
+	local new = if tiles then Profile.cleanTrack(tiles) else nil
+	if sameTrack(d.track, new) then
+		d.track = new
+		return false
+	end
+	d.track = new
+	d.plotRecords = {}
+	return true
 end
 
 function Profile.migrate(raw: any): Data

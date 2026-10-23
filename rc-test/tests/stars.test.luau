@@ -491,3 +491,19 @@ test("medals: a built track's race times stretch with its loop length", function
 	-- drift points never stretch
 	eq(Medals.target("drift", 0.5), Medals.TARGETS.drift)
 end)
+
+test("track: a changed track clears my plot records, the same track keeps them", function()
+	local d = Profile.new()
+	d.plotRecords.race = { value = 20, name = "Mia", userId = 2 }
+	local tiles =
+		{ { c = 1, r = 1, piece = "turn", rot = 1 }, { c = 2, r = 1, piece = "straight", rot = 1 } }
+	eq(Profile.setTrack(d, tiles), true)
+	eq(d.plotRecords.race, nil)
+	d.plotRecords.race = { value = 21, name = "Mia", userId = 2 }
+	-- same tiles in another order: no change
+	eq(Profile.setTrack(d, { tiles[2], tiles[1] }), false)
+	truthy(d.plotRecords.race)
+	eq(Profile.setTrack(d, nil), true)
+	eq(d.plotRecords.race, nil)
+	eq(Profile.setTrack(d, nil), false)
+end)
