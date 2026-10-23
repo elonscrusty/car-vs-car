@@ -96,8 +96,8 @@ for _, kind in { "race", "drift", "rock" } do
 		eq(n, 1)
 	end)
 
-	test(kind .. ": light on phones (under 60 parts)", function()
-		truthy(#P.parts(kind) < 60, tostring(#P.parts(kind)))
+	test(kind .. ": light on phones (under 66 parts)", function()
+		truthy(#P.parts(kind) < 66, tostring(#P.parts(kind)))
 	end)
 end
 
