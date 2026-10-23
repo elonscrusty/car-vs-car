@@ -531,6 +531,9 @@ local otherCars = OtherCars.new(function(): string
 	return carName
 end)
 
+local boosting = false -- was on a boost last frame
+local airTime = 0 -- seconds in the air up to last frame
+
 RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, function(dt: number)
 	otherCars.update(dt)
 	if walking then
@@ -552,6 +555,17 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 	car.render(dt)
 	skin.update(car, SKINS[tracks[current].id])
 	effects.update(dt)
+	-- boost pads and jumps: a wider view and a word on screen so you know what happened
+	local tel = car.telemetry
+	if tel.boost > 0 and not boosting then
+		camera.kick(14)
+		hud.flash("BOOST!")
+	end
+	boosting = tel.boost > 0
+	if tel.landed > 0 and airTime > 0.8 then
+		hud.flash("BIG AIR!")
+	end
+	airTime = tel.air
 	camera.update(dt)
 	controls.setRock(tracks[current].id == "rock")
 	-- driver view looks out of the person's eyes: hide them on this screen so the head and hat

@@ -16,6 +16,9 @@ export type Telemetry = {
 	slip: number,
 	grounded: number, -- how many wheels touch
 	drifting: boolean,
+	boost: number, -- seconds of boost-pad push left
+	air: number, -- seconds with no wheel down
+	landed: number, -- 0..1 how hard the car came down this frame (0 on other frames)
 	wheels: { WheelInfo },
 }
 
@@ -26,6 +29,7 @@ export type WheelInfo = {
 	contact: Vector3, -- where the tyre meets the ground
 	normal: Vector3,
 	slide: number, -- sideways sliding speed of the tyre (studs/s)
+	surface: string, -- name of the part under the tyre ("" in the air), for splashes and dust
 }
 
 -- A look-only skin for the wheels: mesh wheels drawn on the springs in place of the grey ones.
@@ -98,6 +102,7 @@ local function makeWheel(folder: Folder, attach: Vector3, front: boolean): Wheel
 			contact = Vector3.zero,
 			normal = Vector3.yAxis,
 			slide = 0,
+			surface = "",
 		},
 	}
 end
@@ -136,8 +141,17 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 	for i, w in wheels do
 		infos[i] = w.info
 	end
-	local telemetry: Telemetry =
-		{ speed = 0, vLong = 0, slip = 0, grounded = 0, drifting = false, wheels = infos }
+	local telemetry: Telemetry = {
+		speed = 0,
+		vLong = 0,
+		slip = 0,
+		grounded = 0,
+		drifting = false,
+		boost = 0,
+		air = 0,
+		landed = 0,
+		wheels = infos,
+	}
 
 	local car = {} :: Car
 	car.model = model
@@ -282,6 +296,7 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 					latScale *= 1 - Tuning.powerSlide * throttle * sideways
 				end
 				w.info.touching = true
+				w.info.surface = hit.Instance.Name
 				w.info.contact = hit.Position
 				w.info.normal = n
 				w.info.slide = math.abs(vLat)
@@ -294,6 +309,7 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 				w.susp = Tuning.maxSusp
 				w.info.touching = false
 				w.info.slide = 0
+				w.info.surface = ""
 			end
 		end
 
@@ -449,6 +465,17 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 		telemetry.slip = slip
 		telemetry.grounded = grounded
 		telemetry.drifting = grounded > 0 and speed > 15 * S and math.abs(slip) > 0.25
+		telemetry.boost = boostLeft
+		-- a landing after real air time: how hard, from the fall speed (for dust and a bump)
+		telemetry.landed = 0
+		if grounded > 0 then
+			if telemetry.air > 0.3 then
+				telemetry.landed = CarMath.clamp(-vel.Y / (40 * S), 0.2, 1)
+			end
+			telemetry.air = 0
+		else
+			telemetry.air += dt
+		end
 	end
 
 	local look: WheelLook? = nil

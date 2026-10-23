@@ -17,6 +17,7 @@ export type Cam = {
 	toggleOrbit: () -> boolean,
 	setView: (view: View) -> (),
 	setUp: (dir: Vector3) -> (),
+	kick: (degrees: number) -> (),
 }
 
 export type View = "driver" | "chase" | "top" | "free"
@@ -126,6 +127,7 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 	local reach = 1 -- share of the full distance the camera is out (walls pull it in)
 	local floorLift = 0 -- extra height to stay above the ground under the camera
 	local zoomFov = Tuning.driverFovMax
+	local kick = 0 -- extra field of view for a moment (boost pads), eases back to 0
 	-- driver view: how far the eyes are lifted to see over a wall, and walls see-through for now
 	local lift = 0
 	local faded: { [BasePart]: boolean } = {}
@@ -251,8 +253,13 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 		cam.snap()
 	end
 
+	function cam.kick(degrees: number)
+		kick = math.max(kick, degrees)
+	end
+
 	function cam.update(dt: number)
 		dt = math.min(dt, 0.1)
+		kick *= math.exp(-2.5 * dt)
 		marker.Enabled = false
 		-- a person spawning resets the camera; keep it ours
 		if camera.CameraType ~= Enum.CameraType.Scriptable then
@@ -296,7 +303,7 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 			zoomFov += (want - zoomFov) * (1 - math.exp(-3 * dt))
 			lookAt = lookAt:Lerp(target, 1 - math.exp(-20 * dt))
 			camera.CFrame = CFrame.lookAt(from, lookAt)
-			camera.FieldOfView = zoomFov
+			camera.FieldOfView = zoomFov + kick
 			return
 		end
 		if orbiting then
@@ -391,7 +398,7 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 
 		lookAt = focus + heading * 5 * Tuning.scale
 		camera.CFrame = CFrame.lookAt(pos, lookAt)
-		camera.FieldOfView = CarMath.fov(flatSpeed)
+		camera.FieldOfView = CarMath.fov(flatSpeed) + kick
 	end
 
 	return cam

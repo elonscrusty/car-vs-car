@@ -28,6 +28,19 @@ local MARK_FADE = 5 -- then it fades away over this long
 local MOTOR_SOUND = "rbxassetid://137730930796096" -- "ENV Electric Motor Steady"
 local SQUEAL_SOUND = "rbxassetid://109487442763183" -- "Tire Squealing / Screeching Loop"
 
+-- What flies off the tyres on each track-tile surface (by part name), and how much per second at
+-- top speed. Grit falls back down; dust floats.
+type Spray = { color: Color3, rate: number, size: number, up: number, fall: number }
+local SPRAYS: { [string]: Spray } = {
+	Puddle = { color = Color3.fromRGB(190, 225, 255), rate = 90, size = 0.9, up = 9, fall = 40 },
+	MudPatch = { color = Color3.fromRGB(96, 66, 38), rate = 60, size = 0.7, up = 7, fall = 45 },
+	SandPatch = { color = Color3.fromRGB(230, 205, 145), rate = 70, size = 1.6, up = 3, fall = 4 },
+	OilPatch = { color = Color3.fromRGB(30, 30, 36), rate = 30, size = 0.5, up = 4, fall = 45 },
+	BoostPad = { color = Color3.fromRGB(255, 220, 60), rate = 80, size = 0.5, up = 6, fall = 10 },
+}
+local LAND_DUST = Color3.fromRGB(200, 195, 185)
+local BOOST_SPARK = Color3.fromRGB(255, 210, 60)
+
 local function loopSound(id: string, parent: Instance): Sound?
 	if id == "" then
 		return nil
@@ -83,6 +96,49 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 		e.RotSpeed = NumberRange.new(-40, 40)
 		e.Parent = attach
 		tracks[i] = { emitter = e, attach = attach, owed = 0, last = nil }
+	end
+
+	-- splashes, dust and sparks: one emitter per tyre, set up for the surface under it
+	type SprayFx = { emitter: ParticleEmitter, attach: Attachment, owed: number, kind: string }
+	local sprays: { SprayFx } = {}
+	local function setSpray(
+		sp: SprayFx,
+		kind: string,
+		color: Color3,
+		size: number,
+		up: number,
+		fall: number
+	)
+		if sp.kind == kind then
+			return
+		end
+		sp.kind = kind
+		local e = sp.emitter
+		e.Color = ColorSequence.new(color)
+		e.Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, size * S),
+			NumberSequenceKeypoint.new(1, size * 0.4 * S),
+		})
+		e.Speed = NumberRange.new(up * 0.6 * S, up * S)
+		e.Acceleration = Vector3.new(0, -fall * S, 0)
+	end
+	for i = 1, #telemetry.wheels do
+		local attach = Instance.new("Attachment")
+		attach.Parent = anchor
+		local e = Instance.new("ParticleEmitter")
+		e.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		e.Rate = 0
+		e.Lifetime = NumberRange.new(0.35, 0.7)
+		e.SpreadAngle = Vector2.new(40, 40)
+		e.EmissionDirection = Enum.NormalId.Top
+		e.Drag = 1
+		e.Rotation = NumberRange.new(0, 360)
+		e.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.1),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		e.Parent = attach
+		sprays[i] = { emitter = e, attach = attach, owed = 0, kind = "" }
 	end
 
 	-- oldest first, each with when it was made and how dark it started
@@ -171,6 +227,37 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 			end
 			m.part.Transparency = m.alpha + (1 - m.alpha) * (age - MARK_LIFE) / MARK_FADE
 		end
+		-- tile surfaces: splash, mud, sand, oil drips; boost sparks off the back; dust on landing
+		for i, info in telemetry.wheels do
+			local sp = sprays[i]
+			local look = if info.touching then SPRAYS[info.surface] else nil
+			local rate = 0
+			if look then
+				setSpray(sp, info.surface, look.color, look.size, look.up, look.fall)
+				rate = look.rate * math.clamp(telemetry.speed / (Tuning.topSpeed * 0.6), 0.15, 1)
+			elseif telemetry.boost > 0 and info.rear and info.touching then
+				setSpray(sp, "boost", BOOST_SPARK, 0.45, 8, 6)
+				rate = 70
+			end
+			if info.touching then
+				sp.attach.WorldPosition = info.contact + info.normal * 0.2 * S
+			end
+			if telemetry.landed > 0 and info.touching then
+				setSpray(sp, "land", LAND_DUST, 1.4, 5, 3)
+				sp.emitter:Emit(math.floor(4 + 10 * telemetry.landed))
+			end
+			if rate > 0 then
+				sp.owed += rate * dt
+				local n = math.floor(sp.owed)
+				if n > 0 then
+					sp.emitter:Emit(n)
+					sp.owed -= n
+				end
+			else
+				sp.owed = 0
+			end
+		end
+
 		local fast = telemetry.speed > 12 * S
 		for i, info in telemetry.wheels do
 			local t = tracks[i]
