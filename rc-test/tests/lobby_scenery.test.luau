@@ -3,6 +3,7 @@
 local H = require("./harness")
 local L = require("../src/shared/LobbyLayout")
 local S = require("../src/shared/LobbyScenery")
+local W = require("../src/shared/LobbyWater")
 
 local test, eq, truthy = H.test, H.eq, H.truthy
 
@@ -49,24 +50,54 @@ test("nothing stands on a plot, the road, the footpaths or the plaza", function(
 	end
 end)
 
-test("everything stays inside the bank, off its outer 4 studs (docks)", function()
+test("everything stays inside the bank, off its outer 4 studs (docks), or on the island", function()
 	local o = S.outer()
-	for _, p in pieces do
-		truthy(within(o, p.x, p.z), `{p.kind} out at {p.x}, {p.z}`)
+	local ix, iz, ir = S.island()
+	truthy(ix, "island found")
+	local function onIsland(x: number, z: number): boolean
+		return ix ~= nil and (x - ix) ^ 2 + (z - iz) ^ 2 < ir * ir
 	end
+	local island = 0
+	for _, p in pieces do
+		if onIsland(p.x, p.z) then
+			island += 1
+		else
+			truthy(within(o, p.x, p.z), `{p.kind} out at {p.x}, {p.z}`)
+		end
+	end
+	truthy(island > 0, "something on the island")
 	eq(S.BAND, 20)
 end)
 
-test("the fence openings stay clear so you can walk out to a dock", function()
-	local g = L.ground()
-	local op = S.openings()
+test("one fence opening per dock and footbridge; their lanes stay clear", function()
+	eq(#S.openings(), #W.landings())
 	for _, p in pieces do
 		if p.solid then
-			local onSide = math.abs(p.z - op.side) < S.OPENING - 1
-				and (p.x < g.minX + 3 or p.x > g.maxX - 3)
-			local onEnd = math.abs(p.x - op.back) < S.OPENING - 1
-				and (p.z < g.minZ + 3 or p.z > g.maxZ - 3)
-			truthy(not onSide and not onEnd, `{p.kind} blocks an opening at {p.x}, {p.z}`)
+			truthy(not S.inLane(p.x, p.z, -1), `{p.kind} blocks a dock lane at {p.x}, {p.z}`)
+		end
+	end
+	-- and there really is no fence across each opening (posts or rails)
+	local g = L.ground()
+	local lineOf = {
+		left = g.minX + S.FENCE_IN,
+		right = g.maxX - S.FENCE_IN,
+		back = g.minZ + S.FENCE_IN,
+		front = g.maxZ - S.FENCE_IN,
+	}
+	for _, o in S.openings() do
+		local line = lineOf[o.side]
+		for _, p in pieces do
+			if p.kind == "Fence" then
+				local hit
+				if o.side == "left" or o.side == "right" then
+					hit = math.abs(p.x - line) < 1
+						and math.abs(p.z - o.at) < S.OPENING - 1 + p.sz / 2
+				else
+					hit = math.abs(p.z - line) < 1
+						and math.abs(p.x - o.at) < S.OPENING - 1 + p.sx / 2
+				end
+				truthy(not hit, `fence across the {o.side} opening at {o.at}`)
+			end
 		end
 	end
 end)

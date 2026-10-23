@@ -23,6 +23,7 @@ local function sibling(name: string): any
 end
 
 local LobbyLayout = sibling("LobbyLayout")
+local LobbyWater = sibling("LobbyWater")
 
 export type Box = { minX: number, maxX: number, minZ: number, maxZ: number }
 export type Piece = {
@@ -70,12 +71,58 @@ function LobbyScenery.outer(): Box
 	return { minX = g.minX - b, maxX = g.maxX + b, minZ = g.minZ - b, maxZ = g.maxZ + b }
 end
 
--- Middle of each fence opening, one per side (z for the left/right sides, x for back/front):
--- the water thread lines its docks up with these.
-function LobbyScenery.openings(): { side: number, back: number, front: number }
-	-- sides: the middle gap between plot rows
-	local mid = LobbyLayout.FIRST_Z + (LobbyLayout.ROWS / 2 - 0.5) * LobbyLayout.STEP
-	return { side = mid, back = 0, front = 0 }
+export type Opening = { side: string, at: number } -- side "left"/"right" (at = z), "back"/"front" (at = x)
+
+-- One fence opening per dock and footbridge (LobbyWater.landings), in line with it, with a clear
+-- lane from the fence out to it.
+function LobbyScenery.openings(): { Opening }
+	local out: { Opening } = {}
+	for _, l in LobbyWater.landings() do
+		if l.dx < 0 then
+			table.insert(out, { side = "left", at = l.z })
+		elseif l.dx > 0 then
+			table.insert(out, { side = "right", at = l.z })
+		elseif l.dz < 0 then
+			table.insert(out, { side = "back", at = l.x })
+		else
+			table.insert(out, { side = "front", at = l.x })
+		end
+	end
+	return out
+end
+
+-- Is a round thing of this radius in a lane out to a dock (from inside the fence to the bank edge)?
+-- Lanes end at outer(): the island and the water are not lanes.
+function LobbyScenery.inLane(x: number, z: number, r: number): boolean
+	local g = LobbyLayout.ground()
+	local ob = LobbyScenery.outer()
+	if x < ob.minX or x > ob.maxX or z < ob.minZ or z > ob.maxZ then
+		return false -- out on the water (the island, the far end of a bridge)
+	end
+	local w = LobbyScenery.OPENING + r
+	local reach = 14 -- how far inside the fence the lane starts
+	for _, o in LobbyScenery.openings() do
+		if o.side == "left" and x < g.minX + reach + r and math.abs(z - o.at) < w then
+			return true
+		elseif o.side == "right" and x > g.maxX - reach - r and math.abs(z - o.at) < w then
+			return true
+		elseif o.side == "back" and z < g.minZ + reach + r and math.abs(x - o.at) < w then
+			return true
+		elseif o.side == "front" and z > g.maxZ - reach - r and math.abs(x - o.at) < w then
+			return true
+		end
+	end
+	return false
+end
+
+-- The island (LobbyWater's IslandGrass disc): middle and radius, or nil.
+function LobbyScenery.island(): (number?, number, number)
+	for _, pc in LobbyWater.pieces() do
+		if pc.name == "IslandGrass" then
+			return pc.x, pc.z, pc.sx / 2
+		end
+	end
+	return nil, 0, 0
 end
 
 -- Boxes nothing may stand in: plots, the road and footpaths, the plaza (all padded a little).
@@ -314,14 +361,36 @@ function LobbyScenery.pieces(): { Piece }
 	local FI = LobbyScenery.FENCE_IN
 	local FH = LobbyScenery.FENCE_H
 
-	-- 1. outer fence, with an opening in the middle of each side
-	for _, xEdge in { g.minX + FI, g.maxX - FI } do
-		fence("z", g.minZ + FI, op.side - OPEN, xEdge, FH)
-		fence("z", op.side + OPEN, g.maxZ - FI, xEdge, FH)
+	-- 1. outer fence, open in line with each dock
+	-- runs from a to b with the cuts (opening middles) taken out
+	local function runs(a: number, b: number, cuts: { number }, gap: number): { { number } }
+		table.sort(cuts)
+		local out: { { number } } = {}
+		local from = a
+		for _, c in cuts do
+			if c - gap > from then
+				table.insert(out, { from, c - gap })
+			end
+			from = math.max(from, c + gap)
+		end
+		if b > from then
+			table.insert(out, { from, b })
+		end
+		return out
 	end
-	for _, zEdge in { g.minZ + FI, g.maxZ - FI } do
-		fence("x", g.minX + FI, op.back - OPEN, zEdge, FH)
-		fence("x", op.back + OPEN, g.maxX - FI, zEdge, FH)
+	local cuts: { [string]: { number } } = { left = {}, right = {}, back = {}, front = {} }
+	for _, o in op do
+		table.insert(cuts[o.side], o.at)
+	end
+	for _, e in { { "left", g.minX + FI }, { "right", g.maxX - FI } } do
+		for _, r in runs(g.minZ + FI, g.maxZ - FI, cuts[e[1]], OPEN) do
+			fence("z", r[1], r[2], e[2] :: number, FH)
+		end
+	end
+	for _, e in { { "back", g.minZ + FI }, { "front", g.maxZ - FI } } do
+		for _, r in runs(g.minX + FI, g.maxX - FI, cuts[e[1]], OPEN) do
+			fence("x", r[1], r[2], e[2] :: number, FH)
+		end
 	end
 
 	-- 2. low fences down the middle of each gap between plot rows: from a little back from the
@@ -337,12 +406,7 @@ function LobbyScenery.pieces(): { Piece }
 		end
 	end
 
-	local function nearOpening(x: number, z: number, r: number): boolean
-		local onSide = math.abs(z - op.side) < OPEN + r
-		local onEnd = math.abs(x - op.back) < OPEN + r
-		return (onSide and (x < g.minX + 30 or x > g.maxX - 30))
-			or (onEnd and (z < g.minZ + 30 or z > g.maxZ - 30))
-	end
+	local nearOpening = LobbyScenery.inLane
 
 	-- 3. inside ground(): side strips (between the plot backs / plaza and the fence)
 	local stripX = (back + g.maxX - FI) / 2 + 1
@@ -360,7 +424,9 @@ function LobbyScenery.pieces(): { Piece }
 	-- hedges just inside the side fences, one run per stretch between the opening and the ends
 	for _, side in { -1, 1 } do
 		local hx = side * (g.maxX - FI - 1.6)
-		for _, run in { { g.minZ + 6, op.side - OPEN - 2 }, { op.side + OPEN + 2, g.maxZ - 6 } } do
+		for _, run in
+			runs(g.minZ + 6, g.maxZ - 6, cuts[if side < 0 then "left" else "right"], OPEN + 2)
+		do
 			local a, b = run[1], run[2]
 			add("Hedge", "Block", hx, 0.9, (a + b) / 2, 1.8, 1.8, b - a, 0, 0, 0, HEDGE, true)
 		end
@@ -430,6 +496,14 @@ function LobbyScenery.pieces(): { Piece }
 		local cx = if c[1] < 0 then o.minX + 9 else o.maxX - 9
 		local cz = if c[2] < 0 then o.minZ + 9 else o.maxZ - 9
 		rock(cx, cz, 1.6, "Cliff")
+	end
+
+	-- 5. the island: a pine, a leafy tree and a rock
+	local ix, iz, ir = LobbyScenery.island()
+	if ix then
+		pine(ix - ir * 0.3, iz - ir * 0.2, 1.2)
+		tree(ix + ir * 0.35, iz + ir * 0.3, 1)
+		rock(ix + ir * 0.2, iz - ir * 0.5, 0.9, "Rock")
 	end
 	return out
 end
