@@ -17,8 +17,7 @@ local function parts(l: BuildLayout.Layout): { [string]: BuildLayout.Rect }
 		status = l.status,
 		why = l.why,
 		tray = l.tray,
-		rotate = l.rotate,
-		remove = l.remove,
+		erase = l.erase,
 		done = l.done,
 	}
 end
@@ -57,7 +56,7 @@ test("8x8 squares are thumb size on the smallest phone; tray fits a card", funct
 			l.tray.h >= BuildLayout.CARD and l.tray.w >= BuildLayout.CARD * 2,
 			`tray on {s[1]}x{s[2]}`
 		)
-		truthy(l.rotate.w >= 44 and l.rotate.h >= 44, "rotate is a big button")
+		truthy(l.erase.w >= 44 and l.done.h >= 44, "big buttons")
 	end
 end)
 
@@ -95,6 +94,58 @@ test("countdown and status words", function()
 	eq(BuildLayout.clock(300), "5:00")
 	eq(BuildLayout.clock(272.2), "4:33")
 	eq(BuildLayout.clock(-3), "0:00")
-	eq(BuildLayout.statusText(true), "RACE READY ✓")
-	eq(BuildLayout.statusText(false), "NEEDS A FULL LOOP")
+	eq(BuildLayout.statusText(true), "✓ RACE READY")
+	eq(BuildLayout.statusText(false), "NOT READY")
+end)
+
+local function key(path: { BuildLayout.Spot }): string
+	local out = {}
+	for _, p in path do
+		table.insert(out, `{p.c},{p.r}`)
+	end
+	return table.concat(out, " ")
+end
+
+test("a drag grows the road one square at a time", function()
+	local path = {}
+	BuildLayout.extend(path, 2, 2)
+	BuildLayout.extend(path, 2, 2) -- same square: nothing
+	BuildLayout.extend(path, 3, 2)
+	eq(key(path), "2,2 3,2")
+	BuildLayout.extend(path, 5, 4) -- a fast swipe skips squares: they get filled in
+	eq(key(path), "2,2 3,2 4,2 5,2 5,3 5,4")
+	BuildLayout.extend(path, 5, 3) -- back one square: undo
+	eq(key(path), "2,2 3,2 4,2 5,2 5,3")
+	for i = 2, #path do
+		truthy(BuildLayout.side(path[i - 1], path[i]) ~= nil, "every step touches the last")
+	end
+end)
+
+test("the right road tile for each pair of sides", function()
+	local function E(n: boolean, e: boolean, s: boolean, w: boolean): BuildLayout.Ends
+		return { N = n, E = e, S = s, W = w }
+	end
+	local piece, rot = BuildLayout.roadFor(E(true, false, true, false))
+	eq(piece, "straight")
+	eq(rot % 2, 0)
+	piece, rot = BuildLayout.roadFor(E(false, true, false, true))
+	eq(piece, "straight")
+	eq(rot % 2, 1)
+	for _, case in
+		{
+			{ E(true, true, false, false), 0 },
+			{ E(false, true, true, false), 1 },
+			{ E(false, false, true, true), 2 },
+			{ E(true, false, false, true), 3 },
+		}
+	do
+		piece, rot = BuildLayout.roadFor(case[1] :: BuildLayout.Ends)
+		eq(piece, "turn")
+		eq(rot, case[2])
+	end
+	piece = BuildLayout.roadFor(E(true, true, true, false))
+	eq(piece, nil)
+	eq(BuildLayout.side({ c = 2, r = 2 }, { c = 2, r = 3 }), "N")
+	eq(BuildLayout.side({ c = 2, r = 2 }, { c = 1, r = 2 }), "W")
+	eq(BuildLayout.side({ c = 2, r = 2 }, { c = 3, r = 3 }), nil)
 end)
