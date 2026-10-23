@@ -3,7 +3,7 @@
 -- S-shaped "big sweeper" on the right, and a big round drift pad in the middle with a cone to
 -- circle around. Everything is flat and level so a slide never gets broken by a bump.
 -- Dressed like a real drift track: grass, red and white curbs, tyre walls, lamps, a pit
--- garage, bleachers, a safety fence and a DRIFT gantry over the start line. carter's Meshy
+-- garage, bleachers, a safety fence and a striped gantry over the start line. carter's Meshy
 -- models are used when imported (ServerStorage.LobbyMeshes), else block stand-ins.
 -- Layout: /mnt/project-files/car-vs-car/rc-plot/drift-look/drift-look-top.png.
 
@@ -220,6 +220,31 @@ function Plot.paint(): ({ Stripe }, { Stripe })
 	return curbs, lines
 end
 
+-- Road pieces, one per sample to the next. `extra` is the total length added past the two
+-- ends: enough that on the outside of a bend each piece covers the wedge to the next one.
+export type Piece = { ax: number, az: number, bx: number, bz: number, extra: number }
+function Plot.roadPieces(): { Piece }
+	local ring = Plot.loop()
+	local n = #ring
+	local out: { Piece } = {}
+	local function turnAt(i: number): number
+		local p, q = ring[((i - 2) % n) + 1], ring[i]
+		return math.acos(math.clamp(p.tx * q.tx + p.tz * q.tz, -1, 1))
+	end
+	for i = 1, n do
+		local a, b = ring[i], ring[(i % n) + 1]
+		local worst = math.max(turnAt(i), turnAt((i % n) + 1))
+		out[i] = {
+			ax = a.x,
+			az = a.z,
+			bx = b.x,
+			bz = b.z,
+			extra = 1.5 + 2 * (ROAD / 2) * math.tan(worst / 2),
+		}
+	end
+	return out
+end
+
 -- Tyre stacks along the outside of each corner, RUNOFF out from the road edge, one about every
 -- 14 along the corner.
 function Plot.tires(): { Spot }
@@ -291,12 +316,12 @@ Plot.PIT_PROPS = {
 }
 
 -- Bleachers on the open floor behind the back straight, facing the stand side.
-Plot.BLEACHERS = { x = 0, z = -207, w = 110, d = 10, rows = 3, rowH = 3 }
+Plot.BLEACHERS = { x = 0, z = -207, w = 110, d = 10, rows = 3, rowH = 5 }
 
 -- Low red and white safety fence just inside the side and back walls.
 Plot.FENCE = { inset = 6, h = 5, post = 40 }
 
--- Start gantry over the start line: two posts beyond the road edges and a beam with a sign.
+-- Start gantry over the start line: two posts beyond the road edges and a striped beam.
 Plot.GANTRY = { h = 28, beam = 4 }
 
 -- Marker cones round the drift pad edge (paint-like: the car drives through them).
@@ -498,7 +523,7 @@ local function bleachers(parent: Instance, origin: CFrame)
 			origin,
 			Vector3.new(b.w, h, rowD),
 			CFrame.new(b.x, h / 2, z),
-			if r % 2 == 1 then L.wood else L.concrete
+			if r % 2 == 1 then L.roof else C.white
 		)
 	end
 end
@@ -561,32 +586,25 @@ local function gantry(parent: Instance, origin: CFrame)
 		)
 	end
 	local mid = Vector3.new(s.x, g.h - g.beam / 2, s.z)
-	local beam = Kit.part(
-		parent,
-		"Gantry",
-		origin,
-		Vector3.new(half * 2 + 2.5, g.beam, 2),
-		-- lookAt's right vector runs across the road, so the beam's length (X) spans it
-		CFrame.lookAt(mid, mid + Vector3.new(s.tx, 0, s.tz)),
-		L.tire
-	)
-	-- the sign faces the cars coming to the line (they drive along +tx) and the stand
-	local gui = Instance.new("SurfaceGui")
-	gui.Face = Enum.NormalId.Front
-	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = 20
-	local text = Instance.new("TextLabel")
-	text.Size = UDim2.fromScale(1, 1)
-	text.BackgroundTransparency = 1
-	text.Text = "DRIFT"
-	text.TextScaled = true
-	text.Font = Enum.Font.GothamBlack
-	text.TextColor3 = L.yellow
-	text.Parent = gui
-	gui.Parent = beam
-	local back = gui:Clone()
-	back.Face = Enum.NormalId.Back
-	back.Parent = beam
+	-- lookAt's right vector runs across the road, so the beam's length (X) spans it
+	local beamCF = CFrame.lookAt(mid, mid + Vector3.new(s.tx, 0, s.tz))
+	Kit.part(parent, "Gantry", origin, Vector3.new(half * 2 + 2.5, g.beam, 2), beamCF, L.tire)
+	-- no words (carter's rule): black and yellow blocks along the beam instead
+	local blocks = 6
+	local seg = (half * 2 + 2.5) / blocks
+	for k = 1, blocks do
+		if k % 2 == 0 then
+			local p = Kit.part(
+				parent,
+				"GantryStripe",
+				origin,
+				Vector3.new(seg, g.beam + 0.2, 2.2),
+				beamCF * CFrame.new(-half - 1.25 + (k - 0.5) * seg, 0, 0),
+				L.yellow
+			)
+			p.CastShadow = false
+		end
+	end
 	meshProp(
 		parent,
 		origin,
@@ -641,11 +659,21 @@ function Plot.build(parent: Instance, origin: CFrame)
 	local road = Instance.new("Folder")
 	road.Name = "DriftRoad"
 	road.Parent = parent
-	Kit.ribbon(road, origin, Plot.loop(), ROAD, { grip = Plot.grip, color = L.asphalt })
-	for _, d in road:GetChildren() do
-		if d:IsA("BasePart") then
-			d.Material = Enum.Material.Asphalt
-		end
+	-- each piece reaches far enough past its ends to close the wedge gap on the outside of a
+	-- bend (no grass streaks). Smooth plastic, so where pieces overlap nothing flickers.
+	for _, seg in Plot.roadPieces() do
+		local piece = Kit.slab(
+			road,
+			"Road",
+			origin,
+			Vector3.new(seg.ax, TOP / 2, seg.az),
+			Vector3.new(seg.bx, TOP / 2, seg.bz),
+			ROAD,
+			TOP,
+			seg.extra,
+			L.asphalt
+		)
+		piece:SetAttribute("Grip", Plot.grip)
 	end
 
 	local curbs, lines = Plot.paint()
@@ -663,7 +691,6 @@ function Plot.build(parent: Instance, origin: CFrame)
 	-- Drift pad: flush with the road, same grip, a painted white ring, and the cone.
 	local pad = Plot.PAD
 	local disc = Kit.disc(parent, "DriftPad", origin, pad.x, TOP / 2, pad.z, pad.r, TOP, L.asphalt)
-	disc.Material = Enum.Material.Asphalt
 	disc:SetAttribute("Grip", Plot.grip)
 	local bits = 40
 	local seg = 2 * math.pi * pad.r / bits + 1
