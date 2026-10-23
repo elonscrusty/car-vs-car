@@ -36,14 +36,25 @@ TileShop.TILES = {
 	tile("boost", "Boost Pad", "legendary", 500, { 60, 220, 255 }),
 	tile("oil", "Oil Spill", "legendary", 500, { 30, 30, 40 }),
 	tile("sharp", "Sharp Turn", "legendary", 500, { 230, 60, 50 }),
+	-- more tiles (carter 22:36 "way more tiles. jump and cones and variety"); prices first guesses
+	tile("split", "Split", "coins", 150, { 86, 150, 70 }),
+	tile("narrow", "Squeeze", "coins", 150, { 200, 60, 50 }),
+	tile("cones", "Cones", "coins", 150, { 224, 138, 58 }),
+	tile("barrels", "Barrels", "coins", 150, { 200, 60, 50 }),
+	tile("bumps", "Bumps", "coins", 150, { 245, 245, 245 }),
+	tile("mud", "Mud", "coins", 150, { 110, 78, 46 }),
+	tile("puddle", "Puddle", "coins", 150, { 70, 140, 210 }),
+	tile("sand", "Sand", "coins", 150, { 222, 196, 130 }),
+	tile("jump", "Jump", "legendary", 500, { 255, 200, 40 }),
 } :: { Tile }
 
 -- The tile spin: one legendary tile. `chance` is out of 100 and they add up to 100.
 TileShop.SPIN_PRICE = 150
 TileShop.SPIN = {
-	{ id = "boost", chance = 50 },
-	{ id = "sharp", chance = 30 },
+	{ id = "boost", chance = 40 },
+	{ id = "sharp", chance = 25 },
 	{ id = "oil", chance = 20 },
+	{ id = "jump", chance = 15 },
 }
 -- A legendary you already have: half the spin back (while copies don't count, see LIMITED).
 TileShop.DUPLICATE_REFUND = 75
