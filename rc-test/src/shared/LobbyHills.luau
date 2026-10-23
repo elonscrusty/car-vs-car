@@ -33,7 +33,8 @@ export type Hill = {
 	b: number,
 }
 export type Box = { minX: number, maxX: number, minZ: number, maxZ: number }
--- mesh "BlockTree" is a low-poly block tree in `color` (autumn and blossom trees)
+-- mesh "BlockTree" is a low-poly block tree in `color` (autumn and blossom trees); `color` is
+-- also the stand-in colour for AutumnTree
 export type Tree = {
 	mesh: string,
 	x: number,
@@ -46,6 +47,19 @@ export type Tree = {
 -- small things at a near hill's foot: carter's Bush / Mushroom / TreeStump / Log / RockPile /
 -- FlatRock, or "Flowers" (a little patch of coloured blocks); the builder drops them onto the hill
 export type Prop = { mesh: string, x: number, z: number, height: number, turn: number }
+-- a set piece on top of a middle-row hill, facing the lobby (turn), with a dirt path down the
+-- lobby side (`path`: the points, top first) and a little fence round its yard; `extras` are
+-- props beside it (a campfire and log seats by the cabin)
+export type Landmark = {
+	mesh: string,
+	x: number,
+	z: number,
+	height: number,
+	turn: number,
+	path: { { number } },
+	fence: boolean,
+	extras: { Prop },
+}
 
 local LobbyHills = {}
 
@@ -171,10 +185,34 @@ function LobbyHills.touches(hill: Hill, b: Box): boolean
 	return false
 end
 
-function LobbyHills.layout(): ({ Hill }, { Tree }, { Prop })
+-- the set pieces: what, roughly where (x, z), which kinds of hill suit it, how tall
+LobbyHills.LANDMARKS = {
+	{ mesh = "Cabin", x = -1, z = 0.45, kinds = { "forest", "autumn" }, height = 15, fence = true },
+	{ mesh = "Windmill", x = 1, z = 0.3, kinds = { "meadow" }, height = 24, fence = false },
+	{
+		mesh = "WatchTower",
+		x = 0.35,
+		z = -1,
+		kinds = { "forest", "rock", "meadow" },
+		height = 20,
+		fence = false,
+	},
+	{
+		mesh = "Cabin",
+		x = 1,
+		z = 0.85,
+		kinds = { "autumn", "forest", "meadow" },
+		height = 14,
+		fence = true,
+	},
+}
+LobbyHills.LANDMARK_CLEAR = 13 -- no trees this close to a set piece
+
+function LobbyHills.layout(): ({ Hill }, { Tree }, { Prop }, { Landmark })
 	local hills: { Hill } = {}
 	local trees: { Tree } = {}
 	local props: { Prop } = {}
+	local marks: { Landmark } = {}
 	local rand = rng(20261023 + 17)
 	local g = LobbyLayout.ground()
 	local keep = LobbyHills.keepBox()
@@ -296,10 +334,85 @@ function LobbyHills.layout(): ({ Hill }, { Tree }, { Prop })
 		local len = math.sqrt(dx * dx + dz * dz)
 		return tx + dx / len * h.d * pull, tz + dz / len * h.d * pull
 	end
+	-- set pieces on middle-row hills: x/z in LANDMARKS are -1..1 across the lobby's width and
+	-- along its length (from the dry end), and the nearest hill of a fitting kind gets it
+	local function nearMark(x: number, z: number): boolean
+		for _, m in marks do
+			if (m.x - x) ^ 2 + (m.z - z) ^ 2 < LobbyHills.LANDMARK_CLEAR ^ 2 then
+				return true
+			end
+		end
+		return false
+	end
+	local taken: { [Hill]: boolean } = {}
+	for _, spec in LobbyHills.LANDMARKS do
+		local cx = mid.x + spec.x * (g.maxX - g.minX) / 2 * 1.6
+		local along = (spec.z + 1) / 2
+		local cz = endZ + inward * (along * (g.maxZ - g.minZ))
+		if spec.z < -0.99 then
+			cz = endZ - inward * 40
+		end
+		local best: Hill? = nil
+		local bestD = math.huge
+		for _, h in hills do
+			local pastLake = (h.z - lakeNear) * inward > 0
+			if h.row == 2 and not pastLake and not taken[h] and table.find(spec.kinds, h.kind) then
+				local d = (h.x - cx) ^ 2 + (h.z - cz) ^ 2
+				if d < bestD then
+					best, bestD = h, d
+				end
+			end
+		end
+		if best then
+			local h = best
+			taken[h] = true
+			local dx, dz = mid.x - h.x, mid.z - h.z
+			local len = math.sqrt(dx * dx + dz * dz)
+			dx, dz = dx / len, dz / len
+			-- a path from the yard's edge down the lobby side to the hill's foot
+			local path = {}
+			local r = 7
+			while r < math.max(h.w, h.d) do
+				local px, pz = h.x + dx * r, h.z + dz * r
+				if not LobbyHills.surface(h, px, pz) or not clear(px, pz) then
+					break
+				end
+				table.insert(path, { px, pz })
+				r += 4
+			end
+			local extras = {}
+			if spec.mesh == "Cabin" then
+				-- campfire and log seats off to one side of the door
+				local sx, sz = -dz, dx
+				local fx, fz = h.x + sx * 9 + dx * 3, h.z + sz * 9 + dz * 3
+				table.insert(extras, { mesh = "Campfire", x = fx, z = fz, height = 2.2, turn = 0 })
+				table.insert(
+					extras,
+					{ mesh = "Log", x = fx + dx * 3.5, z = fz + dz * 3.5, height = 1.4, turn = 90 }
+				)
+				table.insert(
+					extras,
+					{ mesh = "Log", x = fx + sx * 3.5, z = fz + sz * 3.5, height = 1.4, turn = 0 }
+				)
+			end
+			table.insert(marks, {
+				mesh = spec.mesh,
+				x = h.x,
+				z = h.z,
+				height = spec.height,
+				-- the model's front faces -z (MeshProps turns it half round), so face the lobby
+				turn = math.deg(math.atan2(dx, dz)),
+				path = path,
+				fence = spec.fence,
+				extras = extras,
+			})
+		end
+	end
+
 	local function tree(h: Hill, mesh: string, size: number, color: { number }?)
 		local tx, tz = spot(h, rand(0.05, 0.7), if h.kind == "forest" then 0.04 else 0.12)
 		local y = LobbyHills.surface(h, tx, tz)
-		if y and y > 1.5 and clear(tx, tz) then
+		if y and y > 1.5 and clear(tx, tz) and not nearMark(tx, tz) then
 			local base = if mesh == "PineTree" then 13 elseif mesh == "LeafyTree" then 12 else 11
 			table.insert(trees, {
 				mesh = mesh,
@@ -317,19 +430,29 @@ function LobbyHills.layout(): ({ Hill }, { Tree }, { Prop })
 		if h.row == 1 or (h.row == 2 and not pastLake) then
 			if h.kind == "forest" then
 				for _ = 1, math.floor(rand(3, if h.row == 1 then 5.99 else 6.99)) do
-					tree(h, if rand(0, 1) < 0.85 then "PineTree" else "LeafyTree", rand(0.7, 1.5))
+					local pick = rand(0, 1)
+					tree(
+						h,
+						if pick < 0.75
+							then "PineTree"
+							elseif pick < 0.87 then "BirchTree"
+							else "LeafyTree",
+						rand(0.7, 1.5)
+					)
 				end
 			elseif h.kind == "meadow" then
 				for _ = 1, math.floor(rand(0, 2.6)) do
-					tree(h, "LeafyTree", rand(0.9, 1.3))
+					tree(h, if rand(0, 1) < 0.5 then "BirchTree" else "LeafyTree", rand(0.9, 1.3))
 				end
 			elseif h.kind == "autumn" then
 				for _ = 1, math.floor(rand(2, 4.99)) do
+					-- carter's autumn tree, with block trees for the yellow / red / blossom ones
+					local c = AUTUMN[math.floor(rand(1, #AUTUMN + 0.99))]
 					tree(
 						h,
-						"BlockTree",
+						if rand(0, 1) < 0.55 then "AutumnTree" else "BlockTree",
 						rand(0.8, 1.3),
-						AUTUMN[math.floor(rand(1, #AUTUMN + 0.99))]
+						c
 					)
 				end
 				if rand(0, 1) < 0.5 then
@@ -346,7 +469,7 @@ function LobbyHills.layout(): ({ Hill }, { Tree }, { Prop })
 		meadow = { "Flowers", "Flowers", "Bush", "Flowers" },
 		forest = { "Bush", "TreeStump", "Mushroom", "Log" },
 		autumn = { "Bush", "Flowers", "Mushroom" },
-		rock = { "RockPile", "FlatRock", "BigRock" },
+		rock = { "RockPile", "FlatRock", "BigRock", "RockSpire" },
 	}
 	local SIZE = {
 		Flowers = 1.2,
@@ -357,6 +480,7 @@ function LobbyHills.layout(): ({ Hill }, { Tree }, { Prop })
 		RockPile = 3,
 		FlatRock = 2.4,
 		BigRock = 4.5,
+		RockSpire = 7,
 	}
 	for _, h in hills do
 		local list = FOOT[h.kind]
@@ -364,7 +488,7 @@ function LobbyHills.layout(): ({ Hill }, { Tree }, { Prop })
 			for _ = 1, math.floor(rand(2, 3.99)) do
 				local mesh = list[math.floor(rand(1, #list + 0.99))]
 				local tx, tz = spot(h, rand(0.78, 0.98), 0.08)
-				if clear(tx, tz) then
+				if clear(tx, tz) and not nearMark(tx, tz) then
 					table.insert(props, {
 						mesh = mesh,
 						x = tx,
@@ -376,7 +500,7 @@ function LobbyHills.layout(): ({ Hill }, { Tree }, { Prop })
 			end
 		end
 	end
-	return hills, trees, props
+	return hills, trees, props, marks
 end
 
 LobbyHills.BASE_TOP = -0.2 -- grass under the hills: a hair under the lobby grass

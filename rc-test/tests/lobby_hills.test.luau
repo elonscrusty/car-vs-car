@@ -8,7 +8,7 @@ local test, truthy = H.test, H.truthy
 
 print("Lobby hills")
 
-local hills, trees, props = Hills.layout()
+local hills, trees, props, marks = Hills.layout()
 local g = L.ground()
 local lake = L.LAKE_SIDE or 1
 
@@ -145,7 +145,14 @@ test("the ring mixes kinds of hill, tree and foot detail", function()
 		meshes[t.mesh] = true
 		truthy(t.mesh ~= "BlockTree" or t.color ~= nil, "block tree has a colour")
 	end
-	truthy(meshes.PineTree and meshes.LeafyTree and meshes.BlockTree, "three kinds of tree")
+	truthy(
+		meshes.PineTree
+			and meshes.LeafyTree
+			and meshes.BlockTree
+			and meshes.AutumnTree
+			and meshes.BirchTree,
+		"five kinds of tree"
+	)
 	truthy(#props > 40 and #props <= Hills.MAX_PROPS, `props: {#props}`)
 	local keep = Hills.keepBox()
 	for _, p in props do
@@ -160,4 +167,23 @@ test("the ring mixes kinds of hill, tree and foot detail", function()
 		)
 	end
 	truthy(props2.Flowers and props2.Bush and props2.RockPile, "flowers, bushes and rocks")
+end)
+
+test("a cabin, a windmill and a watch tower on the hills, with paths, clear of trees", function()
+	local seen = {}
+	for _, m in marks do
+		seen[m.mesh] = true
+		truthy(#m.path >= 2, `{m.mesh} has a path`)
+		truthy(
+			not (m.x > g.minX and m.x < g.maxX and m.z > g.minZ and m.z < g.maxZ),
+			"set piece on the lobby grass"
+		)
+		for _, t in trees do
+			truthy(
+				(t.x - m.x) ^ 2 + (t.z - m.z) ^ 2 >= Hills.LANDMARK_CLEAR ^ 2,
+				`tree in the {m.mesh} yard`
+			)
+		end
+	end
+	truthy(seen.Cabin and seen.Windmill and seen.WatchTower, "all three kinds")
 end)
