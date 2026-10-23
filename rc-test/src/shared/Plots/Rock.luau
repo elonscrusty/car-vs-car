@@ -259,8 +259,10 @@ Plot.SKILLS = {
 	-- a boulder right under each wheel line (Studio: with a V between two big boulders the
 	-- wheels rolled down the inner faces and it was W only), so each wheel climbs one; 1.8 tall
 	-- was still W only (the round sides are easy), so they stand taller with steeper feet;
-	-- 2.3 stood only 0.6 RC over the road and the car rolled straight over (Studio round 31)
-	notch = { u = 4.45, side = 0.2, gap = 0.12, r = 4.5, lift = 3.2 },
+	-- 2.3 stood only 0.6 RC over the road and the car rolled straight over (Studio round 31);
+	-- 3.2 (0.7 RC) was a slow W-only push even with snug rails (round 33), so taller and
+	-- smaller round, for a steeper face where the wheels meet them
+	notch = { u = 4.45, side = 0.2, gap = 0.12, r = 3.8, lift = 4 },
 	stepUp = {
 		u = 12.35,
 		side = -0.55,
