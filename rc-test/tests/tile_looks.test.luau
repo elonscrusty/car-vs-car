@@ -50,7 +50,10 @@ for _, id in T.IDS do
 		for _, p in T.parts(id, CELL) do
 			local sx, sy, sz = dims(p)
 			local top = p.pos.y + sy / 2
-			if top > T.ROAD_TOP + 0.2 and p.pos.y < 9 then
+			-- skins draw TrackTiles' own (invisible) cones, barrels, bumps and island
+			local skin = string.sub(p.name, 1, 4) == "Skin"
+				or (id == "split" and (string.sub(p.name, 1, 5) == "Split" or p.name == "Bush"))
+			if top > T.ROAD_TOP + 0.2 and p.pos.y < 9 and not skin then
 				-- low and tall: must stand clear of the road and curbs (overhead beams may cross)
 				local r = math.min(sx, sz) / 2
 				truthy(not nearRoad(id, p.pos.x, p.pos.z, EDGE + r), p.name .. " on the road")
