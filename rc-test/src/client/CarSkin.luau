@@ -4,7 +4,8 @@
 -- its wheels ride the same springs. B turns the skin off and on to compare.
 --
 -- The model is a Model named RockCrawler in ReplicatedStorage.CarSkins, with MeshParts named
--- Body, WheelFL, WheelFR, WheelRL and WheelRR (front is -Z, as imported).
+-- Body, WheelFL, WheelFR, WheelRL and WheelRR. Studio's 3D import puts the truck's nose at +Z,
+-- and the car drives toward -Z, so the copy is turned around before use.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
@@ -56,6 +57,8 @@ local function show(car: RCCar.Car, src: Model): Shown?
 		end
 		wheels[i] = w
 	end
+	-- turn it so its nose points where the car drives
+	copy:PivotTo(copy:GetPivot() * CFrame.Angles(0, math.pi, 0))
 	-- size it so its tyres are as big as the driving wheels
 	local meshRadius = 0
 	for _, w in wheels do
@@ -69,8 +72,10 @@ local function show(car: RCCar.Car, src: Model): Shown?
 		mid += w.Position / 4
 	end
 	local spots: { Vector3 } = {}
+	local turns: { CFrame } = {}
 	for i, w in wheels do
 		spots[i] = w.Position - mid
+		turns[i] = w.CFrame.Rotation
 	end
 	-- parked on flat ground the springs settle at this length; line the model's axles up there
 	local rest = math.clamp(
@@ -79,6 +84,7 @@ local function show(car: RCCar.Car, src: Model): Shown?
 		Tuning.maxSusp
 	)
 	local offset = CFrame.new(Vector3.new(0, Tuning.attachY - rest, 0) + body.Position - mid)
+		* body.CFrame.Rotation
 
 	local folder = Instance.new("Folder")
 	folder.Name = "RCSkin"
@@ -101,7 +107,7 @@ local function show(car: RCCar.Car, src: Model): Shown?
 			d.Transparency = 1
 		end
 	end
-	car.setLook({ wheels = wheels, spots = spots })
+	car.setLook({ wheels = wheels, spots = spots, turns = turns })
 	return {
 		car = car,
 		scale = Tuning.scale,
