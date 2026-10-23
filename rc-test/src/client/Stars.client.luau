@@ -41,6 +41,21 @@ chipCorner.Parent = chip
 local chipScale = Instance.new("UIScale")
 chipScale.Parent = chip
 
+-- shown when this server can't save (Studio without API access, DataStore down)
+local noSave = Instance.new("TextLabel")
+noSave.Name = "NotSaving"
+noSave.AnchorPoint = Vector2.new(0, 0)
+noSave.Position = UDim2.new(0, 0, 1, 2)
+noSave.Size = UDim2.fromScale(1, 0.5)
+noSave.BackgroundTransparency = 1
+noSave.TextColor3 = Color3.fromRGB(255, 110, 100)
+noSave.TextStrokeTransparency = 0.4
+noSave.Font = Enum.Font.GothamBold
+noSave.TextScaled = true
+noSave.Text = "NOT SAVING"
+noSave.Visible = false
+noSave.Parent = chip
+
 local pop = Instance.new("TextLabel")
 pop.Name = "MedalPop"
 pop.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -86,9 +101,10 @@ local function setStars(n: number, bump: boolean)
 	end
 end
 
-remote.OnClientEvent:Connect(function(kind: unknown, info: unknown)
+remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unknown)
 	if kind == "stars" and type(info) == "number" then
 		setStars(info, false)
+		noSave.Visible = saving == false
 		return
 	end
 	if kind ~= "run" or type(info) ~= "table" then

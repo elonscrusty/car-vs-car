@@ -128,6 +128,11 @@ test("save lock: free, ours, or stale can be taken; a live one can't", function(
 	eq(Profile.canTake({ job = "b", at = 90 }, "a", 100), false)
 	truthy(Profile.canTake({ job = "b", at = 0 }, "a", Profile.LOCK_TIMEOUT + 1))
 	truthy(Profile.canTake({ job = "b" }, "a", 100))
+	-- waited long enough: take it anyway
+	truthy(Profile.canTake({ job = "b", at = 90 }, "a", 100, true))
+	-- a Studio test takes the lock an older (stopped) Studio test left
+	truthy(Profile.canTake({ job = "studio-old", at = 99 }, "studio-new", 100))
+	eq(Profile.canTake({ job = "live-server", at = 99 }, "studio-new", 100), false)
 end)
 
 -- a straight test track along -z: start at z = 0, a gate at -100, finish / lap back at 0

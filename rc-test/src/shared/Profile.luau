@@ -126,11 +126,18 @@ function Profile.award(
 end
 
 -- May this server (job) take the save? Free, ours already, or the other server stopped saving.
-function Profile.canTake(lock: any, job: string, now: number): boolean
-	if type(lock) ~= "table" or type(lock.job) ~= "string" then
+-- `force` = we waited and the other server still holds it: take it anyway (that server sees the
+-- new lock on its next save and stops saving, so the two never write over each other).
+-- A Studio test server ("studio-...") always takes a lock left by an older Studio test: Stop
+-- shuts the test down before its last save can let go, and there's only one Studio per tester.
+function Profile.canTake(lock: any, job: string, now: number, force: boolean?): boolean
+	if force or type(lock) ~= "table" or type(lock.job) ~= "string" then
 		return true
 	end
 	if lock.job == job then
+		return true
+	end
+	if string.sub(job, 1, 7) == "studio-" and string.sub(lock.job, 1, 7) == "studio-" then
 		return true
 	end
 	return type(lock.at) ~= "number" or now - lock.at > Profile.LOCK_TIMEOUT
