@@ -5,7 +5,7 @@
 --
 -- Plot-local space: (0, 0, 0) is the middle of the plot on the floor top. +Z is the front
 -- (the entrance and the player), -Z is the back. The floor, the outer walls and the front
--- area (stand spot, parking, sign, entrance) are built for you.
+-- area (stand spot, car show, sign, entrance) are built for you.
 
 export type Pt = { x: number, z: number }
 export type Sample = { x: number, z: number, tx: number, tz: number }
@@ -37,7 +37,7 @@ local Kit = {}
 -- resize every plot.
 Kit.WIDTH = 320 -- x
 Kit.DEPTH = 440 -- z
-local FRONT = 72 -- depth of the front area (stand spot, parking, sign, entrance)
+local FRONT = 72 -- depth of the front area (stand spot, car show, sign, entrance)
 -- Front area (z from FRONT_Z to the front edge) belongs to the base: the player stands here.
 Kit.FRONT_Z = Kit.DEPTH / 2 - FRONT
 Kit.STAND = { x = 0, z = Kit.DEPTH / 2 - 44 }
