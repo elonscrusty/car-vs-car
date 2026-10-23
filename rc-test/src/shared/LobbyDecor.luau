@@ -53,7 +53,8 @@ end
 LobbyDecor.ROW_Z = ROW_Z
 LobbyDecor.GAP_Z = GAP_Z
 
-LobbyDecor.BUNTING_Y = 8.6 -- where the string ties onto the lamp posts
+LobbyDecor.BUNTING_Y = 9.2 -- where the string ties onto the lamp posts
+LobbyDecor.POLE_DZ = 10 -- extra bunting poles: this far down the street from a plot's middle
 LobbyDecor.PLANTER_DZ = 24 -- planters: this far down the street from a plot's middle
 LobbyDecor.BIT_DZ = -30 -- hydrant / bin / mailbox: this far up the street
 LobbyDecor.PATH_X = EDGE - 1.2 -- footpath things stand by the outer edge
@@ -97,7 +98,7 @@ LobbyDecor.BRIGHT = {
 }
 local BRIGHT = LobbyDecor.BRIGHT
 
--- Bunting across the road at every lamp pair: one rope and 11 big pennants.
+-- Bunting across the road: one rope and 11 big pennants.
 local function bunting(add: Garage.Add, z: number, n: number)
 	local g = "Bunting" .. n
 	local half = L.EDGE - 1 -- the lamps stand here (LobbyLayout.lamps)
@@ -107,7 +108,7 @@ local function bunting(add: Garage.Add, z: number, n: number)
 	for i = 1, flags do
 		local x = -half + i * (2 * half / (flags + 1))
 		-- a wedge pointing down: its slope faces -z, the point at the bottom
-		add(g, "Pennant", v(0.08, 2.2, 1.9), v(x, top - 1.1, z), BRIGHT[(i + n) % #BRIGHT + 1], {
+		add(g, "Pennant", v(0.08, 3, 1.7), v(x, top - 1.5, z), BRIGHT[(i + n) % #BRIGHT + 1], {
 			shape = "Wedge",
 			rot = v(180, 90, 0),
 			collide = false,
@@ -255,6 +256,20 @@ function LobbyDecor.parts(): { Piece }
 		if l.x < 0 then
 			bunting(add, l.z, i)
 		end
+	end
+	-- and half way between the lamps, on two white poles, so the street is full of flags
+	for row, z in ROW_Z do
+		local bz = z + LobbyDecor.POLE_DZ
+		for _, side in { -1, 1 } do
+			add(
+				"Bunting" .. (10 + row),
+				"Pole",
+				v(0.35, LobbyDecor.BUNTING_Y + 0.4, 0.35),
+				v(side * (L.EDGE - 1), (LobbyDecor.BUNTING_Y + 0.4) / 2, bz),
+				C.pole
+			)
+		end
+		bunting(add, bz, 10 + row)
 	end
 
 	-- road paint: a checker start line by the spawn lobby, zebra crossings at the gaps
