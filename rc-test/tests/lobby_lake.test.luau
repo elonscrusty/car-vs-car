@@ -46,7 +46,7 @@ test("everything is past the street end, on the lake's land", function()
 	end
 end)
 
-test("the only seats are the fishing stools at the dock ends", function()
+test("seats: fishing stools, deck chairs under the umbrellas, the lifeguard chair", function()
 	local seats = 0
 	for _, p in pieces do
 		if p.seat then
@@ -54,7 +54,9 @@ test("the only seats are the fishing stools at the dock ends", function()
 		end
 	end
 	eq(#named("FishSeat"), 4)
-	eq(seats, 4)
+	eq(#named("ChairSeat"), 8)
+	eq(#named("GuardSeat"), 1)
+	eq(seats, 13)
 end)
 
 test("each fishing line hangs from its rod tip down to a float on the water", function()
@@ -118,7 +120,7 @@ end)
 
 test("every Meshy spot has blocks standing in for it until the mesh is imported", function()
 	local known =
-		{ Sailboat = 2, Canoe = 1, Duck = 4, Campfire = 1, BaitShack = 1, BeachUmbrella = 2 }
+		{ Sailboat = 2, Canoe = 1, Duck = 4, Campfire = 1, BaitShack = 1, BeachUmbrella = 4 }
 	local seen: { [string]: number } = {}
 	for _, s in spots do
 		truthy(known[s.mesh] ~= nil, "unknown mesh " .. s.mesh)

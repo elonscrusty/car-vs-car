@@ -1,7 +1,8 @@
 --!strict
 -- Things to do at the lake (LobbyWater lays the water, beach and docks): fishing spots with stools
--- at the dock ends, a swim raft with a diving board, two sailboats, two little beaches (a campfire
--- and a bait shack on the left, umbrellas, towels and a canoe on the right), reeds, lily pads and
+-- at the dock ends, a swim raft with a diving board, two sailboats, two little beaches (a campfire,
+-- a bait shack, an umbrella and a canoe on the left; umbrellas with deck chairs, a lifeguard
+-- chair, surfboards, a sandcastle and a beach ball on the right), reeds, lily pads and
 -- a family of ducks.
 -- Looks only, plain numbers (Lune tests load this); LobbyWaterBuilder turns the pieces into Parts.
 -- Pieces with a `group` are one of carter's Meshy props (LobbyLake.spots()): the builder skips them
@@ -32,6 +33,7 @@ export type Piece = {
 	collide: boolean,
 	hidden: boolean?,
 	round: boolean?, -- a flat disc (Cylinder part standing up): sx = sz = width, sy = height
+	ball: boolean?, -- a ball (sx across)
 	wedge: boolean?, -- a ramp: tall at local +z, down to nothing at -z
 	seat: boolean?, -- a Seat you can sit on, facing local -z
 	neon: boolean?, -- glows (flames)
@@ -433,7 +435,7 @@ local function baitShack(m: Maker, u: number, v: number)
 	end
 end
 
--- A beach umbrella with a towel under it.
+-- A beach umbrella with two deck chairs and a towel under it.
 local function umbrella(m: Maker, u: number, v: number, a: { number }, b: { number })
 	local x, z = at(u, v)
 	local y = LobbyWater.SAND_TOP
@@ -444,7 +446,59 @@ local function umbrella(m: Maker, u: number, v: number, a: { number }, b: { numb
 	put("UmbrellaTop", 0, 4.9, 0, 3.4, 0.35, 3.4, b).round = true
 	put("UmbrellaTip", 0, 5.2, 0, 1.0, 0.3, 1.0, a).round = true
 	m.spot(nil, 0, 0, 0, 0, 0)
-	put("Towel", -1.8, 0.05, 1.0, 2.0, 0.1, 3.6, b)
+	-- two deck chairs side by side in its shade, facing the lake, a towel in front
+	for _, cx in { -1.4, 1.4 } do
+		put("ChairBase", cx, 0.3, 0, 1.6, 0.6, 2.0, WHITE)
+		put("ChairSeat", cx, 0.7, 0, 1.6, 0.2, 2.2, a, 180).seat = true
+		put("ChairBack", cx, 1.48, -1.55, 1.8, 0.2, 1.6, a, 90, 60)
+	end
+	put("Towel", 0, 0.05, 3.4, 3.4, 0.1, 2.0, b)
+end
+
+-- A tall red and white lifeguard chair you can climb up and sit in, looking over the lake.
+local function lifeguard(m: Maker, u: number, v: number)
+	local x, z = at(u, v)
+	local put = m.frame(x, LobbyWater.SAND_TOP, z, face(0))
+	for _, sx in { -1, 1 } do
+		for _, sz in { -1, 1 } do
+			put("GuardLeg", sx * 1.3, 2.5, sz * 1.3, 0.35, 5, 0.35, WHITE)
+		end
+	end
+	put("GuardDeck", 0, 5.1, 0, 3.2, 0.3, 3.2, RED)
+	put("GuardSeat", 0, 5.55, -0.3, 1.8, 0.6, 1.6, RED, 180).seat = true
+	put("GuardBack", 0, 6.6, -1.2, 1.8, 1.6, 0.25, WHITE)
+	put("GuardRail", 0, 5.8, 1.5, 3.2, 0.25, 0.25, WHITE)
+	-- ladder steps up the back, a jump apart
+	for i = 1, 3 do
+		put("GuardStep", 0, i * 1.25, -1.9 - i * 0.5, 1.6, 0.25, 0.9, WHITE)
+	end
+	put("GuardFlag", 1.7, 7.8, 1.3, 0.9, 0.6, 0.08, RED, 90)
+	put("GuardPole", 1.7, 6.5, 1.3, 0.15, 2.6, 0.15, WHITE)
+end
+
+-- A sandcastle: a square base, four corner towers and a tall middle one with a little flag.
+local function sandcastle(m: Maker, u: number, v: number)
+	local x, z = at(u, v)
+	local put = m.frame(x, LobbyWater.SAND_TOP, z, face(0))
+	local wet = { 210, 186, 130 }
+	put("Castle", 0, 0.4, 0, 3, 0.8, 3, wet)
+	for _, sx in { -1, 1 } do
+		for _, sz in { -1, 1 } do
+			put("CastleTower", sx * 1.3, 1.1, sz * 1.3, 0.9, 1.4, 0.9, wet)
+		end
+	end
+	put("CastleKeep", 0, 1.6, 0, 1.3, 2.4, 1.3, wet)
+	put("CastleFlag", 0.3, 3.1, 0, 0.5, 0.35, 0.05, RED)
+end
+
+-- Two surfboards stuck upright in the sand, leaning a little.
+local function surfboards(m: Maker, u: number, v: number)
+	local x, z = at(u, v)
+	local put = m.frame(x, LobbyWater.SAND_TOP, z, face(0))
+	put("Surfboard", -0.8, 2.2, 0, 1.2, 5, 0.25, TEAL, 0, -6)
+	put("Surfboard", 0.8, 2.2, 0, 1.2, 5, 0.25, YELLOW, 0, 5)
+	put("SurfStripe", -0.8, 2.2, -0.14, 0.3, 4.6, 0.05, WHITE, 0, -6)
+	put("SurfStripe", 0.8, 2.2, -0.14, 0.3, 4.6, 0.05, RED, 0, 5)
 end
 
 -- A canoe pulled up on the sand with its paddle beside it, lying across (along u).
@@ -523,10 +577,20 @@ function LobbyLake.build(): ({ Piece }, { Spot })
 	beach(m, mid - edge, mid - inner)
 	campfire(m, mid - edge + 22, 3)
 	baitShack(m, mid - inner - 6, -4.2)
+	umbrella(m, mid - inner - 22, 1.5, YELLOW, BLUE)
+	canoe(m, mid - edge + 6, 7)
 	beach(m, mid + inner, mid + edge)
 	umbrella(m, mid + inner + 12, 1.5, RED, WHITE)
-	umbrella(m, mid + inner + 26, 1.5, TEAL, YELLOW)
-	canoe(m, mid + edge - 10, 6)
+	umbrella(m, mid + inner + 25, 1.5, TEAL, YELLOW)
+	umbrella(m, mid + inner + 38, 1.5, BLUE, WHITE)
+	lifeguard(m, mid + edge - 6, -1)
+	surfboards(m, mid + edge - 4, 6)
+	sandcastle(m, mid + inner + 5, 7)
+	local bx, bz = at(mid + inner + 19, 7.5)
+	m.piece("BeachBall", bx, LobbyWater.SAND_TOP + 0.6, bz, 1.2, 1.2, 1.2, RED).ball = true
+	local cx, cz = at(mid + inner + 31.5, -1.5)
+	m.piece("Cooler", cx, LobbyWater.SAND_TOP + 0.5, cz, 1.6, 1.0, 1.0, BLUE)
+	m.piece("CoolerLid", cx, LobbyWater.SAND_TOP + 1.05, cz, 1.7, 0.15, 1.1, WHITE)
 
 	-- life: reeds in the far corners and along the far shore, lily pads, a mother duck and three
 	-- ducklings swimming in a line

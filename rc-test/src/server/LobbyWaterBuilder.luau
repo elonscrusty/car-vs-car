@@ -142,7 +142,11 @@ local function makePart(folder: Instance, pc: LobbyLake.Piece)
 			size,
 			cf,
 			color,
-			if pc.round then Enum.PartType.Cylinder elseif pc.wedge then Enum.PartType.Wedge else nil
+			if pc.round
+				then Enum.PartType.Cylinder
+				elseif pc.wedge then Enum.PartType.Wedge
+				elseif pc.ball then Enum.PartType.Ball
+				else nil
 		)
 	end
 	p.CanCollide = pc.collide
