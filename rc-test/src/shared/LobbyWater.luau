@@ -419,6 +419,39 @@ local function footbridge(out: { Piece }, x0: number, x1: number, z: number)
 	end
 end
 
+export type Landing = { x: number, z: number, dx: number, dz: number }
+
+-- Where each dock meets the bank edge (x, z), which way it points out (dx, dz) and how long it is.
+local function docks(): { Landing & { len: number } }
+	local g = LobbyLayout.ground()
+	local bank = LobbyWater.bankBox()
+	local midZ = (g.minZ + g.maxZ) / 2
+	return {
+		{ x = bank.minX, z = midZ - 20, dx = -1, dz = 0, len = 32 },
+		{ x = bank.minX, z = g.maxZ - 40, dx = -1, dz = 0, len = 26 },
+		{ x = bank.maxX, z = midZ + 60, dx = 1, dz = 0, len = 32 },
+		{ x = (g.minX + g.maxX) / 2 + 30, z = bank.minZ, dx = 0, dz = -1, len = 28 },
+	}
+end
+
+-- The island's middle (x, z) and radius; the footbridge leaves the right bank in line with it.
+local function islandSpot(): (number, number, number)
+	local g = LobbyLayout.ground()
+	return LobbyWater.bankBox().maxX + 38, g.minZ + 40, 14
+end
+
+-- Every dock and the footbridge, where it meets the bank edge and which way it points out
+-- (landscaping opens its fence and keeps a walking lane clear in line with each one).
+function LobbyWater.landings(): { Landing }
+	local out: { Landing } = {}
+	for _, d in docks() do
+		table.insert(out, { x = d.x, z = d.z, dx = d.dx, dz = d.dz })
+	end
+	local _, isZ = islandSpot()
+	table.insert(out, { x = LobbyWater.bankBox().maxX, z = isZ, dx = 1, dz = 0 })
+	return out
+end
+
 -- Every piece of the water scenery.
 function LobbyWater.pieces(): { Piece }
 	local out: { Piece } = {}
@@ -441,16 +474,12 @@ function LobbyWater.pieces(): { Piece }
 	ring(out, "LakeBed", sand, far, LobbyWater.BED_TOP, 1, BED, true)
 
 	-- docks: two on the left, one on the right, one off the back
-	local midZ = (g.minZ + g.maxZ) / 2
-	dock(out, bank.minX, midZ - 20, -1, 0, 32)
-	dock(out, bank.minX, g.maxZ - 40, -1, 0, 26)
-	dock(out, bank.maxX, midZ + 60, 1, 0, 32)
-	dock(out, (g.minX + g.maxX) / 2 + 30, bank.minZ, 0, -1, 28)
+	for _, d in docks() do
+		dock(out, d.x, d.z, d.dx, d.dz, d.len)
+	end
 
 	-- a small island off the back-right, reached by an arched footbridge from the right bank
-	local isZ = g.minZ + 40
-	local isR = 14
-	local isX = bank.maxX + 38
+	local isX, isZ, isR = islandSpot()
 	island(out, isX, isZ, isR)
 	footbridge(out, bank.maxX - LobbyWater.DOCK_FREE + 0.5, isX - isR + 2, isZ)
 

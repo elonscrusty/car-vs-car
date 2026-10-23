@@ -95,3 +95,17 @@ test("an invisible wall keeps people near the lobby", function()
 		truthy(p.y + p.sy / 2 > 10, "tall enough")
 	end
 end)
+
+test("landings: one per dock plus the footbridge, on the bank edge, pointing out", function()
+	local bank = W.bankBox()
+	local ls = W.landings()
+	eq(#ls, #named("DockFrame") + 1)
+	for _, l in ls do
+		eq(math.abs(l.dx) + math.abs(l.dz), 1, "points straight out")
+		local onEdge = (l.dx == -1 and l.x == bank.minX)
+			or (l.dx == 1 and l.x == bank.maxX)
+			or (l.dz == -1 and l.z == bank.minZ)
+			or (l.dz == 1 and l.z == bank.maxZ)
+		truthy(onEdge, `landing at {l.x}, {l.z}`)
+	end
+end)
