@@ -6,6 +6,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
+local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
 local Profile = require(ReplicatedStorage.Shared.Profile)
 
 local remote = ReplicatedStorage:WaitForChild("StarsEvent") :: RemoteEvent
@@ -22,21 +23,34 @@ local gui = Instance.new("ScreenGui")
 gui.Name = "Stars"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
-gui.DisplayOrder = 5
+gui.DisplayOrder = HudLayout.HUD
 gui.Parent = player:WaitForChild("PlayerGui")
+
+-- the rivals panel and the gift card draw over every HUD button
+local popGui = Instance.new("ScreenGui")
+popGui.Name = "StarsPopups"
+popGui.ResetOnSpawn = false
+popGui.IgnoreGuiInset = true
+popGui.DisplayOrder = HudLayout.POPUP
+popGui.Parent = player:WaitForChild("PlayerGui")
+
+-- the lobby chips and buttons hide while you drive (the car has its own buttons there)
+local walkHud = Instance.new("Frame")
+walkHud.Name = "WalkHud"
+walkHud.BackgroundTransparency = 1
+walkHud.Size = UDim2.fromScale(1, 1)
+walkHud.Parent = gui
 
 local chip = Instance.new("TextLabel")
 chip.Name = "StarCount"
-chip.AnchorPoint = Vector2.new(0, 0)
-chip.Position = UDim2.new(0.02, 0, 0.14, 70) -- under the timer
-chip.Size = UDim2.fromScale(0.13, 0.06)
+HudLayout.place(chip, "StarCount")
 chip.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 chip.BackgroundTransparency = 0.3
 chip.TextColor3 = Color3.fromRGB(255, 213, 79)
 chip.Font = Enum.Font.GothamBlack
 chip.TextScaled = true
 chip.Text = "⭐ 0"
-chip.Parent = gui
+chip.Parent = walkHud
 local chipCorner = Instance.new("UICorner")
 chipCorner.CornerRadius = UDim.new(0.3, 0)
 chipCorner.Parent = chip
@@ -46,10 +60,10 @@ chipScale.Parent = chip
 -- coins, beside the stars
 local coinChip = chip:Clone()
 coinChip.Name = "CoinCount"
-coinChip.Position = UDim2.new(0.16, 0, 0.14, 70)
+HudLayout.place(coinChip, "CoinCount")
 coinChip.TextColor3 = Color3.fromRGB(255, 236, 150)
 coinChip.Text = "0"
-coinChip.Parent = gui
+coinChip.Parent = walkHud
 -- a drawn coin (the coin emoji is missing from Roblox's font): gold disc, darker rim, a lighter
 -- inner ring. The number sits to its right.
 local coinPad = Instance.new("UIPadding")
@@ -88,7 +102,7 @@ innerRing.Parent = coinInner
 -- gold bolts found, only while on a rock plot
 local boltChip = chip:Clone()
 boltChip.Name = "BoltCount"
-boltChip.Position = UDim2.new(0.30, 0, 0.14, 70)
+HudLayout.place(boltChip, "BoltCount", "drive")
 boltChip.TextColor3 = Color3.fromRGB(255, 200, 70)
 boltChip.Text = "BOLTS 0/5"
 boltChip.Visible = false
@@ -118,15 +132,14 @@ end
 -- rivals: a button under the coins opens your score against each player you raced
 local rivalsBtn = Instance.new("TextButton")
 rivalsBtn.Name = "Rivals"
-rivalsBtn.Position = UDim2.new(0.16, 0, 0.2, 76) -- under the coins
-rivalsBtn.Size = UDim2.fromScale(0.13, 0.05)
+HudLayout.place(rivalsBtn, "Rivals")
 rivalsBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 rivalsBtn.BackgroundTransparency = 0.3
 rivalsBtn.TextColor3 = Color3.new(1, 1, 1)
 rivalsBtn.Font = Enum.Font.GothamBlack
 rivalsBtn.TextScaled = true
 rivalsBtn.Text = "RIVALS"
-rivalsBtn.Parent = gui
+rivalsBtn.Parent = walkHud
 local rivalsBtnCorner = Instance.new("UICorner")
 rivalsBtnCorner.CornerRadius = UDim.new(0.3, 0)
 rivalsBtnCorner.Parent = rivalsBtn
@@ -139,7 +152,7 @@ panel.Size = UDim2.fromScale(0.42, 0.62)
 panel.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 panel.BackgroundTransparency = 0.1
 panel.Visible = false
-panel.Parent = gui
+panel.Parent = popGui
 local panelCorner = Instance.new("UICorner")
 panelCorner.CornerRadius = UDim.new(0.06, 0)
 panelCorner.Parent = panel
@@ -212,12 +225,11 @@ showRivals({}, 0, 0)
 -- daily jobs: a small panel under the chips (tap the title to fold it)
 local jobs = Instance.new("Frame")
 jobs.Name = "DailyJobs"
-jobs.Position = UDim2.new(0.02, 0, 0.26, 80) -- under the rivals button
-jobs.Size = UDim2.fromScale(0.27, 0.2)
+HudLayout.place(jobs, "DailyJobs")
 jobs.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 jobs.BackgroundTransparency = 0.3
 jobs.Visible = false -- until the server sends them
-jobs.Parent = gui
+jobs.Parent = walkHud
 local jobsCorner = Instance.new("UICorner")
 jobsCorner.CornerRadius = UDim.new(0.08, 0)
 jobsCorner.Parent = jobs
@@ -258,7 +270,10 @@ local function showFold()
 	for _, row in jobRows do
 		row.Visible = not folded
 	end
-	jobs.Size = UDim2.fromScale(0.27, if folded then 0.06 else 0.2)
+	HudLayout.place(jobs, "DailyJobs")
+	if folded then
+		jobs.Size = UDim2.new(jobs.Size.X, UDim.new(0, 30))
+	end
 	jobsTitle.Size = UDim2.fromScale(1, if folded then 1 else 0.22)
 end
 jobsTitle.Activated:Connect(function()
@@ -306,7 +321,7 @@ toast.TextColor3 = Color3.new(1, 1, 1)
 toast.TextTransparency = 1
 toast.Font = Enum.Font.GothamBold
 toast.TextScaled = true
-toast.Parent = gui
+toast.Parent = popGui
 local toastCorner = Instance.new("UICorner")
 toastCorner.CornerRadius = UDim.new(0.4, 0)
 toastCorner.Parent = toast
@@ -354,7 +369,7 @@ pop.TextColor3 = Color3.new(1, 1, 1)
 pop.TextStrokeColor3 = Color3.new(0, 0, 0)
 pop.TextTransparency = 1
 pop.TextStrokeTransparency = 1
-pop.Parent = gui
+pop.Parent = popGui
 local popScale = Instance.new("UIScale")
 popScale.Parent = pop
 
@@ -382,16 +397,14 @@ end
 -- "2X COINS" over the top of the screen while workspace.CoinBoost is 2 (Saturday and Sunday)
 local banner = Instance.new("TextLabel")
 banner.Name = "WeekendBanner"
-banner.AnchorPoint = Vector2.new(0.5, 0)
-banner.Position = UDim2.new(0.5, 0, 0, 122) -- under the friends button
-banner.Size = UDim2.fromScale(0.34, 0.055)
+HudLayout.place(banner, "WeekendBanner") -- under QUICK RACE
 banner.BackgroundColor3 = Color3.fromRGB(255, 190, 40)
 banner.TextColor3 = Color3.fromRGB(70, 35, 0)
 banner.Font = Enum.Font.GothamBlack
 banner.TextScaled = true
 banner.Text = "2X COINS WEEKEND!"
 banner.Visible = false
-banner.Parent = gui
+banner.Parent = walkHud
 local bannerCorner = Instance.new("UICorner")
 bannerCorner.CornerRadius = UDim.new(0.4, 0)
 bannerCorner.Parent = banner
@@ -425,7 +438,7 @@ card.Size = UDim2.fromScale(0.62, 0.36)
 card.BackgroundColor3 = Color3.fromRGB(30, 32, 44)
 card.BackgroundTransparency = 0.08
 card.Visible = false
-card.Parent = gui
+card.Parent = popGui
 local cardRatio = Instance.new("UIAspectRatioConstraint")
 cardRatio.AspectRatio = 2.3
 cardRatio.Parent = card
@@ -608,3 +621,9 @@ remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unkn
 		setStars(r.stars, type(r.gained) == "number" and r.gained > 0)
 	end
 end)
+
+local function showWalkHud()
+	walkHud.Visible = player:GetAttribute("Driving") ~= true
+end
+player:GetAttributeChangedSignal("Driving"):Connect(showWalkHud)
+showWalkHud()

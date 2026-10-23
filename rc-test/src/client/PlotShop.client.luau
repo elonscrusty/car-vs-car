@@ -7,6 +7,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local HudLayout = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("HudLayout"))
 local PlotShop = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("PlotShop"))
 
 local player = Players.LocalPlayer
@@ -23,8 +24,21 @@ local gui = Instance.new("ScreenGui")
 gui.Name = "PlotShop"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
-gui.DisplayOrder = 8
+gui.DisplayOrder = HudLayout.POPUP
 gui.Parent = player:WaitForChild("PlayerGui")
+
+-- the LOOKS button sits with the other lobby buttons, under the popups; hidden while driving
+local hudGui = Instance.new("ScreenGui")
+hudGui.Name = "PlotShopButton"
+hudGui.ResetOnSpawn = false
+hudGui.IgnoreGuiInset = true
+hudGui.DisplayOrder = HudLayout.HUD
+hudGui.Parent = player:WaitForChild("PlayerGui")
+local function showButton()
+	hudGui.Enabled = player:GetAttribute("Driving") ~= true
+end
+player:GetAttributeChangedSignal("Driving"):Connect(showButton)
+showButton()
 
 local function corner(parent: Instance, r: number)
 	local c = Instance.new("UICorner")
@@ -43,10 +57,9 @@ local function text(class: string, parent: Instance, t: string, color: Color3): 
 	return l
 end
 
-local openBtn = text("TextButton", gui, "LOOKS", Color3.new(1, 1, 1)) :: TextButton
+local openBtn = text("TextButton", hudGui, "LOOKS", Color3.new(1, 1, 1)) :: TextButton
 openBtn.Name = "Looks"
-openBtn.Position = UDim2.new(0.30, 0, 0.2, 76) -- under the bolts chip, beside RIVALS
-openBtn.Size = UDim2.fromScale(0.13, 0.05)
+HudLayout.place(openBtn, "Looks") -- beside RIVALS
 openBtn.BackgroundColor3 = Color3.fromRGB(176, 70, 255)
 openBtn.BackgroundTransparency = 0.15
 openBtn.Visible = false

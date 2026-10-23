@@ -28,5 +28,6 @@ require("./stars.test")
 require("./serverrace.test")
 require("./daily_jobs.test")
 require("./smoke.test")
+require("./hud_layout.test")
 
 Harness.summary()
