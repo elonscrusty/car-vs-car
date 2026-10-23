@@ -46,8 +46,7 @@ PlotDecor.BOX = { minX = -40.5, maxX = 40.5, minZ = -55.5, maxZ = 56, maxY = 16 
 -- z 45..47.5): nothing solid in here.
 PlotDecor.LANE = { minX = -9.5, maxX = 29, minZ = 44, maxZ = 54 }
 PlotDecor.BOOTH = { x = 35, z = 40.5 } -- right front corner, behind the steps
-PlotDecor.CANOPY = { x = -35, z = 42 } -- left front corner, beside the parking
-PlotDecor.FEATURE = { x = -21, z = 40.6 } -- podium / rock pile / tyre wall, by the low wall
+PlotDecor.CANOPY = { x = -35, z = 42 } -- left front corner, beside the car show (PlotStands)
 
 export type Theme = {
 	wall: { number }, -- outer walls
@@ -440,60 +439,6 @@ function PlotDecor.parts(kind: string): { Piece }
 			o({ material = if kind == "rock" then "Fabric" else nil })
 		)
 	end
-	-- one thing to play on per kind, between the low wall and the parking (left of the gate):
-	-- race a winners podium, rocks a boulder pile with a summit flag, drift its tyre wall (meshes)
-	local f = PlotDecor.FEATURE
-	if kind == "race" then
-		for i, step in
-			{
-				{ 0, 1.6, { 255, 196, 40 } },
-				{ -3, 1.1, { 196, 200, 210 } },
-				{ 3, 0.7, { 205, 127, 50 } },
-			}
-		do
-			add(
-				"Podium",
-				"Step" .. i,
-				v(3, step[2], 3),
-				v(f.x + step[1], step[2] / 2, f.z),
-				step[3]
-			)
-		end
-	elseif kind == "rock" then
-		add(
-			"RockPile",
-			"Rock",
-			v(5, 1.4, 4),
-			v(f.x, 0.7, f.z),
-			{ 128, 124, 118 },
-			{ rot = v(0, 12, 0), material = "Slate" }
-		)
-		add(
-			"RockPile",
-			"Rock",
-			v(3.2, 1.2, 3),
-			v(f.x + 0.6, 1.9, f.z - 0.2),
-			{ 140, 136, 128 },
-			{ rot = v(0, -20, 0), material = "Slate" }
-		)
-		add(
-			"RockPile",
-			"Rock",
-			v(2.6, 1.6, 2.4),
-			v(f.x - 3.4, 0.8, f.z + 0.6),
-			{ 116, 112, 106 },
-			{ rot = v(0, 30, 0), material = "Slate" }
-		)
-		add(
-			"RockPile",
-			"Pole",
-			v(0.2, 3, 0.2),
-			v(f.x + 0.6, 4, f.z - 0.2),
-			{ 225, 225, 230 },
-			noHit
-		)
-		add("RockPile", "Flag", v(1.4, 0.9, 0.08), v(f.x + 1.35, 5, f.z - 0.2), t.trim, noHit)
-	end
 	return out
 end
 
@@ -505,7 +450,6 @@ function PlotDecor.meshes(kind: string): { Mesh }
 	-- { model, at, fit, yaw (degrees), group }. carter's Meshy models come in facing -Z, so
 	-- yaw 180 turns their front to the road and the people; yaw 0 faces the track. A group
 	-- other than "Extras" swaps out that group's block stand-ins.
-	local f = PlotDecor.FEATURE
 	local list: { { any } } = if kind == "drift"
 		then {
 			{ "Speaker", v(b.x - 3, 1.6, counterZ), v(1.2, 1.6, 1.2), 180 },
@@ -513,13 +457,8 @@ function PlotDecor.meshes(kind: string): { Mesh }
 			{ "TireStack", v(c.x - 1.5, 0, c.z - 1), v(2, 2.6, 2) },
 			{ "TireStack", v(c.x + 1.6, 0, c.z - 1.6), v(2, 1.8, 2) },
 			{ "Cooler", v(c.x, 0, c.z + 1.8), v(1.4, 1, 1), 180 },
-			-- a little tyre wall along the low wall
-			{ "TireStack", v(f.x - 4.5, 0, f.z), v(2.2, 2.2, 2.2) },
-			{ "TireStack", v(f.x - 2.2, 0, f.z), v(2.2, 1.6, 2.2) },
-			{ "TireStack", v(f.x + 0.1, 0, f.z), v(2.2, 2.2, 2.2) },
-			{ "TireStack", v(f.x + 2.4, 0, f.z), v(2.2, 1.6, 2.2) },
 			-- two spotlights on the track, one each side of the front area
-			{ "FloodLight", v(-12, 0, 39), v(1.8, 5, 1.9), 180 }, -- long on z like the model: no quarter turn; lamp to the track
+			{ "FloodLight", v(-8, 0, 39), v(1.8, 5, 1.9), 180 }, -- long on z like the model: no quarter turn; lamp to the track
 			{ "FloodLight", v(29.5, 0, 39), v(1.8, 5, 1.9), 180 },
 		}
 		elseif kind == "rock" then {
@@ -539,8 +478,6 @@ function PlotDecor.meshes(kind: string): { Mesh }
 			{ "WheelRack", v(c.x - 1.4, 0, c.z - 2), v(3, 2.6, 1.2), 180 },
 			{ "TireStack", v(c.x + 2, 0, c.z + 1), v(2, 2, 2) },
 			{ "Cooler", v(c.x - 1.5, 0, c.z + 1.6), v(1.4, 1, 1), 180 },
-			-- the winner's trophy on the podium's top step
-			{ "Trophy", v(f.x, 1.6, f.z - 0.8), v(1, 1.4, 0.8), 180 },
 		}
 	local out: { Mesh } = {}
 	for _, m in list do

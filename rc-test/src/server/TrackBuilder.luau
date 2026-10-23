@@ -57,8 +57,8 @@ local function buildBase(parent: Instance, origin: CFrame, grip: number)
 		)
 	end
 
-	-- front area: a line across, the stand spot, parking and the entrance path (the lobby puts
-	-- the name sign by the road)
+	-- front area: a line across, the stand spot and the entrance path (the lobby puts the name
+	-- sign by the road; the car show on the left is PlotStands')
 	local front = Kit.FRONT_Z
 	-- low wall between the track and the front area: the car stays on its side, people can
 	-- still see over it
@@ -90,18 +90,6 @@ local function buildBase(parent: Instance, origin: CFrame, grip: number)
 			CFrame.new(sx + 14 + (steps - i + 0.5) * 8, top - 0.5, sz + 9),
 			C.pad
 		)
-	end
-	local park = Kit.part(
-		parent,
-		"Parking",
-		origin,
-		Vector3.new(64, 0.2, 40),
-		CFrame.new(-w / 2 + 72, 0.1, front + 48),
-		Color3.fromRGB(170, 170, 170)
-	)
-	park.CanCollide = false
-	for i = -1, 1 do
-		Kit.line(parent, origin, -w / 2 + 72 + i * 21, 0.1, front + 48, 1, 0, 36, C.white)
 	end
 	local path = Kit.part(
 		parent,

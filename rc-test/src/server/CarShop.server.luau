@@ -7,8 +7,8 @@
 --     car? (spin), tile? (spinTile), new? (spin, spinTile) }
 -- Track tiles are TileShop's (the build screen asks TileShop.owns / count on the save).
 -- Each player's chosen car per mode is also on the Player as attributes Car_drift, Car_race and
--- Car_rock (car ids), for whoever draws the cars, and the shop cars owned are in "Cars"
--- ("<kind>:<index>" into Garage.SHOPS, comma separated: the plot stands show them).
+-- Car_rock (car ids), for whoever draws the cars, and every car owned (gumball ones too) is in
+-- "CarIds" (car ids, comma separated: the car show at their plot shows them).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -29,13 +29,18 @@ local function setAttributes(player: Player, data: CarCatalog.Save)
 	local shown = {}
 	for _, mode in CarCatalog.MODES do
 		player:SetAttribute("Car_" .. mode, CarCatalog.equipped(data, mode).id)
-		for i, c in CarCatalog.SHOP[mode] do
+		for _, c in CarCatalog.SHOP[mode] do
 			if CarCatalog.owns(data, c.id) then
-				table.insert(shown, mode .. ":" .. i)
+				table.insert(shown, c.id)
 			end
 		end
 	end
-	player:SetAttribute("Cars", table.concat(shown, ","))
+	for _, g in CarCatalog.GUMBALL do
+		if CarCatalog.owns(data, g.car.id) then
+			table.insert(shown, g.car.id)
+		end
+	end
+	player:SetAttribute("CarIds", table.concat(shown, ","))
 end
 
 local function state(data: any): { [string]: any }

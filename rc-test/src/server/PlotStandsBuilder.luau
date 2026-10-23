@@ -1,9 +1,11 @@
 --!strict
--- Puts each plot owner's cars on the three stands at their plot (PlotStands has the layout).
--- The cars someone has: their player attribute "Cars" ("race:1,drift:2"), set by the car shop
--- once buying exists; until then the first car of the plot's kind. Rebuilt when the plot's
--- owner or that list changes. A plot nobody owns shows empty stands.
+-- Builds the car show at each plot (PlotStands has the layout): the owner's best car on the
+-- turning podium, the rest on the shelf, and the board with their name and car count. The cars
+-- someone has: their player attribute "CarIds" (car ids, set by CarShop). Rebuilt when the
+-- plot's owner or that list changes. A plot nobody owns shows an empty shelf and a blank board.
+-- The podium car carries the tag "ShowSpin"; ShowSpin.client turns it.
 
+local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Garage = require(ReplicatedStorage.Shared.Garage)
@@ -13,9 +15,32 @@ local LobbyPlots = require(script.Parent.LobbyPlots)
 
 local PlotStandsBuilder = {}
 
+-- Words on the road side of the board (its Back face: the plot's +z).
+local function label(board: BasePart, top: string, bottom: string)
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Back
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 40
+	gui.LightInfluence = 0
+	gui.Parent = board
+	local function line(text: string, y: number, h: number, color: Color3)
+		local l = Instance.new("TextLabel")
+		l.BackgroundTransparency = 1
+		l.Position = UDim2.fromScale(0.03, y)
+		l.Size = UDim2.fromScale(0.94, h)
+		l.Font = Enum.Font.GothamBlack
+		l.TextScaled = true
+		l.TextColor3 = color
+		l.Text = text
+		l.Parent = gui
+	end
+	line(top, 0.06, 0.52, Color3.new(1, 1, 1))
+	line(bottom, 0.58, 0.36, Color3.fromRGB(255, 200, 50))
+end
+
 function PlotStandsBuilder.start()
 	local slots = LobbyLayout.slots()
-	local shown: { [number]: string } = {} -- what each plot's stands show now
+	local shown: { [number]: string } = {} -- what each plot's show has now
 	local watching: { [Player]: RBXScriptConnection } = {}
 
 	local function rebuild(slot: number)
@@ -25,8 +50,8 @@ function PlotStandsBuilder.start()
 			return
 		end
 		local owner = LobbyPlots.ownerOf(slot)
-		local list = if owner then tostring(owner:GetAttribute("Cars") or "") else nil
-		local key = if owner then owner.UserId .. "|" .. (list :: string) else "-"
+		local list = if owner then tostring(owner:GetAttribute("CarIds") or "") else ""
+		local key = if owner then owner.UserId .. "|" .. list else "-"
 		if shown[slot] == key then
 			return
 		end
@@ -35,15 +60,25 @@ function PlotStandsBuilder.start()
 		if old then
 			old:Destroy()
 		end
-		local cars = if owner then PlotStands.parse(list, s.id) else {}
+		local cars = if owner then PlotStands.parse(list) else {}
 		local model = Instance.new("Model")
 		model.Name = "Stands"
 		local pivot = CFrame.new(s.plotX, 0, s.plotZ) * CFrame.Angles(0, s.angle, 0)
-		Garage.makeParts(PlotStands.pieces(cars), model, pivot)
+		local groups = Garage.makeParts(PlotStands.pieces(cars), model, pivot)
+		local board = groups.Show and groups.Show:FindFirstChild("Board")
+		if owner and board and board:IsA("BasePart") then
+			label(board, PlotStands.words(owner.DisplayName, #cars))
+		end
+		local hero = groups.Hero
+		if hero then
+			local h = PlotStands.HERO
+			hero.WorldPivot = pivot * CFrame.new(h.x, h.top, h.z)
+			CollectionService:AddTag(hero, "ShowSpin")
+		end
 		model.Parent = plot
 		-- follow the owner's list
 		if owner and not watching[owner] then
-			watching[owner] = owner:GetAttributeChangedSignal("Cars"):Connect(function()
+			watching[owner] = owner:GetAttributeChangedSignal("CarIds"):Connect(function()
 				local mine = LobbyPlots.slotOf(owner)
 				if mine then
 					rebuild(mine)
