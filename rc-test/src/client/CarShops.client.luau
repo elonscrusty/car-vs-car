@@ -3,7 +3,9 @@
 -- and the gumball machine (tagged "Gumball"). The cars on show turn slowly on their stands; the
 -- counter opens the shop screen: a card per car (the car itself, its name, its price in coins)
 -- with BUY (when you have the coins), PICK (yours: drive it in that mode) or DRIVING. The
--- gumball machine opens its own screen: every rare car with its odds, and SPIN.
+-- gumball machine opens its own screen: every rare car with its odds, and SPIN. Every screen has
+-- a TILES tab: track tiles for your plot (coin tiles to buy, legendary tiles from the tile spin
+-- with the odds shown, or for coins).
 -- The server (CarShop.server, RemoteFunction CarShop) does every buy, pick and spin.
 
 local CollectionService = game:GetService("CollectionService")
@@ -14,6 +16,7 @@ local RunService = game:GetService("RunService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Garage = require(Shared:WaitForChild("Garage"))
 local CarCatalog = require(Shared:WaitForChild("CarCatalog"))
+local TileShop = require(Shared:WaitForChild("TileShop"))
 local HudLayout = require(Shared:WaitForChild("HudLayout"))
 
 local player = Players.LocalPlayer
@@ -29,9 +32,11 @@ type State = {
 	coins: number,
 	owned: { string },
 	equipped: { [string]: string },
+	tiles: { string }?,
 	ok: boolean,
 	why: string?,
 	car: string?,
+	tile: string?,
 	new: boolean?,
 }
 
@@ -108,7 +113,7 @@ local function text(
 	return l
 end
 
-local title = text(panel, "", 0.05, 0.03, 0.6, 0.12, Color3.new(1, 1, 1), true)
+local title = text(panel, "", 0.05, 0.03, 0.31, 0.12, Color3.new(1, 1, 1), true)
 local coinsLabel = text(panel, "", 0.62, 0.05, 0.25, 0.08, GOLD)
 coinsLabel.TextXAlignment = Enum.TextXAlignment.Right
 
@@ -185,8 +190,29 @@ end
 
 -- ===== Shop screen =====
 
-local current: { kind: string, gumball: boolean }? = nil
+local current: { kind: string, gumball: boolean, tiles: boolean }? = nil
 local render: () -> () = function() end
+
+-- CARS / TILES tabs at the top of every screen
+local function tab(t: string, x: number, tiles: boolean): TextButton
+	local b = button(panel, t, GOLD, true)
+	b.Position = UDim2.fromScale(x, 0.04)
+	b.Size = UDim2.fromScale(0.12, 0.1)
+	b.Activated:Connect(function()
+		local c = current
+		if c and c.tiles ~= tiles then
+			c.tiles = tiles
+			render()
+		end
+	end)
+	return b
+end
+local carsTab = tab("CARS", 0.37, false)
+local tilesTab = tab("TILES", 0.5, true)
+local function showTab(tiles: boolean)
+	carsTab.BackgroundColor3 = if tiles then GREY else GOLD
+	tilesTab.BackgroundColor3 = if tiles then GOLD else GREY
+end
 
 local function showShop(kind: string, s: State)
 	clear()
@@ -344,6 +370,125 @@ local function showGumball(s: State, result: string?)
 	end
 end
 
+-- ===== Tiles screen =====
+
+local TIER_WORDS = { coins = "track piece", legendary = "LEGENDARY" }
+local LEGEND = Color3.fromRGB(60, 220, 255)
+
+local function showTiles(s: State, result: string?)
+	clear()
+	title.Text = "TRACK TILES"
+	panelStroke.Color = LEGEND
+	coinsLabel.Text = s.coins .. " coins"
+	local owned: { [string]: boolean } = {}
+	for _, id in s.tiles or {} do
+		owned[id] = true
+	end
+	local chance: { [string]: number } = {}
+	for _, g in TileShop.SPIN do
+		chance[g.id] = g.chance
+	end
+	local list: { TileShop.Tile } = {}
+	for _, t in TileShop.TILES do
+		if t.tier ~= "free" then
+			table.insert(list, t)
+		end
+	end
+	local rows = #list
+	for i, t in list do
+		local y = (i - 1) / rows * 0.78
+		local row = Instance.new("Frame")
+		row.Position = UDim2.fromScale(0, y)
+		row.Size = UDim2.fromScale(0.62, 0.78 / rows - 0.02)
+		row.BackgroundColor3 = Color3.fromRGB(48, 48, 58)
+		row.Parent = body
+		corner(row, 0.25)
+		local dot = Instance.new("Frame")
+		dot.Position = UDim2.fromScale(0.02, 0.15)
+		dot.Size = UDim2.fromScale(0.06, 0.7)
+		dot.BackgroundColor3 = rgb(t.color)
+		dot.Parent = row
+		corner(dot, 0.5)
+		local legendary = t.tier == "legendary"
+		text(row, t.name, 0.1, 0.08, 0.3, 0.5, Color3.new(1, 1, 1), true)
+		text(
+			row,
+			TIER_WORDS[t.tier] or "",
+			0.1,
+			0.58,
+			0.3,
+			0.34,
+			if legendary then LEGEND else Color3.fromRGB(180, 180, 190),
+			true
+		)
+		if chance[t.id] then
+			text(row, chance[t.id] .. "%", 0.41, 0.15, 0.13, 0.7, LEGEND)
+		end
+		text(row, t.price .. " coins", 0.55, 0.2, 0.22, 0.6, GOLD)
+		local b: TextButton
+		if owned[t.id] then
+			b = button(row, "HAVE", Color3.fromRGB(60, 180, 80), false)
+			b.BackgroundColor3 = Color3.fromRGB(60, 180, 80)
+			b.TextColor3 = Color3.new(1, 1, 1)
+		else
+			local can = s.coins >= t.price
+			b = button(row, "BUY", Color3.fromRGB(240, 170, 20), can)
+			if can then
+				b.Activated:Connect(function()
+					b.Active = false
+					local now = ask("buyTile", t.id)
+					if now then
+						showTiles(
+							now,
+							if now.ok then `{t.name} is yours! Put it on your track.` else nil
+						)
+					end
+				end)
+			end
+		end
+		b.Position = UDim2.fromScale(0.79, 0.12)
+		b.Size = UDim2.fromScale(0.19, 0.76)
+	end
+	text(
+		body,
+		`Legendary tiles hit every racer on your track. A spin you have already gives {TileShop.DUPLICATE_REFUND} coins back.`,
+		0,
+		0.82,
+		0.62,
+		0.12,
+		Color3.fromRGB(180, 180, 190)
+	).TextWrapped =
+		true
+	local can = s.coins >= TileShop.SPIN_PRICE
+	local spin = button(body, `SPIN  {TileShop.SPIN_PRICE} coins`, LEGEND, can)
+	spin.Position = UDim2.fromScale(0.66, 0.62)
+	spin.Size = UDim2.fromScale(0.34, 0.2)
+	local out = text(
+		body,
+		result or "Spin for a legendary tile!",
+		0.66,
+		0.05,
+		0.34,
+		0.5,
+		Color3.new(1, 1, 1)
+	)
+	out.TextWrapped = true
+	if can then
+		spin.Activated:Connect(function()
+			spin.Active = false
+			local now = ask("spinTile")
+			if now then
+				local t = if now.tile then TileShop.get(now.tile) else nil
+				local msg = if t == nil
+					then "Not enough coins"
+					elseif now.new then `You got {t.name}! Put it on your track.`
+					else `{t.name} again: {TileShop.DUPLICATE_REFUND} coins back`
+				showTiles(now, msg)
+			end
+		end)
+	end
+end
+
 render = function()
 	local c = current
 	if c == nil then
@@ -353,7 +498,10 @@ render = function()
 	if s == nil then
 		return
 	end
-	if c.gumball then
+	showTab(c.tiles)
+	if c.tiles then
+		showTiles(s)
+	elseif c.gumball then
 		showGumball(s)
 	else
 		showShop(c.kind, s)
@@ -406,7 +554,7 @@ local function addShop(shopModel: Model)
 	local desk = counter and counter:FindFirstChild("Desk")
 	if desk and desk:IsA("BasePart") then
 		prompt(desk, "Shop", TITLES[kind] or "", function()
-			current = { kind = kind, gumball = false }
+			current = { kind = kind, gumball = false, tiles = false }
 			render()
 		end)
 	end
@@ -427,7 +575,7 @@ workspace.DescendantAdded:Connect(check)
 local function addGumball(inst: Instance)
 	if inst:IsA("BasePart") then
 		prompt(inst, "Spin", "Gumball", function()
-			current = { kind = "", gumball = true }
+			current = { kind = "", gumball = true, tiles = false }
 			render()
 		end)
 	end
