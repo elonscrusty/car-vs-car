@@ -101,7 +101,8 @@ local car = RCCar.new(model, ignoreList())
 local camera = ChaseCamera.new(body, ignoreList(), eye)
 camera.setView(view)
 local effects = Effects.new(car.telemetry)
-local skin = CarSkin.new() -- the truck model on the rock car (look only)
+local skin = CarSkin.new() -- real car models over the grey car (look only)
+local SKINS: { [string]: string } = { rock = "RockCrawler", drift = "DriftCoupe" } -- track id -> CarSkins model
 local rc = true -- always RC size: the lobby plots are the tracks
 
 -- one track per lobby plot (its kind's data, placed where that plot sits)
@@ -499,7 +500,7 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 			cam.CameraSubject = hum
 		end
 		car.render(dt) -- keep the parked car's wheels drawn
-		skin.update(car, tracks[current].id == "rock")
+		skin.update(car, SKINS[tracks[current].id])
 		effects.quiet()
 		return
 	end
@@ -507,7 +508,7 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 		return
 	end
 	car.render(dt)
-	skin.update(car, tracks[current].id == "rock")
+	skin.update(car, SKINS[tracks[current].id])
 	effects.update(dt)
 	camera.update(dt)
 	controls.setRock(tracks[current].id == "rock")

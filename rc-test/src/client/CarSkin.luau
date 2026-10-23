@@ -1,11 +1,11 @@
 --!strict
--- A look-only skin for the RC car: a real truck model drawn over the grey blocks on the rock
--- track. The grey body still does all the driving; the skin just follows it every frame, and
+-- A look-only skin for the RC car: a real car model drawn over the grey blocks (the truck on the
+-- rock track, the coupe on the drift track). The grey body still does all the driving; the skin just follows it every frame, and
 -- its wheels ride the same springs. B turns the skin off and on to compare.
 --
--- The model is a Model named RockCrawler in ReplicatedStorage.CarSkins, with MeshParts named
--- Body, WheelFL, WheelFR, WheelRL and WheelRR. Studio's 3D import puts the truck's nose at +Z,
--- and the car drives toward -Z, so the copy is turned around before use.
+-- Each skin is a Model in ReplicatedStorage.CarSkins (RockCrawler, DriftCoupe, ...), with MeshParts
+-- named Body, WheelFL, WheelFR, WheelRL and WheelRR. Studio's 3D import puts the nose at +Z, and
+-- the car drives toward -Z, so the copy is turned around before use.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
@@ -19,6 +19,7 @@ local CarSkin = {}
 
 type Shown = {
 	car: RCCar.Car,
+	name: string,
 	scale: number,
 	folder: Folder,
 	body: BasePart,
@@ -26,9 +27,9 @@ type Shown = {
 	hidden: { [BasePart]: number }, -- grey parts and how see-through they were
 }
 
-local function template(): Model?
+local function template(name: string): Model?
 	local skins = ReplicatedStorage:FindFirstChild("CarSkins")
-	local m = skins and skins:FindFirstChild("RockCrawler")
+	local m = skins and skins:FindFirstChild(name)
 	return if m and m:IsA("Model") then m else nil
 end
 
@@ -41,7 +42,7 @@ local function lookOnly(p: BasePart)
 	p.CastShadow = true
 end
 
-local function show(car: RCCar.Car, src: Model): Shown?
+local function show(car: RCCar.Car, name: string, src: Model): Shown?
 	local copy = src:Clone()
 	local body = copy:FindFirstChild("Body", true)
 	if not (body and body:IsA("BasePart")) then
@@ -110,6 +111,7 @@ local function show(car: RCCar.Car, src: Model): Shown?
 	car.setLook({ wheels = wheels, spots = spots, turns = turns })
 	return {
 		car = car,
+		name = name,
 		scale = Tuning.scale,
 		folder = folder,
 		body = body,
@@ -128,11 +130,12 @@ local function hide(s: Shown)
 	s.folder:Destroy()
 end
 
--- Starts the skin. Call update(car, wanted) every frame right after car.render.
+-- Starts the skin. Call update(car, name) every frame right after car.render, with the skin's
+-- name in CarSkins, or nil for none.
 function CarSkin.new()
 	local enabled = true
 	local shown: Shown? = nil
-	local broken: Model? = nil -- a model missing a part: don't keep trying it every frame
+	local broken: { [Model]: boolean } = {} -- models missing a part: don't keep trying them every frame
 
 	UserInputService.InputBegan:Connect(function(input: InputObject, typing: boolean)
 		if not typing and input.KeyCode == Enum.KeyCode.B then
@@ -142,22 +145,24 @@ function CarSkin.new()
 
 	local self = {}
 
-	function self.update(car: RCCar.Car, wanted: boolean)
-		local want = wanted and enabled and car.body.Parent ~= nil
+	function self.update(car: RCCar.Car, name: string?)
+		local want = name ~= nil and enabled and car.body.Parent ~= nil
 		local cur = shown
-		if cur and (not want or cur.car ~= car or cur.scale ~= Tuning.scale) then
+		if
+			cur and (not want or cur.car ~= car or cur.name ~= name or cur.scale ~= Tuning.scale)
+		then
 			hide(cur)
 			shown = nil
 			cur = nil
 		end
-		if want and not cur then
-			local src = template()
-			if src and src ~= broken then
-				shown = show(car, src)
+		if want and name and not cur then
+			local src = template(name)
+			if src and not broken[src] then
+				shown = show(car, name, src)
 				cur = shown
 				if not shown then
-					broken = src
-					warn("CarSkin: RockCrawler needs Body, WheelFL, WheelFR, WheelRL and WheelRR")
+					broken[src] = true
+					warn(`CarSkin: {name} needs Body, WheelFL, WheelFR, WheelRL and WheelRR`)
 				end
 			end
 		end
