@@ -51,6 +51,15 @@ function LapTimer.reset(s: State)
 	s.laps = 0
 end
 
+-- Start the clock now (a standing start, when the start lights go green): the line just ahead
+-- doesn't restart it, the next gate is gate 2.
+function LapTimer.go(s: State, now: number)
+	s.running = true
+	s.finished = false
+	s.startTime = now
+	s.next = 2
+end
+
 function LapTimer.inside(g: Gate, x: number, y: number, z: number): boolean
 	local rx, rz = x - g.x, z - g.z
 	local along = rx * g.dx + rz * g.dz
