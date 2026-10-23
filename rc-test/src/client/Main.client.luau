@@ -24,6 +24,7 @@ local Effects = require(script.Parent.Effects)
 local Hud = require(script.Parent.Hud)
 local Lobby = require(script.Parent.Lobby)
 local LobbyLife = require(script.Parent.LobbyLife)
+local LobbyWelcome = require(script.Parent.LobbyWelcome)
 local LobbySky = require(script.Parent.LobbySky)
 local RCCar = require(script.Parent.RCCar)
 
@@ -261,6 +262,7 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown)
 	if kind == "walk" then
 		setWalking(true)
 		LobbyLife.start() -- butterflies and birds (looks only, this screen)
+		LobbyWelcome.start() -- first time only: street lights on, confetti
 	elseif kind == "drive" and type(index) == "number" and tracks[index] then
 		setWalking(false)
 		-- fresh hooks: the person may have respawned since the last drive
@@ -275,6 +277,8 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown)
 	end
 end)
 setWalking(true)
+LobbyLife.start() -- butterflies and birds (looks only, this screen)
+LobbyWelcome.start() -- the first moment here: street lights on, confetti
 
 local function timerText(): string
 	local t = tracks[current]
