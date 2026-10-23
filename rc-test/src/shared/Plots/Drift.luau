@@ -656,24 +656,25 @@ local function smokePuff(parent: Instance, origin: CFrame, spot: Spot)
 	p.Transparency = 1
 	paint(p)
 	local e = Instance.new("ParticleEmitter")
-	e.Color = ColorSequence.new(Color3.fromRGB(225, 225, 230), Color3.fromRGB(170, 170, 178))
+	e.Color = ColorSequence.new(Color3.fromRGB(245, 245, 248), Color3.fromRGB(205, 205, 212))
 	e.Size = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 5),
-		NumberSequenceKeypoint.new(1, 16),
+		NumberSequenceKeypoint.new(0, 10),
+		NumberSequenceKeypoint.new(1, 28),
 	})
 	e.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.55),
+		NumberSequenceKeypoint.new(0, 0.2),
+		NumberSequenceKeypoint.new(0.6, 0.45),
 		NumberSequenceKeypoint.new(1, 1),
 	})
 	e.Lifetime = NumberRange.new(3, 5)
-	e.Rate = 2
+	e.Rate = 5 -- 3 spots x 5/s x ~4 s: about 60 puffs a plot, light enough for phones
 	e.Speed = NumberRange.new(1, 3)
 	e.SpreadAngle = Vector2.new(40, 40)
 	e.Acceleration = Vector3.new(0, 1.5, 0)
 	e.Drag = 1
 	e.RotSpeed = NumberRange.new(-20, 20)
 	e.Rotation = NumberRange.new(0, 360)
-	e.LightInfluence = 1
+	e.LightInfluence = 0.3
 	e.Parent = p
 end
 
