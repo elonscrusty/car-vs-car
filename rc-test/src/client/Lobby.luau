@@ -16,6 +16,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
+local PlotGuide = require(script.Parent.PlotGuide)
 
 local Lobby = {}
 
@@ -68,6 +69,7 @@ end
 
 function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 	local driving = false
+	local guide = PlotGuide.new(building)
 
 	-- a big dark button at the bottom, between the steer stick zone (left half) and BRAKE, above
 	-- the PC key help line
@@ -132,6 +134,7 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 			end
 			ownSlot = slot
 			friendsOn = open
+			guide.setSlot(slot)
 			showFriends()
 		elseif kind == "closed" then
 			-- not your plot and not open (or someone is on it): say so on the DRIVE button
@@ -222,6 +225,7 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 	local lobby = {} :: Lobby
 	function lobby.setDriving(on: boolean)
 		driving = on
+		guide.setDriving(on)
 		Players.LocalPlayer:SetAttribute("Driving", on) -- lobby chips and buttons hide while driving
 		gui.Enabled = on
 		quickGui.Enabled = not on and not building()

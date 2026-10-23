@@ -3,7 +3,9 @@
 -- and some have hazards or powerups").
 -- SWAP: drag a tile from the bar onto any square and it swaps in; the server turns it to fit the
 --   road around it.
--- TURN: tap a tile on the grid to turn it a quarter.
+-- TURN: tap a tile on the grid to turn it a quarter (it spins; PC: R turns the last one). The tile
+--   you just dropped or turned wears a yellow ring and a turn badge, and until you turn one the
+--   hint says TAP TO TURN (carter: "add a way to rotate tiles").
 -- ERASE: turn ERASE on, then tap squares.
 -- First time: a big hand shows one drag from the bar to the grid, until you do it yourself.
 -- This screen only draws and reports; the server checks everything and sends back the state.
@@ -11,6 +13,7 @@ local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local BuildLayout = require(ReplicatedStorage.Shared.BuildLayout)
@@ -180,6 +183,8 @@ function BuildScreen.new(opts: Options): BuildScreen
 	local byKey: { [string]: Cell } = {}
 	local layout = BuildLayout.fit(844, 390, state.cols, state.rows)
 	local erasing = false
+	local selected: string? = nil -- the tile just dropped or turned: ringed, R turns it
+	local turnTaught = Players.LocalPlayer:GetAttribute("TurnTaught") == true
 
 	-- ===== grid =====
 	local grid = Instance.new("Frame")
@@ -308,7 +313,26 @@ function BuildScreen.new(opts: Options): BuildScreen
 				local here = byKey[cellKey(c, r)]
 				local piece = if here then pieceById(here.piece) else nil
 				if here and piece then
+					f.Name = cellKey(c, r)
 					drawRoad(f, piece, here.rot)
+					if selected == cellKey(c, r) and not erasing then
+						-- a ring and a turn badge: "tap me to turn"
+						rim(f, YELLOW, 3)
+						f.ZIndex = 2
+						local badge = Instance.new("TextLabel")
+						badge.Name = "Turn"
+						badge.AnchorPoint = Vector2.new(1, 0)
+						badge.Position = UDim2.new(1, 2, 0, -2)
+						badge.Size = UDim2.fromScale(0.42, 0.42)
+						badge.BackgroundColor3 = YELLOW
+						badge.Font = Enum.Font.GothamBlack
+						badge.TextScaled = true
+						badge.TextColor3 = DARK
+						badge.Text = "↻"
+						badge.ZIndex = 5
+						badge.Parent = f
+						round(badge, 100)
+					end
 				end
 			end
 		end
@@ -319,7 +343,8 @@ function BuildScreen.new(opts: Options): BuildScreen
 		status.BackgroundColor3 = if state.ready then GREEN else RED
 		statusText.Text = BuildLayout.statusText(state.ready)
 		local gap = not state.ready and state.why ~= nil and #state.cells > 1
-		whyText.Text = BuildLayout.hint(state.ready, gap, erasing)
+		local turnTip = selected ~= nil and not turnTaught
+		whyText.Text = BuildLayout.hint(state.ready, gap, erasing, turnTip)
 		whyText.TextColor3 = if gap and not erasing then Color3.fromRGB(255, 140, 130) else WHITE
 	end
 
@@ -383,6 +408,26 @@ function BuildScreen.new(opts: Options): BuildScreen
 		return BuildLayout.cellAt(layout, at.X, at.Y, state.cols, state.rows)
 	end
 
+	-- a quarter turn: spin the square at once, the server's state redraws it turned
+	local function turnTile(c: number, r: number)
+		local here = byKey[cellKey(c, r)]
+		if not here then
+			return
+		end
+		selected = cellKey(c, r)
+		if not turnTaught then
+			turnTaught = true
+			Players.LocalPlayer:SetAttribute("TurnTaught", true)
+		end
+		local f = tiles:FindFirstChild(cellKey(c, r))
+		if f and f:IsA("GuiObject") then
+			TweenService:Create(f, TweenInfo.new(0.15, Enum.EasingStyle.Quad), { Rotation = 90 })
+				:Play()
+		end
+		opts.onPlace(c, r, here.piece, (here.rot + 1) % 4)
+		drawTop()
+	end
+
 	grid.InputBegan:Connect(function(input: InputObject)
 		if not isPress(input) or dropping then
 			return
@@ -398,7 +443,18 @@ function BuildScreen.new(opts: Options): BuildScreen
 		if erasing then
 			opts.onRemove(c, r)
 		else
-			opts.onPlace(c, r, here.piece, (here.rot + 1) % 4)
+			turnTile(c, r)
+		end
+	end)
+
+	-- PC: R turns the ringed tile
+	UserInputService.InputBegan:Connect(function(input: InputObject, typing: boolean)
+		if typing or not gui.Enabled or erasing or input.KeyCode ~= Enum.KeyCode.R then
+			return
+		end
+		local at = if selected then byKey[selected] else nil
+		if at then
+			turnTile(at.c, at.r)
 		end
 	end)
 
@@ -434,6 +490,7 @@ function BuildScreen.new(opts: Options): BuildScreen
 		-- a tap on a card (no drag) drops nothing
 		local c, r = cellUnder(pointer(input))
 		if wasDrag and c and r then
+			selected = cellKey(c, r)
 			opts.onDrop(c, r, id)
 			if not taught then
 				taught = true
@@ -483,6 +540,7 @@ function BuildScreen.new(opts: Options): BuildScreen
 		erasing = not erasing
 		eraseBtn.Text = if erasing then "ERASE: ON" else "ERASE"
 		eraseBtn.BackgroundColor3 = if erasing then RED else Color3.fromRGB(80, 86, 106)
+		drawGrid()
 		drawTop()
 	end)
 	doneBtn.Activated:Connect(function()

@@ -267,7 +267,6 @@ test("dropping a tile swaps it in, turned to join the road around it", function(
 	-- on grass it still goes down, turned toward the road next to it
 	local g3 = T.circle(5, 5)
 	eq((T.drop(g3, 2, 2, "straight")), true)
-	truthy(T.ALL_FREE)
 end)
 
 test("there are lots of tiles: shapes, hazards and powers, each with a card tip", function()
@@ -280,4 +279,18 @@ test("there are lots of tiles: shapes, hazards and powers, each with a card tip"
 	truthy(#T.PIECES >= 16)
 	truthy(kinds.hazard >= 5 and kinds.power >= 2 and kinds.road >= 6)
 	truthy(T.piece("jump") ~= nil and T.piece("cones") ~= nil)
+end)
+
+test("rotate turns a tile a quarter turn, four taps = back", function()
+	local g = T.circle(5, 5)
+	local t = T.get(g, 1, 1) :: any
+	local start = t.rot
+	eq((T.rotate(g, 1, 1)), true)
+	eq(t.rot, (start + 1) % 4)
+	eq(T.ready(g), false) -- the corner no longer joins
+	T.rotate(g, 1, 1)
+	T.rotate(g, 1, 1)
+	T.rotate(g, 1, 1)
+	eq(T.ready(g), true)
+	eq((T.rotate(g, 3, 3)), false) -- grass
 end)

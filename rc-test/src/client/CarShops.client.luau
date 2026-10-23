@@ -33,6 +33,7 @@ type State = {
 	owned: { string },
 	equipped: { [string]: string },
 	tiles: { string }?,
+	stars: number?,
 	ok: boolean,
 	why: string?,
 	car: string?,
@@ -188,6 +189,33 @@ local function preview(parent: Instance, car: CarCatalog.Car, bg: Color3): Viewp
 	return view
 end
 
+-- A list of rows on the left of the screen: five show at once, more scroll (swipe on a phone).
+local function rowList(rows: number): (number) -> Frame
+	local scroller = Instance.new("ScrollingFrame")
+	scroller.Size = UDim2.fromScale(0.62, 0.78)
+	scroller.BackgroundTransparency = 1
+	scroller.BorderSizePixel = 0
+	scroller.ScrollBarThickness = 8
+	scroller.ScrollingDirection = Enum.ScrollingDirection.Y
+	scroller.CanvasSize = UDim2.fromScale(0, math.max(rows / 5, 1))
+	scroller.Parent = body
+	local slots = math.max(rows, 5)
+	return function(i: number): Frame
+		local row = Instance.new("Frame")
+		row.Position = UDim2.fromScale(0, (i - 1) / slots)
+		row.Size = UDim2.new(1, -12, 1 / slots, -6)
+		row.BackgroundColor3 = Color3.fromRGB(48, 48, 58)
+		row.Parent = scroller
+		corner(row, 0.25)
+		return row
+	end
+end
+
+-- What a grey BUY says: how many more coins you need.
+local function needWords(price: number, coins: number): string
+	return if coins >= price then "BUY" else `{price - coins} more`
+end
+
 -- ===== Shop screen =====
 
 local current: { kind: string, gumball: boolean, tiles: boolean }? = nil
@@ -219,11 +247,6 @@ local function showShop(kind: string, s: State)
 	title.Text = TITLES[kind] or "CARS"
 	panelStroke.Color = rgb(Garage.SHOPS[kind].color)
 	coinsLabel.Text = s.coins .. " coins"
-	local list = Instance.new("UIListLayout")
-	list.FillDirection = Enum.FillDirection.Horizontal
-	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	list.Padding = UDim.new(0.02, 0)
-	list.Parent = body
 	local owned: { [string]: boolean } = {}
 	for _, id in s.owned do
 		owned[id] = true
@@ -235,13 +258,33 @@ local function showShop(kind: string, s: State)
 			table.insert(cars, g.car)
 		end
 	end
-	local w = math.min(0.31, (1 - 0.02 * (#cars - 1)) / #cars)
+	-- three cards show at once; more scroll sideways (swipe on a phone)
+	local shown = math.max(#cars, 3)
+	local scroller = Instance.new("ScrollingFrame")
+	scroller.Size = UDim2.fromScale(1, 0.9)
+	scroller.BackgroundTransparency = 1
+	scroller.BorderSizePixel = 0
+	scroller.ScrollBarThickness = 8
+	scroller.ScrollingDirection = Enum.ScrollingDirection.X
+	scroller.CanvasSize = UDim2.fromScale(shown / 3, 0)
+	scroller.Parent = body
+	text(
+		body,
+		if #cars > 3
+			then "Win races and beat records for coins. Swipe for more cars."
+			else "Win races and beat records for coins.",
+		0,
+		0.92,
+		1,
+		0.08,
+		Color3.fromRGB(180, 180, 190)
+	)
 	for i, car in cars do
 		local c = Instance.new("Frame")
-		c.Size = UDim2.fromScale(w, 1)
+		c.Position = UDim2.new((i - 1) / shown, 4, 0, 0)
+		c.Size = UDim2.new(1 / shown, -8, 1, -14)
 		c.BackgroundColor3 = Color3.fromRGB(48, 48, 58)
-		c.LayoutOrder = i
-		c.Parent = body
+		c.Parent = scroller
 		corner(c, 0.08)
 		local view = preview(c, car, rgb(Garage.SHOPS[kind].color))
 		view.Position = UDim2.fromScale(0.06, 0.04)
@@ -275,7 +318,12 @@ local function showShop(kind: string, s: State)
 				end
 			end)
 		else
-			b = button(c, "BUY", Color3.fromRGB(240, 170, 20), s.coins >= car.price)
+			b = button(
+				c,
+				needWords(car.price, s.coins),
+				Color3.fromRGB(240, 170, 20),
+				s.coins >= car.price
+			)
 			if s.coins >= car.price then
 				b.Activated:Connect(function()
 					local now = ask("buy", car.id)
@@ -306,15 +354,9 @@ local function showGumball(s: State, result: string?)
 		owned[id] = true
 	end
 	-- the odds, every car, plainly
-	local rows = #CarCatalog.GUMBALL
+	local newRow = rowList(#CarCatalog.GUMBALL)
 	for i, g in CarCatalog.GUMBALL do
-		local y = (i - 1) / rows * 0.78
-		local row = Instance.new("Frame")
-		row.Position = UDim2.fromScale(0, y)
-		row.Size = UDim2.fromScale(0.62, 0.78 / rows - 0.02)
-		row.BackgroundColor3 = Color3.fromRGB(48, 48, 58)
-		row.Parent = body
-		corner(row, 0.25)
+		local row = newRow(i)
 		local dot = Instance.new("Frame")
 		dot.Position = UDim2.fromScale(0.02, 0.15)
 		dot.Size = UDim2.fromScale(0.07, 0.7)
@@ -394,24 +436,16 @@ local function showTiles(s: State, result: string?)
 			table.insert(list, t)
 		end
 	end
-	-- five rows show at once; more scroll (swipe on a phone)
-	local rows = #list
-	local pages = math.max(rows / 5, 1)
-	local scroller = Instance.new("ScrollingFrame")
-	scroller.Size = UDim2.fromScale(0.62, 0.78)
-	scroller.BackgroundTransparency = 1
-	scroller.BorderSizePixel = 0
-	scroller.ScrollBarThickness = 8
-	scroller.ScrollingDirection = Enum.ScrollingDirection.Y
-	scroller.CanvasSize = UDim2.fromScale(0, pages)
-	scroller.Parent = body
+	-- cheapest first, so the next tile to save for is near the top
+	table.sort(list, function(a, b)
+		if a.price ~= b.price then
+			return a.price < b.price
+		end
+		return a.name < b.name
+	end)
+	local newRow = rowList(#list)
 	for i, t in list do
-		local row = Instance.new("Frame")
-		row.Position = UDim2.fromScale(0, (i - 1) / math.max(rows, 5))
-		row.Size = UDim2.new(1, -12, 1 / math.max(rows, 5), -6)
-		row.BackgroundColor3 = Color3.fromRGB(48, 48, 58)
-		row.Parent = scroller
-		corner(row, 0.25)
+		local row = newRow(i)
 		local dot = Instance.new("Frame")
 		dot.Position = UDim2.fromScale(0.02, 0.15)
 		dot.Size = UDim2.fromScale(0.06, 0.7)
@@ -420,9 +454,10 @@ local function showTiles(s: State, result: string?)
 		corner(dot, 0.5)
 		local legendary = t.tier == "legendary"
 		text(row, t.name, 0.1, 0.08, 0.3, 0.5, Color3.new(1, 1, 1), true)
+		local at = TileShop.unlockAt(t.id)
 		text(
 			row,
-			TIER_WORDS[t.tier] or "",
+			if at > 0 then `opens at {at} stars` else TIER_WORDS[t.tier] or "",
 			0.1,
 			0.58,
 			0.3,
@@ -439,9 +474,12 @@ local function showTiles(s: State, result: string?)
 			b = button(row, "HAVE", Color3.fromRGB(60, 180, 80), false)
 			b.BackgroundColor3 = Color3.fromRGB(60, 180, 80)
 			b.TextColor3 = Color3.new(1, 1, 1)
+		elseif (s.stars or 0) < at then
+			-- not open yet: win stars on other people's tracks
+			b = button(row, `{at} stars`, GOLD, false)
 		else
 			local can = s.coins >= t.price
-			b = button(row, "BUY", Color3.fromRGB(240, 170, 20), can)
+			b = button(row, needWords(t.price, s.coins), Color3.fromRGB(240, 170, 20), can)
 			if can then
 				b.Activated:Connect(function()
 					b.Active = false
