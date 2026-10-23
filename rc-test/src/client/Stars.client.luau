@@ -575,6 +575,122 @@ local function setStars(n: number, bump: boolean)
 	end
 end
 
+-- ===== coins fly into your total (after a race, a gift, a job) =====
+-- More coins than the chip shows: little gold coins fly from the middle of the screen into the
+-- chip and it counts up. While you drive (the chip is hidden) they wait until you walk again.
+local coinScale = coinChip:FindFirstChildOfClass("UIScale") :: UIScale
+local shownCoins: number? = nil
+local targetCoins = 0
+local flying = false
+local heldGoal: any = nil -- a goal that came in while coins fly (its bar fills after they land)
+local goalHeld = false
+
+local function drawCoin(parent: Instance, px: number): Frame
+	local c = Instance.new("Frame")
+	c.AnchorPoint = Vector2.new(0.5, 0.5)
+	c.Size = UDim2.fromOffset(px, px)
+	c.BackgroundColor3 = Color3.fromRGB(255, 196, 40)
+	c.ZIndex = 5
+	local round = Instance.new("UICorner")
+	round.CornerRadius = UDim.new(0.5, 0)
+	round.Parent = c
+	local rim = Instance.new("UIStroke")
+	rim.Color = Color3.fromRGB(176, 112, 10)
+	rim.Thickness = 2
+	rim.Parent = c
+	c.Parent = parent
+	return c
+end
+
+local showGoalNow: (any) -> () -- set below, with the goal bar
+
+local function releaseGoal()
+	if goalHeld then
+		goalHeld = false
+		showGoalNow(heldGoal)
+	end
+end
+
+local function flyCoins()
+	if flying or shownCoins == nil or not hud.Enabled then
+		return
+	end
+	local from = shownCoins :: number
+	local gain = targetCoins - from
+	if gain <= 0 then
+		releaseGoal()
+		return
+	end
+	flying = true
+	local count = math.clamp(3 + gain // 15, 3, 10)
+	local view = workspace.CurrentCamera.ViewportSize
+	local chipPos = coinChip.AbsolutePosition + coinChip.AbsoluteSize / 2
+	local start = Vector2.new(view.X * 0.5, view.Y * 0.55)
+	-- "+N" by the chip
+	local plus = Instance.new("TextLabel")
+	plus.AnchorPoint = Vector2.new(0, 0.5)
+	plus.Position =
+		UDim2.fromOffset(coinChip.AbsolutePosition.X + coinChip.AbsoluteSize.X + 6, chipPos.Y)
+	plus.Size = UDim2.fromOffset(110, 30)
+	plus.BackgroundTransparency = 1
+	plus.Font = Enum.Font.GothamBlack
+	plus.TextScaled = true
+	plus.TextXAlignment = Enum.TextXAlignment.Left
+	plus.TextColor3 = Color3.fromRGB(255, 213, 79)
+	plus.TextStrokeTransparency = 0.3
+	plus.Text = `+{gain}`
+	plus.Parent = top
+	for i = 1, count do
+		task.delay((i - 1) * 0.08, function()
+			local c = drawCoin(top, 26)
+			local spread = Vector2.new(math.random(-90, 90), math.random(-50, 50))
+			c.Position = UDim2.fromOffset(start.X + spread.X, start.Y + spread.Y)
+			local t = TweenService:Create(
+				c,
+				TweenInfo.new(0.55, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+				{
+					Position = UDim2.fromOffset(chipPos.X, chipPos.Y),
+					Size = UDim2.fromOffset(14, 14),
+				}
+			)
+			t.Completed:Connect(function()
+				c:Destroy()
+				-- count up a share of the coins with each one that lands
+				local now = if i == count then targetCoins else from + math.floor(gain * i / count)
+				coinChip.Text = tostring(now)
+				shownCoins = now
+				coinScale.Scale = 1.25
+				TweenService
+					:Create(coinScale, TweenInfo.new(0.2, Enum.EasingStyle.Back), { Scale = 1 })
+					:Play()
+				if i == count then
+					flying = false
+					task.delay(0.6, function()
+						plus:Destroy()
+					end)
+					releaseGoal()
+					-- more came in while these flew
+					flyCoins()
+				end
+			end)
+			t:Play()
+		end)
+	end
+end
+
+local function setCoins(n: number)
+	targetCoins = n
+	if shownCoins == nil or n < (shownCoins :: number) then
+		shownCoins = n -- first count, or coins spent: no show
+		if not flying then
+			coinChip.Text = tostring(n)
+			releaseGoal()
+		end
+		return
+	end
+	flyCoins()
+end
+
 -- ===== the next unlock (walk HUD) and the race prize card =====
 
 local GOLD = Color3.fromRGB(255, 213, 79)
@@ -662,7 +778,7 @@ nextHow.Size = UDim2.fromScale(0.6, 0.3)
 local nextBar = bar(nextBox, 0.82, 0.18)
 nextHow.Position = UDim2.fromScale(0, 0.47)
 
-local function showGoal(g: any)
+local function showGoalBar(g: any)
 	-- every tile is free (Studio switch): no tile to save up for
 	local allFree = workspace:GetAttribute("AllTilesFree") == true
 	if
@@ -687,6 +803,16 @@ local function showGoal(g: any)
 end
 
 -- after a server race: your place, the coins, and the goal bar filling up
+showGoalNow = showGoalBar
+-- while coins are flying in, the bar waits and fills when they land
+local function showGoal(g: any)
+	if flying or (shownCoins ~= nil and targetCoins > (shownCoins :: number)) then
+		heldGoal, goalHeld = g, true
+		return
+	end
+	showGoalBar(g)
+end
+
 local prize = Instance.new("Frame")
 prize.Name = "RacePrize"
 prize.AnchorPoint = Vector2.new(0.5, 0)
@@ -796,7 +922,7 @@ remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unkn
 		return
 	end
 	if kind == "coins" and type(info) == "number" then
-		coinChip.Text = tostring(info)
+		setCoins(info)
 		return
 	end
 	if kind == "bolts" and type(info) == "number" then
@@ -873,6 +999,9 @@ end)
 -- hide the lobby HUD while this player drives (Lobby.setDriving sets the attribute)
 local function showWalkHud()
 	hud.Enabled = player:GetAttribute("Driving") ~= true and player:GetAttribute("Building") ~= true
+	if hud.Enabled then
+		task.delay(0.5, flyCoins) -- coins won while driving fly in now
+	end
 end
 player:GetAttributeChangedSignal("Driving"):Connect(showWalkHud)
 player:GetAttributeChangedSignal("Building"):Connect(showWalkHud)
