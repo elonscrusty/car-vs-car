@@ -132,14 +132,13 @@ local driverOf: { [number]: Player } = {} -- real track index -> player
 local lastPrompt: { [Player]: number } = {}
 
 local function setSign(slotIndex: number)
-	local slot = slots[slotIndex]
 	local who: Player? = nil
 	for p, si in drivingSlot do
 		if si == slotIndex then
 			who = p
 		end
 	end
-	lobby.signs[slotIndex].Text = if who then `{slot.label}\n{who.DisplayName}` else slot.label
+	lobby.signs[slotIndex].Text = LobbyLayout.signText(if who then who.DisplayName else nil)
 end
 for i in slots do
 	setSign(i)

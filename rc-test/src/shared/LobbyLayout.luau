@@ -246,6 +246,11 @@ function LobbyLayout.toMini(
 	return slot.plotX + x * c + z * n, ly * s, slot.plotZ - x * n + z * c
 end
 
+-- What a plot's sign says: the name of whoever is driving that plot, blank when nobody is.
+function LobbyLayout.signText(driver: string?): string
+	return driver or ""
+end
+
 -- Close enough to the pad to start driving? (flat distance)
 function LobbyLayout.inReach(slot: Slot, x: number, z: number): boolean
 	local dx, dz = x - slot.padX, z - slot.padZ
