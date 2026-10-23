@@ -157,7 +157,7 @@ local DECOR: { Decor } = {
 	decor("toolbox", 150, -8, -PI / 2, 3, true),
 	decor("gasCan", 112, 2, 0.4, 2.5, true),
 	-- race control tower in the V behind the hairpin, with a windsock
-	decor("tower", -8, -198, PI, 30, true, 12, 12, 40),
+	decor("tower", -8, -196, PI, 30, true, 20, 20, 44),
 	decor("windsock", 18, -210, PI, 16, false),
 	-- trees: leafy ones in the infield, pines in the back corners
 	decor("leafyTree", -78, -72, 0.3, 18, true),
