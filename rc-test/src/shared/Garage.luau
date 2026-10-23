@@ -82,6 +82,7 @@ export type Mesh = {
 	keep: { string },
 	onTop: string?,
 	faceMinusX: boolean?, -- when turned, look toward -x (default +x)
+	yaw: number?, -- extra turn about y, degrees (a model that came in facing the wrong way)
 	carSkin: boolean?, -- take it from ReplicatedStorage.CarSkins instead of LobbyMeshes
 	collide: boolean,
 }
@@ -894,7 +895,7 @@ function Garage.useMeshes(groups: { [string]: Model }, origin: CFrame, meshes: {
 		-- stand it with its bottom middle on the spot
 		local y = if m.onTop then tops[m.onTop] or m.at.y else m.at.y
 		local spot = origin * CFrame.new(m.at.x, y, m.at.z)
-		prop:PivotTo(spot * CFrame.Angles(0, turn, 0))
+		prop:PivotTo(spot * CFrame.Angles(0, turn + math.rad(m.yaw or 0), 0))
 		local box, now = prop:GetBoundingBox()
 		local bottom = box.Position - Vector3.yAxis * now.Y / 2
 		prop:PivotTo(prop:GetPivot() + (spot.Position - bottom))

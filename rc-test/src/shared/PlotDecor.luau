@@ -137,33 +137,80 @@ function PlotDecor.parts(kind: string): { Piece }
 	local px = G + PILLAR / 2
 	local beamY = ARCH_H + 1.3
 	local beamW = 2 * px + PILLAR
+	local topY = ARCH_H + 2.6 -- pillar tops (lanterns, bunting)
 	if kind == "rock" then
-		-- log pillars and a log beam (Roblox cylinders lie along x), a boulder at each foot
+		-- a ranch gate: tall log posts, a log across the top resting in them, log braces in
+		-- the corners, a plank sign hanging on two ropes, boulders at the feet. Roblox
+		-- cylinders lie along x.
+		topY = ARCH_H + 3.8
+		local logY = topY - 1
+		local wood = { 112, 76, 46 }
+		local dark = { 84, 56, 34 }
 		for _, sx in { -1, 1 } do
 			add(
 				"Arch",
 				"Pillar",
-				v(ARCH_H + 2.6, PILLAR + 0.2, PILLAR + 0.2),
-				v(sx * px, (ARCH_H + 2.6) / 2, D),
-				t.pillar,
+				v(topY, PILLAR + 0.3, PILLAR + 0.3),
+				v(sx * px, topY / 2, D),
+				wood,
 				{ shape = "Cylinder", rot = v(0, 0, 90), material = "Wood" }
+			)
+			-- brace from the post up to the top log
+			local x0, y0, x1, y1 = sx * px, logY - 4, sx * (px - 3.4), logY
+			local dx, dy = x1 - x0, y1 - y0
+			add(
+				"Arch",
+				"Brace",
+				v(math.sqrt(dx * dx + dy * dy), 0.7, 0.7),
+				v((x0 + x1) / 2, (y0 + y1) / 2, D),
+				dark,
+				o({
+					shape = "Cylinder",
+					rot = v(0, 0, math.deg(math.atan2(dy, dx))),
+					material = "Wood",
+				})
 			)
 			add(
 				"Arch",
 				"Boulder",
-				v(2.4, 1.6, 1.6),
-				v(sx * (px + 1.6), 0.8, D + 0.2),
+				v(2.6, 1.7, 1.6),
+				v(sx * (px + 1.7), 0.95, D + 0.2),
 				{ 128, 124, 118 },
-				{ rot = v(0, 0, sx * 8), material = "Slate" }
+				{ rot = v(0, 0, sx * 10), material = "Slate" }
+			)
+			add(
+				"Arch",
+				"Pebble",
+				v(1.3, 0.9, 1.1),
+				v(sx * (px - 1.6), 0.4, D + 0.3),
+				{ 146, 140, 132 },
+				o({ rot = v(0, 0, -sx * 14), material = "Slate" })
+			)
+			-- the sign's ropes
+			add(
+				"Arch",
+				"Rope",
+				v(0.14, logY - 0.9 - (beamY + 1), 0.14),
+				v(sx * 5.5, (logY - 0.9 + beamY + 1) / 2, D + 0.3),
+				{ 60, 50, 40 },
+				noHit
 			)
 		end
 		add(
 			"Arch",
 			"Beam",
-			v(beamW + 1.6, 1.8, 1.8),
-			v(0, beamY, D),
-			t.pillar,
+			v(beamW + 3, 1.8, 1.8),
+			v(0, logY, D),
+			wood,
 			{ shape = "Cylinder", material = "Wood", collide = false }
+		)
+		add(
+			"Arch",
+			"SignFrame",
+			v(15, 2.6, 0.3),
+			v(0, beamY, D + 0.15),
+			dark,
+			o({ material = "WoodPlanks" })
 		)
 	else
 		for _, sx in { -1, 1 } do
@@ -210,10 +257,19 @@ function PlotDecor.parts(kind: string): { Piece }
 		end
 	end
 	-- the driver's name goes on this board (LobbyBuilder puts a SurfaceGui on its road side)
-	local boardZ = D + (if kind == "rock" then 0.95 else 0.65)
-	add("Arch", "NameBoard", v(2 * G - 2.4, 2, 0.1), v(0, beamY, boardZ), t.board, noHit)
+	if kind == "rock" then
+		add(
+			"Arch",
+			"NameBoard",
+			v(14, 2, 0.1),
+			v(0, beamY, D + 0.35),
+			t.board,
+			o({ material = "WoodPlanks" })
+		)
+	else
+		add("Arch", "NameBoard", v(2 * G - 2.4, 2, 0.1), v(0, beamY, D + 0.65), t.board, noHit)
+	end
 	-- lanterns on the pillar tops
-	local topY = ARCH_H + 2.6
 	for _, sx in { -1, 1 } do
 		add(
 			"Arch",
@@ -439,8 +495,8 @@ function PlotDecor.meshes(kind: string): { Mesh }
 	local counterZ = b.z + 4.5 / 2 - 0.6
 	local list: { { any } } = if kind == "drift"
 		then {
-			{ "Speaker", v(b.x - 3, 1.6, counterZ), v(1.2, 1.6, 1.2) },
-			{ "Speaker", v(b.x + 3, 1.6, counterZ), v(1.2, 1.6, 1.2) },
+			{ "Speaker", v(b.x - 3, 1.6, counterZ), v(1.2, 1.6, 1.2), 180 }, -- came in backwards
+			{ "Speaker", v(b.x + 3, 1.6, counterZ), v(1.2, 1.6, 1.2), 180 },
 			{ "TireStack", v(c.x - 1.5, 0, c.z - 1), v(2, 2.6, 2) },
 			{ "TireStack", v(c.x + 1.6, 0, c.z - 1.6), v(2, 1.8, 2) },
 			{ "GasCan", v(c.x, 0, c.z + 1.8), v(0.9, 1.1, 0.7) },
@@ -475,6 +531,7 @@ function PlotDecor.meshes(kind: string): { Mesh }
 			long = if fit.z > fit.x then "z" else "x",
 			keep = {},
 			collide = false,
+			yaw = m[4],
 		})
 	end
 	return out
