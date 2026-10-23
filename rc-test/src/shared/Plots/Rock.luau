@@ -229,8 +229,9 @@ Plot.STEPS =
 Plot.CURB = 1.2 -- the curb along the front edge beside the steps
 Plot.CURB_TO = 14.9 -- it runs on past the steps: cars on the easy side drift out (Studio)
 -- and along the drop side of the last row up to the flag (Studio round 31: a car at the 4th
--- flag fell off the left side all the way down to the row below)
-Plot.TOP_CURB = { from = 16.3, to = 20.95, side = -1 }
+-- flag fell off the left side all the way down to the row below); a tall wall, since a 1.2
+-- curb there only stood 0.3-0.6 RC over the road and the car rolled over it (round 32)
+Plot.TOP_CURB = { from = 16.3, to = 20.95, side = -1, height = 6 }
 
 -- The step blocks: from u0 to u1, top and bottom heights.
 function Plot.stepBlocks(): { { u0: number, u1: number, top: number, bottom: number } }
@@ -792,7 +793,14 @@ end
 -- small step up from the ground and its far end meets the ground. Blocks overlap a little.
 -- A low curb along the outer edge of the shoulder from u0 to u1 on `side` (+1/-1): short
 -- pieces, each at its own height, since the trail climbs along it.
-local function curb(parent: Instance, origin: CFrame, u0: number, u1: number, side: number)
+local function curb(
+	parent: Instance,
+	origin: CFrame,
+	u0: number,
+	u1: number,
+	side: number,
+	height: number
+)
 	local edge = HALF + Plot.SHOULDER - 1
 	local pieces = math.ceil((u1 - u0) / 0.1)
 	for k = 0, pieces - 1 do
@@ -806,8 +814,8 @@ local function curb(parent: Instance, origin: CFrame, u0: number, u1: number, si
 			parent,
 			"Wall",
 			origin,
-			Vector3.new(1.5, Plot.CURB + 2, math.sqrt((bx - ax) ^ 2 + (bz - az) ^ 2) + 0.5),
-			Plot.bankCF(cu, fx, Plot.height(cu), fz) * CFrame.new(side * edge, Plot.CURB / 2 - 1, 0),
+			Vector3.new(1.5, height + 2, math.sqrt((bx - ax) ^ 2 + (bz - az) ^ 2) + 0.5),
+			Plot.bankCF(cu, fx, Plot.height(cu), fz) * CFrame.new(side * edge, height / 2 - 1, 0),
 			C.rock
 		)
 		wall.Material = Enum.Material.Slate
@@ -817,9 +825,9 @@ end
 local function buildSteps(parent: Instance, origin: CFrame)
 	-- a low curb along the front edge beside the steps, so a car on the easy side doesn't drive
 	-- off the front of the row
-	curb(parent, origin, Plot.STEPS.from - 0.1, Plot.CURB_TO, Plot.STEPS.frontSide)
+	curb(parent, origin, Plot.STEPS.from - 0.1, Plot.CURB_TO, Plot.STEPS.frontSide, Plot.CURB)
 	local tc = Plot.TOP_CURB
-	curb(parent, origin, tc.from, tc.to, tc.side)
+	curb(parent, origin, tc.from, tc.to, tc.side, tc.height)
 	for _, st in Plot.stepBlocks() do
 		local ax, az = Plot.at(st.u0)
 		local bx, bz = Plot.at(st.u1)
@@ -916,9 +924,10 @@ local function buildSkills(parent: Instance, origin: CFrame)
 		Kit.rock(parent, origin, x, Plot.trailY(n.u, n.side) + n.lift - n.r, z, n.r)
 	end
 	-- low rails either side, so the car can't squeeze round the boulders (Studio round 30:
-	-- it got shoved sideways and slipped past them)
+	-- it got shoved sideways and slipped past them); snug to the boulders' outer sides (round
+	-- 32: the car slid into the gap between a boulder and the rail and squeezed over slowly)
 	local nx, nz = Plot.spot(n.u, n.side)
-	local outer = n.gap * HALF + n.r * 0.6
+	local outer = n.gap * HALF + n.r * 0.3
 	for _, sgn in { -1, 1 } do
 		local wall = Kit.part(
 			parent,
