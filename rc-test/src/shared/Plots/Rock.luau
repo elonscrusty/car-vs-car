@@ -225,6 +225,7 @@ end
 Plot.STEPS =
 	{ from = 13.08, to = 13.84, lead = 0.08, n = 4, side = -0.45, width = 20, frontSide = 1 }
 Plot.CURB = 1.2 -- the curb along the front edge beside the steps
+Plot.CURB_TO = 14.5 -- it runs on past the steps: cars on the easy side drift out (Studio)
 
 -- The step blocks: from u0 to u1, top and bottom heights.
 function Plot.stepBlocks(): { { u0: number, u1: number, top: number, bottom: number } }
@@ -250,8 +251,9 @@ end
 -- * stepUp: a tall rock block on the hill side; put one wheel on the small rock in front first.
 -- * kicker: a steep ramp up to a lip, then a high block, on the front side.
 Plot.SKILLS = {
-	-- the boulders stand apart by less than the car's track, so the wheels ride up their sides
-	notch = { u = 4.45, side = 0.2, gap = 0.395, r = 7, lift = 3.6 },
+	-- the boulders stand close, so with the car centred each wheel rides up a boulder side about
+	-- 1.9 (Studio: further apart, the wheels slid down the steep flanks and it was W only)
+	notch = { u = 4.45, side = 0.2, gap = 0.31, r = 7, lift = 2.8 },
 	stepUp = {
 		u = 12.35,
 		side = -0.55,
@@ -268,9 +270,9 @@ Plot.SKILLS = {
 		side = -0.5,
 		width = 14,
 		length = 8,
-		lift = 3.15,
-		ramp = 2.6,
-		rampLift = 1.45,
+		lift = 4.39,
+		ramp = 5,
+		rampLift = 2.7,
 	},
 }
 
@@ -721,22 +723,29 @@ end
 local function buildSteps(parent: Instance, origin: CFrame)
 	-- a low curb along the front edge beside the steps, so a car on the easy side doesn't drive
 	-- off the front of the row
+	-- (short pieces, each at its own height, since the trail climbs along it)
 	local st = Plot.STEPS
-	local cu = (st.from + st.to) / 2
-	local fx, fz = Plot.spot(cu, 0)
-	local ax, az = Plot.at(st.from - 0.1)
-	local bx, bz = Plot.at(st.to + 0.1)
 	local edge = HALF + Plot.SHOULDER - 1
-	local curb = Kit.part(
-		parent,
-		"Wall",
-		origin,
-		Vector3.new(1.5, Plot.CURB + 2, math.sqrt((bx - ax) ^ 2 + (bz - az) ^ 2)),
-		Plot.bankCF(cu, fx, Plot.height(cu), fz)
-			* CFrame.new(st.frontSide * edge, Plot.CURB / 2 - 1, 0),
-		C.rock
-	)
-	curb.Material = Enum.Material.Slate
+	local u0 = st.from - 0.1
+	local pieces = math.ceil((Plot.CURB_TO - u0) / 0.1)
+	for k = 0, pieces - 1 do
+		local a = u0 + (Plot.CURB_TO - u0) * k / pieces
+		local b = u0 + (Plot.CURB_TO - u0) * (k + 1) / pieces
+		local cu = (a + b) / 2
+		local fx, fz = Plot.spot(cu, 0)
+		local ax, az = Plot.at(a)
+		local bx, bz = Plot.at(b)
+		local curb = Kit.part(
+			parent,
+			"Wall",
+			origin,
+			Vector3.new(1.5, Plot.CURB + 2, math.sqrt((bx - ax) ^ 2 + (bz - az) ^ 2) + 0.5),
+			Plot.bankCF(cu, fx, Plot.height(cu), fz)
+				* CFrame.new(st.frontSide * edge, Plot.CURB / 2 - 1, 0),
+			C.rock
+		)
+		curb.Material = Enum.Material.Slate
+	end
 	for _, st in Plot.stepBlocks() do
 		local ax, az = Plot.at(st.u0)
 		local bx, bz = Plot.at(st.u1)
@@ -829,7 +838,8 @@ local function buildSkills(parent: Instance, origin: CFrame)
 	local n = S.notch
 	for _, d in { -n.gap, n.gap } do
 		local x, z = Plot.spot(n.u, n.side + d)
-		Kit.rock(parent, origin, x, Plot.trailY(n.u, n.side + d) + n.lift - n.r, z, n.r)
+		-- both from the trail height on the line between them, so the V is even
+		Kit.rock(parent, origin, x, Plot.trailY(n.u, n.side) + n.lift - n.r, z, n.r)
 	end
 	-- the step-up block, and the small rock in front of it
 	local st = S.stepUp
