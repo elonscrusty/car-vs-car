@@ -11,6 +11,7 @@ local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local CarBuilder = require(script.Parent.CarBuilder)
 local LobbyBuilder = require(script.Parent.LobbyBuilder)
+local LobbyPlots = require(script.Parent.LobbyPlots)
 local TrackBuilder = require(script.Parent.TrackBuilder)
 local PlotDecorBuilder = require(script.Parent.PlotDecorBuilder)
 
@@ -27,11 +28,14 @@ end
 TrackBuilder.build()
 PlotDecorBuilder.build()
 local lobby = LobbyBuilder.build()
+LobbyPlots.init()
 local slots = LobbyLayout.slots()
 
 -- Client -> server: ("place", rc: boolean, slotIndex: number) when a drive (re)starts (only
--- while driving that plot), ("walk") to leave the stand.
--- Server -> client: ("drive", slotIndex) and ("walk").
+-- while driving that plot), ("walk") to leave the stand, ("open", on: boolean) to let friends
+-- drive your plot.
+-- Server -> client: ("drive", slotIndex), ("walk"), ("own", slotIndex, open) for your plot and
+-- ("closed") when a pad tap can't drive that plot.
 local remote = Instance.new("RemoteEvent")
 remote.Name = "RCControl"
 remote.Parent = ReplicatedStorage
@@ -124,9 +128,7 @@ local function placePerson(player: Player, t: TrackData.Track, rc: boolean)
 	char:PivotTo(CFrame.lookAt(pos, Vector3.new(fx, y, fz)))
 end
 
--- Who drives what: a lobby plot has one driver at a time. Walking people are in none.
-local driving: { [Player]: number } = {} -- player -> lobby plot (slot) index
-local driverOf: { [number]: Player } = {} -- slot index -> player
+-- Who owns and drives what: LobbyPlots.
 local lastPrompt: { [Player]: number } = {}
 
 -- the name board over each plot's entrance arch (PlotDecor's), road side: same text as the sign
@@ -136,6 +138,9 @@ for _, d in workspace.Plots:GetDescendants() do
 	if d:IsA("BasePart") and d:GetAttribute("NameBoard") and typeof(slotIndex) == "number" then
 		local gui = Instance.new("SurfaceGui")
 		gui.Face = (Enum.NormalId :: any)[d:GetAttribute("NameFace") or "Back"]
+		-- one canvas pixel per 1/50 stud, so the letters keep their shape on a long thin board
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		gui.PixelsPerStud = 50
 		gui.Parent = d
 		local text = Instance.new("TextLabel")
 		text.Size = UDim2.fromScale(1, 1)
@@ -144,13 +149,24 @@ for _, d in workspace.Plots:GetDescendants() do
 		text.TextScaled = true
 		text.TextColor3 = Color3.fromRGB(30, 30, 34)
 		text.Parent = gui
+		local padding = Instance.new("UIPadding")
+		padding.PaddingLeft = UDim.new(0.06, 0)
+		padding.PaddingRight = UDim.new(0.06, 0)
+		padding.PaddingTop = UDim.new(0.1, 0)
+		padding.PaddingBottom = UDim.new(0.1, 0)
+		padding.Parent = text
 		archNames[slotIndex] = text
 	end
 end
 
 local function setSign(slotIndex: number)
-	local who = driverOf[slotIndex]
-	local text = LobbyLayout.signText(if who then who.DisplayName else nil, slots[slotIndex].label)
+	local owner = LobbyPlots.ownerOf(slotIndex)
+	local who = LobbyPlots.driverOf(slotIndex) or owner
+	local text = LobbyLayout.signText(
+		if who then who.DisplayName else nil,
+		slots[slotIndex].label,
+		owner ~= nil and LobbyPlots.isOpen(slotIndex)
+	)
 	lobby.signs[slotIndex].Text = text
 	local arch = archNames[slotIndex]
 	if arch then
@@ -160,6 +176,13 @@ end
 for i in slots do
 	setSign(i)
 end
+LobbyPlots.changed:Connect(function(slotIndex: number)
+	setSign(slotIndex)
+	local owner = LobbyPlots.ownerOf(slotIndex)
+	if owner and owner.Parent then
+		remote:FireClient(owner, "own", slotIndex, LobbyPlots.isOpen(slotIndex))
+	end
+end)
 
 local function rootOf(player: Player): BasePart?
 	local char = player.Character
@@ -180,35 +203,27 @@ local function loadWalker(player: Player)
 	if hum then
 		hum.Died:Connect(function()
 			task.wait(3)
-			if player.Parent and player.Character == char and driving[player] == nil then
+			if
+				player.Parent
+				and player.Character == char
+				and LobbyPlots.drivingOf(player) == nil
+			then
 				loadWalker(player)
 			end
 		end)
 	end
 end
 
-local function claim(player: Player, slotIndex: number)
-	driving[player] = slotIndex
-	driverOf[slotIndex] = player
-	setSign(slotIndex)
-end
-
-local function release(player: Player)
-	local old = driving[player]
-	if old then
-		driverOf[old] = nil
-		driving[player] = nil
-		setSign(old)
-	end
+LobbyPlots.onDrive = function(player: Player, slotIndex: number)
+	remote:FireClient(player, "drive", slotIndex)
 end
 
 -- Off the stand, back on that plot's pad, walking.
 local function walk(player: Player)
-	local slotIndex = driving[player]
+	local slotIndex = LobbyPlots.release(player)
 	if slotIndex == nil then
 		return
 	end
-	release(player)
 	local root = rootOf(player)
 	if not root then
 		loadWalker(player)
@@ -223,7 +238,7 @@ local function walk(player: Player)
 	remote:FireClient(player, "walk")
 end
 
--- E on a lobby pad: drive that plot (if nobody else is), or stop driving.
+-- E on a lobby pad: drive that plot (if it's yours, nobody's or open, and free), or stop.
 for slotIndex, prompt in lobby.prompts do
 	local slot = slots[slotIndex]
 	prompt.Triggered:Connect(function(player: Player)
@@ -232,19 +247,17 @@ for slotIndex, prompt in lobby.prompts do
 			return
 		end
 		lastPrompt[player] = now
-		if driving[player] == slotIndex then
+		if LobbyPlots.drivingOf(player) == slotIndex then
 			walk(player)
-			return
-		end
-		if driving[player] ~= nil or driverOf[slotIndex] ~= nil then
 			return
 		end
 		local root = rootOf(player)
 		if not (root and LobbyLayout.inReach(slot, root.Position.X, root.Position.Z)) then
 			return
 		end
-		claim(player, slotIndex)
-		remote:FireClient(player, "drive", slotIndex)
+		if not LobbyPlots.sendTo(player, slotIndex) then
+			remote:FireClient(player, "closed") -- someone else's plot, not open (or busy)
+		end
 	end)
 end
 
@@ -257,12 +270,18 @@ remote.OnServerEvent:Connect(function(player: Player, kind: unknown, rc: unknown
 		end
 		return
 	end
+	if kind == "open" then
+		if type(rc) == "boolean" then
+			LobbyPlots.setOpen(player, rc)
+		end
+		return
+	end
 	if kind ~= "place" or type(rc) ~= "boolean" or type(index) ~= "number" then
 		return
 	end
 	-- only the plot being driven (the big test size is gone with the big plots)
 	local i = math.floor(index)
-	if not rc or driving[player] ~= i then
+	if not rc or LobbyPlots.drivingOf(player) ~= i then
 		return
 	end
 	local t: TrackData.Track = LobbyLayout.track(i)
@@ -286,6 +305,7 @@ local function onJoin(player: Player)
 	local px, pz = LobbyLayout.parkSpot(joined)
 	local park = CFrame.lookAt(Vector3.new(px, 1, pz), Vector3.new(px, 1, pz + 1))
 	giveCar(player, TrackData.get(TrackData.order[1]), true, park)
+	LobbyPlots.addPlayer(player)
 	loadWalker(player)
 end
 
@@ -302,5 +322,5 @@ Players.PlayerRemoving:Connect(function(player)
 	carScale[player] = nil
 	lastAsk[player] = nil
 	lastPrompt[player] = nil
-	release(player)
+	LobbyPlots.removePlayer(player)
 end)

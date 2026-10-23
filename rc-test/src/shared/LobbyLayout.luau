@@ -214,10 +214,22 @@ function LobbyLayout.track(slotIndex: number): any
 	return t
 end
 
--- What a plot's sign says: the name of whoever is driving that plot, or what kind of plot it is
--- when nobody is (so it never stands there blank).
-function LobbyLayout.signText(driver: string?, label: string): string
-	return driver or string.upper(label)
+-- What a plot's sign says: whose it is (its driver, else its owner), or what kind of plot it is
+-- when it is nobody's (so it never stands there blank); "OPEN" when friends may drive it.
+function LobbyLayout.signText(name: string?, label: string, open: boolean?): string
+	if name == nil then
+		return string.upper(label)
+	end
+	return if open then name .. " - OPEN" else name
+end
+
+-- May this person drive this plot now? Nobody else may be on it; then it is theirs, nobody's,
+-- or its owner has opened it to friends. (UserIds; owner nil = nobody owns it.)
+function LobbyLayout.canDrive(owner: number?, me: number, open: boolean, busy: boolean): boolean
+	if busy then
+		return false
+	end
+	return owner == nil or owner == me or open
 end
 
 -- Close enough to the pad to start driving? (flat distance)
