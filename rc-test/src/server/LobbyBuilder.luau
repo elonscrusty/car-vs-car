@@ -11,6 +11,7 @@ local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local LobbyProps = require(script.Parent.LobbyProps)
 local MeshProps = require(script.Parent.MeshProps)
 local LobbyWaterBuilder = require(script.Parent.LobbyWaterBuilder)
+local LobbyPerf = require(script.Parent.LobbyPerf)
 local PlazaBuilder = require(script.Parent.PlazaBuilder)
 local SceneryBuilder = require(script.Parent.SceneryBuilder)
 
@@ -195,6 +196,19 @@ function LobbyBuilder.build(): Built
 	start.CanCollide = false
 
 	LobbyWaterBuilder.build(folder)
+
+	-- phone speed pass over everything above (shadows/collisions off on small bits and the minis)
+	local before, after = LobbyPerf.apply(folder)
+	print(
+		string.format(
+			"Lobby: %d parts; shadows %d -> %d, colliding %d -> %d",
+			after.parts,
+			before.shadows,
+			after.shadows,
+			before.collide,
+			after.collide
+		)
+	)
 	return built
 end
 
