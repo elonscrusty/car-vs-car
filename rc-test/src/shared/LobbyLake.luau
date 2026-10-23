@@ -495,10 +495,10 @@ end
 local function surfboards(m: Maker, u: number, v: number)
 	local x, z = at(u, v)
 	local put = m.frame(x, LobbyWater.SAND_TOP, z, face(0))
-	put("Surfboard", -0.8, 2.2, 0, 1.2, 5, 0.25, TEAL, 0, -6)
-	put("Surfboard", 0.8, 2.2, 0, 1.2, 5, 0.25, YELLOW, 0, 5)
-	put("SurfStripe", -0.8, 2.2, -0.14, 0.3, 4.6, 0.05, WHITE, 0, -6)
-	put("SurfStripe", 0.8, 2.2, -0.14, 0.3, 4.6, 0.05, RED, 0, 5)
+	put("Surfboard", -1.3, 3.6, 0, 2, 8, 0.35, TEAL, 0, -6)
+	put("Surfboard", 1.3, 3.6, 0, 2, 8, 0.35, YELLOW, 0, 5)
+	put("SurfStripe", -1.3, 3.6, -0.19, 0.5, 7.4, 0.05, WHITE, 0, -6)
+	put("SurfStripe", 1.3, 3.6, -0.19, 0.5, 7.4, 0.05, RED, 0, 5)
 end
 
 -- A canoe pulled up on the sand with its paddle beside it, lying across (along u).
@@ -587,7 +587,7 @@ function LobbyLake.build(): ({ Piece }, { Spot })
 	surfboards(m, mid + edge - 4, 6)
 	sandcastle(m, mid + inner + 5, 7)
 	local bx, bz = at(mid + inner + 19, 7.5)
-	m.piece("BeachBall", bx, LobbyWater.SAND_TOP + 0.6, bz, 1.2, 1.2, 1.2, RED).ball = true
+	m.piece("BeachBall", bx, LobbyWater.SAND_TOP + 1.25, bz, 2.5, 2.5, 2.5, RED).ball = true
 	local cx, cz = at(mid + inner + 31.5, -1.5)
 	m.piece("Cooler", cx, LobbyWater.SAND_TOP + 0.5, cz, 1.6, 1.0, 1.0, BLUE)
 	m.piece("CoolerLid", cx, LobbyWater.SAND_TOP + 1.05, cz, 1.7, 0.15, 1.1, WHITE)
