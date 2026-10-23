@@ -87,6 +87,12 @@ export type Extra = {
 	solid: boolean,
 	turn: number?,
 }
+-- Spawn lobby music: a looped Creator Store track, played quietly from the two speakers (only
+-- near them). Empty = no music (an id must be checked to load in Studio before it goes in).
+LobbyDecor.MUSIC = ""
+LobbyDecor.MUSIC_VOLUME = 0.2
+LobbyDecor.SPEAKER_X = 70
+LobbyDecor.SPEAKER_Z = L.PLAZA.maxZ - 36 - 24 -- beside the shop / garage (SpawnLobby.SHOP)
 LobbyDecor.CORNER_CONES = { { -17, 14 }, { -12, 17 }, { 15, -15 } } -- round a corner (x mirrored)
 
 local function v(x: number, y: number, z: number): V3
@@ -274,7 +280,7 @@ end
 
 -- MeshProps.place turns a prop's +Z side to the look direction, but these props have their
 -- real front (door, latch) at -Z (props/HANDOFF.md "FRONT DIRECTION"), so they turn round.
-LobbyDecor.FRONT_TURN = { Mailbox = 180, Toolbox = 180 } :: { [string]: number }
+LobbyDecor.FRONT_TURN = { Mailbox = 180, Toolbox = 180, Speaker = 180 } :: { [string]: number }
 
 local function extras(): { Extra }
 	local out: { Extra } = {}
@@ -364,6 +370,21 @@ local function extras(): { Extra }
 			C.white,
 			true,
 			if side > 0 then 180 else 0
+		)
+	end
+	-- music speakers just outside the spawn lobby, beside the shop (left) and the garage (right),
+	-- facing in (the music itself: MUSIC)
+	for _, side in { -1, 1 } do
+		put(
+			"Speaker",
+			side * LobbyDecor.SPEAKER_X,
+			LobbyDecor.SPEAKER_Z,
+			4.5,
+			-side,
+			0,
+			{ 2, 4.5, 1.6 },
+			C.dark,
+			true
 		)
 	end
 	-- RC workshop bits round the giant corners
