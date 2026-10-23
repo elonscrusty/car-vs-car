@@ -46,15 +46,14 @@ export type Result = {
 
 local TrackTiles = {}
 
-TrackTiles.CELL = 56 -- big studs (14 RC studs)
+TrackTiles.CELL = 60 -- big studs (15 RC studs)
 TrackTiles.ROAD = 30 -- same road as the race plot
 TrackTiles.CURB_WIDTH = 3
 TrackTiles.SPACING = 8 -- distance between loop samples
 -- grid size grows with stars (first guesses; the Stars thread hands out stars)
 TrackTiles.SIZES = {
-	{ stars = 0, cols = 4, rows = 4 },
+	{ stars = 0, cols = 4, rows = 5 }, -- most of the plot's grass from the start (Studio 22:13)
 	{ stars = 10, cols = 5, rows = 5 },
-	{ stars = 25, cols = 5, rows = 6 },
 }
 
 -- edges: 0 = N, 1 = E, 2 = S, 3 = W
@@ -142,7 +141,7 @@ end
 -- ===== Grid =====
 
 function TrackTiles.sizeFor(stars: number): (number, number)
-	local cols, rows = 4, 4
+	local cols, rows = TrackTiles.SIZES[1].cols, TrackTiles.SIZES[1].rows
 	for _, s in TrackTiles.SIZES do
 		if stars >= s.stars then
 			cols, rows = s.cols, s.rows
