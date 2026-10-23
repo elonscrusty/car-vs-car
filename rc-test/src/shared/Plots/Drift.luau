@@ -303,6 +303,57 @@ function Plot.smoke(): { Spot }
 	return out
 end
 
+-- Touch zones: glowing pads on the outside edge of every corner's apex. Slide through one and
+-- the drift chain gets TOUCH_BONUS x the current combo (each zone once per chain). The client
+-- (Main) checks them with Plot.touchZone; nothing here changes how the car drives.
+Plot.TOUCH_R = 11
+Plot.TOUCH_BONUS = 100
+
+export type Zone = { x: number, z: number, r: number, tx: number, tz: number }
+
+local function touchZones(): { Zone }
+	local out: { Zone } = {}
+	local x, z, h = START.x, START.z, 0
+	for _, step in STEPS do
+		local straight, turnDeg, radius = step.straight, step.turn, step.radius
+		if straight then
+			x += math.cos(h) * straight
+			z += math.sin(h) * straight
+		elseif turnDeg and radius then
+			local turn = math.rad(turnDeg)
+			local side = if turn < 0 then -1 else 1
+			local cx = x - math.sin(h) * radius * side
+			local cz = z + math.cos(h) * radius * side
+			-- apex: halfway round; the outside is away from the turn's centre
+			local hm = h + turn / 2
+			local ox, oz = math.sin(hm) * side, -math.cos(hm) * side
+			local d = radius + ROAD / 2 - Plot.TOUCH_R - 2
+			out[#out + 1] = {
+				x = cx + ox * d,
+				z = cz + oz * d,
+				r = Plot.TOUCH_R,
+				tx = math.cos(hm),
+				tz = math.sin(hm),
+			}
+			h += turn
+			x = cx + math.sin(h) * radius * side
+			z = cz - math.cos(h) * radius * side
+		end
+	end
+	return out
+end
+Plot.ZONES = touchZones()
+
+-- Which touch zone (index) a plot-local spot is in, or nil.
+function Plot.touchZone(x: number, z: number): number?
+	for i, zone in Plot.ZONES do
+		if (x - zone.x) ^ 2 + (z - zone.z) ^ 2 <= zone.r * zone.r then
+			return i
+		end
+	end
+	return nil
+end
+
 -- Rubber donut rings burnt into the drift pad: { x, z, r } each, inside the pad.
 Plot.DONUTS = {
 	{ x = -26, z = -44, r = 12 },
@@ -699,6 +750,35 @@ local function donut(parent: Instance, origin: CFrame, d: { x: number, z: number
 	end
 end
 
+-- A touch zone: a see-through glowing disc on the road with a brighter ring round it (paint:
+-- the car drives through, grip comes from the road under it).
+local TOUCH_COLOR = rgb(176, 70, 255) -- the drift plot's purple
+local function touchPad(parent: Instance, origin: CFrame, i: number, zone: Zone)
+	local fill =
+		Kit.disc(parent, "TouchZone", origin, zone.x, TOP + 0.07, zone.z, zone.r, 0.1, TOUCH_COLOR)
+	fill.Material = Enum.Material.Neon
+	fill.Transparency = 0.65
+	fill:SetAttribute("TouchZone", i)
+	paint(fill)
+	local bits = 16
+	local seg = 2 * math.pi * zone.r / bits * 0.6
+	for k = 1, bits do
+		local a = (k - 0.5) / bits * 2 * math.pi
+		local pos =
+			Vector3.new(zone.x + math.cos(a) * zone.r, TOP + 0.1, zone.z + math.sin(a) * zone.r)
+		local dash = Kit.part(
+			parent,
+			"TouchRing",
+			origin,
+			Vector3.new(seg, 0.1, 1.4),
+			CFrame.lookAt(pos, pos + Vector3.new(math.cos(a), 0, math.sin(a))),
+			TOUCH_COLOR
+		)
+		dash.Material = Enum.Material.Neon
+		paint(dash)
+	end
+end
+
 local function fence(parent: Instance, origin: CFrame)
 	local f = Plot.FENCE
 	local a = Kit.AREA
@@ -890,6 +970,9 @@ function Plot.build(parent: Instance, origin: CFrame)
 	end
 	for _, spot in Plot.smoke() do
 		smokePuff(parent, origin, spot)
+	end
+	for i, zone in Plot.ZONES do
+		touchPad(parent, origin, i, zone)
 	end
 
 	for _, t in Plot.tires() do
