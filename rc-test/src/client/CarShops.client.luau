@@ -148,6 +148,13 @@ local function button(parent: Instance, t: string, color: Color3, live: boolean)
 	b.Text = t
 	b.Parent = parent
 	corner(b, 0.3)
+	-- keep the words off the rounded edges
+	local pad = Instance.new("UIPadding")
+	pad.PaddingLeft = UDim.new(0.08, 0)
+	pad.PaddingRight = UDim.new(0.08, 0)
+	pad.PaddingTop = UDim.new(0.15, 0)
+	pad.PaddingBottom = UDim.new(0.15, 0)
+	pad.Parent = b
 	return b
 end
 
