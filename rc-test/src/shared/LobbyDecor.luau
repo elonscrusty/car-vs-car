@@ -378,21 +378,6 @@ do
 			collide = collide,
 		})
 	end
-	local n = 0
-	for _, z in ROW_Z do
-		for _, side in { -1, 1 } do
-			n += 1
-			local x = side * LobbyDecor.PATH_X
-			-- FlowerBox (still to make in Meshy): a long planter in place of the block one
-			mesh(
-				"FlowerBox",
-				"Planter" .. n,
-				v(x, 0, z + LobbyDecor.PLANTER_DZ),
-				v(1.8, 2.4, 4.8),
-				true
-			)
-		end
-	end
 	local cx, cz = LobbyDecor.CORNER.x, LobbyDecor.CORNER.z
 	mesh("RCRemote", "GiantRemote", v(-cx, 0, cz), v(24, 28, 16), true)
 	mesh("Battery", "GiantBattery", v(cx, 0, cz), v(26, 11, 11), true)
@@ -416,7 +401,7 @@ do
 	end
 end
 
--- Meshy props that face the road: hydrant / bin / mailbox, the gap flags, and flower pots and a
+-- Meshy props that face the road: flower boxes, hydrant / bin / mailbox, the gap flags, and flower pots and a
 -- bush on each gap's flower bed.
 LobbyDecor.FACED = {} :: { Faced }
 do
@@ -446,6 +431,15 @@ do
 			n += 1
 			local road = v(-side, 0, 0)
 			local at = v(side * LobbyDecor.PATH_X, 0, z + LobbyDecor.BIT_DZ)
+			-- FlowerBox (carter's Meshy planter): its front to the road, so its long side runs
+			-- along the street
+			faced(
+				"FlowerBox",
+				"Planter" .. n,
+				v(side * LobbyDecor.PATH_X, 0, z + LobbyDecor.PLANTER_DZ),
+				2.4,
+				road
+			)
 			local kind = n % 3
 			if kind == 0 then
 				faced("Hydrant", "Hydrant" .. n, at, 2.2, road)
