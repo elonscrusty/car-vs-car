@@ -35,6 +35,7 @@ PlotLooksBuilder.start()
 PlotShop.start()
 local lobby = LobbyBuilder.build()
 LobbyPlots.init()
+require(ReplicatedStorage.Shared.PlotTracks).watch() -- owners' own tracks (LobbyLayout.custom)
 require(script.Parent.PlotStandsBuilder).start() -- owners' cars on their plot's stands
 local slots = LobbyLayout.slots()
 

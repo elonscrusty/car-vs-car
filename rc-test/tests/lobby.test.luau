@@ -156,6 +156,17 @@ test("signs show the plot kind until someone drives that plot, then their name",
 	eq(L.signText("carter", "Race", true), "carter - OPEN")
 end)
 
+test("a plot with its own track drives that track, the others keep their kind's", function()
+	L.custom[2] = { mode = "loop", spawn = { x = 1, y = 2, z = 3, dx = 0, dz = -1 }, gates = {} }
+	local own, other = L.track(2), L.track(8)
+	eq(own.spawn.x, 1)
+	eq(#own.gates, 0)
+	eq(own.id, L.slots()[2].id)
+	eq(other.spawn.x, TrackData.get(L.slots()[8].id).spawn.x)
+	L.custom[2] = nil
+	eq(L.track(2).spawn.x, TrackData.get(L.slots()[2].id).spawn.x)
+end)
+
 test("a plot can be driven when it is free and yours, nobody's, or opened to friends", function()
 	eq(L.canDrive(nil, 1, false, false), true) -- nobody's
 	eq(L.canDrive(1, 1, false, false), true) -- yours

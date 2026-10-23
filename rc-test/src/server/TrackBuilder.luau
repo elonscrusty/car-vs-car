@@ -2,7 +2,8 @@
 -- Builds every plot: the shared base (floor, outer walls, front area) plus the plot's own track
 -- from Plots/<Type>.luau. Each kind of plot is built big once (kept out of the world), then
 -- copied, shrunk to real RC size and turned onto every lobby plot of that kind
--- (workspace.Plots.<slot>_<id>): the lobby plots are the tracks.
+-- (workspace.Plots.<slot>_<id>): the lobby plots are the tracks. A plot's own track sits in its
+-- "Track" model, so one plot's track can be swapped later (rebuild: an owner's tile track).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -13,6 +14,18 @@ local Kit = require(ReplicatedStorage.Shared.Plots.Kit)
 local C = Kit.COLORS
 
 local TrackBuilder = {}
+
+local rebuiltEvent = Instance.new("BindableEvent")
+TrackBuilder.rebuilt = rebuiltEvent.Event -- (slot) after rebuild() swapped that plot's track
+
+-- walls are slippery and a little bouncy: the car pushes off instead of grinding along
+local function slippery(m: Instance)
+	for _, d in m:GetDescendants() do
+		if d:IsA("BasePart") and string.find(d.Name, "Wall") then
+			d.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0, 0.45, 100, 100)
+		end
+	end
+end
 
 -- The part every plot shares. Plot-local, big size.
 local function buildBase(parent: Instance, origin: CFrame, grip: number)
@@ -114,13 +127,11 @@ function TrackBuilder.build()
 		local m = Instance.new("Model")
 		m.Name = id
 		buildBase(m, origin, t.grip)
-		plot.build(m, origin)
-		-- walls are slippery and a little bouncy: the car pushes off instead of grinding along
-		for _, d in m:GetDescendants() do
-			if d:IsA("BasePart") and string.find(d.Name, "Wall") then
-				d.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0, 0.45, 100, 100)
-			end
-		end
+		local track = Instance.new("Model")
+		track.Name = "Track"
+		plot.build(track, origin)
+		track.Parent = m
+		slippery(m)
 		m.WorldPivot = origin
 		big[id] = m
 	end
@@ -134,6 +145,29 @@ function TrackBuilder.build()
 	for _, m in big do
 		m:Destroy()
 	end
+end
+
+-- Swap one lobby plot's own track (the base, decor, stands and looks stay): `build(parent,
+-- origin)` makes the new track at big size like a Plots/<Type>.build, plot-local around origin.
+function TrackBuilder.rebuild(slotIndex: number, build: (parent: Instance, origin: CFrame) -> ())
+	local slot = LobbyLayout.slots()[slotIndex]
+	local plot = slot and workspace.Plots:FindFirstChild(slotIndex .. "_" .. slot.id)
+	if not plot then
+		return
+	end
+	local track = Instance.new("Model")
+	track.Name = "Track"
+	build(track, CFrame.identity)
+	slippery(track)
+	track.WorldPivot = CFrame.identity
+	track:ScaleTo(TrackData.RC_SCALE)
+	track:PivotTo(CFrame.new(slot.plotX, 0, slot.plotZ) * CFrame.Angles(0, slot.angle, 0))
+	local old = plot:FindFirstChild("Track")
+	if old then
+		old:Destroy()
+	end
+	track.Parent = plot
+	rebuiltEvent:Fire(slotIndex)
 end
 
 return TrackBuilder
