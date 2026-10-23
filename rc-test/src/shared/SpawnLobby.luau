@@ -32,12 +32,11 @@ SpawnLobby.DEPTH = 72 -- z
 -- Everything fits in here (trees stand just behind the back edge).
 SpawnLobby.BOX = { minX = -60, maxX = 60, minZ = -45, maxZ = 36, maxY = 15 }
 -- The buildings down the two sides, open fronts facing the middle (yaw: which way the open front
--- turns, in degrees; 90 = toward +X). Drift and race shops on the left, rock shop and the
--- upgrades garage on the right (carter's spawn plan v2).
+-- turns, in degrees; 90 = toward +X). Drift and race shops on the left, the upgrades garage on
+-- the right (carter's spawn plan v2; rocks dropped 23:42).
 SpawnLobby.BUILDINGS = {
 	{ kind = "drift", x = -50, z = -20, yaw = 90 },
 	{ kind = "race", x = -50, z = 12, yaw = 90 },
-	{ kind = "rock", x = 50, z = -22, yaw = -90 },
 	{ kind = "garage", x = 50, z = 10, yaw = -90 },
 }
 SpawnLobby.SPAWN = { x = 0, z = 15 } -- where people appear, looking at the statue (-Z)
@@ -46,11 +45,12 @@ SpawnLobby.STATUE = { x = 0, z = -6 }
 SpawnLobby.STAND_Z = -28
 SpawnLobby.STANDS = { -19.25, -13.75, -8.25, -2.75, 2.75, 8.25, 13.75, 19.25 } -- everyone's car
 SpawnLobby.PAD_Z = 23
--- play pads (queue pads), one per plot kind, each in its own colour
+-- play pads (queue pads): race and drift send you to an open plot of that kind (each owner picks
+-- race or drift; rocks dropped, carter 23:42), build sends you to your own plot
 SpawnLobby.PADS = {
 	{ x = -27, kind = "drift", color = { 150, 70, 210 } },
 	{ x = 0, kind = "race", color = { 226, 52, 46 } },
-	{ x = 27, kind = "rock", color = { 70, 176, 64 } },
+	{ x = 27, kind = "build", color = { 246, 196, 40 } },
 }
 SpawnLobby.ARCH_Z = 33.5
 SpawnLobby.GUMBALL = { x = 17, z = 7 } -- the gumball machine (rare cars), by the spawn
@@ -481,7 +481,7 @@ end
 
 -- Builds it under `parent`. `at` is the middle of the square on the floor, its LookVector
 -- pointing down the street. Play pad bases are tagged "QueuePad" (attributes Pad = 1..3 and
--- PlotType = "drift" / "race" / "rock"); QueuePads (server) watches them.
+-- PlotType = "drift" / "race" / "build"); QueuePads (server) watches them.
 function SpawnLobby.build(parent: Instance, at: CFrame): Model
 	local origin = at * CFrame.Angles(0, math.pi, 0) -- lobby-local +Z = the LookVector
 	local model = Instance.new("Model")

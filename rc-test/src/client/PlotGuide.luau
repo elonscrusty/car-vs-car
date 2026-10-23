@@ -1,8 +1,10 @@
 --!strict
--- Shows a new player the way, on their screen only: glowing arrows on the road from the spawn
--- lobby to their own plot's pad (a wave of light runs along them toward the plot), and one line
--- at the bottom saying what to do next. Both go once they have driven their plot; they hide
--- while driving or building. Looks only (no collide, query or touch).
+-- Always shows what to do next, on this player's screen only (carter's pick #2): one goal from
+-- NextGoal (drive your track, go shop when the next unlock is yours, build in the break) as 1-2
+-- words at the bottom, and glowing arrows on the road to where that goal is (your plot's pad or
+-- the spawn lobby shops; a wave of light runs along them). Hidden while driving or building.
+-- The shop goal comes from the NEXT box (Stars.client sets the local GoalReady attribute).
+-- Looks only (no collide, query or touch).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -10,6 +12,7 @@ local RunService = game:GetService("RunService")
 
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
+local NextGoal = require(ReplicatedStorage.Shared.NextGoal)
 
 export type PlotGuide = {
 	setSlot: (slot: number) -> (),
@@ -54,8 +57,7 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 	local slot: number? = nil
 	local driving = false
 	local driven = false -- drove their own plot once: the guide is done
-	local folder: Model? = nil
-	local rows: { { BasePart } } = {}
+	local paths: { [string]: { model: Model, rows: { { BasePart } } } } = {} -- target -> arrows
 
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "PlotGuide"
@@ -83,15 +85,10 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 	pad.PaddingBottom = UDim.new(0, 5)
 	pad.Parent = line
 
-	local function build(s: LobbyLayout.Slot)
-		if folder then
-			folder:Destroy()
-		end
-		rows = {}
-		local m = Instance.new("Model")
-		m.Name = "PlotGuideArrows"
+	-- arrows to your pad: down the middle of the road from the top, then across to the pad
+	local function padPath(m: Model, s: LobbyLayout.Slot): { { BasePart } }
+		local rows = {}
 		local road = LobbyLayout.road()
-		-- down the middle of the road to the plot's row, then across to its pad
 		local z = road.minZ + 4
 		while z < s.padZ - 6 do
 			table.insert(rows, chevron(m, 0, z, 0, 1))
@@ -103,7 +100,36 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 			table.insert(rows, chevron(m, x, s.padZ, dir, 0))
 			x += dir * 3
 		end
-		folder = m
+		return rows
+	end
+	-- arrows to the shops: from your pad across to the road, then up it to the spawn lobby
+	local function shopPath(m: Model, s: LobbyLayout.Slot): { { BasePart } }
+		local rows = {}
+		local dir = if s.padX < 0 then 1 else -1 -- toward the road's middle
+		local x = s.padX + dir * 3
+		while math.abs(x) > 3 do
+			table.insert(rows, chevron(m, x, s.padZ, dir, 0))
+			x += dir * 3
+		end
+		local road = LobbyLayout.road()
+		local z = s.padZ - 4
+		while z > road.minZ - 6 do
+			table.insert(rows, chevron(m, 0, z, 0, -1))
+			z -= STEP
+		end
+		return rows
+	end
+
+	local function build(s: LobbyLayout.Slot)
+		for _, p in paths do
+			p.model:Destroy()
+		end
+		paths = {}
+		for name, make in { pad = padPath, shop = shopPath } do
+			local m = Instance.new("Model")
+			m.Name = "PlotGuideArrows"
+			paths[name] = { model = m, rows = make(m, s) }
+		end
 	end
 
 	local function padDistance(): number
@@ -117,20 +143,46 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 		return math.sqrt((p.X - s.padX) ^ 2 + (p.Z - s.padZ) ^ 2)
 	end
 
+	local function inShops(): boolean
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		if not (root and root:IsA("BasePart")) then
+			return false
+		end
+		local p, b = root.Position, LobbyLayout.PLAZA
+		return p.X >= b.minX and p.X <= b.maxX and p.Z >= b.minZ and p.Z <= b.maxZ
+	end
+
+	local function inBreak(): boolean
+		local ends = workspace:GetAttribute("BuildEndsAt")
+		return workspace:GetAttribute("BuildOpen") == true
+			and type(ends) == "number"
+			and ends > workspace:GetServerTimeNow()
+	end
+
 	RunService.RenderStepped:Connect(function()
-		local m = folder
-		local busy = driving or driven or building() or slot == nil
-		local near = padDistance() < NEAR
-		-- after the first drive the arrows are done, but on your pad the line still says DRIVE
-		gui.Enabled = not busy or (near and not driving and not building() and slot ~= nil)
-		line.Text = if near then "TAP DRIVE!" else "FOLLOW THE ARROWS"
-		if m then
-			local show = not busy and not near
-			m.Parent = if show then workspace else nil
+		local onFoot = not driving and not building()
+		local goal = if onFoot
+			then NextGoal.pick({
+				hasPlot = slot ~= nil,
+				driven = driven or player:GetAttribute("HasDriven") == true,
+				nearPad = padDistance() < NEAR,
+				inShops = inShops(),
+				inBreak = inBreak(),
+				canBuy = player:GetAttribute("GoalReady") == true,
+			})
+			else nil
+		gui.Enabled = goal ~= nil
+		if goal then
+			line.Text = goal.text
+		end
+		local t = os.clock() * 5
+		for name, path in paths do
+			local show = goal ~= nil and goal.target == name
+			path.model.Parent = if show then workspace else nil
 			if show then
-				-- a wave of light running toward the plot
-				local t = os.clock() * 5
-				for i, arms in rows do
+				-- a wave of light running toward the goal
+				for i, arms in path.rows do
 					local glow = 0.5 + 0.5 * math.sin(t - i * 0.7)
 					for _, p in arms do
 						p.Transparency = 0.55 - glow * 0.5

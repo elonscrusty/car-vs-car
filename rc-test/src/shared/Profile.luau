@@ -29,6 +29,7 @@ export type Data = {
 	track: Track?, -- my built track (nil = the starter circle); the grid size comes from stars
 	tiles: { [string]: number }, -- TileShop ids -> copies owned (free tiles are everyone's anyway)
 	raceStars: number, -- stars won in server races (on top of the medal stars in starsFrom)
+	trackKind: string, -- what my built plot is: "race" (laps) or "drift" (drift score)
 }
 -- One placed tile: column, row (from 1), TrackTiles piece id, quarter turns 0..3.
 export type Tile = { c: number, r: number, piece: string, rot: number }
@@ -39,9 +40,9 @@ export type Lock = { job: string, at: number }
 
 local Profile = {}
 
-Profile.VERSION = 11 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift.
+Profile.VERSION = 12 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift.
 -- 6: daily jobs. 7: looks, lookOff. 8: cars, equipped. 9: track. 10: tiles (owned).
--- 11: raceStars
+-- 11: raceStars. 12: trackKind
 Profile.MAX_OWNERS = 500 -- keeps the save small; stars from more owners than this stop counting
 Profile.LOCK_TIMEOUT = 300 -- a server that hasn't saved for this long is gone: its lock is stale
 Profile.MODES = { "race", "drift", "rock" }
@@ -84,6 +85,7 @@ function Profile.new(): Data
 		equipped = {},
 		tiles = {},
 		raceStars = 0,
+		trackKind = "race",
 	}
 end
 
@@ -183,6 +185,17 @@ function Profile.setTrack(d: Data, tiles: { Tile }?): boolean
 	return true
 end
 
+-- What my plot is ("race" or "drift"); anything else is refused. Returns whether it changed.
+-- A change clears my plot's records (a lap time and a drift score don't compare).
+function Profile.setTrackKind(d: Data, kind: string): boolean
+	if (kind ~= "race" and kind ~= "drift") or d.trackKind == kind then
+		return false
+	end
+	d.trackKind = kind
+	d.plotRecords = {}
+	return true
+end
+
 function Profile.migrate(raw: any): Data
 	local d = Profile.new()
 	if type(raw) ~= "table" then
@@ -220,6 +233,9 @@ function Profile.migrate(raw: any): Data
 					{ value = r.value, name = string.sub(r.name, 1, 40), userId = r.userId }
 			end
 		end
+	end
+	if raw.trackKind == "race" or raw.trackKind == "drift" then
+		d.trackKind = raw.trackKind
 	end
 	if goodNumber(raw.raceStars) then
 		d.raceStars = math.clamp(math.floor(raw.raceStars), 0, Profile.MAX_RACE_STARS)

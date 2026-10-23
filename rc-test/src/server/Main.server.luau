@@ -222,8 +222,17 @@ local function loadWalker(player: Player)
 		return
 	end
 	addRemote(char)
-	local x, y, z = LobbyLayout.spawn()
-	char:PivotTo(lobby.spawn or CFrame.lookAt(Vector3.new(x, y, z), Vector3.new(x, y, z + 1)))
+	-- on your own plot's pad, facing your track: DRIVE is one tap away (carter's pick #1:
+	-- "driving within 10 sec of joining"); no plot = the spawn lobby
+	local own = LobbyPlots.slotOf(player)
+	local slot = own and slots[own]
+	if slot then
+		local pos = Vector3.new(slot.exitX, 3, slot.exitZ)
+		char:PivotTo(CFrame.lookAt(pos, Vector3.new(slot.plotX, 3, slot.exitZ)))
+	else
+		local x, y, z = LobbyLayout.spawn()
+		char:PivotTo(lobby.spawn or CFrame.lookAt(Vector3.new(x, y, z), Vector3.new(x, y, z + 1)))
+	end
 	local hum = char:FindFirstChildOfClass("Humanoid")
 	if hum then
 		hum.Died:Connect(function()
@@ -243,9 +252,16 @@ LobbyPlots.onDrive = function(player: Player, slotIndex: number)
 	remote:FireClient(player, "drive", slotIndex)
 end
 
--- The spawn lobby's drift / race / rock pads: stand on one to go drive an open plot of that kind.
+-- The spawn lobby's drift / race pads: stand on one to go drive an open plot of that kind. The
+-- build pad sends you to your own plot.
 require(script.Parent.QueuePads).start({
-	findOpen = LobbyPlots.findOpen,
+	findOpen = function(kind: string, player: Player): number?
+		if kind == "build" then
+			local mine = LobbyPlots.slotOf(player)
+			return if mine and LobbyPlots.canDrive(player, mine) then mine else nil
+		end
+		return LobbyPlots.findOpen(kind, player)
+	end,
 	sendTo = LobbyPlots.sendTo,
 })
 

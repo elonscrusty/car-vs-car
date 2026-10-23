@@ -15,6 +15,7 @@ local function parts(l: BuildLayout.Layout): { [string]: BuildLayout.Rect }
 		grid = l.grid,
 		timer = l.timer,
 		status = l.status,
+		mode = l.mode,
 		why = l.why,
 		tray = l.tray,
 		undo = l.undo,

@@ -938,11 +938,16 @@ end
 
 -- The driving data for a traced track, in TrackData.Track's shape (the Lobby thread stores
 -- it as JSON in the plot's TrackJson attribute). Same feel as the race plot.
-function TrackTiles.track(res: Result): { [string]: any }?
+-- kind: what the owner picked for the plot (TrackTiles.KINDS): "race" = laps, "drift" = the drift
+-- score mode (drift tuning, top view) on the same road.
+TrackTiles.KINDS = { "race", "drift" }
+
+function TrackTiles.track(res: Result, kind: string?): { [string]: any }?
 	if not res.ok then
 		return nil
 	end
-	return { mode = "loop", grip = 0.75, spawn = res.spawn, gates = res.gates }
+	local k = if kind == "drift" then "drift" else "race"
+	return { kind = k, mode = "loop", grip = 0.75, spawn = res.spawn, gates = res.gates }
 end
 
 -- For the build screen: is it race ready, and if not, why (tiny words).

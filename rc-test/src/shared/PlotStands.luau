@@ -228,7 +228,7 @@ function PlotStands.pieces(cars: { Car }): { Garage.Piece }
 	return out
 end
 
--- The board's words: "CARTER'S CARS" and "12 / 26".
+-- The board's words: "CARTER'S CARS" and "12 / 24".
 function PlotStands.words(name: string, count: number): (string, string)
 	return string.upper(name) .. "'S CARS", count .. " / " .. #PlotStands.ALL
 end

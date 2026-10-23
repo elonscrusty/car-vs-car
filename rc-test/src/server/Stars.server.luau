@@ -56,6 +56,11 @@ local function plotModel(slotIndex: number): Instance?
 end
 
 local function plotType(slotIndex: number): string
+	-- a built track: what its owner picked (race or drift)
+	local own = LobbyLayout.custom[slotIndex]
+	if own and (own.kind == "race" or own.kind == "drift") then
+		return own.kind
+	end
 	local m = plotModel(slotIndex)
 	local kind = m and m:GetAttribute("PlotType")
 	if type(kind) == "string" and Medals.target(kind) then
@@ -620,7 +625,10 @@ local function look(now: number)
 		if w.mode == "drift" then
 			-- a glow spot counts once per slide, only while sliding (like the client's bonus)
 			if w.run.chain > 0 then
-				local zone = TrackData.plot("drift").touchZone(lx, lz)
+				-- (the glow spots are the old drift plot's; a built drift track has none)
+				local zone = if LobbyLayout.custom[w.slot]
+					then nil
+					else TrackData.plot("drift").touchZone(lx, lz)
 				if zone and not w.touched[zone] then
 					w.touched[zone] = true
 					job(player, "touch")

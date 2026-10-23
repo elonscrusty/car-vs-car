@@ -12,6 +12,7 @@ local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Garage = require(Shared:WaitForChild("Garage"))
@@ -216,6 +217,86 @@ local function needWords(price: number, coins: number): string
 	return if coins >= price then "BUY" else `{price - coins} more`
 end
 
+-- ===== NEW CAR! =====
+-- A new car is a big moment: the whole screen goes dark, the car turns slowly in the middle,
+-- NEW CAR! pops in, and you are already driving it. Tap DRIVE IT! to go.
+
+local revealSpin: RBXScriptConnection? = nil
+
+local function reveal(car: CarCatalog.Car, onDone: () -> ())
+	local back = Instance.new("TextButton") -- swallows taps behind it
+	back.Name = "NewCar"
+	back.AutoButtonColor = false
+	back.Text = ""
+	back.Size = UDim2.fromScale(1, 1)
+	back.BackgroundColor3 = Color3.new(0, 0, 0)
+	back.BackgroundTransparency = 0.25
+	back.ZIndex = 10
+	back.Parent = gui
+	local box = Instance.new("Frame")
+	box.AnchorPoint = Vector2.new(0.5, 0.5)
+	box.Position = UDim2.fromScale(0.5, 0.5)
+	box.Size = UDim2.fromScale(0.6, 0.9)
+	box.BackgroundTransparency = 1
+	box.ZIndex = 10
+	box.Parent = back
+	local ratio = Instance.new("UIAspectRatioConstraint")
+	ratio.AspectRatio = 1.25
+	ratio.Parent = box
+	local view = preview(box, car, rgb(car.color):Lerp(Color3.new(0, 0, 0), 0.6))
+	view.ZIndex = 10
+	view.Position = UDim2.fromScale(0.1, 0.16)
+	view.Size = UDim2.fromScale(0.8, 0.52)
+	local words = {
+		text(box, "NEW CAR!", 0, 0, 1, 0.15, GOLD),
+		text(box, car.name, 0, 0.7, 1, 0.1, Color3.new(1, 1, 1)),
+		text(box, "You're driving it now!", 0, 0.8, 1, 0.06, Color3.fromRGB(180, 230, 190)),
+	}
+	for _, w in words do
+		w.ZIndex = 11
+	end
+	local go = button(box, "DRIVE IT!", Color3.fromRGB(60, 180, 80), true)
+	go.ZIndex = 11
+	go.Position = UDim2.fromScale(0.3, 0.88)
+	go.Size = UDim2.fromScale(0.4, 0.12)
+	-- NEW CAR! pops in from small
+	local pop = words[1]
+	pop.Size = UDim2.fromScale(0.2, 0.03)
+	pop.Position = UDim2.fromScale(0.4, 0.06)
+	TweenService:Create(
+		pop,
+		TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+		{ Size = UDim2.fromScale(1, 0.15), Position = UDim2.fromScale(0, 0) }
+	):Play()
+	-- the car turns on its spot
+	local cam = view.CurrentCamera
+	local model = view:FindFirstChildOfClass("Model")
+	if cam and model then
+		local cf = model:GetBoundingBox()
+		local center = cf.Position
+		local offset = cam.CFrame.Position - center
+		local angle = 0
+		if revealSpin then
+			revealSpin:Disconnect()
+		end
+		revealSpin = RunService.RenderStepped:Connect(function(dt)
+			angle += dt * 0.8
+			cam.CFrame = CFrame.lookAt(
+				center + CFrame.Angles(0, angle, 0):VectorToWorldSpace(offset),
+				center
+			)
+		end)
+	end
+	go.Activated:Connect(function()
+		if revealSpin then
+			revealSpin:Disconnect()
+			revealSpin = nil
+		end
+		back:Destroy()
+		onDone()
+	end)
+end
+
 -- ===== Shop screen =====
 
 local current: { kind: string, gumball: boolean, tiles: boolean }? = nil
@@ -328,11 +409,14 @@ local function showShop(kind: string, s: State)
 				b.Activated:Connect(function()
 					local now = ask("buy", car.id)
 					if now then
+						showShop(kind, now)
 						if now.ok then
-							-- bought: drive it straight away
-							now = ask("equip", car.id) or now
+							-- the server put it on already: show it off, then go drive
+							reveal(car, function()
+								gui.Enabled = false
+								current = nil
+							end)
 						end
-						showShop(kind, now :: State)
 					end
 				end)
 			end
@@ -406,9 +490,12 @@ local function showGumball(s: State, result: string?)
 					then "Not enough coins"
 					elseif
 						now.new
-					then `You got {car.name}! Pick it in the {MODE_WORDS[car.mode]} shop.`
+					then `You got {car.name}! Drive it on {MODE_WORDS[car.mode]} tracks.`
 					else `{car.name} again: {CarCatalog.DUPLICATE_REFUND} coins back`
 				showGumball(now, msg)
+				if car and now.new then
+					reveal(car, function() end)
+				end
 			end
 		end)
 	end

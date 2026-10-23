@@ -30,7 +30,7 @@ export type Save = {
 export type Goal = {
 	kind: string, -- "car" | "tile" | "grid"
 	name: string,
-	mode: string?, -- a car's mode (drift / race / rock)
+	mode: string?, -- a car's mode (drift / race)
 	price: number, -- coins (car, tile) or stars (grid)
 	have: number, -- coins (car, tile) or stars (grid) you have now
 	ready: boolean, -- you can get it now
@@ -40,7 +40,7 @@ export type Goal = {
 -- cars first: the server race is the main game).
 function Rewards.coinGoals(s: Save): { Goal }
 	local out: { Goal } = {}
-	for _, mode in { "race", "drift", "rock" } do
+	for _, mode in { "race", "drift" } do
 		for _, c in CarCatalog.SHOP[mode] or {} do
 			if c.price > 0 and not c.rare and not CarCatalog.owns(s :: any, c.id) then
 				table.insert(out, {

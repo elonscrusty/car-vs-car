@@ -230,6 +230,11 @@ function LobbyLayout.track(slotIndex: number): any
 	local t = TrackData.get(slot.id)
 	local own = LobbyLayout.custom[slotIndex]
 	if own then
+		-- the owner's pick: a "drift" plot drives in the drift mode (top view, drift score)
+		if own.kind == "race" or own.kind == "drift" then
+			t.id = own.kind
+		end
+		t.custom = true -- built from tiles (no fixed-plot extras like drift touch zones)
 		t.mode = own.mode or t.mode
 		t.spawn = own.spawn or t.spawn
 		t.gates = own.gates or t.gates

@@ -376,16 +376,19 @@ LakeLife.start() -- the lake moves from the start: sailboats drift, ducks paddle
 local function timerText(): string
 	local t = tracks[current]
 	local s = timers[current]
-	if t.mode == "free" then
+	if t.mode == "free" and not (grid and raceGo) then
 		return ""
 	end
 	local now = os.clock()
 	local lines = {}
 	local go = raceGo
 	if grid and go then
-		-- server race: laps out of the race's laps, and the race clock (stops at the finish)
+		-- server race: laps out of the race's laps, and the race clock (stops at the finish); a
+		-- drift round has no laps (its clock is the red pill, its score the drift box)
 		local done = raceDone
-		if done then
+		if t.id == "drift" then
+			table.insert(lines, "DRIFT!")
+		elseif done then
 			table.insert(lines, `FINISHED   {CarMath.formatTime(done)}`)
 		else
 			local lap = math.min(s.laps + 1, ServerRace.LAPS)
@@ -454,7 +457,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 	end
 	-- server race: the last lap is the finish (the server keeps the real order)
 	local go = raceGo
-	if event == "lap" and grid and go and timer.laps >= ServerRace.LAPS then
+	if event == "lap" and grid and go and t.id ~= "drift" and timer.laps >= ServerRace.LAPS then
 		event = nil
 		raceDone = os.clock() - go
 		hud.flash(`FINISH!  {CarMath.formatTime(raceDone :: number)}`)
@@ -528,7 +531,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 			driftHold = 0.8
 			-- sliding through a glowing touch zone: a bonus, once per zone per chain
 			local plot = TrackData.plot(t.id)
-			local zone = plot.touchZone and plot.touchZone(lx, lz)
+			local zone = not (t :: any).custom and plot.touchZone and plot.touchZone(lx, lz)
 			if zone and not touched[zone] then
 				touched[zone] = true
 				local bonus = plot.TOUCH_BONUS * CarMath.driftCombo(driftHeld)

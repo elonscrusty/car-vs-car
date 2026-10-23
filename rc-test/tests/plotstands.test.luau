@@ -31,9 +31,11 @@ test("the owner's cars: known ones only, no repeats, best first", function()
 	eq(#P.parse(""), 0)
 end)
 
-test("a rare car beats a shop car of the same worth", function()
-	local cars = P.parse("rock_sand,gb_ice") -- both 1000
-	eq(cars[1].id, "gb_ice")
+test("rarer gumball cars are worth more", function()
+	local cars = P.parse("gb_lime,gb_gold,gb_night")
+	eq(cars[1].id, "gb_gold")
+	eq(cars[2].id, "gb_night")
+	eq(cars[3].id, "gb_lime")
 end)
 
 test("a spot for every car but the podium one, best row in front", function()

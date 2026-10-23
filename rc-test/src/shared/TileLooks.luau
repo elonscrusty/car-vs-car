@@ -180,9 +180,9 @@ function TileLooks.parts(id: string, cell: number?): { Piece }
 		end
 		add(G, "GantryBeam", v(2 * px + 1.2, 2, 1.6), v(0, 13.6, 0), DARK, noHit)
 		for i = -1, 1 do
-			add(G, "StartLamp", v(1.4, 1.4, 0.4), v(i * 3, 13.6, 0.9), RED, {
+			-- off until a race starts: the driver's screen lights them 3-2-1 then green
+			add(G, "StartLamp", v(1.4, 1.4, 0.4), v(i * 3, 13.6, 0.9), DARK, {
 				shape = "Ball",
-				material = "Neon",
 				collide = false,
 			})
 		end

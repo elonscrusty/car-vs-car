@@ -294,3 +294,23 @@ test("rotate turns a tile a quarter turn, four taps = back", function()
 	eq(T.ready(g), true)
 	eq((T.rotate(g, 3, 3)), false) -- grass
 end)
+
+test("the owner picks race or drift: the driving data says which", function()
+	local res = T.trace(T.circle(5, 5))
+	eq((T.track(res) :: any).kind, "race")
+	eq((T.track(res, "drift") :: any).kind, "drift")
+	eq((T.track(res, "rocks") :: any).kind, "race") -- anything else is a race
+	local Profile = require("../src/shared/Profile")
+	local d = Profile.new()
+	eq(d.trackKind, "race")
+	eq(Profile.setTrackKind(d, "drift"), true)
+	eq(Profile.setTrackKind(d, "drift"), false)
+	eq(Profile.setTrackKind(d, "rock"), false)
+	eq(Profile.migrate(d).trackKind, "drift")
+	eq(Profile.migrate({ trackKind = "rock" }).trackKind, "race")
+	local LobbyLayout = require("../src/shared/LobbyLayout")
+	LobbyLayout.custom[1] = T.track(res, "drift")
+	eq(LobbyLayout.track(1).id, "drift")
+	truthy(LobbyLayout.track(1).custom)
+	LobbyLayout.custom[1] = nil
+end)
