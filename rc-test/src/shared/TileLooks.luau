@@ -14,7 +14,11 @@
 
 local function sibling(name: string): any
 	if script then
-		return require((script :: any).Parent[name])
+		local node: any = (script :: any).Parent
+		for _, part in string.split(name, "/") do
+			node = node[part]
+		end
+		return require(node)
 	end
 	local luneRequire: any = require
 	return luneRequire("./" .. name)
@@ -453,13 +457,181 @@ function TileLooks.parts(id: string, cell: number?): { Piece }
 	return out
 end
 
+-- Low decor for an EMPTY grid cell (picked from c / r, so it stays the same on every rebuild):
+-- bushes and flowers, a tyre pile, a flower bed, a little pit tent or just two bushes. Nothing
+-- solid and nothing tall, so a car that runs wide just drives through.
+TileLooks.EMPTY_KINDS = 5
+function TileLooks.emptyParts(c: number, r: number, cell: number?): { Piece }
+	local C = cell or TileLooks.CELL
+	local q = C / 4
+	local out: { Piece } = {}
+	local add = Garage.adder(out)
+	local G = "TileLooks"
+	local noHit = { collide = false }
+	local kind = (c * 7 + r * 13) % TileLooks.EMPTY_KINDS
+	local function bush(x: number, z: number, sz: number)
+		add(G, "Bush", v(sz, sz, sz), v(x, sz * 0.4, z), BUSH, { shape = "Ball", collide = false })
+	end
+	local function flowers(x: number, z: number)
+		for i, col in { RED, YELLOW, WHITE, { 200, 90, 220 } } do
+			local a = i * math.pi / 2
+			add(
+				G,
+				"Flower",
+				v(1, 1, 1),
+				v(x + math.cos(a) * 1.4, 0.5, z + math.sin(a) * 1.4),
+				col,
+				{
+					shape = "Ball",
+					collide = false,
+				}
+			)
+		end
+	end
+	if kind == 0 then
+		bush(-q, -q, 5)
+		bush(-q + 3.5, -q + 2, 3.5)
+		bush(q, q * 0.6, 4.5)
+		flowers(q * 0.4, -q * 1.2)
+	elseif kind == 1 then
+		local x, z = q, -q
+		for i = 0, 2 do
+			add(G, "Tyre", v(1.2, 3, 3), v(x, 0.6 + i * 1.2, z), TYRE, {
+				shape = "Cylinder",
+				rot = v(0, 0, 90),
+				collide = false,
+			})
+		end
+		add(G, "Tyre", v(1.2, 3, 3), v(x + 3.4, 0.6, z + 0.4), TYRE, {
+			shape = "Cylinder",
+			rot = v(0, 0, 90),
+			collide = false,
+		})
+		add(G, "Tyre", v(1.2, 3, 3), v(x - 1, 1.5, z + 3), TYRE, {
+			shape = "Cylinder",
+			rot = v(60, 0, 90),
+			collide = false,
+		})
+		bush(-q, q, 4.5)
+	elseif kind == 2 then
+		add(G, "FlowerBed", v(12, 0.6, 7), v(0, 0.3, 0), { 120, 84, 52 }, noHit)
+		for i = -2, 2 do
+			local col = if i % 2 == 0 then RED else YELLOW
+			add(G, "Flower", v(1.4, 1.4, 1.4), v(i * 2.2, 1.1, (i % 2) * 1.6 - 0.8), col, {
+				shape = "Ball",
+				collide = false,
+			})
+		end
+	elseif kind == 3 then
+		-- a little pit tent: four poles, a striped roof, a cooler
+		local w, d, h = 9, 7, 5
+		for _, sx in { -1, 1 } do
+			for _, sz in { -1, 1 } do
+				add(G, "TentPole", v(0.35, h, 0.35), v(sx * w / 2, h / 2, sz * d / 2), WHITE, noHit)
+			end
+		end
+		for i = 0, 2 do
+			add(
+				G,
+				"TentRoof",
+				v(w / 3 + 0.3, 0.4, d + 0.6),
+				v(-w / 3 + i * w / 3, h + 0.2, 0),
+				if i % 2 == 0 then RED else WHITE,
+				noHit
+			)
+		end
+		add(G, "Cooler", v(2.2, 1.6, 1.4), v(1.5, 0.8, 0), BLUE, noHit)
+	else
+		bush(-q * 1.2, q * 0.8, 4)
+		bush(q * 1.1, -q * 0.9, 3.5)
+	end
+	return out
+end
+
+-- The strips between the grid (minX..maxX, minZ..maxZ, plot-local big units) and the track area
+-- `area` (Kit.AREA): red / white barrier sections along the plot walls, a row of trees at the
+-- back, flags along the front. A strip thinner than SURROUND_MIN gets nothing.
+TileLooks.SURROUND_MIN = 6
+TileLooks.BARRIER = 24 -- length of one barrier section
+function TileLooks.surroundParts(
+	minX: number,
+	maxX: number,
+	minZ: number,
+	maxZ: number,
+	area: { minX: number, maxX: number, minZ: number, maxZ: number }
+): { Piece }
+	local out: { Piece } = {}
+	local add = Garage.adder(out)
+	local G = "TileLooks"
+	local noHit = { collide = false }
+	local M = TileLooks.SURROUND_MIN
+	local L = TileLooks.BARRIER
+	local n = 0
+	-- barriers: a run of sections from a to b along x (at z) or along z (at x)
+	local function run(a: number, b: number, fixed: number, alongX: boolean)
+		local len = b - a
+		local count = math.max(1, math.floor(len / L))
+		local seg = len / count
+		for i = 0, count - 1 do
+			n += 1
+			local mid = a + (i + 0.5) * seg
+			local size = if alongX then v(seg - 0.6, 2, 1.4) else v(1.4, 2, seg - 0.6)
+			local pos = if alongX then v(mid, 1, fixed) else v(fixed, 1, mid)
+			add(G, "Barrier", size, pos, if n % 2 == 0 then WHITE else RED, noHit)
+		end
+	end
+	local back = minZ - area.minZ >= M
+	local front = area.maxZ - maxZ >= M
+	if back then
+		run(area.minX, area.maxX, area.minZ + 1.2, true)
+		-- trees along the back strip
+		local mid = (area.minZ + minZ) / 2
+		local x = area.minX + 16
+		local i = 0
+		while x < area.maxX - 10 do
+			i += 1
+			local h = if i % 2 == 0 then 9 else 7
+			add(G, "TreeTrunk", v(1.6, h * 0.5, 1.6), v(x, h * 0.25, mid), { 120, 84, 52 }, noHit)
+			add(
+				G,
+				"TreeTop",
+				v(h * 0.75, h * 0.75, h * 0.75),
+				v(x, h * 0.65, mid),
+				if i % 2 == 0 then BUSH else BUSH2,
+				{ shape = "Ball", collide = false }
+			)
+			x += 34
+		end
+	end
+	if minX - area.minX >= M then
+		run(area.minZ, area.maxZ, area.minX + 1.2, false)
+	end
+	if area.maxX - maxX >= M then
+		run(area.minZ, area.maxZ, area.maxX - 1.2, false)
+	end
+	if front then
+		-- flags on poles along the front strip, between the grid and the stand
+		local z = (maxZ + area.maxZ) / 2
+		local cols = { RED, YELLOW, BLUE, { 70, 190, 90 }, ORANGE }
+		local i = 0
+		local x = area.minX + 20
+		while x < area.maxX - 10 do
+			i += 1
+			add(G, "FlagPole", v(0.5, 9, 0.5), v(x, 4.5, z), WHITE, noHit)
+			add(G, "Flag", v(4, 2.6, 0.2), v(x + 2.2, 7.6, z), cols[i % #cols + 1], noHit)
+			x += 38
+		end
+	end
+	return out
+end
+
 -- Server / Studio: build tile `id`'s looks in a "TileLooks" folder under `parent`, at `at` (the
 -- tile's centre on the ground, already turned for its rot). Nothing collides, touches or queries.
-function TileLooks.make(id: string, parent: Instance, at: CFrame, cell: number?): Instance
+local function makeIn(pieces: { Piece }, parent: Instance, at: CFrame): Instance
 	local folder = Instance.new("Folder")
 	folder.Name = "TileLooks"
 	local holder = Instance.new("Model")
-	Garage.makeParts(TileLooks.parts(id, cell), holder, at)
+	Garage.makeParts(pieces, holder, at)
 	for _, d in holder:GetDescendants() do
 		if d:IsA("BasePart") then
 			d.CanQuery = false
@@ -470,6 +642,36 @@ function TileLooks.make(id: string, parent: Instance, at: CFrame, cell: number?)
 	holder:Destroy()
 	folder.Parent = parent
 	return folder
+end
+
+function TileLooks.make(id: string, parent: Instance, at: CFrame, cell: number?): Instance
+	return makeIn(TileLooks.parts(id, cell), parent, at)
+end
+
+-- An empty cell's decor at `at` (the cell centre on the ground).
+function TileLooks.makeEmpty(
+	parent: Instance,
+	at: CFrame,
+	cell: number?,
+	c: number,
+	r: number
+): Instance
+	return makeIn(TileLooks.emptyParts(c, r, cell), parent, at)
+end
+
+-- The strips round the grid, once per build. `origin` is the plot's CFrame; the edges and the
+-- area are plot-local big units (Kit.AREA unless given).
+function TileLooks.makeSurround(
+	parent: Instance,
+	origin: CFrame,
+	minX: number,
+	maxX: number,
+	minZ: number,
+	maxZ: number,
+	area: any?
+): Instance
+	local a = area or sibling("Plots/Kit").AREA
+	return makeIn(TileLooks.surroundParts(minX, maxX, minZ, maxZ, a), parent, origin)
 end
 
 return TileLooks
