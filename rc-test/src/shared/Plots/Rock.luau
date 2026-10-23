@@ -65,7 +65,7 @@ Plot.GRASS_TOP = 14 -- ground below this height (off the trail) is grass, higher
 Plot.MAX_LIFT = 1.6
 -- Highest sheer step a careful driver can get up (backing up and trying again); much over this
 -- and nobody can (Studio: about 0.45 studs at RC size; carter found that too big, so 0.425).
-Plot.SKILL_STEP = 1.7
+Plot.SKILL_STEP = 1.8
 -- The big wide boulders can stand taller: their sides are gentle enough to climb.
 Plot.BIG_LIFT = 2.5
 -- The person's eyes on the driver stand (see Main.client: stand top + 4.5 studs at RC size).
@@ -220,10 +220,12 @@ end
 -- Rock steps up the low shelf: flat blocks, each a small step up from the one before.
 -- Four tall steps on the hill side of the trail: too tall to just hold the gas up, it takes
 -- backing up and trying again. The front side of the trail is the easy way round.
--- `lead`: the trail still climbs right up to the first step, so its rise counts from the ground
--- this far before it (Studio measured the first rise 0.57 RC when it counted from `from`).
+-- The trail ground is itself little terraces, one per path sample (every 0.1 u, 0.8 high), so
+-- each block covers exactly two of them (from/to sit halfway between samples) and stands `rise`
+-- above the ground in front. Each block's top clears the ground under it, so no terrace pokes
+-- through and splits a step in two (Studio: that made them W only).
 Plot.STEPS =
-	{ from = 13.08, to = 13.84, lead = 0.08, n = 4, side = -0.45, width = 20, frontSide = 1 }
+	{ from = 13.05, to = 13.85, n = 4, rise = 1.79, side = -0.45, width = 20, frontSide = 1 }
 Plot.CURB = 1.2 -- the curb along the front edge beside the steps
 Plot.CURB_TO = 14.5 -- it runs on past the steps: cars on the easy side drift out (Studio)
 
@@ -231,15 +233,14 @@ Plot.CURB_TO = 14.5 -- it runs on past the steps: cars on the easy side drift ou
 function Plot.stepBlocks(): { { u0: number, u1: number, top: number, bottom: number } }
 	local st = Plot.STEPS
 	local out = {}
-	-- equal rises from the ground in front of the first step up to the trail after the last
-	local base = Plot.height(st.from - st.lead)
-	local rise = (Plot.height(st.to) - base) / st.n
+	-- the ground in front of the first block: the terrace just before `from`
+	local base = Plot.height(st.from - 0.05)
 	for k = 0, st.n - 1 do
 		local u0 = st.from + (st.to - st.from) * k / st.n
 		local u1 = st.from + (st.to - st.from) * (k + 1) / st.n
 		table.insert(
 			out,
-			{ u0 = u0, u1 = u1, top = base + rise * (k + 1), bottom = base + rise * k - 3 }
+			{ u0 = u0, u1 = u1, top = base + st.rise * (k + 1), bottom = base + st.rise * k - 3 }
 		)
 	end
 	return out
@@ -868,6 +869,23 @@ local function buildSkills(parent: Instance, origin: CFrame)
 			* CFrame.new(0, hp.lift / 2 - 1, st.length / 2 + hp.length / 2 - 0.5),
 		C.rock
 	))
+	-- a low rail along the hill-side end of the helper and block: stalled cars slid sideways
+	-- off that end and round (Studio), so a back-up and retry stays square to the face
+	local railLen = hp.length + 6
+	local rail = Kit.part(
+		parent,
+		"Wall",
+		origin,
+		Vector3.new(1.5, Plot.CURB + 3, railLen),
+		Plot.bankCF(st.u, x, y, z)
+			* CFrame.new(
+				-(st.width / 2 + 0.75),
+				Plot.CURB / 2 - 0.9,
+				st.length / 2 + railLen / 2 - 0.5
+			),
+		C.rock
+	)
+	rail.Material = Enum.Material.Slate
 	-- the kicker: a block with a steep ramp up to it from behind (the bank frame's +Z points
 	-- back down the trail)
 	local k = S.kicker

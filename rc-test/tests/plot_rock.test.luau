@@ -198,12 +198,18 @@ test("rock steps: tall steps up, on a straight, an easy way round, nothing else 
 	local blocks = Plot.stepBlocks()
 	eq(#blocks, st.n)
 	-- the first rise counts from the ground in front (the trail climbs right up to it)
-	local below = Plot.height(st.from - st.lead)
+	local below = Plot.height(st.from - 0.05)
 	for _, b in blocks do
 		local rise = b.top - below
 		below = b.top
 		-- tall: holding the gas stalls, it takes backing up and another go
 		truthy(rise > Plot.MAX_LIFT and rise <= Plot.SKILL_STEP, `step at {b.u0} rises {rise}`)
+	end
+	-- every block clears the ground terraces under it (one per path sample, every 0.1 u)
+	for _, b in blocks do
+		for u = b.u0 + 0.05, b.u1 - 0.01, 0.1 do
+			truthy(b.top >= Plot.height(u) + 0.1, `ground at {u} pokes through the step`)
+		end
 	end
 	local edge = Plot.HALF_WIDTH + Plot.SHOULDER
 	local lo, hi =
