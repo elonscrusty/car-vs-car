@@ -9,7 +9,8 @@
 -- Server -> client (StarsEvent): ("stars", count, saving), ("run", info), ("coins", count),
 -- ("toast", text), ("bolts", found, total, onRock), ("bolt", id), ("boltsFound", ids) and
 -- ("rivals", list, streak, winPoints), ("daily", coins, days in a row, boost) and ("jobs", lines,
--- secondsToNewJobs). The client never sends. workspace "CoinBoost" = 2 on weekends (every coin
+-- secondsToNewJobs), ("goal", goal or nil) = Rewards.next, ("prize", info) after a server race.
+-- The client never sends. workspace "CoinBoost" = 2 on weekends (every coin
 -- gift doubled).
 
 local Players = game:GetService("Players")
@@ -22,9 +23,11 @@ local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local Medals = require(ReplicatedStorage.Shared.Medals)
 local Profile = require(ReplicatedStorage.Shared.Profile)
 local RunCheck = require(ReplicatedStorage.Shared.RunCheck)
+local Rewards = require(ReplicatedStorage.Shared.Rewards)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local PlayerData = require(script.Parent.PlayerData)
 local Pings = require(script.Parent.Pings)
+local ServerRaceRunner = require(script.Parent.ServerRaceRunner)
 
 local LOOK = 0.1 -- seconds between looks at the cars
 local TEST_OWNER = -1 -- Studio only: who owns an empty plot
@@ -766,6 +769,83 @@ task.spawn(function()
 		end
 	end
 end)
+
+-- ===== race prizes and the next unlock =====
+
+-- The goal to save up for, sent again whenever coins, stars or cars change (from any shop).
+local goalSeen: { [Player]: string } = {}
+local function goalOf(data: Profile.Data): Rewards.Goal?
+	return Rewards.next(data :: any)
+end
+local function sendGoal(player: Player, force: boolean?)
+	local data = PlayerData.get(player)
+	if not data then
+		return
+	end
+	local n = 0
+	for _ in data.cars do
+		n += 1
+	end
+	for _ in data.tiles do
+		n += 1
+	end
+	local key = `{data.coins}/{data.stars}/{n}`
+	if goalSeen[player] == key and not force then
+		return
+	end
+	local first = goalSeen[player] == nil
+	goalSeen[player] = key
+	if not first then
+		remote:FireClient(player, "coins", data.coins)
+	end
+	remote:FireClient(player, "goal", goalOf(data))
+end
+task.spawn(function()
+	while true do
+		for _, p in Players:GetPlayers() do
+			sendGoal(p)
+		end
+		task.wait(1)
+	end
+end)
+Players.PlayerRemoving:Connect(function(p)
+	goalSeen[p] = nil
+end)
+
+-- Server race over: the top 3 finishers get coins, everyone sees what they got and what's next.
+ServerRaceRunner.finished:Connect(
+	function(player: Player, place: number, finished: boolean, racers: number)
+		local data = PlayerData.get(player)
+		if not data or player.Parent == nil then
+			return
+		end
+		local boost = Profile.boost(os.time())
+		local coins = if finished then Rewards.placeCoins(place, boost) else 0
+		if coins > 0 then
+			data.coins += coins
+			PlayerData.touch(player)
+			remote:FireClient(player, "coins", data.coins)
+		end
+		print(
+			`[Stars] server race {player.Name} place {place}/{racers} finished={finished} +{coins} coins`
+		)
+		-- after the result card (ServerRace.client shows it first)
+		task.delay(1.5, function()
+			if player.Parent == nil then
+				return
+			end
+			remote:FireClient(player, "prize", {
+				place = place,
+				racers = racers,
+				finished = finished,
+				coins = coins,
+				boost = boost,
+				goal = goalOf(data),
+			})
+			sendGoal(player, true)
+		end)
+	end
+)
 
 local acc = 0
 RunService.Heartbeat:Connect(function(dt: number)

@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
+local Rewards = require(ReplicatedStorage.Shared.Rewards)
 local Profile = require(ReplicatedStorage.Shared.Profile)
 
 local remote = ReplicatedStorage:WaitForChild("StarsEvent") :: RemoteEvent
@@ -542,10 +543,208 @@ local function setStars(n: number, bump: boolean)
 	end
 end
 
+-- ===== the next unlock (walk HUD) and the race prize card =====
+
+local GOLD = Color3.fromRGB(255, 213, 79)
+local GREEN = Color3.fromRGB(110, 225, 120)
+
+local function goalText(g: any): (string, string, number)
+	-- (what it is, how far, fill 0..1)
+	local what = if g.kind == "car"
+		then `NEXT CAR: {g.name}`
+		elseif g.kind == "tile" then `NEXT TILE: {g.name}`
+		else `BIGGER TRACK: {g.name}`
+	local unit = if g.kind == "grid" then "⭐" else "coins"
+	local fill = if g.price > 0 then math.clamp(g.have / g.price, 0, 1) else 1
+	if g.ready then
+		local where = if g.kind == "car" then "car shop" else "tile shop"
+		return what, `you can buy it! go to the {where}`, 1
+	end
+	return what, `{g.have} / {g.price} {unit}`, fill
+end
+
+local function bar(parent: Instance, y: number, h: number): Frame
+	local back = Instance.new("Frame")
+	back.Name = "Bar"
+	back.Position = UDim2.fromScale(0, y)
+	back.Size = UDim2.fromScale(1, h)
+	back.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+	back.Parent = parent
+	local bc = Instance.new("UICorner")
+	bc.CornerRadius = UDim.new(0.5, 0)
+	bc.Parent = back
+	local fill = Instance.new("Frame")
+	fill.Name = "Fill"
+	fill.Size = UDim2.fromScale(0, 1)
+	fill.BackgroundColor3 = GOLD
+	fill.Parent = back
+	local fc = Instance.new("UICorner")
+	fc.CornerRadius = UDim.new(0.5, 0)
+	fc.Parent = fill
+	return back
+end
+
+local function textLine(
+	parent: Instance,
+	y: number,
+	h: number,
+	color: Color3,
+	font: Enum.Font
+): TextLabel
+	local l = Instance.new("TextLabel")
+	l.Position = UDim2.fromScale(0, y)
+	l.Size = UDim2.fromScale(1, h)
+	l.BackgroundTransparency = 1
+	l.TextColor3 = color
+	l.Font = font
+	l.TextScaled = true
+	l.TextXAlignment = Enum.TextXAlignment.Left
+	l.Parent = parent
+	return l
+end
+
+local nextBox = Instance.new("Frame")
+nextBox.Name = "NextUnlock"
+HudLayout.place(nextBox, "NextUnlock")
+nextBox.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+nextBox.BackgroundTransparency = 0.3
+nextBox.Visible = false -- until the server sends a goal
+nextBox.Parent = hud
+local nextCorner = Instance.new("UICorner")
+nextCorner.CornerRadius = UDim.new(0.2, 0)
+nextCorner.Parent = nextBox
+local nextPad = Instance.new("UIPadding")
+nextPad.PaddingLeft = UDim.new(0.04, 0)
+nextPad.PaddingRight = UDim.new(0.04, 0)
+nextPad.PaddingTop = UDim.new(0.1, 0)
+nextPad.PaddingBottom = UDim.new(0.1, 0)
+nextPad.Parent = nextBox
+local nextRim = Instance.new("UIStroke")
+nextRim.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+nextRim.Color = GREEN
+nextRim.Thickness = 2
+nextRim.Enabled = false
+nextRim.Parent = nextBox
+local nextWhat = textLine(nextBox, 0, 0.45, GOLD, Enum.Font.GothamBlack)
+local nextHow = textLine(nextBox, 0.45, 0.3, Color3.new(1, 1, 1), Enum.Font.GothamBold)
+nextHow.Size = UDim2.fromScale(0.6, 0.3)
+local nextBar = bar(nextBox, 0.82, 0.18)
+nextHow.Position = UDim2.fromScale(0, 0.47)
+
+local function showGoal(g: any)
+	if type(g) ~= "table" or type(g.name) ~= "string" or type(g.price) ~= "number" then
+		nextBox.Visible = false
+		return
+	end
+	local what, how, fill = goalText(g)
+	nextWhat.Text = what
+	nextHow.Text = how
+	nextHow.Size = UDim2.fromScale(if g.ready then 1 else 0.6, 0.3)
+	nextHow.TextColor3 = if g.ready then GREEN else Color3.new(1, 1, 1)
+	nextRim.Enabled = g.ready == true
+	local f = nextBar:FindFirstChild("Fill") :: Frame
+	f.BackgroundColor3 = if g.ready then GREEN else GOLD
+	TweenService:Create(f, TweenInfo.new(0.4), { Size = UDim2.fromScale(fill, 1) }):Play()
+	nextBox.Visible = true
+end
+
+-- after a server race: your place, the coins, and the goal bar filling up
+local prize = Instance.new("Frame")
+prize.Name = "RacePrize"
+prize.AnchorPoint = Vector2.new(0.5, 0)
+prize.Position = UDim2.fromScale(0.5, 0.64)
+prize.Size = UDim2.fromScale(0.46, 0.2)
+prize.BackgroundColor3 = Color3.fromRGB(30, 32, 44)
+prize.BackgroundTransparency = 0.08
+prize.Visible = false
+prize.Parent = top
+local prizeCorner = Instance.new("UICorner")
+prizeCorner.CornerRadius = UDim.new(0.12, 0)
+prizeCorner.Parent = prize
+local prizeRim = Instance.new("UIStroke")
+prizeRim.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+prizeRim.Color = GOLD
+prizeRim.Thickness = 3
+prizeRim.Parent = prize
+local prizePad = Instance.new("UIPadding")
+prizePad.PaddingLeft = UDim.new(0.04, 0)
+prizePad.PaddingRight = UDim.new(0.04, 0)
+prizePad.PaddingTop = UDim.new(0.08, 0)
+prizePad.PaddingBottom = UDim.new(0.08, 0)
+prizePad.Parent = prize
+local prizeScale = Instance.new("UIScale")
+prizeScale.Parent = prize
+local prizeTitle = textLine(prize, 0, 0.4, GOLD, Enum.Font.GothamBlack)
+prizeTitle.TextXAlignment = Enum.TextXAlignment.Center
+local prizeGoal = textLine(prize, 0.46, 0.24, Color3.new(1, 1, 1), Enum.Font.GothamBold)
+prizeGoal.TextXAlignment = Enum.TextXAlignment.Center
+local prizeBar = bar(prize, 0.78, 0.18)
+local prizeShows = 0
+
+local function showPrize(info: any)
+	local place = if type(info.place) == "number" then info.place else 0
+	local coins = if type(info.coins) == "number" then info.coins else 0
+	if coins > 0 then
+		prizeTitle.Text = `{Rewards.placeName(place)} place!  +{coins} coins`
+		prizeTitle.TextColor3 = GOLD
+		prizeRim.Color = GOLD
+	else
+		local where = if info.finished
+			then `{Rewards.placeName(place)} place.`
+			else "Didn't finish."
+		prizeTitle.Text = `{where}  Top 3 win coins!`
+		prizeTitle.TextColor3 = Color3.new(1, 1, 1)
+		prizeRim.Color = Color3.fromRGB(120, 120, 130)
+	end
+	local g = info.goal
+	local f = prizeBar:FindFirstChild("Fill") :: Frame
+	if type(g) == "table" and type(g.name) == "string" and type(g.price) == "number" then
+		local what, how, fill = goalText(g)
+		prizeGoal.Text = `{what}   {how}`
+		prizeGoal.TextColor3 = if g.ready then GREEN else Color3.new(1, 1, 1)
+		prizeBar.Visible = true
+		f.BackgroundColor3 = if g.ready then GREEN else GOLD
+		-- the bar fills from what you had to what you have now
+		local before = if g.kind ~= "grid" and g.price > 0
+			then math.clamp((g.have - coins) / g.price, 0, 1)
+			else fill
+		f.Size = UDim2.fromScale(before, 1)
+		task.delay(0.6, function()
+			TweenService:Create(
+				f,
+				TweenInfo.new(0.8, Enum.EasingStyle.Quad),
+				{ Size = UDim2.fromScale(fill, 1) }
+			):Play()
+		end)
+	else
+		prizeGoal.Text = "you have everything!"
+		prizeBar.Visible = false
+	end
+	prizeShows += 1
+	local mine = prizeShows
+	prize.Visible = true
+	prizeScale.Scale = 0.6
+	TweenService:Create(prizeScale, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Scale = 1 })
+		:Play()
+	task.delay(6, function()
+		if mine == prizeShows then
+			prize.Visible = false
+		end
+	end)
+end
+
 remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unknown, ...: unknown)
 	if kind == "stars" and type(info) == "number" then
 		setStars(info, false)
 		noSave.Visible = saving == false
+		return
+	end
+	if kind == "goal" then
+		showGoal(info)
+		return
+	end
+	if kind == "prize" and type(info) == "table" then
+		showPrize(info)
 		return
 	end
 	if kind == "coins" and type(info) == "number" then

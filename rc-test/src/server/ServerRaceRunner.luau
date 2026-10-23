@@ -69,6 +69,16 @@ type Racer = {
 
 local ServerRaceRunner = {}
 
+-- `finished` (player, place, finished, racers): fired once per racer still in the game when a
+-- race ends (Stars.server pays the top 3 and shows what they earned).
+type FinishListener = (Player, number, boolean, number) -> ()
+local finishListeners: { FinishListener } = {}
+ServerRaceRunner.finished = {
+	Connect = function(_self: any, fn: FinishListener)
+		table.insert(finishListeners, fn)
+	end,
+}
+
 -- Server -> client: ("state", phase, startAt, count, joined, where) with phase "wait" | "call" |
 -- "racing" (startAt = workspace:GetServerTimeNow() time of the start, count/joined = unused now
 -- that everyone races, where = "MIA'S TRACK" once picked), ("result", rows) when a race ends:
@@ -259,6 +269,7 @@ local function runRace(hooks: Hooks, slot: number)
 		RunService.Heartbeat:Wait()
 		local clock = os.clock()
 		local entries: { ServerRace.Entry } = {}
+		local who: { [ServerRace.Entry]: Player } = {}
 		for _, r in racers do
 			local p = r.player
 			if not r.out and (p.Parent == nil or LobbyPlots.drivingOf(p) ~= slot) then
@@ -289,7 +300,9 @@ local function runRace(hooks: Hooks, slot: number)
 				end
 			end
 			if p.Parent then
-				table.insert(entries, { name = r.name, laps = r.laps, time = r.time })
+				local e = { name = r.name, laps = r.laps, time = r.time }
+				who[e] = p
+				table.insert(entries, e)
 			end
 		end
 		-- nobody left racing, or the race is done
@@ -300,10 +313,19 @@ local function runRace(hooks: Hooks, slot: number)
 		local since = clock - goAt
 		if (not anyIn and since > 0) or ServerRace.over(entries, since, firstAt) then
 			local rows = {}
-			for _, e in ServerRace.rank(entries) do
+			local ranked = ServerRace.rank(entries)
+			for _, e in ranked do
 				table.insert(rows, { name = e.name, time = e.time, laps = e.laps })
 			end
 			event:FireAllClients("result", rows)
+			for place, e in ranked do
+				local p = who[e]
+				if p then
+					for _, fn in finishListeners do
+						task.spawn(fn, p, place, e.time ~= nil, #ranked)
+					end
+				end
+			end
 			break
 		end
 	end

@@ -70,6 +70,8 @@ HudLayout.SPOTS = {
 	spot("Rivals", "walk", "Stars", TL, { 0.14, 0, 0, 106 }, { 0.11, 0, 0, 32 }),
 	spot("Looks", "walk", "PlotShop", TL, { 0.26, 0, 0, 106 }, { 0.11, 0, 0, 32 }),
 	spot("DailyJobs", "walk", "Stars", TL, { 0.02, 0, 0, 146 }, { 0.3, 0, 0.12, 60 }),
+	-- what you're saving up for (Stars): under the jobs
+	spot("NextUnlock", "walk", "Stars", TL, { 0.02, 0, 0.12, 212 }, { 0.3, 0, 0, 40 }),
 	-- ===== walk: top middle, one stack =====
 	spot("Friends", "walk", "Lobby", TC, { 0.5, 0, 0, 64 }, { 0, 170, 0, 36 }),
 	spot("Quick", "walk", "Lobby", TC, { 0.5, 0, 0, 106 }, { 0, 170, 0, 44 }),
