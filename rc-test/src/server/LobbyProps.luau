@@ -1,7 +1,7 @@
 --!strict
--- Low-poly lobby props from plain blocks (flat colours, no text or logos): trees, lamps, the car
--- shop (cars on stands the client spins) and the upgrades garage. Stand-ins: the plaza, garage
--- and scenery threads replace them. Looks only for now: no shop or upgrade logic.
+-- Low-poly lobby props from plain blocks (flat colours, no text or logos): trees, lamps and the
+-- upgrades garage (the car shop is PlazaParts/Shop). Stand-ins: the garage and scenery threads
+-- replace them. Looks only for now: no shop or upgrade logic.
 
 local CollectionService = game:GetService("CollectionService")
 
@@ -145,52 +145,6 @@ end
 local function facing(x: number, z: number, fx: number, fz: number): CFrame
 	-- floor point whose look vector points out of the open side
 	return CFrame.lookAt(Vector3.new(x, 0, z), Vector3.new(x + fx, 0, z + fz))
-end
-
--- Car shop: blue roof, three round stands with cars on them (the client spins the stands).
-function LobbyProps.carShop(parent: Instance, x: number, z: number, fx: number, fz: number)
-	local cf = facing(x, z, fx, fz)
-	local w, d = 28, 20
-	local m = shed(parent, cf, w, d, 12, rgb(235, 235, 240), rgb(52, 104, 214))
-	m.Name = "CarShop"
-	local colors = { rgb(214, 48, 48), rgb(48, 96, 214), rgb(240, 196, 40) }
-	for i, sx in { -8.5, 0, 8.5 } do
-		local spot = cf * CFrame.new(sx, 0, 2)
-		local stand = Instance.new("Model")
-		stand.Name = "Stand"
-		part(
-			stand,
-			"Disc",
-			Vector3.new(1.2, 7, 7),
-			upright(spot * CFrame.new(0, 0.9, 0)),
-			DARK,
-			Enum.PartType.Cylinder
-		)
-		local car = displayCar(
-			stand,
-			spot * CFrame.new(0, 1.5, 0) * CFrame.Angles(0, math.pi / 5 * i, 0),
-			5.5,
-			colors[i]
-		)
-		car.Parent = stand
-		stand.WorldPivot = spot
-		stand.Parent = m
-		CollectionService:AddTag(stand, "LobbySpin")
-		-- a spot light above each stand
-		local lamp = part(
-			m,
-			"ShowLight",
-			Vector3.new(1, 0.3, 1),
-			spot * CFrame.new(0, 11.2, 0),
-			rgb(255, 250, 230)
-		)
-		lamp.Material = Enum.Material.Neon
-		local light = Instance.new("SpotLight")
-		light.Face = Enum.NormalId.Bottom
-		light.Range = 16
-		light.Brightness = 2
-		light.Parent = lamp
-	end
 end
 
 -- Upgrades garage: orange and dark, a car up on a lift, a tool bench, tyre stacks.

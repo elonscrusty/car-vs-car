@@ -73,7 +73,7 @@ test("spawn and parked cars are in the plaza, away from pads and buildings", fun
 			truthy(not L.inReach(s, px, pz), "parked car on a pad")
 		end
 	end
-	for _, b in { L.shop(), L.garage() } do
+	for _, b in { L.garage() } do
 		truthy(inside(L.PLAZA, b.x, b.z), "building in the plaza")
 		truthy(math.abs(b.x - x) > 20, "building clear of the spawn")
 	end

@@ -131,14 +131,11 @@ function LobbyLayout.ground(): Box
 	}
 end
 
--- The plaza buildings (looks only for now).
-function LobbyLayout.shop(): Spot -- car shop, left, open to the plaza middle
-	return { x = -40, z = LobbyLayout.PLAZA.minZ + 18, faceX = 1, faceZ = 0 }
-end
+-- The plaza buildings (looks only for now). The car shop is in Plaza.luau.
 function LobbyLayout.garage(): Spot -- upgrades garage, right
 	return { x = 40, z = LobbyLayout.PLAZA.minZ + 18, faceX = -1, faceZ = 0 }
 end
--- Lamps along both footpaths (between plots) and at the plaza corners.
+-- Lamps along both footpaths (between plots). The plaza's own lamps are in Plaza.luau.
 function LobbyLayout.lamps(): { Spot }
 	local out: { Spot } = {}
 	for row = 0, LobbyLayout.ROWS do
@@ -146,11 +143,6 @@ function LobbyLayout.lamps(): { Spot }
 		for _, side in { -1, 1 } do
 			table.insert(out, { x = side * (LobbyLayout.EDGE - 1), z = z, faceX = 0, faceZ = 1 })
 		end
-	end
-	local p = LobbyLayout.PLAZA
-	for _, c in { { -1, 0.55 }, { 1, 0.55 }, { -1, 0.95 }, { 1, 0.95 } } do
-		local z = p.minZ + (p.maxZ - p.minZ) * c[2]
-		table.insert(out, { x = c[1] * 24, z = z, faceX = 0, faceZ = 1 })
 	end
 	return out
 end
