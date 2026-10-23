@@ -25,13 +25,51 @@ Medals.TARGETS = {
 	drift = { kind = "score", bronze = 500, silver = 1500, gold = 4000, limit = 100000 },
 } :: { [string]: Target }
 
-function Medals.target(mode: string): Target?
-	return Medals.TARGETS[mode]
+-- `scale` stretches the time targets for a track of another length (a built track: see
+-- Medals.loopScale). nil or 1 = the plot's own targets.
+function Medals.target(mode: string, scale: number?): Target?
+	local t = Medals.TARGETS[mode]
+	if t == nil or scale == nil or scale == 1 or t.kind ~= "time" then
+		return t
+	end
+	return {
+		kind = t.kind,
+		bronze = t.bronze * scale,
+		silver = t.silver * scale,
+		gold = t.gold * scale,
+		limit = t.limit * scale,
+	}
+end
+
+-- How long a loop is (gates in order, back to the first), flat distance.
+function Medals.loopLength(gates: { { x: number, z: number } }): number
+	local n = #gates
+	local len = 0
+	for i = 1, n do
+		local a, b = gates[i], gates[(i % n) + 1]
+		len += math.sqrt((b.x - a.x) ^ 2 + (b.z - a.z) ^ 2)
+	end
+	return len
+end
+
+-- A built track's time targets next to the race plot's: its loop length over the race plot's
+-- (clamped, so a broken track can't give silly targets).
+Medals.MIN_SCALE = 0.3
+Medals.MAX_SCALE = 3
+function Medals.loopScale(
+	gates: { { x: number, z: number } },
+	raceGates: { { x: number, z: number } }
+): number
+	local ref = Medals.loopLength(raceGates)
+	if #gates < 2 or ref <= 0 then
+		return 1
+	end
+	return math.clamp(Medals.loopLength(gates) / ref, Medals.MIN_SCALE, Medals.MAX_SCALE)
 end
 
 -- A run worth looking at: a real number, not too good to be true.
-function Medals.valid(mode: string, value: number): boolean
-	local t = Medals.TARGETS[mode]
+function Medals.valid(mode: string, value: number, scale: number?): boolean
+	local t = Medals.target(mode, scale)
 	if t == nil or value ~= value or value <= 0 or value == math.huge then
 		return false
 	end
@@ -49,9 +87,9 @@ local function reaches(t: Target, value: number, goal: number): boolean
 end
 
 -- 0 = no medal, 1 = bronze, 2 = silver, 3 = gold.
-function Medals.medal(mode: string, value: number): number
-	local t = Medals.TARGETS[mode]
-	if t == nil or not Medals.valid(mode, value) then
+function Medals.medal(mode: string, value: number, scale: number?): number
+	local t = Medals.target(mode, scale)
+	if t == nil or not Medals.valid(mode, value, scale) then
 		return 0
 	end
 	if reaches(t, value, t.gold) then
@@ -65,9 +103,9 @@ function Medals.medal(mode: string, value: number): number
 end
 
 -- Is `value` a better run than `old` (nil = no run yet)?
-function Medals.better(mode: string, value: number, old: number?): boolean
-	local t = Medals.TARGETS[mode]
-	if t == nil or not Medals.valid(mode, value) then
+function Medals.better(mode: string, value: number, old: number?, scale: number?): boolean
+	local t = Medals.target(mode, scale)
+	if t == nil or not Medals.valid(mode, value, scale) then
 		return false
 	end
 	if old == nil then

@@ -470,3 +470,24 @@ test("race stars: add up, count in stars, survive a save, junk is cleaned", func
 	eq(Profile.migrate({ version = 10, raceStars = "lots" }).raceStars, 0)
 	eq(Profile.migrate({ version = 10, raceStars = -9 }).raceStars, 0)
 end)
+
+test("medals: a built track's race times stretch with its loop length", function()
+	local square =
+		{ { x = 0, z = 0 }, { x = 100, z = 0 }, { x = 100, z = 100 }, { x = 0, z = 100 } }
+	eq(Medals.loopLength(square), 400)
+	local half = { { x = 0, z = 0 }, { x = 50, z = 0 }, { x = 50, z = 50 }, { x = 0, z = 50 } }
+	near(Medals.loopScale(half, square), 0.5, 1e-9)
+	eq(Medals.loopScale({}, square), 1)
+	eq(Medals.loopScale(square, { { x = 0, z = 0 } }), 1)
+	local tiny = { { x = 0, z = 0 }, { x = 1, z = 0 } }
+	eq(Medals.loopScale(tiny, square), Medals.MIN_SCALE)
+	local t = Medals.target("race", 0.5) :: any
+	near(t.gold, Medals.TARGETS.race.gold * 0.5, 1e-9)
+	-- the full track's silver time is too slow for any medal on a half-length one
+	local v = Medals.TARGETS.race.silver
+	eq(Medals.medal("race", v), 2)
+	eq(Medals.medal("race", v, 0.5), 0)
+	eq(Medals.medal("race", Medals.TARGETS.race.gold * 0.5, 0.5), 3)
+	-- drift points never stretch
+	eq(Medals.target("drift", 0.5), Medals.TARGETS.drift)
+end)
