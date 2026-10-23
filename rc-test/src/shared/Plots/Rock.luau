@@ -312,6 +312,16 @@ Plot.PROPS = {
 	{ kind = "leaf", x = 150, z = 10, yaw = 3.0 },
 }
 
+-- carter's Meshy props (ServerStorage.LobbyMeshes, imported in Studio, so they can be missing:
+-- then they're just left out). Heights in big studs. Same rule: well off the trail.
+Plot.MESH_PROPS = {
+	{ name = "Log", x = -150, z = -145, yaw = 0.2, height = 2.8 },
+	{ name = "TreeStump", x = 70, z = 143, yaw = 1.0, height = 5 },
+	{ name = "RockPile", x = -130, z = -208, yaw = 0.6, height = 4 },
+	{ name = "HayBale", x = 140, z = -165, yaw = -0.4, height = 4 },
+}
+Plot.SUMMIT_FLAG_HEIGHT = 14 -- the Meshy flag, when imported, stands in for the summit flag
+
 -- Mountain peaks along the back wall, behind the summit, so the hill rises into real mountains.
 Plot.PEAKS = {
 	{ x = -165, z = -230, r = 45, h = 60 },
@@ -976,6 +986,47 @@ local function buildSkills(parent: Instance, origin: CFrame)
 	ramp.Parent = parent
 end
 
+-- A copy of Meshy prop `name` (see Plot.MESH_PROPS), `height` tall, standing at `at` (plot
+-- local). nil when it isn't imported. Import 3D brings models in huge with the front at +Z.
+local function meshProp(
+	parent: Instance,
+	origin: CFrame,
+	name: string,
+	at: CFrame,
+	height: number
+): Model?
+	local folder = game:GetService("ServerStorage"):FindFirstChild("LobbyMeshes")
+	local t = folder and folder:FindFirstChild(name)
+	if not t or not (t:IsA("Model") or t:IsA("BasePart")) then
+		return nil
+	end
+	local m: Model
+	if t:IsA("Model") then
+		m = t:Clone()
+	else
+		m = Instance.new("Model")
+		m.Name = name
+		local part = (t :: BasePart):Clone()
+		part.Parent = m
+		m.PrimaryPart = part
+	end
+	for _, d in m:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.Anchored = true
+		end
+	end
+	local _, size = m:GetBoundingBox()
+	if size.Y > 0 then
+		m:ScaleTo(m:GetScale() * height / size.Y)
+	end
+	local box, sized = m:GetBoundingBox()
+	m.WorldPivot = CFrame.new(box.Position - Vector3.new(0, sized.Y / 2, 0))
+		* CFrame.Angles(0, math.pi, 0)
+	m:PivotTo(origin * at)
+	m.Parent = parent
+	return m
+end
+
 -- One backyard prop, standing on the ground at its spot.
 local function buildProp(
 	parent: Instance,
@@ -1078,6 +1129,10 @@ function Plot.build(parent: Instance, origin: CFrame)
 	for _, pr in Plot.PROPS do
 		buildProp(parent, origin, pr)
 	end
+	for _, mp in Plot.MESH_PROPS do
+		local at = CFrame.new(mp.x, Plot.groundAt(mp.x, mp.z), mp.z) * CFrame.Angles(0, mp.yaw, 0)
+		meshProp(parent, origin, mp.name, at, mp.height)
+	end
 	-- a rock wall across the end of the summit, so holding the gas doesn't drive off the back
 	local ex, ez, eh = Plot.at(Plot.LAST_U - 0.05)
 	local endWall = Kit.part(
@@ -1089,27 +1144,43 @@ function Plot.build(parent: Instance, origin: CFrame)
 		C.rock
 	)
 	endWall.Material = Enum.Material.Slate
-	-- the flag at the summit, beside the trail
+	-- the flag at the summit, beside the trail: carter's Meshy flag if it's imported, else a
+	-- pole and cloth. It's at the trail edge, so cars pass through it.
 	local fx, fz, _, tx, tz = Plot.at(Plot.FLAG_U)
 	local px, pz = fx - tz * (HALF - 3), fz + tx * (HALF - 3)
-	local pole = Kit.part(
+	local flag = meshProp(
 		parent,
-		"Flag",
 		origin,
-		Vector3.new(0.6, 14, 0.6),
-		CFrame.new(px, Plot.groundAt(px, pz) + 6.5, pz),
-		C.white
-	)
-	pole.CanCollide = false
-	local cloth = Kit.part(
-		parent,
 		"Flag",
-		origin,
-		Vector3.new(7, 4, 0.3),
-		yawCF(px - 3.5 * tx, Plot.groundAt(px, pz) + 11.5, pz - 3.5 * tz, -tz, tx),
-		C.red
+		yawCF(px, Plot.groundAt(px, pz), pz, -tz, tx),
+		Plot.SUMMIT_FLAG_HEIGHT
 	)
-	cloth.CanCollide = false
+	if flag then
+		for _, d in flag:GetDescendants() do
+			if d:IsA("BasePart") then
+				d.CanCollide = false
+			end
+		end
+	else
+		local pole = Kit.part(
+			parent,
+			"Flag",
+			origin,
+			Vector3.new(0.6, 14, 0.6),
+			CFrame.new(px, Plot.groundAt(px, pz) + 6.5, pz),
+			C.white
+		)
+		pole.CanCollide = false
+		local cloth = Kit.part(
+			parent,
+			"Flag",
+			origin,
+			Vector3.new(7, 4, 0.3),
+			yawCF(px - 3.5 * tx, Plot.groundAt(px, pz) + 11.5, pz - 3.5 * tz, -tz, tx),
+			C.red
+		)
+		cloth.CanCollide = false
+	end
 	-- a yellow flag beside the trail at each checkpoint, on the side away from the hill
 	for k, cp in Plot.checkpoints do
 		local cx, cz, _, ctx, ctz = Plot.at(cp.u)

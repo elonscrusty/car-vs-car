@@ -343,7 +343,14 @@ test(
 
 test("backyard props stand on the plot, well clear of the trail", function()
 	truthy(#Plot.PROPS >= 4, "a few props")
+	local all = {}
 	for _, pr in Plot.PROPS do
+		table.insert(all, { kind = pr.kind, x = pr.x, z = pr.z })
+	end
+	for _, mp in Plot.MESH_PROPS do
+		table.insert(all, { kind = mp.name, x = mp.x, z = mp.z })
+	end
+	for _, pr in all do
 		-- inside the plot walls (the front grass by the low wall is fine for decor)
 		local inside = math.abs(pr.x) < Kit.WIDTH / 2 - 4
 			and pr.z > -Kit.DEPTH / 2 + 4
