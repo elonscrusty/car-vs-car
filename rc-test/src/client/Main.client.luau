@@ -575,10 +575,10 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 	car.render(dt)
 	skin.update(car, SKINS[tracks[current].id])
 	effects.update(dt)
-	-- boost pads and jumps: a wider view and a word on screen so you know what happened
+	-- boost pads and jumps: a word on screen so you know what happened
 	local tel = car.telemetry
 	if tel.boost > 0 and not boosting then
-		camera.kick(14)
+		-- camera.kick(14) widens the view, but the race camera is locked: off until carter says yes
 		hud.flash("BOOST!")
 	end
 	boosting = tel.boost > 0
