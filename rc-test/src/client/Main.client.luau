@@ -20,6 +20,7 @@ local Tuning = require(ReplicatedStorage.Shared.Tuning)
 local setMode: (id: string) -> () = (Tuning :: any).setMode
 local setScale: (s: number) -> () = (Tuning :: any).setScale
 
+local BigCount = require(script.Parent.BigCount)
 local CarSkin = require(script.Parent.CarSkin)
 local ChaseCamera = require(script.Parent.ChaseCamera)
 local Controls = require(script.Parent.Controls)
@@ -103,6 +104,7 @@ local camera = ChaseCamera.new(body, ignoreList(), eye)
 camera.setView(view)
 local effects = Effects.new(car.telemetry)
 local roadArrow = RoadArrow.new(ignoreList()) -- where to go next in a race (looks only)
+local bigCount = BigCount.new() -- the giant 3, 2, 1, GO! in the middle
 local skin = CarSkin.new() -- real car models over the grey car (look only)
 local SKINS: { [string]: string } = { rock = "RockCrawler", drift = "DriftCoupe" } -- track id -> CarSkins model
 local rc = true -- always RC size: the lobby plots are the tracks
@@ -432,7 +434,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 			StartLights.show(lamps, step)
 			startBeep.PlaybackSpeed = if step >= RaceStart.GO then 1.6 else 0.8
 			startBeep:Play()
-			hud.flash(RaceStart.label(step))
+			bigCount.show(step, RaceStart.label(step), step >= RaceStart.GO)
 		end
 		if step == RaceStart.GO then
 			countdown = nil
