@@ -23,7 +23,7 @@ type Entry = { data: Profile.Data, canSave: boolean, dirty: boolean, gone: boole
 local job = if game.JobId ~= "" then game.JobId else "studio-" .. HttpService:GenerateGUID(false)
 local entries: { [Player]: Entry } = {}
 local loaded = Instance.new("BindableEvent")
-PlayerData.loaded = loaded.Event -- (player, data)
+PlayerData.loaded = loaded.Event -- (player, data, saving)
 
 local store: DataStore? = nil
 do
@@ -33,7 +33,7 @@ do
 	if ok then
 		store = result
 	else
-		warn("[PlayerData] no DataStore, nothing will save:", result)
+		warn("[PlayerData] no DataStore, nothing will save (Studio: turn on API access):", result)
 	end
 end
 
@@ -82,12 +82,15 @@ function PlayerData.load(player: Player)
 	local data: Profile.Data? = nil
 	local canSave = false
 	if store then
-		-- take the lock; another server may still be letting go of it, so wait a little
-		for attempt = 1, 5 do
+		-- take the lock; another server may still be letting go of it, so wait a little, then
+		-- take it anyway (a server that crashed or was stopped never lets go)
+		local TAKE_TRIES = 4
+		for attempt = 1, TAKE_TRIES do
 			local blocked = false
+			local force = attempt == TAKE_TRIES
 			local ok = update(player.UserId, function(old: any): any
 				local now = os.time()
-				if type(old) == "table" and not Profile.canTake(old.lock, job, now) then
+				if type(old) == "table" and not Profile.canTake(old.lock, job, now, force) then
 					blocked = true
 					return nil
 				end
@@ -106,7 +109,7 @@ function PlayerData.load(player: Player)
 			task.wait(attempt * 3)
 		end
 		if not canSave then
-			warn(`[PlayerData] {player.Name}: save is busy or down, playing without saving`)
+			warn(`[PlayerData] {player.Name}: DataStore is down, playing without saving`)
 		end
 	end
 	if player.Parent == nil then
@@ -123,7 +126,7 @@ function PlayerData.load(player: Player)
 	end
 	local final = data or Profile.new()
 	entries[player] = { data = final, canSave = canSave, dirty = false, gone = false }
-	loaded:Fire(player, final)
+	loaded:Fire(player, final, canSave)
 end
 
 function PlayerData.save(player: Player, letGo: boolean)

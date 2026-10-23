@@ -6,7 +6,7 @@
 -- once per medal per owner. Owners come from the lobby plots (attribute OwnerId on each
 -- workspace.Plots model). In Studio an unowned plot counts as a test owner, so one person can
 -- try the stars.
--- Server -> client (StarsEvent): ("stars", count) and ("run", info). The client never sends.
+-- Server -> client (StarsEvent): ("stars", count, saving) and ("run", info). The client never sends.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -270,8 +270,8 @@ local function look(now: number)
 	end
 end
 
-PlayerData.loaded:Connect(function(player: Player, data: Profile.Data)
-	remote:FireClient(player, "stars", data.stars)
+PlayerData.loaded:Connect(function(player: Player, data: Profile.Data, saving: boolean)
+	remote:FireClient(player, "stars", data.stars, saving)
 	showAll() -- their plot's board shows their saved record
 end)
 
