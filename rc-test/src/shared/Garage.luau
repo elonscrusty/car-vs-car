@@ -35,7 +35,25 @@ Garage.BOX = { minX = -14, maxX = 16, minZ = -8.5, maxZ = 9.5, maxY = 11 }
 -- Walking lane from the front to the middle of the floor: nothing solid stands here.
 Garage.LANE = { minX = 2, maxX = 8, minZ = -3, maxZ = 8 }
 Garage.SHOP_STANDS = { -7, 0, 7 } -- x of the shop's three turntables (z = 1.5)
-Garage.SHOP_CARS = { { 214, 48, 44 }, { 40, 110, 220 }, { 246, 196, 40 } }
+-- The spawn lobby's three car shops: the building's trim colour, the three cars on show, and
+-- how those cars look (Garage.toyCar's style). Rock shops show carter's RockCrawler when it's there.
+Garage.SHOPS = {
+	drift = {
+		color = { 150, 70, 210 },
+		cars = { { 245, 245, 250 }, { 40, 200, 220 }, { 255, 120, 190 } },
+		style = "drift",
+	},
+	race = {
+		color = { 226, 52, 46 },
+		cars = { { 246, 196, 40 }, { 40, 110, 220 }, { 230, 60, 50 } },
+		style = "race",
+	},
+	rock = {
+		color = { 70, 176, 64 },
+		cars = { { 230, 120, 30 }, { 214, 48, 44 }, { 40, 110, 220 } },
+		style = "rock",
+	},
+} :: { [string]: { color: { number }, cars: { { number } }, style: string } }
 
 local C = {
 	shell = { 52, 54, 60 },
@@ -232,17 +250,33 @@ Garage.MESHES = {
 	},
 } :: { Mesh }
 
-Garage.SHOP_MESHES = {} :: { Mesh }
-for i, x in Garage.SHOP_STANDS do
-	table.insert(Garage.SHOP_MESHES, {
-		model = "Turntable",
-		group = "Stand" .. i,
-		at = v(x, Garage.FLOOR, 1.5),
-		fit = v(4.8, 0.7, 4.8),
-		long = "x",
-		keep = { "Ring" },
-		collide = true,
-	})
+-- Meshy props for a car shop of that kind: a turntable per stand, and (rock) carter's truck.
+function Garage.shopMeshes(kind: string): { Mesh }
+	local out: { Mesh } = {}
+	for i, x in Garage.SHOP_STANDS do
+		table.insert(out, {
+			model = "Turntable",
+			group = "Stand" .. i,
+			at = v(x, Garage.FLOOR, 1.5),
+			fit = v(4.8, 0.7, 4.8),
+			long = "x",
+			keep = { "Ring" },
+			collide = true,
+		})
+		if kind == "rock" then
+			table.insert(out, {
+				model = "RockCrawler",
+				group = "Car" .. i,
+				at = v(x, Garage.FLOOR + 0.75, 1.5),
+				fit = v(3.4, 3.2, 4.6),
+				long = "z",
+				keep = {},
+				collide = false,
+				carSkin = true,
+			})
+		end
+	end
+	return out
 end
 
 export type Opts = {
@@ -282,7 +316,21 @@ end
 
 -- A chunky toy car, `s` times the size of a 3.6-stud one, standing with its bottom middle on
 -- `at`, nose toward -Z turned by `yaw` degrees. Looks only (not solid).
-function Garage.toyCar(add: Add, group: string, at: V3, yaw: number, color: { number }, s: number)
+-- style: "race" (default, low with a small wing), "drift" (low, wide wheels, big wing) or "rock"
+-- (big wheels, lifted, no wing).
+function Garage.toyCar(
+	add: Add,
+	group: string,
+	at: V3,
+	yaw: number,
+	color: { number },
+	s: number,
+	style: string?
+)
+	local rock, drift = style == "rock", style == "drift"
+	local wd = if rock then 1.4 else 0.9 -- wheel size
+	local ww = if drift then 0.65 elseif rock then 0.6 else 0.45 -- wheel width
+	local lift = if rock then 0.5 else 0
 	local r = math.rad(yaw)
 	local c, sn = math.cos(r), math.sin(r)
 	local function put(
@@ -307,28 +355,43 @@ function Garage.toyCar(add: Add, group: string, at: V3, yaw: number, color: { nu
 			opts
 		)
 	end
-	for _, wx in { -1.05, 1.05 } do
+	local wx = 1 + ww / 2 + (if rock then 0.15 else 0)
+	for _, sx in { -wx, wx } do
 		for _, wz in { -1.2, 1.2 } do
-			put("Wheel", v(0.45, 0.9, 0.9), wx, 0.45, wz, C.tire, { shape = "Cylinder" })
-			put("Hub", v(0.47, 0.4, 0.4), wx * 1.01, 0.45, wz, C.rim, { shape = "Cylinder" })
+			put("Wheel", v(ww, wd, wd), sx, wd / 2, wz, C.tire, { shape = "Cylinder" })
+			put(
+				"Hub",
+				v(ww + 0.02, wd * 0.45, wd * 0.45),
+				sx,
+				wd / 2,
+				wz,
+				C.rim,
+				{ shape = "Cylinder" }
+			)
 		end
 	end
-	put("Body", v(2, 0.7, 3.6), 0, 0.85, 0, color)
-	put("Cab", v(1.6, 0.6, 1.5), 0, 1.5, 0.25, C.glass)
-	put("Roof", v(1.7, 0.15, 1.6), 0, 1.85, 0.25, color)
-	put("Spoiler", v(2, 0.12, 0.5), 0, 1.65, 1.6, C.dark)
+	put("Body", v(2, 0.7, 3.6), 0, 0.85 + lift, 0, color)
+	put("Cab", v(1.6, 0.6, 1.5), 0, 1.5 + lift, 0.25, C.glass)
+	put("Roof", v(1.7, 0.15, 1.6), 0, 1.85 + lift, 0.25, color)
+	if not rock then
+		local wing = if drift then 2.4 else 2
+		local wy = if drift then 1.95 else 1.65
+		put("Spoiler", v(wing, 0.12, 0.5), 0, wy, 1.6, C.dark)
+		for _, sx in { -0.6, 0.6 } do
+			put("SpoilerPost", v(0.12, wy - 1.25, 0.12), sx, (wy + 1.15) / 2, 1.6, C.dark)
+		end
+	end
 	for _, sx in { -0.6, 0.6 } do
-		put("SpoilerPost", v(0.12, 0.4, 0.12), sx, 1.4, 1.6, C.dark)
-		put("Headlight", v(0.4, 0.2, 0.06), sx, 0.95, -1.82, C.light, { material = "Neon" })
+		put("Headlight", v(0.4, 0.2, 0.06), sx, 0.95 + lift, -1.82, C.light, { material = "Neon" })
 	end
 end
 
--- kind: "garage" (default, the upgrades garage) or "shop" (the same building with a blue frame,
--- three cars on turntables and a counter).
+-- kind: "garage" (default, the upgrades garage), or a car shop "drift" / "race" / "rock" (the
+-- same building with a frame in that shop's colour, three of its cars on turntables, a counter).
 function Garage.parts(kind: string?): { Piece }
 	local out: { Piece } = {}
 	local add = Garage.adder(out)
-	local shop = kind == "shop"
+	local shop = if kind then Garage.SHOPS[kind] else nil
 
 	local W, D, H, F = Garage.WIDTH, Garage.DEPTH, Garage.HEIGHT, Garage.FLOOR
 	local front = D / 2
@@ -732,12 +795,13 @@ function Garage.parts(kind: string?): { Piece }
 	)
 
 	if shop then
-		-- keep only the building, turn the orange trim blue, then fill it like a showroom
+		-- keep only the building, turn the orange trim the shop's colour, then fill it like a showroom
+		local trim = shop.color
 		local shell: { Piece } = {}
 		for _, piece in out do
 			if piece.group == "Shell" then
 				if piece.color == C.orange then
-					piece.color = C.blue
+					piece.color = trim
 				end
 				table.insert(shell, piece)
 			end
@@ -745,12 +809,12 @@ function Garage.parts(kind: string?): { Piece }
 		out = shell
 		add = Garage.adder(out)
 		add("Counter", "Desk", v(8, 3, 1.8), v(0, F + 1.5, -front + 2.4), C.white)
-		add("Counter", "Top", v(8.4, 0.3, 2.2), v(0, F + 3.15, -front + 2.4), C.blue)
-		add("Counter", "Stripe", v(0.1, 0.4, 8), v(-W / 2 + 1.05, F + 6, -0.5), C.blue, {
+		add("Counter", "Top", v(8.4, 0.3, 2.2), v(0, F + 3.15, -front + 2.4), trim)
+		add("Counter", "Stripe", v(0.1, 0.4, 8), v(-W / 2 + 1.05, F + 6, -0.5), trim, {
 			material = "Neon",
 			collide = false,
 		})
-		add("Counter", "Stripe", v(0.1, 0.4, 8), v(W / 2 - 1.05, F + 6, -0.5), C.blue, {
+		add("Counter", "Stripe", v(0.1, 0.4, 8), v(W / 2 - 1.05, F + 6, -0.5), trim, {
 			material = "Neon",
 			collide = false,
 		})
@@ -777,11 +841,12 @@ function Garage.parts(kind: string?): { Piece }
 			})
 			Garage.toyCar(
 				add,
-				"Cars",
+				"Car" .. i,
 				v(x, F + 0.75, 1.5),
 				-30 + (i - 1) * 30,
-				Garage.SHOP_CARS[i],
-				1
+				shop.cars[i],
+				1,
+				shop.style
 			)
 		end
 	end
@@ -827,7 +892,7 @@ function Garage.makeParts(pieces: { Piece }, model: Instance, origin: CFrame): {
 	return groups
 end
 
--- Builds the garage (or with kind "shop", the car shop) under `parent`. `at` is the middle of
+-- Builds the garage (or with a shop kind, that car shop) under `parent`. `at` is the middle of
 -- the floor at plaza height, its LookVector pointing out of the open front.
 function Garage.build(
 	parent: Instance,
@@ -838,10 +903,17 @@ function Garage.build(
 ): Model
 	local origin = at * CFrame.Angles(0, math.pi, 0) -- garage-local +Z = the LookVector
 	local model = Instance.new("Model")
-	model.Name = if kind == "shop" then "CarShop" else "UpgradesGarage"
+	local shop = kind ~= nil and Garage.SHOPS[kind] ~= nil
+	model.Name = if shop
+		then (kind :: string):sub(1, 1):upper() .. (kind :: string):sub(2) .. "Shop"
+		else "UpgradesGarage"
 	local groups = Garage.makeParts(Garage.parts(kind), model, origin)
 	model.PrimaryPart = (groups.Shell :: Model):FindFirstChild("Floor") :: BasePart
-	Garage.useMeshes(groups, origin, if kind == "shop" then Garage.SHOP_MESHES else Garage.MESHES)
+	Garage.useMeshes(
+		groups,
+		origin,
+		if shop then Garage.shopMeshes(kind :: string) else Garage.MESHES
+	)
 	model.Parent = parent
 	return model
 end

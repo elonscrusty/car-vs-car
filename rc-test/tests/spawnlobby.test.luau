@@ -52,36 +52,41 @@ test("nothing solid between the spawn and the street", function()
 	end
 end)
 
-test("a car stand for every plot, a play pad per plot kind, a shop and a garage", function()
-	truthy(#S.STANDS >= #TrackData.order, "stands")
-	eq(#S.PADS, 3)
-	local kinds: { [string]: boolean } = {}
-	for _, pad in S.PADS do
-		kinds[pad.kind] = true
+test(
+	"a car stand for every plot, a play pad per plot kind, three car shops and a garage",
+	function()
+		truthy(#S.STANDS >= #TrackData.order, "stands")
+		eq(#S.PADS, 3)
+		local kinds: { [string]: boolean } = {}
+		for _, pad in S.PADS do
+			kinds[pad.kind] = true
+		end
+		for _, k in { "drift", "race", "rock" } do
+			truthy(kinds[k], "pad for " .. k)
+		end
+		local groups: { [string]: boolean } = {}
+		for _, p in S.allParts() do
+			groups[p.group] = true
+		end
+		for _, g in
+			{
+				"Ground",
+				"Statue",
+				"QueuePad1",
+				"QueuePad3",
+				"Stand8",
+				"Arch",
+				"drift/Shell",
+				"drift/Car1",
+				"race/Counter",
+				"rock/Stand3",
+				"garage/Lift",
+			}
+		do
+			truthy(groups[g], g)
+		end
 	end
-	for _, k in { "drift", "race", "rock" } do
-		truthy(kinds[k], "pad for " .. k)
-	end
-	local groups: { [string]: boolean } = {}
-	for _, p in S.allParts() do
-		groups[p.group] = true
-	end
-	for _, g in
-		{
-			"Ground",
-			"Statue",
-			"QueuePad1",
-			"QueuePad3",
-			"Stand8",
-			"Arch",
-			"shop/Shell",
-			"shop/Cars",
-			"garage/Lift",
-		}
-	do
-		truthy(groups[g], g)
-	end
-end)
+)
 
 test("lobby Meshy props each replace a real stand-in group", function()
 	local groups: { [string]: boolean } = {}
@@ -90,5 +95,45 @@ test("lobby Meshy props each replace a real stand-in group", function()
 	end
 	for _, m in S.MESHES do
 		truthy(groups[m.group], m.model .. " -> " .. m.group)
+	end
+end)
+
+test("the buildings stay clear of the pads, the stands and each other", function()
+	-- flat footprint of each building (its solid shell) and each pad
+	local boxes: { { string | number } } = {}
+	for _, p in S.allParts() do
+		local g = p.group
+		local slash = string.find(g, "/")
+		if slash and p.collide then
+			local key = string.sub(g, 1, slash - 1)
+			local x0, x1, _, _, z0, z1 = flat(p)
+			local b = boxes[key] :: any
+			if not b then
+				boxes[key] = { x0, x1, z0, z1 } :: any
+			else
+				b[1], b[2], b[3], b[4] =
+					math.min(b[1], x0), math.max(b[2], x1), math.min(b[3], z0), math.max(b[4], z1)
+			end
+		end
+	end
+	local others: { [string]: { number } } = {}
+	for i, pad in S.PADS do
+		others["pad" .. i] = { pad.x - 6.3, pad.x + 6.3, S.PAD_Z - 5.3, S.PAD_Z + 5.3 }
+	end
+	others.stands =
+		{ S.STANDS[1] - 2.4, S.STANDS[#S.STANDS] + 2.4, S.STAND_Z - 2.4, S.STAND_Z + 2.4 }
+	local keys = {}
+	for k, b in boxes :: any do
+		table.insert(keys, k)
+		others[k] = b
+	end
+	for _, k in keys do
+		local a = (boxes :: any)[k]
+		for name, o in others do
+			if name ~= k then
+				local hit = a[1] < o[2] and a[2] > o[1] and a[3] < o[4] and a[4] > o[3]
+				truthy(not hit, k .. " overlaps " .. name)
+			end
+		end
 	end
 end)
