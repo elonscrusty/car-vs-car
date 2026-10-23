@@ -123,3 +123,12 @@ test(
 		end
 	end
 )
+
+test("the zebra crossing fits the road and ends at the plaza", function()
+	local c = P.CROSSWALK
+	H.near(c.roadW, L.road().maxX - L.road().minX)
+	local n = math.floor((c.roadW - c.gap) / (c.stripe + c.gap))
+	truthy(n >= 4, "enough stripes")
+	truthy(n * c.stripe + (n - 1) * c.gap <= c.roadW, "stripes on the road")
+	truthy(c.fromZ < c.toZ and c.toZ <= 0, "on the road, before the plaza")
+end)

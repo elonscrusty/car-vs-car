@@ -164,6 +164,64 @@ local function standIn(parent: Instance, d: Plaza.Decor, at: CFrame)
 	m.Parent = parent
 end
 
+-- Meshy props whose front came out backwards from Import 3D: turned this much more (degrees).
+local MESH_TURN: { [string]: number } = { ParkBench = 180 }
+
+-- Invisible seats people can sit on (Seat faces its LookVector). Per prop: where each seat sits
+-- in the prop's own space (front = -Z), for the Meshy model and for the block stand-in.
+type SeatSpot = { x: number, y: number, z: number, turn: number }
+local SEATS: { [string]: { mesh: { SeatSpot }, block: { SeatSpot } } } = {
+	ParkBench = {
+		-- the turned mesh: seat behind the middle, people look out along its back (+Z here)
+		mesh = { { x = 0, y = 1.85, z = 0.6, turn = 180 } },
+		block = { { x = 0, y = 1.35, z = 0, turn = 0 } },
+	},
+	-- one seat each side of the table, looking in at it (the mesh's benches run along its sides)
+	PicnicTable = {
+		mesh = { { x = 2.6, y = 1.9, z = 0, turn = 90 }, { x = -2.6, y = 1.9, z = 0, turn = -90 } },
+		block = {
+			{ x = 0, y = 1.425, z = 1.9, turn = 0 },
+			{ x = 0, y = 1.425, z = -1.9, turn = 180 },
+		},
+	},
+}
+local function seats(parent: Instance, name: string, at: CFrame, isMesh: boolean)
+	local spec = SEATS[name]
+	if not spec then
+		return
+	end
+	for i, s in if isMesh then spec.mesh else spec.block do
+		local seat = Instance.new("Seat")
+		seat.Name = "Seat" .. i
+		seat.Anchored = true
+		seat.Size = Vector3.new(3.6, 0.2, 1.2)
+		-- top of the seat part on the sitting surface
+		seat.CFrame = at * CFrame.new(s.x, s.y - 0.1, s.z) * CFrame.Angles(0, math.rad(s.turn), 0)
+		seat.Transparency = 1
+		seat.CanCollide = false
+		seat.Parent = parent
+	end
+end
+
+-- White zebra stripes across the end of the road (looks only).
+local function crosswalk(parent: Instance, f: CFrame)
+	local c = Plaza.CROSSWALK
+	local step = c.stripe + c.gap
+	local n = math.floor((c.roadW - c.gap) / step)
+	local first = -(n - 1) * step / 2
+	local len = c.toZ - c.fromZ
+	for i = 0, n - 1 do
+		local stripe = block(
+			parent,
+			"Crosswalk",
+			Vector3.new(c.stripe, 0.06, len),
+			f * CFrame.new(first + i * step, 0.14, (c.fromZ + c.toZ) / 2),
+			Color3.fromRGB(240, 240, 240)
+		)
+		stripe.CanCollide = false
+	end
+end
+
 -- A building module, in server/PlazaParts or ReplicatedStorage.Shared, or nil.
 local function partModule(name: string): ModuleScript?
 	local parts = script.Parent:FindFirstChild("PlazaParts")
@@ -186,6 +244,7 @@ function PlazaBuilder.build(parent: Instance, anchor: CFrame): Model
 	end
 
 	paving(plaza, f)
+	crosswalk(plaza, f)
 	for _, l in Plaza.lamps do
 		lamp(plaza, at(l[1], l[2]))
 	end
@@ -210,8 +269,13 @@ function PlazaBuilder.build(parent: Instance, anchor: CFrame): Model
 		local a = math.rad(d.face)
 		local look = f:VectorToWorldSpace(Vector3.new(math.sin(a), 0, math.cos(a)))
 		local cf = CFrame.lookAt(pos, pos + look)
-		if not MeshProps.place(decor, d.name, cf, d.h) then
+		local meshAt = cf * CFrame.Angles(0, math.rad(MESH_TURN[d.name] or 0), 0)
+		local mesh = MeshProps.place(decor, d.name, meshAt, d.h)
+		if mesh then
+			seats(mesh, d.name, meshAt, true)
+		else
 			standIn(decor, d, cf)
+			seats(decor:FindFirstChild(d.name) or decor, d.name, cf, false)
 		end
 	end
 
