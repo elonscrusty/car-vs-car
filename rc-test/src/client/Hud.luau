@@ -53,6 +53,9 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }): Hud
 	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	layout.Padding = UDim.new(0.02, 0)
 	layout.Parent = row
+	-- one word: what to do here (carter: "DRIVE!" / "BUILD!", not names)
+	local GOAL: { [string]: string } =
+		{ DRIFT = "DRIFT!", RACE = "RACE!", ROCKS = "CLIMB!", SHOW = "DRIVE!" }
 	for i, text in trackLabels do
 		local b = Instance.new("TextLabel")
 		b.Name = "Track" .. i
@@ -62,7 +65,7 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }): Hud
 		b.Font = Enum.Font.GothamBold
 		b.TextScaled = true
 		b.TextColor3 = Color3.fromRGB(255, 255, 255)
-		b.Text = text
+		b.Text = GOAL[text] or text
 		b.Visible = false
 		b.Parent = row
 		local corner = Instance.new("UICorner")
@@ -141,7 +144,7 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }): Hud
 	end
 
 	function hud.setSpeed(n: number)
-		speed.Text = tostring(math.floor(n + 0.5))
+		speed.Text = `{math.floor(n + 0.5)} MPH`
 	end
 
 	function hud.setDrift(chain: number, total: number, visible: boolean, combo: number?)

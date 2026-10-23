@@ -1,5 +1,5 @@
 --!strict
--- A glowing double arrow on the road a little ahead of the car, pointing to the next gate, so a
+-- Two glowing ▲ on the road a little ahead of the car, pointing to the next gate, so a
 -- new player always knows where to go in a race. Looks only (no collide, query or touch), only
 -- on this player's screen, only on loop tracks. Where it sits: Shared.RaceArrow.
 
@@ -17,25 +17,44 @@ export type RoadArrow = {
 local RoadArrow = {}
 
 local COLOR = Color3.fromRGB(255, 220, 60)
-local ARM = 6 -- arm length (big units)
-local WIDE = 1.4 -- arm width (big units)
-local ANGLE = math.rad(38) -- how far each arm leans back
+local LONG = 14 -- arrow length along the road (big units)
+local WIDE = 9 -- arrow width (big units)
 
 function RoadArrow.new(ignore: { Instance }): RoadArrow
+	-- a flat see-through plate with two big glowing ▲ drawn on its top face (a crisp shape from
+	-- any camera; on a Top face the picture's top edge is the plate's front, -Z)
 	local model = Instance.new("Model")
 	model.Name = "RoadArrow"
-	local arms: { BasePart } = {}
-	for _ = 1, 4 do
-		local p = Instance.new("Part")
-		p.Anchored = true
-		p.CanCollide = false
-		p.CanQuery = false
-		p.CanTouch = false
-		p.CastShadow = false
-		p.Material = Enum.Material.Neon
-		p.Color = COLOR
-		p.Parent = model
-		table.insert(arms, p)
+	local plate = Instance.new("Part")
+	plate.Name = "Plate"
+	plate.Anchored = true
+	plate.CanCollide = false
+	plate.CanQuery = false
+	plate.CanTouch = false
+	plate.CastShadow = false
+	plate.Transparency = 1
+	plate.Parent = model
+	local face = Instance.new("SurfaceGui")
+	face.Face = Enum.NormalId.Top
+	face.LightInfluence = 0
+	face.Brightness = 2
+	face.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	face.PixelsPerStud = 60
+	face.Parent = plate
+	local marks: { TextLabel } = {}
+	for i = 1, 2 do
+		local t = Instance.new("TextLabel")
+		t.BackgroundTransparency = 1
+		t.Position = UDim2.fromScale(0, (i - 1) * 0.46)
+		t.Size = UDim2.fromScale(1, 0.54)
+		t.Font = Enum.Font.GothamBlack
+		t.TextScaled = true
+		t.Text = "▲"
+		t.TextColor3 = COLOR
+		t.TextStrokeColor3 = Color3.fromRGB(120, 80, 0)
+		t.TextStrokeTransparency = 0.4
+		t.Parent = face
+		table.insert(marks, t)
 	end
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
@@ -74,19 +93,11 @@ function RoadArrow.new(ignore: { Instance }): RoadArrow
 		local from = Vector3.new(wx, wy + 20 * s, wz)
 		local hit = workspace:Raycast(from, Vector3.new(0, -60 * s, 0), params)
 		local y = if hit then hit.Position.Y + 0.06 else wy
-		local base = CFrame.lookAt(Vector3.new(wx, y, wz), Vector3.new(wx + fx, y, wz + fz))
-		local arm, wide = ARM * s, WIDE * s
-		local glow = 0.15 + 0.2 * (0.5 + 0.5 * math.sin(os.clock() * 6))
-		for i, p in arms do
-			local chevron = (i - 1) // 2 -- 0 = front, 1 = behind it
-			local sideSign = if i % 2 == 0 then 1 else -1
-			local tip = Vector3.new(0, 0, -arm * 0.4 + chevron * arm * 0.75)
-			local back = Vector3.new(sideSign * math.sin(ANGLE), 0, math.cos(ANGLE))
-			p.Size = Vector3.new(wide, 0.08, arm)
-			p.CFrame = base
-				* CFrame.new(tip + back * (arm / 2))
-				* CFrame.Angles(0, sideSign * ANGLE, 0)
-			p.Transparency = glow + chevron * 0.25
+		plate.Size = Vector3.new(WIDE * s, 0.05, LONG * s)
+		plate.CFrame = CFrame.lookAt(Vector3.new(wx, y, wz), Vector3.new(wx + fx, y, wz + fz))
+		local glow = 0.1 + 0.25 * (0.5 + 0.5 * math.sin(os.clock() * 6))
+		for i, t in marks do
+			t.TextTransparency = glow + (i - 1) * 0.3
 		end
 		model.Parent = workspace
 	end
