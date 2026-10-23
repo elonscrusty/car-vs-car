@@ -487,6 +487,21 @@ for _, u in Plot.TURNS do
 end
 table.insert(Plot.gates, gate(Plot.FINISH_U, 6))
 
+-- Checkpoint flags, one near the end of each row, just before its turn (so one after every
+-- row of climbs). Driving through a flag's gate saves it; a reset then puts the car back at the
+-- last saved flag instead of the start, on the trail's middle, facing along the row.
+Plot.CHECKPOINT_BACK = 0.3 -- this far before each turn, where the row is still straight
+Plot.checkpoints = {} :: { { u: number, gate: Gate, spawn: Kit.Spawn } }
+for _, turn in Plot.TURNS do
+	local u = turn - Plot.CHECKPOINT_BACK
+	local x, z, _, tx, tz = Plot.at(u)
+	table.insert(Plot.checkpoints, {
+		u = u,
+		gate = gate(u, 8),
+		spawn = { x = x, y = Plot.groundAt(x, z) + 2.5, z = z, dx = tx, dz = tz },
+	})
+end
+
 -- ===== Building (Roblox only) =====
 
 type Look = { name: string, color: Color3, material: Enum.Material }
@@ -891,6 +906,33 @@ function Plot.build(parent: Instance, origin: CFrame)
 		C.red
 	)
 	cloth.CanCollide = false
+	-- a yellow flag beside the trail at each checkpoint, on the side away from the hill
+	for k, cp in Plot.checkpoints do
+		local cx, cz, _, ctx, ctz = Plot.at(cp.u)
+		-- flag k is on row k: rows 1 and 3 have the hill on the - side, rows 2 and 4 on the +
+		local front = if k % 2 == 1 then 1 else -1
+		local off = front * (HALF + 2)
+		local qx, qz = cx - ctz * off, cz + ctx * off
+		local g = Plot.groundAt(qx, qz)
+		local stick = Kit.part(
+			parent,
+			"Flag",
+			origin,
+			Vector3.new(0.5, 9, 0.5),
+			CFrame.new(qx, g + 4, qz),
+			C.white
+		)
+		stick.CanCollide = false
+		local banner = Kit.part(
+			parent,
+			"Flag",
+			origin,
+			Vector3.new(4, 2.5, 0.3),
+			yawCF(qx + 2 * ctx, g + 7.2, qz + 2 * ctz, -ctz, ctx),
+			Color3.fromRGB(245, 205, 40)
+		)
+		banner.CanCollide = false
+	end
 	-- start and finish lines, floating just above the ground and leaning with it
 	for _, u in { Plot.START_U, Plot.FINISH_U } do
 		local x, z, h = Plot.at(u)

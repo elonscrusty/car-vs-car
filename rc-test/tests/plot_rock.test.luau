@@ -304,3 +304,27 @@ test("gates sit on the trail in order, a run goes start -> every turn -> finish"
 		truthy(Plot.gates[i].y >= Plot.gates[i - 1].y, "gates should climb")
 	end
 end)
+
+test(
+	"checkpoint flags: one per row, climbing, spawns on clear trail facing along the row",
+	function()
+		eq(#Plot.checkpoints, #Plot.TURNS)
+		local lastY = -math.huge
+		for k, cp in Plot.checkpoints do
+			eq(cp.u, Plot.TURNS[k] - Plot.CHECKPOINT_BACK)
+			local s = cp.spawn
+			truthy(Kit.inArea(s.x, s.z), `checkpoint {k} spawn is off the plot`)
+			truthy(s.y > lastY, "checkpoints should climb")
+			lastY = s.y
+			-- facing along the trail, so the car sets off up the next row
+			local _, _, _, tx, tz = Plot.at(cp.u - 0.3)
+			truthy(s.dx * tx + s.dz * tz > 0.9, `checkpoint {k} spawn faces the wrong way`)
+			-- no rock under the spawned car
+			for _, f in Plot.features do
+				local fx, fz = Plot.spot(f.u, f.side)
+				local d = math.sqrt((fx - s.x) ^ 2 + (fz - s.z) ^ 2)
+				truthy(d > f.r + 4, `{f.kind} at {f.u} is under checkpoint {k}`)
+			end
+		end
+	end
+)
