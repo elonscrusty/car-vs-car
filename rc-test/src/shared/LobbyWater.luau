@@ -47,6 +47,10 @@ LobbyWater.SHALLOW_TOP = -0.75
 LobbyWater.WATER_TOP = -0.8
 LobbyWater.BED_TOP = -2.5 -- the lake floor: you wade in up to your waist
 LobbyWater.DECK_TOP = 0.6 -- dock and bridge floors
+-- Underwater steps from the sand down to the lake floor, so you can walk back out without
+-- jumping: { top, how far past the bank it reaches }. The first one is wide enough to sit under
+-- every shore bump.
+LobbyWater.STEPS = { { -1.0, 22 }, { -1.5, 26 }, { -2.0, 30 } }
 
 local GRASS = { 116, 186, 82 } -- same as the lobby grass
 local SAND = { 226, 205, 150 }
@@ -292,6 +296,11 @@ end
 
 -- A round island: a sand disc with a grass disc on top.
 local function island(out: { Piece }, x: number, z: number, r: number)
+	-- the same underwater steps round it as round the shore
+	for i, st in LobbyWater.STEPS do
+		local w = r * 2 + 5 + i * 6
+		piece(out, "IslandStep", x, st[1] - 0.5, z, w, 1, w, SAND, true).round = true
+	end
 	piece(out, "IslandSand", x, LobbyWater.SAND_TOP - 2, z, r * 2 + 5, 4, r * 2 + 5, SAND, true).round =
 		true
 	piece(out, "IslandGrass", x, LobbyWater.GRASS_TOP - 1, z, r * 2, 2, r * 2, GRASS, true).round =
@@ -471,7 +480,13 @@ function LobbyWater.pieces(): { Piece }
 	-- water: light near the shore, deep further out; you can walk in (no collide)
 	ring(out, "Shallow", sand, shallow, LobbyWater.SHALLOW_TOP, 0.3, SHALLOW, false)
 	ring(out, "Water", shallow, far, LobbyWater.WATER_TOP, 0.3, DEEP, false)
-	ring(out, "LakeBed", sand, far, LobbyWater.BED_TOP, 1, BED, true)
+	local inner = bank
+	for _, st in LobbyWater.STEPS do
+		local outer = grow(bank, st[2])
+		ring(out, "ShoreStep", inner, outer, st[1], 1, SAND, true)
+		inner = outer
+	end
+	ring(out, "LakeBed", inner, far, LobbyWater.BED_TOP, 1, BED, true)
 
 	-- docks: two on the left, one on the right, one off the back
 	for _, d in docks() do

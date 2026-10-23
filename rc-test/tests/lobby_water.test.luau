@@ -109,3 +109,17 @@ test("landings: one per dock plus the footbridge, on the bank edge, pointing out
 		truthy(onEdge, `landing at {l.x}, {l.z}`)
 	end
 end)
+
+test(
+	"you can walk back out of the water: small steps from the lake floor up to the sand",
+	function()
+		local last = W.BED_TOP
+		for i = #W.STEPS, 1, -1 do
+			local top = W.STEPS[i][1]
+			truthy(top - last <= 0.55, `step {i} too tall`)
+			last = top
+		end
+		truthy(W.SAND_TOP - last <= 0.55, "last step up to the sand")
+		eq(#named("IslandStep"), #W.STEPS)
+	end
+)
