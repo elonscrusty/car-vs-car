@@ -193,14 +193,20 @@ test("the creek dips the trail, and the log bridge over it can be crawled onto",
 	end
 end)
 
-test("rock steps: small steps up, on a straight, nothing else on them", function()
+test("rock steps: tall steps up, on a straight, an easy way round, nothing else on them", function()
 	local st = Plot.STEPS
 	local blocks = Plot.stepBlocks()
 	eq(#blocks, st.n)
 	for _, b in blocks do
 		local rise = b.top - Plot.height(b.u0)
-		truthy(rise >= 1 and rise <= Plot.MAX_LIFT, `step at {b.u0} rises {rise}`)
+		-- tall: holding the gas stalls, it takes backing up and another go
+		truthy(rise >= 2 and rise <= 2.6, `step at {b.u0} rises {rise}`)
 	end
+	local edge = Plot.HALF_WIDTH + Plot.SHOULDER
+	local lo, hi =
+		st.side * Plot.HALF_WIDTH - st.width / 2, st.side * Plot.HALF_WIDTH + st.width / 2
+	truthy(lo > -edge and hi < edge, "the steps poke off the trail")
+	truthy(math.max(lo + edge, edge - hi) >= 12, "no easy way round the steps")
 	local _, _, _, ax, az = Plot.at(st.from)
 	local _, _, _, bx, bz = Plot.at(st.to)
 	truthy(ax * bx + az * bz > 0.98, "the steps should be on a straight")
@@ -264,7 +270,7 @@ test("skill climbs: too tall to just drive over, with an easy way round each", f
 			)
 		end
 	end
-	truthy(n.lift > Plot.MAX_LIFT and n.lift <= 3, "notch boulders")
+	truthy(n.lift > Plot.MAX_LIFT and n.lift <= 3.5, "notch boulders")
 	truthy(S.stepUp.lift > Plot.MAX_LIFT and S.stepUp.lift <= 3, "step-up height")
 	truthy(
 		S.stepUp.helper.lift <= Plot.MAX_LIFT,
@@ -274,8 +280,8 @@ test("skill climbs: too tall to just drive over, with an easy way round each", f
 		S.stepUp.lift - S.stepUp.helper.lift <= Plot.MAX_LIFT,
 		"from the small rock up is too far"
 	)
-	truthy(S.kicker.lift / S.kicker.ramp >= 0.5, "the kicker ramp should need a run-up")
-	truthy(S.kicker.lift <= 3, "kicker height")
+	truthy(S.kicker.lift / S.kicker.ramp >= 0.7, "the kicker ramp should need a run-up")
+	truthy(S.kicker.lift <= 3.5, "kicker height")
 end)
 
 test("the steep slab is clear of rocks", function()
