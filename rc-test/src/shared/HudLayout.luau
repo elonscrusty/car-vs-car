@@ -1,0 +1,143 @@
+--!strict
+-- One map of every button and chip on the screen, so nothing sits on top of anything else.
+-- Each piece has its own spot for "walk" (on foot in the lobby) and/or "drive" (in a car).
+-- Popups (shops, gift card, rivals, results) are not here: they sit in the middle on the
+-- POPUP layer, over the HUD. Short flash words (GO!, LAP, CHECKPOINT) are not here either.
+-- A spot is a UDim2 written out as numbers (scale + pixels) so Lune can test it at phone and
+-- PC sizes; see tests/hud_layout.test.luau. Top rows start at 64 px, under Roblox's top bar.
+
+export type Mode = "walk" | "drive"
+export type Spot = {
+	name: string,
+	mode: Mode,
+	owner: string, -- the script that makes it
+	ax: number, -- AnchorPoint
+	ay: number,
+	x: number, -- Position: x scale, x pixels, y scale, y pixels
+	xo: number,
+	y: number,
+	yo: number,
+	w: number, -- Size: w scale, w pixels, h scale, h pixels
+	wo: number,
+	h: number,
+	ho: number,
+	square: boolean?, -- width = height (UIAspectRatioConstraint on height)
+}
+
+local HudLayout = {}
+
+-- ScreenGui.DisplayOrder: popups always draw over the HUD buttons
+HudLayout.HUD = 5
+HudLayout.POPUP = 20
+
+local function spot(
+	name: string,
+	mode: Mode,
+	owner: string,
+	anchor: { number },
+	pos: { number },
+	size: { number },
+	square: boolean?
+): Spot
+	return {
+		name = name,
+		mode = mode,
+		owner = owner,
+		ax = anchor[1],
+		ay = anchor[2],
+		x = pos[1],
+		xo = pos[2],
+		y = pos[3],
+		yo = pos[4],
+		w = size[1],
+		wo = size[2],
+		h = size[3],
+		ho = size[4],
+		square = square,
+	}
+end
+
+local TL, TC, TR, BC, BR = { 0, 0 }, { 0.5, 0 }, { 1, 0 }, { 0.5, 1 }, { 1, 1 }
+
+HudLayout.SPOTS = {
+	-- ===== walk: top left, your counts and buttons =====
+	spot("StarCount", "walk", "Stars", TL, { 0.02, 0, 0, 64 }, { 0.11, 0, 0, 36 }),
+	spot("CoinCount", "walk", "Stars", TL, { 0.14, 0, 0, 64 }, { 0.11, 0, 0, 36 }),
+	-- (NOT SAVING shows under the star chip, so its row-2 spot stays empty)
+	spot("Rivals", "walk", "Stars", TL, { 0.14, 0, 0, 106 }, { 0.11, 0, 0, 32 }),
+	spot("Looks", "walk", "PlotShop", TL, { 0.26, 0, 0, 106 }, { 0.11, 0, 0, 32 }),
+	spot("DailyJobs", "walk", "Stars", TL, { 0.02, 0, 0, 146 }, { 0.3, 0, 0.12, 60 }),
+	-- ===== walk: top middle, one stack =====
+	spot("Friends", "walk", "Lobby", TC, { 0.5, 0, 0, 64 }, { 0, 170, 0, 36 }),
+	spot("Quick", "walk", "Lobby", TC, { 0.5, 0, 0, 106 }, { 0, 170, 0, 44 }),
+	spot("WeekendBanner", "walk", "Stars", TC, { 0.5, 0, 0, 156 }, { 0, 200, 0, 30 }),
+	spot("Join", "walk", "ServerRace", TC, { 0.5, 0, 0, 194 }, { 0, 220, 0, 46 }),
+	-- ===== walk: bottom middle =====
+	spot("Drive", "walk", "Lobby", BC, { 0.54, 0, 0.9, 0 }, { 0, 120, 0, 52 }),
+
+	-- ===== drive: top (made by the RC car thread; driving is locked, so these stay put) =====
+	spot("Timer", "drive", "Hud", TL, { 0.02, 0, 0, 64 }, { 0.24, 0, 0.14, 0 }),
+	spot("BoltCount", "drive", "Stars", TL, { 0.02, 0, 0.14, 70 }, { 0.11, 0, 0, 36 }), -- rock plots
+	spot("Track", "drive", "Hud", TC, { 0.5, 0, 0, 64 }, { 0.1012, 0, 0.1, 0 }), -- the one lit plot name
+	spot("DriftScore", "drive", "Hud", TC, { 0.5, 0, 0.1, 72 }, { 0.34, 0, 0.1, 0 }),
+	spot("Join", "drive", "ServerRace", TC, { 0.5, 0, 0.2, 80 }, { 0, 220, 0, 44 }),
+	spot("AutoGas", "drive", "Controls", TR, { 0.77, 0, 0, 64 }, { 0.065, 0, 0.09, 0 }),
+	spot("Smoke", "drive", "Controls", TR, { 0.84, 0, 0, 64 }, { 0.065, 0, 0.09, 0 }),
+	spot("View", "drive", "Controls", TR, { 0.91, 0, 0, 64 }, { 0.065, 0, 0.09, 0 }),
+	spot("Cam", "drive", "Controls", TR, { 0.98, 0, 0, 64 }, { 0.065, 0, 0.09, 0 }), -- RESET on rocks
+	spot("Speed", "drive", "Hud", TR, { 0.98, 0, 0.1, 72 }, { 0.1, 0, 0.06, 0 }),
+	-- ===== drive: thumbs =====
+	spot("SteerHint", "drive", "Controls", BC, { 0.22, 0, 0.93, 0 }, { 0.3, 0, 0.08, 0 }),
+	spot("Walk", "drive", "Lobby", BC, { 0.54, 0, 0.9, 0 }, { 0, 120, 0, 52 }),
+	spot("Brake", "drive", "Controls", BR, { 0.76, 0, 0.95, 0 }, { 0, 0, 0.22, 0 }, true),
+	spot("Drift", "drive", "Controls", BR, { 0.97, 0, 0.58, 0 }, { 0, 0, 0.22, 0 }, true), -- big RESET on rocks
+	spot("Gas", "drive", "Controls", BR, { 0.97, 0, 0.95, 0 }, { 0, 0, 0.34, 0 }, true),
+}
+
+function HudLayout.find(name: string, mode: Mode): Spot?
+	for _, s in HudLayout.SPOTS do
+		if s.name == name and s.mode == mode then
+			return s
+		end
+	end
+	return nil
+end
+
+-- the box a spot covers on a screen of sw x sh pixels: left, top, right, bottom
+function HudLayout.box(s: Spot, sw: number, sh: number): (number, number, number, number)
+	local hgt = s.h * sh + s.ho
+	local wid = if s.square then hgt else s.w * sw + s.wo
+	local left = s.x * sw + s.xo - s.ax * wid
+	local top = s.y * sh + s.yo - s.ay * hgt
+	return left, top, left + wid, top + hgt
+end
+
+-- every pair of spots in the same mode that cover each other on this screen
+function HudLayout.overlaps(sw: number, sh: number): { string }
+	local out = {}
+	local list = HudLayout.SPOTS
+	for i = 1, #list do
+		for j = i + 1, #list do
+			local a, b = list[i], list[j]
+			if a.mode == b.mode then
+				local al, at, ar, ab = HudLayout.box(a, sw, sh)
+				local bl, bt, br, bb = HudLayout.box(b, sw, sh)
+				if al < br and bl < ar and at < bb and bt < ab then
+					table.insert(out, `{a.mode}: {a.name} / {b.name}`)
+				end
+			end
+		end
+	end
+	return out
+end
+
+-- put a GuiObject in its spot (the ScreenGui must have IgnoreGuiInset = true)
+function HudLayout.place(obj: GuiObject, name: string, mode: Mode?)
+	local s = HudLayout.find(name, mode or "walk")
+	assert(s, `HudLayout has no spot {name}`)
+	obj.AnchorPoint = Vector2.new(s.ax, s.ay)
+	obj.Position = UDim2.new(s.x, s.xo, s.y, s.yo)
+	obj.Size = UDim2.new(s.w, s.wo, s.h, s.ho)
+end
+
+return HudLayout

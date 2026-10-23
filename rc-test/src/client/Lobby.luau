@@ -14,6 +14,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
+local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 
 local Lobby = {}
@@ -71,12 +72,11 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 		gui.Name = name .. "Gui"
 		gui.ResetOnSpawn = false
 		gui.Enabled = false
+		gui.IgnoreGuiInset = true -- spots in HudLayout count from the very top
 		gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 		local button = Instance.new("TextButton")
 		button.Name = name
-		button.AnchorPoint = Vector2.new(0.5, 1)
-		button.Position = UDim2.fromScale(0.54, 0.9) -- clear of BRAKE on a 16:9 phone
-		button.Size = UDim2.fromOffset(120, 52)
+		HudLayout.place(button, "Drive") -- clear of BRAKE on a 16:9 phone (Walk uses the same spot)
 		button.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 		button.BackgroundTransparency = 0.2
 		button.TextColor3 = Color3.new(1, 1, 1)
@@ -97,9 +97,7 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 
 	-- FRIENDS: ON / OFF for the plot you own (the server says which one, and its state)
 	local friendsGui, friendsButton = bigButton("Friends", "FRIENDS: OFF")
-	friendsButton.AnchorPoint = Vector2.new(0.5, 0)
-	friendsButton.Position = UDim2.new(0.5, 0, 0, 12)
-	friendsButton.Size = UDim2.fromOffset(170, 44)
+	HudLayout.place(friendsButton, "Friends")
 	friendsButton.TextSize = 18
 	local ownSlot: number? = nil
 	local friendsOn = false
@@ -194,9 +192,7 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 
 	-- QUICK RACE (while walking): the server finds a free race plot and starts the drive there
 	local quickGui, quickButton = bigButton("Quick", "QUICK RACE")
-	quickButton.AnchorPoint = Vector2.new(0.5, 0)
-	quickButton.Position = UDim2.new(0.5, 0, 0, 64) -- under FRIENDS
-	quickButton.Size = UDim2.fromOffset(170, 48)
+	HudLayout.place(quickButton, "Quick") -- under FRIENDS
 	quickButton.BackgroundColor3 = Color3.fromRGB(225, 55, 50)
 	quickGui.Enabled = true
 	quickButton.Activated:Connect(function()
@@ -216,6 +212,7 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 	local lobby = {} :: Lobby
 	function lobby.setDriving(on: boolean)
 		driving = on
+		Players.LocalPlayer:SetAttribute("Driving", on) -- lobby chips and buttons hide while driving
 		gui.Enabled = on
 		quickGui.Enabled = not on
 		showFriends()

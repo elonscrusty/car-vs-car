@@ -6,6 +6,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
+local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
 local Profile = require(ReplicatedStorage.Shared.Profile)
 
 local remote = ReplicatedStorage:WaitForChild("StarsEvent") :: RemoteEvent
@@ -22,7 +23,7 @@ local gui = Instance.new("ScreenGui")
 gui.Name = "Stars"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
-gui.DisplayOrder = 5
+gui.DisplayOrder = HudLayout.HUD
 gui.Parent = player:WaitForChild("PlayerGui")
 
 -- the lobby HUD (stars, coins, rivals, jobs, weekend banner): hidden while driving
@@ -30,22 +31,20 @@ local hud = Instance.new("ScreenGui")
 hud.Name = "StarsHud"
 hud.ResetOnSpawn = false
 hud.IgnoreGuiInset = true
-hud.DisplayOrder = 5
+hud.DisplayOrder = HudLayout.HUD
 hud.Parent = gui.Parent
 
--- pop-up cards (the daily gift) sit on top of every other button
+-- pop-up cards (daily gift, rivals, toasts) sit on top of every other button
 local top = Instance.new("ScreenGui")
 top.Name = "StarsTop"
 top.ResetOnSpawn = false
 top.IgnoreGuiInset = true
-top.DisplayOrder = 20
+top.DisplayOrder = HudLayout.POPUP
 top.Parent = gui.Parent
 
 local chip = Instance.new("TextLabel")
 chip.Name = "StarCount"
-chip.AnchorPoint = Vector2.new(0, 0)
-chip.Position = UDim2.new(0.02, 0, 0.14, 70) -- under the timer
-chip.Size = UDim2.fromScale(0.13, 0.06)
+HudLayout.place(chip, "StarCount")
 chip.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 chip.BackgroundTransparency = 0.3
 chip.TextColor3 = Color3.fromRGB(255, 213, 79)
@@ -62,7 +61,7 @@ chipScale.Parent = chip
 -- coins, beside the stars
 local coinChip = chip:Clone()
 coinChip.Name = "CoinCount"
-coinChip.Position = UDim2.new(0.16, 0, 0.14, 70)
+HudLayout.place(coinChip, "CoinCount")
 coinChip.TextColor3 = Color3.fromRGB(255, 236, 150)
 coinChip.Text = "0"
 coinChip.Parent = hud
@@ -104,7 +103,7 @@ innerRing.Parent = coinInner
 -- gold bolts found, only while on a rock plot
 local boltChip = chip:Clone()
 boltChip.Name = "BoltCount"
-boltChip.Position = UDim2.new(0.30, 0, 0.14, 70)
+HudLayout.place(boltChip, "BoltCount", "drive")
 boltChip.TextColor3 = Color3.fromRGB(255, 200, 70)
 boltChip.Text = "BOLTS 0/5"
 boltChip.Visible = false
@@ -134,8 +133,7 @@ end
 -- rivals: a button under the coins opens your score against each player you raced
 local rivalsBtn = Instance.new("TextButton")
 rivalsBtn.Name = "Rivals"
-rivalsBtn.Position = UDim2.new(0.16, 0, 0.2, 76) -- under the coins
-rivalsBtn.Size = UDim2.fromScale(0.13, 0.05)
+HudLayout.place(rivalsBtn, "Rivals")
 rivalsBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 rivalsBtn.BackgroundTransparency = 0.3
 rivalsBtn.TextColor3 = Color3.new(1, 1, 1)
@@ -155,7 +153,7 @@ panel.Size = UDim2.fromScale(0.42, 0.62)
 panel.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 panel.BackgroundTransparency = 0.1
 panel.Visible = false
-panel.Parent = hud
+panel.Parent = top
 local panelCorner = Instance.new("UICorner")
 panelCorner.CornerRadius = UDim.new(0.06, 0)
 panelCorner.Parent = panel
@@ -228,8 +226,7 @@ showRivals({}, 0, 0)
 -- daily jobs: a small panel under the chips (tap the title to fold it)
 local jobs = Instance.new("Frame")
 jobs.Name = "DailyJobs"
-jobs.Position = UDim2.new(0.02, 0, 0.26, 80) -- under the rivals button
-jobs.Size = UDim2.fromScale(0.27, 0.2)
+HudLayout.place(jobs, "DailyJobs")
 jobs.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 jobs.BackgroundTransparency = 0.3
 jobs.Visible = false -- until the server sends them
@@ -274,7 +271,10 @@ local function showFold()
 	for _, row in jobRows do
 		row.Visible = not folded
 	end
-	jobs.Size = UDim2.fromScale(0.27, if folded then 0.06 else 0.2)
+	HudLayout.place(jobs, "DailyJobs")
+	if folded then
+		jobs.Size = UDim2.new(jobs.Size.X, UDim.new(0, 30))
+	end
 	jobsTitle.Size = UDim2.fromScale(1, if folded then 1 else 0.22)
 end
 jobsTitle.Activated:Connect(function()
@@ -322,7 +322,7 @@ toast.TextColor3 = Color3.new(1, 1, 1)
 toast.TextTransparency = 1
 toast.Font = Enum.Font.GothamBold
 toast.TextScaled = true
-toast.Parent = gui
+toast.Parent = top
 local toastCorner = Instance.new("UICorner")
 toastCorner.CornerRadius = UDim.new(0.4, 0)
 toastCorner.Parent = toast
@@ -370,7 +370,7 @@ pop.TextColor3 = Color3.new(1, 1, 1)
 pop.TextStrokeColor3 = Color3.new(0, 0, 0)
 pop.TextTransparency = 1
 pop.TextStrokeTransparency = 1
-pop.Parent = gui
+pop.Parent = top
 local popScale = Instance.new("UIScale")
 popScale.Parent = pop
 
@@ -398,9 +398,7 @@ end
 -- "2X COINS" over the top of the screen while workspace.CoinBoost is 2 (Saturday and Sunday)
 local banner = Instance.new("TextLabel")
 banner.Name = "WeekendBanner"
-banner.AnchorPoint = Vector2.new(0.5, 0)
-banner.Position = UDim2.new(0.5, 0, 0, 180) -- under FRIENDS and QUICK RACE
-banner.Size = UDim2.fromScale(0.26, 0.045)
+HudLayout.place(banner, "WeekendBanner") -- under QUICK RACE
 banner.BackgroundColor3 = Color3.fromRGB(255, 190, 40)
 banner.TextColor3 = Color3.fromRGB(70, 35, 0)
 banner.Font = Enum.Font.GothamBlack
@@ -625,20 +623,9 @@ remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unkn
 	end
 end)
 
--- hide the lobby HUD while this player drives a plot (the plot's DriverId is them)
-task.spawn(function()
-	while true do
-		local driving = false
-		local plots = workspace:FindFirstChild("Plots")
-		if plots then
-			for _, m in plots:GetChildren() do
-				if m:GetAttribute("DriverId") == player.UserId then
-					driving = true
-					break
-				end
-			end
-		end
-		hud.Enabled = not driving
-		task.wait(0.25)
-	end
-end)
+-- hide the lobby HUD while this player drives (Lobby.setDriving sets the attribute)
+local function showWalkHud()
+	hud.Enabled = player:GetAttribute("Driving") ~= true
+end
+player:GetAttributeChangedSignal("Driving"):Connect(showWalkHud)
+showWalkHud()

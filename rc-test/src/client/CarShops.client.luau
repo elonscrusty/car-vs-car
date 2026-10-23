@@ -14,6 +14,7 @@ local RunService = game:GetService("RunService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Garage = require(Shared:WaitForChild("Garage"))
 local CarCatalog = require(Shared:WaitForChild("CarCatalog"))
+local HudLayout = require(Shared:WaitForChild("HudLayout"))
 
 local player = Players.LocalPlayer
 local shopRemote = ReplicatedStorage:WaitForChild("CarShop") :: RemoteFunction
@@ -59,7 +60,7 @@ local gui = Instance.new("ScreenGui")
 gui.Name = "CarShop"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
-gui.DisplayOrder = 8
+gui.DisplayOrder = HudLayout.POPUP
 gui.Enabled = false
 gui.Parent = player:WaitForChild("PlayerGui")
 

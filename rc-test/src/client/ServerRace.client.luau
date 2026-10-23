@@ -9,6 +9,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local CarMath = require(ReplicatedStorage.Shared.CarMath)
+local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
 local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
 
 local event = ReplicatedStorage:WaitForChild("ServerRace") :: RemoteEvent
@@ -34,9 +35,16 @@ end
 -- JOIN: a big round pill at the top middle (thumbs stay free at the bottom corners)
 local join = Instance.new("TextButton")
 join.Name = "Join"
-join.AnchorPoint = Vector2.new(0.5, 0)
-join.Position = UDim2.fromScale(0.5, 0.17)
-join.Size = UDim2.fromScale(0.42, 0.1)
+-- under QUICK RACE on foot, under the drift score in a car
+local function placeJoin()
+	HudLayout.place(
+		join,
+		"Join",
+		if player:GetAttribute("Driving") == true then "drive" else "walk"
+	)
+end
+placeJoin()
+player:GetAttributeChangedSignal("Driving"):Connect(placeJoin)
 join.BackgroundColor3 = YELLOW
 join.TextColor3 = DARK
 join.Font = Enum.Font.GothamBlack
