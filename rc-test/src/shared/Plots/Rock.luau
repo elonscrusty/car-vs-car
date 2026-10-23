@@ -746,8 +746,8 @@ local function buildGround(parent: Instance, origin: CFrame, step: number?)
 end
 
 -- The ground and rim walls again with STEP times bigger triangles, for the small looks-only
--- copies in the lobby (about 1/9 of the parts). Same names, so the lobby can swap them in.
-Plot.LOW_STEP = 3
+-- copies in the lobby (about 1/4 of the parts; 3 loses the trail). Same names, so the lobby can swap them in.
+Plot.LOW_STEP = 2
 function Plot.lowGround(parent: Instance, origin: CFrame)
 	buildGround(parent, origin, Plot.LOW_STEP)
 end
