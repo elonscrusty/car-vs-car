@@ -172,7 +172,7 @@ local DECOR: { Decor } = {
 	decor("pineTree", -34, -204, 2.4, 22, true),
 	decor("bush", 144, 134, 0, 5, true),
 	decor("bush", -144, 134, 1, 5, true),
-	decor("bush", -4, 32, 2, 5, true),
+	decor("bush", -4, 24, 2, 5, true),
 }
 -- tyre wall round the outside of the hairpin (out in the infield grass)
 for i = 0, 6 do
