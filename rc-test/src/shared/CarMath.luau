@@ -144,6 +144,16 @@ function CarMath.governor(vLong: number, wheelMass: number, dt: number): number
 	return -math.sign(vLong) * over * wheelMass * 0.5 / dt
 end
 
+-- Boost pads: a short push past top speed, the same in every car. BOOST_TOP is how far past
+-- top speed the push reaches; it fades to nothing there.
+CarMath.BOOST_TIME = 1
+CarMath.BOOST_TOP = 1.35
+function CarMath.boostAccel(vLong: number): number
+	local top = Tuning.topSpeed * CarMath.BOOST_TOP
+	local t = CarMath.clamp(math.max(vLong, 0) / top, 0, 1)
+	return Tuning.accel * 0.9 * (1 - t * t)
+end
+
 function CarMath.fov(speed: number): number
 	local t = CarMath.clamp(speed / Tuning.topSpeed, 0, 1)
 	return Tuning.camFovLow + (Tuning.camFovHigh - Tuning.camFovLow) * t

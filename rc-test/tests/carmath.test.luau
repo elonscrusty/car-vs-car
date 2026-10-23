@@ -224,3 +224,11 @@ test("guessSteer: right turn at speed steers right, still car steers straight", 
 	eq(CarMath.guessSteer(3, 0.1, 4, 0.75), 0)
 	eq(CarMath.guessSteer(-50, 1, 4, 0.75), 0.75)
 end)
+
+test("boostAccel: pushes past top speed, fades out at the boost top", function()
+	truthy(CarMath.boostAccel(0) > 0)
+	truthy(CarMath.boostAccel(Tuning.topSpeed) > 0)
+	truthy(CarMath.boostAccel(Tuning.topSpeed) < CarMath.boostAccel(0))
+	eq(CarMath.boostAccel(Tuning.topSpeed * CarMath.BOOST_TOP), 0)
+	eq(CarMath.boostAccel(Tuning.topSpeed * 2), 0)
+end)
