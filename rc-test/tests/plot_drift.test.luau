@@ -190,3 +190,13 @@ test("road pieces close the gap on the outside of every bend", function()
 		truthy(a.bx == b.ax and a.bz == b.az, "pieces must join end to start")
 	end
 end)
+
+test("lamps face the middle of the track", function()
+	local m = Plot.TRACK_MIDDLE
+	for i, l in Plot.LAMPS do
+		local lx, lz = -math.sin(l.yaw), -math.cos(l.yaw)
+		local dx, dz = m.x - l.x, m.z - l.z
+		local d = math.sqrt(dx * dx + dz * dz)
+		truthy((lx * dx + lz * dz) / d > 0.99, `lamp {i} does not face the track`)
+	end
+end)

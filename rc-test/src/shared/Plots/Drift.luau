@@ -276,15 +276,20 @@ function Plot.tires(): { Spot }
 end
 
 -- Light poles on the open floor outside the loop, and the start gantry over the line.
-Plot.LAMPS = {
-	{ x = -148, z = 130, yaw = 0 },
-	{ x = 148, z = 130, yaw = 0 },
-	{ x = 148, z = -40, yaw = 0 },
-	{ x = 148, z = -204, yaw = 0 },
-	{ x = -148, z = -204, yaw = 0 },
-	{ x = -148, z = -40, yaw = 0 },
-} :: { Spot }
+-- Each one turns to face the middle of the track (yaw: the look direction is
+-- (-sin yaw, -cos yaw), like CFrame.Angles(0, yaw, 0).LookVector).
+Plot.TRACK_MIDDLE = { x = -12, z = -34 } -- the pad
+Plot.LAMPS = {} :: { Spot }
+for _, p in
+	{ { -148, 130 }, { 148, 130 }, { 148, -40 }, { 148, -204 }, { -148, -204 }, { -148, -40 } }
+do
+	local dx, dz = Plot.TRACK_MIDDLE.x - p[1], Plot.TRACK_MIDDLE.z - p[2]
+	table.insert(Plot.LAMPS, { x = p[1], z = p[2], yaw = math.atan2(-dx, -dz) })
+end
 Plot.LAMP_H = 34
+-- carter's FloodLight model shines out of its -Z side (in Studio it faced away from the track
+-- when its +Z was turned inward), so it gets an extra half turn
+Plot.FLOODLIGHT_FLIP = math.pi
 
 -- Pit garage in the infield behind the pad, open toward the stand: a concrete floor, three
 -- walls and a red roof, with a workbench, toolbox, tyre rack, gas cans and a jack inside.
@@ -422,7 +427,7 @@ local function lamp(parent: Instance, origin: CFrame, spot: Spot)
 	local at = CFrame.new(spot.x, 0, spot.z) * CFrame.Angles(0, spot.yaw, 0)
 	-- carter's Meshy floodlight if imported, else his street lamp, else blocks
 	if
-		meshProp(parent, origin, "FloodLight", at, h)
+		meshProp(parent, origin, "FloodLight", at * CFrame.Angles(0, Plot.FLOODLIGHT_FLIP, 0), h)
 		or meshProp(parent, origin, "StreetLamp", at, h)
 	then
 		return
