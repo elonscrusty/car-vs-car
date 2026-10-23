@@ -192,10 +192,32 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 		end
 	end)
 
+	-- QUICK RACE (while walking): the server finds a free race plot and starts the drive there
+	local quickGui, quickButton = bigButton("Quick", "QUICK RACE")
+	quickButton.AnchorPoint = Vector2.new(0.5, 0)
+	quickButton.Position = UDim2.new(0.5, 0, 0, 64) -- under FRIENDS
+	quickButton.Size = UDim2.fromOffset(170, 48)
+	quickButton.BackgroundColor3 = Color3.fromRGB(225, 55, 50)
+	quickGui.Enabled = true
+	quickButton.Activated:Connect(function()
+		if not driving then
+			remote:FireServer("quick")
+		end
+	end)
+	remote.OnClientEvent:Connect(function(kind: unknown)
+		if kind == "noRace" then
+			quickButton.Text = "ALL RACES BUSY"
+			task.delay(1.5, function()
+				quickButton.Text = "QUICK RACE"
+			end)
+		end
+	end)
+
 	local lobby = {} :: Lobby
 	function lobby.setDriving(on: boolean)
 		driving = on
 		gui.Enabled = on
+		quickGui.Enabled = not on
 		showFriends()
 		if on then
 			shown = nil

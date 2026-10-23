@@ -7,18 +7,24 @@
 -- workspace.Plots model). In Studio an unowned plot counts as a test owner, so one person can
 -- try the stars.
 -- Server -> client (StarsEvent): ("stars", count, saving), ("run", info), ("coins", count),
--- ("toast", text), ("bolts", found, total, onRock), ("bolt", id) and ("boltsFound", ids). The client never sends.
+-- ("toast", text), ("bolts", found, total, onRock), ("bolt", id), ("boltsFound", ids) and
+-- ("rivals", list, streak, winPoints), ("daily", coins, days in a row, boost) and ("jobs", lines,
+-- secondsToNewJobs). The client never sends. workspace "CoinBoost" = 2 on weekends (every coin
+-- gift doubled).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local DailyJobs = require(ReplicatedStorage.Shared.DailyJobs)
+local LapTimer = require(ReplicatedStorage.Shared.LapTimer)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local Medals = require(ReplicatedStorage.Shared.Medals)
 local Profile = require(ReplicatedStorage.Shared.Profile)
 local RunCheck = require(ReplicatedStorage.Shared.RunCheck)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local PlayerData = require(script.Parent.PlayerData)
+local Pings = require(script.Parent.Pings)
 
 local LOOK = 0.1 -- seconds between looks at the cars
 local TEST_OWNER = -1 -- Studio only: who owns an empty plot
@@ -100,7 +106,13 @@ local function trackOf(slotIndex: number): TrackData.Track
 	return t
 end
 
--- ===== record boards: a floating card over each plot's sign =====
+-- ===== record boards: a small flat card just above each plot's sign, facing the road =====
+-- Flat (SurfaceGui on an invisible part) and sized in studs, so it never grows to fill the
+-- screen up close or covers the street view, and hidden past BOARD_SEE studs.
+
+local BOARD_W, BOARD_H = 7, 2.6
+local BOARD_Y = 7.4 -- just above the sign (its top is at about 5.5)
+local BOARD_SEE = 60
 
 local boardFolder = Instance.new("Folder")
 boardFolder.Name = "StarBoards"
@@ -116,12 +128,16 @@ for i, slot in slots do
 	anchor.CanQuery = false
 	anchor.CanTouch = false
 	anchor.Transparency = 1
-	anchor.Size = Vector3.new(0.2, 0.2, 0.2)
-	anchor.CFrame = CFrame.new(slot.signX, 9.5, slot.signZ)
+	anchor.Size = Vector3.new(BOARD_W, BOARD_H, 0.1)
+	-- over the sign, its front facing the road (x = 0)
+	local at = Vector3.new(slot.signX, BOARD_Y, slot.signZ)
+	anchor.CFrame = CFrame.lookAt(at, Vector3.new(0, BOARD_Y, slot.signZ))
 	anchor.Parent = boardFolder
-	local gui = Instance.new("BillboardGui")
-	gui.Size = UDim2.fromScale(14, 5)
-	gui.MaxDistance = 90
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 60
+	gui.MaxDistance = BOARD_SEE
 	gui.LightInfluence = 0
 	gui.Parent = anchor
 	local text = Instance.new("TextLabel")
@@ -199,7 +215,141 @@ local function showAll()
 	end
 end
 
+-- ===== daily jobs (DailyJobs): 3 a day, paid in coins =====
+
+local function sendJobs(player: Player)
+	local data = PlayerData.get(player)
+	if not data then
+		return
+	end
+	local now = os.time()
+	local day = Profile.day(now)
+	DailyJobs.today(data, day)
+	remote:FireClient(
+		player,
+		"jobs",
+		DailyJobs.lines(data, player.UserId, day),
+		(day + 1) * 86400 - now
+	)
+end
+
+-- Something a job may want happened to `player`.
+local function job(player: Player, event: string, n: number?)
+	local data = PlayerData.get(player)
+	if not data then
+		return
+	end
+	local day = Profile.day(os.time())
+	local before = table.clone(data.jobs.have)
+	local boost = Profile.boost(os.time()) -- double coins on weekends
+	local done = DailyJobs.add(data, player.UserId, day, event, n, boost)
+	local changed = data.jobs.day ~= day or #done > 0
+	for i, v in data.jobs.have do
+		changed = changed or before[i] ~= v
+	end
+	if not changed then
+		return
+	end
+	PlayerData.touch(player)
+	for _, j in done do
+		remote:FireClient(player, "toast", `+{j.coins * boost} coins: job done! {j.text}`)
+		print(`[Stars] job {j.id} done by {player.Name} +{j.coins * boost} coins`)
+	end
+	if #done > 0 then
+		remote:FireClient(player, "coins", data.coins)
+	end
+	sendJobs(player)
+end
+
 -- ===== runs =====
+
+-- ===== beating friends: wins, the streak on your car, rivals =====
+
+local MODE_NAMES = { race = "race", drift = "drift", rock = "rock climb" }
+
+local function sendRivals(player: Player)
+	local data = PlayerData.get(player)
+	if data then
+		remote:FireClient(player, "rivals", Profile.rivalList(data, 8), data.streak, data.winPoints)
+	end
+end
+
+-- "WIN STREAK 3" over the car (2 or more wins in a row), kept on a rebuilt car too.
+local function showStreak(player: Player)
+	local car = workspace:FindFirstChild("Car_" .. player.UserId)
+	local body = car and (car :: Model).PrimaryPart
+	if not body then
+		return
+	end
+	local data = PlayerData.get(player)
+	local streak = if data then data.streak else 0
+	local gui = body:FindFirstChild("Streak") :: BillboardGui?
+	if streak < 2 then
+		if gui then
+			gui:Destroy()
+		end
+		return
+	end
+	if not gui then
+		local g = Instance.new("BillboardGui")
+		g.Name = "Streak"
+		g.Size = UDim2.fromScale(3.2, 0.8) -- studs
+		g.StudsOffset = Vector3.new(0, 1.6, 0)
+		g.MaxDistance = 80
+		g.LightInfluence = 0
+		local label = Instance.new("TextLabel")
+		label.Name = "Text"
+		label.Size = UDim2.fromScale(1, 1)
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.GothamBlack
+		label.TextScaled = true
+		label.TextColor3 = Color3.fromRGB(255, 150, 40)
+		label.TextStrokeTransparency = 0.3
+		label.Parent = g
+		g.Parent = body
+		gui = g
+	end
+	local label = (gui :: BillboardGui):FindFirstChild("Text") :: TextLabel?
+	if label then
+		label.Text = `WIN STREAK {streak}`
+	end
+end
+
+-- `player` just beat `old`'s record on a `mode` plot.
+local function beat(player: Player, old: Profile.Record, mode: string)
+	local data = PlayerData.get(player)
+	local now = os.time()
+	if not (data and Profile.win(data, player.UserId, old.userId, old.name, now)) then
+		return
+	end
+	PlayerData.touch(player)
+	remote:FireClient(player, "coins", data.coins)
+	remote:FireClient(
+		player,
+		"toast",
+		`You beat {old.name}'s time! +{Profile.WIN_COINS * Profile.boost(now)} coins`
+	)
+	sendRivals(player)
+	showStreak(player)
+	local loser = Players:GetPlayerByUserId(old.userId)
+	local loserData = loser and PlayerData.get(loser)
+	if loser and loserData then
+		Profile.lose(loserData, loser.UserId, player.UserId, player.DisplayName, now)
+		PlayerData.touch(loser)
+		remote:FireClient(
+			loser,
+			"toast",
+			`{player.DisplayName} beat your {MODE_NAMES[mode] or mode} time!`
+		)
+		sendRivals(loser)
+		showStreak(loser)
+	elseif old.userId > 0 then
+		Pings.send(
+			old.userId,
+			{ byId = player.UserId, by = player.DisplayName, mode = mode, t = now }
+		)
+	end
+end
 
 local function onRun(player: Player, slotIndex: number, mode: string, value: number)
 	if not Medals.valid(mode, value) then
@@ -207,7 +357,9 @@ local function onRun(player: Player, slotIndex: number, mode: string, value: num
 	end
 	local records, owner = recordsOf(slotIndex)
 	local record = false
+	local beaten: Profile.Record? = nil
 	if records and Medals.better(mode, value, records[mode] and records[mode].value) then
+		beaten = records[mode]
 		records[mode] = { value = value, name = player.DisplayName, userId = player.UserId }
 		record = true
 		if owner then
@@ -215,9 +367,28 @@ local function onRun(player: Player, slotIndex: number, mode: string, value: num
 		end
 		showBoard(slotIndex)
 	end
+	if beaten and beaten.userId ~= player.UserId then
+		beat(player, beaten, mode)
+		job(player, "beat")
+	end
 	local medal = Medals.medal(mode, value)
 	local oid = ownerId(slotIndex)
 	local own = oid == player.UserId
+	if mode == "race" then
+		job(player, "lap")
+	elseif mode == "rock" then
+		job(player, "climb")
+	elseif mode == "drift" then
+		if value >= 500 then
+			job(player, "slide500")
+		end
+		if value >= 1500 then
+			job(player, "slide1500")
+		end
+	end
+	if oid and not own and medal > 0 then
+		job(player, "medal")
+	end
 	local gained = 0
 	local data = PlayerData.get(player)
 	if data and oid and not own then
@@ -233,26 +404,26 @@ local function onRun(player: Player, slotIndex: number, mode: string, value: num
 		end
 	end
 	-- the visit gift: driving someone else's plot pays you both, once per owner per day
+	local boost = Profile.boost(os.time()) -- double coins on weekends
 	if
 		data
 		and oid
 		and not own
-		and Profile.visit(data, player.UserId, oid, Profile.day(os.time()))
+		and Profile.visit(data, player.UserId, oid, Profile.day(os.time()), boost)
 	then
 		PlayerData.touch(player)
 		remote:FireClient(player, "coins", data.coins)
-		remote:FireClient(player, "boltsFound", Profile.boltList(data))
-		remote:FireClient(player, "toast", `+{Profile.VISIT_COINS} coins: visit gift`)
+		remote:FireClient(player, "toast", `+{Profile.VISIT_COINS * boost} coins: visit gift`)
 		local host = ownerPlayer(slotIndex)
 		local hostData = host and PlayerData.get(host)
 		if host and hostData then
-			hostData.coins += Profile.HOST_COINS
+			hostData.coins += Profile.HOST_COINS * boost
 			PlayerData.touch(host)
 			remote:FireClient(host, "coins", hostData.coins)
 			remote:FireClient(
 				host,
 				"toast",
-				`+{Profile.HOST_COINS} coins: {player.DisplayName} visited your plot!`
+				`+{Profile.HOST_COINS * boost} coins: {player.DisplayName} visited your plot!`
 			)
 		end
 	end
@@ -275,7 +446,14 @@ local function onRun(player: Player, slotIndex: number, mode: string, value: num
 	})
 end
 
-type Watch = { car: Instance, slot: number, mode: string, run: RunCheck.State }
+type Watch = {
+	car: Instance,
+	slot: number,
+	mode: string,
+	run: RunCheck.State,
+	touched: { [number]: boolean }, -- drift: glow spots slid through in this slide
+	flag: number, -- rock: the last checkpoint flag reached on this climb
+}
 local watching: { [Player]: Watch } = {}
 local tracks: { [number]: TrackData.Track } = {}
 
@@ -359,7 +537,7 @@ local function checkBolts(player: Player, slotIndex: number, pos: Vector3)
 				PlayerData.touch(player)
 				local n = #Profile.boltList(data)
 				remote:FireClient(player, "bolt", b.id)
-				remote:FireClient(player, "toast", `🔩 gold bolt! {n}/{Profile.BOLTS}`)
+				remote:FireClient(player, "toast", `gold bolt! {n}/{Profile.BOLTS}`)
 				sendBolts(player, true)
 				print(`[Stars] bolt {b.id} by {player.Name} ({n}/{Profile.BOLTS})`)
 			end
@@ -378,6 +556,12 @@ local function look(now: number)
 			watching[player] = nil
 			setRock(player, false)
 			continue
+		end
+		if not body:FindFirstChild("Streak") then
+			local d = PlayerData.get(player)
+			if d and d.streak >= 2 then
+				showStreak(player) -- a new car (each drive rebuilds it)
+			end
 		end
 		local cf = body.CFrame
 		local slotIndex, lx, ly, lz = slotAt(cf.Position)
@@ -402,6 +586,8 @@ local function look(now: number)
 				slot = slotIndex,
 				mode = t.id,
 				run = RunCheck.new(t.gates, t.mode, t.id, localSpot(t.spawn), cps, now, lx, ly, lz),
+				touched = {},
+				flag = 0,
 			}
 			continue
 		end
@@ -414,6 +600,32 @@ local function look(now: number)
 		for _, e in RunCheck.step(w.run, now, lx, ly, lz, bx - ax, bz - az, hit ~= nil) do
 			if e.kind == "lap" or e.kind == "finish" or e.kind == "drift" then
 				onRun(player, slotIndex, w.mode, e.value)
+			elseif e.kind == "void" then
+				w.flag = 0
+			end
+		end
+		if w.mode == "drift" then
+			-- a glow spot counts once per slide, only while sliding (like the client's bonus)
+			if w.run.chain > 0 then
+				local zone = TrackData.plot("drift").touchZone(lx, lz)
+				if zone and not w.touched[zone] then
+					w.touched[zone] = true
+					job(player, "touch")
+				end
+			elseif next(w.touched) then
+				w.touched = {}
+			end
+		elseif w.mode == "rock" then
+			local cps = t.checkpoints or {}
+			local dx, dz = lx - t.spawn.x, lz - t.spawn.z
+			if dx * dx + dz * dz <= RunCheck.SNAP * RunCheck.SNAP then
+				w.flag = 0 -- back at the start: a new climb
+			end
+			for k = w.flag + 1, #cps do
+				if LapTimer.inside(cps[k].gate, lx, ly, lz) then
+					w.flag = k
+					job(player, "flag" .. k)
+				end
 			end
 		end
 	end
@@ -455,12 +667,68 @@ for i, prompt in likePrompts do
 	end)
 end
 
+-- ===== daily gift and weekend coins =====
+
+-- The daily gift, the first time each day (on join, or at midnight UTC if they're still here).
+-- The client shows the 7-day strip with ("daily", coins, days in a row, boost).
+local function dailyGift(player: Player, data: Profile.Data)
+	local now = os.time()
+	local boost = Profile.boost(now)
+	local coins, streak = Profile.daily(data, Profile.day(now), boost)
+	if coins > 0 then
+		PlayerData.touch(player)
+		remote:FireClient(player, "coins", data.coins)
+		remote:FireClient(player, "daily", coins, streak, boost)
+		print(`[Stars] daily gift {player.Name} day {streak} +{coins} coins (x{boost})`)
+	end
+end
+
+-- Double coins on weekends: the client's banner reads this.
+task.spawn(function()
+	while true do
+		local now = os.time()
+		workspace:SetAttribute("CoinBoost", Profile.boost(now))
+		for _, p in Players:GetPlayers() do
+			local data = PlayerData.get(p)
+			if data and data.dailyDay ~= Profile.day(now) then
+				dailyGift(p, data)
+			end
+		end
+		task.wait(30)
+	end
+end)
+
 PlayerData.loaded:Connect(function(player: Player, data: Profile.Data, saving: boolean)
 	player:SetAttribute("Stars", data.stars) -- read by the car (smoke colours open with stars)
 	remote:FireClient(player, "stars", data.stars, saving)
 	remote:FireClient(player, "coins", data.coins)
 	remote:FireClient(player, "boltsFound", Profile.boltList(data))
+	-- who beat my times while I was away
+	task.spawn(function()
+		local pings = Pings.take(player.UserId)
+		if #pings == 0 or player.Parent == nil then
+			sendRivals(player)
+			return
+		end
+		for _, p in pings do
+			Profile.lose(data, player.UserId, p.byId, p.by, p.t)
+		end
+		PlayerData.touch(player)
+		local first = pings[#pings]
+		local more = #pings - 1
+		remote:FireClient(
+			player,
+			"toast",
+			if more > 0
+				then `{first.by} and {more} more beat your times!`
+				else `{first.by} beat your {MODE_NAMES[first.mode] or first.mode} time!`
+		)
+		sendRivals(player)
+		showStreak(player)
+	end)
+	sendJobs(player)
 	showAll() -- their plot's board shows their saved record
+	dailyGift(player, data)
 end)
 
 Players.PlayerRemoving:Connect(function(player)
@@ -482,6 +750,21 @@ task.spawn(function()
 		end
 	end
 	showAll()
+end)
+
+-- a new day: new jobs on everyone's panel
+task.spawn(function()
+	local shownDay = Profile.day(os.time())
+	while true do
+		task.wait(30)
+		local day = Profile.day(os.time())
+		if day ~= shownDay then
+			shownDay = day
+			for _, p in Players:GetPlayers() do
+				sendJobs(p)
+			end
+		end
+	end
 end)
 
 local acc = 0

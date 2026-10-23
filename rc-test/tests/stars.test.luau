@@ -315,9 +315,116 @@ test("bolts: each of the 5 counts once, junk ids never", function()
 	eq(#Profile.boltList(d), 2)
 	eq(Profile.boltList(d)[1], 1)
 	local back = Profile.migrate(d)
-	eq(back.version, 3)
+	eq(back.version, Profile.VERSION)
 	eq(#Profile.boltList(back), 2)
 	local junk = Profile.migrate({ bolts = { ["9"] = true, ["2"] = "yes", ["4"] = true } })
 	eq(#Profile.boltList(junk), 1)
 	eq(Profile.boltList(junk)[1], 4)
+end)
+
+-- ===== beating friends: wins, streak, rivals =====
+
+test("win: beating someone else's record pays and counts, your own doesn't", function()
+	local d = Profile.new()
+	eq(Profile.win(d, 1, 1, "Me", 10), false)
+	eq(d.coins, 0)
+	eq(Profile.win(d, 1, 2, "Mia", 10), true)
+	eq(d.coins, Profile.WIN_COINS)
+	eq(d.winPoints, 1)
+	eq(d.streak, 1)
+	Profile.win(d, 1, 3, "Sam", 11)
+	Profile.win(d, 1, 2, "Mia", 12)
+	eq(d.streak, 3)
+	eq(d.rivals["2"].wins, 2)
+end)
+
+test("lose: only the streak ends and the rival score moves, nothing is taken", function()
+	local d = Profile.new()
+	Profile.win(d, 1, 2, "Mia", 10)
+	Profile.win(d, 1, 2, "Mia", 11)
+	local coins, points = d.coins, d.winPoints
+	Profile.lose(d, 1, 2, "Mia", 12)
+	eq(d.streak, 0)
+	eq(d.bestStreak, 2)
+	eq(d.coins, coins)
+	eq(d.winPoints, points)
+	eq(d.rivals["2"].losses, 1)
+	eq(d.rivals["2"].wins, 2)
+end)
+
+test("rivals: newest first, capped, saved", function()
+	local d = Profile.new()
+	for i = 1, Profile.MAX_RIVALS + 5 do
+		Profile.win(d, 0, i, "P" .. i, i)
+	end
+	local n = 0
+	for _ in d.rivals do
+		n += 1
+	end
+	eq(n, Profile.MAX_RIVALS)
+	eq(d.rivals["1"], nil) -- the oldest went
+	local list = Profile.rivalList(d, 3)
+	eq(#list, 3)
+	eq(list[1].name, "P" .. (Profile.MAX_RIVALS + 5))
+	local back = Profile.migrate(d)
+	eq(back.version, Profile.VERSION)
+	eq(back.winPoints, Profile.MAX_RIVALS + 5)
+	eq(back.rivals["2"], nil)
+	eq(back.rivals[tostring(Profile.MAX_RIVALS + 5)].wins, 1)
+	local junk = Profile.migrate({ streak = 4, bestStreak = 1, rivals = { x = { name = 5 } } })
+	eq(junk.bestStreak, 4)
+	eq(next(junk.rivals), nil)
+end)
+
+-- ===== daily gift and weekend coins =====
+
+test("daily gift: once a day, grows each day in a row, back to day 1 after a missed day", function()
+	local d = Profile.new()
+	eq(select(1, Profile.daily(d, 100)), Profile.DAILY[1])
+	eq(select(1, Profile.daily(d, 100)), 0) -- same day: nothing
+	local coins, streak = Profile.daily(d, 101)
+	eq(coins, Profile.DAILY[2])
+	eq(streak, 2)
+	for day = 102, 110 do
+		Profile.daily(d, day)
+	end
+	eq(d.dayStreak, 11)
+	eq(select(1, Profile.daily(d, 111)), Profile.DAILY[#Profile.DAILY]) -- stays at the top
+	coins, streak = Profile.daily(d, 113) -- missed day 112
+	eq(coins, Profile.DAILY[1])
+	eq(streak, 1)
+	eq(select(1, Profile.daily(d, 114, 2)), Profile.DAILY[2] * 2) -- weekend: doubled
+end)
+
+test("daily gift: coins add up and the streak saves", function()
+	local d = Profile.new()
+	d.coins = 5
+	Profile.daily(d, 200)
+	Profile.daily(d, 201)
+	eq(d.coins, 5 + Profile.DAILY[1] + Profile.DAILY[2])
+	local back = Profile.migrate(d)
+	eq(back.dailyDay, 201)
+	eq(back.dayStreak, 2)
+	eq(back.coins, d.coins)
+	local old = Profile.migrate({ version = 3, coins = 9 })
+	eq(old.dailyDay, 0)
+	eq(old.dayStreak, 0)
+	local junk = Profile.migrate({ dailyDay = "x", dayStreak = 0 / 0 })
+	eq(junk.dailyDay, 0)
+end)
+
+test("weekend: Saturday and Sunday (UTC) pay double", function()
+	-- 2026-10-24 is a Saturday, 10-25 Sunday, 10-26 Monday, 10-23 Friday
+	local sat = 1792800000 -- 2026-10-24 00:00 UTC
+	eq(Profile.weekend(sat), true)
+	eq(Profile.weekend(sat + 86400 + 3600 * 23), true)
+	eq(Profile.weekend(sat + 2 * 86400), false)
+	eq(Profile.weekend(sat - 1), false)
+	eq(Profile.boost(sat), 2)
+	eq(Profile.boost(sat - 3600), 1)
+	local d = Profile.new()
+	Profile.visit(d, 1, 2, 300, 2)
+	eq(d.coins, Profile.VISIT_COINS * 2)
+	Profile.win(d, 1, 3, "Mia", sat)
+	eq(d.coins, Profile.VISIT_COINS * 2 + Profile.WIN_COINS * 2)
 end)

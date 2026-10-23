@@ -216,3 +216,11 @@ test("RC size shrinks lengths and speeds but not angles or grip", function()
 	near(CarMath.driftPoints(60, 0.6, 1), small)
 	T.setMode("race")
 end)
+
+test("guessSteer: right turn at speed steers right, still car steers straight", function()
+	-- turning right = negative yaw rate in Roblox
+	truthy(CarMath.guessSteer(-1, 20, 4, 0.75) > 0)
+	truthy(CarMath.guessSteer(1, 20, 4, 0.75) < 0)
+	eq(CarMath.guessSteer(3, 0.1, 4, 0.75), 0)
+	eq(CarMath.guessSteer(-50, 1, 4, 0.75), 0.75)
+end)

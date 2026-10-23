@@ -85,7 +85,8 @@ function Controls.new(
 	onReset: () -> (),
 	onCam: () -> (),
 	onView: () -> (),
-	onSmoke: () -> ()
+	onSmoke: () -> (),
+	onAutoGas: (on: boolean) -> ()
 ): Controls
 	local keys: { [Enum.KeyCode]: boolean } = {}
 	local padSteer, padGas, padBrake = 0, 0, 0
@@ -358,13 +359,43 @@ function Controls.new(
 		help.TextColor3 = Color3.fromRGB(255, 255, 255)
 		help.TextTransparency = 0.35
 		help.Text =
-			"W/S gas + brake    A/D steer    SPACE drift    C show cam    V chase cam    K smoke    E walk"
+			"W/S gas + brake    A/D steer    SPACE drift    C show cam    V chase cam    K smoke    G auto gas    E walk"
 		help.Parent = gui
 	end
 
+	-- AUTO GAS: the car keeps the gas down by itself (brake still brakes and backs up), so a
+	-- phone player only steers. Input only: the car's numbers don't change. Not on rocks.
+	local autoGas = false
+	local autoBtn = resetBtn:Clone()
+	autoBtn.Name = "AutoGas"
+	autoBtn.Text = "AUTO GAS"
+	autoBtn.Position = UDim2.new(0.77, 0, 0, 64)
+	autoBtn.Size = UDim2.fromScale(0.065, 0.09)
+	autoBtn.Parent = gui
+	local onRockNow = false
+	local function setAuto(on: boolean)
+		autoGas = on
+		autoBtn.BackgroundColor3 = if on
+			then Color3.fromRGB(60, 190, 90)
+			else Color3.fromRGB(40, 40, 46)
+	end
+	local function toggleAuto()
+		if onRockNow then
+			return
+		end
+		setAuto(not autoGas)
+		onAutoGas(autoGas)
+	end
+	autoBtn.Activated:Connect(toggleAuto)
+	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
+		if not processed and input.KeyCode == Enum.KeyCode.G then
+			toggleAuto()
+		end
+	end)
+
 	local controls = {} :: Controls
 	local NORMAL_HELP =
-		"W/S gas + brake    A/D steer    SPACE drift    C show cam    V chase cam    K smoke    E walk"
+		"W/S gas + brake    A/D steer    SPACE drift    C show cam    V chase cam    K smoke    G auto gas    E walk"
 	local ROCK_HELP =
 		"W/S gas + brake    A/D steer    drag to look    wheel to zoom    R back to flag    E walk"
 	local onRock: boolean? = nil
@@ -376,6 +407,8 @@ function Controls.new(
 		onRock = on
 		-- CAM and VIEW do nothing there, so hide both and close the gap
 		viewBtn.Visible = not on
+		onRockNow = on
+		autoBtn.Visible = not on
 		smokeBtn.Visible = not on
 		camBtn.Visible = not on
 		backBtn.Visible = on and not touchUi
@@ -416,6 +449,10 @@ function Controls.new(
 				or brake()
 			then 1
 			else padBrake
+		if autoGas and not onRockNow then
+			-- gas down unless braking (the car only brakes or backs up with the gas off)
+			throttle = if brakeIn > 0 then 0 else 1
+		end
 		local driftIn = down(Enum.KeyCode.Space)
 			or down(Enum.KeyCode.LeftShift)
 			or down(Enum.KeyCode.ButtonA)

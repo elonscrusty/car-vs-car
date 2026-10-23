@@ -172,4 +172,14 @@ function CarMath.formatTime(seconds: number): string
 	return string.format("%d:%04.1f", m, s - m * 60)
 end
 
+-- Front-wheel angle (radians, right positive) that would make a car with this wheelbase turn at
+-- this yaw rate: used to draw other players' cars, whose real stick we never see.
+function CarMath.guessSteer(yawRate: number, vLong: number, wheelbase: number, max: number): number
+	if math.abs(vLong) < 0.5 then
+		return 0
+	end
+	-- the car turns left for positive yaw (Roblox: +Y spin), so right steer is negative yaw
+	return CarMath.clamp(math.atan(-yawRate * wheelbase / vLong), -max, max)
+end
+
 return CarMath

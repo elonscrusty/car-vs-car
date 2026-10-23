@@ -31,13 +31,14 @@ PlotDecorBuilder.build()
 PlotLooksBuilder.start()
 local lobby = LobbyBuilder.build()
 LobbyPlots.init()
+require(script.Parent.PlotStandsBuilder).start() -- owners' cars on their plot's stands
 local slots = LobbyLayout.slots()
 
 -- Client -> server: ("place", rc: boolean, slotIndex: number) when a drive (re)starts (only
 -- while driving that plot), ("walk") to leave the stand, ("open", on: boolean) to let friends
--- drive your plot.
--- Server -> client: ("drive", slotIndex), ("walk"), ("own", slotIndex, open) for your plot and
--- ("closed") when a pad tap can't drive that plot.
+-- drive your plot, ("quick") for QUICK RACE (a free race plot).
+-- Server -> client: ("drive", slotIndex), ("walk"), ("own", slotIndex, open) for your plot,
+-- ("closed") when a pad tap can't drive that plot and ("noRace") when QUICK RACE found none.
 local remote = Instance.new("RemoteEvent")
 remote.Name = "RCControl"
 remote.Parent = ReplicatedStorage
@@ -278,6 +279,19 @@ remote.OnServerEvent:Connect(function(player: Player, kind: unknown, rc: unknown
 		if now - (lastPrompt[player] or 0) >= 0.5 then
 			lastPrompt[player] = now
 			walk(player)
+		end
+		return
+	end
+	if kind == "quick" then
+		-- QUICK RACE from the lobby: the best free race plot (their own first), like the race pad
+		local now = os.clock()
+		if now - (lastPrompt[player] or 0) < 0.5 or LobbyPlots.drivingOf(player) ~= nil then
+			return
+		end
+		lastPrompt[player] = now
+		local slot = LobbyPlots.findOpen("race", player)
+		if not slot or not LobbyPlots.sendTo(player, slot) then
+			remote:FireClient(player, "noRace")
 		end
 		return
 	end
