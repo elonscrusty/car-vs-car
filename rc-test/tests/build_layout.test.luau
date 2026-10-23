@@ -113,6 +113,8 @@ test("countdown and status words", function()
 	eq(BuildLayout.hint(false, true, false), "FIX THE GAP")
 	eq(BuildLayout.hint(true, false, false), "TAP DONE!")
 	eq(BuildLayout.hint(true, false, true), "TAP TO ERASE")
+	eq(BuildLayout.hint(false, true, false, true), "TAP TO TURN")
+	eq(BuildLayout.hint(true, false, true, true), "TAP TO ERASE")
 	for _, w in { BuildLayout.hint(false, false, false), BuildLayout.hint(false, true, false) } do
 		truthy(#string.split(w, " ") <= 3, "hint is 3 words or less")
 	end
