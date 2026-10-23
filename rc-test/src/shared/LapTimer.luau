@@ -51,7 +51,7 @@ function LapTimer.reset(s: State)
 	s.laps = 0
 end
 
-local function inside(g: Gate, x: number, y: number, z: number): boolean
+function LapTimer.inside(g: Gate, x: number, y: number, z: number): boolean
 	local rx, rz = x - g.x, z - g.z
 	local along = rx * g.dx + rz * g.dz
 	local across = rx * -g.dz + rz * g.dx
@@ -75,7 +75,7 @@ function LapTimer.update(s: State, now: number, x: number, y: number, z: number)
 		return nil
 	end
 	if not s.running then
-		if inside(s.gates[1], x, y, z) then
+		if LapTimer.inside(s.gates[1], x, y, z) then
 			s.running = true
 			s.finished = false
 			s.startTime = now
@@ -85,7 +85,7 @@ function LapTimer.update(s: State, now: number, x: number, y: number, z: number)
 		return nil
 	end
 	local gate = s.gates[((s.next - 1) % count) + 1]
-	if not inside(gate, x, y, z) then
+	if not LapTimer.inside(gate, x, y, z) then
 		return nil
 	end
 	if s.mode == "oneway" and s.next == count then
