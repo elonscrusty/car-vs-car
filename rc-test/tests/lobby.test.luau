@@ -150,7 +150,7 @@ test("tyres close the lake end of the road, on the grass, past the last plots", 
 	end
 end)
 
-test("signs are blank until someone drives that plot, then show their name", function()
-	eq(L.signText(nil), "")
-	eq(L.signText("carter"), "carter")
+test("signs show the plot kind until someone drives that plot, then their name", function()
+	eq(L.signText(nil, "Race"), "RACE")
+	eq(L.signText("carter", "Race"), "carter")
 end)
