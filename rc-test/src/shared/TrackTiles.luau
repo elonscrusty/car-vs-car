@@ -79,7 +79,7 @@ local function wiggle(): Path
 		a = 2,
 		b = 0,
 		at = function(t: number): (number, number)
-			return 0.2 * math.sin(2 * math.pi * t), t - 0.5
+			return 0.18 * math.sin(2 * math.pi * t), t - 0.5
 		end,
 	}
 end
