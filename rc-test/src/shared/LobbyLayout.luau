@@ -141,8 +141,43 @@ function LobbyLayout.lamps(): { Spot }
 	for row = 0, LobbyLayout.ROWS do
 		local z = LobbyLayout.FIRST_Z - LobbyLayout.STEP / 2 + row * LobbyLayout.STEP
 		for _, side in { -1, 1 } do
-			table.insert(out, { x = side * (LobbyLayout.EDGE - 1), z = z, faceX = 0, faceZ = 1 })
+			table.insert(
+				out,
+				{ x = side * (LobbyLayout.EDGE - 1), z = z, faceX = -side, faceZ = 0 }
+			)
 		end
+	end
+	return out
+end
+
+-- Two cones by each DRIVE pad, on the footpath either side of it.
+function LobbyLayout.cones(): { Spot }
+	local out: { Spot } = {}
+	for _, s in LobbyLayout.slots() do
+		for _, dz in { -1, 1 } do
+			local face = if s.padX < 0 then 1 else -1
+			table.insert(
+				out,
+				{
+					x = s.padX,
+					z = s.padZ + dz * (LobbyLayout.PAD / 2 + 1.2),
+					faceX = face,
+					faceZ = 0,
+				}
+			)
+		end
+	end
+	return out
+end
+
+-- Tyre stacks across the far end of the road and footpaths (the road stops here).
+function LobbyLayout.tires(): { Spot }
+	local out: { Spot } = {}
+	local z = LobbyLayout.road().minZ + 1.5
+	local x = -LobbyLayout.EDGE + 1.5
+	while x <= LobbyLayout.EDGE - 1.5 do
+		table.insert(out, { x = x, z = z, faceX = 0, faceZ = 1 })
+		x += 3
 	end
 	return out
 end

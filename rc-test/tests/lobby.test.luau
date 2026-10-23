@@ -130,3 +130,30 @@ test("copy car: real plot spot -> same spot on the turned small plot", function(
 	eq((L.toMini(left, Kit.WIDTH, 0, 0)), nil)
 	eq((L.toMini(left, 0, 0, -Kit.DEPTH)), nil)
 end)
+
+test("cones sit on the footpath beside each pad, never on it", function()
+	local w = L.walks()
+	eq(#L.cones(), #L.slots() * 2)
+	for _, c in L.cones() do
+		truthy(inside(w, c.x, c.z) and math.abs(c.x) > L.ROAD_W / 2, "cone on the footpath")
+		for _, s in L.slots() do
+			truthy(
+				math.abs(c.z - s.padZ) > L.PAD / 2 or math.abs(c.x - s.padX) > L.PAD / 2,
+				"cone off the pad"
+			)
+			truthy(
+				math.abs(c.z - s.signZ) > 4.5 or math.abs(c.x - s.signX) > 1,
+				"cone clear of the sign"
+			)
+		end
+	end
+end)
+
+test("tyres close the far end of the road, on the grass, clear of the first plots", function()
+	local g, r = L.ground(), L.road()
+	for _, t in L.tires() do
+		truthy(inside(g, t.x, t.z) and math.abs(t.x) < L.EDGE, "tyres across the road end")
+		truthy(t.z < r.minZ + 3, "at the far end")
+		truthy(t.z < L.FIRST_Z - L.PLOT_W / 2, "before the first plots")
+	end
+end)
