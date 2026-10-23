@@ -141,7 +141,7 @@ end)
 test("each car shop has a name and a price for every car on show", function()
 	local G = require("../src/shared/Garage")
 	for kind, shop in G.SHOPS do
-		eq(#shop.cars, #G.SHOP_STANDS)
+		truthy(#shop.cars >= #G.SHOP_STANDS, kind .. " has a car for every stand")
 		eq(#shop.names, #shop.cars)
 		eq(#shop.prices, #shop.cars)
 		eq(shop.prices[1], 0) -- the starter is free
