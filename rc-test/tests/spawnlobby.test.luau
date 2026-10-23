@@ -53,7 +53,7 @@ test("nothing solid between the spawn and the street", function()
 end)
 
 test(
-	"a car stand for every plot, a play pad per plot kind, three car shops and a garage",
+	"a car stand for every plot, drift / race / build pads, drift and race car shops and a garage",
 	function()
 		truthy(#S.STANDS >= #TrackData.order, "stands")
 		eq(#S.PADS, 3)
@@ -61,7 +61,7 @@ test(
 		for _, pad in S.PADS do
 			kinds[pad.kind] = true
 		end
-		for _, k in { "drift", "race", "rock" } do
+		for _, k in { "drift", "race", "build" } do
 			truthy(kinds[k], "pad for " .. k)
 		end
 		local groups: { [string]: boolean } = {}
@@ -79,7 +79,7 @@ test(
 				"drift/Shell",
 				"drift/Car1",
 				"race/Counter",
-				"rock/Stand3",
+				"race/Stand3",
 				"garage/Lift",
 			}
 		do

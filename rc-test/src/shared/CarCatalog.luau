@@ -10,7 +10,7 @@ local CarCatalog = {}
 export type Car = {
 	id: string,
 	name: string, -- made up, no real brands
-	mode: string, -- "race" | "drift" | "rock"
+	mode: string, -- "race" | "drift"
 	price: number, -- coins in the shop; 0 = the free starter; rare cars aren't sold
 	color: { number },
 	style: string, -- Garage.toyCar style
@@ -24,7 +24,7 @@ export type Save = {
 	equipped: { [string]: string },
 }
 
-CarCatalog.MODES = { "drift", "race", "rock" }
+CarCatalog.MODES = { "drift", "race" }
 
 local function car(
 	id: string,
@@ -45,33 +45,30 @@ local function car(
 	}
 end
 
--- Shop cars, six per mode in shop order, cheapest first (the order is saved as "mode:index", so new
--- cars only ever go on the end). Prices: a 2nd car in about ten minutes of play, the last one a
--- long goal.
+-- Shop cars per mode, cheapest first. Saves keep car ids (never shop places), so the order can
+-- change. Prices (carter 23:43: cars are the main reward; a race pays 30 to 100 coins): the next
+-- car is 2 to 4 races away early on, the last ones are long goals.
+-- Rock crawlers were dropped (carter 23:42): their ids stay in old saves, so they can come back.
 CarCatalog.SHOP = {
 	drift = {
 		car("drift_kid", "Slide Kid", "drift", 0, { 245, 245, 250 }),
-		car("drift_ghost", "Neon Ghost", "drift", 150, { 40, 200, 220 }),
-		car("drift_fury", "Pink Fury", "drift", 400, { 255, 120, 190 }),
-		car("drift_mint", "Mint Swirl", "drift", 700, { 120, 230, 180 }),
-		car("drift_shadow", "Shadow", "drift", 1000, { 45, 45, 60 }),
+		car("drift_ghost", "Neon Ghost", "drift", 120, { 40, 200, 220 }),
+		car("drift_fury", "Pink Fury", "drift", 250, { 255, 120, 190 }),
+		car("drift_mint", "Mint Swirl", "drift", 400, { 120, 230, 180 }),
+		car("drift_cocoa", "Cocoa", "drift", 600, { 120, 72, 40 }),
+		car("drift_shadow", "Shadow", "drift", 850, { 45, 45, 60 }),
+		car("drift_aqua", "Aqua Glide", "drift", 1150, { 30, 150, 200 }),
 		car("drift_sunset", "Sunset", "drift", 1500, { 255, 140, 40 }),
 	},
 	race = {
 		car("race_bolt", "Bolt", "race", 0, { 246, 196, 40 }),
-		car("race_dart", "Blue Dart", "race", 150, { 40, 110, 220 }),
-		car("race_rocket", "Red Rocket", "race", 400, { 230, 60, 50 }),
-		car("race_lime", "Lime Flash", "race", 700, { 140, 220, 40 }),
-		car("race_storm", "Storm", "race", 1000, { 120, 120, 135 }),
+		car("race_dart", "Blue Dart", "race", 120, { 40, 110, 220 }),
+		car("race_rocket", "Red Rocket", "race", 250, { 230, 60, 50 }),
+		car("race_lime", "Lime Flash", "race", 400, { 140, 220, 40 }),
+		car("race_berry", "Berry Blast", "race", 600, { 150, 40, 110 }),
+		car("race_storm", "Storm", "race", 850, { 120, 120, 135 }),
+		car("race_tiger", "Tiger", "race", 1150, { 255, 120, 0 }),
 		car("race_comet", "Comet", "race", 1500, { 245, 245, 250 }),
-	},
-	rock = {
-		car("rock_pup", "Mud Pup", "rock", 0, { 230, 120, 30 }),
-		car("rock_bud", "Boulder Bud", "rock", 150, { 214, 48, 44 }),
-		car("rock_blue", "Big Blue", "rock", 400, { 40, 110, 220 }),
-		car("rock_moss", "Moss Back", "rock", 700, { 80, 130, 50 }),
-		car("rock_sand", "Dune Hog", "rock", 1000, { 220, 190, 120 }),
-		car("rock_grape", "Grape Crusher", "rock", 1500, { 130, 60, 190 }),
 	},
 } :: { [string]: { Car } }
 
@@ -79,12 +76,12 @@ CarCatalog.SHOP = {
 CarCatalog.GUMBALL_PRICE = 100
 CarCatalog.GUMBALL = {
 	{ car = car("gb_lime", "Lime Zip", "drift", 0, { 150, 230, 40 }, true), chance = 22 },
-	{ car = car("gb_sky", "Sky Hopper", "rock", 0, { 120, 200, 255 }, true), chance = 20 },
-	{ car = car("gb_bubble", "Bubblegum", "race", 0, { 255, 160, 210 }, true), chance = 16 },
+	{ car = car("gb_bubble", "Bubblegum", "race", 0, { 255, 160, 210 }, true), chance = 18 },
+	{ car = car("gb_candy", "Cotton Candy", "drift", 0, { 190, 160, 255 }, true), chance = 16 },
 	{ car = car("gb_night", "Midnight", "race", 0, { 70, 40, 120 }, true), chance = 12 },
-	{ car = car("gb_ice", "Ice Cube", "rock", 0, { 200, 240, 255 }, true), chance = 10 },
-	{ car = car("gb_lava", "Lava Slide", "drift", 0, { 255, 80, 20 }, true), chance = 8 },
-	{ car = car("gb_toxic", "Toxic", "drift", 0, { 90, 255, 60 }, true), chance = 7 },
+	{ car = car("gb_glow", "Glow Worm", "race", 0, { 200, 255, 90 }, true), chance = 10 },
+	{ car = car("gb_lava", "Lava Slide", "drift", 0, { 255, 80, 20 }, true), chance = 9 },
+	{ car = car("gb_toxic", "Toxic", "drift", 0, { 90, 255, 60 }, true), chance = 8 },
 	{ car = car("gb_gold", "Gold Rush", "race", 0, { 255, 200, 30 }, true), chance = 5 },
 }
 -- A car you already have: half the spin back, so a spin is never wasted.
