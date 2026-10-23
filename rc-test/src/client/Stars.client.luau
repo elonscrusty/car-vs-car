@@ -90,7 +90,7 @@ local boltChip = chip:Clone()
 boltChip.Name = "BoltCount"
 boltChip.Position = UDim2.new(0.30, 0, 0.14, 70)
 boltChip.TextColor3 = Color3.fromRGB(255, 200, 70)
-boltChip.Text = "🔩 0/5"
+boltChip.Text = "BOLTS 0/5"
 boltChip.Visible = false
 boltChip.Parent = gui
 
@@ -362,7 +362,7 @@ remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unkn
 	if kind == "bolts" and type(info) == "number" then
 		-- ("bolts", found, total, onRock)
 		local total = saving
-		boltChip.Text = `🔩 {info}/{if type(total) == "number" then total else 5}`
+		boltChip.Text = `BOLTS {info}/{if type(total) == "number" then total else 5}`
 		boltChip.Visible = select(1, ...) == true
 		return
 	end

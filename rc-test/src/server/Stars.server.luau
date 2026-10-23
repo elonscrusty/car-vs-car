@@ -102,7 +102,13 @@ local function trackOf(slotIndex: number): TrackData.Track
 	return t
 end
 
--- ===== record boards: a floating card over each plot's sign =====
+-- ===== record boards: a small flat card just above each plot's sign, facing the road =====
+-- Flat (SurfaceGui on an invisible part) and sized in studs, so it never grows to fill the
+-- screen up close or covers the street view, and hidden past BOARD_SEE studs.
+
+local BOARD_W, BOARD_H = 7, 2.6
+local BOARD_Y = 7.4 -- just above the sign (its top is at about 5.5)
+local BOARD_SEE = 60
 
 local boardFolder = Instance.new("Folder")
 boardFolder.Name = "StarBoards"
@@ -118,12 +124,16 @@ for i, slot in slots do
 	anchor.CanQuery = false
 	anchor.CanTouch = false
 	anchor.Transparency = 1
-	anchor.Size = Vector3.new(0.2, 0.2, 0.2)
-	anchor.CFrame = CFrame.new(slot.signX, 9.5, slot.signZ)
+	anchor.Size = Vector3.new(BOARD_W, BOARD_H, 0.1)
+	-- over the sign, its front facing the road (x = 0)
+	local at = Vector3.new(slot.signX, BOARD_Y, slot.signZ)
+	anchor.CFrame = CFrame.lookAt(at, Vector3.new(0, BOARD_Y, slot.signZ))
 	anchor.Parent = boardFolder
-	local gui = Instance.new("BillboardGui")
-	gui.Size = UDim2.fromScale(14, 5)
-	gui.MaxDistance = 90
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 60
+	gui.MaxDistance = BOARD_SEE
 	gui.LightInfluence = 0
 	gui.Parent = anchor
 	local text = Instance.new("TextLabel")
@@ -244,7 +254,6 @@ local function onRun(player: Player, slotIndex: number, mode: string, value: num
 	then
 		PlayerData.touch(player)
 		remote:FireClient(player, "coins", data.coins)
-		remote:FireClient(player, "boltsFound", Profile.boltList(data))
 		remote:FireClient(player, "toast", `+{Profile.VISIT_COINS * boost} coins: visit gift`)
 		local host = ownerPlayer(slotIndex)
 		local hostData = host and PlayerData.get(host)
@@ -362,7 +371,7 @@ local function checkBolts(player: Player, slotIndex: number, pos: Vector3)
 				PlayerData.touch(player)
 				local n = #Profile.boltList(data)
 				remote:FireClient(player, "bolt", b.id)
-				remote:FireClient(player, "toast", `🔩 gold bolt! {n}/{Profile.BOLTS}`)
+				remote:FireClient(player, "toast", `gold bolt! {n}/{Profile.BOLTS}`)
 				sendBolts(player, true)
 				print(`[Stars] bolt {b.id} by {player.Name} ({n}/{Profile.BOLTS})`)
 			end
