@@ -5,6 +5,9 @@
 -- Local space: origin = middle of the spot on the floor, -Z = the open front, x across it.
 
 local CollectionService = game:GetService("CollectionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local MeshProps = require(script.Parent.Parent.MeshProps)
 
 local Shop = {}
 
@@ -54,7 +57,59 @@ local function disc(
 	return p
 end
 
+local CAR_LEN = 5 -- display car length, studs
+local STAND_D = 7 -- turntable width
+local FLOOR_TOP = 0.4 -- the shop floor's top
+
+-- carter's RockCrawler truck (ReplicatedStorage.CarSkins, the drivable car's skin), CAR_LEN long,
+-- wheels on `cf`, nose to its -Z. nil when it isn't in the place.
+local function crawler(parent: Instance, cf: CFrame): Model?
+	local skins = ReplicatedStorage:FindFirstChild("CarSkins")
+	local t = skins and skins:FindFirstChild("RockCrawler")
+	if not (t and t:IsA("Model")) then
+		return nil
+	end
+	local m = t:Clone()
+	m.Name = "DisplayCar"
+	for _, d in m:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.Anchored = true
+			d.CanCollide = false
+			d.CanQuery = false
+			d.CanTouch = false
+		end
+	end
+	local _, size = m:GetBoundingBox()
+	if size.Z > 0 then
+		m:ScaleTo(m:GetScale() * CAR_LEN / size.Z)
+	end
+	-- pivot = middle of the bottom, nose (+Z after import) turned to -Z
+	local box, sized = m:GetBoundingBox()
+	m.WorldPivot = CFrame.new(box.Position - Vector3.new(0, sized.Y / 2, 0))
+		* CFrame.Angles(0, math.pi, 0)
+	m:PivotTo(cf)
+	m.Parent = parent
+	return m
+end
+
+-- carter's Meshy turntable (ServerStorage.LobbyMeshes), STAND_D wide, standing on `at`.
+-- Returns it and the height of its top, or nil when it isn't imported.
+local function meshStand(parent: Instance, at: CFrame): (Model?, number)
+	local m = MeshProps.place(parent, "Turntable", at, 1)
+	if not m then
+		return nil, 0
+	end
+	local _, size = m:GetBoundingBox()
+	local wide = math.max(size.X, size.Z)
+	if wide > 0 then
+		m:ScaleTo(m:GetScale() * STAND_D / wide) -- the pivot is the bottom middle: stays put
+	end
+	local _, sized = m:GetBoundingBox()
+	return m, sized.Y
+end
+
 -- A chunky toy crawler, about 5 long, nose to local -Z of `cf` (which sits on the stand top).
+-- Block stand-in for when the RockCrawler model is missing.
 local function displayCar(parent: Instance, cf: CFrame, color: Color3): Model
 	local m = Instance.new("Model")
 	m.Name = "DisplayCar"
@@ -86,8 +141,9 @@ local function displayCar(parent: Instance, cf: CFrame, color: Color3): Model
 	return m
 end
 
--- A round turntable with a car on it and a spot light above. The top + car are one model tagged
--- LobbySpin so the client can turn it slowly.
+-- A round turntable with a car on it, a spot light above and a soft glow from below. The top +
+-- car spin together as one model tagged LobbySpin (the client turns it slowly). Uses carter's
+-- Meshy turntable and RockCrawler when they are in the place, blocks otherwise.
 local function stand(
 	parent: Instance,
 	origin: CFrame,
@@ -99,13 +155,26 @@ local function stand(
 	local at = origin * CFrame.new(x, 0, z)
 	local base = Instance.new("Model")
 	base.Name = "Turntable"
-	disc(base, "Base", 7, 0.8, at * CFrame.new(0, 0.4, 0), STAND)
-	local ring = disc(base, "Ring", 7.2, 0.15, at * CFrame.new(0, 0.55, 0), BLUE)
-	ring.Material = Enum.Material.Neon
 	local spin = Instance.new("Model")
 	spin.Name = "Spin"
-	disc(spin, "Top", 6.4, 0.3, at * CFrame.new(0, 0.95, 0), STAND_TOP)
-	displayCar(spin, at * CFrame.new(0, 1.1, 0) * CFrame.Angles(0, math.rad(turn), 0), color)
+	local mesh, top = meshStand(spin, at * CFrame.new(0, FLOOR_TOP, 0))
+	local ringY = FLOOR_TOP + 0.08
+	if mesh then
+		top += FLOOR_TOP
+	else
+		ringY = 0.55
+		disc(base, "Base", STAND_D, 0.8, at * CFrame.new(0, 0.4, 0), STAND)
+		disc(spin, "Top", STAND_D - 0.6, 0.3, at * CFrame.new(0, 0.95, 0), STAND_TOP)
+		top = 1.1
+	end
+	-- glowing blue ring round the foot (stays still)
+	local ring = disc(base, "Ring", STAND_D + 0.2, 0.15, at * CFrame.new(0, ringY, 0), BLUE)
+	ring.Material = Enum.Material.Neon
+	ring.CanCollide = false
+	local carAt = at * CFrame.new(0, top, 0) * CFrame.Angles(0, math.rad(turn), 0)
+	if not crawler(spin, carAt) then
+		displayCar(spin, carAt, color)
+	end
 	spin.WorldPivot = at -- upright, so the client's turn spins it about the vertical
 	spin.Parent = base
 	CollectionService:AddTag(spin, "LobbySpin")
@@ -116,11 +185,18 @@ local function stand(
 	lamp.CanCollide = false
 	local beam = Instance.new("SpotLight")
 	beam.Face = Enum.NormalId.Left -- the disc is on its side: local -X points down
-	beam.Angle = 50
+	beam.Angle = 45
 	beam.Range = 16
-	beam.Brightness = 2
+	beam.Brightness = 3
 	beam.Color = LIGHT
+	beam.Shadows = true
 	beam.Parent = lamp
+	-- soft blue glow from the ring, so the car's sides light up too
+	local glow = Instance.new("PointLight")
+	glow.Color = Color3.fromRGB(120, 170, 255)
+	glow.Range = 7
+	glow.Brightness = 1.5
+	glow.Parent = ring
 	base.Parent = parent
 end
 
