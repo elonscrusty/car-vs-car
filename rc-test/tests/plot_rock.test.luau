@@ -185,6 +185,8 @@ test("the creek dips the trail, and the log bridge over it can be crawled onto",
 	local x, z, h = Plot.at(c.u)
 	truthy(h - Plot.groundAt(x, z) >= 4, "the creek is too shallow")
 	truthy(c.lift <= Plot.MAX_LIFT, "the bridge is too tall to climb on")
+	truthy(c.deckWidth >= 8, "the bridge deck is too narrow to stay on")
+	truthy(c.rail > 0 and c.rail <= 1, "the bridge rails should be low")
 	truthy(c.depth * math.pi / (2 * c.half) <= 0.5, "the creek banks are too steep")
 	for _, f in Plot.features do
 		truthy(math.abs(f.u - c.u) * 60 > c.half + f.r, `{f.kind} at {f.u} is in the creek`)
