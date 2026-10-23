@@ -261,8 +261,9 @@ Plot.SKILLS = {
 	-- was still W only (the round sides are easy), so they stand taller with steeper feet;
 	-- 2.3 stood only 0.6 RC over the road and the car rolled straight over (Studio round 31);
 	-- 3.2 (0.7 RC) was a slow W-only push even with snug rails (round 33), so taller and
-	-- smaller round, for a steeper face where the wheels meet them
-	notch = { u = 4.45, side = 0.2, gap = 0.12, r = 3.8, lift = 4 },
+	-- smaller round, for a steeper face where the wheels meet them; 4 (1.1 RC) stalled about
+	-- 1 s then crept over on W (round 34), so a bit taller again
+	notch = { u = 4.45, side = 0.2, gap = 0.12, r = 3.8, lift = 4.6 },
 	stepUp = {
 		u = 12.35,
 		side = -0.55,

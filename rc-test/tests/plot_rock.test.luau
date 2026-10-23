@@ -279,7 +279,7 @@ test("skill climbs: too tall to just drive over, with an easy way round each", f
 			)
 		end
 	end
-	truthy(n.lift > Plot.MAX_LIFT and n.lift <= 4, "notch boulders")
+	truthy(n.lift > Plot.MAX_LIFT and n.lift <= 5, "notch boulders")
 	-- every sheer face is a skill step: more than holding the gas gets up, never more than a
 	-- careful driver can
 	local st = S.stepUp
