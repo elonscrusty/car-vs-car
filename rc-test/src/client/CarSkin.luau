@@ -14,8 +14,6 @@ local RCCar = require(script.Parent.RCCar)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
 
 local WHEEL_NAMES = { "WheelFL", "WheelFR", "WheelRL", "WheelRR" } -- same order as RCCar
--- the server paints the grey body this red when no shop car is picked: then keep the truck's own paint
-local NO_PICK = Color3.fromRGB(220, 50, 47)
 
 local CarSkin = {}
 
@@ -27,9 +25,6 @@ type Shown = {
 	body: BasePart,
 	offset: CFrame, -- the skin body, seen from the grey body
 	hidden: { [BasePart]: number }, -- grey parts and how see-through they were
-	tint: Color3?, -- the colour last copied from the grey body
-	texture: string, -- the body's own paint, put back when there's no pick
-	looks: { Instance }, -- its SurfaceAppearance, if any, taken off while tinted
 }
 
 local function template(name: string): Model?
@@ -114,12 +109,6 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 		end
 	end
 	car.setLook({ wheels = wheels, spots = spots, turns = turns })
-	local looks: { Instance } = {}
-	for _, d in body:GetChildren() do
-		if d:IsA("SurfaceAppearance") then
-			table.insert(looks, d)
-		end
-	end
 	return {
 		car = car,
 		name = name,
@@ -128,25 +117,7 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 		body = body,
 		offset = offset,
 		hidden = hidden,
-		tint = nil,
-		texture = if body:IsA("MeshPart") then body.TextureID else "",
-		looks = looks,
 	}
-end
-
--- Paints the truck's body (not its wheels) the colour of the shop car. A painted texture hides
--- Color, so it comes off while tinted and goes back when there's no pick.
-local function paint(s: Shown, color: Color3)
-	s.tint = color
-	local own = color == NO_PICK
-	local body = s.body
-	if body:IsA("MeshPart") then
-		body.TextureID = if own then s.texture else ""
-	end
-	for _, l in s.looks do
-		l.Parent = if own then body else nil
-	end
-	body.Color = color
 end
 
 local function hide(s: Shown)
@@ -197,9 +168,6 @@ function CarSkin.new()
 		end
 		if cur then
 			cur.body.CFrame = car.body.CFrame * cur.offset
-			if cur.tint ~= car.body.Color then
-				paint(cur, car.body.Color)
-			end
 		end
 	end
 
