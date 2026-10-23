@@ -39,7 +39,7 @@ local C = {
 	shell = { 52, 54, 60 },
 	roof = { 40, 42, 48 },
 	rib = { 66, 68, 76 },
-	orange = { 255, 128, 32 },
+	orange = { 228, 98, 22 },
 	cyan = { 70, 200, 255 },
 	floor = { 128, 130, 136 },
 	paint = { 255, 205, 40 },
@@ -60,6 +60,92 @@ local C = {
 local function v(x: number, y: number, z: number): V3
 	return { x = x, y = y, z = z }
 end
+
+-- carter's Meshy props. When ReplicatedStorage.PropModels has a model with this name, it is
+-- fitted into `fit` (studs, garage-local x/y/z, kept in proportion), stood on the floor at `at`,
+-- turned so its long side runs along `long` ("x" or "z"), and the block stand-ins of `group` are
+-- removed, all but the `keep` ones. `onTop` stands it on another prop instead of the floor.
+-- No model, no change: the block stand-ins stay.
+export type Mesh = {
+	model: string,
+	group: string,
+	at: V3,
+	fit: V3,
+	long: string,
+	keep: { string },
+	onTop: string?,
+	collide: boolean,
+}
+
+Garage.LIFT = { x = -4, z = -1.5 }
+Garage.BENCH = { x = 5.5, z = -Garage.DEPTH / 2 + 2.4 }
+
+Garage.MESHES = {
+	{
+		model = "CarLift",
+		group = "Lift",
+		at = v(Garage.LIFT.x, Garage.FLOOR, Garage.LIFT.z),
+		fit = v(5.6, 6.6, 9),
+		long = "z", -- the two posts stand either side of the car
+		keep = {
+			"CarBody",
+			"CarCab",
+			"CarRoof",
+			"CarBumper",
+			"Wheel",
+			"Hub",
+			"FloorPaint",
+			"FloorPaintIn",
+		},
+		collide = true,
+	},
+	{
+		model = "Workbench",
+		group = "Workbench",
+		at = v(Garage.BENCH.x, Garage.FLOOR, Garage.BENCH.z),
+		fit = v(8, 3.4, 2.8),
+		long = "x",
+		keep = {},
+		collide = true,
+	},
+	{
+		model = "Toolbox",
+		group = "Workbench",
+		at = v(Garage.BENCH.x + 1.6, Garage.FLOOR + 3.3, Garage.BENCH.z), -- y: block bench top
+		fit = v(1.8, 1.2, 1),
+		long = "x",
+		keep = { "Top", "Leg", "Shelf", "Drawers", "Handle" }, -- only the small bits on top go
+		onTop = "Workbench",
+		collide = false,
+	},
+	{
+		model = "TireStack",
+		group = "TiresIn",
+		at = v(Garage.WIDTH / 2 - 2.2, Garage.FLOOR, 4.8),
+		fit = v(2.6, 3.4, 2.6),
+		long = "x",
+		keep = {},
+		collide = true,
+	},
+	{
+		model = "TireStack",
+		group = "TiresOut1",
+		at = v(Garage.WIDTH / 2 + 2.4, 0, 5.4),
+		fit = v(2.6, 3.4, 2.6),
+		long = "x",
+		keep = {},
+		collide = true,
+	},
+	{
+		model = "TireStack",
+		group = "TiresOut2",
+		at = v(Garage.WIDTH / 2 + 2.6, 0, 2.6),
+		fit = v(2.6, 2.6, 2.6),
+		long = "x",
+		keep = {},
+		collide = true,
+	},
+} :: { Mesh }
 
 function Garage.parts(): { Piece }
 	local out: { Piece } = {}
@@ -151,7 +237,7 @@ function Garage.parts(): { Piece }
 	end
 
 	-- ===== Car lift (left of middle), car up on it =====
-	local lx, lz = -4, -1.5
+	local lx, lz = Garage.LIFT.x, Garage.LIFT.z
 	add("Lift", "FloorPaint", v(10, 0.04, 10.6), v(lx, F + 0.02, lz), C.paint, { collide = false })
 	add("Lift", "FloorPaintIn", v(9, 0.05, 9.6), v(lx, F + 0.03, lz), C.floor, {
 		material = "Concrete",
@@ -209,7 +295,7 @@ function Garage.parts(): { Piece }
 	end
 
 	-- ===== Workbench on the back wall, right side =====
-	local bx, bz = 5.5, -front + 2.4
+	local bx, bz = Garage.BENCH.x, Garage.BENCH.z
 	add("Workbench", "Top", v(8, 0.4, 2.6), v(bx, F + 3.1, bz), C.wood, { material = "WoodPlanks" })
 	for _, dx in { -3.7, 3.7 } do
 		for _, dz in { -1, 1 } do
@@ -361,7 +447,7 @@ function Garage.parts(): { Piece }
 	end
 	tires("TiresIn", W / 2 - 2.2, 4.8, 4)
 	tires("TiresOut1", W / 2 + 2.4, 5.4, 4)
-	tires("TiresOut2", W / 2 + 2.6, 2.6, 3)
+	tires("TiresOut2", W / 2 + 2.6, 2.6, 3) -- keep these three spots in step with Garage.MESHES
 
 	-- ===== Bush box beside the right post =====
 	add("Bushes", "Planter", v(1.8, 1.2, 2.4), v(W / 2 + 2.4, 0.6, front - 0.4), C.planter)
@@ -417,8 +503,63 @@ function Garage.build(parent: Instance, at: CFrame, _width: number?, _depth: num
 		part.Parent = group
 	end
 	model.PrimaryPart = (groups.Shell :: Model):FindFirstChild("Floor") :: BasePart
+	Garage.useMeshes(groups, origin)
 	model.Parent = parent
 	return model
+end
+
+-- Puts carter's Meshy props in place of the block stand-ins (see Garage.MESHES).
+function Garage.useMeshes(groups: { [string]: Model }, origin: CFrame)
+	local ReplicatedStorage = game:GetService("ReplicatedStorage")
+	local folder = ReplicatedStorage:FindFirstChild("PropModels")
+	if not folder then
+		return
+	end
+	local tops: { [string]: number } = {} -- prop top height, garage-local
+	for _, m in Garage.MESHES do
+		local template = folder:FindFirstChild(m.model)
+		local group = groups[m.group]
+		if not (template and template:IsA("Model") and group) then
+			continue
+		end
+		local prop = template:Clone()
+		prop.Name = m.model
+		for _, d in prop:GetDescendants() do
+			if d:IsA("BasePart") then
+				d.Anchored = true
+				d.CanCollide = m.collide
+				d.CanTouch = false
+			end
+		end
+		-- turn the long side the right way, then shrink it to fit
+		prop:PivotTo(CFrame.identity)
+		local _, size = prop:GetBoundingBox()
+		local turn = if (m.long == "z") == (size.X > size.Z) then math.pi / 2 else 0
+		if turn ~= 0 then
+			size = Vector3.new(size.Z, size.Y, size.X)
+		end
+		local k = math.min(m.fit.x / size.X, m.fit.y / size.Y, m.fit.z / size.Z)
+		prop:ScaleTo(prop:GetScale() * k)
+		-- stand it with its bottom middle on the spot
+		local y = if m.onTop then tops[m.onTop] or m.at.y else m.at.y
+		local spot = origin * CFrame.new(m.at.x, y, m.at.z)
+		prop:PivotTo(spot * CFrame.Angles(0, turn, 0))
+		local box, now = prop:GetBoundingBox()
+		local bottom = box.Position - Vector3.yAxis * now.Y / 2
+		prop:PivotTo(prop:GetPivot() + (spot.Position - bottom))
+		tops[m.model] = y + now.Y
+		-- the stand-ins it replaces go
+		local keep: { [string]: boolean } = {}
+		for _, name in m.keep do
+			keep[name] = true
+		end
+		for _, part in group:GetChildren() do
+			if part:IsA("BasePart") and not keep[part.Name] then
+				part:Destroy()
+			end
+		end
+		prop.Parent = group
+	end
 end
 
 return Garage
