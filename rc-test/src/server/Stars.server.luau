@@ -7,7 +7,8 @@
 -- workspace.Plots model). In Studio an unowned plot counts as a test owner, so one person can
 -- try the stars.
 -- Server -> client (StarsEvent): ("stars", count, saving), ("run", info), ("coins", count),
--- ("toast", text), ("bolts", found, total, onRock), ("bolt", id) and ("boltsFound", ids). The client never sends.
+-- ("toast", text), ("bolts", found, total, onRock), ("bolt", id), ("boltsFound", ids) and
+-- ("rivals", list, streak, winPoints). The client never sends.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -19,6 +20,7 @@ local Profile = require(ReplicatedStorage.Shared.Profile)
 local RunCheck = require(ReplicatedStorage.Shared.RunCheck)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local PlayerData = require(script.Parent.PlayerData)
+local Pings = require(script.Parent.Pings)
 
 local LOOK = 0.1 -- seconds between looks at the cars
 local TEST_OWNER = -1 -- Studio only: who owns an empty plot
@@ -211,19 +213,108 @@ end
 
 -- ===== runs =====
 
+-- ===== beating friends: wins, the streak on your car, rivals =====
+
+local MODE_NAMES = { race = "race", drift = "drift", rock = "rock climb" }
+
+local function sendRivals(player: Player)
+	local data = PlayerData.get(player)
+	if data then
+		remote:FireClient(player, "rivals", Profile.rivalList(data, 8), data.streak, data.winPoints)
+	end
+end
+
+-- "WIN STREAK 3" over the car (2 or more wins in a row), kept on a rebuilt car too.
+local function showStreak(player: Player)
+	local car = workspace:FindFirstChild("Car_" .. player.UserId)
+	local body = car and (car :: Model).PrimaryPart
+	if not body then
+		return
+	end
+	local data = PlayerData.get(player)
+	local streak = if data then data.streak else 0
+	local gui = body:FindFirstChild("Streak") :: BillboardGui?
+	if streak < 2 then
+		if gui then
+			gui:Destroy()
+		end
+		return
+	end
+	if not gui then
+		local g = Instance.new("BillboardGui")
+		g.Name = "Streak"
+		g.Size = UDim2.fromScale(3.2, 0.8) -- studs
+		g.StudsOffset = Vector3.new(0, 1.6, 0)
+		g.MaxDistance = 80
+		g.LightInfluence = 0
+		local label = Instance.new("TextLabel")
+		label.Name = "Text"
+		label.Size = UDim2.fromScale(1, 1)
+		label.BackgroundTransparency = 1
+		label.Font = Enum.Font.GothamBlack
+		label.TextScaled = true
+		label.TextColor3 = Color3.fromRGB(255, 150, 40)
+		label.TextStrokeTransparency = 0.3
+		label.Parent = g
+		g.Parent = body
+		gui = g
+	end
+	local label = (gui :: BillboardGui):FindFirstChild("Text") :: TextLabel?
+	if label then
+		label.Text = `WIN STREAK {streak}`
+	end
+end
+
+-- `player` just beat `old`'s record on a `mode` plot.
+local function beat(player: Player, old: Profile.Record, mode: string)
+	local data = PlayerData.get(player)
+	local now = os.time()
+	if not (data and Profile.win(data, player.UserId, old.userId, old.name, now)) then
+		return
+	end
+	PlayerData.touch(player)
+	remote:FireClient(player, "coins", data.coins)
+	remote:FireClient(player, "toast", `You beat {old.name}'s time! +{Profile.WIN_COINS} coins`)
+	sendRivals(player)
+	showStreak(player)
+	local loser = Players:GetPlayerByUserId(old.userId)
+	local loserData = loser and PlayerData.get(loser)
+	if loser and loserData then
+		Profile.lose(loserData, loser.UserId, player.UserId, player.DisplayName, now)
+		PlayerData.touch(loser)
+		remote:FireClient(
+			loser,
+			"toast",
+			`{player.DisplayName} beat your {MODE_NAMES[mode] or mode} time!`
+		)
+		sendRivals(loser)
+		showStreak(loser)
+	elseif old.userId > 0 then
+		Pings.send(
+			old.userId,
+			{ byId = player.UserId, by = player.DisplayName, mode = mode, t = now }
+		)
+	end
+end
+
 local function onRun(player: Player, slotIndex: number, mode: string, value: number)
 	if not Medals.valid(mode, value) then
 		return
 	end
 	local records, owner = recordsOf(slotIndex)
 	local record = false
+	local beaten: Profile.Record? = nil
 	if records and Medals.better(mode, value, records[mode] and records[mode].value) then
+		beaten = records[mode]
 		records[mode] = { value = value, name = player.DisplayName, userId = player.UserId }
 		record = true
 		if owner then
 			PlayerData.touch(owner)
 		end
 		showBoard(slotIndex)
+	end
+	if beaten and beaten.userId ~= player.UserId then
+		beat(player, beaten, mode)
 	end
 	local medal = Medals.medal(mode, value)
 	local oid = ownerId(slotIndex)
@@ -388,6 +479,12 @@ local function look(now: number)
 			setRock(player, false)
 			continue
 		end
+		if not body:FindFirstChild("Streak") then
+			local d = PlayerData.get(player)
+			if d and d.streak >= 2 then
+				showStreak(player) -- a new car (each drive rebuilds it)
+			end
+		end
 		local cf = body.CFrame
 		local slotIndex, lx, ly, lz = slotAt(cf.Position)
 		local w = watching[player]
@@ -469,6 +566,29 @@ PlayerData.loaded:Connect(function(player: Player, data: Profile.Data, saving: b
 	remote:FireClient(player, "stars", data.stars, saving)
 	remote:FireClient(player, "coins", data.coins)
 	remote:FireClient(player, "boltsFound", Profile.boltList(data))
+	-- who beat my times while I was away
+	task.spawn(function()
+		local pings = Pings.take(player.UserId)
+		if #pings == 0 or player.Parent == nil then
+			sendRivals(player)
+			return
+		end
+		for _, p in pings do
+			Profile.lose(data, player.UserId, p.byId, p.by, p.t)
+		end
+		PlayerData.touch(player)
+		local first = pings[#pings]
+		local more = #pings - 1
+		remote:FireClient(
+			player,
+			"toast",
+			if more > 0
+				then `{first.by} and {more} more beat your times!`
+				else `{first.by} beat your {MODE_NAMES[first.mode] or first.mode} time!`
+		)
+		sendRivals(player)
+		showStreak(player)
+	end)
 	showAll() -- their plot's board shows their saved record
 end)
 

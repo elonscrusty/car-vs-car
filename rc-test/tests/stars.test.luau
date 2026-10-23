@@ -315,9 +315,63 @@ test("bolts: each of the 5 counts once, junk ids never", function()
 	eq(#Profile.boltList(d), 2)
 	eq(Profile.boltList(d)[1], 1)
 	local back = Profile.migrate(d)
-	eq(back.version, 3)
+	eq(back.version, Profile.VERSION)
 	eq(#Profile.boltList(back), 2)
 	local junk = Profile.migrate({ bolts = { ["9"] = true, ["2"] = "yes", ["4"] = true } })
 	eq(#Profile.boltList(junk), 1)
 	eq(Profile.boltList(junk)[1], 4)
+end)
+
+-- ===== beating friends: wins, streak, rivals =====
+
+test("win: beating someone else's record pays and counts, your own doesn't", function()
+	local d = Profile.new()
+	eq(Profile.win(d, 1, 1, "Me", 10), false)
+	eq(d.coins, 0)
+	eq(Profile.win(d, 1, 2, "Mia", 10), true)
+	eq(d.coins, Profile.WIN_COINS)
+	eq(d.winPoints, 1)
+	eq(d.streak, 1)
+	Profile.win(d, 1, 3, "Sam", 11)
+	Profile.win(d, 1, 2, "Mia", 12)
+	eq(d.streak, 3)
+	eq(d.rivals["2"].wins, 2)
+end)
+
+test("lose: only the streak ends and the rival score moves, nothing is taken", function()
+	local d = Profile.new()
+	Profile.win(d, 1, 2, "Mia", 10)
+	Profile.win(d, 1, 2, "Mia", 11)
+	local coins, points = d.coins, d.winPoints
+	Profile.lose(d, 1, 2, "Mia", 12)
+	eq(d.streak, 0)
+	eq(d.bestStreak, 2)
+	eq(d.coins, coins)
+	eq(d.winPoints, points)
+	eq(d.rivals["2"].losses, 1)
+	eq(d.rivals["2"].wins, 2)
+end)
+
+test("rivals: newest first, capped, saved", function()
+	local d = Profile.new()
+	for i = 1, Profile.MAX_RIVALS + 5 do
+		Profile.win(d, 0, i, "P" .. i, i)
+	end
+	local n = 0
+	for _ in d.rivals do
+		n += 1
+	end
+	eq(n, Profile.MAX_RIVALS)
+	eq(d.rivals["1"], nil) -- the oldest went
+	local list = Profile.rivalList(d, 3)
+	eq(#list, 3)
+	eq(list[1].name, "P" .. (Profile.MAX_RIVALS + 5))
+	local back = Profile.migrate(d)
+	eq(back.version, Profile.VERSION)
+	eq(back.winPoints, Profile.MAX_RIVALS + 5)
+	eq(back.rivals["2"], nil)
+	eq(back.rivals[tostring(Profile.MAX_RIVALS + 5)].wins, 1)
+	local junk = Profile.migrate({ streak = 4, bestStreak = 1, rivals = { x = { name = 5 } } })
+	eq(junk.bestStreak, 4)
+	eq(next(junk.rivals), nil)
 end)
