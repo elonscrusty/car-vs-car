@@ -198,7 +198,7 @@ local creep = 0 -- average ground speed lately (for the stuck check)
 -- Plots with checkpoint flags: a reset (R, RESET, fell off, out) brings the car back to the last
 -- flag it drove through instead of the start. R twice quickly = start.
 local lastReset = -10
-local function reset()
+local function reset(why: string?)
 	if walking then
 		return
 	end
@@ -219,6 +219,9 @@ local function reset()
 		return
 	end
 	goTo(current)
+	if why then
+		hud.flash(why)
+	end
 end
 
 local gui = Hud.createGui()
@@ -362,8 +365,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 	end
 	-- rocks: being stuck is part of crawling, so it never resets by itself (R or RESET does)
 	if stuckTime > Tuning.stuckWait and t.id ~= "rock" then
-		reset()
-		hud.flash("STUCK - BACK TO START")
+		reset("STUCK - BACK TO START")
 	end
 
 	-- fell off the world, or got out of the plot
@@ -380,8 +382,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 	if p.Y < -8 * Tuning.scale / TrackData.RC_SCALE then
 		reset()
 	elseif not TrackData.inPlot(lx, lz) then
-		reset()
-		hud.flash("OUT - BACK TO START")
+		reset("OUT - BACK TO START")
 	end
 
 	if t.id == "drift" then

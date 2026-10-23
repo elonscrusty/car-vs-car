@@ -295,7 +295,9 @@ function Controls.new(
 	backBtn.Size = UDim2.fromScale(0.065, 0.09)
 	backBtn.Visible = false
 	backBtn.Parent = gui
-	backBtn.Activated:Connect(onReset)
+	backBtn.Activated:Connect(function()
+		onReset()
+	end)
 
 	local help: TextLabel? = nil
 	if not touchUi then
