@@ -32,6 +32,7 @@ PlotLooks.STAR_LOOKS = { "night", "snow", "party" } -- what each tier unlocks
 PlotLooks.IDS = { "night", "snow", "party", "balloons", "neon", "confetti" }
 PlotLooks.NIGHT_TINT = 0.22 -- night keeps this much of the plot's colours (neon stays bright)
 PlotLooks.MAX_LIGHTS = 12 -- PointLights per plot, phone budget
+PlotLooks.SNOW_NIGHT = 0.3 -- how far night darkens snowy ground (moonlit, still white-blue)
 PlotLooks.SNOW_RATE = 45 -- snowflakes a second over one plot
 PlotLooks.CONFETTI_RATE = 12 -- confetti bits a second over one plot (all colours together)
 

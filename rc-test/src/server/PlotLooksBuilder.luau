@@ -41,11 +41,13 @@ local function restyle(plot: Model, night: boolean, snow: boolean)
 		local day = d:GetAttribute(DAY)
 		local base = if typeof(day) == "Color3" then day else d.Color
 		local c = base
-		if snow and isGround(d) then
+		local snowy = snow and isGround(d)
+		if snowy then
 			c = SNOW_GROUND
 		end
 		if night then
-			c = c:Lerp(NIGHT_SKY, 1 - PlotLooks.NIGHT_TINT)
+			-- snow stays pale at night (moonlit), or night and snow together read as grey
+			c = c:Lerp(NIGHT_SKY, if snowy then PlotLooks.SNOW_NIGHT else 1 - PlotLooks.NIGHT_TINT)
 		end
 		if c ~= base then
 			d:SetAttribute(DAY, base)
