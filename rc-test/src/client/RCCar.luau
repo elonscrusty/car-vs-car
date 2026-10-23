@@ -28,12 +28,18 @@ export type WheelInfo = {
 	slide: number, -- sideways sliding speed of the tyre (studs/s)
 }
 
+-- A look-only skin for the wheels: mesh wheels drawn on the springs in place of the grey ones.
+-- `spots` are where each wheel sits under the body (only X and Z are used), in the same order
+-- as the wheels: front left, front right, rear left, rear right. Nothing here touches the driving.
+export type WheelLook = { wheels: { BasePart }, spots: { Vector3 } }
+
 export type Car = {
 	model: Model,
 	body: BasePart,
 	telemetry: Telemetry,
 	step: (dt: number, input: Input) -> (),
 	render: (dt: number) -> (),
+	setLook: (look: WheelLook?) -> (),
 	teleport: (cf: CFrame) -> (),
 	destroy: () -> (),
 }
@@ -432,16 +438,33 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 		telemetry.drifting = grounded > 0 and speed > 15 * S and math.abs(slip) > 0.25
 	end
 
+	local look: WheelLook? = nil
+
+	-- Swaps the grey wheels for mesh ones (or back, with nil). Only changes what is drawn.
+	function car.setLook(newLook: WheelLook?)
+		look = newLook
+		local hide = if newLook then 1 else 0
+		for _, w in wheels do
+			w.part.Transparency = hide
+			w.bar.Transparency = hide
+		end
+	end
+
 	-- Draws the wheels on the springs. Call every frame.
 	function car.render(dt: number)
 		local cf = body.CFrame
 		local up = cf.UpVector
 		local rot = cf.Rotation
 		local vLong = telemetry.vLong
-		for _, w in wheels do
+		for i, w in wheels do
 			w.shown += (w.susp - w.shown) * math.min(1, 25 * dt)
 			w.spin -= vLong / Tuning.wheelRadius * dt
-			local center = cf * w.attach - up * w.shown
+			local spot = w.attach
+			if look then
+				local s = look.spots[i]
+				spot = Vector3.new(s.X, w.attach.Y, s.Z)
+			end
+			local center = cf * spot - up * w.shown
 			local yaw = if w.front then -steer else 0
 			local wcf = CFrame.new(center)
 				* rot
@@ -449,6 +472,9 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 				* CFrame.Angles(w.spin, 0, 0)
 			w.part.CFrame = wcf
 			w.bar.CFrame = wcf
+			if look then
+				look.wheels[i].CFrame = wcf
+			end
 		end
 	end
 
