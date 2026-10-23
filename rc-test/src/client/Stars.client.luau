@@ -6,6 +6,8 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
+local Profile = require(ReplicatedStorage.Shared.Profile)
+
 local remote = ReplicatedStorage:WaitForChild("StarsEvent") :: RemoteEvent
 local player = Players.LocalPlayer
 
@@ -290,6 +292,148 @@ local function showPop(text: string, color: Color3)
 	end)
 end
 
+-- ===== weekend banner and the daily gift =====
+
+-- "2X COINS" over the top of the screen while workspace.CoinBoost is 2 (Saturday and Sunday)
+local banner = Instance.new("TextLabel")
+banner.Name = "WeekendBanner"
+banner.AnchorPoint = Vector2.new(0.5, 0)
+banner.Position = UDim2.new(0.5, 0, 0, 122) -- under the friends button
+banner.Size = UDim2.fromScale(0.34, 0.055)
+banner.BackgroundColor3 = Color3.fromRGB(255, 190, 40)
+banner.TextColor3 = Color3.fromRGB(70, 35, 0)
+banner.Font = Enum.Font.GothamBlack
+banner.TextScaled = true
+banner.Text = "2X COINS WEEKEND!"
+banner.Visible = false
+banner.Parent = gui
+local bannerCorner = Instance.new("UICorner")
+bannerCorner.CornerRadius = UDim.new(0.4, 0)
+bannerCorner.Parent = banner
+local bannerRim = Instance.new("UIStroke")
+bannerRim.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+bannerRim.Color = Color3.fromRGB(176, 112, 10)
+bannerRim.Thickness = 2
+bannerRim.Parent = banner
+local bannerScale = Instance.new("UIScale")
+bannerScale.Parent = banner
+TweenService:Create(
+	bannerScale,
+	TweenInfo.new(0.7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+	{ Scale = 1.06 }
+):Play()
+local function showBanner()
+	banner.Visible = workspace:GetAttribute("CoinBoost") == 2
+end
+workspace:GetAttributeChangedSignal("CoinBoost"):Connect(showBanner)
+showBanner()
+
+-- the daily gift card: "DAY 3!" and a strip of the 7 days, today's lit up. Tap to close.
+local DAILY = Profile.DAILY
+local card = Instance.new("TextButton")
+card.Name = "DailyGift"
+card.AutoButtonColor = false
+card.Text = ""
+card.AnchorPoint = Vector2.new(0.5, 0.5)
+card.Position = UDim2.fromScale(0.5, 0.45)
+card.Size = UDim2.fromScale(0.62, 0.36)
+card.BackgroundColor3 = Color3.fromRGB(30, 32, 44)
+card.BackgroundTransparency = 0.08
+card.Visible = false
+card.Parent = gui
+local cardRatio = Instance.new("UIAspectRatioConstraint")
+cardRatio.AspectRatio = 2.3
+cardRatio.Parent = card
+local cardCorner = Instance.new("UICorner")
+cardCorner.CornerRadius = UDim.new(0.08, 0)
+cardCorner.Parent = card
+local cardRim = Instance.new("UIStroke")
+cardRim.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+cardRim.Color = Color3.fromRGB(255, 196, 40)
+cardRim.Thickness = 3
+cardRim.Parent = card
+local cardScale = Instance.new("UIScale")
+cardScale.Parent = card
+
+local function label(parent: Instance, pos: UDim2, size: UDim2, color: Color3): TextLabel
+	local l = Instance.new("TextLabel")
+	l.AnchorPoint = Vector2.new(0.5, 0.5)
+	l.Position = pos
+	l.Size = size
+	l.BackgroundTransparency = 1
+	l.TextColor3 = color
+	l.Font = Enum.Font.GothamBlack
+	l.TextScaled = true
+	l.Parent = parent
+	return l
+end
+local dayTitle =
+	label(card, UDim2.fromScale(0.5, 0.17), UDim2.fromScale(0.9, 0.2), Color3.new(1, 1, 1))
+local gift = label(
+	card,
+	UDim2.fromScale(0.5, 0.42),
+	UDim2.fromScale(0.6, 0.24),
+	Color3.fromRGB(255, 220, 90)
+)
+local days: { Frame } = {}
+for i, amount in DAILY do
+	local box = Instance.new("Frame")
+	box.AnchorPoint = Vector2.new(0.5, 0.5)
+	box.Position = UDim2.fromScale(0.08 + (i - 1) * 0.14, 0.76)
+	box.Size = UDim2.fromScale(0.12, 0.3)
+	box.BackgroundColor3 = Color3.fromRGB(60, 64, 80)
+	box.Parent = card
+	local round = Instance.new("UICorner")
+	round.CornerRadius = UDim.new(0.2, 0)
+	round.Parent = box
+	local rim = Instance.new("UIStroke")
+	rim.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	rim.Color = Color3.fromRGB(255, 230, 120)
+	rim.Thickness = 0
+	rim.Parent = box
+	label(
+		box,
+		UDim2.fromScale(0.5, 0.28),
+		UDim2.fromScale(0.9, 0.36),
+		Color3.fromRGB(200, 205, 220)
+	).Text = if i
+			== #DAILY
+		then `{i}+`
+		else tostring(i)
+	label(box, UDim2.fromScale(0.5, 0.7), UDim2.fromScale(0.9, 0.4), Color3.fromRGB(255, 220, 90)).Text =
+		tostring(amount)
+	table.insert(days, box)
+end
+
+local cards = 0
+local function hideCard()
+	card.Visible = false
+end
+card.Activated:Connect(hideCard)
+local function showDaily(coins: number, streak: number, boost: number)
+	cards += 1
+	local mine = cards
+	local today = math.min(streak, #DAILY)
+	dayTitle.Text = if streak >= 2 then `DAY {streak} IN A ROW!` else "DAILY GIFT!"
+	gift.Text = if boost >= 2 then `+{coins} coins  (2X!)` else `+{coins} coins`
+	for i, box in days do
+		local rim = box:FindFirstChildOfClass("UIStroke") :: UIStroke
+		box.BackgroundColor3 = if i < today
+			then Color3.fromRGB(70, 150, 80) -- taken
+			elseif i == today then Color3.fromRGB(255, 160, 30) -- today
+			else Color3.fromRGB(60, 64, 80)
+		rim.Thickness = if i == today then 3 else 0
+	end
+	card.Visible = true
+	cardScale.Scale = 0.5
+	TweenService:Create(cardScale, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+	task.delay(5, function()
+		if cards == mine then
+			hideCard()
+		end
+	end)
+end
+
 local function setStars(n: number, bump: boolean)
 	chip.Text = `⭐ {n}`
 	if bump then
@@ -334,6 +478,12 @@ remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unkn
 			end
 		end
 		hideFound()
+		return
+	end
+	if kind == "daily" and type(info) == "number" and type(saving) == "number" then
+		-- ("daily", coins, days in a row, boost)
+		local boost = select(1, ...)
+		showDaily(info, saving, if type(boost) == "number" then boost else 1)
 		return
 	end
 	if kind == "toast" and type(info) == "string" then
