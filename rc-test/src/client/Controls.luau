@@ -310,13 +310,16 @@ function Controls.new(
 	local ROCK_HELP =
 		"W/S gas + brake    A/D steer    drag to look    wheel to zoom    T size    1-4 plots"
 	local onRock: boolean? = nil
-	-- rocks is free cam only: no view swap button, and the help says how to look around
+	-- rocks is free cam only: no camera buttons, and the help says how to look around
 	function controls.setRock(on: boolean)
 		if on == onRock then
 			return
 		end
 		onRock = on
+		-- CAM and VIEW do nothing there, so hide both and close the gap
 		viewBtn.Visible = not on
+		camBtn.Visible = not on
+		sizeBtn.Position = if on then UDim2.new(0.98, 0, 0, 64) else UDim2.new(0.84, 0, 0, 64)
 		if help then
 			help.Text = if on then ROCK_HELP else NORMAL_HELP
 		end
