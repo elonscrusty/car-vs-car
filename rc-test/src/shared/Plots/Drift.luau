@@ -289,6 +289,7 @@ Plot.LAMP_H = 34
 -- Pit garage in the infield behind the pad, open toward the stand: a concrete floor, three
 -- walls and a red roof, with a workbench, toolbox, tyre rack, gas cans and a jack inside.
 Plot.PIT = { x = 2, z = -117, w = 70, d = 28, h = 20 }
+Plot.PIT_APRON = 3 -- concrete in front of the doors
 Plot.PIT_PROPS = {
 	{ name = "Workbench", x = -14, z = -127, yaw = 0, h = 7, size = { 18, 7, 7 }, color = "wood" },
 	{ name = "Toolbox", x = 2, z = -128, yaw = 0, h = 6, size = { 8, 6, 5 }, color = "roof" },
@@ -316,7 +317,9 @@ Plot.PIT_PROPS = {
 }
 
 -- Bleachers on the open floor behind the back straight, facing the stand side.
-Plot.BLEACHERS = { x = 0, z = -207, w = 110, d = 10, rows = 3, rowH = 5 }
+Plot.BLEACHERS = { x = 0, z = -206, w = 110, d = 12, rows = 3, rowH = 5 }
+
+Plot.GRANDSTAND_YAW = 0 -- turns carter's Grandstand model to face the track
 
 -- Low red and white safety fence just inside the side and back walls.
 Plot.FENCE = { inset = 6, h = 5, post = 40 }
@@ -335,7 +338,9 @@ local function meshProp(
 	origin: CFrame,
 	name: string,
 	at: CFrame,
-	height: number
+	height: number,
+	w: number?,
+	d: number?
 ): Model?
 	local folder = game:GetService("ServerStorage"):FindFirstChild("LobbyMeshes")
 	local t = folder and folder:FindFirstChild(name)
@@ -357,9 +362,14 @@ local function meshProp(
 			d.Anchored = true
 		end
 	end
+	-- `height` tall, or (with a footprint) as big as fits in w x d and at most `height` tall
 	local _, size = m:GetBoundingBox()
 	if size.Y > 0 then
-		m:ScaleTo(m:GetScale() * height / size.Y)
+		local k = height / size.Y
+		if w and d and size.X > 0 and size.Z > 0 then
+			k = math.min(k, w / size.X, d / size.Z)
+		end
+		m:ScaleTo(m:GetScale() * k)
 	end
 	local box, sized = m:GetBoundingBox()
 	m.WorldPivot = CFrame.new(box.Position - Vector3.new(0, sized.Y / 2, 0))
@@ -446,54 +456,117 @@ local function lamp(parent: Instance, origin: CFrame, spot: Spot)
 	paint(glow)
 end
 
+-- A little two-bay garage, open toward the stand: concrete floor and apron, walls with side
+-- windows, a pillar between the bays with half-open roll-up doors, a chequered header, and a
+-- pitched red roof with yellow trim.
 local function pit(parent: Instance, origin: CFrame)
 	local L = Plot.LOOK
 	local p = Plot.PIT
-	local floor = Kit.part(
-		parent,
+	local glass = rgb(150, 200, 230)
+	local function box(name: string, size: Vector3, cf: CFrame, color: Color3): Part
+		return Kit.part(parent, name, origin, size, cf, color)
+	end
+	local front, back = p.z + p.d / 2, p.z - p.d / 2
+
+	-- floor and a short apron in front (flush with the road, same grip)
+	local floor = box(
 		"PitFloor",
-		origin,
-		Vector3.new(p.w, TOP, p.d),
-		CFrame.new(p.x, TOP / 2, p.z),
+		Vector3.new(p.w, TOP, p.d + Plot.PIT_APRON),
+		CFrame.new(p.x, TOP / 2, p.z + Plot.PIT_APRON / 2),
 		L.concrete
 	)
 	floor:SetAttribute("Grip", Plot.grip)
-	local back = p.z - p.d / 2
-	Kit.part(
-		parent,
-		"PitWall",
-		origin,
-		Vector3.new(p.w, p.h, 1.5),
-		CFrame.new(p.x, p.h / 2, back),
+
+	-- walls
+	box("PitWall", Vector3.new(p.w, p.h, 1.5), CFrame.new(p.x, p.h / 2, back), L.concrete)
+	for _, side in { -1, 1 } do
+		local x = p.x + side * p.w / 2
+		box("PitWall", Vector3.new(1.5, p.h, p.d), CFrame.new(x, p.h / 2, p.z), L.concrete)
+		-- a window in each side wall (a glass pane standing a little proud of the wall)
+		local win = box(
+			"PitWindow",
+			Vector3.new(1.8, p.h * 0.3, p.d * 0.45),
+			CFrame.new(x, p.h * 0.55, p.z),
+			glass
+		)
+		win.Material = Enum.Material.Glass
+		win.Transparency = 0.3
+		-- corner posts at the front, in red
+		box("PitPost", Vector3.new(2.5, p.h, 2.5), CFrame.new(x, p.h / 2, front), L.roof)
+	end
+	-- pillar between the two bays
+	box("PitPost", Vector3.new(2.5, p.h, 2.5), CFrame.new(p.x, p.h / 2, front), L.roof)
+
+	-- header over the doors: concrete with a black and white chequer strip (no words)
+	local headerH = p.h * 0.28
+	box(
+		"PitHeader",
+		Vector3.new(p.w, headerH, 1.5),
+		CFrame.new(p.x, p.h - headerH / 2, front),
 		L.concrete
 	)
+	local squares = 14
+	local sq = p.w / squares
+	for k = 1, squares do
+		local c = box(
+			"PitChequer",
+			Vector3.new(sq, headerH * 0.35, 0.4),
+			CFrame.new(p.x - p.w / 2 + (k - 0.5) * sq, p.h - headerH / 2, front + 0.9),
+			if k % 2 == 0 then C.white else L.tire
+		)
+		c.CastShadow = false
+	end
+	-- roll-up doors, half open: a ribbed metal panel hanging under the header in each bay
+	local bay = p.w / 2 - 2.5
 	for _, side in { -1, 1 } do
-		Kit.part(
-			parent,
-			"PitWall",
-			origin,
-			Vector3.new(1.5, p.h, p.d),
-			CFrame.new(p.x + side * p.w / 2, p.h / 2, p.z),
-			L.concrete
+		local door = box(
+			"PitDoor",
+			Vector3.new(bay, p.h * 0.18, 0.6),
+			CFrame.new(p.x + side * p.w / 4, p.h - headerH - p.h * 0.09, front - 0.6),
+			rgb(170, 175, 182)
+		)
+		door.Material = Enum.Material.DiamondPlate
+	end
+
+	-- pitched roof: two red slopes meeting over the middle, with yellow trim along the eaves
+	local rise = p.h * 0.3
+	local half = p.d / 2 + 2.5
+	local slope = math.atan2(rise, half)
+	local len = math.sqrt(half * half + rise * rise)
+	for _, side in { -1, 1 } do
+		box(
+			"PitRoof",
+			Vector3.new(p.w + 5, 1.2, len),
+			CFrame.new(p.x, p.h + rise / 2, p.z + side * half / 2)
+				* CFrame.Angles(side * slope, 0, 0),
+			L.roof
+		)
+		box(
+			"PitTrim",
+			Vector3.new(p.w + 5.4, 1.2, 1.2),
+			CFrame.new(p.x, p.h, p.z + side * half),
+			L.yellow
 		)
 	end
-	-- red roof, a little past the walls, and a yellow stripe along its front edge
-	Kit.part(
-		parent,
-		"PitRoof",
-		origin,
-		Vector3.new(p.w + 4, 1.5, p.d + 4),
-		CFrame.new(p.x, p.h + 0.75, p.z + 1),
-		L.roof
-	)
-	Kit.part(
-		parent,
-		"PitRoof",
-		origin,
-		Vector3.new(p.w + 4, 3, 1),
-		CFrame.new(p.x, p.h, p.z + p.d / 2 + 3),
-		L.yellow
-	)
+	-- gable ends: a triangle under each end of the roof (two wedges)
+	for _, side in { -1, 1 } do
+		local x = p.x + side * p.w / 2
+		for _, f in { -1, 1 } do
+			local w = Instance.new("WedgePart")
+			w.Name = "PitGable"
+			w.Anchored = true
+			w.Size = Vector3.new(1.5, rise, p.d / 2)
+			w.Color = L.concrete
+			w.Material = Enum.Material.SmoothPlastic
+			-- a wedge is full height at its +Z end and slopes down to -Z: turn each half so
+			-- its tall end is at the ridge (the middle) and it slopes down to the eaves
+			w.CFrame = origin
+				* CFrame.new(x, p.h + rise / 2, p.z + f * p.d / 4)
+				* CFrame.Angles(0, if f > 0 then math.pi else 0, 0)
+			w.Parent = parent
+		end
+	end
+
 	for _, pr in Plot.PIT_PROPS do
 		local at = CFrame.new(pr.x, TOP, pr.z) * CFrame.Angles(0, pr.yaw, 0)
 		if not meshProp(parent, origin, pr.name, at, pr.h) then
@@ -506,10 +579,10 @@ end
 local function bleachers(parent: Instance, origin: CFrame)
 	local L = Plot.LOOK
 	local b = Plot.BLEACHERS
-	-- carter's Meshy grandstand (shared with the race plot) if imported, facing the track, else
-	-- block steps
-	local at = CFrame.new(b.x, 0, b.z) * CFrame.Angles(0, math.pi, 0)
-	if meshProp(parent, origin, "Grandstand", at, b.rows * b.rowH + 4) then
+	-- carter's Meshy grandstand (shared with the race plot) if imported, else block steps. At
+	-- yaw pi it showed its back to the track in Studio, so the model's seats face its -Z.
+	local at = CFrame.new(b.x, 0, b.z) * CFrame.Angles(0, Plot.GRANDSTAND_YAW, 0)
+	if meshProp(parent, origin, "Grandstand", at, 22, b.w, b.d) then
 		return
 	end
 	local rowD = b.d / b.rows
