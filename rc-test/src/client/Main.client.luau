@@ -29,6 +29,7 @@ local LakeLife = require(script.Parent.LakeLife)
 local LobbyLife = require(script.Parent.LobbyLife)
 local LobbyWelcome = require(script.Parent.LobbyWelcome)
 local LobbySky = require(script.Parent.LobbySky)
+local OtherCars = require(script.Parent.OtherCars)
 local RCCar = require(script.Parent.RCCar)
 local StartLights = require(script.Parent.StartLights)
 
@@ -464,7 +465,13 @@ RunService.PreSimulation:Connect(function(dt: number)
 	end
 end)
 
+-- other players' cars: wheels and names (their bodies come from the server)
+local otherCars = OtherCars.new(function(): string
+	return carName
+end)
+
 RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, function(dt: number)
+	otherCars.update(dt)
 	if walking then
 		-- a respawn can hand the camera a new person: follow them
 		local cam = workspace.CurrentCamera
