@@ -55,15 +55,31 @@ test("the walk-in lane from the open front is clear", function()
 	end
 end)
 
-test("there is a lift with a car, a bench, a tool board, a chest and tires", function()
-	local groups: { [string]: boolean } = {}
-	for _, p in G.parts() do
-		groups[p.group] = true
+test(
+	"there is a lift with a car, a bench, a tool board, a chest, tires, a gas pump, trophies and an upgrade pad",
+	function()
+		local groups: { [string]: boolean } = {}
+		for _, p in G.parts() do
+			groups[p.group] = true
+		end
+		for _, g in
+			{
+				"Shell",
+				"Lift",
+				"Workbench",
+				"ToolBoard",
+				"ToolChest",
+				"TiresIn",
+				"TiresOut1",
+				"GasPump",
+				"TrophyShelf",
+				"UpgradePad",
+			}
+		do
+			truthy(groups[g], g)
+		end
 	end
-	for _, g in { "Shell", "Lift", "Workbench", "ToolBoard", "ToolChest", "TiresIn", "TiresOut1" } do
-		truthy(groups[g], g)
-	end
-end)
+)
 
 test(
 	"each Meshy prop has a home: its stand-in group, a spot in the box, real kept names",

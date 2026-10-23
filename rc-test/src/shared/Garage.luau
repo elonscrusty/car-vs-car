@@ -53,6 +53,7 @@ local C = {
 	car = { 255, 200, 30 },
 	glass = { 40, 50, 66 },
 	light = { 255, 250, 230 },
+	gold = { 255, 196, 40 },
 	planter = { 110, 112, 118 },
 	bush = { 92, 172, 72 },
 }
@@ -448,6 +449,125 @@ function Garage.parts(): { Piece }
 	tires("TiresIn", W / 2 - 2.2, 4.8, 4)
 	tires("TiresOut1", W / 2 + 2.4, 5.4, 4)
 	tires("TiresOut2", W / 2 + 2.6, 2.6, 3) -- keep these three spots in step with Garage.MESHES
+
+	-- ===== Gas pump in the front left corner, facing the door =====
+	local gx, gz = -W / 2 + 2.6, front - 2.4
+	add("GasPump", "Base", v(2.4, 0.3, 1.8), v(gx, F + 0.15, gz), C.dark)
+	add("GasPump", "Body", v(1.8, 3.6, 1.2), v(gx, F + 2.1, gz), C.chest)
+	add("GasPump", "Top", v(2, 0.5, 1.4), v(gx, F + 4.15, gz), C.orange)
+	add(
+		"GasPump",
+		"Screen",
+		v(1.2, 0.8, 0.08),
+		v(gx, F + 3.2, gz + 0.62),
+		C.glass,
+		{ collide = false }
+	)
+	add("GasPump", "Stripe", v(1.82, 0.25, 1.22), v(gx, F + 1.6, gz), C.light, { collide = false })
+	add(
+		"GasPump",
+		"Holster",
+		v(0.4, 0.6, 0.3),
+		v(gx + 0.95, F + 2.4, gz + 0.2),
+		C.dark,
+		{ collide = false }
+	)
+	add(
+		"GasPump",
+		"Nozzle",
+		v(0.25, 0.8, 0.25),
+		v(gx + 1.05, F + 2.5, gz + 0.45),
+		C.steel,
+		{ collide = false }
+	)
+	add(
+		"GasPump",
+		"Hose",
+		v(0.15, 1.8, 0.15),
+		v(gx + 1.2, F + 1.7, gz + 0.45),
+		C.tire,
+		{ collide = false }
+	)
+
+	-- ===== Trophy shelf on the left wall, up high over the lift =====
+	local sx, sz = -W / 2 + 1.4, -2.5
+	add("TrophyShelf", "Back", v(0.2, 4, 7), v(sx - 0.3, F + 6.2, sz), C.wood, { collide = false })
+	for i, y in { 4.6, 6.3, 8 } do
+		add("TrophyShelf", "Shelf" .. i, v(1, 0.2, 7), v(sx + 0.2, F + y - 0.1, sz), C.wood, {
+			material = "WoodPlanks",
+			collide = false,
+		})
+		for j = -1, 1 do -- three gold cups on a shelf, the middle one biggest
+			local h = if j == 0 then 1.1 else 0.8
+			local tz = sz + j * 2.2
+			add(
+				"TrophyShelf",
+				"CupBase",
+				v(0.6, 0.25, 0.6),
+				v(sx + 0.25, F + y + 0.12, tz),
+				C.dark,
+				{
+					collide = false,
+				}
+			)
+			add(
+				"TrophyShelf",
+				"CupStem",
+				v(0.15, h * 0.4, 0.15),
+				v(sx + 0.25, F + y + 0.25 + h * 0.2, tz),
+				C.gold,
+				{
+					material = "Foil",
+					collide = false,
+				}
+			)
+			add(
+				"TrophyShelf",
+				"Cup",
+				v(h * 0.6, h * 0.6, h * 0.6),
+				v(sx + 0.25, F + y + 0.25 + h * 0.4 + h * 0.3, tz),
+				C.gold,
+				{ shape = "Cylinder", rot = v(0, 0, 90), material = "Foil", collide = false }
+			)
+		end
+	end
+
+	-- ===== Upgrade pad: a glowing square on the floor in the walk-in lane (looks only) =====
+	local ux, uz = 5, 2
+	add(
+		"UpgradePad",
+		"Rim",
+		v(5.4, 0.06, 5.4),
+		v(ux, F + 0.03, uz),
+		C.orange,
+		{ material = "Neon", collide = false }
+	)
+	add("UpgradePad", "Pad", v(4.6, 0.08, 4.6), v(ux, F + 0.04, uz), C.dark, { collide = false })
+	add("UpgradePad", "Glow", v(3.4, 0.1, 3.4), v(ux, F + 0.05, uz), C.cyan, {
+		material = "Neon",
+		collide = false,
+		light = 10,
+	})
+	add("UpgradePad", "Center", v(2.2, 0.12, 2.2), v(ux, F + 0.06, uz), C.dark, { collide = false })
+	-- an up arrow (no words): a wedge of two bars and a stem, pointing into the garage
+	add("UpgradePad", "ArrowStem", v(0.5, 0.14, 1.4), v(ux, F + 0.07, uz + 0.3), C.cyan, {
+		material = "Neon",
+		collide = false,
+	})
+	for _, side in { -1, 1 } do
+		add(
+			"UpgradePad",
+			"ArrowHead",
+			v(0.45, 0.14, 1.1),
+			v(ux + side * 0.3, F + 0.07, uz - 0.55),
+			C.cyan,
+			{
+				material = "Neon",
+				collide = false,
+				rot = v(0, side * 45, 0),
+			}
+		)
+	end
 
 	-- ===== Bush box beside the right post =====
 	add("Bushes", "Planter", v(1.8, 1.2, 2.4), v(W / 2 + 2.4, 0.6, front - 0.4), C.planter)
