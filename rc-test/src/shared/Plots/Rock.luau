@@ -253,8 +253,9 @@ end
 -- * kicker: a steep ramp, a short flat, a lip up onto a high block, and a ramp down off it.
 Plot.SKILLS = {
 	-- a boulder right under each wheel line (Studio: with a V between two big boulders the
-	-- wheels rolled down the inner faces and it was W only), so each wheel climbs one
-	notch = { u = 4.45, side = 0.2, gap = 0.12, r = 4.5, lift = 1.8 },
+	-- wheels rolled down the inner faces and it was W only), so each wheel climbs one; 1.8 tall
+	-- was still W only (the round sides are easy), so they stand taller with steeper feet
+	notch = { u = 4.45, side = 0.2, gap = 0.12, r = 4.5, lift = 2.3 },
 	stepUp = {
 		u = 12.35,
 		side = -0.55,
@@ -271,7 +272,7 @@ Plot.SKILLS = {
 		side = -0.5,
 		width = 14,
 		length = 8,
-		lift = 4.6,
+		lift = 4.49,
 		ramp = 5,
 		rampLift = 2.7,
 		-- level ground between the ramp and the lip (Studio: a lip straight off the slope
