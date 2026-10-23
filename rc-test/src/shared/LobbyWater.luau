@@ -40,7 +40,7 @@ LobbyWater.SAND = 8 -- sand beach past the bank
 LobbyWater.SHALLOW = 16 -- light water past the sand
 LobbyWater.LAKE_D = 130 -- water from the beach to the far shore
 LobbyWater.LAKE_OVER = 30 -- the water runs this far past the lobby's sides
-LobbyWater.SHORE = 60 -- grass round the lake's ends and far side (for hills)
+LobbyWater.SHORE = 160 -- grass round the lake's ends and far side, wide enough for the hills
 
 LobbyWater.GRASS_TOP = -0.15 -- a hair under the lobby grass (-0.05)
 LobbyWater.SAND_TOP = -0.5
