@@ -96,7 +96,7 @@ function LobbyLayout.slots(): { Slot }
 				angle = -side * math.pi / 2,
 				padX = padX,
 				padZ = z + 6,
-				exitX = -side * 1, -- the middle of the road, in front of the pad
+				exitX = side * 1, -- on its own side of the road, just out of reach of the pad
 				exitZ = z + 6,
 				signX = front - side * 0.8, -- on the footpath edge
 				signZ = z - 9,

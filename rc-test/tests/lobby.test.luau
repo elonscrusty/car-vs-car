@@ -57,6 +57,7 @@ test("pads, exits and signs are on the footpaths or road; exits can't start a dr
 	for _, s in L.slots() do
 		truthy(inside(w, s.padX, s.padZ), "pad on the footpath")
 		truthy(inside(L.road(), s.exitX, s.exitZ), "exit on the road")
+		truthy((s.exitX > 0) == (s.padX > 0), "exit on the pad's side of the road")
 		truthy(inside(w, s.signX, s.signZ), "sign on the footpath")
 		truthy(not L.inReach(s, s.exitX, s.exitZ), "stepping off must not start driving again")
 		truthy(math.abs(s.signZ - s.padZ) > L.PAD, "sign clear of the pad")
