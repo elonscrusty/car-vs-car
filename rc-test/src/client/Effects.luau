@@ -12,6 +12,7 @@ export type Effects = {
 	quiet: () -> (),
 	clear: () -> (),
 	destroy: () -> (),
+	setSmokeColor: (color: Color3) -> (),
 }
 
 local Effects = {}
@@ -19,6 +20,7 @@ local Effects = {}
 local SLIDE_START = 7 -- sideways tyre speed (studs/s) where smoke and marks begin
 local SMOKE_PER_SECOND = 70
 local MARK_STEP = 0.8 -- studs between skid mark pieces
+local smokeColor = Color3.fromRGB(235, 235, 235) -- the player's pick (looks only)
 local MAX_MARKS = 600 -- oldest marks go first past this, so phones stay smooth
 local MARK_LIFE = 25 -- seconds a skid mark stays dark
 local MARK_FADE = 5 -- then it fades away over this long
@@ -68,7 +70,7 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 		e.SpreadAngle = Vector2.new(35, 35)
 		e.Drag = 2
 		e.Acceleration = Vector3.new(0, 4 * S, 0)
-		e.Color = ColorSequence.new(Color3.fromRGB(235, 235, 235))
+		e.Color = ColorSequence.new(smokeColor)
 		e.Size = NumberSequence.new({
 			NumberSequenceKeypoint.new(0, 1.2 * S),
 			NumberSequenceKeypoint.new(1, 5 * S),
@@ -118,6 +120,13 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 	local squealLevel = 0
 
 	local fx = {} :: Effects
+
+	function fx.setSmokeColor(color: Color3)
+		smokeColor = color
+		for _, t in tracks do
+			t.emitter.Color = ColorSequence.new(color)
+		end
+	end
 
 	function fx.quiet()
 		if motor then
