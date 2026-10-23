@@ -134,11 +134,11 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 	}
 end
 
--- Paints the truck's body (not its wheels) the colour of the shop car. A painted texture hides
--- Color, so it comes off while tinted and goes back when there's no pick.
+-- Paints the skin's body (not its wheels) the colour of the shop car. carter's Meshy cars always
+-- keep their own painted texture, so only a skin with no texture of its own is tinted.
 local function paint(s: Shown, color: Color3)
 	s.tint = color
-	local own = color == NO_PICK
+	local own = color == NO_PICK or s.texture ~= "" or #s.looks > 0
 	local body = s.body
 	if body:IsA("MeshPart") then
 		body.TextureID = if own then s.texture else ""
