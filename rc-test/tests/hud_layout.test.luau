@@ -66,7 +66,7 @@ test("the overlap check finds a real overlap", function()
 	local hits = HudLayout.overlaps(844, 390)
 	table.remove(HudLayout.SPOTS)
 	eq(#hits, 1)
-	eq(hits[1], "walk: Quick / Test")
+	eq(hits[1], "walk: Join / Test")
 end)
 
 test("popups draw over the HUD", function()

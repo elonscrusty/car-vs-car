@@ -74,9 +74,9 @@ HudLayout.SPOTS = {
 	spot("NextUnlock", "walk", "Stars", TL, { 0.02, 0, 0.12, 212 }, { 0, 200, 0, 54 }), -- short, big words
 	-- ===== walk: top middle, one stack =====
 	spot("Friends", "walk", "Lobby", TC, { 0.5, 0, 0, 64 }, { 0, 170, 0, 36 }),
-	spot("Quick", "walk", "Lobby", TC, { 0.5, 0, 0, 106 }, { 0, 170, 0, 44 }),
-	spot("WeekendBanner", "walk", "Stars", TC, { 0.5, 0, 0, 156 }, { 0, 200, 0, 30 }),
-	spot("Join", "walk", "ServerRace", TC, { 0.5, 0, 0, 194 }, { 0, 220, 0, 46 }),
+	spot("Quick", "walk", "Lobby", TC, { 0.5, 0, 0, 194 }, { 0, 170, 0, 44 }), -- off for now (Lobby QUICK)
+	spot("WeekendBanner", "walk", "Stars", TC, { 0.5, 0, 0, 158 }, { 0, 200, 0, 30 }),
+	spot("Join", "walk", "ServerRace", TC, { 0.5, 0, 0, 106 }, { 0, 168, 0, 46 }), -- right under FRIENDS, clear of the pad words
 	-- ===== walk: bottom middle =====
 	spot("Drive", "walk", "Lobby", BC, { 0.47, 0, 0.9, 0 }, { 0, 120, 0, 52 }),
 	spot("Build", "walk", "BuildMode", BC, { 0.47, 136, 0.9, 0 }, { 0, 120, 0, 52 }), -- reopen the build screen in the break (right of DRIVE)

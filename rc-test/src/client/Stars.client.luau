@@ -418,7 +418,7 @@ end
 -- "2X COINS" over the top of the screen while workspace.CoinBoost is 2 (Saturday and Sunday)
 local banner = Instance.new("TextLabel")
 banner.Name = "WeekendBanner"
-HudLayout.place(banner, "WeekendBanner") -- under QUICK RACE
+HudLayout.place(banner, "WeekendBanner") -- under the NEXT RACE chip
 banner.BackgroundColor3 = Color3.fromRGB(255, 190, 40)
 banner.TextColor3 = Color3.fromRGB(70, 35, 0)
 banner.Font = Enum.Font.GothamBlack

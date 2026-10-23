@@ -35,7 +35,7 @@ end
 -- the countdown chip: a round pill at the top middle (thumbs stay free at the bottom corners)
 local join = Instance.new("TextButton")
 join.Name = "Join"
--- under QUICK RACE on foot, under the drift score in a car
+-- under FRIENDS on foot, under the drift score in a car
 local function placeJoin()
 	HudLayout.place(
 		join,
