@@ -28,7 +28,7 @@ local function add(base: Instance)
 	sign.AlwaysOnTop = false
 	sign.Size = UDim2.fromOffset(220, 90)
 	sign.StudsOffsetWorldSpace = Vector3.new(0, 7, 0)
-	sign.MaxDistance = 140
+	sign.MaxDistance = 60 -- the spawn only, not from across the tracks
 	sign.LightInfluence = 0
 	sign.Parent = holder
 	local big = Instance.new("TextLabel")
@@ -60,6 +60,13 @@ local function add(base: Instance)
 		end
 	end)
 end
+
+-- hidden while driving (they showed over the race from far away)
+local function showAll()
+	holder.Enabled = Players.LocalPlayer:GetAttribute("Driving") ~= true
+end
+Players.LocalPlayer:GetAttributeChangedSignal("Driving"):Connect(showAll)
+showAll()
 
 for _, base in CollectionService:GetTagged("QueuePad") do
 	add(base)

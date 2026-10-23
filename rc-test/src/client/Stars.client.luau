@@ -543,6 +543,15 @@ local function showDaily(coins: number, streak: number, boost: number)
 			else Color3.fromRGB(60, 64, 80)
 		rim.Thickness = if i == today then 3 else 0
 	end
+	-- a brand new player sees the way to their plot first: the gift waits for their first drive
+	-- (PlotGuide sets HasDriven), or a minute at most
+	local waited = 0
+	while Players.LocalPlayer:GetAttribute("HasDriven") ~= true and waited < 60 do
+		waited += task.wait(1)
+	end
+	if cards ~= mine then
+		return
+	end
 	card.Visible = true
 	cardScale.Scale = 0.5
 	TweenService:Create(cardScale, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Scale = 1 }):Play()
@@ -576,8 +585,7 @@ local function goalText(g: any): (string, string, number)
 	local unit = if g.kind == "grid" then "⭐" else "coins"
 	local fill = if g.price > 0 then math.clamp(g.have / g.price, 0, 1) else 1
 	if g.ready then
-		local where = if g.kind == "car" then "car shop" else "tile shop"
-		return what, `you can buy it! go to the {where}`, 1
+		return what, if g.kind == "car" then "BUY IT IN THE CAR SHOP!" else "BUY IT IN THE SHOP!", 1
 	end
 	return what, `{g.have} / {g.price} {unit}`, fill
 end
@@ -651,7 +659,14 @@ local nextBar = bar(nextBox, 0.82, 0.18)
 nextHow.Position = UDim2.fromScale(0, 0.47)
 
 local function showGoal(g: any)
-	if type(g) ~= "table" or type(g.name) ~= "string" or type(g.price) ~= "number" then
+	-- every tile is free (Studio switch): no tile to save up for
+	local allFree = workspace:GetAttribute("AllTilesFree") == true
+	if
+		type(g) ~= "table"
+		or type(g.name) ~= "string"
+		or type(g.price) ~= "number"
+		or (allFree and g.kind == "tile")
+	then
 		nextBox.Visible = false
 		return
 	end
@@ -810,7 +825,7 @@ remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unkn
 	if kind == "daily" and type(info) == "number" and type(saving) == "number" then
 		-- ("daily", coins, days in a row, boost)
 		local boost = select(1, ...)
-		showDaily(info, saving, if type(boost) == "number" then boost else 1)
+		task.spawn(showDaily, info, saving, if type(boost) == "number" then boost else 1) -- it may wait
 		return
 	end
 	if kind == "jobs" and type(info) == "table" then

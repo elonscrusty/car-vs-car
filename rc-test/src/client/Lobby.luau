@@ -197,11 +197,13 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 		end
 	end)
 
-	-- QUICK RACE (while walking): the server finds a free race plot and starts the drive there
+	-- QUICK RACE (while walking): the server finds a free race plot and starts the drive there.
+	-- Off for now: everyone races in the server race, and new players were lost by one more button.
+	local QUICK = false
 	local quickGui, quickButton = bigButton("Quick", "QUICK RACE")
 	HudLayout.place(quickButton, "Quick") -- under FRIENDS
 	quickButton.BackgroundColor3 = Color3.fromRGB(225, 55, 50)
-	quickGui.Enabled = true
+	quickGui.Enabled = QUICK
 	quickButton.Activated:Connect(function()
 		if not driving then
 			remote:FireServer("quick")
@@ -218,7 +220,7 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 
 	-- the build screen covers the lobby: hide QUICK RACE and FRIENDS under it (BuildScreen sets it)
 	Players.LocalPlayer:GetAttributeChangedSignal("Building"):Connect(function()
-		quickGui.Enabled = not driving and not building()
+		quickGui.Enabled = QUICK and not driving and not building()
 		showFriends()
 	end)
 
@@ -228,7 +230,7 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 		guide.setDriving(on)
 		Players.LocalPlayer:SetAttribute("Driving", on) -- lobby chips and buttons hide while driving
 		gui.Enabled = on
-		quickGui.Enabled = not on and not building()
+		quickGui.Enabled = QUICK and not on and not building()
 		showFriends()
 		if on then
 			shown = nil

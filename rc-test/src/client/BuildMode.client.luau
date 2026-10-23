@@ -243,6 +243,22 @@ local function locksFor(owned: unknown): { [string]: string }?
 	return out
 end
 
+-- the server's { {c, r} } of tiles the loop skips, as "c,r" keys
+local function strayOf(list: unknown): { [string]: boolean }?
+	if type(list) ~= "table" then
+		return nil
+	end
+	local out: { [string]: boolean } = {}
+	for _, p in list :: { any } do
+		local c = if type(p) == "table" then (p.c or p[1]) else nil
+		local r = if type(p) == "table" then (p.r or p[2]) else nil
+		if type(c) == "number" and type(r) == "number" then
+			out[`{c},{r}`] = true
+		end
+	end
+	return out
+end
+
 local function push()
 	if last == nil then
 		return
@@ -254,6 +270,7 @@ local function push()
 		pieces = pieces,
 		specials = bar,
 		locks = locksFor(last.owned),
+		stray = strayOf(last.stray),
 		ready = last.ready == true,
 		why = if type(last.why) == "string" then last.why else nil,
 		secondsLeft = endsAt() - now(),
@@ -282,8 +299,9 @@ buildGui.Parent = player:WaitForChild("PlayerGui")
 local buildBtn = Instance.new("TextButton")
 buildBtn.Name = "Build"
 HudLayout.place(buildBtn, "Build", "walk")
-buildBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 40)
-buildBtn.TextColor3 = Color3.fromRGB(40, 30, 0)
+-- dark with yellow words: DRIVE (yellow) stays the main button on your pad
+buildBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
+buildBtn.TextColor3 = Color3.fromRGB(255, 200, 40)
 buildBtn.Font = Enum.Font.GothamBlack
 buildBtn.TextScaled = true
 buildBtn.Text = "BUILD!"
