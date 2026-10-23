@@ -88,8 +88,8 @@ Garage.MESHES = {
 		model = "CarLift",
 		group = "Lift",
 		at = v(Garage.LIFT.x, Garage.FLOOR, Garage.LIFT.z),
-		fit = v(5.6, 6.6, 9),
-		long = "z", -- the two posts stand either side of the car
+		fit = v(9.6, 6.6, 3.6),
+		long = "x", -- posts at the car's two ends, so the car shows whole from the door
 		keep = {
 			"CarBody",
 			"CarCab",
@@ -161,7 +161,7 @@ Garage.MESHES = {
 		model = "TrophyShelf", -- up on the left wall, over the lift, looking into the garage
 		group = "TrophyShelf",
 		at = v(-Garage.WIDTH / 2 + 1.6, Garage.FLOOR + 4.2, -2.5),
-		fit = v(1.2, 4.2, 7),
+		fit = v(2, 4.2, 7),
 		long = "z",
 		keep = {},
 		collide = false,
