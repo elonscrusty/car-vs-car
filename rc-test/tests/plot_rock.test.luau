@@ -339,3 +339,22 @@ test(
 		end
 	end
 )
+
+test("backyard props stand on the plot, well clear of the trail", function()
+	truthy(#Plot.PROPS >= 4, "a few props")
+	for _, pr in Plot.PROPS do
+		-- inside the plot walls (the front grass by the low wall is fine for decor)
+		local inside = math.abs(pr.x) < Kit.WIDTH / 2 - 4
+			and pr.z > -Kit.DEPTH / 2 + 4
+			and pr.z < Kit.FRONT_Z - 2
+		truthy(inside, `{pr.kind} at {pr.x}, {pr.z} is off the plot`)
+		local best = math.huge
+		for _, s in path do
+			best = math.min(best, math.sqrt((s.x - pr.x) ^ 2 + (s.z - pr.z) ^ 2))
+		end
+		truthy(
+			best > Plot.HALF_WIDTH + Plot.SHOULDER + 4,
+			`{pr.kind} at {pr.x}, {pr.z} is too near the trail`
+		)
+	end
+end)
