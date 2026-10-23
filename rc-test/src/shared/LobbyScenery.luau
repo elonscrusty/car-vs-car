@@ -137,6 +137,14 @@ function LobbyScenery.island(): (number?, number, number)
 	return nil, 0, 0
 end
 
+LobbyScenery.RESERVE = 7 -- room round a water tower
+
+-- The two water towers: on the bank at the back-left and front-right corners.
+function LobbyScenery.towers(): { { number } }
+	local o = LobbyScenery.outer()
+	return { { o.minX + 9, o.minZ + 9 }, { o.maxX - 9, o.maxZ - 9 } }
+end
+
 -- Boxes nothing may stand in: plots, the road and footpaths, the plaza (all padded a little).
 function LobbyScenery.keepOut(): { Box }
 	local out: { Box } = {}
@@ -426,6 +434,104 @@ function LobbyScenery.layout(): ({ Piece }, { Prop })
 		)
 	end
 
+	local function mushrooms(x: number, z: number)
+		for i = 1, math.floor(rand(2, 3.99)) do
+			local a = rand(0, math.pi * 2)
+			local mx, mz = x + math.cos(a) * rand(0.3, 1.2), z + math.sin(a) * rand(0.3, 1.2)
+			local s = rand(0.7, 1.2)
+			begin("Mushroom", mx, mz, 0.9 * s, 0, false)
+			add(
+				"Mushroom",
+				"Block",
+				mx,
+				0.3 * s,
+				mz,
+				0.3 * s,
+				0.6 * s,
+				0.3 * s,
+				0,
+				0,
+				0,
+				{ 236, 232, 220 },
+				false
+			)
+			add(
+				"Mushroom",
+				"Block",
+				mx,
+				0.7 * s,
+				mz,
+				0.9 * s,
+				0.35 * s,
+				0.9 * s,
+				0,
+				rand(0, 90),
+				0,
+				{ 210, 60, 50 },
+				false
+			)
+		end
+	end
+
+	local function gnome(x: number, z: number)
+		begin("Gnome", x, z, 1.6, 0, false)
+		add("Gnome", "Block", x, 0.45, z, 0.7, 0.9, 0.6, 0, 0, 0, { 60, 110, 200 }, false)
+		add("Gnome", "Block", x, 1.2, z, 0.5, 0.7, 0.5, 0, 45, 0, { 210, 50, 45 }, false)
+	end
+
+	local function dirtMound(x: number, z: number, s: number)
+		begin("DirtMound", x, z, 1.2 * s, 0, false)
+		add(
+			"DirtMound",
+			"Block",
+			x,
+			0.3 * s,
+			z,
+			3.2 * s,
+			0.9 * s,
+			2.6 * s,
+			rand(-8, 8),
+			rand(0, 90),
+			rand(-8, 8),
+			{ 140, 98, 62 },
+			false
+		)
+	end
+
+	local function birdBath(x: number, z: number)
+		begin("BirdBath", x, z, 2.6, 0, true)
+		local grey = { 190, 190, 196 }
+		add("BirdBath", "Block", x, 0.15, z, 1.4, 0.3, 1.4, 0, 0, 0, grey, true)
+		add("BirdBath", "Block", x, 1.1, z, 0.5, 1.8, 0.5, 0, 0, 0, grey, true)
+		add("BirdBath", "Block", x, 2.2, z, 2.2, 0.4, 2.2, 0, 45, 0, grey, true)
+		add("BirdBath", "Block", x, 2.42, z, 1.7, 0.06, 1.7, 0, 45, 0, { 120, 190, 230 }, false)
+	end
+
+	local function waterTower(x: number, z: number)
+		begin("WaterTower", x, z, 16, 3, false)
+		local wood = { 128, 88, 54 }
+		for _, c in { { -1, -1 }, { 1, -1 }, { -1, 1 }, { 1, 1 } } do
+			add(
+				"WaterTower",
+				"Block",
+				x + c[1] * 2.2,
+				4.5,
+				z + c[2] * 2.2,
+				0.6,
+				9,
+				0.6,
+				0,
+				0,
+				0,
+				wood,
+				true
+			)
+		end
+		add("WaterTower", "Block", x, 11.5, z, 6, 5, 6, 0, 45, 0, { 130, 180, 220 }, false)
+		add("WaterTower", "Wedge", x, 15, z - 1.5, 6, 2, 3, 0, 0, 0, { 60, 110, 190 }, false)
+		add("WaterTower", "Wedge", x, 15, z + 1.5, 6, 2, 3, 0, 180, 0, { 60, 110, 190 }, false)
+	end
+
 	-- cactus: a green column with two arms
 	local function cactus(x: number, z: number, s: number)
 		begin("Cactus", x, z, 4.5 * s, 0.9 * s, false)
@@ -494,6 +600,17 @@ function LobbyScenery.layout(): ({ Piece }, { Prop })
 				x + dx / len * 3.5 + rand(-1.5, 1.5), z + dz / len * 3.5 + rand(-1.5, 1.5)
 			if LobbyScenery.clear(sx, sz, 2) and not LobbyScenery.inLane(sx, sz, 2) then
 				stumpOrLog(sx, sz)
+			end
+		elseif rand(0, 1) < 0.1 then
+			-- or a few mushrooms; very rarely a hiding gnome instead
+			local a = rand(0, math.pi * 2)
+			local mx, mz = x + math.cos(a) * 2.5, z + math.sin(a) * 2.5
+			if LobbyScenery.clear(mx, mz, 1.5) and not LobbyScenery.inLane(mx, mz, 1.5) then
+				if rand(0, 1) < 0.15 then
+					gnome(mx, mz)
+				else
+					mushrooms(mx, mz)
+				end
 			end
 		end
 	end
@@ -576,7 +693,16 @@ function LobbyScenery.layout(): ({ Piece }, { Prop })
 		end
 	end
 
-	local nearOpening = LobbyScenery.inLane
+	-- big landmarks get room: nothing else stands within RESERVE of them
+	local towers = LobbyScenery.towers()
+	local function nearOpening(x: number, z: number, r: number): boolean
+		for _, t in towers do
+			if (x - t[1]) ^ 2 + (z - t[2]) ^ 2 < (LobbyScenery.RESERVE + r) ^ 2 then
+				return true
+			end
+		end
+		return LobbyScenery.inLane(x, z, r)
+	end
 
 	-- 3. inside ground(): side strips (between the plot backs / plaza and the fence)
 	local stripX = (back + g.maxX - FI) / 2 + 1
@@ -678,10 +804,30 @@ function LobbyScenery.layout(): ({ Piece }, { Prop })
 			bush(x, z, rand(0.8, 1.1))
 		end
 	end)
-	for _, c in { { -1, -1 }, { 1, -1 }, { -1, 1 }, { 1, 1 } } do
+	-- corners: big cliffs on two, a water tower on the other two
+	for _, c in { { 1, -1 }, { -1, 1 } } do
 		local cx = if c[1] < 0 then o.minX + 9 else o.maxX - 9
 		local cz = if c[2] < 0 then o.minZ + 9 else o.maxZ - 9
 		rock(cx, cz, 1.6, "Cliff")
+	end
+	for _, t in towers do
+		waterTower(t[1], t[2])
+	end
+
+	-- dirt mounds on the bank, between the trees and the rocks
+	ring(9, 23, 0.7, function(x, z)
+		if not nearOpening(x, z, 3) and rand(0, 1) < 0.7 then
+			dirtMound(x, z, rand(0.9, 1.3))
+		end
+	end)
+
+	-- bird baths: one in each side strip, in the gap between two tree rows
+	for _, side in { -1, 1 } do
+		local bx = side * stripX
+		local bz = LobbyLayout.FIRST_Z + (if side < 0 then 0.5 else 2.5) * LobbyLayout.STEP + 6
+		if free(bx, bz, 1.5) and not nearOpening(bx, bz, 1.5) then
+			birdBath(bx, bz)
+		end
 	end
 
 	-- hay bales: a pair at each far corner past the plaza
