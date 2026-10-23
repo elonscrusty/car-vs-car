@@ -251,4 +251,34 @@ function LobbyHills.layout(): ({ Hill }, { Tree })
 	return hills, trees
 end
 
+LobbyHills.BASE_TOP = -0.2 -- grass under the hills: a hair under the lobby grass
+
+-- Grass slabs under the hills so nothing shows sky between their feet: the two sides and the
+-- dry end, around ground() (the lake end has the water thread's own grass).
+function LobbyHills.baseBoxes(hills: { Hill }): { Box }
+	local g = LobbyLayout.ground()
+	local lake = LobbyLayout.LAKE_SIDE or 1
+	local minX, maxX, minZ, maxZ = g.minX, g.maxX, g.minZ, g.maxZ
+	for _, h in hills do
+		local reach = math.max(h.w, h.d) / 2 + 4
+		minX = math.min(minX, h.x - reach)
+		maxX = math.max(maxX, h.x + reach)
+		minZ = math.min(minZ, h.z - reach)
+		maxZ = math.max(maxZ, h.z + reach)
+	end
+	-- the sides stop where the lake end begins; the dry end spans corner to corner
+	local sideMinZ = if lake > 0 then minZ else g.minZ
+	local sideMaxZ = if lake > 0 then g.maxZ else maxZ
+	local boxes = {
+		{ minX = minX, maxX = g.minX, minZ = sideMinZ, maxZ = sideMaxZ },
+		{ minX = g.maxX, maxX = maxX, minZ = sideMinZ, maxZ = sideMaxZ },
+	}
+	if lake > 0 then
+		table.insert(boxes, { minX = g.minX, maxX = g.maxX, minZ = minZ, maxZ = g.minZ })
+	else
+		table.insert(boxes, { minX = g.minX, maxX = g.maxX, minZ = g.maxZ, maxZ = maxZ })
+	end
+	return boxes
+end
+
 return LobbyHills

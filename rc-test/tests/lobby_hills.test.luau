@@ -104,3 +104,30 @@ test("near rows are low, far rows tall; every tree stands on a hill", function()
 		truthy(t.y > 0, "tree above the ground")
 	end
 end)
+
+test("grass under every hill, never over the lobby or the lake", function()
+	local boxes = Hills.baseBoxes(hills)
+	local keep = Hills.keepBox()
+	local function over(a, b)
+		return a.minX < b.maxX - 0.01
+			and a.maxX > b.minX + 0.01
+			and a.minZ < b.maxZ - 0.01
+			and a.maxZ > b.minZ + 0.01
+	end
+	for _, b in boxes do
+		truthy(not over(b, g), "base over the lobby grass")
+		truthy(not over(b, keep), "base over the lake")
+	end
+	for _, h in hills do
+		local lakeEnd = (lake > 0 and h.z > g.maxZ) or (lake < 0 and h.z < g.minZ)
+		if not lakeEnd then
+			local under = false
+			for _, b in boxes do
+				if h.x >= b.minX and h.x <= b.maxX and h.z >= b.minZ and h.z <= b.maxZ then
+					under = true
+				end
+			end
+			truthy(under, `no grass under the hill at {h.x}, {h.z}`)
+		end
+	end
+end)

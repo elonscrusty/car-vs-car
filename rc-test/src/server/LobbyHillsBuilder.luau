@@ -74,6 +74,17 @@ function LobbyHillsBuilder.build(parent: Instance): Folder
 	folder.Name = "Hills"
 	folder.Parent = parent
 	local hills, trees = LobbyHills.layout()
+	for i, b in LobbyHills.baseBoxes(hills) do
+		local base = Instance.new("Part")
+		base.Name = `HillGrass{i}`
+		base.Size = Vector3.new(b.maxX - b.minX, 2, b.maxZ - b.minZ)
+		base.CFrame =
+			CFrame.new((b.minX + b.maxX) / 2, LobbyHills.BASE_TOP - 1, (b.minZ + b.maxZ) / 2)
+		base.Color = Color3.fromRGB(108, 178, 80)
+		tidy(base, true)
+		base.CastShadow = false
+		base.Parent = folder
+	end
 	for _, h in hills do
 		local at = CFrame.new(h.x, -0.5, h.z) * CFrame.Angles(0, math.rad(h.turn), 0)
 		if not meshHill(folder, h, at) then
