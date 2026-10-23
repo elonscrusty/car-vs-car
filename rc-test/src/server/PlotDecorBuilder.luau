@@ -44,11 +44,19 @@ function PlotDecorBuilder.build()
 		local pivot = CFrame.new(slot.plotX, 0, slot.plotZ) * CFrame.Angles(0, slot.angle, 0)
 		local theme = PlotDecor.theme(slot.id)
 		local wall = Color3.fromRGB(theme.wall[1], theme.wall[2], theme.wall[3])
+		local pillar = Color3.fromRGB(theme.pillar[1], theme.pillar[2], theme.pillar[3])
 		for _, d in plot:GetChildren() do
 			if d:IsA("BasePart") and isBaseWall(d, pivot) then
 				d.Color = wall
 				if slot.id == "rock" then
 					d.Material = Enum.Material.WoodPlanks
+				end
+			elseif d:IsA("BasePart") and d.Name == "StandLeg" then
+				-- the driver stand's thin legs read as stray white posts through the arch:
+				-- paint them like the arch's pillars
+				d.Color = pillar
+				if slot.id == "rock" then
+					d.Material = Enum.Material.Wood
 				end
 			end
 		end
