@@ -42,12 +42,14 @@ export type State = {
 	ready: boolean,
 	why: string?, -- when not ready: "Road has a gap"
 	secondsLeft: number,
+	kind: string?, -- "race" | "drift": what the whole server does on this plot (default race)
 }
 export type Options = {
 	onDrop: (c: number, r: number, piece: string) -> (), -- swap in, turned to fit
 	onPlace: (c: number, r: number, piece: string, rot: number) -> (), -- as it is, turned rot
 	onRemove: (c: number, r: number) -> (),
 	onDone: () -> (),
+	onKind: ((kind: string) -> ())?, -- RACE / DRIFT tapped
 }
 export type BuildScreen = {
 	setState: (state: State) -> (),
@@ -222,6 +224,50 @@ function BuildScreen.new(opts: Options): BuildScreen
 	rim(timer, Color3.fromRGB(176, 112, 10), 2)
 	local timerText = label(timer, "RACE IN 5:00", Color3.fromRGB(70, 35, 0))
 	pad(timerText, 0.14, 0.06)
+	local function timerWords(seconds: number): string
+		local word = if state.kind == "drift" then "DRIFT IN " else "RACE IN "
+		return word .. BuildLayout.clock(seconds)
+	end
+
+	-- RACE / DRIFT: two big buttons, the picked one lit (carter 23:42: owners pick)
+	local mode = Instance.new("Frame")
+	mode.Name = "Mode"
+	mode.BackgroundTransparency = 1
+	mode.Parent = gui
+	local KIND_LIT: { [string]: Color3 } = {
+		race = Color3.fromRGB(235, 80, 60),
+		drift = Color3.fromRGB(70, 150, 235),
+	}
+	local kindBtns: { [string]: TextButton } = {}
+	for i, k in { "race", "drift" } do
+		local b = Instance.new("TextButton")
+		b.Name = k
+		b.Position = UDim2.new((i - 1) * 0.5, if i == 1 then 0 else 4, 0, 0)
+		b.Size = UDim2.new(0.5, -4, 1, 0)
+		b.Font = Enum.Font.GothamBlack
+		b.TextScaled = true
+		b.TextColor3 = WHITE
+		b.Text = if k == "race" then "🏁 RACE" else "💨 DRIFT"
+		b.Parent = mode
+		round(b, 12)
+		rim(b, DARK, 2)
+		pad(b, 0.18, 0.08)
+		b.Activated:Connect(function()
+			if state.kind ~= k and opts.onKind then
+				opts.onKind(k)
+			end
+		end)
+		kindBtns[k] = b
+	end
+	local function drawKind()
+		local now = if state.kind == "drift" then "drift" else "race"
+		for k, b in kindBtns do
+			local lit = k == now
+			b.BackgroundColor3 = if lit then KIND_LIT[k] else Color3.fromRGB(60, 64, 80)
+			b.BackgroundTransparency = if lit then 0 else 0.2
+			b.TextTransparency = if lit then 0 else 0.45
+		end
+	end
 
 	local status = Instance.new("Frame")
 	status.Name = "Status"
@@ -424,7 +470,8 @@ function BuildScreen.new(opts: Options): BuildScreen
 	end
 
 	local function drawTop()
-		timerText.Text = "RACE IN " .. BuildLayout.clock(state.secondsLeft)
+		timerText.Text = timerWords(state.secondsLeft)
+		drawKind()
 		status.BackgroundColor3 = if state.ready then GREEN else RED
 		statusText.Text = BuildLayout.statusText(state.ready)
 		local gap = not state.ready and state.why ~= nil and #state.cells > 1
@@ -658,6 +705,7 @@ function BuildScreen.new(opts: Options): BuildScreen
 		place(grid, layout.grid)
 		place(timer, layout.timer)
 		place(status, layout.status)
+		place(mode, layout.mode)
 		place(whyText, layout.why)
 		place(tray, layout.tray)
 		-- cards grow to fill the bar: as many ~100 px columns as fit, at least 2
@@ -735,7 +783,7 @@ function BuildScreen.new(opts: Options): BuildScreen
 	end
 	function screen.setSeconds(seconds: number)
 		state.secondsLeft = seconds
-		timerText.Text = "RACE IN " .. BuildLayout.clock(seconds)
+		timerText.Text = timerWords(seconds)
 	end
 	function screen.show(on: boolean)
 		gui.Enabled = on
