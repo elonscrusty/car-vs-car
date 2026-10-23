@@ -121,6 +121,7 @@ local function demo()
 		table.insert(cells, { c = 5, r = i, piece = "straight", rot = 0 })
 	end
 	local ready = false
+	local kind = "race"
 	local endsAt = now() + 300
 	local screen: BuildScreen.BuildScreen
 	local function find(c: number, r: number): number?
@@ -142,6 +143,7 @@ local function demo()
 			ready = ready,
 			why = "Road has a gap",
 			secondsLeft = endsAt - now(),
+			kind = kind,
 		})
 	end
 	screen = BuildScreen.new({
@@ -171,6 +173,10 @@ local function demo()
 		end,
 		onDone = function()
 			screen.show(false)
+		end,
+		onKind = function(k)
+			kind = k
+			push()
 		end,
 	})
 	push()
@@ -216,6 +222,9 @@ local screen = BuildScreen.new({
 	onDone = function()
 		closed = true
 		event:FireServer("done")
+	end,
+	onKind = function(kind)
+		event:FireServer("kind", kind)
 	end,
 })
 
@@ -274,6 +283,7 @@ local function push()
 		ready = last.ready == true,
 		why = if type(last.why) == "string" then last.why else nil,
 		secondsLeft = endsAt() - now(),
+		kind = if last.kind == "drift" then "drift" else "race",
 	})
 end
 

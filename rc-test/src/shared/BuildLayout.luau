@@ -11,6 +11,7 @@ export type Layout = {
 	grid: Rect,
 	timer: Rect,
 	status: Rect,
+	mode: Rect, -- RACE / DRIFT: what the server does on this plot (carter 23:42)
 	why: Rect, -- one line: how to build, or why the road is not a loop yet
 	tray: Rect, -- special tiles to drag onto the road
 	undo: Rect,
@@ -29,6 +30,7 @@ BuildLayout.EDGE = 16 -- side gutter
 BuildLayout.GAP = 10
 BuildLayout.ROW = 48 -- countdown / RACE READY row
 BuildLayout.WHY = 24 -- the help / "Road has a gap" line
+BuildLayout.MODE = 40 -- the RACE / DRIFT pick
 BuildLayout.BUTTON = 56 -- bottom button row
 BuildLayout.MIN_TAP = 36 -- smallest grid square a thumb can hit
 BuildLayout.CARD = 76 -- special tile card size
@@ -60,7 +62,8 @@ function BuildLayout.fit(
 	local timerW = math.floor((rw - gap) * 0.36)
 	local timer = rect(rx, top, timerW, BuildLayout.ROW)
 	local status = rect(rx + timerW + gap, top, rw - timerW - gap, BuildLayout.ROW)
-	local why = rect(rx, top + BuildLayout.ROW + 6, rw, BuildLayout.WHY)
+	local mode = rect(rx, top + BuildLayout.ROW + 6, rw, BuildLayout.MODE)
+	local why = rect(rx, mode.y + mode.h + 6, rw, BuildLayout.WHY)
 	local by = sh - edge - BuildLayout.BUTTON
 	-- four buttons in a row; DONE takes what is left over
 	local quarter = math.floor((rw - gap * 3) / 4)
@@ -76,6 +79,7 @@ function BuildLayout.fit(
 		grid = grid,
 		timer = timer,
 		status = status,
+		mode = mode,
 		why = why,
 		tray = tray,
 		undo = undo,
