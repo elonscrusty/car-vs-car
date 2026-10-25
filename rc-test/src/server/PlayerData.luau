@@ -63,6 +63,10 @@ local function update(userId: number, fn: (any) -> any): (boolean, any)
 			return true, result
 		end
 		warn(`[PlayerData] {userId} try {i}:`, result)
+		-- Studio with API access off: trying again only makes the player wait ~14 s for nothing
+		if string.find(tostring(result), "403", 1, true) then
+			break
+		end
 		if i < TRIES then
 			task.wait(2 ^ i)
 		end
@@ -98,6 +102,7 @@ function PlayerData.load(player: Player)
 		local TAKE_TRIES = 4
 		for attempt = 1, TAKE_TRIES do
 			local blocked = false
+			local readOnly = false
 			local force = attempt == TAKE_TRIES
 			local ok = update(player.UserId, function(old: any): any
 				local now = os.time()
@@ -106,10 +111,21 @@ function PlayerData.load(player: Player)
 					return nil
 				end
 				blocked = false
-				local d = Profile.migrate(if type(old) == "table" then old.data else nil)
+				local plan = Profile.loadPlan(old)
+				readOnly = plan == "readOnly"
+				local d = Profile.migrate(if plan ~= "fresh" then old.data else nil)
 				data = d
+				if readOnly then
+					return nil -- never write over a save this server can't read right
+				end
 				return { data = d, lock = { job = job, at = now } }
 			end)
+			if ok and readOnly then
+				warn(
+					`[PlayerData] {player.Name}: save is broken or from a newer version, not saving`
+				)
+				break
+			end
 			if ok and not blocked then
 				canSave = data ~= nil
 				break
