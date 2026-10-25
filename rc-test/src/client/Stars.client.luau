@@ -118,7 +118,7 @@ innerRing.Color = Color3.fromRGB(255, 232, 140)
 innerRing.Thickness = 1.5
 innerRing.Parent = coinInner
 
--- the next medal on the plot you drive ("🥈 0:20"); flashes "+1 ⭐" when you get it
+-- the next medal on the plot you drive ("⭐ 0:20" in the medal's colour); flashes "+1 ⭐" when you get it
 local goalChip = chip:Clone()
 goalChip.Name = "MedalGoal"
 HudLayout.place(goalChip, "MedalGoal", "drive")
@@ -983,7 +983,6 @@ end)
 
 -- ===== the next medal while driving, and your row on the plot boards =====
 
-local ICONS = { "🥉", "🥈", "🥇" }
 local medalGoal: any = nil -- ("target", info): { medal, text, stars } or nil off a plot
 local flashUntil = 0
 local function showMedalGoal()
@@ -996,10 +995,10 @@ local function showMedalGoal()
 		return
 	end
 	if g.medal >= 1 and g.medal <= 3 then
-		goalChip.Text = `{ICONS[g.medal]} {g.text}`
+		goalChip.Text = `⭐ {g.text}` -- coloured by medal (⭐ is the star chip's, known to show)
 		goalChip.TextColor3 = COLORS[g.medal]
 	else
-		goalChip.Text = "ALL GOLD 🥇"
+		goalChip.Text = "ALL GOLD"
 		goalChip.TextColor3 = COLORS[3]
 	end
 end
