@@ -2,23 +2,84 @@
 -- Two or three words over each play pad at the spawn saying what it does (DRIFT NOW / RACE NOW /
 -- GO BUILD) and "STAND HERE" under it, so a new player knows what the pads are for. The pads
 -- only work in the break (workspace BuildOpen): from the pick until the race is over the small
--- line says AFTER THE RACE. Looks only, on this screen. The pads are the
+-- line says AFTER THE RACE; when every plot of that kind is taken (the pad's BusyUntil, set by
+-- QueuePads) it says ALL BUSY, WAIT. Also one or two words over the car shops and the gumball,
+-- big enough to read on a phone from the spawn. Looks only, on this screen. The pads are the
 -- "QueuePad" bases (attribute PlotType) that the spawn lobby builds.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 
 local WORDS: { [string]: string } = { drift = "DRIFT NOW", race = "RACE NOW", build = "GO BUILD" }
-local smalls: { TextLabel } = {}
-local function smallText(): string
-	return if workspace:GetAttribute("BuildOpen") == false then "AFTER THE RACE" else "STAND HERE"
-end
+local SHOP_WORDS: { [string]: string } = { drift = "DRIFT CARS", race = "RACE CARS" }
+local INK = Color3.fromRGB(20, 20, 30)
 
 local holder = Instance.new("ScreenGui")
 holder.Name = "PadWords"
 holder.ResetOnSpawn = false
 holder.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 
-local function add(base: Instance)
+type Small = { label: TextLabel, base: BasePart }
+local smalls: { Small } = {}
+
+local function smallText(base: BasePart): string
+	if workspace:GetAttribute("BuildOpen") == false then
+		return "AFTER THE RACE"
+	end
+	local busy = base:GetAttribute("BusyUntil")
+	if type(busy) == "number" and busy > workspace:GetServerTimeNow() then
+		return "ALL BUSY, WAIT"
+	end
+	return "STAND HERE"
+end
+
+local function label(parent: Instance, text: string, color: Color3, y: number, h: number): TextLabel
+	local l = Instance.new("TextLabel")
+	l.BackgroundTransparency = 1
+	l.Position = UDim2.fromScale(0, y)
+	l.Size = UDim2.fromScale(1, h)
+	l.Font = Enum.Font.GothamBlack
+	l.TextScaled = true
+	l.Text = text
+	l.TextColor3 = color
+	l.TextStrokeColor3 = INK
+	l.TextStrokeTransparency = 0
+	l.Parent = parent
+	return l
+end
+
+-- a BillboardGui only draws reliably from PlayerGui; Adornee puts it over the part. Sized in
+-- pixels, so it stays readable from across the spawn on a phone.
+local function sign(
+	over: BasePart,
+	name: string,
+	size: Vector2,
+	up: number,
+	far: number
+): BillboardGui
+	local b = Instance.new("BillboardGui")
+	b.Name = name
+	b.Adornee = over
+	b.AlwaysOnTop = false
+	b.Size = UDim2.fromOffset(size.X, size.Y)
+	b.StudsOffsetWorldSpace = Vector3.new(0, up, 0)
+	b.MaxDistance = far -- the spawn only, not from across the tracks
+	b.LightInfluence = 0
+	b.Parent = holder
+	over.AncestryChanged:Connect(function()
+		if not over:IsDescendantOf(workspace) then
+			b:Destroy()
+			for i, s in smalls do
+				if s.base == over then
+					table.remove(smalls, i)
+					break
+				end
+			end
+		end
+	end)
+	return b
+end
+
+local function addPad(base: Instance)
 	if not base:IsA("BasePart") then
 		return
 	end
@@ -27,64 +88,85 @@ local function add(base: Instance)
 	if word == nil then
 		return
 	end
-	-- a BillboardGui only draws reliably from PlayerGui; Adornee puts it over the pad
-	local sign = Instance.new("BillboardGui")
-	sign.Name = "Pad" .. tostring(base:GetAttribute("Pad") or "")
-	sign.Adornee = base
-	sign.AlwaysOnTop = false
-	sign.Size = UDim2.fromOffset(220, 90)
-	sign.StudsOffsetWorldSpace = Vector3.new(0, 7, 0)
-	sign.MaxDistance = 60 -- the spawn only, not from across the tracks
-	sign.LightInfluence = 0
-	sign.Parent = holder
-	local big = Instance.new("TextLabel")
-	big.BackgroundTransparency = 1
-	big.Size = UDim2.fromScale(1, 0.68)
-	big.Font = Enum.Font.GothamBlack
-	big.TextScaled = true
-	big.Text = word
+	local b =
+		sign(base, "Pad" .. tostring(base:GetAttribute("Pad") or ""), Vector2.new(220, 90), 7, 60)
 	-- the pad's own colour (its neon rim; the base itself is dark)
 	local rim = if base.Parent then base.Parent:FindFirstChild("Rim") else nil
-	big.TextColor3 = if rim and rim:IsA("BasePart") then rim.Color else Color3.fromRGB(255, 205, 60)
-	big.TextStrokeColor3 = Color3.fromRGB(20, 20, 30)
-	big.TextStrokeTransparency = 0
-	big.Parent = sign
-	local small = Instance.new("TextLabel")
-	small.BackgroundTransparency = 1
-	small.Position = UDim2.fromScale(0, 0.68)
-	small.Size = UDim2.fromScale(1, 0.32)
-	small.Font = Enum.Font.GothamBlack
-	small.TextScaled = true
-	small.Text = smallText()
-	small.TextColor3 = Color3.new(1, 1, 1)
-	small.TextStrokeColor3 = Color3.fromRGB(20, 20, 30)
-	small.TextStrokeTransparency = 0
-	small.Parent = sign
-	table.insert(smalls, small)
-	base.AncestryChanged:Connect(function()
-		if not base:IsDescendantOf(workspace) then
-			sign:Destroy()
-			local i = table.find(smalls, small)
-			if i then
-				table.remove(smalls, i)
-			end
-		end
-	end)
+	label(
+		b,
+		word,
+		if rim and rim:IsA("BasePart") then rim.Color else Color3.fromRGB(255, 205, 60),
+		0,
+		0.68
+	)
+	table.insert(
+		smalls,
+		{ label = label(b, smallText(base), Color3.new(1, 1, 1), 0.68, 0.32), base = base }
+	)
+end
+
+local function addShop(model: Instance)
+	if not model:IsA("Model") then
+		return
+	end
+	local kind = model:GetAttribute("ShopKind")
+	local word = if type(kind) == "string" then SHOP_WORDS[kind] else nil
+	local floor = model.PrimaryPart
+	if word == nil or floor == nil then
+		return
+	end
+	-- the shop's trim colour (its counter top), white when there is none; just over the roof
+	local counter = model:FindFirstChild("Counter")
+	local top = counter and counter:FindFirstChild("Top")
+	local b = sign(floor, "Shop" .. kind, Vector2.new(240, 56), 12, 140)
+	label(b, word, if top and top:IsA("BasePart") then top.Color else Color3.new(1, 1, 1), 0, 1)
+end
+
+local function addGumball(base: Instance)
+	if not base:IsA("BasePart") then
+		return
+	end
+	local b = sign(base, "Gumball", Vector2.new(200, 50), 8, 100)
+	label(b, "LUCKY CAR", Color3.fromRGB(255, 120, 190), 0, 1)
 end
 
 -- hidden while driving (they showed over the race from far away)
 local function showAll()
-	workspace:GetAttributeChangedSignal("BuildOpen"):Connect(function()
-		for _, small in smalls do
-			small.Text = smallText()
-		end
-	end)
 	holder.Enabled = Players.LocalPlayer:GetAttribute("Driving") ~= true
 end
 Players.LocalPlayer:GetAttributeChangedSignal("Driving"):Connect(showAll)
 showAll()
 
 for _, base in CollectionService:GetTagged("QueuePad") do
-	add(base)
+	addPad(base)
 end
-CollectionService:GetInstanceAddedSignal("QueuePad"):Connect(add)
+CollectionService:GetInstanceAddedSignal("QueuePad"):Connect(addPad)
+for _, base in CollectionService:GetTagged("Gumball") do
+	addGumball(base)
+end
+CollectionService:GetInstanceAddedSignal("Gumball"):Connect(addGumball)
+local function checkShop(inst: Instance)
+	if inst:IsA("Model") and inst:GetAttribute("ShopKind") ~= nil then
+		-- its parts arrive just after the model
+		task.delay(1, addShop, inst)
+	end
+end
+for _, d in workspace:GetDescendants() do
+	checkShop(d)
+end
+workspace.DescendantAdded:Connect(checkShop)
+
+-- the small lines: four times a second is plenty (BusyUntil is a time, not a change)
+task.spawn(function()
+	while true do
+		task.wait(0.25)
+		if holder.Enabled then
+			for _, s in smalls do
+				local t = smallText(s.base)
+				if s.label.Text ~= t then
+					s.label.Text = t
+				end
+			end
+		end
+	end
+end)

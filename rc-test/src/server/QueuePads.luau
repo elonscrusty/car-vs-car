@@ -94,6 +94,13 @@ function QueuePads.start(hooks: Hooks)
 							local slot = hooks.findOpen(kind, player)
 							if slot then
 								hooks.sendTo(player, slot)
+							elseif onPad then
+								-- every plot of that kind is taken: the pad's sign says ALL BUSY
+								-- (PadWords) until the next try
+								onPad:SetAttribute(
+									"BusyUntil",
+									workspace:GetServerTimeNow() + QueuePads.HOLD + 0.5
+								)
 							end
 						end
 					elseif kind == nil then
