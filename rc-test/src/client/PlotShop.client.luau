@@ -131,13 +131,14 @@ local function row(kind: string, y: number)
 		corner(c, 0.08)
 		local icon = text("TextLabel", c, it.icon, Color3.new(1, 1, 1))
 		icon.Position = UDim2.fromScale(0.05, 0.04)
-		icon.Size = UDim2.fromScale(0.9, 0.36)
+		icon.Size = UDim2.fromScale(0.9, 0.32)
 		local name = text("TextLabel", c, it.name, Color3.new(1, 1, 1))
-		name.Position = UDim2.fromScale(0.08, 0.41)
+		name.Position = UDim2.fromScale(0.08, 0.37)
 		name.Size = UDim2.fromScale(0.84, 0.15)
 		local note = text("TextLabel", c, "", Color3.fromRGB(200, 200, 205))
-		note.Position = UDim2.fromScale(0.08, 0.57)
-		note.Size = UDim2.fromScale(0.84, 0.1)
+		-- as tall as the name: the stars line has to read on a phone (tour 5: it was ~7 px)
+		note.Position = UDim2.fromScale(0.08, 0.53)
+		note.Size = UDim2.fromScale(0.84, 0.15)
 		local button = text("TextButton", c, "", Color3.new(1, 1, 1))
 		button.Position = UDim2.fromScale(0.1, 0.71)
 		button.Size = UDim2.fromScale(0.8, 0.22)
@@ -178,7 +179,7 @@ local function show()
 			c.button.TextColor3 = if state.coins >= it.price
 				then Color3.fromRGB(40, 30, 0)
 				else Color3.new(1, 1, 1)
-			c.note.Text = if it.stars then `or free at ⭐ {it.stars}` else ""
+			c.note.Text = if it.stars then `⭐ {it.stars} = FREE` else ""
 			continue
 		end
 		c.button.TextColor3 = Color3.new(1, 1, 1)
