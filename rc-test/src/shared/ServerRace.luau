@@ -144,7 +144,7 @@ end
 -- Coins for a server race (the game's main pay: every race pays, the best pay most). Coin
 -- prices are guesses to tune: a win is most of a 150-coin car or tile.
 ServerRace.PAY = { 100, 70, 50 } -- 1st, 2nd, 3rd
-ServerRace.PAY_FINISH = 30 -- finished all the laps, 4th or later
+ServerRace.PAY_FINISH = 40 -- finished all the laps, 4th or later (40: last place still gets somewhere)
 ServerRace.PAY_TRY = 10 -- raced but didn't finish
 ServerRace.PAY_OWNER = 40 -- the plot's owner: "your track was picked!"
 function ServerRace.payFor(place: number, finished: boolean): number
