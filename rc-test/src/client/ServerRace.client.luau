@@ -107,8 +107,8 @@ callStroke.Parent = callClock
 -- the winner pop-up in the middle
 local card = Instance.new("Frame")
 card.Name = "Result"
-card.AnchorPoint = Vector2.new(0.5, 0.5)
-card.Position = UDim2.fromScale(0.5, 0.4)
+card.AnchorPoint = Vector2.new(0.5, 0)
+card.Position = UDim2.fromScale(0.5, 0.31) -- top edge below the lap box (FINISHED / BEST)
 card.Size = UDim2.fromScale(0.46, 0.4)
 card.BackgroundColor3 = DARK
 card.BackgroundTransparency = 0.1
@@ -324,6 +324,7 @@ local function showResult(rows: { any })
 	local me = showId
 	card.Visible = true
 	card.Size = UDim2.fromScale(0.44, tall * 0.65)
+	card:SetAttribute("Bottom", card.Position.Y.Scale + tall) -- the prize card (Stars) goes under it
 	title.Size = UDim2.fromScale(0.9, 0.14 / tall)
 	rowsText.Position = UDim2.fromScale(0.07, 0.05 + 0.16 / tall)
 	TweenService:Create(
