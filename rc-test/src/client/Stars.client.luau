@@ -438,6 +438,16 @@ pop.TextStrokeColor3 = Color3.new(0, 0, 0)
 pop.TextTransparency = 1
 pop.TextStrokeTransparency = 1
 pop.Parent = top
+pop.BackgroundColor3 = Color3.fromRGB(30, 32, 44) -- (shown only under the race result card)
+local popCorner = Instance.new("UICorner")
+popCorner.CornerRadius = UDim.new(0.2, 0)
+popCorner.Parent = pop
+local popPad = Instance.new("UIPadding")
+popPad.PaddingLeft = UDim.new(0.03, 0)
+popPad.PaddingRight = UDim.new(0.03, 0)
+popPad.PaddingTop = UDim.new(0.08, 0)
+popPad.PaddingBottom = UDim.new(0.08, 0)
+popPad.Parent = pop
 local popScale = Instance.new("UIScale")
 popScale.Parent = pop
 
@@ -466,11 +476,14 @@ local function placePop()
 		pop.Position = UDim2.fromScale(0.5, under + GAP)
 		pop.Size = UDim2.fromScale(0.56, 0.11)
 		popBottom = under + GAP + 0.11
+		-- a dark backing like the card's: here it sits over the car and its world labels
+		pop.BackgroundTransparency = 0.25
 	else
 		pop.AnchorPoint = Vector2.new(0.5, 0.5)
 		pop.Position = UDim2.fromScale(0.5, 0.62)
 		pop.Size = UDim2.fromScale(0.56, 0.16)
 		popBottom = 0.7
+		pop.BackgroundTransparency = 1
 	end
 end
 
@@ -491,7 +504,11 @@ local function showPop(text: string, color: Color3)
 			return
 		end
 		local info = TweenInfo.new(0.5)
-		TweenService:Create(pop, info, { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+		TweenService:Create(
+			pop,
+			info,
+			{ TextTransparency = 1, TextStrokeTransparency = 1, BackgroundTransparency = 1 }
+		):Play()
 	end)
 end
 
@@ -1025,7 +1042,7 @@ task.spawn(function()
 			local before = lastGoal
 			-- a medal pop still up moves under the card (once the card has its size)
 			task.delay(0.1, function()
-				if os.clock() < popUntil then
+				if os.clock() < popUntil - 0.6 then -- (not once it has begun to fade)
 					placePop()
 				end
 			end)
