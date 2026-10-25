@@ -18,6 +18,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local DailyJobs = require(ReplicatedStorage.Shared.DailyJobs)
+local Forever = require(ReplicatedStorage.Shared.Forever)
 local LapTimer = require(ReplicatedStorage.Shared.LapTimer)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local Medals = require(ReplicatedStorage.Shared.Medals)
@@ -709,14 +710,16 @@ end
 -- Double coins on weekends: the client's banner reads this.
 task.spawn(function()
 	while true do
-		local now = os.time()
-		workspace:SetAttribute("CoinBoost", Profile.boost(now))
-		for _, p in Players:GetPlayers() do
-			local data = PlayerData.get(p)
-			if data and data.dailyDay ~= Profile.day(now) then
-				dailyGift(p, data)
+		Forever.step("DailyGift", function()
+			local now = os.time()
+			workspace:SetAttribute("CoinBoost", Profile.boost(now))
+			for _, p in Players:GetPlayers() do
+				local data = PlayerData.get(p)
+				if data and data.dailyDay ~= Profile.day(now) then
+					dailyGift(p, data)
+				end
 			end
-		end
+		end)
 		task.wait(30)
 	end
 end)
@@ -823,16 +826,18 @@ end
 task.spawn(function()
 	local tick = 0
 	while true do
-		for _, p in Players:GetPlayers() do
-			sendGoal(p)
-		end
-		-- boards: a rebuilt track clears its records and stretches its medal times
 		tick += 1
-		if tick % 3 == 0 then
-			for i in slots do
-				showBoard(i)
+		Forever.step("Goals", function()
+			for _, p in Players:GetPlayers() do
+				sendGoal(p)
 			end
-		end
+			-- boards: a rebuilt track clears its records and stretches its medal times
+			if tick % 3 == 0 then
+				for i in slots do
+					showBoard(i)
+				end
+			end
+		end)
 		task.wait(1)
 	end
 end)

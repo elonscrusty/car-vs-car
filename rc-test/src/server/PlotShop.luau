@@ -11,6 +11,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local PlotShop = require(ReplicatedStorage.Shared.PlotShop)
+local Forever = require(ReplicatedStorage.Shared.Forever)
 local PlayerData = require(script.Parent.PlayerData)
 
 local PlotShopServer = {}
@@ -113,7 +114,7 @@ function PlotShopServer.start()
 	end)
 	task.spawn(function()
 		while true do
-			sync()
+			Forever.step("PlotShop", sync)
 			task.wait(SYNC)
 		end
 	end)
