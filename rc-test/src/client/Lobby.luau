@@ -240,7 +240,7 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 	-- E still works
 	local pgui = Players.LocalPlayer:WaitForChild("PlayerGui")
 	local cards: { [string]: Instance } = {} -- found once and kept (checked every frame)
-	local function shown(guiName: string, name: string): boolean
+	local function cardShown(guiName: string, name: string): boolean
 		local o = cards[name]
 		if not (o and o.Parent) then
 			local holder = pgui:FindFirstChild(guiName)
@@ -254,7 +254,9 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 		return o:IsA("GuiObject") and o.Visible
 	end
 	RunService.Heartbeat:Connect(function()
-		button.Visible = not (shown("ServerRace", "Result") or shown("StarsTop", "RacePrize"))
+		button.Visible = not (
+			cardShown("ServerRace", "Result") or cardShown("StarsTop", "RacePrize")
+		)
 	end)
 	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
 		if not processed and input.KeyCode == Enum.KeyCode.E then
