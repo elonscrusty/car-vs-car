@@ -213,3 +213,29 @@ test("build window: open all break, shut from the pick to the end of the race", 
 	eq((ServerRace.build("call", 1000)), false)
 	eq((ServerRace.build("racing", 1000)), false)
 end)
+
+test("a drift round gives stars like a race: 3, 2, 1 by score, none for no points", function()
+	local ranked = ServerRace.rankDrift({
+		{ name = "a", laps = 0, score = 1200 },
+		{ name = "b", laps = 0, score = 3400 },
+		{ name = "c", laps = 0, score = 600 },
+		{ name = "d", laps = 0, score = 300 },
+		{ name = "e", laps = 0 },
+	})
+	local stars = {}
+	for place, e in ranked do
+		stars[e.name] = ServerRace.starsFor(place, ServerRace.finished(e), #ranked)
+	end
+	eq(stars.b, 3)
+	eq(stars.a, 2)
+	eq(stars.c, 1)
+	eq(stars.d, 1) -- any other finish
+	eq(stars.e, 0) -- sat still all round
+	-- the same places in a race give the same stars
+	for place = 1, 4 do
+		eq(ServerRace.starsFor(place, true, 5), ({ 3, 2, 1, 1 })[place])
+	end
+	-- alone: the finish star only, drift or race
+	local alone = ServerRace.rankDrift({ { name = "a", laps = 0, score = 900 } })
+	eq(ServerRace.starsFor(1, ServerRace.finished(alone[1]), 1), 1)
+end)
