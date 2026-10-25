@@ -39,7 +39,7 @@ SpawnLobby.BUILDINGS = {
 	{ kind = "race", x = -50, z = 12, yaw = 90 },
 	{ kind = "garage", x = 50, z = 10, yaw = -90 },
 }
-SpawnLobby.SPAWN = { x = 0, z = 15 } -- where people appear, looking at the statue (-Z)
+SpawnLobby.SPAWN = { x = 0, z = 15 } -- where people appear, looking at the pads and the street (+Z)
 SpawnLobby.GAP = 13 -- the front edge is open for |x| < GAP: the walk onto the street
 SpawnLobby.STATUE = { x = 0, z = -6 }
 SpawnLobby.STAND_Z = -28
@@ -476,7 +476,8 @@ end
 function SpawnLobby.spawnCFrame(at: CFrame): CFrame
 	local origin = at * CFrame.Angles(0, math.pi, 0)
 	local s = SpawnLobby.SPAWN
-	return origin * CFrame.new(s.x, 3, s.z) -- its LookVector is lobby-local -Z: the statue
+	-- facing the play pads and the street (lobby-local +Z): where to go first, nothing in the way
+	return origin * CFrame.new(s.x, 3, s.z) * CFrame.Angles(0, math.pi, 0)
 end
 
 -- Builds it under `parent`. `at` is the middle of the square on the floor, its LookVector
