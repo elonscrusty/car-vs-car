@@ -38,6 +38,17 @@ LobbyPlots.init()
 require(ReplicatedStorage.Shared.PlotTracks).watch() -- owners' own tracks (LobbyLayout.custom)
 require(script.Parent.PlotStandsBuilder).start() -- owners' cars on their plot's stands
 require(script.Parent.TrackBuild).start() -- race plots: starter circle, owners swap tiles in the break
+do -- phone speed pass over the plots (small bits: no shadow; tiny decor bits: no collision)
+	local before, after = require(script.Parent.LobbyPerf).plots(workspace.Plots)
+	print(
+		string.format(
+			"Plots: %d parts; shadows %d -> %d",
+			after.parts,
+			before.shadows,
+			after.shadows
+		)
+	)
+end
 local slots = LobbyLayout.slots()
 
 -- Client -> server: ("place", rc: boolean, slotIndex: number) when a drive (re)starts (only

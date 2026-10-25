@@ -22,11 +22,17 @@ CollectionService:GetInstanceRemovedSignal("ShowSpin"):Connect(function(m: Insta
 	spinning[m :: Model] = nil
 end)
 
+local NEAR = 150 -- farther than this the turn can't be seen: that car waits (phone speed)
+
 RunService.RenderStepped:Connect(function()
 	local turn = CFrame.Angles(0, (os.clock() * SPEED) % (2 * math.pi), 0)
+	local cam = workspace.CurrentCamera
+	local eye = if cam then cam.CFrame.Position else Vector3.zero
 	for m, start in spinning do
 		if m.Parent then
-			m:PivotTo(start * turn)
+			if (start.Position - eye).Magnitude < NEAR then
+				m:PivotTo(start * turn)
+			end
 		else
 			spinning[m] = nil
 		end
