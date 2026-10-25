@@ -122,7 +122,7 @@ test("the grass covers every plot, the road and the spawn lobby", function()
 	end
 end)
 
-test("trees stand in the grass gaps, clear of the plots, the steps and the flag beds", function()
+test("trees stand in the grass gaps, clear of the plots and the flag beds", function()
 	local trees = L.trees()
 	eq(#trees, (L.ROWS - 1) * 2 * #L.TREE_X)
 	truthy(L.GAP >= 30, "room between plots")
@@ -136,8 +136,6 @@ test("trees stand in the grass gaps, clear of the plots, the steps and the flag 
 			}
 			truthy(not inside(plot, t.x, t.z), "tree off a plot (and its wall)")
 		end
-		local gapZ = L.FIRST_Z + (math.floor((t.z - L.FIRST_Z) / L.STEP) + 0.5) * L.STEP
-		truthy(math.abs(t.z - gapZ) > 3 + 4, "clear of the steps in the middle of the gap")
 		truthy(math.abs(t.x) > L.EDGE + 25, "behind the flag and flower bed")
 	end
 end)

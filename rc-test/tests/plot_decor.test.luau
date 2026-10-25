@@ -100,20 +100,3 @@ for _, kind in { "race", "drift", "rock" } do
 		truthy(#P.parts(kind) < 66, tostring(#P.parts(kind)))
 	end)
 end
-
-test("gap steps sit in the gaps, clear of the gap's flag, flowers and tree", function()
-	local half = L.STEP / 2
-	local pieces = P.gapSteps()
-	eq(#pieces, (L.ROWS - 1) * 2 * #P.STEPS)
-	for _, p in pieces do
-		local x0, x1, _, _, z0, z1 = box(p)
-		local ax0, ax1 = math.min(math.abs(x0), math.abs(x1)), math.max(math.abs(x0), math.abs(x1))
-		truthy(ax0 > L.EDGE + 16, "past the flower bed")
-		truthy(ax1 < L.EDGE + L.PLOT_D - 8, "before the tree")
-		-- between two plots' side walls (plot middle +- PLOT_W / 2)
-		local row = math.floor((p.pos.z - L.FIRST_Z) / L.STEP)
-		local mid = L.FIRST_Z + (row + 0.5) * L.STEP
-		truthy(z0 > mid - half + L.PLOT_W / 2 - 4.75 + 0.5, "clear of the near wall")
-		truthy(z1 < mid + half - L.PLOT_W / 2 + 4.75 - 0.5, "clear of the far wall")
-	end
-end)

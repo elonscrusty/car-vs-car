@@ -73,10 +73,6 @@ function PlotDecorBuilder.build()
 		Garage.useMeshes(groups, pivot, PlotDecor.meshes(slot.id))
 		decor.Parent = plot
 	end
-	local steps = Instance.new("Model")
-	steps.Name = "GapSteps"
-	Garage.makeParts(PlotDecor.gapSteps(), steps, CFrame.identity)
-	steps.Parent = plots
 end
 
 return PlotDecorBuilder

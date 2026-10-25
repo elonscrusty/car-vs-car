@@ -3,7 +3,7 @@
 -- per kind of plot (race, drift, rocks) an entrance arch over the front gap with a name board for
 -- the driver's name, a coloured cap on the outer walls, bunting from the arch to two corner
 -- lanterns, two tall flags at the back corners, a booth in the right front corner and a pit
--- canopy in the left one. Plus spectator steps in the grass gaps between plots. Low-poly flat
+-- canopy in the left one. Low-poly flat
 -- colours, no text or logos. Only the plot's frame and front area: never the track inside.
 --
 -- Plot-local space at real RC size: (0, 0, 0) is the middle of the plot on the floor top, +Z the
@@ -508,35 +508,6 @@ function PlotDecor.meshes(kind: string): { Mesh }
 			collide = false,
 			yaw = m[4],
 		})
-	end
-	return out
-end
-
--- Spectator steps in the grass gaps between plots (world space): three stacked slabs, so you
--- can climb from either plot's side and look over both walls. Clear of the lamp at the gap's
--- front and the tree at its back.
-PlotDecor.STEPS_LEN = 34 -- along x
-PlotDecor.STEPS = { 6, 4, 2 } -- width (along z) of each slab, bottom first
-PlotDecor.STEP_H = 0.9
-function PlotDecor.gapSteps(): { Piece }
-	local out: { Piece } = {}
-	local add = Garage.adder(out)
-	local L = LobbyLayout
-	local midX = L.EDGE + L.PLOT_D / 2
-	for row = 1, L.ROWS - 1 do
-		local z = L.FIRST_Z + (row - 0.5) * L.STEP
-		for _, side in { -1, 1 } do
-			for i, w in PlotDecor.STEPS do
-				add(
-					"Steps",
-					"Step",
-					v(PlotDecor.STEPS_LEN - (i - 1) * 2, PlotDecor.STEP_H, w),
-					v(side * midX, (i - 0.5) * PlotDecor.STEP_H, z),
-					if i % 2 == 1 then { 214, 206, 190 } else { 190, 180, 162 },
-					{ material = "Concrete" }
-				)
-			end
-		end
 	end
 	return out
 end
