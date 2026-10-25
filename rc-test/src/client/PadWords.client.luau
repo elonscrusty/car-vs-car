@@ -52,7 +52,8 @@ local function label(parent: Instance, text: string, color: Color3, y: number, h
 end
 
 -- a BillboardGui only draws reliably from PlayerGui; Adornee puts it over the part. Sized in
--- pixels, so it stays readable from across the spawn on a phone.
+-- studs (tour 5: pixel-sized ones ran off a phone's edges and piled on each other from the
+-- spawn), so a far sign is small and a near one big, like a real sign.
 local function sign(
 	over: BasePart,
 	name: string,
@@ -64,7 +65,7 @@ local function sign(
 	b.Name = name
 	b.Adornee = over
 	b.AlwaysOnTop = false
-	b.Size = UDim2.fromOffset(size.X, size.Y)
+	b.Size = UDim2.new(size.X, 0, size.Y, 0)
 	b.StudsOffsetWorldSpace = Vector3.new(0, up, 0)
 	b.MaxDistance = far -- the spawn only, not from across the tracks
 	b.LightInfluence = 0
@@ -93,7 +94,24 @@ local function addPad(base: Instance)
 		return
 	end
 	local b =
-		sign(base, "Pad" .. tostring(base:GetAttribute("Pad") or ""), Vector2.new(220, 90), 7, 60)
+		sign(base, "Pad" .. tostring(base:GetAttribute("Pad") or ""), Vector2.new(9, 3.6), 6, 60)
+	-- the side pads' words lean in toward the middle pad, so from the spawn all three fit on a
+	-- phone screen (tour 5: GO BUILD and DRIFT NOW were cut off at the edges)
+	task.delay(1, function()
+		for _, other in CollectionService:GetTagged("QueuePad") do
+			if
+				other ~= base
+				and other:IsA("BasePart")
+				and other:GetAttribute("PlotType") == "race"
+			then
+				local to = other.Position - base.Position
+				to = Vector3.new(to.X, 0, to.Z)
+				if to.Magnitude > 1 then
+					b.StudsOffsetWorldSpace = Vector3.new(0, 6, 0) + to.Unit * 10
+				end
+			end
+		end
+	end)
 	-- the pad's own colour (its neon rim; the base itself is dark)
 	local rim = if base.Parent then base.Parent:FindFirstChild("Rim") else nil
 	label(
@@ -122,7 +140,8 @@ local function addShop(model: Instance)
 	-- the shop's trim colour (its counter top), white when there is none; just over the roof
 	local counter = model:FindFirstChild("Counter")
 	local top = counter and counter:FindFirstChild("Top")
-	local b = sign(floor, "Shop" .. kind, Vector2.new(240, 56), 12, 140)
+	-- over the roof (9 up), higher than the pad words, so from the spawn they sit above them
+	local b = sign(floor, "Shop" .. kind, Vector2.new(12, 2.6), 13, 120)
 	local orange = Garage.COLORS.orange -- the garage has no counter: its frame colour
 	local color = if top and top:IsA("BasePart")
 		then top.Color
@@ -135,13 +154,35 @@ local function addGumball(base: Instance)
 	if not base:IsA("BasePart") then
 		return
 	end
-	local b = sign(base, "Gumball", Vector2.new(200, 50), 8, 100)
+	local b = sign(base, "Gumball", Vector2.new(7, 1.6), 8, 100)
 	label(b, "LUCKY CAR", Color3.fromRGB(255, 120, 190), 0, 1)
 end
 
--- hidden while driving (they showed over the race from far away)
+-- Only at the spawn, on foot: hidden while driving, and whenever the camera is away from the
+-- spawn (tour 5: driving plot 1 they floated over the barrier ahead).
+local SPAWN_NEAR = 90 -- studs from the middle (race) pad
+local function middlePad(): BasePart?
+	for _, pad in CollectionService:GetTagged("QueuePad") do
+		if pad:IsA("BasePart") and pad:GetAttribute("PlotType") == "race" then
+			return pad
+		end
+	end
+	return nil
+end
 local function showAll()
-	holder.Enabled = Players.LocalPlayer:GetAttribute("Driving") ~= true
+	local me = Players.LocalPlayer
+	local on = me:GetAttribute("Driving") ~= true
+	local char = me.Character
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if hum and hum.SeatPart ~= nil then
+		on = false
+	end
+	local mid = middlePad()
+	local cam = workspace.CurrentCamera
+	if on and mid and cam and (cam.CFrame.Position - mid.Position).Magnitude > SPAWN_NEAR then
+		on = false
+	end
+	holder.Enabled = on
 end
 Players.LocalPlayer:GetAttributeChangedSignal("Driving"):Connect(showAll)
 showAll()
@@ -169,6 +210,7 @@ workspace.DescendantAdded:Connect(checkShop)
 task.spawn(function()
 	while true do
 		task.wait(0.25)
+		showAll()
 		if holder.Enabled then
 			for _, s in smalls do
 				local t = smallText(s.base)
