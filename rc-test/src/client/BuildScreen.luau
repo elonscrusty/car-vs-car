@@ -506,6 +506,11 @@ function BuildScreen.new(opts: Options): BuildScreen
 		local turnTip = selected ~= nil and not turnTaught
 		whyText.Text = BuildLayout.hint(state.ready, gap, erasing, turnTip)
 		whyText.TextColor3 = if gap and not erasing then Color3.fromRGB(255, 140, 130) else WHITE
+		-- first build: the same word as the teaching hand (not TAP DONE! while it says drag)
+		if not taught and not erasing then
+			whyText.Text = "DRAG A TILE"
+			whyText.TextColor3 = WHITE
+		end
 		-- the first break: the whole game in one line, for a few seconds each time it opens
 		if os.clock() < loopUntil and not erasing then
 			whyText.Text = "BUILD ▶ RACE ▶ COINS ▶ CARS"
@@ -537,7 +542,8 @@ function BuildScreen.new(opts: Options): BuildScreen
 	local dropFrom = Vector2.zero -- where the press on the card began
 	local dragged = false -- moved far enough to count as a drag
 	local function moveGhost(at: Vector2)
-		ghost.Position = UDim2.fromOffset(at.X, at.Y)
+		-- held up off the finger, so the square it lands on (and its red or green mark) shows
+		ghost.Position = UDim2.fromOffset(at.X, at.Y - layout.cell * 1.1)
 	end
 
 	local function drawTray()
@@ -756,6 +762,7 @@ function BuildScreen.new(opts: Options): BuildScreen
 				taught = true
 				Players.LocalPlayer:SetAttribute("BuildTaught", true)
 				hand.Visible = false
+				drawTop()
 			end
 		end
 	end)
