@@ -86,7 +86,7 @@ test("every car stands on its spot or the podium, not floating or sunk", functio
 		end
 	end
 	eq(wheels.Hero, 4)
-	eq(wheels.Shelf, 4 * (#P.ALL - 1))
+	eq(wheels.Shelf, 2 * (#P.ALL - 1)) -- shelf cars: one long tyre per axle
 	-- no owner: the show only, no cars
 	for _, p in P.pieces({}) do
 		eq(p.group, "Show")
@@ -131,4 +131,13 @@ test("the board counts what the shop owns: every known car once, gumball too", f
 	eq(#P.parse("race_bolt,drift_kid,gb_lime,gb_gold"), 4)
 	eq(#P.parse("race_bolt,rock_pup,drift_kid"), 2)
 	eq(#P.parse(everyCar()), #P.ALL)
+end)
+
+test("phone budget: a full car show is at most 150 parts", function()
+	local full = #P.pieces(P.parse(everyCar()))
+	truthy(full <= 150, "full show " .. full .. " parts")
+	-- no cars: the show and one flat plate per spot
+	local empty = #P.pieces({})
+	truthy(empty <= 16 + #P.SLOTS, "empty show " .. empty .. " parts")
+	truthy(full - empty <= 16 + (#P.ALL - 1) * P.SHELF_PARTS, "each shelf car stays low detail")
 end)

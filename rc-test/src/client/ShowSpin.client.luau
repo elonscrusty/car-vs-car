@@ -3,6 +3,8 @@
 -- pivot is the podium's top middle). Only on this screen: the server copy stays still.
 -- Also: a spot tagged "ShowNew" for this player (a car they just bought or won) glows gold with a
 -- burst of sparkles the first time they come within NEW_NEAR of it.
+-- Phone speed: a show's shelf cars (tag "ShowShelf") leave this screen while the camera is
+-- farther than FAR from them; the podium car stays.
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -111,6 +113,39 @@ task.spawn(function()
 			elseif root and (spot.Position - root.Position).Magnitude < NEW_NEAR then
 				waiting[spot] = nil
 				glow(spot)
+			end
+		end
+	end
+end)
+
+-- ===== Far shelves =====
+
+local FAR = 150 -- studs
+local shelves: { [Model]: { home: Instance, at: Vector3 } } = {}
+
+local function addShelf(m: Instance)
+	if m:IsA("Model") and m.Parent then
+		shelves[m] = { home = m.Parent, at = m:GetPivot().Position }
+	end
+end
+for _, m in CollectionService:GetTagged("ShowShelf") do
+	addShelf(m)
+end
+CollectionService:GetInstanceAddedSignal("ShowShelf"):Connect(addShelf)
+
+task.spawn(function()
+	while true do
+		task.wait(1)
+		local cam = workspace.CurrentCamera
+		if cam then
+			local eye = cam.CFrame.Position
+			for m, s in shelves do
+				if not s.home.Parent then
+					shelves[m] = nil -- the show was rebuilt or removed
+				else
+					local near = (s.at - eye).Magnitude < FAR
+					m.Parent = if near then s.home else nil
+				end
 			end
 		end
 	end

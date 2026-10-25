@@ -87,6 +87,10 @@ function PlotStandsBuilder.start()
 				end
 			end
 		end
+		-- the shelf cars: far away, each screen drops them (ShowSpin.client)
+		if groups.Shelf then
+			CollectionService:AddTag(groups.Shelf, "ShowShelf")
+		end
 		local hero = groups.Hero
 		if hero then
 			local h = PlotStands.HERO
