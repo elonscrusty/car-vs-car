@@ -273,7 +273,12 @@ local function showResult(rows: { any })
 	end
 	local first = rows[1]
 	local won = first.time or (type(first.score) == "number" and first.score > 0)
-	title.Text = if won then `🏆 {first.name} WINS!` else "TIME UP!"
+	-- the winner's car in the title, every racer's car on their row: cars get shown off
+	local firstCar = if type(first.car) == "string" then string.upper(first.car) else nil
+	title.Text = if won and firstCar
+		then `🏆 {first.name} WINS IN {firstCar}!`
+		elseif won then `🏆 {first.name} WINS!`
+		else "TIME UP!"
 	local lines = {}
 	local mine: number? = nil
 	for i, r in rows do
@@ -289,7 +294,8 @@ local function showResult(rows: { any })
 			else `{r.laps}/{ServerRace.LAPS} laps`
 		local paid = paidText(r)
 		local medal = ServerRace.medal(i)
-		local line = `{if medal ~= "" then medal else `{i}.`} {r.name}   {what}`
+		local car = if type(r.car) == "string" then `  <font color="#9AA0AA">{r.car}</font>` else ""
+		local line = `{if medal ~= "" then medal else `{i}.`} {r.name}{car}   {what}`
 		-- your own row in yellow, so you find yourself at once
 		table.insert(
 			lines,
