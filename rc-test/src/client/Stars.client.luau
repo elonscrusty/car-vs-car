@@ -1062,11 +1062,10 @@ local function showMedalGoal()
 		return -- a flash is showing: it calls back when done
 	end
 	local g = medalGoal
-	-- only in the car: it sits in a drive-mode spot (on foot LOOKS is there), and a goal from
-	-- the plot you just left must not hang on as you walk to the next pad (tour 7)
+	-- only while driving: the server still sees a parked car on the plot after WALK
 	goalChip.Visible = g ~= nil
-		and player:GetAttribute("Building") ~= true
 		and player:GetAttribute("Driving") == true
+		and player:GetAttribute("Building") ~= true
 	if g == nil then
 		return
 	end
@@ -1080,6 +1079,9 @@ local function showMedalGoal()
 end
 local function flashMedalGoal(text: string, color: Color3)
 	if medalGoal == nil then
+		return
+	end
+	if player:GetAttribute("Driving") ~= true then
 		return
 	end
 	flashUntil = os.clock() + 1.6

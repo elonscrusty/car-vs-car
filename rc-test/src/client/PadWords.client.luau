@@ -151,17 +151,6 @@ local function addShop(model: Instance)
 	label(b, word, color, 0, 1)
 end
 
-local function addGumball(base: Instance)
-	if not base:IsA("BasePart") then
-		return
-	end
-	local b = sign(base, "Gumball", Vector2.new(10, 2.4), 8.5, 100)
-	label(b, "LUCKY CAR", Color3.fromRGB(255, 120, 190), 0, 1)
-end
-
--- Only at the spawn, on foot: hidden while driving, and whenever the camera is away from the
--- spawn (tour 5: driving plot 1 they floated over the barrier ahead).
-local SPAWN_NEAR = 90 -- studs from the middle (race) pad
 local function middlePad(): BasePart?
 	for _, pad in CollectionService:GetTagged("QueuePad") do
 		if pad:IsA("BasePart") and pad:GetAttribute("PlotType") == "race" then
@@ -170,6 +159,43 @@ local function middlePad(): BasePart?
 	end
 	return nil
 end
+
+local function addGumball(base: Instance)
+	if not base:IsA("BasePart") then
+		return
+	end
+	local b = sign(base, "Gumball", Vector2.new(10, 2.4), 8.5, 100)
+	label(b, "LUCKY CAR", Color3.fromRGB(255, 120, 190), 0, 1)
+	-- the LOOKS garage stands right behind it from the spawn (tour 7: the two signs ran into
+	-- each other): slide these words 7 studs sideways, as seen from the middle pad, to the side
+	-- away from the garage, and drop them a little
+	task.delay(1.5, function()
+		local mid = middlePad()
+		for _, d in workspace:GetDescendants() do
+			if
+				d:IsA("Model")
+				and d:GetAttribute("ShopKind") == "looks"
+				and d.PrimaryPart
+				and mid
+			then
+				local view = base.Position - mid.Position
+				local side = Vector3.new(-view.Z, 0, view.X)
+				if side.Magnitude > 1 then
+					side = side.Unit
+					if side:Dot(base.Position - d.PrimaryPart.Position) < 0 then
+						side = -side
+					end
+					b.StudsOffsetWorldSpace = Vector3.new(0, 7.5, 0) + side * 7
+				end
+				break
+			end
+		end
+	end)
+end
+
+-- Only at the spawn, on foot: hidden while driving, and whenever the camera is away from the
+-- spawn (tour 5: driving plot 1 they floated over the barrier ahead).
+local SPAWN_NEAR = 90 -- studs from the middle (race) pad
 local function showAll()
 	local me = Players.LocalPlayer
 	local on = me:GetAttribute("Driving") ~= true
