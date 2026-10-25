@@ -1,7 +1,9 @@
 --!strict
 -- Who owns, drives and has opened each lobby plot (the one place that knows). Every joining
 -- player gets their own plot (the first free one) until they leave. A plot has one driver at a
--- time: its owner, anyone when nobody owns it, or anyone when its owner opened it to friends.
+-- time: anyone while it's open (every plot is, unless its owner shut it: carter 10-25, so
+-- visiting other plots is the thing to do), and its owner always: the owner tapping DRIVE on
+-- their own plot sends a visitor back to walking (not in the server race).
 -- Each plot model (workspace.Plots.<slot>_<id>) carries the same as attributes for other
 -- scripts: PlotType, Slot, OwnerId, DriverId (0 = none) and Open. `changed` fires (slot) on any
 -- change. Main hooks `onDrive` (what starting a drive does: the car, the camera).
@@ -28,15 +30,31 @@ LobbyPlots.changed = changedEvent.Event
 
 -- Set by Main: start this player driving this plot (after the claim).
 LobbyPlots.onDrive = nil :: ((player: Player, slot: number) -> ())?
+-- Set by Main: a visitor's turn ends because the owner wants to drive (walk them off).
+LobbyPlots.onBump = nil :: ((player: Player, slot: number) -> ())?
 
 local function model(slot: number): Instance?
 	local plots = workspace:FindFirstChild("Plots")
 	return plots and plots:FindFirstChild(slot .. "_" .. slots[slot].id)
 end
 
--- open: a plot nobody owns is open to all; an owned one only when its owner says so
+-- open: a plot nobody owns is open to all; an owned one unless its owner shut it
 function LobbyPlots.isOpen(slot: number): boolean
-	return owners[slot] == nil or opened[slot] == true
+	return owners[slot] == nil or opened[slot] ~= false
+end
+
+-- The server race holds this plot now (nobody gets bumped off it).
+local function racing(slot: number): boolean
+	return workspace:GetAttribute("RaceSlot") == slot
+end
+
+-- Someone else on my own plot that I may send off (the owner comes first).
+local function visitorOn(player: Player, slot: number): Player?
+	local driver = drivers[slot]
+	if driver and driver ~= player and owners[slot] == player and not racing(slot) then
+		return driver
+	end
+	return nil
 end
 
 local function refresh(slot: number)
@@ -78,7 +96,7 @@ function LobbyPlots.addPlayer(player: Player): number?
 	local had = ownSlot[player]
 	local slot = PlotOwners.add(own, player)
 	if slot and slot ~= had then
-		opened[slot] = false
+		opened[slot] = true
 		refresh(slot)
 	end
 	return slot
@@ -93,7 +111,7 @@ function LobbyPlots.canDrive(player: Player, slot: number): boolean
 		if owner then owner.UserId else nil,
 		player.UserId,
 		LobbyPlots.isOpen(slot),
-		drivers[slot] ~= nil
+		drivers[slot] ~= nil and visitorOn(player, slot) == nil
 	)
 end
 
@@ -128,7 +146,7 @@ function LobbyPlots.removePlayer(player: Player)
 	LobbyPlots.release(player)
 	local slot = PlotOwners.remove(own, player)
 	if slot then
-		opened[slot] = false
+		opened[slot] = true
 		refresh(slot)
 	end
 end
@@ -138,6 +156,16 @@ end
 function LobbyPlots.sendTo(player: Player, slot: number): boolean
 	if not LobbyPlots.canDrive(player, slot) then
 		return false
+	end
+	local visitor = visitorOn(player, slot)
+	if visitor then
+		local bump = LobbyPlots.onBump
+		if bump then
+			bump(visitor, slot)
+		end
+		if drivers[slot] == visitor then
+			LobbyPlots.release(visitor)
+		end
 	end
 	LobbyPlots.claim(player, slot)
 	local start = LobbyPlots.onDrive

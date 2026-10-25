@@ -236,6 +236,10 @@ test("a pad's DRIVE button: DRIVE when you may, BUSY, or whose it is and LOCKED"
 	ok, text = L.padButton(9, "mia", 9, true, 7)
 	eq(ok, false)
 	eq(text, "BUSY")
+	-- a visitor on my own plot: I can still drive it (the owner comes first)
+	ok, text = L.padButton(7, "me", 9, true, 7)
+	eq(ok, true)
+	eq(text, "DRIVE")
 	ok, text = L.padButton(7, "me", 7, false, 7)
 	eq(ok, true) -- my own drive still going
 end)
