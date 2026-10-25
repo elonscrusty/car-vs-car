@@ -236,6 +236,17 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 		end
 	end
 	button.Activated:Connect(askWalk)
+	-- WALK steps aside while the race result and prize cards are up (on a phone they reach down to it);
+	-- E still works
+	local pgui = Players.LocalPlayer:WaitForChild("PlayerGui")
+	local function shown(guiName: string, name: string): boolean
+		local holder = pgui:FindFirstChild(guiName)
+		local o = if holder then holder:FindFirstChild(name) else nil
+		return o ~= nil and o:IsA("GuiObject") and o.Visible
+	end
+	RunService.Heartbeat:Connect(function()
+		button.Visible = not (shown("ServerRace", "Result") or shown("StarsTop", "RacePrize"))
+	end)
 	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
 		if not processed and input.KeyCode == Enum.KeyCode.E then
 			askWalk()
