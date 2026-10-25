@@ -1062,7 +1062,11 @@ local function showMedalGoal()
 		return -- a flash is showing: it calls back when done
 	end
 	local g = medalGoal
-	goalChip.Visible = g ~= nil and player:GetAttribute("Building") ~= true
+	-- only in the car: it sits in a drive-mode spot (on foot LOOKS is there), and a goal from
+	-- the plot you just left must not hang on as you walk to the next pad (tour 7)
+	goalChip.Visible = g ~= nil
+		and player:GetAttribute("Building") ~= true
+		and player:GetAttribute("Driving") == true
 	if g == nil then
 		return
 	end
@@ -1086,6 +1090,7 @@ local function flashMedalGoal(text: string, color: Color3)
 	task.delay(1.65, showMedalGoal)
 end
 player:GetAttributeChangedSignal("Building"):Connect(showMedalGoal)
+player:GetAttributeChangedSignal("Driving"):Connect(showMedalGoal)
 
 -- the plot boards' rows carry their player's UserId: light up mine
 local MINE = Color3.fromRGB(0, 120, 255)
