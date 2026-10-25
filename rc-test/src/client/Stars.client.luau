@@ -8,6 +8,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
+local Popup = require(script.Parent:WaitForChild("Popup"))
 local Profile = require(ReplicatedStorage.Shared.Profile)
 
 local remote = ReplicatedStorage:WaitForChild("StarsEvent") :: RemoteEvent
@@ -216,6 +217,13 @@ rivalsBtn.Activated:Connect(function()
 end)
 close.Activated:Connect(function()
 	panel.Visible = false
+end)
+-- tap outside shuts it too, and it never stacks on another popup
+Popup.add("rivals", top, function()
+	panel.Visible = false
+end)
+panel:GetPropertyChangedSignal("Visible"):Connect(function()
+	Popup.shown("rivals", panel.Visible)
 end)
 
 local function showRivals(list: { any }, streak: number, points: number)
@@ -582,6 +590,7 @@ local function showDaily(coins: number, streak: number, boost: number)
 			and me:GetAttribute("Building") ~= true -- (it hid behind the build screen, tour 2)
 			and not (race and race:GetAttribute("Busy") == true)
 			and not (prizeCard and (prizeCard :: GuiObject).Visible)
+			and not Popup.isOpen() -- (a shop or panel is up: no card on top of it)
 	end
 	local waited, still = 0, 0
 	while still < 3 and waited < 600 do

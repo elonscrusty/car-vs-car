@@ -19,6 +19,7 @@ local Garage = require(Shared:WaitForChild("Garage"))
 local CarCatalog = require(Shared:WaitForChild("CarCatalog"))
 local TileShop = require(Shared:WaitForChild("TileShop"))
 local HudLayout = require(Shared:WaitForChild("HudLayout"))
+local Popup = require(script.Parent:WaitForChild("Popup"))
 
 local player = Players.LocalPlayer
 local shopRemote = ReplicatedStorage:WaitForChild("CarShop") :: RemoteFunction
@@ -717,6 +718,17 @@ close.Activated:Connect(function()
 	gui.Enabled = false
 	current = nil
 end)
+-- tap outside shuts it too, and it never stacks on another popup
+-- (not while NEW CAR! is up: the panel hides for it, and DRIVE IT! is the way on)
+Popup.add("cars", gui, function()
+	gui.Enabled = false
+	current = nil
+end)
+local function carsShown()
+	Popup.shown("cars", gui.Enabled and panel.Visible)
+end
+gui:GetPropertyChangedSignal("Enabled"):Connect(carsShown)
+panel:GetPropertyChangedSignal("Visible"):Connect(carsShown)
 
 local function prompt(parent: BasePart, action: string, object: string, onUse: () -> ())
 	local p = Instance.new("ProximityPrompt")
