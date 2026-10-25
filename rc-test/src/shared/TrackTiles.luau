@@ -196,8 +196,14 @@ function TrackTiles.get(grid: Grid, c: number, r: number): Tile?
 	return nil
 end
 
+-- whole squares only: a phone could send 2.5 and lay a tile between two squares
 local function inside(grid: Grid, c: number, r: number): boolean
-	return c >= 1 and c <= grid.cols and r >= 1 and r <= grid.rows
+	return c == math.floor(c)
+		and r == math.floor(r)
+		and c >= 1
+		and c <= grid.cols
+		and r >= 1
+		and r <= grid.rows
 end
 
 -- Which world edges a placed piece touches.
