@@ -118,10 +118,19 @@ innerRing.Color = Color3.fromRGB(255, 232, 140)
 innerRing.Thickness = 1.5
 innerRing.Parent = coinInner
 
--- gold bolts found, only while on a rock plot
+-- the next medal on the plot you drive ("🥈 0:20"); flashes "+1 ⭐" when you get it
+local goalChip = chip:Clone()
+goalChip.Name = "MedalGoal"
+HudLayout.place(goalChip, "MedalGoal", "drive")
+goalChip.Text = ""
+goalChip.Visible = false
+goalChip.Parent = gui
+local goalScale = goalChip:FindFirstChildOfClass("UIScale") :: UIScale
+
+-- gold bolts found, only while on a rock plot (rock plots are gone: never shown)
 local boltChip = chip:Clone()
 boltChip.Name = "BoltCount"
-HudLayout.place(boltChip, "BoltCount", "drive")
+HudLayout.place(boltChip, "MedalGoal", "drive")
 boltChip.TextColor3 = Color3.fromRGB(255, 200, 70)
 boltChip.Text = "BOLTS 0/5"
 boltChip.Visible = false
@@ -972,6 +981,57 @@ task.spawn(function()
 	end)
 end)
 
+-- ===== the next medal while driving, and your row on the plot boards =====
+
+local ICONS = { "🥉", "🥈", "🥇" }
+local medalGoal: any = nil -- ("target", info): { medal, text, stars } or nil off a plot
+local flashUntil = 0
+local function showMedalGoal()
+	if os.clock() < flashUntil then
+		return -- a flash is showing: it calls back when done
+	end
+	local g = medalGoal
+	goalChip.Visible = g ~= nil and player:GetAttribute("Building") ~= true
+	if g == nil then
+		return
+	end
+	if g.medal >= 1 and g.medal <= 3 then
+		goalChip.Text = `{ICONS[g.medal]} {g.text}`
+		goalChip.TextColor3 = COLORS[g.medal]
+	else
+		goalChip.Text = "ALL GOLD 🥇"
+		goalChip.TextColor3 = COLORS[3]
+	end
+end
+local function flashMedalGoal(text: string, color: Color3)
+	if medalGoal == nil then
+		return
+	end
+	flashUntil = os.clock() + 1.6
+	goalChip.Text = text
+	goalChip.TextColor3 = color
+	goalScale.Scale = 1.5
+	TweenService:Create(goalScale, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+	task.delay(1.65, showMedalGoal)
+end
+player:GetAttributeChangedSignal("Building"):Connect(showMedalGoal)
+
+-- the plot boards' rows carry their player's UserId: light up mine
+local MINE = Color3.fromRGB(0, 120, 255)
+task.spawn(function()
+	local folder = workspace:WaitForChild("StarBoards", 60)
+	while folder do
+		for _, d in folder:GetDescendants() do
+			if d:IsA("TextLabel") and string.sub(d.Name, 1, 3) == "Row" then
+				local mine = d:GetAttribute("UserId") == player.UserId
+				d.BackgroundColor3 = MINE
+				d.BackgroundTransparency = if mine then 0.15 else 1
+			end
+		end
+		task.wait(0.5)
+	end
+end)
+
 remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unknown, ...: unknown)
 	if kind == "stars" and type(info) == "number" then
 		setStars(info, false)
@@ -1032,6 +1092,16 @@ remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unkn
 		showToast(info)
 		return
 	end
+	if kind == "target" then
+		local g = info :: any
+		medalGoal = if type(g) == "table"
+				and type(g.medal) == "number"
+				and type(g.text) == "string"
+			then g
+			else nil
+		showMedalGoal()
+		return
+	end
 	if kind ~= "run" or type(info) ~= "table" then
 		return
 	end
@@ -1046,6 +1116,19 @@ remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unkn
 		table.insert(lines, line)
 	else
 		table.insert(lines, tostring(r.text))
+	end
+	if medal > 0 then
+		if type(r.gained) == "number" and r.gained > 0 then
+			flashMedalGoal(`+{r.gained} ⭐`, COLORS[3])
+		elseif
+			medalGoal
+			and not medalGoal.stars
+			and medalGoal.medal > 0
+			and medal >= medalGoal.medal
+		then
+			-- your own plot: a new best medal, no stars here
+			flashMedalGoal(`{NAMES[medal]}!`, COLORS[medal])
+		end
 	end
 	if r.record then
 		table.insert(lines, `<font color="#FFD54F">NEW PLOT RECORD!</font>`)

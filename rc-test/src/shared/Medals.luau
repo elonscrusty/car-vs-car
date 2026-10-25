@@ -128,4 +128,48 @@ function Medals.format(mode: string, value: number): string
 	return string.format("%d:%04.1f", m, s - m * 60)
 end
 
+-- The next medal to go for when you already have `have` (0..3): its number and the value to
+-- reach. nil when you have gold.
+function Medals.nextGoal(mode: string, have: number, scale: number?): (number?, number?)
+	local t = Medals.target(mode, scale)
+	if t == nil or have >= 3 then
+		return nil, nil
+	end
+	local m = math.max(math.floor(have), 0) + 1
+	return m, if m == 1 then t.bronze elseif m == 2 then t.silver else t.gold
+end
+
+-- A plot's board: the best run of each player, best first, at most TOP rows.
+export type Run = { value: number, name: string, userId: number }
+Medals.TOP = 3
+
+-- Put `run` on the board `list` (changed in place) if it is that player's best. Returns the
+-- place it got (1..TOP), or nil when it is not on the board (or not better than their own row).
+function Medals.addTop(mode: string, list: { Run }, run: Run, scale: number?): number?
+	if not Medals.valid(mode, run.value, scale) then
+		return nil
+	end
+	for i, r in list do
+		if r.userId == run.userId then
+			if not Medals.better(mode, run.value, r.value, scale) then
+				return nil
+			end
+			table.remove(list, i)
+			break
+		end
+	end
+	local at = #list + 1
+	for i, r in list do
+		if Medals.better(mode, run.value, r.value, scale) then
+			at = i
+			break
+		end
+	end
+	table.insert(list, at, { value = run.value, name = run.name, userId = run.userId })
+	while #list > Medals.TOP do
+		table.remove(list)
+	end
+	return if at <= Medals.TOP then at else nil
+end
+
 return Medals

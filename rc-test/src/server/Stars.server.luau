@@ -115,19 +115,24 @@ local function trackOf(slotIndex: number): TrackData.Track
 	return t
 end
 
--- ===== record boards: a small flat card just above each plot's sign, facing the road =====
+-- ===== record boards: a flat card just above each plot's sign =====
 -- Flat (SurfaceGui on an invisible part) and sized in studs, so it never grows to fill the
--- screen up close or covers the street view, and hidden past BOARD_SEE studs.
+-- screen up close or covers the street view, and hidden past BOARD_SEE studs. It turns toward
+-- the road by the plot's DRIVE pad, so it reads from the pad on a phone. The plot's name, then
+-- the top 3 (each player's best); each row carries its player's UserId so Stars.client lights
+-- up your own row.
 
-local BOARD_W, BOARD_H = 7, 2.6
-local BOARD_Y = 7.4 -- just above the sign (its top is at about 5.5)
-local BOARD_SEE = 60
+local BOARD_W, BOARD_H = 10, 5.6
+local BOARD_Y = 8.9 -- its bottom just above the sign (its top is at about 5.5)
+local BOARD_SEE = 80
+local ROW_COLOR = Color3.fromRGB(25, 25, 30)
 
 local boardFolder = Instance.new("Folder")
 boardFolder.Name = "StarBoards"
 boardFolder.Parent = workspace
 
-local boards: { [number]: TextLabel } = {}
+type Board = { title: TextLabel, rows: { TextLabel } }
+local boards: { [number]: Board } = {}
 local likePrompts: { [number]: ProximityPrompt } = {}
 for i, slot in slots do
 	local anchor = Instance.new("Part")
@@ -138,36 +143,60 @@ for i, slot in slots do
 	anchor.CanTouch = false
 	anchor.Transparency = 1
 	anchor.Size = Vector3.new(BOARD_W, BOARD_H, 0.1)
-	-- over the sign, its front facing the road (x = 0)
+	-- over the sign, its front facing the middle of the road level with the pad
 	local at = Vector3.new(slot.signX, BOARD_Y, slot.signZ)
-	anchor.CFrame = CFrame.lookAt(at, Vector3.new(0, BOARD_Y, slot.signZ))
+	anchor.CFrame = CFrame.lookAt(at, Vector3.new(0, BOARD_Y, slot.padZ))
 	anchor.Parent = boardFolder
 	local gui = Instance.new("SurfaceGui")
 	gui.Face = Enum.NormalId.Front
 	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = 60
+	gui.PixelsPerStud = 50
 	gui.MaxDistance = BOARD_SEE
 	gui.LightInfluence = 0
 	gui.Parent = anchor
-	local text = Instance.new("TextLabel")
-	text.Size = UDim2.fromScale(1, 1)
-	text.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-	text.BackgroundTransparency = 0.25
-	text.TextColor3 = Color3.new(1, 1, 1)
-	text.Font = Enum.Font.GothamBlack
-	text.TextScaled = true
-	text.RichText = true
-	text.Parent = gui
+	local back = Instance.new("Frame")
+	back.Size = UDim2.fromScale(1, 1)
+	back.BackgroundColor3 = ROW_COLOR
+	back.BackgroundTransparency = 0.2
+	back.Parent = gui
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0.15, 0)
-	corner.Parent = text
+	corner.CornerRadius = UDim.new(0.08, 0)
+	corner.Parent = back
 	local pad = Instance.new("UIPadding")
-	pad.PaddingLeft = UDim.new(0.04, 0)
-	pad.PaddingRight = UDim.new(0.04, 0)
-	pad.PaddingTop = UDim.new(0.06, 0)
-	pad.PaddingBottom = UDim.new(0.06, 0)
-	pad.Parent = text
-	boards[i] = text
+	pad.PaddingLeft = UDim.new(0.03, 0)
+	pad.PaddingRight = UDim.new(0.03, 0)
+	pad.PaddingTop = UDim.new(0.04, 0)
+	pad.PaddingBottom = UDim.new(0.04, 0)
+	pad.Parent = back
+	local list = Instance.new("UIListLayout")
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.Padding = UDim.new(0.02, 0)
+	list.Parent = back
+	local function line(order: number, height: number): TextLabel
+		local t = Instance.new("TextLabel")
+		t.Name = if order == 0 then "Title" else "Row" .. order
+		t.LayoutOrder = order
+		t.Size = UDim2.fromScale(1, height)
+		t.BackgroundColor3 = Color3.fromRGB(255, 213, 79)
+		t.BackgroundTransparency = 1
+		t.TextColor3 = Color3.new(1, 1, 1)
+		t.Font = Enum.Font.GothamBlack
+		t.TextScaled = true
+		t.RichText = true
+		t.TextXAlignment = if order == 0
+			then Enum.TextXAlignment.Center
+			else Enum.TextXAlignment.Left
+		t.Parent = back
+		local c = Instance.new("UICorner")
+		c.CornerRadius = UDim.new(0.3, 0)
+		c.Parent = t
+		return t
+	end
+	local rows = {}
+	for k = 1, Medals.TOP do
+		table.insert(rows, line(k, 0.21))
+	end
+	boards[i] = { title = line(0, 0.25), rows = rows }
 	-- the like button: walk up to the board
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.ActionText = "Like"
@@ -190,10 +219,29 @@ local function scaleOf(slotIndex: number, mode: string): number?
 	return Medals.loopScale(custom.gates, raceGates)
 end
 
+-- this plot's board for `mode`: the owner's save, or the loose list (changed in place)
+local looseTops: { [number]: { [string]: { Medals.Run } } } = {}
+local function topOf(slotIndex: number, mode: string): { Medals.Run }?
+	local owner = ownerPlayer(slotIndex)
+	local tops: { [string]: { Medals.Run } }
+	if owner then
+		local data = PlayerData.get(owner)
+		if not data then
+			return nil
+		end
+		tops = data.plotTop :: any
+	else
+		looseTops[slotIndex] = looseTops[slotIndex] or {}
+		tops = looseTops[slotIndex]
+	end
+	tops[mode] = tops[mode] or {}
+	return tops[mode]
+end
+
+local PLACES = { "1", "2", "3" }
 local function showBoard(slotIndex: number)
 	local mode = plotType(slotIndex)
-	local t = Medals.target(mode, scaleOf(slotIndex, mode))
-	if not t then
+	if not Medals.target(mode) then
 		return
 	end
 	local owner = ownerPlayer(slotIndex)
@@ -202,14 +250,22 @@ local function showBoard(slotIndex: number)
 	if ownerData then
 		title ..= `  ❤ {ownerData.likes}`
 	end
-	local records = recordsOf(slotIndex)
-	local r = records and records[mode]
-	local best = if r then `BEST {Medals.format(mode, r.value)}  {r.name}` else "BEST  none yet"
-	local goals = `{MEDAL_ICONS[3]} {Medals.format(mode, t.gold)}   {MEDAL_ICONS[2]} {Medals.format(
-		mode,
-		t.silver
-	)}   {MEDAL_ICONS[1]} {Medals.format(mode, t.bronze)}`
-	boards[slotIndex].Text = `{title}\n<font color="#FFD54F">{best}</font>\n{goals}`
+	local board = boards[slotIndex]
+	board.title.Text = title
+	local top = topOf(slotIndex, mode) or {}
+	for k, row in board.rows do
+		local r = top[k]
+		if r then
+			row.Text =
+				` {PLACES[k]}. <font color="#FFD54F">{Medals.format(mode, r.value)}</font>  {r.name}`
+			row:SetAttribute("UserId", r.userId)
+		else
+			row.Text = if k == 1
+				then ` {PLACES[k]}.  <font color="#AAAAAA">drive to be first!</font>`
+				else ` {PLACES[k]}.  <font color="#777777">-</font>`
+			row:SetAttribute("UserId", nil)
+		end
+	end
 end
 
 -- ===== plot looks: the owner's stars grow their plot (PlotLooksBuilder reads OwnerStars) =====
@@ -371,6 +427,35 @@ local function beat(player: Player, old: Profile.Record, mode: string)
 	end
 end
 
+-- ===== the next medal while driving: ("target", info or nil) =====
+-- info = { medal = 1..3 (0 = all gold), text = "0:20", stars = beating it wins stars }.
+-- On a friend's plot "have" is the medal saved for that owner; on your own (or an open) plot,
+-- where medals win no stars, it is the best medal this visit.
+local targetSeen: { [Player]: string } = {}
+local ownMedal: { [Player]: { [string]: number } } = {}
+local function sendTarget(player: Player, slotIndex: number?, mode: string?)
+	local info: { medal: number, text: string, stars: boolean }? = nil
+	if slotIndex and mode then
+		local oid = ownerId(slotIndex)
+		local stars = oid ~= nil and oid ~= player.UserId
+		local have = 0
+		if stars then
+			local data = PlayerData.get(player)
+			local from = data and data.starsFrom[tostring(oid)]
+			have = from and from[mode] or 0
+		else
+			have = (ownMedal[player] or {})[`{slotIndex}/{mode}`] or 0
+		end
+		local m, v = Medals.nextGoal(mode, have, scaleOf(slotIndex, mode))
+		info = { medal = m or 0, text = if v then Medals.format(mode, v) else "", stars = stars }
+	end
+	local key = if info then `{info.medal}/{info.text}/{info.stars}` else "none"
+	if targetSeen[player] ~= key then
+		targetSeen[player] = key
+		remote:FireClient(player, "target", info)
+	end
+end
+
 local function onRun(player: Player, slotIndex: number, mode: string, value: number)
 	local scale = scaleOf(slotIndex, mode)
 	if not Medals.valid(mode, value, scale) then
@@ -383,6 +468,14 @@ local function onRun(player: Player, slotIndex: number, mode: string, value: num
 		beaten = records[mode]
 		records[mode] = { value = value, name = player.DisplayName, userId = player.UserId }
 		record = true
+		if owner then
+			PlayerData.touch(owner)
+		end
+	end
+	local top = topOf(slotIndex, mode)
+	local run = { value = value, name = player.DisplayName, userId = player.UserId }
+	local placed = top ~= nil and Medals.addTop(mode, top, run, scale) ~= nil
+	if record or placed then
 		if owner then
 			PlayerData.touch(owner)
 		end
@@ -409,6 +502,12 @@ local function onRun(player: Player, slotIndex: number, mode: string, value: num
 	end
 	if oid and not own and medal > 0 then
 		job(player, "medal")
+	end
+	if not (oid and not own) and medal > 0 then
+		local mine = ownMedal[player] or {}
+		ownMedal[player] = mine
+		local k = `{slotIndex}/{mode}`
+		mine[k] = math.max(mine[k] or 0, medal)
 	end
 	local gained = 0
 	local data = PlayerData.get(player)
@@ -576,6 +675,7 @@ local function look(now: number)
 		if not (car and body) then
 			watching[player] = nil
 			setRock(player, false)
+			sendTarget(player, nil, nil)
 			continue
 		end
 		if not body:FindFirstChild("Streak") then
@@ -590,9 +690,11 @@ local function look(now: number)
 		if slotIndex == nil then
 			watching[player] = nil
 			setRock(player, false)
+			sendTarget(player, nil, nil)
 			continue
 		end
 		local t = tracks[slotIndex]
+		sendTarget(player, slotIndex, t.id)
 		setRock(player, t.id == "rock")
 		if t.id == "rock" then
 			checkBolts(player, slotIndex, cf.Position)
@@ -759,6 +861,8 @@ end)
 
 Players.PlayerRemoving:Connect(function(player)
 	watching[player] = nil
+	targetSeen[player] = nil
+	ownMedal[player] = nil
 	lastLike[player] = nil
 	onRock[player] = nil
 	task.defer(showAll)
@@ -797,6 +901,7 @@ end)
 
 -- The goal to save up for, sent again whenever coins, stars or cars change (from any shop).
 local goalSeen: { [Player]: string } = {}
+local starsSeen: { [Player]: number } = {}
 local function goalOf(data: Profile.Data): Rewards.Goal?
 	return Rewards.next(data :: any)
 end
@@ -818,6 +923,22 @@ local function sendGoal(player: Player, force: boolean?)
 	end
 	local first = goalSeen[player] == nil
 	goalSeen[player] = key
+	-- stars that just opened a tile or a bigger track: one toast each
+	local before = starsSeen[player]
+	starsSeen[player] = data.stars
+	if before and data.stars > before then
+		local news = Rewards.opened(before, data.stars)
+		task.spawn(function()
+			for k, text in news do
+				if k > 1 then
+					task.wait(3)
+				end
+				if player.Parent then
+					remote:FireClient(player, "toast", text)
+				end
+			end
+		end)
+	end
 	if not first then
 		remote:FireClient(player, "coins", data.coins)
 	end
@@ -843,6 +964,7 @@ task.spawn(function()
 end)
 Players.PlayerRemoving:Connect(function(p)
 	goalSeen[p] = nil
+	starsSeen[p] = nil
 end)
 
 local acc = 0

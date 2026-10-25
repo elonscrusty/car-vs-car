@@ -117,4 +117,41 @@ function Rewards.next(s: Save): Goal?
 	return Rewards.gridGoal(s.stars)
 end
 
+-- What going from `before` to `after` stars opens, as short toasts ("NEW TILE: CONES!",
+-- "BIGGER TRACK: 5x6!"), in the order they open.
+function Rewards.opened(before: number, after: number): { string }
+	local out: { { at: number, text: string } } = {}
+	if after <= before then
+		return {}
+	end
+	if not TrackTiles.ALL_FREE then
+		for _, t in TileShop.TILES do
+			local at = TileShop.unlockAt(t.id)
+			if t.tier == "coins" and at > before and at <= after then
+				table.insert(out, { at = at, text = `NEW TILE: {string.upper(t.name)}!` })
+			end
+		end
+	end
+	for _, sz in TrackTiles.SIZES do
+		if sz.stars > before and sz.stars <= after then
+			table.insert(out, { at = sz.stars, text = `BIGGER TRACK: {sz.cols}x{sz.rows}!` })
+		end
+	end
+	local order: { [any]: number } = {}
+	for i, o in out do
+		order[o] = i
+	end
+	table.sort(out, function(a, b)
+		if a.at ~= b.at then
+			return a.at < b.at
+		end
+		return order[a] < order[b]
+	end)
+	local texts = {}
+	for _, o in out do
+		table.insert(texts, o.text)
+	end
+	return texts
+end
+
 return Rewards

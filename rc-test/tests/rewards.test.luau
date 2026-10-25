@@ -67,3 +67,31 @@ test("rewards: the grid goal is the next bigger size, nil at the biggest", funct
 	end
 	eq(Rewards.gridGoal(last.stars), nil)
 end)
+
+test("rewards: stars that open a tile or a bigger track say so, in order", function()
+	local TileShop = require("../src/shared/TileShop")
+	eq(#Rewards.opened(5, 5), 0)
+	eq(#Rewards.opened(5, 4), 0)
+	local bumps = Rewards.opened(0, TileShop.UNLOCK_STARS.bumps)
+	eq(#bumps, 1)
+	eq(bumps[1], "NEW TILE: BUMPS!")
+	local grid = TrackTiles.SIZES[2]
+	local at10 = Rewards.opened(grid.stars - 1, grid.stars)
+	truthy(table.find(at10, `BIGGER TRACK: {grid.cols}x{grid.rows}!`) ~= nil)
+	-- every coin tile with a star gate opens once on the way up
+	local seen: { [string]: boolean } = {}
+	for s = 1, 100 do
+		for _, text in Rewards.opened(s - 1, s) do
+			truthy(not seen[text], text)
+			seen[text] = true
+		end
+	end
+	for _, t in TileShop.TILES do
+		if t.tier == "coins" and TileShop.unlockAt(t.id) > 0 then
+			truthy(seen[`NEW TILE: {string.upper(t.name)}!`], t.id)
+		end
+	end
+	-- a big jump lists them cheapest gate first
+	local all = Rewards.opened(0, 100)
+	eq(all[1], "NEW TILE: BUMPS!")
+end)
