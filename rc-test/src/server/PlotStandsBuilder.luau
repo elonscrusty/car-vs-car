@@ -34,8 +34,8 @@ local function label(board: BasePart, top: string, bottom: string)
 		l.Text = text
 		l.Parent = gui
 	end
-	line(top, 0.06, 0.52, Color3.new(1, 1, 1))
-	line(bottom, 0.58, 0.36, Color3.fromRGB(255, 200, 50))
+	line(top, 0.05, 0.55, Color3.new(1, 1, 1))
+	line(bottom, 0.6, 0.36, Color3.fromRGB(255, 200, 50))
 end
 
 function PlotStandsBuilder.start()

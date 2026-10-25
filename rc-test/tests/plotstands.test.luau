@@ -103,6 +103,15 @@ test("shelf cars fit their spots side by side", function()
 	truthy(half <= P.HERO.r + 0.1, "hero stays over the podium as it turns")
 end)
 
+test("the board hangs over the shelf cars, not through them", function()
+	local b = P.BOARD
+	for _, p in P.pieces(P.parse(everyCar())) do
+		if p.group == "Shelf" and math.abs(p.pos.z - b.z) < p.size.z / 2 + 0.3 then
+			truthy(p.pos.y + p.size.y / 2 < b.y - b.h / 2, p.name .. " under the board")
+		end
+	end
+end)
+
 test("the board says whose cars and how many", function()
 	local top, bottom = P.words("Carter", 12)
 	eq(top, "CARTER'S CARS")
