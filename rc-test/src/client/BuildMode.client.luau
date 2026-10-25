@@ -334,21 +334,37 @@ end)
 
 local open = false
 local lastEnd = 0
+local autoUsed = false -- it opened by itself once this break: after that, BUILD! opens it
+local pg = player:WaitForChild("PlayerGui")
+-- the race card, the prize card and the coins flying in come first (tour 2: it covered them)
+local function cardsUp(): boolean
+	local race = pg:FindFirstChild("ServerRace")
+	local prizeCard = pg:FindFirstChild("RacePrize", true)
+	return (race ~= nil and race:GetAttribute("Busy") == true)
+		or (prizeCard ~= nil and (prizeCard :: GuiObject).Visible)
+end
 RunService.Heartbeat:Connect(function()
 	local e = endsAt()
 	if e ~= lastEnd then
-		lastEnd, closed, asked = e, false, false -- a new break
+		lastEnd, closed, asked, autoUsed = e, false, false, false -- a new break
 	end
 	local inBreak = e > now() and last ~= nil
 	local walking = player:GetAttribute("Driving") ~= true
 	-- by itself only once you've driven your plot (PlotGuide sets HasDriven): a brand new player
-	-- follows the arrows first, and BUILD! is there when they want it
-	local auto = player:GetAttribute("HasDriven") == true
-	local want = inBreak and not closed and walking and (auto or asked)
+	-- follows the arrows first, and BUILD! is there when they want it. And only once a break:
+	-- getting out of the car again doesn't pop it back up.
+	local auto = player:GetAttribute("HasDriven") == true and not autoUsed and not cardsUp()
+	local want = inBreak and not closed and walking and (auto or asked or open)
 	buildBtn.Visible = inBreak and walking and not want
 	if want ~= open then
 		open = want
 		screen.show(want)
+		if want and not asked then
+			autoUsed = true
+		end
+		if not want then
+			asked = false -- (closed by driving off: BUILD! brings it back)
+		end
 	end
 	if open then
 		screen.setSeconds(e - now())
