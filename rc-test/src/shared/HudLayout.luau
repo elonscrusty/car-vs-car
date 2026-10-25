@@ -86,13 +86,13 @@ HudLayout.SPOTS = {
 	spot("Timer", "drive", "Hud", TL, { 0.02, 0, 0, 64 }, { 0.24, 0, 0.14, 0 }),
 	spot("BoltCount", "drive", "Stars", TL, { 0.02, 0, 0.14, 70 }, { 0.11, 0, 0, 36 }), -- rock plots
 	spot("Track", "drive", "Hud", TC, { 0.5, 0, 0, 64 }, { 0.1012, 0, 0.1, 0 }), -- the one lit plot name
-	spot("DriftScore", "drive", "Hud", TC, { 0.5, 0, 0.1, 72 }, { 0.34, 0, 0.1, 0 }),
+	spot("DriftScore", "drive", "Hud", TC, { 0.5, 0, 0.1, 72 }, { 0.32, 0, 0.1, 0 }),
 	spot("Join", "drive", "ServerRace", TC, { 0.5, 0, 0.2, 80 }, { 0, 220, 0, 44 }),
-	spot("AutoGas", "drive", "Controls", TR, { 0.77, 0, 0, 64 }, { 0.065, 0, 0.09, 0 }),
-	spot("Smoke", "drive", "Controls", TR, { 0.84, 0, 0, 64 }, { 0.065, 0, 0.09, 0 }),
-	spot("View", "drive", "Controls", TR, { 0.91, 0, 0, 64 }, { 0.065, 0, 0.09, 0 }),
-	spot("Cam", "drive", "Controls", TR, { 0.98, 0, 0, 64 }, { 0.065, 0, 0.09, 0 }), -- RESET on rocks
-	spot("Speed", "drive", "Hud", TR, { 0.98, 0, 0.1, 72 }, { 0.1, 0, 0.06, 0 }),
+	spot("AutoGas", "drive", "Controls", TR, { 0.74, 0, 0, 64 }, { 0.075, 0, 0.12, 0 }), -- 45+ px tall on a phone
+	spot("Smoke", "drive", "Controls", TR, { 0.82, 0, 0, 64 }, { 0.075, 0, 0.12, 0 }),
+	spot("View", "drive", "Controls", TR, { 0.9, 0, 0, 64 }, { 0.075, 0, 0.12, 0 }),
+	spot("Cam", "drive", "Controls", TR, { 0.98, 0, 0, 64 }, { 0.075, 0, 0.12, 0 }), -- RESET on rocks
+	spot("Speed", "drive", "Hud", TR, { 0.98, 0, 0.12, 68 }, { 0.1, 0, 0.05, 0 }),
 	-- ===== drive: thumbs =====
 	spot("SteerHint", "drive", "Controls", BC, { 0.22, 0, 0.93, 0 }, { 0.3, 0, 0.08, 0 }),
 	-- 0.47: clear of the steer hint on a small phone and of BRAKE on a 4:3 tablet

@@ -88,8 +88,8 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }): Hud
 		gui,
 		"Speed",
 		Vector2.new(1, 0),
-		UDim2.new(0.98, 0, 0.1, 72),
-		UDim2.fromScale(0.1, 0.06)
+		UDim2.new(0.98, 0, 0.12, 68), -- = HudLayout "Speed"
+		UDim2.fromScale(0.1, 0.05)
 	)
 	speed.TextTransparency = 0.2
 
@@ -97,8 +97,8 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }): Hud
 		gui,
 		"Drift",
 		Vector2.new(0.5, 0),
-		UDim2.new(0.5, 0, 0.1, 72), -- under the plot buttons
-		UDim2.fromScale(0.34, 0.1)
+		UDim2.new(0.5, 0, 0.1, 72), -- under the plot buttons (= HudLayout "DriftScore")
+		UDim2.fromScale(0.32, 0.1)
 	)
 	drift.TextColor3 = Color3.fromRGB(255, 205, 80)
 	drift.Visible = false
