@@ -228,8 +228,56 @@ local function myPlot(): (boolean, boolean)
 	end
 	return mine, driving
 end
+-- The spawn's garage is the LOOKS shop's door (Garage.build marks it ShopKind "looks"): walking
+-- in opens this screen once per visit, and its prompt opens it again.
+local function openLooks()
+	if not panel.Visible then
+		panel.Visible = true
+		remote:FireServer("open")
+	end
+end
+local door: BasePart? = nil
+local inside = false
+local function addDoor(inst: Instance)
+	if inst:IsA("Model") and inst:GetAttribute("ShopKind") == "looks" then
+		task.delay(1, function()
+			local floor = inst.PrimaryPart
+			if floor == nil then
+				return
+			end
+			door = floor
+			local p = Instance.new("ProximityPrompt")
+			p.ActionText = "Open"
+			p.ObjectText = "Looks"
+			p.HoldDuration = 0
+			p.MaxActivationDistance = 14
+			p.RequiresLineOfSight = false
+			p.Parent = floor
+			p.Triggered:Connect(openLooks)
+		end)
+	end
+end
+for _, d in workspace:GetDescendants() do
+	addDoor(d)
+end
+workspace.DescendantAdded:Connect(addDoor)
+local function inGarage(): boolean
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if not (door and root and root:IsA("BasePart")) then
+		return false
+	end
+	local at = door.CFrame:PointToObjectSpace(root.Position)
+	return math.abs(at.X) <= door.Size.X / 2 and math.abs(at.Z) <= door.Size.Z / 2 and at.Y < 12
+end
+
 while true do
 	local mine, driving = myPlot()
+	-- walked into the garage (not every check while you stand there)
+	local now = inGarage()
+	if now and not inside and mine and not driving then
+		openLooks()
+	end
+	inside = now
 	-- (and not for a brand new player: fewer buttons until the first drive)
 	openBtn.Visible = mine and not driving and player:GetAttribute("DroveOnce") == true
 	if not mine then

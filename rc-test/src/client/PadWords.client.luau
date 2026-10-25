@@ -8,9 +8,13 @@
 -- "QueuePad" bases (attribute PlotType) that the spawn lobby builds.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Garage = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Garage"))
 
 local WORDS: { [string]: string } = { drift = "DRIFT NOW", race = "RACE NOW", build = "GO BUILD" }
-local SHOP_WORDS: { [string]: string } = { drift = "DRIFT CARS", race = "RACE CARS" }
+local SHOP_WORDS: { [string]: string } =
+	{ drift = "DRIFT CARS", race = "RACE CARS", looks = "LOOKS" }
 local INK = Color3.fromRGB(20, 20, 30)
 
 local holder = Instance.new("ScreenGui")
@@ -119,7 +123,12 @@ local function addShop(model: Instance)
 	local counter = model:FindFirstChild("Counter")
 	local top = counter and counter:FindFirstChild("Top")
 	local b = sign(floor, "Shop" .. kind, Vector2.new(240, 56), 12, 140)
-	label(b, word, if top and top:IsA("BasePart") then top.Color else Color3.new(1, 1, 1), 0, 1)
+	local orange = Garage.COLORS.orange -- the garage has no counter: its frame colour
+	local color = if top and top:IsA("BasePart")
+		then top.Color
+		elseif kind == "looks" then Color3.fromRGB(orange[1], orange[2], orange[3])
+		else Color3.new(1, 1, 1)
+	label(b, word, color, 0, 1)
 end
 
 local function addGumball(base: Instance)
