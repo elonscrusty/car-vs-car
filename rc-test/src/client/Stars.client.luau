@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
+local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
 local Popup = require(script.Parent:WaitForChild("Popup"))
 local Profile = require(ReplicatedStorage.Shared.Profile)
@@ -1071,17 +1072,89 @@ player:GetAttributeChangedSignal("Building"):Connect(showMedalGoal)
 
 -- the plot boards' rows carry their player's UserId: light up mine
 local MINE = Color3.fromRGB(0, 120, 255)
+
+-- Standing on a plot's DRIVE pad: the same top 3 big on the screen (the board down the footpath
+-- is too small to read from the pad on a phone).
+local plotTop = Instance.new("Frame")
+plotTop.Name = "PlotTop"
+HudLayout.place(plotTop, "PlotTop")
+plotTop.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+plotTop.BackgroundTransparency = 0.25
+plotTop.Visible = false
+plotTop.Parent = hud
+local plotTopCorner = Instance.new("UICorner")
+plotTopCorner.CornerRadius = UDim.new(0.12, 0)
+plotTopCorner.Parent = plotTop
+local plotTopPad = Instance.new("UIPadding")
+plotTopPad.PaddingLeft = UDim.new(0, 8)
+plotTopPad.PaddingRight = UDim.new(0, 8)
+plotTopPad.PaddingTop = UDim.new(0, 4)
+plotTopPad.PaddingBottom = UDim.new(0, 4)
+plotTopPad.Parent = plotTop
+local plotTopList = Instance.new("UIListLayout")
+plotTopList.SortOrder = Enum.SortOrder.LayoutOrder
+plotTopList.Parent = plotTop
+local topLines: { TextLabel } = {}
+for k = 0, 3 do
+	local t = Instance.new("TextLabel")
+	t.LayoutOrder = k
+	t.Size = UDim2.fromScale(1, 0.25)
+	t.BackgroundColor3 = MINE
+	t.BackgroundTransparency = 1
+	t.TextColor3 = if k == 0 then Color3.fromRGB(255, 213, 79) else Color3.new(1, 1, 1)
+	t.Font = Enum.Font.GothamBlack
+	t.TextScaled = true
+	t.RichText = true
+	t.TextXAlignment = if k == 0 then Enum.TextXAlignment.Center else Enum.TextXAlignment.Left
+	t.Text = if k == 0 then "TOP 3 HERE" else ""
+	t.Parent = plotTop
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0.3, 0)
+	c.Parent = t
+	topLines[k] = t
+end
+
+local padSlots = LobbyLayout.slots()
 task.spawn(function()
 	local folder = workspace:WaitForChild("StarBoards", 60)
 	while folder do
+		local driving = player:GetAttribute("Driving") == true
 		for _, d in folder:GetDescendants() do
 			if d:IsA("TextLabel") and string.sub(d.Name, 1, 3) == "Row" then
 				local mine = d:GetAttribute("UserId") == player.UserId
 				d.BackgroundColor3 = MINE
 				d.BackgroundTransparency = if mine then 0.15 else 1
+			elseif d:IsA("SurfaceGui") then
+				d.Enabled = not driving -- off the top-down drift view and the road ahead
+			elseif d:IsA("BasePart") and d.Name == "Pole" then
+				d.LocalTransparencyModifier = if driving then 1 else 0
 			end
 		end
-		task.wait(0.5)
+		-- the pad I stand on: its board's rows on the screen
+		local root = player.Character
+			and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		local board: Instance? = nil
+		if root and not driving then
+			for _, slot in padSlots do
+				if LobbyLayout.inReach(slot, root.Position.X, root.Position.Z) then
+					board = folder:FindFirstChild("Board_" .. slot.index)
+					break
+				end
+			end
+		end
+		if board then
+			for k = 1, 3 do
+				local row = board:FindFirstChild("Row" .. k, true) :: TextLabel?
+				local line = topLines[k]
+				line.Text = if row then row.Text else ""
+				line.BackgroundTransparency = if row
+						and row:GetAttribute("UserId") == player.UserId
+					then 0.15
+					else 1
+			end
+		end
+		plotTop.Visible = board ~= nil
+		task.wait(0.3)
 	end
 end)
 

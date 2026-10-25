@@ -140,10 +140,9 @@ local function addShop(model: Instance)
 	-- the shop's trim colour (its counter top), white when there is none; just over the roof
 	local counter = model:FindFirstChild("Counter")
 	local top = counter and counter:FindFirstChild("Top")
-	-- over the roof (9 up), higher than the pad words, so from the spawn they sit above them
-	-- (18 x 4.4 studs: tour 6 found 12 x 2.6 too small to read from the spawn on a phone; the
-	-- shops are wider than that, so neighbours' words still don't touch)
-	local b = sign(floor, "Shop" .. kind, Vector2.new(18, 4.4), 14, 120)
+	-- over the roof (9 up), higher than the pad words, so from the spawn they sit above them;
+	-- 18 wide reads on a phone from the spawn and still clears the next shop (tour 6)
+	local b = sign(floor, "Shop" .. kind, Vector2.new(18, 3.9), 13.5, 120)
 	local orange = Garage.COLORS.orange -- the garage has no counter: its frame colour
 	local color = if top and top:IsA("BasePart")
 		then top.Color
