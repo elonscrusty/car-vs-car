@@ -260,6 +260,14 @@ function Controls.new(
 	resetBtn.Font = Enum.Font.GothamBold
 	resetBtn.TextScaled = true
 	resetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	-- the same word size on all four (SMOKE was tiny next to a big VIEW), a little inside the edge
+	local btnText = Instance.new("UITextSizeConstraint")
+	btnText.MaxTextSize = 16
+	btnText.Parent = resetBtn
+	local btnPad = Instance.new("UIPadding")
+	btnPad.PaddingLeft = UDim.new(0, 3)
+	btnPad.PaddingRight = UDim.new(0, 3)
+	btnPad.Parent = resetBtn
 	local rc = Instance.new("UICorner")
 	rc.CornerRadius = UDim.new(0.3, 0)
 	rc.Parent = resetBtn
