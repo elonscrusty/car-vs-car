@@ -21,6 +21,7 @@ local PlotGuide = require(script.Parent.PlotGuide)
 local Lobby = {}
 
 -- A see-through light column on a pad with a YOUR PLOT sign on top, seen from far away.
+local SIGN_Y = 24 -- YOUR PLOT sign height (studs): on screen from the spawn, over the pad words
 local function makeMarker(x: number, z: number): Model
 	local marker = Instance.new("Model")
 	marker.Name = "YourPlotMarker"
@@ -43,22 +44,25 @@ local function makeMarker(x: number, z: number): Model
 		p.Parent = marker
 		return p
 	end
-	local column = beam("Light", 2.5, 0.25)
-	beam("Glow", 7, 0.8)
+	local column = beam("Light", 4, 0.15)
+	beam("Glow", 10, 0.75)
+	-- the sign hangs beside the beam, low enough to be on a phone screen from the spawn and
+	-- above the spawn lobby's pad words (which would cover it if it sat in line with them)
 	local sign = Instance.new("BillboardGui")
 	-- pixel size, so it reads the same from 100 studs away as up close
-	sign.Size = UDim2.fromOffset(210, 84)
-	sign.StudsOffsetWorldSpace = Vector3.new(0, height / 2 + 3, 0) -- above the beam top
+	sign.Size = UDim2.fromOffset(190, 56)
+	sign.StudsOffsetWorldSpace = Vector3.new(0, SIGN_Y - height / 2, 0)
+	sign.SizeOffset = Vector2.new(0.55, 0.5) -- its left side by the beam, its bottom at SIGN_Y
 	sign.AlwaysOnTop = true
 	sign.LightInfluence = 0
 	sign.Parent = column
 	local text = Instance.new("TextLabel")
-	text.Size = UDim2.fromScale(1, 0.72)
+	text.Size = UDim2.fromScale(1, 1)
 	text.BackgroundColor3 = Color3.fromRGB(255, 210, 63)
 	text.TextColor3 = Color3.fromRGB(30, 30, 34)
 	text.Font = Enum.Font.GothamBlack
 	text.TextScaled = true
-	text.Text = "YOUR PLOT"
+	text.Text = "◀ YOUR PLOT"
 	text.Parent = sign
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 12)
@@ -68,16 +72,12 @@ local function makeMarker(x: number, z: number): Model
 	stroke.Color = Color3.fromRGB(30, 30, 34)
 	stroke.Thickness = 3
 	stroke.Parent = text
-	local arrow = Instance.new("TextLabel")
-	arrow.Size = UDim2.fromScale(0.3, 0.28)
-	arrow.Position = UDim2.fromScale(0.35, 0.72)
-	arrow.BackgroundTransparency = 1
-	arrow.TextColor3 = Color3.fromRGB(255, 210, 63)
-	arrow.TextStrokeTransparency = 0
-	arrow.Font = Enum.Font.GothamBlack
-	arrow.TextScaled = true
-	arrow.Text = "▼"
-	arrow.Parent = sign
+	local pad = Instance.new("UIPadding")
+	pad.PaddingLeft = UDim.new(0, 8)
+	pad.PaddingRight = UDim.new(0, 8)
+	pad.PaddingTop = UDim.new(0, 4)
+	pad.PaddingBottom = UDim.new(0, 4)
+	pad.Parent = text
 	return marker
 end
 
