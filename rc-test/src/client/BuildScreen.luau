@@ -51,6 +51,8 @@ export type Options = {
 	onRemove: (c: number, r: number) -> (),
 	onDone: () -> (),
 	onKind: ((kind: string) -> ())?, -- RACE / DRIFT tapped
+	-- what a drop here would do, before you let go: allowed, still ready, why not
+	preview: ((c: number, r: number, piece: string) -> (boolean, boolean, string?))?,
 }
 export type BuildScreen = {
 	setState: (state: State) -> (),
@@ -612,6 +614,52 @@ function BuildScreen.new(opts: Options): BuildScreen
 		return BuildLayout.cellAt(layout, at.X, at.Y, state.cols, state.rows)
 	end
 
+	-- while dragging: the square under your finger blinks red (and says why) when letting go
+	-- there would break the road or isn't allowed; a green ring when it's fine
+	local aim = Instance.new("Frame")
+	aim.Name = "Aim"
+	aim.BackgroundColor3 = RED
+	aim.BackgroundTransparency = 1
+	aim.ZIndex = 7
+	aim.Visible = false
+	aim.Parent = grid
+	local aimRing = rim(aim, GREEN, 4)
+	local aimBlink = TweenService:Create(
+		aim,
+		TweenInfo.new(0.25, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{ BackgroundTransparency = 0.85 }
+	)
+	local aimKey: string? = nil
+	local function showAim(c: number?, r: number?, id: string)
+		local key = if c and r then `{c},{r},{id}` else nil
+		if key == aimKey then
+			return
+		end
+		aimKey = key
+		aimBlink:Cancel()
+		if not (c and r and opts.preview) then
+			aim.Visible = false
+			drawTop()
+			return
+		end
+		local allowed, ready, why = opts.preview(c, r, id)
+		local px, py = BuildLayout.cellPos(layout, c, r, state.rows)
+		aim.Position = UDim2.fromOffset(px, py)
+		aim.Size = UDim2.fromOffset(layout.cell, layout.cell)
+		aim.Visible = true
+		if allowed and ready then
+			aim.BackgroundTransparency = 1
+			aimRing.Color = GREEN
+			drawTop()
+		else
+			aim.BackgroundTransparency = 0.35
+			aimRing.Color = RED
+			aimBlink:Play()
+			whyText.Text = string.upper(why or "NOT HERE")
+			whyText.TextColor3 = Color3.fromRGB(255, 140, 130)
+		end
+	end
+
 	-- a quarter turn: spin the square at once, the server's state redraws it turned
 	local function turnTile(c: number, r: number)
 		local here = byKey[cellKey(c, r)]
@@ -683,6 +731,10 @@ function BuildScreen.new(opts: Options): BuildScreen
 			ghost.Visible = true
 		end
 		moveGhost(at)
+		if dragged then
+			local c, r = cellUnder(at)
+			showAim(c, r, dropping :: string)
+		end
 	end)
 
 	UserInputService.InputEnded:Connect(function(input: InputObject)
@@ -693,6 +745,7 @@ function BuildScreen.new(opts: Options): BuildScreen
 		local wasDrag = dragged
 		dropping, dropInput, dragged = nil, nil, false
 		ghost.Visible = false
+		showAim(nil, nil, id)
 		-- a tap on a card (no drag) drops nothing
 		local c, r = cellUnder(pointer(input))
 		if wasDrag and c and r then

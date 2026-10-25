@@ -209,6 +209,7 @@ end
 local bar = barOf(pieces)
 
 local closed = false -- DONE hides the screen until the next break
+local last: any = nil -- the server's latest build state
 local screen = BuildScreen.new({
 	onDrop = function(c, r, id)
 		event:FireServer("drop", c, r, id)
@@ -226,9 +227,23 @@ local screen = BuildScreen.new({
 	onKind = function(kind)
 		event:FireServer("kind", kind)
 	end,
+	-- the drag blink: the same check the server makes on the drop, on a copy of the track
+	preview = function(c, r, id)
+		if type(last) ~= "table" or type(last.cells) ~= "table" then
+			return true, true, nil
+		end
+		local grid = { cols = last.cols, rows = last.rows, tiles = {} }
+		for _, t in last.cells do
+			table.insert(grid.tiles, { c = t.c, r = t.r, piece = t.piece, rot = t.rot })
+		end
+		local ok, allowed, ready, why = pcall(TrackTiles.preview, grid, c, r, id)
+		if not ok then
+			return true, true, nil -- (an old tile module: no blink rather than a wrong one)
+		end
+		return allowed == true, ready == true, if type(why) == "string" then why else nil
+	end,
 })
 
-local last: any = nil
 local function endsAt(): number
 	local t = workspace:GetAttribute("BuildEndsAt")
 	return if type(t) == "number" then t else 0
