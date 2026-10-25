@@ -14,6 +14,8 @@ export type Hooks = {
 	findOpen: (plotType: string, player: Player) -> number?,
 	-- claims that plot and starts the drive; false when it could not
 	sendTo: (player: Player, slot: number) -> boolean,
+	-- the build pad: takes you to your own plot (on foot) instead of a drive
+	build: ((player: Player) -> ())?,
 }
 
 type Timer = { kind: string, since: number }
@@ -86,9 +88,13 @@ function QueuePads.start(hooks: Hooks)
 						busy[onPad] = true
 					end
 					if kind and QueuePads.tick(timers, player, kind, now) then
-						local slot = hooks.findOpen(kind, player)
-						if slot then
-							hooks.sendTo(player, slot)
+						if kind == "build" and hooks.build then
+							hooks.build(player)
+						else
+							local slot = hooks.findOpen(kind, player)
+							if slot then
+								hooks.sendTo(player, slot)
+							end
 						end
 					elseif kind == nil then
 						QueuePads.tick(timers, player, nil, now)

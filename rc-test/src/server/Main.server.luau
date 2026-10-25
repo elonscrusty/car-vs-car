@@ -299,14 +299,27 @@ LobbyPlots.onDrive = function(player: Player, slotIndex: number)
 end
 
 -- The spawn lobby's drift / race pads: stand on one to go drive an open plot of that kind. The
--- build pad sends you to your own plot.
+-- build pad walks you to your own plot and opens the build screen there (BuildAsk, read by
+-- BuildMode). All three work in the break only (BuildOpen): from the pick to the end of the server
+-- race everyone is in that race, and a drive started then would be taken away at the start.
 require(script.Parent.QueuePads).start({
 	findOpen = function(kind: string, player: Player): number?
-		if kind == "build" then
-			local mine = LobbyPlots.slotOf(player)
-			return if mine and LobbyPlots.canDrive(player, mine) then mine else nil
+		if workspace:GetAttribute("BuildOpen") ~= true then
+			return nil
 		end
 		return LobbyPlots.findOpen(kind, player)
+	end,
+	build = function(player: Player)
+		if workspace:GetAttribute("BuildOpen") ~= true or LobbyPlots.drivingOf(player) ~= nil then
+			return
+		end
+		local char = player.Character
+		if char == nil or LobbyPlots.slotOf(player) == nil then
+			return
+		end
+		char:PivotTo(homeOf(player))
+		local n = player:GetAttribute("BuildAsk")
+		player:SetAttribute("BuildAsk", (if type(n) == "number" then n else 0) + 1)
 	end,
 	sendTo = LobbyPlots.sendTo,
 })

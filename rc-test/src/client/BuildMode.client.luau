@@ -331,6 +331,10 @@ local asked = false -- tapped BUILD this break
 buildBtn.Activated:Connect(function()
 	closed, asked = false, true
 end)
+-- the spawn's BUILD pad (the server walked you to your plot): the same as tapping BUILD!
+player:GetAttributeChangedSignal("BuildAsk"):Connect(function()
+	closed, asked = false, true
+end)
 
 local open = false
 local lastEnd = 0
