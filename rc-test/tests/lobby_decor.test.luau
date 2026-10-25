@@ -153,3 +153,37 @@ test("butterflies stay low, birds fly high", function()
 		end
 	end
 end)
+
+test(
+	"nothing to get stuck on: the road, footpaths and pads are clear of colliding decor",
+	function()
+		local slots = L.slots()
+		local function onPad(x: number, z: number, half: number): boolean
+			for _, s in slots do
+				local r = L.PAD / 2 + 1
+				if math.abs(x - s.padX) < r + half and math.abs(z - s.padZ) < r + half then
+					return true
+				end
+			end
+			return false
+		end
+		for _, p in D.parts() do
+			local half = math.max(p.size.x, p.size.z) / 2
+			if p.collide and p.pos.y - p.size.y / 2 < D.WALK_TOP then
+				truthy(
+					not D.onWalk(p.pos.x, p.pos.z, half, half) and not onPad(p.pos.x, p.pos.z, half),
+					`{p.group} {p.name} blocks the walk at {p.pos.x}, {p.pos.z}`
+				)
+			end
+		end
+		for _, f in D.FACED do
+			local half = f.height * 0.4
+			if f.collide then
+				truthy(
+					not D.onWalk(f.at.x, f.at.z, half, half) and not onPad(f.at.x, f.at.z, half),
+					`{f.model} ({f.group}) blocks the walk at {f.at.x}, {f.at.z}`
+				)
+			end
+		end
+	end
+)
