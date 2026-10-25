@@ -15,6 +15,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local SoundLevels = require(Shared:WaitForChild("SoundLevels"))
 local Garage = require(Shared:WaitForChild("Garage"))
 local CarCatalog = require(Shared:WaitForChild("CarCatalog"))
 local TileShop = require(Shared:WaitForChild("TileShop"))
@@ -241,7 +242,7 @@ local function reveal(car: CarCatalog.Car, onDone: () -> ())
 			local ping = Instance.new("Sound")
 			ping.SoundId = "rbxasset://sounds/electronicpingshort.wav"
 			ping.PlaybackSpeed = pitch
-			ping.Volume = 0.8
+			ping.Volume = SoundLevels.NEW_CAR
 			ping.Parent = gui
 			ping:Play()
 			ping.Ended:Once(function()

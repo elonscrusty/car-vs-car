@@ -8,6 +8,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local SoundLevels = require(ReplicatedStorage.Shared.SoundLevels)
 local CarMath = require(ReplicatedStorage.Shared.CarMath)
 local LapTimer = require(ReplicatedStorage.Shared.LapTimer)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
@@ -206,13 +207,13 @@ end
 local beep = Instance.new("Sound")
 beep.Name = "ResetBeep"
 beep.SoundId = "rbxasset://sounds/electronicpingshort.wav"
-beep.Volume = 0.5
+beep.Volume = SoundLevels.RESET_BEEP
 beep.Parent = script
 -- start lights: a low beep for each red lamp, a high one for green
 local startBeep = Instance.new("Sound")
 startBeep.Name = "StartBeep"
 startBeep.SoundId = "rbxasset://sounds/electronicpingshort.wav"
-startBeep.Volume = 0.6
+startBeep.Volume = SoundLevels.START_BEEP
 startBeep.Parent = script
 local stuckTime = 0
 local stuckFrom = Vector3.zero

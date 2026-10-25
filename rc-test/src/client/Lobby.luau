@@ -12,10 +12,12 @@ local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
+local SoundLevels = require(ReplicatedStorage.Shared.SoundLevels)
 local PlotGuide = require(script.Parent.PlotGuide)
 
 local Lobby = {}
@@ -369,9 +371,29 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 		task.defer(showFriends)
 	end)
 
+	-- the lobby speakers' music fades out while you drive or race, and back in on foot (this
+	-- screen only: the server's sounds stay as they are for everyone else)
+	local music: { Sound } = {}
+	local function fadeMusic(on: boolean)
+		if #music == 0 then
+			local lobbyFolder = workspace:FindFirstChild("Lobby")
+			for _, d in if lobbyFolder then lobbyFolder:GetDescendants() else {} do
+				if d:IsA("Sound") and d.Name == "Music" then
+					table.insert(music, d)
+				end
+			end
+		end
+		local info = TweenInfo.new(SoundLevels.MUSIC_FADE)
+		for _, s in music do
+			local want = if on then SoundLevels.MUSIC_DRIVING else SoundLevels.MUSIC
+			TweenService:Create(s, info, { Volume = want }):Play()
+		end
+	end
+
 	local lobby = {} :: Lobby
 	function lobby.setDriving(on: boolean)
 		driving = on
+		fadeMusic(on)
 		guide.setDriving(on)
 		Players.LocalPlayer:SetAttribute("Driving", on) -- lobby chips and buttons hide while driving
 		if on then

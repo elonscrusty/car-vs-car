@@ -91,7 +91,7 @@ export type Extra = {
 -- near them). Empty = no music (an id must be checked to load in Studio before it goes in).
 -- "Citrus Daydream" (DistrokidOfficial, free, 166 s), checked to load in Studio 10-23.
 LobbyDecor.MUSIC = "rbxassetid://84797666595507"
-LobbyDecor.MUSIC_VOLUME = 0.2
+LobbyDecor.MUSIC_VOLUME = sibling("SoundLevels").MUSIC
 -- in the gap between the two shops on each side of the spawn lobby (SpawnLobby.BUILDINGS, whose
 -- fronts are at x ±42), facing the middle. Spawn lobby z 0 = PLAZA.maxZ - 36.
 LobbyDecor.SPEAKERS = {

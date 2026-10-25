@@ -4,8 +4,11 @@
 -- so a new button gets it too. GAS, BRAKE and the steer pad are Frames, not buttons: left alone.
 -- A button opts out with the attribute NoTap = true.
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
+
+local SoundLevels = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("SoundLevels"))
 
 local SQUISH = 0.9 -- size while held
 local DOWN = TweenInfo.new(0.06, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
@@ -15,7 +18,7 @@ local tickSound = Instance.new("Sound")
 tickSound.Name = "TapTick"
 tickSound.SoundId = "rbxasset://sounds/electronicpingshort.wav"
 tickSound.PlaybackSpeed = 2 -- short and high: not the race countdown beep
-tickSound.Volume = 0.2
+tickSound.Volume = SoundLevels.TAP
 tickSound.Parent = SoundService
 
 local lastTick = 0
