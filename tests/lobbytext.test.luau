@@ -1,0 +1,44 @@
+--!strict
+local Harness = require("./harness")
+local LobbyText = require("../src/shared/LobbyText")
+
+local test, eq = Harness.test, Harness.eq
+
+print("LobbyText")
+
+test("formatNumber adds commas and clamps", function()
+	eq(LobbyText.formatNumber(0), "0")
+	eq(LobbyText.formatNumber(999), "999")
+	eq(LobbyText.formatNumber(1234567), "1,234,567")
+	eq(LobbyText.formatNumber(-5), "0")
+end)
+
+test("percent and odds line", function()
+	eq(LobbyText.percentText(60), "60%")
+	eq(LobbyText.percentText(2.5), "2.5%")
+	eq(LobbyText.oddsLine("Common", 60, { "HEAVY", "LIGHT" }), "Common  60%  -  HEAVY, LIGHT")
+	eq(LobbyText.oddsLine("Epic", 10, {}), "Epic  10%  -  -")
+end)
+
+test("price and buy button logic", function()
+	eq(LobbyText.priceText(100, true), "FIRST PULL FREE!")
+	eq(LobbyText.priceText(1000, false), "PRICE: 1,000 COINS")
+	eq(LobbyText.canAfford(0, 100, true), true)
+	eq(LobbyText.canAfford(99, 100, false), false)
+	eq(LobbyText.canAfford(100, 100, false), true)
+	eq(LobbyText.buyButtonText(40, 100, false), "NEED 60 MORE")
+	eq(LobbyText.buyButtonText(100, 100, false), "OPEN  (100)")
+	eq(LobbyText.buyButtonText(0, 100, true), "OPEN FREE")
+end)
+
+test("timer, countdown, result, reward", function()
+	eq(LobbyText.timerText(14.2), "15")
+	eq(LobbyText.timerText(-1), "0")
+	eq(LobbyText.countdownText(0), nil)
+	eq(LobbyText.countdownText(2.1), "3")
+	eq(LobbyText.resultText(true, 0), "NEW!")
+	eq(LobbyText.resultText(false, 50), "DUPLICATE  +50 COINS")
+	eq(LobbyText.rewardText(25, true), "YOU WIN   +25 COINS")
+	eq(LobbyText.rewardText(0, false), "YOU LOSE   0 COINS")
+	eq(LobbyText.gachaErrorText("coins"), "Not enough coins")
+end)

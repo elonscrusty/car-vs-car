@@ -1,0 +1,5 @@
+std = "roblox"
+
+[lints]
+# Lune tests use path-string require, which the roblox std does not know.
+incorrect_standard_library_use = "allow"
