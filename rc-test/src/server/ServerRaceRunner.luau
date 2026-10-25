@@ -106,8 +106,9 @@ end
 -- edited), false from the moment the round's plot is picked until the race is over;
 -- BuildEndsAt = os.time() when building closes.
 local function setBuild()
-	workspace:SetAttribute("BuildOpen", phase == "wait")
-	workspace:SetAttribute("BuildEndsAt", math.floor(startAt - ServerRace.CALL))
+	local open, ends = ServerRace.build(phase, startAt)
+	workspace:SetAttribute("BuildOpen", open)
+	workspace:SetAttribute("BuildEndsAt", ends)
 end
 
 local function sendState(to: Player?)
@@ -638,14 +639,15 @@ function ServerRaceRunner.start(hooks: Hooks)
 				for _, sign in signs do
 					sign.Text = ServerRace.signText(left, phase == "racing", where)
 				end
-				if phase == "wait" and left <= ServerRace.CALL then
+				local todo = ServerRace.step(phase, left, picked, #Players:GetPlayers())
+				if todo == "pick" then
 					phase = "call"
 					picked = pickSlot()
 					where = if picked then nameOf(picked) else ""
 					sendState()
-				elseif phase == "call" and left <= 0 then
+				elseif todo == "skip" or todo == "race" then
 					local slot = picked
-					if slot == nil or #Players:GetPlayers() == 0 then
+					if todo == "skip" or slot == nil then
 						-- no plot can hold it (or nobody here): next break
 						phase, picked, where = "wait", nil, ""
 						startAt = now() + ServerRace.BREAK

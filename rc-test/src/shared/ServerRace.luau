@@ -70,6 +70,30 @@ end
 
 -- Which plot the round is on: a random one of the race-ready player plots (`owned`), else a
 -- random one of the rest (`spare`, the street's own race plots). r = a random number 0..1.
+-- The round clock, one tick: what to do now. "wait" (the break) -> "pick" at CALL seconds left
+-- (pick the plot, show its name) -> "call" -> at 0: "race" on the picked plot, or "skip" (no
+-- plot was ready, or nobody is here: straight into the next break). nil = nothing yet.
+-- After a race (or a skip) the runner goes back to "wait" with a new BREAK.
+function ServerRace.step(
+	phase: string,
+	left: number,
+	picked: number?,
+	players: number
+): ("pick" | "race" | "skip")?
+	if phase == "wait" and left <= ServerRace.CALL then
+		return "pick"
+	elseif phase == "call" and left <= 0 then
+		return if picked == nil or players == 0 then "skip" else "race"
+	end
+	return nil
+end
+
+-- The build window (workspace BuildOpen / BuildEndsAt): open all through the break, shut from
+-- the moment the plot is picked until the race is over; it closes CALL seconds before the start.
+function ServerRace.build(phase: string, startAt: number): (boolean, number)
+	return phase == "wait", math.floor(startAt - ServerRace.CALL)
+end
+
 function ServerRace.pick(owned: { number }, spare: { number }, r: number): number?
 	local list = if #owned > 0 then owned else spare
 	if #list == 0 then
