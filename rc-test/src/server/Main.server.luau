@@ -14,6 +14,7 @@ local CarBuilder = require(script.Parent.CarBuilder)
 local LobbyBuilder = require(script.Parent.LobbyBuilder)
 local ServerRaceRunner = require(script.Parent.ServerRaceRunner)
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
+local JoinStage = require(ReplicatedStorage.Shared.JoinStage)
 local LobbyPlots = require(script.Parent.LobbyPlots)
 local TrackBuilder = require(script.Parent.TrackBuilder)
 local PlotDecorBuilder = require(script.Parent.PlotDecorBuilder)
@@ -304,13 +305,21 @@ end
 -- race everyone is in that race, and a drive started then would be taken away at the start.
 require(script.Parent.QueuePads).start({
 	findOpen = function(kind: string, player: Player): number?
+		-- a brand new player's spawn shows only the way to their own pad (JoinStage)
+		if not JoinStage.shows(player:GetAttribute("Stage"), "pads") then
+			return nil
+		end
 		if workspace:GetAttribute("BuildOpen") ~= true then
 			return nil
 		end
 		return LobbyPlots.findOpen(kind, player)
 	end,
 	build = function(player: Player)
-		if workspace:GetAttribute("BuildOpen") ~= true or LobbyPlots.drivingOf(player) ~= nil then
+		if
+			workspace:GetAttribute("BuildOpen") ~= true
+			or LobbyPlots.drivingOf(player) ~= nil
+			or not JoinStage.shows(player:GetAttribute("Stage"), "build")
+		then
 			return
 		end
 		local char = player.Character
