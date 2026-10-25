@@ -154,6 +154,15 @@ test("signs show the plot kind until someone drives that plot, then their name",
 	eq(L.signText(nil, "Race"), "RACE")
 	eq(L.signText("carter", "Race"), "carter")
 	eq(L.signText("carter", "Race", true), "carter - OPEN")
+	eq(L.signText("", "Race"), "RACE")
+	-- every empty plot on the street names its kind, and the drift plots say DRIFT
+	for _, s in L.slots() do
+		local text = L.signText(nil, s.label)
+		truthy(#text > 0, "no blank sign")
+		if s.id == "drift" then
+			eq(text, "DRIFT")
+		end
+	end
 end)
 
 test("a plot with its own track drives that track, the others keep their kind's", function()
