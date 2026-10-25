@@ -234,6 +234,20 @@ local function reveal(car: CarCatalog.Car, onDone: () -> ())
 	back.ZIndex = 10
 	back.Parent = gui
 	panel.Visible = false -- nothing behind NEW CAR! to clash with it
+	-- a rising two-note ping (the built-in sound the race start already uses)
+	for i, pitch in { 1, 1.5 } do
+		task.delay((i - 1) * 0.14, function()
+			local ping = Instance.new("Sound")
+			ping.SoundId = "rbxasset://sounds/electronicpingshort.wav"
+			ping.PlaybackSpeed = pitch
+			ping.Volume = 0.8
+			ping.Parent = gui
+			ping:Play()
+			ping.Ended:Once(function()
+				ping:Destroy()
+			end)
+		end)
+	end
 	local box = Instance.new("Frame")
 	box.AnchorPoint = Vector2.new(0.5, 0.5)
 	box.Position = UDim2.fromScale(0.5, 0.5)
