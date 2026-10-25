@@ -97,10 +97,15 @@ function Rewards.gridGoal(stars: number): Goal?
 	return nil
 end
 
--- The one goal to show: the cheapest thing coins can buy; when coins can buy nothing more, the
--- next bigger track from stars.
+-- The one goal to show: the next CAR first (the loop is build, race, coins, cars: carter 01:01),
+-- then the cheapest tile; when coins can buy nothing more, the next bigger track from stars.
 function Rewards.next(s: Save): Goal?
 	local goals = Rewards.coinGoals(s)
+	for _, g in goals do
+		if g.kind == "car" then
+			return g
+		end
+	end
 	if goals[1] then
 		return goals[1]
 	end

@@ -1,5 +1,5 @@
 --!strict
--- Carter's daily jobs: 3 small jobs a day (one drift, one race, one rock) that pay coins and
+-- Carter's daily jobs: 3 small jobs a day (one drift, one race, one bigger one) that pay coins and
 -- start over each day. Which 3 you get comes from the day and your user id, so only how far you
 -- got is saved (Profile.Data.jobs). The server tells this module what happened ("touch", "lap",
 -- "flag3", ...) and it pays the coins when a job gets done. Pure tables, so Lune can test it.
@@ -48,10 +48,17 @@ DailyJobs.POOLS = {
 			coins = 40,
 		},
 	},
+	-- (was rocks; carter dropped them 2026-10-23): a bigger race or drift job
 	{
-		{ id = "flag3", text = "Climb to flag 3", event = "flag3", goal = 1, coins = 40 },
-		{ id = "flag2", text = "Climb to flag 2 two times", event = "flag2", goal = 2, coins = 30 },
-		{ id = "top", text = "Finish the rock climb", event = "climb", goal = 1, coins = 50 },
+		{ id = "laps8", text = "Drive 8 race laps", event = "lap", goal = 8, coins = 60 },
+		{
+			id = "slides12",
+			text = "Do 12 drifts of 500+",
+			event = "slide500",
+			goal = 12,
+			coins = 60,
+		},
+		{ id = "medal2", text = "Win 2 medals", event = "medal", goal = 2, coins = 70 },
 	},
 } :: { { Job } }
 

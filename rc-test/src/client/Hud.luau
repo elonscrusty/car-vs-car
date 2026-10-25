@@ -54,8 +54,7 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }): Hud
 	layout.Padding = UDim.new(0.02, 0)
 	layout.Parent = row
 	-- one word: what to do here (carter: "DRIVE!" / "BUILD!", not names)
-	local GOAL: { [string]: string } =
-		{ DRIFT = "DRIFT!", RACE = "RACE!", ROCKS = "CLIMB!", SHOW = "DRIVE!" }
+	local GOAL: { [string]: string } = { DRIFT = "DRIFT!", RACE = "RACE!", SHOW = "DRIVE!" } -- (rocks are gone)
 	for i, text in trackLabels do
 		local b = Instance.new("TextLabel")
 		b.Name = "Track" .. i

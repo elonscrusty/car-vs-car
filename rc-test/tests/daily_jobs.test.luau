@@ -1,5 +1,5 @@
 --!strict
--- Carter's daily jobs: 3 a day, one per kind of plot, paid once, new each day.
+-- Carter's daily jobs: 3 a day (drift, race, a bigger one), paid once, new each day.
 local H = require("./harness")
 local DailyJobs = require("../src/shared/DailyJobs")
 local Profile = require("../src/shared/Profile")
@@ -8,7 +8,7 @@ local test, eq, truthy = H.test, H.eq, H.truthy
 
 print("DailyJobs")
 
-test("3 jobs a day: one drift, one race, one rock", function()
+test("3 jobs a day: one drift, one race, one bigger one", function()
 	for day = 20000, 20010 do
 		for _, uid in { 1, 77, 123456789, -1 } do
 			local list = DailyJobs.list(day, uid)
@@ -87,4 +87,13 @@ test("save: jobs load back, junk and old saves are safe", function()
 	eq(bad.jobs.have[1], 0)
 	eq(bad.jobs.have[2], 0)
 	eq(bad.jobs.have[3], 999)
+end)
+
+test("no rock jobs (rocks are gone)", function()
+	for _, pool in DailyJobs.POOLS do
+		for _, job in pool do
+			truthy(not string.find(string.lower(job.text), "climb"), job.id)
+			truthy(not string.find(job.event, "flag") and job.event ~= "climb", job.id)
+		end
+	end
 end)

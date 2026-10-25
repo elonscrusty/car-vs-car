@@ -820,8 +820,11 @@ local function showGoalBar(g: any)
 		or (allFree and g.kind == "tile")
 	then
 		nextBox.Visible = false
+		player:SetAttribute("GoalReady", false)
 		return
 	end
+	-- PlotGuide sends the arrows to the shops (GO SHOP!) while this is true
+	player:SetAttribute("GoalReady", g.ready == true)
 	local what, how, fill = goalText(g)
 	nextWhat.Text = what
 	nextHow.Text = how
@@ -962,7 +965,7 @@ remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unkn
 		-- ("bolts", found, total, onRock)
 		local total = saving
 		boltChip.Text = `BOLTS {info}/{if type(total) == "number" then total else 5}`
-		boltChip.Visible = select(1, ...) == true
+		boltChip.Visible = false -- rocks are gone (carter 2026-10-23): no BOLTS chip
 		return
 	end
 	if kind == "rivals" and type(info) == "table" then
