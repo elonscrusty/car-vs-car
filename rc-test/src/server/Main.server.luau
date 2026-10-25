@@ -166,6 +166,7 @@ end
 
 -- Who owns and drives what: LobbyPlots.
 local lastPrompt: { [Player]: number } = {}
+local lastOpen: { [Player]: number } = {}
 
 -- the name board over each plot's entrance arch (PlotDecor's), road side: same text as the sign
 local archNames: { [number]: TextLabel } = {}
@@ -376,7 +377,10 @@ remote.OnServerEvent:Connect(function(player: Player, kind: unknown, rc: unknown
 		return
 	end
 	if kind == "open" then
-		if type(rc) == "boolean" then
+		-- each change re-signs the plot for everyone: not every frame
+		local now = os.clock()
+		if type(rc) == "boolean" and now - (lastOpen[player] or 0) >= 0.5 then
+			lastOpen[player] = now
 			LobbyPlots.setOpen(player, rc)
 		end
 		return
@@ -435,5 +439,6 @@ Players.PlayerRemoving:Connect(function(player)
 	carMode[player] = nil
 	lastAsk[player] = nil
 	lastPrompt[player] = nil
+	lastOpen[player] = nil
 	LobbyPlots.removePlayer(player)
 end)
