@@ -630,6 +630,19 @@ function BuildScreen.new(opts: Options): BuildScreen
 	aim.Visible = false
 	aim.Parent = grid
 	local aimRing = rim(aim, GREEN, 4)
+	-- a mark as well as the colour (red and green look alike to some kids)
+	local aimMark = Instance.new("TextLabel")
+	aimMark.Name = "Mark"
+	aimMark.AnchorPoint = Vector2.new(1, 0)
+	aimMark.Position = UDim2.new(1, -2, 0, 2)
+	aimMark.Size = UDim2.fromScale(0.38, 0.38)
+	aimMark.BackgroundTransparency = 0
+	aimMark.Font = Enum.Font.GothamBlack
+	aimMark.TextScaled = true
+	aimMark.TextColor3 = WHITE
+	aimMark.ZIndex = 8
+	aimMark.Parent = aim
+	round(aimMark, 100)
 	local aimBlink = TweenService:Create(
 		aim,
 		TweenInfo.new(0.25, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
@@ -656,10 +669,14 @@ function BuildScreen.new(opts: Options): BuildScreen
 		if allowed and ready then
 			aim.BackgroundTransparency = 1
 			aimRing.Color = GREEN
+			aimMark.BackgroundColor3 = GREEN
+			aimMark.Text = "✓"
 			drawTop()
 		else
 			aim.BackgroundTransparency = 0.35
 			aimRing.Color = RED
+			aimMark.BackgroundColor3 = RED
+			aimMark.Text = "X"
 			aimBlink:Play()
 			whyText.Text = string.upper(why or "NOT HERE")
 			whyText.TextColor3 = Color3.fromRGB(255, 140, 130)
