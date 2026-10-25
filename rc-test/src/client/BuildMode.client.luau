@@ -337,9 +337,16 @@ local lastEnd = 0
 local autoUsed = false -- it opened by itself once this break: after that, BUILD! opens it
 local pg = player:WaitForChild("PlayerGui")
 -- the race card, the prize card and the coins flying in come first (tour 2: it covered them)
+local race: Instance? = nil
+local prizeCard: Instance? = nil
 local function cardsUp(): boolean
-	local race = pg:FindFirstChild("ServerRace")
-	local prizeCard = pg:FindFirstChild("RacePrize", true)
+	-- found once and kept (a deep search of the PlayerGui every frame is slow on a phone)
+	if not (race and race.Parent) then
+		race = pg:FindFirstChild("ServerRace")
+	end
+	if not (prizeCard and prizeCard.Parent) then
+		prizeCard = pg:FindFirstChild("RacePrize", true)
+	end
 	return (race ~= nil and race:GetAttribute("Busy") == true)
 		or (prizeCard ~= nil and (prizeCard :: GuiObject).Visible)
 end
