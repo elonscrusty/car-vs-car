@@ -126,6 +126,7 @@ end
 local STEP = { 222, 224, 230 } -- light showroom steps, so every colour and black tyre shows
 local PLATE = { 120, 122, 132 } -- an empty spot: a dark square that wants a car
 local BOARD = { 30, 34, 50 }
+local PODIUM = { 36, 52, 100 } -- deep blue: a white or yellow car still stands out on it
 local GOLD = { 255, 200, 50 }
 local RARE = { 255, 110, 210 }
 
@@ -203,7 +204,7 @@ function PlotStands.pieces(cars: { Car }): { Garage.Piece }
 		"Podium",
 		v(h.top, d, d),
 		v(h.x, h.top / 2, h.z),
-		STEP,
+		PODIUM,
 		{ shape = "Cylinder", rot = v(0, 0, 90) }
 	)
 	add(

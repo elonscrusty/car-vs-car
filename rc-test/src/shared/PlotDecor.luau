@@ -282,7 +282,7 @@ function PlotDecor.parts(kind: string): { Piece }
 	end
 
 	-- bunting: a rope from each pillar top down to a lantern post on the front corner
-	local POST_H = 6
+	local POST_H = 8 -- the low end stays above a walker's eye line
 	for _, sx in { -1, 1 } do
 		local cx = sx * (W - 0.3)
 		add("Bunting", "Post", v(0.5, POST_H, 0.5), v(cx, POST_H / 2, D), t.pillar)
@@ -336,14 +336,29 @@ function PlotDecor.parts(kind: string): { Piece }
 			o({ shape = "Ball" })
 		)
 		-- the cloth points inward, over the plot
-		add(
-			"Flags",
-			"Cloth",
-			v(3.6, 2.2, 0.1),
-			v(fx - sx * 1.9, FLAG_H - 1.3, fz),
-			t.flags[i],
-			noHit
-		)
+		local cloth = t.flags[i]
+		add("Flags", "Cloth", v(3.6, 2.2, 0.1), v(fx - sx * 1.9, FLAG_H - 1.3, fz), cloth, noHit)
+		-- a pale cloth gets black squares (a chequered flag) so it doesn't read as a blank card
+		if cloth[1] + cloth[2] + cloth[3] > 600 then
+			for col = 0, 3 do
+				for row = 0, 1 do
+					if (col + row) % 2 == 0 then
+						add(
+							"Flags",
+							"Check",
+							v(0.9, 1.1, 0.12),
+							v(
+								fx - sx * (0.1 + 0.45 + col * 0.9),
+								FLAG_H - 1.3 + (row - 0.5) * 1.1,
+								fz
+							),
+							{ 25, 25, 28 },
+							noHit
+						)
+					end
+				end
+			end
+		end
 	end
 
 	-- the booth in the right front corner: counter facing the gate, back panel, awning
