@@ -556,10 +556,8 @@ local function showGumball(s: State, result: string?)
 				local car = if now.car then CarCatalog.get(now.car) else nil
 				local msg = if car == nil
 					then "Not enough coins"
-					elseif
-						now.new
-					then `You got {car.name}! Drive it on {MODE_WORDS[car.mode]} tracks.`
-					else `Had it: +{CarCatalog.DUPLICATE_REFUND} coins`
+					elseif now.new then `NEW! {car.name}`
+					else `{car.name}: had it, +{CarCatalog.DUPLICATE_REFUND} coins`
 				showGumball(now, msg)
 				if car and now.new then
 					reveal(car, function()

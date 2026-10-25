@@ -1,8 +1,8 @@
 --!strict
 -- The plot looks shop screen: a LOOKS button (under the bolts chip, only while you own a plot)
 -- opens a card per look (shared/PlotShop): the themes on top, the decor under them. A look you
--- don't have shows its price in coins (and the stars that give it free); one you have shows
--- ON / OFF. Every tap asks the server (PlotShopEvent), which answers with the new state.
+-- don't have shows BUY and its price (or how many coins are missing, and the stars that give it
+-- free); one you have says OWNED, with EQUIPPED / USE. Every tap asks the server (PlotShopEvent), which answers with the new state.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,6 +16,7 @@ local remote = ReplicatedStorage:WaitForChild("PlotShopEvent") :: RemoteEvent
 local GOLD = Color3.fromRGB(255, 213, 79)
 local GREEN = Color3.fromRGB(70, 190, 90)
 local GREY = Color3.fromRGB(110, 110, 118)
+local BLUE = Color3.fromRGB(40, 120, 230)
 
 type State = { coins: number, stars: number, have: { string }, on: { string } }
 local state: State = { coins = 0, stars = 0, have = {}, on = {} }
@@ -163,13 +164,16 @@ local function show()
 	for _, c in cardList do
 		local it = c.item
 		if table.find(state.have, it.id) then
+			-- yours: EQUIPPED (tap to take it off) or USE (tap to put it on)
 			local on = table.find(state.on, it.id) ~= nil
-			c.button.Text = if on then "ON" else "OFF"
-			c.button.BackgroundColor3 = if on then GREEN else GREY
-			c.note.Text = "yours!"
+			c.button.Text = if on then "EQUIPPED" else "USE"
+			c.button.BackgroundColor3 = if on then GREEN else BLUE
+			c.note.Text = "OWNED"
 		else
-			c.button.Text = `{it.price} coins`
-			c.button.BackgroundColor3 = if state.coins >= it.price then GOLD else GREY
+			-- one big BUY with the price, or how many coins are still missing
+			local can = state.coins >= it.price
+			c.button.Text = if can then `BUY {it.price}` else `{it.price - state.coins} MORE`
+			c.button.BackgroundColor3 = if can then GOLD else GREY
 			c.button.TextColor3 = if state.coins >= it.price
 				then Color3.fromRGB(40, 30, 0)
 				else Color3.new(1, 1, 1)
