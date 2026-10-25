@@ -146,6 +146,7 @@ local touched: { [number]: boolean } = {} -- drift touch zones already scored in
 local countdown: RaceStart.State? = nil
 local lamps: { BasePart } = {}
 local jumped = false -- went over the line before GO: no timed lap until the car leaves the line
+local waitMove = false -- free drive after GO: the lap clock starts when the car first moves
 -- server race: this car's grid spot, plot-local (nil = the plot's own start), and whether it
 -- got its GO
 local grid: TrackData.Spawn? = nil
@@ -177,7 +178,7 @@ local function goTo(index: number)
 	end
 	checkpoint = 0
 	StartLights.show(lamps, 0)
-	countdown, jumped = nil, false
+	countdown, jumped, waitMove = nil, false, false
 	lamps = {}
 	-- (a reset in a server race after its GO goes back to the grid without the lights again)
 	if (t.id == "race" or grid ~= nil) and not gridGone then
@@ -443,7 +444,12 @@ RunService.PreSimulation:Connect(function(dt: number)
 			countdown = nil
 			gridGone = grid ~= nil
 			raceGo = if grid then os.clock() else nil
-			LapTimer.go(timer, os.clock())
+			-- (the server race clock runs from GO; on your own the clock waits for you to go)
+			if grid then
+				LapTimer.go(timer, os.clock())
+			else
+				waitMove = true
+			end
 		elseif LapTimer.inside(timer.gates[1], lx, ly, lz) then
 			-- over the line before green: no clock this time (drive round, or R twice to start over)
 			countdown, jumped = nil, true
@@ -452,6 +458,12 @@ RunService.PreSimulation:Connect(function(dt: number)
 		end
 	elseif jumped then
 		jumped = LapTimer.inside(timer.gates[1], lx, ly, lz)
+	elseif waitMove then
+		local v = body.AssemblyLinearVelocity
+		if input.throttle > 0 or Vector3.new(v.X, 0, v.Z).Magnitude > 2 * Tuning.scale then
+			waitMove = false
+			LapTimer.go(timer, os.clock())
+		end
 	elseif raceDone == nil then
 		event = LapTimer.update(timer, os.clock(), lx, ly, lz)
 	end
