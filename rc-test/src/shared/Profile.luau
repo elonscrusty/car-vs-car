@@ -10,6 +10,7 @@ export type Data = {
 	-- plot owner's user id (as text, DataStore keys must be text) -> plot kind -> best medal 1..3
 	starsFrom: { [string]: { [string]: number } },
 	plotRecords: { [string]: Record }, -- plot kind -> the best run anyone made on MY plot
+	plotTop: { [string]: { Record } }, -- plot kind -> my plot's board: each player's best, top 3
 	coins: number,
 	likes: number, -- likes my plot got
 	liked: { [string]: boolean }, -- plot owners I liked (once each, ever)
@@ -40,9 +41,10 @@ export type Lock = { job: string, at: number }
 
 local Profile = {}
 
-Profile.VERSION = 12 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift.
+Profile.VERSION = 13 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift.
 -- 6: daily jobs. 7: looks, lookOff. 8: cars, equipped. 9: track. 10: tiles (owned).
--- 11: raceStars. 12: trackKind
+-- 11: raceStars. 12: trackKind. 13: plotTop
+Profile.TOP = 3 -- rows on a plot's board
 Profile.MAX_OWNERS = 500 -- keeps the save small; stars from more owners than this stop counting
 Profile.LOCK_TIMEOUT = 300 -- a server that hasn't saved for this long is gone: its lock is stale
 Profile.MODES = { "race", "drift", "rock" }
@@ -67,6 +69,7 @@ function Profile.new(): Data
 		stars = 0,
 		starsFrom = {},
 		plotRecords = {},
+		plotTop = {},
 		coins = 0,
 		likes = 0,
 		liked = {},
@@ -182,6 +185,7 @@ function Profile.setTrack(d: Data, tiles: { Tile }?): boolean
 	end
 	d.track = new
 	d.plotRecords = {}
+	d.plotTop = {}
 	return true
 end
 
@@ -193,6 +197,7 @@ function Profile.setTrackKind(d: Data, kind: string): boolean
 	end
 	d.trackKind = kind
 	d.plotRecords = {}
+	d.plotTop = {}
 	return true
 end
 
@@ -232,6 +237,39 @@ function Profile.migrate(raw: any): Data
 				d.plotRecords[mode] =
 					{ value = r.value, name = string.sub(r.name, 1, 40), userId = r.userId }
 			end
+		end
+	end
+	-- the boards: up to TOP good rows per kind, one per player; old saves start from the record
+	local function goodRecord(r: any): boolean
+		return type(r) == "table"
+			and goodNumber(r.value)
+			and r.value > 0
+			and type(r.name) == "string"
+			and goodNumber(r.userId)
+	end
+	if type(raw.plotTop) == "table" then
+		for mode, list in raw.plotTop do
+			if isMode(mode) and type(list) == "table" then
+				local clean: { Record } = {}
+				local seen: { [number]: boolean } = {}
+				for _, r in list do
+					if #clean < Profile.TOP and goodRecord(r) and not seen[r.userId] then
+						seen[r.userId] = true
+						table.insert(
+							clean,
+							{ value = r.value, name = string.sub(r.name, 1, 40), userId = r.userId }
+						)
+					end
+				end
+				if #clean > 0 then
+					d.plotTop[mode] = clean
+				end
+			end
+		end
+	end
+	for mode, r in d.plotRecords do
+		if d.plotTop[mode] == nil then
+			d.plotTop[mode] = { { value = r.value, name = r.name, userId = r.userId } }
 		end
 	end
 	if raw.trackKind == "race" or raw.trackKind == "drift" then

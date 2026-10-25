@@ -84,7 +84,7 @@ HudLayout.SPOTS = {
 
 	-- ===== drive: top (made by the RC car thread; driving is locked, so these stay put) =====
 	spot("Timer", "drive", "Hud", TL, { 0.02, 0, 0, 64 }, { 0.24, 0, 0.14, 0 }),
-	spot("BoltCount", "drive", "Stars", TL, { 0.02, 0, 0.14, 70 }, { 0.11, 0, 0, 36 }), -- rock plots
+	spot("MedalGoal", "drive", "Stars", TL, { 0.02, 0, 0.14, 70 }, { 0, 150, 0, 40 }), -- next medal on this plot
 	spot("Track", "drive", "Hud", TC, { 0.5, 0, 0, 64 }, { 0.1012, 0, 0.1, 0 }), -- the one lit plot name
 	spot("DriftScore", "drive", "Hud", TC, { 0.5, 0, 0.12, 72 }, { 0.32, 0, 0.1, 0 }),
 	spot("Join", "drive", "ServerRace", TC, { 0.5, 0, 0.22, 80 }, { 0, 220, 0, 44 }),

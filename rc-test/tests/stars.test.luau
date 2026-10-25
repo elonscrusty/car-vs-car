@@ -507,3 +507,81 @@ test("track: a changed track clears my plot records, the same track keeps them",
 	eq(d.plotRecords.race, nil)
 	eq(Profile.setTrack(d, nil), false)
 end)
+
+test("next medal: bronze, then silver, then gold, then nothing", function()
+	local m, v = Medals.nextGoal("race", 0)
+	eq(m, 1)
+	eq(v, Medals.TARGETS.race.bronze)
+	m, v = Medals.nextGoal("race", 2)
+	eq(m, 3)
+	eq(v, Medals.TARGETS.race.gold)
+	m, v = Medals.nextGoal("race", 3)
+	eq(m, nil)
+	eq(v, nil)
+	m, v = Medals.nextGoal("drift", 1)
+	eq(m, 2)
+	eq(v, Medals.TARGETS.drift.silver)
+	_, v = Medals.nextGoal("race", 0, 2) -- a built track twice as long
+	eq(v, Medals.TARGETS.race.bronze * 2)
+	eq((Medals.nextGoal("moon", 0)), nil)
+end)
+
+test("board: top 3, one row per player, best first", function()
+	local list: { Medals.Run } = {}
+	eq(Medals.addTop("race", list, { value = 22, name = "A", userId = 1 }), 1)
+	eq(Medals.addTop("race", list, { value = 20, name = "B", userId = 2 }), 1)
+	eq(Medals.addTop("race", list, { value = 25, name = "C", userId = 3 }), 3)
+	eq(Medals.addTop("race", list, { value = 30, name = "D", userId = 4 }), nil) -- too slow
+	eq(#list, 3)
+	eq(Medals.addTop("race", list, { value = 23, name = "A", userId = 1 }), nil) -- slower than A's own
+	eq(Medals.addTop("race", list, { value = 19, name = "A", userId = 1 }), 1) -- A moves up, once
+	eq(#list, 3)
+	eq(list[1].name, "A")
+	eq(list[2].name, "B")
+	eq(list[3].name, "C")
+	eq(Medals.addTop("race", list, { value = 21, name = "D", userId = 4 }), 3)
+	eq(list[3].name, "D")
+	eq(#list, 3)
+	eq(Medals.addTop("race", list, { value = 1, name = "X", userId = 9 }), nil) -- too fast to be real
+	local drift: { Medals.Run } = {}
+	Medals.addTop("drift", drift, { value = 900, name = "A", userId = 1 })
+	eq(Medals.addTop("drift", drift, { value = 2000, name = "B", userId = 2 }), 1)
+end)
+
+test("board save: the top 3 load back clean, old saves start from the record", function()
+	local d = Profile.new()
+	d.plotTop.race = {
+		{ value = 19, name = "A", userId = 1 },
+		{ value = 20, name = "B", userId = 2 },
+	}
+	local back = Profile.migrate(d)
+	eq(#back.plotTop.race, 2)
+	eq(back.plotTop.race[2].name, "B")
+	local junk = Profile.migrate({
+		plotTop = {
+			race = {
+				{ value = 19, name = "A", userId = 1 },
+				{ value = 18, name = "A", userId = 1 },
+				"x",
+				{ value = 0 / 0, name = "N", userId = 5 },
+				{ value = 21, name = "C", userId = 3 },
+				{ value = 22, name = "D", userId = 4 },
+				{ value = 23, name = "E", userId = 5 },
+			},
+			moon = { { value = 1, name = "M", userId = 7 } },
+		},
+	})
+	eq(#junk.plotTop.race, 3)
+	eq(junk.plotTop.moon, nil)
+	local old =
+		Profile.migrate({ plotRecords = { race = { value = 20, name = "Mia", userId = 2 } } })
+	eq(#old.plotTop.race, 1)
+	eq(old.plotTop.race[1].name, "Mia")
+	-- a rebuilt track or a new kind clears the board with the records
+	old.plotTop.race = { { value = 20, name = "Mia", userId = 2 } }
+	Profile.setTrack(old, { { c = 1, r = 1, piece = "start", rot = 0 } })
+	eq(next(old.plotTop), nil)
+	old.plotTop.race = { { value = 20, name = "Mia", userId = 2 } }
+	Profile.setTrackKind(old, "drift")
+	eq(next(old.plotTop), nil)
+end)
