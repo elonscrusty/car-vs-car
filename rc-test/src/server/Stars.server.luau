@@ -891,7 +891,9 @@ task.spawn(function()
 		if day ~= shownDay then
 			shownDay = day
 			for _, p in Players:GetPlayers() do
-				sendJobs(p)
+				Forever.step("NewJobs", function()
+					sendJobs(p)
+				end)
 			end
 		end
 	end
