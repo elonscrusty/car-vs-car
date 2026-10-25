@@ -25,6 +25,7 @@ local Profile = require(ReplicatedStorage.Shared.Profile)
 local RunCheck = require(ReplicatedStorage.Shared.RunCheck)
 local Rewards = require(ReplicatedStorage.Shared.Rewards)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
+local Jobs = require(script.Parent.Jobs)
 local PlayerData = require(script.Parent.PlayerData)
 local Pings = require(script.Parent.Pings)
 
@@ -277,6 +278,7 @@ local function job(player: Player, event: string, n: number?)
 	end
 	sendJobs(player)
 end
+Jobs.setHandler(job)
 
 -- ===== runs =====
 

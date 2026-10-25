@@ -21,6 +21,7 @@ local PlotTracks = require(ReplicatedStorage.Shared.PlotTracks)
 local Profile = require(ReplicatedStorage.Shared.Profile)
 local TrackTiles = require(ReplicatedStorage.Shared.TrackTiles)
 local LobbyPlots = require(script.Parent.LobbyPlots)
+local Jobs = require(script.Parent.Jobs)
 local PlayerData = require(script.Parent.PlayerData)
 local TrackBuilder = require(script.Parent.TrackBuilder)
 
@@ -198,6 +199,7 @@ local function onRequest(player: Player, kind: any, c: any, r: any, piece: any, 
 	end
 	local grid = grids[slot]
 	local ok = false
+	local placed = 0 -- road tiles laid this time (the daily "place tiles" job)
 	if kind == "kind" then
 		-- race or drift: the same road, a different way to drive it
 		if c ~= "race" and c ~= "drift" then
@@ -224,6 +226,7 @@ local function onRequest(player: Player, kind: any, c: any, r: any, piece: any, 
 			table.insert(cells, { cell[1], cell[2] })
 		end
 		ok = TrackTiles.drawPath(grid, cells)
+		placed = #cells
 	elseif type(c) ~= "number" or type(r) ~= "number" then
 		return
 	elseif kind == "drop" then
@@ -232,6 +235,7 @@ local function onRequest(player: Player, kind: any, c: any, r: any, piece: any, 
 			return
 		end
 		ok = TrackTiles.drop(grid, c, r, piece)
+		placed = 1
 	elseif kind == "place" then
 		if type(piece) ~= "string" or type(rot) ~= "number" or not TrackTiles.piece(piece) then
 			return
@@ -241,6 +245,7 @@ local function onRequest(player: Player, kind: any, c: any, r: any, piece: any, 
 			return
 		end
 		ok = TrackTiles.place(grid, c, r, piece, rot)
+		placed = 1
 	elseif kind == "remove" then
 		ok = TrackTiles.remove(grid, c, r)
 	elseif kind == "rotate" then
@@ -248,6 +253,9 @@ local function onRequest(player: Player, kind: any, c: any, r: any, piece: any, 
 	end
 	if ok then
 		Profile.setTrack(d, TrackTiles.copy(grid).tiles)
+		if placed > 0 then
+			Jobs.fire(player, "tiles", placed)
+		end
 		PlayerData.touch(player)
 		rebuild(slot)
 	else
