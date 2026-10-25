@@ -108,10 +108,16 @@ local function recordsOf(slotIndex: number): ({ [string]: Profile.Record }?, Pla
 	return looseRecords[slotIndex], nil
 end
 
+-- The plot as a track: an owner's built track (its own gates and spawn, LobbyLayout.track) like
+-- the server race and the pads use, else the plot's kind.
 local function trackOf(slotIndex: number): TrackData.Track
-	local slot = slots[slotIndex]
-	local t: any = TrackData.get(plotType(slotIndex))
-	t.rcX, t.rcZ, t.rcAngle = slot.plotX, slot.plotZ, slot.angle
+	local t: any = LobbyLayout.track(slotIndex)
+	local kind = plotType(slotIndex)
+	if not t.custom and t.id ~= kind then
+		local slot = slots[slotIndex]
+		t = TrackData.get(kind)
+		t.rcX, t.rcZ, t.rcAngle = slot.plotX, slot.plotZ, slot.angle
+	end
 	return t
 end
 
@@ -582,6 +588,7 @@ type Watch = {
 	car: Instance,
 	slot: number,
 	mode: string,
+	gates: { any }, -- a rebuilt track starts a new run check
 	run: RunCheck.State,
 	touched: { [number]: boolean }, -- drift: glow spots slid through in this slide
 	flag: number, -- rock: the last checkpoint flag reached on this climb
@@ -677,9 +684,16 @@ local function checkBolts(player: Player, slotIndex: number, pos: Vector3)
 	end
 end
 
+local trackKeys: { [number]: string } = {}
 local function look(now: number)
 	for i in slots do
-		tracks[i] = trackOf(i)
+		-- only rebuilt when the plot's built track or kind changes
+		local custom = LobbyLayout.custom[i]
+		local key = if custom then `{tostring(custom)}/{custom.kind}` else plotType(i)
+		if trackKeys[i] ~= key or tracks[i] == nil then
+			trackKeys[i] = key
+			tracks[i] = trackOf(i)
+		end
 	end
 	for _, player in Players:GetPlayers() do
 		local car = workspace:FindFirstChild("Car_" .. player.UserId)
@@ -711,7 +725,15 @@ local function look(now: number)
 		if t.id == "rock" then
 			checkBolts(player, slotIndex, cf.Position)
 		end
-		if not (w and w.car == car and w.slot == slotIndex and w.mode == t.id) then
+		if
+			not (
+				w
+				and w.car == car
+				and w.slot == slotIndex
+				and w.mode == t.id
+				and w.gates == t.gates
+			)
+		then
 			local cps: { RunCheck.Spot } = {}
 			for _, cp in t.checkpoints or {} do
 				table.insert(cps, localSpot(cp.spawn))
@@ -720,6 +742,7 @@ local function look(now: number)
 				car = car,
 				slot = slotIndex,
 				mode = t.id,
+				gates = t.gates,
 				run = RunCheck.new(t.gates, t.mode, t.id, localSpot(t.spawn), cps, now, lx, ly, lz),
 				touched = {},
 				flag = 0,
