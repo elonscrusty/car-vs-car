@@ -226,6 +226,18 @@ local function rootOf(player: Player): BasePart?
 	return if root and root:IsA("BasePart") then root else nil
 end
 
+-- Where a walker appears: on their own plot's pad, facing their track; no plot = the spawn lobby.
+local function homeOf(player: Player): CFrame
+	local own = LobbyPlots.slotOf(player)
+	local slot = own and slots[own]
+	if slot then
+		local pos = Vector3.new(slot.exitX, 3, slot.exitZ)
+		return CFrame.lookAt(pos, Vector3.new(slot.plotX, 3, slot.exitZ))
+	end
+	local x, y, z = LobbyLayout.spawn()
+	return lobby.spawn or CFrame.lookAt(Vector3.new(x, y, z), Vector3.new(x, y, z + 1))
+end
+
 local function loadWalker(player: Player)
 	player:LoadCharacter()
 	local char = player.Character
@@ -235,19 +247,11 @@ local function loadWalker(player: Player)
 	addRemote(char)
 	-- on your own plot's pad, facing your track: DRIVE is one tap away (carter's pick #1:
 	-- "driving within 10 sec of joining"); no plot = the spawn lobby
-	local own = LobbyPlots.slotOf(player)
-	local slot = own and slots[own]
-	if slot then
-		local pos = Vector3.new(slot.exitX, 3, slot.exitZ)
-		char:PivotTo(CFrame.lookAt(pos, Vector3.new(slot.plotX, 3, slot.exitZ)))
-	else
-		local x, y, z = LobbyLayout.spawn()
-		char:PivotTo(lobby.spawn or CFrame.lookAt(Vector3.new(x, y, z), Vector3.new(x, y, z + 1)))
-	end
+	char:PivotTo(homeOf(player))
 	local hum = char:FindFirstChildOfClass("Humanoid")
 	if hum then
 		hum.Died:Connect(function()
-			task.wait(3)
+			task.wait(1) -- back quickly, no long wait
 			if
 				player.Parent
 				and player.Character == char
@@ -258,6 +262,24 @@ local function loadWalker(player: Player)
 		end)
 	end
 end
+
+-- Fell off the map? Back on your pad (or the spawn) at once, not a long fall and a reset.
+-- The lowest walkable floor is the lake bed (-2.5).
+local FALL_Y = -25
+task.spawn(function()
+	while true do
+		task.wait(0.25)
+		for _, player in Players:GetPlayers() do
+			local root = rootOf(player)
+			if root and root.Position.Y < FALL_Y and LobbyPlots.drivingOf(player) == nil then
+				root.AssemblyLinearVelocity = Vector3.zero
+				root.AssemblyAngularVelocity = Vector3.zero
+				local char = player.Character :: Model
+				char:PivotTo(homeOf(player))
+			end
+		end
+	end
+end)
 
 LobbyPlots.onDrive = function(player: Player, slotIndex: number)
 	remote:FireClient(player, "drive", slotIndex)

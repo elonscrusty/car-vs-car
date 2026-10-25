@@ -392,6 +392,14 @@ local function extras(): { Extra }
 end
 LobbyDecor.extras = extras
 
+-- Is a thing at (x, z), reaching hx / hz each way, on the road or its footpaths (where the
+-- pads are too)? Things there are looks only: nothing a kid can get stuck on or behind.
+function LobbyDecor.onWalk(x: number, z: number, hx: number, hz: number): boolean
+	local w = L.walks()
+	return x + hx > w.minX and x - hx < w.maxX and z + hz > w.minZ and z - hz < w.maxZ
+end
+LobbyDecor.WALK_TOP = 4 -- above this a thing is over your head (bunting, banners): it can stay
+
 -- The block pieces (world space). The meshes in MESHES take the place of some groups.
 function LobbyDecor.parts(): { Piece }
 	local out: { Piece } = {}
@@ -502,6 +510,17 @@ function LobbyDecor.parts(): { Piece }
 			collide = e.solid,
 		})
 	end
+	-- the walk lanes stay clear: what stands on them you walk through
+	for _, p in out do
+		local half = math.max(p.size.x, p.size.z) / 2 -- turned pieces: their widest reach
+		if
+			p.collide
+			and p.pos.y - p.size.y / 2 < LobbyDecor.WALK_TOP
+			and LobbyDecor.onWalk(p.pos.x, p.pos.z, half, half)
+		then
+			p.collide = false
+		end
+	end
 	return out
 end
 
@@ -565,7 +584,9 @@ do
 			height = height,
 			face = face,
 			keep = keep or {},
-			collide = collide ~= false,
+			-- on the walk lanes: looks only (a mesh's bumpy hull is easy to get stuck on)
+			collide = collide ~= false
+				and not LobbyDecor.onWalk(at.x, at.z, height * 0.4, height * 0.4),
 			turn = (turn or 0) + (LobbyDecor.FRONT_TURN[model] or 0),
 		})
 	end
