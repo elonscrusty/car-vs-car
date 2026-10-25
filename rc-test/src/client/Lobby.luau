@@ -121,6 +121,7 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 	end
 	local gui, button = bigButton("Walk", "WALK (E)")
 	gui.Name = "LobbyGui"
+	HudLayout.place(button, "Walk", "drive") -- (shown while driving: the drive layout's spot)
 	local driveGui, driveButton = bigButton("Drive", "DRIVE")
 	-- a thumb-size button on a phone; long names (MIA - LOCKED) shrink to fit
 	driveButton.TextScaled = true
@@ -229,6 +230,7 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 		elseif kind == "closed" and shown then
 			-- the server said no after all (it changed as you tapped): show why
 			refreshDrive()
+			driveGui.Enabled = not driving
 		end
 	end)
 
@@ -319,6 +321,20 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 			p:InputHoldBegin()
 			p:InputHoldEnd()
 		end
+	end)
+	-- the car is on its way (tap or E): DRIVE and the goal line go at once, so the first frames
+	-- of the drive show the road, not the buttons. Back after a moment if the server said no.
+	ProximityPromptService.PromptTriggered:Connect(function(p: ProximityPrompt)
+		if p ~= shown or driving or not mayDrive then
+			return
+		end
+		driveGui.Enabled = false
+		guide.hold(2)
+		task.delay(2, function()
+			if shown == p and not driving then
+				driveGui.Enabled = true
+			end
+		end)
 	end)
 
 	-- QUICK RACE (while walking): the server finds a free race plot and starts the drive there.

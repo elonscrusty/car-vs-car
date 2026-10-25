@@ -79,9 +79,9 @@ HudLayout.SPOTS = {
 	spot("WeekendBanner", "walk", "Stars", TR, { 0.98, 0, 0, 116 }, { 0, 200, 0, 30 }), -- top right: off your plot's name on the gate
 	spot("Join", "walk", "ServerRace", TR, { 0.98, 0, 0, 64 }, { 0, 168, 0, 46 }), -- top right, off the gate's name and the pad words
 	-- ===== walk: bottom middle =====
-	spot("Drive", "walk", "Lobby", BC, { 0.47, 0, 0.9, 0 }, { 0, 160, 0, 64 }), -- thumb size
-	spot("Build", "walk", "BuildMode", BC, { 0.47, 150, 0.9, 0 }, { 0, 120, 0, 52 }), -- reopen the build screen in the break (right of DRIVE)
-	spot("Goal", "walk", "PlotGuide", BC, { 0.5, 0, 0.9, -66 }, { 0, 230, 0, 30 }), -- what to do next (clear of DailyJobs on a small phone)
+	spot("Drive", "walk", "Lobby", BC, { 0.47, 0, 0.96, 0 }, { 0, 160, 0, 64 }), -- thumb size, low (off the plot view)
+	spot("Build", "walk", "BuildMode", BC, { 0.47, 150, 0.96, 0 }, { 0, 120, 0, 52 }), -- reopen the build screen in the break (right of DRIVE)
+	spot("Goal", "walk", "PlotGuide", BC, { 0.5, 0, 0.96, -66 }, { 0, 230, 0, 30 }), -- what to do next (clear of DailyJobs on a small phone)
 
 	-- ===== drive: top (made by the RC car thread; driving is locked, so these stay put) =====
 	spot("Timer", "drive", "Hud", TL, { 0.02, 0, 0, 64 }, { 0.24, 0, 0.14, 0 }),

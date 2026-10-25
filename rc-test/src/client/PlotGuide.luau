@@ -18,6 +18,7 @@ local SpawnLobby = require(ReplicatedStorage.Shared.SpawnLobby)
 export type PlotGuide = {
 	setSlot: (slot: number) -> (),
 	setDriving: (on: boolean) -> (),
+	hold: (seconds: number) -> (),
 }
 
 local PlotGuide = {}
@@ -201,6 +202,7 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 	-- the goal is picked 10 times a second (new tables each pick); the arrows glow every frame
 	local goal: NextGoal.Goal? = nil
 	local nextPick = 0
+	local holdUntil = 0
 	local wasOnFoot = false
 	RunService.RenderStepped:Connect(function()
 		local ends = workspace:GetAttribute("BuildEndsAt")
@@ -208,8 +210,8 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 		if isBuilding and type(ends) == "number" then
 			builtFor = ends
 		end
-		local onFoot = not driving and not isBuilding
 		local clock = os.clock()
+		local onFoot = not driving and not isBuilding and clock >= holdUntil
 		if clock >= nextPick or onFoot ~= wasOnFoot then
 			nextPick, wasOnFoot = clock + 0.1, onFoot
 			goal = if onFoot
@@ -285,6 +287,10 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 				build(info)
 			end
 		end
+	end
+	-- a drive is starting: no goal line for a moment (it sat over the road in the first frames)
+	function guide.hold(seconds: number)
+		holdUntil = os.clock() + seconds
 	end
 	function guide.setDriving(on: boolean)
 		driving = on
