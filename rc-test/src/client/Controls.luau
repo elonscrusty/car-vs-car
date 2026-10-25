@@ -11,7 +11,7 @@ local RCCar = require(script.Parent.RCCar)
 export type Controls = {
 	read: () -> RCCar.Input,
 	setRock: (on: boolean) -> (),
-	setRace: (on: boolean) -> (), -- server race: fewer buttons (SMOKE and CAM hide)
+	setRace: (on: boolean) -> (), -- server race: fewer buttons (SMOKE, CAM and VIEW hide)
 }
 
 local Controls = {}
@@ -455,6 +455,7 @@ function Controls.new(
 		inRace = on
 		smokeBtn.Visible = not on and not onRockNow
 		camBtn.Visible = not on and not onRockNow
+		viewBtn.Visible = not on -- the race picks the chase view; just place, lap, gas and steer
 	end
 	function controls.read(): RCCar.Input
 		local function down(code: Enum.KeyCode): boolean
