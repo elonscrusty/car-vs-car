@@ -93,12 +93,12 @@ local MID = (PlotStands.X0 + PlotStands.X1) / 2
 local STEP_D = 2.6 -- each shelf step's depth
 local STEP_H = 0.8 -- each step up
 local BACK_Z = 37.6 -- just in front of the low wall
-PlotStands.SHELF_CAR = 0.5 -- shelf car size (times a 3.6-stud car)
+PlotStands.SHELF_CAR = 0.65 -- shelf car size (times a 3.6-stud car)
 PlotStands.HERO_CAR = 1.1
 PlotStands.HERO = { x = MID, z = 50, r = 3.2, top = 1.2 } -- the turning podium
 -- The board over the shelf (PlotStandsBuilder puts the words on its road side).
 PlotStands.BOARD =
-	{ x = MID, y = 4.6, z = BACK_Z + 0.4, w = PlotStands.X1 - PlotStands.X0, h = 1.6 }
+	{ x = MID, y = 5.5, z = BACK_Z + 0.4, w = PlotStands.X1 - PlotStands.X0, h = 3.2 }
 
 -- Spots on the shelf, front row first (the best cars stand nearest the road): every car but the
 -- hero has one, so owning them all fills the shelf exactly.
@@ -154,7 +154,7 @@ function PlotStands.pieces(cars: { Car }): { Garage.Piece }
 		add(
 			"Show",
 			"Plate",
-			v(1.9, 0.06, 2.2),
+			v(2.3, 0.06, 2.45),
 			v(s.x, s.y + 0.03, s.z),
 			if c and c.rare then RARE else PLATE,
 			{ material = if c and c.rare then "Neon" else nil, collide = false }
