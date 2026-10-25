@@ -202,7 +202,7 @@ function BuildScreen.new(opts: Options): BuildScreen
 	-- UNDO: what each square held before each change (nil = empty), newest last
 	type Step = { c: number, r: number, before: Cell? }
 	local undoList: { Step } = {}
-	local loopUntil = 0 -- the loop line shows until then (first break only)
+	local loopUntil = 0 -- the loop line shows until then (until it has been seen once, the whole 5 s)
 	local UNDO_MAX = 40
 
 	-- ===== grid =====
@@ -801,14 +801,18 @@ function BuildScreen.new(opts: Options): BuildScreen
 		if on then
 			if Players.LocalPlayer:GetAttribute("LoopShown") ~= true then
 				loopUntil = os.clock() + 5
-				task.delay(5.1, drawTop)
+				task.delay(5.1, function()
+					-- seen only once it stayed up the whole 5 s (a quick open and close doesn't count)
+					if gui.Enabled and os.clock() >= loopUntil then
+						Players.LocalPlayer:SetAttribute("LoopShown", true)
+					end
+					drawTop()
+				end)
 			end
 			relayout()
 			drawTop()
 		else
-			if loopUntil > 0 then
-				Players.LocalPlayer:SetAttribute("LoopShown", true) -- the first break is over
-			end
+			loopUntil = 0
 			dropping, dropInput, dragged = nil, nil, false
 			ghost.Visible = false
 			undoList = {} -- the next break starts fresh
