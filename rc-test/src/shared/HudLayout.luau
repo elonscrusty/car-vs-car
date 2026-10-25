@@ -78,6 +78,7 @@ HudLayout.SPOTS = {
 	spot("Quick", "walk", "Lobby", TC, { 0.5, 0, 0, 194 }, { 0, 170, 0, 44 }), -- off for now (Lobby QUICK)
 	spot("WeekendBanner", "walk", "Stars", TR, { 0.98, 0, 0, 116 }, { 0, 200, 0, 30 }), -- top right: off your plot's name on the gate
 	spot("Join", "walk", "ServerRace", TR, { 0.98, 0, 0, 64 }, { 0, 168, 0, 46 }), -- top right, off the gate's name and the pad words
+	spot("PlotTop", "walk", "Stars", TR, { 0.98, 0, 0, 152 }, { 0, 200, 0, 100 }), -- the plot's top 3 while you stand on its pad
 	-- ===== walk: bottom middle =====
 	spot("Drive", "walk", "Lobby", BC, { 0.47, 0, 0.96, 0 }, { 0, 160, 0, 64 }), -- thumb size, low (off the plot view)
 	spot("Build", "walk", "BuildMode", BC, { 0.47, 150, 0.96, 0 }, { 0, 120, 0, 52 }), -- reopen the build screen in the break (right of DRIVE)
