@@ -202,6 +202,7 @@ function BuildScreen.new(opts: Options): BuildScreen
 	-- UNDO: what each square held before each change (nil = empty), newest last
 	type Step = { c: number, r: number, before: Cell? }
 	local undoList: { Step } = {}
+	local loopUntil = 0 -- the loop line shows until then (first break only)
 	local UNDO_MAX = 40
 
 	-- ===== grid =====
@@ -478,6 +479,11 @@ function BuildScreen.new(opts: Options): BuildScreen
 		local turnTip = selected ~= nil and not turnTaught
 		whyText.Text = BuildLayout.hint(state.ready, gap, erasing, turnTip)
 		whyText.TextColor3 = if gap and not erasing then Color3.fromRGB(255, 140, 130) else WHITE
+		-- the first break: the whole game in one line, for a few seconds each time it opens
+		if os.clock() < loopUntil and not erasing then
+			whyText.Text = "BUILD ▶ RACE ▶ COINS ▶ CARS"
+			whyText.TextColor3 = YELLOW
+		end
 		-- TURN and UNDO look off when there is nothing for them to do
 		local canTurn = selected ~= nil and byKey[selected] ~= nil and not erasing
 		turnBtn.BackgroundTransparency = if canTurn then 0 else 0.55
@@ -793,8 +799,16 @@ function BuildScreen.new(opts: Options): BuildScreen
 			(game:GetService("ProximityPromptService") :: any).Enabled = not on
 		end)
 		if on then
+			if Players.LocalPlayer:GetAttribute("LoopShown") ~= true then
+				loopUntil = os.clock() + 5
+				task.delay(5.1, drawTop)
+			end
 			relayout()
+			drawTop()
 		else
+			if loopUntil > 0 then
+				Players.LocalPlayer:SetAttribute("LoopShown", true) -- the first break is over
+			end
 			dropping, dropInput, dragged = nil, nil, false
 			ghost.Visible = false
 			undoList = {} -- the next break starts fresh

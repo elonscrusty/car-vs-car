@@ -12,6 +12,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local LapTimer = require(ReplicatedStorage.Shared.LapTimer)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
@@ -233,6 +234,17 @@ local function carBody(player: Player): BasePart?
 end
 
 -- Pay a player coins and tell their screen (the coin chip and a toast, Stars.server's remote).
+-- the car a racer drove, for the result card (cars get shown off): their pick in this mode
+local function carName(uid: number?, mode: string): string?
+	local p = if uid then Players:GetPlayerByUserId(uid) else nil
+	local data = if p then PlayerData.get(p) else nil
+	if not data then
+		return nil
+	end
+	local ok, car = pcall(CarCatalog.equipped, data :: any, mode)
+	return if ok and car then car.name else nil
+end
+
 local function pay(player: Player, coins: number, why: string)
 	local data = PlayerData.get(player)
 	if not data or coins <= 0 then
@@ -431,10 +443,14 @@ local function runRace(hooks: Hooks, slot: number)
 			for _, e in ranked do
 				local coins = if e.uid then paid[e.uid] else nil
 				local stars = if e.uid then starred[e.uid] else nil
-				table.insert(
-					rows,
-					{ name = e.name, score = e.score, laps = 0, coins = coins, stars = stars }
-				)
+				table.insert(rows, {
+					name = e.name,
+					score = e.score,
+					laps = 0,
+					coins = coins,
+					stars = stars,
+					car = carName(e.uid, "drift"),
+				})
 			end
 			event:FireAllClients("result", rows)
 			break
@@ -554,10 +570,14 @@ local function runRace(hooks: Hooks, slot: number)
 			for _, e in ranked do
 				local coins = if e.uid then paid[e.uid] else nil
 				local stars = if e.uid then starred[e.uid] else nil
-				table.insert(
-					rows,
-					{ name = e.name, time = e.time, laps = e.laps, coins = coins, stars = stars }
-				)
+				table.insert(rows, {
+					name = e.name,
+					time = e.time,
+					laps = e.laps,
+					coins = coins,
+					stars = stars,
+					car = carName(e.uid, "race"),
+				})
 			end
 			event:FireAllClients("result", rows)
 			break

@@ -17,7 +17,14 @@ test("rewards: next goal is the cheapest thing you don't have, cheapest first", 
 		truthy(goals[i - 1].price <= goals[i].price)
 	end
 	local g = Rewards.next(d :: any) :: Rewards.Goal
-	eq(g.price, goals[1].price)
+	-- a car first, the cheapest one
+	eq(g.kind, "car")
+	for _, x in goals do
+		if x.kind == "car" then
+			eq(g.price, x.price)
+			break
+		end
+	end
 	eq(g.ready, false)
 	eq(g.have, 0)
 	d.coins = g.price
@@ -36,6 +43,11 @@ test("rewards: next goal is the cheapest thing you don't have, cheapest first", 
 		for _, c in list do
 			d.cars[c.id] = true
 		end
+	end
+	-- every car owned: tiles come next
+	local tileNext = Rewards.next(d :: any)
+	if tileNext and not TrackTiles.ALL_FREE and #Rewards.coinGoals(d :: any) > 0 then
+		eq((tileNext :: Rewards.Goal).kind, "tile")
 	end
 	for _, t in (require("../src/shared/TileShop") :: any).TILES do
 		d.tiles[t.id] = 1

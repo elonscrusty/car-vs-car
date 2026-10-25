@@ -820,8 +820,11 @@ local function showGoalBar(g: any)
 		or (allFree and g.kind == "tile")
 	then
 		nextBox.Visible = false
+		player:SetAttribute("GoalReady", false)
 		return
 	end
+	-- PlotGuide sends the arrows to the shops (GO SHOP!) while this is true
+	player:SetAttribute("GoalReady", g.ready == true)
 	local what, how, fill = goalText(g)
 	nextWhat.Text = what
 	nextHow.Text = how
