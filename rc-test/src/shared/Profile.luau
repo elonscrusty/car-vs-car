@@ -584,6 +584,25 @@ end
 -- new lock on its next save and stops saving, so the two never write over each other).
 -- A Studio test server ("studio-...") always takes a lock left by an older Studio test: Stop
 -- shuts the test down before its last save can let go, and there's only one Studio per tester.
+-- What a server may do with the save it found (`old` is the whole stored value, lock and all):
+-- "fresh" = nothing there yet, start a new one; "load" = read it and keep saving; "readOnly" =
+-- play with it but never write it back. readOnly when the save is junk (writing would put a blank
+-- one over it) or from a NEWER game version (an old server still running after an update would
+-- drop the fields it doesn't know).
+function Profile.loadPlan(old: any): "fresh" | "load" | "readOnly"
+	if old == nil then
+		return "fresh"
+	end
+	if type(old) ~= "table" or type(old.data) ~= "table" then
+		return if type(old) == "table" and old.data == nil then "fresh" else "readOnly"
+	end
+	local v = old.data.version
+	if type(v) == "number" and v > Profile.VERSION then
+		return "readOnly"
+	end
+	return "load"
+end
+
 function Profile.canTake(lock: any, job: string, now: number, force: boolean?): boolean
 	if force or type(lock) ~= "table" or type(lock.job) ~= "string" then
 		return true
