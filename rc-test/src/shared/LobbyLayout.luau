@@ -248,7 +248,7 @@ end
 -- What a plot's sign says: whose it is (its driver, else its owner), or what kind of plot it is
 -- when it is nobody's (so it never stands there blank); "OPEN" when friends may drive it.
 function LobbyLayout.signText(name: string?, label: string, open: boolean?): string
-	if name == nil then
+	if name == nil or name == "" then
 		return string.upper(label)
 	end
 	return if open then name .. " - OPEN" else name

@@ -24,29 +24,36 @@ local Lobby = {}
 local function makeMarker(x: number, z: number): Model
 	local marker = Instance.new("Model")
 	marker.Name = "YourPlotMarker"
-	local height = 30
-	local column = Instance.new("Part")
-	column.Name = "Light"
-	column.Shape = Enum.PartType.Cylinder
-	column.Size = Vector3.new(height, 3, 3)
-	column.CFrame = CFrame.new(x, height / 2, z) * CFrame.Angles(0, 0, math.pi / 2)
-	column.Material = Enum.Material.Neon
-	column.Color = Color3.fromRGB(255, 220, 90)
-	column.Transparency = 0.65
-	column.Anchored = true
-	column.CanCollide = false
-	column.CanQuery = false
-	column.CanTouch = false
-	column.CastShadow = false
-	column.Parent = marker
+	local height = 60 -- tall enough to see over the hills from the spawn
+	-- a bright core inside a wide soft glow
+	local function beam(name: string, width: number, alpha: number): Part
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Shape = Enum.PartType.Cylinder
+		p.Size = Vector3.new(height, width, width)
+		p.CFrame = CFrame.new(x, height / 2, z) * CFrame.Angles(0, 0, math.pi / 2)
+		p.Material = Enum.Material.Neon
+		p.Color = Color3.fromRGB(255, 220, 90)
+		p.Transparency = alpha
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = false
+		p.Parent = marker
+		return p
+	end
+	local column = beam("Light", 2.5, 0.25)
+	beam("Glow", 7, 0.8)
 	local sign = Instance.new("BillboardGui")
-	sign.Size = UDim2.fromOffset(150, 56)
-	sign.StudsOffsetWorldSpace = Vector3.new(0, height / 2 + 2, 0) -- above the column top
+	-- pixel size, so it reads the same from 100 studs away as up close
+	sign.Size = UDim2.fromOffset(210, 84)
+	sign.StudsOffsetWorldSpace = Vector3.new(0, height / 2 + 3, 0) -- above the beam top
 	sign.AlwaysOnTop = true
 	sign.LightInfluence = 0
 	sign.Parent = column
 	local text = Instance.new("TextLabel")
-	text.Size = UDim2.fromScale(1, 1)
+	text.Size = UDim2.fromScale(1, 0.72)
 	text.BackgroundColor3 = Color3.fromRGB(255, 210, 63)
 	text.TextColor3 = Color3.fromRGB(30, 30, 34)
 	text.Font = Enum.Font.GothamBlack
@@ -54,8 +61,23 @@ local function makeMarker(x: number, z: number): Model
 	text.Text = "YOUR PLOT"
 	text.Parent = sign
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 10)
+	corner.CornerRadius = UDim.new(0, 12)
 	corner.Parent = text
+	local stroke = Instance.new("UIStroke")
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Color = Color3.fromRGB(30, 30, 34)
+	stroke.Thickness = 3
+	stroke.Parent = text
+	local arrow = Instance.new("TextLabel")
+	arrow.Size = UDim2.fromScale(0.3, 0.28)
+	arrow.Position = UDim2.fromScale(0.35, 0.72)
+	arrow.BackgroundTransparency = 1
+	arrow.TextColor3 = Color3.fromRGB(255, 210, 63)
+	arrow.TextStrokeTransparency = 0
+	arrow.Font = Enum.Font.GothamBlack
+	arrow.TextScaled = true
+	arrow.Text = "▼"
+	arrow.Parent = sign
 	return marker
 end
 
