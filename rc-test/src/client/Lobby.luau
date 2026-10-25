@@ -49,13 +49,15 @@ local function makeMarker(x: number, z: number): Model
 	end
 	local column = beam("Light", 4, 0.15)
 	beam("Glow", 10, 0.75)
-	-- the sign hangs beside the beam, low enough to be on a phone screen from the spawn and
-	-- above the spawn lobby's pad words (which would cover it if it sat in line with them)
+	-- the sign sits low enough to be on a phone screen from the spawn and above the spawn
+	-- lobby's pad words
 	local sign = Instance.new("BillboardGui")
 	-- pixel size, so it reads the same from 100 studs away as up close
 	sign.Size = UDim2.fromOffset(190, 56)
 	sign.StudsOffsetWorldSpace = Vector3.new(0, SIGN_Y - height / 2, 0)
-	sign.SizeOffset = Vector2.new(0.55, 0.5) -- its left side by the beam, its bottom at SIGN_Y
+	-- centred over the beam, its bottom at SIGN_Y: hung to one side it ran under the NEXT RACE
+	-- chip (tour 6) or the coins chip (tour 7) on a phone
+	sign.SizeOffset = Vector2.new(0, 0.5)
 	sign.AlwaysOnTop = true
 	sign.LightInfluence = 0
 	sign.Parent = column
@@ -275,18 +277,6 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 		if m and s and root and root:IsA("BasePart") then
 			local dx, dz = root.Position.X - s.padX, root.Position.Z - s.padZ
 			near = dx * dx + dz * dz < BEAM_HIDE * BEAM_HIDE
-		end
-		-- the sign hangs on the screen-middle side of the beam: on the right side it would
-		-- run under the NEXT RACE chip in the top right corner
-		local camera = workspace.CurrentCamera
-		local light = m and m:FindFirstChild("Light")
-		local sign = light and light:FindFirstChildOfClass("BillboardGui")
-		if sign and light and light:IsA("BasePart") and camera then
-			local at = camera:WorldToViewportPoint(light.Position)
-			local side = if at.X > camera.ViewportSize.X * 0.5 then -0.55 else 0.55
-			if sign.SizeOffset.X ~= side then
-				sign.SizeOffset = Vector2.new(side, 0.5)
-			end
 		end
 		if m and near ~= beamHidden then
 			beamHidden = near
