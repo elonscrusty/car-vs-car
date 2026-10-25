@@ -164,3 +164,52 @@ test("a drift round ranks by score and counts any points as a finish", function(
 	eq(ServerRace.finished({ name = "d", laps = 3, time = 61 }), true)
 	truthy(ServerRace.DRIFT_TIME > 30, "drift round too short")
 end)
+
+test("round clock: break, pick at the call, race at zero, or skip", function()
+	local C = ServerRace.CALL
+	eq(ServerRace.step("wait", C + 1, nil, 3), nil)
+	eq(ServerRace.step("wait", C, nil, 3), "pick")
+	eq(ServerRace.step("call", 1, 4, 3), nil)
+	eq(ServerRace.step("call", 0, 4, 3), "race")
+	eq(ServerRace.step("call", -2, 4, 3), "race") -- a late tick still starts it
+	eq(ServerRace.step("call", 0, nil, 3), "skip") -- no plot was ready
+	eq(ServerRace.step("call", 0, 4, 0), "skip") -- nobody here
+	eq(ServerRace.step("racing", -50, 4, 3), nil) -- the race runs itself
+end)
+
+test("round clock: one whole round, ticking like the server", function()
+	local phase, picked, t = "wait", nil :: number?, 0
+	local startAt = ServerRace.BREAK
+	local seen = {}
+	while t < ServerRace.BREAK + 1 do
+		local todo = ServerRace.step(phase, startAt - t, picked, 2)
+		if todo == "pick" then
+			phase, picked = "call", ServerRace.pick({ 5 }, { 1 }, 0.3)
+			table.insert(seen, `pick {picked} at {startAt - t}`)
+		elseif todo == "race" then
+			table.insert(seen, `race {picked} at {startAt - t}`)
+			phase, picked, startAt = "wait", nil, t + ServerRace.BREAK
+		end
+		t += 0.25
+	end
+	eq(#seen, 2)
+	eq(seen[1], `pick 5 at {ServerRace.CALL}`)
+	eq(seen[2], "race 5 at 0")
+	eq(phase, "wait")
+end)
+
+test("pick: one ready plot is always it; the street's when no owner's is ready", function()
+	for _, r in { 0, 0.5, 0.999 } do
+		eq(ServerRace.pick({ 6 }, {}, r), 6)
+		eq(ServerRace.pick({ 6 }, { 1, 2 }, r), 6) -- an owner's plot beats the street's
+		eq(ServerRace.pick({}, { 2 }, r), 2)
+	end
+end)
+
+test("build window: open all break, shut from the pick to the end of the race", function()
+	local open, ends = ServerRace.build("wait", 1000.7)
+	eq(open, true)
+	eq(ends, math.floor(1000.7 - ServerRace.CALL))
+	eq((ServerRace.build("call", 1000)), false)
+	eq((ServerRace.build("racing", 1000)), false)
+end)
