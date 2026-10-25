@@ -185,6 +185,23 @@ function LobbyBuilder.build(): Built
 			LobbyProps.lamp(props, l.x, l.z)
 		end
 	end
+	-- trees in the grass gaps between plots (pine and leafy in turn, a little turned and sized)
+	for i, t in LobbyLayout.trees() do
+		local mesh = if i % 2 == 1 then "PineTree" else "LeafyTree"
+		local turn = CFrame.Angles(0, math.rad((i * 67) % 360), 0)
+		local tree = MeshProps.place(props, mesh, spot(t) * turn, 12 + (i * 7) % 5)
+		if tree then
+			for _, d in tree:GetDescendants() do
+				if d:IsA("BasePart") then
+					d.CanCollide = false
+					d.CanTouch = false
+					d.CanQuery = false
+				end
+			end
+		else
+			LobbyProps.tree(props, t.x, t.z, 1.3)
+		end
+	end
 	for _, c in LobbyLayout.cones() do
 		if not MeshProps.place(props, "Cone", spot(c), 1.4) then
 			LobbyProps.cone(props, c.x, c.z)

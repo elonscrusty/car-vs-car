@@ -94,7 +94,7 @@ LobbyHills.ROWS = {
 LobbyHills.SAND = 8 -- sand rim round the lake water
 LobbyHills.KEEP_OFF = 6 -- hills stay this far off the sand
 LobbyHills.MAX_HILLS = 230
-LobbyHills.MAX_TREES = 320
+LobbyHills.MAX_TREES = 360 -- the street got 90 longer (wider plot gaps 2026-10-25)
 LobbyHills.MAX_PROPS = 200
 
 -- The near rows come in stretches (ZONE studs long) of one kind, so the ring reads as meadows,

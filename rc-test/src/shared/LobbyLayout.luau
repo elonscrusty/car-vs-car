@@ -47,7 +47,8 @@ local LobbyLayout = {}
 LobbyLayout.MINI = TrackData.RC_SCALE
 LobbyLayout.PLOT_W = Kit.WIDTH * LobbyLayout.MINI -- along the road (z)
 LobbyLayout.PLOT_D = Kit.DEPTH * LobbyLayout.MINI -- away from the road (x)
-LobbyLayout.GAP = 10 -- grass between two plots on the same side
+LobbyLayout.GAP = 40 -- grass and trees between two plots on the same side (carter 2026-10-25:
+-- "all the plots are too close together"; was 10)
 LobbyLayout.ROAD_W = 14 -- the dark road
 LobbyLayout.WALK_W = 6 -- the light footpath on each side of the road
 LobbyLayout.EDGE = LobbyLayout.ROAD_W / 2 + LobbyLayout.WALK_W -- plot fronts are this far from x = 0
@@ -153,6 +154,12 @@ function LobbyLayout.lamps(): { Spot }
 	local out: { Spot } = {}
 	for row = 0, LobbyLayout.ROWS do
 		local z = LobbyLayout.FIRST_Z - LobbyLayout.STEP / 2 + row * LobbyLayout.STEP
+		-- the end ones just past the end plots (a full half gap would reach the spawn lobby)
+		if row == 0 then
+			z = LobbyLayout.FIRST_Z - LobbyLayout.PLOT_W / 2 - 5
+		elseif row == LobbyLayout.ROWS then
+			z = LAST_Z + LobbyLayout.PLOT_W / 2 + 5
+		end
 		for _, side in { -1, 1 } do
 			table.insert(
 				out,
@@ -209,20 +216,25 @@ function LobbyLayout.tires(): { Spot }
 	return out
 end
 
--- Trees: in the grass between plots (at the back) and along the outer edges.
+-- Trees in the grass gaps between plots on the same side: two rows, one near each plot's side
+-- wall, staggered from the footpath to the back, clear of the gap's flag and flower bed (at the
+-- front) and the spectator steps (in the middle of the gap).
+LobbyLayout.TREE_DZ = 12 -- from the middle of the gap (its walls are GAP / 2 away)
+LobbyLayout.TREE_X = { 30, 52, 76, 100 } -- from the plot fronts, toward the back
 function LobbyLayout.trees(): { Spot }
 	local out: { Spot } = {}
-	local g = LobbyLayout.ground()
-	for row = 0, LobbyLayout.ROWS do
-		local z = LobbyLayout.FIRST_Z - LobbyLayout.STEP / 2 + row * LobbyLayout.STEP
+	for row = 1, LobbyLayout.ROWS - 1 do
+		local z = LobbyLayout.FIRST_Z + (row - 0.5) * LobbyLayout.STEP
 		for _, side in { -1, 1 } do
-			table.insert(out, {
-				x = side * (LobbyLayout.EDGE + LobbyLayout.PLOT_D - 4),
-				z = z,
-				faceX = 0,
-				faceZ = 1,
-			})
-			table.insert(out, { x = side * (g.maxX - 8), z = z + 10, faceX = 0, faceZ = 1 })
+			for i, dx in LobbyLayout.TREE_X do
+				local dz = if i % 2 == 1 then -LobbyLayout.TREE_DZ else LobbyLayout.TREE_DZ
+				table.insert(out, {
+					x = side * (LobbyLayout.EDGE + dx),
+					z = z + dz,
+					faceX = 0,
+					faceZ = 1,
+				})
+			end
 		end
 	end
 	return out
