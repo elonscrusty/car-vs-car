@@ -107,3 +107,69 @@ test("surround: in the strips round a 5x5 grid, nothing on a 5x6 grid's road", f
 		end
 	end
 end)
+
+-- A whole built grid: the starter circle, and the same with hazard tiles swapped in.
+local TT = require("../src/shared/TrackTiles")
+local function grids(): { any }
+	local list = { TT.circle(5, 5), TT.circle(5, 6) }
+	local busy = TT.circle(5, 6)
+	local swap =
+		{ "cones", "barrels", "bumps", "jump", "boost", "mud", "oil", "sand", "puddle", "narrow" }
+	local i = 0
+	for _, t in busy.tiles do
+		if t.piece == "straight" then
+			i += 1
+			t.piece = swap[(i - 1) % #swap + 1]
+		end
+	end
+	table.insert(list, busy)
+	return list
+end
+
+test("built grid: empty-cell and edge decor never sits on a road square", function()
+	for _, grid in grids() do
+		local h = TT.CELL / 2
+		for _, e in T.gridParts(grid, TT) do
+			if e.from == "empty" or e.from == "surround" then
+				local px, pz = T.spot(e)
+				local _, _, z = dims(e.piece)
+				local x = dims(e.piece)
+				for _, t in grid.tiles do
+					local cx, cz = TT.cellCenter(grid, t.c, t.r)
+					local inside = math.abs(px - cx) < h + x / 2 - 0.01
+						and math.abs(pz - cz) < h + z / 2 - 0.01
+					truthy(
+						not inside,
+						e.from .. " " .. e.piece.name .. " on road tile " .. t.c .. "," .. t.r
+					)
+				end
+			end
+		end
+	end
+end)
+
+test("built grid: nothing tall within 20 studs of the start (but its own gantry)", function()
+	for _, grid in grids() do
+		local sx, sz
+		for _, t in grid.tiles do
+			if t.piece == "start" then
+				sx, sz = TT.cellCenter(grid, t.c, t.r)
+			end
+		end
+		truthy(sx ~= nil, "a start tile")
+		local tall = 0
+		for _, e in T.gridParts(grid, TT) do
+			local px, pz = T.spot(e)
+			local _, y = dims(e.piece)
+			if e.from ~= "start" and math.sqrt((px - sx) ^ 2 + (pz - sz) ^ 2) < T.CLEAR then
+				truthy(
+					e.piece.pos.y + y / 2 <= T.TALL + 0.01,
+					e.from .. " " .. e.piece.name .. " tall near the start"
+				)
+			elseif e.piece.pos.y + y / 2 > T.TALL then
+				tall += 1
+			end
+		end
+		truthy(tall > 0, "tall decor still stands away from the start")
+	end
+end)

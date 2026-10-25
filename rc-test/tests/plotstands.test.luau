@@ -117,3 +117,18 @@ test("the board says whose cars and how many", function()
 	eq(top, "CARTER'S CARS")
 	eq(bottom, "12 / " .. #P.ALL)
 end)
+
+test("a new car: only what was added since the last look", function()
+	local fresh = P.fresh("race_bolt,drift_kid", "race_bolt,drift_kid,gb_gold,race_dart")
+	truthy(fresh.gb_gold and fresh.race_dart, "the two new cars")
+	truthy(not fresh.race_bolt, "an old car is not new")
+	truthy(next(P.fresh(nil, "race_bolt,gb_gold")) == nil, "first look: nothing is new")
+end)
+
+test("the board counts what the shop owns: every known car once, gumball too", function()
+	-- CarShop lists each owned car once (shop then gumball); old ids from a save (rock cars) are
+	-- not in it, and if they were they would not count
+	eq(#P.parse("race_bolt,drift_kid,gb_lime,gb_gold"), 4)
+	eq(#P.parse("race_bolt,rock_pup,drift_kid"), 2)
+	eq(#P.parse(everyCar()), #P.ALL)
+end)

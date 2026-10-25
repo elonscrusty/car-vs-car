@@ -625,6 +625,72 @@ function TileLooks.surroundParts(
 	return out
 end
 
+-- Everything TileLooks puts on a built grid, in plot-local big units: each tile's looks, the
+-- empty cells' decor and the strips round the grid. `TT` is TrackTiles (passed in: it loads
+-- this module). Near the start tile (CLEAR, about 20 studs at RC size) nothing taller than TALL
+-- stands, so the start stays in view from the chase and top-down cameras; the start tile's own
+-- gantry stays. Each entry: the piece, where its tile / cell centre is and its turn (radians).
+TileLooks.CLEAR = 80
+TileLooks.TALL = 8
+export type Placed = { piece: Piece, x: number, z: number, yaw: number, from: string }
+local function topOf(p: Piece): number
+	local turned = p.rot.x ~= 0 or p.rot.z ~= 0
+	local half = if turned then math.max(p.size.x, p.size.y, p.size.z) / 2 else p.size.y / 2
+	return p.pos.y + half
+end
+-- where a placed piece's middle is, plot-local
+function TileLooks.spot(e: Placed): (number, number)
+	local c, s = math.cos(e.yaw), math.sin(e.yaw)
+	local px, pz = e.piece.pos.x, e.piece.pos.z
+	return e.x + px * c + pz * s, e.z - px * s + pz * c
+end
+function TileLooks.gridParts(grid: any, TT: any): { Placed }
+	local cell = TT.CELL
+	local out: { Placed } = {}
+	local sx: number?, sz: number? = nil, nil
+	for _, t in grid.tiles do
+		local cx, cz = TT.cellCenter(grid, t.c, t.r)
+		if t.piece == "start" then
+			sx, sz = cx, cz
+		end
+		for _, p in TileLooks.parts(t.piece, cell) do
+			table.insert(
+				out,
+				{ piece = p, x = cx, z = cz, yaw = -t.rot * math.pi / 2, from = t.piece }
+			)
+		end
+	end
+	for c = 1, grid.cols do
+		for r = 1, grid.rows do
+			if not TT.get(grid, c, r) then
+				local cx, cz = TT.cellCenter(grid, c, r)
+				for _, p in TileLooks.emptyParts(c, r, cell) do
+					table.insert(out, { piece = p, x = cx, z = cz, yaw = 0, from = "empty" })
+				end
+			end
+		end
+	end
+	local x1, z1 = TT.cellCenter(grid, 1, grid.rows)
+	local x2, z2 = TT.cellCenter(grid, grid.cols, 1)
+	local h = cell / 2
+	local area = sibling("Plots/Kit").AREA
+	for _, p in TileLooks.surroundParts(x1 - h, x2 + h, z1 - h, z2 + h, area) do
+		table.insert(out, { piece = p, x = 0, z = 0, yaw = 0, from = "surround" })
+	end
+	if sx and sz then
+		local kept: { Placed } = {}
+		for _, e in out do
+			local px, pz = TileLooks.spot(e)
+			local near = math.sqrt((px - sx) ^ 2 + (pz - sz) ^ 2) < TileLooks.CLEAR
+			if e.from == "start" or not near or topOf(e.piece) <= TileLooks.TALL then
+				table.insert(kept, e)
+			end
+		end
+		out = kept
+	end
+	return out
+end
+
 -- Server / Studio: build tile `id`'s looks in a "TileLooks" folder under `parent`, at `at` (the
 -- tile's centre on the ground, already turned for its rot). Nothing collides, touches or queries.
 local function makeIn(pieces: { Piece }, parent: Instance, at: CFrame): Instance
@@ -672,6 +738,27 @@ function TileLooks.makeSurround(
 ): Instance
 	local a = area or sibling("Plots/Kit").AREA
 	return makeIn(TileLooks.surroundParts(minX, maxX, minZ, maxZ, a), parent, origin)
+end
+
+-- The whole grid's looks (gridParts) in one "TileLooks" folder under `parent`.
+function TileLooks.makeGrid(parent: Instance, origin: CFrame, grid: any, TT: any): Instance
+	local folder = Instance.new("Folder")
+	folder.Name = "TileLooks"
+	local holder = Instance.new("Model")
+	for _, e in TileLooks.gridParts(grid, TT) do
+		local at = origin * CFrame.new(e.x, 0, e.z) * CFrame.Angles(0, e.yaw, 0)
+		Garage.makeParts({ e.piece }, holder, at)
+	end
+	for _, d in holder:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.CanQuery = false
+			d.CastShadow = false
+			d.Parent = folder
+		end
+	end
+	holder:Destroy()
+	folder.Parent = parent
+	return folder
 end
 
 return TileLooks

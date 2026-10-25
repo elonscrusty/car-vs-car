@@ -1,9 +1,13 @@
 --!strict
 -- Turns the best car on each plot's car show podium (PlotStandsBuilder tags it "ShowSpin"; its
 -- pivot is the podium's top middle). Only on this screen: the server copy stays still.
+-- Also: a spot tagged "ShowNew" for this player (a car they just bought or won) glows gold with a
+-- burst of sparkles the first time they come within NEW_NEAR of it.
 
 local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local SPEED = 0.6 -- radians a second
 
@@ -35,6 +39,79 @@ RunService.RenderStepped:Connect(function()
 			end
 		else
 			spinning[m] = nil
+		end
+	end
+end)
+
+-- ===== New car glow =====
+
+local NEW_NEAR = 30 -- studs
+local GLOW = 4 -- seconds
+local GOLD = Color3.fromRGB(255, 210, 60)
+local me = Players.LocalPlayer
+local waiting: { [BasePart]: boolean } = {}
+
+local function glow(spot: BasePart)
+	local color, material = spot.Color, spot.Material
+	spot.Color = GOLD
+	spot.Material = Enum.Material.Neon
+	local light = Instance.new("PointLight")
+	light.Color = GOLD
+	light.Range = 10
+	light.Brightness = 3
+	light.Parent = spot
+	local sparks = Instance.new("ParticleEmitter")
+	sparks.Color = ColorSequence.new(GOLD, Color3.new(1, 1, 1))
+	sparks.LightEmission = 0.8
+	sparks.Size = NumberSequence.new(0.25, 0)
+	sparks.Lifetime = NumberRange.new(0.8, 1.4)
+	sparks.Speed = NumberRange.new(4, 8)
+	sparks.SpreadAngle = Vector2.new(40, 40)
+	sparks.EmissionDirection = Enum.NormalId.Top
+	sparks.Acceleration = Vector3.new(0, -6, 0)
+	sparks.Enabled = false
+	sparks.Parent = spot
+	sparks:Emit(40)
+	local pulse = TweenService:Create(
+		light,
+		TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{ Brightness = 0.5 }
+	)
+	pulse:Play()
+	task.delay(GLOW, function()
+		pulse:Cancel()
+		light:Destroy()
+		if spot.Parent then
+			spot.Color, spot.Material = color, material
+		end
+		task.delay(2, function()
+			sparks:Destroy()
+		end)
+	end)
+end
+
+local function addNew(spot: Instance)
+	if spot:IsA("BasePart") and spot:GetAttribute("NewFor") == me.UserId then
+		waiting[spot] = true
+	end
+end
+for _, s in CollectionService:GetTagged("ShowNew") do
+	addNew(s)
+end
+CollectionService:GetInstanceAddedSignal("ShowNew"):Connect(addNew)
+
+task.spawn(function()
+	while true do
+		task.wait(0.5)
+		local char = me.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart") :: BasePart?
+		for spot in waiting do
+			if not spot.Parent then
+				waiting[spot] = nil
+			elseif root and (spot.Position - root.Position).Magnitude < NEW_NEAR then
+				waiting[spot] = nil
+				glow(spot)
+			end
 		end
 	end
 end)
