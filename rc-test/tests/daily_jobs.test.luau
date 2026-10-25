@@ -88,3 +88,19 @@ test("save: jobs load back, junk and old saves are safe", function()
 	eq(bad.jobs.have[2], 0)
 	eq(bad.jobs.have[3], 999)
 end)
+
+test("jobs: no rock-climb jobs (rock plots are gone), the loop pool pays 30-50", function()
+	for _, pool in DailyJobs.POOLS do
+		for _, j in pool do
+			truthy(j.event ~= "flag2" and j.event ~= "flag3" and j.event ~= "climb", j.id)
+			truthy(j.coins >= 30 and j.coins <= 50, j.id)
+		end
+	end
+	local d = { jobs = DailyJobs.new(10), coins = 0 }
+	for uid = 1, 40 do
+		local list = DailyJobs.list(10, uid)
+		truthy(list[3] ~= nil)
+	end
+	DailyJobs.add(d, 1, 10, DailyJobs.list(10, 1)[3].event, 10)
+	truthy(d.coins > 0)
+end)
