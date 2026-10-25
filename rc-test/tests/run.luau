@@ -42,5 +42,6 @@ require("./track_tiles.test")
 require("./race_arrow.test")
 require("./save_safety.test")
 require("./forever.test")
+require("./sound_levels.test")
 
 Harness.summary()

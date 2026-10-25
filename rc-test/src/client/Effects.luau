@@ -3,6 +3,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local SoundLevels = require(ReplicatedStorage.Shared.SoundLevels)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
 
 local RCCar = require(script.Parent.RCCar)
@@ -199,7 +200,8 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 		local share = math.clamp(telemetry.speed / math.max(Tuning.topSpeed, 0.01), 0, 1)
 		if motor then
 			motor.PlaybackSpeed = 0.7 + 1.1 * share
-			motor.Volume = 0.15 + 0.35 * share
+			motor.Volume = SoundLevels.MOTOR_MIN
+				+ (SoundLevels.MOTOR_MAX - SoundLevels.MOTOR_MIN) * share
 		end
 		if squeal then
 			local slide = 0
@@ -212,7 +214,7 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 				then math.clamp((slide - SLIDE_START * S) / (20 * S), 0, 1)
 				else 0
 			squealLevel += (want - squealLevel) * (1 - math.exp(-10 * dt))
-			squeal.Volume = 0.5 * squealLevel
+			squeal.Volume = SoundLevels.SQUEAL_MAX * squealLevel
 			squeal.PlaybackSpeed = 0.9 + 0.2 * squealLevel
 		end
 		-- old marks fade out, oldest first
