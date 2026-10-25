@@ -153,7 +153,7 @@ function PlotStands.pieces(cars: { Car }): { Garage.Piece }
 		local c = cars[i + 1]
 		add(
 			"Show",
-			"Plate",
+			"Plate" .. i,
 			v(2.3, 0.06, 2.45),
 			v(s.x, s.y + 0.03, s.z),
 			if c and c.rare then RARE else PLATE,
@@ -224,6 +224,25 @@ function PlotStands.pieces(cars: { Car }): { Garage.Piece }
 			PlotStands.HERO_CAR,
 			hero.style
 		)
+	end
+	return out
+end
+
+-- The cars in `now` that weren't in `before` (both "CarIds" lists): what was just bought or won.
+-- No `before` (the first look at someone's cars this session) means nothing is new.
+function PlotStands.fresh(before: string?, now: string): { [string]: boolean }
+	local out: { [string]: boolean } = {}
+	if before == nil then
+		return out
+	end
+	local had: { [string]: boolean } = {}
+	for _, c in PlotStands.parse(before) do
+		had[c.id] = true
+	end
+	for _, c in PlotStands.parse(now) do
+		if not had[c.id] then
+			out[c.id] = true
+		end
 	end
 	return out
 end

@@ -42,6 +42,7 @@ function PlotStandsBuilder.start()
 	local slots = LobbyLayout.slots()
 	local shown: { [number]: string } = {} -- what each plot's show has now
 	local watching: { [Player]: RBXScriptConnection } = {}
+	local had: { [number]: string } = {} -- each owner's last list, to spot a new car
 
 	local function rebuild(slot: number)
 		local s = slots[slot]
@@ -68,6 +69,23 @@ function PlotStandsBuilder.start()
 		local board = groups.Show and groups.Show:FindFirstChild("Board")
 		if owner and board and board:IsA("BasePart") then
 			label(board, PlotStands.words(owner.DisplayName, #cars))
+		end
+		-- a car just bought or won: its spot glows the next time the owner comes near
+		-- (ShowSpin.client plays it)
+		if owner then
+			local fresh = PlotStands.fresh(had[owner.UserId], list)
+			had[owner.UserId] = list
+			for i, c in cars do
+				if fresh[c.id] then
+					local spot = if i == 1
+						then groups.Show and groups.Show:FindFirstChild("Ring")
+						else groups.Show and groups.Show:FindFirstChild("Plate" .. (i - 1))
+					if spot then
+						spot:SetAttribute("NewFor", owner.UserId)
+						CollectionService:AddTag(spot, "ShowNew")
+					end
+				end
+			end
 		end
 		local hero = groups.Hero
 		if hero then
