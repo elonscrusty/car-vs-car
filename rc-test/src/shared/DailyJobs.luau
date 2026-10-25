@@ -1,8 +1,8 @@
 --!strict
--- Carter's daily jobs: 3 small jobs a day (one drift, one race, one game loop) that pay coins and
+-- Carter's daily jobs: 3 small jobs a day (your track, the server race, collecting) that pay coins and
 -- start over each day. Which 3 you get comes from the day and your user id, so only how far you
--- got is saved (Profile.Data.jobs). The server tells this module what happened ("touch", "lap",
--- "flag3", ...) and it pays the coins when a job gets done. Pure tables, so Lune can test it.
+-- got is saved (Profile.Data.jobs). The server tells this module what happened ("lap",
+-- "raceWin", ...) and it pays the coins when a job gets done. Pure tables, so Lune can test it.
 
 export type Job = {
 	id: string,
@@ -18,45 +18,39 @@ local DailyJobs = {}
 
 DailyJobs.COUNT = 3
 
--- one list per kind of plot; each day picks one job from each
+-- three lists, each day picks one job from each. Every job can be done by a new kid playing
+-- alone (no "beat a friend", no drift-plot glow spots): build and drive your track, race,
+-- collect. Saves keep progress by index (have[1..3]) for today only, so the lists can change.
+-- `DailyJobs.EVENTS` lists the events the server sends (tests check every job uses one).
 DailyJobs.POOLS = {
 	{
-		{
-			id = "touch",
-			text = "Drift through 3 glow spots",
-			event = "touch",
-			goal = 3,
-			coins = 30,
-		},
-		{ id = "slides", text = "Do 5 drifts of 500+", event = "slide500", goal = 5, coins = 40 },
-		{
-			id = "bigslide",
-			text = "Score 1500 in one drift",
-			event = "slide1500",
-			goal = 1,
-			coins = 40,
-		},
+		{ id = "laps", text = "Drive 3 laps on a track", event = "lap", goal = 3, coins = 30 },
+		{ id = "laps8", text = "Drive 8 laps on a track", event = "lap", goal = 8, coins = 50 },
+		{ id = "tiles", text = "Place 5 tiles", event = "tiles", goal = 5, coins = 30 },
 	},
-	{
-		{ id = "laps", text = "Drive 3 race laps", event = "lap", goal = 3, coins = 30 },
-		{ id = "beat", text = "Beat 1 friend's best time", event = "beat", goal = 1, coins = 50 },
-		{
-			id = "medal",
-			text = "Win a medal on a friend's plot",
-			event = "medal",
-			goal = 1,
-			coins = 40,
-		},
-	},
-	-- the game loop (rock plots are gone): race, win, buy, build. Old saves keep have[3] by index,
-	-- so a half-done rock job just counts toward today's loop job.
 	{
 		{ id = "race", text = "Finish a server race", event = "raceDone", goal = 1, coins = 30 },
 		{ id = "top3", text = "Get top 3 in a race", event = "raceTop3", goal = 1, coins = 50 },
+		{ id = "win", text = "Win a server race", event = "raceWin", goal = 1, coins = 50 },
+	},
+	{
 		{ id = "car", text = "Buy a new car", event = "newCar", goal = 1, coins = 40 },
-		{ id = "tiles", text = "Place 5 tiles", event = "tiles", goal = 5, coins = 30 },
+		{ id = "stars", text = "Earn 3 stars", event = "stars", goal = 3, coins = 40 },
+		{ id = "tile", text = "Buy a new tile", event = "newTile", goal = 1, coins = 30 },
 	},
 } :: { { Job } }
+
+-- every event a job may use, and who sends it (all can happen to a kid playing alone)
+DailyJobs.EVENTS = {
+	lap = "Stars.server: a lap on a race plot or built race track",
+	tiles = "TrackBuild: road laid / tiles dropped or placed",
+	raceDone = "ServerRaceRunner: finished a server race",
+	raceTop3 = "ServerRaceRunner: 1st-3rd in a server race",
+	raceWin = "ServerRaceRunner: won a server race",
+	newCar = "CarShop: bought a car or won a new one from the gumball",
+	stars = "ServerRaceRunner: race stars (n)",
+	newTile = "CarShop: bought a tile or won a new one from the tile spin",
+} :: { [string]: string }
 
 function DailyJobs.new(day: number): Save
 	return { day = day, have = { 0, 0, 0 } }
