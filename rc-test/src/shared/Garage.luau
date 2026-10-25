@@ -924,6 +924,8 @@ function Garage.build(
 	model.PrimaryPart = (groups.Shell :: Model):FindFirstChild("Floor") :: BasePart
 	if shop then
 		model:SetAttribute("ShopKind", kind) -- CarShops (client) spins its cars and opens its screen
+	else
+		model:SetAttribute("ShopKind", "looks") -- the LOOKS shop's door (PlotShop client)
 	end
 	Garage.useMeshes(
 		groups,
