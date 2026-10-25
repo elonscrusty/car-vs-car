@@ -9,7 +9,8 @@
 -- Server -> client (StarsEvent): ("stars", count, saving), ("run", info), ("coins", count),
 -- ("toast", text), ("bolts", found, total, onRock), ("bolt", id), ("boltsFound", ids) and
 -- ("rivals", list, streak, winPoints), ("daily", coins, days in a row, boost) and ("jobs", lines,
--- secondsToNewJobs), ("goal", goal or nil) = Rewards.next (what to save up for).
+-- secondsToNewJobs), ("goal", goal or nil) = Rewards.next (what to save up for), ("visits",
+-- signs) = each plot as I see it (Visit.Sign). Attribute "StarsAt" = slots with stars for me.
 -- The client never sends. workspace "CoinBoost" = 2 on weekends (every coin
 -- gift doubled).
 
@@ -25,6 +26,7 @@ local Medals = require(ReplicatedStorage.Shared.Medals)
 local Profile = require(ReplicatedStorage.Shared.Profile)
 local RunCheck = require(ReplicatedStorage.Shared.RunCheck)
 local Rewards = require(ReplicatedStorage.Shared.Rewards)
+local Visit = require(ReplicatedStorage.Shared.Visit)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local Jobs = require(script.Parent.Jobs)
 local PlayerData = require(script.Parent.PlayerData)
@@ -1016,6 +1018,61 @@ local function sendGoal(player: Player, force: boolean?)
 	end
 	remote:FireClient(player, "goal", goalOf(data))
 end
+-- ===== why visit: each plot's sign as I see it (Visit), and StarsAt for the arrows =====
+-- ("visits", { Visit.Sign }) when it changes; the "StarsAt" attribute = "3,5" (slots that still
+-- have stars for me, nearest first) for NextGoal and PlotGuide.
+local visitSeen: { [Player]: string } = {}
+local function sendVisits(player: Player)
+	local data = PlayerData.get(player)
+	if not data then
+		return
+	end
+	local now = os.time()
+	local day, boost = Profile.day(now), Profile.boost(now)
+	local char = player.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	local car = workspace:FindFirstChild("Car_" .. player.UserId)
+	local body = car and (car :: Model).PrimaryPart
+	local at: Vector3? = if body
+		then body.Position
+		elseif root and root:IsA("BasePart") then root.Position
+		else nil
+	local signs: { Visit.Sign } = {}
+	local dist: { [number]: number } = {}
+	local parts = {}
+	for i, slot in slots do
+		local mode = plotType(i)
+		local records = recordsOf(i)
+		local sign = Visit.sign(
+			data,
+			player.UserId,
+			i,
+			ownerId(i),
+			mode,
+			records and records[mode],
+			day,
+			boost
+		)
+		table.insert(signs, sign)
+		if at then
+			dist[i] = (Vector3.new(slot.padX, at.Y, slot.padZ) - at).Magnitude
+		end
+		table.insert(parts, `{sign.own}/{sign.stars}/{sign.beat}/{sign.coins}/{sign.gift}`)
+	end
+	local starsAt = Visit.starsAt(signs, dist)
+	if player:GetAttribute("StarsAt") ~= starsAt then
+		player:SetAttribute("StarsAt", starsAt)
+	end
+	local key = table.concat(parts, ";")
+	if visitSeen[player] ~= key then
+		visitSeen[player] = key
+		remote:FireClient(player, "visits", signs)
+	end
+end
+Players.PlayerRemoving:Connect(function(p)
+	visitSeen[p] = nil
+end)
+
 task.spawn(function()
 	local tick = 0
 	while true do
@@ -1023,6 +1080,7 @@ task.spawn(function()
 		Forever.step("Goals", function()
 			for _, p in Players:GetPlayers() do
 				sendGoal(p)
+				sendVisits(p)
 			end
 			-- boards: a rebuilt track clears its records and stretches its medal times
 			if tick % 3 == 0 then
