@@ -233,16 +233,13 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
--- what a racer won (the server sends coins and stars per row): "   +100 coins  +1 ⭐"
+-- what a racer won (the server sends coins per row): "   +100"
+-- (just the coins: the star chip counts stars, and short rows read bigger on a phone)
 local function paidText(r: any): string
-	local out = ""
 	if type(r.coins) == "number" and r.coins > 0 then
-		out ..= `   <font color="#FFD54F">+{r.coins} coins</font>`
+		return `   <font color="#FFD54F">+{r.coins}</font>`
 	end
-	if type(r.stars) == "number" and r.stars > 0 then
-		out ..= `  <font color="#FFD54F">+{r.stars} ⭐</font>`
-	end
-	return out
+	return ""
 end
 
 local showId = 0
@@ -276,7 +273,7 @@ local function showResult(rows: { any })
 	end
 	local first = rows[1]
 	local won = first.time or (type(first.score) == "number" and first.score > 0)
-	-- the winner's car in the title, every racer's car on their row: cars get shown off
+	-- the winner's car in the title: cars get shown off
 	local firstCar = if type(first.car) == "string" then string.upper(first.car) else nil
 	title.Text = if won and firstCar
 		then `🏆 {first.name} WINS IN {firstCar}!`
@@ -297,8 +294,8 @@ local function showResult(rows: { any })
 			else `{r.laps}/{ServerRace.LAPS} laps`
 		local paid = paidText(r)
 		local medal = ServerRace.medal(i)
-		local car = if type(r.car) == "string" then `  <font color="#9AA0AA">{r.car}</font>` else ""
-		local line = `{if medal ~= "" then medal else `{i}.`} {r.name}{car}   {what}`
+		-- (no car on the row: the winner's car is in the title, and short rows read bigger)
+		local line = `{if medal ~= "" then medal else `{i}.`} {r.name}   {what}`
 		-- your own row in yellow, so you find yourself at once
 		table.insert(
 			lines,
@@ -317,9 +314,9 @@ local function showResult(rows: { any })
 	)
 	rowsText.Text = table.concat(lines, "\n")
 	-- the card fits its rows (one racer = a short card, no empty gap)
-	-- (rows 5.5% of the screen tall each: big enough to read on a phone)
-	local tall = 0.2 + 0.055 * #lines
-	rowsText.Size = UDim2.fromScale(0.86, (0.055 * #lines) / tall)
+	-- (rows 6.5% of the screen tall each: big enough to read on a phone)
+	local tall = 0.2 + 0.065 * #lines
+	rowsText.Size = UDim2.fromScale(0.86, (0.065 * #lines) / tall)
 	showId += 1
 	local me = showId
 	card.Visible = true
