@@ -7,10 +7,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
+local JoinStage = require(ReplicatedStorage.Shared.JoinStage)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
 local Popup = require(script.Parent:WaitForChild("Popup"))
 local Profile = require(ReplicatedStorage.Shared.Profile)
+local Visit = require(ReplicatedStorage.Shared.Visit)
 
 local remote = ReplicatedStorage:WaitForChild("StarsEvent") :: RemoteEvent
 local player = Players.LocalPlayer
@@ -1182,6 +1184,98 @@ task.spawn(function()
 	end
 end)
 
+-- ===== why visit: over each plot's gate, what that plot holds for me (Visit, from the server) =====
+-- "⭐ 3 HERE", "BEAT SAM 0:21 = 30 COINS", "+20 VISIT GIFT", "NO ⭐ HERE" on my own. Big words
+-- that face the camera, from the first car bought on (JoinStage "visit": new kids aren't flooded).
+
+local VISIT_W, VISIT_H = 16, 5 -- studs
+local VISIT_Y = 15 -- over the gate's arch (its top is about 11.6)
+local visitBoards: { [number]: BillboardGui } = {}
+local visitSigns: { any } = {}
+local function visitBoard(slot: any): BillboardGui
+	local b = visitBoards[slot.index]
+	if b then
+		return b
+	end
+	local side = if slot.padX < 0 then -1 else 1
+	local anchor = Instance.new("Part")
+	anchor.Name = "VisitSign_" .. slot.index
+	anchor.Anchored = true
+	anchor.CanCollide = false
+	anchor.CanQuery = false
+	anchor.CanTouch = false
+	anchor.Transparency = 1
+	anchor.Size = Vector3.new(1, 1, 1)
+	anchor.Position = Vector3.new(side * LobbyLayout.EDGE, VISIT_Y, slot.padZ)
+	anchor.Parent = workspace
+	b = Instance.new("BillboardGui")
+	b.Size = UDim2.fromScale(VISIT_W, VISIT_H) -- scale = studs: smaller far away, big up close
+	b.LightInfluence = 0
+	b.MaxDistance = 140
+	b.Adornee = anchor
+	b.Parent = anchor
+	local list = Instance.new("UIListLayout")
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	list.VerticalAlignment = Enum.VerticalAlignment.Bottom
+	list.Padding = UDim.new(0.04, 0)
+	list.Parent = b
+	for k = 1, 2 do
+		local t = Instance.new("TextLabel")
+		t.Name = "Line" .. k
+		t.LayoutOrder = k
+		t.Size = UDim2.fromScale(1, 0.46)
+		t.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+		t.BackgroundTransparency = 0.25
+		t.Font = Enum.Font.GothamBlack
+		t.TextScaled = true
+		t.TextStrokeTransparency = 0.5
+		t.Visible = false
+		t.Parent = b
+		local c = Instance.new("UICorner")
+		c.CornerRadius = UDim.new(0.3, 0)
+		c.Parent = t
+		local pad = Instance.new("UIPadding")
+		pad.PaddingLeft = UDim.new(0.04, 0)
+		pad.PaddingRight = UDim.new(0.04, 0)
+		pad.Parent = t
+	end
+	visitBoards[slot.index] = b
+	return b
+end
+local function showVisits()
+	local on = JoinStage.shows(player:GetAttribute("Stage"), "visit")
+	for _, slot in LobbyLayout.slots() do
+		local sign = nil
+		for _, s in visitSigns do
+			if type(s) == "table" and s.slot == slot.index then
+				sign = s
+			end
+		end
+		local lines = if on and sign then Visit.lines(sign) else {}
+		if #lines > 0 or visitBoards[slot.index] then
+			local b = visitBoard(slot)
+			b.Enabled = #lines > 0
+			for k = 1, 2 do
+				local t = b:FindFirstChild("Line" .. k) :: TextLabel
+				local text = lines[k]
+				t.Visible = text ~= nil
+				t.Text = text or ""
+				-- stars gold, coins light gold, my own plot grey
+				t.TextColor3 = if sign and sign.own
+					then Color3.fromRGB(200, 200, 205)
+					elseif text and string.find(text, "⭐", 1, true) then Color3.fromRGB(
+						255,
+						213,
+						79
+					)
+					else Color3.fromRGB(255, 236, 150)
+			end
+		end
+	end
+end
+player:GetAttributeChangedSignal("Stage"):Connect(showVisits)
+
 remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unknown, ...: unknown)
 	if kind == "stars" and type(info) == "number" then
 		setStars(info, false)
@@ -1240,6 +1334,11 @@ remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unkn
 	end
 	if kind == "toast" and type(info) == "string" then
 		showToast(info)
+		return
+	end
+	if kind == "visits" and type(info) == "table" then
+		visitSigns = info :: { any }
+		showVisits()
 		return
 	end
 	if kind == "target" then
