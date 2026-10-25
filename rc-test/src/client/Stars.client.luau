@@ -311,8 +311,8 @@ local function showTitle()
 		jobsTitle.Text = `JOBS {jobsDone}/{jobsAll}  ▼`
 	else
 		jobsTitle.Text = if waitText ~= ""
-			then `DAILY JOBS  <font color="#AAB2BD">new in {waitText}</font>`
-			else "DAILY JOBS"
+			then `DAILY JOBS  <font color="#AAB2BD">new in {waitText}</font>  ▲`
+			else "DAILY JOBS  ▲"
 	end
 end
 local function showFold()
@@ -326,9 +326,21 @@ local function showFold()
 	jobsTitle.Size = UDim2.fromScale(1, if folded then 1 else 0.22)
 	showTitle()
 end
+local unfoldId = 0
 jobsTitle.Activated:Connect(function()
 	folded = not folded
 	showFold()
+	-- the open list folds itself again after a while: it covers the view on a phone
+	unfoldId += 1
+	local me = unfoldId
+	if not folded then
+		task.delay(10, function()
+			if me == unfoldId and not folded then
+				folded = true
+				showFold()
+			end
+		end)
+	end
 end)
 local function showJobs(lines: { any })
 	jobsDone, jobsAll = 0, 0
