@@ -24,6 +24,7 @@ end
 
 local CarCatalog = sibling("CarCatalog")
 local Garage = sibling("Garage")
+local Finish = sibling("Finish")
 
 local PlotStands = {}
 
@@ -225,7 +226,7 @@ function PlotStands.pieces(cars: { Car }): { Garage.Piece }
 			hero.style
 		)
 	end
-	return out
+	return Finish.apply(out)
 end
 
 -- The cars in `now` that weren't in `before` (both "CarIds" lists): what was just bought or won.
