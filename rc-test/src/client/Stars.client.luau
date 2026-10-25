@@ -1062,7 +1062,10 @@ local function showMedalGoal()
 		return -- a flash is showing: it calls back when done
 	end
 	local g = medalGoal
-	goalChip.Visible = g ~= nil and player:GetAttribute("Building") ~= true
+	-- only while driving: the server still sees a parked car on the plot after WALK
+	goalChip.Visible = g ~= nil
+		and player:GetAttribute("Driving") == true
+		and player:GetAttribute("Building") ~= true
 	if g == nil then
 		return
 	end
@@ -1078,6 +1081,9 @@ local function flashMedalGoal(text: string, color: Color3)
 	if medalGoal == nil then
 		return
 	end
+	if player:GetAttribute("Driving") ~= true then
+		return
+	end
 	flashUntil = os.clock() + 1.6
 	goalChip.Text = text
 	goalChip.TextColor3 = color
@@ -1086,6 +1092,7 @@ local function flashMedalGoal(text: string, color: Color3)
 	task.delay(1.65, showMedalGoal)
 end
 player:GetAttributeChangedSignal("Building"):Connect(showMedalGoal)
+player:GetAttributeChangedSignal("Driving"):Connect(showMedalGoal)
 
 -- the plot boards' rows carry their player's UserId: light up mine
 local MINE = Color3.fromRGB(0, 120, 255)
