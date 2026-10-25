@@ -276,6 +276,18 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 			local dx, dz = root.Position.X - s.padX, root.Position.Z - s.padZ
 			near = dx * dx + dz * dz < BEAM_HIDE * BEAM_HIDE
 		end
+		-- the sign hangs on the screen-middle side of the beam: on the right side it would
+		-- run under the NEXT RACE chip in the top right corner
+		local camera = workspace.CurrentCamera
+		local light = m and m:FindFirstChild("Light")
+		local sign = light and light:FindFirstChildOfClass("BillboardGui")
+		if sign and light and light:IsA("BasePart") and camera then
+			local at = camera:WorldToViewportPoint(light.Position)
+			local side = if at.X > camera.ViewportSize.X * 0.5 then -0.55 else 0.55
+			if sign.SizeOffset.X ~= side then
+				sign.SizeOffset = Vector2.new(side, 0.5)
+			end
+		end
 		if m and near ~= beamHidden then
 			beamHidden = near
 			for _, p in m:GetChildren() do
