@@ -160,6 +160,18 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 			and ends > workspace:GetServerTimeNow()
 	end
 
+	-- A returning player already has stars (only driving gives them), so they skip FOLLOW THE
+	-- ARROWS and their build screen may open by itself, like after a first drive this visit.
+	local function returning()
+		local stars = player:GetAttribute("Stars")
+		if not driven and type(stars) == "number" and stars > 0 then
+			driven = true
+			player:SetAttribute("HasDriven", true)
+		end
+	end
+	player:GetAttributeChangedSignal("Stars"):Connect(returning)
+	returning()
+
 	RunService.RenderStepped:Connect(function()
 		local onFoot = not driving and not building()
 		local goal = if onFoot
