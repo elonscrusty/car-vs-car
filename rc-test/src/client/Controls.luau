@@ -2,8 +2,10 @@
 -- Reads the player's hands: keyboard, game pad, and on a phone a steering stick on the left
 -- plus gas, brake and drift buttons on the right.
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
+local HudLayout = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("HudLayout"))
 local RCCar = require(script.Parent.RCCar)
 
 export type Controls = {
@@ -265,8 +267,7 @@ function Controls.new(
 	local camBtn = resetBtn:Clone()
 	camBtn.Name = "Cam"
 	camBtn.Text = "CAM"
-	camBtn.Position = UDim2.new(0.98, 0, 0, 64)
-	camBtn.Size = UDim2.fromScale(0.065, 0.09)
+	HudLayout.place(camBtn, "Cam", "drive") -- thumb size on a phone (44+ px tall)
 	camBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 	camBtn.Parent = gui
 	camBtn.Activated:Connect(onCam)
@@ -274,8 +275,7 @@ function Controls.new(
 	local viewBtn = resetBtn:Clone()
 	viewBtn.Name = "View"
 	viewBtn.Text = "VIEW"
-	viewBtn.Position = UDim2.new(0.91, 0, 0, 64)
-	viewBtn.Size = UDim2.fromScale(0.065, 0.09)
+	HudLayout.place(viewBtn, "View", "drive")
 	viewBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 	viewBtn.Parent = gui
 	viewBtn.Activated:Connect(onView)
@@ -284,8 +284,7 @@ function Controls.new(
 	local smokeBtn = resetBtn:Clone()
 	smokeBtn.Name = "Smoke"
 	smokeBtn.Text = "SMOKE"
-	smokeBtn.Position = UDim2.new(0.84, 0, 0, 64)
-	smokeBtn.Size = UDim2.fromScale(0.065, 0.09)
+	HudLayout.place(smokeBtn, "Smoke", "drive")
 	smokeBtn.Parent = gui
 	smokeBtn.Activated:Connect(function()
 		onSmoke()
@@ -295,8 +294,7 @@ function Controls.new(
 	local backBtn = resetBtn:Clone()
 	backBtn.Name = "Reset"
 	backBtn.Text = "RESET"
-	backBtn.Position = UDim2.new(0.98, 0, 0, 64)
-	backBtn.Size = UDim2.fromScale(0.065, 0.09)
+	HudLayout.place(backBtn, "Cam", "drive")
 	backBtn.Visible = false
 	backBtn.Parent = gui
 	backBtn.Activated:Connect(function()
@@ -379,8 +377,7 @@ function Controls.new(
 	local autoBtn = resetBtn:Clone()
 	autoBtn.Name = "AutoGas"
 	autoBtn.Text = "AUTO GAS"
-	autoBtn.Position = UDim2.new(0.77, 0, 0, 64)
-	autoBtn.Size = UDim2.fromScale(0.065, 0.09)
+	HudLayout.place(autoBtn, "AutoGas", "drive")
 	autoBtn.Parent = gui
 	local onRockNow = false
 	local function setAuto(on: boolean)

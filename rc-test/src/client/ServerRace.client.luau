@@ -68,7 +68,7 @@ joinSize.Parent = join
 local call = Instance.new("Frame")
 call.Name = "Call"
 call.AnchorPoint = Vector2.new(0.5, 0)
-call.Position = UDim2.new(0.5, 0, 0.22, 0) -- under the top-row buttons (FRIENDS, LOOKS)
+call.Position = UDim2.new(0.5, 0, 0.12, 70) -- under the top-row buttons (FRIENDS, LOOKS; AUTO GAS..CAM)
 call.Size = UDim2.fromScale(0.5, 0.36)
 call.BackgroundTransparency = 1
 call.Visible = false
@@ -108,7 +108,7 @@ callStroke.Parent = callClock
 local card = Instance.new("Frame")
 card.Name = "Result"
 card.AnchorPoint = Vector2.new(0.5, 0.5)
-card.Position = UDim2.fromScale(0.5, 0.42)
+card.Position = UDim2.fromScale(0.5, 0.4)
 card.Size = UDim2.fromScale(0.46, 0.4)
 card.BackgroundColor3 = DARK
 card.BackgroundTransparency = 0.1
@@ -203,10 +203,13 @@ RunService.RenderStepped:Connect(function()
 			else `FINISH IN {ServerRace.clock(hurryLeft)}!`
 	end
 	-- (the build screen has its own clock)
+	-- while driving it waits for the last minute (it sat in the middle of the road on a phone)
+	local driving = player:GetAttribute("Driving") == true
 	join.Visible = phase ~= "racing"
 		and phase ~= "call"
 		and startAt > 0
 		and player:GetAttribute("Building") ~= true
+		and (not driving or secs <= 60)
 	if call.Visible then
 		local verb = if kind == "drift" then "DRIFT" else "RACE"
 		callWhere.Text = if where ~= "" then `{verb} ON {where}!` else `{verb}!`
@@ -313,18 +316,19 @@ local function showResult(rows: { any })
 	)
 	rowsText.Text = table.concat(lines, "\n")
 	-- the card fits its rows (one racer = a short card, no empty gap)
-	local tall = 0.2 + 0.045 * #lines
-	rowsText.Size = UDim2.fromScale(0.86, (0.045 * #lines) / tall)
+	-- (rows 5.5% of the screen tall each: big enough to read on a phone)
+	local tall = 0.2 + 0.055 * #lines
+	rowsText.Size = UDim2.fromScale(0.86, (0.055 * #lines) / tall)
 	showId += 1
 	local me = showId
 	card.Visible = true
-	card.Size = UDim2.fromScale(0.3, tall * 0.65)
+	card.Size = UDim2.fromScale(0.36, tall * 0.65)
 	title.Size = UDim2.fromScale(0.9, 0.14 / tall)
 	rowsText.Position = UDim2.fromScale(0.07, 0.05 + 0.16 / tall)
 	TweenService:Create(
 		card,
 		TweenInfo.new(0.35, Enum.EasingStyle.Back),
-		{ Size = UDim2.fromScale(0.46, tall) }
+		{ Size = UDim2.fromScale(0.56, tall) }
 	):Play()
 	task.delay(ServerRace.SHOW, function()
 		if me == showId then
