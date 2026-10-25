@@ -63,4 +63,43 @@ function LobbyPerf.apply(lobby: Instance): (Report, Report)
 	return before, count(lobby)
 end
 
+-- The plots (workspace.Plots) get the same small-bits pass, now and whenever a part is added
+-- later (an owner's tile track, their cars on the stands, new looks). Inside a plot's "Track"
+-- the cars drive, so there only the shadow and touch events go: every bit still collides.
+local function inTrack(d: Instance, plots: Instance): boolean
+	local node = d.Parent
+	while node and node ~= plots do
+		if node.Name == "Track" then
+			return true
+		end
+		node = node.Parent
+	end
+	return false
+end
+
+local function smallBit(d: Instance, plots: Instance)
+	if not d:IsA("BasePart") or d:IsA("Seat") then
+		return
+	end
+	local big = math.max(d.Size.X, d.Size.Y, d.Size.Z)
+	if big < LobbyPerf.SMALL then
+		d.CastShadow = false
+		d.CanTouch = false
+		if big < LobbyPerf.TINY and not inTrack(d, plots) then
+			d.CanCollide = false
+		end
+	end
+end
+
+function LobbyPerf.plots(plots: Instance): (Report, Report)
+	local before = count(plots)
+	for _, d in plots:GetDescendants() do
+		smallBit(d, plots)
+	end
+	plots.DescendantAdded:Connect(function(d: Instance)
+		smallBit(d, plots)
+	end)
+	return before, count(plots)
+end
+
 return LobbyPerf

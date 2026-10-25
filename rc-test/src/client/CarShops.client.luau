@@ -777,14 +777,17 @@ end
 CollectionService:GetInstanceAddedSignal("Gumball"):Connect(addGumball)
 
 local angle = 0
+local NEAR = 150 -- farther than this the turn can't be seen: those cars wait (phone speed)
 RunService.RenderStepped:Connect(function(dt)
 	angle += dt * SPIN
 	local turn = CFrame.Angles(0, angle, 0)
+	local cam = workspace.CurrentCamera
+	local eye = if cam then cam.CFrame.Position else Vector3.zero
 	for i = #spinners, 1, -1 do
 		local s = spinners[i]
 		if s.car.Parent == nil then
 			table.remove(spinners, i)
-		else
+		elseif (s.center - eye).Magnitude < NEAR then
 			s.car:PivotTo(CFrame.new(s.center) * turn * s.offset)
 		end
 	end
