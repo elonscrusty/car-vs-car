@@ -331,6 +331,7 @@ local function runRace(hooks: Hooks, slot: number)
 		end
 	end
 	phase = "racing"
+	workspace:SetAttribute("RaceSlot", slot) -- TrackBuild leaves this plot's track alone till the end
 	sendState()
 	local t: TrackData.Track = LobbyLayout.track(slot)
 	-- whoever is on that plot and isn't racing gets off it first
@@ -605,6 +606,7 @@ local function runRace(hooks: Hooks, slot: number)
 	end
 	phase = "wait"
 	picked, where = nil, ""
+	workspace:SetAttribute("RaceSlot", 0)
 	startAt = now() + ServerRace.BREAK
 	sendState()
 end
@@ -650,6 +652,7 @@ function ServerRaceRunner.start(hooks: Hooks)
 					local ok, err = pcall(runRace, hooks, slot)
 					if not ok then
 						warn("server race: " .. tostring(err))
+						workspace:SetAttribute("RaceSlot", 0)
 						phase, picked, where = "wait", nil, ""
 						startAt = now() + ServerRace.BREAK
 						sendState()

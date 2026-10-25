@@ -9,12 +9,16 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
+local PlotOwners = require(ReplicatedStorage.Shared.PlotOwners)
 
 local LobbyPlots = {}
 
 local slots = LobbyLayout.slots()
-local owners: { [number]: Player } = {}
-local ownSlot: { [Player]: number } = {}
+-- owners and the line of plotless joiners (first plot, race plots first: those are the ones you
+-- build your own track on)
+local own: PlotOwners.Owners<Player> = PlotOwners.new(LobbyLayout.claimOrder())
+local owners = own.owners
+local ownSlot = own.ownSlot
 local drivers: { [number]: Player } = {}
 local driving: { [Player]: number } = {}
 local opened: { [number]: boolean } = {}
@@ -68,23 +72,16 @@ function LobbyPlots.drivingOf(player: Player): number?
 	return driving[player]
 end
 
--- Give a joining player the first plot nobody owns, race plots first: those are the ones you
--- build your own track on (none when all are taken).
-local claimOrder = LobbyLayout.claimOrder()
+-- Give a joining player the first plot nobody owns (none when all are taken: they wait, and get
+-- the next plot someone leaves).
 function LobbyPlots.addPlayer(player: Player): number?
-	if ownSlot[player] then
-		return ownSlot[player]
+	local had = ownSlot[player]
+	local slot = PlotOwners.add(own, player)
+	if slot and slot ~= had then
+		opened[slot] = false
+		refresh(slot)
 	end
-	for _, i in claimOrder do
-		if owners[i] == nil then
-			owners[i] = player
-			ownSlot[player] = i
-			opened[i] = false
-			refresh(i)
-			return i
-		end
-	end
-	return nil
+	return slot
 end
 
 function LobbyPlots.canDrive(player: Player, slot: number): boolean
@@ -126,14 +123,12 @@ function LobbyPlots.setOpen(player: Player, on: boolean)
 	end
 end
 
--- Leaving: stop driving and give the plot back.
+-- Leaving: stop driving and give the plot back (to the first one waiting for a plot, if any).
 function LobbyPlots.removePlayer(player: Player)
 	LobbyPlots.release(player)
-	local slot = ownSlot[player]
+	local slot = PlotOwners.remove(own, player)
 	if slot then
-		owners[slot] = nil
-		ownSlot[player] = nil
-		opened[slot] = nil
+		opened[slot] = false
 		refresh(slot)
 	end
 end

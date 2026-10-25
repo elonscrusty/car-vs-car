@@ -266,21 +266,43 @@ function TrackBuild.start()
 	for slot in LobbyLayout.slots() do
 		load(slot)
 	end
-	-- owner changed (claim, leave): show their track, or the circle again
+	-- owner changed (claim, leave): show their track, or the circle again. Never under a car:
+	-- while the server race is on that plot, or someone is still driving it (a friend on the
+	-- plot of someone who just left), the swap waits until they're off it.
 	local owners: { [number]: number } = {}
-	LobbyPlots.changed:Connect(function(slot: number)
+	local waiting: { [number]: boolean } = {}
+	local function inUse(slot: number): boolean
+		return workspace:GetAttribute("RaceSlot") == slot or LobbyPlots.driverOf(slot) ~= nil
+	end
+	local function check(slot: number)
 		local owner = LobbyPlots.ownerOf(slot)
 		local id = if owner then owner.UserId else 0
 		if owners[slot] ~= id then
+			if inUse(slot) then
+				waiting[slot] = true
+				return
+			end
 			owners[slot] = id
+			waiting[slot] = nil
 			load(slot)
+		end
+	end
+	for slot in LobbyLayout.slots() do
+		local owner = LobbyPlots.ownerOf(slot)
+		owners[slot] = if owner then owner.UserId else 0
+	end
+	LobbyPlots.changed:Connect(check)
+	workspace:GetAttributeChangedSignal("RaceSlot"):Connect(function()
+		for slot in waiting do
+			check(slot)
 		end
 	end)
 	-- a save that loads after the claim
 	PlayerData.loaded:Connect(function(player: Player)
 		local slot = LobbyPlots.slotOf(player)
 		if slot then
-			load(slot)
+			owners[slot] = -1 -- reload it (now, or once nobody is driving it)
+			check(slot)
 		end
 	end)
 	-- break starts: hand every owner their grid so the build screen opens
