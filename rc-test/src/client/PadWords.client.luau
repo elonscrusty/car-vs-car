@@ -1,11 +1,17 @@
 --!strict
--- One big word over each play pad at the spawn (DRIFT! / RACE! / BUILD!) and "STAND HERE" under
--- it, so a new player knows what the pads are for. Looks only, on this screen. The pads are the
+-- Two or three words over each play pad at the spawn saying what it does (DRIFT NOW / RACE NOW /
+-- GO BUILD) and "STAND HERE" under it, so a new player knows what the pads are for. The pads
+-- only work in the break (workspace BuildOpen): from the pick until the race is over the small
+-- line says AFTER THE RACE. Looks only, on this screen. The pads are the
 -- "QueuePad" bases (attribute PlotType) that the spawn lobby builds.
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 
-local WORDS: { [string]: string } = { drift = "DRIFT!", race = "RACE!", build = "BUILD!" }
+local WORDS: { [string]: string } = { drift = "DRIFT NOW", race = "RACE NOW", build = "GO BUILD" }
+local smalls: { TextLabel } = {}
+local function smallText(): string
+	return if workspace:GetAttribute("BuildOpen") == false then "AFTER THE RACE" else "STAND HERE"
+end
 
 local holder = Instance.new("ScreenGui")
 holder.Name = "PadWords"
@@ -49,20 +55,30 @@ local function add(base: Instance)
 	small.Size = UDim2.fromScale(1, 0.32)
 	small.Font = Enum.Font.GothamBlack
 	small.TextScaled = true
-	small.Text = "STAND HERE"
+	small.Text = smallText()
 	small.TextColor3 = Color3.new(1, 1, 1)
 	small.TextStrokeColor3 = Color3.fromRGB(20, 20, 30)
 	small.TextStrokeTransparency = 0
 	small.Parent = sign
+	table.insert(smalls, small)
 	base.AncestryChanged:Connect(function()
 		if not base:IsDescendantOf(workspace) then
 			sign:Destroy()
+			local i = table.find(smalls, small)
+			if i then
+				table.remove(smalls, i)
+			end
 		end
 	end)
 end
 
 -- hidden while driving (they showed over the race from far away)
 local function showAll()
+	workspace:GetAttributeChangedSignal("BuildOpen"):Connect(function()
+		for _, small in smalls do
+			small.Text = smallText()
+		end
+	end)
 	holder.Enabled = Players.LocalPlayer:GetAttribute("Driving") ~= true
 end
 Players.LocalPlayer:GetAttributeChangedSignal("Driving"):Connect(showAll)
