@@ -150,3 +150,38 @@ test("each car shop has a name and a price for every car on show", function()
 		end
 	end
 end)
+
+test("the walk out of every shop: no wall, no play pad, out through the front gap", function()
+	local parts = S.allParts()
+	for door = 1, #S.DOORS do
+		local path = S.exitPath(door)
+		local last = path[#path]
+		truthy(
+			math.abs(last[1]) < S.GAP and last[2] > S.BOX.maxZ,
+			`door {door}: ends on the street`
+		)
+		for i = 1, #path - 1 do
+			local a, b = path[i], path[i + 1]
+			local steps = math.ceil(math.max(math.abs(b[1] - a[1]), math.abs(b[2] - a[2])))
+			for k = 0, steps do
+				local x = a[1] + (b[1] - a[1]) * k / steps
+				local z = a[2] + (b[2] - a[2]) * k / steps
+				-- a walker is about 1 stud wide each way
+				for _, p in parts do
+					local x0, x1, y0, y1, z0, z1 = flat(p)
+					local solid = p.collide and p.name ~= "Floor" and y0 < 4 and y1 > 0.4
+					local pad = string.sub(p.group, 1, 8) == "QueuePad" and p.name == "Rim"
+					if
+						(solid or pad)
+						and x > x0 - 1
+						and x < x1 + 1
+						and z > z0 - 1
+						and z < z1 + 1
+					then
+						truthy(false, `door {door}: {p.group}/{p.name} in the way at {x}, {z}`)
+					end
+				end
+			end
+		end
+	end
+end)
