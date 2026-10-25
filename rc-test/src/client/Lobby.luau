@@ -239,10 +239,19 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 	-- WALK steps aside while the race result and prize cards are up (on a phone they reach down to it);
 	-- E still works
 	local pgui = Players.LocalPlayer:WaitForChild("PlayerGui")
+	local cards: { [string]: Instance } = {} -- found once and kept (checked every frame)
 	local function shown(guiName: string, name: string): boolean
-		local holder = pgui:FindFirstChild(guiName)
-		local o = if holder then holder:FindFirstChild(name) else nil
-		return o ~= nil and o:IsA("GuiObject") and o.Visible
+		local o = cards[name]
+		if not (o and o.Parent) then
+			local holder = pgui:FindFirstChild(guiName)
+			local found = if holder then holder:FindFirstChild(name) else nil
+			if not found then
+				return false
+			end
+			cards[name] = found
+			o = found
+		end
+		return o:IsA("GuiObject") and o.Visible
 	end
 	RunService.Heartbeat:Connect(function()
 		button.Visible = not (shown("ServerRace", "Result") or shown("StarsTop", "RacePrize"))
@@ -260,15 +269,6 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 			end
 		end
 	end
-
-	-- the car shop's stands turn slowly (looks only, so each screen turns its own)
-	RunService.RenderStepped:Connect(function(dt: number)
-		for _, stand in CollectionService:GetTagged("LobbySpin") do
-			if stand:IsA("Model") then
-				stand:PivotTo(stand:GetPivot() * CFrame.Angles(0, dt * 0.6, 0))
-			end
-		end
-	end)
 
 	-- (the server still checks everything); a tap presses that prompt, so the server sees the
 	-- same request as E

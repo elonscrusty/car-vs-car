@@ -198,6 +198,10 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 
 	local builtFor: number? = nil -- the break (its BuildEndsAt) in which the build screen was open
 
+	-- the goal is picked 10 times a second (new tables each pick); the arrows glow every frame
+	local goal: NextGoal.Goal? = nil
+	local nextPick = 0
+	local wasOnFoot = false
 	RunService.RenderStepped:Connect(function()
 		local ends = workspace:GetAttribute("BuildEndsAt")
 		local isBuilding = building()
@@ -205,25 +209,29 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 			builtFor = ends
 		end
 		local onFoot = not driving and not isBuilding
-		local goal = if onFoot
-			then NextGoal.pick({
-				hasPlot = slot ~= nil,
-				driven = driven or player:GetAttribute("HasDriven") == true,
-				nearPad = padDistance() < NEAR,
-				inShops = inShops(),
-				inBreak = inBreak(),
-				canBuy = player:GetAttribute("GoalReady") == true,
-				built = builtFor ~= nil and builtFor == ends,
-				raceIn = if type(ends) == "number"
-					then ends - workspace:GetServerTimeNow()
-					else nil,
-			})
-			else nil
-		gui.Enabled = goal ~= nil
-		if goal then
-			line.Text = goal.text
+		local clock = os.clock()
+		if clock >= nextPick or onFoot ~= wasOnFoot then
+			nextPick, wasOnFoot = clock + 0.1, onFoot
+			goal = if onFoot
+				then NextGoal.pick({
+					hasPlot = slot ~= nil,
+					driven = driven or player:GetAttribute("HasDriven") == true,
+					nearPad = padDistance() < NEAR,
+					inShops = inShops(),
+					inBreak = inBreak(),
+					canBuy = player:GetAttribute("GoalReady") == true,
+					built = builtFor ~= nil and builtFor == ends,
+					raceIn = if type(ends) == "number"
+						then ends - workspace:GetServerTimeNow()
+						else nil,
+				})
+				else nil
+			gui.Enabled = goal ~= nil
+			if goal then
+				line.Text = goal.text
+			end
 		end
-		local t = os.clock() * 5
+		local t = clock * 5
 		-- in the shops with home to go to: the way out from the nearest shop door first
 		local door: number? = nil
 		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
@@ -237,7 +245,10 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 			end
 		end
 		for i, d in doors do
-			d.model.Parent = if i == door then workspace else nil
+			local want: Instance? = if i == door then workspace else nil
+			if d.model.Parent ~= want then
+				d.model.Parent = want
+			end
 			if i == door then
 				for k, arms in d.rows do
 					local glow = 0.5 + 0.5 * math.sin(t - k * 0.7)
@@ -249,7 +260,10 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 		end
 		for name, path in paths do
 			local show = goal ~= nil and goal.target == name
-			path.model.Parent = if show then workspace else nil
+			local want: Instance? = if show then workspace else nil
+			if path.model.Parent ~= want then
+				path.model.Parent = want
+			end
 			if show then
 				-- a wave of light running toward the goal
 				for i, arms in path.rows do

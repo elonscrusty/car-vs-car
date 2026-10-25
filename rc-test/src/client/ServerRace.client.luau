@@ -186,8 +186,18 @@ local driftEnds = false -- endsAt is a drift round's end (shown to everyone stil
 local racingAt = 0 -- os.clock() when this race started (the banner stays up over the 3-2-1)
 local BANNER = 5 -- seconds the "RACE ON MIA'S TRACK!" banner stays up once the race is on
 
+-- the words change once a second: built 10 times a second, not every frame (and right away
+-- when the phase changes or a chip comes up, so it never shows old words)
+local nextText = 0
+local lastPhase = ""
 RunService.RenderStepped:Connect(function()
 	local secs = startAt - workspace:GetServerTimeNow()
+	local clock = os.clock()
+	local words = clock >= nextText or phase ~= lastPhase
+	if words then
+		nextText, lastPhase = clock + 0.1, phase
+	end
+	local wasHurry, wasCall, wasJoin = hurry.Visible, call.Visible, join.Visible
 	-- the call: the small chip steps aside for the huge banner
 	-- the call, and on through the 3-2-1: whose track this is
 	local starting = phase == "racing" and os.clock() - racingAt < BANNER
@@ -197,7 +207,7 @@ RunService.RenderStepped:Connect(function()
 	gui:SetAttribute("Busy", phase == "racing" or phase == "call" or card.Visible)
 	local hurryLeft = endsAt - workspace:GetServerTimeNow()
 	hurry.Visible = phase == "racing" and endsAt > 0 and not finished and hurryLeft > 0
-	if hurry.Visible then
+	if hurry.Visible and (words or not wasHurry) then
 		hurry.Text = if driftEnds
 			then `DRIFT!  {ServerRace.clock(hurryLeft)} LEFT`
 			else `FINISH IN {ServerRace.clock(hurryLeft)}!`
@@ -211,14 +221,16 @@ RunService.RenderStepped:Connect(function()
 		and player:GetAttribute("Building") ~= true
 		and (not driving or secs <= 60)
 	if call.Visible then
-		local verb = if kind == "drift" then "DRIFT" else "RACE"
-		callWhere.Text = if where ~= "" then `{verb} ON {where}!` else `{verb}!`
-		callClock.Text = ServerRace.clock(secs)
+		if words or not wasCall then
+			local verb = if kind == "drift" then "DRIFT" else "RACE"
+			callWhere.Text = if where ~= "" then `{verb} ON {where}!` else `{verb}!`
+			callClock.Text = ServerRace.clock(secs)
+		end
 		-- a little pulse each second
 		local f = secs % 1
 		callClock.Size = UDim2.fromScale(1, 0.62 + 0.06 * f)
 	end
-	if not join.Visible then
+	if not (join.Visible and (words or not wasJoin)) then
 		return
 	end
 	local left = ServerRace.clock(secs)

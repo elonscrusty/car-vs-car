@@ -684,8 +684,12 @@ function BuildScreen.new(opts: Options): BuildScreen
 
 	-- the teaching hand: from the first card to the middle of the grid, again and again
 	RunService.Heartbeat:Connect(function()
+		if not gui.Enabled or taught then
+			hand.Visible = false
+			return
+		end
 		local first = cards:FindFirstChildWhichIsA("Frame")
-		local want = gui.Enabled and not taught and dropping == nil and first ~= nil
+		local want = dropping == nil and first ~= nil
 		hand.Visible = want
 		if not (want and first) then
 			return
@@ -787,9 +791,14 @@ function BuildScreen.new(opts: Options): BuildScreen
 		end
 		drawTop()
 	end
+	local shownSecond = math.huge -- the whole second on the clock (called every frame)
 	function screen.setSeconds(seconds: number)
 		state.secondsLeft = seconds
-		timerText.Text = timerWords(seconds)
+		local whole = math.floor(seconds)
+		if whole ~= shownSecond then
+			shownSecond = whole
+			timerText.Text = timerWords(seconds)
+		end
 	end
 	function screen.show(on: boolean)
 		gui.Enabled = on
