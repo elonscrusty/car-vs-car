@@ -233,6 +233,7 @@ local function reveal(car: CarCatalog.Car, onDone: () -> ())
 	back.BackgroundTransparency = 0.25
 	back.ZIndex = 10
 	back.Parent = gui
+	panel.Visible = false -- nothing behind NEW CAR! to clash with it
 	local box = Instance.new("Frame")
 	box.AnchorPoint = Vector2.new(0.5, 0.5)
 	box.Position = UDim2.fromScale(0.5, 0.5)
@@ -293,13 +294,23 @@ local function reveal(car: CarCatalog.Car, onDone: () -> ())
 			revealSpin = nil
 		end
 		back:Destroy()
+		panel.Visible = true
 		onDone()
 	end)
 end
 
+local current: { kind: string, gumball: boolean, tiles: boolean }? = nil
+
+-- DRIVE IT!: shut the shop and put me on a track in my new car (my own plot when it is that
+-- kind, else an open one; the server picks).
+local function driveNow(car: CarCatalog.Car)
+	gui.Enabled = false
+	current = nil
+	task.spawn(ask, "drive", car.id)
+end
+
 -- ===== Shop screen =====
 
-local current: { kind: string, gumball: boolean, tiles: boolean }? = nil
 local render: () -> () = function() end
 
 -- CARS / TILES tabs at the top of every screen
@@ -339,20 +350,49 @@ local function showShop(kind: string, s: State)
 			table.insert(cars, g.car)
 		end
 	end
-	-- three cards show at once; more scroll sideways (swipe on a phone)
-	local shown = math.max(#cars, 3)
+	-- four cards show at once; < > (or a swipe) shows the next four
+	local PER = 4
+	local shown = math.max(#cars, PER)
 	local scroller = Instance.new("ScrollingFrame")
-	scroller.Size = UDim2.fromScale(1, 0.9)
+	scroller.Position = UDim2.fromScale(0.06, 0)
+	scroller.Size = UDim2.fromScale(0.88, 0.9)
 	scroller.BackgroundTransparency = 1
 	scroller.BorderSizePixel = 0
 	scroller.ScrollBarThickness = 8
 	scroller.ScrollingDirection = Enum.ScrollingDirection.X
-	scroller.CanvasSize = UDim2.fromScale(shown / 3, 0)
+	scroller.CanvasSize = UDim2.fromScale(shown / PER, 0)
 	scroller.Parent = body
+	local function arrow(t: string, x: number, step: number): TextButton
+		local b = button(body, t, Color3.fromRGB(70, 70, 84), true)
+		b.Position = UDim2.fromScale(x, 0.32)
+		b.Size = UDim2.fromScale(0.05, 0.22)
+		b.Activated:Connect(function()
+			local page = scroller.AbsoluteSize.X
+			local most = math.max(scroller.AbsoluteCanvasSize.X - page, 0)
+			local to = math.clamp(scroller.CanvasPosition.X + step * page, 0, most)
+			TweenService:Create(scroller, TweenInfo.new(0.25), {
+				CanvasPosition = Vector2.new(to, 0),
+			}):Play()
+		end)
+		return b
+	end
+	if #cars > PER then
+		local left = arrow("<", 0, -1)
+		local right = arrow(">", 0.95, 1)
+		-- show an arrow only when there is more that way
+		local function update()
+			local most = scroller.AbsoluteCanvasSize.X - scroller.AbsoluteSize.X
+			left.Visible = scroller.CanvasPosition.X > 2
+			right.Visible = scroller.CanvasPosition.X < most - 2
+		end
+		scroller:GetPropertyChangedSignal("CanvasPosition"):Connect(update)
+		scroller:GetPropertyChangedSignal("AbsoluteSize"):Connect(update)
+		task.defer(update)
+	end
 	text(
 		body,
-		if #cars > 3
-			then "Win races and beat records for coins. Swipe for more cars."
+		if #cars > PER
+			then "Win races and beat records for coins. Tap > for more cars."
 			else "Win races and beat records for coins.",
 		0,
 		0.92,
@@ -413,8 +453,7 @@ local function showShop(kind: string, s: State)
 						if now.ok then
 							-- the server put it on already: show it off, then go drive
 							reveal(car, function()
-								gui.Enabled = false
-								current = nil
+								driveNow(car)
 							end)
 						end
 					end
@@ -494,7 +533,9 @@ local function showGumball(s: State, result: string?)
 					else `{car.name} again: {CarCatalog.DUPLICATE_REFUND} coins back`
 				showGumball(now, msg)
 				if car and now.new then
-					reveal(car, function() end)
+					reveal(car, function()
+						driveNow(car)
+					end)
 				end
 			end
 		end)

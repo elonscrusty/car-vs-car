@@ -2,7 +2,7 @@
 -- The car shops and the gumball machine (CarCatalog's rules, the player's save from PlayerData).
 -- Looks only: a car changes how you look, never how fast you go.
 -- Client -> server (RemoteFunction CarShop): ("state") / ("buy", id) / ("equip", id) /
--- ("spin") / ("buyTile", id) / ("spinTile"). Every call answers with the player's state:
+-- ("spin") / ("drive", id) / ("buyTile", id) / ("spinTile"). Every call answers with the player's state:
 --   { coins, owned = { id }, equipped = { mode = id }, tiles = { tile id }, stars, ok, why?,
 --     car? (spin), tile? (spinTile), new? (spin, spinTile) }
 -- Track tiles are TileShop's (the build screen asks TileShop.owns / count on the save).
@@ -17,6 +17,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local TileShop = require(ReplicatedStorage.Shared.TileShop)
 local Jobs = require(script.Parent.Jobs)
+local LobbyPlots = require(script.Parent.LobbyPlots)
 local PlayerData = require(script.Parent.PlayerData)
 
 local GAP = 0.3 -- seconds between calls from one player
@@ -131,6 +132,18 @@ remote.OnServerInvoke = function(player: Player, action: unknown, id: unknown): 
 		local out = state(data)
 		out.ok, out.why = car ~= nil, if car then nil else "coins"
 		out.car, out.new = if car then car.id else nil, new
+		return out
+	elseif action == "drive" then
+		-- DRIVE IT! on a new car: my own plot when it drives that car's kind, else an open one
+		local car = CarCatalog.get(id)
+		local out = state(data)
+		local slot = if car and CarCatalog.owns(data, car.id)
+			then LobbyPlots.findOpen(car.mode, player)
+			else nil
+		out.ok = slot ~= nil
+			and LobbyPlots.drivingOf(player) == nil
+			and LobbyPlots.sendTo(player, slot)
+		out.why = if out.ok then nil else "no track"
 		return out
 	elseif action == "buyTile" then
 		local ok, why = TileShop.buy(data, id)
