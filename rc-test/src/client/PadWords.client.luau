@@ -141,7 +141,9 @@ local function addShop(model: Instance)
 	local counter = model:FindFirstChild("Counter")
 	local top = counter and counter:FindFirstChild("Top")
 	-- over the roof (9 up), higher than the pad words, so from the spawn they sit above them
-	local b = sign(floor, "Shop" .. kind, Vector2.new(12, 2.6), 13, 120)
+	-- (18 x 4.4 studs: tour 6 found 12 x 2.6 too small to read from the spawn on a phone; the
+	-- shops are wider than that, so neighbours' words still don't touch)
+	local b = sign(floor, "Shop" .. kind, Vector2.new(18, 4.4), 14, 120)
 	local orange = Garage.COLORS.orange -- the garage has no counter: its frame colour
 	local color = if top and top:IsA("BasePart")
 		then top.Color
@@ -154,7 +156,7 @@ local function addGumball(base: Instance)
 	if not base:IsA("BasePart") then
 		return
 	end
-	local b = sign(base, "Gumball", Vector2.new(7, 1.6), 8, 100)
+	local b = sign(base, "Gumball", Vector2.new(10, 2.4), 8.5, 100)
 	label(b, "LUCKY CAR", Color3.fromRGB(255, 120, 190), 0, 1)
 end
 
