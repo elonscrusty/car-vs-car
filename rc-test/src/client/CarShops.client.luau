@@ -535,7 +535,7 @@ local function showGumball(s: State, result: string?)
 	)
 	local can = s.coins >= CarCatalog.GUMBALL_PRICE
 	local spin =
-		button(body, `SPIN  {CarCatalog.GUMBALL_PRICE} coins`, Color3.fromRGB(255, 120, 190), can)
+		button(body, `SPIN  {CarCatalog.GUMBALL_PRICE} COINS`, Color3.fromRGB(255, 120, 190), can)
 	spin.Position = UDim2.fromScale(0.66, 0.62)
 	spin.Size = UDim2.fromScale(0.34, 0.2)
 	-- before a spin: what a spin gives, plainly (no emoji: they draw as boxes)
@@ -615,7 +615,7 @@ local function showTiles(s: State, result: string?)
 		local at = TileShop.unlockAt(t.id)
 		text(
 			row,
-			if at > 0 then `opens at {at} stars` else TIER_WORDS[t.tier] or "",
+			if at > 0 then `opens at ⭐ {at}` else TIER_WORDS[t.tier] or "",
 			0.1,
 			0.58,
 			0.3,
@@ -634,7 +634,7 @@ local function showTiles(s: State, result: string?)
 			b.TextColor3 = Color3.new(1, 1, 1)
 		elseif (s.stars or 0) < at then
 			-- not open yet: win stars on other people's tracks
-			b = button(row, `{at} stars`, GOLD, false)
+			b = button(row, `⭐ {at}`, GOLD, false)
 		else
 			local can = s.coins >= t.price
 			b = button(row, needWords(t.price, s.coins), Color3.fromRGB(240, 170, 20), can)
@@ -665,7 +665,7 @@ local function showTiles(s: State, result: string?)
 	).TextWrapped =
 		true
 	local can = s.coins >= TileShop.SPIN_PRICE
-	local spin = button(body, `SPIN  {TileShop.SPIN_PRICE} coins`, LEGEND, can)
+	local spin = button(body, `SPIN  {TileShop.SPIN_PRICE} COINS`, LEGEND, can)
 	spin.Position = UDim2.fromScale(0.66, 0.62)
 	spin.Size = UDim2.fromScale(0.34, 0.2)
 	local out = text(
