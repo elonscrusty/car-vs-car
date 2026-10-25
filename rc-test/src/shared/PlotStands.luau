@@ -130,6 +130,39 @@ local PODIUM = { 36, 52, 100 } -- deep blue: a white or yellow car still stands 
 local GOLD = { 255, 200, 50 }
 local RARE = { 255, 110, 210 }
 
+-- A low-detail toy car for the shelf (phone speed): body, cab and one long tyre per axle, 4
+-- parts instead of Garage.toyCar's 16. Same size and colours, nose to the road (+z).
+PlotStands.SHELF_PARTS = 4
+local TIRE = { 28, 28, 30 }
+local GLASS = { 40, 50, 66 }
+function PlotStands.shelfCar(add: Garage.Add, at: V3, c: Car)
+	local s = PlotStands.SHELF_CAR
+	local drift = c.style == "drift"
+	local wd = 0.9 -- wheel size
+	local ww = if drift then 0.65 else 0.45
+	local track = 2 * (1 + ww / 2) + ww -- outside to outside of the two tyres
+	local noHit = { collide = false }
+	add("Shelf", "Body", v(2 * s, 0.7 * s, 3.6 * s), v(at.x, at.y + 0.85 * s, at.z), c.color, noHit)
+	add(
+		"Shelf",
+		"Cab",
+		v(1.6 * s, 0.6 * s, 1.5 * s),
+		v(at.x, at.y + 1.5 * s, at.z - 0.25 * s),
+		GLASS,
+		noHit
+	)
+	for _, wz in { -1.2, 1.2 } do
+		add(
+			"Shelf",
+			"Wheel",
+			v(track * s, wd * s, wd * s),
+			v(at.x, at.y + wd / 2 * s, at.z + wz * s),
+			TIRE,
+			{ shape = "Cylinder", collide = false }
+		)
+	end
+end
+
 -- The show (always) and the cars in it, as Garage pieces. `cars` best first (parse). Groups:
 -- "Show" (shelf, podium, board: solid where you can stand), "Hero" (the turning car, its model
 -- pivot is the podium's top middle) and "Shelf" (the other cars).
@@ -162,15 +195,7 @@ function PlotStands.pieces(cars: { Car }): { Garage.Piece }
 			{ material = if c and c.rare then "Neon" else nil, collide = false }
 		)
 		if c then
-			Garage.toyCar(
-				add,
-				"Shelf",
-				v(s.x, s.y + 0.06, s.z),
-				180,
-				c.color,
-				PlotStands.SHELF_CAR,
-				c.style
-			)
+			PlotStands.shelfCar(add, v(s.x, s.y + 0.06, s.z), c)
 		end
 	end
 	-- the board over the shelf on two posts
