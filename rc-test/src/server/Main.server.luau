@@ -226,6 +226,8 @@ local function rootOf(player: Player): BasePart?
 	return if root and root:IsA("BasePart") then root else nil
 end
 
+local WALK_SPEED = 24 -- on foot in the lobby (Roblox's 16 felt slow on the long street); jump as is
+
 -- Where a walker appears: on their own plot's pad, facing their track; no plot = the spawn lobby.
 local function homeOf(player: Player): CFrame
 	local own = LobbyPlots.slotOf(player)
@@ -250,6 +252,8 @@ local function loadWalker(player: Player)
 	char:PivotTo(homeOf(player))
 	local hum = char:FindFirstChildOfClass("Humanoid")
 	if hum then
+		-- the loop sends kids to the shops and back a lot: the far pads are ~14 s away, not ~22
+		hum.WalkSpeed = WALK_SPEED
 		hum.Died:Connect(function()
 			task.wait(1) -- back quickly, no long wait
 			if

@@ -54,6 +54,28 @@ SpawnLobby.PADS = {
 }
 SpawnLobby.ARCH_Z = 33.5
 SpawnLobby.GUMBALL = { x = 17, z = 7 } -- the gumball machine (rare cars), by the spawn
+-- Where you step out of each shop (in front of its open side), and the walk from there out onto
+-- the street: across to a side lane (x = +-LANE_X, clear of the play pads, the statue and the
+-- gumball), then down it through the front gap. Lobby-local points; PlotGuide lays arrows on it.
+SpawnLobby.DOORS = {
+	{ x = -35, z = -20 }, -- drift shop
+	{ x = -35, z = 12 }, -- race shop
+	{ x = 35, z = 10 }, -- garage
+	{ x = 13, z = 9 }, -- gumball
+}
+SpawnLobby.LANE_X = 11.8
+SpawnLobby.CROSS_Z = 13 -- the row the walk crosses the square on
+function SpawnLobby.exitPath(door: number): { { number } }
+	local d = SpawnLobby.DOORS[door]
+	local side = if d.x < 0 then -1 else 1
+	local lane = side * SpawnLobby.LANE_X
+	return {
+		{ d.x, d.z },
+		{ d.x, SpawnLobby.CROSS_Z },
+		{ lane, SpawnLobby.CROSS_Z },
+		{ lane, SpawnLobby.BOX.maxZ + 2 }, -- just out on the street
+	}
+end
 SpawnLobby.LAMPS = {
 	{ x = -34, z = -33 },
 	{ x = 34, z = -33 },

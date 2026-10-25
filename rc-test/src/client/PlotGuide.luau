@@ -13,6 +13,7 @@ local RunService = game:GetService("RunService")
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local NextGoal = require(ReplicatedStorage.Shared.NextGoal)
+local SpawnLobby = require(ReplicatedStorage.Shared.SpawnLobby)
 
 export type PlotGuide = {
 	setSlot: (slot: number) -> (),
@@ -120,6 +121,29 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 		return rows
 	end
 
+	-- arrows out of each shop to the street (SpawnLobby.exitPath), where the pad path starts:
+	-- after a buy, home is shown from the shop's own door, round the play pads
+	local shopZ = LobbyLayout.PLAZA.maxZ - 36 -- the spawn lobby's origin (LobbyBuilder)
+	local doors: { { model: Model, rows: { { BasePart } }, x: number, z: number } } = {}
+	for i, d in SpawnLobby.DOORS do
+		local m = Instance.new("Model")
+		m.Name = "PlotGuideArrows"
+		local rows = {}
+		local pts = SpawnLobby.exitPath(i)
+		for k = 1, #pts - 1 do
+			local ax, az = pts[k][1], pts[k][2] + shopZ
+			local bx, bz = pts[k + 1][1], pts[k + 1][2] + shopZ
+			local len = math.sqrt((bx - ax) ^ 2 + (bz - az) ^ 2)
+			local dx, dz = (bx - ax) / len, (bz - az) / len
+			local at = 0
+			while at < len do
+				table.insert(rows, chevron(m, ax + dx * at, az + dz * at, dx, dz))
+				at += 3
+			end
+		end
+		table.insert(doors, { model = m, rows = rows, x = d.x, z = d.z + shopZ })
+	end
+
 	local function build(s: LobbyLayout.Slot)
 		for _, p in paths do
 			p.model:Destroy()
@@ -200,6 +224,29 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 			line.Text = goal.text
 		end
 		local t = os.clock() * 5
+		-- in the shops with home to go to: the way out from the nearest shop door first
+		local door: number? = nil
+		local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		if goal and goal.target == "pad" and root and root:IsA("BasePart") and inShops() then
+			local best = math.huge
+			for i, d in doors do
+				local far = (root.Position.X - d.x) ^ 2 + (root.Position.Z - d.z) ^ 2
+				if far < best then
+					best, door = far, i
+				end
+			end
+		end
+		for i, d in doors do
+			d.model.Parent = if i == door then workspace else nil
+			if i == door then
+				for k, arms in d.rows do
+					local glow = 0.5 + 0.5 * math.sin(t - k * 0.7)
+					for _, p in arms do
+						p.Transparency = 0.55 - glow * 0.5
+					end
+				end
+			end
+		end
 		for name, path in paths do
 			local show = goal ~= nil and goal.target == name
 			path.model.Parent = if show then workspace else nil
