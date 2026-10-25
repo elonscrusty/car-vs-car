@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local HudLayout = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("HudLayout"))
 local PlotShop = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("PlotShop"))
+local Popup = require(script.Parent:WaitForChild("Popup"))
 
 local player = Players.LocalPlayer
 local remote = ReplicatedStorage:WaitForChild("PlotShopEvent") :: RemoteEvent
@@ -200,6 +201,13 @@ openBtn.Activated:Connect(function()
 end)
 close.Activated:Connect(function()
 	panel.Visible = false
+end)
+-- tap outside shuts it too, and it never stacks on another popup
+Popup.add("looks", gui, function()
+	panel.Visible = false
+end)
+panel:GetPropertyChangedSignal("Visible"):Connect(function()
+	Popup.shown("looks", panel.Visible)
 end)
 
 -- the LOOKS button only while you own a plot
