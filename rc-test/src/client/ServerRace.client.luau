@@ -302,7 +302,8 @@ local function showResult(rows: { any })
 		-- your own row in yellow, so you find yourself at once
 		table.insert(
 			lines,
-			if i == mine then `<font color="#FFCD3C">{line}  ◀ YOU</font>{paid}` else line .. paid
+			-- (yellow is enough: "◀ YOU" made the line too long to read on a phone)
+			if i == mine then `<font color="#FFCD3C">{line}</font>{paid}` else line .. paid
 		)
 	end
 	-- not in the top 4: your place still shows at the bottom
@@ -322,13 +323,13 @@ local function showResult(rows: { any })
 	showId += 1
 	local me = showId
 	card.Visible = true
-	card.Size = UDim2.fromScale(0.36, tall * 0.65)
+	card.Size = UDim2.fromScale(0.44, tall * 0.65)
 	title.Size = UDim2.fromScale(0.9, 0.14 / tall)
 	rowsText.Position = UDim2.fromScale(0.07, 0.05 + 0.16 / tall)
 	TweenService:Create(
 		card,
 		TweenInfo.new(0.35, Enum.EasingStyle.Back),
-		{ Size = UDim2.fromScale(0.56, tall) }
+		{ Size = UDim2.fromScale(0.68, tall) }
 	):Play()
 	task.delay(ServerRace.SHOW, function()
 		if me == showId then
