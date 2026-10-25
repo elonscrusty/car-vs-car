@@ -10,6 +10,8 @@ export type State = {
 	inShops: boolean, -- inside the spawn lobby (the shops)
 	inBreak: boolean, -- the build break is on (BUILD! works anywhere)
 	canBuy: boolean, -- has the coins / stars for the next unlock
+	built: boolean?, -- already opened the build screen in this break
+	raceIn: number?, -- seconds until building closes and the race is called
 }
 -- target: where the arrows lead ("pad" = your plot's pad, "shop" = the spawn lobby, nil = none)
 export type Goal = { text: string, target: string? }
@@ -34,6 +36,11 @@ function NextGoal.pick(s: State): Goal?
 	end
 	-- the break: make your track better (the BUILD! button is right there)
 	if s.inBreak then
+		-- built already: the next thing is the race, so count it down
+		if s.built and s.raceIn then
+			local t = math.max(0, math.ceil(s.raceIn))
+			return { text = string.format("RACE IN %d:%02d", t // 60, t % 60), target = nil }
+		end
 		return { text = "TAP BUILD!", target = nil }
 	end
 	return if s.nearPad

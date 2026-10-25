@@ -172,8 +172,15 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 	player:GetAttributeChangedSignal("Stars"):Connect(returning)
 	returning()
 
+	local builtFor: number? = nil -- the break (its BuildEndsAt) in which the build screen was open
+
 	RunService.RenderStepped:Connect(function()
-		local onFoot = not driving and not building()
+		local ends = workspace:GetAttribute("BuildEndsAt")
+		local isBuilding = building()
+		if isBuilding and type(ends) == "number" then
+			builtFor = ends
+		end
+		local onFoot = not driving and not isBuilding
 		local goal = if onFoot
 			then NextGoal.pick({
 				hasPlot = slot ~= nil,
@@ -182,6 +189,10 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 				inShops = inShops(),
 				inBreak = inBreak(),
 				canBuy = player:GetAttribute("GoalReady") == true,
+				built = builtFor ~= nil and builtFor == ends,
+				raceIn = if type(ends) == "number"
+					then ends - workspace:GetServerTimeNow()
+					else nil,
 			})
 			else nil
 		gui.Enabled = goal ~= nil

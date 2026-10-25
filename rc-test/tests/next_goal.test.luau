@@ -46,6 +46,26 @@ test("next goal: build in the break, else drive your track", function()
 	eq((NextGoal.pick(state({ nearPad = true })) :: any).text, "TAP DRIVE!")
 end)
 
+test("next goal: built in this break, so count down to the race", function()
+	eq(
+		(NextGoal.pick(state({ inBreak = true, built = true, raceIn = 99.2 })) :: any).text,
+		"RACE IN 1:40"
+	)
+	eq(
+		(NextGoal.pick(state({ inBreak = true, built = true, raceIn = -3 })) :: any).text,
+		"RACE IN 0:00"
+	)
+	eq(
+		(NextGoal.pick(state({ inBreak = true, built = false, raceIn = 50 })) :: any).text,
+		"TAP BUILD!"
+	)
+	-- the shop still wins: coins to spend
+	eq(
+		(NextGoal.pick(state({ inBreak = true, built = true, raceIn = 50, canBuy = true })) :: any).text,
+		"GO SHOP!"
+	)
+end)
+
 test("next goal: no plot, only the shop (or nothing)", function()
 	eq(NextGoal.pick(state({ hasPlot = false })), nil)
 	eq((NextGoal.pick(state({ hasPlot = false, canBuy = true })) :: any).target, "shop")

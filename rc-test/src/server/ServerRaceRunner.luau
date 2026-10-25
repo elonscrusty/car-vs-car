@@ -276,7 +276,7 @@ local function giveStars(player: Player, n: number)
 end
 
 -- Every racer gets coins (and finishers stars) by place; the plot's owner gets a bonus for a
--- picked track. Returns uid -> coins and uid -> stars for the result card.
+-- picked track. Returns uid -> coins (all of it, bonus too) and uid -> stars for the result card.
 local function payRace(
 	ranked: { ServerRace.Entry },
 	racers: { Racer },
@@ -310,6 +310,10 @@ local function payRace(
 	local owner = LobbyPlots.ownerOf(slot)
 	if owner and owner.Parent then
 		pay(owner, ServerRace.PAY_OWNER, "your track was picked!")
+		-- one number per row: the owner's row counts the bonus too
+		if paid[owner.UserId] then
+			paid[owner.UserId] += ServerRace.PAY_OWNER * Profile.boost(os.time())
+		end
 	end
 	return paid, starred
 end
