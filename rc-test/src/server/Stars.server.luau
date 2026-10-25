@@ -115,15 +115,15 @@ local function trackOf(slotIndex: number): TrackData.Track
 	return t
 end
 
--- ===== record boards: a flat card just above each plot's sign =====
+-- ===== record boards: a flat card on a pole by each plot =====
 -- Flat (SurfaceGui on an invisible part) and sized in studs, so it never grows to fill the
--- screen up close or covers the street view, and hidden past BOARD_SEE studs. It turns toward
--- the road by the plot's DRIVE pad, so it reads from the pad on a phone. The plot's name, then
+-- screen up close or covers the street view, and hidden past BOARD_SEE studs. It stands down
+-- the footpath from the plot's DRIVE pad, clear of the gate, so it reads from the pad on a
+-- phone (LobbyLayout.board). The plot's name, then
 -- the top 3 (each player's best); each row carries its player's UserId so Stars.client lights
 -- up your own row.
 
-local BOARD_W, BOARD_H = 10, 5.6
-local BOARD_Y = 8.9 -- its bottom just above the sign (its top is at about 5.5)
+local BOARD_W, BOARD_H = LobbyLayout.BOARD_W, LobbyLayout.BOARD_H
 local BOARD_SEE = 80
 local ROW_COLOR = Color3.fromRGB(25, 25, 30)
 
@@ -143,10 +143,22 @@ for i, slot in slots do
 	anchor.CanTouch = false
 	anchor.Transparency = 1
 	anchor.Size = Vector3.new(BOARD_W, BOARD_H, 0.1)
-	-- over the sign, its front facing the middle of the road level with the pad
-	local at = Vector3.new(slot.signX, BOARD_Y, slot.signZ)
-	anchor.CFrame = CFrame.lookAt(at, Vector3.new(0, BOARD_Y, slot.padZ))
+	-- over the footpath clear of the gate posts, facing the road level with the pad
+	local c, face = LobbyLayout.board(slot)
+	anchor.CFrame = CFrame.lookAt(Vector3.new(c.x, c.y, c.z), Vector3.new(face.x, face.y, face.z))
 	anchor.Parent = boardFolder
+	local pole = Instance.new("Part")
+	pole.Name = "Pole"
+	pole.Anchored = true
+	pole.CanCollide = false -- people walk the footpath under it
+	pole.CanQuery = false
+	pole.CanTouch = false
+	pole.Material = Enum.Material.Metal
+	pole.Color = Color3.fromRGB(45, 45, 52)
+	local poleH = c.y - BOARD_H / 2
+	pole.Size = Vector3.new(0.4, poleH, 0.4)
+	pole.CFrame = CFrame.new(c.x, poleH / 2, c.z)
+	pole.Parent = anchor
 	local gui = Instance.new("SurfaceGui")
 	gui.Face = Enum.NormalId.Front
 	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud

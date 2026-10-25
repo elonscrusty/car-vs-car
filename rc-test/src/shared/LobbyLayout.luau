@@ -39,6 +39,7 @@ export type Slot = {
 }
 -- A thing to build somewhere: x, z = middle on the floor; face = the way its open side looks.
 export type Spot = { x: number, z: number, faceX: number, faceZ: number }
+export type Point = { x: number, y: number, z: number }
 
 local LobbyLayout = {}
 
@@ -160,6 +161,23 @@ function LobbyLayout.lamps(): { Spot }
 		end
 	end
 	return out
+end
+
+-- A plot's star board (Stars.server): on a pole by the footpath, down the road from the pad,
+-- turned almost to face the pad, so the whole board is in front of the plot (clear of the
+-- gate's posts) and reads from the pad. Returns the centre (y is the middle) and the point it
+-- faces. Its road end hangs over the road's edge, above the cars.
+LobbyLayout.BOARD_W, LobbyLayout.BOARD_H = 8, 5.6
+LobbyLayout.BOARD_Y = 8.9 -- its bottom (6.1) over people's heads
+LobbyLayout.BOARD_BACK = 20 -- down the road from the pad (the gate posts are about 11 away)
+function LobbyLayout.board(s: Slot): (Point, Point)
+	local side = if s.padX < 0 then -1 else 1
+	local y = LobbyLayout.BOARD_Y
+	return { x = side * (LobbyLayout.EDGE - 5), y = y, z = s.padZ - LobbyLayout.BOARD_BACK }, {
+		x = 0,
+		y = y,
+		z = s.padZ + 10,
+	}
 end
 
 -- Two cones by each DRIVE pad, on the footpath either side of it.
