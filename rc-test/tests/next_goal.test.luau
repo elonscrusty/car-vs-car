@@ -87,3 +87,20 @@ test("next goal: always 1-3 words", function()
 		H.truthy(#string.split(g.text, " ") <= 3, g.text)
 	end
 end)
+
+test("next goal: after the first car, win stars on someone else's plot", function()
+	local g = NextGoal.pick(state({ visit = "Sam" }))
+	eq(g and g.text, "WIN ⭐ AT SAM'S")
+	eq(g and g.target, "visit")
+	-- the shop and BUILD still come first; once built, the visit beats the countdown
+	eq((NextGoal.pick(state({ visit = "Sam", canBuy = true })) :: any).target, "shop")
+	eq((NextGoal.pick(state({ visit = "Sam", inBreak = true })) :: any).text, "TAP BUILD!")
+	eq(
+		(NextGoal.pick(state({ visit = "Sam", inBreak = true, built = true, raceIn = 60 })) :: any).target,
+		"visit"
+	)
+	eq(
+		(NextGoal.pick(state({ visit = "superlongname_2014" })) :: any).text,
+		"WIN ⭐ AT SUPERLONGN'S"
+	)
+end)

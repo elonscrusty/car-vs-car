@@ -11,6 +11,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
+local JoinStage = require(ReplicatedStorage.Shared.JoinStage)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local NextGoal = require(ReplicatedStorage.Shared.NextGoal)
 local SpawnLobby = require(ReplicatedStorage.Shared.SpawnLobby)
@@ -145,16 +146,46 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 		table.insert(doors, { model = m, rows = rows, x = d.x, z = d.z + shopZ })
 	end
 
+	local visitSlot: number? = nil -- whose pad paths.visit leads to
 	local function build(s: LobbyLayout.Slot)
 		for _, p in paths do
 			p.model:Destroy()
 		end
 		paths = {}
+		visitSlot = nil
 		for name, make in { pad = padPath, shop = shopPath } do
 			local m = Instance.new("Model")
 			m.Name = "PlotGuideArrows"
 			paths[name] = { model = m, rows = make(m, s) }
 		end
+	end
+
+	-- the nearest plot with stars still to win for me (StarsAt from Stars.server, nearest first):
+	-- its slot and owner's name, from stage 3 on (one new thing at a time)
+	local function visitTarget(): (number?, string?)
+		if not JoinStage.shows(player:GetAttribute("Stage"), "visit") then
+			return nil, nil
+		end
+		local list = player:GetAttribute("StarsAt")
+		local first = if type(list) == "string" then tonumber(string.match(list, "^%d+")) else nil
+		local info = first and LobbyLayout.slots()[first]
+		local plots = workspace:FindFirstChild("Plots")
+		local m = info and plots and plots:FindFirstChild(first .. "_" .. info.id)
+		local name = m and m:GetAttribute("OwnerName")
+		if not (first and info and type(name) == "string" and name ~= "") or first == slot then
+			return nil, nil
+		end
+		if first ~= visitSlot then
+			visitSlot = first
+			local old = paths.visit
+			if old then
+				old.model:Destroy()
+			end
+			local vm = Instance.new("Model")
+			vm.Name = "PlotGuideArrows"
+			paths.visit = { model = vm, rows = padPath(vm, info) }
+		end
+		return first, name
 	end
 
 	local function padDistance(): number
@@ -214,6 +245,7 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 		local onFoot = not driving and not isBuilding and clock >= holdUntil
 		if clock >= nextPick or onFoot ~= wasOnFoot then
 			nextPick, wasOnFoot = clock + 0.1, onFoot
+			local _, visitName = visitTarget()
 			goal = if onFoot
 				then NextGoal.pick({
 					hasPlot = slot ~= nil,
@@ -226,6 +258,7 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 					raceIn = if type(ends) == "number"
 						then ends - workspace:GetServerTimeNow()
 						else nil,
+					visit = visitName,
 				})
 				else nil
 			gui.Enabled = goal ~= nil
