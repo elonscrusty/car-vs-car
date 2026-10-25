@@ -44,6 +44,7 @@ export type Result = {
 	spawn: Kit.Spawn?,
 	pads: { Pad }, -- boost / oil patches on the road
 	order: { Tile }, -- tiles in driving order (a cross tile shows up twice)
+	stray: { { number } }?, -- { {c, r} } placed tiles the loop skips (then not ok)
 }
 
 local TrackTiles = {}
@@ -131,12 +132,12 @@ local DEFS: { Def } = {
 	def("turn", "TURN", "free", "road", "Round corner", { bend(0.5) }),
 	def("sharp", "SHARP TURN", "legendary", "road", "Tight corner", { bend(0.2) }),
 	def("chicane", "WIGGLE", "coins", "road", "Left-right wiggle", { wiggle() }),
-	def("cross", "CROSS", "coins", "road", "Roads cross (figure 8)", { line(2, 0), line(3, 1) }),
-	def("split", "SPLIT", "coins", "road", "Pick a side of the island", { line(2, 0) }),
+	def("cross", "CROSS", "coins", "road", "Figure 8", { line(2, 0), line(3, 1) }),
+	def("split", "SPLIT", "coins", "road", "Pick a side", { line(2, 0) }),
 	def("narrow", "SQUEEZE", "coins", "road", "Road gets thin", { line(2, 0) }),
 	-- hazards
 	def("cones", "CONES", "coins", "hazard", "Weave the cones", { line(2, 0) }),
-	def("barrels", "BARRELS", "coins", "hazard", "Dodge left, then right", { line(2, 0) }),
+	def("barrels", "BARRELS", "coins", "hazard", "Dodge them", { line(2, 0) }),
 	def("bumps", "BUMPS", "coins", "hazard", "Bumpy ride", { line(2, 0) }),
 	def("mud", "MUD", "coins", "hazard", "Slow and slippy", { line(2, 0) }),
 	def("puddle", "PUDDLE", "coins", "hazard", "Splash, less grip", { line(2, 0) }),
@@ -479,6 +480,22 @@ function TrackTiles.circle(cols: number, rows: number): Grid
 	return grid
 end
 
+-- The square a new player is shown first ("swap a tile in here"): the plain straight right after
+-- the START along the loop. nil when the track isn't a loop or has no straight there.
+function TrackTiles.hint(grid: Grid): (number?, number?)
+	local res = TrackTiles.trace(grid)
+	for i, t in res.order do
+		if t.piece == "start" then
+			local nxt = res.order[i + 1]
+			if nxt and nxt.piece == "straight" then
+				return nxt.c, nxt.r
+			end
+			return nil, nil
+		end
+	end
+	return nil, nil
+end
+
 function TrackTiles.copy(grid: Grid): Grid
 	local tiles = {}
 	for i, t in grid.tiles do
@@ -629,9 +646,27 @@ function TrackTiles.trace(grid: Grid): Result
 				local idx = ((lineIdx - 1 + math.floor(n * k / 5)) % n) + 1
 				table.insert(gates, Kit.gateAt(samples[idx], 0, 24, 12))
 			end
+			-- every tile has to be part of the loop: a loose one would just sit there doing
+			-- nothing, so the track isn't ready until it's joined in or erased
+			local onLoop: { [string]: boolean } = {}
+			for _, t in order do
+				onLoop[t.c .. "," .. t.r] = true
+			end
+			local stray: { { number } } = {}
+			for _, t in grid.tiles do
+				if not onLoop[t.c .. "," .. t.r] then
+					table.insert(stray, { t.c, t.r })
+				end
+			end
+			if #stray > 0 then
+				local res = fail("Join every tile")
+				res.order, res.stray = order, stray
+				return res
+			end
 			return {
 				ok = true,
 				why = nil,
+				stray = stray,
 				loop = function()
 					return samples
 				end,

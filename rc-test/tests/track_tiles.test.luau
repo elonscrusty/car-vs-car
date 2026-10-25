@@ -314,3 +314,95 @@ test("the owner picks race or drift: the driving data says which", function()
 	truthy(LobbyLayout.track(1).custom)
 	LobbyLayout.custom[1] = nil
 end)
+
+test("a loose tile off the loop means not ready, and says which tile", function()
+	local g = T.circle(5, 5)
+	eq(T.ready(g), true)
+	T.place(g, 3, 3, "straight", 0) -- in the middle of the ring, joined to nothing
+	local res = T.trace(g)
+	eq(res.ok, false)
+	eq(res.why, "Join every tile")
+	eq(#(res.stray :: any), 1)
+	eq((res.stray :: any)[1][1], 3)
+	eq((res.stray :: any)[1][2], 3)
+	eq(T.track(res), nil)
+	T.remove(g, 3, 3)
+	eq(T.ready(g), true)
+end)
+
+test("a new player's starter track is ready and shows the square to swap first", function()
+	for _, size in { { 5, 5 }, { 5, 6 } } do
+		local g = T.circle(size[1], size[2])
+		eq(T.ready(g), true)
+		local c, r = T.hint(g)
+		truthy(c and r, "a hint square")
+		local t = T.get(g, c :: number, r :: number) :: any
+		eq(t.piece, "straight")
+		-- it is right next to the START
+		local s: any
+		for _, x in g.tiles do
+			if x.piece == "start" then
+				s = x
+			end
+		end
+		eq(math.abs(s.c - (c :: number)) + math.abs(s.r - (r :: number)), 1)
+		-- dropping a tile there keeps the track ready
+		T.drop(g, c :: number, r :: number, "boost")
+		eq(T.ready(g), true)
+	end
+end)
+
+test("every tile card tip is 1 to 3 words", function()
+	for _, p in T.PIECES do
+		local words = #string.split(p.tip, " ")
+		truthy(words >= 1 and words <= 3, p.id .. ": " .. p.tip)
+	end
+end)
+
+test("undo puts back what was there, after a turn and after a drop", function()
+	local g = T.circle(5, 5)
+	local before = T.copy(g)
+	local function same(a: any, b: any): boolean
+		if #a.tiles ~= #b.tiles then
+			return false
+		end
+		for _, t in a.tiles do
+			local u = T.get(b, t.c, t.r) :: any
+			if not u or u.piece ~= t.piece or u.rot ~= t.rot then
+				return false
+			end
+		end
+		return true
+	end
+	-- turn (tap = place rot+1), then undo = place the old tile back
+	local t = T.get(g, 1, 1) :: any
+	local piece, rot = t.piece, t.rot
+	T.place(g, 1, 1, piece, (rot + 1) % 4)
+	eq(T.ready(g), false)
+	T.place(g, 1, 1, piece, rot)
+	truthy(same(g, before))
+	eq(T.ready(g), true)
+	-- drop a hazard on a straight, then undo
+	local s = T.get(g, 3, 1) :: any
+	T.drop(g, 3, 1, "cones")
+	eq((T.get(g, 3, 1) :: any).piece, "cones")
+	T.place(g, 3, 1, s.piece, s.rot)
+	truthy(same(g, before))
+	-- drop on empty grass, then undo = erase
+	T.drop(g, 3, 3, "boost")
+	eq(T.ready(g), false) -- loose tile
+	T.remove(g, 3, 3)
+	truthy(same(g, before))
+	eq(T.ready(g), true)
+	-- turning the START and back
+	local st: any
+	for _, x in g.tiles do
+		if x.piece == "start" then
+			st = x
+		end
+	end
+	local sc, sr, srot = st.c, st.r, st.rot
+	T.place(g, sc, sr, "start", (srot + 1) % 4)
+	T.place(g, sc, sr, "start", srot)
+	truthy(same(g, before))
+end)

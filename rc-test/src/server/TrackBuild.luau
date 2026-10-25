@@ -10,7 +10,7 @@
 --   client -> ("path", { {c, r}, ... }) finger drag lays road | ("drop", c, r, pieceId) special
 --             tile onto road | ("kind", "race" | "drift") what the plot is | ("rotate", c, r) quarter turn | ("place", c, r, pieceId, rot) | ("remove", c, r) | ("done")
 --   server -> ("state", { cols, rows, cells = { {c, r, piece, rot} }, ready, why, kind, owned = {[id]=bool},
---             stray = { {c, r} } tiles the loop skips })
+--             stray = { {c, r} } tiles the loop skips (not ready), hint = {c, r}? first square to swap })
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -94,22 +94,14 @@ local function stateOf(slot: number): { [string]: any }
 	for _, p in TrackTiles.PIECES do
 		owned[p.id] = d ~= nil and owns(d, p.id)
 	end
-	-- tiles not on the loop (the race skips them; the screen can dim them)
-	local stray: { { number } } = {}
-	if res and res.ok then
-		local onLoop: { [string]: boolean } = {}
-		for _, t in res.order do
-			onLoop[t.c .. "," .. t.r] = true
-		end
-		for _, t in g.tiles do
-			if not onLoop[t.c .. "," .. t.r] then
-				table.insert(stray, { t.c, t.r })
-			end
-		end
-	end
+	-- tiles not on the loop (the track isn't ready until they're joined in; the screen dims them)
+	local stray = if res and res.stray then res.stray else {}
+	-- the square to show a new player first (glows: "swap a tile in here")
+	local hc, hr = TrackTiles.hint(g)
 	return {
 		kind = kinds[slot] or "race",
 		stray = stray,
+		hint = if hc and hr then { hc, hr } else nil,
 		owned = owned,
 		cols = g.cols,
 		rows = g.rows,
