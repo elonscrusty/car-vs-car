@@ -246,7 +246,7 @@ local function locksFor(owned: unknown): { [string]: string }?
 		if (owned :: any)[id] ~= true then
 			local need = TileShop.unlockAt(id)
 			local t = TileShop.get(id)
-			out[id] = if have < need then `{need} STARS` elseif t then tostring(t.price) else "?"
+			out[id] = if have < need then `WIN {need} STARS` elseif t then `{t.price} COINS` else "?"
 		end
 	end
 	return out
