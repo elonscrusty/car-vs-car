@@ -214,7 +214,7 @@ end
 
 -- What a grey BUY says: how many more coins you need.
 local function needWords(price: number, coins: number): string
-	return if coins >= price then "BUY" else `{price - coins} more`
+	return if coins >= price then "BUY" else `{price - coins} MORE`
 end
 
 -- ===== NEW CAR! =====
@@ -425,8 +425,9 @@ local function showShop(kind: string, s: State)
 		view.Position = UDim2.fromScale(0.06, 0.04)
 		view.Size = UDim2.fromScale(0.88, 0.5)
 		text(c, car.name, 0.06, 0.57, 0.88, 0.12, Color3.new(1, 1, 1))
-		local price = if car.rare
-			then "RARE"
+		local price = if owned[car.id] and car.price > 0
+			then "OWNED"
+			elseif car.rare then "RARE"
 			elseif car.price == 0 then "FREE"
 			else car.price .. " coins"
 		text(
@@ -445,10 +446,16 @@ local function showShop(kind: string, s: State)
 			b.BackgroundColor3 = Color3.fromRGB(60, 180, 80)
 			b.TextColor3 = Color3.new(1, 1, 1)
 		elseif owned[car.id] then
-			b = button(c, "PICK", Color3.fromRGB(40, 120, 230), true)
+			-- yours: put it on and go drive it
+			b = button(c, "DRIVE", Color3.fromRGB(40, 120, 230), true)
 			b.Activated:Connect(function()
 				local now = ask("equip", car.id)
-				if now then
+				if now and now.ok then
+					gui.Enabled = false
+					current = nil
+					-- the server takes one call per 0.3 s
+					task.delay(0.35, ask, "drive", car.id)
+				elseif now then
 					showShop(kind, now)
 				end
 			end)
@@ -530,8 +537,16 @@ local function showGumball(s: State, result: string?)
 		button(body, `SPIN  {CarCatalog.GUMBALL_PRICE} coins`, Color3.fromRGB(255, 120, 190), can)
 	spin.Position = UDim2.fromScale(0.66, 0.62)
 	spin.Size = UDim2.fromScale(0.34, 0.2)
-	-- before a spin, a big gumball fills the space where the prize will show
-	local out = text(body, result or "🍬", 0.66, 0.05, 0.34, 0.5, Color3.new(1, 1, 1))
+	-- before a spin: what a spin gives, plainly (no emoji: they draw as boxes)
+	local out = text(
+		body,
+		result or "One spin = one car from the list. The % is your chance.",
+		0.66,
+		0.05,
+		0.34,
+		0.5,
+		Color3.new(1, 1, 1)
+	)
 	out.TextWrapped = true
 	if can then
 		spin.Activated:Connect(function()
@@ -544,7 +559,7 @@ local function showGumball(s: State, result: string?)
 					elseif
 						now.new
 					then `You got {car.name}! Drive it on {MODE_WORDS[car.mode]} tracks.`
-					else `{car.name} again: {CarCatalog.DUPLICATE_REFUND} coins back`
+					else `Had it: +{CarCatalog.DUPLICATE_REFUND} coins`
 				showGumball(now, msg)
 				if car and now.new then
 					reveal(car, function()
@@ -673,7 +688,7 @@ local function showTiles(s: State, result: string?)
 				local msg = if t == nil
 					then "Not enough coins"
 					elseif now.new then `You got {t.name}! Put it on your track.`
-					else `{t.name} again: {TileShop.DUPLICATE_REFUND} coins back`
+					else `Had it: +{TileShop.DUPLICATE_REFUND} coins`
 				showTiles(now, msg)
 			end
 		end)
