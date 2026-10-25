@@ -355,7 +355,8 @@ RunService.Heartbeat:Connect(function()
 	-- getting out of the car again doesn't pop it back up.
 	local auto = player:GetAttribute("HasDriven") == true and not autoUsed and not cardsUp()
 	local want = inBreak and not closed and walking and (auto or asked or open)
-	buildBtn.Visible = inBreak and walking and not want
+	-- (not before your first drive: a brand new player's one button is DRIVE)
+	buildBtn.Visible = inBreak and walking and not want and player:GetAttribute("DroveOnce") == true
 	if want ~= open then
 		open = want
 		screen.show(want)

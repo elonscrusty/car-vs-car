@@ -12,6 +12,7 @@ export type Hud = {
 	setDrift: (chain: number, total: number, visible: boolean, combo: number?) -> (),
 	popScore: (points: number) -> (),
 	flash: (text: string) -> (),
+	setRace: (on: boolean) -> (), -- server race: no speed or plot word, just place and lap
 }
 
 local Hud = {}
@@ -131,10 +132,24 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }): Hud
 	local hud = {} :: Hud
 	hud.gui = gui
 
+	local inRace = false -- a server race: the plot word stays hidden
 	function hud.setActiveTrack(index: number)
 		for i, b in buttons do
-			b.Visible = i == index
+			b.Visible = i == index and not inRace
 			b.BackgroundColor3 = Color3.fromRGB(235, 120, 40)
+		end
+	end
+
+	function hud.setRace(on: boolean)
+		if on == inRace then
+			return
+		end
+		inRace = on
+		speed.Visible = not on
+		for _, b in buttons do
+			if on then
+				b.Visible = false
+			end
 		end
 	end
 

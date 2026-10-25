@@ -118,6 +118,7 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 			and not driving
 			and not building()
 			and Players.LocalPlayer:GetAttribute("DroveOnce") == true
+			and #Players:GetPlayers() > 1 -- nobody to let in when you're alone
 		if marker then
 			marker.Parent = if driving then nil else workspace
 		end
@@ -228,6 +229,10 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 		showFriends()
 	end)
 	Players.LocalPlayer:GetAttributeChangedSignal("DroveOnce"):Connect(showFriends)
+	Players.PlayerAdded:Connect(showFriends)
+	Players.PlayerRemoving:Connect(function()
+		task.defer(showFriends)
+	end)
 
 	local lobby = {} :: Lobby
 	function lobby.setDriving(on: boolean)

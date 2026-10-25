@@ -458,8 +458,17 @@ TweenService:Create(
 	TweenInfo.new(0.7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
 	{ Scale = 1.06 }
 ):Play()
+-- a few seconds when it starts (or you join), then out of the way: fewer things on screen
+local bannerShows = 0
 local function showBanner()
+	bannerShows += 1
+	local mine = bannerShows
 	banner.Visible = workspace:GetAttribute("CoinBoost") == 2
+	task.delay(6, function()
+		if mine == bannerShows then
+			banner.Visible = false
+		end
+	end)
 end
 workspace:GetAttributeChangedSignal("CoinBoost"):Connect(showBanner)
 showBanner()

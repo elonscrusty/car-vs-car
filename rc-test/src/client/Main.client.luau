@@ -606,6 +606,7 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 	camera.update(dt)
 	controls.setRock(tracks[current].id == "rock")
 	controls.setRace(grid ~= nil)
+	hud.setRace(grid ~= nil)
 	-- driver view looks out of the person's eyes: hide them on this screen so the head and hat
 	-- don't block the view
 	local char = player.Character
