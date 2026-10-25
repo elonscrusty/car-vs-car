@@ -474,7 +474,19 @@ local function sendTarget(player: Player, slotIndex: number?, mode: string?)
 	end
 end
 
+-- The same run twice in a row (tour 7 saw one lap print RECORD twice): pay and save it once.
+local lastRun: { [Player]: { key: string, at: number } } = {}
+local REPEAT_WINDOW = 2
+
 local function onRun(player: Player, slotIndex: number, mode: string, value: number)
+	local key = `{slotIndex}/{mode}/{value}`
+	local last = lastRun[player]
+	local clock = os.clock()
+	if last and last.key == key and clock - last.at < REPEAT_WINDOW then
+		print(`[Stars] skipped a repeat {mode} run by {player.Name} on plot {slotIndex}`)
+		return
+	end
+	lastRun[player] = { key = key, at = clock }
 	local scale = scaleOf(slotIndex, mode)
 	if not Medals.valid(mode, value, scale) then
 		return
@@ -898,6 +910,7 @@ Players.PlayerRemoving:Connect(function(player)
 	watching[player] = nil
 	targetSeen[player] = nil
 	ownMedal[player] = nil
+	lastRun[player] = nil
 	lastLike[player] = nil
 	onRock[player] = nil
 	task.defer(showAll)
