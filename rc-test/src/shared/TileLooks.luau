@@ -25,6 +25,7 @@ local function sibling(name: string): any
 end
 
 local Garage = sibling("Garage")
+local Finish = sibling("Finish")
 
 type V3 = Garage.V3
 type Piece = Garage.Piece
@@ -178,7 +179,21 @@ function TileLooks.parts(id: string, cell: number?): { Piece }
 		for _, sx in { -1, 1 } do
 			add(G, "GantryPost", v(1.2, 13, 1.2), v(sx * px, 6.5, 0), DARK, noHit)
 		end
-		add(G, "GantryBeam", v(2 * px + 1.2, 2, 1.6), v(0, 13.6, 0), DARK, noHit)
+		local bw = 2 * px + 1.2
+		add(G, "GantryBeam", v(bw, 2, 1.6), v(0, 13.6, 0), DARK, noHit)
+		-- a chequered band on the side the cars come from: white squares on the dark beam
+		local n = 10
+		for i = 0, n - 1 do
+			local top = i % 2 == 0
+			add(
+				G,
+				"Checker",
+				v(bw / n, 1, 0.1),
+				v(-bw / 2 + (i + 0.5) * bw / n, 13.6 + (if top then 0.5 else -0.5), 0.85),
+				WHITE,
+				noHit
+			)
+		end
 		for i = -1, 1 do
 			-- off until a race starts: the driver's screen lights them 3-2-1 then green
 			add(G, "StartLamp", v(1.4, 1.4, 0.4), v(i * 3, 13.6, 0.9), DARK, {
@@ -454,7 +469,7 @@ function TileLooks.parts(id: string, cell: number?): { Piece }
 		end
 		sign(col)
 	end
-	return out
+	return Finish.apply(out)
 end
 
 -- Low decor for an EMPTY grid cell (picked from c / r, so it stays the same on every rebuild):
@@ -545,7 +560,7 @@ function TileLooks.emptyParts(c: number, r: number, cell: number?): { Piece }
 		bush(-q * 1.2, q * 0.8, 4)
 		bush(q * 1.1, -q * 0.9, 3.5)
 	end
-	return out
+	return Finish.apply(out)
 end
 
 -- The strips between the grid (minX..maxX, minZ..maxZ, plot-local big units) and the track area
@@ -622,7 +637,7 @@ function TileLooks.surroundParts(
 			x += 38
 		end
 	end
-	return out
+	return Finish.apply(out)
 end
 
 -- Everything TileLooks puts on a built grid, in plot-local big units: each tile's looks, the

@@ -24,6 +24,7 @@ local function sibling(name: string): any
 end
 
 local Garage = sibling("Garage")
+local Finish = sibling("Finish")
 local Kit = sibling("Plots/Kit")
 local LobbyLayout = sibling("LobbyLayout")
 
@@ -439,7 +440,7 @@ function PlotDecor.parts(kind: string): { Piece }
 			o({ material = if kind == "rock" then "Fabric" else nil })
 		)
 	end
-	return out
+	return Finish.apply(out)
 end
 
 -- carter's Meshy props on the booth counter and under the canopy, per kind (Garage.Mesh;
