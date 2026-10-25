@@ -930,6 +930,16 @@ local function showPrize(before: any)
 	end)
 	prizeShows += 1
 	local mine = prizeShows
+	-- just under the race result card (it grows with the racers), else its usual spot
+	local pgui = player:FindFirstChildOfClass("PlayerGui")
+	local race = if pgui then pgui:FindFirstChild("ServerRace") else nil
+	local result = if race then race:FindFirstChild("Result") else nil
+	local y = 0.64
+	local bottom = if result then result:GetAttribute("Bottom") else nil
+	if result and result:IsA("GuiObject") and result.Visible and type(bottom) == "number" then
+		y = math.max(y, bottom + 0.02)
+	end
+	prize.Position = UDim2.fromScale(0.5, math.min(y, 0.8))
 	prize.Visible = true
 	prizeScale.Scale = 0.6
 	TweenService:Create(prizeScale, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Scale = 1 })

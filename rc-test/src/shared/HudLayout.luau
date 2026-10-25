@@ -88,9 +88,9 @@ HudLayout.SPOTS = {
 	spot("Track", "drive", "Hud", TC, { 0.5, 0, 0, 64 }, { 0.1012, 0, 0.1, 0 }), -- the one lit plot name
 	spot("DriftScore", "drive", "Hud", TC, { 0.5, 0, 0.12, 72 }, { 0.32, 0, 0.1, 0 }),
 	spot("Join", "drive", "ServerRace", TC, { 0.5, 0, 0.22, 80 }, { 0, 220, 0, 44 }),
-	spot("AutoGas", "drive", "Controls", TR, { 0.71, 0, 0, 64 }, { 0.083, 0, 0.12, 0 }), -- 45+ px tall on a phone
-	spot("Smoke", "drive", "Controls", TR, { 0.8, 0, 0, 64 }, { 0.083, 0, 0.12, 0 }), -- 7+ px apart
-	spot("View", "drive", "Controls", TR, { 0.89, 0, 0, 64 }, { 0.083, 0, 0.12, 0 }),
+	spot("AutoGas", "drive", "Controls", TR, { 0.704, 0, 0, 64 }, { 0.083, 0, 0.12, 0 }), -- 45+ px tall on a phone
+	spot("Smoke", "drive", "Controls", TR, { 0.796, 0, 0, 64 }, { 0.083, 0, 0.12, 0 }), -- 7+ px apart
+	spot("View", "drive", "Controls", TR, { 0.888, 0, 0, 64 }, { 0.083, 0, 0.12, 0 }),
 	spot("Cam", "drive", "Controls", TR, { 0.98, 0, 0, 64 }, { 0.083, 0, 0.12, 0 }), -- RESET on rocks
 	spot("Speed", "drive", "Hud", TR, { 0.98, 0, 0.12, 68 }, { 0.1, 0, 0.05, 0 }),
 	-- ===== drive: thumbs =====
