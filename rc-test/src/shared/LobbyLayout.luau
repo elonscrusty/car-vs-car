@@ -279,7 +279,8 @@ function LobbyLayout.padButton(
 	elseif busy then
 		return false, "BUSY"
 	end
-	local who = if ownerName ~= "" then string.upper(ownerName) else "SOMEONE"
+	-- (one line on a phone's DRIVE button: a long name is cut, so the words stay big)
+	local who = if ownerName ~= "" then string.upper(string.sub(ownerName, 1, 10)) else "SOMEONE"
 	return false, who .. " - LOCKED"
 end
 

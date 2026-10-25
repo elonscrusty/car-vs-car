@@ -36,6 +36,7 @@ local function makeMarker(x: number, z: number): Model
 		p.Material = Enum.Material.Neon
 		p.Color = Color3.fromRGB(255, 220, 90)
 		p.Transparency = alpha
+		p:SetAttribute("Alpha", alpha)
 		p.Anchored = true
 		p.CanCollide = false
 		p.CanQuery = false
@@ -123,6 +124,7 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 	local driveGui, driveButton = bigButton("Drive", "DRIVE")
 	-- a thumb-size button on a phone; long names (MIA - LOCKED) shrink to fit
 	driveButton.TextScaled = true
+	driveButton.TextWrapped = false -- one line, shrunk to fit (it broke into two on a phone)
 	local fit = Instance.new("UITextSizeConstraint")
 	fit.MaxTextSize = 26
 	fit.Parent = driveButton
@@ -253,10 +255,32 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 		end
 		return o:IsA("GuiObject") and o.Visible
 	end
+	-- standing by your own pad, the beam would fill the middle of the screen: it fades out
+	-- (the YOUR PLOT sign stays) and comes back as you walk away
+	local BEAM_HIDE = 40
+	local beamHidden = false
 	RunService.Heartbeat:Connect(function()
 		button.Visible = not (
 			cardShown("ServerRace", "Result") or cardShown("StarsTop", "RacePrize")
 		)
+		local m = marker
+		local char = Players.LocalPlayer.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		local s = ownSlot and LobbyLayout.slots()[ownSlot]
+		local near = false
+		if m and s and root and root:IsA("BasePart") then
+			local dx, dz = root.Position.X - s.padX, root.Position.Z - s.padZ
+			near = dx * dx + dz * dz < BEAM_HIDE * BEAM_HIDE
+		end
+		if m and near ~= beamHidden then
+			beamHidden = near
+			for _, p in m:GetChildren() do
+				local alpha = p:GetAttribute("Alpha")
+				if p:IsA("BasePart") and type(alpha) == "number" then
+					p.Transparency = if near then 1 else alpha
+				end
+			end
+		end
 	end)
 	UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
 		if not processed and input.KeyCode == Enum.KeyCode.E then

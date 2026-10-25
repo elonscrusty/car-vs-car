@@ -213,6 +213,8 @@ test("a pad's DRIVE button: DRIVE when you may, BUSY, or whose it is and LOCKED"
 	ok, text = L.padButton(9, "mia", 0, false, 7)
 	eq(ok, false)
 	eq(text, "MIA - LOCKED")
+	ok, text = L.padButton(9, "superlongname_2014", 0, false, 7)
+	eq(text, "SUPERLONGN - LOCKED") -- cut to fit one line
 	ok, text = L.padButton(9, "mia", 9, true, 7)
 	eq(ok, false)
 	eq(text, "BUSY")

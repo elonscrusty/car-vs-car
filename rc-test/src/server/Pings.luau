@@ -37,6 +37,10 @@ local function update(userId: number, fn: (any) -> any): boolean
 			return true
 		end
 		warn(`[Pings] {userId} try {i}:`, err)
+		-- Studio with API access off: trying again can't help (same as PlayerData)
+		if string.find(tostring(err), "403", 1, true) then
+			break
+		end
 		if i < TRIES then
 			task.wait(2 ^ i)
 		end
