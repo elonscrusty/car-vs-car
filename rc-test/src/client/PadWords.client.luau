@@ -157,6 +157,20 @@ local function addGumball(base: Instance)
 	end
 	local b = sign(base, "Gumball", Vector2.new(10, 2.4), 8.5, 100)
 	label(b, "LUCKY CAR", Color3.fromRGB(255, 120, 190), 0, 1)
+	-- the LOOKS garage stands right behind it from the spawn (tour 7: the two signs ran into
+	-- each other): slide these words 6 studs away from the garage and drop them a little
+	task.delay(1.5, function()
+		for _, d in workspace:GetDescendants() do
+			if d:IsA("Model") and d:GetAttribute("ShopKind") == "looks" and d.PrimaryPart then
+				local away = base.Position - d.PrimaryPart.Position
+				away = Vector3.new(away.X, 0, away.Z)
+				if away.Magnitude > 1 then
+					b.StudsOffsetWorldSpace = Vector3.new(0, 7.5, 0) + away.Unit * 6
+				end
+				break
+			end
+		end
+	end)
 end
 
 -- Only at the spawn, on foot: hidden while driving, and whenever the camera is away from the
