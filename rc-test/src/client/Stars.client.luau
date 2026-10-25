@@ -382,8 +382,8 @@ end
 -- shown when this server can't save (Studio without API access, DataStore down)
 local noSave = Instance.new("TextLabel")
 noSave.Name = "NotSaving"
-noSave.AnchorPoint = Vector2.new(0, 0)
-noSave.Position = UDim2.new(0, 0, 1, 2)
+noSave.AnchorPoint = Vector2.new(0, 1)
+noSave.Position = UDim2.new(0, 0, 0, -2) -- above the chip: RIVALS sits under it
 noSave.Size = UDim2.fromScale(1, 0.5)
 noSave.BackgroundTransparency = 1
 noSave.TextColor3 = Color3.fromRGB(255, 110, 100)
