@@ -56,7 +56,12 @@ function Rewards.coinGoals(s: Save): { Goal }
 	end
 	if not TrackTiles.ALL_FREE then
 		for _, t in TileShop.TILES do
-			if t.tier == "coins" and not TileShop.owns(s :: any, t.id) then
+			-- only tiles your stars have opened (TileShop.UNLOCK_STARS)
+			if
+				t.tier == "coins"
+				and not TileShop.owns(s :: any, t.id)
+				and TileShop.open(s :: any, t.id)
+			then
 				table.insert(out, {
 					kind = "tile",
 					name = t.name,
