@@ -155,7 +155,7 @@ local function addGumball(base: Instance)
 	if not base:IsA("BasePart") then
 		return
 	end
-	local b = sign(base, "Gumball", Vector2.new(7, 1.6), 8, 100)
+	local b = sign(base, "Gumball", Vector2.new(10, 2.4), 8.5, 100)
 	label(b, "LUCKY CAR", Color3.fromRGB(255, 120, 190), 0, 1)
 end
 

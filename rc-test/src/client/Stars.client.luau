@@ -441,10 +441,45 @@ pop.Parent = top
 local popScale = Instance.new("UIScale")
 popScale.Parent = pop
 
+-- the race result card's bottom edge (screen scale) while it is up, else nil:
+-- the medal pop and the prize card stack under it with a gap, never on it
+local function resultBottom(): number?
+	local pgui = player:FindFirstChildOfClass("PlayerGui")
+	local race = if pgui then pgui:FindFirstChild("ServerRace") else nil
+	local result = if race then race:FindFirstChild("Result") else nil
+	local bottom = if result then result:GetAttribute("Bottom") else nil
+	if result and result:IsA("GuiObject") and result.Visible and type(bottom) == "number" then
+		return bottom
+	end
+	return nil
+end
+
+local GAP = 0.04 -- between stacked cards (their rims and the pop-in bounce need the room)
+local popBottom = 0 -- where the pop ends while it shows (the prize card goes under it)
+local popUntil = 0
+
+local function placePop()
+	local under = resultBottom()
+	if under then
+		-- the result card is up: a smaller pop just under it
+		pop.AnchorPoint = Vector2.new(0.5, 0)
+		pop.Position = UDim2.fromScale(0.5, under + GAP)
+		pop.Size = UDim2.fromScale(0.56, 0.11)
+		popBottom = under + GAP + 0.11
+	else
+		pop.AnchorPoint = Vector2.new(0.5, 0.5)
+		pop.Position = UDim2.fromScale(0.5, 0.62)
+		pop.Size = UDim2.fromScale(0.56, 0.16)
+		popBottom = 0.7
+	end
+end
+
 local shown = 0 -- pops in a row: an old pop's fade must not hide a newer one
 local function showPop(text: string, color: Color3)
 	shown += 1
 	local mine = shown
+	placePop()
+	popUntil = os.clock() + 3.3
 	pop.Text = text
 	pop.TextColor3 = color
 	pop.TextTransparency = 0
@@ -893,7 +928,7 @@ local prize = Instance.new("Frame")
 prize.Name = "RacePrize"
 prize.AnchorPoint = Vector2.new(0.5, 0)
 prize.Position = UDim2.fromScale(0.5, 0.64)
-prize.Size = UDim2.fromScale(0.4, 0.16)
+prize.Size = UDim2.fromScale(0.4, 0.14)
 prize.BackgroundColor3 = Color3.fromRGB(30, 32, 44)
 prize.BackgroundTransparency = 0.08
 prize.Visible = false
@@ -961,16 +996,17 @@ local function showPrize(before: any)
 	end)
 	prizeShows += 1
 	local mine = prizeShows
-	-- just under the race result card (it grows with the racers), else its usual spot
-	local pgui = player:FindFirstChildOfClass("PlayerGui")
-	local race = if pgui then pgui:FindFirstChild("ServerRace") else nil
-	local result = if race then race:FindFirstChild("Result") else nil
+	-- just under the race result card (it grows with the racers) and the medal pop, else its
+	-- usual spot
 	local y = 0.64
-	local bottom = if result then result:GetAttribute("Bottom") else nil
-	if result and result:IsA("GuiObject") and result.Visible and type(bottom) == "number" then
-		y = math.max(y, bottom + 0.02)
+	local bottom = resultBottom()
+	if bottom then
+		y = math.max(y, bottom + GAP)
 	end
-	prize.Position = UDim2.fromScale(0.5, math.min(y, 0.8))
+	if os.clock() < popUntil then
+		y = math.max(y, popBottom + GAP * 0.5)
+	end
+	prize.Position = UDim2.fromScale(0.5, math.min(y, 0.84))
 	prize.Visible = true
 	prizeScale.Scale = 0.6
 	TweenService:Create(prizeScale, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Scale = 1 })
@@ -987,6 +1023,12 @@ task.spawn(function()
 		if kind == "result" then
 			-- the race pay comes in the next second or two: show the goal after it
 			local before = lastGoal
+			-- a medal pop still up moves under the card (once the card has its size)
+			task.delay(0.1, function()
+				if os.clock() < popUntil then
+					placePop()
+				end
+			end)
 			task.delay(2.5, function()
 				showPrize(before)
 			end)
