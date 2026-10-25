@@ -62,7 +62,7 @@ local function makeMarker(x: number, z: number): Model
 	text.TextColor3 = Color3.fromRGB(30, 30, 34)
 	text.Font = Enum.Font.GothamBlack
 	text.TextScaled = true
-	text.Text = "◀ YOUR PLOT"
+	text.Text = "YOUR PLOT"
 	text.Parent = sign
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 12)
@@ -92,6 +92,7 @@ end
 function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 	local driving = false
 	local guide = PlotGuide.new(building)
+	local refreshDrive: () -> ()
 
 	-- a big dark button at the bottom, between the steer stick zone (left half) and BRAKE, above
 	-- the PC key help line
@@ -119,9 +120,18 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 	end
 	local gui, button = bigButton("Walk", "WALK (E)")
 	gui.Name = "LobbyGui"
-	local driveGui, driveButton = bigButton("Drive", "DRIVE (E)")
-	driveButton.BackgroundColor3 = Color3.fromRGB(230, 180, 30)
-	driveButton.TextColor3 = Color3.fromRGB(30, 30, 34)
+	local driveGui, driveButton = bigButton("Drive", "DRIVE")
+	-- a thumb-size button on a phone; long names (MIA - LOCKED) shrink to fit
+	driveButton.TextScaled = true
+	local fit = Instance.new("UITextSizeConstraint")
+	fit.MaxTextSize = 26
+	fit.Parent = driveButton
+	local inset = Instance.new("UIPadding")
+	inset.PaddingLeft = UDim.new(0, 8)
+	inset.PaddingRight = UDim.new(0, 8)
+	inset.Parent = driveButton
+	local DRIVE_ON = Color3.fromRGB(230, 180, 30)
+	local DRIVE_OFF = Color3.fromRGB(70, 70, 78)
 
 	-- FRIENDS: ON / OFF for the plot you own (the server says which one, and its state)
 	local friendsGui, friendsButton = bigButton("Friends", "FRIENDS: OFF")
@@ -150,6 +160,57 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 			remote:FireServer("open", not friendsOn)
 		end
 	end)
+	-- DRIVE button: shown while a pad's prompt is; it says DRIVE only on a plot you may drive,
+	-- else BUSY or whose it is + LOCKED (and a tap does nothing)
+	local shown: ProximityPrompt? = nil
+	local mayDrive = false
+	local function plotOf(p: ProximityPrompt): Instance?
+		local slot = p:GetAttribute("Slot")
+		local s = type(slot) == "number" and LobbyLayout.slots()[slot]
+		local plots = workspace:FindFirstChild("Plots")
+		return if s and plots then plots:FindFirstChild(slot .. "_" .. s.id) else nil
+	end
+	refreshDrive = function()
+		local p = shown
+		local plot = p and plotOf(p)
+		if not plot then
+			mayDrive = true
+		else
+			local ownerId = plot:GetAttribute("OwnerId")
+			local ownerName = plot:GetAttribute("OwnerName")
+			local driverId = plot:GetAttribute("DriverId")
+			mayDrive, driveButton.Text = LobbyLayout.padButton(
+				if type(ownerId) == "number" then ownerId else 0,
+				if type(ownerName) == "string" then ownerName else "",
+				if type(driverId) == "number" then driverId else 0,
+				plot:GetAttribute("Open") == true,
+				Players.LocalPlayer.UserId
+			)
+		end
+		if mayDrive then
+			driveButton.Text = "DRIVE"
+		end
+		driveButton.BackgroundColor3 = if mayDrive then DRIVE_ON else DRIVE_OFF
+		driveButton.TextColor3 = if mayDrive
+			then Color3.fromRGB(30, 30, 34)
+			else Color3.new(1, 1, 1)
+		driveButton.AutoButtonColor = mayDrive
+	end
+	-- the plot's owner, driver or FRIENDS can change while you stand there
+	local watching: { RBXScriptConnection } = {}
+	local function watch(p: ProximityPrompt?)
+		for _, c in watching do
+			c:Disconnect()
+		end
+		table.clear(watching)
+		local plot = p and plotOf(p)
+		if plot then
+			for _, name in { "OwnerId", "OwnerName", "DriverId", "Open" } do
+				table.insert(watching, plot:GetAttributeChangedSignal(name):Connect(refreshDrive))
+			end
+		end
+	end
+
 	remote.OnClientEvent:Connect(function(kind: unknown, slot: unknown, open: unknown)
 		if kind == "own" and type(slot) == "number" and type(open) == "boolean" then
 			local s = LobbyLayout.slots()[slot]
@@ -163,12 +224,9 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 			friendsOn = open
 			guide.setSlot(slot)
 			showFriends()
-		elseif kind == "closed" then
-			-- not your plot and not open (or someone is on it): say so on the DRIVE button
-			driveButton.Text = "NOT OPEN"
-			task.delay(1.5, function()
-				driveButton.Text = "DRIVE (E)"
-			end)
+		elseif kind == "closed" and shown then
+			-- the server said no after all (it changed as you tapped): show why
+			refreshDrive()
 		end
 	end)
 
@@ -201,24 +259,26 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 		end
 	end)
 
-	-- DRIVE button: shown while a pad's prompt is (the prompt still checks everything); a tap
-	-- presses that prompt, so the server sees the same request as E
-	local shown: ProximityPrompt? = nil
+	-- (the server still checks everything); a tap presses that prompt, so the server sees the
+	-- same request as E
 	ProximityPromptService.PromptShown:Connect(function(p: ProximityPrompt)
 		if CollectionService:HasTag(p, "DrivePrompt") then
 			shown = p
+			watch(p)
+			refreshDrive()
 			driveGui.Enabled = not driving
 		end
 	end)
 	ProximityPromptService.PromptHidden:Connect(function(p: ProximityPrompt)
 		if p == shown then
 			shown = nil
+			watch(nil)
 			driveGui.Enabled = false
 		end
 	end)
 	driveButton.Activated:Connect(function()
 		local p = shown
-		if p and not driving then
+		if p and not driving and mayDrive then
 			p:InputHoldBegin()
 			p:InputHoldEnd()
 		end

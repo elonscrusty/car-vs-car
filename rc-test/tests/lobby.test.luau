@@ -201,3 +201,21 @@ test("claim order: race plots first (you build on them), every plot once", funct
 	end
 	eq(slots[order[1]].id, "race")
 end)
+
+test("a pad's DRIVE button: DRIVE when you may, BUSY, or whose it is and LOCKED", function()
+	local ok, text = L.padButton(0, "", 0, false, 7)
+	eq(ok, true)
+	eq(text, "DRIVE") -- nobody's plot
+	ok, text = L.padButton(7, "me", 0, false, 7)
+	eq(text, "DRIVE") -- mine
+	ok, text = L.padButton(9, "mia", 0, true, 7)
+	eq(text, "DRIVE") -- open to friends
+	ok, text = L.padButton(9, "mia", 0, false, 7)
+	eq(ok, false)
+	eq(text, "MIA - LOCKED")
+	ok, text = L.padButton(9, "mia", 9, true, 7)
+	eq(ok, false)
+	eq(text, "BUSY")
+	ok, text = L.padButton(7, "me", 7, false, 7)
+	eq(ok, true) -- my own drive still going
+end)

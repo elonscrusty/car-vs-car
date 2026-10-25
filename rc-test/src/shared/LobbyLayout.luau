@@ -263,6 +263,26 @@ function LobbyLayout.canDrive(owner: number?, me: number, open: boolean, busy: b
 	return owner == nil or owner == me or open
 end
 
+-- What a pad's DRIVE button says to me (UserIds; 0 = nobody): DRIVE when I may drive that
+-- plot, BUSY when someone else is driving it, else whose it is and LOCKED.
+function LobbyLayout.padButton(
+	ownerId: number,
+	ownerName: string,
+	driverId: number,
+	open: boolean,
+	me: number
+): (boolean, string)
+	local owner = if ownerId ~= 0 then ownerId else nil
+	local busy = driverId ~= 0 and driverId ~= me
+	if LobbyLayout.canDrive(owner, me, open, busy) then
+		return true, "DRIVE"
+	elseif busy then
+		return false, "BUSY"
+	end
+	local who = if ownerName ~= "" then string.upper(ownerName) else "SOMEONE"
+	return false, who .. " - LOCKED"
+end
+
 -- Close enough to the pad to start driving? (flat distance)
 function LobbyLayout.inReach(slot: Slot, x: number, z: number): boolean
 	local dx, dz = x - slot.padX, z - slot.padZ
