@@ -570,6 +570,7 @@ local function showDaily(coins: number, streak: number, boost: number)
 		local prizeCard = pg:FindFirstChild("RacePrize", true)
 		return me:GetAttribute("HasDriven") == true
 			and me:GetAttribute("Driving") ~= true
+			and me:GetAttribute("Building") ~= true -- (it hid behind the build screen, tour 2)
 			and not (race and race:GetAttribute("Busy") == true)
 			and not (prizeCard and (prizeCard :: GuiObject).Visible)
 	end
@@ -852,7 +853,7 @@ local prize = Instance.new("Frame")
 prize.Name = "RacePrize"
 prize.AnchorPoint = Vector2.new(0.5, 0)
 prize.Position = UDim2.fromScale(0.5, 0.64)
-prize.Size = UDim2.fromScale(0.46, 0.2)
+prize.Size = UDim2.fromScale(0.4, 0.16)
 prize.BackgroundColor3 = Color3.fromRGB(30, 32, 44)
 prize.BackgroundTransparency = 0.08
 prize.Visible = false
@@ -892,18 +893,15 @@ local function showPrize(before: any)
 			and g.kind ~= "grid"
 		then g.have - before.have
 		else 0
-	if gained > 0 then
-		prizeTitle.Text = `+{gained} coins!`
-		prizeTitle.TextColor3 = GOLD
-		prizeRim.Color = GOLD
-	else
-		prizeTitle.Text = "race again to win coins!"
-		prizeTitle.TextColor3 = Color3.new(1, 1, 1)
-		prizeRim.Color = Color3.fromRGB(120, 120, 130)
+	-- one coin number only (the result row has it): this card is what the coins are FOR
+	if tilesFree() and g.kind == "tile" then
+		return
 	end
 	local what, how, fill = goalText(g)
-	prizeGoal.Text = if tilesFree() and g.kind == "tile" then "" else `{what}   {how}`
-	prizeBar.Visible = prizeGoal.Text ~= ""
+	prizeTitle.Text = what
+	prizeTitle.TextColor3 = GOLD
+	prizeRim.Color = if gained > 0 or g.ready then GOLD else Color3.fromRGB(120, 120, 130)
+	prizeGoal.Text = how
 	prizeGoal.TextColor3 = if g.ready then GREEN else Color3.new(1, 1, 1)
 	local f = prizeBar:FindFirstChild("Fill") :: Frame
 	f.BackgroundColor3 = if g.ready then GREEN else GOLD
