@@ -148,6 +148,7 @@ remote.OnServerInvoke = function(player: Player, action: unknown, id: unknown): 
 	elseif action == "buyTile" then
 		local ok, why = TileShop.buy(data, id)
 		if ok then
+			Jobs.fire(player, "newTile")
 			PlayerData.touch(player)
 			showCoins(player, data.coins)
 		end
@@ -157,6 +158,9 @@ remote.OnServerInvoke = function(player: Player, action: unknown, id: unknown): 
 	elseif action == "spinTile" then
 		local tile, new = TileShop.spin(data, math.random() * 100)
 		if tile then
+			if new then
+				Jobs.fire(player, "newTile")
+			end
 			PlayerData.touch(player)
 			showCoins(player, data.coins)
 		end

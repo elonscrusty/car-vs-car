@@ -267,6 +267,7 @@ local function giveStars(player: Player, n: number)
 		return
 	end
 	PlayerData.touch(player)
+	Jobs.fire(player, "stars", n)
 	player:SetAttribute("Stars", data.stars)
 	local stars = ReplicatedStorage:FindFirstChild("StarsEvent")
 	if stars and stars:IsA("RemoteEvent") then
@@ -300,6 +301,9 @@ local function payRace(
 				Jobs.fire(p, "raceDone")
 				if place <= 3 then
 					Jobs.fire(p, "raceTop3")
+				end
+				if place == 1 then
+					Jobs.fire(p, "raceWin")
 				end
 			end
 			local n = ServerRace.starsFor(place, done, #ranked)

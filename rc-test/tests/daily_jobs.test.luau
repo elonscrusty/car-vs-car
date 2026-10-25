@@ -1,5 +1,5 @@
 --!strict
--- Carter's daily jobs: 3 a day, one per kind of plot, paid once, new each day.
+-- Carter's daily jobs: 3 a day (your track, the server race, collecting), paid once, new each day.
 local H = require("./harness")
 local DailyJobs = require("../src/shared/DailyJobs")
 local Profile = require("../src/shared/Profile")
@@ -8,7 +8,7 @@ local test, eq, truthy = H.test, H.eq, H.truthy
 
 print("DailyJobs")
 
-test("3 jobs a day: one drift, one race, one rock", function()
+test("3 jobs a day: your track, the server race, collecting", function()
 	for day = 20000, 20010 do
 		for _, uid in { 1, 77, 123456789, -1 } do
 			local list = DailyJobs.list(day, uid)
@@ -103,4 +103,18 @@ test("jobs: no rock-climb jobs (rock plots are gone), the loop pool pays 30-50",
 	end
 	DailyJobs.add(d, 1, 10, DailyJobs.list(10, 1)[3].event, 10)
 	truthy(d.coins > 0)
+end)
+
+test("jobs: a new kid playing alone can do every job (no friends, no drift spots)", function()
+	for _, pool in DailyJobs.POOLS do
+		for _, j in pool do
+			truthy(DailyJobs.EVENTS[j.event] ~= nil, `{j.id}: event {j.event} is not sent`)
+			for _, bad in
+				{ "beat", "medal", "touch", "slide500", "slide1500", "flag2", "flag3", "climb" }
+			do
+				truthy(j.event ~= bad, `{j.id}: {bad} can't be done alone`)
+			end
+			truthy(j.goal >= 1 and j.goal <= 8, `{j.id}: goal {j.goal}`)
+		end
+	end
 end)

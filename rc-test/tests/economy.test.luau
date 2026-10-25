@@ -10,6 +10,7 @@ local Profile = require("../src/shared/Profile")
 local Rewards = require("../src/shared/Rewards")
 local ServerRace = require("../src/shared/ServerRace")
 local TileShop = require("../src/shared/TileShop")
+local TrackTiles = require("../src/shared/TrackTiles")
 
 local test, truthy = H.test, H.truthy
 
@@ -177,3 +178,42 @@ test(
 		end
 	end
 )
+
+-- Stars side: when each player's stars open the bumps tile, reach 3 stars, and grow the track
+-- grid (TrackTiles.SIZES) / open cones (10). Runs 2 hours (stars come slower than coins).
+local function starTimes(p: Player): { [number]: number }
+	local d: any = Profile.new()
+	local at: { [number]: number } = {}
+	local marks = { TileShop.UNLOCK_STARS.bumps, 3, TrackTiles.SIZES[2].stars }
+	for k = 1, math.floor(120 * 60 / CYCLE) do
+		local place = p.places[(k - 1) % #p.places + 1]
+		Profile.addRaceStars(d, ServerRace.starsFor(place, true, p.racers))
+		for _, m in marks do
+			if at[m] == nil and d.stars >= m then
+				at[m] = k * CYCLE
+			end
+		end
+	end
+	local function show(m: number): string
+		return if at[m]
+			then `{minutes(at[m])} min (race {math.floor(at[m] / CYCLE + 0.5)})`
+			else "over 2 h"
+	end
+	print(
+		`  {p.name}: bumps ({marks[1]}★) {show(marks[1])} · 3★ {show(3)} · bigger grid + cones ({marks[3]}★) {show(
+			marks[3]
+		)}`
+	)
+	return at
+end
+
+test("stars: every player opens bumps after race 1 and grows the grid within ~75 min", function()
+	for _, p in { SOLO, MID, LAST } do
+		local at = starTimes(p)
+		local bumps = TileShop.UNLOCK_STARS.bumps
+		truthy((at[bumps] or math.huge) <= CYCLE, `{p.name}: bumps not open after race 1`)
+		truthy((at[3] or math.huge) <= 3 * CYCLE, `{p.name}: 3 stars later than race 3`)
+		local grid = TrackTiles.SIZES[2].stars
+		truthy((at[grid] or math.huge) <= 75 * 60, `{p.name}: bigger grid after 75 min`)
+	end
+end)
