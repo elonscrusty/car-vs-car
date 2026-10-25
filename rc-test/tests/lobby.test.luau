@@ -221,3 +221,46 @@ test("a pad's DRIVE button: DRIVE when you may, BUSY, or whose it is and LOCKED"
 	ok, text = L.padButton(7, "me", 7, false, 7)
 	eq(ok, true) -- my own drive still going
 end)
+
+test("star boards: the pad sees the whole board clear of the gate posts, both sides", function()
+	local PlotDecor = require("../src/shared/PlotDecor")
+	local post = PlotDecor.GATE + 0.8 -- the arch posts: this far along the road from the plot middle
+	for _, s in L.slots() do
+		local side = if s.padX < 0 then -1 else 1
+		local c, face = L.board(s)
+		-- the board's two ends: across its facing
+		local fx, fz = face.x - c.x, face.z - c.z
+		local len = math.sqrt(fx * fx + fz * fz)
+		local ax, az = -fz / len, fx / len
+		local ends = {
+			{ x = c.x, z = c.z },
+			{ x = c.x + ax * L.BOARD_W / 2, z = c.z + az * L.BOARD_W / 2 },
+			{ x = c.x - ax * L.BOARD_W / 2, z = c.z - az * L.BOARD_W / 2 },
+		}
+		for _, e in ends do
+			-- in front of the plot, not over the middle of the road
+			truthy(side * e.x < L.EDGE, `slot {s.index}: board end inside the plot`)
+			truthy(side * e.x > 2, `slot {s.index}: board over the middle of the road`)
+			-- from the pad to this end: never through a post (with a little room)
+			for k = 0, 100 do
+				local t = k / 100
+				local x = s.padX + (e.x - s.padX) * t
+				local z = s.padZ + (e.z - s.padZ) * t
+				local inPost = side * x > L.EDGE - 1.2
+					and side * x < L.EDGE + 1.2
+					and math.abs(math.abs(z - s.plotZ) - post) < 1.2
+				truthy(not inPost, `slot {s.index}: a gate post hides the board from the pad`)
+			end
+		end
+		-- the pad faces it: in front (down the road), about 15-25 studs away
+		local d = math.sqrt((c.x - s.padX) ^ 2 + (c.z - s.padZ) ^ 2)
+		truthy(d > 12 and d < 26, `slot {s.index}: board {d} studs from the pad`)
+		-- clear of the lamps
+		for _, lamp in L.lamps() do
+			truthy(
+				math.abs(lamp.z - c.z) > L.BOARD_W / 2 + 1 or lamp.x * side < 0,
+				"lamp in the board"
+			)
+		end
+	end
+end)
