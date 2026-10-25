@@ -61,7 +61,7 @@ end
 
 local openBtn = text("TextButton", hudGui, "LOOKS", Color3.new(1, 1, 1)) :: TextButton
 openBtn.Name = "Looks"
-HudLayout.place(openBtn, "Looks") -- beside RIVALS
+HudLayout.place(openBtn, "Looks") -- right of RIVALS, under the coins
 openBtn.BackgroundColor3 = Color3.fromRGB(176, 70, 255)
 openBtn.BackgroundTransparency = 0.15
 openBtn.Visible = false
