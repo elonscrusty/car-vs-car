@@ -268,6 +268,18 @@ local function strayOf(list: unknown): { [string]: boolean }?
 	return out
 end
 
+-- the server's {c, r}: the square a new player should swap first
+local function hintOf(h: unknown): { number }?
+	if type(h) ~= "table" then
+		return nil
+	end
+	local c, r = (h :: any)[1], (h :: any)[2]
+	if type(c) == "number" and type(r) == "number" then
+		return { c, r }
+	end
+	return nil
+end
+
 local function push()
 	if last == nil then
 		return
@@ -284,6 +296,7 @@ local function push()
 		why = if type(last.why) == "string" then last.why else nil,
 		secondsLeft = endsAt() - now(),
 		kind = if last.kind == "drift" then "drift" else "race",
+		hint = hintOf(last.hint),
 	})
 end
 

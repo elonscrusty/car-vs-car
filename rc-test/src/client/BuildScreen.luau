@@ -43,6 +43,7 @@ export type State = {
 	why: string?, -- when not ready: "Road has a gap"
 	secondsLeft: number,
 	kind: string?, -- "race" | "drift": what the whole server does on this plot (default race)
+	hint: { number }?, -- {c, r}: the square a new player should swap first (glows until they do)
 }
 export type Options = {
 	onDrop: (c: number, r: number, piece: string) -> (), -- swap in, turned to fit
@@ -417,6 +418,30 @@ function BuildScreen.new(opts: Options): BuildScreen
 				{ BackgroundTransparency = 0.5 }
 			):Play()
 		end
+		-- first build: a pulsing ring on the square to swap first (the hand points at it too)
+		local hint = state.hint
+		if hint and not taught and not erasing then
+			local hx, hy = BuildLayout.cellPos(layout, hint[1], hint[2], state.rows)
+			local glow = Instance.new("Frame")
+			glow.Name = "Hint"
+			glow.Position = UDim2.fromOffset(hx, hy)
+			glow.Size = UDim2.fromOffset(layout.cell, layout.cell)
+			glow.BackgroundColor3 = YELLOW
+			glow.BackgroundTransparency = 0.75
+			glow.ZIndex = 6
+			glow.Parent = tiles
+			local ring = rim(glow, YELLOW, 4)
+			TweenService:Create(
+				glow,
+				TweenInfo.new(0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+				{ BackgroundTransparency = 0.95 }
+			):Play()
+			TweenService:Create(
+				ring,
+				TweenInfo.new(0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+				{ Transparency = 0.6 }
+			):Play()
+		end
 		for r = 1, state.rows do
 			for c = 1, state.cols do
 				local f = square(tiles, c, r)
@@ -698,7 +723,16 @@ function BuildScreen.new(opts: Options): BuildScreen
 		local u = math.clamp(t, 0, 1)
 		u = u * u * (3 - 2 * u)
 		local from = first.AbsolutePosition + first.AbsoluteSize / 2
+		-- to the glowing square when there is one, else the middle of the grid
 		local to = Vector2.new(layout.grid.x + layout.grid.w / 2, layout.grid.y + layout.grid.h / 2)
+		local hint = state.hint
+		if hint then
+			local hx, hy = BuildLayout.cellPos(layout, hint[1], hint[2], state.rows)
+			to = Vector2.new(
+				layout.grid.x + hx + layout.cell / 2,
+				layout.grid.y + hy + layout.cell / 2
+			)
+		end
 		local at = from:Lerp(to, u)
 		hand.Position = UDim2.fromOffset(at.X, at.Y)
 		hand.TextTransparency = if t > 1 then 0.5 else 0
