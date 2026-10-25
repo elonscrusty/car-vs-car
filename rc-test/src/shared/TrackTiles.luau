@@ -704,7 +704,9 @@ end
 local ROAD_COLOR = rgb(52, 52, 58)
 local GRASS_COLOR = rgb(86, 150, 70)
 local BOOST_COLOR = rgb(255, 200, 40)
-local OIL_COLOR = rgb(20, 20, 26)
+local OIL_COLOR = rgb(48, 24, 72) -- purple-black, so it shows on the dark road
+-- the jump ramp is orange so it never reads as one strip with a yellow boost pad next to it
+local JUMP_COLOR = rgb(240, 100, 40)
 
 -- Points along one path of a placed tile (world = plot-local), every SPACING or so, both ends.
 local function pathPoints(grid: Grid, t: Tile, pth: Path): { Kit.Pt }
@@ -726,7 +728,7 @@ local SURFACES: { [string]: { name: string, color: Color3, grip: number, drag: n
 	{
 		boost = { name = "BoostPad", color = BOOST_COLOR, grip = 1, mat = "Neon" },
 		oil = { name = "OilPatch", color = OIL_COLOR, grip = 0.35, mat = "Glass" },
-		mud = { name = "MudPatch", color = rgb(110, 78, 46), grip = 0.6, drag = 0.8, mat = "Mud" },
+		mud = { name = "MudPatch", color = rgb(135, 85, 40), grip = 0.6, drag = 0.8, mat = "Mud" },
 		puddle = { name = "Puddle", color = rgb(70, 140, 210), grip = 0.5, mat = "Glass" },
 		sand = {
 			name = "SandPatch",
@@ -784,8 +786,8 @@ local function buildExtras(parent: Instance, origin: CFrame, grid: Grid, t: Tile
 		local h, w = 14, ROAD - 4
 		local a, peak = at(0, 0, -0.5).Position, at(0, h, 0).Position
 		local d2 = at(0, 0, 0.5).Position
-		Kit.ramp(parent, "JumpRamp", origin, a, peak, w, BOOST_COLOR):SetAttribute("Grip", 1)
-		Kit.ramp(parent, "JumpRamp", origin, d2, peak, w, BOOST_COLOR):SetAttribute("Grip", 1)
+		Kit.ramp(parent, "JumpRamp", origin, a, peak, w, JUMP_COLOR):SetAttribute("Grip", 1)
+		Kit.ramp(parent, "JumpRamp", origin, d2, peak, w, JUMP_COLOR):SetAttribute("Grip", 1)
 	elseif id == "cones" then
 		for i, sp in { { -0.13, -0.3 }, { 0.13, -0.1 }, { -0.13, 0.1 }, { 0.13, 0.3 } } do
 			solid("Cone", Vector3.new(3, 4, 3), at(sp[1], 2, sp[2]), Kit.COLORS.orange).Name = "Cone"

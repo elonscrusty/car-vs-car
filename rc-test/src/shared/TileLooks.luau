@@ -67,10 +67,10 @@ local BUSH = { 76, 160, 70 }
 local BUSH2 = { 100, 186, 80 }
 local TYRE = { 34, 34, 38 }
 local BOOST = { 60, 220, 255 }
-local OIL = { 16, 16, 22 }
+local OIL = { 30, 14, 48 } -- purple-black: reads apart from the road
 local ORANGE = { 255, 130, 30 }
 local BLUE = { 40, 110, 220 }
-local MUD = { 110, 78, 46 }
+local MUD = { 135, 85, 40 }
 local SAND = { 222, 196, 130 }
 local WATER = { 70, 140, 210 }
 
@@ -275,7 +275,13 @@ function TileLooks.parts(id: string, cell: number?): { Piece }
 				collide = false,
 			})
 		end
-		for _, d in { { -4, 1, 5, { 150, 90, 255 } }, { 5, -4, 4, { 70, 200, 230 } } } do
+		for _, d in
+			{
+				{ -4, 1, 8, { 190, 90, 255 } },
+				{ 5, -4, 6, { 70, 220, 240 } },
+				{ 0, 6, 5, { 120, 240, 120 } },
+			}
+		do
 			add(
 				G,
 				"OilSheen",
@@ -327,13 +333,14 @@ function TileLooks.parts(id: string, cell: number?): { Piece }
 		-- skins over TrackTiles' cone colliders (3 x 4 x 3 at these u / v spots): striped cones
 		for _, sp in { { -0.13, -0.3 }, { 0.13, -0.1 }, { -0.13, 0.1 }, { 0.13, 0.3 } } do
 			local x, z = sp[1] * C, -sp[2] * C
-			add(G, "SkinConeBase", v(3.2, 0.4, 3.2), v(x, 0.2, z), DARK, noHit)
+			-- a bright square painted under it, so it shows from the top-down camera too
+			add(G, "ConePaint", v(6, TileLooks.PAINT, 6), v(x, paintY, z), ORANGE, paint)
 			for i, c in { { 2.8, ORANGE }, { 2.1, WHITE }, { 1.4, ORANGE } } do
 				add(
 					G,
 					"SkinCone",
 					v(1.2, c[1] :: number, c[1] :: number),
-					v(x, 0.4 + (i - 0.5) * 1.2, z),
+					v(x, 0.1 + (i - 0.5) * 1.2, z),
 					c[2] :: { number },
 					{
 						shape = "Cylinder",
@@ -348,6 +355,7 @@ function TileLooks.parts(id: string, cell: number?): { Piece }
 		-- skins over the two 12 x 5 x 6 barrel blocks: two red drums each, white bands
 		for _, sp in { { -0.15, -0.2 }, { 0.15, 0.2 } } do
 			local x, z = sp[1] * C, -sp[2] * C
+			add(G, "DrumPaint", v(15, TileLooks.PAINT, 9), v(x, paintY, z), WHITE, paint)
 			for _, dx in { -3, 3 } do
 				add(G, "SkinDrum", v(5, 6, 6), v(x + dx, 2.5, z), RED, {
 					shape = "Cylinder",
@@ -407,8 +415,9 @@ function TileLooks.parts(id: string, cell: number?): { Piece }
 				noHit
 			)
 		end
+		add(G, "SkinIslandTop", v(8, 0.1, len - 0.2), v(0, 2.05, 0), YELLOW, noHit)
 		bush(0, len / 2 - 4)
-		add(G, "SplitPost", v(0.5, 4, 0.5), v(0, 4, -len / 2 + 4), DARK, noHit)
+		add(G, "SplitPost", v(0.5, 4, 0.5), v(0, 4, -len / 2 + 4), YELLOW, noHit)
 		add(G, "SplitSign", v(3, 3, 0.3), v(0, 6.6, -len / 2 + 4), BLUE, {
 			shape = "Cylinder",
 			rot = v(0, 90, 0),
@@ -437,7 +446,7 @@ function TileLooks.parts(id: string, cell: number?): { Piece }
 		end
 		for _, z in { -C * 0.45, C * 0.45 } do
 			for _, s in { -1, 1 } do
-				add(G, "JumpArrow", v(6, TileLooks.PAINT, 1), v(s * 2.2, paintY, z), YELLOW, {
+				add(G, "JumpArrow", v(6, TileLooks.PAINT, 1), v(s * 2.2, paintY, z), WHITE, {
 					rot = v(0, s * (if z > 0 then 30 else -30), 0),
 					collide = false,
 				})
