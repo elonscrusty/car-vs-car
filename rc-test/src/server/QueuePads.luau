@@ -48,6 +48,7 @@ end
 function QueuePads.start(hooks: Hooks)
 	local CollectionService = game:GetService("CollectionService")
 	local Players = game:GetService("Players")
+	local Forever = require(game:GetService("ReplicatedStorage").Shared.Forever) :: any
 
 	local timers: { [Player]: Timer } = {}
 	Players.PlayerRemoving:Connect(function(player)
@@ -59,46 +60,48 @@ function QueuePads.start(hooks: Hooks)
 		while true do
 			task.wait(QueuePads.STEP)
 			blink = not blink
-			local now = os.clock()
-			local pads = CollectionService:GetTagged("QueuePad")
-			local busy: { [Instance]: boolean } = {}
-			for _, player in Players:GetPlayers() do
-				local char = player.Character
-				local root = char and char:FindFirstChild("HumanoidRootPart")
-				local kind: string? = nil
-				local onPad: BasePart? = nil
-				if root and root:IsA("BasePart") and not root.Anchored then
-					for _, pad in pads do
-						local plotType = pad:GetAttribute("PlotType")
-						if
-							pad:IsA("BasePart")
-							and type(plotType) == "string"
-							and QueuePads.over(pad.CFrame, pad.Size, root.Position)
-						then
-							kind, onPad = plotType, pad
-							break
+			Forever.step("QueuePads", function()
+				local now = os.clock()
+				local pads = CollectionService:GetTagged("QueuePad")
+				local busy: { [Instance]: boolean } = {}
+				for _, player in Players:GetPlayers() do
+					local char = player.Character
+					local root = char and char:FindFirstChild("HumanoidRootPart")
+					local kind: string? = nil
+					local onPad: BasePart? = nil
+					if root and root:IsA("BasePart") and not root.Anchored then
+						for _, pad in pads do
+							local plotType = pad:GetAttribute("PlotType")
+							if
+								pad:IsA("BasePart")
+								and type(plotType) == "string"
+								and QueuePads.over(pad.CFrame, pad.Size, root.Position)
+							then
+								kind, onPad = plotType, pad
+								break
+							end
 						end
 					end
-				end
-				if onPad then
-					busy[onPad] = true
-				end
-				if kind and QueuePads.tick(timers, player, kind, now) then
-					local slot = hooks.findOpen(kind, player)
-					if slot then
-						hooks.sendTo(player, slot)
+					if onPad then
+						busy[onPad] = true
 					end
-				elseif kind == nil then
-					QueuePads.tick(timers, player, nil, now)
+					if kind and QueuePads.tick(timers, player, kind, now) then
+						local slot = hooks.findOpen(kind, player)
+						if slot then
+							hooks.sendTo(player, slot)
+						end
+					elseif kind == nil then
+						QueuePads.tick(timers, player, nil, now)
+					end
 				end
-			end
-			-- the rim blinks while someone waits on that pad
-			for _, pad in pads do
-				local rim = pad.Parent and pad.Parent:FindFirstChild("Rim")
-				if rim and rim:IsA("BasePart") then
-					rim.Transparency = if busy[pad] and blink then 0.6 else 0
+				-- the rim blinks while someone waits on that pad
+				for _, pad in pads do
+					local rim = pad.Parent and pad.Parent:FindFirstChild("Rim")
+					if rim and rim:IsA("BasePart") then
+						rim.Transparency = if busy[pad] and blink then 0.6 else 0
+					end
 				end
-			end
+			end)
 		end
 	end)
 end

@@ -8,6 +8,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
+local Forever = require(ReplicatedStorage.Shared.Forever)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local CarBuilder = require(script.Parent.CarBuilder)
 local LobbyBuilder = require(script.Parent.LobbyBuilder)
@@ -274,15 +275,22 @@ local FALL_Y = -25
 task.spawn(function()
 	while true do
 		task.wait(0.25)
-		for _, player in Players:GetPlayers() do
-			local root = rootOf(player)
-			if root and root.Position.Y < FALL_Y and LobbyPlots.drivingOf(player) == nil then
-				root.AssemblyLinearVelocity = Vector3.zero
-				root.AssemblyAngularVelocity = Vector3.zero
-				local char = player.Character :: Model
-				char:PivotTo(homeOf(player))
+		Forever.step("FallWatch", function()
+			for _, player in Players:GetPlayers() do
+				local root = rootOf(player)
+				local char = player.Character
+				if
+					root
+					and char
+					and root.Position.Y < FALL_Y
+					and LobbyPlots.drivingOf(player) == nil
+				then
+					root.AssemblyLinearVelocity = Vector3.zero
+					root.AssemblyAngularVelocity = Vector3.zero
+					char:PivotTo(homeOf(player))
+				end
 			end
-		end
+		end)
 	end
 end)
 

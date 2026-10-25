@@ -13,6 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
+local Forever = require(ReplicatedStorage.Shared.Forever)
 local LapTimer = require(ReplicatedStorage.Shared.LapTimer)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
@@ -623,42 +624,44 @@ function ServerRaceRunner.start(hooks: Hooks)
 	task.spawn(function()
 		while true do
 			task.wait(0.25)
-			-- Studio test: workspace:SetAttribute("ServerRaceSoon", true) = a race in 20 s
-			if RunService:IsStudio() and workspace:GetAttribute("ServerRaceSoon") then
-				workspace:SetAttribute("ServerRaceSoon", nil)
-				if phase ~= "racing" then
-					startAt = now() + 20
-					phase = "wait"
-					sendState()
-				end
-			end
-			local left = startAt - now()
-			for _, sign in signs do
-				sign.Text = ServerRace.signText(left, phase == "racing", where)
-			end
-			if phase == "wait" and left <= ServerRace.CALL then
-				phase = "call"
-				picked = pickSlot()
-				where = if picked then nameOf(picked) else ""
-				sendState()
-			elseif phase == "call" and left <= 0 then
-				local slot = picked
-				if slot == nil or #Players:GetPlayers() == 0 then
-					-- no plot can hold it (or nobody here): next break
-					phase, picked, where = "wait", nil, ""
-					startAt = now() + ServerRace.BREAK
-					sendState()
-				else
-					local ok, err = pcall(runRace, hooks, slot)
-					if not ok then
-						warn("server race: " .. tostring(err))
-						workspace:SetAttribute("RaceSlot", 0)
-						phase, picked, where = "wait", nil, ""
-						startAt = now() + ServerRace.BREAK
+			Forever.step("ServerRace", function()
+				-- Studio test: workspace:SetAttribute("ServerRaceSoon", true) = a race in 20 s
+				if RunService:IsStudio() and workspace:GetAttribute("ServerRaceSoon") then
+					workspace:SetAttribute("ServerRaceSoon", nil)
+					if phase ~= "racing" then
+						startAt = now() + 20
+						phase = "wait"
 						sendState()
 					end
 				end
-			end
+				local left = startAt - now()
+				for _, sign in signs do
+					sign.Text = ServerRace.signText(left, phase == "racing", where)
+				end
+				if phase == "wait" and left <= ServerRace.CALL then
+					phase = "call"
+					picked = pickSlot()
+					where = if picked then nameOf(picked) else ""
+					sendState()
+				elseif phase == "call" and left <= 0 then
+					local slot = picked
+					if slot == nil or #Players:GetPlayers() == 0 then
+						-- no plot can hold it (or nobody here): next break
+						phase, picked, where = "wait", nil, ""
+						startAt = now() + ServerRace.BREAK
+						sendState()
+					else
+						local ok, err = pcall(runRace, hooks, slot)
+						if not ok then
+							warn("server race: " .. tostring(err))
+							workspace:SetAttribute("RaceSlot", 0)
+							phase, picked, where = "wait", nil, ""
+							startAt = now() + ServerRace.BREAK
+							sendState()
+						end
+					end
+				end
+			end)
 		end
 	end)
 end
