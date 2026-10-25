@@ -16,6 +16,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local TileShop = require(ReplicatedStorage.Shared.TileShop)
+local Jobs = require(script.Parent.Jobs)
 local PlayerData = require(script.Parent.PlayerData)
 
 local GAP = 0.3 -- seconds between calls from one player
@@ -99,6 +100,7 @@ remote.OnServerInvoke = function(player: Player, action: unknown, id: unknown): 
 		local ok, why = CarCatalog.buy(data, id)
 		if ok then
 			CarCatalog.equip(data, id) -- a new car: drive it straight away
+			Jobs.fire(player, "newCar")
 			PlayerData.touch(player)
 			showCoins(player, data.coins)
 			setAttributes(player, data)
@@ -120,6 +122,7 @@ remote.OnServerInvoke = function(player: Player, action: unknown, id: unknown): 
 		if car then
 			if new then
 				CarCatalog.equip(data, car.id) -- a new car: drive it straight away
+				Jobs.fire(player, "newCar")
 				setAttributes(player, data)
 			end
 			PlayerData.touch(player)

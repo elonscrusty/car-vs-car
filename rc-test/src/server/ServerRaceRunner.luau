@@ -19,6 +19,7 @@ local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local Profile = require(ReplicatedStorage.Shared.Profile)
 local RunCheck = require(ReplicatedStorage.Shared.RunCheck)
+local Jobs = require(script.Parent.Jobs)
 local LobbyPlots = require(script.Parent.LobbyPlots)
 local PlayerData = require(script.Parent.PlayerData)
 
@@ -295,6 +296,12 @@ local function payRace(
 			paid[p.UserId] = coins * Profile.boost(os.time())
 			local nth = ({ "1st", "2nd", "3rd" })[place] or `{place}th`
 			pay(p, coins, if place == 1 and done then "you WON!" else `{nth} place`)
+			if done then
+				Jobs.fire(p, "raceDone")
+				if place <= 3 then
+					Jobs.fire(p, "raceTop3")
+				end
+			end
 			local n = ServerRace.starsFor(place, done, #ranked)
 			starred[p.UserId] = n
 			giveStars(p, n)

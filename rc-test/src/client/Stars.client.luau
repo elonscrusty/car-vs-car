@@ -965,7 +965,7 @@ remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unkn
 		-- ("bolts", found, total, onRock)
 		local total = saving
 		boltChip.Text = `BOLTS {info}/{if type(total) == "number" then total else 5}`
-		boltChip.Visible = false -- rocks are gone (carter 2026-10-23): no BOLTS chip
+		boltChip.Visible = false -- no rock plots any more: bolts stay out of sight
 		return
 	end
 	if kind == "rivals" and type(info) == "table" then
