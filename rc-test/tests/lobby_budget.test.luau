@@ -23,7 +23,7 @@ local BUDGET = {
 	decor = 380, -- 331 (bunting, planters, flags, road paint, RC corners)
 	water = 250, -- 218 (docks, beach)
 	lake = 320, -- 278 (boats, shore)
-	plotDecor = 520, -- 452 (8 plots' arches and fences, gap steps)
+	plotDecor = 520, -- 452 (8 plots' arches and fences)
 	stands = 3800, -- 3360: all 8 plots showing every car there is (420 each; LobbyPerf takes their
 	-- shadows and collisions off)
 	hills = 2500, -- 2183 at most
@@ -31,7 +31,7 @@ local BUDGET = {
 local TOTAL = 8700 -- 7579 at most today
 
 local function counts(): { [string]: number }
-	local plotDecor = #PlotDecor.gapSteps()
+	local plotDecor = 0
 	for _, s in LobbyLayout.slots() do
 		plotDecor += #PlotDecor.parts(s.id)
 	end

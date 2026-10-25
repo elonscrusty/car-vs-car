@@ -218,7 +218,7 @@ end
 
 -- Trees in the grass gaps between plots on the same side: two rows, one near each plot's side
 -- wall, staggered from the footpath to the back, clear of the gap's flag and flower bed (at the
--- front) and the spectator steps (in the middle of the gap).
+-- front).
 LobbyLayout.TREE_DZ = 12 -- from the middle of the gap (its walls are GAP / 2 away)
 LobbyLayout.TREE_X = { 30, 52, 76, 100 } -- from the plot fronts, toward the back
 function LobbyLayout.trees(): { Spot }
