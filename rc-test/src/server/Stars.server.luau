@@ -553,8 +553,19 @@ local function onRun(player: Player, slotIndex: number, mode: string, value: num
 			end
 		end
 	end
-	-- the visit gift: driving someone else's plot pays you both, once per owner per day
 	local boost = Profile.boost(os.time()) -- double coins on weekends
+	-- a new player's first lap: their first coins, and the next part of the screen opens up
+	if
+		data
+		and (mode == "race" or (mode == "drift" and value >= 500)) -- (a lap, or a real slide)
+		and data.stage < Profile.STAGE.LAPPED
+		and PlayerData.raiseStage(player, Profile.STAGE.LAPPED)
+	then
+		data.coins += Profile.FIRST_LAP_COINS * boost
+		remote:FireClient(player, "coins", data.coins)
+		remote:FireClient(player, "toast", `+{Profile.FIRST_LAP_COINS * boost} coins: first lap!`)
+	end
+	-- the visit gift: driving someone else's plot pays you both, once per owner per day
 	if
 		data
 		and oid
@@ -845,6 +856,10 @@ end
 -- The daily gift, the first time each day (on join, or at midnight UTC if they're still here).
 -- The client shows the 7-day strip with ("daily", coins, days in a row, boost).
 local function dailyGift(player: Player, data: Profile.Data)
+	-- new players get it once they've bought their first car (one new thing at a time)
+	if data.stage < Profile.STAGE.SHOPPED then
+		return
+	end
 	local now = os.time()
 	local boost = Profile.boost(now)
 	local coins, streak = Profile.daily(data, Profile.day(now), boost)
@@ -914,6 +929,13 @@ Players.PlayerRemoving:Connect(function(player)
 	lastLike[player] = nil
 	onRock[player] = nil
 	task.defer(showAll)
+end)
+
+PlayerData.staged:Connect(function(player: Player, stage: number)
+	local data = PlayerData.get(player)
+	if data and stage >= Profile.STAGE.SHOPPED then
+		dailyGift(player, data)
+	end
 end)
 
 PlayerData.start()

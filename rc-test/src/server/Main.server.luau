@@ -344,6 +344,15 @@ local function walk(player: Player)
 	remote:FireClient(player, "walk")
 end
 
+-- The owner wants their own plot back: the visitor walks again and is told why.
+LobbyPlots.onBump = function(visitor: Player, _slotIndex: number)
+	walk(visitor)
+	local stars = ReplicatedStorage:FindFirstChild("StarsEvent")
+	if stars and stars:IsA("RemoteEvent") then
+		stars:FireClient(visitor, "toast", "OWNER'S TURN! TRY ANOTHER PLOT")
+	end
+end
+
 -- The server race every 15 minutes: everyone who joins races on one race plot.
 ServerRaceRunner.start({ remote = remote, walk = walk })
 

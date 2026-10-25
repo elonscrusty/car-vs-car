@@ -16,6 +16,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local TileShop = require(ReplicatedStorage.Shared.TileShop)
+local Profile = require(ReplicatedStorage.Shared.Profile)
 local Jobs = require(script.Parent.Jobs)
 local LobbyPlots = require(script.Parent.LobbyPlots)
 local PlayerData = require(script.Parent.PlayerData)
@@ -102,6 +103,7 @@ remote.OnServerInvoke = function(player: Player, action: unknown, id: unknown): 
 		if ok then
 			CarCatalog.equip(data, id) -- a new car: drive it straight away
 			Jobs.fire(player, "newCar")
+			PlayerData.raiseStage(player, Profile.STAGE.SHOPPED) -- first car: the rest of the screen opens
 			PlayerData.touch(player)
 			showCoins(player, data.coins)
 			setAttributes(player, data)
@@ -121,6 +123,7 @@ remote.OnServerInvoke = function(player: Player, action: unknown, id: unknown): 
 	elseif action == "spin" then
 		local car, new = CarCatalog.spin(data, math.random() * 100)
 		if car then
+			PlayerData.raiseStage(player, Profile.STAGE.SHOPPED) -- first car: the rest of the screen opens
 			if new then
 				CarCatalog.equip(data, car.id) -- a new car: drive it straight away
 				Jobs.fire(player, "newCar")

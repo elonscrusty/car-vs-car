@@ -303,7 +303,8 @@ function LobbyLayout.padButton(
 	me: number
 ): (boolean, string)
 	local owner = if ownerId ~= 0 then ownerId else nil
-	local busy = driverId ~= 0 and driverId ~= me
+	-- (a visitor on my own plot doesn't make it busy for me: the owner comes first)
+	local busy = driverId ~= 0 and driverId ~= me and ownerId ~= me
 	if LobbyLayout.canDrive(owner, me, open, busy) then
 		return true, "DRIVE"
 	elseif busy then

@@ -87,6 +87,29 @@ function PlayerData.touch(player: Player)
 	end
 end
 
+-- `staged` (player, stage): a player moved up a stage (Profile.STAGE).
+type StageListener = (Player, number) -> ()
+local stageListeners: { StageListener } = {}
+PlayerData.staged = {
+	Connect = function(_self: any, fn: StageListener)
+		table.insert(stageListeners, fn)
+	end,
+}
+
+-- Move a player up to stage n (never down): saved, and the Stage attribute their screen reads.
+function PlayerData.raiseStage(player: Player, n: number): boolean
+	local e = entries[player]
+	if not (e and Profile.raiseStage(e.data, n)) then
+		return false
+	end
+	e.dirty = true
+	player:SetAttribute("Stage", e.data.stage)
+	for _, fn in stageListeners do
+		task.spawn(fn, player, e.data.stage)
+	end
+	return true
+end
+
 function PlayerData.load(player: Player)
 	-- PlayerAdded can come after the GetPlayers() loop already started loading this player
 	-- (deferred events): load once, or `loaded` fires twice (two daily gifts)
@@ -154,6 +177,7 @@ function PlayerData.load(player: Player)
 	end
 	local final = data or Profile.new()
 	entries[player] = { data = final, canSave = canSave, dirty = false, gone = false }
+	player:SetAttribute("Stage", final.stage) -- what the screen shows (JoinStage)
 	for _, fn in listeners do
 		task.spawn(fn, player, final, canSave)
 	end

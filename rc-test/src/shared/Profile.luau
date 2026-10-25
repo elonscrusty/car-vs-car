@@ -31,6 +31,7 @@ export type Data = {
 	tiles: { [string]: number }, -- TileShop ids -> copies owned (free tiles are everyone's anyway)
 	raceStars: number, -- stars won in server races (on top of the medal stars in starsFrom)
 	trackKind: string, -- what my built plot is: "race" (laps) or "drift" (drift score)
+	stage: number, -- how far into the game I am (Profile.STAGE): new players see one thing at a time
 }
 -- One placed tile: column, row (from 1), TrackTiles piece id, quarter turns 0..3.
 export type Tile = { c: number, r: number, piece: string, rot: number }
@@ -41,10 +42,15 @@ export type Lock = { job: string, at: number }
 
 local Profile = {}
 
-Profile.VERSION = 13 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift.
+Profile.VERSION = 14 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift.
 -- 6: daily jobs. 7: looks, lookOff. 8: cars, equipped. 9: track. 10: tiles (owned).
--- 11: raceStars. 12: trackKind. 13: plotTop
+-- 11: raceStars. 12: trackKind. 13: plotTop. 14: stage
 Profile.TOP = 3 -- rows on a plot's board
+-- How far into the game a player is. Only goes up. The screen shows more at each one
+-- (JoinStage): new = just your car and GO; lapped = coins and BUILD; raced = the shop;
+-- shopped (first car bought) = everything (gift, jobs, looks, top 3, 2X).
+Profile.STAGE = { NEW = 0, LAPPED = 1, RACED = 2, SHOPPED = 3 }
+Profile.FIRST_LAP_COINS = 20 -- the first lap ever pays this (the first coins a new player sees)
 Profile.MAX_OWNERS = 500 -- keeps the save small; stars from more owners than this stop counting
 Profile.LOCK_TIMEOUT = 300 -- a server that hasn't saved for this long is gone: its lock is stale
 Profile.MODES = { "race", "drift", "rock" }
@@ -89,6 +95,7 @@ function Profile.new(): Data
 		tiles = {},
 		raceStars = 0,
 		trackKind = "race",
+		stage = 0,
 	}
 end
 
@@ -406,7 +413,22 @@ function Profile.migrate(raw: any): Data
 		end
 	end
 	d.stars = stars + d.raceStars
+	if goodNumber(raw.stage) then
+		d.stage = math.clamp(math.floor(raw.stage), 0, Profile.STAGE.SHOPPED)
+	elseif d.coins > 0 or d.stars > 0 or next(d.cars) ~= nil then
+		-- a save from before stages that has played: they've seen it all already
+		d.stage = Profile.STAGE.SHOPPED
+	end
 	return d
+end
+
+-- Move up to stage n (never down). True when it moved.
+function Profile.raiseStage(d: Data, n: number): boolean
+	if not goodNumber(n) or n <= d.stage then
+		return false
+	end
+	d.stage = math.min(math.floor(n), Profile.STAGE.SHOPPED)
+	return true
 end
 
 -- A run on `ownerId`'s plot won `medal` (0..3) on a `mode` plot: how many new stars? (0 when

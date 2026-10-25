@@ -297,6 +297,7 @@ local function payRace(
 			local done = ServerRace.finished(e)
 			local coins = ServerRace.payFor(place, done)
 			paid[p.UserId] = coins * Profile.boost(os.time())
+			PlayerData.raiseStage(p, Profile.STAGE.RACED) -- the shop opens up next
 			local nth = ({ "1st", "2nd", "3rd" })[place] or `{place}th`
 			pay(p, coins, if place == 1 and done then "you WON!" else `{nth} place`)
 			if done then
@@ -324,14 +325,21 @@ local function payRace(
 	return paid, starred
 end
 
-local function runRace(hooks: Hooks, slot: number)
-	-- everyone in the server (the first MAX)
+-- Who races: everyone in the server (the first MAX) who has driven one lap. A brand new player
+-- sits the race out until then (carter 10-25: one thing at a time when you join).
+local function racersHere(): { Player }
 	local list: { Player } = {}
 	for _, p in Players:GetPlayers() do
-		if #list < ServerRace.MAX then
+		local stage = p:GetAttribute("Stage")
+		if #list < ServerRace.MAX and type(stage) == "number" and stage >= Profile.STAGE.LAPPED then
 			table.insert(list, p)
 		end
 	end
+	return list
+end
+
+local function runRace(hooks: Hooks, slot: number)
+	local list = racersHere()
 	phase = "racing"
 	workspace:SetAttribute("RaceSlot", slot) -- TrackBuild leaves this plot's track alone till the end
 	sendState()
@@ -639,7 +647,7 @@ function ServerRaceRunner.start(hooks: Hooks)
 				for _, sign in signs do
 					sign.Text = ServerRace.signText(left, phase == "racing", where)
 				end
-				local todo = ServerRace.step(phase, left, picked, #Players:GetPlayers())
+				local todo = ServerRace.step(phase, left, picked, #racersHere())
 				if todo == "pick" then
 					phase = "call"
 					picked = pickSlot()
