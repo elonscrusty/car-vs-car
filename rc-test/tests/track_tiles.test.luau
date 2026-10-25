@@ -419,3 +419,38 @@ test("undo puts back what was there, after a turn and after a drop", function()
 	T.place(g, sc, sr, "start", srot)
 	truthy(same(g, before))
 end)
+
+test("every tile fits the smallest starter loop and keeps it ready", function()
+	for _, size in { { 5, 5 }, { 5, 6 } } do
+		for _, p in T.PIECES do
+			if p.id ~= "start" then
+				local spots = 0
+				for r = 1, size[2] do
+					for c = 1, size[1] do
+						local g = T.circle(size[1], size[2])
+						local allowed, ready = T.preview(g, c, r, p.id)
+						if allowed and ready then
+							spots += 1
+						end
+					end
+				end
+				truthy(spots > 0, `{p.id} fits {size[1]}x{size[2]}`)
+			end
+		end
+	end
+end)
+
+test("drag preview: says when a drop would break the loop, and changes nothing", function()
+	local g = T.circle(5, 5)
+	local before = #g.tiles
+	local allowed, ready = T.preview(g, 3, 1, "boost") -- on a straight: fine
+	eq(allowed, true)
+	eq(ready, true)
+	allowed, ready = T.preview(g, 3, 3, "boost") -- loose on the grass
+	eq(allowed, true)
+	eq(ready, false)
+	allowed = T.preview(g, 2, 1, "boost") -- not on the START
+	eq(allowed, false)
+	eq(#g.tiles, before)
+	eq(T.ready(g), true)
+end)

@@ -429,6 +429,24 @@ function TrackTiles.drop(grid: Grid, c: number, r: number, id: string): (boolean
 	return TrackTiles.place(grid, c, r, id, bestRot)
 end
 
+-- What a drop would do, without doing it (the build screen's drag preview: a red blink before
+-- you let go when it would break the loop). Returns whether the drop is allowed, whether the
+-- track would still be ready, and why not (tiny words).
+function TrackTiles.preview(
+	grid: Grid,
+	c: number,
+	r: number,
+	id: string
+): (boolean, boolean, string?)
+	local g = TrackTiles.copy(grid)
+	local ok, why = TrackTiles.drop(g, c, r, id)
+	if not ok then
+		return false, false, why
+	end
+	local res = TrackTiles.trace(g)
+	return true, res.ok, res.why
+end
+
 -- Turn the tile in a square a quarter turn clockwise (tap / ROTATE button). A straight shows
 -- the other way; the START flips which way the race goes only on its own square.
 function TrackTiles.rotate(grid: Grid, c: number, r: number): (boolean, string?)
