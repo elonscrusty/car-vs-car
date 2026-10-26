@@ -171,6 +171,7 @@ local grid: TrackData.Spawn? = nil
 local gridGone = false
 local raceGo: number? = nil -- server race: when this car got its GO (race clock)
 local raceDone: number? = nil -- server race: this car's finish time (its laps are all done)
+local raceOver = false -- server race: the results are in (finished or not: no more laps, no clock)
 local wrongFor = 0 -- server race: seconds this car has been driving the wrong way
 
 -- Car VS Car BOOST button: the UI's thumb button fires this (local only, nothing to cheat: the
@@ -402,9 +403,20 @@ local function setWalking(on: boolean)
 	end
 end
 
+-- server race: the results are in for this car's race (sent to every racer, finished or not)
+task.spawn(function() -- (never holds up the drive/walk hookup below)
+	local raceEvent = ReplicatedStorage:WaitForChild("ServerRace") :: RemoteEvent
+	raceEvent.OnClientEvent:Connect(function(what: unknown)
+		if what == "result" and grid then
+			raceOver = true
+			setRacing(false)
+		end
+	end)
+end)
+
 remote.OnClientEvent:Connect(function(kind: unknown, index: unknown, gridSpot: unknown)
 	if kind == "walk" then
-		grid, gridGone, raceGo, raceDone = nil, false, nil, nil
+		grid, gridGone, raceGo, raceDone, raceOver = nil, false, nil, nil, false
 		setRacing(false)
 		setStats(nil)
 		setWalking(true)
@@ -435,7 +447,7 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown, gridSpot: u
 				grid = { x = g.x, y = g.y, z = g.z, dx = g.dx, dz = g.dz }
 			end
 		end
-		gridGone, raceGo, raceDone = false, nil, nil
+		gridGone, raceGo, raceDone, raceOver = false, nil, nil, false
 		setRacing(false)
 		-- Car VS Car: in the big race the car drives with its trained bars (the server sets them)
 		local drive = if Features.CVC and grid
@@ -502,6 +514,9 @@ local function timerText(): string
 	local s = timers[current]
 	if t.mode == "free" and not (grid and raceGo) then
 		return ""
+	end
+	if grid and raceOver then
+		return "" -- the result card is up: no LAP 1/2 and a clock still running for a car that didn't finish
 	end
 	local now = os.clock()
 	local lines = {}
@@ -620,7 +635,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 			waitMove = false
 			LapTimer.go(timer, os.clock())
 		end
-	elseif raceDone == nil then
+	elseif raceDone == nil and not raceOver then
 		event = LapTimer.update(timer, os.clock(), lx, ly, lz)
 	end
 	-- server race: the last lap is the finish (the server keeps the real order)
@@ -633,7 +648,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 	end
 	roadArrow.update(t, timer, rc, lx, lz)
 	-- server race: driving away from the next gate for a while = a big WRONG WAY!
-	if grid and go and raceDone == nil and timer.running and #timer.gates > 0 then
+	if grid and go and raceDone == nil and not raceOver and timer.running and #timer.gates > 0 then
 		local g = timer.gates[((timer.next - 1) % #timer.gates) + 1]
 		local wx, _, wz = TrackData.toWorld(t, rc, g.x, ly, g.z)
 		local v = body.AssemblyLinearVelocity
