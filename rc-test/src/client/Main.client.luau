@@ -107,9 +107,11 @@ local TRACK_VIEW: { [string]: ChaseCamera.View } = { drift = "top", race = "chas
 local view: ChaseCamera.View = "chase"
 local viewTrack = "" -- the track the view was picked for
 local showCam = false
--- Car VS Car big race: the fixed camera from your spot on the driver stand (carter's yes 10-26);
--- the view button swaps it with the normal views
-local standCam = true
+-- Car VS Car big race: the fixed camera from your spot on the driver stand is off: carter 10-26
+-- "make the camera follow the car all times", so the race uses the normal chase views. (Set this
+-- true to bring the stand camera back; the view button then swaps it with the normal views.)
+local STAND_CAM = false
+local standCam = STAND_CAM
 local standLook: Vector3? = nil
 local standFov = 40
 
@@ -329,7 +331,7 @@ end, function()
 		hud.flash(VIEW_NAMES.free) -- rocks is free cam only
 		return
 	end
-	if Features.CVC and grid and tracks[current].map then
+	if STAND_CAM and Features.CVC and grid and tracks[current].map then
 		standCam = not standCam
 		standLook = nil
 		camera.setView(view)
