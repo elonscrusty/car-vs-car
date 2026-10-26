@@ -7,6 +7,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Features = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Features"))
 local HudLayout = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("HudLayout"))
 local PlotShop = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("PlotShop"))
 local Popup = require(script.Parent:WaitForChild("Popup"))
@@ -38,7 +39,9 @@ hudGui.IgnoreGuiInset = true
 hudGui.DisplayOrder = HudLayout.HUD
 hudGui.Parent = player:WaitForChild("PlayerGui")
 local function showButton()
-	hudGui.Enabled = player:GetAttribute("Driving") ~= true
+	-- plots are garages now (tycoon plan): the plot looks shop is put away with the old plots
+	hudGui.Enabled = not Features.GARAGES
+		and player:GetAttribute("Driving") ~= true
 		and player:GetAttribute("Building") ~= true
 end
 player:GetAttributeChangedSignal("Driving"):Connect(showButton)

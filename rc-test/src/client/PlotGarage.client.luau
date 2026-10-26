@@ -2,7 +2,8 @@
 -- The garage yards come alive (PlotGarage has the layout, PlotGarageBuilder builds the road):
 -- each plot's parked cars (its "Parked" attribute) drive round the little loop, one spot each,
 -- in their own colour and style with their kind's glow (CarGlow, when it's in); spots the level
--- has room for but nobody fills ride round as a faint "?" pad. The coins
+-- has room for but nobody fills ride round as a faint "?" pad. Each car's name and kind
+-- (COMMON, RARE, ...) ride above it. The coins
 -- waiting in the plot ("PlotCoins") lie in a heap on the pile pad with the number over it, and
 -- the heap grows as they come in. On your own plot, tap the pile (or walk onto it) to collect
 -- and tap the sign to buy the next level (RemoteEvent Plot: "collect" / "level").
@@ -103,6 +104,33 @@ local function makeCar(id: string, parent: Instance): Model
 	end
 	if CarGlow and type(CarGlow.apply) == "function" then
 		pcall(CarGlow.apply, model, car.rarity)
+	end
+	-- its name and kind ride above it (only from close up, so the yard doesn't fill with words)
+	local body = model:FindFirstChild("Body")
+	if body and body:IsA("BasePart") then
+		local kind = CarCatalog.rarity(id)
+		local tag = Instance.new("BillboardGui")
+		tag.Name = "CarTag"
+		tag.Size = UDim2.fromOffset(150, 44)
+		tag.StudsOffsetWorldSpace = Vector3.new(0, 3.6, 0)
+		tag.MaxDistance = 60
+		tag.LightInfluence = 0
+		tag.Parent = body
+		local function line(text: string, y: number, h: number, color: Color3)
+			local l = Instance.new("TextLabel")
+			l.BackgroundTransparency = 1
+			l.Position = UDim2.fromScale(0, y)
+			l.Size = UDim2.fromScale(1, h)
+			l.Font = Enum.Font.GothamBlack
+			l.TextScaled = true
+			l.TextColor3 = color
+			l.TextStrokeTransparency = 0.2
+			l.Text = text
+			l.Parent = tag
+		end
+		line(string.upper(car.name), 0, 0.56, Color3.new(1, 1, 1))
+		local c = kind.color
+		line(kind.label, 0.58, 0.42, Color3.fromRGB(c[1], c[2], c[3]))
 	end
 	model.Parent = parent
 	holder:Destroy()
