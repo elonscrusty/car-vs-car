@@ -31,7 +31,6 @@ local CarGlow: any = if glowModule and glowModule:IsA("ModuleScript")
 	then require(glowModule) :: any
 	else nil
 
-local NEAR = 220 -- studs: plots farther from the camera than this stop moving
 local STAND_TOP = 0.8 -- a stand's top, where its car sits
 local SPIN = 20 -- degrees a second the stand cars turn
 
@@ -311,7 +310,7 @@ RunService.RenderStepped:Connect(function(dt: number)
 	local eye = cam.CFrame.Position
 	local clock = workspace:GetServerTimeNow()
 	for _, s in shown do
-		if (s.pivot.Position - eye).Magnitude < NEAR then
+		if PlotTraining.awake((s.pivot.Position - eye).Magnitude) then
 			place(s, clock)
 		end
 	end
