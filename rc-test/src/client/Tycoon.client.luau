@@ -693,10 +693,14 @@ showGarageBtn()
 
 local vote = Instance.new("Frame")
 vote.Name = "MapVote"
-vote.AnchorPoint = Vector2.new(0.5, 1)
--- bottom middle, just over DRIVE and the goal line: clear of the chips and GARAGE (Studio shot 05)
-vote.Position = UDim2.new(0.5, 0, 0.96, -122) -- (a gap over the JOIN THE RACE strip: shot 05-v2)
-vote.Size = UDim2.fromScale(0.44, 0.3)
+vote.AnchorPoint = Vector2.new(0.5, 0)
+-- small, up top in the middle: off the spawn view a new kid looks at (Studio kid-02), clear of
+-- the coins row (left) and NEXT RACE (right); its ribbon stays under Roblox's top bar
+vote.Position = UDim2.new(0.5, 0, 0, 74)
+vote.Size = UDim2.fromScale(0.34, 0.24)
+local voteMax = Instance.new("UISizeConstraint")
+voteMax.MaxSize = Vector2.new(380, 150)
+voteMax.Parent = vote
 vote.BackgroundColor3 = KartStyle.BLUE
 vote.Visible = false
 vote.Parent = hud
@@ -728,12 +732,6 @@ corner(timeBar, 0.5)
 local cards: { [string]: { card: TextButton, count: TextLabel, rim: UIStroke } } = {}
 local myVote: string? = nil
 local voteEnds, voteStarts = 0, 0
-
--- one line under each map's name on its vote card
-local TAGLINE: { [string]: string } = {
-	backyard = "JUMP THE HOSE!",
-	kitchen = "UNDER THE TABLE!",
-}
 
 local function mapInfo(id: string): (string, string, Color3)
 	local Maps = optional("Maps")
@@ -778,23 +776,18 @@ local function openVote(ids: { string }, endsAt: number)
 		-- (an emoji scaled to the box drew tiny on a phone, shot 01: a set size reads)
 		local pic = label(card, icon, WHITE)
 		pic.TextScaled = false
-		pic.TextSize = 30
-		pic.Size = UDim2.fromScale(1, 0.34)
+		pic.TextSize = 20
+		pic.Size = UDim2.fromScale(1, 0.3)
 		local words = label(card, name, WHITE)
-		words.Position = UDim2.fromScale(0, 0.32)
-		words.Size = UDim2.fromScale(1, 0.32)
+		words.Position = UDim2.fromScale(0, 0.28)
+		words.Size = UDim2.fromScale(1, 0.44)
 		local wordsRim = Instance.new("UIStroke")
 		wordsRim.Color = INK
 		wordsRim.Thickness = 2
 		wordsRim.Parent = words
-		-- what makes the map fun, in two words (tiny cars, giant world)
-		local hook = label(card, TAGLINE[id] or "", WHITE)
-		hook.Position = UDim2.fromScale(0, 0.64)
-		hook.Size = UDim2.fromScale(1, 0.18)
-		hook.TextTransparency = 0.1
 		local count = label(card, "", KartStyle.YELLOW)
-		count.Position = UDim2.fromScale(0, 0.82)
-		count.Size = UDim2.fromScale(1, 0.18)
+		count.Position = UDim2.fromScale(0, 0.74)
+		count.Size = UDim2.fromScale(1, 0.26)
 		local stroke = Instance.new("UIStroke")
 		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		stroke.Color = INK
@@ -807,6 +800,13 @@ local function openVote(ids: { string }, endsAt: number)
 			end
 			myVote = id
 			showVotes(nil)
+			-- voted: the card goes away on its own a moment later (the race call says the rest)
+			local this = voteEnds
+			task.delay(1.2, function()
+				if voteEnds == this then
+					vote.Visible = false
+				end
+			end)
 			local at = card.AbsolutePosition + card.AbsoluteSize / 2
 			Party.burst(top, UDim2.fromOffset(at.X, at.Y), 12)
 			local e = ReplicatedStorage:FindFirstChild("ServerRace")
