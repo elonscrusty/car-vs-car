@@ -24,7 +24,7 @@ local Tycoon = require(ReplicatedStorage.Shared.Tycoon)
 local PlotGarageBuilder = {}
 
 -- Words on the road side of the sign (its Back face: the plot's +z).
-local function label(board: BasePart, top: string, bottom: string)
+local function label(board: BasePart, top: string, bottom: string, one: boolean?)
 	local gui = Instance.new("SurfaceGui")
 	gui.Name = "Words"
 	gui.Face = Enum.NormalId.Back
@@ -44,6 +44,12 @@ local function label(board: BasePart, top: string, bottom: string)
 		l.TextStrokeTransparency = 0.4
 		l.Text = text
 		l.Parent = gui
+	end
+	if one then
+		-- one line: big, the whole board
+		line("Top", top, 0.08, 0.84, Color3.new(1, 1, 1))
+		line("Bottom", "", 0.92, 0.04, Color3.fromRGB(255, 220, 90))
+		return
 	end
 	line("Top", top, 0.06, 0.52, Color3.new(1, 1, 1))
 	line("Bottom", bottom, 0.6, 0.34, Color3.fromRGB(255, 220, 90))
@@ -204,11 +210,11 @@ function PlotGarageBuilder.start()
 		local owner = Players:GetPlayerByUserId(ownerId)
 		local room = groups.Room and groups.Room:FindFirstChild("RoomSign")
 		if room and room:IsA("BasePart") then
-			label(room, PlotGarage.signText(if owner then owner.DisplayName else nil), "")
+			label(room, PlotGarage.signText(if owner then owner.DisplayName else nil), "", true)
 		end
 		local shelf = groups.Shelf and groups.Shelf:FindFirstChild("ShelfSign")
 		if shelf and shelf:IsA("BasePart") then
-			label(shelf, "TROPHIES " .. trophies, "")
+			label(shelf, "TROPHIES " .. trophies, "", true)
 		end
 		model.WorldPivot = pivot
 		model.Parent = plot

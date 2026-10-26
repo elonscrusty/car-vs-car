@@ -7,6 +7,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Features = require(ReplicatedStorage.Shared.Features)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local Kit = require(ReplicatedStorage.Shared.Plots.Kit)
@@ -63,33 +64,43 @@ local function buildBase(parent: Instance, origin: CFrame, grip: number)
 	-- low wall between the track and the front area: the car stays on its side, people can
 	-- still see over it
 	Kit.part(parent, "Wall", origin, Vector3.new(w, 3, 2), CFrame.new(0, 1.5, front), C.white)
-	-- raised driver stand: the person watches the whole plot from up here. A deck on four thin
-	-- legs (so people walking past can still see into the plot) with steps up the side.
-	local sx, sz, sh = Kit.STAND.x, Kit.STAND.z, Kit.STAND_H
-	Kit.part(parent, "StandPad", origin, Vector3.new(28, 2, 28), CFrame.new(sx, sh - 1, sz), C.pad)
-	for _, cx in { -1, 1 } do
-		for _, cz in { -1, 1 } do
-			Kit.part(
-				parent,
-				"StandLeg",
-				origin,
-				Vector3.new(2, sh - 2, 2),
-				CFrame.new(sx + cx * 13, (sh - 2) / 2, sz + cz * 13),
-				C.wall
-			)
-		end
-	end
-	local steps = 12
-	for i = 1, steps do
-		local top = sh * i / steps
+	-- (not in Car VS Car: there you train cars on your plot and race from the map's stand)
+	if not Features.CVC then
+		-- raised driver stand: the person watches the whole plot from up here. A deck on four thin
+		-- legs (so people walking past can still see into the plot) with steps up the side.
+		local sx, sz, sh = Kit.STAND.x, Kit.STAND.z, Kit.STAND_H
 		Kit.part(
 			parent,
-			"StandStep",
+			"StandPad",
 			origin,
-			Vector3.new(8, 1, 10), -- 2 studs deep at RC size: easy to walk up
-			CFrame.new(sx + 14 + (steps - i + 0.5) * 8, top - 0.5, sz + 9),
+			Vector3.new(28, 2, 28),
+			CFrame.new(sx, sh - 1, sz),
 			C.pad
 		)
+		for _, cx in { -1, 1 } do
+			for _, cz in { -1, 1 } do
+				Kit.part(
+					parent,
+					"StandLeg",
+					origin,
+					Vector3.new(2, sh - 2, 2),
+					CFrame.new(sx + cx * 13, (sh - 2) / 2, sz + cz * 13),
+					C.wall
+				)
+			end
+		end
+		local steps = 12
+		for i = 1, steps do
+			local top = sh * i / steps
+			Kit.part(
+				parent,
+				"StandStep",
+				origin,
+				Vector3.new(8, 1, 10), -- 2 studs deep at RC size: easy to walk up
+				CFrame.new(sx + 14 + (steps - i + 0.5) * 8, top - 0.5, sz + 9),
+				C.pad
+			)
+		end
 	end
 	local path = Kit.part(
 		parent,
