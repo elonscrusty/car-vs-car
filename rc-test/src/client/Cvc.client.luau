@@ -55,31 +55,8 @@ local function driving(): boolean
 	return player:GetAttribute("Driving") == true
 end
 
--- big words in the middle: pop in, rise and fade
 local function bigWords(text: string, color: Color3)
-	local w = label(top, text, color)
-	w.Name = "Kart_Words"
-	w.AnchorPoint = Vector2.new(0.5, 0.5)
-	w.Position = UDim2.fromScale(0.5, 0.4)
-	w.Size = UDim2.fromScale(0.6, 0.14)
-	local s = Instance.new("UIStroke")
-	s.Color = INK
-	s.Thickness = 4
-	s.Parent = w
-	local scale = Instance.new("UIScale")
-	scale.Scale = 0.2
-	scale.Parent = w
-	TweenService:Create(scale, TweenInfo.new(0.4, Enum.EasingStyle.Back), { Scale = 1 }):Play()
-	task.delay(1.3, function()
-		TweenService:Create(w, TweenInfo.new(0.5), {
-			Position = UDim2.fromScale(0.5, 0.28),
-			TextTransparency = 1,
-		}):Play()
-		TweenService:Create(s, TweenInfo.new(0.5), { Transparency = 1 }):Play()
-		task.delay(0.5, function()
-			w:Destroy()
-		end)
-	end)
+	CvcUi.bigWords(top, text, color)
 end
 
 -- ===== the league badge (by the coins: the tycoon's coins-a-minute spot, off in Car VS Car) =====
