@@ -921,11 +921,13 @@ local function carTag(over: BasePart, car: CarCatalog.Car)
 	b.Name = car.id
 	b.Adornee = over
 	-- just over the car's roof and a little toward you, so the shop's shutter and the car
-	-- itself never hide it (Studio check 10-26); never smaller than a phone can read
-	b.Size = UDim2.new(3, 70, 1.2, 28)
+	-- itself never hide it. Sized in studs only, narrower than the 7-stud gap between stands,
+	-- so neighbours never overlap; it shows from the shop's front, where it's big enough to
+	-- read (Studio check 10-26: with a pixel floor they piled up from the street).
+	b.Size = UDim2.fromScale(5, 2)
 	b.StudsOffsetWorldSpace = Vector3.new(0, 2.6, 0)
 	b.StudsOffset = Vector3.new(0, 0, 2)
-	b.MaxDistance = 60
+	b.MaxDistance = 24
 	b.LightInfluence = 0
 	b.Parent = tags
 	local function line(t: string, y: number, h: number, fill: Color3?, color: Color3)
