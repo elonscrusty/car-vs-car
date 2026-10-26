@@ -19,7 +19,14 @@ local SoundLevels = {
 	TAP = 0.2, -- the tick on every button
 	MUSIC = 0.15, -- lobby speakers (near them only), on foot
 	MUSIC_DRIVING = 0, -- faded out while driving or racing
+	HUM = 0.07, -- a training station hum, right at your plot
+	HUM_RANGE = 60, -- studs from your plot where the hum is gone
 	MUSIC_FADE = 1, -- seconds to fade out or back in
 }
+
+-- the station hum's volume at `dist` studs from your plot: full at the plot, gone at HUM_RANGE
+function SoundLevels.humAt(dist: number): number
+	return SoundLevels.HUM * math.clamp(1 - dist / SoundLevels.HUM_RANGE, 0, 1)
+end
 
 return SoundLevels

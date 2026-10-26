@@ -9,7 +9,12 @@ print("Sound levels")
 
 test("the start beeps and GO are the loudest sound in a race", function()
 	for name, v in S :: any do
-		if name ~= "START_BEEP" and name ~= "MUSIC_FADE" then
+		if
+			type(v) == "number"
+			and name ~= "START_BEEP"
+			and name ~= "MUSIC_FADE"
+			and name ~= "HUM_RANGE"
+		then
 			truthy(v < S.START_BEEP, `{name} {v} is as loud as the start beeps`)
 		end
 	end
@@ -30,4 +35,12 @@ end)
 test("crate, trophy and training cues sit under the start beeps; training is quietest", function()
 	truthy(S.CRATE > 0 and S.TROPHY > 0 and S.TRAIN > 0)
 	truthy(S.TRAIN < S.COIN) -- it repeats all day
+end)
+
+test("the station hum is quiet, full at the plot and gone past its range", function()
+	truthy(S.HUM < S.COIN)
+	eq(S.humAt(0), S.HUM)
+	eq(S.humAt(S.HUM_RANGE), 0)
+	eq(S.humAt(S.HUM_RANGE * 3), 0)
+	truthy(S.humAt(S.HUM_RANGE / 2) < S.HUM)
 end)
