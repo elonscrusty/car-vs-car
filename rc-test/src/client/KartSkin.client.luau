@@ -30,11 +30,14 @@ local function ours(d: Instance): boolean
 	return string.sub(d.Name, 1, 5) == "Kart_"
 end
 
+-- Roblox's own screens in PlayerGui (the phone thumbstick and jump button): left as they are
+local NOT_OURS: { [string]: boolean } = { TouchGui = true, Freecam = true, BubbleChat = true }
+
 local function screenOf(d: Instance): ScreenGui?
 	local p = d.Parent
 	while p do
 		if p:IsA("ScreenGui") then
-			return p
+			return if NOT_OURS[p.Name] then nil else p
 		elseif p:IsA("LayerCollector") then
 			return nil -- a BillboardGui / SurfaceGui
 		end

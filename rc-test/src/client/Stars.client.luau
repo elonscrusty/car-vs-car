@@ -1189,15 +1189,17 @@ task.spawn(function()
 	local folder = workspace:WaitForChild("StarBoards", 60)
 	while folder do
 		local driving = player:GetAttribute("Driving") == true
+		-- (the plot boards go with plot racing: Features.PLOT_RACING, via StageGate)
+		local hide = driving or not StageGate.shows("top3")
 		for _, d in folder:GetDescendants() do
 			if d:IsA("TextLabel") and string.sub(d.Name, 1, 3) == "Row" then
 				local mine = d:GetAttribute("UserId") == player.UserId
 				d.BackgroundColor3 = MINE
 				d.BackgroundTransparency = if mine then 0.15 else 1
 			elseif d:IsA("SurfaceGui") then
-				d.Enabled = not driving -- off the top-down drift view and the road ahead
+				d.Enabled = not hide -- off the top-down drift view and the road ahead
 			elseif d:IsA("BasePart") and d.Name == "Pole" then
-				d.LocalTransparencyModifier = if driving then 1 else 0
+				d.LocalTransparencyModifier = if hide then 1 else 0
 			end
 		end
 		-- the pad I stand on: its board's rows on the screen
