@@ -497,7 +497,16 @@ RunService.PreSimulation:Connect(function(dt: number)
 	else
 		wrongFor = 0
 	end
-	if event == "lap" then
+	if event == "lap" and grid and go and t.id ~= "drift" then
+		-- server race: which lap you're on now, and a loud one for the last lap
+		if timer.laps == ServerRace.LAPS - 1 then
+			hud.flash("FINAL LAP!")
+			startBeep.PlaybackSpeed = 1.3
+			startBeep:Play()
+		else
+			hud.flash(`LAP {timer.laps + 1}/{ServerRace.LAPS}`)
+		end
+	elseif event == "lap" then
 		hud.flash(`LAP  {CarMath.formatTime(timers[current].last :: number)}`)
 	elseif event == "finish" then
 		hud.flash(`SUMMIT!  {CarMath.formatTime(timers[current].last :: number)}`)
