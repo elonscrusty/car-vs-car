@@ -73,4 +73,9 @@ function Sfx.shake(rarity: number)
 	notes(thumps, 0.12, SoundLevels.CRATE)
 end
 
+-- a crowd cheer when someone wins the big race: a wide, bouncy run (no args)
+function Sfx.cheer()
+	notes({ 1, 1.5, 1.25, 1.88, 1.5, 2, 2.5 }, 0.08, SoundLevels.TROPHY)
+end
+
 return Sfx
