@@ -34,6 +34,21 @@ test("the room and the pads fit the plot behind the front wall at every level", 
 	end
 end)
 
+test("carter's room props keep the room's own floor, rug, rails and sign", function()
+	-- (Garage.useMeshes clears every part of the group that isn't in `keep`)
+	for _, m in T.meshes() do
+		local keep: { [string]: boolean } = {}
+		for _, name in m.keep do
+			keep[name] = true
+		end
+		for _, p in T.pieces(8, 10, 20) do
+			if p.group == m.group then
+				truthy(keep[p.name], m.model .. " keeps " .. p.name)
+			end
+		end
+	end
+end)
+
 test("nothing on the plot is solid (walk anywhere)", function()
 	for _, p in T.pieces(8, 10, 20) do
 		eq(p.collide, false)
