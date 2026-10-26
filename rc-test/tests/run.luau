@@ -60,5 +60,6 @@ require("./crates.test")
 require("./racestats.test")
 require("./racestand.test")
 require("./racewin.test")
+require("./backontrack.test")
 
 Harness.summary()
