@@ -104,7 +104,10 @@ CarCatalog.GUMBALL = {
 	{ car = car("gb_night", "Midnight", "race", 0, { 70, 40, 120 }, "epic", true), chance = 12 },
 	{ car = car("gb_glow", "Glow Worm", "race", 0, { 200, 255, 90 }, "epic", true), chance = 10 },
 	{ car = car("gb_lava", "Lava Slide", "drift", 0, { 255, 80, 20 }, "epic", true), chance = 9 },
-	{ car = car("gb_toxic", "Slime Time", "drift", 0, { 90, 255, 60 }, "legend", true), chance = 8 },
+	{
+		car = car("gb_toxic", "Slime Time", "drift", 0, { 90, 255, 60 }, "legend", true),
+		chance = 8,
+	},
 	{ car = car("gb_gold", "Gold Rush", "race", 0, { 255, 200, 30 }, "legend", true), chance = 5 },
 }
 -- A car you already have: half the spin back, so a spin is never wasted.
