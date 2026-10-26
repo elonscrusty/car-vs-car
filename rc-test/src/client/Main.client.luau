@@ -435,6 +435,14 @@ local function timerText(): string
 		if type(place) == "number" and type(cars) == "number" and cars > 1 then
 			table.insert(lines, `{ServerRace.ordinal(place)} OF {cars}`)
 		end
+	elseif grid then
+		-- server race, on the grid before GO (it showed a solo "LAP 1  -:--.-" here)
+		table.insert(
+			lines,
+			if t.id == "drift"
+				then "DRIFT!"
+				else `LAP 1/{ServerRace.LAPS}   {CarMath.formatTime(0)}`
+		)
 	elseif t.mode == "loop" then
 		local cur = if s.running then CarMath.formatTime(now - s.startTime) else "-:--.-"
 		table.insert(lines, `LAP {s.laps + 1}   {cur}`)
