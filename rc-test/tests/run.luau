@@ -54,5 +54,6 @@ require("./sound_levels.test")
 require("./cvc_core.test")
 require("./crates.test")
 require("./racestats.test")
+require("./racestand.test")
 
 Harness.summary()
