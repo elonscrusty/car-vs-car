@@ -256,3 +256,36 @@ test("Car VS Car: league bots finish on both maps inside the time limit", functi
 		truthy(drive(route, bot, 600, nil) ~= nil, `{m.id} easy bot never finished`)
 	end
 end)
+
+test(
+	"bot strength follows the league: only the car gain RaceStats gives, never a different car",
+	function()
+		local League = require("../src/shared/League")
+		local RaceStats = require("../src/shared/RaceStats")
+		eq(RaceBots.leagueGain(1), 1)
+		local last = 1
+		for l = 2, #League.NAMES do
+			local g = RaceBots.leagueGain(l)
+			truthy(g > last, "each league's bots are a bit quicker")
+			truthy(g <= 1 + RaceStats.TOP, "never more than a full Speed bar gives")
+			last = g
+		end
+		-- bad leagues clamp instead of breaking
+		eq(RaceBots.leagueGain(0), 1)
+		eq(RaceBots.leagueGain(99), RaceBots.leagueGain(#League.NAMES))
+		-- the slowest Diamond bot is no faster than the quickest Bronze one (the spread, not the league, is the big part)
+		local _, bronzeHi = RaceBots.skillRange(1, false)
+		local diamondLo, _ = RaceBots.skillRange(#League.NAMES, false)
+		truthy(diamondLo < bronzeHi + 0.05)
+		-- ... and the quickest Diamond bot stays a believable pace (never past the player's own top)
+		local _, diamondHi = RaceBots.skillRange(#League.NAMES, false)
+		truthy(diamondHi <= 1.1)
+	end
+)
+
+test("easy bots are for a first race only: no league, easy off, gives the normal range", function()
+	local elo, ehi = RaceBots.skillRange(3, true)
+	local nlo, nhi = RaceBots.skillRange(3, false)
+	truthy(ehi < nlo, "an easy race is slower than the same league's normal race")
+	truthy(nlo < nhi)
+end)
