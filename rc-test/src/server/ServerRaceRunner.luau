@@ -26,6 +26,7 @@ local Jobs = require(script.Parent.Jobs)
 local RaceBots = require(ReplicatedStorage.Shared.RaceBots)
 local RaceMaps = require(ReplicatedStorage.Shared.RaceMaps)
 local RaceStats = require(ReplicatedStorage.Shared.RaceStats)
+local League = require(ReplicatedStorage.Shared.League)
 local RaceBotCars = require(script.Parent.RaceBotCars)
 local LobbyPlots = require(script.Parent.LobbyPlots)
 local PlayerData = require(script.Parent.PlayerData)
@@ -104,6 +105,16 @@ end
 
 local function breakLen(): number
 	return if mapMode() then ServerRace.MAP_BREAK else ServerRace.BREAK
+end
+
+-- Car VS Car: a race every 3 min, start to start (ServerRace.nextStart)
+local lastStart = -math.huge
+local mapRaces = 0 -- big races so far: the maps take turns
+local function nextStart(): number
+	if Features.CVC and mapMode() then
+		return ServerRace.nextStart(lastStart, now())
+	end
+	return now() + breakLen()
 end
 
 local joined: { [Player]: boolean } = {}
@@ -191,6 +202,18 @@ function ServerRaceRunner.join(player: Player): boolean
 	if not joined[player] then
 		joined[player] = true
 		player:SetAttribute("RaceJoined", true)
+	end
+	-- Car VS Car: a new kid's first race starts soon after their tap (easy bots, then a crate)
+	local data = PlayerData.get(player)
+	if
+		Features.CVC
+		and phase == "wait"
+		and data
+		and data.stage < Profile.STAGE.RACED
+		and startAt - now() > ServerRace.CVC_FIRST
+	then
+		startAt = now() + ServerRace.CVC_FIRST
+		sendState()
 	end
 	return true
 end
@@ -374,7 +397,33 @@ local function payRace(
 	local starred: { [number]: number } = {}
 	for place, e in ranked do
 		local p = if e.uid then byId[e.uid] else nil
-		if p and p.Parent then
+		if p and p.Parent and Features.CVC then
+			-- Car VS Car: coins by league and place, a trophy for the top 3, a win's boost and the
+			-- first race's crate all come from TrainingServer (place 0 = didn't finish)
+			local done = ServerRace.finished(e)
+			local at = if done then place else 0
+			local data = PlayerData.get(p)
+			paid[p.UserId] = if data then League.prize(data.league, at) else 0
+			starred[p.UserId] = 0
+			local mod = script.Parent:FindFirstChild("TrainingServer")
+			if mod and mod:IsA("ModuleScript") then
+				local ok, err = pcall(function()
+					(require(mod) :: any).raceDone(p, at)
+				end)
+				if not ok then
+					warn("raceDone: " .. tostring(err))
+				end
+			end
+			if done then
+				Jobs.fire(p, "raceDone")
+				if place <= 3 then
+					Jobs.fire(p, "raceTop3")
+				end
+				if place == 1 then
+					Jobs.fire(p, "raceWin")
+				end
+			end
+		elseif p and p.Parent then
 			local done = ServerRace.finished(e)
 			local coins = ServerRace.payFor(place, done)
 			paid[p.UserId] = coins * Profile.boost(os.time())
@@ -803,13 +852,13 @@ local function runRace(hooks: Hooks, slot: number)
 	picked, where = nil, ""
 	clearJoined()
 	workspace:SetAttribute("RaceSlot", 0)
-	startAt = now() + breakLen()
+	startAt = nextStart()
 	sendState()
 end
 
 function ServerRaceRunner.start(hooks: Hooks)
 	signs = buildSign()
-	startAt = now() + breakLen()
+	startAt = nextStart()
 	setBuild()
 
 	Players.PlayerAdded:Connect(function(player: Player)
@@ -867,6 +916,7 @@ function ServerRaceRunner.start(hooks: Hooks)
 				-- a map race: the vote opens VOTE seconds before the map is picked
 				if
 					mapMode()
+					and not Features.CVC
 					and phase == "wait"
 					and not voteOpen
 					and left <= ServerRace.CALL + ServerRace.VOTE
@@ -885,7 +935,9 @@ function ServerRaceRunner.start(hooks: Hooks)
 								values[p] = id
 							end
 						end
-						local id = ServerRace.tally(values, mapIds(), random:NextNumber())
+						local id = if Features.CVC
+							then ServerRace.mapTurn(mapIds(), mapRaces + 1)
+							else ServerRace.tally(values, mapIds(), random:NextNumber())
 						picked, where = nil, ""
 						for k, m in RaceMaps.list() do
 							if m.id == id then
@@ -903,9 +955,13 @@ function ServerRaceRunner.start(hooks: Hooks)
 						-- no plot can hold it (or nobody here): next break
 						phase, picked, where = "wait", nil, ""
 						clearJoined()
-						startAt = now() + breakLen()
+						startAt = nextStart()
 						sendState()
 					else
+						lastStart = startAt
+						if mapMode() then
+							mapRaces += 1
+						end
 						local ok, err = pcall(runRace, hooks, slot)
 						if not ok then
 							warn("server race: " .. tostring(err))
@@ -913,7 +969,7 @@ function ServerRaceRunner.start(hooks: Hooks)
 							fleet = nil
 							workspace:SetAttribute("RaceSlot", 0)
 							phase, picked, where = "wait", nil, ""
-							startAt = now() + breakLen()
+							startAt = nextStart()
 							sendState()
 						end
 					end
