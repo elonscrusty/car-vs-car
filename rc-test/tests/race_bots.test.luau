@@ -74,7 +74,7 @@ test("a race fills up to 4 cars with bots, none when nobody is there", function(
 	eq(RaceBots.count(1, 2), 1) -- never past the grid
 end)
 
-test("bots finish 3 laps on every map, inside the map's time limit", function()
+test("bots finish all the laps on every map, inside the map's time limit", function()
 	for _, m in RaceMaps.list() do
 		for _, skill in { RaceBots.SKILL_MIN, RaceBots.SKILL_MAX } do
 			local route, bot = setup(m, skill, 2)
@@ -84,7 +84,10 @@ test("bots finish 3 laps on every map, inside the map's time limit", function()
 				(took :: number) < ServerRace.MAP_TIME_LIMIT,
 				`{m.id} skill {skill}: {took} s is too slow`
 			)
-			truthy((took :: number) > 60, `{m.id} skill {skill}: {took} s is too fast`)
+			truthy(
+				(took :: number) > ServerRace.LAPS * 15,
+				`{m.id} skill {skill}: {took} s is too fast`
+			)
 		end
 	end
 end)
@@ -96,7 +99,7 @@ test("a better bot is quicker, and every lap counts", function()
 		local a = drive(r1, slow, 400, nil) :: number
 		local b = drive(r2, fast, 400, nil) :: number
 		truthy(b < a, `{m.id}: fast {b} should beat slow {a}`)
-		eq(RaceBots.laps(r1, slow), 3)
+		eq(RaceBots.laps(r1, slow), ServerRace.LAPS)
 	end
 end)
 
@@ -193,7 +196,7 @@ test("live progress rises round the lap and ranks like a player's would", functi
 		end
 	end
 	local gates = #route.gateAt
-	truthy(last >= 3 * (gates + 1) - 2, "three laps is about 3 * (gates + 1)")
+	truthy(last >= ServerRace.LAPS * (gates + 1) - 2, "all the laps is about LAPS * (gates + 1)")
 	-- a bot on lap 2 is ahead of a player on lap 1 and behind one on lap 3
 	truthy(ServerRace.progress(1, gates, gates, 0) < 2 * (gates + 1) + 1)
 	truthy(ServerRace.progress(3, 1, gates, 5) > 3 * (gates + 1))
