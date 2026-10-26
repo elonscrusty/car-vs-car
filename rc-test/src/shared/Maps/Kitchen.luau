@@ -77,7 +77,7 @@ local def: MapKit.Def = {
 	minX = -760,
 	maxX = 760,
 	minZ = BACK / K, -- squeezed to BACK
-	maxZ = 540,
+	maxZ = 600, -- room behind the driver stand for its camera
 	main = {
 		{ x = -300, z = 420 }, -- front straight by the door mat, driving right
 		{ x = 250, z = 420 },
@@ -142,7 +142,7 @@ local def: MapKit.Def = {
 		{ kind = "spoon", width = 10, points = { { x = 0, z = -90 }, { x = 0, z = -170 } } },
 	},
 	-- the driver stand: a big step stool by the start (picture rc-game/cvc/pics)
-	stand = { x = 128, z = 487, w = MapKit.STAND_W, d = MapKit.STAND_D, h = MapKit.STAND_H },
+	stand = { x = 128, z = 527, w = MapKit.STAND_W, d = MapKit.STAND_D, h = MapKit.STAND_H },
 	rcX = -3000,
 	rcZ = 1000,
 	rcAngle = 0,
