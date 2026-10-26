@@ -78,4 +78,39 @@ function Sfx.cheer()
 	notes({ 1, 1.5, 1.25, 1.88, 1.5, 2, 2.5 }, 0.08, SoundLevels.TROPHY)
 end
 
+-- a bar went up (+1 SPEED etc): one bright ding
+function Sfx.speedUp()
+	notes({ 1.9 }, 0, SoundLevels.DING)
+end
+
+-- a bar hit its cap (MAX!): two dings and a high third
+function Sfx.maxed()
+	notes({ 1.5, 2, 2.67 }, 0.09, SoundLevels.DING)
+end
+
+-- 3-2-1-GO on the line: `step` 3, 2, 1 are low beeps, 0 is GO (high, longer)
+function Sfx.count(step: number)
+	if step <= 0 then
+		notes({ 2, 2.5 }, 0.12, SoundLevels.COUNT)
+	else
+		notes({ 1 }, 0, SoundLevels.COUNT)
+	end
+end
+
+-- a wall scrape: a tiny tick; call as often as you like, it skips ticks that are too close
+local lastSpark = 0
+function Sfx.spark()
+	local now = os.clock()
+	if now - lastSpark < SoundLevels.SPARK_GAP then
+		return
+	end
+	lastSpark = now
+	notes({ 2.2 + math.random() * 0.6 }, 0, SoundLevels.SPARK)
+end
+
+-- the league went up: a rising run with sparkles on top
+function Sfx.fireworks()
+	notes({ 1, 1.25, 1.5, 2, 2.5, 2, 2.67, 2.2, 3 }, 0.1, SoundLevels.FIREWORKS)
+end
+
 return Sfx

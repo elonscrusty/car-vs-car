@@ -14,6 +14,7 @@ test("the start beeps and GO are the loudest sound in a race", function()
 			and name ~= "START_BEEP"
 			and name ~= "MUSIC_FADE"
 			and name ~= "HUM_RANGE"
+			and name ~= "SPARK_GAP"
 		then
 			truthy(v < S.START_BEEP, `{name} {v} is as loud as the start beeps`)
 		end
@@ -43,4 +44,10 @@ test("the station hum is quiet, full at the plot and gone past its range", funct
 	eq(S.humAt(S.HUM_RANGE), 0)
 	eq(S.humAt(S.HUM_RANGE * 3), 0)
 	truthy(S.humAt(S.HUM_RANGE / 2) < S.HUM)
+end)
+
+test("dings, countdown and sparks are under the start beeps; scrape ticks are quietest", function()
+	truthy(S.DING > 0 and S.COUNT > 0 and S.FIREWORKS > 0)
+	truthy(S.SPARK < S.DING and S.SPARK_GAP > 0)
+	truthy(S.COUNT < S.START_BEEP)
 end)

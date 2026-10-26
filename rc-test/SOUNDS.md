@@ -14,3 +14,6 @@ Swap in a real sound by changing `Sfx.luau`; volumes live in `src/shared/SoundLe
 7. Trophy / win — cheer plus fanfare
 8. Training station hum — now the motor loop at low pitch; a real soft hum per station kind would be nicer
 9. Engine, upbeat music — need ids; engine already has two
+
+## Cues UI / Race can call now (Sfx.luau)
+speedUp(), maxed(), count(step 3..0), spark(), fireworks(), cheer(), shake(rarity), crate(n), trophy(place), train()
