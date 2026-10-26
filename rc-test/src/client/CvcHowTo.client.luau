@@ -18,6 +18,7 @@ local Features = require(Shared:WaitForChild("Features"))
 if not Features.CVC then
 	return
 end
+local CvcLayout = require(Shared:WaitForChild("CvcLayout"))
 local HudLayout = require(Shared:WaitForChild("HudLayout"))
 local KartStyle = require(Shared:WaitForChild("KartStyle"))
 local Profile = require(Shared:WaitForChild("Profile"))
@@ -106,6 +107,14 @@ local function raced(): boolean
 	return type(s) == "number" and s >= Profile.STAGE.RACED
 end
 
+-- the Car VS Car buttons a tip must never cover
+local AVOID = {
+	{ "Cvc", "Coach" },
+	{ "CvcRace", "BigJoin" },
+	{ "CvcCrateButton", "CrateButton" },
+	{ "CvcGarageButton", "GarageButton" },
+}
+
 type Tip = { target: GuiObject, text: string, below: boolean }
 
 -- the one tip to show now (nil = none)
@@ -163,29 +172,27 @@ RunService.RenderStepped:Connect(function()
 	arrow.TextColor3 = KartStyle.YELLOW:Lerp(KartStyle.WHITE, glow * 0.7)
 	local p, s = tip.target.AbsolutePosition, tip.target.AbsoluteSize
 	local bob = math.abs(math.sin(os.clock() * 4)) * 10
-	local cx = p.X + s.X / 2
-	local w = math.min(300, gui.AbsoluteSize.X - 24)
-	words.Size = UDim2.fromOffset(w, 40)
-	-- keep the words on the screen
-	local wx = math.clamp(cx, w / 2 + 12, gui.AbsoluteSize.X - w / 2 - 12)
-	if tip.below then
-		-- the button is up top: the arrow under it points up, the words under the arrow
-		arrow.Rotation = 180
-		arrow.Position = UDim2.fromOffset(cx, p.Y + s.Y + 30 + bob)
-		words.Position = UDim2.fromOffset(wx, p.Y + s.Y + 80)
-	else
-		-- the button is down low: the arrow over it points down, the words over the arrow
-		arrow.Rotation = 0
-		arrow.Position = UDim2.fromOffset(cx, p.Y - 30 - bob)
-		words.Position = UDim2.fromOffset(wx, p.Y - 80)
+	-- the other Car VS Car buttons on screen: the tip never covers them (CvcLayout.tip)
+	local avoid = {}
+	for _, it in AVOID do
+		local b = find(it[1], it[2])
+		if b and b ~= tip.target and shown(b) then
+			local bp, bs = b.AbsolutePosition, b.AbsoluteSize
+			table.insert(avoid, { bp.X, bp.Y, bp.X + bs.X, bp.Y + bs.Y })
+		end
 	end
+	local size = gui.AbsoluteSize
+	local spot = CvcLayout.tip({ p.X, p.Y, p.X + s.X, p.Y + s.Y }, tip.below, size.X, size.Y, avoid)
+	local function centre(r: { number }): (number, number)
+		return (r[1] + r[3]) / 2, (r[2] + r[4]) / 2
+	end
+	local ax, ay = centre(spot.arrow)
+	arrow.Rotation = if tip.below then 180 else 0
+	arrow.Position = UDim2.fromOffset(ax, ay + (if tip.below then bob else -bob))
+	local wx, wy = centre(spot.words)
+	words.Size = UDim2.fromOffset(spot.words[3] - spot.words[1], spot.words[4] - spot.words[2])
+	words.Position = UDim2.fromOffset(wx, wy)
 	words.Text = tip.text
-	-- SKIP just past the words (or under them when there's no room on the right)
-	local sw = gui.AbsoluteSize.X
-	local wy = words.Position.Y.Offset
-	if wx + w / 2 + 90 <= sw then
-		skip.Position = UDim2.fromOffset(wx + w / 2 + 46, wy)
-	else
-		skip.Position = UDim2.fromOffset(wx, wy + (if tip.below then 46 else -46))
-	end
+	local sx, sy = centre(spot.skip)
+	skip.Position = UDim2.fromOffset(sx, sy)
 end)

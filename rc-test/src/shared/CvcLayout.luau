@@ -150,4 +150,92 @@ function CvcLayout.place(obj: any, screen: string, name: string)
 	end
 end
 
+-- ===== the how-to tip (CvcHowTo): an arrow by a button, its words, and SKIP =====
+
+export type Rect = { number } -- left, top, right, bottom (px)
+export type Tip = { arrow: Rect, words: Rect, skip: Rect }
+
+CvcLayout.TIP_ARROW = 54
+CvcLayout.TIP_WORDS_H = 40
+CvcLayout.TIP_SKIP = { 76, 44 }
+
+local function rect(cx: number, cy: number, w: number, h: number): Rect
+	return { cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2 }
+end
+
+function CvcLayout.hits(a: Rect, b: Rect): boolean
+	return a[1] < b[3] and b[1] < a[3] and a[2] < b[4] and b[2] < a[4]
+end
+
+local function onScreen(r: Rect, sw: number, sh: number): boolean
+	return r[1] >= 0 and r[2] >= 0 and r[3] <= sw and r[4] <= sh
+end
+
+-- Where the tip goes for a button at `target` on a sw x sh screen: the arrow just past the
+-- button (under it when `below`, else over it), the words past the arrow, SKIP by the words.
+-- When that would cover one of the other buttons (`avoid`), the words and SKIP go beside the
+-- button instead (right, then left), so the tip never sits on COACH or JOIN.
+function CvcLayout.tip(target: Rect, below: boolean, sw: number, sh: number, avoid: { Rect }): Tip
+	local A, WH, SK = CvcLayout.TIP_ARROW, CvcLayout.TIP_WORDS_H, CvcLayout.TIP_SKIP
+	local cx = (target[1] + target[3]) / 2
+	local dir = if below then 1 else -1
+	local edge = if below then target[4] else target[2]
+	local arrowY = edge + dir * (A / 2 + 3)
+	local arrow = rect(cx, arrowY, A, A)
+
+	-- (the arrow bobs up to 10 px away from the button)
+	local arrowReach: Rect = if below
+		then { arrow[1], arrow[2], arrow[3], arrow[4] + 10 }
+		else { arrow[1], arrow[2] - 10, arrow[3], arrow[4] }
+	local function ok(t: Tip): boolean
+		for _, r in { arrowReach, t.words, t.skip } do
+			if not onScreen(r, sw, sh) or CvcLayout.hits(r, target) then
+				return false
+			end
+			for _, a in avoid do
+				if CvcLayout.hits(r, a) then
+					return false
+				end
+			end
+		end
+		return not CvcLayout.hits(t.words, arrowReach)
+			and not CvcLayout.hits(t.skip, arrowReach)
+			and not CvcLayout.hits(t.skip, t.words)
+	end
+
+	-- the words: past the arrow (centred, or lined up with either edge of the button) or beside
+	-- the button; wide first, then narrower. SKIP right of the words, past them, or before them.
+	local tries: { Tip } = {}
+	local stackY = edge + dir * (A + 13 + WH / 2 + 2) -- (past the bobbing arrow)
+	local midY = (target[2] + target[4]) / 2
+	for _, want in { 300, 190, 130 } do
+		local w = math.min(want, sw - 24)
+		local spots: { { number } } = {
+			{ math.clamp(cx, w / 2 + 12, sw - w / 2 - 12), stackY },
+			{ math.clamp(target[1], 12, sw - 12 - w) + w / 2, stackY },
+			{ math.clamp(target[3], 12 + w, sw - 12) - w / 2, stackY },
+			{ target[3] + 10 + w / 2, midY },
+			{ target[1] - 10 - w / 2, midY },
+		}
+		for _, at in spots do
+			local words = rect(at[1], at[2], w, WH)
+			for _, skip in
+				{
+					rect(words[3] + 8 + SK[1] / 2, at[2], SK[1], SK[2]),
+					rect(at[1], at[2] + dir * (WH / 2 + SK[2] / 2 + 4), SK[1], SK[2]),
+					rect(at[1], at[2] - dir * (WH / 2 + SK[2] / 2 + 4), SK[1], SK[2]),
+				}
+			do
+				table.insert(tries, { arrow = arrow, words = words, skip = skip })
+			end
+		end
+	end
+	for _, t in tries do
+		if ok(t) then
+			return t
+		end
+	end
+	return tries[1]
+end
+
 return CvcLayout
