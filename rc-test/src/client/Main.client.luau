@@ -258,6 +258,27 @@ local function reset(why: string?)
 	local again = now - lastReset < 1.5
 	lastReset = now
 	local t = tracks[current]
+	-- Car VS Car big race: off the track, stuck or R = back on the road at the last gate passed,
+	-- facing the way to go (the small loss: the bit since that gate, from a standstill). It used
+	-- to be the grid, a whole lap's loss.
+	local timer = timers[current]
+	if
+		Features.CVC
+		and grid
+		and gridGone
+		and raceDone == nil
+		and timer.running
+		and #timer.gates > 0
+	then
+		local g = timer.gates[((timer.next - 2) % #timer.gates) + 1]
+		local x, y, z = TrackData.toWorld(t, rc, g.x, math.max(g.y, t.spawn.y), g.z)
+		local dx, dz = TrackData.dirToWorld(t, rc, g.dx, g.dz)
+		local pos = Vector3.new(x, y, z)
+		car.teleport(CFrame.lookAt(pos, pos + Vector3.new(dx, 0, dz)))
+		camera.snap()
+		hud.flash("BACK ON TRACK")
+		return
+	end
 	local cps = t.checkpoints
 	if cps and checkpoint > 0 and not again then
 		local s = cps[checkpoint].spawn
