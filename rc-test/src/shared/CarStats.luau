@@ -96,6 +96,26 @@ function CarStats.total(car: Training.Car): number
 	return Training.strength(car, CarStats.stats(car.id))
 end
 
+-- What a car tag shows: its three bars as a label, the whole number and how full the bar is
+-- (0..1 of the 0..100 scale, so a rare car's bar stops short of the end at its top).
+CarStats.BAR_LABELS = { speed = "SPD", turn = "TURN", boost = "BOOST" }
+export type BarView = { bar: string, label: string, value: number, fill: number, cap: number }
+function CarStats.view(car: Training.Car): { BarView }
+	local stats = CarStats.stats(car.id)
+	local out: { BarView } = {}
+	for _, b in Training.BARS do
+		local v = math.floor(Training.bar(car, b, stats) + 0.5)
+		table.insert(out, {
+			bar = b,
+			label = CarStats.BAR_LABELS[b],
+			value = v,
+			fill = math.clamp(v / Training.MAX_BAR, 0, 1),
+			cap = stats.cap,
+		})
+	end
+	return out
+end
+
 -- Every car with a row here (the 24).
 function CarStats.ids(): { string }
 	local out = {}

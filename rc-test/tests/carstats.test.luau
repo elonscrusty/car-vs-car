@@ -89,3 +89,13 @@ test("unknown ids are a plain common; stats and total work with Training", funct
 	)
 	truthy(legend.speed > after.speed / 10, "a legend trains faster per minute")
 end)
+
+test("the tag view lists three bars, rounded, never past the top", function()
+	local v = Stats.view({ uid = "u", id = "race_bolt", speed = 500, turn = 0, boost = 0 })
+	eq(#v, 3)
+	eq(v[1].label, "SPD")
+	eq(v[1].value, 60) -- trained past the top still shows the top
+	eq(v[1].fill, 0.6)
+	eq(v[2].value, 18)
+	eq(v[3].bar, "boost")
+end)
