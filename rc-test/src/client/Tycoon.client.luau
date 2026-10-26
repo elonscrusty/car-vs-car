@@ -138,6 +138,56 @@ local function bump()
 		:Play()
 end
 
+-- the first time a new player sees the chip: a yellow note beside it says what it is
+local tipShown = false
+local function incomeTip()
+	tipShown = true
+	local stage = player:GetAttribute("Stage")
+	if type(stage) == "number" and stage >= 3 then
+		return -- they know by now
+	end
+	local tip = label(hud, "YOUR CARS MAKE COINS!", INK)
+	tip.Name = "IncomeTip"
+	local at = HudLayout.find("Income", "walk")
+	tip.Position = UDim2.new(if at then at.x + at.w + 0.012 else 0.25, 0, 0, 64)
+	tip.Size = UDim2.fromOffset(230, 36)
+	tip.BackgroundColor3 = KartStyle.YELLOW
+	tip.BackgroundTransparency = 0
+	corner(tip, 0.3)
+	rim(tip, KartStyle.BUTTON_RIM)
+	local pad = Instance.new("UIPadding")
+	pad.PaddingTop = UDim.new(0.18, 0)
+	pad.PaddingBottom = UDim.new(0.12, 0)
+	pad.PaddingLeft = UDim.new(0.05, 0)
+	pad.PaddingRight = UDim.new(0.05, 0)
+	pad.Parent = tip
+	-- a little point toward the chip
+	local nub = Instance.new("Frame")
+	nub.Name = "Kart_Nub"
+	nub.AnchorPoint = Vector2.new(0.5, 0.5)
+	nub.Position = UDim2.new(0, -3, 0.5, 0)
+	nub.Size = UDim2.fromOffset(12, 12)
+	nub.Rotation = 45
+	nub.BackgroundColor3 = KartStyle.YELLOW
+	nub.BorderSizePixel = 0
+	nub.ZIndex = tip.ZIndex - 1
+	nub.Parent = tip
+	local scale = Instance.new("UIScale")
+	scale.Scale = 0.2
+	scale.Parent = tip
+	TweenService:Create(scale, TweenInfo.new(0.4, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+	local function gone()
+		if tip.Parent then
+			TweenService:Create(scale, TweenInfo.new(0.25), { Scale = 0 }):Play()
+			task.delay(0.25, function()
+				tip:Destroy()
+			end)
+		end
+	end
+	task.delay(8, gone)
+	player:GetAttributeChangedSignal("Driving"):Connect(gone)
+end
+
 -- each tenth of a second: the 2X clock ticks, and with a 2X on the chip flips between the two
 RunService.Heartbeat:Connect(function()
 	local perMin = player:GetAttribute("Income")
@@ -146,6 +196,9 @@ RunService.Heartbeat:Connect(function()
 		return
 	end
 	income.Visible = player:GetAttribute("Driving") ~= true
+	if income.Visible and not tipShown and StageGate.shows("coins") then
+		incomeTip()
+	end
 	local n = math.floor(perMin + 0.5)
 	if n ~= lastIncome then
 		if lastIncome >= 0 and n > lastIncome then
@@ -304,12 +357,66 @@ local function showAway(coins: number, seconds: number?)
 	Party.confetti(awayGui, 40)
 end
 
+-- collected coins fly up into the coins number, so you see where they went
+local function coinChip(): GuiObject?
+	local stars = player.PlayerGui:FindFirstChild("StarsHud")
+	local c = stars and stars:FindFirstChild("CoinCount", true)
+	return if c and c:IsA("GuiObject") and c.AbsoluteSize.X > 0 then c else nil
+end
+
+local function flyCoins(n: number)
+	local chip = coinChip()
+	if not chip then
+		return
+	end
+	local to = chip.AbsolutePosition
+		+ Vector2.new(chip.AbsoluteSize.Y * 0.5, chip.AbsoluteSize.Y * 0.5)
+	local from = top.AbsoluteSize * Vector2.new(0.5, 0.42)
+	local count = math.clamp(math.floor(n / 5), 6, 14)
+	for i = 1, count do
+		task.delay((i - 1) * 0.05 + 0.15, function()
+			local c = Instance.new("Frame")
+			c.Name = "Kart_Coin"
+			c.AnchorPoint = Vector2.new(0.5, 0.5)
+			c.Size = UDim2.fromOffset(22, 22)
+			c.BackgroundColor3 = Color3.fromRGB(255, 196, 40)
+			c.ZIndex = 40
+			local spread = Vector2.new(math.random(-70, 70), math.random(-40, 40))
+			c.Position = UDim2.fromOffset(from.X + spread.X, from.Y + spread.Y)
+			c.Parent = top
+			corner(c, 0.5)
+			local r = Instance.new("UIStroke")
+			r.Color = Color3.fromRGB(176, 112, 10)
+			r.Thickness = 2
+			r.Parent = c
+			local t = 0.55 + math.random() * 0.15
+			TweenService:Create(
+				c,
+				TweenInfo.new(t, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+				{ Position = UDim2.fromOffset(to.X, to.Y), Size = UDim2.fromOffset(14, 14) }
+			):Play()
+			task.delay(t, function()
+				c:Destroy()
+				-- the coins number gives a little hop as each one lands
+				local scale = chip:FindFirstChildOfClass("UIScale")
+				if scale then
+					scale.Scale = 1.15
+					TweenService
+						:Create(scale, TweenInfo.new(0.2, Enum.EasingStyle.Back), { Scale = 1 })
+						:Play()
+				end
+			end)
+		end)
+	end
+end
+
 local function onPlot(what: unknown, a: unknown, b: unknown)
 	if what == "away" and type(a) == "number" and a >= 1 then
 		showAway(a, if type(b) == "number" then b else nil)
 	elseif what == "collected" and type(a) == "number" and a > 0 then
 		bigWords(`+{math.floor(a)} COINS!`, KartStyle.YELLOW)
 		Party.burst(top, UDim2.fromScale(0.5, 0.42), 20)
+		flyCoins(a)
 	elseif what == "boost" then
 		bigWords("2X COINS!", KartStyle.YELLOW)
 		Party.confetti(top, 30)
