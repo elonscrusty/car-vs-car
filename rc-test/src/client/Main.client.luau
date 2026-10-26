@@ -467,6 +467,11 @@ RunService.PreSimulation:Connect(function(dt: number)
 		return
 	end
 	local input = controls.read()
+	if grid and countdown then
+		-- server race, lights still red: the car waits on the line for GO (carter 10-26: AUTO GAS
+		-- or a held GAS rolled it over the line = TOO EARLY and an extra lap). Steering still works.
+		input = { steer = input.steer, throttle = 0, brake = 0, drift = false }
+	end
 	car.step(dt, input)
 
 	local t = tracks[current]
