@@ -18,6 +18,7 @@ local Features = require(Shared:WaitForChild("Features"))
 if not Features.CVC then
 	return
 end
+local CvcLayout = require(Shared:WaitForChild("CvcLayout"))
 local HudLayout = require(Shared:WaitForChild("HudLayout"))
 local KartStyle = require(Shared:WaitForChild("KartStyle"))
 local CvcState = require(script.Parent:WaitForChild("CvcState"))
@@ -182,17 +183,14 @@ end
 
 local chat = Instance.new("Frame")
 chat.Name = "QuickChat"
-chat.AnchorPoint = Vector2.new(0.5, 0.5)
-chat.Position = UDim2.fromScale(0.5, 0.66)
-chat.Size = UDim2.new(0, 300, 0, 60)
+CvcLayout.place(chat, "finish", "Chat")
 chat.BackgroundTransparency = 1
 chat.Visible = false
 chat.Parent = top
 local gg = button(chat, "GG!", KartStyle.SKY)
-gg.Size = UDim2.new(0.47, 0, 1, 0)
+CvcLayout.place(gg, "finish", "GG")
 local again = button(chat, "AGAIN!", KartStyle.GREEN)
-again.Position = UDim2.fromScale(0.53, 0)
-again.Size = UDim2.new(0.47, 0, 1, 0)
+CvcLayout.place(again, "finish", "Again")
 again:SetAttribute("KartPulse", true)
 
 local function say(text: string)
@@ -220,20 +218,35 @@ again.Activated:Connect(function()
 	hideChat()
 end)
 
+-- a quick white flash over the whole screen (a win)
+local function flash()
+	local f = Instance.new("Frame")
+	f.Name = "Kart_Flash"
+	f:SetAttribute("NoKart", true)
+	f.Active = false
+	f.BorderSizePixel = 0
+	f.BackgroundColor3 = WHITE
+	f.BackgroundTransparency = 0.35
+	f.Size = UDim2.fromScale(1, 1)
+	f.ZIndex = 1
+	f.Parent = fall
+	TweenService:Create(f, TweenInfo.new(0.5), { BackgroundTransparency = 1 }):Play()
+	task.delay(0.5, function()
+		f:Destroy()
+	end)
+end
+
+-- The result card: the place slams in big, the trophy pops up with rays (top 3), then the coins
+-- count up. A win gets a flash, a burst and lots of confetti.
 local function finish(place: number, coins: number, trophy: boolean)
 	local card = Instance.new("Frame")
 	card.Name = "Finish"
-	card.AnchorPoint = Vector2.new(0.5, 0.5)
-	card.Position = UDim2.fromScale(0.5, 0.36)
-	card.Size = UDim2.fromScale(0.36, 0.34)
+	CvcLayout.place(card, "finish", "Card")
 	card.BackgroundColor3 = KartStyle.BLUE
 	card.ZIndex = 2
 	card.Parent = top
 	CvcUi.corner(card, 0.08)
 	CvcUi.rim(card, KartStyle.PANEL_RIM)
-	local max = Instance.new("UISizeConstraint")
-	max.MaxSize = Vector2.new(420, 260)
-	max.Parent = card
 	local color = if trophy then TROPHY_COLORS[place] or WHITE else WHITE
 	local word = label(card, placeWord(place), color)
 	word.Position = UDim2.fromScale(0.05, 0.06)
@@ -243,26 +256,65 @@ local function finish(place: number, coins: number, trophy: boolean)
 	s.Color = INK
 	s.Thickness = 3
 	s.Parent = word
+	pop(card, 0.3)
+	-- the place word: from huge down onto the card
+	local wordScale = Instance.new("UIScale")
+	wordScale.Scale = 2.4
+	wordScale.Parent = word
+	TweenService:Create(wordScale, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+	if place == 1 then
+		flash()
+		local at = card.AbsolutePosition + card.AbsoluteSize / 2
+		Party.burst(top, UDim2.fromOffset(at.X, at.Y), 24)
+	end
 	if trophy then
 		local cup = label(card, "🏆", WHITE)
 		cup.Name = "Trophy"
 		cup.Position = UDim2.fromScale(0.05, 0.42)
 		cup.Size = UDim2.fromScale(0.9, 0.3)
 		cup.ZIndex = 3
-		Party.rays(cup, color)
+		local cupScale = Instance.new("UIScale")
+		cupScale.Scale = 0
+		cupScale.Parent = cup
+		task.delay(0.3, function()
+			TweenService:Create(cupScale, TweenInfo.new(0.45, Enum.EasingStyle.Back), { Scale = 1 })
+				:Play()
+			-- a little wiggle once it's up
+			cup.Rotation = -12
+			TweenService:Create(
+				cup,
+				TweenInfo.new(0.12, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, 3, true),
+				{ Rotation = 12 }
+			):Play()
+			task.delay(0.8, function()
+				cup.Rotation = 0
+			end)
+			Party.rays(cup, color)
+		end)
+		Party.confetti(fall, if place == 1 then 110 else 50)
 	end
-	local got = label(card, if coins > 0 then `+{coins} COINS` else "", KartStyle.YELLOW)
+	-- the coins count up
+	local got = label(card, "", KartStyle.YELLOW)
 	got.Position = UDim2.fromScale(0.05, if trophy then 0.74 else 0.5)
 	got.Size = UDim2.fromScale(0.9, 0.2)
 	got.ZIndex = 3
-	pop(card, 0.3)
-	if trophy then
-		Party.confetti(fall, if place == 1 then 90 else 50)
+	if coins > 0 then
+		task.delay(0.6, function()
+			local start = os.clock()
+			local secs = 0.9
+			while card.Parent and os.clock() - start < secs do
+				local f = (os.clock() - start) / secs
+				got.Text = `+{math.floor(coins * (1 - (1 - f) ^ 2))} COINS`
+				task.wait()
+			end
+			got.Text = `+{coins} COINS`
+			pop(got, 1.4)
+		end)
 	end
 	if place >= 1 then
 		Sfx.trophy(place)
 	end
-	task.delay(4.5, function()
+	task.delay(5, function()
 		TweenService:Create(card, TweenInfo.new(0.4), { Position = UDim2.fromScale(0.5, -0.4) })
 			:Play()
 		task.delay(0.4, function()

@@ -73,7 +73,7 @@ function CvcUi.ribbon(panel: GuiObject, text: string): TextLabel
 	t.Name = "Ribbon"
 	t.AnchorPoint = Vector2.new(0.5, 0.5)
 	t.Position = UDim2.fromScale(0.5, 0)
-	t.Size = UDim2.fromScale(0.6, 0.13)
+	t.Size = UDim2.new(0.6, 0, 0, 44) -- (fixed height: the panels' tabs sit 26 px down)
 	t.BackgroundColor3 = KartStyle.YELLOW
 	t.BackgroundTransparency = 0
 	t.ZIndex = 3
