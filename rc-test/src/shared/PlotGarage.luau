@@ -93,6 +93,19 @@ end
 
 -- Now and then a "+N" floats up off each car on the loop: the coins it made since the last one,
 -- so you can see your cars earning. POP_SECS apart per car (staggered), N from its coins a minute.
+-- Moves at a set rate: add a frame's time to `acc`; due when a step is owed (and `acc` is what's
+-- left). hz >= 60 means every frame.
+function PlotGarage.stepDue(acc: number, dt: number, hz: number): (number, boolean)
+	if hz >= 60 then
+		return 0, true
+	end
+	acc += dt
+	if acc >= 1 / hz then
+		return acc % (1 / hz), true
+	end
+	return acc, false
+end
+
 PlotGarage.POP_SECS = 30
 function PlotGarage.popCoins(perMin: number): number
 	return math.max(1, math.floor(perMin * PlotGarage.POP_SECS / 60 + 0.5))

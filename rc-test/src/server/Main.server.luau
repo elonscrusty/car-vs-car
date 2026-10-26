@@ -57,6 +57,7 @@ do -- phone speed pass over the plots (small bits: no shadow; tiny decor bits: n
 		)
 	)
 end
+require(script.Parent.Streaming).persist() -- (only matters if StreamingEnabled is turned on)
 local slots = LobbyLayout.slots()
 
 -- Client -> server: ("place", rc: boolean, slotIndex: number) when a drive (re)starts (only
