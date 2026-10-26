@@ -46,6 +46,7 @@ PlotTraining.GRID = {
 }
 PlotTraining.PAD = { w = 22, d = 16 } -- each station pad (x by z)
 PlotTraining.ROOM = { x0 = -38, x1 = 38, z0 = -53, z1 = -25 } -- the garage room's floor
+PlotTraining.NEAR = 220 -- studs: a plot farther from the camera than this stops moving its cars
 PlotTraining.CAR = 0.9 -- toy car size on the stations and stands (times a 3.6-stud car)
 -- the car stands down both sides of the room, in the order they open
 PlotTraining.STANDS = {
@@ -62,6 +63,11 @@ PlotTraining.STANDS = {
 }
 PlotTraining.SHELF = { x = 24, z = -53.2, w = 24, y = 4.5 } -- the trophy shelf, on the back wall
 PlotTraining.MAX_TROPHIES = 12 -- cups drawn on the shelf (the number on its sign keeps counting)
+
+-- Does a plot this far from the camera move its cars? (phone speed: far ones wait)
+function PlotTraining.awake(distance: number): boolean
+	return distance < PlotTraining.NEAR
+end
 
 -- Car stands at this garage level: 3 at the start, one more each level, up to 10.
 function PlotTraining.stands(garageLevel: number): number
