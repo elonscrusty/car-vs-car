@@ -101,7 +101,7 @@ local function label(parent: Instance, text: string, color: Color3): TextLabel
 	local l = Instance.new("TextLabel")
 	l.BackgroundTransparency = 1
 	l.Size = UDim2.fromScale(1, 1)
-	l.Font = Enum.Font.GothamBlack
+	l.Font = Enum.Font.LuckiestGuy
 	l.TextScaled = true
 	l.TextColor3 = color
 	l.Text = text
@@ -248,7 +248,7 @@ function BuildScreen.new(opts: Options): BuildScreen
 		b.Name = k
 		b.Position = UDim2.new((i - 1) * 0.5, if i == 1 then 0 else 4, 0, 0)
 		b.Size = UDim2.new(0.5, -4, 1, 0)
-		b.Font = Enum.Font.GothamBlack
+		b.Font = Enum.Font.LuckiestGuy
 		b.TextScaled = true
 		b.TextColor3 = WHITE
 		b.Text = if k == "race" then "🏁 RACE" else "💨 DRIFT"
@@ -314,7 +314,7 @@ function BuildScreen.new(opts: Options): BuildScreen
 		local b = Instance.new("TextButton")
 		b.Name = name
 		b.BackgroundColor3 = color
-		b.Font = Enum.Font.GothamBlack
+		b.Font = Enum.Font.LuckiestGuy
 		b.TextScaled = true
 		b.TextColor3 = WHITE
 		b.Text = text
@@ -406,7 +406,7 @@ function BuildScreen.new(opts: Options): BuildScreen
 			mark.Position = UDim2.fromOffset(px + at.X * layout.cell, py + at.Y * layout.cell)
 			mark.Size = UDim2.fromOffset(layout.cell * 0.5, layout.cell * 0.5)
 			mark.BackgroundColor3 = RED
-			mark.Font = Enum.Font.GothamBlack
+			mark.Font = Enum.Font.LuckiestGuy
 			mark.TextScaled = true
 			mark.TextColor3 = WHITE
 			mark.Text = "!"
@@ -484,7 +484,7 @@ function BuildScreen.new(opts: Options): BuildScreen
 						badge.Position = UDim2.new(1, 2, 0, -2)
 						badge.Size = UDim2.fromScale(0.42, 0.42)
 						badge.BackgroundColor3 = YELLOW
-						badge.Font = Enum.Font.GothamBlack
+						badge.Font = Enum.Font.LuckiestGuy
 						badge.TextScaled = true
 						badge.TextColor3 = DARK
 						badge.Text = "🔄" -- (↻ has no glyph in Roblox fonts)
@@ -637,7 +637,7 @@ function BuildScreen.new(opts: Options): BuildScreen
 	aimMark.Position = UDim2.new(1, -2, 0, 2)
 	aimMark.Size = UDim2.fromScale(0.38, 0.38)
 	aimMark.BackgroundTransparency = 0
-	aimMark.Font = Enum.Font.GothamBlack
+	aimMark.Font = Enum.Font.LuckiestGuy
 	aimMark.TextScaled = true
 	aimMark.TextColor3 = WHITE
 	aimMark.ZIndex = 8

@@ -20,6 +20,8 @@ local Garage = require(Shared:WaitForChild("Garage"))
 local CarCatalog = require(Shared:WaitForChild("CarCatalog"))
 local TileShop = require(Shared:WaitForChild("TileShop"))
 local HudLayout = require(Shared:WaitForChild("HudLayout"))
+local KartStyle = require(Shared:WaitForChild("KartStyle"))
+local Party = require(script.Parent:WaitForChild("Party"))
 local Popup = require(script.Parent:WaitForChild("Popup"))
 
 local player = Players.LocalPlayer
@@ -28,8 +30,12 @@ local shopRemote = ReplicatedStorage:WaitForChild("CarShop") :: RemoteFunction
 local SPIN = 0.35 -- radians a second
 local TITLES = { drift = "DRIFT CARS", race = "RACE CARS", rock = "ROCK CARS" }
 local MODE_WORDS = { drift = "drift", race = "race", rock = "rock" }
-local GOLD = Color3.fromRGB(255, 213, 79)
+local GOLD = KartStyle.YELLOW
 local GREY = Color3.fromRGB(110, 110, 118)
+-- Kart Party cards: white cards with ink words and rims on the blue panel
+local CARD = Color3.fromRGB(244, 247, 255)
+local PRICE = Color3.fromRGB(214, 128, 0) -- coin orange: reads on a white card
+local HINT = Color3.fromRGB(207, 227, 255)
 
 type State = {
 	coins: number,
@@ -91,7 +97,8 @@ panelRatio.AspectRatio = 1.9
 panelRatio.Parent = panel
 corner(panel, 0.05)
 local panelStroke = Instance.new("UIStroke")
-panelStroke.Thickness = 4
+panelStroke.Thickness = KartStyle.PANEL_RIM
+panelStroke.Color = KartStyle.INK
 panelStroke.Parent = panel
 
 local function text(
@@ -108,7 +115,7 @@ local function text(
 	l.BackgroundTransparency = 1
 	l.Position = UDim2.fromScale(x, y)
 	l.Size = UDim2.fromScale(w, h)
-	l.Font = Enum.Font.GothamBlack
+	l.Font = Enum.Font.LuckiestGuy
 	l.TextScaled = true
 	l.TextColor3 = color
 	l.TextXAlignment = if left then Enum.TextXAlignment.Left else Enum.TextXAlignment.Center
@@ -117,7 +124,22 @@ local function text(
 	return l
 end
 
-local title = text(panel, "", 0.05, 0.03, 0.31, 0.12, Color3.new(1, 1, 1), true)
+-- the shop's name on a yellow ribbon, in the shop's own colour rim
+local title = text(panel, "", 0.04, 0.035, 0.3, 0.11, KartStyle.INK)
+title.BackgroundColor3 = GOLD
+title.BackgroundTransparency = 0
+corner(title, 0.3)
+local titleRim = Instance.new("UIStroke")
+titleRim.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+titleRim.Color = KartStyle.INK
+titleRim.Thickness = KartStyle.BUTTON_RIM
+titleRim.Parent = title
+local titlePad = Instance.new("UIPadding")
+titlePad.PaddingTop = UDim.new(0.14, 0)
+titlePad.PaddingBottom = UDim.new(0.1, 0)
+titlePad.PaddingLeft = UDim.new(0.05, 0)
+titlePad.PaddingRight = UDim.new(0.05, 0)
+titlePad.Parent = title
 local coinsLabel = text(panel, "", 0.62, 0.05, 0.25, 0.08, GOLD)
 coinsLabel.TextXAlignment = Enum.TextXAlignment.Right
 
@@ -127,7 +149,7 @@ close.AnchorPoint = Vector2.new(1, 0)
 close.Position = UDim2.fromScale(0.97, 0.03)
 close.Size = UDim2.fromScale(0.07, 0.13)
 close.BackgroundColor3 = Color3.fromRGB(220, 60, 50)
-close.Font = Enum.Font.GothamBlack
+close.Font = Enum.Font.LuckiestGuy
 close.TextScaled = true
 close.TextColor3 = Color3.new(1, 1, 1)
 close.Text = "X"
@@ -152,7 +174,7 @@ local function button(parent: Instance, t: string, color: Color3, live: boolean)
 	b.BackgroundColor3 = if live then color else GREY
 	b.AutoButtonColor = live
 	b.Active = live
-	b.Font = Enum.Font.GothamBlack
+	b.Font = Enum.Font.LuckiestGuy
 	b.TextScaled = true
 	b.TextColor3 = if live then Color3.new(1, 1, 1) else Color3.fromRGB(200, 200, 205)
 	b.Text = t
@@ -285,6 +307,9 @@ local function reveal(car: CarCatalog.Car, onDone: () -> ())
 		TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
 		{ Size = UDim2.fromScale(1, 0.15), Position = UDim2.fromScale(0, 0) }
 	):Play()
+	-- a party: gold rays turn behind the car, confetti falls
+	local stopRays = Party.rays(view, GOLD)
+	Party.confetti(back, 60)
 	-- the car turns on its spot
 	local cam = view.CurrentCamera
 	local model = view:FindFirstChildOfClass("Model")
@@ -309,6 +334,7 @@ local function reveal(car: CarCatalog.Car, onDone: () -> ())
 			revealSpin:Disconnect()
 			revealSpin = nil
 		end
+		stopRays()
 		back:Destroy()
 		panel.Visible = true
 		onDone()
@@ -353,7 +379,7 @@ end
 local function showShop(kind: string, s: State)
 	clear()
 	title.Text = TITLES[kind] or "CARS"
-	panelStroke.Color = rgb(Garage.SHOPS[kind].color)
+	titleRim.Color = KartStyle.INK
 	coinsLabel.Text = s.coins .. " coins"
 	local owned: { [string]: boolean } = {}
 	for _, id in s.owned do
@@ -414,19 +440,35 @@ local function showShop(kind: string, s: State)
 		0.92,
 		1,
 		0.08,
-		Color3.fromRGB(180, 180, 190)
+		HINT
 	)
 	for i, car in cars do
 		local c = Instance.new("Frame")
-		c.Position = UDim2.new((i - 1) / shown, 4, 0, 0)
-		c.Size = UDim2.new(1 / shown, -8, 1, -14)
-		c.BackgroundColor3 = Color3.fromRGB(48, 48, 58)
+		c.Position = UDim2.new((i - 1) / shown, 4, 0, 4)
+		c.Size = UDim2.new(1 / shown, -8, 1, -18)
+		c.BackgroundColor3 = CARD
 		c.Parent = scroller
 		corner(c, 0.08)
+		local cardRim = Instance.new("UIStroke")
+		cardRim.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		cardRim.Color = if s.equipped[kind] == car.id then GOLD else KartStyle.INK
+		cardRim.Thickness = if s.equipped[kind] == car.id then 4 else KartStyle.BUTTON_RIM
+		cardRim.Parent = c
+		-- the cards drop in one after another
+		local drop = Instance.new("UIScale")
+		drop.Scale = 0.3
+		drop.Parent = c
+		task.delay(0.05 + (i - 1) * 0.06, function()
+			TweenService:Create(
+				drop,
+				TweenInfo.new(0.36, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+				{ Scale = 1 }
+			):Play()
+		end)
 		local view = preview(c, car, rgb(Garage.SHOPS[kind].color))
 		view.Position = UDim2.fromScale(0.06, 0.04)
 		view.Size = UDim2.fromScale(0.88, 0.5)
-		text(c, car.name, 0.06, 0.57, 0.88, 0.12, Color3.new(1, 1, 1))
+		text(c, car.name, 0.06, 0.57, 0.88, 0.12, KartStyle.INK)
 		local price = if owned[car.id] and car.price > 0
 			then "OWNED"
 			elseif car.rare then "RARE"
@@ -439,7 +481,7 @@ local function showShop(kind: string, s: State)
 			0.7,
 			0.88,
 			0.1,
-			if car.rare then Color3.fromRGB(255, 120, 190) else GOLD
+			if car.rare then Color3.fromRGB(230, 70, 150) else PRICE
 		)
 
 		local b: TextButton
@@ -462,14 +504,14 @@ local function showShop(kind: string, s: State)
 				end
 			end)
 		else
-			b = button(
-				c,
-				needWords(car.price, s.coins),
-				Color3.fromRGB(240, 170, 20),
-				s.coins >= car.price
-			)
+			b = button(c, needWords(car.price, s.coins), KartStyle.GREEN, s.coins >= car.price)
 			if s.coins >= car.price then
+				b:SetAttribute("KartPulse", true)
+				local buyButton = b
 				b.Activated:Connect(function()
+					-- a burst of bits out of BUY, at once (the server answers after)
+					local at = buyButton.AbsolutePosition + buyButton.AbsoluteSize / 2
+					Party.burst(gui, UDim2.fromOffset(at.X, at.Y))
 					local now = ask("buy", car.id)
 					if now then
 						showShop(kind, now)
@@ -493,7 +535,7 @@ end
 local function showGumball(s: State, result: string?)
 	clear()
 	title.Text = "GUMBALL"
-	panelStroke.Color = Color3.fromRGB(255, 120, 190)
+	titleRim.Color = Color3.fromRGB(255, 120, 190)
 	coinsLabel.Text = s.coins .. " coins"
 	local owned: { [string]: boolean } = {}
 	for _, id in s.owned do
@@ -579,7 +621,7 @@ local LEGEND = Color3.fromRGB(60, 220, 255)
 local function showTiles(s: State, result: string?)
 	clear()
 	title.Text = "TRACK TILES"
-	panelStroke.Color = LEGEND
+	titleRim.Color = LEGEND
 	coinsLabel.Text = s.coins .. " coins"
 	local owned: { [string]: boolean } = {}
 	for _, id in s.tiles or {} do

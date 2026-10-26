@@ -48,7 +48,7 @@ function RoadArrow.new(ignore: { Instance }): RoadArrow
 		t.BackgroundTransparency = 1
 		t.Position = UDim2.fromScale(0, (i - 1) * 0.46)
 		t.Size = UDim2.fromScale(1, 0.54)
-		t.Font = Enum.Font.GothamBlack
+		t.Font = Enum.Font.LuckiestGuy
 		t.TextScaled = true
 		t.Text = "▲"
 		t.TextColor3 = COLOR

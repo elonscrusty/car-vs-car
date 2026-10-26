@@ -64,7 +64,7 @@ local function nameTag(body: BasePart, text: string, s: number): BillboardGui
 	local l = Instance.new("TextLabel")
 	l.BackgroundTransparency = 1
 	l.Size = UDim2.fromScale(1, 1)
-	l.Font = Enum.Font.GothamBlack
+	l.Font = Enum.Font.LuckiestGuy
 	l.TextScaled = true
 	l.TextColor3 = Color3.new(1, 1, 1)
 	l.TextStrokeTransparency = 0.4

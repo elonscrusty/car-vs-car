@@ -54,7 +54,7 @@ local function holdButton(
 	local l = Instance.new("TextLabel")
 	l.BackgroundTransparency = 1
 	l.Size = UDim2.fromScale(1, 1)
-	l.Font = Enum.Font.GothamBold
+	l.Font = Enum.Font.LuckiestGuy
 	l.TextScaled = true
 	l.TextColor3 = Color3.fromRGB(255, 255, 255)
 	l.Text = text
@@ -179,7 +179,7 @@ function Controls.new(
 		hint.AnchorPoint = Vector2.new(0.5, 1)
 		hint.Position = UDim2.fromScale(0.22, 0.93)
 		hint.Size = UDim2.fromScale(0.3, 0.08)
-		hint.Font = Enum.Font.GothamBold
+		hint.Font = Enum.Font.LuckiestGuy
 		hint.TextScaled = true
 		hint.TextColor3 = Color3.fromRGB(255, 255, 255)
 		hint.TextTransparency = 0.45
@@ -258,7 +258,7 @@ function Controls.new(
 	resetBtn.AnchorPoint = Vector2.new(1, 0)
 	resetBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 	resetBtn.BackgroundTransparency = 0.25
-	resetBtn.Font = Enum.Font.GothamBold
+	resetBtn.Font = Enum.Font.LuckiestGuy
 	resetBtn.TextScaled = true
 	resetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	-- the same word size on all four (SMOKE was tiny next to a big VIEW), a little inside the edge
@@ -328,7 +328,7 @@ function Controls.new(
 		b.Size = UDim2.fromScale(0.22, 0.22)
 		b.BackgroundColor3 = Color3.fromRGB(235, 150, 40)
 		b.BackgroundTransparency = 0.25
-		b.Font = Enum.Font.GothamBold
+		b.Font = Enum.Font.LuckiestGuy
 		b.TextScaled = true
 		b.TextColor3 = Color3.fromRGB(255, 255, 255)
 		b.Visible = false
@@ -357,7 +357,7 @@ function Controls.new(
 		l.AnchorPoint = Vector2.new(0.5, 0.5)
 		l.Position = UDim2.fromScale(0.62, 0.4)
 		l.Size = UDim2.fromScale(0.2, 0.06)
-		l.Font = Enum.Font.GothamBold
+		l.Font = Enum.Font.LuckiestGuy
 		l.TextScaled = true
 		l.TextColor3 = Color3.fromRGB(255, 255, 255)
 		l.TextTransparency = 0.5
@@ -375,7 +375,7 @@ function Controls.new(
 		help.AnchorPoint = Vector2.new(0.5, 1)
 		help.Position = UDim2.fromScale(0.5, 0.985)
 		help.Size = UDim2.fromScale(0.6, 0.035)
-		help.Font = Enum.Font.GothamBold
+		help.Font = Enum.Font.LuckiestGuy
 		help.TextScaled = true
 		help.TextColor3 = Color3.fromRGB(255, 255, 255)
 		help.TextTransparency = 0.35

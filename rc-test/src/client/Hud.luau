@@ -30,7 +30,7 @@ local function label(
 	l.AnchorPoint = anchor
 	l.Position = pos
 	l.Size = size
-	l.Font = Enum.Font.GothamBold
+	l.Font = Enum.Font.LuckiestGuy
 	l.TextScaled = true
 	l.TextColor3 = Color3.fromRGB(255, 255, 255)
 	l.TextStrokeTransparency = 0.5
@@ -62,7 +62,7 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }): Hud
 		b.Size = UDim2.fromScale(0.23, 1)
 		b.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 		b.BackgroundTransparency = 0.25
-		b.Font = Enum.Font.GothamBold
+		b.Font = Enum.Font.LuckiestGuy
 		b.TextScaled = true
 		b.TextColor3 = Color3.fromRGB(255, 255, 255)
 		b.Text = GOAL[text] or text

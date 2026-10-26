@@ -16,6 +16,7 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
+local KartStyle = require(ReplicatedStorage.Shared.KartStyle)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local SoundLevels = require(ReplicatedStorage.Shared.SoundLevels)
 local PlotGuide = require(script.Parent.PlotGuide)
@@ -66,7 +67,7 @@ local function makeMarker(x: number, z: number): Model
 	text.Size = UDim2.fromScale(1, 1)
 	text.BackgroundColor3 = Color3.fromRGB(255, 210, 63)
 	text.TextColor3 = Color3.fromRGB(30, 30, 34)
-	text.Font = Enum.Font.GothamBlack
+	text.Font = Enum.Font.LuckiestGuy
 	text.TextScaled = true
 	text.Text = "YOUR PLOT"
 	text.Parent = sign
@@ -115,7 +116,7 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 		button.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 		button.BackgroundTransparency = 0.2
 		button.TextColor3 = Color3.new(1, 1, 1)
-		button.Font = Enum.Font.GothamBlack
+		button.Font = Enum.Font.LuckiestGuy
 		button.TextSize = 20
 		button.Text = text
 		button.Parent = gui
@@ -138,8 +139,9 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 	inset.PaddingLeft = UDim.new(0, 8)
 	inset.PaddingRight = UDim.new(0, 8)
 	inset.Parent = driveButton
-	local DRIVE_ON = Color3.fromRGB(230, 180, 30)
+	local DRIVE_ON = KartStyle.GREEN
 	local DRIVE_OFF = Color3.fromRGB(70, 70, 78)
+	driveButton:SetAttribute("KartPulse", true) -- the one thing to press (KartSkin)
 
 	-- FRIENDS: ON / OFF for the plot you own (the server says which one, and its state)
 	local friendsGui, friendsButton = bigButton("Friends", "FRIENDS: OFF")
@@ -200,9 +202,7 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 			driveButton.Text = "DRIVE"
 		end
 		driveButton.BackgroundColor3 = if mayDrive then DRIVE_ON else DRIVE_OFF
-		driveButton.TextColor3 = if mayDrive
-			then Color3.fromRGB(30, 30, 34)
-			else Color3.new(1, 1, 1)
+		driveButton.TextColor3 = Color3.new(1, 1, 1)
 		driveButton.AutoButtonColor = mayDrive
 	end
 	-- the plot's owner, driver or FRIENDS can change while you stand there
