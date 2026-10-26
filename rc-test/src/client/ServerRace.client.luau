@@ -233,10 +233,16 @@ RunService.RenderStepped:Connect(function()
 	-- the daily gift (Stars) waits while a race or its card is on screen
 	gui:SetAttribute("Busy", phase == "racing" or phase == "call" or card.Visible)
 	local hurryLeft = endsAt - workspace:GetServerTimeNow()
-	hurry.Visible = phase == "racing" and endsAt > 0 and not finished and hurryLeft > 0
+	-- (over the line already: how long until the results, so waiting on the others isn't a mystery)
+	hurry.Visible = phase == "racing" and endsAt > 0 and hurryLeft > 0
 	if hurry.Visible and (words or not wasHurry) then
-		hurry.Text = if driftEnds
-			then `DRIFT!  {ServerRace.clock(hurryLeft)} LEFT`
+		-- (blue once you're in: red is for the ones still racing)
+		hurry.BackgroundColor3 = if finished
+			then Color3.fromRGB(40, 110, 210)
+			else Color3.fromRGB(200, 40, 40)
+		hurry.Text = if finished
+			then `RESULTS IN {ServerRace.clock(hurryLeft)}`
+			elseif driftEnds then `DRIFT!  {ServerRace.clock(hurryLeft)} LEFT`
 			else `FINISH IN {ServerRace.clock(hurryLeft)}!`
 	end
 	-- (the build screen has its own clock)
