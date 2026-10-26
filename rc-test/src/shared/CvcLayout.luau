@@ -300,16 +300,43 @@ function CvcLayout.turnOf(name: string): number
 	error(`not an after-race card: {name}`)
 end
 
--- the result card's box (the same numbers as ServerRace.client: top at 31%, 68% wide, 20% plus
--- 6.5% a row plus the podium's 20%), lines = its rows
-function CvcLayout.resultBox(sw: number, sh: number, lines: number, podium: boolean): Rect
-	local tall = 0.2 + 0.065 * lines + (if podium then 0.2 else 0)
-	return { sw * 0.16, sh * 0.31, sw * 0.84, sh * (0.31 + tall) }
+-- the race result card (ServerRace.client "Result"): its top at 31%, 68% wide, 20% for the
+-- ribbon and edges, 6.5% a row and the podium's 24%; it all shrinks together so the card ends
+-- above the screen's bottom (Studio check 10-26: 8 racers and the podium ran off at 604 px)
+CvcLayout.RESULT = { top = 0.31, w = 0.68, base = 0.2, row = 0.065, podium = 0.24, bottom = 0.97 }
+
+-- how much the result card shrinks (1 = not at all) for `lines` rows, with or without the podium
+function CvcLayout.resultFit(lines: number, podium: boolean): number
+	local R = CvcLayout.RESULT
+	local tall = R.base + R.row * lines + (if podium then R.podium else 0)
+	return math.min(1, (R.bottom - R.top) / tall)
 end
 
--- the NEXT CAR card's box once the result is gone (Stars: x 0.4, y 0.64, 36% x 11%)
-function CvcLayout.prizeBox(sw: number, sh: number): Rect
-	return { sw * 0.22, sh * 0.64, sw * 0.58, sh * 0.75 }
+function CvcLayout.resultBox(sw: number, sh: number, lines: number, podium: boolean): Rect
+	local R = CvcLayout.RESULT
+	local tall = (R.base + R.row * lines + (if podium then R.podium else 0))
+		* CvcLayout.resultFit(lines, podium)
+	return { sw * (0.5 - R.w / 2), sh * R.top, sw * (0.5 + R.w / 2), sh * (R.top + tall) }
+end
+
+-- the NEXT CAR card (Stars "RacePrize") once the result is gone (you're on foot then): in the
+-- middle, 30% x 11%, between the left and right button columns; at 64% down, or higher to sit
+-- over the big JOIN button (its top at joinTop px) with a gap (Studio check 10-26: it covered
+-- JOIN on a short screen)
+CvcLayout.PRIZE = { x = 0.5, y = 0.64, w = 0.3, h = 0.11, gap = 10 }
+
+function CvcLayout.prizeY(sh: number, joinTop: number?): number
+	local P = CvcLayout.PRIZE
+	if not joinTop then
+		return P.y
+	end
+	return math.max(0.12, math.min(P.y, (joinTop - P.gap) / sh - P.h))
+end
+
+function CvcLayout.prizeBox(sw: number, sh: number, joinTop: number?): Rect
+	local P = CvcLayout.PRIZE
+	local y = CvcLayout.prizeY(sh, joinTop)
+	return { sw * (P.x - P.w / 2), sh * y, sw * (P.x + P.w / 2), sh * (y + P.h) }
 end
 
 -- (client) wait until every after-race card from an earlier turn than `name` is off the screen,

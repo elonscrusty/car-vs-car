@@ -868,7 +868,17 @@ local function showPrize(before: any)
 	if os.clock() < popUntil then
 		y = math.max(y, popBottom + GAP * 0.5)
 	end
-	prize.Position = UDim2.fromScale(0.4, math.min(y, 0.73))
+	y = math.min(y, 0.73)
+	-- Car VS Car: over the big JOIN button, never on it (CvcLayout.prizeY; it can come up later)
+	local pgui = player:FindFirstChildOfClass("PlayerGui")
+	local cvcRace = if Features.CVC and pgui then pgui:FindFirstChild("CvcRace") else nil
+	local join = if cvcRace then cvcRace:FindFirstChild("BigJoin") else nil
+	if join and join:IsA("GuiObject") and top.AbsoluteSize.Y > 0 then
+		y = math.min(y, CvcLayout.prizeY(top.AbsoluteSize.Y, join.AbsolutePosition.Y))
+	end
+	local P = CvcLayout.PRIZE
+	prize.Size = if Features.CVC then UDim2.fromScale(P.w, P.h) else UDim2.fromScale(0.36, 0.11)
+	prize.Position = UDim2.fromScale(if Features.CVC then P.x else 0.4, y)
 	prize.Visible = true
 	prizeScale.Scale = 0.6
 	TweenService:Create(prizeScale, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Scale = 1 })
