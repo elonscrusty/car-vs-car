@@ -372,7 +372,7 @@ function PlotTraining.pieces(plotLevel: number, garageLevel: number, trophies: n
 			{ collide = false }
 		)
 	end
-	add("Room", "RoomSign", v(14, 2.6, 0.4), v(0, 11, -53.4), WOOD_DARK, { collide = false })
+	add("Room", "RoomSign", v(18, 3.6, 0.4), v(0, 11.2, -53.4), WOOD_DARK, { collide = false })
 	-- the trophy shelf on the back wall, its cups, and its sign
 	local S = PlotTraining.SHELF
 	add(
@@ -394,8 +394,8 @@ function PlotTraining.pieces(plotLevel: number, garageLevel: number, trophies: n
 	add(
 		"Shelf",
 		"ShelfSign",
-		v(10, 1.6, 0.3),
-		v(S.x, S.y + 6.4, S.z + 0.2),
+		v(12, 2.2, 0.3),
+		v(S.x, S.y + 6.6, S.z + 0.2),
 		WOOD_DARK,
 		{ collide = false }
 	)
