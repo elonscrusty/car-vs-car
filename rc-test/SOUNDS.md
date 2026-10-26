@@ -12,5 +12,5 @@ Swap in a real sound by changing `Sfx.luau`; volumes live in `src/shared/SoundLe
 ## Car VS Car cues (Sfx.crate, Sfx.trophy, Sfx.train — UI/Race call them)
 6. Crate open — drum roll then sparkle (longer for rare cars)
 7. Trophy / win — cheer plus fanfare
-8. Training station hum — soft looping motor hum (one per station kind)
+8. Training station hum — now the motor loop at low pitch; a real soft hum per station kind would be nicer
 9. Engine, upbeat music — need ids; engine already has two

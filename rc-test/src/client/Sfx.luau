@@ -64,4 +64,13 @@ function Sfx.train()
 	notes({ 1.3 }, 0, SoundLevels.TRAIN)
 end
 
+-- a crate shakes before it opens: quick low thumps, rarer crates rattle more
+function Sfx.shake(rarity: number)
+	local thumps = {}
+	for i = 1, 3 + math.clamp(rarity, 1, 4) * 2 do
+		thumps[i] = if i % 2 == 0 then 0.6 else 0.75
+	end
+	notes(thumps, 0.12, SoundLevels.CRATE)
+end
+
 return Sfx
