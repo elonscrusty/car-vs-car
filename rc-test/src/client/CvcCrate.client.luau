@@ -298,6 +298,13 @@ local function comeOut(id: string, rarity: string)
 	local card = CvcUi.card(reveal, CvcState.fresh(id))
 	card.frame.Size = UDim2.fromScale(1, 1)
 	card.frame.ZIndex = 2
+	-- (this screen sorts by ZIndex across the whole gui: the card's insides go above its white face,
+	-- or the picture, name and bars draw under it and the card shows blank)
+	for _, d in card.frame:GetDescendants() do
+		if d:IsA("GuiObject") then
+			d.ZIndex += card.frame.ZIndex
+		end
+	end
 	local n = table.find(CarCatalog.RARITY_ORDER, info.id) or 1
 	local legend = info.id == "legend"
 	Party.rays(reveal, color)
