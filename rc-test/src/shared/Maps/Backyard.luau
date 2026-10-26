@@ -166,7 +166,7 @@ local def: MapKit.Def = {
 	},
 	jumps = {
 		{ path = 0, at = { x = 250, z = -440 } }, -- over the hose
-		{ path = 0, at = { x = -110, z = -440 } }, -- a log ramp, just before the secret turns off
+		{ path = 0, at = { x = -50, z = -440 } }, -- a log ramp: land well before the secret turns off
 	},
 	props = props,
 	lines = {
