@@ -20,6 +20,7 @@ local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
 local RaceStats = require(ReplicatedStorage.Shared.RaceStats)
 local RaceStand = require(ReplicatedStorage.Shared.RaceStand)
+local BackOnTrack = require(ReplicatedStorage.Shared.BackOnTrack)
 
 local setMode: (id: string) -> () = (Tuning :: any).setMode
 local setScale: (s: number) -> () = (Tuning :: any).setScale
@@ -276,8 +277,8 @@ local function reset(why: string?)
 		and timer.running
 		and #timer.gates > 0
 	then
-		local g = timer.gates[((timer.next - 2) % #timer.gates) + 1]
-		local x, y, z = TrackData.toWorld(t, rc, g.x, math.max(g.y, t.spawn.y), g.z)
+		local g = BackOnTrack.spot(t, timer.gates, timer.next) :: BackOnTrack.Spot
+		local x, y, z = TrackData.toWorld(t, rc, g.x, g.y, g.z)
 		local dx, dz = TrackData.dirToWorld(t, rc, g.dx, g.dz)
 		local pos = Vector3.new(x, y, z)
 		car.teleport(CFrame.lookAt(pos, pos + Vector3.new(dx, 0, dz)))
@@ -672,7 +673,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 		stuckTime = 0
 	end
 	-- rocks: being stuck is part of crawling, so it never resets by itself (R or RESET does)
-	if stuckTime > Tuning.stuckWait and t.id ~= "rock" then
+	if BackOnTrack.stuck(stuckTime, Tuning.stuckWait, t.id) then
 		reset("STUCK - BACK TO START")
 	end
 
@@ -687,7 +688,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 			end
 		end
 	end
-	if p.Y < -8 * Tuning.scale / TrackData.RC_SCALE then
+	if BackOnTrack.fell(p.Y, Tuning.scale) then
 		reset()
 	elseif t.map == nil and not TrackData.inPlot(lx, lz) then
 		reset("OUT - BACK TO START")
