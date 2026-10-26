@@ -768,6 +768,7 @@ function ServerRaceRunner.start(hooks: Hooks)
 		waiting[player] = nil
 	end)
 	-- the map vote: ("vote", mapId) from a screen, at most twice a second; everyone sees the count
+	-- (a vote also joins the next race)
 	event.OnServerEvent:Connect(function(player: Player, kind: unknown, id: unknown)
 		if kind ~= "vote" or type(id) ~= "string" or not voteOpen then
 			return
@@ -778,6 +779,8 @@ function ServerRaceRunner.start(hooks: Hooks)
 		end
 		lastVote[player] = t
 		votes[player] = id
+		-- a new kid taps a map to say "I want to race": the vote puts them in it too
+		ServerRaceRunner.join(player)
 		event:FireAllClients("votes", voteCounts())
 	end)
 

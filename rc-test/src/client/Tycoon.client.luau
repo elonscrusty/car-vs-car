@@ -739,7 +739,7 @@ vote.Parent = hud
 corner(vote, 0.12)
 rim(vote, KartStyle.PANEL_RIM)
 StageGate.hold(vote, "race")
-local voteTitle = label(vote, "PICK THE NEXT MAP!", INK)
+local voteTitle = label(vote, "PICK A MAP AND RACE!", INK)
 voteTitle.AnchorPoint = Vector2.new(0.5, 0.5)
 voteTitle.Position = UDim2.fromScale(0.5, 0)
 voteTitle.Size = UDim2.fromScale(0.8, 0.22)
