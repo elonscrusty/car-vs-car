@@ -10,11 +10,13 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local Features = require(ReplicatedStorage.Shared.Features)
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
 local JoinStage = require(ReplicatedStorage.Shared.JoinStage)
 local StageGate = require(script.Parent.StageGate)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local NextGoal = require(ReplicatedStorage.Shared.NextGoal)
+local RaceMaps = require(ReplicatedStorage.Shared.RaceMaps)
 local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
 local SpawnLobby = require(ReplicatedStorage.Shared.SpawnLobby)
 
@@ -232,6 +234,10 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 	player:GetAttributeChangedSignal("Stars"):Connect(returning)
 	returning()
 
+	-- the tycoon plan: plots are garages, races are on the maps (JOIN RACE pad at the spawn)
+	local tycoonOn = not Features.PLOT_RACING
+	local seenGarage = false
+
 	local builtFor: number? = nil -- the break (its BuildEndsAt) in which the build screen was open
 
 	-- the goal is picked 10 times a second (new tables each pick); the arrows glow every frame
@@ -250,11 +256,17 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 		if clock >= nextPick or onFoot ~= wasOnFoot then
 			nextPick, wasOnFoot = clock + 0.1, onFoot
 			local _, visitName = visitTarget()
+			local near = padDistance() < NEAR
+			if near then
+				seenGarage = true
+			end
+			local pile = player:GetAttribute("PlotCoins")
+			local raceSlot = workspace:GetAttribute("RaceSlot")
 			goal = if onFoot
 				then NextGoal.pick({
 					hasPlot = slot ~= nil,
 					driven = driven or player:GetAttribute("HasDriven") == true,
-					nearPad = padDistance() < NEAR,
+					nearPad = near,
 					inShops = inShops(),
 					inBreak = inBreak(),
 					canBuy = player:GetAttribute("GoalReady") == true,
@@ -265,6 +277,11 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 						then ends + ServerRace.CALL - workspace:GetServerTimeNow()
 						else nil,
 					visit = visitName,
+					tycoon = tycoonOn,
+					seenGarage = seenGarage,
+					pile = if type(pile) == "number" then pile else 0,
+					joinOpen = #RaceMaps.NAMES > 0 and (raceSlot == nil or raceSlot == 0),
+					joined = player:GetAttribute("RaceJoined") == true,
 				})
 				else nil
 			gui.Enabled = goal ~= nil

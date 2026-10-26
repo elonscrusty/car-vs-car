@@ -104,3 +104,23 @@ test("next goal: after the first car, win stars on someone else's plot", functio
 		"WIN ⭐ AT SUPERLONGN'S"
 	)
 end)
+
+test("next goal (tycoon): garage first, then race, shop, collect", function()
+	local function t(over: { [string]: any }): any
+		local s = state(over)
+		s.tycoon = true
+		return NextGoal.pick(s)
+	end
+	eq(t({ seenGarage = false }).text, "YOUR GARAGE")
+	eq(t({ seenGarage = false }).target, "pad")
+	eq(t({ seenGarage = false, nearPad = true }), nil)
+	eq(t({ seenGarage = true, joinOpen = true }).text, "JOIN THE RACE")
+	eq(t({ seenGarage = true, joinOpen = true }).target, "shop")
+	eq(t({ seenGarage = true, joinOpen = true, joined = true }).text, "RACE SOON!")
+	eq(t({ seenGarage = true, joinOpen = true, canBuy = true }).text, "GO SHOP!")
+	eq(t({ seenGarage = true, joinOpen = true, pile = NextGoal.COLLECT_AT }).text, "COLLECT COINS")
+	eq(t({ seenGarage = true, nearPad = true, pile = 99 }).text, "TAP TO COLLECT")
+	eq(t({ seenGarage = true }), nil)
+	-- no build or drive-your-track goals in the tycoon
+	eq(t({ seenGarage = true, inBreak = true }), nil)
+end)
