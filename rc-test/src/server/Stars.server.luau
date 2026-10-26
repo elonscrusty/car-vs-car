@@ -19,6 +19,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local DailyJobs = require(ReplicatedStorage.Shared.DailyJobs)
+local Features = require(ReplicatedStorage.Shared.Features)
 local Forever = require(ReplicatedStorage.Shared.Forever)
 local LapTimer = require(ReplicatedStorage.Shared.LapTimer)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
@@ -260,6 +261,9 @@ end
 
 local PLACES = { "1", "2", "3" }
 local function showBoard(slotIndex: number)
+	if not Features.STARS then
+		return -- (the tycoon plan: no plot boards)
+	end
 	local mode = plotType(slotIndex)
 	if not Medals.target(mode) then
 		return
@@ -455,7 +459,7 @@ local targetSeen: { [Player]: string } = {}
 local ownMedal: { [Player]: { [string]: number } } = {}
 local function sendTarget(player: Player, slotIndex: number?, mode: string?)
 	local info: { medal: number, text: string, stars: boolean }? = nil
-	if slotIndex and mode then
+	if slotIndex and mode and Features.STARS then
 		local oid = ownerId(slotIndex)
 		local stars = oid ~= nil and oid ~= player.UserId
 		local have = 0
@@ -543,7 +547,7 @@ local function onRun(player: Player, slotIndex: number, mode: string, value: num
 	end
 	local gained = 0
 	local data = PlayerData.get(player)
-	if data and oid and not own then
+	if data and oid and not own and Features.STARS then
 		gained = Profile.award(data, player.UserId, oid, mode, medal)
 		if gained > 0 then
 			PlayerData.touch(player)
@@ -1024,7 +1028,7 @@ end
 local visitSeen: { [Player]: string } = {}
 local function sendVisits(player: Player)
 	local data = PlayerData.get(player)
-	if not data then
+	if not data or not Features.STARS then
 		return
 	end
 	local now = os.time()
