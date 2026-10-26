@@ -396,3 +396,54 @@ test("the map builder never calls a helper before it is made", function()
 		end
 	end
 end)
+
+-- Car VS Car: the driver stand (racers stand on it, side by side, with their remotes)
+for _, m in maps do
+	test(m.id .. ": the driver stand is inside the walls, off every road, with 8 spots", function()
+		local def = m.def
+		local st = def.stand
+		truthy(st ~= nil, "no stand")
+		local x0, x1, z0, z1 = st.x - st.w / 2, st.x + st.w / 2, st.z - st.d / 2, st.z + st.d / 2
+		truthy(
+			x0 > def.minX and x1 < def.maxX and z0 > def.minZ and z1 < def.maxZ,
+			"stand is outside the walls"
+		)
+		local rings = { m.loop() }
+		local widths = { def.road }
+		for i, p in def.paths do
+			table.insert(rings, m.path(i))
+			table.insert(widths, p.width)
+		end
+		for r, ring in rings do
+			local clear = widths[r] / 2 + MapKit.CURB_WIDTH + 4
+			for _, s in ring do
+				local dx = math.max(x0 - s.x, 0, s.x - x1)
+				local dz = math.max(z0 - s.z, 0, s.z - z1)
+				truthy(math.sqrt(dx * dx + dz * dz) > clear, `stand is on a road at {s.x}, {s.z}`)
+			end
+		end
+		for _, p in def.props do
+			if p.solid and p.h > 2 then
+				local w, d = (p.w or 0) / 2, (p.d or 0) / 2
+				local hit = p.x + w > x0 and p.x - w < x1 and p.z + d > z0 and p.z - d < z1
+				truthy(not hit, `stand is on top of the {p.kind}`)
+			end
+		end
+		local spots = m.standSpots()
+		eq(#spots, 8)
+		for _, sp in spots do
+			truthy(sp.x > x0 and sp.x < x1 and sp.y == st.h, "spot is off the stand")
+		end
+	end)
+
+	test(m.id .. ": the driver stand looks onto the front straight, close by", function()
+		local st = m.def.stand
+		local line = m.loop()[m.lineSample()]
+		-- the track is in front (-z) of the stand, and the start isn't far along it
+		truthy(line.z < st.z - st.d / 2, "the start line is behind the stand")
+		truthy(
+			math.abs(line.x - st.x) < 300 and st.z - line.z < 150,
+			"the stand is far from the start"
+		)
+	end)
+end

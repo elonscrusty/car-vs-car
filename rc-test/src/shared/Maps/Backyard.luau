@@ -183,6 +183,8 @@ local def: MapKit.Def = {
 			},
 		},
 	},
+	-- the driver stand: a wooden deck on the patio by the start, left of the house steps
+	stand = { x = -297, z = 493, w = MapKit.STAND_W, d = MapKit.STAND_D, h = MapKit.STAND_H },
 	rcX = 3000,
 	rcZ = 1000,
 	rcAngle = 0,

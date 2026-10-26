@@ -141,6 +141,8 @@ local def: MapKit.Def = {
 	lines = {
 		{ kind = "spoon", width = 10, points = { { x = 0, z = -90 }, { x = 0, z = -170 } } },
 	},
+	-- the driver stand: a big step stool by the start (picture rc-game/cvc/pics)
+	stand = { x = 128, z = 487, w = MapKit.STAND_W, d = MapKit.STAND_D, h = MapKit.STAND_H },
 	rcX = -3000,
 	rcZ = 1000,
 	rcAngle = 0,
