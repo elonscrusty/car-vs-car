@@ -36,12 +36,12 @@ title.Parent = back
 local sub = Instance.new("TextLabel")
 sub.AnchorPoint = Vector2.new(0.5, 0)
 sub.Position = UDim2.fromScale(0.5, 0.58)
-sub.Size = UDim2.fromScale(0.5, 0.07)
+sub.Size = UDim2.fromScale(0.7, 0.07)
 sub.BackgroundTransparency = 1
 sub.Font = Enum.Font.LuckiestGuy
 sub.TextScaled = true
 sub.TextColor3 = Color3.fromRGB(200, 200, 210)
-sub.Text = "BUILD. RACE. WIN."
+sub.Text = "RACE. GET COINS. COLLECT CARS!" -- the tycoon loop (carter 10-26)
 sub.Parent = back
 
 local started = os.clock()
