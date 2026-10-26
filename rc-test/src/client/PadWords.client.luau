@@ -1,8 +1,8 @@
 --!strict
 -- Two or three words over each play pad at the spawn saying what it does (DRIFT NOW / RACE NOW /
 -- GO BUILD) and "STAND HERE" under it, so a new player knows what the pads are for. The pads
--- only work in the break (workspace BuildOpen): from the pick until the race is over the small
--- line says AFTER THE RACE; when every plot of that kind is taken (the pad's BusyUntil, set by
+-- only work in the break (workspace BuildOpen): from the pick until the race is over their signs
+-- are off; when every plot of that kind is taken (the pad's BusyUntil, set by
 -- QueuePads) it says ALL BUSY, WAIT. Also one or two words over the car shops and the gumball,
 -- big enough to read on a phone from the spawn. Looks only, on this screen. The pads are the
 -- "QueuePad" bases (attribute PlotType) that the spawn lobby builds.
@@ -30,6 +30,12 @@ local gates: { [BillboardGui]: string } = {}
 local PAD_GATE: { [string]: string } = { drift = "pads", race = "pads", build = "build" }
 local SHOP_GATE: { [string]: string } = { drift = "shop", race = "shop", looks = "looks" }
 local smalls: { Small } = {}
+-- the pad signs: off during the race call and race (BuildOpen false: the pads do nothing then,
+-- and the words sat on the race card and countdown), and smaller from close up
+local padSigns: { [BillboardGui]: boolean } = {}
+local PAD_SIZE = Vector2.new(9, 3.6) -- studs, from far
+local PAD_NEAR = 26 -- closer than this (camera to sign) they shrink with the distance...
+local PAD_MIN = 0.35 -- ...down to this much (from the spawn the middle pad is ~12 away)
 
 local function smallText(base: BasePart): string
 	if workspace:GetAttribute("BuildOpen") == false then
@@ -136,9 +142,9 @@ local function addPad(base: Instance)
 	if word == nil then
 		return
 	end
-	local b =
-		sign(base, "Pad" .. tostring(base:GetAttribute("Pad") or ""), Vector2.new(9, 3.6), 6, 60)
+	local b = sign(base, "Pad" .. tostring(base:GetAttribute("Pad") or ""), PAD_SIZE, 6, 60)
 	gates[b] = PAD_GATE[kind] or "pads"
+	padSigns[b] = true
 	-- the side pads' words lean in toward the middle pad, so from the spawn all three fit on a
 	-- phone screen (tour 5: GO BUILD and DRIFT NOW were cut off at the edges)
 	task.delay(1, function()
@@ -248,9 +254,20 @@ local function showAll()
 	end
 	holder.Enabled = on
 	local stage = me:GetAttribute("Stage")
+	local callOn = workspace:GetAttribute("BuildOpen") == false
+	local eye = if cam then cam.CFrame.Position else nil
 	for b, gate in gates do
 		if b.Parent == nil then
 			gates[b] = nil
+			padSigns[b] = nil
+		elseif padSigns[b] then
+			b.Enabled = JoinStage.shows(stage, gate) and not callOn
+			local over = b.Adornee
+			if b.Enabled and eye and over and over:IsA("BasePart") then
+				local d = (over.Position + b.StudsOffsetWorldSpace - eye).Magnitude
+				local k = math.clamp(d / PAD_NEAR, PAD_MIN, 1)
+				b.Size = UDim2.new(PAD_SIZE.X * k, 0, PAD_SIZE.Y * k, 0)
+			end
 		else
 			b.Enabled = JoinStage.shows(stage, gate)
 		end
@@ -258,6 +275,7 @@ local function showAll()
 end
 Players.LocalPlayer:GetAttributeChangedSignal("Driving"):Connect(showAll)
 Players.LocalPlayer:GetAttributeChangedSignal("Stage"):Connect(showAll)
+workspace:GetAttributeChangedSignal("BuildOpen"):Connect(showAll)
 showAll()
 
 for _, base in CollectionService:GetTagged("QueuePad") do
