@@ -14,6 +14,8 @@ local function sibling(name: string): any
 	return luneRequire("./" .. name)
 end
 
+local League = sibling("League")
+local RaceStats = sibling("RaceStats")
 local ServerRace = sibling("ServerRace")
 
 export type Sample = { x: number, z: number, tx: number, tz: number }
@@ -84,14 +86,11 @@ RaceBots.COLORS = {
 }
 
 -- Car VS Car: a race is filled with bots up to the whole grid (8), and how good they are follows
--- the league. A bot's skill (0..1 of RaceBots.TOP) range per league, Bronze..Diamond. First guesses
--- to tune in Studio. The first race of a new player uses EASY_SKILL, so they win it.
-RaceBots.LEAGUE_SKILL = {
-	{ 0.55, 0.85 },
-	{ 0.65, 0.92 },
-	{ 0.75, 0.98 },
-	{ 0.85, 1.05 },
-} :: { { number } }
+-- the league. A league's players have trained cars (RaceStats: a full Speed bar is only a bit
+-- faster, because skill counts as much as the car), so the bots get only that same car gain on
+-- top of the untrained spread (BRONZE_SKILL): a Diamond bot is not a different kind of car, just
+-- as fast as a car trained that far. The first race of a new player uses EASY_SKILL, so they win it.
+RaceBots.BRONZE_SKILL = { 0.62, 0.95 } :: { number }
 RaceBots.EASY_SKILL = { 0.42, 0.58 } :: { number }
 RaceBots.EASY_DELAY = 0.6 -- easy bots also wake up this much later at GO (seconds)
 
@@ -104,8 +103,23 @@ function RaceBots.skillRange(league: number?, easy: boolean?): (number, number)
 	if league == nil then
 		return RaceBots.SKILL_MIN, RaceBots.SKILL_MAX
 	end
-	local r = RaceBots.LEAGUE_SKILL[math.clamp(math.floor(league), 1, #RaceBots.LEAGUE_SKILL)]
-	return r[1], r[2]
+	local m = RaceBots.leagueGain(league)
+	return RaceBots.BRONZE_SKILL[1] * m, RaceBots.BRONZE_SKILL[2] * m
+end
+
+-- How much faster a car typical of `league` is than an untrained one (RaceStats' top speed gain
+-- at the league's usual bars: halfway between its entry strength and the next league's, spread
+-- over the 3 bars). Bronze = 1.
+function RaceBots.leagueGain(league: number): number
+	local n = #League.NAMES
+	local l = League.clamp(league)
+	local need = League.NEED[l].strength
+	local upper = if l < n then League.NEED[l + 1].strength else need + 60
+	local bar = (need + upper) / 2 / 3 -- an average bar, 0..100
+	if l == 1 then
+		return 1
+	end
+	return 1 + RaceStats.TOP * math.clamp(bar, 0, 100) / 100
 end
 
 -- How many bots a race with `humans` players needs (0 when nobody is there: no race at all).
