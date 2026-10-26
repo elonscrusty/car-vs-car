@@ -466,12 +466,13 @@ local function hideCard()
 	card.Visible = false
 end
 card.Activated:Connect(hideCard)
-local function showDaily(coins: number, streak: number, boost: number)
+local function showDaily(coins: number, streak: number, boost: number, crate: boolean)
 	cards += 1
 	local mine = cards
 	local today = math.min(streak, #DAILY)
 	dayTitle.Text = if streak >= 2 then `DAY {streak} IN A ROW!` else "DAILY GIFT!"
-	gift.Text = if boost >= 2 then `+{coins} coins  (2X!)` else `+{coins} coins`
+	gift.Text = (if boost >= 2 then `+{coins} coins  (2X!)` else `+{coins} coins`)
+		.. if crate then "  + FREE CRATE!" else ""
 	for i, box in days do
 		local rim = box:FindFirstChildOfClass("UIStroke") :: UIStroke
 		box.BackgroundColor3 = if i < today
@@ -488,7 +489,8 @@ local function showDaily(coins: number, streak: number, boost: number)
 	local function calm(): boolean
 		local race = pg:FindFirstChild("ServerRace")
 		local prizeCard = pg:FindFirstChild("RacePrize", true)
-		return me:GetAttribute("HasDriven") == true
+		-- (Car VS Car has no drive from your pad: the gift comes after the first crate instead)
+		return (crate or me:GetAttribute("HasDriven") == true)
 			and me:GetAttribute("Driving") ~= true
 			and me:GetAttribute("Building") ~= true -- (it hid behind the build screen, tour 2)
 			and not (race and race:GetAttribute("Busy") == true)
@@ -912,8 +914,14 @@ remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unkn
 	end
 	if kind == "daily" and type(info) == "number" and type(saving) == "number" then
 		-- ("daily", coins, days in a row, boost)
-		local boost = select(1, ...)
-		task.spawn(showDaily, info, saving, if type(boost) == "number" then boost else 1) -- it may wait
+		local boost, crate = select(1, ...)
+		task.spawn(
+			showDaily,
+			info,
+			saving,
+			if type(boost) == "number" then boost else 1,
+			crate == true
+		) -- it may wait
 		return
 	end
 	if kind == "jobs" and type(info) == "table" then

@@ -106,7 +106,11 @@ test("jobs: no rock-climb jobs (rock plots are gone), the loop pool pays 30-50",
 end)
 
 test("jobs: a new kid playing alone can do every job (no friends, no drift spots)", function()
-	for _, pool in DailyJobs.POOLS do
+	local all = table.clone(DailyJobs.TYCOON_POOLS)
+	for _, pool in DailyJobs.CVC_POOLS do
+		table.insert(all, pool)
+	end
+	for _, pool in all do
 		for _, j in pool do
 			truthy(DailyJobs.EVENTS[j.event] ~= nil, `{j.id}: event {j.event} is not sent`)
 			for _, bad in
@@ -117,4 +121,26 @@ test("jobs: a new kid playing alone can do every job (no friends, no drift spots
 			truthy(j.goal >= 1 and j.goal <= 8, `{j.id}: goal {j.goal}`)
 		end
 	end
+end)
+
+test("jobs: Car VS Car has its own jobs (train, win, crates), and switches back", function()
+	DailyJobs.useCvc(true)
+	local list = DailyJobs.list(10, 1)
+	eq(#list, 3)
+	truthy(list[1].event == "train" or list[1].event == "coach")
+	local d = { jobs = DailyJobs.new(10), coins = 0 }
+	local train = nil
+	for uid = 1, 40 do
+		if DailyJobs.list(10, uid)[1].id == "train5" then
+			train = uid
+			break
+		end
+	end
+	truthy(train ~= nil, "someone gets train 5 min")
+	DailyJobs.add(d, train :: number, 10, "train", 4)
+	eq(d.coins, 0)
+	DailyJobs.add(d, train :: number, 10, "train", 1)
+	eq(d.coins, 30)
+	DailyJobs.useCvc(false)
+	eq(DailyJobs.POOLS, DailyJobs.TYCOON_POOLS)
 end)

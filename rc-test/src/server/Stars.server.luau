@@ -11,7 +11,9 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local CvcRules = require(ReplicatedStorage.Shared.CvcRules)
 local DailyJobs = require(ReplicatedStorage.Shared.DailyJobs)
+local Features = require(ReplicatedStorage.Shared.Features)
 local Forever = require(ReplicatedStorage.Shared.Forever)
 local LapTimer = require(ReplicatedStorage.Shared.LapTimer)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
@@ -22,6 +24,8 @@ local Rewards = require(ReplicatedStorage.Shared.Rewards)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local Jobs = require(script.Parent.Jobs)
 local PlayerData = require(script.Parent.PlayerData)
+
+DailyJobs.useCvc(Features.CVC) -- Car VS Car: train, race and crate jobs
 
 local LOOK = 0.1 -- seconds between looks at the cars
 
@@ -280,19 +284,32 @@ end
 -- ===== daily gift and weekend coins =====
 
 -- The daily gift, the first time each day (on join, or at midnight UTC if they're still here).
--- The client shows the 7-day strip with ("daily", coins, days in a row, boost).
+-- The client shows the 7-day strip with ("daily", coins, days in a row, boost, free crate).
+-- Car VS Car adds a free crate every day (CvcRules.daily).
 local function dailyGift(player: Player, data: Profile.Data)
-	-- new players get it once they've bought their first car (one new thing at a time)
+	-- new players get it once they've bought their first car (Car VS Car: opened their first
+	-- crate), one new thing at a time
 	if data.stage < Profile.STAGE.SHOPPED then
 		return
 	end
 	local now = os.time()
 	local boost = Profile.boost(now)
-	local coins, streak = Profile.daily(data, Profile.day(now), boost)
+	local coins, streak, crate = 0, 0, false
+	if Features.CVC then
+		coins, streak, crate = CvcRules.daily(data, Profile.day(now), boost)
+	else
+		coins, streak = Profile.daily(data, Profile.day(now), boost)
+	end
 	if coins > 0 then
 		PlayerData.touch(player)
+		if crate then
+			local mod = script.Parent:FindFirstChild("TrainingServer")
+			if mod and mod:IsA("ModuleScript") then
+				(require(mod) :: any).refresh(player) -- the crate count on the screens
+			end
+		end
 		remote:FireClient(player, "coins", data.coins)
-		remote:FireClient(player, "daily", coins, streak, boost)
+		remote:FireClient(player, "daily", coins, streak, boost, crate)
 		print(`[Stars] daily gift {player.Name} day {streak} +{coins} coins (x{boost})`)
 	end
 end

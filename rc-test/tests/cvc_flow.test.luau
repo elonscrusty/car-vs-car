@@ -232,3 +232,25 @@ test("flow: an old tycoon save gets the new-player steps once: pick, first race,
 	truthy(not CvcRules.raceDone(old, 1, 200).firstCrate)
 	eq(old.crates, 1)
 end)
+
+test("flow: the daily gift gives the streak's coins and a free crate, once a day", function()
+	local data = Profile.new()
+	local coins, streak, crate = CvcRules.daily(data, 100)
+	truthy(coins > 0)
+	eq(streak, 1)
+	truthy(crate)
+	eq(data.crates, 1)
+	-- the same day again: nothing
+	coins, streak, crate = CvcRules.daily(data, 100)
+	eq(coins, 0)
+	truthy(not crate)
+	eq(data.crates, 1)
+	-- the next day: day 2 in a row, a bigger gift and another crate
+	local c2, s2, crate2 = CvcRules.daily(data, 101)
+	eq(s2, 2)
+	truthy(c2 > 0 and crate2)
+	eq(data.crates, 2)
+	-- and the crates open
+	truthy(CvcRules.open(data, rng(0.5)) ~= nil)
+	eq(data.crates, 1)
+end)
