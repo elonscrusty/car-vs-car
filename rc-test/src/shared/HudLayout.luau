@@ -93,7 +93,6 @@ HudLayout.SPOTS = {
 	spot("CoinCount", "walk", "Stars", TL, { COL1, 0, 0, 64 }, { 0.11, 0, 0, 36 }),
 	-- row 2 stays under the chips (no further right): a third button there covered the car show board
 	-- (NOT SAVING shows above the star chip)
-	spot("Rivals", "walk", "Stars", TL, { 0.02, 0, 0, 110 }, { 0.11, 0, 0, 32 }),
 	spot(
 		"Looks",
 		"walk",
@@ -113,14 +112,12 @@ HudLayout.SPOTS = {
 	spot("Quick", "walk", "Lobby", TC, { 0.5, 0, 0, 194 }, { 0, 170, 0, 44 }), -- off for now (Lobby QUICK)
 	spot("WeekendBanner", "walk", "Stars", TR, { 0.98, 0, 0, 116 }, { 0, 200, 0, 30 }), -- top right: off your plot's name on the gate
 	spot("Join", "walk", "ServerRace", TR, { 0.98, 0, 0, 64 }, { 0, 168, 0, 46 }), -- top right, off the gate's name and the pad words
-	spot("PlotTop", "walk", "Stars", TR, { 0.98, 0, 0, 152 }, { 0, 200, 0, 100 }), -- the plot's top 3 while you stand on its pad
 	-- ===== walk: bottom middle =====
 	spot("Drive", "walk", "Lobby", BC, { 0.47, 0, 0.96, 0 }, { 0, 160, 0, 64 }), -- thumb size, low (off the plot view)
 	spot("Goal", "walk", "PlotGuide", BC, { 0.5, 0, 0.96, -66 }, { 0, 230, 0, 30 }), -- what to do next (clear of DailyJobs on a small phone)
 
 	-- ===== drive: top (made by the RC car thread; driving is locked, so these stay put) =====
 	spot("Timer", "drive", "Hud", TL, { 0.02, 0, 0, 64 }, { 0.24, 0, 0.14, 0 }),
-	spot("MedalGoal", "drive", "Stars", TL, { 0.02, 0, 0.14, 70 }, { 0, 110, 0, 30 }), -- next medal on this plot (small)
 	spot("Track", "drive", "Hud", TC, { 0.5, 0, 0, 64 }, { 0.1012, 0, 0.1, 0 }), -- the one lit plot name
 	spot("DriftScore", "drive", "Hud", TC, { 0.5, 0, 0.12, 72 }, { 0.32, 0, 0.1, 0 }),
 	spot("Join", "drive", "ServerRace", TC, { 0.5, 0, 0.22, 80 }, { 0, 220, 0, 44 }),
