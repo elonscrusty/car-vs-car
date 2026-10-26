@@ -1956,7 +1956,7 @@ local function secretHint(folder: Instance, map: any)
 		if p.kind == "secret" then
 			local ring: { MapKit.Sample } = map.path(i)
 			local run = 0
-			for k = 2, math.floor(#ring * 0.45) do
+			for k = 2, math.floor(#ring * 0.3) do
 				local a, b = ring[k - 1], ring[k]
 				run += math.sqrt((b.x - a.x) ^ 2 + (b.z - a.z) ^ 2)
 				-- only once it has left the main road (not in the face of cars that stay on it)

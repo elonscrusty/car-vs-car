@@ -158,14 +158,14 @@ local def: MapKit.Def = {
 	},
 	pads = {
 		{ kind = "boost", path = 0, at = { x = 240, z = 420 }, len = 50 }, -- clear of the LAP flash
-		{ kind = "boost", path = 0, at = { x = -40, z = -440 }, len = 50 },
+		{ kind = "boost", path = 0, at = { x = 60, z = -440 }, len = 50 },
 		{ kind = "puddle", path = 0, at = { x = -545, z = 170 }, len = 60 },
 		{ kind = "mud", path = 1, at = { x = 500, z = -295 }, len = 50 },
 		{ kind = "boost", path = 2, at = { x = -540, z = -85 }, len = 40 },
 	},
 	jumps = {
 		{ path = 0, at = { x = 250, z = -440 } }, -- over the hose
-		{ path = 0, at = { x = -636, z = -170 } }, -- a log ramp on the left (the secret skips it)
+		{ path = 0, at = { x = -110, z = -440 } }, -- a log ramp, just before the secret turns off
 	},
 	props = props,
 	lines = {
