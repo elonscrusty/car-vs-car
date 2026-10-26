@@ -389,6 +389,7 @@ for slotIndex, prompt in lobby.prompts do
 	local slot = slots[slotIndex]
 	-- (the tycoon plan: players' plots are garages; only the open drift plot is driven)
 	prompt.Enabled = Features.PLOT_RACING or LobbyPlots.freePlay(slotIndex)
+	prompt:SetAttribute("Off", not prompt.Enabled) -- (the client keeps it off too)
 	prompt.Triggered:Connect(function(player: Player)
 		local now = os.clock()
 		if now - (lastPrompt[player] or 0) < 0.5 then
