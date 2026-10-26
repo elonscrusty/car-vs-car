@@ -16,6 +16,7 @@ export type Car = {
 	style: string, -- Garage.toyCar style
 	rare: boolean, -- gumball only (never sold in the shop)
 	rarity: string, -- "common" | "rare" | "epic" | "legend" (CarCatalog.RARITY)
+	source: string, -- where you get it: "shop" (coins) | "gumball" (spin)
 }
 
 -- The bits of a save this needs (Profile.Data has them).
@@ -57,6 +58,7 @@ local function car(
 		style = mode,
 		rare = rare == true,
 		rarity = rarity,
+		source = if rare == true then "gumball" else "shop",
 	}
 end
 
@@ -70,8 +72,8 @@ CarCatalog.SHOP = {
 		car("drift_ghost", "Neon Ghost", "drift", 120, { 40, 200, 220 }, "common"),
 		car("drift_fury", "Pink Fury", "drift", 250, { 255, 120, 190 }, "common"),
 		car("drift_mint", "Mint Swirl", "drift", 400, { 120, 230, 180 }, "rare"),
-		car("drift_cocoa", "Cocoa", "drift", 600, { 120, 72, 40 }, "rare"),
-		car("drift_shadow", "Shadow", "drift", 850, { 45, 45, 60 }, "rare"),
+		car("drift_cocoa", "Choco Slide", "drift", 600, { 120, 72, 40 }, "rare"),
+		car("drift_shadow", "Night Fox", "drift", 850, { 45, 45, 60 }, "rare"),
 		car("drift_aqua", "Aqua Glide", "drift", 1150, { 30, 150, 200 }, "epic"),
 		car("drift_sunset", "Sunset", "drift", 1500, { 255, 140, 40 }, "epic"),
 	},
@@ -81,9 +83,9 @@ CarCatalog.SHOP = {
 		car("race_rocket", "Red Rocket", "race", 250, { 230, 60, 50 }, "common"),
 		car("race_lime", "Lime Flash", "race", 400, { 140, 220, 40 }, "rare"),
 		car("race_berry", "Berry Blast", "race", 600, { 150, 40, 110 }, "rare"),
-		car("race_storm", "Storm", "race", 850, { 120, 120, 135 }, "rare"),
+		car("race_storm", "Thunder Pup", "race", 850, { 120, 120, 135 }, "rare"),
 		car("race_tiger", "Tiger", "race", 1150, { 255, 120, 0 }, "epic"),
-		car("race_comet", "Comet", "race", 1500, { 245, 245, 250 }, "epic"),
+		car("race_comet", "Comet Cat", "race", 1500, { 245, 245, 250 }, "epic"),
 	},
 } :: { [string]: { Car } }
 
@@ -102,7 +104,7 @@ CarCatalog.GUMBALL = {
 	{ car = car("gb_night", "Midnight", "race", 0, { 70, 40, 120 }, "epic", true), chance = 12 },
 	{ car = car("gb_glow", "Glow Worm", "race", 0, { 200, 255, 90 }, "epic", true), chance = 10 },
 	{ car = car("gb_lava", "Lava Slide", "drift", 0, { 255, 80, 20 }, "epic", true), chance = 9 },
-	{ car = car("gb_toxic", "Toxic", "drift", 0, { 90, 255, 60 }, "legend", true), chance = 8 },
+	{ car = car("gb_toxic", "Slime Time", "drift", 0, { 90, 255, 60 }, "legend", true), chance = 8 },
 	{ car = car("gb_gold", "Gold Rush", "race", 0, { 255, 200, 30 }, "legend", true), chance = 5 },
 }
 -- A car you already have: half the spin back, so a spin is never wasted.

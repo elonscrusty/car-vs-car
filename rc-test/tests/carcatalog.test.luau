@@ -59,6 +59,17 @@ test("gumball odds add up to 100 and every roll lands on one car", function()
 	eq(Cat.pick(99.99).id, Cat.GUMBALL[#Cat.GUMBALL].car.id)
 end)
 
+test("every car says where you get it: shop cars are sold, gumball cars are spun", function()
+	for _, list in Cat.SHOP do
+		for _, c in list do
+			eq(c.source, "shop")
+		end
+	end
+	for _, g in Cat.GUMBALL do
+		eq(g.car.source, "gumball")
+	end
+end)
+
 test("a spin costs its price; a repeat gives half back; no coins, no spin", function()
 	local d = Profile.new()
 	eq(Cat.spin(d, 0), nil)
