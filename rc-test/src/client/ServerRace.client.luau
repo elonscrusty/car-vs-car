@@ -29,6 +29,15 @@ gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.DisplayOrder = 6
 gui.Parent = player:WaitForChild("PlayerGui")
+-- confetti falls in here, under the cards and words (ZIndex 0): over them it hid the results
+-- (Studio check race-4-5)
+local fall = Instance.new("Frame")
+fall.Name = "Kart_Fall"
+fall.BackgroundTransparency = 1
+fall.Size = UDim2.fromScale(1, 1)
+fall.ZIndex = 0
+fall.Active = false
+fall.Parent = gui
 
 local function corner(parent: Instance, r: number)
 	local c = Instance.new("UICorner")
@@ -322,7 +331,7 @@ local function showPlace(place: number)
 		then Party.rays(placeText, if place == 1 then YELLOW else nil)
 		else nil
 	if place == 1 then
-		Party.confetti(gui, 40)
+		Party.confetti(fall, 40)
 	end
 	task.delay(2.5, function()
 		if stopRays then
@@ -414,9 +423,9 @@ local function showResult(rows: { any })
 		TweenInfo.new(0.35, Enum.EasingStyle.Back),
 		{ Size = UDim2.fromScale(0.68, tall) }
 	):Play()
-	-- a podium finish: confetti over the card
+	-- a podium finish: confetti behind the card
 	if mine and mine <= 3 and won then
-		Party.confetti(gui, if mine == 1 then 60 else 30)
+		Party.confetti(fall, if mine == 1 then 60 else 30)
 	end
 	task.delay(ServerRace.SHOW, function()
 		if me == showId then
