@@ -49,6 +49,7 @@ export type Data = {
 	crates: number, -- free crates not opened yet
 	picked: boolean, -- chose the starter car
 	nextUid: number, -- for the next car's uid
+	friendsPaid: { [string]: number }, -- friend's user id -> the day we last got the friend coins
 }
 -- One owned car: its CarCatalog id and the points trained on top of its base bars (Training).
 export type GarageCar = { uid: string, id: string, speed: number, turn: number, boost: number }
@@ -70,7 +71,7 @@ Profile.VERSION = 16 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, riv
 -- 6: daily jobs. 7: looks, lookOff. 8: cars, equipped. 9: track. 10: tiles (owned).
 -- 11: raceStars. 12: trackKind. 13: plotTop. 14: stage. 15: pile, lastSeen, boostUntil,
 -- plotLevel, parked (the tycoon). 16: garage, racer, stations, garageLevel, league, trophies,
--- raceWins, crates, picked, nextUid (Car VS Car)
+-- raceWins, crates, picked, nextUid, friendsPaid (Car VS Car)
 Profile.TOP = 3 -- rows on a plot's board
 -- How far into the game a player is. Only goes up. The screen shows more at each one
 -- (JoinStage): new = just your car and GO; lapped = coins and BUILD; raced = the shop;
@@ -87,6 +88,9 @@ Profile.MODES = { "race", "drift", "rock" }
 Profile.MAX_LIST = 500 -- liked / visited entries kept
 Profile.VISIT_COINS = 20 -- the visitor's gift (once per plot owner per day)
 Profile.HOST_COINS = 10 -- the owner's share of it
+-- bring a friend (Car VS Car): both get this, once per friend per day (Economy may tune it)
+Profile.FRIEND_COINS = 100
+Profile.FRIENDS_PER_DAY = 5
 Profile.BOLTS = 5 -- gold bolts hidden on the rock climb, each on top of a hard climb
 Profile.WIN_COINS = 30 -- beating someone else's record (first guess)
 Profile.MAX_RIVALS = 50 -- the least recent rival goes when full
@@ -146,6 +150,7 @@ function Profile.new(): Data
 		crates = 0,
 		picked = false,
 		nextUid = 1,
+		friendsPaid = {},
 	}
 end
 
@@ -356,6 +361,17 @@ function Profile.migrate(raw: any): Data
 				and count(d.visited) < Profile.MAX_LIST
 			then
 				d.visited[owner] = math.floor(day)
+			end
+		end
+	end
+	if type(raw.friendsPaid) == "table" then
+		for friend, day in raw.friendsPaid do
+			if
+				type(friend) == "string"
+				and goodNumber(day)
+				and count(d.friendsPaid) < Profile.MAX_LIST
+			then
+				d.friendsPaid[friend] = math.floor(day)
 			end
 		end
 	end
@@ -726,6 +742,36 @@ function Profile.visit(
 	return true
 end
 
+-- Bring a friend (Car VS Car): `friendId` is a Roblox friend of `d`'s player and they're in the
+-- same server. True (and `d`'s coins) once per friend per day, for up to FRIENDS_PER_DAY friends a
+-- day; the caller does the same for the friend's save, so both get paid. Older days are dropped.
+function Profile.friendBonus(
+	d: Data,
+	selfId: number,
+	friendId: number,
+	day: number,
+	mult: number?
+): boolean
+	local key = tostring(friendId)
+	if friendId == selfId or d.friendsPaid[key] == day then
+		return false
+	end
+	local today = 0
+	for k, v in d.friendsPaid do
+		if v < day then
+			d.friendsPaid[k] = nil
+		elseif v == day then
+			today += 1
+		end
+	end
+	if today >= Profile.FRIENDS_PER_DAY or count(d.friendsPaid) >= Profile.MAX_LIST then
+		return false
+	end
+	d.friendsPaid[key] = day
+	d.coins = math.min(d.coins + Profile.FRIEND_COINS * (mult or 1), Profile.MAX_COINS)
+	return true
+end
+
 -- Found gold bolt `id` (1..BOLTS): true the first time.
 function Profile.findBolt(d: Data, id: number): boolean
 	if id ~= math.floor(id) or id < 1 or id > Profile.BOLTS then
@@ -925,6 +971,11 @@ function Profile.mergeVisit(stored: Data, session: Data, base: Data): Data
 	end
 	for owner, day in session.visited do
 		out.visited[owner] = math.max(out.visited[owner] or 0, day)
+	end
+	for friend, day in session.friendsPaid do
+		if out.friendsPaid[friend] ~= nil or count(out.friendsPaid) < Profile.MAX_LIST then
+			out.friendsPaid[friend] = math.max(out.friendsPaid[friend] or 0, day)
+		end
 	end
 	for owner, modes in session.starsFrom do
 		local mine = out.starsFrom[owner]

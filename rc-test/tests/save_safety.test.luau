@@ -379,3 +379,45 @@ test("retry: the last error comes back, so the server can tell a 403 from an out
 	truthy(ok)
 	eq(none, nil)
 end)
+
+-- Bring a friend: once per friend per day, at most FRIENDS_PER_DAY a day, kept through a save,
+-- cleaned on load, and a visit's merge keeps the later day.
+test("friend coins: once per friend per day, capped, saved, cleaned and merged", function()
+	local d = Profile.new()
+	eq(Profile.friendBonus(d, 1, 1, 100), false) -- not yourself
+	truthy(Profile.friendBonus(d, 1, 2, 100))
+	eq(d.coins, Profile.FRIEND_COINS)
+	eq(Profile.friendBonus(d, 1, 2, 100), false) -- same friend, same day
+	for f = 3, Profile.FRIENDS_PER_DAY + 1 do
+		truthy(Profile.friendBonus(d, 1, f, 100))
+	end
+	eq(Profile.friendBonus(d, 1, 99, 100), false) -- the day's cap
+	eq(d.coins, Profile.FRIEND_COINS * Profile.FRIENDS_PER_DAY)
+	truthy(Profile.friendBonus(d, 1, 2, 101)) -- a new day: again, and yesterday's are dropped
+	local n = 0
+	for _ in d.friendsPaid do
+		n += 1
+	end
+	eq(n, 1)
+	-- survives a save and load; junk is dropped
+	local back = Profile.migrate(d)
+	eq(back.friendsPaid["2"], 101)
+	local raw = Profile.new() :: any
+	raw.friendsPaid = { ["5"] = 100, [6] = 100, ["7"] = "x", ["8"] = 0 / 0 }
+	local clean = Profile.migrate(raw)
+	eq(clean.friendsPaid["5"], 100)
+	eq(clean.friendsPaid["7"], nil)
+	eq(clean.friendsPaid["8"], nil)
+	-- an old save has none
+	eq(next(Profile.migrate({ version = 15, coins = 5 }).friendsPaid), nil)
+	-- a visit's merge keeps the later day per friend
+	local base = Profile.new()
+	local stored = Profile.new()
+	stored.friendsPaid["2"] = 100
+	local session = Profile.new()
+	session.friendsPaid["2"] = 101
+	session.friendsPaid["3"] = 99
+	local out = Profile.mergeVisit(stored, session, base)
+	eq(out.friendsPaid["2"], 101)
+	eq(out.friendsPaid["3"], 99)
+end)
