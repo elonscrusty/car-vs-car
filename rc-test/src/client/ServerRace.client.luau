@@ -234,7 +234,7 @@ RunService.RenderStepped:Connect(function()
 	gui:SetAttribute("Busy", phase == "racing" or phase == "call" or card.Visible)
 	local hurryLeft = endsAt - workspace:GetServerTimeNow()
 	-- (over the line already: how long until the results, so waiting on the others isn't a mystery)
-	hurry.Visible = phase == "racing" and endsAt > 0 and hurryLeft > 0
+	hurry.Visible = phase == "racing" and endsAt > 0 and hurryLeft > 0 and not card.Visible -- (the results are in: the card sat on it)
 	if hurry.Visible and (words or not wasHurry) then
 		-- (blue once you're in: red is for the ones still racing)
 		hurry.BackgroundColor3 = if finished
