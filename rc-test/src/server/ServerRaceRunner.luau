@@ -16,6 +16,7 @@ local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local Features = require(ReplicatedStorage.Shared.Features)
 local Forever = require(ReplicatedStorage.Shared.Forever)
 local LapTimer = require(ReplicatedStorage.Shared.LapTimer)
+local Leaderboards = require(script.Parent.Leaderboards)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
@@ -633,6 +634,9 @@ local function runRace(hooks: Hooks, slot: number)
 					r.waitLeave = onLine
 				elseif LapTimer.update(r.timer, clock, lx, ly, lz) == "lap" then
 					r.laps += 1
+					if r.timer.last then
+						Leaderboards.lap(p, t.map, r.timer.last) -- fastest-lap boards (server clock)
+					end
 					if r.laps >= ServerRace.LAPS then
 						r.time = clock - goAt
 						startCountdown(clock - goAt)
