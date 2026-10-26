@@ -403,7 +403,9 @@ for _, m in maps do
 		local def = m.def
 		local st = def.stand
 		truthy(st ~= nil, "no stand")
-		local x0, x1, z0, z1 = st.x - st.w / 2, st.x + st.w / 2, st.z - st.d / 2, st.z + st.d / 2
+		-- the stand and its stairs (they run off the left end)
+		local x0, x1 = st.x - st.w / 2 - MapKit.STAND_STAIRS, st.x + st.w / 2
+		local z0, z1 = st.z - st.d / 2, st.z + st.d / 2
 		truthy(
 			x0 > def.minX and x1 < def.maxX and z0 > def.minZ and z1 < def.maxZ,
 			"stand is outside the walls"
