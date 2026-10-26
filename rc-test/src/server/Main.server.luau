@@ -7,7 +7,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Features = require(ReplicatedStorage.Shared.Features)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local Forever = require(ReplicatedStorage.Shared.Forever)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
@@ -319,10 +318,6 @@ require(script.Parent.QueuePads).start({
 		if not JoinStage.shows(player:GetAttribute("Stage"), "pads") then
 			return nil
 		end
-		-- (with plot racing off the drift plot is free play, race or no race)
-		if Features.PLOT_RACING and workspace:GetAttribute("BuildOpen") ~= true then
-			return nil
-		end
 		return LobbyPlots.findOpen(kind, player)
 	end,
 	sendTo = LobbyPlots.sendTo,
@@ -368,8 +363,8 @@ ServerRaceRunner.start({ remote = remote, walk = walk })
 -- E on a lobby pad: drive that plot (if it's yours, nobody's or open, and free), or stop.
 for slotIndex, prompt in lobby.prompts do
 	local slot = slots[slotIndex]
-	-- (the tycoon plan: players' plots are garages; only the open drift plot is driven)
-	prompt.Enabled = Features.PLOT_RACING or LobbyPlots.freePlay(slotIndex)
+	-- (players' plots are garages; only the open drift plot is driven)
+	prompt.Enabled = LobbyPlots.freePlay(slotIndex)
 	prompt:SetAttribute("Off", not prompt.Enabled) -- (the client keeps it off too)
 	prompt.Triggered:Connect(function(player: Player)
 		local now = os.clock()
