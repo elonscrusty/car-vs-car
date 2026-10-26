@@ -99,3 +99,18 @@ test("the tag view lists three bars, rounded, never past the top", function()
 	eq(v[2].value, 18)
 	eq(v[3].bar, "boost")
 end)
+
+local Layout = require("../src/shared/CarTagLayout")
+
+test("car tag: every word is at least 16 px and every bar 8 px on a phone", function()
+	truthy(Layout.smallestText() >= Layout.MIN_TEXT, `text row {Layout.smallestText()} px`)
+	truthy(Layout.BAR_ROW * 0.76 * Layout.HEIGHT >= Layout.MIN_BAR, "bars thick enough")
+	-- the three bar rows, the name and the kind all fit inside the tag and never overlap
+	truthy(Layout.NAME.y + Layout.NAME.h <= Layout.KIND.y + 1e-9, "name above kind")
+	truthy(Layout.KIND.y + Layout.KIND.h <= Layout.BAR_TOP + 1e-9, "kind above bars")
+	truthy(Layout.BAR_ROW <= Layout.BAR_STEP, "bar rows do not overlap")
+	truthy(Layout.barY(3) + Layout.BAR_ROW <= 1, "last bar inside the tag")
+	-- a phone-wide screen (667 px) still has room for a tag
+	truthy(Layout.WIDTH < 667 / 2, "tag under half the phone's width")
+	truthy(Layout.TRACK_X + Layout.TRACK_W < Layout.VALUE_X, "bar ends before the number")
+end)
