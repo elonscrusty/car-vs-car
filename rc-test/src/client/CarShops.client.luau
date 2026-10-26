@@ -30,7 +30,7 @@ local player = Players.LocalPlayer
 local shopRemote = ReplicatedStorage:WaitForChild("CarShop") :: RemoteFunction
 
 local SPIN = 0.35 -- radians a second
-local TITLES = { drift = "DRIFT CARS", race = "RACE CARS", rock = "ROCK CARS" }
+local TITLES = { drift = "DRIFT CARS", race = "RACE CARS" }
 local GOLD = KartStyle.YELLOW
 local GREY = Color3.fromRGB(110, 110, 118)
 -- Kart Party cards: white cards with ink words and rims on the blue panel
@@ -446,8 +446,8 @@ local function showShop(kind: string, s: State)
 	text(
 		body,
 		if #cars > PER
-			then "Win races and beat records for coins. Tap > for more cars."
-			else "Win races and beat records for coins.",
+			then "Win races for coins. Parked cars make coins too. Tap > for more."
+			else "Win races for coins. Parked cars make coins too.",
 		0,
 		0.92,
 		1,
@@ -510,7 +510,9 @@ local function showShop(kind: string, s: State)
 		local view = preview(c, car, rgb(Garage.SHOPS[kind].color))
 		view.Position = UDim2.fromScale(0.06, 0.04)
 		view.Size = UDim2.fromScale(0.88, 0.5)
-		text(c, car.name, 0.06, 0.57, 0.88, 0.12, KartStyle.INK)
+		text(c, car.name, 0.06, 0.56, 0.88, 0.1, KartStyle.INK)
+		-- what it makes parked on your plot (tycoon plan)
+		text(c, `+{tier.perMin} coins/min`, 0.06, 0.66, 0.88, 0.08, KartStyle.GREEN)
 		local price = if owned[car.id] and car.price > 0
 			then "OWNED"
 			elseif car.rare then "GUMBALL"
@@ -520,9 +522,9 @@ local function showShop(kind: string, s: State)
 			c,
 			price,
 			0.06,
-			0.7,
+			0.745,
 			0.88,
-			0.1,
+			0.085,
 			if car.rare then Color3.fromRGB(230, 70, 150) else PRICE
 		)
 

@@ -318,7 +318,8 @@ require(script.Parent.QueuePads).start({
 		if not JoinStage.shows(player:GetAttribute("Stage"), "pads") then
 			return nil
 		end
-		if workspace:GetAttribute("BuildOpen") ~= true then
+		-- (with plot racing off the drift plot is free play, race or no race)
+		if Features.PLOT_RACING and workspace:GetAttribute("BuildOpen") ~= true then
 			return nil
 		end
 		return LobbyPlots.findOpen(kind, player)
