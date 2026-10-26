@@ -909,7 +909,7 @@ end
 
 local seen: { [Model]: boolean } = {}
 
--- A small slanted white price plate on the floor in front of each car on show in a shop: its
+-- A small slanted dark price plate on the floor in front of each car on show in a shop: its
 -- kind (in the kind's colour) and its price, so a kid can see what's what before opening the screen.
 -- (Studio 10-26: tags floating over the cars were hidden by the cars, the shutter or the front
 -- posts from one spot or another; a plate low in front of the car has nothing in its way.)
@@ -928,7 +928,7 @@ local function carTag(ring: BasePart, out: Vector3, car: CarCatalog.Car)
 	p.CanTouch = false
 	p.CastShadow = false
 	p.Size = Vector3.new(3.8, 1.6, 0.15)
-	p.Color = Color3.new(1, 1, 1)
+	p.Color = KartStyle.INK
 	p.Material = Enum.Material.SmoothPlastic
 	-- facing out of the shop, leaned back so it reads from standing height
 	p.CFrame = CFrame.lookAt(at, at + out) * CFrame.Angles(math.rad(25), 0, 0)
@@ -939,7 +939,8 @@ local function carTag(ring: BasePart, out: Vector3, car: CarCatalog.Car)
 	b.PixelsPerStud = 60
 	b.LightInfluence = 0
 	b.Parent = p
-	-- a rim in the kind's colour (Studio 10-26: the COMMON pill was hard to see on a dark plate)
+	-- a rim in the kind's own colour, bright on the dark plate (Studio 10-26: dark plates read from
+	-- 20 studs, white ones melted into the white plaza and the gold price was faint on them)
 	local edge = Instance.new("Frame")
 	-- inset by the rim's width: a border stroke draws outside its frame
 	edge.Position = UDim2.fromOffset(8, 8)
@@ -949,7 +950,7 @@ local function carTag(ring: BasePart, out: Vector3, car: CarCatalog.Car)
 	local edgeRim = Instance.new("UIStroke")
 	edgeRim.Thickness = 8
 	edgeRim.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	edgeRim.Color = pillColor(tier)
+	edgeRim.Color = rgb(tier.color)
 	edgeRim.Parent = edge
 	local function line(t: string, y: number, h: number, fill: Color3?, color: Color3)
 		local l = Instance.new("TextLabel")
@@ -970,7 +971,9 @@ local function carTag(ring: BasePart, out: Vector3, car: CarCatalog.Car)
 			corner(l, 0.5)
 		end
 	end
-	line(tier.label, 0.12, 0.34, pillColor(tier), Color3.new(1, 1, 1))
+	-- common's pill a lighter slate here, so it shows on the dark plate
+	local pill = if tier.id == "common" then Color3.fromRGB(150, 158, 180) else pillColor(tier)
+	line(tier.label, 0.12, 0.34, pill, Color3.new(1, 1, 1))
 	line(if car.price == 0 then "FREE" else `{car.price} coins`, 0.52, 0.38, nil, GOLD)
 end
 
