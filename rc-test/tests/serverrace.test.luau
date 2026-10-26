@@ -232,3 +232,19 @@ test("a drift round gives stars like a race: 3, 2, 1 by score, none for no point
 	local alone = ServerRace.rankDrift({ { name = "a", laps = 0, score = 900 } })
 	eq(ServerRace.starsFor(1, ServerRace.finished(alone[1]), 1), 1)
 end)
+
+test("Car VS Car: a big race every 3 min, start to start, never squeezed", function()
+	eq(ServerRace.nextStart(1000, 1100), 1000 + ServerRace.CVC_EVERY)
+	-- a long race: the next one still waits a little after it ends
+	eq(ServerRace.nextStart(1000, 1170), 1170 + ServerRace.CVC_GAP)
+	-- a new server: soon
+	eq(ServerRace.nextStart(-math.huge, 50), 50 + ServerRace.CVC_GAP)
+end)
+
+test("Car VS Car: the maps take turns", function()
+	local ids = { "backyard", "kitchen" }
+	eq(ServerRace.mapTurn(ids, 1), "backyard")
+	eq(ServerRace.mapTurn(ids, 2), "kitchen")
+	eq(ServerRace.mapTurn(ids, 3), "backyard")
+	eq(ServerRace.mapTurn({}, 1), nil)
+end)

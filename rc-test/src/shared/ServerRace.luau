@@ -307,6 +307,26 @@ ServerRace.VOTE = 15 -- the last this many seconds of the wait: pick a map
 ServerRace.MAP_TIME_LIMIT = 180 -- a map race ends by 3 min even if nobody finished
 ServerRace.BOOST_TIME = 10 * 60 -- the winner's plot makes extra coins this long
 
+-- Car VS Car (carter 10-26, cvc-plan.md): a big race every 3 min, start to start, the maps take
+-- turns (no vote). A new kid's first race starts soon after they tap JOIN.
+ServerRace.CVC_EVERY = 3 * 60
+ServerRace.CVC_GAP = 30 -- at least this long between a race's end and the next start
+ServerRace.CVC_FIRST = 15 -- a first race ever: it starts this soon after the tap
+
+-- When the next big race starts: 3 min after the last one started, but never sooner than GAP
+-- from now (a long race pushes the next one back a bit).
+function ServerRace.nextStart(lastStart: number, now: number): number
+	return math.max(lastStart + ServerRace.CVC_EVERY, now + ServerRace.CVC_GAP)
+end
+
+-- Race number `n` (1, 2, 3...) is on this map: the maps in turn.
+function ServerRace.mapTurn(ids: { string }, n: number): string?
+	if #ids == 0 then
+		return nil
+	end
+	return ids[((math.max(1, n) - 1) % #ids) + 1]
+end
+
 -- The voted map: the most votes (votes = player -> map id), a tie or no votes at all = a random
 -- one of the best (r = a random number 0..1). nil when there are no maps.
 function ServerRace.tally(votes: { [any]: string }, ids: { string }, r: number): string?
