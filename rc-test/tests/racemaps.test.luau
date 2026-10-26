@@ -88,3 +88,8 @@ test("a map race ends by its own time limit", function()
 	eq(ServerRace.over(e, ServerRace.MAP_TIME_LIMIT, nil, ServerRace.MAP_TIME_LIMIT), true)
 	eq(ServerRace.over(e, ServerRace.MAP_TIME_LIMIT - 1, nil, ServerRace.MAP_TIME_LIMIT), false)
 end)
+
+test("the maps are live: a map exists and plot racing is off", function()
+	local Features = require("../src/shared/Features")
+	eq(RaceMaps.live(), #RaceMaps.NAMES > 0 and not Features.PLOT_RACING)
+end)

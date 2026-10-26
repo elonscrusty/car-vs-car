@@ -110,7 +110,7 @@ end
 -- of on players' plots, as soon as a map exists and Features.PLOT_RACING is off. Who races: the
 -- players who walked onto the JOIN NEXT RACE pad (join). Before the start everyone votes a map.
 local function mapMode(): boolean
-	return #RaceMaps.NAMES > 0 and not Features.PLOT_RACING
+	return RaceMaps.live()
 end
 
 local function breakLen(): number
@@ -430,13 +430,13 @@ local function runRace(hooks: Hooks, slot: number)
 	local list = racersHere()
 	phase = "racing"
 	workspace:SetAttribute("RaceSlot", slot) -- TrackBuild leaves this plot's track alone till the end
+	local t: TrackData.Track = LobbyLayout.track(slot)
 	local mapsFolder = workspace:FindFirstChild("RaceMaps")
 	local mapModel = if t.map and mapsFolder then mapsFolder:FindFirstChild(t.map) else nil
 	if mapModel then
 		mapModel:SetAttribute("Slot", slot) -- the start lamps' screens find them by it (StartLights)
 	end
 	sendState()
-	local t: TrackData.Track = LobbyLayout.track(slot)
 	-- whoever is on that plot and isn't racing gets off it first
 	local other = LobbyPlots.driverOf(slot)
 	if other and not table.find(list, other) then
