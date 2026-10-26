@@ -621,10 +621,15 @@ local function runRace(hooks: Hooks, slot: number)
 							local endsAt = now()
 								+ math.min(
 									ServerRace.AFTER_WIN,
-									ServerRace.TIME_LIMIT - (clock - goAt)
+									(
+										if t.map
+											then ServerRace.MAP_TIME_LIMIT
+											else ServerRace.TIME_LIMIT
+									) - (clock - goAt)
 								)
+							-- (the winner too: their screen counts down to the results)
 							for _, o in racers do
-								if o ~= r and o.player.Parent then
+								if o.player.Parent then
 									event:FireClient(o.player, "ends", endsAt)
 								end
 							end
