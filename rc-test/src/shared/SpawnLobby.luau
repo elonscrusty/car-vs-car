@@ -478,6 +478,35 @@ do
 			true
 		)
 	end
+	-- carter's PlayPad (batch 6) over each play pad's start grid. The neon rim stays round it
+	-- (the pad's colour, and it blinks while someone waits); the base stays as the hidden tagged
+	-- QueuePad that the server watches.
+	for i, pad in SpawnLobby.PADS do
+		table.insert(M, {
+			model = "PlayPad",
+			group = "QueuePad" .. i,
+			at = v(pad.x, 0, SpawnLobby.PAD_Z),
+			fit = v(12, 1, 10),
+			long = "x",
+			keep = { "Rim", "Base" },
+			hide = { "Base" },
+			collide = false,
+		})
+	end
+	-- carter's StartGantry (batch 6; drive through along Z, lights at its -Z) in place of the
+	-- checkered arch where the street starts: the lights look back at the spawn
+	do
+		local ax = SpawnLobby.GAP + 1.5
+		table.insert(M, {
+			model = "StartGantry",
+			group = "Arch",
+			at = v(0, 0, SpawnLobby.ARCH_Z),
+			fit = v(2 * ax + 3.2, 14.5, 3.2),
+			long = "x",
+			keep = {},
+			collide = true,
+		})
+	end
 	for i, p in SpawnLobby.LAMPS do
 		mesh("StreetLamp", "Lamp" .. i, v(p.x, 0, p.z), v(2, 11.5, 2), {}, true)
 	end
