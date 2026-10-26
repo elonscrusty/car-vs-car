@@ -21,6 +21,7 @@ local Tuning = require(ReplicatedStorage.Shared.Tuning)
 local RaceStats = require(ReplicatedStorage.Shared.RaceStats)
 local RaceStand = require(ReplicatedStorage.Shared.RaceStand)
 local BackOnTrack = require(ReplicatedStorage.Shared.BackOnTrack)
+local RaceLooks = require(ReplicatedStorage.Shared.RaceLooks)
 
 local setMode: (id: string) -> () = (Tuning :: any).setMode
 local setScale: (s: number) -> () = (Tuning :: any).setScale
@@ -39,6 +40,8 @@ local LobbyWelcome = require(script.Parent.LobbyWelcome)
 local LobbySky = require(script.Parent.LobbySky)
 local OtherCars = require(script.Parent.OtherCars)
 local RCCar = require(script.Parent.RCCar)
+local RaceFx = require(script.Parent.RaceFx)
+local Sfx = require(script.Parent.Sfx)
 local RoadArrow = require(script.Parent.RoadArrow)
 local StartLights = require(script.Parent.StartLights)
 
@@ -570,7 +573,11 @@ RunService.PreSimulation:Connect(function(dt: number)
 			startBeep.PlaybackSpeed = if step >= RaceStart.GO then 1.6 else 0.8
 			-- (carter's pick 13: louder in the big race; the sounds helper adds a real stinger)
 			startBeep.Volume = SoundLevels.START_BEEP * (if grid then 1.8 else 1)
-			startBeep:Play()
+			if grid then
+				Sfx.count(RaceStart.GO - step) -- 3, 2, 1, then 0 = GO (the sounds helper's)
+			else
+				startBeep:Play()
+			end
 			bigCount.show(step, RaceStart.label(step), step >= RaceStart.GO)
 		end
 		if step == RaceStart.GO then
@@ -731,6 +738,8 @@ local otherCars = OtherCars.new(function(): string
 end)
 
 local boosting = false -- was on a boost last frame
+local raceFx = RaceFx.new() -- carter's picks 14 + 15: speed lines on BOOST, sparks on hits
+local speedWas = 0 -- flat speed last frame (sparks on a hard stop)
 
 -- Car VS Car: the other leagues' racers stand on the same stand spots; this screen hides them
 -- (their cars too: OtherCars). A few times a second is enough.
@@ -794,6 +803,19 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 	effects.update(dt)
 	-- boost pads and jumps: a word on screen so you know what happened
 	local tel = car.telemetry
+	raceFx.update(dt, tel.boost > 0)
+	local fv = body.AssemblyLinearVelocity
+	local flatNow = Vector3.new(fv.X, 0, fv.Z).Magnitude
+	if RaceLooks.slammed(speedWas, flatNow, Tuning.scale) then
+		local ahead = body.CFrame.LookVector
+		raceFx.sparks(
+			body.Position + ahead * Tuning.bodyZ / 2,
+			-ahead + Vector3.yAxis * 0.6,
+			Tuning.scale / TrackData.RC_SCALE
+		)
+		Sfx.spark()
+	end
+	speedWas = flatNow
 	if tel.boost > 0 and not boosting then
 		-- camera.kick(14) widens the view, but the race camera is locked: off until carter says yes
 		hud.flash("BOOST!")
