@@ -10,10 +10,12 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local CvcGoal = require(ReplicatedStorage.Shared.CvcGoal)
 local Features = require(ReplicatedStorage.Shared.Features)
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
 local JoinStage = require(ReplicatedStorage.Shared.JoinStage)
 local StageGate = require(script.Parent.StageGate)
+local CvcState = require(script.Parent.CvcState)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local NextGoal = require(ReplicatedStorage.Shared.NextGoal)
 local RaceMaps = require(ReplicatedStorage.Shared.RaceMaps)
@@ -152,6 +154,30 @@ function PlotGuide.new(): PlotGuide
 		table.insert(doors, { model = m, rows = rows, x = d.x, z = d.z + shopZ })
 	end
 
+	-- Car VS Car: the same walk the other way, from the street in to the crate shop (it stands
+	-- where the race shop was, DOORS[2]); gone once you've been there this visit
+	local CRATE_DOOR = 2
+	local crateDoor: { model: Model, rows: { { BasePart } } }? = nil
+	local crateShopSeen = false
+	if Features.CVC then
+		local m = Instance.new("Model")
+		m.Name = "PlotGuideArrows"
+		local rows = {}
+		local pts = SpawnLobby.exitPath(CRATE_DOOR)
+		for k = #pts, 2, -1 do
+			local ax, az = pts[k][1], pts[k][2] + shopZ
+			local bx, bz = pts[k - 1][1], pts[k - 1][2] + shopZ
+			local len = math.sqrt((bx - ax) ^ 2 + (bz - az) ^ 2)
+			local dx, dz = (bx - ax) / len, (bz - az) / len
+			local at = 0
+			while at < len do
+				table.insert(rows, chevron(m, ax + dx * at, az + dz * at, dx, dz))
+				at += 3
+			end
+		end
+		crateDoor = { model = m, rows = rows }
+	end
+
 	local visitSlot: number? = nil -- whose pad paths.visit leads to
 	local function build(s: LobbyLayout.Slot)
 		for _, p in paths do
@@ -247,6 +273,7 @@ function PlotGuide.new(): PlotGuide
 		local ends = workspace:GetAttribute("BuildEndsAt")
 		local clock = os.clock()
 		local onFoot = not driving and clock >= holdUntil
+		local root0 = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 		if clock >= nextPick or onFoot ~= wasOnFoot then
 			nextPick, wasOnFoot = clock + 0.1, onFoot
 			local _, visitName = visitTarget()
@@ -256,9 +283,23 @@ function PlotGuide.new(): PlotGuide
 			end
 			local pile = player:GetAttribute("PlotCoins")
 			local raceSlot = workspace:GetAttribute("RaceSlot")
-			-- (Car VS Car has its own how-to arrows: CvcHowTo)
-			goal = if onFoot and not Features.CVC
-				then NextGoal.pick({
+			-- Car VS Car: JOIN and the crate button get CvcHowTo's arrow on the button; the walk to
+			-- the crate shop gets road arrows here
+			if goal and goal.target == "crateshop" and root0 and root0:IsA("BasePart") then
+				local d = SpawnLobby.DOORS[CRATE_DOOR]
+				local far = (root0.Position.X - d.x) ^ 2 + (root0.Position.Z - (d.z + shopZ)) ^ 2
+				crateShopSeen = far < 10 * 10
+			end
+			local coins = player:GetAttribute("Coins")
+			goal = if onFoot and Features.CVC
+				then CvcGoal.pick({
+					picked = player:GetAttribute("Picked") == true,
+					stage = player:GetAttribute("Stage") :: any,
+					crates = CvcState.crates,
+					coins = if type(coins) == "number" then coins else 0,
+					shopSeen = crateShopSeen,
+				})
+				elseif onFoot then NextGoal.pick({
 					hasPlot = slot ~= nil,
 					driven = driven or player:GetAttribute("HasDriven") == true,
 					nearPad = near,
@@ -279,7 +320,8 @@ function PlotGuide.new(): PlotGuide
 					joined = player:GetAttribute("RaceJoined") == true,
 				})
 				else nil
-			gui.Enabled = goal ~= nil
+			-- (the JOIN and crate words are already by their buttons: CvcHowTo)
+			gui.Enabled = goal ~= nil and goal.target ~= "join" and goal.target ~= "crate"
 			if goal then
 				line.Text = goal.text
 			end
@@ -311,8 +353,25 @@ function PlotGuide.new(): PlotGuide
 				end
 			end
 		end
+		-- to the crate shop: up the road to the spawn, then in at its door
+		local toCrates = goal ~= nil and goal.target == "crateshop"
+		if crateDoor then
+			local want: Instance? = if toCrates then workspace else nil
+			if crateDoor.model.Parent ~= want then
+				crateDoor.model.Parent = want
+			end
+			if toCrates then
+				for k, arms in crateDoor.rows do
+					local glow = 0.5 + 0.5 * math.sin(t - k * 0.7)
+					for _, p in arms do
+						p.Transparency = 0.55 - glow * 0.5
+					end
+				end
+			end
+		end
 		for name, path in paths do
-			local show = goal ~= nil and goal.target == name
+			local show = goal ~= nil
+				and (goal.target == name or (toCrates and name == "shop" and not inShops()))
 			local want: Instance? = if show then workspace else nil
 			if path.model.Parent ~= want then
 				path.model.Parent = want
