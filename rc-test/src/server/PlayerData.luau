@@ -18,7 +18,13 @@ local AUTOSAVE = 60
 
 local PlayerData = {}
 
-type Entry = { data: Profile.Data, canSave: boolean, dirty: boolean, gone: boolean }
+type Entry = {
+	data: Profile.Data,
+	canSave: boolean,
+	dirty: boolean,
+	gone: boolean,
+	retrying: boolean, -- the DataStore was down at join: still trying to reach the real save
+}
 
 local job = if game.JobId ~= "" then game.JobId else "studio-" .. HttpService:GenerateGUID(false)
 local entries: { [Player]: Entry } = {}
@@ -30,6 +36,15 @@ local listeners: { Listener } = {}
 PlayerData.loaded = {
 	Connect = function(_self: any, fn: Listener)
 		table.insert(listeners, fn)
+	end,
+}
+
+-- `synced` (player, data): a visit that started unsaved reached the real save; `data` (the same
+-- table as before) now holds the real save plus what the visit earned. Show it again.
+local syncedListeners: { Listener } = {}
+PlayerData.synced = {
+	Connect = function(_self: any, fn: (Player, Profile.Data) -> ())
+		table.insert(syncedListeners, fn :: any)
 	end,
 }
 
@@ -50,10 +65,10 @@ local function key(userId: number): string
 end
 
 -- UpdateAsync with retries. `fn` may return nil to leave the save alone.
-local function update(userId: number, fn: (any) -> any): (boolean, any)
+local function update(userId: number, fn: (any) -> any): (boolean, any, string?)
 	local s = store
 	if s == nil then
-		return false, nil
+		return false, nil, nil
 	end
 	return SaveRetry.run(
 		function()
@@ -69,6 +84,12 @@ end
 function PlayerData.get(player: Player): Profile.Data?
 	local e = entries[player]
 	return if e then e.data else nil
+end
+
+-- True while this player's visit is unsaved but still trying to reach their real save.
+function PlayerData.isRetrying(player: Player): boolean
+	local e = entries[player]
+	return e ~= nil and e.retrying
 end
 
 -- Something in the data changed: save it on the next autosave.
@@ -102,6 +123,8 @@ function PlayerData.raiseStage(player: Player, n: number): boolean
 	return true
 end
 
+local reconnect: (Player, Entry) -> ()
+
 function PlayerData.load(player: Player)
 	-- PlayerAdded can come after the GetPlayers() loop already started loading this player
 	-- (deferred events): load once, or `loaded` fires twice (two daily gifts)
@@ -111,6 +134,7 @@ function PlayerData.load(player: Player)
 	loading[player] = true
 	local data: Profile.Data? = nil
 	local canSave = false
+	local retry = false
 	if store then
 		-- take the lock; another server may still be letting go of it, so wait a little, then
 		-- take it anyway (a server that crashed or was stopped never lets go)
@@ -119,7 +143,7 @@ function PlayerData.load(player: Player)
 			local blocked = false
 			local readOnly = false
 			local force = attempt == TAKE_TRIES
-			local ok = update(player.UserId, function(old: any): any
+			local ok, _, err = update(player.UserId, function(old: any): any
 				local step = Profile.loadStep(old, job, os.time(), force)
 				blocked = step.kind == "blocked"
 				readOnly = step.kind == "readOnly"
@@ -139,6 +163,8 @@ function PlayerData.load(player: Player)
 				break
 			end
 			if not ok then
+				-- 403 = API access off (Studio): retrying later would not help either
+				retry = not string.find(err or "", "403", 1, true)
 				break
 			end
 			task.wait(attempt * 3)
@@ -161,11 +187,80 @@ function PlayerData.load(player: Player)
 		return
 	end
 	local final = data or Profile.new()
-	entries[player] = { data = final, canSave = canSave, dirty = false, gone = false }
+	local entry: Entry =
+		{ data = final, canSave = canSave, dirty = false, gone = false, retrying = retry }
+	entries[player] = entry
 	player:SetAttribute("Stage", final.stage) -- what the screen shows (JoinStage)
 	for _, fn in listeners do
 		task.spawn(fn, player, final, canSave)
 	end
+	if retry then
+		task.spawn(reconnect, player, entry)
+	end
+end
+
+-- The DataStore was down at join: keep trying, and once it answers, add what this visit earned
+-- to the real save (never replace it). Waits 15 s, then 30 s, then a minute between rounds.
+function reconnect(player: Player, e: Entry)
+	local base = Profile.new()
+	local round = 0
+	while e.retrying and not e.gone and player.Parent ~= nil do
+		task.wait(math.min(15 * 2 ^ round, 60))
+		round += 1
+		if e.gone or player.Parent == nil then
+			break
+		end
+		local coinsSeen = e.data.coins
+		local merged: Profile.Data? = nil
+		local readOnly = false
+		-- the first rounds are polite about another server's lock; later ones take it
+		local force = round >= 3
+		local ok, _, err = update(player.UserId, function(old: any): any
+			local step = Profile.loadStep(old, job, os.time(), force)
+			coinsSeen = e.data.coins
+			if step.kind == "blocked" then
+				merged = nil
+				return nil
+			end
+			readOnly = step.kind == "readOnly"
+			if step.kind == "readOnly" or step.data == nil then
+				return nil
+			end
+			merged = Profile.mergeVisit(step.data, e.data, base)
+			return { data = merged, lock = { job = job, at = os.time() } }
+		end)
+		if ok and readOnly then
+			warn(`[PlayerData] {player.Name}: save is broken or from a newer version, not saving`)
+			e.retrying = false
+			break
+		elseif ok and merged then
+			-- earned while the write was on its way: keep it
+			merged.coins = math.clamp(
+				merged.coins + math.max(e.data.coins - coinsSeen, 0),
+				0,
+				Profile.MAX_COINS
+			)
+			-- same table as before, so everything that kept `data` sees the real save
+			for k in e.data :: any do
+				(e.data :: any)[k] = nil
+			end
+			for k, v in merged :: any do
+				(e.data :: any)[k] = v
+			end
+			e.canSave = true
+			e.retrying = false
+			e.dirty = true
+			print(`[PlayerData] {player.Name}: reached the real save, visit coins added`)
+			player:SetAttribute("Stage", e.data.stage)
+			for _, fn in syncedListeners do
+				task.spawn(fn :: any, player, e.data)
+			end
+			return
+		elseif not ok and string.find(err or "", "403", 1, true) then
+			e.retrying = false
+		end
+	end
+	e.retrying = false
 end
 
 function PlayerData.save(player: Player, letGo: boolean)
