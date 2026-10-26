@@ -17,6 +17,8 @@ local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
 local Party = require(script.Parent:WaitForChild("Party"))
 local Sfx = require(script.Parent:WaitForChild("Sfx"))
 local StageGate = require(script.Parent:WaitForChild("StageGate"))
+local Podium = require(script.Parent:WaitForChild("Podium"))
+local Features = require(ReplicatedStorage.Shared.Features)
 
 local event = ReplicatedStorage:WaitForChild("ServerRace") :: RemoteEvent
 local player = Players.LocalPlayer
@@ -174,6 +176,10 @@ rowsText.TextColor3 = Color3.new(1, 1, 1)
 rowsText.TextYAlignment = Enum.TextYAlignment.Top
 rowsText.RichText = true
 rowsText.Parent = card
+-- carter's pick 23: the top 3 cars on a podium, between the ribbon and the rows (big race)
+local podium = Podium.new(card)
+local PODIUM_H = 0.2 -- of the screen
+local raceStartedAt = 0 -- the server time this race started (the next one is 3 min after it)
 local rowsSize = Instance.new("UITextSizeConstraint")
 rowsSize.MaxTextSize = 34
 rowsSize.Parent = rowsText
@@ -389,26 +395,30 @@ local function showResult(rows: { any })
 		local r = rows[mine]
 		table.insert(lines, `<font color="#FFCD3C">{mine}. YOU</font>{paidText(r)}`)
 	end
-	-- the winner's prize (TycoonServer.raceWon): their garage makes double coins for a while
+	-- the winner's prize: double coins for a while (Car VS Car: training coins, CvcRules)
 	if won and first.time and first.bot ~= true then -- (a bot that wins gets no prize)
 		local mins = math.floor(ServerRace.BOOST_TIME / 60)
 		table.insert(
 			lines,
 			if mine == 1
-				then `<font color="#7CFF6B">YOUR GARAGE: 2X COINS {mins} MIN!</font>`
+				then `<font color="#7CFF6B">{if Features.CVC then "YOU" else "YOUR GARAGE"}: 2X COINS {mins} MIN!</font>`
 				else `<font color="#7CFF6B">{first.name}: 2X COINS {mins} MIN</font>`
 		)
 	end
-	table.insert(
-		lines,
-		`<font color="#CFE3FF">NEXT RACE IN {ServerRace.clock(
-			if RaceMaps.live() then ServerRace.MAP_BREAK else ServerRace.BREAK
-		)}</font>`
-	)
+	-- the next race: Car VS Car = 3 min after this one started (ServerRace.nextStart, counted from
+	-- when the result goes away); before that, a fixed break
+	local untilNext = if Features.CVC and raceStartedAt > 0
+		then ServerRace.nextStart(raceStartedAt, workspace:GetServerTimeNow() + ServerRace.SHOW)
+			- workspace:GetServerTimeNow()
+		elseif RaceMaps.live() then ServerRace.MAP_BREAK
+		else ServerRace.BREAK
+	table.insert(lines, `<font color="#CFE3FF">NEXT RACE IN {ServerRace.clock(untilNext)}</font>`)
 	rowsText.Text = table.concat(lines, "\n")
 	-- the card fits its rows (one racer = a short card, no empty gap)
 	-- (rows 6.5% of the screen tall each: big enough to read on a phone)
-	local tall = 0.2 + 0.065 * #lines
+	local cars = if Features.CVC and type(first.score) ~= "number" then podium.show(rows) else 0
+	local podH = if cars > 0 then PODIUM_H else 0
+	local tall = 0.2 + 0.065 * #lines + podH
 	rowsText.Size = UDim2.fromScale(0.86, (0.065 * #lines) / tall)
 	showId += 1
 	local me = showId
@@ -417,7 +427,9 @@ local function showResult(rows: { any })
 	card:SetAttribute("Bottom", card.Position.Y.Scale + tall) -- the prize card (Stars) goes under it
 	title.Size = UDim2.fromScale(0.8, 0.13 / tall)
 	-- (the ribbon sits half over the top edge: the rows start under its lower half)
-	rowsText.Position = UDim2.fromScale(0.07, 0.04 + 0.08 / tall)
+	rowsText.Position = UDim2.fromScale(0.07, 0.04 + (0.08 + podH) / tall)
+	podium.frame.Position = UDim2.fromScale(0.05, 0.02 + 0.08 / tall)
+	podium.frame.Size = UDim2.fromScale(0.9, podH / tall)
 	TweenService:Create(
 		card,
 		TweenInfo.new(0.35, Enum.EasingStyle.Back),
@@ -430,6 +442,7 @@ local function showResult(rows: { any })
 	task.delay(ServerRace.SHOW, function()
 		if me == showId then
 			card.Visible = false
+			podium.hide()
 		end
 	end)
 end
@@ -438,6 +451,9 @@ event.OnClientEvent:Connect(
 	function(what: unknown, a: unknown, b: unknown, _c: unknown, d: unknown, e: unknown)
 		if what == "state" and type(a) == "string" and type(b) == "number" then
 			kind = if d == "drift" then "drift" else "race"
+			if a == "racing" and phase ~= "racing" then
+				raceStartedAt = b
+			end
 			phase, startAt = a, b
 			where = if type(e) == "string" then e else ""
 			if phase ~= "racing" then
