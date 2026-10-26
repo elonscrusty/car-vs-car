@@ -20,12 +20,15 @@ export type Box = {
 	maxW: number?, -- UISizeConstraint.MaxSize
 	maxH: number?,
 	tap: boolean?, -- a button: thumb size
+	main: boolean?, -- a main button (PICK!, OPEN!, ...): bigger still (MAIN)
 }
 
 local CvcLayout = {}
 
 -- the smallest a thumb button may be, both ways (px)
 CvcLayout.THUMB = 44
+-- the main buttons, bigger on a phone (carter's pick 49)
+CvcLayout.MAIN = 56
 
 local function box(
 	parent: string?,
@@ -49,12 +52,14 @@ local function box(
 		ho = size[4],
 		maxW = o.max and o.max[1],
 		maxH = o.max and o.max[2],
-		tap = o.tap,
+		tap = o.tap or o.main,
+		main = o.main,
 	}
 end
 
 local TL, MID, BOTTOM_MID, BOTTOM_LEFT = { 0, 0 }, { 0.5, 0.5 }, { 0.5, 1 }, { 0, 1 }
 local TAP = { tap = true }
+local MAIN = { main = true }
 
 -- the big X on a panel's top right corner
 local function closeX(): Box
@@ -66,8 +71,8 @@ CvcLayout.SCREENS = {
 	pick = {
 		Panel = box(nil, MID, { 0.5, 0, 0.53, 0 }, { 0.8, 0, 0.88, 0 }, { max = { 900, 520 } }),
 		Choice = box("Panel", TL, { 0, 10, 0.17, 0 }, { 1 / 3, -20, 0.8, 0 }), -- (the first; the others sit right of it)
-		Card = box("Choice", TL, { 0, 0, 0, 0 }, { 1, 0, 1, -56 }),
-		Pick = box("Choice", BOTTOM_MID, { 0.5, 0, 1, 0 }, { 0.8, 0, 0, 48 }, TAP),
+		Card = box("Choice", TL, { 0, 0, 0, 0 }, { 1, 0, 1, -64 }),
+		Pick = box("Choice", BOTTOM_MID, { 0.5, 0, 1, 0 }, { 0.8, 0, 0, 56 }, MAIN),
 	},
 	-- MY GARAGE: tabs, a body that scrolls (station cards across, or car rows down), MORE STATIONS
 	garage = {
@@ -76,8 +81,8 @@ CvcLayout.SCREENS = {
 		TabStations = box("Panel", TL, { 0.04, 0, 0, 26 }, { 0.25, 0, 0, 44 }, TAP),
 		TabCars = box("Panel", TL, { 0.31, 0, 0, 26 }, { 0.25, 0, 0, 44 }, TAP),
 		Note = box("Panel", TL, { 0.58, 0, 0, 26 }, { 0.38, 0, 0, 44 }),
-		Body = box("Panel", TL, { 0.03, 0, 0, 76 }, { 0.94, 0, 1, -134 }),
-		More = box("Panel", BOTTOM_MID, { 0.5, 0, 1, -6 }, { 0.5, 0, 0, 48 }, TAP),
+		Body = box("Panel", TL, { 0.03, 0, 0, 76 }, { 0.94, 0, 1, -142 }),
+		More = box("Panel", BOTTOM_MID, { 0.5, 0, 1, -6 }, { 0.5, 0, 0, 56 }, MAIN),
 		-- one station card (the first; the others sit right of it) and its two buttons
 		Card = box("Body", TL, { 0, 0, 0, 0 }, { 0, 210, 1, -8 }),
 		CardTop = box("Card", TL, { 0, 0, 0, 0 }, { 1, 0, 1, -54 }), -- name, level, car, bars
@@ -85,7 +90,7 @@ CvcLayout.SCREENS = {
 		Up = box("Card", BOTTOM_LEFT, { 0.52, 0, 1, -6 }, { 0.42, 0, 0, 44 }, TAP),
 		-- one car row (the first; the others sit under it) and its button
 		Row = box("Body", TL, { 0, 0, 0, 0 }, { 1, -10, 0, 68 }),
-		RowButton = box("Row", { 1, 0.5 }, { 1, -8, 0.5, 0 }, { 0.3, 0, 0, 48 }, TAP),
+		RowButton = box("Row", { 1, 0.5 }, { 1, -8, 0.5, 0 }, { 0.3, 0, 0, 56 }, MAIN),
 	},
 	-- a crate: the box and its odds, OPEN! / BUY; the new car comes out over it
 	crate = {
@@ -93,14 +98,14 @@ CvcLayout.SCREENS = {
 		Close = closeX(),
 		Odds = box("Panel", TL, { 0.5, 0, 0.14, 0 }, { 0.46, 0, 0.58, 0 }),
 		Reveal = box("Panel", MID, { 0.5, 0, 0.45, 0 }, { 0.5, 0, 0.62, 0 }),
-		Open = box("Panel", BOTTOM_MID, { 0.5, 0, 1, -8 }, { 0.46, 0, 0, 48 }, TAP),
+		Open = box("Panel", BOTTOM_MID, { 0.5, 0, 1, -8 }, { 0.46, 0, 0, 56 }, MAIN),
 	},
 	-- after a race: the result card, then GG! / AGAIN!
 	finish = {
 		Card = box(nil, MID, { 0.5, 0, 0.36, 0 }, { 0.36, 0, 0.34, 0 }, { max = { 420, 260 } }),
 		Chat = box(nil, MID, { 0.5, 0, 0.66, 0 }, { 0, 300, 0, 60 }),
-		GG = box("Chat", TL, { 0, 0, 0, 0 }, { 0.47, 0, 1, 0 }, TAP),
-		Again = box("Chat", TL, { 0.53, 0, 0, 0 }, { 0.47, 0, 1, 0 }, TAP),
+		GG = box("Chat", TL, { 0, 0, 0, 0 }, { 0.47, 0, 1, 0 }, MAIN),
+		Again = box("Chat", TL, { 0.53, 0, 0, 0 }, { 0.47, 0, 1, 0 }, MAIN),
 	},
 }
 
