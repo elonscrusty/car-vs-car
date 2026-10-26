@@ -54,7 +54,7 @@ end
 local function text(class: string, parent: Instance, t: string, color: Color3): any
 	local l = Instance.new(class) :: any
 	l.BackgroundTransparency = 1
-	l.Font = Enum.Font.GothamBlack
+	l.Font = Enum.Font.LuckiestGuy
 	l.TextScaled = true
 	l.TextColor3 = color
 	l.Text = t

@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local BuildLayout = require(ReplicatedStorage.Shared.BuildLayout)
+local KartStyle = require(ReplicatedStorage.Shared.KartStyle)
 local BuildScreen = require(script.Parent:WaitForChild("BuildScreen"))
 local StageGate = require(script.Parent:WaitForChild("StageGate"))
 
@@ -339,9 +340,9 @@ local buildBtn = Instance.new("TextButton")
 buildBtn.Name = "Build"
 HudLayout.place(buildBtn, "Build", "walk")
 -- dark with yellow words: DRIVE (yellow) stays the main button on your pad
-buildBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
-buildBtn.TextColor3 = Color3.fromRGB(230, 190, 80)
-buildBtn.Font = Enum.Font.GothamBlack
+buildBtn.BackgroundColor3 = KartStyle.YELLOW
+buildBtn.TextColor3 = KartStyle.INK
+buildBtn.Font = Enum.Font.LuckiestGuy
 buildBtn.TextScaled = true
 buildBtn.Text = "BUILD!"
 buildBtn.Visible = false

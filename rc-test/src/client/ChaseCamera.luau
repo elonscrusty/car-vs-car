@@ -197,7 +197,7 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 	local arrow = Instance.new("TextLabel")
 	arrow.Size = UDim2.fromScale(1, 1)
 	arrow.BackgroundTransparency = 1
-	arrow.Font = Enum.Font.GothamBlack
+	arrow.Font = Enum.Font.LuckiestGuy
 	arrow.TextScaled = true
 	arrow.Text = "▼"
 	arrow.TextColor3 = Color3.fromRGB(255, 220, 40)

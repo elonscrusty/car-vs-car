@@ -108,7 +108,7 @@ local function text(
 	l.BackgroundTransparency = 1
 	l.Position = UDim2.fromScale(x, y)
 	l.Size = UDim2.fromScale(w, h)
-	l.Font = Enum.Font.GothamBlack
+	l.Font = Enum.Font.LuckiestGuy
 	l.TextScaled = true
 	l.TextColor3 = color
 	l.TextXAlignment = if left then Enum.TextXAlignment.Left else Enum.TextXAlignment.Center
@@ -127,7 +127,7 @@ close.AnchorPoint = Vector2.new(1, 0)
 close.Position = UDim2.fromScale(0.97, 0.03)
 close.Size = UDim2.fromScale(0.07, 0.13)
 close.BackgroundColor3 = Color3.fromRGB(220, 60, 50)
-close.Font = Enum.Font.GothamBlack
+close.Font = Enum.Font.LuckiestGuy
 close.TextScaled = true
 close.TextColor3 = Color3.new(1, 1, 1)
 close.Text = "X"
@@ -152,7 +152,7 @@ local function button(parent: Instance, t: string, color: Color3, live: boolean)
 	b.BackgroundColor3 = if live then color else GREY
 	b.AutoButtonColor = live
 	b.Active = live
-	b.Font = Enum.Font.GothamBlack
+	b.Font = Enum.Font.LuckiestGuy
 	b.TextScaled = true
 	b.TextColor3 = if live then Color3.new(1, 1, 1) else Color3.fromRGB(200, 200, 205)
 	b.Text = t
