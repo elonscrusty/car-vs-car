@@ -281,6 +281,24 @@ for _, m in maps do
 		truthy(boost, "no boost pad")
 	end)
 
+	test(m.id .. ": things lining the road stay off every road", function()
+		local spots = MapKit.edgeSpots(m, 34, def.road / 2 + MapKit.CURB_WIDTH + 10, 5)
+		truthy(#spots > 80, `only {#spots} spots by the road`)
+		local toys = MapKit.edgeSpots(m, 130, MapKit.TOY_OFF, MapKit.TOY_CLEAR)
+		truthy(#toys > 8, `only {#toys} toy spots`)
+		for _, e in toys do
+			for k, ring in roads(m) do
+				local w = if k == 1 then def.road else def.paths[k - 1].width
+				local d = MapKit.distTo(ring, e.x, e.z)
+				-- a 44 x 22 brick reaches 25 from its middle
+				truthy(
+					d - 25 > w / 2 + MapKit.CURB_WIDTH,
+					`toy at {e.x}, {e.z} is {d} from road {k}`
+				)
+			end
+		end
+	end)
+
 	test(m.id .. ": sits far from the lobby", function()
 		local t = m.track()
 		truthy(math.abs(t.rcX) >= 2000, "too close to the street")

@@ -131,6 +131,8 @@ MapKit.GRASS_DRAG = 0.5
 MapKit.JUMP_H = 14 -- same ridge as the JUMP tile (Studio-tested: ~0.6 s of air)
 MapKit.JUMP_LEN = 58
 MapKit.WALL_H = 60 -- the edge of the map (a fence, a kitchen wall): taller than any jump
+MapKit.TOY_OFF = 60 -- kitchen toys by the road stand this far from its centre line
+MapKit.TOY_CLEAR = 28 -- and at least this far past any curb (a brick is 44 x 22)
 MapKit.BACK = 14 -- the pole sits this far behind the line (same as ServerRace.BACK)
 
 -- What each pad does to the car (the car reads Grip / Drag / Boost off the part under a wheel).
@@ -169,6 +171,62 @@ function MapKit.length(ring: { Sample }, closed: boolean): number
 		len += math.sqrt((b.x - a.x) ^ 2 + (b.z - a.z) ^ 2)
 	end
 	return len
+end
+
+-- Spots just off both sides of the main road, every `spacing` along it, `off` from the centre
+-- line (scenery that lines the road: giant grass, toys). Leaves out spots on or next to any road
+-- (a side road crossing, the other side of a hairpin), on a jump, or under a prop.
+export type EdgeSpot = { x: number, z: number, yaw: number, side: number, i: number }
+function MapKit.edgeSpots(map: any, spacing: number, off: number, clear: number): { EdgeSpot }
+	local def: Def = map.def
+	local loop: { Sample } = map.loop()
+	local rings = { loop }
+	for i = 1, #def.paths do
+		table.insert(rings, map.path(i))
+	end
+	local out = {}
+	local run = 0
+	local k = 0
+	for i = 1, #loop do
+		local a, b = loop[i], loop[(i % #loop) + 1]
+		run += math.sqrt((b.x - a.x) ^ 2 + (b.z - a.z) ^ 2)
+		if run >= spacing then
+			run = 0
+			k += 1
+			for _, side in { -1, 1 } do
+				local o = off * side
+				local x, z = a.x - a.tz * o, a.z + a.tx * o
+				local ok = x > def.minX + 20
+					and x < def.maxX - 20
+					and z > def.minZ + 20
+					and z < def.maxZ - 20
+				for r, ring in rings do
+					local w = if r == 1 then def.road else def.paths[r - 1].width
+					if ok and MapKit.distTo(ring, x, z) < w / 2 + MapKit.CURB_WIDTH + clear then
+						ok = false
+					end
+				end
+				for _, j in def.jumps do
+					if ok and math.sqrt((j.at.x - x) ^ 2 + (j.at.z - z) ^ 2) < MapKit.JUMP_LEN then
+						ok = false
+					end
+				end
+				for _, p in def.props do
+					local r = math.max(p.w or p.h * 0.6, p.d or p.h * 0.6) / 2 + clear
+					if ok and p.h > 2 and math.sqrt((p.x - x) ^ 2 + (p.z - z) ^ 2) < r then
+						ok = false
+					end
+				end
+				if ok then
+					table.insert(
+						out,
+						{ x = x, z = z, yaw = math.atan2(-a.tx, -a.tz), side = side, i = k }
+					)
+				end
+			end
+		end
+	end
+	return out
 end
 
 export type Map = {
