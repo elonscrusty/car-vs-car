@@ -28,7 +28,7 @@ local ServerRace = {}
 
 ServerRace.BREAK = 5 * 60 -- the break between races (build, shop, drive your own plot)
 ServerRace.CALL = 10 -- the plot is picked and named this long before the start
-ServerRace.LAPS = 3
+ServerRace.LAPS = 2 -- map races: about 1 min (Car VS Car, 10-26)
 ServerRace.MAX = 8 -- cars on the grid
 ServerRace.TIME_LIMIT = 240 -- seconds from GO: the race ends even if nobody finished
 ServerRace.AFTER_WIN = 30 -- the others get this long to finish after the winner
