@@ -32,6 +32,12 @@ export type Data = {
 	raceStars: number, -- stars won in server races (on top of the medal stars in starsFrom)
 	trackKind: string, -- what my built plot is: "race" (laps) or "drift" (drift score)
 	stage: number, -- how far into the game I am (Profile.STAGE): new players see one thing at a time
+	-- the tycoon (Tycoon): my plot is my garage
+	pile: number, -- coins waiting in my plot (tap to collect)
+	lastSeen: number, -- os.time of the last save: coins keep piling while I'm away
+	boostUntil: number, -- os.time a race win's double income ends
+	plotLevel: number, -- 0..Tycoon.MAX_LEVEL: more parking slots
+	parked: { string }, -- car ids parked in my garage (each makes coins)
 }
 -- One placed tile: column, row (from 1), TrackTiles piece id, quarter turns 0..3.
 export type Tile = { c: number, r: number, piece: string, rot: number }
@@ -42,14 +48,17 @@ export type Lock = { job: string, at: number }
 
 local Profile = {}
 
-Profile.VERSION = 14 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift.
+Profile.VERSION = 15 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift.
 -- 6: daily jobs. 7: looks, lookOff. 8: cars, equipped. 9: track. 10: tiles (owned).
--- 11: raceStars. 12: trackKind. 13: plotTop. 14: stage
+-- 11: raceStars. 12: trackKind. 13: plotTop. 14: stage. 15: pile, lastSeen, boostUntil,
+-- plotLevel, parked (the tycoon)
 Profile.TOP = 3 -- rows on a plot's board
 -- How far into the game a player is. Only goes up. The screen shows more at each one
 -- (JoinStage): new = just your car and GO; lapped = coins and BUILD; raced = the shop;
 -- shopped (first car bought) = everything (gift, jobs, looks, top 3, 2X).
 Profile.STAGE = { NEW = 0, LAPPED = 1, RACED = 2, SHOPPED = 3 }
+Profile.MAX_PLOT_LEVEL = 5 -- (Tycoon.MAX_LEVEL)
+Profile.MAX_PARKED = 8 -- (Tycoon.slots at the top level)
 Profile.FIRST_LAP_COINS = 20 -- the first lap ever pays this (the first coins a new player sees)
 Profile.MAX_OWNERS = 500 -- keeps the save small; stars from more owners than this stop counting
 Profile.LOCK_TIMEOUT = 300 -- a server that hasn't saved for this long is gone: its lock is stale
@@ -96,6 +105,11 @@ function Profile.new(): Data
 		raceStars = 0,
 		trackKind = "race",
 		stage = 0,
+		pile = 0,
+		lastSeen = 0,
+		boostUntil = 0,
+		plotLevel = 0,
+		parked = {},
 	}
 end
 
@@ -413,6 +427,30 @@ function Profile.migrate(raw: any): Data
 		end
 	end
 	d.stars = stars + d.raceStars
+	if goodNumber(raw.pile) then
+		d.pile = math.max(raw.pile, 0)
+	end
+	for _, k in { "lastSeen", "boostUntil" } do
+		local v = raw[k]
+		if goodNumber(v) then
+			(d :: any)[k] = math.max(math.floor(v), 0)
+		end
+	end
+	if goodNumber(raw.plotLevel) then
+		d.plotLevel = math.clamp(math.floor(raw.plotLevel), 0, Profile.MAX_PLOT_LEVEL)
+	end
+	if type(raw.parked) == "table" then
+		for _, id in raw.parked do
+			if
+				type(id) == "string"
+				and #id <= 40
+				and #d.parked < Profile.MAX_PARKED
+				and not table.find(d.parked, id)
+			then
+				table.insert(d.parked, id)
+			end
+		end
+	end
 	if goodNumber(raw.stage) then
 		d.stage = math.clamp(math.floor(raw.stage), 0, Profile.STAGE.SHOPPED)
 	elseif d.coins > 0 or d.stars > 0 or next(d.cars) ~= nil then

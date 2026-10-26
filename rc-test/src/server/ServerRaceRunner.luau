@@ -13,6 +13,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
+local Features = require(ReplicatedStorage.Shared.Features)
 local Forever = require(ReplicatedStorage.Shared.Forever)
 local LapTimer = require(ReplicatedStorage.Shared.LapTimer)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
@@ -336,7 +337,9 @@ local function racersHere(): { Player }
 	local list: { Player } = {}
 	for _, p in Players:GetPlayers() do
 		local stage = p:GetAttribute("Stage")
-		if #list < ServerRace.MAX and type(stage) == "number" and stage >= Profile.STAGE.LAPPED then
+		-- (tycoon plan: no plot to lap on first, so the race IS a new kid's first drive)
+		local lapped = type(stage) == "number" and stage >= Profile.STAGE.LAPPED
+		if #list < ServerRace.MAX and (lapped or not Features.PLOT_RACING) then
 			table.insert(list, p)
 		end
 	end
