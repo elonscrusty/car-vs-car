@@ -316,7 +316,7 @@ local function setUp(plot: Instance, garage: Model)
 	zone.Parent = folder
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "Count"
-	gui.Size = UDim2.fromScale(7, 2)
+	gui.Size = UDim2.fromScale(4.5, 1.6)
 	gui.StudsOffsetWorldSpace = Vector3.new(0, 3.5, 0)
 	gui.MaxDistance = 140
 	gui.LightInfluence = 0
