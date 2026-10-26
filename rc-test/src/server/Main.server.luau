@@ -306,6 +306,10 @@ end
 -- race everyone is in that race, and a drive started then would be taken away at the start.
 require(script.Parent.QueuePads).start({
 	findOpen = function(kind: string, player: Player): number?
+		-- the map races: the race pad is JOIN NEXT RACE (anyone, a new player too)
+		if kind == "race" and ServerRaceRunner.join(player) then
+			return nil
+		end
 		-- a brand new player's spawn shows only the way to their own pad (JoinStage)
 		if not JoinStage.shows(player:GetAttribute("Stage"), "pads") then
 			return nil
@@ -345,11 +349,16 @@ local function walk(player: Player)
 		loadWalker(player)
 	else
 		local slot = slots[slotIndex]
-		local pos = Vector3.new(slot.exitX, 3, slot.exitZ)
 		local char = player.Character :: Model
 		root.Anchored = false
-		-- facing the road
-		char:PivotTo(CFrame.lookAt(pos, Vector3.new(0, 3, slot.exitZ)))
+		if slot == nil then
+			-- off a race map: back to the spawn lobby
+			char:PivotTo(homeOf(player))
+		else
+			local pos = Vector3.new(slot.exitX, 3, slot.exitZ)
+			-- facing the road
+			char:PivotTo(CFrame.lookAt(pos, Vector3.new(0, 3, slot.exitZ)))
+		end
 	end
 	remote:FireClient(player, "walk")
 end

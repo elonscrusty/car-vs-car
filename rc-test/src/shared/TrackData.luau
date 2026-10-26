@@ -40,6 +40,7 @@ export type Track = {
 	rcX: number?,
 	rcZ: number?,
 	rcAngle: number?, -- turn about y (radians), like CFrame.Angles(0, rcAngle, 0)
+	map: string?, -- a big race map's id (RaceMaps): no plot edge, no "out of the plot" reset
 }
 
 local TrackData = {}

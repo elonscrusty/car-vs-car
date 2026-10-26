@@ -118,6 +118,13 @@ for i in LobbyLayout.slots() do
 	tracks[i] = t
 	timers[i] = LapTimer.new(t.gates, t.mode)
 end
+-- the big race maps come after the plots (LobbyLayout.mapAt): the server race drives them
+for k in require(ReplicatedStorage.Shared.RaceMaps).list() do
+	local i = LobbyLayout.mapIndex(k)
+	local t: TrackData.Track = LobbyLayout.track(i)
+	tracks[i] = t
+	timers[i] = LapTimer.new(t.gates, t.mode)
+end
 -- a plot whose owner built their own track: refresh its copy and its lap timer
 require(ReplicatedStorage.Shared.PlotTracks).watch(function(i: number)
 	local t: TrackData.Track = LobbyLayout.track(i)
@@ -531,7 +538,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 	end
 	if p.Y < -8 * Tuning.scale / TrackData.RC_SCALE then
 		reset()
-	elseif not TrackData.inPlot(lx, lz) then
+	elseif t.map == nil and not TrackData.inPlot(lx, lz) then
 		reset("OUT - BACK TO START")
 	end
 

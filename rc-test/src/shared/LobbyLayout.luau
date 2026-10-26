@@ -254,9 +254,29 @@ end
 -- checkpoints, plot-local big studs like a Plots/<Type>), by slot. Set by PlotTracks.
 LobbyLayout.custom = {} :: { [number]: any }
 
+-- The big race maps (RaceMaps) are drivable "slots" after the street's plots: index
+-- #slots + k is map k. nil when there is no such map.
+function LobbyLayout.mapAt(index: number): any?
+	local k = index - #LobbyLayout.slots()
+	if k < 1 then
+		return nil
+	end
+	return sibling("RaceMaps").list()[k]
+end
+
+function LobbyLayout.mapIndex(k: number): number
+	return #LobbyLayout.slots() + k
+end
+
 -- A lobby plot as a track: its kind's data (or its owner's own track), placed and turned where
--- that plot sits.
+-- that plot sits. A race map's index gives that map's track (map = its id).
 function LobbyLayout.track(slotIndex: number): any
+	local map = LobbyLayout.mapAt(slotIndex)
+	if map then
+		local t = map.track()
+		t.map = map.id
+		return t
+	end
 	local slot = LobbyLayout.slots()[slotIndex]
 	local t = TrackData.get(slot.id)
 	local own = LobbyLayout.custom[slotIndex]

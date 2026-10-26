@@ -192,8 +192,13 @@ function ServerRace.starsFor(place: number, finished: boolean, racers: number): 
 end
 
 -- Is the race over? (`since` = seconds from GO, `firstAt` = when the winner finished)
-function ServerRace.over(entries: { Entry }, since: number, firstAt: number?): boolean
-	if since >= ServerRace.TIME_LIMIT then
+function ServerRace.over(
+	entries: { Entry },
+	since: number,
+	firstAt: number?,
+	limit: number?
+): boolean
+	if since >= (limit or ServerRace.TIME_LIMIT) then
 		return true
 	end
 	if firstAt and since - firstAt >= ServerRace.AFTER_WIN then
@@ -294,6 +299,37 @@ end
 -- points at all (sitting still all round gets the try pay only).
 function ServerRace.finished(e: Entry): boolean
 	return e.time ~= nil or (e.score or 0) > 0
+end
+
+-- The big-map races (carter's tycoon plan, 10-26): a short wait, a map vote, a 2-3 min race.
+ServerRace.MAP_BREAK = 45 -- "NEXT RACE 0:45": the wait between map races
+ServerRace.VOTE = 15 -- the last this many seconds of the wait: pick a map
+ServerRace.MAP_TIME_LIMIT = 180 -- a map race ends by 3 min even if nobody finished
+ServerRace.BOOST_TIME = 10 * 60 -- the winner's plot makes extra coins this long
+
+-- The voted map: the most votes (votes = player -> map id), a tie or no votes at all = a random
+-- one of the best (r = a random number 0..1). nil when there are no maps.
+function ServerRace.tally(votes: { [any]: string }, ids: { string }, r: number): string?
+	if #ids == 0 then
+		return nil
+	end
+	local count: { [string]: number } = {}
+	for _, id in votes do
+		if table.find(ids, id) then
+			count[id] = (count[id] or 0) + 1
+		end
+	end
+	local most = 0
+	for _, id in ids do
+		most = math.max(most, count[id] or 0)
+	end
+	local best = {}
+	for _, id in ids do
+		if (count[id] or 0) == most then
+			table.insert(best, id)
+		end
+	end
+	return best[math.clamp(math.floor(r * #best) + 1, 1, #best)]
 end
 
 return ServerRace
