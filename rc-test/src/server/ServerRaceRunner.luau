@@ -215,7 +215,12 @@ local function pickSlot(): number?
 	local owned, spare = {}, {}
 	for _, s in LobbyLayout.slots() do
 		if ServerRaceRunner.isReady(s.index) then
-			table.insert(if LobbyPlots.ownerOf(s.index) then owned else spare, s.index)
+			-- a brand new owner (still on their first lap) isn't pulled off their own plot
+			-- for the race unless nothing else can hold it
+			local owner = LobbyPlots.ownerOf(s.index)
+			local stage = owner and owner:GetAttribute("Stage")
+			local settled = type(stage) == "number" and stage >= Profile.STAGE.LAPPED
+			table.insert(if owner and settled then owned else spare, s.index)
 		end
 	end
 	return ServerRace.pick(owned, spare, random:NextNumber())
