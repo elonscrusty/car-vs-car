@@ -23,6 +23,7 @@ export type Spot = {
 	ho: number,
 	square: boolean?, -- width = height (UIAspectRatioConstraint on height)
 	leftOf: string?, -- sits just left of this spot (same mode), bottoms lined up; x is ignored
+	off: boolean?, -- its part is switched off (Features): never shown, so it may sit under others
 }
 
 -- Sibling loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
@@ -73,6 +74,13 @@ end
 
 -- the top left row: coins, then coins a minute (one column further right while stars show)
 local STARS = Features.STARS
+local CVC = Features.CVC
+
+-- a spot whose part is switched off (the overlap test skips it)
+local function off(s: Spot, isOff: boolean): Spot
+	s.off = isOff or nil
+	return s
+end
 local COL1 = if STARS then 0.14 else 0.02
 local COL2 = if STARS then 0.26 else 0.14
 
@@ -108,8 +116,17 @@ HudLayout.SPOTS = {
 	-- what you're saving up for (Stars): under the jobs
 	spot("NextUnlock", "walk", "Stars", TL, { 0.02, 0, 0.12, 212 }, { 0, 200, 0, 54 }), -- short, big words
 	-- ===== walk: top middle, one stack =====
-	spot("Friends", "walk", "Lobby", TC, { 0.5, 0, 0, 64 }, { 0, 170, 0, 36 }),
-	spot("Quick", "walk", "Lobby", TC, { 0.5, 0, 0, 194 }, { 0, 170, 0, 44 }), -- off for now (Lobby QUICK)
+	off(
+		spot("Friends", "walk", "Lobby", TC, { 0.5, 0, 0, 64 }, { 0, 170, 0, 36 }),
+		not Features.PLOT_RACING
+	),
+	off(
+		spot("Quick", "walk", "Lobby", TC, { 0.5, 0, 0, 194 }, { 0, 170, 0, 44 }),
+		not Features.PLOT_RACING
+	), -- off for now (Lobby QUICK)
+	-- Car VS Car (Cvc.client): COACH in the top middle, the big JOIN over the goal line
+	off(spot("Coach", "walk", "Cvc", TC, { 0.5, 0, 0, 64 }, { 0, 170, 0, 44 }), not CVC),
+	off(spot("BigJoin", "walk", "Cvc", BC, { 0.5, 0, 0.96, -102 }, { 0, 240, 0, 64 }), not CVC),
 	spot("WeekendBanner", "walk", "Stars", TR, { 0.98, 0, 0, 116 }, { 0, 200, 0, 30 }), -- top right: off your plot's name on the gate
 	spot("Join", "walk", "ServerRace", TR, { 0.98, 0, 0, 64 }, { 0, 168, 0, 46 }), -- top right, off the gate's name and the pad words
 	-- ===== walk: bottom middle =====
@@ -137,6 +154,12 @@ HudLayout.SPOTS = {
 		return s
 	end)(),
 	spot("Drift", "drive", "Controls", BR, { 0.97, 0, 0.58, 0 }, { 0, 0, 0.22, 0 }, true), -- big RESET on rocks
+	-- Car VS Car: the big BOOST thumb button, left of DRIFT (Cvc.client)
+	(function()
+		local s = spot("Boost", "drive", "Cvc", BR, { 0, 0, 0.58, 0 }, { 0, 0, 0.2, 0 }, true)
+		s.leftOf = "Drift"
+		return off(s, not CVC)
+	end)(),
 	spot("Gas", "drive", "Controls", BR, { 0.97, 0, 0.95, 0 }, { 0, 0, 0.34, 0 }, true),
 }
 
@@ -170,7 +193,7 @@ function HudLayout.overlaps(sw: number, sh: number): { string }
 	for i = 1, #list do
 		for j = i + 1, #list do
 			local a, b = list[i], list[j]
-			if a.mode == b.mode then
+			if a.mode == b.mode and not a.off and not b.off then
 				local al, at, ar, ab = HudLayout.box(a, sw, sh)
 				local bl, bt, br, bb = HudLayout.box(b, sw, sh)
 				if al < br and bl < ar and at < bb and bt < ab then

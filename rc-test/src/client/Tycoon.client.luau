@@ -15,6 +15,10 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+-- Car VS Car (Features.CVC) has its own screens (Cvc.client): none of the tycoon ones then
+if require(Shared:WaitForChild("Features")).CVC then
+	return
+end
 local CarCatalog = require(Shared:WaitForChild("CarCatalog"))
 local Garage = require(Shared:WaitForChild("Garage"))
 local HudLayout = require(Shared:WaitForChild("HudLayout"))

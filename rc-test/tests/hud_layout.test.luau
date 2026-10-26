@@ -48,13 +48,14 @@ test("top rows start under the Roblox top bar", function()
 end)
 
 test("the overlap check finds a real overlap", function()
+	local coins = HudLayout.find("CoinCount", "walk") :: any -- always shown
 	table.insert(HudLayout.SPOTS, {
 		name = "Test",
 		mode = "walk",
 		owner = "test",
-		ax = 0.5,
+		ax = 0,
 		ay = 0,
-		x = 0.5,
+		x = coins.x,
 		xo = 0,
 		y = 0,
 		yo = 70,
@@ -66,7 +67,7 @@ test("the overlap check finds a real overlap", function()
 	local hits = HudLayout.overlaps(844, 390)
 	table.remove(HudLayout.SPOTS)
 	eq(#hits, 1)
-	eq(hits[1], "walk: Friends / Test")
+	eq(hits[1], "walk: CoinCount / Test")
 end)
 
 test("popups draw over the HUD", function()
