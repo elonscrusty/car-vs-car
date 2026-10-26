@@ -14,7 +14,8 @@ export type Car = {
 	price: number, -- coins in the shop; 0 = the free starter; rare cars aren't sold
 	color: { number },
 	style: string, -- Garage.toyCar style
-	rare: boolean,
+	rare: boolean, -- gumball only (never sold in the shop)
+	rarity: string, -- "common" | "rare" | "epic" | "legend" (CarCatalog.RARITY)
 }
 
 -- The bits of a save this needs (Profile.Data has them).
@@ -26,12 +27,25 @@ export type Save = {
 
 CarCatalog.MODES = { "drift", "race" }
 
+-- The four kinds of car (carter's tycoon plan, 10-26): a glow shows which (CarGlow), and the
+-- rarer a car the more coins it makes parked on your plot. `perMin` is that rate, for the
+-- plot income to read from here.
+export type Rarity = { id: string, label: string, color: { number }, perMin: number }
+CarCatalog.RARITY = {
+	common = { id = "common", label = "COMMON", color = { 200, 200, 210 }, perMin = 2 },
+	rare = { id = "rare", label = "RARE", color = { 61, 155, 255 }, perMin = 6 },
+	epic = { id = "epic", label = "EPIC", color = { 170, 80, 255 }, perMin = 15 },
+	legend = { id = "legend", label = "LEGEND", color = { 255, 199, 44 }, perMin = 40 },
+} :: { [string]: Rarity }
+CarCatalog.RARITY_ORDER = { "common", "rare", "epic", "legend" }
+
 local function car(
 	id: string,
 	name: string,
 	mode: string,
 	price: number,
 	color: { number },
+	rarity: string,
 	rare: boolean?
 ): Car
 	return {
@@ -42,6 +56,7 @@ local function car(
 		color = color,
 		style = mode,
 		rare = rare == true,
+		rarity = rarity,
 	}
 end
 
@@ -51,38 +66,44 @@ end
 -- Rock crawlers were dropped (carter 23:42): their ids stay in old saves, so they can come back.
 CarCatalog.SHOP = {
 	drift = {
-		car("drift_kid", "Slide Kid", "drift", 0, { 245, 245, 250 }),
-		car("drift_ghost", "Neon Ghost", "drift", 120, { 40, 200, 220 }),
-		car("drift_fury", "Pink Fury", "drift", 250, { 255, 120, 190 }),
-		car("drift_mint", "Mint Swirl", "drift", 400, { 120, 230, 180 }),
-		car("drift_cocoa", "Cocoa", "drift", 600, { 120, 72, 40 }),
-		car("drift_shadow", "Shadow", "drift", 850, { 45, 45, 60 }),
-		car("drift_aqua", "Aqua Glide", "drift", 1150, { 30, 150, 200 }),
-		car("drift_sunset", "Sunset", "drift", 1500, { 255, 140, 40 }),
+		car("drift_kid", "Slide Kid", "drift", 0, { 245, 245, 250 }, "common"),
+		car("drift_ghost", "Neon Ghost", "drift", 120, { 40, 200, 220 }, "common"),
+		car("drift_fury", "Pink Fury", "drift", 250, { 255, 120, 190 }, "common"),
+		car("drift_mint", "Mint Swirl", "drift", 400, { 120, 230, 180 }, "rare"),
+		car("drift_cocoa", "Cocoa", "drift", 600, { 120, 72, 40 }, "rare"),
+		car("drift_shadow", "Shadow", "drift", 850, { 45, 45, 60 }, "rare"),
+		car("drift_aqua", "Aqua Glide", "drift", 1150, { 30, 150, 200 }, "epic"),
+		car("drift_sunset", "Sunset", "drift", 1500, { 255, 140, 40 }, "epic"),
 	},
 	race = {
-		car("race_bolt", "Bolt", "race", 0, { 246, 196, 40 }),
-		car("race_dart", "Blue Dart", "race", 120, { 40, 110, 220 }),
-		car("race_rocket", "Red Rocket", "race", 250, { 230, 60, 50 }),
-		car("race_lime", "Lime Flash", "race", 400, { 140, 220, 40 }),
-		car("race_berry", "Berry Blast", "race", 600, { 150, 40, 110 }),
-		car("race_storm", "Storm", "race", 850, { 120, 120, 135 }),
-		car("race_tiger", "Tiger", "race", 1150, { 255, 120, 0 }),
-		car("race_comet", "Comet", "race", 1500, { 245, 245, 250 }),
+		car("race_bolt", "Bolt", "race", 0, { 246, 196, 40 }, "common"),
+		car("race_dart", "Blue Dart", "race", 120, { 40, 110, 220 }, "common"),
+		car("race_rocket", "Red Rocket", "race", 250, { 230, 60, 50 }, "common"),
+		car("race_lime", "Lime Flash", "race", 400, { 140, 220, 40 }, "rare"),
+		car("race_berry", "Berry Blast", "race", 600, { 150, 40, 110 }, "rare"),
+		car("race_storm", "Storm", "race", 850, { 120, 120, 135 }, "rare"),
+		car("race_tiger", "Tiger", "race", 1150, { 255, 120, 0 }, "epic"),
+		car("race_comet", "Comet", "race", 1500, { 245, 245, 250 }, "epic"),
 	},
 } :: { [string]: { Car } }
 
 -- The gumball machine: one spin, one rare car. `chance` is out of 100 and they add up to 100.
 CarCatalog.GUMBALL_PRICE = 100
 CarCatalog.GUMBALL = {
-	{ car = car("gb_lime", "Lime Zip", "drift", 0, { 150, 230, 40 }, true), chance = 22 },
-	{ car = car("gb_bubble", "Bubblegum", "race", 0, { 255, 160, 210 }, true), chance = 18 },
-	{ car = car("gb_candy", "Cotton Candy", "drift", 0, { 190, 160, 255 }, true), chance = 16 },
-	{ car = car("gb_night", "Midnight", "race", 0, { 70, 40, 120 }, true), chance = 12 },
-	{ car = car("gb_glow", "Glow Worm", "race", 0, { 200, 255, 90 }, true), chance = 10 },
-	{ car = car("gb_lava", "Lava Slide", "drift", 0, { 255, 80, 20 }, true), chance = 9 },
-	{ car = car("gb_toxic", "Toxic", "drift", 0, { 90, 255, 60 }, true), chance = 8 },
-	{ car = car("gb_gold", "Gold Rush", "race", 0, { 255, 200, 30 }, true), chance = 5 },
+	{ car = car("gb_lime", "Lime Zip", "drift", 0, { 150, 230, 40 }, "rare", true), chance = 22 },
+	{
+		car = car("gb_bubble", "Bubblegum", "race", 0, { 255, 160, 210 }, "rare", true),
+		chance = 18,
+	},
+	{
+		car = car("gb_candy", "Cotton Candy", "drift", 0, { 190, 160, 255 }, "rare", true),
+		chance = 16,
+	},
+	{ car = car("gb_night", "Midnight", "race", 0, { 70, 40, 120 }, "epic", true), chance = 12 },
+	{ car = car("gb_glow", "Glow Worm", "race", 0, { 200, 255, 90 }, "epic", true), chance = 10 },
+	{ car = car("gb_lava", "Lava Slide", "drift", 0, { 255, 80, 20 }, "epic", true), chance = 9 },
+	{ car = car("gb_toxic", "Toxic", "drift", 0, { 90, 255, 60 }, "legend", true), chance = 8 },
+	{ car = car("gb_gold", "Gold Rush", "race", 0, { 255, 200, 30 }, "legend", true), chance = 5 },
 }
 -- A car you already have: half the spin back, so a spin is never wasted.
 CarCatalog.DUPLICATE_REFUND = 50
@@ -99,6 +120,20 @@ end
 
 function CarCatalog.get(id: any): Car?
 	return if type(id) == "string" then byId[id] else nil
+end
+
+function CarCatalog.rarity(id: any): Rarity
+	local c = CarCatalog.get(id)
+	return CarCatalog.RARITY[if c then c.rarity else "common"] or CarCatalog.RARITY.common
+end
+
+-- The gumball's chance of each kind, out of 100 (shown on the gumball screen).
+function CarCatalog.tierOdds(): { [string]: number }
+	local out: { [string]: number } = {}
+	for _, g in CarCatalog.GUMBALL do
+		out[g.car.rarity] = (out[g.car.rarity] or 0) + g.chance
+	end
+	return out
 end
 
 function CarCatalog.starter(mode: string): Car
