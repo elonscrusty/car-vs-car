@@ -150,3 +150,44 @@ test("the main buttons are bigger still on a phone (56 px+)", function()
 		end
 	end
 end)
+
+test("the how-to tip never covers COACH, JOIN, CRATE or MY GARAGE", function()
+	if not Features.CVC then
+		return
+	end
+	local TIPS = { { "Coach", true }, { "BigJoin", false }, { "Crate", true }, { "Garage", true } }
+	for _, s in SIZES do
+		local rects: { [string]: CvcLayout.Rect } = {}
+		for _, it in TIPS do
+			local l, t, r, b = HudLayout.box(HudLayout.find(it[1], "walk") :: any, s[1], s[2])
+			rects[it[1]] = { l, t, r, b }
+		end
+		for _, it in TIPS do
+			local avoid = {}
+			for name, r in rects do
+				if name ~= it[1] then
+					table.insert(avoid, r)
+				end
+			end
+			local tip = CvcLayout.tip(rects[it[1]], it[2], s[1], s[2], avoid)
+			for part, r in { arrow = tip.arrow, words = tip.words, skip = tip.skip } do
+				truthy(
+					not CvcLayout.hits(r, rects[it[1]]),
+					`{it[1]} tip {part} on its button at {s[1]}x{s[2]}`
+				)
+				for name, o in rects do
+					if name ~= it[1] then
+						truthy(
+							not CvcLayout.hits(r, o),
+							`{it[1]} tip {part} covers {name} at {s[1]}x{s[2]}`
+						)
+					end
+				end
+				truthy(
+					r[1] >= 0 and r[2] >= 0 and r[3] <= s[1] and r[4] <= s[2],
+					`{it[1]} tip {part} off {s[1]}x{s[2]}`
+				)
+			end
+		end
+	end
+end)
