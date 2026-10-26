@@ -12,11 +12,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Garage = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Garage"))
 local JoinStage = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("JoinStage"))
+local KartStyle = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("KartStyle"))
 
 local WORDS: { [string]: string } = { drift = "DRIFT NOW", race = "RACE NOW", build = "GO BUILD" }
 local SHOP_WORDS: { [string]: string } =
 	{ drift = "DRIFT CARS", race = "RACE CARS", looks = "LOOKS" }
-local INK = Color3.fromRGB(20, 20, 30)
 
 local holder = Instance.new("ScreenGui")
 holder.Name = "PadWords"
@@ -42,18 +42,55 @@ local function smallText(base: BasePart): string
 	return "STAND HERE"
 end
 
-local function label(parent: Instance, text: string, color: Color3, y: number, h: number): TextLabel
+-- Style A, Kart Party (KartStyle): Luckiest Guy, white words with a dark ink outline. With a
+-- `fill` the words sit on a pill of that colour with an ink rim and an ink shadow under it,
+-- like the game's buttons; without one they stand on their own (the small STAND HERE line).
+local function label(parent: Instance, text: string, fill: Color3?, y: number, h: number): TextLabel
+	local box: GuiObject = parent :: any
+	if fill then
+		local shadow = Instance.new("Frame")
+		shadow.BackgroundColor3 = KartStyle.INK
+		shadow.BorderSizePixel = 0
+		shadow.Position = UDim2.fromScale(0.02, y + h * 0.1)
+		shadow.Size = UDim2.fromScale(0.96, h * 0.9)
+		shadow.Parent = parent
+		local pill = Instance.new("Frame")
+		pill.BackgroundColor3 = fill
+		pill.BorderSizePixel = 0
+		pill.Position = UDim2.fromScale(0.02, y)
+		pill.Size = UDim2.fromScale(0.96, h * 0.9)
+		pill.Parent = parent
+		for _, f in { shadow, pill } do
+			local c = Instance.new("UICorner")
+			c.CornerRadius = UDim.new(0.5, 0)
+			c.Parent = f
+		end
+		local rim = Instance.new("UIStroke")
+		rim.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		rim.Color = KartStyle.INK
+		rim.Thickness = KartStyle.PANEL_RIM
+		rim.Parent = pill
+		box = pill
+	end
 	local l = Instance.new("TextLabel")
 	l.BackgroundTransparency = 1
-	l.Position = UDim2.fromScale(0, y)
-	l.Size = UDim2.fromScale(1, h)
-	l.Font = Enum.Font.GothamBlack
+	if fill then
+		l.Position = UDim2.fromScale(0.06, 0.12)
+		l.Size = UDim2.fromScale(0.88, 0.8)
+	else
+		l.Position = UDim2.fromScale(0, y)
+		l.Size = UDim2.fromScale(1, h)
+	end
+	l.Font = KartStyle.FONT
 	l.TextScaled = true
 	l.Text = text
-	l.TextColor3 = color
-	l.TextStrokeColor3 = INK
-	l.TextStrokeTransparency = 0
-	l.Parent = parent
+	l.TextColor3 = KartStyle.WHITE
+	local ink = Instance.new("UIStroke")
+	ink.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+	ink.Color = KartStyle.INK
+	ink.Thickness = KartStyle.BUTTON_RIM
+	ink.Parent = l
+	l.Parent = box
 	return l
 end
 
@@ -121,17 +158,8 @@ local function addPad(base: Instance)
 	end)
 	-- the pad's own colour (its neon rim; the base itself is dark)
 	local rim = if base.Parent then base.Parent:FindFirstChild("Rim") else nil
-	label(
-		b,
-		word,
-		if rim and rim:IsA("BasePart") then rim.Color else Color3.fromRGB(255, 205, 60),
-		0,
-		0.68
-	)
-	table.insert(
-		smalls,
-		{ label = label(b, smallText(base), Color3.new(1, 1, 1), 0.68, 0.32), base = base }
-	)
+	label(b, word, if rim and rim:IsA("BasePart") then rim.Color else KartStyle.YELLOW, 0, 0.68)
+	table.insert(smalls, { label = label(b, smallText(base), nil, 0.68, 0.32), base = base })
 end
 
 local function addShop(model: Instance)
@@ -155,7 +183,7 @@ local function addShop(model: Instance)
 	local color = if top and top:IsA("BasePart")
 		then top.Color
 		elseif kind == "looks" then Color3.fromRGB(orange[1], orange[2], orange[3])
-		else Color3.new(1, 1, 1)
+		else KartStyle.BLUE
 	label(b, word, color, 0, 1)
 end
 
@@ -174,7 +202,7 @@ local function addGumball(base: Instance)
 	end
 	local b = sign(base, "Gumball", Vector2.new(10, 2.4), 8.5, 100)
 	gates[b] = "gumball"
-	label(b, "LUCKY CAR", Color3.fromRGB(255, 120, 190), 0, 1)
+	label(b, "LUCKY CAR", KartStyle.PINK, 0, 1)
 	-- the LOOKS garage stands right behind it from the spawn (tour 7: the two signs ran into
 	-- each other): slide these words 7 studs sideways, as seen from the middle pad, to the side
 	-- away from the garage, and drop them a little
