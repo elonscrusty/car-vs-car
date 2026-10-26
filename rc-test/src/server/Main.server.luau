@@ -306,11 +306,11 @@ end
 -- BuildMode). All three work in the break only (BuildOpen): from the pick to the end of the server
 -- race everyone is in that race, and a drive started then would be taken away at the start.
 require(script.Parent.QueuePads).start({
+	-- the race pad is JOIN RACE: on the list for the next map race (anyone, a new player too)
+	join = function(player: Player)
+		ServerRaceRunner.join(player)
+	end,
 	findOpen = function(kind: string, player: Player): number?
-		-- the map races: the race pad is JOIN NEXT RACE (anyone, a new player too)
-		if kind == "race" and ServerRaceRunner.join(player) then
-			return nil
-		end
 		-- a brand new player's spawn shows only the way to their own pad (JoinStage)
 		if not JoinStage.shows(player:GetAttribute("Stage"), "pads") then
 			return nil
