@@ -4,7 +4,9 @@
 -- on every station that has one (up the treadmill, over the ramp, round the speed track), and
 -- the cars that aren't training wait on the stands in the garage room, slowly turning. Each car
 -- has its tag (CarTag: name, kind, bars). On your own plot the bars are your trained numbers
--- (CvcState); on other plots, the car's starting numbers.
+-- (CvcState); on other plots, the car's starting numbers. The treadmill belts scroll under
+-- their cars, and while the owner's COACH is on (CoachAt) the whole plot runs faster and the
+-- treadmill screens glow orange.
 -- Looks only, on this screen: nothing here is solid. Far plots stop moving to save the phone.
 
 local Players = game:GetService("Players")
@@ -34,7 +36,7 @@ local CarGlow: any = if glowModule and glowModule:IsA("ModuleScript")
 local STAND_TOP = 0.8 -- a stand's top, where its car sits
 local SPIN = 20 -- degrees a second the stand cars turn
 
-type Rider = { model: Model, kind: string, pad: number }
+type Rider = { model: Model, kind: string, pad: number, slats: { BasePart } }
 type Shown = {
 	plot: Instance,
 	training: Model,
@@ -43,7 +45,13 @@ type Shown = {
 	key: string,
 	riders: { Rider },
 	parked: { Model },
+	phase: number, -- the plot's own clock: runs faster while coached
+	coached: boolean,
 }
+
+local SCREEN = Color3.fromRGB(60, 160, 230) -- PlotTraining's treadmill screen
+local SCREEN_COACH = Color3.fromRGB(255, 150, 40)
+local SLAT = Color3.fromRGB(90, 90, 100)
 
 local shown: { [Instance]: Shown } = {}
 
@@ -188,11 +196,25 @@ local function refresh(s: Shown)
 			local model = makeCar(e.id, s.folder)
 			if model then
 				local pad = pads[i]
-				table.insert(s.riders, {
-					model = model,
-					kind = if pad then pad.kind else PlotTraining.kindAt(i),
-					pad = i,
-				})
+				local kind = if pad then pad.kind else PlotTraining.kindAt(i)
+				local slats: { BasePart } = {}
+				if kind == "treadmill" then
+					for _ = 1, PlotTraining.BELT.slats do
+						local p = Instance.new("Part")
+						p.Name = "Slat"
+						p.Anchored = true
+						p.CanCollide = false
+						p.CanQuery = false
+						p.CanTouch = false
+						p.CastShadow = false
+						p.Size = Vector3.new(4.2, 0.04, 0.3)
+						p.Color = SLAT
+						p.Material = Enum.Material.SmoothPlastic
+						p.Parent = s.folder
+						table.insert(slats, p)
+					end
+				end
+				table.insert(s.riders, { model = model, kind = kind, pad = i, slats = slats })
 				tag(model, e)
 			end
 		end
@@ -212,13 +234,20 @@ local function place(s: Shown, clock: number)
 	for _, r in s.riders do
 		local g = PlotTraining.GRID[r.pad]
 		-- each pad runs a little out of step, so they don't all move as one
-		local x, y, z, yaw, tilt = PlotTraining.ride(r.kind, clock + r.pad * 0.73)
+		local t = clock + r.pad * 0.73
+		local x, y, z, yaw, tilt = PlotTraining.ride(r.kind, t)
 		r.model:PivotTo(
 			s.pivot
 				* CFrame.new(g.x + x, y, g.z + z)
 				* CFrame.Angles(0, math.rad(yaw), 0)
 				* CFrame.Angles(math.rad(tilt), 0, 0)
 		)
+		for k, zz in PlotTraining.slats(t) do
+			local p = r.slats[k]
+			if p then
+				p.CFrame = s.pivot * CFrame.new(g.x, 1.2, g.z + zz)
+			end
+		end
 	end
 	for k, m in s.parked do
 		local st = PlotTraining.STANDS[k]
@@ -246,6 +275,8 @@ local function setUp(plot: Instance, training: Model)
 		key = "",
 		riders = {},
 		parked = {},
+		phase = workspace:GetServerTimeNow(),
+		coached = false,
 	}
 	shown[plot] = s
 	refresh(s)
@@ -296,8 +327,29 @@ for _, p in plots:GetChildren() do
 	watch(p)
 end
 
+-- the owner's COACH: faster stations, orange treadmill screens
+local function coach(s: Shown, now: number): number
+	local owner = Players:GetPlayerByUserId(tonumber(s.plot:GetAttribute("OwnerId")) or 0)
+	local on = owner ~= nil and PlotTraining.coaching(owner:GetAttribute("CoachAt") :: any, now)
+	if on ~= s.coached then
+		s.coached = on
+		for i = 1, #PlotTraining.GRID do
+			local pad = s.training:FindFirstChild("Pad" .. i)
+			local screen = pad and pad:FindFirstChild("TreadScreen")
+			if screen and screen:IsA("BasePart") then
+				screen.Color = if on then SCREEN_COACH else SCREEN
+			end
+		end
+	end
+	return if on then PlotTraining.COACH_SPEED else 1
+end
+
 local moveAcc = 0
 RunService.RenderStepped:Connect(function(dt: number)
+	local now = workspace:GetServerTimeNow()
+	for _, s in shown do
+		s.phase += dt * coach(s, now)
+	end
 	local cam = workspace.CurrentCamera
 	if not cam then
 		return
@@ -308,10 +360,9 @@ RunService.RenderStepped:Connect(function(dt: number)
 		return
 	end
 	local eye = cam.CFrame.Position
-	local clock = workspace:GetServerTimeNow()
 	for _, s in shown do
 		if PlotTraining.awake((s.pivot.Position - eye).Magnitude) then
-			place(s, clock)
+			place(s, s.phase)
 		end
 	end
 end)

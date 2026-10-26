@@ -125,3 +125,24 @@ test("pad i is station i", function()
 	eq(T.kindAt(2), "ramp")
 	eq(T.kindAt(3), "track")
 end)
+
+test("COACH speeds the stations up for its 10 seconds only", function()
+	eq(T.coaching(0, 1000), false)
+	eq(T.coaching(nil, 1000), false)
+	eq(T.coaching(995, 1000), true)
+	eq(T.coaching(985, 1000), false)
+	truthy(T.COACH_SPEED > 1, "faster")
+end)
+
+test("the treadmill belt's slats stay on the belt and scroll back", function()
+	local B = T.BELT
+	local a = T.slats(0)
+	local b = T.slats(0.05)
+	eq(#a, B.slats)
+	for _, t in { 0, 0.3, 1.7, 99.9 } do
+		for _, z in T.slats(t) do
+			truthy(z >= B.z - B.len / 2 and z <= B.z + B.len / 2, "on the belt")
+		end
+	end
+	truthy(b[1] > a[1], "moves toward the road")
+end)
