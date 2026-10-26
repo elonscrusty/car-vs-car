@@ -216,7 +216,8 @@ function PlotGarageBuilder.start()
 
 	for _, slot in LobbyLayout.slots() do
 		local plot = workspace.Plots:FindFirstChild(slot.index .. "_" .. slot.id)
-		if plot and slot.id ~= "drift" then
+		-- (Car VS Car: every plot is a training garage, the drift ones too)
+		if plot and (slot.id ~= "drift" or Features.CVC) then
 			-- put the track away now, and again whenever one is built back in (TrackBuilder
 			-- still makes the starter track on owner changes): only the newest is kept
 			local function stash(track: Instance)
@@ -240,6 +241,15 @@ function PlotGarageBuilder.start()
 				end
 			end)
 			local pivot = CFrame.new(slot.plotX, 0, slot.plotZ) * CFrame.Angles(0, slot.angle, 0)
+			if Features.CVC then
+				buildTraining(plot, pivot)
+				for _, name in { "OwnerId", "PlotLevel", "GarageLevel", "Trophies", "Stations" } do
+					plot:GetAttributeChangedSignal(name):Connect(function()
+						buildTraining(plot, pivot)
+					end)
+				end
+				continue
+			end
 			build(plot, pivot)
 			plot:GetAttributeChangedSignal("PlotLevel"):Connect(function()
 				build(plot, pivot)
