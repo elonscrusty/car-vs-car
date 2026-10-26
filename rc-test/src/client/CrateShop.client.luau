@@ -128,7 +128,8 @@ local function plate(ring: BasePart, out: Vector3, kind: Crates.Kind): TextLabel
 			0.72,
 			w - 0.02,
 			0.22,
-			rgb(tier.color),
+			-- common on a mid slate, like the car shops' plates (light grey under white words blurred)
+			if r == "common" then Color3.fromRGB(100, 110, 140) else rgb(tier.color),
 			Color3.new(1, 1, 1)
 		)
 	end
