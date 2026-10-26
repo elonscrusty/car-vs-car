@@ -28,7 +28,17 @@ Training.COACH_SECS = 10
 Training.COACH_EVERY = 60
 Training.MAX_BAR = 100
 -- plot level -> the stations it has (level 0 = 1 station: one car trains at the start)
-Training.STATIONS = { "treadmill", "ramp", "track", "treadmill", "ramp", "track" }
+Training.STATIONS = {
+	"treadmill",
+	"ramp",
+	"track",
+	"treadmill",
+	"ramp",
+	"track",
+	"treadmill",
+	"ramp",
+	"track",
+}
 Training.MAX_PLOT_LEVEL = #Training.STATIONS - 1
 
 function Training.isKind(kind: any): boolean

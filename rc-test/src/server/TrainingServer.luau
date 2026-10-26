@@ -11,6 +11,9 @@
 -- coins, trophy, league).
 -- Player attributes: League (1..4), Trophies, RacerId, CoachAt (os.time, 0 = never), Coins,
 -- BoostUntil, Picked.
+-- The owner's plot model gets (for the plot looks): Stations = "kind:level:carId;..." in
+-- Training.stationsFor order (carId "" = empty pad; pad i of the plot = station i), PlotLevel,
+-- GarageLevel, Trophies, Garage = "carId,carId,..." (every car owned, for the car stands).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -19,7 +22,9 @@ local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local Forever = require(ReplicatedStorage.Shared.Forever)
 local League = require(ReplicatedStorage.Shared.League)
 local Profile = require(ReplicatedStorage.Shared.Profile)
+local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local Training = require(ReplicatedStorage.Shared.Training)
+local LobbyPlots = require(script.Parent.LobbyPlots)
 local PlayerData = require(script.Parent.PlayerData)
 
 local TrainingServer = {}
@@ -27,7 +32,7 @@ local TrainingServer = {}
 -- (stand-ins until Economy has them; Economy.luau takes these over)
 TrainingServer.COINS_PER_MIN = 3 -- each training car, a win's boost doubles it
 TrainingServer.UPGRADE_COST = { 100, 250, 500, 900 } -- station level 1 -> 2, 2 -> 3, ...
-TrainingServer.PLOT_COST = { 300, 800, 1600, 3000, 5000 } -- plot level 0 -> 1, ...
+TrainingServer.PLOT_COST = { 300, 600, 1000, 1600, 2500, 3600, 5000, 7000 } -- plot level 0 -> 1, ...
 TrainingServer.WIN_BOOST_SECS = 600
 TrainingServer.SEND_EVERY = 2 -- seconds between ("trained", ...) updates
 
@@ -97,6 +102,34 @@ local function best(data: Profile.Data): number
 	return top
 end
 
+local function plotModel(player: Player): Instance?
+	local slot = LobbyPlots.slotOf(player)
+	local info = slot and LobbyLayout.slots()[slot]
+	local plots = workspace:FindFirstChild("Plots")
+	return if info and plots then plots:FindFirstChild(slot .. "_" .. info.id) else nil
+end
+
+local function showPlot(player: Player, data: Profile.Data)
+	local m = plotModel(player)
+	if not m then
+		return
+	end
+	local pads = {}
+	for _, st in data.stations do
+		local car = st.uid ~= "" and Profile.findCar(data, st.uid)
+		table.insert(pads, `{st.kind}:{st.level}:{if car then car.id else ""}`)
+	end
+	local ids = {}
+	for _, c in data.garage do
+		table.insert(ids, c.id)
+	end
+	m:SetAttribute("Stations", table.concat(pads, ";"))
+	m:SetAttribute("PlotLevel", data.plotLevel)
+	m:SetAttribute("GarageLevel", data.garageLevel)
+	m:SetAttribute("Trophies", data.trophies)
+	m:SetAttribute("Garage", table.concat(ids, ","))
+end
+
 local function show(player: Player, data: Profile.Data)
 	local now = os.time()
 	player:SetAttribute("Coins", data.coins)
@@ -125,12 +158,14 @@ local function setUp(player: Player, data: Profile.Data)
 	end
 	player:SetAttribute("CoachAt", 0)
 	show(player, data)
+	showPlot(player, data)
 	sendAll(player, data)
 end
 
 local function changed(player: Player, data: Profile.Data)
 	PlayerData.touch(player)
 	show(player, data)
+	showPlot(player, data)
 	sendAll(player, data)
 end
 
@@ -307,6 +342,14 @@ function TrainingServer.start()
 	end
 	Players.PlayerRemoving:Connect(function(p: Player)
 		ready[p], lastAsk[p], lastTouch[p], coinBits[p] = nil, nil, nil, nil
+	end)
+	-- the plot changes hands on join: its looks follow the new owner
+	LobbyPlots.changed:Connect(function(slot: number)
+		local owner = LobbyPlots.ownerOf(slot)
+		local data = owner and PlayerData.get(owner)
+		if owner and data and ready[owner] then
+			showPlot(owner, data)
+		end
 	end)
 	task.spawn(function()
 		local last = os.clock()
