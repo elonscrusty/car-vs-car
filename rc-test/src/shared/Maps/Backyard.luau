@@ -100,7 +100,7 @@ local def: MapKit.Def = {
 	minX = -760,
 	maxX = 760,
 	minZ = -540,
-	maxZ = 540,
+	maxZ = 600, -- room behind the driver stand for its camera
 	main = {
 		{ x = -300, z = 420 }, -- front straight on the patio, driving right
 		{ x = 300, z = 420 },
@@ -184,7 +184,7 @@ local def: MapKit.Def = {
 		},
 	},
 	-- the driver stand: a wooden deck on the patio by the start, left of the house steps
-	stand = { x = -297, z = 493, w = MapKit.STAND_W, d = MapKit.STAND_D, h = MapKit.STAND_H },
+	stand = { x = -297, z = 530, w = MapKit.STAND_W, d = MapKit.STAND_D, h = MapKit.STAND_H },
 	rcX = 3000,
 	rcZ = 1000,
 	rcAngle = 0,

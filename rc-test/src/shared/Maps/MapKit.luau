@@ -136,7 +136,10 @@ function MapKit.scale(def: Def, k: number): Def
 end
 
 MapKit.STAND_SPOTS = 8 -- racers on the driver stand, side by side
-MapKit.STAND_W, MapKit.STAND_D, MapKit.STAND_H = 160, 40, 80 -- 40 x 10 RC studs, 20 up
+-- 40 x 8 RC studs, 10 up. Not higher, and the racers stand near its front: from the stand
+-- camera (above and behind you) a taller or deeper deck hides the road right in front of it.
+MapKit.STAND_W, MapKit.STAND_D, MapKit.STAND_H = 160, 32, 40
+MapKit.STAND_FRONT = 8 -- the spots stand this far back from the deck's front edge
 MapKit.STAND_STAIRS = 80 -- the stairs run this far out past the stand's left end (-x)
 MapKit.STAND_STEP = 8 -- the most each stair climbs
 MapKit.PER = 16 -- loop samples per main point (samples land ~5 to 15 apart)
@@ -348,7 +351,7 @@ function MapKit.make(def: Def): Map
 		local n = MapKit.STAND_SPOTS
 		for i = 1, n do
 			local x = st.x - st.w / 2 + st.w * (i - 0.5) / n
-			table.insert(out, { x = x, y = st.h, z = st.z })
+			table.insert(out, { x = x, y = st.h, z = st.z - st.d / 2 + MapKit.STAND_FRONT })
 		end
 		return out
 	end
