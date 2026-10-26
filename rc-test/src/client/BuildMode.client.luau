@@ -399,7 +399,12 @@ RunService.Heartbeat:Connect(function()
 		and not autoUsed
 		and not cardsUp()
 		and StageGate.shows("build")
-	local want = inBreak and not closed and walking and (auto or asked or open)
+	-- (never with tile building switched off: Features.TILES, via StageGate)
+	local want = inBreak
+		and not closed
+		and walking
+		and (auto or asked or open)
+		and StageGate.shows("build")
 	-- (not before your first drive: a brand new player's one button is DRIVE)
 	buildBtn.Visible = inBreak and walking and not want and player:GetAttribute("DroveOnce") == true
 	if want ~= open then
