@@ -29,10 +29,10 @@ Leaderboards.MAX_TROPHIES = 1000000
 -- thing in view past the play pads. Clear of the front bushes (x +-36) and the lamps (x +-10).
 -- Board i (the trophies first, then one a map) stands at SLOTS[i]; a board without a slot is not built.
 Leaderboards.BOARD_Z = 29
-Leaderboards.BOARD_Y = 5.5
+Leaderboards.BOARD_Y = 5.25
 Leaderboards.BOARD_W = 10
-Leaderboards.BOARD_H = 8
-Leaderboards.SLOTS = { 23.5, -18, -29 }
+Leaderboards.BOARD_H = 7.5
+Leaderboards.SLOTS = { 19, -18, -30.5 }
 
 export type Board = {
 	id: string, -- "coins" or "lap_<mapId>"

@@ -168,8 +168,8 @@ local function build(board: Lb.Board, folder: Instance, originZ: number)
 	rim.Thickness = 10
 	rim.Parent = panel
 	local pill = Instance.new("Frame")
-	pill.Size = UDim2.fromScale(0.8, 0.17)
-	pill.Position = UDim2.fromScale(0.1, 0.03)
+	pill.Size = UDim2.fromScale(0.86, 0.17)
+	pill.Position = UDim2.fromScale(0.07, 0.03)
 	pill.BackgroundColor3 = YELLOW
 	pill.BorderSizePixel = 0
 	pill.Parent = panel
@@ -180,10 +180,10 @@ local function build(board: Lb.Board, folder: Instance, originZ: number)
 	ps.Color = INK
 	ps.Thickness = 6
 	ps.Parent = pill
-	local title = text(pill, UDim2.fromScale(0.94, 0.8), UDim2.fromScale(0.03, 0.12), WHITE)
+	-- ink words on the yellow pill (white on yellow vanished from the spawn)
+	local title = text(pill, UDim2.fromScale(0.94, 0.8), UDim2.fromScale(0.03, 0.12), INK)
 	title.Text = board.title
-	ink(title)
-	local sub = text(panel, UDim2.fromScale(0.6, 0.07), UDim2.fromScale(0.2, 0.215), WHITE)
+	local sub = text(panel, UDim2.fromScale(0.86, 0.085), UDim2.fromScale(0.07, 0.205), WHITE)
 	sub.Text = board.sub
 	ink(sub)
 	local view = {
