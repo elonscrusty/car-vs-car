@@ -88,8 +88,10 @@ local def: MapKit.Def = {
 		{ x = 620, z = -300 },
 		{ x = 470, z = -370 }, -- along the counters
 		{ x = 280, z = -370 },
-		{ x = 130, z = -122 }, -- round the mop bucket (spoon jump)
-		{ x = -130, z = -122 },
+		{ x = 150, z = -130 }, -- round the mop bucket (spoon jump)
+		{ x = 60, z = -130 }, -- flat across the bottom, so the jump is straight on
+		{ x = -60, z = -130 },
+		{ x = -150, z = -130 },
 		{ x = -280, z = -370 },
 		{ x = -450, z = -370 }, -- spilled milk by the fridge
 		{ x = -630, z = -290 },
@@ -125,19 +127,19 @@ local def: MapKit.Def = {
 		{ kind = "secret", look = "tunnel", width = 34, points = {} }, -- set after the squeeze
 	},
 	pads = {
-		{ kind = "boost", path = 0, at = { x = 40, z = 420 }, len = 50 },
+		{ kind = "boost", path = 0, at = { x = 200, z = 420 }, len = 50 }, -- clear of the LAP flash
 		{ kind = "boost", path = 0, at = { x = -692, z = 140 }, len = 50 },
 		{ kind = "milk", path = 0, at = { x = -460, z = -370 }, len = 80 },
 		{ kind = "sand", path = 1, at = { x = 466, z = -40 }, len = 40 }, -- crumbs under the table
 		{ kind = "boost", path = 2, at = { x = 60 / K, z = (BACK + 70) / K }, len = 50 },
 	},
 	jumps = {
-		{ path = 0, at = { x = 0, z = -91 } }, -- over the dropped spoon
-		{ path = 0, at = { x = -692, z = -60 } }, -- the cutting board
+		{ path = 0, at = { x = 0, z = -130 }, h = 9, len = 84 }, -- over the dropped spoon
+		{ path = 0, at = { x = -692, z = -60 }, h = 9, len = 84 }, -- the cutting board
 	},
 	props = props,
 	lines = {
-		{ kind = "spoon", width = 10, points = { { x = 0, z = -51 }, { x = 0, z = -131 } } },
+		{ kind = "spoon", width = 10, points = { { x = 0, z = -90 }, { x = 0, z = -170 } } },
 	},
 	rcX = -3000,
 	rcZ = 1000,

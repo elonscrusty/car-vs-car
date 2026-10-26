@@ -345,10 +345,10 @@ local function buildJumps(folder: Instance, map: any)
 		local ring = map.ring(j.path)
 		local s = MapKit.nearest(ring, j.at)
 		local w = (if j.path == 0 then def.road else def.paths[j.path].width) - 4
-		local half = MapKit.JUMP_LEN / 2
+		local half = (j.len or MapKit.JUMP_LEN) / 2
 		local t = Vector3.new(s.tx, 0, s.tz)
 		local mid = Vector3.new(s.x, 0, s.z)
-		local peak = mid + Vector3.new(0, MapKit.JUMP_H, 0)
+		local peak = mid + Vector3.new(0, j.h or MapKit.JUMP_H, 0)
 		for _, dir in { -1, 1 } do
 			local r =
 				Kit.ramp(folder, "JumpRamp", CFrame.identity, mid + t * dir * half, peak, w, color)
@@ -877,7 +877,7 @@ function BUILD.dogHouse(box, e)
 	local w, d, h = e.w or 200, e.d or 170, e.h
 	local red, roof = rgb(170, 60, 50), rgb(70, 60, 60)
 	local wallH = h * 0.6
-	local gap = 70 -- the way through (local z, front to back)
+	local gap = 84 -- the way through (local z, front to back, turned to the road)
 	for _, s in { -1, 1 } do
 		box(
 			Vector3.new((w - gap) / 2, wallH, d),
@@ -1535,8 +1535,9 @@ local function buildCounters(folder: Instance, map: any)
 end
 
 -- One prop: the Meshy model (looks) + a clear box to bump into, or its block looks.
-local function buildProp(folder: Instance, e: MapKit.Prop)
-	local at = CFrame.new(e.x, 0, e.z) * CFrame.Angles(0, e.yaw, 0)
+local function buildProp(folder: Instance, e: MapKit.Prop, map: any)
+	local yaw = if e.kind == "dogHouse" then MapKit.pathYaw(map, e.x, e.z) else e.yaw
+	local at = CFrame.new(e.x, 0, e.z) * CFrame.Angles(0, yaw, 0)
 	local m = Instance.new("Model")
 	m.Name = e.kind
 	m.Parent = folder
@@ -1958,15 +1959,18 @@ local function secretHint(folder: Instance, map: any)
 			for k = 2, math.floor(#ring * 0.45) do
 				local a, b = ring[k - 1], ring[k]
 				run += math.sqrt((b.x - a.x) ^ 2 + (b.z - a.z) ^ 2)
-				if run > 30 then
+				-- only once it has left the main road (not in the face of cars that stay on it)
+				local off = MapKit.distTo(map.loop(), b.x, b.z)
+					> def.road / 2 + MapKit.CURB_WIDTH + 4
+				if run > 30 and off then
 					run = 0
 					local coin = looks(
 						folder,
 						"SecretCoin",
-						Vector3.new(1.5, 9, 9),
-						frameAt(b, 7) * CFrame.Angles(0, PI / 2, 0),
-						rgb(255, 204, 40),
-						Enum.Material.Neon,
+						Vector3.new(1.2, 6, 6),
+						frameAt(b, 3.5) * CFrame.Angles(0, PI / 2, 0),
+						rgb(255, 200, 40),
+						Enum.Material.Metal,
 						CYL
 					)
 					coin.CastShadow = false
@@ -2018,7 +2022,7 @@ function RaceMapBuilder.buildMap(map: any): Model
 	roadArrows(track, map)
 	secretHint(scenery, map)
 	for _, e in def.props do
-		buildProp(scenery, e)
+		buildProp(scenery, e, map)
 	end
 	-- shrink to RC size and put it where the track says
 	model.WorldPivot = CFrame.identity

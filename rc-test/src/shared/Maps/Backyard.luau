@@ -66,9 +66,9 @@ local props: { MapKit.Prop } = {
 	prop("pinecone", -680, 450, 0.3, 24, true, 20, 30),
 	prop("pinecone", -710, -490, 1.6, 24, true, 20, 30),
 	-- giant trees past the fence (you can't reach them)
-	prop("tree", -820, -620, 0, 1100, false, 120, 120),
-	prop("tree", 830, -560, 0, 1000, false, 110, 110),
-	prop("tree", -840, 200, 0, 900, false, 100, 100),
+	prop("tree", -1150, -1000, 0, 1000, false, 120, 120),
+	prop("tree", 1150, -950, 0, 900, false, 110, 110),
+	prop("tree", -1200, 250, 0, 800, false, 100, 100),
 }
 
 -- grass tufts along the outside (taller than the car: it's a giant world)
@@ -157,7 +157,7 @@ local def: MapKit.Def = {
 		},
 	},
 	pads = {
-		{ kind = "boost", path = 0, at = { x = 120, z = 420 }, len = 50 },
+		{ kind = "boost", path = 0, at = { x = 240, z = 420 }, len = 50 }, -- clear of the LAP flash
 		{ kind = "boost", path = 0, at = { x = -40, z = -440 }, len = 50 },
 		{ kind = "puddle", path = 0, at = { x = -545, z = 170 }, len = 60 },
 		{ kind = "mud", path = 1, at = { x = 500, z = -295 }, len = 50 },
