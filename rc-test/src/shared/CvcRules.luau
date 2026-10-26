@@ -31,6 +31,15 @@ function CvcRules.stats(id: string): Training.Stats
 	return CarStats.stats(id)
 end
 
+-- COACH: a tap works once a minute. `at` = when it was last tapped (the plot's CoachAt, 0 =
+-- never); returns the new CoachAt, or nil when it isn't ready (or `at` isn't a number).
+function CvcRules.coach(at: unknown, now: number): number?
+	if type(at) ~= "number" or at ~= at then
+		return nil
+	end
+	return if Training.coachReady(at, now) then now else nil
+end
+
 -- The stations the plot level gives (new ones added empty; levels and cars kept).
 function CvcRules.fitStations(data: Data)
 	for i, kind in Training.stationsFor(data.plotLevel) do
