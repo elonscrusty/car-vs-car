@@ -21,9 +21,10 @@ export type Spot = { x: number, y: number, z: number, dx: number, dz: number }
 local RaceStand = {}
 
 -- the camera from your spot, RC studs: up over the head and back away from the track
-RaceStand.CAM_UP = 8
+RaceStand.CAM_UP = 11 -- (over the heads beside you: Maps' render backyard-near.png)
 RaceStand.CAM_BACK = 6
 RaceStand.CAM_SIDE = 1.5 -- a little to the right: over the shoulder
+RaceStand.FADE = 0.7 -- the racers beside you, while the stand cam is on (see-through)
 -- how much of the world round the car fills the view (studs, half height), and the zoom range
 RaceStand.VIEW_HALF = 9
 RaceStand.FOV_MIN = 10

@@ -733,8 +733,10 @@ local boosting = false -- was on a boost last frame
 -- Car VS Car: the other leagues' racers stand on the same stand spots; this screen hides them
 -- (their cars too: OtherCars). A few times a second is enough.
 local leagueCheck = 0
-local hiddenPeople: { [Player]: boolean } = setmetatable({}, { __mode = "k" }) :: any
-local function hideOtherLeagues(dt: number)
+local hiddenPeople: { [Player]: number } = setmetatable({}, { __mode = "k" }) :: any
+-- (standing = the stand cam is on: the racers beside you on the stand fade, so they don't hide
+-- your car on the front straight; Maps' stand-view render backyard-near.png)
+local function hideOtherLeagues(dt: number, standing: boolean)
 	leagueCheck -= dt
 	if leagueCheck > 0 then
 		return
@@ -746,17 +748,22 @@ local function hideOtherLeagues(dt: number)
 			continue
 		end
 		local theirs = p:GetAttribute("RaceGroup")
-		local hide = mine ~= nil and theirs ~= nil and theirs ~= mine
-		if hide or hiddenPeople[p] then
+		local fade = if mine ~= nil
+				and theirs ~= nil
+				and theirs ~= mine
+			then 1
+			elseif standing and theirs ~= nil then RaceStand.FADE
+			else 0
+		if fade ~= (hiddenPeople[p] or 0) then
 			local char = p.Character
 			if char then
 				for _, d in char:GetDescendants() do
 					if d:IsA("BasePart") or d:IsA("Decal") then
-						(d :: any).LocalTransparencyModifier = if hide then 1 else 0
+						(d :: any).LocalTransparencyModifier = fade
 					end
 				end
 			end
-			hiddenPeople[p] = if hide then true else nil
+			hiddenPeople[p] = if fade > 0 then fade else nil
 		end
 	end
 end
@@ -820,7 +827,7 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 	else
 		standLook = nil
 	end
-	hideOtherLeagues(dt)
+	hideOtherLeagues(dt, spot ~= nil)
 	controls.setRock(tracks[current].id == "rock")
 	controls.setRace(grid ~= nil)
 	hud.setRace(grid ~= nil)
