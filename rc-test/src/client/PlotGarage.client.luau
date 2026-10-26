@@ -384,6 +384,64 @@ local function setUp(plot: Instance, garage: Model)
 	refreshCoins(y)
 end
 
+local function float(at: BasePart, text: string, offset: number)
+	local gui = Instance.new("BillboardGui")
+	gui.Size = UDim2.fromOffset(90, 40)
+	gui.StudsOffsetWorldSpace = Vector3.new(0, offset, 0)
+	gui.MaxDistance = 90
+	gui.LightInfluence = 0
+	gui.Parent = at
+	local l = Instance.new("TextLabel")
+	l.BackgroundTransparency = 1
+	l.Size = UDim2.fromScale(1, 1)
+	l.Font = Enum.Font.GothamBlack
+	l.TextScaled = true
+	l.TextColor3 = COIN
+	l.TextStrokeTransparency = 0
+	l.Text = text
+	l.Parent = gui
+	local slow = TweenInfo.new(1.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	TweenService:Create(gui, slow, { StudsOffsetWorldSpace = Vector3.new(0, offset + 3.5, 0) })
+		:Play()
+	TweenService:Create(l, slow, { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+	task.delay(1.5, gui.Destroy, gui)
+end
+
+-- a level bought: a burst of confetti over the middle of the loop and "LEVEL n!" floating up
+local function celebrate(y: Yard, lv: number)
+	local L = PlotGarage.LOOP
+	local spot = Instance.new("Part")
+	spot.Name = "LevelParty"
+	spot.Size = Vector3.new(1, 1, 1)
+	spot.Transparency = 1
+	spot.Anchored = true
+	spot.CanCollide = false
+	spot.CanQuery = false
+	spot.CanTouch = false
+	spot.CFrame = y.pivot * CFrame.new(L.x, 6, L.z)
+	spot.Parent = y.folder
+	local fx = Instance.new("ParticleEmitter")
+	fx.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 80, 80)),
+		ColorSequenceKeypoint.new(0.33, Color3.fromRGB(255, 210, 60)),
+		ColorSequenceKeypoint.new(0.66, Color3.fromRGB(80, 200, 255)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(120, 230, 110)),
+	})
+	fx.Size = NumberSequence.new(0.6)
+	fx.Lifetime = NumberRange.new(1.5, 2.5)
+	fx.Speed = NumberRange.new(18, 30)
+	fx.SpreadAngle = Vector2.new(60, 60)
+	fx.Acceleration = Vector3.new(0, -25, 0)
+	fx.Rotation = NumberRange.new(0, 360)
+	fx.RotSpeed = NumberRange.new(-200, 200)
+	fx.EmissionDirection = Enum.NormalId.Top
+	fx.Rate = 0
+	fx.Parent = spot
+	fx:Emit(120)
+	float(spot, "LEVEL " .. lv .. "!", 2)
+	task.delay(3, spot.Destroy, spot)
+end
+
 local function watch(plot: Instance)
 	if not plot:IsA("Model") then
 		return
@@ -404,6 +462,20 @@ local function watch(plot: Instance)
 			y.folder:Destroy()
 			yards[plot] = nil
 		end
+	end)
+	-- your plot went up a level: confetti over the yard and a big "LEVEL n!"
+	local lastLevel = level(plot)
+	plot:GetAttributeChangedSignal("PlotLevel"):Connect(function()
+		local now = level(plot)
+		if now > lastLevel and mine(plot) then
+			task.delay(0.3, function()
+				local y = yards[plot]
+				if y then
+					celebrate(y, now)
+				end
+			end)
+		end
+		lastLevel = now
 	end)
 	for _, name in { "Parked", "PlotLevel", "OwnerId" } do
 		plot:GetAttributeChangedSignal(name):Connect(function()
@@ -448,29 +520,6 @@ RunService.RenderStepped:Connect(function(dt: number)
 end)
 
 -- ===== feel: "+N" off the cars, and the pile flying to you when you collect =====
-
-local function float(at: BasePart, text: string, offset: number)
-	local gui = Instance.new("BillboardGui")
-	gui.Size = UDim2.fromOffset(90, 40)
-	gui.StudsOffsetWorldSpace = Vector3.new(0, offset, 0)
-	gui.MaxDistance = 90
-	gui.LightInfluence = 0
-	gui.Parent = at
-	local l = Instance.new("TextLabel")
-	l.BackgroundTransparency = 1
-	l.Size = UDim2.fromScale(1, 1)
-	l.Font = Enum.Font.GothamBlack
-	l.TextScaled = true
-	l.TextColor3 = COIN
-	l.TextStrokeTransparency = 0
-	l.Text = text
-	l.Parent = gui
-	local slow = TweenInfo.new(1.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	TweenService:Create(gui, slow, { StudsOffsetWorldSpace = Vector3.new(0, offset + 3.5, 0) })
-		:Play()
-	TweenService:Create(l, slow, { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
-	task.delay(1.5, gui.Destroy, gui)
-end
 
 -- each car's last "+N" beat (weak: cars come and go)
 local beats: { [Model]: number } = setmetatable({}, { __mode = "k" }) :: any
