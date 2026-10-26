@@ -5,6 +5,7 @@ local H = require("./harness")
 local S = require("../src/shared/SpawnLobby")
 local TrackData = require("../src/shared/TrackData")
 local Features = require("../src/shared/Features")
+local Cat = require("../src/shared/CarCatalog")
 
 local test, truthy, eq = H.test, H.truthy, H.eq
 
@@ -147,6 +148,14 @@ test("each car shop has a name and a price for every car on show", function()
 		eq(#shop.names, #shop.cars)
 		eq(#shop.prices, #shop.cars)
 		eq(shop.prices[1], 0) -- the starter is free
+		-- on show: one car per stand, the free one first, and a rare one among them
+		eq(#shop.display, #G.SHOP_STANDS)
+		eq(shop.display[1], 1)
+		local rare = false
+		for _, at in shop.display do
+			rare = rare or Cat.get(shop.ids[at]).rarity == "rare"
+		end
+		truthy(rare, kind .. " shows a rare car")
 		for i = 2, #shop.prices do
 			truthy(shop.prices[i] > shop.prices[i - 1], kind .. " prices go up")
 		end

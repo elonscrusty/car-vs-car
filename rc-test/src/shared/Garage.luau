@@ -57,6 +57,7 @@ Garage.SHOPS = {} :: {
 		names: { string },
 		prices: { number },
 		ids: { string },
+		display: { number }, -- which cars stand on the turntables (indexes into the lists)
 	},
 }
 for kind, list in CarCatalog.SHOP do
@@ -67,6 +68,7 @@ for kind, list in CarCatalog.SHOP do
 		names = {},
 		prices = {},
 		ids = {},
+		display = {},
 	}
 	for _, car in list do
 		table.insert(shop.cars, car.color)
@@ -74,6 +76,24 @@ for kind, list in CarCatalog.SHOP do
 		table.insert(shop.prices, car.price)
 		table.insert(shop.ids, car.id)
 	end
+	-- on show: the cheapest of each kind (common, rare, epic...), so the glows show from the
+	-- street; then the cheapest left over if there are stands to spare. Cheapest first.
+	local taken: { [number]: boolean } = {}
+	for _, r in CarCatalog.RARITY_ORDER do
+		for i, car in list do
+			if #shop.display < #Garage.SHOP_STANDS and car.rarity == r then
+				table.insert(shop.display, i)
+				taken[i] = true
+				break
+			end
+		end
+	end
+	for i in list do
+		if #shop.display < #Garage.SHOP_STANDS and not taken[i] then
+			table.insert(shop.display, i)
+		end
+	end
+	table.sort(shop.display)
 	Garage.SHOPS[kind] = shop
 end
 
@@ -893,7 +913,7 @@ function Garage.parts(kind: string?): { Piece }
 				"Car" .. i,
 				v(x, F + 0.75, 1.5),
 				-30 + (i - 1) * 30,
-				shop.cars[i],
+				shop.cars[shop.display[i]],
 				1,
 				shop.style
 			)
