@@ -373,3 +373,26 @@ for _, m in maps do
 		truthy(math.abs(t.rcX) >= 2000, "too close to the street")
 	end)
 end
+
+-- Studio 10-26: a helper used above its `local function` line is nil there, and the whole map
+-- failed to build (cars fell through the void). Lune can't run the builder, so read it.
+test("the map builder never calls a helper before it is made", function()
+	local fs = require("@lune/fs")
+	local lines = string.split(fs.readFile("src/server/RaceMapBuilder.luau"), "\n")
+	local made: { [string]: number } = {}
+	for n, l in lines do
+		local name = string.match(l, "^local function ([%w_]+)")
+		if name and not made[name] then
+			made[name] = n
+		end
+	end
+	for name, at in made do
+		for n = 1, at - 1 do
+			local code = string.gsub(lines[n], "%-%-.*$", "")
+			truthy(
+				not string.find(code, "%f[%w_]" .. name .. "%s*%("),
+				`{name} is called on line {n} but made on line {at}`
+			)
+		end
+	end
+end)
