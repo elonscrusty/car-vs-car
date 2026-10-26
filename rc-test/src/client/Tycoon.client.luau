@@ -201,8 +201,113 @@ local function bigWords(text: string, color: Color3)
 	end)
 end
 
-local function onPlot(what: unknown, a: unknown)
-	if what == "collected" and type(a) == "number" and a > 0 then
+-- ===== welcome back: what your parked cars made while you were away =====
+
+local awayGui = Instance.new("ScreenGui")
+awayGui.Name = "WelcomeBack"
+awayGui.ResetOnSpawn = false
+awayGui.IgnoreGuiInset = true
+awayGui.DisplayOrder = HudLayout.POPUP
+awayGui.Parent = player:WaitForChild("PlayerGui")
+
+local away = Instance.new("Frame")
+away.Name = "Panel"
+away.AnchorPoint = Vector2.new(0.5, 0.5)
+away.Position = UDim2.fromScale(0.5, 0.5)
+away.Size = UDim2.fromScale(0.46, 0.46)
+away.BackgroundColor3 = KartStyle.BLUE
+away.Visible = false
+away.ZIndex = 1
+away.Parent = awayGui
+corner(away, 0.08)
+rim(away, KartStyle.PANEL_RIM)
+local awaySize = Instance.new("UISizeConstraint")
+awaySize.MaxSize = Vector2.new(520, 330)
+awaySize.Parent = away
+
+local awayTitle = label(away, "WELCOME BACK!", INK)
+awayTitle.Name = "Ribbon"
+awayTitle.AnchorPoint = Vector2.new(0.5, 0.5)
+awayTitle.Position = UDim2.fromScale(0.5, 0)
+awayTitle.Size = UDim2.fromScale(0.7, 0.2)
+awayTitle.BackgroundColor3 = KartStyle.YELLOW
+awayTitle.BackgroundTransparency = 0
+awayTitle.ZIndex = 3
+corner(awayTitle, 0.3)
+rim(awayTitle, KartStyle.BUTTON_RIM)
+local awayTitlePad = Instance.new("UIPadding")
+awayTitlePad.PaddingTop = UDim.new(0.14, 0)
+awayTitlePad.PaddingBottom = UDim.new(0.1, 0)
+awayTitlePad.Parent = awayTitle
+
+local awayLine = label(away, "YOUR CARS MADE", WHITE)
+awayLine.Position = UDim2.fromScale(0.06, 0.16)
+awayLine.Size = UDim2.fromScale(0.88, 0.13)
+local awayCoins = label(away, "+0 COINS", KartStyle.YELLOW)
+awayCoins.Name = "Coins"
+awayCoins.Position = UDim2.fromScale(0.06, 0.3)
+awayCoins.Size = UDim2.fromScale(0.88, 0.26)
+local awayCoinsRim = Instance.new("UIStroke")
+awayCoinsRim.Color = INK
+awayCoinsRim.Thickness = 3
+awayCoinsRim.Parent = awayCoins
+local awayTime = label(away, "WHILE YOU WERE AWAY", WHITE)
+awayTime.Position = UDim2.fromScale(0.06, 0.57)
+awayTime.Size = UDim2.fromScale(0.88, 0.11)
+
+local awayGet = button(away, "COLLECT!", KartStyle.GREEN)
+awayGet.Name = "Collect"
+awayGet.AnchorPoint = Vector2.new(0.5, 1)
+awayGet.Position = UDim2.fromScale(0.5, 0.94)
+awayGet.Size = UDim2.fromScale(0.56, 0.2)
+awayGet:SetAttribute("KartPulse", true) -- the one thing to press (KartSkin)
+local stopRays: (() -> ())? = nil
+
+local function shutAway()
+	away.Visible = false
+	if stopRays then
+		stopRays()
+		stopRays = nil
+	end
+end
+awayGet.Activated:Connect(function()
+	shutAway()
+	local e = plotEvent()
+	if e then
+		e:FireServer("collect") -- the pile at your garage: "+N COINS!" pops as it lands
+	end
+end)
+Popup.add("away", awayGui, shutAway)
+away:GetPropertyChangedSignal("Visible"):Connect(function()
+	Popup.shown("away", away.Visible)
+end)
+
+-- 7260 -> "2 HOURS", 300 -> "5 MIN": how long you were gone, in a word or two
+local function awayWords(seconds: number): string
+	if seconds >= 2 * 3600 then
+		return `{math.floor(seconds / 3600)} HOURS`
+	elseif seconds >= 3600 then
+		return "1 HOUR"
+	end
+	return `{math.max(1, math.floor(seconds / 60))} MIN`
+end
+
+local function showAway(coins: number, seconds: number?)
+	awayCoins.Text = `+{math.floor(coins)} COINS`
+	awayTime.Text = if seconds and seconds >= 60
+		then `IN THE {awayWords(seconds)} YOU WERE AWAY`
+		else "WHILE YOU WERE AWAY"
+	away.Visible = true
+	if not stopRays then
+		stopRays = Party.rays(awayCoins, KartStyle.YELLOW)
+	end
+	Party.confetti(awayGui, 40)
+end
+
+local function onPlot(what: unknown, a: unknown, b: unknown)
+	if what == "away" and type(a) == "number" and a >= 1 then
+		showAway(a, if type(b) == "number" then b else nil)
+	elseif what == "collected" and type(a) == "number" and a > 0 then
 		bigWords(`+{math.floor(a)} COINS!`, KartStyle.YELLOW)
 		Party.burst(top, UDim2.fromScale(0.5, 0.42), 20)
 	elseif what == "boost" then
@@ -440,7 +545,7 @@ local garageBtn = button(hud, "GARAGE", KartStyle.RED)
 garageBtn.Name = "GarageButton"
 HudLayout.place(garageBtn, "Garage")
 garageBtn.Visible = false
-StageGate.hold(garageBtn, "shop") -- once you can buy a second car (JoinStage)
+StageGate.hold(garageBtn, "garage") -- from the start: your first car is parked and earning
 garageBtn.Activated:Connect(function()
 	setOpen(not panel.Visible)
 end)

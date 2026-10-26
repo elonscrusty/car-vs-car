@@ -69,7 +69,7 @@ local function makeMarker(x: number, z: number): Model
 	text.TextColor3 = Color3.fromRGB(30, 30, 34)
 	text.Font = Enum.Font.LuckiestGuy
 	text.TextScaled = true
-	text.Text = "YOUR PLOT"
+	text.Text = "YOUR GARAGE"
 	text.Parent = sign
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 12)

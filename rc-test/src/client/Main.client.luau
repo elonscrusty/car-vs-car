@@ -14,6 +14,7 @@ local LapTimer = require(ReplicatedStorage.Shared.LapTimer)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local RaceStart = require(ReplicatedStorage.Shared.RaceStart)
 local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
+local Features = require(ReplicatedStorage.Shared.Features)
 local SmokeColors = require(ReplicatedStorage.Shared.SmokeColors)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
@@ -285,8 +286,8 @@ end, function()
 	hud.flash(VIEW_NAMES[view])
 end, function()
 	-- tyre smoke colour: the next one this player's stars have opened (all of them in Studio,
-	-- where nobody can win stars yet)
-	local all = RunService:IsStudio()
+	-- where nobody can win stars yet, and all of them while stars are off: Features.STARS)
+	local all = RunService:IsStudio() or not Features.STARS
 	local stars = starCount()
 	local nextIndex = SmokeColors.nextOpen(smokeIndex, stars, all)
 	if nextIndex == smokeIndex then
