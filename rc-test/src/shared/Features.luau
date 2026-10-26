@@ -10,6 +10,9 @@ Features.STARS = false -- stars, medals, the plot boards, visit signs
 -- parked cars, coin pile and LEVEL UP sign goes in. On since the server race runs on the race
 -- maps (RaceMaps.NAMES has Backyard and Kitchen), so no race needs a plot's track.
 Features.GARAGES = true
+-- Car VS Car (carter 10-26 "Build it", rc-game/cvc-plan.md): training on your plot, leagues,
+-- crates. Off while the pieces are built (rc-game/cvc/SPLIT.md); the lead turns it on.
+Features.CVC = false
 
 -- Phone speed, waiting for Studio numbers. Both are off / unchanged until someone flips them.
 -- Plot cars are moved this many times a second (60 = every frame, as before; 30 = half the work).

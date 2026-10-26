@@ -50,5 +50,6 @@ require("./race_arrow.test")
 require("./save_safety.test")
 require("./forever.test")
 require("./sound_levels.test")
+require("./cvc_core.test")
 
 Harness.summary()

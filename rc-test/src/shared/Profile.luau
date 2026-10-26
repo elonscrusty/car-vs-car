@@ -38,7 +38,21 @@ export type Data = {
 	boostUntil: number, -- os.time a race win's double income ends
 	plotLevel: number, -- 0..Tycoon.MAX_LEVEL: more parking slots
 	parked: { string }, -- car ids parked in my garage (each makes coins)
+	-- Car VS Car (rc-game/cvc-plan.md): cars train on my plot's stations
+	garage: { GarageCar }, -- every car I own, duplicates too; each keeps its own training
+	racer: string, -- uid of the car I race ("" = none yet)
+	stations: { Station }, -- my plot's stations, in Training.stationsFor order
+	garageLevel: number, -- more garage spots
+	league: number, -- 1..4 (League.NAMES), never goes down
+	trophies: number,
+	raceWins: number,
+	crates: number, -- free crates not opened yet
+	picked: boolean, -- chose the starter car
+	nextUid: number, -- for the next car's uid
 }
+-- One owned car: its CarCatalog id and the points trained on top of its base bars (Training).
+export type GarageCar = { uid: string, id: string, speed: number, turn: number, boost: number }
+export type Station = { kind: string, level: number, uid: string } -- uid "" = empty
 -- One placed tile: column, row (from 1), old track-builder piece id, quarter turns 0..3.
 export type Tile = { c: number, r: number, piece: string, rot: number }
 export type Track = { tiles: { Tile } }
@@ -52,10 +66,11 @@ export type SaveStep = { kind: "lost" | "skip" | "write", record: Stored? }
 
 local Profile = {}
 
-Profile.VERSION = 15 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift.
+Profile.VERSION = 16 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift.
 -- 6: daily jobs. 7: looks, lookOff. 8: cars, equipped. 9: track. 10: tiles (owned).
 -- 11: raceStars. 12: trackKind. 13: plotTop. 14: stage. 15: pile, lastSeen, boostUntil,
--- plotLevel, parked (the tycoon)
+-- plotLevel, parked (the tycoon). 16: garage, racer, stations, garageLevel, league, trophies,
+-- raceWins, crates, picked, nextUid (Car VS Car)
 Profile.TOP = 3 -- rows on a plot's board
 -- How far into the game a player is. Only goes up. The screen shows more at each one
 -- (JoinStage): new = just your car and GO; lapped = coins and BUILD; raced = the shop;
@@ -83,6 +98,11 @@ Profile.MAX_CARS = 200 -- car ids kept (far more cars than exist)
 Profile.MAX_GRID = 16 -- tiles outside 1..MAX_GRID columns / rows are dropped
 Profile.MAX_TILES = Profile.MAX_GRID * Profile.MAX_GRID
 Profile.MAX_TILE_IDS = 64 -- owned tile ids kept (far more than exist)
+Profile.MAX_GARAGE = 200 -- cars kept (duplicates count)
+Profile.MAX_STATIONS = 6 -- (#Training.STATIONS)
+Profile.MAX_LEVEL = 50 -- garage / station levels
+Profile.LEAGUES = 4 -- (#League.NAMES)
+Profile.BAR_MAX = 100 -- (Training.MAX_BAR) trained points per bar can't pass this
 
 function Profile.new(): Data
 	return {
@@ -116,6 +136,16 @@ function Profile.new(): Data
 		boostUntil = 0,
 		plotLevel = 0,
 		parked = {},
+		garage = {},
+		racer = "",
+		stations = {},
+		garageLevel = 0,
+		league = 1,
+		trophies = 0,
+		raceWins = 0,
+		crates = 0,
+		picked = false,
+		nextUid = 1,
 	}
 end
 
@@ -457,6 +487,7 @@ function Profile.migrate(raw: any): Data
 			end
 		end
 	end
+	Profile.migrateGarage(d, raw)
 	if goodNumber(raw.stage) then
 		d.stage = math.clamp(math.floor(raw.stage), 0, Profile.STAGE.SHOPPED)
 	elseif d.coins > 0 or d.stars > 0 or next(d.cars) ~= nil then
@@ -464,6 +495,109 @@ function Profile.migrate(raw: any): Data
 		d.stage = Profile.STAGE.SHOPPED
 	end
 	return d
+end
+
+local function cleanCar(c: any): GarageCar?
+	if type(c) ~= "table" or type(c.uid) ~= "string" or type(c.id) ~= "string" then
+		return nil
+	end
+	if #c.uid == 0 or #c.uid > 20 or #c.id == 0 or #c.id > 40 then
+		return nil
+	end
+	local out: any = { uid = c.uid, id = c.id }
+	for _, b in { "speed", "turn", "boost" } do
+		out[b] = if goodNumber(c[b]) then math.clamp(c[b], 0, Profile.BAR_MAX) else 0
+	end
+	return out
+end
+
+-- A new car in the garage (untrained); returns it, or nil when the garage is full.
+function Profile.addCar(d: Data, id: string): GarageCar?
+	if #d.garage >= Profile.MAX_GARAGE then
+		return nil
+	end
+	local car = { uid = tostring(d.nextUid), id = id, speed = 0, turn = 0, boost = 0 }
+	d.nextUid += 1
+	table.insert(d.garage, car)
+	return car
+end
+
+function Profile.findCar(d: Data, uid: string): GarageCar?
+	for _, c in d.garage do
+		if c.uid == uid then
+			return c
+		end
+	end
+	return nil
+end
+
+-- (Car VS Car) the v16 fields; a save from before them gets one untrained car for each car id it
+-- owned, so nobody loses a car. Old fields stay as they were.
+function Profile.migrateGarage(d: Data, raw: any)
+	local seen: { [string]: boolean } = {}
+	if type(raw.garage) == "table" then
+		for _, c in raw.garage do
+			local car = cleanCar(c)
+			if car and not seen[car.uid] and #d.garage < Profile.MAX_GARAGE then
+				seen[car.uid] = true
+				table.insert(d.garage, car)
+			end
+		end
+	end
+	if goodNumber(raw.nextUid) then
+		d.nextUid = math.max(math.floor(raw.nextUid), 1)
+	end
+	-- never hand out a uid that's already used
+	for uid in seen do
+		local n = tonumber(uid)
+		if n and n >= d.nextUid then
+			d.nextUid = math.floor(n) + 1
+		end
+	end
+	if type(raw.garage) ~= "table" then
+		local ids = {}
+		for id, yes in d.cars do
+			if yes then
+				table.insert(ids, id)
+			end
+		end
+		table.sort(ids)
+		for _, id in ids do
+			Profile.addCar(d, id)
+		end
+	end
+	if type(raw.racer) == "string" and Profile.findCar(d, raw.racer) then
+		d.racer = raw.racer
+	end
+	if type(raw.stations) == "table" then
+		for _, s in raw.stations do
+			if #d.stations >= Profile.MAX_STATIONS then
+				break
+			end
+			if type(s) == "table" and type(s.kind) == "string" and #s.kind <= 20 then
+				local uid = if type(s.uid) == "string" and Profile.findCar(d, s.uid)
+					then s.uid
+					else ""
+				local level = if goodNumber(s.level)
+					then math.clamp(math.floor(s.level), 1, Profile.MAX_LEVEL)
+					else 1
+				table.insert(d.stations, { kind = s.kind, level = level, uid = uid })
+			end
+		end
+	end
+	if goodNumber(raw.garageLevel) then
+		d.garageLevel = math.clamp(math.floor(raw.garageLevel), 0, Profile.MAX_LEVEL)
+	end
+	if goodNumber(raw.league) then
+		d.league = math.clamp(math.floor(raw.league), 1, Profile.LEAGUES)
+	end
+	for _, k in { "trophies", "raceWins", "crates" } do
+		local v = raw[k]
+		if goodNumber(v) then
+			(d :: any)[k] = math.clamp(math.floor(v), 0, Profile.MAX_COINS)
+		end
+	end
+	d.picked = raw.picked == true
 end
 
 -- Move up to stage n (never down). True when it moved.
@@ -862,6 +996,43 @@ function Profile.mergeVisit(stored: Data, session: Data, base: Data): Data
 			and (fresh or session.cars[id])
 		then
 			table.insert(out.parked, id)
+		end
+	end
+	-- (Car VS Car) the garage: theirs stays, cars the visit got move in (by uid), training only
+	-- goes up; counts add what the visit earned; the league never goes down
+	out.nextUid = math.max(out.nextUid, session.nextUid)
+	for _, c in session.garage do
+		local mine = Profile.findCar(out, c.uid)
+		if mine and mine.id ~= c.id then
+			-- the same uid handed out twice (the visit didn't know the real save): a new one
+			mine = nil
+			c = table.clone(c)
+			c.uid = tostring(out.nextUid)
+			out.nextUid += 1
+		end
+		if mine == nil then
+			if #out.garage < Profile.MAX_GARAGE then
+				table.insert(out.garage, table.clone(c))
+			end
+		else
+			mine.speed = math.max(mine.speed, c.speed)
+			mine.turn = math.max(mine.turn, c.turn)
+			mine.boost = math.max(mine.boost, c.boost)
+		end
+	end
+	for _, k in { "trophies", "raceWins", "crates" } do
+		out[k] = math.clamp(out[k] + gain(ses[k], (base :: any)[k]), 0, Profile.MAX_COINS)
+	end
+	for _, k in { "garageLevel", "league" } do
+		out[k] = math.max(out[k], ses[k])
+	end
+	out.picked = out.picked or session.picked
+	if out.racer == "" then
+		out.racer = session.racer
+	end
+	if #out.stations == 0 then
+		for _, st in session.stations do
+			table.insert(out.stations, table.clone(st))
 		end
 	end
 	return out
