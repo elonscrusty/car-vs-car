@@ -11,10 +11,10 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Profile = require(ReplicatedStorage.Shared.Profile)
+local SaveRetry = require(ReplicatedStorage.Shared.SaveRetry)
 
 local STORE = "RCPlayerData_v1"
 local AUTOSAVE = 60
-local TRIES = 4
 
 local PlayerData = {}
 
@@ -55,23 +55,15 @@ local function update(userId: number, fn: (any) -> any): (boolean, any)
 	if s == nil then
 		return false, nil
 	end
-	for i = 1, TRIES do
-		local ok, result = pcall(function()
+	return SaveRetry.run(
+		function()
 			return s:UpdateAsync(key(userId), fn)
-		end)
-		if ok then
-			return true, result
+		end,
+		task.wait,
+		function(i, err)
+			warn(`[PlayerData] {userId} try {i}:`, err)
 		end
-		warn(`[PlayerData] {userId} try {i}:`, result)
-		-- Studio with API access off: trying again only makes the player wait ~14 s for nothing
-		if string.find(tostring(result), "403", 1, true) then
-			break
-		end
-		if i < TRIES then
-			task.wait(2 ^ i)
-		end
-	end
-	return false, nil
+	)
 end
 
 function PlayerData.get(player: Player): Profile.Data?
@@ -128,20 +120,13 @@ function PlayerData.load(player: Player)
 			local readOnly = false
 			local force = attempt == TAKE_TRIES
 			local ok = update(player.UserId, function(old: any): any
-				local now = os.time()
-				if type(old) == "table" and not Profile.canTake(old.lock, job, now, force) then
-					blocked = true
-					return nil
+				local step = Profile.loadStep(old, job, os.time(), force)
+				blocked = step.kind == "blocked"
+				readOnly = step.kind == "readOnly"
+				if step.kind ~= "blocked" then
+					data = step.data
 				end
-				blocked = false
-				local plan = Profile.loadPlan(old)
-				readOnly = plan == "readOnly"
-				local d = Profile.migrate(if plan ~= "fresh" then old.data else nil)
-				data = d
-				if readOnly then
-					return nil -- never write over a save this server can't read right
-				end
-				return { data = d, lock = { job = job, at = now } }
+				return if step.kind == "write" then step.record else nil
 			end)
 			if ok and readOnly then
 				warn(
@@ -194,15 +179,9 @@ function PlayerData.save(player: Player, letGo: boolean)
 	e.dirty = false
 	local lost = false
 	local ok = update(player.UserId, function(old: any): any
-		if type(old) == "table" and type(old.lock) == "table" and old.lock.job ~= job then
-			lost = true -- another server took over: never write over it
-			return nil
-		end
-		lost = false
-		if e.gone and not letGo then
-			return nil -- the leave save already let the lock go: a late autosave mustn't take it back
-		end
-		return { data = e.data, lock = if letGo then nil else { job = job, at = os.time() } }
+		local step = Profile.saveStep(old, job, e.data, letGo, e.gone, os.time())
+		lost = step.kind == "lost"
+		return if step.kind == "write" then step.record else nil
 	end)
 	if lost then
 		e.canSave = false

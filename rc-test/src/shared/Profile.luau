@@ -46,6 +46,10 @@ export type Track = { tiles: { Tile } }
 export type Rival = { name: string, wins: number, losses: number, at: number }
 export type Lock = { job: string, at: number }
 
+export type Stored = { data: Data, lock: Lock? }
+export type LoadStep = { kind: "blocked" | "readOnly" | "write", data: Data?, record: Stored? }
+export type SaveStep = { kind: "lost" | "skip" | "write", record: Stored? }
+
 local Profile = {}
 
 Profile.VERSION = 15 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift.
@@ -59,6 +63,8 @@ Profile.TOP = 3 -- rows on a plot's board
 Profile.STAGE = { NEW = 0, LAPPED = 1, RACED = 2, SHOPPED = 3 }
 Profile.MAX_PLOT_LEVEL = 5 -- (Tycoon.MAX_LEVEL)
 Profile.MAX_PARKED = 8 -- (Tycoon.slots at the top level)
+Profile.BASE_SLOTS = 3 -- (Tycoon.BASE_SLOTS) parked cars past slots(plotLevel) are dropped
+Profile.MAX_COINS = 1e12 -- a broken number can't blow the save up; real play never gets near
 Profile.FIRST_LAP_COINS = 20 -- the first lap ever pays this (the first coins a new player sees)
 Profile.MAX_OWNERS = 500 -- keeps the save small; stars from more owners than this stop counting
 Profile.LOCK_TIMEOUT = 300 -- a server that hasn't saved for this long is gone: its lock is stale
@@ -300,7 +306,7 @@ function Profile.migrate(raw: any): Data
 		d.raceStars = math.clamp(math.floor(raw.raceStars), 0, Profile.MAX_RACE_STARS)
 	end
 	if goodNumber(raw.coins) then
-		d.coins = math.max(math.floor(raw.coins), 0)
+		d.coins = math.clamp(math.floor(raw.coins), 0, Profile.MAX_COINS)
 	end
 	if goodNumber(raw.likes) then
 		d.likes = math.max(math.floor(raw.likes), 0)
@@ -428,7 +434,7 @@ function Profile.migrate(raw: any): Data
 	end
 	d.stars = stars + d.raceStars
 	if goodNumber(raw.pile) then
-		d.pile = math.max(raw.pile, 0)
+		d.pile = math.clamp(raw.pile, 0, Profile.MAX_COINS)
 	end
 	for _, k in { "lastSeen", "boostUntil" } do
 		local v = raw[k]
@@ -444,7 +450,7 @@ function Profile.migrate(raw: any): Data
 			if
 				type(id) == "string"
 				and #id <= 40
-				and #d.parked < Profile.MAX_PARKED
+				and #d.parked < math.min(Profile.MAX_PARKED, Profile.BASE_SLOTS + d.plotLevel)
 				and not table.find(d.parked, id)
 			then
 				table.insert(d.parked, id)
@@ -712,6 +718,45 @@ function Profile.canTake(lock: any, job: string, now: number, force: boolean?): 
 		return true
 	end
 	return type(lock.at) ~= "number" or now - lock.at > Profile.LOCK_TIMEOUT
+end
+
+-- One step of taking the save on join (runs inside UpdateAsync, so it may run more than once).
+-- "blocked" = another live server holds it (write nothing; wait and try again);
+-- "readOnly" = junk or newer: `data` is a copy to play with, nothing is written;
+-- "write" = `record` is the new stored value (data + our lock), `data` is the player's data.
+function Profile.loadStep(old: any, job: string, now: number, force: boolean?): LoadStep
+	if type(old) == "table" and not Profile.canTake(old.lock, job, now, force) then
+		return { kind = "blocked" }
+	end
+	local plan = Profile.loadPlan(old)
+	local data = Profile.migrate(if plan ~= "fresh" then (old :: any).data else nil)
+	if plan == "readOnly" then
+		return { kind = "readOnly", data = data }
+	end
+	return { kind = "write", data = data, record = { data = data, lock = { job = job, at = now } } }
+end
+
+-- One step of saving (also inside UpdateAsync). "lost" = another server took the lock: write
+-- nothing, stop saving. "skip" = write nothing now (a late autosave after the leave save let go
+-- of the lock must not take it back). "write" = `record` is the new stored value.
+function Profile.saveStep(
+	old: any,
+	job: string,
+	data: Data,
+	letGo: boolean,
+	gone: boolean,
+	now: number
+): SaveStep
+	if type(old) == "table" and type(old.lock) == "table" and old.lock.job ~= job then
+		return { kind = "lost" }
+	end
+	if gone and not letGo then
+		return { kind = "skip" }
+	end
+	return {
+		kind = "write",
+		record = { data = data, lock = if letGo then nil else { job = job, at = now } },
+	}
 end
 
 return Profile
