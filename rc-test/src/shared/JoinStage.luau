@@ -16,6 +16,7 @@ JoinStage.NEW, JoinStage.LAPPED, JoinStage.RACED, JoinStage.SHOPPED = 0, 1, 2, 3
 -- accident).
 JoinStage.FROM = {
 	go = 0, -- DRIVE / GO on your own pad, WALK while driving
+	joinrace = 0, -- the JOIN RACE pad at the spawn (tycoon plan: garage + race from the start)
 	arrows = 0, -- the road arrows on the track
 	coins = 1, -- the coins number (top of the screen)
 	stars = 1, -- the stars number beside it

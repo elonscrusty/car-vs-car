@@ -8,6 +8,7 @@
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local CarGlow = require(ReplicatedStorage.Shared.CarGlow)
 local Garage = require(ReplicatedStorage.Shared.Garage)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local PlotStands = require(ReplicatedStorage.Shared.PlotStands)
@@ -90,6 +91,16 @@ function PlotStandsBuilder.start()
 		-- the shelf cars: far away, each screen drops them (ShowSpin.client)
 		if groups.Shelf then
 			CollectionService:AddTag(groups.Shelf, "ShowShelf")
+		end
+		-- each car's kind glows: the podium car itself, the shelf cars from their plates
+		local show = groups.Show
+		for i, c in cars do
+			local spot = if i == 1
+				then groups.Hero
+				else show and show:FindFirstChild("Plate" .. (i - 1))
+			if spot then
+				CarGlow.apply(spot, c.rarity)
+			end
 		end
 		local hero = groups.Hero
 		if hero then

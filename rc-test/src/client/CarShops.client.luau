@@ -18,7 +18,9 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local SoundLevels = require(Shared:WaitForChild("SoundLevels"))
 local Garage = require(Shared:WaitForChild("Garage"))
 local CarCatalog = require(Shared:WaitForChild("CarCatalog"))
+local CarGlow = require(Shared:WaitForChild("CarGlow"))
 local TileShop = require(Shared:WaitForChild("TileShop"))
+local Features = require(Shared:WaitForChild("Features"))
 local HudLayout = require(Shared:WaitForChild("HudLayout"))
 local KartStyle = require(Shared:WaitForChild("KartStyle"))
 local Party = require(script.Parent:WaitForChild("Party"))
@@ -29,7 +31,6 @@ local shopRemote = ReplicatedStorage:WaitForChild("CarShop") :: RemoteFunction
 
 local SPIN = 0.35 -- radians a second
 local TITLES = { drift = "DRIFT CARS", race = "RACE CARS", rock = "ROCK CARS" }
-local MODE_WORDS = { drift = "drift", race = "race", rock = "rock" }
 local GOLD = KartStyle.YELLOW
 local GREY = Color3.fromRGB(110, 110, 118)
 -- Kart Party cards: white cards with ink words and rims on the blue panel
@@ -52,6 +53,14 @@ type State = {
 
 local function rgb(c: { number }): Color3
 	return Color3.fromRGB(c[1], c[2], c[3])
+end
+
+-- A new car parks on your plot and starts making coins (the server adds it if a spot is free).
+local function park(id: string)
+	local plot = ReplicatedStorage:FindFirstChild("Plot")
+	if plot and plot:IsA("RemoteEvent") then
+		plot:FireServer("park", id, true)
+	end
 end
 
 local function ask(action: string, id: string?): State?
@@ -371,6 +380,9 @@ local function tab(t: string, x: number, tiles: boolean): TextButton
 end
 local carsTab = tab("CARS", 0.37, false)
 local tilesTab = tab("TILES", 0.5, true)
+-- no tile shop (tycoon plan): no tabs at all
+carsTab.Visible = Features.TILES
+tilesTab.Visible = Features.TILES
 local function showTab(tiles: boolean)
 	carsTab.BackgroundColor3 = if tiles then GREY else GOLD
 	tilesTab.BackgroundColor3 = if tiles then GOLD else GREY
@@ -454,6 +466,36 @@ local function showShop(kind: string, s: State)
 		cardRim.Color = if s.equipped[kind] == car.id then GOLD else KartStyle.INK
 		cardRim.Thickness = if s.equipped[kind] == car.id then 4 else KartStyle.BUTTON_RIM
 		cardRim.Parent = c
+		-- the car's kind: a word tag on the top edge, and (rare and up) a rim that glows in its
+		-- colour, faster the rarer it is
+		local tier = CarCatalog.RARITY[car.rarity] or CarCatalog.RARITY.common
+		local kindColor = rgb(tier.color)
+		local tag = text(
+			c,
+			tier.label,
+			0.22,
+			0.02,
+			0.56,
+			0.08,
+			if car.rarity == "common" then KartStyle.INK else Color3.new(1, 1, 1)
+		)
+		tag.BackgroundColor3 = kindColor
+		tag.BackgroundTransparency = 0
+		tag.ZIndex = 3
+		corner(tag, 0.5)
+		if car.rarity ~= "common" and s.equipped[kind] ~= car.id then
+			local speed = if car.rarity == "legend"
+				then 0.45
+				elseif car.rarity == "epic" then 0.65
+				else 0.9
+			cardRim.Color = kindColor
+			cardRim.Thickness = 4
+			TweenService:Create(
+				cardRim,
+				TweenInfo.new(speed, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+				{ Thickness = 7, Transparency = 0.3 }
+			):Play()
+		end
 		-- the cards drop in one after another
 		local drop = Instance.new("UIScale")
 		drop.Scale = 0.3
@@ -471,7 +513,7 @@ local function showShop(kind: string, s: State)
 		text(c, car.name, 0.06, 0.57, 0.88, 0.12, KartStyle.INK)
 		local price = if owned[car.id] and car.price > 0
 			then "OWNED"
-			elseif car.rare then "RARE"
+			elseif car.rare then "GUMBALL"
 			elseif car.price == 0 then "FREE"
 			else car.price .. " coins"
 		text(
@@ -516,6 +558,7 @@ local function showShop(kind: string, s: State)
 					if now then
 						showShop(kind, now)
 						if now.ok then
+							park(car.id)
 							-- the server put it on already: show it off, then go drive
 							reveal(car, function()
 								driveNow(car)
@@ -553,25 +596,29 @@ local function showGumball(s: State, result: string?)
 		corner(dot, 0.5)
 		-- name | kind | odds, each in its own box (long names ran into the kind word)
 		text(row, g.car.name, 0.12, 0.12, 0.38, 0.76, Color3.new(1, 1, 1), true)
-		text(
-			row,
-			MODE_WORDS[g.car.mode] or "",
-			0.52,
-			0.25,
-			0.16,
-			0.5,
-			Color3.fromRGB(180, 180, 190)
-		)
+		local kind = CarCatalog.RARITY[g.car.rarity] or CarCatalog.RARITY.common
+		text(row, kind.label, 0.52, 0.25, 0.16, 0.5, rgb(kind.color))
 		text(row, g.chance .. "%", 0.7, 0.12, 0.16, 0.76, GOLD)
 		if owned[g.car.id] then
 			text(row, "HAVE", 0.9, 0.2, 0.09, 0.6, Color3.fromRGB(90, 220, 110))
+		end
+	end
+	-- the chance of each kind, under the list
+	local odds = CarCatalog.tierOdds()
+	local x = 0
+	for _, r in CarCatalog.RARITY_ORDER do
+		local n = odds[r]
+		if n then
+			local kind = CarCatalog.RARITY[r]
+			text(body, `{kind.label} {n}%`, x, 0.82, 0.2, 0.07, rgb(kind.color))
+			x += 0.21
 		end
 	end
 	text(
 		body,
 		`A car you have already gives {CarCatalog.DUPLICATE_REFUND} coins back.`,
 		0,
-		0.82,
+		0.9,
 		0.62,
 		0.08,
 		Color3.fromRGB(180, 180, 190)
@@ -604,6 +651,7 @@ local function showGumball(s: State, result: string?)
 					else `{car.name}: had it, +{CarCatalog.DUPLICATE_REFUND} coins`
 				showGumball(now, msg)
 				if car and now.new then
+					park(car.id)
 					reveal(car, function()
 						driveNow(car)
 					end)
@@ -822,6 +870,7 @@ local function addShop(shopModel: Model)
 		local stand = shopModel:FindFirstChild("Stand" .. i)
 		local ring = stand and stand:FindFirstChild("Ring")
 		if car and car:IsA("Model") then
+			CarGlow.applyCar(car, Garage.SHOPS[kind].ids[i])
 			local center = if ring and ring:IsA("BasePart")
 				then ring.Position
 				else car:GetPivot().Position

@@ -14,7 +14,7 @@ local Garage = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Ga
 local JoinStage = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("JoinStage"))
 local KartStyle = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("KartStyle"))
 
-local WORDS: { [string]: string } = { drift = "DRIFT NOW", race = "RACE NOW", build = "GO BUILD" }
+local WORDS: { [string]: string } = { drift = "DRIFT NOW", race = "JOIN RACE", build = "GO BUILD" }
 local SHOP_WORDS: { [string]: string } =
 	{ drift = "DRIFT CARS", race = "RACE CARS", looks = "LOOKS" }
 
@@ -27,12 +27,12 @@ type Small = { label: TextLabel, base: BasePart }
 -- each sign's JoinStage name: a brand new player sees only the way to their own pad, the rest
 -- comes back as their Stage goes up (carter 10-25: joining was overwhelming)
 local gates: { [BillboardGui]: string } = {}
-local PAD_GATE: { [string]: string } = { drift = "pads", race = "pads", build = "build" }
+local PAD_GATE: { [string]: string } = { drift = "pads", race = "joinrace", build = "build" }
 local SHOP_GATE: { [string]: string } = { drift = "shop", race = "shop", looks = "looks" }
 local smalls: { Small } = {}
 -- the pad signs: off during the race call and race (BuildOpen false: the pads do nothing then,
 -- and the words sat on the race card and countdown), and smaller from close up
-local padSigns: { [BillboardGui]: boolean } = {}
+local padSigns: { [BillboardGui]: string } = {} -- each pad sign's kind
 local PAD_SIZE = Vector2.new(9, 3.6) -- studs, from far
 local PAD_NEAR = 26 -- closer than this (camera to sign) they shrink with the distance...
 local PAD_MIN = 0.35 -- ...down to this much (from the spawn the middle pad is ~12 away)
@@ -144,7 +144,7 @@ local function addPad(base: Instance)
 	end
 	local b = sign(base, "Pad" .. tostring(base:GetAttribute("Pad") or ""), PAD_SIZE, 6, 60)
 	gates[b] = PAD_GATE[kind] or "pads"
-	padSigns[b] = true
+	padSigns[b] = kind
 	-- the side pads' words lean in toward the middle pad, so from the spawn all three fit on a
 	-- phone screen (tour 5: GO BUILD and DRIFT NOW were cut off at the edges)
 	task.delay(1, function()
@@ -261,7 +261,8 @@ local function showAll()
 			gates[b] = nil
 			padSigns[b] = nil
 		elseif padSigns[b] then
-			b.Enabled = JoinStage.shows(stage, gate) and not callOn
+			-- JOIN RACE works any time (it waits for the next race)
+			b.Enabled = JoinStage.shows(stage, gate) and (not callOn or padSigns[b] == "race")
 			local over = b.Adornee
 			if b.Enabled and eye and over and over:IsA("BasePart") then
 				local d = (over.Position + b.StudsOffsetWorldSpace - eye).Magnitude

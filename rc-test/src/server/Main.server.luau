@@ -15,6 +15,7 @@ local LobbyBuilder = require(script.Parent.LobbyBuilder)
 local ServerRaceRunner = require(script.Parent.ServerRaceRunner)
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local JoinStage = require(ReplicatedStorage.Shared.JoinStage)
+local Features = require(ReplicatedStorage.Shared.Features)
 local LobbyPlots = require(script.Parent.LobbyPlots)
 local TrackBuilder = require(script.Parent.TrackBuilder)
 local PlotDecorBuilder = require(script.Parent.PlotDecorBuilder)
@@ -317,7 +318,8 @@ require(script.Parent.QueuePads).start({
 	end,
 	build = function(player: Player)
 		if
-			workspace:GetAttribute("BuildOpen") ~= true
+			not Features.TILES
+			or workspace:GetAttribute("BuildOpen") ~= true
 			or LobbyPlots.drivingOf(player) ~= nil
 			or not JoinStage.shows(player:GetAttribute("Stage"), "build")
 		then
