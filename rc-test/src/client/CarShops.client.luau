@@ -909,8 +909,8 @@ end
 
 local seen: { [Model]: boolean } = {}
 
--- A small slanted price plate on the floor in front of each car on show in a shop: its kind (in
--- the kind's colour) and its price, so a kid can see what's what before opening the screen.
+-- A small slanted white price plate on the floor in front of each car on show in a shop: its
+-- kind (in the kind's colour) and its price, so a kid can see what's what before opening the screen.
 -- (Studio 10-26: tags floating over the cars were hidden by the cars, the shutter or the front
 -- posts from one spot or another; a plate low in front of the car has nothing in its way.)
 local plates = Instance.new("Folder")
@@ -918,7 +918,8 @@ plates.Name = "ShopPlates"
 plates.Parent = workspace
 local function carTag(ring: BasePart, out: Vector3, car: CarCatalog.Car)
 	local tier = CarCatalog.rarity(car.id)
-	local at = ring.Position + out * 2.9 + Vector3.new(0, 0.55, 0)
+	-- out past the turntable's edge, so a spinning car's nose never pokes through it
+	local at = ring.Position + out * 3.3 + Vector3.new(0, 0.75, 0)
 	local p = Instance.new("Part")
 	p.Name = car.id
 	p.Anchored = true
@@ -926,11 +927,11 @@ local function carTag(ring: BasePart, out: Vector3, car: CarCatalog.Car)
 	p.CanQuery = false
 	p.CanTouch = false
 	p.CastShadow = false
-	p.Size = Vector3.new(3.6, 1.4, 0.15)
-	p.Color = KartStyle.INK
+	p.Size = Vector3.new(3.8, 1.6, 0.15)
+	p.Color = Color3.new(1, 1, 1)
 	p.Material = Enum.Material.SmoothPlastic
 	-- facing out of the shop, leaned back so it reads from standing height
-	p.CFrame = CFrame.lookAt(at, at + out) * CFrame.Angles(math.rad(35), 0, 0)
+	p.CFrame = CFrame.lookAt(at, at + out) * CFrame.Angles(math.rad(25), 0, 0)
 	p.Parent = plates
 	local b = Instance.new("SurfaceGui")
 	b.Face = Enum.NormalId.Front
@@ -938,10 +939,22 @@ local function carTag(ring: BasePart, out: Vector3, car: CarCatalog.Car)
 	b.PixelsPerStud = 60
 	b.LightInfluence = 0
 	b.Parent = p
+	-- a rim in the kind's colour (Studio 10-26: the COMMON pill was hard to see on a dark plate)
+	local edge = Instance.new("Frame")
+	-- inset by the rim's width: a border stroke draws outside its frame
+	edge.Position = UDim2.fromOffset(8, 8)
+	edge.Size = UDim2.new(1, -16, 1, -16)
+	edge.BackgroundTransparency = 1
+	edge.Parent = b
+	local edgeRim = Instance.new("UIStroke")
+	edgeRim.Thickness = 8
+	edgeRim.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	edgeRim.Color = pillColor(tier)
+	edgeRim.Parent = edge
 	local function line(t: string, y: number, h: number, fill: Color3?, color: Color3)
 		local l = Instance.new("TextLabel")
-		l.Position = UDim2.fromScale(if fill then 0.12 else 0, y)
-		l.Size = UDim2.fromScale(if fill then 0.76 else 1, h)
+		l.Position = UDim2.fromScale(if fill then 0.12 else 0.06, y)
+		l.Size = UDim2.fromScale(if fill then 0.76 else 0.88, h)
 		l.BackgroundColor3 = fill or Color3.new()
 		l.BackgroundTransparency = if fill then 0 else 1
 		l.Font = Enum.Font.LuckiestGuy
@@ -957,8 +970,8 @@ local function carTag(ring: BasePart, out: Vector3, car: CarCatalog.Car)
 			corner(l, 0.5)
 		end
 	end
-	line(tier.label, 0.06, 0.4, pillColor(tier), Color3.new(1, 1, 1))
-	line(if car.price == 0 then "FREE" else `{car.price} coins`, 0.5, 0.44, nil, GOLD)
+	line(tier.label, 0.12, 0.34, pillColor(tier), Color3.new(1, 1, 1))
+	line(if car.price == 0 then "FREE" else `{car.price} coins`, 0.52, 0.38, nil, GOLD)
 end
 
 local function addShop(shopModel: Model)
