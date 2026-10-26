@@ -11,14 +11,16 @@ local TweenService = game:GetService("TweenService")
 
 local CarMath = require(ReplicatedStorage.Shared.CarMath)
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
+local KartStyle = require(ReplicatedStorage.Shared.KartStyle)
 local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
+local Party = require(script.Parent:WaitForChild("Party"))
 local StageGate = require(script.Parent:WaitForChild("StageGate"))
 
 local event = ReplicatedStorage:WaitForChild("ServerRace") :: RemoteEvent
 local player = Players.LocalPlayer
 
-local YELLOW = Color3.fromRGB(255, 205, 60)
-local DARK = Color3.fromRGB(25, 25, 30)
+local YELLOW = KartStyle.YELLOW
+local DARK = KartStyle.INK
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "ServerRace"
@@ -81,13 +83,18 @@ callAspect.AspectRatio = 2.6
 callAspect.Parent = call
 local callWhere = Instance.new("TextLabel")
 callWhere.Size = UDim2.fromScale(1, 0.3)
-callWhere.BackgroundColor3 = DARK
-callWhere.BackgroundTransparency = 0.15
+callWhere.BackgroundColor3 = KartStyle.RED
+callWhere.BackgroundTransparency = 0
 callWhere.Font = Enum.Font.LuckiestGuy
 callWhere.TextScaled = true
 callWhere.TextColor3 = Color3.new(1, 1, 1)
 callWhere.Parent = call
 corner(callWhere, 0.5)
+local callWhereRim = Instance.new("UIStroke")
+callWhereRim.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+callWhereRim.Color = DARK
+callWhereRim.Thickness = KartStyle.BUTTON_RIM
+callWhereRim.Parent = callWhere
 local callWherePad = Instance.new("UIPadding")
 callWherePad.PaddingTop = UDim.new(0.12, 0)
 callWherePad.PaddingBottom = UDim.new(0.12, 0)
@@ -122,14 +129,30 @@ local stroke = Instance.new("UIStroke")
 stroke.Color = YELLOW
 stroke.Thickness = 4
 stroke.Parent = card
+-- the title on a yellow ribbon sitting over the card's top edge (Kart Party)
 local title = Instance.new("TextLabel")
-title.Size = UDim2.fromScale(0.9, 0.36)
-title.Position = UDim2.fromScale(0.05, 0.05)
-title.BackgroundTransparency = 1
+title.Name = "Ribbon"
+title.AnchorPoint = Vector2.new(0.5, 0.5)
+title.Position = UDim2.fromScale(0.5, 0)
+title.Size = UDim2.fromScale(0.8, 0.36)
+title.BackgroundColor3 = YELLOW
 title.Font = Enum.Font.LuckiestGuy
 title.TextScaled = true
-title.TextColor3 = YELLOW
+title.TextColor3 = DARK
+title.ZIndex = 3
 title.Parent = card
+corner(title, 0.3)
+local titleRim = Instance.new("UIStroke")
+titleRim.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+titleRim.Color = DARK
+titleRim.Thickness = KartStyle.BUTTON_RIM
+titleRim.Parent = title
+local titlePad = Instance.new("UIPadding")
+titlePad.PaddingTop = UDim.new(0.12, 0)
+titlePad.PaddingBottom = UDim.new(0.1, 0)
+titlePad.PaddingLeft = UDim.new(0.04, 0)
+titlePad.PaddingRight = UDim.new(0.04, 0)
+titlePad.Parent = title
 local rowsText = Instance.new("TextLabel")
 rowsText.Size = UDim2.fromScale(0.86, 0.52)
 rowsText.Position = UDim2.fromScale(0.07, 0.43)
@@ -242,8 +265,9 @@ RunService.RenderStepped:Connect(function()
 		join.TextColor3 = DARK
 		join.Text = if where ~= "" then `RACE IN {left}  {where}` else `RACE IN {left}`
 	else
-		join.BackgroundColor3 = DARK
-		join.TextColor3 = YELLOW
+		-- a red race clock, like a kart game's start board
+		join.BackgroundColor3 = KartStyle.RED
+		join.TextColor3 = KartStyle.WHITE
 		join.Text = `NEXT RACE  {left}`
 	end
 end)
@@ -270,7 +294,17 @@ local function showPlace(place: number)
 		TweenInfo.new(0.4, Enum.EasingStyle.Back),
 		{ Size = UDim2.fromScale(0.6, 0.16) }
 	):Play()
+	-- the top 3: light rays turn behind the place, and the winner gets confetti
+	local stopRays = if place <= 3
+		then Party.rays(placeText, if place == 1 then YELLOW else nil)
+		else nil
+	if place == 1 then
+		Party.confetti(gui, 40)
+	end
 	task.delay(2.5, function()
+		if stopRays then
+			stopRays()
+		end
 		if finished then
 			-- out of the way of the results, still there while the others finish
 			TweenService:Create(placeText, TweenInfo.new(0.5), {
@@ -325,7 +359,7 @@ local function showResult(rows: { any })
 	end
 	table.insert(
 		lines,
-		`<font color="#9AA0AA">NEXT RACE IN {ServerRace.clock(ServerRace.BREAK)}</font>`
+		`<font color="#CFE3FF">NEXT RACE IN {ServerRace.clock(ServerRace.BREAK)}</font>`
 	)
 	rowsText.Text = table.concat(lines, "\n")
 	-- the card fits its rows (one racer = a short card, no empty gap)
@@ -337,13 +371,18 @@ local function showResult(rows: { any })
 	card.Visible = true
 	card.Size = UDim2.fromScale(0.44, tall * 0.65)
 	card:SetAttribute("Bottom", card.Position.Y.Scale + tall) -- the prize card (Stars) goes under it
-	title.Size = UDim2.fromScale(0.9, 0.14 / tall)
-	rowsText.Position = UDim2.fromScale(0.07, 0.05 + 0.16 / tall)
+	title.Size = UDim2.fromScale(0.8, 0.13 / tall)
+	-- (the ribbon sits half over the top edge: the rows start under its lower half)
+	rowsText.Position = UDim2.fromScale(0.07, 0.04 + 0.08 / tall)
 	TweenService:Create(
 		card,
 		TweenInfo.new(0.35, Enum.EasingStyle.Back),
 		{ Size = UDim2.fromScale(0.68, tall) }
 	):Play()
+	-- a podium finish: confetti over the card
+	if mine and mine <= 3 and won then
+		Party.confetti(gui, if mine == 1 then 60 else 30)
+	end
 	task.delay(ServerRace.SHOW, function()
 		if me == showId then
 			card.Visible = false

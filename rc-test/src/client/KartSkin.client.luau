@@ -175,7 +175,8 @@ end
 local function rim(g: GuiObject, thick: number)
 	local s = g:FindFirstChildOfClass("UIStroke")
 	if s then
-		if s.ApplyStrokeMode == Enum.ApplyStrokeMode.Border then
+		-- (a rim switched off for now is a signal its script lights up: a green "ready" ring)
+		if s.Enabled and s.ApplyStrokeMode == Enum.ApplyStrokeMode.Border then
 			s.Color = KartStyle.INK
 			s.Thickness = math.max(s.Thickness, thick)
 			s.Transparency = math.min(s.Transparency, 0.1)
@@ -307,10 +308,23 @@ local function blue(g: GuiObject)
 	end
 end
 
--- a piece on the screen itself (not inside another box): pops in when it comes on
+-- a piece on the screen itself (not inside another box): its parents up to the ScreenGui are
+-- only see-through, full-screen holders (a StageGate holder, Stars' AfterFirstDrive)
 local function topLevel(g: GuiObject): boolean
 	local p = g.Parent
-	return p ~= nil and (p:IsA("ScreenGui") or string.sub(p.Name, 1, 6) == "Stage_")
+	while p and p:IsA("GuiObject") do
+		if
+			not (
+				p:IsA("Frame")
+				and p.BackgroundTransparency >= 1
+				and p.Size == UDim2.fromScale(1, 1)
+			)
+		then
+			return false
+		end
+		p = p.Parent
+	end
+	return p ~= nil and p:IsA("ScreenGui")
 end
 
 local function popScaleOf(g: GuiObject): UIScale?
