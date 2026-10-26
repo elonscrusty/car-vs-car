@@ -185,7 +185,17 @@ local function incomeTip()
 			end)
 		end
 	end
-	task.delay(8, gone)
+	-- the 10 s start once the join title card (Title.client) is gone: under it the kid can't read
+	-- this (Studio: the note was up for only 2-3 s after loading)
+	task.spawn(function()
+		local pgui = player:WaitForChild("PlayerGui")
+		local waited = 0
+		while pgui:FindFirstChild("TitleCard") and waited < 12 do
+			waited += task.wait(0.25)
+		end
+		task.wait(10)
+		gone()
+	end)
 	player:GetAttributeChangedSignal("Driving"):Connect(gone)
 end
 
