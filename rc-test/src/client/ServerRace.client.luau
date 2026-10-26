@@ -15,6 +15,7 @@ local KartStyle = require(ReplicatedStorage.Shared.KartStyle)
 local RaceMaps = require(ReplicatedStorage.Shared.RaceMaps)
 local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
 local Party = require(script.Parent:WaitForChild("Party"))
+local Sfx = require(script.Parent:WaitForChild("Sfx"))
 local StageGate = require(script.Parent:WaitForChild("StageGate"))
 
 local event = ReplicatedStorage:WaitForChild("ServerRace") :: RemoteEvent
@@ -219,8 +220,6 @@ local endsAt = 0 -- server time the race ends for the ones still driving (0 = no
 local finished = false -- this player's car is over the line
 local kind = "race" -- this round: "race" | "drift" (the picked plot's)
 local driftEnds = false -- endsAt is a drift round's end (shown to everyone still in)
-local racingAt = 0 -- os.clock() when this race started (the banner stays up over the 3-2-1)
-local BANNER = 5 -- seconds the "RACE IN THE KITCHEN!" banner stays up once the race is on
 
 -- the words change once a second: built 10 times a second, not every frame (and right away
 -- when the phase changes or a chip comes up, so it never shows old words)
@@ -237,17 +236,17 @@ RunService.RenderStepped:Connect(function()
 	local wasStrip = callAspect.AspectRatio > 3
 	-- the call: the small chip steps aside for the huge banner
 	-- the call, and on through the 3-2-1: whose track this is
-	local starting = phase == "racing" and os.clock() - racingAt < BANNER
-	call.Visible = (phase == "call" and startAt > 0) or starting
+	-- (gone at the race start: the giant 3-2-1-GO sat on top of it, Studio backyard-1)
+	call.Visible = phase == "call" and startAt > 0
 	-- on foot (at spawn, in a shop) the call is a thin strip up top, clock and all: the big banner
 	-- covered the middle of a new kid's screen (check kid-03); in a car it stays big
-	local strip = not starting and player:GetAttribute("Driving") ~= true
+	local strip = player:GetAttribute("Driving") ~= true
 	callAspect.AspectRatio = if strip then 7 else 2.6
 	callWhere.Size = UDim2.fromScale(1, if strip then 1 else 0.3)
 	call.Position = if strip
 		then UDim2.new(0.5, 0, 0, 58) -- (where the hurry pill sits in a race: the top middle is free)
 		else UDim2.new(0.5, 0, 0.12, 70)
-	callClock.Visible = not starting and not strip -- the giant 3-2-1 takes over from the clock
+	callClock.Visible = not strip
 	-- the daily gift (Stars) waits while a race or its card is on screen
 	gui:SetAttribute("Busy", phase == "racing" or phase == "call" or card.Visible)
 	local hurryLeft = endsAt - workspace:GetServerTimeNow()
@@ -316,6 +315,7 @@ end
 local showId = 0
 local function showPlace(place: number)
 	finished = true
+	Sfx.finish(place)
 	placeText.Text = `{ServerRace.medal(place)} {ServerRace.ordinal(place)} PLACE!`
 	placeText.TextColor3 = if place == 1 then YELLOW else Color3.new(1, 1, 1)
 	placeText.Visible = true
@@ -438,9 +438,6 @@ event.OnClientEvent:Connect(
 	function(what: unknown, a: unknown, b: unknown, _c: unknown, d: unknown, e: unknown)
 		if what == "state" and type(a) == "string" and type(b) == "number" then
 			kind = if d == "drift" then "drift" else "race"
-			if a == "racing" and phase ~= "racing" then
-				racingAt = os.clock()
-			end
 			phase, startAt = a, b
 			where = if type(e) == "string" then e else ""
 			if phase ~= "racing" then

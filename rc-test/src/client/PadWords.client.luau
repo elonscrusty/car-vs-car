@@ -28,7 +28,7 @@ type Small = { label: TextLabel, base: BasePart }
 -- each sign's JoinStage name: a brand new player sees only the way to their own pad, the rest
 -- comes back as their Stage goes up (carter 10-25: joining was overwhelming)
 local gates: { [BillboardGui]: string } = {}
-local PAD_GATE: { [string]: string } = { drift = "pads", race = "joinrace", build = "build" }
+local PAD_GATE: { [string]: string } = { drift = "pads", race = "joinrace" }
 local SHOP_GATE: { [string]: string } = { drift = "shop", race = "shop", looks = "looks" }
 local smalls: { Small } = {}
 -- the pad signs: off during the race call and race (BuildOpen false: the pads do nothing then,

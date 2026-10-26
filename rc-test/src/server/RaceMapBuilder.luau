@@ -216,6 +216,13 @@ local function buildRoad(folder: Instance, map: any)
 	local n = #loop
 	local off = w / 2 + MapKit.CURB_WIDTH / 2
 	local h = MapKit.CURB_HEIGHT
+	-- the curb opens where the shortcut turns off and comes back, so it reads as a way in
+	local gaps: { { ring: { MapKit.Sample }, r: number } } = {}
+	for i, sp in def.paths do
+		if sp.kind == "shortcut" then
+			table.insert(gaps, { ring = map.path(i), r = sp.width / 2 + MapKit.CURB_WIDTH })
+		end
+	end
 	local k = 0
 	for i = 1, n, 2 do
 		local p, q = loop[i], loop[((i + 1) % n) + 1]
@@ -224,6 +231,15 @@ local function buildRoad(folder: Instance, map: any)
 			local o = off * side
 			local pa = Vector3.new(p.x - p.tz * o, h / 2, p.z + p.tx * o)
 			local pb = Vector3.new(q.x - q.tz * o, h / 2, q.z + q.tx * o)
+			local open = false
+			for _, gap in gaps do
+				if MapKit.distTo(gap.ring, (pa.X + pb.X) / 2, (pa.Z + pb.Z) / 2) < gap.r then
+					open = true
+				end
+			end
+			if open then
+				continue
+			end
 			local curb = Kit.slab(
 				folder,
 				"Curb",
@@ -356,6 +372,20 @@ local function buildJumps(folder: Instance, map: any)
 			r.Material = Enum.Material.WoodPlanks
 			r.CanTouch = false
 			surface(r, 1)
+			if dir < 0 then
+				-- yellow bands up the run-up, so it reads as a jump from far off
+				local len = r.Size.Z
+				for b = 0, 3 do
+					looks(
+						folder,
+						"JumpStripe",
+						Vector3.new(w - 2, 0.06, 3),
+						r.CFrame * CFrame.new(0, 0.53, len / 2 - 4 - b * (len - 8) / 3),
+						rgb(255, 205, 40),
+						Enum.Material.SmoothPlastic
+					)
+				end
+			end
 		end
 	end
 end
@@ -1949,6 +1979,36 @@ local function roadArrows(folder: Instance, map: any)
 	end
 end
 
+-- white arrows on the start of the shortcut, so it's clear you can go that way
+local function shortcutArrows(folder: Instance, map: any)
+	local def: MapKit.Def = map.def
+	for i, p in def.paths do
+		if p.kind == "shortcut" then
+			local ring: { MapKit.Sample } = map.path(i)
+			local run, made = 0, 0
+			for k = 2, #ring do
+				local a, b = ring[k - 1], ring[k]
+				run += math.sqrt((b.x - a.x) ^ 2 + (b.z - a.z) ^ 2)
+				local off = MapKit.distTo(map.loop(), b.x, b.z) > def.road / 2 + MapKit.CURB_WIDTH
+				if off and run > 36 and made < 3 then
+					run, made = 0, made + 1
+					for _, side in { -1, 1 } do
+						looks(
+							folder,
+							"Arrow",
+							Vector3.new(10, 0.05, 2.4),
+							frameAt(b, SIDE_TOP + 0.05)
+								* CFrame.new(side * 3.6, 0, 0)
+								* CFrame.Angles(0, side * 0.7, 0),
+							C.white
+						)
+					end
+				end
+			end
+		end
+	end
+end
+
 -- a trail of gold coins into the secret (a hint, not a prize): the first stretch of the secret
 -- road, floating where the car drives through them
 local function secretHint(folder: Instance, map: any)
@@ -2021,6 +2081,7 @@ function RaceMapBuilder.buildMap(map: any): Model
 		yardEdges(scenery, map)
 	end
 	roadArrows(track, map)
+	shortcutArrows(track, map)
 	secretHint(scenery, map)
 	for _, e in def.props do
 		buildProp(scenery, e, map)
