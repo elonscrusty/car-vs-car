@@ -829,7 +829,9 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 	effects.update(dt)
 	-- boost pads and jumps: a word on screen so you know what happened
 	local tel = car.telemetry
-	youTag.StudsOffsetWorldSpace = Vector3.new(0, 3.4 * Tuning.scale / TrackData.RC_SCALE, 0)
+	-- just over the car's roof, like the other cars' name tags (OtherCars; it was 4x higher: off the
+	-- top of the screen under the chase camera, Studio 10-26)
+	youTag.StudsOffsetWorldSpace = Vector3.new(0, 3.2 * Tuning.scale, 0)
 	youTag.Enabled = grid ~= nil and Features.CVC
 	raceFx.update(dt, tel.boost > 0)
 	local fv = body.AssemblyLinearVelocity
