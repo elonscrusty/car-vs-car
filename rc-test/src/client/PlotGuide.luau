@@ -10,6 +10,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local Features = require(ReplicatedStorage.Shared.Features)
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
 local JoinStage = require(ReplicatedStorage.Shared.JoinStage)
 local StageGate = require(script.Parent.StageGate)
@@ -255,7 +256,8 @@ function PlotGuide.new(): PlotGuide
 			end
 			local pile = player:GetAttribute("PlotCoins")
 			local raceSlot = workspace:GetAttribute("RaceSlot")
-			goal = if onFoot
+			-- (Car VS Car has its own how-to arrows: CvcHowTo)
+			goal = if onFoot and not Features.CVC
 				then NextGoal.pick({
 					hasPlot = slot ~= nil,
 					driven = driven or player:GetAttribute("HasDriven") == true,

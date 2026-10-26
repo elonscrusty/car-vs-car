@@ -5,7 +5,8 @@
 -- minute. The race runner calls TrainingServer.raceDone with each player's place.
 -- RemoteEvent ReplicatedStorage.Garage, client -> server: ("pick", carId) the starter,
 -- ("coach"), ("station", i, uid | "") put a car on station i (or take it off), ("racer", uid),
--- ("upgrade", i) a station, ("level") the plot (one more station), ("open") a free crate.
+-- ("upgrade", i) a station, ("level") the plot (one more station), ("open") a free crate,
+-- ("buy", crateKind) a crate from the crate shop for coins (Crates.SHOP).
 -- Server -> client: ("cars", {garage, stations, racer, plotLevel, crates}), ("trained", uid, car)
 -- every couple of seconds for cars that are training, ("crate", carId, rarity), ("race", place,
 -- coins, trophy, league).
@@ -284,6 +285,31 @@ local function onAsk(player: Player, kind: unknown, a: unknown, b: unknown)
 			local car = Profile.addCar(data, id)
 			if car then
 				data.crates -= 1
+				remote:FireClient(player, "crate", id, CarCatalog.rarity(id).id)
+				changed(player, data)
+			end
+		end
+	elseif kind == "buy" then
+		-- a crate from the crate shop, for coins (Crates.SHOP; no Robux crates until carter
+		-- gives prices). The screen showed the odds first.
+		local shared = ReplicatedStorage:FindFirstChild("Shared")
+		local m = shared and shared:FindFirstChild("Crates")
+		if not (m and m:IsA("ModuleScript")) or type(a) ~= "string" then
+			return
+		end
+		local Crates: any = require(m) :: any
+		local price = Crates.price(a)
+		if not table.find(Crates.SHOP, a) or type(price) ~= "number" or data.coins < price then
+			return
+		end
+		if #data.garage >= Profile.MAX_GARAGE then
+			return
+		end
+		local id = Crates.roll(a, Random.new())
+		if type(id) == "string" and CarCatalog.get(id) then
+			local car = Profile.addCar(data, id)
+			if car then
+				data.coins -= price
 				remote:FireClient(player, "crate", id, CarCatalog.rarity(id).id)
 				changed(player, data)
 			end
