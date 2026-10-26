@@ -1,6 +1,6 @@
 --!strict
--- The lobby leaderboards: best garage (coins a minute) and fastest lap on each race map, on boards
--- behind the dream-car stands. Each board is an OrderedDataStore (key = UserId). Writes are gentle:
+-- The lobby leaderboards: most trophies and fastest lap on each race map, on boards by the spawn.
+-- Also the league badge over each player's head. Each board is an OrderedDataStore (key = UserId). Writes are gentle:
 -- a score is only sent when it beats the player's own best, a board is written at most every
 -- WRITE_GAP seconds per player, and the boards are read every REFRESH seconds. Every call retries
 -- with backoff; a failed write waits for the next round. Lap times come from the server's own race
@@ -16,13 +16,12 @@ local Forever = require(ReplicatedStorage.Shared.Forever)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local Lb = require(ReplicatedStorage.Shared.Leaderboards)
 local RaceMaps = require(ReplicatedStorage.Shared.RaceMaps)
-local Tycoon = require(ReplicatedStorage.Shared.Tycoon)
 local PlayerData = require(script.Parent.PlayerData)
 
 local WRITE_GAP = 60 -- seconds between writes to one board for one player
 local FLUSH = 15 -- how often the pending scores are looked at
 local MAX_WRITES = 6 -- most writes in one look
-local SAMPLE = 60 -- how often every garage is measured
+local SAMPLE = 60 -- how often every trophy count is looked at
 local REFRESH = 90 -- how often the boards are read again
 local TRIES = 3
 
@@ -365,19 +364,82 @@ function Leaderboards.lap(player: Player, mapId: string?, seconds: number)
 end
 
 local function sample()
-	local board = byId.coins
+	local board = byId.trophies
 	if not board then
 		return
 	end
 	for _, p in Players:GetPlayers() do
 		local data = PlayerData.get(p) :: any
-		if data and type(data.parked) == "table" then
-			local score = Lb.score(board, Tycoon.income(data.parked, 0, 0))
+		if data and type(data.trophies) == "number" then
+			local score = Lb.score(board, data.trophies)
 			if score then
 				bump(p, board, score)
 			end
 		end
 	end
+end
+
+-- ===== league badge over the head =====
+
+local function paintBadge(player: Player)
+	local char = player.Character
+	local head = char and char:FindFirstChild("Head")
+	if not (head and head:IsA("BasePart")) then
+		return
+	end
+	local old = head:FindFirstChild("LeagueBadge")
+	local league = player:GetAttribute("League")
+	if type(league) ~= "number" then
+		if old then
+			old:Destroy()
+		end
+		return
+	end
+	local word, c = Lb.badge(league)
+	local gui = old :: BillboardGui?
+	local label: TextLabel
+	if gui then
+		label = gui:FindFirstChildWhichIsA("TextLabel") :: TextLabel
+	else
+		gui = Instance.new("BillboardGui")
+		local g = gui :: BillboardGui
+		g.Name = "LeagueBadge"
+		g.Size = UDim2.fromOffset(86, 26)
+		g.StudsOffsetWorldSpace = Vector3.new(0, 2.6, 0) -- over the name tag
+		g.AlwaysOnTop = false
+		g.MaxDistance = 70
+		g.LightInfluence = 0
+		g.Adornee = head
+		g.Parent = head
+		label = Instance.new("TextLabel")
+		label.Size = UDim2.fromScale(1, 1)
+		label.Font = Enum.Font.LuckiestGuy
+		label.TextScaled = true
+		label.TextColor3 = WHITE
+		label.TextStrokeColor3 = INK
+		label.TextStrokeTransparency = 0
+		label.BorderSizePixel = 0
+		label.Parent = g
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0.5, 0)
+		corner.Parent = label
+		local rim = Instance.new("UIStroke")
+		rim.Color = INK
+		rim.Thickness = 3
+		rim.Parent = label
+	end
+	label.Text = word
+	label.BackgroundColor3 = Color3.fromRGB(c[1], c[2], c[3])
+end
+
+local function watchBadge(player: Player)
+	player:GetAttributeChangedSignal("League"):Connect(function()
+		paintBadge(player)
+	end)
+	player.CharacterAdded:Connect(function()
+		task.defer(paintBadge, player)
+	end)
+	paintBadge(player)
 end
 
 function Leaderboards.start()
@@ -423,9 +485,13 @@ function Leaderboards.start()
 			end
 		end)
 	end
-	Players.PlayerAdded:Connect(join)
+	Players.PlayerAdded:Connect(function(p: Player)
+		join(p)
+		watchBadge(p)
+	end)
 	for _, p in Players:GetPlayers() do
 		join(p)
+		watchBadge(p)
 	end
 	Players.PlayerRemoving:Connect(function(p: Player)
 		-- their last scores go now (nothing waits for the gap)
