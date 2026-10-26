@@ -106,7 +106,8 @@ function PlotGarage.boardPieces(): { Piece }
 	local add = Garage.adder(out)
 	local B = PlotGarage.BOARD
 	for _, sx in { -6, 6 } do
-		add("Board", "BoardPost", v(0.6, 7, 0.6), v(B.x + sx, 3.5, B.z), { 40, 44, 60 })
+		-- behind the board, so they never cover its words
+		add("Board", "BoardPost", v(0.6, 7, 0.6), v(B.x + sx, 3.5, B.z - 0.6), { 40, 44, 60 })
 	end
 	add("Board", "IncomeBoard", v(14, 5, 0.5), v(B.x, 5, B.z), { 30, 36, 64 }, { collide = false })
 	add(
@@ -285,7 +286,7 @@ function PlotGarage.pieces(level: number): { Piece }
 	-- the LEVEL UP sign: a board on two posts, words on its road side (the builder's)
 	local S = PlotGarage.SIGN
 	for _, sx in { -1, 1 } do
-		add("Sign", "SignPost", v(0.4, 4, 0.4), v(S.x + sx * 4.2, 2, S.z), { 40, 44, 60 })
+		add("Sign", "SignPost", v(0.4, 4, 0.4), v(S.x + sx * 4.2, 2, S.z - 0.4), { 40, 44, 60 })
 	end
 	add("Sign", "SignBoard", v(9, 3, 0.4), v(S.x, 4.5, S.z), SIGN, { collide = false })
 	-- level looks: lamps at the corners from level 1, flags along the straights from level 2,
