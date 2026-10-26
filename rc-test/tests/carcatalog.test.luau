@@ -82,3 +82,29 @@ test("cars and picks survive a save round trip", function()
 	eq(next(junk.cars), nil)
 	eq(next(junk.equipped), nil)
 end)
+
+test("every car is one of the four kinds; rarer kinds make more coins", function()
+	for _, mode in Cat.MODES do
+		for _, c in Cat.SHOP[mode] do
+			truthy(Cat.RARITY[c.rarity] ~= nil, c.id .. " has a kind")
+		end
+	end
+	for _, g in Cat.GUMBALL do
+		truthy(Cat.RARITY[g.car.rarity] ~= nil, g.car.id .. " has a kind")
+	end
+	local last = 0
+	for _, r in Cat.RARITY_ORDER do
+		truthy(Cat.RARITY[r].perMin > last, r .. " pays more than the kind below")
+		last = Cat.RARITY[r].perMin
+	end
+	eq(Cat.rarity("no_such_car").id, "common")
+end)
+
+test("the gumball odds per kind add up to 100", function()
+	local sum = 0
+	for _, n in Cat.tierOdds() do
+		sum += n
+	end
+	eq(sum, 100)
+	truthy((Cat.tierOdds().legend or 0) > 0, "legends can drop")
+end)
