@@ -31,8 +31,6 @@ local TrainingServer = {}
 
 -- (stand-ins until Economy has them; Economy.luau takes these over)
 TrainingServer.COINS_PER_MIN = 3 -- each training car, a win's boost doubles it
-TrainingServer.UPGRADE_COST = { 100, 250, 500, 900 } -- station level 1 -> 2, 2 -> 3, ...
-TrainingServer.PLOT_COST = { 300, 600, 1000, 1600, 2500, 3600, 5000, 7000 } -- plot level 0 -> 1, ...
 TrainingServer.WIN_BOOST_SECS = 600
 TrainingServer.SEND_EVERY = 2 -- seconds between ("trained", ...) updates
 
@@ -259,14 +257,14 @@ local function onAsk(player: Player, kind: unknown, a: unknown, b: unknown)
 		end
 	elseif kind == "upgrade" then
 		local st = type(a) == "number" and data.stations[a]
-		local cost = st and TrainingServer.UPGRADE_COST[st.level]
+		local cost = st and Training.upgradeCost(st.level)
 		if st and cost and st.level < Training.MAX_STATION_LEVEL and data.coins >= cost then
 			data.coins -= cost
 			st.level += 1
 			changed(player, data)
 		end
 	elseif kind == "level" then
-		local cost = TrainingServer.PLOT_COST[data.plotLevel + 1]
+		local cost = Training.plotCost(data.plotLevel)
 		if cost and data.plotLevel < Training.MAX_PLOT_LEVEL and data.coins >= cost then
 			data.coins -= cost
 			data.plotLevel += 1
