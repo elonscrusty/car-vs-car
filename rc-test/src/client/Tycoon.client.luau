@@ -16,6 +16,7 @@ local TweenService = game:GetService("TweenService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CarCatalog = require(Shared:WaitForChild("CarCatalog"))
+local Garage = require(Shared:WaitForChild("Garage"))
 local HudLayout = require(Shared:WaitForChild("HudLayout"))
 local KartStyle = require(Shared:WaitForChild("KartStyle"))
 local Party = require(script.Parent:WaitForChild("Party"))
@@ -539,23 +540,39 @@ local function row(i: number, car: CarCatalog.Car, isParked: boolean, room: bool
 	edge.Color = if word == "COMMON" then INK else color
 	edge.Thickness = if word == "COMMON" then 2 else 3
 	edge.Parent = r
-	-- the car's own paint as a dot, its name, its rarity word, what it makes
-	local dot = Instance.new("Frame")
-	dot.AnchorPoint = Vector2.new(0, 0.5)
-	dot.Position = UDim2.new(0, 8, 0.5, 0)
-	dot.Size = UDim2.fromOffset(28, 28)
-	dot.BackgroundColor3 = Color3.fromRGB(car.color[1], car.color[2], car.color[3])
-	dot.Parent = r
-	corner(dot, 0.5)
-	rim(dot, 2)
+	-- the car itself in a little window (the shop's toy car), its name, its rarity word, what it makes
+	local pic = Instance.new("ViewportFrame")
+	pic.Name = "Car"
+	pic:SetAttribute("NoKart", true) -- a picture: no gloss over it
+	pic.AnchorPoint = Vector2.new(0, 0.5)
+	pic.Position = UDim2.new(0, 6, 0.5, 0)
+	pic.Size = UDim2.fromOffset(ROW - 14, ROW - 14)
+	pic.BackgroundColor3 = color:Lerp(WHITE, 0.6)
+	pic.Ambient = Color3.fromRGB(200, 200, 200)
+	pic.LightColor = WHITE
+	pic.Parent = r
+	corner(pic, 0.25)
+	local pieces = {}
+	Garage.toyCar(Garage.adder(pieces), "Car", { x = 0, y = 0, z = 0 }, 0, car.color, 1, car.style)
+	local model = Instance.new("Model")
+	Garage.makeParts(pieces, model, CFrame.identity)
+	model.Parent = pic
+	local cf, size = model:GetBoundingBox()
+	local cam = Instance.new("Camera")
+	local d = size.Magnitude * 1.05
+	cam.CFrame = CFrame.lookAt(cf.Position + Vector3.new(-d * 0.55, d * 0.4, -d * 0.7), cf.Position)
+	cam.FieldOfView = 40
+	cam.Parent = pic
+	pic.CurrentCamera = cam
+	local TEXT_X = ROW
 	local name = label(r, string.upper(car.name), INK)
-	name.Position = UDim2.new(0, 44, 0.08, 0)
-	name.Size = UDim2.new(0.5, -44, 0.46, 0)
+	name.Position = UDim2.new(0, TEXT_X, 0.08, 0)
+	name.Size = UDim2.new(0.5, -TEXT_X, 0.46, 0)
 	name.TextXAlignment = Enum.TextXAlignment.Left
 	local tag = label(r, `{word}  +{perMin}/MIN`, color:Lerp(INK, 0.55))
 	-- (big enough to read on a phone: Studio shot 02)
-	tag.Position = UDim2.new(0, 44, 0.54, 0)
-	tag.Size = UDim2.new(0.5, -44, 0.4, 0)
+	tag.Position = UDim2.new(0, TEXT_X, 0.54, 0)
+	tag.Size = UDim2.new(0.5, -TEXT_X, 0.4, 0)
 	tag.TextXAlignment = Enum.TextXAlignment.Left
 	local b = button(
 		r,
