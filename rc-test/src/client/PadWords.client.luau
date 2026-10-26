@@ -38,6 +38,13 @@ local PAD_NEAR = 26 -- closer than this (camera to sign) they shrink with the di
 local PAD_MIN = 0.35 -- ...down to this much (from the spawn the middle pad is ~12 away)
 
 local function smallText(base: BasePart): string
+	-- JOIN RACE: works any time, and says so once you're in (RaceJoined, set by the race runner
+	-- and cleared after each race)
+	if base:GetAttribute("PlotType") == "race" then
+		return if Players.LocalPlayer:GetAttribute("RaceJoined") == true
+			then "YOU'RE IN!"
+			else "STAND HERE"
+	end
 	if workspace:GetAttribute("BuildOpen") == false then
 		return "AFTER THE RACE"
 	end
