@@ -91,6 +91,25 @@ function PlotGarage.spot(i: number, count: number, clock: number): (number, numb
 	return PlotGarage.at(t)
 end
 
+-- The gate sign over a garage plot: "MIA'S GARAGE" ("JAMES' GARAGE"), or "GARAGE" when it is
+-- nobody's.
+function PlotGarage.signText(name: string?): string
+	if name == nil or name == "" then
+		return "GARAGE"
+	end
+	local up = string.upper(name)
+	return if string.sub(up, -1) == "S" then up .. "' GARAGE" else up .. "'S GARAGE"
+end
+
+-- The LEVEL UP sign's two lines at `level`, with `cost` coins to the next (nil at the top): it
+-- says what you get, one more car on the loop.
+function PlotGarage.levelWords(level: number, cost: number?): (string, string)
+	if cost == nil then
+		return "LV " .. level, "MAX"
+	end
+	return "LEVEL UP: +1 CAR", cost .. " COINS"
+end
+
 -- The coin pile's look: how many coins to draw for `coins` waiting (a few always show once
 -- there is one, the heap grows slower and slower, and stops at PILE_MAX).
 PlotGarage.PILE_MAX = 60

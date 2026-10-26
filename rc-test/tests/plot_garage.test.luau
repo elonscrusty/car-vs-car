@@ -99,3 +99,16 @@ test("more looks each level", function()
 		last = n
 	end
 end)
+
+test("gate sign: whose garage it is", function()
+	eq(G.signText("Mia"), "MIA'S GARAGE")
+	eq(G.signText("James"), "JAMES' GARAGE")
+	eq(G.signText(nil), "GARAGE")
+	eq(G.signText(""), "GARAGE")
+end)
+
+test("level sign says what you get, then MAX", function()
+	eq(select(1, G.levelWords(0, 500)), "LEVEL UP: +1 CAR")
+	eq(select(2, G.levelWords(0, 500)), "500 COINS")
+	eq(select(2, G.levelWords(5, nil)), "MAX")
+end)
