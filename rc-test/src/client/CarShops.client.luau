@@ -902,6 +902,51 @@ end
 
 local seen: { [Model]: boolean } = {}
 
+-- A small tag over each car on show in a shop: its kind (in the kind's colour) and its price,
+-- so a kid can see what's what before opening the screen. Billboards draw from PlayerGui.
+local tags = Instance.new("ScreenGui")
+tags.Name = "ShopTags"
+tags.ResetOnSpawn = false
+tags.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+local function carTag(over: BasePart, car: CarCatalog.Car)
+	local tier = CarCatalog.rarity(car.id)
+	local b = Instance.new("BillboardGui")
+	b.Name = car.id
+	b.Adornee = over
+	b.Size = UDim2.fromScale(4.2, 1.7)
+	b.StudsOffsetWorldSpace = Vector3.new(0, 4.6, 0)
+	b.MaxDistance = 45
+	b.LightInfluence = 0
+	b.Parent = tags
+	local function line(t: string, y: number, h: number, fill: Color3?, color: Color3)
+		local l = Instance.new("TextLabel")
+		l.Position = UDim2.fromScale(if fill then 0.12 else 0, y)
+		l.Size = UDim2.fromScale(if fill then 0.76 else 1, h)
+		l.BackgroundColor3 = fill or Color3.new()
+		l.BackgroundTransparency = if fill then 0 else 1
+		l.Font = Enum.Font.LuckiestGuy
+		l.TextScaled = true
+		l.TextColor3 = color
+		l.Text = t
+		l.Parent = b
+		local rim = Instance.new("UIStroke")
+		rim.Thickness = KartStyle.TEXT_RIM
+		rim.Color = KartStyle.INK
+		rim.Parent = l
+		if fill then
+			corner(l, 0.5)
+		end
+	end
+	line(
+		tier.label,
+		0,
+		0.45,
+		rgb(tier.color),
+		if tier.id == "common" then KartStyle.INK else Color3.new(1, 1, 1)
+	)
+	line(if car.price == 0 then "FREE" else `{car.price} coins`, 0.5, 0.5, nil, GOLD)
+end
+
 local function addShop(shopModel: Model)
 	local kind = shopModel:GetAttribute("ShopKind")
 	if seen[shopModel] or type(kind) ~= "string" or Garage.SHOPS[kind] == nil then
@@ -913,7 +958,19 @@ local function addShop(shopModel: Model)
 		local stand = shopModel:FindFirstChild("Stand" .. i)
 		local ring = stand and stand:FindFirstChild("Ring")
 		if car and car:IsA("Model") then
+			local info = CarCatalog.get(Garage.SHOPS[kind].ids[i])
 			CarGlow.applyCar(car, Garage.SHOPS[kind].ids[i])
+			if info then
+				local over = if ring and ring:IsA("BasePart") then ring else car.PrimaryPart
+				if over then
+					carTag(over, info)
+				end
+				-- the turntable's ring in the kind's colour (rare and up)
+				if ring and ring:IsA("BasePart") and info.rarity ~= "common" then
+					local c = CarCatalog.RARITY[info.rarity].color
+					ring.Color = Color3.fromRGB(c[1], c[2], c[3])
+				end
+			end
 			local center = if ring and ring:IsA("BasePart")
 				then ring.Position
 				else car:GetPivot().Position
