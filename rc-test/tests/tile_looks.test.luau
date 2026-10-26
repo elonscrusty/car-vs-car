@@ -195,3 +195,25 @@ test("carter's tile models: swap real pieces and stay on the road, low and flat"
 	end
 	eq(#(T.meshes("straight")), 0)
 end)
+
+test("carter's empty-cell models: swap real pieces, stay in the cell and low", function()
+	for kind = 0, T.EMPTY_KINDS - 1 do
+		local c, r = 1, 1
+		while T.emptyKind(c, r) ~= kind do
+			c += 1
+		end
+		local list, replaces = T.emptyMeshes(kind)
+		local names = {}
+		for _, p in T.emptyParts(c, r) do
+			names[p.name] = true
+		end
+		for _, name in replaces do
+			truthy(names[name], "empty kind " .. kind .. " swaps out " .. name)
+		end
+		for _, m in list do
+			truthy(math.abs(m.at.x) + m.fit.x / 2 <= T.CELL / 2, m.model .. " in the cell (x)")
+			truthy(math.abs(m.at.z) + m.fit.z / 2 <= T.CELL / 2, m.model .. " in the cell (z)")
+			truthy(m.fit.y <= T.TALL, m.model .. " low enough near the start")
+		end
+	end
+end)
