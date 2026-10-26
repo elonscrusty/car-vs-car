@@ -72,7 +72,7 @@ local ServerRaceRunner = {}
 -- "racing" (startAt = workspace:GetServerTimeNow() time of the start, count = unused now that
 -- everyone races, kind = "race" | "drift" (the picked plot's), where = "KITCHEN" (the map) once
 -- picked), ("result", rows) when a race ends: rows = { { name, time?, score?, laps, coins?,
--- stars? } } best first (what that racer was paid; score = a drift round's points). To one
+-- stars?, bot? } } best first (what that racer was paid; score = a drift round's points). To one
 -- racer: ("finished", place) when its car crosses the line for the last time, ("ends", endsAt)
 -- when the winner is in (the others have until endsAt), or ("ends", endsAt, "drift") at the
 -- start of a drift round (when it ends). Live places: the racer's attributes RacePlace /
@@ -745,6 +745,7 @@ local function runRace(hooks: Hooks, slot: number)
 					coins = coins,
 					stars = stars,
 					car = carName(e.uid, "race"),
+					bot = e.uid == nil or nil, -- a race bot (RaceBotCars): no prize
 				})
 			end
 			event:FireAllClients("result", rows)
