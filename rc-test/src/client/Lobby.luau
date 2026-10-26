@@ -299,7 +299,8 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 	local function showPrompts()
 		for _, p in CollectionService:GetTagged("DrivePrompt") do
 			if p:IsA("ProximityPrompt") then
-				p.Enabled = not driving -- only on this screen
+				-- only on this screen (and never one the server turned off: a garage plot)
+				p.Enabled = not driving and p:GetAttribute("Off") ~= true
 			end
 		end
 	end
