@@ -276,12 +276,13 @@ function LobbyLayout.track(slotIndex: number): any
 end
 
 -- What a plot's sign says: whose it is (its driver, else its owner), or what kind of plot it is
--- when it is nobody's (so it never stands there blank); "OPEN" when friends may drive it.
-function LobbyLayout.signText(name: string?, label: string, open: boolean?): string
+-- when it is nobody's (so it never stands there blank); "CLOSED" when its owner shut it (plots
+-- are open by default, so OPEN on every sign only said nothing new to a new player).
+function LobbyLayout.signText(name: string?, label: string, closed: boolean?): string
 	if name == nil or name == "" then
 		return string.upper(label)
 	end
-	return if open then name .. " - OPEN" else name
+	return if closed then name .. " - CLOSED" else name
 end
 
 -- May this person drive this plot now? Nobody else may be on it; then it is theirs, nobody's,
