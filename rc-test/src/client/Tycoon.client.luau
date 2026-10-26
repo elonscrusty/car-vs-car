@@ -228,6 +228,13 @@ top.ResetOnSpawn = false
 top.IgnoreGuiInset = true
 top.DisplayOrder = HudLayout.POPUP + 1 -- over a popup: it's quick
 top.Parent = player:WaitForChild("PlayerGui")
+local topFall = Instance.new("Frame") -- confetti under the big words, not over them
+topFall.Name = "Kart_Fall"
+topFall.BackgroundTransparency = 1
+topFall.Size = UDim2.fromScale(1, 1)
+topFall.ZIndex = 0
+topFall.Active = false
+topFall.Parent = top
 
 local function bigWords(text: string, color: Color3)
 	local w = label(top, text, color)
@@ -428,7 +435,7 @@ local function onPlot(what: unknown, a: unknown, b: unknown)
 		flyCoins(a)
 	elseif what == "boost" then
 		bigWords("2X COINS!", KartStyle.YELLOW)
-		Party.confetti(top, 30)
+		Party.confetti(topFall, 30)
 	end
 end
 
