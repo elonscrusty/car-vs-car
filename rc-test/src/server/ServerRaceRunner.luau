@@ -385,7 +385,8 @@ local function payRace(
 					end
 				end
 			end
-			local n = ServerRace.starsFor(place, done, #ranked)
+			-- (no stars in the tycoon plan: Features.STARS)
+			local n = if Features.STARS then ServerRace.starsFor(place, done, #ranked) else 0
 			starred[p.UserId] = n
 			giveStars(p, n)
 		end
