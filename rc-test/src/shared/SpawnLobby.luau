@@ -21,6 +21,7 @@ end
 
 local CarCatalog = sibling("CarCatalog")
 local CarGlow = sibling("CarGlow")
+local Features = sibling("Features")
 local Garage = sibling("Garage")
 
 type V3 = Garage.V3
@@ -36,11 +37,17 @@ SpawnLobby.BOX = { minX = -60, maxX = 60, minZ = -45, maxZ = 36, maxY = 15 }
 -- The buildings down the two sides, open fronts facing the middle (yaw: which way the open front
 -- turns, in degrees; 90 = toward +X). Drift and race shops on the left, the upgrades garage on
 -- the right (carter's spawn plan v2; rocks dropped 23:42).
-SpawnLobby.BUILDINGS = {
-	{ kind = "drift", x = -50, z = -20, yaw = 90 },
-	{ kind = "race", x = -50, z = 12, yaw = 90 },
-	{ kind = "garage", x = 50, z = 10, yaw = -90 },
-}
+SpawnLobby.BUILDINGS = if Features.CVC
+	then {
+		-- Car VS Car (carter's yes 10-26): the race shop's spot is the crate shop; no drift shop
+		{ kind = "crates", x = -50, z = 12, yaw = 90 },
+		{ kind = "garage", x = 50, z = 10, yaw = -90 },
+	}
+	else {
+		{ kind = "drift", x = -50, z = -20, yaw = 90 },
+		{ kind = "race", x = -50, z = 12, yaw = 90 },
+		{ kind = "garage", x = 50, z = 10, yaw = -90 },
+	}
 SpawnLobby.SPAWN = { x = 0, z = 15 } -- where people appear, looking at the pads and the street (+Z)
 SpawnLobby.GAP = 13 -- the front edge is open for |x| < GAP: the walk onto the street
 SpawnLobby.STATUE = { x = 0, z = -6 }
@@ -55,10 +62,14 @@ end
 SpawnLobby.PAD_Z = 23
 -- play pads (queue pads): race and drift send you to an open plot of that kind (each owner picks
 -- race or drift; rocks dropped, carter 23:42)
-SpawnLobby.PADS = {
-	{ x = -27, kind = "drift", color = { 150, 70, 210 } },
-	{ x = 0, kind = "race", color = { 226, 52, 46 } },
-}
+SpawnLobby.PADS = if Features.CVC
+	then { { x = 0, kind = "race", color = { 226, 52, 46 } } } -- Car VS Car: racing only
+	else {
+		{ x = -27, kind = "drift", color = { 150, 70, 210 } },
+		{ x = 0, kind = "race", color = { 226, 52, 46 } },
+	}
+-- the gumball machine (Car VS Car has crates instead)
+SpawnLobby.HAS_GUMBALL = not Features.CVC
 SpawnLobby.ARCH_Z = 33.5
 SpawnLobby.GUMBALL = { x = 17, z = 7 } -- the gumball machine (rare cars), by the spawn
 -- Where you step out of each shop (in front of its open side), and the walk from there out onto
@@ -333,7 +344,7 @@ function SpawnLobby.parts(): { Piece }
 	)
 
 	-- ===== Gumball machine: a big toy one, a dome of coloured balls on a red stand =====
-	do
+	if SpawnLobby.HAS_GUMBALL then
 		local g, gx, gz = "Gumball", SpawnLobby.GUMBALL.x, SpawnLobby.GUMBALL.z
 		add(g, "Base", v(3.6, 3.6, 3.6), v(gx, 1.8, gz), L.statue)
 		add(g, "Chute", v(1.4, 1, 0.5), v(gx, 1.3, gz + 1.9), L.iron)
@@ -563,8 +574,10 @@ function SpawnLobby.build(parent: Instance, at: CFrame): Model
 		game:GetService("CollectionService"):AddTag(base, "QueuePad")
 	end
 	-- CarShops (client) puts the "spin" prompt on it
-	local gumball = (groups.Gumball :: Model):FindFirstChild("Base") :: BasePart
-	game:GetService("CollectionService"):AddTag(gumball, "Gumball")
+	local gumball = groups.Gumball and groups.Gumball:FindFirstChild("Base")
+	if gumball then
+		game:GetService("CollectionService"):AddTag(gumball, "Gumball")
+	end
 	Garage.useMeshes(groups, origin, SpawnLobby.MESHES)
 	-- each dream car's kind: its turntable ring glows in that colour
 	for i in SpawnLobby.STANDS do

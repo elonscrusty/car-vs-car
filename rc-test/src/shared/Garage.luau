@@ -34,6 +34,7 @@ local function sibling(name: string): any
 end
 
 local CarCatalog = sibling("CarCatalog")
+local Crates = sibling("Crates")
 
 local Garage = {}
 
@@ -51,6 +52,16 @@ Garage.SHOP_STANDS = { -5.6, 0, 5.6 }
 -- The spawn lobby's three car shops: the building's trim colour, and the cars on show (from
 -- CarCatalog, in shop order: colour, Garage.toyCar style, name, price in coins, id).
 local SHOP_TRIM = { drift = { 150, 70, 210 }, race = { 226, 52, 46 }, rock = { 70, 176, 64 } }
+-- Car VS Car's crate shop (carter's yes 10-26, rc-game/cvc/pics/crate-shop-top-down.png): the same
+-- building with an orange trim and one crate per turntable, Crates.SHOP in order, each painted
+-- the colour of the best kind of car it can give.
+Garage.CRATE_TRIM = { 255, 140, 40 }
+Garage.CRATE_SIZE = 2.6
+Garage.CRATE_COLORS = {
+	basic = { 61, 155, 255 },
+	big = { 170, 80, 255 },
+	mega = { 255, 199, 44 },
+} :: { [string]: { number } }
 Garage.SHOPS = {} :: {
 	[string]: {
 		color: { number },
@@ -463,6 +474,7 @@ function Garage.parts(kind: string?): { Piece }
 	local out: { Piece } = {}
 	local add = Garage.adder(out)
 	local shop = if kind then Garage.SHOPS[kind] else nil
+	local crates = kind == "crates"
 
 	local W, D, H, F = Garage.WIDTH, Garage.DEPTH, Garage.HEIGHT, Garage.FLOOR
 	local front = D / 2
@@ -865,9 +877,9 @@ function Garage.parts(kind: string?): { Piece }
 		{ material = "Grass" }
 	)
 
-	if shop then
+	if shop or crates then
 		-- keep only the building, turn the orange trim the shop's colour, then fill it like a showroom
-		local trim = shop.color
+		local trim = if shop then shop.color else Garage.CRATE_TRIM
 		local shell: { Piece } = {}
 		for _, piece in out do
 			if piece.group == "Shell" then
@@ -910,18 +922,40 @@ function Garage.parts(kind: string?): { Piece }
 				rot = v(0, 0, 90),
 				collide = false,
 			})
-			Garage.toyCar(
-				add,
-				"Car" .. i,
-				v(x, F + 0.75, 1.5),
-				-30 + (i - 1) * 30,
-				shop.cars[shop.display[i]],
-				1,
-				shop.style
-			)
+			if shop then
+				Garage.toyCar(
+					add,
+					"Car" .. i,
+					v(x, F + 0.75, 1.5),
+					-30 + (i - 1) * 30,
+					shop.cars[shop.display[i]],
+					1,
+					shop.style
+				)
+			else
+				Garage.crate(add, "Crate" .. i, v(x, F + 0.75, 1.5), Crates.SHOP[i])
+			end
 		end
 	end
 	return out
+end
+
+-- A toy crate standing on `at` (its bottom middle): a box in its kind's colour (Garage.CRATE_COLORS),
+-- white straps round it like a present and a darker lid. The client spins it and gives it a prompt.
+function Garage.crate(add: Add, group: string, at: V3, kind: string?)
+	local c = Garage.CRATE_COLORS[kind or ""] or Garage.CRATE_COLORS.basic
+	local dark = { math.floor(c[1] * 0.6), math.floor(c[2] * 0.6), math.floor(c[3] * 0.6) }
+	local s = Garage.CRATE_SIZE
+	local y = at.y + s / 2
+	local box = { collide = false, material = "SmoothPlastic" }
+	add(group, "Box", v(s, s, s), v(at.x, y, at.z), c, box)
+	add(group, "Lid", v(s + 0.2, 0.45, s + 0.2), v(at.x, at.y + s - 0.1, at.z), dark, box)
+	add(group, "StrapX", v(s + 0.08, s + 0.08, 0.4), v(at.x, y, at.z), C.white, box)
+	add(group, "StrapZ", v(0.4, s + 0.08, s + 0.08), v(at.x, y, at.z), C.white, box)
+	add(group, "Bow", v(0.7, 0.7, 0.7), v(at.x, at.y + s + 0.4, at.z), C.white, {
+		shape = "Ball",
+		collide = false,
+	})
 end
 
 -- Makes real parts for `pieces` under `model`, one Model per group, placed with `origin`
@@ -974,7 +1008,7 @@ function Garage.build(
 ): Model
 	local origin = at * CFrame.Angles(0, math.pi, 0) -- garage-local +Z = the LookVector
 	local model = Instance.new("Model")
-	local shop = kind ~= nil and Garage.SHOPS[kind] ~= nil
+	local shop = kind ~= nil and (Garage.SHOPS[kind] ~= nil or kind == "crates")
 	model.Name = if shop
 		then (kind :: string):sub(1, 1):upper() .. (kind :: string):sub(2) .. "Shop"
 		else "UpgradesGarage"

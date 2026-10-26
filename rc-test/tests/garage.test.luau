@@ -3,7 +3,7 @@
 local H = require("./harness")
 local G = require("../src/shared/Garage")
 
-local test, truthy = H.test, H.truthy
+local test, truthy, eq = H.test, H.truthy, H.eq
 
 print("Garage")
 
@@ -107,3 +107,22 @@ test(
 		end
 	end
 )
+
+test("crate shop: the shop building with one crate per turntable (Crates.SHOP), no cars", function()
+	local Crates = require("../src/shared/Crates")
+	local parts = G.parts("crates")
+	local groups = {}
+	for _, p in parts do
+		groups[p.group] = true
+	end
+	for i in G.SHOP_STANDS do
+		truthy(groups["Crate" .. i], "crate " .. i)
+		truthy(groups["Stand" .. i], "stand " .. i)
+		eq(groups["Car" .. i], nil)
+	end
+	truthy(groups.Counter, "a counter")
+	eq(#Crates.SHOP, #G.SHOP_STANDS)
+	for _, id in Crates.SHOP do
+		truthy(G.CRATE_COLORS[id] ~= nil, id .. " has a colour")
+	end
+end)
