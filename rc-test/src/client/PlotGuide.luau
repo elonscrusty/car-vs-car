@@ -15,6 +15,7 @@ local JoinStage = require(ReplicatedStorage.Shared.JoinStage)
 local StageGate = require(script.Parent.StageGate)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local NextGoal = require(ReplicatedStorage.Shared.NextGoal)
+local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
 local SpawnLobby = require(ReplicatedStorage.Shared.SpawnLobby)
 
 export type PlotGuide = {
@@ -258,8 +259,10 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 					inBreak = inBreak(),
 					canBuy = player:GetAttribute("GoalReady") == true,
 					built = builtFor ~= nil and builtFor == ends,
+					-- (building closes CALL s before the start: count to the start, like the
+					-- NEXT RACE chip)
 					raceIn = if type(ends) == "number"
-						then ends - workspace:GetServerTimeNow()
+						then ends + ServerRace.CALL - workspace:GetServerTimeNow()
 						else nil,
 					visit = visitName,
 				})

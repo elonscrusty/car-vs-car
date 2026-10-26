@@ -204,7 +204,7 @@ local function setSign(slotIndex: number)
 	local text = LobbyLayout.signText(
 		if who then who.DisplayName else nil,
 		slots[slotIndex].label,
-		owner ~= nil and LobbyPlots.isOpen(slotIndex)
+		owner ~= nil and not LobbyPlots.isOpen(slotIndex)
 	)
 	lobby.signs[slotIndex].Text = text
 	local arch = archNames[slotIndex]

@@ -171,7 +171,8 @@ end)
 test("signs show the plot kind until someone drives that plot, then their name", function()
 	eq(L.signText(nil, "Race"), "RACE")
 	eq(L.signText("carter", "Race"), "carter")
-	eq(L.signText("carter", "Race", true), "carter - OPEN")
+	eq(L.signText("carter", "Race", true), "carter - CLOSED")
+	eq(L.signText("carter", "Race", false), "carter")
 	eq(L.signText("", "Race"), "RACE")
 	-- every empty plot on the street names its kind, and the drift plots say DRIFT
 	for _, s in L.slots() do
