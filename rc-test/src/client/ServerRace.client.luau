@@ -10,6 +10,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local CarMath = require(ReplicatedStorage.Shared.CarMath)
+local CvcLayout = require(ReplicatedStorage.Shared.CvcLayout)
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
 local KartStyle = require(ReplicatedStorage.Shared.KartStyle)
 local RaceMaps = require(ReplicatedStorage.Shared.RaceMaps)
@@ -178,7 +179,7 @@ rowsText.RichText = true
 rowsText.Parent = card
 -- carter's pick 23: the top 3 cars on a podium, between the ribbon and the rows (big race)
 local podium = Podium.new(card)
-local PODIUM_H = 0.2 -- of the screen
+local PODIUM_H = CvcLayout.RESULT.podium -- of the screen
 local raceStartedAt = 0 -- the server time this race started (the next one is 3 min after it)
 local rowsSize = Instance.new("UITextSizeConstraint")
 rowsSize.MaxTextSize = 34
@@ -420,21 +421,25 @@ local function showResult(rows: { any })
 	local podH = if cars > 0 then PODIUM_H else 0
 	local tall = 0.2 + 0.065 * #lines + podH
 	rowsText.Size = UDim2.fromScale(0.86, (0.065 * #lines) / tall)
+	-- (the inside is laid out in parts of `tall`; the whole card shrinks to stay on the screen)
+	local fit = tall * CvcLayout.resultFit(#lines, cars > 0)
 	showId += 1
 	local me = showId
 	card.Visible = true
-	card.Size = UDim2.fromScale(0.44, tall * 0.65)
-	card:SetAttribute("Bottom", card.Position.Y.Scale + tall) -- the prize card (Stars) goes under it
+	card.Size = UDim2.fromScale(0.44, fit * 0.65)
+	card:SetAttribute("Bottom", card.Position.Y.Scale + fit) -- the prize card (Stars) goes under it
 	title.Size = UDim2.fromScale(0.8, 0.13 / tall)
 	-- (the ribbon sits half over the top edge: the rows start under its lower half)
 	rowsText.Position = UDim2.fromScale(0.07, 0.04 + (0.08 + podH) / tall)
 	podium.frame.Position = UDim2.fromScale(0.05, 0.02 + 0.08 / tall)
 	podium.frame.Size = UDim2.fromScale(0.9, podH / tall)
-	TweenService:Create(
-		card,
-		TweenInfo.new(0.35, Enum.EasingStyle.Back),
-		{ Size = UDim2.fromScale(0.68, tall) }
-	):Play()
+	TweenService
+		:Create(
+			card,
+			TweenInfo.new(0.35, Enum.EasingStyle.Back),
+			{ Size = UDim2.fromScale(0.68, fit) }
+		)
+		:Play()
 	-- a podium finish: confetti behind the card
 	if mine and mine <= 3 and won then
 		Party.confetti(fall, if mine == 1 then 60 else 30)

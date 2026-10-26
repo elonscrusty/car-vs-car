@@ -246,6 +246,12 @@ test("the BOOST tip never covers the race chips (the lap box with 5TH OF 8, DRIF
 	end
 end)
 
+-- the big JOIN button's top (px)
+local function joinTop(sw: number, sh: number): number
+	local _, t = HudLayout.box(HudLayout.find("BigJoin", "walk") :: any, sw, sh)
+	return t
+end
+
 test("after a race the cards take turns: no two that cover each other show at once", function()
 	if not Features.CVC then
 		return
@@ -261,7 +267,7 @@ test("after a race the cards take turns: no two that cover each other show at on
 			Result = CvcLayout.resultBox(sw, sh, 10, true),
 			Finish = finish("Card"),
 			QuickChat = finish("Chat"),
-			RacePrize = CvcLayout.prizeBox(sw, sh),
+			RacePrize = CvcLayout.prizeBox(sw, sh, joinTop(sw, sh)),
 		}
 		for a, ra in cards do
 			for b, rb in cards do
@@ -285,5 +291,37 @@ test("after a race the cards take turns: no two that cover each other show at on
 	-- every card in the turns
 	for _, c in CvcLayout.AFTER_RACE do
 		truthy(CvcLayout.turnOf(c.name) == c.turn, `{c.name} has one turn`)
+	end
+end)
+
+test("the race result card stays on the screen, podium and all", function()
+	for _, s in SIZES do
+		for lines = 2, 10 do
+			for _, podium in { false, true } do
+				local r = CvcLayout.resultBox(s[1], s[2], lines, podium)
+				truthy(r[4] <= s[2] * 0.98, `{lines} rows at {s[1]}x{s[2]} end at {r[4]}`)
+			end
+		end
+	end
+	-- (the short Studio window: 8 racers, the 2X line, NEXT RACE IN and the podium)
+	truthy(CvcLayout.resultBox(1914, 604, 10, true)[4] <= 604 * 0.98, "Studio 1914x604")
+end)
+
+test("NEXT CAR sits clear of the big JOIN button and the other buttons", function()
+	if not Features.CVC then
+		return
+	end
+	for _, s in { { 1914, 604 }, table.unpack(SIZES) } do
+		local sw, sh = s[1], s[2]
+		local prize = CvcLayout.prizeBox(sw, sh, joinTop(sw, sh))
+		for _, spot in HudLayout.SPOTS do
+			if spot.mode == "walk" and not spot.off then
+				local l, t, r, b = HudLayout.box(spot, sw, sh)
+				truthy(
+					not CvcLayout.hits(prize, { l, t, r, b }),
+					`NEXT CAR covers {spot.name} at {sw}x{sh}`
+				)
+			end
+		end
 	end
 end)

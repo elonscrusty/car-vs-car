@@ -54,7 +54,22 @@ function Podium.new(parent: GuiObject): Podium
 	local world = Instance.new("WorldModel")
 	world.Parent = frame
 	local spinning: { { model: Model, base: CFrame } } = {}
+	local topY = 5 -- the highest point of the blocks and cars (studs)
 	local spin: RBXScriptConnection? = nil
+
+	-- the camera fills the frame with the podium (it was far back: tiny cars, Studio check 10-26)
+	-- (every frame: the card grows in, and the frame is far wider than tall)
+	local HALF_W = 6.5 + 2.75 + 0.6 -- the side blocks' outer edges, and a little room
+	local TAN = math.tan(math.rad(cam.FieldOfView / 2))
+	local UP = Vector3.new(0, 0.28, 1).Unit -- from a little above
+	local function fit()
+		local px = frame.AbsoluteSize
+		local aspect = if px.Y > 0 then px.X / px.Y else 3
+		local halfH = topY / 2 + 0.5
+		local dist = math.max(halfH / TAN, HALF_W / (TAN * aspect)) + 2.5 -- (+ half the blocks' depth)
+		local look = Vector3.new(0, topY / 2, 0)
+		cam.CFrame = CFrame.lookAt(look + UP * dist, look)
+	end
 
 	local self = {} :: Podium
 	self.frame = frame
@@ -74,6 +89,7 @@ function Podium.new(parent: GuiObject): Podium
 	function self.show(rows: { any }): number
 		self.hide()
 		local cars = 0
+		topY = 0
 		for place = 1, math.min(3, #rows) do
 			local b = BLOCK[place]
 			local block = Instance.new("Part")
@@ -83,6 +99,7 @@ function Podium.new(parent: GuiObject): Podium
 			block.Color = b.color
 			block.Material = Enum.Material.SmoothPlastic
 			block.Parent = world
+			topY = math.max(topY, b.h)
 			local real = modelOf(rows[place])
 			if real and real.PrimaryPart then
 				local ok, copy = pcall(function()
@@ -103,6 +120,7 @@ function Podium.new(parent: GuiObject): Podium
 					local tall = copy:GetExtentsSize().Y
 					local base = CFrame.new(b.x, b.h + tall / 2 + 0.05, 0)
 					copy:PivotTo(base)
+					topY = math.max(topY, b.h + tall)
 					copy.Parent = world
 					table.insert(spinning, { model = copy, base = base })
 					cars += 1
@@ -117,6 +135,7 @@ function Podium.new(parent: GuiObject): Podium
 		local t = 0
 		spin = RunService.RenderStepped:Connect(function(dt: number)
 			t += dt
+			fit()
 			for i, s in spinning do
 				s.model:PivotTo(s.base * CFrame.Angles(0, t * 0.9 + i, 0))
 			end
