@@ -9,7 +9,12 @@ print("Sound levels")
 
 test("the start beeps and GO are the loudest sound in a race", function()
 	for name, v in S :: any do
-		if type(v) == "number" and name ~= "START_BEEP" and name ~= "MUSIC_FADE" and name ~= "HUM_RANGE" then
+		if
+			type(v) == "number"
+			and name ~= "START_BEEP"
+			and name ~= "MUSIC_FADE"
+			and name ~= "HUM_RANGE"
+		then
 			truthy(v < S.START_BEEP, `{name} {v} is as loud as the start beeps`)
 		end
 	end
