@@ -289,6 +289,12 @@ local function styleText(t: TextLabel | TextButton | TextBox)
 	end
 	t:GetPropertyChangedSignal("AbsoluteSize"):Connect(size)
 	size()
+	-- the outline comes and goes with the words: a hidden toast's stroke drew its "Label"
+	local function fade()
+		s.Transparency = t.TextTransparency
+	end
+	t:GetPropertyChangedSignal("TextTransparency"):Connect(fade)
+	fade()
 	s.Parent = t
 	t.TextStrokeTransparency = 1 -- (Readable's thin outline: the ink rim does it)
 end

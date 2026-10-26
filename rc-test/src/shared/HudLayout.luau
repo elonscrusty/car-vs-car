@@ -68,8 +68,8 @@ HudLayout.SPOTS = {
 	spot("CoinCount", "walk", "Stars", TL, { 0.14, 0, 0, 64 }, { 0.11, 0, 0, 36 }),
 	-- row 2 stays under the chips (no further right): a third button there covered the car show board
 	-- (NOT SAVING shows above the star chip)
-	spot("Rivals", "walk", "Stars", TL, { 0.02, 0, 0, 106 }, { 0.11, 0, 0, 32 }),
-	spot("Looks", "walk", "PlotShop", TL, { 0.14, 0, 0, 106 }, { 0.11, 0, 0, 32 }),
+	spot("Rivals", "walk", "Stars", TL, { 0.02, 0, 0, 110 }, { 0.11, 0, 0, 32 }),
+	spot("Looks", "walk", "PlotShop", TL, { 0.14, 0, 0, 110 }, { 0.11, 0, 0, 32 }),
 	spot("DailyJobs", "walk", "Stars", TL, { 0.02, 0, 0, 146 }, { 0.3, 0, 0.12, 60 }),
 	-- what you're saving up for (Stars): under the jobs
 	spot("NextUnlock", "walk", "Stars", TL, { 0.02, 0, 0.12, 212 }, { 0, 200, 0, 54 }), -- short, big words

@@ -120,14 +120,14 @@ card.Name = "Result"
 card.AnchorPoint = Vector2.new(0.5, 0)
 card.Position = UDim2.fromScale(0.5, 0.31) -- top edge below the lap box (FINISHED / BEST)
 card.Size = UDim2.fromScale(0.46, 0.4)
-card.BackgroundColor3 = DARK
-card.BackgroundTransparency = 0.1
+card.BackgroundColor3 = KartStyle.BLUE
+card.BackgroundTransparency = 0
 card.Visible = false
 card.Parent = gui
 corner(card, 0.08)
 local stroke = Instance.new("UIStroke")
-stroke.Color = YELLOW
-stroke.Thickness = 4
+stroke.Color = DARK
+stroke.Thickness = KartStyle.PANEL_RIM
 stroke.Parent = card
 -- the title on a yellow ribbon sitting over the card's top edge (Kart Party)
 local title = Instance.new("TextLabel")
