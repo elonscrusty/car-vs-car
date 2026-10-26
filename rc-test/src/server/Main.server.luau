@@ -43,6 +43,9 @@ LobbyPlots.init()
 require(script.Parent.PlotStandsBuilder).start() -- owners' cars on their plot's stands
 require(script.Parent.Leaderboards).start() -- lobby boards: best garage, fastest lap per map
 require(script.Parent.TycoonServer).start() -- parked cars make coins in their owner's plot
+if Features.CVC then
+	require(script.Parent.TrainingServer).start() -- Car VS Car: cars train on their owner's plot
+end
 require(script.Parent.PlotGarageBuilder).start() -- plots are garages: the loop road, coin pile pad, level sign
 do -- phone speed pass over the plots (small bits: no shadow; tiny decor bits: no collision)
 	local before, after = require(script.Parent.LobbyPerf).plots(workspace.Plots)
