@@ -5,7 +5,6 @@
 
 local Features = {}
 
-Features.TILES = false -- building your own track with tiles: BUILD, the build screen, tile shop
 Features.PLOT_RACING = false -- driving and racing on players' plots (plots are garages now)
 Features.STARS = false -- stars, medals, the plot boards, visit signs
 -- Plots as garages (PlotGarageBuilder): each plot's track is put away and the loop road with the

@@ -13,9 +13,6 @@ local function sibling(name: string): any
 end
 
 local CarCatalog = sibling("CarCatalog")
-local Features = sibling("Features")
-local TileShop = sibling("TileShop")
-local TrackTiles = sibling("TrackTiles")
 local Tycoon = sibling("Tycoon")
 
 local Rewards = {}
@@ -25,22 +22,21 @@ export type Save = {
 	stars: number,
 	cars: { [string]: boolean },
 	equipped: { [string]: string },
-	tiles: { [string]: number },
 	plotLevel: number?, -- the garage level (tycoon)
 }
 
--- The next thing to save up for: what it is, its name, its price (coins) or stars needed.
+-- The next thing to save up for: what it is, its name, its price in coins.
 export type Goal = {
-	kind: string, -- "car" | "tile" | "grid" | "level"
+	kind: string, -- "car" | "level"
 	name: string,
 	mode: string?, -- a car's mode (drift / race)
-	price: number, -- coins (car, tile) or stars (grid)
-	have: number, -- coins (car, tile) or stars (grid) you have now
+	price: number, -- coins
+	have: number, -- coins you have now
 	ready: boolean, -- you can get it now
 }
 
--- Everything coins can still buy, cheapest first (cars before tiles at the same price, race
--- cars first: the server race is the main game).
+-- Every car coins can still buy, cheapest first (race cars first at the same price: the server
+-- race is the main game).
 function Rewards.coinGoals(s: Save): { Goal }
 	local out: { Goal } = {}
 	for _, mode in { "race", "drift" } do
@@ -53,24 +49,6 @@ function Rewards.coinGoals(s: Save): { Goal }
 					price = c.price,
 					have = s.coins,
 					ready = s.coins >= c.price,
-				})
-			end
-		end
-	end
-	if Features.TILES and not TrackTiles.ALL_FREE then
-		for _, t in TileShop.TILES do
-			-- only tiles your stars have opened (TileShop.UNLOCK_STARS)
-			if
-				t.tier == "coins"
-				and not TileShop.owns(s :: any, t.id)
-				and TileShop.open(s :: any, t.id)
-			then
-				table.insert(out, {
-					kind = "tile",
-					name = t.name,
-					price = t.price,
-					have = s.coins,
-					ready = s.coins >= t.price,
 				})
 			end
 		end
@@ -88,37 +66,13 @@ function Rewards.coinGoals(s: Save): { Goal }
 	return out
 end
 
--- The bigger track grid you get next from stars (nil when you have the biggest).
-function Rewards.gridGoal(stars: number): Goal?
-	if not Features.TILES then
-		return nil
-	end
-	local cols, rows = TrackTiles.sizeFor(stars)
-	for _, sz in TrackTiles.SIZES do
-		if sz.stars > stars and sz.cols * sz.rows > cols * rows then
-			return {
-				kind = "grid",
-				name = `{sz.cols}x{sz.rows} track`,
-				price = sz.stars,
-				have = stars,
-				ready = false,
-			}
-		end
-	end
-	return nil
-end
-
--- The one goal to show: the next CAR first (the loop is build, race, coins, cars: carter 01:01),
--- then the cheapest tile; when coins can buy nothing more, the next bigger track from stars.
+-- The one goal to show: the next CAR; when coins can buy no more cars, the next garage level.
 function Rewards.next(s: Save): Goal?
 	local goals = Rewards.coinGoals(s)
 	for _, g in goals do
 		if g.kind == "car" then
 			return g
 		end
-	end
-	if goals[1] then
-		return goals[1]
 	end
 	-- (tycoon) every shop car bought: a bigger garage next
 	local cost = Tycoon.levelCost(s.plotLevel or 0)
@@ -131,44 +85,7 @@ function Rewards.next(s: Save): Goal?
 			ready = s.coins >= cost,
 		}
 	end
-	return Rewards.gridGoal(s.stars)
-end
-
--- What going from `before` to `after` stars opens, as short toasts ("NEW TILE: CONES!",
--- "BIGGER TRACK: 5x6!"), in the order they open.
-function Rewards.opened(before: number, after: number): { string }
-	local out: { { at: number, text: string } } = {}
-	if after <= before then
-		return {}
-	end
-	if not TrackTiles.ALL_FREE then
-		for _, t in TileShop.TILES do
-			local at = TileShop.unlockAt(t.id)
-			if t.tier == "coins" and at > before and at <= after then
-				table.insert(out, { at = at, text = `NEW TILE: {string.upper(t.name)}!` })
-			end
-		end
-	end
-	for _, sz in TrackTiles.SIZES do
-		if sz.stars > before and sz.stars <= after then
-			table.insert(out, { at = sz.stars, text = `BIGGER TRACK: {sz.cols}x{sz.rows}!` })
-		end
-	end
-	local order: { [any]: number } = {}
-	for i, o in out do
-		order[o] = i
-	end
-	table.sort(out, function(a, b)
-		if a.at ~= b.at then
-			return a.at < b.at
-		end
-		return order[a] < order[b]
-	end)
-	local texts = {}
-	for _, o in out do
-		table.insert(texts, o.text)
-	end
-	return texts
+	return nil
 end
 
 return Rewards

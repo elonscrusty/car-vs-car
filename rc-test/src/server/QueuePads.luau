@@ -1,5 +1,5 @@
 --!strict
--- The spawn lobby's play pads (SpawnLobby's "QueuePad" tags): drift, race, and build (your plot).
+-- The spawn lobby's play pads (SpawnLobby's "QueuePad" tags): drift and race.
 -- Stand on one for a moment and it sends you to an open plot of that kind, the same as tapping
 -- that plot's own pad. Walking across a pad (on the way to the street) does nothing.
 -- Plots, owners and the "open" tick are LobbyPlots'; this only watches the pads and asks it.
@@ -14,8 +14,6 @@ export type Hooks = {
 	findOpen: (plotType: string, player: Player) -> number?,
 	-- claims that plot and starts the drive; false when it could not
 	sendTo: (player: Player, slot: number) -> boolean,
-	-- the build pad: takes you to your own plot (on foot) instead of a drive
-	build: ((player: Player) -> ())?,
 	-- the race pad (JOIN RACE, tycoon plan): puts you in the next race instead of a plot. The
 	-- race runner sets it; without it the race pad looks for an open race plot as before.
 	join: ((player: Player) -> ())?,
@@ -91,9 +89,7 @@ function QueuePads.start(hooks: Hooks)
 						busy[onPad] = true
 					end
 					if kind and QueuePads.tick(timers, player, kind, now) then
-						if kind == "build" and hooks.build then
-							hooks.build(player)
-						elseif kind == "race" and hooks.join then
+						if kind == "race" and hooks.join then
 							hooks.join(player)
 						else
 							local slot = hooks.findOpen(kind, player)

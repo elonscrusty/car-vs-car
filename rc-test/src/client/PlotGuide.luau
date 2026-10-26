@@ -59,7 +59,7 @@ local function chevron(parent: Instance, x: number, z: number, dx: number, dz: n
 	return arms
 end
 
-function PlotGuide.new(building: () -> boolean): PlotGuide
+function PlotGuide.new(): PlotGuide
 	local player = Players.LocalPlayer
 	local slot: number? = nil
 	local driving = false
@@ -223,7 +223,7 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 	end
 
 	-- A returning player already has stars (only driving gives them), so they skip FOLLOW THE
-	-- ARROWS and their build screen may open by itself, like after a first drive this visit.
+	-- ARROWS, like after a first drive this visit.
 	local function returning()
 		local stars = player:GetAttribute("Stars")
 		if not driven and type(stars) == "number" and stars > 0 then
@@ -238,8 +238,6 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 	local tycoonOn = not Features.PLOT_RACING
 	local seenGarage = false
 
-	local builtFor: number? = nil -- the break (its BuildEndsAt) in which the build screen was open
-
 	-- the goal is picked 10 times a second (new tables each pick); the arrows glow every frame
 	local goal: NextGoal.Goal? = nil
 	local nextPick = 0
@@ -247,12 +245,8 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 	local wasOnFoot = false
 	RunService.RenderStepped:Connect(function()
 		local ends = workspace:GetAttribute("BuildEndsAt")
-		local isBuilding = building()
-		if isBuilding and type(ends) == "number" then
-			builtFor = ends
-		end
 		local clock = os.clock()
-		local onFoot = not driving and not isBuilding and clock >= holdUntil
+		local onFoot = not driving and clock >= holdUntil
 		if clock >= nextPick or onFoot ~= wasOnFoot then
 			nextPick, wasOnFoot = clock + 0.1, onFoot
 			local _, visitName = visitTarget()
@@ -270,7 +264,7 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 					inShops = inShops(),
 					inBreak = inBreak(),
 					canBuy = player:GetAttribute("GoalReady") == true,
-					built = builtFor ~= nil and builtFor == ends,
+					built = false,
 					-- (building closes CALL s before the start: count to the start, like the
 					-- NEXT RACE chip)
 					raceIn = if type(ends) == "number"
@@ -352,7 +346,7 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 		driving = on
 		if on and padDistance() < NEAR * 2 then
 			driven = true -- drove from their own pad
-			player:SetAttribute("HasDriven", true) -- the build screen may now open by itself
+			player:SetAttribute("HasDriven", true)
 		end
 	end
 	return guide

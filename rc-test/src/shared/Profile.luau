@@ -28,7 +28,7 @@ export type Data = {
 	cars: { [string]: boolean }, -- CarCatalog ids bought or won (starters are everyone's anyway)
 	equipped: { [string]: string }, -- mode -> the car id driven in that mode
 	track: Track?, -- my built track (nil = the starter circle); the grid size comes from stars
-	tiles: { [string]: number }, -- TileShop ids -> copies owned (free tiles are everyone's anyway)
+	tiles: { [string]: number }, -- old tile shop ids -> copies owned (kept so old saves load)
 	raceStars: number, -- stars won in server races (on top of the medal stars in starsFrom)
 	trackKind: string, -- what my built plot is: "race" (laps) or "drift" (drift score)
 	stage: number, -- how far into the game I am (Profile.STAGE): new players see one thing at a time
@@ -39,7 +39,7 @@ export type Data = {
 	plotLevel: number, -- 0..Tycoon.MAX_LEVEL: more parking slots
 	parked: { string }, -- car ids parked in my garage (each makes coins)
 }
--- One placed tile: column, row (from 1), TrackTiles piece id, quarter turns 0..3.
+-- One placed tile: column, row (from 1), old track-builder piece id, quarter turns 0..3.
 export type Tile = { c: number, r: number, piece: string, rot: number }
 export type Track = { tiles: { Tile } }
 -- My score against one other player: wins = I beat their record, losses = they beat mine.
