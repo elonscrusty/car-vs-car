@@ -13,6 +13,7 @@ print("CvcLayout")
 -- the small phone first, then bigger phones, tablets and PC
 local SIZES = {
 	{ 667, 375 },
+	{ 750, 381 }, -- (the Studio check window)
 	{ 844, 390 },
 	{ 932, 430 },
 	{ 1024, 768 },
@@ -186,6 +187,59 @@ test("the how-to tip never covers COACH, JOIN, CRATE or MY GARAGE", function()
 				truthy(
 					r[1] >= 0 and r[2] >= 0 and r[3] <= s[1] and r[4] <= s[2],
 					`{it[1]} tip {part} off {s[1]}x{s[2]}`
+				)
+			end
+		end
+	end
+end)
+
+test("COACH steps under the race call strip, clear of it and of the other buttons", function()
+	if not Features.CVC then
+		return
+	end
+	local coach = HudLayout.find("Coach", "walk") :: any
+	for _, s in SIZES do
+		local strip = CvcLayout.callStrip(s[1])
+		local l, t, r, b = HudLayout.box(coach, s[1], s[2])
+		-- where it normally sits, the strip would cover it (the Studio find)
+		local moved =
+			{ l, CvcLayout.coachUnderCall(s[1]), r, CvcLayout.coachUnderCall(s[1]) + (b - t) }
+		truthy(not CvcLayout.hits(moved, strip), `COACH under the strip at {s[1]}x{s[2]}`)
+		truthy(moved[4] <= s[2], `COACH on screen at {s[1]}x{s[2]}`)
+		for _, spot in HudLayout.SPOTS do
+			if spot.mode == "walk" and not spot.off and spot.name ~= "Coach" then
+				local ol, ot, orr, ob = HudLayout.box(spot, s[1], s[2])
+				truthy(
+					not CvcLayout.hits(moved, { ol, ot, orr, ob }),
+					`moved COACH covers {spot.name} at {s[1]}x{s[2]}`
+				)
+			end
+		end
+	end
+end)
+
+test("the BOOST tip never covers the race chips (the lap box with 5TH OF 8, DRIFT, ...)", function()
+	if not Features.CVC then
+		return
+	end
+	for _, s in SIZES do
+		local boost: CvcLayout.Rect, avoid = {}, {}
+		for _, spot in HudLayout.SPOTS do
+			if spot.mode == "drive" and not spot.off then
+				local l, t, r, b = HudLayout.box(spot, s[1], s[2])
+				if spot.name == "Boost" then
+					boost = { l, t, r, b }
+				elseif CvcLayout.boostAvoids(spot.name) then
+					table.insert(avoid, { l, t, r, b })
+				end
+			end
+		end
+		local tip = CvcLayout.tip(boost, false, s[1], s[2], avoid)
+		for part, r in { arrow = tip.arrow, words = tip.words, skip = tip.skip } do
+			for _, o in avoid do
+				truthy(
+					not CvcLayout.hits(r, o),
+					`BOOST tip {part} covers a race chip at {s[1]}x{s[2]}`
 				)
 			end
 		end

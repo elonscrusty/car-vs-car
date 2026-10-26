@@ -153,7 +153,7 @@ end
 -- ===== the how-to tip (CvcHowTo): an arrow by a button, its words, and SKIP =====
 
 export type Rect = { number } -- left, top, right, bottom (px)
-export type Tip = { arrow: Rect, words: Rect, skip: Rect }
+export type Tip = { arrow: Rect, words: Rect, skip: Rect, side: string } -- side: "under", "over" or "left" of the button
 
 CvcLayout.TIP_ARROW = 54
 CvcLayout.TIP_WORDS_H = 40
@@ -178,17 +178,10 @@ end
 function CvcLayout.tip(target: Rect, below: boolean, sw: number, sh: number, avoid: { Rect }): Tip
 	local A, WH, SK = CvcLayout.TIP_ARROW, CvcLayout.TIP_WORDS_H, CvcLayout.TIP_SKIP
 	local cx = (target[1] + target[3]) / 2
-	local dir = if below then 1 else -1
-	local edge = if below then target[4] else target[2]
-	local arrowY = edge + dir * (A / 2 + 3)
-	local arrow = rect(cx, arrowY, A, A)
+	local midY = (target[2] + target[4]) / 2
 
-	-- (the arrow bobs up to 10 px away from the button)
-	local arrowReach: Rect = if below
-		then { arrow[1], arrow[2], arrow[3], arrow[4] + 10 }
-		else { arrow[1], arrow[2] - 10, arrow[3], arrow[4] }
-	local function ok(t: Tip): boolean
-		for _, r in { arrowReach, t.words, t.skip } do
+	local function ok(t: Tip, reach: Rect): boolean
+		for _, r in { reach, t.words, t.skip } do
 			if not onScreen(r, sw, sh) or CvcLayout.hits(r, target) then
 				return false
 			end
@@ -198,27 +191,54 @@ function CvcLayout.tip(target: Rect, below: boolean, sw: number, sh: number, avo
 				end
 			end
 		end
-		return not CvcLayout.hits(t.words, arrowReach)
-			and not CvcLayout.hits(t.skip, arrowReach)
+		return not CvcLayout.hits(t.words, reach)
+			and not CvcLayout.hits(t.skip, reach)
 			and not CvcLayout.hits(t.skip, t.words)
 	end
 
-	-- the words: past the arrow (centred, or lined up with either edge of the button) or beside
-	-- the button; wide first, then narrower. SKIP right of the words, past them, or before them.
-	local tries: { Tip } = {}
-	local stackY = edge + dir * (A + 13 + WH / 2 + 2) -- (past the bobbing arrow)
-	local midY = (target[2] + target[4]) / 2
-	for _, want in { 300, 190, 130 } do
-		local w = math.min(want, sw - 24)
-		local spots: { { number } } = {
-			{ math.clamp(cx, w / 2 + 12, sw - w / 2 - 12), stackY },
-			{ math.clamp(target[1], 12, sw - 12 - w) + w / 2, stackY },
-			{ math.clamp(target[3], 12 + w, sw - 12) - w / 2, stackY },
-			{ target[3] + 10 + w / 2, midY },
-			{ target[1] - 10 - w / 2, midY },
-		}
+	local first: Tip? = nil
+	-- the arrow past the button's top or bottom edge first, else on its left (pointing right)
+	-- (on the left: level with the button's middle, bottom or top)
+	local sides: { { side: string, y: number } } = {
+		{ side = if below then "under" else "over", y = midY },
+		{ side = "left", y = midY },
+		{ side = "left", y = target[4] - A / 2 },
+		{ side = "left", y = target[2] + A / 2 },
+	}
+	for _, sideAt in sides do
+		local side, ay = sideAt.side, sideAt.y
+		local arrow: Rect
+		local reach: Rect -- (the arrow bobs up to 10 px away from the button)
+		local spots: { { number } } = {}
+		local dir = if side == "under" then 1 else -1
+		for _, want in { 300, 190, 130 } do
+			local w = math.min(want, sw - 24)
+			if side == "left" then
+				arrow = rect(target[1] - 3 - A / 2, ay, A, A)
+				local from = arrow[1] - 14
+				table.insert(spots, { from - w / 2, ay, w })
+				table.insert(spots, { from - w / 2, ay - A, w })
+				table.insert(spots, { from - w / 2, ay + A, w })
+			else
+				local edge = if side == "under" then target[4] else target[2]
+				arrow = rect(cx, edge + dir * (A / 2 + 3), A, A)
+				-- past the arrow: centred, or lined up with either edge of the button; or beside it
+				local stackY = edge + dir * (A + 13 + WH / 2 + 2)
+				table.insert(spots, { math.clamp(cx, w / 2 + 12, sw - w / 2 - 12), stackY, w })
+				table.insert(spots, { math.clamp(target[1], 12, sw - 12 - w) + w / 2, stackY, w })
+				table.insert(spots, { math.clamp(target[3], 12 + w, sw - 12) - w / 2, stackY, w })
+				table.insert(spots, { target[3] + 10 + w / 2, midY, w })
+				table.insert(spots, { target[1] - 10 - w / 2, midY, w })
+			end
+		end
+		arrow = arrow :: any
+		reach = if side == "under"
+			then { arrow[1], arrow[2], arrow[3], arrow[4] + 10 }
+			elseif side == "over" then { arrow[1], arrow[2] - 10, arrow[3], arrow[4] }
+			else { arrow[1] - 10, arrow[2], arrow[3], arrow[4] }
 		for _, at in spots do
-			local words = rect(at[1], at[2], w, WH)
+			local words = rect(at[1], at[2], at[3], WH)
+			-- SKIP right of the words, past them, or before them
 			for _, skip in
 				{
 					rect(words[3] + 8 + SK[1] / 2, at[2], SK[1], SK[2]),
@@ -226,16 +246,38 @@ function CvcLayout.tip(target: Rect, below: boolean, sw: number, sh: number, avo
 					rect(at[1], at[2] - dir * (WH / 2 + SK[2] / 2 + 4), SK[1], SK[2]),
 				}
 			do
-				table.insert(tries, { arrow = arrow, words = words, skip = skip })
+				local t = { arrow = arrow, words = words, skip = skip, side = side }
+				first = first or t
+				if ok(t, reach) then
+					return t
+				end
 			end
 		end
 	end
-	for _, t in tries do
-		if ok(t) then
-			return t
-		end
-	end
-	return tries[1]
+	return first :: Tip
+end
+
+-- ===== the race call strip (ServerRace.client "Call", on foot): COACH steps down under it =====
+-- (the same numbers ServerRace.client uses: top middle, 58 px down, half the screen wide, 7:1)
+CvcLayout.CALL_STRIP = { y = 58, w = 0.5, aspect = 7 }
+CvcLayout.COACH_GAP = 8
+
+function CvcLayout.callStrip(sw: number): Rect
+	local c = CvcLayout.CALL_STRIP
+	local w = c.w * sw
+	local h = w / c.aspect
+	return { sw / 2 - w / 2, c.y, sw / 2 + w / 2, c.y + h }
+end
+
+-- COACH's top (px) while the call strip is up: just under it
+function CvcLayout.coachUnderCall(sw: number): number
+	return CvcLayout.callStrip(sw)[4] + CvcLayout.COACH_GAP
+end
+
+-- the driving spots the BOOST tip keeps clear of: all of them but BOOST itself and the drive
+-- JOIN (ServerRace hides that while racing, and the tip only shows while racing)
+function CvcLayout.boostAvoids(name: string): boolean
+	return name ~= "Boost" and name ~= "Join"
 end
 
 return CvcLayout
