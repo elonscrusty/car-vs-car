@@ -18,6 +18,7 @@ local function base(key: string): number
 end
 
 local FAR = 400 -- studs: past this, other cars' wheels are not drawn (phones)
+local RACE_TAG_FAR = 1200 -- studs: in the big race, names show this far (the whole map)
 local STEER_MAX = 0.75 -- radians, the base car's widest wheel angle
 local MAX_SUSP = 4 -- big-size spring travel; the ray stops it sooner on the ground
 
@@ -181,7 +182,11 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 			end
 			local near = not hide and (cf.Position - eye).Magnitude < FAR
 			o.folder.Parent = if near then folder else nil
-			o.tag.Enabled = near
+			-- carter's pick 18: in the big race every car in your race wears its name, however far
+			-- (the stand cam watches from the side of the track)
+			local inRace = myGroup ~= nil and group == myGroup
+			o.tag.MaxDistance = if inRace then RACE_TAG_FAR else 150
+			o.tag.Enabled = near or (inRace and not hide)
 			if not near then
 				continue
 			end

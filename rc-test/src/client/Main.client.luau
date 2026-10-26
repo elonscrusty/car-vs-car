@@ -740,6 +740,27 @@ end)
 local boosting = false -- was on a boost last frame
 local raceFx = RaceFx.new() -- carter's picks 14 + 15: speed lines on BOOST, sparks on hits
 local speedWas = 0 -- flat speed last frame (sparks on a hard stop)
+-- carter's pick 18: in the big race your own car wears a yellow YOU (the others wear their names:
+-- OtherCars), so you find it from the stand
+local youTag = Instance.new("BillboardGui")
+youTag.Name = "YouTag"
+youTag.Size = UDim2.fromOffset(90, 30)
+youTag.AlwaysOnTop = true
+youTag.MaxDistance = 1200
+youTag.ResetOnSpawn = false
+youTag.Enabled = false
+do
+	local l = Instance.new("TextLabel")
+	l.BackgroundTransparency = 1
+	l.Size = UDim2.fromScale(1, 1)
+	l.Font = Enum.Font.LuckiestGuy
+	l.TextScaled = true
+	l.TextColor3 = Color3.fromRGB(255, 220, 40)
+	l.TextStrokeTransparency = 0
+	l.Text = "▼ YOU"
+	l.Parent = youTag
+end
+youTag.Parent = player:WaitForChild("PlayerGui")
 local placeWasAt = Vector3.zero -- where the car was last frame (a reset jumps: no sparks)
 
 -- Car VS Car: the other leagues' racers stand on the same stand spots; this screen hides them
@@ -791,6 +812,7 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 			cam.CameraType = Enum.CameraType.Custom
 			cam.CameraSubject = hum
 		end
+		youTag.Enabled = false
 		car.render(dt) -- keep the parked car's wheels drawn
 		skin.update(car, SKINS[tracks[current].id])
 		effects.quiet()
@@ -804,6 +826,9 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 	effects.update(dt)
 	-- boost pads and jumps: a word on screen so you know what happened
 	local tel = car.telemetry
+	youTag.Adornee = body
+	youTag.StudsOffsetWorldSpace = Vector3.new(0, 3.4 * Tuning.scale / TrackData.RC_SCALE, 0)
+	youTag.Enabled = grid ~= nil and Features.CVC
 	raceFx.update(dt, tel.boost > 0)
 	local fv = body.AssemblyLinearVelocity
 	local flatNow = Vector3.new(fv.X, 0, fv.Z).Magnitude
