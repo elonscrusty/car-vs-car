@@ -164,6 +164,9 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 			return
 		end
 		local S = Tuning.scale
+		-- (Car VS Car: another league's race shares the track; its cars are in a collision group
+		-- this car doesn't touch, and the wheels' rays don't see them either)
+		rayParams.CollisionGroup = body.CollisionGroup
 		-- the car's own gravity shrinks with its size, so a small car moves like the big one
 		local gravity = workspace.Gravity * S
 		local cf = body.CFrame

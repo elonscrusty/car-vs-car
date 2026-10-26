@@ -319,6 +319,37 @@ function ServerRace.nextStart(lastStart: number, now: number): number
 	return math.max(lastStart + ServerRace.CVC_EVERY, now + ServerRace.CVC_GAP)
 end
 
+ServerRace.GROUPS = 4 -- big races at once at most (one per league, or two for a full league)
+
+-- Who races with whom (Car VS Car): each league on its own, at most `max` a race, in join order.
+-- leagues[i] = racer i's league; returns lists of racer numbers, lowest league first. Friends in
+-- the same league land in the same race (a league only splits past `max`).
+function ServerRace.groups(leagues: { number }, max: number): { { number } }
+	local byLeague: { [number]: { number } } = {}
+	local order: { number } = {}
+	for i, lg in leagues do
+		if not byLeague[lg] then
+			byLeague[lg] = {}
+			table.insert(order, lg)
+		end
+		table.insert(byLeague[lg], i)
+	end
+	table.sort(order)
+	local out: { { number } } = {}
+	for _, lg in order do
+		local cur: { number } = {}
+		for _, i in byLeague[lg] do
+			if #cur >= max then
+				table.insert(out, cur)
+				cur = {}
+			end
+			table.insert(cur, i)
+		end
+		table.insert(out, cur)
+	end
+	return out
+end
+
 -- Race number `n` (1, 2, 3...) is on this map: the maps in turn.
 function ServerRace.mapTurn(ids: { string }, n: number): string?
 	if #ids == 0 then

@@ -22,7 +22,14 @@ local STEER_MAX = 0.75 -- radians, the base car's widest wheel angle
 local MAX_SUSP = 4 -- big-size spring travel; the ray stops it sooner on the ground
 
 type Wheel = { part: Part, spot: Vector3, front: boolean, shown: number, spin: number }
-type Other = { body: BasePart, folder: Folder, wheels: { Wheel }, scale: number, tag: BillboardGui }
+type Other = {
+	body: BasePart,
+	folder: Folder,
+	wheels: { Wheel },
+	scale: number,
+	tag: BillboardGui,
+	hidden: boolean?,
+}
 
 local function wheelPart(folder: Folder, s: number): Part
 	local d = base("wheelRadius") * 2 * s
@@ -134,6 +141,7 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 
 	local function update(dt: number)
 		local mine = myCarName()
+		local myGroup = Players.LocalPlayer:GetAttribute("RaceGroup")
 		local cam = workspace.CurrentCamera
 		local eye = if cam then cam.CFrame.Position else Vector3.zero
 		-- find cars: every Car_<id> model in the workspace that is not this player's
@@ -160,7 +168,18 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 			end
 			local body = o.body
 			local cf = body.CFrame
-			local near = (cf.Position - eye).Magnitude < FAR
+			-- Car VS Car: another league's race on the same track at the same time: not shown
+			local group = m:GetAttribute("RaceGroup")
+			local hide = myGroup ~= nil and group ~= nil and group ~= myGroup
+			if hide ~= (o.hidden == true) then
+				o.hidden = hide
+				for _, d in m:GetDescendants() do
+					if d:IsA("BasePart") then
+						d.LocalTransparencyModifier = if hide then 1 else 0
+					end
+				end
+			end
+			local near = not hide and (cf.Position - eye).Magnitude < FAR
 			o.folder.Parent = if near then folder else nil
 			o.tag.Enabled = near
 			if not near then

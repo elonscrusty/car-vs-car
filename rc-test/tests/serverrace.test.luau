@@ -248,3 +248,17 @@ test("Car VS Car: the maps take turns", function()
 	eq(ServerRace.mapTurn(ids, 3), "backyard")
 	eq(ServerRace.mapTurn({}, 1), nil)
 end)
+
+test("Car VS Car: each league races on its own, friends in a league together", function()
+	local g = ServerRace.groups({ 2, 1, 2, 1, 3 }, 8)
+	eq(#g, 3)
+	eq(table.concat(g[1], ","), "2,4") -- Bronze first
+	eq(table.concat(g[2], ","), "1,3")
+	eq(table.concat(g[3], ","), "5")
+	-- a full league splits, in join order
+	local big = ServerRace.groups({ 1, 1, 1 }, 2)
+	eq(#big, 2)
+	eq(table.concat(big[1], ","), "1,2")
+	eq(table.concat(big[2], ","), "3")
+	eq(#ServerRace.groups({}, 8), 0)
+end)
