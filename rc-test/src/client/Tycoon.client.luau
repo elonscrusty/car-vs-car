@@ -764,6 +764,7 @@ corner(timeBar, 0.5)
 local cards: { [string]: { card: TextButton, count: TextLabel, rim: UIStroke } } = {}
 local myVote: string? = nil
 local voteEnds, voteStarts = 0, 0
+local voteCount = 0 -- maps on the card now
 
 local function mapInfo(id: string): (string, string, Color3)
 	local Maps = optional("Maps")
@@ -847,8 +848,20 @@ local function openVote(ids: { string }, endsAt: number)
 			end
 		end)
 	end
-	vote.Visible = #ids > 1
+	voteCount = #ids
+	vote.Visible = #ids > 1 and player:GetAttribute("RaceJoined") == true
 end
+
+-- only racers vote: a kid who hasn't joined thought tapping a map joined the race (Studio
+-- NEW-KID-5MIN). Join while the vote is on and the card comes up then.
+player:GetAttributeChangedSignal("RaceJoined"):Connect(function()
+	local joined = player:GetAttribute("RaceJoined") == true
+	if not joined then
+		vote.Visible = false
+	elseif voteCount > 1 and myVote == nil and voteEnds > workspace:GetServerTimeNow() then
+		vote.Visible = true
+	end
+end)
 
 RunService.Heartbeat:Connect(function()
 	if not vote.Visible then
