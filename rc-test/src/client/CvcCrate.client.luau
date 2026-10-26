@@ -6,6 +6,7 @@
 -- ("open") -> ("crate", carId, rarity)); this only shows it.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -15,6 +16,7 @@ if not Features.CVC then
 end
 local CarCatalog = require(Shared:WaitForChild("CarCatalog"))
 local Crates = require(Shared:WaitForChild("Crates"))
+local CvcLayout = require(Shared:WaitForChild("CvcLayout"))
 local HudLayout = require(Shared:WaitForChild("HudLayout"))
 local KartStyle = require(Shared:WaitForChild("KartStyle"))
 local CvcState = require(script.Parent:WaitForChild("CvcState"))
@@ -55,25 +57,17 @@ local top, fall = CvcUi.topGui("CvcCrateTop", HudLayout.POPUP + 1, player:WaitFo
 
 local panel = Instance.new("Frame")
 panel.Name = "Panel"
-panel.AnchorPoint = Vector2.new(0.5, 0.5)
-panel.Position = UDim2.fromScale(0.5, 0.54)
-panel.Size = UDim2.fromScale(0.6, 0.76)
+CvcLayout.place(panel, "crate", "Panel")
 panel.BackgroundColor3 = KartStyle.BLUE
 panel.Visible = false
 panel.Parent = pop
 CvcUi.corner(panel, 0.05)
 CvcUi.rim(panel, KartStyle.PANEL_RIM)
-local panelMax = Instance.new("UISizeConstraint")
-panelMax.MaxSize = Vector2.new(620, 520)
-panelMax.Parent = panel
 local ribbon = CvcUi.ribbon(panel, "CRATE")
 
 local close = button(panel, "X", KartStyle.RED)
 close.Name = "Close"
-close.AnchorPoint = Vector2.new(0.5, 0.5)
-close.Position = UDim2.fromScale(1, 0)
-close.Size = UDim2.fromScale(0.11, 0.11)
-close.SizeConstraint = Enum.SizeConstraint.RelativeYY
+CvcLayout.place(close, "crate", "Close")
 close.ZIndex = 3
 CvcUi.corner(close, 0.5)
 
@@ -111,8 +105,7 @@ boxScale.Parent = box
 -- the odds, one row per kind of car: always shown before you open
 local oddsBox = Instance.new("Frame")
 oddsBox.Name = "Odds"
-oddsBox.Position = UDim2.fromScale(0.5, 0.14)
-oddsBox.Size = UDim2.fromScale(0.46, 0.58)
+CvcLayout.place(oddsBox, "crate", "Odds")
 oddsBox.BackgroundTransparency = 1
 oddsBox.Parent = panel
 local oddsTitle = label(oddsBox, "WHAT'S INSIDE", WHITE)
@@ -156,9 +149,7 @@ end
 
 local openBtn = button(panel, "OPEN!", KartStyle.GREEN)
 openBtn.Name = "Open"
-openBtn.AnchorPoint = Vector2.new(0.5, 1)
-openBtn.Position = UDim2.fromScale(0.5, 0.95)
-openBtn.Size = UDim2.fromScale(0.46, 0.13)
+CvcLayout.place(openBtn, "crate", "Open")
 openBtn:SetAttribute("KartPulse", true)
 local left = label(panel, "", WHITE)
 left.AnchorPoint = Vector2.new(0.5, 1)
@@ -168,16 +159,18 @@ left.Size = UDim2.fromScale(0.6, 0.06)
 -- the new car comes out here (over the crate's place)
 local reveal = Instance.new("Frame")
 reveal.Name = "Reveal"
-reveal.AnchorPoint = Vector2.new(0.5, 0.5)
-reveal.Position = UDim2.fromScale(0.5, 0.45)
-reveal.Size = UDim2.fromScale(0.5, 0.62)
+CvcLayout.place(reveal, "crate", "Reveal")
 reveal.BackgroundTransparency = 1
 reveal.ZIndex = 2
 reveal.Visible = false
 reveal.Parent = panel
 
 local opening = false
-local shake: Tween? = nil
+local shake: RBXScriptConnection? = nil
+local shakeAt = 0 -- when the shaking started (os.clock)
+local got = false -- the server's car is in (it comes out once the build-up is done)
+-- the shake builds up for this long before the crate pops, however fast the server is
+local BUILD = 1.2
 
 local function showChoose()
 	-- the crate and its odds, before opening
@@ -233,10 +226,11 @@ end
 
 local function stopShake()
 	if shake then
-		shake:Cancel()
+		shake:Disconnect()
 		shake = nil
 	end
 	box.Rotation = 0
+	boxScale.Scale = 1
 end
 
 openBtn.Activated:Connect(function()
@@ -267,18 +261,18 @@ openBtn.Activated:Connect(function()
 		CvcState.ask("open")
 	end
 	openBtn.Text = "..."
-	box.Rotation = -8
-	shake = TweenService:Create(
-		box,
-		TweenInfo.new(0.08, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1, true),
-		{ Rotation = 8 }
-	)
-	if shake then
-		shake:Play()
-	end
+	got = false
+	shakeAt = os.clock()
+	-- the shake builds up: wider, faster, and the crate swells
+	shake = RunService.RenderStepped:Connect(function()
+		local t = os.clock() - shakeAt
+		local f = math.min(t / BUILD, 1)
+		box.Rotation = math.sin(t * (18 + 30 * f)) * (4 + 10 * f)
+		boxScale.Scale = 1 + 0.15 * f
+	end)
 	task.delay(6, function()
 		-- the server said no (or is slow): back to the crate
-		if opening then
+		if opening and not got then
 			opening = false
 			stopShake()
 			showChoose()
@@ -286,7 +280,7 @@ openBtn.Activated:Connect(function()
 	end)
 end)
 
-local function gotCar(id: string, rarity: string)
+local function comeOut(id: string, rarity: string)
 	opening = false
 	stopShake()
 	panel.Visible = true
@@ -302,21 +296,58 @@ local function gotCar(id: string, rarity: string)
 	local card = CvcUi.card(reveal, CvcState.fresh(id))
 	card.frame.Size = UDim2.fromScale(1, 1)
 	card.frame.ZIndex = 2
+	local n = table.find(CarCatalog.RARITY_ORDER, info.id) or 1
+	local legend = info.id == "legend"
 	Party.rays(reveal, color)
+	if legend then
+		-- LEGEND: a second ring of rays, a flash and a huge pop
+		Party.rays(reveal, KartStyle.WHITE)
+		local f = Instance.new("Frame")
+		f.Name = "Kart_Flash"
+		f:SetAttribute("NoKart", true)
+		f.Active = false
+		f.BorderSizePixel = 0
+		f.BackgroundColor3 = color
+		f.BackgroundTransparency = 0.2
+		f.Size = UDim2.fromScale(1, 1)
+		f.Parent = fall
+		TweenService:Create(f, TweenInfo.new(0.7), { BackgroundTransparency = 1 }):Play()
+		task.delay(0.7, function()
+			f:Destroy()
+		end)
+	end
+	-- the crate bursts where it stood
+	local at = box.AbsolutePosition + box.AbsoluteSize / 2
+	Party.burst(top, UDim2.fromOffset(at.X, at.Y), 12 + n * 6)
 	local s = Instance.new("UIScale")
 	s.Scale = 0.2
 	s.Parent = reveal
-	TweenService:Create(s, TweenInfo.new(0.45, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+	TweenService:Create(s, TweenInfo.new(if legend then 0.7 else 0.45, Enum.EasingStyle.Back), {
+		Scale = 1,
+	}):Play()
 	ribbon.Text = `NEW {info.label} CAR!`
 	openBtn.Text = if Crates.price(KIND)
 		then "BUY ANOTHER!"
 		elseif CvcState.crates > 0 then "OPEN ANOTHER!"
 		else "YAY!"
 	openBtn.BackgroundColor3 = KartStyle.GREEN
-	local n = table.find(CarCatalog.RARITY_ORDER, info.id) or 1
 	Sfx.crate(n)
-	CvcUi.bigWords(top, `{CvcState.name(id)}!`, color, 0.16)
-	Party.confetti(fall, 30 + n * 20)
+	CvcUi.bigWords(top, if legend then "LEGEND!!" else `{CvcState.name(id)}!`, color, 0.16)
+	if legend then
+		task.delay(1.2, function()
+			CvcUi.bigWords(top, `{CvcState.name(id)}!`, color, 0.16)
+		end)
+	end
+	Party.confetti(fall, if legend then 160 else 30 + n * 20)
+end
+
+-- the server's car: out it comes once the shake has built up
+local function gotCar(id: string, rarity: string)
+	got = true
+	local wait = if opening then math.max(0, BUILD - (os.clock() - shakeAt)) else 0
+	task.delay(wait, function()
+		comeOut(id, rarity)
+	end)
 end
 
 CvcState.event:Connect(function(what: unknown, id: unknown, rarity: unknown)

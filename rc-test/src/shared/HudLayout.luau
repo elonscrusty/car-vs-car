@@ -81,6 +81,9 @@ local function off(s: Spot, isOff: boolean): Spot
 	s.off = isOff or nil
 	return s
 end
+-- Car VS Car: row 2 (CRATE, MY GARAGE) is thumb size, so the jobs and NEXT box sit a bit lower
+local ROW2_Y, ROW2_H = if CVC then 106 else 110, if CVC then 44 else 32
+local DROP = if CVC then 12 else 0
 local COL1 = if STARS then 0.14 else 0.02
 local COL2 = if STARS then 0.26 else 0.14
 
@@ -111,12 +114,12 @@ HudLayout.SPOTS = {
 	),
 	-- the tycoon (Tycoon.client): coins a minute right of the coins, GARAGE under it
 	spot("Income", "walk", "Tycoon", TL, { COL2, 0, 0, 64 }, { 0.1, 0, 0, 36 }),
-	spot("Garage", "walk", "Tycoon", TL, { COL2, 0, 0, 110 }, { 0.1, 0, 0, 32 }),
+	spot("Garage", "walk", "Tycoon", TL, { COL2, 0, 0, ROW2_Y }, { 0.1, 0, 0, ROW2_H }),
 	-- Car VS Car: CRATES under the coins (Cvc crate screen; only with a crate to open)
-	off(spot("Crate", "walk", "Cvc", TL, { 0.02, 0, 0, 110 }, { 0.1, 0, 0, 32 }), not CVC),
-	spot("DailyJobs", "walk", "Stars", TL, { 0.02, 0, 0, 146 }, { 0.3, 0, 0.12, 60 }),
+	off(spot("Crate", "walk", "Cvc", TL, { 0.02, 0, 0, ROW2_Y }, { 0.1, 0, 0, ROW2_H }), not CVC),
+	spot("DailyJobs", "walk", "Stars", TL, { 0.02, 0, 0, 146 + DROP }, { 0.3, 0, 0.12, 60 }),
 	-- what you're saving up for (Stars): under the jobs
-	spot("NextUnlock", "walk", "Stars", TL, { 0.02, 0, 0.12, 212 }, { 0, 200, 0, 54 }), -- short, big words
+	spot("NextUnlock", "walk", "Stars", TL, { 0.02, 0, 0.12, 212 + DROP }, { 0, 200, 0, 54 }), -- short, big words
 	-- ===== walk: top middle, one stack =====
 	off(
 		spot("Friends", "walk", "Lobby", TC, { 0.5, 0, 0, 64 }, { 0, 170, 0, 36 }),

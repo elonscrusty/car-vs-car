@@ -15,6 +15,7 @@ local Features = require(Shared:WaitForChild("Features"))
 if not Features.CVC then
 	return
 end
+local CvcLayout = require(Shared:WaitForChild("CvcLayout"))
 local HudLayout = require(Shared:WaitForChild("HudLayout"))
 local KartStyle = require(Shared:WaitForChild("KartStyle"))
 local League = require(Shared:WaitForChild("League"))
@@ -178,16 +179,11 @@ dim.Parent = pickGui
 
 local pickPanel = Instance.new("Frame")
 pickPanel.Name = "Panel"
-pickPanel.AnchorPoint = Vector2.new(0.5, 0.5)
-pickPanel.Position = UDim2.fromScale(0.5, 0.54)
-pickPanel.Size = UDim2.fromScale(0.8, 0.78)
+CvcLayout.place(pickPanel, "pick", "Panel")
 pickPanel.BackgroundColor3 = KartStyle.BLUE
 pickPanel.Parent = pickGui
 CvcUi.corner(pickPanel, 0.05)
 CvcUi.rim(pickPanel, KartStyle.PANEL_RIM)
-local pickMax = Instance.new("UISizeConstraint")
-pickMax.MaxSize = Vector2.new(900, 520)
-pickMax.Parent = pickPanel
 CvcUi.ribbon(pickPanel, "PICK YOUR FIRST CAR!")
 local pickHint = label(pickPanel, "IT TRAINS ON YOUR PLOT, THEN YOU RACE IT!", WHITE)
 pickHint.Position = UDim2.fromScale(0.05, 0.08)
@@ -207,15 +203,15 @@ local function buildPick()
 		local holder = Instance.new("Frame")
 		holder.Name = "Choice"
 		holder.BackgroundTransparency = 1
-		holder.Position = UDim2.new((i - 1) / n, 10, 0.17, 0)
-		holder.Size = UDim2.new(1 / n, -20, 0.8, 0)
+		CvcLayout.place(holder, "pick", "Choice") -- (the first; each next one a third further right)
+		holder.Position += UDim2.fromScale((i - 1) / n, 0)
+		holder.Size =
+			UDim2.new(1 / n, holder.Size.X.Offset, holder.Size.Y.Scale, holder.Size.Y.Offset)
 		holder.Parent = pickPanel
 		local card = CvcUi.card(holder, CvcState.fresh(id))
-		card.frame.Size = UDim2.fromScale(1, 0.82)
+		CvcLayout.place(card.frame, "pick", "Card")
 		local go = button(holder, "PICK!", KartStyle.GREEN)
-		go.AnchorPoint = Vector2.new(0.5, 1)
-		go.Position = UDim2.fromScale(0.5, 1)
-		go.Size = UDim2.fromScale(0.8, 0.15)
+		CvcLayout.place(go, "pick", "Pick")
 		go:SetAttribute("KartPulse", true)
 		go.Activated:Connect(function()
 			if picking then
