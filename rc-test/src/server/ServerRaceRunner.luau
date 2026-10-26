@@ -589,6 +589,10 @@ local function runRace(hooks: Hooks, slot: number)
 			LobbyPlots.claim(p, slot)
 			setDrive(p, true)
 			p:SetAttribute("RaceGroup", if Features.CVC then gi else nil)
+			local body = carBody(p)
+			if Features.CVC and body and body.Parent then
+				setCarGroup(body.Parent, gi) -- (before the grid: each league's pole is the same spot)
+			end
 			hooks.remote:FireClient(p, "drive", slot, gridSpot(slot, t, k))
 			table.insert(racers, {
 				player = p,
