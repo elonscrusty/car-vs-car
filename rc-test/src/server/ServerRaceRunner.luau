@@ -118,6 +118,7 @@ local function breakLen(): number
 end
 
 local joined: { [Player]: boolean } = {}
+local waiting: { [Player]: boolean } = {} -- walked onto the pad during a race: the next one
 local votes: { [Player]: string } = {}
 local voteOpen = false
 local lastVote: { [Player]: number } = {}
@@ -131,6 +132,7 @@ local function mapIds(): { string }
 end
 
 -- after a race (or a skip): the pad has to be walked onto again for the next one
+-- (and the ones who walked onto the pad while it ran are on the list for this next one)
 local function clearJoined()
 	for p in joined do
 		if p.Parent then
@@ -138,6 +140,13 @@ local function clearJoined()
 		end
 	end
 	joined = {}
+	for p in waiting do
+		if p.Parent then
+			joined[p] = true
+			p:SetAttribute("RaceJoined", true)
+		end
+	end
+	waiting = {}
 end
 
 local function voteCounts(): { [string]: number }
@@ -177,8 +186,16 @@ end
 -- The JOIN NEXT RACE pad (map races): this player races in the next one. False when no map race
 -- is on (the old plot race takes everyone) or one is already running.
 function ServerRaceRunner.join(player: Player): boolean
-	if not mapMode() or phase == "racing" then
+	if not mapMode() then
 		return false
+	end
+	if phase == "racing" then
+		-- a race is on: they're first in for the next one
+		if not joined[player] and not waiting[player] then
+			waiting[player] = true
+			player:SetAttribute("RaceJoined", true)
+		end
+		return true
 	end
 	if not joined[player] then
 		joined[player] = true
@@ -731,6 +748,7 @@ function ServerRaceRunner.start(hooks: Hooks)
 	end)
 	Players.PlayerRemoving:Connect(function(player: Player)
 		joined[player], votes[player], lastVote[player] = nil, nil, nil
+		waiting[player] = nil
 	end)
 	-- the map vote: ("vote", mapId) from a screen, at most twice a second; everyone sees the count
 	event.OnServerEvent:Connect(function(player: Player, kind: unknown, id: unknown)
