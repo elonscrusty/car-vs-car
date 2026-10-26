@@ -173,3 +173,11 @@ test("save v16: an unsaved visit's cars and training reach the real save", funct
 	eq(out.trophies, 2)
 	eq(out.league, 2)
 end)
+
+test("training: every station level and plot level past the first has a cost", function()
+	eq(#Training.UPGRADE_COST, Training.MAX_STATION_LEVEL - 1)
+	eq(#Training.PLOT_COST, Training.MAX_PLOT_LEVEL)
+	eq(Training.upgradeCost(Training.MAX_STATION_LEVEL), nil)
+	eq(Training.plotCost(Training.MAX_PLOT_LEVEL), nil)
+	truthy((Training.plotCost(0) :: number) > 0)
+end)

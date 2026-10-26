@@ -40,6 +40,18 @@ Training.STATIONS = {
 	"track",
 }
 Training.MAX_PLOT_LEVEL = #Training.STATIONS - 1
+-- coins: a station's next level (level 1 -> 2 is [1]) and the plot's next level (0 -> 1 is [1])
+-- (stand-ins until Economy.luau has them; screens and the server both read these)
+Training.UPGRADE_COST = { 100, 250, 500, 900 }
+Training.PLOT_COST = { 300, 600, 1000, 1600, 2500, 3600, 5000, 7000 }
+
+-- What the next level costs (nil = already at the top).
+function Training.upgradeCost(level: number): number?
+	return Training.UPGRADE_COST[math.floor(level)]
+end
+function Training.plotCost(plotLevel: number): number?
+	return Training.PLOT_COST[math.floor(plotLevel) + 1]
+end
 
 function Training.isKind(kind: any): boolean
 	return type(kind) == "string" and Training.MAIN[kind] ~= nil
