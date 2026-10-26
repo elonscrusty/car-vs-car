@@ -1,6 +1,6 @@
 --!strict
 -- The big race maps (Shared/Maps: Backyard, Kitchen): race-ready, the road fits, nothing solid
--- on a road, shortcuts and the secret still count the lap, about 45 s a lap.
+-- on a road, shortcuts and the secret still count the lap, about 35 s a lap.
 local H = require("./harness")
 local RaceMaps = require("../src/shared/RaceMaps")
 local Maps = require("../src/shared/Maps")
@@ -99,9 +99,9 @@ for _, m in maps do
 		truthy(#m.gates >= 6, "want 6+ lap checks for the race order")
 	end)
 
-	test(m.id .. ": a lap is about 45 s (2600 to 3400 long)", function()
+	test(m.id .. ": a lap is about 35 s (3800 to 4600 long)", function()
 		local len = MapKit.length(loop, true)
-		truthy(len >= 2600 and len <= 3400, `lap is {len} long`)
+		truthy(len >= 3800 and len <= 4600, `lap is {len} long`)
 	end)
 
 	test(m.id .. ": the road doesn't touch itself", function()

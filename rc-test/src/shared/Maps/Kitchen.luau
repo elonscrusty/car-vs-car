@@ -31,13 +31,15 @@ local function prop(
 	return { kind = kind, x = x, z = z, yaw = yaw, h = h, solid = solid, w = w, d = d }
 end
 
--- The track is laid out roomy and squeezed by K so a lap is about 45 s (3 laps fit the 3 minute
--- race). Things against the walls (fridge, counters, the cabinet tunnel) are placed after the
--- squeeze, at their real giant size: 5.5 big units = 1 inch, counters 36 in tall and 24 in deep.
-local K = 0.78
+-- The track is laid out and then stretched by K so a clean lap is about 35 s: 3 laps take about
+-- 1:45 (Studio: at 0.78 a lap was 24 to 27 s). Things against the walls (fridge, counters,
+-- the cabinet tunnel) are placed after the stretch, at their real giant size: 5.5 big units = 1
+-- inch, counters 36 in tall and 24 in deep. The counters stand just behind the back straights.
+local K = 1.0
 local COUNTER_H, COUNTER_D = 198, 140
-local BACK = -470 -- the back wall (after the squeeze)
-local COUNTER_FRONT = BACK + COUNTER_D
+local COUNTER_FRONT = -370 * K - 41 -- 41 behind the back straights' centre line
+local BACK = COUNTER_FRONT - COUNTER_D -- the back wall (after the stretch)
+local DOOR_R, DOOR_L = 423 * K, -308 * K -- the cabinet tunnel's two open doors
 
 -- loose things on the floor (squeezed with the track)
 local props: { MapKit.Prop } = {
@@ -76,7 +78,7 @@ local def: MapKit.Def = {
 	road = 36,
 	minX = -760,
 	maxX = 760,
-	minZ = BACK / K, -- squeezed to BACK
+	minZ = BACK / K, -- stretched to BACK
 	maxZ = 540,
 	main = {
 		{ x = -300, z = 420 }, -- front straight by the door mat, driving right
@@ -128,10 +130,10 @@ local def: MapKit.Def = {
 	},
 	pads = {
 		{ kind = "boost", path = 0, at = { x = 200, z = 420 }, len = 50 }, -- clear of the LAP flash
-		{ kind = "boost", path = 0, at = { x = -692, z = 140 }, len = 50 },
+		{ kind = "boost", path = 0, at = { x = -667, z = 140 }, len = 50 },
 		{ kind = "milk", path = 0, at = { x = -460, z = -370 }, len = 80 },
 		{ kind = "sand", path = 1, at = { x = 466, z = -40 }, len = 40 }, -- crumbs under the table
-		{ kind = "boost", path = 2, at = { x = 60 / K, z = (BACK + 70) / K }, len = 50 },
+		{ kind = "boost", path = 2, at = { x = 60 / K, z = (BACK + COUNTER_D / 2) / K }, len = 50 },
 	},
 	jumps = {
 		{ path = 0, at = { x = 30, z = -130 } }, -- over the dropped spoon
@@ -154,9 +156,9 @@ for _, p in
 	{
 		prop("fridge", d.minX + 95, BACK + 85, 0, 385, true, 190, 170),
 		prop("stove", 0, BACK + COUNTER_D / 2, 0, COUNTER_H, true, 170, COUNTER_D),
-		prop("sink", 296, BACK + COUNTER_D / 2, 0, COUNTER_H, true, 180, COUNTER_D),
-		prop("cabinetDoor", 330, COUNTER_FRONT, 0, 120, true, 66, 4),
-		prop("cabinetDoor", -240, COUNTER_FRONT, 0, 120, true, 66, 4),
+		prop("sink", 380 * K, BACK + COUNTER_D / 2, 0, COUNTER_H, true, 180, COUNTER_D),
+		prop("cabinetDoor", DOOR_R, COUNTER_FRONT, 0, 120, true, 66, 4),
+		prop("cabinetDoor", DOOR_L, COUNTER_FRONT, 0, 120, true, 66, 4),
 	}
 do
 	table.insert(d.props, p)
@@ -164,13 +166,13 @@ end
 -- inside the cabinets: in at one open door, along behind the stove, out at the other
 local mid = BACK + COUNTER_D / 2
 d.paths[2].points = {
-	{ x = 343, z = -289 },
-	{ x = 330, z = COUNTER_FRONT - 10 },
-	{ x = 270, z = mid },
+	{ x = 440 * K, z = -370 * K },
+	{ x = DOOR_R, z = COUNTER_FRONT - 10 },
+	{ x = DOOR_R - 60, z = mid },
 	{ x = 50, z = mid },
-	{ x = -170, z = mid },
-	{ x = -240, z = COUNTER_FRONT - 10 },
-	{ x = -257, z = -289 },
+	{ x = DOOR_L + 70, z = mid },
+	{ x = DOOR_L, z = COUNTER_FRONT - 10 },
+	{ x = -329 * K, z = -388 * K }, -- (the bend dips below -370 here)
 }
 d.paths[2].width = 34
 

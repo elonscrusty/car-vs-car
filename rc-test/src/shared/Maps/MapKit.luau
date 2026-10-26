@@ -122,7 +122,7 @@ function MapKit.scale(def: Def, k: number): Def
 	return d
 end
 
-MapKit.PER = 16 -- loop samples per main point (samples land ~5 to 15 apart)
+MapKit.PER = 24 -- loop samples per main point (samples land ~5 to 15 apart)
 MapKit.CURB_WIDTH = 3
 MapKit.CURB_HEIGHT = 0.4
 MapKit.GATE_DEPTH = 12
