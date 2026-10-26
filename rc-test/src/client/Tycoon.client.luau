@@ -729,6 +729,12 @@ local cards: { [string]: { card: TextButton, count: TextLabel, rim: UIStroke } }
 local myVote: string? = nil
 local voteEnds, voteStarts = 0, 0
 
+-- one line under each map's name on its vote card
+local TAGLINE: { [string]: string } = {
+	backyard = "JUMP THE HOSE!",
+	kitchen = "UNDER THE TABLE!",
+}
+
 local function mapInfo(id: string): (string, string, Color3)
 	local Maps = optional("Maps")
 	local m = Maps and Maps.get and Maps.get(id)
@@ -769,14 +775,26 @@ local function openVote(ids: { string }, endsAt: number)
 		card.Name = id
 		card.Position = UDim2.new((i - 1) / n, 8, 0.2, 0)
 		card.Size = UDim2.new(1 / n, -16, 0.62, 0)
+		-- (an emoji scaled to the box drew tiny on a phone, shot 01: a set size reads)
 		local pic = label(card, icon, WHITE)
-		pic.Size = UDim2.fromScale(1, 0.5)
+		pic.TextScaled = false
+		pic.TextSize = 30
+		pic.Size = UDim2.fromScale(1, 0.34)
 		local words = label(card, name, WHITE)
-		words.Position = UDim2.fromScale(0, 0.5)
-		words.Size = UDim2.fromScale(1, 0.3)
+		words.Position = UDim2.fromScale(0, 0.32)
+		words.Size = UDim2.fromScale(1, 0.32)
+		local wordsRim = Instance.new("UIStroke")
+		wordsRim.Color = INK
+		wordsRim.Thickness = 2
+		wordsRim.Parent = words
+		-- what makes the map fun, in two words (tiny cars, giant world)
+		local hook = label(card, TAGLINE[id] or "", WHITE)
+		hook.Position = UDim2.fromScale(0, 0.64)
+		hook.Size = UDim2.fromScale(1, 0.18)
+		hook.TextTransparency = 0.1
 		local count = label(card, "", KartStyle.YELLOW)
-		count.Position = UDim2.fromScale(0, 0.8)
-		count.Size = UDim2.fromScale(1, 0.2)
+		count.Position = UDim2.fromScale(0, 0.82)
+		count.Size = UDim2.fromScale(1, 0.18)
 		local stroke = Instance.new("UIStroke")
 		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		stroke.Color = INK
