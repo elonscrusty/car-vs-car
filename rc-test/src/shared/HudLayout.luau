@@ -142,6 +142,8 @@ HudLayout.SPOTS = {
 	off(spot("BigJoin", "walk", "Cvc", BC, { 0.5, 0, 0.96, -102 }, { 0, 240, 0, 64 }), not CVC),
 	spot("WeekendBanner", "walk", "Stars", TR, { 0.98, 0, 0, 116 }, { 0, 200, 0, 30 }), -- top right: off your plot's name on the gate
 	spot("Join", "walk", "ServerRace", TR, { 0.98, 0, 0, 64 }, { 0, 168, 0, 46 }), -- top right, off the gate's name and the pad words
+	-- Car VS Car: RACE ME! (CvcInvite) asks a friend in, under the weekend banner
+	off(spot("Invite", "walk", "Cvc", TR, { 0.98, 0, 0, 154 }, { 0, 150, 0, 44 }), not CVC),
 	-- ===== walk: bottom middle =====
 	spot("Drive", "walk", "Lobby", BC, { 0.47, 0, 0.96, 0 }, { 0, 160, 0, 64 }), -- thumb size, low (off the plot view)
 	spot("Goal", "walk", "PlotGuide", BC, { 0.5, 0, 0.96, -66 }, { 0, 230, 0, 30 }), -- what to do next (clear of DailyJobs on a small phone)
