@@ -137,6 +137,8 @@ end
 
 MapKit.STAND_SPOTS = 8 -- racers on the driver stand, side by side
 MapKit.STAND_W, MapKit.STAND_D, MapKit.STAND_H = 160, 40, 80 -- 40 x 10 RC studs, 20 up
+MapKit.STAND_STAIRS = 80 -- the stairs run this far out past the stand's left end (-x)
+MapKit.STAND_STEP = 8 -- the most each stair climbs
 MapKit.PER = 16 -- loop samples per main point (samples land ~5 to 15 apart)
 MapKit.CURB_WIDTH = 3
 MapKit.CURB_HEIGHT = 0.4
@@ -240,6 +242,17 @@ function MapKit.edgeSpots(map: any, spacing: number, off: number, clear: number)
 					if ok and p.h > 2 and math.sqrt((p.x - x) ^ 2 + (p.z - z) ^ 2) < r then
 						ok = false
 					end
+				end
+				local st = def.stand
+				if
+					ok
+					and st
+					and x > st.x - st.w / 2 - MapKit.STAND_STAIRS - clear
+					and x < st.x + st.w / 2 + clear
+					and z > st.z - st.d / 2 - clear
+					and z < st.z + st.d / 2 + clear
+				then
+					ok = false -- keep the driver stand (and its stairs) clear
 				end
 				if ok then
 					table.insert(

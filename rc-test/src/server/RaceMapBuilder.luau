@@ -13,6 +13,7 @@ local RaceMaps = require(ReplicatedStorage.Shared.RaceMaps)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local Kit = require(ReplicatedStorage.Shared.Plots.Kit)
 local MapKit = require(ReplicatedStorage.Shared.Maps.MapKit)
+local Features = require(ReplicatedStorage.Shared.Features)
 local MeshProps = require(script.Parent.MeshProps)
 
 local RaceMapBuilder = {}
@@ -2055,6 +2056,92 @@ local function secretHint(folder: Instance, map: any)
 	end
 end
 
+-- ===== the driver stand (Car VS Car) =====
+
+-- A raised wooden deck by the start: racers stand on it side by side with their remotes and
+-- watch their cars. Yard: a patio deck on posts. Kitchen: a big step stool. Stairs go down off
+-- its left end; a rail runs round the other three sides (low at the front, so it never hides a
+-- car). Picture: rc-game/cvc/pics/*-stand.png (carter said yes 10-26).
+local function buildStand(folder: Instance, map: any)
+	local def: MapKit.Def = map.def
+	local st = def.stand
+	if not st then
+		return
+	end
+	local kitchen = def.theme == "kitchen"
+	local wood = if kitchen then LIGHT_WOOD else WOOD
+	local dark = if kitchen then rgb(176, 136, 92) else rgb(110, 76, 46)
+	local stand = Instance.new("Model")
+	stand.Name = "DriverStand"
+	stand.Parent = folder
+	local x0, x1 = st.x - st.w / 2, st.x + st.w / 2
+	local z0, z1 = st.z - st.d / 2, st.z + st.d / 2
+	local function solid(name: string, size: Vector3, cf: CFrame, color: Color3)
+		local p = part(stand, name, size, cf, color, Enum.Material.WoodPlanks)
+		finish(p, true)
+		return p
+	end
+	-- the deck
+	solid("Deck", Vector3.new(st.w, 4, st.d), CFrame.new(st.x, st.h - 2, st.z), wood)
+	-- legs: four posts, the stool's splay out a little
+	for _, cx in { x0 + 5, x1 - 5 } do
+		for _, cz in { z0 + 5, z1 - 5 } do
+			local leg =
+				solid("Leg", Vector3.new(8, st.h - 4, 8), CFrame.new(cx, (st.h - 4) / 2, cz), dark)
+			if kitchen then
+				leg.CFrame = leg.CFrame * CFrame.Angles(if cz < st.z then 0.06 else -0.06, 0, 0)
+			end
+		end
+	end
+	-- a cross bar half way up (a stool's step, a deck's brace)
+	solid("Bar", Vector3.new(st.w - 10, 5, 5), CFrame.new(st.x, st.h * 0.45, z0 + 5), dark)
+	solid("Bar", Vector3.new(st.w - 10, 5, 5), CFrame.new(st.x, st.h * 0.45, z1 - 5), dark)
+	-- rails: front (low), back, right end; the left end is open to the stairs
+	local railH = 14
+	local function rail(a: Vector3, b: Vector3, h: number)
+		local mid = (a + b) / 2
+		local len = (b - a).Magnitude
+		solid(
+			"Rail",
+			Vector3.new(2, 2, len),
+			CFrame.lookAt(mid + Vector3.new(0, h, 0), b + Vector3.new(0, h, 0)),
+			dark
+		)
+		for k = 0, math.floor(len / 20) do
+			local q = a:Lerp(b, k / math.max(math.floor(len / 20), 1))
+			solid("Post", Vector3.new(2, h, 2), CFrame.new(q.X, st.h + h / 2, q.Z), dark)
+		end
+	end
+	local top = st.h
+	rail(Vector3.new(x0 + 1, top, z0 + 1), Vector3.new(x1 - 1, top, z0 + 1), 8)
+	rail(Vector3.new(x0 + 1, top, z1 - 1), Vector3.new(x1 - 1, top, z1 - 1), railH)
+	rail(Vector3.new(x1 - 1, top, z0 + 1), Vector3.new(x1 - 1, top, z1 - 1), railH)
+	-- stairs down off the left end: solid blocks, each a step lower
+	local n = math.ceil(st.h / MapKit.STAND_STEP)
+	local rise, run = st.h / n, MapKit.STAND_STAIRS / n
+	for i = 1, n - 1 do
+		local y = st.h - i * rise
+		solid(
+			"Step",
+			Vector3.new(run, y, st.d * 0.6),
+			CFrame.new(x0 - (i - 0.5) * run, y / 2, st.z),
+			if i % 2 == 0 then wood else dark
+		)
+	end
+	-- a yellow spot for each racer
+	for _, sp in map.standSpots() do
+		looks(
+			stand,
+			"Spot",
+			Vector3.new(0.3, 12, 12),
+			CFrame.new(sp.x, sp.y + 0.15, sp.z) * CFrame.Angles(0, 0, PI / 2),
+			BOOST_COLOR,
+			Enum.Material.SmoothPlastic,
+			Enum.PartType.Cylinder
+		)
+	end
+end
+
 -- ===== one map =====
 
 function RaceMapBuilder.buildMap(map: any): Model
@@ -2087,6 +2174,9 @@ function RaceMapBuilder.buildMap(map: any): Model
 	secretHint(scenery, map)
 	for _, e in def.props do
 		buildProp(scenery, e, map)
+	end
+	if Features.CVC then
+		buildStand(model, map)
 	end
 	-- shrink to RC size and put it where the track says
 	model.WorldPivot = CFrame.identity
