@@ -35,7 +35,8 @@ type Yard = {
 	pivot: CFrame,
 	folder: Folder,
 	cars: { Model },
-	entering: { [Model]: number }, -- cars rolling out of the door (os.clock they started)
+	entering: { [Model]: number },
+	spread: number, -- the gap between cars, in spots: eases to #cars so they slide apart, not jump -- cars rolling out of the door (os.clock they started)
 	ids: { string }, -- the parked cars' ids (the first #ids of `cars`; the rest are open spots)
 	carsKey: string,
 	coins: Folder,
@@ -144,7 +145,7 @@ end
 local ROLL_SECS = 2.5 -- a newly parked car rolls out of the garage door to its spot this long
 
 local function placeCars(y: Yard, clock: number)
-	local n = #y.cars
+	local n = y.spread
 	local now = os.clock()
 	for i, car in y.cars do
 		local x, z, yaw = PlotGarage.spot(i, n, clock)
@@ -234,6 +235,9 @@ local function refreshCars(y: Yard)
 	end
 	for _ = 1, open do
 		table.insert(y.cars, makeOpen(y.folder))
+	end
+	if y.spread == 0 then
+		y.spread = #y.cars
 	end
 	placeCars(y, workspace:GetServerTimeNow())
 end
@@ -334,6 +338,7 @@ local function setUp(plot: Instance, garage: Model)
 		cars = {},
 		ids = {},
 		entering = {},
+		spread = 0,
 		carsKey = "?",
 		coins = coins,
 		shown = -1,
@@ -423,7 +428,7 @@ for _, p in plots:GetChildren() do
 	watch(p)
 end
 
-RunService.RenderStepped:Connect(function()
+RunService.RenderStepped:Connect(function(dt: number)
 	local cam = workspace.CurrentCamera
 	if not cam then
 		return
@@ -431,7 +436,12 @@ RunService.RenderStepped:Connect(function()
 	local eye = cam.CFrame.Position
 	local clock = workspace:GetServerTimeNow()
 	for _, y in yards do
-		if #y.cars > 0 and (y.pivot.Position - eye).Magnitude < NEAR then
+		local n = #y.cars
+		y.spread += (n - y.spread) * math.min(1, dt * 1.5)
+		if math.abs(n - y.spread) < 0.001 then
+			y.spread = n
+		end
+		if n > 0 and (y.pivot.Position - eye).Magnitude < NEAR then
 			placeCars(y, clock)
 		end
 	end
