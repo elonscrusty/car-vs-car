@@ -38,12 +38,12 @@ export type Bot = {
 local RaceBots = {}
 
 RaceBots.MIN_CARS = 4 -- fill the race with bots up to this many cars
-RaceBots.TOP = 92 -- a skill-1 bot's top speed, big units/s (the player's is ~95, boost pads 1.35x)
+RaceBots.TOP = 110 -- a skill-1 bot's top speed, big units/s (the player's is ~95, boost pads 1.35x)
 RaceBots.ACCEL = 55
 RaceBots.BRAKE = 110
-RaceBots.GRIP = 140 -- sideways acceleration a skill-1 bot takes a bend at (big units/s^2)
-RaceBots.SKILL_MIN = 0.66
-RaceBots.SKILL_MAX = 0.9
+RaceBots.GRIP = 170 -- sideways acceleration a skill-1 bot takes a bend at (big units/s^2)
+RaceBots.SKILL_MIN = 0.7
+RaceBots.SKILL_MAX = 1
 RaceBots.LANE = 7 -- most a bot sits off the centre line (roads are 30..40 wide)
 RaceBots.CATCH_UP = 0.1 -- most a bot speeds up or slows down to stay near the players
 RaceBots.CATCH_GAP = 1 -- gap (in ServerRace.progress units, about one gate) at which it is full
