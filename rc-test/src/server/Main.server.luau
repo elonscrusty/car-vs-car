@@ -42,6 +42,7 @@ LobbyPlots.init()
 require(ReplicatedStorage.Shared.PlotTracks).watch() -- owners' own tracks (LobbyLayout.custom)
 require(script.Parent.PlotStandsBuilder).start() -- owners' cars on their plot's stands
 require(script.Parent.TycoonServer).start() -- parked cars make coins in their owner's plot
+require(script.Parent.PlotGarageBuilder).start() -- plots are garages: the loop road, coin pile pad, level sign
 require(script.Parent.TrackBuild).start() -- race plots: starter circle, owners swap tiles in the break
 do -- phone speed pass over the plots (small bits: no shadow; tiny decor bits: no collision)
 	local before, after = require(script.Parent.LobbyPerf).plots(workspace.Plots)
