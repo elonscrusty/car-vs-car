@@ -7,30 +7,32 @@ local SaveRetry = {}
 
 SaveRetry.TRIES = 4
 
--- Returns ok, result. `wait` is task.wait; `onFail` hears each failure (try number, error).
+-- Returns ok, result and (on failure) the last error text. `wait` is task.wait; `onFail` hears each failure (try number, error).
 function SaveRetry.run(
 	fn: () -> any,
 	wait: (number) -> any,
 	onFail: ((number, string) -> ())?,
 	tries: number?
-): (boolean, any)
+): (boolean, any, string?)
 	local n = tries or SaveRetry.TRIES
+	local last: string? = nil
 	for i = 1, n do
 		local ok, result = pcall(fn)
 		if ok then
 			return true, result
 		end
+		last = tostring(result)
 		if onFail then
-			onFail(i, tostring(result))
+			onFail(i, last)
 		end
-		if string.find(tostring(result), "403", 1, true) then
+		if string.find(last, "403", 1, true) then
 			break
 		end
 		if i < n then
 			wait(2 ^ i)
 		end
 	end
-	return false, nil
+	return false, nil, last
 end
 
 return SaveRetry

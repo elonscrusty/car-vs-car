@@ -759,4 +759,112 @@ function Profile.saveStep(
 	}
 end
 
+-- A visit that played unsaved (the DataStore was down at join) finally reaches the real save.
+-- `stored` is the migrated real save (a fresh copy: this changes and returns it), `session` what
+-- the visit ended up with, `base` what the visit started from (Profile.new()). Only what the
+-- visit EARNED is added: coin and count gains, new cars, new bests. Nothing in `stored` is ever
+-- lowered or replaced by a blank, so a late save can't wipe what was there.
+function Profile.mergeVisit(stored: Data, session: Data, base: Data): Data
+	local function gain(a: number, b: number): number
+		return math.max(a - b, 0)
+	end
+	local out: any = stored
+	local ses: any = session
+	out.coins = math.clamp(stored.coins + gain(session.coins, base.coins), 0, Profile.MAX_COINS)
+	out.pile = math.clamp(stored.pile + gain(session.pile, base.pile), 0, Profile.MAX_COINS)
+	for _, k in { "likes", "winPoints", "raceStars" } do
+		out[k] = out[k] + gain(ses[k], (base :: any)[k])
+	end
+	out.raceStars = math.min(out.raceStars, Profile.MAX_RACE_STARS)
+	for _, k in { "bestStreak", "lastSeen", "boostUntil", "plotLevel", "stage" } do
+		out[k] = math.max(out[k], ses[k])
+	end
+	out.plotLevel = math.min(out.plotLevel, Profile.MAX_PLOT_LEVEL)
+	out.stage = math.min(out.stage, Profile.STAGE.SHOPPED)
+	-- sets: anything the visit has is added
+	for _, k in { "liked", "bolts", "looks", "lookOff", "cars" } do
+		for id, yes in ses[k] do
+			if out[k][id] == nil and count(out[k]) < Profile.MAX_CARS then
+				out[k][id] = yes
+			end
+		end
+	end
+	for owner, day in session.visited do
+		out.visited[owner] = math.max(out.visited[owner] or 0, day)
+	end
+	for owner, modes in session.starsFrom do
+		local mine = out.starsFrom[owner]
+		if mine == nil and count(out.starsFrom) < Profile.MAX_OWNERS then
+			mine = {}
+			out.starsFrom[owner] = mine
+		end
+		if mine then
+			for mode, medal in modes do
+				mine[mode] = math.max(mine[mode] or 0, medal)
+			end
+		end
+	end
+	local stars = 0
+	for _, modes in out.starsFrom do
+		for _, m in modes do
+			stars += m
+		end
+	end
+	out.stars = stars + out.raceStars
+	-- tiles bought this visit come on top of the copies already owned
+	for id, n in session.tiles do
+		out.tiles[id] = math.min((out.tiles[id] or 0) + n, 99)
+	end
+	-- the stored value wins; the visit only fills what is missing
+	for mode, r in session.plotRecords do
+		if out.plotRecords[mode] == nil then
+			out.plotRecords[mode] = r
+		end
+	end
+	for mode, list in session.plotTop do
+		if out.plotTop[mode] == nil then
+			out.plotTop[mode] = list
+		end
+	end
+	for id, r in session.rivals do
+		if out.rivals[id] == nil and count(out.rivals) < Profile.MAX_RIVALS then
+			out.rivals[id] = r
+		end
+	end
+	for mode, id in session.equipped do
+		if out.equipped[mode] == nil then
+			out.equipped[mode] = id
+		end
+	end
+	if out.track == nil then
+		out.track = session.track
+	end
+	-- the daily gift: whichever was taken on the later day (the same day = already taken there)
+	if session.dailyDay > stored.dailyDay then
+		out.dailyDay = session.dailyDay
+		out.dayStreak = session.dayStreak
+	end
+	if session.jobs.day > stored.jobs.day then
+		out.jobs = { day = session.jobs.day, have = table.clone(session.jobs.have) }
+	elseif session.jobs.day == stored.jobs.day then
+		for i = 1, 3 do
+			out.jobs.have[i] = math.max(out.jobs.have[i] or 0, session.jobs.have[i] or 0)
+		end
+	end
+	-- the garage: theirs stays; cars bought this visit move in while there is room (a player who
+	-- never had a garage gets the one the visit set up)
+	local room = Profile.BASE_SLOTS + out.plotLevel
+	local fresh = #stored.parked == 0
+	for _, id in session.parked do
+		if
+			#out.parked < math.min(room, Profile.MAX_PARKED)
+			and not table.find(out.parked, id)
+			and (fresh or session.cars[id])
+		then
+			table.insert(out.parked, id)
+		end
+	end
+	return out
+end
+
 return Profile

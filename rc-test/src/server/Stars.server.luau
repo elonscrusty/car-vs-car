@@ -873,9 +873,27 @@ task.spawn(function()
 	end
 end)
 
+-- the visit reached the real save: show the real numbers, and the "retrying" note goes away
+PlayerData.synced:Connect(function(player: Player, data: Profile.Data)
+	player:SetAttribute("Stars", data.stars)
+	remote:FireClient(player, "stars", data.stars, true)
+	remote:FireClient(player, "coins", data.coins)
+	remote:FireClient(player, "boltsFound", Profile.boltList(data))
+	remote:FireClient(player, "toast", "Saving is back on!")
+	sendRivals(player)
+	sendJobs(player)
+	showStreak(player)
+end)
+
 PlayerData.loaded:Connect(function(player: Player, data: Profile.Data, saving: boolean)
 	player:SetAttribute("Stars", data.stars) -- read by the car (smoke colours open with stars)
-	remote:FireClient(player, "stars", data.stars, saving)
+	-- saving: true / false, or "retry" (the DataStore was down: trying again in the background)
+	remote:FireClient(
+		player,
+		"stars",
+		data.stars,
+		if PlayerData.isRetrying(player) then "retry" else saving
+	)
 	remote:FireClient(player, "coins", data.coins)
 	remote:FireClient(player, "boltsFound", Profile.boltList(data))
 	-- who beat my times while I was away

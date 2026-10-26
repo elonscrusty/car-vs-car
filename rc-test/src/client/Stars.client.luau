@@ -1304,7 +1304,8 @@ player:GetAttributeChangedSignal("Stage"):Connect(showVisits)
 remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unknown, ...: unknown)
 	if kind == "stars" and type(info) == "number" then
 		setStars(info, false)
-		noSave.Visible = saving == false
+		noSave.Visible = saving ~= true
+		noSave.Text = if saving == "retry" then "SAVING IS OFF, TRYING AGAIN" else "NOT SAVING"
 		return
 	end
 	if kind == "goal" then

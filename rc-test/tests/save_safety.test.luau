@@ -275,3 +275,107 @@ test("two servers: the second waits for the first, the first stops when robbed",
 	-- A's next save finds B's lock and writes nothing
 	eq(Profile.saveStep(stored, "A", d, false, false, 170).kind, "lost")
 end)
+
+-- A visit that played unsaved (DataStore down at join) reaches the real save later.
+local function realSave(): Profile.Data
+	local d = Profile.new()
+	d.coins = 500
+	d.cars["buggy"] = true
+	d.parked = { "buggy", "starter" }
+	d.plotLevel = 1
+	d.lastSeen = 5000
+	d.stage = 3
+	d.dailyDay = 20
+	d.dayStreak = 4
+	d.raceStars = 5
+	d.starsFrom["9"] = { race = 2 }
+	d.jobs = { day = 20, have = { 1, 0, 0 } }
+	d.stars = 7
+	return d
+end
+
+test("merge: a blank visit changes nothing in the real save", function()
+	local out = Profile.mergeVisit(realSave(), Profile.new(), Profile.new())
+	local want = realSave()
+	eq(out.coins, want.coins)
+	eq(out.stars, want.stars)
+	eq(#out.parked, 2)
+	eq(out.plotLevel, 1)
+	eq(out.stage, 3)
+	truthy(out.cars.buggy)
+end)
+
+test("merge: coins and cars earned in the visit are added, never replacing the save", function()
+	local session = Profile.new()
+	session.coins = 120
+	session.cars["rocket"] = true
+	session.parked = { "starter", "rocket" }
+	session.raceStars = 2
+	session.likes = 1
+	session.starsFrom["9"] = { race = 3, drift = 1 }
+	session.bolts["2"] = true
+	local out = Profile.mergeVisit(realSave(), session, Profile.new())
+	eq(out.coins, 620)
+	truthy(out.cars.rocket)
+	truthy(out.cars.buggy)
+	eq(out.parked[1], "buggy")
+	eq(out.parked[3], "rocket") -- bought this visit, there is room (3 + level 1 = 4)
+	eq(out.raceStars, 7)
+	eq(out.likes, 1)
+	eq(out.starsFrom["9"].race, 3)
+	eq(out.starsFrom["9"].drift, 1)
+	eq(out.stars, 4 + 7) -- 3 + 1 medals + 7 race stars
+	truthy(out.bolts["2"])
+end)
+
+test("merge: the daily gift and jobs come from the later day, never lower", function()
+	local session = Profile.new()
+	session.dailyDay = 19
+	session.dayStreak = 1
+	session.jobs = { day = 20, have = { 0, 3, 0 } }
+	local out = Profile.mergeVisit(realSave(), session, Profile.new())
+	eq(out.dailyDay, 20)
+	eq(out.dayStreak, 4)
+	eq(out.jobs.have[1], 1)
+	eq(out.jobs.have[2], 3)
+	local later = Profile.new()
+	later.dailyDay = 21
+	later.dayStreak = 5
+	later.jobs = { day = 21, have = { 2, 2, 2 } }
+	local out2 = Profile.mergeVisit(realSave(), later, Profile.new())
+	eq(out2.dailyDay, 21)
+	eq(out2.jobs.day, 21)
+end)
+
+test("merge: running it again on a fresh copy of the save gives the same answer", function()
+	local session = Profile.new()
+	session.coins = 75
+	session.cars["rocket"] = true
+	local a = Profile.mergeVisit(Profile.migrate(realSave()), session, Profile.new())
+	local b = Profile.mergeVisit(Profile.migrate(realSave()), session, Profile.new())
+	eq(a.coins, b.coins)
+	eq(a.coins, 575)
+	-- and the visit itself was not changed by it
+	eq(session.coins, 75)
+end)
+
+test("merge: a first-ever account takes the garage the visit set up", function()
+	local session = Profile.new()
+	session.parked = { "starter" }
+	session.coins = 30
+	local out = Profile.mergeVisit(Profile.new(), session, Profile.new())
+	eq(out.parked[1], "starter")
+	eq(out.coins, 30)
+end)
+
+test("retry: the last error comes back, so the server can tell a 403 from an outage", function()
+	local _, _, err = SaveRetry.run(function()
+		error("503 busy")
+	end, function() end, nil, 2)
+	truthy(string.find(err or "", "503", 1, true))
+	local ok, _, none = SaveRetry.run(function()
+		return 1
+	end, function() end)
+	truthy(ok)
+	eq(none, nil)
+end)

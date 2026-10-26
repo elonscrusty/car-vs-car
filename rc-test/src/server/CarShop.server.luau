@@ -153,6 +153,9 @@ end
 PlayerData.loaded:Connect(function(player: Player, data: any)
 	setAttributes(player, data)
 end)
+PlayerData.synced:Connect(function(player: Player, data: any)
+	setAttributes(player, data)
+end)
 for _, player in Players:GetPlayers() do
 	local data = PlayerData.get(player)
 	if data then
