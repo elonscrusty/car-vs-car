@@ -71,6 +71,18 @@ function PlotDecorBuilder.build()
 			board:SetAttribute("Slot", slot.index)
 		end
 		Garage.useMeshes(groups, pivot, PlotDecor.meshes(slot.id))
+		-- carter's gate model took the block arch's place: hang the name board on its top bar
+		local arch = groups.Arch
+		for name, bar in PlotDecor.GATE_BAR do
+			local gate = arch and arch:FindFirstChild(name)
+			if board and board:IsA("BasePart") and gate and gate:IsA("Model") then
+				local box, size = gate:GetBoundingBox()
+				local at = pivot:PointToObjectSpace(box.Position)
+				local top = at.Y + size.Y / 2
+				local y = top - (1 - bar.y) * size.Y
+				board.CFrame = pivot * CFrame.new(0, y, at.Z + bar.z * size.X + 0.06)
+			end
+		end
 		decor.Parent = plot
 	end
 end

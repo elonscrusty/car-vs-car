@@ -76,6 +76,11 @@ for _, kind in { "race", "drift", "rock" } do
 			truthy(not hit, p.group .. "/" .. p.name)
 		end
 		for _, m in P.meshes(kind) do
+			if m.group == "Arch" then
+				-- the gate model: you walk through it, and it is never solid
+				truthy(not m.collide, "gate " .. m.model .. " not solid")
+				continue
+			end
 			local inLane = m.at.x + m.fit.x / 2 > lane.minX
 				and m.at.x - m.fit.x / 2 < lane.maxX
 				and m.at.z + m.fit.z / 2 > lane.minZ
