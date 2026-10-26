@@ -10,6 +10,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Features = require(ReplicatedStorage.Shared.Features)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local PlotOwners = require(ReplicatedStorage.Shared.PlotOwners)
 
@@ -34,6 +35,9 @@ LobbyPlots.onDrive = nil :: ((player: Player, slot: number) -> ())?
 LobbyPlots.onBump = nil :: ((player: Player, slot: number) -> ())?
 
 local function model(slot: number): Instance?
+	if slots[slot] == nil then
+		return nil -- a race map (LobbyLayout.mapAt), not a plot
+	end
 	local plots = workspace:FindFirstChild("Plots")
 	return plots and plots:FindFirstChild(slot .. "_" .. slots[slot].id)
 end
@@ -58,6 +62,9 @@ local function visitorOn(player: Player, slot: number): Player?
 end
 
 local function refresh(slot: number)
+	if slots[slot] == nil then
+		return -- a race map: no plot model, nobody listening
+	end
 	local m = model(slot)
 	if m then
 		local owner, driver = owners[slot], drivers[slot]
@@ -102,8 +109,17 @@ function LobbyPlots.addPlayer(player: Player): number?
 	return slot
 end
 
+-- Driven just for fun with the tycoon plan on (players' plots are garages): the drift plot.
+function LobbyPlots.freePlay(slot: number): boolean
+	local s = slots[slot]
+	return s ~= nil and s.id == "drift"
+end
+
 function LobbyPlots.canDrive(player: Player, slot: number): boolean
 	if slots[slot] == nil or driving[player] ~= nil then
+		return false
+	end
+	if not Features.PLOT_RACING and not LobbyPlots.freePlay(slot) then
 		return false
 	end
 	local owner = owners[slot]

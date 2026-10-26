@@ -7,6 +7,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Features = require(ReplicatedStorage.Shared.Features)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local Forever = require(ReplicatedStorage.Shared.Forever)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
@@ -15,6 +16,7 @@ local LobbyBuilder = require(script.Parent.LobbyBuilder)
 local ServerRaceRunner = require(script.Parent.ServerRaceRunner)
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local JoinStage = require(ReplicatedStorage.Shared.JoinStage)
+local Features = require(ReplicatedStorage.Shared.Features)
 local LobbyPlots = require(script.Parent.LobbyPlots)
 local TrackBuilder = require(script.Parent.TrackBuilder)
 local PlotDecorBuilder = require(script.Parent.PlotDecorBuilder)
@@ -305,6 +307,10 @@ end
 -- BuildMode). All three work in the break only (BuildOpen): from the pick to the end of the server
 -- race everyone is in that race, and a drive started then would be taken away at the start.
 require(script.Parent.QueuePads).start({
+	-- the race pad is JOIN RACE: on the list for the next map race (anyone, a new player too)
+	join = function(player: Player)
+		ServerRaceRunner.join(player)
+	end,
 	findOpen = function(kind: string, player: Player): number?
 		-- a brand new player's spawn shows only the way to their own pad (JoinStage)
 		if not JoinStage.shows(player:GetAttribute("Stage"), "pads") then
@@ -317,7 +323,8 @@ require(script.Parent.QueuePads).start({
 	end,
 	build = function(player: Player)
 		if
-			workspace:GetAttribute("BuildOpen") ~= true
+			not Features.TILES
+			or workspace:GetAttribute("BuildOpen") ~= true
 			or LobbyPlots.drivingOf(player) ~= nil
 			or not JoinStage.shows(player:GetAttribute("Stage"), "build")
 		then
@@ -345,11 +352,16 @@ local function walk(player: Player)
 		loadWalker(player)
 	else
 		local slot = slots[slotIndex]
-		local pos = Vector3.new(slot.exitX, 3, slot.exitZ)
 		local char = player.Character :: Model
 		root.Anchored = false
-		-- facing the road
-		char:PivotTo(CFrame.lookAt(pos, Vector3.new(0, 3, slot.exitZ)))
+		if slot == nil then
+			-- off a race map: back to the spawn lobby
+			char:PivotTo(homeOf(player))
+		else
+			local pos = Vector3.new(slot.exitX, 3, slot.exitZ)
+			-- facing the road
+			char:PivotTo(CFrame.lookAt(pos, Vector3.new(0, 3, slot.exitZ)))
+		end
 	end
 	remote:FireClient(player, "walk")
 end
@@ -369,6 +381,8 @@ ServerRaceRunner.start({ remote = remote, walk = walk })
 -- E on a lobby pad: drive that plot (if it's yours, nobody's or open, and free), or stop.
 for slotIndex, prompt in lobby.prompts do
 	local slot = slots[slotIndex]
+	-- (the tycoon plan: players' plots are garages; only the open drift plot is driven)
+	prompt.Enabled = Features.PLOT_RACING or LobbyPlots.freePlay(slotIndex)
 	prompt.Triggered:Connect(function(player: Player)
 		local now = os.clock()
 		if now - (lastPrompt[player] or 0) < 0.5 then

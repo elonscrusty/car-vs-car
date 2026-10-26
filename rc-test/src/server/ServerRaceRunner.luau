@@ -22,6 +22,7 @@ local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local Profile = require(ReplicatedStorage.Shared.Profile)
 local RunCheck = require(ReplicatedStorage.Shared.RunCheck)
 local Jobs = require(script.Parent.Jobs)
+local RaceMaps = require(ReplicatedStorage.Shared.RaceMaps)
 local LobbyPlots = require(script.Parent.LobbyPlots)
 local PlayerData = require(script.Parent.PlayerData)
 
@@ -40,7 +41,7 @@ end
 -- Grid spot k on this plot, plot-local: lined up behind its start line (a built track's, else
 -- the street race plot's), or the plot's own start spot when it has neither.
 local function gridSpot(slot: number, t: TrackData.Track, k: number): ServerRace.Spawn
-	local src = tracedFor(slot)
+	local src = LobbyLayout.mapAt(slot) or tracedFor(slot)
 	if
 		src == nil
 		and LobbyLayout.slots()[slot].id == "race"
@@ -88,7 +89,9 @@ local ServerRaceRunner = {}
 -- racer: ("finished", place) when its car crosses the line for the last time, ("ends", endsAt)
 -- when the winner is in (the others have until endsAt), or ("ends", endsAt, "drift") at the
 -- start of a drift round (when it ends). Live places: the racer's attributes RacePlace /
--- RaceCars (nil = no race).
+-- RaceCars (nil = no race). Map races: ("vote", {mapIds}, endsAt) when the vote opens and
+-- ("votes", {mapId = count}) on each vote; client -> server ("vote", mapId). RaceJoined (player
+-- attribute) = on the list for the next map race (the JOIN NEXT RACE pad).
 local event = Instance.new("RemoteEvent")
 event.Name = "ServerRace"
 event.Parent = ReplicatedStorage
@@ -101,6 +104,48 @@ local random = Random.new()
 
 local function now(): number
 	return workspace:GetServerTimeNow()
+end
+
+-- carter's tycoon plan (rc-game/tycoon/PLAN.md, 10-26): races on the big maps (RaceMaps) instead
+-- of on players' plots, as soon as a map exists and Features.PLOT_RACING is off. Who races: the
+-- players who walked onto the JOIN NEXT RACE pad (join). Before the start everyone votes a map.
+local function mapMode(): boolean
+	return #RaceMaps.NAMES > 0 and not Features.PLOT_RACING
+end
+
+local function breakLen(): number
+	return if mapMode() then ServerRace.MAP_BREAK else ServerRace.BREAK
+end
+
+local joined: { [Player]: boolean } = {}
+local votes: { [Player]: string } = {}
+local voteOpen = false
+local lastVote: { [Player]: number } = {}
+
+local function mapIds(): { string }
+	local ids = {}
+	for _, m in RaceMaps.list() do
+		table.insert(ids, m.id)
+	end
+	return ids
+end
+
+-- after a race (or a skip): the pad has to be walked onto again for the next one
+local function clearJoined()
+	for p in joined do
+		if p.Parent then
+			p:SetAttribute("RaceJoined", nil)
+		end
+	end
+	joined = {}
+end
+
+local function voteCounts(): { [string]: number }
+	local count: { [string]: number } = {}
+	for _, id in votes do
+		count[id] = (count[id] or 0) + 1
+	end
+	return count
 end
 
 -- For the track builder (TrackBuild): BuildOpen = true while the break is on (plots may be
@@ -127,6 +172,19 @@ end
 -- never takes them: QUICK RACE goes on to a free race plot for the break.
 function ServerRaceRunner.joinOpen(_player: Player): boolean
 	return false
+end
+
+-- The JOIN NEXT RACE pad (map races): this player races in the next one. False when no map race
+-- is on (the old plot race takes everyone) or one is already running.
+function ServerRaceRunner.join(player: Player): boolean
+	if not mapMode() or phase == "racing" then
+		return false
+	end
+	if not joined[player] then
+		joined[player] = true
+		player:SetAttribute("RaceJoined", true)
+	end
+	return true
 end
 
 -- Can this plot hold the server race? A built track says so with TrackReady on its plot model
@@ -315,12 +373,25 @@ local function payRace(
 					Jobs.fire(p, "raceWin")
 				end
 			end
+			if place == 1 and done then
+				-- the tycoon: a win doubles the winner's plot income for a while
+				local mod = script.Parent:FindFirstChild("TycoonServer")
+				if mod and mod:IsA("ModuleScript") then
+					local ok, err = pcall(function()
+						(require(mod) :: any).raceWon(p)
+					end)
+					if not ok then
+						warn("raceWon: " .. tostring(err))
+					end
+				end
+			end
 			local n = ServerRace.starsFor(place, done, #ranked)
 			starred[p.UserId] = n
 			giveStars(p, n)
 		end
 	end
-	local owner = LobbyPlots.ownerOf(slot)
+	-- (the tycoon plan has no player tracks to pick: no owner bonus)
+	local owner = if Features.PLOT_RACING then LobbyPlots.ownerOf(slot) else nil
 	if owner and owner.Parent then
 		pay(owner, ServerRace.PAY_OWNER, "your track was picked!")
 		-- one number per row: the owner's row counts the bonus too
@@ -335,6 +406,15 @@ end
 -- sits the race out until then (carter 10-25: one thing at a time when you join).
 local function racersHere(): { Player }
 	local list: { Player } = {}
+	if mapMode() then
+		-- a map race: the ones who walked onto the pad (a new player too: it's their first goal)
+		for _, p in Players:GetPlayers() do
+			if joined[p] and #list < ServerRace.MAX then
+				table.insert(list, p)
+			end
+		end
+		return list
+	end
 	for _, p in Players:GetPlayers() do
 		local stage = p:GetAttribute("Stage")
 		-- (tycoon plan: no plot to lap on first, so the race IS a new kid's first drive)
@@ -350,6 +430,11 @@ local function runRace(hooks: Hooks, slot: number)
 	local list = racersHere()
 	phase = "racing"
 	workspace:SetAttribute("RaceSlot", slot) -- TrackBuild leaves this plot's track alone till the end
+	local mapsFolder = workspace:FindFirstChild("RaceMaps")
+	local mapModel = if t.map and mapsFolder then mapsFolder:FindFirstChild(t.map) else nil
+	if mapModel then
+		mapModel:SetAttribute("Slot", slot) -- the start lamps' screens find them by it (StartLights)
+	end
 	sendState()
 	local t: TrackData.Track = LobbyLayout.track(slot)
 	-- whoever is on that plot and isn't racing gets off it first
@@ -590,7 +675,8 @@ local function runRace(hooks: Hooks, slot: number)
 			anyIn = anyIn or (not r.out and r.time == nil)
 		end
 		local since = clock - goAt
-		if (not anyIn and since > 0) or ServerRace.over(entries, since, firstAt) then
+		local limit = if t.map then ServerRace.MAP_TIME_LIMIT else nil
+		if (not anyIn and since > 0) or ServerRace.over(entries, since, firstAt, limit) then
 			local ranked = ServerRace.rank(entries)
 			local paid, starred = payRace(ranked, racers, slot)
 			local rows = {}
@@ -624,18 +710,39 @@ local function runRace(hooks: Hooks, slot: number)
 	end
 	phase = "wait"
 	picked, where = nil, ""
+	clearJoined()
 	workspace:SetAttribute("RaceSlot", 0)
-	startAt = now() + ServerRace.BREAK
+	startAt = now() + breakLen()
 	sendState()
 end
 
 function ServerRaceRunner.start(hooks: Hooks)
 	local signs = buildSign()
-	startAt = now() + ServerRace.BREAK
+	startAt = now() + breakLen()
 	setBuild()
 
 	Players.PlayerAdded:Connect(function(player: Player)
 		sendState(player)
+		if voteOpen then
+			event:FireClient(player, "vote", mapIds(), startAt - ServerRace.CALL)
+			event:FireClient(player, "votes", voteCounts())
+		end
+	end)
+	Players.PlayerRemoving:Connect(function(player: Player)
+		joined[player], votes[player], lastVote[player] = nil, nil, nil
+	end)
+	-- the map vote: ("vote", mapId) from a screen, at most twice a second; everyone sees the count
+	event.OnServerEvent:Connect(function(player: Player, kind: unknown, id: unknown)
+		if kind ~= "vote" or type(id) ~= "string" or not voteOpen then
+			return
+		end
+		local t = os.clock()
+		if t - (lastVote[player] or 0) < 0.5 or not table.find(mapIds(), id) then
+			return
+		end
+		lastVote[player] = t
+		votes[player] = id
+		event:FireAllClients("votes", voteCounts())
 	end)
 
 	task.spawn(function()
@@ -655,18 +762,46 @@ function ServerRaceRunner.start(hooks: Hooks)
 				for _, sign in signs do
 					sign.Text = ServerRace.signText(left, phase == "racing", where)
 				end
+				-- a map race: the vote opens VOTE seconds before the map is picked
+				if
+					mapMode()
+					and phase == "wait"
+					and not voteOpen
+					and left <= ServerRace.CALL + ServerRace.VOTE
+				then
+					voteOpen, votes = true, {}
+					event:FireAllClients("vote", mapIds(), startAt - ServerRace.CALL)
+				end
 				local todo = ServerRace.step(phase, left, picked, #racersHere())
 				if todo == "pick" then
 					phase = "call"
-					picked = pickSlot()
-					where = if picked then nameOf(picked) else ""
+					if mapMode() then
+						voteOpen = false
+						local values = {}
+						for p, id in votes do
+							if p.Parent then
+								values[p] = id
+							end
+						end
+						local id = ServerRace.tally(values, mapIds(), random:NextNumber())
+						picked, where = nil, ""
+						for k, m in RaceMaps.list() do
+							if m.id == id then
+								picked, where = LobbyLayout.mapIndex(k), m.label
+							end
+						end
+					else
+						picked = pickSlot()
+						where = if picked then nameOf(picked) else ""
+					end
 					sendState()
 				elseif todo == "skip" or todo == "race" then
 					local slot = picked
 					if todo == "skip" or slot == nil then
 						-- no plot can hold it (or nobody here): next break
 						phase, picked, where = "wait", nil, ""
-						startAt = now() + ServerRace.BREAK
+						clearJoined()
+						startAt = now() + breakLen()
 						sendState()
 					else
 						local ok, err = pcall(runRace, hooks, slot)
@@ -674,7 +809,7 @@ function ServerRaceRunner.start(hooks: Hooks)
 							warn("server race: " .. tostring(err))
 							workspace:SetAttribute("RaceSlot", 0)
 							phase, picked, where = "wait", nil, ""
-							startAt = now() + ServerRace.BREAK
+							startAt = now() + breakLen()
 							sendState()
 						end
 					end

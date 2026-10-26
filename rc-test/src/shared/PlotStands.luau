@@ -128,7 +128,6 @@ local PLATE = { 120, 122, 132 } -- an empty spot: a dark square that wants a car
 local BOARD = { 30, 34, 50 }
 local PODIUM = { 36, 52, 100 } -- deep blue: a white or yellow car still stands out on it
 local GOLD = { 255, 200, 50 }
-local RARE = { 255, 110, 210 }
 
 -- A low-detail toy car for the shelf (phone speed): body, cab and one long tyre per axle, 4
 -- parts instead of Garage.toyCar's 16. Same size and colours, nose to the road (+z).
@@ -186,13 +185,14 @@ function PlotStands.pieces(cars: { Car }): { Garage.Piece }
 	end
 	for i, s in PlotStands.SLOTS do
 		local c = cars[i + 1]
+		local kind = if c and c.rarity ~= "common" then CarCatalog.RARITY[c.rarity] else nil
 		add(
 			"Show",
 			"Plate" .. i,
 			v(2.3, 0.06, 2.45),
 			v(s.x, s.y + 0.03, s.z),
-			if c and c.rare then RARE else PLATE,
-			{ material = if c and c.rare then "Neon" else nil, collide = false }
+			if kind then kind.color else PLATE,
+			{ material = if kind then "Neon" else nil, collide = false }
 		)
 		if c then
 			PlotStands.shelfCar(add, v(s.x, s.y + 0.06, s.z), c)

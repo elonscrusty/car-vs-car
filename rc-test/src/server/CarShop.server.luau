@@ -16,6 +16,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local TileShop = require(ReplicatedStorage.Shared.TileShop)
+local Features = require(ReplicatedStorage.Shared.Features)
 local Profile = require(ReplicatedStorage.Shared.Profile)
 local Jobs = require(script.Parent.Jobs)
 local LobbyPlots = require(script.Parent.LobbyPlots)
@@ -147,6 +148,11 @@ remote.OnServerInvoke = function(player: Player, action: unknown, id: unknown): 
 			and LobbyPlots.drivingOf(player) == nil
 			and LobbyPlots.sendTo(player, slot)
 		out.why = if out.ok then nil else "no track"
+		return out
+	elseif (action == "buyTile" or action == "spinTile") and not Features.TILES then
+		-- no tile shop (tycoon plan)
+		local out = state(data)
+		out.ok, out.why = false, "off"
 		return out
 	elseif action == "buyTile" then
 		local ok, why = TileShop.buy(data, id)

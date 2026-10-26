@@ -19,6 +19,7 @@ local function sibling(name: string): any
 	return luneRequire("./" .. name)
 end
 
+local Features = sibling("Features")
 local Garage = sibling("Garage")
 
 type V3 = Garage.V3
@@ -52,6 +53,10 @@ SpawnLobby.PADS = {
 	{ x = 0, kind = "race", color = { 226, 52, 46 } },
 	{ x = 27, kind = "build", color = { 246, 196, 40 } },
 }
+-- no tile building (tycoon plan): no GO BUILD pad, and drift and race keep their spots
+if not Features.TILES then
+	table.remove(SpawnLobby.PADS, 3)
+end
 SpawnLobby.ARCH_Z = 33.5
 SpawnLobby.GUMBALL = { x = 17, z = 7 } -- the gumball machine (rare cars), by the spawn
 -- Where you step out of each shop (in front of its open side), and the walk from there out onto
