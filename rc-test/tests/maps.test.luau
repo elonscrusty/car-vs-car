@@ -303,9 +303,12 @@ for _, m in maps do
 		for _, j in def.jumps do
 			local ring = m.ring(j.path)
 			local s0 = MapKit.nearest(ring, j.at)
-			local half = (j.len or MapKit.JUMP_LEN) / 2 + 10
+			-- the run up behind the ridge, the landing slope ahead of it
+			local back, ahead = (j.len or MapKit.JUMP_LEN) / 2 + 10, MapKit.JUMP_DOWN + 10
 			for _, s in ring do
-				if (s.x - s0.x) ^ 2 + (s.z - s0.z) ^ 2 < half * half then
+				local along = (s.x - s0.x) * s0.tx + (s.z - s0.z) * s0.tz
+				local across = math.abs((s.x - s0.x) * -s0.tz + (s.z - s0.z) * s0.tx)
+				if along >= -back and along <= ahead and across < def.road then
 					local dot = s.tx * s0.tx + s.tz * s0.tz
 					truthy(
 						dot > 0.99,
@@ -335,7 +338,7 @@ for _, m in maps do
 		m.id .. ": jumps keep their shape through the squeeze, low enough for full speed",
 		function()
 			for _, j in def.jumps do
-				truthy((j.h or MapKit.JUMP_H) <= 9, "jump too tall")
+				truthy((j.h or MapKit.JUMP_H) <= 11, "jump too tall")
 				truthy((j.len or MapKit.JUMP_LEN) >= 80, "jump too short (steep)")
 			end
 			local d = MapKit.scale({

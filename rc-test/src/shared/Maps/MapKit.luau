@@ -130,8 +130,9 @@ MapKit.GRASS_GRIP = 0.75 -- off the road: same as the race plot's grass
 MapKit.GRASS_DRAG = 0.5
 -- the jump ridge: low and long. The JUMP tile's 14 x 58 put a full-speed car on its roof
 -- (Studio, 10-26), so the maps use a flatter one.
-MapKit.JUMP_H = 8
-MapKit.JUMP_LEN = 90
+MapKit.JUMP_H = 10 -- 8 gave no air; at 10 a full-speed car gets a small hop (Studio)
+MapKit.JUMP_LEN = 90 -- the run up is half of this
+MapKit.JUMP_DOWN = 80 -- a long landing slope, so the nose doesn't dig in
 MapKit.WALL_H = 60 -- the edge of the map (a fence, a kitchen wall): taller than any jump
 MapKit.TOY_OFF = 60 -- kitchen toys by the road stand this far from its centre line
 MapKit.TOY_CLEAR = 28 -- and at least this far past any curb (a brick is 44 x 22)
