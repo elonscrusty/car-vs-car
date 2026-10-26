@@ -915,20 +915,18 @@ local tags = Instance.new("ScreenGui")
 tags.Name = "ShopTags"
 tags.ResetOnSpawn = false
 tags.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
-local function carTag(over: BasePart, car: CarCatalog.Car, inward: Vector3)
+local function carTag(over: BasePart, car: CarCatalog.Car)
 	local tier = CarCatalog.rarity(car.id)
 	local b = Instance.new("BillboardGui")
 	b.Name = car.id
 	b.Adornee = over
-	-- just over the car's roof and a little toward you, so the shop's shutter and the car
-	-- itself never hide it. Sized in studs only, narrower than the 7-stud gap between stands,
+	-- straight over the car's roof. Sized in studs only, narrower than the gap between stands,
 	-- so neighbours never overlap; it shows from the shop's front, where it's big enough to
-	-- read (Studio check 10-26: with a pixel floor they piled up from the street).
-	-- The side cars stand behind the shop's front posts, so their tags lean in toward the
-	-- middle (`inward`, studs) to sit in the opening. (AlwaysOnTop hid them all: Studio 10-26.)
+	-- read (Studio check 10-26: with a pixel floor they piled up from the street). No offset
+	-- toward the camera or sideways: from above, that slid the tags down and out of the shop.
+	-- (AlwaysOnTop hid them all: Studio 10-26.)
 	b.Size = UDim2.fromScale(4.2, 1.7)
-	b.StudsOffsetWorldSpace = Vector3.new(0, 2.6, 0) + inward
-	b.StudsOffset = Vector3.new(0, 0, 2)
+	b.StudsOffsetWorldSpace = Vector3.new(0, 3.6, 0)
 	b.MaxDistance = 24
 	b.LightInfluence = 0
 	b.Parent = tags
@@ -962,9 +960,6 @@ local function addShop(shopModel: Model)
 	end
 	seen[shopModel] = true
 	local shown = Garage.SHOPS[kind]
-	-- the middle stand's ring: side tags lean toward it
-	local midStand = shopModel:FindFirstChild("Stand" .. math.ceil(#shown.display / 2))
-	local midRing = midStand and midStand:FindFirstChild("Ring")
 	for i, at in shown.display do
 		local car = shopModel:FindFirstChild("Car" .. i)
 		local stand = shopModel:FindFirstChild("Stand" .. i)
@@ -975,15 +970,7 @@ local function addShop(shopModel: Model)
 			if info then
 				local over = if ring and ring:IsA("BasePart") then ring else car.PrimaryPart
 				if over then
-					local inward = Vector3.zero
-					if midRing and midRing:IsA("BasePart") and midRing ~= over then
-						local d = midRing.Position - over.Position
-						d = Vector3.new(d.X, 0, d.Z)
-						if d.Magnitude > 1 then
-							inward = d.Unit * 2.8
-						end
-					end
-					carTag(over, info, inward)
+					carTag(over, info)
 				end
 				-- the turntable's ring in the kind's colour (rare and up)
 				if ring and ring:IsA("BasePart") and info.rarity ~= "common" then
