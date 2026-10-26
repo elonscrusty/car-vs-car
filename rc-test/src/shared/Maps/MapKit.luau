@@ -34,7 +34,7 @@ export type Path = {
 -- A flat patch on a road: "boost" (push), "puddle" / "milk" (slippy), "mud" / "sand" (slow).
 export type Pad = { kind: string, path: number, at: Pt, len: number }
 -- A jump ridge across a road (path 0 = the main loop), like the JUMP tile.
-export type Jump = { path: number, at: Pt }
+export type Jump = { path: number, at: Pt, h: number?, len: number? } -- h / len: a gentler ridge
 
 -- Giant things standing in the world. yaw: 0 = front looks to -Z.
 export type Prop = {
@@ -207,7 +207,11 @@ function MapKit.edgeSpots(map: any, spacing: number, off: number, clear: number)
 					end
 				end
 				for _, j in def.jumps do
-					if ok and math.sqrt((j.at.x - x) ^ 2 + (j.at.z - z) ^ 2) < MapKit.JUMP_LEN then
+					if
+						ok
+						and math.sqrt((j.at.x - x) ^ 2 + (j.at.z - z) ^ 2)
+							< (j.len or MapKit.JUMP_LEN)
+					then
 						ok = false
 					end
 				end
@@ -227,6 +231,21 @@ function MapKit.edgeSpots(map: any, spacing: number, off: number, clear: number)
 		end
 	end
 	return out
+end
+
+-- The way a side road runs at a spot (yaw for CFrame.Angles(0, yaw, 0) whose +Z runs along it):
+-- turns a drive-through prop (the dog house) to the road through it.
+function MapKit.pathYaw(map: any, x: number, z: number): number
+	local best, bestD = nil :: Sample?, math.huge
+	for i = 1, #map.def.paths do
+		local s = MapKit.nearest(map.path(i), { x = x, z = z })
+		local d = (s.x - x) ^ 2 + (s.z - z) ^ 2
+		if d < bestD then
+			best, bestD = s, d
+		end
+	end
+	local s = best :: Sample
+	return math.atan2(s.tx, s.tz)
 end
 
 export type Map = {

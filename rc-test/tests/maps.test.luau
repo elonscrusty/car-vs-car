@@ -299,6 +299,38 @@ for _, m in maps do
 		end
 	end)
 
+	test(m.id .. ": every jump sits on a straight bit (you hit the ridge square)", function()
+		for _, j in def.jumps do
+			local ring = m.ring(j.path)
+			local s0 = MapKit.nearest(ring, j.at)
+			local half = (j.len or MapKit.JUMP_LEN) / 2 + 10
+			for _, s in ring do
+				if (s.x - s0.x) ^ 2 + (s.z - s0.z) ^ 2 < half * half then
+					local dot = s.tx * s0.tx + s.tz * s0.tz
+					truthy(
+						dot > 0.99,
+						`road bends {math.deg(math.acos(math.min(dot, 1)))} deg on the jump at {j.at.x}, {j.at.z}`
+					)
+				end
+			end
+		end
+	end)
+
+	test(m.id .. ": a drive-through prop is turned to its side road", function()
+		for _, e in def.props do
+			if e.kind == "dogHouse" then
+				local d = MapKit.distTo(m.path(2), e.x, e.z)
+				truthy(d < 5, `dog house is {d} off the secret road`)
+				local yaw = MapKit.pathYaw(m, e.x, e.z)
+				local s = MapKit.nearest(m.path(2), { x = e.x, z = e.z })
+				truthy(
+					math.abs(math.sin(yaw) - s.tx) < 0.01 and math.abs(math.cos(yaw) - s.tz) < 0.01,
+					"not turned to the road"
+				)
+			end
+		end
+	end)
+
 	test(m.id .. ": sits far from the lobby", function()
 		local t = m.track()
 		truthy(math.abs(t.rcX) >= 2000, "too close to the street")
