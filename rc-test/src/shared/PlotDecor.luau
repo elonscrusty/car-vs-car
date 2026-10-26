@@ -458,6 +458,13 @@ function PlotDecor.parts(kind: string): { Piece }
 	return Finish.apply(out)
 end
 
+-- Where the name board goes on carter's gate models: the middle of the top bar, as a share of
+-- the fitted gate's height (y), and the bar's road-side face, as a share of its width (z).
+PlotDecor.GATE_BAR = {
+	PlotGate = { y = 0.9, z = 0.066 },
+	DriftGate = { y = 0.88, z = 0.09 },
+} :: { [string]: { y: number, z: number } }
+
 -- carter's Meshy props on the booth counter and under the canopy, per kind (Garage.Mesh;
 -- group "Extras": they only show up when imported, no block stand-ins).
 function PlotDecor.meshes(kind: string): { Mesh }
@@ -476,6 +483,15 @@ function PlotDecor.meshes(kind: string): { Mesh }
 			-- two spotlights on the track, one each side of the front area
 			{ "FloodLight", v(-8, 0, 39), v(1.8, 5, 1.9), 180 }, -- long on z like the model: no quarter turn; lamp to the track
 			{ "FloodLight", v(29.5, 0, 39), v(1.8, 5, 1.9), 180 },
+			-- carter's gate instead of the block arch (keeps the name board, moved onto it)
+			{
+				"DriftGate",
+				v(0, 0, PlotDecor.HALF_D - 0.5),
+				v(26, 22, 10),
+				0,
+				"Arch",
+				{ "NameBoard" },
+			},
 		}
 		elseif kind == "rock" then {
 			{ "Cooler", v(b.x - 2.5, 1.6, counterZ), v(1.4, 1, 1), 180 },
@@ -494,6 +510,15 @@ function PlotDecor.meshes(kind: string): { Mesh }
 			{ "WheelRack", v(c.x - 1.4, 0, c.z - 2), v(3, 2.6, 1.2), 180 },
 			{ "TireStack", v(c.x + 2, 0, c.z + 1), v(2, 2, 2) },
 			{ "Cooler", v(c.x - 1.5, 0, c.z + 1.6), v(1.4, 1, 1), 180 },
+			-- carter's gate instead of the block arch (keeps the name board, moved onto it)
+			{
+				"PlotGate",
+				v(0, 0, PlotDecor.HALF_D - 0.5),
+				v(28, 20, 8),
+				0,
+				"Arch",
+				{ "NameBoard" },
+			},
 		}
 	local out: { Mesh } = {}
 	for _, m in list do
@@ -504,7 +529,7 @@ function PlotDecor.meshes(kind: string): { Mesh }
 			at = m[2],
 			fit = fit,
 			long = if fit.z > fit.x then "z" else "x",
-			keep = {},
+			keep = m[6] or {},
 			collide = false,
 			yaw = m[4],
 		})
