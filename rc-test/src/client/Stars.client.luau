@@ -429,6 +429,7 @@ noSave.Parent = chip
 
 local pop = Instance.new("TextLabel")
 pop.Name = "MedalPop"
+pop.Text = "" -- (not Roblox's "Label" while it waits)
 pop.AnchorPoint = Vector2.new(0.5, 0.5)
 pop.Position = UDim2.fromScale(0.5, 0.62) -- under the drift score pop
 pop.Size = UDim2.fromScale(0.56, 0.16)

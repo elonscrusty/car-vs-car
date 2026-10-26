@@ -142,11 +142,11 @@ end
 -- the first time a new player sees the chip: a yellow note beside it says what it is
 local tipShown = false
 local function incomeTip()
-	tipShown = true
 	local stage = player:GetAttribute("Stage")
-	if type(stage) == "number" and stage >= 3 then
-		return -- they know by now
+	if type(stage) ~= "number" or stage >= 3 then
+		return -- the save isn't in yet (asks again next frame), or they know by now
 	end
+	tipShown = true
 	local tip = label(hud, "YOUR CARS MAKE COINS!", INK)
 	tip.Name = "IncomeTip"
 	local at = HudLayout.find("Income", "walk")
@@ -332,6 +332,14 @@ awayGet.Activated:Connect(function()
 	end
 end)
 Popup.add("away", awayGui, shutAway)
+-- the confetti falls between the dim cover (ZIndex 0) and the card (1)
+local awayFall = Instance.new("Frame")
+awayFall.Name = "Kart_Fall"
+awayFall.BackgroundTransparency = 1
+awayFall.Size = UDim2.fromScale(1, 1)
+awayFall.ZIndex = 0
+awayFall.Active = false
+awayFall.Parent = awayGui
 away:GetPropertyChangedSignal("Visible"):Connect(function()
 	Popup.shown("away", away.Visible)
 end)
@@ -355,7 +363,7 @@ local function showAway(coins: number, seconds: number?)
 	if not stopRays then
 		stopRays = Party.rays(awayCoins, KartStyle.YELLOW)
 	end
-	Party.confetti(awayGui, 40)
+	Party.confetti(awayFall, 40) -- behind the card: the words stay clear (Studio shot 08)
 end
 
 -- collected coins fly up into the coins number, so you see where they went
@@ -547,7 +555,7 @@ local function row(i: number, car: CarCatalog.Car, isParked: boolean, room: bool
 	pic.AnchorPoint = Vector2.new(0, 0.5)
 	pic.Position = UDim2.new(0, 6, 0.5, 0)
 	pic.Size = UDim2.fromOffset(ROW - 14, ROW - 14)
-	pic.BackgroundColor3 = color:Lerp(WHITE, 0.6)
+	pic.BackgroundColor3 = color:Lerp(INK, 0.4) -- darker than the row: a white car still shows
 	pic.Ambient = Color3.fromRGB(200, 200, 200)
 	pic.LightColor = WHITE
 	pic.Parent = r
@@ -559,7 +567,7 @@ local function row(i: number, car: CarCatalog.Car, isParked: boolean, room: bool
 	model.Parent = pic
 	local cf, size = model:GetBoundingBox()
 	local cam = Instance.new("Camera")
-	local d = size.Magnitude * 1.05
+	local d = size.Magnitude * 0.78 -- close in: the car fills its window
 	cam.CFrame = CFrame.lookAt(cf.Position + Vector3.new(-d * 0.55, d * 0.4, -d * 0.7), cf.Position)
 	cam.FieldOfView = 40
 	cam.Parent = pic
