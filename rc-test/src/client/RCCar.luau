@@ -46,6 +46,7 @@ export type Car = {
 	render: (dt: number) -> (),
 	setLook: (look: WheelLook?) -> (),
 	teleport: (cf: CFrame) -> (),
+	boost: (secs: number) -> (),
 	destroy: () -> (),
 }
 
@@ -531,6 +532,11 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 			w.shown = Tuning.maxSusp
 			w.susp = Tuning.maxSusp
 		end
+	end
+
+	-- The BOOST button (Car VS Car): the same push a boost pad gives, for this many seconds.
+	function car.boost(secs: number)
+		boostLeft = math.max(boostLeft, math.clamp(secs, 0, 3))
 	end
 
 	function car.destroy()

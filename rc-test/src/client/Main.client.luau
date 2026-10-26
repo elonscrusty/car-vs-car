@@ -18,9 +18,11 @@ local Features = require(ReplicatedStorage.Shared.Features)
 local SmokeColors = require(ReplicatedStorage.Shared.SmokeColors)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
+local RaceStats = require(ReplicatedStorage.Shared.RaceStats)
 
 local setMode: (id: string) -> () = (Tuning :: any).setMode
 local setScale: (s: number) -> () = (Tuning :: any).setScale
+local setStats: (d: RaceStats.Drive?) -> () = (Tuning :: any).setStats
 
 local BigCount = require(script.Parent.BigCount)
 local CarSkin = require(script.Parent.CarSkin)
@@ -158,6 +160,28 @@ local gridGone = false
 local raceGo: number? = nil -- server race: when this car got its GO (race clock)
 local raceDone: number? = nil -- server race: this car's finish time (its laps are all done)
 local wrongFor = 0 -- server race: seconds this car has been driving the wrong way
+
+-- Car VS Car BOOST button: the UI's thumb button fires this (local only, nothing to cheat: the
+-- push is the boost pad's push, for the car's trained Boost seconds). One BOOST at GO and one more
+-- each new lap, saved up to BOOST_MAX. The button reads these LocalPlayer attributes:
+-- Racing (GO to finish), BoostLeft, BoostSecs, BoostOn (pushing right now).
+local BOOST_MAX = 3
+local boostTap = Instance.new("BindableEvent")
+boostTap.Name = "BoostTap"
+boostTap.Parent = ReplicatedStorage
+local boostLeft, boostUntil = 0, 0
+local function setRacing(on: boolean)
+	player:SetAttribute("Racing", if on then true else nil)
+	if not on then
+		boostLeft = 0
+		player:SetAttribute("BoostLeft", nil)
+		player:SetAttribute("BoostOn", nil)
+	end
+end
+local function addBoost()
+	boostLeft = math.min(boostLeft + 1, BOOST_MAX)
+	player:SetAttribute("BoostLeft", boostLeft)
+end
 
 local hud: Hud.Hud
 local function goTo(index: number)
@@ -341,6 +365,8 @@ end
 remote.OnClientEvent:Connect(function(kind: unknown, index: unknown, gridSpot: unknown)
 	if kind == "walk" then
 		grid, gridGone, raceGo, raceDone = nil, false, nil, nil
+		setRacing(false)
+		setStats(nil)
 		setWalking(true)
 		LobbyLife.start() -- butterflies and birds (looks only, this screen)
 		LobbyWelcome.start() -- first time only: street lights on, confetti
@@ -370,8 +396,36 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown, gridSpot: u
 			end
 		end
 		gridGone, raceGo, raceDone = false, nil, nil
+		setRacing(false)
+		-- Car VS Car: in the big race the car drives with its trained bars (the server sets them)
+		local drive = if Features.CVC and grid
+			then RaceStats.fromAttributes(function(n: string): any
+				return player:GetAttribute(n)
+			end)
+			else nil
+		setStats(drive)
+		player:SetAttribute("BoostSecs", if drive then drive.boostSecs else nil)
 		goTo(index)
 	end
+end)
+boostTap.Event:Connect(function()
+	local secs = player:GetAttribute("BoostSecs")
+	if walking or not (raceGo and raceDone == nil) or boostLeft <= 0 or type(secs) ~= "number" then
+		return
+	end
+	if os.clock() < boostUntil then
+		return -- (still pushing: a double tap doesn't waste one)
+	end
+	boostLeft -= 1
+	player:SetAttribute("BoostLeft", boostLeft)
+	car.boost(secs)
+	boostUntil = os.clock() + secs
+	player:SetAttribute("BoostOn", true)
+	task.delay(secs, function()
+		if os.clock() >= boostUntil - 0.01 then
+			player:SetAttribute("BoostOn", nil)
+		end
+	end)
 end)
 setWalking(true)
 LobbyLife.start() -- butterflies and birds (looks only, this screen)
@@ -486,6 +540,10 @@ RunService.PreSimulation:Connect(function(dt: number)
 			countdown = nil
 			gridGone = grid ~= nil
 			raceGo = if grid then os.clock() else nil
+			if grid and Features.CVC then
+				setRacing(true)
+				addBoost()
+			end
 			-- (the server race clock runs from GO; on your own the clock waits for you to go)
 			if grid and early then
 				-- like the server: its laps count from its next time over the line
@@ -525,6 +583,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 		event = nil
 		raceDone = os.clock() - go
 		hud.flash(`FINISH!  {CarMath.formatTime(raceDone :: number)}`)
+		setRacing(false)
 	end
 	roadArrow.update(t, timer, rc, lx, lz)
 	-- server race: driving away from the next gate for a while = a big WRONG WAY!
@@ -543,6 +602,9 @@ RunService.PreSimulation:Connect(function(dt: number)
 	end
 	if event == "lap" and grid and go and t.id ~= "drift" then
 		-- server race: which lap you're on now, and a loud one for the last lap
+		if Features.CVC then
+			addBoost()
+		end
 		if timer.laps == ServerRace.LAPS - 1 then
 			hud.flash("FINAL LAP!")
 			startBeep.PlaybackSpeed = 1.3
