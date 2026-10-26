@@ -150,9 +150,9 @@ local function onAsk(player: Player, kind: unknown, a: unknown, b: unknown)
 	if kind == "pick" then
 		did = CvcRules.pick(data, a)
 	elseif kind == "coach" then
-		local at = player:GetAttribute("CoachAt")
-		if Training.coachReady(if type(at) == "number" then at else 0, now) then
-			player:SetAttribute("CoachAt", now)
+		local tapped = CvcRules.coach(player:GetAttribute("CoachAt") or 0, now)
+		if tapped then
+			player:SetAttribute("CoachAt", tapped)
 		end
 	elseif kind == "station" then
 		did = CvcRules.station(data, a, b)
