@@ -11,6 +11,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local PhysicsService = game:GetService("PhysicsService")
 
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local Features = require(ReplicatedStorage.Shared.Features)
@@ -90,7 +91,45 @@ local startAt = 0
 local picked: number? = nil -- the plot this round is on (from CALL seconds before the start)
 local where = "" -- its name for the sign and the screens
 local random = Random.new()
-local fleet: RaceBotCars.Fleet? = nil -- the bot cars of the race that is on (map races, RaceBotCars)
+-- the bot cars of the race that is on (map races, RaceBotCars; Car VS Car: one fleet a league)
+local fleets: { RaceBotCars.Fleet } = {}
+local function clearFleets()
+	for _, f in fleets do
+		RaceBotCars.clear(f)
+	end
+	fleets = {}
+end
+
+-- Car VS Car: the leagues race at once on the same track, each in its own race. A league's cars
+-- (players' and bots') are in collision group RaceGroup<n>, which doesn't touch the other leagues'
+-- groups, and the model says RaceGroup = n so the screens hide the other leagues' cars.
+local function groupName(gi: number): string
+	return "RaceGroup" .. gi
+end
+local function setupGroups()
+	for i = 1, ServerRace.GROUPS do
+		pcall(function()
+			PhysicsService:RegisterCollisionGroup(groupName(i))
+		end)
+	end
+	for i = 1, ServerRace.GROUPS do
+		for j = i + 1, ServerRace.GROUPS do
+			pcall(function()
+				PhysicsService:CollisionGroupSetCollidable(groupName(i), groupName(j), false)
+			end)
+		end
+	end
+end
+-- (gi nil = back to normal)
+local function setCarGroup(model: Instance, gi: number?)
+	local want = if gi then groupName(math.clamp(gi, 1, ServerRace.GROUPS)) else "Default"
+	model:SetAttribute("RaceGroup", gi)
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") and d.CollisionGroup ~= want then
+			d.CollisionGroup = want
+		end
+	end
+end
 
 local function now(): number
 	return workspace:GetServerTimeNow()
@@ -474,8 +513,10 @@ local function racersHere(): { Player }
 	local list: { Player } = {}
 	if mapMode() then
 		-- a map race: the ones who walked onto the pad (a new player too: it's their first goal)
+		-- (Car VS Car: up to MAX in each league's race)
+		local most = if Features.CVC then ServerRace.MAX * ServerRace.GROUPS else ServerRace.MAX
 		for _, p in Players:GetPlayers() do
-			if joined[p] and #list < ServerRace.MAX then
+			if joined[p] and #list < most then
 				table.insert(list, p)
 			end
 		end
@@ -510,8 +551,7 @@ local function setDrive(p: Player, on: boolean)
 end
 
 local function runRace(hooks: Hooks, slot: number)
-	RaceBotCars.clear(fleet)
-	fleet = nil
+	clearFleets()
 	local list = racersHere()
 	phase = "racing"
 	writeSigns(ServerRace.signText(0, true, where))
@@ -528,14 +568,27 @@ local function runRace(hooks: Hooks, slot: number)
 	if other and not table.find(list, other) then
 		hooks.walk(other)
 	end
-	local racers: { Racer } = {}
-	for k, p in list do
-		if p.Parent then
+	-- Car VS Car: each league on its own (ServerRace.groups); before, all in one race
+	local leagues: { number } = {}
+	for _, p in list do
+		local lg = p:GetAttribute("League")
+		table.insert(leagues, if Features.CVC and type(lg) == "number" then lg else 1)
+	end
+	local groups: { { Racer } } = {}
+	for gi, idx in ServerRace.groups(leagues, ServerRace.MAX) do
+		local racers: { Racer } = {}
+		groups[gi] = racers
+		for k, i in idx do
+			local p = list[i]
+			if not p.Parent then
+				continue
+			end
 			if LobbyPlots.drivingOf(p) ~= nil then
 				hooks.walk(p)
 			end
 			LobbyPlots.claim(p, slot)
 			setDrive(p, true)
+			p:SetAttribute("RaceGroup", if Features.CVC then gi else nil)
 			hooks.remote:FireClient(p, "drive", slot, gridSpot(slot, t, k))
 			table.insert(racers, {
 				player = p,
@@ -554,295 +607,359 @@ local function runRace(hooks: Hooks, slot: number)
 	end
 	-- GO: when the lights on their screens go green (plus a little for the message to arrive)
 	local goAt = os.clock() + ServerRace.GO_DELAY + 0.3
-	local firstAt: number? = nil
-	local gate1 = t.gates[1]
-	local gates = #t.gates
-	local placesAt = 0
-	local drift = t.id == "drift"
-	-- a map race with fewer than 4 cars gets bots (the grid spots after the players')
-	if not drift and t.map then
-		-- (Car VS Car: bots as good as the league, easy ones when nobody here has raced yet)
-		local league, easy = 1, true
-		for _, r in racers do
-			local lg = r.player:GetAttribute("League")
-			league = math.max(league, if type(lg) == "number" then lg else 1)
-			local stage = r.player:GetAttribute("Stage")
-			easy = easy and not (type(stage) == "number" and stage >= Profile.STAGE.RACED)
-		end
-		fleet = RaceBotCars.spawn(t, #racers, mapModel, { league = league, easy = easy })
-	end
-	local bots = fleet
-	if drift then
-		-- a drift round: everyone has DRIFT_TIME from GO, the screens count it down
-		local endsAt = now() + (goAt - os.clock()) + ServerRace.DRIFT_TIME
-		for _, r in racers do
-			event:FireClient(r.player, "ends", endsAt, "drift")
-		end
-	end
-	while drift do
-		RunService.Heartbeat:Wait()
-		local clock = os.clock()
-		local entries: { ServerRace.Entry } = {}
-		local runs: { ServerRace.Run } = {}
-		for _, r in racers do
-			local p = r.player
-			if not r.out and (p.Parent == nil or LobbyPlots.drivingOf(p) ~= slot) then
-				r.out = true -- walked off or left: keeps the points so far
+	-- one league's race (all of them run at once, same GO)
+	local function runGroup(gi: number, racers: { Racer })
+		-- (the result card goes to this league's racers; one race = everyone, as before)
+		local function sendResult(rows: { any })
+			if not Features.CVC then
+				event:FireAllClients("result", rows)
+				return
 			end
-			local body = if r.out then nil else carBody(p)
-			if body and clock >= goAt then
-				local cf = body.CFrame
-				local pos = cf.Position
-				local lx, ly, lz = TrackData.toLocal(t, true, pos.X, pos.Y, pos.Z)
-				local run = r.run
-				if run == nil then
-					r.run = RunCheck.new(
-						t.gates,
-						t.mode,
-						"drift",
-						{ x = t.spawn.x, z = t.spawn.z },
-						{},
-						clock,
-						lx,
-						ly,
-						lz
-					)
-				else
-					local ax, _, az = TrackData.toLocal(t, true, pos.X, 0, pos.Z)
-					local tip = pos + cf.LookVector
-					local bx, _, bz = TrackData.toLocal(t, true, tip.X, 0, tip.Z)
-					rayParams.FilterDescendantsInstances = { body.Parent :: Instance }
-					local hit = workspace:Raycast(pos, Vector3.new(0, -3, 0), rayParams)
-					for _, e in RunCheck.step(run, clock, lx, ly, lz, bx - ax, bz - az, hit ~= nil) do
-						if e.kind == "drift" then
-							r.score += e.value
+			for _, r in racers do
+				if r.player.Parent then
+					event:FireClient(r.player, "result", rows)
+				end
+			end
+		end
+		-- this league's cars: their own collision group (a few times a second: a car can respawn)
+		local function tagCars()
+			if not Features.CVC then
+				return
+			end
+			for _, r in racers do
+				local body = if r.out then nil else carBody(r.player)
+				if body and body.Parent and body.CollisionGroup ~= groupName(gi) then
+					setCarGroup(body.Parent, gi)
+				end
+			end
+		end
+		local firstAt: number? = nil
+		local gate1 = t.gates[1]
+		local gates = #t.gates
+		local placesAt = 0
+		local drift = t.id == "drift"
+		-- a map race with fewer than 4 cars gets bots (the grid spots after the players')
+		local bots: RaceBotCars.Fleet? = nil
+		if not drift and t.map then
+			-- (Car VS Car: bots as good as the league, easy ones when nobody here has raced yet)
+			local league, easy = 1, true
+			for _, r in racers do
+				local lg = r.player:GetAttribute("League")
+				league = math.max(league, if type(lg) == "number" then lg else 1)
+				local stage = r.player:GetAttribute("Stage")
+				easy = easy and not (type(stage) == "number" and stage >= Profile.STAGE.RACED)
+			end
+			bots = RaceBotCars.spawn(t, #racers, mapModel, { league = league, easy = easy })
+			if bots then
+				table.insert(fleets, bots)
+				if Features.CVC then
+					for n, car in bots.cars do
+						car.model.Name = `Car_-{(gi - 1) * ServerRace.MAX + n}` -- (one name per bot)
+						setCarGroup(car.model, gi)
+					end
+				end
+			end
+		end
+		if drift then
+			-- a drift round: everyone has DRIFT_TIME from GO, the screens count it down
+			local endsAt = now() + (goAt - os.clock()) + ServerRace.DRIFT_TIME
+			for _, r in racers do
+				event:FireClient(r.player, "ends", endsAt, "drift")
+			end
+		end
+		while drift do
+			RunService.Heartbeat:Wait()
+			local clock = os.clock()
+			local entries: { ServerRace.Entry } = {}
+			local runs: { ServerRace.Run } = {}
+			for _, r in racers do
+				local p = r.player
+				if not r.out and (p.Parent == nil or LobbyPlots.drivingOf(p) ~= slot) then
+					r.out = true -- walked off or left: keeps the points so far
+				end
+				local body = if r.out then nil else carBody(p)
+				if body and clock >= goAt then
+					local cf = body.CFrame
+					local pos = cf.Position
+					local lx, ly, lz = TrackData.toLocal(t, true, pos.X, pos.Y, pos.Z)
+					local run = r.run
+					if run == nil then
+						r.run = RunCheck.new(
+							t.gates,
+							t.mode,
+							"drift",
+							{ x = t.spawn.x, z = t.spawn.z },
+							{},
+							clock,
+							lx,
+							ly,
+							lz
+						)
+					else
+						local ax, _, az = TrackData.toLocal(t, true, pos.X, 0, pos.Z)
+						local tip = pos + cf.LookVector
+						local bx, _, bz = TrackData.toLocal(t, true, tip.X, 0, tip.Z)
+						rayParams.FilterDescendantsInstances = { body.Parent :: Instance }
+						local hit = workspace:Raycast(pos, Vector3.new(0, -3, 0), rayParams)
+						for _, e in
+							RunCheck.step(run, clock, lx, ly, lz, bx - ax, bz - az, hit ~= nil)
+						do
+							if e.kind == "drift" then
+								r.score += e.value
+							end
 						end
 					end
 				end
-			end
-			local run = r.run
-			local live = r.score + (if run and not r.out then run.chain else 0)
-			table.insert(runs, { progress = if r.out then -1 else live })
-			if p.Parent then
-				table.insert(entries, {
-					name = r.name,
-					uid = p.UserId,
-					laps = 0,
-					score = math.floor(live),
-				})
-			end
-		end
-		if clock >= placesAt then
-			placesAt = clock + 0.25
-			local place = ServerRace.places(runs)
-			for i, r in racers do
-				r.place = place[i]
-				if r.player.Parent then
-					r.player:SetAttribute("RacePlace", r.place)
-					r.player:SetAttribute("RaceCars", #racers)
-				end
-			end
-		end
-		local anyIn = false
-		for _, r in racers do
-			anyIn = anyIn or not r.out
-		end
-		local since = clock - goAt
-		if (not anyIn and since > 0) or since >= ServerRace.DRIFT_TIME then
-			local ranked = ServerRace.rankDrift(entries)
-			local paid, starred = payRace(ranked, racers, slot)
-			local rows = {}
-			for _, e in ranked do
-				local coins = if e.uid then paid[e.uid] else nil
-				local stars = if e.uid then starred[e.uid] else nil
-				table.insert(rows, {
-					name = e.name,
-					score = e.score,
-					laps = 0,
-					coins = coins,
-					stars = stars,
-					car = carName(e.uid, "drift"),
-				})
-			end
-			event:FireAllClients("result", rows)
-			writeSigns("RACE OVER!")
-			break
-		end
-	end
-	-- the first one is in: the others race the clock (their screens count it down, the winner's too)
-	local function startCountdown(took: number)
-		if firstAt ~= nil then
-			return
-		end
-		firstAt = took
-		local limit = if t.map then ServerRace.MAP_TIME_LIMIT else ServerRace.TIME_LIMIT
-		local endsAt = now() + math.min(ServerRace.AFTER_WIN, limit - took)
-		for _, o in racers do
-			if o.player.Parent then
-				event:FireClient(o.player, "ends", endsAt)
-			end
-		end
-	end
-	local lead: number? = nil -- the leading player's progress, for the bots' catch-up
-	while not drift do
-		RunService.Heartbeat:Wait()
-		local clock = os.clock()
-		local entries: { ServerRace.Entry } = {}
-		for _, r in racers do
-			local p = r.player
-			if not r.out and (p.Parent == nil or LobbyPlots.drivingOf(p) ~= slot) then
-				r.out = true -- walked off or left: keeps the laps done so far
-			end
-			local body = if r.out then nil else carBody(p)
-			if body and r.time == nil then
-				local pos = body.Position
-				local lx, ly, lz = TrackData.toLocal(t, true, pos.X, pos.Y, pos.Z)
-				local onLine = LapTimer.inside(gate1, lx, ly, lz)
-				if clock < goAt then
-					if onLine then
-						r.jumped, r.waitLeave = true, true
-					end
-				elseif not r.started then
-					r.started = true
-					if not r.jumped then
-						LapTimer.go(r.timer, goAt)
-					end
-				elseif r.waitLeave then
-					r.waitLeave = onLine
-				elseif LapTimer.update(r.timer, clock, lx, ly, lz) == "lap" then
-					r.laps += 1
-					if r.timer.last then
-						Leaderboards.lap(p, t.map, r.timer.last) -- fastest-lap boards (server clock)
-					end
-					if r.laps >= ServerRace.LAPS then
-						r.time = clock - goAt
-						startCountdown(clock - goAt)
-						r.finishedNow = true
-					end
-				end
-			end
-			if p.Parent then
-				table.insert(
-					entries,
-					{ name = r.name, uid = p.UserId, laps = r.laps, time = r.time }
-				)
-			end
-		end
-		if bots then
-			RaceBotCars.step(bots, clock, goAt, lead)
-			for _, car in bots.cars do
-				local b = car.bot
-				table.insert(
-					entries,
-					{ name = b.name, laps = RaceBots.laps(bots.route, b), time = b.time }
-				)
-				if b.time then
-					startCountdown(b.time)
-				end
-			end
-		end
-		-- live places, a few times a second (finishers by time, then how far round)
-		if clock >= placesAt then
-			placesAt = clock + 0.25
-			local runs: { ServerRace.Run } = {}
-			for _, r in racers do
-				local s = r.timer
-				local passed = if s.running then s.next - 1 else 0
-				local g = t.gates[((s.next - 1) % math.max(gates, 1)) + 1]
-				local dist = 0
-				local body = if r.out then nil else carBody(r.player)
-				if body and g then
-					local pos = body.Position
-					local lx, _, lz = TrackData.toLocal(t, true, pos.X, pos.Y, pos.Z)
-					dist = math.sqrt((lx - g.x) ^ 2 + (lz - g.z) ^ 2)
-				end
-				local out = r.out and r.time == nil
-				local progress = if out
-					then -1
-					else ServerRace.progress(r.laps, passed, gates, dist)
-				table.insert(runs, {
-					time = r.time,
-					-- walked off: behind everyone still in
-					progress = progress,
-				})
-				if not out and (lead == nil or progress > lead) then
-					lead = progress
-				end
-			end
-			local cars = #racers
-			if bots then
-				for _, car in bots.cars do
-					table.insert(runs, {
-						time = car.bot.time,
-						progress = RaceBots.progress(bots.route, car.bot),
+				local run = r.run
+				local live = r.score + (if run and not r.out then run.chain else 0)
+				table.insert(runs, { progress = if r.out then -1 else live })
+				if p.Parent then
+					table.insert(entries, {
+						name = r.name,
+						uid = p.UserId,
+						laps = 0,
+						score = math.floor(live),
 					})
-					cars += 1
 				end
 			end
-			local place = ServerRace.places(runs)
-			for i, r in racers do
-				r.place = place[i]
-				if r.player.Parent then
-					r.player:SetAttribute("RacePlace", r.place)
-					r.player:SetAttribute("RaceCars", cars)
-				end
-			end
-		end
-		for _, r in racers do
-			if r.finishedNow then
-				r.finishedNow = nil
-				-- its place among the finishers (all faster ones are in already)
-				local ahead = 1
-				for _, o in racers do
-					local ot, rt = o.time, r.time
-					if o ~= r and ot and rt and ot < rt then
-						ahead += 1
+			if clock >= placesAt then
+				placesAt = clock + 0.25
+				local place = ServerRace.places(runs)
+				for i, r in racers do
+					r.place = place[i]
+					if r.player.Parent then
+						r.player:SetAttribute("RacePlace", r.place)
+						r.player:SetAttribute("RaceCars", #racers)
 					end
 				end
-				if r.player.Parent then
-					event:FireClient(r.player, "finished", ahead)
+			end
+			local anyIn = false
+			for _, r in racers do
+				anyIn = anyIn or not r.out
+			end
+			local since = clock - goAt
+			if (not anyIn and since > 0) or since >= ServerRace.DRIFT_TIME then
+				local ranked = ServerRace.rankDrift(entries)
+				local paid, starred = payRace(ranked, racers, slot)
+				local rows = {}
+				for _, e in ranked do
+					local coins = if e.uid then paid[e.uid] else nil
+					local stars = if e.uid then starred[e.uid] else nil
+					table.insert(rows, {
+						name = e.name,
+						score = e.score,
+						laps = 0,
+						coins = coins,
+						stars = stars,
+						car = carName(e.uid, "drift"),
+					})
+				end
+				sendResult(rows)
+				break
+			end
+		end
+		-- the first one is in: the others race the clock (their screens count it down, the winner's too)
+		local function startCountdown(took: number)
+			if firstAt ~= nil then
+				return
+			end
+			firstAt = took
+			local limit = if t.map then ServerRace.MAP_TIME_LIMIT else ServerRace.TIME_LIMIT
+			local endsAt = now() + math.min(ServerRace.AFTER_WIN, limit - took)
+			for _, o in racers do
+				if o.player.Parent then
+					event:FireClient(o.player, "ends", endsAt)
 				end
 			end
 		end
-		-- nobody left racing, or the race is done
-		local anyIn = false
-		for _, r in racers do
-			anyIn = anyIn or (not r.out and r.time == nil)
-		end
-		local since = clock - goAt
-		local limit = if t.map then ServerRace.MAP_TIME_LIMIT else nil
-		if (not anyIn and since > 0) or ServerRace.over(entries, since, firstAt, limit) then
-			local ranked = ServerRace.rank(entries)
-			local paid, starred = payRace(ranked, racers, slot)
-			local rows = {}
-			for _, e in ranked do
-				local coins = if e.uid then paid[e.uid] else nil
-				local stars = if e.uid then starred[e.uid] else nil
-				table.insert(rows, {
-					name = e.name,
-					time = e.time,
-					laps = e.laps,
-					coins = coins,
-					stars = stars,
-					car = carName(e.uid, "race"),
-					bot = e.uid == nil or nil, -- a race bot (RaceBotCars): no prize
-				})
+		local lead: number? = nil -- the leading player's progress, for the bots' catch-up
+		while not drift do
+			RunService.Heartbeat:Wait()
+			local clock = os.clock()
+			local entries: { ServerRace.Entry } = {}
+			for _, r in racers do
+				local p = r.player
+				if not r.out and (p.Parent == nil or LobbyPlots.drivingOf(p) ~= slot) then
+					r.out = true -- walked off or left: keeps the laps done so far
+				end
+				local body = if r.out then nil else carBody(p)
+				if body and r.time == nil then
+					local pos = body.Position
+					local lx, ly, lz = TrackData.toLocal(t, true, pos.X, pos.Y, pos.Z)
+					local onLine = LapTimer.inside(gate1, lx, ly, lz)
+					if clock < goAt then
+						if onLine then
+							r.jumped, r.waitLeave = true, true
+						end
+					elseif not r.started then
+						r.started = true
+						if not r.jumped then
+							LapTimer.go(r.timer, goAt)
+						end
+					elseif r.waitLeave then
+						r.waitLeave = onLine
+					elseif LapTimer.update(r.timer, clock, lx, ly, lz) == "lap" then
+						r.laps += 1
+						if r.timer.last then
+							Leaderboards.lap(p, t.map, r.timer.last) -- fastest-lap boards (server clock)
+						end
+						if r.laps >= ServerRace.LAPS then
+							r.time = clock - goAt
+							startCountdown(clock - goAt)
+							r.finishedNow = true
+						end
+					end
+				end
+				if p.Parent then
+					table.insert(
+						entries,
+						{ name = r.name, uid = p.UserId, laps = r.laps, time = r.time }
+					)
+				end
 			end
-			event:FireAllClients("result", rows)
-			writeSigns("RACE OVER!")
-			break
+			if bots then
+				RaceBotCars.step(bots, clock, goAt, lead)
+				for _, car in bots.cars do
+					local b = car.bot
+					table.insert(
+						entries,
+						{ name = b.name, laps = RaceBots.laps(bots.route, b), time = b.time }
+					)
+					if b.time then
+						startCountdown(b.time)
+					end
+				end
+			end
+			-- live places, a few times a second (finishers by time, then how far round)
+			if clock >= placesAt then
+				placesAt = clock + 0.25
+				tagCars()
+				local runs: { ServerRace.Run } = {}
+				for _, r in racers do
+					local s = r.timer
+					local passed = if s.running then s.next - 1 else 0
+					local g = t.gates[((s.next - 1) % math.max(gates, 1)) + 1]
+					local dist = 0
+					local body = if r.out then nil else carBody(r.player)
+					if body and g then
+						local pos = body.Position
+						local lx, _, lz = TrackData.toLocal(t, true, pos.X, pos.Y, pos.Z)
+						dist = math.sqrt((lx - g.x) ^ 2 + (lz - g.z) ^ 2)
+					end
+					local out = r.out and r.time == nil
+					local progress = if out
+						then -1
+						else ServerRace.progress(r.laps, passed, gates, dist)
+					table.insert(runs, {
+						time = r.time,
+						-- walked off: behind everyone still in
+						progress = progress,
+					})
+					if not out and (lead == nil or progress > lead) then
+						lead = progress
+					end
+				end
+				local cars = #racers
+				if bots then
+					for _, car in bots.cars do
+						table.insert(runs, {
+							time = car.bot.time,
+							progress = RaceBots.progress(bots.route, car.bot),
+						})
+						cars += 1
+					end
+				end
+				local place = ServerRace.places(runs)
+				for i, r in racers do
+					r.place = place[i]
+					if r.player.Parent then
+						r.player:SetAttribute("RacePlace", r.place)
+						r.player:SetAttribute("RaceCars", cars)
+					end
+				end
+			end
+			for _, r in racers do
+				if r.finishedNow then
+					r.finishedNow = nil
+					-- its place among the finishers (all faster ones are in already)
+					local ahead = 1
+					for _, o in racers do
+						local ot, rt = o.time, r.time
+						if o ~= r and ot and rt and ot < rt then
+							ahead += 1
+						end
+					end
+					if r.player.Parent then
+						event:FireClient(r.player, "finished", ahead)
+					end
+				end
+			end
+			-- nobody left racing, or the race is done
+			local anyIn = false
+			for _, r in racers do
+				anyIn = anyIn or (not r.out and r.time == nil)
+			end
+			local since = clock - goAt
+			local limit = if t.map then ServerRace.MAP_TIME_LIMIT else nil
+			if (not anyIn and since > 0) or ServerRace.over(entries, since, firstAt, limit) then
+				local ranked = ServerRace.rank(entries)
+				local paid, starred = payRace(ranked, racers, slot)
+				local rows = {}
+				for _, e in ranked do
+					local coins = if e.uid then paid[e.uid] else nil
+					local stars = if e.uid then starred[e.uid] else nil
+					table.insert(rows, {
+						name = e.name,
+						time = e.time,
+						laps = e.laps,
+						coins = coins,
+						stars = stars,
+						car = carName(e.uid, "race"),
+						bot = e.uid == nil or nil, -- a race bot (RaceBotCars): no prize
+					})
+				end
+				sendResult(rows)
+				break
+			end
+		end
+	end
+	local running = 0
+	for gi, racers in groups do
+		if #racers > 0 then
+			running += 1
+			task.spawn(function()
+				local ok, err = pcall(runGroup, gi, racers)
+				if not ok then
+					warn("server race (league race " .. gi .. "): " .. tostring(err))
+				end
+				running -= 1
+			end)
+		end
+	end
+	while running > 0 do
+		RunService.Heartbeat:Wait()
+	end
+	writeSigns("RACE OVER!")
+	local racers: { Racer } = {}
+	for _, g in groups do
+		for _, r in g do
+			table.insert(racers, r)
 		end
 	end
 	for _, r in racers do
 		if r.player.Parent then
 			r.player:SetAttribute("RacePlace", nil)
 			r.player:SetAttribute("RaceCars", nil)
+			r.player:SetAttribute("RaceGroup", nil)
 			setDrive(r.player, false)
+			local body = carBody(r.player)
+			if body and body.Parent and body.Parent:GetAttribute("RaceGroup") ~= nil then
+				setCarGroup(body.Parent, nil)
+			end
 		end
 	end
 	task.wait(ServerRace.SHOW)
-	RaceBotCars.clear(fleet)
-	fleet = nil
+	clearFleets()
 	for _, r in racers do
 		if r.player.Parent and LobbyPlots.drivingOf(r.player) == slot then
 			hooks.walk(r.player)
@@ -858,6 +975,9 @@ end
 
 function ServerRaceRunner.start(hooks: Hooks)
 	signs = buildSign()
+	if Features.CVC then
+		setupGroups()
+	end
 	startAt = nextStart()
 	setBuild()
 
@@ -965,8 +1085,7 @@ function ServerRaceRunner.start(hooks: Hooks)
 						local ok, err = pcall(runRace, hooks, slot)
 						if not ok then
 							warn("server race: " .. tostring(err))
-							RaceBotCars.clear(fleet)
-							fleet = nil
+							clearFleets()
 							workspace:SetAttribute("RaceSlot", 0)
 							phase, picked, where = "wait", nil, ""
 							startAt = nextStart()
