@@ -115,7 +115,7 @@ local AVOID = {
 	{ "CvcGarageButton", "GarageButton" },
 }
 
-type Tip = { target: GuiObject, text: string, below: boolean }
+type Tip = { target: GuiObject, text: string, below: boolean, drive: boolean? }
 
 -- the one tip to show now (nil = none)
 local function pick(): Tip?
@@ -133,7 +133,7 @@ local function pick(): Tip?
 	local boost = find("CvcRace", "Boost")
 	if player:GetAttribute("Racing") == true then
 		if not boosted and not raced() and shown(boost) and boost then
-			return { target = boost, text = "TAP TO GO FAST!", below = false }
+			return { target = boost, text = "TAP TO GO FAST!", below = false, drive = true }
 		end
 		return nil
 	end
@@ -174,6 +174,15 @@ RunService.RenderStepped:Connect(function()
 	local bob = math.abs(math.sin(os.clock() * 4)) * 10
 	-- the other Car VS Car buttons on screen: the tip never covers them (CvcLayout.tip)
 	local avoid = {}
+	if tip.drive then
+		-- in a race: clear of every driving chip and button (the lap box with "5TH OF 8", DRIFT...)
+		for _, spot in HudLayout.SPOTS do
+			if spot.mode == "drive" and not spot.off and CvcLayout.boostAvoids(spot.name) then
+				local l, t, r, b = HudLayout.box(spot, gui.AbsoluteSize.X, gui.AbsoluteSize.Y)
+				table.insert(avoid, { l, t, r, b })
+			end
+		end
+	end
 	for _, it in AVOID do
 		local b = find(it[1], it[2])
 		if b and b ~= tip.target and shown(b) then
@@ -187,8 +196,17 @@ RunService.RenderStepped:Connect(function()
 		return (r[1] + r[3]) / 2, (r[2] + r[4]) / 2
 	end
 	local ax, ay = centre(spot.arrow)
-	arrow.Rotation = if tip.below then 180 else 0
-	arrow.Position = UDim2.fromOffset(ax, ay + (if tip.below then bob else -bob))
+	-- (the ▼ points at the button: up from under it, down from over it, right from its left)
+	if spot.side == "under" then
+		arrow.Rotation = 180
+		arrow.Position = UDim2.fromOffset(ax, ay + bob)
+	elseif spot.side == "left" then
+		arrow.Rotation = -90
+		arrow.Position = UDim2.fromOffset(ax - bob, ay)
+	else
+		arrow.Rotation = 0
+		arrow.Position = UDim2.fromOffset(ax, ay - bob)
+	end
 	local wx, wy = centre(spot.words)
 	words.Size = UDim2.fromOffset(spot.words[3] - spot.words[1], spot.words[4] - spot.words[2])
 	words.Position = UDim2.fromOffset(wx, wy)

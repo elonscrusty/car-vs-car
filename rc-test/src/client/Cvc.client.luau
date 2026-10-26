@@ -143,11 +143,22 @@ coach.Activated:Connect(function()
 	end
 end)
 
+-- the race call strip up top (ServerRace.client): COACH steps down under it while it shows
+local coachSpot = coach.Position
+local function callShowing(): boolean
+	local g = player.PlayerGui:FindFirstChild("ServerRace")
+	local c = g and g:FindFirstChild("Call")
+	return c ~= nil and c:IsA("GuiObject") and c.Visible and (g :: ScreenGui).Enabled
+end
+
 RunService.Heartbeat:Connect(function()
 	coach.Visible = CvcState.loaded and training() and not driving()
 	if not coach.Visible then
 		return
 	end
+	coach.Position = if callShowing()
+		then UDim2.new(0.5, 0, 0, CvcLayout.coachUnderCall(hud.AbsoluteSize.X))
+		else coachSpot
 	local raw = player:GetAttribute("CoachAt")
 	local at = if type(raw) == "number" then raw else 0
 	local now = workspace:GetServerTimeNow()
