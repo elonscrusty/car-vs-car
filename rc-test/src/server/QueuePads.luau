@@ -16,6 +16,9 @@ export type Hooks = {
 	sendTo: (player: Player, slot: number) -> boolean,
 	-- the build pad: takes you to your own plot (on foot) instead of a drive
 	build: ((player: Player) -> ())?,
+	-- the race pad (JOIN RACE, tycoon plan): puts you in the next race instead of a plot. The
+	-- race runner sets it; without it the race pad looks for an open race plot as before.
+	join: ((player: Player) -> ())?,
 }
 
 type Timer = { kind: string, since: number }
@@ -90,6 +93,8 @@ function QueuePads.start(hooks: Hooks)
 					if kind and QueuePads.tick(timers, player, kind, now) then
 						if kind == "build" and hooks.build then
 							hooks.build(player)
+						elseif kind == "race" and hooks.join then
+							hooks.join(player)
 						else
 							local slot = hooks.findOpen(kind, player)
 							if slot then
