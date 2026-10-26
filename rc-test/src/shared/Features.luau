@@ -13,4 +13,11 @@ Features.STARS = false -- stars, medals, the plot boards, visit signs
 -- maps (RaceMaps.NAMES has Backyard and Kitchen), so no race needs a plot's track.
 Features.GARAGES = true
 
+-- Phone speed, waiting for Studio numbers. Both are off / unchanged until someone flips them.
+-- Plot cars are moved this many times a second (60 = every frame, as before; 30 = half the work).
+Features.PLOT_CAR_HZ = 60
+-- Streaming is the property Workspace.StreamingEnabled in default.project.json (false today).
+-- Streaming.persist (server) already keeps the lobby, plots and race maps loaded either way, so
+-- turning it on there is one line.
+
 return Features
