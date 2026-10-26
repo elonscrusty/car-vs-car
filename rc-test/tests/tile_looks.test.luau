@@ -4,7 +4,7 @@
 local H = require("./harness")
 local T = require("../src/shared/TileLooks")
 
-local test, truthy = H.test, H.truthy
+local test, truthy, eq = H.test, H.truthy, H.eq
 
 print("Tile looks")
 
@@ -172,4 +172,26 @@ test("built grid: nothing tall within 20 studs of the start (but its own gantry)
 		end
 		truthy(tall > 0, "tall decor still stands away from the start")
 	end
+end)
+
+test("carter's tile models: swap real pieces and stay on the road, low and flat", function()
+	for _, id in { "cones", "oil", "mud", "sand", "puddle", "boost" } do
+		local list, replaces = T.meshes(id)
+		truthy(#list > 0, id .. " has a model")
+		local names = {}
+		for _, p in T.parts(id) do
+			names[p.name] = true
+		end
+		for _, name in replaces do
+			truthy(names[name], id .. " swaps out " .. name)
+		end
+		for _, m in list do
+			truthy(
+				math.abs(m.at.x) + m.fit.x / 2 <= T.ROAD / 2,
+				id .. " " .. m.model .. " on the road"
+			)
+			truthy(m.fit.y <= 4, id .. " " .. m.model .. " low")
+		end
+	end
+	eq(#(T.meshes("straight")), 0)
 end)
