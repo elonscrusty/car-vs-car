@@ -731,7 +731,28 @@ end
 gui:GetPropertyChangedSignal("Enabled"):Connect(carsShown)
 panel:GetPropertyChangedSignal("Visible"):Connect(carsShown)
 
-local function prompt(parent: BasePart, action: string, object: string, onUse: () -> ())
+-- each prompt's JoinStage name (shop / gumball): a brand new player isn't asked to shop yet
+local JoinStage = require(Shared:WaitForChild("JoinStage"))
+local gated: { [ProximityPrompt]: string } = {}
+local function gate()
+	local stage = Players.LocalPlayer:GetAttribute("Stage")
+	for p, name in gated do
+		if p.Parent == nil then
+			gated[p] = nil
+		else
+			p.Enabled = JoinStage.shows(stage, name)
+		end
+	end
+end
+Players.LocalPlayer:GetAttributeChangedSignal("Stage"):Connect(gate)
+
+local function prompt(
+	parent: BasePart,
+	action: string,
+	object: string,
+	stageName: string,
+	onUse: () -> ()
+)
 	local p = Instance.new("ProximityPrompt")
 	p.ActionText = action
 	p.ObjectText = object
@@ -740,6 +761,8 @@ local function prompt(parent: BasePart, action: string, object: string, onUse: (
 	p.RequiresLineOfSight = false
 	p.Parent = parent
 	p.Triggered:Connect(onUse)
+	gated[p] = stageName
+	gate()
 end
 
 -- ===== Hook up each shop as it appears =====
@@ -770,7 +793,7 @@ local function addShop(shopModel: Model)
 	local counter = shopModel:FindFirstChild("Counter")
 	local desk = counter and counter:FindFirstChild("Desk")
 	if desk and desk:IsA("BasePart") then
-		prompt(desk, "Shop", TITLES[kind] or "", function()
+		prompt(desk, "Shop", TITLES[kind] or "", "shop", function()
 			current = { kind = kind, gumball = false, tiles = false }
 			render()
 		end)
@@ -791,7 +814,7 @@ workspace.DescendantAdded:Connect(check)
 
 local function addGumball(inst: Instance)
 	if inst:IsA("BasePart") then
-		prompt(inst, "Spin", "Gumball", function()
+		prompt(inst, "Spin", "Gumball", "gumball", function()
 			current = { kind = "", gumball = true, tiles = false }
 			render()
 		end)

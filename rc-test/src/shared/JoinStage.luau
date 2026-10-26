@@ -35,6 +35,7 @@ JoinStage.FROM = {
 	rivals = 3,
 	visit = 3, -- WIN STARS AT SAM'S and the arrows to that plot
 	gumball = 3,
+	pads = 2, -- the spawn's DRIFT NOW / RACE NOW pads (drive someone's plot)
 }
 
 -- A Stage attribute (or anything) -> a stage 0..3. Not set yet (the save is still loading) = new.

@@ -11,7 +11,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Garage = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Garage"))
-local StageGate = require(script.Parent:WaitForChild("StageGate"))
+local JoinStage = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("JoinStage"))
 
 local WORDS: { [string]: string } = { drift = "DRIFT NOW", race = "RACE NOW", build = "GO BUILD" }
 local SHOP_WORDS: { [string]: string } =
@@ -24,6 +24,11 @@ holder.ResetOnSpawn = false
 holder.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 
 type Small = { label: TextLabel, base: BasePart }
+-- each sign's JoinStage name: a brand new player sees only the way to their own pad, the rest
+-- comes back as their Stage goes up (carter 10-25: joining was overwhelming)
+local gates: { [BillboardGui]: string } = {}
+local PAD_GATE: { [string]: string } = { drift = "pads", race = "pads", build = "build" }
+local SHOP_GATE: { [string]: string } = { drift = "shop", race = "shop", looks = "looks" }
 local smalls: { Small } = {}
 
 local function smallText(base: BasePart): string
@@ -60,8 +65,7 @@ local function sign(
 	name: string,
 	size: Vector2,
 	up: number,
-	far: number,
-	stage: string -- its JoinStage name: hidden from a brand new player until then
+	far: number
 ): BillboardGui
 	local b = Instance.new("BillboardGui")
 	b.Name = name
@@ -72,9 +76,6 @@ local function sign(
 	b.MaxDistance = far -- the spawn only, not from across the tracks
 	b.LightInfluence = 0
 	b.Parent = holder
-	StageGate.watch(function()
-		b.Enabled = StageGate.shows(stage)
-	end)
 	over.AncestryChanged:Connect(function()
 		if not over:IsDescendantOf(workspace) then
 			b:Destroy()
@@ -98,15 +99,9 @@ local function addPad(base: Instance)
 	if word == nil then
 		return
 	end
-	local b = sign(
-		base,
-		"Pad" .. tostring(base:GetAttribute("Pad") or ""),
-		Vector2.new(9, 3.6),
-		6,
-		60,
-		-- GO BUILD after the first lap; the DRIFT NOW / RACE NOW play pads with QUICK RACE
-		if kind == "build" then "build" else "quick"
-	)
+	local b =
+		sign(base, "Pad" .. tostring(base:GetAttribute("Pad") or ""), Vector2.new(9, 3.6), 6, 60)
+	gates[b] = PAD_GATE[kind] or "pads"
 	-- the side pads' words lean in toward the middle pad, so from the spawn all three fit on a
 	-- phone screen (tour 5: GO BUILD and DRIFT NOW were cut off at the edges)
 	task.delay(1, function()
@@ -154,14 +149,8 @@ local function addShop(model: Instance)
 	local top = counter and counter:FindFirstChild("Top")
 	-- over the roof (9 up), higher than the pad words, so from the spawn they sit above them;
 	-- 18 wide reads on a phone from the spawn and still clears the next shop (tour 6)
-	local b = sign(
-		floor,
-		"Shop" .. kind,
-		Vector2.new(18, 3.9),
-		13.5,
-		120,
-		if kind == "looks" then "looks" else "shop"
-	)
+	local b = sign(floor, "Shop" .. kind, Vector2.new(18, 3.9), 13.5, 120)
+	gates[b] = SHOP_GATE[kind] or "shop"
 	local orange = Garage.COLORS.orange -- the garage has no counter: its frame colour
 	local color = if top and top:IsA("BasePart")
 		then top.Color
@@ -183,7 +172,8 @@ local function addGumball(base: Instance)
 	if not base:IsA("BasePart") then
 		return
 	end
-	local b = sign(base, "Gumball", Vector2.new(10, 2.4), 8.5, 100, "gumball")
+	local b = sign(base, "Gumball", Vector2.new(10, 2.4), 8.5, 100)
+	gates[b] = "gumball"
 	label(b, "LUCKY CAR", Color3.fromRGB(255, 120, 190), 0, 1)
 	-- the LOOKS garage stands right behind it from the spawn (tour 7: the two signs ran into
 	-- each other): slide these words 7 studs sideways, as seen from the middle pad, to the side
@@ -229,8 +219,17 @@ local function showAll()
 		on = false
 	end
 	holder.Enabled = on
+	local stage = me:GetAttribute("Stage")
+	for b, gate in gates do
+		if b.Parent == nil then
+			gates[b] = nil
+		else
+			b.Enabled = JoinStage.shows(stage, gate)
+		end
+	end
 end
 Players.LocalPlayer:GetAttributeChangedSignal("Driving"):Connect(showAll)
+Players.LocalPlayer:GetAttributeChangedSignal("Stage"):Connect(showAll)
 showAll()
 
 for _, base in CollectionService:GetTagged("QueuePad") do
