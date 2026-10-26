@@ -762,7 +762,8 @@ do
 	l.Text = "▼ YOU"
 	l.Parent = youTag
 end
-youTag.Parent = player:WaitForChild("PlayerGui")
+youTag.Adornee = body
+youTag.Parent = body -- (on the car, like CarTag: from PlayerGui it never showed in Studio)
 local placeWasAt = Vector3.zero -- where the car was last frame (a reset jumps: no sparks)
 
 -- Car VS Car: the other leagues' racers stand on the same stand spots; this screen hides them
@@ -828,7 +829,6 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 	effects.update(dt)
 	-- boost pads and jumps: a word on screen so you know what happened
 	local tel = car.telemetry
-	youTag.Adornee = body
 	youTag.StudsOffsetWorldSpace = Vector3.new(0, 3.4 * Tuning.scale / TrackData.RC_SCALE, 0)
 	youTag.Enabled = grid ~= nil and Features.CVC
 	raceFx.update(dt, tel.boost > 0)

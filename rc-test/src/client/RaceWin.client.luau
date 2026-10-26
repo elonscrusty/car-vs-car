@@ -79,7 +79,7 @@ local function show(w: RaceWin.Winner)
 	label(gui, "🏆", 0, 0.5, Color3.fromRGB(255, 210, 60))
 	label(gui, top, 0.5, 0.27, Color3.new(1, 1, 1))
 	label(gui, boost, 0.77, 0.23, Color3.fromRGB(255, 220, 40))
-	gui.Parent = player:FindFirstChildOfClass("PlayerGui") or spot
+	gui.Parent = head -- (on the part, like CarTag: from PlayerGui it never showed in Studio)
 	-- the crowd cheers (the winner's own trophy sound is the result screen's, Sfx.trophy)
 	local cheer = (Sfx :: any).cheer
 	if type(cheer) == "function" then

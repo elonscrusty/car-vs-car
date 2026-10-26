@@ -122,10 +122,10 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 				})
 			end
 		end
-		-- a BillboardGui only draws reliably from PlayerGui; Adornee puts it over the car
+		-- the tag lives on the car's body, like the training tag (CarTag): from PlayerGui it never
+		-- showed in the Studio check
 		local tag = nameTag(body, playerName(model), s)
-		tag.ResetOnSpawn = false
-		tag.Parent = Players.LocalPlayer:FindFirstChildOfClass("PlayerGui") or f
+		tag.Parent = body
 		local o = { body = body, folder = f, wheels = wheels, scale = s, tag = tag }
 		others[model] = o
 		return o
