@@ -990,8 +990,10 @@ end
 local prize = Instance.new("Frame")
 prize.Name = "RacePrize"
 prize.AnchorPoint = Vector2.new(0.5, 0)
-prize.Position = UDim2.fromScale(0.5, 0.64)
-prize.Size = UDim2.fromScale(0.4, 0.14)
+-- left of middle: the right edge (0.58) stays clear of BRAKE and GAS, the bottom over the steer
+-- hint (Studio check race-8)
+prize.Position = UDim2.fromScale(0.4, 0.64)
+prize.Size = UDim2.fromScale(0.36, 0.11)
 prize.BackgroundColor3 = Color3.fromRGB(30, 32, 44)
 prize.BackgroundTransparency = 0.08
 prize.Visible = false
@@ -1069,7 +1071,7 @@ local function showPrize(before: any)
 	if os.clock() < popUntil then
 		y = math.max(y, popBottom + GAP * 0.5)
 	end
-	prize.Position = UDim2.fromScale(0.5, math.min(y, 0.84))
+	prize.Position = UDim2.fromScale(0.4, math.min(y, 0.73))
 	prize.Visible = true
 	prizeScale.Scale = 0.6
 	TweenService:Create(prizeScale, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Scale = 1 })
