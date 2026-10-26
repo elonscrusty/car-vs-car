@@ -740,6 +740,7 @@ end)
 local boosting = false -- was on a boost last frame
 local raceFx = RaceFx.new() -- carter's picks 14 + 15: speed lines on BOOST, sparks on hits
 local speedWas = 0 -- flat speed last frame (sparks on a hard stop)
+local placeWasAt = Vector3.zero -- where the car was last frame (a reset jumps: no sparks)
 
 -- Car VS Car: the other leagues' racers stand on the same stand spots; this screen hides them
 -- (their cars too: OtherCars). A few times a second is enough.
@@ -806,7 +807,9 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 	raceFx.update(dt, tel.boost > 0)
 	local fv = body.AssemblyLinearVelocity
 	local flatNow = Vector3.new(fv.X, 0, fv.Z).Magnitude
-	if RaceLooks.slammed(speedWas, flatNow, Tuning.scale) then
+	local warped = (body.Position - placeWasAt).Magnitude > speedWas * dt * 3 + 2
+	placeWasAt = body.Position
+	if not warped and RaceLooks.slammed(speedWas, flatNow, Tuning.scale) then
 		local ahead = body.CFrame.LookVector
 		raceFx.sparks(
 			body.Position + ahead * Tuning.bodyZ / 2,
