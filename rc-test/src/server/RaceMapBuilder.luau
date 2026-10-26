@@ -438,14 +438,14 @@ local function buildFloor(folder: Instance, map: any)
 		"Ground",
 		Vector3.new(w, 4, d),
 		CFrame.new(cx, -2, cz),
-		if kitchen then rgb(226, 214, 190) else GRASS,
+		if kitchen then rgb(244, 236, 218) else GRASS,
 		if kitchen then Enum.Material.SmoothPlastic else Enum.Material.Grass
 	)
 	-- off the road: the race plot's grass (slower, a bit slidier)
 	surface(floor, MapKit.GRASS_GRIP, MapKit.GRASS_DRAG)
 	if kitchen then
 		-- checker floor tiles: paint only (the wheels read the floor under them)
-		local t = 80
+		local t = 66 -- a 12 inch tile: a giant square next to the car
 		for i = 0, math.ceil(w / t) - 1 do
 			for j = 0, math.ceil(d / t) - 1 do
 				if (i + j) % 2 == 0 then
@@ -456,7 +456,7 @@ local function buildFloor(folder: Instance, map: any)
 						"FloorTile",
 						Vector3.new(x1 - x0, 0.04, z1 - z0),
 						CFrame.new((x0 + x1) / 2, 0.02, (z0 + z1) / 2),
-						rgb(208, 192, 162)
+						rgb(110, 140, 182)
 					)
 					finish(tile, false)
 				end
@@ -496,7 +496,7 @@ local function buildEdge(folder: Instance, map: any)
 			"Wall",
 			sd.size,
 			sd.cf,
-			if kitchen then rgb(236, 226, 200) else C.white,
+			if kitchen then rgb(250, 232, 176) else C.white,
 			Enum.Material.SmoothPlastic
 		)
 		-- slippery and a bit bouncy, like the plots' walls: the car pushes off instead of grinding
@@ -1585,6 +1585,409 @@ local function buildProp(folder: Instance, e: MapKit.Prop)
 	end
 end
 
+-- ===== what makes it read as a giant world from the chase cam =====
+
+-- a part nobody bumps and the wheels and camera never see
+local function looks(
+	parent: Instance,
+	name: string,
+	size: Vector3,
+	cf: CFrame,
+	color: Color3,
+	mat: Enum.Material?,
+	shape: Enum.PartType?
+): Part
+	local p = part(parent, name, size, cf, color, mat, shape)
+	finish(p, false)
+	p.CastShadow = false
+	return p
+end
+
+-- a blade of grass: a thin tall slab leaning out from the road, many times taller than the car
+local function blade(
+	parent: Instance,
+	x: number,
+	z: number,
+	yaw: number,
+	h: number,
+	lean: number,
+	color: Color3
+)
+	looks(
+		parent,
+		"Grass",
+		Vector3.new(4, h, 1.2),
+		CFrame.new(x, 0, z)
+			* CFrame.Angles(0, yaw, 0)
+			* CFrame.Angles(0, 0, lean)
+			* CFrame.new(0, h / 2, 0),
+		color,
+		Enum.Material.Grass
+	)
+end
+
+local BLADES = { rgb(70, 150, 56), rgb(86, 168, 62), rgb(60, 132, 50) }
+
+local function yardEdges(folder: Instance, map: any)
+	local def: MapKit.Def = map.def
+	local near = MapKit.edgeSpots(map, 34, def.road / 2 + MapKit.CURB_WIDTH + 10, 5)
+	for n, e in near do
+		local r = Random.new(n)
+		local count = if n % 3 == 0 then 3 else 2
+		for b = 1, count do
+			local h = r:NextNumber(26, 52)
+			local dx, dz = r:NextNumber(-8, 8), r:NextNumber(-8, 8)
+			-- lean away from the road (side -1 = left of the driver)
+			blade(
+				folder,
+				e.x + dx,
+				e.z + dz,
+				e.yaw + r:NextNumber(-0.4, 0.4),
+				h,
+				-e.side * r:NextNumber(0.15, 0.45),
+				BLADES[(b + n) % 3 + 1]
+			)
+		end
+		if n % 7 == 0 then
+			-- a dandelion towering over the road
+			local h = r:NextNumber(80, 110)
+			looks(
+				folder,
+				"Dandelion",
+				Vector3.new(3, h, 3),
+				CFrame.new(e.x, h / 2, e.z),
+				rgb(96, 160, 64)
+			)
+			looks(
+				folder,
+				"Dandelion",
+				Vector3.new(24, 16, 24),
+				CFrame.new(e.x, h + 4, e.z),
+				rgb(255, 214, 40),
+				Enum.Material.Grass,
+				BALL
+			)
+		elseif n % 11 == 5 then
+			-- a clover: three round leaves on a stalk
+			looks(
+				folder,
+				"Clover",
+				Vector3.new(2, 20, 2),
+				CFrame.new(e.x, 10, e.z),
+				rgb(70, 140, 56)
+			)
+			for k = 0, 2 do
+				local a = k * 2.1
+				looks(
+					folder,
+					"Clover",
+					Vector3.new(1, 16, 16),
+					CFrame.new(e.x + math.cos(a) * 8, 20, e.z + math.sin(a) * 8) * UP,
+					rgb(80, 160, 64),
+					Enum.Material.Grass,
+					CYL
+				)
+			end
+		end
+	end
+	-- a taller row further out, so the far side of every bend is a wall of grass
+	for n, e in MapKit.edgeSpots(map, 60, def.road / 2 + MapKit.CURB_WIDTH + 40, 8) do
+		local r = Random.new(1000 + n)
+		for b = 1, 2 do
+			blade(
+				folder,
+				e.x + r:NextNumber(-12, 12),
+				e.z + r:NextNumber(-12, 12),
+				e.yaw + r:NextNumber(-0.6, 0.6),
+				r:NextNumber(60, 95),
+				-e.side * r:NextNumber(0.1, 0.3),
+				BLADES[(b + n) % 3 + 1]
+			)
+		end
+	end
+end
+
+-- giant toys and crumbs by the kitchen road (solid: they are big things on the floor)
+local TOYS = { "brick", "crayon", "coin", "pea", "brick", "button", "crayon", "cereal" }
+local TOY_COLORS =
+	{ rgb(230, 50, 50), rgb(40, 120, 230), rgb(250, 200, 30), rgb(60, 180, 80), rgb(240, 120, 30) }
+
+local function kitchenEdges(folder: Instance, map: any)
+	local def: MapKit.Def = map.def
+	for n, e in MapKit.edgeSpots(map, 130, MapKit.TOY_OFF, MapKit.TOY_CLEAR) do
+		local kind = TOYS[(n - 1) % #TOYS + 1]
+		local color = TOY_COLORS[(n - 1) % #TOY_COLORS + 1]
+		local spin = if kind == "crayon" then PI / 2 else n * 0.7 -- crayons lie along the road
+		local at = CFrame.new(e.x, 0, e.z) * CFrame.Angles(0, e.yaw + spin, 0)
+		local m = Instance.new("Model")
+		m.Name = "Toy"
+		m.Parent = folder
+		local function box(
+			size: Vector3,
+			cf: CFrame,
+			c: Color3,
+			mat: Enum.Material?,
+			shape: Enum.PartType?
+		)
+			local p = part(m, kind, size, at * cf, c, mat, shape)
+			finish(p, false)
+		end
+		local hit: Vector3? = nil
+		if kind == "brick" then
+			-- a toy building brick, 4 studs on top
+			box(Vector3.new(44, 26, 22), CFrame.new(0, 13, 0), color)
+			for _, sx in { -1, 1 } do
+				for _, sz in { -1, 1 } do
+					box(
+						Vector3.new(5, 12, 12),
+						CFrame.new(sx * 11, 28, sz * 5.5) * UP,
+						color,
+						nil,
+						CYL
+					)
+				end
+			end
+			hit = Vector3.new(44, 30, 22)
+		elseif kind == "crayon" then
+			box(Vector3.new(70, 10, 10), CFrame.new(0, 5, 0), color, nil, CYL)
+			box(Vector3.new(12, 6, 6), CFrame.new(40, 5, 0), color, nil, CYL)
+			box(Vector3.new(30, 10.4, 10.4), CFrame.new(-5, 5, 0), rgb(30, 30, 30), nil, CYL)
+			hit = Vector3.new(80, 10, 10)
+		elseif kind == "coin" then
+			-- a real-size coin: about as big as the car
+			box(
+				Vector3.new(1.2, 6, 6),
+				CFrame.new(0, 0.7, 0) * UP,
+				rgb(200, 200, 205),
+				Enum.Material.Metal,
+				CYL
+			)
+		elseif kind == "pea" then
+			box(Vector3.new(9, 9, 9), CFrame.new(0, 4.5, 0), rgb(90, 180, 60), nil, BALL)
+			box(Vector3.new(8, 8, 8), CFrame.new(12, 4, 6), rgb(90, 180, 60), nil, BALL)
+		elseif kind == "button" then
+			box(Vector3.new(3, 22, 22), CFrame.new(0, 1.5, 0) * UP, color, nil, CYL)
+			for k = 0, 3 do
+				local a = k * PI / 2 + 0.78
+				box(
+					Vector3.new(3.4, 3, 3),
+					CFrame.new(math.cos(a) * 4, 1.6, math.sin(a) * 4) * UP,
+					rgb(40, 40, 40),
+					nil,
+					CYL
+				)
+			end
+		else -- a cereal ring
+			box(Vector3.new(6, 16, 16), CFrame.new(0, 3, 0) * UP, rgb(214, 164, 70), nil, CYL)
+			box(Vector3.new(6.2, 6, 6), CFrame.new(0, 3, 0) * UP, rgb(160, 110, 40), nil, CYL)
+		end
+		if hit then
+			local p = part(m, "Hit", hit, at * CFrame.new(0, hit.Y / 2, 0), C.wall)
+			p.Transparency = 1
+			finish(p, true)
+		end
+	end
+end
+
+-- the kitchen's walls: a tiled splash band and upper cupboards over the counters, a clock, and
+-- framed drawings (shapes only, no words)
+local function kitchenWalls(folder: Instance, map: any)
+	local def: MapKit.Def = map.def
+	local h = map.COUNTER_H
+	local x0, x1 = def.minX + 190, def.maxX
+	local back = def.minZ
+	looks(
+		folder,
+		"Splash",
+		Vector3.new(x1 - x0, 110, 2),
+		CFrame.new((x0 + x1) / 2, h + 63, back + 1.5),
+		rgb(250, 250, 248),
+		Enum.Material.Marble
+	)
+	for x = x0 + 22, x1, 44 do
+		looks(
+			folder,
+			"SplashLine",
+			Vector3.new(1, 110, 2.4),
+			CFrame.new(x, h + 63, back + 1.5),
+			rgb(210, 214, 222)
+		)
+	end
+	-- upper cupboards (not over the window or the stove's hood)
+	local function cupboard(a: number, b: number)
+		looks(
+			folder,
+			"Cupboard",
+			Vector3.new(b - a, 200, 80),
+			CFrame.new((a + b) / 2, 460, back + 40),
+			rgb(176, 132, 92),
+			Enum.Material.Wood
+		)
+		local n = math.max(1, math.floor((b - a) / 110))
+		for i = 0, n - 1 do
+			local cx = a + (i + 0.5) * (b - a) / n
+			looks(
+				folder,
+				"CupboardHandle",
+				Vector3.new(4, 30, 4),
+				CFrame.new(cx + (b - a) / n * 0.35, 390, back + 82),
+				STEEL,
+				Enum.Material.Metal
+			)
+		end
+	end
+	cupboard(x0, -110)
+	cupboard(470, x1)
+	looks(
+		folder,
+		"Hood",
+		Vector3.new(200, 60, 100),
+		CFrame.new(0, 420, back + 50),
+		STEEL,
+		Enum.Material.Metal
+	)
+	-- a big round clock on the left wall, frames on the right and front walls
+	local lx = def.minX + 1
+	looks(
+		folder,
+		"Clock",
+		Vector3.new(4, 110, 110),
+		CFrame.new(lx + 2, 420, -80),
+		C.white,
+		nil,
+		CYL
+	)
+	looks(
+		folder,
+		"ClockRim",
+		Vector3.new(3, 120, 120),
+		CFrame.new(lx + 1, 420, -80),
+		rgb(200, 60, 50),
+		nil,
+		CYL
+	)
+	looks(folder, "ClockHand", Vector3.new(5, 44, 5), CFrame.new(lx + 5, 438, -80), DARK)
+	looks(folder, "ClockHand", Vector3.new(5, 4, 34), CFrame.new(lx + 5, 420, -64), DARK)
+	local rx = def.maxX - 1
+	for i, f in { { -150, rgb(255, 200, 60) }, { 120, rgb(80, 170, 230) } } do
+		looks(
+			folder,
+			"Frame",
+			Vector3.new(3, 150, 120),
+			CFrame.new(rx - 1, 380, f[1]),
+			rgb(120, 80, 50),
+			Enum.Material.Wood
+		)
+		looks(
+			folder,
+			"Drawing",
+			Vector3.new(3.4, 130, 100),
+			CFrame.new(rx - 1.2, 380, f[1]),
+			rgb(252, 250, 244)
+		)
+		looks(
+			folder,
+			"Sun",
+			Vector3.new(3.8, 40, 40),
+			CFrame.new(rx - 1.4, 410, f[1] + 20 * i - 30),
+			f[2],
+			nil,
+			CYL
+		)
+		looks(
+			folder,
+			"Hill",
+			Vector3.new(3.8, 30, 90),
+			CFrame.new(rx - 1.4, 340, f[1]),
+			rgb(90, 170, 80)
+		)
+	end
+end
+
+-- white arrows painted on the main road, pointing the way to go
+local function roadArrows(folder: Instance, map: any)
+	local def: MapKit.Def = map.def
+	local loop: { MapKit.Sample } = map.loop()
+	local run = 0
+	for i, a in loop do
+		local b = loop[(i % #loop) + 1]
+		run += math.sqrt((b.x - a.x) ^ 2 + (b.z - a.z) ^ 2)
+		if run > 240 then
+			local clearOf = true
+			for _, g in map.gates do
+				if (g.x - a.x) ^ 2 + (g.z - a.z) ^ 2 < 40 * 40 then
+					clearOf = false
+				end
+			end
+			for _, j in def.jumps do
+				if (j.at.x - a.x) ^ 2 + (j.at.z - a.z) ^ 2 < 60 * 60 then
+					clearOf = false
+				end
+			end
+			for _, p in def.pads do
+				if (p.at.x - a.x) ^ 2 + (p.at.z - a.z) ^ 2 < 50 * 50 then
+					clearOf = false
+				end
+			end
+			if clearOf then
+				run = 0
+				for _, side in { -1, 1 } do
+					looks(
+						folder,
+						"Arrow",
+						Vector3.new(12, 0.05, 2.4),
+						frameAt(a, ROAD_TOP + 0.03)
+							* CFrame.new(side * 4.5, 0, 0)
+							* CFrame.Angles(0, side * 0.7, 0),
+						C.white
+					)
+				end
+			end
+		end
+	end
+end
+
+-- a trail of gold coins into the secret (a hint, not a prize): the first stretch of the secret
+-- road, floating where the car drives through them
+local function secretHint(folder: Instance, map: any)
+	local def: MapKit.Def = map.def
+	for i, p in def.paths do
+		if p.kind == "secret" then
+			local ring: { MapKit.Sample } = map.path(i)
+			local run = 0
+			for k = 2, math.floor(#ring * 0.45) do
+				local a, b = ring[k - 1], ring[k]
+				run += math.sqrt((b.x - a.x) ^ 2 + (b.z - a.z) ^ 2)
+				if run > 30 then
+					run = 0
+					local coin = looks(
+						folder,
+						"SecretCoin",
+						Vector3.new(1.5, 9, 9),
+						frameAt(b, 7) * CFrame.Angles(0, PI / 2, 0),
+						rgb(255, 204, 40),
+						Enum.Material.Neon,
+						CYL
+					)
+					coin.CastShadow = false
+				end
+			end
+			local start = ring[3]
+			local spark = looks(
+				folder,
+				"SecretSparkle",
+				Vector3.new(1, 1, 1),
+				CFrame.new(start.x, 10, start.z),
+				rgb(255, 230, 120)
+			)
+			spark.Transparency = 1
+			local fx = Instance.new("Sparkles")
+			fx.SparkleColor = rgb(255, 220, 90)
+			fx.Parent = spark
+		end
+	end
+end
+
 -- ===== one map =====
 
 function RaceMapBuilder.buildMap(map: any): Model
@@ -1607,7 +2010,13 @@ function RaceMapBuilder.buildMap(map: any): Model
 	buildLines(scenery, map)
 	if def.theme == "kitchen" then
 		buildCounters(scenery, map)
+		kitchenWalls(scenery, map)
+		kitchenEdges(scenery, map)
+	else
+		yardEdges(scenery, map)
 	end
+	roadArrows(track, map)
+	secretHint(scenery, map)
 	for _, e in def.props do
 		buildProp(scenery, e)
 	end
