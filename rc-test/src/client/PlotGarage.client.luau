@@ -1,7 +1,8 @@
 --!strict
 -- The garage yards come alive (PlotGarage has the layout, PlotGarageBuilder builds the road):
 -- each plot's parked cars (its "Parked" attribute) drive round the little loop, one spot each,
--- in their own colour and style with their kind's glow (CarGlow, when it's in). The coins
+-- in their own colour and style with their kind's glow (CarGlow, when it's in); spots the level
+-- has room for but nobody fills ride round as a faint "?" pad. The coins
 -- waiting in the plot ("PlotCoins") lie in a heap on the pile pad with the number over it, and
 -- the heap grows as they come in. On your own plot, tap the pile (or walk onto it) to collect
 -- and tap the sign to buy the next level (RemoteEvent Plot: "collect" / "level").
@@ -116,9 +117,49 @@ local function placeCars(y: Yard, clock: number)
 	end
 end
 
+-- an open spot on the loop (the level has room, no car parked there yet): a faint pad with a "?"
+-- riding round with the cars, so you can see there's room for one more
+local function makeOpen(parent: Instance): Model
+	local model = Instance.new("Model")
+	model.Name = "OpenSpot"
+	local pad = Instance.new("Part")
+	pad.Name = "Pad"
+	pad.Size = Vector3.new(2.6, 0.06, 4)
+	pad.Color = Color3.new(1, 1, 1)
+	pad.Material = Enum.Material.SmoothPlastic
+	pad.Transparency = 0.55
+	pad.Anchored = true
+	pad.CanCollide = false
+	pad.CanQuery = false
+	pad.CanTouch = false
+	pad.CastShadow = false
+	pad.Parent = model
+	local gui = Instance.new("BillboardGui")
+	gui.Size = UDim2.fromScale(2, 2)
+	gui.StudsOffsetWorldSpace = Vector3.new(0, 1.6, 0)
+	gui.MaxDistance = 90
+	gui.LightInfluence = 0
+	gui.Parent = pad
+	local mark = Instance.new("TextLabel")
+	mark.BackgroundTransparency = 1
+	mark.Size = UDim2.fromScale(1, 1)
+	mark.Font = Enum.Font.GothamBlack
+	mark.TextScaled = true
+	mark.TextColor3 = Color3.new(1, 1, 1)
+	mark.TextStrokeTransparency = 0.3
+	mark.Text = "?"
+	mark.Parent = gui
+	model.PrimaryPart = pad
+	model.WorldPivot = CFrame.identity
+	model.Parent = parent
+	return model
+end
+
 local function refreshCars(y: Yard)
 	local list = parked(y.plot)
-	local key = table.concat(list, ",")
+	local owned = (tonumber(y.plot:GetAttribute("OwnerId")) or 0) ~= 0
+	local open = if owned then math.max(0, PlotGarage.slots(level(y.plot)) - #list) else 0
+	local key = table.concat(list, ",") .. "+" .. open
 	if key == y.carsKey then
 		return
 	end
@@ -129,6 +170,9 @@ local function refreshCars(y: Yard)
 	y.cars = {}
 	for _, id in list do
 		table.insert(y.cars, makeCar(id, y.folder))
+	end
+	for _ = 1, open do
+		table.insert(y.cars, makeOpen(y.folder))
 	end
 	placeCars(y, workspace:GetServerTimeNow())
 end
