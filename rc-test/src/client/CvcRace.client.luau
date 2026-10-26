@@ -331,7 +331,8 @@ local function finish(place: number, coins: number, trophy: boolean)
 	pop(chat, 0.4)
 	chatShown += 1
 	local mine = chatShown
-	task.delay(12, function()
+	-- GG! / AGAIN! go with the card: NEXT CAR (Stars) comes up next, where they sit
+	task.delay(5.4, function()
 		if mine == chatShown then
 			hideChat()
 		end
@@ -340,7 +341,12 @@ end
 
 CvcState.event:Connect(function(kind: unknown, place: unknown, coins: unknown, trophy: unknown)
 	if kind == "race" and type(place) == "number" then
-		finish(place, if type(coins) == "number" then coins else 0, trophy == true)
+		task.spawn(function()
+			-- one card at a time: the race result with its podium first (it can come a beat later)
+			task.wait(1)
+			CvcLayout.waitTurn(player:WaitForChild("PlayerGui"), "Finish", 20)
+			finish(place, if type(coins) == "number" then coins else 0, trophy == true)
+		end)
 	end
 end)
 
