@@ -921,6 +921,7 @@ local function runRace(hooks: Hooks, slot: number)
 						stars = stars,
 						car = carName(e.uid, "race"),
 						bot = e.uid == nil or nil, -- a race bot (RaceBotCars): no prize
+						uid = e.uid, -- (RaceWin: whose avatar gets the trophy)
 					})
 				end
 				sendResult(rows)

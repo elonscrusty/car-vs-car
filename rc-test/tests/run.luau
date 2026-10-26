@@ -58,5 +58,6 @@ require("./cvc_flow.test")
 require("./crates.test")
 require("./racestats.test")
 require("./racestand.test")
+require("./racewin.test")
 
 Harness.summary()
