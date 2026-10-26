@@ -20,6 +20,7 @@ local Garage = require(Shared:WaitForChild("Garage"))
 local HudLayout = require(Shared:WaitForChild("HudLayout"))
 local KartStyle = require(Shared:WaitForChild("KartStyle"))
 local Party = require(script.Parent:WaitForChild("Party"))
+local Sfx = require(script.Parent:WaitForChild("Sfx"))
 local Popup = require(script.Parent:WaitForChild("Popup"))
 local StageGate = require(script.Parent:WaitForChild("StageGate"))
 
@@ -423,6 +424,7 @@ local function flyCoins(n: number)
 			):Play()
 			task.delay(t, function()
 				c:Destroy()
+				Sfx.coin(i)
 				-- the coins number gives a little hop as each one lands
 				local scale = chip:FindFirstChildOfClass("UIScale")
 				if scale then

@@ -6,6 +6,9 @@
 local SoundLevels = {
 	START_BEEP = 0.9, -- the 3-2-1 lamps and GO (one sound, pitched up for GO)
 	NEW_CAR = 0.6, -- the two-note ping when a new car is yours
+	COIN = 0.3, -- a coin lands in the coins number (pitch climbs per coin)
+	LEVEL_UP = 0.5, -- plot level bought
+	FINISH = 0.5, -- your car crosses the line
 	RESET_BEEP = 0.45, -- back at the start (fell off, stuck, R)
 	SQUEAL_MAX = 0.4, -- tyres at a full slide
 	MOTOR_MIN = 0.12, -- the motor at a stop
