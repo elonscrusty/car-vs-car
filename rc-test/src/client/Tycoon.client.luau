@@ -340,7 +340,7 @@ local function row(i: number, car: CarCatalog.Car, isParked: boolean, room: bool
 	name.Position = UDim2.new(0, 44, 0.08, 0)
 	name.Size = UDim2.new(0.5, -44, 0.46, 0)
 	name.TextXAlignment = Enum.TextXAlignment.Left
-	local tag = label(r, `{word}  +{perMin}/MIN`, color:Lerp(INK, 0.25))
+	local tag = label(r, `{word}  +{perMin}/MIN`, color:Lerp(INK, 0.55))
 	-- (big enough to read on a phone: Studio shot 02)
 	tag.Position = UDim2.new(0, 44, 0.54, 0)
 	tag.Size = UDim2.new(0.5, -44, 0.4, 0)
@@ -458,7 +458,7 @@ local vote = Instance.new("Frame")
 vote.Name = "MapVote"
 vote.AnchorPoint = Vector2.new(0.5, 1)
 -- bottom middle, just over DRIVE and the goal line: clear of the chips and GARAGE (Studio shot 05)
-vote.Position = UDim2.new(0.5, 0, 0.96, -104)
+vote.Position = UDim2.new(0.5, 0, 0.96, -122) -- (a gap over the JOIN THE RACE strip: shot 05-v2)
 vote.Size = UDim2.fromScale(0.44, 0.3)
 vote.BackgroundColor3 = KartStyle.BLUE
 vote.Visible = false
