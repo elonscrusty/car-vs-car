@@ -14,12 +14,12 @@ for _, m in RaceMaps.list() do
 	table.insert(maps, { id = m.id, label = m.label })
 end
 local boards = Lb.boards(maps)
-local coins, lap = boards[1], boards[2]
+local trophies, lap = boards[1], boards[2]
 
-test("a garage board, then a lap board for every map, in their own stores", function()
+test("a trophies board, then a lap board for every map, in their own stores", function()
 	eq(#boards, 1 + #maps)
-	eq(coins.id, "coins")
-	truthy(not coins.low)
+	eq(trophies.id, "trophies")
+	truthy(not trophies.low)
 	local seen: { [string]: boolean } = {}
 	for i, b in boards do
 		truthy(not seen[b.store], "store " .. b.store .. " is shared")
@@ -75,28 +75,28 @@ test("a lap is saved in whole milliseconds; a glitch lap or junk is no score", f
 	eq(Lb.score(lap, 9999), nil)
 	eq(Lb.score(lap, "fast"), nil)
 	eq(Lb.score(lap, 0 / 0), nil)
-	eq(Lb.score(coins, 420.9), 420)
-	eq(Lb.score(coins, 0), nil)
-	eq(Lb.score(coins, -5), nil)
-	eq(Lb.score(coins, 1e12), nil)
+	eq(Lb.score(trophies, 42.9), 42)
+	eq(Lb.score(trophies, 0), nil)
+	eq(Lb.score(trophies, -5), nil)
+	eq(Lb.score(trophies, 1e12), nil)
 end)
 
-test("better: bigger garage, quicker lap; anything beats no score", function()
-	truthy(Lb.better(coins, 100, 101))
-	truthy(not Lb.better(coins, 100, 100))
-	truthy(not Lb.better(coins, 100, 99))
+test("better: more trophies, quicker lap; anything beats no score", function()
+	truthy(Lb.better(trophies, 100, 101))
+	truthy(not Lb.better(trophies, 100, 100))
+	truthy(not Lb.better(trophies, 100, 99))
 	truthy(Lb.better(lap, 12000, 11999))
 	truthy(not Lb.better(lap, 12000, 12000))
 	truthy(not Lb.better(lap, 12000, 13000))
 	truthy(Lb.better(lap, nil, 99999))
-	truthy(Lb.better(coins, nil, 1))
+	truthy(Lb.better(trophies, nil, 1))
 end)
 
 test("scores read plainly", function()
 	eq(Lb.format(lap, 12346), "12.346")
 	eq(Lb.format(lap, 5007), "5.007")
 	eq(Lb.format(lap, 62345), "1:02.345")
-	eq(Lb.format(coins, 420), "420/min")
+	eq(Lb.format(trophies, 42), "42")
 end)
 
 local function names(rows: { Lb.Row }): string
@@ -113,13 +113,13 @@ test("merge: a new score goes in its place and the board stays cut", function()
 		{ uid = 2, name = "B", score = 200 },
 		{ uid = 3, name = "C", score = 100 },
 	}
-	eq(names(Lb.merge(coins, rows, 4, "D", 250, 3)), "A:300 D:250 B:200")
-	eq(names(Lb.merge(coins, rows, 4, "D", 50, 3)), "A:300 B:200 C:100")
-	eq(names(Lb.merge(coins, rows, 3, "C", 400, 3)), "C:400 A:300 B:200")
+	eq(names(Lb.merge(trophies, rows, 4, "D", 250, 3)), "A:300 D:250 B:200")
+	eq(names(Lb.merge(trophies, rows, 4, "D", 50, 3)), "A:300 B:200 C:100")
+	eq(names(Lb.merge(trophies, rows, 3, "C", 400, 3)), "C:400 A:300 B:200")
 	-- a worse score from someone already there changes nothing
-	eq(names(Lb.merge(coins, rows, 2, "B", 150, 3)), "A:300 B:200 C:100")
+	eq(names(Lb.merge(trophies, rows, 2, "B", 150, 3)), "A:300 B:200 C:100")
 	-- a tie keeps the earlier row first
-	eq(names(Lb.merge(coins, rows, 4, "D", 300, 4)), "A:300 D:300 B:200 C:100")
+	eq(names(Lb.merge(trophies, rows, 4, "D", 300, 4)), "A:300 D:300 B:200 C:100")
 	eq(#rows, 3, "merge must not change its input")
 end)
 
@@ -134,4 +134,17 @@ test("writes wait their gap", function()
 	truthy(Lb.due(nil, 5, 60))
 	truthy(not Lb.due(10, 50, 60))
 	truthy(Lb.due(10, 70, 60))
+end)
+
+test("the league badge: its league's words and colour; junk reads as Bronze", function()
+	local League = require("../src/shared/League")
+	for i, name in League.NAMES do
+		local word, c = Lb.badge(i)
+		eq(word, string.upper(name))
+		eq(c, League.COLORS[i])
+	end
+	eq((Lb.badge(nil)), "BRONZE")
+	eq((Lb.badge("gold")), "BRONZE")
+	eq((Lb.badge(99)), "DIAMOND")
+	eq((Lb.badge(0 / 0)), "BRONZE")
 end)

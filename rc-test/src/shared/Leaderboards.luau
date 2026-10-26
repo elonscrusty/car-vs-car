@@ -1,9 +1,20 @@
 --!strict
--- The lobby leaderboards (carter's tycoon plan, 10-26): the best garage (coins a minute) and the
--- fastest lap on each race map, on three boards behind the dream-car stands. Pure (Lune tests it):
+-- The lobby leaderboards: the most trophies (Car VS Car, carter 10-26) and the fastest lap on each
+-- race map, on three boards behind the dream-car stands. Pure (Lune tests it):
 -- which boards there are, what score a value is, who is better, how a score reads, and how a board's
 -- rows change when a new score comes in. The server module (Leaderboards) keeps the OrderedDataStores,
 -- throttles the writes and draws the boards.
+
+-- Sibling loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
+local function sibling(name: string): any
+	if script then
+		return require((script :: any).Parent[name])
+	end
+	local luneRequire: any = require
+	return luneRequire("./" .. name)
+end
+
+local League = sibling("League")
 
 local Leaderboards = {}
 
@@ -11,12 +22,12 @@ Leaderboards.SHOWN = 5 -- rows on a board
 Leaderboards.FETCH = 5 -- rows read from the store
 Leaderboards.MIN_LAP_MS = 3000 -- a lap faster than this is a glitch, never saved
 Leaderboards.MAX_LAP_MS = 600000
-Leaderboards.MAX_COINS_MIN = 10000000
+Leaderboards.MAX_TROPHIES = 1000000
 
 -- Lobby-local space (SpawnLobby: x across, +z toward the street): at the front, flanking the walk
 -- onto the street (|x| < SpawnLobby.GAP stays open), facing back at the spawn so they are the first
 -- thing in view past the play pads. Clear of the front bushes (x +-36) and the lamps (x +-10).
--- Board i (the garage first, then one a map) stands at SLOTS[i]; a board without a slot is not built.
+-- Board i (the trophies first, then one a map) stands at SLOTS[i]; a board without a slot is not built.
 Leaderboards.BOARD_Z = 29
 Leaderboards.BOARD_Y = 5.5
 Leaderboards.BOARD_W = 10
@@ -34,16 +45,16 @@ export type Board = {
 
 export type Row = { uid: number, name: string, score: number }
 
--- The boards for these maps ({ id, label }): the garage board, then one lap board a map. Boards past
+-- The boards for these maps ({ id, label }): the trophies board, then one lap board a map. Boards past
 -- the last slot get x = 0 (nil slot: Leaderboards.placed says no).
 
 function Leaderboards.boards(maps: { { id: string, label: string } }): { Board }
 	local list: { Board } = {
 		{
-			id = "coins",
-			store = "RCBoard_coinsmin_v1",
-			title = "BEST GARAGE",
-			sub = "COINS A MINUTE",
+			id = "trophies",
+			store = "RCBoard_trophies_v1",
+			title = "TROPHIES",
+			sub = "MOST WON",
 			low = false,
 			x = 0,
 		},
@@ -64,7 +75,7 @@ function Leaderboards.boards(maps: { { id: string, label: string } }): { Board }
 	return list
 end
 
--- The whole-number score for a value: coins a minute as they are, a lap in milliseconds. nil when
+-- The whole-number score for a value: trophies as they are, a lap in milliseconds. nil when
 -- it can't be a real score (not a number, nothing, or a lap too quick or too slow to be true).
 function Leaderboards.score(board: Board, value: any): number?
 	if type(value) ~= "number" or value ~= value then
@@ -78,7 +89,7 @@ function Leaderboards.score(board: Board, value: any): number?
 		return ms
 	end
 	local n = math.floor(value)
-	if n < 1 or n > Leaderboards.MAX_COINS_MIN then
+	if n < 1 or n > Leaderboards.MAX_TROPHIES then
 		return nil
 	end
 	return n
@@ -95,7 +106,7 @@ function Leaderboards.better(board: Board, old: number?, new: number): boolean
 	return new > old
 end
 
--- How a score reads: "1:02.345" / "12.345" for a lap, "420/min" for a garage.
+-- How a score reads: "1:02.345" / "12.345" for a lap, "42" for trophies.
 function Leaderboards.format(board: Board, score: number): string
 	if board.low then
 		local ms = math.floor(score)
@@ -106,7 +117,7 @@ function Leaderboards.format(board: Board, score: number): string
 		end
 		return string.format("%d.%03d", s, ms % 1000)
 	end
-	return tostring(math.floor(score)) .. "/min"
+	return tostring(math.floor(score))
 end
 
 -- The rows after `uid` posts `score`: their old row replaced (only when better), sorted best
@@ -163,6 +174,13 @@ end
 -- middle is at world z = `originZ` and whose +z runs down the street (LobbyBuilder).
 function Leaderboards.world(board: Board, originZ: number): (number, number, number)
 	return board.x, Leaderboards.BOARD_Y, originZ + Leaderboards.BOARD_Z
+end
+
+-- The league badge over a player's head: its words and colour (League.NAMES / COLORS). Anything
+-- that is not a league 1..4 reads as Bronze.
+function Leaderboards.badge(league: any): (string, { number })
+	local n = League.clamp(league)
+	return string.upper(League.NAMES[n]), League.COLORS[n]
 end
 
 return Leaderboards
