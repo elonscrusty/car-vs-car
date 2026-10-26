@@ -54,8 +54,11 @@ end
 
 local function show(w: RaceWin.Winner)
 	local who = Players:GetPlayerByUserId(w.uid)
+	-- over the winner's car (the camera follows the cars), else over their avatar
+	local car = workspace:FindFirstChild("Car_" .. w.uid)
 	local char = who and who.Character
-	local head = char and (char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart"))
+	local head = (car and car:IsA("Model") and car.PrimaryPart)
+		or (char and (char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart")))
 	if not (head and head:IsA("BasePart")) then
 		return
 	end
