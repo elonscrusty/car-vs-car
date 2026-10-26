@@ -6,14 +6,23 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Features = require(ReplicatedStorage.Shared.Features)
 local JoinStage = require(ReplicatedStorage.Shared.JoinStage)
 
 local StageGate = {}
 
 local player = Players.LocalPlayer
 
+-- pieces of a part the tycoon plan switched off (Features): never shown, at any stage
+local OFF: { [string]: boolean } = {
+	stars = not Features.STARS,
+	top3 = not Features.PLOT_RACING,
+	visit = not Features.PLOT_RACING,
+	build = not Features.TILES,
+}
+
 function StageGate.shows(name: string): boolean
-	return JoinStage.shows(player:GetAttribute("Stage"), name)
+	return not OFF[name] and JoinStage.shows(player:GetAttribute("Stage"), name)
 end
 
 -- call fn now and each time the stage moves up

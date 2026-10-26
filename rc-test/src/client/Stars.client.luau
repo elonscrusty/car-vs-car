@@ -7,7 +7,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
-local JoinStage = require(ReplicatedStorage.Shared.JoinStage)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
 local KartStyle = require(ReplicatedStorage.Shared.KartStyle)
@@ -1110,6 +1109,7 @@ local function showMedalGoal()
 	local g = medalGoal
 	-- only while driving: the server still sees a parked car on the plot after WALK
 	goalChip.Visible = g ~= nil
+		and StageGate.shows("stars")
 		and player:GetAttribute("Driving") == true
 		and player:GetAttribute("Building") ~= true
 	if g == nil then
@@ -1288,7 +1288,7 @@ local function visitBoard(slot: any): BillboardGui
 	return b
 end
 local function showVisits()
-	local on = JoinStage.shows(player:GetAttribute("Stage"), "visit")
+	local on = StageGate.shows("visit") -- (off with plot racing: Features.PLOT_RACING)
 	for _, slot in LobbyLayout.slots() do
 		local sign = nil
 		for _, s in visitSigns do
@@ -1395,8 +1395,8 @@ remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unkn
 		showMedalGoal()
 		return
 	end
-	if kind ~= "run" or type(info) ~= "table" then
-		return
+	if kind ~= "run" or type(info) ~= "table" or not StageGate.shows("stars") then
+		return -- (no medals or stars with the stars switched off: Features.STARS)
 	end
 	local r = info :: any
 	local medal = if type(r.medal) == "number" then r.medal else 0

@@ -19,6 +19,7 @@ local SoundLevels = require(Shared:WaitForChild("SoundLevels"))
 local Garage = require(Shared:WaitForChild("Garage"))
 local CarCatalog = require(Shared:WaitForChild("CarCatalog"))
 local TileShop = require(Shared:WaitForChild("TileShop"))
+local Features = require(Shared:WaitForChild("Features"))
 local HudLayout = require(Shared:WaitForChild("HudLayout"))
 local KartStyle = require(Shared:WaitForChild("KartStyle"))
 local Party = require(script.Parent:WaitForChild("Party"))
@@ -371,6 +372,9 @@ local function tab(t: string, x: number, tiles: boolean): TextButton
 end
 local carsTab = tab("CARS", 0.37, false)
 local tilesTab = tab("TILES", 0.5, true)
+-- no tiles to buy with tile building switched off (Features.TILES): no tabs, cars only
+carsTab.Visible = Features.TILES
+tilesTab.Visible = Features.TILES
 local function showTab(tiles: boolean)
 	carsTab.BackgroundColor3 = if tiles then GREY else GOLD
 	tilesTab.BackgroundColor3 = if tiles then GOLD else GREY
