@@ -26,7 +26,7 @@ local ServerRace = sibling("ServerRace")
 local RaceMaps = {}
 
 -- The maps in vote order (module names in Shared/Maps). The map builder adds them here.
-RaceMaps.NAMES = {} :: { string }
+RaceMaps.NAMES = { "Backyard", "Kitchen" } :: { string }
 
 function RaceMaps.list(): { any }
 	local out = {}
