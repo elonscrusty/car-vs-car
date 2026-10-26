@@ -13,19 +13,30 @@ export type Stats = {
 	rate: number,
 }
 
+-- Sibling loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
+local function sibling(name: string): any
+	if script then
+		return require((script :: any).Parent[name])
+	end
+	local luneRequire: any = require
+	return luneRequire("./" .. name)
+end
+
+local Economy = sibling("Economy")
+
 local Training = {}
 
 Training.BARS = { "speed", "turn", "boost" }
 Training.KINDS = { "treadmill", "ramp", "track" }
 Training.MAIN = { treadmill = "speed", ramp = "boost", track = "turn" }
 Training.NAMES = { treadmill = "TREADMILL", ramp = "RAMP", track = "SPEED TRACK" }
-Training.MAIN_PER_MIN = 5 -- its own bar, a level 1 station, a rate 1 car
-Training.SIDE_PER_MIN = 2 -- the other two bars
-Training.LEVEL_STEP = 0.5 -- each station level past 1 adds this much (level 3 = 2x)
+Training.MAIN_PER_MIN = Economy.TRAIN_MAIN_PER_MIN -- its own bar, a level 1 station, a rate 1 car
+Training.SIDE_PER_MIN = Economy.TRAIN_SIDE_PER_MIN -- the other two bars
+Training.LEVEL_STEP = Economy.STATION_LEVEL_STEP -- each station level past 1 adds this much (level 3 = 2x)
 Training.MAX_STATION_LEVEL = 5
-Training.COACH_MULT = 2
-Training.COACH_SECS = 10
-Training.COACH_EVERY = 60
+Training.COACH_MULT = Economy.COACH_MULT
+Training.COACH_SECS = Economy.COACH_SECS
+Training.COACH_EVERY = Economy.COACH_EVERY
 Training.MAX_BAR = 100
 -- plot level -> the stations it has (level 0 = 1 station: one car trains at the start)
 Training.STATIONS = {
@@ -41,9 +52,9 @@ Training.STATIONS = {
 }
 Training.MAX_PLOT_LEVEL = #Training.STATIONS - 1
 -- coins: a station's next level (level 1 -> 2 is [1]) and the plot's next level (0 -> 1 is [1])
--- (stand-ins until Economy.luau has them; screens and the server both read these)
-Training.UPGRADE_COST = { 100, 250, 500, 900 }
-Training.PLOT_COST = { 300, 600, 1000, 1600, 2500, 3600, 5000, 7000 }
+-- (the numbers live in Economy.luau; screens and the server both read these)
+Training.UPGRADE_COST = Economy.UPGRADE_COST
+Training.PLOT_COST = Economy.PLOT_COST
 
 -- What the next level costs (nil = already at the top).
 function Training.upgradeCost(level: number): number?

@@ -13,6 +13,7 @@ local function sibling(name: string): any
 	return luneRequire("./" .. name)
 end
 local CarCatalog = sibling("CarCatalog")
+local Economy = sibling("Economy")
 local CarStats = sibling("CarStats")
 local Crates = sibling("Crates")
 local League = sibling("League")
@@ -23,9 +24,9 @@ type Data = Profile.Data
 
 local CvcRules = {}
 
--- (stand-ins until Economy has them; Economy.luau takes these over)
-CvcRules.COINS_PER_MIN = 3 -- each training car, a win's boost doubles it
-CvcRules.WIN_BOOST_SECS = 600
+-- (the numbers live in Economy.luau)
+CvcRules.COINS_PER_MIN = Economy.TRAIN_COINS_PER_MIN -- each training car, a win's boost doubles it
+CvcRules.WIN_BOOST_SECS = Economy.WIN_BOOST_SECS
 
 function CvcRules.stats(id: string): Training.Stats
 	return CarStats.stats(id)
