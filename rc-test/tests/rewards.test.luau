@@ -2,6 +2,7 @@
 -- The "next unlock" goal shown in the lobby and after each race.
 local H = require("./harness")
 local Rewards = require("../src/shared/Rewards")
+local Tycoon = require("../src/shared/Tycoon")
 local Profile = require("../src/shared/Profile")
 local TrackTiles = require("../src/shared/TrackTiles")
 
@@ -52,20 +53,15 @@ test("rewards: next goal is the cheapest thing you don't have, cheapest first", 
 	for _, t in (require("../src/shared/TileShop") :: any).TILES do
 		d.tiles[t.id] = 1
 	end
+	-- (tycoon) every shop car owned: a bigger garage next, nothing at the top level
 	local after = Rewards.next(d :: any)
-	if #TrackTiles.SIZES > 1 then
-		eq((after :: Rewards.Goal).kind, "grid")
-	end
+	eq((after :: Rewards.Goal).kind, "level")
+	d.plotLevel = Tycoon.MAX_LEVEL
+	eq(Rewards.next(d :: any), nil)
 end)
 
-test("rewards: the grid goal is the next bigger size, nil at the biggest", function()
-	local g = Rewards.gridGoal(0)
-	local last = TrackTiles.SIZES[#TrackTiles.SIZES]
-	if #TrackTiles.SIZES > 1 then
-		truthy(g)
-		truthy((g :: Rewards.Goal).price > 0)
-	end
-	eq(Rewards.gridGoal(last.stars), nil)
+test("rewards: no track grid goal while tile building is off", function()
+	eq(Rewards.gridGoal(0), nil)
 end)
 
 test("rewards: stars that open a tile or a bigger track say so, in order", function()
