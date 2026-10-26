@@ -15,6 +15,7 @@ local KartStyle = require(ReplicatedStorage.Shared.KartStyle)
 local RaceMaps = require(ReplicatedStorage.Shared.RaceMaps)
 local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
 local Party = require(script.Parent:WaitForChild("Party"))
+local Sfx = require(script.Parent:WaitForChild("Sfx"))
 local StageGate = require(script.Parent:WaitForChild("StageGate"))
 
 local event = ReplicatedStorage:WaitForChild("ServerRace") :: RemoteEvent
@@ -316,6 +317,7 @@ end
 local showId = 0
 local function showPlace(place: number)
 	finished = true
+	Sfx.finish(place)
 	placeText.Text = `{ServerRace.medal(place)} {ServerRace.ordinal(place)} PLACE!`
 	placeText.TextColor3 = if place == 1 then YELLOW else Color3.new(1, 1, 1)
 	placeText.Visible = true

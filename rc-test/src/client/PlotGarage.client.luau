@@ -18,6 +18,7 @@ local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local Garage = require(ReplicatedStorage.Shared.Garage)
 local PlotGarage = require(ReplicatedStorage.Shared.PlotGarage)
 local Tycoon = require(ReplicatedStorage.Shared.Tycoon)
+local Sfx = require(script.Parent:WaitForChild("Sfx"))
 
 local me = Players.LocalPlayer
 local glowModule = ReplicatedStorage.Shared:FindFirstChild("CarGlow")
@@ -438,6 +439,7 @@ local function celebrate(y: Yard, lv: number)
 	fx.Rate = 0
 	fx.Parent = spot
 	fx:Emit(120)
+	Sfx.levelUp()
 	float(spot, "LEVEL " .. lv .. "!", 2)
 	task.delay(3, spot.Destroy, spot)
 end
