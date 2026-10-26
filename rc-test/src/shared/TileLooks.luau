@@ -485,6 +485,9 @@ end
 -- bushes and flowers, a tyre pile, a flower bed, a little pit tent or just two bushes. Nothing
 -- solid and nothing tall, so a car that runs wide just drives through.
 TileLooks.EMPTY_KINDS = 5
+function TileLooks.emptyKind(c: number, r: number): number
+	return (c * 7 + r * 13) % TileLooks.EMPTY_KINDS
+end
 function TileLooks.emptyParts(c: number, r: number, cell: number?): { Piece }
 	local C = cell or TileLooks.CELL
 	local q = C / 4
@@ -492,7 +495,7 @@ function TileLooks.emptyParts(c: number, r: number, cell: number?): { Piece }
 	local add = Garage.adder(out)
 	local G = "TileLooks"
 	local noHit = { collide = false }
-	local kind = (c * 7 + r * 13) % TileLooks.EMPTY_KINDS
+	local kind = TileLooks.emptyKind(c, r)
 	local function bush(x: number, z: number, sz: number)
 		add(G, "Bush", v(sz, sz, sz), v(x, sz * 0.4, z), BUSH, { shape = "Ball", collide = false })
 	end
@@ -656,7 +659,14 @@ end
 -- gantry stays. Each entry: the piece, where its tile / cell centre is and its turn (radians).
 TileLooks.CLEAR = 80
 TileLooks.TALL = 8
-export type Placed = { piece: Piece, x: number, z: number, yaw: number, from: string }
+export type Placed = {
+	piece: Piece,
+	x: number,
+	z: number,
+	yaw: number,
+	from: string,
+	key: string?, -- which model swap list it belongs to (TileLooks.meshes / emptyMeshes)
+}
 local function topOf(p: Piece): number
 	local turned = p.rot.x ~= 0 or p.rot.z ~= 0
 	local half = if turned then math.max(p.size.x, p.size.y, p.size.z) / 2 else p.size.y / 2
@@ -678,18 +688,26 @@ function TileLooks.gridParts(grid: any, TT: any): { Placed }
 			sx, sz = cx, cz
 		end
 		for _, p in TileLooks.parts(t.piece, cell) do
-			table.insert(
-				out,
-				{ piece = p, x = cx, z = cz, yaw = -t.rot * math.pi / 2, from = t.piece }
-			)
+			table.insert(out, {
+				piece = p,
+				x = cx,
+				z = cz,
+				yaw = -t.rot * math.pi / 2,
+				from = t.piece,
+				key = t.piece,
+			})
 		end
 	end
 	for c = 1, grid.cols do
 		for r = 1, grid.rows do
 			if not TT.get(grid, c, r) then
 				local cx, cz = TT.cellCenter(grid, c, r)
+				local key = "empty" .. TileLooks.emptyKind(c, r)
 				for _, p in TileLooks.emptyParts(c, r, cell) do
-					table.insert(out, { piece = p, x = cx, z = cz, yaw = 0, from = "empty" })
+					table.insert(
+						out,
+						{ piece = p, x = cx, z = cz, yaw = 0, from = "empty", key = key }
+					)
 				end
 			end
 		end
@@ -755,6 +773,26 @@ function TileLooks.meshes(id: string, cell: number?): ({ TileMesh }, { string })
 	return {}, {}
 end
 
+-- carter's models for an empty cell's decor (cell-local), like TileLooks.meshes.
+function TileLooks.emptyMeshes(kind: number, cell: number?): ({ TileMesh }, { string })
+	local q = (cell or TileLooks.CELL) / 4
+	if kind == 1 then
+		return { { model = "TireWall", at = v(q, 0, -q), fit = v(11, 4, 4) } }, { "Tyre" }
+	elseif kind == 3 then
+		return { { model = "PitTent", at = v(0, 0, 0), fit = v(9.5, 6, 7.5), yaw = 180 } }, {
+			"TentPole",
+			"TentRoof",
+		}
+	elseif kind == 4 then
+		return { { model = "TileCrate", at = v(0, 0, 0), fit = v(5, 4, 5) } }, {}
+	end
+	return {}, {}
+end
+
+-- The surround's red / white barrier sections become rows of carter's FoamBarrier, this tall.
+TileLooks.FOAM_H = 2.4
+TileLooks.FOAM_LEN = 8.3 -- one FoamBarrier at FOAM_H, plus a small gap
+
 -- Server / Studio: build tile `id`'s looks in a "TileLooks" folder under `parent`, at `at` (the
 -- tile's centre on the ground, already turned for its rot). Nothing collides, touches or queries.
 local function makeIn(pieces: { Piece }, parent: Instance, at: CFrame): Instance
@@ -814,48 +852,93 @@ function TileLooks.makeGrid(parent: Instance, origin: CFrame, grid: any, TT: any
 		return game:GetService("ServerStorage"):FindFirstChild("LobbyMeshes")
 	end)
 	local props: Instance? = if ok then store else nil
-	local swapped: { [string]: { [string]: boolean } } = {}
-	for _, t in grid.tiles do
-		local list, replaces = TileLooks.meshes(t.piece, TT.CELL)
-		local have = props ~= nil and #list > 0
-		for _, m in list do
-			have = have and (props :: Instance):FindFirstChild(m.model) ~= nil
+	local function have(list: { TileMesh }): boolean
+		if props == nil or #list == 0 then
+			return false
 		end
-		if have and not swapped[t.piece] then
-			swapped[t.piece] = {}
+		for _, m in list do
+			if not (props :: Instance):FindFirstChild(m.model) then
+				return false
+			end
+		end
+		return true
+	end
+	local function place(at: CFrame, list: { TileMesh })
+		local out: { Garage.Mesh } = {}
+		for _, m in list do
+			table.insert(out, {
+				model = m.model,
+				group = "TileMesh",
+				at = m.at,
+				fit = m.fit,
+				long = if m.fit.z > m.fit.x then "z" else "x",
+				keep = {},
+				yaw = m.yaw,
+				flat = m.flat,
+				collide = false,
+			})
+		end
+		local group = Instance.new("Model")
+		group.Parent = holder
+		Garage.useMeshes({ TileMesh = group }, at, out)
+	end
+	-- which swap lists are on (every model they need is in): tile ids and empty kinds
+	local swapped: { [string]: { [string]: boolean } } = {}
+	local function turnOn(key: string, list: { TileMesh }, replaces: { string })
+		if not swapped[key] and have(list) then
+			swapped[key] = {}
 			for _, name in replaces do
-				swapped[t.piece][name] = true
+				swapped[key][name] = true
 			end
 		end
 	end
+	for _, t in grid.tiles do
+		turnOn(t.piece, TileLooks.meshes(t.piece, TT.CELL))
+	end
+	for kind = 0, TileLooks.EMPTY_KINDS - 1 do
+		turnOn("empty" .. kind, TileLooks.emptyMeshes(kind, TT.CELL))
+	end
+	local foam = have({ { model = "FoamBarrier", at = v(0, 0, 0), fit = v(1, 1, 1) } })
 	for _, e in TileLooks.gridParts(grid, TT) do
-		local skip = swapped[e.from]
-		if not (skip and skip[e.piece.name]) then
-			local at = origin * CFrame.new(e.x, 0, e.z) * CFrame.Angles(0, e.yaw, 0)
+		local skip = e.key and swapped[e.key]
+		local at = origin * CFrame.new(e.x, 0, e.z) * CFrame.Angles(0, e.yaw, 0)
+		if foam and e.piece.name == "Barrier" then
+			-- a row of foam barriers along the section
+			local p = e.piece
+			local alongX = p.size.x > p.size.z
+			local len = if alongX then p.size.x else p.size.z
+			local n = math.max(1, math.floor(len / TileLooks.FOAM_LEN))
+			local row: { TileMesh } = {}
+			for i = 1, n do
+				local d = -len / 2 + (i - 0.5) * len / n
+				local fit = if alongX
+					then v(TileLooks.FOAM_LEN, TileLooks.FOAM_H, 3)
+					else v(3, TileLooks.FOAM_H, TileLooks.FOAM_LEN)
+				local x = if alongX then p.pos.x + d else p.pos.x
+				local z = if alongX then p.pos.z else p.pos.z + d
+				table.insert(row, { model = "FoamBarrier", at = v(x, 0, z), fit = fit })
+			end
+			place(at, row)
+		elseif not (skip and skip[e.piece.name]) then
 			Garage.makeParts({ e.piece }, holder, at)
 		end
 	end
 	for _, t in grid.tiles do
 		if swapped[t.piece] then
 			local cx, cz = TT.cellCenter(grid, t.c, t.r)
-			local at = origin * CFrame.new(cx, 0, cz) * CFrame.Angles(0, -t.rot * math.pi / 2, 0)
-			local list: { Garage.Mesh } = {}
-			for _, m in (TileLooks.meshes(t.piece, TT.CELL)) do
-				table.insert(list, {
-					model = m.model,
-					group = "TileMesh",
-					at = m.at,
-					fit = m.fit,
-					long = if m.fit.z > m.fit.x then "z" else "x",
-					keep = {},
-					yaw = m.yaw,
-					flat = m.flat,
-					collide = false,
-				})
+			place(
+				origin * CFrame.new(cx, 0, cz) * CFrame.Angles(0, -t.rot * math.pi / 2, 0),
+				(TileLooks.meshes(t.piece, TT.CELL))
+			)
+		end
+	end
+	for c = 1, grid.cols do
+		for r = 1, grid.rows do
+			local kind = TileLooks.emptyKind(c, r)
+			if not TT.get(grid, c, r) and swapped["empty" .. kind] then
+				local cx, cz = TT.cellCenter(grid, c, r)
+				place(origin * CFrame.new(cx, 0, cz), (TileLooks.emptyMeshes(kind, TT.CELL)))
 			end
-			local group = Instance.new("Model")
-			group.Parent = holder
-			Garage.useMeshes({ TileMesh = group }, at, list)
 		end
 	end
 	for _, d in holder:GetDescendants() do
