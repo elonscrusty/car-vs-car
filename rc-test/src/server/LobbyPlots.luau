@@ -34,6 +34,9 @@ LobbyPlots.onDrive = nil :: ((player: Player, slot: number) -> ())?
 LobbyPlots.onBump = nil :: ((player: Player, slot: number) -> ())?
 
 local function model(slot: number): Instance?
+	if slots[slot] == nil then
+		return nil -- a race map (LobbyLayout.mapAt), not a plot
+	end
 	local plots = workspace:FindFirstChild("Plots")
 	return plots and plots:FindFirstChild(slot .. "_" .. slots[slot].id)
 end
@@ -58,6 +61,9 @@ local function visitorOn(player: Player, slot: number): Player?
 end
 
 local function refresh(slot: number)
+	if slots[slot] == nil then
+		return -- a race map: no plot model, nobody listening
+	end
 	local m = model(slot)
 	if m then
 		local owner, driver = owners[slot], drivers[slot]

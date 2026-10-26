@@ -15,11 +15,17 @@ local StartLights = {}
 -- The lamps of the lobby plot with this slot number (none if it isn't loaded or isn't a race).
 function StartLights.find(slot: number): { BasePart }
 	local lamps: { BasePart } = {}
-	local plots = workspace:FindFirstChild("Plots")
-	if plots == nil then
-		return lamps
+	-- a lobby plot, or a big race map (its model carries the race's Slot)
+	local list = {}
+	for _, name in { "Plots", "RaceMaps" } do
+		local folder = workspace:FindFirstChild(name)
+		if folder then
+			for _, m in folder:GetChildren() do
+				table.insert(list, m)
+			end
+		end
 	end
-	for _, m in plots:GetChildren() do
+	for _, m in list do
 		if m:GetAttribute("Slot") == slot then
 			for i = 1, 3 do
 				local p = m:FindFirstChild("StartLamp" .. i, true)
