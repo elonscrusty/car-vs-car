@@ -801,19 +801,16 @@ local function openVote(ids: { string }, endsAt: number)
 	voteEnds, voteStarts = endsAt, workspace:GetServerTimeNow()
 	local n = math.max(#ids, 1)
 	for i, id in ids do
-		local name, icon, color = mapInfo(id)
+		local name, _, color = mapInfo(id)
 		local card = button(vote, "", color)
 		card.Name = id
 		card.Position = UDim2.new((i - 1) / n, 8, 0.2, 0)
 		card.Size = UDim2.new(1 / n, -16, 0.62, 0)
-		-- (an emoji scaled to the box drew tiny on a phone, shot 01: a set size reads)
-		local pic = label(card, icon, WHITE)
-		pic.TextScaled = false
-		pic.TextSize = 20
-		pic.Size = UDim2.fromScale(1, 0.3)
+		-- (no emoji row: on the small card the tree drew green on green and the pan a dot,
+		-- check/kid-02e; the map's name and colour say which it is)
 		local words = label(card, name, WHITE)
-		words.Position = UDim2.fromScale(0, 0.28)
-		words.Size = UDim2.fromScale(1, 0.44)
+		words.Position = UDim2.fromScale(0, 0.04)
+		words.Size = UDim2.fromScale(1, 0.68)
 		local wordsRim = Instance.new("UIStroke")
 		wordsRim.Color = INK
 		wordsRim.Thickness = 2
