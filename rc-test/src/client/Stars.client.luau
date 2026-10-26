@@ -10,6 +10,7 @@ local TweenService = game:GetService("TweenService")
 local JoinStage = require(ReplicatedStorage.Shared.JoinStage)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
+local KartStyle = require(ReplicatedStorage.Shared.KartStyle)
 local Popup = require(script.Parent:WaitForChild("Popup"))
 local StageGate = require(script.Parent:WaitForChild("StageGate"))
 local Profile = require(ReplicatedStorage.Shared.Profile)
@@ -843,19 +844,59 @@ local function bar(parent: Instance, y: number, h: number): Frame
 	back.Name = "Bar"
 	back.Position = UDim2.fromScale(0, y)
 	back.Size = UDim2.fromScale(1, h)
-	back.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+	back.BackgroundColor3 = Color3.fromRGB(34, 36, 64)
 	back.Parent = parent
 	local bc = Instance.new("UICorner")
 	bc.CornerRadius = UDim.new(0.5, 0)
 	bc.Parent = back
+	local rim = Instance.new("UIStroke")
+	rim.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	rim.Color = KartStyle.INK
+	rim.Thickness = 2
+	rim.Parent = back
 	local fill = Instance.new("Frame")
 	fill.Name = "Fill"
 	fill.Size = UDim2.fromScale(0, 1)
 	fill.BackgroundColor3 = GOLD
+	fill.ClipsDescendants = true
 	fill.Parent = back
 	local fc = Instance.new("UICorner")
 	fc.CornerRadius = UDim.new(0.5, 0)
 	fc.Parent = fill
+	-- Kart Party: a lit top on the fill, and a shine that runs along it now and then
+	local lit = Instance.new("Frame")
+	lit.Name = "Lit"
+	lit.BorderSizePixel = 0
+	lit.BackgroundColor3 = Color3.new(1, 1, 1)
+	lit.BackgroundTransparency = 0.55
+	lit.Position = UDim2.new(0, 3, 0.12, 0)
+	lit.Size = UDim2.new(1, -6, 0.3, 0)
+	lit.Parent = fill
+	local lc = Instance.new("UICorner")
+	lc.CornerRadius = UDim.new(0.5, 0)
+	lc.Parent = lit
+	local shine = Instance.new("Frame")
+	shine.Name = "Shine"
+	shine.BorderSizePixel = 0
+	shine.BackgroundColor3 = Color3.new(1, 1, 1)
+	shine.Size = UDim2.fromScale(1, 1)
+	shine.Parent = fill
+	local sg = Instance.new("UIGradient")
+	sg.Rotation = 20
+	sg.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.42, 1),
+		NumberSequenceKeypoint.new(0.5, 0.35),
+		NumberSequenceKeypoint.new(0.58, 1),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	sg.Offset = Vector2.new(-1, 0)
+	sg.Parent = shine
+	TweenService:Create(
+		sg,
+		TweenInfo.new(1.1, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut, -1, false, 2.2),
+		{ Offset = Vector2.new(1, 0) }
+	):Play()
 	return back
 end
 
@@ -929,7 +970,9 @@ local function showGoalBar(g: any)
 	nextRim.Enabled = g.ready == true
 	local f = nextBar:FindFirstChild("Fill") :: Frame
 	f.BackgroundColor3 = if g.ready then GREEN else GOLD
-	TweenService:Create(f, TweenInfo.new(0.4), { Size = UDim2.fromScale(fill, 1) }):Play()
+	TweenService
+		:Create(f, TweenInfo.new(0.6, Enum.EasingStyle.Quart), { Size = UDim2.fromScale(fill, 1) })
+		:Play()
 	nextBox.Visible = true
 end
 
