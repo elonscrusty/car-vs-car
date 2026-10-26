@@ -12,10 +12,12 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local Garage = require(ReplicatedStorage.Shared.Garage)
 local PlotGarage = require(ReplicatedStorage.Shared.PlotGarage)
+local Tycoon = require(ReplicatedStorage.Shared.Tycoon)
 
 local me = Players.LocalPlayer
 local glowModule = ReplicatedStorage.Shared:FindFirstChild("CarGlow")
@@ -33,6 +35,7 @@ type Yard = {
 	pivot: CFrame,
 	folder: Folder,
 	cars: { Model },
+	ids: { string }, -- the parked cars' ids (the first #ids of `cars`; the rest are open spots)
 	carsKey: string,
 	coins: Folder,
 	shown: number, -- coins drawn in the heap now
@@ -196,6 +199,7 @@ local function refreshCars(y: Yard)
 		c:Destroy()
 	end
 	y.cars = {}
+	y.ids = list
 	for _, id in list do
 		table.insert(y.cars, makeCar(id, y.folder))
 	end
@@ -299,6 +303,7 @@ local function setUp(plot: Instance, garage: Model)
 		pivot = pivot,
 		folder = folder,
 		cars = {},
+		ids = {},
 		carsKey = "?",
 		coins = coins,
 		shown = -1,
@@ -400,4 +405,119 @@ RunService.RenderStepped:Connect(function()
 			placeCars(y, clock)
 		end
 	end
+end)
+
+-- ===== feel: "+N" off the cars, and the pile flying to you when you collect =====
+
+local function float(at: BasePart, text: string, offset: number)
+	local gui = Instance.new("BillboardGui")
+	gui.Size = UDim2.fromOffset(90, 40)
+	gui.StudsOffsetWorldSpace = Vector3.new(0, offset, 0)
+	gui.MaxDistance = 90
+	gui.LightInfluence = 0
+	gui.Parent = at
+	local l = Instance.new("TextLabel")
+	l.BackgroundTransparency = 1
+	l.Size = UDim2.fromScale(1, 1)
+	l.Font = Enum.Font.GothamBlack
+	l.TextScaled = true
+	l.TextColor3 = COIN
+	l.TextStrokeTransparency = 0
+	l.Text = text
+	l.Parent = gui
+	local slow = TweenInfo.new(1.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+	TweenService:Create(gui, slow, { StudsOffsetWorldSpace = Vector3.new(0, offset + 3.5, 0) })
+		:Play()
+	TweenService:Create(l, slow, { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+	task.delay(1.5, gui.Destroy, gui)
+end
+
+-- each car's last "+N" beat (weak: cars come and go)
+local beats: { [Model]: number } = setmetatable({}, { __mode = "k" }) :: any
+task.spawn(function()
+	while true do
+		task.wait(1)
+		local cam = workspace.CurrentCamera
+		local now = workspace:GetServerTimeNow()
+		for _, y in yards do
+			local near = cam and (y.pivot.Position - cam.CFrame.Position).Magnitude < NEAR
+			for i, id in y.ids do
+				local car = y.cars[i]
+				local beat = math.floor((now + i * 7) / PlotGarage.POP_SECS)
+				if near and car and beats[car] and beats[car] ~= beat then
+					local body = car:FindFirstChild("Body")
+					if body and body:IsA("BasePart") then
+						float(body, "+" .. PlotGarage.popCoins(Tycoon.perMin(id)), 5.5)
+					end
+				end
+				if car then
+					beats[car] = beat
+				end
+			end
+		end
+	end
+end)
+
+-- collected: the heap's coins jump up and fly to you
+local function burst(y: Yard)
+	local char = me.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	if not (root and root:IsA("BasePart")) then
+		return
+	end
+	local P = PlotGarage.PILE
+	local from = y.pivot * CFrame.new(P.x, 1, P.z)
+	for k = 1, 14 do
+		local c = Instance.new("Part")
+		c.Name = "FlyingCoin"
+		c.Shape = Enum.PartType.Cylinder
+		c.Size = Vector3.new(0.35, 2, 2)
+		c.Color = COIN
+		c.Material = Enum.Material.Neon
+		c.Anchored = true
+		c.CanCollide = false
+		c.CanQuery = false
+		c.CanTouch = false
+		c.CastShadow = false
+		local a = k * 2.4
+		c.CFrame = from
+			* CFrame.new(math.cos(a) * 2, 0, math.sin(a) * 2)
+			* CFrame.Angles(0, 0, math.rad(90))
+		c.Parent = y.folder
+		local up = c.CFrame * CFrame.new(5 + (k % 4), math.cos(a) * 3, math.sin(a) * 3)
+		local rise = TweenService:Create(
+			c,
+			TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ CFrame = up }
+		)
+		rise:Play()
+		task.delay(0.35 + k * 0.03, function()
+			local fly = TweenService:Create(
+				c,
+				TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+				{ CFrame = root.CFrame, Size = Vector3.new(0.1, 0.6, 0.6) }
+			)
+			fly:Play()
+			fly.Completed:Once(function()
+				c:Destroy()
+			end)
+		end)
+	end
+end
+
+task.spawn(function()
+	local e = ReplicatedStorage:WaitForChild("Plot", 30)
+	if not (e and e:IsA("RemoteEvent")) then
+		return
+	end
+	e.OnClientEvent:Connect(function(what: unknown, n: unknown)
+		if what ~= "collected" or type(n) ~= "number" or n <= 0 then
+			return
+		end
+		for plot, y in yards do
+			if mine(plot) then
+				burst(y)
+			end
+		end
+	end)
 end)

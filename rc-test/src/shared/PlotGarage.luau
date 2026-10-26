@@ -91,6 +91,13 @@ function PlotGarage.spot(i: number, count: number, clock: number): (number, numb
 	return PlotGarage.at(t)
 end
 
+-- Now and then a "+N" floats up off each car on the loop: the coins it made since the last one,
+-- so you can see your cars earning. POP_SECS apart per car (staggered), N from its coins a minute.
+PlotGarage.POP_SECS = 30
+function PlotGarage.popCoins(perMin: number): number
+	return math.max(1, math.floor(perMin * PlotGarage.POP_SECS / 60 + 0.5))
+end
+
 -- The gate sign over a garage plot: "MIA'S GARAGE" ("JAMES' GARAGE"), or "GARAGE" when it is
 -- nobody's.
 function PlotGarage.signText(name: string?): string
