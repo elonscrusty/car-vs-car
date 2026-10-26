@@ -222,6 +222,15 @@ function ServerRaceRunner.isReady(slot: number): boolean
 end
 
 -- The sign over the top of the street (the spawn lobby end), readable from both sides.
+-- the race signs (built at start); the round clock writes them, and the race itself while it
+-- runs (the clock waits for the race, so they sat on "RACE IN 0:00" the whole race)
+local signs: { TextLabel } = {}
+local function writeSigns(text: string)
+	for _, sign in signs do
+		sign.Text = text
+	end
+end
+
 local function buildSign(): { TextLabel }
 	local road = LobbyLayout.road()
 	local z = road.minZ + 5
@@ -447,6 +456,7 @@ end
 local function runRace(hooks: Hooks, slot: number)
 	local list = racersHere()
 	phase = "racing"
+	writeSigns(ServerRace.signText(0, true, where))
 	workspace:SetAttribute("RaceSlot", slot) -- TrackBuild leaves this plot's track alone till the end
 	local t: TrackData.Track = LobbyLayout.track(slot)
 	local mapsFolder = workspace:FindFirstChild("RaceMaps")
@@ -583,6 +593,7 @@ local function runRace(hooks: Hooks, slot: number)
 				})
 			end
 			event:FireAllClients("result", rows)
+			writeSigns("RACE OVER!")
 			break
 		end
 	end
@@ -716,6 +727,7 @@ local function runRace(hooks: Hooks, slot: number)
 				})
 			end
 			event:FireAllClients("result", rows)
+			writeSigns("RACE OVER!")
 			break
 		end
 	end
@@ -740,7 +752,7 @@ local function runRace(hooks: Hooks, slot: number)
 end
 
 function ServerRaceRunner.start(hooks: Hooks)
-	local signs = buildSign()
+	signs = buildSign()
 	startAt = now() + breakLen()
 	setBuild()
 
@@ -783,9 +795,7 @@ function ServerRaceRunner.start(hooks: Hooks)
 					end
 				end
 				local left = startAt - now()
-				for _, sign in signs do
-					sign.Text = ServerRace.signText(left, phase == "racing", where)
-				end
+				writeSigns(ServerRace.signText(left, phase == "racing", where))
 				-- a map race: the vote opens VOTE seconds before the map is picked
 				if
 					mapMode()
