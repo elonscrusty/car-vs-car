@@ -311,13 +311,14 @@ local function plotLevel(): number
 end
 
 local render: () -> ()
+local ROW = 60 -- pixels per car row
 
 local function row(i: number, car: CarCatalog.Car, isParked: boolean, room: boolean)
 	local word, color, perMin = rarityOf(car)
 	local r = Instance.new("Frame")
 	r.Name = car.id
-	r.Position = UDim2.new(0, 0, 0, (i - 1) * 52)
-	r.Size = UDim2.new(1, -10, 0, 46)
+	r.Position = UDim2.new(0, 0, 0, (i - 1) * ROW)
+	r.Size = UDim2.new(1, -10, 0, ROW - 6)
 	r.BackgroundColor3 = Color3.fromRGB(244, 247, 255)
 	r.Parent = list
 	corner(r, 0.3)
@@ -336,12 +337,13 @@ local function row(i: number, car: CarCatalog.Car, isParked: boolean, room: bool
 	corner(dot, 0.5)
 	rim(dot, 2)
 	local name = label(r, string.upper(car.name), INK)
-	name.Position = UDim2.new(0, 44, 0.1, 0)
-	name.Size = UDim2.new(0.42, -44, 0.5, 0)
+	name.Position = UDim2.new(0, 44, 0.08, 0)
+	name.Size = UDim2.new(0.5, -44, 0.46, 0)
 	name.TextXAlignment = Enum.TextXAlignment.Left
 	local tag = label(r, `{word}  +{perMin}/MIN`, color:Lerp(INK, 0.25))
-	tag.Position = UDim2.new(0, 44, 0.58, 0)
-	tag.Size = UDim2.new(0.42, -44, 0.32, 0)
+	-- (big enough to read on a phone: Studio shot 02)
+	tag.Position = UDim2.new(0, 44, 0.54, 0)
+	tag.Size = UDim2.new(0.5, -44, 0.4, 0)
 	tag.TextXAlignment = Enum.TextXAlignment.Left
 	local b = button(
 		r,
@@ -401,7 +403,7 @@ render = function()
 			row(n, car, inside[id] == true, count < slots)
 		end
 	end
-	list.CanvasSize = UDim2.fromOffset(0, n * 52)
+	list.CanvasSize = UDim2.fromOffset(0, n * ROW)
 	local cost = if Tycoon and Tycoon.levelCost then Tycoon.levelCost(lvl) else nil
 	level.Visible = type(cost) == "number"
 	if type(cost) == "number" then
@@ -454,8 +456,9 @@ showGarageBtn()
 
 local vote = Instance.new("Frame")
 vote.Name = "MapVote"
-vote.AnchorPoint = Vector2.new(0.5, 0)
-vote.Position = UDim2.new(0.5, 0, 0, 112) -- top middle, under the FRIENDS row: off the thumbs
+vote.AnchorPoint = Vector2.new(0.5, 1)
+-- bottom middle, just over DRIVE and the goal line: clear of the chips and GARAGE (Studio shot 05)
+vote.Position = UDim2.new(0.5, 0, 0.96, -104)
 vote.Size = UDim2.fromScale(0.44, 0.3)
 vote.BackgroundColor3 = KartStyle.BLUE
 vote.Visible = false
