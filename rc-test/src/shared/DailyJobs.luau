@@ -52,8 +52,50 @@ DailyJobs.POOLS = {
 	},
 } :: { { Job } }
 
+-- Car VS Car's jobs (carter's pick 45, 10-26: "win 1 race, train 5 min"): train, race, crates.
+-- Stars.server swaps them in with DailyJobs.useCvc while Features.CVC is on.
+DailyJobs.CVC_POOLS = {
+	{
+		{
+			id = "train5",
+			text = "Train your cars for 5 min",
+			event = "train",
+			goal = 5,
+			coins = 30,
+		},
+		{
+			id = "train8",
+			text = "Train your cars for 8 min",
+			event = "train",
+			goal = 8,
+			coins = 50,
+		},
+		{ id = "coach3", text = "Tap COACH 3 times", event = "coach", goal = 3, coins = 30 },
+	},
+	{
+		{ id = "win", text = "Win 1 race", event = "raceWin", goal = 1, coins = 50 },
+		{ id = "top3", text = "Get top 3 in a race", event = "raceTop3", goal = 1, coins = 50 },
+		{ id = "race2", text = "Finish 2 races", event = "raceDone", goal = 2, coins = 40 },
+	},
+	{
+		{ id = "crate", text = "Open a crate", event = "crate", goal = 1, coins = 40 },
+		{ id = "upgrade", text = "Upgrade your plot", event = "upgrade", goal = 1, coins = 40 },
+		{ id = "races3", text = "Finish 3 races", event = "raceDone", goal = 3, coins = 50 },
+	},
+} :: { { Job } }
+DailyJobs.TYCOON_POOLS = DailyJobs.POOLS
+
+-- Which jobs today's lists come from (true = Car VS Car's).
+function DailyJobs.useCvc(on: boolean)
+	DailyJobs.POOLS = if on then DailyJobs.CVC_POOLS else DailyJobs.TYCOON_POOLS
+end
+
 -- every event a job may use, and who sends it (all can happen to a kid playing alone)
 DailyJobs.EVENTS = {
+	train = "TrainingServer: a minute with a car training",
+	coach = "TrainingServer: tapped COACH",
+	crate = "TrainingServer: opened or bought a crate",
+	upgrade = "TrainingServer: upgraded a station or the plot",
 	collect = "TycoonServer: collected the garage's coins",
 	spin = "CarShop: spun the gumball",
 	raceDone = "ServerRaceRunner: finished a server race",

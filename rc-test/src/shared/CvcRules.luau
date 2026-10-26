@@ -193,6 +193,17 @@ function CvcRules.buy(data: Data, kind: unknown, rng: Crates.Rng): string?
 	return id
 end
 
+-- The daily gift (carter's picks 36 and 46): the login streak's coins (Profile.daily) and a free
+-- crate every day. Once a day; 0 coins and no crate when today's is already taken.
+function CvcRules.daily(data: Data, day: number, mult: number?): (number, number, boolean)
+	local coins, streak = Profile.daily(data, day, mult)
+	if coins <= 0 then
+		return 0, streak, false
+	end
+	data.crates = math.min(data.crates + 1, Profile.MAX_COINS)
+	return coins, streak, true
+end
+
 export type RaceResult = { coins: number, trophy: boolean, league: number, firstCrate: boolean }
 
 -- A race is over (place 0 = didn't finish): coins by league and place, a trophy for the top 3,
