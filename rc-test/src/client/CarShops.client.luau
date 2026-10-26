@@ -262,6 +262,13 @@ local function drivesNow(car: CarCatalog.Car): boolean
 	return Features.PLOT_RACING or car.mode == "drift"
 end
 
+-- A kind's pill colour: its own, but common's light grey is a slate here (it vanished on the
+-- white cards, Studio check 10-26). Words on a pill are always white.
+local COMMON_PILL = Color3.fromRGB(110, 116, 135)
+local function pillColor(tier: CarCatalog.Rarity): Color3
+	return if tier.id == "common" then COMMON_PILL else rgb(tier.color)
+end
+
 local function reveal(car: CarCatalog.Car, onDone: () -> ())
 	local back = Instance.new("TextButton") -- swallows taps behind it
 	back.Name = "NewCar"
@@ -318,16 +325,8 @@ local function reveal(car: CarCatalog.Car, onDone: () -> ())
 	}
 	-- its kind on a pill over the car, in the kind's colour
 	local tier = CarCatalog.rarity(car.id)
-	local kindTag = text(
-		box,
-		tier.label,
-		0.36,
-		0.15,
-		0.28,
-		0.065,
-		if tier.id == "common" then KartStyle.INK else Color3.new(1, 1, 1)
-	)
-	kindTag.BackgroundColor3 = rgb(tier.color)
+	local kindTag = text(box, tier.label, 0.36, 0.15, 0.28, 0.065, Color3.new(1, 1, 1))
+	kindTag.BackgroundColor3 = pillColor(tier)
 	kindTag.BackgroundTransparency = 0
 	corner(kindTag, 0.5)
 	table.insert(words, kindTag)
@@ -507,16 +506,8 @@ local function showShop(kind: string, s: State)
 		-- colour, faster the rarer it is
 		local tier = CarCatalog.RARITY[car.rarity] or CarCatalog.RARITY.common
 		local kindColor = rgb(tier.color)
-		local tag = text(
-			c,
-			tier.label,
-			0.22,
-			0.02,
-			0.56,
-			0.08,
-			if car.rarity == "common" then KartStyle.INK else Color3.new(1, 1, 1)
-		)
-		tag.BackgroundColor3 = kindColor
+		local tag = text(c, tier.label, 0.22, 0.02, 0.56, 0.08, Color3.new(1, 1, 1))
+		tag.BackgroundColor3 = pillColor(tier)
 		tag.BackgroundTransparency = 0
 		tag.ZIndex = 3
 		corner(tag, 0.5)
@@ -956,13 +947,7 @@ local function carTag(over: BasePart, car: CarCatalog.Car)
 			corner(l, 0.5)
 		end
 	end
-	line(
-		tier.label,
-		0,
-		0.45,
-		rgb(tier.color),
-		if tier.id == "common" then KartStyle.INK else Color3.new(1, 1, 1)
-	)
+	line(tier.label, 0, 0.45, pillColor(tier), Color3.new(1, 1, 1))
 	line(if car.price == 0 then "FREE" else `{car.price} coins`, 0.5, 0.5, nil, GOLD)
 end
 
