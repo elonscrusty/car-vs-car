@@ -107,7 +107,7 @@ function MapKit.scale(def: Def, k: number): Def
 	end
 	d.jumps = {}
 	for i, j in def.jumps do
-		d.jumps[i] = { path = j.path, at = pt(j.at) }
+		d.jumps[i] = { path = j.path, at = pt(j.at), h = j.h, len = j.len }
 	end
 	d.props = {}
 	for i, p in def.props do
@@ -128,8 +128,10 @@ MapKit.CURB_HEIGHT = 0.4
 MapKit.GATE_DEPTH = 12
 MapKit.GRASS_GRIP = 0.75 -- off the road: same as the race plot's grass
 MapKit.GRASS_DRAG = 0.5
-MapKit.JUMP_H = 14 -- same ridge as the JUMP tile (Studio-tested: ~0.6 s of air)
-MapKit.JUMP_LEN = 58
+-- the jump ridge: low and long. The JUMP tile's 14 x 58 put a full-speed car on its roof
+-- (Studio, 10-26), so the maps use a flatter one.
+MapKit.JUMP_H = 8
+MapKit.JUMP_LEN = 90
 MapKit.WALL_H = 60 -- the edge of the map (a fence, a kitchen wall): taller than any jump
 MapKit.TOY_OFF = 60 -- kitchen toys by the road stand this far from its centre line
 MapKit.TOY_CLEAR = 28 -- and at least this far past any curb (a brick is 44 x 22)

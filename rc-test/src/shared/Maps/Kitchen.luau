@@ -88,10 +88,10 @@ local def: MapKit.Def = {
 		{ x = 620, z = -300 },
 		{ x = 470, z = -370 }, -- along the counters
 		{ x = 280, z = -370 },
-		{ x = 150, z = -130 }, -- round the mop bucket (spoon jump)
-		{ x = 60, z = -130 }, -- flat across the bottom, so the jump is straight on
-		{ x = -60, z = -130 },
-		{ x = -150, z = -130 },
+		{ x = 190, z = -130 }, -- round the mop bucket (spoon jump)
+		{ x = 75, z = -130 }, -- flat across the bottom, so the jump is straight on
+		{ x = -75, z = -130 },
+		{ x = -190, z = -130 },
 		{ x = -280, z = -370 },
 		{ x = -450, z = -370 }, -- spilled milk by the fridge
 		{ x = -630, z = -290 },
@@ -134,8 +134,8 @@ local def: MapKit.Def = {
 		{ kind = "boost", path = 2, at = { x = 60 / K, z = (BACK + 70) / K }, len = 50 },
 	},
 	jumps = {
-		{ path = 0, at = { x = 0, z = -130 }, h = 9, len = 84 }, -- over the dropped spoon
-		{ path = 0, at = { x = -692, z = -60 }, h = 9, len = 84 }, -- the cutting board
+		{ path = 0, at = { x = 0, z = -130 } }, -- over the dropped spoon
+		{ path = 0, at = { x = -692, z = -60 } }, -- the cutting board
 	},
 	props = props,
 	lines = {

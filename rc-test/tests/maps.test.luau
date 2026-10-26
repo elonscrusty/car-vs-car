@@ -246,7 +246,7 @@ for _, m in maps do
 				for _, g in m.gates do
 					local gd = math.sqrt((g.x - j.at.x) ^ 2 + (g.z - j.at.z) ^ 2)
 					truthy(
-						gd > MapKit.JUMP_LEN,
+						gd > (j.len or MapKit.JUMP_LEN) / 2 + MapKit.GATE_DEPTH + 10,
 						`jump at {j.at.x}, {j.at.z} is {gd} from a lap check`
 					)
 				end
@@ -330,6 +330,40 @@ for _, m in maps do
 			end
 		end
 	end)
+
+	test(
+		m.id .. ": jumps keep their shape through the squeeze, low enough for full speed",
+		function()
+			for _, j in def.jumps do
+				truthy((j.h or MapKit.JUMP_H) <= 9, "jump too tall")
+				truthy((j.len or MapKit.JUMP_LEN) >= 80, "jump too short (steep)")
+			end
+			local d = MapKit.scale({
+				id = "x",
+				label = "X",
+				theme = "yard",
+				road = 36,
+				minX = -1,
+				maxX = 1,
+				minZ = -1,
+				maxZ = 1,
+				main = {},
+				line = { x = 0, z = 0 },
+				gates = {},
+				paths = {},
+				pads = {},
+				props = {},
+				lines = {},
+				jumps = { { path = 0, at = { x = 10, z = 0 }, h = 5, len = 99 } },
+				rcX = 0,
+				rcZ = 0,
+				rcAngle = 0,
+			}, 0.5)
+			eq(d.jumps[1].h, 5)
+			eq(d.jumps[1].len, 99)
+			eq(d.jumps[1].at.x, 5)
+		end
+	)
 
 	test(m.id .. ": sits far from the lobby", function()
 		local t = m.track()
