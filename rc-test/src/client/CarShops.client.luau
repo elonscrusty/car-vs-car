@@ -256,6 +256,12 @@ end
 
 local revealSpin: RBXScriptConnection? = nil
 
+-- Can this car go for a drive from the shop? (Tycoon plan: plots are garages, only the free
+-- drift plot drives; a race car races on the maps with JOIN RACE.)
+local function drivesNow(car: CarCatalog.Car): boolean
+	return Features.PLOT_RACING or car.mode == "drift"
+end
+
 local function reveal(car: CarCatalog.Car, onDone: () -> ())
 	local back = Instance.new("TextButton") -- swallows taps behind it
 	back.Name = "NewCar"
@@ -298,12 +304,27 @@ local function reveal(car: CarCatalog.Car, onDone: () -> ())
 	local words = {
 		text(box, "NEW CAR!", 0, 0, 1, 0.15, GOLD),
 		text(box, car.name, 0, 0.7, 1, 0.1, Color3.new(1, 1, 1)),
-		text(box, "You're driving it now!", 0, 0.8, 1, 0.06, Color3.fromRGB(180, 230, 190)),
+		text(
+			box,
+			if Features.PLOT_RACING
+				then "You're driving it now!"
+				else `In your garage! +{CarCatalog.rarity(car.id).perMin} coins/min`,
+			0,
+			0.8,
+			1,
+			0.06,
+			Color3.fromRGB(180, 230, 190)
+		),
 	}
 	for _, w in words do
 		w.ZIndex = 11
 	end
-	local go = button(box, "DRIVE IT!", Color3.fromRGB(60, 180, 80), true)
+	local go = button(
+		box,
+		if not drivesNow(car) then "OK!" elseif car.mode == "drift" then "DRIFT IT!" else "DRIVE IT!",
+		Color3.fromRGB(60, 180, 80),
+		true
+	)
 	go.ZIndex = 11
 	go.Position = UDim2.fromScale(0.3, 0.88)
 	go.Size = UDim2.fromScale(0.4, 0.12)
@@ -530,9 +551,23 @@ local function showShop(kind: string, s: State)
 
 		local b: TextButton
 		if s.equipped[kind] == car.id then
-			b = button(c, "DRIVING", Color3.fromRGB(60, 180, 80), false)
+			b = button(
+				c,
+				if drivesNow(car) then "DRIVING" else "PICKED",
+				Color3.fromRGB(60, 180, 80),
+				false
+			)
 			b.BackgroundColor3 = Color3.fromRGB(60, 180, 80)
 			b.TextColor3 = Color3.new(1, 1, 1)
+		elseif owned[car.id] and not drivesNow(car) then
+			-- yours: the car you race with on the maps
+			b = button(c, "PICK", Color3.fromRGB(40, 120, 230), true)
+			b.Activated:Connect(function()
+				local now = ask("equip", car.id)
+				if now then
+					showShop(kind, now)
+				end
+			end)
 		elseif owned[car.id] then
 			-- yours: put it on and go drive it
 			b = button(c, "DRIVE", Color3.fromRGB(40, 120, 230), true)
@@ -563,7 +598,9 @@ local function showShop(kind: string, s: State)
 							park(car.id)
 							-- the server put it on already: show it off, then go drive
 							reveal(car, function()
-								driveNow(car)
+								if drivesNow(car) then
+									driveNow(car)
+								end
 							end)
 						end
 					end
@@ -655,7 +692,9 @@ local function showGumball(s: State, result: string?)
 				if car and now.new then
 					park(car.id)
 					reveal(car, function()
-						driveNow(car)
+						if drivesNow(car) then
+							driveNow(car)
+						end
 					end)
 				end
 			end
