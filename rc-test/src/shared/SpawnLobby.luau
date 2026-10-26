@@ -20,6 +20,8 @@ local function sibling(name: string): any
 end
 
 local Features = sibling("Features")
+local CarCatalog = sibling("CarCatalog")
+local CarGlow = sibling("CarGlow")
 local Garage = sibling("Garage")
 
 type V3 = Garage.V3
@@ -44,7 +46,13 @@ SpawnLobby.SPAWN = { x = 0, z = 15 } -- where people appear, looking at the pads
 SpawnLobby.GAP = 13 -- the front edge is open for |x| < GAP: the walk onto the street
 SpawnLobby.STATUE = { x = 0, z = -6 }
 SpawnLobby.STAND_Z = -28
-SpawnLobby.STANDS = { -19.25, -13.75, -8.25, -2.75, 2.75, 8.25, 13.75, 19.25 } -- everyone's car
+SpawnLobby.STANDS = { -19.25, -13.75, -8.25, -2.75, 2.75, 8.25, 13.75, 19.25 } -- the dream cars
+-- On the stands: the gumball's cars (rare to legend), each glowing its kind, so a new kid sees
+-- what there is to win (tycoon plan)
+SpawnLobby.STAND_CARS = {} :: { string }
+for _, g in CarCatalog.GUMBALL do
+	table.insert(SpawnLobby.STAND_CARS, g.car.id)
+end
 SpawnLobby.PAD_Z = 23
 -- play pads (queue pads): race and drift send you to an open plot of that kind (each owner picks
 -- race or drift; rocks dropped, carter 23:42), build sends you to your own plot
@@ -205,7 +213,16 @@ function SpawnLobby.parts(): { Piece }
 			rot = v(0, 0, 90),
 			collide = false,
 		})
-		Garage.toyCar(add, "StandCars", v(x, 0.95, z), 180, CAR_COLORS[i], 1)
+		local dream = CarCatalog.get(SpawnLobby.STAND_CARS[i])
+		Garage.toyCar(
+			add,
+			"StandCars",
+			v(x, 0.95, z),
+			180,
+			if dream then dream.color else CAR_COLORS[i],
+			1,
+			if dream then dream.style else nil
+		)
 	end
 
 	-- ===== Bunting over the stands, on two poles =====
@@ -555,6 +572,17 @@ function SpawnLobby.build(parent: Instance, at: CFrame): Model
 	local gumball = (groups.Gumball :: Model):FindFirstChild("Base") :: BasePart
 	game:GetService("CollectionService"):AddTag(gumball, "Gumball")
 	Garage.useMeshes(groups, origin, SpawnLobby.MESHES)
+	-- each dream car's kind: its turntable ring glows in that colour
+	for i in SpawnLobby.STANDS do
+		local stand = groups["Stand" .. i]
+		local ring = stand and stand:FindFirstChild("Ring", true)
+		local id = SpawnLobby.STAND_CARS[i]
+		if ring and ring:IsA("BasePart") and id then
+			local kind = CarCatalog.rarity(id)
+			ring.Color = Color3.fromRGB(kind.color[1], kind.color[2], kind.color[3])
+			CarGlow.apply(ring, kind.id)
+		end
+	end
 	for _, b in SpawnLobby.BUILDINGS do
 		Garage.build(
 			model,
