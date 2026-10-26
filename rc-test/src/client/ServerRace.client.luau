@@ -225,11 +225,20 @@ RunService.RenderStepped:Connect(function()
 		nextText, lastPhase = clock + 0.1, phase
 	end
 	local wasHurry, wasCall, wasJoin = hurry.Visible, call.Visible, join.Visible
+	local wasStrip = callAspect.AspectRatio > 3
 	-- the call: the small chip steps aside for the huge banner
 	-- the call, and on through the 3-2-1: whose track this is
 	local starting = phase == "racing" and os.clock() - racingAt < BANNER
 	call.Visible = (phase == "call" and startAt > 0) or starting
-	callClock.Visible = not starting -- the giant 3-2-1 takes over from the clock
+	-- on foot (at spawn, in a shop) the call is a thin strip up top, clock and all: the big banner
+	-- covered the middle of a new kid's screen (check kid-03); in a car it stays big
+	local strip = not starting and player:GetAttribute("Driving") ~= true
+	callAspect.AspectRatio = if strip then 7 else 2.6
+	callWhere.Size = UDim2.fromScale(1, if strip then 1 else 0.3)
+	call.Position = if strip
+		then UDim2.new(0.5, 0, 0, 58) -- (where the hurry pill sits in a race: the top middle is free)
+		else UDim2.new(0.5, 0, 0.12, 70)
+	callClock.Visible = not starting and not strip -- the giant 3-2-1 takes over from the clock
 	-- the daily gift (Stars) waits while a race or its card is on screen
 	gui:SetAttribute("Busy", phase == "racing" or phase == "call" or card.Visible)
 	local hurryLeft = endsAt - workspace:GetServerTimeNow()
@@ -254,7 +263,7 @@ RunService.RenderStepped:Connect(function()
 		and player:GetAttribute("Building") ~= true
 		and (not driving or secs <= 60)
 	if call.Visible then
-		if words or not wasCall then
+		if words or not wasCall or strip ~= wasStrip then
 			local verb = if kind == "drift" then "DRIFT" else "RACE"
 			-- a map is a place ("RACE IN THE KITCHEN!"), an old plot track was someone's
 			callWhere.Text = if where == ""
@@ -262,6 +271,9 @@ RunService.RenderStepped:Connect(function()
 				elseif RaceMaps.live() then `{verb} IN THE {where}!`
 				else `{verb} ON {where}!`
 			callClock.Text = ServerRace.clock(secs)
+			if strip then
+				callWhere.Text ..= `  {callClock.Text}`
+			end
 		end
 		-- a little pulse each second
 		local f = secs % 1
