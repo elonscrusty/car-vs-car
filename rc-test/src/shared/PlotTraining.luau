@@ -117,6 +117,26 @@ end
 -- Where a tiny car is on a station at time `t` (seconds): pad-local x, y, z, its yaw in degrees
 -- (0 = nose to -z, like Garage.toyCar) and a nose-up tilt in degrees.
 PlotTraining.TRACK = { halfW = 7, halfD = 4 } -- the speed track's middle line
+-- COACH (Training.COACH_SECS after the owner's CoachAt): the stations run this much faster
+PlotTraining.COACH_SPEED = 1.6
+function PlotTraining.coaching(coachAt: number?, now: number): boolean
+	local at = tonumber(coachAt) or 0
+	return at > 0 and now >= at and now < at + Training.COACH_SECS
+end
+
+-- The treadmill belt's slats (pad-local z), scrolling back under the running car (+z).
+PlotTraining.BELT = { z = -0.5, len = 8.6, slats = 6, speed = 6 }
+function PlotTraining.slats(t: number): { number }
+	local B = PlotTraining.BELT
+	local gap = B.len / B.slats
+	local shift = (t * B.speed) % gap
+	local out = {}
+	for k = 0, B.slats - 1 do
+		table.insert(out, B.z - B.len / 2 + gap / 2 + ((k * gap + shift) % B.len))
+	end
+	return out
+end
+
 PlotTraining.RAMP_SECS = 6 -- one ramp run: up, over the gap, round and back
 function PlotTraining.ride(kind: string, t: number): (number, number, number, number, number)
 	if kind == "treadmill" then
@@ -375,7 +395,7 @@ function PlotTraining.pieces(plotLevel: number, garageLevel: number, trophies: n
 		"Shelf",
 		"ShelfSign",
 		v(10, 1.6, 0.3),
-		v(S.x, S.y + 5, S.z + 0.2),
+		v(S.x, S.y + 6.4, S.z + 0.2),
 		WOOD_DARK,
 		{ collide = false }
 	)
