@@ -120,6 +120,7 @@ export type Mesh = {
 	fit: V3,
 	long: string,
 	keep: { string },
+	hide: { string }?, -- of the kept ones: still there (a collider, a tag, a prompt), not seen
 	onTop: string?,
 	faceMinusX: boolean?, -- when turned, look toward -x (default +x)
 	yaw: number?, -- extra turn about y, degrees (a model that came in facing the wrong way)
@@ -278,6 +279,40 @@ Garage.MESHES = {
 -- own colour.)
 function Garage.shopMeshes(_kind: string): { Mesh }
 	local out: { Mesh } = {}
+	local W, D, H, F = Garage.WIDTH, Garage.DEPTH, Garage.HEIGHT, Garage.FLOOR
+	-- carter's CarShop (batch 6, open front at its -Z) over the block shell. The floor, walls and
+	-- roof stay as hidden colliders (the mesh doesn't collide); the ceiling lights stay lit.
+	table.insert(out, {
+		model = "CarShop",
+		group = "Shell",
+		at = v(0, 0, 0.25),
+		fit = v(W + 1, H + 1, D + 1.5),
+		long = "x",
+		yaw = 180, -- its open front to the garage-local +Z (the door side)
+		keep = {
+			"Floor",
+			"BackWall",
+			"LeftWall",
+			"RightWall",
+			"Roof",
+			"CeilingLight1",
+			"CeilingLight2",
+		},
+		hide = { "Floor", "BackWall", "LeftWall", "RightWall", "Roof" },
+		collide = false,
+	})
+	-- carter's ShopCounter (drawer at its -Z: the staff side, toward the back wall) over the desk;
+	-- the desk keeps the shop's prompt and the top its trim colour (CarShops, PadWords)
+	table.insert(out, {
+		model = "ShopCounter",
+		group = "Counter",
+		at = v(0, F, -D / 2 + 2.4),
+		fit = v(8.4, 3.3, 2.2),
+		long = "x",
+		keep = { "Desk", "Top", "Stripe" },
+		hide = { "Desk", "Top" },
+		collide = true,
+	})
 	for i, x in Garage.SHOP_STANDS do
 		table.insert(out, {
 			model = "Turntable",
@@ -995,9 +1030,15 @@ function Garage.useMeshes(groups: { [string]: Model }, origin: CFrame, meshes: {
 		for _, name in m.keep do
 			keep[name] = true
 		end
+		local hide: { [string]: boolean } = {}
+		for _, name in m.hide or {} do
+			hide[name] = true
+		end
 		for _, part in group:GetChildren() do
 			if part:IsA("BasePart") and not keep[part.Name] then
 				part:Destroy()
+			elseif part:IsA("BasePart") and hide[part.Name] then
+				part.Transparency = 1
 			end
 		end
 		prop.Parent = group
