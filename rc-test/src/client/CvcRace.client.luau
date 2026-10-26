@@ -76,13 +76,19 @@ end)
 
 local boost = button(hud, "BOOST", KartStyle.RED)
 boost.Name = "Boost"
-HudLayout.place(boost, "Boost", "drive")
 boost.Visible = false
 CvcUi.corner(boost, 0.5)
-local boostSquare = Instance.new("UIAspectRatioConstraint")
-boostSquare.DominantAxis = Enum.DominantAxis.Height
-boostSquare.AspectRatio = 1
-boostSquare.Parent = boost
+-- square, just left of DRIFT on every screen (HudLayout.box; place() alone gave it no width)
+local boostSpot = HudLayout.find("Boost", "drive") :: HudLayout.Spot
+local function fitBoost()
+	local size = hud.AbsoluteSize
+	local l, t, r, b = HudLayout.box(boostSpot, size.X, size.Y)
+	boost.AnchorPoint = Vector2.zero
+	boost.Position = UDim2.fromOffset(l, t)
+	boost.Size = UDim2.fromOffset(r - l, b - t)
+end
+hud:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitBoost)
+fitBoost()
 CvcUi.rim(boost, KartStyle.BUTTON_RIM)
 -- how many are saved up, a little white ball on its corner
 local boostCount = label(boost, "0", INK)
