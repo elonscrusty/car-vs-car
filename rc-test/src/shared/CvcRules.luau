@@ -50,8 +50,14 @@ function CvcRules.best(data: Data): number
 end
 
 -- First time in: the stations the plot level gives (an old or merged save can't keep extra
--- ones, a wrong kind, or one car on two stations), and a racer when there's a car.
+-- ones, a wrong kind, or one car on two stations), and a racer when there's a car. A save that
+-- hasn't picked a starter yet (a new player, or an old save from the tycoon game) starts the
+-- new-player steps from the top: the starter pick, the first race on a tap with easy bots, and
+-- its crate.
 function CvcRules.setUp(data: Data)
+	if not data.picked then
+		data.stage = Profile.STAGE.NEW
+	end
 	local kinds = Training.stationsFor(data.plotLevel)
 	for i = #data.stations, #kinds + 1, -1 do
 		table.remove(data.stations, i)

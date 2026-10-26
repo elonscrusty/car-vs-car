@@ -95,6 +95,7 @@ end
 local function setUp(player: Player, data: Profile.Data)
 	ready[player] = true
 	CvcRules.setUp(data)
+	player:SetAttribute("Stage", data.stage) -- (an old save starts the new-player steps)
 	player:SetAttribute("CoachAt", 0)
 	show(player, data)
 	showPlot(player, data)
