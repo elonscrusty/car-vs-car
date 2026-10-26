@@ -489,7 +489,15 @@ local function runRace(hooks: Hooks, slot: number)
 	local drift = t.id == "drift"
 	-- a map race with fewer than 4 cars gets bots (the grid spots after the players')
 	if not drift and t.map then
-		fleet = RaceBotCars.spawn(t, #racers, mapModel)
+		-- (Car VS Car: bots as good as the league, easy ones when nobody here has raced yet)
+		local league, easy = 1, true
+		for _, r in racers do
+			local lg = r.player:GetAttribute("League")
+			league = math.max(league, if type(lg) == "number" then lg else 1)
+			local stage = r.player:GetAttribute("Stage")
+			easy = easy and not (type(stage) == "number" and stage >= Profile.STAGE.RACED)
+		end
+		fleet = RaceBotCars.spawn(t, #racers, mapModel, { league = league, easy = easy })
 	end
 	local bots = fleet
 	if drift then

@@ -72,12 +72,38 @@ RaceBots.COLORS = {
 	{ 230, 210, 70 },
 }
 
+-- Car VS Car: a race is filled with bots up to the whole grid (8), and how good they are follows
+-- the league. A bot's skill (0..1 of RaceBots.TOP) range per league, Bronze..Diamond. First guesses
+-- to tune in Studio. The first race of a new player uses EASY_SKILL, so they win it.
+RaceBots.LEAGUE_SKILL = {
+	{ 0.55, 0.85 },
+	{ 0.65, 0.92 },
+	{ 0.75, 0.98 },
+	{ 0.85, 1.05 },
+} :: { { number } }
+RaceBots.EASY_SKILL = { 0.42, 0.58 } :: { number }
+RaceBots.EASY_DELAY = 0.6 -- easy bots also wake up this much later at GO (seconds)
+
+-- The skill range (lowest, highest) for a race in `league` (1..4; nil = the old fixed range),
+-- or the easy range.
+function RaceBots.skillRange(league: number?, easy: boolean?): (number, number)
+	if easy then
+		return RaceBots.EASY_SKILL[1], RaceBots.EASY_SKILL[2]
+	end
+	if league == nil then
+		return RaceBots.SKILL_MIN, RaceBots.SKILL_MAX
+	end
+	local r = RaceBots.LEAGUE_SKILL[math.clamp(math.floor(league), 1, #RaceBots.LEAGUE_SKILL)]
+	return r[1], r[2]
+end
+
 -- How many bots a race with `humans` players needs (0 when nobody is there: no race at all).
-function RaceBots.count(humans: number, max: number): number
+-- `fill` = how many cars the race is filled up to (default MIN_CARS; Car VS Car fills the grid).
+function RaceBots.count(humans: number, max: number, fill: number?): number
 	if humans < 1 then
 		return 0
 	end
-	return math.max(0, math.min(RaceBots.MIN_CARS, max) - humans)
+	return math.max(0, math.min(fill or RaceBots.MIN_CARS, max) - humans)
 end
 
 local function wrap(i: number, n: number): number
@@ -303,10 +329,11 @@ end
 
 -- Spread of the bots: skill and lane for bot number `i` of `count` (r = a random number 0..1 per
 -- bot), so there is a quick one, a slow one and some in the middle.
-function RaceBots.skillFor(i: number, count: number, r: number): number
-	local span = RaceBots.SKILL_MAX - RaceBots.SKILL_MIN
+function RaceBots.skillFor(i: number, count: number, r: number, lo: number?, hi: number?): number
+	local low = lo or RaceBots.SKILL_MIN
+	local span = (hi or RaceBots.SKILL_MAX) - low
 	local slot = if count > 1 then (i - 1) / (count - 1) else 0.5
-	return RaceBots.SKILL_MIN + span * math.clamp(slot * 0.8 + r * 0.2, 0, 1)
+	return low + span * math.clamp(slot * 0.8 + r * 0.2, 0, 1)
 end
 
 function RaceBots.laneFor(i: number): number
