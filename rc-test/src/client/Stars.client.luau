@@ -6,23 +6,14 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
-local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
 local KartStyle = require(ReplicatedStorage.Shared.KartStyle)
 local Popup = require(script.Parent:WaitForChild("Popup"))
 local StageGate = require(script.Parent:WaitForChild("StageGate"))
 local Profile = require(ReplicatedStorage.Shared.Profile)
-local Visit = require(ReplicatedStorage.Shared.Visit)
 
 local remote = ReplicatedStorage:WaitForChild("StarsEvent") :: RemoteEvent
 local player = Players.LocalPlayer
-
-local NAMES = { "BRONZE", "SILVER", "GOLD" }
-local COLORS = {
-	Color3.fromRGB(214, 140, 80),
-	Color3.fromRGB(215, 222, 232),
-	Color3.fromRGB(255, 205, 60),
-}
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "Stars"
@@ -72,12 +63,25 @@ chip.TextColor3 = Color3.fromRGB(255, 213, 79)
 chip.Font = Enum.Font.LuckiestGuy
 chip.TextScaled = true
 chip.Text = "⭐ 0"
-chip.Parent = hud
 local chipCorner = Instance.new("UICorner")
 chipCorner.CornerRadius = UDim.new(0.3, 0)
 chipCorner.Parent = chip
 local chipScale = Instance.new("UIScale")
 chipScale.Parent = chip
+
+-- shown when this server can't save (Studio without API access, DataStore down)
+local noSave = Instance.new("TextLabel")
+noSave.Name = "NotSaving"
+noSave.AnchorPoint = Vector2.new(0, 1)
+noSave.Position = UDim2.new(0, 0, 0, -2) -- above the coins chip
+noSave.Size = UDim2.fromScale(1, 0.5)
+noSave.BackgroundTransparency = 1
+noSave.TextColor3 = Color3.fromRGB(255, 110, 100)
+noSave.TextStrokeTransparency = 0.4
+noSave.Font = Enum.Font.LuckiestGuy
+noSave.TextScaled = true
+noSave.Text = "NOT SAVING"
+noSave.Visible = false
 
 -- coins, beside the stars
 local coinChip = chip:Clone()
@@ -86,6 +90,7 @@ HudLayout.place(coinChip, "CoinCount")
 coinChip.TextColor3 = Color3.fromRGB(255, 236, 150)
 coinChip.Text = "0"
 coinChip.Parent = hud
+noSave.Parent = coinChip
 -- a drawn coin (the coin emoji is missing from Roblox's font): gold disc, darker rim, a lighter
 -- inner ring. The number sits to its right.
 local coinPad = Instance.new("UIPadding")
@@ -120,147 +125,6 @@ local innerRing = Instance.new("UIStroke")
 innerRing.Color = Color3.fromRGB(255, 232, 140)
 innerRing.Thickness = 1.5
 innerRing.Parent = coinInner
-
--- the next medal on the plot you drive ("⭐ 0:20" in the medal's colour); flashes "+1 ⭐" when you get it
-local goalChip = chip:Clone()
-goalChip.Name = "MedalGoal"
-HudLayout.place(goalChip, "MedalGoal", "drive")
-goalChip.Text = ""
-goalChip.Visible = false
-goalChip.Parent = gui
-local goalScale = goalChip:FindFirstChildOfClass("UIScale") :: UIScale
-
--- gold bolts found, only while on a rock plot (rock plots are gone: never shown)
-local boltChip = chip:Clone()
-boltChip.Name = "BoltCount"
-HudLayout.place(boltChip, "MedalGoal", "drive")
-boltChip.TextColor3 = Color3.fromRGB(255, 200, 70)
-boltChip.Text = "BOLTS 0/5"
-boltChip.Visible = false
-boltChip.Parent = gui
-
--- found bolts are hidden on this screen (the server says which)
-local foundBolts: { [number]: boolean } = {}
-local function hideFound()
-	local plots = workspace:FindFirstChild("Plots")
-	if not plots then
-		return
-	end
-	for _, d in plots:GetDescendants() do
-		local id = d:GetAttribute("BoltId")
-		if type(id) == "number" and foundBolts[id] then
-			for _, p in { d, table.unpack(d:GetDescendants()) } do
-				if p:IsA("BasePart") then
-					p.LocalTransparencyModifier = 1
-				elseif p:IsA("Light") or p:IsA("ParticleEmitter") then
-					(p :: any).Enabled = false
-				end
-			end
-		end
-	end
-end
-
--- rivals: a button under the coins opens your score against each player you raced
-local rivalsBtn = Instance.new("TextButton")
-rivalsBtn.Name = "Rivals"
-HudLayout.place(rivalsBtn, "Rivals")
-rivalsBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-rivalsBtn.BackgroundTransparency = 0.3
-rivalsBtn.TextColor3 = Color3.new(1, 1, 1)
-rivalsBtn.Font = Enum.Font.LuckiestGuy
-rivalsBtn.TextScaled = true
-rivalsBtn.Text = "RIVALS"
-rivalsBtn.Parent = later
-local rivalsBtnCorner = Instance.new("UICorner")
-rivalsBtnCorner.CornerRadius = UDim.new(0.3, 0)
-rivalsBtnCorner.Parent = rivalsBtn
-
-local panel = Instance.new("Frame")
-panel.Name = "RivalsPanel"
-panel.AnchorPoint = Vector2.new(0.5, 0.5)
-panel.Position = UDim2.fromScale(0.5, 0.5)
-panel.Size = UDim2.fromScale(0.42, 0.62)
-panel.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-panel.BackgroundTransparency = 0.1
-panel.Visible = false
-panel.Parent = top
-local panelCorner = Instance.new("UICorner")
-panelCorner.CornerRadius = UDim.new(0.06, 0)
-panelCorner.Parent = panel
-local function panelLabel(name: string, y: number, h: number): TextLabel
-	local l = Instance.new("TextLabel")
-	l.Name = name
-	l.Position = UDim2.fromScale(0.05, y)
-	l.Size = UDim2.fromScale(0.9, h)
-	l.BackgroundTransparency = 1
-	l.TextColor3 = Color3.new(1, 1, 1)
-	l.Font = Enum.Font.LuckiestGuy
-	l.TextScaled = true
-	l.TextXAlignment = Enum.TextXAlignment.Left
-	l.Parent = panel
-	return l
-end
-local title = panelLabel("Title", 0.03, 0.1)
-title.Font = Enum.Font.LuckiestGuy
-title.Text = "RIVALS"
-local streakLine = panelLabel("Streak", 0.14, 0.07)
-streakLine.TextColor3 = Color3.fromRGB(255, 150, 40)
-local rows: { TextLabel } = {}
-for i = 1, 8 do
-	rows[i] = panelLabel("Row" .. i, 0.23 + (i - 1) * 0.085, 0.075)
-end
-local close = Instance.new("TextButton")
-close.Name = "Close"
-close.AnchorPoint = Vector2.new(1, 0)
-close.Position = UDim2.fromScale(0.97, 0.03)
-close.Size = UDim2.fromScale(0.14, 0.1)
-close.SizeConstraint = Enum.SizeConstraint.RelativeYY
-close.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
-close.TextColor3 = Color3.new(1, 1, 1)
-close.Font = Enum.Font.LuckiestGuy
-close.TextScaled = true
-close.Text = "X"
-close.Parent = panel
-local closeCorner = Instance.new("UICorner")
-closeCorner.CornerRadius = UDim.new(0.5, 0)
-closeCorner.Parent = close
-rivalsBtn.Activated:Connect(function()
-	panel.Visible = not panel.Visible
-end)
-close.Activated:Connect(function()
-	panel.Visible = false
-end)
--- tap outside shuts it too, and it never stacks on another popup
-Popup.add("rivals", top, function()
-	panel.Visible = false
-end)
-panel:GetPropertyChangedSignal("Visible"):Connect(function()
-	Popup.shown("rivals", panel.Visible)
-end)
-
-local function showRivals(list: { any }, streak: number, points: number)
-	streakLine.Text = `win streak {streak}   wins {points}`
-	-- a new player has no rivals yet: no button to wonder about until they do
-	rivalsBtn.Visible = #list > 0 or points > 0
-	for i, row in rows do
-		local r = list[i]
-		if type(r) == "table" and type(r.name) == "string" then
-			local w = if type(r.wins) == "number" then r.wins else 0
-			local l = if type(r.losses) == "number" then r.losses else 0
-			row.Text = `{r.name}    you {w} - {l} them`
-			row.TextColor3 = if w > l
-				then Color3.fromRGB(120, 230, 120)
-				elseif w < l then Color3.fromRGB(255, 120, 110)
-				else Color3.new(1, 1, 1)
-		elseif i == 1 then
-			row.Text = "beat a friend's time to start!"
-			row.TextColor3 = Color3.fromRGB(200, 200, 205)
-		else
-			row.Text = ""
-		end
-	end
-end
-showRivals({}, 0, 0)
 
 -- daily jobs: a small JOBS 1/3 chip under the chips; tap it to open the list (new players see
 -- one short chip, not a wall of words)
@@ -412,19 +276,6 @@ local function showToast(text: string)
 end
 
 -- shown when this server can't save (Studio without API access, DataStore down)
-local noSave = Instance.new("TextLabel")
-noSave.Name = "NotSaving"
-noSave.AnchorPoint = Vector2.new(0, 1)
-noSave.Position = UDim2.new(0, 0, 0, -2) -- above the chip: RIVALS sits under it
-noSave.Size = UDim2.fromScale(1, 0.5)
-noSave.BackgroundTransparency = 1
-noSave.TextColor3 = Color3.fromRGB(255, 110, 100)
-noSave.TextStrokeTransparency = 0.4
-noSave.Font = Enum.Font.LuckiestGuy
-noSave.TextScaled = true
-noSave.Text = "NOT SAVING"
-noSave.Visible = false
-noSave.Parent = chip
 
 local pop = Instance.new("TextLabel")
 pop.Name = "MedalPop"
@@ -488,31 +339,6 @@ local function placePop()
 		popBottom = 0.7
 		pop.BackgroundTransparency = 1
 	end
-end
-
-local shown = 0 -- pops in a row: an old pop's fade must not hide a newer one
-local function showPop(text: string, color: Color3)
-	shown += 1
-	local mine = shown
-	placePop()
-	popUntil = os.clock() + 3.3
-	pop.Text = text
-	pop.TextColor3 = color
-	pop.TextTransparency = 0
-	pop.TextStrokeTransparency = 0.3
-	popScale.Scale = 0.6
-	TweenService:Create(popScale, TweenInfo.new(0.25, Enum.EasingStyle.Back), { Scale = 1 }):Play()
-	task.delay(2.8, function()
-		if shown ~= mine then
-			return
-		end
-		local info = TweenInfo.new(0.5)
-		TweenService:Create(
-			pop,
-			info,
-			{ TextTransparency = 1, TextStrokeTransparency = 1, BackgroundTransparency = 1 }
-		):Play()
-	end)
 end
 
 -- ===== weekend banner and the daily gift =====
@@ -686,15 +512,6 @@ local function showDaily(coins: number, streak: number, boost: number)
 			hideCard()
 		end
 	end)
-end
-
-local function setStars(n: number, bump: boolean)
-	chip.Text = `⭐ {n}`
-	if bump then
-		chipScale.Scale = 1.4
-		TweenService:Create(chipScale, TweenInfo.new(0.4, Enum.EasingStyle.Back), { Scale = 1 })
-			:Play()
-	end
 end
 
 -- ===== coins fly into your total (after a race, a gift, a job) =====
@@ -1077,235 +894,11 @@ task.spawn(function()
 	end)
 end)
 
--- ===== the next medal while driving, and your row on the plot boards =====
-
-local medalGoal: any = nil -- ("target", info): { medal, text, stars } or nil off a plot
-local flashUntil = 0
-local function showMedalGoal()
-	if os.clock() < flashUntil then
-		return -- a flash is showing: it calls back when done
-	end
-	local g = medalGoal
-	-- only while driving: the server still sees a parked car on the plot after WALK
-	goalChip.Visible = g ~= nil
-		and StageGate.shows("stars")
-		and player:GetAttribute("Driving") == true
-		and player:GetAttribute("Building") ~= true
-	if g == nil then
-		return
-	end
-	if g.medal >= 1 and g.medal <= 3 then
-		goalChip.Text = `⭐ {g.text}` -- coloured by medal (⭐ is the star chip's, known to show)
-		goalChip.TextColor3 = COLORS[g.medal]
-	else
-		goalChip.Text = "ALL GOLD"
-		goalChip.TextColor3 = COLORS[3]
-	end
-end
-local function flashMedalGoal(text: string, color: Color3)
-	if medalGoal == nil then
-		return
-	end
-	if player:GetAttribute("Driving") ~= true then
-		return
-	end
-	flashUntil = os.clock() + 1.6
-	goalChip.Text = text
-	goalChip.TextColor3 = color
-	goalScale.Scale = 1.5
-	TweenService:Create(goalScale, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Scale = 1 }):Play()
-	task.delay(1.65, showMedalGoal)
-end
-player:GetAttributeChangedSignal("Building"):Connect(showMedalGoal)
-player:GetAttributeChangedSignal("Driving"):Connect(showMedalGoal)
-
--- the plot boards' rows carry their player's UserId: light up mine
-local MINE = Color3.fromRGB(0, 120, 255)
-
--- Standing on a plot's DRIVE pad: the same top 3 big on the screen (the board down the footpath
--- is too small to read from the pad on a phone).
-local plotTop = Instance.new("Frame")
-plotTop.Name = "PlotTop"
-HudLayout.place(plotTop, "PlotTop")
-plotTop.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-plotTop.BackgroundTransparency = 0.25
-plotTop.Visible = false
-plotTop.Parent = hud
-local plotTopCorner = Instance.new("UICorner")
-plotTopCorner.CornerRadius = UDim.new(0.12, 0)
-plotTopCorner.Parent = plotTop
-local plotTopPad = Instance.new("UIPadding")
-plotTopPad.PaddingLeft = UDim.new(0, 8)
-plotTopPad.PaddingRight = UDim.new(0, 8)
-plotTopPad.PaddingTop = UDim.new(0, 4)
-plotTopPad.PaddingBottom = UDim.new(0, 4)
-plotTopPad.Parent = plotTop
-local plotTopList = Instance.new("UIListLayout")
-plotTopList.SortOrder = Enum.SortOrder.LayoutOrder
-plotTopList.Parent = plotTop
-local topLines: { TextLabel } = {}
-for k = 0, 3 do
-	local t = Instance.new("TextLabel")
-	t.LayoutOrder = k
-	t.Size = UDim2.fromScale(1, 0.25)
-	t.BackgroundColor3 = MINE
-	t.BackgroundTransparency = 1
-	t.TextColor3 = if k == 0 then Color3.fromRGB(255, 213, 79) else Color3.new(1, 1, 1)
-	t.Font = Enum.Font.LuckiestGuy
-	t.TextScaled = true
-	t.RichText = true
-	t.TextXAlignment = if k == 0 then Enum.TextXAlignment.Center else Enum.TextXAlignment.Left
-	t.Text = if k == 0 then "TOP 3 HERE" else ""
-	t.Parent = plotTop
-	local c = Instance.new("UICorner")
-	c.CornerRadius = UDim.new(0.3, 0)
-	c.Parent = t
-	topLines[k] = t
-end
-
-local padSlots = LobbyLayout.slots()
-task.spawn(function()
-	local folder = workspace:WaitForChild("StarBoards", 60)
-	while folder do
-		local driving = player:GetAttribute("Driving") == true
-		-- (the plot boards go with plot racing: Features.PLOT_RACING, via StageGate)
-		local hide = driving or not StageGate.shows("top3")
-		for _, d in folder:GetDescendants() do
-			if d:IsA("TextLabel") and string.sub(d.Name, 1, 3) == "Row" then
-				local mine = d:GetAttribute("UserId") == player.UserId
-				d.BackgroundColor3 = MINE
-				d.BackgroundTransparency = if mine then 0.15 else 1
-			elseif d:IsA("SurfaceGui") then
-				d.Enabled = not hide -- off the top-down drift view and the road ahead
-			elseif d:IsA("BasePart") and d.Name == "Pole" then
-				d.LocalTransparencyModifier = if hide then 1 else 0
-			end
-		end
-		-- the pad I stand on: its board's rows on the screen
-		local root = player.Character
-			and player.Character:FindFirstChild("HumanoidRootPart") :: BasePart?
-		local board: Instance? = nil
-		if root and not driving then
-			for _, slot in padSlots do
-				if LobbyLayout.inReach(slot, root.Position.X, root.Position.Z) then
-					board = folder:FindFirstChild("Board_" .. slot.index)
-					break
-				end
-			end
-		end
-		if board then
-			for k = 1, 3 do
-				local row = board:FindFirstChild("Row" .. k, true) :: TextLabel?
-				local line = topLines[k]
-				line.Text = if row then row.Text else ""
-				line.BackgroundTransparency = if row
-						and row:GetAttribute("UserId") == player.UserId
-					then 0.15
-					else 1
-			end
-		end
-		plotTop.Visible = board ~= nil
-		task.wait(0.3)
-	end
-end)
-
--- ===== why visit: over each plot's gate, what that plot holds for me (Visit, from the server) =====
--- "⭐ 3 HERE", "BEAT SAM 0:21 = 30 COINS", "+20 VISIT GIFT", "NO ⭐ HERE" on my own. Big words
--- that face the camera, from the first car bought on (JoinStage "visit": new kids aren't flooded).
-
-local VISIT_W, VISIT_H = 16, 5 -- studs
-local VISIT_Y = 15 -- over the gate's arch (its top is about 11.6)
-local visitBoards: { [number]: BillboardGui } = {}
-local visitSigns: { any } = {}
-local function visitBoard(slot: any): BillboardGui
-	local b = visitBoards[slot.index]
-	if b then
-		return b
-	end
-	local side = if slot.padX < 0 then -1 else 1
-	local anchor = Instance.new("Part")
-	anchor.Name = "VisitSign_" .. slot.index
-	anchor.Anchored = true
-	anchor.CanCollide = false
-	anchor.CanQuery = false
-	anchor.CanTouch = false
-	anchor.Transparency = 1
-	anchor.Size = Vector3.new(1, 1, 1)
-	anchor.Position = Vector3.new(side * LobbyLayout.EDGE, VISIT_Y, slot.padZ)
-	anchor.Parent = workspace
-	b = Instance.new("BillboardGui")
-	b.Size = UDim2.fromScale(VISIT_W, VISIT_H) -- scale = studs: smaller far away, big up close
-	b.LightInfluence = 0
-	b.MaxDistance = 140
-	b.Adornee = anchor
-	b.Parent = anchor
-	local list = Instance.new("UIListLayout")
-	list.SortOrder = Enum.SortOrder.LayoutOrder
-	list.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	list.VerticalAlignment = Enum.VerticalAlignment.Bottom
-	list.Padding = UDim.new(0.04, 0)
-	list.Parent = b
-	for k = 1, 2 do
-		local t = Instance.new("TextLabel")
-		t.Name = "Line" .. k
-		t.LayoutOrder = k
-		t.Size = UDim2.fromScale(1, 0.46)
-		t.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-		t.BackgroundTransparency = 0.25
-		t.Font = Enum.Font.LuckiestGuy
-		t.TextScaled = true
-		t.TextStrokeTransparency = 0.5
-		t.Visible = false
-		t.Parent = b
-		local c = Instance.new("UICorner")
-		c.CornerRadius = UDim.new(0.3, 0)
-		c.Parent = t
-		local pad = Instance.new("UIPadding")
-		pad.PaddingLeft = UDim.new(0.04, 0)
-		pad.PaddingRight = UDim.new(0.04, 0)
-		pad.Parent = t
-	end
-	visitBoards[slot.index] = b
-	return b
-end
-local function showVisits()
-	local on = StageGate.shows("visit") -- (off with plot racing: Features.PLOT_RACING)
-	for _, slot in LobbyLayout.slots() do
-		local sign = nil
-		for _, s in visitSigns do
-			if type(s) == "table" and s.slot == slot.index then
-				sign = s
-			end
-		end
-		local lines = if on and sign then Visit.lines(sign) else {}
-		if #lines > 0 or visitBoards[slot.index] then
-			local b = visitBoard(slot)
-			b.Enabled = #lines > 0
-			for k = 1, 2 do
-				local t = b:FindFirstChild("Line" .. k) :: TextLabel
-				local text = lines[k]
-				t.Visible = text ~= nil
-				t.Text = text or ""
-				-- stars gold, coins light gold, my own plot grey
-				t.TextColor3 = if sign and sign.own
-					then Color3.fromRGB(200, 200, 205)
-					elseif text and string.find(text, "⭐", 1, true) then Color3.fromRGB(
-						255,
-						213,
-						79
-					)
-					else Color3.fromRGB(255, 236, 150)
-			end
-		end
-	end
-end
-player:GetAttributeChangedSignal("Stage"):Connect(showVisits)
-
 remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unknown, ...: unknown)
-	if kind == "stars" and type(info) == "number" then
-		setStars(info, false)
-		noSave.Visible = saving ~= true
-		noSave.Text = if saving == "retry" then "SAVING IS OFF, TRYING AGAIN" else "NOT SAVING"
+	if kind == "saving" then
+		-- true = saving works; false = not saving; "retry" = DataStore down, trying again
+		noSave.Visible = info ~= true
+		noSave.Text = if info == "retry" then "SAVING IS OFF, TRYING AGAIN" else "NOT SAVING"
 		return
 	end
 	if kind == "goal" then
@@ -1315,33 +908,6 @@ remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unkn
 	end
 	if kind == "coins" and type(info) == "number" then
 		setCoins(info)
-		return
-	end
-	if kind == "bolts" and type(info) == "number" then
-		-- ("bolts", found, total, onRock)
-		local total = saving
-		boltChip.Text = `BOLTS {info}/{if type(total) == "number" then total else 5}`
-		boltChip.Visible = false -- no rock plots any more: bolts stay out of sight
-		return
-	end
-	if kind == "rivals" and type(info) == "table" then
-		local streak = if type(saving) == "number" then saving else 0
-		local points = select(1, ...)
-		showRivals(info :: { any }, streak, if type(points) == "number" then points else 0)
-		return
-	end
-	if kind == "bolt" and type(info) == "number" then
-		foundBolts[info] = true
-		hideFound()
-		return
-	end
-	if kind == "boltsFound" and type(info) == "table" then
-		for _, id in info :: { any } do
-			if type(id) == "number" then
-				foundBolts[id] = true
-			end
-		end
-		hideFound()
 		return
 	end
 	if kind == "daily" and type(info) == "number" and type(saving) == "number" then
@@ -1362,58 +928,6 @@ remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unkn
 		showToast(info)
 		return
 	end
-	if kind == "visits" and type(info) == "table" then
-		visitSigns = info :: { any }
-		showVisits()
-		return
-	end
-	if kind == "target" then
-		local g = info :: any
-		medalGoal = if type(g) == "table"
-				and type(g.medal) == "number"
-				and type(g.text) == "string"
-			then g
-			else nil
-		showMedalGoal()
-		return
-	end
-	if kind ~= "run" or type(info) ~= "table" or not StageGate.shows("stars") then
-		return -- (no medals or stars with the stars switched off: Features.STARS)
-	end
-	local r = info :: any
-	local medal = if type(r.medal) == "number" then r.medal else 0
-	local lines: { string } = {}
-	if medal > 0 then
-		local line = `{NAMES[medal]}  {r.text}`
-		if type(r.gained) == "number" and r.gained > 0 then
-			line ..= `  +{r.gained} ⭐`
-		end
-		table.insert(lines, line)
-	else
-		table.insert(lines, tostring(r.text))
-	end
-	if medal > 0 then
-		if type(r.gained) == "number" and r.gained > 0 then
-			flashMedalGoal(`+{r.gained} ⭐`, COLORS[3])
-		elseif
-			medalGoal
-			and not medalGoal.stars
-			and medalGoal.medal > 0
-			and medal >= medalGoal.medal
-		then
-			-- your own plot: a new best medal, no stars here
-			flashMedalGoal(`{NAMES[medal]}!`, COLORS[medal])
-		end
-	end
-	if r.record then
-		table.insert(lines, `<font color="#FFD54F">NEW PLOT RECORD!</font>`)
-	elseif medal > 0 and r.own then
-		table.insert(lines, `<font size="20">your plot: win stars on friends' plots</font>`)
-	end
-	showPop(table.concat(lines, "\n"), if medal > 0 then COLORS[medal] else Color3.new(1, 1, 1))
-	if type(r.stars) == "number" then
-		setStars(r.stars, type(r.gained) == "number" and r.gained > 0)
-	end
 end)
 
 -- hide the lobby HUD while this player drives (Lobby.setDriving sets the attribute)
@@ -1428,14 +942,11 @@ player:GetAttributeChangedSignal("Building"):Connect(showWalkHud)
 showWalkHud()
 
 -- one new thing at a time (JoinStage): a brand new player sees none of these until their stage
-StageGate.hold(chip, "stars")
 StageGate.hold(coinChip, "coins")
-StageGate.hold(rivalsBtn, "rivals")
 StageGate.hold(jobs, "jobs")
 StageGate.hold(banner, "boost")
 StageGate.hold(card, "gift")
 StageGate.hold(nextBox, "goal")
-StageGate.hold(plotTop, "top3")
 player:GetAttributeChangedSignal("Stage"):Connect(function()
 	task.delay(0.5, flyCoins) -- the first lap's coins fly into the coins number as it appears
 end)

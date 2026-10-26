@@ -1,25 +1,17 @@
 --!strict
--- Carter's stars loop, phase 1: plot records, medals and stars.
--- The server watches every car on a lobby plot (RunCheck), so only real laps, climbs and slides
--- count. A run can set the plot's record (shown on a board over the plot's sign, saved in the
--- owner's save) and win bronze / silver / gold = 1 / 2 / 3 stars, but only on SOMEONE ELSE's plot,
--- once per medal per owner. Owners come from the lobby plots (attribute OwnerId on each
--- workspace.Plots model). In Studio an unowned plot counts as a test owner, so one person can
--- try the stars.
--- Server -> client (StarsEvent): ("stars", count, saving), ("run", info), ("coins", count),
--- ("toast", text), ("bolts", found, total, onRock), ("bolt", id), ("boltsFound", ids) and
--- ("rivals", list, streak, winPoints), ("daily", coins, days in a row, boost) and ("jobs", lines,
--- secondsToNewJobs), ("goal", goal or nil) = Rewards.next (what to save up for), ("visits",
--- signs) = each plot as I see it (Visit.Sign). Attribute "StarsAt" = slots with stars for me.
--- The client never sends. workspace "CoinBoost" = 2 on weekends (every coin
--- gift doubled).
+-- Watches every car on a lobby plot (RunCheck), so only real laps, climbs and slides count:
+-- they feed the daily jobs and a new player's first-lap coins. Also the coins chip, daily gift,
+-- weekend boost and the "next goal" line.
+-- Server -> client (StarsEvent): ("coins", count), ("saving", true / false / "retry"), ("toast", text),
+-- ("daily", coins, days in a row, boost), ("jobs", lines, secondsToNewJobs) and
+-- ("goal", goal or nil) = Rewards.next (what to save up for). The client never sends.
+-- workspace "CoinBoost" = 2 on weekends (every coin gift doubled).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local DailyJobs = require(ReplicatedStorage.Shared.DailyJobs)
-local Features = require(ReplicatedStorage.Shared.Features)
 local Forever = require(ReplicatedStorage.Shared.Forever)
 local LapTimer = require(ReplicatedStorage.Shared.LapTimer)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
@@ -27,25 +19,17 @@ local Medals = require(ReplicatedStorage.Shared.Medals)
 local Profile = require(ReplicatedStorage.Shared.Profile)
 local RunCheck = require(ReplicatedStorage.Shared.RunCheck)
 local Rewards = require(ReplicatedStorage.Shared.Rewards)
-local Visit = require(ReplicatedStorage.Shared.Visit)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local Jobs = require(script.Parent.Jobs)
 local PlayerData = require(script.Parent.PlayerData)
-local Pings = require(script.Parent.Pings)
 
 local LOOK = 0.1 -- seconds between looks at the cars
-local TEST_OWNER = -1 -- Studio only: who owns an empty plot
-local MEDAL_ICONS = { "🥉", "🥈", "🥇" }
 
 local remote = Instance.new("RemoteEvent")
 remote.Name = "StarsEvent"
 remote.Parent = ReplicatedStorage
 
 local slots = LobbyLayout.slots()
-local studio = RunService:IsStudio()
-
--- records of plots nobody owns (not saved)
-local looseRecords: { [number]: { [string]: Profile.Record } } = {}
 
 local function plotModel(slotIndex: number): Instance?
 	local plots = workspace:FindFirstChild("Plots")
@@ -69,43 +53,6 @@ local function plotType(slotIndex: number): string
 	return slots[slotIndex].id
 end
 
--- The owner's user id, TEST_OWNER (Studio, nobody) or nil.
-local function ownerId(slotIndex: number): number?
-	local m = plotModel(slotIndex)
-	local id = m and m:GetAttribute("OwnerId")
-	if type(id) == "number" and id ~= 0 then
-		return id
-	end
-	return if studio then TEST_OWNER else nil
-end
-
-local function ownerPlayer(slotIndex: number): Player?
-	local id = ownerId(slotIndex)
-	return if id and id > 0 then Players:GetPlayerByUserId(id) else nil
-end
-
--- the slot this player owns (OwnerId on the plot models), or nil
-local function ownedSlot(player: Player): number?
-	for i in slots do
-		local m = plotModel(i)
-		if m and m:GetAttribute("OwnerId") == player.UserId then
-			return i
-		end
-	end
-	return nil
-end
-
--- this plot's record list: the owner's save, or the loose list
-local function recordsOf(slotIndex: number): ({ [string]: Profile.Record }?, Player?)
-	local owner = ownerPlayer(slotIndex)
-	if owner then
-		local data = PlayerData.get(owner)
-		return if data then data.plotRecords else nil, owner
-	end
-	looseRecords[slotIndex] = looseRecords[slotIndex] or {}
-	return looseRecords[slotIndex], nil
-end
-
 -- The plot as a track (LobbyLayout.track), else the plot's kind.
 local function trackOf(slotIndex: number): TrackData.Track
 	local t: any = LobbyLayout.track(slotIndex)
@@ -116,186 +63,6 @@ local function trackOf(slotIndex: number): TrackData.Track
 		t.rcX, t.rcZ, t.rcAngle = slot.plotX, slot.plotZ, slot.angle
 	end
 	return t
-end
-
--- ===== record boards: a flat card on a pole by each plot =====
--- Flat (SurfaceGui on an invisible part) and sized in studs, so it never grows to fill the
--- screen up close or covers the street view, and hidden past BOARD_SEE studs. It stands down
--- the footpath from the plot's DRIVE pad, clear of the gate, so it reads from the pad on a
--- phone (LobbyLayout.board). The plot's name, then
--- the top 3 (each player's best); each row carries its player's UserId so Stars.client lights
--- up your own row.
-
-local BOARD_W, BOARD_H = LobbyLayout.BOARD_W, LobbyLayout.BOARD_H
-local BOARD_SEE = 80
-local ROW_COLOR = Color3.fromRGB(25, 25, 30)
-
-local boardFolder = Instance.new("Folder")
-boardFolder.Name = "StarBoards"
-boardFolder.Parent = workspace
-
-type Board = { title: TextLabel, rows: { TextLabel } }
-local boards: { [number]: Board } = {}
-local likePrompts: { [number]: ProximityPrompt } = {}
-for i, slot in slots do
-	local anchor = Instance.new("Part")
-	anchor.Name = "Board_" .. i
-	anchor.Anchored = true
-	anchor.CanCollide = false
-	anchor.CanQuery = false
-	anchor.CanTouch = false
-	anchor.Transparency = 1
-	anchor.Size = Vector3.new(BOARD_W, BOARD_H, 0.1)
-	-- over the footpath clear of the gate posts, facing the road level with the pad
-	local c, face = LobbyLayout.board(slot)
-	anchor.CFrame = CFrame.lookAt(Vector3.new(c.x, c.y, c.z), Vector3.new(face.x, face.y, face.z))
-	anchor.Parent = boardFolder
-	local pole = Instance.new("Part")
-	pole.Name = "Pole"
-	pole.Anchored = true
-	pole.CanCollide = false -- people walk the footpath under it
-	pole.CanQuery = false
-	pole.CanTouch = false
-	pole.Material = Enum.Material.Metal
-	pole.Color = Color3.fromRGB(45, 45, 52)
-	local poleH = c.y - BOARD_H / 2
-	pole.Size = Vector3.new(0.4, poleH, 0.4)
-	pole.CFrame = CFrame.new(c.x, poleH / 2, c.z)
-	pole.Parent = anchor
-	local gui = Instance.new("SurfaceGui")
-	gui.Face = Enum.NormalId.Front
-	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = 50
-	gui.MaxDistance = BOARD_SEE
-	gui.LightInfluence = 0
-	gui.Parent = anchor
-	local back = Instance.new("Frame")
-	back.Size = UDim2.fromScale(1, 1)
-	back.BackgroundColor3 = ROW_COLOR
-	back.BackgroundTransparency = 0.2
-	back.Parent = gui
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0.08, 0)
-	corner.Parent = back
-	local pad = Instance.new("UIPadding")
-	pad.PaddingLeft = UDim.new(0.03, 0)
-	pad.PaddingRight = UDim.new(0.03, 0)
-	pad.PaddingTop = UDim.new(0.04, 0)
-	pad.PaddingBottom = UDim.new(0.04, 0)
-	pad.Parent = back
-	local list = Instance.new("UIListLayout")
-	list.SortOrder = Enum.SortOrder.LayoutOrder
-	list.Padding = UDim.new(0.02, 0)
-	list.Parent = back
-	local function line(order: number, height: number): TextLabel
-		local t = Instance.new("TextLabel")
-		t.Name = if order == 0 then "Title" else "Row" .. order
-		t.LayoutOrder = order
-		t.Size = UDim2.fromScale(1, height)
-		t.BackgroundColor3 = Color3.fromRGB(255, 213, 79)
-		t.BackgroundTransparency = 1
-		t.TextColor3 = Color3.new(1, 1, 1)
-		t.Font = Enum.Font.GothamBlack
-		t.TextScaled = true
-		t.RichText = true
-		t.TextXAlignment = if order == 0
-			then Enum.TextXAlignment.Center
-			else Enum.TextXAlignment.Left
-		t.Parent = back
-		local c = Instance.new("UICorner")
-		c.CornerRadius = UDim.new(0.3, 0)
-		c.Parent = t
-		return t
-	end
-	local rows = {}
-	for k = 1, Medals.TOP do
-		table.insert(rows, line(k, 0.21))
-	end
-	boards[i] = { title = line(0, 0.25), rows = rows }
-	-- the like button: walk up to the board
-	local prompt = Instance.new("ProximityPrompt")
-	prompt.ActionText = "Like"
-	prompt.ObjectText = "❤"
-	prompt.HoldDuration = 0
-	prompt.MaxActivationDistance = 14
-	prompt.RequiresLineOfSight = false
-	prompt.KeyboardKeyCode = Enum.KeyCode.F
-	prompt.Parent = anchor
-	likePrompts[i] = prompt
-end
-
--- this plot's board for `mode`: the owner's save, or the loose list (changed in place)
-local looseTops: { [number]: { [string]: { Medals.Run } } } = {}
-local function topOf(slotIndex: number, mode: string): { Medals.Run }?
-	local owner = ownerPlayer(slotIndex)
-	local tops: { [string]: { Medals.Run } }
-	if owner then
-		local data = PlayerData.get(owner)
-		if not data then
-			return nil
-		end
-		tops = data.plotTop :: any
-	else
-		looseTops[slotIndex] = looseTops[slotIndex] or {}
-		tops = looseTops[slotIndex]
-	end
-	tops[mode] = tops[mode] or {}
-	return tops[mode]
-end
-
-local PLACES = { "1", "2", "3" }
-local function showBoard(slotIndex: number)
-	if not Features.STARS then
-		return -- (the tycoon plan: no plot boards)
-	end
-	local mode = plotType(slotIndex)
-	if not Medals.target(mode) then
-		return
-	end
-	local owner = ownerPlayer(slotIndex)
-	local title = if owner then string.upper(owner.DisplayName) .. "'S PLOT" else "OPEN PLOT"
-	local ownerData = owner and PlayerData.get(owner)
-	if ownerData then
-		title ..= `  ❤ {ownerData.likes}`
-	end
-	local board = boards[slotIndex]
-	board.title.Text = title
-	local top = topOf(slotIndex, mode) or {}
-	for k, row in board.rows do
-		local r = top[k]
-		if r then
-			row.Text =
-				` {PLACES[k]}. <font color="#FFD54F">{Medals.format(mode, r.value)}</font>  {r.name}`
-			row:SetAttribute("UserId", r.userId)
-		else
-			row.Text = if k == 1
-				then ` {PLACES[k]}.  <font color="#AAAAAA">drive to be first!</font>`
-				else ` {PLACES[k]}.  <font color="#777777">-</font>`
-			row:SetAttribute("UserId", nil)
-		end
-	end
-end
-
--- ===== plot looks: the owner's stars grow their plot (PlotLooksBuilder reads OwnerStars) =====
-
-local function showLooks(slotIndex: number)
-	local m = plotModel(slotIndex)
-	if not m then
-		return
-	end
-	local owner = ownerPlayer(slotIndex)
-	local data = owner and PlayerData.get(owner)
-	local stars = if data then data.stars else 0
-	if m:GetAttribute("OwnerStars") ~= stars then
-		m:SetAttribute("OwnerStars", stars)
-	end
-end
-
-local function showAll()
-	for i in slots do
-		showBoard(i)
-		showLooks(i)
-	end
 end
 
 -- ===== daily jobs (DailyJobs): 3 a day, paid in coins =====
@@ -347,124 +114,7 @@ Jobs.setHandler(job)
 
 -- ===== runs =====
 
--- ===== beating friends: wins, the streak on your car, rivals =====
-
-local MODE_NAMES = { race = "race", drift = "drift", rock = "rock climb" }
-
-local function sendRivals(player: Player)
-	local data = PlayerData.get(player)
-	if data then
-		remote:FireClient(player, "rivals", Profile.rivalList(data, 8), data.streak, data.winPoints)
-	end
-end
-
--- "WIN STREAK 3" over the car (2 or more wins in a row), kept on a rebuilt car too.
-local function showStreak(player: Player)
-	local car = workspace:FindFirstChild("Car_" .. player.UserId)
-	local body = car and (car :: Model).PrimaryPart
-	if not body then
-		return
-	end
-	local data = PlayerData.get(player)
-	local streak = if data then data.streak else 0
-	local gui = body:FindFirstChild("Streak") :: BillboardGui?
-	if streak < 2 then
-		if gui then
-			gui:Destroy()
-		end
-		return
-	end
-	if not gui then
-		local g = Instance.new("BillboardGui")
-		g.Name = "Streak"
-		g.Size = UDim2.fromScale(3.2, 0.8) -- studs
-		g.StudsOffset = Vector3.new(0, 1.6, 0)
-		g.MaxDistance = 80
-		g.LightInfluence = 0
-		local label = Instance.new("TextLabel")
-		label.Name = "Text"
-		label.Size = UDim2.fromScale(1, 1)
-		label.BackgroundTransparency = 1
-		label.Font = Enum.Font.GothamBlack
-		label.TextScaled = true
-		label.TextColor3 = Color3.fromRGB(255, 150, 40)
-		label.TextStrokeTransparency = 0.3
-		label.Parent = g
-		g.Parent = body
-		gui = g
-	end
-	local label = (gui :: BillboardGui):FindFirstChild("Text") :: TextLabel?
-	if label then
-		label.Text = `WIN STREAK {streak}`
-	end
-end
-
--- `player` just beat `old`'s record on a `mode` plot.
-local function beat(player: Player, old: Profile.Record, mode: string)
-	local data = PlayerData.get(player)
-	local now = os.time()
-	if not (data and Profile.win(data, player.UserId, old.userId, old.name, now)) then
-		return
-	end
-	PlayerData.touch(player)
-	remote:FireClient(player, "coins", data.coins)
-	remote:FireClient(
-		player,
-		"toast",
-		`You beat {old.name}'s time! +{Profile.WIN_COINS * Profile.boost(now)} coins`
-	)
-	sendRivals(player)
-	showStreak(player)
-	local loser = Players:GetPlayerByUserId(old.userId)
-	local loserData = loser and PlayerData.get(loser)
-	if loser and loserData then
-		Profile.lose(loserData, loser.UserId, player.UserId, player.DisplayName, now)
-		PlayerData.touch(loser)
-		remote:FireClient(
-			loser,
-			"toast",
-			`{player.DisplayName} beat your {MODE_NAMES[mode] or mode} time!`
-		)
-		sendRivals(loser)
-		showStreak(loser)
-	elseif old.userId > 0 then
-		Pings.send(
-			old.userId,
-			{ byId = player.UserId, by = player.DisplayName, mode = mode, t = now }
-		)
-	end
-end
-
--- ===== the next medal while driving: ("target", info or nil) =====
--- info = { medal = 1..3 (0 = all gold), text = "0:20", stars = beating it wins stars }.
--- On a friend's plot "have" is the medal saved for that owner; on your own (or an open) plot,
--- where medals win no stars, it is the best medal this visit.
-local targetSeen: { [Player]: string } = {}
-local ownMedal: { [Player]: { [string]: number } } = {}
-local function sendTarget(player: Player, slotIndex: number?, mode: string?)
-	local info: { medal: number, text: string, stars: boolean }? = nil
-	if slotIndex and mode and Features.STARS then
-		local oid = ownerId(slotIndex)
-		local stars = oid ~= nil and oid ~= player.UserId
-		local have = 0
-		if stars then
-			local data = PlayerData.get(player)
-			local from = data and data.starsFrom[tostring(oid)]
-			have = from and from[mode] or 0
-		else
-			have = (ownMedal[player] or {})[`{slotIndex}/{mode}`] or 0
-		end
-		local m, v = Medals.nextGoal(mode, have)
-		info = { medal = m or 0, text = if v then Medals.format(mode, v) else "", stars = stars }
-	end
-	local key = if info then `{info.medal}/{info.text}/{info.stars}` else "none"
-	if targetSeen[player] ~= key then
-		targetSeen[player] = key
-		remote:FireClient(player, "target", info)
-	end
-end
-
--- The same run twice in a row (tour 7 saw one lap print RECORD twice): pay and save it once.
+-- The same run twice in a row (tour 7 saw one lap print RECORD twice): pay and count it once.
 local lastRun: { [Player]: { key: string, at: number } } = {}
 local REPEAT_WINDOW = 2
 
@@ -480,33 +130,6 @@ local function onRun(player: Player, slotIndex: number, mode: string, value: num
 	if not Medals.valid(mode, value) then
 		return
 	end
-	local records, owner = recordsOf(slotIndex)
-	local record = false
-	local beaten: Profile.Record? = nil
-	if records and Medals.better(mode, value, records[mode] and records[mode].value) then
-		beaten = records[mode]
-		records[mode] = { value = value, name = player.DisplayName, userId = player.UserId }
-		record = true
-		if owner then
-			PlayerData.touch(owner)
-		end
-	end
-	local top = topOf(slotIndex, mode)
-	local run = { value = value, name = player.DisplayName, userId = player.UserId }
-	local placed = top ~= nil and Medals.addTop(mode, top, run, scale) ~= nil
-	if record or placed then
-		if owner then
-			PlayerData.touch(owner)
-		end
-		showBoard(slotIndex)
-	end
-	if beaten and beaten.userId ~= player.UserId then
-		beat(player, beaten, mode)
-		job(player, "beat")
-	end
-	local medal = Medals.medal(mode, value, scale)
-	local oid = ownerId(slotIndex)
-	local own = oid == player.UserId
 	if mode == "race" then
 		job(player, "lap")
 	elseif mode == "rock" then
@@ -519,29 +142,7 @@ local function onRun(player: Player, slotIndex: number, mode: string, value: num
 			job(player, "slide1500")
 		end
 	end
-	if oid and not own and medal > 0 then
-		job(player, "medal")
-	end
-	if not (oid and not own) and medal > 0 then
-		local mine = ownMedal[player] or {}
-		ownMedal[player] = mine
-		local k = `{slotIndex}/{mode}`
-		mine[k] = math.max(mine[k] or 0, medal)
-	end
-	local gained = 0
 	local data = PlayerData.get(player)
-	if data and oid and not own and Features.STARS then
-		gained = Profile.award(data, player.UserId, oid, mode, medal)
-		if gained > 0 then
-			PlayerData.touch(player)
-			player:SetAttribute("Stars", data.stars) -- read by the car (smoke colours open with stars)
-			-- their own plot may reach a new look
-			local mine = ownedSlot(player)
-			if mine then
-				showLooks(mine)
-			end
-		end
-	end
 	local boost = Profile.boost(os.time()) -- double coins on weekends
 	-- a new player's first lap: their first coins, and the next part of the screen opens up
 	if
@@ -554,46 +155,7 @@ local function onRun(player: Player, slotIndex: number, mode: string, value: num
 		remote:FireClient(player, "coins", data.coins)
 		remote:FireClient(player, "toast", `+{Profile.FIRST_LAP_COINS * boost} coins: first lap!`)
 	end
-	-- the visit gift: driving someone else's plot pays you both, once per owner per day
-	if
-		data
-		and oid
-		and not own
-		and Profile.visit(data, player.UserId, oid, Profile.day(os.time()), boost)
-	then
-		PlayerData.touch(player)
-		remote:FireClient(player, "coins", data.coins)
-		remote:FireClient(player, "toast", `+{Profile.VISIT_COINS * boost} coins: visit gift`)
-		local host = ownerPlayer(slotIndex)
-		local hostData = host and PlayerData.get(host)
-		if host and hostData then
-			hostData.coins += Profile.HOST_COINS * boost
-			PlayerData.touch(host)
-			remote:FireClient(host, "coins", hostData.coins)
-			remote:FireClient(
-				host,
-				"toast",
-				`+{Profile.HOST_COINS * boost} coins: {player.DisplayName} visited your plot!`
-			)
-		end
-	end
-	print(
-		`[Stars] {mode} {Medals.format(mode, value)} by {player.Name} on plot {slotIndex}`
-			.. ` medal {medal} +{gained} stars{if record then " RECORD" else ""}`
-	)
-	-- small slides are not worth a pop
-	if mode == "drift" and medal == 0 and not record then
-		return
-	end
-	remote:FireClient(player, "run", {
-		mode = mode,
-		text = Medals.format(mode, value),
-		medal = medal,
-		gained = gained,
-		stars = if data then data.stars else 0,
-		record = record,
-		own = own,
-	})
+	print(`[Stars] {mode} {Medals.format(mode, value)} by {player.Name} on plot {slotIndex}`)
 end
 
 type Watch = {
@@ -626,76 +188,6 @@ end
 local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
--- ===== gold bolts on the rock climb =====
--- The Rock plot puts them in: any BasePart under a plot with a number attribute BoltId (1..5).
--- Drive the car right up to one to pick it up; found ones stay found (saved) and are hidden on
--- the finder's screen.
-
-local BOLT_REACH = 3.5 -- studs from the car's middle
-local boltCache: { [number]: { { id: number, part: BasePart } } } = {}
-local boltWatch: { [number]: boolean } = {}
-local onRock: { [Player]: boolean } = {}
-
-local function boltsOf(slotIndex: number): { { id: number, part: BasePart } }
-	local cached = boltCache[slotIndex]
-	if cached then
-		return cached
-	end
-	local out = {}
-	local m = plotModel(slotIndex)
-	if m then
-		for _, d in m:GetDescendants() do
-			local id = d:GetAttribute("BoltId")
-			if d:IsA("BasePart") and type(id) == "number" then
-				table.insert(out, { id = id, part = d })
-			end
-		end
-		-- the plot can change (bolts added later): look again then
-		if not boltWatch[slotIndex] then
-			boltWatch[slotIndex] = true
-			m.DescendantAdded:Connect(function(d)
-				if d:GetAttribute("BoltId") ~= nil then
-					boltCache[slotIndex] = nil
-				end
-			end)
-		end
-	end
-	boltCache[slotIndex] = out
-	return out
-end
-
-local function sendBolts(player: Player, rock: boolean)
-	local data = PlayerData.get(player)
-	local found = if data then #Profile.boltList(data) else 0
-	remote:FireClient(player, "bolts", found, Profile.BOLTS, rock)
-end
-
-local function setRock(player: Player, rock: boolean)
-	if (onRock[player] or false) ~= rock then
-		onRock[player] = rock
-		sendBolts(player, rock)
-	end
-end
-
-local function checkBolts(player: Player, slotIndex: number, pos: Vector3)
-	local data = PlayerData.get(player)
-	if not data then
-		return
-	end
-	for _, b in boltsOf(slotIndex) do
-		if b.part.Parent and (b.part.Position - pos).Magnitude <= BOLT_REACH then
-			if Profile.findBolt(data, b.id) then
-				PlayerData.touch(player)
-				local n = #Profile.boltList(data)
-				remote:FireClient(player, "bolt", b.id)
-				remote:FireClient(player, "toast", `gold bolt! {n}/{Profile.BOLTS}`)
-				sendBolts(player, true)
-				print(`[Stars] bolt {b.id} by {player.Name} ({n}/{Profile.BOLTS})`)
-			end
-		end
-	end
-end
-
 local trackKeys: { [number]: string } = {}
 local function look(now: number)
 	for i in slots do
@@ -711,31 +203,16 @@ local function look(now: number)
 		local body = car and (car :: Model).PrimaryPart
 		if not (car and body) then
 			watching[player] = nil
-			setRock(player, false)
-			sendTarget(player, nil, nil)
 			continue
-		end
-		if not body:FindFirstChild("Streak") then
-			local d = PlayerData.get(player)
-			if d and d.streak >= 2 then
-				showStreak(player) -- a new car (each drive rebuilds it)
-			end
 		end
 		local cf = body.CFrame
 		local slotIndex, lx, ly, lz = slotAt(cf.Position)
 		local w = watching[player]
 		if slotIndex == nil then
 			watching[player] = nil
-			setRock(player, false)
-			sendTarget(player, nil, nil)
 			continue
 		end
 		local t = tracks[slotIndex]
-		sendTarget(player, slotIndex, t.id)
-		setRock(player, t.id == "rock")
-		if t.id == "rock" then
-			checkBolts(player, slotIndex, cf.Position)
-		end
 		if
 			not (
 				w
@@ -800,42 +277,6 @@ local function look(now: number)
 	end
 end
 
--- ===== likes =====
-
-local lastLike: { [Player]: number } = {}
-for i, prompt in likePrompts do
-	prompt.Triggered:Connect(function(player: Player)
-		local now = os.clock()
-		if now - (lastLike[player] or 0) < 0.5 then
-			return
-		end
-		lastLike[player] = now
-		local owner = ownerPlayer(i)
-		if owner == nil then
-			remote:FireClient(player, "toast", "nobody owns this plot yet")
-			return
-		end
-		if owner == player then
-			remote:FireClient(player, "toast", "that's your plot!")
-			return
-		end
-		local data, ownerData = PlayerData.get(player), PlayerData.get(owner)
-		if not (data and ownerData) then
-			return
-		end
-		if not Profile.like(data, player.UserId, owner.UserId) then
-			remote:FireClient(player, "toast", "you liked this plot already ❤")
-			return
-		end
-		ownerData.likes += 1
-		PlayerData.touch(player)
-		PlayerData.touch(owner)
-		showBoard(i)
-		remote:FireClient(player, "toast", `❤ you liked {owner.DisplayName}'s plot`)
-		remote:FireClient(owner, "toast", `❤ {player.DisplayName} liked your plot!`)
-	end)
-end
-
 -- ===== daily gift and weekend coins =====
 
 -- The daily gift, the first time each day (on join, or at midnight UTC if they're still here).
@@ -875,63 +316,23 @@ end)
 
 -- the visit reached the real save: show the real numbers, and the "retrying" note goes away
 PlayerData.synced:Connect(function(player: Player, data: Profile.Data)
-	player:SetAttribute("Stars", data.stars)
-	remote:FireClient(player, "stars", data.stars, true)
+	remote:FireClient(player, "saving", true)
 	remote:FireClient(player, "coins", data.coins)
-	remote:FireClient(player, "boltsFound", Profile.boltList(data))
 	remote:FireClient(player, "toast", "Saving is back on!")
-	sendRivals(player)
 	sendJobs(player)
-	showStreak(player)
 end)
 
 PlayerData.loaded:Connect(function(player: Player, data: Profile.Data, saving: boolean)
-	player:SetAttribute("Stars", data.stars) -- read by the car (smoke colours open with stars)
 	-- saving: true / false, or "retry" (the DataStore was down: trying again in the background)
-	remote:FireClient(
-		player,
-		"stars",
-		data.stars,
-		if PlayerData.isRetrying(player) then "retry" else saving
-	)
+	remote:FireClient(player, "saving", if PlayerData.isRetrying(player) then "retry" else saving)
 	remote:FireClient(player, "coins", data.coins)
-	remote:FireClient(player, "boltsFound", Profile.boltList(data))
-	-- who beat my times while I was away
-	task.spawn(function()
-		local pings = Pings.take(player.UserId)
-		if #pings == 0 or player.Parent == nil then
-			sendRivals(player)
-			return
-		end
-		for _, p in pings do
-			Profile.lose(data, player.UserId, p.byId, p.by, p.t)
-		end
-		PlayerData.touch(player)
-		local first = pings[#pings]
-		local more = #pings - 1
-		remote:FireClient(
-			player,
-			"toast",
-			if more > 0
-				then `{first.by} and {more} more beat your times!`
-				else `{first.by} beat your {MODE_NAMES[first.mode] or first.mode} time!`
-		)
-		sendRivals(player)
-		showStreak(player)
-	end)
 	sendJobs(player)
-	showAll() -- their plot's board shows their saved record
 	dailyGift(player, data)
 end)
 
 Players.PlayerRemoving:Connect(function(player)
 	watching[player] = nil
-	targetSeen[player] = nil
-	ownMedal[player] = nil
 	lastRun[player] = nil
-	lastLike[player] = nil
-	onRock[player] = nil
-	task.defer(showAll)
 end)
 
 PlayerData.staged:Connect(function(player: Player, stage: number)
@@ -942,18 +343,6 @@ PlayerData.staged:Connect(function(player: Player, stage: number)
 end)
 
 PlayerData.start()
-
--- the lobby plots fill in their owners as people join: keep the boards in step
-task.spawn(function()
-	local plots = workspace:WaitForChild("Plots", 30)
-	if plots then
-		for _, m in plots:GetChildren() do
-			m:GetAttributeChangedSignal("OwnerId"):Connect(showAll)
-			m:GetAttributeChangedSignal("PlotType"):Connect(showAll)
-		end
-	end
-	showAll()
-end)
 
 -- a new day: new jobs on everyone's panel
 task.spawn(function()
@@ -974,7 +363,7 @@ end)
 
 -- ===== race prizes and the next unlock =====
 
--- The goal to save up for, sent again whenever coins, stars or cars change (from any shop).
+-- The goal to save up for, sent again whenever coins, cars or the garage level change (from any shop).
 local goalSeen: { [Player]: string } = {}
 local function goalOf(data: Profile.Data): Rewards.Goal?
 	return Rewards.next(data :: any)
@@ -988,7 +377,7 @@ local function sendGoal(player: Player, force: boolean?)
 	for _ in data.cars do
 		n += 1
 	end
-	local key = `{data.coins}/{data.stars}/{n}`
+	local key = `{data.coins}/{n}/{data.plotLevel}`
 	if goalSeen[player] == key and not force then
 		return
 	end
@@ -999,75 +388,11 @@ local function sendGoal(player: Player, force: boolean?)
 	end
 	remote:FireClient(player, "goal", goalOf(data))
 end
--- ===== why visit: each plot's sign as I see it (Visit), and StarsAt for the arrows =====
--- ("visits", { Visit.Sign }) when it changes; the "StarsAt" attribute = "3,5" (slots that still
--- have stars for me, nearest first) for NextGoal and PlotGuide.
-local visitSeen: { [Player]: string } = {}
-local function sendVisits(player: Player)
-	local data = PlayerData.get(player)
-	if not data or not Features.STARS then
-		return
-	end
-	local now = os.time()
-	local day, boost = Profile.day(now), Profile.boost(now)
-	local char = player.Character
-	local root = char and char:FindFirstChild("HumanoidRootPart")
-	local car = workspace:FindFirstChild("Car_" .. player.UserId)
-	local body = car and (car :: Model).PrimaryPart
-	local at: Vector3? = if body
-		then body.Position
-		elseif root and root:IsA("BasePart") then root.Position
-		else nil
-	local signs: { Visit.Sign } = {}
-	local dist: { [number]: number } = {}
-	local parts = {}
-	for i, slot in slots do
-		local mode = plotType(i)
-		local records = recordsOf(i)
-		local sign = Visit.sign(
-			data,
-			player.UserId,
-			i,
-			ownerId(i),
-			mode,
-			records and records[mode],
-			day,
-			boost
-		)
-		table.insert(signs, sign)
-		if at then
-			dist[i] = (Vector3.new(slot.padX, at.Y, slot.padZ) - at).Magnitude
-		end
-		table.insert(parts, `{sign.own}/{sign.stars}/{sign.beat}/{sign.coins}/{sign.gift}`)
-	end
-	local starsAt = Visit.starsAt(signs, dist)
-	if player:GetAttribute("StarsAt") ~= starsAt then
-		player:SetAttribute("StarsAt", starsAt)
-	end
-	local key = table.concat(parts, ";")
-	if visitSeen[player] ~= key then
-		visitSeen[player] = key
-		remote:FireClient(player, "visits", signs)
-	end
-end
-Players.PlayerRemoving:Connect(function(p)
-	visitSeen[p] = nil
-end)
-
 task.spawn(function()
-	local tick = 0
 	while true do
-		tick += 1
 		Forever.step("Goals", function()
 			for _, p in Players:GetPlayers() do
 				sendGoal(p)
-				sendVisits(p)
-			end
-			-- boards: a rebuilt track clears its records and stretches its medal times
-			if tick % 3 == 0 then
-				for i in slots do
-					showBoard(i)
-				end
 			end
 		end)
 		task.wait(1)
