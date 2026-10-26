@@ -46,4 +46,22 @@ function Sfx.finish(place: number)
 	end
 end
 
+-- a crate opens: the rarer the car, the longer and higher the sparkle (rarity 1..4)
+function Sfx.crate(rarity: number)
+	local run = { 1, 1.25, 1.5, 1.88, 2, 2.5 }
+	local n = math.clamp(2 + rarity, 3, #run)
+	notes(table.move(run, 1, n, 1, {}), 0.09, SoundLevels.CRATE)
+end
+
+-- a trophy for a podium place (1..3): a bigger cheer-run for gold
+function Sfx.trophy(place: number)
+	local run = if place == 1 then { 1, 1.25, 1.5, 2, 1.5, 2, 2.5 } else { 1, 1.5, 2 }
+	notes(run, 0.1, SoundLevels.TROPHY)
+end
+
+-- a car on a station gained points: one soft tick
+function Sfx.train()
+	notes({ 1.3 }, 0, SoundLevels.TRAIN)
+end
+
 return Sfx

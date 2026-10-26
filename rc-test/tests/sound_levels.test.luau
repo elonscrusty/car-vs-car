@@ -26,3 +26,8 @@ test("coin, level and finish cues sit under the start beeps", function()
 	truthy(S.COIN > 0 and S.LEVEL_UP > 0 and S.FINISH > 0)
 	truthy(S.COIN < S.LEVEL_UP) -- a stream of coins stays quieter than a level
 end)
+
+test("crate, trophy and training cues sit under the start beeps; training is quietest", function()
+	truthy(S.CRATE > 0 and S.TROPHY > 0 and S.TRAIN > 0)
+	truthy(S.TRAIN < S.COIN) -- it repeats all day
+end)

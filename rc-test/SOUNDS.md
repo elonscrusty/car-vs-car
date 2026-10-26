@@ -8,3 +8,9 @@ Swap in a real sound by changing `Sfx.luau`; volumes live in `src/shared/SoundLe
 3. Race finish — cheer or fanfare (a longer one for 1st-3rd)
 4. New car reveal — sparkly "ta-da"
 5. Countdown beep and GO — low beep, high beep
+
+## Car VS Car cues (Sfx.crate, Sfx.trophy, Sfx.train — UI/Race call them)
+6. Crate open — drum roll then sparkle (longer for rare cars)
+7. Trophy / win — cheer plus fanfare
+8. Training station hum — soft looping motor hum (one per station kind)
+9. Engine, upbeat music — need ids; engine already has two
