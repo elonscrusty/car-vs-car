@@ -28,8 +28,20 @@ local INK, WHITE = KartStyle.INK, KartStyle.WHITE
 local label, button = CvcUi.label, CvcUi.button
 local WOOD = Color3.fromRGB(196, 128, 64)
 
--- the crate you get from your first race (the server opens only that one for now)
+-- the crate on the screen: "free" (from your first race: OPEN!) or a shop crate (BUY, coins).
+-- The crate shop (the spawn lobby thread's CRATES building) fires CvcCrateShop(kind) to show one.
 local KIND = "free"
+-- each crate's colour (the free one and CRATE are wood)
+local BOX_COLORS = {
+	big = Color3.fromRGB(61, 155, 255),
+	mega = Color3.fromRGB(170, 80, 255),
+}
+local GREY = Color3.fromRGB(110, 110, 120)
+
+local function coins(): number
+	local c = player:GetAttribute("Coins")
+	return if type(c) == "number" then c else 0
+end
 
 CvcState.start()
 
@@ -54,8 +66,7 @@ CvcUi.rim(panel, KartStyle.PANEL_RIM)
 local panelMax = Instance.new("UISizeConstraint")
 panelMax.MaxSize = Vector2.new(620, 520)
 panelMax.Parent = panel
-local kind = Crates.get(KIND)
-local ribbon = CvcUi.ribbon(panel, if kind then kind.label else "CRATE")
+local ribbon = CvcUi.ribbon(panel, "CRATE")
 
 local close = button(panel, "X", KartStyle.RED)
 close.Name = "Close"
@@ -106,7 +117,12 @@ oddsBox.BackgroundTransparency = 1
 oddsBox.Parent = panel
 local oddsTitle = label(oddsBox, "WHAT'S INSIDE", WHITE)
 oddsTitle.Size = UDim2.fromScale(1, 0.16)
-do
+local function buildOdds()
+	for _, c in oddsBox:GetChildren() do
+		if c.Name == "Row" then
+			c:Destroy()
+		end
+	end
 	local odds = Crates.odds(KIND)
 	local rows = 0
 	for _, r in CarCatalog.RARITY_ORDER do
@@ -117,6 +133,7 @@ do
 			rows += 1
 			local c = Color3.fromRGB(info.color[1], info.color[2], info.color[3])
 			local chip = label(oddsBox, info.label, INK)
+			chip.Name = "Row"
 			chip.Position = UDim2.fromScale(0, y)
 			chip.Size = UDim2.fromScale(0.62, 0.17)
 			chip.BackgroundColor3 = c
@@ -132,6 +149,7 @@ do
 			num.Position = UDim2.fromScale(0.66, y)
 			num.Size = UDim2.fromScale(0.34, 0.17)
 			num.TextXAlignment = Enum.TextXAlignment.Right
+			num.Name = "Row"
 		end
 	end
 end
@@ -176,11 +194,32 @@ local function showChoose()
 	box.Rotation = 0
 	boxScale.Scale = 1
 	oddsBox.Visible = true
+	local kind = Crates.get(KIND)
 	ribbon.Text = if kind then kind.label else "CRATE"
-	openBtn.Text = "OPEN!"
-	openBtn.BackgroundColor3 = KartStyle.GREEN
-	left.Text = if CvcState.crates > 1 then `{CvcState.crates} CRATES TO OPEN` else ""
+	box.BackgroundColor3 = BOX_COLORS[KIND] or WOOD
+	local price = Crates.price(KIND)
+	if price then
+		local short = price - coins()
+		openBtn.Text = if short > 0 then `{short} MORE` else `BUY {price}`
+		openBtn.BackgroundColor3 = if short > 0 then GREY else KartStyle.GREEN
+		openBtn:SetAttribute("KartPulse", if short > 0 then nil else true)
+		left.Text = ""
+	else
+		openBtn.Text = "OPEN!"
+		openBtn.BackgroundColor3 = KartStyle.GREEN
+		openBtn:SetAttribute("KartPulse", true)
+		left.Text = if CvcState.crates > 1 then `{CvcState.crates} CRATES TO OPEN` else ""
+	end
 end
+
+-- which crate the screen shows (and its odds)
+local function setKind(k: string)
+	if k ~= KIND then
+		KIND = k
+		buildOdds()
+	end
+end
+buildOdds()
 
 local function setOpen(on: boolean)
 	if not on and opening then
@@ -204,21 +243,29 @@ openBtn.Activated:Connect(function()
 	if opening then
 		return
 	end
+	local price = Crates.price(KIND)
 	if reveal.Visible then
 		-- the car is out: another crate, or done
-		if CvcState.crates > 0 then
+		if price or CvcState.crates > 0 then
 			showChoose()
 		else
 			setOpen(false)
 		end
 		return
 	end
-	if CvcState.crates <= 0 then
+	if price then
+		if coins() < price then
+			return -- (grey: not enough coins yet)
+		end
+		opening = true
+		CvcState.ask("buy", KIND)
+	elseif CvcState.crates <= 0 then
 		setOpen(false)
 		return
+	else
+		opening = true
+		CvcState.ask("open")
 	end
-	opening = true
-	CvcState.ask("open")
 	openBtn.Text = "..."
 	box.Rotation = -8
 	shake = TweenService:Create(
@@ -261,7 +308,11 @@ local function gotCar(id: string, rarity: string)
 	s.Parent = reveal
 	TweenService:Create(s, TweenInfo.new(0.45, Enum.EasingStyle.Back), { Scale = 1 }):Play()
 	ribbon.Text = `NEW {info.label} CAR!`
-	openBtn.Text = if CvcState.crates > 0 then "OPEN ANOTHER!" else "YAY!"
+	openBtn.Text = if Crates.price(KIND)
+		then "BUY ANOTHER!"
+		elseif CvcState.crates > 0 then "OPEN ANOTHER!"
+		else "YAY!"
+	openBtn.BackgroundColor3 = KartStyle.GREEN
 	local n = table.find(CarCatalog.RARITY_ORDER, info.id) or 1
 	Sfx.crate(n)
 	CvcUi.bigWords(top, `{CvcState.name(id)}!`, color, 0.16)
@@ -298,7 +349,32 @@ openCrates.Visible = false
 openCrates:SetAttribute("KartPulse", true)
 CvcUi.rim(openCrates, KartStyle.BUTTON_RIM)
 openCrates.Activated:Connect(function()
+	if not opening then
+		setKind("free")
+	end
 	setOpen(not panel.Visible)
+end)
+
+-- the crate shop: its prompts fire CvcCrateShop(kind) (whichever side starts first makes it)
+local shopEvent = ReplicatedStorage:FindFirstChild("CvcCrateShop")
+if not shopEvent then
+	shopEvent = Instance.new("BindableEvent")
+	shopEvent.Name = "CvcCrateShop"
+	shopEvent.Parent = ReplicatedStorage
+end
+if shopEvent and shopEvent:IsA("BindableEvent") then
+	shopEvent.Event:Connect(function(k: unknown)
+		if opening or not (type(k) == "string" and Crates.get(k)) then
+			return
+		end
+		setKind(k)
+		setOpen(true)
+	end)
+end
+player:GetAttributeChangedSignal("Coins"):Connect(function()
+	if panel.Visible and not opening and not reveal.Visible then
+		showChoose()
+	end
 end)
 local had = 0
 local function showButton()
