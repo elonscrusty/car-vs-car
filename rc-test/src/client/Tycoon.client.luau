@@ -679,6 +679,21 @@ for _, a in { "Parked", "PlotLevel" } do
 	player:GetAttributeChangedSignal(a):Connect(render)
 end
 
+-- a bigger garage is a big moment: words, confetti, and what you got
+-- (nil until the save is in: the first number is the saved level, not a level up)
+local shownLevel: number? = player:GetAttribute("PlotLevel") :: any
+player:GetAttributeChangedSignal("PlotLevel"):Connect(function()
+	local l = plotLevel()
+	if shownLevel and l > shownLevel then
+		bigWords("BIGGER GARAGE!", KartStyle.YELLOW)
+		Party.confetti(topFall, 50)
+		task.delay(1.3, function()
+			bigWords("+1 PARKING SPOT!", KartStyle.GREEN)
+		end)
+	end
+	shownLevel = l
+end)
+
 -- the GARAGE button, under the income chip
 local garageBtn = button(hud, "GARAGE", KartStyle.RED)
 garageBtn.Name = "GarageButton"
