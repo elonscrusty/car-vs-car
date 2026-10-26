@@ -155,6 +155,7 @@ local touched: { [number]: boolean } = {} -- drift touch zones already scored in
 local countdown: RaceStart.State? = nil
 local lamps: { BasePart } = {}
 local jumped = false -- went over the line before GO: no timed lap until the car leaves the line
+local early = false -- server race: over the line before GO (the race still starts at GO for it)
 local waitMove = false -- free drive after GO: the lap clock starts when the car first moves
 -- server race: this car's grid spot, plot-local (nil = the plot's own start), and whether it
 -- got its GO
@@ -187,7 +188,7 @@ local function goTo(index: number)
 	end
 	checkpoint = 0
 	StartLights.show(lamps, 0)
-	countdown, jumped, waitMove = nil, false, false
+	countdown, jumped, waitMove, early = nil, false, false, false
 	lamps = {}
 	-- (a reset in a server race after its GO goes back to the grid without the lights again)
 	if (t.id == "race" or grid ~= nil) and not gridGone then
@@ -479,10 +480,20 @@ RunService.PreSimulation:Connect(function(dt: number)
 			gridGone = grid ~= nil
 			raceGo = if grid then os.clock() else nil
 			-- (the server race clock runs from GO; on your own the clock waits for you to go)
-			if grid then
+			if grid and early then
+				-- like the server: its laps count from its next time over the line
+				jumped = true
+			elseif grid then
 				LapTimer.go(timer, os.clock())
 			else
 				waitMove = true
+			end
+		elseif grid and LapTimer.inside(timer.gates[1], lx, ly, lz) then
+			-- server race: the lights keep going and the race is still on at GO (it used to drop
+			-- this car's screen out of the race: no LAP 2/3, no FINAL LAP)
+			if not early then
+				early = true
+				hud.flash("TOO EARLY!")
 			end
 		elseif LapTimer.inside(timer.gates[1], lx, ly, lz) then
 			-- over the line before green: no clock this time (drive round, or R twice to start over)
@@ -536,6 +547,8 @@ RunService.PreSimulation:Connect(function(dt: number)
 		hud.flash(`LAP  {CarMath.formatTime(timers[current].last :: number)}`)
 	elseif event == "finish" then
 		hud.flash(`SUMMIT!  {CarMath.formatTime(timers[current].last :: number)}`)
+	elseif event == "start" and grid then
+		hud.flash(`LAP 1/{ServerRace.LAPS}`) -- (a TOO EARLY car's laps start now, mid-race)
 	elseif event == "start" then
 		hud.flash("GO!")
 	end
