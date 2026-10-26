@@ -187,6 +187,9 @@ function CvcUi.bars(parent: Instance): Bars
 	local fills: { [string]: Frame } = {}
 	local tops: { [string]: Frame } = {}
 	local nums: { [string]: TextLabel } = {}
+	local sparks: { [string]: TextLabel } = {}
+	local twinkles: { [string]: Tween } = {}
+	local shown: { [string]: number } = {} -- the whole number each bar showed last
 	for i, b in Training.BARS do
 		local y = (i - 1) / 3
 		local word = CvcUi.label(frame, CvcUi.BAR_WORDS[b], INK)
@@ -225,7 +228,24 @@ function CvcUi.bars(parent: Instance): Bars
 		num.Position = UDim2.fromScale(0.82, y + 0.03)
 		num.Size = UDim2.fromScale(0.18, 0.27)
 		num.TextXAlignment = Enum.TextXAlignment.Right
-		fills[b], tops[b], nums[b] = fill, top, num
+		local numScale = Instance.new("UIScale")
+		numScale.Parent = num
+		-- a gold sparkle at the bar's end once it's full (MAX!), twinkling
+		local spark = CvcUi.label(track, "✦", Color3.fromRGB(255, 220, 90))
+		spark.Name = "Sparkle"
+		spark:SetAttribute("NoKart", true)
+		spark.AnchorPoint = Vector2.new(0.5, 0.5)
+		spark.Position = UDim2.fromScale(1, 0.5)
+		spark.Size = UDim2.fromScale(1.6, 1.6)
+		spark.SizeConstraint = Enum.SizeConstraint.RelativeYY
+		spark.ZIndex = 4
+		spark.Visible = false
+		local twinkle = TweenService:Create(
+			spark,
+			TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+			{ TextTransparency = 0.6, Rotation = 45 }
+		)
+		fills[b], tops[b], nums[b], sparks[b], twinkles[b] = fill, top, num, spark, twinkle
 	end
 	local function set(car: CvcState.Car)
 		for _, b in Training.BARS do
@@ -236,7 +256,30 @@ function CvcUi.bars(parent: Instance): Bars
 			}):Play()
 			tops[b].Position = UDim2.fromScale(top / Training.MAX_BAR, 0)
 			tops[b].Visible = top < Training.MAX_BAR
-			nums[b].Text = tostring(math.floor(v))
+			local whole = math.floor(v)
+			local full = v >= top
+			nums[b].Text = if full then "MAX!" else tostring(whole)
+			nums[b].TextColor3 = if full then Color3.fromRGB(214, 150, 0) else INK
+			-- a bar went up: its number pops
+			local was = shown[b]
+			if was and whole > was then
+				local sc = nums[b]:FindFirstChildOfClass("UIScale")
+				if sc then
+					sc.Scale = 1.5
+					TweenService
+						:Create(sc, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Scale = 1 })
+						:Play()
+				end
+			end
+			shown[b] = whole
+			if full ~= sparks[b].Visible then
+				sparks[b].Visible = full
+				if full then
+					twinkles[b]:Play()
+				else
+					twinkles[b]:Cancel()
+				end
+			end
 		end
 	end
 	return { frame = frame, set = set }
