@@ -5,6 +5,7 @@ local H = require("./harness")
 local S = require("../src/shared/SpawnLobby")
 local TrackData = require("../src/shared/TrackData")
 local Cat = require("../src/shared/CarCatalog")
+local Features = require("../src/shared/Features")
 
 local test, truthy, eq = H.test, H.truthy, H.eq
 
@@ -57,33 +58,36 @@ test(
 	"a car stand for every plot, drift / race pads, drift and race car shops and a garage",
 	function()
 		truthy(#S.STANDS >= #TrackData.order, "stands")
-		eq(#S.PADS, 2)
+		-- (Car VS Car: racing only, and the crate shop in the race shop's spot)
+		eq(#S.PADS, if Features.CVC then 1 else 2)
 		local kinds: { [string]: boolean } = {}
 		for _, pad in S.PADS do
 			kinds[pad.kind] = true
 		end
-		for _, k in { "drift", "race" } do
+		for _, k in if Features.CVC then { "race" } else { "drift", "race" } do
 			truthy(kinds[k], "pad for " .. k)
 		end
 		local groups: { [string]: boolean } = {}
 		for _, p in S.allParts() do
 			groups[p.group] = true
 		end
+		local want = {
+			"Ground",
+			"Statue",
+			"QueuePad1",
+			"QueuePad" .. #S.PADS,
+			"Stand8",
+			"Arch",
+			"garage/Lift",
+		}
 		for _, g in
-			{
-				"Ground",
-				"Statue",
-				"QueuePad1",
-				"QueuePad" .. #S.PADS,
-				"Stand8",
-				"Arch",
-				"drift/Shell",
-				"drift/Car1",
-				"race/Counter",
-				"race/Stand3",
-				"garage/Lift",
-			}
+			if Features.CVC
+				then { "crates/Shell", "crates/Counter", "crates/Crate3" }
+				else { "drift/Shell", "drift/Car1", "race/Counter", "race/Stand3" }
 		do
+			table.insert(want, g)
+		end
+		for _, g in want do
 			truthy(groups[g], g)
 		end
 	end
