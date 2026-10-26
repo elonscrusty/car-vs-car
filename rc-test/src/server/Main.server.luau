@@ -42,7 +42,9 @@ local lobby = LobbyBuilder.build()
 LobbyPlots.init()
 require(script.Parent.PlotStandsBuilder).start() -- owners' cars on their plot's stands
 require(script.Parent.Leaderboards).start() -- lobby boards: best garage, fastest lap per map
-require(script.Parent.TycoonServer).start() -- parked cars make coins in their owner's plot
+if not Features.CVC then
+	require(script.Parent.TycoonServer).start() -- parked cars make coins in their owner's plot
+end
 if Features.CVC then
 	require(script.Parent.TrainingServer).start() -- Car VS Car: cars train on their owner's plot
 	require(script.Parent.FriendBonus).start() -- Car VS Car: coins for playing with a friend
