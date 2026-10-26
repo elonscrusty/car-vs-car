@@ -11,6 +11,7 @@ local JoinStage = require(ReplicatedStorage.Shared.JoinStage)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
 local Popup = require(script.Parent:WaitForChild("Popup"))
+local StageGate = require(script.Parent:WaitForChild("StageGate"))
 local Profile = require(ReplicatedStorage.Shared.Profile)
 local Visit = require(ReplicatedStorage.Shared.Visit)
 
@@ -733,8 +734,8 @@ local function releaseGoal()
 end
 
 local function flyCoins()
-	if flying or shownCoins == nil or not hud.Enabled then
-		return
+	if flying or shownCoins == nil or not hud.Enabled or not StageGate.shows("coins") then
+		return -- (a brand new player's first coins fly in the moment the coins number shows)
 	end
 	local from = shownCoins :: number
 	local gain = targetCoins - from
@@ -1400,3 +1401,16 @@ end
 player:GetAttributeChangedSignal("Driving"):Connect(showWalkHud)
 player:GetAttributeChangedSignal("Building"):Connect(showWalkHud)
 showWalkHud()
+
+-- one new thing at a time (JoinStage): a brand new player sees none of these until their stage
+StageGate.hold(chip, "stars")
+StageGate.hold(coinChip, "coins")
+StageGate.hold(rivalsBtn, "rivals")
+StageGate.hold(jobs, "jobs")
+StageGate.hold(banner, "boost")
+StageGate.hold(card, "gift")
+StageGate.hold(nextBox, "goal")
+StageGate.hold(plotTop, "top3")
+player:GetAttributeChangedSignal("Stage"):Connect(function()
+	task.delay(0.5, flyCoins) -- the first lap's coins fly into the coins number as it appears
+end)

@@ -7,6 +7,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local HudLayout = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("HudLayout"))
 local RCCar = require(script.Parent.RCCar)
+local StageGate = require(script.Parent.StageGate)
 
 export type Controls = {
 	read: () -> RCCar.Input,
@@ -279,6 +280,8 @@ function Controls.new(
 	camBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 	camBtn.Parent = gui
 	camBtn.Activated:Connect(onCam)
+	-- (CAM, VIEW, SMOKE and the key line wait for the first lap: JoinStage "carbuttons")
+	StageGate.hold(camBtn, "carbuttons")
 
 	local viewBtn = resetBtn:Clone()
 	viewBtn.Name = "View"
@@ -287,6 +290,7 @@ function Controls.new(
 	viewBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 	viewBtn.Parent = gui
 	viewBtn.Activated:Connect(onView)
+	StageGate.hold(viewBtn, "carbuttons")
 
 	-- tyre smoke colour (looks only); not on rocks, which hardly slide
 	local smokeBtn = resetBtn:Clone()
@@ -294,6 +298,7 @@ function Controls.new(
 	smokeBtn.Text = "SMOKE"
 	HudLayout.place(smokeBtn, "Smoke", "drive")
 	smokeBtn.Parent = gui
+	StageGate.hold(smokeBtn, "carbuttons")
 	smokeBtn.Activated:Connect(function()
 		onSmoke()
 	end)
@@ -377,6 +382,7 @@ function Controls.new(
 		help.Text =
 			"W/S gas + brake    A/D steer    SPACE drift    C show cam    V chase cam    K smoke    G auto gas    E walk"
 		help.Parent = gui
+		StageGate.hold(help, "carbuttons")
 	end
 
 	-- AUTO GAS: the car keeps the gas down by itself (brake still brakes and backs up), so a

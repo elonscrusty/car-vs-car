@@ -19,6 +19,7 @@ local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local SoundLevels = require(ReplicatedStorage.Shared.SoundLevels)
 local PlotGuide = require(script.Parent.PlotGuide)
+local StageGate = require(script.Parent.StageGate)
 
 local Lobby = {}
 
@@ -144,6 +145,7 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 	local friendsGui, friendsButton = bigButton("Friends", "FRIENDS: OFF")
 	HudLayout.place(friendsButton, "Friends")
 	friendsButton.TextSize = 18
+	StageGate.hold(friendsButton, "friends") -- not for a brand new player (JoinStage)
 	local ownSlot: number? = nil
 	local friendsOn = false
 	local marker: Model? = nil
@@ -346,6 +348,7 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 	local QUICK = false
 	local quickGui, quickButton = bigButton("Quick", "QUICK RACE")
 	HudLayout.place(quickButton, "Quick") -- under FRIENDS
+	StageGate.hold(quickButton, "quick")
 	quickButton.BackgroundColor3 = Color3.fromRGB(225, 55, 50)
 	quickGui.Enabled = QUICK
 	quickButton.Activated:Connect(function()

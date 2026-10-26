@@ -12,6 +12,7 @@ local RunService = game:GetService("RunService")
 
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
 local JoinStage = require(ReplicatedStorage.Shared.JoinStage)
+local StageGate = require(script.Parent.StageGate)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local NextGoal = require(ReplicatedStorage.Shared.NextGoal)
 local SpawnLobby = require(ReplicatedStorage.Shared.SpawnLobby)
@@ -87,6 +88,8 @@ function PlotGuide.new(building: () -> boolean): PlotGuide
 	pad.PaddingTop = UDim.new(0, 5)
 	pad.PaddingBottom = UDim.new(0, 5)
 	pad.Parent = line
+	-- a brand new player follows the road arrows: no words until the first lap (JoinStage)
+	StageGate.hold(line, "help")
 
 	-- arrows to your pad: down the middle of the road from the top, then across to the pad
 	local function padPath(m: Model, s: LobbyLayout.Slot): { { BasePart } }

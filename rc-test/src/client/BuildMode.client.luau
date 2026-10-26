@@ -10,6 +10,7 @@ local RunService = game:GetService("RunService")
 
 local BuildLayout = require(ReplicatedStorage.Shared.BuildLayout)
 local BuildScreen = require(script.Parent:WaitForChild("BuildScreen"))
+local StageGate = require(script.Parent:WaitForChild("StageGate"))
 
 local player = Players.LocalPlayer
 
@@ -345,6 +346,7 @@ buildBtn.TextScaled = true
 buildBtn.Text = "BUILD!"
 buildBtn.Visible = false
 buildBtn.Parent = buildGui
+StageGate.hold(buildBtn, "build") -- after the first lap (JoinStage)
 local buildCorner = Instance.new("UICorner")
 buildCorner.CornerRadius = UDim.new(0.3, 0)
 buildCorner.Parent = buildBtn
@@ -392,7 +394,10 @@ RunService.Heartbeat:Connect(function()
 	-- by itself only once you've driven your plot (PlotGuide sets HasDriven): a brand new player
 	-- follows the arrows first, and BUILD! is there when they want it. And only once a break:
 	-- getting out of the car again doesn't pop it back up.
-	local auto = player:GetAttribute("HasDriven") == true and not autoUsed and not cardsUp()
+	local auto = player:GetAttribute("HasDriven") == true
+		and not autoUsed
+		and not cardsUp()
+		and StageGate.shows("build")
 	local want = inBreak and not closed and walking and (auto or asked or open)
 	-- (not before your first drive: a brand new player's one button is DRIVE)
 	buildBtn.Visible = inBreak and walking and not want and player:GetAttribute("DroveOnce") == true
