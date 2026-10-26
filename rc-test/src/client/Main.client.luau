@@ -19,6 +19,7 @@ local SmokeColors = require(ReplicatedStorage.Shared.SmokeColors)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
 local RaceStats = require(ReplicatedStorage.Shared.RaceStats)
+local RaceStand = require(ReplicatedStorage.Shared.RaceStand)
 
 local setMode: (id: string) -> () = (Tuning :: any).setMode
 local setScale: (s: number) -> () = (Tuning :: any).setScale
@@ -102,6 +103,11 @@ local TRACK_VIEW: { [string]: ChaseCamera.View } = { drift = "top", race = "chas
 local view: ChaseCamera.View = "chase"
 local viewTrack = "" -- the track the view was picked for
 local showCam = false
+-- Car VS Car big race: the fixed camera from your spot on the driver stand (carter's yes 10-26);
+-- the view button swaps it with the normal views
+local standCam = true
+local standLook: Vector3? = nil
+local standFov = 40
 
 local car = RCCar.new(model, ignoreList())
 local camera = ChaseCamera.new(body, ignoreList(), eye)
@@ -317,6 +323,13 @@ local controls = Controls.new(gui, reset, function()
 end, function()
 	if tracks[current].id == "rock" then
 		hud.flash(VIEW_NAMES.free) -- rocks is free cam only
+		return
+	end
+	if Features.CVC and grid and tracks[current].map then
+		standCam = not standCam
+		standLook = nil
+		camera.setView(view)
+		hud.flash(if standCam then "STAND CAM" else VIEW_NAMES[view])
 		return
 	end
 	local i = table.find(VIEWS, view) or 0
@@ -715,6 +728,37 @@ local otherCars = OtherCars.new(function(): string
 end)
 
 local boosting = false -- was on a boost last frame
+
+-- Car VS Car: the other leagues' racers stand on the same stand spots; this screen hides them
+-- (their cars too: OtherCars). A few times a second is enough.
+local leagueCheck = 0
+local hiddenPeople: { [Player]: boolean } = setmetatable({}, { __mode = "k" }) :: any
+local function hideOtherLeagues(dt: number)
+	leagueCheck -= dt
+	if leagueCheck > 0 then
+		return
+	end
+	leagueCheck = 0.3
+	local mine = player:GetAttribute("RaceGroup")
+	for _, p in Players:GetPlayers() do
+		if p == player then
+			continue
+		end
+		local theirs = p:GetAttribute("RaceGroup")
+		local hide = mine ~= nil and theirs ~= nil and theirs ~= mine
+		if hide or hiddenPeople[p] then
+			local char = p.Character
+			if char then
+				for _, d in char:GetDescendants() do
+					if d:IsA("BasePart") or d:IsA("Decal") then
+						(d :: any).LocalTransparencyModifier = if hide then 1 else 0
+					end
+				end
+			end
+			hiddenPeople[p] = if hide then true else nil
+		end
+	end
+end
 local airTime = 0 -- seconds in the air up to last frame
 
 RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, function(dt: number)
@@ -750,6 +794,32 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 	end
 	airTime = tel.air
 	camera.update(dt)
+	-- Car VS Car big race: from the stand, above and behind your spot, turning to watch your car
+	-- and zooming in as it goes far (RaceStand)
+	local k = player:GetAttribute("StandSpot")
+	local spot = if Features.CVC
+			and grid
+			and standCam
+			and not showCam
+			and type(k) == "number"
+		then RaceStand.spot(tracks[current], k)
+		else nil
+	if spot then
+		local cx, cy, cz = RaceStand.camAt(spot)
+		local from = Vector3.new(cx, cy, cz)
+		local target = body.Position
+		local look = standLook
+		look = if look then look:Lerp(target, math.min(1, 12 * dt)) else target
+		standLook = look
+		local want = RaceStand.fov((target - from).Magnitude)
+		standFov += (want - standFov) * math.min(1, 4 * dt)
+		local cam = workspace.CurrentCamera
+		cam.CFrame = CFrame.lookAt(from, look)
+		cam.FieldOfView = standFov
+	else
+		standLook = nil
+	end
+	hideOtherLeagues(dt)
 	controls.setRock(tracks[current].id == "rock")
 	controls.setRace(grid ~= nil)
 	hud.setRace(grid ~= nil)

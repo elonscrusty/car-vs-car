@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local Forever = require(ReplicatedStorage.Shared.Forever)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
+local RaceStand = require(ReplicatedStorage.Shared.RaceStand)
 local CarBuilder = require(script.Parent.CarBuilder)
 local LobbyBuilder = require(script.Parent.LobbyBuilder)
 local ServerRaceRunner = require(script.Parent.ServerRaceRunner)
@@ -165,6 +166,19 @@ local function placePerson(player: Player, t: TrackData.Track, rc: boolean)
 	local char = player.Character
 	local root = char and char:FindFirstChild("HumanoidRootPart")
 	if not (char and root and root:IsA("BasePart")) then
+		return
+	end
+	-- Car VS Car big race: on the map's driver stand, at your grid number's spot (RaceStand)
+	local k = player:GetAttribute("StandSpot")
+	local onStand = if Features.CVC
+			and t.map
+			and type(k) == "number"
+		then RaceStand.spot(t, k)
+		else nil
+	if onStand then
+		local pos = Vector3.new(onStand.x, onStand.y + 3, onStand.z)
+		root.Anchored = true
+		char:PivotTo(CFrame.lookAt(pos, pos + Vector3.new(onStand.dx, 0, onStand.dz)))
 		return
 	end
 	local spot, lookX, lookZ = TrackData.standSpot(t)
