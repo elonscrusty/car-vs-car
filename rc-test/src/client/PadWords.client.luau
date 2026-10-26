@@ -16,7 +16,7 @@ local KartStyle = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild(
 
 local WORDS: { [string]: string } = { drift = "DRIFT NOW", race = "JOIN RACE", build = "GO BUILD" }
 local SHOP_WORDS: { [string]: string } =
-	{ drift = "DRIFT CARS", race = "RACE CARS", looks = "LOOKS" }
+	{ drift = "DRIFT CARS", race = "RACE CARS", looks = "LOOKS", crates = "CRATES" }
 
 local holder = Instance.new("ScreenGui")
 holder.Name = "PadWords"
@@ -28,7 +28,8 @@ type Small = { label: TextLabel, base: BasePart }
 -- comes back as their Stage goes up (carter 10-25: joining was overwhelming)
 local gates: { [BillboardGui]: string } = {}
 local PAD_GATE: { [string]: string } = { drift = "pads", race = "joinrace" }
-local SHOP_GATE: { [string]: string } = { drift = "shop", race = "shop", looks = "looks" }
+local SHOP_GATE: { [string]: string } =
+	{ drift = "shop", race = "shop", looks = "looks", crates = "shop" }
 local smalls: { Small } = {}
 -- the pad signs: off during the race call and race (BuildOpen false: the pads do nothing then,
 -- and the words sat on the race card and countdown), and smaller from close up
