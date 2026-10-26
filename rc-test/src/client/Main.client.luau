@@ -568,6 +568,8 @@ RunService.PreSimulation:Connect(function(dt: number)
 		if step then
 			StartLights.show(lamps, step)
 			startBeep.PlaybackSpeed = if step >= RaceStart.GO then 1.6 else 0.8
+			-- (carter's pick 13: louder in the big race; the sounds helper adds a real stinger)
+			startBeep.Volume = SoundLevels.START_BEEP * (if grid then 1.8 else 1)
 			startBeep:Play()
 			bigCount.show(step, RaceStart.label(step), step >= RaceStart.GO)
 		end
