@@ -33,6 +33,7 @@ for _, name in { "Baseplate", "SpawnLocation" } do
 end
 
 TrackBuilder.build()
+require(script.Parent.RaceMapBuilder).build() -- the big race maps (Backyard, Kitchen), far away
 PlotDecorBuilder.build()
 PlotLooksBuilder.start()
 PlotShop.start()
