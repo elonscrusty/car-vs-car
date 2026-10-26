@@ -350,7 +350,7 @@ local function buildJumps(folder: Instance, map: any)
 		local mid = Vector3.new(s.x, 0, s.z)
 		local peak = mid + Vector3.new(0, j.h or MapKit.JUMP_H, 0)
 		for _, dir in { -1, 1 } do
-			local run = if dir < 0 then half else MapKit.JUMP_DOWN -- a steeper landing slope
+			local run = if dir < 0 then half else MapKit.JUMP_DOWN -- a long landing slope
 			local r =
 				Kit.ramp(folder, "JumpRamp", CFrame.identity, mid + t * dir * run, peak, w, color)
 			r.Material = Enum.Material.WoodPlanks

@@ -132,10 +132,9 @@ MapKit.GRASS_DRAG = 0.5
 -- (Studio, 10-26), so the maps use a flatter one.
 MapKit.JUMP_H = 10
 MapKit.JUMP_LEN = 90 -- the run up is half of this (12.5 degrees)
--- The landing drops away faster than the run up climbs (22 degrees), so the car flies off the top
--- and lands on the slope. An 80-long 7-degree landing just let the suspension roll over it: no
--- air at all (Studio, 10-26 13:33).
-MapKit.JUMP_DOWN = 25
+-- A long, gentle landing. It is a bump, not a flying jump: a 22-degree landing (25 long) tipped
+-- cars nose-first onto their roofs in 7 of 8 Studio runs (10-26 13:44), so keep this long.
+MapKit.JUMP_DOWN = 80
 MapKit.WALL_H = 60 -- the edge of the map (a fence, a kitchen wall): taller than any jump
 MapKit.TOY_OFF = 60 -- kitchen toys by the road stand this far from its centre line
 MapKit.TOY_CLEAR = 28 -- and at least this far past any curb (a brick is 44 x 22)
