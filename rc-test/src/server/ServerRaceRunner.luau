@@ -95,7 +95,7 @@ local function now(): number
 end
 
 -- carter's tycoon plan (rc-game/tycoon/PLAN.md, 10-26): races on the big maps (RaceMaps) instead
--- of on players' plots, as soon as a map exists and Features.PLOT_RACING is off. Who races: the
+-- of on players' plots, as soon as a map exists. Who races: the
 -- players who walked onto the JOIN NEXT RACE pad (join). Before the start everyone votes a map.
 local function mapMode(): boolean
 	return RaceMaps.live()
@@ -405,8 +405,7 @@ local function payRace(
 			giveStars(p, n)
 		end
 	end
-	-- (the tycoon plan has no player tracks to pick: no owner bonus)
-	local owner = if Features.PLOT_RACING then LobbyPlots.ownerOf(slot) else nil
+	local owner: Player? = nil -- (the tycoon plan has no player tracks to pick: no owner bonus)
 	if owner and owner.Parent then
 		pay(owner, ServerRace.PAY_OWNER, "your track was picked!")
 		-- one number per row: the owner's row counts the bonus too
@@ -431,10 +430,8 @@ local function racersHere(): { Player }
 		return list
 	end
 	for _, p in Players:GetPlayers() do
-		local stage = p:GetAttribute("Stage")
 		-- (tycoon plan: no plot to lap on first, so the race IS a new kid's first drive)
-		local lapped = type(stage) == "number" and stage >= Profile.STAGE.LAPPED
-		if #list < ServerRace.MAX and (lapped or not Features.PLOT_RACING) then
+		if #list < ServerRace.MAX then
 			table.insert(list, p)
 		end
 	end

@@ -17,7 +17,6 @@ local SoundLevels = require(Shared:WaitForChild("SoundLevels"))
 local Garage = require(Shared:WaitForChild("Garage"))
 local CarCatalog = require(Shared:WaitForChild("CarCatalog"))
 local CarGlow = require(Shared:WaitForChild("CarGlow"))
-local Features = require(Shared:WaitForChild("Features"))
 local HudLayout = require(Shared:WaitForChild("HudLayout"))
 local KartStyle = require(Shared:WaitForChild("KartStyle"))
 local Party = require(script.Parent:WaitForChild("Party"))
@@ -254,7 +253,7 @@ local revealSpin: RBXScriptConnection? = nil
 -- Can this car go for a drive from the shop? (Tycoon plan: plots are garages, only the free
 -- drift plot drives; a race car races on the maps with JOIN RACE.)
 local function drivesNow(car: CarCatalog.Car): boolean
-	return Features.PLOT_RACING or car.mode == "drift"
+	return car.mode == "drift"
 end
 
 -- A kind's pill colour: its own, but common's light grey is a slate here (it vanished on the
@@ -308,9 +307,7 @@ local function reveal(car: CarCatalog.Car, onDone: () -> ())
 		text(box, car.name, 0, 0.7, 1, 0.1, Color3.new(1, 1, 1)),
 		text(
 			box,
-			if Features.PLOT_RACING
-				then "You're driving it now!"
-				else `In your garage! +{CarCatalog.rarity(car.id).perMin} coins/min`,
+			`In your garage! +{CarCatalog.rarity(car.id).perMin} coins/min`,
 			0,
 			0.8,
 			1,
