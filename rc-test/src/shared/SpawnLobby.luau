@@ -19,7 +19,6 @@ local function sibling(name: string): any
 	return luneRequire("./" .. name)
 end
 
-local Features = sibling("Features")
 local CarCatalog = sibling("CarCatalog")
 local CarGlow = sibling("CarGlow")
 local Garage = sibling("Garage")
@@ -55,16 +54,11 @@ for _, g in CarCatalog.GUMBALL do
 end
 SpawnLobby.PAD_Z = 23
 -- play pads (queue pads): race and drift send you to an open plot of that kind (each owner picks
--- race or drift; rocks dropped, carter 23:42), build sends you to your own plot
+-- race or drift; rocks dropped, carter 23:42)
 SpawnLobby.PADS = {
 	{ x = -27, kind = "drift", color = { 150, 70, 210 } },
 	{ x = 0, kind = "race", color = { 226, 52, 46 } },
-	{ x = 27, kind = "build", color = { 246, 196, 40 } },
 }
--- no tile building (tycoon plan): no GO BUILD pad, and drift and race keep their spots
-if not Features.TILES then
-	table.remove(SpawnLobby.PADS, 3)
-end
 SpawnLobby.ARCH_Z = 33.5
 SpawnLobby.GUMBALL = { x = 17, z = 7 } -- the gumball machine (rare cars), by the spawn
 -- Where you step out of each shop (in front of its open side), and the walk from there out onto
@@ -555,7 +549,7 @@ end
 
 -- Builds it under `parent`. `at` is the middle of the square on the floor, its LookVector
 -- pointing down the street. Play pad bases are tagged "QueuePad" (attributes Pad = 1..3 and
--- PlotType = "drift" / "race" / "build"); QueuePads (server) watches them.
+-- PlotType = "drift" / "race"); QueuePads (server) watches them.
 function SpawnLobby.build(parent: Instance, at: CFrame): Model
 	local origin = at * CFrame.Angles(0, math.pi, 0) -- lobby-local +Z = the LookVector
 	local model = Instance.new("Model")

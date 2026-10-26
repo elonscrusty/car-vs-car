@@ -126,12 +126,6 @@ for k in require(ReplicatedStorage.Shared.RaceMaps).list() do
 	tracks[i] = t
 	timers[i] = LapTimer.new(t.gates, t.mode)
 end
--- a plot whose owner built their own track: refresh its copy and its lap timer
-require(ReplicatedStorage.Shared.PlotTracks).watch(function(i: number)
-	local t: TrackData.Track = LobbyLayout.track(i)
-	tracks[i] = t
-	timers[i] = LapTimer.new(t.gates, t.mode)
-end)
 local labels: { string } = {}
 for i, id in TrackData.order do
 	labels[i] = TrackData.get(id).label
@@ -612,7 +606,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 			driftHold = 0.8
 			-- sliding through a glowing touch zone: a bonus, once per zone per chain
 			local plot = TrackData.plot(t.id)
-			local zone = not (t :: any).custom and plot.touchZone and plot.touchZone(lx, lz)
+			local zone = plot.touchZone and plot.touchZone(lx, lz)
 			if zone and not touched[zone] then
 				touched[zone] = true
 				local bonus = plot.TOUCH_BONUS * CarMath.driftCombo(driftHeld)

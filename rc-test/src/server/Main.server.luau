@@ -41,11 +41,9 @@ PlotLooksBuilder.start()
 PlotShop.start()
 local lobby = LobbyBuilder.build()
 LobbyPlots.init()
-require(ReplicatedStorage.Shared.PlotTracks).watch() -- owners' own tracks (LobbyLayout.custom)
 require(script.Parent.PlotStandsBuilder).start() -- owners' cars on their plot's stands
 require(script.Parent.TycoonServer).start() -- parked cars make coins in their owner's plot
 require(script.Parent.PlotGarageBuilder).start() -- plots are garages: the loop road, coin pile pad, level sign
-require(script.Parent.TrackBuild).start() -- race plots: starter circle, owners swap tiles in the break
 do -- phone speed pass over the plots (small bits: no shadow; tiny decor bits: no collision)
 	local before, after = require(script.Parent.LobbyPerf).plots(workspace.Plots)
 	print(
@@ -308,10 +306,8 @@ LobbyPlots.onDrive = function(player: Player, slotIndex: number)
 	remote:FireClient(player, "drive", slotIndex)
 end
 
--- The spawn lobby's drift / race pads: stand on one to go drive an open plot of that kind. The
--- build pad walks you to your own plot and opens the build screen there (BuildAsk, read by
--- BuildMode). All three work in the break only (BuildOpen): from the pick to the end of the server
--- race everyone is in that race, and a drive started then would be taken away at the start.
+-- The spawn lobby's drift / race pads: stand on one to go drive an open plot of that kind (the
+-- race pad is JOIN RACE).
 require(script.Parent.QueuePads).start({
 	-- the race pad is JOIN RACE: on the list for the next map race (anyone, a new player too)
 	join = function(player: Player)
@@ -327,23 +323,6 @@ require(script.Parent.QueuePads).start({
 			return nil
 		end
 		return LobbyPlots.findOpen(kind, player)
-	end,
-	build = function(player: Player)
-		if
-			not Features.TILES
-			or workspace:GetAttribute("BuildOpen") ~= true
-			or LobbyPlots.drivingOf(player) ~= nil
-			or not JoinStage.shows(player:GetAttribute("Stage"), "build")
-		then
-			return
-		end
-		local char = player.Character
-		if char == nil or LobbyPlots.slotOf(player) == nil then
-			return
-		end
-		char:PivotTo(homeOf(player))
-		local n = player:GetAttribute("BuildAsk")
-		player:SetAttribute("BuildAsk", (if type(n) == "number" then n else 0) + 1)
 	end,
 	sendTo = LobbyPlots.sendTo,
 })

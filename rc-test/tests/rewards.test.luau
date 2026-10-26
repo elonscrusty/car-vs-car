@@ -4,7 +4,6 @@ local H = require("./harness")
 local Rewards = require("../src/shared/Rewards")
 local Tycoon = require("../src/shared/Tycoon")
 local Profile = require("../src/shared/Profile")
-local TrackTiles = require("../src/shared/TrackTiles")
 
 local test, eq, truthy = H.test, H.eq, H.truthy
 
@@ -39,55 +38,15 @@ test("rewards: next goal is the cheapest thing you don't have, cheapest first", 
 		end
 	end
 	eq((firstCar :: Rewards.Goal).mode, "race")
-	-- own every shop car and tile: the next goal is the bigger grid (or nothing)
+	-- own every shop car: the next goal is a bigger garage
 	for _, list in (require("../src/shared/CarCatalog") :: any).SHOP do
 		for _, c in list do
 			d.cars[c.id] = true
 		end
-	end
-	-- every car owned: tiles come next
-	local tileNext = Rewards.next(d :: any)
-	if tileNext and not TrackTiles.ALL_FREE and #Rewards.coinGoals(d :: any) > 0 then
-		eq((tileNext :: Rewards.Goal).kind, "tile")
-	end
-	for _, t in (require("../src/shared/TileShop") :: any).TILES do
-		d.tiles[t.id] = 1
 	end
 	-- (tycoon) every shop car owned: a bigger garage next, nothing at the top level
 	local after = Rewards.next(d :: any)
 	eq((after :: Rewards.Goal).kind, "level")
 	d.plotLevel = Tycoon.MAX_LEVEL
 	eq(Rewards.next(d :: any), nil)
-end)
-
-test("rewards: no track grid goal while tile building is off", function()
-	eq(Rewards.gridGoal(0), nil)
-end)
-
-test("rewards: stars that open a tile or a bigger track say so, in order", function()
-	local TileShop = require("../src/shared/TileShop")
-	eq(#Rewards.opened(5, 5), 0)
-	eq(#Rewards.opened(5, 4), 0)
-	local bumps = Rewards.opened(0, TileShop.UNLOCK_STARS.bumps)
-	eq(#bumps, 1)
-	eq(bumps[1], "NEW TILE: BUMPS!")
-	local grid = TrackTiles.SIZES[2]
-	local at10 = Rewards.opened(grid.stars - 1, grid.stars)
-	truthy(table.find(at10, `BIGGER TRACK: {grid.cols}x{grid.rows}!`) ~= nil)
-	-- every coin tile with a star gate opens once on the way up
-	local seen: { [string]: boolean } = {}
-	for s = 1, 100 do
-		for _, text in Rewards.opened(s - 1, s) do
-			truthy(not seen[text], text)
-			seen[text] = true
-		end
-	end
-	for _, t in TileShop.TILES do
-		if t.tier == "coins" and TileShop.unlockAt(t.id) > 0 then
-			truthy(seen[`NEW TILE: {string.upper(t.name)}!`], t.id)
-		end
-	end
-	-- a big jump lists them cheapest gate first
-	local all = Rewards.opened(0, 100)
-	eq(all[1], "NEW TILE: BUMPS!")
 end)

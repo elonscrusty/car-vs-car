@@ -250,10 +250,6 @@ function LobbyLayout.parkSpot(n: number): (number, number)
 	return -5.25 + ((n - 1) % 4) * 3.5, LobbyLayout.road().minZ + 4
 end
 
--- Lobby plots whose owner built their own track: its driving data (mode, spawn, gates,
--- checkpoints, plot-local big studs like a Plots/<Type>), by slot. Set by PlotTracks.
-LobbyLayout.custom = {} :: { [number]: any }
-
 -- The big race maps (RaceMaps) are drivable "slots" after the street's plots: index
 -- #slots + k is map k. nil when there is no such map.
 function LobbyLayout.mapAt(index: number): any?
@@ -279,18 +275,6 @@ function LobbyLayout.track(slotIndex: number): any
 	end
 	local slot = LobbyLayout.slots()[slotIndex]
 	local t = TrackData.get(slot.id)
-	local own = LobbyLayout.custom[slotIndex]
-	if own then
-		-- the owner's pick: a "drift" plot drives in the drift mode (top view, drift score)
-		if own.kind == "race" or own.kind == "drift" then
-			t.id = own.kind
-		end
-		t.custom = true -- built from tiles (no fixed-plot extras like drift touch zones)
-		t.mode = own.mode or t.mode
-		t.spawn = own.spawn or t.spawn
-		t.gates = own.gates or t.gates
-		t.checkpoints = own.checkpoints
-	end
 	t.rcX, t.rcZ, t.rcAngle = slot.plotX, slot.plotZ, slot.angle
 	return t
 end

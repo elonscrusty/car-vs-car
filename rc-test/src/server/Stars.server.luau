@@ -61,11 +61,6 @@ local function plotModel(slotIndex: number): Instance?
 end
 
 local function plotType(slotIndex: number): string
-	-- a built track: what its owner picked (race or drift)
-	local own = LobbyLayout.custom[slotIndex]
-	if own and (own.kind == "race" or own.kind == "drift") then
-		return own.kind
-	end
 	local m = plotModel(slotIndex)
 	local kind = m and m:GetAttribute("PlotType")
 	if type(kind) == "string" and Medals.target(kind) then
@@ -111,12 +106,11 @@ local function recordsOf(slotIndex: number): ({ [string]: Profile.Record }?, Pla
 	return looseRecords[slotIndex], nil
 end
 
--- The plot as a track: an owner's built track (its own gates and spawn, LobbyLayout.track) like
--- the server race and the pads use, else the plot's kind.
+-- The plot as a track (LobbyLayout.track), else the plot's kind.
 local function trackOf(slotIndex: number): TrackData.Track
 	local t: any = LobbyLayout.track(slotIndex)
 	local kind = plotType(slotIndex)
-	if not t.custom and t.id ~= kind then
+	if t.id ~= kind then
 		local slot = slots[slotIndex]
 		t = TrackData.get(kind)
 		t.rcX, t.rcZ, t.rcAngle = slot.plotX, slot.plotZ, slot.angle
@@ -228,16 +222,6 @@ for i, slot in slots do
 	prompt.KeyboardKeyCode = Enum.KeyCode.F
 	prompt.Parent = anchor
 	likePrompts[i] = prompt
-end
-
--- A built race track's medal times, stretched to its length (nil = the plot's own targets).
-local raceGates = (TrackData.get("race") :: any).gates
-local function scaleOf(slotIndex: number, mode: string): number?
-	local custom = LobbyLayout.custom[slotIndex]
-	if mode ~= "race" or type(custom) ~= "table" or type(custom.gates) ~= "table" then
-		return nil
-	end
-	return Medals.loopScale(custom.gates, raceGates)
 end
 
 -- this plot's board for `mode`: the owner's save, or the loose list (changed in place)
@@ -470,7 +454,7 @@ local function sendTarget(player: Player, slotIndex: number?, mode: string?)
 		else
 			have = (ownMedal[player] or {})[`{slotIndex}/{mode}`] or 0
 		end
-		local m, v = Medals.nextGoal(mode, have, scaleOf(slotIndex, mode))
+		local m, v = Medals.nextGoal(mode, have)
 		info = { medal = m or 0, text = if v then Medals.format(mode, v) else "", stars = stars }
 	end
 	local key = if info then `{info.medal}/{info.text}/{info.stars}` else "none"
@@ -493,14 +477,13 @@ local function onRun(player: Player, slotIndex: number, mode: string, value: num
 		return
 	end
 	lastRun[player] = { key = key, at = clock }
-	local scale = scaleOf(slotIndex, mode)
-	if not Medals.valid(mode, value, scale) then
+	if not Medals.valid(mode, value) then
 		return
 	end
 	local records, owner = recordsOf(slotIndex)
 	local record = false
 	local beaten: Profile.Record? = nil
-	if records and Medals.better(mode, value, records[mode] and records[mode].value, scale) then
+	if records and Medals.better(mode, value, records[mode] and records[mode].value) then
 		beaten = records[mode]
 		records[mode] = { value = value, name = player.DisplayName, userId = player.UserId }
 		record = true
@@ -716,9 +699,8 @@ end
 local trackKeys: { [number]: string } = {}
 local function look(now: number)
 	for i in slots do
-		-- only rebuilt when the plot's built track or kind changes
-		local custom = LobbyLayout.custom[i]
-		local key = if custom then `{tostring(custom)}/{custom.kind}` else plotType(i)
+		-- only rebuilt when the plot's kind changes
+		local key = plotType(i)
 		if trackKeys[i] ~= key or tracks[i] == nil then
 			trackKeys[i] = key
 			tracks[i] = trackOf(i)
@@ -794,10 +776,7 @@ local function look(now: number)
 		if w.mode == "drift" then
 			-- a glow spot counts once per slide, only while sliding (like the client's bonus)
 			if w.run.chain > 0 then
-				-- (the glow spots are the old drift plot's; a built drift track has none)
-				local zone = if LobbyLayout.custom[w.slot]
-					then nil
-					else TrackData.plot("drift").touchZone(lx, lz)
+				local zone = TrackData.plot("drift").touchZone(lx, lz)
 				if zone and not w.touched[zone] then
 					w.touched[zone] = true
 					job(player, "touch")
@@ -979,7 +958,6 @@ end)
 
 -- The goal to save up for, sent again whenever coins, stars or cars change (from any shop).
 local goalSeen: { [Player]: string } = {}
-local starsSeen: { [Player]: number } = {}
 local function goalOf(data: Profile.Data): Rewards.Goal?
 	return Rewards.next(data :: any)
 end
@@ -992,31 +970,12 @@ local function sendGoal(player: Player, force: boolean?)
 	for _ in data.cars do
 		n += 1
 	end
-	for _ in data.tiles do
-		n += 1
-	end
 	local key = `{data.coins}/{data.stars}/{n}`
 	if goalSeen[player] == key and not force then
 		return
 	end
 	local first = goalSeen[player] == nil
 	goalSeen[player] = key
-	-- stars that just opened a tile or a bigger track: one toast each
-	local before = starsSeen[player]
-	starsSeen[player] = data.stars
-	if before and data.stars > before then
-		local news = Rewards.opened(before, data.stars)
-		task.spawn(function()
-			for k, text in news do
-				if k > 1 then
-					task.wait(3)
-				end
-				if player.Parent then
-					remote:FireClient(player, "toast", text)
-				end
-			end
-		end)
-	end
 	if not first then
 		remote:FireClient(player, "coins", data.coins)
 	end
@@ -1098,7 +1057,6 @@ task.spawn(function()
 end)
 Players.PlayerRemoving:Connect(function(p)
 	goalSeen[p] = nil
-	starsSeen[p] = nil
 end)
 
 local acc = 0

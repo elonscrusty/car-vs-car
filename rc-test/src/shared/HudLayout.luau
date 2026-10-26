@@ -116,7 +116,6 @@ HudLayout.SPOTS = {
 	spot("PlotTop", "walk", "Stars", TR, { 0.98, 0, 0, 152 }, { 0, 200, 0, 100 }), -- the plot's top 3 while you stand on its pad
 	-- ===== walk: bottom middle =====
 	spot("Drive", "walk", "Lobby", BC, { 0.47, 0, 0.96, 0 }, { 0, 160, 0, 64 }), -- thumb size, low (off the plot view)
-	spot("Build", "walk", "BuildMode", BC, { 0.47, 150, 0.96, 0 }, { 0, 120, 0, 52 }), -- reopen the build screen in the break (right of DRIVE)
 	spot("Goal", "walk", "PlotGuide", BC, { 0.5, 0, 0.96, -66 }, { 0, 230, 0, 30 }), -- what to do next (clear of DailyJobs on a small phone)
 
 	-- ===== drive: top (made by the RC car thread; driving is locked, so these stay put) =====
