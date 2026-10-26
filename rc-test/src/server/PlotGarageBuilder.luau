@@ -6,6 +6,9 @@
 -- yard goes in its place. The open drift plot keeps its track for free drift play. Rebuilt when
 -- the plot's level or owner changes (TycoonServer sets PlotLevel on the owner's plot). The cars
 -- and the coins are drawn by PlotGarage.client.
+-- Car VS Car (Features.CVC on): a "Training" model instead (PlotTraining has the layout): the
+-- garage room, the trophy shelf, the car stands and the station pads, from the plot's Stations,
+-- PlotLevel, GarageLevel and Trophies (TrainingServer sets them). CvcPlot.client puts the cars on.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -15,6 +18,7 @@ local Features = require(ReplicatedStorage.Shared.Features)
 local Garage = require(ReplicatedStorage.Shared.Garage)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local PlotGarage = require(ReplicatedStorage.Shared.PlotGarage)
+local PlotTraining = require(ReplicatedStorage.Shared.PlotTraining)
 local Tycoon = require(ReplicatedStorage.Shared.Tycoon)
 
 local PlotGarageBuilder = {}
@@ -148,6 +152,66 @@ function PlotGarageBuilder.start()
 		model.WorldPivot = pivot
 		model.Parent = plot
 		showIncome(plot)
+	end
+
+	-- Car VS Car: the training garage, rebuilt when its looks change (not when a car moves pads)
+	local trainedKey: { [Instance]: string } = {}
+	local function buildTraining(plot: Instance, pivot: CFrame)
+		local ownerId = tonumber(plot:GetAttribute("OwnerId")) or 0
+		local owned = ownerId ~= 0
+		local function num(name: string): number
+			return if owned
+				then math.max(0, math.floor(tonumber(plot:GetAttribute(name)) or 0))
+				else 0
+		end
+		local plotLevel, garageLevel, trophies =
+			num("PlotLevel"), num("GarageLevel"), num("Trophies")
+		local pads =
+			PlotTraining.parse(if owned then tostring(plot:GetAttribute("Stations") or "") else "")
+		local kinds = {}
+		for _, p in pads do
+			table.insert(kinds, p.kind .. p.level)
+		end
+		local key = table.concat(
+			{ ownerId, plotLevel, garageLevel, trophies, table.concat(kinds, ",") },
+			"|"
+		)
+		if trainedKey[plot] == key then
+			return
+		end
+		trainedKey[plot] = key
+		local old = plot:FindFirstChild("Training")
+		if old then
+			old:Destroy()
+		end
+		local model = Instance.new("Model")
+		model.Name = "Training"
+		local groups =
+			Garage.makeParts(PlotTraining.pieces(plotLevel, garageLevel, trophies), model, pivot)
+		Garage.useMeshes(groups, pivot, PlotTraining.meshes())
+		for i = 1, #PlotTraining.GRID do
+			local g = groups["Pad" .. i]
+			local sign = g and g:FindFirstChild("PadSign")
+			if sign and sign:IsA("BasePart") then
+				-- an open pad the server hasn't listed yet still says its station
+				local pad = pads[i]
+				if pad == nil and i <= PlotTraining.open(plotLevel) then
+					pad = { kind = PlotTraining.kindAt(i), level = 1, car = "" }
+				end
+				label(sign, PlotTraining.padWords(pad, i))
+			end
+		end
+		local owner = Players:GetPlayerByUserId(ownerId)
+		local room = groups.Room and groups.Room:FindFirstChild("RoomSign")
+		if room and room:IsA("BasePart") then
+			label(room, PlotGarage.signText(if owner then owner.DisplayName else nil), "")
+		end
+		local shelf = groups.Shelf and groups.Shelf:FindFirstChild("ShelfSign")
+		if shelf and shelf:IsA("BasePart") then
+			label(shelf, "TROPHIES " .. trophies, "")
+		end
+		model.WorldPivot = pivot
+		model.Parent = plot
 	end
 
 	for _, slot in LobbyLayout.slots() do
