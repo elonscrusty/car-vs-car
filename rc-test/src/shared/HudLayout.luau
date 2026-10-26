@@ -112,6 +112,8 @@ HudLayout.SPOTS = {
 	-- the tycoon (Tycoon.client): coins a minute right of the coins, GARAGE under it
 	spot("Income", "walk", "Tycoon", TL, { COL2, 0, 0, 64 }, { 0.1, 0, 0, 36 }),
 	spot("Garage", "walk", "Tycoon", TL, { COL2, 0, 0, 110 }, { 0.1, 0, 0, 32 }),
+	-- Car VS Car: CRATES under the coins (Cvc crate screen; only with a crate to open)
+	off(spot("Crate", "walk", "Cvc", TL, { 0.02, 0, 0, 110 }, { 0.1, 0, 0, 32 }), not CVC),
 	spot("DailyJobs", "walk", "Stars", TL, { 0.02, 0, 0, 146 }, { 0.3, 0, 0.12, 60 }),
 	-- what you're saving up for (Stars): under the jobs
 	spot("NextUnlock", "walk", "Stars", TL, { 0.02, 0, 0.12, 212 }, { 0, 200, 0, 54 }), -- short, big words

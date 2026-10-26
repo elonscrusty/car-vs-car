@@ -86,6 +86,53 @@ function CvcUi.ribbon(panel: GuiObject, text: string): TextLabel
 	return t
 end
 
+-- Big words in the middle of a ScreenGui: pop in, rise and fade.
+function CvcUi.bigWords(gui: Instance, text: string, color: Color3, y: number?)
+	local at = y or 0.4
+	local w = CvcUi.label(gui, text, color)
+	w.Name = "Kart_Words"
+	w.AnchorPoint = Vector2.new(0.5, 0.5)
+	w.Position = UDim2.fromScale(0.5, at)
+	w.Size = UDim2.fromScale(0.6, 0.14)
+	local s = Instance.new("UIStroke")
+	s.Color = INK
+	s.Thickness = 4
+	s.Parent = w
+	local scale = Instance.new("UIScale")
+	scale.Scale = 0.2
+	scale.Parent = w
+	TweenService:Create(scale, TweenInfo.new(0.4, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+	task.delay(1.3, function()
+		TweenService:Create(w, TweenInfo.new(0.5), {
+			Position = UDim2.fromScale(0.5, at - 0.12),
+			TextTransparency = 1,
+		}):Play()
+		TweenService:Create(s, TweenInfo.new(0.5), { Transparency = 1 }):Play()
+		task.delay(0.5, function()
+			w:Destroy()
+		end)
+	end)
+end
+
+-- A ScreenGui over the popups for big words and confetti, with a Kart_Fall layer (returned
+-- second) so the confetti falls under the words and cards.
+function CvcUi.topGui(name: string, order: number, parent: Instance): (ScreenGui, Frame)
+	local gui = Instance.new("ScreenGui")
+	gui.Name = name
+	gui.ResetOnSpawn = false
+	gui.IgnoreGuiInset = true
+	gui.DisplayOrder = order
+	gui.Parent = parent
+	local fall = Instance.new("Frame")
+	fall.Name = "Kart_Fall"
+	fall.BackgroundTransparency = 1
+	fall.Size = UDim2.fromScale(1, 1)
+	fall.ZIndex = 0
+	fall.Active = false
+	fall.Parent = gui
+	return gui, fall
+end
+
 function CvcUi.rarityColor(id: string): Color3
 	local c = CarCatalog.rarity(id).color
 	return Color3.fromRGB(c[1], c[2], c[3])
