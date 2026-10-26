@@ -316,6 +316,21 @@ local function reveal(car: CarCatalog.Car, onDone: () -> ())
 			Color3.fromRGB(180, 230, 190)
 		),
 	}
+	-- its kind on a pill over the car, in the kind's colour
+	local tier = CarCatalog.rarity(car.id)
+	local kindTag = text(
+		box,
+		tier.label,
+		0.36,
+		0.15,
+		0.28,
+		0.065,
+		if tier.id == "common" then KartStyle.INK else Color3.new(1, 1, 1)
+	)
+	kindTag.BackgroundColor3 = rgb(tier.color)
+	kindTag.BackgroundTransparency = 0
+	corner(kindTag, 0.5)
+	table.insert(words, kindTag)
 	for _, w in words do
 		w.ZIndex = 11
 	end
@@ -338,7 +353,8 @@ local function reveal(car: CarCatalog.Car, onDone: () -> ())
 		{ Size = UDim2.fromScale(1, 0.15), Position = UDim2.fromScale(0, 0) }
 	):Play()
 	-- a party: gold rays turn behind the car, confetti falls
-	local stopRays = Party.rays(view, GOLD)
+	-- rays in the kind's colour (gold for common and legend)
+	local stopRays = Party.rays(view, if tier.id == "common" then GOLD else rgb(tier.color))
 	Party.confetti(back, 60)
 	-- the car turns on its spot
 	local cam = view.CurrentCamera
@@ -688,7 +704,7 @@ local function showGumball(s: State, result: string?)
 				local car = if now.car then CarCatalog.get(now.car) else nil
 				local msg = if car == nil
 					then "Not enough coins"
-					elseif now.new then `NEW! {car.name}`
+					elseif now.new then `NEW {CarCatalog.rarity(car.id).label}! {car.name}`
 					else `{car.name}: had it, +{CarCatalog.DUPLICATE_REFUND} coins`
 				showGumball(now, msg)
 				if car and now.new then
