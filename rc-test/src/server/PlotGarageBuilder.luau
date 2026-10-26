@@ -7,6 +7,7 @@
 -- the plot's level or owner changes (TycoonServer sets PlotLevel on the owner's plot). The cars
 -- and the coins are drawn by PlotGarage.client.
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
@@ -27,8 +28,9 @@ local function label(board: BasePart, top: string, bottom: string)
 	gui.PixelsPerStud = 40
 	gui.LightInfluence = 0
 	gui.Parent = board
-	local function line(text: string, y: number, h: number, color: Color3)
+	local function line(name: string, text: string, y: number, h: number, color: Color3)
 		local l = Instance.new("TextLabel")
+		l.Name = name
 		l.BackgroundTransparency = 1
 		l.Position = UDim2.fromScale(0.03, y)
 		l.Size = UDim2.fromScale(0.94, h)
@@ -39,8 +41,8 @@ local function label(board: BasePart, top: string, bottom: string)
 		l.Text = text
 		l.Parent = gui
 	end
-	line(top, 0.06, 0.52, Color3.new(1, 1, 1))
-	line(bottom, 0.6, 0.34, Color3.fromRGB(255, 220, 90))
+	line("Top", top, 0.06, 0.52, Color3.new(1, 1, 1))
+	line("Bottom", bottom, 0.6, 0.34, Color3.fromRGB(255, 220, 90))
 end
 
 -- The sign's words: what the next level gives and costs (MAX at the top).
@@ -66,6 +68,56 @@ function PlotGarageBuilder.start()
 	store.Name = "HiddenPlotTracks"
 	store.Parent = ServerStorage
 	local built: { [Instance]: number } = {}
+	local boards: { [Instance]: BasePart } = {} -- each plot's income board face
+	local following: { [Instance]: RBXScriptConnection } = {}
+
+	-- the income board shows the owner's coins a minute (TycoonServer sets Income, BoostUntil)
+	local function showIncome(plot: Instance)
+		local face = boards[plot]
+		if not face then
+			return
+		end
+		local owner = Players:GetPlayerByUserId(tonumber(plot:GetAttribute("OwnerId")) or 0)
+		local top, bottom = "", ""
+		if owner then
+			local parked = tostring(plot:GetAttribute("Parked") or "")
+			local cars = if parked == "" then 0 else #string.split(parked, ",")
+			local boost = tonumber(owner:GetAttribute("BoostUntil")) or 0
+			top, bottom = PlotGarage.incomeWords(
+				tonumber(owner:GetAttribute("Income")) or 0,
+				cars,
+				boost > os.time()
+			)
+		end
+		local gui = face:FindFirstChild("Words")
+		if gui then
+			local a = gui:FindFirstChild("Top")
+			local b = gui:FindFirstChild("Bottom")
+			if a and a:IsA("TextLabel") then
+				a.Text = top
+			end
+			if b and b:IsA("TextLabel") then
+				b.Text = bottom
+			end
+		end
+	end
+
+	local function follow(plot: Instance)
+		local old = following[plot]
+		if old then
+			old:Disconnect()
+			following[plot] = nil
+		end
+		local owner = Players:GetPlayerByUserId(tonumber(plot:GetAttribute("OwnerId")) or 0)
+		if owner then
+			following[plot] = owner.AttributeChanged:Connect(function(name: string)
+				if name == "Income" or name == "BoostUntil" then
+					showIncome(plot)
+				end
+			end)
+		end
+		showIncome(plot)
+	end
 
 	local function build(plot: Instance, pivot: CFrame)
 		local level = levelOf(plot)
@@ -86,8 +138,16 @@ function PlotGarageBuilder.start()
 		if board and board:IsA("BasePart") then
 			label(board, words(level))
 		end
+		-- the income board in the front left corner
+		local boardGroups = Garage.makeParts(PlotGarage.boardPieces(), model, pivot)
+		local face = boardGroups.Board and boardGroups.Board:FindFirstChild("IncomeBoard")
+		if face and face:IsA("BasePart") then
+			label(face, "", "")
+			boards[plot] = face
+		end
 		model.WorldPivot = pivot
 		model.Parent = plot
+		showIncome(plot)
 	end
 
 	for _, slot in LobbyLayout.slots() do
@@ -122,7 +182,12 @@ function PlotGarageBuilder.start()
 			end)
 			plot:GetAttributeChangedSignal("OwnerId"):Connect(function()
 				build(plot, pivot)
+				follow(plot)
 			end)
+			plot:GetAttributeChangedSignal("Parked"):Connect(function()
+				showIncome(plot)
+			end)
+			follow(plot)
 		end
 	end
 end

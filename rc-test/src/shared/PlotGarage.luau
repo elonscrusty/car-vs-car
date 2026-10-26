@@ -98,6 +98,45 @@ function PlotGarage.popCoins(perMin: number): number
 	return math.max(1, math.floor(perMin * PlotGarage.POP_SECS / 60 + 0.5))
 end
 
+-- The income board in the front left corner (where the old car show stood), facing the road:
+-- how many coins a minute the owner's cars make, so a new player sees what the garage is for.
+PlotGarage.BOARD = { x = -21, z = 46 }
+function PlotGarage.boardPieces(): { Piece }
+	local out: { Piece } = {}
+	local add = Garage.adder(out)
+	local B = PlotGarage.BOARD
+	for _, sx in { -6, 6 } do
+		add("Board", "BoardPost", v(0.6, 7, 0.6), v(B.x + sx, 3.5, B.z), { 40, 44, 60 })
+	end
+	add("Board", "IncomeBoard", v(14, 5, 0.5), v(B.x, 5, B.z), { 30, 36, 64 }, { collide = false })
+	add(
+		"Board",
+		"BoardTrim",
+		v(14.6, 0.4, 0.7),
+		v(B.x, 2.4, B.z),
+		{ 255, 200, 50 },
+		{ collide = false }
+	)
+	add(
+		"Board",
+		"BoardTrim",
+		v(14.6, 0.4, 0.7),
+		v(B.x, 7.6, B.z),
+		{ 255, 200, 50 },
+		{ collide = false }
+	)
+	return Finish.apply(out)
+end
+
+-- The income board's two lines: coins a minute (boost included) and from how many cars.
+function PlotGarage.incomeWords(perMin: number, cars: number, boosted: boolean): (string, string)
+	local top = "+" .. math.floor(perMin) .. " COINS / MIN"
+	if boosted then
+		return top, "2X BOOST!"
+	end
+	return top, "FROM " .. cars .. (if cars == 1 then " CAR" else " CARS")
+end
+
 -- The gate sign over a garage plot: "MIA'S GARAGE" ("JAMES' GARAGE"), or "GARAGE" when it is
 -- nobody's.
 function PlotGarage.signText(name: string?): string
