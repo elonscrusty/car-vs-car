@@ -181,7 +181,7 @@ local function refreshCoins(y: Yard)
 	local coins = if (tonumber(y.plot:GetAttribute("OwnerId")) or 0) == 0
 		then 0
 		else math.floor(tonumber(y.plot:GetAttribute("PlotCoins")) or 0)
-	y.count.Text = if coins > 0 then "🪙 " .. coins else ""
+	y.count.Text = if coins > 0 then tostring(coins) else ""
 	y.count.Parent.Enabled = coins > 0
 	local want = PlotGarage.pileCoins(coins)
 	if want == y.shown then
@@ -193,7 +193,7 @@ local function refreshCoins(y: Yard)
 		local c = Instance.new("Part")
 		c.Name = "Coin"
 		c.Shape = Enum.PartType.Cylinder
-		c.Size = Vector3.new(0.3, 1.3, 1.3)
+		c.Size = Vector3.new(0.35, 2, 2)
 		c.Color = if k % 3 == 0 then COIN_EDGE else COIN
 		c.Material = Enum.Material.SmoothPlastic
 		c.Reflectance = 0.15

@@ -121,6 +121,7 @@ local RED = { 225, 60, 60 }
 local WHITE = { 245, 245, 245 }
 local GOLD = { 255, 200, 50 }
 local PAD = { 120, 122, 132 }
+local GRASS = { 104, 172, 80 }
 local SIGN = { 60, 190, 90 }
 
 -- a box from (ax, az) to (bx, bz) on the ground, `w` wide, `h` tall, at height `y`
@@ -172,6 +173,11 @@ function PlotGarage.pieces(level: number): { Piece }
 	local add = Garage.adder(out)
 	local L = PlotGarage.LOOP
 	local gold = level >= PlotGarage.MAX_LEVEL
+	-- grass over the yard, so the grey road stands out (the plot floor is grey too)
+	add("Loop", "Grass", v(78, 0.06, 90.5), v(0, 0.02, -8.75), GRASS, {
+		material = "Grass",
+		collide = false,
+	})
 	-- the road, a white middle line, red and white curbs on both edges (gold at the top level)
 	local mid = ring(PlotGarage.BENDS, 0)
 	for i = 1, #mid - 1 do
@@ -253,7 +259,7 @@ function PlotGarage.pieces(level: number): { Piece }
 		end
 	end
 	if level >= 4 then
-		add("Level", "PileCrown", v(0.4, P.r * 2 + 2, P.r * 2 + 2), v(P.x, 0.2, P.z), GOLD, {
+		add("Level", "PileCrown", v(0.26, P.r * 2 + 2, P.r * 2 + 2), v(P.x, 0.13, P.z), GOLD, {
 			shape = "Cylinder",
 			rot = v(0, 0, 90),
 			material = "Neon",
