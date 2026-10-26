@@ -8,9 +8,10 @@ local test, eq = H.test, H.eq
 
 print("JoinStage")
 
-test("join stage: a new player sees only GO, then a bit more each step", function()
+test("join stage: a new player sees GO, coins and the race, then a bit more each step", function()
 	eq(JoinStage.shows(0, "go"), true)
-	eq(JoinStage.shows(0, "coins"), false)
+	eq(JoinStage.shows(0, "coins"), true) -- (tycoon: the free car earns from the start)
+	eq(JoinStage.shows(0, "race"), true)
 	eq(JoinStage.shows(0, "build"), false)
 	eq(JoinStage.shows(0, "gift"), false)
 	eq(JoinStage.shows(1, "coins"), true)
@@ -21,7 +22,7 @@ test("join stage: a new player sees only GO, then a bit more each step", functio
 	eq(JoinStage.shows(3, "jobs"), true)
 	eq(JoinStage.shows(3, "visit"), true)
 	-- not loaded yet = new; junk is clamped; unknown names always show
-	eq(JoinStage.shows(nil, "coins"), false)
+	eq(JoinStage.shows(nil, "shop"), false)
 	eq(JoinStage.of(0 / 0), 0)
 	eq(JoinStage.of(9), 3)
 	eq(JoinStage.shows(0, "somethingNew"), true)
