@@ -446,6 +446,9 @@ function PlotTraining.pieces(plotLevel: number, garageLevel: number, trophies: n
 	return Finish.apply(out)
 end
 
+-- the room's own pieces, kept when carter's props go in (Garage.useMeshes clears the rest)
+local ROOM_KEEP = { "RoomFloor", "Rug", "RugTrim", "RoomRail", "RoomSign" }
+
 -- carter's props in the room (Garage.Mesh entries; missing models are skipped)
 function PlotTraining.meshes(): { Garage.Mesh }
 	local list: { { any } } = {
@@ -465,7 +468,7 @@ function PlotTraining.meshes(): { Garage.Mesh }
 				at = m[2],
 				fit = fit,
 				long = if fit.z > fit.x then "z" else "x",
-				keep = {},
+				keep = ROOM_KEEP,
 				collide = false,
 				yaw = m[4],
 			} :: any
