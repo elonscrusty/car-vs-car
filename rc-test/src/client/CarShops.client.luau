@@ -909,27 +909,35 @@ end
 
 local seen: { [Model]: boolean } = {}
 
--- A small tag over each car on show in a shop: its kind (in the kind's colour) and its price,
--- so a kid can see what's what before opening the screen. Billboards draw from PlayerGui.
-local tags = Instance.new("ScreenGui")
-tags.Name = "ShopTags"
-tags.ResetOnSpawn = false
-tags.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
-local function carTag(over: BasePart, car: CarCatalog.Car)
+-- A small slanted price plate on the floor in front of each car on show in a shop: its kind (in
+-- the kind's colour) and its price, so a kid can see what's what before opening the screen.
+-- (Studio 10-26: tags floating over the cars were hidden by the cars, the shutter or the front
+-- posts from one spot or another; a plate low in front of the car has nothing in its way.)
+local plates = Instance.new("Folder")
+plates.Name = "ShopPlates"
+plates.Parent = workspace
+local function carTag(ring: BasePart, out: Vector3, car: CarCatalog.Car)
 	local tier = CarCatalog.rarity(car.id)
-	local b = Instance.new("BillboardGui")
-	b.Name = car.id
-	b.Adornee = over
-	-- straight over the car's roof. Sized in studs only, narrower than the gap between stands,
-	-- so neighbours never overlap; it shows from the shop's front, where it's big enough to
-	-- read (Studio check 10-26: with a pixel floor they piled up from the street). No offset
-	-- toward the camera or sideways: from above, that slid the tags down and out of the shop.
-	-- (AlwaysOnTop hid them all: Studio 10-26.)
-	b.Size = UDim2.fromScale(4.2, 1.7)
-	b.StudsOffsetWorldSpace = Vector3.new(0, 3.6, 0)
-	b.MaxDistance = 24
+	local at = ring.Position + out * 2.9 + Vector3.new(0, 0.55, 0)
+	local p = Instance.new("Part")
+	p.Name = car.id
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.CastShadow = false
+	p.Size = Vector3.new(3.6, 1.4, 0.15)
+	p.Color = KartStyle.INK
+	p.Material = Enum.Material.SmoothPlastic
+	-- facing out of the shop, leaned back so it reads from standing height
+	p.CFrame = CFrame.lookAt(at, at + out) * CFrame.Angles(math.rad(35), 0, 0)
+	p.Parent = plates
+	local b = Instance.new("SurfaceGui")
+	b.Face = Enum.NormalId.Front
+	b.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	b.PixelsPerStud = 60
 	b.LightInfluence = 0
-	b.Parent = tags
+	b.Parent = p
 	local function line(t: string, y: number, h: number, fill: Color3?, color: Color3)
 		local l = Instance.new("TextLabel")
 		l.Position = UDim2.fromScale(if fill then 0.12 else 0, y)
@@ -949,8 +957,8 @@ local function carTag(over: BasePart, car: CarCatalog.Car)
 			corner(l, 0.5)
 		end
 	end
-	line(tier.label, 0, 0.45, pillColor(tier), Color3.new(1, 1, 1))
-	line(if car.price == 0 then "FREE" else `{car.price} coins`, 0.5, 0.5, nil, GOLD)
+	line(tier.label, 0.06, 0.4, pillColor(tier), Color3.new(1, 1, 1))
+	line(if car.price == 0 then "FREE" else `{car.price} coins`, 0.5, 0.44, nil, GOLD)
 end
 
 local function addShop(shopModel: Model)
@@ -968,9 +976,10 @@ local function addShop(shopModel: Model)
 			local info = CarCatalog.get(shown.ids[at])
 			CarGlow.applyCar(car, shown.ids[at])
 			if info then
-				local over = if ring and ring:IsA("BasePart") then ring else car.PrimaryPart
-				if over then
-					carTag(over, info)
+				-- the shop's floor faces like the shop: its +Z points out of the open front
+				local floor = shopModel.PrimaryPart
+				if ring and ring:IsA("BasePart") and floor then
+					carTag(ring, floor.CFrame.ZVector, info)
 				end
 				-- the turntable's ring in the kind's colour (rare and up)
 				if ring and ring:IsA("BasePart") and info.rarity ~= "common" then
