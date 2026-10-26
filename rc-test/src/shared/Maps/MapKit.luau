@@ -71,7 +71,15 @@ export type Def = {
 	rcX: number, -- where the map's middle sits in the world (RC studs)
 	rcZ: number,
 	rcAngle: number,
+	stand: Stand?, -- the driver stand (Car VS Car): racers stand on it with their remotes
 }
+
+-- A raised deck by the track. x / z is its middle (moves with the squeeze), the sizes stay real.
+-- It faces -z (towards the front straight); its 8 spots run along x.
+export type Stand = { x: number, z: number, w: number, d: number, h: number }
+
+-- one spot on top of the stand: where an avatar stands (map-local, big units), facing -z
+export type StandSpot = { x: number, y: number, z: number }
 
 local MapKit = {}
 
@@ -119,9 +127,16 @@ function MapKit.scale(def: Def, k: number): Def
 	for i, l in def.lines do
 		d.lines[i] = { kind = l.kind, width = l.width, points = pts(l.points) }
 	end
+	if def.stand then
+		local st = table.clone(def.stand)
+		st.x, st.z = def.stand.x * k, def.stand.z * k
+		d.stand = st
+	end
 	return d
 end
 
+MapKit.STAND_SPOTS = 8 -- racers on the driver stand, side by side
+MapKit.STAND_W, MapKit.STAND_D, MapKit.STAND_H = 160, 40, 80 -- 40 x 10 RC studs, 20 up
 MapKit.PER = 16 -- loop samples per main point (samples land ~5 to 15 apart)
 MapKit.CURB_WIDTH = 3
 MapKit.CURB_HEIGHT = 0.4
@@ -268,6 +283,7 @@ export type Map = {
 	path: (i: number) -> { Sample },
 	ring: (i: number) -> { Sample },
 	track: () -> any,
+	standSpots: () -> { StandSpot },
 }
 
 function MapKit.make(def: Def): Map
@@ -307,6 +323,21 @@ function MapKit.make(def: Def): Map
 	-- 0 = the main loop, else side road i
 	function map.ring(i: number): { Sample }
 		return if i == 0 then loop else paths[i]
+	end
+	-- The 8 driver spots on top of the stand, left to right as you face the track (empty if the
+	-- map has no stand). Avatars stand here facing -z.
+	function map.standSpots(): { StandSpot }
+		local st = def.stand
+		local out: { StandSpot } = {}
+		if not st then
+			return out
+		end
+		local n = MapKit.STAND_SPOTS
+		for i = 1, n do
+			local x = st.x - st.w / 2 + st.w * (i - 0.5) / n
+			table.insert(out, { x = x, y = st.h, z = st.z })
+		end
+		return out
 	end
 	-- The TrackData.Track the race runner drives (map-local, big units; rcX / rcZ in RC studs).
 	function map.track(): any
