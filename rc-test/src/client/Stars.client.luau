@@ -6,6 +6,8 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
+local CvcLayout = require(ReplicatedStorage.Shared.CvcLayout)
+local Features = require(ReplicatedStorage.Shared.Features)
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
 local KartStyle = require(ReplicatedStorage.Shared.KartStyle)
 local Popup = require(script.Parent:WaitForChild("Popup"))
@@ -890,6 +892,10 @@ task.spawn(function()
 				end
 			end)
 			task.delay(2.5, function()
+				-- Car VS Car: its own turn, after the result and the win card (CvcLayout.AFTER_RACE)
+				if Features.CVC then
+					CvcLayout.waitTurn(player:WaitForChild("PlayerGui"), "RacePrize", 30)
+				end
 				showPrize(before)
 			end)
 		end

@@ -280,4 +280,64 @@ function CvcLayout.boostAvoids(name: string): boolean
 	return name ~= "Boost" and name ~= "Join"
 end
 
+-- ===== after a race the cards take turns (Studio check 10-26: they sat on each other) =====
+-- 1. the race result with the podium (ServerRace.client "Result", ServerRace.SHOW seconds),
+-- 2. the win card with GG! / AGAIN! (CvcRace "Finish" and "QuickChat"; they go together),
+-- 3. NEXT CAR (Stars "RacePrize"). Each waits until the ones before it are gone.
+CvcLayout.AFTER_RACE = {
+	{ turn = 1, gui = "ServerRace", name = "Result" },
+	{ turn = 2, gui = "CvcRaceTop", name = "Finish" },
+	{ turn = 2, gui = "CvcRaceTop", name = "QuickChat" },
+	{ turn = 3, gui = "StarsTop", name = "RacePrize" },
+}
+
+function CvcLayout.turnOf(name: string): number
+	for _, c in CvcLayout.AFTER_RACE do
+		if c.name == name then
+			return c.turn
+		end
+	end
+	error(`not an after-race card: {name}`)
+end
+
+-- the result card's box (the same numbers as ServerRace.client: top at 31%, 68% wide, 20% plus
+-- 6.5% a row plus the podium's 20%), lines = its rows
+function CvcLayout.resultBox(sw: number, sh: number, lines: number, podium: boolean): Rect
+	local tall = 0.2 + 0.065 * lines + (if podium then 0.2 else 0)
+	return { sw * 0.16, sh * 0.31, sw * 0.84, sh * (0.31 + tall) }
+end
+
+-- the NEXT CAR card's box once the result is gone (Stars: x 0.4, y 0.64, 36% x 11%)
+function CvcLayout.prizeBox(sw: number, sh: number): Rect
+	return { sw * 0.22, sh * 0.64, sw * 0.58, sh * 0.75 }
+end
+
+-- (client) wait until every after-race card from an earlier turn than `name` is off the screen,
+-- for a moment (the next card can take a beat to come up); at most `most` seconds
+function CvcLayout.waitTurn(playerGui: Instance, name: string, most: number)
+	local turn = CvcLayout.turnOf(name)
+	local function up(): boolean
+		for _, c in CvcLayout.AFTER_RACE do
+			local g = if c.turn < turn then playerGui:FindFirstChild(c.gui) else nil
+			local f = if g then g:FindFirstChild(c.name, true) else nil
+			if f and f:IsA("GuiObject") and f.Visible then
+				return true
+			end
+		end
+		return false
+	end
+	local stop = os.clock() + most
+	local clearSince = nil :: number?
+	while os.clock() < stop do
+		if up() then
+			clearSince = nil
+		elseif not clearSince then
+			clearSince = os.clock()
+		elseif os.clock() - clearSince >= 0.3 then
+			return
+		end
+		task.wait(0.1)
+	end
+end
+
 return CvcLayout

@@ -245,3 +245,45 @@ test("the BOOST tip never covers the race chips (the lap box with 5TH OF 8, DRIF
 		end
 	end
 end)
+
+test("after a race the cards take turns: no two that cover each other show at once", function()
+	if not Features.CVC then
+		return
+	end
+	for _, s in SIZES do
+		local sw, sh = s[1], s[2]
+		local function finish(name: string): CvcLayout.Rect
+			local l, t, r, b = CvcLayout.box("finish", name, sw, sh)
+			return { l, t, r, b }
+		end
+		local cards: { [string]: CvcLayout.Rect } = {
+			-- the biggest result card: 8 racers, the 2X line and NEXT RACE IN, the podium
+			Result = CvcLayout.resultBox(sw, sh, 10, true),
+			Finish = finish("Card"),
+			QuickChat = finish("Chat"),
+			RacePrize = CvcLayout.prizeBox(sw, sh),
+		}
+		for a, ra in cards do
+			for b, rb in cards do
+				if a < b and CvcLayout.turnOf(a) == CvcLayout.turnOf(b) then
+					truthy(not CvcLayout.hits(ra, rb), `{a} covers {b} at {sw}x{sh}`)
+				end
+			end
+		end
+		-- (the Studio find: the win card on the ribbon, GG!/AGAIN! and NEXT CAR on the rows)
+		for _, name in { "Finish", "QuickChat", "RacePrize" } do
+			truthy(
+				CvcLayout.turnOf(name) > CvcLayout.turnOf("Result"),
+				`{name} waits for the result`
+			)
+		end
+		truthy(
+			CvcLayout.turnOf("RacePrize") > CvcLayout.turnOf("QuickChat"),
+			"NEXT CAR waits for GG! / AGAIN!"
+		)
+	end
+	-- every card in the turns
+	for _, c in CvcLayout.AFTER_RACE do
+		truthy(CvcLayout.turnOf(c.name) == c.turn, `{c.name} has one turn`)
+	end
+end)
