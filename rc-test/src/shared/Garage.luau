@@ -125,6 +125,7 @@ export type Mesh = {
 	faceMinusX: boolean?, -- when turned, look toward -x (default +x)
 	yaw: number?, -- extra turn about y, degrees (a model that came in facing the wrong way)
 	carSkin: boolean?, -- take it from ReplicatedStorage.CarSkins instead of LobbyMeshes
+	flat: number?, -- squash it to this height (studs) after fitting: a puddle or pad on a road
 	collide: boolean,
 }
 
@@ -1017,6 +1018,13 @@ function Garage.useMeshes(groups: { [string]: Model }, origin: CFrame, meshes: {
 		end
 		local k = math.min(m.fit.x / size.X, m.fit.y / size.Y, m.fit.z / size.Z)
 		prop:ScaleTo(prop:GetScale() * k)
+		if m.flat then
+			for _, d in prop:GetDescendants() do
+				if d:IsA("BasePart") then
+					d.Size = Vector3.new(d.Size.X, m.flat, d.Size.Z)
+				end
+			end
+		end
 		-- stand it with its bottom middle on the spot
 		local y = if m.onTop then tops[m.onTop] or m.at.y else m.at.y
 		local spot = origin * CFrame.new(m.at.x, y, m.at.z)

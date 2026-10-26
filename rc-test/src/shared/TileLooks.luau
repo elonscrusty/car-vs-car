@@ -715,6 +715,46 @@ function TileLooks.gridParts(grid: any, TT: any): { Placed }
 	return out
 end
 
+-- carter's Meshy props in place of block looks on some tiles (tile-local big units, rot 0; the
+-- road runs north-south). Each one swaps out the pieces named in `replaces` once the model is in
+-- ServerStorage.LobbyMeshes; without it the blocks stay. Never solid: TrackTiles' see-through
+-- blocks and patches still do the bumping and the grip.
+export type TileMesh = { model: string, at: V3, fit: V3, yaw: number?, flat: number? }
+local PATCH = { w = 24, len = 0.6 } -- TrackTiles' hazard patch: road - 6 wide, 0.6 cell long
+function TileLooks.meshes(id: string, cell: number?): ({ TileMesh }, { string })
+	local C = cell or TileLooks.CELL
+	local patch = v(PATCH.w, 1, PATCH.len * C)
+	if id == "cones" then
+		local out: { TileMesh } = {}
+		for _, sp in { { -0.13, -0.3 }, { 0.13, -0.1 }, { -0.13, 0.1 }, { 0.13, 0.3 } } do
+			table.insert(
+				out,
+				{ model = "Cone", at = v(sp[1] * C, 0.1, -sp[2] * C), fit = v(3, 4, 3) }
+			)
+		end
+		return out, { "SkinCone" }
+	elseif id == "oil" then
+		return { { model = "OilSpill", at = v(0, 0.1, 0), fit = patch, flat = 0.3 } }, {
+			"Oil",
+			"OilSheen",
+		}
+	elseif id == "mud" then
+		return { { model = "MudPuddle", at = v(0, 0.1, 0), fit = patch, flat = 0.3 } }, {}
+	elseif id == "sand" then
+		return { { model = "SandPatch", at = v(0, 0.1, 0), fit = patch, flat = 0.3 } }, {}
+	elseif id == "puddle" then
+		return { { model = "WaterPuddle", at = v(0, 0.1, 0), fit = patch, flat = 0.3 } }, {
+			"Ripple",
+		}
+	elseif id == "boost" then
+		-- its arrows point along its long side: turned to point north, the way you drive
+		return { { model = "BoostPad", at = v(0, 0.1, 0), fit = patch, flat = 0.3, yaw = 0 } }, {
+			"BoostArrow",
+		}
+	end
+	return {}, {}
+end
+
 -- Server / Studio: build tile `id`'s looks in a "TileLooks" folder under `parent`, at `at` (the
 -- tile's centre on the ground, already turned for its rot). Nothing collides, touches or queries.
 local function makeIn(pieces: { Piece }, parent: Instance, at: CFrame): Instance
@@ -769,14 +809,61 @@ function TileLooks.makeGrid(parent: Instance, origin: CFrame, grid: any, TT: any
 	local folder = Instance.new("Folder")
 	folder.Name = "TileLooks"
 	local holder = Instance.new("Model")
+	-- which tiles get carter's models (only the server sees ServerStorage)
+	local ok, store = pcall(function()
+		return game:GetService("ServerStorage"):FindFirstChild("LobbyMeshes")
+	end)
+	local props: Instance? = if ok then store else nil
+	local swapped: { [string]: { [string]: boolean } } = {}
+	for _, t in grid.tiles do
+		local list, replaces = TileLooks.meshes(t.piece, TT.CELL)
+		local have = props ~= nil and #list > 0
+		for _, m in list do
+			have = have and (props :: Instance):FindFirstChild(m.model) ~= nil
+		end
+		if have and not swapped[t.piece] then
+			swapped[t.piece] = {}
+			for _, name in replaces do
+				swapped[t.piece][name] = true
+			end
+		end
+	end
 	for _, e in TileLooks.gridParts(grid, TT) do
-		local at = origin * CFrame.new(e.x, 0, e.z) * CFrame.Angles(0, e.yaw, 0)
-		Garage.makeParts({ e.piece }, holder, at)
+		local skip = swapped[e.from]
+		if not (skip and skip[e.piece.name]) then
+			local at = origin * CFrame.new(e.x, 0, e.z) * CFrame.Angles(0, e.yaw, 0)
+			Garage.makeParts({ e.piece }, holder, at)
+		end
+	end
+	for _, t in grid.tiles do
+		if swapped[t.piece] then
+			local cx, cz = TT.cellCenter(grid, t.c, t.r)
+			local at = origin * CFrame.new(cx, 0, cz) * CFrame.Angles(0, -t.rot * math.pi / 2, 0)
+			local list: { Garage.Mesh } = {}
+			for _, m in (TileLooks.meshes(t.piece, TT.CELL)) do
+				table.insert(list, {
+					model = m.model,
+					group = "TileMesh",
+					at = m.at,
+					fit = m.fit,
+					long = if m.fit.z > m.fit.x then "z" else "x",
+					keep = {},
+					yaw = m.yaw,
+					flat = m.flat,
+					collide = false,
+				})
+			end
+			local group = Instance.new("Model")
+			group.Parent = holder
+			Garage.useMeshes({ TileMesh = group }, at, list)
+		end
 	end
 	for _, d in holder:GetDescendants() do
 		if d:IsA("BasePart") then
 			d.CanQuery = false
 			d.CastShadow = false
+			d.CanCollide = false
+			d.CanTouch = false
 			d.Parent = folder
 		end
 	end
