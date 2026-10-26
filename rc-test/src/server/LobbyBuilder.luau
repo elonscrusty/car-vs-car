@@ -53,7 +53,7 @@ local function slab(
 end
 
 function LobbyBuilder.build(): Built
-	local folder = Instance.new("Folder")
+	local folder = Instance.new("Model")
 	folder.Name = "Lobby"
 	folder.Parent = workspace
 
