@@ -4,7 +4,6 @@
 local H = require("./harness")
 local S = require("../src/shared/SpawnLobby")
 local TrackData = require("../src/shared/TrackData")
-local Features = require("../src/shared/Features")
 local Cat = require("../src/shared/CarCatalog")
 
 local test, truthy, eq = H.test, H.truthy, H.eq
@@ -55,10 +54,10 @@ test("nothing solid between the spawn and the street", function()
 end)
 
 test(
-	"a car stand for every plot, drift / race / build pads, drift and race car shops and a garage",
+	"a car stand for every plot, drift / race pads, drift and race car shops and a garage",
 	function()
 		truthy(#S.STANDS >= #TrackData.order, "stands")
-		eq(#S.PADS, if Features.TILES then 3 else 2)
+		eq(#S.PADS, 2)
 		local kinds: { [string]: boolean } = {}
 		for _, pad in S.PADS do
 			kinds[pad.kind] = true
@@ -66,7 +65,6 @@ test(
 		for _, k in { "drift", "race" } do
 			truthy(kinds[k], "pad for " .. k)
 		end
-		eq(kinds.build == true, Features.TILES)
 		local groups: { [string]: boolean } = {}
 		for _, p in S.allParts() do
 			groups[p.group] = true

@@ -140,3 +140,17 @@ test("income board words", function()
 	eq(select(2, G.incomeWords(2, 1, false)), "FROM 1 CAR")
 	eq(select(2, G.incomeWords(24, 3, true)), "2X BOOST!")
 end)
+
+test("plot cars can move at a set rate: every frame at 60, every other at 30", function()
+	local acc, due = G.stepDue(0, 1 / 60, 60)
+	truthy(due, "60 moves every frame")
+	local moves = 0
+	acc = 0
+	for _ = 1, 60 do
+		acc, due = G.stepDue(acc, 1 / 60, 30)
+		if due then
+			moves += 1
+		end
+	end
+	truthy(moves >= 29 and moves <= 31, `30 Hz moved {moves} times in a second`)
+end)

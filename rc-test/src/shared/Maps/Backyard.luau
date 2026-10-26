@@ -49,9 +49,10 @@ local props: { MapKit.Prop } = {
 	prop("flowerPot", 40, -520, 0, 50, true, 46, 46),
 	prop("flowerPot", -120, -520, 0, 60, true, 56, 56),
 	prop("gnome", -40, -520, PI, 66, true, 34, 34),
-	-- the dog house sits on the secret strip, door facing along it; the big bush hides its start
+	-- the dog house sits on the secret strip, door facing along it; bushes hide its start
 	prop("dogHouse", -395, -230, 0, 165, true, 200, 170),
-	prop("bigBush", -250, -385, 0, 70, false, 110, 80),
+	prop("bigBush", -205, -345, 0, 70, false, 80, 64), -- two bushes either side of its start
+	prop("bigBush", -345, -380, 0.4, 60, false, 70, 56), -- (the car goes between, not through)
 	prop("dogBowl", -430, -330, 0, 12, true, 44, 44),
 	-- bird bath in the left infield, a dropped bucket and a soda can near the road
 	prop("birdBath", -330, 80, 0, 154, true, 90, 90),

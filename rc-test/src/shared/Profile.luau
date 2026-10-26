@@ -28,7 +28,7 @@ export type Data = {
 	cars: { [string]: boolean }, -- CarCatalog ids bought or won (starters are everyone's anyway)
 	equipped: { [string]: string }, -- mode -> the car id driven in that mode
 	track: Track?, -- my built track (nil = the starter circle); the grid size comes from stars
-	tiles: { [string]: number }, -- TileShop ids -> copies owned (free tiles are everyone's anyway)
+	tiles: { [string]: number }, -- old tile shop ids -> copies owned (kept so old saves load)
 	raceStars: number, -- stars won in server races (on top of the medal stars in starsFrom)
 	trackKind: string, -- what my built plot is: "race" (laps) or "drift" (drift score)
 	stage: number, -- how far into the game I am (Profile.STAGE): new players see one thing at a time
@@ -39,12 +39,16 @@ export type Data = {
 	plotLevel: number, -- 0..Tycoon.MAX_LEVEL: more parking slots
 	parked: { string }, -- car ids parked in my garage (each makes coins)
 }
--- One placed tile: column, row (from 1), TrackTiles piece id, quarter turns 0..3.
+-- One placed tile: column, row (from 1), old track-builder piece id, quarter turns 0..3.
 export type Tile = { c: number, r: number, piece: string, rot: number }
 export type Track = { tiles: { Tile } }
 -- My score against one other player: wins = I beat their record, losses = they beat mine.
 export type Rival = { name: string, wins: number, losses: number, at: number }
 export type Lock = { job: string, at: number }
+
+export type Stored = { data: Data, lock: Lock? }
+export type LoadStep = { kind: "blocked" | "readOnly" | "write", data: Data?, record: Stored? }
+export type SaveStep = { kind: "lost" | "skip" | "write", record: Stored? }
 
 local Profile = {}
 
@@ -59,6 +63,8 @@ Profile.TOP = 3 -- rows on a plot's board
 Profile.STAGE = { NEW = 0, LAPPED = 1, RACED = 2, SHOPPED = 3 }
 Profile.MAX_PLOT_LEVEL = 5 -- (Tycoon.MAX_LEVEL)
 Profile.MAX_PARKED = 8 -- (Tycoon.slots at the top level)
+Profile.BASE_SLOTS = 3 -- (Tycoon.BASE_SLOTS) parked cars past slots(plotLevel) are dropped
+Profile.MAX_COINS = 1e12 -- a broken number can't blow the save up; real play never gets near
 Profile.FIRST_LAP_COINS = 20 -- the first lap ever pays this (the first coins a new player sees)
 Profile.MAX_OWNERS = 500 -- keeps the save small; stars from more owners than this stop counting
 Profile.LOCK_TIMEOUT = 300 -- a server that hasn't saved for this long is gone: its lock is stale
@@ -300,7 +306,7 @@ function Profile.migrate(raw: any): Data
 		d.raceStars = math.clamp(math.floor(raw.raceStars), 0, Profile.MAX_RACE_STARS)
 	end
 	if goodNumber(raw.coins) then
-		d.coins = math.max(math.floor(raw.coins), 0)
+		d.coins = math.clamp(math.floor(raw.coins), 0, Profile.MAX_COINS)
 	end
 	if goodNumber(raw.likes) then
 		d.likes = math.max(math.floor(raw.likes), 0)
@@ -428,7 +434,7 @@ function Profile.migrate(raw: any): Data
 	end
 	d.stars = stars + d.raceStars
 	if goodNumber(raw.pile) then
-		d.pile = math.max(raw.pile, 0)
+		d.pile = math.clamp(raw.pile, 0, Profile.MAX_COINS)
 	end
 	for _, k in { "lastSeen", "boostUntil" } do
 		local v = raw[k]
@@ -444,7 +450,7 @@ function Profile.migrate(raw: any): Data
 			if
 				type(id) == "string"
 				and #id <= 40
-				and #d.parked < Profile.MAX_PARKED
+				and #d.parked < math.min(Profile.MAX_PARKED, Profile.BASE_SLOTS + d.plotLevel)
 				and not table.find(d.parked, id)
 			then
 				table.insert(d.parked, id)
@@ -712,6 +718,153 @@ function Profile.canTake(lock: any, job: string, now: number, force: boolean?): 
 		return true
 	end
 	return type(lock.at) ~= "number" or now - lock.at > Profile.LOCK_TIMEOUT
+end
+
+-- One step of taking the save on join (runs inside UpdateAsync, so it may run more than once).
+-- "blocked" = another live server holds it (write nothing; wait and try again);
+-- "readOnly" = junk or newer: `data` is a copy to play with, nothing is written;
+-- "write" = `record` is the new stored value (data + our lock), `data` is the player's data.
+function Profile.loadStep(old: any, job: string, now: number, force: boolean?): LoadStep
+	if type(old) == "table" and not Profile.canTake(old.lock, job, now, force) then
+		return { kind = "blocked" }
+	end
+	local plan = Profile.loadPlan(old)
+	local data = Profile.migrate(if plan ~= "fresh" then (old :: any).data else nil)
+	if plan == "readOnly" then
+		return { kind = "readOnly", data = data }
+	end
+	return { kind = "write", data = data, record = { data = data, lock = { job = job, at = now } } }
+end
+
+-- One step of saving (also inside UpdateAsync). "lost" = another server took the lock: write
+-- nothing, stop saving. "skip" = write nothing now (a late autosave after the leave save let go
+-- of the lock must not take it back). "write" = `record` is the new stored value.
+function Profile.saveStep(
+	old: any,
+	job: string,
+	data: Data,
+	letGo: boolean,
+	gone: boolean,
+	now: number
+): SaveStep
+	if type(old) == "table" and type(old.lock) == "table" and old.lock.job ~= job then
+		return { kind = "lost" }
+	end
+	if gone and not letGo then
+		return { kind = "skip" }
+	end
+	return {
+		kind = "write",
+		record = { data = data, lock = if letGo then nil else { job = job, at = now } },
+	}
+end
+
+-- A visit that played unsaved (the DataStore was down at join) finally reaches the real save.
+-- `stored` is the migrated real save (a fresh copy: this changes and returns it), `session` what
+-- the visit ended up with, `base` what the visit started from (Profile.new()). Only what the
+-- visit EARNED is added: coin and count gains, new cars, new bests. Nothing in `stored` is ever
+-- lowered or replaced by a blank, so a late save can't wipe what was there.
+function Profile.mergeVisit(stored: Data, session: Data, base: Data): Data
+	local function gain(a: number, b: number): number
+		return math.max(a - b, 0)
+	end
+	local out: any = stored
+	local ses: any = session
+	out.coins = math.clamp(stored.coins + gain(session.coins, base.coins), 0, Profile.MAX_COINS)
+	out.pile = math.clamp(stored.pile + gain(session.pile, base.pile), 0, Profile.MAX_COINS)
+	for _, k in { "likes", "winPoints", "raceStars" } do
+		out[k] = out[k] + gain(ses[k], (base :: any)[k])
+	end
+	out.raceStars = math.min(out.raceStars, Profile.MAX_RACE_STARS)
+	for _, k in { "bestStreak", "lastSeen", "boostUntil", "plotLevel", "stage" } do
+		out[k] = math.max(out[k], ses[k])
+	end
+	out.plotLevel = math.min(out.plotLevel, Profile.MAX_PLOT_LEVEL)
+	out.stage = math.min(out.stage, Profile.STAGE.SHOPPED)
+	-- sets: anything the visit has is added
+	for _, k in { "liked", "bolts", "looks", "lookOff", "cars" } do
+		for id, yes in ses[k] do
+			if out[k][id] == nil and count(out[k]) < Profile.MAX_CARS then
+				out[k][id] = yes
+			end
+		end
+	end
+	for owner, day in session.visited do
+		out.visited[owner] = math.max(out.visited[owner] or 0, day)
+	end
+	for owner, modes in session.starsFrom do
+		local mine = out.starsFrom[owner]
+		if mine == nil and count(out.starsFrom) < Profile.MAX_OWNERS then
+			mine = {}
+			out.starsFrom[owner] = mine
+		end
+		if mine then
+			for mode, medal in modes do
+				mine[mode] = math.max(mine[mode] or 0, medal)
+			end
+		end
+	end
+	local stars = 0
+	for _, modes in out.starsFrom do
+		for _, m in modes do
+			stars += m
+		end
+	end
+	out.stars = stars + out.raceStars
+	-- tiles bought this visit come on top of the copies already owned
+	for id, n in session.tiles do
+		out.tiles[id] = math.min((out.tiles[id] or 0) + n, 99)
+	end
+	-- the stored value wins; the visit only fills what is missing
+	for mode, r in session.plotRecords do
+		if out.plotRecords[mode] == nil then
+			out.plotRecords[mode] = r
+		end
+	end
+	for mode, list in session.plotTop do
+		if out.plotTop[mode] == nil then
+			out.plotTop[mode] = list
+		end
+	end
+	for id, r in session.rivals do
+		if out.rivals[id] == nil and count(out.rivals) < Profile.MAX_RIVALS then
+			out.rivals[id] = r
+		end
+	end
+	for mode, id in session.equipped do
+		if out.equipped[mode] == nil then
+			out.equipped[mode] = id
+		end
+	end
+	if out.track == nil then
+		out.track = session.track
+	end
+	-- the daily gift: whichever was taken on the later day (the same day = already taken there)
+	if session.dailyDay > stored.dailyDay then
+		out.dailyDay = session.dailyDay
+		out.dayStreak = session.dayStreak
+	end
+	if session.jobs.day > stored.jobs.day then
+		out.jobs = { day = session.jobs.day, have = table.clone(session.jobs.have) }
+	elseif session.jobs.day == stored.jobs.day then
+		for i = 1, 3 do
+			out.jobs.have[i] = math.max(out.jobs.have[i] or 0, session.jobs.have[i] or 0)
+		end
+	end
+	-- the garage: theirs stays; cars bought this visit move in while there is room (a player who
+	-- never had a garage gets the one the visit set up)
+	local room = Profile.BASE_SLOTS + out.plotLevel
+	local fresh = #stored.parked == 0
+	for _, id in session.parked do
+		if
+			#out.parked < math.min(room, Profile.MAX_PARKED)
+			and not table.find(out.parked, id)
+			and (fresh or session.cars[id])
+		then
+			table.insert(out.parked, id)
+		end
+	end
+	return out
 end
 
 return Profile

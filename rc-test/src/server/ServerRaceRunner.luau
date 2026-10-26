@@ -27,27 +27,11 @@ local RaceMaps = require(ReplicatedStorage.Shared.RaceMaps)
 local LobbyPlots = require(script.Parent.LobbyPlots)
 local PlayerData = require(script.Parent.PlayerData)
 
--- The track builder's traced tracks (built plots): loop(), lineSample() like Plots/Race.
-local function tracedFor(slot: number): any?
-	local mod = script.Parent:FindFirstChild("TrackBuild")
-	if not (mod and mod:IsA("ModuleScript")) then
-		return nil
-	end
-	local ok, res = pcall(function(): any
-		return (require(mod) :: any).trackFor(slot)
-	end)
-	return if ok then res else nil
-end
-
--- Grid spot k on this plot, plot-local: lined up behind its start line (a built track's, else
--- the street race plot's), or the plot's own start spot when it has neither.
+-- Grid spot k on this plot, plot-local: lined up behind its start line (the map's, else the street
+-- race plot's), or the plot's own start spot when it has neither.
 local function gridSpot(slot: number, t: TrackData.Track, k: number): ServerRace.Spawn
-	local src = LobbyLayout.mapAt(slot) or tracedFor(slot)
-	if
-		src == nil
-		and LobbyLayout.slots()[slot].id == "race"
-		and LobbyLayout.custom[slot] == nil
-	then
+	local src = LobbyLayout.mapAt(slot)
+	if src == nil and LobbyLayout.slots()[slot].id == "race" then
 		src = TrackData.plot("race")
 	end
 	if src then
@@ -158,7 +142,7 @@ local function voteCounts(): { [string]: number }
 	return count
 end
 
--- For the track builder (TrackBuild): BuildOpen = true while the break is on (plots may be
+-- BuildOpen = true while the break is on (plots may be
 -- edited), false from the moment the round's plot is picked until the race is over;
 -- BuildEndsAt = os.time() when building closes.
 local function setBuild()
@@ -206,7 +190,7 @@ function ServerRaceRunner.join(player: Player): boolean
 end
 
 -- Can this plot hold the server race? A built track says so with TrackReady on its plot model
--- (TrackBuild: a closed loop through the start); until a plot has that, the street's race
+-- (a closed loop through the start); until a plot has that, the street's race
 -- plots are.
 function ServerRaceRunner.isReady(slot: number): boolean
 	local plots = workspace:FindFirstChild("Plots")
@@ -458,7 +442,7 @@ local function runRace(hooks: Hooks, slot: number)
 	local list = racersHere()
 	phase = "racing"
 	writeSigns(ServerRace.signText(0, true, where))
-	workspace:SetAttribute("RaceSlot", slot) -- TrackBuild leaves this plot's track alone till the end
+	workspace:SetAttribute("RaceSlot", slot)
 	local t: TrackData.Track = LobbyLayout.track(slot)
 	local mapsFolder = workspace:FindFirstChild("RaceMaps")
 	local mapModel = if t.map and mapsFolder then mapsFolder:FindFirstChild(t.map) else nil

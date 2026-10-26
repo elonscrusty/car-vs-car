@@ -21,3 +21,8 @@ test("the music is under every game sound, and gone while driving", function()
 	truthy(S.MOTOR_MIN < S.MOTOR_MAX)
 	truthy(S.SQUEAL_MAX + S.MOTOR_MAX < S.START_BEEP) -- full slide at top speed still under the beeps
 end)
+
+test("coin, level and finish cues sit under the start beeps", function()
+	truthy(S.COIN > 0 and S.LEVEL_UP > 0 and S.FINISH > 0)
+	truthy(S.COIN < S.LEVEL_UP) -- a stream of coins stays quieter than a level
+end)

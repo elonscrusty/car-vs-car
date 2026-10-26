@@ -4,7 +4,6 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
@@ -819,19 +818,10 @@ end
 local GOLD = Color3.fromRGB(255, 213, 79)
 local GREEN = Color3.fromRGB(110, 225, 120)
 
--- every tile free (the server's test switch: AllTilesFree, or Studio unless it is set false)
-local function tilesFree(): boolean
-	local free = workspace:GetAttribute("AllTilesFree")
-	return free == true or (free ~= false and RunService:IsStudio())
-end
-
 local function goalText(g: any): (string, string, number)
 	-- (what it is, how far, fill 0..1)
-	local what = if g.kind == "car"
-		then `NEXT CAR: {g.name}`
-		elseif g.kind == "tile" then `NEXT TILE: {g.name}`
-		else `BIGGER TRACK: {g.name}`
-	local unit = if g.kind == "grid" then "⭐" else "coins"
+	local what = if g.kind == "car" then `NEXT CAR: {g.name}` else "BIGGER GARAGE"
+	local unit = "coins"
 	local fill = if g.price > 0 then math.clamp(g.have / g.price, 0, 1) else 1
 	if g.ready then
 		return what, if g.kind == "car" then "BUY IT IN THE CAR SHOP!" else "BUY IT IN THE SHOP!", 1
@@ -948,14 +938,7 @@ local nextBar = bar(nextBox, 0.82, 0.18)
 nextHow.Position = UDim2.fromScale(0, 0.47)
 
 local function showGoalBar(g: any)
-	-- every tile is free (Studio switch): no tile to save up for
-	local allFree = tilesFree()
-	if
-		type(g) ~= "table"
-		or type(g.name) ~= "string"
-		or type(g.price) ~= "number"
-		or (allFree and g.kind == "tile")
-	then
+	if type(g) ~= "table" or type(g.name) ~= "string" or type(g.price) ~= "number" then
 		nextBox.Visible = false
 		player:SetAttribute("GoalReady", false)
 		return
@@ -1028,15 +1011,8 @@ local function showPrize(before: any)
 	if type(g) ~= "table" or type(g.name) ~= "string" or type(g.price) ~= "number" then
 		return
 	end
-	local gained = if type(before) == "table"
-			and before.kind ~= "grid"
-			and g.kind ~= "grid"
-		then g.have - before.have
-		else 0
+	local gained = if type(before) == "table" then g.have - before.have else 0
 	-- one coin number only (the result row has it): this card is what the coins are FOR
-	if tilesFree() and g.kind == "tile" then
-		return
-	end
 	local what, how, fill = goalText(g)
 	prizeTitle.Text = what
 	prizeTitle.TextColor3 = GOLD
@@ -1328,7 +1304,8 @@ player:GetAttributeChangedSignal("Stage"):Connect(showVisits)
 remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unknown, ...: unknown)
 	if kind == "stars" and type(info) == "number" then
 		setStars(info, false)
-		noSave.Visible = saving == false
+		noSave.Visible = saving ~= true
+		noSave.Text = if saving == "retry" then "SAVING IS OFF, TRYING AGAIN" else "NOT SAVING"
 		return
 	end
 	if kind == "goal" then

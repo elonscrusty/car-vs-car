@@ -92,13 +92,9 @@ export type Lobby = {
 	setDriving: (on: boolean) -> (),
 }
 
-local function building(): boolean
-	return Players.LocalPlayer:GetAttribute("Building") == true
-end
-
 function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 	local driving = false
-	local guide = PlotGuide.new(building)
+	local guide = PlotGuide.new()
 	local refreshDrive: () -> ()
 
 	-- a big dark button at the bottom, between the steer stick zone (left half) and BRAKE, above
@@ -159,7 +155,6 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 		-- (not for a brand new player: fewer buttons until the first drive)
 		friendsGui.Enabled = ownSlot ~= nil
 			and not driving
-			and not building()
 			and Players.LocalPlayer:GetAttribute("DroveOnce") == true
 			and #Players:GetPlayers() > 1 -- nobody to let in when you're alone
 		if marker then
@@ -366,11 +361,6 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 		end
 	end)
 
-	-- the build screen covers the lobby: hide QUICK RACE and FRIENDS under it (BuildScreen sets it)
-	Players.LocalPlayer:GetAttributeChangedSignal("Building"):Connect(function()
-		quickGui.Enabled = QUICK and not driving and not building()
-		showFriends()
-	end)
 	Players.LocalPlayer:GetAttributeChangedSignal("DroveOnce"):Connect(showFriends)
 	Players.PlayerAdded:Connect(showFriends)
 	Players.PlayerRemoving:Connect(function()
@@ -406,7 +396,7 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 			Players.LocalPlayer:SetAttribute("DroveOnce", true) -- the rest of the lobby buttons show
 		end
 		gui.Enabled = on
-		quickGui.Enabled = QUICK and not on and not building()
+		quickGui.Enabled = QUICK and not on
 		showFriends()
 		if on then
 			shown = nil

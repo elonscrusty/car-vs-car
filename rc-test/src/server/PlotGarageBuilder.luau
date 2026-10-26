@@ -2,7 +2,7 @@
 -- Builds the garage yard on each plot (PlotGarage has the layout): the little loop road, the
 -- coin pile pad, the LEVEL UP sign and the looks for the plot's level. Only while plots are
 -- garages (Features.GARAGES on, PLOT_RACING off): then each plot's old track is put away in
--- ServerStorage (kept, so it can come back; one TrackBuild makes later goes there too) and the
+-- ServerStorage (kept, so it can come back) and the
 -- yard goes in its place. The open drift plot keeps its track for free drift play. Rebuilt when
 -- the plot's level or owner changes (TycoonServer sets PlotLevel on the owner's plot). The cars
 -- and the coins are drawn by PlotGarage.client.
@@ -153,7 +153,7 @@ function PlotGarageBuilder.start()
 	for _, slot in LobbyLayout.slots() do
 		local plot = workspace.Plots:FindFirstChild(slot.index .. "_" .. slot.id)
 		if plot and slot.id ~= "drift" then
-			-- put the track away now, and again whenever one is built back in (TrackBuild
+			-- put the track away now, and again whenever one is built back in (TrackBuilder
 			-- still makes the starter track on owner changes): only the newest is kept
 			local function stash(track: Instance)
 				if track.Name ~= "Track" or track.Parent ~= plot then

@@ -14,10 +14,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
+local Features = require(ReplicatedStorage.Shared.Features)
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local Garage = require(ReplicatedStorage.Shared.Garage)
 local PlotGarage = require(ReplicatedStorage.Shared.PlotGarage)
 local Tycoon = require(ReplicatedStorage.Shared.Tycoon)
+local Sfx = require(script.Parent:WaitForChild("Sfx"))
 
 local me = Players.LocalPlayer
 local glowModule = ReplicatedStorage.Shared:FindFirstChild("CarGlow")
@@ -438,6 +440,7 @@ local function celebrate(y: Yard, lv: number)
 	fx.Rate = 0
 	fx.Parent = spot
 	fx:Emit(120)
+	Sfx.levelUp()
 	float(spot, "LEVEL " .. lv .. "!", 2)
 	task.delay(3, spot.Destroy, spot)
 end
@@ -500,6 +503,7 @@ for _, p in plots:GetChildren() do
 	watch(p)
 end
 
+local moveAcc = 0
 RunService.RenderStepped:Connect(function(dt: number)
 	local cam = workspace.CurrentCamera
 	if not cam then
@@ -507,13 +511,15 @@ RunService.RenderStepped:Connect(function(dt: number)
 	end
 	local eye = cam.CFrame.Position
 	local clock = workspace:GetServerTimeNow()
+	local due: boolean
+	moveAcc, due = PlotGarage.stepDue(moveAcc, dt, Features.PLOT_CAR_HZ)
 	for _, y in yards do
 		local n = #y.cars
 		y.spread += (n - y.spread) * math.min(1, dt * 1.5)
 		if math.abs(n - y.spread) < 0.001 then
 			y.spread = n
 		end
-		if n > 0 and (y.pivot.Position - eye).Magnitude < NEAR then
+		if due and n > 0 and (y.pivot.Position - eye).Magnitude < NEAR then
 			placeCars(y, clock)
 		end
 	end

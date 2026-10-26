@@ -156,6 +156,12 @@ function TycoonServer.start()
 	PlayerData.loaded:Connect(function(player: Player, data: any)
 		setUp(player, data)
 	end)
+	PlayerData.synced:Connect(function(player: Player, data: any)
+		if ready[player] then
+			showCoins(player, data.coins)
+			show(player, data)
+		end
+	end)
 	-- (anyone loaded before this ran)
 	for _, p in Players:GetPlayers() do
 		local data = PlayerData.get(p)
