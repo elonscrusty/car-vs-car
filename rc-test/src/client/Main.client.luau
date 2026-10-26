@@ -382,6 +382,31 @@ LobbyLife.start() -- butterflies and birds (looks only, this screen)
 LobbyWelcome.start() -- the first moment here: street lights on, confetti
 LakeLife.start() -- the lake moves from the start: sailboats drift, ducks paddle, glints
 
+-- server race: passing someone pops up your new place ("UP TO 2ND!"); a short wait between pops so
+-- two cars side by side swapping places don't flash it over and over
+local placeWas, placeAt = 0, 0
+player:GetAttributeChangedSignal("RacePlace"):Connect(function()
+	local place = player:GetAttribute("RacePlace")
+	if type(place) ~= "number" then
+		placeWas = 0
+		return
+	end
+	local go = raceGo
+	local up = placeWas > 0 and place < placeWas
+	placeWas = place
+	if
+		up
+		and grid
+		and go
+		and raceDone == nil
+		and os.clock() - go > 3
+		and os.clock() - placeAt > 3
+	then
+		placeAt = os.clock()
+		hud.flash(`UP TO {ServerRace.ordinal(place)}!`)
+	end
+end)
+
 local function timerText(): string
 	local t = tracks[current]
 	local s = timers[current]
