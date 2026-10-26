@@ -813,9 +813,11 @@ local function carTag(ring: BasePart, out: Vector3, car: CarCatalog.Car)
 			corner(l, 0.5)
 		end
 	end
-	-- common's pill a lighter slate here, so it shows on the dark plate
-	local pill = if tier.id == "common" then Color3.fromRGB(150, 158, 180) else pillColor(tier)
-	line(tier.label, 0.08, 0.4, pill, Color3.new(1, 1, 1))
+	-- common's pill is its own light grey here with dark words, so it shows on the dark plate
+	-- (Studio 10-26: a slate pill was the hardest of the three to read from 20 studs)
+	local common = tier.id == "common"
+	local pill = if common then rgb(tier.color) else pillColor(tier)
+	line(tier.label, 0.08, 0.4, pill, if common then KartStyle.INK else Color3.new(1, 1, 1))
 	line(if car.price == 0 then "FREE" else `{car.price} coins`, 0.51, 0.44, nil, GOLD)
 end
 
