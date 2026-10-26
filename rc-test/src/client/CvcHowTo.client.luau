@@ -3,10 +3,12 @@
 -- the button to tap next, with big words by it. Only with Features.CVC on.
 --   racing        -> BOOST       "TAP TO GO FAST!"
 --   a crate       -> CRATE       "OPEN YOUR CRATE!"
---   a car trains  -> COACH       "TAP TO TRAIN 2X!"  (until you coach once)
---   no race yet   -> JOIN        "JOIN THE BIG RACE!"
+--   a car trains  -> COACH       "TRAIN YOUR CAR!"  (until you coach once)
+--   no race yet   -> JOIN        "RACE!"
 --   after that    -> MY GARAGE   "SEE YOUR CAR GET BETTER!" (until you open it once)
 -- Each one goes once you've done it (this visit); the race and crate ones follow the game.
+-- Only ever ONE arrow (carter's pick 2): none while the road guide (PlotGuide) is talking.
+-- SKIP turns the tips off for this visit (pick 3).
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -56,6 +58,16 @@ wordsRim.Color = INK
 wordsRim.Thickness = 3
 wordsRim.Parent = words
 
+local skip = CvcUi.button(gui, "SKIP", Color3.fromRGB(110, 110, 120))
+skip.Name = "Skip"
+skip.AnchorPoint = Vector2.new(0.5, 0.5)
+skip.Size = UDim2.fromOffset(76, 44)
+skip.Visible = false
+local skipped = false
+skip.Activated:Connect(function()
+	skipped = true
+end)
+
 -- a button another Car VS Car script made: PlayerGui.<gui>.<name>
 local function find(guiName: string, name: string): GuiObject?
 	local g = playerGui:FindFirstChild(guiName)
@@ -98,7 +110,12 @@ type Tip = { target: GuiObject, text: string, below: boolean }
 
 -- the one tip to show now (nil = none)
 local function pick(): Tip?
-	if not CvcState.loaded or player:GetAttribute("Picked") ~= true then
+	if skipped or not CvcState.loaded or player:GetAttribute("Picked") ~= true then
+		return nil
+	end
+	-- the road guide's words are up (the walk to the crate shop): one arrow at a time
+	local road = playerGui:FindFirstChild("PlotGuide")
+	if road and road:IsA("ScreenGui") and road.Enabled then
 		return nil
 	end
 	if panelOpen("CvcGarage") then
@@ -120,11 +137,11 @@ local function pick(): Tip?
 	end
 	local coach = find("Cvc", "Coach")
 	if not coached and shown(coach) and coach then
-		return { target = coach, text = "TAP TO TRAIN 2X!", below = true }
+		return { target = coach, text = "TRAIN YOUR CAR!", below = true }
 	end
 	local join = find("CvcRace", "BigJoin")
 	if not raced() and player:GetAttribute("RaceJoined") ~= true and shown(join) and join then
-		return { target = join, text = "JOIN THE BIG RACE!", below = false }
+		return { target = join, text = "RACE!", below = false }
 	end
 	local garage = find("CvcGarageButton", "GarageButton")
 	if raced() and not garageSeen and shown(garage) and garage then
@@ -137,9 +154,13 @@ RunService.RenderStepped:Connect(function()
 	local tip = pick()
 	arrow.Visible = tip ~= nil
 	words.Visible = tip ~= nil
+	skip.Visible = tip ~= nil
 	if not tip then
 		return
 	end
+	-- it glows: yellow to white and back
+	local glow = 0.5 + 0.5 * math.sin(os.clock() * 5)
+	arrow.TextColor3 = KartStyle.YELLOW:Lerp(KartStyle.WHITE, glow * 0.7)
 	local p, s = tip.target.AbsolutePosition, tip.target.AbsoluteSize
 	local bob = math.abs(math.sin(os.clock() * 4)) * 10
 	local cx = p.X + s.X / 2
@@ -159,4 +180,12 @@ RunService.RenderStepped:Connect(function()
 		words.Position = UDim2.fromOffset(wx, p.Y - 80)
 	end
 	words.Text = tip.text
+	-- SKIP just past the words (or under them when there's no room on the right)
+	local sw = gui.AbsoluteSize.X
+	local wy = words.Position.Y.Offset
+	if wx + w / 2 + 90 <= sw then
+		skip.Position = UDim2.fromOffset(wx + w / 2 + 46, wy)
+	else
+		skip.Position = UDim2.fromOffset(wx, wy + (if tip.below then 46 else -46))
+	end
 end)

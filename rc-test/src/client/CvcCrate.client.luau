@@ -263,6 +263,8 @@ openBtn.Activated:Connect(function()
 	openBtn.Text = "..."
 	got = false
 	shakeAt = os.clock()
+	-- (bigger crates rattle more)
+	Sfx.shake(if KIND == "mega" then 3 elseif KIND == "big" then 2 else 1)
 	-- the shake builds up: wider, faster, and the crate swells
 	shake = RunService.RenderStepped:Connect(function()
 		local t = os.clock() - shakeAt

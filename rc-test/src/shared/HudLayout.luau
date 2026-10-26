@@ -93,25 +93,33 @@ HudLayout.SPOTS = {
 	-- ===== walk: top left, your counts and buttons =====
 	-- (stars off, Features.STARS: the coins take the star chip's place, so no hole at the left;
 	-- the star chip and LOOKS, hidden then, wait in row 2 out of the way)
-	spot(
-		"StarCount",
-		"walk",
-		"Stars",
-		TL,
-		{ if STARS then 0.02 else 0.26, 0, 0, if STARS then 64 else 110 },
-		{ 0.11, 0, 0, 36 }
+	off(
+		spot(
+			"StarCount",
+			"walk",
+			"Stars",
+			TL,
+			{ if STARS then 0.02 else 0.26, 0, 0, if STARS then 64 else 110 },
+			{ 0.11, 0, 0, 36 }
+		),
+		not STARS
 	),
+
 	spot("CoinCount", "walk", "Stars", TL, { COL1, 0, 0, 64 }, { 0.11, 0, 0, 36 }),
 	-- row 2 stays under the chips (no further right): a third button there covered the car show board
 	-- (NOT SAVING shows above the star chip)
-	spot(
-		"Looks",
-		"walk",
-		"PlotShop",
-		TL,
-		{ if STARS then 0.14 else 0.38, 0, 0, 110 },
-		{ 0.11, 0, 0, 32 }
+	off(
+		spot(
+			"Looks",
+			"walk",
+			"PlotShop",
+			TL,
+			{ if STARS then 0.14 else 0.38, 0, 0, 110 },
+			{ 0.11, 0, 0, 32 }
+		),
+		not STARS
 	),
+
 	-- the tycoon (Tycoon.client): coins a minute right of the coins, GARAGE under it
 	spot("Income", "walk", "Tycoon", TL, { COL2, 0, 0, 64 }, { 0.1, 0, 0, 36 }),
 	spot("Garage", "walk", "Tycoon", TL, { COL2, 0, 0, ROW2_Y }, { 0.1, 0, 0, ROW2_H }),
@@ -130,7 +138,7 @@ HudLayout.SPOTS = {
 		not Features.PLOT_RACING
 	), -- off for now (Lobby QUICK)
 	-- Car VS Car (Cvc.client): COACH in the top middle, the big JOIN over the goal line
-	off(spot("Coach", "walk", "Cvc", TC, { 0.5, 0, 0, 64 }, { 0, 170, 0, 44 }), not CVC),
+	off(spot("Coach", "walk", "Cvc", TC, { 0.5, 0, 0, 64 }, { 0, 170, 0, 56 }), not CVC),
 	off(spot("BigJoin", "walk", "Cvc", BC, { 0.5, 0, 0.96, -102 }, { 0, 240, 0, 64 }), not CVC),
 	spot("WeekendBanner", "walk", "Stars", TR, { 0.98, 0, 0, 116 }, { 0, 200, 0, 30 }), -- top right: off your plot's name on the gate
 	spot("Join", "walk", "ServerRace", TR, { 0.98, 0, 0, 64 }, { 0, 168, 0, 46 }), -- top right, off the gate's name and the pad words

@@ -124,3 +124,29 @@ test("the Car VS Car HUD buttons are thumb size", function()
 		end
 	end
 end)
+
+test("the main buttons are bigger still on a phone (56 px+)", function()
+	for _, s in SIZES do
+		each(function(screen, name, b)
+			if b.main then
+				local l, t, r, bt = CvcLayout.box(screen, name, s[1], s[2])
+				truthy(
+					r - l >= CvcLayout.MAIN and bt - t >= CvcLayout.MAIN,
+					`{screen}.{name} is {math.floor(r - l)}x{math.floor(bt - t)} on {s[1]}x{s[2]}`
+				)
+			end
+		end)
+	end
+	if Features.CVC then
+		for _, s in SIZES do
+			for _, it in { { "Coach", "walk" }, { "BigJoin", "walk" }, { "Boost", "drive" } } do
+				local l, t, r, b =
+					HudLayout.box(HudLayout.find(it[1], it[2] :: any) :: any, s[1], s[2])
+				truthy(
+					r - l >= CvcLayout.MAIN and b - t >= CvcLayout.MAIN,
+					`{it[1]} is {math.floor(r - l)}x{math.floor(b - t)} on {s[1]}x{s[2]}`
+				)
+			end
+		end
+	end
+end)
