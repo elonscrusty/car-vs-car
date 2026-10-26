@@ -233,9 +233,8 @@ local function myPlot(): (boolean, boolean)
 end
 -- The spawn's garage is the LOOKS shop's door (Garage.build marks it ShopKind "looks"): walking
 -- in opens this screen once per visit, and its prompt opens it again.
-local JoinStage = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("JoinStage"))
-local function looksOpen(): boolean -- (not for a brand new player: one thing at a time)
-	return JoinStage.shows(player:GetAttribute("Stage"), "looks")
+local function looksOpen(): boolean -- (not for a brand new player, and off with the stars)
+	return StageGate.shows("looks")
 end
 local function openLooks()
 	if not panel.Visible and looksOpen() then

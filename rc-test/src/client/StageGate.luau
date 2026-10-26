@@ -19,6 +19,7 @@ local OFF: { [string]: boolean } = {
 	top3 = not Features.PLOT_RACING,
 	visit = not Features.PLOT_RACING,
 	build = not Features.TILES,
+	looks = not Features.STARS, -- plot looks were bought with stars
 }
 
 function StageGate.shows(name: string): boolean

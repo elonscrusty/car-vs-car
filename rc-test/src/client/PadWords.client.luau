@@ -11,7 +11,8 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Garage = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Garage"))
-local JoinStage = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("JoinStage"))
+local Features = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Features"))
+local StageGate = require(script.Parent:WaitForChild("StageGate"))
 local KartStyle = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("KartStyle"))
 
 local WORDS: { [string]: string } = { drift = "DRIFT NOW", race = "JOIN RACE", build = "GO BUILD" }
@@ -45,7 +46,7 @@ local function smallText(base: BasePart): string
 			then "YOU'RE IN!"
 			else "STAND HERE"
 	end
-	if workspace:GetAttribute("BuildOpen") == false then
+	if Features.PLOT_RACING and workspace:GetAttribute("BuildOpen") == false then
 		return "AFTER THE RACE"
 	end
 	local busy = base:GetAttribute("BusyUntil")
@@ -260,8 +261,8 @@ local function showAll()
 		on = false
 	end
 	holder.Enabled = on
-	local stage = me:GetAttribute("Stage")
-	local callOn = workspace:GetAttribute("BuildOpen") == false
+	-- (with plot racing off, the drift plot is free play: it works during a race too)
+	local callOn = Features.PLOT_RACING and workspace:GetAttribute("BuildOpen") == false
 	local eye = if cam then cam.CFrame.Position else nil
 	for b, gate in gates do
 		if b.Parent == nil then
@@ -269,7 +270,7 @@ local function showAll()
 			padSigns[b] = nil
 		elseif padSigns[b] then
 			-- JOIN RACE works any time (it waits for the next race)
-			b.Enabled = JoinStage.shows(stage, gate) and (not callOn or padSigns[b] == "race")
+			b.Enabled = StageGate.shows(gate) and (not callOn or padSigns[b] == "race")
 			local over = b.Adornee
 			if b.Enabled and eye and over and over:IsA("BasePart") then
 				local d = (over.Position + b.StudsOffsetWorldSpace - eye).Magnitude
@@ -277,7 +278,7 @@ local function showAll()
 				b.Size = UDim2.new(PAD_SIZE.X * k, 0, PAD_SIZE.Y * k, 0)
 			end
 		else
-			b.Enabled = JoinStage.shows(stage, gate)
+			b.Enabled = StageGate.shows(gate)
 		end
 	end
 end
