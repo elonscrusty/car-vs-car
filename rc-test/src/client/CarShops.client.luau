@@ -636,7 +636,9 @@ local function showGumball(s: State, result: string?)
 		-- name | kind | odds, each in its own box (long names ran into the kind word)
 		text(row, g.car.name, 0.12, 0.12, 0.38, 0.76, Color3.new(1, 1, 1), true)
 		local kind = CarCatalog.RARITY[g.car.rarity] or CarCatalog.RARITY.common
-		text(row, kind.label, 0.52, 0.25, 0.16, 0.5, rgb(kind.color))
+		-- its kind, and what it makes parked in your garage
+		text(row, kind.label, 0.52, 0.08, 0.16, 0.46, rgb(kind.color))
+		text(row, `+{kind.perMin}/min`, 0.52, 0.54, 0.16, 0.38, KartStyle.GREEN)
 		text(row, g.chance .. "%", 0.7, 0.12, 0.16, 0.76, GOLD)
 		if owned[g.car.id] then
 			text(row, "HAVE", 0.9, 0.2, 0.09, 0.6, Color3.fromRGB(90, 220, 110))
