@@ -35,6 +35,7 @@ type Yard = {
 	pivot: CFrame,
 	folder: Folder,
 	cars: { Model },
+	entering: { [Model]: number }, -- cars rolling out of the door (os.clock they started)
 	ids: { string }, -- the parked cars' ids (the first #ids of `cars`; the rest are open spots)
 	carsKey: string,
 	coins: Folder,
@@ -140,11 +141,28 @@ local function makeCar(id: string, parent: Instance): Model
 	return model
 end
 
+local ROLL_SECS = 2.5 -- a newly parked car rolls out of the garage door to its spot this long
+
 local function placeCars(y: Yard, clock: number)
 	local n = #y.cars
+	local now = os.clock()
 	for i, car in y.cars do
 		local x, z, yaw = PlotGarage.spot(i, n, clock)
-		car:PivotTo(y.pivot * CFrame.new(x, 0.1, z) * CFrame.Angles(0, math.rad(yaw), 0))
+		local spot = y.pivot * CFrame.new(x, 0.1, z) * CFrame.Angles(0, math.rad(yaw), 0)
+		local since = y.entering[car]
+		if since then
+			local a = (now - since) / ROLL_SECS
+			if a >= 1 then
+				y.entering[car] = nil
+			else
+				-- out of the door nose first (+z), then on to its spot
+				local D = PlotGarage.DOOR
+				local door = y.pivot * CFrame.new(D.x, 0.1, D.z) * CFrame.Angles(0, math.pi, 0)
+				local e = 1 - (1 - a) * (1 - a)
+				spot = door:Lerp(spot, e)
+			end
+		end
+		car:PivotTo(spot)
 	end
 end
 
@@ -194,14 +212,25 @@ local function refreshCars(y: Yard)
 	if key == y.carsKey then
 		return
 	end
+	-- cars just parked (not on the first look at this yard) roll out of the garage door
+	local roll = y.carsKey ~= "?"
+	local had: { [string]: boolean } = {}
+	for _, id in y.ids do
+		had[id] = true
+	end
 	y.carsKey = key
 	for _, c in y.cars do
 		c:Destroy()
 	end
 	y.cars = {}
+	y.entering = {}
 	y.ids = list
 	for _, id in list do
-		table.insert(y.cars, makeCar(id, y.folder))
+		local car = makeCar(id, y.folder)
+		table.insert(y.cars, car)
+		if roll and not had[id] then
+			y.entering[car] = os.clock()
+		end
 	end
 	for _ = 1, open do
 		table.insert(y.cars, makeOpen(y.folder))
@@ -304,6 +333,7 @@ local function setUp(plot: Instance, garage: Model)
 		folder = folder,
 		cars = {},
 		ids = {},
+		entering = {},
 		carsKey = "?",
 		coins = coins,
 		shown = -1,
