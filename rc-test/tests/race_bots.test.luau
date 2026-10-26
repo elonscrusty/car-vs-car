@@ -210,3 +210,46 @@ test("the spread of skills: a quick one, a slow one, all inside the limits", fun
 	eq(#RaceBots.NAMES >= 7, true)
 	eq(#RaceBots.COLORS >= 3, true)
 end)
+
+test("Car VS Car: bots fill the grid to 8, and the league sets how good they are", function()
+	eq(RaceBots.count(1, 8, 8), 7)
+	eq(RaceBots.count(5, 8, 8), 3)
+	eq(RaceBots.count(8, 8, 8), 0)
+	eq(RaceBots.count(0, 8, 8), 0)
+	eq(RaceBots.count(1, 8), 3) -- the old fill is unchanged
+	local lastLo, lastHi = 0, 0
+	for league = 1, 4 do
+		local lo, hi = RaceBots.skillRange(league, false)
+		truthy(lo < hi, "a range")
+		truthy(lo > lastLo and hi > lastHi, "each league is better than the one below")
+		lastLo, lastHi = lo, hi
+	end
+	local elo, ehi = RaceBots.skillRange(4, true)
+	local blo, _ = RaceBots.skillRange(1, false)
+	truthy(ehi < blo + 0.05 and elo < blo, "easy bots are slower than Bronze's")
+	local ol, oh = RaceBots.skillRange(nil, false)
+	eq(ol, RaceBots.SKILL_MIN)
+	eq(oh, RaceBots.SKILL_MAX)
+	-- a league's bots spread across its range (7 of them, names and lanes enough)
+	local lo, hi = RaceBots.skillRange(3, false)
+	for i = 1, 7 do
+		local s = RaceBots.skillFor(i, 7, 0.5, lo, hi)
+		truthy(s >= lo and s <= hi, "inside the league's range")
+	end
+	truthy(#RaceBots.NAMES >= 7)
+end)
+
+test("Car VS Car: league bots finish on both maps inside the time limit", function()
+	for _, m in RaceMaps.list() do
+		for league = 1, 4 do
+			local lo, _ = RaceBots.skillRange(league, false)
+			local route, bot = setup(m, lo, 1)
+			local took = drive(route, bot, ServerRace.MAP_TIME_LIMIT + 120, nil)
+			truthy(took ~= nil, `{m.id} league {league} slowest never finished`)
+		end
+		-- the first-race easy bots may be slow, but they still finish
+		local elo, _ = RaceBots.skillRange(1, true)
+		local route, bot = setup(m, elo, 1)
+		truthy(drive(route, bot, 600, nil) ~= nil, `{m.id} easy bot never finished`)
+	end
+end)

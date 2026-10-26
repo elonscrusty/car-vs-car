@@ -8,6 +8,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Features = require(ReplicatedStorage.Shared.Features)
 local RaceBots = require(ReplicatedStorage.Shared.RaceBots)
 local RaceMaps = require(ReplicatedStorage.Shared.RaceMaps)
 local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
@@ -43,11 +44,25 @@ local function worldCF(t: TrackData.Track, x: number, y: number, z: number, dx: 
 	return pos, CFrame.lookAt(pos, pos + Vector3.new(ddx, 0, ddz))
 end
 
+-- Car VS Car (Features.CVC): `league` (1..4) sets how good the bots are, `easy` = a new player's
+-- first race (slow bots that wake up late), and the race is filled up to the whole grid.
+export type Options = { league: number?, easy: boolean? }
+
 -- Fill a map race: `humans` players are on grid spots 1..humans; the bots take the next spots up
--- to RaceBots.MIN_CARS cars. nil when no bots are needed (or the map has no road for them).
-function RaceBotCars.spawn(t: TrackData.Track, humans: number, mapModel: Instance?): Fleet?
+-- to RaceBots.MIN_CARS cars (the whole grid in Car VS Car). nil when no bots are needed (or the
+-- map has no road for them).
+function RaceBotCars.spawn(
+	t: TrackData.Track,
+	humans: number,
+	mapModel: Instance?,
+	options: Options?
+): Fleet?
 	local map = if t.map then RaceMaps.get(t.map) else nil
-	local count = RaceBots.count(humans, ServerRace.MAX)
+	local opt: Options = options or {}
+	local count =
+		RaceBots.count(humans, ServerRace.MAX, if Features.CVC then ServerRace.MAX else nil)
+	local easy = Features.CVC and opt.easy == true
+	local lo, hi = RaceBots.skillRange(if Features.CVC then opt.league else nil, easy)
 	if not map or count == 0 then
 		return nil
 	end
@@ -90,11 +105,11 @@ function RaceBotCars.spawn(t: TrackData.Track, humans: number, mapModel: Instanc
 		local bot = RaceBots.new(
 			route,
 			`{nm} (bot)`,
-			RaceBots.skillFor(i, count, random:NextNumber()),
+			RaceBots.skillFor(i, count, random:NextNumber(), lo, hi),
 			RaceBots.laneFor(i),
 			side * ServerRace.GRID_SIDE,
 			random:NextNumber() * 6.28,
-			random:NextNumber() * 0.35,
+			random:NextNumber() * 0.35 + (if easy then RaceBots.EASY_DELAY else 0),
 			ServerRace.BACK + row * ServerRace.GRID_ROW,
 			colors[random:NextInteger(1, #colors)]
 		)
