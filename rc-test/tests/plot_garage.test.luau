@@ -120,3 +120,23 @@ test("a car's +N matches its coins a minute", function()
 	eq(G.popCoins(40), 20)
 	eq(G.popCoins(0), 1)
 end)
+
+test("income board stands in the front left corner, clear of the gate and the road wall", function()
+	for _, p in G.boardPieces() do
+		truthy(
+			p.pos.x - p.size.x / 2 >= -39.4 and p.pos.x + p.size.x / 2 <= -1,
+			p.name .. " left of the gate"
+		)
+		truthy(
+			p.pos.z - p.size.z / 2 >= 37.5 and p.pos.z + p.size.z / 2 <= 54.4,
+			p.name .. " in front"
+		)
+	end
+end)
+
+test("income board words", function()
+	eq(select(1, G.incomeWords(12, 3, false)), "+12 COINS / MIN")
+	eq(select(2, G.incomeWords(12, 3, false)), "FROM 3 CARS")
+	eq(select(2, G.incomeWords(2, 1, false)), "FROM 1 CAR")
+	eq(select(2, G.incomeWords(24, 3, true)), "2X BOOST!")
+end)
