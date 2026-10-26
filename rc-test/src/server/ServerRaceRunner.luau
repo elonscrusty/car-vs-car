@@ -83,7 +83,7 @@ local ServerRaceRunner = {}
 
 -- Server -> client: ("state", phase, startAt, count, kind, where) with phase "wait" | "call" |
 -- "racing" (startAt = workspace:GetServerTimeNow() time of the start, count = unused now that
--- everyone races, kind = "race" | "drift" (the picked plot's), where = "MIA'S TRACK" once
+-- everyone races, kind = "race" | "drift" (the picked plot's), where = "KITCHEN" (the map) once
 -- picked), ("result", rows) when a race ends: rows = { { name, time?, score?, laps, coins?,
 -- stars? } } best first (what that racer was paid; score = a drift round's points). To one
 -- racer: ("finished", place) when its car crosses the line for the last time, ("ends", endsAt)

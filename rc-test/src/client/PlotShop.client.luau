@@ -7,6 +7,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Features = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Features"))
 local HudLayout = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("HudLayout"))
 local PlotShop = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("PlotShop"))
 local Popup = require(script.Parent:WaitForChild("Popup"))
@@ -38,7 +39,9 @@ hudGui.IgnoreGuiInset = true
 hudGui.DisplayOrder = HudLayout.HUD
 hudGui.Parent = player:WaitForChild("PlayerGui")
 local function showButton()
-	hudGui.Enabled = player:GetAttribute("Driving") ~= true
+	-- plots are garages now (tycoon plan): the plot looks shop is put away with the old plots
+	hudGui.Enabled = not Features.GARAGES
+		and player:GetAttribute("Driving") ~= true
 		and player:GetAttribute("Building") ~= true
 end
 player:GetAttributeChangedSignal("Driving"):Connect(showButton)
@@ -233,9 +236,8 @@ local function myPlot(): (boolean, boolean)
 end
 -- The spawn's garage is the LOOKS shop's door (Garage.build marks it ShopKind "looks"): walking
 -- in opens this screen once per visit, and its prompt opens it again.
-local JoinStage = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("JoinStage"))
-local function looksOpen(): boolean -- (not for a brand new player: one thing at a time)
-	return JoinStage.shows(player:GetAttribute("Stage"), "looks")
+local function looksOpen(): boolean -- (not for a brand new player, and off with the stars)
+	return StageGate.shows("looks")
 end
 local function openLooks()
 	if not panel.Visible and looksOpen() then

@@ -13,8 +13,10 @@ local function sibling(name: string): any
 end
 
 local CarCatalog = sibling("CarCatalog")
+local Features = sibling("Features")
 local TileShop = sibling("TileShop")
 local TrackTiles = sibling("TrackTiles")
+local Tycoon = sibling("Tycoon")
 
 local Rewards = {}
 
@@ -24,11 +26,12 @@ export type Save = {
 	cars: { [string]: boolean },
 	equipped: { [string]: string },
 	tiles: { [string]: number },
+	plotLevel: number?, -- the garage level (tycoon)
 }
 
 -- The next thing to save up for: what it is, its name, its price (coins) or stars needed.
 export type Goal = {
-	kind: string, -- "car" | "tile" | "grid"
+	kind: string, -- "car" | "tile" | "grid" | "level"
 	name: string,
 	mode: string?, -- a car's mode (drift / race)
 	price: number, -- coins (car, tile) or stars (grid)
@@ -54,7 +57,7 @@ function Rewards.coinGoals(s: Save): { Goal }
 			end
 		end
 	end
-	if not TrackTiles.ALL_FREE then
+	if Features.TILES and not TrackTiles.ALL_FREE then
 		for _, t in TileShop.TILES do
 			-- only tiles your stars have opened (TileShop.UNLOCK_STARS)
 			if
@@ -87,6 +90,9 @@ end
 
 -- The bigger track grid you get next from stars (nil when you have the biggest).
 function Rewards.gridGoal(stars: number): Goal?
+	if not Features.TILES then
+		return nil
+	end
 	local cols, rows = TrackTiles.sizeFor(stars)
 	for _, sz in TrackTiles.SIZES do
 		if sz.stars > stars and sz.cols * sz.rows > cols * rows then
@@ -113,6 +119,17 @@ function Rewards.next(s: Save): Goal?
 	end
 	if goals[1] then
 		return goals[1]
+	end
+	-- (tycoon) every shop car bought: a bigger garage next
+	local cost = Tycoon.levelCost(s.plotLevel or 0)
+	if cost then
+		return {
+			kind = "level",
+			name = "Bigger garage",
+			price = cost,
+			have = s.coins,
+			ready = s.coins >= cost,
+		}
 	end
 	return Rewards.gridGoal(s.stars)
 end

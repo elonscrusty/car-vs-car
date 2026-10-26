@@ -1,37 +1,42 @@
 --!strict
--- Economy check (polish pass): a new player's first 30 minutes. Server races every break
--- (ServerRace.BREAK) plus about RACE_SECONDS for the race itself; pay is ServerRace.payFor, the
--- picked plot's owner gets PAY_OWNER, the race gives stars (starsFor), the daily gift pays day 1
--- on join and one loop job pays after the first race. Weekend x2 is off. The buyer is greedy:
--- after each payout it buys the cheapest thing it can (Rewards.coinGoals), one at a time.
+-- Economy check (tycoon plan, carter 10-26): a new player's first 30 minutes. A map race every
+-- ServerRace.MAP_BREAK plus about RACE_SECONDS for the race; pay is ServerRace.payFor and a
+-- win doubles the garage for Tycoon.BOOST_SECS. The garage makes Tycoon.income from the parked
+-- cars; the player collects after each race and buys the cheapest new car (it parks if there's
+-- room) or, with every shop car owned, the next garage level. Weekend x2, daily gift and jobs
+-- are left out (they only make it faster).
 local H = require("./harness")
 local CarCatalog = require("../src/shared/CarCatalog")
 local Profile = require("../src/shared/Profile")
 local Rewards = require("../src/shared/Rewards")
 local ServerRace = require("../src/shared/ServerRace")
-local TileShop = require("../src/shared/TileShop")
-local TrackTiles = require("../src/shared/TrackTiles")
+local Tycoon = require("../src/shared/Tycoon")
 
 local test, truthy = H.test, H.truthy
 
 print("Economy")
 
-local RACE_SECONDS = 140 -- call + grid + 3 laps + the result
-local CYCLE = ServerRace.BREAK + RACE_SECONDS
+local RACE_SECONDS = 150 -- vote call + grid + laps + the result (maps cap at 180)
+local CYCLE = ServerRace.MAP_BREAK + RACE_SECONDS
 local MINUTES = 30
-local JOB = 30 -- the cheapest loop job (finish a server race)
 
-type Player = { name: string, places: { number }, ownerIn: { [number]: boolean }, racers: number }
+type Player = { name: string, places: { number }, racers: number }
 
 local function minutes(t: number): string
 	return string.format("%4.1f", t / 60)
 end
 
--- buy every cheapest thing you can afford now; returns what was bought
+local function owns(d: any): (string) -> boolean
+	return function(id: string): boolean
+		return CarCatalog.owns(d, id)
+	end
+end
+
+-- buy the next goal while it's affordable; returns what was bought
 local function buyAll(d: any): { string }
 	local got = {}
 	while true do
-		local g = Rewards.coinGoals(d)[1]
+		local g = Rewards.next(d)
 		if not (g and g.ready) then
 			break
 		end
@@ -40,128 +45,77 @@ local function buyAll(d: any): { string }
 				for _, c in list do
 					if c.name == g.name then
 						assert(CarCatalog.buy(d, c.id))
+						-- park it, or swap it in for the worst parked car
+						if not Tycoon.park(d.parked, d.plotLevel, c.id, true, owns(d)) then
+							table.sort(d.parked, function(a, b)
+								return Tycoon.perMin(a) > Tycoon.perMin(b)
+							end)
+							if Tycoon.perMin(c.id) > Tycoon.perMin(d.parked[#d.parked]) then
+								table.remove(d.parked)
+								Tycoon.park(d.parked, d.plotLevel, c.id, true, owns(d))
+							end
+						end
 					end
 				end
 			end
+		elseif g.kind == "level" then
+			d.coins -= g.price
+			d.plotLevel += 1
 		else
-			for _, t in TileShop.TILES do
-				if t.name == g.name then
-					assert(TileShop.buy(d, t.id))
-				end
-			end
+			error(`unexpected goal kind {g.kind}`)
 		end
 		table.insert(got, `{g.kind} {g.name} ({g.price})`)
 	end
 	return got
 end
 
--- what each player can do and when (minutes); also prints the table
-local function run(
-	p: Player
-): { buys: { { t: number, what: string } }, firsts: { [string]: number } }
+local function run(p: Player): { buys: { { t: number, what: string } }, firstCar: number? }
 	local d: any = Profile.new()
-	local earned = 0 -- coins earned so far (for "could buy X if saved")
-	local firsts: { [string]: number } = {}
+	d.parked = Tycoon.firstParked(0, owns(d))
 	local buys = {}
-	local function earn(t: number, n: number)
-		d.coins += n
-		earned += n
-		local function first(key: string, price: number)
-			if firsts[key] == nil and earned >= price then
-				firsts[key] = t
-			end
+	local firstCar: number? = nil
+	local t = 0
+	for k = 1, math.floor(MINUTES * 60 / CYCLE) do
+		-- the garage fills through the wait and the race (boost from a win counts for its time)
+		local boosted = math.min(CYCLE, math.max(0, d.boostUntil - t))
+		local base = Tycoon.income(d.parked, 0, 0)
+		d.pile = Tycoon.accrue(d.pile, base, CYCLE) + base * (Tycoon.WIN_BOOST - 1) * boosted / 60
+		t += CYCLE
+		local place = p.places[(k - 1) % #p.places + 1]
+		d.coins += ServerRace.payFor(place, true)
+		if place == 1 then
+			d.boostUntil = t + Tycoon.BOOST_SECS
 		end
-		local cheapestTile = math.huge
-		for _, tl in TileShop.TILES do
-			if tl.tier == "coins" and TileShop.open(d, tl.id) then
-				cheapestTile = math.min(cheapestTile, tl.price)
-			end
-		end
-		first("first coin tile", cheapestTile)
-		first("first race car", CarCatalog.SHOP.race[2].price)
-		first("first drift car", CarCatalog.SHOP.drift[2].price)
-		first("3rd car (2 bought)", CarCatalog.SHOP.race[2].price + CarCatalog.SHOP.race[3].price)
-		first("first gumball", CarCatalog.GUMBALL_PRICE)
+		d.coins += math.floor(d.pile)
+		d.pile -= math.floor(d.pile)
 		for _, what in buyAll(d) do
 			table.insert(buys, { t = t, what = what })
+			if firstCar == nil and string.sub(what, 1, 3) == "car" then
+				firstCar = t
+			end
 		end
 	end
-	earn(0, Profile.DAILY[1]) -- the daily gift on join
-	local k = 0
-	while true do
-		k += 1
-		local t = k * CYCLE
-		if t > MINUTES * 60 then
-			break
-		end
-		local place = p.places[(k - 1) % #p.places + 1]
-		local pay = ServerRace.payFor(place, true)
-		if p.ownerIn[k] then
-			pay += ServerRace.PAY_OWNER
-		end
-		if k == 1 then
-			pay += JOB
-		end
-		Profile.addRaceStars(d, ServerRace.starsFor(place, true, p.racers))
-		earn(t, pay)
-	end
-	print(`  {p.name}: {earned} coins, {d.stars} stars in {MINUTES} min`)
+	print(`  {p.name}: income {Tycoon.income(d.parked, 0, 0)}/min after {MINUTES} min`)
 	for _, b in buys do
 		print(`    {minutes(b.t)} min  {b.what}`)
 	end
-	for _, key in
-		{
-			"first coin tile",
-			"first race car",
-			"first drift car",
-			"3rd car (2 bought)",
-			"first gumball",
-		}
-	do
-		print(
-			`    could first buy {key}: {if firsts[key]
-				then minutes(firsts[key]) .. " min"
-				else "not in 30 min"}`
-		)
-	end
-	return { buys = buys, firsts = firsts }
+	return { buys = buys, firstCar = firstCar }
 end
 
-local SOLO: Player = {
-	name = "solo (wins every race, own plot)",
-	places = { 1 },
-	ownerIn = setmetatable({}, {
-		__index = function()
-			return true
-		end,
-	}) :: any,
-	racers = 1,
-}
-local MID: Player = {
-	name = "4 players, middle (2nd/3rd)",
-	places = { 2, 3 },
-	ownerIn = { [2] = true },
-	racers = 4,
-}
-local LAST: Player = { name = "4 players, always last", places = { 4 }, ownerIn = {}, racers = 4 }
+local SOLO: Player = { name = "solo (wins every race)", places = { 1 }, racers = 1 }
+local MID: Player = { name = "4 players, middle (2nd/3rd)", places = { 2, 3 }, racers = 4 }
+local LAST: Player = { name = "4 players, always last", places = { 4 }, racers = 4 }
 
-test("economy: nothing for free, first tile after race 1, first car by race 3", function()
-	for _, p in { SOLO, MID, LAST } do
+test("economy: the first new car comes by race 2 (race 3 when always last)", function()
+	for _, case in { { SOLO, 2 }, { MID, 2 }, { LAST, 3 } } do
+		local p, races = case[1] :: Player, case[2] :: number
 		local r = run(p)
-		-- nothing before the first race (the daily gift alone buys nothing)
-		for _, b in r.buys do
-			truthy(b.t >= CYCLE, `{p.name}: bought {b.what} before any race`)
-		end
-		truthy(
-			(r.firsts["first coin tile"] or math.huge) <= CYCLE,
-			`{p.name}: no tile after race 1`
-		)
-		truthy((r.firsts["first race car"] or math.huge) <= 3 * CYCLE, `{p.name}: no car by race 3`)
+		truthy((r.firstCar or math.huge) <= races * CYCLE, `{p.name}: no car by race {races}`)
 	end
 end)
 
 test(
-	"economy: something new every ~10 min (middle of 4), every ~15 min even when always last",
+	"economy: something new every ~10 min (middle of 4), every ~15 min when always last",
 	function()
 		for _, case in { { MID, 10, 3 }, { LAST, 15, 2 } } do
 			local p, gapMin, atLeast = case[1] :: Player, case[2] :: number, case[3] :: number
@@ -178,42 +132,3 @@ test(
 		end
 	end
 )
-
--- Stars side: when each player's stars open the bumps tile, reach 3 stars, and grow the track
--- grid (TrackTiles.SIZES) / open cones (10). Runs 2 hours (stars come slower than coins).
-local function starTimes(p: Player): { [number]: number }
-	local d: any = Profile.new()
-	local at: { [number]: number } = {}
-	local marks = { TileShop.UNLOCK_STARS.bumps, 3, TrackTiles.SIZES[2].stars }
-	for k = 1, math.floor(120 * 60 / CYCLE) do
-		local place = p.places[(k - 1) % #p.places + 1]
-		Profile.addRaceStars(d, ServerRace.starsFor(place, true, p.racers))
-		for _, m in marks do
-			if at[m] == nil and d.stars >= m then
-				at[m] = k * CYCLE
-			end
-		end
-	end
-	local function show(m: number): string
-		return if at[m]
-			then `{minutes(at[m])} min (race {math.floor(at[m] / CYCLE + 0.5)})`
-			else "over 2 h"
-	end
-	print(
-		`  {p.name}: bumps ({marks[1]}★) {show(marks[1])} · 3★ {show(3)} · bigger grid + cones ({marks[3]}★) {show(
-			marks[3]
-		)}`
-	)
-	return at
-end
-
-test("stars: every player opens bumps after race 1 and grows the grid within ~75 min", function()
-	for _, p in { SOLO, MID, LAST } do
-		local at = starTimes(p)
-		local bumps = TileShop.UNLOCK_STARS.bumps
-		truthy((at[bumps] or math.huge) <= CYCLE, `{p.name}: bumps not open after race 1`)
-		truthy((at[3] or math.huge) <= 3 * CYCLE, `{p.name}: 3 stars later than race 3`)
-		local grid = TrackTiles.SIZES[2].stars
-		truthy((at[grid] or math.huge) <= 75 * 60, `{p.name}: bigger grid after 75 min`)
-	end
-end)

@@ -43,13 +43,9 @@ local function label(board: BasePart, top: string, bottom: string)
 	line(bottom, 0.6, 0.34, Color3.fromRGB(255, 220, 90))
 end
 
--- The sign's words: the level now, and what the next one costs (MAX at the top).
+-- The sign's words: what the next level gives and costs (MAX at the top).
 local function words(level: number): (string, string)
-	local cost = Tycoon.levelCost(level)
-	if cost == nil then
-		return "LV " .. level, "MAX"
-	end
-	return "LEVEL UP", "LV " .. level + 1 .. "  " .. cost .. " coins"
+	return PlotGarage.levelWords(level, Tycoon.levelCost(level))
 end
 
 local function levelOf(plot: Instance): number

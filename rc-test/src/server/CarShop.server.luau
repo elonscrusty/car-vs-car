@@ -124,6 +124,7 @@ remote.OnServerInvoke = function(player: Player, action: unknown, id: unknown): 
 	elseif action == "spin" then
 		local car, new = CarCatalog.spin(data, math.random() * 100)
 		if car then
+			Jobs.fire(player, "spin")
 			PlayerData.raiseStage(player, Profile.STAGE.SHOPPED) -- first car: the rest of the screen opens
 			if new then
 				CarCatalog.equip(data, car.id) -- a new car: drive it straight away

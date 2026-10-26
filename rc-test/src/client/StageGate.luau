@@ -21,6 +21,7 @@ local OFF: { [string]: boolean } = {
 	build = not Features.TILES,
 	friends = not Features.PLOT_RACING, -- let others drive your plot
 	quick = not Features.PLOT_RACING, -- QUICK RACE on a free plot
+	looks = not Features.STARS, -- plot looks were bought with stars
 }
 
 function StageGate.shows(name: string): boolean

@@ -9,6 +9,7 @@ local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CarGlow = require(ReplicatedStorage.Shared.CarGlow)
+local Features = require(ReplicatedStorage.Shared.Features)
 local Garage = require(ReplicatedStorage.Shared.Garage)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local PlotStands = require(ReplicatedStorage.Shared.PlotStands)
@@ -40,6 +41,10 @@ local function label(board: BasePart, top: string, bottom: string)
 end
 
 function PlotStandsBuilder.start()
+	-- plots are garages now: your cars drive the garage loop instead (PlotGarage)
+	if Features.GARAGES then
+		return
+	end
 	local slots = LobbyLayout.slots()
 	local shown: { [number]: string } = {} -- what each plot's show has now
 	local watching: { [Player]: RBXScriptConnection } = {}

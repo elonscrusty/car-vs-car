@@ -7,7 +7,8 @@
 -- included), BoostUntil (os.time, 0 = none), PlotLevel, Parked ("id,id,id"), Coins.
 -- The owner's plot model gets Parked, PlotCoins and PlotLevel too (for the garage looks).
 -- RemoteEvent ReplicatedStorage.Plot, client -> server: ("collect"), ("park", carId, on),
--- ("level"); server -> client: ("collected", n), ("boost", untilTime).
+-- ("level"); server -> client: ("collected", n), ("boost", untilTime), ("away", coins, seconds)
+-- on join when the garage made coins while they were gone.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,6 +17,7 @@ local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local Forever = require(ReplicatedStorage.Shared.Forever)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local Tycoon = require(ReplicatedStorage.Shared.Tycoon)
+local Jobs = require(script.Parent.Jobs)
 local LobbyPlots = require(script.Parent.LobbyPlots)
 local PlayerData = require(script.Parent.PlayerData)
 
@@ -78,16 +80,24 @@ local function setUp(player: Player, data: any)
 	if #data.parked == 0 and data.lastSeen == 0 then
 		data.parked = Tycoon.firstParked(data.plotLevel, owns(data))
 	end
+	local made = 0
+	local away = 0
 	if data.lastSeen > 0 then
-		local away = now - data.lastSeen
+		away = now - data.lastSeen
 		-- (no boost while away)
+		local before = data.pile
 		data.pile = Tycoon.accrue(data.pile, Tycoon.income(data.parked, 0, 0), away)
+		made = math.floor(data.pile) - math.floor(before)
 	end
 	data.lastSeen = now
 	PlayerData.touch(player)
 	ready[player] = true
 	showCoins(player, data.coins)
 	show(player, data)
+	-- welcome back: what the garage made while they were gone (worth a pop from a minute on)
+	if made > 0 and away >= 60 then
+		remote:FireClient(player, "away", made, away)
+	end
 end
 
 -- A race win: double income for a while (a second win starts the time again).
@@ -123,6 +133,7 @@ local function onAsk(player: Player, kind: unknown, id: unknown, on: unknown)
 		showCoins(player, data.coins)
 		show(player, data)
 		remote:FireClient(player, "collected", n)
+		Jobs.fire(player, "collect")
 	elseif kind == "park" and type(id) == "string" and type(on) == "boolean" then
 		if Tycoon.park(data.parked, data.plotLevel, id, on, owns(data)) then
 			PlayerData.touch(player)

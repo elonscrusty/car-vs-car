@@ -18,6 +18,7 @@ local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local JoinStage = require(ReplicatedStorage.Shared.JoinStage)
 local Features = require(ReplicatedStorage.Shared.Features)
 local LobbyPlots = require(script.Parent.LobbyPlots)
+local PlotGarage = require(ReplicatedStorage.Shared.PlotGarage)
 local TrackBuilder = require(script.Parent.TrackBuilder)
 local PlotDecorBuilder = require(script.Parent.PlotDecorBuilder)
 local PlotLooksBuilder = require(script.Parent.PlotLooksBuilder)
@@ -206,11 +207,13 @@ end
 local function setSign(slotIndex: number)
 	local owner = LobbyPlots.ownerOf(slotIndex)
 	local who = LobbyPlots.driverOf(slotIndex) or owner
-	local text = LobbyLayout.signText(
-		if who then who.DisplayName else nil,
-		slots[slotIndex].label,
-		owner ~= nil and not LobbyPlots.isOpen(slotIndex)
-	)
+	local text = if Features.GARAGES and slots[slotIndex].id ~= "drift"
+		then PlotGarage.signText(if owner then owner.DisplayName else nil)
+		else LobbyLayout.signText(
+			if who then who.DisplayName else nil,
+			slots[slotIndex].label,
+			owner ~= nil and not LobbyPlots.isOpen(slotIndex)
+		)
 	lobby.signs[slotIndex].Text = text
 	local arch = archNames[slotIndex]
 	if arch then
@@ -318,7 +321,8 @@ require(script.Parent.QueuePads).start({
 		if not JoinStage.shows(player:GetAttribute("Stage"), "pads") then
 			return nil
 		end
-		if workspace:GetAttribute("BuildOpen") ~= true then
+		-- (with plot racing off the drift plot is free play, race or no race)
+		if Features.PLOT_RACING and workspace:GetAttribute("BuildOpen") ~= true then
 			return nil
 		end
 		return LobbyPlots.findOpen(kind, player)
