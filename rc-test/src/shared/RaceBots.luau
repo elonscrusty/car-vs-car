@@ -5,6 +5,17 @@
 -- touches the player's car: this is only the bots' own pace. Pure maths (plain tables, Lune
 -- tests it); the parts that draw the bots are the server's (RaceBotCars).
 
+-- Loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
+local function sibling(name: string): any
+	if script then
+		return require((script :: any).Parent[name])
+	end
+	local luneRequire: any = require
+	return luneRequire("./" .. name)
+end
+
+local ServerRace = sibling("ServerRace")
+
 export type Sample = { x: number, z: number, tx: number, tz: number }
 
 -- One map's road as the bots see it: the centre line from the start line round, closed.
@@ -239,7 +250,7 @@ function RaceBots.step(route: Route, bot: Bot, dt: number, since: number, catchU
 	if since < bot.delay then
 		return
 	end
-	if bot.time ~= nil and bot.dist > route.total * 3 + 60 then
+	if bot.time ~= nil and bot.dist > route.total * ServerRace.LAPS + 60 then
 		-- past the line and out of the way: coast to a halt
 		bot.speed = math.max(0, bot.speed - RaceBots.BRAKE * dt)
 		bot.dist += bot.speed * dt
@@ -259,7 +270,7 @@ function RaceBots.step(route: Route, bot: Bot, dt: number, since: number, catchU
 		bot.speed = math.max(want, bot.speed - RaceBots.BRAKE * dt)
 	end
 	bot.dist += bot.speed * dt
-	if bot.time == nil and bot.dist >= route.total * 3 then
+	if bot.time == nil and bot.dist >= route.total * ServerRace.LAPS then
 		bot.time = since
 	end
 end
@@ -302,7 +313,7 @@ end
 
 -- Laps finished (0 on the grid).
 function RaceBots.laps(route: Route, bot: Bot): number
-	return math.clamp(math.floor(bot.dist / route.total), 0, 3)
+	return math.clamp(math.floor(bot.dist / route.total), 0, ServerRace.LAPS)
 end
 
 -- How far round a bot is, in the same units as ServerRace.progress for a player: the gates it
