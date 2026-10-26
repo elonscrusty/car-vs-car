@@ -65,7 +65,7 @@ function ServerRace.signText(left: number, racing: boolean, where: string?): str
 	if left <= ServerRace.CALL then
 		return "RACE IN " .. ServerRace.clock(left) .. at
 	end
-	return "BUILD YOUR TRACK!\nRACE IN " .. ServerRace.clock(left) -- tells a new player what the break is for
+	return "NEXT RACE\n" .. ServerRace.clock(left) -- (no tracks to build in the tycoon plan)
 end
 
 -- Which plot the round is on: a random one of the race-ready player plots (`owned`), else a

@@ -211,7 +211,7 @@ local finished = false -- this player's car is over the line
 local kind = "race" -- this round: "race" | "drift" (the picked plot's)
 local driftEnds = false -- endsAt is a drift round's end (shown to everyone still in)
 local racingAt = 0 -- os.clock() when this race started (the banner stays up over the 3-2-1)
-local BANNER = 5 -- seconds the "RACE ON MIA'S TRACK!" banner stays up once the race is on
+local BANNER = 5 -- seconds the "RACE IN THE KITCHEN!" banner stays up once the race is on
 
 -- the words change once a second: built 10 times a second, not every frame (and right away
 -- when the phase changes or a chip comes up, so it never shows old words)
@@ -250,7 +250,11 @@ RunService.RenderStepped:Connect(function()
 	if call.Visible then
 		if words or not wasCall then
 			local verb = if kind == "drift" then "DRIFT" else "RACE"
-			callWhere.Text = if where ~= "" then `{verb} ON {where}!` else `{verb}!`
+			-- a map is a place ("RACE IN THE KITCHEN!"), an old plot track was someone's
+			callWhere.Text = if where == ""
+				then `{verb}!`
+				elseif RaceMaps.live() then `{verb} IN THE {where}!`
+				else `{verb} ON {where}!`
 			callClock.Text = ServerRace.clock(secs)
 		end
 		-- a little pulse each second
@@ -357,6 +361,16 @@ local function showResult(rows: { any })
 	if mine and mine > 4 then
 		local r = rows[mine]
 		table.insert(lines, `<font color="#FFCD3C">{mine}. YOU</font>{paidText(r)}`)
+	end
+	-- the winner's prize (TycoonServer.raceWon): their garage makes double coins for a while
+	if won and first.time then
+		local mins = math.floor(ServerRace.BOOST_TIME / 60)
+		table.insert(
+			lines,
+			if mine == 1
+				then `<font color="#7CFF6B">YOUR GARAGE: 2X COINS {mins} MIN!</font>`
+				else `<font color="#7CFF6B">{first.name}: 2X COINS {mins} MIN</font>`
+		)
 	end
 	table.insert(
 		lines,
