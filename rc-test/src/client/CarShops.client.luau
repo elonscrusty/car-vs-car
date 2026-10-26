@@ -928,6 +928,9 @@ local function carTag(over: BasePart, car: CarCatalog.Car)
 	b.StudsOffsetWorldSpace = Vector3.new(0, 2.6, 0)
 	b.StudsOffset = Vector3.new(0, 0, 2)
 	b.MaxDistance = 24
+	-- the side cars stand behind the shop's front posts: draw over them (only near, so it
+	-- never floats through walls from across the spawn)
+	b.AlwaysOnTop = true
 	b.LightInfluence = 0
 	b.Parent = tags
 	local function line(t: string, y: number, h: number, fill: Color3?, color: Color3)
