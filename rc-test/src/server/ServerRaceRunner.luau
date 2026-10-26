@@ -16,6 +16,7 @@ local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local Features = require(ReplicatedStorage.Shared.Features)
 local Forever = require(ReplicatedStorage.Shared.Forever)
 local LapTimer = require(ReplicatedStorage.Shared.LapTimer)
+local Leaderboards = require(script.Parent.Leaderboards)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
@@ -71,7 +72,7 @@ local ServerRaceRunner = {}
 -- "racing" (startAt = workspace:GetServerTimeNow() time of the start, count = unused now that
 -- everyone races, kind = "race" | "drift" (the picked plot's), where = "KITCHEN" (the map) once
 -- picked), ("result", rows) when a race ends: rows = { { name, time?, score?, laps, coins?,
--- stars? } } best first (what that racer was paid; score = a drift round's points). To one
+-- stars?, bot? } } best first (what that racer was paid; score = a drift round's points). To one
 -- racer: ("finished", place) when its car crosses the line for the last time, ("ends", endsAt)
 -- when the winner is in (the others have until endsAt), or ("ends", endsAt, "drift") at the
 -- start of a drift round (when it ends). Live places: the racer's attributes RacePlace /
@@ -94,7 +95,7 @@ local function now(): number
 end
 
 -- carter's tycoon plan (rc-game/tycoon/PLAN.md, 10-26): races on the big maps (RaceMaps) instead
--- of on players' plots, as soon as a map exists and Features.PLOT_RACING is off. Who races: the
+-- of on players' plots, as soon as a map exists. Who races: the
 -- players who walked onto the JOIN NEXT RACE pad (join). Before the start everyone votes a map.
 local function mapMode(): boolean
 	return RaceMaps.live()
@@ -404,8 +405,7 @@ local function payRace(
 			giveStars(p, n)
 		end
 	end
-	-- (the tycoon plan has no player tracks to pick: no owner bonus)
-	local owner = if Features.PLOT_RACING then LobbyPlots.ownerOf(slot) else nil
+	local owner: Player? = nil -- (the tycoon plan has no player tracks to pick: no owner bonus)
 	if owner and owner.Parent then
 		pay(owner, ServerRace.PAY_OWNER, "your track was picked!")
 		-- one number per row: the owner's row counts the bonus too
@@ -430,10 +430,8 @@ local function racersHere(): { Player }
 		return list
 	end
 	for _, p in Players:GetPlayers() do
-		local stage = p:GetAttribute("Stage")
 		-- (tycoon plan: no plot to lap on first, so the race IS a new kid's first drive)
-		local lapped = type(stage) == "number" and stage >= Profile.STAGE.LAPPED
-		if #list < ServerRace.MAX and (lapped or not Features.PLOT_RACING) then
+		if #list < ServerRace.MAX then
 			table.insert(list, p)
 		end
 	end
@@ -633,6 +631,9 @@ local function runRace(hooks: Hooks, slot: number)
 					r.waitLeave = onLine
 				elseif LapTimer.update(r.timer, clock, lx, ly, lz) == "lap" then
 					r.laps += 1
+					if r.timer.last then
+						Leaderboards.lap(p, t.map, r.timer.last) -- fastest-lap boards (server clock)
+					end
 					if r.laps >= ServerRace.LAPS then
 						r.time = clock - goAt
 						startCountdown(clock - goAt)
@@ -744,6 +745,7 @@ local function runRace(hooks: Hooks, slot: number)
 					coins = coins,
 					stars = stars,
 					car = carName(e.uid, "race"),
+					bot = e.uid == nil or nil, -- a race bot (RaceBotCars): no prize
 				})
 			end
 			event:FireAllClients("result", rows)

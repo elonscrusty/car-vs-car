@@ -17,7 +17,6 @@ local SoundLevels = require(Shared:WaitForChild("SoundLevels"))
 local Garage = require(Shared:WaitForChild("Garage"))
 local CarCatalog = require(Shared:WaitForChild("CarCatalog"))
 local CarGlow = require(Shared:WaitForChild("CarGlow"))
-local Features = require(Shared:WaitForChild("Features"))
 local HudLayout = require(Shared:WaitForChild("HudLayout"))
 local KartStyle = require(Shared:WaitForChild("KartStyle"))
 local Party = require(script.Parent:WaitForChild("Party"))
@@ -254,7 +253,7 @@ local revealSpin: RBXScriptConnection? = nil
 -- Can this car go for a drive from the shop? (Tycoon plan: plots are garages, only the free
 -- drift plot drives; a race car races on the maps with JOIN RACE.)
 local function drivesNow(car: CarCatalog.Car): boolean
-	return Features.PLOT_RACING or car.mode == "drift"
+	return car.mode == "drift"
 end
 
 -- A kind's pill colour: its own, but common's light grey is a slate here (it vanished on the
@@ -308,9 +307,7 @@ local function reveal(car: CarCatalog.Car, onDone: () -> ())
 		text(box, car.name, 0, 0.7, 1, 0.1, Color3.new(1, 1, 1)),
 		text(
 			box,
-			if Features.PLOT_RACING
-				then "You're driving it now!"
-				else `In your garage! +{CarCatalog.rarity(car.id).perMin} coins/min`,
+			`In your garage! +{CarCatalog.rarity(car.id).perMin} coins/min`,
 			0,
 			0.8,
 			1,
@@ -763,7 +760,7 @@ plates.Parent = workspace
 local function carTag(ring: BasePart, out: Vector3, car: CarCatalog.Car)
 	local tier = CarCatalog.rarity(car.id)
 	-- out past the turntable's edge, so a spinning car's nose never pokes through it
-	local at = ring.Position + out * 3.3 + Vector3.new(0, 0.75, 0)
+	local at = ring.Position + out * 3.3 + Vector3.new(0, 0.95, 0)
 	local p = Instance.new("Part")
 	p.Name = car.id
 	p.Anchored = true
@@ -771,7 +768,8 @@ local function carTag(ring: BasePart, out: Vector3, car: CarCatalog.Car)
 	p.CanQuery = false
 	p.CanTouch = false
 	p.CastShadow = false
-	p.Size = Vector3.new(3.8, 1.6, 0.15)
+	-- as big as fits: 1 stud between plates; Studio 10-26 found 3.8x1.6 too small at 20 studs
+	p.Size = Vector3.new(4.6, 2, 0.15)
 	p.Color = KartStyle.INK
 	p.Material = Enum.Material.SmoothPlastic
 	-- facing out of the shop, leaned back so it reads from standing height
@@ -787,19 +785,19 @@ local function carTag(ring: BasePart, out: Vector3, car: CarCatalog.Car)
 	-- 20 studs, white ones melted into the white plaza and the gold price was faint on them)
 	local edge = Instance.new("Frame")
 	-- inset by the rim's width: a border stroke draws outside its frame
-	edge.Position = UDim2.fromOffset(8, 8)
-	edge.Size = UDim2.new(1, -16, 1, -16)
+	edge.Position = UDim2.fromOffset(6, 6)
+	edge.Size = UDim2.new(1, -12, 1, -12)
 	edge.BackgroundTransparency = 1
 	edge.Parent = b
 	local edgeRim = Instance.new("UIStroke")
-	edgeRim.Thickness = 8
+	edgeRim.Thickness = 6
 	edgeRim.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	edgeRim.Color = rgb(tier.color)
 	edgeRim.Parent = edge
 	local function line(t: string, y: number, h: number, fill: Color3?, color: Color3)
 		local l = Instance.new("TextLabel")
-		l.Position = UDim2.fromScale(if fill then 0.12 else 0.06, y)
-		l.Size = UDim2.fromScale(if fill then 0.76 else 0.88, h)
+		l.Position = UDim2.fromScale(if fill then 0.08 else 0.04, y)
+		l.Size = UDim2.fromScale(if fill then 0.84 else 0.92, h)
 		l.BackgroundColor3 = fill or Color3.new()
 		l.BackgroundTransparency = if fill then 0 else 1
 		l.Font = Enum.Font.LuckiestGuy
@@ -815,10 +813,11 @@ local function carTag(ring: BasePart, out: Vector3, car: CarCatalog.Car)
 			corner(l, 0.5)
 		end
 	end
-	-- common's pill a lighter slate here, so it shows on the dark plate
-	local pill = if tier.id == "common" then Color3.fromRGB(150, 158, 180) else pillColor(tier)
-	line(tier.label, 0.12, 0.34, pill, Color3.new(1, 1, 1))
-	line(if car.price == 0 then "FREE" else `{car.price} coins`, 0.52, 0.38, nil, GOLD)
+	-- white words on every pill, like the others: common's is a mid slate here (Studio 10-26: a
+	-- light slate with white words, and a light grey with dark words, both blurred at 20 studs)
+	local pill = if tier.id == "common" then Color3.fromRGB(100, 110, 140) else pillColor(tier)
+	line(tier.label, 0.08, 0.4, pill, Color3.new(1, 1, 1))
+	line(if car.price == 0 then "FREE" else `{car.price} coins`, 0.51, 0.44, nil, GOLD)
 end
 
 local function addShop(shopModel: Model)

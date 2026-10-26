@@ -1,7 +1,7 @@
 --!strict
 -- Builds the garage yard on each plot (PlotGarage has the layout): the little loop road, the
 -- coin pile pad, the LEVEL UP sign and the looks for the plot's level. Only while plots are
--- garages (Features.GARAGES on, PLOT_RACING off): then each plot's old track is put away in
+-- garages (Features.GARAGES on): then each plot's old track is put away in
 -- ServerStorage (kept, so it can come back) and the
 -- yard goes in its place. The open drift plot keeps its track for free drift play. Rebuilt when
 -- the plot's level or owner changes (TycoonServer sets PlotLevel on the owner's plot). The cars
@@ -60,7 +60,7 @@ local function levelOf(plot: Instance): number
 end
 
 function PlotGarageBuilder.start()
-	if Features.PLOT_RACING or not Features.GARAGES then
+	if not Features.GARAGES then
 		return
 	end
 	local store: Instance = ServerStorage:FindFirstChild("HiddenPlotTracks")

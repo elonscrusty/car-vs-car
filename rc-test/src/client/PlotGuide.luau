@@ -10,7 +10,6 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local Features = require(ReplicatedStorage.Shared.Features)
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
 local JoinStage = require(ReplicatedStorage.Shared.JoinStage)
 local StageGate = require(script.Parent.StageGate)
@@ -235,7 +234,7 @@ function PlotGuide.new(): PlotGuide
 	returning()
 
 	-- the tycoon plan: plots are garages, races are on the maps (JOIN RACE pad at the spawn)
-	local tycoonOn = not Features.PLOT_RACING
+	local tycoonOn = true
 	local seenGarage = false
 
 	-- the goal is picked 10 times a second (new tables each pick); the arrows glow every frame

@@ -28,10 +28,10 @@ local RaceMaps = {}
 -- The maps in vote order (module names in Shared/Maps). The map builder adds them here.
 RaceMaps.NAMES = { "Backyard", "Kitchen" } :: { string }
 
--- Does the server race run on the maps (not on players' plots)? A map exists and plot racing
--- is off (Features). Then the wait between races is ServerRace.MAP_BREAK.
+-- Does the server race run on the maps? A map exists. Then the wait between races is
+-- ServerRace.MAP_BREAK.
 function RaceMaps.live(): boolean
-	return #RaceMaps.NAMES > 0 and not sibling("Features").PLOT_RACING
+	return #RaceMaps.NAMES > 0
 end
 
 function RaceMaps.list(): { any }

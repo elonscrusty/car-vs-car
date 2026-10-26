@@ -16,10 +16,8 @@ local player = Players.LocalPlayer
 -- pieces of a part the tycoon plan switched off (Features): never shown, at any stage
 local OFF: { [string]: boolean } = {
 	stars = not Features.STARS,
-	top3 = not Features.PLOT_RACING,
-	visit = not Features.PLOT_RACING,
-	friends = not Features.PLOT_RACING, -- let others drive your plot
-	quick = not Features.PLOT_RACING, -- QUICK RACE on a free plot
+	friends = true, -- let others drive your plot (plot racing is gone)
+	quick = true, -- QUICK RACE on a free plot (plot racing is gone)
 	looks = not Features.STARS, -- plot looks were bought with stars
 }
 

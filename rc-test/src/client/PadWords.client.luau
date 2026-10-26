@@ -11,7 +11,6 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Garage = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Garage"))
-local Features = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Features"))
 local StageGate = require(script.Parent:WaitForChild("StageGate"))
 local KartStyle = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("KartStyle"))
 
@@ -45,9 +44,6 @@ local function smallText(base: BasePart): string
 		return if Players.LocalPlayer:GetAttribute("RaceJoined") == true
 			then "YOU'RE IN!"
 			else "STAND HERE"
-	end
-	if Features.PLOT_RACING and workspace:GetAttribute("BuildOpen") == false then
-		return "AFTER THE RACE"
 	end
 	local busy = base:GetAttribute("BusyUntil")
 	if type(busy) == "number" and busy > workspace:GetServerTimeNow() then
@@ -261,8 +257,7 @@ local function showAll()
 		on = false
 	end
 	holder.Enabled = on
-	-- (with plot racing off, the drift plot is free play: it works during a race too)
-	local callOn = Features.PLOT_RACING and workspace:GetAttribute("BuildOpen") == false
+	local callOn = false
 	local eye = if cam then cam.CFrame.Position else nil
 	for b, gate in gates do
 		if b.Parent == nil then

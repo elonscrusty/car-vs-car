@@ -96,6 +96,22 @@ local function part(
 	return p
 end
 
+-- a part that is only for looks: no collisions, no shadow
+local function looks(
+	parent: Instance,
+	name: string,
+	size: Vector3,
+	cf: CFrame,
+	color: Color3,
+	mat: Enum.Material?,
+	shape: Enum.PartType?
+): Part
+	local p = part(parent, name, size, cf, color, mat, shape)
+	finish(p, false)
+	p.CastShadow = false
+	return p
+end
+
 -- a flat strip from a to b (map-local), top at `top`
 local function strip(
 	parent: Instance,
@@ -1620,20 +1636,6 @@ end
 -- ===== what makes it read as a giant world from the chase cam =====
 
 -- a part nobody bumps and the wheels and camera never see
-local function looks(
-	parent: Instance,
-	name: string,
-	size: Vector3,
-	cf: CFrame,
-	color: Color3,
-	mat: Enum.Material?,
-	shape: Enum.PartType?
-): Part
-	local p = part(parent, name, size, cf, color, mat, shape)
-	finish(p, false)
-	p.CastShadow = false
-	return p
-end
 
 -- a blade of grass: a thin tall slab leaning out from the road, many times taller than the car
 local function blade(

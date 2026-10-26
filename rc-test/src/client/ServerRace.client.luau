@@ -390,7 +390,7 @@ local function showResult(rows: { any })
 		table.insert(lines, `<font color="#FFCD3C">{mine}. YOU</font>{paidText(r)}`)
 	end
 	-- the winner's prize (TycoonServer.raceWon): their garage makes double coins for a while
-	if won and first.time then
+	if won and first.time and first.bot ~= true then -- (a bot that wins gets no prize)
 		local mins = math.floor(ServerRace.BOOST_TIME / 60)
 		table.insert(
 			lines,
