@@ -12,6 +12,7 @@ local TweenService = game:GetService("TweenService")
 local CarMath = require(ReplicatedStorage.Shared.CarMath)
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
 local KartStyle = require(ReplicatedStorage.Shared.KartStyle)
+local RaceMaps = require(ReplicatedStorage.Shared.RaceMaps)
 local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
 local Party = require(script.Parent:WaitForChild("Party"))
 local StageGate = require(script.Parent:WaitForChild("StageGate"))
@@ -359,7 +360,9 @@ local function showResult(rows: { any })
 	end
 	table.insert(
 		lines,
-		`<font color="#CFE3FF">NEXT RACE IN {ServerRace.clock(ServerRace.BREAK)}</font>`
+		`<font color="#CFE3FF">NEXT RACE IN {ServerRace.clock(
+			if RaceMaps.live() then ServerRace.MAP_BREAK else ServerRace.BREAK
+		)}</font>`
 	)
 	rowsText.Text = table.concat(lines, "\n")
 	-- the card fits its rows (one racer = a short card, no empty gap)
