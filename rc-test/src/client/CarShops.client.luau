@@ -929,9 +929,12 @@ local function carTag(over: BasePart, car: CarCatalog.Car)
 	local b = Instance.new("BillboardGui")
 	b.Name = car.id
 	b.Adornee = over
-	b.Size = UDim2.fromScale(4.2, 1.7)
-	b.StudsOffsetWorldSpace = Vector3.new(0, 4.6, 0)
-	b.MaxDistance = 45
+	-- just over the car's roof and a little toward you, so the shop's shutter and the car
+	-- itself never hide it (Studio check 10-26); never smaller than a phone can read
+	b.Size = UDim2.new(3, 70, 1.2, 28)
+	b.StudsOffsetWorldSpace = Vector3.new(0, 2.6, 0)
+	b.StudsOffset = Vector3.new(0, 0, 2)
+	b.MaxDistance = 60
 	b.LightInfluence = 0
 	b.Parent = tags
 	local function line(t: string, y: number, h: number, fill: Color3?, color: Color3)
@@ -969,13 +972,14 @@ local function addShop(shopModel: Model)
 		return
 	end
 	seen[shopModel] = true
-	for i = 1, #Garage.SHOPS[kind].names do
+	local shown = Garage.SHOPS[kind]
+	for i, at in shown.display do
 		local car = shopModel:FindFirstChild("Car" .. i)
 		local stand = shopModel:FindFirstChild("Stand" .. i)
 		local ring = stand and stand:FindFirstChild("Ring")
 		if car and car:IsA("Model") then
-			local info = CarCatalog.get(Garage.SHOPS[kind].ids[i])
-			CarGlow.applyCar(car, Garage.SHOPS[kind].ids[i])
+			local info = CarCatalog.get(shown.ids[at])
+			CarGlow.applyCar(car, shown.ids[at])
 			if info then
 				local over = if ring and ring:IsA("BasePart") then ring else car.PrimaryPart
 				if over then
