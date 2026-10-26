@@ -12,6 +12,7 @@ local TweenService = game:GetService("TweenService")
 local CarMath = require(ReplicatedStorage.Shared.CarMath)
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
 local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
+local StageGate = require(script.Parent:WaitForChild("StageGate"))
 
 local event = ReplicatedStorage:WaitForChild("ServerRace") :: RemoteEvent
 local player = Players.LocalPlayer
@@ -54,6 +55,7 @@ join.Active = false
 join.Visible = false
 join.Parent = gui
 corner(join, 0.5)
+StageGate.hold(join, "race") -- a brand new player drives their own plot first (JoinStage)
 local joinPad = Instance.new("UIPadding")
 joinPad.PaddingLeft = UDim.new(0.06, 0)
 joinPad.PaddingRight = UDim.new(0.06, 0)
@@ -73,6 +75,7 @@ call.Size = UDim2.fromScale(0.5, 0.36)
 call.BackgroundTransparency = 1
 call.Visible = false
 call.Parent = gui
+StageGate.hold(call, "race")
 local callAspect = Instance.new("UIAspectRatioConstraint")
 callAspect.AspectRatio = 2.6
 callAspect.Parent = call
@@ -280,8 +283,8 @@ end
 
 local function showResult(rows: { any })
 	placeText.Visible = false
-	if #rows == 0 then
-		return
+	if #rows == 0 or not StageGate.shows("race") then
+		return -- (a brand new player isn't in the race: no winner card over their first lap)
 	end
 	local first = rows[1]
 	local won = first.time or (type(first.score) == "number" and first.score > 0)

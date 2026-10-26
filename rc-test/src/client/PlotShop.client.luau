@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HudLayout = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("HudLayout"))
 local PlotShop = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("PlotShop"))
 local Popup = require(script.Parent:WaitForChild("Popup"))
+local StageGate = require(script.Parent:WaitForChild("StageGate"))
 
 local player = Players.LocalPlayer
 local remote = ReplicatedStorage:WaitForChild("PlotShopEvent") :: RemoteEvent
@@ -68,6 +69,7 @@ openBtn.BackgroundColor3 = Color3.fromRGB(176, 70, 255)
 openBtn.BackgroundTransparency = 0.15
 openBtn.Visible = false
 corner(openBtn, 0.3)
+StageGate.hold(openBtn, "looks") -- not for a brand new player (JoinStage)
 
 local panel = Instance.new("Frame")
 panel.Name = "Panel"
