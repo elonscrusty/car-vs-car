@@ -52,5 +52,6 @@ require("./save_safety.test")
 require("./forever.test")
 require("./sound_levels.test")
 require("./cvc_core.test")
+require("./crates.test")
 
 Harness.summary()
