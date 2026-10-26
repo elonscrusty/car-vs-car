@@ -13,13 +13,15 @@ Leaderboards.MIN_LAP_MS = 3000 -- a lap faster than this is a glitch, never save
 Leaderboards.MAX_LAP_MS = 600000
 Leaderboards.MAX_COINS_MIN = 10000000
 
--- Lobby-local space (SpawnLobby: x across, +z toward the street): behind the back kerb (z = -35.5),
--- facing the street, centred on the stands. The board centre is BOARD_Y up.
-Leaderboards.BOARD_Z = -37.5
-Leaderboards.BOARD_Y = 8
-Leaderboards.BOARD_W = 13
-Leaderboards.BOARD_H = 7.5
-Leaderboards.GAP = 16 -- between board centres
+-- Lobby-local space (SpawnLobby: x across, +z toward the street): at the front, flanking the walk
+-- onto the street (|x| < SpawnLobby.GAP stays open), facing back at the spawn so they are the first
+-- thing in view past the play pads. Clear of the front bushes (x +-36) and the lamps (x +-10).
+-- Board i (the garage first, then one a map) stands at SLOTS[i]; a board without a slot is not built.
+Leaderboards.BOARD_Z = 29
+Leaderboards.BOARD_Y = 5.5
+Leaderboards.BOARD_W = 10
+Leaderboards.BOARD_H = 8
+Leaderboards.SLOTS = { 23.5, -18, -29 }
 
 export type Board = {
 	id: string, -- "coins" or "lap_<mapId>"
@@ -32,7 +34,9 @@ export type Board = {
 
 export type Row = { uid: number, name: string, score: number }
 
--- The boards for these maps ({ id, label }): the garage board, then one lap board a map. Centred.
+-- The boards for these maps ({ id, label }): the garage board, then one lap board a map. Boards past
+-- the last slot get x = 0 (nil slot: Leaderboards.placed says no).
+
 function Leaderboards.boards(maps: { { id: string, label: string } }): { Board }
 	local list: { Board } = {
 		{
@@ -55,7 +59,7 @@ function Leaderboards.boards(maps: { { id: string, label: string } }): { Board }
 		})
 	end
 	for i, b in list do
-		b.x = (i - (#list + 1) / 2) * Leaderboards.GAP
+		b.x = Leaderboards.SLOTS[i] or 0
 	end
 	return list
 end
@@ -149,6 +153,10 @@ end
 -- Time for the next write? `last` = when this player's board was last written (nil = never).
 function Leaderboards.due(last: number?, now: number, gap: number): boolean
 	return last == nil or now - last >= gap
+end
+
+function Leaderboards.placed(board: Board, index: number): boolean
+	return Leaderboards.SLOTS[index] ~= nil
 end
 
 -- Where a board stands in the world: lobby-local (x, y, z) to world, for a lobby whose square's

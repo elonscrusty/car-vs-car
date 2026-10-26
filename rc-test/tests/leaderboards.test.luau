@@ -30,19 +30,39 @@ test("a garage board, then a lap board for every map, in their own stores", func
 	end
 end)
 
-test("the boards sit in a row, centred, clear of each other, behind the stands", function()
+test("every board has a spot, clear of each other, the walk, the bushes and the lamps", function()
 	for i, b in boards do
-		if i > 1 then
-			truthy(b.x - boards[i - 1].x >= Lb.BOARD_W + 1, "boards touch")
+		truthy(Lb.placed(b, i), b.id .. " has no slot")
+		truthy(
+			math.abs(b.x) - Lb.BOARD_W / 2 >= SpawnLobby.GAP,
+			b.id .. " blocks the walk to the street"
+		)
+		for j = 1, i - 1 do
+			truthy(
+				math.abs(b.x - boards[j].x) >= Lb.BOARD_W + 0.5,
+				b.id .. " touches " .. boards[j].id
+			)
 		end
+		for _, bush in SpawnLobby.BUSHES do
+			if bush.z > 20 then
+				truthy(math.abs(b.x - bush.x) >= Lb.BOARD_W / 2 + 0.5, b.id .. " on a bush")
+			end
+		end
+		for _, lamp in SpawnLobby.LAMPS do
+			if lamp.z > 20 then
+				truthy(math.abs(b.x - lamp.x) >= Lb.BOARD_W / 2 + 0.5, b.id .. " on a lamp")
+			end
+		end
+		truthy(
+			b.x - Lb.BOARD_W / 2 >= SpawnLobby.BOX.minX
+				and b.x + Lb.BOARD_W / 2 <= SpawnLobby.BOX.maxX
+		)
 	end
-	eq(boards[1].x + boards[#boards].x, 0)
-	local edge = math.max(math.abs(boards[1].x), math.abs(boards[#boards].x)) + Lb.BOARD_W / 2
-	truthy(edge <= SpawnLobby.BOX.maxX - 20, "board runs into the side shops")
-	-- behind the back kerb (z -35.5), inside the lobby box
-	truthy(Lb.BOARD_Z < -35.5 and Lb.BOARD_Z - 0.5 >= SpawnLobby.BOX.minZ)
-	-- above the dream cars on the stands, under the box top
-	truthy(Lb.BOARD_Y - Lb.BOARD_H / 2 > 4 and Lb.BOARD_Y + Lb.BOARD_H / 2 <= SpawnLobby.BOX.maxY)
+	-- in front of the play pads (z 23) and behind the arch (z 33.5), above head height, under the box top
+	truthy(Lb.BOARD_Z > SpawnLobby.PAD_Z + 3 and Lb.BOARD_Z < SpawnLobby.ARCH_Z - 2)
+	truthy(
+		Lb.BOARD_Y - Lb.BOARD_H / 2 >= 1.5 and Lb.BOARD_Y + Lb.BOARD_H / 2 <= SpawnLobby.BOX.maxY
+	)
 	local x, y, z = Lb.world(lap, 100)
 	eq(x, lap.x)
 	eq(y, Lb.BOARD_Y)

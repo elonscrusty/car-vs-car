@@ -48,6 +48,7 @@ local pending: { [Player]: Pending } = {}
 local lastWrite: { [Player]: { [string]: number } } = {}
 local names: { [number]: string } = {}
 local studio = RunService:IsStudio()
+local storeDown = false -- Studio only: a call failed (API access off gives 403 or 502), so no more tries
 
 -- ===== the store, with retries =====
 
@@ -59,6 +60,10 @@ local function call(what: string, fn: () -> any): (boolean, any)
 			return true, result
 		end
 		warn(`[Leaderboards] {what} try {i}:`, result)
+		if studio then
+			storeDown = true
+			break
+		end
 		if string.find(tostring(result), "403", 1, true) then
 			break
 		end
@@ -125,8 +130,8 @@ local function build(board: Lb.Board, folder: Instance, originZ: number)
 	anchor.CanTouch = false
 	anchor.Transparency = 1
 	anchor.Size = Vector3.new(w, h, 0.3)
-	-- facing the street (+z), the way people look when they turn round from the pads
-	anchor.CFrame = CFrame.lookAt(Vector3.new(x, y, z), Vector3.new(x, y, z + 10))
+	-- facing back at the spawn (-z)
+	anchor.CFrame = CFrame.lookAt(Vector3.new(x, y, z), Vector3.new(x, y, z - 10))
 	anchor.Parent = folder
 	-- two posts under it
 	for _, dx in { -w / 2 + 1, w / 2 - 1 } do
@@ -140,7 +145,7 @@ local function build(board: Lb.Board, folder: Instance, originZ: number)
 		post.Color = INK
 		local ph = y - h / 2
 		post.Size = Vector3.new(0.5, ph, 0.5)
-		post.CFrame = CFrame.new(x + dx, ph / 2, z - 0.3)
+		post.CFrame = CFrame.new(x + dx, ph / 2, z + 0.3)
 		post.Parent = anchor
 	end
 	local gui = Instance.new("SurfaceGui")
@@ -240,7 +245,7 @@ end
 
 local function refresh(board: Lb.Board)
 	local s = stores[board.id]
-	if not s then
+	if not s or storeDown then
 		return
 	end
 	local ok, pages = call("read " .. board.id, function()
@@ -394,22 +399,27 @@ function Leaderboards.start()
 		warn("[Leaderboards] no DataStore: the boards only show this session")
 		table.clear(stores)
 	end
-	for _, b in boards do
+	for i, b in boards do
 		byId[b.id] = b
-		build(b, folder, originZ)
-		draw(b)
+		if Lb.placed(b, i) then
+			build(b, folder, originZ)
+			draw(b)
+		else
+			warn(`[Leaderboards] no spot for the {b.id} board (Leaderboards.SLOTS)`)
+		end
 	end
 	-- no DataStore: keep this session's scores on the boards ourselves
 	local function noStore(): boolean
-		return next(stores) == nil
+		return next(stores) == nil or storeDown
 	end
 
 	local function join(p: Player)
 		task.spawn(function()
-			if noStore() then
-				known[p], loaded[p] = {}, true
-			else
+			if not noStore() then
 				loadMine(p)
+			end
+			if not loaded[p] then
+				known[p], loaded[p] = known[p] or {}, true
 			end
 		end)
 	end
@@ -449,7 +459,9 @@ function Leaderboards.start()
 					if budget <= 0 then
 						break
 					end
-					budget -= flushPlayer(p, p.UserId, false, budget)
+					if not noStore() then
+						budget -= flushPlayer(p, p.UserId, false, budget)
+					end
 				end
 				-- no store: scores still show on this server's boards
 				if noStore() then
