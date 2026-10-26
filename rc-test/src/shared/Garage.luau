@@ -45,7 +45,9 @@ Garage.FLOOR = 0.3 -- floor top (a small step up from the plaza)
 Garage.BOX = { minX = -14, maxX = 16, minZ = -8.5, maxZ = 9.5, maxY = 11 }
 -- Walking lane from the front to the middle of the floor: nothing solid stands here.
 Garage.LANE = { minX = 2, maxX = 8, minZ = -3, maxZ = 8 }
-Garage.SHOP_STANDS = { -7, 0, 7 } -- x of the shop's three turntables (z = 1.5)
+-- x of the shop's three turntables (z = 1.5). Close together: the CarShop mesh's front posts
+-- hid cars at ±7 from the front (Studio 10-26).
+Garage.SHOP_STANDS = { -5.6, 0, 5.6 }
 -- The spawn lobby's three car shops: the building's trim colour, and the cars on show (from
 -- CarCatalog, in shop order: colour, Garage.toyCar style, name, price in coins, id).
 local SHOP_TRIM = { drift = { 150, 70, 210 }, race = { 226, 52, 46 }, rock = { 70, 176, 64 } }
