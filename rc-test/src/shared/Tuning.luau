@@ -165,6 +165,8 @@ local SCALED = {
 local base: { [string]: any } = table.clone(Tuning)
 local currentMode = "race"
 local currentScale = 1
+-- a car's trained bars in the big race (RaceStats.drive; Car VS Car): 1 = today's numbers
+local currentStats = { top = 1, start = 1, turn = 1 }
 
 local function apply()
 	local t = Tuning :: any
@@ -177,6 +179,11 @@ local function apply()
 			t[key] = value
 		end
 	end
+	t.topSpeed *= currentStats.top
+	t.accel *= currentStats.start
+	t.steerLow *= currentStats.turn
+	t.steerHigh *= currentStats.turn
+	t.steerMax *= currentStats.turn
 	for _, key in SCALED do
 		t[key] *= currentScale
 	end
@@ -195,4 +202,15 @@ local function setScale(s: number)
 	apply()
 end
 
-return setmetatable(Tuning, { __index = { setMode = setMode, setScale = setScale } })
+-- A car's race multipliers (RaceStats.Drive: top, start, turn); nil = back to today's numbers.
+local function setStats(d: { top: number, start: number, turn: number }?)
+	currentStats = if d
+		then { top = d.top, start = d.start, turn = d.turn }
+		else { top = 1, start = 1, turn = 1 }
+	apply()
+end
+
+return setmetatable(
+	Tuning,
+	{ __index = { setMode = setMode, setScale = setScale, setStats = setStats } }
+)

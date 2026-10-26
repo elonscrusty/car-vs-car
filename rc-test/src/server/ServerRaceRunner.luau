@@ -25,6 +25,7 @@ local RunCheck = require(ReplicatedStorage.Shared.RunCheck)
 local Jobs = require(script.Parent.Jobs)
 local RaceBots = require(ReplicatedStorage.Shared.RaceBots)
 local RaceMaps = require(ReplicatedStorage.Shared.RaceMaps)
+local RaceStats = require(ReplicatedStorage.Shared.RaceStats)
 local RaceBotCars = require(script.Parent.RaceBotCars)
 local LobbyPlots = require(script.Parent.LobbyPlots)
 local PlayerData = require(script.Parent.PlayerData)
@@ -110,6 +111,7 @@ local waiting: { [Player]: boolean } = {} -- walked onto the pad during a race: 
 local votes: { [Player]: string } = {}
 local voteOpen = false
 local lastVote: { [Player]: number } = {}
+local lastJoin: { [Player]: number } = {} -- (the CVC JOIN button: once in a while)
 
 local function mapIds(): { string }
 	local ids = {}
@@ -158,6 +160,7 @@ local function sendState(to: Player?)
 	if to == nil then
 		setBuild()
 	end
+	workspace:SetAttribute("NextRaceAt", if phase == "racing" then nil else startAt) -- (the JOIN button's clock)
 	local kind = if picked and LobbyLayout.track(picked).id == "drift" then "drift" else "race"
 	local list = if to then { to } else Players:GetPlayers()
 	for _, p in list do
@@ -438,6 +441,25 @@ local function racersHere(): { Player }
 	return list
 end
 
+-- Car VS Car: the racer's trained bars go on the player for their car's screen (RaceStats); off
+-- (nil) = today's numbers. Set before "drive", so the car is right from the grid.
+local function setDrive(p: Player, on: boolean)
+	local d: RaceStats.Drive? = nil
+	if on and Features.CVC then
+		local mod = script.Parent:FindFirstChild("TrainingServer")
+		if mod and mod:IsA("ModuleScript") then
+			local ok, car, stats = pcall(function()
+				return (require(mod) :: any).racer(p)
+			end)
+			d = RaceStats.drive(if ok then car else nil, if ok then stats else nil)
+		end
+	end
+	p:SetAttribute("RaceTop", d and d.top)
+	p:SetAttribute("RaceStart", d and d.start)
+	p:SetAttribute("RaceTurn", d and d.turn)
+	p:SetAttribute("RaceBoost", d and d.boostSecs)
+end
+
 local function runRace(hooks: Hooks, slot: number)
 	RaceBotCars.clear(fleet)
 	fleet = nil
@@ -464,6 +486,7 @@ local function runRace(hooks: Hooks, slot: number)
 				hooks.walk(p)
 			end
 			LobbyPlots.claim(p, slot)
+			setDrive(p, true)
 			hooks.remote:FireClient(p, "drive", slot, gridSpot(slot, t, k))
 			table.insert(racers, {
 				player = p,
@@ -765,6 +788,7 @@ local function runRace(hooks: Hooks, slot: number)
 		if r.player.Parent then
 			r.player:SetAttribute("RacePlace", nil)
 			r.player:SetAttribute("RaceCars", nil)
+			setDrive(r.player, false)
 		end
 	end
 	task.wait(ServerRace.SHOW)
@@ -796,12 +820,21 @@ function ServerRaceRunner.start(hooks: Hooks)
 		end
 	end)
 	Players.PlayerRemoving:Connect(function(player: Player)
-		joined[player], votes[player], lastVote[player] = nil, nil, nil
+		joined[player], votes[player], lastVote[player], lastJoin[player] = nil, nil, nil, nil
 		waiting[player] = nil
 	end)
 	-- the map vote: ("vote", mapId) from a screen, at most twice a second; everyone sees the count
 	-- (a vote also joins the next race)
 	event.OnServerEvent:Connect(function(player: Player, kind: unknown, id: unknown)
+		-- Car VS Car's big JOIN button (UI): the same as the JOIN pad
+		if kind == "join" and Features.CVC then
+			local t = os.clock()
+			if t - (lastJoin[player] or 0) >= 0.5 then
+				lastJoin[player] = t
+				ServerRaceRunner.join(player)
+			end
+			return
+		end
 		if kind ~= "vote" or type(id) ~= "string" or not voteOpen then
 			return
 		end

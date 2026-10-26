@@ -53,5 +53,6 @@ require("./forever.test")
 require("./sound_levels.test")
 require("./cvc_core.test")
 require("./crates.test")
+require("./racestats.test")
 
 Harness.summary()
