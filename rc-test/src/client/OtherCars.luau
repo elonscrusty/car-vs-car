@@ -74,6 +74,10 @@ local function nameTag(body: BasePart, text: string, s: number): BillboardGui
 end
 
 local function playerName(model: Model): string
+	local bot = model:GetAttribute("BotName") -- a race bot (server's RaceBotCars)
+	if type(bot) == "string" then
+		return bot
+	end
 	local id = tonumber(string.match(model.Name, "^Car_(%-?%d+)$"))
 	local p = id and Players:GetPlayerByUserId(id)
 	return if p then p.DisplayName else "RC"

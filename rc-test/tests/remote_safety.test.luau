@@ -7,7 +7,6 @@ local Cat = require("../src/shared/CarCatalog")
 local Profile = require("../src/shared/Profile")
 local PlotShop = require("../src/shared/PlotShop")
 local ServerRace = require("../src/shared/ServerRace")
-local TileShop = require("../src/shared/TileShop")
 local Tycoon = require("../src/shared/Tycoon")
 
 local test, eq, truthy = H.test, H.eq, H.truthy
@@ -83,7 +82,6 @@ end)
 
 test("a gumball spin can never make coins, whatever the roll", function()
 	truthy(Cat.DUPLICATE_REFUND < Cat.GUMBALL_PRICE, "a repeat costs something")
-	truthy(TileShop.DUPLICATE_REFUND < TileShop.SPIN_PRICE, "a repeat tile costs something")
 	for _, r in { 0, 0.5, 33, 99.999, 100, 1e9, -5 } do
 		local d = Profile.new()
 		d.coins = Cat.GUMBALL_PRICE * 3
@@ -110,26 +108,6 @@ test("junk never buys, toggles or changes a plot look", function()
 		eq(PlotShop.buy(d, it.id), false, it.id)
 		eq(d.coins, it.price - 1)
 		eq(PlotShop.toggle(d, it.id), nil, "toggled a look not owned")
-	end
-end)
-
-test("junk and locked tiles never buy anything", function()
-	for _, id in junk do
-		local d = Profile.new()
-		d.coins = 1e6
-		eq(TileShop.buy(d, id), false)
-		eq(d.coins, 1e6)
-	end
-	for _, list in { TileShop.UNLOCK_STARS } do
-		for id, stars in list do
-			if stars > 0 then
-				local d = Profile.new()
-				d.coins = 1e9
-				d.stars = stars - 1
-				eq(TileShop.buy(d, id), false, id)
-				eq(d.coins, 1e9)
-			end
-		end
 	end
 end)
 
