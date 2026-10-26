@@ -16,6 +16,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local Features = require(ReplicatedStorage.Shared.Features)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local PlotTracks = require(ReplicatedStorage.Shared.PlotTracks)
 local Profile = require(ReplicatedStorage.Shared.Profile)
@@ -262,7 +263,10 @@ function TrackBuild.trackFor(slot: number): TrackTiles.Result?
 end
 
 function TrackBuild.start()
-	remote.OnServerEvent:Connect(onRequest)
+	-- (the tycoon plan: no tile building; saved tracks stay in the save)
+	if Features.TILES then
+		remote.OnServerEvent:Connect(onRequest)
+	end
 	for slot in LobbyLayout.slots() do
 		load(slot)
 	end

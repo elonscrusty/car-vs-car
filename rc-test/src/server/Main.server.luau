@@ -7,6 +7,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Features = require(ReplicatedStorage.Shared.Features)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local Forever = require(ReplicatedStorage.Shared.Forever)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
@@ -369,6 +370,8 @@ ServerRaceRunner.start({ remote = remote, walk = walk })
 -- E on a lobby pad: drive that plot (if it's yours, nobody's or open, and free), or stop.
 for slotIndex, prompt in lobby.prompts do
 	local slot = slots[slotIndex]
+	-- (the tycoon plan: players' plots are garages; only the open drift plot is driven)
+	prompt.Enabled = Features.PLOT_RACING or LobbyPlots.freePlay(slotIndex)
 	prompt.Triggered:Connect(function(player: Player)
 		local now = os.clock()
 		if now - (lastPrompt[player] or 0) < 0.5 then

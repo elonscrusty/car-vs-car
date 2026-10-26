@@ -10,6 +10,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Features = require(ReplicatedStorage.Shared.Features)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local PlotOwners = require(ReplicatedStorage.Shared.PlotOwners)
 
@@ -102,8 +103,17 @@ function LobbyPlots.addPlayer(player: Player): number?
 	return slot
 end
 
+-- Driven just for fun with the tycoon plan on (players' plots are garages): the drift plot.
+function LobbyPlots.freePlay(slot: number): boolean
+	local s = slots[slot]
+	return s ~= nil and s.id == "drift"
+end
+
 function LobbyPlots.canDrive(player: Player, slot: number): boolean
 	if slots[slot] == nil or driving[player] ~= nil then
+		return false
+	end
+	if not Features.PLOT_RACING and not LobbyPlots.freePlay(slot) then
 		return false
 	end
 	local owner = owners[slot]
