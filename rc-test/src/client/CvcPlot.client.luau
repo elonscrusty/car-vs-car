@@ -223,7 +223,7 @@ local function refresh(s: Shown)
 						p.CanQuery = false
 						p.CanTouch = false
 						p.CastShadow = false
-						p.Size = Vector3.new(4.2, 0.04, 0.3)
+						p.Size = Vector3.new(4.2 * PlotTraining.K, 0.04, 0.3 * PlotTraining.K)
 						p.Color = SLAT
 						p.Material = Enum.Material.SmoothPlastic
 						p.Parent = s.folder
@@ -274,7 +274,7 @@ local function place(s: Shown, clock: number)
 		for k, zz in PlotTraining.slats(t) do
 			local p = r.slats[k]
 			if p then
-				p.CFrame = s.pivot * CFrame.new(g.x, 1.2, g.z + zz)
+				p.CFrame = s.pivot * CFrame.new(g.x, 0.3 + 0.9 * PlotTraining.K, g.z + zz)
 			end
 		end
 	end
