@@ -5,6 +5,7 @@ local H = require("./harness")
 local RaceMaps = require("../src/shared/RaceMaps")
 local Maps = require("../src/shared/Maps")
 local MapKit = require("../src/shared/Maps/MapKit")
+local Kit = require("../src/shared/Plots/Kit")
 local LapTimer = require("../src/shared/LapTimer")
 
 local test, eq, truthy = H.test, H.eq, H.truthy
@@ -336,6 +337,27 @@ for _, m in maps do
 								)
 							end
 						end
+					end
+				end
+			end
+		end
+	end)
+
+	-- a looks-only line (the spoon) can't touch a road, curb or jump ramp: the car would drive
+	-- through it (only the hose may cross a road, under a jump's ridge)
+	test(m.id .. ": the dropped spoon lies clear of every road", function()
+		for _, l in def.lines do
+			if l.kind ~= "hose" then
+				local pts = Kit.path(l.points, 6)
+				for i, p in pts do
+					-- the bowl at the tip reaches 2.5 widths from its middle, the handle 1
+					local reach = if i == #pts then l.width * 2.5 else l.width
+					for k, ring in roads(m) do
+						local w = if k == 1 then def.road else def.paths[k - 1].width
+						truthy(
+							MapKit.distTo(ring, p.x, p.z) - reach > w / 2 + MapKit.CURB_WIDTH,
+							`{l.kind} at {math.floor(p.x)}, {math.floor(p.z)} touches road {k}`
+						)
 					end
 				end
 			end
