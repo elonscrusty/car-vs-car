@@ -6,6 +6,7 @@
 -- and a prompt on it that opens the crate screen for that crate (CvcCrate listens on the
 -- BindableEvent ReplicatedStorage.CvcCrateShop: Fire(kind)).
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -77,7 +78,7 @@ end
 -- crate's name on a pill in its colour, the price, and a chip per kind of car with its odds.
 local function plate(ring: BasePart, out: Vector3, kind: Crates.Kind): TextLabel
 	local color = rgb(Garage.CRATE_COLORS[kind.id] or Garage.CRATE_COLORS.basic)
-	local at = ring.Position + out * 3.3 + Vector3.new(0, 0.95, 0)
+	local at = ring.Position + out * 3.4 + Vector3.new(0, 1.2, 0)
 	local p = Instance.new("Part")
 	p.Name = kind.id
 	p.Anchored = true
@@ -85,7 +86,8 @@ local function plate(ring: BasePart, out: Vector3, kind: Crates.Kind): TextLabel
 	p.CanQuery = false
 	p.CanTouch = false
 	p.CastShadow = false
-	p.Size = Vector3.new(4.6, 2, 0.15)
+	-- as wide as the stands allow (5.6 apart), so the words read from the plaza (final pass 15b)
+	p.Size = Vector3.new(5.3, 2.5, 0.15)
 	p.Color = INK
 	p.Material = Enum.Material.SmoothPlastic
 	p.CFrame = CFrame.lookAt(at, at + out) * CFrame.Angles(math.rad(25), 0, 0)
@@ -148,7 +150,26 @@ local function paint()
 end
 LocalPlayer:GetAttributeChangedSignal("Coins"):Connect(paint)
 
-local GLOW: { [string]: string } = { basic = "rare", big = "epic", mega = "legend" }
+-- A soft light in each crate's own colour. (CarGlow's car lights are made for open stands: three
+-- in the small booth washed it out white, Studio final pass 15.) The mega one still pulses.
+local GLOW: { [string]: number } = { basic = 0.5, big = 0.65, mega = 0.8 }
+local function glow(crate: Model, id: string, color: Color3)
+	local part = crate:FindFirstChild("Box")
+	if not (part and part:IsA("BasePart")) then
+		return
+	end
+	local light = Instance.new("PointLight")
+	light.Name = "CrateGlow"
+	light.Color = color
+	light.Brightness = GLOW[id] or 0.5
+	light.Range = 5
+	light.Shadows = false
+	light:SetAttribute("Base", light.Brightness)
+	light.Parent = part
+	if id == "mega" then
+		CollectionService:AddTag(light, CarGlow.PULSE_TAG)
+	end
+end
 
 type Spin = { model: Model, base: CFrame, phase: number }
 local spins: { Spin } = {}
@@ -173,8 +194,7 @@ local function addShop(shop: Model)
 				table.insert(prices, { label = plate(ring, out, kind), cost = kind.price })
 				paint()
 			end
-			-- a glow like a car of the best kind it can give: big = epic, mega = legend (pulses)
-			CarGlow.apply(crate, GLOW[id])
+			glow(crate, id, color)
 			table.insert(spins, { model = crate, base = crate:GetPivot(), phase = i * 1.3 })
 			local box = crate:FindFirstChild("Box")
 			if box and box:IsA("BasePart") then
