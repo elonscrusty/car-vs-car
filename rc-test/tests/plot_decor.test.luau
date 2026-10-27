@@ -89,24 +89,17 @@ for _, kind in { "race", "drift", "rock" } do
 		end
 	end)
 
-	test(
-		kind .. ": Car VS Car: the gate stands back by the pads, off the stand's camera",
-		function()
-			local gate = false
-			for _, m in P.meshes(kind) do
-				if m.group == "Arch" then
-					gate = true
-					truthy(
-						m.at.z + m.fit.z / 2 <= P.HALF_D - 7,
-						"gate " .. m.model .. " back from the wall"
-					)
-				end
-			end
-			for _, p in if gate then P.parts(kind) else {} do
-				truthy(p.name ~= "Rope" and p.name ~= "Pennant", "no bunting to a gate that moved")
+	test(kind .. ": Car VS Car: no bunting ropes to the smaller gate", function()
+		local gate = false
+		for _, m in P.meshes(kind) do
+			if m.group == "Arch" then
+				gate = true
 			end
 		end
-	)
+		for _, p in if gate then P.parts(kind) else {} do
+			truthy(p.name ~= "Rope" and p.name ~= "Pennant", "no bunting to a gate that moved")
+		end
+	end)
 
 	test(kind .. ": a name board on the arch, high over the gate", function()
 		local n = 0

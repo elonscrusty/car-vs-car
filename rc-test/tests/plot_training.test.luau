@@ -230,6 +230,35 @@ test("from the gate, no car tag hides the room sign", function()
 	end
 end)
 
+test("the plot camera sees every pad, with the gate's name board under them", function()
+	local D = require("../src/shared/PlotDecor")
+	local C = T.STAND_CAM
+	local e, l = C.eye, C.look
+	local front = -math.huge -- the front pads' front edge
+	for _, g in T.GRID do
+		front = math.max(front, g.z + T.PAD.d / 2)
+	end
+	local down = math.atan((e.y - l.y) / (e.z - l.z)) -- the view's middle, below level
+	local half = math.rad(C.fov / 2)
+	local function angle(y: number, z: number): number -- below level, seen from the eye
+		return math.atan((e.y - y) / (e.z - z))
+	end
+	truthy(angle(0, front) < down + half, "front pads on screen")
+	truthy(angle(0, T.ROOM.z0) > down - half, "the room on screen")
+	for _, kind in { "race", "drift" } do
+		for _, m in D.meshes(kind) do
+			if m.group == "Arch" then
+				local back, top = m.at.z - m.fit.z / 2, m.fit.y
+				-- the gate's top stays under the line from the eye to the front pads
+				local lineY = e.y * (back - front) / (e.z - front)
+				truthy(top < lineY, m.model .. " under the pads")
+				-- and its top bar (the name board) is still on screen
+				truthy(angle(top * 0.9, m.at.z) < down + half, m.model .. " board on screen")
+			end
+		end
+	end
+end)
+
 test("locked pads have no little sign (their words are painted big on the pad)", function()
 	for _, p in T.pieces(1, 0, 0) do
 		if p.name == "PadSign" or p.name == "PadSignFoot" then
