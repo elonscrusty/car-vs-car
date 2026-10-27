@@ -66,7 +66,7 @@ local function nameTag(body: BasePart, text: string, s: number): BillboardGui
 	tag.Name = "NameTag"
 	tag.Size = UDim2.fromOffset(120, 26)
 	tag.StudsOffsetWorldSpace = Vector3.new(0, 3.2 * s, 0)
-	tag.AlwaysOnTop = true
+	tag.AlwaysOnTop = false -- (on carter's PC AlwaysOnTop tags never drew: Studio score/16-18)
 	tag.MaxDistance = 150
 	tag.Adornee = body
 	local l = Instance.new("TextLabel")

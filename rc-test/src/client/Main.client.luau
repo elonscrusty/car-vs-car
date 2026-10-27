@@ -838,7 +838,8 @@ local speedWas = 0 -- flat speed last frame (sparks on a hard stop)
 local youTag = Instance.new("BillboardGui")
 youTag.Name = "YouTag"
 youTag.Size = UDim2.fromOffset(90, 30)
-youTag.AlwaysOnTop = true
+-- (not AlwaysOnTop: on carter's PC no AlwaysOnTop billboard drew at all, Studio score/16-18)
+youTag.AlwaysOnTop = false
 youTag.MaxDistance = 1200
 youTag.ResetOnSpawn = false
 youTag.Enabled = false
