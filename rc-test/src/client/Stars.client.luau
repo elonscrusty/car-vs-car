@@ -56,6 +56,12 @@ top.ResetOnSpawn = false
 top.IgnoreGuiInset = true
 top.DisplayOrder = HudLayout.POPUP
 top.Parent = gui.Parent
+-- the screen's top left in AbsolutePosition terms (those start under Roblox's top bar)
+local topOrigin = Instance.new("Frame")
+topOrigin.Name = "Kart_Origin"
+topOrigin.BackgroundTransparency = 1
+topOrigin.Size = UDim2.fromOffset(0, 0)
+topOrigin.Parent = top
 
 local chip = Instance.new("TextLabel")
 chip.Name = "StarCount"
@@ -73,11 +79,14 @@ local chipScale = Instance.new("UIScale")
 chipScale.Parent = chip
 
 -- shown when this server can't save (Studio without API access, DataStore down)
+local NO_SAVE_X = 180 -- px: past Roblox's three top left buttons
 local noSave = Instance.new("TextLabel")
 noSave.Name = "NotSaving"
-noSave.AnchorPoint = Vector2.new(0, 1)
-noSave.Position = UDim2.new(0, 0, 0, -2) -- above the coins chip
-noSave.Size = UDim2.fromScale(1, 0.5)
+-- up in Roblox's top bar, right of its menu buttons (over the coins chip they hid the NOT,
+-- Studio polish-7)
+noSave.Position = UDim2.fromOffset(NO_SAVE_X, 18)
+noSave.Size = UDim2.fromOffset(260, 24)
+noSave.TextXAlignment = Enum.TextXAlignment.Left
 noSave.BackgroundTransparency = 1
 noSave.TextColor3 = Color3.fromRGB(255, 110, 100)
 noSave.TextStrokeTransparency = 0.4
@@ -93,7 +102,7 @@ HudLayout.place(coinChip, "CoinCount")
 coinChip.TextColor3 = Color3.fromRGB(255, 236, 150)
 coinChip.Text = "0"
 coinChip.Parent = hud
-noSave.Parent = coinChip
+noSave.Parent = hud
 -- a drawn coin (the coin emoji is missing from Roblox's font): gold disc, darker rim, a lighter
 -- inner ring. The number sits to its right.
 local coinPad = Instance.new("UIPadding")
@@ -599,18 +608,21 @@ local function flyCoins()
 	flying = true
 	local count = math.clamp(3 + gain // 15, 3, 10)
 	local view = workspace.CurrentCamera.ViewportSize
-	local chipPos = coinChip.AbsolutePosition + coinChip.AbsoluteSize / 2
+	-- (in StarsTop's offsets: AbsolutePosition starts under Roblox's top bar, so the +N sat 58 px
+	-- too high, off the top edge, Studio polish-8)
+	local chipAt = coinChip.AbsolutePosition - topOrigin.AbsolutePosition
+	local chipPos = chipAt + coinChip.AbsoluteSize / 2
 	local start = Vector2.new(view.X * 0.5, view.Y * 0.55)
-	-- "+N" by the chip
+	-- "+N" where the coins come from (by the chip it went off the top, and right of it sat on the
+	-- league badge)
 	local plus = Instance.new("TextLabel")
-	plus.AnchorPoint = Vector2.new(0, 0.5)
-	plus.Position =
-		UDim2.fromOffset(coinChip.AbsolutePosition.X + coinChip.AbsoluteSize.X + 6, chipPos.Y)
-	plus.Size = UDim2.fromOffset(110, 30)
+	plus.Name = "CoinPlus"
+	plus.AnchorPoint = Vector2.new(0.5, 1)
+	plus.Position = UDim2.fromOffset(start.X, start.Y - 56)
+	plus.Size = UDim2.fromOffset(140, 40)
 	plus.BackgroundTransparency = 1
 	plus.Font = Enum.Font.LuckiestGuy
 	plus.TextScaled = true
-	plus.TextXAlignment = Enum.TextXAlignment.Left
 	plus.TextColor3 = Color3.fromRGB(255, 213, 79)
 	plus.TextStrokeTransparency = 0.3
 	plus.Text = `+{gain}`
@@ -857,12 +869,7 @@ prize.BackgroundColor3 = Color3.fromRGB(30, 32, 44)
 prize.BackgroundTransparency = 0.08
 prize.Visible = false
 prize.Parent = top
--- the screen's top left in AbsolutePosition terms (those start under Roblox's top bar)
-local prizeOrigin = Instance.new("Frame")
-prizeOrigin.Name = "Kart_Origin"
-prizeOrigin.BackgroundTransparency = 1
-prizeOrigin.Size = UDim2.fromOffset(0, 0)
-prizeOrigin.Parent = top
+local prizeOrigin = topOrigin
 local prizeCorner = Instance.new("UICorner")
 prizeCorner.CornerRadius = UDim.new(0.12, 0)
 prizeCorner.Parent = prize

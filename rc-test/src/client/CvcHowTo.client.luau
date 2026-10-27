@@ -166,6 +166,11 @@ local function pick(): Tip?
 	if Popup.isOpen() then
 		return nil
 	end
+	-- the daily gift card is up (its free crate brought OPEN YOUR CRATE! with it: three things at
+	-- once, Studio polish-9): one at a time
+	if shown(find("StarsTop", "DailyGift")) then
+		return nil
+	end
 	local crate = find("CvcCrateButton", "CrateButton")
 	if shown(crate) and crate then
 		return { target = crate, text = "OPEN YOUR CRATE!", below = true }

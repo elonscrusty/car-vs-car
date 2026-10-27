@@ -145,3 +145,47 @@ test("short words (+50 COINS: JOB DONE!) wait for the after-race cards", functio
 	truthy(has(stars, 'CvcLayout.waitTurn(gui.Parent :: Instance, "Toast", 30)'), "Toast waits")
 	truthy(has(stars, 'toast.Name = "Toast"'), "the name it waits under")
 end)
+
+test(
+	"a race with no coins and no cup still says something on its card (no empty GOOD TRY!)",
+	function()
+		local src = fs.readFile("src/client/CvcRace.client.luau")
+		truthy(has(src, "got.Text = NO_PRIZE_WORDS"), "the card's second line")
+		truthy(has(src, 'local NO_PRIZE_WORDS = "'), "the words")
+	end
+)
+
+test(
+	"buy buttons say what they do and that it's coins (no bare 81 MORE); crates show name and price",
+	function()
+		local garage = fs.readFile("src/client/CvcGarage.client.luau")
+		local crate = fs.readFile("src/client/CvcCrate.client.luau")
+		for name, src in { garage = garage, crate = crate } do
+			truthy(not has(src, "{short} MORE`"), `{name}: a bare N MORE`)
+		end
+		truthy(has(garage, "BETTER!\\n{cost} COINS"), "BETTER says coins")
+		truthy(has(garage, "NEW STATION: {cost} COINS"), "NEW STATION says coins")
+		truthy(has(crate, "NEED {short} MORE COINS"), "the crate says coins")
+		truthy(has(crate, "`{kind.label}  {cost} COINS`"), "the crate's name and price")
+	end
+)
+
+test("NOT SAVING sits past Roblox's top left buttons; the coin +N stays on the screen", function()
+	local stars = fs.readFile("src/client/Stars.client.luau")
+	truthy(has(stars, "noSave.Position = UDim2.fromOffset(NO_SAVE_X, 18)"), "NOT SAVING moved")
+	truthy(has(stars, "local NO_SAVE_X = 180"), "past the three buttons")
+	-- (+5 went off the top: AbsolutePosition starts under the top bar, Studio polish-8)
+	truthy(
+		has(stars, "coinChip.AbsolutePosition - topOrigin.AbsolutePosition"),
+		"coins fly in StarsTop's offsets"
+	)
+	truthy(
+		has(stars, "plus.Position = UDim2.fromOffset(start.X, start.Y - 56)"),
+		"+N where the coins start"
+	)
+end)
+
+test("the how-to tip waits while the daily gift card is up", function()
+	local how = fs.readFile("src/client/CvcHowTo.client.luau")
+	truthy(has(how, 'if shown(find("StarsTop", "DailyGift")) then'), "one at a time")
+end)
