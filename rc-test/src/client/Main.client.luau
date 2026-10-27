@@ -413,13 +413,6 @@ local function setWalking(on: boolean)
 	end
 	local cam = workspace.CurrentCamera
 	local char = player.Character
-	-- your own league badge over your head (Leaderboards) stays back on the stand while you drive:
-	-- the chase cam caught it peeking out behind AUTO GAS (this screen only; others still see it)
-	local head = char and char:FindFirstChild("Head")
-	local badge = head and head:FindFirstChild("LeagueBadge")
-	if badge and badge:IsA("BillboardGui") then
-		badge.Enabled = on
-	end
 	if on then
 		camera.setView("chase") -- clears see-through walls
 		cam.CameraType = Enum.CameraType.Custom
@@ -835,6 +828,19 @@ local raceFx = RaceFx.new() -- carter's picks 14 + 15: speed lines on BOOST, spa
 local speedWas = 0 -- flat speed last frame (sparks on a hard stop)
 -- carter's pick 18: in the big race your own car wears a yellow YOU (the others wear their names:
 -- OtherCars), so you find it from the stand
+-- your own league badge over your head (Leaderboards) never shows on your own screen: the chase
+-- cam caught it behind AUTO GAS, and from the plot stand it hid your first station and its sign
+-- (Studio score/20). Others still see it; your league is on the HUD chip.
+task.spawn(function()
+	while true do
+		local head = player.Character and player.Character:FindFirstChild("Head")
+		local badge = head and head:FindFirstChild("LeagueBadge")
+		if badge and badge:IsA("BillboardGui") and badge.Enabled then
+			badge.Enabled = false
+		end
+		task.wait(0.5)
+	end
+end)
 local youTag = Instance.new("BillboardGui")
 youTag.Name = "YouTag"
 youTag.Size = UDim2.fromOffset(90, 30)
@@ -921,9 +927,9 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 	effects.update(dt)
 	-- boost pads and jumps: a word on screen so you know what happened
 	local tel = car.telemetry
-	-- just over the car's roof, like the other cars' name tags (OtherCars; it was 4x higher: off the
-	-- top of the screen under the chase camera, Studio 10-26)
-	youTag.StudsOffsetWorldSpace = Vector3.new(0, 3.2 * Tuning.scale, 0)
+	-- just over the car's roof (it was 4x higher: off the top of the screen under the chase camera,
+	-- Studio 10-26; then still floating well above it once it drew, Studio score/24)
+	youTag.StudsOffsetWorldSpace = Vector3.new(0, 1.6 * Tuning.scale, 0)
 	youTag.Enabled = grid ~= nil and Features.CVC
 	raceFx.update(dt, tel.boost > 0)
 	local fv = body.AssemblyLinearVelocity
