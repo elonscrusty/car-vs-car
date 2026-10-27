@@ -80,6 +80,9 @@ local function show(player: Player, data: Profile.Data)
 	player:SetAttribute("League", data.league)
 	player:SetAttribute("Trophies", data.trophies)
 	player:SetAttribute("RacerId", if data.racer ~= "" then data.racer else nil)
+	-- which car that is (the race car is painted its colour: it was always the plain red)
+	local racer = if data.racer ~= "" then Profile.findCar(data, data.racer) else nil
+	player:SetAttribute("RacerCar", if racer then racer.id else nil)
 	player:SetAttribute("BoostUntil", if data.boostUntil > now then data.boostUntil else 0)
 	player:SetAttribute("Picked", data.picked)
 end

@@ -87,6 +87,7 @@ end
 
 -- The car's paint: the car the player picked in the shop for the kind of plot being driven
 -- (looks only; the server paints it, so everyone sees it). The lobby car keeps the plain red.
+-- Car VS Car: always your racer's colour (a yellow BOLT raced red, Studio polish-04)
 local carMode: { [Player]: string } = {}
 local function paint(player: Player)
 	local car = workspace:FindFirstChild("Car_" .. player.UserId)
@@ -95,7 +96,10 @@ local function paint(player: Player)
 		return
 	end
 	local mode = carMode[player]
-	local pick = mode and CarCatalog.get(player:GetAttribute("Car_" .. mode))
+	local pick = if Features.CVC
+		then CarCatalog.get(player:GetAttribute("RacerCar"))
+		elseif mode then CarCatalog.get(player:GetAttribute("Car_" .. mode))
+		else nil
 	local rgb = if pick then pick.color else { 220, 50, 47 }
 	body.Color = Color3.fromRGB(rgb[1], rgb[2], rgb[3])
 end
@@ -497,6 +501,9 @@ local function onJoin(player: Player)
 			paint(player)
 		end)
 	end
+	player:GetAttributeChangedSignal("RacerCar"):Connect(function()
+		paint(player)
+	end)
 	joined += 1
 	local px, pz = LobbyLayout.parkSpot(joined)
 	local park = CFrame.lookAt(Vector3.new(px, 1, pz), Vector3.new(px, 1, pz + 1))
