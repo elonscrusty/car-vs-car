@@ -263,9 +263,8 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 	local BEAM_HIDE = 40
 	local beamHidden = false
 	RunService.Heartbeat:Connect(function()
-		button.Visible = not (
-			cardShown("ServerRace", "Result") or cardShown("StarsTop", "RacePrize")
-		)
+		button.Visible = canWalk()
+			and not (cardShown("ServerRace", "Result") or cardShown("StarsTop", "RacePrize"))
 		local m = marker
 		local char = Players.LocalPlayer.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart")

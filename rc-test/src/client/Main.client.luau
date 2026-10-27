@@ -369,8 +369,10 @@ end, function(on: boolean)
 end)
 
 -- Walking <-> driving. Only the server switches (E on a stand, or WALK), this side follows.
+-- Car VS Car: no WALK in the middle of a big race (it sat right over the car, and one tap left the
+-- race); the race ends by itself and walks everyone back
 local lobby = Lobby.new(remote, function(): boolean
-	return true
+	return not (Features.CVC and grid ~= nil and not raceOver)
 end)
 -- after a race the result card (ServerRace "Result") has the screen: the driving buttons and
 -- chips (AUTO GAS, the lap clock, BRAKE, GAS...) step away while it shows (AUTO GAS sat on its
