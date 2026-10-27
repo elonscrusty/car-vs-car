@@ -28,6 +28,8 @@ local setScale: (s: number) -> () = (Tuning :: any).setScale
 local setStats: (d: RaceStats.Drive?) -> () = (Tuning :: any).setStats
 
 local BigCount = require(script.Parent.BigCount)
+local GasHintUi = require(script.Parent.GasHintUi)
+local GasHint = require(ReplicatedStorage.Shared.GasHint)
 local CarSkin = require(script.Parent.CarSkin)
 local ChaseCamera = require(script.Parent.ChaseCamera)
 local Controls = require(script.Parent.Controls)
@@ -177,6 +179,7 @@ local gridGone = false
 local raceGo: number? = nil -- server race: when this car got its GO (race clock)
 local raceDone: number? = nil -- server race: this car's finish time (its laps are all done)
 local raceOver = false -- server race: the results are in (finished or not: no more laps, no clock)
+local movedSinceGo = false -- server race: gas pressed or rolling since GO (the HOLD GAS! hint goes)
 local wrongFor = 0 -- server race: seconds this car has been driving the wrong way
 
 -- Car VS Car BOOST button: the UI's thumb button fires this (local only, nothing to cheat: the
@@ -323,6 +326,7 @@ end
 
 local gui = Hud.createGui()
 hud = Hud.new(gui, labels)
+local gasHint = GasHintUi.new(gui) -- HOLD GAS! when the car sits on the line after GO
 local controls = Controls.new(gui, reset, function()
 	if tracks[current].id == "rock" then
 		return -- rocks is free cam only
@@ -395,6 +399,7 @@ local function setWalking(on: boolean)
 	showDriveHud()
 	if on then
 		roadArrow.hide()
+		gasHint.set(false)
 	end
 	lobby.setDriving(not on)
 	-- Roblox's own thumbstick and jump button sit under STEER and GAS on a phone: only while walking
@@ -473,7 +478,8 @@ end)
 
 remote.OnClientEvent:Connect(function(kind: unknown, index: unknown, gridSpot: unknown)
 	if kind == "walk" then
-		grid, gridGone, raceGo, raceDone, raceOver = nil, false, nil, nil, false
+		grid, gridGone, raceGo, raceDone, raceOver, movedSinceGo =
+			nil, false, nil, nil, false, false
 		setRacing(false)
 		setStats(nil)
 		setWalking(true)
@@ -504,7 +510,7 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown, gridSpot: u
 				grid = { x = g.x, y = g.y, z = g.z, dx = g.dx, dz = g.dz }
 			end
 		end
-		gridGone, raceGo, raceDone, raceOver = false, nil, nil, false
+		gridGone, raceGo, raceDone, raceOver, movedSinceGo = false, nil, nil, false, false
 		setRacing(false)
 		-- Car VS Car: in the big race the car drives with its trained bars (the server sets them)
 		local drive = if Features.CVC and grid
@@ -693,6 +699,21 @@ RunService.PreSimulation:Connect(function(dt: number)
 	elseif raceDone == nil and not raceOver then
 		event = LapTimer.update(timer, os.clock(), lx, ly, lz)
 	end
+	-- server race: still on the line 2 s after GO = a big HOLD GAS! (a new kid didn't know what
+	-- to press; look only, GasHint)
+	if raceGo and not movedSinceGo then
+		local v = body.AssemblyLinearVelocity
+		movedSinceGo = input.throttle > 0 or Vector3.new(v.X, 0, v.Z).Magnitude > 2 * Tuning.scale
+	end
+	local goAt = raceGo
+	gasHint.set(
+		not walking
+			and GasHint.shows(
+				if goAt then os.clock() - goAt else nil,
+				movedSinceGo,
+				raceDone ~= nil or raceOver
+			)
+	)
 	-- server race: the last lap is the finish (the server keeps the real order)
 	local go = raceGo
 	if event == "lap" and grid and go and t.id ~= "drift" and timer.laps >= raceLaps() then
