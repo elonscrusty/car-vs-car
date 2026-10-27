@@ -166,6 +166,16 @@ end
 PlotTraining.ROOM_SIGN_X = -28
 PlotTraining.TAG = { w = 8, h = 4.2, y = 8.8, back = 1 }
 PlotTraining.STAND_TAG = { w = 6.5, h = 3.5, up = 3.6 }
+-- The camera while you stand on your own plot's pad (PlotCam.client), plot-local: high over the
+-- stand, looking down the pads to the garage room. The stations fill the middle and the gate's
+-- name board sits at the bottom (Studio score 41: from the walking camera the gate posts hid the
+-- side pads and the bottom of the screen was empty stand and road).
+PlotTraining.STAND_CAM = {
+	eye = { x = 0, y = 30, z = 70 },
+	look = { x = 0, y = 0, z = 8 },
+	fov = 60,
+	off = 3, -- studs past the pad's reach before the walking camera comes back
+}
 function PlotTraining.tagSpot(index: number): (number, number, number)
 	local g = PlotTraining.GRID[index]
 	local T = PlotTraining.TAG

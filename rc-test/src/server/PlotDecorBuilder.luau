@@ -77,6 +77,8 @@ function PlotDecorBuilder.build()
 			local gate = arch and arch:FindFirstChild(name)
 			if board and board:IsA("BasePart") and gate and gate:IsA("Model") then
 				local box, size = gate:GetBoundingBox()
+				local k = PlotDecor.gateScale() -- a smaller gate (Car VS Car): a smaller board
+				board.Size = Vector3.new(board.Size.X * k, board.Size.Y * k, board.Size.Z)
 				local at = pivot:PointToObjectSpace(box.Position)
 				local top = at.Y + size.Y / 2
 				local y = top - (1 - bar.y) * size.Y
