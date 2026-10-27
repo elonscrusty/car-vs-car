@@ -286,6 +286,49 @@ local function shape(): string
 	return table.concat(bits, "|")
 end
 local built: string? = nil
+local lockedShown = 0 -- locked cards after the stations (lockedCards)
+
+-- the next stations, locked, after yours: what you can get (one card alone left a big empty blue
+-- area, Studio polish-12)
+local LOCKED_SHOWN = 2
+local function lockedCards(): number
+	local have = #CvcState.stations
+	local n = 0
+	for k = 1, LOCKED_SHOWN do
+		local kind = Training.STATIONS[have + k]
+		if not kind then
+			break
+		end
+		n += 1
+		local i = have + k
+		local card = Instance.new("Frame")
+		card.Name = "Locked" .. k
+		CvcLayout.place(card, "garage", "Card")
+		card.Position += UDim2.fromOffset((i - 1) * (CARD_W + 12), 0)
+		card.BackgroundColor3 = Color3.fromRGB(196, 204, 222)
+		card.Parent = body
+		CvcUi.corner(card, 0.06)
+		CvcUi.rim(card, KartStyle.BUTTON_RIM)
+		local kindWord = label(card, Training.NAMES[kind] or string.upper(kind), INK)
+		kindWord.Position = UDim2.fromScale(0.05, 0.03)
+		kindWord.Size = UDim2.fromScale(0.9, 0.12)
+		local most = label(card, `MOST {MAIN_WORD[kind] or ""}`, Color3.fromRGB(70, 80, 110))
+		most.Position = UDim2.fromScale(0.05, 0.15)
+		most.Size = UDim2.fromScale(0.9, 0.08)
+		local lock = label(card, "🔒", WHITE)
+		lock.Position = UDim2.fromScale(0.2, 0.28)
+		lock.Size = UDim2.fromScale(0.6, 0.34)
+		local cost = Training.plotCost(CvcState.plotLevel + k - 1)
+		local how = label(
+			card,
+			if k == 1 and cost then `NEXT!\n{cost} COINS` else "LATER",
+			Color3.fromRGB(70, 80, 110)
+		)
+		how.Position = UDim2.fromScale(0.05, 0.66)
+		how.Size = UDim2.fromScale(0.9, 0.22)
+	end
+	return n
+end
 
 render = function()
 	if not panel.Visible then
@@ -308,6 +351,7 @@ render = function()
 			for i, st in CvcState.stations do
 				stationCard(i, st)
 			end
+			lockedShown = lockedCards()
 		else
 			for n, car in CvcState.garage do
 				carRow(n, car)
@@ -318,7 +362,7 @@ render = function()
 		ribbon.Text = "MY GARAGE"
 		note.Text = "CARS TRAIN WHILE YOU PLAY"
 		body.ScrollingDirection = Enum.ScrollingDirection.X
-		body.CanvasSize = UDim2.fromOffset(#CvcState.stations * (CARD_W + 12), 0)
+		body.CanvasSize = UDim2.fromOffset((#CvcState.stations + lockedShown) * (CARD_W + 12), 0)
 		local cost = Training.plotCost(CvcState.plotLevel)
 		more.Visible = cost ~= nil and CvcState.plotLevel < Training.MAX_PLOT_LEVEL
 		if cost then

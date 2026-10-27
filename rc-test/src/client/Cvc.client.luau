@@ -352,6 +352,14 @@ local function buildPick()
 	end
 	local ids = CvcState.starters()
 	local n = math.max(#ids, 1)
+	-- a full bar is a bit past the best of these cars, so 26 and 18 look different (Studio polish-6)
+	local most = 1
+	for _, id in ids do
+		for _, b in Training.BARS do
+			most = math.max(most, (CvcState.bar(CvcState.fresh(id), b)))
+		end
+	end
+	most = math.ceil(most * 1.15)
 	for i, id in ids do
 		local holder = Instance.new("Frame")
 		holder.Name = "Choice"
@@ -361,7 +369,7 @@ local function buildPick()
 		holder.Size =
 			UDim2.new(1 / n, holder.Size.X.Offset, holder.Size.Y.Scale, holder.Size.Y.Offset)
 		holder.Parent = pickPanel
-		local card = CvcUi.card(holder, CvcState.fresh(id))
+		local card = CvcUi.card(holder, CvcState.fresh(id), { barMost = most, best = true })
 		CvcLayout.place(card.frame, "pick", "Card")
 		local go = button(holder, "PICK!", KartStyle.GREEN)
 		CvcLayout.place(go, "pick", "Pick")
