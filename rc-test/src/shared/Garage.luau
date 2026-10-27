@@ -947,14 +947,15 @@ end
 -- "a tiny kiosk on a big empty pad"): a tall sign post beside the door with a giant gold crate on
 -- top and a CRATES board (CrateShop.client writes it), a mat out front in the trim colour, and
 -- piles of crates at the front corners. Shop-local, like Garage.parts.
-Garage.CRATE_POST = { x = 16, z = 7, h = 9.5 } -- beside the right front post, out of the door's way
+-- beside the left front post, out of the door's way (the right side had a street lamp in front of
+-- the board from the spawn, Studio score 37)
+Garage.CRATE_POST = { x = -16, z = 7, h = 9.5 }
 function Garage.crateYard(add: Add, W: number, front: number)
 	local trim = Garage.CRATE_TRIM
 	local p = Garage.CRATE_POST
 	add("CrateSign", "Foot", v(3, 1, 3), v(p.x, 0.5, p.z), C.dark)
 	add("CrateSign", "Post", v(1, p.h, 1), v(p.x, p.h / 2, p.z), C.white)
-	-- the board faces the plaza (+z), both sides written on
-	add("CrateSign", "Board", v(8, 3, 0.6), v(p.x, p.h - 2.2, p.z), trim)
+	add("CrateSign", "Board", v(6, 3, 6), v(p.x, p.h - 2.2, p.z), trim) -- written on all 4 sides
 	Garage.crate(add, "CrateSign", v(p.x, p.h, p.z), "mega", 4, true)
 	-- the mat out of the door: trim colour with a lighter middle
 	add("CrateMat", "Mat", v(16, 0.06, 7), v(0, 0.03, front + 3.5), trim, { collide = false })
@@ -967,11 +968,11 @@ function Garage.crateYard(add: Add, W: number, front: number)
 		{ collide = false }
 	)
 	-- piles of crates at the front corners (solid: you walk round them)
-	local left, right = -W / 2 - 2.6, W / 2 + 1.2
-	Garage.crate(add, "CratePile", v(left, 0, front - 2.2), "basic", 2.4, true)
-	Garage.crate(add, "CratePile", v(left, 0, front + 0.6), "big", 2.4, true)
-	Garage.crate(add, "CratePile", v(left, 2.4, front - 0.8), "mega", 2, true)
-	Garage.crate(add, "CratePile", v(right, 0, front + 0.6), "big", 2.2, true)
+	local right, left = W / 2 + 2.6, -W / 2 - 1
+	Garage.crate(add, "CratePile", v(right, 0, front - 2.2), "basic", 2.4, true)
+	Garage.crate(add, "CratePile", v(right, 0, front + 0.6), "big", 2.4, true)
+	Garage.crate(add, "CratePile", v(right, 2.4, front - 0.8), "mega", 2, true)
+	Garage.crate(add, "CratePile", v(left, 0, front + 2.1), "big", 2.2, true) -- clear of the post's foot
 end
 
 -- A toy crate standing on `at` (its bottom middle): a box in its kind's colour (Garage.CRATE_COLORS),
