@@ -176,7 +176,8 @@ local function pick(): Tip?
 	end
 	local join = find("CvcRace", "BigJoin")
 	if not raced() and player:GetAttribute("RaceJoined") ~= true and shown(join) and join then
-		return { target = join, text = "RACE!", below = false }
+		-- (under JOIN RACE, pointing up at it: from over it the arrow sat on the kid's head, Studio polish-13)
+		return { target = join, text = "RACE!", below = true }
 	end
 	local garage = find("CvcGarageButton", "GarageButton")
 	if raced() and not garageSeen and shown(garage) and garage then

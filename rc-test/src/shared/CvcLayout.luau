@@ -297,13 +297,14 @@ function CvcLayout.tipClearOf(
 end
 
 -- ===== the race call strip (ServerRace.client "Call", on foot): COACH steps down under it =====
--- (the same numbers ServerRace.client uses: top middle, 58 px down, half the screen wide, 7:1)
-CvcLayout.CALL_STRIP = { y = 58, w = 0.5, aspect = 7 }
+-- (the same numbers ServerRace.client uses: top middle, 58 px down, half the screen wide but at
+-- most 400 px, 7:1)
+CvcLayout.CALL_STRIP = { y = 58, w = 0.5, aspect = 7, maxW = 400 }
 CvcLayout.COACH_GAP = 8
 
 function CvcLayout.callStrip(sw: number): Rect
 	local c = CvcLayout.CALL_STRIP
-	local w = c.w * sw
+	local w = math.min(c.w * sw, c.maxW)
 	local h = w / c.aspect
 	return { sw / 2 - w / 2, c.y, sw / 2 + w / 2, c.y + h }
 end
