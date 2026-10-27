@@ -25,7 +25,7 @@ test(
 
 test("a bar at its car's top is drawn full and gold (MAX! looks maxed)", function()
 	local src = fs.readFile("src/client/CvcUi.luau")
-	truthy(has(src, "local f = if full then 1 else v / Training.MAX_BAR"), "full width at the top")
+	truthy(has(src, "local f = if full then 1 else v / scale"), "full width at the top")
 	truthy(has(src, "if full then MAX_GOLD"), "gold at the top")
 end)
 
@@ -189,3 +189,31 @@ test("the how-to tip waits while the daily gift card is up", function()
 	local how = fs.readFile("src/client/CvcHowTo.client.luau")
 	truthy(has(how, 'if shown(find("StarsTop", "DailyGift")) then'), "one at a time")
 end)
+
+test(
+	"the pick screen's bars are out of a bit past the best starter, and say what each car is best at",
+	function()
+		local cvc = fs.readFile("src/client/Cvc.client.luau")
+		local ui = fs.readFile("src/client/CvcUi.luau")
+		-- (out of 100, 26 and 18 looked the same, Studio polish-6)
+		truthy(
+			has(cvc, "most = math.max(most, (CvcState.bar(CvcState.fresh(id), b)))"),
+			"one number, not the top too"
+		)
+		truthy(has(cvc, "{ barMost = most, best = true }"), "the pick cards")
+		truthy(has(ui, "local f = if full then 1 else v / scale"), "bars use the scale")
+		truthy(has(ui, "`BEST AT {CvcUi.BAR_WORDS[CvcUi.bestBar(car)]}!`"), "BEST AT SPEED!")
+	end
+)
+
+test(
+	"the garage shows the next stations locked, and the crate screen says what's inside",
+	function()
+		-- (one station card, or a crate and its odds, left big empty blue areas, Studio polish-12)
+		local garage = fs.readFile("src/client/CvcGarage.client.luau")
+		truthy(has(garage, "lockedShown = lockedCards()"), "locked cards after the stations")
+		truthy(has(garage, "(#CvcState.stations + lockedShown) * (CARD_W + 12)"), "they scroll too")
+		local crate = fs.readFile("src/client/CvcCrate.client.luau")
+		truthy(has(crate, 'local NEW_CAR_WORDS = "A NEW CAR FOR YOUR GARAGE!"'), "the crate's line")
+	end
+)

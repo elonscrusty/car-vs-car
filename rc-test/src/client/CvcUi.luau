@@ -181,8 +181,10 @@ export type Bars = { frame: Frame, set: (car: CvcState.Car) -> () }
 local MAX_GOLD = Color3.fromRGB(255, 196, 30) -- a bar at its car's top
 
 -- The 3 bars of a car, one row each: the word, the bar (filled to its value, a faint mark at the
--- car's top) and the number. set() moves the fills smoothly.
-function CvcUi.bars(parent: Instance): Bars
+-- car's top) and the number. set() moves the fills smoothly. `most` is a full bar (the pick
+-- screen's cars are all low: out of MAX_BAR, 26 and 18 looked the same, Studio polish-6).
+function CvcUi.bars(parent: Instance, most: number?): Bars
+	local scale = most or Training.MAX_BAR
 	local frame = Instance.new("Frame")
 	frame.Name = "Bars"
 	frame.BackgroundTransparency = 1
@@ -256,13 +258,13 @@ function CvcUi.bars(parent: Instance): Bars
 			local full = v >= top
 			-- at the car's top: the whole bar, gold (MAX! on a bar 60% across didn't look maxed,
 			-- Studio final-14: a common car tops out at 60)
-			local f = if full then 1 else v / Training.MAX_BAR
+			local f = if full then 1 else v / scale
 			TweenService:Create(fills[b], TweenInfo.new(0.4, Enum.EasingStyle.Quart), {
 				Size = UDim2.fromScale(math.clamp(f, 0, 1), 1),
 			}):Play()
 			fills[b].BackgroundColor3 = if full then MAX_GOLD else CvcUi.BAR_COLORS[b]
-			tops[b].Position = UDim2.fromScale(top / Training.MAX_BAR, 0)
-			tops[b].Visible = top < Training.MAX_BAR and not full
+			tops[b].Position = UDim2.fromScale(top / scale, 0)
+			tops[b].Visible = top < scale and not full
 			local whole = math.floor(v)
 			nums[b].Text = if full then "MAX!" else tostring(whole)
 			nums[b].TextColor3 = if full then Color3.fromRGB(214, 150, 0) else INK
@@ -294,8 +296,23 @@ end
 export type Card = { frame: Frame, set: (car: CvcState.Car) -> (), pic: ViewportFrame }
 
 -- A car card: its picture, name and rarity on top, the 3 bars under. White with an ink rim (and
--- a rarity colour rim for rare and up).
-function CvcUi.card(parent: Instance, car: CvcState.Car): Card
+-- a rarity colour rim for rare and up). opts.barMost: a full bar (CvcUi.bars); opts.best: the
+-- line under the name says what the car is best at instead of its rarity (the pick screen).
+export type CardOpts = { barMost: number?, best: boolean? }
+
+-- the bar a car is best at (its highest)
+function CvcUi.bestBar(car: CvcState.Car): string
+	local best, most = Training.BARS[1], -1
+	for _, b in Training.BARS do
+		local v = CvcState.bar(car, b)
+		if v > most then
+			best, most = b, v
+		end
+	end
+	return best
+end
+
+function CvcUi.card(parent: Instance, car: CvcState.Car, opts: CardOpts?): Card
 	local frame = Instance.new("Frame")
 	frame.Name = "CarCard"
 	frame.BackgroundColor3 = Color3.fromRGB(244, 247, 255)
@@ -314,11 +331,18 @@ function CvcUi.card(parent: Instance, car: CvcState.Car): Card
 	name.Name = "CarName"
 	name.Position = UDim2.fromScale(0.05, 0.47)
 	name.Size = UDim2.fromScale(0.9, 0.11)
-	local tag = CvcUi.label(frame, rarity.label, CvcUi.rarityColor(car.id):Lerp(INK, 0.45))
+	local best = opts and opts.best
+	local tag = CvcUi.label(
+		frame,
+		if best then `BEST AT {CvcUi.BAR_WORDS[CvcUi.bestBar(car)]}!` else rarity.label,
+		if best
+			then CvcUi.BAR_COLORS[CvcUi.bestBar(car)]:Lerp(INK, 0.3)
+			else CvcUi.rarityColor(car.id):Lerp(INK, 0.45)
+	)
 	tag.Name = "Rarity"
 	tag.Position = UDim2.fromScale(0.05, 0.58)
 	tag.Size = UDim2.fromScale(0.9, 0.07)
-	local bars = CvcUi.bars(frame)
+	local bars = CvcUi.bars(frame, opts and opts.barMost)
 	bars.frame.Position = UDim2.fromScale(0.06, 0.66)
 	bars.frame.Size = UDim2.fromScale(0.88, 0.31)
 	bars.set(car)

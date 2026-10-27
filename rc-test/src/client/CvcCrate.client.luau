@@ -156,7 +156,9 @@ openBtn:SetAttribute("KartPulse", true)
 local left = label(panel, "", WHITE)
 left.AnchorPoint = Vector2.new(0.5, 1)
 left.Position = UDim2.fromScale(0.5, 0.8)
-left.Size = UDim2.fromScale(0.6, 0.06)
+left.Size = UDim2.fromScale(0.7, 0.08)
+-- (under the crate and its odds: the lower half was an empty blue area, Studio polish-12)
+local NEW_CAR_WORDS = "A NEW CAR FOR YOUR GARAGE!"
 
 -- the new car comes out here (over the crate's place)
 local reveal = Instance.new("Frame")
@@ -205,12 +207,14 @@ local function showChoose()
 		openBtn.Text = if short > 0 then `NEED {short} MORE COINS` else `BUY & OPEN!`
 		openBtn.BackgroundColor3 = if short > 0 then GREY else KartStyle.GREEN
 		openBtn:SetAttribute("KartPulse", if short > 0 then nil else true)
-		left.Text = if short > 0 then "WIN RACES AND TRAIN FOR COINS" else ""
+		left.Text = if short > 0 then "WIN RACES AND TRAIN FOR COINS" else NEW_CAR_WORDS
 	else
 		openBtn.Text = "OPEN!"
 		openBtn.BackgroundColor3 = KartStyle.GREEN
 		openBtn:SetAttribute("KartPulse", true)
-		left.Text = if CvcState.crates > 1 then `{CvcState.crates} CRATES TO OPEN` else ""
+		left.Text = if CvcState.crates > 1
+			then `{CvcState.crates} CRATES TO OPEN`
+			else NEW_CAR_WORDS
 	end
 end
 
