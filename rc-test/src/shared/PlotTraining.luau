@@ -137,6 +137,17 @@ function PlotTraining.slats(t: number): { number }
 	return out
 end
 
+-- The car tags on the plot are sized in studs (so they shrink with distance, not cover the next
+-- pad): a station car's tag hangs still over the back of its pad, above the car's whole run;
+-- a stand car's sits just over the car.
+PlotTraining.TAG = { w = 9, h = 4.8, y = 8.6, back = 6 }
+PlotTraining.STAND_TAG = { w = 6.5, h = 3.5, up = 3.6 }
+function PlotTraining.tagSpot(index: number): (number, number, number)
+	local g = PlotTraining.GRID[index]
+	local T = PlotTraining.TAG
+	return g.x, T.y, g.z - T.back
+end
+
 PlotTraining.RAMP_SECS = 6 -- one ramp run: up, over the gap, round and back
 function PlotTraining.ride(kind: string, t: number): (number, number, number, number, number)
 	if kind == "treadmill" then

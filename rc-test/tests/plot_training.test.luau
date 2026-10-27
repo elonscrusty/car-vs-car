@@ -161,3 +161,42 @@ test("the treadmill belt's slats stay on the belt and scroll back", function()
 	end
 	truthy(b[1] > a[1], "moves toward the road")
 end)
+
+test("car tags: one per pad, never over the next pad, the car or each other", function()
+	local A = T.TAG
+	-- the highest a station car gets (top of its hop) plus the car itself
+	local top = 0
+	for _, kind in { "treadmill", "ramp", "track" } do
+		for k = 0, 600 do
+			local _, y = T.ride(kind, k * 0.01)
+			top = math.max(top, y)
+		end
+	end
+	top += 3.6 * T.CAR
+	for i = 1, #T.GRID do
+		local x, y, z = T.tagSpot(i)
+		local g = T.GRID[i]
+		truthy(math.abs(x - g.x) + A.w / 2 <= T.PAD.w / 2, "tag " .. i .. " within its pad's width")
+		truthy(math.abs(z - g.z) <= T.PAD.d / 2, "tag " .. i .. " over its pad")
+		truthy(y - A.h / 2 > top, "tag " .. i .. " above the car's whole run")
+		for j = i + 1, #T.GRID do
+			local x2, _, z2 = T.tagSpot(j)
+			truthy(
+				math.abs(x - x2) >= A.w or math.abs(z - z2) >= T.PAD.d,
+				"tags " .. i .. " and " .. j .. " apart"
+			)
+		end
+	end
+	-- stand tags: narrower than the gap between stands side by side
+	for a = 1, #T.STANDS do
+		for b = a + 1, #T.STANDS do
+			local p, q = T.STANDS[a], T.STANDS[b]
+			if p.z == q.z then
+				truthy(
+					math.abs(p.x - q.x) > T.STAND_TAG.w,
+					"stand tags " .. a .. " and " .. b .. " apart"
+				)
+			end
+		end
+	end
+end)
