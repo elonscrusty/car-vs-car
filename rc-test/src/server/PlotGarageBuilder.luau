@@ -55,31 +55,35 @@ local function label(board: BasePart, top: string, bottom: string, one: boolean?
 	line("Bottom", bottom, 0.6, 0.34, Color3.fromRGB(255, 220, 90))
 end
 
--- Words painted big across a locked pad's top, reading from the road (the top face's up is -z).
+-- Words painted big across a locked pad's top, turned to read upright from the road
+-- (PlotTraining.PAINT has the layout and why).
 local function paint(base: BasePart, top: string, bottom: string)
+	local ppu = 20
 	local gui = Instance.new("SurfaceGui")
 	gui.Name = "Words"
 	gui.Face = Enum.NormalId.Top
 	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = 20
+	gui.PixelsPerStud = ppu
 	gui.LightInfluence = 0
 	gui.Parent = base
-	local function line(name: string, text: string, y: number, h: number, color: Color3)
+	local colors = { Color3.new(1, 1, 1), Color3.fromRGB(255, 220, 90) }
+	for k, text in { top, bottom } do
+		local line = PlotTraining.PAINT[k]
 		local l = Instance.new("TextLabel")
-		l.Name = name
+		l.Name = if k == 1 then "Top" else "Bottom"
 		l.BackgroundTransparency = 1
-		l.Position = UDim2.fromScale(0.06, y)
-		l.Size = UDim2.fromScale(0.88, h)
+		l.AnchorPoint = Vector2.new(0.5, 0.5)
+		l.Position = UDim2.fromScale(line.at, 0.5)
+		l.Size = UDim2.fromOffset(line.w * ppu, line.h * ppu)
+		l.Rotation = 90
 		l.Font = Enum.Font.GothamBlack
 		l.TextScaled = true
-		l.TextColor3 = color
+		l.TextColor3 = colors[k]
 		l.TextTransparency = 0.1
 		l.TextStrokeTransparency = 0.5
 		l.Text = text
 		l.Parent = gui
 	end
-	line("Top", top, 0.2, 0.36, Color3.new(1, 1, 1))
-	line("Bottom", bottom, 0.58, 0.22, Color3.fromRGB(255, 220, 90))
 end
 
 -- The sign's words: what the next level gives and costs (MAX at the top).

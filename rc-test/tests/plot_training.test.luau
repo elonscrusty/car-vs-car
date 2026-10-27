@@ -157,7 +157,7 @@ test("the treadmill belt's slats stay on the belt and scroll back", function()
 	eq(#a, B.slats)
 	for _, t in { 0, 0.3, 1.7, 99.9 } do
 		for _, z in T.slats(t) do
-			truthy(z >= B.z - B.len / 2 and z <= B.z + B.len / 2, "on the belt")
+			truthy(z >= (B.z - B.len / 2) * T.K and z <= (B.z + B.len / 2) * T.K, "on the belt")
 		end
 	end
 	truthy(b[1] > a[1], "moves toward the road")
@@ -173,7 +173,7 @@ test("car tags: one per pad, never over the next pad, the car or each other", fu
 			top = math.max(top, y)
 		end
 	end
-	top += 3.6 * T.CAR
+	top += 2.5 * T.CAR -- a toy car is at most 2.43 tall at size 1 (the rock style)
 	for i = 1, #T.GRID do
 		local x, y, z = T.tagSpot(i)
 		local g = T.GRID[i]
@@ -211,9 +211,20 @@ end)
 
 test("locked pads have no little sign (their words are painted big on the pad)", function()
 	for _, p in T.pieces(1, 0, 0) do
-		if p.name == "PadSign" or p.name == "PadSignPost" then
+		if p.name == "PadSign" or p.name == "PadSignFoot" then
 			local i = tonumber(string.sub(p.group, 4)) :: number
 			truthy(i <= T.open(1), "sign only on open pads, not " .. p.group)
 		end
 	end
+end)
+
+test("LOCKED words fit the pad top once turned to read from the gate", function()
+	local P = T.PAD
+	for _, line in T.PAINT do
+		-- turned 90: its width runs along the pad's x, its height along z
+		truthy(line.w <= P.w * 0.95, "fits across")
+		local zc = (line.at - 0.5) * P.d
+		truthy(math.abs(zc) + line.h / 2 <= P.d / 2, "fits deep")
+	end
+	truthy(T.PAINT[1].at > T.PAINT[2].at, "LOCKED on the far line, PLOT LV under it")
 end)

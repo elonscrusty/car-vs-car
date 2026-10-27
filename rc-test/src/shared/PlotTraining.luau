@@ -33,22 +33,29 @@ end
 
 local PlotTraining = {}
 
--- the pads, in station order (Training.STATIONS): back row first, left to right
+-- the pads, in station order (Training.STATIONS): front row first (nearest the gate and the
+-- stand, so the first stations a new player gets are the easiest to see), middle, then left
+-- and right; then the middle row, then the back row
 PlotTraining.GRID = {
-	{ x = -25, z = -12 },
-	{ x = 0, z = -12 },
-	{ x = 25, z = -12 },
-	{ x = -25, z = 8 },
-	{ x = 0, z = 8 },
-	{ x = 25, z = 8 },
-	{ x = -25, z = 27 },
 	{ x = 0, z = 27 },
+	{ x = -25, z = 27 },
 	{ x = 25, z = 27 },
+	{ x = 0, z = 8 },
+	{ x = -25, z = 8 },
+	{ x = 25, z = 8 },
+	{ x = 0, z = -12 },
+	{ x = -25, z = -12 },
+	{ x = 25, z = -12 },
 }
-PlotTraining.PAD = { w = 22, d = 16 } -- each station pad (x by z)
+PlotTraining.PAD = { w = 24, d = 18 } -- each station pad (x by z)
+-- the station props and the cars' runs on them, this much bigger than they were drawn (so they
+-- read from the stand); ride() and slats() hand back the grown numbers
+PlotTraining.K = 1.15
+-- each open pad's sign: w by h studs, its middle at y, leaning back `lean` degrees
+PlotTraining.PAD_SIGN = { w = 14, h = 3, y = 1.5, lean = 40 }
 PlotTraining.ROOM = { x0 = -38, x1 = 38, z0 = -53, z1 = -25 } -- the garage room's floor
 PlotTraining.NEAR = 220 -- studs: a plot farther from the camera than this stops moving its cars
-PlotTraining.CAR = 0.9 -- toy car size on the stations and stands (times a 3.6-stud car)
+PlotTraining.CAR = 1.3 -- toy car size on the stations and stands (times a 3.6-stud car)
 -- the car stands down both sides of the room, in the order they open
 PlotTraining.STANDS = {
 	{ x = -33, z = -44 },
@@ -107,6 +114,16 @@ function PlotTraining.parse(text: string?): { Pad }
 	return out
 end
 
+-- LOCKED / PLOT LV n painted on a locked pad's top (PlotGarageBuilder). A Top-face SurfaceGui
+-- has its up edge toward the pad's -x and its right toward -z (Studio score 05: the words read
+-- sideways from the gate), so each line is turned 90 to read upright from the road. `at` is
+-- how far across the gui's width (the pad's depth, from the road side) the line's middle sits;
+-- w runs along the pad's x and h along its z, in studs.
+PlotTraining.PAINT = {
+	{ at = 0.62, w = 20, h = 6 }, -- LOCKED
+	{ at = 0.3, w = 15, h = 3.6 }, -- PLOT LV n
+}
+
 -- The words on a pad's sign.
 function PlotTraining.padWords(pad: Pad?, index: number): (string, string)
 	if pad == nil then
@@ -137,7 +154,8 @@ function PlotTraining.slats(t: number): { number }
 	local shift = (t * B.speed) % gap
 	local out = {}
 	for k = 0, B.slats - 1 do
-		table.insert(out, B.z - B.len / 2 + gap / 2 + ((k * gap + shift) % B.len))
+		local z = B.z - B.len / 2 + gap / 2 + ((k * gap + shift) % B.len)
+		table.insert(out, z * PlotTraining.K)
 	end
 	return out
 end
@@ -145,7 +163,7 @@ end
 -- The car tags on the plot are sized in studs (so they shrink with distance, not cover the next
 -- pad): a station car's tag hangs still over the middle of its pad, just above the car's whole
 -- run (the ramp hop too) and under the room's signs; a stand car's sits just over the car.
-PlotTraining.TAG = { w = 8, h = 4.2, y = 8.4, back = 1 }
+PlotTraining.TAG = { w = 8, h = 4.2, y = 8.8, back = 1 }
 PlotTraining.STAND_TAG = { w = 6.5, h = 3.5, up = 3.6 }
 function PlotTraining.tagSpot(index: number): (number, number, number)
 	local g = PlotTraining.GRID[index]
@@ -154,7 +172,7 @@ function PlotTraining.tagSpot(index: number): (number, number, number)
 end
 
 PlotTraining.RAMP_SECS = 6 -- one ramp run: up, over the gap, round and back
-function PlotTraining.ride(kind: string, t: number): (number, number, number, number, number)
+local function rideBase(kind: string, t: number): (number, number, number, number, number)
 	if kind == "treadmill" then
 		-- running in place on the belt, with a little bounce
 		return 0, 1.2 + 0.08 * math.abs(math.sin(t * 9)), -0.5, 0, 0
@@ -188,6 +206,12 @@ function PlotTraining.ride(kind: string, t: number): (number, number, number, nu
 	local k = (s - 0.88) / 0.12 -- round to the foot of the ramp
 	local a = math.pi * k
 	return -7 - math.sin(a) * 2, 0.32, math.cos(a) * 2, 90 - 180 * k, 0
+end
+
+function PlotTraining.ride(kind: string, t: number): (number, number, number, number, number)
+	local x, y, z, yaw, tilt = rideBase(kind, t)
+	local K = PlotTraining.K
+	return x * K, 0.3 + (y - 0.3) * K, z * K, yaw, tilt
 end
 
 -- ===== the pieces (server builds these) =====
@@ -254,13 +278,30 @@ local function pad(add: Garage.Add, i: number, kind: string?)
 		-- LOCKED / PLOT LV n big across the pad itself
 		return
 	end
-	-- the sign at the pad's front edge, facing the road (+z); its posts stand behind it
-	add(group, "PadSign", v(11, 2.2, 0.3), v(x, 1.9, z + P.d / 2 - 0.6), SIGN, { collide = false })
-	for _, sx in { -4.5, 4.5 } do
-		add(group, "PadSignPost", v(0.3, 1.6, 0.3), v(x + sx, 0.8, z + P.d / 2 - 1.1), SIGN, {
-			collide = false,
-		})
-	end
+	-- the sign at the pad's front edge, facing the road (+z), leaning back like a lectern: low,
+	-- so it doesn't hide the station from the stand, and its words tip up toward the stand's
+	-- camera; a little foot holds it
+	local S = PlotTraining.PAD_SIGN
+	add(group, "PadSign", v(S.w, S.h, 0.3), v(x, S.y, z + P.d / 2 - 1.2), SIGN, {
+		rot = v(-S.lean, 0, 0),
+		collide = false,
+	})
+	add(group, "PadSignFoot", v(S.w, 0.5, 1.6), v(x, 0.55, z + P.d / 2 - 1.2), SIGN, {
+		collide = false,
+	})
+	-- the station, grown by K about the pad's middle (its floor stays on the pad)
+	local K = PlotTraining.K
+	local inner = add
+	add = function(gr: string, name: string, size: V3, pos: V3, color: { number }, opts: any?)
+		return inner(
+			gr,
+			name,
+			v(size.x * K, size.y * K, size.z * K),
+			v(x + (pos.x - x) * K, 0.3 + (pos.y - 0.3) * K, z + (pos.z - z) * K),
+			color,
+			opts
+		)
+	end :: any
 	if kind == "treadmill" then
 		add(
 			group,
