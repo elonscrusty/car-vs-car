@@ -67,7 +67,6 @@ LobbyDecor.ROW_Z = ROW_Z
 LobbyDecor.GAP_Z = GAP_Z
 
 LobbyDecor.BUNTING_Y = 9.2 -- where the string ties onto the lamp posts
-LobbyDecor.POLE_DZ = 10 -- extra bunting poles: this far down the street from a plot's middle
 LobbyDecor.PLANTER_DZ = 24 -- planters: this far down the street from a plot's middle
 LobbyDecor.BIT_DZ = -30 -- hydrant / bin / mailbox: this far up the street
 LobbyDecor.PATH_X = EDGE - 1.2 -- footpath things stand by the outer edge
@@ -411,20 +410,6 @@ function LobbyDecor.parts(): { Piece }
 		if l.x < 0 then
 			bunting(add, l.z, i)
 		end
-	end
-	-- and half way between the lamps, on two white poles, so the street is full of flags
-	for row, z in ROW_Z do
-		local bz = z + LobbyDecor.POLE_DZ
-		for _, side in { -1, 1 } do
-			add(
-				"Bunting" .. (10 + row),
-				"Pole",
-				v(0.35, LobbyDecor.BUNTING_Y + 0.4, 0.35),
-				v(side * (L.EDGE - 1), (LobbyDecor.BUNTING_Y + 0.4) / 2, bz),
-				C.pole
-			)
-		end
-		bunting(add, bz, 10 + row)
 	end
 
 	-- road paint: a checker start line by the spawn lobby, zebra crossings at the gaps

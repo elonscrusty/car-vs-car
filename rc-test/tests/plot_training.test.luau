@@ -209,6 +209,27 @@ test("car tags: one per pad, never over the next pad, the car or each other", fu
 	end
 end)
 
+test("from the gate, no car tag hides the room sign", function()
+	local eye = { y = 9, z = 50 } -- a kid's camera just outside the gate (Studio score 20)
+	local sign
+	for _, p in T.pieces(8, 8, 12) do
+		if p.name == "RoomSign" then
+			sign = p
+		end
+	end
+	local wall = sign.pos.z
+	for i = 1, #T.GRID do
+		local x, y, z = T.tagSpot(i)
+		-- the tag's box, seen from the eye, cast onto the sign's wall
+		local k = (eye.z - wall) / (eye.z - z)
+		local x0, x1 = (x - T.TAG.w / 2) * k, (x + T.TAG.w / 2) * k
+		local y0, y1 = eye.y + (y - T.TAG.h / 2 - eye.y) * k, eye.y + (y + T.TAG.h / 2 - eye.y) * k
+		local sx0, sx1 = sign.pos.x - sign.size.x / 2, sign.pos.x + sign.size.x / 2
+		local sy0, sy1 = sign.pos.y - sign.size.y / 2, sign.pos.y + sign.size.y / 2
+		truthy(x1 < sx0 or x0 > sx1 or y1 < sy0 or y0 > sy1, "tag " .. i .. " clear of the sign")
+	end
+end)
+
 test("locked pads have no little sign (their words are painted big on the pad)", function()
 	for _, p in T.pieces(1, 0, 0) do
 		if p.name == "PadSign" or p.name == "PadSignFoot" then
