@@ -22,6 +22,7 @@ end
 local Garage = sibling("Garage")
 local Finish = sibling("Finish")
 local Training = sibling("Training")
+local CarStats = sibling("CarStats")
 
 type Piece = Garage.Piece
 type V3 = Garage.V3
@@ -111,7 +112,11 @@ function PlotTraining.padWords(pad: Pad?, index: number): (string, string)
 	if pad == nil then
 		return "LOCKED", "PLOT LV " .. (index - 1)
 	end
-	return Training.NAMES[pad.kind] or string.upper(pad.kind), "LV " .. pad.level
+	-- the bar it trains most, in the tag's words (the SPEED TRACK trains TURN: say so)
+	local bar = CarStats.BAR_LABELS[Training.MAIN[pad.kind] or ""]
+	local lv = "LV " .. pad.level
+	return Training.NAMES[pad.kind] or string.upper(pad.kind),
+		if bar then lv .. "  +" .. bar else lv
 end
 
 -- Where a tiny car is on a station at time `t` (seconds): pad-local x, y, z, its yaw in degrees
@@ -244,6 +249,11 @@ local function pad(add: Garage.Add, i: number, kind: string?)
 			collide = false,
 		}
 	)
+	if kind == nil then
+		-- locked: no little sign (too small to read from the stand); PlotGarageBuilder paints
+		-- LOCKED / PLOT LV n big across the pad itself
+		return
+	end
 	-- the sign at the pad's front edge, facing the road (+z); its posts stand behind it
 	add(group, "PadSign", v(11, 2.2, 0.3), v(x, 1.9, z + P.d / 2 - 0.6), SIGN, { collide = false })
 	for _, sx in { -4.5, 4.5 } do

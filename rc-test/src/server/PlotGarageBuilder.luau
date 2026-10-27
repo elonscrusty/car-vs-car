@@ -55,6 +55,33 @@ local function label(board: BasePart, top: string, bottom: string, one: boolean?
 	line("Bottom", bottom, 0.6, 0.34, Color3.fromRGB(255, 220, 90))
 end
 
+-- Words painted big across a locked pad's top, reading from the road (the top face's up is -z).
+local function paint(base: BasePart, top: string, bottom: string)
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "Words"
+	gui.Face = Enum.NormalId.Top
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 20
+	gui.LightInfluence = 0
+	gui.Parent = base
+	local function line(name: string, text: string, y: number, h: number, color: Color3)
+		local l = Instance.new("TextLabel")
+		l.Name = name
+		l.BackgroundTransparency = 1
+		l.Position = UDim2.fromScale(0.06, y)
+		l.Size = UDim2.fromScale(0.88, h)
+		l.Font = Enum.Font.GothamBlack
+		l.TextScaled = true
+		l.TextColor3 = color
+		l.TextTransparency = 0.1
+		l.TextStrokeTransparency = 0.5
+		l.Text = text
+		l.Parent = gui
+	end
+	line("Top", top, 0.2, 0.36, Color3.new(1, 1, 1))
+	line("Bottom", bottom, 0.58, 0.22, Color3.fromRGB(255, 220, 90))
+end
+
 -- The sign's words: what the next level gives and costs (MAX at the top).
 local function words(level: number): (string, string)
 	return PlotGarage.levelWords(level, Tycoon.levelCost(level))
@@ -197,6 +224,10 @@ function PlotGarageBuilder.start()
 		Garage.useMeshes(groups, pivot, PlotTraining.meshes())
 		for i = 1, #PlotTraining.GRID do
 			local g = groups["Pad" .. i]
+			local base = g and g:FindFirstChild("PadBase")
+			if i > PlotTraining.open(plotLevel) and base and base:IsA("BasePart") then
+				paint(base, PlotTraining.padWords(nil, i))
+			end
 			local sign = g and g:FindFirstChild("PadSign")
 			if sign and sign:IsA("BasePart") then
 				-- an open pad the server hasn't listed yet still says its station
