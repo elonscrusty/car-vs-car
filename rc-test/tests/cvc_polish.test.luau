@@ -217,3 +217,21 @@ test(
 		truthy(has(crate, 'local NEW_CAR_WORDS = "A NEW CAR FOR YOUR GARAGE!"'), "the crate's line")
 	end
 )
+
+test(
+	"Car VS Car screens place things by AbsolutePosition only after taking off the top bar",
+	function()
+		-- (AbsolutePosition starts under Roblox's 58 px top bar; these screens' offsets start at the
+		-- top: the coin +N and the bursts landed 58 px too high)
+		for _, f in fs.readDir("src/client") do
+			if string.sub(f, 1, 3) == "Cvc" or f == "Stars.client.luau" then
+				local src = fs.readFile(`src/client/{f}`)
+				for line in string.gmatch(src, "[^\n]+") do
+					if string.find(line, "local at = [%w_]+%.AbsolutePosition") then
+						truthy(string.find(line, "AbsolutePosition %- ") ~= nil, `{f}: {line}`)
+					end
+				end
+			end
+		end
+	end
+)

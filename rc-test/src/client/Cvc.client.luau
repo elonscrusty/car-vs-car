@@ -267,7 +267,9 @@ local function giftBox(id: string)
 			Position = UDim2.new(0.5, 70, 0.5, -200),
 			Rotation = 40,
 		}):Play()
-		local at = gift.AbsolutePosition + gift.AbsoluteSize / 2
+		-- (screen offsets: AbsolutePosition starts under Roblox's top bar, Kart_Fall at the top left;
+		-- the bursts went off 58 px too high)
+		local at = gift.AbsolutePosition - fall.AbsolutePosition + gift.AbsoluteSize / 2
 		Party.burst(top, UDim2.fromOffset(at.X, at.Y), 24)
 		Sfx.crate(1)
 		local car = CvcUi.carPic(top, id)
@@ -387,7 +389,7 @@ local function buildPick()
 					showPick()
 				end
 			end)
-			local at = go.AbsolutePosition + go.AbsoluteSize / 2
+			local at = go.AbsolutePosition - fall.AbsolutePosition + go.AbsoluteSize / 2
 			Party.burst(top, UDim2.fromOffset(at.X, at.Y), 16)
 			task.delay(0.35, function()
 				pickGui.Enabled = false
@@ -454,7 +456,7 @@ local function nextPop()
 		end)
 		if p.max then
 			Sfx.maxed()
-			local at = w.AbsolutePosition + w.AbsoluteSize / 2
+			local at = w.AbsolutePosition - fall.AbsolutePosition + w.AbsoluteSize / 2
 			Party.burst(top, UDim2.fromOffset(at.X, at.Y), 14)
 		else
 			Sfx.speedUp()
