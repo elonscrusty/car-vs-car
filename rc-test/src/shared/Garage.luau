@@ -936,23 +936,76 @@ function Garage.parts(kind: string?): { Piece }
 				Garage.crate(add, "Crate" .. i, v(x, F + 0.75, 1.5), Crates.SHOP[i])
 			end
 		end
+		if crates then
+			Garage.crateYard(add, W, front)
+		end
 	end
 	return out
 end
 
+-- Round the crate shop, so it reads as a shop from across the plaza (Studio score 7, shots 28/29:
+-- "a tiny kiosk on a big empty pad"): a tall sign post beside the door with a giant gold crate on
+-- top and a CRATES board (CrateShop.client writes it), a mat out front in the trim colour, and
+-- piles of crates at the front corners. Shop-local, like Garage.parts.
+Garage.CRATE_POST = { x = 16, z = 7, h = 9.5 } -- beside the right front post, out of the door's way
+function Garage.crateYard(add: Add, W: number, front: number)
+	local trim = Garage.CRATE_TRIM
+	local p = Garage.CRATE_POST
+	add("CrateSign", "Foot", v(3, 1, 3), v(p.x, 0.5, p.z), C.dark)
+	add("CrateSign", "Post", v(1, p.h, 1), v(p.x, p.h / 2, p.z), C.white)
+	-- the board faces the plaza (+z), both sides written on
+	add("CrateSign", "Board", v(8, 3, 0.6), v(p.x, p.h - 2.2, p.z), trim)
+	Garage.crate(add, "CrateSign", v(p.x, p.h, p.z), "mega", 4, true)
+	-- the mat out of the door: trim colour with a lighter middle
+	add("CrateMat", "Mat", v(16, 0.06, 7), v(0, 0.03, front + 3.5), trim, { collide = false })
+	add(
+		"CrateMat",
+		"MatIn",
+		v(14, 0.07, 5.4),
+		v(0, 0.035, front + 3.5),
+		{ 255, 214, 120 },
+		{ collide = false }
+	)
+	-- piles of crates at the front corners (solid: you walk round them)
+	local left, right = -W / 2 - 2.6, W / 2 + 1.2
+	Garage.crate(add, "CratePile", v(left, 0, front - 2.2), "basic", 2.4, true)
+	Garage.crate(add, "CratePile", v(left, 0, front + 0.6), "big", 2.4, true)
+	Garage.crate(add, "CratePile", v(left, 2.4, front - 0.8), "mega", 2, true)
+	Garage.crate(add, "CratePile", v(right, 0, front + 0.6), "big", 2.2, true)
+end
+
 -- A toy crate standing on `at` (its bottom middle): a box in its kind's colour (Garage.CRATE_COLORS),
 -- white straps round it like a present and a darker lid. The client spins it and gives it a prompt.
-function Garage.crate(add: Add, group: string, at: V3, kind: string?)
+-- `size` (default CRATE_SIZE) and `solid` (the box collides) for the crates round the shop.
+function Garage.crate(
+	add: Add,
+	group: string,
+	at: V3,
+	kind: string?,
+	size: number?,
+	solid: boolean?
+)
 	local c = Garage.CRATE_COLORS[kind or ""] or Garage.CRATE_COLORS.basic
 	local dark = { math.floor(c[1] * 0.6), math.floor(c[2] * 0.6), math.floor(c[3] * 0.6) }
-	local s = Garage.CRATE_SIZE
+	local s = size or Garage.CRATE_SIZE
+	local k = s / Garage.CRATE_SIZE
 	local y = at.y + s / 2
 	local box = { collide = false, material = "SmoothPlastic" }
-	add(group, "Box", v(s, s, s), v(at.x, y, at.z), c, box)
-	add(group, "Lid", v(s + 0.2, 0.45, s + 0.2), v(at.x, at.y + s - 0.1, at.z), dark, box)
-	add(group, "StrapX", v(s + 0.08, s + 0.08, 0.4), v(at.x, y, at.z), C.white, box)
-	add(group, "StrapZ", v(0.4, s + 0.08, s + 0.08), v(at.x, y, at.z), C.white, box)
-	add(group, "Bow", v(0.7, 0.7, 0.7), v(at.x, at.y + s + 0.4, at.z), C.white, {
+	add(group, "Box", v(s, s, s), v(at.x, y, at.z), c, {
+		collide = solid == true,
+		material = "SmoothPlastic",
+	})
+	add(
+		group,
+		"Lid",
+		v(s + 0.2 * k, 0.45 * k, s + 0.2 * k),
+		v(at.x, at.y + s - 0.1 * k, at.z),
+		dark,
+		box
+	)
+	add(group, "StrapX", v(s + 0.08, s + 0.08, 0.4 * k), v(at.x, y, at.z), C.white, box)
+	add(group, "StrapZ", v(0.4 * k, s + 0.08, s + 0.08), v(at.x, y, at.z), C.white, box)
+	add(group, "Bow", v(0.7 * k, 0.7 * k, 0.7 * k), v(at.x, at.y + s + 0.4 * k, at.z), C.white, {
 		shape = "Ball",
 		collide = false,
 	})
