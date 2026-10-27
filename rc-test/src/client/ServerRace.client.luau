@@ -181,6 +181,21 @@ rowsText.Parent = card
 local podium = Podium.new(card)
 local PODIUM_H = CvcLayout.RESULT.podium -- of the screen
 local raceStartedAt = 0 -- the server time this race started (the next one is 3 min after it)
+local nextRaceAt = 0 -- Car VS Car: the next start, as the server fixed it when the race ended
+local cardLines: { string } = {} -- the result card's rows; the last one (NEXT RACE IN) ticks down
+-- Car VS Car: the next start: the server's (it sends it when every league's race is over), else
+-- the same sum it does, from now
+local function nextRace(): number
+	local now = workspace:GetServerTimeNow()
+	if nextRaceAt > now then
+		return nextRaceAt
+	end
+	return ServerRace.nextAfterRace(raceStartedAt, now)
+end
+local function nextLine(secs: number): string
+	return `<font color="#CFE3FF">NEXT RACE IN {ServerRace.clock(secs)}</font>`
+end
+
 local rowsSize = Instance.new("UITextSizeConstraint")
 rowsSize.MaxTextSize = 34
 rowsSize.Parent = rowsText
@@ -254,6 +269,11 @@ RunService.RenderStepped:Connect(function()
 		then UDim2.new(0.5, 0, 0, 58) -- (where the hurry pill sits in a race: the top middle is free)
 		else UDim2.new(0.5, 0, 0.12, 70)
 	callClock.Visible = not strip
+	-- the result card's NEXT RACE IN counts down (Car VS Car: to the start the race call shows)
+	if words and card.Visible and Features.CVC and raceStartedAt > 0 and #cardLines > 0 then
+		cardLines[#cardLines] = nextLine(nextRace() - workspace:GetServerTimeNow())
+		rowsText.Text = table.concat(cardLines, "\n")
+	end
 	-- the daily gift (Stars) waits while a race or its card is on screen
 	gui:SetAttribute("Busy", phase == "racing" or phase == "call" or card.Visible)
 	local hurryLeft = endsAt - workspace:GetServerTimeNow()
@@ -406,14 +426,14 @@ local function showResult(rows: { any })
 				else `<font color="#7CFF6B">{first.name}: 2X COINS {mins} MIN</font>`
 		)
 	end
-	-- the next race: Car VS Car = 3 min after this one started (ServerRace.nextStart, counted from
-	-- when the result goes away); before that, a fixed break
+	-- the next race: Car VS Car = the start the server fixed at the race end (the race call counts
+	-- down to the same one); before that, a fixed break
 	local untilNext = if Features.CVC and raceStartedAt > 0
-		then ServerRace.nextStart(raceStartedAt, workspace:GetServerTimeNow() + ServerRace.SHOW)
-			- workspace:GetServerTimeNow()
+		then nextRace() - workspace:GetServerTimeNow()
 		elseif RaceMaps.live() then ServerRace.MAP_BREAK
 		else ServerRace.BREAK
-	table.insert(lines, `<font color="#CFE3FF">NEXT RACE IN {ServerRace.clock(untilNext)}</font>`)
+	table.insert(lines, nextLine(untilNext))
+	cardLines = lines
 	rowsText.Text = table.concat(lines, "\n")
 	-- the card fits its rows (one racer = a short card, no empty gap)
 	-- (rows 6.5% of the screen tall each: big enough to read on a phone)
@@ -469,6 +489,8 @@ event.OnClientEvent:Connect(
 			showPlace(a)
 		elseif what == "ends" and type(a) == "number" then
 			endsAt, driftEnds = a, b == "drift"
+		elseif what == "next" and type(a) == "number" then
+			nextRaceAt = a
 		elseif what == "result" and type(a) == "table" then
 			showResult(a :: { any })
 		end

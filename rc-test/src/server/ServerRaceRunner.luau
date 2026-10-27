@@ -946,6 +946,12 @@ local function runRace(hooks: Hooks, slot: number)
 		RunService.Heartbeat:Wait()
 	end
 	writeSigns("RACE OVER!")
+	-- Car VS Car: the next start is fixed now and told to every screen (the result card's NEXT RACE
+	-- IN reads it; it used to guess its own and ran ~15 s long)
+	local nextAt = ServerRace.nextAfterRace(lastStart, now())
+	if Features.CVC and mapMode() then
+		event:FireAllClients("next", nextAt)
+	end
 	local racers: { Racer } = {}
 	for _, g in groups do
 		for _, r in g do
@@ -976,7 +982,7 @@ local function runRace(hooks: Hooks, slot: number)
 	picked, where = nil, ""
 	clearJoined()
 	workspace:SetAttribute("RaceSlot", 0)
-	startAt = nextStart()
+	startAt = if Features.CVC and mapMode() then nextAt else nextStart()
 	sendState()
 end
 

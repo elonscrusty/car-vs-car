@@ -319,6 +319,12 @@ function ServerRace.nextStart(lastStart: number, now: number): number
 	return math.max(lastStart + ServerRace.CVC_EVERY, now + ServerRace.CVC_GAP)
 end
 
+-- The next start, fixed the moment every league's race is over (endAt): the result card says
+-- it and the race call counts down to it, so the two always agree.
+function ServerRace.nextAfterRace(lastStart: number, endAt: number): number
+	return ServerRace.nextStart(lastStart, endAt + ServerRace.SHOW)
+end
+
 ServerRace.GROUPS = 4 -- big races at once at most (one per league, or two for a full league)
 
 -- Who races with whom (Car VS Car): each league on its own, at most `max` a race, in join order.

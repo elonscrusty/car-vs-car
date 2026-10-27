@@ -241,6 +241,18 @@ test("Car VS Car: a big race every 3 min, start to start, never squeezed", funct
 	eq(ServerRace.nextStart(-math.huge, 50), 50 + ServerRace.CVC_GAP)
 end)
 
+test("Car VS Car: the result card's NEXT RACE IN and the race call read the same start", function()
+	-- the server fixes it when every race is over and sends it ("next"); the card counts down to it
+	-- and the race call's startAt is set to it after the card (no ~15 s gap)
+	local last, ended = 1000, 1100
+	local nextAt = ServerRace.nextAfterRace(last, ended)
+	eq(nextAt, 1000 + ServerRace.CVC_EVERY)
+	-- a long race: still a full gap after the results go away
+	local late = ServerRace.nextAfterRace(1000, 1160)
+	eq(late, 1160 + ServerRace.SHOW + ServerRace.CVC_GAP)
+	truthy(late - (1160 + ServerRace.SHOW) >= ServerRace.CVC_GAP, "a gap after the card")
+end)
+
 test("Car VS Car: the maps take turns", function()
 	local ids = { "backyard", "kitchen" }
 	eq(ServerRace.mapTurn(ids, 1), "backyard")
