@@ -304,3 +304,38 @@ test("Car VS Car: a big race takes a good driver about 1 min (50 to 75 s) on bot
 		end
 	end
 end)
+
+test("Car VS Car: a first race (easy bots) is 1 lap, so it's over in about 1 min", function()
+	-- (carter 10-27: 2 laps with easy bots took 1.5 to 2 min. The bots still finish slower than a
+	-- good driver, so the new kid still wins it.)
+	eq(ServerRace.lapsFor(true), ServerRace.FIRST_LAPS)
+	eq(ServerRace.lapsFor(false), ServerRace.LAPS)
+	eq(ServerRace.lapsFor(nil), ServerRace.LAPS)
+	truthy(ServerRace.FIRST_LAPS < ServerRace.LAPS)
+	for _, m in RaceMaps.list() do
+		local lo, hi = RaceBots.skillRange(1, true)
+		local _, good = RaceBots.skillRange(1, false)
+		local times = {}
+		for _, skill in { lo, hi, good } do
+			local route, bot = setup(m, skill, 2)
+			route.laps = ServerRace.FIRST_LAPS
+			local took = drive(route, bot, ServerRace.MAP_TIME_LIMIT, nil)
+			truthy(took ~= nil, `{m.id} skill {skill} never finished 1 lap`)
+			eq(RaceBots.laps(route, bot), ServerRace.FIRST_LAPS)
+			table.insert(times, took :: number)
+		end
+		local slowest, quickest, goodTime = times[1], times[2], times[3]
+		print(
+			string.format(
+				"       %s: easy bots %.0f to %.0f s, a good driver %.0f s",
+				m.id,
+				quickest,
+				slowest,
+				goodTime
+			)
+		)
+		-- the last easy bot is in within about 1 min (+ the wait at GO)
+		truthy(slowest + RaceBots.EASY_DELAY <= 70, `{m.id}: the slowest easy bot took {slowest} s`)
+		truthy(goodTime < quickest, `{m.id}: a good driver still beats the easy bots`)
+	end
+end)

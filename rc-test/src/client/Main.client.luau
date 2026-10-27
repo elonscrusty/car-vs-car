@@ -46,6 +46,11 @@ local RoadArrow = require(script.Parent.RoadArrow)
 local StartLights = require(script.Parent.StartLights)
 
 local player = Players.LocalPlayer
+-- laps in this server race (the server sets it: a first race is shorter)
+local function raceLaps(): number
+	local n = player:GetAttribute("RaceLaps")
+	return if type(n) == "number" and n >= 1 then n else ServerRace.LAPS
+end
 local remote = ReplicatedStorage:WaitForChild("RCControl") :: RemoteEvent
 local carName = "Car_" .. player.UserId
 
@@ -573,8 +578,8 @@ local function timerText(): string
 		elseif done then
 			table.insert(lines, `FINISHED   {CarMath.formatTime(done)}`)
 		else
-			local lap = math.min(s.laps + 1, ServerRace.LAPS)
-			table.insert(lines, `LAP {lap}/{ServerRace.LAPS}   {CarMath.formatTime(now - go)}`)
+			local lap = math.min(s.laps + 1, raceLaps())
+			table.insert(lines, `LAP {lap}/{raceLaps()}   {CarMath.formatTime(now - go)}`)
 		end
 		-- the live place the server works out
 		local place, cars = player:GetAttribute("RacePlace"), player:GetAttribute("RaceCars")
@@ -585,9 +590,7 @@ local function timerText(): string
 		-- server race, on the grid before GO (it showed a solo "LAP 1  -:--.-" here)
 		table.insert(
 			lines,
-			if t.id == "drift"
-				then "DRIFT!"
-				else `LAP 1/{ServerRace.LAPS}   {CarMath.formatTime(0)}`
+			if t.id == "drift" then "DRIFT!" else `LAP 1/{raceLaps()}   {CarMath.formatTime(0)}`
 		)
 	elseif t.mode == "loop" then
 		local cur = if s.running then CarMath.formatTime(now - s.startTime) else "-:--.-"
@@ -683,7 +686,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 	end
 	-- server race: the last lap is the finish (the server keeps the real order)
 	local go = raceGo
-	if event == "lap" and grid and go and t.id ~= "drift" and timer.laps >= ServerRace.LAPS then
+	if event == "lap" and grid and go and t.id ~= "drift" and timer.laps >= raceLaps() then
 		event = nil
 		raceDone = os.clock() - go
 		hud.flash(`FINISH!  {CarMath.formatTime(raceDone :: number)}`)
@@ -709,19 +712,19 @@ RunService.PreSimulation:Connect(function(dt: number)
 		if Features.CVC then
 			addBoost()
 		end
-		if timer.laps == ServerRace.LAPS - 1 then
+		if timer.laps == raceLaps() - 1 then
 			hud.flash("FINAL LAP!")
 			startBeep.PlaybackSpeed = 1.3
 			startBeep:Play()
 		else
-			hud.flash(`LAP {timer.laps + 1}/{ServerRace.LAPS}`)
+			hud.flash(`LAP {timer.laps + 1}/{raceLaps()}`)
 		end
 	elseif event == "lap" then
 		hud.flash(`LAP  {CarMath.formatTime(timers[current].last :: number)}`)
 	elseif event == "finish" then
 		hud.flash(`SUMMIT!  {CarMath.formatTime(timers[current].last :: number)}`)
 	elseif event == "start" and grid then
-		hud.flash(`LAP 1/{ServerRace.LAPS}`) -- (a TOO EARLY car's laps start now, mid-race)
+		hud.flash(`LAP 1/{raceLaps()}`) -- (a TOO EARLY car's laps start now, mid-race)
 	elseif event == "start" then
 		hud.flash("GO!")
 	end

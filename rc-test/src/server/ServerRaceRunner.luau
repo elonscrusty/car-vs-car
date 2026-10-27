@@ -4,7 +4,7 @@
 -- on every screen count the break down; 10 s before the start the plot is picked and named. At
 -- the start everyone (up to ServerRace.MAX) is put on that plot's grid and the start lights run
 -- (their screens). The server counts each car's laps from where its car is (the same gates as the lap
--- timer): first to finish ServerRace.LAPS laps wins, and everyone sees who won. Then the racers
+-- timer): first to finish the race's laps (ServerRace.lapsFor) wins, and everyone sees who won. Then the racers
 -- walk again. Driving is not touched: the cars are the players' own.
 -- Plain maths (times, grid, order) is ServerRace's.
 
@@ -575,14 +575,25 @@ local function runRace(hooks: Hooks, slot: number)
 		table.insert(leagues, if Features.CVC and type(lg) == "number" then lg else 1)
 	end
 	local groups: { { Racer } } = {}
+	-- (Car VS Car: a map race where nobody has raced yet is a first race: easy bots, fewer laps)
+	local groupEasy: { boolean } = {}
+	local groupLaps: { number } = {}
 	for gi, idx in ServerRace.groups(leagues, ServerRace.MAX) do
 		local racers: { Racer } = {}
 		groups[gi] = racers
+		local easy = Features.CVC and t.map ~= nil and t.id ~= "drift"
+		for _, i in idx do
+			local stage = list[i]:GetAttribute("Stage")
+			easy = easy and not (type(stage) == "number" and stage >= Profile.STAGE.RACED)
+		end
+		groupEasy[gi] = easy
+		groupLaps[gi] = ServerRace.lapsFor(easy)
 		for k, i in idx do
 			local p = list[i]
 			if not p.Parent then
 				continue
 			end
+			p:SetAttribute("RaceLaps", groupLaps[gi]) -- (the LAP 1/2 on their screen)
 			if LobbyPlots.drivingOf(p) ~= nil then
 				hooks.walk(p)
 			end
@@ -647,14 +658,17 @@ local function runRace(hooks: Hooks, slot: number)
 		local bots: RaceBotCars.Fleet? = nil
 		if not drift and t.map then
 			-- (Car VS Car: bots as good as the league, easy ones when nobody here has raced yet)
-			local league, easy = 1, true
+			local league = 1
 			for _, r in racers do
 				local lg = r.player:GetAttribute("League")
 				league = math.max(league, if type(lg) == "number" then lg else 1)
-				local stage = r.player:GetAttribute("Stage")
-				easy = easy and not (type(stage) == "number" and stage >= Profile.STAGE.RACED)
 			end
-			bots = RaceBotCars.spawn(t, #racers, mapModel, { league = league, easy = easy })
+			bots = RaceBotCars.spawn(
+				t,
+				#racers,
+				mapModel,
+				{ league = league, easy = groupEasy[gi], laps = groupLaps[gi] }
+			)
 			if bots then
 				table.insert(fleets, bots)
 				if Features.CVC then
@@ -808,7 +822,7 @@ local function runRace(hooks: Hooks, slot: number)
 						if r.timer.last then
 							Leaderboards.lap(p, t.map, r.timer.last) -- fastest-lap boards (server clock)
 						end
-						if r.laps >= ServerRace.LAPS then
+						if r.laps >= groupLaps[gi] then
 							r.time = clock - goAt
 							startCountdown(clock - goAt)
 							r.finishedNow = true
