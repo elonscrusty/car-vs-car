@@ -58,6 +58,7 @@ local function box(
 end
 
 local TL, MID, BOTTOM_MID, BOTTOM_LEFT = { 0, 0 }, { 0.5, 0.5 }, { 0.5, 1 }, { 0, 1 }
+local TOP_MID = { 0.5, 0 }
 local TAP = { tap = true }
 local MAIN = { main = true }
 
@@ -102,8 +103,17 @@ CvcLayout.SCREENS = {
 	},
 	-- after a race: the result card, then GG! / AGAIN!
 	finish = {
-		Card = box(nil, MID, { 0.5, 0, 0.36, 0 }, { 0.36, 0, 0.34, 0 }, { max = { 420, 260 } }),
-		Chat = box(nil, MID, { 0.5, 0, 0.66, 0 }, { 0, 300, 0, 60 }),
+		-- up top under Roblox's bar, over JOIN (COACH steps away while it shows)
+		Card = box(nil, TOP_MID, { 0.5, 0, 0, 64 }, { 0.36, 0, 0.34, 0 }, { max = { 420, 260 } }),
+		-- right of the big JOIN button (BigJoin: bottom middle, 240 wide), bottoms lined up: it sat
+		-- on JOIN (Studio final-10); on a phone it shrinks to the room left of the screen edge
+		Chat = box(
+			nil,
+			BOTTOM_LEFT,
+			{ 0.5, 120 + 10, 0.96, -102 },
+			{ 0.5, -(120 + 10 + 14), 0, 56 },
+			{ max = { 300, 56 } }
+		),
 		GG = box("Chat", TL, { 0, 0, 0, 0 }, { 0.47, 0, 1, 0 }, MAIN),
 		Again = box("Chat", TL, { 0.53, 0, 0, 0 }, { 0.47, 0, 1, 0 }, MAIN),
 	},
@@ -283,13 +293,20 @@ end
 -- ===== after a race the cards take turns (Studio check 10-26: they sat on each other) =====
 -- 1. the race result with the podium (ServerRace.client "Result", ServerRace.SHOW seconds),
 -- 2. the win card with GG! / AGAIN! (CvcRace "Finish" and "QuickChat"; they go together),
--- 3. NEXT CAR (Stars "RacePrize"). Each waits until the ones before it are gone.
+-- 3. a new league's big words (Cvc "Kart_League": GOLD LEAGUE!, it came with the win card and
+-- was never seen), 4. NEXT CAR (Stars "RacePrize"). Each waits until the ones before it are gone.
 CvcLayout.AFTER_RACE = {
 	{ turn = 1, gui = "ServerRace", name = "Result" },
 	{ turn = 2, gui = "CvcRaceTop", name = "Finish" },
 	{ turn = 2, gui = "CvcRaceTop", name = "QuickChat" },
-	{ turn = 3, gui = "StarsTop", name = "RacePrize" },
+	{ turn = 3, gui = "CvcTop", name = "Kart_League" },
+	{ turn = 4, gui = "StarsTop", name = "RacePrize" },
 }
+
+-- the league words' box (CvcUi.bigWords: the middle, 40% down, 60% x 14%)
+function CvcLayout.leagueBox(sw: number, sh: number): Rect
+	return { sw * 0.2, sh * 0.33, sw * 0.8, sh * 0.47 }
+end
 
 function CvcLayout.turnOf(name: string): number
 	for _, c in CvcLayout.AFTER_RACE do
@@ -340,7 +357,8 @@ function CvcLayout.prizeBox(sw: number, sh: number, joinTop: number?): Rect
 end
 
 -- (client) wait until every after-race card from an earlier turn than `name` is off the screen,
--- for a moment (the next card can take a beat to come up); at most `most` seconds
+-- for a moment (the next card can take a beat to come up: a later turn waits longer, so the
+-- turn before it has come up first); at most `most` seconds
 function CvcLayout.waitTurn(playerGui: Instance, name: string, most: number)
 	local turn = CvcLayout.turnOf(name)
 	local function up(): boolean
@@ -360,7 +378,7 @@ function CvcLayout.waitTurn(playerGui: Instance, name: string, most: number)
 			clearSince = nil
 		elseif not clearSince then
 			clearSince = os.clock()
-		elseif os.clock() - clearSince >= 0.3 then
+		elseif os.clock() - clearSince >= 0.3 * math.max(1, turn - 1) then
 			return
 		end
 		task.wait(0.1)

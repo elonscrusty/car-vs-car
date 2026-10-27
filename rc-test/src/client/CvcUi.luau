@@ -87,7 +87,7 @@ function CvcUi.ribbon(panel: GuiObject, text: string): TextLabel
 end
 
 -- Big words in the middle of a ScreenGui: pop in, rise and fade.
-function CvcUi.bigWords(gui: Instance, text: string, color: Color3, y: number?)
+function CvcUi.bigWords(gui: Instance, text: string, color: Color3, y: number?): TextLabel
 	local at = y or 0.4
 	local w = CvcUi.label(gui, text, color)
 	w.Name = "Kart_Words"
@@ -112,6 +112,7 @@ function CvcUi.bigWords(gui: Instance, text: string, color: Color3, y: number?)
 			w:Destroy()
 		end)
 	end)
+	return w
 end
 
 -- A ScreenGui over the popups for big words and confetti, with a Kart_Fall layer (returned

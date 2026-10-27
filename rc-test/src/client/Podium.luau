@@ -11,12 +11,15 @@ export type Podium = { frame: ViewportFrame, show: (rows: { any }) -> number, hi
 
 local Podium = {}
 
+-- (wide and low, like the strip it sits in on the card: big cars, little empty blue; Studio
+-- final-04 had them a quarter of the card wide)
 local BLOCK = { -- place -> x, height, colour
-	{ x = 0, h = 3, color = Color3.fromRGB(255, 205, 60) },
-	{ x = -6.5, h = 2, color = Color3.fromRGB(200, 205, 215) },
-	{ x = 6.5, h = 1.3, color = Color3.fromRGB(215, 140, 70) },
+	{ x = 0, h = 1.4, color = Color3.fromRGB(255, 205, 60) },
+	{ x = -10.5, h = 1, color = Color3.fromRGB(200, 205, 215) },
+	{ x = 10.5, h = 0.6, color = Color3.fromRGB(215, 140, 70) },
 }
-local CAR_LONG = 5 -- every car is shown this long, whatever its real size
+local BLOCK_W = 8.5
+local CAR_LONG = 8 -- every car is shown this long, whatever its real size
 
 -- The car model a result row drove (a player's Car_<uid>, or the bot with that name; the one in
 -- your own race first). nil = gone already.
@@ -59,13 +62,13 @@ function Podium.new(parent: GuiObject): Podium
 
 	-- the camera fills the frame with the podium (it was far back: tiny cars, Studio check 10-26)
 	-- (every frame: the card grows in, and the frame is far wider than tall)
-	local HALF_W = 6.5 + 2.75 + 0.6 -- the side blocks' outer edges, and a little room
+	local HALF_W = 10.5 + BLOCK_W / 2 + 0.3 -- the side blocks' outer edges, and a little room
 	local TAN = math.tan(math.rad(cam.FieldOfView / 2))
-	local UP = Vector3.new(0, 0.28, 1).Unit -- from a little above
+	local UP = Vector3.new(0, 0.22, 1).Unit -- from a little above
 	local function fit()
 		local px = frame.AbsoluteSize
 		local aspect = if px.Y > 0 then px.X / px.Y else 3
-		local halfH = topY / 2 + 0.5
+		local halfH = topY / 2 + 0.3
 		local dist = math.max(halfH / TAN, HALF_W / (TAN * aspect)) + 2.5 -- (+ half the blocks' depth)
 		local look = Vector3.new(0, topY / 2, 0)
 		cam.CFrame = CFrame.lookAt(look + UP * dist, look)
@@ -94,7 +97,7 @@ function Podium.new(parent: GuiObject): Podium
 			local b = BLOCK[place]
 			local block = Instance.new("Part")
 			block.Anchored = true
-			block.Size = Vector3.new(5.5, b.h, 4)
+			block.Size = Vector3.new(BLOCK_W, b.h, 5)
 			block.CFrame = CFrame.new(b.x, b.h / 2, 0)
 			block.Color = b.color
 			block.Material = Enum.Material.SmoothPlastic

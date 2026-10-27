@@ -267,6 +267,7 @@ test("after a race the cards take turns: no two that cover each other show at on
 			Result = CvcLayout.resultBox(sw, sh, 10, true),
 			Finish = finish("Card"),
 			QuickChat = finish("Chat"),
+			Kart_League = CvcLayout.leagueBox(sw, sh),
 			RacePrize = CvcLayout.prizeBox(sw, sh, joinTop(sw, sh)),
 		}
 		for a, ra in cards do
@@ -277,7 +278,7 @@ test("after a race the cards take turns: no two that cover each other show at on
 			end
 		end
 		-- (the Studio find: the win card on the ribbon, GG!/AGAIN! and NEXT CAR on the rows)
-		for _, name in { "Finish", "QuickChat", "RacePrize" } do
+		for _, name in { "Finish", "QuickChat", "Kart_League", "RacePrize" } do
 			truthy(
 				CvcLayout.turnOf(name) > CvcLayout.turnOf("Result"),
 				`{name} waits for the result`
@@ -286,6 +287,11 @@ test("after a race the cards take turns: no two that cover each other show at on
 		truthy(
 			CvcLayout.turnOf("RacePrize") > CvcLayout.turnOf("QuickChat"),
 			"NEXT CAR waits for GG! / AGAIN!"
+		)
+		-- (GOLD LEAGUE! came with the win card in the middle and was never seen: Studio final-12)
+		truthy(
+			CvcLayout.turnOf("Kart_League") > CvcLayout.turnOf("Finish"),
+			"the league words wait for the win card"
 		)
 	end
 	-- every card in the turns
@@ -335,4 +341,26 @@ test("COACH finds the race call strip inside its StageGate wrap (it never steppe
 	-- ... so COACH looks for it all the way down, not just at the top of the gui
 	truthy(string.find(cvc, 'FindFirstChild("Call", true)', 1, true) ~= nil, "COACH looks inside")
 	truthy(string.find(cvc, 'FindFirstChild("Call")', 1, true) == nil, "no top-only look")
+end)
+
+test("the win card and GG! / AGAIN! sit clear of JOIN and the other buttons", function()
+	if not Features.CVC then
+		return
+	end
+	for _, s in { { 1914, 604 }, table.unpack(SIZES) } do
+		local sw, sh = s[1], s[2]
+		for _, name in { "Card", "Chat" } do
+			local l, t, r, b = CvcLayout.box("finish", name, sw, sh)
+			for _, spot in HudLayout.SPOTS do
+				-- (COACH steps away while the win card shows)
+				if spot.mode == "walk" and not spot.off and spot.name ~= "Coach" then
+					local ol, ot, orr, ob = HudLayout.box(spot, sw, sh)
+					truthy(
+						not CvcLayout.hits({ l, t, r, b }, { ol, ot, orr, ob }),
+						`finish {name} covers {spot.name} at {sw}x{sh}`
+					)
+				end
+			end
+		end
+	end
 end)

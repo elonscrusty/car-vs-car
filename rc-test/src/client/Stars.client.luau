@@ -802,6 +802,12 @@ prize.BackgroundColor3 = Color3.fromRGB(30, 32, 44)
 prize.BackgroundTransparency = 0.08
 prize.Visible = false
 prize.Parent = top
+-- the screen's top left in AbsolutePosition terms (those start under Roblox's top bar)
+local prizeOrigin = Instance.new("Frame")
+prizeOrigin.Name = "Kart_Origin"
+prizeOrigin.BackgroundTransparency = 1
+prizeOrigin.Size = UDim2.fromOffset(0, 0)
+prizeOrigin.Parent = top
 local prizeCorner = Instance.new("UICorner")
 prizeCorner.CornerRadius = UDim.new(0.12, 0)
 prizeCorner.Parent = prize
@@ -874,7 +880,9 @@ local function showPrize(before: any)
 	local cvcRace = if Features.CVC and pgui then pgui:FindFirstChild("CvcRace") else nil
 	local join = if cvcRace then cvcRace:FindFirstChild("BigJoin") else nil
 	if join and join:IsA("GuiObject") and top.AbsoluteSize.Y > 0 then
-		y = math.min(y, CvcLayout.prizeY(top.AbsoluteSize.Y, join.AbsolutePosition.Y))
+		-- (AbsolutePosition starts under Roblox's top bar; this card's scale starts at the top)
+		local joinTop = join.AbsolutePosition.Y - prizeOrigin.AbsolutePosition.Y
+		y = math.min(y, CvcLayout.prizeY(top.AbsoluteSize.Y, joinTop))
 	end
 	local P = CvcLayout.PRIZE
 	prize.Size = if Features.CVC then UDim2.fromScale(P.w, P.h) else UDim2.fromScale(0.36, 0.11)

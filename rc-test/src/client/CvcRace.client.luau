@@ -270,7 +270,8 @@ local function finish(place: number, coins: number, trophy: boolean)
 	TweenService:Create(wordScale, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Scale = 1 }):Play()
 	if place == 1 then
 		flash()
-		local at = card.AbsolutePosition + card.AbsoluteSize / 2
+		-- (screen offsets: AbsolutePosition starts under Roblox's top bar, Kart_Fall at the top left)
+		local at = card.AbsolutePosition - fall.AbsolutePosition + card.AbsoluteSize / 2
 		Party.burst(top, UDim2.fromOffset(at.X, at.Y), 24)
 	end
 	if trophy then
