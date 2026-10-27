@@ -34,7 +34,7 @@ Crates.KINDS = {
 	},
 	{
 		id = "basic",
-		label = "CRATE",
+		label = "SMALL CRATE",
 		price = 300,
 		odds = { common = 70, rare = 25, epic = 4.5, legend = 0.5 },
 	},

@@ -183,7 +183,9 @@ local function stationCard(i: number, st: CvcState.Station)
 			up.AutoButtonColor = false
 		else
 			local short = cost - coins()
-			up.Text = if short > 0 then `{short} MORE` else `BETTER {cost}`
+			-- what it does and what it costs (grey: not enough coins yet); "81 MORE" said neither,
+			-- Studio polish-5
+			up.Text = `BETTER!\n{cost} COINS`
 			up.BackgroundColor3 = if short > 0 then GREY else KartStyle.GREEN
 			inkText(up, false)
 			up.AutoButtonColor = true
@@ -321,7 +323,9 @@ render = function()
 		more.Visible = cost ~= nil and CvcState.plotLevel < Training.MAX_PLOT_LEVEL
 		if cost then
 			local short = cost - coins()
-			more.Text = if short > 0 then `MORE STATIONS: {short} MORE` else `MORE STATIONS  {cost}`
+			more.Text = if short > 0
+				then `NEW STATION: {cost} COINS ({short} TO GO)`
+				else `NEW STATION: {cost} COINS`
 			more.BackgroundColor3 = if short > 0 then GREY else KartStyle.GREEN
 		end
 	else

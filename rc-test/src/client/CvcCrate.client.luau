@@ -192,15 +192,20 @@ local function showChoose()
 	local kind = Crates.get(KIND)
 	revealId += 1 -- (a name still up from the last crate: the ribbon is back now)
 	ribbon.Visible = true
-	ribbon.Text = if kind then kind.label else "CRATE"
+	-- its name and price ("CRATE" alone said neither, Studio polish-5)
+	local cost = Crates.price(KIND)
+	ribbon.Text = if kind and cost
+		then `{kind.label}  {cost} COINS`
+		elseif kind then kind.label
+		else "CRATE"
 	box.BackgroundColor3 = BOX_COLORS[KIND] or WOOD
 	local price = Crates.price(KIND)
 	if price then
 		local short = price - coins()
-		openBtn.Text = if short > 0 then `{short} MORE` else `BUY {price}`
+		openBtn.Text = if short > 0 then `NEED {short} MORE COINS` else `BUY & OPEN!`
 		openBtn.BackgroundColor3 = if short > 0 then GREY else KartStyle.GREEN
 		openBtn:SetAttribute("KartPulse", if short > 0 then nil else true)
-		left.Text = ""
+		left.Text = if short > 0 then "WIN RACES AND TRAIN FOR COINS" else ""
 	else
 		openBtn.Text = "OPEN!"
 		openBtn.BackgroundColor3 = KartStyle.GREEN

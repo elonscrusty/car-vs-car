@@ -194,6 +194,9 @@ local TROPHY_COLORS = {
 	Color3.fromRGB(214, 140, 80), -- bronze
 }
 
+-- the card's second line when there are no coins to count up
+local NO_PRIZE_WORDS = "TRAIN YOUR CAR, THEN RACE AGAIN!"
+
 local function placeWord(place: number): string
 	if place <= 0 then
 		return "GOOD TRY!"
@@ -331,6 +334,11 @@ local function finish(place: number, coins: number, trophy: boolean)
 			got.Text = `+{coins} COINS`
 			pop(got, 1.4)
 		end)
+	elseif not trophy then
+		-- (no coins, no cup: the card was GOOD TRY! over an empty blue box, Studio polish-2)
+		got.Text = NO_PRIZE_WORDS
+		got.TextColor3 = WHITE
+		got.Size = UDim2.fromScale(0.9, 0.3)
 	end
 	if place >= 1 then
 		Sfx.trophy(place)
