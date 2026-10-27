@@ -220,9 +220,7 @@ placeStroke.Parent = placeText
 -- once someone has won: how long the rest have to finish (a red pill up top)
 local hurry = Instance.new("TextLabel")
 hurry.Name = "Hurry"
-hurry.AnchorPoint = Vector2.new(0.5, 0)
-hurry.Position = UDim2.new(0.5, 0, 0, 58)
-hurry.Size = UDim2.fromScale(0.34, 0.07)
+HudLayout.place(hurry, "Hurry", "drive")
 hurry.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
 hurry.TextColor3 = Color3.new(1, 1, 1)
 hurry.Font = Enum.Font.LuckiestGuy
@@ -266,7 +264,7 @@ RunService.RenderStepped:Connect(function()
 	callAspect.AspectRatio = if strip then 7 else 2.6
 	callWhere.Size = UDim2.fromScale(1, if strip then 1 else 0.3)
 	call.Position = if strip
-		then UDim2.new(0.5, 0, 0, 58) -- (where the hurry pill sits in a race: the top middle is free)
+		then UDim2.new(0.5, 0, 0, 58) -- (on foot: the top middle is free)
 		else UDim2.new(0.5, 0, 0.12, 70)
 	callClock.Visible = not strip
 	-- the result card's NEXT RACE IN counts down (Car VS Car: to the start the race call shows)

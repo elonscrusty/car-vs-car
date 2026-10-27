@@ -194,6 +194,7 @@ local function showFold()
 		jobs.Size = UDim2.fromOffset(CvcLayout.JOBS_CHIP[1], CvcLayout.JOBS_CHIP[2])
 	end
 	jobsTitle.Size = UDim2.fromScale(1, if folded then 1 else 0.22)
+	jobs:SetAttribute("Open", not folded) -- (CvcHowTo: the how-to tip waits while it's open)
 	showTitle()
 end
 local unfoldId = 0
@@ -270,7 +271,7 @@ local toastCorner = Instance.new("UICorner")
 toastCorner.CornerRadius = UDim.new(0.4, 0)
 toastCorner.Parent = toast
 local toasts = 0
-local function showToast(text: string)
+local function toastNow(text: string)
 	toasts += 1
 	local mine = toasts
 	toast.Text = text
@@ -281,6 +282,29 @@ local function showToast(text: string)
 			local info = TweenInfo.new(0.4)
 			TweenService:Create(toast, info, { TextTransparency = 1, BackgroundTransparency = 1 })
 				:Play()
+		end
+	end)
+end
+
+-- Car VS Car: after a race the words wait their turn, one at a time, after the result and the
+-- win cards (CvcLayout.AFTER_RACE: +50 COINS: JOB DONE! sat on the result's rows, Studio final-49)
+local toastQueue: { string } = {}
+local function showToast(text: string)
+	if not Features.CVC then
+		toastNow(text)
+		return
+	end
+	table.insert(toastQueue, text)
+	if #toastQueue > 1 then
+		return -- (the first one's loop shows it)
+	end
+	task.spawn(function()
+		task.wait(0.5) -- (the result card comes up with the race's end: give it a beat)
+		while #toastQueue > 0 do
+			CvcLayout.waitTurn(gui.Parent :: Instance, "Toast", 30)
+			toastNow(toastQueue[1])
+			task.wait(2.9)
+			table.remove(toastQueue, 1)
 		end
 	end)
 end

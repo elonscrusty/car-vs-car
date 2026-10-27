@@ -1,5 +1,6 @@
 --!strict
 -- The screen map: no two buttons or chips cover each other, on phones and on PC.
+local fs = require("@lune/fs")
 local H = require("./harness")
 local HudLayout = require("../src/shared/HudLayout")
 
@@ -73,4 +74,36 @@ end)
 test("popups draw over the HUD", function()
 	truthy(HudLayout.POPUP > HudLayout.HUD)
 	truthy(HudLayout.find("Join", "walk") ~= nil and HudLayout.find("Join", "drive") ~= nil)
+end)
+
+test("FINISH IN / RESULTS IN sits clear of AUTO GAS and the timer, on every screen", function()
+	-- (it was half the screen wide at the top and sat on AUTO GAS, Studio final-44)
+	local hurry = HudLayout.find("Hurry", "drive") :: HudLayout.Spot
+	truthy(hurry ~= nil, "Hurry has a spot")
+	local sizes = table.clone(SCREENS)
+	table.insert(sizes, { 1914, 604 }) -- (the Studio window)
+	for _, s in sizes do
+		local hl, ht, hr, hb = HudLayout.box(hurry, s[1], s[2])
+		for _, name in { "AutoGas", "Timer", "DriftScore", "Speed" } do
+			local l, t, r, b =
+				HudLayout.box(HudLayout.find(name, "drive") :: HudLayout.Spot, s[1], s[2])
+			truthy(
+				not (hl < r and l < hr and ht < b and t < hb),
+				`Hurry on {name} at {s[1]}x{s[2]}`
+			)
+		end
+	end
+end)
+
+test("a spot that sits under another one is never on the screen with it", function()
+	for _, s in HudLayout.SPOTS do
+		if s.notWith then
+			truthy(HudLayout.find(s.notWith, s.mode) ~= nil, `{s.name}: no spot {s.notWith}`)
+		end
+	end
+	-- (the plot word hides in a race, the only time the hurry pill shows)
+	local hud = fs.readFile("src/client/Hud.luau")
+	truthy(string.find(hud, "b.Visible = i == index and not inRace", 1, true) ~= nil, "Track hides")
+	local race = fs.readFile("src/client/ServerRace.client.luau")
+	truthy(string.find(race, 'hurry.Visible = phase == "racing"', 1, true) ~= nil, "Hurry: racing")
 end)
