@@ -92,9 +92,12 @@ function CarTag.make(
 		track.BackgroundColor3 = Color3.fromRGB(60, 60, 84)
 		track.BorderSizePixel = 0
 		track.Parent = tag
+		local f, full = L.barLook(b.value, b.cap, 100)
 		local fill = Instance.new("Frame")
-		fill.Size = UDim2.fromScale(b.fill, 1)
-		fill.BackgroundColor3 = BAR_COLORS[b.bar]
+		fill.Size = UDim2.fromScale(f, 1)
+		fill.BackgroundColor3 = if full
+			then Color3.fromRGB(L.MAX_GOLD[1], L.MAX_GOLD[2], L.MAX_GOLD[3])
+			else BAR_COLORS[b.bar]
 		fill.BorderSizePixel = 0
 		fill.Parent = track
 		-- a tick where this car's top is, so you see how far it can still grow
@@ -103,15 +106,19 @@ function CarTag.make(
 		top.Size = UDim2.new(0, 2, 1.3, 0)
 		top.BackgroundColor3 = Color3.new(1, 1, 1)
 		top.BorderSizePixel = 0
+		top.Visible = not full
 		top.Parent = track
 		local v = label(
 			tag,
-			tostring(b.value),
+			if full then "MAX!" else tostring(b.value),
 			UDim2.fromScale(L.VALUE_X, y),
 			UDim2.fromScale(L.VALUE_W, L.BAR_ROW),
 			Color3.new(1, 1, 1)
 		)
 		v.TextXAlignment = Enum.TextXAlignment.Right
+		if full then
+			v.TextColor3 = Color3.fromRGB(L.MAX_GOLD[1], L.MAX_GOLD[2], L.MAX_GOLD[3])
+		end
 	end
 	return tag
 end
