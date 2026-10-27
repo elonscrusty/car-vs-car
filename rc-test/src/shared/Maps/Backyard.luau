@@ -35,8 +35,8 @@ local props: { MapKit.Prop } = {
 	prop("patio", 0, 440, 0, 0.6, false, 900, 130),
 	prop("steps", 0, 525, 0, 30, true, 260, 30),
 	-- sandbox in the front-right corner, a castle in it
-	prop("sandbox", 720, 470, 0, 22, true, 160, 130),
-	prop("sandCastle", 720, 470, 0.4, 70, true, 70, 70),
+	prop("sandbox", 679, 470, 0, 22, true, 120, 110), -- inside the fence (sizes are not squeezed)
+	prop("sandCastle", 679, 470, 0.4, 70, true, 70, 70),
 	-- two giant sneakers make the chicane
 	prop("sneaker", 680, 60, PI / 2, 30, true, 32, 68),
 	prop("sneaker", 450, -20, -0.5, 30, true, 32, 68),
@@ -46,14 +46,16 @@ local props: { MapKit.Prop } = {
 	-- flower bed between the shortcut and the corner, pots on the back fence
 	prop("flowerBed", 560, -380, 0.6, 6, false, 120, 90),
 	prop("flowerPot", 720, -500, 0, 56, true, 52, 52),
-	prop("flowerPot", 40, -520, 0, 50, true, 46, 46),
-	prop("flowerPot", -120, -520, 0, 60, true, 56, 56),
-	prop("gnome", -40, -520, PI, 66, true, 34, 34),
+	prop("flowerPot", 40, -509, 0, 50, true, 46, 46), -- against the fence, clear of the curb
+	prop("flowerPot", -120, -508, 0, 60, true, 48, 48),
+	prop("gnome", -40, -510, PI, 66, true, 34, 34),
 	-- the dog house sits on the secret strip, door facing along it; bushes hide its start
-	prop("dogHouse", -395, -230, 0, 165, true, 200, 170),
-	prop("bigBush", -205, -345, 0, 70, false, 80, 64), -- two bushes either side of its start
-	prop("bigBush", -345, -380, 0.4, 60, false, 70, 56), -- (the car goes between, not through)
-	prop("dogBowl", -430, -330, 0, 12, true, 44, 44),
+	-- (the squeeze moves things but keeps their size: these sizes keep the house off the curb,
+	-- the bushes off both roads, on the inside of the turn-off, and the bowl out of the house)
+	prop("dogHouse", -395, -230, 0, 165, true, 170, 150),
+	prop("bigBush", -179, -345, 0, 70, false, 80, 64),
+	prop("bigBush", -216, -290, 0.4, 60, false, 70, 56),
+	prop("dogBowl", -249, -157, 0, 12, true, 44, 44), -- by the side of the house
 	-- bird bath in the left infield, a dropped bucket and a soda can near the road
 	prop("birdBath", -330, 80, 0, 154, true, 90, 90),
 	prop("bucket", 150, 120, 0.8, 66, true, 60, 60),
@@ -79,8 +81,8 @@ for i, spot in
 		{ -720, -120 },
 		{ 720, 300 },
 		{ 730, -150 },
-		{ -300, -520 },
-		{ 160, -520 },
+		{ -300, -505 },
+		{ 160, -505 },
 		{ 680, 520 },
 		{ -660, -500 },
 		{ -40, 160 },
@@ -184,7 +186,7 @@ local def: MapKit.Def = {
 		},
 	},
 	-- the driver stand: a wooden deck on the patio by the start, left of the house steps
-	stand = { x = -297, z = 530, w = MapKit.STAND_W, d = MapKit.STAND_D, h = MapKit.STAND_H },
+	stand = { x = -297, z = 523, w = MapKit.STAND_W, d = MapKit.STAND_D, h = MapKit.STAND_H },
 	rcX = 3000,
 	rcZ = 1000,
 	rcAngle = 0,

@@ -299,6 +299,67 @@ for _, m in maps do
 		end
 	end)
 
+	-- the drive-under props are skipped above, so their legs get their own check (the kitchen
+	-- table's leg stood on the main road once the map was squeezed)
+	test(m.id .. ": table, chair and bench legs stand clear of every road", function()
+		local LEGS: { [string]: (e: any) -> ({ { number } }, number) } = {
+			table = function(e)
+				local w, d = e.w or 280, e.d or 380
+				return { { w / 2 - 12, d / 2 - 12 } }, 7
+			end,
+			chair = function(e)
+				local w = e.w or 96
+				return { { w / 2 - 4, w / 2 - 4 } }, 4
+			end,
+			picnicTable = function(e)
+				local w, d = e.w or 400, e.d or 200
+				return { { w * 0.4, d * 0.15 + e.h * 0.15 } }, 5
+			end,
+		}
+		for _, e in def.props do
+			local legs = LEGS[e.kind]
+			if legs then
+				local offs, half = legs(e)
+				local c, s = math.cos(e.yaw), math.sin(e.yaw)
+				for _, o in offs do
+					for _, sx in { -1, 1 } do
+						for _, sz in { -1, 1 } do
+							local lx, lz = sx * o[1], sz * o[2]
+							-- turned like CFrame.Angles(0, yaw, 0)
+							local x, z = e.x + lx * c + lz * s, e.z - lx * s + lz * c
+							for k, ring in roads(m) do
+								local w = if k == 1 then def.road else def.paths[k - 1].width
+								local dist = MapKit.distTo(ring, x, z)
+								truthy(
+									dist > w / 2 + MapKit.CURB_WIDTH + half,
+									`{e.kind} leg at {math.floor(x)}, {math.floor(z)} is on road {k}`
+								)
+							end
+						end
+					end
+				end
+			end
+		end
+	end)
+
+	-- the squeeze moves things but keeps their size, so a prop by the fence can end up through it
+	test(m.id .. ": a prop inside the walls doesn't poke through them", function()
+		for _, e in def.props do
+			if e.x > def.minX and e.x < def.maxX and e.z > def.minZ and e.z < def.maxZ then
+				local w, d = e.w or 0, e.d or 0
+				local c, s = math.abs(math.cos(e.yaw)), math.abs(math.sin(e.yaw))
+				local ex, ez = (w * c + d * s) / 2, (w * s + d * c) / 2
+				truthy(
+					e.x - ex >= def.minX - 0.5
+						and e.x + ex <= def.maxX + 0.5
+						and e.z - ez >= def.minZ - 0.5
+						and e.z + ez <= def.maxZ + 0.5,
+					`{e.kind} at {math.floor(e.x)}, {math.floor(e.z)} pokes through the wall`
+				)
+			end
+		end
+	end)
+
 	test(m.id .. ": every jump sits on a straight bit (you hit the ridge square)", function()
 		for _, j in def.jumps do
 			local ring = m.ring(j.path)

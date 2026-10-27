@@ -42,8 +42,9 @@ local COUNTER_FRONT = BACK + COUNTER_D
 -- loose things on the floor (squeezed with the track)
 local props: { MapKit.Prop } = {
 	-- the table and its chairs (the car drives between the legs)
-	prop("table", 470, 0, 0, 165, true, 280, 380),
-	prop("chair", 470, 70, 0, 100, true, 96, 96), -- pushed in on the shortcut: drive through
+	prop("table", 470, 0, 0, 165, true, 240, 340), -- legs clear of the main road
+	prop("chair", 470, 70, 0, 75, true, 96, 96), -- under the table on the shortcut: drive through
+	-- (low, so its back stays under the table top)
 	prop("chair", 250, -120, PI / 2, 100, true, 96, 96),
 	prop("chair", 250, 130, PI / 2, 100, true, 96, 96),
 	-- the mop bucket in the bend, a wet floor sign
@@ -64,7 +65,7 @@ local props: { MapKit.Prop } = {
 	prop("banana", 60, 40, 0.6, 12, true, 40, 12),
 	prop("mug", -60, 20, 0, 22, true, 20, 20),
 	prop("toyBlock", 120, 200, 0.4, 24, true, 24, 24),
-	prop("toyBlock", 150, 210, 1.1, 24, true, 24, 24),
+	prop("toyBlock", 165, 215, 1.1, 24, true, 24, 24),
 	-- the cutting board leaning by the left jump
 	prop("cuttingBoard", -745, -60, 0, 40, false, 20, 110),
 }
@@ -139,7 +140,8 @@ local def: MapKit.Def = {
 	},
 	props = props,
 	lines = {
-		{ kind = "spoon", width = 10, points = { { x = 0, z = -90 }, { x = 0, z = -170 } } },
+		-- right under the jump's top, so the ridge hides it on the road; the bowl lies off the road
+		{ kind = "spoon", width = 10, points = { { x = 30, z = -60 }, { x = 30, z = -190 } } },
 	},
 	-- the driver stand: a big step stool by the start (picture rc-game/cvc/pics)
 	stand = { x = 128, z = 527, w = MapKit.STAND_W, d = MapKit.STAND_D, h = MapKit.STAND_H },

@@ -244,10 +244,13 @@ local function buildRoad(folder: Instance, map: any)
 	for i = 1, n, 2 do
 		local p, q = loop[i], loop[((i + 1) % n) + 1]
 		k += 1
+		-- the white pieces a hair taller, so where two pieces overlap at a joint the tops don't
+		-- flicker
+		local ch = if k % 2 == 0 then h + 0.02 else h
 		for _, side in { -1, 1 } do
 			local o = off * side
-			local pa = Vector3.new(p.x - p.tz * o, h / 2, p.z + p.tx * o)
-			local pb = Vector3.new(q.x - q.tz * o, h / 2, q.z + q.tx * o)
+			local pa = Vector3.new(p.x - p.tz * o, ch / 2, p.z + p.tx * o)
+			local pb = Vector3.new(q.x - q.tz * o, ch / 2, q.z + q.tx * o)
 			local open = false
 			for _, gap in gaps do
 				if MapKit.distTo(gap.ring, (pa.X + pb.X) / 2, (pa.Z + pb.Z) / 2) < gap.r then
@@ -264,7 +267,7 @@ local function buildRoad(folder: Instance, map: any)
 				pa,
 				pb,
 				MapKit.CURB_WIDTH,
-				h,
+				ch,
 				0.5,
 				if k % 2 == 0 then C.white else C.red
 			)
@@ -1032,9 +1035,9 @@ function BUILD.bucket(box, e)
 	)
 	box(
 		Vector3.new(4, e.h * 0.7, 4),
-		CFrame.new(0, e.h * 1.05, 0) * CFrame.Angles(0, 0, PI / 2),
+		CFrame.new(0, e.h + 2, 0) * CFrame.Angles(0, 0, PI / 2),
 		rgb(60, 60, 60)
-	) -- handle
+	) -- handle, resting on the rim
 	return nil
 end
 
@@ -1076,7 +1079,9 @@ function BUILD.picnicTable(box, e)
 		for _, sx in { -1, 1 } do
 			box(
 				Vector3.new(10, h, 10),
-				CFrame.new(sx * w * 0.4, h / 2, s * d * 0.15) * CFrame.Angles(s * 0.3, 0, 0),
+				-- (2.5 lower: the lean lifts a box's bottom corner off the grass)
+				CFrame.new(sx * w * 0.4, h / 2 - 2.5, s * d * 0.15)
+					* CFrame.Angles(s * 0.3, 0, 0),
 				WOOD,
 				Enum.Material.Wood
 			)
