@@ -86,9 +86,17 @@ function CvcUi.ribbon(panel: GuiObject, text: string): TextLabel
 	return t
 end
 
--- Big words in the middle of a ScreenGui: pop in, rise and fade.
-function CvcUi.bigWords(gui: Instance, text: string, color: Color3, y: number?): TextLabel
+-- Big words in the middle of a ScreenGui: pop in, rise and fade (`rise`: how far up, of the
+-- screen; below 0 they sink).
+function CvcUi.bigWords(
+	gui: Instance,
+	text: string,
+	color: Color3,
+	y: number?,
+	rise: number?
+): TextLabel
 	local at = y or 0.4
+	local up = rise or 0.12
 	local w = CvcUi.label(gui, text, color)
 	w.Name = "Kart_Words"
 	w.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -104,7 +112,7 @@ function CvcUi.bigWords(gui: Instance, text: string, color: Color3, y: number?):
 	TweenService:Create(scale, TweenInfo.new(0.4, Enum.EasingStyle.Back), { Scale = 1 }):Play()
 	task.delay(1.3, function()
 		TweenService:Create(w, TweenInfo.new(0.5), {
-			Position = UDim2.fromScale(0.5, at - 0.12),
+			Position = UDim2.fromScale(0.5, at - up),
 			TextTransparency = 1,
 		}):Play()
 		TweenService:Create(s, TweenInfo.new(0.5), { Transparency = 1 }):Play()

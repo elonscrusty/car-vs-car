@@ -276,7 +276,8 @@ local function giftBox(id: string)
 		car.Name = "NewCar"
 		car.AnchorPoint = Vector2.new(0.5, 0.5)
 		car.Position = UDim2.fromScale(0.5, 0.5)
-		car.Size = UDim2.fromOffset(240, 150)
+		local carW, carH, wordsY = CvcLayout.newCar(top.AbsoluteSize.Y)
+		car.Size = UDim2.fromOffset(carW, carH)
 		car.BackgroundTransparency = 1
 		car.ZIndex = 3
 		local carScale = Instance.new("UIScale")
@@ -285,7 +286,7 @@ local function giftBox(id: string)
 		TweenService:Create(carScale, TweenInfo.new(0.6, Enum.EasingStyle.Back), { Scale = 1 })
 			:Play()
 		TweenService:Create(car, TweenInfo.new(0.6, Enum.EasingStyle.Back), {
-			Position = UDim2.fromScale(0.5, 0.42),
+			Position = UDim2.fromScale(0.5, CvcLayout.NEW_CAR.y),
 		}):Play()
 		local stopRays = Party.rays(car, KartStyle.YELLOW)
 		TweenService:Create(gift, TweenInfo.new(0.4), { BackgroundTransparency = 1 }):Play()
@@ -293,10 +294,11 @@ local function giftBox(id: string)
 		Party.confetti(fall, 60)
 		task.delay(0.5, function()
 			gift:Destroy()
-			bigWords(`{CvcState.name(id)}!`, KartStyle.YELLOW)
+			-- (under the car, and they sink as they fade: they never cross its path)
+			CvcUi.bigWords(top, `{CvcState.name(id)}!`, KartStyle.YELLOW, wordsY, -0.04)
 		end)
 		task.delay(1.9, function()
-			bigWords("IT'S TRAINING NOW!", KartStyle.GREEN)
+			CvcUi.bigWords(top, "IT'S TRAINING NOW!", KartStyle.GREEN, wordsY, -0.04)
 		end)
 		task.delay(3.2, function()
 			-- off it goes to your plot
@@ -304,7 +306,7 @@ local function giftBox(id: string)
 			lid:Destroy()
 			TweenService
 				:Create(car, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
-					Position = UDim2.fromScale(1.3, 0.42),
+					Position = UDim2.fromScale(1.3, CvcLayout.NEW_CAR.y),
 				})
 				:Play()
 			task.delay(0.5, function()

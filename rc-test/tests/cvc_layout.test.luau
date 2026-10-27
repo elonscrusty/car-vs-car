@@ -441,3 +441,26 @@ test("the RACE! tip sits under JOIN RACE, pointing up at it (not on the kid's he
 		truthy(good ~= nil and good.side == "under", `room under JOIN at {s[1]}x{s[2]}`)
 	end
 end)
+
+test("a new car's words sit under it, clear of its path off the screen", function()
+	-- (IT'S TRAINING NOW! sat under the flying car, Studio score-02)
+	local N = CvcLayout.NEW_CAR
+	for _, s in SIZES do
+		local sw, sh = s[1], s[2]
+		local w, h, wordsY = CvcLayout.newCar(sh)
+		-- its path: from the middle to off the right edge, at the same height
+		local path = { sw / 2 - w / 2, N.y * sh - h / 2, sw * 1.3 + w / 2, N.y * sh + h / 2 }
+		local wordsH = N.words * sh
+		for _, y in { wordsY, wordsY + 0.04 } do -- (they sink as they fade)
+			local words = { sw * 0.2, y * sh - wordsH / 2, sw * 0.8, y * sh + wordsH / 2 }
+			truthy(not CvcLayout.hits(path, words), `words on the car at {sw}x{sh}`)
+			truthy(words[4] <= sh, `words off the bottom at {sw}x{sh}`)
+		end
+		truthy(N.y * sh - h / 2 >= 58, `the car under the top bar at {sw}x{sh}`)
+	end
+	local cvc = fs.readFile("src/client/Cvc.client.luau")
+	truthy(
+		string.find(cvc, `"IT'S TRAINING NOW!", KartStyle.GREEN, wordsY, -0.04`, 1, true) ~= nil,
+		"uses it"
+	)
+end)
