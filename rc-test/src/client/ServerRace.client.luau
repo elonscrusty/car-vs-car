@@ -384,8 +384,12 @@ local function showResult(rows: { any })
 	local won = first.time or (type(first.score) == "number" and first.score > 0)
 	-- the winner's car in the title: cars get shown off
 	local firstCar = if type(first.car) == "string" then string.upper(first.car) else nil
-	title.Text = if won and firstCar
-		then `🏆 {first.name} WINS IN {firstCar}!`
+	-- your own win: YOU WIN! (the others see your name)
+	local meFirst = first.uid == player.UserId
+		or (first.uid == nil and first.name == player.DisplayName)
+	title.Text = if won and meFirst
+		then "🏆 YOU WIN!"
+		elseif won and firstCar then `🏆 {first.name} WINS IN {firstCar}!`
 		elseif won then `🏆 {first.name} WINS!`
 		else "TIME UP!"
 	local lines = {}
@@ -400,7 +404,7 @@ local function showResult(rows: { any })
 		local what = if type(r.score) == "number"
 			then `{r.score} pts`
 			elseif type(r.time) == "number" then CarMath.formatTime(r.time)
-			else `{r.laps}/{ServerRace.LAPS} laps`
+			else "-" -- (didn't finish before the race ended: "1/2 LAPS" read like a score)
 		local paid = paidText(r)
 		local medal = ServerRace.medal(i)
 		-- (no car on the row: the winner's car is in the title, and short rows read bigger)
