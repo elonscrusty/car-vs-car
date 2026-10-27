@@ -325,3 +325,14 @@ test("NEXT CAR sits clear of the big JOIN button and the other buttons", functio
 		end
 	end
 end)
+
+test("COACH finds the race call strip inside its StageGate wrap (it never stepped down)", function()
+	local fs: any = (require :: any)("@lune/fs")
+	local race = fs.readFile("src/client/ServerRace.client.luau")
+	local cvc = fs.readFile("src/client/Cvc.client.luau")
+	-- ServerRace wraps the strip (ServerRace.Stage_race.Call) ...
+	truthy(string.find(race, 'StageGate.hold(call, "race")', 1, true) ~= nil, "the call is wrapped")
+	-- ... so COACH looks for it all the way down, not just at the top of the gui
+	truthy(string.find(cvc, 'FindFirstChild("Call", true)', 1, true) ~= nil, "COACH looks inside")
+	truthy(string.find(cvc, 'FindFirstChild("Call")', 1, true) == nil, "no top-only look")
+end)
