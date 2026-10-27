@@ -18,7 +18,9 @@ local function base(key: string): number
 end
 
 local FAR = 400 -- studs: past this, other cars' wheels are not drawn (phones)
-local RACE_TAG_FAR = 1200 -- studs: in the big race, names show this far (the whole map)
+-- studs: in the big race, names show this far. (It was the whole map for the stand cam; behind
+-- the car the far names piled into one clump, Studio score/25.)
+local RACE_TAG_FAR = 90
 local STEER_MAX = 0.75 -- radians, the base car's widest wheel angle
 local MAX_SUSP = 4 -- big-size spring travel; the ray stops it sooner on the ground
 
