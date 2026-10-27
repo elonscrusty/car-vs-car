@@ -408,6 +408,13 @@ local function setWalking(on: boolean)
 	end
 	local cam = workspace.CurrentCamera
 	local char = player.Character
+	-- your own league badge over your head (Leaderboards) stays back on the stand while you drive:
+	-- the chase cam caught it peeking out behind AUTO GAS (this screen only; others still see it)
+	local head = char and char:FindFirstChild("Head")
+	local badge = head and head:FindFirstChild("LeagueBadge")
+	if badge and badge:IsA("BillboardGui") then
+		badge.Enabled = on
+	end
 	if on then
 		camera.setView("chase") -- clears see-through walls
 		cam.CameraType = Enum.CameraType.Custom
