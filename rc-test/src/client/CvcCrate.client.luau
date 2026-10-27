@@ -122,7 +122,9 @@ local function buildOdds()
 	for _, r in CarCatalog.RARITY_ORDER do
 		local pct = odds[r] or 0
 		local info = CarCatalog.RARITY[r]
-		if info then
+		-- (a kind that can't come out is left off: LEGEND 0% read oddly on the free crate,
+		-- Studio final-27)
+		if info and pct > 0 then
 			local y = 0.2 + rows * 0.2
 			rows += 1
 			local c = Color3.fromRGB(info.color[1], info.color[2], info.color[3])
@@ -138,8 +140,7 @@ local function buildOdds()
 			chipPad.PaddingTop = UDim.new(0.16, 0)
 			chipPad.PaddingBottom = UDim.new(0.12, 0)
 			chipPad.Parent = chip
-			local num =
-				label(oddsBox, `{pct}%`, if pct > 0 then WHITE else Color3.fromRGB(160, 175, 210))
+			local num = label(oddsBox, `{pct}%`, WHITE)
 			num.Position = UDim2.fromScale(0.66, y)
 			num.Size = UDim2.fromScale(0.34, 0.17)
 			num.TextXAlignment = Enum.TextXAlignment.Right

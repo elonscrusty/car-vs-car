@@ -152,7 +152,7 @@ test("the main buttons are bigger still on a phone (56 px+)", function()
 	end
 end)
 
-test("the how-to tip never covers COACH, JOIN, CRATE or MY GARAGE", function()
+test("the how-to tip never covers COACH, JOIN, CRATE, MY GARAGE or the JOBS chip", function()
 	if not Features.CVC then
 		return
 	end
@@ -163,21 +163,32 @@ test("the how-to tip never covers COACH, JOIN, CRATE or MY GARAGE", function()
 			local l, t, r, b = HudLayout.box(HudLayout.find(it[1], "walk") :: any, s[1], s[2])
 			rects[it[1]] = { l, t, r, b }
 		end
+		-- the folded JOBS 1/3 chip (Stars: its spot's top left, JOBS_CHIP big; the arrow sat on
+		-- its 2/3, Studio final-31)
+		local jl, jt = HudLayout.box(HudLayout.find("DailyJobs", "walk") :: any, s[1], s[2])
+		rects.Jobs = { jl, jt, jl + CvcLayout.JOBS_CHIP[1], jt + CvcLayout.JOBS_CHIP[2] }
 		for _, it in TIPS do
 			local avoid = {}
 			for name, r in rects do
-				if name ~= it[1] then
+				if name ~= it[1] and name ~= "Jobs" then
 					table.insert(avoid, r)
 				end
 			end
-			local tip = CvcLayout.tip(rects[it[1]], it[2], s[1], s[2], avoid)
+			-- clear of the JOBS chip when it can be, else the chip steps away (CvcHowTo)
+			local withJobs =
+				CvcLayout.tipClearOf(rects[it[1]], it[2], s[1], s[2], avoid, rects.Jobs)
+			local jobsAway = withJobs == nil
+			local tip = withJobs or CvcLayout.tip(rects[it[1]], it[2], s[1], s[2], avoid)
+			local function clearOf(name: string): boolean
+				return name ~= it[1] and not (jobsAway and name == "Jobs")
+			end
 			for part, r in { arrow = tip.arrow, words = tip.words, skip = tip.skip } do
 				truthy(
 					not CvcLayout.hits(r, rects[it[1]]),
 					`{it[1]} tip {part} on its button at {s[1]}x{s[2]}`
 				)
 				for name, o in rects do
-					if name ~= it[1] then
+					if clearOf(name) then
 						truthy(
 							not CvcLayout.hits(r, o),
 							`{it[1]} tip {part} covers {name} at {s[1]}x{s[2]}`
