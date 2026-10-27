@@ -39,6 +39,15 @@ gui.IgnoreGuiInset = true
 gui.DisplayOrder = HudLayout.HUD + 1 -- over the buttons, under the popups
 gui.Parent = playerGui
 
+-- AbsolutePosition starts under Roblox's top bar, but this gui's offsets start at the screen's
+-- top (IgnoreGuiInset): this corner says where the screen's top left is in AbsolutePosition terms
+-- (without it the tip sat 58 px high: the arrow on CRATE!, Studio final-10)
+local origin = Instance.new("Frame")
+origin.Name = "Kart_Origin"
+origin.BackgroundTransparency = 1
+origin.Size = UDim2.fromOffset(0, 0)
+origin.Parent = gui
+
 local arrow = CvcUi.label(gui, "▼", KartStyle.YELLOW)
 arrow.Name = "Arrow"
 arrow.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -170,7 +179,8 @@ RunService.RenderStepped:Connect(function()
 	-- it glows: yellow to white and back
 	local glow = 0.5 + 0.5 * math.sin(os.clock() * 5)
 	arrow.TextColor3 = KartStyle.YELLOW:Lerp(KartStyle.WHITE, glow * 0.7)
-	local p, s = tip.target.AbsolutePosition, tip.target.AbsoluteSize
+	local o = origin.AbsolutePosition
+	local p, s = tip.target.AbsolutePosition - o, tip.target.AbsoluteSize
 	local bob = math.abs(math.sin(os.clock() * 4)) * 10
 	-- the other Car VS Car buttons on screen: the tip never covers them (CvcLayout.tip)
 	local avoid = {}
@@ -186,7 +196,7 @@ RunService.RenderStepped:Connect(function()
 	for _, it in AVOID do
 		local b = find(it[1], it[2])
 		if b and b ~= tip.target and shown(b) then
-			local bp, bs = b.AbsolutePosition, b.AbsoluteSize
+			local bp, bs = b.AbsolutePosition - o, b.AbsoluteSize
 			table.insert(avoid, { bp.X, bp.Y, bp.X + bs.X, bp.Y + bs.Y })
 		end
 	end

@@ -57,8 +57,8 @@ local function driving(): boolean
 	return player:GetAttribute("Driving") == true
 end
 
-local function bigWords(text: string, color: Color3)
-	CvcUi.bigWords(top, text, color)
+local function bigWords(text: string, color: Color3): TextLabel
+	return CvcUi.bigWords(top, text, color)
 end
 
 -- ===== the league badge (by the coins: the tycoon's coins-a-minute spot, off in Car VS Car) =====
@@ -86,23 +86,29 @@ local function showLeague()
 	badge.Text = string.upper(League.name(n))
 	badge.Visible = not driving()
 	if shownLeague and n > shownLeague then
-		-- moved up: a big moment
-		badgeScale.Scale = 1.6
-		TweenService:Create(badgeScale, TweenInfo.new(0.6, Enum.EasingStyle.Back), { Scale = 1 })
-			:Play()
-		bigWords(`{string.upper(League.name(n))} LEAGUE!`, badge.BackgroundColor3)
-		Party.confetti(fall, 80)
-		-- fireworks all over (carter's pick 27)
-		Sfx.fireworks()
-		for i = 1, 7 do
-			task.delay(i * 0.18, function()
-				Party.burst(
-					top,
-					UDim2.fromScale(0.15 + math.random() * 0.7, 0.12 + math.random() * 0.45),
-					18
-				)
-			end)
-		end
+		-- moved up: a big moment, in its own turn after a race (CvcLayout.AFTER_RACE: after the
+		-- result and the win card, where it was never seen)
+		local color = badge.BackgroundColor3
+		task.spawn(function()
+			CvcLayout.waitTurn(player:WaitForChild("PlayerGui"), "Kart_League", 30)
+			badgeScale.Scale = 1.6
+			TweenService
+				:Create(badgeScale, TweenInfo.new(0.6, Enum.EasingStyle.Back), { Scale = 1 })
+				:Play()
+			bigWords(`{string.upper(League.name(n))} LEAGUE!`, color).Name = "Kart_League"
+			Party.confetti(fall, 80)
+			-- fireworks all over (carter's pick 27)
+			Sfx.fireworks()
+			for i = 1, 7 do
+				task.delay(i * 0.18, function()
+					Party.burst(
+						top,
+						UDim2.fromScale(0.15 + math.random() * 0.7, 0.12 + math.random() * 0.45),
+						18
+					)
+				end)
+			end
+		end)
 	end
 	if player:GetAttribute("League") ~= nil then
 		shownLeague = n
@@ -162,8 +168,15 @@ local function callShowing(): boolean
 	return true
 end
 
+-- the win card after a race (CvcRace "Finish") is up: COACH steps away for its few seconds
+local function winCardUp(): boolean
+	local g = player.PlayerGui:FindFirstChild("CvcRaceTop")
+	local f = g and g:FindFirstChild("Finish", true)
+	return f ~= nil and f:IsA("GuiObject") and f.Visible
+end
+
 RunService.Heartbeat:Connect(function()
-	coach.Visible = CvcState.loaded and training() and not driving()
+	coach.Visible = CvcState.loaded and training() and not driving() and not winCardUp()
 	if not coach.Visible then
 		return
 	end
