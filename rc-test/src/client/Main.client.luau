@@ -400,6 +400,34 @@ local function setWalking(on: boolean)
 				end
 			end
 		end
+		-- the camera would keep the way it looked in the race: from your pad facing the road
+		-- that put it inside your own plot's gate, its legs filling the screen (Studio final pass
+		-- 07). Once the server has moved you home (on your pad, facing your plot), look over your
+		-- shoulder the way you face. Car VS Car only: the old plot drive puts you facing the road.
+		local root0 = char and char:FindFirstChild("HumanoidRootPart")
+		local from = if root0 and root0:IsA("BasePart") then root0.Position else nil
+		task.spawn(function()
+			if not Features.CVC then
+				return
+			end
+			-- (the move home can reach this screen a moment after the "walk" message)
+			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+			local waited = 0
+			while waited < 1 and from and root and root:IsA("BasePart") do
+				if (root.Position - from).Magnitude > 8 then
+					break
+				end
+				waited += task.wait()
+			end
+			if walking and root and root:IsA("BasePart") then
+				local look = root.CFrame.LookVector
+				local at = root.Position + Vector3.new(0, 2, 0)
+				cam.CFrame = CFrame.lookAt(
+					at - Vector3.new(look.X, 0, look.Z).Unit * 12 + Vector3.new(0, 4, 0),
+					at
+				)
+			end
+		end)
 	end
 end
 
