@@ -26,3 +26,20 @@ test("walking across, or hopping to another pad, starts over", function()
 	eq(Q.tick(timers, "b", "drift", Q.HOLD + 1), false)
 	truthy(Q.tick(timers, "b", "drift", 2 * Q.HOLD + 1), "drift after hold")
 end)
+
+test("after a race you land beside a pad, never on it", function()
+	-- on the pad: out past the nearest edge, by the gap
+	local x, z = Q.offPad(1, 4, 5, 5, 4)
+	eq(x, 1)
+	eq(z, 9)
+	x, z = Q.offPad(-4, 2, 5, 5, 4)
+	eq(x, -9)
+	eq(z, 2)
+	-- the middle: still off it
+	x, z = Q.offPad(0, 0, 6, 4, 4)
+	truthy(math.abs(x) > 6 or math.abs(z) > 4, "off the pad")
+	-- already off it: stays put
+	x, z = Q.offPad(8, 0, 5, 5, 4)
+	eq(x, 8)
+	eq(z, 0)
+end)
