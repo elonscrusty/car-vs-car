@@ -18,6 +18,7 @@ local function sibling(name: string): any
 	return luneRequire("./" .. name)
 end
 
+local Features = sibling("Features")
 local Garage = sibling("Garage")
 local LobbyLayout = sibling("LobbyLayout")
 local LobbyWater = sibling("LobbyWater")
@@ -93,10 +94,16 @@ LobbyDecor.MUSIC = "rbxassetid://84797666595507"
 LobbyDecor.MUSIC_VOLUME = sibling("SoundLevels").MUSIC
 -- in the gap between the two shops on each side of the spawn lobby (SpawnLobby.BUILDINGS, whose
 -- fronts are at x ±42), facing the middle. Spawn lobby z 0 = PLAZA.maxZ - 36.
-LobbyDecor.SPEAKERS = {
-	{ x = -45, z = L.PLAZA.maxZ - 36 - 3.5 }, -- between the drift and race shops
-	{ x = 45, z = L.PLAZA.maxZ - 36 - 6.5 }, -- between the rock shop and the garage
-}
+LobbyDecor.SPEAKERS = if Features.CVC
+	then {
+		-- Car VS Car: no drift shop, so the left one stood alone by the crate shop (Studio score
+		-- shot 28); the crate shop's sign post stands there now
+		{ x = 45, z = L.PLAZA.maxZ - 36 - 6.5 },
+	}
+	else {
+		{ x = -45, z = L.PLAZA.maxZ - 36 - 3.5 }, -- between the drift and race shops
+		{ x = 45, z = L.PLAZA.maxZ - 36 - 6.5 }, -- between the rock shop and the garage
+	}
 LobbyDecor.CORNER_CONES = { { -17, 14 }, { -12, 17 }, { 15, -15 } } -- round a corner (x mirrored)
 
 local function v(x: number, y: number, z: number): V3

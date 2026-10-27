@@ -180,6 +180,21 @@ local function addShop(shop: Model)
 		return
 	end
 	seen[shop] = true
+	-- the sign post's board (Garage.crateYard): CRATES on both sides, big enough to read from
+	-- across the plaza
+	local sign = shop:FindFirstChild("CrateSign")
+	local board = sign and sign:FindFirstChild("Board")
+	if board and board:IsA("BasePart") then
+		for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
+			local g = Instance.new("SurfaceGui")
+			g.Face = face
+			g.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+			g.PixelsPerStud = 40
+			g.LightInfluence = 0
+			g.Parent = board
+			text(g, "CRATES", 0.05, 0.1, 0.9, 0.8, nil, Color3.new(1, 1, 1))
+		end
+	end
 	local floor = shop.PrimaryPart
 	local out = if floor then floor.CFrame.ZVector else Vector3.new(0, 0, 1)
 	for i, id in Crates.SHOP do
