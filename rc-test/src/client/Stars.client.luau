@@ -808,8 +808,12 @@ nextHow.Size = UDim2.fromScale(0.6, 0.3)
 local nextBar = bar(nextBox, 0.82, 0.18)
 nextHow.Position = UDim2.fromScale(0, 0.47)
 
+-- the after-race card (below) says the same thing bigger: the small bar waits while it's up
+local goalUp = false
+local prizeUp = false
 local function showGoalBar(g: any)
 	if type(g) ~= "table" or type(g.name) ~= "string" or type(g.price) ~= "number" then
+		goalUp = false
 		nextBox.Visible = false
 		player:SetAttribute("GoalReady", false)
 		return
@@ -827,7 +831,8 @@ local function showGoalBar(g: any)
 	TweenService
 		:Create(f, TweenInfo.new(0.6, Enum.EasingStyle.Quart), { Size = UDim2.fromScale(fill, 1) })
 		:Play()
-	nextBox.Visible = true
+	goalUp = true
+	nextBox.Visible = not prizeUp
 end
 
 -- after a server race: your place, the coins, and the goal bar filling up
@@ -880,6 +885,10 @@ local prizeGoal = textLine(prize, 0.46, 0.24, Color3.new(1, 1, 1), Enum.Font.Luc
 prizeGoal.TextXAlignment = Enum.TextXAlignment.Center
 local prizeBar = bar(prize, 0.78, 0.18)
 local prizeShows = 0
+prize:GetPropertyChangedSignal("Visible"):Connect(function()
+	prizeUp = prize.Visible
+	nextBox.Visible = goalUp and not prizeUp
+end)
 
 -- After a server race (its result card shows first): how far your coins got you to the goal.
 local lastGoal: any = nil
