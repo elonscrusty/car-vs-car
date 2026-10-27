@@ -138,9 +138,9 @@ function PlotTraining.slats(t: number): { number }
 end
 
 -- The car tags on the plot are sized in studs (so they shrink with distance, not cover the next
--- pad): a station car's tag hangs still over the back of its pad, above the car's whole run;
--- a stand car's sits just over the car.
-PlotTraining.TAG = { w = 9, h = 4.8, y = 8.6, back = 6 }
+-- pad): a station car's tag hangs still over the middle of its pad, just above the car's whole
+-- run (the ramp hop too) and under the room's signs; a stand car's sits just over the car.
+PlotTraining.TAG = { w = 8, h = 4.2, y = 8.4, back = 1 }
 PlotTraining.STAND_TAG = { w = 6.5, h = 3.5, up = 3.6 }
 function PlotTraining.tagSpot(index: number): (number, number, number)
 	local g = PlotTraining.GRID[index]
@@ -383,7 +383,7 @@ function PlotTraining.pieces(plotLevel: number, garageLevel: number, trophies: n
 			{ collide = false }
 		)
 	end
-	add("Room", "RoomSign", v(18, 3.6, 0.4), v(0, 11.2, -53.4), WOOD_DARK, { collide = false })
+	add("Room", "RoomSign", v(18, 3.6, 0.4), v(0, 13.4, -53.4), WOOD_DARK, { collide = false })
 	-- the trophy shelf on the back wall, its cups, and its sign
 	local S = PlotTraining.SHELF
 	add(
@@ -406,7 +406,7 @@ function PlotTraining.pieces(plotLevel: number, garageLevel: number, trophies: n
 		"Shelf",
 		"ShelfSign",
 		v(12, 2.2, 0.3),
-		v(S.x, S.y + 6.6, S.z + 0.2),
+		v(S.x, S.y + 8, S.z + 0.2),
 		WOOD_DARK,
 		{ collide = false }
 	)

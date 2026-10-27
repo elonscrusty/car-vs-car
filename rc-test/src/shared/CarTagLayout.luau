@@ -25,6 +25,13 @@ function CarTagLayout.barY(i: number): number
 	return CarTagLayout.BAR_TOP + (i - 1) * CarTagLayout.BAR_STEP
 end
 
+-- A bar at its car's top looks maxed: the whole bar, gold (the same rule as MY GARAGE, CvcUi.bars).
+CarTagLayout.MAX_GOLD = { 255, 196, 30 }
+function CarTagLayout.barLook(value: number, cap: number, maxBar: number): (number, boolean)
+	local full = value >= cap
+	return if full then 1 else math.clamp(value / maxBar, 0, 1), full
+end
+
 -- The shortest text row in pixels.
 function CarTagLayout.smallestText(): number
 	local H = CarTagLayout.HEIGHT

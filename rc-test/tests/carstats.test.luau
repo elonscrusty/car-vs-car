@@ -114,3 +114,13 @@ test("car tag: every word is at least 16 px and every bar 8 px on a phone", func
 	truthy(Layout.WIDTH < 667 / 2, "tag under half the phone's width")
 	truthy(Layout.TRACK_X + Layout.TRACK_W < Layout.VALUE_X, "bar ends before the number")
 end)
+
+test("tag bars: a bar at its car's top is full and gold, like MY GARAGE", function()
+	local Lay = require("../src/shared/CarTagLayout")
+	local f, full = Lay.barLook(60, 60, 100)
+	eq(f, 1)
+	eq(full, true)
+	f, full = Lay.barLook(30, 60, 100)
+	eq(f, 0.3)
+	eq(full, false)
+end)

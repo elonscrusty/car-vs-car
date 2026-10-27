@@ -187,6 +187,13 @@ test("car tags: one per pad, never over the next pad, the car or each other", fu
 			)
 		end
 	end
+	-- and under the room's signs (Studio 29: a tag stuck on NAME'S GARAGE)
+	local tagTop = T.TAG.y + A.h / 2
+	for _, p in T.pieces(8, 8, 12) do
+		if p.name == "RoomSign" or p.name == "ShelfSign" then
+			truthy(p.pos.y - p.size.y / 2 > tagTop, p.name .. " above the tags")
+		end
+	end
 	-- stand tags: narrower than the gap between stands side by side
 	for a = 1, #T.STANDS do
 		for b = a + 1, #T.STANDS do
