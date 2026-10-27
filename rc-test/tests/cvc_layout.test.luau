@@ -1,6 +1,7 @@
 --!strict
 -- Car VS Car screens on a phone: every button is thumb size, nothing falls off its panel or the
 -- screen, and no two buttons cover each other (CvcLayout, HudLayout).
+local fs = require("@lune/fs")
 local H = require("./harness")
 local CvcLayout = require("../src/shared/CvcLayout")
 local Features = require("../src/shared/Features")
@@ -156,7 +157,7 @@ test("the how-to tip never covers COACH, JOIN, CRATE, MY GARAGE or the JOBS chip
 	if not Features.CVC then
 		return
 	end
-	local TIPS = { { "Coach", true }, { "BigJoin", false }, { "Crate", true }, { "Garage", true } }
+	local TIPS = { { "Coach", true }, { "BigJoin", true }, { "Crate", true }, { "Garage", true } }
 	for _, s in SIZES do
 		local rects: { [string]: CvcLayout.Rect } = {}
 		for _, it in TIPS do
@@ -227,6 +228,31 @@ test("COACH steps under the race call strip, clear of it and of the other button
 			end
 		end
 	end
+end)
+
+test("the race call strip is never huge and covers no walk button (COACH steps down)", function()
+	-- (half a PC screen wide, it sat on COACH / 2X and the +1 pops, Studio polish-4)
+	for _, s in SIZES do
+		local strip = CvcLayout.callStrip(s[1])
+		truthy(strip[3] - strip[1] <= CvcLayout.CALL_STRIP.maxW, `strip width at {s[1]}`)
+		for _, spot in HudLayout.SPOTS do
+			-- (JOIN hides while the call is up: ServerRace "phase ~= call")
+			if
+				spot.mode == "walk"
+				and not spot.off
+				and spot.name ~= "Coach"
+				and spot.name ~= "Join"
+			then
+				local l, t, r, b = HudLayout.box(spot, s[1], s[2])
+				truthy(
+					not CvcLayout.hits(strip, { l, t, r, b }),
+					`the strip covers {spot.name} at {s[1]}x{s[2]}`
+				)
+			end
+		end
+	end
+	local race = fs.readFile("src/client/ServerRace.client.luau")
+	truthy(string.find(race, "CvcLayout.CALL_STRIP.maxW", 1, true) ~= nil, "ServerRace caps it")
 end)
 
 test("the BOOST tip never covers the race chips (the lap box with 5TH OF 8, DRIFT, ...)", function()
@@ -400,5 +426,18 @@ test("after a race no driving button or chip shows on the result card or its rib
 				end
 			end
 		end
+	end
+end)
+
+test("the RACE! tip sits under JOIN RACE, pointing up at it (not on the kid's head)", function()
+	if not Features.CVC then
+		return
+	end
+	local how = fs.readFile("src/client/CvcHowTo.client.luau")
+	truthy(string.find(how, 'text = "RACE!", below = true', 1, true) ~= nil, "RACE! under JOIN")
+	for _, s in SIZES do
+		local l, t, r, b = HudLayout.box(HudLayout.find("BigJoin", "walk") :: any, s[1], s[2])
+		local good = CvcLayout.tipClearOf({ l, t, r, b }, true, s[1], s[2], {}, { 0, 0, 0, 0 })
+		truthy(good ~= nil and good.side == "under", `room under JOIN at {s[1]}x{s[2]}`)
 	end
 end)

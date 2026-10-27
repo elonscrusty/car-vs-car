@@ -95,6 +95,10 @@ StageGate.hold(call, "race")
 local callAspect = Instance.new("UIAspectRatioConstraint")
 callAspect.AspectRatio = 2.6
 callAspect.Parent = call
+-- (on foot the strip is at most CvcLayout.CALL_STRIP.maxW wide: half a PC screen was huge and sat on
+-- COACH and the +1 pops, Studio polish-4)
+local callMax = Instance.new("UISizeConstraint")
+callMax.Parent = call
 local callWhere = Instance.new("TextLabel")
 callWhere.Size = UDim2.fromScale(1, 0.3)
 callWhere.BackgroundColor3 = KartStyle.RED
@@ -262,6 +266,7 @@ RunService.RenderStepped:Connect(function()
 	-- covered the middle of a new kid's screen (check kid-03); in a car it stays big
 	local strip = player:GetAttribute("Driving") ~= true
 	callAspect.AspectRatio = if strip then 7 else 2.6
+	callMax.MaxSize = Vector2.new(if strip then CvcLayout.CALL_STRIP.maxW else math.huge, math.huge)
 	callWhere.Size = UDim2.fromScale(1, if strip then 1 else 0.3)
 	call.Position = if strip
 		then UDim2.new(0.5, 0, 0, 58) -- (on foot: the top middle is free)
