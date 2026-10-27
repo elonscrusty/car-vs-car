@@ -964,6 +964,15 @@ local function runRace(hooks: Hooks, slot: number)
 	-- IN reads it; it used to guess its own and ran ~15 s long)
 	local nextAt = ServerRace.nextAfterRace(lastStart, now())
 	if Features.CVC and mapMode() then
+		-- a new kid who tapped JOIN while this race ran gets their first race soon after the
+		-- walk back, not a whole 3 min later (Studio polish 3: they waited 1 to 2 min)
+		for p in waiting do
+			local data = PlayerData.get(p)
+			if p.Parent and data and data.stage < Profile.STAGE.RACED then
+				nextAt = math.min(nextAt, now() + ServerRace.SHOW + ServerRace.CVC_FIRST)
+				break
+			end
+		end
 		event:FireAllClients("next", nextAt)
 	end
 	local racers: { Racer } = {}
