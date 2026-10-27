@@ -64,6 +64,7 @@ panel.Parent = pop
 CvcUi.corner(panel, 0.05)
 CvcUi.rim(panel, KartStyle.PANEL_RIM)
 local ribbon = CvcUi.ribbon(panel, "CRATE")
+local revealId = 0 -- the last car out (its ribbon comes back once its big name is gone)
 
 local close = button(panel, "X", KartStyle.RED)
 close.Name = "Close"
@@ -188,6 +189,8 @@ local function showChoose()
 	boxScale.Scale = 1
 	oddsBox.Visible = true
 	local kind = Crates.get(KIND)
+	revealId += 1 -- (a name still up from the last crate: the ribbon is back now)
+	ribbon.Visible = true
 	ribbon.Text = if kind then kind.label else "CRATE"
 	box.BackgroundColor3 = BOX_COLORS[KIND] or WOOD
 	local price = Crates.price(KIND)
@@ -326,7 +329,8 @@ local function comeOut(id: string, rarity: string)
 		end)
 	end
 	-- the crate bursts where it stood
-	local at = box.AbsolutePosition + box.AbsoluteSize / 2
+	-- (screen offsets: AbsolutePosition starts under Roblox's top bar, Kart_Fall at the top left)
+	local at = box.AbsolutePosition - fall.AbsolutePosition + box.AbsoluteSize / 2
 	Party.burst(top, UDim2.fromOffset(at.X, at.Y), 12 + n * 6)
 	local s = Instance.new("UIScale")
 	s.Scale = 0.2
@@ -334,17 +338,27 @@ local function comeOut(id: string, rarity: string)
 	TweenService:Create(s, TweenInfo.new(if legend then 0.7 else 0.45, Enum.EasingStyle.Back), {
 		Scale = 1,
 	}):Play()
-	ribbon.Text = `NEW {info.label} CAR!`
+	-- the car's big name first, where the ribbon is (it sat on NEW COMMON CAR!, Studio final-16b),
+	-- then the ribbon comes back with it
+	revealId += 1
+	local mine = revealId
+	ribbon.Visible = false
+	task.delay(if legend then 3 else 1.8, function()
+		if mine == revealId then
+			ribbon.Text = `NEW {info.label} CAR!`
+			ribbon.Visible = true
+		end
+	end)
 	openBtn.Text = if Crates.price(KIND)
 		then "BUY ANOTHER!"
 		elseif CvcState.crates > 0 then "OPEN ANOTHER!"
 		else "YAY!"
 	openBtn.BackgroundColor3 = KartStyle.GREEN
 	Sfx.crate(n)
-	CvcUi.bigWords(top, if legend then "LEGEND!!" else `{CvcState.name(id)}!`, color, 0.16)
+	CvcUi.bigWords(top, if legend then "LEGEND!!" else `{CvcState.name(id)}!`, color, 0.12)
 	if legend then
 		task.delay(1.2, function()
-			CvcUi.bigWords(top, `{CvcState.name(id)}!`, color, 0.16)
+			CvcUi.bigWords(top, `{CvcState.name(id)}!`, color, 0.12)
 		end)
 	end
 	Party.confetti(fall, if legend then 160 else 30 + n * 20)

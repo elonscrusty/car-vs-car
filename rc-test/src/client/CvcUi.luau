@@ -178,6 +178,8 @@ end
 
 export type Bars = { frame: Frame, set: (car: CvcState.Car) -> () }
 
+local MAX_GOLD = Color3.fromRGB(255, 196, 30) -- a bar at its car's top
+
 -- The 3 bars of a car, one row each: the word, the bar (filled to its value, a faint mark at the
 -- car's top) and the number. set() moves the fills smoothly.
 function CvcUi.bars(parent: Instance): Bars
@@ -251,14 +253,17 @@ function CvcUi.bars(parent: Instance): Bars
 	local function set(car: CvcState.Car)
 		for _, b in Training.BARS do
 			local v, top = CvcState.bar(car, b)
-			local f = v / Training.MAX_BAR
+			local full = v >= top
+			-- at the car's top: the whole bar, gold (MAX! on a bar 60% across didn't look maxed,
+			-- Studio final-14: a common car tops out at 60)
+			local f = if full then 1 else v / Training.MAX_BAR
 			TweenService:Create(fills[b], TweenInfo.new(0.4, Enum.EasingStyle.Quart), {
 				Size = UDim2.fromScale(math.clamp(f, 0, 1), 1),
 			}):Play()
+			fills[b].BackgroundColor3 = if full then MAX_GOLD else CvcUi.BAR_COLORS[b]
 			tops[b].Position = UDim2.fromScale(top / Training.MAX_BAR, 0)
-			tops[b].Visible = top < Training.MAX_BAR
+			tops[b].Visible = top < Training.MAX_BAR and not full
 			local whole = math.floor(v)
-			local full = v >= top
 			nums[b].Text = if full then "MAX!" else tostring(whole)
 			nums[b].TextColor3 = if full then Color3.fromRGB(214, 150, 0) else INK
 			-- a bar went up: its number pops

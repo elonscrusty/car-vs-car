@@ -6,6 +6,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
+local Crates = require(ReplicatedStorage.Shared.Crates)
 local CvcLayout = require(ReplicatedStorage.Shared.CvcLayout)
 local Features = require(ReplicatedStorage.Shared.Features)
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
@@ -639,11 +640,29 @@ end
 local GOLD = Color3.fromRGB(255, 213, 79)
 local GREEN = Color3.fromRGB(110, 225, 120)
 
+-- Car VS Car: new cars come out of crates (there is no car shop: the chip said BUY IT IN THE CAR
+-- SHOP! even for a car you had, Studio final-17), so the goal is the next crate
+local function cvcGoal(g: any): any
+	if not Features.CVC or type(g) ~= "table" then
+		return g
+	end
+	local price = Crates.price("basic") or 300
+	local c = player:GetAttribute("Coins")
+	local have = if type(c) == "number" then c elseif type(g.have) == "number" then g.have else 0
+	return { kind = "crate", name = "CRATE", price = price, have = have, ready = have >= price }
+end
+
 local function goalText(g: any): (string, string, number)
 	-- (what it is, how far, fill 0..1)
-	local what = if g.kind == "car" then `NEXT CAR: {g.name}` else "BIGGER GARAGE"
+	local what = if g.kind == "car"
+		then `NEXT CAR: {g.name}`
+		elseif g.kind == "crate" then "NEXT CRATE"
+		else "BIGGER GARAGE"
 	local unit = "coins"
 	local fill = if g.price > 0 then math.clamp(g.have / g.price, 0, 1) else 1
+	if g.ready and g.kind == "crate" then
+		return "GET A CRATE!", "AT THE CRATE SHOP!", 1
+	end
 	if g.ready then
 		return what, if g.kind == "car" then "BUY IT IN THE CAR SHOP!" else "BUY IT IN THE SHOP!", 1
 	end
@@ -928,6 +947,7 @@ remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unkn
 		return
 	end
 	if kind == "goal" then
+		info = cvcGoal(info)
 		lastGoal = info
 		showGoal(info)
 		return
