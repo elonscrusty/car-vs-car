@@ -1,7 +1,7 @@
 --!strict
 -- KITCHEN: a toy race track on a giant kitchen floor. Start by the door mat, round the table
 -- (or straight UNDER it: the shortcut, through a chair's legs), along the counters round the
--- mop bucket with a jump over a dropped spoon, through the spilled milk by the fridge, a
+-- mop bucket with a jump by a dropped spoon, through the spilled milk by the fridge, a
 -- cutting-board jump down the left side and home.
 -- Secret: two cabinet doors under the counter are open. Drive in one, along inside the cabinets,
 -- and out of the other (it skips the mop bucket bend). Picture: rc-game/maps/kitchen.png in the
@@ -135,13 +135,14 @@ local def: MapKit.Def = {
 		{ kind = "boost", path = 2, at = { x = 60 / K, z = (BACK + 70) / K }, len = 50 },
 	},
 	jumps = {
-		{ path = 0, at = { x = 30, z = -130 } }, -- over the dropped spoon
+		{ path = 0, at = { x = 30, z = -130 } }, -- by the dropped spoon
 		{ path = 0, at = { x = -692, z = -100 } }, -- the cutting board
 	},
 	props = props,
 	lines = {
-		-- right under the jump's top, so the ridge hides it on the road; the bowl lies off the road
-		{ kind = "spoon", width = 10, points = { { x = 30, z = -60 }, { x = 30, z = -190 } } },
+		-- dropped on the floor just inside the bottom straight, by the jump: nothing of it on the
+		-- road, the curb or the ramp (a looks-only spoon across the road shows through it)
+		{ kind = "spoon", width = 10, points = { { x = -40, z = -60 }, { x = 80, z = -60 } } },
 	},
 	-- the driver stand: a big step stool by the start (picture rc-game/cvc/pics)
 	stand = { x = 128, z = 527, w = MapKit.STAND_W, d = MapKit.STAND_D, h = MapKit.STAND_H },
