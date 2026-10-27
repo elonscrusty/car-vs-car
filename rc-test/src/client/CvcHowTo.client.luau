@@ -79,18 +79,26 @@ skip.Activated:Connect(function()
 end)
 
 -- a button another Car VS Car script made: PlayerGui.<gui>.<name>
+-- (anywhere in it: Stars keeps the JOBS chip in a frame that comes after your first drive)
 local function find(guiName: string, name: string): GuiObject?
 	local g = playerGui:FindFirstChild(guiName)
-	local b = g and g:FindFirstChild(name)
+	local b = g and g:FindFirstChild(name, true)
 	return if b and b:IsA("GuiObject") then b else nil
 end
 
+-- on the screen: it, and every frame it sits in, shown
 local function shown(b: GuiObject?): boolean
-	if not b or not b.Visible then
+	if not b then
 		return false
 	end
-	local g = b:FindFirstAncestorOfClass("ScreenGui")
-	return g ~= nil and g.Enabled
+	local at: Instance? = b
+	while at and not at:IsA("ScreenGui") do
+		if at:IsA("GuiObject") and not at.Visible then
+			return false
+		end
+		at = at.Parent
+	end
+	return at ~= nil and (at :: ScreenGui).Enabled
 end
 
 local function panelOpen(guiName: string): boolean
@@ -123,6 +131,15 @@ local AVOID = {
 	{ "CvcCrateButton", "CrateButton" },
 	{ "CvcGarageButton", "GarageButton" },
 }
+
+-- the JOBS 1/3 chip (Stars) sits right under CRATE! and MY GARAGE: the tip keeps clear of it
+-- when it can, and else the chip steps away while the tip shows (the arrow covered its 2/3,
+-- Studio final-31)
+local function hideJobs(on: boolean)
+	if (player:GetAttribute("TipHidesJobs") == true) ~= on then
+		player:SetAttribute("TipHidesJobs", on)
+	end
+end
 
 type Tip = { target: GuiObject, text: string, below: boolean, drive: boolean? }
 
@@ -174,6 +191,7 @@ RunService.RenderStepped:Connect(function()
 	words.Visible = tip ~= nil
 	skip.Visible = tip ~= nil
 	if not tip then
+		hideJobs(false)
 		return
 	end
 	-- it glows: yellow to white and back
@@ -201,7 +219,25 @@ RunService.RenderStepped:Connect(function()
 		end
 	end
 	local size = gui.AbsoluteSize
-	local spot = CvcLayout.tip({ p.X, p.Y, p.X + s.X, p.Y + s.Y }, tip.below, size.X, size.Y, avoid)
+	local target = { p.X, p.Y, p.X + s.X, p.Y + s.Y }
+	-- (its box even while it has stepped away: whether the tip still needs it to)
+	local jobs = find("Stars", "DailyJobs")
+	local jobsHas = jobs ~= nil
+		and (shown(jobs) or player:GetAttribute("TipHidesJobs") == true and jobs.Parent ~= nil)
+	local spot = CvcLayout.tip(target, tip.below, size.X, size.Y, avoid)
+	if jobs and jobsHas then
+		local jp, js = jobs.AbsolutePosition - o, jobs.AbsoluteSize
+		local spotJ = CvcLayout.tipClearOf(target, tip.below, size.X, size.Y, avoid, {
+			jp.X,
+			jp.Y,
+			jp.X + js.X,
+			jp.Y + js.Y,
+		})
+		hideJobs(spotJ == nil)
+		spot = spotJ or spot
+	else
+		hideJobs(false)
+	end
 	local function centre(r: { number }): (number, number)
 		return (r[1] + r[3]) / 2, (r[2] + r[4]) / 2
 	end

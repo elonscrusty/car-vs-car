@@ -18,8 +18,10 @@ local BLOCK = { -- place -> x, height, colour
 	{ x = -10.5, h = 1, color = Color3.fromRGB(200, 205, 215) },
 	{ x = 10.5, h = 0.6, color = Color3.fromRGB(215, 140, 70) },
 }
-local BLOCK_W = 8.5
-local CAR_LONG = 8 -- every car is shown this long, whatever its real size
+local BLOCK_W = 8.5 -- (and as deep: square tops)
+-- every car is scaled to fit its block's top as it spins: its footprint's corner to corner this
+-- long (long cars hung off the blocks and into each other, Studio final-30)
+local CAR_FIT = BLOCK_W * 0.92
 
 -- The car model a result row drove (a player's Car_<uid>, or the bot with that name; the one in
 -- your own race first). nil = gone already.
@@ -69,7 +71,7 @@ function Podium.new(parent: GuiObject): Podium
 		local px = frame.AbsoluteSize
 		local aspect = if px.Y > 0 then px.X / px.Y else 3
 		local halfH = topY / 2 + 0.3
-		local dist = math.max(halfH / TAN, HALF_W / (TAN * aspect)) + 2.5 -- (+ half the blocks' depth)
+		local dist = math.max(halfH / TAN, HALF_W / (TAN * aspect)) + BLOCK_W / 2 -- (+ half the blocks' depth)
 		local look = Vector3.new(0, topY / 2, 0)
 		cam.CFrame = CFrame.lookAt(look + UP * dist, look)
 	end
@@ -97,7 +99,7 @@ function Podium.new(parent: GuiObject): Podium
 			local b = BLOCK[place]
 			local block = Instance.new("Part")
 			block.Anchored = true
-			block.Size = Vector3.new(BLOCK_W, b.h, 5)
+			block.Size = Vector3.new(BLOCK_W, b.h, BLOCK_W)
 			block.CFrame = CFrame.new(b.x, b.h / 2, 0)
 			block.Color = b.color
 			block.Material = Enum.Material.SmoothPlastic
@@ -118,8 +120,8 @@ function Podium.new(parent: GuiObject): Podium
 						end
 					end
 					local size = copy:GetExtentsSize()
-					local long = math.max(size.X, size.Z, 0.1)
-					copy:ScaleTo(copy:GetScale() * CAR_LONG / long)
+					local across = math.max(math.sqrt(size.X * size.X + size.Z * size.Z), 0.1)
+					copy:ScaleTo(copy:GetScale() * CAR_FIT / across)
 					local tall = copy:GetExtentsSize().Y
 					local base = CFrame.new(b.x, b.h + tall / 2 + 0.05, 0)
 					copy:PivotTo(base)

@@ -191,7 +191,7 @@ local function showFold()
 	end
 	HudLayout.place(jobs, "DailyJobs")
 	if folded then
-		jobs.Size = UDim2.fromOffset(130, 34)
+		jobs.Size = UDim2.fromOffset(CvcLayout.JOBS_CHIP[1], CvcLayout.JOBS_CHIP[2])
 	end
 	jobsTitle.Size = UDim2.fromScale(1, if folded then 1 else 0.22)
 	showTitle()
@@ -212,6 +212,7 @@ jobsTitle.Activated:Connect(function()
 		end)
 	end
 end)
+local hasJobs = false -- the server has sent today's jobs
 local function showJobs(lines: { any })
 	jobsDone, jobsAll = 0, 0
 	for i, row in jobRows do
@@ -228,9 +229,15 @@ local function showJobs(lines: { any })
 			row.Text = ""
 		end
 	end
-	jobs.Visible = true
+	hasJobs = true
+	jobs.Visible = player:GetAttribute("TipHidesJobs") ~= true
 	showFold()
 end
+-- Car VS Car: a how-to tip that can't keep clear of this chip (it sits right under CRATE! and MY
+-- GARAGE: the arrow covered JOBS 2/3, Studio final-31) has it step away while it shows
+player:GetAttributeChangedSignal("TipHidesJobs"):Connect(function()
+	jobs.Visible = hasJobs and player:GetAttribute("TipHidesJobs") ~= true
+end)
 -- how long until new jobs, in the title
 task.spawn(function()
 	while true do

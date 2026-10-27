@@ -62,6 +62,9 @@ local TOP_MID = { 0.5, 0 }
 local TAP = { tap = true }
 local MAIN = { main = true }
 
+-- the folded daily JOBS chip's size (Stars.client; px): the how-to tip keeps clear of it
+CvcLayout.JOBS_CHIP = { 130, 34 }
+
 -- the big X on a panel's top right corner
 local function closeX(): Box
 	return box("Panel", MID, { 1, -6, 0, 6 }, { 0, 48, 0, 48 }, TAP)
@@ -185,7 +188,13 @@ end
 -- button (under it when `below`, else over it), the words past the arrow, SKIP by the words.
 -- When that would cover one of the other buttons (`avoid`), the words and SKIP go beside the
 -- button instead (right, then left), so the tip never sits on COACH or JOIN.
-function CvcLayout.tip(target: Rect, below: boolean, sw: number, sh: number, avoid: { Rect }): Tip
+local function search(
+	target: Rect,
+	below: boolean,
+	sw: number,
+	sh: number,
+	avoid: { Rect }
+): (Tip?, Tip)
 	local A, WH, SK = CvcLayout.TIP_ARROW, CvcLayout.TIP_WORDS_H, CvcLayout.TIP_SKIP
 	local cx = (target[1] + target[3]) / 2
 	local midY = (target[2] + target[4]) / 2
@@ -259,12 +268,32 @@ function CvcLayout.tip(target: Rect, below: boolean, sw: number, sh: number, avo
 				local t = { arrow = arrow, words = words, skip = skip, side = side }
 				first = first or t
 				if ok(t, reach) then
-					return t
+					return t, t
 				end
 			end
 		end
 	end
-	return first :: Tip
+	return nil, first :: Tip
+end
+
+function CvcLayout.tip(target: Rect, below: boolean, sw: number, sh: number, avoid: { Rect }): Tip
+	local good, first = search(target, below, sw, sh, avoid)
+	return good or first
+end
+
+-- The tip clear of `extra` too (the JOBS chip), or nil when there is no such spot: then that
+-- piece steps away while the tip shows
+function CvcLayout.tipClearOf(
+	target: Rect,
+	below: boolean,
+	sw: number,
+	sh: number,
+	avoid: { Rect },
+	extra: Rect
+): Tip?
+	local all = table.clone(avoid)
+	table.insert(all, extra)
+	return (search(target, below, sw, sh, all))
 end
 
 -- ===== the race call strip (ServerRace.client "Call", on foot): COACH steps down under it =====
