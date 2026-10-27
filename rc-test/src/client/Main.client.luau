@@ -367,10 +367,25 @@ end)
 local lobby = Lobby.new(remote, function(): boolean
 	return true
 end)
+-- after a race the result card (ServerRace "Result") has the screen: the driving buttons and
+-- chips (AUTO GAS, the lap clock, BRAKE, GAS...) step away while it shows (AUTO GAS sat on its
+-- ribbon, Studio morning-podium; CvcLayout.AFTER_RACE_HIDES)
+local resultCard: GuiObject? = nil
+local function showDriveHud()
+	gui.Enabled = not walking and not (resultCard ~= nil and resultCard.Visible)
+end
+task.spawn(function()
+	local race = player:WaitForChild("PlayerGui"):WaitForChild("ServerRace", 60)
+	local card = race and race:WaitForChild("Result", 60)
+	if card and card:IsA("GuiObject") then
+		resultCard = card
+		card:GetPropertyChangedSignal("Visible"):Connect(showDriveHud)
+	end
+end)
 local function setWalking(on: boolean)
 	LobbySky.set(on)
 	walking = on
-	gui.Enabled = not on
+	showDriveHud()
 	if on then
 		roadArrow.hide()
 	end

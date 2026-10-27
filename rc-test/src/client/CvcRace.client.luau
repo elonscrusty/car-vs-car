@@ -113,8 +113,14 @@ boost.Activated:Connect(function()
 		pop(boost, 1.3)
 	end
 end)
+-- the race result card is up (ServerRace "Result"): the race is over, BOOST steps away (it sat by
+-- the card's edge; CvcLayout.AFTER_RACE_HIDES)
+local result: GuiObject? = nil
+local function resultUp(): boolean
+	return result ~= nil and result.Visible
+end
 local function showBoost()
-	boost.Visible = player:GetAttribute("Racing") == true
+	boost.Visible = player:GetAttribute("Racing") == true and not resultUp()
 	local left = boostLeft()
 	boostCount.Text = tostring(left)
 	if player:GetAttribute("BoostOn") == true then
@@ -135,6 +141,14 @@ local function showBoost()
 	end
 	boostCount.Visible = left > 0
 end
+task.spawn(function()
+	local race = player:WaitForChild("PlayerGui"):WaitForChild("ServerRace", 60)
+	local card = race and race:WaitForChild("Result", 60)
+	if card and card:IsA("GuiObject") then
+		result = card
+		card:GetPropertyChangedSignal("Visible"):Connect(showBoost)
+	end
+end)
 for _, a in { "Racing", "BoostLeft", "BoostOn" } do
 	player:GetAttributeChangedSignal(a):Connect(showBoost)
 end

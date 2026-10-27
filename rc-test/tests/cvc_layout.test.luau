@@ -375,3 +375,24 @@ test("the win card and GG! / AGAIN! sit clear of JOIN and the other buttons", fu
 		end
 	end
 end)
+
+test("after a race no driving button or chip shows on the result card or its ribbon", function()
+	for _, s in { { 1914, 604 }, table.unpack(SIZES) } do
+		local sw, sh = s[1], s[2]
+		local card = CvcLayout.resultBox(sw, sh, 10, true)
+		local ribbon = CvcLayout.resultRibbonBox(sw, sh)
+		for _, spot in HudLayout.SPOTS do
+			if spot.mode == "drive" and not spot.off then
+				local l, t, r, b = HudLayout.box(spot, sw, sh)
+				local box = { l, t, r, b }
+				if CvcLayout.hits(box, card) or CvcLayout.hits(box, ribbon) then
+					-- (its owner steps its driving pieces away while the card shows)
+					truthy(
+						CvcLayout.AFTER_RACE_HIDES[spot.owner] == true,
+						`{spot.name} ({spot.owner}) sits on the result card at {sw}x{sh}`
+					)
+				end
+			end
+		end
+	end
+end)

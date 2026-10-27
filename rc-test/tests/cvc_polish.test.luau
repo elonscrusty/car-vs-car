@@ -69,3 +69,20 @@ test("the how-to tip hides the JOBS chip only when it can't keep clear of it", f
 	truthy(has(how, "hideJobs(spotJ == nil)"), "the tip tries to keep clear first")
 	truthy(has(stars, 'GetAttribute("TipHidesJobs") ~= true'), "Stars steps the chip away")
 end)
+
+test("the driving pieces step away while the race result card shows", function()
+	local main = fs.readFile("src/client/Main.client.luau")
+	local race = fs.readFile("src/client/CvcRace.client.luau")
+	local server = fs.readFile("src/client/ServerRace.client.luau")
+	local lobby = fs.readFile("src/client/Lobby.luau")
+	truthy(
+		has(main, "gui.Enabled = not walking and not (resultCard ~= nil and resultCard.Visible)"),
+		"Hud / Controls (RCControls)"
+	)
+	truthy(
+		has(race, 'boost.Visible = player:GetAttribute("Racing") == true and not resultUp()'),
+		"BOOST"
+	)
+	truthy(has(server, "and not card.Visible -- (the result card has the screen"), "JOIN")
+	truthy(has(lobby, 'cardShown("ServerRace", "Result")'), "WALK")
+end)
