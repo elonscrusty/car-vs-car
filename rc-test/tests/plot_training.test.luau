@@ -111,7 +111,8 @@ end)
 test("pad signs: the station and its level, or which plot level opens it", function()
 	local a, b = T.padWords({ kind = "ramp", level = 3, car = "" }, 2)
 	eq(a, "RAMP")
-	eq(b, "LV 3")
+	eq(b, "LV 3  +BOOST")
+	eq(select(2, T.padWords({ kind = "track", level = 1, car = "" }, 3)), "LV 1  +TURN")
 	a, b = T.padWords(nil, 4)
 	eq(a, "LOCKED")
 	eq(b, "PLOT LV 3")
@@ -204,6 +205,15 @@ test("car tags: one per pad, never over the next pad, the car or each other", fu
 					"stand tags " .. a .. " and " .. b .. " apart"
 				)
 			end
+		end
+	end
+end)
+
+test("locked pads have no little sign (their words are painted big on the pad)", function()
+	for _, p in T.pieces(1, 0, 0) do
+		if p.name == "PadSign" or p.name == "PadSignPost" then
+			local i = tonumber(string.sub(p.group, 4)) :: number
+			truthy(i <= T.open(1), "sign only on open pads, not " .. p.group)
 		end
 	end
 end)
