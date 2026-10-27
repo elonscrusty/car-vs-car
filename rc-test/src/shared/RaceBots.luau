@@ -31,6 +31,7 @@ export type Route = {
 	total: number, -- one lap
 	kappa: { number }, -- how sharp the bend is at sample k (1 / radius, big units)
 	gateAt: { number }, -- distance from the line of each lap gate (gate 1 = the line = 0)
+	laps: number?, -- laps in this race (nil = ServerRace.LAPS)
 }
 
 export type Bot = {
@@ -254,6 +255,10 @@ local function segAt(route: Route, d: number, hint: number): number
 	return k
 end
 
+local function lapsOf(route: Route): number
+	return route.laps or ServerRace.LAPS
+end
+
 local function lapPos(d: number, total: number): number
 	return d % total
 end
@@ -264,7 +269,7 @@ function RaceBots.step(route: Route, bot: Bot, dt: number, since: number, catchU
 	if since < bot.delay then
 		return
 	end
-	if bot.time ~= nil and bot.dist > route.total * ServerRace.LAPS + 60 then
+	if bot.time ~= nil and bot.dist > route.total * lapsOf(route) + 60 then
 		-- past the line and out of the way: coast to a halt
 		bot.speed = math.max(0, bot.speed - RaceBots.BRAKE * dt)
 		bot.dist += bot.speed * dt
@@ -284,7 +289,7 @@ function RaceBots.step(route: Route, bot: Bot, dt: number, since: number, catchU
 		bot.speed = math.max(want, bot.speed - RaceBots.BRAKE * dt)
 	end
 	bot.dist += bot.speed * dt
-	if bot.time == nil and bot.dist >= route.total * ServerRace.LAPS then
+	if bot.time == nil and bot.dist >= route.total * lapsOf(route) then
 		bot.time = since
 	end
 end
@@ -327,7 +332,7 @@ end
 
 -- Laps finished (0 on the grid).
 function RaceBots.laps(route: Route, bot: Bot): number
-	return math.clamp(math.floor(bot.dist / route.total), 0, ServerRace.LAPS)
+	return math.clamp(math.floor(bot.dist / route.total), 0, lapsOf(route))
 end
 
 -- How far round a bot is, in the same units as ServerRace.progress for a player: the gates it

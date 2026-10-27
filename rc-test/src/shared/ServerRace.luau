@@ -29,6 +29,8 @@ local ServerRace = {}
 ServerRace.BREAK = 5 * 60 -- the break between races (build, shop, drive your own plot)
 ServerRace.CALL = 10 -- the plot is picked and named this long before the start
 ServerRace.LAPS = 2 -- map races: about 1 min (Car VS Car, 10-26)
+-- a new player's first race (easy bots) is 1 lap: 2 took them 1.5 to 2 min (carter 10-27: shorter)
+ServerRace.FIRST_LAPS = 1
 ServerRace.MAX = 8 -- cars on the grid
 ServerRace.TIME_LIMIT = 240 -- seconds from GO: the race ends even if nobody finished
 ServerRace.AFTER_WIN = 30 -- the others get this long to finish after the winner
@@ -387,6 +389,11 @@ function ServerRace.tally(votes: { [any]: string }, ids: { string }, r: number):
 		end
 	end
 	return best[math.clamp(math.floor(r * #best) + 1, 1, #best)]
+end
+
+-- Laps in a race: a first race (easy bots) is shorter.
+function ServerRace.lapsFor(easy: boolean?): number
+	return if easy then ServerRace.FIRST_LAPS else ServerRace.LAPS
 end
 
 return ServerRace
