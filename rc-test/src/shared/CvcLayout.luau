@@ -296,6 +296,20 @@ function CvcLayout.tipClearOf(
 	return (search(target, below, sw, sh, all))
 end
 
+-- ===== a new car from the gift box (Cvc.client): the car up top, its words under it =====
+-- the car pops out at y and then flies off to the right at the same height, so its words sit
+-- under it, clear of its path (IT'S TRAINING NOW! sat under the car, Studio score-02)
+CvcLayout.NEW_CAR = { y = 0.38, w = 240, h = 150, most = 0.3, gap = 6, words = 0.14 }
+
+-- the car's size (px) and its words' middle (screen scale) on a screen sh px tall
+function CvcLayout.newCar(sh: number): (number, number, number)
+	local N = CvcLayout.NEW_CAR
+	local h = math.min(N.h, N.most * sh)
+	local w = h * N.w / N.h
+	local wordsY = (N.y * sh + h / 2 + N.gap + N.words * sh / 2) / sh
+	return w, h, wordsY
+end
+
 -- ===== the race call strip (ServerRace.client "Call", on foot): COACH steps down under it =====
 -- (the same numbers ServerRace.client uses: top middle, 58 px down, half the screen wide but at
 -- most 400 px, 7:1)
