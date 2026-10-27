@@ -332,6 +332,21 @@ CvcLayout.AFTER_RACE = {
 	{ turn = 4, gui = "StarsTop", name = "RacePrize" },
 }
 
+-- while the race result card shows, the driving pieces of these owners (HudLayout spot owners) step
+-- away: the race is over, and they sat on the card (AUTO GAS on its ribbon, Studio
+-- morning-podium). Hud and Controls: Main.client turns RCControls off; Cvc: CvcRace's BOOST;
+-- ServerRace: its JOIN pill; Lobby: WALK.
+CvcLayout.AFTER_RACE_HIDES =
+	{ Hud = true, Controls = true, Cvc = true, ServerRace = true, Lobby = true }
+
+-- the result card's ribbon (ServerRace: 80% of the card wide, 13% of the screen tall, half over
+-- its top edge)
+function CvcLayout.resultRibbonBox(sw: number, sh: number): Rect
+	local R = CvcLayout.RESULT
+	local w = 0.8 * R.w
+	return { sw * (0.5 - w / 2), sh * (R.top - 0.065), sw * (0.5 + w / 2), sh * (R.top + 0.065) }
+end
+
 -- the league words' box (CvcUi.bigWords: the middle, 40% down, 60% x 14%)
 function CvcLayout.leagueBox(sw: number, sh: number): Rect
 	return { sw * 0.2, sh * 0.33, sw * 0.8, sh * 0.47 }

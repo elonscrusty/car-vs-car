@@ -294,6 +294,7 @@ RunService.RenderStepped:Connect(function()
 	local driving = player:GetAttribute("Driving") == true
 	join.Visible = phase ~= "racing"
 		and phase ~= "call"
+		and not card.Visible -- (the result card has the screen: CvcLayout.AFTER_RACE_HIDES)
 		and startAt > 0
 		and player:GetAttribute("Building") ~= true
 		and (not driving or secs <= 60)
