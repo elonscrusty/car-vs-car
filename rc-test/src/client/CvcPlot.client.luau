@@ -36,7 +36,7 @@ local CarGlow: any = if glowModule and glowModule:IsA("ModuleScript")
 local STAND_TOP = 0.8 -- a stand's top, where its car sits
 local SPIN = 20 -- degrees a second the stand cars turn
 
-type Rider = { model: Model, kind: string, pad: number, slats: { BasePart } }
+type Rider = { model: Model, kind: string, pad: number, slats: { BasePart }, anchor: BasePart }
 type Shown = {
 	plot: Instance,
 	training: Model,
@@ -155,14 +155,30 @@ local function keyOf(onPads: { [number]: Entry }, stands: { Entry }): string
 end
 
 -- the bars over a car: yours trained, anyone else's as it comes
-local function tag(model: Model, e: Entry)
-	local body = model:FindFirstChild("Body")
-	if not (body and body:IsA("BasePart")) then
-		return
-	end
+-- The bars over a car: yours trained, anyone else's as it comes. Sized in studs
+-- (PlotTraining.TAG / STAND_TAG), so tags on next-door pads and stands never pile up.
+local function tag(at: BasePart, e: Entry, w: number, h: number, up: number)
 	local car = if e.uid then CvcState.find(e.uid) else nil
 	local data = car or CvcState.fresh(e.id)
-	pcall(CarTag.make, body, data :: any)
+	local ok, gui = pcall(CarTag.make, at, data :: any)
+	if ok and gui then
+		gui.Size = UDim2.fromScale(w, h)
+		gui.StudsOffsetWorldSpace = Vector3.new(0, up, 0)
+	end
+end
+
+-- a station car's tag hangs still over the back of its pad (the car runs about under it)
+local function riderTag(r: Rider, e: Entry)
+	local T = PlotTraining.TAG
+	tag(r.anchor, e, T.w, T.h, 0)
+end
+
+local function standTag(model: Model, e: Entry)
+	local body = model:FindFirstChild("Body")
+	if body and body:IsA("BasePart") then
+		local T = PlotTraining.STAND_TAG
+		tag(body, e, T.w, T.h, T.up)
+	end
 end
 
 local function refresh(s: Shown)
@@ -174,13 +190,13 @@ local function refresh(s: Shown)
 			for _, r in s.riders do
 				local e = onPads[r.pad]
 				if e then
-					tag(r.model, e)
+					riderTag(r, e)
 				end
 			end
 			for k, m in s.parked do
 				local e = stands[k]
 				if e then
-					tag(m, e)
+					standTag(m, e)
 				end
 			end
 		end
@@ -214,8 +230,21 @@ local function refresh(s: Shown)
 						table.insert(slats, p)
 					end
 				end
-				table.insert(s.riders, { model = model, kind = kind, pad = i, slats = slats })
-				tag(model, e)
+				local anchor = Instance.new("Part")
+				anchor.Name = "TagSpot"
+				anchor.Anchored = true
+				anchor.CanCollide = false
+				anchor.CanQuery = false
+				anchor.CanTouch = false
+				anchor.Transparency = 1
+				anchor.Size = Vector3.new(0.2, 0.2, 0.2)
+				local tx, ty, tz = PlotTraining.tagSpot(i)
+				anchor.CFrame = s.pivot * CFrame.new(tx, ty, tz)
+				anchor.Parent = s.folder
+				local r: Rider =
+					{ model = model, kind = kind, pad = i, slats = slats, anchor = anchor }
+				table.insert(s.riders, r)
+				riderTag(r, e)
 			end
 		end
 	end
@@ -225,7 +254,7 @@ local function refresh(s: Shown)
 			local st = PlotTraining.STANDS[k]
 			model:PivotTo(s.pivot * CFrame.new(st.x, STAND_TOP, st.z))
 			table.insert(s.parked, model)
-			tag(model, e)
+			standTag(model, e)
 		end
 	end
 end
