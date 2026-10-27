@@ -86,3 +86,62 @@ test("the driving pieces step away while the race result card shows", function()
 	truthy(has(server, "and not card.Visible -- (the result card has the screen"), "JOIN")
 	truthy(has(lobby, 'cardShown("ServerRace", "Result")'), "WALK")
 end)
+
+test(
+	"every button the how-to tip looks for is in the screen it names (JOBS is in StarsHud)",
+	function()
+		-- (it looked in "Stars" for the JOBS chip, never found it, and the arrow sat on JOBS 2/3 and
+		-- on the open jobs list, Studio final-47 and final-50)
+		local how = fs.readFile("src/client/CvcHowTo.client.luau")
+		local files: { string } = {}
+		for _, f in fs.readDir("src/client") do
+			local path = `src/client/{f}`
+			if fs.isFile(path) then
+				table.insert(files, fs.readFile(path))
+			end
+		end
+		local looks = 0
+		local function check(g: string, n: string)
+			looks += 1
+			local found = false
+			for _, src in files do
+				local v = string.match(src, `([%w_]+)%.Name = "{n}"`)
+				if v and has(src, `Name = "{g}"`) then
+					-- up its .Parent lines: when they go further, the screen they reach is the one named
+					local names: { string } = {}
+					for _ = 1, 8 do
+						local name = string.match(src, `\n%s*{v}%.Name = "([%w_]+)"`)
+						if name then
+							table.insert(names, name)
+						end
+						local up = string.match(src, `\n%s*{v}%.Parent = ([%w_]+)\n`)
+						if not up then
+							break
+						end
+						v = up
+					end
+					found = found or #names <= 1 or table.find(names, g) ~= nil
+				end
+			end
+			truthy(found, `no screen {g} with {n}`)
+		end
+		for g, n in string.gmatch(how, 'find%("([%w_]+)", "([%w_]+)"%)') do
+			check(g, n)
+		end
+		for g, n in string.gmatch(how, '{ "([%w_]+)", "([%w_]+)" }') do
+			check(g, n)
+		end
+		truthy(looks >= 8, `found the looks ({looks})`)
+		truthy(has(how, 'find("StarsHud", "DailyJobs")'), "JOBS in StarsHud")
+		-- the open list: the tip waits while it's open
+		local stars = fs.readFile("src/client/Stars.client.luau")
+		truthy(has(stars, 'jobs:SetAttribute("Open", not folded)'), "Stars says when it's open")
+		truthy(has(how, 'jobs:GetAttribute("Open") == true then'), "the tip waits")
+	end
+)
+
+test("short words (+50 COINS: JOB DONE!) wait for the after-race cards", function()
+	local stars = fs.readFile("src/client/Stars.client.luau")
+	truthy(has(stars, 'CvcLayout.waitTurn(gui.Parent :: Instance, "Toast", 30)'), "Toast waits")
+	truthy(has(stars, 'toast.Name = "Toast"'), "the name it waits under")
+end)

@@ -24,6 +24,7 @@ export type Spot = {
 	square: boolean?, -- width = height (UIAspectRatioConstraint on height)
 	leftOf: string?, -- sits just left of this spot (same mode), bottoms lined up; x is ignored
 	off: boolean?, -- its part is switched off (Features): never shown, so it may sit under others
+	notWith: string?, -- never on the screen with this spot (same mode), so it may sit under it
 }
 
 -- Sibling loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
@@ -152,6 +153,13 @@ HudLayout.SPOTS = {
 	spot("Timer", "drive", "Hud", TL, { 0.02, 0, 0, 64 }, { 0.24, 0, 0.14, 0 }),
 	spot("Track", "drive", "Hud", TC, { 0.5, 0, 0, 64 }, { 0.1012, 0, 0.1, 0 }), -- the one lit plot name
 	spot("DriftScore", "drive", "Hud", TC, { 0.5, 0, 0.12, 72 }, { 0.32, 0, 0.1, 0 }),
+	-- FINISH IN 0:04! / RESULTS IN (ServerRace): between the timer and AUTO GAS (it was half the
+	-- screen wide and sat on AUTO GAS, Studio final-44); the plot word hides in a race (Hud.setRace)
+	(function()
+		local s = spot("Hurry", "drive", "ServerRace", TC, { 0.44, 0, 0, 64 }, { 0.3, 0, 0.08, 0 })
+		s.notWith = "Track"
+		return s
+	end)(),
 	spot("Join", "drive", "ServerRace", TC, { 0.5, 0, 0.22, 80 }, { 0, 220, 0, 44 }),
 	spot("AutoGas", "drive", "Controls", TR, { 0.704, 0, 0, 64 }, { 0.083, 0, 0.12, 0 }), -- 45+ px tall on a phone
 	spot("Smoke", "drive", "Controls", TR, { 0.796, 0, 0, 64 }, { 0.083, 0, 0.12, 0 }), -- 7+ px apart
@@ -208,7 +216,8 @@ function HudLayout.overlaps(sw: number, sh: number): { string }
 	for i = 1, #list do
 		for j = i + 1, #list do
 			local a, b = list[i], list[j]
-			if a.mode == b.mode and not a.off and not b.off then
+			local apart = a.notWith == b.name or b.notWith == a.name
+			if a.mode == b.mode and not a.off and not b.off and not apart then
 				local al, at, ar, ab = HudLayout.box(a, sw, sh)
 				local bl, bt, br, bb = HudLayout.box(b, sw, sh)
 				if al < br and bl < ar and at < bb and bt < ab then

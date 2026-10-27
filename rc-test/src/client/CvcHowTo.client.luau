@@ -187,6 +187,12 @@ end
 
 RunService.RenderStepped:Connect(function()
 	local tip = pick()
+	-- (the open jobs list: you opened it to read it, so the tip waits until it folds again; it
+	-- sat under the tip, Studio final-47)
+	local jobs = find("StarsHud", "DailyJobs")
+	if tip and jobs and shown(jobs) and jobs:GetAttribute("Open") == true then
+		tip = nil
+	end
 	arrow.Visible = tip ~= nil
 	words.Visible = tip ~= nil
 	skip.Visible = tip ~= nil
@@ -220,8 +226,8 @@ RunService.RenderStepped:Connect(function()
 	end
 	local size = gui.AbsoluteSize
 	local target = { p.X, p.Y, p.X + s.X, p.Y + s.Y }
-	-- (its box even while it has stepped away: whether the tip still needs it to)
-	local jobs = find("Stars", "DailyJobs")
+	-- (its box even while it has stepped away: whether the tip still needs it to; it lives in
+	-- StarsHud: looking in "Stars" never found it, so it never stepped away, Studio final-50)
 	local jobsHas = jobs ~= nil
 		and (shown(jobs) or player:GetAttribute("TipHidesJobs") == true and jobs.Parent ~= nil)
 	local spot = CvcLayout.tip(target, tip.below, size.X, size.Y, avoid)

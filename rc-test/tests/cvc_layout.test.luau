@@ -305,6 +305,12 @@ test("after a race the cards take turns: no two that cover each other show at on
 			"the league words wait for the win card"
 		)
 	end
+	-- (+50 COINS: JOB DONE! sat on the result's rows, Studio final-49)
+	for _, c in CvcLayout.AFTER_RACE do
+		if c.name ~= "Toast" then
+			truthy(CvcLayout.turnOf("Toast") > c.turn, `the short words wait for {c.name}`)
+		end
+	end
 	-- every card in the turns
 	for _, c in CvcLayout.AFTER_RACE do
 		truthy(CvcLayout.turnOf(c.name) == c.turn, `{c.name} has one turn`)

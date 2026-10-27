@@ -323,13 +323,16 @@ end
 -- 1. the race result with the podium (ServerRace.client "Result", ServerRace.SHOW seconds),
 -- 2. the win card with GG! / AGAIN! (CvcRace "Finish" and "QuickChat"; they go together),
 -- 3. a new league's big words (Cvc "Kart_League": GOLD LEAGUE!, it came with the win card and
--- was never seen), 4. NEXT CAR (Stars "RacePrize"). Each waits until the ones before it are gone.
+-- was never seen), 4. NEXT CAR (Stars "RacePrize"), 5. short words like +50 COINS: JOB DONE!
+-- (Stars "Toast": it sat on the result's rows, Studio final-49). Each waits until the ones before
+-- it are gone.
 CvcLayout.AFTER_RACE = {
 	{ turn = 1, gui = "ServerRace", name = "Result" },
 	{ turn = 2, gui = "CvcRaceTop", name = "Finish" },
 	{ turn = 2, gui = "CvcRaceTop", name = "QuickChat" },
 	{ turn = 3, gui = "CvcTop", name = "Kart_League" },
 	{ turn = 4, gui = "StarsTop", name = "RacePrize" },
+	{ turn = 5, gui = "StarsTop", name = "Toast" },
 }
 
 -- while the race result card shows, the driving pieces of these owners (HudLayout spot owners) step
