@@ -147,8 +147,19 @@ end)
 local coachSpot = coach.Position
 local function callShowing(): boolean
 	local g = player.PlayerGui:FindFirstChild("ServerRace")
-	local c = g and g:FindFirstChild("Call")
-	return c ~= nil and c:IsA("GuiObject") and c.Visible and (g :: ScreenGui).Enabled
+	-- (StageGate.hold wraps it: ServerRace.Stage_race.Call; the wrap hides it too)
+	local c = g and g:FindFirstChild("Call", true)
+	if not (c and c:IsA("GuiObject") and c.Visible and (g :: ScreenGui).Enabled) then
+		return false
+	end
+	local up = c.Parent
+	while up and up ~= g do
+		if up:IsA("GuiObject") and not up.Visible then
+			return false
+		end
+		up = up.Parent
+	end
+	return true
 end
 
 RunService.Heartbeat:Connect(function()
