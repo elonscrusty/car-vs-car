@@ -289,3 +289,18 @@ test("easy bots are for a first race only: no league, easy off, gives the normal
 	truthy(ehi < nlo, "an easy race is slower than the same league's normal race")
 	truthy(nlo < nhi)
 end)
+
+test("Car VS Car: a big race takes a good driver about 1 min (50 to 75 s) on both maps", function()
+	-- (cvc-plan: a race is about 1 min. A good driver = the top of a league's bots, who match the
+	-- cars' bars there. A first race's easy bots are slower on purpose: a new kid can win it.)
+	for _, m in RaceMaps.list() do
+		for league = 1, 4 do
+			local _, hi = RaceBots.skillRange(league, false)
+			local route, bot = setup(m, hi, 1)
+			local took = drive(route, bot, ServerRace.MAP_TIME_LIMIT, nil)
+			truthy(took ~= nil, `{m.id} league {league} never finished`)
+			local t = took :: number
+			truthy(t >= 50 and t <= 75, `{m.id} league {league}: {t} s for {ServerRace.LAPS} laps`)
+		end
+	end
+end)
