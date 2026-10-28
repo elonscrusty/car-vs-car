@@ -233,3 +233,12 @@ test(
 		truthy(string.find(skin, "CarSkin.KART .. id", 1, true), "own car wears no kart")
 	end
 )
+
+test("a new kid with no racer yet drives the starter's kart, not the red grey body", function()
+	local fs = require("@lune/fs")
+	local src = fs.readFile("src/server/TrainingServer.luau")
+	truthy(
+		string.find(src, 'if racer then racer.id else CarCatalog.starter("race").id', 1, true),
+		"no racer = no look"
+	)
+end)
