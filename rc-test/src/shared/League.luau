@@ -1,6 +1,7 @@
 --!strict
 -- Car VS Car leagues (carter 10-26): Bronze, Silver, Gold, Diamond. You move up by your best
--- car's strength AND wins, and never move down. A higher league pays bigger prizes. All leagues
+-- car's strength AND your top-3 finishes (trophies: a kid who rarely wins still climbs; audit
+-- C3), and never move down. A higher league pays bigger prizes. All leagues
 -- race at once, each in its own race. (Numbers are first guesses; Economy tunes them.)
 
 local League = {}
@@ -12,12 +13,14 @@ League.COLORS = {
 	{ 255, 200, 40 },
 	{ 90, 220, 255 },
 }
--- what each league needs: best car strength (speed + turning + boost, 0..300) and race wins
+-- what each league needs: best car strength (speed + turning + boost, 0..300) and top-3
+-- finishes. Tuned on the economy sim (tests/cvc_economy.test.luau): a normal kid reaches Silver
+-- in 25-40 min of play and Diamond in about 2 weeks of 20 min a day.
 League.NEED = {
-	{ strength = 0, wins = 0 },
-	{ strength = 110, wins = 2 },
-	{ strength = 170, wins = 6 },
-	{ strength = 230, wins = 15 },
+	{ strength = 0, top3 = 0 },
+	{ strength = 120, top3 = 8 },
+	{ strength = 190, top3 = 18 },
+	{ strength = 240, top3 = 40 },
 }
 League.PLACE_PAY = { 100, 70, 50 } -- top 3 (Bronze); 4th and on get FINISH_PAY
 League.FINISH_PAY = 20
@@ -43,11 +46,11 @@ function League.clamp(n: any): number
 end
 
 -- The league after a race or some training: up when both needs are met, never down.
-function League.next(strength: number, wins: number, now: number): number
+function League.next(strength: number, top3: number, now: number): number
 	local best = League.clamp(now)
 	for i = best + 1, #League.NAMES do
 		local need = League.NEED[i]
-		if strength >= need.strength and wins >= need.wins then
+		if strength >= need.strength and top3 >= need.top3 then
 			best = i
 		end
 	end

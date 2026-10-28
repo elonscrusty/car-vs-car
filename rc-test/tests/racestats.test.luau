@@ -77,10 +77,12 @@ test(
 		eq(League.top(1), League.NEED[2].strength)
 		eq(League.top(3), League.NEED[4].strength)
 		eq(League.top(4), nil)
-		-- a Gold car (240 strength) racing in Bronze drives like a 110 one, bars scaled alike
+		-- a strong car (240 strength) racing in Bronze drives like one at Bronze's top, bars
+		-- scaled alike
 		local strong = car(70, 70, 70) -- + base 10 = 80 each, 240 strength
-		local held = RaceStats.drive(strong, stats(10, 100), League.top(1))
-		local like = RaceStats.drive(car(110 / 3 - 10, 110 / 3 - 10, 110 / 3 - 10), stats(10, 100))
+		local cap = League.top(1) :: number
+		local held = RaceStats.drive(strong, stats(10, 100), cap)
+		local like = RaceStats.drive(car(cap / 3 - 10, cap / 3 - 10, cap / 3 - 10), stats(10, 100))
 		truthy(math.abs(held.top - like.top) < 1e-9, "top speed held to Bronze's top")
 		truthy(math.abs(held.turn - like.turn) < 1e-9)
 		truthy(math.abs(held.boostSecs - like.boostSecs) < 1e-9)

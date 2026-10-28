@@ -2,6 +2,7 @@
 -- CvcGoal: the Car VS Car guide arrow points at one thing at a time.
 local H = require("./harness")
 local CvcGoal = require("../src/shared/CvcGoal")
+local Crates = require("../src/shared/Crates")
 local Profile = require("../src/shared/Profile")
 
 local test, eq = H.test, H.eq
@@ -41,7 +42,7 @@ end)
 
 test("coins for the cheapest crate: to the crate shop, till you get there", function()
 	local cheap = CvcGoal.cheapest()
-	eq(cheap, 300)
+	eq(cheap, Crates.price("basic"))
 	eq(target({ coins = cheap - 1 }), nil)
 	eq(target({ coins = cheap }), "crateshop")
 	eq(target({ coins = cheap, shopSeen = true }), nil)

@@ -24,7 +24,9 @@ export type Kind = {
 	odds: { [string]: number }, -- out of 100, by kind of car; they add up to 100
 }
 
--- Cheapest first. Prices are first guesses for the Economy thread to tune.
+-- Cheapest first. The SMALL CRATE is 200, not 300 (audit B9): at 300 a normal kid had nothing new
+-- to get for 8-11 min after its first stations; at 200 the longest wait in the first 20 min is
+-- about 6 min (tests/cvc_economy.test.luau). The others are first guesses.
 Crates.KINDS = {
 	{
 		id = "free",
@@ -35,7 +37,7 @@ Crates.KINDS = {
 	{
 		id = "basic",
 		label = "SMALL CRATE",
-		price = 300,
+		price = 200,
 		odds = { common = 70, rare = 25, epic = 4.5, legend = 0.5 },
 	},
 	{

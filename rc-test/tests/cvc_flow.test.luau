@@ -91,7 +91,7 @@ test("flow: a new player picks a starter, and it races and trains at once", func
 	eq(data.coins, CvcRules.COINS_PER_MIN)
 end)
 
-test("flow: 10 minutes of play: races pay, trophies, a crate car, and Silver league", function()
+test("flow: 10 minutes of play: races pay, trophies, a crate car, still Bronze", function()
 	local run = play(10, { 1, 1, 2 })
 	local data = run.data
 	eq(run.races, 3)
@@ -101,9 +101,10 @@ test("flow: 10 minutes of play: races pay, trophies, a crate car, and Silver lea
 	-- the first race's crate was opened: a second car
 	eq(data.crates, 0)
 	truthy(#data.garage >= 2, "a crate car")
-	-- strength from training + 2 wins = Silver
-	truthy(CvcRules.best(data) >= League.NEED[2].strength, `strength {CvcRules.best(data)}`)
-	eq(data.league, 2, "Silver")
+	-- 3 top-3 finishes are not enough for Silver yet (the first league-up comes at 25-40 min,
+	-- tests/cvc_economy.test.luau)
+	truthy(data.trophies < League.NEED[2].top3)
+	eq(data.league, 1, "still Bronze")
 	-- a win's boost is on for 10 minutes after the last win
 	truthy(data.boostUntil > 0)
 	truthy(data.coins > 0)
@@ -171,7 +172,9 @@ test("flow: coins buy a plot level, a station upgrade and a crate", function()
 	local data = Profile.new()
 	CvcRules.setUp(data)
 	CvcRules.pick(data, CarStats.STARTERS[1])
-	data.coins = (Training.plotCost(0) :: number) + (Training.upgradeCost(1) :: number) + 300
+	data.coins = Training.plotCost(0) :: number
+		+ (Training.upgradeCost(1) :: number)
+		+ Crates.price("basic") :: number
 	truthy(CvcRules.levelUp(data))
 	eq(#data.stations, 2)
 	eq(data.stations[2].kind, "ramp")
