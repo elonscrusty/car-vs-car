@@ -236,7 +236,7 @@ test(
 
 test("a new kid with no racer yet drives the starter's kart, not the red grey body", function()
 	local fs = require("@lune/fs")
-	local src = fs.readFile("src/server/TrainingServer.luau")
+	local src = fs.readFile("src/server/GarageServer.luau")
 	truthy(
 		string.find(src, 'if racer then racer.id else CarCatalog.starter("race").id', 1, true),
 		"no racer = no look"
