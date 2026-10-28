@@ -44,7 +44,7 @@ local count = 0
 -- A small low-poly mine: a dark navy puck with a cherry-red neon light on top (clients blink it),
 -- in workspace.Mines. Only used when WeaponServer's ctx has no `place`.
 local function build(at: Vector3): Instance
-	local cf = CFrame.new(at)
+	local cf = CFrame.new(at.X, at.Y, at.Z) -- (by numbers: the pretend server can't take a vector here)
 	local model = Instance.new("Model")
 	model.Name = "Mine"
 	local base = Instance.new("Part")

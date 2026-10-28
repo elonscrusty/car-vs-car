@@ -35,7 +35,7 @@ export type Kart = {
 export type Ctx = {
 	karts: (() -> { Kart })?,
 	weaponOf: ((id: number) -> (string?, number))?,
-	fire: ((id: number, aim: Vector3) -> ())?,
+	fire: ((id: number, aim: Vector3, from: Vector3) -> ())?, -- aim and from: world spots
 	boxes: (() -> { Vector3 })?, -- world spots of the boxes that are up
 	place: ((id: number, cf: CFrame) -> ())?,
 	-- world <-> arena (map-local big units; ArenaData). toWorld puts the spot on the floor.
@@ -92,18 +92,23 @@ local function realCtx(ctx: Ctx): Ctx
 	if not out.weaponOf then
 		out.weaponOf = function(id: number): (string?, number)
 			local Weapons = weapons()
-			if Weapons and Weapons.held then
-				local name, ammo = Weapons.held(id)
+			-- WeaponServer.holding(id) -> (name, ammo); "" = holds nothing
+			if Weapons and Weapons.holding then
+				local name, ammo = Weapons.holding(id)
+				if type(name) ~= "string" or name == "" then
+					return nil, 0
+				end
 				return name, tonumber(ammo) or 0
 			end
 			return nil, 0
 		end
 	end
 	if not out.fire then
-		out.fire = function(id: number, aim: Vector3)
+		out.fire = function(id: number, aim: Vector3, from: Vector3)
 			local Weapons = weapons()
 			if Weapons and Weapons.fire then
-				Weapons.fire(id, aim)
+				-- WeaponServer.fire takes the shot's direction (a player's remote sends one)
+				Weapons.fire(id, Vector3.new(aim.X - from.X, 0, aim.Z - from.Z))
 			end
 		end
 	end
@@ -252,7 +257,7 @@ function ArenaBots.step(fleet: Fleet, dt: number, now: number)
 		local look = Vector3.new(ahead.X - at.X, 0, ahead.Z - at.Z);
 		(ctx.place :: (number, CFrame) -> ())(id, CFrame.lookAt(at, at + look))
 		if s.fire then
-			(ctx.fire :: (number, Vector3) -> ())(id, toWorld(s.fire.x, s.fire.z))
+			(ctx.fire :: (number, Vector3, Vector3) -> ())(id, toWorld(s.fire.x, s.fire.z), at)
 		end
 	end
 end

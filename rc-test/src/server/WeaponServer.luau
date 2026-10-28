@@ -80,6 +80,23 @@ local function pose(k: any): CFrame?
 	return nil
 end
 
+-- The weapons do their maths on vectors. A Roblox Vector3 is one, so a real pose goes as is; the
+-- pretend server's (tests/fakeroblox) isn't, so there the pose becomes a plain table of vectors.
+local function vec(v: any): Vector3
+	return vector.create(v.X, v.Y, v.Z) :: any
+end
+local function plain(cf: CFrame): CFrame
+	if type(cf.Position) == "vector" then
+		return cf
+	end
+	return {
+		Position = vec(cf.Position),
+		LookVector = vec(cf.LookVector),
+		RightVector = vec(cf.RightVector),
+		UpVector = vec(cf.UpVector),
+	} :: any
+end
+
 -- karts and their models are read once per server frame (rockets ask many times a frame)
 local cacheKarts: { Kart }? = nil
 local cacheModels: { [any]: Instance }? = nil
@@ -101,7 +118,7 @@ local function readKarts(): { Kart }
 				local alive = if type(mr.isAlive) == "function"
 					then mr.isAlive(id) == true
 					else true
-				table.insert(out, { id = id, cframe = cf, alive = alive })
+				table.insert(out, { id = id, cframe = plain(cf), alive = alive })
 			end
 		end
 	end
