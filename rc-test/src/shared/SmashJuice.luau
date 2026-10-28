@@ -293,14 +293,17 @@ SmashJuice.SHOW_LIMIT = 0.1 -- hard target: words on screen ≤ 0.1 s after the 
 -- Where the words sit, as fractions of the whole phone screen (centre x 0.5, `y` = middle of the
 -- line). Under the clock and health bar, over the car, between the scoreboard and FIRE (Lead,
 -- Studio 10-28: they covered the clock and health at the top). Tested against the match HUD.
-SmashJuice.WORDS_W = 0.4
+SmashJuice.WORDS_W = 0.36
+-- (moved down after review: on a phone the HUD sits under Roblox's top bar, about 58 px, so its
+-- health bar ends lower than the 390 px design says; the test checks with and without it)
 SmashJuice.WORDS = {
-	you = { y = 0.33, h = 0.07 },
-	name = { y = 0.42, h = 0.1 },
-	streak = { y = 0.52, h = 0.08 },
-	by = { y = 0.36, h = 0.08 },
-	count = { y = 0.47, h = 0.13 },
-}
+	you = { y = 0.4, h = 0.07 },
+	name = { y = 0.49, h = 0.1 },
+	streak = { y = 0.59, h = 0.08 },
+	by = { y = 0.43, h = 0.08 },
+	count = { y = 0.54, h = 0.13 },
+} :: { [string]: { y: number, h: number } }
+-- (the words pop in from at most 1.5x, so the pop never sweeps over the HUD for long)
 
 -- Palette for confetti (the low-poly look: grass, sky, sun, cherry, pink).
 SmashJuice.CONFETTI = {

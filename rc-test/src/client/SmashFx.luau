@@ -331,7 +331,7 @@ function SmashFx.start()
 					if n ~= shownCount then
 						shownCount = n
 						if n then
-							showWord(count, tostring(n), 0.9, 1.8)
+							showWord(count, tostring(n), 0.9, 1.4)
 							Sfx.count(n)
 						end
 					end
@@ -414,15 +414,15 @@ function SmashFx.start()
 		if f.attacker and f.attacker.me and not f.victim.me then
 			local word2 = myStreak:smash(at)
 			by.Visible = false
-			showWord(you, SmashJuice.smashLine(f.weapon), SmashJuice.WORDS_SECONDS, 1.8)
+			showWord(you, SmashJuice.smashLine(f.weapon), SmashJuice.WORDS_SECONDS, 1.3)
 			showWord(
 				name,
 				SmashJuice.shortName(f.victim.name) .. "!",
 				SmashJuice.WORDS_SECONDS,
-				2.2
+				1.4
 			)
 			if word2 then
-				showWord(streak, word2, SmashJuice.STREAK_SECONDS, 2.6)
+				showWord(streak, word2, SmashJuice.STREAK_SECONDS, 1.5)
 			end
 			local juice = SmashJuice.feel("mySmash", myStreak.run, reduced)
 			feel(juice)
@@ -440,7 +440,7 @@ function SmashFx.start()
 				by,
 				SmashJuice.deathLine(f.weapon, other and other.name),
 				SmashJuice.SMASHED_BY_SECONDS,
-				1.6
+				1.3
 			)
 			local juice = SmashJuice.feel("smashed", nil, reduced)
 			feel(juice)
