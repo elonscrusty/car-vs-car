@@ -28,6 +28,9 @@ local ServerRace = {}
 
 ServerRace.BREAK = 5 * 60 -- the break between races (build, shop, drive your own plot)
 ServerRace.CALL = 10 -- the plot is picked and named this long before the start
+-- the race starts this long after its clock shows 0:00, so a JOIN tapped on 0:00 still gets in
+-- (critic run 1: a tap at 0:00 landed 0.4 s late and waited 20 s for the next race)
+ServerRace.JOIN_GRACE = 1
 ServerRace.LAPS = 2 -- map races: about 1 min (Car VS Car, 10-26)
 -- a new player's first race (easy bots) is 1 lap: 2 took them 1.5 to 2 min (carter 10-27: shorter)
 ServerRace.FIRST_LAPS = 1
@@ -84,7 +87,7 @@ function ServerRace.step(
 ): ("pick" | "race" | "skip")?
 	if phase == "wait" and left <= ServerRace.CALL then
 		return "pick"
-	elseif phase == "call" and left <= 0 then
+	elseif phase == "call" and left <= -ServerRace.JOIN_GRACE then
 		return if picked == nil or players == 0 then "skip" else "race"
 	end
 	return nil
