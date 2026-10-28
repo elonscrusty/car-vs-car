@@ -286,3 +286,14 @@ test("rockets: 3 direct hits smash a full-health kart, 2 don't", function()
 	truthy(Weapons.ROCKET.damage * 2 < 100)
 	truthy(Weapons.NUKE.damage >= 100)
 end)
+
+test(
+	"get and feed words: real weapons only; MatchRunner gets lowercase one-of-a-kind words",
+	function()
+		eq(Weapons.get("Banana"), nil)
+		eq(Weapons.get("Rockets"), Weapons.DEFS.Rockets)
+		eq(Weapons.feedWord("Rockets"), "rocket")
+		eq(Weapons.feedWord("Nuke"), "nuke")
+		eq(Weapons.feedWord("Gun"), "gun")
+	end
+)

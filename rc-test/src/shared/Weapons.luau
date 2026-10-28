@@ -34,6 +34,16 @@ function Weapons.isName(x: any): boolean
 	return type(x) == "string" and Weapons.DEFS[x] ~= nil
 end
 
+function Weapons.get(name: any): Def?
+	return if Weapons.isName(name) then Weapons.DEFS[name] else nil
+end
+
+-- The word MatchRunner's smash words use ("smashed by X's rocket"): lowercase, one of a kind.
+Weapons.FEED = { Rockets = "rocket", Nuke = "nuke" } :: { [string]: string }
+function Weapons.feedWord(name: string): string
+	return Weapons.FEED[name] or string.lower(name)
+end
+
 local function finite(n: number): boolean
 	return n == n and n > -math.huge and n < math.huge
 end
