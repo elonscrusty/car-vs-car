@@ -750,6 +750,11 @@ local function firstCrate(player: Player)
 	PlayerData.touch(player)
 	PlayerData.raiseStage(player, Profile.STAGE.RACED)
 	player:SetAttribute("Crates", data.crates)
+	-- the crate count on the screens (they hear it with the Garage "cars" list, like the daily gift)
+	local mod = script.Parent:FindFirstChild("TrainingServer")
+	if mod and mod:IsA("ModuleScript") then
+		pcall((require(mod) :: any).refresh, player)
+	end
 	local stars = ReplicatedStorage:FindFirstChild("StarsEvent")
 	if stars and stars:IsA("RemoteEvent") then
 		stars:FireClient(player, "toast", "FREE CRATE!")
