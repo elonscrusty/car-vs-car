@@ -170,6 +170,8 @@ local LIST: { Screen } = {
 					p("Trophies", 14, 84, 208, 46),
 				},
 			}),
+			-- "+N SPD from training!" between Rewards and the buttons
+			p("Trained", 512, 202, 236, 34, { anchor = "tr" }),
 			button("Next", 512, 244, 236, 66, "lime", "NEXT RACE", { anchor = "br", main = true }),
 			button("Back", 512, 322, 236, 50, "white", "BACK TO PLOT", { anchor = "br" }),
 		},

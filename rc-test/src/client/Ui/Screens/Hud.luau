@@ -378,6 +378,13 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 					pointer:Destroy()
 					pointer = nil
 				end
+				-- one thing moves, the one pointed at: the other tiles stop their nudge (auditor L2)
+				for sname, sd in sides do
+					local tile = sd.button:FindFirstChild("Tile")
+					if tile then
+						tile:SetAttribute("Quiet", sname ~= name)
+					end
+				end
 				local h = if name then holders[name] else nil
 				if not (name and h) then
 					return
