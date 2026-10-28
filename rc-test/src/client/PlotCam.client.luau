@@ -9,7 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Features = require(ReplicatedStorage.Shared.Features)
-if not Features.CVC then
+if not (Features.CVC and Features.PLOT_CAM) then
 	return
 end
 
