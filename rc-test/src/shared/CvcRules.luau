@@ -24,7 +24,7 @@ type Data = Profile.Data
 local CvcRules = {}
 
 -- (stand-ins until Economy has them; Economy.luau takes these over)
-CvcRules.COINS_PER_MIN = 3 -- each training car, a win's boost doubles it
+CvcRules.COINS_PER_MIN = 5 -- each training car, a win's boost doubles it
 CvcRules.WIN_BOOST_SECS = 600
 
 function CvcRules.stats(id: string): Training.Stats
