@@ -124,6 +124,12 @@ local function dim(c: { number }): { number }
 	return { math.floor(c[1] * 0.6), math.floor(c[2] * 0.6), math.floor(c[3] * 0.6) }
 end
 
+-- where the WeaponMount sits (z): just behind the driver, clear of every shape's rear parts
+ToyCars.MOUNT_Z = 0.78
+-- the top of the driver's head, at size 1 above the ground, for a kart with no lift (the hat
+-- spot, CarBuilder's "Topper")
+ToyCars.HEAD_TOP = 2.15
+
 -- what a shape's own parts stand on
 type Base = { top: number, front: number, back: number, wide: number, l: number }
 type Build = (p: Put, c: { number }, a: { number }, b: Base) -> ()
@@ -149,11 +155,19 @@ local function base(
 	local fy = 0.12 + l * 0.5
 	local fh = y - 0.15 - fy
 	local glowOpts: Opts? = if glow then NEON else nil
-	local fl = 2 * (ToyCars.WHEEL_Z + 0.25) -- past both axles
-	p("Floor", v(2, fh, fl), 0, fy + fh / 2, 0, if glow then dim(a) else NAVY, glowOpts)
+	local fl = 2 * (ToyCars.WHEEL_Z + 0.32) -- past both axles
+	p(
+		"Floor",
+		v(2, fh, fl),
+		0,
+		fy + fh / 2,
+		0,
+		if glow then dim(if a == NAVY then ToyCars.PALETTE.sky else a) else NAVY,
+		glowOpts
+	)
 	p("Driver", v(0.9, 0.65, 0.5), 0, top + 0.33, 0.3, a)
 	p("Head", v(0.5, 0.6, 0.6), 0, top + 0.9, 0.3, SKIN, UPRIGHT)
-	p("WeaponMount", v(0.55, 0.14, 0.55), 0, top + 0.07, 1.05, NAVY)
+	p("WeaponMount", v(0.45, 0.14, 0.45), 0, top + 0.07, ToyCars.MOUNT_Z, NAVY)
 	p("Taillights", v(wide * 0.55, 0.12, 0.06), 0, y, back + 0.03, TAIL, NEON)
 	return { top = top, front = front, back = back, wide = wide, l = l }
 end
@@ -167,7 +181,7 @@ SHAPES.muscle = function(p, c, a, b)
 	p("Nose", v(1.8, 0.35, 0.9), 0, b.top - 0.15 + 0.175, b.front - 0.35, c, WEDGE)
 	headlights(p, b, b.top - 0.1, b.front - 0.78, 1.4)
 	p("Scoop", v(0.55, 0.2, 0.5), 0, b.top + 0.1, b.front + 0.45, NAVY, WEDGE)
-	p("Ducktail", v(b.wide * 0.8, 0.22, 0.45), 0, b.top + 0.11, b.back - 0.25, a, BACK_WEDGE)
+	p("Ducktail", v(b.wide * 0.8, 0.22, 0.4), 0, b.top + 0.11, b.back - 0.2, a, BACK_WEDGE)
 end
 
 -- Drift coupe: a splitter nose and a big wing on one post.
@@ -182,15 +196,15 @@ end
 SHAPES.hatch = function(p, c, a, b)
 	p("Nose", v(1.9, 0.35, 0.45), 0, b.top - 0.15, b.front - 0.15, c)
 	headlights(p, b, b.top - 0.1, b.front - 0.39, 1.5)
-	p("Back", v(1.6, 0.6, 0.5), 0, b.top + 0.3, b.back - 0.3, c, BACK_WEDGE)
-	p("RoofWing", v(1.8, 0.1, 0.45), 0, b.top + 0.65, b.back - 0.3, a)
+	p("Back", v(1.6, 0.6, 0.4), 0, b.top + 0.3, b.back - 0.2, c, BACK_WEDGE)
+	p("RoofWing", v(1.8, 0.1, 0.45), 0, b.top + 0.65, b.back - 0.2, a)
 end
 
 -- Flat supercar: a long low wedge nose, a fastback, a low wing.
 SHAPES.wedge = function(p, c, a, b)
 	p("Nose", v(1.8, 0.28, 1.1), 0, b.top - 0.15 + 0.14, b.front - 0.4, c, WEDGE)
 	headlights(p, b, b.top - 0.12, b.front - 0.9, 1.4)
-	p("Back", v(1.6, 0.4, 0.8), 0, b.top + 0.2, b.back - 0.45, c, BACK_WEDGE)
+	p("Back", v(1.6, 0.4, 0.4), 0, b.top + 0.2, b.back - 0.2, c, BACK_WEDGE)
 	p("Wing", v(b.wide * 0.8, 0.08, 0.4), 0, b.top + 0.42, b.back - 0.2, a)
 end
 
@@ -198,8 +212,8 @@ end
 SHAPES.buggy = function(p, c, a, b)
 	p("Nose", v(1.6, 0.4, 0.6), 0, b.top - 0.15 + 0.1, b.front - 0.25, c, WEDGE)
 	headlights(p, b, b.top - 0.2, b.front - 0.53, 1.2)
-	p("RollPost", v(0.16, 1.05, 0.16), 0, b.top + 0.52, 0.65, NAVY)
-	p("RollBar", v(1.5, 0.16, 0.16), 0, b.top + 1.05, 0.65, a)
+	p("RollPost", v(0.16, 1.05, 0.16), 0, b.top + 0.52, 1.15, NAVY)
+	p("RollBar", v(1.5, 0.16, 0.16), 0, b.top + 1.05, 1.15, a)
 end
 
 -- Open-wheel racer: a thin pointed nose and wings at both ends.
@@ -207,7 +221,7 @@ SHAPES.formula = function(p, c, a, b)
 	p("Nose", v(0.8, 0.35, 0.9), 0, b.top - 0.15 + 0.03, b.front - 0.35, c, WEDGE)
 	headlights(p, b, b.top - 0.25, b.front - 0.79, 0.6)
 	p("FrontWing", v(b.wide * 0.9, 0.08, 0.35), 0, 0.3, b.front - 0.65, a)
-	p("RearWing", v(b.wide * 0.85, 0.1, 0.45), 0, b.top + 0.55, b.back - 0.2, a)
+	p("RearWing", v(b.wide * 0.85, 0.1, 0.45), 0, b.top + 0.55, b.back - 0.15, a)
 end
 
 -- Stadium truck: lifted, a navy bull bar and a light bar.
@@ -230,16 +244,16 @@ end
 SHAPES.bubble = function(p, c, a, b)
 	p("Nose", v(1.9, 0.6, 0.6), 0, b.top - 0.15, b.front, c, CYL)
 	headlights(p, b, b.top - 0.1, b.front - 0.31, 1.2)
-	p("Tail", v(1.9, 0.6, 0.6), 0, b.top - 0.15, b.back, c, CYL)
-	p("Hump", v(1.4, 0.5, 0.9), 0, b.top - 0.05, b.front + 0.55, a, CYL)
+	p("Tail", v(1.9, 0.5, 0.5), 0, b.top - 0.25, b.back - 0.25, c, CYL)
+	p("Hump", v(1.4, 0.5, 0.5), 0, b.top - 0.05, b.front + 0.55, a, CYL)
 end
 
 -- Rocket kart: a pointed nose, a tail fin and a jet.
 SHAPES.jet = function(p, c, a, b)
 	p("Nose", v(1.4, 0.4, 1.0), 0, b.top - 0.15 + 0.05, b.front - 0.3, c, WEDGE)
 	headlights(p, b, b.top - 0.25, b.front - 0.79, 0.9)
-	p("Fin", v(0.14, 0.75, 0.7), 0, b.top + 0.37, b.back - 0.35, a, BACK_WEDGE)
-	p("Jet", v(0.4, 0.5, 0.5), 0, b.top - 0.15, b.back + 0.15, NAVY, PIPE)
+	p("Fin", v(0.14, 0.75, 0.4), 0, b.top + 0.37, b.back - 0.15, a, BACK_WEDGE)
+	p("Jet", v(0.4, 0.35, 0.35), 0, b.top - 0.42, b.back + 0.15, NAVY, PIPE)
 end
 
 -- Rally kart: an amber lamp pod on the nose and a roof scoop behind the driver.
@@ -247,7 +261,7 @@ SHAPES.rally = function(p, c, a, b)
 	p("Nose", v(1.9, 0.35, 0.6), 0, b.top - 0.15 + 0.05, b.front - 0.22, c, WEDGE)
 	headlights(p, b, b.top - 0.12, b.front - 0.54, 1.5)
 	p("LampPod", v(1.2, 0.16, 0.12), 0, b.top + 0.1, b.front - 0.05, AMBER, NEON)
-	p("Scoop", v(0.6, 0.35, 0.5), 0, b.top + 0.17, b.back - 0.2, a, BACK_WEDGE)
+	p("Scoop", v(0.6, 0.35, 0.4), 0, b.top + 0.17, b.back - 0.2, a, BACK_WEDGE)
 end
 
 -- deck length per shape (the nose adds to it)

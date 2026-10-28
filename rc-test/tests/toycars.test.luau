@@ -80,7 +80,7 @@ test("every kart: 16 parts at most, four wheels one per corner, a driver, a Weap
 						.. (if p.pos.x < 0 then "L" else "R")
 					corners[k] = (corners[k] or 0) + 1
 					eq(math.abs(p.pos.z), ToyCars.WHEEL_Z)
-				elseif p.name ~= "Hub" then
+				elseif p.name ~= "Hub" and name ~= "Head" then
 					minX = math.min(minX, p.pos.x - p.size.x / 2)
 					maxX = math.max(maxX, p.pos.x + p.size.x / 2)
 					minZ = math.min(minZ, p.pos.z - p.size.z / 2)
@@ -151,3 +151,46 @@ test("wheels stay near the race car's own (springs hold them: big tyres would si
 		truthy(w.wd >= own - 0.15 and w.wd <= own + 0.2, `{shape} wheels {w.wd}`)
 	end
 end)
+
+test(
+	"review fixes: navy underglow still shows; every kart has a hat spot; the mount is clear",
+	function()
+		for _, p in pieces("wedge/navy/glow") do
+			if p.name == "Floor" then
+				truthy(p.color[3] > 100, "navy underglow reads as black")
+			end
+		end
+		local fs = require("@lune/fs")
+		local builder = fs.readFile("src/server/CarBuilder.luau")
+		truthy(string.find(builder, 'topper.Name = "Topper"', 1, true), "no Topper attachment")
+		-- nothing but the deck and floor under the WeaponMount's square (the head is above it)
+		for _, shape in ToyCars.SHAPES do
+			local ps = pieces(shape .. "/white")
+			local mount: any
+			for _, p in ps do
+				if p.name == "WeaponMount" then
+					mount = p
+				end
+			end
+			for _, p in ps do
+				local name = p.name
+				if
+					name ~= "WeaponMount"
+					and name ~= "Body"
+					and name ~= "Floor"
+					and name ~= "Hub"
+					and name ~= "Head"
+				then
+					local overZ = math.abs(p.pos.z - mount.pos.z)
+						< (p.size.z + mount.size.z) / 2 - 0.02
+					local overX = math.abs(p.pos.x - mount.pos.x) < (p.size.x + mount.size.x) / 2
+					local overY = p.pos.y + p.size.y / 2 > mount.pos.y - mount.size.y / 2 + 0.02
+					truthy(
+						not (overZ and overX and overY),
+						`{shape}: {name} covers the WeaponMount`
+					)
+				end
+			end
+		end
+	end
+)
