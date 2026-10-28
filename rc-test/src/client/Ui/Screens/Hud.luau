@@ -94,10 +94,11 @@ end
 -- data: { coins, rate, nextUp = { title, sub }, car = { name, stats = { power = { v, lv }, ... } },
 --   dots = { Crates = 2, League = -1 (! ) }, signs: boolean (the viewer: sample world signs),
 --   race: words (the RACE! button; nil = none), jobs: words (the JOBS pill; nil = none),
+--   invite: words (the INVITE pill; nil = none),
 --   stagger: boolean (a new player: the pieces come in one at a time, not all at once),
 --   banner = false / myCar = false: leave that piece off (the live game, over the 3D plot),
 --   words = { Garage = "TRAIN" }: other words on a tile }
--- actions: Garage(), Crates(), Shop(), League(), coins(), coach(), race(), jobs()
+-- actions: Garage(), Crates(), Shop(), League(), coins(), coach(), race(), jobs(), invite()
 -- api: setCoins(n), setRate(words), setNextUp(title, sub, hurry), setCar(name, stats),
 --   setCoach(f, words), setDot(name, n), float(x, y, words, color), setRace(words, tone, pulse),
 --   setJobs(words), setShown(name, on) (a tile, Coach, Race or Jobs steps away / comes back),
@@ -225,6 +226,17 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 				onClick = Screen.act(actions, "jobs"),
 			})
 		end
+		-- INVITE (the live game: Roblox's invite screen; a friend here pays you both)
+		local inviteHolder: Frame? = nil
+		if data.invite then
+			local ip = piece("plot", "Invite")
+			local ih = spot(c, "plot", "Invite")
+			inviteHolder = ih
+			Kit.button(ih, "Invite", 0, 0, ip.w, ip.h, "pink", data.invite, {
+				size = 16,
+				onClick = Screen.act(actions, "invite"),
+			})
+		end
 		-- every piece by name, for setShown and point
 		local holders: { [string]: Frame } = {}
 		for _, sd in SIDES do
@@ -237,6 +249,9 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 		if jobsHolder then
 			holders.Jobs = jobsHolder
 		end
+		if inviteHolder then
+			holders.Invite = inviteHolder
+		end
 		local hidden: { [Instance]: boolean } = {}
 		local pointer: Frame? = nil
 		local pointKey = ""
@@ -248,7 +263,7 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 				{ carHolder },
 				tiles,
 				{ coinsHolder },
-				{ coachHolder, jobsHolder },
+				{ coachHolder, jobsHolder, inviteHolder },
 			}
 			for i, step in steps do
 				for _, obj in step do
