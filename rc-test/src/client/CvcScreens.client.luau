@@ -45,7 +45,8 @@ local Shop = require(Screens:WaitForChild("Shop"))
 
 local player = Players.LocalPlayer
 local pgui = player:WaitForChild("PlayerGui")
-local raceEvent = ReplicatedStorage:WaitForChild("ServerRace") :: RemoteEvent
+-- (Smash: the server race is gone; RCControl "quick" puts you on the next round's list)
+local rcControl = ReplicatedStorage:WaitForChild("RCControl") :: RemoteEvent
 
 CvcState.start()
 
@@ -215,8 +216,8 @@ local openGarage: () -> ()
 local openCrates: () -> ()
 
 local function join()
-	if attr("RaceJoined") ~= true then
-		raceEvent:FireServer("join")
+	if attr("MatchQueued") ~= true and attr("InMatch") ~= true then
+		rcControl:FireServer("quick")
 		Sfx.spark()
 	end
 end
@@ -1432,11 +1433,8 @@ local function showPodium(rows: { any })
 	)
 end
 
-raceEvent.OnClientEvent:Connect(function(what: unknown, a: unknown)
-	if what == "result" and type(a) == "table" then
-		showPodium(a :: { any })
-	end
-end)
+-- (the race result's podium: the server race is gone; a round's end screen is WINDOWS')
+local _ = showPodium
 
 -- (a race you were paid for whose result list never came, Studio live3 race 4: the podium shows
 -- your own place and coins anyway, a few seconds later)
