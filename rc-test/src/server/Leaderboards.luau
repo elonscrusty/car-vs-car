@@ -132,6 +132,19 @@ local function build(board: Lb.Board, folder: Instance, originZ: number)
 	-- facing back at the spawn (-z)
 	anchor.CFrame = CFrame.lookAt(Vector3.new(x, y, z), Vector3.new(x, y, z - 10))
 	anchor.Parent = folder
+	-- a blue plate just behind the (rounded) panel: past the words' MaxDistance it still shows
+	-- as a board, not two black posts sticking out of the plaza (phone playtest u19)
+	local plate = Instance.new("Part")
+	plate.Name = "Plate"
+	plate.Anchored = true
+	plate.CanCollide = false
+	plate.CanQuery = false
+	plate.CanTouch = false
+	plate.Material = Enum.Material.SmoothPlastic
+	plate.Color = BLUE
+	plate.Size = Vector3.new(w - 0.8, h - 0.8, 0.2)
+	plate.CFrame = anchor.CFrame * CFrame.new(0, 0, 0.3)
+	plate.Parent = anchor
 	-- two posts under it
 	for _, dx in { -w / 2 + 1, w / 2 - 1 } do
 		local post = Instance.new("Part")

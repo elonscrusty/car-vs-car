@@ -285,23 +285,41 @@ local function scoreBoard(s: Shown, onPads: { [number]: Entry }, stands: { Entry
 	title.TextXAlignment = Enum.TextXAlignment.Center
 	title.TextColor3 = Color3.fromRGB(255, 210, 60)
 	local rowH = 0.8 / rows
-	for k, car in PlotTraining.board(list) do
+	local shown = PlotTraining.board(list)
+	-- every row is drawn: a spot with no car yet is a dim "?" with empty bars (playtest u10: one
+	-- car left the board 80% empty)
+	for k = 1, rows do
+		local car = shown[k]
 		local y = 0.19 + (k - 1) * rowH
-		text(gui, k .. "  " .. car.name, 0.03, y + rowH * 0.1, 0.42, rowH * 0.8)
+		local name = text(
+			gui,
+			k .. "  " .. (if car then car.name else "?"),
+			0.03,
+			y + rowH * 0.1,
+			0.42,
+			rowH * 0.8
+		)
+		if not car then
+			name.TextTransparency = 0.55
+		end
 		for j, bar in Training.BARS do
 			local c = PlotTraining.BAR_COLORS[bar]
 			local x = 0.47 + (j - 1) * 0.17
 			local back = Instance.new("Frame")
 			back.BorderSizePixel = 0
 			back.BackgroundColor3 = Color3.fromRGB(70, 74, 90)
+			back.BackgroundTransparency = if car then 0 else 0.4
 			back.Position = UDim2.fromScale(x, y + rowH * 0.2)
 			back.Size = UDim2.fromScale(0.155, rowH * 0.6)
 			back.Parent = gui
-			local fill = Instance.new("Frame")
-			fill.BorderSizePixel = 0
-			fill.BackgroundColor3 = Color3.fromRGB(c[1], c[2], c[3])
-			fill.Size = UDim2.fromScale(math.clamp((car :: any)[bar] / Training.MAX_BAR, 0, 1), 1)
-			fill.Parent = back
+			if car then
+				local fill = Instance.new("Frame")
+				fill.BorderSizePixel = 0
+				fill.BackgroundColor3 = Color3.fromRGB(c[1], c[2], c[3])
+				fill.Size =
+					UDim2.fromScale(math.clamp((car :: any)[bar] / Training.MAX_BAR, 0, 1), 1)
+				fill.Parent = back
+			end
 		end
 	end
 	gui.Parent = board

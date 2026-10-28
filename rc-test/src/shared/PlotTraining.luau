@@ -509,6 +509,16 @@ function PlotTraining.pieces(
 		WOOD_DARK,
 		{ collide = false }
 	)
+	for _, side in { -1, 1 } do
+		add(
+			"RoomSignLegs",
+			"Leg",
+			v(0.6, 12.2, 0.6),
+			v(PlotTraining.ROOM_SIGN_X + side * 8, 6.1, -53.4),
+			WOOD_DARK,
+			{ collide = false }
+		)
+	end
 	-- the scoreboard and its two legs (CvcPlot.client writes the rows)
 	local B = PlotTraining.BOARD
 	add("Board", "ScoreBoard", v(B.w, B.h, 0.4), v(B.x, B.y, B.z), SIGN, { collide = false })
@@ -527,6 +537,26 @@ function PlotTraining.pieces(
 	end
 	-- the trophy shelf on the back wall, its cups, and its sign
 	local S = PlotTraining.SHELF
+	-- a wooden back and two legs, so the shelf boards and the sign don't float over the hillside
+	-- (phone playtest u23)
+	add(
+		"Shelf",
+		"ShelfBack",
+		v(S.w, 9, 0.3),
+		v(S.x, S.y + 3.8, S.z - 0.15),
+		WOOD,
+		{ collide = false }
+	)
+	for _, side in { -1, 1 } do
+		add(
+			"Shelf",
+			"ShelfLeg",
+			v(0.8, S.y - 0.7, 0.8),
+			v(S.x + side * (S.w / 2 - 1), (S.y - 0.7) / 2, S.z - 0.15),
+			WOOD_DARK,
+			{ collide = false }
+		)
+	end
 	add(
 		"Shelf",
 		"ShelfBoard",

@@ -175,8 +175,9 @@ function SpawnLobby.parts(): { Piece }
 	add(
 		"Ground",
 		"Path",
-		v(2 * SpawnLobby.GAP - 6, 0.05, front - 9),
-		v(0, 0.025, (front + 9) / 2),
+		-- (from the ring's outer edge: it used to start inside and cut a gap in it, playtest u18)
+		v(2 * SpawnLobby.GAP - 6, 0.05, front - 11),
+		v(0, 0.025, (front + 11) / 2),
 		L.paving2,
 		{
 			collide = false,

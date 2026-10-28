@@ -78,7 +78,7 @@ end
 -- crate's name on a pill in its colour, the price, and a chip per kind of car with its odds.
 local function plate(ring: BasePart, out: Vector3, kind: Crates.Kind): TextLabel
 	local color = rgb(Garage.CRATE_COLORS[kind.id] or Garage.CRATE_COLORS.basic)
-	local at = ring.Position + out * 3.4 + Vector3.new(0, 1.2, 0)
+	local at = ring.Position + out * 3.4 + Vector3.new(0, 1.6, 0)
 	local p = Instance.new("Part")
 	p.Name = kind.id
 	p.Anchored = true
@@ -86,8 +86,9 @@ local function plate(ring: BasePart, out: Vector3, kind: Crates.Kind): TextLabel
 	p.CanQuery = false
 	p.CanTouch = false
 	p.CastShadow = false
-	-- as wide as the stands allow (5.6 apart), so the words read from the plaza (final pass 15b)
-	p.Size = Vector3.new(5.3, 2.5, 0.15)
+	-- as wide as the stands allow (5.6 apart), so the words read from the plaza (final pass 15b),
+	-- and tall enough for a big price (phone playtest u14: "300 coins" was a blur)
+	p.Size = Vector3.new(5.3, 3.4, 0.15)
 	p.Color = INK
 	p.Material = Enum.Material.SmoothPlastic
 	p.CFrame = CFrame.lookAt(at, at + out) * CFrame.Angles(math.rad(25), 0, 0)
@@ -108,8 +109,24 @@ local function plate(ring: BasePart, out: Vector3, kind: Crates.Kind): TextLabel
 	edgeRim.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	edgeRim.Color = color
 	edgeRim.Parent = edge
-	text(g, kind.label, 0.08, 0.06, 0.84, 0.3, color, Color3.new(1, 1, 1))
-	local price = text(g, `{kind.price} coins`, 0.04, 0.38, 0.92, 0.3, nil, GOLD)
+	text(g, kind.label, 0.08, 0.04, 0.84, 0.22, color, Color3.new(1, 1, 1))
+	-- the price: a coin and the number, about twice as tall as the old "300 coins" line (the
+	-- word "coins" made it too wide to grow)
+	local coin = Instance.new("Frame")
+	coin.AnchorPoint = Vector2.new(0.5, 0.5)
+	coin.Position = UDim2.fromScale(0.2, 0.51)
+	coin.Size = UDim2.fromScale(0.24, 0.37)
+	coin.BackgroundColor3 = GOLD
+	coin.Parent = g
+	local coinRound = Instance.new("UICorner")
+	coinRound.CornerRadius = UDim.new(0.5, 0)
+	coinRound.Parent = coin
+	local coinRim = Instance.new("UIStroke")
+	coinRim.Thickness = 5
+	coinRim.Color = Color3.fromRGB(190, 120, 20)
+	coinRim.Parent = coin
+	local price = text(g, `{kind.price}`, 0.36, 0.29, 0.58, 0.45, nil, GOLD)
+	price.TextXAlignment = Enum.TextXAlignment.Left
 	-- the odds: one chip per kind of car that this crate can give, in that kind's colour
 	local odds = Crates.odds(kind.id)
 	local shown = {}
@@ -127,9 +144,9 @@ local function plate(ring: BasePart, out: Vector3, kind: Crates.Kind): TextLabel
 			g,
 			s,
 			0.04 + (i - 1) * w + 0.01,
-			0.72,
+			0.79,
 			w - 0.02,
-			0.22,
+			0.17,
 			-- common on a mid slate, like the car shops' plates (light grey under white words blurred)
 			if r == "common" then Color3.fromRGB(100, 110, 140) else rgb(tier.color),
 			Color3.new(1, 1, 1)
