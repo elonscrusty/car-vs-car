@@ -153,10 +153,9 @@ test("Car VS Car (Studio pr816 04b): the toy car is the grey body's size, within
 		truthy(math.abs(a - b) <= 0.1 * b, `{what}: {a} vs {b}`)
 	end
 	near(maxZ - minZ, bodyZ, "length")
-	-- a kart's deck covers its wheels' tops: no wider than the race car over its own wheels
-	local wheelX, wheelRadius = 1.9, 0.8
-	truthy(maxX - minX <= 2 * (wheelX + wheelRadius), `width {maxX - minX}`)
-	truthy(body ~= nil and body.size.y <= bodyY, "a low deck")
+	near(maxX - minX, bodyX, "width")
+	near(body.size.x, bodyX, "body width")
+	near(body.size.y, bodyY, "body height")
 	-- both the own car's skin and other cars use that size
 	local skin = fs.readFile("src/client/CarSkin.luau")
 	truthy(string.find(skin, "Garage.toyFit(Tuning.bodyZ)", 1, true), "own car sized by its wheels")
