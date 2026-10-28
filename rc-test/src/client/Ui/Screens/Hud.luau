@@ -43,7 +43,8 @@ local SIDES = {
 -- data: { coins, rate, nextUp = { title, sub }, car = { name, stats = { power = { v, lv }, ... } },
 --   dots = { Crates = 2, League = -1 (! ) }, signs: boolean (the viewer: sample world signs),
 --   race: words (the RACE! button; nil = none), jobs: words (the JOBS pill; nil = none),
---   stagger: boolean (a new player: the pieces come in one at a time, not all at once) }
+--   stagger: boolean (a new player: the pieces come in one at a time, not all at once),
+--   banner = false / myCar = false: leave that piece off (the live game, over the 3D plot) }
 -- actions: Garage(), Crates(), Shop(), League(), coins(), coach(), race(), jobs()
 -- api: setCoins(n), setRate(words), setNextUp(title, sub, hurry), setCar(name, stats),
 --   setCoach(f, words), setDot(name, n), float(x, y, words, color), setRace(words, tone, pulse),
@@ -54,6 +55,11 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 		local banner = Kit.banner(c, piece("plot", "NextUp"))
 		local nu = data.nextUp or {}
 		banner.set(nu.title or "BIG RACE in 1:42", nu.sub or "Train up, then race 8 cars!")
+		-- (the live game: no banner, the RACE! button has the clock; the plot's scoreboard is in the
+		-- top middle, Studio plot-edges shot 12)
+		if data.banner == false then
+			banner.frame.Parent = nil
+		end
 		local cp = piece("plot", "Coins")
 		local coinsHolder = spot(c, "plot", "Coins")
 		local coins = Kit.currency(coinsHolder, "Coins", 0, 0, cp.w, cp.h, {
@@ -97,6 +103,11 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 		-- MY CAR: the car's 3 bars
 		local mp = piece("plot", "MyCar")
 		local carHolder, panel = Kit.placedPanel(c, mp)
+		-- (the live game: the plot's pad signs and scoreboard show the bars; the panel sat on the
+		-- speed tracks on a phone)
+		if data.myCar == false then
+			carHolder.Parent = nil
+		end
 		local car = data.car or {}
 		local title = Base.text(
 			panel,

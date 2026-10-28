@@ -113,15 +113,15 @@ local LIST: { Screen } = {
 			p("NextUp", 233, 20, 290, 74, { anchor = "t" }),
 			p("Coins", 548, 8, 204, 50, { anchor = "tr", tap = true }),
 			p("Garage", 12, 66, 62, 62, { anchor = "tl", tap = true, text = "GARAGE" }),
-			p("Crates", 90, 66, 62, 62, { anchor = "tl", tap = true, text = "CRATES" }),
+			p("Crates", 82, 66, 62, 62, { anchor = "tl", tap = true, text = "CRATES" }),
 			p("Shop", 12, 152, 62, 62, { anchor = "tl", tap = true, text = "SHOP" }),
-			p("League", 90, 152, 62, 62, { anchor = "tl", tap = true, text = "LEAGUE" }),
-			p("MyCar", 490, 100, 258, 156, { anchor = "tr" }),
+			p("League", 82, 152, 62, 62, { anchor = "tl", tap = true, text = "LEAGUE" }),
+			p("MyCar", 530, 64, 218, 156, { anchor = "tr" }),
 			button("Coach", 652, 284, 92, 92, "pink", "COACH", { anchor = "br" }),
 			-- (the live game: join the next BIG RACE, bottom middle by the thumbs, off the stick;
-			-- today's jobs under MY CAR)
+			-- today's jobs at the right edge, off the speed tracks)
 			button("Race", 288, 312, 180, 64, "lime", "RACE!", { anchor = "b", main = true }),
-			p("Jobs", 490, 264, 150, 44, { anchor = "tr", tap = true }),
+			p("Jobs", 640, 228, 112, 44, { anchor = "tr", tap = true }),
 			p("SignPower", 150, 110, 150, 40, { world = true }),
 			p("SignAir", 320, 190, 130, 40, { world = true }),
 			p("SignSpeed", 250, 290, 150, 40, { world = true }),
