@@ -10,6 +10,11 @@ local test, eq, truthy, near = H.test, H.eq, H.truthy, H.near
 print("Weapons")
 
 local v = vector.create
+-- test spots were drawn with a kart about 6 units long; at() turns them into real RC studs
+local U = Weapons.KART / 6
+local function at(x: number, y: number, z: number): Vector3
+	return v(x * U, y * U, z * U)
+end
 local AHEAD = v(0, 0, -1)
 
 test("aim: junk from a client means straight ahead", function()
@@ -109,20 +114,20 @@ end)
 
 test("rocket: bends toward a kart a little off line, but not one far to the side", function()
 	local r = Weapons.rocket("me", v(0, 0, 0), AHEAD)
-	local what, who = fly(r, { { id = "bot", pos = v(25, 0, -100) } })
+	local what, who = fly(r, { { id = "bot", pos = at(25, 0, -100) } })
 	eq(what, "hit")
 	eq(who, "bot")
 	local r2 = Weapons.rocket("me", v(0, 0, 0), AHEAD)
-	local what2 = fly(r2, { { id = "bot", pos = v(80, 0, -20) } })
+	local what2 = fly(r2, { { id = "bot", pos = at(80, 0, -20) } })
 	eq(what2, "gone") -- a miss: it flew on and blew up at the end
 end)
 
 test("rocket: a wall stops it before the kart behind the wall", function()
 	local r = Weapons.rocket("me", v(0, 0, 0), AHEAD)
-	local what, who = fly(r, { { id = "bot", pos = v(0, 0, -80) } }, -40)
+	local what, who = fly(r, { { id = "bot", pos = at(0, 0, -80) } }, -40 * U)
 	eq(what, "wall")
 	eq(who, nil)
-	near(r.pos.z, -40)
+	near(r.pos.z, -40 * U)
 end)
 
 test("rocket: a miss ends after its flight time", function()
@@ -136,12 +141,12 @@ test(
 	function()
 		local list = {
 			{ id = "me", pos = v(0, 0, 0) },
-			{ id = "hit", pos = v(0, 0, -50) },
-			{ id = "near", pos = v(6, 0, -50) },
-			{ id = "far", pos = v(40, 0, -50) },
+			{ id = "hit", pos = at(0, 0, -50) },
+			{ id = "near", pos = at(6, 0, -50) },
+			{ id = "far", pos = at(40, 0, -50) },
 		}
 		local got = {}
-		for _, d in Weapons.boom(v(0, 0, -50), list, "me", "hit") do
+		for _, d in Weapons.boom(at(0, 0, -50), list, "me", "hit") do
 			got[d.id] = d.damage
 		end
 		eq(got.hit, Weapons.ROCKET.damage)
@@ -156,7 +161,7 @@ test("nuke: slow and big; one boom smashes a crowd of karts", function()
 	truthy(Weapons.NUKE.splash >= Weapons.ROCKET.splash * 2)
 	local crowd = {}
 	for i = 1, 5 do
-		table.insert(crowd, { id = i, pos = v((i - 3) * 5, 0, -70) })
+		table.insert(crowd, { id = i, pos = at((i - 3) * 5, 0, -70) })
 	end
 	local r = Weapons.rocket("me", v(0, 0, 0), AHEAD, Weapons.NUKE)
 	local what, who = fly(r, crowd)
@@ -204,7 +209,7 @@ end
 local function kart(id: any, x: number, z: number, alive: boolean?)
 	return {
 		id = id,
-		cframe = { Position = v(x, 0, z), LookVector = AHEAD },
+		cframe = { Position = at(x, 0, z), LookVector = AHEAD },
 		alive = alive ~= false,
 	}
 end
@@ -299,3 +304,18 @@ test(
 		eq(Weapons.feedWord("Zap"), "zap")
 	end
 )
+
+test("sizes fit the RC-scale arena: measured in kart lengths", function()
+	local K = Weapons.KART
+	near(K, 5.5 * 0.25)
+	for _, f in { Weapons.ROCKET, Weapons.NUKE } do
+		truthy(f.hitRadius >= 0.5 * K and f.hitRadius <= 1.5 * K)
+		truthy(f.ahead >= K) -- starts clear of its own kart's nose
+		truthy(f.speed * f.life >= 50 * K) -- reaches most of the way across (about 65 karts)
+	end
+	-- a rocket outruns a kart (top speed about 17 karts a second); the nuke can be outrun
+	truthy(Weapons.ROCKET.speed > 17 * K)
+	truthy(Weapons.NUKE.speed < 17 * K)
+	truthy(Weapons.ROCKET.splash <= 3 * K)
+	truthy(Weapons.NUKE.splash >= 6 * K and Weapons.NUKE.splash <= 65 * K / 6)
+end)

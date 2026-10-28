@@ -89,6 +89,15 @@ end
 -- weapon), model(id) -> Instance?, playerOf((id) -> Player?)?, freeze((id, s))? }
 local sources: { [string]: any } = {}
 
+-- Weapons read a kart's cframe.Position and .LookVector as built-in vectors (they are, in Roblox).
+-- Lune's pretend Roblox has its own Vector3 type: there, hand weapons a plain stand-in.
+local function forWeapons(cf: any): CFrame
+	if type(cf.Position) == "vector" then
+		return cf
+	end
+	return { Position = Weapons.vec(cf.Position), LookVector = Weapons.vec(cf.LookVector) } :: any
+end
+
 -- karts and their models are read once per server frame (rockets ask many times a frame)
 local cacheKarts: { Kart }? = nil
 local cacheModels: { [any]: Instance }? = nil
@@ -118,7 +127,10 @@ local function readSources(out: { Kart })
 				local cf = pose(k)
 				if cf then
 					cacheOwner[k.id] = src
-					table.insert(out, { id = k.id, cframe = cf, alive = k.alive ~= false })
+					table.insert(
+						out,
+						{ id = k.id, cframe = forWeapons(cf), alive = k.alive ~= false }
+					)
 				end
 			end
 		end
@@ -145,7 +157,7 @@ local function readKarts(): { Kart }
 				local alive = if type(mr.isAlive) == "function"
 					then mr.isAlive(id) == true
 					else true
-				table.insert(out, { id = id, cframe = cf, alive = alive })
+				table.insert(out, { id = id, cframe = forWeapons(cf), alive = alive })
 			end
 		end
 	end
@@ -409,6 +421,9 @@ function WeaponServer.holding(id: any): (string, number)
 	end
 	return h.name, h.ammo
 end
+
+-- (the name bots use)
+WeaponServer.held = WeaponServer.holding
 
 -- Kart `id` fires what it holds toward `aim` (anything: it is checked). True if a shot went.
 function WeaponServer.fire(id: any, aim: any): boolean

@@ -21,11 +21,14 @@ type Flying = { id: number, kind: string, r: any, sentAt: number, sentDir: Vecto
 local flying: { Flying } = {}
 local nextId = 0
 
-local function targets(ctx: any): { any }
+local function targets(ctx: any, Weapons: any): { any }
 	local out = {}
 	for _, k in ctx.karts() do
 		if k.alive then
-			table.insert(out, { id = k.id, pos = k.cframe.Position })
+			local pos = Weapons.vec(k.cframe.Position)
+			if pos then
+				table.insert(out, { id = k.id, pos = pos })
+			end
 		end
 	end
 	return out
@@ -77,7 +80,7 @@ function Flight.weapon(name: string, Weapons: any): { [string]: any }
 				i += 1
 				continue
 			end
-			list = list or targets(ctx)
+			list = list or targets(ctx, Weapons)
 			local owner = f.r.owner
 			local left = math.min(dt, Flight.MAX_DT)
 			local what, who = nil, nil
