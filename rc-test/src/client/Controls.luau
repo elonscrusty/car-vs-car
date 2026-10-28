@@ -5,6 +5,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
+local Features = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Features"))
 local HudLayout = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("HudLayout"))
 local RCCar = require(script.Parent.RCCar)
 local StageGate = require(script.Parent.StageGate)
@@ -21,6 +22,14 @@ local Controls = {}
 local STICK_RADIUS = 80
 local KNOB_TRAVEL = STICK_RADIUS - 35 - 6 -- (the knob is 70 across; the ring's rim)
 local DEADZONE = 0.08
+-- SMASH on a phone: the stick is the gas too (Lead 10-28: "joystick + fire only"). Push up to
+-- go, pull down to brake and back up. Input only: the car's numbers don't change.
+local GAS_START, GAS_FULL = 0.15, 0.7 -- (stick up this far: gas starts, gas is full)
+local BRAKE_START, BRAKE_FULL = 0.3, 0.8 -- (a bit more pull: a sideways drag never brakes)
+
+local function ramp(v: number, start: number, full: number): number
+	return math.clamp((v - start) / (full - start), 0, 1)
+end
 
 local function isPress(input: InputObject): boolean
 	return input.UserInputType == Enum.UserInputType.Touch
@@ -99,7 +108,9 @@ function Controls.new(
 	local keys: { [Enum.KeyCode]: boolean } = {}
 	local padSteer, padGas, padBrake = 0, 0, 0
 	local touchSteer = 0
+	local touchGas, touchBrake = 0, 0
 	local touchUi = UserInputService.TouchEnabled
+	local stickGas = touchUi and (Features :: any).SMASH == true
 
 	UserInputService.InputBegan:Connect(function(input: InputObject)
 		if UserInputService:GetFocusedTextBox() then
@@ -187,31 +198,66 @@ function Controls.new(
 		hint.TextScaled = true
 		hint.TextColor3 = Color3.fromRGB(255, 255, 255)
 		hint.TextTransparency = 0.45
-		hint.Text = "◄  STEER  ►"
+		hint.Text = if stickGas then "▲  PUSH TO DRIVE  ▲" else "◄  STEER  ►"
 		hint.Parent = gui
 
+		-- one finger drives the stick; a second one in the zone is ignored until it lets go
+		local active: InputObject? = nil
+		local stickConn: RBXScriptConnection? = nil
+		local function letGo()
+			if stickConn then
+				stickConn:Disconnect()
+				stickConn = nil
+			end
+			active = nil
+			touchSteer = 0
+			touchGas, touchBrake = 0, 0
+			base.Visible = false
+			hint.Visible = true
+			knob.Position = UDim2.fromScale(0.5, 0.5)
+		end
+		-- (a touch the phone takes away ends as Cancel, not End: the gas must not stay down)
+		UserInputService.WindowFocusReleased:Connect(letGo)
 		zone.InputBegan:Connect(function(input: InputObject)
-			if not isPress(input) then
+			if not isPress(input) or active then
 				return
 			end
+			active = input
 			local origin = input.Position
+			if stickGas then
+				-- room below the thumb to pull down and brake (BRAKE_FULL of the ring)
+				origin = Vector3.new(
+					origin.X,
+					math.min(origin.Y, gui.AbsoluteSize.Y - STICK_RADIUS * BRAKE_FULL),
+					0
+				)
+			end
 			base.Position = UDim2.fromOffset(origin.X, origin.Y)
 			base.Visible = true
 			hint.Visible = false
-			local conn: RBXScriptConnection
-			conn = input.Changed:Connect(function()
-				if input.UserInputState == Enum.UserInputState.End then
-					touchSteer = 0
-					base.Visible = false
-					hint.Visible = true
-					knob.Position = UDim2.fromScale(0.5, 0.5)
-					conn:Disconnect()
+			stickConn = input.Changed:Connect(function()
+				if
+					input.UserInputState == Enum.UserInputState.End
+					or input.UserInputState == Enum.UserInputState.Cancel
+				then
+					letGo()
 					return
 				end
 				local dx = input.Position.X - origin.X
 				local x = math.clamp(dx / STICK_RADIUS, -1, 1)
 				-- (the knob stays inside its ring: it went half out at full lock, phone 10-28)
 				knob.Position = UDim2.fromOffset(STICK_RADIUS + x * KNOB_TRAVEL, STICK_RADIUS)
+				if stickGas then
+					local y = math.clamp((origin.Y - input.Position.Y) / STICK_RADIUS, -1, 1)
+					local v = Vector2.new(x, -y)
+					local k = if v.Magnitude > 1 then v.Unit else v
+					knob.Position = UDim2.fromOffset(
+						STICK_RADIUS + k.X * KNOB_TRAVEL,
+						STICK_RADIUS + k.Y * KNOB_TRAVEL
+					)
+					touchGas = ramp(y, GAS_START, GAS_FULL)
+					touchBrake = ramp(-y, BRAKE_START, BRAKE_FULL)
+				end
 				if math.abs(x) < DEADZONE then
 					touchSteer = 0
 				else
@@ -219,7 +265,8 @@ function Controls.new(
 				end
 			end)
 		end)
-
+	end
+	if touchUi and not stickGas then
 		gas = holdButton(
 			gui,
 			"GAS",
@@ -397,6 +444,7 @@ function Controls.new(
 	autoBtn.Text = "AUTO GAS"
 	HudLayout.place(autoBtn, "AutoGas", "drive")
 	autoBtn.Parent = gui
+	autoBtn.Visible = not stickGas -- (the stick is the gas)
 	-- alone (SMOKE, VIEW and CAM held back for a new player) it takes CAM's spot at the right edge:
 	-- at its own spot it stood alone in the middle of a wide screen, over the track signs (Studio
 	-- batch-2035 6)
@@ -458,7 +506,7 @@ function Controls.new(
 		-- CAM and VIEW do nothing there, so hide both and close the gap
 		viewBtn.Visible = not on
 		onRockNow = on
-		autoBtn.Visible = not on
+		autoBtn.Visible = not on and not stickGas
 		smokeBtn.Visible = not on and not inRace
 		camBtn.Visible = not on and not inRace
 		backBtn.Visible = on and not touchUi
@@ -508,12 +556,12 @@ function Controls.new(
 				or down(Enum.KeyCode.Up)
 				or gas()
 			then 1
-			else padGas
+			else math.max(padGas, touchGas)
 		local brakeIn = if down(Enum.KeyCode.S)
 				or down(Enum.KeyCode.Down)
 				or brake()
 			then 1
-			else padBrake
+			else math.max(padBrake, touchBrake)
 		if autoGas and not onRockNow then
 			-- gas down unless braking (the car only brakes or backs up with the gas off)
 			throttle = if brakeIn > 0 then 0 else 1
