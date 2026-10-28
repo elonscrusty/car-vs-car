@@ -450,7 +450,8 @@ local function buildRoad(folder: Instance)
 				a + off,
 				b + off,
 				cw,
-				0.12,
+				-- red and white a hair apart in height, so their overlaps never flicker
+				if i % 2 == 0 then 0.12 else 0.14,
 				if i % 2 == 0 then CURB_RED else CURB_WHITE,
 				0.4
 			)
@@ -775,12 +776,12 @@ end
 -- low-poly hills, grey cliffs and rows of trees, so every camera sees a world, not empty sky.
 local function buildWorld(folder: Instance)
 	local s = ArenaData.SIZE
-	part(folder, "FarGrass", Vector3.new(2400, 2, 2400), CFrame.new(0, -1.3, 0), GRASS_FAR, false)
+	part(folder, "FarGrass", Vector3.new(2400, 2, 2400), CFrame.new(0, -1.6, 0), GRASS_FAR, false)
 	part(
 		folder,
 		"Shore",
 		Vector3.new(1400, 0.4, 160),
-		CFrame.new(0, -0.15, -s / 2 - 110),
+		CFrame.new(0, -0.15, -s / 2 - 100),
 		SHORE,
 		false
 	)
@@ -798,10 +799,10 @@ local function buildWorld(folder: Instance)
 		local ang = k / 14 * math.pi * 2 + rng:NextNumber(-0.15, 0.15)
 		local r = rng:NextNumber(430, 620)
 		local at = Vector3.new(math.cos(ang) * r, 0, math.sin(ang) * r)
-		if at.Z < -s / 2 - 60 and at.Z > -s / 2 - 420 then
-			at = Vector3.new(at.X, 0, -s / 2 - 470) -- behind the lake, not in it
-		end
 		local size = rng:NextNumber(110, 190)
+		if at.Z < -s / 2 - 60 and at.Z > -s / 2 - 440 - size * 0.8 then
+			at = Vector3.new(at.X, 0, -s / 2 - 440 - size * 0.8) -- behind the lake, not in it
+		end
 		local east = at.X > 300
 		part(
 			folder,
@@ -888,8 +889,12 @@ local function buildTufts(folder: Instance)
 			end
 			local at = v(p, 0)
 			if ok then
-				for _, q in line do
-					if (q - at).Magnitude < clearOfRoad then
+				-- distance to each road piece (not just its ends: the long legs have far-apart points)
+				for k, q in line do
+					local q2 = line[k % #line + 1]
+					local d = q2 - q
+					local u = math.clamp((at - q):Dot(d) / math.max(d:Dot(d), 1e-6), 0, 1)
+					if (q + d * u - at).Magnitude < clearOfRoad then
 						ok = false
 						break
 					end
