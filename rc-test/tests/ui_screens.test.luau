@@ -261,7 +261,10 @@ test("on the plot nothing on screen covers anything else", function()
 	end
 	for i = 1, #list do
 		for j = i + 1, #list do
-			truthy(not UiScreens.overlap(list[i], list[j]), `{list[i].name} covers {list[j].name}`)
+			local a, b = list[i], list[j]
+			-- (a live-game piece shown in place of a viewer one never shares the screen with it)
+			local swap = a.instead == b.name or b.instead == a.name
+			truthy(swap or not UiScreens.overlap(a, b), `{a.name} covers {b.name}`)
 		end
 	end
 end)

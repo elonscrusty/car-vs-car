@@ -100,11 +100,12 @@ end
 --   dots = { Crates = 2, League = -1 (! ) }, signs: boolean (the viewer: sample world signs),
 --   race: words (the RACE! button; nil = none), jobs: words (the JOBS pill; nil = none),
 --   invite: words (the INVITE pill; nil = none),
+--   next = { words, f }: the small bar under the coins (coins toward the next buy; nil = none),
 --   stagger: boolean (a new player: the pieces come in one at a time, not all at once),
 --   banner = false / myCar = false: leave that piece off (the live game, over the 3D plot),
 --   words = { Garage = "TRAIN" }: other words on a tile }
--- actions: Garage(), Crates(), Shop(), League(), coins(), coach(), race(), jobs(), invite()
--- api: setCoins(n), setRate(words), setNextUp(title, sub, hurry), setCar(name, stats),
+-- actions: Garage(), Crates(), Shop(), League(), coins(), coach(), race(), jobs(), invite(), next()
+-- api: setCoins(n), setRate(words), setNextUp(title, sub, hurry), setCar(name, stats), setNext(words, f),
 --   setCoach(f, words), setDot(name, n), float(x, y, words, color), setRace(words, tone, pulse),
 --   setJobs(words), setShown(name, on) (a tile, Coach, Race or Jobs steps away / comes back),
 --   point(name?, words?, loud?) (one bouncing arrow at that piece; loud: bigger, with its words)
@@ -128,6 +129,38 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 			plate = true,
 			onClick = Screen.act(actions, "coins"),
 		})
+		-- NEXT CRATE 120/200 (the live game): a small bar under the coins, coins toward the next
+		-- buy; no glow of its own (the one glow is the HUD goal's)
+		local nextHolder: Frame? = nil
+		local nextWords: TextLabel? = nil
+		local nextBar: Frame? = nil
+		if data.next then
+			local np = piece("plot", "Next")
+			local nh = spot(c, "plot", "Next")
+			nextHolder = nh
+			local nb = Instance.new("TextButton")
+			nb.Name = "Next"
+			nb.Text = ""
+			nb.AutoButtonColor = false
+			nb.BackgroundTransparency = 1
+			nb.ZIndex = 3
+			nb.Parent = nh
+			Base.at(nb, 0, 0, np.w, np.h)
+			local plate = Base.fill(nb, "Plate", 0, 0, np.w, np.h, Base.color("ink"), 1)
+			plate.BackgroundTransparency = 0.3
+			Base.corner(plate, 10)
+			nextWords = Base.text(nb, "Words", 8, 5, np.w - 16, 16, data.next.words or "", {
+				stroke = 3,
+				z = 4,
+			})
+			nextBar = Kit.bar(nb, "Bar", 8, 25, np.w - 16, 12, "go", {
+				still = true,
+				value = math.clamp(data.next.f or 0, 0, 1),
+				z = 3,
+			})
+			Anim.press(nb)
+			nb.Activated:Connect(Screen.act(actions, "next"))
+		end
 		local words: { [string]: string } = data.words or {}
 		local sides: { [string]: Kit.Side } = {}
 		local tiles: { GuiObject } = {}
@@ -259,6 +292,9 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 		if inviteHolder then
 			holders.Invite = inviteHolder
 		end
+		if nextHolder then
+			holders.Next = nextHolder
+		end
 		local hidden: { [Instance]: boolean } = {}
 		local pointer: Frame? = nil
 		local pointKey = ""
@@ -269,7 +305,7 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 				{ banner.frame, raceHolder },
 				{ carHolder },
 				tiles,
-				{ coinsHolder },
+				{ coinsHolder, nextHolder },
 				{ coachHolder, jobsHolder, inviteHolder },
 			}
 			for i, step in steps do
@@ -314,6 +350,12 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 					if s then
 						b.set(s[1], s[2])
 					end
+				end
+			end,
+			setNext = function(w: string, f: number)
+				if nextWords and nextBar then
+					Base.setText(nextWords, w)
+					Kit.setBar(nextBar, f)
 				end
 			end,
 			setCoach = coach.setCooldown,

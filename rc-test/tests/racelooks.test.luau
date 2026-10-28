@@ -190,3 +190,38 @@ test("Studio pr839: name tags that would sit on each other show only the nearest
 	truthy(string.find(others, "unstack(cam)", 1, true), "not wired")
 	truthy(string.find(others, "UDim2.fromOffset(TAG_W, TAG_H)", 1, true))
 end)
+
+test(
+	"MASTER race moment: countdown shake, confetti the frame you finish; audit L5 no sparkle cloud",
+	function()
+		local fs = require("@lune/fs")
+		local main = fs.readFile("src/client/Main.client.luau")
+		local finish = string.find(main, "raceDone = os.clock() - go", 1, true)
+		local pop = string.find(main, "raceFx.confetti(", 1, true)
+		truthy(
+			finish and pop and pop > finish and pop - finish < 400,
+			"confetti not right at the finish"
+		)
+		truthy(string.find(main, "shakeLeft = SHAKE_TIME", 1, true), "no countdown shake")
+		truthy(string.find(main, "cam.CFrame *= CFrame.Angles(", 1, true), "shake not applied")
+		-- raceFx is made before the frame code that uses it (a later local would be nil there)
+		local made = string.find(main, "local raceFx = RaceFx.new()", 1, true)
+		truthy(made and made < (finish :: number), "raceFx made after its first use")
+		local fx = fs.readFile("src/client/RaceFx.luau")
+		truthy(string.find(fx, "function self.confetti(", 1, true))
+		local eff = fs.readFile("src/client/Effects.luau")
+		truthy(
+			string.find(
+				eff,
+				'e.Texture = if kind == "boost" or kind == "BoostPad" then SPARKLE else DUST',
+				1,
+				true
+			),
+			"dust in sparkle stars"
+		)
+		truthy(
+			string.find(eff, 'setSpray(sp, "land", LAND_DUST, 0.7, 3, 3)', 1, true),
+			"landing cloud"
+		)
+	end
+)

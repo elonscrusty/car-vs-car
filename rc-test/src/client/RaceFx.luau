@@ -8,6 +8,7 @@ local Players = game:GetService("Players")
 export type RaceFx = {
 	update: (dt: number, boosting: boolean) -> (),
 	sparks: (at: Vector3, away: Vector3, size: number) -> (),
+	confetti: (at: Vector3, n: number, size: number) -> (),
 }
 
 local RaceFx = {}
@@ -86,6 +87,48 @@ function RaceFx.new(): RaceFx
 		fx.Parent = spot
 		fx:Emit(28)
 		task.delay(0.8, spot.Destroy, spot)
+	end
+
+	-- the finish (MASTER race moment: confetti within 0.5 s of crossing the line): a pop of
+	-- confetti over the car, at once, gone in a few seconds (size = the car's scale)
+	local CONFETTI = {
+		Color3.fromRGB(255, 199, 44),
+		Color3.fromRGB(255, 92, 92),
+		Color3.fromRGB(70, 170, 255),
+		Color3.fromRGB(90, 220, 120),
+		Color3.fromRGB(200, 120, 255),
+	}
+	function self.confetti(at: Vector3, n: number, size: number)
+		local spot = Instance.new("Part")
+		spot.Name = "FinishConfetti"
+		spot.Size = Vector3.new(0.2, 0.2, 0.2)
+		spot.Transparency = 1
+		spot.Anchored = true
+		spot.CanCollide = false
+		spot.CanQuery = false
+		spot.CanTouch = false
+		spot.CFrame = CFrame.lookAt(at, at + Vector3.yAxis)
+		spot.Parent = workspace
+		local keys = {}
+		for i, c in CONFETTI do
+			table.insert(keys, ColorSequenceKeypoint.new((i - 1) / (#CONFETTI - 1), c))
+		end
+		local fx = Instance.new("ParticleEmitter")
+		fx.Color = ColorSequence.new(keys)
+		fx.Size = NumberSequence.new(0.5 * size)
+		fx.Lifetime = NumberRange.new(1.8, 2.6)
+		fx.Speed = NumberRange.new(30 * size, 55 * size)
+		fx.SpreadAngle = Vector2.new(50, 50)
+		fx.Acceleration = Vector3.new(0, -50 * size, 0)
+		fx.Drag = 1.5
+		fx.Rotation = NumberRange.new(0, 360)
+		fx.RotSpeed = NumberRange.new(-300, 300)
+		fx.LightEmission = 0.3
+		fx.EmissionDirection = Enum.NormalId.Front
+		fx.Rate = 0
+		fx.Parent = spot
+		fx:Emit(n)
+		task.delay(3, spot.Destroy, spot)
 	end
 
 	return self
