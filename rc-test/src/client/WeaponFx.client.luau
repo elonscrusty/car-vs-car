@@ -21,6 +21,11 @@ local SUNNY = Color3.fromRGB(255, 205, 40)
 local FLAME = Color3.fromRGB(255, 130, 30)
 local NAVY = Color3.fromRGB(30, 36, 70)
 
+-- the arena is RC-sized: a kart is Weapons.KART studs long, so every look is sized from that
+local K = Weapons.KART
+-- the rocket is built about 5 studs long; it should be about 0.6 of a kart
+local ROCKET_SCALE = 0.6 * K / 5.05
+
 local bits = Instance.new("Folder")
 bits.Name = "WeaponBits"
 bits.Parent = workspace
@@ -83,9 +88,9 @@ local function rocketModel(nuke: boolean): Model
 	trail.Parent = flame
 	-- the parts were placed around the origin: weld them by moving as one (PivotTo)
 	m.WorldPivot = CFrame.new()
+	-- the nuke: the same shape, twice as big, navy with a pulsing yellow nose
+	m:ScaleTo(ROCKET_SCALE * (if nuke then 2.2 else 1))
 	if nuke then
-		-- the nuke: the same shape, twice as big, navy with a pulsing yellow nose
-		m:ScaleTo(2.2)
 		local n = m:FindFirstChild("Nose") :: BasePart?
 		if n then
 			TweenService:Create(
@@ -107,7 +112,7 @@ end
 
 local function boom(at: Vector3, spec: Weapons.Flight, nuke: boolean)
 	local size = spec.splash * 2
-	local ball = part("Boom", FLAME, true, Vector3.new(2, 2, 2))
+	local ball = part("Boom", FLAME, true, Vector3.one * 0.4 * K)
 	ball.Shape = Enum.PartType.Ball
 	ball.Position = at
 	ball.Transparency = 0.1
@@ -120,8 +125,8 @@ local function boom(at: Vector3, spec: Weapons.Flight, nuke: boolean)
 	local e = Instance.new("ParticleEmitter")
 	e.Color = ColorSequence.new(SUNNY, CHERRY)
 	e.LightEmission = 0.8
-	e.Size = NumberSequence.new(1.6, 0)
-	e.Speed = NumberRange.new(18, 30)
+	e.Size = NumberSequence.new(0.3 * K, 0)
+	e.Speed = NumberRange.new(spec.splash * 2.5, spec.splash * 4)
 	e.SpreadAngle = Vector2.new(180, 180)
 	e.Lifetime = NumberRange.new(0.3, 0.6)
 	e.Drag = 4
@@ -130,7 +135,7 @@ local function boom(at: Vector3, spec: Weapons.Flight, nuke: boolean)
 	e:Emit(if nuke then 120 else 40)
 	if nuke then
 		-- a flat ring rolls out over the ground as far as the boom reaches
-		local ring = part("Ring", SUNNY, true, Vector3.new(0.6, 4, 4))
+		local ring = part("Ring", SUNNY, true, Vector3.new(0.1 * K, K, K))
 		ring.Shape = Enum.PartType.Cylinder
 		ring.CFrame = CFrame.new(at) * CFrame.Angles(0, 0, math.rad(90))
 		ring.Transparency = 0.2
@@ -138,7 +143,7 @@ local function boom(at: Vector3, spec: Weapons.Flight, nuke: boolean)
 		TweenService:Create(
 			ring,
 			TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{ Size = Vector3.new(0.6, size * 1.1, size * 1.1), Transparency = 1 }
+			{ Size = Vector3.new(0.1 * K, size * 1.1, size * 1.1), Transparency = 1 }
 		):Play()
 		task.delay(0.7, function()
 			ring:Destroy()

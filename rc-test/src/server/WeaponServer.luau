@@ -66,6 +66,10 @@ local function pose(k: any): CFrame?
 	if typeof(k.cframe) == "CFrame" then
 		return k.cframe
 	end
+	-- (Lune tests: a plain table with a Position and LookVector stands in for a CFrame)
+	if type(k.cframe) == "table" and type(k.cframe.Position) == "vector" then
+		return k.cframe
+	end
 	local m = k.model
 	if typeof(m) == "Instance" and (m :: Instance):IsA("Model") then
 		return (m :: Model):GetPivot()
@@ -74,40 +78,77 @@ local function pose(k: any): CFrame?
 	if typeof(r) == "Instance" and (r :: Instance):IsA("BasePart") then
 		return (r :: BasePart).CFrame
 	end
-	if typeof(k.pos) == "Vector3" then
+	if type(k.pos) == "vector" then -- (a Vector3; "vector" so plain tests can use it too)
 		return CFrame.new(k.pos)
 	end
 	return nil
 end
 
+-- other places with karts that can shoot and be hit, outside a match (the lobby's warm-up yard):
+-- name -> { karts() -> { {id, cframe|pos|model, alive?} }, damage(victim, attacker, amount,
+-- weapon), model(id) -> Instance?, playerOf((id) -> Player?)?, freeze((id, s))? }
+local sources: { [string]: any } = {}
+
 -- The weapons do their maths on vectors. A Roblox Vector3 is one, so a real pose goes as is; the
 -- pretend server's (tests/fakeroblox) isn't, so there the pose becomes a plain table of vectors.
-local function vec(v: any): Vector3
-	return vector.create(v.X, v.Y, v.Z) :: any
-end
 local function plain(cf: CFrame): CFrame
 	if type(cf.Position) == "vector" then
 		return cf
 	end
 	return {
-		Position = vec(cf.Position),
-		LookVector = vec(cf.LookVector),
-		RightVector = vec(cf.RightVector),
-		UpVector = vec(cf.UpVector),
+		Position = Weapons.vec(cf.Position),
+		LookVector = Weapons.vec(cf.LookVector),
+		RightVector = Weapons.vec(cf.RightVector),
+		UpVector = Weapons.vec(cf.UpVector),
 	} :: any
 end
 
 -- karts and their models are read once per server frame (rockets ask many times a frame)
 local cacheKarts: { Kart }? = nil
 local cacheModels: { [any]: Instance }? = nil
+local cacheOwner: { [any]: any } = {} -- kart id -> the source it came from (none = the match)
+local cacheMatch: { [any]: boolean } = {} -- ids of the match's own karts this frame
+
+local function readSources(out: { Kart })
+	table.clear(cacheOwner)
+	table.clear(cacheMatch)
+	for _, k in out do
+		cacheMatch[k.id] = true
+	end
+	for name, src in sources do
+		local ok, list = pcall(src.karts)
+		if not ok or type(list) ~= "table" then
+			warn("[WeaponServer] source " .. name .. " karts failed: " .. tostring(list))
+			continue
+		end
+		for _, k in list do
+			-- (an id the match already has stays the match's: a player in both counts as playing)
+			if
+				type(k) == "table"
+				and k.id ~= nil
+				and cacheOwner[k.id] == nil
+				and not cacheMatch[k.id]
+			then
+				local cf = pose(k)
+				if cf then
+					cacheOwner[k.id] = src
+					table.insert(out, { id = k.id, cframe = plain(cf), alive = k.alive ~= false })
+				end
+			end
+		end
+	end
+end
 
 local function readKarts(): { Kart }
 	if stand then
-		return stand.karts()
+		local out = table.clone(stand.karts())
+		readSources(out)
+		return out
 	end
 	local mr = matchRunner()
 	local out = {}
 	if not mr or type(mr.karts) ~= "function" then
+		readSources(out)
 		return out
 	end
 	for key, k in mr.karts() do
@@ -122,6 +163,7 @@ local function readKarts(): { Kart }
 			end
 		end
 	end
+	readSources(out)
 	return out
 end
 
@@ -132,9 +174,23 @@ local function allKarts(): { Kart }
 	return cacheKarts :: { Kart }
 end
 
+-- the source kart `id` came from (nil = the match)
+local function ownerOf(id: any): any?
+	allKarts()
+	return cacheOwner[id]
+end
+
 local function readModel(id: any): Instance?
-	if stand then
-		return if type(stand.model) == "function" then stand.model(id) else nil
+	local src = ownerOf(id)
+	if src then
+		local ok, m = false, nil
+		if type(src.model) == "function" then
+			ok, m = pcall(src.model, id)
+		end
+		return if ok and typeof(m) == "Instance" then m else nil
+	end
+	if stand and type(stand.model) == "function" then
+		return stand.model(id)
 	end
 	local mr = matchRunner()
 	if not mr or type(mr.karts) ~= "function" then
@@ -167,12 +223,21 @@ end
 local function kartIdOf(player: Player): any
 	local mr = matchRunner()
 	if mr and type(mr.kartOf) == "function" then
-		return mr.kartOf(player)
+		local id = mr.kartOf(player)
+		if id ~= nil then
+			return id
+		end
 	end
+	-- not in a match: their UserId (a warm-up yard source lists them by it)
 	return player.UserId
 end
 
 local function playerOf(id: any): Player?
+	local src = ownerOf(id)
+	if src and type(src.playerOf) == "function" then
+		local ok, p = pcall(src.playerOf, id)
+		return if ok and typeof(p) == "Instance" and p:IsA("Player") then p else nil
+	end
 	if stand and type(stand.playerOf) == "function" then
 		return stand.playerOf(id)
 	end
@@ -190,9 +255,16 @@ end
 local function show(id: any)
 	local p = playerOf(id)
 	local h = held[id]
+	local name, ammo = if h then h.name else "", if h then h.ammo else 0
 	if p then
-		p:SetAttribute("Weapon", if h then h.name else "")
-		p:SetAttribute("Ammo", if h then h.ammo else 0)
+		p:SetAttribute("Weapon", name)
+		p:SetAttribute("Ammo", ammo)
+	end
+	-- on the kart too, so everyone (bots included) sees what it holds: client/KartWeaponIcon
+	local m = readModel(id)
+	if m then
+		m:SetAttribute("Weapon", name)
+		m:SetAttribute("Ammo", ammo)
 	end
 end
 
@@ -248,7 +320,26 @@ local function makeCtx(fxRemote: RemoteEvent): Ctx
 			end
 			return { kartId = hitId, position = res.Position }
 		end,
+		-- Hurts only karts in the same place as the shooter: yard shots never reach the match, a
+		-- match shot never pops a yard dummy, and a shot landing after its target left hurts nothing.
 		damage = function(victimId: any, attackerId: any, amount: number, weapon: string)
+			local src = ownerOf(victimId)
+			if src ~= ownerOf(attackerId) then
+				return
+			end
+			if src then
+				if type(src.damage) == "function" then
+					local ok, err =
+						pcall(src.damage, victimId, attackerId, amount, Weapons.feedWord(weapon))
+					if not ok then
+						warn("[WeaponServer] source damage failed: " .. tostring(err))
+					end
+				end
+				return
+			end
+			if not cacheMatch[victimId] then
+				return
+			end
 			local mr = matchRunner()
 			if mr and type(mr.damage) == "function" then
 				-- MatchRunner's words are lowercase and one of a kind: "rocket", "nuke", "gun"
@@ -263,8 +354,13 @@ local function makeCtx(fxRemote: RemoteEvent): Ctx
 		end,
 		place = nil,
 		freeze = function(id: any, seconds: number)
+			local src = ownerOf(id)
+			if src and type(src.freeze) == "function" then
+				pcall(src.freeze, id, seconds)
+				return
+			end
 			local mr = matchRunner()
-			if mr and type(mr.freeze) == "function" then
+			if not src and mr and type(mr.freeze) == "function" then
 				mr.freeze(id, seconds)
 				return
 			end
@@ -307,6 +403,20 @@ function WeaponServer.give(id: any, name: string): boolean
 	return true
 end
 
+-- Another place with karts that shoot and get hit outside a match (the warm-up yard). Its karts
+-- join the match's for aiming, hits and booms; damage to them goes to src.damage. Same name
+-- again replaces it.
+function WeaponServer.addSource(name: string, src: { [string]: any })
+	assert(type(name) == "string" and type(src) == "table" and type(src.karts) == "function")
+	sources[name] = src
+	cacheKarts, cacheModels = nil, nil
+end
+
+function WeaponServer.removeSource(name: string)
+	sources[name] = nil
+	cacheKarts, cacheModels = nil, nil
+end
+
 -- Can a box hand out `name` now (its weapon module is built and loaded)?
 function WeaponServer.has(name: string): boolean
 	return Weapons.isName(name) and modules[name] ~= nil
@@ -320,6 +430,9 @@ function WeaponServer.holding(id: any): (string, number)
 	end
 	return h.name, h.ammo
 end
+
+-- (the name bots use)
+WeaponServer.held = WeaponServer.holding
 
 -- Kart `id` fires what it holds toward `aim` (anything: it is checked). True if a shot went.
 function WeaponServer.fire(id: any, aim: any): boolean

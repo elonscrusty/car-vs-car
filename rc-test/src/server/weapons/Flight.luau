@@ -15,17 +15,20 @@ Flight.MAX_DT = 0.25 -- a long server hitch moves a shot at most this much at on
 
 Flight.TURN_DEG = 4 -- ... and only once it has bent at least this much since the last word
 
-type Flying = { id: number, kind: string, r: any, sentAt: number, sentDir: Vector3 }
+type Flying = { id: number, kind: string, r: any, sentAt: number, sentDir: Vector3, atWall: boolean? }
 
 -- shared by every flying weapon: ids are unique and the cap counts them all
 local flying: { Flying } = {}
 local nextId = 0
 
-local function targets(ctx: any): { any }
+local function targets(ctx: any, Weapons: any): { any }
 	local out = {}
 	for _, k in ctx.karts() do
 		if k.alive then
-			table.insert(out, { id = k.id, pos = k.cframe.Position })
+			local pos = Weapons.vec(k.cframe.Position)
+			if pos then
+				table.insert(out, { id = k.id, pos = pos })
+			end
 		end
 	end
 	return out
@@ -54,11 +57,23 @@ function Flight.weapon(name: string, Weapons: any): { [string]: any }
 			return false
 		end
 		nextId += 1
-		local r = Weapons.rocket(kart.id, kart.cframe.Position, aim, spec)
-		table.insert(
-			flying,
-			{ id = nextId, kind = name, r = r, sentAt = ctx.now(), sentDir = r.dir }
-		)
+		local from = Weapons.vec(kart.cframe.Position) or vector.zero
+		local r = Weapons.rocket(kart.id, from, aim, spec)
+		-- nose against a wall: the shot would start inside it (a ray from inside a part sees
+		-- nothing), so look from the kart's middle to the start and boom right there on a wall
+		local h = ctx.raycast(from + vector.create(0, spec.up, 0), r.pos, nil, true)
+		local wall = h and Weapons.vec(h.position)
+		if wall then
+			r.pos = wall - r.dir * 0.05
+		end
+		table.insert(flying, {
+			id = nextId,
+			kind = name,
+			r = r,
+			sentAt = ctx.now(),
+			sentDir = r.dir,
+			atWall = wall ~= nil,
+		})
 		ctx.fx(
 			"RocketLaunch",
 			{ id = nextId, kind = name, pos = r.pos, dir = r.dir, owner = kart.id }
@@ -77,10 +92,13 @@ function Flight.weapon(name: string, Weapons: any): { [string]: any }
 				i += 1
 				continue
 			end
-			list = list or targets(ctx)
+			list = list or targets(ctx, Weapons)
 			local owner = f.r.owner
 			local left = math.min(dt, Flight.MAX_DT)
 			local what, who = nil, nil
+			if f.atWall then
+				what = "wall"
+			end
 			while left > 1e-6 and what == nil do
 				local bit = math.min(left, Flight.STEP)
 				left -= bit

@@ -58,6 +58,18 @@ local function finite(n: number): boolean
 	return n == n and n > -math.huge and n < math.huge
 end
 
+-- A Vector3 as the built-in vector (the same thing in Roblox; Lune's pretend Roblox has its own
+-- Vector3 type). Anything else: nil.
+function Weapons.vec(x: any): Vector3?
+	if type(x) == "vector" then
+		return x
+	end
+	if typeof(x) == "Vector3" then
+		return vector.create(x.X, x.Y, x.Z)
+	end
+	return nil
+end
+
 local function flat(v: Vector3): Vector3?
 	local f = vector.create(v.x, 0, v.z)
 	local m = vector.magnitude(f)
@@ -70,11 +82,12 @@ end
 -- The direction a shot goes: `raw` (anything a client sent) flattened and kept within
 -- MAX_AIM_DEG of `facing`; junk (not a vector, NaN, zero) means straight ahead.
 function Weapons.aim(raw: any, facing: Vector3): Vector3
-	local ahead = flat(facing) or vector.create(0, 0, -1)
-	if type(raw) ~= "vector" then
+	local f = Weapons.vec(facing)
+	local ahead = f and flat(f) or vector.create(0, 0, -1)
+	local v = Weapons.vec(raw)
+	if not v then
 		return ahead
 	end
-	local v = raw :: Vector3
 	if not (finite(v.x) and finite(v.y) and finite(v.z)) then
 		return ahead
 	end
@@ -151,49 +164,69 @@ end
 
 -- ===== flying weapons (rockets, nuke): fly, bend a little toward a kart ahead, boom on a hit =====
 
+-- ===== sizes: the arena is RC-scale (FINISH-JOBS SCALE rule) =====
+-- Every distance below is in kart lengths (KART studs): a kart is 5.5 big units long, shrunk to RC
+-- size by TrackData.RC_SCALE (about 1.4 studs). The arena is about 65 karts wall to wall, and a
+-- kart's top speed (Tuning.topSpeed 95 big units/s) is about 17 karts a second.
+
+local function sibling(name: string): any
+	if script then
+		return require((script :: any).Parent:WaitForChild(name))
+	end
+	local luneRequire: any = require
+	return luneRequire("./" .. name)
+end
+
+Weapons.SCALE = sibling("TrackData").RC_SCALE :: number
+Weapons.KART = 5.5 * Weapons.SCALE
+
 export type Flight = {
 	speed: number, -- studs a second
 	life: number, -- seconds, then it blows up where it is
 	seekDeg: number, -- only karts within this cone ahead are chased (0 = flies straight)
 	seekRange: number,
 	turnDeg: number, -- degrees a second it can bend toward its target
-	hitRadius: number, -- a kart is about 5 x 9 studs
+	hitRadius: number, -- from a kart's middle (a kart is 1 x 0.55 KART)
 	damage: number, -- a direct hit (health 100)
 	splash: number, -- studs around the boom
 	splashDamage: number, -- at the middle of the boom; half at its edge
-	ahead: number, -- starts this far in front of the kart
+	ahead: number, -- starts this far in front of the kart middle: its tail at the kart's nose (0.5 KART)
 	up: number, -- and this high above its middle
 }
 
--- ROCKETS: fast, bend a little toward the nearest kart ahead. 3 direct hits smash (health 100).
+local KART = Weapons.KART
+
+-- ROCKETS: fast (about 1.7x a kart's top speed), bend a little toward the nearest kart ahead.
+-- 3 direct hits smash (health 100).
 Weapons.ROCKET = {
-	speed = 95,
-	life = 2.4, -- about 230 studs
+	speed = 29 * KART,
+	life = 2.4, -- about 70 karts: across the arena
 	seekDeg = 35,
-	seekRange = 120,
+	seekRange = 20 * KART,
 	turnDeg = 75,
-	hitRadius = 6.5,
+	hitRadius = 0.8 * KART,
 	damage = 34,
-	splash = 12,
+	splash = 2 * KART,
 	splashDamage = 20,
-	ahead = 7,
-	up = 1.5,
+	ahead = 0.8 * KART,
+	up = 0.15 * KART,
 } :: Flight
 
--- NUKE: one slow, big rocket that barely bends; its boom is huge and smashes a crowd. A direct
--- hit always smashes; the middle of the boom too.
+-- NUKE: one slow, big rocket (a bit slower than a kart: you can run from it) that barely bends;
+-- its boom is huge (8 karts around, an eighth of the arena) and smashes a crowd. A direct hit
+-- always smashes; the middle of the boom too.
 Weapons.NUKE = {
-	speed = 48,
-	life = 4, -- about 190 studs
+	speed = 14 * KART,
+	life = 4.5, -- about 63 karts
 	seekDeg = 25,
-	seekRange = 90,
+	seekRange = 16 * KART,
 	turnDeg = 25,
-	hitRadius = 8,
+	hitRadius = 1 * KART,
 	damage = 100,
-	splash = 34,
+	splash = 8 * KART,
 	splashDamage = 100,
-	ahead = 8,
-	up = 2.5,
+	ahead = 1.2 * KART,
+	up = 0.2 * KART,
 } :: Flight
 
 -- the flight of each flying weapon, by name
@@ -211,7 +244,8 @@ export type Rocket = {
 
 function Weapons.rocket(owner: any, from: Vector3, dir: Vector3, spec: Flight?): Rocket
 	local R = spec or Weapons.ROCKET
-	local d = flat(dir) or vector.create(0, 0, -1)
+	local d = flat(Weapons.vec(dir) or vector.create(0, 0, -1)) or vector.create(0, 0, -1)
+	from = Weapons.vec(from) or vector.zero
 	return {
 		pos = from + d * R.ahead + vector.create(0, R.up, 0),
 		dir = d,
