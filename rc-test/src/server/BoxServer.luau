@@ -17,8 +17,9 @@
 --
 -- Each box is a Model tagged "SmashBox" in <parent>.<name> with attributes Up (bool), Home
 -- (CFrame of the box's middle), TakenBy (kart id as a string), TakenWeapon and TakenCount (goes
--- up by one on every pickup: listen to this one for sounds and screens). client/BoxFx spins it
--- and plays the pop.
+-- up by one on every pickup: listen to this one for sounds and screens). client/BoxFx spins it,
+-- plays the pop, and plays the pickup sound for the grabber: a player's kart id must be their
+-- UserId (bots can use any other id).
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
