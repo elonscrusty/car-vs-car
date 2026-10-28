@@ -1856,7 +1856,7 @@ local function yardEdges(folder: Instance, map: any)
 end
 
 -- giant toys and crumbs by the kitchen road (solid: they are big things on the floor)
-local TOYS = { "brick", "crayon", "coin", "pea", "brick", "button", "crayon", "cereal" }
+local TOYS = { "blocks", "crayon", "coin", "pea", "blocks", "button", "crayon", "cereal" }
 local TOY_COLORS =
 	{ rgb(230, 50, 50), rgb(40, 120, 230), rgb(250, 200, 30), rgb(60, 180, 80), rgb(240, 120, 30) }
 
@@ -1881,21 +1881,15 @@ local function kitchenEdges(folder: Instance, map: any)
 			finish(p, false)
 		end
 		local hit: Vector3? = nil
-		if kind == "brick" then
-			-- a toy building brick, 4 studs on top
-			box(Vector3.new(44, 26, 22), CFrame.new(0, 13, 0), color)
-			for _, sx in { -1, 1 } do
-				for _, sz in { -1, 1 } do
-					box(
-						Vector3.new(5, 12, 12),
-						CFrame.new(sx * 11, 28, sz * 5.5) * UP,
-						color,
-						nil,
-						CYL
-					)
-				end
-			end
-			hit = Vector3.new(44, 30, 22)
+		if kind == "blocks" then
+			-- two plain toy blocks, the top one turned (low-poly, no building-brick studs)
+			box(Vector3.new(26, 26, 26), CFrame.new(0, 13, 0), color)
+			box(
+				Vector3.new(20, 20, 20),
+				CFrame.new(1, 36, -1) * CFrame.Angles(0, 0.5, 0),
+				TOY_COLORS[n % #TOY_COLORS + 1]
+			)
+			hit = Vector3.new(26, 46, 26)
 		elseif kind == "crayon" then
 			box(Vector3.new(70, 10, 10), CFrame.new(0, 5, 0), color, nil, CYL)
 			box(Vector3.new(12, 6, 6), CFrame.new(40, 5, 0), color, nil, CYL)

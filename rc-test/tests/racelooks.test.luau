@@ -210,6 +210,9 @@ test("Kitchen map: flat toy looks, no real wood, marble, metal, glass or cloth",
 			truthy(mat == "SmoothPlastic" or mat == "Neon", "kitchen uses " .. mat)
 		end
 	end
+	-- carter 10-28: low-poly, not LEGO: no building bricks with studs among the kitchen toys
+	local toys = string.match(src, "local TOYS = (%b{})") or ""
+	truthy(toys ~= "" and not string.find(toys, "brick", 1, true), "no studded bricks")
 	truthy(
 		string.find(
 			src,
