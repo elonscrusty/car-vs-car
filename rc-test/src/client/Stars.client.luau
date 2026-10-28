@@ -525,6 +525,13 @@ local function hideCard()
 	card.Visible = false
 end
 card.Activated:Connect(hideCard)
+-- a new screen window opens over it: the gift steps away (it peeked out past the Train window,
+-- Studio after818 shot 10)
+Players.LocalPlayer:GetAttributeChangedSignal("UiBusy"):Connect(function()
+	if Players.LocalPlayer:GetAttribute("UiBusy") == true then
+		hideCard()
+	end
+end)
 local function showDaily(coins: number, streak: number, boost: number, crate: boolean)
 	cards += 1
 	local mine = cards
