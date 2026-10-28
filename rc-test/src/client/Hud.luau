@@ -219,6 +219,10 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }): Hud
 		msg.TextColor3 = if gold
 			then Color3.fromRGB(255, 205, 40)
 			else Color3.fromRGB(255, 255, 255)
+		-- the big FINISH! in the middle; the small words (BACK ON TRACK, LAP 2/3) higher and
+		-- smaller, over the sky and not the road ahead (Studio batch-2035 6)
+		msg.Position = UDim2.fromScale(0.5, if gold then 0.32 else 0.28)
+		msg.Size = UDim2.fromScale(0.5, if gold then 0.14 else 0.08)
 		msg.TextTransparency = 0
 		msg.TextStrokeTransparency = 0.5
 		task.delay(1.6, function()

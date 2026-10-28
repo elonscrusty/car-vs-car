@@ -397,6 +397,16 @@ function Controls.new(
 	autoBtn.Text = "AUTO GAS"
 	HudLayout.place(autoBtn, "AutoGas", "drive")
 	autoBtn.Parent = gui
+	-- alone (SMOKE, VIEW and CAM held back for a new player) it takes CAM's spot at the right edge:
+	-- at its own spot it stood alone in the middle of a wide screen, over the track signs (Studio
+	-- batch-2035 6)
+	StageGate.watch(function()
+		HudLayout.place(
+			autoBtn,
+			if StageGate.shows("carbuttons") then "AutoGas" else "Cam",
+			"drive"
+		)
+	end)
 	local onRockNow = false
 	local function setAuto(on: boolean)
 		autoGas = on

@@ -12,6 +12,10 @@ local Features = require(ReplicatedStorage.Shared.Features)
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
 local KartStyle = require(ReplicatedStorage.Shared.KartStyle)
 local Popup = require(script.Parent:WaitForChild("Popup"))
+local Ui = script.Parent:WaitForChild("Ui")
+local Base = require(Ui:WaitForChild("Base"))
+local Kit = require(Ui:WaitForChild("Kit"))
+local Windows = require(Ui:WaitForChild("Screens"):WaitForChild("Windows"))
 local StageGate = require(script.Parent:WaitForChild("StageGate"))
 local Profile = require(ReplicatedStorage.Shared.Profile)
 
@@ -280,9 +284,28 @@ local toastCorner = Instance.new("UICorner")
 toastCorner.CornerRadius = UDim.new(0.4, 0)
 toastCorner.Parent = toast
 local toasts = 0
+-- (Features.NEW_UI: a new-look shout, the same words style as every new screen)
+local toastGui: any = nil
+local function shoutToast(text: string, mine: number)
+	if not toastGui then
+		toastGui = Base.screen("Ui_Toast", Base.ORDER.popup)
+		Base.show(toastGui, true)
+	end
+	toastGui.canvas:ClearAllChildren()
+	local l = Kit.shout(toastGui.canvas, 158, 270, 440, 36, string.upper(text), "go")
+	task.delay(2.6, function()
+		if toasts == mine and l.Parent then
+			(l.Parent :: Instance):Destroy()
+		end
+	end)
+end
 local function toastNow(text: string)
 	toasts += 1
 	local mine = toasts
+	if Features.CVC and Features.NEW_UI then
+		shoutToast(text, mine)
+		return
+	end
 	toast.Text = text
 	toast.TextTransparency = 0
 	toast.BackgroundTransparency = 0.3
@@ -576,6 +599,32 @@ local function showDaily(coins: number, streak: number, boost: number, crate: bo
 		still = if calm() then still + dt else 0
 	end
 	if cards ~= mine then
+		return
+	end
+	-- (Features.NEW_UI: the new Daily rewards window, the same look as every other window; the
+	-- gift is already given, so its button just takes it)
+	if Features.CVC and Features.NEW_UI then
+		local tiles = {}
+		for i = 1, #DAILY - 1 do
+			table.insert(tiles, {
+				icon = "coin",
+				amount = if i == today then tostring(coins) else tostring(DAILY[i]),
+				state = if i < today then "got" elseif i == today then "today" else "later",
+			})
+		end
+		local h: any = nil
+		local close = function()
+			if h then
+				h.close()
+			end
+		end
+		h = Windows.daily({
+			streak = streak,
+			today = today,
+			day7 = if today >= #DAILY then `+{coins} TODAY!` else `{DAILY[#DAILY]} COINS`,
+			days = tiles,
+			claimWords = if crate then `+{coins} + CRATE!` else `+{coins} COINS!`,
+		}, { claim = close, close = close })
 		return
 	end
 	card.Visible = true
