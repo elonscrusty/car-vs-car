@@ -54,8 +54,11 @@ PlotTraining.PAD = { w = 24, d = 18 } -- each station pad (x by z)
 -- the station props and the cars' runs on them, this much bigger than they were drawn (so they
 -- read from the stand); ride() and slats() hand back the grown numbers
 PlotTraining.K = 1.15
--- each open pad's sign: w by h studs, its middle at y, leaning back `lean` degrees
-PlotTraining.PAD_SIGN = { w = 14, h = 3, y = 1.5, lean = 40 }
+-- each open pad's sign: w by h studs, its middle at y and `out` studs past the pad's front edge,
+-- leaning back `lean` degrees. Big and nearly flat, tipped up at the high stand camera: the back
+-- wall is far (Studio 10-28: the old 14 by 3 signs were 5 px tall on a phone) and a taller sign
+-- would hide its station.
+PlotTraining.PAD_SIGN = { w = 21, h = 4.5, y = 1.4, lean = 60, out = 0.5 }
 PlotTraining.ROOM = { x0 = -14, x1 = 14, z0 = -32, z1 = 30 } -- the garage floor, in the middle
 PlotTraining.NEAR = 220 -- studs: a plot farther from the camera than this stops moving its cars
 PlotTraining.CAR = 1.55 -- toy car size on the stations and stands (times a 3.6-stud car)
@@ -326,11 +329,11 @@ local function pad(add: Garage.Add, i: number, kind: string?)
 	-- so it doesn't hide the station from the stand, and its words tip up toward the stand's
 	-- camera; a little foot holds it
 	local S = PlotTraining.PAD_SIGN
-	add(group, "PadSign", v(S.w, S.h, 0.3), v(x, S.y, z + P.d / 2 - 1.2), SIGN, {
+	add(group, "PadSign", v(S.w, S.h, 0.3), v(x, S.y, z + P.d / 2 + S.out), SIGN, {
 		rot = v(-S.lean, 0, 0),
 		collide = false,
 	})
-	add(group, "PadSignFoot", v(S.w, 0.5, 1.6), v(x, 0.55, z + P.d / 2 - 1.2), SIGN, {
+	add(group, "PadSignFoot", v(S.w, 0.5, 1.6), v(x, 0.55, z + P.d / 2 + S.out), SIGN, {
 		collide = false,
 	})
 	-- the station, grown by K about the pad's middle (its floor stays on the pad)
