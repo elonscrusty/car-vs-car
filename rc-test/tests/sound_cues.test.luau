@@ -85,3 +85,43 @@ test("the live screens call the coin, buy and unlock sounds", function()
 		string.find(fs.readFile("src/client/ServerRace.client.luau"), "Sfx.finish(", 1, true) ~= nil
 	)
 end)
+
+test("Smash arena sounds: every new action has a Sfx call", function()
+	local src = fs.readFile("src/client/Sfx.luau")
+	for _, fn in
+		{
+			"pickup",
+			"rocket",
+			"boom",
+			"gun",
+			"mine",
+			"freezeShot",
+			"freeze",
+			"shatter",
+			"hit",
+			"bump",
+			"smash",
+			"respawn",
+			"shield",
+			"matchStart",
+			"matchEnd",
+		}
+	do
+		truthy(string.find(src, `function Sfx.{fn}(`, 1, true) ~= nil, `no Sfx.{fn}`)
+	end
+end)
+
+test(
+	"Smash arena sounds sit under the start beeps; gun shots are quiet (bursts repeat them)",
+	function()
+		truthy(L.GUN < L.HIT and L.HIT < L.BOOM and L.BOOM < L.SMASH)
+		truthy(L.SMASH < L.START_BEEP and L.MATCH < L.START_BEEP)
+		truthy(L.GUN_GAP > 0 and L.HIT_GAP > 0)
+	end
+)
+
+test("GUNMINE's names exist (mineDrop, mineBoom)", function()
+	local src = fs.readFile("src/client/Sfx.luau")
+	truthy(string.find(src, "Sfx.mineDrop = Sfx.mine", 1, true) ~= nil)
+	truthy(string.find(src, "Sfx.mineBoom = Sfx.boom", 1, true) ~= nil)
+end)
