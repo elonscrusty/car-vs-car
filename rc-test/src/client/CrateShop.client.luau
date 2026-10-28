@@ -2,7 +2,7 @@
 -- Car VS Car's crate shop in the spawn lobby (carter's yes 10-26,
 -- rc-game/cvc/pics/crate-shop-top-down.png). Only with Features.CVC on. The building and its three
 -- crates come from Garage.build("crates"); this spins and bobs each crate on its turntable, puts a
--- price plate in front of it (its name, coins, and the odds of each kind of car as coloured chips),
+-- price plate in front of it (its name and price; the odds are on the crate screen),
 -- and a prompt on it that opens the crate screen for that crate (CvcCrate listens on the
 -- BindableEvent ReplicatedStorage.CvcCrateShop: Fire(kind)).
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -14,7 +14,6 @@ local Features = require(Shared:WaitForChild("Features"))
 if not Features.CVC then
 	return
 end
-local CarCatalog = require(Shared:WaitForChild("CarCatalog"))
 local CarGlow = require(Shared:WaitForChild("CarGlow"))
 local Crates = require(Shared:WaitForChild("Crates"))
 local Garage = require(Shared:WaitForChild("Garage"))
@@ -75,7 +74,7 @@ local function text(
 end
 
 -- A dark plate low in front of the crate, leaned back (like the car shops' price plates): the
--- crate's name on a pill in its colour, the price, and a chip per kind of car with its odds.
+-- crate's name on a pill in its colour and its price.
 local function plate(ring: BasePart, out: Vector3, kind: Crates.Kind): TextLabel
 	local color = rgb(Garage.CRATE_COLORS[kind.id] or Garage.CRATE_COLORS.basic)
 	local at = ring.Position + out * 3.4 + Vector3.new(0, 1.6, 0)
@@ -88,7 +87,7 @@ local function plate(ring: BasePart, out: Vector3, kind: Crates.Kind): TextLabel
 	p.CastShadow = false
 	-- as wide as the stands allow (5.6 apart), so the words read from the plaza (final pass 15b),
 	-- and tall enough for a big price (phone playtest u14: "300 coins" was a blur)
-	p.Size = Vector3.new(5.3, 3.4, 0.15)
+	p.Size = Vector3.new(5.3, 2.8, 0.15)
 	p.Color = INK
 	p.Material = Enum.Material.SmoothPlastic
 	p.CFrame = CFrame.lookAt(at, at + out) * CFrame.Angles(math.rad(25), 0, 0)
@@ -109,13 +108,15 @@ local function plate(ring: BasePart, out: Vector3, kind: Crates.Kind): TextLabel
 	edgeRim.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	edgeRim.Color = color
 	edgeRim.Parent = edge
-	text(g, kind.label, 0.08, 0.04, 0.84, 0.22, color, Color3.new(1, 1, 1))
-	-- the price: a coin and the number, about twice as tall as the old "300 coins" line (the
-	-- word "coins" made it too wide to grow)
+	-- one word and a number (the playtest counted ~45 words on the shop): SMALL / BIG / MEGA on a
+	-- pill in the crate's colour, then a coin and the price. The odds are on the crate card that
+	-- opens before you buy (CvcCrate), so the plates don't repeat them.
+	local name = string.split(kind.label, " ")[1]
+	text(g, name, 0.2, 0.06, 0.6, 0.28, color, Color3.new(1, 1, 1))
 	local coin = Instance.new("Frame")
 	coin.AnchorPoint = Vector2.new(0.5, 0.5)
-	coin.Position = UDim2.fromScale(0.2, 0.51)
-	coin.Size = UDim2.fromScale(0.24, 0.37)
+	coin.Position = UDim2.fromScale(0.2, 0.66)
+	coin.Size = UDim2.fromScale(0.24, 0.45)
 	coin.BackgroundColor3 = GOLD
 	coin.Parent = g
 	local coinRound = Instance.new("UICorner")
@@ -125,33 +126,8 @@ local function plate(ring: BasePart, out: Vector3, kind: Crates.Kind): TextLabel
 	coinRim.Thickness = 5
 	coinRim.Color = Color3.fromRGB(190, 120, 20)
 	coinRim.Parent = coin
-	local price = text(g, `{kind.price}`, 0.36, 0.29, 0.58, 0.45, nil, GOLD)
+	local price = text(g, `{kind.price}`, 0.36, 0.4, 0.58, 0.52, nil, GOLD)
 	price.TextXAlignment = Enum.TextXAlignment.Left
-	-- the odds: one chip per kind of car that this crate can give, in that kind's colour
-	local odds = Crates.odds(kind.id)
-	local shown = {}
-	for _, r in CarCatalog.RARITY_ORDER do
-		if (odds[r] or 0) > 0 then
-			table.insert(shown, r)
-		end
-	end
-	local w = 0.92 / math.max(#shown, 1)
-	for i, r in shown do
-		local tier = CarCatalog.RARITY[r]
-		local n = odds[r]
-		local s = if n == math.floor(n) then `{n}%` else string.format("%.1f%%", n)
-		text(
-			g,
-			s,
-			0.04 + (i - 1) * w + 0.01,
-			0.79,
-			w - 0.02,
-			0.17,
-			-- common on a mid slate, like the car shops' plates (light grey under white words blurred)
-			if r == "common" then Color3.fromRGB(100, 110, 140) else rgb(tier.color),
-			Color3.new(1, 1, 1)
-		)
-	end
 	return price
 end
 
@@ -234,7 +210,7 @@ local function addShop(shop: Model)
 			if box and box:IsA("BasePart") then
 				local prompt = Instance.new("ProximityPrompt")
 				prompt.ActionText = "LOOK"
-				prompt.ObjectText = kind.label
+				prompt.ObjectText = "" -- (the plate names it)
 				prompt.HoldDuration = 0
 				prompt.MaxActivationDistance = 12
 				prompt.RequiresLineOfSight = false
