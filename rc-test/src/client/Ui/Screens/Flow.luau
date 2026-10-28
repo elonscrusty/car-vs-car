@@ -454,12 +454,17 @@ function Flow.leagueUp(data: { [string]: any }, actions: Screen.Actions?): Scree
 		local sp = piece("leagueUp", "Shout")
 		Kit.shout(spot(g.canvas, "leagueUp", "Shout"), 0, 0, sp.w, sp.h, "LEAGUE UP!", "go")
 		local op = piece("leagueUp", "Old")
-		local old = Icons.badge(spot(g.canvas, "leagueUp", "Old"), data.from or 1, 0, 0, op.w, true)
-		for _, d in old:GetDescendants() do
-			if d:IsA("GuiObject") then
-				d.BackgroundTransparency = math.max(d.BackgroundTransparency, 0.25)
-			end
-		end
+		-- the old badge faded as one picture (a CanvasGroup), so its overlapping parts don't show
+		-- through each other
+		local fade = Instance.new("CanvasGroup")
+		fade.Name = "Fade"
+		fade.BackgroundTransparency = 1
+		fade.GroupTransparency = 0.25
+		fade.Size = UDim2.fromScale(1, 1)
+		fade:SetAttribute("DW", op.w)
+		fade:SetAttribute("DH", op.h)
+		fade.Parent = spot(g.canvas, "leagueUp", "Old")
+		Icons.badge(fade, data.from or 1, 0, 0, op.w, true)
 		local ap = piece("leagueUp", "Arrow")
 		Icons.make(spot(g.canvas, "leagueUp", "Arrow"), "arrow", 0, 0, ap.w, { z = 3 })
 		local np = piece("leagueUp", "New")
