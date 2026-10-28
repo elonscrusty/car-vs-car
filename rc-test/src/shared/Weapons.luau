@@ -145,7 +145,7 @@ export type Flight = {
 	up: number, -- and this high above its middle
 }
 
--- ROCKETS: fast, bend a little toward the nearest kart ahead. 3 hits smash (2 + a splash).
+-- ROCKETS: fast, bend a little toward the nearest kart ahead. 3 direct hits smash (health 100).
 Weapons.ROCKET = {
 	speed = 95,
 	life = 2.4, -- about 230 studs
@@ -153,7 +153,7 @@ Weapons.ROCKET = {
 	seekRange = 120,
 	turnDeg = 75,
 	hitRadius = 6.5,
-	damage = 45,
+	damage = 34,
 	splash = 12,
 	splashDamage = 20,
 	ahead = 7,
