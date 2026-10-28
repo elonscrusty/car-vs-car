@@ -1,12 +1,13 @@
 --!strict
 -- Car VS Car league-up ceremony (Silver, Gold, Diamond): the big moment around the LEAGUE UP!
 -- screen (Flow.leagueUp). Four beats (vault "Reward Moments and Celebrations"):
---   1 build-up: the world tints the new league's color, a beam of light on your car, a rising run
+--   1 build-up: the world tints the new league's color, a beam of light on your car
 --   2 reveal:   (Gold, Diamond) one soft white flash, then the screen with the league's rays
 --               behind the new badge, more confetti, the league's name and its real reward
 --               (bigger race prizes); Diamond shakes the badge and says TOP LEAGUE!
 --   3 AWESOME! shows last, after `hold` seconds, so a tapping kid doesn't skip it
 --   4 after:    (Gold, Diamond) fireworks pop over your car, then the world tint fades
+-- Sound: one Sfx.fireworks() at the start (the SOUNDS row owns it), nothing else.
 -- What each league adds is League.CEREMONY. Reduced motion keeps the colors, words and sounds
 -- and drops the flash, shake, beam and fireworks.
 local Lighting = game:GetService("Lighting")
@@ -152,7 +153,6 @@ local function firework(at: Vector3, color: Color3, i: number)
 		e.Rate = 0
 		e.Parent = p
 		e:Emit(45)
-		Sfx.speedUp()
 	end)
 	task.delay(2.2, function()
 		p:Destroy()
@@ -229,15 +229,12 @@ function LeagueUp.play(from: number, to: number, closed: (() -> ())?)
 	if not calm then
 		beam(at, color)
 	end
-	Sfx.levelUp()
+	-- the one league-up sound (the SOUNDS row's "leagueUp" cue)
+	Sfx.fireworks()
 	task.wait(BUILD_UP)
 	-- 2 reveal
 	if c.flash and not calm then
 		flash()
-	end
-	Sfx.fireworks()
-	if c.top then
-		task.delay(0.6, Sfx.cheer)
 	end
 	local done = false
 	local function after()
