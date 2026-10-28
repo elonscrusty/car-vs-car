@@ -33,7 +33,10 @@ local IDS = {
 local function oldSave(): any
 	local garage = {}
 	for i, id in IDS do
-		table.insert(garage, { uid = tostring(i), id = id, speed = i * 7.5, turn = 20, boost = 33.3 })
+		table.insert(
+			garage,
+			{ uid = tostring(i), id = id, speed = i * 7.5, turn = 20, boost = 33.3 }
+		)
 	end
 	local cars = {}
 	for _, id in IDS do
@@ -76,39 +79,42 @@ local function withoutTraining<T>(f: () -> T): T
 	return out
 end
 
-test("smash save: an old save with 10 cars + coins loads with all 10 cars and every coin", function()
-	local d = withoutTraining(function()
-		return Profile.migrate(oldSave())
-	end)
-	eq(d.version, Profile.VERSION)
-	eq(#d.garage, 10)
-	for i, id in IDS do
-		eq(d.garage[i].uid, tostring(i))
-		eq(d.garage[i].id, id)
+test(
+	"smash save: an old save with 10 cars + coins loads with all 10 cars and every coin",
+	function()
+		local d = withoutTraining(function()
+			return Profile.migrate(oldSave())
+		end)
+		eq(d.version, Profile.VERSION)
+		eq(#d.garage, 10)
+		for i, id in IDS do
+			eq(d.garage[i].uid, tostring(i))
+			eq(d.garage[i].id, id)
+		end
+		eq(d.coins, 12345 + 40) -- the pile's whole coins move in
+		eq(d.pile, 0)
+		eq(d.racer, "3") -- the car you drive stays picked
+		for _, id in IDS do
+			truthy(d.cars[id], id)
+		end
+		-- training is gone
+		eq(#d.stations, 0)
+		eq(d.plotLevel, 0)
+		eq(d.track, nil)
+		eq(d.trackKind, "race")
+		for _, c in d.garage do
+			eq(c.speed + c.turn + c.boost, 0)
+		end
+		-- the rest stays
+		eq(d.league, 2)
+		eq(d.trophies, 30)
+		eq(d.crates, 2)
+		eq(d.dayStreak, 4)
+		truthy(d.picked)
+		eq(d.nextUid, 11) -- a new car never gets an old car's uid
+		eq(Profile.addCar(d, "zoomer").uid, "11")
 	end
-	eq(d.coins, 12345 + 40) -- the pile's whole coins move in
-	eq(d.pile, 0)
-	eq(d.racer, "3") -- the car you drive stays picked
-	for _, id in IDS do
-		truthy(d.cars[id], id)
-	end
-	-- training is gone
-	eq(#d.stations, 0)
-	eq(d.plotLevel, 0)
-	eq(d.track, nil)
-	eq(d.trackKind, "race")
-	for _, c in d.garage do
-		eq(c.speed + c.turn + c.boost, 0)
-	end
-	-- the rest stays
-	eq(d.league, 2)
-	eq(d.trophies, 30)
-	eq(d.crates, 2)
-	eq(d.dayStreak, 4)
-	truthy(d.picked)
-	eq(d.nextUid, 11) -- a new car never gets an old car's uid
-	eq(Profile.addCar(d, "zoomer").uid, "11")
-end)
+)
 
 test("smash save: loading it again (and again) changes nothing", function()
 	withoutTraining(function()
@@ -224,33 +230,41 @@ test("smash league: matchDone pays, counts and moves the league up, never down",
 end)
 
 -- A normal kid (sim, 20 min a day, ~6 matches): places spread over 1..8, 0-6 smashes.
-test("smash league: a normal kid reaches Silver ~35 min, Gold ~1.5 h, Diamond in 10-18 days", function()
-	local seedState = 12345
-	local function rand(n: number): number
-		seedState = (seedState * 1103515245 + 12345) % 2147483648
-		return seedState % n + 1
-	end
-	local function minutesTo(league: number): number
-		local d = kid()
-		local m = 0
-		while d.league < league do
-			m += 3.5 -- 3:00 match + results and the next start
-			League.matchDone(d, rand(8), rand(7) - 1)
+test(
+	"smash league: a normal kid reaches Silver ~35 min, Gold ~1.5 h, Diamond in 10-18 days",
+	function()
+		local seedState = 12345
+		local function rand(n: number): number
+			seedState = (seedState * 1103515245 + 12345) % 2147483648
+			return seedState % n + 1
 		end
-		return m
+		local function minutesTo(league: number): number
+			local d = kid()
+			local m = 0
+			while d.league < league do
+				m += 3.5 -- 3:00 match + results and the next start
+				League.matchDone(d, rand(8), rand(7) - 1)
+			end
+			return m
+		end
+		local silver, gold, diamond = 0, 0, 0
+		local runs = 20
+		for _ = 1, runs do
+			silver += minutesTo(2) / runs
+			gold += minutesTo(3) / runs
+			diamond += minutesTo(4) / runs
+		end
+		print(
+			`  Silver {math.floor(silver)} min, Gold {math.floor(gold)} min, Diamond day {string.format(
+				"%.1f",
+				diamond / 20
+			)}`
+		)
+		truthy(silver >= 25 and silver <= 45, `Silver {silver} min`)
+		truthy(gold >= 60 and gold <= 120, `Gold {gold} min`)
+		truthy(diamond / 20 >= 10 and diamond / 20 <= 18, `Diamond day {diamond / 20}`)
 	end
-	local silver, gold, diamond = 0, 0, 0
-	local runs = 20
-	for _ = 1, runs do
-		silver += minutesTo(2) / runs
-		gold += minutesTo(3) / runs
-		diamond += minutesTo(4) / runs
-	end
-	print(`  Silver {math.floor(silver)} min, Gold {math.floor(gold)} min, Diamond day {string.format("%.1f", diamond / 20)}`)
-	truthy(silver >= 25 and silver <= 45, `Silver {silver} min`)
-	truthy(gold >= 60 and gold <= 120, `Gold {gold} min`)
-	truthy(diamond / 20 >= 10 and diamond / 20 <= 18, `Diamond day {diamond / 20}`)
-end)
+)
 
 test("smash jobs: smash 10 karts, play 3 matches, open a crate (and back)", function()
 	DailyJobs.useCvc(true)
@@ -261,7 +275,10 @@ test("smash jobs: smash 10 karts, play 3 matches, open a crate (and back)", func
 			ids[j.id] = true
 			truthy(DailyJobs.EVENTS[j.event] ~= nil, `{j.id}: event {j.event} is not sent`)
 			truthy(j.goal >= 1 and j.goal <= 10, `{j.id}: goal {j.goal}`)
-			truthy(j.event ~= "train" and j.event ~= "coach" and string.sub(j.event, 1, 4) ~= "race", j.id)
+			truthy(
+				j.event ~= "train" and j.event ~= "coach" and string.sub(j.event, 1, 4) ~= "race",
+				j.id
+			)
 		end
 	end
 	truthy(ids.smash10 and ids.match3 and ids.crate, "the three jobs are there")

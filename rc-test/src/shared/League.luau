@@ -71,10 +71,10 @@ end
 -- ===== Car VS Car SMASH (plans/smash/MASTER-PLAN.md): leagues by smashes and place =====
 -- Every match gives trophies: a few for the place, one per smash (up to SMASH_TROPHY_CAP, so
 -- farming one match can't skip a league). The league only needs trophies now (no training, so
--- no car strength). First guesses for a normal kid (~3.5 trophies a 3-min match, about 1 a
--- minute): Silver after ~35 min, Gold ~90 min, Diamond ~220 min (day 11 at 20 min a day), the
+-- no car strength). First guesses for a normal kid (~5 trophies a 3-min match, about 1.5 a
+-- minute; tests/smash_save): Silver ~35 min, Gold ~1.5 h, Diamond about day 12 at 20 min a day, the
 -- same pace as the racing game's sim (Silver 34 min, Gold 85 min, Diamond day 10.6).
-League.SMASH_NEED = { 0, 35, 90, 220 }
+League.SMASH_NEED = { 0, 55, 140, 400 }
 League.PLACE_TROPHIES = { 3, 2, 1 } -- 1st, 2nd, 3rd; 4th and on get 0
 League.SMASH_TROPHY_CAP = 5
 -- match coins: League.PLACE_PAY for the top 3, MATCH_PAY for 4th and on, plus SMASH_PAY a
@@ -96,7 +96,8 @@ function League.matchTrophies(place: number, smashes: number): number
 	if p <= 0 then
 		return 0
 	end
-	return (League.PLACE_TROPHIES[p] or 0) + math.min(count(smashes, League.MAX_SMASHES), League.SMASH_TROPHY_CAP)
+	return (League.PLACE_TROPHIES[p] or 0)
+		+ math.min(count(smashes, League.MAX_SMASHES), League.SMASH_TROPHY_CAP)
 end
 
 -- Coins for one match in league `league` (place 0 = left before the end: nothing).
