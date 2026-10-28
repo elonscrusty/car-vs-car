@@ -171,7 +171,7 @@ test("flow: coins buy a plot level, a station upgrade and a crate", function()
 	local data = Profile.new()
 	CvcRules.setUp(data)
 	CvcRules.pick(data, CarStats.STARTERS[1])
-	data.coins = 300 + 100 + 300
+	data.coins = (Training.plotCost(0) :: number) + (Training.upgradeCost(1) :: number) + 300
 	truthy(CvcRules.levelUp(data))
 	eq(#data.stations, 2)
 	eq(data.stations[2].kind, "ramp")

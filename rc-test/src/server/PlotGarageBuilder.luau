@@ -66,8 +66,9 @@ local function paint(base: BasePart, top: string, bottom: string)
 	gui.PixelsPerStud = ppu
 	gui.LightInfluence = 0
 	gui.Parent = base
-	-- dark on the pale locked pad (white and yellow washed out: Studio score 21)
-	local colors = { Color3.fromRGB(40, 52, 40), Color3.fromRGB(176, 70, 10) }
+	-- quiet dark green on the grass-green locked pad: there, not shouting (carter 10-28: the
+	-- old big LOCKED words were most of what you saw from the stand)
+	local colors = { Color3.fromRGB(60, 100, 50), Color3.fromRGB(60, 100, 50) }
 	for k, text in { top, bottom } do
 		local line = PlotTraining.PAINT[k]
 		local l = Instance.new("TextLabel")
@@ -80,9 +81,8 @@ local function paint(base: BasePart, top: string, bottom: string)
 		l.Font = Enum.Font.GothamBlack
 		l.TextScaled = true
 		l.TextColor3 = colors[k]
-		l.TextTransparency = 0
-		l.TextStrokeColor3 = Color3.fromRGB(240, 236, 220)
-		l.TextStrokeTransparency = 0.6
+		l.TextTransparency = 0.25
+		l.TextStrokeTransparency = 1
 		l.Text = text
 		l.Parent = gui
 	end
