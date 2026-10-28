@@ -377,3 +377,28 @@ test(
 		truthy(string.find(fb, "function FriendBonus.areFriends", 1, true))
 	end
 )
+
+test("Car VS Car (audit C2): a new kid racing a friend still gets the easy first race", function()
+	local fs = require("@lune/fs")
+	local src = fs.readFile("src/server/ServerRaceRunner.luau")
+	-- a race is easy (easy bots, no catch-up, 1 lap) when ANY racer in it hasn't raced yet
+	truthy(string.find(src, "easy = easy or solo[i]", 1, true), "easy needs every racer new")
+	truthy(not string.find(src, "easy = easy and solo[i]", 1, true))
+	truthy(
+		string.find(src, "groupLaps[gi] = ServerRace.lapsFor(easy)", 1, true),
+		"laps not from easy"
+	)
+	-- solo[i] is only ever true in a first-race map race
+	truthy(
+		string.find(
+			src,
+			'firstRace and not (type(stage) == "number" and stage >= Profile.STAGE.RACED)',
+			1,
+			true
+		),
+		"solo not limited to map races"
+	)
+	-- the kid and their friend share a race
+	local g = ServerRace.groups({ 2, 1 }, 8, { false, true }, { { 1, 2 } })
+	eq(#g, 1)
+end)
