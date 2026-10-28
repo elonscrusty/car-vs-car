@@ -6,6 +6,8 @@
 --   matchEnd: the 12 s break between rounds (VIDEO-STUDY.md). ROUND OVER, "<name> WINS" with the
 --     winner's kart, the top 3 with smashes, your coins and XP popping in, "NEW ROUND STARTING IN
 --     12" (the next round starts by itself), and a small LEAVE back to the lobby.
+--   customize: KARTS / HATS tabs, a grid of your karts (or hats), EQUIP, and the kart you drive
+--     with its hat on a card.
 --   howTo: the 3-step tip over a match (drive, grab a "?", fire), one card at a time.
 -- (the same shapes as UiScreens.Piece / UiScreens.Screen; no require, so Lune tests load it)
 export type Piece = {
@@ -62,6 +64,27 @@ local LIST: { Screen } = {
 			p("Rewards", 526, 104, 230, 168, { anchor = "r" }),
 			p("Count", 128, 292, 500, 40, { anchor = "b" }),
 			p("Leave", 646, 334, 110, 48, { anchor = "br", tone = "white", text = "LEAVE" }),
+		},
+	},
+	{
+		id = "customize",
+		n = 103,
+		title = "Customize",
+		kind = "window",
+		gameplay = false,
+		pieces = {
+			p("Window", 8, 40, 496, 328, {
+				anchor = "l",
+				text = "Customize",
+				inner = {
+					p("Tabs", 14, 14, 240, 44, { tap = true }),
+					p("Grid", 14, 68, 468, 196),
+					p("Equip", 14, 272, 180, 50, { tone = "lime", text = "EQUIP", main = true }),
+					p("Note", 206, 276, 276, 42),
+				},
+			}),
+			-- the kart you drive, with its hat, on a glowing card
+			p("Card", 540, 12, 196, 356, { anchor = "r" }),
 		},
 	},
 	{
@@ -136,6 +159,26 @@ SmashScreens.STEPS = {
 		rot = 90,
 	},
 }
+-- The customize window's EQUIP button for the picked item: its words and whether it works.
+-- item = { own: boolean?, on: boolean? } (a kart in your garage is always owned); offable: the
+-- thing on can be taken off (a hat; you always drive some kart)
+function SmashScreens.equipButton(
+	item: { own: boolean?, on: boolean? }?,
+	offable: boolean?
+): (string, boolean)
+	if not item then
+		return "EQUIP", false
+	elseif item.own == false then
+		return "LOCKED", false
+	elseif item.on then
+		if offable then
+			return "TAKE OFF", true
+		end
+		return "ON", false
+	end
+	return "EQUIP", true
+end
+
 SmashScreens.DRIVE_STUDS = 12 -- driven this far = the drive step is done
 
 -- Which how-to step shows now (4 = all done), from the one showing and what the kid has done:
