@@ -5,6 +5,7 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
+local Features = require(ReplicatedStorage.Shared.Features)
 local GasHint = require(ReplicatedStorage.Shared.GasHint)
 
 local GasHintUi = {}
@@ -64,6 +65,8 @@ function GasHintUi.new(gui: ScreenGui): { set: (on: boolean) -> () }
 
 	return {
 		set = function(show: boolean)
+			-- (SMASH: no GAS button, the stick is the gas; the hint would point at nothing)
+			show = show and (Features :: any).SMASH ~= true
 			on = show
 			label.Visible = show
 		end,
