@@ -1421,7 +1421,18 @@ function Kit.milestones(
 				end
 			end
 		end
-		Base.text(f, "Label" .. i, bx - 10, 42, 60, 14, m.label, { stroke = 3, z = 5 })
+		-- the number beside its box (left of it at the bar's end), big enough to read
+		local right = bx + 40 + 36 <= w
+		Base.text(
+			f,
+			"Label" .. i,
+			if right then bx + 44 else bx - 40,
+			12,
+			36,
+			22,
+			m.label,
+			{ stroke = 4.5, align = if right then "l" else "r", z = 5 }
+		)
 	end
 	return f
 end
@@ -1519,7 +1530,20 @@ function Kit.card(
 	Base.corner(card, C.card)
 	Base.outline(card, 5)
 	Kit.gloss(card, glow, 0.5, 70)
-	local clip = Base.box(card, "Clip", 6, 6, w - 12, h - 12, 1)
+	-- clipping is lost on a tilted frame, so a tilted card's pattern goes in a CanvasGroup
+	local clip: GuiObject
+	if tilt.Rotation ~= 0 then
+		local cg = Instance.new("CanvasGroup")
+		cg.Name = "Clip"
+		cg.BackgroundTransparency = 1
+		cg.ZIndex = 1
+		cg.Parent = card
+		Base.at(cg, 6, 6, w - 12, h - 12)
+		Base.corner(cg, C.card - 6)
+		clip = cg
+	else
+		clip = Base.box(card, "Clip", 6, 6, w - 12, h - 12, 1)
+	end
 	Pattern.attach(clip)
 	local yy = 12
 	if opts.ribbon then

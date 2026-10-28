@@ -100,14 +100,25 @@ local function scroller(
 	sf.Parent = parent
 	Base.at(sf, x, y, w, h)
 	local total = math.max(h, contentH)
-	sf.CanvasSize = UDim2.fromScale(0, total / h)
+	-- the list is as wide as the scroller and keeps the design shape (Scale inside a
+	-- ScrollingFrame is not to be trusted), and the scroll room follows its real height
 	local list = Instance.new("Frame")
 	list.Name = "List"
 	list.BackgroundTransparency = 1
-	list.Size = UDim2.fromScale(1, 1)
+	list.Size = UDim2.fromScale(1, 0)
 	list:SetAttribute("DW", w)
 	list:SetAttribute("DH", total)
+	local ar = Instance.new("UIAspectRatioConstraint")
+	ar.AspectRatio = w / total
+	ar.AspectType = Enum.AspectType.ScaleWithParentSize
+	ar.DominantAxis = Enum.DominantAxis.Width
+	ar.Parent = list
 	list.Parent = sf
+	local function room()
+		sf.CanvasSize = UDim2.fromOffset(0, list.AbsoluteSize.Y)
+	end
+	list:GetPropertyChangedSignal("AbsoluteSize"):Connect(room)
+	room()
 	return list
 end
 
@@ -181,11 +192,11 @@ function Windows.crates(data: { [string]: any }, actions: Screen.Actions?): Scre
 					c,
 					"Word" .. i,
 					pc.x - 8,
-					pc.y + 68,
+					pc.y + 74,
 					80,
 					14,
 					ch.word or "",
-					{ color = Base.color("inkMuted"), z = 3 }
+					{ color = Base.color("inkMuted"), z = 7 }
 				)
 				s.button.Activated:Connect(function()
 					show(i)

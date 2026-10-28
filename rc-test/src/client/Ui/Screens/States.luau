@@ -17,7 +17,7 @@ local States = {}
 function States.open(): Screen.Handle
 	return Screen.open("states", "full", true, function(g)
 		Kit.backdrop(g.back :: ScreenGui, "showroom")
-		local c = g.canvas
+		local c = Base.stage(g.canvas)
 		-- row 1: buttons
 		Kit.button(c, "Normal", 20, 16, 150, 58, "lime", "NORMAL")
 		local pressed = Kit.button(c, "Pressed", 190, 16, 150, 58, "lime", "PRESSED")

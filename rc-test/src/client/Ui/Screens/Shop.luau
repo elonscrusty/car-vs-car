@@ -95,7 +95,8 @@ end
 -- actions: tab(i), buyOffer(), buySale(), buyMini(i), close()
 function Shop.open(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
 	return Screen.open("shop", "window", true, function(g)
-		local c = g.canvas
+		-- one picture kept to the phone shape, so nothing stretches on a wide screen
+		local c = Base.stage(g.canvas)
 		if g.back then
 			Kit.scrim(g.back)
 		end
@@ -123,17 +124,22 @@ function Shop.open(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 		local offer = data.offer or {}
 		local of =
 			card(offerSpot, op.w, op.h, Color3.fromRGB(255, 194, 26), Base.color("pink"), 20, 22)
-		local stripe =
-			Base.fill(of, "Middle", op.w * 0.3, 0, op.w * 0.3, op.h, Base.color("boost"), 1)
-		stripe.BackgroundTransparency = 0.55
+		local run = of:FindFirstChildOfClass("UIGradient")
+		if run then
+			run.Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 194, 26)),
+				ColorSequenceKeypoint.new(0.45, Base.color("boost")),
+				ColorSequenceKeypoint.new(1, Base.color("pink")),
+			})
+		end
 		Kit.tag(of, 16, 8, "BEST DEAL", "danger", 24, 8)
 		Base.text(
 			of,
 			"Name",
 			16,
-			26,
+			36,
 			300,
-			38,
+			36,
 			offer.title or "Rainbow Pack!",
 			{ stroke = 7, drop = 4, align = "l", z = 4 }
 		)
@@ -141,13 +147,16 @@ function Shop.open(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 			of,
 			"Sub",
 			16,
-			66,
+			76,
 			300,
 			17,
 			offer.sub or "3 rainbow skins + a sparkle trail",
 			{ stroke = 4, align = "l", z = 4 }
 		)
-		struck(of, 16, 114, 90, 22, offer.old or "R$ 399")
+		-- Robux prices are carter's to set: none is made up here (the old price shows only if given)
+		if offer.old then
+			struck(of, 16, 114, 90, 22, offer.old)
+		end
 		local ob = piece("shop", "Offer.Buy")
 		Kit.button(of, "Buy", ob.x, ob.y - 6, ob.w, ob.h, "lime", offer.price or ob.text or "", {
 			main = true,
