@@ -1,7 +1,7 @@
 --!strict
--- Toy car looks (carter 10-28 "use all of it"): every car has its own low-poly shape and accent,
--- each stays the grey race body's size and the phone part budget, and the wheels sit where the
--- race car's springs put them.
+-- Toy kart looks (carter 10-28 "use all of it"): every car has its own low-poly shape and accent
+-- in the look rule's palette, a driver and a WeaponMount, stays the grey race body's length and the
+-- phone part budget, and its wheels sit where the race car's springs put them.
 local H = require("./harness")
 local CarCatalog = require("../src/shared/CarCatalog")
 local Garage = require("../src/shared/Garage")
@@ -42,6 +42,8 @@ test("all 24 cars have their own look: a real shape and accent, no two the same"
 		truthy(ToyCars.WHEELS[bits[1]] ~= nil, `{c.id}: no shape {bits[1]}`)
 		truthy(ToyCars.ACCENTS[bits[2] or ""] ~= nil, `{c.id}: no accent {bits[2]}`)
 		truthy(bits[3] == nil or bits[3] == "glow", `{c.id}: {look}`)
+		-- underglow on rare cars and up, none on commons
+		eq(bits[3] == "glow", c.rarity ~= "common")
 		truthy(seen[look] == nil, `{c.id} looks like {seen[look]}`)
 		seen[look] = c.id
 	end
@@ -60,60 +62,85 @@ test("the old looks and unknown ones still draw a car", function()
 	eq(ToyCars.parse("drift").shape, "coupe")
 	eq(ToyCars.parse("rock").shape, "crawler")
 	eq(ToyCars.parse(nil).shape, "muscle")
-	eq(ToyCars.parse("nope/nope").accent, ToyCars.ACCENTS.dark)
+	eq(ToyCars.parse("nope/nope").accent, ToyCars.PALETTE.yellow)
 	truthy(ToyCars.parse("truck/purple/glow").glow)
 end)
 
-test("every look: 16 parts at most, four wheels one per corner, the grey body's size", function()
+test("every kart: 16 parts at most, four wheels one per corner, a driver, a WeaponMount", function()
 	for _, shape in ToyCars.SHAPES do
 		for _, style in { shape .. "/white", shape .. "/white/glow" } do
 			local ps = pieces(style)
 			truthy(#ps <= 16, `{style}: {#ps} parts`)
 			local corners: { [string]: number } = {}
 			local minX, maxX, minZ, maxZ = math.huge, -math.huge, math.huge, -math.huge
-			local body = 0
+			local named: { [string]: number } = {}
 			for _, p in ps do
 				if p.name == "Wheel" then
 					local k = (if p.pos.z < 0 then "F" else "R")
 						.. (if p.pos.x < 0 then "L" else "R")
 					corners[k] = (corners[k] or 0) + 1
 					eq(math.abs(p.pos.z), ToyCars.WHEEL_Z)
-				elseif p.name ~= "Hub" then
+				elseif p.name ~= "Hub" and name ~= "Head" then
 					minX = math.min(minX, p.pos.x - p.size.x / 2)
 					maxX = math.max(maxX, p.pos.x + p.size.x / 2)
 					minZ = math.min(minZ, p.pos.z - p.size.z / 2)
 					maxZ = math.max(maxZ, p.pos.z + p.size.z / 2)
-					if p.name == "Body" then
-						body += 1
-					end
+					named[p.name] = (named[p.name] or 0) + 1
 				end
 				truthy(p.collide == false, `{style}: {p.name} is solid`)
 			end
 			for _, k in { "FL", "FR", "RL", "RR" } do
 				eq(corners[k], 1)
 			end
-			eq(body, 1) -- the one part the race paints the car's colour
+			-- Body: the one part the race paints the car's colour; WeaponMount: where rockets go
+			for _, name in { "Body", "Driver", "Head", "WeaponMount", "Headlights", "Taillights" } do
+				eq(named[name], 1)
+			end
 			local len, wide = maxZ - minZ, maxX - minX
 			truthy(
 				math.abs(len - Garage.TOY_LENGTH) <= 0.1 * Garage.TOY_LENGTH,
 				`{style} {len} long`
 			)
-			truthy(math.abs(wide - 2) <= 0.2, `{style} {wide} wide`)
+			-- no wider than its wheels (the deck covers their tops)
+			truthy(wide <= 2 * ToyCars.halfWidth(style) + 0.01, `{style} {wide} wide`)
 		end
 	end
 end)
 
-test("glow lights up the accent bits and adds no parts", function()
-	for _, shape in ToyCars.SHAPES do
-		local plain, glow = pieces(shape .. "/cyan"), pieces(shape .. "/cyan/glow")
-		eq(#glow, #plain)
-		local lit = 0
-		for _, p in glow do
-			if p.material == "Neon" and p.color == ToyCars.ACCENTS.cyan then
-				lit += 1
+test(
+	"underglow: the floor lights up in the accent, no extra parts; rims take the accent",
+	function()
+		for _, shape in ToyCars.SHAPES do
+			local plain, glow = pieces(shape .. "/sky"), pieces(shape .. "/sky/glow")
+			eq(#glow, #plain)
+			for _, p in glow do
+				if p.name == "Floor" then
+					eq(p.material, "Neon")
+					-- the accent, softer (a phone screen isn't blinded)
+					eq(p.color[3], math.floor(ToyCars.PALETTE.sky[3] * 0.6))
+				elseif p.name == "Hub" then
+					eq(p.color, ToyCars.PALETTE.sky)
+				end
+			end
+			for _, p in plain do
+				if p.name == "Floor" then
+					truthy(p.material ~= "Neon", `{shape}: glows without glow`)
+				end
 			end
 		end
-		truthy(lit >= 1, `{shape}: nothing glows`)
+		eq(ToyCars.rim("muscle/navy"), ToyCars.PALETTE.white) -- navy rims would vanish
+	end
+)
+
+test("every car's colour is from the look rule's palette", function()
+	for _, c in allCars() do
+		local found = false
+		for _, col in ToyCars.PALETTE do
+			if col[1] == c.color[1] and col[2] == c.color[2] and col[3] == c.color[3] then
+				found = true
+			end
+		end
+		truthy(found, `{c.id}: colour not in the palette`)
 	end
 end)
 
@@ -124,3 +151,46 @@ test("wheels stay near the race car's own (springs hold them: big tyres would si
 		truthy(w.wd >= own - 0.15 and w.wd <= own + 0.2, `{shape} wheels {w.wd}`)
 	end
 end)
+
+test(
+	"review fixes: navy underglow still shows; every kart has a hat spot; the mount is clear",
+	function()
+		for _, p in pieces("wedge/navy/glow") do
+			if p.name == "Floor" then
+				truthy(p.color[3] > 100, "navy underglow reads as black")
+			end
+		end
+		local fs = require("@lune/fs")
+		local builder = fs.readFile("src/server/CarBuilder.luau")
+		truthy(string.find(builder, 'topper.Name = "Topper"', 1, true), "no Topper attachment")
+		-- nothing but the deck and floor under the WeaponMount's square (the head is above it)
+		for _, shape in ToyCars.SHAPES do
+			local ps = pieces(shape .. "/white")
+			local mount: any
+			for _, p in ps do
+				if p.name == "WeaponMount" then
+					mount = p
+				end
+			end
+			for _, p in ps do
+				local name = p.name
+				if
+					name ~= "WeaponMount"
+					and name ~= "Body"
+					and name ~= "Floor"
+					and name ~= "Hub"
+					and name ~= "Head"
+				then
+					local overZ = math.abs(p.pos.z - mount.pos.z)
+						< (p.size.z + mount.size.z) / 2 - 0.02
+					local overX = math.abs(p.pos.x - mount.pos.x) < (p.size.x + mount.size.x) / 2
+					local overY = p.pos.y + p.size.y / 2 > mount.pos.y - mount.size.y / 2 + 0.02
+					truthy(
+						not (overZ and overX and overY),
+						`{shape}: {name} covers the WeaponMount`
+					)
+				end
+			end
+		end
+	end
+)

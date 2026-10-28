@@ -178,7 +178,8 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 
 	local hidden: { [BasePart]: number } = {}
 	for _, d in car.model:GetDescendants() do
-		if d:IsA("BasePart") then
+		-- (a kart topper the server welds on, Model "Hat", stays shown on the skin's roof)
+		if d:IsA("BasePart") and not d:FindFirstAncestor("Hat") then
 			hidden[d] = d.Transparency
 			d.Transparency = 1
 		end
