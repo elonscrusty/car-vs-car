@@ -95,7 +95,10 @@ function Flight.weapon(name: string, Weapons: any): { [string]: any }
 						warn("[Flight] damage failed: " .. tostring(err))
 					end
 				end
-				ctx.fx("RocketBoom", { id = f.id, kind = name, pos = f.r.pos, hit = direct })
+				ctx.fx(
+					"RocketBoom",
+					{ id = f.id, kind = name, pos = f.r.pos, hit = direct, owner = owner }
+				)
 			else
 				local now = ctx.now()
 				local bent = vector.dot(f.r.dir, f.sentDir) < math.cos(math.rad(Flight.TURN_DEG))
