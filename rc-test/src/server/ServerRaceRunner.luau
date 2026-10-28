@@ -850,7 +850,11 @@ local function runRace(hooks: Hooks, slot: number)
 					local lx, ly, lz = TrackData.toLocal(t, true, pos.X, pos.Y, pos.Z)
 					local onLine = LapTimer.inside(gate1, lx, ly, lz)
 					if clock < goAt then
-						if onLine then
+						-- (a new kid's first race never has a jump start: the clock is theirs)
+						if
+							ServerRace.overLine(gate1, lx, ly, lz)
+							and not (groupEasy[gi] and r.new)
+						then
 							r.jumped, r.waitLeave = true, true
 						end
 					elseif not r.started then
@@ -997,13 +1001,21 @@ local function runRace(hooks: Hooks, slot: number)
 			end
 			-- nobody left racing, or the race is done
 			local anyIn = false
+			-- (a first race is over the moment its new kids are in: they won, the bots waited for
+			-- them; carter's phone run drove on 20 s after FINISH! with nothing to tap)
+			local kidsIn, kidsLeft = false, false
 			for _, r in racers do
 				anyIn = anyIn or (not r.out and r.time == nil)
+				if r.new and not r.out then
+					kidsIn = true
+					kidsLeft = kidsLeft or r.time == nil
+				end
 			end
 			local since = clock - goAt
 			local limit = if t.map then ServerRace.MAP_TIME_LIMIT else nil
 			if
 				(not anyIn and since > 0)
+				or (groupEasy[gi] and kidsIn and not kidsLeft and since > 0)
 				or ServerRace.over(entries, since, firstAt, limit, afterWin)
 			then
 				-- (a first race on the time limit: the new kid who drove is in, at the end's time,

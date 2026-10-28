@@ -152,6 +152,20 @@ end
 
 -- Grid spot k on a race plot (its Plots module): lined up behind the start line, the pole as
 -- far back as the plot's own start spot. `y` = the start spot's height.
+-- Over the start line before GO (a jump start: that car's laps count from its next time over)?
+-- Past the line's middle, not just inside its gate: the pole sits only 2 units behind the gate's
+-- back edge (BACK 14, gate depth 12), so a car that crept forward a little was taken as a jump
+-- and its whole race went wrong (carter's phone run 10-28: 2ND to 8TH at GO, never finished).
+function ServerRace.overLine(g: any, x: number, y: number, z: number): boolean
+	local rx, rz = x - g.x, z - g.z
+	local along = rx * g.dx + rz * g.dz
+	local across = rx * -g.dz + rz * g.dx
+	return along > 0
+		and along <= g.depth
+		and math.abs(across) <= g.halfWidth
+		and math.abs(y - g.y) <= 14
+end
+
 function ServerRace.gridOn(plot: any, k: number, y: number): Spawn
 	return ServerRace.grid(plot.loop(), plot.lineSample(), ServerRace.BACK, k, y)
 end

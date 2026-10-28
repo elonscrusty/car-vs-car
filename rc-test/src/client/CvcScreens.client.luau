@@ -849,7 +849,10 @@ RunService.Heartbeat:Connect(function()
 	local raw = workspace:GetAttribute("NextRaceAt")
 	local left = if type(raw) == "number" then raw - workspace:GetServerTimeNow() else nil
 	local inIt = attr("RaceJoined") == true
-	local t = if left and left > 0 then clock(left) else nil
+	-- (a new kid's first race starts a few seconds after their tap, so no clock to run out: carter's
+	-- phone run 10-28 watched RACE! 0:01 hit 0 with nothing happening)
+	local firstRace = num("Stage") < Profile.STAGE.RACED
+	local t = if left and left > 0 and not firstRace then clock(left) else nil
 	if inIt then
 		api.setNextUp(
 			if t then `BIG RACE in {t}` else "BIG RACE soon",
