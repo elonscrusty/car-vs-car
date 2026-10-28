@@ -454,7 +454,15 @@ function Garage.toyCar(
 		end
 		-- one hub bar through the axle shows as both wheels' rims (hidden in the body between)
 		local hub = 0.45 * wd
-		put("Hub", v(2 * wx + ww + 0.02, hub, hub), 0, wd / 2, wz, C.rim, { shape = "Cylinder" })
+		put(
+			"Hub",
+			v(2 * wx + ww + 0.02, hub, hub),
+			0,
+			wd / 2,
+			wz,
+			ToyCars.rim(style),
+			{ shape = "Cylinder" }
+		)
 	end
 	ToyCars.body(put, color, style)
 end
