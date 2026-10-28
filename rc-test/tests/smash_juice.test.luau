@@ -28,6 +28,8 @@ test("smash juice: long names are cut so they fit a phone", function()
 	eq(SmashJuice.shortName("BottyMcBotface"), "BottyMcBotface")
 	eq(SmashJuice.shortName("SilenceWillFallForever"), "SilenceWillFa…")
 	eq(SmashJuice.shortName(""), "?")
+	eq(SmashJuice.shortName("   "), "?")
+	eq(SmashJuice.shortName(" Botty "), "Botty")
 	eq(SmashJuice.shortName("a  \n b"), "a b")
 	eq(SmashJuice.shortName("\255\254"), "?")
 end)
@@ -155,8 +157,8 @@ test(
 		truthy(string.find(handler, "showWord(you", 1, true), "your smash words")
 		truthy(string.find(handler, "SmashJuice.deathLine", 1, true), "smashed-by words")
 		truthy(
-			string.find(src, "RenderPriority.Camera.Value + 1", 1, true),
-			"after the camera runs"
+			string.find(src, "RenderPriority.Camera.Value + 3", 1, true),
+			"after the chase camera (+1) and plot camera (+2)"
 		)
 		truthy(string.find(src, "[SmashFx] shown in", 1, true), "timing log for the 0.1 s target")
 		-- driving stays LOCKED: no car or chase camera code is touched

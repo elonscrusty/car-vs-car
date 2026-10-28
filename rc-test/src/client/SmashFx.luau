@@ -169,13 +169,13 @@ function SmashFx.start()
 	local live = 0
 
 	local function confetti(n: number)
-		local count = 0
+		local thrown = 0
 		for _, b in bits do
-			if count >= n then
+			if thrown >= n then
 				break
 			end
 			if b.life <= 0 then
-				count += 1
+				thrown += 1
 				b.life = rng:NextNumber(1.1, 1.6)
 				b.vx = rng:NextNumber(-0.55, 0.55)
 				b.vy = rng:NextNumber(-0.75, -0.35)
@@ -219,6 +219,8 @@ function SmashFx.start()
 	local killAt = 0
 	local killFrom = CFrame.identity
 	local killer: SmashJuice.Side? = nil
+	local killerModel: Instance? = nil -- the kart, once found (no tag scan every frame)
+	local lastWant: CFrame? = nil
 	local shownCount: number? = nil
 
 	local function feel(f: SmashJuice.Feel)
@@ -232,7 +234,7 @@ function SmashFx.start()
 	-- where the killer's kart is: the kart the server named, a tagged "Kart" model with their
 	-- OwnerId / KartName, or their character
 	local function killerAt(s: SmashJuice.Side): CFrame?
-		local k = s.kart
+		local k = killerModel or s.kart
 		if k and k:IsDescendantOf(workspace) then
 			if k:IsA("Model") then
 				return k:GetPivot()
@@ -249,6 +251,7 @@ function SmashFx.start()
 					or (not s.userId and m:GetAttribute("KartName") == s.name)
 				)
 			then
+				killerModel = m
 				return m:GetPivot()
 			end
 		end
@@ -263,13 +266,15 @@ function SmashFx.start()
 	local function endKillcam()
 		killcam = false
 		killer = nil
+		killerModel = nil
+		lastWant = nil
 		shownCount = nil
 		count.Visible = false
 	end
 
 	RunService:BindToRenderStep(
 		"SmashFx",
-		Enum.RenderPriority.Camera.Value + 1,
+		Enum.RenderPriority.Camera.Value + 3,
 		function(dt: number)
 			if pending then
 				local ms = (os.clock() - pending) * 1000
@@ -277,12 +282,17 @@ function SmashFx.start()
 				if #timings > 20 then
 					table.remove(timings, 1)
 				end
-				print(string.format("[SmashFx] shown in %d ms", math.floor(ms + 0.5)))
+				if RunService:IsStudio() then
+					print(string.format("[SmashFx] shown in %d ms", math.floor(ms + 0.5)))
+				end
 				pending = nil
 			end
 			fps += ((1 / math.max(dt, 1 / 240)) - fps) * math.min(dt * 2, 1)
 			local cam = workspace.CurrentCamera
 			if cam then
+				-- the default camera (walking) builds on last frame's view, so only a Scriptable
+				-- camera (the chase camera) gets the shake and the killer view; the zoom is fine on both
+				local scriptable = cam.CameraType == Enum.CameraType.Scriptable
 				if cam.CFrame == outCf then
 					cam.CFrame = baseCf
 				end
@@ -315,9 +325,13 @@ function SmashFx.start()
 									+ Vector3.yAxis * SmashJuice.KILLCAM_UP,
 								pos
 							)
+							lastWant = want
 							cf = killFrom:Lerp(want, SmashJuice.flyAlpha(t))
 						else
-							cf = killFrom -- killer gone: hold still and count
+							-- killer gone: keep looking where it was, and count
+							cf = if lastWant
+								then killFrom:Lerp(lastWant, SmashJuice.flyAlpha(t))
+								else killFrom
 						end
 					end
 				end
@@ -327,14 +341,14 @@ function SmashFx.start()
 					noiseT += dt * SmashJuice.noiseHz(fps)
 					local p, y, r = SmashJuice.tilt(
 						trauma,
-						math.noise(noiseT, seed),
-						math.noise(noiseT, seed + 31),
-						math.noise(noiseT, seed + 67)
+						2 * math.noise(noiseT, seed),
+						2 * math.noise(noiseT, seed + 31),
+						2 * math.noise(noiseT, seed + 67)
 					)
 					cf *= CFrame.Angles(math.rad(p), math.rad(y), math.rad(r))
 					trauma = SmashJuice.decay(trauma, dt)
 				end
-				if cf ~= baseCf then
+				if scriptable and cf ~= baseCf then
 					cam.CFrame = cf
 				end
 				if fov ~= baseFov then
@@ -417,11 +431,12 @@ function SmashFx.start()
 			edge(CHERRY, juice.flash)
 			pending = at
 			-- the killer camera (it's info, so reduced motion keeps it)
-			local cam = workspace.CurrentCamera
 			killcam = true
 			killAt = at
-			killFrom = if cam then cam.CFrame else CFrame.identity
+			killFrom = baseCf
 			killer = other
+			killerModel = nil
+			lastWant = nil
 			shownCount = nil
 		end
 	end
@@ -438,7 +453,7 @@ function SmashFx.start()
 		-- the match server makes it; wait for it without blocking the caller
 		local conn: RBXScriptConnection
 		conn = ReplicatedStorage.ChildAdded:Connect(function(c: Instance)
-			if c.Name == "SmashFeed" then
+			if c.Name == "SmashFeed" and c:IsA("RemoteEvent") then
 				conn:Disconnect()
 				hook(c)
 			end
@@ -447,7 +462,8 @@ function SmashFx.start()
 
 	-- Health (the server sets it): going down is a hit; coming back up is the respawn, which hands
 	-- the camera back
-	local lastHealth: number? = nil
+	local h0 = player:GetAttribute("Health")
+	local lastHealth: number? = if type(h0) == "number" then h0 else nil
 	player:GetAttributeChangedSignal("Health"):Connect(function()
 		local h = player:GetAttribute("Health")
 		if type(h) ~= "number" then
@@ -472,7 +488,7 @@ function SmashFx.boom(at: Vector3)
 	if not cam or not add then
 		return
 	end
-	add(SmashJuice.feel("boom", (cam.Focus.Position - at).Magnitude, Base.reduced()))
+	add(SmashJuice.feel("boom", (cam.CFrame.Position - at).Magnitude, Base.reduced()))
 end
 
 -- the last few "smash arrived → words on screen" times in seconds (for the Studio timing log)

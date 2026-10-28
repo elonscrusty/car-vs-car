@@ -18,7 +18,7 @@ local SmashJuice = {}
 SmashJuice.NAME_MAX = 14 -- longer names get cut, so the words fit a phone
 
 function SmashJuice.shortName(name: string): string
-	local clean = string.gsub(name, "%s+", " ")
+	local clean = string.match(string.gsub(name, "%s+", " "), "^ ?(.-) ?$") :: string
 	local n = utf8.len(clean)
 	if n == nil or n == 0 then
 		return "?"
