@@ -145,7 +145,7 @@ end
 -- gift waits for these too: the UiBusy attribute, Stars.client).
 
 local FULL = { "pick", "reveal", "leagueUp", "podium" }
-local WINDOWS = { "crates", "garage", "shop", "quests", "popup" }
+local WINDOWS = { "crates", "garage", "shop", "quests", "popup", "daily" }
 
 local function anyOpen(list: { string }): boolean
 	for _, id in list do
@@ -182,6 +182,7 @@ local function calm(): boolean
 		and not raceCardUp()
 		and not anyOpen(FULL)
 		and not shown("DailyGift", "StarsTop")
+		and not Screen.isOpen("daily")
 end
 
 local moments: { () -> () } = {}

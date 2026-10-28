@@ -447,7 +447,7 @@ end
 -- plain), the big purple Day 7 gift tile, the streak pill, CLAIM DAY n =====
 
 -- data: { days = { { icon, amount, state = "got" | "today" | "later" } } (6), day7 = words,
---   streak = 3, today = 3 }
+--   streak = 3, today = 3, claimWords? (the button's words; CLAIM DAY n when left out) }
 -- actions: claim(), close()
 function Windows.daily(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
 	return Screen.open("daily", "window", false, function(g)
@@ -568,7 +568,7 @@ function Windows.daily(data: { [string]: any }, actions: Screen.Actions?): Scree
 			"daily",
 			"Window.Claim",
 			Screen.act(actions, "claim"),
-			{ words = "CLAIM DAY " .. tostring(data.today or 1) }
+			{ words = data.claimWords or ("CLAIM DAY " .. tostring(data.today or 1)) }
 		)
 		return {}
 	end)
