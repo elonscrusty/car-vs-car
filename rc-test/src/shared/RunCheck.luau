@@ -50,7 +50,7 @@ function RunCheck.legOk(
 	fromT: number,
 	x: number,
 	z: number,
-	t: number,
+	t: number
 ): boolean
 	local dist = math.sqrt((x - fromX) ^ 2 + (z - fromZ) ^ 2)
 	return dist <= RunCheck.MAX_SPEED.race * math.max(t - fromT, 0) + RunCheck.LEG_SLACK
