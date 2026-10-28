@@ -503,6 +503,10 @@ test("Car VS Car (audit B1): the bots know where the kid is on the road, from pr
 	truthy(string.find(src, "if car.rival then -RaceBots.RIVAL_LEAD else nil", 1, true), "no rival")
 	truthy(string.find(src, "local rival = easy and i == 1", 1, true), "no rival picked")
 	truthy(string.find(src, "then RaceBots.RIVAL_SKILL", 1, true), "rival too slow")
+	truthy(
+		string.find(src, "if car.rival then since else nil", 1, true),
+		"rival follows an old look"
+	)
 	local run = fs.readFile("src/server/ServerRaceRunner.luau")
 	truthy(
 		string.find(
@@ -517,41 +521,49 @@ test("Car VS Car (audit B1): the bots know where the kid is on the road, from pr
 end)
 
 test("Car VS Car: the easy race's rival rides in view, in front of the kid, and loses", function()
-	for _, m in RaceMaps.list() do
-		local route, bot = setup(m, RaceBots.RIVAL_SKILL, 1)
-		route.laps = 1
-		local line = route.total
-		local f = RaceBots.newFollow()
-		local kid, since, seen, samples = 0, 0, 0, 0
-		while since < 200 and kid < line + 40 do
-			kid += 55 * DT -- a new kid, not flat out
-			since += DT
-			local k = if kid < line then kid else nil
-			RaceBots.follow(f, k, since)
-			local cap = RaceBots.followCap(f, bot, -RaceBots.RIVAL_LEAD)
-			local lc = RaceBots.lineCap(route, bot, k)
-			if lc then
-				cap = math.min(cap or lc, lc)
-			end
-			RaceBots.step(route, bot, DT, since, 0, cap)
-			if since > 8 and kid < line - 120 then
-				samples += 1
-				local ahead = bot.dist - kid
-				if ahead > 0 and ahead < RaceBots.RIVAL_LEAD + 15 then
-					seen += 1
+	for _, pace in { 55, 95 } do -- (95: the player's top speed)
+		for _, m in RaceMaps.list() do
+			local route, bot = setup(m, RaceBots.RIVAL_SKILL, 1)
+			route.laps = 1
+			local line = route.total
+			local f = RaceBots.newFollow()
+			local kid, since, seen, samples, heard = 0, 0, 0, 0, 0
+			while since < 200 and kid < line + 40 do
+				kid += pace * DT
+				since += DT
+				local k = if kid < line then kid else nil
+				if since - heard >= 0.25 then
+					heard = since -- (the server hears where the kid is 4 times a second)
+					RaceBots.follow(f, k, since)
+				end
+				local cap = RaceBots.followCap(f, bot, -RaceBots.RIVAL_LEAD, since)
+				local lc = RaceBots.lineCap(route, bot, k)
+				if lc then
+					cap = math.min(cap or lc, lc)
+				end
+				RaceBots.step(route, bot, DT, since, 0, cap)
+				if since > 8 and kid < line - 120 then
+					samples += 1
+					local ahead = bot.dist - kid
+					if ahead > 0 and ahead < RaceBots.RIVAL_LEAD + 15 then
+						seen += 1
+					end
+				end
+				if bot.time ~= nil then
+					truthy(kid >= line, `{m.id}: the rival beat the new kid`)
 				end
 			end
-			if bot.time ~= nil then
-				truthy(kid >= line, `{m.id}: the rival beat the new kid`)
-			end
+			truthy(
+				samples > 0 and seen / samples > 0.8,
+				`{m.id} at {pace}: rival in view {seen}/{samples}`
+			)
+			-- and a rival in front of a stopped kid waits there
+			RaceBots.follow(f, 500, since + 1)
+			RaceBots.follow(f, 500, since + 2)
+			bot.time = nil
+			bot.dist = 500 + RaceBots.RIVAL_LEAD + 1
+			eq(RaceBots.followCap(f, bot, -RaceBots.RIVAL_LEAD), RaceBots.FOLLOW_MIN)
 		end
-		truthy(samples > 0 and seen / samples > 0.8, `{m.id}: rival in view {seen}/{samples}`)
-		-- and a rival in front of a stopped kid waits there
-		RaceBots.follow(f, 500, since + 1)
-		RaceBots.follow(f, 500, since + 2)
-		bot.time = nil
-		bot.dist = 500 + RaceBots.RIVAL_LEAD + 1
-		eq(RaceBots.followCap(f, bot, -RaceBots.RIVAL_LEAD), RaceBots.FOLLOW_MIN)
 	end
 end)
 
