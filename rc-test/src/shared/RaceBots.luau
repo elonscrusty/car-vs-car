@@ -31,7 +31,6 @@ export type Route = {
 	total: number, -- one lap
 	kappa: { number }, -- how sharp the bend is at sample k (1 / radius, big units)
 	gateAt: { number }, -- distance from the line of each lap gate (gate 1 = the line = 0)
-	bendAt: number, -- distance from the line to the end of the first bend (RaceBots.firstBend)
 	laps: number?, -- laps in this race (nil = ServerRace.LAPS)
 }
 
@@ -94,12 +93,14 @@ RaceBots.COLORS = {
 -- as fast as a car trained that far. The first race of a new player uses EASY_SKILL, so they win it.
 RaceBots.BRONZE_SKILL = { 0.62, 0.95 } :: { number }
 -- (audit B1: a new kid lost all 3 recorded first races. Easy bots now finish at least 20% slower
--- than a slow kid in the starter car, never speed up to catch them, and wait for them up to the
--- end of the first bend.)
+-- than a slow kid in the starter car, never speed up to catch them, and stay behind the new kid
+-- for the whole race: RaceBots.follow. Studio live 3: a kid who never steers still came last when
+-- they only waited to the first bend.)
 RaceBots.EASY_SKILL = { 0.4, 0.45 } :: { number }
 RaceBots.EASY_DELAY = 0.6 -- easy bots also wake up this much later at GO (seconds)
-RaceBots.BEND = 0.01 -- a bend is sharper than this (1 / radius, big units): the first bend's start
-RaceBots.HOLD = 0.3 -- an easy bot ahead of the kid before the end of the first bend drives this slow
+RaceBots.FOLLOW_GAP = 30 -- an easy bot stays this far behind the new kid (big units, a few cars)
+RaceBots.FOLLOW_PACE = 0.9 -- ... at about this much of the kid's own pace
+RaceBots.FOLLOW_GAIN = 0.8 -- ... closing (or opening) the gap this fast (1/s)
 
 -- The skill range (lowest, highest) for a race in `league` (1..4; nil = the old fixed range),
 -- or the easy range.
@@ -144,31 +145,6 @@ end
 
 -- The route: the map's centre line starting at `line`, with how sharp each bend is and where
 -- each lap gate sits along it (`gates` = LapTimer gates, gate 1 the start line).
--- Where the first bend ends: the first stretch from the line sharper than BEND, to where it
--- straightens again (distance along the lap; 0 = a road with no bend).
-function RaceBots.firstBend(route: Route): number
-	local k = 1
-	while k <= route.n and route.kappa[k] <= RaceBots.BEND do
-		k += 1
-	end
-	if k > route.n then
-		return 0
-	end
-	while k <= route.n and route.kappa[k] > RaceBots.BEND do
-		k += 1
-	end
-	return if k > route.n then route.total else route.cum[k]
-end
-
--- An easy bot waits for the kid: it is still before the end of the first bend (first lap) and
--- ahead of the leading player (`lead` = their ServerRace.progress, nil = none moving yet).
-function RaceBots.holds(route: Route, bot: Bot, lead: number?): boolean
-	if bot.dist >= route.bendAt then
-		return false
-	end
-	return lead == nil or RaceBots.progress(route, bot) >= lead
-end
-
 function RaceBots.route(loop: { Sample }, line: number, gates: { { x: number, z: number } }): Route
 	local n = #loop
 	local r: Route = {
@@ -181,7 +157,6 @@ function RaceBots.route(loop: { Sample }, line: number, gates: { { x: number, z:
 		total = 0,
 		kappa = {},
 		gateAt = {},
-		bendAt = 0,
 	}
 	for k = 1, n do
 		local s = loop[wrap(line + k - 1, n)]
@@ -219,7 +194,6 @@ function RaceBots.route(loop: { Sample }, line: number, gates: { { x: number, z:
 		end
 		r.gateAt[g] = if g == 1 then 0 else r.cum[at]
 	end
-	r.bendAt = RaceBots.firstBend(r)
 	return r
 end
 
@@ -298,14 +272,14 @@ end
 
 -- Move a bot on by `dt` seconds. `since` = seconds since GO (negative before), `catchUp` in
 -- -1..1: how far it is ahead (+1) or behind (-1) the players, and so slows or speeds up.
--- `hold` = an easy bot waiting for the kid (RaceBots.holds): it drives at HOLD of its pace.
+-- `cap` = the most speed it may drive (an easy bot behind the new kid: RaceBots.followCap).
 function RaceBots.step(
 	route: Route,
 	bot: Bot,
 	dt: number,
 	since: number,
 	catchUp: number,
-	hold: boolean?
+	cap: number?
 )
 	if since < bot.delay then
 		return
@@ -324,8 +298,8 @@ function RaceBots.step(
 	local u = if span > 0 then math.clamp((d - route.cum[k]) / span, 0, 1) else 0
 	local want = bot.limit[k] + (bot.limit[nextK] - bot.limit[k]) * u
 	want *= 1 - catchUp * RaceBots.CATCH_UP
-	if hold then
-		want *= RaceBots.HOLD
+	if cap then
+		want = math.min(want, cap)
 	end
 	if bot.speed < want then
 		bot.speed = math.min(want, bot.speed + RaceBots.ACCEL * dt)
@@ -399,6 +373,92 @@ function RaceBots.progress(route: Route, bot: Bot): number
 		end
 	end
 	return laps * (gates + 1) + passed - math.clamp(nextAt - d, 0, 9999) / 10000
+end
+
+-- Back from progress (ServerRace.progress, a player's) to a distance along the road from the
+-- line, laps included (big units; negative = on the grid). Near enough for the bots to follow.
+function RaceBots.distOf(route: Route, progress: number): number
+	local gates = #route.gateAt
+	local n = math.ceil(progress)
+	local f = n - progress -- the distance to the next gate, / 10000
+	local laps = n // (gates + 1)
+	local passed = n - laps * (gates + 1)
+	local nextAt = if passed <= 0
+		then 0
+		elseif passed < gates then route.gateAt[passed + 1]
+		else route.total
+	return laps * route.total + nextAt - f * 10000
+end
+
+-- The same, from where the car is (`x`, `z`, map-local): its nearest road sample between the
+-- gate it passed and the next one, so a bendy road between two gates can't make it look further
+-- on than it is. Before the line (or no gates), distOf.
+function RaceBots.roadAt(route: Route, progress: number, x: number, z: number): number
+	local gates = #route.gateAt
+	local n = math.ceil(progress)
+	local laps = n // (gates + 1)
+	local passed = n - laps * (gates + 1)
+	if passed <= 0 or gates == 0 then
+		return RaceBots.distOf(route, progress)
+	end
+	local lo = route.gateAt[passed]
+	local hi = if passed < gates then route.gateAt[passed + 1] else route.total
+	local best, at = math.huge, lo
+	for k = 1, route.n do
+		local c = route.cum[k]
+		if c >= lo and c <= hi then
+			local d = (route.x[k] - x) ^ 2 + (route.z[k] - z) ^ 2
+			if d < best then
+				best, at = d, c
+			end
+		end
+	end
+	return laps * route.total + at
+end
+
+-- Where the new kid is and how fast they go, for the easy bots behind them (RaceBots.follow).
+export type Follow = { at: number?, speed: number, kid: number?, t: number }
+
+function RaceBots.newFollow(): Follow
+	return { at = nil, speed = 0, kid = nil, t = 0 }
+end
+
+-- Each frame: how far along the road the furthest new kid is (RaceBots.roadAt; nil = no new kid
+-- racing any more: let go) and the race clock `now` (seconds). The server measures it a few
+-- times a second, so the kid's pace is taken between two different readings.
+function RaceBots.follow(f: Follow, kid: number?, now: number)
+	if kid == nil then
+		f.at, f.kid = nil, nil
+		return
+	end
+	if kid == f.kid then
+		return
+	end
+	local at = kid
+	local dt = now - f.t
+	if f.at ~= nil and dt > 0 then
+		local raw = (at - (f.at :: number)) / dt
+		if raw < 0 then
+			f.speed = 0 -- put back, or turned round: wait for them
+		else
+			raw = math.min(raw, RaceBots.TOP * 1.5)
+			f.speed += (raw - f.speed) * math.min(1, dt * 2)
+		end
+	end
+	f.at, f.kid, f.t = at, kid, now
+end
+
+-- The most an easy bot may drive now: a bit under the kid's pace, and slower the closer it gets
+-- to FOLLOW_GAP behind them (nil = no kid to follow). It never gets past them.
+function RaceBots.followCap(f: Follow, bot: Bot): number?
+	if f.at == nil or bot.time ~= nil then
+		return nil
+	end
+	if bot.dist >= (f.at :: number) then
+		return 0 -- in front (the kid was put back behind it): wait for them to go by
+	end
+	local room = (f.at :: number) - RaceBots.FOLLOW_GAP - bot.dist
+	return math.max(0, f.speed * RaceBots.FOLLOW_PACE + room * RaceBots.FOLLOW_GAIN)
 end
 
 -- Spread of the bots: skill and lane for bot number `i` of `count` (r = a random number 0..1 per
