@@ -54,11 +54,23 @@ PlotTraining.PAD = { w = 24, d = 18 } -- each station pad (x by z)
 -- the station props and the cars' runs on them, this much bigger than they were drawn (so they
 -- read from the stand); ride() and slats() hand back the grown numbers
 PlotTraining.K = 1.15
--- each open pad's sign: w by h studs, its middle at y and `out` studs past the pad's front edge,
--- leaning back `lean` degrees. Big and nearly flat, tipped up at the high stand camera: the back
--- wall is far (Studio 10-28: the old 14 by 3 signs were 5 px tall on a phone) and a taller sign
--- would hide its station.
-PlotTraining.PAD_SIGN = { w = 21, h = 4.5, y = 1.4, lean = 60, out = 0.5 }
+-- each open pad's sign: an upright board w by h studs on two posts, its bottom `low` studs up, at
+-- the pad's edge nearest the middle and facing it (signAt). carter 10-28: players walk round the
+-- plot while their cars train (no high camera), so the signs are read at eye level; up on posts,
+-- you see the station under them.
+PlotTraining.PAD_SIGN = { w = 18, h = 3.6, low = 6 }
+
+-- Where pad i's sign stands (plot-local x, z) and its yaw in degrees (its words face +z turned
+-- by yaw): the back wall's toward the road, the side walls' toward the middle.
+function PlotTraining.signAt(i: number): (number, number, number)
+	local g = PlotTraining.GRID[i]
+	local P = PlotTraining.PAD
+	if math.abs(g.x) > P.w / 2 + 1 and g.z > -40 then
+		local side = if g.x < 0 then 1 else -1 -- the left wall faces +x, the right -x
+		return g.x + side * (P.w / 2 - 0.5), g.z, side * 90
+	end
+	return g.x, g.z + P.d / 2 - 0.5, 0
+end
 PlotTraining.ROOM = { x0 = -14, x1 = 14, z0 = -32, z1 = 30 } -- the garage floor, in the middle
 PlotTraining.NEAR = 220 -- studs: a plot farther from the camera than this stops moving its cars
 PlotTraining.CAR = 1.55 -- toy car size on the stations and stands (times a 3.6-stud car)
@@ -81,7 +93,8 @@ PlotTraining.STANDS = STANDS
 PlotTraining.SHELF = { x = 28, z = -53.2, w = 18, y = 8 } -- the trophy shelf, high on the back wall
 -- the scoreboard on the back wall over the middle treadmill: every car's 3 bars, best on top
 -- (CvcPlot.client writes it); w by h studs, its middle at y
-PlotTraining.BOARD = { x = 0, z = -53.8, w = 34, h = 13, y = 12.5 }
+-- (high: walking players see it over the back wall's pad signs, carter 10-28)
+PlotTraining.BOARD = { x = 0, z = -53.8, w = 34, h = 13, y = 18.5 }
 PlotTraining.BOARD_ROWS = 3 -- the top 3, big enough to read on a phone (Studio 10-28: 5 rows were tiny)
 PlotTraining.MAX_TROPHIES = 12 -- cups drawn on the shelf (the number on its sign keeps counting)
 
@@ -325,17 +338,26 @@ local function pad(add: Garage.Add, i: number, kind: string?)
 		-- locked: no little sign; PlotGarageBuilder paints a quiet "?" and the level on the pad
 		return
 	end
-	-- the sign at the pad's front edge, facing the road (+z), leaning back like a lectern: low,
-	-- so it doesn't hide the station from the stand, and its words tip up toward the stand's
-	-- camera; a little foot holds it
+	-- the sign, up on two posts at the edge nearest the middle, facing it
 	local S = PlotTraining.PAD_SIGN
-	add(group, "PadSign", v(S.w, S.h, 0.3), v(x, S.y, z + P.d / 2 + S.out), SIGN, {
-		rot = v(-S.lean, 0, 0),
+	local sx, sz, yaw = PlotTraining.signAt(i)
+	local cy = S.low + S.h / 2
+	add(group, "PadSign", v(S.w, S.h, 0.3), v(sx, cy, sz), SIGN, {
+		rot = v(0, yaw, 0),
 		collide = false,
 	})
-	add(group, "PadSignFoot", v(S.w, 0.5, 1.6), v(x, 0.55, z + P.d / 2 + S.out), SIGN, {
-		collide = false,
-	})
+	local along = math.rad(yaw) -- the sign's own x, in the plot
+	for _, e in { -1, 1 } do
+		local off = e * (S.w / 2 - 0.4)
+		add(
+			group,
+			"PadSignPost",
+			v(0.4, S.low + 0.2, 0.4),
+			v(sx + off * math.cos(along), (S.low + 0.2) / 2, sz - off * math.sin(along)),
+			SIGN,
+			{ collide = false }
+		)
+	end
 	-- the station, grown by K about the pad's middle (its floor stays on the pad)
 	local K = PlotTraining.K
 	local inner = add
