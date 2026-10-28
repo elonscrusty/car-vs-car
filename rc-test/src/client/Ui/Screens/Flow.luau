@@ -39,7 +39,8 @@ local function placedButton(
 	canvas: Instance,
 	id: string,
 	name: string,
-	onClick: () -> ()
+	onClick: () -> (),
+	words: string?
 ): TextButton
 	local pc = piece(id, name)
 	local holder = spot(canvas, id, name)
@@ -51,7 +52,7 @@ local function placedButton(
 		pc.w,
 		pc.h,
 		pc.tone or "lime",
-		pc.text or "",
+		words or pc.text or "",
 		{ main = pc.main, onClick = onClick }
 	)
 end
@@ -274,7 +275,8 @@ local METAL = {
 	},
 }
 
--- data: { place: number, top: { Car } (1st, 2nd, 3rd), coins: number, trophies: number }
+-- data: { place: number, top: { Car } (1st, 2nd, 3rd), coins: number, trophies: number,
+--   nextWords: string? (the main button's words; NEXT RACE) }
 -- actions: next(), back()
 function Flow.podium(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
 	return Screen.open("podium", "full", true, function(g)
@@ -368,7 +370,7 @@ function Flow.podium(data: { [string]: any }, actions: Screen.Actions?): Screen.
 		Anim.countUp(tro, 0, data.trophies or 0, function(n)
 			return "+" .. UiMotion.commas(n)
 		end)
-		placedButton(g.canvas, "podium", "Next", Screen.act(actions, "next"))
+		placedButton(g.canvas, "podium", "Next", Screen.act(actions, "next"), data.nextWords)
 		placedButton(g.canvas, "podium", "Back", Screen.act(actions, "back"))
 		return {}
 	end)

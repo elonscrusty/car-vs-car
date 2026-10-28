@@ -291,8 +291,11 @@ function PlotGuide.new(): PlotGuide
 				crateShopSeen = far < 10 * 10
 			end
 			local coins = player:GetAttribute("Coins")
-			goal = if onFoot and Features.CVC
-				then CvcGoal.pick({
+			-- (Features.NEW_UI: the plot screen's arrow points at the one button to tap, and its
+			-- CRATES tile sells crates, so no road arrows: one arrow at a time)
+			goal = if Features.CVC and Features.NEW_UI
+				then nil
+				elseif onFoot and Features.CVC then CvcGoal.pick({
 					picked = player:GetAttribute("Picked") == true,
 					stage = player:GetAttribute("Stage") :: any,
 					crates = CvcState.crates,

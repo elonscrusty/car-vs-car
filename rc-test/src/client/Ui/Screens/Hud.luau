@@ -40,6 +40,57 @@ local SIDES = {
 	{ name = "League", word = "LEAGUE", icon = "trophy" },
 }
 
+-- One arrow at a piece (its spot frame h, design rect p), bobbing toward it: above the pieces at
+-- the bottom middle (RACE!) and the top left tiles, beside the ones at the edges. loud (no tap for
+-- a while): it bobs further and says what to tap.
+local function pointAt(h: Frame, p: UiScreens.Piece, words: string?, loud: boolean): Frame
+	-- a see-through frame over the piece holds the arrow and its words (gone with it)
+	local over = Base.box(h, "Pointer", 0, 0, p.w, p.h, 8)
+	local s = if loud then 54 else 44
+	local tw, th = 170, 32
+	-- where the arrow sits, which way it points (deg: 0 = right), how it bobs (dx, dy), the words
+	local x, y, rot, dx, dy, wx, wy
+	local align: string? = nil
+	if p.x > Base.W * 0.7 then
+		-- right edge: from the left, the words to its left
+		x, y, rot, dx, dy = -s - 6, (p.h - s) / 2, 0, 1, 0
+		wx, wy, align = x - tw - 4, (p.h - th) / 2, "r"
+	elseif p.y > Base.H * 0.6 then
+		-- bottom middle: from above, the words over it
+		x, y, rot, dx, dy = (p.w - s) / 2, -s - 6, 90, 0, 1
+		wx, wy, align = (p.w - tw) / 2, y - th, nil
+	elseif p.y < 100 then
+		-- the top tiles: from above, the words to its right
+		x, y, rot, dx, dy = (p.w - s) / 2, -s - 4, 90, 0, 1
+		wx, wy, align = x + s + 4, y + (s - th) / 2, "l"
+	else
+		-- the lower tiles: from the right, the words past it
+		x, y, rot, dx, dy = p.w + 6, (p.h - s) / 2, 180, -1, 0
+		wx, wy, align = x + s + 4, (p.h - th) / 2, "l"
+	end
+	local box = Base.box(over, "Arrow", x, y, s, s, 9)
+	local arrow = Icons.make(box, "arrow", 0, 0, s, { z = 9 })
+	arrow.Rotation = rot
+	if words and loud then
+		Base.text(over, "Words", wx, wy, tw, th, words, {
+			color = Base.color("go"),
+			stroke = 5,
+			align = align,
+			z = 9,
+		})
+		Anim.shout(h)
+	end
+	if not Base.reduced() then
+		local home = box.Position
+		local amp = (if loud then 12 else 7) * Base.k
+		Anim.tick(box, function(t)
+			local b = UiMotion.bob(t, 0.8, 1) -- (-1..0)
+			box.Position = home + UDim2.fromOffset(-dx * b * amp, -dy * b * amp)
+		end)
+	end
+	return over
+end
+
 -- data: { coins, rate, nextUp = { title, sub }, car = { name, stats = { power = { v, lv }, ... } },
 --   dots = { Crates = 2, League = -1 (! ) }, signs: boolean (the viewer: sample world signs),
 --   race: words (the RACE! button; nil = none), jobs: words (the JOBS pill; nil = none),
@@ -49,7 +100,8 @@ local SIDES = {
 -- actions: Garage(), Crates(), Shop(), League(), coins(), coach(), race(), jobs()
 -- api: setCoins(n), setRate(words), setNextUp(title, sub, hurry), setCar(name, stats),
 --   setCoach(f, words), setDot(name, n), float(x, y, words, color), setRace(words, tone, pulse),
---   setJobs(words)
+--   setJobs(words), setShown(name, on) (a tile, Coach, Race or Jobs steps away / comes back),
+--   point(name?, words?, loud?) (one bouncing arrow at that piece; loud: bigger, with its words)
 function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
 	return Screen.open("plot", "hud", false, function(g)
 		local c = g.canvas
@@ -173,6 +225,21 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 				onClick = Screen.act(actions, "jobs"),
 			})
 		end
+		-- every piece by name, for setShown and point
+		local holders: { [string]: Frame } = {}
+		for _, sd in SIDES do
+			holders[sd.name] = sides[sd.name].button.Parent :: Frame
+		end
+		holders.Coach = coachHolder
+		if raceHolder then
+			holders.Race = raceHolder
+		end
+		if jobsHolder then
+			holders.Jobs = jobsHolder
+		end
+		local hidden: { [Instance]: boolean } = {}
+		local pointer: Frame? = nil
+		local pointKey = ""
 		-- a new player: one piece at a time (the race first, then the car, the tiles, the coins,
 		-- COACH and the jobs), each popping in, so 6 things don't land at once
 		if data.stagger then
@@ -191,7 +258,7 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 				end
 				task.delay(0.3 + (i - 1) * UiTheme.MOTION.staggerStep, function()
 					for _, obj in step do
-						if obj and obj.Parent then
+						if obj and obj.Parent and not hidden[obj] then
 							obj.Visible = true
 							Anim.pop(obj, nil, 0.4)
 						end
@@ -259,6 +326,36 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 				if jobs then
 					Kit.setWords(jobs, words)
 				end
+			end,
+			setShown = function(name: string, on: boolean)
+				local h = holders[name]
+				if h and (hidden[h] == true) == on then
+					if on then
+						hidden[h] = nil
+					else
+						hidden[h] = true
+					end
+					h.Visible = on
+					if on then
+						Anim.pop(h, nil, 0.4)
+					end
+				end
+			end,
+			point = function(name: string?, words: string?, loud: boolean?)
+				local key = `{name}|{words}|{loud}`
+				if key == pointKey then
+					return
+				end
+				pointKey = key
+				if pointer then
+					pointer:Destroy()
+					pointer = nil
+				end
+				local h = if name then holders[name] else nil
+				if not (name and h) then
+					return
+				end
+				pointer = pointAt(h, piece("plot", name), words, loud == true)
 			end,
 		}
 	end)
