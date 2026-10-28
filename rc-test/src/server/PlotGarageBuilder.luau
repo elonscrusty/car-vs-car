@@ -24,7 +24,7 @@ local Tycoon = require(ReplicatedStorage.Shared.Tycoon)
 local PlotGarageBuilder = {}
 
 -- Words on the road side of the sign (its Back face: the plot's +z).
-local function label(board: BasePart, top: string, bottom: string, one: boolean?)
+local function label(board: BasePart, top: string, bottom: string, one: boolean?, glow: { number }?)
 	local gui = Instance.new("SurfaceGui")
 	gui.Name = "Words"
 	gui.Face = Enum.NormalId.Back
@@ -51,8 +51,15 @@ local function label(board: BasePart, top: string, bottom: string, one: boolean?
 		line("Bottom", "", 0.92, 0.04, Color3.fromRGB(255, 220, 90))
 		return
 	end
-	line("Top", top, 0.06, 0.52, Color3.new(1, 1, 1))
+	-- a station's name glows in its colour (its sign's Neon rim), the car's line stays gold
+	local name = if glow then Color3.fromRGB(glow[1], glow[2], glow[3]) else Color3.new(1, 1, 1)
+	line("Top", top, 0.06, 0.52, name)
 	line("Bottom", bottom, 0.6, 0.34, Color3.fromRGB(255, 220, 90))
+	if glow then
+		local t = gui:FindFirstChild("Top") :: TextLabel
+		t.TextStrokeTransparency = 0.55
+		t.TextStrokeColor3 = Color3.new(1, 1, 1)
+	end
 end
 
 -- Words painted big across a locked pad's top, turned to read upright from the road
@@ -249,7 +256,8 @@ function PlotGarageBuilder.start()
 				if pad == nil and i <= PlotTraining.open(plotLevel) then
 					pad = { kind = PlotTraining.kindAt(i), level = 1, car = "" }
 				end
-				label(sign, PlotTraining.padWords(pad, i))
+				local top, bottom = PlotTraining.padWords(pad, i)
+				label(sign, top, bottom, false, pad and PlotTraining.signColor(pad.kind))
 			end
 		end
 		local owner = Players:GetPlayerByUserId(ownerId)

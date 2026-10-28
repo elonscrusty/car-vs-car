@@ -365,8 +365,12 @@ test("walking up close, no pad sign hides the scoreboard", function()
 	end
 	truthy(next(hid) == nil, "a sign stands between you and the board")
 	-- the sign under the board hangs clear of it
-	local _, _, _, low = T.signAt(1)
-	truthy(low + S.h < bottom and low > 6, "the middle treadmill's sign under the board")
+	local _, _, _, low, _, h = T.signAt(1)
+	truthy(
+		low + h < bottom and low >= 4,
+		"the middle treadmill's sign under the board, over its car"
+	)
+	truthy(h >= S.h * 1.5, "and bigger than a post sign: it's the far one")
 end)
 
 test("locked pads stay hidden; only the next one shows, once you can pay for it", function()
