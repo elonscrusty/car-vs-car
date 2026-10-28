@@ -47,4 +47,92 @@ function BackOnTrack.stuck(stuckFor: number, wait: number, trackId: string): boo
 	return stuckFor > wait and trackId ~= "rock"
 end
 
+-- Lost in a big race (critic run 1: nose in a wall with no pedal held, off the road in the giant
+-- grass, WRONG WAY with no idea where to go). Each one, held long enough, is the same R: back on
+-- the road at the last gate. Only where the car is put, never how it drives.
+BackOnTrack.STILL_WAIT = 2.5 -- nearly still after you got going, pedal or not
+BackOnTrack.OFF_WAIT = 3 -- on the ground, off every road
+BackOnTrack.WRONG_WAIT = 3 -- WRONG WAY the whole time
+BackOnTrack.GO_CALM = 3 -- none of it in the first seconds after GO (the pack shoves about)
+BackOnTrack.OFF_MARGIN = 20 -- big units past a road's curb before it counts as off the road
+BackOnTrack.CURB = 3 -- (MapKit.CURB_WIDTH)
+-- map-local big units: under the floor (the road is at 0, a car sits at 2.5) but not yet FALL
+BackOnTrack.UNDER = -12
+
+-- A map's roads for offRoad: the main loop and every side road (shortcuts and the secret), each
+-- with how far from its centre line still counts as on it.
+export type Road = { ring: { { x: number, z: number } }, reach: number }
+function BackOnTrack.roads(map: any): { Road }
+	local out: { Road } = {}
+	local def = map.def
+	local function add(ring: { any }, width: number)
+		table.insert(
+			out,
+			{ ring = ring, reach = width / 2 + BackOnTrack.CURB + BackOnTrack.OFF_MARGIN }
+		)
+	end
+	add(map.loop(), def.road)
+	for i, p in def.paths do
+		add(map.path(i), p.width)
+	end
+	return out
+end
+
+-- Off every road? (map-local x, z, big units; a road's own samples are 5 to 15 apart, inside
+-- the margin)
+function BackOnTrack.offRoad(roads: { Road }, x: number, z: number): boolean
+	for _, r in roads do
+		local reach2 = r.reach * r.reach
+		for _, s in r.ring do
+			local dx, dz = s.x - x, s.z - z
+			if dx * dx + dz * dz <= reach2 then
+				return false
+			end
+		end
+	end
+	return true
+end
+
+-- The lost clocks, one frame. `sinceGo` = seconds from GO (nil = not racing yet), `moved` = got
+-- going since GO (a car still on the line is HOLD GAS!, not lost), `still` = nearly no ground
+-- speed, `off` = offRoad, `air` = no wheel down (a jump: the off clock waits), `wrong` = driving
+-- away from the next gate. Returns why to put the car back, or nil.
+export type Lost = { still: number, off: number, wrong: number }
+function BackOnTrack.newLost(): Lost
+	return { still = 0, off = 0, wrong = 0 }
+end
+
+function BackOnTrack.lost(
+	l: Lost,
+	dt: number,
+	sinceGo: number?,
+	moved: boolean,
+	still: boolean,
+	off: boolean,
+	air: boolean,
+	wrong: boolean
+): ("still" | "off" | "wrong")?
+	if sinceGo == nil or sinceGo < BackOnTrack.GO_CALM or not moved then
+		l.still, l.off, l.wrong = 0, 0, 0
+		return nil
+	end
+	l.still = if still then l.still + dt else 0
+	if not air then
+		l.off = if off then l.off + dt else 0
+	end
+	l.wrong = if wrong then l.wrong + dt else 0
+	local why: ("still" | "off" | "wrong")? = nil
+	if l.still >= BackOnTrack.STILL_WAIT then
+		why = "still"
+	elseif l.off >= BackOnTrack.OFF_WAIT then
+		why = "off"
+	elseif l.wrong >= BackOnTrack.WRONG_WAIT then
+		why = "wrong"
+	end
+	if why then
+		l.still, l.off, l.wrong = 0, 0, 0
+	end
+	return why
+end
+
 return BackOnTrack
