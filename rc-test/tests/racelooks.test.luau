@@ -37,3 +37,31 @@ test("Car VS Car (playtest u01): the race car is your racer's toy car, not the g
 		truthy(corners[k] == 1, `wheel {k}`)
 	end
 end)
+
+test("skid marks (playtest u30, u12): one smooth fading ribbon, none on water", function()
+	local fs = require("@lune/fs")
+	local fx = fs.readFile("src/client/Effects.luau")
+	truthy(string.find(fx, 'Instance.new("Trail")', 1, true), "marks are not a ribbon")
+	truthy(not string.find(fx, 'p.Name = "Skid"', 1, true), "the old box marks are back")
+	truthy(string.find(fx, "[Enum.Material.Water] = true", 1, true), "marks on water")
+	truthy(string.find(fx, "[Enum.Material.Glass] = true", 1, true), "marks on puddles")
+	local car = fs.readFile("src/client/RCCar.luau")
+	truthy(
+		string.find(car, "w.info.material = hit.Material", 1, true),
+		"no material under the tyre"
+	)
+end)
+
+test("boost pads (playtest u02): no glowing yellow pad that hides the car", function()
+	local fs = require("@lune/fs")
+	local src = fs.readFile("src/server/RaceMapBuilder.luau")
+	truthy(
+		string.find(
+			src,
+			"boost = { color = rgb(225, 150, 40), mat = Enum.Material.SmoothPlastic }",
+			1,
+			true
+		),
+		"the pad glows again"
+	)
+end)
