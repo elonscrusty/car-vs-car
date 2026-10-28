@@ -3,12 +3,34 @@
 -- same design px and Piece shape as UiScreens (756 x 390 canvas inside the phone's safe area), so
 -- client/Ui/Screens/Smash places from here and tests/smash_screens.test.luau checks the same rules
 -- (safe area, move-stick corner free while driving, tap sizes, short ALL CAPS button words).
---   matchEnd: after a 3:00 match. 1st/2nd/3rd on steps, Rewards (coins, your place), and one
---     button, PLAY AGAIN (presses itself after MatchEnd.AUTO s): nothing else to think about.
+--   matchEnd: the 12 s break between rounds (VIDEO-STUDY.md). ROUND OVER, "<name> WINS" with the
+--     winner's kart, the top 3 with smashes, your coins and XP popping in, "NEW ROUND STARTING IN
+--     12" (the next round starts by itself), and a small LEAVE back to the lobby.
 --   howTo: the 3-step tip over a match (drive, grab a "?", fire), one card at a time.
-local UiScreens = require(script.Parent:WaitForChild("UiScreens"))
-
-type Piece = UiScreens.Piece
+-- (the same shapes as UiScreens.Piece / UiScreens.Screen; no require, so Lune tests load it)
+export type Piece = {
+	name: string,
+	x: number,
+	y: number,
+	w: number,
+	h: number,
+	anchor: string?,
+	tone: string?,
+	text: string?,
+	tap: boolean?,
+	main: boolean?,
+	world: boolean?,
+	instead: string?,
+	inner: { Piece }?,
+}
+export type Screen = {
+	id: string,
+	n: number,
+	title: string,
+	kind: string,
+	gameplay: boolean,
+	pieces: { Piece },
+}
 
 local function p(name: string, x: number, y: number, w: number, h: number, more: any?): Piece
 	local out: any = { name = name, x = x, y = y, w = w, h = h }
@@ -22,30 +44,24 @@ end
 
 local SmashScreens = {}
 
-local LIST: { UiScreens.Screen } = {
+local LIST: { Screen } = {
 	{
 		id = "matchEnd",
 		n = 101,
-		title = "Match end",
+		title = "Round over",
 		kind = "full",
 		gameplay = false,
 		pieces = {
-			p("Shout", 10, 8, 330, 54, { anchor = "tl" }),
-			p("Steps", 18, 110, 450, 270, { anchor = "bl" }),
-			p("Rewards", 512, 46, 236, 150, {
-				anchor = "tr",
-				inner = {
-					p("Coins", 14, 30, 208, 46),
-					p("Place", 14, 84, 208, 46),
-				},
-			}),
-			p("Count", 512, 202, 236, 34, { anchor = "tr" }),
-			p("Again", 512, 244, 236, 66, {
-				anchor = "br",
-				tone = "lime",
-				text = "PLAY AGAIN",
-				main = true,
-			}),
+			p("Shout", 178, 4, 400, 58, { anchor = "t" }),
+			p("Wins", 178, 62, 400, 34, { anchor = "t" }),
+			-- the winner's kart on show in the middle, rays behind it
+			p("Winner", 258, 100, 240, 170, { anchor = "c" }),
+			-- 1st, 2nd, 3rd with smashes
+			p("Top3", 0, 104, 230, 168, { anchor = "l" }),
+			-- what you got: coins, XP, your place
+			p("Rewards", 526, 104, 230, 168, { anchor = "r" }),
+			p("Count", 128, 292, 500, 40, { anchor = "b" }),
+			p("Leave", 646, 334, 110, 48, { anchor = "br", tone = "white", text = "LEAVE" }),
 		},
 	},
 	{
@@ -67,12 +83,12 @@ local LIST: { UiScreens.Screen } = {
 
 SmashScreens.LIST = LIST
 
-local byId: { [string]: UiScreens.Screen } = {}
+local byId: { [string]: Screen } = {}
 for _, s in LIST do
 	byId[s.id] = s
 end
 
-function SmashScreens.get(id: string): UiScreens.Screen
+function SmashScreens.get(id: string): Screen
 	local s = byId[id]
 	assert(s, "no smash screen " .. id)
 	return s

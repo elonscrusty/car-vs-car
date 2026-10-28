@@ -1,13 +1,16 @@
 --!strict
--- Smash match end screen data (plans/smash/MASTER-PLAN.md: 1st/2nd/3rd + coins + PLAY AGAIN,
--- which presses itself after 10 s). The server sends ReplicatedStorage.MatchResult to each player:
---   { places = { { name, smashes, userId? (nil = bot), carId? } } (best first, every kart),
---     coins = what this player earned, nextAt? = server time the next match starts }
--- MatchEnd.payload builds that (server), MatchEnd.read checks it (client: junk never errors).
+-- Smash between-rounds screen data (plans/smash/VIDEO-STUDY.md, carter GO 22:13): ROUND OVER,
+-- "<name> WINS" with the winner's kart, the top 3 with smashes, your coins and XP, then "NEW ROUND
+-- STARTING IN 12" (the next round starts by itself; LEAVE goes back to the lobby).
+-- The server (MatchRunner) fires ReplicatedStorage.MatchResult to each player:
+--   FireClient(player, places, coins, nextAt, xp?)
+--   places = { { name, smashes, userId? (nil = bot), carId? } } best first, every kart;
+--   coins / xp = what this player earned; nextAt = workspace:GetServerTimeNow() at the next round.
+-- MatchEnd.args builds those (server), MatchEnd.read checks them (client: junk never errors).
 
 local MatchEnd = {}
 
-MatchEnd.AUTO = 10 -- seconds until PLAY AGAIN presses itself
+MatchEnd.AUTO = 12 -- the break between rounds when the server sends no nextAt
 MatchEnd.MAX_ROWS = 12 -- a match has at most 12 karts
 MatchEnd.MAX_NAME = 20
 
@@ -16,7 +19,9 @@ export type View = {
 	place: number, -- this player's place (0 = not in the list)
 	total: number, -- karts in the match
 	top: { Row & { me: boolean } }, -- 1st, 2nd, 3rd (fewer if fewer karts)
+	winner: (Row & { me: boolean })?,
 	coins: number,
+	xp: number,
 	smashes: number, -- this player's smashes
 	nextAt: number?,
 }
@@ -39,31 +44,50 @@ local function words(v: unknown): string
 	return if s == "" then "?" else s
 end
 
--- Server: the payload for one player (places best first).
-function MatchEnd.payload(places: { Row }, coins: number, nextAt: number?): { [string]: any }
+-- Server: the MatchResult arguments for one player (places best first).
+function MatchEnd.args(
+	places: { Row },
+	coins: number,
+	nextAt: number?,
+	xp: number?
+): ({ Row }, number, number?, number?)
 	local rows = {}
 	for i, r in places do
 		if i > MatchEnd.MAX_ROWS then
 			break
 		end
-		table.insert(rows, { name = r.name, smashes = r.smashes, userId = r.userId, carId = r.carId })
+		table.insert(
+			rows,
+			{ name = r.name, smashes = r.smashes, userId = r.userId, carId = r.carId }
+		)
 	end
-	return { places = rows, coins = coins, nextAt = nextAt }
+	return rows, coins, nextAt, xp
 end
 
--- Client: what the end screen shows for player `myId`. Anything odd in `data` is dropped, never
--- an error.
-function MatchEnd.read(data: unknown, myId: number): View
-	local view: View = { place = 0, total = 0, top = {}, coins = 0, smashes = 0, nextAt = nil }
-	if type(data) ~= "table" then
-		return view
+-- Client: what the end screen shows for player `myId`, from MatchResult's arguments. Anything
+-- odd is dropped, never an error.
+function MatchEnd.read(
+	places: unknown,
+	coins: unknown,
+	nextAt: unknown,
+	xp: unknown,
+	myId: number
+): View
+	local view: View = {
+		place = 0,
+		total = 0,
+		top = {},
+		winner = nil,
+		coins = 0,
+		xp = 0,
+		smashes = 0,
+		nextAt = nil,
+	}
+	view.coins = count(coins, 1e9)
+	view.xp = count(xp, 1e9)
+	if type(nextAt) == "number" and nextAt == nextAt then
+		view.nextAt = nextAt
 	end
-	local d = data :: { [string]: unknown }
-	view.coins = count(d.coins, 1e9)
-	if type(d.nextAt) == "number" and d.nextAt == d.nextAt then
-		view.nextAt = d.nextAt :: number
-	end
-	local places = d.places
 	if type(places) ~= "table" then
 		return view
 	end
@@ -93,17 +117,8 @@ function MatchEnd.read(data: unknown, myId: number): View
 		end
 	end
 	view.total = n
+	view.winner = view.top[1]
 	return view
-end
-
--- The big words: a win, a top 3, or NICE TRY! (never YOU LOST).
-function MatchEnd.shout(place: number): string
-	if place == 1 then
-		return "YOU WON!"
-	elseif place >= 2 and place <= 3 then
-		return "TOP 3!"
-	end
-	return "NICE TRY!"
 end
 
 -- "3RD / 5"
@@ -124,9 +139,25 @@ function MatchEnd.smashWords(n: number): string
 	return if n == 1 then "1 SMASH" else `{n} SMASHES`
 end
 
--- Seconds left on the PLAY AGAIN count, from when the screen opened.
-function MatchEnd.left(openedAt: number, now: number): number
-	return math.max(0, math.ceil(MatchEnd.AUTO - (now - openedAt)))
+-- "PEPPER WINS" / "YOU WIN!" ("" with nobody in the list)
+function MatchEnd.winWords(view: View): string
+	local w = view.winner
+	if not w then
+		return ""
+	end
+	return if w.me then "YOU WIN!" else `{string.upper(w.name)} WINS`
+end
+
+-- Seconds until the next round: from the server's nextAt, else MatchEnd.AUTO after the screen
+-- opened. Never below 0, never above a minute (a junk nextAt can't hold the screen up).
+function MatchEnd.left(view: View, openedAt: number, now: number): number
+	local s = if view.nextAt then view.nextAt - now else MatchEnd.AUTO - (now - openedAt)
+	return math.clamp(math.ceil(s), 0, 60)
+end
+
+-- "NEW ROUND STARTING IN 12"
+function MatchEnd.countWords(left: number): string
+	return if left > 0 then `NEW ROUND STARTING IN {left}` else "GO!"
 end
 
 return MatchEnd

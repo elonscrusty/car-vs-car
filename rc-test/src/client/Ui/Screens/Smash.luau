@@ -7,7 +7,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local UiTheme = require(Shared:WaitForChild("UiTheme"))
-local UiScreens = require(Shared:WaitForChild("UiScreens"))
 local SmashScreens = require(Shared:WaitForChild("SmashScreens"))
 local MatchEnd = require(Shared:WaitForChild("MatchEnd"))
 local CarCatalog = require(Shared:WaitForChild("CarCatalog"))
@@ -23,7 +22,7 @@ local Smash = {}
 
 local INK, WHITE = Base.color("ink"), Base.WHITE
 
-local function piece(id: string, path: string): UiScreens.Piece
+local function piece(id: string, path: string): SmashScreens.Piece
 	return SmashScreens.piece(id, path)
 end
 
@@ -37,7 +36,12 @@ local function spot(canvas: Instance, id: string, name: string): Frame
 	return f
 end
 
-local function placedButton(canvas: Instance, id: string, name: string, onClick: () -> ()): TextButton
+local function placedButton(
+	canvas: Instance,
+	id: string,
+	name: string,
+	onClick: () -> ()
+): TextButton
 	local pc = piece(id, name)
 	return Kit.button(
 		spot(canvas, id, name),
@@ -52,118 +56,184 @@ local function placedButton(canvas: Instance, id: string, name: string, onClick:
 	)
 end
 
--- gold, silver, bronze (top, middle, bottom of the step)
+-- gold, silver, bronze place discs
 local METAL = {
-	[1] = { Color3.fromRGB(255, 243, 166), Color3.fromRGB(255, 194, 46), Color3.fromRGB(217, 138, 0) },
-	[2] = { Color3.fromRGB(255, 255, 255), Color3.fromRGB(195, 205, 220), Color3.fromRGB(127, 142, 166) },
-	[3] = { Color3.fromRGB(255, 209, 166), Color3.fromRGB(214, 138, 76), Color3.fromRGB(154, 83, 32) },
+	[1] = Color3.fromRGB(255, 194, 46),
+	[2] = Color3.fromRGB(195, 205, 220),
+	[3] = Color3.fromRGB(214, 138, 76),
 }
 
--- ===== Match end =====
-
--- a car's own colour, or one per step for a bot with no car of ours (three different colours)
-local STEP_COLORS = { "danger", "blue", "pink" }
+-- a car's own colour, or one per place for a bot with no car of ours (three different colours)
+local PLACE_COLORS = { "danger", "blue", "pink" }
 local function carColor(carId: string?, pl: number): Color3
 	local c = if carId then CarCatalog.get(carId) else nil
 	if c and c.color and #c.color >= 3 then
 		return Color3.fromRGB(c.color[1], c.color[2], c.color[3])
 	end
-	return Base.color(STEP_COLORS[pl] or "blue")
+	return Base.color(PLACE_COLORS[pl] or "blue")
 end
 
--- view: MatchEnd.read(...); actions: again()
--- The handle's set(secondsLeft) updates "NEXT MATCH IN n".
+-- a white panel at a screen piece
+local function panel(canvas: Instance, id: string, name: string): (Frame, SmashScreens.Piece)
+	local pc = piece(id, name)
+	local holder = spot(canvas, id, name)
+	local f = Base.fill(holder, "Panel", 0, 0, pc.w, pc.h, WHITE, 2)
+	Base.corner(f, 22)
+	Base.outline(f, UiTheme.OUTLINE.thick)
+	Pattern.dots(Base.box(f, "Back", 6, 6, pc.w - 12, pc.h - 12, 1))
+	return f, pc
+end
+
+-- show `obj` after `delay` s with a pop (the screen may be closed by then: then nothing)
+local function popLater(obj: GuiObject, delay: number, then_: (() -> ())?)
+	obj.Visible = false
+	task.delay(delay, function()
+		if obj.Parent then
+			obj.Visible = true
+			Anim.pop(obj, 0.38, 0.3)
+			if then_ then
+				then_()
+			end
+		end
+	end)
+end
+
+-- ===== Between rounds (12 s): ROUND OVER, "<name> WINS" + the winner's kart, the top 3 with
+-- smashes, your coins and XP popping in, NEW ROUND STARTING IN n, a small LEAVE =====
+
+-- view: MatchEnd.read(...); actions: leave()
+-- The handle's set(secondsLeft) updates the count.
 function Smash.matchEnd(view: MatchEnd.View, actions: Screen.Actions?): Screen.Handle
 	return Screen.open("matchEnd", "full", true, function(g)
 		local back = g.back :: ScreenGui
 		Kit.backdrop(back, "showroom")
-		local place = view.place
-		if place >= 1 and place <= 3 then
-			Kit.confetti(back:FindFirstChild("Backdrop") :: Frame, 30)
-		end
+		Kit.confetti(back:FindFirstChild("Backdrop") :: Frame, if view.place == 1 then 30 else 14)
 		local sp = piece("matchEnd", "Shout")
-		Kit.shout(spot(g.canvas, "matchEnd", "Shout"), 0, 0, sp.w, sp.h, MatchEnd.shout(place), "go", "l")
-		-- the steps, left to right: 2nd, 1st, 3rd; each with the car, the name and its smashes
-		local area = spot(g.canvas, "matchEnd", "Steps")
-		local ap = piece("matchEnd", "Steps")
-		local heights = { [1] = 132, [2] = 92, [3] = 62 }
-		local steps: { GuiObject } = {}
-		for col, pl in { 2, 1, 3 } do
-			local row = view.top[pl]
-			local x = (col - 1) * 156
-			local h = heights[pl]
-			local top = ap.h - h
-			local stepF = Base.fill(area, "Step" .. pl, x, top, 152, h + 8, WHITE, 2)
-			Base.corner(stepF, 18)
-			Base.outline(stepF, UiTheme.OUTLINE.thick)
-			local m = METAL[pl]
-			local grad = Instance.new("UIGradient")
-			grad.Rotation = 90
-			grad.Color = ColorSequence.new({
-				ColorSequenceKeypoint.new(0, m[1]),
-				ColorSequenceKeypoint.new(0.45, m[2]),
-				ColorSequenceKeypoint.new(1, m[3]),
-			})
-			grad.Parent = stepF
-			Pattern.attach(Base.box(stepF, "Clip", 4, 4, 144, h, 1))
-			Base.text(stepF, "Number", 40, 6, 72, 44, tostring(pl), { stroke = 7, drop = 5, z = 4 })
-			if row then
-				-- smashes on the step under the number (the 3rd step is short: smaller words)
-				Base.text(stepF, "Smashes", 8, math.min(54, h - 26), 136, 20, MatchEnd.smashWords(row.smashes), {
-					stroke = 4,
-					z = 4,
-				})
-				local cw = if pl == 1 then 150 else 122
-				local ch = cw * 0.64
-				local car = Icons.car(area, x + (152 - cw) / 2, top - ch + 10, cw, ch, { id = row.carId, color = carColor(row.carId, pl), z = 4 })
-				if row.me then
-					Anim.bob(car, UiTheme.MOTION.carBob, 5)
-				end
-				Base.text(area, "Name" .. pl, x, top - ch - 16, 152, 22, if row.me then "YOU" else row.name, {
-					color = if row.me then Base.color("lime") else WHITE,
-					stroke = 5,
-					z = 5,
-				})
-				if row.me and pl == 1 then
-					local tro = Icons.make(area, "trophy", x + 56, top - ch - 58, 40, { z = 5 })
-					Anim.bob(tro, UiTheme.MOTION.carBob, 5)
-				end
-			end
-			table.insert(steps, stepF)
-		end
-		Anim.cascade(steps)
-		-- the Rewards window (no X): coins, then your place and smashes
-		local rp = piece("matchEnd", "Rewards")
-		local win = Kit.window(g.canvas, rp, { title = "Rewards", noClose = true })
-		win.open()
-		local cp = piece("matchEnd", "Rewards.Coins")
-		local coins = Kit.currency(win.content, "Coins", cp.x, cp.y, cp.w, cp.h, { value = 0 })
-		coins.set(view.coins)
-		local pp = piece("matchEnd", "Rewards.Place")
-		local placeWords = MatchEnd.placeWords(place, view.total)
-		Base.text(
-			win.content,
-			"Place",
-			pp.x,
-			pp.y + 2,
-			pp.w,
-			pp.h - 4,
-			if placeWords == "" then MatchEnd.smashWords(view.smashes)
-				else `{placeWords}, {MatchEnd.smashWords(view.smashes)}`,
-			{ color = INK, align = "l", z = 4 }
+		Kit.shout(spot(g.canvas, "matchEnd", "Shout"), 0, 0, sp.w, sp.h, "ROUND OVER!", "go")
+		local wp = piece("matchEnd", "Wins")
+		local wins = Base.text(
+			spot(g.canvas, "matchEnd", "Wins"),
+			"Words",
+			0,
+			0,
+			wp.w,
+			wp.h,
+			MatchEnd.winWords(view),
+			{
+				color = if view.winner and view.winner.me then Base.color("lime") else WHITE,
+				stroke = 5,
+				drop = 3,
+				z = 5,
+			}
 		)
-		-- the count to the next match, over PLAY AGAIN
+		Anim.pop(wins, 0.5, 0.3, 0.3)
+		-- the winner's kart on show, turning slowly in the rays
+		local w = view.winner
+		if w then
+			local kp = piece("matchEnd", "Winner")
+			local stage = spot(g.canvas, "matchEnd", "Winner")
+			Kit.rays(stage, kp.w / 2, kp.h / 2, kp.h * 1.5, "go", 0.7)
+			local cw = kp.w * 0.9
+			local car = Icons.car(stage, (kp.w - cw) / 2, (kp.h - cw * 0.64) / 2, cw, cw * 0.64, {
+				id = w.carId,
+				color = carColor(w.carId, 1),
+				z = 4,
+			})
+			Anim.pop(car, 0.6, 0.2, 0.4)
+			Anim.bob(car, UiTheme.MOTION.carBob, 5)
+			if w.me then
+				local tro = Icons.make(stage, "trophy", kp.w / 2 - 22, 0, 44, { z = 5 })
+				Anim.bob(tro, UiTheme.MOTION.carBob, 5)
+			end
+		end
+		-- the top 3: a metal place disc, the name, the smashes
+		local top, tp = panel(g.canvas, "matchEnd", "Top3")
+		local rows: { GuiObject } = {}
+		for i, row in view.top do
+			local y = 10 + (i - 1) * 50
+			local r = Base.box(top, "Row" .. i, 10, y, tp.w - 20, 46, 3)
+			local disc = Base.fill(r, "Disc", 0, 4, 38, 38, METAL[i], 3)
+			Base.corner(disc)
+			Base.outline(disc, UiTheme.OUTLINE.normal)
+			Base.text(disc, "N", 0, 2, 38, 34, tostring(i), { stroke = 4, z = 4 })
+			Base.text(
+				r,
+				"Name",
+				46,
+				6,
+				tp.w - 20 - 46 - 58,
+				34,
+				if row.me then "YOU" else row.name,
+				{
+					color = if row.me then Base.color("limeDeep") else INK,
+					align = "l",
+					z = 4,
+				}
+			)
+			Base.text(r, "Smashes", tp.w - 20 - 56, 2, 56, 26, tostring(row.smashes), {
+				color = Base.color("danger"),
+				stroke = 4,
+				align = "r",
+				z = 4,
+			})
+			Base.text(
+				r,
+				"Word",
+				tp.w - 20 - 76,
+				28,
+				76,
+				14,
+				if row.smashes == 1 then "SMASH" else "SMASHES",
+				{
+					color = Base.color("inkMuted"),
+					align = "r",
+					z = 4,
+				}
+			)
+			table.insert(rows, r)
+		end
+		Anim.cascade(rows)
+		-- what you got, popping in one after the other: coins, XP, then your place
+		local rew, rp = panel(g.canvas, "matchEnd", "Rewards")
+		local coins = Kit.currency(rew, "Coins", 12, 12, rp.w - 24, 46, { value = 0 })
+		popLater(coins.button, 1.0, function()
+			coins.set(view.coins)
+		end)
+		if view.xp > 0 then
+			local xp = Base.text(rew, "Xp", 12, 66, rp.w - 24, 40, `+{view.xp} XP`, {
+				color = Base.color("blue"),
+				stroke = 5,
+				strokeColor = WHITE,
+				drop = 3,
+				dropColor = Base.color("blueDeep"),
+				align = "l",
+				z = 4,
+			})
+			popLater(xp, 1.6)
+		end
+		local you = MatchEnd.placeWords(view.place, view.total)
+		if you ~= "" then
+			local pl = Base.text(rew, "Place", 12, 114, rp.w - 24, 40, `YOU: {you}`, {
+				color = INK,
+				align = "l",
+				z = 4,
+			})
+			popLater(pl, 2.2)
+		end
+		-- the count to the next round
 		local kp = piece("matchEnd", "Count")
-		local count = Base.text(spot(g.canvas, "matchEnd", "Count"), "Words", 0, 0, kp.w, kp.h, "", {
-			color = Base.color("go"),
-			stroke = 5,
-			z = 5,
-		})
+		local count =
+			Base.text(spot(g.canvas, "matchEnd", "Count"), "Words", 0, 0, kp.w, kp.h, "", {
+				color = Base.color("go"),
+				stroke = 5,
+				drop = 3,
+				z = 5,
+			})
 		local function set(left: number)
-			count.Text = if left > 0 then `NEXT MATCH IN {left}` else "GO!"
+			count.Text = MatchEnd.countWords(left)
 		end
 		set(MatchEnd.AUTO)
-		placedButton(g.canvas, "matchEnd", "Again", Screen.act(actions, "again"))
+		placedButton(g.canvas, "matchEnd", "Leave", Screen.act(actions, "leave"))
 		return { set = set }
 	end)
 end
@@ -229,7 +299,8 @@ function Smash.howTo(step: number, actions: Screen.Actions?): Screen.Handle
 			Anim.pop(card, 0.38, 0.8)
 			if st.arrow then
 				local ap = piece("howTo", st.arrow)
-				local a = Icons.make(spot(g.canvas, "howTo", st.arrow), "arrow", 0, 0, ap.w, { z = 6 })
+				local a =
+					Icons.make(spot(g.canvas, "howTo", st.arrow), "arrow", 0, 0, ap.w, { z = 6 })
 				a.Rotation = 90 -- the arrow points right; down at the stick or FIRE
 				Anim.bob(a.Parent :: GuiObject, 0.9, 8)
 				table.insert(built, a.Parent :: Instance)
