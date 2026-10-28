@@ -609,10 +609,11 @@ local function runRace(hooks: Hooks, slot: number)
 	for gi, idx in ServerRace.groups(leagues, ServerRace.MAX, solo, friends) do
 		local racers: { Racer } = {}
 		groups[gi] = racers
-		local easy = firstRace
+		-- (easy when anyone here hasn't raced yet: a new kid racing a friend still beats every bot)
+		local easy = false
 		local league = math.huge
 		for _, i in idx do
-			easy = easy and solo[i]
+			easy = easy or solo[i]
 			league = math.min(league, leagues[i])
 		end
 		groupLeague[gi] = if league == math.huge then 1 else league
