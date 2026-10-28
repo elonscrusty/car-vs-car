@@ -80,7 +80,7 @@ test("every car: 16 parts at most, four wheels one per corner, a WeaponMount", f
 						.. (if p.pos.x < 0 then "L" else "R")
 					corners[k] = (corners[k] or 0) + 1
 					eq(math.abs(p.pos.z), ToyCars.WHEEL_Z)
-				elseif p.name ~= "Hub" and name ~= "Head" then
+				elseif p.name ~= "Hub" and p.name ~= "Head" then
 					minX = math.min(minX, p.pos.x - p.size.x / 2)
 					maxX = math.max(maxX, p.pos.x + p.size.x / 2)
 					minZ = math.min(minZ, p.pos.z - p.size.z / 2)

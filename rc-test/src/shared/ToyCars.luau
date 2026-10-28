@@ -3,7 +3,7 @@
 -- ReplicatedStorage.CarSkins). Clean low-poly Roblox look, NOT Lego: full-bright flat colours,
 -- navy trim, wedge noses, neon lights, no studs, no logos, no text.
 --
--- 11 shapes (buggy, formula, muscle, truck, rally, crawler, wedge, rocket, bubble, coupe, hatch),
+-- 11 shapes (buggy, formula, muscle, truck, rally, crawler, wedge, jet, bubble, coupe, hatch),
 -- each with a WeaponMount on its roof (rockets go there); glow cars light up their accent bits.
 -- These part cars hold the slot until the mesh karts land in ReplicatedStorage.CarSkins.
 --
