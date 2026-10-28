@@ -18,9 +18,9 @@ League.COLORS = {
 -- in 25-40 min of play and Diamond in about 2 weeks of 20 min a day.
 League.NEED = {
 	{ strength = 0, top3 = 0 },
-	{ strength = 120, top3 = 8 },
-	{ strength = 190, top3 = 18 },
-	{ strength = 240, top3 = 40 },
+	{ strength = 140, top3 = 11 },
+	{ strength = 215, top3 = 24 },
+	{ strength = 250, top3 = 48 },
 }
 League.PLACE_PAY = { 100, 70, 50 } -- top 3 (Bronze); 4th and on get FINISH_PAY
 League.FINISH_PAY = 20
