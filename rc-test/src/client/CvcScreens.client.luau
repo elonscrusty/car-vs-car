@@ -52,6 +52,9 @@ end
 
 local function clock(secs: number): string
 	local s = math.max(0, math.ceil(secs))
+	if s >= 3600 then
+		return string.format("%d:%02d:%02d", s // 3600, s % 3600 // 60, s % 60)
+	end
 	return string.format("%d:%02d", s // 60, s % 60)
 end
 
@@ -219,7 +222,7 @@ local function info(icon: string, title: string, text: string)
 		title = title,
 		text = text,
 		yes = { "OK", "lime" },
-		no = { "CLOSE", "white" },
+		no = false,
 	}, { yes = Screen.closeOver, no = Screen.closeOver })
 end
 
@@ -477,6 +480,7 @@ function openGarage()
 		onTrack = onTrack,
 		slots = #CvcState.stations,
 		more = CvcState.plotLevel < Training.MAX_PLOT_LEVEL,
+		moreWords = commas(Training.plotCost(CvcState.plotLevel) or 0),
 		trackWord = "TRAINING",
 		cars = list,
 		selected = selected,
@@ -555,7 +559,7 @@ local function jobsWords(): string?
 	for _, l in jobLines do
 		done += if l.done then 1 else 0
 	end
-	return `{done}/{#jobLines}`
+	return `JOBS {done}/{#jobLines}`
 end
 
 local function openJobs()
@@ -572,6 +576,8 @@ local function openJobs()
 		})
 	end
 	Windows.quests({
+		title = "Jobs",
+		tabs = { "TODAY" },
 		tab = 1,
 		timer = if jobsResetAt > 0 then clock(jobsResetAt - os.time()) else "",
 		rows = rows,
@@ -596,7 +602,7 @@ local function openHud(stagger: boolean)
 		car = { name = if car then CvcState.name(car.id) else "", stats = hudBars(car) },
 		dots = { Crates = if CvcState.crates > 0 then CvcState.crates else nil },
 		race = "RACE!",
-		jobs = jobsWords() or "0/3",
+		jobs = jobsWords() or "JOBS",
 		stagger = stagger,
 		-- (over the 3D plot: the scoreboard is top middle, the speed tracks right; the pads and the
 		-- board show the bars, the RACE! button the clock)
@@ -606,7 +612,8 @@ local function openHud(stagger: boolean)
 		Garage = openGarage,
 		Crates = openCrates,
 		Shop = function()
-			Shop.open({ tab = 1 }, {
+			-- (no Robux prices until carter sets them: SOON, not R$ ???)
+			Shop.open({ tab = 1, offer = { price = "SOON" } }, {
 				close = Screen.closeOver,
 				tab = function() end,
 				buyOffer = function()
@@ -662,7 +669,7 @@ local function refreshHud()
 	local car = racer()
 	api.setCar(if car then CvcState.name(car.id) else "", hudBars(car))
 	api.setDot("Crates", if CvcState.crates > 0 then CvcState.crates else nil)
-	api.setJobs(jobsWords() or "0/3")
+	api.setJobs(jobsWords() or "JOBS")
 end
 
 -- the plot screen shows on foot once you have a car; not in a race, not under a big screen
@@ -675,17 +682,20 @@ RunService.Heartbeat:Connect(function()
 		and attr("Driving") ~= true
 		and attr("Racing") ~= true
 		and not anyOpen(FULL)
+	-- (and it steps away under a window, so nothing peeks out past it, and while the race card
+	-- is up, Studio live1)
+	local shows = want and not anyOpen(WINDOWS) and not raceCardUp()
 	if want and not hud then
 		openHud(not staggered and attr("JustPicked") == true)
 		staggered = true
 	end
 	local h = hud
-	if h and want ~= hudOn then
-		hudOn = want
-		Base.show(h.gui, want)
+	if h and shows ~= hudOn then
+		hudOn = shows
+		Base.show(h.gui, shows)
 	end
 	player:SetAttribute("UiBusy", anyOpen(FULL) or anyOpen(WINDOWS))
-	if not (h and want) then
+	if not (h and shows) then
 		return
 	end
 	-- the words change at most 10 times a second

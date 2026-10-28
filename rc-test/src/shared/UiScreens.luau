@@ -117,7 +117,7 @@ local LIST: { Screen } = {
 			p("Shop", 12, 152, 62, 62, { anchor = "tl", tap = true, text = "SHOP" }),
 			p("League", 82, 152, 62, 62, { anchor = "tl", tap = true, text = "LEAGUE" }),
 			p("MyCar", 530, 64, 218, 156, { anchor = "tr" }),
-			button("Coach", 652, 284, 92, 92, "pink", "COACH", { anchor = "br" }),
+			button("Coach", 644, 284, 92, 92, "pink", "COACH", { anchor = "br" }),
 			-- (the live game: join the next BIG RACE, bottom middle by the thumbs, off the stick;
 			-- today's jobs at the right edge, off the speed tracks)
 			button("Race", 288, 312, 180, 64, "lime", "RACE!", { anchor = "b", main = true }),

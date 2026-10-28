@@ -10,6 +10,7 @@ local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Features = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Features"))
 local Garage = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Garage"))
 local StageGate = require(script.Parent:WaitForChild("StageGate"))
 local KartStyle = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("KartStyle"))
@@ -178,6 +179,11 @@ local function addShop(model: Instance)
 		return
 	end
 	local kind = model:GetAttribute("ShopKind")
+	-- (Features.NEW_UI: the CRATES tile opens the crates; the stall's big floating word sat by
+	-- JOBS on a phone and read like a second button, Studio live1)
+	if kind == "crates" and Features.CVC and Features.NEW_UI then
+		return
+	end
 	local word = if type(kind) == "string" then SHOP_WORDS[kind] else nil
 	local floor = model.PrimaryPart
 	if word == nil or floor == nil then

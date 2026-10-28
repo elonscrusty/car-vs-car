@@ -183,9 +183,9 @@ function Shop.open(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 			sf,
 			"Name",
 			14,
-			28,
+			36,
 			sp.w - 28,
-			28,
+			26,
 			sale.title or "Gold Wheels",
 			{ color = ICE, stroke = 6, drop = 3, align = "l", z = 4 }
 		)
@@ -193,9 +193,9 @@ function Shop.open(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 			sf,
 			"Sub",
 			14,
-			58,
+			63,
 			sp.w - 28,
-			15,
+			14,
 			sale.sub or "Shiny rims for every car",
 			{ stroke = 3.5, align = "l", z = 4 }
 		)

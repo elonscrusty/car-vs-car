@@ -229,7 +229,8 @@ end
 -- data: { onTrack = { car } (3), cars = { car }, selected: n, room: "14 / 50", trackTag: "3/3",
 --   trackWord: "ON TRACK" } where car = { id, name, rarity, stars, tone, count, badge, color,
 --   kind, stats = { power, air, speed } (words like "12") }
---   live game extras: slots (how many ON TRACK slots), more (a + slot), equipWord, deleteWord,
+--   live game extras: slots (how many ON TRACK slots), more (a + slot), moreWords (on it),
+--   equipWord, deleteWord,
 --   deleteTone, bestWord (other words on the buttons; deleteWord = no red X on the car)
 -- actions: select(i), equip(i), delete(i), equipBest(), room(), station(i), more(), close()
 function Windows.garage(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
@@ -252,11 +253,16 @@ function Windows.garage(data: { [string]: any }, actions: Screen.Actions?): Scre
 			local isMore = data.more and i == n
 			local s =
 				Kit.slot(c, if isMore then "More" else "On" .. i, ox + (i - 1) * (ss + 8), oy, ss, {
-					tone = if car then "lime" else "empty",
-					count = car and car.count,
+					tone = if car then "lime" elseif isMore then "gold" else "empty",
+					count = if isMore then data.moreWords else car and car.count,
 					badge = car and car.badge,
 					car = car and { id = car.id, color = car.color, kind = car.kind },
 				})
+			-- (the + for one more station is gold with its price, not a second grey + box like an
+			-- empty station, Studio live1)
+			if isMore then
+				Icons.make(s.button, "plus", ss * 0.22, ss * 0.1, ss * 0.56, { z = 6 })
+			end
 			s.button.Activated:Connect(function()
 				if isMore then
 					Screen.act(actions, "more")()
@@ -875,7 +881,7 @@ end
 -- actions: tab(i), claim(i), go(i), close()
 function Windows.quests(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
 	return Screen.open("quests", "window", false, function(g)
-		local win = window(g, "quests", actions)
+		local win = window(g, "quests", actions, { title = data.title })
 		local c = win.content
 		local tp = piece("quests", "Window.Tabs")
 		Kit.tabs(
@@ -884,7 +890,7 @@ function Windows.quests(data: { [string]: any }, actions: Screen.Actions?): Scre
 			tp.y,
 			tp.w,
 			tp.h,
-			{ "DAILY", "WEEKLY" },
+			data.tabs or { "DAILY", "WEEKLY" },
 			data.tab or 1,
 			Screen.act(actions, "tab")
 		)
@@ -1012,7 +1018,7 @@ Windows.POPUPS = {
 }
 
 -- data: { kind = "coins" | "sell" | "leave", title?, text?, icon?, yes = { words, tone }?,
---   no = { words, tone }? } (these override the kind's)
+--   no = { words, tone } | false? } (these override the kind's; no = false: just the one button)
 -- actions: yes(), no()
 function Windows.popup(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
 	return Screen.open("popup", "popup", false, function(g)
@@ -1033,10 +1039,12 @@ function Windows.popup(data: { [string]: any }, actions: Screen.Actions?): Scree
 		Base.text(c, "Text", xp.x, xp.y, xp.w, xp.h, data.text or k.text, { stroke = 3.5, z = 4 })
 		local yp, np = piece("popups", "Window.Yes"), piece("popups", "Window.No")
 		local yes, no = data.yes or k.yes, data.no or k.no
+		-- (no = false: one button, in the middle; two that did the same thing read as a choice)
+		local one = data.no == false
 		Kit.button(
 			c,
 			"Yes",
-			yp.x,
+			if one then (yp.x + np.x) / 2 else yp.x,
 			yp.y,
 			yp.w,
 			yp.h,
@@ -1044,17 +1052,19 @@ function Windows.popup(data: { [string]: any }, actions: Screen.Actions?): Scree
 			yes[1],
 			{ onClick = Screen.act(actions, "yes"), size = 17 }
 		)
-		Kit.button(
-			c,
-			"No",
-			np.x,
-			np.y,
-			np.w,
-			np.h,
-			no[2],
-			no[1],
-			{ onClick = Screen.act(actions, "no"), size = 17 }
-		)
+		if not one then
+			Kit.button(
+				c,
+				"No",
+				np.x,
+				np.y,
+				np.w,
+				np.h,
+				no[2],
+				no[1],
+				{ onClick = Screen.act(actions, "no"), size = 17 }
+			)
+		end
 		task.delay(if Base.reduced() then 0 else UiTheme.MOTION.popupWords + 0.12, function()
 			if c.Parent then
 				c.Visible = true

@@ -1574,6 +1574,8 @@ function Kit.card(
 			)
 		end
 		yy += 42 -- room for the car's antenna ball above it
+	else
+		yy += 14 -- (the antenna ball sat on the name: "CHOCO SL●IDE", Studio live1)
 	end
 	local carH = w * 0.74 * 0.54
 	local car = Icons.car(
