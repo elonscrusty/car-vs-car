@@ -165,21 +165,34 @@ end)
 
 test("car tags: one per pad, never over the next pad, the car or each other", function()
 	local A = T.TAG
-	-- the highest a station car gets (top of its hop) plus the car itself
-	local top = 0
-	for _, kind in { "treadmill", "ramp", "track" } do
-		for k = 0, 600 do
-			local _, y = T.ride(kind, k * 0.01)
-			top = math.max(top, y)
-		end
+	local C = T.STAND_CAM.eye
+	-- the painted words on a pad reach this far each way from its middle (along z)
+	local words = 0
+	for _, line in T.PAINT do
+		words = math.max(words, math.abs(line.at - 0.5) * T.PAD.d + line.h / 2)
 	end
-	top += 2.5 * T.CAR -- a toy car is at most 2.43 tall at size 1 (the rock style)
+	-- where a point at height y over z lands on the ground, seen from the plot camera
+	local function ground(y: number, z: number): number
+		return z - y * (C.z - z) / (C.y - y)
+	end
+	-- the treadmill car's half width (it runs straight up the middle of its pad)
+	local carHalf = 3.5 * T.CAR / 2
 	for i = 1, #T.GRID do
 		local x, y, z = T.tagSpot(i)
 		local g = T.GRID[i]
 		truthy(math.abs(x - g.x) + A.w / 2 <= T.PAD.w / 2, "tag " .. i .. " within its pad's width")
 		truthy(math.abs(z - g.z) <= T.PAD.d / 2, "tag " .. i .. " over its pad")
-		truthy(y - A.h / 2 > top, "tag " .. i .. " above the car's whole run")
+		truthy(y - A.h / 2 > 0.4, "tag " .. i .. " above the pad")
+		truthy(math.abs(x - g.x) - A.w / 2 > carHalf, "tag " .. i .. " beside the treadmill car")
+		-- from the plot camera, clear of the words on the pad behind (Studio best/plot2)
+		for _, b in T.GRID do
+			if b.x == g.x and b.z < g.z then
+				truthy(
+					ground(y + A.h / 2, z) > b.z + words,
+					"tag " .. i .. " clear of the words behind"
+				)
+			end
+		end
 		for j = i + 1, #T.GRID do
 			local x2, _, z2 = T.tagSpot(j)
 			truthy(
