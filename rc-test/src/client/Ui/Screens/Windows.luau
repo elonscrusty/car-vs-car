@@ -252,7 +252,7 @@ function Windows.garage(data: { [string]: any }, actions: Screen.Actions?): Scre
 		Kit.section(c, mp.x, mp.y, mp.w, mp.h, "MY CARS")
 		local gp = piece("garage", "Window.Grid")
 		local cars = data.cars or {}
-		local cols, size, gap = 7, 56, 10
+		local cols, size, gap = 7, 56, 9
 		local rows = math.ceil(#cars / cols)
 		local list = scroller(c, gp.x, gp.y, gp.w, gp.h, rows * (size + gap) + 8)
 		local x0 = (gp.w - (cols * size + (cols - 1) * gap)) / 2

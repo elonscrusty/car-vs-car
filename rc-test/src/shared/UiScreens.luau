@@ -156,7 +156,7 @@ local LIST: { Screen } = {
 		gameplay = false,
 		pieces = {
 			p("Shout", 10, 8, 330, 54, { anchor = "tl" }),
-			p("Steps", 10, 110, 458, 270, { anchor = "bl" }),
+			p("Steps", 18, 110, 450, 270, { anchor = "bl" }),
 			p("Rewards", 512, 46, 236, 150, {
 				anchor = "tr",
 				inner = {
@@ -214,7 +214,7 @@ local LIST: { Screen } = {
 		kind = "window",
 		gameplay = false,
 		pieces = {
-			p("Window", 8, 40, 496, 336, {
+			p("Window", 8, 40, 496, 328, {
 				anchor = "l",
 				text = "Garage",
 				inner = {
@@ -222,15 +222,15 @@ local LIST: { Screen } = {
 					p("OnSlots", 147, 46, 202, 62),
 					p("Mine", 14, 114, 468, 20),
 					p("Grid", 14, 138, 468, 128),
-					button("EquipBest", 14, 280, 180, 50, "lime", "EQUIP BEST", { main = true }),
-					p("Room", 302, 284, 180, 42),
+					button("EquipBest", 14, 272, 180, 50, "lime", "EQUIP BEST", { main = true }),
+					p("Room", 302, 276, 180, 42),
 				},
 			}),
-			p("Card", 548, 12, 196, 368, {
+			p("Card", 540, 12, 196, 356, {
 				anchor = "r",
 				inner = {
-					button("Equip", 10, 314, 84, 46, "lime", "EQUIP"),
-					button("Delete", 102, 314, 84, 46, "danger", "DELETE"),
+					button("Equip", 10, 302, 84, 46, "lime", "EQUIP"),
+					button("Delete", 102, 302, 84, 46, "danger", "DELETE"),
 				},
 			}),
 		},
@@ -272,7 +272,7 @@ local LIST: { Screen } = {
 		gameplay = false,
 		pieces = {
 			p("Shout", 128, 8, 500, 60, { anchor = "t" }),
-			p("Old", 140, 104, 100, 130, { anchor = "c" }),
+			p("Old", 124, 90, 124, 158, { anchor = "c" }),
 			p("Arrow", 262, 150, 64, 46, { anchor = "c" }),
 			p("New", 350, 70, 200, 230, { anchor = "c" }),
 			p("Reward", 168, 312, 210, 58, { anchor = "b" }),
