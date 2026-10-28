@@ -871,6 +871,8 @@ local function reveal(id: string, rarity: string)
 		kind = kindOf(id),
 		new = true,
 		note = "New car! It's in your GARAGE: tap TRAIN to put it on a station.",
+		-- OPEN ANOTHER only with a free crate left or the coins for a small one
+		again = CvcState.crates > 0 or num("Coins") >= (Crates.price("basic") or math.huge),
 	}, {
 		cool = Screen.closeOver,
 		again = function()

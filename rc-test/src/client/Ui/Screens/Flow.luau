@@ -425,7 +425,10 @@ function Flow.reveal(data: { [string]: any }, actions: Screen.Actions?): Screen.
 			Kit.sparkle(g.canvas, s[1], s[2], 30, i * 0.3)
 		end
 		placedButton(g.canvas, "reveal", "Cool", Screen.act(actions, "cool"))
-		placedButton(g.canvas, "reveal", "Again", Screen.act(actions, "again"))
+		-- (data.again = false: no OPEN ANOTHER, there's none left to open)
+		if data.again ~= false then
+			placedButton(g.canvas, "reveal", "Again", Screen.act(actions, "again"))
+		end
 		local np = piece("reveal", "Note")
 		local _, panel = Kit.placedPanel(g.canvas, np)
 		Base.text(
