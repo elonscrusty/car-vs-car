@@ -503,3 +503,32 @@ test("Car VS Car (audit B1): the bots know where the kid is on the road, from pr
 	truthy(string.find(run, "RaceBots.roadAt(bots.route, progress, lx, lz)", 1, true))
 	truthy(string.find(run, "new = solo[i],", 1, true), "racers don't know who is new")
 end)
+
+test(
+	"Car VS Car: a kid stuck far behind does not freeze the easy bots for the whole race",
+	function()
+		local m = RaceMaps.list()[1]
+		local route, bot = setup(m, 0.42, 2)
+		local f = RaceBots.newFollow()
+		-- the kid drove into a wall and was put back on the start line: 3000 units behind the bot
+		bot.dist = 3000
+		RaceBots.follow(f, 0, 0)
+		RaceBots.follow(f, 0, 0.25)
+		local cap = RaceBots.followCap(f, bot) :: number
+		eq(cap, RaceBots.FOLLOW_CRAWL, "creeps on instead of freezing at 0")
+		truthy(cap > 0)
+		-- the bot really moves under that cap, and not faster than it
+		bot.speed = 0
+		local since, start = 10, bot.dist
+		for _ = 1, 90 do
+			RaceBots.step(route, bot, DT, since, 0, RaceBots.followCap(f, bot))
+			since += DT
+		end
+		truthy(bot.dist - start > 15, "rolled on")
+		truthy(bot.speed <= RaceBots.FOLLOW_CRAWL + 0.01, "never over the crawl")
+		-- a kid only just behind (a put-back a few cars back) is still waited for
+		bot.dist = 1000
+		RaceBots.follow(f, 1000 - RaceBots.FOLLOW_WAIT + 10, 0.5)
+		eq(RaceBots.followCap(f, bot), 0)
+	end
+)

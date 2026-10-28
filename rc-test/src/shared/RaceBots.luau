@@ -101,6 +101,11 @@ RaceBots.EASY_DELAY = 0.6 -- easy bots also wake up this much later at GO (secon
 RaceBots.FOLLOW_GAP = 30 -- an easy bot stays this far behind the new kid (big units, a few cars)
 RaceBots.FOLLOW_PACE = 0.9 -- ... at about this much of the kid's own pace
 RaceBots.FOLLOW_GAIN = 0.8 -- ... closing (or opening) the gap this fast (1/s)
+-- A bot that ends up in front of the kid (they were put back) waits for them to go by, but only
+-- while they are close: a kid far behind (stuck at the start line) no longer freezes the race, the
+-- bots creep on at FOLLOW_CRAWL so the race still ends.
+RaceBots.FOLLOW_WAIT = 90
+RaceBots.FOLLOW_CRAWL = 20
 
 -- The skill range (lowest, highest) for a race in `league` (1..4; nil = the old fixed range),
 -- or the easy range.
@@ -449,13 +454,19 @@ function RaceBots.follow(f: Follow, kid: number?, now: number)
 end
 
 -- The most an easy bot may drive now: a bit under the kid's pace, and slower the closer it gets
--- to FOLLOW_GAP behind them (nil = no kid to follow). It never gets past them.
+-- to FOLLOW_GAP behind them (nil = no kid to follow). It never gets past them, and a bot already
+-- far in front of a kid who was put back creeps on (FOLLOW_CRAWL).
 function RaceBots.followCap(f: Follow, bot: Bot): number?
 	if f.at == nil or bot.time ~= nil then
 		return nil
 	end
 	if bot.dist >= (f.at :: number) then
-		return 0 -- in front (the kid was put back behind it): wait for them to go by
+		-- in front (the kid was put back behind it): wait for them to go by, unless they are far
+		-- behind, then creep on instead of freezing
+		if bot.dist - (f.at :: number) <= RaceBots.FOLLOW_WAIT then
+			return 0
+		end
+		return RaceBots.FOLLOW_CRAWL
 	end
 	local room = (f.at :: number) - RaceBots.FOLLOW_GAP - bot.dist
 	return math.max(0, f.speed * RaceBots.FOLLOW_PACE + room * RaceBots.FOLLOW_GAIN)
