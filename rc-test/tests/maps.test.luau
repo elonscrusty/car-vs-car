@@ -5,6 +5,7 @@ local H = require("./harness")
 local RaceMaps = require("../src/shared/RaceMaps")
 local Maps = require("../src/shared/Maps")
 local MapKit = require("../src/shared/Maps/MapKit")
+local Kit = require("../src/shared/Plots/Kit")
 local LapTimer = require("../src/shared/LapTimer")
 
 local test, eq, truthy = H.test, H.eq, H.truthy
@@ -284,7 +285,7 @@ for _, m in maps do
 	test(m.id .. ": things lining the road stay off every road", function()
 		local spots = MapKit.edgeSpots(m, 34, def.road / 2 + MapKit.CURB_WIDTH + 10, 5)
 		truthy(#spots > 80, `only {#spots} spots by the road`)
-		local toys = MapKit.edgeSpots(m, 130, MapKit.TOY_OFF, MapKit.TOY_CLEAR)
+		local toys = MapKit.toySpots(m)
 		truthy(#toys > 8, `only {#toys} toy spots`)
 		for _, e in toys do
 			for k, ring in roads(m) do
@@ -294,6 +295,136 @@ for _, m in maps do
 				truthy(
 					d - 25 > w / 2 + MapKit.CURB_WIDTH,
 					`toy at {e.x}, {e.z} is {d} from road {k}`
+				)
+			end
+		end
+	end)
+
+	-- the drive-under props are skipped above, so their legs get their own check (the kitchen
+	-- table's leg stood on the main road once the map was squeezed)
+	test(m.id .. ": table, chair and bench legs stand clear of every road", function()
+		local LEGS: { [string]: (e: any) -> ({ { number } }, number) } = {
+			table = function(e)
+				local w, d = e.w or 280, e.d or 380
+				return { { w / 2 - 12, d / 2 - 12 } }, 7
+			end,
+			chair = function(e)
+				local w = e.w or 96
+				return { { w / 2 - 4, w / 2 - 4 } }, 4
+			end,
+			picnicTable = function(e)
+				local w, d = e.w or 400, e.d or 200
+				return { { w * 0.4, d * 0.15 + e.h * 0.15 } }, 5
+			end,
+		}
+		for _, e in def.props do
+			local legs = LEGS[e.kind]
+			if legs then
+				local offs, half = legs(e)
+				local c, s = math.cos(e.yaw), math.sin(e.yaw)
+				for _, o in offs do
+					for _, sx in { -1, 1 } do
+						for _, sz in { -1, 1 } do
+							local lx, lz = sx * o[1], sz * o[2]
+							-- turned like CFrame.Angles(0, yaw, 0)
+							local x, z = e.x + lx * c + lz * s, e.z - lx * s + lz * c
+							for k, ring in roads(m) do
+								local w = if k == 1 then def.road else def.paths[k - 1].width
+								local dist = MapKit.distTo(ring, x, z)
+								truthy(
+									dist > w / 2 + MapKit.CURB_WIDTH + half,
+									`{e.kind} leg at {math.floor(x)}, {math.floor(z)} is on road {k}`
+								)
+							end
+						end
+					end
+				end
+			end
+		end
+	end)
+
+	-- a looks-only line (the spoon) can't touch a road, curb or jump ramp: the car would drive
+	-- through it (only the hose may cross a road, under a jump's ridge)
+	test(m.id .. ": the dropped spoon lies clear of every road", function()
+		for _, l in def.lines do
+			if l.kind ~= "hose" then
+				local pts = Kit.path(l.points, 6)
+				for i, p in pts do
+					-- the bowl at the tip reaches 2.5 widths from its middle, the handle 1
+					local reach = if i == #pts then l.width * 2.5 else l.width
+					for k, ring in roads(m) do
+						local w = if k == 1 then def.road else def.paths[k - 1].width
+						truthy(
+							MapKit.distTo(ring, p.x, p.z) - reach > w / 2 + MapKit.CURB_WIDTH,
+							`{l.kind} at {math.floor(p.x)}, {math.floor(p.z)} touches road {k}`
+						)
+					end
+				end
+			end
+		end
+	end)
+
+	-- a first-time kid on the low chase cam ran off every bend (10-28): each bend gets chevron
+	-- boards on its outside, facing the car coming in, pointing the way the road turns
+	test(m.id .. ": every bend has chevron boards on its outside, facing the car", function()
+		local loop = m.loop()
+		local n = #loop
+		local signs = MapKit.turnSigns(m)
+		local turns = MapKit.turns(m)
+		truthy(#turns >= 5, `only {#turns} bends found`)
+		for _, t in turns do
+			local count = 0
+			for _, sg in signs do
+				local s, i = MapKit.nearest(loop, sg)
+				local inBend = false
+				for k = t.from - 4, t.to do
+					if (k - 1) % n + 1 == i then
+						inBend = true
+					end
+				end
+				if inBend then
+					count += 1
+					eq(sg.dir, t.dir)
+					-- on the outside of the bend, past the curb
+					local ox, oz = s.tz * t.dir, -s.tx * t.dir
+					truthy(
+						(sg.x - s.x) * ox + (sg.z - s.z) * oz > def.road / 2 + MapKit.CURB_WIDTH,
+						`board at {math.floor(sg.x)}, {math.floor(sg.z)} is not out past the curb`
+					)
+					-- its face turned toward the road / the oncoming car
+					local fx, fz = math.sin(sg.yaw), math.cos(sg.yaw)
+					truthy(
+						fx * (-s.tx - ox) + fz * (-s.tz - oz) > 0.5,
+						`board at {math.floor(sg.x)}, {math.floor(sg.z)} faces away`
+					)
+				end
+			end
+			truthy(count >= 2, `bend at samples {t.from}-{t.to} has {count} boards`)
+		end
+		for _, sg in signs do
+			for k, ring in roads(m) do
+				local w = if k == 1 then def.road else def.paths[k - 1].width
+				truthy(
+					MapKit.distTo(ring, sg.x, sg.z) > w / 2 + MapKit.CURB_WIDTH + 2,
+					`board at {math.floor(sg.x)}, {math.floor(sg.z)} is on road {k}`
+				)
+			end
+		end
+	end)
+
+	-- the squeeze moves things but keeps their size, so a prop by the fence can end up through it
+	test(m.id .. ": a prop inside the walls doesn't poke through them", function()
+		for _, e in def.props do
+			if e.x > def.minX and e.x < def.maxX and e.z > def.minZ and e.z < def.maxZ then
+				local w, d = e.w or 0, e.d or 0
+				local c, s = math.abs(math.cos(e.yaw)), math.abs(math.sin(e.yaw))
+				local ex, ez = (w * c + d * s) / 2, (w * s + d * c) / 2
+				truthy(
+					e.x - ex >= def.minX - 0.5
+						and e.x + ex <= def.maxX + 0.5
+						and e.z - ez >= def.minZ - 0.5
+						and e.z + ez <= def.maxZ + 0.5,
+					`{e.kind} at {math.floor(e.x)}, {math.floor(e.z)} pokes through the wall`
 				)
 			end
 		end
@@ -447,5 +578,51 @@ for _, m in maps do
 			math.abs(line.x - st.x) < 300 and st.z - line.z < 150,
 			"the stand is far from the start"
 		)
+	end)
+end
+
+-- The stand camera (RaceStand: above and behind your spot) must see the road right in front of
+-- the stand: an offline render showed the deck itself hiding the front straight (10-26).
+local RaceStand = require("../src/shared/RaceStand")
+for _, m in maps do
+	test(m.id .. ": from the stand camera the deck never hides the road in front", function()
+		local st = m.def.stand
+		local big = 1 / 0.25 -- RC studs to big units
+		local x0, x1 = st.x - st.w / 2, st.x + st.w / 2
+		local z0, z1 = st.z - st.d / 2, st.z + st.d / 2
+		local y0, y1 = st.h - 4, st.h
+		local spots = m.standSpots()
+		for _, k in { 1, 4, 8 } do
+			local sp = spots[k]
+			local c = {
+				sp.x + RaceStand.CAM_SIDE * big,
+				sp.y + RaceStand.CAM_UP * big,
+				sp.z + RaceStand.CAM_BACK * big,
+			}
+			truthy(c[3] < m.def.maxZ - 8, `spot {k}: the camera is out past the fence`)
+			for _, s in m.loop() do
+				if math.abs(s.x - st.x) < 300 and math.abs(s.z - st.z) < 200 then
+					-- does the line from the camera to the road cross the deck slab?
+					local e = { s.x, 0.5, s.z }
+					local lo, hi = 0, 1
+					for i, r in { { x0, x1 }, { y0, y1 }, { z0, z1 } } do
+						local d = e[i] - c[i]
+						if math.abs(d) < 1e-9 then
+							if c[i] < r[1] or c[i] > r[2] then
+								lo = 2
+							end
+						else
+							local t1, t2 = (r[1] - c[i]) / d, (r[2] - c[i]) / d
+							lo = math.max(lo, math.min(t1, t2))
+							hi = math.min(hi, math.max(t1, t2))
+						end
+					end
+					truthy(
+						lo > hi,
+						`spot {k}: the deck hides the road at {math.floor(s.x)}, {math.floor(s.z)}`
+					)
+				end
+			end
+		end
 	end)
 end

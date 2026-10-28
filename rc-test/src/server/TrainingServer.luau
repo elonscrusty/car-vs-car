@@ -25,6 +25,7 @@ local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local Profile = require(ReplicatedStorage.Shared.Profile)
 local Training = require(ReplicatedStorage.Shared.Training)
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
+local Jobs = require(script.Parent.Jobs)
 local LobbyPlots = require(script.Parent.LobbyPlots)
 local PlayerData = require(script.Parent.PlayerData)
 
@@ -40,6 +41,7 @@ local ready: { [Player]: boolean } = {}
 local lastAsk: { [Player]: number } = {}
 local lastTouch: { [Player]: number } = {}
 local coinBits: { [Player]: number } = {} -- coins earned but not yet whole
+local trainSecs: { [Player]: number } = {} -- seconds with a car training, toward the next minute
 
 -- (the rules themselves live in CvcRules, so Lune can play them through)
 TrainingServer.stats = CvcRules.stats
@@ -78,6 +80,9 @@ local function show(player: Player, data: Profile.Data)
 	player:SetAttribute("League", data.league)
 	player:SetAttribute("Trophies", data.trophies)
 	player:SetAttribute("RacerId", if data.racer ~= "" then data.racer else nil)
+	-- which car that is (the race car is painted its colour: it was always the plain red)
+	local racer = if data.racer ~= "" then Profile.findCar(data, data.racer) else nil
+	player:SetAttribute("RacerCar", if racer then racer.id else nil)
 	player:SetAttribute("BoostUntil", if data.boostUntil > now then data.boostUntil else 0)
 	player:SetAttribute("Picked", data.picked)
 end
@@ -124,6 +129,14 @@ function TrainingServer.raceDone(player: Player, place: number)
 	remote:FireClient(player, "race", place, got.coins, got.trophy, got.league)
 end
 
+-- Send the lists again after a change made elsewhere (the daily gift's crate).
+function TrainingServer.refresh(player: Player)
+	local data = PlayerData.get(player)
+	if data and ready[player] then
+		changed(player, data)
+	end
+end
+
 -- Which car this player races with (nil = none yet).
 function TrainingServer.racer(player: Player): (Profile.GarageCar?, Training.Stats?)
 	local data = PlayerData.get(player)
@@ -150,9 +163,10 @@ local function onAsk(player: Player, kind: unknown, a: unknown, b: unknown)
 	if kind == "pick" then
 		did = CvcRules.pick(data, a)
 	elseif kind == "coach" then
-		local at = player:GetAttribute("CoachAt")
-		if Training.coachReady(if type(at) == "number" then at else 0, now) then
-			player:SetAttribute("CoachAt", now)
+		local tapped = CvcRules.coach(player:GetAttribute("CoachAt") or 0, now)
+		if tapped then
+			player:SetAttribute("CoachAt", tapped)
+			Jobs.fire(player, "coach")
 		end
 	elseif kind == "station" then
 		did = CvcRules.station(data, a, b)
@@ -160,8 +174,14 @@ local function onAsk(player: Player, kind: unknown, a: unknown, b: unknown)
 		did = CvcRules.racer(data, a)
 	elseif kind == "upgrade" then
 		did = CvcRules.upgrade(data, a)
+		if did then
+			Jobs.fire(player, "upgrade")
+		end
 	elseif kind == "level" then
 		did = CvcRules.levelUp(data)
+		if did then
+			Jobs.fire(player, "upgrade")
+		end
 	elseif kind == "open" then
 		gotCar = CvcRules.open(data, Random.new())
 	elseif kind == "buy" then
@@ -173,6 +193,9 @@ local function onAsk(player: Player, kind: unknown, a: unknown, b: unknown)
 	end
 	if gotCar then
 		remote:FireClient(player, "crate", gotCar, CarCatalog.rarity(gotCar).id)
+		Jobs.fire(player, "crate")
+		-- the first crate opens the rest of the screen: daily gift, jobs (JoinStage "shopped")
+		PlayerData.raiseStage(player, Profile.STAGE.SHOPPED)
 	end
 end
 
@@ -182,6 +205,19 @@ local function tick(player: Player, data: Profile.Data, dt: number, now: number,
 	local coach = Training.coaching(if type(at) == "number" then at else 0, now)
 	local bits, cars = CvcRules.tick(data, dt, coach, now, coinBits[player] or 0)
 	coinBits[player] = bits
+	local busy = false
+	for _, st in data.stations do
+		busy = busy or st.uid ~= ""
+	end
+	if busy then
+		-- a daily job counts whole minutes with a car on a station
+		local secs = (trainSecs[player] or 0) + dt
+		if secs >= 60 then
+			secs -= 60
+			Jobs.fire(player, "train")
+		end
+		trainSecs[player] = secs
+	end
 	if send then
 		for _, car in cars do
 			remote:FireClient(player, "trained", car.uid, car)
@@ -211,6 +247,7 @@ function TrainingServer.start()
 	end
 	Players.PlayerRemoving:Connect(function(p: Player)
 		ready[p], lastAsk[p], lastTouch[p], coinBits[p] = nil, nil, nil, nil
+		trainSecs[p] = nil
 	end)
 	-- the plot changes hands on join: its looks follow the new owner
 	LobbyPlots.changed:Connect(function(slot: number)

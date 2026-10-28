@@ -28,10 +28,17 @@ local ServerRace = {}
 
 ServerRace.BREAK = 5 * 60 -- the break between races (build, shop, drive your own plot)
 ServerRace.CALL = 10 -- the plot is picked and named this long before the start
+-- the race starts this long after its clock shows 0:00, so a JOIN tapped on 0:00 still gets in
+-- (critic run 1: a tap at 0:00 landed 0.4 s late and waited 20 s for the next race)
+ServerRace.JOIN_GRACE = 1
 ServerRace.LAPS = 2 -- map races: about 1 min (Car VS Car, 10-26)
+-- a new player's first race (easy bots) is 1 lap: 2 took them 1.5 to 2 min (carter 10-27: shorter)
+ServerRace.FIRST_LAPS = 1
 ServerRace.MAX = 8 -- cars on the grid
 ServerRace.TIME_LIMIT = 240 -- seconds from GO: the race ends even if nobody finished
 ServerRace.AFTER_WIN = 30 -- the others get this long to finish after the winner
+-- Car VS Car map races: 15 (critic run 1: a lost kid sat 30 s on FINISH IN, 3 times in 10 min)
+ServerRace.MAP_AFTER_WIN = 15
 ServerRace.DRIFT_TIME = 90 -- a drift round (the plot's owner picked drift): best score in this long
 ServerRace.SHOW = 7 -- seconds the result shows before the racers walk back
 -- GO comes when the start lights go green (the player's screen starts them as the car lands)
@@ -82,7 +89,7 @@ function ServerRace.step(
 ): ("pick" | "race" | "skip")?
 	if phase == "wait" and left <= ServerRace.CALL then
 		return "pick"
-	elseif phase == "call" and left <= 0 then
+	elseif phase == "call" and left <= -ServerRace.JOIN_GRACE then
 		return if picked == nil or players == 0 then "skip" else "race"
 	end
 	return nil
@@ -196,12 +203,13 @@ function ServerRace.over(
 	entries: { Entry },
 	since: number,
 	firstAt: number?,
-	limit: number?
+	limit: number?,
+	afterWin: number?
 ): boolean
 	if since >= (limit or ServerRace.TIME_LIMIT) then
 		return true
 	end
-	if firstAt and since - firstAt >= ServerRace.AFTER_WIN then
+	if firstAt and since - firstAt >= (afterWin or ServerRace.AFTER_WIN) then
 		return true
 	end
 	for _, e in entries do
@@ -319,6 +327,12 @@ function ServerRace.nextStart(lastStart: number, now: number): number
 	return math.max(lastStart + ServerRace.CVC_EVERY, now + ServerRace.CVC_GAP)
 end
 
+-- The next start, fixed the moment every league's race is over (endAt): the result card says
+-- it and the race call counts down to it, so the two always agree.
+function ServerRace.nextAfterRace(lastStart: number, endAt: number): number
+	return ServerRace.nextStart(lastStart, endAt + ServerRace.SHOW)
+end
+
 ServerRace.GROUPS = 4 -- big races at once at most (one per league, or two for a full league)
 
 -- Who races with whom (Car VS Car): each league on its own, at most `max` a race, in join order.
@@ -381,6 +395,11 @@ function ServerRace.tally(votes: { [any]: string }, ids: { string }, r: number):
 		end
 	end
 	return best[math.clamp(math.floor(r * #best) + 1, 1, #best)]
+end
+
+-- Laps in a race: a first race (easy bots) is shorter.
+function ServerRace.lapsFor(easy: boolean?): number
+	return if easy then ServerRace.FIRST_LAPS else ServerRace.LAPS
 end
 
 return ServerRace

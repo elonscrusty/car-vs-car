@@ -92,6 +92,12 @@ test("rank: finishers by time, then by laps; race ends when all are in", functio
 		true
 	)
 	eq(ServerRace.over({ { name = "b", laps = 1 } }, ServerRace.TIME_LIMIT, nil), true)
+	-- Car VS Car map races: the wait after the winner is MAP_AFTER_WIN, not 30 s
+	local two = { { name = "a", laps = 2, time = 60 }, { name = "b", laps = 1 } }
+	local M = ServerRace.MAP_AFTER_WIN
+	truthy(M < ServerRace.AFTER_WIN, "map races wait less after the winner")
+	eq(ServerRace.over(two, 60 + M - 0.1, 60, ServerRace.MAP_TIME_LIMIT, M), false)
+	eq(ServerRace.over(two, 60 + M, 60, ServerRace.MAP_TIME_LIMIT, M), true)
 	near(ServerRace.GO_DELAY, 3.0, 1e-9)
 end)
 
@@ -163,10 +169,13 @@ test("round clock: break, pick at the call, race at zero, or skip", function()
 	eq(ServerRace.step("wait", C + 1, nil, 3), nil)
 	eq(ServerRace.step("wait", C, nil, 3), "pick")
 	eq(ServerRace.step("call", 1, 4, 3), nil)
-	eq(ServerRace.step("call", 0, 4, 3), "race")
-	eq(ServerRace.step("call", -2, 4, 3), "race") -- a late tick still starts it
-	eq(ServerRace.step("call", 0, nil, 3), "skip") -- no plot was ready
-	eq(ServerRace.step("call", 0, 4, 0), "skip") -- nobody here
+	local G = ServerRace.JOIN_GRACE
+	eq(ServerRace.step("call", 0, 4, 3), nil) -- 0:00 on the clock: a JOIN tap still gets in
+	eq(ServerRace.step("call", -0.4, 4, 3), nil) -- (critic run 1: the tap landed 0.4 s late)
+	eq(ServerRace.step("call", -G, 4, 3), "race")
+	eq(ServerRace.step("call", -G - 2, 4, 3), "race") -- a late tick still starts it
+	eq(ServerRace.step("call", -G, nil, 3), "skip") -- no plot was ready
+	eq(ServerRace.step("call", -G, 4, 0), "skip") -- nobody here
 	eq(ServerRace.step("racing", -50, 4, 3), nil) -- the race runs itself
 end)
 
@@ -174,7 +183,7 @@ test("round clock: one whole round, ticking like the server", function()
 	local phase, picked, t = "wait", nil :: number?, 0
 	local startAt = ServerRace.BREAK
 	local seen = {}
-	while t < ServerRace.BREAK + 1 do
+	while t < ServerRace.BREAK + ServerRace.JOIN_GRACE + 1 do
 		local todo = ServerRace.step(phase, startAt - t, picked, 2)
 		if todo == "pick" then
 			phase, picked = "call", ServerRace.pick({ 5 }, { 1 }, 0.3)
@@ -187,7 +196,7 @@ test("round clock: one whole round, ticking like the server", function()
 	end
 	eq(#seen, 2)
 	eq(seen[1], `pick 5 at {ServerRace.CALL}`)
-	eq(seen[2], "race 5 at 0")
+	eq(seen[2], `race 5 at {-ServerRace.JOIN_GRACE}`)
 	eq(phase, "wait")
 end)
 
@@ -239,6 +248,18 @@ test("Car VS Car: a big race every 3 min, start to start, never squeezed", funct
 	eq(ServerRace.nextStart(1000, 1170), 1170 + ServerRace.CVC_GAP)
 	-- a new server: soon
 	eq(ServerRace.nextStart(-math.huge, 50), 50 + ServerRace.CVC_GAP)
+end)
+
+test("Car VS Car: the result card's NEXT RACE IN and the race call read the same start", function()
+	-- the server fixes it when every race is over and sends it ("next"); the card counts down to it
+	-- and the race call's startAt is set to it after the card (no ~15 s gap)
+	local last, ended = 1000, 1100
+	local nextAt = ServerRace.nextAfterRace(last, ended)
+	eq(nextAt, 1000 + ServerRace.CVC_EVERY)
+	-- a long race: still a full gap after the results go away
+	local late = ServerRace.nextAfterRace(1000, 1160)
+	eq(late, 1160 + ServerRace.SHOW + ServerRace.CVC_GAP)
+	truthy(late - (1160 + ServerRace.SHOW) >= ServerRace.CVC_GAP, "a gap after the card")
 end)
 
 test("Car VS Car: the maps take turns", function()

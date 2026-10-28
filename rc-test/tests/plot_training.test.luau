@@ -34,16 +34,33 @@ test("the room and the pads fit the plot behind the front wall at every level", 
 	end
 end)
 
+test("carter's room props keep the room's own floor, rug, rails and sign", function()
+	-- (Garage.useMeshes clears every part of the group that isn't in `keep`)
+	for _, m in T.meshes() do
+		local keep: { [string]: boolean } = {}
+		for _, name in m.keep do
+			keep[name] = true
+		end
+		for _, p in T.pieces(8, 10, 20) do
+			if p.group == m.group then
+				truthy(keep[p.name], m.model .. " keeps " .. p.name)
+			end
+		end
+	end
+end)
+
 test("nothing on the plot is solid (walk anywhere)", function()
 	for _, p in T.pieces(8, 10, 20) do
 		eq(p.collide, false)
 	end
 end)
 
-test("pads don't touch each other or the room", function()
+test("pads don't touch each other or the garage floor in the middle", function()
 	local P = T.PAD
+	local R = T.ROOM
 	for i, a in T.GRID do
-		truthy(a.z - P.d / 2 > T.ROOM.z1, "pad " .. i .. " in front of the room")
+		local clear = a.x + P.w / 2 < R.x0 or a.x - P.w / 2 > R.x1 or a.z + P.d / 2 < R.z0
+		truthy(clear, "pad " .. i .. " off the garage floor")
 		for j, b in T.GRID do
 			if i < j then
 				local apart = math.abs(a.x - b.x) >= P.w + 1 or math.abs(a.z - b.z) >= P.d + 1
@@ -96,10 +113,11 @@ end)
 test("pad signs: the station and its level, or which plot level opens it", function()
 	local a, b = T.padWords({ kind = "ramp", level = 3, car = "" }, 2)
 	eq(a, "RAMP")
-	eq(b, "LV 3")
+	eq(b, "LV 3  +BOOST")
+	eq(select(2, T.padWords({ kind = "track", level = 1, car = "" }, 3)), "LV 1  +TURN")
 	a, b = T.padWords(nil, 4)
-	eq(a, "LOCKED")
-	eq(b, "PLOT LV 3")
+	eq(a, "?")
+	eq(b, "LV 3")
 end)
 
 test("the tiny cars stay on their pad and never jump", function()
@@ -124,4 +142,163 @@ test("pad i is station i", function()
 	eq(T.kindAt(1), "treadmill")
 	eq(T.kindAt(2), "ramp")
 	eq(T.kindAt(3), "track")
+end)
+
+test("COACH speeds the stations up for its 10 seconds only", function()
+	eq(T.coaching(0, 1000), false)
+	eq(T.coaching(nil, 1000), false)
+	eq(T.coaching(995, 1000), true)
+	eq(T.coaching(985, 1000), false)
+	truthy(T.COACH_SPEED > 1, "faster")
+end)
+
+test("the treadmill belt's slats stay on the belt and scroll back", function()
+	local B = T.BELT
+	local a = T.slats(0)
+	local b = T.slats(0.05)
+	eq(#a, B.slats)
+	for _, t in { 0, 0.3, 1.7, 99.9 } do
+		for _, z in T.slats(t) do
+			truthy(z >= (B.z - B.len / 2) * T.K and z <= (B.z + B.len / 2) * T.K, "on the belt")
+		end
+	end
+	truthy(b[1] > a[1], "moves toward the road")
+end)
+
+test("station cars: their name and number on the pad's sign, no tag", function()
+	local a, b = T.carWords({ kind = "treadmill", level = 2, car = "race_bolt" }, "Bolt", 27)
+	eq(a, "TREADMILL  LV 2")
+	eq(b, "BOLT  SPD 27")
+	eq(select(2, T.carWords({ kind = "track", level = 1, car = "" }, "Bolt", 9)), "BOLT  TURN 9")
+	-- stand tags: narrower than the gap between stands side by side
+	for i = 1, #T.STANDS do
+		for j = i + 1, #T.STANDS do
+			local p, q = T.STANDS[i], T.STANDS[j]
+			if p.z == q.z then
+				truthy(
+					math.abs(p.x - q.x) > T.STAND_TAG.w,
+					"stand tags " .. i .. " and " .. j .. " apart"
+				)
+			end
+		end
+	end
+end)
+
+-- where a plot-local point lands on a 16:9 screen from the stand camera: -1..1 across and up
+local function onScreen(px: number, py: number, pz: number, aspect: number): (number, number)
+	local C = T.STAND_CAM
+	local e, l = C.eye, C.look
+	local fx, fy, fz = l.x - e.x, l.y - e.y, l.z - e.z
+	local fl = math.sqrt(fx * fx + fy * fy + fz * fz)
+	fx, fy, fz = fx / fl, fy / fl, fz / fl
+	-- right = forward x up, then up = right x forward
+	local rx, ry, rz = -fz, 0, fx
+	local rl = math.sqrt(rx * rx + rz * rz)
+	rx, rz = rx / rl, rz / rl
+	local ux, uy, uz = ry * fz - rz * fy, rz * fx - rx * fz, rx * fy - ry * fx
+	local dx, dy, dz = px - e.x, py - e.y, pz - e.z
+	local depth = dx * fx + dy * fy + dz * fz
+	local t = math.tan(math.rad(C.fov / 2))
+	local across = (dx * rx + dy * ry + dz * rz) / depth / (t * aspect)
+	local up = (dx * ux + dy * uy + dz * uz) / depth / t
+	return across, up
+end
+
+test("the plot camera sees every pad corner and the scoreboard on a phone", function()
+	local P = T.PAD
+	local B = T.BOARD
+	local points = {}
+	for _, g in T.GRID do
+		for _, sx in { -1, 1 } do
+			for _, sz in { -1, 1 } do
+				table.insert(points, { g.x + sx * P.w / 2, 0, g.z + sz * P.d / 2 })
+			end
+		end
+	end
+	for _, sx in { -1, 1 } do
+		for _, sy in { -1, 1 } do
+			table.insert(points, { B.x + sx * B.w / 2, B.y + sy * B.h / 2, B.z })
+		end
+	end
+	for _, aspect in { 16 / 9, 2.16 } do -- a phone on its side, and a long one
+		for _, p in points do
+			local a, u = onScreen(p[1], p[2], p[3], aspect)
+			truthy(
+				math.abs(a) <= 0.97 and math.abs(u) <= 0.97,
+				`({p[1]}, {p[2]}, {p[3]}) on screen`
+			)
+		end
+	end
+end)
+
+test("the gate's name board is under the front pads, not over them", function()
+	local D = require("../src/shared/PlotDecor")
+	for _, kind in { "race", "drift" } do
+		for _, m in D.meshes(kind) do
+			if m.group == "Arch" then
+				local top = m.fit.y
+				local _, gate = onScreen(m.at.x, top, m.at.z, 16 / 9)
+				-- the nearest pad corner on the screen (the lowest)
+				local low = math.huge
+				for _, g in T.GRID do
+					local _, u = onScreen(g.x, 0, g.z + T.PAD.d / 2, 16 / 9)
+					low = math.min(low, u)
+				end
+				truthy(gate < low, m.model .. " under the pads")
+			end
+		end
+	end
+end)
+
+test("locked pads have no little sign (their words are painted big on the pad)", function()
+	for _, p in T.pieces(1, 0, 0) do
+		if p.name == "PadSign" or p.name == "PadSignFoot" then
+			local i = tonumber(string.sub(p.group, 4)) :: number
+			truthy(i <= T.open(1), "sign only on open pads, not " .. p.group)
+		end
+	end
+end)
+
+test("LOCKED words fit the pad top once turned to read from the gate", function()
+	local P = T.PAD
+	for _, line in T.PAINT do
+		-- turned 90: its width runs along the pad's x, its height along z
+		truthy(line.w <= P.w * 0.95, "fits across")
+		local zc = (line.at - 0.5) * P.d
+		truthy(math.abs(zc) + line.h / 2 <= P.d / 2, "fits deep")
+	end
+	truthy(T.PAINT[1].at > T.PAINT[2].at, "LOCKED on the far line, PLOT LV under it")
+end)
+
+test("the scoreboard's rows are big enough to read on a phone", function()
+	local B = T.BOARD
+	-- each row's words are 80% of a row, and the rows share 80% of the board (CvcPlot.client)
+	local rowWords = B.h * 0.8 / T.BOARD_ROWS * 0.8
+	truthy(rowWords >= 2.5, `row words {rowWords} studs tall (5 rows of 1.3 were too small)`)
+	-- clear of the name sign on the left and the trophy shelf on the right
+	truthy(B.x - B.w / 2 > T.ROOM_SIGN_X + 9, "left of the board: the name sign")
+	truthy(B.x + B.w / 2 < T.SHELF.x - T.SHELF.w / 2, "right of the board: the shelf")
+	truthy(B.y - B.h / 2 > 5, "over the treadmills' screens")
+end)
+
+test("pad signs: big, low, and clear of the next pad and the garage floor", function()
+	local S, P = T.PAD_SIGN, T.PAD
+	truthy(S.w <= P.w - 2, "narrower than the pad")
+	local rad = math.rad(S.lean)
+	local top = S.y + S.h / 2 * math.cos(rad)
+	truthy(top <= 2.6, "low, so it doesn't hide its station")
+	truthy(S.h * S.w >= 90, "big (was 14 by 3)")
+	local reach = S.h / 2 * math.sin(rad) -- how far the sign runs each way in z
+	for i, g in T.GRID do
+		local z0, z1 = g.z + P.d / 2 + S.out - reach, g.z + P.d / 2 + S.out + reach
+		for j, h in T.GRID do
+			if i ~= j and math.abs(g.x - h.x) < P.w then
+				local apart = z1 < h.z - P.d / 2 or z0 > h.z + P.d / 2
+				truthy(apart, `pad {i}'s sign off pad {j}`)
+			end
+		end
+		if math.abs(g.x) - P.w / 2 < T.ROOM.x1 then
+			truthy(z1 < T.ROOM.z0 or z0 > T.ROOM.z1, `pad {i}'s sign off the garage floor`)
+		end
+	end
 end)

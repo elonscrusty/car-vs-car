@@ -6,6 +6,9 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
+local Crates = require(ReplicatedStorage.Shared.Crates)
+local CvcLayout = require(ReplicatedStorage.Shared.CvcLayout)
+local Features = require(ReplicatedStorage.Shared.Features)
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
 local KartStyle = require(ReplicatedStorage.Shared.KartStyle)
 local Popup = require(script.Parent:WaitForChild("Popup"))
@@ -53,6 +56,12 @@ top.ResetOnSpawn = false
 top.IgnoreGuiInset = true
 top.DisplayOrder = HudLayout.POPUP
 top.Parent = gui.Parent
+-- the screen's top left in AbsolutePosition terms (those start under Roblox's top bar)
+local topOrigin = Instance.new("Frame")
+topOrigin.Name = "Kart_Origin"
+topOrigin.BackgroundTransparency = 1
+topOrigin.Size = UDim2.fromOffset(0, 0)
+topOrigin.Parent = top
 
 local chip = Instance.new("TextLabel")
 chip.Name = "StarCount"
@@ -70,11 +79,14 @@ local chipScale = Instance.new("UIScale")
 chipScale.Parent = chip
 
 -- shown when this server can't save (Studio without API access, DataStore down)
+local NO_SAVE_X = 180 -- px: past Roblox's three top left buttons
 local noSave = Instance.new("TextLabel")
 noSave.Name = "NotSaving"
-noSave.AnchorPoint = Vector2.new(0, 1)
-noSave.Position = UDim2.new(0, 0, 0, -2) -- above the coins chip
-noSave.Size = UDim2.fromScale(1, 0.5)
+-- up in Roblox's top bar, right of its menu buttons (over the coins chip they hid the NOT,
+-- Studio polish-7)
+noSave.Position = UDim2.fromOffset(NO_SAVE_X, 18)
+noSave.Size = UDim2.fromOffset(260, 24)
+noSave.TextXAlignment = Enum.TextXAlignment.Left
 noSave.BackgroundTransparency = 1
 noSave.TextColor3 = Color3.fromRGB(255, 110, 100)
 noSave.TextStrokeTransparency = 0.4
@@ -90,7 +102,7 @@ HudLayout.place(coinChip, "CoinCount")
 coinChip.TextColor3 = Color3.fromRGB(255, 236, 150)
 coinChip.Text = "0"
 coinChip.Parent = hud
-noSave.Parent = coinChip
+noSave.Parent = if Features.CVC and Features.NEW_UI then top else hud
 -- a drawn coin (the coin emoji is missing from Roblox's font): gold disc, darker rim, a lighter
 -- inner ring. The number sits to its right.
 local coinPad = Instance.new("UIPadding")
@@ -188,9 +200,10 @@ local function showFold()
 	end
 	HudLayout.place(jobs, "DailyJobs")
 	if folded then
-		jobs.Size = UDim2.fromOffset(130, 34)
+		jobs.Size = UDim2.fromOffset(CvcLayout.JOBS_CHIP[1], CvcLayout.JOBS_CHIP[2])
 	end
 	jobsTitle.Size = UDim2.fromScale(1, if folded then 1 else 0.22)
+	jobs:SetAttribute("Open", not folded) -- (CvcHowTo: the how-to tip waits while it's open)
 	showTitle()
 end
 local unfoldId = 0
@@ -209,6 +222,7 @@ jobsTitle.Activated:Connect(function()
 		end)
 	end
 end)
+local hasJobs = false -- the server has sent today's jobs
 local function showJobs(lines: { any })
 	jobsDone, jobsAll = 0, 0
 	for i, row in jobRows do
@@ -225,9 +239,15 @@ local function showJobs(lines: { any })
 			row.Text = ""
 		end
 	end
-	jobs.Visible = true
+	hasJobs = true
+	jobs.Visible = player:GetAttribute("TipHidesJobs") ~= true
 	showFold()
 end
+-- Car VS Car: a how-to tip that can't keep clear of this chip (it sits right under CRATE! and MY
+-- GARAGE: the arrow covered JOBS 2/3, Studio final-31) has it step away while it shows
+player:GetAttributeChangedSignal("TipHidesJobs"):Connect(function()
+	jobs.Visible = hasJobs and player:GetAttribute("TipHidesJobs") ~= true
+end)
 -- how long until new jobs, in the title
 task.spawn(function()
 	while true do
@@ -260,7 +280,7 @@ local toastCorner = Instance.new("UICorner")
 toastCorner.CornerRadius = UDim.new(0.4, 0)
 toastCorner.Parent = toast
 local toasts = 0
-local function showToast(text: string)
+local function toastNow(text: string)
 	toasts += 1
 	local mine = toasts
 	toast.Text = text
@@ -271,6 +291,29 @@ local function showToast(text: string)
 			local info = TweenInfo.new(0.4)
 			TweenService:Create(toast, info, { TextTransparency = 1, BackgroundTransparency = 1 })
 				:Play()
+		end
+	end)
+end
+
+-- Car VS Car: after a race the words wait their turn, one at a time, after the result and the
+-- win cards (CvcLayout.AFTER_RACE: +50 COINS: JOB DONE! sat on the result's rows, Studio final-49)
+local toastQueue: { string } = {}
+local function showToast(text: string)
+	if not Features.CVC then
+		toastNow(text)
+		return
+	end
+	table.insert(toastQueue, text)
+	if #toastQueue > 1 then
+		return -- (the first one's loop shows it)
+	end
+	task.spawn(function()
+		task.wait(0.5) -- (the result card comes up with the race's end: give it a beat)
+		while #toastQueue > 0 do
+			CvcLayout.waitTurn(gui.Parent :: Instance, "Toast", 30)
+			toastNow(toastQueue[1])
+			task.wait(2.9)
+			table.remove(toastQueue, 1)
 		end
 	end)
 end
@@ -461,17 +504,34 @@ for i, amount in DAILY do
 	table.insert(days, box)
 end
 
+-- Is gui's `name` on screen (it and every frame it sits in)?
+local function shownIn(gui: Instance?, name: string): boolean
+	local f = gui and gui:FindFirstChild(name, true)
+	if not (f and f:IsA("GuiObject") and f.Visible) then
+		return false
+	end
+	local up = f.Parent
+	while up and up ~= gui do
+		if up:IsA("GuiObject") and not up.Visible then
+			return false
+		end
+		up = up.Parent
+	end
+	return not (gui and gui:IsA("ScreenGui") and not gui.Enabled)
+end
+
 local cards = 0
 local function hideCard()
 	card.Visible = false
 end
 card.Activated:Connect(hideCard)
-local function showDaily(coins: number, streak: number, boost: number)
+local function showDaily(coins: number, streak: number, boost: number, crate: boolean)
 	cards += 1
 	local mine = cards
 	local today = math.min(streak, #DAILY)
 	dayTitle.Text = if streak >= 2 then `DAY {streak} IN A ROW!` else "DAILY GIFT!"
-	gift.Text = if boost >= 2 then `+{coins} coins  (2X!)` else `+{coins} coins`
+	gift.Text = (if boost >= 2 then `+{coins} coins  (2X!)` else `+{coins} coins`)
+		.. if crate then "  + FREE CRATE!" else ""
 	for i, box in days do
 		local rim = box:FindFirstChildOfClass("UIStroke") :: UIStroke
 		box.BackgroundColor3 = if i < today
@@ -488,12 +548,19 @@ local function showDaily(coins: number, streak: number, boost: number)
 	local function calm(): boolean
 		local race = pg:FindFirstChild("ServerRace")
 		local prizeCard = pg:FindFirstChild("RacePrize", true)
-		return me:GetAttribute("HasDriven") == true
+		-- (Car VS Car has no drive from your pad: the gift comes after the first crate instead)
+		return (crate or me:GetAttribute("HasDriven") == true)
 			and me:GetAttribute("Driving") ~= true
 			and me:GetAttribute("Building") ~= true -- (it hid behind the build screen, tour 2)
 			and not (race and race:GetAttribute("Busy") == true)
 			and not (prizeCard and (prizeCard :: GuiObject).Visible)
 			and not Popup.isOpen() -- (a shop or panel is up: no card on top of it)
+			-- (the race result card, the win card, or a new screen is up: it waits for them, it
+			-- landed under the result card, critic REPORT-1)
+			and not (race and shownIn(race, "Result"))
+			and not shownIn(pg:FindFirstChild("CvcRaceTop"), "Finish")
+			and me:GetAttribute("UiBusy") ~= true
+			and me:GetAttribute("Racing") ~= true
 	end
 	local waited, still = 0, 0
 	while still < 3 and waited < 600 do
@@ -563,18 +630,21 @@ local function flyCoins()
 	flying = true
 	local count = math.clamp(3 + gain // 15, 3, 10)
 	local view = workspace.CurrentCamera.ViewportSize
-	local chipPos = coinChip.AbsolutePosition + coinChip.AbsoluteSize / 2
+	-- (in StarsTop's offsets: AbsolutePosition starts under Roblox's top bar, so the +N sat 58 px
+	-- too high, off the top edge, Studio polish-8)
+	local chipAt = coinChip.AbsolutePosition - topOrigin.AbsolutePosition
+	local chipPos = chipAt + coinChip.AbsoluteSize / 2
 	local start = Vector2.new(view.X * 0.5, view.Y * 0.55)
-	-- "+N" by the chip
+	-- "+N" where the coins come from (by the chip it went off the top, and right of it sat on the
+	-- league badge)
 	local plus = Instance.new("TextLabel")
-	plus.AnchorPoint = Vector2.new(0, 0.5)
-	plus.Position =
-		UDim2.fromOffset(coinChip.AbsolutePosition.X + coinChip.AbsoluteSize.X + 6, chipPos.Y)
-	plus.Size = UDim2.fromOffset(110, 30)
+	plus.Name = "CoinPlus"
+	plus.AnchorPoint = Vector2.new(0.5, 1)
+	plus.Position = UDim2.fromOffset(start.X, start.Y - 56)
+	plus.Size = UDim2.fromOffset(140, 40)
 	plus.BackgroundTransparency = 1
 	plus.Font = Enum.Font.LuckiestGuy
 	plus.TextScaled = true
-	plus.TextXAlignment = Enum.TextXAlignment.Left
 	plus.TextColor3 = Color3.fromRGB(255, 213, 79)
 	plus.TextStrokeTransparency = 0.3
 	plus.Text = `+{gain}`
@@ -635,11 +705,29 @@ end
 local GOLD = Color3.fromRGB(255, 213, 79)
 local GREEN = Color3.fromRGB(110, 225, 120)
 
+-- Car VS Car: new cars come out of crates (there is no car shop: the chip said BUY IT IN THE CAR
+-- SHOP! even for a car you had, Studio final-17), so the goal is the next crate
+local function cvcGoal(g: any): any
+	if not Features.CVC or type(g) ~= "table" then
+		return g
+	end
+	local price = Crates.price("basic") or 300
+	local c = player:GetAttribute("Coins")
+	local have = if type(c) == "number" then c elseif type(g.have) == "number" then g.have else 0
+	return { kind = "crate", name = "CRATE", price = price, have = have, ready = have >= price }
+end
+
 local function goalText(g: any): (string, string, number)
 	-- (what it is, how far, fill 0..1)
-	local what = if g.kind == "car" then `NEXT CAR: {g.name}` else "BIGGER GARAGE"
+	local what = if g.kind == "car"
+		then `NEXT CAR: {g.name}`
+		elseif g.kind == "crate" then "NEXT CRATE"
+		else "BIGGER GARAGE"
 	local unit = "coins"
 	local fill = if g.price > 0 then math.clamp(g.have / g.price, 0, 1) else 1
+	if g.ready and g.kind == "crate" then
+		return "GET A CRATE!", "AT THE CRATE SHOP!", 1
+	end
 	if g.ready then
 		return what, if g.kind == "car" then "BUY IT IN THE CAR SHOP!" else "BUY IT IN THE SHOP!", 1
 	end
@@ -754,8 +842,12 @@ nextHow.Size = UDim2.fromScale(0.6, 0.3)
 local nextBar = bar(nextBox, 0.82, 0.18)
 nextHow.Position = UDim2.fromScale(0, 0.47)
 
+-- the after-race card (below) says the same thing bigger: the small bar waits while it's up
+local goalUp = false
+local prizeUp = false
 local function showGoalBar(g: any)
 	if type(g) ~= "table" or type(g.name) ~= "string" or type(g.price) ~= "number" then
+		goalUp = false
 		nextBox.Visible = false
 		player:SetAttribute("GoalReady", false)
 		return
@@ -773,7 +865,8 @@ local function showGoalBar(g: any)
 	TweenService
 		:Create(f, TweenInfo.new(0.6, Enum.EasingStyle.Quart), { Size = UDim2.fromScale(fill, 1) })
 		:Play()
-	nextBox.Visible = true
+	goalUp = true
+	nextBox.Visible = not prizeUp
 end
 
 -- after a server race: your place, the coins, and the goal bar filling up
@@ -798,6 +891,7 @@ prize.BackgroundColor3 = Color3.fromRGB(30, 32, 44)
 prize.BackgroundTransparency = 0.08
 prize.Visible = false
 prize.Parent = top
+local prizeOrigin = topOrigin
 local prizeCorner = Instance.new("UICorner")
 prizeCorner.CornerRadius = UDim.new(0.12, 0)
 prizeCorner.Parent = prize
@@ -820,6 +914,10 @@ local prizeGoal = textLine(prize, 0.46, 0.24, Color3.new(1, 1, 1), Enum.Font.Luc
 prizeGoal.TextXAlignment = Enum.TextXAlignment.Center
 local prizeBar = bar(prize, 0.78, 0.18)
 local prizeShows = 0
+prize:GetPropertyChangedSignal("Visible"):Connect(function()
+	prizeUp = prize.Visible
+	nextBox.Visible = goalUp and not prizeUp
+end)
 
 -- After a server race (its result card shows first): how far your coins got you to the goal.
 local lastGoal: any = nil
@@ -864,7 +962,19 @@ local function showPrize(before: any)
 	if os.clock() < popUntil then
 		y = math.max(y, popBottom + GAP * 0.5)
 	end
-	prize.Position = UDim2.fromScale(0.4, math.min(y, 0.73))
+	y = math.min(y, 0.73)
+	-- Car VS Car: over the big JOIN button, never on it (CvcLayout.prizeY; it can come up later)
+	local pgui = player:FindFirstChildOfClass("PlayerGui")
+	local cvcRace = if Features.CVC and pgui then pgui:FindFirstChild("CvcRace") else nil
+	local join = if cvcRace then cvcRace:FindFirstChild("BigJoin") else nil
+	if join and join:IsA("GuiObject") and top.AbsoluteSize.Y > 0 then
+		-- (AbsolutePosition starts under Roblox's top bar; this card's scale starts at the top)
+		local joinTop = join.AbsolutePosition.Y - prizeOrigin.AbsolutePosition.Y
+		y = math.min(y, CvcLayout.prizeY(top.AbsoluteSize.Y, joinTop))
+	end
+	local P = CvcLayout.PRIZE
+	prize.Size = if Features.CVC then UDim2.fromScale(P.w, P.h) else UDim2.fromScale(0.36, 0.11)
+	prize.Position = UDim2.fromScale(if Features.CVC then P.x else 0.4, y)
 	prize.Visible = true
 	prizeScale.Scale = 0.6
 	TweenService:Create(prizeScale, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Scale = 1 })
@@ -888,6 +998,10 @@ task.spawn(function()
 				end
 			end)
 			task.delay(2.5, function()
+				-- Car VS Car: its own turn, after the result and the win card (CvcLayout.AFTER_RACE)
+				if Features.CVC then
+					CvcLayout.waitTurn(player:WaitForChild("PlayerGui"), "RacePrize", 30)
+				end
 				showPrize(before)
 			end)
 		end
@@ -902,6 +1016,7 @@ remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unkn
 		return
 	end
 	if kind == "goal" then
+		info = cvcGoal(info)
 		lastGoal = info
 		showGoal(info)
 		return
@@ -912,8 +1027,14 @@ remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unkn
 	end
 	if kind == "daily" and type(info) == "number" and type(saving) == "number" then
 		-- ("daily", coins, days in a row, boost)
-		local boost = select(1, ...)
-		task.spawn(showDaily, info, saving, if type(boost) == "number" then boost else 1) -- it may wait
+		local boost, crate = select(1, ...)
+		task.spawn(
+			showDaily,
+			info,
+			saving,
+			if type(boost) == "number" then boost else 1,
+			crate == true
+		) -- it may wait
 		return
 	end
 	if kind == "jobs" and type(info) == "table" then
@@ -932,7 +1053,11 @@ end)
 
 -- hide the lobby HUD while this player drives (Lobby.setDriving sets the attribute)
 local function showWalkHud()
-	hud.Enabled = player:GetAttribute("Driving") ~= true and player:GetAttribute("Building") ~= true
+	-- (Features.NEW_UI: the new plot screen has the coins and the jobs, CvcScreens.client; NOT
+	-- SAVING moves to the top layer so it still shows)
+	hud.Enabled = not (Features.CVC and Features.NEW_UI)
+		and player:GetAttribute("Driving") ~= true
+		and player:GetAttribute("Building") ~= true
 	if hud.Enabled then
 		task.delay(0.5, flyCoins) -- coins won while driving fly in now
 	end

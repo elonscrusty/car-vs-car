@@ -12,6 +12,11 @@ local SoundLevels = {
 	CRATE = 0.5, -- a crate opens
 	TROPHY = 0.55, -- a podium trophy
 	TRAIN = 0.15, -- a station tick (quiet: it repeats)
+	DING = 0.35, -- a bar went up, or hit MAX
+	COUNT = 0.8, -- the 3-2-1-GO cues (under the start beeps)
+	SPARK = 0.1, -- a wall scrape tick
+	SPARK_GAP = 0.15, -- seconds between scrape ticks
+	FIREWORKS = 0.5, -- league up
 	RESET_BEEP = 0.45, -- back at the start (fell off, stuck, R)
 	SQUEAL_MAX = 0.4, -- tyres at a full slide
 	MOTOR_MIN = 0.12, -- the motor at a stop
@@ -19,7 +24,14 @@ local SoundLevels = {
 	TAP = 0.2, -- the tick on every button
 	MUSIC = 0.15, -- lobby speakers (near them only), on foot
 	MUSIC_DRIVING = 0, -- faded out while driving or racing
+	HUM = 0.07, -- a training station hum, right at your plot
+	HUM_RANGE = 60, -- studs from your plot where the hum is gone
 	MUSIC_FADE = 1, -- seconds to fade out or back in
 }
+
+-- the station hum's volume at `dist` studs from your plot: full at the plot, gone at HUM_RANGE
+function SoundLevels.humAt(dist: number): number
+	return SoundLevels.HUM * math.clamp(1 - dist / SoundLevels.HUM_RANGE, 0, 1)
+end
 
 return SoundLevels

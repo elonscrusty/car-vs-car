@@ -6,6 +6,7 @@
 -- and a prompt on it that opens the crate screen for that crate (CvcCrate listens on the
 -- BindableEvent ReplicatedStorage.CvcCrateShop: Fire(kind)).
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -14,6 +15,7 @@ if not Features.CVC then
 	return
 end
 local CarCatalog = require(Shared:WaitForChild("CarCatalog"))
+local CarGlow = require(Shared:WaitForChild("CarGlow"))
 local Crates = require(Shared:WaitForChild("Crates"))
 local Garage = require(Shared:WaitForChild("Garage"))
 local KartStyle = require(Shared:WaitForChild("KartStyle"))
@@ -74,9 +76,9 @@ end
 
 -- A dark plate low in front of the crate, leaned back (like the car shops' price plates): the
 -- crate's name on a pill in its colour, the price, and a chip per kind of car with its odds.
-local function plate(ring: BasePart, out: Vector3, kind: Crates.Kind)
+local function plate(ring: BasePart, out: Vector3, kind: Crates.Kind): TextLabel
 	local color = rgb(Garage.CRATE_COLORS[kind.id] or Garage.CRATE_COLORS.basic)
-	local at = ring.Position + out * 3.3 + Vector3.new(0, 0.95, 0)
+	local at = ring.Position + out * 3.4 + Vector3.new(0, 1.2, 0)
 	local p = Instance.new("Part")
 	p.Name = kind.id
 	p.Anchored = true
@@ -84,7 +86,8 @@ local function plate(ring: BasePart, out: Vector3, kind: Crates.Kind)
 	p.CanQuery = false
 	p.CanTouch = false
 	p.CastShadow = false
-	p.Size = Vector3.new(4.6, 2, 0.15)
+	-- as wide as the stands allow (5.6 apart), so the words read from the plaza (final pass 15b)
+	p.Size = Vector3.new(5.3, 2.5, 0.15)
 	p.Color = INK
 	p.Material = Enum.Material.SmoothPlastic
 	p.CFrame = CFrame.lookAt(at, at + out) * CFrame.Angles(math.rad(25), 0, 0)
@@ -106,7 +109,7 @@ local function plate(ring: BasePart, out: Vector3, kind: Crates.Kind)
 	edgeRim.Color = color
 	edgeRim.Parent = edge
 	text(g, kind.label, 0.08, 0.06, 0.84, 0.3, color, Color3.new(1, 1, 1))
-	text(g, `{kind.price} coins`, 0.04, 0.38, 0.92, 0.3, nil, GOLD)
+	local price = text(g, `{kind.price} coins`, 0.04, 0.38, 0.92, 0.3, nil, GOLD)
 	-- the odds: one chip per kind of car that this crate can give, in that kind's colour
 	local odds = Crates.odds(kind.id)
 	local shown = {}
@@ -127,9 +130,44 @@ local function plate(ring: BasePart, out: Vector3, kind: Crates.Kind)
 			0.72,
 			w - 0.02,
 			0.22,
-			rgb(tier.color),
+			-- common on a mid slate, like the car shops' plates (light grey under white words blurred)
+			if r == "common" then Color3.fromRGB(100, 110, 140) else rgb(tier.color),
 			Color3.new(1, 1, 1)
 		)
+	end
+	return price
+end
+
+-- The price on each plate turns green when you have the coins for that crate (gold till then).
+local LocalPlayer = game:GetService("Players").LocalPlayer
+local prices: { { label: TextLabel, cost: number } } = {}
+local function paint()
+	local coins = LocalPlayer:GetAttribute("Coins")
+	local have = if type(coins) == "number" then coins else 0
+	for _, p in prices do
+		p.label.TextColor3 = if have >= p.cost then KartStyle.GREEN else GOLD
+	end
+end
+LocalPlayer:GetAttributeChangedSignal("Coins"):Connect(paint)
+
+-- A soft light in each crate's own colour. (CarGlow's car lights are made for open stands: three
+-- in the small booth washed it out white, Studio final pass 15.) The mega one still pulses.
+local GLOW: { [string]: number } = { basic = 0.5, big = 0.65, mega = 0.8 }
+local function glow(crate: Model, id: string, color: Color3)
+	local part = crate:FindFirstChild("Box")
+	if not (part and part:IsA("BasePart")) then
+		return
+	end
+	local light = Instance.new("PointLight")
+	light.Name = "CrateGlow"
+	light.Color = color
+	light.Brightness = GLOW[id] or 0.5
+	light.Range = 5
+	light.Shadows = false
+	light:SetAttribute("Base", light.Brightness)
+	light.Parent = part
+	if id == "mega" then
+		CollectionService:AddTag(light, CarGlow.PULSE_TAG)
 	end
 end
 
@@ -142,6 +180,23 @@ local function addShop(shop: Model)
 		return
 	end
 	seen[shop] = true
+	-- the sign post's board (Garage.crateYard): CRATES on all 4 sides, big enough to read from
+	-- across the plaza
+	local sign = shop:FindFirstChild("CrateSign")
+	local board = sign and sign:FindFirstChild("Board")
+	if board and board:IsA("BasePart") then
+		for _, face in
+			{ Enum.NormalId.Front, Enum.NormalId.Back, Enum.NormalId.Left, Enum.NormalId.Right }
+		do
+			local g = Instance.new("SurfaceGui")
+			g.Face = face
+			g.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+			g.PixelsPerStud = 40
+			g.LightInfluence = 0
+			g.Parent = board
+			text(g, "CRATES", 0.05, 0.1, 0.9, 0.8, nil, Color3.new(1, 1, 1))
+		end
+	end
 	local floor = shop.PrimaryPart
 	local out = if floor then floor.CFrame.ZVector else Vector3.new(0, 0, 1)
 	for i, id in Crates.SHOP do
@@ -153,8 +208,10 @@ local function addShop(shop: Model)
 			local color = rgb(Garage.CRATE_COLORS[id] or Garage.CRATE_COLORS.basic)
 			if ring and ring:IsA("BasePart") then
 				ring.Color = color
-				plate(ring, out, kind)
+				table.insert(prices, { label = plate(ring, out, kind), cost = kind.price })
+				paint()
 			end
+			glow(crate, id, color)
 			table.insert(spins, { model = crate, base = crate:GetPivot(), phase = i * 1.3 })
 			local box = crate:FindFirstChild("Box")
 			if box and box:IsA("BasePart") then
@@ -178,7 +235,7 @@ RunService.RenderStepped:Connect(function()
 	local t = os.clock()
 	for _, s in spins do
 		if s.model.Parent then
-			local bob = math.sin(t * 2 + s.phase) * 0.15 + 0.15
+			local bob = math.sin(t * 2 + s.phase) * 0.3 + 0.3
 			s.model:PivotTo(s.base * CFrame.new(0, bob, 0) * CFrame.Angles(0, t * 0.6 + s.phase, 0))
 		end
 	end

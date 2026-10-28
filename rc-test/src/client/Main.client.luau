@@ -20,12 +20,17 @@ local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
 local RaceStats = require(ReplicatedStorage.Shared.RaceStats)
 local RaceStand = require(ReplicatedStorage.Shared.RaceStand)
+local BackOnTrack = require(ReplicatedStorage.Shared.BackOnTrack)
+local RaceMaps = require(ReplicatedStorage.Shared.RaceMaps)
+local RaceLooks = require(ReplicatedStorage.Shared.RaceLooks)
 
 local setMode: (id: string) -> () = (Tuning :: any).setMode
 local setScale: (s: number) -> () = (Tuning :: any).setScale
 local setStats: (d: RaceStats.Drive?) -> () = (Tuning :: any).setStats
 
 local BigCount = require(script.Parent.BigCount)
+local GasHintUi = require(script.Parent.GasHintUi)
+local GasHint = require(ReplicatedStorage.Shared.GasHint)
 local CarSkin = require(script.Parent.CarSkin)
 local ChaseCamera = require(script.Parent.ChaseCamera)
 local Controls = require(script.Parent.Controls)
@@ -38,10 +43,17 @@ local LobbyWelcome = require(script.Parent.LobbyWelcome)
 local LobbySky = require(script.Parent.LobbySky)
 local OtherCars = require(script.Parent.OtherCars)
 local RCCar = require(script.Parent.RCCar)
+local RaceFx = require(script.Parent.RaceFx)
+local Sfx = require(script.Parent.Sfx)
 local RoadArrow = require(script.Parent.RoadArrow)
 local StartLights = require(script.Parent.StartLights)
 
 local player = Players.LocalPlayer
+-- laps in this server race (the server sets it: a first race is shorter)
+local function raceLaps(): number
+	local n = player:GetAttribute("RaceLaps")
+	return if type(n) == "number" and n >= 1 then n else ServerRace.LAPS
+end
 local remote = ReplicatedStorage:WaitForChild("RCControl") :: RemoteEvent
 local carName = "Car_" .. player.UserId
 
@@ -103,9 +115,11 @@ local TRACK_VIEW: { [string]: ChaseCamera.View } = { drift = "top", race = "chas
 local view: ChaseCamera.View = "chase"
 local viewTrack = "" -- the track the view was picked for
 local showCam = false
--- Car VS Car big race: the fixed camera from your spot on the driver stand (carter's yes 10-26);
--- the view button swaps it with the normal views
-local standCam = true
+-- Car VS Car big race: the fixed camera from your spot on the driver stand is off: carter 10-26
+-- "make the camera follow the car all times", so the race uses the normal chase views. (Set this
+-- true to bring the stand camera back; the view button then swaps it with the normal views.)
+local STAND_CAM = false
+local standCam = STAND_CAM
 local standLook: Vector3? = nil
 local standFov = 40
 
@@ -128,7 +142,7 @@ for i in LobbyLayout.slots() do
 	timers[i] = LapTimer.new(t.gates, t.mode)
 end
 -- the big race maps come after the plots (LobbyLayout.mapAt): the server race drives them
-for k in require(ReplicatedStorage.Shared.RaceMaps).list() do
+for k in RaceMaps.list() do
 	local i = LobbyLayout.mapIndex(k)
 	local t: TrackData.Track = LobbyLayout.track(i)
 	tracks[i] = t
@@ -165,6 +179,8 @@ local grid: TrackData.Spawn? = nil
 local gridGone = false
 local raceGo: number? = nil -- server race: when this car got its GO (race clock)
 local raceDone: number? = nil -- server race: this car's finish time (its laps are all done)
+local raceOver = false -- server race: the results are in (finished or not: no more laps, no clock)
+local movedSinceGo = false -- server race: gas pressed or rolling since GO (the HOLD GAS! hint goes)
 local wrongFor = 0 -- server race: seconds this car has been driving the wrong way
 
 -- Car VS Car BOOST button: the UI's thumb button fires this (local only, nothing to cheat: the
@@ -190,6 +206,7 @@ local function addBoost()
 end
 
 local hud: Hud.Hud
+local controls: Controls.Controls
 local function goTo(index: number)
 	if walking then
 		return
@@ -251,14 +268,26 @@ startBeep.Parent = script
 local stuckTime = 0
 local stuckFrom = Vector3.zero
 local creep = 0 -- average ground speed lately (for the stuck check)
+local lost = BackOnTrack.newLost() -- big race: still, off the road or WRONG WAY for a while
+local movedSincePut = true -- big race: gas or rolling since the last put-back (the still clock waits)
+local lostRoads: { [string]: { BackOnTrack.Road } } = {} -- each map's roads (BackOnTrack.roads)
 -- Plots with checkpoint flags: a reset (R, RESET, fell off, out) brings the car back to the last
 -- flag it drove through instead of the start. R twice quickly = start.
 local lastReset = -10
-local function reset(why: string?)
+local function reset(why: string?, from: string?)
 	if walking then
 		return
 	end
+	-- (Studio: what asked for the last reset, and was it taken)
+	body:SetAttribute("LastReset", `{from or "R"} {math.floor(os.clock() * 10) / 10}`)
+	-- a big race before its GO: the car waits on its grid spot; nothing puts it back or flashes
+	-- (Studio focus-786: BACK ON TRACK on the grid 2.7 s before GO)
+	if grid and (countdown ~= nil or raceGo == nil) then
+		body:SetAttribute("LastReset", `{from or "R"} before GO, skipped`)
+		return
+	end
 	stuckTime = 0
+	wrongFor = 0
 	beep:Play()
 	local now = os.clock()
 	local again = now - lastReset < 1.5
@@ -268,21 +297,20 @@ local function reset(why: string?)
 	-- facing the way to go (the small loss: the bit since that gate, from a standstill). It used
 	-- to be the grid, a whole lap's loss.
 	local timer = timers[current]
-	if
-		Features.CVC
-		and grid
-		and gridGone
-		and raceDone == nil
-		and timer.running
-		and #timer.gates > 0
-	then
-		local g = timer.gates[((timer.next - 2) % #timer.gates) + 1]
-		local x, y, z = TrackData.toWorld(t, rc, g.x, math.max(g.y, t.spawn.y), g.z)
+	if Features.CVC and grid and gridGone and raceGo and raceDone == nil and #timer.gates > 0 then
+		-- (a TOO EARLY car's lap clock waits for its next time over the line: next = 1, the gate
+		-- before the line. It used to drop to the grid, and the lost clocks never ran for it)
+		local g = BackOnTrack.spot(t, timer.gates, timer.next) :: BackOnTrack.Spot
+		local x, y, z = TrackData.toWorld(t, rc, g.x, g.y, g.z)
 		local dx, dz = TrackData.dirToWorld(t, rc, g.dx, g.dz)
 		local pos = Vector3.new(x, y, z)
 		car.teleport(CFrame.lookAt(pos, pos + Vector3.new(dx, 0, dz)))
 		camera.snap()
 		hud.flash("BACK ON TRACK")
+		-- AUTO GAS off: left on, it drove the car into the same post 8 times in 66 s (critic run 2);
+		-- and the still clock waits for gas, so a car left sitting there isn't put back again
+		controls.autoOff()
+		movedSincePut = false
 		return
 	end
 	local cps = t.checkpoints
@@ -311,7 +339,8 @@ end
 
 local gui = Hud.createGui()
 hud = Hud.new(gui, labels)
-local controls = Controls.new(gui, reset, function()
+local gasHint = GasHintUi.new(gui) -- HOLD GAS! when the car sits on the line after GO
+controls = Controls.new(gui, reset, function()
 	if tracks[current].id == "rock" then
 		return -- rocks is free cam only
 	end
@@ -325,7 +354,7 @@ end, function()
 		hud.flash(VIEW_NAMES.free) -- rocks is free cam only
 		return
 	end
-	if Features.CVC and grid and tracks[current].map then
+	if STAND_CAM and Features.CVC and grid and tracks[current].map then
 		standCam = not standCam
 		standLook = nil
 		camera.setView(view)
@@ -357,15 +386,33 @@ end, function(on: boolean)
 end)
 
 -- Walking <-> driving. Only the server switches (E on a stand, or WALK), this side follows.
+-- Car VS Car: no WALK in the middle of a big race (it sat right over the car, and one tap left the
+-- race); the race ends by itself and walks everyone back
 local lobby = Lobby.new(remote, function(): boolean
-	return true
+	return not (Features.CVC and grid ~= nil and not raceOver)
+end)
+-- after a race the result card (ServerRace "Result") has the screen: the driving buttons and
+-- chips (AUTO GAS, the lap clock, BRAKE, GAS...) step away while it shows (AUTO GAS sat on its
+-- ribbon, Studio morning-podium; CvcLayout.AFTER_RACE_HIDES)
+local resultCard: GuiObject? = nil
+local function showDriveHud()
+	gui.Enabled = not walking and not (resultCard ~= nil and resultCard.Visible)
+end
+task.spawn(function()
+	local race = player:WaitForChild("PlayerGui"):WaitForChild("ServerRace", 60)
+	local card = race and race:WaitForChild("Result", 60)
+	if card and card:IsA("GuiObject") then
+		resultCard = card
+		card:GetPropertyChangedSignal("Visible"):Connect(showDriveHud)
+	end
 end)
 local function setWalking(on: boolean)
 	LobbySky.set(on)
 	walking = on
-	gui.Enabled = not on
+	showDriveHud()
 	if on then
 		roadArrow.hide()
+		gasHint.set(false)
 	end
 	lobby.setDriving(not on)
 	-- Roblox's own thumbstick and jump button sit under STEER and GAS on a phone: only while walking
@@ -393,12 +440,58 @@ local function setWalking(on: boolean)
 				end
 			end
 		end
+		-- the camera would keep the way it looked in the race: from your pad facing the road
+		-- that put it inside your own plot's gate, its legs filling the screen (Studio final pass
+		-- 07). Once the server has moved you home (on your pad, facing your plot), look over your
+		-- shoulder the way you face. Car VS Car only: the old plot drive puts you facing the road.
+		local root0 = char and char:FindFirstChild("HumanoidRootPart")
+		local from = if root0 and root0:IsA("BasePart") then root0.Position else nil
+		task.spawn(function()
+			if not Features.CVC then
+				return
+			end
+			-- (the move home can reach this screen a moment after the "walk" message)
+			local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+			local waited = 0
+			while waited < 1 and from and root and root:IsA("BasePart") do
+				if (root.Position - from).Magnitude > 8 then
+					break
+				end
+				waited += task.wait()
+			end
+			-- (not while the plot camera has the view: it would knock it off, Studio round 4)
+			if
+				walking
+				and player:GetAttribute("PlotCam") ~= true
+				and root
+				and root:IsA("BasePart")
+			then
+				local look = root.CFrame.LookVector
+				local at = root.Position + Vector3.new(0, 2, 0)
+				cam.CFrame = CFrame.lookAt(
+					at - Vector3.new(look.X, 0, look.Z).Unit * 12 + Vector3.new(0, 4, 0),
+					at
+				)
+			end
+		end)
 	end
 end
 
+-- server race: the results are in for this car's race (sent to every racer, finished or not)
+task.spawn(function() -- (never holds up the drive/walk hookup below)
+	local raceEvent = ReplicatedStorage:WaitForChild("ServerRace") :: RemoteEvent
+	raceEvent.OnClientEvent:Connect(function(what: unknown)
+		if what == "result" and grid then
+			raceOver = true
+			setRacing(false)
+		end
+	end)
+end)
+
 remote.OnClientEvent:Connect(function(kind: unknown, index: unknown, gridSpot: unknown)
 	if kind == "walk" then
-		grid, gridGone, raceGo, raceDone = nil, false, nil, nil
+		grid, gridGone, raceGo, raceDone, raceOver, movedSinceGo =
+			nil, false, nil, nil, false, false
 		setRacing(false)
 		setStats(nil)
 		setWalking(true)
@@ -429,8 +522,14 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown, gridSpot: u
 				grid = { x = g.x, y = g.y, z = g.z, dx = g.dx, dz = g.dz }
 			end
 		end
-		gridGone, raceGo, raceDone = false, nil, nil
+		gridGone, raceGo, raceDone, raceOver, movedSinceGo = false, nil, nil, false, false
 		setRacing(false)
+		-- a new race: no clock carries over from the last one
+		lost.still, lost.off, lost.wrong, lost.air = 0, 0, 0, 0
+		stuckTime, wrongFor, movedSincePut = 0, 0, true
+		if grid then
+			controls.autoOff() -- every race starts with AUTO GAS off (critic runs 1 and 2)
+		end
 		-- Car VS Car: in the big race the car drives with its trained bars (the server sets them)
 		local drive = if Features.CVC and grid
 			then RaceStats.fromAttributes(function(n: string): any
@@ -497,6 +596,9 @@ local function timerText(): string
 	if t.mode == "free" and not (grid and raceGo) then
 		return ""
 	end
+	if grid and raceOver then
+		return "" -- the result card is up: no LAP 1/2 and a clock still running for a car that didn't finish
+	end
 	local now = os.clock()
 	local lines = {}
 	local go = raceGo
@@ -509,8 +611,8 @@ local function timerText(): string
 		elseif done then
 			table.insert(lines, `FINISHED   {CarMath.formatTime(done)}`)
 		else
-			local lap = math.min(s.laps + 1, ServerRace.LAPS)
-			table.insert(lines, `LAP {lap}/{ServerRace.LAPS}   {CarMath.formatTime(now - go)}`)
+			local lap = math.min(s.laps + 1, raceLaps())
+			table.insert(lines, `LAP {lap}/{raceLaps()}   {CarMath.formatTime(now - go)}`)
 		end
 		-- the live place the server works out
 		local place, cars = player:GetAttribute("RacePlace"), player:GetAttribute("RaceCars")
@@ -521,9 +623,7 @@ local function timerText(): string
 		-- server race, on the grid before GO (it showed a solo "LAP 1  -:--.-" here)
 		table.insert(
 			lines,
-			if t.id == "drift"
-				then "DRIFT!"
-				else `LAP 1/{ServerRace.LAPS}   {CarMath.formatTime(0)}`
+			if t.id == "drift" then "DRIFT!" else `LAP 1/{raceLaps()}   {CarMath.formatTime(0)}`
 		)
 	elseif t.mode == "loop" then
 		local cur = if s.running then CarMath.formatTime(now - s.startTime) else "-:--.-"
@@ -567,7 +667,13 @@ RunService.PreSimulation:Connect(function(dt: number)
 		if step then
 			StartLights.show(lamps, step)
 			startBeep.PlaybackSpeed = if step >= RaceStart.GO then 1.6 else 0.8
-			startBeep:Play()
+			-- (carter's pick 13: louder in the big race; the sounds helper adds a real stinger)
+			startBeep.Volume = SoundLevels.START_BEEP * (if grid then 1.8 else 1)
+			if grid then
+				Sfx.count(RaceStart.GO - step) -- 3, 2, 1, then 0 = GO (the sounds helper's)
+			else
+				startBeep:Play()
+			end
 			bigCount.show(step, RaceStart.label(step), step >= RaceStart.GO)
 		end
 		if step == RaceStart.GO then
@@ -608,12 +714,27 @@ RunService.PreSimulation:Connect(function(dt: number)
 			waitMove = false
 			LapTimer.go(timer, os.clock())
 		end
-	elseif raceDone == nil then
+	elseif raceDone == nil and not raceOver then
 		event = LapTimer.update(timer, os.clock(), lx, ly, lz)
 	end
+	-- server race: still on the line 2 s after GO = a big HOLD GAS! (a new kid didn't know what
+	-- to press; look only, GasHint)
+	if raceGo and not movedSinceGo then
+		local v = body.AssemblyLinearVelocity
+		movedSinceGo = input.throttle > 0 or Vector3.new(v.X, 0, v.Z).Magnitude > 2 * Tuning.scale
+	end
+	local goAt = raceGo
+	gasHint.set(
+		not walking
+			and GasHint.shows(
+				if goAt then os.clock() - goAt else nil,
+				movedSinceGo,
+				raceDone ~= nil or raceOver
+			)
+	)
 	-- server race: the last lap is the finish (the server keeps the real order)
 	local go = raceGo
-	if event == "lap" and grid and go and t.id ~= "drift" and timer.laps >= ServerRace.LAPS then
+	if event == "lap" and grid and go and t.id ~= "drift" and timer.laps >= raceLaps() then
 		event = nil
 		raceDone = os.clock() - go
 		hud.flash(`FINISH!  {CarMath.formatTime(raceDone :: number)}`)
@@ -621,11 +742,13 @@ RunService.PreSimulation:Connect(function(dt: number)
 	end
 	roadArrow.update(t, timer, rc, lx, lz)
 	-- server race: driving away from the next gate for a while = a big WRONG WAY!
-	if grid and go and raceDone == nil and timer.running and #timer.gates > 0 then
+	local wrongNow = false
+	if grid and go and raceDone == nil and not raceOver and timer.running and #timer.gates > 0 then
 		local g = timer.gates[((timer.next - 1) % #timer.gates) + 1]
 		local wx, _, wz = TrackData.toWorld(t, rc, g.x, ly, g.z)
 		local v = body.AssemblyLinearVelocity
 		local back = ServerRace.wrongWay(v.X, v.Z, wx - p.X, wz - p.Z, 12 * Tuning.scale)
+		wrongNow = back
 		wrongFor = if back then wrongFor + dt else 0
 		if wrongFor >= 1.2 then
 			wrongFor = -1.3 -- show it again in a bit if they keep going
@@ -639,19 +762,19 @@ RunService.PreSimulation:Connect(function(dt: number)
 		if Features.CVC then
 			addBoost()
 		end
-		if timer.laps == ServerRace.LAPS - 1 then
+		if timer.laps == raceLaps() - 1 then
 			hud.flash("FINAL LAP!")
 			startBeep.PlaybackSpeed = 1.3
 			startBeep:Play()
 		else
-			hud.flash(`LAP {timer.laps + 1}/{ServerRace.LAPS}`)
+			hud.flash(`LAP {timer.laps + 1}/{raceLaps()}`)
 		end
 	elseif event == "lap" then
 		hud.flash(`LAP  {CarMath.formatTime(timers[current].last :: number)}`)
 	elseif event == "finish" then
 		hud.flash(`SUMMIT!  {CarMath.formatTime(timers[current].last :: number)}`)
 	elseif event == "start" and grid then
-		hud.flash(`LAP 1/{ServerRace.LAPS}`) -- (a TOO EARLY car's laps start now, mid-race)
+		hud.flash(`LAP 1/{raceLaps()}`) -- (a TOO EARLY car's laps start now, mid-race)
 	elseif event == "start" then
 		hud.flash("GO!")
 	end
@@ -672,8 +795,64 @@ RunService.PreSimulation:Connect(function(dt: number)
 		stuckTime = 0
 	end
 	-- rocks: being stuck is part of crawling, so it never resets by itself (R or RESET does)
-	if stuckTime > Tuning.stuckWait and t.id ~= "rock" then
-		reset("STUCK - BACK TO START")
+	if BackOnTrack.stuck(stuckTime, Tuning.stuckWait, t.id) then
+		reset("STUCK - BACK TO START", "stuck")
+	end
+	-- Car VS Car big race: lost for a few seconds (nose in a wall with no pedal held, off every
+	-- road or under the floor, WRONG WAY) = R: back on the road at the last gate (critic run 1).
+	-- Only where the car is put (BackOnTrack.lost), never how it drives.
+	local mapId = t.map
+	if
+		Features.CVC
+		and grid
+		and gridGone
+		and mapId
+		and t.id ~= "drift"
+		and raceDone == nil
+		and not raceOver
+	then
+		local roads = lostRoads[mapId]
+		if roads == nil then
+			local m = RaceMaps.get(mapId)
+			roads = if m then BackOnTrack.roads(m) else {}
+			lostRoads[mapId] = roads
+		end
+		local under = ly < BackOnTrack.UNDER
+		local off = under or (#roads > 0 and BackOnTrack.offRoad(roads, lx, lz))
+		local goAt = raceGo
+		if not movedSincePut then
+			local v = body.AssemblyLinearVelocity
+			movedSincePut = input.throttle > 0
+				or Vector3.new(v.X, 0, v.Z).Magnitude > 2 * Tuning.scale
+		end
+		local why = BackOnTrack.lost(
+			lost,
+			dt,
+			if goAt then os.clock() - goAt else nil,
+			movedSinceGo and movedSincePut,
+			creep < 1.6 * Tuning.scale,
+			off,
+			car.telemetry.grounded == 0 and not under,
+			-- (backing up counts as WRONG WAY but faces the right way: a kid still holding S after
+			-- a put-back would be put back again and again)
+			wrongNow and input.brake == 0
+		)
+		-- (Studio reads these to see why a lost car was or wasn't put back)
+		local seen = string.format(
+			"%.0f %.0f %.0f %d",
+			lost.still * 2,
+			lost.off * 2,
+			lost.wrong * 2,
+			if off then 1 else 0
+		)
+		if body:GetAttribute("LostClocks") ~= seen then
+			body:SetAttribute("LostClocks", seen)
+		end
+		if why then
+			reset(nil, why)
+		end
+	elseif lost.still ~= 0 or lost.off ~= 0 or lost.wrong ~= 0 or lost.air ~= 0 then
+		lost.still, lost.off, lost.wrong, lost.air = 0, 0, 0, 0
 	end
 
 	-- fell off the world, or got out of the plot
@@ -687,10 +866,10 @@ RunService.PreSimulation:Connect(function(dt: number)
 			end
 		end
 	end
-	if p.Y < -8 * Tuning.scale / TrackData.RC_SCALE then
-		reset()
+	if BackOnTrack.fell(p.Y, Tuning.scale) then
+		reset(nil, "fell")
 	elseif t.map == nil and not TrackData.inPlot(lx, lz) then
-		reset("OUT - BACK TO START")
+		reset("OUT - BACK TO START", "out")
 	end
 
 	if t.id == "drift" then
@@ -728,12 +907,53 @@ local otherCars = OtherCars.new(function(): string
 end)
 
 local boosting = false -- was on a boost last frame
+local raceFx = RaceFx.new() -- carter's picks 14 + 15: speed lines on BOOST, sparks on hits
+local speedWas = 0 -- flat speed last frame (sparks on a hard stop)
+-- carter's pick 18: in the big race your own car wears a yellow YOU (the others wear their names:
+-- OtherCars), so you find it from the stand
+-- your own league badge over your head (Leaderboards) never shows on your own screen: the chase
+-- cam caught it behind AUTO GAS, and from the plot stand it hid your first station and its sign
+-- (Studio score/20). Others still see it; your league is on the HUD chip.
+task.spawn(function()
+	while true do
+		local head = player.Character and player.Character:FindFirstChild("Head")
+		local badge = head and head:FindFirstChild("LeagueBadge")
+		if badge and badge:IsA("BillboardGui") and badge.Enabled then
+			badge.Enabled = false
+		end
+		task.wait(0.5)
+	end
+end)
+local youTag = Instance.new("BillboardGui")
+youTag.Name = "YouTag"
+youTag.Size = UDim2.fromOffset(90, 30)
+-- (not AlwaysOnTop: on carter's PC no AlwaysOnTop billboard drew at all, Studio score/16-18)
+youTag.AlwaysOnTop = false
+youTag.MaxDistance = 1200
+youTag.ResetOnSpawn = false
+youTag.Enabled = false
+do
+	local l = Instance.new("TextLabel")
+	l.BackgroundTransparency = 1
+	l.Size = UDim2.fromScale(1, 1)
+	l.Font = Enum.Font.LuckiestGuy
+	l.TextScaled = true
+	l.TextColor3 = Color3.fromRGB(255, 220, 40)
+	l.TextStrokeTransparency = 0
+	l.Text = "▼ YOU"
+	l.Parent = youTag
+end
+youTag.Adornee = body
+youTag.Parent = body -- (on the car, like CarTag: from PlayerGui it never showed in Studio)
+local placeWasAt = Vector3.zero -- where the car was last frame (a reset jumps: no sparks)
 
 -- Car VS Car: the other leagues' racers stand on the same stand spots; this screen hides them
 -- (their cars too: OtherCars). A few times a second is enough.
 local leagueCheck = 0
-local hiddenPeople: { [Player]: boolean } = setmetatable({}, { __mode = "k" }) :: any
-local function hideOtherLeagues(dt: number)
+local hiddenPeople: { [Player]: number } = setmetatable({}, { __mode = "k" }) :: any
+-- (standing = the stand cam is on: the racers beside you on the stand fade, so they don't hide
+-- your car on the front straight; Maps' stand-view render backyard-near.png)
+local function hideOtherLeagues(dt: number, standing: boolean)
 	leagueCheck -= dt
 	if leagueCheck > 0 then
 		return
@@ -745,17 +965,22 @@ local function hideOtherLeagues(dt: number)
 			continue
 		end
 		local theirs = p:GetAttribute("RaceGroup")
-		local hide = mine ~= nil and theirs ~= nil and theirs ~= mine
-		if hide or hiddenPeople[p] then
+		local fade = if mine ~= nil
+				and theirs ~= nil
+				and theirs ~= mine
+			then 1
+			elseif standing and theirs ~= nil then RaceStand.FADE
+			else 0
+		if fade ~= (hiddenPeople[p] or 0) then
 			local char = p.Character
 			if char then
 				for _, d in char:GetDescendants() do
 					if d:IsA("BasePart") or d:IsA("Decal") then
-						(d :: any).LocalTransparencyModifier = if hide then 1 else 0
+						(d :: any).LocalTransparencyModifier = fade
 					end
 				end
 			end
-			hiddenPeople[p] = if hide then true else nil
+			hiddenPeople[p] = if fade > 0 then fade else nil
 		end
 	end
 end
@@ -771,6 +996,8 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 			cam.CameraType = Enum.CameraType.Custom
 			cam.CameraSubject = hum
 		end
+		youTag.Enabled = false
+		raceFx.update(dt, false) -- a race that ended mid-BOOST: fade its speed lines out
 		car.render(dt) -- keep the parked car's wheels drawn
 		skin.update(car, SKINS[tracks[current].id])
 		effects.quiet()
@@ -784,6 +1011,25 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 	effects.update(dt)
 	-- boost pads and jumps: a word on screen so you know what happened
 	local tel = car.telemetry
+	-- just over the car's roof (it was 4x higher: off the top of the screen under the chase camera,
+	-- Studio 10-26; then still floating well above it once it drew, Studio score/24)
+	youTag.StudsOffsetWorldSpace = Vector3.new(0, 1.6 * Tuning.scale, 0)
+	youTag.Enabled = grid ~= nil and Features.CVC
+	raceFx.update(dt, tel.boost > 0)
+	local fv = body.AssemblyLinearVelocity
+	local flatNow = Vector3.new(fv.X, 0, fv.Z).Magnitude
+	local warped = (body.Position - placeWasAt).Magnitude > speedWas * dt * 3 + 2
+	placeWasAt = body.Position
+	if not warped and RaceLooks.slammed(speedWas, flatNow, Tuning.scale) then
+		local ahead = body.CFrame.LookVector
+		raceFx.sparks(
+			body.Position + ahead * Tuning.bodyZ / 2,
+			-ahead + Vector3.yAxis * 0.6,
+			Tuning.scale / TrackData.RC_SCALE
+		)
+		Sfx.spark()
+	end
+	speedWas = flatNow
 	if tel.boost > 0 and not boosting then
 		-- camera.kick(14) widens the view, but the race camera is locked: off until carter says yes
 		hud.flash("BOOST!")
@@ -819,7 +1065,7 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 	else
 		standLook = nil
 	end
-	hideOtherLeagues(dt)
+	hideOtherLeagues(dt, spot ~= nil)
 	controls.setRock(tracks[current].id == "rock")
 	controls.setRace(grid ~= nil)
 	hud.setRace(grid ~= nil)

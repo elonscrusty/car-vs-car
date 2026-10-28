@@ -13,6 +13,7 @@ export type Controls = {
 	read: () -> RCCar.Input,
 	setRock: (on: boolean) -> (),
 	setRace: (on: boolean) -> (), -- server race: fewer buttons (SMOKE, CAM and VIEW hide)
+	autoOff: () -> (), -- AUTO GAS off (each race's grid, each put-back)
 }
 
 local Controls = {}
@@ -470,6 +471,11 @@ function Controls.new(
 		smokeBtn.Visible = not on and not onRockNow
 		camBtn.Visible = not on and not onRockNow
 		viewBtn.Visible = not on -- the race picks the chase view; just place, lap, gas and steer
+	end
+	-- (not on setRace: it only runs on a change, and between races Main's render step stops
+	-- calling it while you walk, so the next race never saw one; critic run 2)
+	function controls.autoOff()
+		setAuto(false)
 	end
 	function controls.read(): RCCar.Input
 		local function down(code: Enum.KeyCode): boolean

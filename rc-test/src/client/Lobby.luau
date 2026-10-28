@@ -261,11 +261,11 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 	-- standing by your own pad, the beam would fill the middle of the screen: it fades out
 	-- (the YOUR PLOT sign stays) and comes back as you walk away
 	local BEAM_HIDE = 40
+	local CAM_HIDE = 60
 	local beamHidden = false
 	RunService.Heartbeat:Connect(function()
-		button.Visible = not (
-			cardShown("ServerRace", "Result") or cardShown("StarsTop", "RacePrize")
-		)
+		button.Visible = canWalk()
+			and not (cardShown("ServerRace", "Result") or cardShown("StarsTop", "RacePrize"))
 		local m = marker
 		local char = Players.LocalPlayer.Character
 		local root = char and char:FindFirstChild("HumanoidRootPart")
@@ -274,6 +274,14 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 		if m and s and root and root:IsA("BasePart") then
 			local dx, dz = root.Position.X - s.padX, root.Position.Z - s.padZ
 			near = dx * dx + dz * dz < BEAM_HIDE * BEAM_HIDE
+			-- the camera close by counts too: the plot camera looks across the pad from the stand,
+			-- and the beam filled the middle (JOIN RACE / COACH) with the person further off
+			local cam = workspace.CurrentCamera
+			if cam and not near then
+				local c = cam.CFrame.Position
+				local cx, cz = c.X - s.padX, c.Z - s.padZ
+				near = cx * cx + cz * cz < CAM_HIDE * CAM_HIDE
+			end
 		end
 		if m and near ~= beamHidden then
 			beamHidden = near

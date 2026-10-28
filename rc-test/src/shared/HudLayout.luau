@@ -24,6 +24,7 @@ export type Spot = {
 	square: boolean?, -- width = height (UIAspectRatioConstraint on height)
 	leftOf: string?, -- sits just left of this spot (same mode), bottoms lined up; x is ignored
 	off: boolean?, -- its part is switched off (Features): never shown, so it may sit under others
+	notWith: string?, -- never on the screen with this spot (same mode), so it may sit under it
 }
 
 -- Sibling loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
@@ -81,6 +82,9 @@ local function off(s: Spot, isOff: boolean): Spot
 	s.off = isOff or nil
 	return s
 end
+-- Car VS Car: row 2 (CRATE, MY GARAGE) is thumb size, so the jobs and NEXT box sit a bit lower
+local ROW2_Y, ROW2_H = if CVC then 106 else 110, if CVC then 44 else 32
+local DROP = if CVC then 12 else 0
 local COL1 = if STARS then 0.14 else 0.02
 local COL2 = if STARS then 0.26 else 0.14
 
@@ -90,33 +94,41 @@ HudLayout.SPOTS = {
 	-- ===== walk: top left, your counts and buttons =====
 	-- (stars off, Features.STARS: the coins take the star chip's place, so no hole at the left;
 	-- the star chip and LOOKS, hidden then, wait in row 2 out of the way)
-	spot(
-		"StarCount",
-		"walk",
-		"Stars",
-		TL,
-		{ if STARS then 0.02 else 0.26, 0, 0, if STARS then 64 else 110 },
-		{ 0.11, 0, 0, 36 }
+	off(
+		spot(
+			"StarCount",
+			"walk",
+			"Stars",
+			TL,
+			{ if STARS then 0.02 else 0.26, 0, 0, if STARS then 64 else 110 },
+			{ 0.11, 0, 0, 36 }
+		),
+		not STARS
 	),
+
 	spot("CoinCount", "walk", "Stars", TL, { COL1, 0, 0, 64 }, { 0.11, 0, 0, 36 }),
 	-- row 2 stays under the chips (no further right): a third button there covered the car show board
 	-- (NOT SAVING shows above the star chip)
-	spot(
-		"Looks",
-		"walk",
-		"PlotShop",
-		TL,
-		{ if STARS then 0.14 else 0.38, 0, 0, 110 },
-		{ 0.11, 0, 0, 32 }
+	off(
+		spot(
+			"Looks",
+			"walk",
+			"PlotShop",
+			TL,
+			{ if STARS then 0.14 else 0.38, 0, 0, 110 },
+			{ 0.11, 0, 0, 32 }
+		),
+		not STARS
 	),
+
 	-- the tycoon (Tycoon.client): coins a minute right of the coins, GARAGE under it
 	spot("Income", "walk", "Tycoon", TL, { COL2, 0, 0, 64 }, { 0.1, 0, 0, 36 }),
-	spot("Garage", "walk", "Tycoon", TL, { COL2, 0, 0, 110 }, { 0.1, 0, 0, 32 }),
+	spot("Garage", "walk", "Tycoon", TL, { COL2, 0, 0, ROW2_Y }, { 0.1, 0, 0, ROW2_H }),
 	-- Car VS Car: CRATES under the coins (Cvc crate screen; only with a crate to open)
-	off(spot("Crate", "walk", "Cvc", TL, { 0.02, 0, 0, 110 }, { 0.1, 0, 0, 32 }), not CVC),
-	spot("DailyJobs", "walk", "Stars", TL, { 0.02, 0, 0, 146 }, { 0.3, 0, 0.12, 60 }),
+	off(spot("Crate", "walk", "Cvc", TL, { 0.02, 0, 0, ROW2_Y }, { 0.1, 0, 0, ROW2_H }), not CVC),
+	spot("DailyJobs", "walk", "Stars", TL, { 0.02, 0, 0, 146 + DROP }, { 0.3, 0, 0.12, 60 }),
 	-- what you're saving up for (Stars): under the jobs
-	spot("NextUnlock", "walk", "Stars", TL, { 0.02, 0, 0.12, 212 }, { 0, 200, 0, 54 }), -- short, big words
+	spot("NextUnlock", "walk", "Stars", TL, { 0.02, 0, 0.12, 212 + DROP }, { 0, 200, 0, 54 }), -- short, big words
 	-- ===== walk: top middle, one stack =====
 	off(
 		spot("Friends", "walk", "Lobby", TC, { 0.5, 0, 0, 64 }, { 0, 170, 0, 36 }),
@@ -127,10 +139,12 @@ HudLayout.SPOTS = {
 		not Features.PLOT_RACING
 	), -- off for now (Lobby QUICK)
 	-- Car VS Car (Cvc.client): COACH in the top middle, the big JOIN over the goal line
-	off(spot("Coach", "walk", "Cvc", TC, { 0.5, 0, 0, 64 }, { 0, 170, 0, 44 }), not CVC),
+	off(spot("Coach", "walk", "Cvc", TC, { 0.5, 0, 0, 64 }, { 0, 170, 0, 56 }), not CVC),
 	off(spot("BigJoin", "walk", "Cvc", BC, { 0.5, 0, 0.96, -102 }, { 0, 240, 0, 64 }), not CVC),
 	spot("WeekendBanner", "walk", "Stars", TR, { 0.98, 0, 0, 116 }, { 0, 200, 0, 30 }), -- top right: off your plot's name on the gate
 	spot("Join", "walk", "ServerRace", TR, { 0.98, 0, 0, 64 }, { 0, 168, 0, 46 }), -- top right, off the gate's name and the pad words
+	-- Car VS Car: RACE ME! (CvcInvite) asks a friend in, under the weekend banner
+	off(spot("Invite", "walk", "Cvc", TR, { 0.98, 0, 0, 154 }, { 0, 150, 0, 44 }), not CVC),
 	-- ===== walk: bottom middle =====
 	spot("Drive", "walk", "Lobby", BC, { 0.47, 0, 0.96, 0 }, { 0, 160, 0, 64 }), -- thumb size, low (off the plot view)
 	spot("Goal", "walk", "PlotGuide", BC, { 0.5, 0, 0.96, -66 }, { 0, 230, 0, 30 }), -- what to do next (clear of DailyJobs on a small phone)
@@ -139,6 +153,13 @@ HudLayout.SPOTS = {
 	spot("Timer", "drive", "Hud", TL, { 0.02, 0, 0, 64 }, { 0.24, 0, 0.14, 0 }),
 	spot("Track", "drive", "Hud", TC, { 0.5, 0, 0, 64 }, { 0.1012, 0, 0.1, 0 }), -- the one lit plot name
 	spot("DriftScore", "drive", "Hud", TC, { 0.5, 0, 0.12, 72 }, { 0.32, 0, 0.1, 0 }),
+	-- FINISH IN 0:04! / RESULTS IN (ServerRace): between the timer and AUTO GAS (it was half the
+	-- screen wide and sat on AUTO GAS, Studio final-44); the plot word hides in a race (Hud.setRace)
+	(function()
+		local s = spot("Hurry", "drive", "ServerRace", TC, { 0.44, 0, 0, 64 }, { 0.3, 0, 0.08, 0 })
+		s.notWith = "Track"
+		return s
+	end)(),
 	spot("Join", "drive", "ServerRace", TC, { 0.5, 0, 0.22, 80 }, { 0, 220, 0, 44 }),
 	spot("AutoGas", "drive", "Controls", TR, { 0.704, 0, 0, 64 }, { 0.083, 0, 0.12, 0 }), -- 45+ px tall on a phone
 	spot("Smoke", "drive", "Controls", TR, { 0.796, 0, 0, 64 }, { 0.083, 0, 0.12, 0 }), -- 7+ px apart
@@ -195,7 +216,8 @@ function HudLayout.overlaps(sw: number, sh: number): { string }
 	for i = 1, #list do
 		for j = i + 1, #list do
 			local a, b = list[i], list[j]
-			if a.mode == b.mode and not a.off and not b.off then
+			local apart = a.notWith == b.name or b.notWith == a.name
+			if a.mode == b.mode and not a.off and not b.off and not apart then
 				local al, at, ar, ab = HudLayout.box(a, sw, sh)
 				local bl, bt, br, bb = HudLayout.box(b, sw, sh)
 				if al < br and bl < ar and at < bb and bt < ab then

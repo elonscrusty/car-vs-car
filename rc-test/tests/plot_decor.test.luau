@@ -89,6 +89,18 @@ for _, kind in { "race", "drift", "rock" } do
 		end
 	end)
 
+	test(kind .. ": Car VS Car: no bunting ropes to the smaller gate", function()
+		local gate = false
+		for _, m in P.meshes(kind) do
+			if m.group == "Arch" then
+				gate = true
+			end
+		end
+		for _, p in if gate then P.parts(kind) else {} do
+			truthy(p.name ~= "Rope" and p.name ~= "Pennant", "no bunting to a gate that moved")
+		end
+	end)
+
 	test(kind .. ": a name board on the arch, high over the gate", function()
 		local n = 0
 		for _, p in P.parts(kind) do

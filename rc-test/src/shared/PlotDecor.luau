@@ -27,6 +27,7 @@ local Garage = sibling("Garage")
 local Finish = sibling("Finish")
 local Kit = sibling("Plots/Kit")
 local LobbyLayout = sibling("LobbyLayout")
+local Features = sibling("Features")
 
 type V3 = Garage.V3
 type Piece = Garage.Piece
@@ -45,6 +46,13 @@ PlotDecor.WALL_T = 2 * S -- 0.5
 PlotDecor.BOX = { minX = -40.5, maxX = 40.5, minZ = -55.5, maxZ = 56, maxY = 16 }
 -- The walk from the gate to the stand steps (TrackBuilder: steps run from x 3.5 to 27.5 at
 -- z 45..47.5): nothing solid in here.
+-- Car VS Car: carter's gate is this much smaller, on the front wall. From the plot camera
+-- (PlotTraining.STAND_CAM, high over the stand) its top bar and name board sit at the bottom of
+-- the screen, under the stations; full size its bar hid the front pads (Studio scores 31, 41).
+PlotDecor.CVC_GATE_SCALE = 0.65
+function PlotDecor.gateScale(): number
+	return if Features.CVC then PlotDecor.CVC_GATE_SCALE else 1
+end
 PlotDecor.LANE = { minX = -9.5, maxX = 29, minZ = 44, maxZ = 54 }
 PlotDecor.BOOTH = { x = 35, z = 40.5 } -- right front corner, behind the steps
 PlotDecor.CANOPY = { x = -35, z = 42 } -- left front corner, beside the car show (PlotStands)
@@ -281,7 +289,8 @@ function PlotDecor.parts(kind: string): { Piece }
 		)
 	end
 
-	-- bunting: a rope from each pillar top down to a lantern post on the front corner
+	-- bunting: a rope from each pillar top down to a lantern post on the front corner (Car VS
+	-- Car: just the lantern posts; the smaller gate's posts aren't where the ropes tie on)
 	local POST_H = 8 -- the low end stays above a walker's eye line
 	for _, sx in { -1, 1 } do
 		local cx = sx * (W - 0.3)
@@ -294,6 +303,9 @@ function PlotDecor.parts(kind: string): { Piece }
 			{ 255, 226, 150 },
 			o({ material = "Neon" })
 		)
+		if Features.CVC then
+			continue
+		end
 		local x0, y0 = sx * (px + PILLAR / 2), topY - 0.4
 		local x1, y1 = cx, POST_H - 0.1
 		local dx, dy = x1 - x0, y1 - y0
@@ -469,6 +481,7 @@ PlotDecor.GATE_BAR = {
 -- group "Extras": they only show up when imported, no block stand-ins).
 function PlotDecor.meshes(kind: string): { Mesh }
 	local b, c = PlotDecor.BOOTH, PlotDecor.CANOPY
+	local gate = PlotDecor.gateScale()
 	local counterZ = b.z + 4.5 / 2 - 0.6
 	-- { model, at, fit, yaw (degrees), group }. carter's Meshy models come in facing -Z, so
 	-- yaw 180 turns their front to the road and the people; yaw 0 faces the track. A group
@@ -487,7 +500,8 @@ function PlotDecor.meshes(kind: string): { Mesh }
 			{
 				"DriftGate",
 				v(0, 0, PlotDecor.HALF_D - 0.5),
-				v(26, 22, 10),
+				-- (its depth sets the size: 19.3 is its real height there)
+				v(26 * gate, 19.3 * gate, 10 * gate),
 				0,
 				"Arch",
 				{ "NameBoard" },
@@ -514,7 +528,7 @@ function PlotDecor.meshes(kind: string): { Mesh }
 			{
 				"PlotGate",
 				v(0, 0, PlotDecor.HALF_D - 0.5),
-				v(28, 20, 8),
+				v(28 * gate, 20 * gate, 8 * gate),
 				0,
 				"Arch",
 				{ "NameBoard" },

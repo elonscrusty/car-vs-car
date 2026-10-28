@@ -24,7 +24,7 @@ local Tycoon = require(ReplicatedStorage.Shared.Tycoon)
 local PlotGarageBuilder = {}
 
 -- Words on the road side of the sign (its Back face: the plot's +z).
-local function label(board: BasePart, top: string, bottom: string)
+local function label(board: BasePart, top: string, bottom: string, one: boolean?)
 	local gui = Instance.new("SurfaceGui")
 	gui.Name = "Words"
 	gui.Face = Enum.NormalId.Back
@@ -45,8 +45,47 @@ local function label(board: BasePart, top: string, bottom: string)
 		l.Text = text
 		l.Parent = gui
 	end
+	if one then
+		-- one line: big, the whole board
+		line("Top", top, 0.08, 0.84, Color3.new(1, 1, 1))
+		line("Bottom", "", 0.92, 0.04, Color3.fromRGB(255, 220, 90))
+		return
+	end
 	line("Top", top, 0.06, 0.52, Color3.new(1, 1, 1))
 	line("Bottom", bottom, 0.6, 0.34, Color3.fromRGB(255, 220, 90))
+end
+
+-- Words painted big across a locked pad's top, turned to read upright from the road
+-- (PlotTraining.PAINT has the layout and why).
+local function paint(base: BasePart, top: string, bottom: string)
+	local ppu = 20
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "Words"
+	gui.Face = Enum.NormalId.Top
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = ppu
+	gui.LightInfluence = 0
+	gui.Parent = base
+	-- quiet dark green on the grass-green locked pad: there, not shouting (carter 10-28: the
+	-- old big LOCKED words were most of what you saw from the stand)
+	local colors = { Color3.fromRGB(60, 100, 50), Color3.fromRGB(60, 100, 50) }
+	for k, text in { top, bottom } do
+		local line = PlotTraining.PAINT[k]
+		local l = Instance.new("TextLabel")
+		l.Name = if k == 1 then "Top" else "Bottom"
+		l.BackgroundTransparency = 1
+		l.AnchorPoint = Vector2.new(0.5, 0.5)
+		l.Position = UDim2.fromScale(line.at, 0.5)
+		l.Size = UDim2.fromOffset(line.w * ppu, line.h * ppu)
+		l.Rotation = 90
+		l.Font = Enum.Font.GothamBlack
+		l.TextScaled = true
+		l.TextColor3 = colors[k]
+		l.TextTransparency = 0.25
+		l.TextStrokeTransparency = 1
+		l.Text = text
+		l.Parent = gui
+	end
 end
 
 -- The sign's words: what the next level gives and costs (MAX at the top).
@@ -191,6 +230,10 @@ function PlotGarageBuilder.start()
 		Garage.useMeshes(groups, pivot, PlotTraining.meshes())
 		for i = 1, #PlotTraining.GRID do
 			local g = groups["Pad" .. i]
+			local base = g and g:FindFirstChild("PadBase")
+			if i > PlotTraining.open(plotLevel) and base and base:IsA("BasePart") then
+				paint(base, PlotTraining.padWords(nil, i))
+			end
 			local sign = g and g:FindFirstChild("PadSign")
 			if sign and sign:IsA("BasePart") then
 				-- an open pad the server hasn't listed yet still says its station
@@ -204,11 +247,11 @@ function PlotGarageBuilder.start()
 		local owner = Players:GetPlayerByUserId(ownerId)
 		local room = groups.Room and groups.Room:FindFirstChild("RoomSign")
 		if room and room:IsA("BasePart") then
-			label(room, PlotGarage.signText(if owner then owner.DisplayName else nil), "")
+			label(room, PlotGarage.signText(if owner then owner.DisplayName else nil), "", true)
 		end
 		local shelf = groups.Shelf and groups.Shelf:FindFirstChild("ShelfSign")
 		if shelf and shelf:IsA("BasePart") then
-			label(shelf, "TROPHIES " .. trophies, "")
+			label(shelf, "TROPHIES " .. trophies, "", true)
 		end
 		model.WorldPivot = pivot
 		model.Parent = plot
@@ -216,7 +259,8 @@ function PlotGarageBuilder.start()
 
 	for _, slot in LobbyLayout.slots() do
 		local plot = workspace.Plots:FindFirstChild(slot.index .. "_" .. slot.id)
-		if plot and slot.id ~= "drift" then
+		-- (Car VS Car: every plot is a training garage, the drift ones too)
+		if plot and (slot.id ~= "drift" or Features.CVC) then
 			-- put the track away now, and again whenever one is built back in (TrackBuilder
 			-- still makes the starter track on owner changes): only the newest is kept
 			local function stash(track: Instance)
@@ -240,6 +284,15 @@ function PlotGarageBuilder.start()
 				end
 			end)
 			local pivot = CFrame.new(slot.plotX, 0, slot.plotZ) * CFrame.Angles(0, slot.angle, 0)
+			if Features.CVC then
+				buildTraining(plot, pivot)
+				for _, name in { "OwnerId", "PlotLevel", "GarageLevel", "Trophies", "Stations" } do
+					plot:GetAttributeChangedSignal(name):Connect(function()
+						buildTraining(plot, pivot)
+					end)
+				end
+				continue
+			end
 			build(plot, pivot)
 			plot:GetAttributeChangedSignal("PlotLevel"):Connect(function()
 				build(plot, pivot)

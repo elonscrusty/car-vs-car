@@ -73,7 +73,7 @@ function CvcUi.ribbon(panel: GuiObject, text: string): TextLabel
 	t.Name = "Ribbon"
 	t.AnchorPoint = Vector2.new(0.5, 0.5)
 	t.Position = UDim2.fromScale(0.5, 0)
-	t.Size = UDim2.fromScale(0.6, 0.13)
+	t.Size = UDim2.new(0.6, 0, 0, 44) -- (fixed height: the panels' tabs sit 26 px down)
 	t.BackgroundColor3 = KartStyle.YELLOW
 	t.BackgroundTransparency = 0
 	t.ZIndex = 3
@@ -86,9 +86,17 @@ function CvcUi.ribbon(panel: GuiObject, text: string): TextLabel
 	return t
 end
 
--- Big words in the middle of a ScreenGui: pop in, rise and fade.
-function CvcUi.bigWords(gui: Instance, text: string, color: Color3, y: number?)
+-- Big words in the middle of a ScreenGui: pop in, rise and fade (`rise`: how far up, of the
+-- screen; below 0 they sink).
+function CvcUi.bigWords(
+	gui: Instance,
+	text: string,
+	color: Color3,
+	y: number?,
+	rise: number?
+): TextLabel
 	local at = y or 0.4
+	local up = rise or 0.12
 	local w = CvcUi.label(gui, text, color)
 	w.Name = "Kart_Words"
 	w.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -104,7 +112,7 @@ function CvcUi.bigWords(gui: Instance, text: string, color: Color3, y: number?)
 	TweenService:Create(scale, TweenInfo.new(0.4, Enum.EasingStyle.Back), { Scale = 1 }):Play()
 	task.delay(1.3, function()
 		TweenService:Create(w, TweenInfo.new(0.5), {
-			Position = UDim2.fromScale(0.5, at - 0.12),
+			Position = UDim2.fromScale(0.5, at - up),
 			TextTransparency = 1,
 		}):Play()
 		TweenService:Create(s, TweenInfo.new(0.5), { Transparency = 1 }):Play()
@@ -112,6 +120,7 @@ function CvcUi.bigWords(gui: Instance, text: string, color: Color3, y: number?)
 			w:Destroy()
 		end)
 	end)
+	return w
 end
 
 -- A ScreenGui over the popups for big words and confetti, with a Kart_Fall layer (returned
@@ -177,9 +186,13 @@ end
 
 export type Bars = { frame: Frame, set: (car: CvcState.Car) -> () }
 
+local MAX_GOLD = Color3.fromRGB(255, 196, 30) -- a bar at its car's top
+
 -- The 3 bars of a car, one row each: the word, the bar (filled to its value, a faint mark at the
--- car's top) and the number. set() moves the fills smoothly.
-function CvcUi.bars(parent: Instance): Bars
+-- car's top) and the number. set() moves the fills smoothly. `most` is a full bar (the pick
+-- screen's cars are all low: out of MAX_BAR, 26 and 18 looked the same, Studio polish-6).
+function CvcUi.bars(parent: Instance, most: number?): Bars
+	local scale = most or Training.MAX_BAR
 	local frame = Instance.new("Frame")
 	frame.Name = "Bars"
 	frame.BackgroundTransparency = 1
@@ -187,6 +200,9 @@ function CvcUi.bars(parent: Instance): Bars
 	local fills: { [string]: Frame } = {}
 	local tops: { [string]: Frame } = {}
 	local nums: { [string]: TextLabel } = {}
+	local sparks: { [string]: TextLabel } = {}
+	local twinkles: { [string]: Tween } = {}
+	local shown: { [string]: number } = {} -- the whole number each bar showed last
 	for i, b in Training.BARS do
 		local y = (i - 1) / 3
 		local word = CvcUi.label(frame, CvcUi.BAR_WORDS[b], INK)
@@ -225,18 +241,61 @@ function CvcUi.bars(parent: Instance): Bars
 		num.Position = UDim2.fromScale(0.82, y + 0.03)
 		num.Size = UDim2.fromScale(0.18, 0.27)
 		num.TextXAlignment = Enum.TextXAlignment.Right
-		fills[b], tops[b], nums[b] = fill, top, num
+		local numScale = Instance.new("UIScale")
+		numScale.Parent = num
+		-- a gold sparkle at the bar's end once it's full (MAX!), twinkling
+		local spark = CvcUi.label(track, "✦", Color3.fromRGB(255, 220, 90))
+		spark.Name = "Sparkle"
+		spark:SetAttribute("NoKart", true)
+		spark.AnchorPoint = Vector2.new(0.5, 0.5)
+		spark.Position = UDim2.fromScale(1, 0.5)
+		spark.Size = UDim2.fromScale(1.6, 1.6)
+		spark.SizeConstraint = Enum.SizeConstraint.RelativeYY
+		spark.ZIndex = 4
+		spark.Visible = false
+		local twinkle = TweenService:Create(
+			spark,
+			TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+			{ TextTransparency = 0.6, Rotation = 45 }
+		)
+		fills[b], tops[b], nums[b], sparks[b], twinkles[b] = fill, top, num, spark, twinkle
 	end
 	local function set(car: CvcState.Car)
 		for _, b in Training.BARS do
 			local v, top = CvcState.bar(car, b)
-			local f = v / Training.MAX_BAR
+			local full = v >= top
+			-- at the car's top: the whole bar, gold (MAX! on a bar 60% across didn't look maxed,
+			-- Studio final-14: a common car tops out at 60)
+			local f = if full then 1 else v / scale
 			TweenService:Create(fills[b], TweenInfo.new(0.4, Enum.EasingStyle.Quart), {
 				Size = UDim2.fromScale(math.clamp(f, 0, 1), 1),
 			}):Play()
-			tops[b].Position = UDim2.fromScale(top / Training.MAX_BAR, 0)
-			tops[b].Visible = top < Training.MAX_BAR
-			nums[b].Text = tostring(math.floor(v))
+			fills[b].BackgroundColor3 = if full then MAX_GOLD else CvcUi.BAR_COLORS[b]
+			tops[b].Position = UDim2.fromScale(top / scale, 0)
+			tops[b].Visible = top < scale and not full
+			local whole = math.floor(v)
+			nums[b].Text = if full then "MAX!" else tostring(whole)
+			nums[b].TextColor3 = if full then Color3.fromRGB(214, 150, 0) else INK
+			-- a bar went up: its number pops
+			local was = shown[b]
+			if was and whole > was then
+				local sc = nums[b]:FindFirstChildOfClass("UIScale")
+				if sc then
+					sc.Scale = 1.5
+					TweenService
+						:Create(sc, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Scale = 1 })
+						:Play()
+				end
+			end
+			shown[b] = whole
+			if full ~= sparks[b].Visible then
+				sparks[b].Visible = full
+				if full then
+					twinkles[b]:Play()
+				else
+					twinkles[b]:Cancel()
+				end
+			end
 		end
 	end
 	return { frame = frame, set = set }
@@ -245,8 +304,23 @@ end
 export type Card = { frame: Frame, set: (car: CvcState.Car) -> (), pic: ViewportFrame }
 
 -- A car card: its picture, name and rarity on top, the 3 bars under. White with an ink rim (and
--- a rarity colour rim for rare and up).
-function CvcUi.card(parent: Instance, car: CvcState.Car): Card
+-- a rarity colour rim for rare and up). opts.barMost: a full bar (CvcUi.bars); opts.best: the
+-- line under the name says what the car is best at instead of its rarity (the pick screen).
+export type CardOpts = { barMost: number?, best: boolean? }
+
+-- the bar a car is best at (its highest)
+function CvcUi.bestBar(car: CvcState.Car): string
+	local best, most = Training.BARS[1], -1
+	for _, b in Training.BARS do
+		local v = CvcState.bar(car, b)
+		if v > most then
+			best, most = b, v
+		end
+	end
+	return best
+end
+
+function CvcUi.card(parent: Instance, car: CvcState.Car, opts: CardOpts?): Card
 	local frame = Instance.new("Frame")
 	frame.Name = "CarCard"
 	frame.BackgroundColor3 = Color3.fromRGB(244, 247, 255)
@@ -265,11 +339,18 @@ function CvcUi.card(parent: Instance, car: CvcState.Car): Card
 	name.Name = "CarName"
 	name.Position = UDim2.fromScale(0.05, 0.47)
 	name.Size = UDim2.fromScale(0.9, 0.11)
-	local tag = CvcUi.label(frame, rarity.label, CvcUi.rarityColor(car.id):Lerp(INK, 0.45))
+	local best = opts and opts.best
+	local tag = CvcUi.label(
+		frame,
+		if best then `BEST AT {CvcUi.BAR_WORDS[CvcUi.bestBar(car)]}!` else rarity.label,
+		if best
+			then CvcUi.BAR_COLORS[CvcUi.bestBar(car)]:Lerp(INK, 0.3)
+			else CvcUi.rarityColor(car.id):Lerp(INK, 0.45)
+	)
 	tag.Name = "Rarity"
 	tag.Position = UDim2.fromScale(0.05, 0.58)
 	tag.Size = UDim2.fromScale(0.9, 0.07)
-	local bars = CvcUi.bars(frame)
+	local bars = CvcUi.bars(frame, opts and opts.barMost)
 	bars.frame.Position = UDim2.fromScale(0.06, 0.66)
 	bars.frame.Size = UDim2.fromScale(0.88, 0.31)
 	bars.set(car)

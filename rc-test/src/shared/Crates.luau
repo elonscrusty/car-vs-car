@@ -35,7 +35,7 @@ Crates.KINDS = {
 	},
 	{
 		id = "basic",
-		label = "CRATE",
+		label = "SMALL CRATE",
 		price = Economy.CRATE_PRICE.basic,
 		odds = { common = 70, rare = 25, epic = 4.5, legend = 0.5 },
 	},

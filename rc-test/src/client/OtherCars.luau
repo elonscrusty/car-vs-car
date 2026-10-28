@@ -18,6 +18,9 @@ local function base(key: string): number
 end
 
 local FAR = 400 -- studs: past this, other cars' wheels are not drawn (phones)
+-- studs: in the big race, names show this far. (It was the whole map for the stand cam; behind
+-- the car the far names piled into one clump, Studio score/25.)
+local RACE_TAG_FAR = 90
 local STEER_MAX = 0.75 -- radians, the base car's widest wheel angle
 local MAX_SUSP = 4 -- big-size spring travel; the ray stops it sooner on the ground
 
@@ -65,7 +68,7 @@ local function nameTag(body: BasePart, text: string, s: number): BillboardGui
 	tag.Name = "NameTag"
 	tag.Size = UDim2.fromOffset(120, 26)
 	tag.StudsOffsetWorldSpace = Vector3.new(0, 3.2 * s, 0)
-	tag.AlwaysOnTop = true
+	tag.AlwaysOnTop = false -- (on carter's PC AlwaysOnTop tags never drew: Studio score/16-18)
 	tag.MaxDistance = 150
 	tag.Adornee = body
 	local l = Instance.new("TextLabel")
@@ -121,10 +124,10 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 				})
 			end
 		end
-		-- a BillboardGui only draws reliably from PlayerGui; Adornee puts it over the car
+		-- the tag lives on the car's body, like the training tag (CarTag): from PlayerGui it never
+		-- showed in the Studio check
 		local tag = nameTag(body, playerName(model), s)
-		tag.ResetOnSpawn = false
-		tag.Parent = Players.LocalPlayer:FindFirstChildOfClass("PlayerGui") or f
+		tag.Parent = body
 		local o = { body = body, folder = f, wheels = wheels, scale = s, tag = tag }
 		others[model] = o
 		return o
@@ -181,7 +184,11 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 			end
 			local near = not hide and (cf.Position - eye).Magnitude < FAR
 			o.folder.Parent = if near then folder else nil
-			o.tag.Enabled = near
+			-- carter's pick 18: in the big race every car in your race wears its name, however far
+			-- (the stand cam watches from the side of the track)
+			local inRace = myGroup ~= nil and group == myGroup
+			o.tag.MaxDistance = if inRace then RACE_TAG_FAR else 150
+			o.tag.Enabled = near or (inRace and not hide)
 			if not near then
 				continue
 			end

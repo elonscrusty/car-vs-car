@@ -11,10 +11,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Features = require(Shared:WaitForChild("Features"))
-if not Features.CVC then
+-- (Features.NEW_UI: the new screens do this instead, CvcScreens.client)
+if not Features.CVC or Features.NEW_UI then
 	return
 end
 local CarCatalog = require(Shared:WaitForChild("CarCatalog"))
+local CvcLayout = require(Shared:WaitForChild("CvcLayout"))
 local HudLayout = require(Shared:WaitForChild("HudLayout"))
 local KartStyle = require(Shared:WaitForChild("KartStyle"))
 local Training = require(Shared:WaitForChild("Training"))
@@ -46,44 +48,32 @@ pop.Parent = player:WaitForChild("PlayerGui")
 
 local panel = Instance.new("Frame")
 panel.Name = "Panel"
-panel.AnchorPoint = Vector2.new(0.5, 0.5)
-panel.Position = UDim2.fromScale(0.5, 0.54)
-panel.Size = UDim2.fromScale(0.82, 0.78)
+CvcLayout.place(panel, "garage", "Panel")
 panel.BackgroundColor3 = KartStyle.BLUE
 panel.Visible = false
 panel.Parent = pop
 CvcUi.corner(panel, 0.05)
 CvcUi.rim(panel, KartStyle.PANEL_RIM)
-local panelMax = Instance.new("UISizeConstraint")
-panelMax.MaxSize = Vector2.new(960, 540)
-panelMax.Parent = panel
 local ribbon = CvcUi.ribbon(panel, "MY GARAGE")
 
 local close = button(panel, "X", KartStyle.RED)
 close.Name = "Close"
-close.AnchorPoint = Vector2.new(0.5, 0.5)
-close.Position = UDim2.fromScale(1, 0)
-close.Size = UDim2.fromScale(0.11, 0.11)
-close.SizeConstraint = Enum.SizeConstraint.RelativeYY
+CvcLayout.place(close, "garage", "Close")
 close.ZIndex = 3
 CvcUi.corner(close, 0.5)
 
 -- two tabs under the ribbon
 local tabStations = button(panel, "STATIONS", KartStyle.YELLOW)
-tabStations.Position = UDim2.fromScale(0.04, 0.09)
-tabStations.Size = UDim2.fromScale(0.25, 0.09)
+CvcLayout.place(tabStations, "garage", "TabStations")
 local tabCars = button(panel, "MY CARS", KartStyle.SKY)
-tabCars.Position = UDim2.fromScale(0.31, 0.09)
-tabCars.Size = UDim2.fromScale(0.25, 0.09)
+CvcLayout.place(tabCars, "garage", "TabCars")
 local note = label(panel, "", WHITE)
-note.Position = UDim2.fromScale(0.58, 0.09)
-note.Size = UDim2.fromScale(0.38, 0.09)
+CvcLayout.place(note, "garage", "Note")
 note.TextXAlignment = Enum.TextXAlignment.Right
 
 local body = Instance.new("ScrollingFrame")
 body.Name = "Body"
-body.Position = UDim2.fromScale(0.03, 0.21)
-body.Size = UDim2.fromScale(0.94, 0.62)
+CvcLayout.place(body, "garage", "Body")
 body.BackgroundTransparency = 1
 body.BorderSizePixel = 0
 body.ScrollBarThickness = 6
@@ -91,14 +81,16 @@ body.Parent = panel
 
 local more = button(panel, "MORE STATIONS", KartStyle.GREEN)
 more.Name = "More"
-more.AnchorPoint = Vector2.new(0.5, 1)
-more.Position = UDim2.fromScale(0.5, 0.97)
-more.Size = UDim2.fromScale(0.5, 0.11)
+CvcLayout.place(more, "garage", "More")
 
 local view = "stations" -- or "cars"
 local forStation: number? = nil -- picking a car for this station (in the cars view)
 
 local render: () -> ()
+-- what each card and row does to show the coins and bars now, without being built again
+-- (the panel was rebuilt on every coin and every training tick: a BETTER tap between a
+-- rebuild's old button and its new one was lost, Studio final-14)
+local updates: { () -> () } = {}
 
 local function clear()
 	for _, c in body:GetChildren() do
@@ -106,6 +98,13 @@ local function clear()
 			c:Destroy()
 		end
 	end
+	table.clear(updates)
+end
+
+-- dark words on a yellow button: no light outline round them (it smeared, Studio final-14)
+local function inkText(b: TextButton, on: boolean)
+	b.TextColor3 = if on then INK else WHITE
+	b.TextStrokeTransparency = if on then 1 else 0.2
 end
 
 -- one station: a card across, side by side with the others (scroll for more)
@@ -113,72 +112,88 @@ local CARD_W = 210
 local function stationCard(i: number, st: CvcState.Station)
 	local card = Instance.new("Frame")
 	card.Name = "Station" .. i
-	card.Position = UDim2.new(0, (i - 1) * (CARD_W + 12), 0, 0)
-	card.Size = UDim2.new(0, CARD_W, 1, -8)
+	CvcLayout.place(card, "garage", "Card")
+	card.Position += UDim2.fromOffset((i - 1) * (CARD_W + 12), 0)
 	card.BackgroundColor3 = Color3.fromRGB(244, 247, 255)
 	card.Parent = body
 	CvcUi.corner(card, 0.06)
 	CvcUi.rim(card, KartStyle.BUTTON_RIM)
-	local kind = label(card, Training.NAMES[st.kind] or string.upper(st.kind), INK)
-	kind.Position = UDim2.fromScale(0.05, 0.02)
-	kind.Size = UDim2.fromScale(0.9, 0.1)
-	local lv = label(
-		card,
-		`LEVEL {st.level}  -  MOST {MAIN_WORD[st.kind] or ""}`,
-		Color3.fromRGB(70, 80, 110)
-	)
-	lv.Position = UDim2.fromScale(0.05, 0.12)
-	lv.Size = UDim2.fromScale(0.9, 0.07)
+	-- the top part: what it is, its level, the car on it and its bars (the buttons go under)
+	local top = Instance.new("Frame")
+	top.Name = "Top"
+	top.BackgroundTransparency = 1
+	CvcLayout.place(top, "garage", "CardTop")
+	top.Parent = card
+	local kind = label(top, Training.NAMES[st.kind] or string.upper(st.kind), INK)
+	kind.Position = UDim2.fromScale(0.05, 0.03)
+	kind.Size = UDim2.fromScale(0.9, 0.14)
+	local lv = label(top, "", Color3.fromRGB(70, 80, 110))
+	lv.Position = UDim2.fromScale(0.05, 0.17)
+	lv.Size = UDim2.fromScale(0.9, 0.09)
 	local car = st.uid ~= "" and CvcState.find(st.uid) or nil
+	local name: TextLabel? = nil
+	local bars: CvcUi.Bars? = nil
 	if car then
-		local pic = CvcUi.carPic(card, car.id)
-		pic.Position = UDim2.fromScale(0.2, 0.2)
-		pic.Size = UDim2.fromScale(0.6, 0.27)
-		local name = label(card, CvcState.name(car.id), INK)
-		name.Position = UDim2.fromScale(0.05, 0.47)
-		name.Size = UDim2.fromScale(0.9, 0.07)
-		local bars = CvcUi.bars(card)
-		bars.frame.Position = UDim2.fromScale(0.06, 0.55)
-		bars.frame.Size = UDim2.fromScale(0.88, 0.2)
-		bars.set(car)
-		if Training.full(car, CvcState.stats(car.id)) then
-			name.Text = `{CvcState.name(car.id)}  MAX!`
-		end
+		local pic = CvcUi.carPic(top, car.id)
+		pic.Position = UDim2.fromScale(0.22, 0.28)
+		pic.Size = UDim2.fromScale(0.56, 0.3)
+		name = label(top, CvcState.name(car.id), INK)
+		local n = name :: TextLabel
+		n.Position = UDim2.fromScale(0.05, 0.59)
+		n.Size = UDim2.fromScale(0.9, 0.1)
+		bars = CvcUi.bars(top)
+		local b = bars :: CvcUi.Bars
+		b.frame.Position = UDim2.fromScale(0.06, 0.7)
+		b.frame.Size = UDim2.fromScale(0.88, 0.29)
 	else
-		local empty = label(card, "EMPTY\nPUT A CAR HERE!", Color3.fromRGB(110, 120, 150))
-		empty.Position = UDim2.fromScale(0.05, 0.25)
-		empty.Size = UDim2.fromScale(0.9, 0.4)
+		local empty = label(top, "EMPTY\nPUT A CAR HERE!", Color3.fromRGB(110, 120, 150))
+		empty.Position = UDim2.fromScale(0.05, 0.32)
+		empty.Size = UDim2.fromScale(0.9, 0.5)
 	end
 	local change = button(card, if car then "CHANGE CAR" else "PUT A CAR", KartStyle.SKY)
-	change.Position = UDim2.fromScale(0.06, 0.77)
-	change.Size = UDim2.fromScale(0.42, 0.1)
+	CvcLayout.place(change, "garage", "Change")
 	change.Activated:Connect(function()
 		view, forStation = "cars", i
 		render()
 	end)
-	local cost = Training.upgradeCost(st.level)
 	local up = button(card, "", KartStyle.GREEN)
-	up.Position = UDim2.fromScale(0.52, 0.77)
-	up.Size = UDim2.fromScale(0.42, 0.1)
-	if st.level >= Training.MAX_STATION_LEVEL or not cost then
-		up.Text = "TOP LEVEL!"
-		up.BackgroundColor3 = KartStyle.YELLOW
-		up.TextColor3 = INK
-		up.AutoButtonColor = false
-	else
-		local short = cost - coins()
-		up.Text = if short > 0 then `{short} MORE` else `BETTER {cost}`
-		up.BackgroundColor3 = if short > 0 then GREY else KartStyle.GREEN
-		up.Activated:Connect(function()
-			if coins() >= cost then
-				CvcState.ask("upgrade", i)
-			end
-		end)
+	CvcLayout.place(up, "garage", "Up")
+	-- (the tap reads the station as it is now: its level may have gone up since this was built)
+	up.Activated:Connect(function()
+		local now = CvcState.stations[i]
+		local cost = now and Training.upgradeCost(now.level)
+		if now and cost and now.level < Training.MAX_STATION_LEVEL and coins() >= cost then
+			CvcState.ask("upgrade", i)
+		end
+	end)
+	local function update()
+		local now = CvcState.stations[i] or st
+		lv.Text = `LEVEL {now.level}  -  MOST {MAIN_WORD[now.kind] or ""}`
+		local c = car and CvcState.find(car.uid)
+		if c and name and bars then
+			bars.set(c)
+			name.Text = if Training.full(c, CvcState.stats(c.id))
+				then `{CvcState.name(c.id)}  MAX!`
+				else CvcState.name(c.id)
+		end
+		local cost = Training.upgradeCost(now.level)
+		if now.level >= Training.MAX_STATION_LEVEL or not cost then
+			up.Text = "TOP LEVEL!"
+			up.BackgroundColor3 = KartStyle.YELLOW
+			inkText(up, true)
+			up.AutoButtonColor = false
+		else
+			local short = cost - coins()
+			-- what it does and what it costs (grey: not enough coins yet); "81 MORE" said neither,
+			-- Studio polish-5
+			up.Text = `BETTER!\n{cost} COINS`
+			up.BackgroundColor3 = if short > 0 then GREY else KartStyle.GREEN
+			inkText(up, false)
+			up.AutoButtonColor = true
+		end
 	end
-	local faster = label(card, "MAKE IT TRAIN FASTER", Color3.fromRGB(70, 80, 110))
-	faster.Position = UDim2.fromScale(0.05, 0.89)
-	faster.Size = UDim2.fromScale(0.9, 0.07)
-	faster.Visible = up.Text ~= "TOP LEVEL!"
+	update()
+	table.insert(updates, update)
 end
 
 -- one car you own: a row
@@ -186,8 +201,8 @@ local ROW = 74
 local function carRow(n: number, car: CvcState.Car)
 	local r = Instance.new("Frame")
 	r.Name = car.uid
-	r.Position = UDim2.new(0, 0, 0, (n - 1) * ROW)
-	r.Size = UDim2.new(1, -10, 0, ROW - 6)
+	CvcLayout.place(r, "garage", "Row")
+	r.Position += UDim2.fromOffset(0, (n - 1) * ROW)
 	r.BackgroundColor3 = Color3.fromRGB(244, 247, 255)
 	r.Parent = body
 	CvcUi.corner(r, 0.2)
@@ -218,6 +233,12 @@ local function carRow(n: number, car: CvcState.Car)
 	bars.frame.Position = UDim2.fromScale(0.27, 0.08)
 	bars.frame.Size = UDim2.fromScale(0.38, 0.84)
 	bars.set(car)
+	table.insert(updates, function()
+		local c = CvcState.find(car.uid)
+		if c then
+			bars.set(c)
+		end
+	end)
 	-- the buttons on the right
 	if forStation then
 		local i = forStation
@@ -227,9 +248,7 @@ local function carRow(n: number, car: CvcState.Car)
 			if here then "TAKE OFF" else "TRAIN HERE",
 			if here then KartStyle.RED else KartStyle.GREEN
 		)
-		b.AnchorPoint = Vector2.new(1, 0.5)
-		b.Position = UDim2.new(1, -8, 0.5, 0)
-		b.Size = UDim2.new(0.3, 0, 0.66, 0)
+		CvcLayout.place(b, "garage", "RowButton")
 		b.Activated:Connect(function()
 			CvcState.ask("station", i, if here then "" else car.uid)
 			view, forStation = "stations", nil
@@ -242,11 +261,9 @@ local function carRow(n: number, car: CvcState.Car)
 			if isRacer then "RACING!" else "RACE WITH IT",
 			if isRacer then KartStyle.YELLOW else KartStyle.RED
 		)
-		b.AnchorPoint = Vector2.new(1, 0.5)
-		b.Position = UDim2.new(1, -8, 0.5, 0)
-		b.Size = UDim2.new(0.3, 0, 0.66, 0)
+		CvcLayout.place(b, "garage", "RowButton")
 		if isRacer then
-			b.TextColor3 = INK
+			inkText(b, true)
 			b.AutoButtonColor = false
 		else
 			b.Activated:Connect(function()
@@ -256,37 +273,110 @@ local function carRow(n: number, car: CvcState.Car)
 	end
 end
 
+-- what the panel is built from: when only coins and bars move, it updates in place
+local function shape(): string
+	local bits = { view, tostring(forStation), CvcState.racer or "" }
+	for _, st in CvcState.stations do
+		table.insert(bits, `{st.kind}:{st.uid}`)
+	end
+	if view == "cars" then
+		for _, car in CvcState.garage do
+			table.insert(bits, car.uid)
+		end
+	end
+	return table.concat(bits, "|")
+end
+local built: string? = nil
+local lockedShown = 0 -- locked cards after the stations (lockedCards)
+
+-- the next stations, locked, after yours: what you can get (one card alone left a big empty blue
+-- area, Studio polish-12)
+local LOCKED_SHOWN = 2
+local function lockedCards(): number
+	local have = #CvcState.stations
+	local n = 0
+	for k = 1, LOCKED_SHOWN do
+		local kind = Training.STATIONS[have + k]
+		if not kind then
+			break
+		end
+		n += 1
+		local i = have + k
+		local card = Instance.new("Frame")
+		card.Name = "Locked" .. k
+		CvcLayout.place(card, "garage", "Card")
+		card.Position += UDim2.fromOffset((i - 1) * (CARD_W + 12), 0)
+		card.BackgroundColor3 = Color3.fromRGB(196, 204, 222)
+		card.Parent = body
+		CvcUi.corner(card, 0.06)
+		CvcUi.rim(card, KartStyle.BUTTON_RIM)
+		local kindWord = label(card, Training.NAMES[kind] or string.upper(kind), INK)
+		kindWord.Position = UDim2.fromScale(0.05, 0.03)
+		kindWord.Size = UDim2.fromScale(0.9, 0.12)
+		local most = label(card, `MOST {MAIN_WORD[kind] or ""}`, Color3.fromRGB(70, 80, 110))
+		most.Position = UDim2.fromScale(0.05, 0.15)
+		most.Size = UDim2.fromScale(0.9, 0.08)
+		local lock = label(card, "🔒", WHITE)
+		lock.Position = UDim2.fromScale(0.2, 0.28)
+		lock.Size = UDim2.fromScale(0.6, 0.34)
+		local cost = Training.plotCost(CvcState.plotLevel + k - 1)
+		local how = label(
+			card,
+			if k == 1 and cost then `NEXT!\n{cost} COINS` else "LATER",
+			Color3.fromRGB(70, 80, 110)
+		)
+		how.Position = UDim2.fromScale(0.05, 0.66)
+		how.Size = UDim2.fromScale(0.9, 0.22)
+	end
+	return n
+end
+
 render = function()
 	if not panel.Visible then
+		built = nil
 		return
 	end
-	clear()
 	tabStations.BackgroundColor3 = if view == "stations" then KartStyle.YELLOW else KartStyle.SKY
-	tabStations.TextColor3 = if view == "stations" then INK else WHITE
+	inkText(tabStations, view == "stations")
 	tabCars.BackgroundColor3 = if view == "cars" then KartStyle.YELLOW else KartStyle.SKY
-	tabCars.TextColor3 = if view == "cars" then INK else WHITE
+	inkText(tabCars, view == "cars")
+	local now = shape()
+	if now == built then
+		for _, update in updates do
+			update()
+		end
+	else
+		built = now
+		clear()
+		if view == "stations" then
+			for i, st in CvcState.stations do
+				stationCard(i, st)
+			end
+			lockedShown = lockedCards()
+		else
+			for n, car in CvcState.garage do
+				carRow(n, car)
+			end
+		end
+	end
 	if view == "stations" then
 		ribbon.Text = "MY GARAGE"
 		note.Text = "CARS TRAIN WHILE YOU PLAY"
-		for i, st in CvcState.stations do
-			stationCard(i, st)
-		end
 		body.ScrollingDirection = Enum.ScrollingDirection.X
-		body.CanvasSize = UDim2.fromOffset(#CvcState.stations * (CARD_W + 12), 0)
+		body.CanvasSize = UDim2.fromOffset((#CvcState.stations + lockedShown) * (CARD_W + 12), 0)
 		local cost = Training.plotCost(CvcState.plotLevel)
 		more.Visible = cost ~= nil and CvcState.plotLevel < Training.MAX_PLOT_LEVEL
 		if cost then
 			local short = cost - coins()
-			more.Text = if short > 0 then `MORE STATIONS: {short} MORE` else `MORE STATIONS  {cost}`
+			more.Text = if short > 0
+				then `NEW STATION: {cost} COINS ({short} TO GO)`
+				else `NEW STATION: {cost} COINS`
 			more.BackgroundColor3 = if short > 0 then GREY else KartStyle.GREEN
 		end
 	else
 		local st = forStation and CvcState.stations[forStation]
 		ribbon.Text = if st then `PICK A CAR FOR THE {Training.NAMES[st.kind] or ""}` else "MY CARS"
 		note.Text = `{#CvcState.garage} CARS`
-		for n, car in CvcState.garage do
-			carRow(n, car)
-		end
 		body.ScrollingDirection = Enum.ScrollingDirection.Y
 		body.CanvasSize = UDim2.fromOffset(0, #CvcState.garage * ROW)
 		more.Visible = false

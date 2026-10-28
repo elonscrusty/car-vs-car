@@ -52,7 +52,9 @@ Training.STATIONS = {
 }
 Training.MAX_PLOT_LEVEL = #Training.STATIONS - 1
 -- coins: a station's next level (level 1 -> 2 is [1]) and the plot's next level (0 -> 1 is [1])
--- (the numbers live in Economy.luau; screens and the server both read these)
+-- (screens and the server both read these). Cheap at the start (carter 10-28): the bored-kid run
+-- maxed its one car's speed at 8:36 with 69 coins and the 2nd station at 300, and quit. Now a kid
+-- who loses every race opens the 2nd station by about 4 min (tests/cvc_pacing.test.luau).
 Training.UPGRADE_COST = Economy.UPGRADE_COST
 Training.PLOT_COST = Economy.PLOT_COST
 

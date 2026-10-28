@@ -46,7 +46,7 @@ end
 
 -- Car VS Car (Features.CVC): `league` (1..4) sets how good the bots are, `easy` = a new player's
 -- first race (slow bots that wake up late), and the race is filled up to the whole grid.
-export type Options = { league: number?, easy: boolean? }
+export type Options = { league: number?, easy: boolean?, laps: number? }
 
 -- Fill a map race: `humans` players are on grid spots 1..humans; the bots take the next spots up
 -- to RaceBots.MIN_CARS cars (the whole grid in Car VS Car). nil when no bots are needed (or the
@@ -73,6 +73,7 @@ function RaceBotCars.spawn(
 		warn("race bots: " .. tostring(route))
 		return nil
 	end
+	route.laps = opt.laps
 
 	local ground = RaycastParams.new()
 	ground.FilterType = Enum.RaycastFilterType.Include

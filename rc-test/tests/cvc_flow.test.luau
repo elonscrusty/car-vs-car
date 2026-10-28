@@ -88,8 +88,7 @@ test("flow: a new player picks a starter, and it races and trains at once", func
 		bits = CvcRules.tick(data, 1, false, t, bits)
 	end
 	H.near(car.speed, Training.MAIN_PER_MIN, 1e-6)
-	-- (a float sum of 60 small bits can land a hair under a whole coin)
-	truthy(data.coins >= CvcRules.COINS_PER_MIN - 1 and data.coins <= CvcRules.COINS_PER_MIN)
+	eq(data.coins, CvcRules.COINS_PER_MIN)
 end)
 
 test("flow: 10 minutes of play: races pay, trophies, a crate car, and Silver league", function()
@@ -172,7 +171,9 @@ test("flow: coins buy a plot level, a station upgrade and a crate", function()
 	local data = Profile.new()
 	CvcRules.setUp(data)
 	CvcRules.pick(data, CarStats.STARTERS[1])
-	data.coins = Training.plotCost(0) + Training.upgradeCost(1) + Crates.price("basic")
+	data.coins = Training.plotCost(0) :: number
+		+ (Training.upgradeCost(1) :: number)
+		+ Crates.price("basic") :: number
 	truthy(CvcRules.levelUp(data))
 	eq(#data.stations, 2)
 	eq(data.stations[2].kind, "ramp")
@@ -232,4 +233,26 @@ test("flow: an old tycoon save gets the new-player steps once: pick, first race,
 	eq(old.stage, Profile.STAGE.RACED)
 	truthy(not CvcRules.raceDone(old, 1, 200).firstCrate)
 	eq(old.crates, 1)
+end)
+
+test("flow: the daily gift gives the streak's coins and a free crate, once a day", function()
+	local data = Profile.new()
+	local coins, streak, crate = CvcRules.daily(data, 100)
+	truthy(coins > 0)
+	eq(streak, 1)
+	truthy(crate)
+	eq(data.crates, 1)
+	-- the same day again: nothing
+	coins, streak, crate = CvcRules.daily(data, 100)
+	eq(coins, 0)
+	truthy(not crate)
+	eq(data.crates, 1)
+	-- the next day: day 2 in a row, a bigger gift and another crate
+	local c2, s2, crate2 = CvcRules.daily(data, 101)
+	eq(s2, 2)
+	truthy(c2 > 0 and crate2)
+	eq(data.crates, 2)
+	-- and the crates open
+	truthy(CvcRules.open(data, rng(0.5)) ~= nil)
+	eq(data.crates, 1)
 end)

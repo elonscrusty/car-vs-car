@@ -1,0 +1,466 @@
+--!strict
+-- Car VS Car screens on a phone: every button is thumb size, nothing falls off its panel or the
+-- screen, and no two buttons cover each other (CvcLayout, HudLayout).
+local fs = require("@lune/fs")
+local H = require("./harness")
+local CvcLayout = require("../src/shared/CvcLayout")
+local Features = require("../src/shared/Features")
+local HudLayout = require("../src/shared/HudLayout")
+
+local test, truthy = H.test, H.truthy
+
+print("CvcLayout")
+
+-- the small phone first, then bigger phones, tablets and PC
+local SIZES = {
+	{ 667, 375 },
+	{ 750, 381 }, -- (the Studio check window)
+	{ 844, 390 },
+	{ 932, 430 },
+	{ 1024, 768 },
+	{ 1366, 768 },
+	{ 1920, 1080 },
+}
+local THUMB = CvcLayout.THUMB
+
+local function each(fn: (screen: string, name: string, b: CvcLayout.Box) -> ())
+	for screen, boxes in CvcLayout.SCREENS :: any do
+		for name, b in boxes do
+			fn(screen, name, b)
+		end
+	end
+end
+
+test("every Car VS Car button is thumb size", function()
+	for _, s in SIZES do
+		each(function(screen, name, b)
+			if b.tap then
+				local l, t, r, bt = CvcLayout.box(screen, name, s[1], s[2])
+				truthy(
+					r - l >= THUMB and bt - t >= THUMB,
+					`{screen}.{name} is {math.floor(r - l)}x{math.floor(bt - t)} on {s[1]}x{s[2]}`
+				)
+			end
+		end)
+	end
+end)
+
+test("every piece stays on the screen and inside its panel", function()
+	for _, s in SIZES do
+		each(function(screen, name, b)
+			local l, t, r, bt = CvcLayout.box(screen, name, s[1], s[2])
+			truthy(
+				l >= 0 and t >= 0 and r <= s[1] and bt <= s[2],
+				`{screen}.{name} off {s[1]}x{s[2]}`
+			)
+			-- (the big X sits on the panel's corner on purpose)
+			if b.parent and name ~= "Close" then
+				local pl, pt, pr, pb = CvcLayout.box(screen, b.parent, s[1], s[2])
+				truthy(
+					l >= pl - 0.5 and t >= pt - 0.5 and r <= pr + 0.5 and bt <= pb + 0.5,
+					`{screen}.{name} sticks out of {b.parent} on {s[1]}x{s[2]}`
+				)
+			end
+		end)
+	end
+end)
+
+test("no two buttons on a screen cover each other", function()
+	for _, s in SIZES do
+		for screen, boxes in CvcLayout.SCREENS :: any do
+			local taps = {}
+			for name, b in boxes do
+				if b.tap then
+					table.insert(taps, name)
+				end
+			end
+			for i = 1, #taps do
+				for j = i + 1, #taps do
+					local al, at, ar, ab = CvcLayout.box(screen, taps[i], s[1], s[2])
+					local bl, bt, br, bb = CvcLayout.box(screen, taps[j], s[1], s[2])
+					truthy(
+						not (al < br and bl < ar and at < bb and bt < ab),
+						`{screen}: {taps[i]} / {taps[j]} on {s[1]}x{s[2]}`
+					)
+				end
+			end
+		end
+	end
+end)
+
+test("the popups' tops clear the screen edge (the ribbon sits over it)", function()
+	for _, s in SIZES do
+		for _, screen in { "pick", "garage", "crate" } do
+			local _, t = CvcLayout.box(screen, "Panel", s[1], s[2])
+			truthy(t >= 24, `{screen} panel top {t} on {s[1]}x{s[2]}`)
+		end
+	end
+end)
+
+test("a station card has room for its car and bars on a phone", function()
+	local _, t, _, b = CvcLayout.box("garage", "CardTop", 667, 375)
+	truthy(b - t >= 110, `card top is {b - t} px`)
+end)
+
+test("the Car VS Car HUD buttons are thumb size", function()
+	if not Features.CVC then
+		return
+	end
+	for _, s in SIZES do
+		for _, it in
+			{
+				{ "Coach", "walk" },
+				{ "BigJoin", "walk" },
+				{ "Crate", "walk" },
+				{ "Garage", "walk" },
+				{ "Boost", "drive" },
+			}
+		do
+			local spot = HudLayout.find(it[1], it[2] :: any)
+			truthy(spot, it[1])
+			local l, t, r, b = HudLayout.box(spot :: any, s[1], s[2])
+			truthy(
+				r - l >= THUMB and b - t >= THUMB,
+				`{it[1]} is {math.floor(r - l)}x{math.floor(b - t)} on {s[1]}x{s[2]}`
+			)
+		end
+	end
+end)
+
+test("the main buttons are bigger still on a phone (56 px+)", function()
+	for _, s in SIZES do
+		each(function(screen, name, b)
+			if b.main then
+				local l, t, r, bt = CvcLayout.box(screen, name, s[1], s[2])
+				truthy(
+					r - l >= CvcLayout.MAIN and bt - t >= CvcLayout.MAIN,
+					`{screen}.{name} is {math.floor(r - l)}x{math.floor(bt - t)} on {s[1]}x{s[2]}`
+				)
+			end
+		end)
+	end
+	if Features.CVC then
+		for _, s in SIZES do
+			for _, it in { { "Coach", "walk" }, { "BigJoin", "walk" }, { "Boost", "drive" } } do
+				local l, t, r, b =
+					HudLayout.box(HudLayout.find(it[1], it[2] :: any) :: any, s[1], s[2])
+				truthy(
+					r - l >= CvcLayout.MAIN and b - t >= CvcLayout.MAIN,
+					`{it[1]} is {math.floor(r - l)}x{math.floor(b - t)} on {s[1]}x{s[2]}`
+				)
+			end
+		end
+	end
+end)
+
+test("the how-to tip never covers COACH, JOIN, CRATE, MY GARAGE or the JOBS chip", function()
+	if not Features.CVC then
+		return
+	end
+	local TIPS = { { "Coach", true }, { "BigJoin", true }, { "Crate", true }, { "Garage", true } }
+	for _, s in SIZES do
+		local rects: { [string]: CvcLayout.Rect } = {}
+		for _, it in TIPS do
+			local l, t, r, b = HudLayout.box(HudLayout.find(it[1], "walk") :: any, s[1], s[2])
+			rects[it[1]] = { l, t, r, b }
+		end
+		-- the folded JOBS 1/3 chip (Stars: its spot's top left, JOBS_CHIP big; the arrow sat on
+		-- its 2/3, Studio final-31)
+		local jl, jt = HudLayout.box(HudLayout.find("DailyJobs", "walk") :: any, s[1], s[2])
+		rects.Jobs = { jl, jt, jl + CvcLayout.JOBS_CHIP[1], jt + CvcLayout.JOBS_CHIP[2] }
+		for _, it in TIPS do
+			local avoid = {}
+			for name, r in rects do
+				if name ~= it[1] and name ~= "Jobs" then
+					table.insert(avoid, r)
+				end
+			end
+			-- clear of the JOBS chip when it can be, else the chip steps away (CvcHowTo)
+			local withJobs =
+				CvcLayout.tipClearOf(rects[it[1]], it[2], s[1], s[2], avoid, rects.Jobs)
+			local jobsAway = withJobs == nil
+			local tip = withJobs or CvcLayout.tip(rects[it[1]], it[2], s[1], s[2], avoid)
+			local function clearOf(name: string): boolean
+				return name ~= it[1] and not (jobsAway and name == "Jobs")
+			end
+			for part, r in { arrow = tip.arrow, words = tip.words, skip = tip.skip } do
+				truthy(
+					not CvcLayout.hits(r, rects[it[1]]),
+					`{it[1]} tip {part} on its button at {s[1]}x{s[2]}`
+				)
+				for name, o in rects do
+					if clearOf(name) then
+						truthy(
+							not CvcLayout.hits(r, o),
+							`{it[1]} tip {part} covers {name} at {s[1]}x{s[2]}`
+						)
+					end
+				end
+				truthy(
+					r[1] >= 0 and r[2] >= 0 and r[3] <= s[1] and r[4] <= s[2],
+					`{it[1]} tip {part} off {s[1]}x{s[2]}`
+				)
+			end
+		end
+	end
+end)
+
+test("COACH steps under the race call strip, clear of it and of the other buttons", function()
+	if not Features.CVC then
+		return
+	end
+	local coach = HudLayout.find("Coach", "walk") :: any
+	for _, s in SIZES do
+		local strip = CvcLayout.callStrip(s[1])
+		local l, t, r, b = HudLayout.box(coach, s[1], s[2])
+		-- where it normally sits, the strip would cover it (the Studio find)
+		local moved =
+			{ l, CvcLayout.coachUnderCall(s[1]), r, CvcLayout.coachUnderCall(s[1]) + (b - t) }
+		truthy(not CvcLayout.hits(moved, strip), `COACH under the strip at {s[1]}x{s[2]}`)
+		truthy(moved[4] <= s[2], `COACH on screen at {s[1]}x{s[2]}`)
+		for _, spot in HudLayout.SPOTS do
+			if spot.mode == "walk" and not spot.off and spot.name ~= "Coach" then
+				local ol, ot, orr, ob = HudLayout.box(spot, s[1], s[2])
+				truthy(
+					not CvcLayout.hits(moved, { ol, ot, orr, ob }),
+					`moved COACH covers {spot.name} at {s[1]}x{s[2]}`
+				)
+			end
+		end
+	end
+end)
+
+test("the race call strip is never huge and covers no walk button (COACH steps down)", function()
+	-- (half a PC screen wide, it sat on COACH / 2X and the +1 pops, Studio polish-4)
+	for _, s in SIZES do
+		local strip = CvcLayout.callStrip(s[1])
+		truthy(strip[3] - strip[1] <= CvcLayout.CALL_STRIP.maxW, `strip width at {s[1]}`)
+		for _, spot in HudLayout.SPOTS do
+			-- (JOIN hides while the call is up: ServerRace "phase ~= call")
+			if
+				spot.mode == "walk"
+				and not spot.off
+				and spot.name ~= "Coach"
+				and spot.name ~= "Join"
+			then
+				local l, t, r, b = HudLayout.box(spot, s[1], s[2])
+				truthy(
+					not CvcLayout.hits(strip, { l, t, r, b }),
+					`the strip covers {spot.name} at {s[1]}x{s[2]}`
+				)
+			end
+		end
+	end
+	local race = fs.readFile("src/client/ServerRace.client.luau")
+	truthy(string.find(race, "CvcLayout.CALL_STRIP.maxW", 1, true) ~= nil, "ServerRace caps it")
+end)
+
+test("the BOOST tip never covers the race chips (the lap box with 5TH OF 8, DRIFT, ...)", function()
+	if not Features.CVC then
+		return
+	end
+	for _, s in SIZES do
+		local boost: CvcLayout.Rect, avoid = {}, {}
+		for _, spot in HudLayout.SPOTS do
+			if spot.mode == "drive" and not spot.off then
+				local l, t, r, b = HudLayout.box(spot, s[1], s[2])
+				if spot.name == "Boost" then
+					boost = { l, t, r, b }
+				elseif CvcLayout.boostAvoids(spot.name) then
+					table.insert(avoid, { l, t, r, b })
+				end
+			end
+		end
+		local tip = CvcLayout.tip(boost, false, s[1], s[2], avoid)
+		for part, r in { arrow = tip.arrow, words = tip.words, skip = tip.skip } do
+			for _, o in avoid do
+				truthy(
+					not CvcLayout.hits(r, o),
+					`BOOST tip {part} covers a race chip at {s[1]}x{s[2]}`
+				)
+			end
+		end
+	end
+end)
+
+-- the big JOIN button's top (px)
+local function joinTop(sw: number, sh: number): number
+	local _, t = HudLayout.box(HudLayout.find("BigJoin", "walk") :: any, sw, sh)
+	return t
+end
+
+test("after a race the cards take turns: no two that cover each other show at once", function()
+	if not Features.CVC then
+		return
+	end
+	for _, s in SIZES do
+		local sw, sh = s[1], s[2]
+		local function finish(name: string): CvcLayout.Rect
+			local l, t, r, b = CvcLayout.box("finish", name, sw, sh)
+			return { l, t, r, b }
+		end
+		local cards: { [string]: CvcLayout.Rect } = {
+			-- the biggest result card: 8 racers, the 2X line and NEXT RACE IN, the podium
+			Result = CvcLayout.resultBox(sw, sh, 10, true),
+			Finish = finish("Card"),
+			QuickChat = finish("Chat"),
+			Kart_League = CvcLayout.leagueBox(sw, sh),
+			RacePrize = CvcLayout.prizeBox(sw, sh, joinTop(sw, sh)),
+		}
+		for a, ra in cards do
+			for b, rb in cards do
+				if a < b and CvcLayout.turnOf(a) == CvcLayout.turnOf(b) then
+					truthy(not CvcLayout.hits(ra, rb), `{a} covers {b} at {sw}x{sh}`)
+				end
+			end
+		end
+		-- (the Studio find: the win card on the ribbon, GG!/AGAIN! and NEXT CAR on the rows)
+		for _, name in { "Finish", "QuickChat", "Kart_League", "RacePrize" } do
+			truthy(
+				CvcLayout.turnOf(name) > CvcLayout.turnOf("Result"),
+				`{name} waits for the result`
+			)
+		end
+		truthy(
+			CvcLayout.turnOf("RacePrize") > CvcLayout.turnOf("QuickChat"),
+			"NEXT CAR waits for GG! / AGAIN!"
+		)
+		-- (GOLD LEAGUE! came with the win card in the middle and was never seen: Studio final-12)
+		truthy(
+			CvcLayout.turnOf("Kart_League") > CvcLayout.turnOf("Finish"),
+			"the league words wait for the win card"
+		)
+	end
+	-- (+50 COINS: JOB DONE! sat on the result's rows, Studio final-49)
+	for _, c in CvcLayout.AFTER_RACE do
+		if c.name ~= "Toast" then
+			truthy(CvcLayout.turnOf("Toast") > c.turn, `the short words wait for {c.name}`)
+		end
+	end
+	-- every card in the turns
+	for _, c in CvcLayout.AFTER_RACE do
+		truthy(CvcLayout.turnOf(c.name) == c.turn, `{c.name} has one turn`)
+	end
+end)
+
+test("the race result card stays on the screen, podium and all", function()
+	for _, s in SIZES do
+		for lines = 2, 10 do
+			for _, podium in { false, true } do
+				local r = CvcLayout.resultBox(s[1], s[2], lines, podium)
+				truthy(r[4] <= s[2] * 0.98, `{lines} rows at {s[1]}x{s[2]} end at {r[4]}`)
+			end
+		end
+	end
+	-- (the short Studio window: 8 racers, the 2X line, NEXT RACE IN and the podium)
+	truthy(CvcLayout.resultBox(1914, 604, 10, true)[4] <= 604 * 0.98, "Studio 1914x604")
+end)
+
+test("NEXT CAR sits clear of the big JOIN button and the other buttons", function()
+	if not Features.CVC then
+		return
+	end
+	for _, s in { { 1914, 604 }, table.unpack(SIZES) } do
+		local sw, sh = s[1], s[2]
+		local prize = CvcLayout.prizeBox(sw, sh, joinTop(sw, sh))
+		for _, spot in HudLayout.SPOTS do
+			if spot.mode == "walk" and not spot.off then
+				local l, t, r, b = HudLayout.box(spot, sw, sh)
+				truthy(
+					not CvcLayout.hits(prize, { l, t, r, b }),
+					`NEXT CAR covers {spot.name} at {sw}x{sh}`
+				)
+			end
+		end
+	end
+end)
+
+test("COACH finds the race call strip inside its StageGate wrap (it never stepped down)", function()
+	local fs: any = (require :: any)("@lune/fs")
+	local race = fs.readFile("src/client/ServerRace.client.luau")
+	local cvc = fs.readFile("src/client/Cvc.client.luau")
+	-- ServerRace wraps the strip (ServerRace.Stage_race.Call) ...
+	truthy(string.find(race, 'StageGate.hold(call, "race")', 1, true) ~= nil, "the call is wrapped")
+	-- ... so COACH looks for it all the way down, not just at the top of the gui
+	truthy(string.find(cvc, 'FindFirstChild("Call", true)', 1, true) ~= nil, "COACH looks inside")
+	truthy(string.find(cvc, 'FindFirstChild("Call")', 1, true) == nil, "no top-only look")
+end)
+
+test("the win card and GG! / AGAIN! sit clear of JOIN and the other buttons", function()
+	if not Features.CVC then
+		return
+	end
+	for _, s in { { 1914, 604 }, table.unpack(SIZES) } do
+		local sw, sh = s[1], s[2]
+		for _, name in { "Card", "Chat" } do
+			local l, t, r, b = CvcLayout.box("finish", name, sw, sh)
+			for _, spot in HudLayout.SPOTS do
+				-- (COACH steps away while the win card shows)
+				if spot.mode == "walk" and not spot.off and spot.name ~= "Coach" then
+					local ol, ot, orr, ob = HudLayout.box(spot, sw, sh)
+					truthy(
+						not CvcLayout.hits({ l, t, r, b }, { ol, ot, orr, ob }),
+						`finish {name} covers {spot.name} at {sw}x{sh}`
+					)
+				end
+			end
+		end
+	end
+end)
+
+test("after a race no driving button or chip shows on the result card or its ribbon", function()
+	for _, s in { { 1914, 604 }, table.unpack(SIZES) } do
+		local sw, sh = s[1], s[2]
+		local card = CvcLayout.resultBox(sw, sh, 10, true)
+		local ribbon = CvcLayout.resultRibbonBox(sw, sh)
+		for _, spot in HudLayout.SPOTS do
+			if spot.mode == "drive" and not spot.off then
+				local l, t, r, b = HudLayout.box(spot, sw, sh)
+				local box = { l, t, r, b }
+				if CvcLayout.hits(box, card) or CvcLayout.hits(box, ribbon) then
+					-- (its owner steps its driving pieces away while the card shows)
+					truthy(
+						CvcLayout.AFTER_RACE_HIDES[spot.owner] == true,
+						`{spot.name} ({spot.owner}) sits on the result card at {sw}x{sh}`
+					)
+				end
+			end
+		end
+	end
+end)
+
+test("the RACE! tip sits under JOIN RACE, pointing up at it (not on the kid's head)", function()
+	if not Features.CVC then
+		return
+	end
+	local how = fs.readFile("src/client/CvcHowTo.client.luau")
+	truthy(string.find(how, 'text = "RACE!", below = true', 1, true) ~= nil, "RACE! under JOIN")
+	for _, s in SIZES do
+		local l, t, r, b = HudLayout.box(HudLayout.find("BigJoin", "walk") :: any, s[1], s[2])
+		local good = CvcLayout.tipClearOf({ l, t, r, b }, true, s[1], s[2], {}, { 0, 0, 0, 0 })
+		truthy(good ~= nil and good.side == "under", `room under JOIN at {s[1]}x{s[2]}`)
+	end
+end)
+
+test("a new car's words sit under it, clear of its path off the screen", function()
+	-- (IT'S TRAINING NOW! sat under the flying car, Studio score-02)
+	local N = CvcLayout.NEW_CAR
+	for _, s in SIZES do
+		local sw, sh = s[1], s[2]
+		local w, h, wordsY = CvcLayout.newCar(sh)
+		-- its path: from the middle to off the right edge, at the same height
+		local path = { sw / 2 - w / 2, N.y * sh - h / 2, sw * 1.3 + w / 2, N.y * sh + h / 2 }
+		local wordsH = N.words * sh
+		for _, y in { wordsY, wordsY + 0.04 } do -- (they sink as they fade)
+			local words = { sw * 0.2, y * sh - wordsH / 2, sw * 0.8, y * sh + wordsH / 2 }
+			truthy(not CvcLayout.hits(path, words), `words on the car at {sw}x{sh}`)
+			truthy(words[4] <= sh, `words off the bottom at {sw}x{sh}`)
+		end
+		truthy(N.y * sh - h / 2 >= 58, `the car under the top bar at {sw}x{sh}`)
+	end
+	local cvc = fs.readFile("src/client/Cvc.client.luau")
+	truthy(
+		string.find(cvc, `"IT'S TRAINING NOW!", KartStyle.GREEN, wordsY, -0.04`, 1, true) ~= nil,
+		"uses it"
+	)
+end)

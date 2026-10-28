@@ -32,6 +32,15 @@ function CvcRules.stats(id: string): Training.Stats
 	return CarStats.stats(id)
 end
 
+-- COACH: a tap works once a minute. `at` = when it was last tapped (the plot's CoachAt, 0 =
+-- never); returns the new CoachAt, or nil when it isn't ready (or `at` isn't a number).
+function CvcRules.coach(at: unknown, now: number): number?
+	if type(at) ~= "number" or at ~= at then
+		return nil
+	end
+	return if Training.coachReady(at, now) then now else nil
+end
+
 -- The stations the plot level gives (new ones added empty; levels and cars kept).
 function CvcRules.fitStations(data: Data)
 	for i, kind in Training.stationsFor(data.plotLevel) do
@@ -183,6 +192,17 @@ function CvcRules.buy(data: Data, kind: unknown, rng: Crates.Rng): string?
 	end
 	data.coins -= price
 	return id
+end
+
+-- The daily gift (carter's picks 36 and 46): the login streak's coins (Profile.daily) and a free
+-- crate every day. Once a day; 0 coins and no crate when today's is already taken.
+function CvcRules.daily(data: Data, day: number, mult: number?): (number, number, boolean)
+	local coins, streak = Profile.daily(data, day, mult)
+	if coins <= 0 then
+		return 0, streak, false
+	end
+	data.crates = math.min(data.crates + 1, Profile.MAX_COINS)
+	return coins, streak, true
 end
 
 export type RaceResult = { coins: number, trophy: boolean, league: number, firstCrate: boolean }

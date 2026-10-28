@@ -47,6 +47,25 @@ function QueuePads.over(cf: CFrame, size: Vector3, pos: Vector3): boolean
 	return math.abs(p.X) <= size.X / 2 and math.abs(p.Z) <= size.Z / 2 and p.Y > -1 and p.Y < 6
 end
 
+-- A spot just off a pad, in the pad's own flat space (x, z from its middle; half = half its
+-- size): over the pad, out past the nearest edge by `gap`; already off it, where it is. After a
+-- race you land beside the JOIN pad, not on it (it joined you into every next race, Studio check).
+function QueuePads.offPad(
+	x: number,
+	z: number,
+	halfX: number,
+	halfZ: number,
+	gap: number
+): (number, number)
+	if math.abs(x) > halfX or math.abs(z) > halfZ then
+		return x, z
+	end
+	if halfX - math.abs(x) <= halfZ - math.abs(z) then
+		return (if x < 0 then -1 else 1) * (halfX + gap), z
+	end
+	return x, (if z < 0 then -1 else 1) * (halfZ + gap)
+end
+
 -- Watches every QueuePad for good. Call once, after the lobby is built.
 function QueuePads.start(hooks: Hooks)
 	local CollectionService = game:GetService("CollectionService")

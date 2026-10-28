@@ -1,7 +1,7 @@
 --!strict
 -- KITCHEN: a toy race track on a giant kitchen floor. Start by the door mat, round the table
 -- (or straight UNDER it: the shortcut, through a chair's legs), along the counters round the
--- mop bucket with a jump over a dropped spoon, through the spilled milk by the fridge, a
+-- mop bucket with a jump by a dropped spoon, through the spilled milk by the fridge, a
 -- cutting-board jump down the left side and home.
 -- Secret: two cabinet doors under the counter are open. Drive in one, along inside the cabinets,
 -- and out of the other (it skips the mop bucket bend). Picture: rc-game/maps/kitchen.png in the
@@ -42,8 +42,9 @@ local COUNTER_FRONT = BACK + COUNTER_D
 -- loose things on the floor (squeezed with the track)
 local props: { MapKit.Prop } = {
 	-- the table and its chairs (the car drives between the legs)
-	prop("table", 470, 0, 0, 165, true, 280, 380),
-	prop("chair", 470, 70, 0, 100, true, 96, 96), -- pushed in on the shortcut: drive through
+	prop("table", 470, 0, 0, 165, true, 240, 340), -- legs clear of the main road
+	prop("chair", 470, 70, 0, 75, true, 96, 96), -- under the table on the shortcut: drive through
+	-- (low, so its back stays under the table top)
 	prop("chair", 250, -120, PI / 2, 100, true, 96, 96),
 	prop("chair", 250, 130, PI / 2, 100, true, 96, 96),
 	-- the mop bucket in the bend, a wet floor sign
@@ -64,7 +65,7 @@ local props: { MapKit.Prop } = {
 	prop("banana", 60, 40, 0.6, 12, true, 40, 12),
 	prop("mug", -60, 20, 0, 22, true, 20, 20),
 	prop("toyBlock", 120, 200, 0.4, 24, true, 24, 24),
-	prop("toyBlock", 150, 210, 1.1, 24, true, 24, 24),
+	prop("toyBlock", 165, 215, 1.1, 24, true, 24, 24),
 	-- the cutting board leaning by the left jump
 	prop("cuttingBoard", -745, -60, 0, 40, false, 20, 110),
 }
@@ -77,7 +78,7 @@ local def: MapKit.Def = {
 	minX = -760,
 	maxX = 760,
 	minZ = BACK / K, -- squeezed to BACK
-	maxZ = 540,
+	maxZ = 600, -- room behind the driver stand for its camera
 	main = {
 		{ x = -300, z = 420 }, -- front straight by the door mat, driving right
 		{ x = 250, z = 420 },
@@ -134,15 +135,17 @@ local def: MapKit.Def = {
 		{ kind = "boost", path = 2, at = { x = 60 / K, z = (BACK + 70) / K }, len = 50 },
 	},
 	jumps = {
-		{ path = 0, at = { x = 30, z = -130 } }, -- over the dropped spoon
+		{ path = 0, at = { x = 30, z = -130 } }, -- by the dropped spoon
 		{ path = 0, at = { x = -692, z = -100 } }, -- the cutting board
 	},
 	props = props,
 	lines = {
-		{ kind = "spoon", width = 10, points = { { x = 0, z = -90 }, { x = 0, z = -170 } } },
+		-- dropped on the floor just inside the bottom straight, by the jump: nothing of it on the
+		-- road, the curb or the ramp (a looks-only spoon across the road shows through it)
+		{ kind = "spoon", width = 10, points = { { x = -40, z = -60 }, { x = 80, z = -60 } } },
 	},
 	-- the driver stand: a big step stool by the start (picture rc-game/cvc/pics)
-	stand = { x = 128, z = 487, w = MapKit.STAND_W, d = MapKit.STAND_D, h = MapKit.STAND_H },
+	stand = { x = 128, z = 527, w = MapKit.STAND_W, d = MapKit.STAND_D, h = MapKit.STAND_H },
 	rcX = -3000,
 	rcZ = 1000,
 	rcAngle = 0,

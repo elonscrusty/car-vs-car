@@ -227,10 +227,16 @@ test("economy: Diamond stays a long goal (not in the first hour)", function()
 	truthy(run(TOP, 60).league[3] <= 3, "Diamond inside an hour is too fast")
 end)
 
-test("economy: a higher league pays more and nobody is paid for not finishing", function()
-	for lgi = 1, 3 do
-		truthy(League.prize(lgi + 1, 1) > League.prize(lgi, 1), "the next league pays more")
+test(
+	"economy: a higher league pays more and not finishing still pays a little, but less than finishing",
+	function()
+		for lgi = 1, 3 do
+			truthy(League.prize(lgi + 1, 1) > League.prize(lgi, 1), "the next league pays more")
+		end
+		truthy(
+			League.prize(1, 0) > 0 and League.prize(1, 0) < League.prize(1, 8),
+			"a try pays less"
+		)
+		truthy(League.prize(1, 8) >= Economy.FINISH_PAY, "finishing last still pays")
 	end
-	truthy(League.prize(1, 0) == 0, "no finish, no coins")
-	truthy(League.prize(1, 8) >= Economy.FINISH_PAY, "finishing last still pays")
-end)
+)

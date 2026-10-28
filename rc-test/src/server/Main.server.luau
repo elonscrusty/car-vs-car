@@ -87,6 +87,7 @@ end
 
 -- The car's paint: the car the player picked in the shop for the kind of plot being driven
 -- (looks only; the server paints it, so everyone sees it). The lobby car keeps the plain red.
+-- Car VS Car: always your racer's colour (a yellow BOLT raced red, Studio polish-04)
 local carMode: { [Player]: string } = {}
 local function paint(player: Player)
 	local car = workspace:FindFirstChild("Car_" .. player.UserId)
@@ -95,7 +96,10 @@ local function paint(player: Player)
 		return
 	end
 	local mode = carMode[player]
-	local pick = mode and CarCatalog.get(player:GetAttribute("Car_" .. mode))
+	local pick = if Features.CVC
+		then CarCatalog.get(player:GetAttribute("RacerCar"))
+		elseif mode then CarCatalog.get(player:GetAttribute("Car_" .. mode))
+		else nil
 	local rgb = if pick then pick.color else { 220, 50, 47 }
 	body.Color = Color3.fromRGB(rgb[1], rgb[2], rgb[3])
 end
@@ -328,7 +332,9 @@ end
 
 -- The spawn lobby's drift / race pads: stand on one to go drive an open plot of that kind (the
 -- race pad is JOIN RACE).
-require(script.Parent.QueuePads).start({
+local QueuePads = require(script.Parent.QueuePads)
+local CollectionService = game:GetService("CollectionService")
+QueuePads.start({
 	-- the race pad is JOIN RACE: on the list for the next map race (anyone, a new player too)
 	join = function(player: Player)
 		ServerRaceRunner.join(player)
@@ -342,6 +348,25 @@ require(script.Parent.QueuePads).start({
 	end,
 	sendTo = LobbyPlots.sendTo,
 })
+
+-- Never put a person down on a play pad (it would send them off again: after a race, into the
+-- next race): a few studs off its edge instead. Your choice to step back on.
+local PAD_GAP = 4
+local function offPads(char: Model)
+	local root = char:FindFirstChild("HumanoidRootPart")
+	if not (root and root:IsA("BasePart")) then
+		return
+	end
+	for _, pad in CollectionService:GetTagged("QueuePad") do
+		if pad:IsA("BasePart") and QueuePads.over(pad.CFrame, pad.Size, root.Position) then
+			local p = pad.CFrame:PointToObjectSpace(root.Position)
+			local x, z = QueuePads.offPad(p.X, p.Z, pad.Size.X / 2, pad.Size.Z / 2, PAD_GAP)
+			local at = pad.CFrame:PointToWorldSpace(Vector3.new(x, p.Y, z))
+			char:PivotTo(CFrame.new(at - root.Position) * char:GetPivot())
+			return
+		end
+	end
+end
 
 -- Off the stand, back on that plot's pad, walking.
 local function walk(player: Player)
@@ -357,12 +382,14 @@ local function walk(player: Player)
 		local char = player.Character :: Model
 		root.Anchored = false
 		if slot == nil then
-			-- off a race map: back to the spawn lobby
+			-- off a race map: back to the spawn lobby (beside the JOIN pad, never on it)
 			char:PivotTo(homeOf(player))
+			offPads(char)
 		else
 			local pos = Vector3.new(slot.exitX, 3, slot.exitZ)
 			-- facing the road
 			char:PivotTo(CFrame.lookAt(pos, Vector3.new(0, 3, slot.exitZ)))
+			offPads(char)
 		end
 	end
 	remote:FireClient(player, "walk")
@@ -474,6 +501,9 @@ local function onJoin(player: Player)
 			paint(player)
 		end)
 	end
+	player:GetAttributeChangedSignal("RacerCar"):Connect(function()
+		paint(player)
+	end)
 	joined += 1
 	local px, pz = LobbyLayout.parkSpot(joined)
 	local park = CFrame.lookAt(Vector3.new(px, 1, pz), Vector3.new(px, 1, pz + 1))

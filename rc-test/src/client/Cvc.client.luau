@@ -12,9 +12,11 @@ local TweenService = game:GetService("TweenService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Features = require(Shared:WaitForChild("Features"))
-if not Features.CVC then
+-- (Features.NEW_UI: the new screens do this instead, CvcScreens.client)
+if not Features.CVC or Features.NEW_UI then
 	return
 end
+local CvcLayout = require(Shared:WaitForChild("CvcLayout"))
 local HudLayout = require(Shared:WaitForChild("HudLayout"))
 local KartStyle = require(Shared:WaitForChild("KartStyle"))
 local League = require(Shared:WaitForChild("League"))
@@ -23,6 +25,7 @@ local CvcState = require(script.Parent:WaitForChild("CvcState"))
 local CvcUi = require(script.Parent:WaitForChild("CvcUi"))
 local Party = require(script.Parent:WaitForChild("Party"))
 local Popup = require(script.Parent:WaitForChild("Popup"))
+local Sfx = require(script.Parent:WaitForChild("Sfx"))
 
 local player = Players.LocalPlayer
 local INK, WHITE = KartStyle.INK, KartStyle.WHITE
@@ -55,8 +58,8 @@ local function driving(): boolean
 	return player:GetAttribute("Driving") == true
 end
 
-local function bigWords(text: string, color: Color3)
-	CvcUi.bigWords(top, text, color)
+local function bigWords(text: string, color: Color3): TextLabel
+	return CvcUi.bigWords(top, text, color)
 end
 
 -- ===== the league badge (by the coins: the tycoon's coins-a-minute spot, off in Car VS Car) =====
@@ -84,12 +87,29 @@ local function showLeague()
 	badge.Text = string.upper(League.name(n))
 	badge.Visible = not driving()
 	if shownLeague and n > shownLeague then
-		-- moved up: a big moment
-		badgeScale.Scale = 1.6
-		TweenService:Create(badgeScale, TweenInfo.new(0.6, Enum.EasingStyle.Back), { Scale = 1 })
-			:Play()
-		bigWords(`{string.upper(League.name(n))} LEAGUE!`, badge.BackgroundColor3)
-		Party.confetti(fall, 60)
+		-- moved up: a big moment, in its own turn after a race (CvcLayout.AFTER_RACE: after the
+		-- result and the win card, where it was never seen)
+		local color = badge.BackgroundColor3
+		task.spawn(function()
+			CvcLayout.waitTurn(player:WaitForChild("PlayerGui"), "Kart_League", 30)
+			badgeScale.Scale = 1.6
+			TweenService
+				:Create(badgeScale, TweenInfo.new(0.6, Enum.EasingStyle.Back), { Scale = 1 })
+				:Play()
+			bigWords(`{string.upper(League.name(n))} LEAGUE!`, color).Name = "Kart_League"
+			Party.confetti(fall, 80)
+			-- fireworks all over (carter's pick 27)
+			Sfx.fireworks()
+			for i = 1, 7 do
+				task.delay(i * 0.18, function()
+					Party.burst(
+						top,
+						UDim2.fromScale(0.15 + math.random() * 0.7, 0.12 + math.random() * 0.45),
+						18
+					)
+				end)
+			end
+		end)
 	end
 	if player:GetAttribute("League") ~= nil then
 		shownLeague = n
@@ -130,11 +150,40 @@ coach.Activated:Connect(function()
 	end
 end)
 
+-- the race call strip up top (ServerRace.client): COACH steps down under it while it shows
+local coachSpot = coach.Position
+local function callShowing(): boolean
+	local g = player.PlayerGui:FindFirstChild("ServerRace")
+	-- (StageGate.hold wraps it: ServerRace.Stage_race.Call; the wrap hides it too)
+	local c = g and g:FindFirstChild("Call", true)
+	if not (c and c:IsA("GuiObject") and c.Visible and (g :: ScreenGui).Enabled) then
+		return false
+	end
+	local up = c.Parent
+	while up and up ~= g do
+		if up:IsA("GuiObject") and not up.Visible then
+			return false
+		end
+		up = up.Parent
+	end
+	return true
+end
+
+-- the win card after a race (CvcRace "Finish") is up: COACH steps away for its few seconds
+local function winCardUp(): boolean
+	local g = player.PlayerGui:FindFirstChild("CvcRaceTop")
+	local f = g and g:FindFirstChild("Finish", true)
+	return f ~= nil and f:IsA("GuiObject") and f.Visible
+end
+
 RunService.Heartbeat:Connect(function()
-	coach.Visible = CvcState.loaded and training() and not driving()
+	coach.Visible = CvcState.loaded and training() and not driving() and not winCardUp()
 	if not coach.Visible then
 		return
 	end
+	coach.Position = if callShowing()
+		then UDim2.new(0.5, 0, 0, CvcLayout.coachUnderCall(hud.AbsoluteSize.X))
+		else coachSpot
 	local raw = player:GetAttribute("CoachAt")
 	local at = if type(raw) == "number" then raw else 0
 	local now = workspace:GetServerTimeNow()
@@ -158,6 +207,116 @@ RunService.Heartbeat:Connect(function()
 	end
 end)
 
+-- ===== the gift box: your first car drives out of it (carter's pick 1) =====
+
+local function giftBox(id: string)
+	local gift = Instance.new("Frame")
+	gift.Name = "Gift"
+	gift.AnchorPoint = Vector2.new(0.5, 0.5)
+	gift.Position = UDim2.fromScale(0.5, 0.5)
+	gift.Size = UDim2.fromOffset(130, 110)
+	gift.BackgroundColor3 = KartStyle.RED
+	gift.ZIndex = 2
+	gift.Parent = top
+	CvcUi.corner(gift, 0.1)
+	CvcUi.rim(gift, KartStyle.PANEL_RIM)
+	local band = Instance.new("Frame")
+	band.Name = "Band"
+	band.AnchorPoint = Vector2.new(0.5, 0)
+	band.Position = UDim2.fromScale(0.5, 0)
+	band.Size = UDim2.fromScale(0.2, 1)
+	band.BackgroundColor3 = KartStyle.YELLOW
+	band.BorderSizePixel = 0
+	band.ZIndex = 2
+	band.Parent = gift
+	local lid = Instance.new("Frame")
+	lid.Name = "Lid"
+	lid.AnchorPoint = Vector2.new(0.5, 1)
+	lid.Position = UDim2.new(0.5, 0, 0.5, -52)
+	lid.Size = UDim2.fromOffset(150, 30)
+	lid.BackgroundColor3 = KartStyle.RED
+	lid.ZIndex = 3
+	lid.Parent = top
+	CvcUi.corner(lid, 0.25)
+	CvcUi.rim(lid, KartStyle.PANEL_RIM)
+	local bow = label(lid, "🎀", WHITE)
+	bow.AnchorPoint = Vector2.new(0.5, 1)
+	bow.Position = UDim2.fromScale(0.5, 0.2)
+	bow.Size = UDim2.fromOffset(56, 44)
+	bow.ZIndex = 4
+	local giftScale = Instance.new("UIScale")
+	giftScale.Scale = 0.2
+	giftScale.Parent = gift
+	local lidScale = Instance.new("UIScale")
+	lidScale.Scale = 0.2
+	lidScale.Parent = lid
+	TweenService:Create(giftScale, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+	TweenService:Create(lidScale, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+	-- it wobbles, faster and faster
+	local start = os.clock()
+	local wobble = RunService.RenderStepped:Connect(function()
+		local t = os.clock() - start
+		local r = math.sin(t * (14 + 20 * t)) * math.min(t * 10, 8)
+		gift.Rotation = r
+		lid.Rotation = r
+	end)
+	task.delay(1.1, function()
+		wobble:Disconnect()
+		gift.Rotation = 0
+		-- the lid pops off, the box opens and the car drives out
+		TweenService:Create(lid, TweenInfo.new(0.5, Enum.EasingStyle.Quad), {
+			Position = UDim2.new(0.5, 70, 0.5, -200),
+			Rotation = 40,
+		}):Play()
+		-- (screen offsets: AbsolutePosition starts under Roblox's top bar, Kart_Fall at the top left;
+		-- the bursts went off 58 px too high)
+		local at = gift.AbsolutePosition - fall.AbsolutePosition + gift.AbsoluteSize / 2
+		Party.burst(top, UDim2.fromOffset(at.X, at.Y), 24)
+		Sfx.crate(1)
+		local car = CvcUi.carPic(top, id)
+		car.Name = "NewCar"
+		car.AnchorPoint = Vector2.new(0.5, 0.5)
+		car.Position = UDim2.fromScale(0.5, 0.5)
+		local carW, carH, wordsY = CvcLayout.newCar(top.AbsoluteSize.Y)
+		car.Size = UDim2.fromOffset(carW, carH)
+		car.BackgroundTransparency = 1
+		car.ZIndex = 3
+		local carScale = Instance.new("UIScale")
+		carScale.Scale = 0.1
+		carScale.Parent = car
+		TweenService:Create(carScale, TweenInfo.new(0.6, Enum.EasingStyle.Back), { Scale = 1 })
+			:Play()
+		TweenService:Create(car, TweenInfo.new(0.6, Enum.EasingStyle.Back), {
+			Position = UDim2.fromScale(0.5, CvcLayout.NEW_CAR.y),
+		}):Play()
+		local stopRays = Party.rays(car, KartStyle.YELLOW)
+		TweenService:Create(gift, TweenInfo.new(0.4), { BackgroundTransparency = 1 }):Play()
+		TweenService:Create(giftScale, TweenInfo.new(0.4), { Scale = 0.5 }):Play()
+		Party.confetti(fall, 60)
+		task.delay(0.5, function()
+			gift:Destroy()
+			-- (under the car, and they sink as they fade: they never cross its path)
+			CvcUi.bigWords(top, `{CvcState.name(id)}!`, KartStyle.YELLOW, wordsY, -0.04)
+		end)
+		task.delay(1.9, function()
+			CvcUi.bigWords(top, "IT'S TRAINING NOW!", KartStyle.GREEN, wordsY, -0.04)
+		end)
+		task.delay(3.2, function()
+			-- off it goes to your plot
+			stopRays()
+			lid:Destroy()
+			TweenService
+				:Create(car, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+					Position = UDim2.fromScale(1.3, CvcLayout.NEW_CAR.y),
+				})
+				:Play()
+			task.delay(0.5, function()
+				car:Destroy()
+			end)
+		end)
+	end)
+end
+
 -- ===== PICK YOUR FIRST CAR =====
 
 local pickGui = Instance.new("ScreenGui")
@@ -178,16 +337,11 @@ dim.Parent = pickGui
 
 local pickPanel = Instance.new("Frame")
 pickPanel.Name = "Panel"
-pickPanel.AnchorPoint = Vector2.new(0.5, 0.5)
-pickPanel.Position = UDim2.fromScale(0.5, 0.54)
-pickPanel.Size = UDim2.fromScale(0.8, 0.78)
+CvcLayout.place(pickPanel, "pick", "Panel")
 pickPanel.BackgroundColor3 = KartStyle.BLUE
 pickPanel.Parent = pickGui
 CvcUi.corner(pickPanel, 0.05)
 CvcUi.rim(pickPanel, KartStyle.PANEL_RIM)
-local pickMax = Instance.new("UISizeConstraint")
-pickMax.MaxSize = Vector2.new(900, 520)
-pickMax.Parent = pickPanel
 CvcUi.ribbon(pickPanel, "PICK YOUR FIRST CAR!")
 local pickHint = label(pickPanel, "IT TRAINS ON YOUR PLOT, THEN YOU RACE IT!", WHITE)
 pickHint.Position = UDim2.fromScale(0.05, 0.08)
@@ -203,19 +357,27 @@ local function buildPick()
 	end
 	local ids = CvcState.starters()
 	local n = math.max(#ids, 1)
+	-- a full bar is a bit past the best of these cars, so 26 and 18 look different (Studio polish-6)
+	local most = 1
+	for _, id in ids do
+		for _, b in Training.BARS do
+			most = math.max(most, (CvcState.bar(CvcState.fresh(id), b)))
+		end
+	end
+	most = math.ceil(most * 1.15)
 	for i, id in ids do
 		local holder = Instance.new("Frame")
 		holder.Name = "Choice"
 		holder.BackgroundTransparency = 1
-		holder.Position = UDim2.new((i - 1) / n, 10, 0.17, 0)
-		holder.Size = UDim2.new(1 / n, -20, 0.8, 0)
+		CvcLayout.place(holder, "pick", "Choice") -- (the first; each next one a third further right)
+		holder.Position += UDim2.fromScale((i - 1) / n, 0)
+		holder.Size =
+			UDim2.new(1 / n, holder.Size.X.Offset, holder.Size.Y.Scale, holder.Size.Y.Offset)
 		holder.Parent = pickPanel
-		local card = CvcUi.card(holder, CvcState.fresh(id))
-		card.frame.Size = UDim2.fromScale(1, 0.82)
+		local card = CvcUi.card(holder, CvcState.fresh(id), { barMost = most, best = true })
+		CvcLayout.place(card.frame, "pick", "Card")
 		local go = button(holder, "PICK!", KartStyle.GREEN)
-		go.AnchorPoint = Vector2.new(0.5, 1)
-		go.Position = UDim2.fromScale(0.5, 1)
-		go.Size = UDim2.fromScale(0.8, 0.15)
+		CvcLayout.place(go, "pick", "Pick")
 		go:SetAttribute("KartPulse", true)
 		go.Activated:Connect(function()
 			if picking then
@@ -230,16 +392,12 @@ local function buildPick()
 					showPick()
 				end
 			end)
-			local at = go.AbsolutePosition + go.AbsoluteSize / 2
+			local at = go.AbsolutePosition - fall.AbsolutePosition + go.AbsoluteSize / 2
 			Party.burst(top, UDim2.fromOffset(at.X, at.Y), 16)
 			task.delay(0.35, function()
 				pickGui.Enabled = false
 				Popup.shown("cvcPick", false)
-				bigWords(`{CvcState.name(id)}!`, KartStyle.YELLOW)
-				Party.confetti(fall, 60)
-				task.delay(1.4, function()
-					bigWords("IT'S TRAINING NOW!", KartStyle.GREEN)
-				end)
+				giftBox(id)
 			end)
 		end)
 	end
@@ -264,3 +422,82 @@ player:GetAttributeChangedSignal("Picked"):Connect(function()
 end)
 CvcState.changed:Connect(showPick)
 showPick()
+
+-- ===== a bar goes up: "+1 SPEED!" pops (pick 6); full: a gold "SPEED MAX!" (pick 8) =====
+
+local GOLD = Color3.fromRGB(255, 199, 44)
+local popQueue: { { text: string, color: Color3, max: boolean } } = {}
+local popping = false
+local function nextPop()
+	local p = table.remove(popQueue, 1)
+	if not p then
+		popping = false
+		return
+	end
+	popping = true
+	if not driving() then
+		local w = label(hud, p.text, p.color)
+		w.Name = "Kart_BarPop"
+		w.AnchorPoint = Vector2.new(0.5, 0.5)
+		w.Position = UDim2.fromScale(0.78, 0.42)
+		w.Size = UDim2.fromOffset(260, 44)
+		local s = Instance.new("UIStroke")
+		s.Color = INK
+		s.Thickness = 3
+		s.Parent = w
+		local sc = Instance.new("UIScale")
+		sc.Scale = 0.3
+		sc.Parent = w
+		TweenService:Create(sc, TweenInfo.new(0.3, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+		TweenService:Create(w, TweenInfo.new(1.2), { Position = UDim2.fromScale(0.78, 0.3) }):Play()
+		task.delay(0.8, function()
+			TweenService:Create(w, TweenInfo.new(0.4), { TextTransparency = 1 }):Play()
+			TweenService:Create(s, TweenInfo.new(0.4), { Transparency = 1 }):Play()
+		end)
+		task.delay(1.25, function()
+			w:Destroy()
+		end)
+		if p.max then
+			Sfx.maxed()
+			local at = w.AbsolutePosition - fall.AbsolutePosition + w.AbsoluteSize / 2
+			Party.burst(top, UDim2.fromOffset(at.X, at.Y), 14)
+		else
+			Sfx.speedUp()
+		end
+	end
+	task.delay(0.45, nextPop)
+end
+local function addPop(text: string, color: Color3, max: boolean)
+	if #popQueue >= 4 then
+		return -- (lots at once: the newest wait for the next change)
+	end
+	table.insert(popQueue, { text = text, color = color, max = max })
+	if not popping then
+		nextPop()
+	end
+end
+
+-- the whole numbers each training car's bars were at last time (uid .. bar)
+local lastBars: { [string]: number } = {}
+CvcState.changed:Connect(function()
+	for _, st in CvcState.stations do
+		local car = st.uid ~= "" and CvcState.find(st.uid) or nil
+		if car then
+			for _, b in Training.BARS do
+				local v, cap = CvcState.bar(car, b)
+				local now = math.floor(v)
+				local key = car.uid .. b
+				local was = lastBars[key]
+				if was and now > was then
+					local word = CvcUi.BAR_WORDS[b] or string.upper(b)
+					if v >= cap then
+						addPop(`{word} MAX!`, GOLD, true)
+					else
+						addPop(`+{now - was} {word}!`, CvcUi.BAR_COLORS[b] or WHITE, false)
+					end
+				end
+				lastBars[key] = now
+			end
+		end
+	end
+end)

@@ -136,7 +136,10 @@ function MapKit.scale(def: Def, k: number): Def
 end
 
 MapKit.STAND_SPOTS = 8 -- racers on the driver stand, side by side
-MapKit.STAND_W, MapKit.STAND_D, MapKit.STAND_H = 160, 40, 80 -- 40 x 10 RC studs, 20 up
+-- 40 x 8 RC studs, 10 up. Not higher, and the racers stand near its front: from the stand
+-- camera (above and behind you) a taller or deeper deck hides the road right in front of it.
+MapKit.STAND_W, MapKit.STAND_D, MapKit.STAND_H = 160, 32, 40
+MapKit.STAND_FRONT = 8 -- the spots stand this far back from the deck's front edge
 MapKit.STAND_STAIRS = 80 -- the stairs run this far out past the stand's left end (-x)
 MapKit.STAND_STEP = 8 -- the most each stair climbs
 MapKit.PER = 16 -- loop samples per main point (samples land ~5 to 15 apart)
@@ -195,17 +198,64 @@ function MapKit.length(ring: { Sample }, closed: boolean): number
 	return len
 end
 
+-- Is a spot on the floor free for scenery: inside the walls, `clear` past every road's curb, off
+-- the jumps, out from under the props and clear of the driver stand and its stairs?
+local function spotFree(
+	map: any,
+	rings: { { Sample } },
+	x: number,
+	z: number,
+	clear: number
+): boolean
+	local def: Def = map.def
+	if x < def.minX + 20 or x > def.maxX - 20 or z < def.minZ + 20 or z > def.maxZ - 20 then
+		return false
+	end
+	for r, ring in rings do
+		local w = if r == 1 then def.road else def.paths[r - 1].width
+		if MapKit.distTo(ring, x, z) < w / 2 + MapKit.CURB_WIDTH + clear then
+			return false
+		end
+	end
+	for _, j in def.jumps do
+		if math.sqrt((j.at.x - x) ^ 2 + (j.at.z - z) ^ 2) < (j.len or MapKit.JUMP_LEN) then
+			return false
+		end
+	end
+	for _, p in def.props do
+		local r = math.max(p.w or p.h * 0.6, p.d or p.h * 0.6) / 2 + clear
+		if p.h > 2 and math.sqrt((p.x - x) ^ 2 + (p.z - z) ^ 2) < r then
+			return false
+		end
+	end
+	local st = def.stand
+	if
+		st
+		and x > st.x - st.w / 2 - MapKit.STAND_STAIRS - clear
+		and x < st.x + st.w / 2 + clear
+		and z > st.z - st.d / 2 - clear
+		and z < st.z + st.d / 2 + clear
+	then
+		return false -- keep the driver stand (and its stairs) clear
+	end
+	return true
+end
+
+local function allRings(map: any): { { Sample } }
+	local rings = { map.loop() }
+	for i = 1, #map.def.paths do
+		table.insert(rings, map.path(i))
+	end
+	return rings
+end
+
 -- Spots just off both sides of the main road, every `spacing` along it, `off` from the centre
 -- line (scenery that lines the road: giant grass, toys). Leaves out spots on or next to any road
 -- (a side road crossing, the other side of a hairpin), on a jump, or under a prop.
 export type EdgeSpot = { x: number, z: number, yaw: number, side: number, i: number }
 function MapKit.edgeSpots(map: any, spacing: number, off: number, clear: number): { EdgeSpot }
-	local def: Def = map.def
 	local loop: { Sample } = map.loop()
-	local rings = { loop }
-	for i = 1, #def.paths do
-		table.insert(rings, map.path(i))
-	end
+	local rings = allRings(map)
 	local out = {}
 	local run = 0
 	local k = 0
@@ -218,49 +268,139 @@ function MapKit.edgeSpots(map: any, spacing: number, off: number, clear: number)
 			for _, side in { -1, 1 } do
 				local o = off * side
 				local x, z = a.x - a.tz * o, a.z + a.tx * o
-				local ok = x > def.minX + 20
-					and x < def.maxX - 20
-					and z > def.minZ + 20
-					and z < def.maxZ - 20
-				for r, ring in rings do
-					local w = if r == 1 then def.road else def.paths[r - 1].width
-					if ok and MapKit.distTo(ring, x, z) < w / 2 + MapKit.CURB_WIDTH + clear then
-						ok = false
-					end
-				end
-				for _, j in def.jumps do
-					if
-						ok
-						and math.sqrt((j.at.x - x) ^ 2 + (j.at.z - z) ^ 2)
-							< (j.len or MapKit.JUMP_LEN)
-					then
-						ok = false
-					end
-				end
-				for _, p in def.props do
-					local r = math.max(p.w or p.h * 0.6, p.d or p.h * 0.6) / 2 + clear
-					if ok and p.h > 2 and math.sqrt((p.x - x) ^ 2 + (p.z - z) ^ 2) < r then
-						ok = false
-					end
-				end
-				local st = def.stand
-				if
-					ok
-					and st
-					and x > st.x - st.w / 2 - MapKit.STAND_STAIRS - clear
-					and x < st.x + st.w / 2 + clear
-					and z > st.z - st.d / 2 - clear
-					and z < st.z + st.d / 2 + clear
-				then
-					ok = false -- keep the driver stand (and its stairs) clear
-				end
-				if ok then
+				if spotFree(map, rings, x, z, clear) then
 					table.insert(
 						out,
 						{ x = x, z = z, yaw = math.atan2(-a.tx, -a.tz), side = side, i = k }
 					)
 				end
 			end
+		end
+	end
+	return out
+end
+
+-- Where the kitchen's giant toys stand by the road (RaceMapBuilder puts one on each).
+function MapKit.toySpots(map: any): { EdgeSpot }
+	return MapKit.edgeSpots(map, 130, MapKit.TOY_OFF, MapKit.TOY_CLEAR)
+end
+
+-- The bends of the main loop a kid can run wide on: runs of samples where the road turns more
+-- than TURN_MIN over the next TURN_LOOK of road. dir 1 = a right-hand bend, -1 = left.
+-- (A first-time kid on a low chase cam lost the road at every bend, 10-28.)
+MapKit.TURN_LOOK = 100
+MapKit.TURN_MIN = 0.55 -- radians (about 32 degrees)
+export type Turn = { from: number, to: number, dir: number }
+function MapKit.turns(map: any): { Turn }
+	local loop: { Sample } = map.loop()
+	local n = #loop
+	local function bend(i: number): number
+		local run, k = 0, i
+		while run < MapKit.TURN_LOOK and k < i + n do
+			local a, b = loop[(k - 1) % n + 1], loop[k % n + 1]
+			run += math.sqrt((b.x - a.x) ^ 2 + (b.z - a.z) ^ 2)
+			k += 1
+		end
+		local a, b = loop[i], loop[(k - 1) % n + 1]
+		-- signed angle from a's heading to b's (+ = toward the driver's right)
+		return math.atan2(a.tx * b.tz - a.tz * b.tx, a.tx * b.tx + a.tz * b.tz)
+	end
+	local out: { Turn } = {}
+	local cur: Turn? = nil
+	for i = 1, n do
+		local t = bend(i)
+		local dir = if t > 0 then 1 else -1
+		if math.abs(t) > MapKit.TURN_MIN then
+			if cur and cur.dir == dir then
+				cur.to = i
+			else
+				cur = { from = i, to = i, dir = dir }
+				table.insert(out, cur :: Turn)
+			end
+		else
+			cur = nil
+		end
+	end
+	-- a bend that runs over the end of the loop is one bend
+	if #out > 1 and out[1].from == 1 and out[#out].to == n and out[1].dir == out[#out].dir then
+		out[1].from = out[#out].from - n
+		table.remove(out)
+	end
+	return out
+end
+
+-- Chevron boards round the outside of every bend (yellow, black arrows pointing the way), facing
+-- the car as it comes in: on a low chase cam they show which way the road goes long before the
+-- painted arrows do. Looks only (you drive through them), on the floor clear of everything else.
+MapKit.SIGN_OFF = 14 -- past the curb
+MapKit.SIGN_GAP = 30 -- along the bend
+MapKit.SIGN_W = 24
+export type Sign = { x: number, z: number, yaw: number, dir: number }
+function MapKit.turnSigns(map: any): { Sign }
+	local def: Def = map.def
+	local loop: { Sample } = map.loop()
+	local n = #loop
+	local rings = allRings(map)
+	local edge = def.road / 2 + MapKit.CURB_WIDTH
+	-- kitchen toys by the road (a brick reaches 25 from its middle) and the counter fronts
+	local toys = if def.theme == "kitchen" then MapKit.toySpots(map) else {}
+	-- is the floor free `reach` round (x, z), `clear` past every curb?
+	local function free(x: number, z: number, clear: number, reach: number): boolean
+		if not spotFree(map, rings, x, z, clear) then
+			return false
+		end
+		for _, p in def.props do
+			-- out of the prop's box (turned like CFrame.Angles(0, yaw, 0)), `reach` round it
+			local pw, pd = p.w or p.h * 0.6, p.d or p.h * 0.6
+			local c, s = math.cos(p.yaw), math.sin(p.yaw)
+			local dx, dz = x - p.x, z - p.z
+			local lx, lz = dx * c - dz * s, dx * s + dz * c
+			if p.h > 2 and math.abs(lx) < pw / 2 + reach and math.abs(lz) < pd / 2 + reach then
+				return false
+			end
+		end
+		for _, e in toys do
+			if math.sqrt((e.x - x) ^ 2 + (e.z - z) ^ 2) < 25 + reach then
+				return false
+			end
+		end
+		return not (map.COUNTER_FRONT and z < map.COUNTER_FRONT + reach)
+	end
+	local half = MapKit.SIGN_W / 2
+	local out: { Sign } = {}
+	for _, t in MapKit.turns(map) do
+		local run = MapKit.SIGN_GAP -- the first board at the bend's start
+		for i = t.from - 4, t.to do
+			local a, b = loop[(i - 1) % n + 1], loop[i % n + 1]
+			if run >= MapKit.SIGN_GAP then
+				-- outside of the bend: the driver's left on a right-hand bend
+				local ox, oz = a.tz * t.dir, -a.tx * t.dir
+				local x, z =
+					a.x + ox * (edge + MapKit.SIGN_OFF), a.z + oz * (edge + MapKit.SIGN_OFF)
+				local nx, nz
+				if free(x, z, MapKit.SIGN_OFF - 2, half + 4) then
+					-- out on the floor: face back down the road, turned a little toward it
+					nx, nz = -a.tx - ox * 0.5, -a.tz - oz * 0.5
+				else
+					-- no room (a counter, the fridge, a table leg is right there): close to the curb,
+					-- side on to the road like a board on a wall, so it fits in a thin gap
+					x, z = a.x + ox * (edge + 6), a.z + oz * (edge + 6)
+					local ends = 0
+					for _, along in { -half, 0, half } do
+						if free(x + a.tx * along, z + a.tz * along, 4, 3) then
+							ends += 1
+						end
+					end
+					if ends == 3 then
+						nx, nz = -ox - a.tx * 0.35, -oz - a.tz * 0.35
+					end
+				end
+				if nx then
+					run = 0
+					table.insert(out, { x = x, z = z, yaw = math.atan2(nx, nz), dir = t.dir })
+				end
+			end
+			run += math.sqrt((b.x - a.x) ^ 2 + (b.z - a.z) ^ 2)
 		end
 	end
 	return out
@@ -348,7 +488,7 @@ function MapKit.make(def: Def): Map
 		local n = MapKit.STAND_SPOTS
 		for i = 1, n do
 			local x = st.x - st.w / 2 + st.w * (i - 0.5) / n
-			table.insert(out, { x = x, y = st.h, z = st.z })
+			table.insert(out, { x = x, y = st.h, z = st.z - st.d / 2 + MapKit.STAND_FRONT })
 		end
 		return out
 	end

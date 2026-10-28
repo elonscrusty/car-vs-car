@@ -10,6 +10,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local CarMath = require(ReplicatedStorage.Shared.CarMath)
+local CvcLayout = require(ReplicatedStorage.Shared.CvcLayout)
 local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
 local KartStyle = require(ReplicatedStorage.Shared.KartStyle)
 local RaceMaps = require(ReplicatedStorage.Shared.RaceMaps)
@@ -17,6 +18,8 @@ local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
 local Party = require(script.Parent:WaitForChild("Party"))
 local Sfx = require(script.Parent:WaitForChild("Sfx"))
 local StageGate = require(script.Parent:WaitForChild("StageGate"))
+local Podium = require(script.Parent:WaitForChild("Podium"))
+local Features = require(ReplicatedStorage.Shared.Features)
 
 local event = ReplicatedStorage:WaitForChild("ServerRace") :: RemoteEvent
 local player = Players.LocalPlayer
@@ -92,6 +95,10 @@ StageGate.hold(call, "race")
 local callAspect = Instance.new("UIAspectRatioConstraint")
 callAspect.AspectRatio = 2.6
 callAspect.Parent = call
+-- (on foot the strip is at most CvcLayout.CALL_STRIP.maxW wide: half a PC screen was huge and sat on
+-- COACH and the +1 pops, Studio polish-4)
+local callMax = Instance.new("UISizeConstraint")
+callMax.Parent = call
 local callWhere = Instance.new("TextLabel")
 callWhere.Size = UDim2.fromScale(1, 0.3)
 callWhere.BackgroundColor3 = KartStyle.RED
@@ -174,6 +181,25 @@ rowsText.TextColor3 = Color3.new(1, 1, 1)
 rowsText.TextYAlignment = Enum.TextYAlignment.Top
 rowsText.RichText = true
 rowsText.Parent = card
+-- carter's pick 23: the top 3 cars on a podium, between the ribbon and the rows (big race)
+local podium = Podium.new(card)
+local PODIUM_H = CvcLayout.RESULT.podium -- of the screen
+local raceStartedAt = 0 -- the server time this race started (the next one is 3 min after it)
+local nextRaceAt = 0 -- Car VS Car: the next start, as the server fixed it when the race ended
+local cardLines: { string } = {} -- the result card's rows; the last one (NEXT RACE IN) ticks down
+-- Car VS Car: the next start: the server's (it sends it when every league's race is over), else
+-- the same sum it does, from now
+local function nextRace(): number
+	local now = workspace:GetServerTimeNow()
+	if nextRaceAt > now then
+		return nextRaceAt
+	end
+	return ServerRace.nextAfterRace(raceStartedAt, now)
+end
+local function nextLine(secs: number): string
+	return `<font color="#CFE3FF">NEXT RACE IN {ServerRace.clock(secs)}</font>`
+end
+
 local rowsSize = Instance.new("UITextSizeConstraint")
 rowsSize.MaxTextSize = 34
 rowsSize.Parent = rowsText
@@ -198,9 +224,7 @@ placeStroke.Parent = placeText
 -- once someone has won: how long the rest have to finish (a red pill up top)
 local hurry = Instance.new("TextLabel")
 hurry.Name = "Hurry"
-hurry.AnchorPoint = Vector2.new(0.5, 0)
-hurry.Position = UDim2.new(0.5, 0, 0, 58)
-hurry.Size = UDim2.fromScale(0.34, 0.07)
+HudLayout.place(hurry, "Hurry", "drive")
 hurry.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
 hurry.TextColor3 = Color3.new(1, 1, 1)
 hurry.Font = Enum.Font.LuckiestGuy
@@ -237,16 +261,25 @@ RunService.RenderStepped:Connect(function()
 	-- the call: the small chip steps aside for the huge banner
 	-- the call, and on through the 3-2-1: whose track this is
 	-- (gone at the race start: the giant 3-2-1-GO sat on top of it, Studio backyard-1)
-	call.Visible = phase == "call" and startAt > 0
 	-- on foot (at spawn, in a shop) the call is a thin strip up top, clock and all: the big banner
 	-- covered the middle of a new kid's screen (check kid-03); in a car it stays big
 	local strip = player:GetAttribute("Driving") ~= true
+	-- (Features.NEW_UI: on foot the plot screen's BIG RACE banner and RACE! button count down
+	-- instead, CvcScreens.client)
+	local newUi = Features.CVC and Features.NEW_UI and strip
+	call.Visible = phase == "call" and startAt > 0 and not newUi
 	callAspect.AspectRatio = if strip then 7 else 2.6
+	callMax.MaxSize = Vector2.new(if strip then CvcLayout.CALL_STRIP.maxW else math.huge, math.huge)
 	callWhere.Size = UDim2.fromScale(1, if strip then 1 else 0.3)
 	call.Position = if strip
-		then UDim2.new(0.5, 0, 0, 58) -- (where the hurry pill sits in a race: the top middle is free)
+		then UDim2.new(0.5, 0, 0, 58) -- (on foot: the top middle is free)
 		else UDim2.new(0.5, 0, 0.12, 70)
 	callClock.Visible = not strip
+	-- the result card's NEXT RACE IN counts down (Car VS Car: to the start the race call shows)
+	if words and card.Visible and Features.CVC and raceStartedAt > 0 and #cardLines > 0 then
+		cardLines[#cardLines] = nextLine(nextRace() - workspace:GetServerTimeNow())
+		rowsText.Text = table.concat(cardLines, "\n")
+	end
 	-- the daily gift (Stars) waits while a race or its card is on screen
 	gui:SetAttribute("Busy", phase == "racing" or phase == "call" or card.Visible)
 	local hurryLeft = endsAt - workspace:GetServerTimeNow()
@@ -267,9 +300,11 @@ RunService.RenderStepped:Connect(function()
 	local driving = player:GetAttribute("Driving") == true
 	join.Visible = phase ~= "racing"
 		and phase ~= "call"
+		and not card.Visible -- (the result card has the screen: CvcLayout.AFTER_RACE_HIDES)
 		and startAt > 0
 		and player:GetAttribute("Building") ~= true
 		and (not driving or secs <= 60)
+		and not newUi
 	if call.Visible then
 		if words or not wasCall or strip ~= wasStrip then
 			local verb = if kind == "drift" then "DRIFT" else "RACE"
@@ -356,8 +391,12 @@ local function showResult(rows: { any })
 	local won = first.time or (type(first.score) == "number" and first.score > 0)
 	-- the winner's car in the title: cars get shown off
 	local firstCar = if type(first.car) == "string" then string.upper(first.car) else nil
-	title.Text = if won and firstCar
-		then `🏆 {first.name} WINS IN {firstCar}!`
+	-- your own win: YOU WIN! (the others see your name)
+	local meFirst = first.uid == player.UserId
+		or (first.uid == nil and first.name == player.DisplayName)
+	title.Text = if won and meFirst
+		then "🏆 YOU WIN!"
+		elseif won and firstCar then `🏆 {first.name} WINS IN {firstCar}!`
 		elseif won then `🏆 {first.name} WINS!`
 		else "TIME UP!"
 	local lines = {}
@@ -372,7 +411,7 @@ local function showResult(rows: { any })
 		local what = if type(r.score) == "number"
 			then `{r.score} pts`
 			elseif type(r.time) == "number" then CarMath.formatTime(r.time)
-			else `{r.laps}/{ServerRace.LAPS} laps`
+			else "-" -- (didn't finish before the race ended: "1/2 LAPS" read like a score)
 		local paid = paidText(r)
 		local medal = ServerRace.medal(i)
 		-- (no car on the row: the winner's car is in the title, and short rows read bigger)
@@ -389,40 +428,50 @@ local function showResult(rows: { any })
 		local r = rows[mine]
 		table.insert(lines, `<font color="#FFCD3C">{mine}. YOU</font>{paidText(r)}`)
 	end
-	-- the winner's prize (TycoonServer.raceWon): their garage makes double coins for a while
+	-- the winner's prize: double coins for a while (Car VS Car: training coins, CvcRules)
 	if won and first.time and first.bot ~= true then -- (a bot that wins gets no prize)
 		local mins = math.floor(ServerRace.BOOST_TIME / 60)
 		table.insert(
 			lines,
 			if mine == 1
-				then `<font color="#7CFF6B">YOUR GARAGE: 2X COINS {mins} MIN!</font>`
+				then `<font color="#7CFF6B">{if Features.CVC then "YOU" else "YOUR GARAGE"}: 2X COINS {mins} MIN!</font>`
 				else `<font color="#7CFF6B">{first.name}: 2X COINS {mins} MIN</font>`
 		)
 	end
-	table.insert(
-		lines,
-		`<font color="#CFE3FF">NEXT RACE IN {ServerRace.clock(
-			if RaceMaps.live() then ServerRace.MAP_BREAK else ServerRace.BREAK
-		)}</font>`
-	)
+	-- the next race: Car VS Car = the start the server fixed at the race end (the race call counts
+	-- down to the same one); before that, a fixed break
+	local untilNext = if Features.CVC and raceStartedAt > 0
+		then nextRace() - workspace:GetServerTimeNow()
+		elseif RaceMaps.live() then ServerRace.MAP_BREAK
+		else ServerRace.BREAK
+	table.insert(lines, nextLine(untilNext))
+	cardLines = lines
 	rowsText.Text = table.concat(lines, "\n")
 	-- the card fits its rows (one racer = a short card, no empty gap)
 	-- (rows 6.5% of the screen tall each: big enough to read on a phone)
-	local tall = 0.2 + 0.065 * #lines
+	local cars = if Features.CVC and type(first.score) ~= "number" then podium.show(rows) else 0
+	local podH = if cars > 0 then PODIUM_H else 0
+	local tall = 0.2 + 0.065 * #lines + podH
 	rowsText.Size = UDim2.fromScale(0.86, (0.065 * #lines) / tall)
+	-- (the inside is laid out in parts of `tall`; the whole card shrinks to stay on the screen)
+	local fit = tall * CvcLayout.resultFit(#lines, cars > 0)
 	showId += 1
 	local me = showId
 	card.Visible = true
-	card.Size = UDim2.fromScale(0.44, tall * 0.65)
-	card:SetAttribute("Bottom", card.Position.Y.Scale + tall) -- the prize card (Stars) goes under it
+	card.Size = UDim2.fromScale(0.44, fit * 0.65)
+	card:SetAttribute("Bottom", card.Position.Y.Scale + fit) -- the prize card (Stars) goes under it
 	title.Size = UDim2.fromScale(0.8, 0.13 / tall)
 	-- (the ribbon sits half over the top edge: the rows start under its lower half)
-	rowsText.Position = UDim2.fromScale(0.07, 0.04 + 0.08 / tall)
-	TweenService:Create(
-		card,
-		TweenInfo.new(0.35, Enum.EasingStyle.Back),
-		{ Size = UDim2.fromScale(0.68, tall) }
-	):Play()
+	rowsText.Position = UDim2.fromScale(0.07, 0.04 + (0.08 + podH) / tall)
+	podium.frame.Position = UDim2.fromScale(0.05, 0.02 + 0.08 / tall)
+	podium.frame.Size = UDim2.fromScale(0.9, podH / tall)
+	TweenService
+		:Create(
+			card,
+			TweenInfo.new(0.35, Enum.EasingStyle.Back),
+			{ Size = UDim2.fromScale(0.68, fit) }
+		)
+		:Play()
 	-- a podium finish: confetti behind the card
 	if mine and mine <= 3 and won then
 		Party.confetti(fall, if mine == 1 then 60 else 30)
@@ -430,6 +479,7 @@ local function showResult(rows: { any })
 	task.delay(ServerRace.SHOW, function()
 		if me == showId then
 			card.Visible = false
+			podium.hide()
 		end
 	end)
 end
@@ -438,6 +488,9 @@ event.OnClientEvent:Connect(
 	function(what: unknown, a: unknown, b: unknown, _c: unknown, d: unknown, e: unknown)
 		if what == "state" and type(a) == "string" and type(b) == "number" then
 			kind = if d == "drift" then "drift" else "race"
+			if a == "racing" and phase ~= "racing" then
+				raceStartedAt = b
+			end
 			phase, startAt = a, b
 			where = if type(e) == "string" then e else ""
 			if phase ~= "racing" then
@@ -448,6 +501,8 @@ event.OnClientEvent:Connect(
 			showPlace(a)
 		elseif what == "ends" and type(a) == "number" then
 			endsAt, driftEnds = a, b == "drift"
+		elseif what == "next" and type(a) == "number" then
+			nextRaceAt = a
 		elseif what == "result" and type(a) == "table" then
 			showResult(a :: { any })
 		end

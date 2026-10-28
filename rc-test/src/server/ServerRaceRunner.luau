@@ -4,7 +4,7 @@
 -- on every screen count the break down; 10 s before the start the plot is picked and named. At
 -- the start everyone (up to ServerRace.MAX) is put on that plot's grid and the start lights run
 -- (their screens). The server counts each car's laps from where its car is (the same gates as the lap
--- timer): first to finish ServerRace.LAPS laps wins, and everyone sees who won. Then the racers
+-- timer): first to finish the race's laps (ServerRace.lapsFor) wins, and everyone sees who won. Then the racers
 -- walk again. Driving is not touched: the cars are the players' own.
 -- Plain maths (times, grid, order) is ServerRace's.
 
@@ -575,14 +575,25 @@ local function runRace(hooks: Hooks, slot: number)
 		table.insert(leagues, if Features.CVC and type(lg) == "number" then lg else 1)
 	end
 	local groups: { { Racer } } = {}
+	-- (Car VS Car: a map race where nobody has raced yet is a first race: easy bots, fewer laps)
+	local groupEasy: { boolean } = {}
+	local groupLaps: { number } = {}
 	for gi, idx in ServerRace.groups(leagues, ServerRace.MAX) do
 		local racers: { Racer } = {}
 		groups[gi] = racers
+		local easy = Features.CVC and t.map ~= nil and t.id ~= "drift"
+		for _, i in idx do
+			local stage = list[i]:GetAttribute("Stage")
+			easy = easy and not (type(stage) == "number" and stage >= Profile.STAGE.RACED)
+		end
+		groupEasy[gi] = easy
+		groupLaps[gi] = ServerRace.lapsFor(easy)
 		for k, i in idx do
 			local p = list[i]
 			if not p.Parent then
 				continue
 			end
+			p:SetAttribute("RaceLaps", groupLaps[gi]) -- (the LAP 1/2 on their screen)
 			if LobbyPlots.drivingOf(p) ~= nil then
 				hooks.walk(p)
 			end
@@ -647,14 +658,17 @@ local function runRace(hooks: Hooks, slot: number)
 		local bots: RaceBotCars.Fleet? = nil
 		if not drift and t.map then
 			-- (Car VS Car: bots as good as the league, easy ones when nobody here has raced yet)
-			local league, easy = 1, true
+			local league = 1
 			for _, r in racers do
 				local lg = r.player:GetAttribute("League")
 				league = math.max(league, if type(lg) == "number" then lg else 1)
-				local stage = r.player:GetAttribute("Stage")
-				easy = easy and not (type(stage) == "number" and stage >= Profile.STAGE.RACED)
 			end
-			bots = RaceBotCars.spawn(t, #racers, mapModel, { league = league, easy = easy })
+			bots = RaceBotCars.spawn(
+				t,
+				#racers,
+				mapModel,
+				{ league = league, easy = groupEasy[gi], laps = groupLaps[gi] }
+			)
 			if bots then
 				table.insert(fleets, bots)
 				if Features.CVC then
@@ -764,13 +778,16 @@ local function runRace(hooks: Hooks, slot: number)
 			end
 		end
 		-- the first one is in: the others race the clock (their screens count it down, the winner's too)
+		local afterWin = if Features.CVC and t.map
+			then ServerRace.MAP_AFTER_WIN
+			else ServerRace.AFTER_WIN
 		local function startCountdown(took: number)
 			if firstAt ~= nil then
 				return
 			end
 			firstAt = took
 			local limit = if t.map then ServerRace.MAP_TIME_LIMIT else ServerRace.TIME_LIMIT
-			local endsAt = now() + math.min(ServerRace.AFTER_WIN, limit - took)
+			local endsAt = now() + math.min(afterWin, limit - took)
 			for _, o in racers do
 				if o.player.Parent then
 					event:FireClient(o.player, "ends", endsAt)
@@ -808,7 +825,7 @@ local function runRace(hooks: Hooks, slot: number)
 						if r.timer.last then
 							Leaderboards.lap(p, t.map, r.timer.last) -- fastest-lap boards (server clock)
 						end
-						if r.laps >= ServerRace.LAPS then
+						if r.laps >= groupLaps[gi] then
 							r.time = clock - goAt
 							startCountdown(clock - goAt)
 							r.finishedNow = true
@@ -906,7 +923,10 @@ local function runRace(hooks: Hooks, slot: number)
 			end
 			local since = clock - goAt
 			local limit = if t.map then ServerRace.MAP_TIME_LIMIT else nil
-			if (not anyIn and since > 0) or ServerRace.over(entries, since, firstAt, limit) then
+			if
+				(not anyIn and since > 0)
+				or ServerRace.over(entries, since, firstAt, limit, afterWin)
+			then
 				local ranked = ServerRace.rank(entries)
 				local paid, starred = payRace(ranked, racers, slot)
 				local rows = {}
@@ -921,6 +941,7 @@ local function runRace(hooks: Hooks, slot: number)
 						stars = stars,
 						car = carName(e.uid, "race"),
 						bot = e.uid == nil or nil, -- a race bot (RaceBotCars): no prize
+						uid = e.uid, -- (RaceWin: whose avatar gets the trophy)
 					})
 				end
 				sendResult(rows)
@@ -945,6 +966,21 @@ local function runRace(hooks: Hooks, slot: number)
 		RunService.Heartbeat:Wait()
 	end
 	writeSigns("RACE OVER!")
+	-- Car VS Car: the next start is fixed now and told to every screen (the result card's NEXT RACE
+	-- IN reads it; it used to guess its own and ran ~15 s long)
+	local nextAt = ServerRace.nextAfterRace(lastStart, now())
+	if Features.CVC and mapMode() then
+		-- a new kid who tapped JOIN while this race ran gets their first race soon after the
+		-- walk back, not a whole 3 min later (Studio polish 3: they waited 1 to 2 min)
+		for p in waiting do
+			local data = PlayerData.get(p)
+			if p.Parent and data and data.stage < Profile.STAGE.RACED then
+				nextAt = math.min(nextAt, now() + ServerRace.SHOW + ServerRace.CVC_FIRST)
+				break
+			end
+		end
+		event:FireAllClients("next", nextAt)
+	end
 	local racers: { Racer } = {}
 	for _, g in groups do
 		for _, r in g do
@@ -975,7 +1011,7 @@ local function runRace(hooks: Hooks, slot: number)
 	picked, where = nil, ""
 	clearJoined()
 	workspace:SetAttribute("RaceSlot", 0)
-	startAt = nextStart()
+	startAt = if Features.CVC and mapMode() then nextAt else nextStart()
 	sendState()
 end
 

@@ -18,6 +18,7 @@ local function sibling(name: string): any
 	return luneRequire("./" .. name)
 end
 
+local Features = sibling("Features")
 local Garage = sibling("Garage")
 local LobbyLayout = sibling("LobbyLayout")
 local LobbyWater = sibling("LobbyWater")
@@ -67,7 +68,6 @@ LobbyDecor.ROW_Z = ROW_Z
 LobbyDecor.GAP_Z = GAP_Z
 
 LobbyDecor.BUNTING_Y = 9.2 -- where the string ties onto the lamp posts
-LobbyDecor.POLE_DZ = 10 -- extra bunting poles: this far down the street from a plot's middle
 LobbyDecor.PLANTER_DZ = 24 -- planters: this far down the street from a plot's middle
 LobbyDecor.BIT_DZ = -30 -- hydrant / bin / mailbox: this far up the street
 LobbyDecor.PATH_X = EDGE - 1.2 -- footpath things stand by the outer edge
@@ -94,10 +94,16 @@ LobbyDecor.MUSIC = "rbxassetid://84797666595507"
 LobbyDecor.MUSIC_VOLUME = sibling("SoundLevels").MUSIC
 -- in the gap between the two shops on each side of the spawn lobby (SpawnLobby.BUILDINGS, whose
 -- fronts are at x ±42), facing the middle. Spawn lobby z 0 = PLAZA.maxZ - 36.
-LobbyDecor.SPEAKERS = {
-	{ x = -45, z = L.PLAZA.maxZ - 36 - 3.5 }, -- between the drift and race shops
-	{ x = 45, z = L.PLAZA.maxZ - 36 - 6.5 }, -- between the rock shop and the garage
-}
+LobbyDecor.SPEAKERS = if Features.CVC
+	then {
+		-- Car VS Car: no drift shop, so the left one stood alone by the crate shop (Studio score
+		-- shot 28); the crate shop's sign post stands there now
+		{ x = 45, z = L.PLAZA.maxZ - 36 - 6.5 },
+	}
+	else {
+		{ x = -45, z = L.PLAZA.maxZ - 36 - 3.5 }, -- between the drift and race shops
+		{ x = 45, z = L.PLAZA.maxZ - 36 - 6.5 }, -- between the rock shop and the garage
+	}
 LobbyDecor.CORNER_CONES = { { -17, 14 }, { -12, 17 }, { 15, -15 } } -- round a corner (x mirrored)
 
 local function v(x: number, y: number, z: number): V3
@@ -411,20 +417,6 @@ function LobbyDecor.parts(): { Piece }
 		if l.x < 0 then
 			bunting(add, l.z, i)
 		end
-	end
-	-- and half way between the lamps, on two white poles, so the street is full of flags
-	for row, z in ROW_Z do
-		local bz = z + LobbyDecor.POLE_DZ
-		for _, side in { -1, 1 } do
-			add(
-				"Bunting" .. (10 + row),
-				"Pole",
-				v(0.35, LobbyDecor.BUNTING_Y + 0.4, 0.35),
-				v(side * (L.EDGE - 1), (LobbyDecor.BUNTING_Y + 0.4) / 2, bz),
-				C.pole
-			)
-		end
-		bunting(add, bz, 10 + row)
 	end
 
 	-- road paint: a checker start line by the spawn lobby, zebra crossings at the gaps
