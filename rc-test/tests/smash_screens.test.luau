@@ -138,6 +138,14 @@ test(
 	end
 )
 
+test("how-to tips never cover the match HUD (board, feed, clock, health, FIRE)", function()
+	for _, tip in SmashScreens.get("howTo").pieces do
+		for _, hud in UiScreens.get("match").pieces do
+			truthy(not UiScreens.overlap(tip, hud), `howTo.{tip.name} covers match.{hud.name}`)
+		end
+	end
+end)
+
 test("how-to: drive, grab, fire; doing a later thing first skips ahead", function()
 	eq(#SmashScreens.STEPS, 3)
 	local none = { moved = 0, weapon = "", fired = false }
