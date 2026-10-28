@@ -82,10 +82,19 @@ local function kindOf(id: string): string
 	return KINDS[hash(id) % #KINDS + 1]
 end
 
--- a bot on the podium (no car of ours): a color from its name, each its own (Studio live4 04)
+-- a bot on the podium (no car of ours): a color from its name, the next free one if another bot
+-- on the same podium has it (Studio live4 04, 07)
 local BOT_COLORS = { "danger", "lime", "boost", "pink", "go", "blue" }
-local function botColor(name: string): Color3
-	return Base.color(BOT_COLORS[hash(name) % #BOT_COLORS + 1])
+local function botColor(name: string, used: { [number]: boolean }): Color3
+	local i = hash(name) % #BOT_COLORS
+	for _ = 1, #BOT_COLORS do
+		if not used[i] then
+			break
+		end
+		i = (i + 1) % #BOT_COLORS
+	end
+	used[i] = true
+	return Base.color(BOT_COLORS[i + 1])
 end
 
 local function colorOf(id: string): Color3
@@ -1159,6 +1168,7 @@ local function showPodium(rows: { any })
 	local finished = type(me.time) == "number"
 	local myCar = racer()
 	local top = {}
+	local usedColors: { [number]: boolean } = {}
 	for i = 1, math.min(3, #rows) do
 		local r = rows[i]
 		local isMe = i == mine
@@ -1174,7 +1184,7 @@ local function showPodium(rows: { any })
 			id = if isMe and myCar then myCar.id else nil,
 			color = if isMe and myCar
 				then colorOf(myCar.id)
-				elseif bot then botColor(name)
+				elseif bot then botColor(name, usedColors)
 				else colorOf(key),
 			kind = if isMe and myCar then kindOf(myCar.id) else kindOf(key),
 			me = isMe,
