@@ -276,6 +276,7 @@ local function scoreBoard(s: Shown, onPads: { [number]: Entry }, stands: { Entry
 		l.TextScaled = true
 		l.TextColor3 = Color3.new(1, 1, 1)
 		l.TextXAlignment = Enum.TextXAlignment.Left
+		l.TextStrokeTransparency = 0.3
 		l.Text = words
 		l.Parent = parent
 		return l
@@ -293,8 +294,8 @@ local function scoreBoard(s: Shown, onPads: { [number]: Entry }, stands: { Entry
 			local back = Instance.new("Frame")
 			back.BorderSizePixel = 0
 			back.BackgroundColor3 = Color3.fromRGB(70, 74, 90)
-			back.Position = UDim2.fromScale(x, y + rowH * 0.25)
-			back.Size = UDim2.fromScale(0.155, rowH * 0.5)
+			back.Position = UDim2.fromScale(x, y + rowH * 0.2)
+			back.Size = UDim2.fromScale(0.155, rowH * 0.6)
 			back.Parent = gui
 			local fill = Instance.new("Frame")
 			fill.BorderSizePixel = 0
