@@ -63,10 +63,22 @@ PlotTraining.K = 1.15
 PlotTraining.PAD_SIGN = { w = 20, h = 4.6, low = 5.5, rim = 0.35 }
 -- the middle treadmill's sign, on the back wall under the scoreboard: there's room, so it's big
 -- (Studio before-2: at 18x4 its words were tiny from the middle of the plot)
-PlotTraining.WALL_SIGN = { w = 28, h = 7.4 }
+PlotTraining.WALL_SIGN = { w = 28, h = 7 }
 -- each station's colour: its sign's glowing rim and name, same as its bar on the scoreboard
+-- (a quarter of the way to white: blue on the navy sign read weakest, Studio after-2)
 function PlotTraining.signColor(kind: string): { number }
-	return PlotTraining.BAR_COLORS[Training.MAIN[kind] or ""] or { 255, 220, 90 }
+	local c = PlotTraining.BAR_COLORS[Training.MAIN[kind] or ""] or { 255, 220, 90 }
+	return {
+		math.round(c[1] + (255 - c[1]) / 4),
+		math.round(c[2] + (255 - c[2]) / 4),
+		math.round(c[3] + (255 - c[3]) / 4),
+	}
+end
+-- the rim's Neon brightens a colour a lot (Studio after-3b: the ramp's orange glowed yellow, like
+-- the board's frame), so it gets a deeper one
+local RIM = { speed = { 30, 120, 255 }, turn = { 40, 190, 50 }, boost = { 255, 100, 10 } }
+function PlotTraining.rimColor(kind: string): { number }
+	return RIM[Training.MAIN[kind] or ""] or PlotTraining.signColor(kind)
 end
 
 -- Where pad i's sign stands (plot-local x, z), its yaw in degrees (its words face +z turned by yaw)
@@ -82,7 +94,7 @@ function PlotTraining.signAt(i: number): (number, number, number, number, number
 	end
 	local W = PlotTraining.WALL_SIGN
 	if math.abs(g.x - B.x) + W.w / 2 <= B.w / 2 then
-		return g.x, B.z + 0.4, 0, B.y - B.h / 2 - 0.4 - W.h, W.w, W.h
+		return g.x, B.z + 0.4, 0, B.y - B.h / 2 - 1 - W.h, W.w, W.h
 	end
 	-- the back corners': pushed out to the pad's outer edge, clear of the scoreboard's sides
 	return g.x + math.sign(g.x) * (P.w - S.w) / 2, g.z + P.d / 2 - 0.5, 0, S.low, S.w, S.h
@@ -397,7 +409,7 @@ local function pad(add: Garage.Add, i: number, kind: string?)
 		"PadSignGlow",
 		v(sw + 2 * S.rim, sh + 2 * S.rim, 0.2),
 		v(sx - back * math.sin(along0), cy, sz - back * math.cos(along0)),
-		PlotTraining.signColor(kind),
+		PlotTraining.rimColor(kind),
 		{ rot = v(0, yaw, 0), material = "Neon", collide = false }
 	)
 	local along = math.rad(yaw) -- the sign's own x, in the plot
