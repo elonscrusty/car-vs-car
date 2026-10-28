@@ -679,6 +679,13 @@ RunService.PreSimulation:Connect(function(dt: number)
 		-- server race, lights still red: the car waits on the line for GO (carter 10-26: AUTO GAS
 		-- or a held GAS rolled it over the line = TOO EARLY and an extra lap). Steering still works.
 		input = { steer = input.steer, throttle = 0, brake = 0, drift = false }
+	elseif grid and (raceDone ~= nil or raceOver) then
+		-- server race, over the line: the car brakes to a stop at the finish and stays there (it
+		-- drove on, AUTO GAS too, and stuck on a sign until the results, phone 10-28 t096-t100).
+		-- Brake only while rolling forward: held at a stop it would back up.
+		local rolling = car.telemetry.vLong > 3
+		input =
+			{ steer = input.steer, throttle = 0, brake = if rolling then 1 else 0, drift = false }
 	end
 	car.step(dt, input)
 
