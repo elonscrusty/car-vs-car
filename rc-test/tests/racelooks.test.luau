@@ -97,3 +97,19 @@ test("Car VS Car (playtest u01): race bots and other players wear toy cars, vari
 	truthy(string.find(others, "workspace:BulkMoveTo(toy.parts, at", 1, true), "no toy shell drawn")
 	truthy(string.find(others, 'p.Name ~= "Wheel" and p.Name ~= "Hub"', 1, true), "parts per car")
 end)
+
+test(
+	"Car VS Car (Studio after-818): a put-back lands on top of a jump ramp, not inside it",
+	function()
+		local fs = require("@lune/fs")
+		local main = fs.readFile("src/client/Main.client.luau")
+		truthy(
+			string.find(main, "if hit and hit.Position.Y + clear > y then", 1, true),
+			"no ramp check"
+		)
+		truthy(
+			string.find(main, "probe.RespectCanCollide = true", 1, true),
+			"lands on looks-only parts"
+		)
+	end
+)

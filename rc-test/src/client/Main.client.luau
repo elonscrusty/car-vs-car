@@ -95,6 +95,8 @@ do
 		task.wait()
 	end
 end
+-- a put-back car's body sits at least this high over what's under it (big-car units)
+local PUT_BACK_CLEAR = 2.5
 local function ignoreList(): { Instance }
 	local list: { Instance } = { model }
 	if player.Character then
@@ -323,6 +325,18 @@ local function reset(why: string?, from: string?)
 		) or BackOnTrack.spot(t, timer.gates, timer.next) :: BackOnTrack.Spot
 		local x, y, z = TrackData.toWorld(t, rc, g.x, g.y, g.z)
 		local dx, dz = TrackData.dirToWorld(t, rc, g.dx, g.dz)
+		-- on top of whatever is there: a spot on a jump ramp put the car inside it, stuck for good
+		-- (Studio after-818: put back into the same ramp from 74 s to the time limit)
+		local probe = RaycastParams.new()
+		probe.FilterType = Enum.RaycastFilterType.Exclude
+		probe.FilterDescendantsInstances = ignoreList()
+		probe.RespectCanCollide = true
+		local up = 6 * Tuning.scale -- (low: a tunnel roof above must not catch it)
+		local hit = workspace:Raycast(Vector3.new(x, y + up, z), Vector3.new(0, -up * 2, 0), probe)
+		local clear = PUT_BACK_CLEAR * Tuning.scale
+		if hit and hit.Position.Y + clear > y then
+			y = hit.Position.Y + clear
+		end
 		local pos = Vector3.new(x, y, z)
 		car.teleport(CFrame.lookAt(pos, pos + Vector3.new(dx, 0, dz)))
 		camera.snap()
