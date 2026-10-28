@@ -17,6 +17,7 @@ local ServerRaceRunner = require(script.Parent.ServerRaceRunner)
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local JoinStage = require(ReplicatedStorage.Shared.JoinStage)
 local Features = require(ReplicatedStorage.Shared.Features)
+local SpawnLobby = require(ReplicatedStorage.Shared.SpawnLobby)
 local LobbyPlots = require(script.Parent.LobbyPlots)
 local PlotGarage = require(ReplicatedStorage.Shared.PlotGarage)
 local TrackBuilder = require(script.Parent.TrackBuilder)
@@ -49,6 +50,7 @@ end
 if Features.CVC then
 	require(script.Parent.TrainingServer).start() -- Car VS Car: cars train on their owner's plot
 	require(script.Parent.FriendBonus).start() -- Car VS Car: coins for playing with a friend
+	require(script.Parent.XpServer).start() -- Car VS Car: XP and levels (the Level badge)
 end
 require(script.Parent.WeaponServer).start() -- Smash weapons: the fire remote, rockets, nuke (WEAPONS row)
 require(script.Parent.PlotGarageBuilder).start() -- plots are garages: the loop road, coin pile pad, level sign
@@ -336,11 +338,28 @@ end
 -- The spawn lobby's drift / race pads: stand on one to go drive an open plot of that kind (the
 -- race pad is JOIN RACE).
 local QueuePads = require(script.Parent.QueuePads)
+-- Car VS Car Smash: the SMASH! pad queues you for the next round (MatchRunner, MATCH's)
+local matchRunner: any = nil
+if SpawnLobby.SMASH then
+	local m = script.Parent:FindFirstChild("MatchRunner")
+	if m and m:IsA("ModuleScript") then
+		matchRunner = require(m) :: any
+	else
+		warn("[Main] Features.SMASH is on but there is no MatchRunner: the SMASH! pad does nothing")
+	end
+end
 local CollectionService = game:GetService("CollectionService")
 QueuePads.start({
-	-- the race pad is JOIN RACE: on the list for the next map race (anyone, a new player too)
+	-- the race pad is JOIN RACE (Car VS Car Smash: the SMASH! portal): on the list for the next
+	-- race / match (anyone, a new player too). MatchRunner (MATCH) when it's in the game.
 	join = function(player: Player)
-		ServerRaceRunner.join(player)
+		if SpawnLobby.SMASH then
+			if matchRunner then
+				matchRunner.join(player)
+			end
+		else
+			ServerRaceRunner.join(player)
+		end
 	end,
 	findOpen = function(kind: string, player: Player): number?
 		-- a brand new player's spawn shows only the way to their own pad (JoinStage)

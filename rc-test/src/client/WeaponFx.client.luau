@@ -25,11 +25,10 @@ local bits = Instance.new("Folder")
 bits.Name = "WeaponBits"
 bits.Parent = workspace
 
-local function sound(name: string)
-	local fn = (Sfx :: any)[name]
-	if type(fn) == "function" then
-		fn()
-	end
+-- my own shots play full; other karts' fade with distance (the SOUNDS row's Sfx)
+local me = game:GetService("Players").LocalPlayer
+local function at(data: any, pos: Vector3?): Vector3?
+	return if data.owner == me.UserId then nil else pos
 end
 
 local function part(name: string, color: Color3, neon: boolean, size: Vector3): Part
@@ -177,7 +176,7 @@ local function onRocket(kind: string, data: any)
 		place(l)
 		l.model.Parent = bits
 		live[id] = l
-		sound(if name == "Nuke" then "nukeLaunch" else "rocketLaunch")
+		Sfx.rocket(at(data, pos))
 	elseif kind == "RocketTurn" and pos and dir then
 		local l = live[id]
 		if l then
@@ -192,7 +191,7 @@ local function onRocket(kind: string, data: any)
 		if pos and data.quiet ~= true then
 			local nuke = data.kind == "Nuke"
 			boom(pos, if nuke then Weapons.NUKE else Weapons.ROCKET, nuke)
-			sound(if nuke then "nukeBoom" else "rocketBoom")
+			Sfx.boom(at(data, pos))
 		end
 	end
 end

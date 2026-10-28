@@ -25,7 +25,7 @@ Weapons.DEFS = {
 	Mine = { ammo = 3, cooldown = 0.6, word = "MINES", icon = "mine" },
 	Freeze = { ammo = 2, cooldown = 0.8, word = "FREEZE", icon = "freeze" },
 } :: { [string]: Def }
--- the order boxes and screens list them in
+-- the order boxes and screens list them in (GUNMINE adds Gun, Mine, Freeze)
 Weapons.NAMES = { "Rockets", "Nuke", "Gun", "Mine", "Freeze" }
 
 -- aim: at most this far (degrees) from where the kart faces; more is turned back to the edge
