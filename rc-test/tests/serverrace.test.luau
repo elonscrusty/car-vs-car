@@ -163,10 +163,13 @@ test("round clock: break, pick at the call, race at zero, or skip", function()
 	eq(ServerRace.step("wait", C + 1, nil, 3), nil)
 	eq(ServerRace.step("wait", C, nil, 3), "pick")
 	eq(ServerRace.step("call", 1, 4, 3), nil)
-	eq(ServerRace.step("call", 0, 4, 3), "race")
-	eq(ServerRace.step("call", -2, 4, 3), "race") -- a late tick still starts it
-	eq(ServerRace.step("call", 0, nil, 3), "skip") -- no plot was ready
-	eq(ServerRace.step("call", 0, 4, 0), "skip") -- nobody here
+	local G = ServerRace.JOIN_GRACE
+	eq(ServerRace.step("call", 0, 4, 3), nil) -- 0:00 on the clock: a JOIN tap still gets in
+	eq(ServerRace.step("call", -0.4, 4, 3), nil) -- (critic run 1: the tap landed 0.4 s late)
+	eq(ServerRace.step("call", -G, 4, 3), "race")
+	eq(ServerRace.step("call", -G - 2, 4, 3), "race") -- a late tick still starts it
+	eq(ServerRace.step("call", -G, nil, 3), "skip") -- no plot was ready
+	eq(ServerRace.step("call", -G, 4, 0), "skip") -- nobody here
 	eq(ServerRace.step("racing", -50, 4, 3), nil) -- the race runs itself
 end)
 
@@ -174,7 +177,7 @@ test("round clock: one whole round, ticking like the server", function()
 	local phase, picked, t = "wait", nil :: number?, 0
 	local startAt = ServerRace.BREAK
 	local seen = {}
-	while t < ServerRace.BREAK + 1 do
+	while t < ServerRace.BREAK + ServerRace.JOIN_GRACE + 1 do
 		local todo = ServerRace.step(phase, startAt - t, picked, 2)
 		if todo == "pick" then
 			phase, picked = "call", ServerRace.pick({ 5 }, { 1 }, 0.3)
@@ -187,7 +190,7 @@ test("round clock: one whole round, ticking like the server", function()
 	end
 	eq(#seen, 2)
 	eq(seen[1], `pick 5 at {ServerRace.CALL}`)
-	eq(seen[2], "race 5 at 0")
+	eq(seen[2], `race 5 at {-ServerRace.JOIN_GRACE}`)
 	eq(phase, "wait")
 end)
 
