@@ -175,3 +175,57 @@ test(
 		truthy(string.find(start, "SmashFx.start()", 1, true), "something starts it")
 	end
 )
+
+test(
+	"smash juice (Studio 10-28): the words sit under the clock and health, clear of the HUD",
+	function()
+		local UiScreens = require("../src/shared/UiScreens")
+		local UiTheme = require("../src/shared/UiTheme")
+		local D = UiTheme.DESIGN
+		-- The words fill the whole phone; the HUD canvas sits inside the safe area, which on a phone
+		-- also takes Roblox's top bar (about 58 px) and sometimes a bottom strip. Check every case.
+		for _, inset in
+			{ { top = 0, bottom = 0 }, { top = 58, bottom = 0 }, { top = 58, bottom = 21 } }
+		do
+			local k = (D.phoneH - inset.top - inset.bottom) / D.h
+			local hud = {}
+			local function add(n: string, pc: any)
+				table.insert(hud, {
+					name = n,
+					x = pc.x + D.safe,
+					y = inset.top + pc.y * k,
+					w = pc.w,
+					h = pc.h * k,
+				})
+			end
+			for _, n in { "Place", "Board", "Feed", "Clock", "Health", "Fire" } do
+				add(n, UiScreens.piece("match", n))
+			end
+			add("Stick", UiScreens.stickZone())
+			local w = SmashJuice.WORDS_W * D.phoneW
+			for spot, at in SmashJuice.WORDS do
+				local r = {
+					x = (D.phoneW - w) / 2,
+					y = (at.y - at.h / 2) * D.phoneH,
+					w = w,
+					h = at.h * D.phoneH,
+				}
+				for _, h in hud do
+					truthy(
+						not UiScreens.overlap(r :: any, h :: any),
+						`{spot} covers {h.name} (top bar {inset.top})`
+					)
+				end
+			end
+		end
+		-- the smash lines and the smashed-by lines each stack without covering each other (the two
+		-- sets never show at once)
+		local function clear(a: string, b: string)
+			local A, B = SmashJuice.WORDS[a], SmashJuice.WORDS[b]
+			truthy(math.abs(A.y - B.y) >= (A.h + B.h) / 2 - 1e-9, `{a} and {b} overlap`)
+		end
+		clear("you", "name")
+		clear("name", "streak")
+		clear("by", "count")
+	end
+)
