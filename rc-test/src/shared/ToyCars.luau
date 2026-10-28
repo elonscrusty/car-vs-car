@@ -312,10 +312,11 @@ end
 -- The Blender kart models (ReplicatedStorage.CarSkins.Kart_*, made from assets/karts/build.py):
 -- each shape wears one, painted per car below, so 6 models dress all 24 cars. carter's own model
 -- for a car (CarSkins, named the car id) still wins over these.
+-- (the racers wear carter's own Meshy kart, 10-28; Kart_Racer stays in KartMeshData as the backup)
 ToyCars.KARTS = {
-	formula = "Kart_Racer",
-	coupe = "Kart_Racer",
-	wedge = "Kart_Racer",
+	formula = "Kart_Carter1",
+	coupe = "Kart_Carter1",
+	wedge = "Kart_Carter1",
 	jet = "Kart_Rocket",
 	buggy = "Kart_Buggy",
 	rally = "Kart_Buggy",

@@ -1,5 +1,5 @@
 --!strict
--- The 6 Blender karts (KartMeshData, made in assets/karts/) built as MeshParts while the game runs
+-- The karts (KartMeshData, made in assets/karts/: 6 from Blender, carter's own Meshy one) built as MeshParts while the game runs
 -- (EditableMesh), so nobody has to import a model in Studio. KartMesh.get(name, rim) gives that
 -- kart as a Model (nose +Z, ground at y = 0, parts named for ToyCars.kartPaint), or nil while it is
 -- still being built, or for good when this device can't build meshes: then the part toy car shows.

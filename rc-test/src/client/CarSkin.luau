@@ -11,7 +11,7 @@
 -- MeshParts Body, WheelFL, WheelFR, WheelRL, WheelRR, and drop it in ReplicatedStorage.CarSkins.
 -- It then replaces that car's toy look in races, for your own car and everyone else's.
 --
--- KART MODELS: the 6 Blender karts (Kart_Racer, Kart_Dozer, ...; ToyCars.KARTS says which car
+-- KART MODELS: the karts (carter's Kart_Carter1, Kart_Dozer, ...; ToyCars.KARTS says which car
 -- shape wears which) are built in game by KartMesh; an imported copy in CarSkins wins. Their
 -- MeshParts (Body, Accent, Trim, Driver, Head, Cap, Headlights, ..., the 4 wheels) are painted per
 -- car by name (ToyCars.kartPaint). No weapon on the kart: an icon above it shows that (carter).

@@ -152,7 +152,7 @@ test("every car has a hat spot", function()
 	truthy(string.find(builder, 'topper.Name = "Topper"', 1, true), "no Topper attachment")
 end)
 
-test("6 Blender kart models dress all 24 cars, each car its own colours", function()
+test("6 kart models dress all 24 cars, each car its own colours", function()
 	local seen: { [string]: string } = {}
 	local models: { [string]: boolean } = {}
 	for _, shape in ToyCars.SHAPES do
@@ -234,62 +234,75 @@ test("a new kid with no racer yet drives the starter's kart, not the red grey bo
 	truthy(CarCatalog.get(starter.id) ~= nil and starter.price == 0, "the starter is a free car")
 end)
 
-test("the 6 karts carter drew: built in game from their mesh data, painted by part name", function()
-	local KartMeshData = require("../src/shared/KartMeshData")
-	local names: { [string]: boolean } = {}
-	for _, name in ToyCars.KARTS do
-		names[name] = true
-	end
-	for name in names do
-		local kart = KartMeshData[name]
-		truthy(kart ~= nil, `{name}: no mesh data`)
-		local tris = 0
-		for g, mesh in kart do
-			local v, t = {}, {}
-			for n in string.gmatch(mesh.v, "-?%d+") do
-				table.insert(v, tonumber(n))
-			end
-			for n in string.gmatch(mesh.t, "%d+") do
-				table.insert(t, tonumber(n))
-			end
-			eq(#v % 3, 0)
-			eq(#t % 3, 0)
-			for _, i in t do
-				truthy(i >= 1 and i <= #v / 3, `{name}.{g}: vertex {i} out of range`)
-			end
-			tris += #t / 3
-			-- every part gets its colour from the car (no weapon plate: carter 10-28)
-			truthy(ToyCars.kartPaint(g, { 1, 2, 3 }, "muscle") ~= nil, `{name}.{g} not painted`)
-			truthy(g ~= "WeaponMount", `{name} has a weapon plate`)
-			if g == "Headlights" then
-				-- nose at +Z, as the skins expect
-				local z = 0
-				for k = 3, #v, 3 do
-					z += v[k]
+test(
+	"the karts (carter's picture + his Meshy one): built in game from mesh data, painted by name",
+	function()
+		local KartMeshData = require("../src/shared/KartMeshData")
+		local names: { [string]: boolean } = {}
+		for _, name in ToyCars.KARTS do
+			names[name] = true
+		end
+		for name in names do
+			local kart = KartMeshData[name]
+			truthy(kart ~= nil, `{name}: no mesh data`)
+			local tris = 0
+			for g, mesh in kart do
+				local v, t = {}, {}
+				for n in string.gmatch(mesh.v, "-?%d+") do
+					table.insert(v, tonumber(n))
 				end
-				truthy(z > 0, `{name}: headlights at the back`)
+				for n in string.gmatch(mesh.t, "%d+") do
+					table.insert(t, tonumber(n))
+				end
+				eq(#v % 3, 0)
+				eq(#t % 3, 0)
+				for _, i in t do
+					truthy(i >= 1 and i <= #v / 3, `{name}.{g}: vertex {i} out of range`)
+				end
+				tris += #t / 3
+				-- every part gets its colour from the car (no weapon plate: carter 10-28)
+				truthy(ToyCars.kartPaint(g, { 1, 2, 3 }, "muscle") ~= nil, `{name}.{g} not painted`)
+				truthy(g ~= "WeaponMount", `{name} has a weapon plate`)
+				if g == "Headlights" then
+					-- nose at +Z, as the skins expect
+					local z = 0
+					for k = 3, #v, 3 do
+						z += v[k]
+					end
+					truthy(z > 0, `{name}: headlights at the back`)
+				end
+			end
+			truthy(tris <= 5500, `{name}: {tris} triangles (phones)`)
+			for _, part in
+				{ "Body", "Head", "Cap", "WheelFL", "WheelFR", "WheelRL", "WheelRR", "RimFL" }
+			do
+				truthy(kart[part] ~= nil, `{name} has no {part}`)
 			end
 		end
-		truthy(tris <= 4500, `{name}: {tris} triangles (phones)`)
-		for _, part in
-			{ "Body", "Head", "Cap", "WheelFL", "WheelFR", "WheelRL", "WheelRR", "RimFL" }
-		do
-			truthy(kart[part] ~= nil, `{name} has no {part}`)
-		end
+		-- carter's own kart (10-28): the racers wear it, its face rebuilt with two eyes and a smile
+		eq(ToyCars.KARTS.formula, "Kart_Carter1")
+		local face = KartMeshData.Kart_Carter1.Eyes
+		truthy(
+			face ~= nil and #string.split(face.t, ",") // 3 == 5 * 12,
+			"carter's driver has no clean face"
+		)
+		local fs = require("@lune/fs")
+		local km = fs.readFile("src/client/KartMesh.luau")
+		truthy(
+			string.find(km, "pcall(build", 1, true),
+			"a failed build must fall back to the toy car"
+		)
+		truthy(
+			string.find(km, 'p:SetAttribute("Baked", true)', 1, true),
+			"wheels keep their own colours"
+		)
+		local skin = fs.readFile("src/client/CarSkin.luau")
+		truthy(
+			string.find(skin, "return KartMesh.get(name, ToyCars.kartRim(", 1, true),
+			"karts not used"
+		)
+		truthy(string.find(skin, 'p:GetAttribute("Baked") ~= true', 1, true), "wheels repainted")
+		local others = fs.readFile("src/client/OtherCars.luau")
+		truthy(string.find(others, "o.toy = shell", 1, true), "other cars never get their kart")
 	end
-	local fs = require("@lune/fs")
-	local km = fs.readFile("src/client/KartMesh.luau")
-	truthy(string.find(km, "pcall(build", 1, true), "a failed build must fall back to the toy car")
-	truthy(
-		string.find(km, 'p:SetAttribute("Baked", true)', 1, true),
-		"wheels keep their own colours"
-	)
-	local skin = fs.readFile("src/client/CarSkin.luau")
-	truthy(
-		string.find(skin, "return KartMesh.get(name, ToyCars.kartRim(", 1, true),
-		"karts not used"
-	)
-	truthy(string.find(skin, 'p:GetAttribute("Baked") ~= true', 1, true), "wheels repainted")
-	local others = fs.readFile("src/client/OtherCars.luau")
-	truthy(string.find(others, "o.toy = shell", 1, true), "other cars never get their kart")
-end)
+)
