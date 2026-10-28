@@ -1412,14 +1412,10 @@ function Kit.milestones(
 			Base.fill(f, "Reward" .. i, bx, 2, 40, 40, if got then Base.color("lime") else WHITE, 4)
 		Base.corner(box, 12)
 		Base.outline(box, UiTheme.OUTLINE.normal)
-		local ic = Icons.make(box, m.icon, 6, 6, 28, { z = 5 })
+		Icons.make(box, m.icon, 6, 6, 28, { z = 5 })
 		if got then
-			ic.Visible = true
-			for _, d in ic:GetDescendants() do
-				if d:IsA("GuiObject") then
-					d.BackgroundTransparency = math.max(d.BackgroundTransparency, 0.5)
-				end
-			end
+			-- reached: a check on the corner (the icon stays solid, so it never looks muddy)
+			Icons.make(box, "check", 22, -8, 24, { z = 7 })
 		end
 		-- the number beside its box (left of it at the bar's end), big enough to read
 		local right = bx + 40 + 36 <= w
@@ -1557,7 +1553,8 @@ function Kit.card(
 	yy += w * 0.12 + 4
 	if opts.stars then
 		local sw = 5 * 18 + 16
-		local band = Base.fill(card, "Stars", (w - sw) / 2, yy, sw, 20, INK, 4)
+		-- (over the car, so the car's antenna never hides the stars)
+		local band = Base.fill(card, "Stars", (w - sw) / 2, yy, sw, 20, INK, 7)
 		band.BackgroundTransparency = 0.75
 		Base.corner(band)
 		for i = 1, 5 do
@@ -1567,7 +1564,7 @@ function Kit.card(
 				1,
 				18,
 				if i <= opts.stars then Base.color("go") else Color3.fromRGB(120, 140, 160),
-				5
+				8
 			)
 		end
 		yy += 24

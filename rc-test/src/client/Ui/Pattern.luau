@@ -65,9 +65,9 @@ local function drawTile(parent: Instance, x: number, y: number)
 		c.Parent = f
 		f.Parent = parent
 	end
-	spark("SparkUp", 3, sz, 0, UDim.new(0.5, 0))
-	spark("SparkSide", sz, 3, 0, UDim.new(0.5, 0))
-	spark("SparkMid", sz * 0.36, sz * 0.36, 45, UDim.new(0, 1))
+	spark("SparkUp", 2.5, sz, 0, UDim.new(0.5, 0))
+	spark("SparkSide", sz, 2.5, 0, UDim.new(0.5, 0))
+	spark("SparkMid", sz * 0.46, sz * 0.46, 45, UDim.new(0, 1))
 	local di = Instance.new("Frame")
 	di.Name = "Diamond"
 	di.BackgroundTransparency = 1

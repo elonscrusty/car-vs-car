@@ -134,7 +134,6 @@ local LIST: { { string | () -> () } } = {
 				},
 				dots = { Crates = 2, League = -1 },
 				coach = { 24, 60 },
-				signs = true,
 			})
 		end,
 	},
