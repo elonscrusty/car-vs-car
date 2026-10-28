@@ -306,26 +306,36 @@ local function buildSign(): { TextLabel }
 		return p
 	end
 	local postX = LobbyLayout.ROAD_W / 2 + 0.6
+	-- high enough that the walking camera passes under it (phone playtest u09: at 11 the camera
+	-- went in under the board)
+	local boardY = 15
 	for _, s in { -1, 1 } do
 		part(
 			"Post",
-			Vector3.new(0.8, 13, 0.8),
-			CFrame.new(s * postX, 6.5, z),
+			Vector3.new(0.8, boardY + 2, 0.8),
+			CFrame.new(s * postX, (boardY + 2) / 2, z),
 			Color3.fromRGB(40, 40, 46)
 		)
 	end
+	-- the world signs' look (the leaderboards): dark ink, a yellow rim, LuckiestGuy
+	part(
+		"Rim",
+		Vector3.new(2 * postX + 1.4, 5.2, 0.4),
+		CFrame.new(0, boardY, z),
+		Color3.fromRGB(255, 199, 44)
+	)
 	local board = part(
 		"Board",
 		Vector3.new(2 * postX + 0.8, 4.6, 0.6),
-		CFrame.new(0, 11, z),
-		Color3.fromRGB(22, 22, 26)
+		CFrame.new(0, boardY, z),
+		Color3.fromRGB(27, 27, 47)
 	)
 	-- checkered strip on top
 	for i = 0, 9 do
 		part(
 			"Checker",
 			Vector3.new((2 * postX + 0.8) / 10, 0.7, 0.7),
-			CFrame.new(-(postX + 0.4) + (i + 0.5) * (2 * postX + 0.8) / 10, 13.65, z),
+			CFrame.new(-(postX + 0.4) + (i + 0.5) * (2 * postX + 0.8) / 10, boardY + 2.95, z),
 			if i % 2 == 0 then Color3.new(1, 1, 1) else Color3.fromRGB(30, 30, 34)
 		)
 	end
@@ -342,9 +352,9 @@ local function buildSign(): { TextLabel }
 		text.Size = UDim2.fromScale(0.94, 0.86)
 		text.Position = UDim2.fromScale(0.03, 0.07)
 		text.BackgroundTransparency = 1
-		text.Font = Enum.Font.GothamBlack
+		text.Font = Enum.Font.LuckiestGuy
 		text.TextScaled = true
-		text.TextColor3 = Color3.fromRGB(255, 213, 79)
+		text.TextColor3 = Color3.fromRGB(255, 199, 44)
 		text.Parent = gui
 		table.insert(labels, text)
 	end
@@ -833,7 +843,7 @@ local function runRace(hooks: Hooks, slot: number)
 		local lead: number? = nil -- the leading player's progress, for the bots' catch-up
 		local kidLead: number? = nil -- how far round the furthest new kid is, for easy bots
 		-- (a new kid who sits still after GO doesn't hold the bots: Studio after-810 waited 2:47)
-		local kidFrom: { [Racer]: number } = {}
+		local kidFrom: { [Racer]: { x: number, z: number } } = {} -- where each new kid was at GO
 		local kidMoved = false
 		while not drift do
 			RunService.Heartbeat:Wait()
@@ -927,6 +937,7 @@ local function runRace(hooks: Hooks, slot: number)
 				tagCars()
 				local runs: { ServerRace.Run } = {}
 				kidLead = nil
+				local kidProgress: number? = nil
 				for _, r in racers do
 					local s = r.timer
 					local passed = if s.running then s.next - 1 else 0
@@ -959,17 +970,30 @@ local function runRace(hooks: Hooks, slot: number)
 							else RaceBots.distOf(bots.route, progress)
 						if kidLead == nil or at > kidLead then
 							kidLead = at
+							kidProgress = progress
 						end
-						kidFrom[r] = kidFrom[r] or at
-						kidMoved = kidMoved or at - kidFrom[r] > ServerRace.IDLE_MOVE
+						if lx and lz and clock >= goAt then
+							local from = kidFrom[r] or { x = lx, z = lz }
+							kidFrom[r] = from
+							kidMoved = kidMoved or ServerRace.moved(from, lx, lz)
+						end
 					end
 				end
 				local cars = #racers
 				if bots then
 					for _, car in bots.cars do
+						local real = RaceBots.progress(bots.route, car.bot)
 						table.insert(runs, {
 							time = car.bot.time,
-							progress = RaceBots.progress(bots.route, car.bot),
+							progress = if bots.easy
+								then RaceBots.placeProgress(
+									car.bot,
+									real,
+									kidLead,
+									kidProgress,
+									car.rival
+								)
+								else real,
 						})
 						cars += 1
 					end

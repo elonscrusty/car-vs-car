@@ -7,7 +7,10 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local CarMath = require(ReplicatedStorage.Shared.CarMath)
+local Features = require(ReplicatedStorage.Shared.Features)
+local Garage = require(ReplicatedStorage.Shared.Garage)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
 
 local OtherCars = {}
@@ -25,6 +28,10 @@ local STEER_MAX = 0.75 -- radians, the base car's widest wheel angle
 local MAX_SUSP = 4 -- big-size spring travel; the ray stops it sooner on the ground
 
 type Wheel = { part: Part, spot: Vector3, front: boolean, shown: number, spin: number }
+-- Car VS Car: the toy car's shell (body, cab, roof, wing, lights) over the grey blocks, the same
+-- toy car the plots show (playtest u01: every rival was a grey block). Its round wheels are
+-- this file's own, which already roll and steer.
+type Toy = { parts: { BasePart }, offsets: { CFrame } }
 type Other = {
 	body: BasePart,
 	folder: Folder,
@@ -32,7 +39,55 @@ type Other = {
 	scale: number,
 	tag: BillboardGui,
 	hidden: boolean?,
+	toy: Toy?,
 }
+
+-- the toy car this model wears: a bot's ToyCar, a player's racer (nil = keep the grey blocks)
+local function toyId(model: Model): string?
+	if not Features.CVC then
+		return nil
+	end
+	local id = model:GetAttribute("ToyCar")
+	if type(id) ~= "string" then
+		local uid = tonumber(string.match(model.Name, "^Car_(%d+)$"))
+		local p = uid and Players:GetPlayerByUserId(uid)
+		id = p and p:GetAttribute("RacerCar")
+	end
+	return if type(id) == "string" and CarCatalog.get(id) then id else nil
+end
+
+-- sized so its wheel arches sit over the base car's wheels (toy wheels are 1.2 from the middle)
+local TOY_SIZE = base("wheelZ") / 1.2
+local function toyShell(folder: Folder, id: string, s: number): Toy
+	local info = CarCatalog.get(id) :: CarCatalog.Car
+	local pieces = {}
+	Garage.toyCar(
+		Garage.adder(pieces),
+		"Toy",
+		{ x = 0, y = 0, z = 0 },
+		0,
+		info.color,
+		TOY_SIZE * s,
+		info.style
+	)
+	local holder = Instance.new("Model")
+	local made = Garage.makeParts(pieces, holder, CFrame.identity).Toy
+	local parts: { BasePart } = {}
+	local offsets: { CFrame } = {}
+	for _, p in made:GetChildren() do
+		if p:IsA("BasePart") and p.Name ~= "Wheel" and p.Name ~= "Hub" then
+			p.CanCollide = false
+			p.CanQuery = false
+			p.CanTouch = false
+			p.CastShadow = false
+			table.insert(offsets, p.CFrame) -- (from the ground under the middle of the car)
+			table.insert(parts, p)
+			p.Parent = folder
+		end
+	end
+	holder:Destroy()
+	return { parts = parts, offsets = offsets }
+end
 
 local function wheelPart(folder: Folder, s: number): Part
 	local d = base("wheelRadius") * 2 * s
@@ -129,7 +184,16 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 		-- showed in the Studio check
 		local tag = nameTag(body, playerName(model), s)
 		tag.Parent = body
-		local o = { body = body, folder = f, wheels = wheels, scale = s, tag = tag }
+		local id = toyId(model)
+		local toy = if id then toyShell(f, id, s) else nil
+		if toy then
+			for _, d in model:GetDescendants() do
+				if d:IsA("BasePart") then
+					d.LocalTransparencyModifier = 1
+				end
+			end
+		end
+		local o = { body = body, folder = f, wheels = wheels, scale = s, tag = tag, toy = toy }
 		others[model] = o
 		return o
 	end
@@ -199,7 +263,7 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 				o.hidden = hide
 				for _, d in m:GetDescendants() do
 					if d:IsA("BasePart") then
-						d.LocalTransparencyModifier = if hide then 1 else 0
+						d.LocalTransparencyModifier = if hide or o.toy then 1 else 0
 					end
 				end
 			end
@@ -238,6 +302,20 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 				if stripe then
 					stripe.CFrame = wcf
 				end
+			end
+			local toy = o.toy
+			if toy then
+				-- the shell sits on the wheels: its ground is where they touch, on average
+				local hang = 0
+				for _, w in o.wheels do
+					hang += w.shown / #o.wheels
+				end
+				local ground = cf * CFrame.new(0, base("attachY") * s - hang - radius, 0)
+				local at: { CFrame } = table.create(#toy.parts)
+				for k, off in toy.offsets do
+					at[k] = ground * off
+				end
+				workspace:BulkMoveTo(toy.parts, at, Enum.BulkMoveMode.FireCFrameChanged)
 			end
 		end
 	end

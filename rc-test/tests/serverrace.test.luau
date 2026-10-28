@@ -445,6 +445,14 @@ test(
 		)
 		-- a kid who never moves doesn't hold the bots (or the race) for 3 min
 		truthy(ServerRace.IDLE_KID <= 15)
+		-- ... measured by where the car is from GO (progress jumps a gate at GO: Studio sit-still)
+		truthy(not ServerRace.moved({ x = 0, z = 0 }, 3, 4), "a nudge isn't moving")
+		truthy(ServerRace.moved({ x = 0, z = 0 }, 30, 0), "driving off is")
+		truthy(string.find(src, "kidMoved = kidMoved or ServerRace.moved(from, lx, lz)", 1, true))
+		truthy(
+			string.find(src, "if lx and lz and clock >= goAt then", 1, true),
+			"measured from before GO"
+		)
 		-- the podium and the card agree: the kid gets a finish time (the card's NICE TRY! is no time)
 		truthy(
 			string.find(src, "if e.kid and e.time == nil then\n\t\t\t\t\t\te.time = since", 1, true)

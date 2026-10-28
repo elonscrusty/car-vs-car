@@ -109,6 +109,12 @@ RaceBots.FOLLOW_CRAWL = 20
 -- (Studio after-810: held bots went from 12 to 0 in under 2 s and froze, which reads as hard
 -- braking) a held bot never goes fully still, and slows down gently
 RaceBots.FOLLOW_MIN = 2 -- the slowest a held bot rolls (big units/s)
+-- One easy bot is the new kid's rival (playtest u17: the others sit behind the chase camera, so
+-- no car was ever on screen). It is quick enough to keep up, rides RIVAL_LEAD in front of the kid
+-- (gap = -RIVAL_LEAD), waits there if they stop, and lineCap still holds it short of the line.
+RaceBots.RIVAL_SKILL = 1.1 -- (0.85 could not catch a kid at top speed: it sat behind, Studio)
+RaceBots.RIVAL_LEAD = 25
+RaceBots.FOLLOW_AHEAD = 0.5 -- the longest (s) the rival guesses on where the kid has got to
 RaceBots.FOLLOW_BRAKE = 30 -- how hard a held bot slows (big units/s^2; BRAKE is 110)
 
 -- The skill range (lowest, highest) for a race in `league` (1..4; nil = the old fixed range),
@@ -383,6 +389,28 @@ function RaceBots.progress(route: Route, bot: Bot): number
 	return laps * (gates + 1) + passed - math.clamp(nextAt - d, 0, 9999) / 10000
 end
 
+-- The progress a bot is placed by (live places). An easy race's bot that is only ahead because
+-- the new kid was put back behind it (it waits there, followCap) is placed behind the kid: the
+-- kid's place flipped to 8TH after each put-back and back to 2ND seconds later (Studio after-818).
+-- The rival, a bot past the line, and one far ahead (a kid stuck for good: FOLLOW_CRAWL) keep
+-- their real place. `kid` = the new kid's road distance (roadAt), `kidProgress` = their progress.
+function RaceBots.placeProgress(
+	bot: Bot,
+	progress: number,
+	kid: number?,
+	kidProgress: number?,
+	rival: boolean
+): number
+	if rival or bot.time ~= nil or kid == nil or kidProgress == nil then
+		return progress
+	end
+	local ahead = bot.dist - (kid :: number)
+	if ahead > 0 and ahead <= RaceBots.FOLLOW_WAIT then
+		return math.min(progress, (kidProgress :: number) - 1e-6)
+	end
+	return progress
+end
+
 -- Back from progress (ServerRace.progress, a player's) to a distance along the road from the
 -- line, laps included (big units; negative = on the grid). Near enough for the bots to follow.
 function RaceBots.distOf(route: Route, progress: number): number
@@ -459,19 +487,25 @@ end
 -- The most an easy bot may drive now: a bit under the kid's pace, and slower the closer it gets
 -- to FOLLOW_GAP behind them (nil = no kid to follow). It never gets past them, and a bot already
 -- far in front of a kid who was put back creeps on (FOLLOW_CRAWL).
-function RaceBots.followCap(f: Follow, bot: Bot): number?
+function RaceBots.followCap(f: Follow, bot: Bot, gap: number?, now: number?): number?
 	if f.at == nil or bot.time ~= nil then
 		return nil
 	end
-	if bot.dist >= (f.at :: number) then
+	local g = gap or RaceBots.FOLLOW_GAP
+	-- `now` (the rival): where the kid is by now, not where they were at the last 4 Hz look; at
+	-- top speed that look is ~25 old, and the rival fell in behind them (Studio after-818)
+	local at = f.at :: number
+		+ if now then f.speed * math.clamp(now - f.t, 0, RaceBots.FOLLOW_AHEAD) else 0
+	local stop = at - math.min(g, 0) -- (the rival waits a little in front)
+	if bot.dist >= stop then
 		-- in front (the kid was put back behind it): wait for them to go by, unless they are far
 		-- behind, then creep on instead of freezing
-		if bot.dist - (f.at :: number) <= RaceBots.FOLLOW_WAIT then
+		if bot.dist - stop <= RaceBots.FOLLOW_WAIT then
 			return RaceBots.FOLLOW_MIN
 		end
 		return RaceBots.FOLLOW_CRAWL
 	end
-	local room = (f.at :: number) - RaceBots.FOLLOW_GAP - bot.dist
+	local room = at - g - bot.dist
 	return math.max(
 		RaceBots.FOLLOW_MIN,
 		f.speed * RaceBots.FOLLOW_PACE + room * RaceBots.FOLLOW_GAIN

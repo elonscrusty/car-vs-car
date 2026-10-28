@@ -127,6 +127,21 @@ function CarCatalog.get(id: any): Car?
 	return if type(id) == "string" then byId[id] else nil
 end
 
+-- Every race car's id (shop then gumball, in list order): the race bots wear these, so a
+-- big race looks like a row of real cars (playtest u01).
+function CarCatalog.raceIds(): { string }
+	local out: { string } = {}
+	for _, c in CarCatalog.SHOP.race or {} do
+		table.insert(out, c.id)
+	end
+	for _, g in CarCatalog.GUMBALL do
+		if g.car.mode == "race" then
+			table.insert(out, g.car.id)
+		end
+	end
+	return out
+end
+
 function CarCatalog.rarity(id: any): Rarity
 	local c = CarCatalog.get(id)
 	return CarCatalog.RARITY[if c then c.rarity else "common"] or CarCatalog.RARITY.common

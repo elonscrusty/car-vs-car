@@ -30,6 +30,7 @@ export type WheelInfo = {
 	normal: Vector3,
 	slide: number, -- sideways sliding speed of the tyre (studs/s)
 	surface: string, -- name of the part under the tyre ("" in the air), for splashes and dust
+	material: Enum.Material, -- that part's material (no skid marks on water)
 }
 
 -- A look-only skin for the wheels: mesh wheels drawn on the springs in place of the grey ones.
@@ -104,6 +105,7 @@ local function makeWheel(folder: Folder, attach: Vector3, front: boolean): Wheel
 			normal = Vector3.yAxis,
 			slide = 0,
 			surface = "",
+			material = Enum.Material.Plastic,
 		},
 	}
 end
@@ -301,6 +303,7 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 				end
 				w.info.touching = true
 				w.info.surface = hit.Instance.Name
+				w.info.material = hit.Material
 				w.info.contact = hit.Position
 				w.info.normal = n
 				w.info.slide = math.abs(vLat)

@@ -95,6 +95,8 @@ do
 		task.wait()
 	end
 end
+-- a put-back car's body sits at least this high over what's under it (big-car units)
+local PUT_BACK_CLEAR = 2.5
 local function ignoreList(): { Instance }
 	local list: { Instance } = { model }
 	if player.Character then
@@ -154,6 +156,17 @@ for i, id in TrackData.order do
 end
 
 local current = 1
+
+-- the skin to draw: the track's Meshy model, else (Car VS Car) the toy car of the car you race
+-- with, the one your plot shows (playtest u01: big races drew the grey box)
+local function skinName(): string?
+	local own = SKINS[tracks[current].id]
+	if own or not Features.CVC then
+		return own
+	end
+	local id = player:GetAttribute("RacerCar")
+	return if type(id) == "string" then CarSkin.TOY .. id else nil
+end
 
 getEye = function(): Vector3
 	local t = tracks[current]
@@ -312,6 +325,18 @@ local function reset(why: string?, from: string?)
 		) or BackOnTrack.spot(t, timer.gates, timer.next) :: BackOnTrack.Spot
 		local x, y, z = TrackData.toWorld(t, rc, g.x, g.y, g.z)
 		local dx, dz = TrackData.dirToWorld(t, rc, g.dx, g.dz)
+		-- on top of whatever is there: a spot on a jump ramp put the car inside it, stuck for good
+		-- (Studio after-818: put back into the same ramp from 74 s to the time limit)
+		local probe = RaycastParams.new()
+		probe.FilterType = Enum.RaycastFilterType.Exclude
+		probe.FilterDescendantsInstances = ignoreList()
+		probe.RespectCanCollide = true
+		local up = 6 * Tuning.scale -- (low: a tunnel roof above must not catch it)
+		local hit = workspace:Raycast(Vector3.new(x, y + up, z), Vector3.new(0, -up * 2, 0), probe)
+		local clear = PUT_BACK_CLEAR * Tuning.scale
+		if hit and hit.Position.Y + clear > y then
+			y = hit.Position.Y + clear
+		end
 		local pos = Vector3.new(x, y, z)
 		car.teleport(CFrame.lookAt(pos, pos + Vector3.new(dx, 0, dz)))
 		camera.snap()
@@ -667,6 +692,13 @@ RunService.PreSimulation:Connect(function(dt: number)
 		-- server race, lights still red: the car waits on the line for GO (carter 10-26: AUTO GAS
 		-- or a held GAS rolled it over the line = TOO EARLY and an extra lap). Steering still works.
 		input = { steer = input.steer, throttle = 0, brake = 0, drift = false }
+	elseif grid and (raceDone ~= nil or raceOver) then
+		-- server race, over the line: the car brakes to a stop at the finish and stays there (it
+		-- drove on, AUTO GAS too, and stuck on a sign until the results, phone 10-28 t096-t100).
+		-- Brake only while rolling forward: held at a stop it would back up.
+		local rolling = car.telemetry.vLong > 3
+		input =
+			{ steer = input.steer, throttle = 0, brake = if rolling then 1 else 0, drift = false }
 	end
 	car.step(dt, input)
 
@@ -1022,7 +1054,7 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 		youTag.Enabled = false
 		raceFx.update(dt, false) -- a race that ended mid-BOOST: fade its speed lines out
 		car.render(dt) -- keep the parked car's wheels drawn
-		skin.update(car, SKINS[tracks[current].id])
+		skin.update(car, skinName())
 		effects.quiet()
 		return
 	end
@@ -1030,7 +1062,7 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 		return
 	end
 	car.render(dt)
-	skin.update(car, SKINS[tracks[current].id])
+	skin.update(car, skinName())
 	effects.update(dt)
 	-- boost pads and jumps: a word on screen so you know what happened
 	local tel = car.telemetry

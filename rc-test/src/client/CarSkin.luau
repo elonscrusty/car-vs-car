@@ -11,6 +11,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
 local RCCar = require(script.Parent.RCCar)
+local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
+local Garage = require(ReplicatedStorage.Shared.Garage)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
 
 local WHEEL_NAMES = { "WheelFL", "WheelFR", "WheelRL", "WheelRR" } -- same order as RCCar
@@ -30,9 +32,54 @@ type Shown = {
 	tint: Color3?, -- the colour last copied from the grey body
 	texture: string, -- the body's own paint, put back when there's no pick
 	looks: { Instance }, -- its SurfaceAppearance, if any, taken off while tinted
+	extras: { [BasePart]: CFrame }, -- a toy car's cab, roof, wing and lights, seen from its body
 }
 
+-- "toy:<car id>": the same toy car the plot shows for that car (Garage.toyCar: its colour and
+-- style, round wheels), for a car with no Meshy model of its own (playtest u01: the grey box).
+CarSkin.TOY = "toy:"
+local toys: { [string]: Model } = {}
+local function toy(id: string): Model?
+	local info = CarCatalog.get(id)
+	if not info then
+		return nil
+	end
+	local pieces = {}
+	-- nose to +Z, like a Meshy import (show turns it round)
+	Garage.toyCar(
+		Garage.adder(pieces),
+		"Car",
+		{ x = 0, y = 0, z = 0 },
+		180,
+		info.color,
+		1,
+		info.style
+	)
+	local holder = Instance.new("Model")
+	local car = Garage.makeParts(pieces, holder, CFrame.identity).Car
+	car.Parent = nil
+	holder:Destroy()
+	for _, p in car:GetChildren() do
+		if p.Name == "Hub" then
+			p:Destroy() -- (it would not spin or steer with its wheel)
+		elseif p.Name == "Wheel" and p:IsA("BasePart") then
+			-- front = +Z here; the car's right (+X once turned round) = -X here
+			local front, right = p.Position.Z > 0, p.Position.X < 0
+			p.Name = "Wheel" .. (if front then "F" else "R") .. (if right then "R" else "L")
+		end
+	end
+	car:SetAttribute("Extras", true)
+	return car
+end
+
 local function template(name: string): Model?
+	if string.sub(name, 1, #CarSkin.TOY) == CarSkin.TOY then
+		local made = toys[name] or toy(string.sub(name, #CarSkin.TOY + 1))
+		if made then
+			toys[name] = made
+		end
+		return made
+	end
 	local skins = ReplicatedStorage:FindFirstChild("CarSkins")
 	local m = skins and skins:FindFirstChild(name)
 	return if m and m:IsA("Model") then m else nil
@@ -103,6 +150,20 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 	for _, w in wheels do
 		w.Parent = folder
 	end
+	-- a toy car's other parts ride on its body (a Meshy model's are dropped, as before)
+	local extras: { [BasePart]: CFrame } = {}
+	if copy:GetAttribute("Extras") == true then
+		local keep: { [Instance]: boolean } = { [body] = true }
+		for _, w in wheels do
+			keep[w] = true
+		end
+		for _, d in copy:GetDescendants() do
+			if d:IsA("BasePart") and not keep[d] then
+				extras[d] = body.CFrame:ToObjectSpace(d.CFrame)
+				d.Parent = folder
+			end
+		end
+	end
 	copy:Destroy()
 	folder.Parent = workspace
 
@@ -131,6 +192,7 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 		tint = nil,
 		texture = if body:IsA("MeshPart") then body.TextureID else "",
 		looks = looks,
+		extras = extras,
 	}
 end
 
@@ -197,6 +259,9 @@ function CarSkin.new()
 		end
 		if cur then
 			cur.body.CFrame = car.body.CFrame * cur.offset
+			for p, rel in cur.extras do
+				p.CFrame = cur.body.CFrame * rel
+			end
 			if cur.tint ~= car.body.Color then
 				paint(cur, car.body.Color)
 			end
