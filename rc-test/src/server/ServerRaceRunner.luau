@@ -843,7 +843,7 @@ local function runRace(hooks: Hooks, slot: number)
 		local lead: number? = nil -- the leading player's progress, for the bots' catch-up
 		local kidLead: number? = nil -- how far round the furthest new kid is, for easy bots
 		-- (a new kid who sits still after GO doesn't hold the bots: Studio after-810 waited 2:47)
-		local kidFrom: { [Racer]: number } = {}
+		local kidFrom: { [Racer]: { x: number, z: number } } = {} -- where each new kid was at GO
 		local kidMoved = false
 		while not drift do
 			RunService.Heartbeat:Wait()
@@ -972,8 +972,11 @@ local function runRace(hooks: Hooks, slot: number)
 							kidLead = at
 							kidProgress = progress
 						end
-						kidFrom[r] = kidFrom[r] or at
-						kidMoved = kidMoved or at - kidFrom[r] > ServerRace.IDLE_MOVE
+						if lx and lz and clock >= goAt then
+							local from = kidFrom[r] or { x = lx, z = lz }
+							kidFrom[r] = from
+							kidMoved = kidMoved or ServerRace.moved(from, lx, lz)
+						end
 					end
 				end
 				local cars = #racers
