@@ -178,5 +178,8 @@ test("LobbyLayout: the arena's slot comes after the race maps (when it's built)"
 	end
 	-- the race maps keep their own slots
 	eq(LobbyLayout.mapAt(LobbyLayout.mapIndex(1)), RaceMaps.list()[1])
-	eq(LobbyLayout.mapAt(#LobbyLayout.slots() + #RaceMaps.list() + 2), nil)
+	-- then the warm-up yard (WarmupYard), then nothing
+	eq(LobbyLayout.mapAt(#LobbyLayout.slots() + #RaceMaps.list() + 2).id, "yard")
+	eq(LobbyLayout.yardIndex(), #LobbyLayout.slots() + #RaceMaps.list() + 2)
+	eq(LobbyLayout.mapAt(#LobbyLayout.slots() + #RaceMaps.list() + 3), nil)
 end)

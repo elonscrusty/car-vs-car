@@ -272,6 +272,9 @@ function LobbyLayout.mapAt(index: number): any?
 	if k == #maps + 1 then
 		return arenaData()
 	end
+	if k == #maps + 2 then
+		return sibling("WarmupYard") -- the Smash warm-up yard (yardIndex)
+	end
 	return maps[k]
 end
 
@@ -279,6 +282,12 @@ end
 function LobbyLayout.arenaIndex(): number?
 	local i = #LobbyLayout.slots() + #sibling("RaceMaps").list() + 1
 	return if LobbyLayout.mapAt(i) then i else nil
+end
+
+-- The Smash warm-up yard's slot index (WarmupYard: kids waiting for the next round drive it),
+-- right after the arena's.
+function LobbyLayout.yardIndex(): number
+	return #LobbyLayout.slots() + #sibling("RaceMaps").list() + 2
 end
 
 function LobbyLayout.mapIndex(k: number): number

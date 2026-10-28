@@ -437,6 +437,8 @@ if
 	or (game:GetService("RunService"):IsStudio() and workspace:GetAttribute("Smash") == true)
 then
 	require(script.Parent.MatchRunner).start({ remote = remote, walk = walk })
+	-- kids waiting for the next round drive the warm-up yard meanwhile (LOBBY)
+	require(script.Parent.WarmupYardServer).start({ remote = remote, walk = walk })
 end
 
 -- E on a lobby pad: drive that plot (if it's yours, nobody's or open, and free), or stop.
