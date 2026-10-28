@@ -8,6 +8,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local Features = require(ReplicatedStorage.Shared.Features)
 local RaceBots = require(ReplicatedStorage.Shared.RaceBots)
 local RaceMaps = require(ReplicatedStorage.Shared.RaceMaps)
@@ -101,6 +102,12 @@ function RaceBotCars.spawn(
 		follow = RaceBots.newFollow(),
 	}
 	local names = table.clone(RaceBots.NAMES)
+	-- each bot wears a different race car (every screen draws it as that toy car, OtherCars)
+	local looks = CarCatalog.raceIds()
+	for k = #looks, 2, -1 do
+		local j = random:NextInteger(1, k)
+		looks[k], looks[j] = looks[j], looks[k]
+	end
 	for i = 1, count do
 		local k = humans + i
 		local g = ServerRace.gridOn(map, k, t.spawn.y)
@@ -127,6 +134,12 @@ function RaceBotCars.spawn(
 		model:SetAttribute("BotName", bot.name)
 		local body = model.PrimaryPart :: BasePart
 		body.Color = Color3.fromRGB(bot.color[1], bot.color[2], bot.color[3])
+		local look = if Features.CVC and #looks > 0 then looks[(i - 1) % #looks + 1] else nil
+		local info = CarCatalog.get(look)
+		if info then
+			model:SetAttribute("ToyCar", look)
+			body.Color = Color3.fromRGB(info.color[1], info.color[2], info.color[3])
+		end
 		for _, d in model:GetDescendants() do
 			if d:IsA("BasePart") then
 				d.CanCollide = false
