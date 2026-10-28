@@ -3,6 +3,17 @@
 -- PlayerData does the DataStore part. Stars only come from OTHER people's plots, once per medal
 -- per plot owner per kind of plot: bronze then gold on Mia's race = 1 + 2 = 3 stars, never more.
 
+-- Sibling loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
+local function sibling(name: string): any
+	if script then
+		return require((script :: any).Parent[name])
+	end
+	local luneRequire: any = require
+	return luneRequire("./" .. name)
+end
+
+local Xp = sibling("Xp")
+
 export type Record = { value: number, name: string, userId: number }
 export type Data = {
 	version: number,
@@ -47,6 +58,7 @@ export type Data = {
 	trophies: number,
 	raceWins: number,
 	crates: number, -- free crates not opened yet
+	xp: number, -- all XP ever earned (Xp.levelOf gives the level)
 	picked: boolean, -- chose the starter car
 	nextUid: number, -- for the next car's uid
 	friendsPaid: { [string]: number }, -- friend's user id -> the day we last got the friend coins
@@ -148,6 +160,7 @@ function Profile.new(): Data
 		trophies = 0,
 		raceWins = 0,
 		crates = 0,
+		xp = 0,
 		picked = false,
 		nextUid = 1,
 		friendsPaid = {},
@@ -607,7 +620,7 @@ function Profile.migrateGarage(d: Data, raw: any)
 	if goodNumber(raw.league) then
 		d.league = math.clamp(math.floor(raw.league), 1, Profile.LEAGUES)
 	end
-	for _, k in { "trophies", "raceWins", "crates" } do
+	for _, k in { "trophies", "raceWins", "crates", "xp" } do
 		local v = raw[k]
 		if goodNumber(v) then
 			(d :: any)[k] = math.clamp(math.floor(v), 0, Profile.MAX_COINS)
@@ -1073,6 +1086,14 @@ function Profile.mergeVisit(stored: Data, session: Data, base: Data): Data
 	end
 	for _, k in { "trophies", "raceWins", "crates" } do
 		out[k] = math.clamp(out[k] + gain(ses[k], (base :: any)[k]), 0, Profile.MAX_COINS)
+	end
+	do -- XP: the visit's level-up coins were for levels counted from `base`; pay the real ones
+		local before = out.xp
+		out.xp = math.clamp(before + gain(session.xp, base.xp), 0, Xp.MAX_XP)
+		local paid = math.max(Xp.levelOf(session.xp) - Xp.levelOf(base.xp), 0) * Xp.LEVEL_COINS
+		local due = (Xp.levelOf(out.xp) - Xp.levelOf(before)) * Xp.LEVEL_COINS
+		paid = math.min(paid, gain(session.coins, base.coins)) -- never take back more than it added
+		out.coins = math.clamp(out.coins - paid + due, 0, Profile.MAX_COINS)
 	end
 	for _, k in { "garageLevel", "league" } do
 		out[k] = math.max(out[k], ses[k])

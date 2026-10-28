@@ -1,19 +1,9 @@
-# Sounds wanted (carter: send Roblox sound ids, one per line)
+# Sounds
 
-Right now every cue is the built-in ping, pitched (src/client/Sfx.luau). No ids are made up.
-Swap in a real sound by changing `Sfx.luau`; volumes live in `src/shared/SoundLevels.luau`.
+Every action's sound is in `src/shared/SoundCues.luau`; `src/client/Sfx.luau` plays it; volumes in `src/shared/SoundLevels.luau`.
+Real files come only from `SoundCues.CHECKED`: Creator Store ids found and load-checked in Studio
+(`/mnt/project-files/car-vs-car/sounds/find-sounds.lua` → `found.txt`). Never make up an id.
+A cue with no checked id (or a file that fails to load) plays the built-in ping as notes, so nothing goes silent.
 
-1. Coin collect — short bright "ching" (one coin landing)
-2. Level up — happy rising jingle, about 1 second
-3. Race finish — cheer or fanfare (a longer one for 1st-3rd)
-4. New car reveal — sparkly "ta-da"
-5. Countdown beep and GO — low beep, high beep
-
-## Car VS Car cues (Sfx.crate, Sfx.trophy, Sfx.train — UI/Race call them)
-6. Crate open — drum roll then sparkle (longer for rare cars)
-7. Trophy / win — cheer plus fanfare
-8. Training station hum — now the motor loop at low pitch; a real soft hum per station kind would be nicer
-9. Engine, upbeat music — need ids; engine already has two
-
-## Cues UI / Race can call now (Sfx.luau)
-speedUp(), maxed(), count(step 3..0), spark(), fireworks(), cheer(), shake(rarity), crate(n), trophy(place), train()
+Still the ping (no clean Creator Store pick yet): unlock, finish (4th+), go (the count beep pitched up), gun (per bullet),
+pickup, respawn, freeze shot, freeze, shatter, and the older plot cues (train, speedUp, maxed, spark, trophy, cheer).

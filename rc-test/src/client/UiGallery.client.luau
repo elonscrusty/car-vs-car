@@ -379,6 +379,39 @@ local LIST: { { string | () -> () } } = {
 			States.open()
 		end,
 	},
+	{
+		"17 Match",
+		function()
+			local h = Hud.match({
+				place = 2,
+				total = 5,
+				secs = 154,
+				hp = 64,
+				maxHp = 100,
+				weapon = "Rockets",
+				ammo = 3,
+			})
+			h.api.feed("Maya", "Leo", "Gun", false)
+			h.api.feed("You", "Bolt", "Rockets", true)
+		end,
+	},
+	{
+		"17 Match: no weapon, shield, last 10 s",
+		function()
+			local h = Hud.match({
+				place = 4,
+				total = 5,
+				secs = 8,
+				hp = 100,
+				maxHp = 100,
+				shield = true,
+				weapon = "",
+				ammo = 0,
+			})
+			h.api.setClock(8)
+			h.api.feed("Bolt", "You", "Mine", true)
+		end,
+	},
 }
 
 -- the viewer's own little bar, over everything, bottom middle (clear of the move stick corner)
