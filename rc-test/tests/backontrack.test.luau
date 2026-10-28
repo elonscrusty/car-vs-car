@@ -280,3 +280,53 @@ test("lost: kitchen, wandering off the first left bend by the dog bowls is put b
 	truthy(t < 12, `put back only after {t} s`)
 	print(string.format("    kitchen dog bowls: put back after %.1f s", t))
 end)
+
+test(
+	"back on track (Studio after-810): a put-back goes near where the car left the road, not the line",
+	function()
+		for _, m in RaceMaps.list() do
+			local t = m.track()
+			local loop = m.loop()
+			-- somewhere between gate 1 (the line) and gate 2: the car is put back there, facing on
+			local a = loop[m.lineSample()]
+			local g2 = t.gates[2]
+			-- the road sample halfway from the line to gate 2
+			local best, at = math.huge, 1
+			for k, q in loop do
+				local d = (q.x - g2.x) ^ 2 + (q.z - g2.z) ^ 2
+				if d < best then
+					best, at = d, k
+				end
+			end
+			local half = ((at - m.lineSample()) % #loop) // 2
+			local mid = loop[(m.lineSample() - 1 + half) % #loop + 1]
+			local s = BackOnTrack.roadSpot(t, loop, t.gates, 2, mid.x, mid.z) :: BackOnTrack.Spot
+			truthy(s ~= nil, `{m.id}: no spot`)
+			local fromLine = math.sqrt((s.x - a.x) ^ 2 + (s.z - a.z) ^ 2)
+			truthy(fromLine > 40, `{m.id}: put back on the start line ({fromLine} from it)`)
+			local fromMid = math.sqrt((s.x - mid.x) ^ 2 + (s.z - mid.z) ^ 2)
+			truthy(fromMid < 80, `{m.id}: put back {fromMid} from where it left the road`)
+			truthy(math.abs(s.dx * s.dx + s.dz * s.dz - 1) < 1e-6, "faces a way")
+			truthy(s.y >= t.spawn.y, "on the road, not under it")
+			-- never past the next gate it hasn't driven through: a spot beyond gate 2 stays before it
+			local g3 = t.gates[3] or t.gates[1]
+			local far = BackOnTrack.roadSpot(t, loop, t.gates, 2, g3.x, g3.z) :: BackOnTrack.Spot
+			local toG2 = math.sqrt((far.x - g2.x) ^ 2 + (far.z - g2.z) ^ 2)
+			local toG3 = math.sqrt((far.x - g3.x) ^ 2 + (far.z - g3.z) ^ 2)
+			truthy(toG2 < toG3 or #t.gates < 3, `{m.id}: put back past a gate it hasn't passed`)
+		end
+		-- and the client uses it, keeping AUTO GAS on in a first race
+		local fs = require("@lune/fs")
+		local src = fs.readFile("src/client/Main.client.luau")
+		truthy(
+			string.find(
+				src,
+				"BackOnTrack.roadSpot(t, m.loop(), timer.gates, timer.next, road.x, road.z)",
+				1,
+				true
+			)
+		)
+		truthy(string.find(src, 'if player:GetAttribute("EasyRace") ~= true then', 1, true))
+		truthy(string.find(src, "lastRoad = { x = lx, z = lz }", 1, true))
+	end
+)

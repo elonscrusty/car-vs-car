@@ -270,6 +270,7 @@ local stuckFrom = Vector3.zero
 local creep = 0 -- average ground speed lately (for the stuck check)
 local lost = BackOnTrack.newLost() -- big race: still, off the road or WRONG WAY for a while
 local movedSincePut = true -- big race: gas or rolling since the last put-back (the still clock waits)
+local lastRoad: { x: number, z: number }? = nil -- big race: where the car was last on the road (map-local)
 local lostRoads: { [string]: { BackOnTrack.Road } } = {} -- each map's roads (BackOnTrack.roads)
 -- Plots with checkpoint flags: a reset (R, RESET, fell off, out) brings the car back to the last
 -- flag it drove through instead of the start. R twice quickly = start.
@@ -300,7 +301,15 @@ local function reset(why: string?, from: string?)
 	if Features.CVC and grid and gridGone and raceGo and raceDone == nil and #timer.gates > 0 then
 		-- (a TOO EARLY car's lap clock waits for its next time over the line: next = 1, the gate
 		-- before the line. It used to drop to the grid, and the lost clocks never ran for it)
-		local g = BackOnTrack.spot(t, timer.gates, timer.next) :: BackOnTrack.Spot
+		-- (back near where it left the road, not the last gate: Studio after-810 put a kid stuck on
+		-- the first bend back on the start line every time)
+		local m = if t.map then RaceMaps.get(t.map) else nil
+		local road = lastRoad
+		local g = (
+			if m and road
+				then BackOnTrack.roadSpot(t, m.loop(), timer.gates, timer.next, road.x, road.z)
+				else nil
+		) or BackOnTrack.spot(t, timer.gates, timer.next) :: BackOnTrack.Spot
 		local x, y, z = TrackData.toWorld(t, rc, g.x, g.y, g.z)
 		local dx, dz = TrackData.dirToWorld(t, rc, g.dx, g.dz)
 		local pos = Vector3.new(x, y, z)
@@ -308,8 +317,11 @@ local function reset(why: string?, from: string?)
 		camera.snap()
 		hud.flash("BACK ON TRACK")
 		-- AUTO GAS off: left on, it drove the car into the same post 8 times in 66 s (critic run 2);
-		-- and the still clock waits for gas, so a car left sitting there isn't put back again
-		controls.autoOff()
+		-- and the still clock waits for gas, so a car left sitting there isn't put back again.
+		-- A first race keeps it on: a kid who never steers still gets round (Studio after-810).
+		if player:GetAttribute("EasyRace") ~= true then
+			controls.autoOff()
+		end
 		movedSincePut = false
 		return
 	end
@@ -527,6 +539,7 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown, gridSpot: u
 		-- a new race: no clock carries over from the last one
 		lost.still, lost.off, lost.wrong, lost.air = 0, 0, 0, 0
 		stuckTime, wrongFor, movedSincePut = 0, 0, true
+		lastRoad = nil
 		if grid then
 			controls.autoOff() -- every race starts with AUTO GAS off (critic runs 1 and 2)
 		end
@@ -821,6 +834,9 @@ RunService.PreSimulation:Connect(function(dt: number)
 		end
 		local under = ly < BackOnTrack.UNDER
 		local off = under or (#roads > 0 and BackOnTrack.offRoad(roads, lx, lz))
+		if not off and car.telemetry.grounded > 0 then
+			lastRoad = { x = lx, z = lz } -- (where a put-back goes: BackOnTrack.roadSpot)
+		end
 		local goAt = raceGo
 		if not movedSincePut then
 			local v = body.AssemblyLinearVelocity

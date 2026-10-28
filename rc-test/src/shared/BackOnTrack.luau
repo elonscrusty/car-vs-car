@@ -37,6 +37,66 @@ function BackOnTrack.spot(t: any, gates: { any }, next: number): Spot?
 	return { x = g.x, y = math.max(g.y, t.spawn.y), z = g.z, dx = g.dx, dz = g.dz }
 end
 
+-- Where to put the car instead (Studio after-810: stuck on the first bend's wall, put back on the
+-- START LINE every time): on the main road nearest `x`, `z` (where the car last was on the road),
+-- a little behind it, facing along the road. Only between the last gate passed and the next one,
+-- so it never skips a gate. `loop` = the map's centre line in driving order (map.loop()); track-
+-- local big units like the gates. nil = no road to use (then spot()).
+BackOnTrack.BACK_SAMPLES = 2 -- this many road samples (5 to 15 apart) behind that spot
+function BackOnTrack.roadSpot(
+	t: any,
+	loop: { { x: number, z: number, tx: number, tz: number } },
+	gates: { any },
+	next: number,
+	x: number,
+	z: number
+): Spot?
+	local n, count = #loop, #gates
+	if n < 2 or count == 0 then
+		return nil
+	end
+	local function nearest(px: number, pz: number): number
+		local best, at = math.huge, 1
+		for k, s in loop do
+			local d = (s.x - px) ^ 2 + (s.z - pz) ^ 2
+			if d < best then
+				best, at = d, k
+			end
+		end
+		return at
+	end
+	local last = gates[BackOnTrack.lastGate(count, next)]
+	local ahead = gates[((next - 1) % count) + 1]
+	local from = nearest(last.x, last.z)
+	local to = if count > 1 then nearest(ahead.x, ahead.z) else from
+	local span = (to - from) % n
+	if span == 0 then
+		span = n
+	end
+	-- the nearest sample to (x, z) from the last gate on to the next one
+	local best, step = math.huge, 0
+	for i = 0, span do
+		local s = loop[(from - 1 + i) % n + 1]
+		local d = (s.x - x) ^ 2 + (s.z - z) ^ 2
+		if d < best then
+			best, step = d, i
+		end
+	end
+	step = math.max(0, step - BackOnTrack.BACK_SAMPLES)
+	local s = loop[(from - 1 + step) % n + 1]
+	local len = math.sqrt(s.tx * s.tx + s.tz * s.tz)
+	if len < 1e-6 then
+		return nil
+	end
+	return {
+		x = s.x,
+		y = math.max(last.y or 0, t.spawn.y),
+		z = s.z,
+		dx = s.tx / len,
+		dz = s.tz / len,
+	}
+end
+
 -- Fell off the world? (y in world studs; scale = Tuning.scale, the car's size)
 function BackOnTrack.fell(y: number, scale: number): boolean
 	return y < BackOnTrack.FALL * scale / TrackData.RC_SCALE
