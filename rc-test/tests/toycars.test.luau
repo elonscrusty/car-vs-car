@@ -177,3 +177,59 @@ test("every car has a hat spot, and nothing covers its WeaponMount", function()
 		end
 	end
 end)
+
+test("6 Blender kart models dress all 24 cars, each car its own colours", function()
+	local seen: { [string]: string } = {}
+	local models: { [string]: boolean } = {}
+	for _, shape in ToyCars.SHAPES do
+		local m = ToyCars.KARTS[shape]
+		truthy(m ~= nil, `{shape} wears no kart`)
+		models[m] = true
+	end
+	local n = 0
+	for _ in models do
+		n += 1
+	end
+	eq(n, 6)
+	for _, c in allCars() do
+		local look = ToyCars.parse(c.style)
+		local key = `{ToyCars.kartModel(c.style)} {table.concat(c.color, ",")} {table.concat(
+			look.accent,
+			","
+		)} {look.glow}`
+		truthy(seen[key] == nil, `{c.id} looks like {seen[key]}`)
+		seen[key] = c.id
+	end
+end)
+
+test(
+	"a kart model's parts are painted by name: body the car's colour, lights and glow lit",
+	function()
+		local red = ToyCars.PALETTE.red
+		eq(ToyCars.kartPaint("Body", red, "formula/white"), red)
+		eq(ToyCars.kartPaint("Accent", red, "formula/white"), ToyCars.PALETTE.white)
+		local _, lit = ToyCars.kartPaint("Accent", red, "formula/white/glow")
+		truthy(lit, "glow accent not lit")
+		eq(ToyCars.kartPaint("Accent", red, "wedge/navy/glow"), ToyCars.PALETTE.sky)
+		for _, name in { "Headlights", "Taillights" } do
+			local _, on = ToyCars.kartPaint(name, red, "muscle")
+			truthy(on, `{name} not lit`)
+		end
+		for _, name in
+			{ "Trim", "Driver", "Head", "WeaponMount", "WheelFL", "WheelFR", "WheelRL", "WheelRR" }
+		do
+			truthy(ToyCars.kartPaint(name, red, "muscle") ~= nil, `{name} not painted`)
+		end
+		-- the driver's shirt never matches a blue car
+		eq(ToyCars.kartPaint("Driver", { 30, 111, 217 }, "muscle"), ToyCars.PALETTE.white) -- (a catalog colour is its own table)
+		-- own car and others both wear them
+		local fs = require("@lune/fs")
+		local others = fs.readFile("src/client/OtherCars.luau")
+		truthy(
+			string.find(others, "modelShell(f, kart, s, id)", 1, true),
+			"other cars wear no kart"
+		)
+		local skin = fs.readFile("src/client/CarSkin.luau")
+		truthy(string.find(skin, "CarSkin.KART .. id", 1, true), "own car wears no kart")
+	end
+)

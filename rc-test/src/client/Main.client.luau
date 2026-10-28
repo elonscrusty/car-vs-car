@@ -184,9 +184,8 @@ local function skinName(): string?
 	if type(id) ~= "string" then
 		return nil
 	end
-	-- carter's own model for this car wins over the toy (see CarSkin: how to add one)
-	local skins = ReplicatedStorage:FindFirstChild("CarSkins")
-	return if skins and skins:FindFirstChild(id) then id else CarSkin.TOY .. id
+	-- carter's own model for this car, else its kart model, else the toy (see CarSkin.lookFor)
+	return CarSkin.lookFor(id)
 end
 
 getEye = function(): Vector3

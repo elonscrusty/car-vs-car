@@ -326,4 +326,52 @@ function ToyCars.body(p: Put, color: { number }, style: string?)
 	p("WeaponMount", v(0.45, 0.14, 0.45), 0, m.y + lift + 0.07, m.z, NAVY)
 end
 
+-- The Blender kart models (ReplicatedStorage.CarSkins.Kart_*, made from assets/karts/build.py):
+-- each shape wears one, painted per car below, so 6 models dress all 24 cars. carter's own model
+-- for a car (CarSkins, named the car id) still wins over these.
+ToyCars.KARTS = {
+	formula = "Kart_Racer",
+	jet = "Kart_Racer",
+	buggy = "Kart_Buggy",
+	crawler = "Kart_Buggy",
+	wedge = "Kart_Speedster",
+	coupe = "Kart_Speedster",
+	muscle = "Kart_Muscle",
+	rally = "Kart_Muscle",
+	bubble = "Kart_Bubble",
+	hatch = "Kart_Bubble",
+	truck = "Kart_Truck",
+} :: { [string]: string }
+
+function ToyCars.kartModel(style: string?): string
+	return ToyCars.KARTS[ToyCars.parse(style).shape]
+end
+
+local SHIRT = ToyCars.PALETTE.blue
+-- A kart model's part, by name: its colour and whether it glows (nil: keep the model's own).
+function ToyCars.kartPaint(name: string, color: { number }, style: string?): ({ number }?, boolean)
+	local look = ToyCars.parse(style)
+	if name == "Body" then
+		return color, false
+	elseif name == "Accent" then
+		-- (a navy glow would be black: it lights up sky blue)
+		return if look.glow and look.accent == NAVY then ToyCars.PALETTE.sky else look.accent,
+			look.glow
+	elseif name == "Trim" or name == "WeaponMount" then
+		return NAVY, false
+	elseif name == "Head" then
+		return ToyCars.PALETTE.yellow, false
+	elseif name == "Driver" then
+		local blue = color[1] == SHIRT[1] and color[2] == SHIRT[2] and color[3] == SHIRT[3]
+		return if blue then ToyCars.PALETTE.white else SHIRT, false
+	elseif name == "Headlights" then
+		return LIGHT, true
+	elseif name == "Taillights" then
+		return TAIL, true
+	elseif string.sub(name, 1, 5) == "Wheel" then
+		return TIRE, false
+	end
+	return nil, false
+end
+
 return ToyCars
