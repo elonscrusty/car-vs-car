@@ -340,7 +340,8 @@ function Flow.podium(data: { [string]: any }, actions: Screen.Actions?): Screen.
 					stroke = 5,
 					z = 5,
 				})
-				if car.me and pl == 1 then
+				-- (the trophy is for a win: first on the steps after a time-out is NICE TRY!)
+				if car.me and pl == 1 and place == 1 then
 					local tro = Icons.make(area, "trophy", x + 56, top - ch - 58, 40, { z = 5 })
 					Anim.bob(tro, UiTheme.MOTION.carBob, 5)
 				end
