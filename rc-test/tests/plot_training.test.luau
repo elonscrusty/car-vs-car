@@ -163,83 +163,22 @@ test("the treadmill belt's slats stay on the belt and scroll back", function()
 	truthy(b[1] > a[1], "moves toward the road")
 end)
 
-test("car tags: one per pad, never over the next pad, the car or each other", function()
-	local A = T.TAG
-	local C = T.STAND_CAM.eye
-	-- the painted words on a pad reach this far each way from its middle (along z)
-	local words = 0
-	for _, line in T.PAINT do
-		words = math.max(words, math.abs(line.at - 0.5) * T.PAD.d + line.h / 2)
-	end
-	-- where a point at height y over z lands on the ground, seen from the plot camera
-	local function ground(y: number, z: number): number
-		return z - y * (C.z - z) / (C.y - y)
-	end
-	-- the treadmill car's half width (it runs straight up the middle of its pad)
-	local carHalf = 3.5 * T.CAR / 2
-	for i = 1, #T.GRID do
-		local x, y, z = T.tagSpot(i)
-		local g = T.GRID[i]
-		truthy(math.abs(x - g.x) + A.w / 2 <= T.PAD.w / 2, "tag " .. i .. " within its pad's width")
-		truthy(math.abs(z - g.z) <= T.PAD.d / 2, "tag " .. i .. " over its pad")
-		truthy(y - A.h / 2 > 0.4, "tag " .. i .. " above the pad")
-		truthy(math.abs(x - g.x) - A.w / 2 > carHalf, "tag " .. i .. " beside the treadmill car")
-		-- from the plot camera, clear of the words on the pad behind (Studio best/plot2)
-		for _, b in T.GRID do
-			if b.x == g.x and b.z < g.z then
-				truthy(
-					ground(y + A.h / 2, z) > b.z + words,
-					"tag " .. i .. " clear of the words behind"
-				)
-			end
-		end
-		for j = i + 1, #T.GRID do
-			local x2, _, z2 = T.tagSpot(j)
-			truthy(
-				math.abs(x - x2) >= A.w or math.abs(z - z2) >= T.PAD.d,
-				"tags " .. i .. " and " .. j .. " apart"
-			)
-		end
-	end
-	-- and under the room's signs (Studio 29: a tag stuck on NAME'S GARAGE)
-	local tagTop = T.TAG.y + A.h / 2
-	for _, p in T.pieces(8, 8, 12) do
-		if p.name == "RoomSign" or p.name == "ShelfSign" then
-			truthy(p.pos.y - p.size.y / 2 > tagTop, p.name .. " above the tags")
-		end
-	end
+test("station cars: their name and number on the pad's sign, no tag", function()
+	local a, b = T.carWords({ kind = "treadmill", level = 2, car = "race_bolt" }, "Bolt", 27)
+	eq(a, "TREADMILL  LV 2")
+	eq(b, "BOLT  SPD 27")
+	eq(select(2, T.carWords({ kind = "track", level = 1, car = "" }, "Bolt", 9)), "BOLT  TURN 9")
 	-- stand tags: narrower than the gap between stands side by side
-	for a = 1, #T.STANDS do
-		for b = a + 1, #T.STANDS do
-			local p, q = T.STANDS[a], T.STANDS[b]
+	for i = 1, #T.STANDS do
+		for j = i + 1, #T.STANDS do
+			local p, q = T.STANDS[i], T.STANDS[j]
 			if p.z == q.z then
 				truthy(
 					math.abs(p.x - q.x) > T.STAND_TAG.w,
-					"stand tags " .. a .. " and " .. b .. " apart"
+					"stand tags " .. i .. " and " .. j .. " apart"
 				)
 			end
 		end
-	end
-end)
-
-test("from the gate, no car tag hides the room sign", function()
-	local eye = { y = 9, z = 50 } -- a kid's camera just outside the gate (Studio score 20)
-	local sign
-	for _, p in T.pieces(8, 8, 12) do
-		if p.name == "RoomSign" then
-			sign = p
-		end
-	end
-	local wall = sign.pos.z
-	for i = 1, #T.GRID do
-		local x, y, z = T.tagSpot(i)
-		-- the tag's box, seen from the eye, cast onto the sign's wall
-		local k = (eye.z - wall) / (eye.z - z)
-		local x0, x1 = (x - T.TAG.w / 2) * k, (x + T.TAG.w / 2) * k
-		local y0, y1 = eye.y + (y - T.TAG.h / 2 - eye.y) * k, eye.y + (y + T.TAG.h / 2 - eye.y) * k
-		local sx0, sx1 = sign.pos.x - sign.size.x / 2, sign.pos.x + sign.size.x / 2
-		local sy0, sy1 = sign.pos.y - sign.size.y / 2, sign.pos.y + sign.size.y / 2
-		truthy(x1 < sx0 or x0 > sx1 or y1 < sy0 or y0 > sy1, "tag " .. i .. " clear of the sign")
 	end
 end)
 
@@ -257,7 +196,10 @@ test("the plot camera sees every pad, with the gate's name board under them", fu
 		return math.atan((e.y - y) / (e.z - z))
 	end
 	truthy(angle(0, front) < down + half, "front pads on screen")
-	truthy(angle(0, T.ROOM.z0) > down - half, "the room on screen")
+	truthy(angle(0, T.ROOM.z1) > down - half, "the room's front on screen")
+	-- the open front row fills the middle of the screen
+	local mid = angle(0, front - T.PAD.d / 2)
+	truthy(math.abs(mid - down) < half / 3, "front row in the middle")
 	for _, kind in { "race", "drift" } do
 		for _, m in D.meshes(kind) do
 			if m.group == "Arch" then
