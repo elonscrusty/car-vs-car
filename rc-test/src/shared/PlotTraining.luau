@@ -467,7 +467,14 @@ local function pad(add: Garage.Add, i: number, kind: string?)
 end
 
 -- Everything on the plot at this plot level, garage level and trophy count.
-function PlotTraining.pieces(plotLevel: number, garageLevel: number, trophies: number): { Piece }
+-- (`showNext`: the next locked pad shows only when you can pay for it, game audit B10; the
+-- others stay plain grass until then)
+function PlotTraining.pieces(
+	plotLevel: number,
+	garageLevel: number,
+	trophies: number,
+	showNext: boolean?
+): { Piece }
 	local out: { Piece } = {}
 	local add = Garage.adder(out)
 	local R = PlotTraining.ROOM
@@ -595,7 +602,9 @@ function PlotTraining.pieces(plotLevel: number, garageLevel: number, trophies: n
 	-- the station pads
 	local open = Training.stationsFor(plotLevel)
 	for i = 1, #PlotTraining.GRID do
-		pad(add, i, open[i])
+		if open[i] or (showNext and i == #open + 1) then
+			pad(add, i, open[i])
+		end
 	end
 	return Finish.apply(out)
 end

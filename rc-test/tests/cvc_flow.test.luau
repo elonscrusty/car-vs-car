@@ -254,3 +254,22 @@ test("flow: the daily gift gives the streak's coins and a free crate, once a day
 	truthy(CvcRules.open(data, rng(0.5)) ~= nil)
 	eq(data.crates, 1)
 end)
+
+test("flow: the first new car brings the 2nd station free and starts training on it", function()
+	local data = Profile.new()
+	CvcRules.setUp(data)
+	CvcRules.pick(data, CarStats.STARTERS[1])
+	eq(data.plotLevel, 0)
+	data.crates = 1
+	local id = CvcRules.open(data, rng(0.5))
+	truthy(id ~= nil)
+	eq(data.plotLevel, 1)
+	eq(#data.stations, 2)
+	eq(data.stations[2].uid, data.garage[2].uid)
+	eq(data.stations[1].uid, data.garage[1].uid) -- the first car keeps training
+	-- a 3rd car with no empty station waits on a stand (and the plot doesn't grow again)
+	data.crates = 1
+	truthy(CvcRules.open(data, rng(0.5)) ~= nil)
+	eq(data.plotLevel, 1)
+	eq(#data.stations, 2)
+end)
