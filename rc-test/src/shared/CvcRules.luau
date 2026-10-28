@@ -248,7 +248,7 @@ function CvcRules.raceDone(data: Data, place: number, now: number, tried: boolea
 	if first then
 		data.crates += 1
 	end
-	data.league = League.next(CvcRules.best(data), data.raceWins, data.league)
+	data.league = League.next(CvcRules.best(data), data.trophies, data.league)
 	return { coins = coins, trophy = trophy, league = data.league, firstCrate = first }
 end
 
@@ -281,7 +281,7 @@ function CvcRules.tick(
 	if whole > 0 then
 		data.coins = math.min(data.coins + whole, Profile.MAX_COINS)
 	end
-	data.league = League.next(CvcRules.best(data), data.raceWins, data.league)
+	data.league = League.next(CvcRules.best(data), data.trophies, data.league)
 	return bits - whole, trainedCars
 end
 

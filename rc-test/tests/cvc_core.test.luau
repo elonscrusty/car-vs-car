@@ -69,11 +69,12 @@ test("training: one station at the start, plot levels add more", function()
 	eq(Profile.BAR_MAX, Training.MAX_BAR)
 end)
 
-test("league: up by strength AND wins, never down", function()
+test("league: up by strength AND top-3 finishes, never down", function()
 	eq(League.next(0, 0, 1), 1)
-	eq(League.next(500, 0, 1), 1) -- strong car, no wins yet
-	eq(League.next(0, 500, 1), 1) -- many wins, weak car
-	eq(League.next(League.NEED[2].strength, League.NEED[2].wins, 1), 2)
+	eq(League.next(500, 0, 1), 1) -- strong car, no top-3 finishes yet
+	eq(League.next(0, 500, 1), 1) -- many top-3 finishes, weak car
+	eq(League.next(League.NEED[2].strength, League.NEED[2].top3, 1), 2)
+	eq(League.next(League.NEED[2].strength, League.NEED[2].top3 - 1, 1), 1)
 	eq(League.next(300, 999, 1), #League.NAMES)
 	eq(League.next(0, 0, 3), 3) -- never down
 	eq(League.clamp(9), #League.NAMES)

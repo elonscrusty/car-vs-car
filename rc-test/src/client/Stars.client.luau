@@ -711,7 +711,7 @@ local function cvcGoal(g: any): any
 	if not Features.CVC or type(g) ~= "table" then
 		return g
 	end
-	local price = Crates.price("basic") or 300
+	local price = Crates.price("basic") or 200
 	local c = player:GetAttribute("Coins")
 	local have = if type(c) == "number" then c elseif type(g.have) == "number" then g.have else 0
 	return { kind = "crate", name = "CRATE", price = price, have = have, ready = have >= price }
