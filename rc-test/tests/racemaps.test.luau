@@ -76,7 +76,9 @@ test("race maps sit after the street's plots as drive slots", function()
 	local n = #LobbyLayout.slots()
 	eq(LobbyLayout.mapIndex(1), n + 1)
 	eq(LobbyLayout.mapAt(n), nil) -- a plot, not a map
-	eq(LobbyLayout.mapAt(LobbyLayout.mapIndex(#RaceMaps.NAMES + 1)), nil)
+	-- (the Smash arena comes right after the race maps, then nothing)
+	eq(LobbyLayout.mapAt(LobbyLayout.mapIndex(#RaceMaps.NAMES + 1)).id, "arena")
+	eq(LobbyLayout.mapAt(LobbyLayout.mapIndex(#RaceMaps.NAMES + 2)), nil)
 	for k, m in RaceMaps.list() do
 		local t = LobbyLayout.track(LobbyLayout.mapIndex(k))
 		eq(t.map, m.id)
