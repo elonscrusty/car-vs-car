@@ -92,10 +92,10 @@ local yes = function()
 end
 
 test("a live kart touching a box takes it; a far or dead kart doesn't", function()
-	local boxes = B.new({ { x = 0, y = 0, z = 0 }, { x = 50, y = 0, z = 0 } })
+	local boxes = B.new({ { x = 0, y = 0, z = 0 }, { x = 50, y = 0, z = 0 } }, 1)
 	local taken = B.step(boxes, { kart("far", 20, 0), kart("dead", 50, 1, false) }, 0, yes)
 	eq(#taken, 0)
-	taken = B.step(boxes, { kart("a", 3, 4) }, 0, yes)
+	taken = B.step(boxes, { kart("a", 2, 3) }, 0, yes)
 	eq(#taken, 1)
 	eq(taken[1].kart, "a")
 	eq(boxes[1].up, false)
@@ -103,14 +103,14 @@ test("a live kart touching a box takes it; a far or dead kart doesn't", function
 end)
 
 test("boxes on a hill: too far below doesn't count", function()
-	local boxes = B.new({ { x = 0, y = 20, z = 0 } })
+	local boxes = B.new({ { x = 0, y = 20, z = 0 } }, 1)
 	eq(#B.step(boxes, { kart("under", 0, 0) }, 0, yes), 0)
 	eq(#B.step(boxes, { { id = "top", x = 1, y = 19, z = 1, alive = true } }, 0, yes), 1)
 end)
 
 test("a taken box is back in 8 s or less, not before BACK_IN", function()
 	truthy(B.BACK_IN <= 8)
-	local boxes = B.new({ { x = 0, y = 0, z = 0 } })
+	local boxes = B.new({ { x = 0, y = 0, z = 0 } }, 1)
 	B.step(boxes, { kart("a", 0, 0) }, 10, yes)
 	local _, back = B.step(boxes, {}, 10 + B.BACK_IN - 0.05, yes)
 	eq(#back, 0)
@@ -120,7 +120,7 @@ test("a taken box is back in 8 s or less, not before BACK_IN", function()
 end)
 
 test("a kart that can't hold another weapon leaves the box for the next kart", function()
-	local boxes = B.new({ { x = 0, y = 0, z = 0 } })
+	local boxes = B.new({ { x = 0, y = 0, z = 0 } }, 1)
 	local taken = B.step(boxes, { kart("full", 0, 0), kart("empty", 1, 0) }, 0, function(id)
 		return id ~= "full"
 	end)
@@ -128,28 +128,55 @@ test("a kart that can't hold another weapon leaves the box for the next kart", f
 	eq(taken[1].kart, "empty")
 end)
 
-test("a box back and taken in the same check never shows up while it can't be taken", function()
-	local boxes = B.new({ { x = 0, y = 0, z = 0 } })
+test("a box that's back shows for SHOW_GAP before a parked kart can take it again", function()
+	local boxes = B.new({ { x = 0, y = 0, z = 0 } }, 1)
 	B.step(boxes, { kart("a", 0, 0) }, 0, yes)
 	local taken, back = B.step(boxes, { kart("b", 0, 0) }, B.BACK_IN, yes)
+	eq(#taken, 0)
+	eq(#back, 1)
+	eq(boxes[1].up, true)
+	taken = B.step(boxes, { kart("b", 0, 0) }, B.BACK_IN + B.SHOW_GAP - 0.01, yes)
+	eq(#taken, 0, "still showing")
+	taken = B.step(boxes, { kart("b", 0, 0) }, B.BACK_IN + B.SHOW_GAP, yes)
 	eq(#taken, 1)
-	eq(#back, 0)
-	eq(boxes[1].up, false)
+	truthy(B.SHOW_GAP < 1)
 end)
 
 test("one kart takes at most one box per check", function()
-	local boxes = B.new({ { x = 0, y = 0, z = 0 }, { x = 4, y = 0, z = 0 } })
+	local boxes = B.new({ { x = 0, y = 0, z = 0 }, { x = 4, y = 0, z = 0 } }, 1)
 	local taken = B.step(boxes, { kart("a", 2, 0) }, 0, yes)
 	eq(#taken, 1)
 	eq(boxes[2].up, true)
 end)
 
-test("a kart at full speed can't skip over a box between checks", function()
-	truthy(40 / B.CHECK_HZ < B.RADIUS * 2)
+test(
+	"a kart driving fast past a box between two checks still takes it (its path counts)",
+	function()
+		local boxes = B.new({ { x = 0, y = 0, z = 0 } }, 1)
+		local k = kart("a", 10, 1)
+		k.px, k.pz = -10, 1 -- 20 studs since the last check, right past the box
+		eq(#B.step(boxes, { k }, 0, yes), 1)
+		local boxes2 = B.new({ { x = 0, y = 0, z = 0 } }, 1)
+		local k2 = kart("b", 10, 8)
+		k2.px, k2.pz = -10, 8 -- path 8 studs to the side: too far
+		eq(#B.step(boxes2, { k2 }, 0, yes), 0)
+	end
+)
+
+test("sizes come from the arena scale: reach and box fit a kart, not raw studs", function()
+	-- RC arena: a kart is 5.5 big = 1.375 studs at scale 0.25
+	local b = B.new({ { x = 0, y = 0, z = 0 } })[1]
+	near(b.r, B.RADIUS * B.SCALE, 1e-9)
+	local kartLen = B.KART * B.SCALE
+	truthy(b.r >= kartLen * 0.5 and b.r <= kartLen * 1.5, `reach {b.r} vs kart {kartLen}`)
+	truthy(B.SIZE <= B.KART, "box no longer than a kart")
+	-- a kart one kart-length to the side doesn't get it; touching it does
+	eq(#B.step(B.new({ { x = 0, y = 0, z = 0 } }), { kart("far", kartLen * 1.6, 0) }, 0, yes), 0)
+	eq(#B.step(B.new({ { x = 0, y = 0, z = 0 } }), { kart("on", kartLen * 0.6, 0) }, 0, yes), 1)
 end)
 
 test("reset puts every box back up", function()
-	local boxes = B.new({ { x = 0, y = 0, z = 0 } })
+	local boxes = B.new({ { x = 0, y = 0, z = 0 } }, 1)
 	B.step(boxes, { kart("a", 0, 0) }, 0, yes)
 	B.reset(boxes)
 	eq(boxes[1].up, true)
@@ -183,6 +210,7 @@ test("BoxServer on the pretend server: pickup gives a weapon, box comes back, no
 	local box1 = handle.folder:FindFirstChild("Box1") :: any
 	truthy(box1, "box model made")
 	eq(box1:GetAttribute("Up"), true)
+	near((box1:FindFirstChild("Body") :: any).Size.X, B.SIZE * B.SCALE, 1e-6, "RC-size box")
 	S.advance(0.3, 0.05)
 	eq(#gave, 1)
 	eq(gave[1], "7:Rockets")
@@ -191,6 +219,24 @@ test("BoxServer on the pretend server: pickup gives a weapon, box comes back, no
 	eq(box1:GetAttribute("TakenWeapon"), "Rockets")
 	eq(box1:GetAttribute("TakenCount"), 1)
 	eq((handle.folder:FindFirstChild("Box2") :: any):GetAttribute("Up"), true)
+
+	-- a jump (teleport) right across box 2 doesn't pick it up; a short drive across it does
+	pos = Vector3.new(90, 0, 0)
+	S.advance(0.2, 0.05)
+	pos = Vector3.new(110, 0, 0) -- 20 studs in one check: a jump at RC scale
+	S.advance(0.1, 0.05)
+	eq((handle.folder:FindFirstChild("Box2") :: any):GetAttribute("Up"), true, "jump skips")
+	pos = Vector3.new(98, 0, 0.3) -- 2 studs before box 2, out of reach
+	S.advance(0.2, 0.05)
+	eq(#gave, 1)
+	pos = Vector3.new(102, 0, 0.3) -- 2 studs past it: only the path between was in reach
+	S.advance(0.2, 0.05)
+	eq(
+		(handle.folder:FindFirstChild("Box2") :: any):GetAttribute("Up"),
+		false,
+		"drive-through takes it"
+	)
+	eq(#gave, 2)
 
 	-- kart drives away; the box is back within 8 s
 	pos = Vector3.new(50, 0, 50)
@@ -202,7 +248,7 @@ test("BoxServer on the pretend server: pickup gives a weapon, box comes back, no
 	pos = Vector3.new(0, 0, 0)
 	S.advance(1, 0.05)
 	eq(box1:GetAttribute("Up"), true)
-	eq(#gave, 1)
+	eq(#gave, 2)
 
 	near(handle.odds().Rockets, 100, 1e-9)
 

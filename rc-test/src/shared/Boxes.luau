@@ -23,9 +23,19 @@ Boxes.WEIGHTS = table.freeze({
 Boxes.ORDER = table.freeze({ "Rockets", "Gun", "Mine", "Freeze", "Nuke" })
 
 Boxes.BACK_IN = 6 -- seconds until a taken box is back (target: 8 or less)
-Boxes.RADIUS = 7 -- studs from the box's middle, flat; a kart is about 6 long
-Boxes.HEIGHT = 8 -- studs up or down still counted as touching (boxes on the pink hills)
-Boxes.CHECK_HZ = 10 -- pickup checks a second; at 40 studs/s a kart moves 4 studs a check, under RADIUS
+-- a box that's back shows this long before anyone can take it, so a kart parked on the spot
+-- can't take it the moment it's back and keep it looking gone
+Boxes.SHOW_GAP = 0.4
+-- Sizes are in "big" units (ArenaData: a kart is 3 x 5.5 big), times the map's scale for studs
+-- (the arena is RC size: TrackData.RC_SCALE = 0.25, so a kart is about 1.4 studs long).
+Boxes.KART = 5.5 -- a kart's length, big
+Boxes.SCALE = 0.25 -- studs per big unit when the caller gives none (the RC arena)
+Boxes.RADIUS = 4.5 -- big, flat, from the box's middle to the kart's middle (box half + kart half)
+Boxes.HEIGHT = 6 -- big, up or down still counted as touching (boxes on the pink hills)
+Boxes.SIZE = 4 -- big, the box's side (a bit under a kart length)
+Boxes.LIFT = 3 -- big, the box's middle above its spot on the ground
+Boxes.CHECK_HZ = 10 -- pickup checks a second; between checks the kart's path is checked too
+Boxes.SWEEP_MAX = 40 -- big; a move longer than this between checks is a jump, not a drive
 Boxes.MAX_SAME = 2 -- one kart gets the same weapon at most this many times in a row
 
 export type Box = {
@@ -34,6 +44,9 @@ export type Box = {
 	z: number,
 	up: boolean,
 	backAt: number, -- when a taken box comes back (0 while up)
+	readyAt: number, -- when a box that's back can be taken (SHOW_GAP after it's back)
+	r: number, -- pickup reach, studs
+	h: number, -- up/down reach, studs
 }
 
 export type Kart = {
@@ -42,6 +55,9 @@ export type Kart = {
 	y: number,
 	z: number,
 	alive: boolean,
+	-- where it was at the last check (nil after a jump or when new); the path between counts
+	px: number?,
+	pz: number?,
 }
 
 -- Each weapon's chance as a percent, from the weapons `has` says exist (all of them if nil).
@@ -103,27 +119,50 @@ function Boxes.roll(r: number, has: ((string) -> boolean)?, last: string?, strea
 	return lastOk
 end
 
--- A fresh box at every spot, all up.
-function Boxes.new(spots: { { x: number, y: number, z: number } }): { Box }
+-- A fresh box at every spot (studs), all up. `scale` = studs per big unit (default SCALE).
+function Boxes.new(spots: { { x: number, y: number, z: number } }, scale: number?): { Box }
+	local sc = scale or Boxes.SCALE
 	local out = {}
 	for _, s in spots do
-		table.insert(out, { x = s.x, y = s.y, z = s.z, up = true, backAt = 0 })
+		table.insert(out, {
+			x = s.x,
+			y = s.y,
+			z = s.z,
+			up = true,
+			backAt = 0,
+			readyAt = 0,
+			r = Boxes.RADIUS * sc,
+			h = Boxes.HEIGHT * sc,
+		})
 	end
 	return out
 end
 
--- Is the kart touching the box?
+-- Is the kart touching the box, now or on its way here since the last check?
 function Boxes.touching(box: Box, k: Kart): boolean
-	local dx, dz = k.x - box.x, k.z - box.z
-	return dx * dx + dz * dz <= Boxes.RADIUS * Boxes.RADIUS
-		and math.abs(k.y - box.y) <= Boxes.HEIGHT
+	if math.abs(k.y - box.y) > box.h then
+		return false
+	end
+	local x, z = k.x, k.z
+	local px, pz = k.px, k.pz
+	if px and pz then
+		-- the nearest point to the box on the straight line from the last check to now
+		local sx, sz = x - px, z - pz
+		local len2 = sx * sx + sz * sz
+		if len2 > 1e-9 then
+			local u = math.clamp(((box.x - px) * sx + (box.z - pz) * sz) / len2, 0, 1)
+			x, z = px + sx * u, pz + sz * u
+		end
+	end
+	local dx, dz = x - box.x, z - box.z
+	return dx * dx + dz * dz <= box.r * box.r
 end
 
 -- One check at time `now`: boxes whose time is up come back; then each up box goes to the first
 -- live kart touching it that `take(kartId)` accepts (take returns false when that kart can't hold
 -- another weapon, and the box stays for someone else). Returns the {box index, kart id} pairs
--- taken this check, and the indexes of boxes that came back (a box back and taken in the same check
--- is only in the taken list, so it never shows up for a moment while nobody can take it).
+-- taken this check, and the indexes of boxes that came back. A box that's back can't be taken
+-- for SHOW_GAP, so everyone sees it, and the next pickup's BACK_IN starts from then.
 function Boxes.step(
 	boxes: { Box },
 	karts: { Kart },
@@ -134,27 +173,21 @@ function Boxes.step(
 	local back = {}
 	local gotOne: { [any]: boolean } = {} -- one box per kart per check
 	for i, box in boxes do
-		local cameBack = false
 		if not box.up and now >= box.backAt then
 			box.up = true
 			box.backAt = 0
-			cameBack = true
-		end
-		local gone = false
-		if box.up then
+			box.readyAt = now + Boxes.SHOW_GAP
+			table.insert(back, i)
+		elseif box.up and now >= box.readyAt then
 			for _, k in karts do
 				if k.alive and not gotOne[k.id] and Boxes.touching(box, k) and take(k.id, i) then
 					box.up = false
 					box.backAt = now + Boxes.BACK_IN
 					gotOne[k.id] = true
-					gone = true
 					table.insert(taken, { box = i, kart = k.id })
 					break
 				end
 			end
-		end
-		if cameBack and not gone then
-			table.insert(back, i)
 		end
 	end
 	return taken, back
@@ -165,6 +198,7 @@ function Boxes.reset(boxes: { Box })
 	for _, box in boxes do
 		box.up = true
 		box.backAt = 0
+		box.readyAt = 0
 	end
 end
 
