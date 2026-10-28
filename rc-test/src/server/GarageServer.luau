@@ -15,7 +15,9 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
+local CarStats = require(ReplicatedStorage.Shared.CarStats)
 local CvcRules = require(ReplicatedStorage.Shared.CvcRules)
+local Features = require(ReplicatedStorage.Shared.Features)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local Profile = require(ReplicatedStorage.Shared.Profile)
 local Training = require(ReplicatedStorage.Shared.Training)
@@ -125,6 +127,11 @@ end
 
 local function setUp(player: Player, data: Profile.Data)
 	ready[player] = true
+	-- Smash: no starter pick screen, a new player owns the first starter from the first second
+	-- (Lead 10-28: CUSTOMIZE said "No karts yet")
+	if Features.SMASH and not data.picked and CvcRules.pick(data, CarStats.STARTERS[1]) then
+		PlayerData.touch(player)
+	end
 	CvcRules.setUp(data)
 	player:SetAttribute("Stage", data.stage) -- (an old save starts the new-player steps)
 	for _, fn in onReady do
