@@ -293,7 +293,7 @@ function Smash.howTo(step: number, actions: Screen.Actions?): Screen.Handle
 				local ap = piece("howTo", st.arrow)
 				local a =
 					Icons.make(spot(g.canvas, "howTo", st.arrow), "arrow", 0, 0, ap.w, { z = 6 })
-				a.Rotation = 90 -- the arrow points right; down at the stick or FIRE
+				a.Rotation = st.rot
 				Anim.bob(a.Parent :: GuiObject, 0.9, 8)
 				table.insert(built, a.Parent :: Instance)
 			end
