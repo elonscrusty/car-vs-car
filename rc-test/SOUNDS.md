@@ -5,5 +5,5 @@ Real files come only from `SoundCues.CHECKED`: Creator Store ids found and load-
 (`/mnt/project-files/car-vs-car/sounds/find-sounds.lua` → `found.txt`). Never make up an id.
 A cue with no checked id (or a file that fails to load) plays the built-in ping as notes, so nothing goes silent.
 
-Still the ping (no clean Creator Store pick yet): unlock, finish (4th+), go (the count beep pitched up), gun (per bullet),
-pickup, respawn, freeze shot, freeze, shatter, and the older plot cues (train, speedUp, maxed, spark, trophy, cheer).
+Still the ping (Studio search 2 hit Roblox's rate limit before these; re-run queued): finish (4th+), trophy, gold, cheer,
+speedUp, maxed, spark, train. Most are old racing/plot cues.
