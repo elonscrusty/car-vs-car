@@ -446,7 +446,13 @@ local function setWalking(on: boolean)
 				end
 				waited += task.wait()
 			end
-			if walking and root and root:IsA("BasePart") then
+			-- (not while the plot camera has the view: it would knock it off, Studio round 4)
+			if
+				walking
+				and player:GetAttribute("PlotCam") ~= true
+				and root
+				and root:IsA("BasePart")
+			then
 				local look = root.CFrame.LookVector
 				local at = root.Position + Vector3.new(0, 2, 0)
 				cam.CFrame = CFrame.lookAt(

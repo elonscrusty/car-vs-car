@@ -1,8 +1,8 @@
 --!strict
 -- Car VS Car: while you stand on your own plot's pad, the camera goes up over the stand and looks
 -- down your stations (PlotTraining.STAND_CAM), so the pads and cars fill the screen. Step off the
--- pad and the walking camera comes back. Never while driving or racing, and it lets go if
--- something else takes the camera.
+-- pad and the walking camera comes back. Never while driving or racing. The LocalPlayer's
+-- "PlotCam" attribute says it is on (Main skips its walk-home camera nudge then).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -47,6 +47,7 @@ local function release(cam: Camera)
 		placed = nil
 		cam.CameraType = Enum.CameraType.Custom
 		cam.FieldOfView = fovWas
+		me:SetAttribute("PlotCam", false)
 	end
 end
 
@@ -63,18 +64,18 @@ RunService:BindToRenderStep("PlotCam", Enum.RenderPriority.Camera.Value + 2, fun
 		release(cam)
 		return
 	end
-	-- something else moved the camera since last frame (a race, a shop view): leave it be
-	if
-		on
-		and placed
-		and (
-			cam.CameraType ~= Enum.CameraType.Scriptable
-			or (cam.CFrame.Position - placed.Position).Magnitude > 0.05
-		)
-	then
+	-- something else switched the camera type: it's theirs now, so stop without touching it
+	if on and cam.CameraType ~= Enum.CameraType.Scriptable then
 		on = false
 		placed = nil
+		cam.FieldOfView = fovWas
+		me:SetAttribute("PlotCam", false)
 		return
+	end
+	-- only nudged (still Scriptable): swing back up. Letting go here used to leave the camera
+	-- Scriptable with nobody driving it, stuck low behind the gate after a race (Studio round 4).
+	if on and placed and (cam.CFrame.Position - placed.Position).Magnitude > 0.05 then
+		blend = 0
 	end
 	local p = root.Position
 	local dx, dz = p.X - slot.padX, p.Z - slot.padZ
@@ -91,6 +92,7 @@ RunService:BindToRenderStep("PlotCam", Enum.RenderPriority.Camera.Value + 2, fun
 		blend = 0
 		fovWas = cam.FieldOfView
 		cam.CameraType = Enum.CameraType.Scriptable
+		me:SetAttribute("PlotCam", true)
 	end
 	local pivot = CFrame.new(slot.plotX, 0, slot.plotZ) * CFrame.Angles(0, slot.angle, 0)
 	local eye = pivot:PointToWorldSpace(Vector3.new(C.eye.x, C.eye.y, C.eye.z))
