@@ -89,13 +89,18 @@ end
 -- weapon), model(id) -> Instance?, playerOf((id) -> Player?)?, freeze((id, s))? }
 local sources: { [string]: any } = {}
 
--- Weapons read a kart's cframe.Position and .LookVector as built-in vectors (they are, in Roblox).
--- Lune's pretend Roblox has its own Vector3 type: there, hand weapons a plain stand-in.
-local function forWeapons(cf: any): CFrame
+-- The weapons do their maths on vectors. A Roblox Vector3 is one, so a real pose goes as is; the
+-- pretend server's (tests/fakeroblox) isn't, so there the pose becomes a plain table of vectors.
+local function plain(cf: CFrame): CFrame
 	if type(cf.Position) == "vector" then
 		return cf
 	end
-	return { Position = Weapons.vec(cf.Position), LookVector = Weapons.vec(cf.LookVector) } :: any
+	return {
+		Position = Weapons.vec(cf.Position),
+		LookVector = Weapons.vec(cf.LookVector),
+		RightVector = Weapons.vec(cf.RightVector),
+		UpVector = Weapons.vec(cf.UpVector),
+	} :: any
 end
 
 -- karts and their models are read once per server frame (rockets ask many times a frame)
@@ -127,10 +132,7 @@ local function readSources(out: { Kart })
 				local cf = pose(k)
 				if cf then
 					cacheOwner[k.id] = src
-					table.insert(
-						out,
-						{ id = k.id, cframe = forWeapons(cf), alive = k.alive ~= false }
-					)
+					table.insert(out, { id = k.id, cframe = plain(cf), alive = k.alive ~= false })
 				end
 			end
 		end
@@ -157,7 +159,7 @@ local function readKarts(): { Kart }
 				local alive = if type(mr.isAlive) == "function"
 					then mr.isAlive(id) == true
 					else true
-				table.insert(out, { id = id, cframe = forWeapons(cf), alive = alive })
+				table.insert(out, { id = id, cframe = plain(cf), alive = alive })
 			end
 		end
 	end

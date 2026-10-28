@@ -73,7 +73,7 @@ end)
 
 test("training: one player per step", function()
 	local src = fs.readFile("src/server/TrainingServer.luau")
-	local a = string.find(src, "for p in ready do", 1, true)
+	local a = string.find(src, "for _, p in Players:GetPlayers() do", 1, true)
 	local b = string.find(src, 'Forever.step("Training"', 1, true)
 	truthy(a ~= nil and b ~= nil and a < b)
 end)
