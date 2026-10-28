@@ -14,7 +14,9 @@ local Sfx = require(script.Parent.Sfx)
 local TAG = "SmashBox"
 local ME = tostring(Players.LocalPlayer.UserId) -- a player's kart id is their UserId
 local SPIN = math.rad(90) -- turn per second
-local BOB = 0.45 -- studs up and down
+-- sizes below are for a 4.5 stud box and shrink with the real box (RC arena boxes are ~1 stud)
+local DESIGN = 4.5
+local BOB = 0.45 -- up and down
 local BOB_SPEED = 2.4
 local TILT = math.rad(14) -- leans a little so two faces and the top show
 
@@ -26,10 +28,10 @@ type Live = { model: Model, body: BasePart, home: CFrame, phase: number, size: V
 local live: { [Model]: Live } = {}
 local conns: { [Model]: { RBXScriptConnection } } = {}
 
-local function burst(at: Vector3)
+local function burst(at: Vector3, s: number)
 	for n = 1, 8 do
 		local bit = Instance.new("Part")
-		bit.Size = Vector3.one * (0.6 + (n % 3) * 0.25)
+		bit.Size = Vector3.one * (0.6 + (n % 3) * 0.25) * s
 		bit.Color = if n % 2 == 0 then RED else YELLOW
 		bit.Material = if n % 2 == 0 then Enum.Material.SmoothPlastic else Enum.Material.Neon
 		bit.CFrame = CFrame.new(at) * CFrame.Angles(n, n * 2, n * 3)
@@ -39,7 +41,7 @@ local function burst(at: Vector3)
 		bit.CanQuery = false
 		bit.CastShadow = false
 		local a = n / 8 * math.pi * 2
-		local to = at + Vector3.new(math.cos(a) * 5, 2.5 + (n % 3), math.sin(a) * 5)
+		local to = at + Vector3.new(math.cos(a) * 5, 2.5 + (n % 3), math.sin(a) * 5) * s
 		bit.Parent = workspace
 		TweenService
 			:Create(bit, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
@@ -90,7 +92,7 @@ local function add(inst: Instance)
 			if l.up then
 				popIn(l)
 			else
-				burst(l.body.Position)
+				burst(l.body.Position, l.size.X / DESIGN)
 			end
 		end),
 		-- every pickup bumps TakenCount; the pickup sound is only for the one who grabbed it
@@ -129,7 +131,7 @@ RunService.RenderStepped:Connect(function(dt: number)
 	table.clear(frames)
 	for _, l in live do
 		if l.up then
-			local y = math.sin(t * BOB_SPEED + l.phase) * BOB
+			local y = math.sin(t * BOB_SPEED + l.phase) * BOB * l.size.X / DESIGN
 			table.insert(parts, l.body)
 			table.insert(
 				frames,
