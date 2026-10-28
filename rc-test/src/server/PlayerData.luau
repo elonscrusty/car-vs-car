@@ -15,6 +15,8 @@ local SaveRetry = require(ReplicatedStorage.Shared.SaveRetry)
 
 local STORE = "RCPlayerData_v1"
 local AUTOSAVE = 60
+local LEAVE_RETRIES = 3 -- more leave-saves after a failed one, LEAVE_RETRY_WAIT s apart
+local LEAVE_RETRY_WAIT = 10
 
 local PlayerData = {}
 
@@ -138,7 +140,9 @@ function PlayerData.load(player: Player)
 	if store then
 		-- take the lock; another server may still be letting go of it, so wait a little, then
 		-- take it anyway (a server that crashed or was stopped never lets go)
-		local TAKE_TRIES = 4
+		-- (6 tries = up to 45 s: the old server's leave-save may retry for ~15 s; taking
+		-- the lock sooner loads an older save and that server's last minute is lost)
+		local TAKE_TRIES = 6
 		for attempt = 1, TAKE_TRIES do
 			local blocked = false
 			local readOnly = false
@@ -299,6 +303,14 @@ function PlayerData.start()
 			e.gone = true
 		end
 		PlayerData.save(p, true)
+		-- the leave-save failed (DataStore trouble): keep trying a while before letting go, so
+		-- the minutes since the last autosave aren't lost (BindToClose still sees the entry)
+		local round = 0
+		while e and e.canSave and e.dirty and round < LEAVE_RETRIES do
+			round += 1
+			task.wait(LEAVE_RETRY_WAIT)
+			PlayerData.save(p, true)
+		end
 		entries[p] = nil
 	end)
 	task.spawn(function()

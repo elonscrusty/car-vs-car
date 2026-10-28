@@ -116,12 +116,12 @@ end
 
 -- A race is over for this player: coins by league and place, a trophy for the top 3, a win's
 -- boost, and the first race ever gives a crate. (Race plot calls this; place 0 = didn't finish.)
-function TrainingServer.raceDone(player: Player, place: number)
+function TrainingServer.raceDone(player: Player, place: number, tried: boolean?)
 	local data = PlayerData.get(player)
 	if not (data and ready[player]) then
 		return
 	end
-	local got = CvcRules.raceDone(data, place, os.time())
+	local got = CvcRules.raceDone(data, place, os.time(), tried)
 	if got.firstCrate then
 		PlayerData.raiseStage(player, Profile.STAGE.RACED)
 	end
@@ -269,9 +269,10 @@ function TrainingServer.start()
 			if send then
 				sentAt = clock
 			end
-			Forever.step("Training", function()
-				local now = os.time()
-				for p in ready do
+			local now = os.time()
+			for p in ready do
+				-- (one player per step: one odd save can't stop everyone else's training)
+				Forever.step("Training", function()
 					local data = PlayerData.get(p)
 					if data then
 						tick(p, data, dt, now, send)
@@ -280,8 +281,8 @@ function TrainingServer.start()
 							PlayerData.touch(p)
 						end
 					end
-				end
-			end)
+				end)
+			end
 		end
 	end)
 end

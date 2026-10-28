@@ -17,6 +17,7 @@ local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local Profile = require(ReplicatedStorage.Shared.Profile)
 local Jobs = require(script.Parent.Jobs)
 local LobbyPlots = require(script.Parent.LobbyPlots)
+local Features = require(ReplicatedStorage.Shared.Features)
 local PlayerData = require(script.Parent.PlayerData)
 
 local GAP = 0.3 -- seconds between calls from one player
@@ -95,6 +96,12 @@ remote.OnServerInvoke = function(player: Player, action: unknown, id: unknown): 
 
 	if action == "state" then
 		return state(data)
+	elseif Features.CVC then
+		-- Car VS Car: cars come from crates only; the old shop's buy/spin stay shut
+		-- (they spent CVC coins on old cars and jumped a new player past the first steps)
+		local shut = state(data)
+		shut.ok, shut.why = false, "closed"
+		return shut
 	elseif action == "buy" then
 		local ok, why = CarCatalog.buy(data, id)
 		if ok then

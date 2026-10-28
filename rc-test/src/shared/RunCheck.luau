@@ -41,6 +41,21 @@ RunCheck.SNAP = 8 -- a jump that lands this close to a spawn spot is a reset, no
 -- fastest a car can really go along the ground, studs/s big size (top speeds 95 / 105 / 16)
 RunCheck.MAX_SPEED = { race = 170, drift = 180, rock = 60 } :: { [string]: number }
 
+-- The big race (Car VS Car): between two gate crossings the car can't have gone further, in a
+-- straight line, than it could drive (+ a gate's width of slack). False = speed hack / teleport.
+RunCheck.LEG_SLACK = 30
+function RunCheck.legOk(
+	fromX: number,
+	fromZ: number,
+	fromT: number,
+	x: number,
+	z: number,
+	t: number,
+): boolean
+	local dist = math.sqrt((x - fromX) ^ 2 + (z - fromZ) ^ 2)
+	return dist <= RunCheck.MAX_SPEED.race * math.max(t - fromT, 0) + RunCheck.LEG_SLACK
+end
+
 function RunCheck.new(
 	gates: { any },
 	timerMode: string,
