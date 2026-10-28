@@ -32,10 +32,16 @@ local function ammo(): number
 	return if type(a) == "number" then a else 0
 end
 
--- where the camera looks (the chase cam follows your kart, so this moves when you drive)
-local function where(): Vector3
-	local cam = workspace.CurrentCamera
-	return if cam then cam.Focus.Position else Vector3.zero
+-- where you are (your character sits in the kart, so this moves when you drive)
+local function where(): Vector3?
+	local ch = player.Character
+	local root = ch and ch:FindFirstChild("HumanoidRootPart")
+	return if root and root:IsA("BasePart") then root.Position else nil
+end
+
+local function alive(): boolean
+	local h = player:GetAttribute("Health")
+	return type(h) ~= "number" or h > 0
 end
 
 local function run()
@@ -45,28 +51,40 @@ local function run()
 	running = true
 	local step = 1
 	local start = where()
+	local last = start
 	local lastWeapon, lastAmmo = weapon(), ammo()
 	local fired = false
 	local shown = step
 	local handle = Smash.howTo(step, {
 		skip = function()
-			step += 1
+			-- (from the card on screen: two quick taps still skip only one step)
+			step = shown + 1
 		end,
 	})
 	while player:GetAttribute("InMatch") == true do
 		local w, a = weapon(), ammo()
-		-- fired: the ammo went down on the same weapon, or the weapon was used up
-		if lastWeapon ~= "" and ((w == lastWeapon and a < lastAmmo) or w == "") then
+		-- fired: the ammo went down on the same weapon, or its last shot used it up (a weapon
+		-- lost by being smashed is not a shot)
+		if
+			lastWeapon ~= ""
+			and a < lastAmmo
+			and (w == lastWeapon or (w == "" and lastAmmo == 1 and alive()))
+		then
 			fired = true
 		end
+		-- a respawn or teleport is not driving: start counting again from there
+		local pos = where()
+		if pos and (not start or not last or (pos - last).Magnitude > 40) then
+			start = pos
+		end
+		last = pos
 		lastWeapon, lastAmmo = w, a
 		local now = SmashScreens.step(step, {
-			moved = (where() - start).Magnitude,
+			moved = if pos and start then (pos - start).Magnitude else 0,
 			weapon = w,
 			fired = fired,
 		})
 		if now > #SmashScreens.STEPS then
-			done = true
 			break
 		end
 		-- (rebuild the card only when the step changes: each build pops it in)
@@ -77,6 +95,8 @@ local function run()
 		task.wait(0.2)
 	end
 	handle.close()
+	-- (once a visit: a round that ends halfway through doesn't start the tips over)
+	done = true
 	running = false
 end
 
