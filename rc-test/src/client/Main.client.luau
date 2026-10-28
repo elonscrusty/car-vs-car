@@ -20,6 +20,7 @@ local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
 local RaceStats = require(ReplicatedStorage.Shared.RaceStats)
 local RaceStand = require(ReplicatedStorage.Shared.RaceStand)
+local RoadSteer = require(ReplicatedStorage.Shared.RoadSteer)
 local BackOnTrack = require(ReplicatedStorage.Shared.BackOnTrack)
 local RaceMaps = require(ReplicatedStorage.Shared.RaceMaps)
 local RaceLooks = require(ReplicatedStorage.Shared.RaceLooks)
@@ -293,6 +294,8 @@ local lastRoad: { x: number, z: number }? = nil -- big race: where the car was l
 local PUT_SAME, PUT_SOON, PUT_PUSH = 40, 20, 3 -- big units, seconds, road samples
 local putRoad: { x: number, z: number }? = nil
 local putAt, putAgain = -100, 0
+local steerLoops: { [string]: { { x: number, z: number } } } = {} -- each map's centre line
+local steerAt: number? = nil -- the centre line sample the car was last nearest
 local lostRoads: { [string]: { BackOnTrack.Road } } = {} -- each map's roads (BackOnTrack.roads)
 -- Plots with checkpoint flags: a reset (R, RESET, fell off, out) brings the car back to the last
 -- flag it drove through instead of the start. R twice quickly = start.
@@ -733,6 +736,42 @@ RunService.PreSimulation:Connect(function(dt: number)
 		local rolling = car.telemetry.vLong > 3
 		input =
 			{ steer = input.steer, throttle = 0, brake = if rolling then 1 else 0, drift = false }
+	elseif
+		grid
+		and raceGo
+		and Features.CVC
+		and tracks[current].map
+		and tracks[current].id ~= "drift"
+		and math.abs(input.steer) < 0.05
+		and input.throttle > 0
+		and player:GetAttribute("EasyRace") == true
+	then
+		-- a first race and gas but no steering: aim along the road (RoadSteer). Steering wins.
+		local t = tracks[current]
+		local mapId = t.map :: string
+		local loop = steerLoops[mapId]
+		if loop == nil then
+			local m = RaceMaps.get(mapId)
+			loop = if m then m.loop() else {}
+			steerLoops[mapId] = loop
+		end
+		if #loop > 2 then
+			local p = body.Position
+			local lx, ly, lz = TrackData.toLocal(t, rc, p.X, p.Y, p.Z)
+			local k = RoadSteer.nearest(loop, lx, lz, steerAt)
+			steerAt = k
+			local ax, az = RoadSteer.aim(loop, k)
+			local wx, _, wz = TrackData.toWorld(t, rc, ax, ly, az)
+			local cf = body.CFrame
+			local to = Vector3.new(wx - p.X, 0, wz - p.Z)
+			local angle = math.atan2(to:Dot(cf.RightVector), to:Dot(cf.LookVector))
+			input = {
+				steer = RoadSteer.steer(angle),
+				throttle = input.throttle,
+				brake = input.brake,
+				drift = input.drift,
+			}
+		end
 	end
 	car.step(dt, input)
 
