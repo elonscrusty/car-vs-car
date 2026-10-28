@@ -1169,6 +1169,16 @@ end)
 -- (the place shows in the lap clock top left, Main.client: no pill over the move stick)
 
 local podiumAt = 0
+-- the racer's SPEED at the last podium (or when the game started), for "+N SPD from training!"
+local spdAtRace: number? = nil
+local spdCar = "" -- (whose: a new racer starts again, its SPEED isn't training)
+CvcState.changed:Connect(function()
+	local me = racer()
+	if me and (spdAtRace == nil or me.uid ~= spdCar) then
+		spdAtRace = math.floor((CvcState.bar(me, "speed")))
+		spdCar = me.uid
+	end
+end)
 -- place: yours (past the cars = didn't finish: NICE TRY!); top: the top 3 cars, by place
 local function showPodiumWith(place: number, top: { [number]: { [string]: any } }, coins: number)
 	local at = os.clock()
@@ -1181,10 +1191,23 @@ local function showPodiumWith(place: number, top: { [number]: { [string]: any } 
 	end
 	-- a crate to open (the first race's free one): the big button opens it, the car shows at once
 	local crate = CvcState.crates > 0 and #CvcState.garage < Profile.MAX_GARAGE
+	-- +N SPD since the last race (the first: since the game started)
+	local me = racer()
+	local spd = if me then math.floor((CvcState.bar(me, "speed"))) else nil
+	local trained = if spd
+			and spdAtRace
+			and spd > spdAtRace
+		then `+{spd - spdAtRace} SPD from training!`
+		else nil
+	if spd and me then
+		spdAtRace = spd
+		spdCar = me.uid
+	end
 	Flow.podium({
 		place = place,
 		top = top,
 		coins = coins,
+		trained = trained,
 		trophies = if League.trophy(place) then 1 else 0,
 		nextWords = if crate then "OPEN CRATE!" else nil,
 	}, {
@@ -1224,8 +1247,14 @@ local function showPodium(rows: { any })
 	local usedColors: { [number]: boolean } = {}
 	for i = 1, math.min(3, #rows) do
 		local r = rows[i]
+		-- (a car that didn't finish has no step: YOU stood on 3 after NICE TRY, Studio after818)
+		if type(r) ~= "table" or type(r.time) ~= "number" then
+			break
+		end
 		local isMe = i == mine
 		local name = if isMe then "YOU" elseif type(r.name) == "string" then r.name else "?"
+		-- (just the name: "Turbo Tim (bot)" was cut to "Turbo Tim (.")
+		name = string.gsub(name, "%s*%(bot%)$", "")
 		if #name > 12 then
 			name = string.sub(name, 1, 11) .. "."
 		end
