@@ -44,7 +44,8 @@ end
 local function yardKarts(): { { id: any, position: Vector3, cframe: CFrame, alive: boolean } }
 	local out = {}
 	for _, player in Players:GetPlayers() do
-		local body = bodyOf(player)
+		-- (one in a round is the match's: its id must not be listed twice, WeaponServer)
+		local body = if player:GetAttribute("InMatch") == true then nil else bodyOf(player)
 		if body then
 			local p = body.Position
 			if WarmupYard.inside({ x = p.X, y = p.Y, z = p.Z }) then
@@ -147,6 +148,30 @@ function WarmupYardServer.start(hooks: Hooks)
 	end
 
 	-- move waiting players into the yard, and off it when they leave the queue
+	local inYard: { [Player]: boolean } = {} -- put in the yard by us, still there
+	local optedOut: { [Player]: boolean } = {} -- walked off while queued: don't put them back
+	local function leftYard(p: Player)
+		inYard[p] = nil
+		-- the yard's weapon stays in the yard (not into the round, not in the lobby)
+		if WeaponServer and type(WeaponServer.drop) == "function" then
+			pcall(WeaponServer.drop, p.UserId)
+		end
+	end
+	local function watch(p: Player)
+		p:GetAttributeChangedSignal("InMatch"):Connect(function()
+			if p:GetAttribute("InMatch") == true and inYard[p] then
+				leftYard(p) -- MatchRunner took them into the arena
+			end
+		end)
+	end
+	for _, p in Players:GetPlayers() do
+		watch(p)
+	end
+	Players.PlayerAdded:Connect(watch)
+	Players.PlayerRemoving:Connect(function(p)
+		inYard[p] = nil
+		optedOut[p] = nil
+	end)
 	local spot = 0
 	task.spawn(function()
 		while true do
@@ -155,18 +180,32 @@ function WarmupYardServer.start(hooks: Hooks)
 			local endsAt = workspace:GetAttribute("MatchEndsAt")
 			local nextAt = workspace:GetAttribute("NextMatchAt")
 			for _, p in Players:GetPlayers() do
+				local queued = p:GetAttribute("MatchQueued") == true
+				local inMatch = p:GetAttribute("InMatch") == true
+				local driving = LobbyPlots.drivingOf(p)
+				local here = driving == idx
+				if inYard[p] and not here then
+					-- walked off (WALK) while still queued: they chose the lobby; stay there
+					if queued and not inMatch then
+						optedOut[p] = true
+					end
+					leftYard(p)
+				end
+				if not queued or inMatch then
+					optedOut[p] = nil
+				end
 				local want = WarmupYard.wants(
-					p:GetAttribute("MatchQueued") == true,
-					p:GetAttribute("InMatch") == true,
+					queued,
+					inMatch,
 					if type(endsAt) == "number" then endsAt else nil,
 					if type(nextAt) == "number" then nextAt else nil,
 					now
 				)
-				local here = LobbyPlots.drivingOf(p) == idx
-				if want and not here and LobbyPlots.drivingOf(p) == nil then
+				if want and not here and driving == nil and not optedOut[p] then
 					spot = spot % #WarmupYard.spawns + 1
 					local s = WarmupYard.spawns[spot]
 					LobbyPlots.claim(p, idx)
+					inYard[p] = true
 					task.spawn(function()
 						-- (StreamingEnabled: the yard must be there before the car lands on it)
 						local w = WarmupYard.world(s)
@@ -182,8 +221,11 @@ function WarmupYardServer.start(hooks: Hooks)
 							)
 						end
 					end)
-				elseif here and not want and p:GetAttribute("InMatch") ~= true then
+				elseif here and not queued and not inMatch then
+					-- off the queue (LEAVE): back to the lobby. Still queued = stay, even in the
+					-- short break before the round (the round takes them from here)
 					hooks.walk(p)
+					leftYard(p)
 				end
 			end
 		end

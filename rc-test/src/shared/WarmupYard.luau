@@ -81,13 +81,13 @@ WarmupYard.boxSpots = {
 	v(34, 0, 30),
 	v(0, 0, 50),
 } :: { V3 }
--- target karts (BOTS' ArenaBots.dummy): two still, two circling slowly (their loop is 12 RC
+-- target karts (BOTS' ArenaBots.dummy; y = a kart's middle, like the spawns): two still, two circling slowly (their loop is 12 RC
 -- studs = 48 big across, so they sit well inside the walls)
 WarmupYard.DUMMIES = {
-	{ at = v(-50, 0, 14), mode = "still" },
-	{ at = v(50, 0, 14), mode = "still" },
-	{ at = v(-26, 0, 2), mode = "circle" },
-	{ at = v(26, 0, 2), mode = "circle" },
+	{ at = v(-50, 2.5, 14), mode = "still" },
+	{ at = v(50, 2.5, 14), mode = "still" },
+	{ at = v(-26, 2.5, 2), mode = "circle" },
+	{ at = v(26, 2.5, 2), mode = "circle" },
 } :: { { at: V3, mode: string } }
 -- the NEXT MATCH board: across the far end, facing the spawns (-z)
 WarmupYard.BOARD = { at = v(0, 30, WarmupYard.D / 2 - 6), w = 120, h = 28 }
@@ -220,6 +220,8 @@ end
 function WarmupYard.build(parent: Instance): Model
 	local model = Instance.new("Model")
 	model.Name = "WarmupYard"
+	-- (StreamingEnabled: small, and the board's clock must always be there)
+	model.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
 	Garage.makeParts(WarmupYard.parts(), model, CFrame.identity)
 	model.WorldPivot = CFrame.identity
 	model:ScaleTo(TrackData.RC_SCALE)
