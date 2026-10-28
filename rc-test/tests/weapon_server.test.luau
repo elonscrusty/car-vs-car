@@ -114,3 +114,69 @@ test("a smashed kart can't fire; drop and reset empty the hands", function()
 	eq(#hurt, 0) -- reset cleared the nuke in the air
 	eq(#S.errors, 0)
 end)
+
+test(
+	"a warm-up yard source: a player outside the match fires, dummies get hit, the match hears nothing",
+	function()
+		local S, kid, WS, hurt, karts = setup()
+		-- the kid isn't in the match any more: only a match bot is
+		table.remove(karts, 1)
+		local popped = {}
+		WS.addSource("Yard", {
+			karts = function()
+				return {
+					{ id = 201, cframe = { Position = v(500, 0, 0), LookVector = AHEAD } },
+					{ id = -9001, cframe = { Position = v(500, 0, -40), LookVector = AHEAD } },
+				}
+			end,
+			damage = function(victim, attacker, amount, weapon)
+				table.insert(popped, { victim, attacker, amount, weapon })
+			end,
+			model = function()
+				return nil
+			end,
+		})
+		truthy(WS.give(201, "Rockets"))
+		S.send(kid, Weapons.REMOTE, AHEAD)
+		S.advance(2, 1 / 30)
+		eq(#popped, 1)
+		eq(popped[1][1], -9001)
+		eq(popped[1][2], 201)
+		eq(popped[1][4], "rocket")
+		eq(#hurt, 0)
+		-- gone: the kid can't fire from the yard any more
+		WS.removeSource("Yard")
+		S.send(kid, Weapons.REMOTE, AHEAD)
+		S.advance(2, 1 / 30)
+		eq(#popped, 1)
+		eq(#S.errors, 0)
+	end
+)
+
+test("yard shots never hurt a match kart; a player in both counts as in the match", function()
+	local S, kid, WS, hurt, karts = setup()
+	table.remove(karts, 1)
+	-- a match kart parked right in front of the yard shooter
+	table.insert(
+		karts,
+		{ id = -2, cframe = { Position = v(500, 0, -25), LookVector = AHEAD }, alive = true }
+	)
+	local popped = {}
+	WS.addSource("Yard", {
+		karts = function()
+			return {
+				{ id = 201, cframe = { Position = v(500, 0, 0), LookVector = AHEAD } },
+				{ id = -2, cframe = { Position = v(0, 0, 999), LookVector = AHEAD } }, -- (claims a match id)
+			}
+		end,
+		damage = function(victim)
+			table.insert(popped, victim)
+		end,
+	})
+	WS.give(201, "Nuke")
+	S.send(kid, Weapons.REMOTE, AHEAD)
+	S.advance(3, 1 / 30)
+	eq(#hurt, 0)
+	eq(#popped, 0)
+	eq(#S.errors, 0)
+end)
