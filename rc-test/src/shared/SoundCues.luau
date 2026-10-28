@@ -49,6 +49,9 @@ SoundCues.MUST = {
 	"boom",
 	"gun",
 	"mine",
+	"freezeShot",
+	"freeze",
+	"shatter",
 	"hit",
 	"bump",
 	"smash",
@@ -98,6 +101,12 @@ SoundCues.ACTIONS = {
 	gun = { notes = { 2.8 }, gap = 0, volume = L.GUN },
 	-- a mine drops behind you: a low clunk then the arming tick
 	mine = { notes = { 0.7, 2 }, gap = 0.5, volume = L.MINE },
+	-- the freeze gun fires: a cold high zap
+	freezeShot = { notes = { 3, 2.5 }, gap = 0.04, volume = L.FREEZE },
+	-- a kart freezes in ice: a crackle settling down
+	freeze = { notes = { 2.5, 2.2, 1.9, 1.7 }, gap = 0.05, volume = L.FREEZE },
+	-- the ice bursts (and the kart is smashed): a bright glassy run down
+	shatter = { notes = { 3, 2.67, 2.25, 1.5 }, gap = 0.035, volume = L.FREEZE },
 	-- a kart took damage: a short low knock
 	hit = { notes = { 0.8 }, gap = 0, volume = L.HIT },
 	-- two karts bump (it hurts too): a dull double thud

@@ -206,6 +206,25 @@ function Sfx.mine(at: Vector3?)
 	play("mine", nil, nil, at)
 end
 
+-- (GUNMINE's names: a mine dropping, a mine going off)
+Sfx.mineDrop = Sfx.mine
+Sfx.mineBoom = Sfx.boom
+
+-- the freeze gun fires
+function Sfx.freezeShot(at: Vector3?)
+	play("freezeShot", nil, nil, at)
+end
+
+-- a kart is frozen in ice
+function Sfx.freeze(at: Vector3?)
+	play("freeze", nil, nil, at)
+end
+
+-- the ice bursts and the kart is smashed
+function Sfx.shatter(at: Vector3?)
+	play("shatter", nil, nil, at)
+end
+
 -- a kart took damage; call per hit, it skips hits that are too close together
 -- (your own and everyone else's have their own timer, so other karts never swallow yours)
 local lastHit = { mine = 0, others = 0 }

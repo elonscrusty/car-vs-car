@@ -95,6 +95,9 @@ test("Smash arena sounds: every new action has a Sfx call", function()
 			"boom",
 			"gun",
 			"mine",
+			"freezeShot",
+			"freeze",
+			"shatter",
 			"hit",
 			"bump",
 			"smash",
@@ -116,3 +119,9 @@ test(
 		truthy(L.GUN_GAP > 0 and L.HIT_GAP > 0)
 	end
 )
+
+test("GUNMINE's names exist (mineDrop, mineBoom)", function()
+	local src = fs.readFile("src/client/Sfx.luau")
+	truthy(string.find(src, "Sfx.mineDrop = Sfx.mine", 1, true) ~= nil)
+	truthy(string.find(src, "Sfx.mineBoom = Sfx.boom", 1, true) ~= nil)
+end)
