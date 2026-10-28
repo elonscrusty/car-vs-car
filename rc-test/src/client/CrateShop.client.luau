@@ -224,10 +224,14 @@ local function addShop(shop: Model)
 end
 
 -- each crate turns slowly and bobs a little on its turntable, so it reads as "open me"
+-- (only near ones: in a race across the map nobody can see them turn, phone speed)
+local SPIN_NEAR = 150
 RunService.RenderStepped:Connect(function()
 	local t = os.clock()
+	local cam = workspace.CurrentCamera
+	local eye = if cam then cam.CFrame.Position else Vector3.zero
 	for _, s in spins do
-		if s.model.Parent then
+		if s.model.Parent and (s.base.Position - eye).Magnitude < SPIN_NEAR then
 			local bob = math.sin(t * 2 + s.phase) * 0.3 + 0.3
 			s.model:PivotTo(s.base * CFrame.new(0, bob, 0) * CFrame.Angles(0, t * 0.6 + s.phase, 0))
 		end
