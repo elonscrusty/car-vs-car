@@ -431,6 +431,14 @@ end
 -- The server race every 15 minutes: everyone who joins races on one race plot.
 ServerRaceRunner.start({ remote = remote, walk = walk })
 
+-- Smash rounds in the arena (MatchRunner): behind Features.SMASH (Studio proof: workspace Smash)
+if
+	Features.SMASH
+	or (game:GetService("RunService"):IsStudio() and workspace:GetAttribute("Smash") == true)
+then
+	require(script.Parent.MatchRunner).start({ remote = remote, walk = walk })
+end
+
 -- E on a lobby pad: drive that plot (if it's yours, nobody's or open, and free), or stop.
 for slotIndex, prompt in lobby.prompts do
 	local slot = slots[slotIndex]
