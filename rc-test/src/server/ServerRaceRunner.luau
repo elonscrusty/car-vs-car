@@ -570,21 +570,28 @@ local function runRace(hooks: Hooks, slot: number)
 	end
 	-- Car VS Car: each league on its own (ServerRace.groups); before, all in one race
 	local leagues: { number } = {}
+	-- (Car VS Car: a map race where nobody has raced yet is a first race: easy bots, fewer laps,
+	-- and a new kid races alone with the bots, audit B1)
+	local firstRace = Features.CVC and t.map ~= nil and t.id ~= "drift"
+	local solo: { boolean } = {}
 	for _, p in list do
 		local lg = p:GetAttribute("League")
 		table.insert(leagues, if Features.CVC and type(lg) == "number" then lg else 1)
+		local stage = p:GetAttribute("Stage")
+		table.insert(
+			solo,
+			firstRace and not (type(stage) == "number" and stage >= Profile.STAGE.RACED)
+		)
 	end
 	local groups: { { Racer } } = {}
-	-- (Car VS Car: a map race where nobody has raced yet is a first race: easy bots, fewer laps)
 	local groupEasy: { boolean } = {}
 	local groupLaps: { number } = {}
-	for gi, idx in ServerRace.groups(leagues, ServerRace.MAX) do
+	for gi, idx in ServerRace.groups(leagues, ServerRace.MAX, solo) do
 		local racers: { Racer } = {}
 		groups[gi] = racers
-		local easy = Features.CVC and t.map ~= nil and t.id ~= "drift"
+		local easy = firstRace
 		for _, i in idx do
-			local stage = list[i]:GetAttribute("Stage")
-			easy = easy and not (type(stage) == "number" and stage >= Profile.STAGE.RACED)
+			easy = easy and solo[i]
 		end
 		groupEasy[gi] = easy
 		groupLaps[gi] = ServerRace.lapsFor(easy)

@@ -338,10 +338,18 @@ ServerRace.GROUPS = 4 -- big races at once at most (one per league, or two for a
 -- Who races with whom (Car VS Car): each league on its own, at most `max` a race, in join order.
 -- leagues[i] = racer i's league; returns lists of racer numbers, lowest league first. Friends in
 -- the same league land in the same race (a league only splits past `max`).
-function ServerRace.groups(leagues: { number }, max: number): { { number } }
+-- `solo[i]` = racer i has never raced (audit B1): a first race is them and bots only, so each
+-- gets a race of their own first. If that would make more than GROUPS races, the new ones share
+-- the races that are left (still only new kids together).
+function ServerRace.groups(leagues: { number }, max: number, solo: { boolean }?): { { number } }
 	local byLeague: { [number]: { number } } = {}
 	local order: { number } = {}
+	local new: { number } = {}
 	for i, lg in leagues do
+		if solo and solo[i] then
+			table.insert(new, i)
+			continue
+		end
 		if not byLeague[lg] then
 			byLeague[lg] = {}
 			table.insert(order, lg)
@@ -360,6 +368,23 @@ function ServerRace.groups(leagues: { number }, max: number): { { number } }
 			table.insert(cur, i)
 		end
 		table.insert(out, cur)
+	end
+	if #new > 0 then
+		local races = math.max(1, math.min(#new, ServerRace.GROUPS - #out))
+		local per = math.min(max, math.ceil(#new / races))
+		local firsts: { { number } } = {}
+		local cur: { number } = {}
+		for _, i in new do
+			if #cur >= per then
+				table.insert(firsts, cur)
+				cur = {}
+			end
+			table.insert(cur, i)
+		end
+		table.insert(firsts, cur)
+		-- (first races go first: a new kid is Bronze)
+		table.move(out, 1, #out, #firsts + 1, firsts)
+		out = firsts
 	end
 	return out
 end

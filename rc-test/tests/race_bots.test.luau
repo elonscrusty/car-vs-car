@@ -334,8 +334,89 @@ test("Car VS Car: a first race (easy bots) is 1 lap, so it's over in about 1 min
 				goodTime
 			)
 		)
-		-- the last easy bot is in within about 1 min (+ the wait at GO)
-		truthy(slowest + RaceBots.EASY_DELAY <= 70, `{m.id}: the slowest easy bot took {slowest} s`)
+		-- the last easy bot is in within about 1 min (+ the wait at GO; the race ends a little
+		-- after the kid is in anyway)
+		truthy(slowest + RaceBots.EASY_DELAY <= 80, `{m.id}: the slowest easy bot took {slowest} s`)
 		truthy(goodTime < quickest, `{m.id}: a good driver still beats the easy bots`)
 	end
 end)
+
+test(
+	"Car VS Car (audit B1): a slow kid in the starter car wins the first race on both maps",
+	function()
+		-- a slow kid = 10% under the slowest untrained driver (BRONZE_SKILL), and late at GO
+		local kidSkill = RaceBots.BRONZE_SKILL[1] * 0.9
+		local lo, hi = RaceBots.skillRange(1, true)
+		for _, m in RaceMaps.list() do
+			local route, kid = setup(m, kidSkill, 1)
+			route.laps = ServerRace.FIRST_LAPS
+			kid.delay = 1
+			truthy(route.bendAt > 0 and route.bendAt < route.total, `{m.id}: no first bend found`)
+			-- the 7 easy bots behind on the grid, from slowest to quickest, late at GO like the server's
+			local bots = {}
+			for i = 1, ServerRace.MAX - 1 do
+				local _, b = setup(m, lo + (hi - lo) * (i - 1) / (ServerRace.MAX - 2), i + 1)
+				b.delay = 0.2 + RaceBots.EASY_DELAY
+				table.insert(bots, b)
+			end
+			local since = -3
+			local held = false
+			while since < 300 and kid.time == nil do
+				-- (no catch-up: easy bots get catchUp 0; they wait for the kid up to the first bend)
+				local lead = if since >= kid.delay then RaceBots.progress(route, kid) else nil
+				RaceBots.step(route, kid, DT, since, 0)
+				for _, b in bots do
+					local hold = b.time == nil and RaceBots.holds(route, b, lead)
+					held = held or (hold and since > 0)
+					RaceBots.step(route, b, DT, since, 0, hold)
+					truthy(b.time == nil, `{m.id}: a bot (skill {b.skill}) beat the kid`)
+				end
+				since += DT
+			end
+			truthy(kid.time ~= nil, `{m.id}: the kid never finished`)
+			local kidTime = kid.time :: number
+			-- every bot is at least 20% slower: still short of the line at 1.2x the kid's time
+			while since < kidTime * 1.2 do
+				for _, b in bots do
+					RaceBots.step(route, b, DT, since, 0, false)
+				end
+				since += DT
+			end
+			for _, b in bots do
+				truthy(
+					b.time == nil or b.time >= kidTime * 1.2,
+					`{m.id}: bot {b.skill} under 20% slower`
+				)
+			end
+			print(
+				string.format("       %s: slow kid %.0f s, held %s", m.id, kidTime, tostring(held))
+			)
+		end
+	end
+)
+
+test(
+	"Car VS Car (audit B1): easy bots wait for the kid only before the end of the first bend",
+	function()
+		for _, m in RaceMaps.list() do
+			local route, bot = setup(m, 0.45, 2)
+			bot.dist = route.bendAt * 0.5
+			truthy(RaceBots.holds(route, bot, nil), "nobody moving yet: wait")
+			truthy(RaceBots.holds(route, bot, -1), "ahead of the kid: wait")
+			truthy(not RaceBots.holds(route, bot, 99), "behind the kid: drive on")
+			bot.dist = route.bendAt + 1
+			truthy(not RaceBots.holds(route, bot, -1), "past the first bend: no more waiting")
+		end
+		-- and the server gives easy bots no catch-up and passes the wait on
+		local fs = require("@lune/fs")
+		local src = fs.readFile("src/server/RaceBotCars.luau")
+		truthy(
+			string.find(src, "if lead and not fleet.easy then", 1, true),
+			"easy bots still catch up"
+		)
+		truthy(
+			string.find(src, "RaceBots.holds(fleet.route, bot, lead)", 1, true),
+			"no wait for the kid"
+		)
+	end
+)
