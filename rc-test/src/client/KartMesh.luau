@@ -20,7 +20,9 @@ local bodies: { [string]: { BasePart } } = {} -- a kart's parts but its wheels, 
 local wheels: { [string]: { BasePart } } = {} -- a kart's 4 wheels, by kart name and rim colour
 local made: { [string]: Model } = {}
 local busy: { [string]: boolean } = {}
-local broken = false -- one build failed: this device can't, so stop trying
+local making: { [string]: boolean } = {} -- a kart's body being built (other colours wait for it)
+local tries: { [string]: number } = {}
+local broken = false -- no mesh memory, or builds keep failing: this device can't, so stop trying
 
 local function nums(s: string): { number }
 	local out = {}
@@ -50,6 +52,7 @@ local function meshPart(name: string, pieces: { Piece }): MeshPart
 	local mid = (lo + hi) / 2
 	local em: any = (AssetService :: any):CreateEditableMesh()
 	if not em then
+		broken = true
 		error("no EditableMesh (memory budget)")
 	end
 	for i, piece in pieces do
@@ -76,7 +79,10 @@ local function meshPart(name: string, pieces: { Piece }): MeshPart
 			end
 		end
 	end
-	local part: MeshPart = (AssetService :: any):CreateMeshPartAsync(Content.fromObject(em))
+	local part: MeshPart = (AssetService :: any):CreateMeshPartAsync(
+		Content.fromObject(em),
+		{ CollisionFidelity = Enum.CollisionFidelity.Box } -- look only: no collision shape to work out
+	)
 	part.Name = name
 	part.Color = Color3.new(1, 1, 1)
 	part.Material = Enum.Material.SmoothPlastic
@@ -90,15 +96,27 @@ end
 
 local function build(name: string, rim: Color3, key: string): Model
 	local data = KartMeshData[name]
+	while making[name] do -- another colour of this kart is building the body: share it
+		task.wait()
+	end
 	local own = bodies[name]
 	if not own then
-		own = {}
-		for g, mesh in data do
-			if string.sub(g, 1, 5) ~= "Wheel" and string.sub(g, 1, 3) ~= "Rim" then
-				table.insert(own, meshPart(g, { { mesh = mesh } }))
+		making[name] = true
+		local ok, res = pcall(function()
+			local list = {}
+			for g, mesh in data do
+				if string.sub(g, 1, 5) ~= "Wheel" and string.sub(g, 1, 3) ~= "Rim" then
+					table.insert(list, meshPart(g, { { mesh = mesh } }))
+				end
 			end
+			return list
+		end)
+		making[name] = nil
+		if not ok then
+			error(res, 0)
 		end
-		bodies[name] = own
+		own = res
+		bodies[name] = res
 	end
 	local round = wheels[key]
 	if not round then
@@ -142,12 +160,23 @@ function KartMesh.get(name: string, rim: { number }): Model?
 		if ok then
 			made[key] = res
 		else
-			broken = true
-			warn(`KartMesh: can't build karts here, the toy cars show instead ({res})`)
+			-- a hiccup gets another go (next call); out of mesh memory or 3 fails: toy cars for good
+			tries[key] = (tries[key] or 0) + 1
+			if tries[key] >= 3 then
+				broken = true
+			end
+			if broken then
+				warn(`KartMesh: can't build karts here, the toy cars show instead ({res})`)
+			end
 		end
 		busy[key] = nil
 	end)
 	return nil
+end
+
+-- True once this device gave up on karts (callers stop waiting for one).
+function KartMesh.isBroken(): boolean
+	return broken
 end
 
 return KartMesh

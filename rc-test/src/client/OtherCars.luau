@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local CarSkin = require(script.Parent.CarSkin)
+local KartMesh = require(script.Parent.KartMesh)
 local CarMath = require(ReplicatedStorage.Shared.CarMath)
 local Features = require(ReplicatedStorage.Shared.Features)
 local Garage = require(ReplicatedStorage.Shared.Garage)
@@ -347,6 +348,8 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 					end
 					o.toy = shell
 					o.kartId = nil
+				elseif KartMesh.isBroken() then
+					o.kartId = nil -- no karts on this device: keep the part toy
 				end
 			end
 			local body = o.body
