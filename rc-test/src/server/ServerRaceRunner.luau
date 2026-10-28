@@ -70,6 +70,7 @@ type Racer = {
 	score: number, -- a drift round: points from slides that are over
 	leg: { x: number, z: number, t: number }?, -- where and when it crossed its last gate
 	new: boolean?, -- never raced: an easy race's bots stay behind them (RaceBots.follow)
+	moved: boolean?, -- drove off from where it stood at GO (ServerRace.moved)
 }
 
 local ServerRaceRunner = {}
@@ -447,7 +448,9 @@ local function payRace(
 		byId[r.player.UserId] = r.player
 		-- (no try pay for JOIN-and-walk-off: drove over the line, still on the stand. Studio
 		-- after-810: "past one gate" left a kid stuck on the first bend with 0 coins)
-		tried[r.player.UserId] = not r.out and (r.laps > 0 or r.timer.next >= 2)
+		-- (moved, not "past gate 1": the lap clock jumps a gate at GO, so a kid who sat still got
+		-- 2ND, a trophy and 70 coins, Studio after-818)
+		tried[r.player.UserId] = not r.out and (r.laps > 0 or r.moved == true)
 	end
 	local paid: { [number]: number } = {}
 	local starred: { [number]: number } = {}
@@ -843,7 +846,7 @@ local function runRace(hooks: Hooks, slot: number)
 		local lead: number? = nil -- the leading player's progress, for the bots' catch-up
 		local kidLead: number? = nil -- how far round the furthest new kid is, for easy bots
 		-- (a new kid who sits still after GO doesn't hold the bots: Studio after-810 waited 2:47)
-		local kidFrom: { [Racer]: { x: number, z: number } } = {} -- where each new kid was at GO
+		local startFrom: { [Racer]: { x: number, z: number } } = {} -- where each car was at GO
 		local kidMoved = false
 		while not drift do
 			RunService.Heartbeat:Wait()
@@ -911,7 +914,7 @@ local function runRace(hooks: Hooks, slot: number)
 						-- trophy and then paid nothing, Studio after-810)
 						kid = if groupEasy[gi]
 								and r.new
-								and (r.laps > 0 or r.timer.next >= 2)
+								and (r.laps > 0 or r.moved == true)
 							then true
 							else nil,
 					})
@@ -963,6 +966,11 @@ local function runRace(hooks: Hooks, slot: number)
 					if not out and (lead == nil or progress > lead) then
 						lead = progress
 					end
+					if not out and lx and lz and clock >= goAt and not r.moved then
+						local from = startFrom[r] or { x = lx, z = lz }
+						startFrom[r] = from
+						r.moved = ServerRace.moved(from, lx, lz)
+					end
 					if not out and r.new and bots then
 						-- (how far along the road: the easy bots stay behind the furthest new kid)
 						local at = if lx and lz
@@ -972,11 +980,7 @@ local function runRace(hooks: Hooks, slot: number)
 							kidLead = at
 							kidProgress = progress
 						end
-						if lx and lz and clock >= goAt then
-							local from = kidFrom[r] or { x = lx, z = lz }
-							kidFrom[r] = from
-							kidMoved = kidMoved or ServerRace.moved(from, lx, lz)
-						end
+						kidMoved = kidMoved or r.moved == true
 					end
 				end
 				local cars = #racers

@@ -423,8 +423,8 @@ test(
 		local fs = require("@lune/fs")
 		local src = fs.readFile("src/server/ServerRaceRunner.luau")
 		truthy(
-			string.find(src, "(r.laps > 0 or r.timer.next >= 2)", 1, true),
-			"try pay needs a gate past the line"
+			string.find(src, "not r.out and (r.laps > 0 or r.moved == true)", 1, true),
+			"try pay needs the car to have driven off (Studio after-818: idle kid got 2ND + trophy)"
 		)
 		truthy(
 			string.find(
@@ -437,7 +437,7 @@ test(
 		truthy(
 			string.find(
 				src,
-				"and (r.laps > 0 or r.timer.next >= 2)\n\t\t\t\t\t\t\tthen true",
+				"and (r.laps > 0 or r.moved == true)\n\t\t\t\t\t\t\tthen true",
 				1,
 				true
 			),
@@ -448,9 +448,10 @@ test(
 		-- ... measured by where the car is from GO (progress jumps a gate at GO: Studio sit-still)
 		truthy(not ServerRace.moved({ x = 0, z = 0 }, 3, 4), "a nudge isn't moving")
 		truthy(ServerRace.moved({ x = 0, z = 0 }, 30, 0), "driving off is")
-		truthy(string.find(src, "kidMoved = kidMoved or ServerRace.moved(from, lx, lz)", 1, true))
+		truthy(string.find(src, "r.moved = ServerRace.moved(from, lx, lz)", 1, true))
+		truthy(string.find(src, "kidMoved = kidMoved or r.moved == true", 1, true))
 		truthy(
-			string.find(src, "if lx and lz and clock >= goAt then", 1, true),
+			string.find(src, "lx and lz and clock >= goAt and not r.moved then", 1, true),
 			"measured from before GO"
 		)
 		-- the podium and the card agree: the kid gets a finish time (the card's NICE TRY! is no time)
