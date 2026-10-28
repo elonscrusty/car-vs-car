@@ -37,7 +37,7 @@ local function screenOf(d: Instance): ScreenGui?
 	local p = d.Parent
 	while p do
 		if p:IsA("ScreenGui") then
-			return if NOT_OURS[p.Name] then nil else p
+			return if NOT_OURS[p.Name] or p:GetAttribute("NoKart") == true then nil else p
 		elseif p:IsA("LayerCollector") then
 			return nil -- a BillboardGui / SurfaceGui
 		end

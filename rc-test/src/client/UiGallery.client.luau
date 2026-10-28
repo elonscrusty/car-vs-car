@@ -384,6 +384,7 @@ local LIST: { { string | () -> () } } = {
 
 -- the viewer's own little bar, over everything, bottom middle (clear of the move stick corner)
 local bar = Base.screen("Ui_Gallery", 60, false)
+local stage = Base.stage(bar.canvas)
 local at = 0
 local nameLabel: TextLabel
 
@@ -402,7 +403,7 @@ local function show(i: number)
 end
 
 local open = false
-local controls = Base.box(bar.canvas, "Controls", 270, 346, 330, 44, 2)
+local controls = Base.box(stage, "Controls", 270, 346, 330, 44, 2)
 controls.Visible = false
 Kit.button(controls, "Back", 0, 0, 70, 40, "blue", "BACK", {
 	size = 15,
@@ -418,7 +419,7 @@ Kit.button(controls, "Next", 76, 0, 70, 40, "lime", "NEXT", {
 })
 nameLabel = Base.text(controls, "Name", 152, 10, 178, 22, "", { stroke = 3.5, align = "l" })
 
-Kit.button(bar.canvas, "Toggle", 164, 348, 100, 36, "white", "SCREENS", {
+Kit.button(stage, "Toggle", 164, 348, 100, 36, "white", "SCREENS", {
 	size = 14,
 	onClick = function()
 		open = not open

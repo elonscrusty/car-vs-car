@@ -99,6 +99,7 @@ function Base.screen(name: string, order: number, full: boolean?): Gui
 		b.Name = name .. "Back"
 		b.ResetOnSpawn = false
 		b.ScreenInsets = Enum.ScreenInsets.None
+		b:SetAttribute("NoKart", true)
 		b.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 		b.DisplayOrder = order
 		b.Enabled = false
@@ -109,6 +110,7 @@ function Base.screen(name: string, order: number, full: boolean?): Gui
 	gui.Name = name
 	gui.ResetOnSpawn = false
 	gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
+	gui:SetAttribute("NoKart", true) -- the old Kart style (KartSkin) leaves these alone
 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	gui.DisplayOrder = order + 1
 	gui.Enabled = false
@@ -161,6 +163,25 @@ function Base.place(obj: GuiObject, piece: UiScreens.Piece)
 	(ar :: UIAspectRatioConstraint).AspectRatio = piece.w / piece.h
 	obj:SetAttribute("DW", piece.w)
 	obj:SetAttribute("DH", piece.h)
+end
+
+-- A see-through frame the whole design size, centered on the canvas and kept to the design's
+-- shape, for screens laid out as one picture (Shop, States): on a wide screen nothing stretches.
+function Base.stage(canvas: Instance): Frame
+	local f = Instance.new("Frame")
+	f.Name = "Stage"
+	f.BackgroundTransparency = 1
+	f.AnchorPoint = Vector2.new(0.5, 0.5)
+	f.Position = UDim2.fromScale(0.5, 0.5)
+	f.Size = UDim2.fromScale(1, 1)
+	f:SetAttribute("DW", Base.W)
+	f:SetAttribute("DH", Base.H)
+	local ar = Instance.new("UIAspectRatioConstraint")
+	ar.Name = "Shape"
+	ar.AspectRatio = Base.W / Base.H
+	ar.Parent = f
+	f.Parent = canvas
+	return f
 end
 
 -- Put obj at x, y, w, h px of its parent's design size (Scale).
@@ -297,7 +318,6 @@ function Base.text(
 		l.Font = Base.FONT
 		l.TextScaled = true
 		l.Text = words
-		l.TextWrapped = false
 		l.TextXAlignment = if st.align == "l"
 			then Enum.TextXAlignment.Left
 			elseif st.align == "r" then Enum.TextXAlignment.Right

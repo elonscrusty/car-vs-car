@@ -157,15 +157,15 @@ local LIST: { Screen } = {
 		pieces = {
 			p("Shout", 10, 8, 330, 54, { anchor = "tl" }),
 			p("Steps", 4, 110, 464, 280, { anchor = "bl" }),
-			p("Rewards", 520, 46, 236, 150, {
+			p("Rewards", 512, 46, 236, 150, {
 				anchor = "tr",
 				inner = {
 					p("Coins", 14, 30, 208, 46),
 					p("Trophies", 14, 84, 208, 46),
 				},
 			}),
-			button("Next", 520, 244, 236, 66, "lime", "NEXT RACE", { anchor = "br", main = true }),
-			button("Back", 520, 322, 236, 50, "white", "BACK TO PLOT", { anchor = "br" }),
+			button("Next", 512, 244, 236, 66, "lime", "NEXT RACE", { anchor = "br", main = true }),
+			button("Back", 512, 322, 236, 50, "white", "BACK TO PLOT", { anchor = "br" }),
 		},
 	},
 	{
@@ -175,7 +175,7 @@ local LIST: { Screen } = {
 		kind = "window",
 		gameplay = false,
 		pieces = {
-			p("Window", 48, 40, 660, 342, {
+			p("Window", 48, 40, 660, 332, {
 				anchor = "c",
 				text = "Crates",
 				inner = {
@@ -214,7 +214,7 @@ local LIST: { Screen } = {
 		kind = "window",
 		gameplay = false,
 		pieces = {
-			p("Window", 8, 40, 496, 344, {
+			p("Window", 8, 40, 496, 336, {
 				anchor = "l",
 				text = "Garage",
 				inner = {
@@ -248,7 +248,7 @@ local LIST: { Screen } = {
 			p("Offer", 0, 64, 500, 158, {
 				anchor = "l",
 				inner = {
-					button("Buy", 116, 102, 150, 50, "lime", "R$ 299", { main = true }),
+					button("Buy", 116, 102, 150, 50, "lime", "R$ ???", { main = true }),
 				},
 			}),
 			p("Sale", 520, 64, 236, 158, {
@@ -306,14 +306,14 @@ local LIST: { Screen } = {
 		kind = "window",
 		gameplay = false,
 		pieces = {
-			p("Window", 12, 40, 724, 344, {
+			p("Window", 12, 40, 724, 336, {
 				anchor = "c",
 				text = "Car Book",
 				inner = {
 					p("Tabs", 14, 22, 400, 44, { tap = true }),
 					p("Found", 484, 28, 226, 30),
 					p("Milestones", 36, 70, 652, 50),
-					p("Grid", 14, 126, 696, 208),
+					p("Grid", 14, 126, 696, 198),
 				},
 			}),
 		},

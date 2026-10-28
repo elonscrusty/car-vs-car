@@ -6,7 +6,7 @@
 -- The tile picture, best first:
 --   1. Images.PATTERN: the tile uploaded to Roblox (pattern-tile.png in project files)
 --   2. drawn in the game once (EditableImage) from UiPattern
---   3. no picture allowed: little frames (a ✦ and a holed diamond per tile)
+--   3. no picture allowed: little frames (a sparkle and a holed diamond per tile)
 local AssetService = game:GetService("AssetService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -47,17 +47,27 @@ end
 
 -- the frames version of one tile (only when no picture can be made)
 local function drawTile(parent: Instance, x: number, y: number)
-	local sp = Instance.new("TextLabel")
-	sp.Name = "Sparkle"
-	sp.BackgroundTransparency = 1
-	sp.Text = "✦"
-	sp.Font = Base.FONT
-	sp.TextScaled = true
-	sp.TextColor3 = Base.WHITE
-	sp.AnchorPoint = Vector2.new(0.5, 0.5)
-	sp.Position = UDim2.fromOffset(x + P.sparkle.x, y + P.sparkle.y)
-	sp.Size = UDim2.fromOffset(P.sparkle.size + 4, P.sparkle.size + 4)
-	sp.Parent = parent
+	-- the 4-point sparkle: two thin rounded bars crossed, a small diamond in the middle (no text
+	-- glyph: the game font has no ✦)
+	local cx, cy, sz = x + P.sparkle.x, y + P.sparkle.y, P.sparkle.size
+	local function spark(name: string, w: number, h: number, rot: number, round: UDim)
+		local f = Instance.new("Frame")
+		f.Name = name
+		f.BorderSizePixel = 0
+		f.BackgroundColor3 = Base.WHITE
+		f.AnchorPoint = Vector2.new(0.5, 0.5)
+		f.Position = UDim2.fromOffset(cx, cy)
+		f.Size = UDim2.fromOffset(w, h)
+		f.Rotation = rot
+		f:SetAttribute("Spark", true)
+		local c = Instance.new("UICorner")
+		c.CornerRadius = round
+		c.Parent = f
+		f.Parent = parent
+	end
+	spark("SparkUp", 3, sz, 0, UDim.new(0.5, 0))
+	spark("SparkSide", sz, 3, 0, UDim.new(0.5, 0))
+	spark("SparkMid", sz * 0.36, sz * 0.36, 45, UDim.new(0, 1))
 	local di = Instance.new("Frame")
 	di.Name = "Diamond"
 	di.BackgroundTransparency = 1
@@ -125,9 +135,9 @@ function Pattern.attach(clip: GuiObject, dark: boolean?): GuiObject
 			end
 		end
 		for _, d in inner:GetDescendants() do
-			if d:IsA("TextLabel") then
-				d.TextTransparency = 1 - alpha
-				d.TextColor3 = tint
+			if d:IsA("Frame") and d:GetAttribute("Spark") then
+				d.BackgroundTransparency = 1 - alpha
+				d.BackgroundColor3 = tint
 			elseif d:IsA("UIStroke") then
 				d.Transparency = 1 - alpha
 				d.Color = tint
