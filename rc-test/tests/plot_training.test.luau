@@ -303,3 +303,26 @@ test("walking in at the gate, you see the scoreboard over the back pad signs", f
 		end
 	end
 end)
+
+test("locked pads stay hidden; only the next one shows, once you can pay for it", function()
+	local function bases(showNext: boolean?): number
+		local n = 0
+		for _, p in T.pieces(2, 0, 0, showNext) do
+			if p.name == "PadBase" then
+				n += 1
+			end
+		end
+		return n
+	end
+	eq(bases(false), T.open(2))
+	eq(bases(nil), T.open(2))
+	eq(bases(true), T.open(2) + 1)
+	-- all open: nothing more to show
+	local all = 0
+	for _, p in T.pieces(8, 0, 0, true) do
+		if p.name == "PadBase" then
+			all += 1
+		end
+	end
+	eq(all, #T.GRID)
+end)

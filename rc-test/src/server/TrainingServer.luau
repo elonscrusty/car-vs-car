@@ -53,6 +53,15 @@ local function plotModel(player: Player): Instance?
 	return if info and plots then plots:FindFirstChild(slot .. "_" .. info.id) else nil
 end
 
+-- Can the owner pay for the next station? The plot shows that pad only then (game audit B10).
+local function showNext(player: Player, data: Profile.Data)
+	local m = plotModel(player)
+	if m then
+		local cost = Training.plotCost(data.plotLevel)
+		m:SetAttribute("NextOpen", cost ~= nil and data.coins >= cost)
+	end
+end
+
 local function showPlot(player: Player, data: Profile.Data)
 	local m = plotModel(player)
 	if not m then
@@ -72,11 +81,13 @@ local function showPlot(player: Player, data: Profile.Data)
 	m:SetAttribute("GarageLevel", data.garageLevel)
 	m:SetAttribute("Trophies", data.trophies)
 	m:SetAttribute("Garage", table.concat(ids, ","))
+	showNext(player, data)
 end
 
 local function show(player: Player, data: Profile.Data)
 	local now = os.time()
 	player:SetAttribute("Coins", data.coins)
+	showNext(player, data)
 	player:SetAttribute("League", data.league)
 	player:SetAttribute("Trophies", data.trophies)
 	player:SetAttribute("RacerId", if data.racer ~= "" then data.racer else nil)

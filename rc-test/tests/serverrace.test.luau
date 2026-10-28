@@ -283,3 +283,34 @@ test("Car VS Car: each league races on its own, friends in a league together", f
 	eq(table.concat(big[2], ","), "3")
 	eq(#ServerRace.groups({}, 8), 0)
 end)
+
+test("Car VS Car (audit B1): a new kid's first race is them and bots only", function()
+	-- racer 2 and 4 never raced: each gets a race alone, first; the rest race by league
+	local g = ServerRace.groups({ 1, 1, 2, 1 }, 8, { false, true, false, true })
+	eq(#g, 4)
+	eq(table.concat(g[1], ","), "2")
+	eq(table.concat(g[2], ","), "4")
+	eq(table.concat(g[3], ","), "1")
+	eq(table.concat(g[4], ","), "3")
+	-- no new kids: the same as before
+	eq(#ServerRace.groups({ 1, 1 }, 8, { false, false }), 1)
+	-- more new kids than races left: they share, but only with other new kids
+	local many = ServerRace.groups(
+		{ 1, 1, 1, 1, 1, 2, 3 },
+		8,
+		{ true, true, true, true, true, false, false }
+	)
+	truthy(#many <= ServerRace.GROUPS, "never more races than GROUPS")
+	local seen = 0
+	for gi, idx in many do
+		for _, i in idx do
+			seen += 1
+			if i <= 5 then
+				for _, j in idx do
+					truthy(j <= 5, `race {gi}: a new kid with an old racer`)
+				end
+			end
+		end
+	end
+	eq(seen, 7)
+end)
