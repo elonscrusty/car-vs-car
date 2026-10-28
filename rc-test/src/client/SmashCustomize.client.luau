@@ -51,6 +51,11 @@ local function hatOn(): string
 	return if type(h) == "string" then h else ""
 end
 
+-- (not in a round: the window would sit over the match and its X over the clock)
+local function inMatch(): boolean
+	return player:GetAttribute("InMatch") == true
+end
+
 local tab = 1
 local kartUids: { string } = {}
 local hatIds: { string } = {}
@@ -63,6 +68,15 @@ local function look(): string
 	return `{CvcState.racer}|{hatOn()}|{tostring(player:GetAttribute("HatsOwned"))}|{#CvcState.garage}`
 end
 local open: () -> ()
+local current: Screen.Handle? = nil
+
+-- (closes only this window: never a round's end screen or a pick/reveal)
+local function shut()
+	if current and Screen.isOpen("customize") then
+		current.close()
+	end
+	current = nil
+end
 
 local function ask(fn: () -> ())
 	local now = os.clock()
@@ -116,7 +130,7 @@ function open()
 			end
 		end
 	end
-	Smash.customize({
+	current = Smash.customize({
 		tab = tab,
 		karts = karts,
 		hats = hats,
@@ -145,10 +159,7 @@ function open()
 			end)
 		end,
 		close = function()
-			-- (only when it's this window: never a round's end screen)
-			if Screen.isOpen("customize") then
-				Screen.closeOver()
-			end
+			shut()
 		end,
 	})
 end
@@ -181,5 +192,12 @@ if not (ev and ev:IsA("BindableEvent")) then
 	ev = made
 end
 (ev :: BindableEvent).Event:Connect(function()
-	open()
+	if not inMatch() then
+		open()
+	end
+end)
+player:GetAttributeChangedSignal("InMatch"):Connect(function()
+	if inMatch() then
+		shut()
+	end
 end)

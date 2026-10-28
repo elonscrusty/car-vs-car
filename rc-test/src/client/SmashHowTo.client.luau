@@ -58,7 +58,9 @@ local function run()
 	local handle = Smash.howTo(step, {
 		skip = function()
 			-- (from the card on screen: two quick taps still skip only one step)
-			step = shown + 1
+			if shown > 0 then
+				step = shown + 1
+			end
 		end,
 	})
 	while player:GetAttribute("InMatch") == true do
@@ -87,10 +89,12 @@ local function run()
 		if now > #SmashScreens.STEPS then
 			break
 		end
-		-- (rebuild the card only when the step changes: each build pops it in)
-		if now ~= shown then
-			step, shown = now, now
-			handle.set(step)
+		-- (rebuild the card only when it changes: each build pops it in)
+		step = now
+		local card = SmashScreens.cardFor(now, w)
+		if card ~= shown then
+			shown = card
+			handle.set(card)
 		end
 		task.wait(0.2)
 	end

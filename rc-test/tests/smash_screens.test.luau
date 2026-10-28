@@ -146,6 +146,19 @@ test("how-to tips never cover the match HUD (board, feed, clock, health, FIRE)",
 	end
 end)
 
+test("how-to tips and arrows stay out of the middle third (the road ahead)", function()
+	for _, tip in SmashScreens.get("howTo").pieces do
+		truthy(tip.x + tip.w <= 252 or tip.x >= 504, `howTo.{tip.name} sits in the middle`)
+	end
+end)
+
+test("how-to: TAP FIRE! shows only with a weapon", function()
+	eq(SmashScreens.cardFor(3, ""), 0)
+	eq(SmashScreens.cardFor(3, "Rockets"), 3)
+	eq(SmashScreens.cardFor(2, ""), 2)
+	eq(SmashScreens.cardFor(1, ""), 1)
+end)
+
 test("how-to: drive, grab, fire; doing a later thing first skips ahead", function()
 	eq(#SmashScreens.STEPS, 3)
 	local none = { moved = 0, weapon = "", fired = false }

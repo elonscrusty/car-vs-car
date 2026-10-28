@@ -94,12 +94,12 @@ local LIST: { Screen } = {
 		kind = "hud",
 		gameplay = true,
 		pieces = {
-			-- under the health bar and clock (top middle), over the empty middle of the arena
-			p("Tip", 238, 92, 280, 92, { anchor = "t", tap = true }),
+			-- at the right edge, between the feed and FIRE: never over the middle of the road
+			p("Tip", 536, 112, 220, 92, { anchor = "r", tap = true }),
 			-- the arrow for each step: just right of the stick corner pointing left at it (the
-			-- scoreboard sits above the corner), and just above FIRE pointing down
+			-- scoreboard sits above the corner), and just left of FIRE pointing at it
 			p("ArrowDrive", 148, 290, 56, 56, { anchor = "bl" }),
-			p("ArrowFire", 650, 180, 56, 56, { anchor = "br" }),
+			p("ArrowFire", 556, 276, 56, 56, { anchor = "br" }),
 		},
 	},
 }
@@ -142,7 +142,7 @@ end
 
 -- The how-to's 3 steps, in order: the big words, one small line, and the arrow piece (if any).
 SmashScreens.STEPS = {
-	-- (rot: the arrow drawing points right; 180 = left, 90 = down)
+	-- (rot: the arrow drawing points right; 180 = left)
 	{
 		id = "drive",
 		words = "DRIVE!",
@@ -156,7 +156,7 @@ SmashScreens.STEPS = {
 		words = "TAP FIRE!",
 		help = "Smash the other cars!",
 		arrow = "ArrowFire",
-		rot = 90,
+		rot = 0,
 	},
 }
 -- The customize window's EQUIP button for the picked item: its words and whether it works.
@@ -177,6 +177,15 @@ function SmashScreens.equipButton(
 		return "ON", false
 	end
 	return "EQUIP", true
+end
+
+-- The tip card to show for a step (0 = none): TAP FIRE! only once you hold a weapon (a kid who
+-- skipped GRAB A ? sees nothing until a box gives one)
+function SmashScreens.cardFor(step: number, weapon: string): number
+	if step == 3 and weapon == "" then
+		return 0
+	end
+	return step
 end
 
 SmashScreens.DRIVE_STUDS = 12 -- driven this far = the drive step is done

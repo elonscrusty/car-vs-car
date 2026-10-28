@@ -1137,6 +1137,11 @@ task.spawn(function()
 	while not CvcState.loaded do
 		task.wait(0.2)
 	end
+	-- SMASH: no pick screen (it would cover the match); the server gives a new kid the first
+	-- starter kart as their save loads (GARAGE)
+	if (Features :: any).SMASH == true then
+		return
+	end
 	while attr("Picked") ~= true do
 		if not Screen.isOpen("pick") then
 			openPick()

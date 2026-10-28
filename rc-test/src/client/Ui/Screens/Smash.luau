@@ -370,7 +370,7 @@ function Smash.customize(data: { [string]: any }, actions: Screen.Actions?): Scr
 					then `{string.upper(first.name or "")}, {UiTheme.RARITY[UiTheme.rarityId(
 						first.rarity or "common"
 					)].word}`
-					else if tab == 1 then "No karts yet." else "No hats yet.",
+					else if tab == 1 then "Open a crate to get a kart!" else "No hats yet.",
 				{ color = Base.color("inkMuted"), align = "l", z = 4 }
 			)
 			refreshButton()
@@ -418,6 +418,26 @@ function Smash.customize(data: { [string]: any }, actions: Screen.Actions?): Scr
 					z = 6,
 				})
 			end
+		elseif #(data.karts or {}) == 0 then
+			-- (a new kid with no kart yet: say where karts come from, not an empty card)
+			local cp = piece("customize", "Card")
+			local spotF = spot(g.canvas, "customize", "Card")
+			local box = Base.fill(spotF, "Empty", 0, 0, cp.w, cp.h, Base.color("blue"), 3)
+			Base.corner(box, 14)
+			Base.outline(box, UiTheme.OUTLINE.normal)
+			Base.text(
+				box,
+				"Words",
+				10,
+				cp.h / 2 - 40,
+				cp.w - 20,
+				80,
+				"OPEN A CRATE TO GET A KART!",
+				{
+					stroke = 4,
+					z = 6,
+				}
+			)
 		end
 		return {}
 	end)
