@@ -398,6 +398,21 @@ end
 ArenaData.CAM_BACK, ArenaData.NOSE_ROOM = 40, 20
 local MARGIN = ArenaData.WALL + 2 -- picture units from the outside edge
 
+-- Is the view ahead of a kart at p (facing dx, dy) open: no wall, cover, rock or rise (a hill
+-- side) in the first VIEW big units?
+ArenaData.VIEW = 48
+function ArenaData.viewOpen(p: Pt, dx: number, dy: number): boolean
+	local g0 = ArenaData.groundAt(p)
+	local step = 6 / ArenaData.K
+	for k = 1, math.floor(ArenaData.VIEW / 6) do
+		local q = { p[1] + dx * step * k, p[2] + dy * step * k }
+		if ArenaData.groundAt(q) > g0 + 1 or not ArenaData.clear(q[1], q[2], 0.5) then
+			return false
+		end
+	end
+	return true
+end
+
 -- The way a start spot faces: the arena's middle, else the nearest turn (15 degree steps) that
 -- keeps the chase cam and the kart's nose inside the walls (spots near a wall face along it).
 function ArenaData.facing(p: Pt): (number?, number?)
@@ -421,6 +436,10 @@ function ArenaData.facing(p: Pt): (number?, number?)
 			and fy <= hi
 		then
 			local diff = math.abs((a - base + math.pi) % (2 * math.pi) - math.pi)
+			-- the first look should be open arena: nothing solid or higher up close ahead
+			if diff <= math.pi / 2 and not ArenaData.viewOpen(p, dx, dy) then
+				diff += math.pi
+			end
 			if diff < best then
 				best, bx, by = diff, dx, dy
 			end
@@ -490,8 +509,9 @@ ArenaData.lighting = {
 }
 ArenaData.ambient = { 140, 130, 150 }
 ArenaData.outdoorAmbient = { 170, 160, 175 }
+-- soft: no neon wash on phones
 ArenaData.colorCorrection =
-	{ Brightness = 0.03, Contrast = 0.08, Saturation = 0.2, tint = { 255, 246, 232 } }
-ArenaData.bloom = { Intensity = 0.4, Size = 24, Threshold = 1.4 }
+	{ Brightness = 0.02, Contrast = 0.06, Saturation = 0.04, tint = { 255, 248, 238 } }
+ArenaData.bloom = { Intensity = 0.2, Size = 20, Threshold = 2 }
 
 return ArenaData

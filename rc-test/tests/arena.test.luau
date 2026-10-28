@@ -110,6 +110,7 @@ test(
 	function()
 		for i, s in A.spawns do
 			truthy(A.facing(A.START[i]) ~= nil, "spot " .. i .. " has a way to face")
+			truthy(A.viewOpen(A.START[i], s.dx, s.dz), "spot " .. i .. " looks at open arena first")
 			truthy(math.abs(s.dx * s.dx + s.dz * s.dz - 1) < 1e-6, "unit direction " .. i)
 			truthy(
 				s.dx * s.x + s.dz * s.z <= 1e-6,
