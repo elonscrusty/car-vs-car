@@ -94,13 +94,15 @@ WarmupYard.boxSpots = {
 	v(34, 0, 30),
 	v(0, 0, 50),
 } :: { V3 }
--- target karts (BOTS' ArenaBots.dummy; y = a kart's middle, like the spawns): two still, two circling slowly (their loop is 12 RC
--- studs = 48 big across, so they sit well inside the walls)
+-- target karts (BOTS' ArenaBots.dummy; y = a kart's middle, like the spawns): three still, and one
+-- circling slowly round the middle (its loop has a radius of ArenaBots' 12 RC studs = 48 big, so
+-- it goes round the centre wall and clear of the side walls and the barrels)
+WarmupYard.CIRCLE_R = 48
 WarmupYard.DUMMIES = {
 	{ at = v(-50, 2.5, 14), mode = "still" },
 	{ at = v(50, 2.5, 14), mode = "still" },
-	{ at = v(-26, 2.5, 2), mode = "circle" },
-	{ at = v(26, 2.5, 2), mode = "circle" },
+	{ at = v(-20, 2.5, 34), mode = "still" },
+	{ at = v(0, 2.5, 10), mode = "circle" },
 } :: { { at: V3, mode: string } }
 -- dressing (big units). Trees { x, z }: in the four corners inside, and a ring outside the walls.
 WarmupYard.TREES = {

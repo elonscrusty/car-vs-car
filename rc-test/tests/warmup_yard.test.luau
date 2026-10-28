@@ -26,10 +26,18 @@ test("yard: spawns, boxes and dummies all inside the walls, and apart", function
 		table.insert(all, b)
 	end
 	for _, d in Y.DUMMIES do
-		-- a circling dummy loops 12 RC studs (48 big) across round its spot
-		truthy(within(d.at, if d.mode == "circle" then 30 else 12), "dummy by a wall")
+		-- a circling dummy's loop (CIRCLE_R) stays inside the walls
+		truthy(within(d.at, if d.mode == "circle" then Y.CIRCLE_R + 6 else 12), "dummy by a wall")
 		truthy(d.mode == "still" or d.mode == "circle", d.mode)
 		table.insert(all, d.at)
+	end
+	for _, d in Y.DUMMIES do
+		if d.mode == "circle" then
+			for _, b in Y.boxSpots do
+				local r = math.sqrt((b.x - d.at.x) ^ 2 + (b.z - d.at.z) ^ 2)
+				truthy(math.abs(r - Y.CIRCLE_R) >= 6, "a box on the dummy's loop")
+			end
+		end
 	end
 	for i, a in all do
 		for j = i + 1, #all do
@@ -107,7 +115,9 @@ test("yard: dressed like the arena, and nothing solid on a spawn, box or dummy s
 		table.insert(spots, b)
 	end
 	for _, d in Y.DUMMIES do
-		table.insert(spots, d.at)
+		if d.mode == "still" then -- (a circling one is on its loop, checked below)
+			table.insert(spots, d.at)
+		end
 	end
 	for _, p in Y.parts() do
 		if p.collide and p.group ~= "Ground" and p.group ~= "Walls" and p.group ~= "Board" then
@@ -119,6 +129,16 @@ test("yard: dressed like the arena, and nothing solid on a spawn, box or dummy s
 			for _, s in spots do
 				local gap = math.sqrt((p.pos.x - s.x) ^ 2 + (p.pos.z - s.z) ^ 2) - half
 				truthy(gap >= 8, `{p.name} at {p.pos.x},{p.pos.z} is {gap} from a spot`)
+			end
+			-- and off a circling dummy's loop
+			for _, d in Y.DUMMIES do
+				if d.mode == "circle" then
+					local r = math.sqrt((p.pos.x - d.at.x) ^ 2 + (p.pos.z - d.at.z) ^ 2)
+					truthy(
+						math.abs(r - Y.CIRCLE_R) >= half + 4,
+						`{p.name} at {p.pos.x},{p.pos.z} is on the dummy's loop`
+					)
+				end
 			end
 		end
 	end
