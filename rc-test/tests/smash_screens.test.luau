@@ -152,6 +152,21 @@ test("how-to tips and arrows stay out of the middle third (the road ahead)", fun
 	end
 end)
 
+test("Smash crate words: no training, racing or stats", function()
+	for key, words in SmashScreens.WORDS do
+		local low = string.lower(words)
+		for _, bad in { "train", "race", "racing", "coach", "spd", "speed", "stat", "car " } do
+			truthy(not low:find(bad, 1, true), `WORDS.{key} says "{bad}": {words}`)
+		end
+	end
+end)
+
+test("how-to tip ends well above the FIRE / gas circle", function()
+	local tip = SmashScreens.piece("howTo", "Tip")
+	local fire = UiScreens.piece("match", "Fire")
+	truthy(tip.y + tip.h <= fire.y - 50, "the tip sits on the FIRE circle")
+end)
+
 test("how-to: TAP FIRE! shows only with a weapon", function()
 	eq(SmashScreens.cardFor(3, ""), 0)
 	eq(SmashScreens.cardFor(3, "Rockets"), 3)

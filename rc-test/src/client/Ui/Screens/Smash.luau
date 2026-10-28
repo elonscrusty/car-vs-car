@@ -478,10 +478,10 @@ function Smash.howTo(step: number, actions: Screen.Actions?): Screen.Handle
 			table.insert(built, card)
 			local tx = 14
 			if st.id == "grab" then
-				questionBox(card, 14, (tp.h - 56) / 2, 56)
-				tx = 82
+				questionBox(card, 12, (tp.h - 52) / 2, 52)
+				tx = 74
 			end
-			Base.text(card, "Words", tx, 8, tp.w - tx - 14, 46, st.words, {
+			Base.text(card, "Words", tx, 4, tp.w - tx - 14, tp.h * 0.55, st.words, {
 				color = Base.color("blue"),
 				stroke = 6,
 				strokeColor = WHITE,
@@ -489,7 +489,7 @@ function Smash.howTo(step: number, actions: Screen.Actions?): Screen.Handle
 				dropColor = Base.color("blueDeep"),
 				z = 5,
 			})
-			Base.text(card, "Help", tx, 58, tp.w - tx - 14, 24, st.help, {
+			Base.text(card, "Help", tx, tp.h * 0.6, tp.w - tx - 14, tp.h * 0.3, st.help, {
 				color = Base.color("inkMuted"),
 				z = 5,
 			})
