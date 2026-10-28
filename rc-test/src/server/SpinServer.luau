@@ -5,7 +5,8 @@
 -- RemoteEvent ReplicatedStorage.LuckySpin.
 --   client -> server: ("open") send me the state, ("spin"), ("equip", hatId or "")
 --   server -> client: ("state", { wait, hats, hat }) and ("won", index, coins, hat or nil, wait)
--- Player attributes: SpinReady (the free spin is waiting: a dot on the button), Hat, Coins.
+-- Player attributes: SpinReady (the free spin is waiting: a dot on the button), Hat ("" = none),
+-- HatsOwned (ids, comma-separated: the Customize window), Coins.
 -- Every ask is rate-limited and checked; junk is dropped.
 
 local Players = game:GetService("Players")
@@ -112,7 +113,8 @@ end
 
 local function show(player: Player, data: any)
 	player:SetAttribute("SpinReady", LuckySpin.wait(data, os.time()) == 0)
-	player:SetAttribute("Hat", if data.hat ~= "" then data.hat else nil)
+	player:SetAttribute("Hat", data.hat) -- "" = none
+	player:SetAttribute("HatsOwned", table.concat(hatList(data), ","))
 end
 
 local function sendState(player: Player, data: any)
