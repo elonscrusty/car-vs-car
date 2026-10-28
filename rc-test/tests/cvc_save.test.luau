@@ -156,17 +156,20 @@ test("save + rejoin: a second save in a row changes nothing", function()
 	same(once, twice, "save")
 end)
 
-test("a visit that played unsaved (DataStore down) keeps its station levels and plot level", function()
-	local real = played()
-	local base = Profile.new()
-	local visit = Profile.migrate(stored(real))
-	visit.stations[2].level += 2
-	local merged = Profile.mergeVisit(Profile.migrate(stored(real)), visit, base)
-	eq(merged.stations[2].level, real.stations[2].level + 2)
-	eq(merged.stations[1].level, real.stations[1].level)
-	eq(merged.plotLevel, Training.MAX_PLOT_LEVEL)
-	eq(#merged.stations, #real.stations)
-end)
+test(
+	"a visit that played unsaved (DataStore down) keeps its station levels and plot level",
+	function()
+		local real = played()
+		local base = Profile.new()
+		local visit = Profile.migrate(stored(real))
+		visit.stations[2].level += 2
+		local merged = Profile.mergeVisit(Profile.migrate(stored(real)), visit, base)
+		eq(merged.stations[2].level, real.stations[2].level + 2)
+		eq(merged.stations[1].level, real.stations[1].level)
+		eq(merged.plotLevel, Training.MAX_PLOT_LEVEL)
+		eq(#merged.stations, #real.stations)
+	end
+)
 
 -- Go-live: nothing that only a tester should reach works in the live game. Test hooks (plot or
 -- workspace attributes read by the server, the screens gallery) only run inside IsStudio(), and
@@ -184,7 +187,10 @@ test("go-live: test hooks are Studio only, no cheat remotes", function()
 				for i, line in lines do
 					local code = string.gsub(line, "%-%-.*$", "") -- comments don't count
 					for _, hook in hooks do
-						if string.find(code, `"{hook}"`, 1, true) and string.find(code, "GetAttribute") then
+						if
+							string.find(code, `"{hook}"`, 1, true)
+							and string.find(code, "GetAttribute")
+						then
 							-- the read sits inside an IsStudio() check a few lines up
 							local gated = false
 							for j = math.max(1, i - 8), i do
