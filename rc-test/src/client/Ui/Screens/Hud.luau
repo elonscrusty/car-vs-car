@@ -663,7 +663,7 @@ function Hud.weaponIcon(name: string?): string
 	if name == nil or name == "" then
 		return "mystery"
 	end
-	return WEAPON_ICON[name] or string.lower(name)
+	return WEAPON_ICON[name] or "mystery"
 end
 
 -- data: { place, total, secs, hp, maxHp, shield: boolean, weapon: name or "", ammo,

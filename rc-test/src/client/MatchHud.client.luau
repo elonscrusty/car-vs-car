@@ -110,11 +110,20 @@ local function boardList(): { { [string]: any } }
 end
 
 local hud: Screen.Handle? = nil
+local lastSecs = -1 -- (the clock's last shown second)
 local function close()
 	if hud then
 		hud.close()
 		hud = nil
 	end
+end
+
+-- (something else closed it, the viewer's SCREENS bar: forget the handle so it opens again)
+local function alive(): Screen.Handle?
+	if hud and not Screen.isOpen("match") then
+		hud = nil
+	end
+	return hud
 end
 
 local function refresh()
@@ -130,20 +139,23 @@ local function refresh()
 end
 
 local function open()
+	local w = attr("Weapon")
+	lastSecs = -1
 	hud = Hud.match({
 		place = num("Place", 1),
 		total = karts(),
-		secs = num("MatchEndsAt", 0) - workspace:GetServerTimeNow(),
+		secs = math.max(0, math.ceil(num("MatchEndsAt", 0) - workspace:GetServerTimeNow())),
 		hp = num("Health", 100),
 		maxHp = num("MaxHealth", 100),
 		shield = attr("Shield") == true,
-		weapon = attr("Weapon"),
+		weapon = if type(w) == "string" then w else "",
 		ammo = num("Ammo", 0),
 		board = boardList(),
 	}, { fire = fire })
 end
 
 local function check()
+	alive()
 	local want = inMatch()
 	if want and not hud then
 		open()
@@ -168,30 +180,50 @@ local function watchKart(k: Instance)
 		boardDirty = true
 	end)
 end
-task.spawn(function()
-	local folder = ReplicatedStorage:WaitForChild(BOARD, math.huge)
-	if not folder then
-		return
+-- (MATCH clears the folder between rounds; if one is ever made anew, watch that one instead)
+local folderConns: { RBXScriptConnection } = {}
+local function watchBoard(folder: Instance)
+	for _, cn in folderConns do
+		cn:Disconnect()
 	end
+	table.clear(folderConns)
+	boardDirty = true
 	for _, k in folder:GetChildren() do
 		watchKart(k)
 	end
-	folder.ChildAdded:Connect(function(k: Instance)
-		watchKart(k)
-		boardDirty = true
-	end)
-	folder.ChildRemoved:Connect(function()
-		boardDirty = true
-	end)
-	folder.AttributeChanged:Connect(function()
-		boardDirty = true
-	end)
+	table.insert(
+		folderConns,
+		folder.ChildAdded:Connect(function(k: Instance)
+			watchKart(k)
+			boardDirty = true
+		end)
+	)
+	table.insert(
+		folderConns,
+		folder.ChildRemoved:Connect(function()
+			boardDirty = true
+		end)
+	)
+	table.insert(
+		folderConns,
+		folder.AttributeChanged:Connect(function()
+			boardDirty = true
+		end)
+	)
+end
+ReplicatedStorage.ChildAdded:Connect(function(c: Instance)
+	if c.Name == BOARD then
+		watchBoard(c)
+	end
 end)
+local firstBoard = ReplicatedStorage:FindFirstChild(BOARD)
+if firstBoard then
+	watchBoard(firstBoard)
+end
 
 -- the clock: words change once a second at most
-local lastSecs = -1
 RunService.Heartbeat:Connect(function()
-	local h = hud
+	local h = alive()
 	if not h then
 		return
 	end
