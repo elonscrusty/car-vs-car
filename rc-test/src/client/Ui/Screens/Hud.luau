@@ -158,22 +158,17 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 			})
 		end
 		-- JOBS 1/3 (the live game)
-		local jobs: Kit.Pill? = nil
+		local jobs: TextButton? = nil
 		local jobsHolder: Frame? = nil
 		if data.jobs then
 			local jp = piece("plot", "Jobs")
 			local jh = spot(c, "plot", "Jobs")
 			jobsHolder = jh
-			jobs = Kit.pill(jh, "Jobs", 0, 0, jp.w, jp.h, "JOBS", "lime", data.jobs)
-			local tap = Instance.new("TextButton")
-			tap.Name = "Tap"
-			tap.Text = ""
-			tap.BackgroundTransparency = 1
-			tap.Size = UDim2.fromScale(1, 1)
-			tap.ZIndex = 9
-			tap.Parent = jh
-			tap.Activated:Connect(Screen.act(actions, "jobs"))
-			Anim.press(tap)
+			-- (one line of big words: the pill's count was 6 px tall on a phone, Studio live1)
+			jobs = Kit.button(jh, "Jobs", 0, 0, jp.w, jp.h, "blue", data.jobs, {
+				size = 16,
+				onClick = Screen.act(actions, "jobs"),
+			})
 		end
 		-- a new player: one piece at a time (the race first, then the car, the tiles, the coins,
 		-- COACH and the jobs), each popping in, so 6 things don't land at once
@@ -259,7 +254,7 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 			end,
 			setJobs = function(words: string)
 				if jobs then
-					jobs.set(words)
+					Kit.setWords(jobs, words)
 				end
 			end,
 		}
