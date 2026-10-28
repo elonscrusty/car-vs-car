@@ -117,7 +117,12 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 	for _, w in wheels do
 		meshRadius += w.Size.Y / 8
 	end
-	copy:ScaleTo(copy:GetScale() * Tuning.wheelRadius / meshRadius)
+	if copy:GetAttribute("Extras") == true then
+		-- a toy car: as long as the grey body it covers (built at s = 1, Garage.toyFit)
+		copy:ScaleTo(copy:GetScale() * Garage.toyFit(Tuning.bodyZ))
+	else
+		copy:ScaleTo(copy:GetScale() * Tuning.wheelRadius / meshRadius)
+	end
 
 	-- where its wheels sit, seen from the middle between them
 	local mid = Vector3.zero

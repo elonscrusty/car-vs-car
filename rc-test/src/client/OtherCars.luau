@@ -56,8 +56,8 @@ local function toyId(model: Model): string?
 	return if type(id) == "string" and CarCatalog.get(id) then id else nil
 end
 
--- sized so its wheel arches sit over the base car's wheels (toy wheels are 1.2 from the middle)
-local TOY_SIZE = base("wheelZ") / 1.2
+-- as long as the grey body it covers (Garage.toyFit: the chase camera was tuned for that size)
+local TOY_SIZE = Garage.toyFit(base("bodyZ"))
 local function toyShell(folder: Folder, id: string, s: number): Toy
 	local info = CarCatalog.get(id) :: CarCatalog.Car
 	local pieces = {}
