@@ -4,11 +4,15 @@
 -- small. Only this screen moves the box, the server never does.
 
 local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
 local Debris = game:GetService("Debris")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
+local Sfx = require(script.Parent.Sfx)
+
 local TAG = "SmashBox"
+local ME = tostring(Players.LocalPlayer.UserId) -- a player's kart id is their UserId
 local SPIN = math.rad(90) -- turn per second
 local BOB = 0.45 -- studs up and down
 local BOB_SPEED = 2.4
@@ -87,6 +91,12 @@ local function add(inst: Instance)
 				popIn(l)
 			else
 				burst(l.body.Position)
+			end
+		end),
+		-- every pickup bumps TakenCount; the pickup sound is only for the one who grabbed it
+		inst:GetAttributeChangedSignal("TakenCount"):Connect(function()
+			if inst:GetAttribute("TakenBy") == ME then
+				Sfx.pickup()
 			end
 		end),
 	}
