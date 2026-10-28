@@ -151,6 +151,13 @@ for k in RaceMaps.list() do
 	tracks[i] = t
 	timers[i] = LapTimer.new(t.gates, t.mode)
 end
+-- and the Smash arena after them (MatchRunner drives it)
+local arenaAt = LobbyLayout.arenaIndex()
+if arenaAt then
+	local t: TrackData.Track = LobbyLayout.track(arenaAt)
+	tracks[arenaAt] = t
+	timers[arenaAt] = LapTimer.new(t.gates, t.mode)
+end
 local labels: { string } = {}
 for i, id in TrackData.order do
 	labels[i] = TrackData.get(id).label
@@ -604,6 +611,10 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown, gridSpot: u
 		lost.still, lost.off, lost.wrong, lost.air = 0, 0, 0, 0
 		stuckTime, wrongFor, movedSincePut = 0, 0, true
 		lastRoad = nil
+		-- the Smash arena: no lights, no laps; a (re)spawn drives at once (MatchRunner)
+		if grid and tracks[index].mode == "arena" then
+			gridGone, raceGo = true, os.clock()
+		end
 		if grid then
 			controls.autoOff() -- every race starts with AUTO GAS off (critic runs 1 and 2)
 		end
@@ -940,6 +951,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 		and gridGone
 		and mapId
 		and t.id ~= "drift"
+		and t.mode ~= "arena"
 		and raceDone == nil
 		and not raceOver
 	then

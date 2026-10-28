@@ -229,7 +229,8 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 		toy = toy or if id then toyShell(f, id, s) else nil
 		if toy then
 			for _, d in model:GetDescendants() do
-				if d:IsA("BasePart") then
+				-- (a kart topper, Model "Hat", stays shown: it sits on the toy's roof)
+				if d:IsA("BasePart") and not d:FindFirstAncestor("Hat") then
 					d.LocalTransparencyModifier = 1
 				end
 			end
@@ -333,7 +334,8 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 				o.hidden = hide
 				for _, d in m:GetDescendants() do
 					if d:IsA("BasePart") then
-						d.LocalTransparencyModifier = if hide or o.toy then 1 else 0
+						local hat = d:FindFirstAncestor("Hat") ~= nil
+						d.LocalTransparencyModifier = if hide or (o.toy and not hat) then 1 else 0
 					end
 				end
 			end

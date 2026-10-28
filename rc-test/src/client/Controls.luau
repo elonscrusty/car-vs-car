@@ -85,7 +85,10 @@ local function holdButton(
 		f.BackgroundColor3 = color:Lerp(Color3.new(1, 1, 1), 0.3)
 		local conn: RBXScriptConnection
 		conn = input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
+			if
+				input.UserInputState == Enum.UserInputState.End
+				or input.UserInputState == Enum.UserInputState.Cancel
+			then
 				held = false
 				f.BackgroundColor3 = color
 				conn:Disconnect()
@@ -266,6 +269,18 @@ function Controls.new(
 			end)
 		end)
 	end
+	-- DRIFT stays in SMASH too (carter: drifting is part of the game), above FIRE at the right edge
+	if touchUi then
+		drift = holdButton(
+			gui,
+			"DRIFT",
+			Vector2.new(1, 1),
+			-- (lower in SMASH: at 0.58 the kill list's bottom edge covered its top; FIRE is below)
+			UDim2.fromScale(0.97, if stickGas then 0.62 else 0.58),
+			0.22,
+			Color3.fromRGB(70, 130, 235)
+		)
+	end
 	if touchUi and not stickGas then
 		gas = holdButton(
 			gui,
@@ -282,14 +297,6 @@ function Controls.new(
 			UDim2.fromScale(0.76, 0.95),
 			0.22,
 			Color3.fromRGB(215, 70, 70)
-		)
-		drift = holdButton(
-			gui,
-			"DRIFT",
-			Vector2.new(1, 1),
-			UDim2.fromScale(0.97, 0.58),
-			0.22,
-			Color3.fromRGB(70, 130, 235)
 		)
 		-- BRAKE sits just left of GAS on every screen (GAS is 0.34 of the height wide, so on a
 		-- 4:3 tablet a fixed 0.76 would push them together). See HudLayout "Brake".
