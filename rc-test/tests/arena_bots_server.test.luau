@@ -9,8 +9,7 @@ local test, eq, truthy = H.test, H.eq, H.truthy
 
 print("ArenaBots (pretend server)")
 
--- (the pretend server is Roblox: its vectors are Vector3s, see fakeroblox)
-local v = roblox.Vector3.new
+local v = vector.create
 
 test("a bot with Rockets fires through WeaponServer and hits the kart ahead", function()
 	local S = Fake.server(Fake.store())
@@ -46,7 +45,7 @@ test("a bot with Rockets fires through WeaponServer and hits the kart ahead", fu
 				local p = k.cframe.Position -- (the bots get real Vector3s, as in Roblox)
 				table.insert(
 					out,
-					{ id = k.id, pos = roblox.Vector3.new(p.X, p.Y, p.Z), alive = k.alive }
+					{ id = k.id, pos = roblox.Vector3.new(p.x, p.y, p.z), alive = k.alive }
 				)
 			end
 			return out
