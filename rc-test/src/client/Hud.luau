@@ -95,6 +95,38 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }): Hud
 	end
 	timer:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitTimer)
 	fitTimer()
+	-- the spec's HudPill look: a navy plate with an ink edge behind the lap clock, fitted to its
+	-- words (white words on the bright walls and sky had nothing behind them)
+	local plate = Instance.new("Frame")
+	plate.Name = "TimerPlate"
+	plate:SetAttribute("NoKart", true)
+	plate.BackgroundColor3 = Color3.fromRGB(19, 48, 74) -- navy
+	plate.BackgroundTransparency = 0.1
+	plate.BorderSizePixel = 0
+	plate.ZIndex = timer.ZIndex
+	plate.Visible = false
+	plate.Parent = gui
+	timer.ZIndex = plate.ZIndex + 1
+	local plateCorner = Instance.new("UICorner")
+	plateCorner.CornerRadius = UDim.new(0, 12)
+	plateCorner.Parent = plate
+	local plateEdge = Instance.new("UIStroke")
+	plateEdge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	plateEdge.Color = Color3.fromRGB(13, 44, 64) -- ink
+	plateEdge.Thickness = 2.5
+	plateEdge.Parent = plate
+	local function fitPlate()
+		local b = timer.TextBounds
+		plate.Visible = timer.Text ~= "" and b.X > 0
+		local pad = math.max(6, math.floor(timer.TextSize * 0.4))
+		plate.AnchorPoint = Vector2.zero
+		plate.Position = timer.Position + UDim2.fromOffset(-pad, -pad * 0.6)
+		plate.Size = UDim2.fromOffset(b.X + pad * 2, b.Y + pad * 1.2)
+	end
+	timer:GetPropertyChangedSignal("TextBounds"):Connect(fitPlate)
+	timer:GetPropertyChangedSignal("Visible"):Connect(function()
+		plate.Visible = timer.Visible and timer.Text ~= ""
+	end)
 
 	-- top right, under the CAM / VIEW / SIZE buttons, so it never sits on the car
 	local speed = label(
