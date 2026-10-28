@@ -262,4 +262,18 @@ function CvcRules.tick(
 	return bits - whole, trainedCars
 end
 
+-- The "train N min" job's clock: real time with ANY car on a station, counted once for the
+-- player (not once per car), so 5 min means 5 min. `secs` = seconds toward the next minute;
+-- returns the new secs and whether a whole minute just passed.
+function CvcRules.trainClock(secs: number, dt: number, busy: boolean): (number, boolean)
+	if not busy or dt <= 0 then
+		return secs, false
+	end
+	secs += dt
+	if secs >= 60 then
+		return secs - 60, true
+	end
+	return secs, false
+end
+
 return CvcRules

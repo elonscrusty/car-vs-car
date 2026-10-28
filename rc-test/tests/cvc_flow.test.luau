@@ -256,3 +256,36 @@ test("flow: the daily gift gives the streak's coins and a free crate, once a day
 	truthy(CvcRules.open(data, rng(0.5)) ~= nil)
 	eq(data.crates, 1)
 end)
+
+test("flow: the train 5 min job counts real minutes, not minutes per car", function()
+	-- 5 cars on stations train for 5 real minutes: 5 minutes of the job, not 25
+	local data = Profile.new()
+	CvcRules.setUp(data)
+	CvcRules.pick(data, CarStats.STARTERS[1])
+	data.plotLevel = 4
+	CvcRules.fitStations(data)
+	for i = 1, 4 do
+		local car = Profile.addCar(data, CarStats.STARTERS[2])
+		CvcRules.station(data, i + 1, (assert(car)).uid)
+	end
+	local busyStations = 0
+	for _, st in data.stations do
+		busyStations += if st.uid ~= "" then 1 else 0
+	end
+	eq(busyStations, 5)
+	local secs, minutes, bits = 0, 0, 0
+	for t = 1, 5 * 60 do
+		bits = CvcRules.tick(data, 1, false, t, bits)
+		local got: boolean
+		secs, got = CvcRules.trainClock(secs, 1, busyStations > 0)
+		minutes += if got then 1 else 0
+	end
+	eq(minutes, 5)
+	-- nothing on a station: the clock stands still
+	local still = CvcRules.trainClock(30, 10, false)
+	eq(still, 30)
+	-- a whole minute carries the leftover
+	local left, fired = CvcRules.trainClock(59.5, 1, true)
+	truthy(fired)
+	H.near(left, 0.5, 1e-9)
+end)

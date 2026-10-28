@@ -211,12 +211,11 @@ local function tick(player: Player, data: Profile.Data, dt: number, now: number,
 	end
 	if busy then
 		-- a daily job counts whole minutes with a car on a station
-		local secs = (trainSecs[player] or 0) + dt
-		if secs >= 60 then
-			secs -= 60
+		local secs, minute = CvcRules.trainClock(trainSecs[player] or 0, dt, true)
+		trainSecs[player] = secs
+		if minute then
 			Jobs.fire(player, "train")
 		end
-		trainSecs[player] = secs
 	end
 	if send then
 		for _, car in cars do
