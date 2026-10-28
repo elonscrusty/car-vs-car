@@ -176,12 +176,15 @@ local function eachPiece(fn: (
 	end
 end
 
-test("17 screens, numbered 0 to 16 in the spec's order", function()
-	eq(#UiScreens.LIST, 17)
-	for i, s in UiScreens.LIST do
-		eq(s.n, i - 1, s.id)
+test(
+	"18 screens: the spec's 17, numbered 0 to 16 in its order, then the SMASH match HUD",
+	function()
+		eq(#UiScreens.LIST, 18)
+		for i, s in UiScreens.LIST do
+			eq(s.n, i - 1, s.id)
+		end
 	end
-end)
+)
 
 test("everything sits inside the safe area (and inside its window)", function()
 	eachPiece(function(s, piece, outer)
