@@ -72,9 +72,10 @@ local function oldSave(): any
 end
 
 local function withoutTraining<T>(f: () -> T): T
+	local was = Profile.KEEP_TRAINING
 	Profile.KEEP_TRAINING = false
 	local ok, out = pcall(f)
-	Profile.KEEP_TRAINING = true
+	Profile.KEEP_TRAINING = was
 	if not ok then
 		error(out, 0)
 	end
@@ -148,13 +149,14 @@ test("smash save: a save from before the garage (cars only) gets a car for each 
 	eq(d.plotLevel, 0)
 end)
 
-test("smash save: while training is still in the game, nothing is dropped", function()
-	eq(Profile.KEEP_TRAINING, true)
+test("smash save: training is gone from the game, so every load drops it (phase 3)", function()
+	eq(Profile.KEEP_TRAINING, false)
 	local d = Profile.migrate(oldSave())
-	eq(#d.stations, 3)
-	eq(d.plotLevel, 6)
-	eq(d.garage[2].speed, 15)
-	eq(d.coins, 12345)
+	eq(#d.stations, 0)
+	eq(d.plotLevel, 0)
+	eq(d.garage[2].speed, 0)
+	eq(#d.garage, 10)
+	truthy(d.coins >= 12345, "every coin kept")
 end)
 
 test("smash save: smashes, matches and wins save, rejoin and merge", function()
