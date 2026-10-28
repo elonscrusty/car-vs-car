@@ -249,6 +249,12 @@ function Match.placeOf(m: State, id: number): number
 	return 0
 end
 
+-- The place a kart's Place shows: 0 (the HUD's "-") until it has a smash, so every kart on
+-- 0 smashes shares it and nobody is "2nd" for joining early (SCREENS 905, Audit F11).
+function Match.shownPlace(k: Kart, place: number): number
+	return if k.smashes > 0 then place else 0
+end
+
 function Match.coinsFor(place: number, smashes: number): number
 	local base = Match.PLACE_COINS[place] or (if place >= 1 then Match.PLAY_COINS else 0)
 	return base + math.max(0, math.floor(smashes)) * Match.SMASH_COINS

@@ -239,3 +239,23 @@ test("Match: new-kid safety, bots see a first-round kid as shielded for 15 s", f
 	eq(shots(true), 0)
 	truthy(shots(false) > 0, "fires at a kid once the 15 s are up")
 end)
+
+test('Match: no smashes yet = Place 0 (the HUD\'s "-"), shared by everyone on 0', function()
+	local m = Match.new(0)
+	Match.add(m, 1, "a", true, 0)
+	Match.add(m, 2, "b", true, 0)
+	Match.add(m, 3, "c", true, 0)
+	for i, k in Match.places(m) do
+		eq(Match.shownPlace(k, i), 0)
+	end
+	for _ = 1, 3 do
+		Match.damage(m, 2, 3, Match.HIT, 5)
+	end
+	local shown = {}
+	for i, k in Match.places(m) do
+		shown[k.id] = Match.shownPlace(k, i)
+	end
+	eq(shown[3], 1)
+	eq(shown[1], 0)
+	eq(shown[2], 0)
+end)

@@ -697,7 +697,7 @@ local function startRound()
 		p:SetAttribute("Health", Match.HEALTH)
 		p:SetAttribute("MaxHealth", Match.HEALTH)
 		p:SetAttribute("Smashes", 0)
-		p:SetAttribute("Place", i)
+		p:SetAttribute("Place", 0) -- (no smashes yet: "-")
 		p:SetAttribute("MatchEndsAt", m.endsAt)
 		p:SetAttribute("Shield", true)
 		p:SetAttribute("RespawnAt", nil)
@@ -817,7 +817,7 @@ local function endRound()
 				else nil,
 		})
 		if info then
-			setAttr(info, "Place", i)
+			setAttr(info, "Place", Match.shownPlace(k, i))
 		end
 	end
 	local xpMod = script.Parent:FindFirstChild("XpServer")
@@ -974,7 +974,7 @@ local function tick()
 	for i, k in Match.places(m) do
 		local info = infos[k.id]
 		if info then
-			setAttr(info, "Place", i)
+			setAttr(info, "Place", Match.shownPlace(k, i))
 			setAttr(info, "Shield", Match.shielded(k, t))
 		end
 	end
