@@ -268,6 +268,24 @@ function SpawnLobby.parts(): { Piece }
 			{ material = "Neon", collide = false }
 		)
 		add(g, "Base", v(12, 0.08, 10), v(px, 0.04, pz), C.dark, { collide = false })
+		if pad.kind == "smash" then
+			-- Smash (FINISH-JOBS LOBBY): a hot pink portal ring standing over the pad, so it reads
+			-- as "go through here" from the spawn; no start grid or start lights (no racing now)
+			local R, N = 5.2, 16
+			local seg = 2 * R * math.tan(math.pi / N) + 0.1
+			for k = 0, N - 1 do
+				local a = (k + 0.5) / N * 2 * math.pi
+				add(
+					"Portal" .. i, -- its own group: the PlayPad mesh would replace the pad's
+					"Ring",
+					v(seg, 0.9, 0.9),
+					v(px + math.cos(a) * R, R + 0.35 + math.sin(a) * R, pz),
+					pad.color,
+					{ rot = v(0, 0, math.deg(a) + 90), material = "Neon", collide = false }
+				)
+			end
+			continue
+		end
 		for _, lx in { -2.8, 2.8 } do
 			add(
 				g,
@@ -285,24 +303,6 @@ function SpawnLobby.parts(): { Piece }
 				C.dark,
 				{ collide = false }
 			)
-		end
-		if pad.kind == "smash" then
-			-- Smash (FINISH-JOBS LOBBY): a hot pink portal ring standing over the pad, so it reads
-			-- as "go through here" from the spawn; no start grid or start lights (no racing now)
-			local R, N = 5.2, 16
-			local seg = 2 * R * math.tan(math.pi / N) + 0.1
-			for k = 0, N - 1 do
-				local a = (k + 0.5) / N * 2 * math.pi
-				add(
-					g,
-					"Portal",
-					v(seg, 0.9, 0.9),
-					v(px + math.cos(a) * R, R + 0.2 + math.sin(a) * R, pz),
-					pad.color,
-					{ rot = v(0, 0, math.deg(a) + 90), material = "Neon", collide = false }
-				)
-			end
-			continue
 		end
 		for row = 0, 1 do
 			for t = 0, 9 do
@@ -536,6 +536,9 @@ do
 	-- (the pad's colour, and it blinks while someone waits); the base stays as the hidden tagged
 	-- QueuePad that the server watches.
 	for i, pad in SpawnLobby.PADS do
+		if pad.kind == "smash" then
+			continue -- its start grid is a race look: the SMASH! pad is its rim, base and portal
+		end
 		table.insert(M, {
 			model = "PlayPad",
 			group = "QueuePad" .. i,

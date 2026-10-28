@@ -17,6 +17,7 @@ local ServerRaceRunner = require(script.Parent.ServerRaceRunner)
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local JoinStage = require(ReplicatedStorage.Shared.JoinStage)
 local Features = require(ReplicatedStorage.Shared.Features)
+local SpawnLobby = require(ReplicatedStorage.Shared.SpawnLobby)
 local LobbyPlots = require(script.Parent.LobbyPlots)
 local PlotGarage = require(ReplicatedStorage.Shared.PlotGarage)
 local TrackBuilder = require(script.Parent.TrackBuilder)
@@ -335,14 +336,25 @@ end
 -- The spawn lobby's drift / race pads: stand on one to go drive an open plot of that kind (the
 -- race pad is JOIN RACE).
 local QueuePads = require(script.Parent.QueuePads)
+-- Car VS Car Smash: the SMASH! pad queues you for the next round (MatchRunner, MATCH's)
+local matchRunner: any = nil
+if SpawnLobby.SMASH then
+	local m = script.Parent:FindFirstChild("MatchRunner")
+	if m and m:IsA("ModuleScript") then
+		matchRunner = require(m) :: any
+	else
+		warn("[Main] Features.SMASH is on but there is no MatchRunner: the SMASH! pad does nothing")
+	end
+end
 local CollectionService = game:GetService("CollectionService")
 QueuePads.start({
 	-- the race pad is JOIN RACE (Car VS Car Smash: the SMASH! portal): on the list for the next
 	-- race / match (anyone, a new player too). MatchRunner (MATCH) when it's in the game.
 	join = function(player: Player)
-		local match = script.Parent:FindFirstChild("MatchRunner")
-		if (Features :: any).SMASH == true and match and match:IsA("ModuleScript") then
-			(require(match) :: any).join(player)
+		if SpawnLobby.SMASH then
+			if matchRunner then
+				matchRunner.join(player)
+			end
 		else
 			ServerRaceRunner.join(player)
 		end
