@@ -277,6 +277,7 @@ local function reset(why: string?)
 		return
 	end
 	stuckTime = 0
+	wrongFor = 0
 	beep:Play()
 	local now = os.clock()
 	local again = now - lastReset < 1.5
@@ -813,7 +814,9 @@ RunService.PreSimulation:Connect(function(dt: number)
 			creep < 1.6 * Tuning.scale,
 			off,
 			car.telemetry.grounded == 0 and not under,
-			wrongNow
+			-- (backing up counts as WRONG WAY but faces the right way: a kid still holding S after
+			-- a put-back would be put back again and again)
+			wrongNow and input.brake == 0
 		)
 		if why then
 			reset()

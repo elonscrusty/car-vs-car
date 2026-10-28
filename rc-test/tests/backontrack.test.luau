@@ -207,3 +207,22 @@ for k, m in RaceMaps.list() do
 		end)
 	end
 end
+
+test("back on track: driving off from every put-back spot is never WRONG WAY", function()
+	for k, m in RaceMaps.list() do
+		local t = LobbyLayout.track(LobbyLayout.mapIndex(k))
+		local count = #t.gates
+		for next = 2, count + 1 do
+			local sp = BackOnTrack.spot(t, t.gates, next) :: BackOnTrack.Spot
+			local g = t.gates[((next - 1) % count) + 1] -- the gate the car heads for (Main)
+			-- the first 40 units straight off the spot, at a kid's pace
+			for d = 0, 40, 5 do
+				local x, z = sp.x + sp.dx * d, sp.z + sp.dz * d
+				truthy(
+					not ServerRace.wrongWay(sp.dx * 40, sp.dz * 40, g.x - x, g.z - z, 1),
+					`{m.id} next {next}: WRONG WAY {d} off the spot`
+				)
+			end
+		end
+	end
+end)
