@@ -2,7 +2,8 @@
 -- Car VS Car pacing (carter 10-28): a kid who loses every race still gets something new on the
 -- plot often. The kid is the Studio bored-kid run (rc-game/cvc/studio/critic/REPORT-1.md): no
 -- race coins (never finished), cars from crates at 2:30 and 3:10, the "train 5 min" job's 30
--- coins at 5:22 and the daily gift's 10 at 5:44. Coins come only from training
+-- coins at 5:22 and the daily gift's 10 at 5:44. The first crate's car brings the 2nd station free
+-- (CvcRules, game audit B7). Coins come only from training
 -- (CvcRules.COINS_PER_MIN for each car on a station). Each second the kid buys the cheapest thing
 -- they can: the next plot level (a new station) or a level on a station that has a car.
 local H = require("./harness")
@@ -26,6 +27,11 @@ local function play(minutes: number, try: boolean?): { Buy }
 	local buys: { Buy } = {}
 	for s = 0, minutes * 60 do
 		local cars = if s < 150 then 1 elseif s < 190 then 2 else 3
+		if s == 150 and plotLevel < 1 then -- the first crate's car brings the 2nd station free
+			plotLevel = 1
+			table.insert(levels, 1)
+			table.insert(buys, { at = s / 60, what = "station" })
+		end
 		coins += math.min(cars, #levels) * CvcRules.COINS_PER_MIN / 60
 		if try and s >= FIRST_RACE_END and (s - FIRST_RACE_END) % RACE_EVERY == 0 then
 			coins += League.prize(1, 0)

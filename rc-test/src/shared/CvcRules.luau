@@ -162,16 +162,35 @@ function CvcRules.levelUp(data: Data): boolean
 	return true
 end
 
+-- A new car from a crate: your 2nd station comes free with your first new car (game audit B7,
+-- carter 10-28), and the car drops onto the first empty station so it starts training at once.
+local function arrived(data: Data, car: Profile.GarageCar)
+	if data.plotLevel < 1 then
+		data.plotLevel = 1
+	end
+	CvcRules.fitStations(data)
+	for _, st in data.stations do
+		if st.uid == "" then
+			st.uid = car.uid
+			return
+		end
+	end
+end
+
 -- Opens a free crate (from your first race): the new car's id, or nil.
 function CvcRules.open(data: Data, rng: Crates.Rng): string?
 	if data.crates <= 0 then
 		return nil
 	end
 	local id = Crates.roll("free", rng)
-	if type(id) ~= "string" or not CarCatalog.get(id) or not Profile.addCar(data, id) then
+	local car = if type(id) == "string" and CarCatalog.get(id)
+		then Profile.addCar(data, id)
+		else nil
+	if not car then
 		return nil
 	end
 	data.crates -= 1
+	arrived(data, car)
 	return id
 end
 
@@ -186,10 +205,14 @@ function CvcRules.buy(data: Data, kind: unknown, rng: Crates.Rng): string?
 		return nil
 	end
 	local id = Crates.roll(kind, rng)
-	if type(id) ~= "string" or not CarCatalog.get(id) or not Profile.addCar(data, id) then
+	local car = if type(id) == "string" and CarCatalog.get(id)
+		then Profile.addCar(data, id)
+		else nil
+	if not car then
 		return nil
 	end
 	data.coins -= price
+	arrived(data, car)
 	return id
 end
 

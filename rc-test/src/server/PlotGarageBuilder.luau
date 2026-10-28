@@ -205,16 +205,21 @@ function PlotGarageBuilder.start()
 		end
 		local plotLevel, garageLevel, trophies =
 			num("PlotLevel"), num("GarageLevel"), num("Trophies")
+		local nextOpen = owned and plot:GetAttribute("NextOpen") == true
 		local pads =
 			PlotTraining.parse(if owned then tostring(plot:GetAttribute("Stations") or "") else "")
 		local kinds = {}
 		for _, p in pads do
 			table.insert(kinds, p.kind .. p.level)
 		end
-		local key = table.concat(
-			{ ownerId, plotLevel, garageLevel, trophies, table.concat(kinds, ",") },
-			"|"
-		)
+		local key = table.concat({
+			ownerId,
+			plotLevel,
+			garageLevel,
+			trophies,
+			table.concat(kinds, ","),
+			tostring(nextOpen),
+		}, "|")
 		if trainedKey[plot] == key then
 			return
 		end
@@ -225,8 +230,11 @@ function PlotGarageBuilder.start()
 		end
 		local model = Instance.new("Model")
 		model.Name = "Training"
-		local groups =
-			Garage.makeParts(PlotTraining.pieces(plotLevel, garageLevel, trophies), model, pivot)
+		local groups = Garage.makeParts(
+			PlotTraining.pieces(plotLevel, garageLevel, trophies, nextOpen),
+			model,
+			pivot
+		)
 		Garage.useMeshes(groups, pivot, PlotTraining.meshes())
 		for i = 1, #PlotTraining.GRID do
 			local g = groups["Pad" .. i]
@@ -286,7 +294,9 @@ function PlotGarageBuilder.start()
 			local pivot = CFrame.new(slot.plotX, 0, slot.plotZ) * CFrame.Angles(0, slot.angle, 0)
 			if Features.CVC then
 				buildTraining(plot, pivot)
-				for _, name in { "OwnerId", "PlotLevel", "GarageLevel", "Trophies", "Stations" } do
+				for _, name in
+					{ "OwnerId", "PlotLevel", "GarageLevel", "Trophies", "Stations", "NextOpen" }
+				do
 					plot:GetAttributeChangedSignal(name):Connect(function()
 						buildTraining(plot, pivot)
 					end)
