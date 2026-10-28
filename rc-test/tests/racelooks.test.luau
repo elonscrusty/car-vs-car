@@ -65,3 +65,16 @@ test("boost pads (playtest u02): no glowing yellow pad that hides the car", func
 		"the pad glows again"
 	)
 end)
+
+test("Car VS Car (phone 10-28 t096-t100): over the line, the car brakes to a stop", function()
+	local fs = require("@lune/fs")
+	local main = fs.readFile("src/client/Main.client.luau")
+	truthy(
+		string.find(main, "elseif grid and (raceDone ~= nil or raceOver) then", 1, true),
+		"drives on"
+	)
+	truthy(
+		string.find(main, "local rolling = car.telemetry.vLong > 3", 1, true),
+		"backs up at a stop"
+	)
+end)
