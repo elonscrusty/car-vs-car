@@ -274,8 +274,16 @@ local lostRoads: { [string]: { BackOnTrack.Road } } = {} -- each map's roads (Ba
 -- Plots with checkpoint flags: a reset (R, RESET, fell off, out) brings the car back to the last
 -- flag it drove through instead of the start. R twice quickly = start.
 local lastReset = -10
-local function reset(why: string?)
+local function reset(why: string?, from: string?)
 	if walking then
+		return
+	end
+	-- (Studio: what asked for the last reset, and was it taken)
+	body:SetAttribute("LastReset", `{from or "R"} {math.floor(os.clock() * 10) / 10}`)
+	-- a big race before its GO: the car waits on its grid spot; nothing puts it back or flashes
+	-- (Studio focus-786: BACK ON TRACK on the grid 2.7 s before GO)
+	if grid and (countdown ~= nil or raceGo == nil) then
+		body:SetAttribute("LastReset", `{from or "R"} before GO, skipped`)
 		return
 	end
 	stuckTime = 0
@@ -289,7 +297,7 @@ local function reset(why: string?)
 	-- facing the way to go (the small loss: the bit since that gate, from a standstill). It used
 	-- to be the grid, a whole lap's loss.
 	local timer = timers[current]
-	if Features.CVC and grid and gridGone and raceDone == nil and #timer.gates > 0 then
+	if Features.CVC and grid and gridGone and raceGo and raceDone == nil and #timer.gates > 0 then
 		-- (a TOO EARLY car's lap clock waits for its next time over the line: next = 1, the gate
 		-- before the line. It used to drop to the grid, and the lost clocks never ran for it)
 		local g = BackOnTrack.spot(t, timer.gates, timer.next) :: BackOnTrack.Spot
@@ -516,6 +524,9 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown, gridSpot: u
 		end
 		gridGone, raceGo, raceDone, raceOver, movedSinceGo = false, nil, nil, false, false
 		setRacing(false)
+		-- a new race: no clock carries over from the last one
+		lost.still, lost.off, lost.wrong, lost.air = 0, 0, 0, 0
+		stuckTime, wrongFor, movedSincePut = 0, 0, true
 		if grid then
 			controls.autoOff() -- every race starts with AUTO GAS off (critic runs 1 and 2)
 		end
@@ -785,7 +796,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 	end
 	-- rocks: being stuck is part of crawling, so it never resets by itself (R or RESET does)
 	if BackOnTrack.stuck(stuckTime, Tuning.stuckWait, t.id) then
-		reset("STUCK - BACK TO START")
+		reset("STUCK - BACK TO START", "stuck")
 	end
 	-- Car VS Car big race: lost for a few seconds (nose in a wall with no pedal held, off every
 	-- road or under the floor, WRONG WAY) = R: back on the road at the last gate (critic run 1).
@@ -838,7 +849,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 			body:SetAttribute("LostClocks", seen)
 		end
 		if why then
-			reset()
+			reset(nil, why)
 		end
 	elseif lost.still ~= 0 or lost.off ~= 0 or lost.wrong ~= 0 or lost.air ~= 0 then
 		lost.still, lost.off, lost.wrong, lost.air = 0, 0, 0, 0
@@ -856,9 +867,9 @@ RunService.PreSimulation:Connect(function(dt: number)
 		end
 	end
 	if BackOnTrack.fell(p.Y, Tuning.scale) then
-		reset()
+		reset(nil, "fell")
 	elseif t.map == nil and not TrackData.inPlot(lx, lz) then
-		reset("OUT - BACK TO START")
+		reset("OUT - BACK TO START", "out")
 	end
 
 	if t.id == "drift" then
