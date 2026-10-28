@@ -9,15 +9,19 @@
 local Gun = {}
 
 Gun.NAME = "Gun"
+-- The arena is RC size: distances are set in big units (a kart is 3 x 5.5 big) and shrunk by
+-- SCALE (= TrackData.RC_SCALE; a test checks), so a kart is about 1.4 studs long.
+Gun.SCALE = 0.25
+local S = Gun.SCALE
 Gun.ammo = 4 -- bursts per box
 Gun.cooldown = 0.5 -- seconds between bursts (a burst lasts (BULLETS-1) * GAP = 0.35 s)
 Gun.BULLETS = 6
 Gun.GAP = 0.07 -- seconds between bullets in a burst
 Gun.BURST_DAMAGE = 34 -- a whole burst, split over its bullets
-Gun.RANGE = 110 -- studs
+Gun.RANGE = 160 * S -- about 29 kart lengths, 44% of the arena's width
 Gun.CONE = math.cos(math.rad(18)) -- a target this close to the aim gets aimed at
-Gun.MUZZLE = 4 -- studs in front of the kart centre
-Gun.HEIGHT = 1.5 -- studs above the kart centre
+Gun.MUZZLE = 3.5 * S -- just past the kart's nose
+Gun.HEIGHT = 1.5 * S -- above the kart centre
 
 export type Kart = { id: any, cframe: CFrame, alive: boolean }
 export type Hit = { kartId: any?, position: Vector3 }

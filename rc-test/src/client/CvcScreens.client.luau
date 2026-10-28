@@ -17,6 +17,9 @@ local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Features = require(Shared:WaitForChild("Features"))
+-- SMASH (10-28): the plot screen is the lobby's: coins, CUSTOMIZE, crates and the SMASH! goal (the
+-- pad in the world starts a match); no coach, training or race goals
+local SMASH = (Features :: any).SMASH == true
 if not (Features.CVC and Features.NEW_UI) then
 	return
 end
@@ -723,7 +726,8 @@ local coachedAt = 0 -- (os.clock) this visit's last COACH tap
 -- a crate (gap 4 of the first-10 timeline: always something to save up for). nil = nothing left.
 local function nextBuy(): (string?, number, string?)
 	local coins = num("Coins")
-	local station = Training.plotCost(CvcState.plotLevel)
+	-- (SMASH: no training stations, only crates)
+	local station = if SMASH then nil else Training.plotCost(CvcState.plotLevel)
 	local crate = if #CvcState.garage < Profile.MAX_GARAGE then CvcGoal.cheapest() else nil
 	if crate == math.huge then
 		crate = nil
@@ -746,6 +750,18 @@ local nextKind: string? = nil
 local function hudGoal(): (string?, string?)
 	if attr("Picked") ~= true then
 		return nil, nil
+	end
+	if SMASH then
+		if CvcState.crates > 0 then
+			return "Crates", "OPEN CRATE!"
+		end
+		if num("Coins") >= CvcGoal.cheapest() and #CvcState.garage < Profile.MAX_GARAGE then
+			return "Crates", "GET A CRATE!"
+		end
+		if attr("InMatch") == true or attr("MatchQueued") == true then
+			return nil, nil
+		end
+		return "Race", "GO SMASH!"
 	end
 	local joined = attr("RaceJoined") == true
 	if num("Stage") < Profile.STAGE.RACED then
@@ -817,6 +833,18 @@ local function invite()
 	end)
 end
 
+-- SMASH: CUSTOMIZE is WINDOWS' window (SmashCustomize.client listens on OpenCustomize)
+local function openCustomize()
+	local ev = ReplicatedStorage:FindFirstChild("OpenCustomize")
+	if ev and ev:IsA("BindableEvent") then
+		ev:Fire()
+	end
+end
+-- SMASH: the pad in the world starts a match, so the SMASH! button says where it is
+local function smashHow()
+	info("power", "SMASH!", "Drive onto the SMASH! pad to play!")
+end
+
 local function openHud(stagger: boolean)
 	local car = racer()
 	hud = Hud.plot({
@@ -826,11 +854,11 @@ local function openHud(stagger: boolean)
 		car = { name = if car then CvcState.name(car.id) else "", stats = hudBars(car) },
 		dots = {
 			Crates = if CvcState.crates > 0 then CvcState.crates else nil,
-			Garage = trainDot(),
+			Garage = if SMASH then nil else trainDot(),
 		},
 		-- (the garage is where a car goes on a station: the tile says so, 10 s test)
-		words = { Garage = "TRAIN" },
-		race = "RACE!",
+		words = { Garage = if SMASH then "CUSTOMIZE" else "TRAIN" },
+		race = if SMASH then "SMASH!" else "RACE!",
 		jobs = jobsWords() or "JOBS",
 		invite = "INVITE",
 		next = (function()
@@ -844,7 +872,7 @@ local function openHud(stagger: boolean)
 		banner = false,
 		myCar = false,
 	}, {
-		Garage = openGarage,
+		Garage = if SMASH then openCustomize else openGarage,
 		Crates = openCrates,
 		Shop = function()
 			-- (no Robux prices until carter sets them: SOON, not R$ ???)
@@ -870,7 +898,7 @@ local function openHud(stagger: boolean)
 				if n < #League.NAMES then "Get top 3 to move up!" else "Top league!"
 			)
 		end,
-		race = join,
+		race = if SMASH then smashHow else join,
 		jobs = openJobs,
 		invite = invite,
 		-- (full: the buy itself; not yet: where it's bought, to see what it gets)
@@ -895,6 +923,9 @@ local function openHud(stagger: boolean)
 			end
 		end,
 	})
+	if SMASH and hud then
+		hud.api.setShown("Coach", false) -- (from the first frame, not the next tick)
+	end
 end
 
 local function refreshHud()
@@ -906,7 +937,7 @@ local function refreshHud()
 	local car = racer()
 	api.setCar(if car then CvcState.name(car.id) else "", hudBars(car))
 	api.setDot("Crates", if CvcState.crates > 0 then CvcState.crates else nil)
-	api.setDot("Garage", trainDot())
+	api.setDot("Garage", if SMASH then nil else trainDot())
 	api.setJobs(jobsWords() or "JOBS")
 end
 
@@ -950,7 +981,8 @@ RunService.Heartbeat:Connect(function()
 	local api = h.api
 	-- one step at a time: a tile shows once it has something for you (first 10 minutes)
 	local stage = num("Stage")
-	local raced = stage >= Profile.STAGE.RACED
+	-- (SMASH: the lobby shows its tiles from the start; there's no first race to wait for)
+	local raced = SMASH or stage >= Profile.STAGE.RACED
 	local shopped = stage >= Profile.STAGE.SHOPPED
 	api.setShown("Crates", raced or CvcState.crates > 0)
 	api.setShown("Garage", raced or #CvcState.garage > 1 or trainDot() ~= nil)
@@ -985,6 +1017,26 @@ RunService.Heartbeat:Connect(function()
 	end
 	-- (after the first race, with the other later things: one new thing at a time)
 	api.setShown("Next", raced and nk ~= nil)
+	if SMASH then
+		-- SMASH! / YOU'RE IN! m:ss (the pad queues you); no coach
+		-- (the NextUp banner stays off over the 3D plot, as in the race game: the clock is on the
+		-- button once you're queued)
+		api.setShown("Coach", false)
+		local queued = attr("MatchQueued") == true
+		api.setShown("Race", attr("InMatch") ~= true)
+		local at = workspace:GetAttribute("NextMatchAt")
+		local left = if type(at) == "number" then at - workspace:GetServerTimeNow() else nil
+		if queued then
+			api.setRace(
+				if left and left > 0 then `YOU'RE IN! {clock(left)}` else "YOU'RE IN!",
+				"blue",
+				false
+			)
+		else
+			api.setRace("SMASH!", "lime", goal == "Race")
+		end
+		return
+	end
 	-- BIG RACE in m:ss, and RACE! / YOU'RE IN! (white words on blue: never yellow on yellow)
 	local raw = workspace:GetAttribute("NextRaceAt")
 	local left = if type(raw) == "number" then raw - workspace:GetServerTimeNow() else nil

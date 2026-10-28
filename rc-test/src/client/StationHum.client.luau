@@ -6,7 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
 
 local Features = require(ReplicatedStorage.Shared.Features)
-if not Features.CVC then
+if not Features.CVC or Features.SMASH then -- (the Smash garage has no training)
 	return
 end
 
