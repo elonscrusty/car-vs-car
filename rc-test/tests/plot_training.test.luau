@@ -204,20 +204,14 @@ local function onScreen(px: number, py: number, pz: number, aspect: number): (nu
 	return across, up
 end
 
-test("the plot camera sees every pad corner and the scoreboard on a phone", function()
+test("the high plot camera (if turned back on) sees every pad corner on a phone", function()
 	local P = T.PAD
-	local B = T.BOARD
 	local points = {}
 	for _, g in T.GRID do
 		for _, sx in { -1, 1 } do
 			for _, sz in { -1, 1 } do
 				table.insert(points, { g.x + sx * P.w / 2, 0, g.z + sz * P.d / 2 })
 			end
-		end
-	end
-	for _, sx in { -1, 1 } do
-		for _, sy in { -1, 1 } do
-			table.insert(points, { B.x + sx * B.w / 2, B.y + sy * B.h / 2, B.z })
 		end
 	end
 	for _, aspect in { 16 / 9, 2.16 } do -- a phone on its side, and a long one
@@ -252,7 +246,7 @@ end)
 
 test("locked pads have no little sign (their words are painted big on the pad)", function()
 	for _, p in T.pieces(1, 0, 0) do
-		if p.name == "PadSign" or p.name == "PadSignFoot" then
+		if p.name == "PadSign" or p.name == "PadSignPost" then
 			local i = tonumber(string.sub(p.group, 4)) :: number
 			truthy(i <= T.open(1), "sign only on open pads, not " .. p.group)
 		end
@@ -281,24 +275,31 @@ test("the scoreboard's rows are big enough to read on a phone", function()
 	truthy(B.y - B.h / 2 > 5, "over the treadmills' screens")
 end)
 
-test("pad signs: big, low, and clear of the next pad and the garage floor", function()
+test("pad signs: upright on posts over eye level, at the edge facing the middle", function()
 	local S, P = T.PAD_SIGN, T.PAD
+	truthy(S.low >= 5.5, "you see the station under the sign (eyes about 5 up)")
+	truthy(S.low + S.h <= 11, "not so high you can't read it close up")
 	truthy(S.w <= P.w - 2, "narrower than the pad")
-	local rad = math.rad(S.lean)
-	local top = S.y + S.h / 2 * math.cos(rad)
-	truthy(top <= 2.6, "low, so it doesn't hide its station")
-	truthy(S.h * S.w >= 90, "big (was 14 by 3)")
-	local reach = S.h / 2 * math.sin(rad) -- how far the sign runs each way in z
 	for i, g in T.GRID do
-		local z0, z1 = g.z + P.d / 2 + S.out - reach, g.z + P.d / 2 + S.out + reach
-		for j, h in T.GRID do
-			if i ~= j and math.abs(g.x - h.x) < P.w then
-				local apart = z1 < h.z - P.d / 2 or z0 > h.z + P.d / 2
-				truthy(apart, `pad {i}'s sign off pad {j}`)
-			end
-		end
-		if math.abs(g.x) - P.w / 2 < T.ROOM.x1 then
-			truthy(z1 < T.ROOM.z0 or z0 > T.ROOM.z1, `pad {i}'s sign off the garage floor`)
+		local x, z, yaw = T.signAt(i)
+		-- on the pad's own edge
+		truthy(math.abs(x - g.x) <= P.w / 2 and math.abs(z - g.z) <= P.d / 2, `sign {i} on its pad`)
+		-- its words (+z turned by yaw) point toward the middle of the plot
+		local fx, fz = math.sin(math.rad(yaw)), math.cos(math.rad(yaw))
+		truthy(fx * (0 - x) + fz * (0 - z) > 0, `sign {i} faces the middle`)
+	end
+end)
+
+test("walking in at the gate, you see the scoreboard over the back pad signs", function()
+	local B, S = T.BOARD, T.PAD_SIGN
+	local eye = { y = 5, z = 36 } -- standing in the gate
+	for i = 1, #T.GRID do
+		local x, z = T.signAt(i)
+		if math.abs(x - B.x) < B.w / 2 + S.w / 2 and z < -30 then
+			-- the line from your eyes to the board's bottom, where it passes the sign
+			local bottom = B.y - B.h / 2
+			local y = eye.y + (bottom - eye.y) * (eye.z - z) / (eye.z - B.z)
+			truthy(y > S.low + S.h, `sign {i} under the board from the gate`)
 		end
 	end
 end)
