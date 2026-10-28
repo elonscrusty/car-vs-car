@@ -397,6 +397,16 @@ function MatchRunner.damage(
 		return 0, false
 	end
 	local t = now()
+	-- new-kid safety: no bot hurts a player in their first round's first 15 s (a stray bullet
+	-- that locked on, a bump), not just the bots looking away
+	if
+		attackerId
+		and attackerId < 0
+		and newKids[victimId]
+		and t - m.startAt < Match.NEW_KID_SAFE
+	then
+		return 0, false
+	end
 	local took, smashed = Match.damage(m, victimId, attackerId, amount, t, weapon)
 	if took <= 0 then
 		return 0, false
@@ -422,6 +432,8 @@ function MatchRunner.damage(
 		end
 		local byInfo = if attackerId then infos[attackerId] else nil
 		if by and byInfo then
+			-- (Place first: the HUD redraws on Smashes and must not see a 0 Place with 1 smash)
+			setAttr(byInfo, "Place", Match.shownPlace(by, Match.placeOf(m, by.id)))
 			setAttr(byInfo, "Smashes", by.smashes)
 			if byInfo.player then
 				Jobs.fire(byInfo.player, "smash", 1)
@@ -778,7 +790,7 @@ local function firstCrate(player: Player)
 	PlayerData.raiseStage(player, Profile.STAGE.RACED)
 	player:SetAttribute("Crates", data.crates)
 	-- the crate count on the screens (they hear it with the Garage "cars" list, like the daily gift)
-	local mod = script.Parent:FindFirstChild("TrainingServer")
+	local mod = script.Parent:FindFirstChild("GarageServer")
 	if mod and mod:IsA("ModuleScript") then
 		pcall((require(mod) :: any).refresh, player)
 	end

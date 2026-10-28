@@ -18,7 +18,7 @@ do -- Features.SMASH on for this server only
 	local f = S.Shared:FindFirstChild("Features")
 	local p = (getmetatable(f) :: any).p
 	local src, n = string.gsub(p._source, "Features%.SMASH = false", "Features.SMASH = true")
-	assert(n == 1, "Features.SMASH line")
+	assert(n == 1 or string.find(p._source, "Features%.SMASH = true"), "Features.SMASH line")
 	p._source = src
 end
 S.run("Main")

@@ -140,6 +140,10 @@ test("queue: the kid is in a round within 10 s, full health, 8 karts", function(
 	eq(kid:GetAttribute("Health"), 100, "health")
 	eq(#MR.karts(), 8, "karts (bots fill)")
 	truthy(type(S.workspace:GetAttribute("MatchEndsAt")) == "number", "MatchEndsAt")
+	-- new-kid safety: past the spawn bubble, a bot's hit still does nothing in the first 15 s
+	S.advance(3, BEAT)
+	eq(MR.damage(KID, -1, 34, "rocket"), 0, "a bot can't hurt a new kid yet")
+	eq(kid:GetAttribute("Health"), 100, "health after the bot's hit")
 	eq(trouble(S), "", "errors or warns")
 end)
 
@@ -157,8 +161,10 @@ test("a kid who queues mid-round waits for the next one", function()
 end)
 
 test("first smash (a bump) within 30 s; the bot is back in 3 s with a shield", function()
+	-- (a smash seen as it lands: one from before this test may have its bot back already)
+	local s0 = kid:GetAttribute("Smashes") or 0
 	local took = waitFor(function()
-		return (kid:GetAttribute("Smashes") or 0) >= 1
+		return (kid:GetAttribute("Smashes") or 0) > s0
 	end, 30)
 	truthy(took, "a smash within 30 s of spawning")
 	print(`       first smash {math.floor(S.now() - roundStart + 0.5)} s into the round`)
@@ -167,8 +173,7 @@ test("first smash (a bump) within 30 s; the bot is back in 3 s with a shield", f
 	local victim = nil
 	for _, f in S.got(kid, "SmashFeed") do
 		if type(f[2]) == "table" and f[2].userId == KID then
-			victim = f[3]
-			break
+			victim = f[3] -- (the newest one)
 		end
 	end
 	local vid = type(victim) == "table"

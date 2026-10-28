@@ -300,7 +300,7 @@ function Match.ram(
 	return toB, toA
 end
 
--- Seven names for a round's bots, in a random order (`pick(n)` returns 1..n).
+-- The names for a round's bots (12: a round has at most 7), in a random order (`pick(n)` returns 1..n).
 function Match.botNames(pick: (number) -> number): { string }
 	local names = table.clone(Match.BOT_NAMES)
 	for k = #names, 2, -1 do
