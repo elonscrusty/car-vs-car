@@ -37,19 +37,24 @@ local function burst(at: Vector3)
 		local a = n / 8 * math.pi * 2
 		local to = at + Vector3.new(math.cos(a) * 5, 2.5 + (n % 3), math.sin(a) * 5)
 		bit.Parent = workspace
-		TweenService:Create(
-			bit,
-			TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{ CFrame = CFrame.new(to) * CFrame.Angles(n * 3, n, n * 2), Size = Vector3.one * 0.1, Transparency = 1 }
-		):Play()
+		TweenService
+			:Create(bit, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				CFrame = CFrame.new(to) * CFrame.Angles(n * 3, n, n * 2),
+				Size = Vector3.one * 0.1,
+				Transparency = 1,
+			})
+			:Play()
 		Debris:AddItem(bit, 0.45)
 	end
 end
 
 local function popIn(l: Live)
 	l.body.Size = l.size * 0.2
-	TweenService:Create(l.body, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Size = l.size })
-		:Play()
+	TweenService:Create(
+		l.body,
+		TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+		{ Size = l.size }
+	):Play()
 end
 
 local function add(inst: Instance)
@@ -61,7 +66,13 @@ local function add(inst: Instance)
 	if not (body and body:IsA("BasePart")) or typeof(home) ~= "CFrame" then
 		return
 	end
-	local l: Live = { model = inst, body = body, home = home, phase = math.random() * math.pi * 2, size = body.Size }
+	local l: Live = {
+		model = inst,
+		body = body,
+		home = home,
+		phase = math.random() * math.pi * 2,
+		size = body.Size,
+	}
 	live[inst] = l
 	conns[inst] = {
 		inst:GetAttributeChangedSignal("Up"):Connect(function()
@@ -97,7 +108,10 @@ RunService.RenderStepped:Connect(function(dt: number)
 	for _, l in live do
 		if l.model:GetAttribute("Up") == true then
 			local y = math.sin(t * BOB_SPEED + l.phase) * BOB
-			l.body.CFrame = l.home * CFrame.new(0, y, 0) * CFrame.Angles(0, t * SPIN + l.phase, 0) * CFrame.Angles(TILT, 0, 0)
+			l.body.CFrame = l.home
+				* CFrame.new(0, y, 0)
+				* CFrame.Angles(0, t * SPIN + l.phase, 0)
+				* CFrame.Angles(TILT, 0, 0)
 		end
 	end
 end)

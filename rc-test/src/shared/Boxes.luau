@@ -111,7 +111,8 @@ end
 -- Is the kart touching the box?
 function Boxes.touching(box: Box, k: Kart): boolean
 	local dx, dz = k.x - box.x, k.z - box.z
-	return dx * dx + dz * dz <= Boxes.RADIUS * Boxes.RADIUS and math.abs(k.y - box.y) <= Boxes.HEIGHT
+	return dx * dx + dz * dz <= Boxes.RADIUS * Boxes.RADIUS
+		and math.abs(k.y - box.y) <= Boxes.HEIGHT
 end
 
 -- One check at time `now`: boxes whose time is up come back; then each up box goes to the first

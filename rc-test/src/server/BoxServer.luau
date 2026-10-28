@@ -53,7 +53,7 @@ export type Handle = {
 
 local function mark(body: BasePart, face: Enum.NormalId)
 	local gui = Instance.new("SurfaceGui")
-	gui.Name = "Mark" .. face.Name
+	gui.Name = "Mark"
 	gui.Face = face
 	gui.CanvasSize = Vector2.new(100, 100)
 	gui.LightInfluence = 0
@@ -94,7 +94,15 @@ local function build(i: number, spot: Vector3, parent: Instance): Model
 	body.CanTouch = false
 	body.CanQuery = false
 	body.CastShadow = true
-	for _, face in { Enum.NormalId.Front, Enum.NormalId.Back, Enum.NormalId.Left, Enum.NormalId.Right, Enum.NormalId.Top } do
+	for _, face in
+		{
+			Enum.NormalId.Front,
+			Enum.NormalId.Back,
+			Enum.NormalId.Left,
+			Enum.NormalId.Right,
+			Enum.NormalId.Top,
+		}
+	do
 		mark(body, face)
 	end
 	body.Parent = m
@@ -212,7 +220,10 @@ function BoxServer.start(opts: Options): Handle
 		for _, k in karts do
 			local p = k.position
 			if typeof(p) == "Vector3" then
-				table.insert(list, { id = k.id, x = p.X, y = p.Y, z = p.Z, alive = k.alive == true })
+				table.insert(
+					list,
+					{ id = k.id, x = p.X, y = p.Y, z = p.Z, alive = k.alive == true }
+				)
 			end
 		end
 		local taken, back = Boxes.step(boxes, list, os.clock(), take)
