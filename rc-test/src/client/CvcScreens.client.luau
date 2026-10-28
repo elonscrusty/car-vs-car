@@ -308,7 +308,8 @@ function openCrates()
 		chosen = crateChoice,
 		best = 2,
 		coins = num("Coins"),
-		note = "1 car per crate.",
+		-- (smash: karts; every one drives the same, so a crate is a new look, not a win)
+		note = if (Features :: any).SMASH then "1 new kart per crate." else "1 car per crate.",
 	}, {
 		choose = function(i: number)
 			crateChoice = i
@@ -319,7 +320,11 @@ function openCrates()
 				return
 			end
 			if #CvcState.garage >= Profile.MAX_GARAGE then
-				info("lock", "Garage full", "No room for cars.")
+				info(
+					"lock",
+					"Garage full",
+					if (Features :: any).SMASH then "No room for karts." else "No room for cars."
+				)
 				return
 			end
 			if ch.kind == "free" then
