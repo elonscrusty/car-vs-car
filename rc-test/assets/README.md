@@ -16,12 +16,11 @@ the skin per track (`SKINS`).
 
 ## Kart models (`karts/`)
 
-`Kart_Racer`, `Kart_Buggy`, `Kart_Speedster`, `Kart_Muscle`, `Kart_Bubble`, `Kart_Truck`: six
-low-poly karts made in Blender by `karts/build.py` (run it with Blender's Python to remake them).
-Each has a blocky driver and MeshParts `Body`, `Accent`, `Trim`, `Driver`, `Head`, `Headlights`,
-`Taillights`, `WeaponMount`, `WheelFL`, `WheelFR`, `WheelRL`, `WheelRR`. The game paints them per car
-by part name (`ToyCars.kartPaint`), so 6 models dress all 24 cars (`ToyCars.KARTS`).
-
-To use them in Studio: File > Import 3D > pick each file > Import. Move each model into
-`ReplicatedStorage.CarSkins` and keep its name (`Kart_Racer`, ...). Either nose direction works
-(the game finds the nose by the headlights). A car's own model, named its car id, still wins.
+Six low-poly karts from carter's reference picture (racer, bulldozer, buggy, monster, rocket, hot-rod),
+made in Blender by `karts/build.py`, with a blocky Roblox driver in a cap and no weapon on them.
+`karts/to_luau.py` turns its `karts.json` into `src/shared/KartMeshData.luau`, and the game builds
+the karts from that while it runs (`src/client/KartMesh.luau`, EditableMesh): nothing to import.
+Parts are painted per car by name (`ToyCars.kartPaint`), so 6 karts dress all 24 cars
+(`ToyCars.KARTS`). To remake them: run `build.py` with Blender's Python, then
+`python3 to_luau.py out/karts.json ../../src/shared/KartMeshData.luau` and `stylua` that file.
+A model in `ReplicatedStorage.CarSkins` named a kart (`Kart_Racer`, ...) or a car id still wins.

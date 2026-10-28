@@ -4,7 +4,7 @@
 -- navy trim, wedge noses, neon lights, no studs, no logos, no text.
 --
 -- 11 shapes (buggy, formula, muscle, truck, rally, crawler, wedge, jet, bubble, coupe, hatch),
--- each with a WeaponMount on its roof (rockets go there); glow cars light up their accent bits.
+-- (no weapon on the car: carter 10-28, it shows as an icon above it); glow cars light up their accent bits.
 -- These part cars hold the slot until the mesh karts land in ReplicatedStorage.CarSkins.
 --
 -- A look is "shape/accent" or "shape/accent/glow" (CarCatalog gives each car its own). The old
@@ -119,7 +119,7 @@ function ToyCars.halfWidth(style: string?): number
 end
 
 -- the hat spot (CarBuilder's "Topper"), at size 1: about a roof's height above the ground, at
--- the front of the roof (the WeaponMount is behind it)
+-- the front of the roof
 ToyCars.HEAD_TOP = 1.8
 ToyCars.TOPPER_Z = -0.05
 
@@ -284,21 +284,6 @@ SHAPES.rally = function(p, c, a, l)
 	end
 end
 
--- Where each shape's WeaponMount sits: its roof (or deck) top and how far back, before the lift.
-ToyCars.MOUNTS = {
-	muscle = { y = 1.75, z = 0.42 },
-	coupe = { y = 1.52, z = 0.6 },
-	hatch = { y = 1.95, z = 0.62 },
-	wedge = { y = 1.4, z = 0.45 },
-	buggy = { y = 1.27, z = 1.45 },
-	formula = { y = 0.85, z = 1.15 },
-	truck = { y = 1.72, z = 0.35 },
-	crawler = { y = 1.69, z = 0.25 },
-	bubble = { y = 1.75, z = 0.25 },
-	jet = { y = 1.1, z = 0.45 },
-	rally = { y = 1.92, z = 0.6 },
-} :: { [string]: { y: number, z: number } }
-
 ToyCars.SHAPES = {} :: { string }
 for name in SHAPES do
 	table.insert(ToyCars.SHAPES, name)
@@ -322,8 +307,6 @@ function ToyCars.body(p: Put, color: { number }, style: string?)
 	end
 	local lift = ToyCars.WHEELS[look.shape].lift
 	SHAPES[look.shape](put, color, look.accent, lift)
-	local m = ToyCars.MOUNTS[look.shape]
-	p("WeaponMount", v(0.45, 0.14, 0.45), 0, m.y + lift + 0.07, m.z, NAVY)
 end
 
 -- The Blender kart models (ReplicatedStorage.CarSkins.Kart_*, made from assets/karts/build.py):
@@ -331,45 +314,74 @@ end
 -- for a car (CarSkins, named the car id) still wins over these.
 ToyCars.KARTS = {
 	formula = "Kart_Racer",
-	jet = "Kart_Racer",
+	coupe = "Kart_Racer",
+	wedge = "Kart_Racer",
+	jet = "Kart_Rocket",
 	buggy = "Kart_Buggy",
-	crawler = "Kart_Buggy",
-	wedge = "Kart_Speedster",
-	coupe = "Kart_Speedster",
-	muscle = "Kart_Muscle",
-	rally = "Kart_Muscle",
-	bubble = "Kart_Bubble",
-	hatch = "Kart_Bubble",
-	truck = "Kart_Truck",
+	rally = "Kart_Buggy",
+	crawler = "Kart_Monster",
+	truck = "Kart_Monster",
+	hatch = "Kart_Dozer",
+	muscle = "Kart_HotRod",
+	bubble = "Kart_HotRod",
 } :: { [string]: string }
 
 function ToyCars.kartModel(style: string?): string
 	return ToyCars.KARTS[ToyCars.parse(style).shape]
 end
 
-local SHIRT = ToyCars.PALETTE.blue
+local PAL = ToyCars.PALETTE
+local METAL = { 205, 210, 220 }
+local DARK_STEEL = { 70, 74, 84 }
+-- a colour, a third of the way to white: a lamp of that colour (half way read pastel pink)
+local function lit(c: { number }): { number }
+	return {
+		math.floor(c[1] + (255 - c[1]) / 3),
+		math.floor(c[2] + (255 - c[2]) / 3),
+		math.floor(c[3] + (255 - c[3]) / 3),
+	}
+end
+-- the kart's accent bits: a navy accent would be black (white, or sky blue when it glows)
+local function kartAccent(look: Look): { number }
+	return if look.accent == NAVY then (if look.glow then PAL.sky else PAL.white) else look.accent
+end
+-- (carter's picture: the shirt, cap and rims are the kart's own colour)
+-- A kart's rims: the kart's own colour.
+function ToyCars.kartRim(color: { number }, _style: string?): { number }
+	return color
+end
+
 -- A kart model's part, by name: its colour and whether it glows (nil: keep the model's own).
 function ToyCars.kartPaint(name: string, color: { number }, style: string?): ({ number }?, boolean)
 	local look = ToyCars.parse(style)
-	if name == "Body" then
+	if name == "Body" or name == "Cap" or name == "Driver" then
 		return color, false
 	elseif name == "Accent" then
-		-- (a navy glow would be black: it lights up sky blue)
-		return if look.glow and look.accent == NAVY then ToyCars.PALETTE.sky else look.accent,
-			look.glow
-	elseif name == "Trim" or name == "WeaponMount" then
+		return kartAccent(look), look.glow
+	elseif name == "Trim" or name == "Eyes" or name == "Seat" then
 		return NAVY, false
+	elseif name == "Metal" then
+		return METAL, false
+	elseif name == "Dark" then
+		return DARK_STEEL, false
+	elseif name == "Shade" then
+		return {
+			math.floor(color[1] * 0.55),
+			math.floor(color[2] * 0.55),
+			math.floor(color[3] * 0.55),
+		},
+			false
 	elseif name == "Head" then
-		return ToyCars.PALETTE.yellow, false
-	elseif name == "Driver" then
-		local blue = color[1] == SHIRT[1] and color[2] == SHIRT[2] and color[3] == SHIRT[3]
-		return if blue then ToyCars.PALETTE.white else SHIRT, false
-	elseif name == "Headlights" then
-		return LIGHT, true
+		return PAL.yellow, false
+	elseif name == "Headlights" or name == "Glow" then
+		-- (carter's picture: each kart's lights glow its own colour)
+		return lit(color), true
 	elseif name == "Taillights" then
 		return TAIL, true
 	elseif string.sub(name, 1, 5) == "Wheel" then
 		return TIRE, false
+	elseif string.sub(name, 1, 3) == "Rim" then
+		return ToyCars.kartRim(color, style), false
 	end
 	return nil, false
 end
