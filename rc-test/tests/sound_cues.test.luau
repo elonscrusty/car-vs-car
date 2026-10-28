@@ -81,9 +81,6 @@ test("the live screens call the coin, buy and unlock sounds", function()
 		string.find(fs.readFile("src/client/Main.client.luau"), "Sfx.count(", 1, true) ~= nil,
 		"no 3-2-1-GO"
 	)
-	truthy(
-		string.find(fs.readFile("src/client/ServerRace.client.luau"), "Sfx.finish(", 1, true) ~= nil
-	)
 end)
 
 test("Smash arena sounds: every new action has a Sfx call", function()

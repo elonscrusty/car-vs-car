@@ -27,7 +27,7 @@ Features.PLOT_CAM = false
 -- boxes and weapons, and the plot as a garage with no training. The one flag for every Smash
 -- part: off keeps the racing and training game working; the lead turns it on at phase 3.
 -- (Studio proof runs: a workspace attribute Smash = true starts MatchRunner, Main.server.)
-Features.SMASH = false
+Features.SMASH = true
 
 -- Phone speed, waiting for Studio numbers. Both are off / unchanged until someone flips them.
 -- Plot cars are moved this many times a second (60 = every frame, as before; 30 = half the work).
