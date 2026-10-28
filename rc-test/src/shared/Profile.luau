@@ -36,7 +36,7 @@ export type Data = {
 	pile: number, -- coins waiting in my plot (tap to collect)
 	lastSeen: number, -- os.time of the last save: coins keep piling while I'm away
 	boostUntil: number, -- os.time a race win's double income ends
-	plotLevel: number, -- 0..Tycoon.MAX_LEVEL: more parking slots
+	plotLevel: number, -- 0..Training.MAX_PLOT_LEVEL: more stations (and tycoon parking slots)
 	parked: { string }, -- car ids parked in my garage (each makes coins)
 	-- Car VS Car (rc-game/cvc-plan.md): cars train on my plot's stations
 	garage: { GarageCar }, -- every car I own, duplicates too; each keeps its own training
@@ -77,7 +77,7 @@ Profile.TOP = 3 -- rows on a plot's board
 -- (JoinStage): new = just your car and GO; lapped = coins and BUILD; raced = the shop;
 -- shopped (first car bought) = everything (gift, jobs, looks, top 3, 2X).
 Profile.STAGE = { NEW = 0, LAPPED = 1, RACED = 2, SHOPPED = 3 }
-Profile.MAX_PLOT_LEVEL = 5 -- (Tycoon.MAX_LEVEL)
+Profile.MAX_PLOT_LEVEL = 8 -- (Training.MAX_PLOT_LEVEL; was Tycoon's 5, which cut Car VS Car plots 6-8 back to 5 on rejoin)
 Profile.MAX_PARKED = 8 -- (Tycoon.slots at the top level)
 Profile.BASE_SLOTS = 3 -- (Tycoon.BASE_SLOTS) parked cars past slots(plotLevel) are dropped
 Profile.MAX_COINS = 1e12 -- a broken number can't blow the save up; real play never gets near
@@ -1084,6 +1084,21 @@ function Profile.mergeVisit(stored: Data, session: Data, base: Data): Data
 	if #out.stations == 0 then
 		for _, st in session.stations do
 			table.insert(out.stations, table.clone(st))
+		end
+	else
+		-- station levels bought this visit stay (a level only goes up); the visit's extra
+		-- stations (a plot level it bought) come too
+		for i, st in session.stations do
+			local mine = out.stations[i]
+			if mine then
+				mine.level = math.max(mine.level, st.level)
+			elseif #out.stations < Profile.MAX_STATIONS then
+				local c = table.clone(st)
+				if c.uid ~= "" and not Profile.findCar(out, c.uid) then
+					c.uid = ""
+				end
+				table.insert(out.stations, c)
+			end
 		end
 	end
 	return out
