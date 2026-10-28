@@ -342,20 +342,72 @@ ServerRace.GROUPS = 4 -- big races at once at most (one per league, or two for a
 -- `solo[i]` = racer i has never raced (audit B1): a first race is them and bots only, so each
 -- gets a race of their own first. If that would make more than GROUPS races, the new ones share
 -- the races that are left (still only new kids together).
-function ServerRace.groups(leagues: { number }, max: number, solo: { boolean }?): { { number } }
+-- `friends` = pairs of racer numbers who are Roblox friends (audit C2, MASTER-PROMPT §12.1):
+-- friends always race together, in the lowest league among them (and side by side in join
+-- order, so a full league splits around them). A new kid with a friend here races with them.
+function ServerRace.groups(
+	leagues: { number },
+	max: number,
+	solo: { boolean }?,
+	friends: { { number } }?
+): { { number } }
+	-- friends' circles (a friend of a friend too): root[i] = the circle's first racer
+	local root: { number } = {}
+	for i in leagues do
+		root[i] = i
+	end
+	local function find(i: number): number
+		while root[i] ~= i do
+			i = root[i]
+		end
+		return i
+	end
+	local paired: { [number]: boolean } = {}
+	for _, pair in friends or {} do
+		local a, b = pair[1], pair[2]
+		if a ~= b and leagues[a] ~= nil and leagues[b] ~= nil then
+			local ra, rb = find(a), find(b)
+			root[math.max(ra, rb)] = math.min(ra, rb)
+			paired[a], paired[b] = true, true
+		end
+	end
+	local low: { [number]: number } = {}
+	for i, lg in leagues do
+		local r = find(i)
+		low[r] = math.min(low[r] or lg, lg)
+	end
 	local byLeague: { [number]: { number } } = {}
 	local order: { number } = {}
 	local new: { number } = {}
-	for i, lg in leagues do
-		if solo and solo[i] then
+	for i in leagues do
+		if solo and solo[i] and not paired[i] then
 			table.insert(new, i)
 			continue
 		end
+		local lg = low[find(i)]
 		if not byLeague[lg] then
 			byLeague[lg] = {}
 			table.insert(order, lg)
 		end
 		table.insert(byLeague[lg], i)
+	end
+	-- (a circle together: in the order its first one joined)
+	for _, list in byLeague do
+		local first: { [number]: number } = {}
+		for n, i in list do
+			first[find(i)] = first[find(i)] or n
+		end
+		local at: { [number]: number } = {}
+		for n, i in list do
+			at[i] = n
+		end
+		table.sort(list, function(x: number, y: number): boolean
+			local fx, fy = first[find(x)], first[find(y)]
+			if fx ~= fy then
+				return fx < fy
+			end
+			return at[x] < at[y]
+		end)
 	end
 	table.sort(order)
 	local out: { { number } } = {}

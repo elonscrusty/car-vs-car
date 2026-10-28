@@ -46,13 +46,24 @@ local function part(v: any): number
 end
 
 -- The race numbers for a car (its bars = base + trained, from Training.bar; nil = plain car).
-function RaceStats.drive(car: Car?, stats: Stats?): Drive
+-- `cap` = the most strength (all 3 bars) it may race with: a stronger car racing a friend in a
+-- lower league has all its bars scaled down to that (League.top).
+function RaceStats.drive(car: Car?, stats: Stats?, cap: number?): Drive
 	if not (car and stats) then
 		return table.clone(RaceStats.PLAIN) :: Drive
 	end
-	local speed = part(Training.bar(car, "speed", stats))
-	local turn = part(Training.bar(car, "turn", stats))
-	local boost = part(Training.bar(car, "boost", stats))
+	local s, t, b =
+		Training.bar(car, "speed", stats),
+		Training.bar(car, "turn", stats),
+		Training.bar(car, "boost", stats)
+	local sum = s + t + b
+	if cap and sum > cap and sum > 0 then
+		local k = math.max(0, cap) / sum
+		s, t, b = s * k, t * k, b * k
+	end
+	local speed = part(s)
+	local turn = part(t)
+	local boost = part(b)
 	return {
 		top = 1 + RaceStats.TOP * speed,
 		start = 1 + RaceStats.START * speed,

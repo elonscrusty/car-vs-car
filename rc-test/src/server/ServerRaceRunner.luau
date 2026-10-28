@@ -31,6 +31,7 @@ local League = require(ReplicatedStorage.Shared.League)
 local RaceBotCars = require(script.Parent.RaceBotCars)
 local LobbyPlots = require(script.Parent.LobbyPlots)
 local PlayerData = require(script.Parent.PlayerData)
+local FriendBonus = require(script.Parent.FriendBonus)
 
 -- Grid spot k on this plot, plot-local: lined up behind its start line (the map's, else the street
 -- race plot's), or the plot's own start spot when it has neither.
@@ -538,8 +539,9 @@ local function racersHere(): { Player }
 end
 
 -- Car VS Car: the racer's trained bars go on the player for their car's screen (RaceStats); off
--- (nil) = today's numbers. Set before "drive", so the car is right from the grid.
-local function setDrive(p: Player, on: boolean)
+-- (nil) = today's numbers. Set before "drive", so the car is right from the grid. `cap` = the
+-- most strength the car races with (racing a friend's lower league: League.top).
+local function setDrive(p: Player, on: boolean, cap: number?)
 	local d: RaceStats.Drive? = nil
 	if on and Features.CVC then
 		local mod = script.Parent:FindFirstChild("TrainingServer")
@@ -547,7 +549,7 @@ local function setDrive(p: Player, on: boolean)
 			local ok, car, stats = pcall(function()
 				return (require(mod) :: any).racer(p)
 			end)
-			d = RaceStats.drive(if ok then car else nil, if ok then stats else nil)
+			d = RaceStats.drive(if ok then car else nil, if ok then stats else nil, cap)
 		end
 	end
 	p:SetAttribute("RaceTop", d and d.top)
@@ -589,16 +591,33 @@ local function runRace(hooks: Hooks, slot: number)
 			firstRace and not (type(stage) == "number" and stage >= Profile.STAGE.RACED)
 		)
 	end
+	-- friends always race together, in the lower league (audit C2)
+	local friends: { { number } } = {}
+	if Features.CVC then
+		for i = 1, #list do
+			for j = i + 1, #list do
+				if FriendBonus.areFriends(list[i], list[j]) then
+					table.insert(friends, { i, j })
+				end
+			end
+		end
+	end
 	local groups: { { Racer } } = {}
 	local groupEasy: { boolean } = {}
 	local groupLaps: { number } = {}
-	for gi, idx in ServerRace.groups(leagues, ServerRace.MAX, solo) do
+	local groupLeague: { number } = {}
+	for gi, idx in ServerRace.groups(leagues, ServerRace.MAX, solo, friends) do
 		local racers: { Racer } = {}
 		groups[gi] = racers
 		local easy = firstRace
+		local league = math.huge
 		for _, i in idx do
 			easy = easy and solo[i]
+			league = math.min(league, leagues[i])
 		end
+		groupLeague[gi] = if league == math.huge then 1 else league
+		-- (a stronger car here for a friend is held to this league's top; prizes stay its own)
+		local cap = League.top(groupLeague[gi])
 		groupEasy[gi] = easy
 		groupLaps[gi] = ServerRace.lapsFor(easy)
 		for k, i in idx do
@@ -611,7 +630,7 @@ local function runRace(hooks: Hooks, slot: number)
 				hooks.walk(p)
 			end
 			LobbyPlots.claim(p, slot)
-			setDrive(p, true)
+			setDrive(p, true, if leagues[i] > groupLeague[gi] then cap else nil)
 			p:SetAttribute("RaceGroup", if Features.CVC then gi else nil)
 			p:SetAttribute("StandSpot", if Features.CVC then k else nil) -- (RaceStand: your spot)
 			local body = carBody(p)
@@ -670,12 +689,9 @@ local function runRace(hooks: Hooks, slot: number)
 		-- a map race with fewer than 4 cars gets bots (the grid spots after the players')
 		local bots: RaceBotCars.Fleet? = nil
 		if not drift and t.map then
-			-- (Car VS Car: bots as good as the league, easy ones when nobody here has raced yet)
-			local league = 1
-			for _, r in racers do
-				local lg = r.player:GetAttribute("League")
-				league = math.max(league, if type(lg) == "number" then lg else 1)
-			end
+			-- (Car VS Car: bots as good as the race's league, easy ones when nobody here has raced
+			-- yet; with friends from two leagues, the lower one)
+			local league = groupLeague[gi]
 			bots = RaceBotCars.spawn(
 				t,
 				#racers,
