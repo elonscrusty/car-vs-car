@@ -100,8 +100,31 @@ local function makeCar(id: string, parent: Instance): Model?
 	return model
 end
 
--- the cars to show: one per station pad (car "" = none), and the rest for the stands
 type Entry = { id: string, uid: string? }
+
+-- a car's bars, yours trained and anyone else's as it comes
+local function barsOf(e: Entry): PlotTraining.BoardCar
+	local car = if e.uid then CvcState.find(e.uid) else nil
+	local data: any = car or CvcState.fresh(e.id)
+	local info = CarCatalog.get(e.id) :: any
+	local out: PlotTraining.BoardCar = {
+		name = string.upper(if info then info.name else e.id),
+		speed = 0,
+		turn = 0,
+		boost = 0,
+	}
+	for _, b in CarStats.view(data) do
+		(out :: any)[b.bar] = b.value
+	end
+	return out
+end
+
+local function total(e: Entry): number
+	local b = barsOf(e)
+	return b.speed + b.turn + b.boost
+end
+
+-- the cars to show: one per station pad (car "" = none), and the rest for the stands
 local function cars(plot: Instance): ({ [number]: Entry }, { Entry })
 	local onPads: { [number]: Entry } = {}
 	local stands: { Entry } = {}
@@ -159,28 +182,6 @@ local function cars(plot: Instance): ({ [number]: Entry }, { Entry })
 		table.remove(stands)
 	end
 	return onPads, stands
-end
-
--- a car's bars, yours trained and anyone else's as it comes
-local function barsOf(e: Entry): PlotTraining.BoardCar
-	local car = if e.uid then CvcState.find(e.uid) else nil
-	local data: any = car or CvcState.fresh(e.id)
-	local info = CarCatalog.get(e.id) :: any
-	local out: PlotTraining.BoardCar = {
-		name = string.upper(if info then info.name else e.id),
-		speed = 0,
-		turn = 0,
-		boost = 0,
-	}
-	for _, b in CarStats.view(data) do
-		(out :: any)[b.bar] = b.value
-	end
-	return out
-end
-
-local function total(e: Entry): number
-	local b = barsOf(e)
-	return b.speed + b.turn + b.boost
 end
 
 local function keyOf(onPads: { [number]: Entry }, stands: { Entry }): string
