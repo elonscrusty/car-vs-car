@@ -997,6 +997,7 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 			cam.CameraSubject = hum
 		end
 		youTag.Enabled = false
+		raceFx.update(dt, false) -- a race that ended mid-BOOST: fade its speed lines out
 		car.render(dt) -- keep the parked car's wheels drawn
 		skin.update(car, SKINS[tracks[current].id])
 		effects.quiet()
