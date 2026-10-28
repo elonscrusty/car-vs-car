@@ -1,100 +1,138 @@
 --!strict
--- Little game sounds made from the one built-in ping, pitched up and down (no new sound ids).
--- Real sound files come later: the wanted list is in SOUNDS.md.
+-- Plays the game's sounds. Which sound each action makes lives in shared/SoundCues.luau:
+-- a Studio-checked Creator Store file when there is one, else the built-in ping pitched into notes.
+-- A file that fails to load falls back to the ping, so no action goes silent.
+local ContentProvider = game:GetService("ContentProvider")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SoundService = game:GetService("SoundService")
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local SoundLevels = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("SoundLevels"))
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local SoundCues = require(Shared:WaitForChild("SoundCues"))
+local SoundLevels = require(Shared:WaitForChild("SoundLevels"))
 
 local PING = "rbxasset://sounds/electronicpingshort.wav"
 
 local Sfx = {}
 
--- notes are PlaybackSpeed steps, played `gap` seconds apart
-local function notes(pitches: { number }, gap: number, volume: number)
-	for i, pitch in pitches do
-		task.delay((i - 1) * gap, function()
+-- files that failed to load: play the ping instead
+local broken: { [string]: boolean } = {}
+
+-- fetch every real file once, so the first coin is not late
+task.spawn(function()
+	local list = {}
+	for _, cue in SoundCues.ACTIONS do
+		local file = SoundCues.fileFor(cue)
+		if file then
 			local s = Instance.new("Sound")
-			s.SoundId = PING
-			s.PlaybackSpeed = pitch
-			s.Volume = volume
-			s.Parent = SoundService
-			s:Play()
-			s.Ended:Once(function()
-				s:Destroy()
-			end)
+			s.SoundId = file
+			table.insert(list, s)
+		end
+	end
+	if #list > 0 then
+		ContentProvider:PreloadAsync(list, function(id: string, status: Enum.AssetFetchStatus)
+			if status ~= Enum.AssetFetchStatus.Success then
+				broken[id] = true
+			end
 		end)
+	end
+end)
+
+local function one(id: string, pitch: number, volume: number)
+	local s = Instance.new("Sound")
+	s.SoundId = id
+	s.PlaybackSpeed = pitch
+	s.Volume = volume
+	s.Parent = SoundService
+	s:Play()
+	s.Ended:Once(function()
+		s:Destroy()
+	end)
+end
+
+-- play an action's cue. `up` lifts the pitch (a stream of coins climbs); `count` cuts the ping notes
+local function play(name: string, up: number?, count: number?)
+	local cue = SoundCues.get(name)
+	if not cue then
+		return
+	end
+	local lift = up or 1
+	local file = SoundCues.fileFor(cue)
+	if file and not broken[file] then
+		one(file, (cue.pitch or 1) * lift, cue.volume)
+		return
+	end
+	for i, pitch in SoundCues.notesFor(cue, count) do
+		task.delay((i - 1) * cue.gap, one, PING, pitch * lift, cue.volume)
 	end
 end
 
 -- one coin lands in the coins number; `i` counts up so a stream of them climbs
 function Sfx.coin(i: number)
-	notes({ 1.6 + math.min(i - 1, 8) * 0.07 }, 0, SoundLevels.COIN)
+	play("coin", 1 + math.min(i - 1, 8) * 0.044)
 end
 
--- a plot level: four notes up
+-- coins spent: a crate, a car, an upgrade
+function Sfx.buy()
+	play("buy")
+end
+
+-- a car or plot level: four notes up
 function Sfx.levelUp()
-	notes({ 1, 1.25, 1.5, 2 }, 0.1, SoundLevels.LEVEL_UP)
+	play("levelUp")
 end
 
--- your car crosses the line: a short rising run, longer for a podium place
+-- a new training station opens on the plot
+function Sfx.unlock()
+	play("unlock")
+end
+
+-- your car crosses the line: a longer cue for a podium place
 function Sfx.finish(place: number)
-	if place <= 3 then
-		notes({ 1, 1.25, 1.5, 1.25, 2 }, 0.11, SoundLevels.FINISH)
-	else
-		notes({ 1, 1.25 }, 0.14, SoundLevels.FINISH)
-	end
+	play(if place <= 3 then "podium" else "finish")
 end
 
--- a crate opens: the rarer the car, the longer and higher the sparkle (rarity 1..4)
+-- a crate opens: the lid pops, then the car's sparkle (rarity 1..4: rarer = longer)
 function Sfx.crate(rarity: number)
-	local run = { 1, 1.25, 1.5, 1.88, 2, 2.5 }
-	local n = math.clamp(2 + rarity, 3, #run)
-	notes(table.move(run, 1, n, 1, {}), 0.09, SoundLevels.CRATE)
+	play("crateOpen")
+	task.delay(0.15, play, "reveal", nil, 2 + rarity)
 end
 
--- a trophy for a podium place (1..3): a bigger cheer-run for gold
+-- a trophy for a podium place (1..3): a bigger run for gold
 function Sfx.trophy(place: number)
-	local run = if place == 1 then { 1, 1.25, 1.5, 2, 1.5, 2, 2.5 } else { 1, 1.5, 2 }
-	notes(run, 0.1, SoundLevels.TROPHY)
+	play(if place == 1 then "gold" else "trophy")
 end
 
 -- a car on a station gained points: one soft tick
 function Sfx.train()
-	notes({ 1.3 }, 0, SoundLevels.TRAIN)
+	play("train")
 end
 
--- a crate shakes before it opens: quick low thumps, rarer crates rattle more
+-- a crate shakes before it opens: rarer crates rattle more
 function Sfx.shake(rarity: number)
-	local thumps = {}
-	for i = 1, 3 + math.clamp(rarity, 1, 4) * 2 do
-		thumps[i] = if i % 2 == 0 then 0.6 else 0.75
+	play("crateShake")
+	if rarity >= 2 then
+		task.delay(0.6, play, "crateShake", 1.15)
 	end
-	notes(thumps, 0.12, SoundLevels.CRATE)
 end
 
--- a crowd cheer when someone wins the big race: a wide, bouncy run (no args)
+-- a crowd cheer when someone wins the big race (no args)
 function Sfx.cheer()
-	notes({ 1, 1.5, 1.25, 1.88, 1.5, 2, 2.5 }, 0.08, SoundLevels.TROPHY)
+	play("cheer")
 end
 
 -- a bar went up (+1 SPEED etc): one bright ding
 function Sfx.speedUp()
-	notes({ 1.9 }, 0, SoundLevels.DING)
+	play("speedUp")
 end
 
--- a bar hit its cap (MAX!): two dings and a high third
+-- a bar hit its cap (MAX!)
 function Sfx.maxed()
-	notes({ 1.5, 2, 2.67 }, 0.09, SoundLevels.DING)
+	play("maxed")
 end
 
--- 3-2-1-GO on the line: `step` 3, 2, 1 are low beeps, 0 is GO (high, longer)
+-- 3-2-1-GO on the line: `step` 3, 2, 1 are low beeps, 0 is GO
 function Sfx.count(step: number)
-	if step <= 0 then
-		notes({ 2, 2.5 }, 0.12, SoundLevels.COUNT)
-	else
-		notes({ 1 }, 0, SoundLevels.COUNT)
-	end
+	play(if step <= 0 then "go" else "count")
 end
 
 -- a wall scrape: a tiny tick; call as often as you like, it skips ticks that are too close
@@ -105,12 +143,12 @@ function Sfx.spark()
 		return
 	end
 	lastSpark = now
-	notes({ 2.2 + math.random() * 0.6 }, 0, SoundLevels.SPARK)
+	play("spark", 0.9 + math.random() * 0.25)
 end
 
--- the league went up: a rising run with sparkles on top
+-- the league went up
 function Sfx.fireworks()
-	notes({ 1, 1.25, 1.5, 2, 2.5, 2, 2.67, 2.2, 3 }, 0.1, SoundLevels.FIREWORKS)
+	play("leagueUp")
 end
 
 return Sfx

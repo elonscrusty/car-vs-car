@@ -329,6 +329,7 @@ function openCrates()
 				noCoins(ch.price, openCrates)
 			else
 				wantReveal = true
+				Sfx.buy()
 				ask("buy", ch.kind)
 			end
 		end,
@@ -435,7 +436,8 @@ local function morePopup()
 				return
 			end
 			ask("level")
-			Sfx.levelUp()
+			Sfx.buy()
+			Sfx.unlock()
 			openGarage()
 		end,
 		no = openGarage,
@@ -965,6 +967,12 @@ RunService.Heartbeat:Connect(function()
 	local coins = num("Coins")
 	local nw, nf, nk = nextBuy()
 	if coins ~= lastCoins or nk ~= nextKind or nw ~= lastNext then
+		-- coins came in: a ching, a short climbing stream for a big win (none on join)
+		if lastCoins >= 0 and coins > lastCoins then
+			for i = 1, math.clamp(math.ceil((coins - lastCoins) / 25), 1, 6) do
+				task.delay((i - 1) * 0.07, Sfx.coin, i)
+			end
+		end
 		lastCoins = coins
 		api.setCoins(coins)
 		nextKind, lastNext = nk, nw

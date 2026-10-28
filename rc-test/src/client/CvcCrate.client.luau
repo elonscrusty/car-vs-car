@@ -266,6 +266,7 @@ openBtn.Activated:Connect(function()
 			return -- (grey: not enough coins yet)
 		end
 		opening = true
+		Sfx.buy()
 		CvcState.ask("buy", KIND)
 	elseif CvcState.crates <= 0 then
 		setOpen(false)
