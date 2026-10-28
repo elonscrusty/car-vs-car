@@ -122,6 +122,8 @@ local LIST: { Screen } = {
 			-- today's jobs at the right edge, off the speed tracks)
 			button("Race", 288, 312, 180, 64, "lime", "RACE!", { anchor = "b", main = true }),
 			p("Jobs", 640, 228, 112, 44, { anchor = "tr", tap = true }),
+			-- (ask friends in: left of JOBS, over the speed tracks' edge, clear of COACH)
+			p("Invite", 522, 228, 112, 44, { anchor = "tr", tap = true }),
 			p("SignPower", 150, 110, 150, 40, { world = true }),
 			p("SignAir", 320, 190, 130, 40, { world = true }),
 			p("SignSpeed", 250, 290, 150, 40, { world = true }),

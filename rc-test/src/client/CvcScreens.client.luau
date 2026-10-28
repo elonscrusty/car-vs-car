@@ -12,6 +12,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local SocialService = game:GetService("SocialService")
 local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -659,6 +660,38 @@ UserInputService.InputBegan:Connect(function()
 end)
 local lastGoal: string? = nil
 
+-- INVITE: Roblox's invite screen (a friend in this server pays you both, FriendBonus). Only where
+-- Roblox lets this player send invites: it asks the web, so off the main thread, twice at most.
+local canInvite = false
+local inviting = false
+task.spawn(function()
+	for _ = 1, 2 do
+		local ok, yes = pcall(SocialService.CanSendGameInviteAsync, SocialService, player)
+		if ok then
+			canInvite = yes == true
+			return
+		end
+		task.wait(10)
+	end
+end)
+local function invite()
+	if inviting then
+		return
+	end
+	inviting = true
+	local ok = pcall(function()
+		local options = Instance.new("ExperienceInviteOptions")
+		options.PromptMessage = "Race me in Car VS Car!"
+		SocialService:PromptGameInvite(player, options)
+	end)
+	if not ok then
+		pcall(SocialService.PromptGameInvite, SocialService, player)
+	end
+	task.delay(1, function()
+		inviting = false
+	end)
+end
+
 local function openHud(stagger: boolean)
 	local car = racer()
 	hud = Hud.plot({
@@ -674,6 +707,7 @@ local function openHud(stagger: boolean)
 		words = { Garage = "TRAIN" },
 		race = "RACE!",
 		jobs = jobsWords() or "JOBS",
+		invite = "INVITE",
 		stagger = stagger,
 		-- (over the 3D plot: the scoreboard is top middle, the speed tracks right; the pads and the
 		-- board show the bars, the RACE! button the clock)
@@ -708,6 +742,7 @@ local function openHud(stagger: boolean)
 		end,
 		race = join,
 		jobs = openJobs,
+		invite = invite,
 		coach = function()
 			if Training.coachReady(num("CoachAt"), workspace:GetServerTimeNow()) then
 				ask("coach")
@@ -778,6 +813,8 @@ RunService.Heartbeat:Connect(function()
 	api.setShown("Shop", shopped)
 	api.setShown("League", shopped)
 	api.setShown("Jobs", shopped)
+	-- (after the first race: by then there's a race to bring a friend to)
+	api.setShown("Invite", raced and canInvite)
 	-- one arrow on the one thing to tap
 	local goal, goalWords = hudGoal()
 	if goal ~= lastGoal then
