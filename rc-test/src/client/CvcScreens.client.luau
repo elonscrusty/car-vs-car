@@ -746,6 +746,32 @@ end)
 
 -- ===== a bar goes up: "+1 SPEED" floats up by MY CAR =====
 
+-- one at a time, each a bit apart, so two that come together don't land on each other
+-- ("+1 TURN" over "+1 BOOST", Studio plot-edges 16)
+local floatAt = 0
+local floatSide = 1
+local function floatUp(words: string, tone: string, max: boolean)
+	local now = os.clock()
+	local at = math.max(now, floatAt)
+	if at - now > 3 then
+		return -- (lots at once: the rest wait for the next change)
+	end
+	floatAt = at + 0.7
+	floatSide = -floatSide
+	local x = 378 + floatSide * 50
+	task.delay(at - now, function()
+		local h = hud
+		if h and hudOn then
+			h.api.float(x, 290, words, tone)
+			if max then
+				Sfx.maxed()
+			else
+				Sfx.speedUp()
+			end
+		end
+	end)
+end
+
 local lastBars: { [string]: number } = {}
 local lastStations: { any } = CvcState.stations
 CvcState.changed:Connect(function()
@@ -763,12 +789,7 @@ CvcState.changed:Connect(function()
 					local words = if v >= cap
 						then `{stat.word} MAX!`
 						else `+{whole - was} {stat.word}`
-					h.api.float(378 + math.random(-40, 40), 286, words, stat.tone)
-					if v >= cap then
-						Sfx.maxed()
-					else
-						Sfx.speedUp()
-					end
+					floatUp(words, stat.tone, v >= cap)
 				end
 				lastBars[key] = whole
 			end
