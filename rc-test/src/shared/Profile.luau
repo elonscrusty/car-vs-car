@@ -3,6 +3,17 @@
 -- PlayerData does the DataStore part. Stars only come from OTHER people's plots, once per medal
 -- per plot owner per kind of plot: bronze then gold on Mia's race = 1 + 2 = 3 stars, never more.
 
+-- Sibling loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
+local function sibling(name: string): any
+	if script then
+		return require((script :: any).Parent[name])
+	end
+	local luneRequire: any = require
+	return luneRequire("./" .. name)
+end
+
+local Xp = sibling("Xp")
+
 export type Record = { value: number, name: string, userId: number }
 export type Data = {
 	version: number,
@@ -1073,8 +1084,16 @@ function Profile.mergeVisit(stored: Data, session: Data, base: Data): Data
 			mine.boost = math.max(mine.boost, c.boost)
 		end
 	end
-	for _, k in { "trophies", "raceWins", "crates", "xp" } do
+	for _, k in { "trophies", "raceWins", "crates" } do
 		out[k] = math.clamp(out[k] + gain(ses[k], (base :: any)[k]), 0, Profile.MAX_COINS)
+	end
+	do -- XP: the visit's level-up coins were for levels counted from `base`; pay the real ones
+		local before = out.xp
+		out.xp = math.clamp(before + gain(session.xp, base.xp), 0, Xp.MAX_XP)
+		local paid = math.max(Xp.levelOf(session.xp) - Xp.levelOf(base.xp), 0) * Xp.LEVEL_COINS
+		local due = (Xp.levelOf(out.xp) - Xp.levelOf(before)) * Xp.LEVEL_COINS
+		paid = math.min(paid, gain(session.coins, base.coins)) -- never take back more than it added
+		out.coins = math.clamp(out.coins - paid + due, 0, Profile.MAX_COINS)
 	end
 	for _, k in { "garageLevel", "league" } do
 		out[k] = math.max(out[k], ses[k])

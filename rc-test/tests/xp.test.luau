@@ -105,3 +105,36 @@ test("xp: the top level's bar never overflows; Xp's coin cap is the save's", fun
 	eq(level, Xp.MAX_LEVEL)
 	truthy(into <= need)
 end)
+
+test("xp: a late visit's level-up coins come from the merged save's levels", function()
+	-- stored is high up; the visit (from a blank base) went 1 -> 3 and was paid 2 levels
+	local stored = Profile.new()
+	stored.xp = 10000
+	stored.coins = 1000
+	local base = Profile.new()
+	local session = Profile.new()
+	Xp.add(session, 300)
+	eq(session.coins, 2 * Xp.LEVEL_COINS)
+	local lv0 = Xp.levelOf(10000)
+	local lv1 = Xp.levelOf(10300)
+	local out = Profile.mergeVisit(stored, session, base)
+	eq(out.xp, 10300)
+	eq(out.coins, 1000 + (lv1 - lv0) * Xp.LEVEL_COINS)
+	-- a visit that earned other coins too keeps those
+	stored = Profile.new()
+	stored.xp = 10000
+	stored.coins = 1000
+	session = Profile.new()
+	Xp.add(session, 300)
+	session.coins += 70
+	out = Profile.mergeVisit(stored, session, base)
+	eq(out.coins, 1000 + 70 + (lv1 - lv0) * Xp.LEVEL_COINS)
+	-- a low save that crosses more levels than the visit did gets those coins
+	stored = Profile.new()
+	stored.xp = 90
+	session = Profile.new()
+	session.xp = 50 -- no level up on the visit
+	out = Profile.mergeVisit(stored, session, base)
+	eq(out.xp, 140)
+	eq(out.coins, Xp.LEVEL_COINS)
+end)
