@@ -342,6 +342,12 @@ ServerRace.CVC_FIRST = 3
 -- IDLE_MOVE (big units) by IDLE_KID seconds after GO: then they race on and the race can end.
 ServerRace.IDLE_KID = 10
 ServerRace.IDLE_MOVE = 10
+-- Has a new kid moved since GO? By where the car is, from where it was at GO, not by its race
+-- progress: that jumps a whole gate at GO when the lap clock starts, so a kid who never touched
+-- anything counted as moving and held the bots on the grid all race (Studio after-818 sit-still).
+function ServerRace.moved(from: { x: number, z: number }, x: number, z: number): boolean
+	return (x - from.x) ^ 2 + (z - from.z) ^ 2 > ServerRace.IDLE_MOVE ^ 2
+end
 
 -- When the next big race starts: 3 min after the last one started, but never sooner than GAP
 -- from now (a long race pushes the next one back a bit).
