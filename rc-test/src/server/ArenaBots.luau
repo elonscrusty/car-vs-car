@@ -30,6 +30,8 @@ export type Kart = {
 	alive: boolean,
 	shield: boolean?,
 	human: boolean?,
+	newKid: boolean?, -- a player's first match: no bot goes for them for GRACE s (nil = any human
+	-- in an easy match, MatchRunner's round 1)
 	model: Model?,
 }
 export type Ctx = {
@@ -49,6 +51,8 @@ export type Fleet = {
 	bots: { [number]: ArenaBrain.Bot },
 	world: ArenaBrain.World,
 	models: { [number]: Model }, -- this frame's kart models by id (for the default place)
+	startAt: number?, -- `now` at the first step (the new-kid grace counts from here)
+	easy: boolean, -- some bot was added with easy (a first round)
 	list: { ArenaBrain.Bot }, -- (reused each frame)
 }
 
@@ -173,6 +177,8 @@ function ArenaBots.new(ctx: Ctx?, rng: ArenaBrain.Rng?): Fleet
 		ctx = c,
 		models = models,
 		list = {},
+		startAt = nil,
+		easy = false,
 		rng = rng or ArenaBrain.rng(os.clock() * 1e6),
 		bots = {},
 		world = {
@@ -193,6 +199,9 @@ function ArenaBots.add(fleet: Fleet, id: number, cf: CFrame, opts: ArenaBrain.Op
 	local yaw = math.atan2(-(ax - x), -(az - z))
 	local seed = ArenaBrain.rng(fleet.rng:NextNumber() * 2 ^ 30 + 1)
 	fleet.bots[id] = ArenaBrain.new(id, x, z, yaw, opts, seed)
+	if opts and opts.easy then
+		fleet.easy = true
+	end
 end
 
 function ArenaBots.remove(fleet: Fleet, id: number)
@@ -201,6 +210,7 @@ end
 
 function ArenaBots.clear(fleet: Fleet)
 	table.clear(fleet.bots)
+	fleet.startAt, fleet.easy = nil, false
 end
 
 function ArenaBots.count(fleet: Fleet): number
@@ -220,19 +230,26 @@ function ArenaBots.step(fleet: Fleet, dt: number, now: number)
 	local toLocal = ctx.toLocal :: (Vector3) -> (number, number)
 	local toWorld = ctx.toWorld :: (number, number) -> Vector3
 	local w = fleet.world
+	fleet.startAt = fleet.startAt or now
+	local grace = now - (fleet.startAt :: number) < ArenaBrain.GRACE
 	table.clear(w.karts)
 	table.clear(fleet.models)
 	for _, k in (ctx.karts :: () -> { Kart })() do
 		if k.model then
 			fleet.models[k.id] = k.model
 		end
+		if typeof(k.pos) ~= "Vector3" then
+			continue -- (no body yet)
+		end
 		local x, z = toLocal(k.pos)
+		local kid = if k.newKid ~= nil then k.newKid else (k.human == true and fleet.easy)
 		table.insert(w.karts, {
 			id = k.id,
 			x = x,
 			z = z,
 			alive = k.alive,
-			shield = k.shield,
+			-- a new kid in their grace looks shielded to the bots: nobody goes for them
+			shield = k.shield or (grace and kid == true),
 			human = k.human,
 		})
 	end

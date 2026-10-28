@@ -192,6 +192,12 @@ test("round 1 over: places, coins in the save, the free crate", function()
 		return #S.got(kid, "MatchResult") >= 1
 	end, ROUND + 5)
 	truthy(took, "MatchResult came")
+	-- (the kill feed tells everyone every smash: this is the whole round's count)
+	print(
+		`       round 1 ({ROUND} s, 8 karts): {#S.got(kid, "SmashFeed")} smashes in all, the kid {kid:GetAttribute(
+			"Smashes"
+		)}`
+	)
 	result1 = S.got(kid, "MatchResult")[1]
 	local coins = result1[3]
 	truthy(type(coins) == "number" and coins > 0, "paid")
