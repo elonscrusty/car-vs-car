@@ -17,7 +17,7 @@ local TILT = math.rad(14) -- leans a little so two faces and the top show
 local RED = Color3.fromRGB(222, 38, 52)
 local YELLOW = Color3.fromRGB(255, 214, 46)
 
-type Live = { model: Model, body: BasePart, home: CFrame, phase: number, size: Vector3 }
+type Live = { model: Model, body: BasePart, home: CFrame, phase: number, size: Vector3, up: boolean }
 
 local live: { [Model]: Live } = {}
 local conns: { [Model]: { RBXScriptConnection } } = {}
@@ -63,7 +63,12 @@ local function add(inst: Instance)
 	end
 	local body = inst:WaitForChild("Body", 5)
 	local home = inst:GetAttribute("Home")
-	if not (body and body:IsA("BasePart")) or typeof(home) ~= "CFrame" then
+	if
+		not (body and body:IsA("BasePart"))
+		or typeof(home) ~= "CFrame"
+		or inst.Parent == nil
+		or live[inst]
+	then
 		return
 	end
 	local l: Live = {
@@ -72,11 +77,13 @@ local function add(inst: Instance)
 		home = home,
 		phase = math.random() * math.pi * 2,
 		size = body.Size,
+		up = inst:GetAttribute("Up") == true,
 	}
 	live[inst] = l
 	conns[inst] = {
 		inst:GetAttributeChangedSignal("Up"):Connect(function()
-			if inst:GetAttribute("Up") == true then
+			l.up = inst:GetAttribute("Up") == true
+			if l.up then
 				popIn(l)
 			else
 				burst(l.body.Position)
@@ -102,16 +109,28 @@ end
 CollectionService:GetInstanceAddedSignal(TAG):Connect(add)
 CollectionService:GetInstanceRemovedSignal(TAG):Connect(remove)
 
+-- all boxes move in one BulkMoveTo a frame (cheap on phones)
+local parts: { BasePart } = {}
+local frames: { CFrame } = {}
 local t = 0
 RunService.RenderStepped:Connect(function(dt: number)
 	t += dt
+	table.clear(parts)
+	table.clear(frames)
 	for _, l in live do
-		if l.model:GetAttribute("Up") == true then
+		if l.up then
 			local y = math.sin(t * BOB_SPEED + l.phase) * BOB
-			l.body.CFrame = l.home
-				* CFrame.new(0, y, 0)
-				* CFrame.Angles(0, t * SPIN + l.phase, 0)
-				* CFrame.Angles(TILT, 0, 0)
+			table.insert(parts, l.body)
+			table.insert(
+				frames,
+				l.home
+					* CFrame.new(0, y, 0)
+					* CFrame.Angles(0, t * SPIN + l.phase, 0)
+					* CFrame.Angles(TILT, 0, 0)
+			)
 		end
+	end
+	if #parts > 0 then
+		workspace:BulkMoveTo(parts, frames, Enum.BulkMoveMode.FireCFrameChanged)
 	end
 end)

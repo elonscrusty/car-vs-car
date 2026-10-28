@@ -12,10 +12,13 @@
 --   })
 --   boxes.reset() -- at each match start: every box up
 --   boxes.stop() -- arena gone: boxes removed
+-- More than one set can run at once (the arena and the lobby's warm-up yard): give each its own
+-- `name` (default "SmashBoxes"). Starting a name again stops the old set of that name first.
 --
--- Each box is a Model tagged "SmashBox" in workspace.SmashBoxes with attributes Up (bool),
--- Home (CFrame of the box's middle), TakenBy (kart id as a string) and TakenWeapon; client/BoxFx
--- spins it and plays the pop. Sounds and screens can listen to TakenBy too.
+-- Each box is a Model tagged "SmashBox" in <parent>.<name> with attributes Up (bool), Home
+-- (CFrame of the box's middle), TakenBy (kart id as a string), TakenWeapon and TakenCount (goes
+-- up by one on every pickup: listen to this one for sounds and screens). client/BoxFx spins it
+-- and plays the pop.
 
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -41,6 +44,7 @@ export type Options = {
 	give: (any, string) -> boolean?,
 	has: ((string) -> boolean)?,
 	parent: Instance?,
+	name: string?,
 	seed: number?,
 }
 
@@ -63,7 +67,7 @@ local function mark(body: BasePart, face: Enum.NormalId)
 	t.Size = UDim2.fromScale(1, 1)
 	t.Font = Enum.Font.FredokaOne
 	t.Text = "?"
-	t.TextScaled = true
+	t.TextSize = 90 -- fixed size on the 100 px canvas (TextScaled costs more on phones)
 	t.TextColor3 = YELLOW
 	t.TextStrokeTransparency = 1
 	local stroke = Instance.new("UIStroke")
@@ -110,7 +114,7 @@ local function build(i: number, spot: Vector3, parent: Instance): Model
 	local ring = Instance.new("Part")
 	ring.Name = "Ring"
 	ring.Shape = Enum.PartType.Cylinder
-	ring.Size = Vector3.new(0.2, Boxes.RADIUS * 1.2, Boxes.RADIUS * 1.2)
+	ring.Size = Vector3.new(0.2, Boxes.RADIUS * 2, Boxes.RADIUS * 2) -- the ring is the pickup reach
 	ring.CFrame = CFrame.new(spot + Vector3.new(0, 0.12, 0)) * CFrame.Angles(0, 0, math.rad(90))
 	ring.Color = YELLOW
 	ring.Material = Enum.Material.Neon
@@ -123,10 +127,12 @@ local function build(i: number, spot: Vector3, parent: Instance): Model
 	ring.Parent = m
 
 	m.PrimaryPart = body
+	m.ModelStreamingMode = Enum.ModelStreamingMode.Atomic -- the box arrives whole if streaming is on
 	m:SetAttribute("Up", true)
 	m:SetAttribute("Home", home)
 	m:SetAttribute("TakenBy", "")
 	m:SetAttribute("TakenWeapon", "")
+	m:SetAttribute("TakenCount", 0)
 	CollectionService:AddTag(m, BoxServer.TAG)
 	m.Parent = parent
 	return m
@@ -149,14 +155,21 @@ local function show(m: Model, up: boolean)
 	m:SetAttribute("Up", up)
 end
 
+local running: { [string]: Handle } = {}
+
 function BoxServer.start(opts: Options): Handle
 	local parent = opts.parent or workspace
-	local old = parent:FindFirstChild("SmashBoxes")
+	local name = opts.name or "SmashBoxes"
+	local before = running[name]
+	if before then
+		before.stop()
+	end
+	local old = parent:FindFirstChild(name)
 	if old then
 		old:Destroy()
 	end
 	local folder = Instance.new("Folder")
-	folder.Name = "SmashBoxes"
+	folder.Name = name
 	folder.Parent = parent
 
 	local spots = {}
@@ -180,27 +193,29 @@ function BoxServer.start(opts: Options): Handle
 
 	-- Called by Boxes.step for a kart touching box i: roll and try to give it.
 	local function take(id: any, i: number): boolean
-		local name = Boxes.roll(rng:NextNumber(), hasSafe, last[id], streak[id])
-		if name == nil then
+		local weapon = Boxes.roll(rng:NextNumber(), hasSafe, last[id], streak[id])
+		if weapon == nil then
 			return false -- no weapon built yet: the box stays
 		end
-		local ok, res = pcall(opts.give, id, name)
+		local ok, res = pcall(opts.give, id, weapon)
 		if not ok then
-			warn(`BoxServer: give failed for {tostring(id)} ({name}): {res}`)
+			warn(`BoxServer: give failed for {tostring(id)} ({weapon}): {res}`)
 			return false
 		end
 		if res == false then
 			return false -- kart already holds a weapon: leave the box for someone else
 		end
-		if last[id] == name then
+		if last[id] == weapon then
 			streak[id] = (streak[id] or 0) + 1
 		else
-			last[id] = name
+			last[id] = weapon
 			streak[id] = 1
 		end
 		local m = models[i]
-		m:SetAttribute("TakenWeapon", name)
+		m:SetAttribute("TakenWeapon", weapon)
 		m:SetAttribute("TakenBy", tostring(id))
+		local count = m:GetAttribute("TakenCount")
+		m:SetAttribute("TakenCount", (if type(count) == "number" then count else 0) + 1)
 		return true
 	end
 
@@ -227,11 +242,11 @@ function BoxServer.start(opts: Options): Handle
 			end
 		end
 		local taken, back = Boxes.step(boxes, list, os.clock(), take)
-		for _, t in taken do
-			show(models[t.box], false)
-		end
 		for _, i in back do
 			show(models[i], true)
+		end
+		for _, t in taken do
+			show(models[t.box], false)
 		end
 	end)
 
@@ -249,11 +264,15 @@ function BoxServer.start(opts: Options): Handle
 		stop = function()
 			conn:Disconnect()
 			folder:Destroy()
+			if running[name] == handle then
+				running[name] = nil
+			end
 		end,
 		odds = function()
 			return Boxes.odds(hasSafe)
 		end,
 	}
+	running[name] = handle
 	return handle
 end
 

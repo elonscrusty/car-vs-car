@@ -10,13 +10,17 @@
 local Boxes = {}
 
 -- Chance weights (they don't have to add up to 100). Shown to players as percents by `odds`.
+-- carter 10-28 22:12: rockets + nuke (WEAPONS), machine gun + mines + freeze (GUNMINE). The nuke
+-- is the rare big one.
 Boxes.WEIGHTS = table.freeze({
-	Rockets = 40,
-	Gun = 35,
-	Mine = 25,
+	Rockets = 30,
+	Gun = 28,
+	Mine = 20,
+	Freeze = 14,
+	Nuke = 8,
 })
 -- The order odds are shown in and rolled in (so a roll is the same on every machine).
-Boxes.ORDER = table.freeze({ "Rockets", "Gun", "Mine" })
+Boxes.ORDER = table.freeze({ "Rockets", "Gun", "Mine", "Freeze", "Nuke" })
 
 Boxes.BACK_IN = 6 -- seconds until a taken box is back (target: 8 or less)
 Boxes.RADIUS = 7 -- studs from the box's middle, flat; a kart is about 6 long
@@ -118,7 +122,8 @@ end
 -- One check at time `now`: boxes whose time is up come back; then each up box goes to the first
 -- live kart touching it that `take(kartId)` accepts (take returns false when that kart can't hold
 -- another weapon, and the box stays for someone else). Returns the {box index, kart id} pairs
--- taken this check, and the indexes of boxes that came back.
+-- taken this check, and the indexes of boxes that came back (a box back and taken in the same check
+-- is only in the taken list, so it never shows up for a moment while nobody can take it).
 function Boxes.step(
 	boxes: { Box },
 	karts: { Kart },
@@ -129,21 +134,27 @@ function Boxes.step(
 	local back = {}
 	local gotOne: { [any]: boolean } = {} -- one box per kart per check
 	for i, box in boxes do
+		local cameBack = false
 		if not box.up and now >= box.backAt then
 			box.up = true
 			box.backAt = 0
-			table.insert(back, i)
+			cameBack = true
 		end
+		local gone = false
 		if box.up then
 			for _, k in karts do
 				if k.alive and not gotOne[k.id] and Boxes.touching(box, k) and take(k.id, i) then
 					box.up = false
 					box.backAt = now + Boxes.BACK_IN
 					gotOne[k.id] = true
+					gone = true
 					table.insert(taken, { box = i, kart = k.id })
 					break
 				end
 			end
+		end
+		if cameBack and not gone then
+			table.insert(back, i)
 		end
 	end
 	return taken, back
