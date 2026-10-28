@@ -310,6 +310,22 @@ function Match.botNames(pick: (number) -> number): { string }
 	return names
 end
 
+-- The chase camera lost your kart (Studio round 3: it sat ~40 studs off for 30-60 s while you
+-- drove): `far` is camera-to-kart, `limit` the most a chase view is ever out. Far (or junk) for
+-- CAM_LOST seconds in a row = put the camera back behind the kart. Returns the new count and
+-- whether to do that now.
+Match.CAM_LOST = 0.5
+function Match.camLost(lostFor: number, far: number, limit: number, dt: number): (number, boolean)
+	if far == far and far <= limit then
+		return 0, false
+	end
+	lostFor += if dt == dt and dt > 0 then math.min(dt, 0.1) else 0
+	if lostFor >= Match.CAM_LOST then
+		return 0, true
+	end
+	return lostFor, false
+end
+
 export type BotView = {
 	id: number,
 	pos: any,

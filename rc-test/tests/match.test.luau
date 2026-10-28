@@ -259,3 +259,25 @@ test('Match: no smashes yet = Place 0 (the HUD\'s "-"), shared by everyone on 0'
 	eq(shown[1], 0)
 	eq(shown[2], 0)
 end)
+
+test("Match: the arena camera comes back to a kart it lost (far or junk for 0.5 s)", function()
+	local t, lost = 0, false
+	for _ = 1, 10 do
+		t, lost = Match.camLost(t, 3, 10, 1 / 30) -- close: never
+		eq(lost, false)
+	end
+	local frames = 0
+	repeat
+		frames += 1
+		t, lost = Match.camLost(t, 40, 10, 1 / 30)
+	until lost or frames > 100
+	truthy(lost and frames <= 16, "back within 0.5 s")
+	eq(t, 0)
+	t = Match.camLost(0, 40, 10, 1 / 30)
+	t = Match.camLost(t, 2, 10, 1 / 30) -- near again: the count starts over
+	eq(t, 0)
+	local _, nanLost = Match.camLost(0.49, 0 / 0, 10, 1 / 30)
+	eq(nanLost, true, "a NaN distance counts as lost")
+	local t2 = Match.camLost(0, 40, 10, 0 / 0)
+	eq(t2, 0, "junk dt adds nothing")
+end)
