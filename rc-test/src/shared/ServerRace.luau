@@ -319,7 +319,8 @@ ServerRace.BOOST_TIME = 10 * 60 -- the winner's plot makes extra coins this long
 -- turns (no vote). A new kid's first race starts soon after they tap JOIN.
 ServerRace.CVC_EVERY = 3 * 60
 ServerRace.CVC_GAP = 30 -- at least this long between a race's end and the next start
-ServerRace.CVC_FIRST = 15 -- a first race ever: it starts this soon after the tap
+-- a first race ever: it starts this soon after the tap (+ JOIN_GRACE: 4 s; audit B8, was 15 s)
+ServerRace.CVC_FIRST = 3
 
 -- When the next big race starts: 3 min after the last one started, but never sooner than GAP
 -- from now (a long race pushes the next one back a bit).

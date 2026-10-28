@@ -246,7 +246,7 @@ function ServerRaceRunner.join(player: Player): boolean
 	local data = PlayerData.get(player)
 	if
 		Features.CVC
-		and phase == "wait"
+		and (phase == "wait" or phase == "call") -- (in the last 10 s too)
 		and data
 		and data.stage < Profile.STAGE.RACED
 		and startAt - now() > ServerRace.CVC_FIRST

@@ -314,3 +314,22 @@ test("Car VS Car (audit B1): a new kid's first race is them and bots only", func
 	end
 	eq(seen, 7)
 end)
+
+test("Car VS Car (audit B8): a first race starts 3 to 5 s after the JOIN tap", function()
+	local wait = ServerRace.CVC_FIRST + ServerRace.JOIN_GRACE
+	truthy(wait >= 3 and wait <= 5, `first race starts {wait} s after the tap`)
+	-- the clock: picked straight away, racing once the grace is over
+	eq(ServerRace.step("wait", ServerRace.CVC_FIRST, nil, 1), "pick")
+	eq(ServerRace.step("call", 0, 1, 1), nil)
+	eq(ServerRace.step("call", -ServerRace.JOIN_GRACE, 1, 1), "race")
+	-- and the runner moves the start up in the last 10 s (call) too, not only in the break
+	local fs = require("@lune/fs")
+	local src = fs.readFile("src/server/ServerRaceRunner.luau")
+	local a = string.find(src, "function ServerRaceRunner.join(", 1, true) :: number
+	local join = string.sub(src, a, string.find(src, "\nend\n", a, true) :: number)
+	truthy(
+		string.find(join, '(phase == "wait" or phase == "call")', 1, true),
+		"join: no call phase"
+	)
+	truthy(string.find(join, "now() + ServerRace.CVC_FIRST", 1, true), "join: start not moved up")
+end)
