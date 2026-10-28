@@ -49,6 +49,7 @@ end
 if Features.CVC then
 	require(script.Parent.TrainingServer).start() -- Car VS Car: cars train on their owner's plot
 	require(script.Parent.FriendBonus).start() -- Car VS Car: coins for playing with a friend
+	require(script.Parent.XpServer).start() -- Car VS Car: XP and levels (the Level badge)
 end
 require(script.Parent.PlotGarageBuilder).start() -- plots are garages: the loop road, coin pile pad, level sign
 do -- phone speed pass over the plots (small bits: no shadow; tiny decor bits: no collision)
