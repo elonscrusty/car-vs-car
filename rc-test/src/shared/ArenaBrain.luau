@@ -20,6 +20,7 @@ ArenaBrain.ACCEL = 60 -- big units/s²
 ArenaBrain.TURN = 2.6 -- rad/s at full lock
 ArenaBrain.RADIUS = 3 -- a kart's size, for bumping into things
 ArenaBrain.THINK = 0.2 -- s between decisions (5 Hz); moving runs every step
+ArenaBrain.GRACE = 15 -- s: no bot goes for a new kid (first match) this long (ArenaBots)
 ArenaBrain.TOKENS = 1 -- bots allowed to hunt the same player at once
 ArenaBrain.FIRE_GAP = 0.6 -- s between a bot's shots (WeaponServer has the real cooldown)
 ArenaBrain.STUCK_CHECK = 0.5 -- s: how often progress is checked

@@ -77,3 +77,48 @@ test("a bot with Rockets fires through WeaponServer and hits the kart ahead", fu
 	eq(hurt[1][2], -1)
 	eq(#S.errors, 0)
 end)
+
+test("a new kid's first 15 s: no bot goes for them, then they're fair game", function()
+	local S = Fake.server(Fake.store())
+	local Bots = S.require("ArenaBots")
+	local shots = {}
+	local fleet = Bots.new({
+		karts = function()
+			return {
+				{ id = -1, pos = roblox.Vector3.new(0, 0, 0), alive = true },
+				{ id = 201, pos = roblox.Vector3.new(0, 0, -40), alive = true, human = true },
+			}
+		end,
+		weaponOf = function()
+			return "Rockets", 3
+		end,
+		fire = function(id, aim)
+			table.insert(shots, { id, aim })
+		end,
+		boxes = function()
+			return {}
+		end,
+		place = function() end,
+		toLocal = function(p)
+			return p.X, p.Z
+		end,
+		toWorld = function(x, z)
+			return roblox.Vector3.new(x, 0, z)
+		end,
+		world = { half = 170, solids = {}, boxes = {}, karts = {} },
+	})
+	-- an easy (first) round and no newKid flag: every player counts as a new kid
+	Bots.add(fleet, -1, roblox.CFrame.new(0, 0, 0), { skill = 1, easy = true })
+	local t = 100 -- (the server clock, not 0)
+	while t < 114 do
+		t += 1 / 30
+		Bots.step(fleet, 1 / 30, t)
+	end
+	eq(#shots, 0, "nobody fires at the kid in the grace")
+	while t < 120 and #shots == 0 do
+		t += 1 / 30
+		Bots.step(fleet, 1 / 30, t)
+	end
+	truthy(#shots > 0, "fair game after it")
+	eq(#S.errors, 0)
+end)
