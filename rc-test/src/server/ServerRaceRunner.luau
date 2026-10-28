@@ -921,8 +921,9 @@ local function runRace(hooks: Hooks, slot: number)
 					})
 				end
 			end
+			-- (the bots wait for the new kid: also how they are placed)
+			local held = kidMoved or clock - goAt < ServerRace.IDLE_KID
 			if bots then
-				local held = kidMoved or clock - goAt < ServerRace.IDLE_KID
 				RaceBotCars.step(bots, clock, goAt, lead, if held then kidLead else nil)
 				for _, car in bots.cars do
 					local b = car.bot
@@ -995,7 +996,11 @@ local function runRace(hooks: Hooks, slot: number)
 						table.insert(runs, {
 							time = car.bot.time,
 							progress = if bots.easy
-								then RaceBots.placeProgress(car.bot, real, kidLead, kidProgress)
+								then RaceBots.placeProgress(
+									car.bot,
+									real,
+									if held then kidProgress else nil
+								)
 								else real,
 						})
 						cars += 1

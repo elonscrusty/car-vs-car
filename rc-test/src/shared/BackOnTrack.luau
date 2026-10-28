@@ -42,6 +42,9 @@ end
 -- a little behind it, facing along the road. Only between the last gate passed and the next one,
 -- so it never skips a gate. `loop` = the map's centre line in driving order (map.loop()); track-
 -- local big units like the gates. nil = no road to use (then spot()).
+-- `push` = this many samples further on (a first race's kid put back at the same wall again and
+-- again: AUTO GAS with no steering drove into it every time, held up 40 s, Studio pr841). Never
+-- onto the next gate.
 BackOnTrack.BACK_SAMPLES = 2 -- this many road samples (5 to 15 apart) behind that spot
 function BackOnTrack.roadSpot(
 	t: any,
@@ -49,7 +52,8 @@ function BackOnTrack.roadSpot(
 	gates: { any },
 	next: number,
 	x: number,
-	z: number
+	z: number,
+	push: number?
 ): Spot?
 	local n, count = #loop, #gates
 	if n < 2 or count == 0 then
@@ -82,7 +86,7 @@ function BackOnTrack.roadSpot(
 			best, step = d, i
 		end
 	end
-	step = math.max(0, step - BackOnTrack.BACK_SAMPLES)
+	step = math.clamp(step - BackOnTrack.BACK_SAMPLES + (push or 0), 0, math.max(0, span - 1))
 	local s = loop[(from - 1 + step) % n + 1]
 	local len = math.sqrt(s.tx * s.tx + s.tz * s.tz)
 	if len < 1e-6 then
