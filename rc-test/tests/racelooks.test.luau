@@ -190,3 +190,33 @@ test("Studio pr839: name tags that would sit on each other show only the nearest
 	truthy(string.find(others, "unstack(cam)", 1, true), "not wired")
 	truthy(string.find(others, "UDim2.fromOffset(TAG_W, TAG_H)", 1, true))
 end)
+
+test("Kitchen map: flat toy looks, no real wood, marble, metal, glass or cloth", function()
+	local fs = require("@lune/fs")
+	local src = fs.readFile("src/server/RaceMapBuilder.luau")
+	-- the kitchen-only code: its props (fridge to cutting board), counters, edges and walls
+	local function between(a: string, b: string): string
+		local i = string.find(src, a, 1, true)
+		local j = string.find(src, b, 1, true)
+		assert(i and j and j > i, "found " .. a)
+		return string.sub(src, i, j - 1)
+	end
+	local parts = {
+		between("function BUILD.fridge(", "local function buildProp("),
+		between("local function kitchenEdges(", "local function roadArrows("),
+	}
+	for _, chunk in parts do
+		for mat in string.gmatch(chunk, "Enum%.Material%.(%a+)") do
+			truthy(mat == "SmoothPlastic" or mat == "Neon", "kitchen uses " .. mat)
+		end
+	end
+	truthy(
+		string.find(
+			src,
+			"tunnel = { color = rgb(196, 160, 112), mat = Enum.Material.SmoothPlastic }",
+			1,
+			true
+		) ~= nil,
+		"cabinet tunnel road"
+	)
+end)

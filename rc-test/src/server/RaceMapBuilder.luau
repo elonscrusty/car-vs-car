@@ -38,7 +38,7 @@ local FLAT_TOP = 0.05 -- flat looks (patio, rug, mats) sit under both
 local LOOKS = {
 	dirt = { color = rgb(150, 105, 60), mat = Enum.Material.SmoothPlastic },
 	mown = { color = rgb(146, 210, 108), mat = Enum.Material.SmoothPlastic },
-	tunnel = { color = rgb(196, 160, 112), mat = Enum.Material.WoodPlanks },
+	tunnel = { color = rgb(196, 160, 112), mat = Enum.Material.SmoothPlastic },
 	tiles = { color = rgb(118, 120, 128), mat = Enum.Material.SmoothPlastic },
 }
 local PAD_LOOK: { [string]: { color: Color3, mat: Enum.Material } } = {
@@ -415,7 +415,10 @@ local function buildJumps(folder: Instance, map: any)
 			local run = if dir < 0 then half else MapKit.JUMP_DOWN -- a long landing slope
 			local r =
 				Kit.ramp(folder, "JumpRamp", CFrame.identity, mid + t * dir * run, peak, w, color)
-			r.Material = Enum.Material.WoodPlanks
+			-- the kitchen's jumps are flat toy plastic, the yard's real planks
+			r.Material = if def.theme == "kitchen"
+				then Enum.Material.SmoothPlastic
+				else Enum.Material.WoodPlanks
 			r.CanTouch = false
 			surface(r, 1)
 			if dir < 0 then
@@ -601,7 +604,7 @@ local function buildEdge(folder: Instance, map: any)
 			Vector3.new(320, 200, 2),
 			CFrame.new(296, 400, def.minZ + 1),
 			rgb(170, 214, 240),
-			Enum.Material.Glass
+			Enum.Material.SmoothPlastic
 		)
 		finish(win, false)
 		local frame = part(
@@ -618,7 +621,7 @@ local function buildEdge(folder: Instance, map: any)
 			Vector3.new(200, 440, 2),
 			CFrame.new(-330, 220, def.maxZ - 1),
 			rgb(176, 128, 86),
-			Enum.Material.Wood
+			Enum.Material.SmoothPlastic
 		)
 		finish(door, false)
 		local knob = part(
@@ -627,7 +630,7 @@ local function buildEdge(folder: Instance, map: any)
 			Vector3.new(16, 16, 16),
 			CFrame.new(-410, 200, def.maxZ - 8),
 			rgb(220, 190, 90),
-			Enum.Material.Metal,
+			Enum.Material.SmoothPlastic,
 			Enum.PartType.Ball
 		)
 		finish(knob, false)
@@ -1242,7 +1245,7 @@ function BUILD.fridge(box, e)
 			Vector3.new(6, h * 0.18, 6),
 			CFrame.new(w / 2 - 20, y, -d / 2 - 5),
 			STEEL,
-			Enum.Material.Metal
+			Enum.Material.SmoothPlastic
 		)
 	end
 	-- magnets and a kid's drawing (shapes only)
@@ -1255,13 +1258,13 @@ end
 -- stove and sink: the counter run builds the box, these add the top and the front
 function BUILD.stove(box, e)
 	local w, d, h = e.w or 170, e.d or 140, e.h
-	box(Vector3.new(w, 4, d), CFrame.new(0, h + 2, 0), DARK, Enum.Material.Glass)
+	box(Vector3.new(w, 4, d), CFrame.new(0, h + 2, 0), DARK, Enum.Material.SmoothPlastic)
 	for _, c in { { -1, -1 }, { 1, -1 }, { -1, 1 }, { 1, 1 } } do
 		box(
 			Vector3.new(1, 36, 36),
 			CFrame.new(c[1] * w * 0.24, h + 4.5, c[2] * d * 0.22) * UP,
 			rgb(60, 60, 64),
-			Enum.Material.Metal,
+			Enum.Material.SmoothPlastic,
 			CYL
 		)
 	end
@@ -1269,17 +1272,37 @@ function BUILD.stove(box, e)
 		Vector3.new(w - 20, h * 0.5, 2),
 		CFrame.new(0, h * 0.42, d / 2 + 1),
 		rgb(50, 50, 56),
-		Enum.Material.Glass
+		Enum.Material.SmoothPlastic
 	) -- oven door
-	box(Vector3.new(w - 40, 5, 5), CFrame.new(0, h * 0.72, d / 2 + 5), STEEL, Enum.Material.Metal)
+	box(
+		Vector3.new(w - 40, 5, 5),
+		CFrame.new(0, h * 0.72, d / 2 + 5),
+		STEEL,
+		Enum.Material.SmoothPlastic
+	)
 	return true
 end
 
 function BUILD.sink(box, e)
 	local w, d, h = e.w or 180, e.d or 140, e.h
-	box(Vector3.new(w * 0.8, 2, d * 0.6), CFrame.new(0, h + 1.2, 0), STEEL, Enum.Material.Metal)
-	box(Vector3.new(10, 50, 10), CFrame.new(0, h + 25, -d * 0.4), STEEL, Enum.Material.Metal)
-	box(Vector3.new(10, 10, 40), CFrame.new(0, h + 48, -d * 0.25), STEEL, Enum.Material.Metal)
+	box(
+		Vector3.new(w * 0.8, 2, d * 0.6),
+		CFrame.new(0, h + 1.2, 0),
+		STEEL,
+		Enum.Material.SmoothPlastic
+	)
+	box(
+		Vector3.new(10, 50, 10),
+		CFrame.new(0, h + 25, -d * 0.4),
+		STEEL,
+		Enum.Material.SmoothPlastic
+	)
+	box(
+		Vector3.new(10, 10, 40),
+		CFrame.new(0, h + 48, -d * 0.25),
+		STEEL,
+		Enum.Material.SmoothPlastic
+	)
 	return true
 end
 
@@ -1291,22 +1314,32 @@ function BUILD.cabinetDoor(box, e)
 		Vector3.new(w, h * 0.6, 3),
 		CFrame.new(-w * 1.05, 6 + h * 0.3, 2),
 		rgb(196, 156, 112),
-		Enum.Material.Wood
+		Enum.Material.SmoothPlastic
 	)
-	box(Vector3.new(4, 16, 4), CFrame.new(-w * 1.4, 6 + h * 0.4, 5), STEEL, Enum.Material.Metal)
+	box(
+		Vector3.new(4, 16, 4),
+		CFrame.new(-w * 1.4, 6 + h * 0.4, 5),
+		STEEL,
+		Enum.Material.SmoothPlastic
+	)
 	return true
 end
 
 function BUILD.table(box, e)
 	local w, d, h = e.w or 280, e.d or 380, e.h
-	box(Vector3.new(w, 10, d), CFrame.new(0, h - 5, 0), rgb(160, 110, 70), Enum.Material.WoodPlanks)
+	box(
+		Vector3.new(w, 10, d),
+		CFrame.new(0, h - 5, 0),
+		rgb(160, 110, 70),
+		Enum.Material.SmoothPlastic
+	)
 	for _, sx in { -1, 1 } do
 		for _, sz in { -1, 1 } do
 			box(
 				Vector3.new(14, h - 10, 14),
 				CFrame.new(sx * (w / 2 - 12), (h - 10) / 2, sz * (d / 2 - 12)),
 				rgb(120, 80, 50),
-				Enum.Material.Wood
+				Enum.Material.SmoothPlastic
 			)
 		end
 	end
@@ -1315,14 +1348,19 @@ end
 
 function BUILD.chair(box, e)
 	local w, h = e.w or 96, e.h
-	box(Vector3.new(w, 8, w), CFrame.new(0, h - 4, 0), rgb(190, 140, 90), Enum.Material.Wood)
+	box(
+		Vector3.new(w, 8, w),
+		CFrame.new(0, h - 4, 0),
+		rgb(190, 140, 90),
+		Enum.Material.SmoothPlastic
+	)
 	for _, sx in { -1, 1 } do
 		for _, sz in { -1, 1 } do
 			box(
 				Vector3.new(8, h - 8, 8),
 				CFrame.new(sx * (w / 2 - 4), (h - 8) / 2, sz * (w / 2 - 4)),
 				rgb(120, 80, 50),
-				Enum.Material.Wood
+				Enum.Material.SmoothPlastic
 			)
 		end
 	end
@@ -1330,7 +1368,7 @@ function BUILD.chair(box, e)
 		Vector3.new(w, h * 0.9, 6),
 		CFrame.new(0, h + h * 0.45, w / 2 - 3),
 		rgb(190, 140, 90),
-		Enum.Material.Wood
+		Enum.Material.SmoothPlastic
 	)
 	return true -- drive between the legs
 end
@@ -1341,21 +1379,21 @@ function BUILD.mopBucket(box, e)
 		Vector3.new(e.h, w, w),
 		CFrame.new(0, e.h / 2, 0) * UP,
 		rgb(240, 200, 40),
-		Enum.Material.Plastic,
+		Enum.Material.SmoothPlastic,
 		CYL
 	)
 	box(
 		Vector3.new(1, w * 0.86, w * 0.86),
 		CFrame.new(0, e.h, 0) * UP,
 		rgb(150, 190, 210),
-		Enum.Material.Glass,
+		Enum.Material.SmoothPlastic,
 		CYL
 	)
 	box(
 		Vector3.new(6, e.h * 4, 6),
 		CFrame.new(10, e.h * 2, 10) * CFrame.Angles(0.2, 0, 0.2),
 		rgb(140, 100, 70),
-		Enum.Material.Wood
+		Enum.Material.SmoothPlastic
 	) -- mop
 	return nil
 end
@@ -1377,7 +1415,7 @@ function BUILD.doorMat(box, e)
 		Vector3.new(e.w or 200, 0.04, e.d or 110),
 		CFrame.new(0, FLAT_TOP, 0),
 		rgb(150, 70, 50),
-		Enum.Material.Fabric
+		Enum.Material.SmoothPlastic
 	)
 	return nil
 end
@@ -1388,13 +1426,13 @@ function BUILD.rug(box, e)
 		Vector3.new(w, 0.04, d),
 		CFrame.new(0, FLAT_TOP, 0),
 		rgb(96, 128, 186),
-		Enum.Material.Fabric
+		Enum.Material.SmoothPlastic
 	)
 	box(
 		Vector3.new(w - 40, 0.05, d - 40),
 		CFrame.new(0, FLAT_TOP + 0.01, 0),
 		rgb(120, 150, 200),
-		Enum.Material.Fabric
+		Enum.Material.SmoothPlastic
 	)
 	return nil
 end
@@ -1405,14 +1443,14 @@ function BUILD.trashCan(box, e)
 		Vector3.new(e.h, w, w),
 		CFrame.new(0, e.h / 2, 0) * UP,
 		rgb(130, 135, 140),
-		Enum.Material.Metal,
+		Enum.Material.SmoothPlastic,
 		CYL
 	)
 	box(
 		Vector3.new(6, w + 4, w + 4),
 		CFrame.new(0, e.h + 3, 0) * UP,
 		rgb(150, 155, 160),
-		Enum.Material.Metal,
+		Enum.Material.SmoothPlastic,
 		CYL
 	)
 	return nil
@@ -1484,7 +1522,7 @@ function BUILD.cuttingBoard(box, e)
 		Vector3.new(e.w or 20, e.h, e.d or 110),
 		CFrame.new(0, e.h / 2, 0) * CFrame.Angles(0, 0, 0.2),
 		LIGHT_WOOD,
-		Enum.Material.Wood
+		Enum.Material.SmoothPlastic
 	)
 	return nil
 end
@@ -1524,7 +1562,7 @@ local function buildCounters(folder: Instance, map: any)
 				Vector3.new(w, h, d),
 				CFrame.new((r[1] + r[2]) / 2, h / 2, back + d / 2),
 				cab,
-				Enum.Material.Wood
+				Enum.Material.SmoothPlastic
 			)
 		end
 	end
@@ -1536,14 +1574,14 @@ local function buildCounters(folder: Instance, map: any)
 		Vector3.new(tw, h - hollowH, d),
 		CFrame.new(tcx, hollowH + (h - hollowH) / 2, back + d / 2),
 		cab,
-		Enum.Material.Wood
+		Enum.Material.SmoothPlastic
 	)
 	slab(
 		"CabinetBack",
 		Vector3.new(tw, hollowH, 10),
 		CFrame.new(tcx, hollowH / 2, back + 5),
 		rgb(120, 90, 64),
-		Enum.Material.Wood
+		Enum.Material.SmoothPlastic
 	)
 	-- door holes where the tunnel crosses the front
 	local holes = {}
@@ -1569,7 +1607,7 @@ local function buildCounters(folder: Instance, map: any)
 				Vector3.new(b - a, hollowH, 8),
 				CFrame.new((a + b) / 2, hollowH / 2, front - 4),
 				cab,
-				Enum.Material.Wood
+				Enum.Material.SmoothPlastic
 			)
 		end
 	end
@@ -1579,7 +1617,7 @@ local function buildCounters(folder: Instance, map: any)
 			Vector3.new(8, hollowH, d),
 			CFrame.new(s, hollowH / 2, back + d / 2),
 			cab,
-			Enum.Material.Wood
+			Enum.Material.SmoothPlastic
 		)
 	end
 	-- a soft glow strip on the cupboard roof, so the inside isn't pitch dark
@@ -1600,7 +1638,7 @@ local function buildCounters(folder: Instance, map: any)
 			Vector3.new(14, 40, 14),
 			CFrame.new(x, 20, back + 18),
 			if i == 2 then rgb(60, 160, 230) else rgb(240, 120, 40),
-			Enum.Material.Plastic
+			Enum.Material.SmoothPlastic
 		)
 		finish(b, false)
 	end
@@ -1611,7 +1649,7 @@ local function buildCounters(folder: Instance, map: any)
 		Vector3.new(x1 - x0, 8, d + 12),
 		CFrame.new((x0 + x1) / 2, h + 4, back + (d + 12) / 2),
 		rgb(236, 232, 224),
-		Enum.Material.Marble
+		Enum.Material.SmoothPlastic
 	)
 	finish(top, true)
 	local n = math.floor((x1 - x0) / 132)
@@ -1623,7 +1661,7 @@ local function buildCounters(folder: Instance, map: any)
 			Vector3.new(30, 4, 4),
 			CFrame.new(cx, h - 30, front + 2),
 			STEEL,
-			Enum.Material.Metal
+			Enum.Material.SmoothPlastic
 		)
 		finish(hp, false)
 		local seam = part(
@@ -1642,7 +1680,7 @@ local function buildCounters(folder: Instance, map: any)
 		Vector3.new(60, 50, 34),
 		CFrame.new(-200, h + 33, back + 50),
 		STEEL,
-		Enum.Material.Metal
+		Enum.Material.SmoothPlastic
 	)
 	finish(toaster, false)
 	local bowl = part(
@@ -1869,7 +1907,7 @@ local function kitchenEdges(folder: Instance, map: any)
 				Vector3.new(1.2, 6, 6),
 				CFrame.new(0, 0.7, 0) * UP,
 				rgb(200, 200, 205),
-				Enum.Material.Metal,
+				Enum.Material.SmoothPlastic,
 				CYL
 			)
 		elseif kind == "pea" then
@@ -1912,7 +1950,7 @@ local function kitchenWalls(folder: Instance, map: any)
 		Vector3.new(x1 - x0, 110, 2),
 		CFrame.new((x0 + x1) / 2, h + 63, back + 1.5),
 		rgb(250, 250, 248),
-		Enum.Material.Marble
+		Enum.Material.SmoothPlastic
 	)
 	for x = x0 + 22, x1, 44 do
 		looks(
@@ -1931,7 +1969,7 @@ local function kitchenWalls(folder: Instance, map: any)
 			Vector3.new(b - a, 200, 80),
 			CFrame.new((a + b) / 2, 460, back + 40),
 			rgb(176, 132, 92),
-			Enum.Material.Wood
+			Enum.Material.SmoothPlastic
 		)
 		local n = math.max(1, math.floor((b - a) / 110))
 		for i = 0, n - 1 do
@@ -1942,7 +1980,7 @@ local function kitchenWalls(folder: Instance, map: any)
 				Vector3.new(4, 30, 4),
 				CFrame.new(cx + (b - a) / n * 0.35, 390, back + 82),
 				STEEL,
-				Enum.Material.Metal
+				Enum.Material.SmoothPlastic
 			)
 		end
 	end
@@ -1954,8 +1992,45 @@ local function kitchenWalls(folder: Instance, map: any)
 		Vector3.new(200, 60, 100),
 		CFrame.new(0, 420, back + 50),
 		STEEL,
-		Enum.Material.Metal
+		Enum.Material.SmoothPlastic
 	)
+	-- low teal wall panels on the other three walls, where the chase cam looks (a bare cream
+	-- wall read as fake): white skirting, white rail on top, a groove every 40
+	local PANEL, GROOVE = rgb(120, 182, 190), rgb(98, 160, 170)
+	local walls = {
+		-- the front wall, either side of the door (x -430 to -230)
+		{ a = Vector3.new(def.minX, 0, def.maxZ), b = Vector3.new(-432, 0, def.maxZ), out = -1 },
+		{ a = Vector3.new(-228, 0, def.maxZ), b = Vector3.new(def.maxX, 0, def.maxZ), out = -1 },
+		{ a = Vector3.new(def.minX, 0, back), b = Vector3.new(def.minX, 0, def.maxZ), out = 1 },
+		{ a = Vector3.new(def.maxX, 0, back), b = Vector3.new(def.maxX, 0, def.maxZ), out = -1 },
+	}
+	for _, wl in walls do
+		local along = (wl.b - wl.a).Unit
+		local len = (wl.b - wl.a).Magnitude
+		-- inward from the wall face: -Z on the front wall, +X on the left, -X on the right
+		local inward = if along.X ~= 0 then Vector3.new(0, 0, wl.out) else Vector3.new(wl.out, 0, 0)
+		local mid = (wl.a + wl.b) / 2
+		local function slab(name: string, y: number, ht: number, depth: number, color: Color3)
+			local size = if along.X ~= 0
+				then Vector3.new(len, ht, depth)
+				else Vector3.new(depth, ht, len)
+			looks(
+				folder,
+				name,
+				size,
+				CFrame.new(mid + inward * (depth / 2) + Vector3.new(0, y, 0)),
+				color
+			)
+		end
+		slab("WallPanel", 70, 140, 2, PANEL)
+		slab("Skirting", 8, 16, 4, C.white)
+		slab("WallRail", 144, 8, 4, C.white)
+		for k = 40, len - 20, 40 do
+			local at = wl.a + along * k + inward * 2.6 + Vector3.new(0, 78, 0)
+			local size = if along.X ~= 0 then Vector3.new(2, 116, 1.2) else Vector3.new(1.2, 116, 2)
+			looks(folder, "PanelGroove", size, CFrame.new(at), GROOVE)
+		end
+	end
 	-- a big round clock on the left wall, frames on the right and front walls
 	local lx = def.minX + 1
 	looks(
@@ -1986,7 +2061,7 @@ local function kitchenWalls(folder: Instance, map: any)
 			Vector3.new(3, 150, 120),
 			CFrame.new(rx - 1, 380, f[1]),
 			rgb(120, 80, 50),
-			Enum.Material.Wood
+			Enum.Material.SmoothPlastic
 		)
 		looks(
 			folder,
@@ -2207,7 +2282,9 @@ local function buildStand(folder: Instance, map: any)
 	local x0, x1 = st.x - st.w / 2, st.x + st.w / 2
 	local z0, z1 = st.z - st.d / 2, st.z + st.d / 2
 	local function solid(name: string, size: Vector3, cf: CFrame, color: Color3)
-		local p = part(stand, name, size, cf, color, Enum.Material.WoodPlanks)
+		-- the kitchen stool is flat toy plastic like the rest of the kitchen
+		local mat = if kitchen then Enum.Material.SmoothPlastic else Enum.Material.WoodPlanks
+		local p = part(stand, name, size, cf, color, mat)
 		finish(p, true)
 		return p
 	end
