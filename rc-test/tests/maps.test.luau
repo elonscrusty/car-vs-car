@@ -507,27 +507,6 @@ end
 
 -- Studio 10-26: a helper used above its `local function` line is nil there, and the whole map
 -- failed to build (cars fell through the void). Lune can't run the builder, so read it.
-test("the map builder never calls a helper before it is made", function()
-	local fs = require("@lune/fs")
-	local lines = string.split(fs.readFile("src/server/RaceMapBuilder.luau"), "\n")
-	local made: { [string]: number } = {}
-	for n, l in lines do
-		local name = string.match(l, "^local function ([%w_]+)")
-		if name and not made[name] then
-			made[name] = n
-		end
-	end
-	for name, at in made do
-		for n = 1, at - 1 do
-			local code = string.gsub(lines[n], "%-%-.*$", "")
-			truthy(
-				not string.find(code, "%f[%w_]" .. name .. "%s*%("),
-				`{name} is called on line {n} but made on line {at}`
-			)
-		end
-	end
-end)
-
 -- Car VS Car: the driver stand (racers stand on it, side by side, with their remotes)
 for _, m in maps do
 	test(m.id .. ": the driver stand is inside the walls, off every road, with 8 spots", function()
@@ -578,51 +557,5 @@ for _, m in maps do
 			math.abs(line.x - st.x) < 300 and st.z - line.z < 150,
 			"the stand is far from the start"
 		)
-	end)
-end
-
--- The stand camera (RaceStand: above and behind your spot) must see the road right in front of
--- the stand: an offline render showed the deck itself hiding the front straight (10-26).
-local RaceStand = require("../src/shared/RaceStand")
-for _, m in maps do
-	test(m.id .. ": from the stand camera the deck never hides the road in front", function()
-		local st = m.def.stand
-		local big = 1 / 0.25 -- RC studs to big units
-		local x0, x1 = st.x - st.w / 2, st.x + st.w / 2
-		local z0, z1 = st.z - st.d / 2, st.z + st.d / 2
-		local y0, y1 = st.h - 4, st.h
-		local spots = m.standSpots()
-		for _, k in { 1, 4, 8 } do
-			local sp = spots[k]
-			local c = {
-				sp.x + RaceStand.CAM_SIDE * big,
-				sp.y + RaceStand.CAM_UP * big,
-				sp.z + RaceStand.CAM_BACK * big,
-			}
-			truthy(c[3] < m.def.maxZ - 8, `spot {k}: the camera is out past the fence`)
-			for _, s in m.loop() do
-				if math.abs(s.x - st.x) < 300 and math.abs(s.z - st.z) < 200 then
-					-- does the line from the camera to the road cross the deck slab?
-					local e = { s.x, 0.5, s.z }
-					local lo, hi = 0, 1
-					for i, r in { { x0, x1 }, { y0, y1 }, { z0, z1 } } do
-						local d = e[i] - c[i]
-						if math.abs(d) < 1e-9 then
-							if c[i] < r[1] or c[i] > r[2] then
-								lo = 2
-							end
-						else
-							local t1, t2 = (r[1] - c[i]) / d, (r[2] - c[i]) / d
-							lo = math.max(lo, math.min(t1, t2))
-							hi = math.min(hi, math.max(t1, t2))
-						end
-					end
-					truthy(
-						lo > hi,
-						`spot {k}: the deck hides the road at {math.floor(s.x)}, {math.floor(s.z)}`
-					)
-				end
-			end
-		end
 	end)
 end

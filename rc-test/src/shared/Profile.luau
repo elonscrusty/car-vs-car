@@ -83,12 +83,13 @@ export type SaveStep = { kind: "lost" | "skip" | "write", record: Stored? }
 
 local Profile = {}
 
-Profile.VERSION = 17 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift.
+Profile.VERSION = 18 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift.
 -- 6: daily jobs. 7: looks, lookOff. 8: cars, equipped. 9: track. 10: tiles (owned).
 -- 11: raceStars. 12: trackKind. 13: plotTop. 14: stage. 15: pile, lastSeen, boostUntil,
 -- plotLevel, parked (the tycoon). 16: garage, racer, stations, garageLevel, league, trophies,
 -- raceWins, crates, picked, nextUid, friendsPaid (Car VS Car). 17: smashes, matches, matchWins
--- (Car VS Car SMASH)
+-- (Car VS Car SMASH). 18: training dropped on load (KEEP_TRAINING off: no stations, plot level,
+-- track or per-car training; cars and coins kept)
 Profile.TOP = 3 -- rows on a plot's board
 -- How far into the game a player is. Only goes up. The screen shows more at each one
 -- (JoinStage): new = just your car and GO; lapped = coins and BUILD; raced = the shop;
@@ -129,7 +130,7 @@ Profile.BAR_MAX = 100 -- (Training.MAX_BAR) trained points per bar can't pass th
 -- removed) sets it false: every load then drops them (Profile.dropTraining). Cars and coins stay.
 -- When it flips, also bump VERSION (old servers then open the new saves read-only) and make
 -- sure nothing adds to `pile` after the load any more (TycoonServer's offline coins go with it).
-Profile.KEEP_TRAINING = true
+Profile.KEEP_TRAINING = false -- (phase 3, 10-28: Smash is on, training is gone)
 
 function Profile.new(): Data
 	return {

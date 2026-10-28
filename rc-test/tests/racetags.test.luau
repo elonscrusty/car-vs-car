@@ -8,7 +8,6 @@ local test, truthy = H.test, H.truthy
 local FILES = {
 	"src/client/Main.client.luau",
 	"src/client/OtherCars.luau",
-	"src/client/RaceWin.client.luau",
 }
 
 for _, path in FILES do
