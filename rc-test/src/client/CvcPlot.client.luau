@@ -63,8 +63,9 @@ local function mine(plot: Instance): boolean
 	return tonumber(plot:GetAttribute("OwnerId")) == me.UserId
 end
 
--- one toy car, nose to -z around its bottom middle
-local function makeCar(id: string, parent: Instance): Model?
+-- one toy car, nose to -z around its bottom middle; the car you race with is bigger and
+-- outlined in gold
+local function makeCar(id: string, parent: Instance, kind: string?, racer: boolean): Model?
 	local info = CarCatalog.get(id) :: any
 	if not info then
 		return nil
@@ -76,7 +77,7 @@ local function makeCar(id: string, parent: Instance): Model?
 		{ x = 0, y = 0, z = 0 },
 		0,
 		info.color,
-		PlotTraining.CAR,
+		PlotTraining.carScale(kind, info.style, racer),
 		info.style
 	)
 	local holder = Instance.new("Model")
@@ -95,12 +96,26 @@ local function makeCar(id: string, parent: Instance): Model?
 	if CarGlow and type(CarGlow.apply) == "function" then
 		pcall(CarGlow.apply, model, info.rarity)
 	end
+	if racer then
+		local c = PlotTraining.MINE_GLOW
+		local glow = Instance.new("Highlight")
+		glow.Name = "MyCar"
+		glow.FillTransparency = 1
+		glow.OutlineColor = Color3.fromRGB(c[1], c[2], c[3])
+		glow.OutlineTransparency = 0
+		glow.DepthMode = Enum.HighlightDepthMode.Occluded
+		glow.Parent = model
+	end
 	model.Parent = parent
 	holder:Destroy()
 	return model
 end
 
 type Entry = { id: string, uid: string? }
+
+local function isRacer(e: Entry): boolean
+	return e.uid ~= nil and e.uid ~= "" and e.uid == CvcState.racer
+end
 
 -- a car's bars, yours trained and anyone else's as it comes
 local function barsOf(e: Entry): PlotTraining.BoardCar
@@ -212,6 +227,39 @@ end
 
 -- A station car's numbers go on its pad's sign, in the sign's own big letters (no tag over the
 -- car: too small to read from the plot camera). Yours trained, anyone else's as it comes.
+-- A gold glowing frame round the pad your race car trains on, so you spot it from afar.
+local function racerRing(s: Shown, i: number)
+	local group = s.training:FindFirstChild("Pad" .. i)
+	local base = group and group:FindFirstChild("PadBase")
+	if not (base and base:IsA("BasePart")) then
+		return
+	end
+	local c = PlotTraining.MINE_GLOW
+	local w, d, t = base.Size.X, base.Size.Z, 0.7
+	local top = base.Size.Y / 2 + 0.08
+	for _, side in
+		{
+			{ 0, d / 2 - t / 2, w, t },
+			{ 0, -d / 2 + t / 2, w, t },
+			{ w / 2 - t / 2, 0, t, d },
+			{ -w / 2 + t / 2, 0, t, d },
+		}
+	do
+		local p = Instance.new("Part")
+		p.Name = "MyCarRing"
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = false
+		p.Size = Vector3.new(side[3], 0.16, side[4])
+		p.CFrame = base.CFrame * CFrame.new(side[1], top, side[2])
+		p.Color = Color3.fromRGB(c[1], c[2], c[3])
+		p.Material = Enum.Material.Neon
+		p.Parent = s.folder
+	end
+end
+
 local function riderSign(s: Shown, i: number, e: Entry)
 	local group = s.training:FindFirstChild("Pad" .. i)
 	local sign = group and group:FindFirstChild("PadSign")
@@ -335,7 +383,8 @@ end
 
 local function refresh(s: Shown)
 	local onPads, stands = cars(s.plot)
-	local key = keyOf(onPads, stands)
+	-- (your race car looks different, so a new pick redraws)
+	local key = keyOf(onPads, stands) .. (if mine(s.plot) then "|" .. CvcState.racer else "")
 	if key == s.key then
 		-- same cars: only the numbers may have moved
 		if mine(s.plot) then
@@ -363,10 +412,10 @@ local function refresh(s: Shown)
 	for i = 1, #PlotTraining.GRID do
 		local e = onPads[i]
 		if e then
-			local model = makeCar(e.id, s.folder)
+			local pad = pads[i]
+			local kind = if pad then pad.kind else PlotTraining.kindAt(i)
+			local model = makeCar(e.id, s.folder, kind, isRacer(e))
 			if model then
-				local pad = pads[i]
-				local kind = if pad then pad.kind else PlotTraining.kindAt(i)
 				local slats: { BasePart } = {}
 				if kind == "treadmill" then
 					for _ = 1, PlotTraining.BELT.slats do
@@ -384,6 +433,9 @@ local function refresh(s: Shown)
 						table.insert(slats, p)
 					end
 				end
+				if isRacer(e) then
+					racerRing(s, i)
+				end
 				local r: Rider = { model = model, kind = kind, pad = i, slats = slats }
 				table.insert(s.riders, r)
 				riderSign(s, i, e)
@@ -391,7 +443,7 @@ local function refresh(s: Shown)
 		end
 	end
 	for k, e in stands do
-		local model = makeCar(e.id, s.folder)
+		local model = makeCar(e.id, s.folder, nil, isRacer(e))
 		if model then
 			local st = PlotTraining.STANDS[k]
 			model:PivotTo(s.pivot * CFrame.new(st.x, STAND_TOP + (st.lift or 0), st.z))
