@@ -42,7 +42,9 @@ local LOOKS = {
 	tiles = { color = rgb(118, 120, 128), mat = Enum.Material.SmoothPlastic },
 }
 local PAD_LOOK: { [string]: { color: Color3, mat: Enum.Material } } = {
-	boost = { color = BOOST_COLOR, mat = Enum.Material.Neon },
+	-- a warm orange, not glowing (playtest u02: a neon yellow pad filled a quarter of the screen
+	-- and its glow hid the car); the orange arrows still glow
+	boost = { color = rgb(225, 150, 40), mat = Enum.Material.SmoothPlastic },
 	puddle = { color = rgb(70, 140, 210), mat = Enum.Material.Glass },
 	milk = { color = rgb(248, 248, 244), mat = Enum.Material.Glass },
 	mud = { color = rgb(120, 76, 36), mat = Enum.Material.Mud },

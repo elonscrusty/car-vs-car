@@ -20,11 +20,19 @@ local Effects = {}
 
 local SLIDE_START = 7 -- sideways tyre speed (studs/s) where smoke and marks begin
 local SMOKE_PER_SECOND = 70
-local MARK_STEP = 0.8 -- studs between skid mark pieces
 local smokeColor = Color3.fromRGB(235, 235, 235) -- the player's pick (looks only)
-local MAX_MARKS = 600 -- oldest marks go first past this, so phones stay smooth
-local MARK_LIFE = 25 -- seconds a skid mark stays dark
-local MARK_FADE = 5 -- then it fades away over this long
+-- Skid marks are Trails lying flat between two points across the tyre: one smooth ribbon that
+-- fades out (playtest u30: the old row of boxes drew jagged zig-zags). Each slide takes the next
+-- of MARK_RIGS ribbons per tyre, so the last few slides stay on the road while they fade.
+local MARK_LIFE = 12 -- seconds a skid mark lasts (Trails top out at 20)
+local MARK_RIGS = 4
+local MARK_WIDTH = 0.65 -- across the tyre (car sizes)
+-- no marks where a tyre can't leave one (playtest u12: dark stripes on the water)
+local NO_MARKS: { [Enum.Material]: boolean } = {
+	[Enum.Material.Water] = true,
+	[Enum.Material.Glass] = true, -- the race maps' puddles and milk
+}
+local NO_MARK_SURFACES: { [string]: boolean } = { Puddle = true, OilPatch = true }
 -- Sound ids (free Creator Store sounds, checked to load in Studio). Empty = no sound.
 local MOTOR_SOUND = "rbxassetid://137730930796096" -- "ENV Electric Motor Steady"
 local SQUEAL_SOUND = "rbxassetid://109487442763183" -- "Tire Squealing / Screeching Loop"
@@ -71,7 +79,41 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 	anchor.Size = Vector3.new(0.2, 0.2, 0.2)
 	anchor.Parent = folder
 
-	type Track = { emitter: ParticleEmitter, attach: Attachment, owed: number, last: Vector3? }
+	-- one skid mark ribbon: a flat Trail between two points either side of the tyre
+	type Rig = { trail: Trail, a: Attachment, b: Attachment }
+	local function newRig(): Rig
+		local a = Instance.new("Attachment")
+		a.Parent = anchor
+		local b = Instance.new("Attachment")
+		b.Parent = anchor
+		local trail = Instance.new("Trail")
+		trail.Attachment0 = a
+		trail.Attachment1 = b
+		trail.FaceCamera = false
+		trail.Enabled = false
+		trail.Lifetime = MARK_LIFE
+		trail.MinLength = 0.1 * S
+		trail.Color = ColorSequence.new(Color3.fromRGB(25, 25, 28))
+		trail.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.35),
+			NumberSequenceKeypoint.new(0.6, 0.5),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		trail.LightEmission = 0
+		trail.LightInfluence = 1
+		trail.Parent = folder
+		return { trail = trail, a = a, b = b }
+	end
+
+	type Track = {
+		emitter: ParticleEmitter,
+		attach: Attachment,
+		owed: number,
+		last: Vector3?, -- the tyre's last mark point (nil = not marking)
+		side: Vector3, -- across the tyre's path, flat on the road
+		rigs: { Rig },
+		rig: number, -- the ribbon being drawn now
+	}
 	local tracks: { Track } = {}
 	for i = 1, #telemetry.wheels do
 		local attach = Instance.new("Attachment")
@@ -96,7 +138,19 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 		e.Rotation = NumberRange.new(0, 360)
 		e.RotSpeed = NumberRange.new(-40, 40)
 		e.Parent = attach
-		tracks[i] = { emitter = e, attach = attach, owed = 0, last = nil }
+		local rigs: { Rig } = {}
+		for k = 1, MARK_RIGS do
+			rigs[k] = newRig()
+		end
+		tracks[i] = {
+			emitter = e,
+			attach = attach,
+			owed = 0,
+			last = nil,
+			side = Vector3.xAxis,
+			rigs = rigs,
+			rig = 1,
+		}
 	end
 
 	-- splashes, dust and sparks: one emitter per tyre, set up for the surface under it
@@ -142,34 +196,12 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 		sprays[i] = { emitter = e, attach = attach, owed = 0, kind = "" }
 	end
 
-	-- oldest first, each with when it was made and how dark it started
-	type Mark = { part: BasePart, born: number, alpha: number }
-	local marks: { Mark } = {}
-
-	local function addMark(a: Vector3, b: Vector3, normal: Vector3, strength: number)
-		local len = (b - a).Magnitude
-		if len < 0.05 * S then
-			return
-		end
-		local mid = (a + b) / 2 + normal * 0.03 * S
-		local p = Instance.new("Part")
-		p.Name = "Skid"
-		p.Anchored = true
-		p.CanCollide = false
-		p.CanQuery = false
-		p.CanTouch = false
-		p.CastShadow = false
-		p.Material = Enum.Material.SmoothPlastic
-		p.Color = Color3.fromRGB(25, 25, 28)
-		local alpha = 0.55 - 0.4 * strength
-		p.Transparency = alpha
-		p.Size = Vector3.new(0.65 * S, 0.02, len + 0.1 * S)
-		p.CFrame = CFrame.lookAt(mid, b + normal * 0.03 * S, normal)
-		p.Parent = folder
-		table.insert(marks, { part = p, born = os.clock(), alpha = alpha })
-		if #marks > MAX_MARKS then
-			table.remove(marks, 1).part:Destroy()
-		end
+	-- lay the ribbon's two edges either side of the tyre's contact point
+	local function place(rig: Rig, at: Vector3, normal: Vector3, side: Vector3)
+		local lift = normal * 0.03 * S
+		local half = side * (MARK_WIDTH / 2 * S)
+		rig.a.WorldPosition = at - half + lift
+		rig.b.WorldPosition = at + half + lift
 	end
 
 	local motor = loopSound(MOTOR_SOUND, folder)
@@ -217,18 +249,6 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 			squeal.Volume = SoundLevels.SQUEAL_MAX * squealLevel
 			squeal.PlaybackSpeed = 0.9 + 0.2 * squealLevel
 		end
-		-- old marks fade out, oldest first
-		local now = os.clock()
-		while marks[1] and now - marks[1].born > MARK_LIFE + MARK_FADE do
-			table.remove(marks, 1).part:Destroy()
-		end
-		for _, m in marks do
-			local age = now - m.born
-			if age <= MARK_LIFE then
-				break
-			end
-			m.part.Transparency = m.alpha + (1 - m.alpha) * (age - MARK_LIFE) / MARK_FADE
-		end
 		-- tile surfaces: splash, mud, sand, oil drips; boost sparks off the back; dust on landing
 		for i, info in telemetry.wheels do
 			local sp = sprays[i]
@@ -275,16 +295,40 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 						t.owed -= n
 					end
 				end
+				local markable = not NO_MARKS[info.material] and not NO_MARK_SURFACES[info.surface]
 				local last = t.last
-				if last == nil then
-					t.last = info.contact
-				elseif (info.contact - last).Magnitude >= MARK_STEP * S then
-					if (info.contact - last).Magnitude < 6 * S then
-						addMark(last, info.contact, info.normal, strength)
+				if markable and last and (info.contact - last).Magnitude > 6 * S then
+					-- jumped (put back, a ramp): end this ribbon, start the next
+					t.rigs[t.rig].trail.Enabled = false
+					last = nil
+				end
+				if markable then
+					if last then
+						local step = info.contact - last
+						local across = info.normal:Cross(step)
+						if across.Magnitude > 0.02 * S then
+							t.side = across.Unit
+						end
+					else
+						-- a new slide: the next ribbon, cleared and put down here first
+						t.rig = t.rig % MARK_RIGS + 1
+						local rig = t.rigs[t.rig]
+						rig.trail.Enabled = false
+						place(rig, info.contact, info.normal, t.side)
+						rig.trail:Clear()
 					end
+					local rig = t.rigs[t.rig]
+					place(rig, info.contact, info.normal, t.side)
+					rig.trail.Enabled = last ~= nil
 					t.last = info.contact
+				elseif last then
+					t.rigs[t.rig].trail.Enabled = false
+					t.last = nil
 				end
 			else
+				if t.last then
+					t.rigs[t.rig].trail.Enabled = false
+				end
 				t.last = nil
 				t.owed = 0
 			end
@@ -292,12 +336,12 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 	end
 
 	function fx.clear()
-		for _, m in marks do
-			m.part:Destroy()
-		end
-		table.clear(marks)
 		for _, t in tracks do
 			t.last = nil
+			for _, rig in t.rigs do
+				rig.trail.Enabled = false
+				rig.trail:Clear()
+			end
 		end
 	end
 
