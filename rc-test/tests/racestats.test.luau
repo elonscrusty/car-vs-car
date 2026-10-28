@@ -69,3 +69,30 @@ test("race stats: Tuning gets the trained numbers, and a plain car goes back to 
 	eq(Tuning.accel, accel)
 	eq(Tuning.steerMax, steer)
 end)
+
+test(
+	"Car VS Car (audit C2): racing a friend's lower league holds a strong car to its top",
+	function()
+		local League = require("../src/shared/League")
+		eq(League.top(1), League.NEED[2].strength)
+		eq(League.top(3), League.NEED[4].strength)
+		eq(League.top(4), nil)
+		-- a Gold car (240 strength) racing in Bronze drives like a 110 one, bars scaled alike
+		local strong = car(70, 70, 70) -- + base 10 = 80 each, 240 strength
+		local held = RaceStats.drive(strong, stats(10, 100), League.top(1))
+		local like = RaceStats.drive(car(110 / 3 - 10, 110 / 3 - 10, 110 / 3 - 10), stats(10, 100))
+		truthy(math.abs(held.top - like.top) < 1e-9, "top speed held to Bronze's top")
+		truthy(math.abs(held.turn - like.turn) < 1e-9)
+		truthy(math.abs(held.boostSecs - like.boostSecs) < 1e-9)
+		truthy(
+			held.top < RaceStats.drive(strong, stats(10, 100)).top,
+			"held is slower than its own"
+		)
+		-- a car already under the cap is not touched
+		local weak = car(10, 10, 10)
+		eq(
+			RaceStats.drive(weak, stats(10, 100), League.top(1)).top,
+			RaceStats.drive(weak, stats(10, 100)).top
+		)
+	end
+)

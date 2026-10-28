@@ -16,11 +16,27 @@ local remote = Instance.new("RemoteEvent")
 remote.Name = "FriendBonus"
 remote.Parent = ReplicatedStorage
 
+-- who is friends with whom here (asked once, when a save loads): known[a][b] = true
+local known: { [Player]: { [Player]: boolean } } = {}
+
 local function friends(a: Player, b: Player): boolean
 	local ok, yes = pcall(function()
 		return a:IsFriendsWith(b.UserId)
 	end)
-	return ok and yes == true
+	local are = ok and yes == true
+	if are and a.Parent and b.Parent then
+		known[a] = known[a] or {}
+		known[b] = known[b] or {}
+		known[a][b], known[b][a] = true, true
+	end
+	return are
+end
+
+-- Are these two Roblox friends, both in this server? (from the check when they joined; never
+-- waits, so the race can ask: friends race together, ServerRace.groups)
+function FriendBonus.areFriends(a: Player, b: Player): boolean
+	local k = known[a]
+	return k ~= nil and k[b] == true
 end
 
 -- `player` gets the coins for being with `friend` (if they're due today).
@@ -51,6 +67,14 @@ local function joined(player: Player)
 end
 
 function FriendBonus.start()
+	Players.PlayerRemoving:Connect(function(player: Player)
+		for other in known[player] or {} do
+			if known[other] then
+				known[other][player] = nil
+			end
+		end
+		known[player] = nil
+	end)
 	PlayerData.loaded:Connect(function(player: Player)
 		-- IsFriendsWith asks Roblox (it waits): off the load listener
 		task.spawn(joined, player)

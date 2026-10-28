@@ -333,3 +333,47 @@ test("Car VS Car (audit B8): a first race starts 3 to 5 s after the JOIN tap", f
 	)
 	truthy(string.find(join, "now() + ServerRace.CVC_FIRST", 1, true), "join: start not moved up")
 end)
+
+test("Car VS Car (audit C2): friends always race together, in the lower league", function()
+	-- racer 1 (Gold) and 3 (Bronze) are friends: both race in Bronze with 2; 4 races in Gold
+	local g = ServerRace.groups({ 3, 1, 1, 3 }, 8, nil, { { 1, 3 } })
+	eq(#g, 2)
+	eq(table.concat(g[1], ","), "1,3,2")
+	eq(table.concat(g[2], ","), "4")
+	-- a friend of a friend too
+	local chain = ServerRace.groups({ 4, 2, 1 }, 8, nil, { { 1, 2 }, { 2, 3 } })
+	eq(#chain, 1)
+	-- a new kid with a friend here races with them, not alone
+	local kid = ServerRace.groups({ 2, 1, 1 }, 8, { false, true, true }, { { 1, 2 } })
+	eq(#kid, 2)
+	eq(table.concat(kid[1], ","), "3") -- the other new kid: alone with bots
+	eq(table.concat(kid[2], ","), "1,2")
+	-- a full league splits, but friends stay side by side
+	local full = ServerRace.groups({ 1, 1, 1, 1 }, 2, nil, { { 1, 4 } })
+	eq(table.concat(full[1], ","), "1,4")
+	eq(table.concat(full[2], ","), "2,3")
+	-- bad pairs are ignored
+	eq(#ServerRace.groups({ 1, 2 }, 8, nil, { { 1, 9 }, { 2, 2 } }), 2)
+end)
+
+test(
+	"Car VS Car (audit C2): the race asks who is friends, and prizes follow your own league",
+	function()
+		local fs = require("@lune/fs")
+		local src = fs.readFile("src/server/ServerRaceRunner.luau")
+		truthy(
+			string.find(src, "FriendBonus.areFriends(list[i], list[j])", 1, true),
+			"no friends check"
+		)
+		truthy(
+			string.find(src, "ServerRace.groups(leagues, ServerRace.MAX, solo, friends)", 1, true)
+		)
+		truthy(string.find(src, "League.top(groupLeague[gi])", 1, true), "stronger cars not held")
+		truthy(
+			string.find(src, "League.prize(data.league, at)", 1, true),
+			"prize not by own league"
+		)
+		local fb = fs.readFile("src/server/FriendBonus.luau")
+		truthy(string.find(fb, "function FriendBonus.areFriends", 1, true))
+	end
+)

@@ -25,6 +25,16 @@ League.FINISH_PAY = 20
 League.TRY_PAY = 10
 League.PAY_MULT = { 1, 1.5, 2.2, 3 }
 
+-- The strongest a car in league `l` can be (just under the next league's strength; nil = top
+-- league, no limit). Friends race together in the lower league, with stronger cars held to this.
+function League.top(l: number): number?
+	local n = League.clamp(l)
+	if n >= #League.NAMES then
+		return nil
+	end
+	return League.NEED[n + 1].strength
+end
+
 function League.clamp(n: any): number
 	if type(n) ~= "number" or n ~= n then
 		return 1
