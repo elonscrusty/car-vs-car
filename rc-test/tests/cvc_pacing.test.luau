@@ -8,6 +8,7 @@
 local H = require("./harness")
 local CvcRules = require("../src/shared/CvcRules")
 local Training = require("../src/shared/Training")
+local League = require("../src/shared/League")
 
 local test, truthy = H.test, H.truthy
 
@@ -15,7 +16,10 @@ print("Car VS Car pacing")
 
 type Buy = { at: number, what: string }
 
-local function play(minutes: number): { Buy }
+-- `try`: the race coins for not finishing (League.prize place 0, Bronze), one race every 3 min
+-- (the critic's first race ended at 2:15)
+local RACE_EVERY, FIRST_RACE_END = 180, 135
+local function play(minutes: number, try: boolean?): { Buy }
 	local coins = 0
 	local plotLevel = 0
 	local levels = { 1 } -- each station's level
@@ -23,6 +27,9 @@ local function play(minutes: number): { Buy }
 	for s = 0, minutes * 60 do
 		local cars = if s < 150 then 1 elseif s < 190 then 2 else 3
 		coins += math.min(cars, #levels) * CvcRules.COINS_PER_MIN / 60
+		if try and s >= FIRST_RACE_END and (s - FIRST_RACE_END) % RACE_EVERY == 0 then
+			coins += League.prize(1, 0)
+		end
 		if s == 322 then
 			coins += 30
 		elseif s == 344 then
@@ -80,4 +87,19 @@ test("in the first 15 minutes, never more than 4 minutes without something new",
 	-- even when you lose, which is the race side's job)
 	print(string.format("       %d new things, longest wait %.1f min", #buys, worst))
 	truthy(worst <= 4, "no wait over 4 min")
+end)
+
+test("with the try coins for each lost race: the longest wait (goal 2 min)", function()
+	local tried = play(15, true)
+	local last, worst = 0, 0
+	for _, b in tried do
+		worst = math.max(worst, b.at - last)
+		last = b.at
+	end
+	worst = math.max(worst, 15 - last)
+	print(
+		string.format("       with try coins: %d new things, longest wait %.1f min", #tried, worst)
+	)
+	-- (3.0 min today: try coins alone don't reach carter's 2 min)
+	truthy(worst <= 3, "no wait over 3 min with try coins")
 end)
