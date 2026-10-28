@@ -47,6 +47,7 @@ export type Data = {
 	trophies: number,
 	raceWins: number,
 	crates: number, -- free crates not opened yet
+	xp: number, -- all XP ever earned (Xp.levelOf gives the level)
 	picked: boolean, -- chose the starter car
 	nextUid: number, -- for the next car's uid
 	friendsPaid: { [string]: number }, -- friend's user id -> the day we last got the friend coins
@@ -148,6 +149,7 @@ function Profile.new(): Data
 		trophies = 0,
 		raceWins = 0,
 		crates = 0,
+		xp = 0,
 		picked = false,
 		nextUid = 1,
 		friendsPaid = {},
@@ -607,7 +609,7 @@ function Profile.migrateGarage(d: Data, raw: any)
 	if goodNumber(raw.league) then
 		d.league = math.clamp(math.floor(raw.league), 1, Profile.LEAGUES)
 	end
-	for _, k in { "trophies", "raceWins", "crates" } do
+	for _, k in { "trophies", "raceWins", "crates", "xp" } do
 		local v = raw[k]
 		if goodNumber(v) then
 			(d :: any)[k] = math.clamp(math.floor(v), 0, Profile.MAX_COINS)
@@ -1071,7 +1073,7 @@ function Profile.mergeVisit(stored: Data, session: Data, base: Data): Data
 			mine.boost = math.max(mine.boost, c.boost)
 		end
 	end
-	for _, k in { "trophies", "raceWins", "crates" } do
+	for _, k in { "trophies", "raceWins", "crates", "xp" } do
 		out[k] = math.clamp(out[k] + gain(ses[k], (base :: any)[k]), 0, Profile.MAX_COINS)
 	end
 	for _, k in { "garageLevel", "league" } do
