@@ -170,7 +170,10 @@ function Windows.crates(data: { [string]: any }, actions: Screen.Actions?): Scre
 			end
 			openB = button(c, "crates", "Window.Open", function()
 				Screen.act(actions, "open")(chosen)
-			end, { chip = ch.priceWords or UiMotion.commas(ch.price or 0) })
+			end, {
+				chip = ch.priceWords or UiMotion.commas(ch.price or 0),
+				chipIcon = if ch.priceWords then false else nil,
+			})
 		end
 		for i = 1, 3 do
 			local ch = choices[i]

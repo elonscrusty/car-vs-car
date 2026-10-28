@@ -148,13 +148,17 @@ function Kit.button(
 		Base.corner(chip)
 		Base.outline(chip, UiTheme.OUTLINE.small)
 		local ch = size * 1.24
-		Icons.make(chip, "coin", 3, ch * 0.1, ch * 0.8, { z = 5 })
+		-- (chipIcon = false: words only, like FREE x1, with no coin by them)
+		local coinW = if o.chipIcon == false then ch * 0.3 else ch * 0.95
+		if o.chipIcon ~= false then
+			Icons.make(chip, "coin", 3, ch * 0.1, ch * 0.8, { z = 5 })
+		end
 		Base.text(
 			chip,
 			"Price",
-			ch * 0.95,
+			coinW,
 			ch * 0.14,
-			cw - ch - 8,
+			cw - coinW - 8,
 			ch * 0.72,
 			tostring(o.chip),
 			{ z = 5, align = "l" }
