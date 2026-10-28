@@ -255,7 +255,8 @@ local function racerRing(s: Shown, i: number)
 		p.Size = Vector3.new(side[3], 0.16, side[4])
 		p.CFrame = base.CFrame * CFrame.new(side[1], top, side[2])
 		p.Color = Color3.fromRGB(c[1], c[2], c[3])
-		p.Material = Enum.Material.Neon
+		-- (plain, not Neon: only the next thing to do glows, auditor L2)
+		p.Material = Enum.Material.SmoothPlastic
 		p.Parent = s.folder
 	end
 end
@@ -329,36 +330,38 @@ local function scoreBoard(s: Shown, onPads: { [number]: Entry }, stands: { Entry
 		l.Parent = parent
 		return l
 	end
-	local title = text(gui, "WHO IS AHEAD?", 0.03, 0.02, 0.94, 0.16)
+	local title = text(gui, "WHO IS AHEAD?", 0.03, 0.02, 0.94, 0.19)
 	title.TextXAlignment = Enum.TextXAlignment.Center
 	title.TextColor3 = Color3.fromRGB(255, 210, 60)
-	local rowH = 0.8 / rows
+	-- names get most of the width: their letters are as big as the width lets them be, and from the
+	-- plot gate on a phone they need it
+	local rowH = 0.78 / rows
 	local shown = PlotTraining.board(list)
 	-- every row is drawn: a spot with no car yet is a dim "?" with empty bars (playtest u10: one
 	-- car left the board 80% empty)
 	for k = 1, rows do
 		local car = shown[k]
-		local y = 0.19 + (k - 1) * rowH
+		local y = 0.21 + (k - 1) * rowH
 		local name = text(
 			gui,
-			k .. "  " .. (if car then car.name else "?"),
+			k .. " " .. (if car then car.name else "?"),
 			0.03,
-			y + rowH * 0.1,
-			0.42,
-			rowH * 0.8
+			y + rowH * 0.08,
+			0.55,
+			rowH * 0.84
 		)
 		if not car then
 			name.TextTransparency = 0.55
 		end
 		for j, bar in Training.BARS do
 			local c = PlotTraining.BAR_COLORS[bar]
-			local x = 0.47 + (j - 1) * 0.17
+			local x = 0.6 + (j - 1) * 0.13
 			local back = Instance.new("Frame")
 			back.BorderSizePixel = 0
 			back.BackgroundColor3 = Color3.fromRGB(70, 74, 90)
 			back.BackgroundTransparency = if car then 0 else 0.4
 			back.Position = UDim2.fromScale(x, y + rowH * 0.2)
-			back.Size = UDim2.fromScale(0.155, rowH * 0.6)
+			back.Size = UDim2.fromScale(0.115, rowH * 0.6)
 			back.Parent = gui
 			if car then
 				local fill = Instance.new("Frame")
@@ -378,6 +381,64 @@ local function standTag(model: Model, e: Entry)
 	if body and body:IsA("BasePart") then
 		local T = PlotTraining.STAND_TAG
 		tag(body, e, T.w, T.h, T.up)
+	end
+end
+
+-- On your own plot, walk up to a car and pick it (FINISH-JOBS plot row): a waiting car can go
+-- TRAIN on the first empty station, and any car can be the one you RACE WITH. The server checks
+-- every ask (CvcRules.station / racer).
+local function freeStation(): number?
+	for i, st in CvcState.stations do
+		if st.uid == "" then
+			return i
+		end
+	end
+	return nil
+end
+
+local function prompt(at: BasePart, text: string, key: Enum.KeyCode, row: number, go: () -> ())
+	local p = Instance.new("ProximityPrompt")
+	p.Name = "Pick"
+	p.ActionText = text
+	p.ObjectText = ""
+	p.HoldDuration = 0
+	p.MaxActivationDistance = 14
+	p.RequiresLineOfSight = false
+	p.KeyboardKeyCode = key
+	p.UIOffset = Vector2.new(0, row * 64)
+	p.Triggered:Connect(go)
+	p.Parent = at
+end
+
+local function picks(model: Model, e: Entry, waiting: boolean)
+	local body = model:FindFirstChild("Body")
+	local uid = e.uid
+	if not (body and body:IsA("BasePart") and uid and uid ~= "") then
+		return
+	end
+	local row = 0
+	if waiting then
+		local i = freeStation()
+		if i then
+			prompt(body, "TRAIN", Enum.KeyCode.E, row, function()
+				local free = freeStation()
+				if free then
+					CvcState.ask("station", free, uid)
+				end
+			end)
+			row += 1
+		end
+	end
+	if uid ~= CvcState.racer then
+		prompt(
+			body,
+			"RACE WITH IT",
+			if row == 0 then Enum.KeyCode.E else Enum.KeyCode.F,
+			row,
+			function()
+				CvcState.ask("racer", uid)
+			end
+		)
 	end
 end
 
@@ -439,6 +500,9 @@ local function refresh(s: Shown)
 				local r: Rider = { model = model, kind = kind, pad = i, slats = slats }
 				table.insert(s.riders, r)
 				riderSign(s, i, e)
+				if mine(s.plot) then
+					picks(model, e, false)
+				end
 			end
 		end
 	end
@@ -449,6 +513,9 @@ local function refresh(s: Shown)
 			model:PivotTo(s.pivot * CFrame.new(st.x, STAND_TOP + (st.lift or 0), st.z))
 			table.insert(s.parked, model)
 			standTag(model, e)
+			if mine(s.plot) then
+				picks(model, e, true)
+			end
 		end
 	end
 end

@@ -58,13 +58,16 @@ PlotTraining.K = 1.15
 -- the pad's edge nearest the middle and facing it (signAt). carter 10-28: players walk round the
 -- plot while their cars train (no high camera), so the signs are read at eye level; up on posts,
 -- you see the station under them.
--- carter 10-28 "do the plot signs": bigger, and each station's name glows in its colour (a Neon
--- rim round the board; the name in that colour, unlit). Vault: World-Space UI, Light Sources.
+-- carter 10-28 "do the plot signs": bigger, and each station's name in its colour (a coloured rim
+-- round the board; the name in that colour, unlit). Not Neon: only the next thing to do glows,
+-- and that's the screen's arrow (auditor L2). Vault: World-Space UI, Light Sources.
 PlotTraining.PAD_SIGN = { w = 20, h = 4.6, low = 5.5, rim = 0.35 }
 -- the middle treadmill's sign, on the back wall under the scoreboard: there's room, so it's big
 -- (Studio before-2: at 18x4 its words were tiny from the middle of the plot)
-PlotTraining.WALL_SIGN = { w = 28, h = 7 }
--- each station's colour: its sign's glowing rim and name, same as its bar on the scoreboard
+-- (36x8: from the plot gate on a phone its words are ~10 px, the vault's floor is 12 for body text)
+PlotTraining.WALL_SIGN = { w = 36, h = 8 }
+PlotTraining.CORNER_SIGN_W = 16 -- the back corner pads' signs (beside the scoreboard)
+-- each station's colour: its sign's name, same as its bar on the scoreboard
 -- (a quarter of the way to white: blue on the navy sign read weakest, Studio after-2)
 function PlotTraining.signColor(kind: string): { number }
 	local c = PlotTraining.BAR_COLORS[Training.MAIN[kind] or ""] or { 255, 220, 90 }
@@ -74,11 +77,9 @@ function PlotTraining.signColor(kind: string): { number }
 		math.round(c[3] + (255 - c[3]) / 4),
 	}
 end
--- the rim's Neon brightens a colour a lot (Studio after-3b: the ramp's orange glowed yellow, like
--- the board's frame), so it gets a deeper one
-local RIM = { speed = { 30, 120, 255 }, turn = { 40, 190, 50 }, boost = { 255, 100, 10 } }
+-- its rim: the bar's own colour (the ramp's is orange, not the board frame's yellow)
 function PlotTraining.rimColor(kind: string): { number }
-	return RIM[Training.MAIN[kind] or ""] or PlotTraining.signColor(kind)
+	return PlotTraining.BAR_COLORS[Training.MAIN[kind] or ""] or { 255, 220, 90 }
 end
 
 -- Where pad i's sign stands (plot-local x, z), its yaw in degrees (its words face +z turned by yaw)
@@ -96,8 +97,10 @@ function PlotTraining.signAt(i: number): (number, number, number, number, number
 	if math.abs(g.x - B.x) + W.w / 2 <= B.w / 2 then
 		return g.x, B.z + 0.4, 0, B.y - B.h / 2 - 1 - W.h, W.w, W.h
 	end
-	-- the back corners': pushed out to the pad's outer edge, clear of the scoreboard's sides
-	return g.x + math.sign(g.x) * (P.w - S.w) / 2, g.z + P.d / 2 - 0.5, 0, S.low, S.w, S.h
+	-- the back corners': narrower and pushed out to the pad's outer edge, clear of the scoreboard's
+	-- sides (from the garage floor they'd stand in front of it)
+	local w = PlotTraining.CORNER_SIGN_W
+	return g.x + math.sign(g.x) * (P.w - w) / 2, g.z + P.d / 2 - 0.5, 0, S.low, w, S.h
 end
 PlotTraining.ROOM = { x0 = -14, x1 = 14, z0 = -32, z1 = 30 } -- the garage floor, in the middle
 PlotTraining.NEAR = 220 -- studs: a plot farther from the camera than this stops moving its cars
@@ -145,11 +148,13 @@ local STANDS: { Stand } = {
 	{ x = 0, z = -16 },
 }
 PlotTraining.STANDS = STANDS
-PlotTraining.SHELF = { x = 28, z = -53.2, w = 18, y = 8 } -- the trophy shelf, high on the back wall
+PlotTraining.SHELF = { x = 31, z = -53.2, w = 14, y = 8 } -- the trophy shelf, right on the back wall
 -- the scoreboard on the back wall over the middle treadmill: every car's 3 bars, best on top
 -- (CvcPlot.client writes it); w by h studs, its middle at y
 -- (high: walking players see it over the back wall's pad signs, carter 10-28)
-PlotTraining.BOARD = { x = 0, z = -53.8, w = 34, h = 13, y = 18.5 }
+-- (42x18: big enough to read its names from the plot gate on a phone, ~9 px; the name sign that
+-- stood left of it went, the arch over the gate says whose plot it is)
+PlotTraining.BOARD = { x = 0, z = -53.8, w = 42, h = 18, y = 22 }
 PlotTraining.BOARD_ROWS = 3 -- the top 3, big enough to read on a phone (Studio 10-28: 5 rows were tiny)
 PlotTraining.MAX_TROPHIES = 12 -- cups drawn on the shelf (the number on its sign keeps counting)
 
@@ -272,8 +277,6 @@ function PlotTraining.slats(t: number): { number }
 	return out
 end
 
--- the name sign stands left on the back wall (the scoreboard is in the middle, the shelf right)
-PlotTraining.ROOM_SIGN_X = -28
 -- A stand car's tag (in the garage room) sits just over the car, sized in studs. Station cars
 -- have no tag: their numbers are on their pad's sign (carWords).
 PlotTraining.STAND_TAG = { w = 6.5, h = 3.5, up = 3.6 }
@@ -410,7 +413,7 @@ local function pad(add: Garage.Add, i: number, kind: string?)
 		v(sw + 2 * S.rim, sh + 2 * S.rim, 0.2),
 		v(sx - back * math.sin(along0), cy, sz - back * math.cos(along0)),
 		PlotTraining.rimColor(kind),
-		{ rot = v(0, yaw, 0), material = "Neon", collide = false }
+		{ rot = v(0, yaw, 0), collide = false }
 	)
 	local along = math.rad(yaw) -- the sign's own x, in the plot
 	for _, e in { -1, 1 } do
@@ -540,50 +543,41 @@ function PlotTraining.pieces(
 	plotLevel: number,
 	garageLevel: number,
 	trophies: number,
-	showNext: boolean?
+	showNext: boolean?,
+	waiting: number?
 ): { Piece }
 	local out: { Piece } = {}
 	local add = Garage.adder(out)
 	local R = PlotTraining.ROOM
+	-- only the stands with a car waiting on them (auditor L1: blank grey discs and an empty gold
+	-- podium looked broken on a new plot); nil = all of them (no owner to count for)
+	local standCount = PlotTraining.stands(garageLevel)
+	if waiting then
+		standCount = math.clamp(math.floor(waiting), 0, standCount)
+	end
 	-- the garage floor in the middle: wood boards and a rug under the stands
 	local rx, rz = (R.x0 + R.x1) / 2, (R.z0 + R.z1) / 2
 	add("Room", "RoomFloor", v(R.x1 - R.x0, 0.2, R.z1 - R.z0), v(rx, 0.1, rz), WOOD, {
 		material = "WoodPlanks",
 		collide = false,
 	})
-	add(
-		"Room",
-		"Rug",
-		v(24, 0.1, 30),
-		v(0, 0.25, -4),
-		RUG,
-		{ material = "Fabric", collide = false }
-	)
-	add(
-		"Room",
-		"RugTrim",
-		v(25, 0.08, 31),
-		v(0, 0.22, -4),
-		GOLD,
-		{ material = "Fabric", collide = false }
-	)
-	-- the owner's name, left on the back wall, high over the treadmills
-	add(
-		"Room",
-		"RoomSign",
-		v(18, 3.6, 0.4),
-		v(PlotTraining.ROOM_SIGN_X, 14, -53.4),
-		WOOD_DARK,
-		{ collide = false }
-	)
-	for _, side in { -1, 1 } do
+	-- the rug lies under the rows of stands behind the podium: no cars there, no empty rug
+	if standCount >= 2 then
 		add(
-			"RoomSignLegs",
-			"Leg",
-			v(0.6, 12.2, 0.6),
-			v(PlotTraining.ROOM_SIGN_X + side * 8, 6.1, -53.4),
-			WOOD_DARK,
-			{ collide = false }
+			"Room",
+			"Rug",
+			v(24, 0.1, 30),
+			v(0, 0.25, -4),
+			RUG,
+			{ material = "Fabric", collide = false }
+		)
+		add(
+			"Room",
+			"RugTrim",
+			v(25, 0.08, 31),
+			v(0, 0.22, -4),
+			GOLD,
+			{ material = "Fabric", collide = false }
 		)
 	end
 	-- the scoreboard and its two legs (CvcPlot.client writes the rows)
@@ -674,7 +668,7 @@ function PlotTraining.pieces(
 		})
 	end
 	-- car stands (the first is the podium: raised, all gold)
-	for k = 1, PlotTraining.stands(garageLevel) do
+	for k = 1, standCount do
 		local st = PlotTraining.STANDS[k]
 		local lift = st.lift or 0
 		if lift > 0 then
@@ -707,7 +701,7 @@ function PlotTraining.pieces(
 end
 
 -- the room's own pieces, kept when carter's props go in (Garage.useMeshes clears the rest)
-local ROOM_KEEP = { "RoomFloor", "Rug", "RugTrim", "RoomSign" }
+local ROOM_KEEP = { "RoomFloor", "Rug", "RugTrim" }
 
 -- carter's props in the room (Garage.Mesh entries; missing models are skipped)
 function PlotTraining.meshes(): { Garage.Mesh }

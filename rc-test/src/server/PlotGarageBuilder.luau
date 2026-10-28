@@ -51,7 +51,7 @@ local function label(board: BasePart, top: string, bottom: string, one: boolean?
 		line("Bottom", "", 0.92, 0.04, Color3.fromRGB(255, 220, 90))
 		return
 	end
-	-- a station's name glows in its colour (its sign's Neon rim), the car's line stays gold
+	-- a station's name in its colour (its sign's rim), the car's line stays gold
 	local name = if glow then Color3.fromRGB(glow[1], glow[2], glow[3]) else Color3.new(1, 1, 1)
 	line("Top", top, 0.06, 0.52, name)
 	line("Bottom", bottom, 0.6, 0.34, Color3.fromRGB(255, 220, 90))
@@ -215,6 +215,18 @@ function PlotGarageBuilder.start()
 		local nextOpen = owned and plot:GetAttribute("NextOpen") == true
 		local pads =
 			PlotTraining.parse(if owned then tostring(plot:GetAttribute("Stations") or "") else "")
+		-- cars waiting off the stations: one stand each (TrainingServer's Garage lists every car)
+		local waiting = 0
+		if owned then
+			for _ in string.gmatch(tostring(plot:GetAttribute("Garage") or ""), "[^,]+") do
+				waiting += 1
+			end
+			for _, p in pads do
+				if p.car ~= "" then
+					waiting -= 1
+				end
+			end
+		end
 		local kinds = {}
 		for _, p in pads do
 			table.insert(kinds, p.kind .. p.level)
@@ -226,6 +238,7 @@ function PlotGarageBuilder.start()
 			trophies,
 			table.concat(kinds, ","),
 			tostring(nextOpen),
+			waiting,
 		}, "|")
 		if trainedKey[plot] == key then
 			return
@@ -238,7 +251,7 @@ function PlotGarageBuilder.start()
 		local model = Instance.new("Model")
 		model.Name = "Training"
 		local groups = Garage.makeParts(
-			PlotTraining.pieces(plotLevel, garageLevel, trophies, nextOpen),
+			PlotTraining.pieces(plotLevel, garageLevel, trophies, nextOpen, waiting),
 			model,
 			pivot
 		)
@@ -259,11 +272,6 @@ function PlotGarageBuilder.start()
 				local top, bottom = PlotTraining.padWords(pad, i)
 				label(sign, top, bottom, false, pad and PlotTraining.signColor(pad.kind))
 			end
-		end
-		local owner = Players:GetPlayerByUserId(ownerId)
-		local room = groups.Room and groups.Room:FindFirstChild("RoomSign")
-		if room and room:IsA("BasePart") then
-			label(room, PlotGarage.signText(if owner then owner.DisplayName else nil), "", true)
 		end
 		local shelf = groups.Shelf and groups.Shelf:FindFirstChild("ShelfSign")
 		if shelf and shelf:IsA("BasePart") then
@@ -303,7 +311,15 @@ function PlotGarageBuilder.start()
 			if Features.CVC then
 				buildTraining(plot, pivot)
 				for _, name in
-					{ "OwnerId", "PlotLevel", "GarageLevel", "Trophies", "Stations", "NextOpen" }
+					{
+						"OwnerId",
+						"PlotLevel",
+						"GarageLevel",
+						"Trophies",
+						"Stations",
+						"NextOpen",
+						"Garage",
+					}
 				do
 					plot:GetAttributeChangedSignal(name):Connect(function()
 						buildTraining(plot, pivot)

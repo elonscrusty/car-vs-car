@@ -300,7 +300,7 @@ test("the scoreboard's rows are big enough to read on a phone", function()
 	local rowWords = B.h * 0.8 / T.BOARD_ROWS * 0.8
 	truthy(rowWords >= 2.5, `row words {rowWords} studs tall (5 rows of 1.3 were too small)`)
 	-- clear of the name sign on the left and the trophy shelf on the right
-	truthy(B.x - B.w / 2 > T.ROOM_SIGN_X + 9, "left of the board: the name sign")
+	truthy(B.x - B.w / 2 >= -24, "left of the board: the back-left pad")
 	truthy(B.x + B.w / 2 < T.SHELF.x - T.SHELF.w / 2, "right of the board: the shelf")
 	truthy(B.y - B.h / 2 > 5, "over the treadmills' screens")
 end)
@@ -371,6 +371,57 @@ test("walking up close, no pad sign hides the scoreboard", function()
 		"the middle treadmill's sign under the board, over its car"
 	)
 	truthy(h >= S.h * 1.5, "and bigger than a post sign: it's the far one")
+end)
+
+test("a new plot has no empty stands, podium or rug (auditor L1)", function()
+	local function count(waiting: number?): (number, number)
+		local stands, rugs = 0, 0
+		for _, p in T.pieces(0, 0, 0, false, waiting) do
+			if p.name == "Stand" then
+				stands += 1
+			elseif p.name == "Rug" then
+				rugs += 1
+			end
+		end
+		return stands, rugs
+	end
+	eq(select(1, count(0)), 0)
+	eq(select(2, count(0)), 0)
+	eq(select(1, count(1)), 1) -- the podium, with its car
+	eq(select(2, count(1)), 0)
+	eq(select(1, count(2)), 2)
+	eq(select(2, count(2)), 1)
+	eq(select(1, count(99)), T.stands(0)) -- no more than the garage level has
+	eq(select(1, count(nil)), T.stands(0)) -- no owner counted: all of them
+end)
+
+test(
+	"nothing on the plot glows to say tap me: that's the screen's one arrow (auditor L2)",
+	function()
+		for _, p in T.pieces(3, 3, 5, true, 3) do
+			if p.material == "Neon" then
+				eq(p.name, "TreadScreen") -- the treadmill's own little screen, not a pointer
+			end
+		end
+	end
+)
+
+test("from the plot gate on a phone, the back wall's words are big enough", function()
+	-- a phone in landscape is ~390 px tall with the camera's 70 degree view: px per stud at d studs
+	local function px(studs: number, d: number): number
+		return studs * 390 / (2 * d * math.tan(math.rad(35)))
+	end
+	local B = T.BOARD
+	local d = 37 + 10 - B.z -- the gate, plus the camera behind you, to the back wall
+	-- a board row's name: as tall as its row lets it, unless its width runs out first (FredokaOne
+	-- letters are ~0.58 as wide as tall; "1 MINT SWIRL" is 12)
+	local rowH = B.h * 0.78 / T.BOARD_ROWS * 0.84
+	local name = math.min(rowH, B.w * 0.55 / (12 * 0.58))
+	truthy(px(name, d) >= 9, `board names {px(name, d)} px`)
+	-- the treadmill's wall sign: "TREADMILL LV 1" across 94% of it, on the top 52%
+	local W = T.WALL_SIGN
+	local top = math.min(W.h * 0.52, W.w * 0.94 / (14 * 0.58))
+	truthy(px(top, d) >= 9, `treadmill sign {px(top, d)} px`)
 end)
 
 test("locked pads stay hidden; only the next one shows, once you can pay for it", function()
