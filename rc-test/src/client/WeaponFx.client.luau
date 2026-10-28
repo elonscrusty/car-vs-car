@@ -1,9 +1,9 @@
 --!strict
 -- Car VS Car SMASH weapons, drawn (plans/smash, WEAPONS row). The server moves every rocket and
 -- decides every hit; this only draws what the WeaponFx remote says:
---   RocketLaunch { id, pos, dir }  a low-poly rocket flies straight on from pos
+--   RocketLaunch { id, kind, pos, dir }  a low-poly rocket (or the big NUKE) flies on from pos
 --   RocketTurn   { id, pos, dir }  it bent toward a kart: carry on from the new spot
---   RocketBoom   { id, pos, quiet? }  it blew up there (quiet = match over, just vanish)
+--   RocketBoom   { id, kind, pos, quiet? }  it blew up there (quiet = match over, just vanish)
 -- Gun and mine kinds go to client/WeaponFxGunMine (the GUNMINE row's file) when it is there.
 -- Look rule: low-poly, SmoothPlastic + Neon, no text.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -47,10 +47,10 @@ local function part(name: string, color: Color3, neon: boolean, size: Vector3): 
 end
 
 -- a rocket: red body, yellow nose, navy fins, a flame and a short smoke trail; faces -Z
-local function rocketModel(): Model
+local function rocketModel(nuke: boolean): Model
 	local m = Instance.new("Model")
-	m.Name = "Rocket"
-	local body = part("Body", CHERRY, false, Vector3.new(1, 1, 3.2))
+	m.Name = if nuke then "Nuke" else "Rocket"
+	local body = part("Body", if nuke then NAVY else CHERRY, false, Vector3.new(1, 1, 3.2))
 	body.Parent = m
 	m.PrimaryPart = body
 	local nose = part("Nose", SUNNY, true, Vector3.new(0.8, 0.8, 0.9))
@@ -84,18 +84,30 @@ local function rocketModel(): Model
 	trail.Parent = flame
 	-- the parts were placed around the origin: weld them by moving as one (PivotTo)
 	m.WorldPivot = CFrame.new()
+	if nuke then
+		-- the nuke: the same shape, twice as big, navy with a pulsing yellow nose
+		m:ScaleTo(2.2)
+		local n = m:FindFirstChild("Nose") :: BasePart?
+		if n then
+			TweenService:Create(
+				n,
+				TweenInfo.new(0.25, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+				{ Color = CHERRY }
+			):Play()
+		end
+	end
 	return m
 end
 
-type Live = { model: Model, pos: Vector3, dir: Vector3, age: number }
+type Live = { model: Model, pos: Vector3, dir: Vector3, age: number, spec: Weapons.Flight }
 local live: { [number]: Live } = {}
 
 local function place(l: Live)
 	l.model:PivotTo(CFrame.lookAt(l.pos, l.pos + l.dir))
 end
 
-local function boom(at: Vector3, big: boolean)
-	local size = if big then Weapons.ROCKET.splash * 2 else 6
+local function boom(at: Vector3, spec: Weapons.Flight, nuke: boolean)
+	local size = spec.splash * 2
 	local ball = part("Boom", FLAME, true, Vector3.new(2, 2, 2))
 	ball.Shape = Enum.PartType.Ball
 	ball.Position = at
@@ -116,7 +128,23 @@ local function boom(at: Vector3, big: boolean)
 	e.Drag = 4
 	e.Rate = 0
 	e.Parent = ball
-	e:Emit(if big then 40 else 12)
+	e:Emit(if nuke then 120 else 40)
+	if nuke then
+		-- a flat ring rolls out over the ground as far as the boom reaches
+		local ring = part("Ring", SUNNY, true, Vector3.new(0.6, 4, 4))
+		ring.Shape = Enum.PartType.Cylinder
+		ring.CFrame = CFrame.new(at) * CFrame.Angles(0, 0, math.rad(90))
+		ring.Transparency = 0.2
+		ring.Parent = bits
+		TweenService:Create(
+			ring,
+			TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ Size = Vector3.new(0.6, size * 1.1, size * 1.1), Transparency = 1 }
+		):Play()
+		task.delay(0.7, function()
+			ring:Destroy()
+		end)
+	end
 	task.delay(0.8, function()
 		ball:Destroy()
 	end)
@@ -138,11 +166,18 @@ local function onRocket(kind: string, data: any)
 		if old then
 			old.model:Destroy()
 		end
-		local l = { model = rocketModel(), pos = pos, dir = dir, age = 0 }
+		local name = if data.kind == "Nuke" then "Nuke" else "Rockets"
+		local l = {
+			model = rocketModel(name == "Nuke"),
+			pos = pos,
+			dir = dir,
+			age = 0,
+			spec = Weapons.FLIGHTS[name],
+		}
 		place(l)
 		l.model.Parent = bits
 		live[id] = l
-		sound("rocketLaunch")
+		sound(if name == "Nuke" then "nukeLaunch" else "rocketLaunch")
 	elseif kind == "RocketTurn" and pos and dir then
 		local l = live[id]
 		if l then
@@ -155,8 +190,9 @@ local function onRocket(kind: string, data: any)
 			l.model:Destroy()
 		end
 		if pos and data.quiet ~= true then
-			boom(pos, true)
-			sound("rocketBoom")
+			local nuke = data.kind == "Nuke"
+			boom(pos, if nuke then Weapons.NUKE else Weapons.ROCKET, nuke)
+			sound(if nuke then "nukeBoom" else "rocketBoom")
 		end
 	end
 end
@@ -166,7 +202,11 @@ local gunMine: any = nil
 local function forward(kind: string, data: any)
 	if gunMine == nil then
 		local m = script.Parent:FindFirstChild("WeaponFxGunMine")
-		gunMine = if m and m:IsA("ModuleScript") then require(m) :: any else false
+		local ok, mod = false, nil
+		if m and m:IsA("ModuleScript") then
+			ok, mod = pcall(require, m)
+		end
+		gunMine = if ok then mod else false
 	end
 	if gunMine and type(gunMine.handle) == "function" then
 		gunMine.handle(kind, data)
@@ -189,11 +229,11 @@ end)
 RunService.RenderStepped:Connect(function(dt: number)
 	for id, l in live do
 		l.age += dt
-		if l.age > Weapons.ROCKET.life + 1 then
+		if l.age > l.spec.life + 1 then
 			l.model:Destroy()
 			live[id] = nil
 		else
-			l.pos += l.dir * Weapons.ROCKET.speed * dt
+			l.pos += l.dir * l.spec.speed * dt
 			place(l)
 		end
 	end

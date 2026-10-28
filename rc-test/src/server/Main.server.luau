@@ -50,6 +50,7 @@ if Features.CVC then
 	require(script.Parent.TrainingServer).start() -- Car VS Car: cars train on their owner's plot
 	require(script.Parent.FriendBonus).start() -- Car VS Car: coins for playing with a friend
 end
+require(script.Parent.WeaponServer).start() -- Smash weapons: the fire remote, rockets, nuke (WEAPONS row)
 require(script.Parent.PlotGarageBuilder).start() -- plots are garages: the loop road, coin pile pad, level sign
 do -- phone speed pass over the plots (small bits: no shadow; tiny decor bits: no collision)
 	local before, after = require(script.Parent.LobbyPerf).plots(workspace.Plots)
