@@ -62,8 +62,11 @@ end
 SpawnLobby.PAD_Z = 23
 -- play pads (queue pads): race and drift send you to an open plot of that kind (each owner picks
 -- race or drift; rocks dropped, carter 23:42)
-SpawnLobby.PADS = if Features.CVC
-	then { { x = 0, kind = "race", color = { 226, 52, 46 } } } -- Car VS Car: racing only
+-- (Features.SMASH: Car VS Car Smash, FINISH-JOBS; nil until that flag lands, so read loosely)
+SpawnLobby.SMASH = Features.CVC and (Features :: any).SMASH == true
+SpawnLobby.PADS = if SpawnLobby.SMASH
+	then { { x = 0, kind = "smash", color = { 255, 64, 160 } } } -- Smash: one SMASH! portal
+	elseif Features.CVC then { { x = 0, kind = "race", color = { 226, 52, 46 } } } -- racing only
 	else {
 		{ x = -27, kind = "drift", color = { 150, 70, 210 } },
 		{ x = 0, kind = "race", color = { 226, 52, 46 } },
@@ -283,6 +286,24 @@ function SpawnLobby.parts(): { Piece }
 				{ collide = false }
 			)
 		end
+		if pad.kind == "smash" then
+			-- Smash (FINISH-JOBS LOBBY): a hot pink portal ring standing over the pad, so it reads
+			-- as "go through here" from the spawn; no start grid or start lights (no racing now)
+			local R, N = 5.2, 16
+			local seg = 2 * R * math.tan(math.pi / N) + 0.1
+			for k = 0, N - 1 do
+				local a = (k + 0.5) / N * 2 * math.pi
+				add(
+					g,
+					"Portal",
+					v(seg, 0.9, 0.9),
+					v(px + math.cos(a) * R, R + 0.2 + math.sin(a) * R, pz),
+					pad.color,
+					{ rot = v(0, 0, math.deg(a) + 90), material = "Neon", collide = false }
+				)
+			end
+			continue
+		end
 		for row = 0, 1 do
 			for t = 0, 9 do
 				add(
@@ -499,6 +520,9 @@ do
 		)
 	end
 	for i, pad in SpawnLobby.PADS do
+		if pad.kind == "smash" then
+			continue
+		end
 		mesh(
 			"StartLight",
 			"StartLight" .. i,

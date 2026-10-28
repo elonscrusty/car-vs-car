@@ -337,9 +337,15 @@ end
 local QueuePads = require(script.Parent.QueuePads)
 local CollectionService = game:GetService("CollectionService")
 QueuePads.start({
-	-- the race pad is JOIN RACE: on the list for the next map race (anyone, a new player too)
+	-- the race pad is JOIN RACE (Car VS Car Smash: the SMASH! portal): on the list for the next
+	-- race / match (anyone, a new player too). MatchRunner (MATCH) when it's in the game.
 	join = function(player: Player)
-		ServerRaceRunner.join(player)
+		local match = script.Parent:FindFirstChild("MatchRunner")
+		if (Features :: any).SMASH == true and match and match:IsA("ModuleScript") then
+			(require(match) :: any).join(player)
+		else
+			ServerRaceRunner.join(player)
+		end
 	end,
 	findOpen = function(kind: string, player: Player): number?
 		-- a brand new player's spawn shows only the way to their own pad (JoinStage)
