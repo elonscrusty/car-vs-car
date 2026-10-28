@@ -61,6 +61,9 @@ PlotTraining.K = 1.15
 -- carter 10-28 "do the plot signs": bigger, and each station's name glows in its colour (a Neon
 -- rim round the board; the name in that colour, unlit). Vault: World-Space UI, Light Sources.
 PlotTraining.PAD_SIGN = { w = 20, h = 4.6, low = 5.5, rim = 0.35 }
+-- the middle treadmill's sign, on the back wall under the scoreboard: there's room, so it's big
+-- (Studio before-2: at 18x4 its words were tiny from the middle of the plot)
+PlotTraining.WALL_SIGN = { w = 28, h = 7.4 }
 -- each station's colour: its sign's glowing rim and name, same as its bar on the scoreboard
 function PlotTraining.signColor(kind: string): { number }
 	return PlotTraining.BAR_COLORS[Training.MAIN[kind] or ""] or { 255, 220, 90 }
@@ -69,19 +72,20 @@ end
 -- Where pad i's sign stands (plot-local x, z), its yaw in degrees (its words face +z turned by yaw)
 -- and how high its bottom is: the side walls' face the middle; the back wall's face the road, and
 -- the one right under the scoreboard hangs just below it on the wall (on posts at the pad's front,
--- it hid the board's rows from anyone walking up close, Studio u23).
-function PlotTraining.signAt(i: number): (number, number, number, number)
+-- it hid the board's rows from anyone walking up close, Studio u23). Then its width and height.
+function PlotTraining.signAt(i: number): (number, number, number, number, number, number)
 	local g = PlotTraining.GRID[i]
 	local P, S, B = PlotTraining.PAD, PlotTraining.PAD_SIGN, PlotTraining.BOARD
 	if math.abs(g.x) > P.w / 2 + 1 and g.z > -40 then
 		local side = if g.x < 0 then 1 else -1 -- the left wall faces +x, the right -x
-		return g.x + side * (P.w / 2 - 0.5), g.z, side * 90, S.low
+		return g.x + side * (P.w / 2 - 0.5), g.z, side * 90, S.low, S.w, S.h
 	end
-	if math.abs(g.x - B.x) + S.w / 2 <= B.w / 2 then
-		return g.x, B.z + 0.4, 0, B.y - B.h / 2 - 0.4 - S.h
+	local W = PlotTraining.WALL_SIGN
+	if math.abs(g.x - B.x) + W.w / 2 <= B.w / 2 then
+		return g.x, B.z + 0.4, 0, B.y - B.h / 2 - 0.4 - W.h, W.w, W.h
 	end
 	-- the back corners': pushed out to the pad's outer edge, clear of the scoreboard's sides
-	return g.x + math.sign(g.x) * (P.w - S.w) / 2, g.z + P.d / 2 - 0.5, 0, S.low
+	return g.x + math.sign(g.x) * (P.w - S.w) / 2, g.z + P.d / 2 - 0.5, 0, S.low, S.w, S.h
 end
 PlotTraining.ROOM = { x0 = -14, x1 = 14, z0 = -32, z1 = 30 } -- the garage floor, in the middle
 PlotTraining.NEAR = 220 -- studs: a plot farther from the camera than this stops moving its cars
@@ -379,9 +383,9 @@ local function pad(add: Garage.Add, i: number, kind: string?)
 	end
 	-- the sign, up on two posts at the edge nearest the middle, facing it
 	local S = PlotTraining.PAD_SIGN
-	local sx, sz, yaw, low = PlotTraining.signAt(i)
-	local cy = low + S.h / 2
-	add(group, "PadSign", v(S.w, S.h, 0.3), v(sx, cy, sz), SIGN, {
+	local sx, sz, yaw, low, sw, sh = PlotTraining.signAt(i)
+	local cy = low + sh / 2
+	add(group, "PadSign", v(sw, sh, 0.3), v(sx, cy, sz), SIGN, {
 		rot = v(0, yaw, 0),
 		collide = false,
 	})
@@ -391,14 +395,14 @@ local function pad(add: Garage.Add, i: number, kind: string?)
 	add(
 		group,
 		"PadSignGlow",
-		v(S.w + 2 * S.rim, S.h + 2 * S.rim, 0.2),
+		v(sw + 2 * S.rim, sh + 2 * S.rim, 0.2),
 		v(sx - back * math.sin(along0), cy, sz - back * math.cos(along0)),
 		PlotTraining.signColor(kind),
 		{ rot = v(0, yaw, 0), material = "Neon", collide = false }
 	)
 	local along = math.rad(yaw) -- the sign's own x, in the plot
 	for _, e in { -1, 1 } do
-		local off = e * (S.w / 2 - 0.4)
+		local off = e * (sw / 2 - 0.4)
 		add(
 			group,
 			"PadSignPost",
