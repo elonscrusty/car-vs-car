@@ -26,6 +26,26 @@ Match.RAM_MIN = 6
 Match.RAM_FULL = 22
 Match.RAM_COOLDOWN = 0.8 -- the same two karts hurt each other once in this long
 
+-- New-kid safety (Lead, Studio preview-2250): in a player's first round the bots leave them alone
+-- this long, and aim worse at players all round (ArenaBrain's easy bots).
+Match.NEW_KID_SAFE = 15
+
+-- The bots' names: a fixed pool, shuffled each round (no "Bot 28").
+Match.BOT_NAMES = {
+	"Turbo Taco",
+	"Sir Bumpsalot",
+	"Wobble Bob",
+	"Captain Crash",
+	"Zippy",
+	"Rocket Raccoon",
+	"Banana Blitz",
+	"Dizzy Dash",
+	"Pickle Pop",
+	"Nitro Noodle",
+	"Bubble Buggy",
+	"Lil Smasher",
+}
+
 export type Kart = {
 	id: number, -- a player's UserId; bots are negative
 	name: string,
@@ -272,6 +292,50 @@ function Match.ram(
 		m.rams[key] = now
 	end
 	return toB, toA
+end
+
+-- Seven names for a round's bots, in a random order (`pick(n)` returns 1..n).
+function Match.botNames(pick: (number) -> number): { string }
+	local names = table.clone(Match.BOT_NAMES)
+	for k = #names, 2, -1 do
+		local j = pick(k)
+		names[k], names[j] = names[j], names[k]
+	end
+	return names
+end
+
+export type BotView = {
+	id: number,
+	pos: any,
+	alive: boolean,
+	shield: boolean,
+	human: boolean,
+	model: any,
+}
+
+-- What the bots see: every kart with a place, and a new kid in their first NEW_KID_SAFE seconds
+-- of the round shown as shielded (bots never pick a shielded target).
+function Match.forBots(
+	list: { BotView },
+	newKids: { [number]: boolean },
+	now: number,
+	startAt: number
+): { BotView }
+	local out = {}
+	local safe = now - startAt < Match.NEW_KID_SAFE
+	for _, k in list do
+		if k.pos ~= nil then
+			table.insert(out, {
+				id = k.id,
+				pos = k.pos,
+				alive = k.alive,
+				shield = k.shield or (safe and newKids[k.id] == true),
+				human = k.human,
+				model = k.model,
+			})
+		end
+	end
+	return out
 end
 
 return Match

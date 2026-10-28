@@ -70,6 +70,9 @@ local queue: { Player } = {} -- waiting for the next round, in pad order
 local inRound: { [Player]: boolean } = {}
 local infos: { [number]: Info } = {}
 local botCount = 0
+local botNames: { string } = {} -- this round's (Match.botNames)
+local newKids: { [number]: boolean } = {} -- players in their first round (new-kid safety)
+local stepWarned = 0
 local fleet: any = nil
 local boxes: any = nil -- BoxServer's handle (the "?" boxes in the arena)
 local ArenaBots: any = nil
@@ -255,7 +258,7 @@ local function place(info: Info, i: number)
 		info.last = cf.Position
 		if fleet and ArenaBots then
 			local k = state and state.karts[info.id]
-			pcall(ArenaBots.add, fleet, info.id, cf, { skill = nil, easy = round == 1 })
+			pcall(ArenaBots.add, fleet, info.id, cf, { skill = nil, easy = next(newKids) ~= nil })
 			if k then
 				k.shieldUntil = math.max(k.shieldUntil, now() + Match.SHIELD)
 			end
@@ -341,7 +344,7 @@ function MatchRunner.addBot(name: string?, skill: number?): number?
 	end
 	botCount += 1
 	local id = -botCount
-	local nm = name or `Bot {botCount}`
+	local nm = name or table.remove(botNames, 1) or `Bot {botCount}`
 	if not Match.add(m, id, nm, false, now()) then
 		return nil
 	end
@@ -375,7 +378,7 @@ function MatchRunner.addBot(name: string?, skill: number?): number?
 	infos[id] = info
 	addBoard(info, nm)
 	if fleet and ArenaBots then
-		pcall(ArenaBots.add, fleet, id, cf, { skill = skill, easy = round == 1 })
+		pcall(ArenaBots.add, fleet, id, cf, { skill = skill, easy = next(newKids) ~= nil })
 	end
 	matchBoard:SetAttribute("MatchKarts", #m.list)
 	return id
@@ -664,7 +667,20 @@ local function startRound()
 	workspace:SetAttribute("MatchEndsAt", m.endsAt)
 	workspace:SetAttribute("MatchRound", round)
 	local spawns = spawnsOf()
+	newKids = {}
+	botNames = Match.botNames(function(n: number): number
+		return math.random(1, n)
+	end)
+	local W = weapons()
 	for i, p in list do
+		-- (a fresh round: nothing held over from the last one or the warm-up yard, LOBBY)
+		if W and W.drop then
+			pcall(W.drop, p.UserId)
+		end
+		local data = PlayerData.get(p)
+		if data and data.stage < Profile.STAGE.RACED then
+			newKids[p.UserId] = true
+		end
 		p:SetAttribute("MatchQueued", nil)
 		p:SetAttribute("StandSpot", nil) -- (a race's stand spot: not in the arena)
 		Match.add(m, p.UserId, p.DisplayName, true, t0)
@@ -695,9 +711,20 @@ local function startRound()
 	local mod = script.Parent:FindFirstChild("ArenaBots")
 	ArenaBots = if mod and mod:IsA("ModuleScript") then require(mod) :: any else nil
 	if ArenaBots then
+		local startAt = t0
 		local ok, f = pcall(ArenaBots.new, {
-			karts = MatchRunner.karts,
-			isAlive = MatchRunner.isAlive,
+			-- (karts with a place only; a new kid hides from them for a while: Match.forBots)
+			karts = function(): any
+				return Match.forBots(MatchRunner.karts() :: any, newKids, now(), startAt)
+			end,
+			weaponOf = function(id: number): (string?, number)
+				local Wn = weapons()
+				if Wn and Wn.holding then
+					local name, ammo = Wn.holding(id)
+					return if name == "" then nil else name, tonumber(ammo) or 0
+				end
+				return nil, 0
+			end,
 		}, Random.new())
 		fleet = if ok then f else nil
 		if not ok then
@@ -1004,9 +1031,9 @@ function MatchRunner.start(h: Hooks)
 			bumps(dt)
 			if fleet and ArenaBots then
 				local ok, err = pcall(ArenaBots.step, fleet, dt, now())
-				if not ok then
+				if not ok and os.clock() - stepWarned > 5 then
+					stepWarned = os.clock() -- (once in a while: one bad frame mustn't stop the bots)
 					warn("arena bots: " .. tostring(err))
-					fleet = nil
 				end
 			end
 		end

@@ -153,6 +153,29 @@ local function addRemote(character: Model)
 	end
 end
 
+-- In the Smash arena only the kart's own driver figure shows: the person is see-through until they
+-- walk again (Studio preview: a floating person over the arena).
+local function showPerson(char: Model, show: boolean)
+	for _, d in char:GetDescendants() do
+		if (d:IsA("BasePart") and d.Name ~= "HumanoidRootPart") or d:IsA("Decal") then
+			local was = d:GetAttribute("ArenaWasT")
+			if not show and was == nil then
+				d:SetAttribute("ArenaWasT", d.Transparency)
+				d.Transparency = 1
+			elseif show and type(was) == "number" then
+				d.Transparency = was
+				d:SetAttribute("ArenaWasT", nil)
+			end
+		end
+	end
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.DisplayDistanceType = if show
+			then Enum.HumanoidDisplayDistanceType.Viewer
+			else Enum.HumanoidDisplayDistanceType.None
+	end
+end
+
 -- Puts the player's person next to the small track (RC size), or removes them (big size).
 local function placePerson(player: Player, t: TrackData.Track, rc: boolean)
 	if not rc then
@@ -182,8 +205,10 @@ local function placePerson(player: Player, t: TrackData.Track, rc: boolean)
 		local x, _, z = TrackData.toWorld(t, true, 0, 0, 240)
 		root.Anchored = true
 		char:PivotTo(CFrame.new(x, 3, z))
+		showPerson(char, false)
 		return
 	end
+	showPerson(char, true)
 	local spot, lookX, lookZ = TrackData.standSpot(t)
 	local x, _, z = TrackData.toWorld(t, true, spot.x, 0, spot.z)
 	local fx, _, fz = TrackData.toWorld(t, true, lookX, 0, lookZ)
@@ -382,6 +407,7 @@ local function walk(player: Player)
 		local slot = slots[slotIndex]
 		local char = player.Character :: Model
 		root.Anchored = false
+		showPerson(char, true)
 		if slot == nil then
 			-- off a race map: back to the spawn lobby (beside the JOIN pad, never on it)
 			char:PivotTo(homeOf(player))

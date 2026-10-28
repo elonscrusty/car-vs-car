@@ -183,3 +183,59 @@ test("LobbyLayout: the arena's slot comes after the race maps (when it's built)"
 	eq(LobbyLayout.yardIndex(), #LobbyLayout.slots() + #RaceMaps.list() + 2)
 	eq(LobbyLayout.mapAt(#LobbyLayout.slots() + #RaceMaps.list() + 3), nil)
 end)
+
+test("Match: bot names come from a fixed pool, shuffled, never 'Bot 28'", function()
+	local i = 0
+	local names = Match.botNames(function(n: number): number
+		i += 1
+		return (i % n) + 1
+	end)
+	eq(#names, #Match.BOT_NAMES)
+	local seen = {}
+	for _, n in names do
+		truthy(table.find(Match.BOT_NAMES, n) ~= nil and not seen[n], n)
+		seen[n] = true
+	end
+	truthy(#Match.BOT_NAMES >= Match.MAX - 1, "enough for 7 bots")
+end)
+
+test("Match: new-kid safety, bots see a first-round kid as shielded for 15 s", function()
+	local list = {
+		{ id = 1, pos = { x = 0 }, alive = true, shield = false, human = true },
+		{ id = 2, pos = { x = 0 }, alive = true, shield = false, human = true },
+		{ id = -1, pos = { x = 0 }, alive = true, shield = false, human = false },
+		{ id = -2, pos = nil, alive = true, shield = false, human = false },
+	}
+	local new = { [1] = true }
+	local early = Match.forBots(list :: any, new, 100 + Match.NEW_KID_SAFE - 1, 100)
+	eq(#early, 3) -- (no place: left out)
+	eq(early[1].shield, true) -- the new kid
+	eq(early[2].shield, false) -- an old hand
+	eq(early[3].shield, false)
+	local later = Match.forBots(list :: any, new, 100 + Match.NEW_KID_SAFE, 100)
+	eq(later[1].shield, false)
+	-- and the bots really leave a shielded kid alone (ArenaBrain never picks one)
+	local ArenaBrain = require("../src/shared/ArenaBrain")
+	local function shots(shield: boolean): number
+		local bot = ArenaBrain.new(-1, 0, 0, 0, { skill = 1 }, ArenaBrain.rng(7))
+		local world = {
+			half = 170,
+			solids = {},
+			boxes = {},
+			karts = {
+				{ id = -1, x = 0, z = 0, alive = true },
+				{ id = 1, x = 0, z = -20, alive = true, shield = shield, human = true },
+			},
+		}
+		local n = 0
+		for f = 1, 300 do
+			local s = ArenaBrain.step(bot, world :: any, 1 / 30, f / 30, "rocket", 3, {})
+			if s.fire then
+				n += 1
+			end
+		end
+		return n
+	end
+	eq(shots(true), 0)
+	truthy(shots(false) > 0, "fires at a kid once the 15 s are up")
+end)
