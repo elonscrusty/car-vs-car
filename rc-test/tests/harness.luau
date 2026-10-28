@@ -36,6 +36,19 @@ function Harness.truthy(v: any, msg: string?)
 	end
 end
 
+-- Runs `fn` with the training game's save fields kept (Profile.KEEP_TRAINING = true), then puts
+-- the flag back. For tests that round-trip the old training-era fields (stations, plot level,
+-- track, per-car training); the smash game drops them on load (tests/smash_save checks that).
+function Harness.withTraining(profile: any, fn: () -> ())
+	local was = profile.KEEP_TRAINING
+	profile.KEEP_TRAINING = true
+	local ok, err = pcall(fn)
+	profile.KEEP_TRAINING = was
+	if not ok then
+		error(err, 0)
+	end
+end
+
 function Harness.summary()
 	print(`\n{passed} passed, {failed} failed`)
 	if failed > 0 then

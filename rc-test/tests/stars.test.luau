@@ -7,6 +7,13 @@ local RunCheck = require("../src/shared/RunCheck")
 local LapTimer = require("../src/shared/LapTimer")
 
 local test, eq, truthy, near = H.test, H.eq, H.truthy, H.near
+-- (Car VS Car SMASH drops the training-era fields on load) these tests round-trip them, so they
+-- run with them kept
+local function trainingEra(name: string, fn: () -> ())
+	test(name, function()
+		H.withTraining(Profile, fn)
+	end)
+end
 
 print("Stars")
 
@@ -84,7 +91,7 @@ test("save: missing or broken data becomes a clean save", function()
 	end
 end)
 
-test("save: stars are counted again from starsFrom, junk is dropped", function()
+trainingEra("save: stars are counted again from starsFrom, junk is dropped", function()
 	local d = Profile.migrate({
 		stars = 999,
 		starsFrom = {
@@ -112,7 +119,7 @@ test("save: stars are counted again from starsFrom, junk is dropped", function()
 	eq(d.coins, 12)
 end)
 
-test("save: a saved profile loads back the same", function()
+trainingEra("save: a saved profile loads back the same", function()
 	local d = Profile.new()
 	Profile.award(d, 1, 2, "rock", 2)
 	d.plotRecords.race = { value = 20, name = "Carter", userId = 1 }
@@ -429,7 +436,7 @@ test("weekend: Saturday and Sunday (UTC) pay double", function()
 	eq(d.coins, Profile.VISIT_COINS * 2 + Profile.WIN_COINS * 2)
 end)
 
-test("track: saved tiles survive a save, junk tiles are dropped", function()
+trainingEra("track: saved tiles survive a save, junk tiles are dropped", function()
 	local d = Profile.new()
 	eq(Profile.getTrack(d), nil) -- the starter circle
 	Profile.setTrack(d, {
@@ -548,7 +555,7 @@ test("board: top 3, one row per player, best first", function()
 	eq(Medals.addTop("drift", drift, { value = 2000, name = "B", userId = 2 }), 1)
 end)
 
-test("board save: the top 3 load back clean, old saves start from the record", function()
+trainingEra("board save: the top 3 load back clean, old saves start from the record", function()
 	local d = Profile.new()
 	d.plotTop.race = {
 		{ value = 19, name = "A", userId = 1 },

@@ -13,6 +13,13 @@ local Profile = require("../src/shared/Profile")
 local Training = require("../src/shared/Training")
 
 local test, eq, truthy = H.test, H.eq, H.truthy
+-- (Car VS Car SMASH drops the training-era fields on load) these tests round-trip them, so they
+-- run with them kept
+local function trainingEra(name: string, fn: () -> ())
+	test(name, function()
+		H.withTraining(Profile, fn)
+	end)
+end
 
 print("Car VS Car: save and rejoin")
 
@@ -79,7 +86,7 @@ local function played(): Profile.Data
 	return d
 end
 
-test("save + rejoin: everything a kid earned comes back the same", function()
+trainingEra("save + rejoin: everything a kid earned comes back the same", function()
 	local d = played()
 	-- the kid really has what this test is about
 	eq(d.plotLevel, Training.MAX_PLOT_LEVEL)
@@ -135,7 +142,7 @@ test("save + rejoin: everything a kid earned comes back the same", function()
 	eq(got.crates, 4)
 end)
 
-test("save + rejoin: a crashed server's last autosave comes back", function()
+trainingEra("save + rejoin: a crashed server's last autosave comes back", function()
 	local d = played()
 	local record: any = stored(Profile.loadStep(nil, "A", 100, false).record)
 	record = stored(Profile.saveStep(record, "A", d, false, false, 200).record)
@@ -156,7 +163,7 @@ test("save + rejoin: a second save in a row changes nothing", function()
 	same(once, twice, "save")
 end)
 
-test(
+trainingEra(
 	"a visit that played unsaved (DataStore down) keeps its station levels and plot level",
 	function()
 		local real = played()

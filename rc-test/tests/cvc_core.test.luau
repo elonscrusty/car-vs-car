@@ -6,6 +6,13 @@ local League = require("../src/shared/League")
 local Profile = require("../src/shared/Profile")
 
 local test, eq, truthy = H.test, H.eq, H.truthy
+-- (Car VS Car SMASH drops the training-era fields on load) these tests round-trip them, so they
+-- run with them kept
+local function trainingEra(name: string, fn: () -> ())
+	test(name, function()
+		H.withTraining(Profile, fn)
+	end)
+end
 
 print("Car VS Car core")
 
@@ -120,7 +127,7 @@ test("save v16: an old save gets one untrained car per car it owned", function()
 	eq(again.nextUid, d.nextUid)
 end)
 
-test("save v16: bad garage data is cleaned, uids never repeat", function()
+trainingEra("save v16: bad garage data is cleaned, uids never repeat", function()
 	local raw: any = {
 		garage = {
 			{ uid = "7", id = "bolt", speed = 999, turn = -5, boost = 0 / 0 },
