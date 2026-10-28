@@ -141,7 +141,9 @@ function PlotDecor.parts(kind: string): { Piece }
 	end
 
 	-- the entrance arch over the gap: two pillars, a beam, the name board on the road side
-	local PILLAR, ARCH_H = 1.6, 9
+	-- (Car VS Car: taller, so from the mat outside the gate the beam and name board sit over the
+	-- back wall's scoreboard, not across it, Studio plot-finish 3)
+	local PILLAR, ARCH_H = 1.6, if Features.CVC and kind ~= "rock" then 12 else 9
 	local px = G + PILLAR / 2
 	local beamY = ARCH_H + 1.3
 	local beamW = 2 * px + PILLAR

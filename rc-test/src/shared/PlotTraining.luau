@@ -154,9 +154,9 @@ PlotTraining.SHELF = { x = 31, z = -53.2, w = 14, y = 8 } -- the trophy shelf, r
 -- (high: walking players see it over the back wall's pad signs, carter 10-28)
 -- (42x18: big enough to read its names from the plot gate on a phone, ~9 px; the name sign that
 -- stood left of it went, the arch over the gate says whose plot it is)
--- (up at y 24, so the treadmill's wall sign under it starts 6 up: lower, a kid's head hid its 2nd
--- line from the middle, Studio batch-2035)
-PlotTraining.BOARD = { x = 0, z = -53.8, w = 42, h = 18, y = 24 }
+-- (up at y 30, so the treadmill's wall sign under it starts 12 up: lower, the kid in the middle
+-- of the screen hid its 2nd line from the gate and the middle, Studio batch-2035, plot-finish 1/7)
+PlotTraining.BOARD = { x = 0, z = -53.8, w = 42, h = 18, y = 30 }
 PlotTraining.BOARD_ROWS = 3 -- the top 3, big enough to read on a phone (Studio 10-28: 5 rows were tiny)
 PlotTraining.MAX_TROPHIES = 12 -- cups drawn on the shelf (the number on its sign keeps counting)
 
@@ -281,7 +281,9 @@ end
 
 -- A stand car's tag (in the garage room) sits just over the car, sized in studs. Station cars
 -- have no tag: their numbers are on their pad's sign (carWords).
-PlotTraining.STAND_TAG = { w = 6.5, h = 3.5, up = 3.6 }
+-- (smaller, and only near: from far off it stood over the treadmill's sign, and close up it was
+-- half the screen, Studio plot-finish 4a/4b)
+PlotTraining.STAND_TAG = { w = 5, h = 2.7, up = 3.2, near = 30 }
 -- The camera while you stand on your own plot's pad (PlotCam.client), plot-local: high over the
 -- stand, looking down over the whole yard, so all 3 walls of stations and the scoreboard are on
 -- a phone screen at once (16:9 or wider; the plot_training test checks every pad corner).

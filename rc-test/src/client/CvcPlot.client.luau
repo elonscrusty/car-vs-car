@@ -381,6 +381,10 @@ local function standTag(model: Model, e: Entry)
 	if body and body:IsA("BasePart") then
 		local T = PlotTraining.STAND_TAG
 		tag(body, e, T.w, T.h, T.up)
+		local gui = body:FindFirstChildOfClass("BillboardGui")
+		if gui then
+			gui.MaxDistance = T.near
+		end
 	end
 end
 
