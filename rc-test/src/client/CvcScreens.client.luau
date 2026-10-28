@@ -685,9 +685,22 @@ local function carTag()
 		end
 	end)
 end
+-- from the first of 3, 2, 1 (Main's CountStep; Racing only comes on at GO, Studio pr816)
+local tagAt = 0
+local function tagOnce()
+	if os.clock() - tagAt > 8 then
+		tagAt = os.clock()
+		carTag()
+	end
+end
+player:GetAttributeChangedSignal("CountStep"):Connect(function()
+	if attr("Driving") == true then
+		tagOnce()
+	end
+end)
 player:GetAttributeChangedSignal("Racing"):Connect(function()
 	if attr("Racing") == true then
-		carTag()
+		tagOnce()
 	elseif tagGui then
 		Base.show(tagGui, false)
 	end
@@ -825,7 +838,8 @@ local function openHud(stagger: boolean)
 				coachedAt = os.clock()
 				local h = hud
 				if h then
-					h.api.float(636, 262, `{Training.COACH_MULT}X TRAINING!`) -- (in from the edge: its "!" was cut)
+					-- (in from the edge: its "!" was cut; up over INVITE, Studio pr816)
+					h.api.float(636, 205, `{Training.COACH_MULT}X TRAINING!`)
 				end
 			end
 		end,

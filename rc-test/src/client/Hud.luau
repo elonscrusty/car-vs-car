@@ -84,12 +84,13 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }): Hud
 	timer.TextXAlignment = Enum.TextXAlignment.Left
 	timer.TextYAlignment = Enum.TextYAlignment.Top
 	-- one word size for 1, 2 or 3 lines, never wrapped (it jumped between "LAP 1/1 0:08.7" on
-	-- one line and on two, phone 10-28)
+	-- one line and on two, phone 10-28): a set size from the box's height, not TextScaled (a size
+	-- cap read the box before it had a size and stuck at 8, Studio pr816)
+	timer.TextScaled = false
 	timer.TextWrapped = false
-	local timerSize = Instance.new("UITextSizeConstraint")
-	timerSize.Parent = timer
 	local function fitTimer()
-		timerSize.MaxTextSize = math.max(math.floor(timer.AbsoluteSize.Y / 3.3), 8)
+		local h = timer.AbsoluteSize.Y
+		timer.TextSize = if h > 0 then math.clamp(math.floor(h / 3.3), 14, 40) else 18
 	end
 	timer:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitTimer)
 	fitTimer()
@@ -166,6 +167,7 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }): Hud
 	end
 
 	function hud.setTimer(text: string)
+		fitTimer()
 		timer.Text = text
 	end
 

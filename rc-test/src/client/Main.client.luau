@@ -689,6 +689,8 @@ RunService.PreSimulation:Connect(function(dt: number)
 				startBeep:Play()
 			end
 			bigCount.show(step, RaceStart.label(step), step >= RaceStart.GO)
+			-- (the new screens show the car's name tag from the first count, CvcScreens)
+			player:SetAttribute("CountStep", step)
 		end
 		if step == RaceStart.GO then
 			countdown = nil
