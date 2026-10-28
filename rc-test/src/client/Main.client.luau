@@ -21,6 +21,7 @@ local Tuning = require(ReplicatedStorage.Shared.Tuning)
 local RaceStats = require(ReplicatedStorage.Shared.RaceStats)
 local RaceStand = require(ReplicatedStorage.Shared.RaceStand)
 local BackOnTrack = require(ReplicatedStorage.Shared.BackOnTrack)
+local RaceMaps = require(ReplicatedStorage.Shared.RaceMaps)
 local RaceLooks = require(ReplicatedStorage.Shared.RaceLooks)
 
 local setMode: (id: string) -> () = (Tuning :: any).setMode
@@ -141,7 +142,7 @@ for i in LobbyLayout.slots() do
 	timers[i] = LapTimer.new(t.gates, t.mode)
 end
 -- the big race maps come after the plots (LobbyLayout.mapAt): the server race drives them
-for k in require(ReplicatedStorage.Shared.RaceMaps).list() do
+for k in RaceMaps.list() do
 	local i = LobbyLayout.mapIndex(k)
 	local t: TrackData.Track = LobbyLayout.track(i)
 	tracks[i] = t
@@ -266,6 +267,8 @@ startBeep.Parent = script
 local stuckTime = 0
 local stuckFrom = Vector3.zero
 local creep = 0 -- average ground speed lately (for the stuck check)
+local lost = BackOnTrack.newLost() -- big race: still, off the road or WRONG WAY for a while
+local lostRoads: { [string]: { BackOnTrack.Road } } = {} -- each map's roads (BackOnTrack.roads)
 -- Plots with checkpoint flags: a reset (R, RESET, fell off, out) brings the car back to the last
 -- flag it drove through instead of the start. R twice quickly = start.
 local lastReset = -10
@@ -723,11 +726,13 @@ RunService.PreSimulation:Connect(function(dt: number)
 	end
 	roadArrow.update(t, timer, rc, lx, lz)
 	-- server race: driving away from the next gate for a while = a big WRONG WAY!
+	local wrongNow = false
 	if grid and go and raceDone == nil and not raceOver and timer.running and #timer.gates > 0 then
 		local g = timer.gates[((timer.next - 1) % #timer.gates) + 1]
 		local wx, _, wz = TrackData.toWorld(t, rc, g.x, ly, g.z)
 		local v = body.AssemblyLinearVelocity
 		local back = ServerRace.wrongWay(v.X, v.Z, wx - p.X, wz - p.Z, 12 * Tuning.scale)
+		wrongNow = back
 		wrongFor = if back then wrongFor + dt else 0
 		if wrongFor >= 1.2 then
 			wrongFor = -1.3 -- show it again in a bit if they keep going
@@ -776,6 +781,45 @@ RunService.PreSimulation:Connect(function(dt: number)
 	-- rocks: being stuck is part of crawling, so it never resets by itself (R or RESET does)
 	if BackOnTrack.stuck(stuckTime, Tuning.stuckWait, t.id) then
 		reset("STUCK - BACK TO START")
+	end
+	-- Car VS Car big race: lost for a few seconds (nose in a wall with no pedal held, off every
+	-- road or under the floor, WRONG WAY) = R: back on the road at the last gate (critic run 1).
+	-- Only where the car is put (BackOnTrack.lost), never how it drives.
+	local mapId = t.map
+	if
+		Features.CVC
+		and grid
+		and gridGone
+		and mapId
+		and t.id ~= "drift"
+		and timer.running
+		and raceDone == nil
+		and not raceOver
+	then
+		local roads = lostRoads[mapId]
+		if roads == nil then
+			local m = RaceMaps.get(mapId)
+			roads = if m then BackOnTrack.roads(m) else {}
+			lostRoads[mapId] = roads
+		end
+		local under = ly < BackOnTrack.UNDER
+		local off = under or (#roads > 0 and BackOnTrack.offRoad(roads, lx, lz))
+		local goAt = raceGo
+		local why = BackOnTrack.lost(
+			lost,
+			dt,
+			if goAt then os.clock() - goAt else nil,
+			movedSinceGo,
+			creep < 1.6 * Tuning.scale,
+			off,
+			car.telemetry.grounded == 0 and not under,
+			wrongNow
+		)
+		if why then
+			reset()
+		end
+	elseif lost.still ~= 0 or lost.off ~= 0 or lost.wrong ~= 0 then
+		lost.still, lost.off, lost.wrong = 0, 0, 0
 	end
 
 	-- fell off the world, or got out of the plot
