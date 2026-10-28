@@ -989,7 +989,11 @@ CvcState.changed:Connect(function()
 				local whole = math.floor(v)
 				local key = car.uid .. stat.bar
 				local was = lastBars[key]
-				if was and whole > was and h and hudOn and car.uid == CvcState.racer then
+				-- (only while coaching, or at MAX: a +1 every few seconds while the kid walked away
+				-- rewarded nothing he did, phone 10-28)
+				local loud = v >= cap
+					or Training.coaching(num("CoachAt"), workspace:GetServerTimeNow())
+				if was and whole > was and h and hudOn and car.uid == CvcState.racer and loud then
 					local words = if v >= cap
 						then `{stat.word} MAX!`
 						else `+{whole - was} {stat.word}`

@@ -86,7 +86,8 @@ end
 local function playerName(model: Model): string
 	local bot = model:GetAttribute("BotName") -- a race bot (server's RaceBotCars)
 	if type(bot) == "string" then
-		return bot
+		-- just the name: "TURBO TIM (bot)" ran off the screen edge (phone 10-28)
+		return (string.gsub(bot, "%s*%(bot%)$", ""))
 	end
 	local id = tonumber(string.match(model.Name, "^Car_(%-?%d+)$"))
 	local p = id and Players:GetPlayerByUserId(id)
