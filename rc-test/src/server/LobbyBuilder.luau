@@ -7,6 +7,7 @@
 local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Features = require(ReplicatedStorage.Shared.Features)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local SpawnLobby = require(ReplicatedStorage.Shared.SpawnLobby)
 local LobbyProps = require(script.Parent.LobbyProps)
@@ -144,9 +145,12 @@ function LobbyBuilder.build(): Built
 			"DrivePad_" .. slot.index,
 			Vector3.new(LobbyLayout.PAD, 0.3, LobbyLayout.PAD),
 			CFrame.new(slot.padX, 0.2, slot.padZ),
-			Color3.fromRGB(255, 210, 63)
+			if Features.CVC then Color3.fromRGB(214, 184, 140) else Color3.fromRGB(255, 210, 63)
 		)
-		pad.Material = Enum.Material.Neon -- glows: "stand here"
+		-- glows: "stand here" (old drive-your-plot game). Car VS Car doesn't drive plots, so it's a
+		-- quiet mat: a big bright pad under every kid at the gate was the loudest thing on screen
+		-- and only the next thing to do may glow (Studio batch-2035 #7, auditor L2)
+		pad.Material = if Features.CVC then Enum.Material.Slate else Enum.Material.Neon
 		local at = Instance.new("Attachment")
 		at.Name = "DriveSpot"
 		at.Position = Vector3.new(0, 2.5, 0)

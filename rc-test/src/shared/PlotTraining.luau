@@ -154,7 +154,9 @@ PlotTraining.SHELF = { x = 31, z = -53.2, w = 14, y = 8 } -- the trophy shelf, r
 -- (high: walking players see it over the back wall's pad signs, carter 10-28)
 -- (42x18: big enough to read its names from the plot gate on a phone, ~9 px; the name sign that
 -- stood left of it went, the arch over the gate says whose plot it is)
-PlotTraining.BOARD = { x = 0, z = -53.8, w = 42, h = 18, y = 22 }
+-- (up at y 24, so the treadmill's wall sign under it starts 6 up: lower, a kid's head hid its 2nd
+-- line from the middle, Studio batch-2035)
+PlotTraining.BOARD = { x = 0, z = -53.8, w = 42, h = 18, y = 24 }
 PlotTraining.BOARD_ROWS = 3 -- the top 3, big enough to read on a phone (Studio 10-28: 5 rows were tiny)
 PlotTraining.MAX_TROPHIES = 12 -- cups drawn on the shelf (the number on its sign keeps counting)
 
