@@ -55,6 +55,12 @@ SoundCues.CHECKED = {
 	["rbxassetid://9114855870"] = "Ice Block Drop To Concrete Shatter 1 (SFX) (Pro Sound Effects)",
 	["rbxassetid://9125648149"] = "Magic Zoom Up Sharp Tubular Whoosh Fast Hiss (SFX) (Pro Sound Effects)",
 	["rbxassetid://9114302200"] = "Elevator Bell Synth Chimes 4 (SFX) (Pro Sound Effects)",
+	-- (search 3, sounds/found3.txt)
+	["rbxassetid://9114360486"] = "Excited Foreign Crowd 3 (SFX) (Pro Sound Effects)",
+	["rbxassetid://17208361335"] = "Roblox GUI - Notification High (Roblox)",
+	["rbxassetid://9126073001"] = "Synth Sparkle Tone High Pitch Bell Tone Ding (SFX) (Pro Sound Effects)",
+	["rbxassetid://9116911070"] = "Metal Zing By Bright Scrape Ringy Pass By 2 (SFX) (Pro Sound Effects)",
+	["rbxassetid://16480568294"] = "Audio/Roblox_Pinball_Bumper_Soft_Click_04 (Roblox)",
 } :: { [string]: string }
 
 -- The actions the game must give a sound (FINISH-JOBS SOUNDS row), in play order.
@@ -140,7 +146,13 @@ SoundCues.ACTIONS = {
 		volume = L.COUNT,
 	},
 	-- your car crosses the line (4th or worse)
-	finish = { notes = { 1, 1.25 }, gap = 0.14, volume = L.FINISH },
+	finish = {
+		id = "rbxassetid://9120686092",
+		pitch = 0.85,
+		notes = { 1, 1.25 },
+		gap = 0.14,
+		volume = L.FINISH,
+	},
 	-- your car crosses the line in the top 3
 	podium = {
 		id = "rbxassetid://9043512323",
@@ -238,13 +250,34 @@ SoundCues.ACTIONS = {
 	-- the match ends: a long low horn, two notes down
 	matchEnd = { id = "rbxassetid://9113071895", notes = { 1, 0.75 }, gap = 0.25, volume = L.MATCH },
 	-- (older cues the screens already call)
-	trophy = { notes = { 1, 1.5, 2 }, gap = 0.1, volume = L.TROPHY },
-	gold = { notes = { 1, 1.25, 1.5, 2, 1.5, 2, 2.5 }, gap = 0.1, volume = L.TROPHY },
-	cheer = { notes = { 1, 1.5, 1.25, 1.88, 1.5, 2, 2.5 }, gap = 0.08, volume = L.TROPHY },
-	train = { notes = { 1.3 }, gap = 0, volume = L.TRAIN },
-	speedUp = { notes = { 1.9 }, gap = 0, volume = L.DING },
-	maxed = { notes = { 1.5, 2, 2.67 }, gap = 0.09, volume = L.DING },
-	spark = { notes = { 2.5 }, gap = 0, volume = L.SPARK },
+	trophy = {
+		id = "rbxassetid://9120686092",
+		pitch = 1.1,
+		notes = { 1, 1.5, 2 },
+		gap = 0.1,
+		volume = L.TROPHY,
+	},
+	gold = {
+		id = "rbxassetid://1844584807",
+		notes = { 1, 1.25, 1.5, 2, 1.5, 2, 2.5 },
+		gap = 0.1,
+		volume = L.TROPHY,
+	},
+	cheer = {
+		id = "rbxassetid://9114360486",
+		notes = { 1, 1.5, 1.25, 1.88, 1.5, 2, 2.5 },
+		gap = 0.08,
+		volume = L.TROPHY,
+	},
+	train = { id = "rbxassetid://16480568294", notes = { 1.3 }, gap = 0, volume = L.TRAIN },
+	speedUp = { id = "rbxassetid://17208361335", notes = { 1.9 }, gap = 0, volume = L.DING },
+	maxed = {
+		id = "rbxassetid://9126073001",
+		notes = { 1.5, 2, 2.67 },
+		gap = 0.09,
+		volume = L.DING,
+	},
+	spark = { id = "rbxassetid://9116911070", notes = { 2.5 }, gap = 0, volume = L.SPARK },
 } :: { [string]: Cue }
 
 -- the cue for an action (nil if there is none)
