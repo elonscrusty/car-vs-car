@@ -55,6 +55,11 @@ local function pointAt(h: Frame, p: UiScreens.Piece, words: string?, loud: boole
 		-- right edge: from the left, the words to its left
 		x, y, rot, dx, dy = -s - 6, (p.h - s) / 2, 0, 1, 0
 		wx, wy, align = x - tw - 4, (p.h - th) / 2, "r"
+		if p.y > Base.H * 0.6 then
+			-- (COACH, bottom right: the words go up a little, clear of the RACE! button's top;
+			-- level with the arrow they ran under it, carter's phone 10-28)
+			wy = -12
+		end
 	elseif p.y > Base.H * 0.6 then
 		-- bottom middle: from above, the words over it
 		x, y, rot, dx, dy = (p.w - s) / 2, -s - 6, 90, 0, 1

@@ -629,9 +629,7 @@ local function timerText(): string
 		end
 		-- the live place the server works out
 		local place, cars = player:GetAttribute("RacePlace"), player:GetAttribute("RaceCars")
-		-- (Features.NEW_UI: the big place pill top middle shows it, CvcScreens.client)
-		local newUi = Features.CVC and Features.NEW_UI
-		if type(place) == "number" and type(cars) == "number" and cars > 1 and not newUi then
+		if type(place) == "number" and type(cars) == "number" and cars > 1 then
 			table.insert(lines, `{ServerRace.ordinal(place)} OF {cars}`)
 		end
 	elseif grid then

@@ -856,14 +856,15 @@ RunService.Heartbeat:Connect(function()
 			"You're in! Keep training",
 			left ~= nil and left < 10
 		)
-		api.setRace(if t then `YOU'RE IN! {t}` else "YOU'RE IN!", "blue", false)
+		-- (one clock only: BIG RACE in m:ss; the RACE! button has no clock)
+		api.setRace("YOU'RE IN!", "blue", false)
 	else
 		api.setNextUp(
 			if t then `BIG RACE in {t}` else "BIG RACE soon",
 			"Tap RACE! to join 8 cars",
 			left ~= nil and left < 10
 		)
-		api.setRace(if t then `RACE! {t}` else "RACE!", "lime", true)
+		api.setRace("RACE!", "lime", true)
 	end
 	-- COACH: 2x training for 10 s, once a minute
 	local at = num("CoachAt")
@@ -875,7 +876,8 @@ RunService.Heartbeat:Connect(function()
 		api.setCoach(0, "")
 	else
 		local wait = Training.COACH_EVERY - (sNow - at)
-		api.setCoach(wait / Training.COACH_EVERY, clock(wait))
+		-- (the ring fills back up; no third clock)
+		api.setCoach(wait / Training.COACH_EVERY, "")
 	end
 end)
 
@@ -1077,43 +1079,9 @@ task.spawn(function()
 	end)
 end)
 
--- ===== the race: the big place pill top middle, then the podium =====
+-- ===== the race: the podium =====
 
--- (the old drive HUD keeps the lap clock top left and BOOST by DRIFT; this adds 2ND / 8)
-local raceHud: Screen.Handle? = nil
-local raceOn = false
-local lastPlace = ""
-RunService.Heartbeat:Connect(function()
-	local place, cars = attr("RacePlace"), attr("RaceCars")
-	local shows = attr("Racing") == true
-		and type(place) == "number"
-		and type(cars) == "number"
-		and cars > 1
-		and not anyOpen(FULL)
-	if shows and not raceHud then
-		raceHud = Hud.race({
-			lap = false,
-			top = false,
-			boost = false,
-			place = place,
-			total = cars,
-			-- under the lap clock top left (the FINISH IN strip is top middle)
-			placeAt = { 6, 126, 176, 54 },
-		})
-	end
-	local h = raceHud
-	if h and shows ~= raceOn then
-		raceOn = shows
-		Base.show(h.gui, shows)
-	end
-	if h and shows then
-		local key = `{place}/{cars}`
-		if key ~= lastPlace then
-			lastPlace = key
-			h.api.setPlace(place, cars)
-		end
-	end
-end)
+-- (the place shows in the lap clock top left, Main.client: no pill over the move stick)
 
 local podiumAt = 0
 -- place: yours (past the cars = didn't finish: NICE TRY!); top: the top 3 cars, by place
