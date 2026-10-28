@@ -4,7 +4,8 @@
 -- you play with turns slowly on the big pink turntable in the middle, your other karts wait on
 -- low stands down both sides and at the back (only as many stands as you have karts: never an
 -- empty one), and the crate sits on its pedestal at the back, in line with the gate. Walk up to a
--- kart: PICK THIS KART; walk up to the crate: OPEN CRATE (the crate window, with its odds).
+-- kart: PICK THIS KART; walk up to the crate: OPEN CRATE (the crate window, with its odds); walk
+-- up to the turntable: CUSTOMIZE (WINDOWS' kart window).
 -- Low-poly look (FINISH-JOBS LOOK RULE): flat octagons, SmoothPlastic only, no Neon, no words on
 -- the models.
 -- Plain numbers and Garage pieces (Lune tests load this): PlotGarageBuilder (server) builds the
@@ -52,6 +53,7 @@ PlotShowroom.CRATE = { x = 0, z = -42, w = 10, size = 5.5 }
 -- reach (vault Lobby and Hub Design: prompt points at least twice the range apart).
 PlotShowroom.PICK_RANGE = 6
 PlotShowroom.CRATE_RANGE = 7
+PlotShowroom.TABLE_RANGE = 8 -- the turntable's CUSTOMIZE prompt (WINDOWS' OpenCustomize)
 PlotShowroom.NEAR = 220 -- studs: a plot farther from the camera than this stops turning its kart
 
 -- The stands, in the order they fill: down both sides from the gate end (left, right), then the
@@ -182,6 +184,10 @@ end
 function PlotShowroom.standPrompt(i: number): V3
 	local p = SPOTS[i]
 	return v(p.x, PlotShowroom.STAND.top + 2.5, p.z)
+end
+function PlotShowroom.turntablePrompt(): V3
+	local T = PlotShowroom.TURNTABLE
+	return v(T.x, T.top + 3, T.z + T.w / 2)
 end
 function PlotShowroom.cratePrompt(): V3
 	local C = PlotShowroom.CRATE

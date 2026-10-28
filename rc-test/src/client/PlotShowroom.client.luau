@@ -201,6 +201,22 @@ local function refresh(s: Shown)
 			)
 		end
 	end
+	if own and top then
+		-- the turntable opens the kart window (WINDOWS makes ReplicatedStorage.OpenCustomize)
+		prompt(
+			s,
+			PlotShowroom.turntablePrompt(),
+			"CUSTOMIZE",
+			carName(top.id),
+			PlotShowroom.TABLE_RANGE,
+			function()
+				local open = ReplicatedStorage:FindFirstChild("OpenCustomize")
+				if open and open:IsA("BindableEvent") then
+					open:Fire()
+				end
+			end
+		)
+	end
 	if own then
 		prompt(
 			s,

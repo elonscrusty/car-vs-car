@@ -125,6 +125,14 @@ test("stands, turntable and crate keep apart; prompts never overlap", function()
 		end
 	end
 	truthy(dist(T, C) >= T.w / 2 + C.w / 2 + 8, "a walk between the turntable and the crate")
+	local tp = R.turntablePrompt()
+	truthy(
+		dist(tp, R.cratePrompt()) >= R.TABLE_RANGE + R.CRATE_RANGE,
+		"turntable and crate prompts apart"
+	)
+	for i, s in R.SPOTS do
+		truthy(dist(tp, s) >= R.TABLE_RANGE + R.PICK_RANGE, `turntable prompt clear of stand {i}`)
+	end
 end)
 
 test("from the gate you see the crate past the turntable (in line, the gate end clear)", function()
