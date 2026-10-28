@@ -187,8 +187,8 @@ local function readModel(id: any): Instance?
 		end
 		return if ok and typeof(m) == "Instance" then m else nil
 	end
-	if stand then
-		return if type(stand.model) == "function" then stand.model(id) else nil
+	if stand and type(stand.model) == "function" then
+		return stand.model(id)
 	end
 	local mr = matchRunner()
 	if not mr or type(mr.karts) ~= "function" then
@@ -253,9 +253,16 @@ end
 local function show(id: any)
 	local p = playerOf(id)
 	local h = held[id]
+	local name, ammo = if h then h.name else "", if h then h.ammo else 0
 	if p then
-		p:SetAttribute("Weapon", if h then h.name else "")
-		p:SetAttribute("Ammo", if h then h.ammo else 0)
+		p:SetAttribute("Weapon", name)
+		p:SetAttribute("Ammo", ammo)
+	end
+	-- on the kart too, so everyone (bots included) sees what it holds: client/KartWeaponIcon
+	local m = readModel(id)
+	if m then
+		m:SetAttribute("Weapon", name)
+		m:SetAttribute("Ammo", ammo)
 	end
 end
 

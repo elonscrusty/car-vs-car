@@ -190,7 +190,7 @@ export type Flight = {
 	damage: number, -- a direct hit (health 100)
 	splash: number, -- studs around the boom
 	splashDamage: number, -- at the middle of the boom; half at its edge
-	ahead: number, -- starts this far in front of the kart
+	ahead: number, -- starts this far in front of the kart middle: its tail at the kart's nose (0.5 KART)
 	up: number, -- and this high above its middle
 }
 
@@ -208,8 +208,8 @@ Weapons.ROCKET = {
 	damage = 34,
 	splash = 2 * KART,
 	splashDamage = 20,
-	ahead = 1.3 * KART,
-	up = 0.3 * KART,
+	ahead = 0.8 * KART,
+	up = 0.15 * KART,
 } :: Flight
 
 -- NUKE: one slow, big rocket (a bit slower than a kart: you can run from it) that barely bends;
@@ -225,8 +225,8 @@ Weapons.NUKE = {
 	damage = 100,
 	splash = 8 * KART,
 	splashDamage = 100,
-	ahead = 1.5 * KART,
-	up = 0.4 * KART,
+	ahead = 1.2 * KART,
+	up = 0.2 * KART,
 } :: Flight
 
 -- the flight of each flying weapon, by name

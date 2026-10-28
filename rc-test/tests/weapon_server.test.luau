@@ -200,3 +200,23 @@ test("bots: held(id) tells what they carry and fire(id) shoots for them", functi
 	eq(#S.errors, 0)
 	local _ = hurt
 end)
+
+test(
+	"what a kart holds shows on its model too, so everyone (bots included) sees the icon",
+	function()
+		local S, _, WS, _, karts = setup()
+		local m = S.Instance.new("Model")
+		m.Name = "Car_-1"
+		karts[2].model = m
+		WS.give(-1, "Nuke")
+		eq(m:GetAttribute("Weapon"), "Nuke")
+		eq(m:GetAttribute("Ammo"), 1)
+		WS.fire(-1, v(0, 0, 1))
+		eq(m:GetAttribute("Ammo"), 0)
+		WS.give(-1, "Rockets")
+		WS.drop(-1)
+		eq(m:GetAttribute("Weapon"), "")
+		eq(m:GetAttribute("Ammo"), 0)
+		eq(#S.errors, 0)
+	end
+)

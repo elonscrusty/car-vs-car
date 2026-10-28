@@ -235,6 +235,31 @@ test("server rockets: fire, fly, hit, damage goes to the match with who and what
 end)
 
 test(
+	"server rockets: nose against a wall, the shot booms there and never comes out the far side",
+	function()
+		local Rockets = Flight.weapon("Rockets", Weapons)
+		local me, bot = kart(1, 0, 0), kart(-1, 0, -60)
+		local ctx = fakeCtx({ me, bot })
+		local wall = at(0, 0, -2)
+		function ctx.raycast(from: Vector3, to: Vector3)
+			-- a wall across z = -2 (in test units)
+			if from.z > wall.z and to.z <= wall.z then
+				return { position = vector.create(to.x, to.y, wall.z) }
+			end
+			return nil
+		end
+		truthy(Rockets.fire(me, AHEAD, ctx))
+		ctx.t += 1 / 60
+		Rockets.step(ctx, 1 / 60)
+		eq(Flight.count("Rockets"), 0)
+		local last = ctx.sent[#ctx.sent]
+		eq(last.kind, "RocketBoom")
+		truthy(last.data.pos.z > wall.z)
+		eq(#ctx.hurt, 0)
+	end
+)
+
+test(
 	"server rockets: a smashed kart can't be hit; a long hitch can't tunnel through a kart",
 	function()
 		local Rockets = Flight.weapon("Rockets", Weapons)
@@ -310,7 +335,7 @@ test("sizes fit the RC-scale arena: measured in kart lengths", function()
 	near(K, 5.5 * 0.25)
 	for _, f in { Weapons.ROCKET, Weapons.NUKE } do
 		truthy(f.hitRadius >= 0.5 * K and f.hitRadius <= 1.5 * K)
-		truthy(f.ahead >= K) -- starts clear of its own kart's nose
+		truthy(f.ahead > 0.5 * K and f.ahead <= 1.5 * K) -- leaves from its own kart's nose
 		truthy(f.speed * f.life >= 50 * K) -- reaches most of the way across (about 65 karts)
 	end
 	-- a rocket outruns a kart (top speed about 17 karts a second); the nuke can be outrun
