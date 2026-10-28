@@ -9,7 +9,7 @@ local Features = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("
 local WarmupYard = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("WarmupYard"))
 local KartStyle = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("KartStyle"))
 
-if not (Features.CVC and (Features :: any).SMASH == true) then
+if not (Features.CVC and Features.SMASH) then
 	return
 end
 
