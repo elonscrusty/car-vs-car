@@ -361,6 +361,21 @@ function ServerRace.nextAfterRace(lastStart: number, endAt: number): number
 	return ServerRace.nextStart(lastStart, endAt + ServerRace.SHOW)
 end
 
+-- A new kid's first few races come quicker (first-10 timeline gap 1: race 2 landed 3:30 after
+-- race 1, the longest wait right when they are most excited): while someone in the race just
+-- over is on one of their first EARLY_RACES, the next one starts EARLY_AFTER after this one
+-- ended (the result and the walk back included). Everyone can join it; bots fill as always.
+-- Then the 3-min rhythm again.
+ServerRace.EARLY_RACES = 3
+ServerRace.EARLY_AFTER = 75
+function ServerRace.nextFor(lastStart: number, endAt: number, early: boolean): number
+	local normal = ServerRace.nextAfterRace(lastStart, endAt)
+	if early then
+		return math.min(normal, endAt + ServerRace.EARLY_AFTER)
+	end
+	return normal
+end
+
 ServerRace.GROUPS = 4 -- big races at once at most (one per league, or two for a full league)
 
 -- Who races with whom (Car VS Car): each league on its own, at most `max` a race, in join order.

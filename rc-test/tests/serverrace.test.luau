@@ -537,3 +537,38 @@ test("Car VS Car (carter's phone run 10-28): a new kid's RACE! has no clock to m
 	-- (and the tap starts it soon: B8)
 	truthy(ServerRace.CVC_FIRST + ServerRace.JOIN_GRACE <= 5)
 end)
+
+test(
+	"first-10 gap 1: a new kid's first 3 races come about 60-90 s apart, then every 3 min",
+	function()
+		-- the rule
+		local last, endAt = 0, 50
+		local early = ServerRace.nextFor(last, endAt, true)
+		truthy(early - endAt >= 60 and early - endAt <= 90, `{early - endAt} s after the end`)
+		eq(ServerRace.nextFor(last, endAt, false), ServerRace.nextAfterRace(last, endAt))
+		-- never later than the normal start
+		truthy(ServerRace.nextFor(0, 175, true) <= ServerRace.nextAfterRace(0, 175))
+		-- the economy sim's kid (the server's schedule): races 2, 3 and 4 start 60-90 s after the one
+		-- before ended, race 5 on the 3-min rhythm
+		local Sim = require("./cvc_sim")
+		for seed = 1, 5 do
+			local r = Sim.run(1, seed * 7919, 15)
+			truthy(#r.raceAt >= 5, `seed {seed}: only {#r.raceAt} races in 15 min`)
+			for k = 2, 4 do
+				local gap = r.raceAt[k][1] - r.raceAt[k - 1][2]
+				truthy(gap <= 90, `seed {seed}: race {k} came {gap} s after race {k - 1}`)
+			end
+			local back = r.raceAt[5][1] - r.raceAt[4][1]
+			truthy(
+				back >= ServerRace.CVC_EVERY - 1,
+				`seed {seed}: race 5 only {back} s after race 4`
+			)
+		end
+		local fs = require("@lune/fs")
+		local src = fs.readFile("src/server/ServerRaceRunner.luau")
+		truthy(
+			string.find(src, "local nextAt = ServerRace.nextFor(lastStart, now(), early)", 1, true)
+		)
+		truthy(string.find(src, "early = early or n <= ServerRace.EARLY_RACES", 1, true))
+	end
+)

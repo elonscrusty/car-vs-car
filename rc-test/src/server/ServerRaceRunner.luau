@@ -152,6 +152,12 @@ end
 
 -- Car VS Car: a race every 3 min, start to start (ServerRace.nextStart)
 local lastStart = -math.huge
+-- big races each new kid has had this visit, from their first (ServerRace.nextFor: the first
+-- few come quicker)
+local earlyRaces: { [Player]: number } = {}
+Players.PlayerRemoving:Connect(function(p: Player)
+	earlyRaces[p] = nil
+end)
 local mapRaces = 0 -- big races so far: the maps take turns
 local function nextStart(): number
 	if Features.CVC and mapMode() then
@@ -1098,7 +1104,18 @@ local function runRace(hooks: Hooks, slot: number)
 	writeSigns("RACE OVER!")
 	-- Car VS Car: the next start is fixed now and told to every screen (the result card's NEXT RACE
 	-- IN reads it; it used to guess its own and ran ~15 s long)
-	local nextAt = ServerRace.nextAfterRace(lastStart, now())
+	local early = false
+	for _, g in groups do
+		for _, r in g do
+			local p = r.player
+			local n = if r.new then 1 elseif earlyRaces[p] then earlyRaces[p] + 1 else nil
+			if n and p.Parent then
+				earlyRaces[p] = n
+				early = early or n <= ServerRace.EARLY_RACES
+			end
+		end
+	end
+	local nextAt = ServerRace.nextFor(lastStart, now(), early)
 	if Features.CVC and mapMode() then
 		-- a new kid who tapped JOIN while this race ran gets their first race soon after the
 		-- walk back, not a whole 3 min later (Studio polish 3: they waited 1 to 2 min)

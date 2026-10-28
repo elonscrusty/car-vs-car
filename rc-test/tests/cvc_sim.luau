@@ -6,7 +6,8 @@
 --
 -- The normal kid:
 --   * picks the quick starter, taps RACE at 0:30 and wins the easy first race (1 lap, §4)
---   * then joins every big race (one each ServerRace.CVC_EVERY), about RACE_SECS each
+--   * then joins every big race (ServerRace.nextFor: quicker for the first few, then one each
+--     CVC_EVERY), about RACE_SECS each
 --   * places from the real bot pace: 7 bots with skills from RaceBots.skillRange(league), the
 --     kid's pace KID_SKILL (a normal kid's driving next to a skill-1 bot) times what the car's
 --     bars give (RaceStats.drive: top speed and turning), with a little luck each race
@@ -52,6 +53,7 @@ export type Result = {
 	leagues: { number }, -- leagues[n] = minutes played when the kid reached league n (1 = 0)
 	coins: number,
 	races: number,
+	raceAt: { { number } }, -- each big race: { seconds played at its start, at its end }
 	top3: number,
 	wins: number,
 	data: Profile.Data,
@@ -152,6 +154,7 @@ function Sim.run(days: number, seed: number?, session: number?): Result
 		leagues = { 0 },
 		coins = 0,
 		races = 0,
+		raceAt = {},
 		top3 = 0,
 		wins = 0,
 		data = data,
@@ -257,6 +260,9 @@ function Sim.run(days: number, seed: number?, session: number?): Result
 		for t = 0, secs - 1 do
 			local now = d * 86400 + t
 			local racing = t >= start and t < finish
+			if t == start then
+				table.insert(res.raceAt, { played, played + (finish - start) })
+			end
 			if t == finish then
 				local place = if raced then Sim.place(data, r) else 1
 				local was = data.league
@@ -280,10 +286,8 @@ function Sim.run(days: number, seed: number?, session: number?): Result
 					res.leagues[n] = played / 60
 					mark(res.things)
 				end
-				start = start + ServerRace.CVC_EVERY
-				if start <= t then
-					start = t + ServerRace.CVC_EVERY - Sim.RACE_SECS
-				end
+				-- (the server's rule: a new kid's first few races come quicker, ServerRace.nextFor)
+				start = ServerRace.nextFor(start, t, res.races <= ServerRace.EARLY_RACES)
 				finish = start + Sim.RACE_SECS
 			end
 			if not racing and data.picked then
