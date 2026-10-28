@@ -74,6 +74,33 @@ end
 PlotTraining.ROOM = { x0 = -14, x1 = 14, z0 = -32, z1 = 30 } -- the garage floor, in the middle
 PlotTraining.NEAR = 220 -- studs: a plot farther from the camera than this stops moving its cars
 PlotTraining.CAR = 1.55 -- toy car size on the stations and stands (times a 3.6-stud car)
+-- the car you race with, on your own plot: this much bigger, with a gold outline and a gold glow
+-- round its pad (CvcPlot.client), so you spot it (phone test: it was 0.17% of the screen).
+-- carScale keeps it inside the treadmill rails.
+PlotTraining.MINE_GROW = 1.2
+PlotTraining.MINE_GLOW = { 255, 210, 60 }
+PlotTraining.RAIL_X = 2.7 -- the treadmill rails' middles, each side (before K)
+
+-- Half a toy car's width over its wheels at size 1 (Garage.toyCar).
+function PlotTraining.halfWidth(style: string?): number
+	local ww = if style == "drift" then 0.65 elseif style == "rock" then 0.6 else 0.45
+	return 1 + ww + (if style == "rock" then 0.15 else 0)
+end
+
+-- A car's size on a station (`kind`) or a stand (kind nil): your race car grows, but on the
+-- treadmill only as far as its wheels stay inside the rails.
+function PlotTraining.carScale(kind: string?, style: string?, racer: boolean): number
+	local s = PlotTraining.CAR
+	if not racer then
+		return s
+	end
+	local grow = s * PlotTraining.MINE_GROW
+	if kind == "treadmill" then
+		local inside = (PlotTraining.RAIL_X - 0.15) * PlotTraining.K - 0.1
+		grow = math.min(grow, inside / PlotTraining.halfWidth(style))
+	end
+	return math.max(s, grow)
+end
 -- the car stands on the garage floor, in the order they open: the first is the podium up front
 -- (raised `lift` studs, gold: CvcPlot.client puts your best waiting car on it), then rows of 3
 export type Stand = { x: number, z: number, lift: number? }
@@ -384,7 +411,7 @@ local function pad(add: Garage.Add, i: number, kind: string?)
 			material = "Fabric",
 			collide = false,
 		})
-		for _, sx in { -2.7, 2.7 } do
+		for _, sx in { -PlotTraining.RAIL_X, PlotTraining.RAIL_X } do
 			add(group, "TreadRail", v(0.3, 0.3, 8.6), v(x + sx, 2.2, z - 0.5), { 200, 200, 210 }, {
 				material = "Metal",
 				collide = false,
@@ -401,11 +428,12 @@ local function pad(add: Garage.Add, i: number, kind: string?)
 				}
 			)
 		end
-		add(group, "TreadScreen", v(5, 2, 0.3), v(x, 3.4, z - 5.6), BLUE, {
+		-- small, low and behind the car: wider than the car, its COACH orange poked out both sides
+		add(group, "TreadScreen", v(3, 1, 0.3), v(x, 2.6, z - 5.6), BLUE, {
 			material = "Neon",
 			collide = false,
 		})
-		add(group, "TreadScreenPost", v(0.5, 2.6, 0.5), v(x, 1.4, z - 5.8), { 90, 90, 100 }, {
+		add(group, "TreadScreenPost", v(0.5, 2, 0.5), v(x, 1.1, z - 5.8), { 90, 90, 100 }, {
 			collide = false,
 		})
 	elseif kind == "ramp" then

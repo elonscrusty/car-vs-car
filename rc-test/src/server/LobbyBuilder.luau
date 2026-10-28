@@ -129,6 +129,14 @@ function LobbyBuilder.build(): Built
 		padding.PaddingBottom = UDim.new(0.1, 0)
 		padding.Parent = text
 		built.signs[slot.index] = text
+		-- the same words on the plot side too (a blank red back looked unfinished)
+		local back = gui:Clone()
+		back.Face = if toRoad > 0 then Enum.NormalId.Left else Enum.NormalId.Right
+		back.Parent = board
+		local backText = back:FindFirstChildOfClass("TextLabel") :: TextLabel
+		text:GetPropertyChangedSignal("Text"):Connect(function()
+			backText.Text = text.Text
+		end)
 
 		-- DRIVE pad at the plot's entrance (E on a keyboard, the DRIVE button on a phone)
 		local pad = part(

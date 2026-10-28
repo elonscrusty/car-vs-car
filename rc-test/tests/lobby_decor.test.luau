@@ -154,6 +154,20 @@ test("butterflies stay low, birds fly high", function()
 	end
 end)
 
+test("no butterfly wanders onto a plot (it looked like a stray pink cube there)", function()
+	local P = require("../src/shared/PlotDecor")
+	for _, f in D.life() do
+		if f.kind == "Butterfly" then
+			for _, s in L.slots() do
+				-- plots turn a quarter: their depth runs along x, their width along z
+				local inX = math.abs(f.x - s.plotX) < P.HALF_D + f.r * 0.6 + 1
+				local inZ = math.abs(f.z - s.plotZ) < P.HALF_W + f.r + 1
+				truthy(not (inX and inZ), "butterfly over plot " .. s.index)
+			end
+		end
+	end
+end)
+
 test(
 	"nothing to get stuck on: the road, footpaths and pads are clear of colliding decor",
 	function()

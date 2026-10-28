@@ -626,8 +626,9 @@ do
 	end
 end
 
--- Butterflies over the flower beds and planters, birds circling high over the street, seagulls
--- over the lake (low enough to see, above the sailboat's mast).
+-- Butterflies over the flower beds in the gaps, birds circling high over the street, seagulls
+-- over the lake (low enough to see, above the sailboat's mast). None over the planters by the
+-- plot fronts: they drifted onto the plot floor and looked like a stray pink cube on a phone.
 function LobbyDecor.life(): { Flyer }
 	local out: { Flyer } = {}
 	local n = 0
@@ -647,19 +648,6 @@ function LobbyDecor.life(): { Flyer }
 				})
 			end
 		end
-	end
-	for i, z in ROW_Z do
-		local side = if i % 2 == 0 then 1 else -1
-		table.insert(out, {
-			kind = "Butterfly",
-			x = side * LobbyDecor.PATH_X,
-			y = 3,
-			z = z + LobbyDecor.PLANTER_DZ,
-			r = 2.5,
-			speed = 0.7,
-			phase = i * 2.3,
-			color = BRIGHT[(i + 3) % #BRIGHT + 1],
-		})
 	end
 	local mid = (L.road().minZ + L.road().maxZ) / 2
 	for i = 1, 5 do

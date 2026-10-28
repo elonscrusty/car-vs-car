@@ -165,6 +165,36 @@ test("the treadmill belt's slats stay on the belt and scroll back", function()
 	truthy(b[1] > a[1], "moves toward the road")
 end)
 
+test("your race car: bigger, but its wheels stay inside the treadmill rails", function()
+	truthy(T.carScale(nil, "race", true) > T.CAR * 1.15, "bigger on a stand")
+	eq(T.carScale("treadmill", "race", false), T.CAR)
+	-- the real rails, from the built pieces
+	local inside, screenW = math.huge, 0
+	for _, p in T.pieces(2, 2, 3) do
+		if p.name == "TreadRail" then
+			local belt = nil
+			for _, q in T.pieces(2, 2, 3) do
+				if q.name == "TreadBelt" and q.group == p.group then
+					belt = q
+				end
+			end
+			if belt then
+				inside = math.min(inside, math.abs(p.pos.x - belt.pos.x) - p.size.x / 2)
+			end
+		elseif p.name == "TreadScreen" then
+			screenW = p.size.x
+		end
+	end
+	truthy(inside < math.huge, "found the rails")
+	for _, style in { "race", "drift", "rock" } do
+		local s = T.carScale("treadmill", style, true)
+		truthy(s >= T.CAR, style .. " never smaller")
+		truthy(T.halfWidth(style) * s < inside, style .. " wheels inside the rails")
+	end
+	-- the treadmill screen hides behind a plain car (its COACH orange poked out both sides)
+	truthy(screenW < 2 * T.halfWidth("race") * T.CAR, "screen narrower than the car")
+end)
+
 test("station cars: their name and number on the pad's sign, no tag", function()
 	local a, b = T.carWords({ kind = "treadmill", level = 2, car = "race_bolt" }, "Bolt", 27)
 	eq(a, "TREADMILL  LV 2")
