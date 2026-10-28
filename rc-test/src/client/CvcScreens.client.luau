@@ -28,6 +28,7 @@ local Profile = require(Shared:WaitForChild("Profile"))
 local Training = require(Shared:WaitForChild("Training"))
 local UiTheme = require(Shared:WaitForChild("UiTheme"))
 local CvcState = require(script.Parent:WaitForChild("CvcState"))
+local LeagueUp = require(script.Parent:WaitForChild("LeagueUp"))
 local Sfx = require(script.Parent:WaitForChild("Sfx"))
 local Ui = script.Parent:WaitForChild("Ui")
 local Screens = Ui:WaitForChild("Screens")
@@ -1194,9 +1195,9 @@ local function onLeague()
 	local n = League.clamp(attr("League"))
 	if shownLeague and n > shownLeague then
 		local from = shownLeague
+		-- the whole ceremony (tint, flash, rays, fireworks): LeagueUp.luau (the LEAGUE row)
 		later(function()
-			Sfx.fireworks()
-			Flow.leagueUp({ from = from, to = n }, { ok = Screen.closeOver })
+			LeagueUp.play(from, n)
 		end)
 	end
 	shownLeague = n

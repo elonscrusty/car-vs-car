@@ -72,4 +72,54 @@ function League.name(n: number): string
 	return League.NAMES[League.clamp(n)]
 end
 
+-- The league-up ceremony (vault "Reward Moments and Celebrations": each step up adds layers, it
+-- doesn't just get louder; the top layers are kept for the top league). Silver: tint, beam,
+-- rays, confetti. Gold adds a flash and fireworks over your car. Diamond adds a shake, more
+-- fireworks and TOP LEAGUE!. `hold` = seconds before AWESOME! shows (buttons come last).
+export type Ceremony = {
+	to: number,
+	name: string, -- "GOLD LEAGUE"
+	pay: string, -- "Races pay 2.2x coins!"
+	color: { number },
+	confetti: number, -- extra confetti bits on top of the screen's own
+	flash: boolean,
+	fireworks: number, -- bursts over your car after the screen
+	shake: boolean,
+	top: boolean,
+	hold: number,
+}
+
+League.CEREMONY = {
+	[2] = { confetti = 10, flash = false, fireworks = 0, shake = false, hold = 0.9 },
+	[3] = { confetti = 22, flash = true, fireworks = 3, shake = false, hold = 1.1 },
+	[4] = { confetti = 36, flash = true, fireworks = 6, shake = true, hold = 1.3 },
+}
+
+-- "Races pay 1.5x coins!" (the real reward of a new league)
+function League.payWords(n: number): string
+	return `Races pay {string.format("%g", League.PAY_MULT[League.clamp(n)])}x coins!`
+end
+
+-- The ceremony for going from league `from` to `to` (a jump of two shows the higher one), or nil
+-- when it isn't a step up.
+function League.ceremony(from: number, to: number): Ceremony?
+	local a, b = League.clamp(from), League.clamp(to)
+	local layers = League.CEREMONY[b]
+	if b <= a or not layers then
+		return nil
+	end
+	return {
+		to = b,
+		name = `{string.upper(League.name(b))} LEAGUE`,
+		pay = League.payWords(b),
+		color = League.COLORS[b],
+		confetti = layers.confetti,
+		flash = layers.flash,
+		fireworks = layers.fireworks,
+		shake = layers.shake,
+		top = b == #League.NAMES,
+		hold = layers.hold,
+	}
+end
+
 return League

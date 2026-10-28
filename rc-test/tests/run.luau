@@ -4,6 +4,7 @@
 local Harness = require("./harness")
 
 require("./carmath.test")
+require("./league_up.test")
 require("./laptimer.test")
 require("./plots.test")
 require("./lobby_budget.test")
