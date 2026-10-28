@@ -1245,11 +1245,14 @@ local function showPodium(rows: { any })
 	local myCar = racer()
 	local top = {}
 	local usedColors: { [number]: boolean } = {}
-	for i = 1, math.min(3, #rows) do
-		local r = rows[i]
-		-- (a car that didn't finish has no step: YOU stood on 3 after NICE TRY, Studio after818)
-		if type(r) ~= "table" or type(r.time) ~= "number" then
+	for i, r in rows do
+		if #top >= 3 then
 			break
+		end
+		-- (YOU get no step when you didn't finish: YOU stood on 3 after NICE TRY, Studio after818;
+		-- bots keep theirs, race 1 ends at the kid's finish before any bot has a time)
+		if type(r) ~= "table" or (i == mine and not finished) then
+			continue
 		end
 		local isMe = i == mine
 		local name = if isMe then "YOU" elseif type(r.name) == "string" then r.name else "?"
@@ -1261,7 +1264,7 @@ local function showPodium(rows: { any })
 		-- (bots all race the same car name: their own names give each its own color)
 		local bot = r.bot or type(r.car) ~= "string"
 		local key = if bot then name else r.car
-		top[i] = {
+		top[#top + 1] = {
 			name = name,
 			id = if isMe and myCar then myCar.id else nil,
 			color = if isMe and myCar
