@@ -68,6 +68,92 @@ function League.trophy(place: number): boolean
 	return place >= 1 and place <= 3
 end
 
+-- ===== Car VS Car SMASH (plans/smash/MASTER-PLAN.md): leagues by smashes and place =====
+-- Every match gives trophies: a few for the place, one per smash (up to SMASH_TROPHY_CAP, so
+-- farming one match can't skip a league). The league only needs trophies now (no training, so
+-- no car strength). First guesses for a normal kid (~3.5 trophies a 3-min match, about 1 a
+-- minute): Silver after ~35 min, Gold ~90 min, Diamond ~220 min (day 11 at 20 min a day), the
+-- same pace as the racing game's sim (Silver 34 min, Gold 85 min, Diamond day 10.6).
+League.SMASH_NEED = { 0, 35, 90, 220 }
+League.PLACE_TROPHIES = { 3, 2, 1 } -- 1st, 2nd, 3rd; 4th and on get 0
+League.SMASH_TROPHY_CAP = 5
+-- match coins: League.PLACE_PAY for the top 3, MATCH_PAY for 4th and on, plus SMASH_PAY a
+-- smash; all times the league's PAY_MULT (first guesses, Economy tunes them)
+League.MATCH_PAY = 25
+League.SMASH_PAY = 5
+League.MAX_SMASHES = 99 -- one match can't report more than this (a broken count can't pay a lot)
+
+local function count(n: any, most: number): number
+	if type(n) ~= "number" or n ~= n then
+		return 0
+	end
+	return math.clamp(math.floor(n), 0, most)
+end
+
+-- Trophies for one match: place 1.. (0 = left before the end: nothing).
+function League.matchTrophies(place: number, smashes: number): number
+	local p = count(place, 99)
+	if p <= 0 then
+		return 0
+	end
+	return (League.PLACE_TROPHIES[p] or 0) + math.min(count(smashes, League.MAX_SMASHES), League.SMASH_TROPHY_CAP)
+end
+
+-- Coins for one match in league `league` (place 0 = left before the end: nothing).
+function League.matchPay(league: number, place: number, smashes: number): number
+	local p = count(place, 99)
+	if p <= 0 then
+		return 0
+	end
+	local base = (League.PLACE_PAY[p] or League.MATCH_PAY)
+		+ League.SMASH_PAY * count(smashes, League.MAX_SMASHES)
+	return math.floor(base * League.PAY_MULT[League.clamp(league)])
+end
+
+-- The league for this many trophies: up when the need is met, never down.
+function League.byTrophies(trophies: number, now: number): number
+	local best = League.clamp(now)
+	local t = count(trophies, math.huge)
+	for i = best + 1, #League.NAMES do
+		if t >= League.SMASH_NEED[i] then
+			best = i
+		end
+	end
+	return best
+end
+
+export type MatchSave = {
+	coins: number,
+	trophies: number,
+	league: number,
+	smashes: number,
+	matches: number,
+	matchWins: number,
+}
+export type MatchResult = { coins: number, trophies: number, from: number, to: number }
+
+-- One match is over for this player (the server's MatchRunner calls it with the server's own
+-- place and smash count, never the client's): pays the coins, adds trophies and totals, moves
+-- the league up. Pay uses the league the match was played in. `to > from` = league-up moment.
+function League.matchDone(d: MatchSave, place: number, smashes: number): MatchResult
+	local p = count(place, 99)
+	local s = count(smashes, League.MAX_SMASHES)
+	local from = League.clamp(d.league)
+	local coins = League.matchPay(from, p, s)
+	local trophies = League.matchTrophies(p, s)
+	d.coins = math.min(d.coins + coins, 1e12) -- (Profile.MAX_COINS)
+	d.trophies += trophies
+	d.smashes += s
+	if p > 0 then
+		d.matches += 1
+		if p == 1 then
+			d.matchWins += 1
+		end
+	end
+	d.league = League.byTrophies(d.trophies, from)
+	return { coins = coins, trophies = trophies, from = from, to = d.league }
+end
+
 function League.name(n: number): string
 	return League.NAMES[League.clamp(n)]
 end

@@ -50,6 +50,10 @@ export type Data = {
 	picked: boolean, -- chose the starter car
 	nextUid: number, -- for the next car's uid
 	friendsPaid: { [string]: number }, -- friend's user id -> the day we last got the friend coins
+	-- Car VS Car SMASH (plans/smash/MASTER-PLAN.md): totals over every match
+	smashes: number, -- karts I smashed
+	matches: number, -- matches played to the end
+	matchWins: number, -- matches won (1st)
 }
 -- One owned car: its CarCatalog id and the points trained on top of its base bars (Training).
 export type GarageCar = { uid: string, id: string, speed: number, turn: number, boost: number }
@@ -67,11 +71,12 @@ export type SaveStep = { kind: "lost" | "skip" | "write", record: Stored? }
 
 local Profile = {}
 
-Profile.VERSION = 16 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift.
+Profile.VERSION = 17 -- 2: likes, liked, visited. 3: bolts. 4: wins, streak, rivals. 5: daily gift.
 -- 6: daily jobs. 7: looks, lookOff. 8: cars, equipped. 9: track. 10: tiles (owned).
 -- 11: raceStars. 12: trackKind. 13: plotTop. 14: stage. 15: pile, lastSeen, boostUntil,
 -- plotLevel, parked (the tycoon). 16: garage, racer, stations, garageLevel, league, trophies,
--- raceWins, crates, picked, nextUid, friendsPaid (Car VS Car)
+-- raceWins, crates, picked, nextUid, friendsPaid (Car VS Car). 17: smashes, matches, matchWins
+-- (Car VS Car SMASH)
 Profile.TOP = 3 -- rows on a plot's board
 -- How far into the game a player is. Only goes up. The screen shows more at each one
 -- (JoinStage): new = just your car and GO; lapped = coins and BUILD; raced = the shop;
@@ -107,6 +112,10 @@ Profile.MAX_STATIONS = 9 -- (#Training.STATIONS)
 Profile.MAX_LEVEL = 50 -- garage / station levels
 Profile.LEAGUES = 4 -- (#League.NAMES)
 Profile.BAR_MAX = 100 -- (Training.MAX_BAR) trained points per bar can't pass this
+-- Car VS Car SMASH has no training (CHANGE-LIST §2). While the training game still runs this
+-- stays true and saves keep stations, plot level, track and per-car training. Phase 3 (training
+-- removed) sets it false: every load then drops them (Profile.dropTraining). Cars and coins stay.
+Profile.KEEP_TRAINING = true
 
 function Profile.new(): Data
 	return {
@@ -151,6 +160,9 @@ function Profile.new(): Data
 		picked = false,
 		nextUid = 1,
 		friendsPaid = {},
+		smashes = 0,
+		matches = 0,
+		matchWins = 0,
 	}
 end
 
@@ -504,6 +516,9 @@ function Profile.migrate(raw: any): Data
 		end
 	end
 	Profile.migrateGarage(d, raw)
+	if not Profile.KEEP_TRAINING then
+		Profile.dropTraining(d)
+	end
 	if goodNumber(raw.stage) then
 		d.stage = math.clamp(math.floor(raw.stage), 0, Profile.STAGE.SHOPPED)
 	elseif d.coins > 0 or d.stars > 0 or next(d.cars) ~= nil then
@@ -607,13 +622,28 @@ function Profile.migrateGarage(d: Data, raw: any)
 	if goodNumber(raw.league) then
 		d.league = math.clamp(math.floor(raw.league), 1, Profile.LEAGUES)
 	end
-	for _, k in { "trophies", "raceWins", "crates" } do
+	for _, k in { "trophies", "raceWins", "crates", "smashes", "matches", "matchWins" } do
 		local v = raw[k]
 		if goodNumber(v) then
 			(d :: any)[k] = math.clamp(math.floor(v), 0, Profile.MAX_COINS)
 		end
 	end
 	d.picked = raw.picked == true
+end
+
+-- (Car VS Car SMASH) take the training game out of a save: stations, plot level, the built
+-- track and each car's trained points go. Every car (by uid) and every coin stays: coins still
+-- waiting in the plot's pile move into coins, so nobody loses one. Safe to run again.
+function Profile.dropTraining(d: Data)
+	d.coins = math.clamp(d.coins + math.floor(d.pile), 0, Profile.MAX_COINS)
+	d.pile = 0
+	d.stations = {}
+	d.plotLevel = 0
+	d.track = nil
+	d.trackKind = "race"
+	for _, c in d.garage do
+		c.speed, c.turn, c.boost = 0, 0, 0
+	end
 end
 
 -- Move up to stage n (never down). True when it moved.
@@ -1071,7 +1101,7 @@ function Profile.mergeVisit(stored: Data, session: Data, base: Data): Data
 			mine.boost = math.max(mine.boost, c.boost)
 		end
 	end
-	for _, k in { "trophies", "raceWins", "crates" } do
+	for _, k in { "trophies", "raceWins", "crates", "smashes", "matches", "matchWins" } do
 		out[k] = math.clamp(out[k] + gain(ses[k], (base :: any)[k]), 0, Profile.MAX_COINS)
 	end
 	for _, k in { "garageLevel", "league" } do
