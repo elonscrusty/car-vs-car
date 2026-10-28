@@ -38,6 +38,22 @@ function Weapons.isName(x: any): boolean
 	return type(x) == "string" and Weapons.DEFS[x] ~= nil
 end
 
+function Weapons.get(name: any): Def?
+	return if Weapons.isName(name) then Weapons.DEFS[name] else nil
+end
+
+-- The word MatchRunner's smash words use ("smashed by X's rocket"): lowercase, one of a kind.
+Weapons.FEED = {
+	Rockets = "rocket",
+	Nuke = "nuke",
+	Gun = "machine gun",
+	Mine = "mine",
+	Freeze = "freeze ray",
+} :: { [string]: string }
+function Weapons.feedWord(name: string): string
+	return Weapons.FEED[name] or string.lower(name)
+end
+
 local function finite(n: number): boolean
 	return n == n and n > -math.huge and n < math.huge
 end
@@ -149,7 +165,7 @@ export type Flight = {
 	up: number, -- and this high above its middle
 }
 
--- ROCKETS: fast, bend a little toward the nearest kart ahead. 3 hits smash (2 + a splash).
+-- ROCKETS: fast, bend a little toward the nearest kart ahead. 3 direct hits smash (health 100).
 Weapons.ROCKET = {
 	speed = 95,
 	life = 2.4, -- about 230 studs
@@ -157,7 +173,7 @@ Weapons.ROCKET = {
 	seekRange = 120,
 	turnDeg = 75,
 	hitRadius = 6.5,
-	damage = 45,
+	damage = 34,
 	splash = 12,
 	splashDamage = 20,
 	ahead = 7,
