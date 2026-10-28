@@ -262,16 +262,18 @@ test(
 	function()
 		local League = require("../src/shared/League")
 		local RaceStats = require("../src/shared/RaceStats")
-		eq(RaceBots.leagueGain(1), 1)
-		local last = 1
+		-- Bronze bots match a low starter car's pace (carter 10-28): a bit under today's car
+		eq(RaceBots.leagueGain(1), RaceStats.topAt(League.NEED[2].strength / 2 / 3))
+		truthy(RaceBots.leagueGain(1) < 1)
+		local last = RaceBots.leagueGain(1)
 		for l = 2, #League.NAMES do
 			local g = RaceBots.leagueGain(l)
 			truthy(g > last, "each league's bots are a bit quicker")
-			truthy(g <= 1 + RaceStats.TOP, "never more than a full Speed bar gives")
+			truthy(g <= RaceStats.TOP_MIN + RaceStats.TOP, "never more than a full Speed bar gives")
 			last = g
 		end
 		-- bad leagues clamp instead of breaking
-		eq(RaceBots.leagueGain(0), 1)
+		eq(RaceBots.leagueGain(0), RaceBots.leagueGain(1))
 		eq(RaceBots.leagueGain(99), RaceBots.leagueGain(#League.NAMES))
 		-- the slowest Diamond bot is no faster than the quickest Bronze one (the spread, not the league, is the big part)
 		local _, bronzeHi = RaceBots.skillRange(1, false)

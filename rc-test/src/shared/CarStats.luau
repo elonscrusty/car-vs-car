@@ -21,12 +21,16 @@ local CarStats = {}
 export type Bars = { speed: number, turn: number, boost: number }
 
 -- Per kind of car: the starting bar for all three, the top, and how fast it trains
--- (1 = the plan's base training speed).
+-- (1 = the plan's base training speed). carter 10-28: "specs too high to start, and a big
+-- difference between starting cars and bought or trained cars". So the 3 starters have their own
+-- low row: a fresh starter is ~8 a bar (a bit slower than today in the race, RaceStats), a crate's
+-- common starts ~3x that, and training a starter to its top (55) is +15% top speed.
 CarStats.TIERS = {
-	common = { start = 20, cap = 60, rate = 1 },
-	rare = { start = 30, cap = 75, rate = 1.25 },
-	epic = { start = 40, cap = 90, rate = 1.5 },
-	legend = { start = 50, cap = 100, rate = 2 },
+	starter = { start = 8, cap = 55, rate = 1 },
+	common = { start = 22, cap = 70, rate = 1 },
+	rare = { start = 34, cap = 82, rate = 1.25 },
+	epic = { start = 46, cap = 92, rate = 1.5 },
+	legend = { start = 58, cap = 100, rate = 2 },
 } :: { [string]: { start: number, cap: number, rate: number } }
 
 -- How a car leans: points added to / taken from its start (each row adds up to 0, so rarity
@@ -65,6 +69,9 @@ local LEAN = {
 CarStats.STARTERS = { "race_bolt", "race_dart", "race_rocket" }
 
 local function tier(id: any)
+	if type(id) == "string" and table.find(CarStats.STARTERS, id) then
+		return CarStats.TIERS.starter
+	end
 	return CarStats.TIERS[CarCatalog.rarity(id).id] or CarStats.TIERS.common
 end
 

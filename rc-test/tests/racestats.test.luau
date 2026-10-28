@@ -1,11 +1,15 @@
 --!strict
--- Car VS Car race stats (carter 10-26): training makes a car a bit faster, quicker off the line
--- and tighter in turns, and its BOOST lasts longer. Nothing else about driving changes.
+-- Car VS Car race stats (carter 10-26, 10-28): training makes a car faster, quicker off the line
+-- and tighter in turns, and its BOOST lasts longer. Nothing else about driving changes. A fresh
+-- low car is a bit slower than today; top speed never passes +15%.
 local H = require("./harness")
 local RaceStats = require("../src/shared/RaceStats")
 local Tuning = require("../src/shared/Tuning")
 
 local test, eq, truthy = H.test, H.eq, H.truthy
+local function near(a: number, b: number)
+	truthy(math.abs(a - b) < 1e-9, `{a} ~= {b}`)
+end
 
 print("Race stats")
 
@@ -24,30 +28,34 @@ test("race stats: no car drives exactly like today", function()
 	eq(d.boostSecs, RaceStats.BOOST_MIN)
 end)
 
-test("race stats: more training = a little faster, never a rocket", function()
+test("race stats: more training = faster, never a rocket", function()
 	local low = RaceStats.drive(car(0, 0, 0), stats(10, 100))
 	local high = RaceStats.drive(car(50, 50, 50), stats(10, 100))
 	truthy(high.top > low.top and high.start > low.start and high.turn > low.turn)
 	truthy(high.boostSecs > low.boostSecs)
 	-- a full car is at most a small step up
 	local full = RaceStats.drive(car(999, 999, 999), stats(100, 100))
-	eq(full.top, 1 + RaceStats.TOP)
-	eq(full.start, 1 + RaceStats.START)
+	near(full.top, RaceStats.TOP_MIN + RaceStats.TOP)
+	near(full.start, RaceStats.START_MIN + RaceStats.START)
 	eq(full.turn, 1 + RaceStats.TURN)
 	truthy(math.abs(full.boostSecs - RaceStats.BOOST_MAX) < 1e-9)
-	truthy(full.top <= 1.15)
+	truthy(full.top <= 1.15 + 1e-9)
+	-- a car at 0 is a bit slower than today, never a crawl; it turns at least like today
+	truthy(low.top >= 0.8 and low.top < 1)
+	truthy(low.start >= 0.8)
+	truthy(low.turn >= 1)
 end)
 
 test("race stats: a car stops getting better at its top", function()
 	local capped = RaceStats.drive(car(90, 0, 0), stats(10, 40))
-	eq(capped.top, 1 + RaceStats.TOP * 0.4)
+	near(capped.top, RaceStats.topAt(40))
 end)
 
 test("race stats: bad numbers from the server can't break the car", function()
 	local bad = RaceStats.fromAttributes(function(n: string): any
 		return ({ RaceTop = 50, RaceStart = 0 / 0, RaceTurn = "x", RaceBoost = -5 })[n]
 	end)
-	eq(bad.top, 1 + RaceStats.TOP)
+	near(bad.top, RaceStats.TOP_MIN + RaceStats.TOP)
 	eq(bad.start, 1)
 	eq(bad.turn, 1)
 	eq(bad.boostSecs, RaceStats.BOOST_MIN)
