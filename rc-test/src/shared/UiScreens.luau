@@ -422,7 +422,7 @@ local LIST: { Screen } = {
 		pieces = {
 			p("Place", 0, 8, 150, 48, { anchor = "tl" }),
 			-- (every kart: level badge, name, smashes; 8 rows of 22, clear of the stick corner)
-			p("Board", 0, 60, 200, 184, { anchor = "tl" }),
+			p("Board", 0, 60, 190, 92, { anchor = "tl" }), -- (the top 3 + you, 23 px a row)
 			p("Feed", 536, 8, 220, 96, { anchor = "tr" }),
 			p("Clock", 323, 4, 110, 36, { anchor = "t" }),
 			p("Health", 238, 44, 280, 30, { anchor = "t" }),
