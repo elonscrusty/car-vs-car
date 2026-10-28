@@ -32,6 +32,7 @@ local Sfx = require(script.Parent:WaitForChild("Sfx"))
 local Ui = script.Parent:WaitForChild("Ui")
 local Screens = Ui:WaitForChild("Screens")
 local Base = require(Ui:WaitForChild("Base"))
+local Kit = require(Ui:WaitForChild("Kit"))
 local Screen = require(Ui:WaitForChild("Screen"))
 local Flow = require(Screens:WaitForChild("Flow"))
 local Hud = require(Screens:WaitForChild("Hud"))
@@ -637,6 +638,61 @@ local function trainDot(): number?
 	return nil
 end
 
+-- just picked: "THIS IS BOLT, YOUR CAR!" for a few seconds (the playtest: the kid never knew
+-- which car was his, review fix 4)
+local function yourCar()
+	local car = racer()
+	local h = hud
+	if not car or not h then
+		return
+	end
+	local words = `THIS IS {CvcState.name(car.id)}, YOUR CAR!`
+	local l = Kit.shout(h.gui.canvas, 168, 104, 420, 46, words, "go")
+	local holder = l.Parent
+	task.delay(4.5, function()
+		if holder then
+			holder:Destroy()
+		end
+	end)
+end
+
+-- the race countdown: the car's name and speed under the big 3, 2, 1 (review fix 4)
+local tagGui: Base.Gui? = nil
+local function carTag()
+	local car = racer()
+	if not car then
+		return
+	end
+	local g = tagGui or Base.screen("Ui_CarTag", Base.ORDER.hud, false)
+	tagGui = g
+	for _, c in g.canvas:GetChildren() do
+		c:Destroy()
+	end
+	local spd = math.floor((CvcState.bar(car, "speed")))
+	local pill = Base.fill(g.canvas, "Tag", 248, 230, 260, 40, Base.color("ink"), 2)
+	pill.BackgroundTransparency = 0.15
+	Base.corner(pill)
+	Base.outline(pill, 3, Base.color("go"))
+	Base.text(pill, "Words", 10, 4, 240, 32, `{CvcState.name(car.id)}  SPD {spd}`, {
+		color = Base.color("go"),
+		stroke = 4,
+		z = 3,
+	})
+	Base.show(g, true)
+	task.delay(5, function()
+		if tagGui == g and pill.Parent then
+			Base.show(g, false)
+		end
+	end)
+end
+player:GetAttributeChangedSignal("Racing"):Connect(function()
+	if attr("Racing") == true then
+		carTag()
+	elseif tagGui then
+		Base.show(tagGui, false)
+	end
+end)
+
 local coachedAt = 0 -- (os.clock) this visit's last COACH tap
 
 -- the one thing to tap next on the plot screen, and its words (first 10 minutes: COACH, then
@@ -769,7 +825,7 @@ local function openHud(stagger: boolean)
 				coachedAt = os.clock()
 				local h = hud
 				if h then
-					h.api.float(690, 262, `{Training.COACH_MULT}X TRAINING!`, "pink")
+					h.api.float(636, 262, `{Training.COACH_MULT}X TRAINING!`) -- (in from the edge: its "!" was cut)
 				end
 			end
 		end,
@@ -803,8 +859,12 @@ RunService.Heartbeat:Connect(function()
 	-- is up, Studio live1)
 	local shows = want and not anyOpen(WINDOWS) and not raceCardUp()
 	if want and not hud then
-		openHud(not staggered and attr("JustPicked") == true)
+		local fresh = not staggered and attr("JustPicked") == true
+		openHud(fresh)
 		staggered = true
+		if fresh then
+			yourCar()
+		end
 	end
 	local h = hud
 	if h and shows ~= hudOn then
@@ -890,19 +950,23 @@ end)
 -- ("+1 TURN" over "+1 BOOST", Studio plot-edges 16)
 local floatAt = 0
 local floatSide = 1
-local function floatUp(words: string, tone: string, max: boolean)
+local function floatUp(words: string, _tone: string, max: boolean)
 	local now = os.clock()
 	local at = math.max(now, floatAt)
 	if at - now > 3 then
 		return -- (lots at once: the rest wait for the next change)
 	end
-	floatAt = at + 0.7
+	-- (1 s apart and 180 px apart: at 0.7 s and 100 px "+1 TURN" still ran into "+1 BOOST",
+	-- carter's phone 10-28)
+	floatAt = at + 1
 	floatSide = -floatSide
-	local x = 378 + floatSide * 50
+	local x = 378 + floatSide * 90
 	task.delay(at - now, function()
 		local h = hud
 		if h and hudOn then
-			h.api.float(x, 290, words, tone)
+			-- (one look for every float: gold with the ink edge; lime "+1 TURN" was faint on the
+			-- light floor)
+			h.api.float(x, 290, words)
 			if max then
 				Sfx.maxed()
 			else

@@ -23,7 +23,8 @@ function BigCount.new(): BigCount
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 	local label = Instance.new("TextLabel")
 	label.AnchorPoint = Vector2.new(0.5, 0.5)
-	label.Position = UDim2.fromScale(0.5, 0.42)
+	-- (up off the car's YOU tag, carter's phone 10-28)
+	label.Position = UDim2.fromScale(0.5, 0.3)
 	label.Size = UDim2.fromScale(0.8, 0.5)
 	label.BackgroundTransparency = 1
 	label.Font = Enum.Font.LuckiestGuy
@@ -51,7 +52,7 @@ function BigCount.new(): BigCount
 	corner.CornerRadius = UDim.new(0.5, 0)
 	corner.Parent = ring
 	local ringLine = Instance.new("UIStroke")
-	ringLine.Thickness = 12
+	ringLine.Thickness = 16
 	ringLine.Transparency = 1
 	ringLine.Parent = ring
 	-- GO!: the whole screen flashes green for a blink
@@ -81,13 +82,15 @@ function BigCount.new(): BigCount
 		):Play()
 		TweenService:Create(label, TweenInfo.new(0.35, Enum.EasingStyle.Back), { Rotation = 0 })
 			:Play()
-		ring.Size = UDim2.fromScale(0.2, 0.2)
-		ringLine.Color = if go then GREEN else RED
-		ringLine.Transparency = 0
-		local burst = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-		TweenService:Create(ring, burst, { Size = UDim2.fromScale(0.75, 0.75) }):Play()
-		TweenService:Create(ringLine, burst, { Transparency = 1 }):Play()
 		if go then
+			-- the ring bursts out on GO! only (a faint red ring on 3, 2, 1 looked like a test
+			-- mark, phone 10-28)
+			ring.Size = UDim2.fromScale(0.2, 0.2)
+			ringLine.Color = GREEN
+			ringLine.Transparency = 0
+			local burst = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+			TweenService:Create(ring, burst, { Size = UDim2.fromScale(0.75, 0.75) }):Play()
+			TweenService:Create(ringLine, burst, { Transparency = 1 }):Play()
 			flash.BackgroundTransparency = 0.55
 			TweenService:Create(flash, TweenInfo.new(0.45), { BackgroundTransparency = 1 }):Play()
 		end

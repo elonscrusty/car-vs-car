@@ -622,7 +622,7 @@ local function timerText(): string
 		if t.id == "drift" then
 			table.insert(lines, "DRIFT!")
 		elseif done then
-			table.insert(lines, `FINISHED   {CarMath.formatTime(done)}`)
+			table.insert(lines, `FINISHED {CarMath.formatTime(done)}`)
 		else
 			local lap = math.min(s.laps + 1, raceLaps())
 			table.insert(lines, `LAP {lap}/{raceLaps()}   {CarMath.formatTime(now - go)}`)
@@ -651,7 +651,8 @@ local function timerText(): string
 		end
 		table.insert(lines, `CLIMB   {cur}`)
 	end
-	if s.best then
+	-- (a server race: no BEST under FINISHED, it was the same time twice, phone 10-28)
+	if s.best and not (grid and go) then
 		table.insert(lines, `BEST {CarMath.formatTime(s.best)}`)
 	end
 	return table.concat(lines, "\n")
@@ -750,7 +751,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 	if event == "lap" and grid and go and t.id ~= "drift" and timer.laps >= raceLaps() then
 		event = nil
 		raceDone = os.clock() - go
-		hud.flash(`FINISH!  {CarMath.formatTime(raceDone :: number)}`)
+		hud.flash(`FINISH!  {CarMath.formatTime(raceDone :: number)}`, true)
 		setRacing(false)
 	end
 	roadArrow.update(t, timer, rc, lx, lz)

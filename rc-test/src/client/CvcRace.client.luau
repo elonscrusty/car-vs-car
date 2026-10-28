@@ -117,40 +117,38 @@ local function tapBoost()
 	end
 end
 boost.Activated:Connect(tapBoost)
--- (Features.NEW_UI: the same button, same spot, in the new look: a round orange BOOST with a
--- ring that fills when one is ready, Kit.round; the old face goes see-through)
-local newBoost: any = nil
+-- BOOST is round like DRIFT next to it, with the same big word (carter's phone 10-28: the
+-- new-look round sat in a dark square with a tiny word)
+local boostShape = Instance.new("UIAspectRatioConstraint")
+boostShape.AspectRatio = 1
+boostShape.Parent = boost
+local boostPad = boost:FindFirstChildOfClass("UIPadding")
+if boostPad then
+	-- (DRIFT's word room, Controls holdButton)
+	boostPad.PaddingTop = UDim.new(0.3, 0)
+	boostPad.PaddingBottom = UDim.new(0.3, 0)
+end
+local ORANGE = Color3.fromRGB(255, 132, 24)
 local boostHint: GuiObject? = nil
 if Features.NEW_UI then
 	local Ui = script.Parent:WaitForChild("Ui")
-	local Kit = require(Ui:WaitForChild("Kit")) :: any
 	local Base = require(Ui:WaitForChild("Base")) :: any
 	local Anim = require(Ui:WaitForChild("Anim")) :: any
-	boost.Text = ""
-	boost.BackgroundTransparency = 1
-	boost:SetAttribute("NoKart", true)
-	for _, d in boost:GetChildren() do
-		if d:IsA("UIStroke") then
-			d:Destroy()
-		end
-	end
 	local holder = Instance.new("Frame")
-	holder.Name = "NewBoost"
+	holder.Name = "HintHolder"
 	holder.BackgroundTransparency = 1
-	holder.Size = UDim2.fromScale(0.8, 0.8)
-	holder.Position = UDim2.fromScale(0.1, 0.1)
+	holder.Size = UDim2.fromScale(1, 1)
 	holder:SetAttribute("DW", 100)
 	holder:SetAttribute("DH", 100)
 	holder:SetAttribute("NoKart", true)
 	holder.Parent = boost
-	newBoost = Kit.round(holder, "Boost", 0, 0, 100, "boost", "BOOST", {
-		charge = true,
-		onClick = tapBoost,
-	})
 	boostCount.ZIndex = 12
 	-- the first race: TAP BOOST! over it, until it's tapped (MASTER-PROMPT first 10 minutes);
-	-- up past the count ball (Studio live3 shot 04)
-	local hint = Base.text(holder, "TapHint", -60, -86, 200, 36, "TAP BOOST!", {
+	-- on a dark pill: yellow words on the yellow road signs didn't show (phone 10-28)
+	local hint = Base.fill(holder, "TapHint", -56, -84, 212, 40, Base.color("ink"), 11)
+	hint.BackgroundTransparency = 0.15
+	Base.corner(hint)
+	Base.text(hint, "Words", 10, 3, 192, 34, "TAP BOOST!", {
 		color = Base.color("go"),
 		stroke = 5,
 		z = 12,
@@ -181,13 +179,6 @@ local function showBoost()
 			and left > 0
 			and player:GetAttribute("BoostOn") ~= true
 	end
-	if newBoost then
-		-- full ring = one ready to use; empty while it's on or none saved
-		newBoost.setCharge(if player:GetAttribute("BoostOn") ~= true and left > 0 then 1 else 0)
-		boost:SetAttribute("KartPulse", nil)
-		boostCount.Visible = left > 0
-		return
-	end
 	if player:GetAttribute("BoostOn") == true then
 		boost.Text = "GO!!"
 		boost.BackgroundColor3 = KartStyle.YELLOW
@@ -195,7 +186,7 @@ local function showBoost()
 		boost:SetAttribute("KartPulse", nil)
 	elseif left > 0 then
 		boost.Text = "BOOST"
-		boost.BackgroundColor3 = KartStyle.RED
+		boost.BackgroundColor3 = ORANGE
 		boost.TextColor3 = WHITE
 		boost:SetAttribute("KartPulse", true) -- one is ready: it breathes (KartSkin)
 	else

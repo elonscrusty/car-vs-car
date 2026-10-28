@@ -125,6 +125,7 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 			value = data.coins or 0,
 			rate = data.rate or "",
 			plus = true,
+			plate = true,
 			onClick = Screen.act(actions, "coins"),
 		})
 		local words: { [string]: string } = data.words or {}

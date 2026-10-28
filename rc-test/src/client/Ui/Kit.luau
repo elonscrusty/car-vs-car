@@ -725,6 +725,12 @@ function Kit.currency(
 	b.ZIndex = 3
 	b.Parent = parent
 	Base.at(b, x, y, w, h)
+	if o.plate then
+		-- a dark plate behind the number: over the 3D world it sat on the signs (phone 10-28)
+		local plate = Base.fill(b, "Plate", h * 0.4, 3, w - h * 0.4, h - 6, Base.color("ink"), 1)
+		plate.BackgroundTransparency = 0.3
+		Base.corner(plate)
+	end
 	local iconName = o.icon or "coin"
 	local ic = Icons.make(b, iconName, 0, 2, h - 4, { z = 3 })
 	if iconName == "coin" then
@@ -1658,12 +1664,14 @@ end
 
 -- A number floating up from where it happened, then fading.
 function Kit.floatNum(parent: Instance, x: number, y: number, words: string, colorName: string?)
+	-- (wide enough for "2X TRAINING!" at the same size as "+1 SPEED")
+	local w = math.max(120, #words * 15)
 	local l = Base.text(
 		parent,
 		"Float",
-		x - 60,
+		x - w / 2,
 		y - 16,
-		120,
+		w,
 		32,
 		words,
 		{ color = Base.color(colorName or "go"), stroke = 5, z = 9 }
