@@ -20,6 +20,7 @@
 --     pay as they do in the game. No weekend 2x, no friend coins (they only make it faster).
 -- Everything is deterministic for a seed.
 
+local CarCatalog = require("../src/shared/CarCatalog")
 local CvcRules = require("../src/shared/CvcRules")
 local Crates = require("../src/shared/Crates")
 local DailyJobs = require("../src/shared/DailyJobs")
@@ -42,6 +43,8 @@ Sim.NEXT_RACE = 60 -- a later day: the next race starts about this far into the 
 Sim.COACH_LATE = 5 -- seconds after COACH is ready that the kid taps it
 Sim.SESSION_MIN = 20 -- minutes a day (§3: a session is 15-25 min)
 Sim.USER_ID = 1234 -- whose daily jobs
+-- optional: told every event as it happens (seconds played, words), for the first-10 timeline
+Sim.log = nil :: ((at: number, what: string) -> ())?
 
 export type Result = {
 	crates: { number }, -- minutes played when each crate was opened (shop crates too)
@@ -161,9 +164,17 @@ function Sim.run(days: number, seed: number?, session: number?): Result
 	local function mark(list: { number })
 		table.insert(list, played / 60)
 	end
+	local function say(what: string)
+		local log = Sim.log
+		if log then
+			log(played, what)
+		end
+	end
 	local function job(day: number, event: string)
 		if data.stage >= Profile.STAGE.SHOPPED then
-			DailyJobs.add(data :: any, Sim.USER_ID, day, event)
+			for _, j in DailyJobs.add(data :: any, Sim.USER_ID, day, event) do
+				say(`job done: {j.text} +{j.coins} coins`)
+			end
 		end
 	end
 	local function gift(day: number)
@@ -174,16 +185,22 @@ function Sim.run(days: number, seed: number?, session: number?): Result
 	local function spend(day: number, now: number)
 		local opened = false
 		while data.crates > 0 do
-			if not CvcRules.open(data, r) then
+			local id = CvcRules.open(data, r)
+			if not id then
 				break
 			end
+			say(
+				`opened a crate: {id} ({CarCatalog.rarity(id).label}), {#data.garage} cars, {#data.stations} stations`
+			)
 			opened = true
 			mark(res.crates)
 			mark(res.things)
 			job(day, "crate")
 			if data.stage < Profile.STAGE.SHOPPED then
 				data.stage = Profile.STAGE.SHOPPED -- the first crate (TrainingServer), then the gift
+				local c0 = data.coins
 				gift(day)
+				say(`daily gift +{data.coins - c0} coins and a crate`)
 			end
 		end
 		if opened or now % 60 == 0 then
@@ -217,6 +234,7 @@ function Sim.run(days: number, seed: number?, session: number?): Result
 			if not ok then
 				break
 			end
+			say(`bought {what} for {cost} ({data.coins} left)`)
 			mark(res.things)
 			if what == "crate" then
 				mark(res.crates)
@@ -242,7 +260,8 @@ function Sim.run(days: number, seed: number?, session: number?): Result
 			if t == finish then
 				local place = if raced then Sim.place(data, r) else 1
 				local was = data.league
-				CvcRules.raceDone(data, place, now)
+				local got = CvcRules.raceDone(data, place, now)
+				say(`race {res.races + 1} done: place {place}, +{got.coins} coins ({data.coins})`)
 				raced = true
 				if data.stage < Profile.STAGE.RACED then
 					data.stage = Profile.STAGE.RACED

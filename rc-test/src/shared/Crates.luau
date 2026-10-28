@@ -25,9 +25,9 @@ export type Kind = {
 	odds: { [string]: number }, -- out of 100, by kind of car; they add up to 100
 }
 
--- Cheapest first. The SMALL CRATE is 200, not 300 (audit B9): at 300 a normal kid had nothing new
--- to get for 8-11 min after its first stations; at 200 the longest wait in the first 20 min is
--- about 6 min (tests/cvc_economy.test.luau). The others are first guesses.
+-- Cheapest first. The SMALL CRATE is 150 (audit B9 took it from 300 to 200; the first-10 timeline
+-- 10-28 to 150): a normal kid can buy one near the end of the first 10 minutes, a new car to put
+-- on a new station. The others are first guesses.
 Crates.KINDS = {
 	{
 		id = "free",
@@ -38,7 +38,7 @@ Crates.KINDS = {
 	{
 		id = "basic",
 		label = "SMALL CRATE",
-		price = 200,
+		price = 150,
 		odds = { common = 70, rare = 25, epic = 4.5, legend = 0.5 },
 	},
 	{

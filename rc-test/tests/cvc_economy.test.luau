@@ -97,3 +97,37 @@ test("economy: never long with nothing new in the first session (B9)", function(
 	truthy(early <= 4, `waited {f(early)} min between 3 and 12 min`)
 	truthy(session <= 7, `waited {f(session)} min in the first session`)
 end)
+
+-- MASTER-PROMPT §4, minute by minute (review/first10-timeline.md): race 1 won by ~2:00, its crate
+-- opened, a 2nd car training on the 2nd station by 3:00, and by 10:00 2+ cars and a 2nd crate.
+test("first 10 minutes: race 1, crate, 2nd station, 2 cars, 2nd crate", function()
+	for seed = 1, SEEDS do
+		local at: { [string]: number } = {}
+		Sim.log = function(s: number, what: string)
+			local function first(key: string)
+				at[key] = at[key] or s
+			end
+			if string.find(what, "^race 1 done") then
+				first("race1")
+			elseif string.find(what, "^opened a crate") then
+				first("crate1")
+				at.crateCount = (at.crateCount or 0) + 1
+				if at.crateCount >= 2 then
+					first("crate2")
+				end
+			end
+		end
+		local res = Sim.run(1, seed * 7919, 10)
+		Sim.log = nil
+		truthy((at.race1 or math.huge) <= 120, `seed {seed}: race 1 done at {at.race1}`)
+		truthy((at.crate1 or math.huge) <= 180, `seed {seed}: first crate at {at.crate1}`)
+		truthy((at.crate2 or math.huge) <= 600, `seed {seed}: 2nd crate at {at.crate2}`)
+		truthy(#res.data.garage >= 2, `seed {seed}: {#res.data.garage} cars`)
+		local busy = 0
+		for _, st in res.data.stations do
+			busy += if st.uid ~= "" then 1 else 0
+		end
+		truthy(busy >= 2, `seed {seed}: {busy} stations training`)
+		truthy(res.top3 >= 1, `seed {seed}: no top 3`)
+	end
+end)
