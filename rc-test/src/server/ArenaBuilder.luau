@@ -10,7 +10,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ArenaData = require(ReplicatedStorage.Shared.ArenaData)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
-local MapKit = require(ReplicatedStorage.Shared.Maps.MapKit)
 
 local ArenaBuilder = {}
 
@@ -48,6 +47,9 @@ local function v(p: Pt, y: number): Vector3
 	return Vector3.new(x, y, z)
 end
 
+-- flat floor layers throw no shadow worth the phone's time
+local FLAT = { Grass = true, Road = true, Curb = true, Crosswalk = true, Sand = true }
+
 -- every part: anchored, no touch events; solid = karts bump it and the wheels and camera see it
 local function part(
 	parent: Instance,
@@ -70,7 +72,7 @@ local function part(
 	p.CanTouch = false
 	p.CanCollide = solid
 	p.CanQuery = solid
-	p.CastShadow = solid
+	p.CastShadow = solid and not FLAT[name]
 	p.Parent = parent
 	return p
 end
@@ -320,19 +322,6 @@ local function buildFloor(folder: Instance)
 			true
 		)
 	end
-	-- an unseen guard on top, as tall as the race maps' edge: no blast throws a kart out
-	local guard = MapKit.WALL_H - h
-	for _, side in { -1, 1 } do
-		for _, size in { Vector3.new(s, guard, w), Vector3.new(w, guard, s) } do
-			local at = if size.X > size.Z
-				then Vector3.new(0, h + guard / 2, side * (s - w) / 2)
-				else Vector3.new(side * (s - w) / 2, h + guard / 2, 0)
-			local g = part(folder, "WallGuard", size, CFrame.new(at), PURPLE, true)
-			g.Transparency = 1
-			g.CanQuery = false
-			g.CastShadow = false
-		end
-	end
 	-- a lighter trim along the top, a pillar every so often on the inside face, and on each pillar
 	-- a post with a bright pennant (looks only: up out of the way)
 	local inner = s / 2 - w
@@ -369,7 +358,7 @@ local function buildFloor(folder: Instance)
 				Vector3.new(3, h + 1.6, 3),
 				CFrame.lookAt(base - into * 0.7, base) + Vector3.new(0, (h + 1.6) / 2, 0),
 				TRIM,
-				true
+				false
 			)
 			local post = part(
 				folder,
@@ -390,7 +379,7 @@ local function buildFloor(folder: Instance)
 					top + Vector3.new(tx, 0, tz) * 2.25,
 					into,
 					Vector3.yAxis,
-					Vector3.new(tx, 0, tz)
+					-Vector3.new(tx, 0, tz)
 				),
 				FLAGS[k % #FLAGS + 1],
 				false,
@@ -510,9 +499,9 @@ local function buildHills(folder: Instance)
 		local a, b = v(r.from, 0), v(r.to, 0)
 		local len = (b - a).Magnitude
 		local dir = (b - a).Unit
-		-- a WedgePart rises from its front (-Z) to its back (+Z): face it back down the ramp. It
-		-- ends a hair inside the cliff, so it is built a touch taller: no lip at the hill's edge
-		local h = r.h * 1.04
+		-- a WedgePart rises from its front (-Z) to its back (+Z): face it back down the ramp; the
+		-- deck carries it on over the hill's sloped edge
+		local h = r.h
 		local mid = (a + b) / 2 + Vector3.new(0, h / 2, 0)
 		part(
 			folder,
@@ -525,7 +514,7 @@ local function buildHills(folder: Instance)
 		)
 		-- the flat deck from the ramp's top over the hill's sloped edge
 		local deck = ArenaData.RAMP_DECK * K
-		local dm = b + dir * (deck / 2) + Vector3.new(0, r.h - 0.5, 0)
+		local dm = b + dir * (deck / 2) + Vector3.new(0, r.h - 0.46, 0)
 		part(
 			folder,
 			"RampDeck" .. i,
@@ -705,12 +694,12 @@ local function buildArch(folder: Instance)
 	end
 	-- pennants hanging under the beam
 	for k = 1, 5 do
-		local at = p1 + dir * (len * k / 6) + Vector3.new(0, a.h - 4.3, 0)
+		local at = p1 + dir * (len * k / 6) + Vector3.new(0, a.h - 6.3, 0)
 		part(
 			folder,
 			"ArchFlag",
 			Vector3.new(0.2, 2.6, 2.2),
-			CFrame.fromMatrix(at, dir, -Vector3.yAxis, Vector3.new(-dir.Z, 0, dir.X)),
+			CFrame.fromMatrix(at, Vector3.new(-dir.Z, 0, dir.X), -Vector3.yAxis),
 			FLAGS[k % #FLAGS + 1],
 			false,
 			"WedgePart"
@@ -732,7 +721,7 @@ local function buildDecor(folder: Instance)
 			"GrassPatch",
 			poly,
 			-0.05,
-			0.03,
+			0.06,
 			if g[4] == 1 then GRASS_DARK else GRASS_LIGHT,
 			false
 		)

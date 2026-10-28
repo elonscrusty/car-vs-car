@@ -359,7 +359,7 @@ function ArenaData.clear(x: number, y: number, room: number): boolean
 		end
 	end
 	for _, r in ArenaData.ROCKS do
-		if math.sqrt((x - r[1]) ^ 2 + (y - r[2]) ^ 2) < r[3] + room then
+		if math.sqrt((x - r[1]) ^ 2 + (y - r[2]) ^ 2) < r[3] * 1.4 + room then -- turned blocks
 			return false
 		end
 	end
