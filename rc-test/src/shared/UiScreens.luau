@@ -411,6 +411,22 @@ local LIST: { Screen } = {
 			}),
 		},
 	},
+	-- Car VS Car SMASH (10-28): the match HUD, 5 things at most plus the stick: your place and the
+	-- kill list top left, the clock and your health top middle, one big FIRE thumb button
+	{
+		id = "match",
+		n = 17,
+		title = "Match",
+		kind = "hud",
+		gameplay = true,
+		pieces = {
+			p("Place", 0, 8, 150, 48, { anchor = "tl" }),
+			p("Feed", 0, 62, 220, 96, { anchor = "tl" }),
+			p("Clock", 323, 4, 110, 36, { anchor = "t" }),
+			p("Health", 238, 44, 280, 30, { anchor = "t" }),
+			button("Fire", 618, 244, 118, 118, "danger", "FIRE", { anchor = "br" }),
+		},
+	},
 }
 
 UiScreens.LIST = LIST
