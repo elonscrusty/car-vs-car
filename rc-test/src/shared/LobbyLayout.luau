@@ -250,14 +250,35 @@ function LobbyLayout.parkSpot(n: number): (number, number)
 	return -5.25 + ((n - 1) % 4) * 3.5, LobbyLayout.road().minZ + 4
 end
 
+-- The Smash arena (ArenaData: a map module with id "arena" and track()), nil until it's built.
+local function arenaData(): any?
+	if script then
+		local mod = (script :: any).Parent:FindFirstChild("ArenaData")
+		return if mod then require(mod) :: any else nil
+	end
+	local ok, m = pcall(sibling, "ArenaData")
+	return if ok then m else nil
+end
+
 -- The big race maps (RaceMaps) are drivable "slots" after the street's plots: index
--- #slots + k is map k. nil when there is no such map.
+-- #slots + k is map k, and the Smash arena comes after them (arenaIndex). nil when there is no
+-- such map.
 function LobbyLayout.mapAt(index: number): any?
 	local k = index - #LobbyLayout.slots()
 	if k < 1 then
 		return nil
 	end
-	return sibling("RaceMaps").list()[k]
+	local maps = sibling("RaceMaps").list()
+	if k == #maps + 1 then
+		return arenaData()
+	end
+	return maps[k]
+end
+
+-- The Smash arena's slot index (MatchRunner drives it); nil when there is no arena yet.
+function LobbyLayout.arenaIndex(): number?
+	local i = #LobbyLayout.slots() + #sibling("RaceMaps").list() + 1
+	return if LobbyLayout.mapAt(i) then i else nil
 end
 
 function LobbyLayout.mapIndex(k: number): number
