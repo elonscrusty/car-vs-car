@@ -11,7 +11,7 @@ export type Hud = {
 	setSpeed: (n: number) -> (),
 	setDrift: (chain: number, total: number, visible: boolean, combo: number?) -> (),
 	popScore: (points: number) -> (),
-	flash: (text: string) -> (),
+	flash: (text: string, gold: boolean?) -> (), -- gold: the big finish words
 	setRace: (on: boolean) -> (), -- server race: no speed or plot word, just place and lap
 }
 
@@ -83,6 +83,17 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }): Hud
 	)
 	timer.TextXAlignment = Enum.TextXAlignment.Left
 	timer.TextYAlignment = Enum.TextYAlignment.Top
+	-- one word size for 1, 2 or 3 lines, never wrapped (it jumped between "LAP 1/1 0:08.7" on
+	-- one line and on two, phone 10-28): a set size from the box's height, not TextScaled (a size
+	-- cap read the box before it had a size and stuck at 8, Studio pr816)
+	timer.TextScaled = false
+	timer.TextWrapped = false
+	local function fitTimer()
+		local h = timer.AbsoluteSize.Y
+		timer.TextSize = if h > 0 then math.clamp(math.floor(h / 3.3), 14, 40) else 18
+	end
+	timer:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitTimer)
+	fitTimer()
 
 	-- top right, under the CAM / VIEW / SIZE buttons, so it never sits on the car
 	local speed = label(
@@ -113,6 +124,8 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }): Hud
 	)
 	msg.TextTransparency = 1
 	msg.TextStrokeTransparency = 1
+	-- over the buttons (AUTO GAS sat on the finish time, phone 10-28)
+	msg.ZIndex = 10
 
 	-- the big number that pops up when a slide ends
 	local pop = label(
@@ -154,6 +167,7 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }): Hud
 	end
 
 	function hud.setTimer(text: string)
+		fitTimer()
 		timer.Text = text
 	end
 
@@ -196,10 +210,14 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }): Hud
 		end)
 	end
 
-	function hud.flash(text: string)
+	function hud.flash(text: string, gold: boolean?)
 		flashId += 1
 		local mine = flashId
 		msg.Text = text
+		-- (white FINISH! on the light grey walls hardly showed: gold, phone 10-28)
+		msg.TextColor3 = if gold
+			then Color3.fromRGB(255, 205, 40)
+			else Color3.fromRGB(255, 255, 255)
 		msg.TextTransparency = 0
 		msg.TextStrokeTransparency = 0.5
 		task.delay(1.6, function()

@@ -19,7 +19,8 @@ function RaceFx.new(): RaceFx
 	gui.Name = "RaceFx"
 	gui.ResetOnSpawn = false
 	gui.IgnoreGuiInset = true
-	gui.DisplayOrder = 3
+	-- under every button (they drew over BRAKE / GAS / DRIFT, carter's phone 10-28)
+	gui.DisplayOrder = -1
 	gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 	type Line = { frame: Frame, angle: number, at: number, speed: number }
 	local lines: { Line } = {}
@@ -47,9 +48,9 @@ function RaceFx.new(): RaceFx
 		for _, l in lines do
 			l.frame.Visible = show
 			if show then
-				-- from 45% of the way out to past the edge, over and over
+				-- from 70% of the way out to past the edge, over and over (the edges only)
 				l.at = (l.at + l.speed * dt) % 1
-				local r = 0.45 + 0.4 * l.at
+				local r = 0.7 + 0.3 * l.at
 				local x, y = 0.5 + math.cos(l.angle) * r * 0.62, 0.5 + math.sin(l.angle) * r
 				l.frame.Position = UDim2.fromScale(x, y)
 				l.frame.Size = UDim2.fromOffset(4, 30 + 70 * l.at)

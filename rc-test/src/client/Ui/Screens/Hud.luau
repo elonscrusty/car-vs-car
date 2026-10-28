@@ -55,6 +55,11 @@ local function pointAt(h: Frame, p: UiScreens.Piece, words: string?, loud: boole
 		-- right edge: from the left, the words to its left
 		x, y, rot, dx, dy = -s - 6, (p.h - s) / 2, 0, 1, 0
 		wx, wy, align = x - tw - 4, (p.h - th) / 2, "r"
+		if p.y > Base.H * 0.6 then
+			-- (COACH, bottom right: the words go up a little, clear of the RACE! button's top;
+			-- level with the arrow they ran under it, carter's phone 10-28)
+			wy = -12
+		end
 	elseif p.y > Base.H * 0.6 then
 		-- bottom middle: from above, the words over it
 		x, y, rot, dx, dy = (p.w - s) / 2, -s - 6, 90, 0, 1
@@ -120,6 +125,7 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 			value = data.coins or 0,
 			rate = data.rate or "",
 			plus = true,
+			plate = true,
 			onClick = Screen.act(actions, "coins"),
 		})
 		local words: { [string]: string } = data.words or {}
@@ -136,12 +142,13 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 				if ic then
 					ic:Destroy()
 				end
+				-- (in the middle of the tile, over its word, like the other tiles' icons)
 				local car = Icons.car(
 					tile,
-					-4,
-					-16,
-					70,
-					46,
+					6,
+					10,
+					50,
+					32,
 					{ kind = "racer", color = Base.color("danger"), z = 5 }
 				)
 				Anim.bob(car, UiTheme.MOTION.iconBob, 5, 0)
