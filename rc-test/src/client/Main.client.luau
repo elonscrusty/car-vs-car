@@ -155,6 +155,17 @@ end
 
 local current = 1
 
+-- the skin to draw: the track's Meshy model, else (Car VS Car) the toy car of the car you race
+-- with, the one your plot shows (playtest u01: big races drew the grey box)
+local function skinName(): string?
+	local own = SKINS[tracks[current].id]
+	if own or not Features.CVC then
+		return own
+	end
+	local id = player:GetAttribute("RacerCar")
+	return if type(id) == "string" then CarSkin.TOY .. id else nil
+end
+
 getEye = function(): Vector3
 	local t = tracks[current]
 	local spot = TrackData.standSpot(t)
@@ -1021,7 +1032,7 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 		youTag.Enabled = false
 		raceFx.update(dt, false) -- a race that ended mid-BOOST: fade its speed lines out
 		car.render(dt) -- keep the parked car's wheels drawn
-		skin.update(car, SKINS[tracks[current].id])
+		skin.update(car, skinName())
 		effects.quiet()
 		return
 	end
@@ -1029,7 +1040,7 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 		return
 	end
 	car.render(dt)
-	skin.update(car, SKINS[tracks[current].id])
+	skin.update(car, skinName())
 	effects.update(dt)
 	-- boost pads and jumps: a word on screen so you know what happened
 	local tel = car.telemetry
