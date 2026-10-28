@@ -444,8 +444,15 @@ export type KartView = {
 	alive: boolean,
 	shield: boolean,
 	human: boolean,
+	newKid: boolean?, -- a player still in their first match ever (BOTS: no bot goes for them at first)
 	model: Model?,
 }
+
+-- Still in their first match ever: the first round's free crate (firstCrate) not had yet.
+local function firstMatch(player: Player?): boolean
+	local data = player and PlayerData.get(player)
+	return data ~= nil and data.stage < Profile.STAGE.RACED
+end
 
 -- Every kart in the round (BOTS, WEAPONS and BOXES read this).
 function MatchRunner.karts(): { KartView }
@@ -466,6 +473,7 @@ function MatchRunner.karts(): { KartView }
 			alive = k.alive,
 			shield = Match.shielded(k, t),
 			human = k.human,
+			newKid = if k.human then firstMatch(info and info.player) else nil,
 			model = info and info.model,
 		})
 	end

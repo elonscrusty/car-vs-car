@@ -124,6 +124,15 @@ local function waitFor(cond: () -> boolean, limit: number): number?
 	return if cond() then S.now() - t0 else nil
 end
 
+local function newKidFlag(id: number): boolean?
+	for _, k in MR.karts() do
+		if k.id == id then
+			return k.newKid
+		end
+	end
+	return nil
+end
+
 local roundStart = 0
 local coins0 = 0
 
@@ -139,6 +148,7 @@ test("queue: the kid is in a round within 10 s, full health, 8 karts", function(
 	roundStart = S.now()
 	eq(kid:GetAttribute("Health"), 100, "health")
 	eq(#MR.karts(), 8, "karts (bots fill)")
+	eq(newKidFlag(KID), true, "first match: a new kid (the bots' 15 s grace)")
 	truthy(type(S.workspace:GetAttribute("MatchEndsAt")) == "number", "MatchEndsAt")
 	eq(trouble(S), "", "errors or warns")
 end)
@@ -232,6 +242,7 @@ test("open the crate, then round 2 starts by itself after the break, with the la
 	eq(late:GetAttribute("InMatch"), true, "the late kid is in round 2")
 	eq(kid:GetAttribute("Health"), 100, "fresh health")
 	eq(kid:GetAttribute("Smashes"), 0, "fresh score")
+	eq(newKidFlag(KID), false, "second match: not a new kid any more")
 	eq(trouble(S), "", "errors or warns")
 end)
 
