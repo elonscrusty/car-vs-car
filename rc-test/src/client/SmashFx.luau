@@ -6,6 +6,8 @@
 --   * when you get smashed: "You were smashed by X's rocket" in red, a hard shake, and the camera
 --     swings over to X with a big 3-2-1, then hands back when you respawn (or after 3.5 s)
 --   * a red edge flash and a small shake when you take a hit
+-- Sounds come from client/Sfx (the SOUNDS row): smash (yours and others', placed), hit, the
+-- 3-2-1 count, respawn and shield.
 -- All numbers live in shared/SmashJuice. Everything is made once at start, so a smash only sets
 -- properties: the words are on screen on the next frame (hard target ≤ 0.1 s, logged as
 -- "[SmashFx] shown in N ms"). Looks only: the server decides every hit, and driving stays LOCKED
@@ -219,6 +221,7 @@ function SmashFx.start()
 	local killAt = 0
 	local killFrom = CFrame.identity
 	local killer: SmashJuice.Side? = nil
+	local wasSmashed = false -- a smash on you was seen, so the next Health rise is a respawn
 	local killerModel: Instance? = nil -- the kart, once found (no tag scan every frame)
 	local lastWant: CFrame? = nil
 	local shownCount: number? = nil
@@ -233,14 +236,10 @@ function SmashFx.start()
 
 	-- where the killer's kart is: the kart the server named, a tagged "Kart" model with their
 	-- OwnerId / KartName, or their character
-	local function killerAt(s: SmashJuice.Side): CFrame?
-		local k = killerModel or s.kart
-		if k and k:IsDescendantOf(workspace) then
-			if k:IsA("Model") then
-				return k:GetPivot()
-			elseif k:IsA("BasePart") then
-				return k.CFrame
-			end
+	local function kartOf(s: SmashJuice.Side): Instance?
+		local k = s.kart
+		if k and k:IsDescendantOf(workspace) and (k:IsA("Model") or k:IsA("BasePart")) then
+			return k
 		end
 		for _, m in CollectionService:GetTagged("Kart") do
 			if
@@ -251,16 +250,38 @@ function SmashFx.start()
 					or (not s.userId and m:GetAttribute("KartName") == s.name)
 				)
 			then
-				killerModel = m
-				return m:GetPivot()
+				return m
 			end
 		end
 		local p = if s.userId then Players:GetPlayerByUserId(s.userId) else nil
-		local char = p and p.Character
-		if char then
-			return char:GetPivot()
+		return p and p.Character
+	end
+
+	local function pivotOf(k: Instance?): CFrame?
+		if k and k:IsDescendantOf(workspace) then
+			if k:IsA("Model") then
+				return k:GetPivot()
+			elseif k:IsA("BasePart") then
+				return k.CFrame
+			end
 		end
 		return nil
+	end
+
+	-- the killer's kart, found once per killer camera (no tag scan every frame)
+	local lookedAt = -math.huge
+	local function killerAt(s: SmashJuice.Side): CFrame?
+		local at = pivotOf(killerModel)
+		if at then
+			return at
+		end
+		-- not found yet: look again at most 4 times a second
+		if os.clock() - lookedAt < 0.25 then
+			return nil
+		end
+		lookedAt = os.clock()
+		killerModel = kartOf(s)
+		return pivotOf(killerModel)
 	end
 
 	local function endKillcam()
@@ -309,6 +330,7 @@ function SmashFx.start()
 						shownCount = n
 						if n then
 							showWord(count, tostring(n), 0.9, 1.8)
+							Sfx.count(n)
 						end
 					end
 					if t >= SmashJuice.KILLCAM_MAX then
@@ -380,14 +402,6 @@ function SmashFx.start()
 
 	local myStreak = SmashJuice.streak()
 
-	local function cue(nameOf: string)
-		-- the SOUNDS row owns the cue table; play it when it exists
-		local fn = (Sfx :: any)[nameOf]
-		if type(fn) == "function" then
-			task.spawn(fn)
-		end
-	end
-
 	local function onFeed(attacker: unknown, victim: unknown, weapon: unknown)
 		local at = os.clock()
 		local f = SmashJuice.read(attacker, victim, weapon, player.UserId)
@@ -413,7 +427,7 @@ function SmashFx.start()
 			edge(Color3.new(1, 1, 1), juice.flash)
 			confetti(juice.confetti)
 			pending = at
-			cue("smash")
+			Sfx.smash()
 		elseif f.victim.me then
 			myStreak:reset()
 			you.Visible = false
@@ -436,8 +450,19 @@ function SmashFx.start()
 			killFrom = baseCf
 			killer = other
 			killerModel = nil
+			lookedAt = -math.huge
 			lastWant = nil
 			shownCount = nil
+			wasSmashed = true
+			Sfx.smash()
+		else
+			-- someone else's smash: heard from where it happened
+			-- (no kart found → no sound, so far-off smashes never play at full volume)
+			local where = pivotOf(kartOf(f.victim))
+				or (f.attacker and pivotOf(kartOf(f.attacker :: SmashJuice.Side)))
+			if where then
+				Sfx.smash(where.Position)
+			end
 		end
 	end
 
@@ -464,6 +489,12 @@ function SmashFx.start()
 	-- the camera back
 	local h0 = player:GetAttribute("Health")
 	local lastHealth: number? = if type(h0) == "number" then h0 else nil
+	-- the spawn shield goes up (the server sets Shield)
+	player:GetAttributeChangedSignal("Shield"):Connect(function()
+		if player:GetAttribute("Shield") == true then
+			Sfx.shield()
+		end
+	end)
 	player:GetAttributeChangedSignal("Health"):Connect(function()
 		local h = player:GetAttribute("Health")
 		if type(h) ~= "number" then
@@ -475,6 +506,14 @@ function SmashFx.start()
 			local juice = SmashJuice.feel("hit", was - h, Base.reduced())
 			feel(juice)
 			edge(CHERRY, juice.flash)
+			Sfx.hit()
+		elseif was and h > was and was <= 0 and wasSmashed then
+			wasSmashed = false
+			-- back from a smash (the respawn)
+			Sfx.respawn()
+			if killcam then
+				endKillcam()
+			end
 		elseif was and h > was and killcam and os.clock() - killAt > 0.5 then
 			endKillcam()
 		end

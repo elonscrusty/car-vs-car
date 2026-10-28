@@ -164,6 +164,13 @@ test(
 		-- driving stays LOCKED: no car or chase camera code is touched
 		truthy(not string.find(src, 'require(script.Parent:WaitForChild("ChaseCamera"))', 1, true))
 		truthy(not string.find(src, "RCCar", 1, true))
+		-- sounds come from Sfx (SOUNDS row), never a Sound made here
+		for _, call in
+			{ "Sfx.smash(", "Sfx.hit()", "Sfx.count(n)", "Sfx.respawn()", "Sfx.shield()" }
+		do
+			truthy(string.find(src, call, 1, true), `plays {call}`)
+		end
+		truthy(not string.find(src, 'Instance.new("Sound")', 1, true), "no Sound of its own")
 		local start = fs.readFile("src/client/SmashFxStart.client.luau")
 		truthy(string.find(start, "SmashFx.start()", 1, true), "something starts it")
 	end
