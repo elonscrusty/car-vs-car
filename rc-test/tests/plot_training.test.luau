@@ -55,10 +55,12 @@ test("nothing on the plot is solid (walk anywhere)", function()
 	end
 end)
 
-test("pads don't touch each other or the room", function()
+test("pads don't touch each other or the garage floor in the middle", function()
 	local P = T.PAD
+	local R = T.ROOM
 	for i, a in T.GRID do
-		truthy(a.z - P.d / 2 > T.ROOM.z1, "pad " .. i .. " in front of the room")
+		local clear = a.x + P.w / 2 < R.x0 or a.x - P.w / 2 > R.x1 or a.z + P.d / 2 < R.z0
+		truthy(clear, "pad " .. i .. " off the garage floor")
 		for j, b in T.GRID do
 			if i < j then
 				local apart = math.abs(a.x - b.x) >= P.w + 1 or math.abs(a.z - b.z) >= P.d + 1
@@ -114,8 +116,8 @@ test("pad signs: the station and its level, or which plot level opens it", funct
 	eq(b, "LV 3  +BOOST")
 	eq(select(2, T.padWords({ kind = "track", level = 1, car = "" }, 3)), "LV 1  +TURN")
 	a, b = T.padWords(nil, 4)
-	eq(a, "LOCKED")
-	eq(b, "PLOT LV 3")
+	eq(a, "?")
+	eq(b, "LV 3")
 end)
 
 test("the tiny cars stay on their pad and never jump", function()
@@ -182,33 +184,67 @@ test("station cars: their name and number on the pad's sign, no tag", function()
 	end
 end)
 
-test("the plot camera sees every pad, with the gate's name board under them", function()
-	local D = require("../src/shared/PlotDecor")
+-- where a plot-local point lands on a 16:9 screen from the stand camera: -1..1 across and up
+local function onScreen(px: number, py: number, pz: number, aspect: number): (number, number)
 	local C = T.STAND_CAM
 	local e, l = C.eye, C.look
-	local front = -math.huge -- the front pads' front edge
+	local fx, fy, fz = l.x - e.x, l.y - e.y, l.z - e.z
+	local fl = math.sqrt(fx * fx + fy * fy + fz * fz)
+	fx, fy, fz = fx / fl, fy / fl, fz / fl
+	-- right = forward x up, then up = right x forward
+	local rx, ry, rz = -fz, 0, fx
+	local rl = math.sqrt(rx * rx + rz * rz)
+	rx, rz = rx / rl, rz / rl
+	local ux, uy, uz = ry * fz - rz * fy, rz * fx - rx * fz, rx * fy - ry * fx
+	local dx, dy, dz = px - e.x, py - e.y, pz - e.z
+	local depth = dx * fx + dy * fy + dz * fz
+	local t = math.tan(math.rad(C.fov / 2))
+	local across = (dx * rx + dy * ry + dz * rz) / depth / (t * aspect)
+	local up = (dx * ux + dy * uy + dz * uz) / depth / t
+	return across, up
+end
+
+test("the plot camera sees every pad corner and the scoreboard on a phone", function()
+	local P = T.PAD
+	local B = T.BOARD
+	local points = {}
 	for _, g in T.GRID do
-		front = math.max(front, g.z + T.PAD.d / 2)
+		for _, sx in { -1, 1 } do
+			for _, sz in { -1, 1 } do
+				table.insert(points, { g.x + sx * P.w / 2, 0, g.z + sz * P.d / 2 })
+			end
+		end
 	end
-	local down = math.atan((e.y - l.y) / (e.z - l.z)) -- the view's middle, below level
-	local half = math.rad(C.fov / 2)
-	local function angle(y: number, z: number): number -- below level, seen from the eye
-		return math.atan((e.y - y) / (e.z - z))
+	for _, sx in { -1, 1 } do
+		for _, sy in { -1, 1 } do
+			table.insert(points, { B.x + sx * B.w / 2, B.y + sy * B.h / 2, B.z })
+		end
 	end
-	truthy(angle(0, front) < down + half, "front pads on screen")
-	truthy(angle(0, T.ROOM.z1) > down - half, "the room's front on screen")
-	-- the open front row fills the middle of the screen
-	local mid = angle(0, front - T.PAD.d / 2)
-	truthy(math.abs(mid - down) < half / 3, "front row in the middle")
+	for _, aspect in { 16 / 9, 2.16 } do -- a phone on its side, and a long one
+		for _, p in points do
+			local a, u = onScreen(p[1], p[2], p[3], aspect)
+			truthy(
+				math.abs(a) <= 0.97 and math.abs(u) <= 0.97,
+				`({p[1]}, {p[2]}, {p[3]}) on screen`
+			)
+		end
+	end
+end)
+
+test("the gate's name board is under the front pads, not over them", function()
+	local D = require("../src/shared/PlotDecor")
 	for _, kind in { "race", "drift" } do
 		for _, m in D.meshes(kind) do
 			if m.group == "Arch" then
-				local back, top = m.at.z - m.fit.z / 2, m.fit.y
-				-- the gate's top stays under the line from the eye to the front pads
-				local lineY = e.y * (back - front) / (e.z - front)
-				truthy(top < lineY, m.model .. " under the pads")
-				-- and its top bar (the name board) is still on screen
-				truthy(angle(top * 0.9, m.at.z) < down + half, m.model .. " board on screen")
+				local top = m.fit.y
+				local _, gate = onScreen(m.at.x, top, m.at.z, 16 / 9)
+				-- the nearest pad corner on the screen (the lowest)
+				local low = math.huge
+				for _, g in T.GRID do
+					local _, u = onScreen(g.x, 0, g.z + T.PAD.d / 2, 16 / 9)
+					low = math.min(low, u)
+				end
+				truthy(gate < low, m.model .. " under the pads")
 			end
 		end
 	end

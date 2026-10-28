@@ -1,10 +1,13 @@
 --!strict
--- Car VS Car (carter 10-26, yes to rc-game/cvc/pics/plot-training-topdown-2.png): your plot is a
--- training garage. At the back, a cozy garage room (wood floor, a rug, the garage door, a trophy
--- shelf on the back wall, car stands down both sides). In the middle, a 3 by 3 grid of station
--- pads: treadmill, ramp, speed track, over and over (Training.STATIONS). Plot level 0 has one pad
--- open; each level opens the next, and a locked pad says which level opens it. A tiny car runs
--- on each station with a car on it (PlotTraining.ride).
+-- Car VS Car (carter 10-28, "training on the outskirts", rc-game/plot-layouts/plot-layout-edges.png):
+-- your plot is a training yard. The stations run round the edges, one bar a wall: ramps (BOOST)
+-- down the left, treadmills (SPEED) along the back, speed tracks (TURN) down the right, the
+-- first of each nearest the stand. The middle is a low garage floor: your best waiting car on a
+-- podium up front, the other car stands behind it, and on the back wall, high over the
+-- treadmills, the scoreboard (who is ahead), the trophy shelf and your name. Plot level 0 has
+-- one pad open; each level opens the next (Training.STATIONS), and a locked pad is a quiet
+-- grass-green spot with "?" and the level that opens it. A tiny car runs on each station with a
+-- car on it (PlotTraining.ride).
 -- Plain numbers and Garage pieces (Lune tests load this): PlotGarageBuilder (server) builds the
 -- room and the pads, CvcPlot.client puts the cars on them.
 --
@@ -33,19 +36,19 @@ end
 
 local PlotTraining = {}
 
--- the pads, in station order (Training.STATIONS): front row first (nearest the gate and the
--- stand, so the first stations a new player gets are the easiest to see), middle, then left
--- and right; then the middle row, then the back row
+-- the pads, in station order (Training.STATIONS: treadmill, ramp, track, again and again): each
+-- treadmill on the back wall (middle first), each ramp down the left wall and each speed track
+-- down the right (front first, nearest the stand)
 PlotTraining.GRID = {
-	{ x = 0, z = 27 },
-	{ x = -25, z = 27 },
-	{ x = 25, z = 27 },
-	{ x = 0, z = 8 },
-	{ x = -25, z = 8 },
-	{ x = 25, z = 8 },
-	{ x = 0, z = -12 },
-	{ x = -25, z = -12 },
-	{ x = 25, z = -12 },
+	{ x = 0, z = -44 },
+	{ x = -27, z = 24 },
+	{ x = 27, z = 24 },
+	{ x = -25, z = -44 },
+	{ x = -27, z = 3 },
+	{ x = 27, z = 3 },
+	{ x = 25, z = -44 },
+	{ x = -27, z = -18 },
+	{ x = 27, z = -18 },
 }
 PlotTraining.PAD = { w = 24, d = 18 } -- each station pad (x by z)
 -- the station props and the cars' runs on them, this much bigger than they were drawn (so they
@@ -53,23 +56,30 @@ PlotTraining.PAD = { w = 24, d = 18 } -- each station pad (x by z)
 PlotTraining.K = 1.15
 -- each open pad's sign: w by h studs, its middle at y, leaning back `lean` degrees
 PlotTraining.PAD_SIGN = { w = 14, h = 3, y = 1.5, lean = 40 }
-PlotTraining.ROOM = { x0 = -38, x1 = 38, z0 = -53, z1 = -25 } -- the garage room's floor
+PlotTraining.ROOM = { x0 = -14, x1 = 14, z0 = -32, z1 = 30 } -- the garage floor, in the middle
 PlotTraining.NEAR = 220 -- studs: a plot farther from the camera than this stops moving its cars
 PlotTraining.CAR = 1.55 -- toy car size on the stations and stands (times a 3.6-stud car)
--- the car stands down both sides of the room, in the order they open
-PlotTraining.STANDS = {
-	{ x = -33, z = -44 },
-	{ x = 33, z = -44 },
-	{ x = -33, z = -32 },
-	{ x = 33, z = -32 },
-	{ x = -24, z = -44 },
-	{ x = 24, z = -44 },
-	{ x = -24, z = -32 },
-	{ x = 24, z = -32 },
-	{ x = -15, z = -32 },
-	{ x = 15, z = -32 },
+-- the car stands on the garage floor, in the order they open: the first is the podium up front
+-- (raised `lift` studs, gold: CvcPlot.client puts your best waiting car on it), then rows of 3
+export type Stand = { x: number, z: number, lift: number? }
+local STANDS: { Stand } = {
+	{ x = 0, z = 22, lift = 2.4 },
+	{ x = -9, z = 8 },
+	{ x = 9, z = 8 },
+	{ x = 0, z = 8 },
+	{ x = -9, z = -4 },
+	{ x = 9, z = -4 },
+	{ x = 0, z = -4 },
+	{ x = -9, z = -16 },
+	{ x = 9, z = -16 },
+	{ x = 0, z = -16 },
 }
-PlotTraining.SHELF = { x = 24, z = -53.2, w = 24, y = 4.5 } -- the trophy shelf, on the back wall
+PlotTraining.STANDS = STANDS
+PlotTraining.SHELF = { x = 26, z = -53.2, w = 22, y = 8 } -- the trophy shelf, high on the back wall
+-- the scoreboard on the back wall over the middle treadmill: every car's 3 bars, best on top
+-- (CvcPlot.client writes it); w by h studs, its middle at y
+PlotTraining.BOARD = { x = 0, z = -53.8, w = 26, h = 10, y = 13 }
+PlotTraining.BOARD_ROWS = 5
 PlotTraining.MAX_TROPHIES = 12 -- cups drawn on the shelf (the number on its sign keeps counting)
 
 -- Does a plot this far from the camera move its cars? (phone speed: far ones wait)
@@ -114,14 +124,14 @@ function PlotTraining.parse(text: string?): { Pad }
 	return out
 end
 
--- LOCKED / PLOT LV n painted on a locked pad's top (PlotGarageBuilder). A Top-face SurfaceGui
+-- "?" / LV n painted on a locked pad's top (PlotGarageBuilder). A Top-face SurfaceGui
 -- has its up edge toward the pad's -x and its right toward -z (Studio score 05: the words read
 -- sideways from the gate), so each line is turned 90 to read upright from the road. `at` is
 -- how far across the gui's width (the pad's depth, from the road side) the line's middle sits;
 -- w runs along the pad's x and h along its z, in studs.
 PlotTraining.PAINT = {
-	{ at = 0.62, w = 20, h = 6 }, -- LOCKED
-	{ at = 0.3, w = 15, h = 3.6 }, -- PLOT LV n
+	{ at = 0.6, w = 8, h = 6 }, -- ?
+	{ at = 0.28, w = 9, h = 3 }, -- LV n
 }
 
 -- An open pad's sign with a car on it (CvcPlot.client writes these over padWords): the station
@@ -136,7 +146,7 @@ end
 -- The words on a pad's sign.
 function PlotTraining.padWords(pad: Pad?, index: number): (string, string)
 	if pad == nil then
-		return "LOCKED", "PLOT LV " .. (index - 1)
+		return "?", "LV " .. (index - 1)
 	end
 	-- the bar it trains most, in the tag's words (the SPEED TRACK trains TURN: say so)
 	local bar = CarStats.BAR_LABELS[Training.MAIN[pad.kind] or ""]
@@ -144,6 +154,28 @@ function PlotTraining.padWords(pad: Pad?, index: number): (string, string)
 	return Training.NAMES[pad.kind] or string.upper(pad.kind),
 		if bar then lv .. "  +" .. bar else lv
 end
+
+-- The scoreboard's rows: the cars with the biggest speed + turn + boost first (then by name, so
+-- it doesn't flicker), at most BOARD_ROWS.
+export type BoardCar = { name: string, speed: number, turn: number, boost: number }
+function PlotTraining.board(cars: { BoardCar }): { BoardCar }
+	local list = table.clone(cars)
+	table.sort(list, function(a: BoardCar, b: BoardCar): boolean
+		local ta, tb = a.speed + a.turn + a.boost, b.speed + b.turn + b.boost
+		if ta ~= tb then
+			return ta > tb
+		end
+		return a.name < b.name
+	end)
+	return table.move(list, 1, math.min(#list, PlotTraining.BOARD_ROWS), 1, {})
+end
+-- the bars' colors on the board, matching the walls: SPEED blue (treadmills), TURN green (speed
+-- tracks), BOOST orange (ramps)
+PlotTraining.BAR_COLORS = {
+	speed = { 60, 160, 230 },
+	turn = { 90, 200, 90 },
+	boost = { 250, 170, 60 },
+}
 
 -- Where a tiny car is on a station at time `t` (seconds): pad-local x, y, z, its yaw in degrees
 -- (0 = nose to -z, like Garage.toyCar) and a nose-up tilt in degrees.
@@ -169,18 +201,17 @@ function PlotTraining.slats(t: number): { number }
 	return out
 end
 
--- the room sign stands left on the back wall (the trophy shelf is right)
+-- the name sign stands left on the back wall (the scoreboard is in the middle, the shelf right)
 PlotTraining.ROOM_SIGN_X = -28
 -- A stand car's tag (in the garage room) sits just over the car, sized in studs. Station cars
 -- have no tag: their numbers are on their pad's sign (carWords).
 PlotTraining.STAND_TAG = { w = 6.5, h = 3.5, up = 3.6 }
 -- The camera while you stand on your own plot's pad (PlotCam.client), plot-local: high over the
--- stand, looking down the pads to the garage room. The stations fill the middle and the gate's
--- name board sits at the bottom (Studio score 41: from the walking camera the gate posts hid the
--- side pads and the bottom of the screen was empty stand and road).
+-- stand, looking down over the whole yard, so all 3 walls of stations and the scoreboard are on
+-- a phone screen at once (16:9 or wider; the plot_training test checks every pad corner).
 PlotTraining.STAND_CAM = {
-	eye = { x = 0, y = 30, z = 70 },
-	look = { x = 0, y = 0, z = 30 }, -- the open front row in the middle, locked rows up top
+	eye = { x = 0, y = 55, z = 80 },
+	look = { x = 0, y = 0, z = -2 },
 	fov = 40,
 	off = 3, -- studs past the pad's reach before the walking camera comes back
 }
@@ -236,7 +267,7 @@ local RUG = { 200, 70, 70 }
 local GOLD = { 255, 200, 50 }
 local PAD_COL = { 238, 228, 208 }
 local PAD_EDGE = { 140, 115, 90 }
-local LOCKED = { 170, 196, 150 }
+local LOCKED = { 140, 190, 110 } -- near the grass: a quiet spot, not a shout
 local DARK = { 45, 45, 52 }
 local BLUE = { 60, 160, 230 }
 local ORANGE = { 250, 170, 60 }
@@ -282,14 +313,13 @@ local function pad(add: Garage.Add, i: number, kind: string?)
 		"PadEdge",
 		v(P.w + 0.6, 0.2, P.d + 0.6),
 		v(x, 0.1, z),
-		if kind then PAD_EDGE else { 120, 150, 110 },
+		if kind then PAD_EDGE else { 118, 168, 92 },
 		{
 			collide = false,
 		}
 	)
 	if kind == nil then
-		-- locked: no little sign (too small to read from the stand); PlotGarageBuilder paints
-		-- LOCKED / PLOT LV n big across the pad itself
+		-- locked: no little sign; PlotGarageBuilder paints a quiet "?" and the level on the pad
 		return
 	end
 	-- the sign at the pad's front edge, facing the road (+z), leaning back like a lectern: low,
@@ -416,7 +446,7 @@ function PlotTraining.pieces(plotLevel: number, garageLevel: number, trophies: n
 	local out: { Piece } = {}
 	local add = Garage.adder(out)
 	local R = PlotTraining.ROOM
-	-- the garage room: wood floor with boards, a rug, a low wood rail where it meets the yard
+	-- the garage floor in the middle: wood boards and a rug under the stands
 	local rx, rz = (R.x0 + R.x1) / 2, (R.z0 + R.z1) / 2
 	add("Room", "RoomFloor", v(R.x1 - R.x0, 0.2, R.z1 - R.z0), v(rx, 0.1, rz), WOOD, {
 		material = "WoodPlanks",
@@ -425,31 +455,20 @@ function PlotTraining.pieces(plotLevel: number, garageLevel: number, trophies: n
 	add(
 		"Room",
 		"Rug",
-		v(20, 0.1, 11),
-		v(0, 0.25, -37),
+		v(24, 0.1, 30),
+		v(0, 0.25, -4),
 		RUG,
 		{ material = "Fabric", collide = false }
 	)
 	add(
 		"Room",
 		"RugTrim",
-		v(21, 0.08, 12),
-		v(0, 0.22, -37),
+		v(25, 0.08, 31),
+		v(0, 0.22, -4),
 		GOLD,
 		{ material = "Fabric", collide = false }
 	)
-	for _, side in { -1, 1 } do
-		add(
-			"Room",
-			"RoomRail",
-			v(28, 1, 0.5),
-			v(side * 24, 0.5, R.z1),
-			WOOD_DARK,
-			{ collide = false }
-		)
-	end
-	-- off to the left (the shelf mirrors it on the right): over the middle, the front pad's car
-	-- tag hid it from the gate (Studio score 20)
+	-- the owner's name, left on the back wall, high over the treadmills
 	add(
 		"Room",
 		"RoomSign",
@@ -458,6 +477,22 @@ function PlotTraining.pieces(plotLevel: number, garageLevel: number, trophies: n
 		WOOD_DARK,
 		{ collide = false }
 	)
+	-- the scoreboard and its two legs (CvcPlot.client writes the rows)
+	local B = PlotTraining.BOARD
+	add("Board", "ScoreBoard", v(B.w, B.h, 0.4), v(B.x, B.y, B.z), SIGN, { collide = false })
+	add("Board", "ScoreTrim", v(B.w + 0.8, B.h + 0.8, 0.3), v(B.x, B.y, B.z - 0.15), GOLD, {
+		collide = false,
+	})
+	for _, side in { -1, 1 } do
+		add(
+			"Board",
+			"ScoreLeg",
+			v(0.6, B.y - B.h / 2, 0.6),
+			v(B.x + side * (B.w / 2 - 1), (B.y - B.h / 2) / 2, B.z),
+			WOOD_DARK,
+			{ collide = false }
+		)
+	end
 	-- the trophy shelf on the back wall, its cups, and its sign
 	local S = PlotTraining.SHELF
 	add(
@@ -509,15 +544,24 @@ function PlotTraining.pieces(plotLevel: number, garageLevel: number, trophies: n
 			collide = false,
 		})
 	end
-	-- car stands
+	-- car stands (the first is the podium: raised, all gold)
 	for k = 1, PlotTraining.stands(garageLevel) do
 		local st = PlotTraining.STANDS[k]
-		add("Stands", "Stand", v(0.6, 7, 7), v(st.x, 0.5, st.z), { 80, 80, 95 }, {
+		local lift = st.lift or 0
+		if lift > 0 then
+			add("Stands", "Podium", v(lift, 8, 8), v(st.x, lift / 2 + 0.2, st.z), GOLD, {
+				shape = "Cylinder",
+				rot = v(0, 0, 90),
+				material = "Foil",
+				collide = false,
+			})
+		end
+		add("Stands", "Stand", v(0.6, 7, 7), v(st.x, 0.5 + lift, st.z), { 80, 80, 95 }, {
 			shape = "Cylinder",
 			rot = v(0, 0, 90),
 			collide = false,
 		})
-		add("Stands", "StandRing", v(0.4, 7.6, 7.6), v(st.x, 0.3, st.z), GOLD, {
+		add("Stands", "StandRing", v(0.4, 7.6, 7.6), v(st.x, 0.3 + lift, st.z), GOLD, {
 			shape = "Cylinder",
 			rot = v(0, 0, 90),
 			collide = false,
@@ -532,15 +576,15 @@ function PlotTraining.pieces(plotLevel: number, garageLevel: number, trophies: n
 end
 
 -- the room's own pieces, kept when carter's props go in (Garage.useMeshes clears the rest)
-local ROOM_KEEP = { "RoomFloor", "Rug", "RugTrim", "RoomRail", "RoomSign" }
+local ROOM_KEEP = { "RoomFloor", "Rug", "RugTrim", "RoomSign" }
 
 -- carter's props in the room (Garage.Mesh entries; missing models are skipped)
 function PlotTraining.meshes(): { Garage.Mesh }
 	local list: { { any } } = {
 		-- { model, at, fit, yaw (degrees) }
-		{ "GarageDoor", v(0, 0, -51.5), v(16, 9, 3), 180 },
-		{ "TireRack", v(-14, 0, -51.5), v(5, 5, 2.5), 180 },
-		{ "PaintCans", v(-36, 0, -51.5), v(3, 2, 2.5), 180 },
+		-- (the garage door went: the back wall is treadmills now)
+		{ "TireRack", v(-10, 0, -29), v(5, 5, 2.5), 180 },
+		{ "PaintCans", v(10, 0, -29), v(3, 2, 2.5), 180 },
 	}
 	local out: { Garage.Mesh } = {}
 	for _, m in list do

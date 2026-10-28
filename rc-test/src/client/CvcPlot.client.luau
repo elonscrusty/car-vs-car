@@ -1,8 +1,9 @@
 --!strict
--- Car VS Car plots come alive (carter 10-26, rc-game/cvc/pics/plot-training-topdown-2.png;
+-- Car VS Car plots come alive (carter 10-28, rc-game/plot-layouts/plot-layout-edges.png;
 -- PlotTraining has the layout, PlotGarageBuilder builds the room and the pads): a tiny car runs
 -- on every station that has one (up the treadmill, over the ramp, round the speed track), and
--- the cars that aren't training wait on the stands in the garage room, slowly turning. A stand
+-- the cars that aren't training wait on the stands in the middle, slowly turning (the best one
+-- on the podium), and the scoreboard on the back wall lists every car's bars. A stand
 -- car has its tag (CarTag: name, kind, bars); a station car's name and the number it trains go on
 -- its pad's sign. On your own plot those are your trained numbers (CvcState); on other plots,
 -- the car's starting numbers. The treadmill belts scroll under
@@ -117,9 +118,19 @@ local function cars(plot: Instance): ({ [number]: Entry }, { Entry })
 				busy[car.uid] = true
 			end
 		end
+		local waiting: { Entry } = {}
 		for _, car in CvcState.garage do
-			if not busy[car.uid] and #stands < room then
-				table.insert(stands, { id = car.id, uid = car.uid })
+			if not busy[car.uid] then
+				table.insert(waiting, { id = car.id, uid = car.uid })
+			end
+		end
+		-- your best waiting car goes on the podium (stand 1)
+		table.sort(waiting, function(a: Entry, b: Entry): boolean
+			return total(a) > total(b)
+		end)
+		for _, e in waiting do
+			if #stands < room then
+				table.insert(stands, e)
 			end
 		end
 		return onPads, stands
@@ -136,12 +147,40 @@ local function cars(plot: Instance): ({ [number]: Entry }, { Entry })
 		if id ~= "" then
 			if (left[id] or 0) > 0 then
 				left[id] -= 1
-			elseif #stands < room then
+			else
 				table.insert(stands, { id = id })
 			end
 		end
 	end
+	table.sort(stands, function(a: Entry, b: Entry): boolean
+		return total(a) > total(b)
+	end)
+	while #stands > room do
+		table.remove(stands)
+	end
 	return onPads, stands
+end
+
+-- a car's bars, yours trained and anyone else's as it comes
+local function barsOf(e: Entry): PlotTraining.BoardCar
+	local car = if e.uid then CvcState.find(e.uid) else nil
+	local data: any = car or CvcState.fresh(e.id)
+	local info = CarCatalog.get(e.id) :: any
+	local out: PlotTraining.BoardCar = {
+		name = string.upper(if info then info.name else e.id),
+		speed = 0,
+		turn = 0,
+		boost = 0,
+	}
+	for _, b in CarStats.view(data) do
+		(out :: any)[b.bar] = b.value
+	end
+	return out
+end
+
+local function total(e: Entry): number
+	local b = barsOf(e)
+	return b.speed + b.turn + b.boost
 end
 
 local function keyOf(onPads: { [number]: Entry }, stands: { Entry }): string
@@ -199,6 +238,73 @@ local function riderSign(s: Shown, i: number, e: Entry)
 	bottom.Position, bottom.Size = UDim2.fromScale(0.03, 0.52), UDim2.fromScale(0.94, 0.43)
 end
 
+-- The scoreboard on the back wall: each car's name and its 3 bars, best on top.
+local function scoreBoard(s: Shown, onPads: { [number]: Entry }, stands: { Entry })
+	local group = s.training:FindFirstChild("Board")
+	local board = group and group:FindFirstChild("ScoreBoard")
+	if not (board and board:IsA("BasePart")) then
+		return
+	end
+	local list: { PlotTraining.BoardCar } = {}
+	for i = 1, #PlotTraining.GRID do
+		local e = onPads[i]
+		if e then
+			table.insert(list, barsOf(e))
+		end
+	end
+	for _, e in stands do
+		table.insert(list, barsOf(e))
+	end
+	local old = board:FindFirstChild("Rows")
+	if old then
+		old:Destroy()
+	end
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "Rows"
+	gui.Face = Enum.NormalId.Back -- the road side
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 30
+	gui.LightInfluence = 0
+	local rows = PlotTraining.BOARD_ROWS
+	local function text(parent: Instance, words: string, x: number, y: number, w: number, h: number)
+		local l = Instance.new("TextLabel")
+		l.BackgroundTransparency = 1
+		l.Position = UDim2.fromScale(x, y)
+		l.Size = UDim2.fromScale(w, h)
+		l.Font = Enum.Font.FredokaOne
+		l.TextScaled = true
+		l.TextColor3 = Color3.new(1, 1, 1)
+		l.TextXAlignment = Enum.TextXAlignment.Left
+		l.Text = words
+		l.Parent = parent
+		return l
+	end
+	local title = text(gui, "WHO IS AHEAD?", 0.03, 0.02, 0.94, 0.16)
+	title.TextXAlignment = Enum.TextXAlignment.Center
+	title.TextColor3 = Color3.fromRGB(255, 210, 60)
+	local rowH = 0.8 / rows
+	for k, car in PlotTraining.board(list) do
+		local y = 0.19 + (k - 1) * rowH
+		text(gui, k .. "  " .. car.name, 0.03, y + rowH * 0.1, 0.42, rowH * 0.8)
+		for j, bar in Training.BARS do
+			local c = PlotTraining.BAR_COLORS[bar]
+			local x = 0.47 + (j - 1) * 0.17
+			local back = Instance.new("Frame")
+			back.BorderSizePixel = 0
+			back.BackgroundColor3 = Color3.fromRGB(70, 74, 90)
+			back.Position = UDim2.fromScale(x, y + rowH * 0.25)
+			back.Size = UDim2.fromScale(0.155, rowH * 0.5)
+			back.Parent = gui
+			local fill = Instance.new("Frame")
+			fill.BorderSizePixel = 0
+			fill.BackgroundColor3 = Color3.fromRGB(c[1], c[2], c[3])
+			fill.Size = UDim2.fromScale(math.clamp((car :: any)[bar] / Training.MAX_BAR, 0, 1), 1)
+			fill.Parent = back
+		end
+	end
+	gui.Parent = board
+end
+
 local function standTag(model: Model, e: Entry)
 	local body = model:FindFirstChild("Body")
 	if body and body:IsA("BasePart") then
@@ -225,9 +331,11 @@ local function refresh(s: Shown)
 					standTag(m, e)
 				end
 			end
+			scoreBoard(s, onPads, stands)
 		end
 		return
 	end
+	scoreBoard(s, onPads, stands)
 	s.key = key
 	s.folder:ClearAllChildren()
 	s.riders, s.parked = {}, {}
@@ -266,7 +374,7 @@ local function refresh(s: Shown)
 		local model = makeCar(e.id, s.folder)
 		if model then
 			local st = PlotTraining.STANDS[k]
-			model:PivotTo(s.pivot * CFrame.new(st.x, STAND_TOP, st.z))
+			model:PivotTo(s.pivot * CFrame.new(st.x, STAND_TOP + (st.lift or 0), st.z))
 			table.insert(s.parked, model)
 			standTag(model, e)
 		end
@@ -296,7 +404,7 @@ local function place(s: Shown, clock: number)
 		local st = PlotTraining.STANDS[k]
 		m:PivotTo(
 			s.pivot
-				* CFrame.new(st.x, STAND_TOP, st.z)
+				* CFrame.new(st.x, STAND_TOP + (st.lift or 0), st.z)
 				* CFrame.Angles(0, math.rad(clock * SPIN + k * 40), 0)
 		)
 	end
