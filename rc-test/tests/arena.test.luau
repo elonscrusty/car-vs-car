@@ -10,63 +10,10 @@ local test, truthy, eq = H.test, H.truthy, H.eq
 print("Smash arena")
 
 local K = A.K
-local LO, HI = A.WALL + 1.5, A.PIC - A.WALL - 1.5 -- a kart's middle stays this far in
-
-local function segDist(px: number, py: number, a: { number }, b: { number }): number
-	local ax, ay = b[1] - a[1], b[2] - a[2]
-	local l2 = ax * ax + ay * ay
-	local u = if l2 > 0 then math.clamp(((px - a[1]) * ax + (py - a[2]) * ay) / l2, 0, 1) else 0
-	local x, y = a[1] + ax * u, a[2] + ay * u
-	return math.sqrt((px - x) ^ 2 + (py - y) ^ 2)
-end
-
--- the bumper wall's solid pieces (edges of the sand, minus the gaps)
-local function bumperPieces(): { { { number } } }
-	local out = {}
-	local n = #A.SAND
-	for i = 1, n do
-		local a, b = A.SAND[i], A.SAND[i % n + 1]
-		local cuts = { 0 }
-		for _, g in A.SAND_GAPS do
-			if g[1] == i then
-				table.insert(cuts, g[2])
-				table.insert(cuts, g[3])
-			end
-		end
-		table.insert(cuts, 1)
-		for k = 1, #cuts - 1, 2 do
-			local u0, u1 = cuts[k], cuts[k + 1]
-			table.insert(out, {
-				{ a[1] + (b[1] - a[1]) * u0, a[2] + (b[2] - a[2]) * u0 },
-				{ a[1] + (b[1] - a[1]) * u1, a[2] + (b[2] - a[2]) * u1 },
-			})
-		end
-	end
-	return out
-end
 
 -- Can a kart's middle be at picture point (x, y)? (half a kart = 1.5 picture units of room)
-local BUMPERS = bumperPieces()
 local function open(x: number, y: number): boolean
-	if x < LO or x > HI or y < LO or y > HI then
-		return false
-	end
-	for _, t in A.TREES do
-		if math.sqrt((x - t[1]) ^ 2 + (y - t[2]) ^ 2) < 1.2 + 1.5 then
-			return false
-		end
-	end
-	for _, seg in A.COVER do
-		if segDist(x, y, seg[1], seg[2]) < A.COVER_W / 2 + 1.5 then
-			return false
-		end
-	end
-	for _, seg in BUMPERS do
-		if segDist(x, y, seg[1], seg[2]) < A.BUMPER_W / 2 + 1.5 then
-			return false
-		end
-	end
-	return true
+	return A.clear(x, y, 1.5)
 end
 
 -- Drive-grid distance (picture units) from the nearest box to every open cell. A kart can drive
@@ -158,16 +105,35 @@ test("12 start spots and 22 box spots, all inside the walls and on open floor", 
 	end
 end)
 
-test("start spots face the middle and are well apart", function()
-	for i, s in A.spawns do
-		truthy(math.abs(s.dx * s.dx + s.dz * s.dz - 1) < 1e-6, "unit direction " .. i)
-		truthy(s.dx * s.x + s.dz * s.z < 0, "spot " .. i .. " faces the middle")
-		for j = i + 1, #A.spawns do
-			local o = A.spawns[j]
-			truthy(math.sqrt((s.x - o.x) ^ 2 + (s.z - o.z) ^ 2) > 30, `spots {i} and {j} apart`)
+test(
+	"start spots face the middle (or along a wall), the chase cam fits behind, well apart",
+	function()
+		for i, s in A.spawns do
+			truthy(A.facing(A.START[i]) ~= nil, "spot " .. i .. " has a way to face")
+			truthy(math.abs(s.dx * s.dx + s.dz * s.dz - 1) < 1e-6, "unit direction " .. i)
+			truthy(
+				s.dx * s.x + s.dz * s.z <= 1e-6,
+				"spot " .. i .. " doesn't face away from the middle"
+			)
+			local half = A.SIZE / 2 - A.WALL * K
+			for _, q in
+				{
+					{ s.x - s.dx * A.CAM_BACK, s.z - s.dz * A.CAM_BACK },
+					{ s.x + s.dx * A.NOSE_ROOM, s.z + s.dz * A.NOSE_ROOM },
+				}
+			do
+				truthy(
+					math.abs(q[1]) < half and math.abs(q[2]) < half,
+					"spot " .. i .. ": cam and nose inside the walls"
+				)
+			end
+			for j = i + 1, #A.spawns do
+				local o = A.spawns[j]
+				truthy(math.sqrt((s.x - o.x) ^ 2 + (s.z - o.z) ^ 2) > 30, `spots {i} and {j} apart`)
+			end
 		end
 	end
-end)
+)
 
 test("hills: boxes on them sit on top, ramps are gentle", function()
 	eq(A.boxSpots[6].y, A.HILLS[1].h, "HIGH PINK box on top")
@@ -176,8 +142,25 @@ test("hills: boxes on them sit on top, ramps are gentle", function()
 		local len = math.sqrt((r.to[1] - r.from[1]) ^ 2 + (r.to[2] - r.from[2]) ^ 2) * K
 		truthy(math.deg(math.atan(r.h / len)) < 18, "ramp " .. i .. " under 18 degrees")
 	end
-	eq(A.groundAt({ 1, 1 }), 0, "plain floor")
-	eq(A.groundAt({ 30, 20 }), A.STEP_H, "the purple step")
+	eq(A.groundAt({ 120, 120 }), 0, "plain floor")
+	eq(A.groundAt({ 30, 20 }), A.STEP_H, "the purple platform")
+	eq(A.spawns[1].y, A.STEP_H + 2.5, "start spot 1 on top of the platform")
+	-- the hill sides are too steep to drive up, the platform's are gentle
+	for _, h in A.HILLS do
+		truthy(h.h / (h.slope * K) > 1.5, h.name .. " sides steep")
+	end
+	truthy(A.STEP_H / (A.STEP_SLOPE * K) < 0.3, "platform sides gentle")
+	-- each ramp's deck reaches the full-height top
+	for i, r in A.RAMPS do
+		local ax, ay = r.to[1] - r.from[1], r.to[2] - r.from[2]
+		local len = math.sqrt(ax * ax + ay * ay)
+		local p =
+			{ r.to[1] + ax / len * (A.RAMP_DECK - 0.5), r.to[2] + ay / len * (A.RAMP_DECK - 0.5) }
+		eq(A.groundAt(p), r.h, "ramp " .. i .. " deck at the top")
+		local hill = A.HILLS[i]
+		local inner = A.insetPoly(hill.poly, hill.slope)
+		truthy(A.inside(inner, p), "ramp " .. i .. " deck ends on the flat top")
+	end
 end)
 
 test("hard target: every open spot is within 5 s drive of a box (and none is cut off)", function()
