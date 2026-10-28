@@ -35,7 +35,10 @@ local smalls: { Small } = {}
 -- the pad signs: off during the race call and race (BuildOpen false: the pads do nothing then,
 -- and the words sat on the race card and countdown), and smaller from close up
 local padSigns: { [BillboardGui]: string } = {} -- each pad sign's kind
-local PAD_SIZE = Vector2.new(9, 3.6) -- studs, from far
+-- studs, from far; low and small enough that from the plaza ring it doesn't stand in front of
+-- the crate shop (Studio batch-2035 #4: at 9x3.6, 6 up, it covered the prices)
+local PAD_SIZE = Vector2.new(7.5, 3)
+local PAD_UP = 4.2
 local PAD_NEAR = 26 -- closer than this (camera to sign) they shrink with the distance...
 local PAD_MIN = 0.35 -- ...down to this much (from the spawn the middle pad is ~12 away)
 
@@ -148,7 +151,7 @@ local function addPad(base: Instance)
 	if word == nil then
 		return
 	end
-	local b = sign(base, "Pad" .. tostring(base:GetAttribute("Pad") or ""), PAD_SIZE, 6, 60)
+	local b = sign(base, "Pad" .. tostring(base:GetAttribute("Pad") or ""), PAD_SIZE, PAD_UP, 60)
 	gates[b] = PAD_GATE[kind] or "pads"
 	padSigns[b] = kind
 	-- the side pads' words lean in toward the middle pad, so from the spawn all three fit on a
@@ -163,7 +166,7 @@ local function addPad(base: Instance)
 				local to = other.Position - base.Position
 				to = Vector3.new(to.X, 0, to.Z)
 				if to.Magnitude > 1 then
-					b.StudsOffsetWorldSpace = Vector3.new(0, 6, 0) + to.Unit * 10
+					b.StudsOffsetWorldSpace = Vector3.new(0, PAD_UP, 0) + to.Unit * 10
 				end
 			end
 		end
