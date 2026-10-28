@@ -6,6 +6,10 @@
 -- Each skin is a Model in ReplicatedStorage.CarSkins (RockCrawler, DriftCoupe, ...), with MeshParts
 -- named Body, WheelFL, WheelFR, WheelRL and WheelRR. Studio's 3D import puts the nose at +Z, and
 -- the car drives toward -Z, so the copy is turned around before use.
+--
+-- HOW TO ADD A CAR MODEL: name the Model the car's id from CarCatalog (e.g. race_bolt), give it
+-- MeshParts Body, WheelFL, WheelFR, WheelRL, WheelRR, and drop it in ReplicatedStorage.CarSkins.
+-- It then replaces that car's toy look in races, for your own car and everyone else's.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
@@ -117,7 +121,12 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 	for _, w in wheels do
 		meshRadius += w.Size.Y / 8
 	end
-	copy:ScaleTo(copy:GetScale() * Tuning.wheelRadius / meshRadius)
+	if copy:GetAttribute("Extras") == true then
+		-- a toy car: as long as the grey body it covers (built at s = 1, Garage.toyFit)
+		copy:ScaleTo(copy:GetScale() * Garage.toyFit(Tuning.bodyZ))
+	else
+		copy:ScaleTo(copy:GetScale() * Tuning.wheelRadius / meshRadius)
+	end
 
 	-- where its wheels sit, seen from the middle between them
 	local mid = Vector3.zero

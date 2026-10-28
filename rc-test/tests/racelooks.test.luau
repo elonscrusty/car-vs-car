@@ -113,3 +113,61 @@ test(
 		)
 	end
 )
+
+test("Car VS Car (Studio pr816 04b): the toy car is the grey body's size, within 10%", function()
+	local fs = require("@lune/fs")
+	local Garage = require("../src/shared/Garage")
+	local bodyX, bodyY, bodyZ = 3, 1, 5.5 -- Tuning's big-size grey body
+	local pieces = {}
+	Garage.toyCar(
+		Garage.adder(pieces),
+		"Car",
+		{ x = 0, y = 0, z = 0 },
+		0,
+		{ 1, 2, 3 },
+		Garage.toyFit(bodyZ),
+		"race"
+	)
+	local minX, maxX, minZ, maxZ = math.huge, -math.huge, math.huge, -math.huge
+	local body: any = nil
+	for _, p in pieces :: { any } do
+		if p.name ~= "Wheel" and p.name ~= "Hub" then
+			minX, maxX =
+				math.min(minX, p.pos.x - p.size.x / 2), math.max(maxX, p.pos.x + p.size.x / 2)
+			minZ, maxZ =
+				math.min(minZ, p.pos.z - p.size.z / 2), math.max(maxZ, p.pos.z + p.size.z / 2)
+		end
+		if p.name == "Body" then
+			body = p
+		end
+	end
+	local function near(a: number, b: number, what: string)
+		truthy(math.abs(a - b) <= 0.1 * b, `{what}: {a} vs {b}`)
+	end
+	near(maxZ - minZ, bodyZ, "length")
+	near(maxX - minX, bodyX, "width")
+	near(body.size.x, bodyX, "body width")
+	near(body.size.y, bodyY, "body height")
+	-- both the own car's skin and other cars use that size
+	local skin = fs.readFile("src/client/CarSkin.luau")
+	truthy(string.find(skin, "Garage.toyFit(Tuning.bodyZ)", 1, true), "own car sized by its wheels")
+	local others = fs.readFile("src/client/OtherCars.luau")
+	truthy(
+		string.find(others, 'Garage.toyFit(base("bodyZ"))', 1, true),
+		"other cars sized by wheels"
+	)
+end)
+
+test("carter's own car model (CarSkins, named the car id) wins over the toy look", function()
+	local fs = require("@lune/fs")
+	local main = fs.readFile("src/client/Main.client.luau")
+	truthy(
+		string.find(main, "skins:FindFirstChild(id) then id else CarSkin.TOY .. id", 1, true),
+		"own car"
+	)
+	local others = fs.readFile("src/client/OtherCars.luau")
+	truthy(string.find(others, "modelShell(f, own, s) else nil", 1, true), "other cars")
+	truthy(string.find(others, "toy or if id then toyShell", 1, true), "toy when no model")
+	local skin = fs.readFile("src/client/CarSkin.luau")
+	truthy(string.find(skin, "HOW TO ADD A CAR MODEL", 1, true), "how-to line")
+end)

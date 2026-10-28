@@ -400,6 +400,14 @@ end
 -- `at`, nose toward -Z turned by `yaw` degrees. Looks only (not solid).
 -- style: "race" (default, low with a small wing), "drift" (low, wide wheels, big wing) or "rock"
 -- (big wheels, lifted, no wing).
+-- The toy car's body is 3.6 long at s = 1: the s that makes it `length` long (a race car's toy
+-- look is sized to the grey body it covers, so the chase camera sees the same size car; sized by
+-- its wheels it came out a third bigger and filled the screen, Studio pr816 04b).
+Garage.TOY_LENGTH = 3.6
+function Garage.toyFit(length: number): number
+	return length / Garage.TOY_LENGTH
+end
+
 function Garage.toyCar(
 	add: Add,
 	group: string,
