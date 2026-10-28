@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local CarSkin = require(script.Parent.CarSkin)
+local KartMesh = require(script.Parent.KartMesh)
 local CarMath = require(ReplicatedStorage.Shared.CarMath)
 local Features = require(ReplicatedStorage.Shared.Features)
 local Garage = require(ReplicatedStorage.Shared.Garage)
@@ -42,6 +43,7 @@ type Other = {
 	tag: BillboardGui,
 	hidden: boolean?,
 	toy: Toy?,
+	kartId: string?, -- wears the part toy until its kart is built in game (KartMesh), then that
 }
 
 -- the toy car this model wears: a bot's ToyCar, a player's racer (nil = keep the grey blocks)
@@ -233,6 +235,7 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 		local toy = if own and own:IsA("Model") then modelShell(f, own, s) else nil
 		local kart = if id and not (own and own:IsA("Model")) then CarSkin.kartFor(id) else nil
 		toy = toy or if kart then modelShell(f, kart, s, id) else nil
+		local waiting = id ~= nil and toy == nil and not (own and own:IsA("Model"))
 		toy = toy or if id then toyShell(f, id, s) else nil
 		if toy then
 			for _, d in model:GetDescendants() do
@@ -242,7 +245,9 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 				end
 			end
 		end
-		local o = { body = body, folder = f, wheels = wheels, scale = s, tag = tag, toy = toy }
+		local o: Other =
+			{ body = body, folder = f, wheels = wheels, scale = s, tag = tag, toy = toy }
+		o.kartId = if waiting then id else nil
 		others[model] = o
 		return o
 	end
@@ -331,6 +336,21 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 			local o = others[m] or add(m)
 			if not o then
 				continue
+			end
+			-- its kart has been built since (KartMesh): swap the part toy for it
+			local kartId = o.kartId
+			if kartId then
+				local kart = CarSkin.kartFor(kartId)
+				local shell = kart and modelShell(o.folder, kart, o.scale, kartId)
+				if shell then
+					for _, p in (o.toy :: Toy).parts do
+						p:Destroy()
+					end
+					o.toy = shell
+					o.kartId = nil
+				elseif KartMesh.isBroken() then
+					o.kartId = nil -- no karts on this device: keep the part toy
+				end
 			end
 			local body = o.body
 			local cf = body.CFrame

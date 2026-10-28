@@ -11,9 +11,10 @@
 -- MeshParts Body, WheelFL, WheelFR, WheelRL, WheelRR, and drop it in ReplicatedStorage.CarSkins.
 -- It then replaces that car's toy look in races, for your own car and everyone else's.
 --
--- KART MODELS: the 6 Blender karts (Kart_Racer, Kart_Buggy, ...; ToyCars.KARTS says which car
--- shape wears which) sit in CarSkins too. Their MeshParts are named Body, Accent, Trim, Driver,
--- Head, Headlights, Taillights, WeaponMount and the 4 wheels, and are painted per car by name.
+-- KART MODELS: the karts (carter's Kart_Carter1, Kart_Dozer, ...; ToyCars.KARTS says which car
+-- shape wears which) are built in game by KartMesh; an imported copy in CarSkins wins. Their
+-- MeshParts (Body, Accent, Trim, Driver, Head, Cap, Headlights, ..., the 4 wheels) are painted per
+-- car by name (ToyCars.kartPaint). No weapon on the kart: an icon above it shows that (carter).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
@@ -21,6 +22,7 @@ local UserInputService = game:GetService("UserInputService")
 local RCCar = require(script.Parent.RCCar)
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local Garage = require(ReplicatedStorage.Shared.Garage)
+local KartMesh = require(script.Parent.KartMesh)
 local ToyCars = require(ReplicatedStorage.Shared.ToyCars)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
 
@@ -89,11 +91,20 @@ local function rgb(c: { number }): Color3
 end
 
 -- The kart model a car wears, if it is in CarSkins.
+-- The kart model a car wears: an imported one in CarSkins, else the one built in game (KartMesh;
+-- nil while it builds or on a device that can't).
 function CarSkin.kartFor(id: string): Model?
 	local info = CarCatalog.get(id)
+	if not info then
+		return nil
+	end
+	local name = ToyCars.kartModel(info.style)
 	local skins = ReplicatedStorage:FindFirstChild("CarSkins")
-	local m = info and skins and skins:FindFirstChild(ToyCars.kartModel(info.style))
-	return if m and m:IsA("Model") then m else nil
+	local m = skins and skins:FindFirstChild(name)
+	if m and m:IsA("Model") then
+		return m
+	end
+	return KartMesh.get(name, ToyCars.kartRim(info.color, info.style))
 end
 
 -- Paints a kart model's part for a car, by its name (ToyCars.kartPaint).
@@ -103,7 +114,7 @@ function CarSkin.paintKart(p: BasePart, id: string)
 		return
 	end
 	local col, glow = ToyCars.kartPaint(p.Name, info.color, info.style)
-	if col then
+	if col and p:GetAttribute("Baked") ~= true then
 		p.Color = rgb(col)
 		p.Material = if glow then Enum.Material.Neon else Enum.Material.SmoothPlastic
 		if p:IsA("MeshPart") then

@@ -1,6 +1,6 @@
 --!strict
 -- Toy kart looks (carter 10-28 "use all of it"): every car has its own low-poly shape and accent
--- in the look rule's palette, a driver and a WeaponMount, stays the grey race body's length and the
+-- in the look rule's palette and no weapon on it (an icon above it shows that), stays the grey race body's length and the
 -- phone part budget, and its wheels sit where the race car's springs put them.
 local H = require("./harness")
 local CarCatalog = require("../src/shared/CarCatalog")
@@ -66,7 +66,7 @@ test("the old looks and unknown ones still draw a car", function()
 	truthy(ToyCars.parse("truck/purple/glow").glow)
 end)
 
-test("every car: 16 parts at most, four wheels one per corner, a WeaponMount", function()
+test("every car: 16 parts at most, four wheels one per corner, no weapon plate", function()
 	for _, shape in ToyCars.SHAPES do
 		for _, style in { shape .. "/white", shape .. "/white/glow" } do
 			local ps = pieces(style)
@@ -92,10 +92,9 @@ test("every car: 16 parts at most, four wheels one per corner, a WeaponMount", f
 			for _, k in { "FL", "FR", "RL", "RR" } do
 				eq(corners[k], 1)
 			end
-			-- Body: the one part the race paints the car's colour; WeaponMount: where rockets go
-			for _, name in { "Body", "WeaponMount" } do
-				eq(named[name], 1)
-			end
+			-- Body: the one part the race paints the car's colour (carter 10-28: no weapon plate)
+			eq(named.Body, 1)
+			eq(named.WeaponMount, nil)
 			local len, wide = maxZ - minZ, maxX - minX
 			truthy(
 				math.abs(len - Garage.TOY_LENGTH) <= 0.1 * Garage.TOY_LENGTH,
@@ -147,38 +146,13 @@ test("wheels stay near the race car's own (springs hold them: big tyres would si
 	end
 end)
 
-test("every car has a hat spot, and nothing covers its WeaponMount", function()
+test("every car has a hat spot", function()
 	local fs = require("@lune/fs")
 	local builder = fs.readFile("src/server/CarBuilder.luau")
 	truthy(string.find(builder, 'topper.Name = "Topper"', 1, true), "no Topper attachment")
-	-- nothing but the deck and floor under the WeaponMount's square (the head is above it)
-	for _, shape in ToyCars.SHAPES do
-		local ps = pieces(shape .. "/white")
-		local mount: any
-		for _, p in ps do
-			if p.name == "WeaponMount" then
-				mount = p
-			end
-		end
-		for _, p in ps do
-			local name = p.name
-			if
-				name ~= "WeaponMount"
-				and name ~= "Body"
-				and name ~= "Floor"
-				and name ~= "Hub"
-				and name ~= "Head"
-			then
-				local overZ = math.abs(p.pos.z - mount.pos.z) < (p.size.z + mount.size.z) / 2 - 0.02
-				local overX = math.abs(p.pos.x - mount.pos.x) < (p.size.x + mount.size.x) / 2
-				local overY = p.pos.y + p.size.y / 2 > mount.pos.y - mount.size.y / 2 + 0.02
-				truthy(not (overZ and overX and overY), `{shape}: {name} covers the WeaponMount`)
-			end
-		end
-	end
 end)
 
-test("6 Blender kart models dress all 24 cars, each car its own colours", function()
+test("6 kart models dress all 24 cars, each car its own colours", function()
 	local seen: { [string]: string } = {}
 	local models: { [string]: boolean } = {}
 	for _, shape in ToyCars.SHAPES do
@@ -216,12 +190,27 @@ test(
 			truthy(on, `{name} not lit`)
 		end
 		for _, name in
-			{ "Trim", "Driver", "Head", "WeaponMount", "WheelFL", "WheelFR", "WheelRL", "WheelRR" }
+			{
+				"Trim",
+				"Driver",
+				"Head",
+				"Cap",
+				"Metal",
+				"Eyes",
+				"Seat",
+				"RimFL",
+				"WheelFL",
+				"WheelFR",
+				"WheelRL",
+				"WheelRR",
+			}
 		do
 			truthy(ToyCars.kartPaint(name, red, "muscle") ~= nil, `{name} not painted`)
 		end
-		-- the driver's shirt never matches a blue car
-		eq(ToyCars.kartPaint("Driver", { 30, 111, 217 }, "muscle"), ToyCars.PALETTE.white) -- (a catalog colour is its own table)
+		-- carter's picture: the shirt, cap and rims are the kart's own colour
+		eq(ToyCars.kartPaint("Driver", red, "muscle"), red)
+		eq(ToyCars.kartPaint("Cap", red, "muscle"), red)
+		eq(ToyCars.kartRim(red, "muscle"), red)
 		-- own car and others both wear them
 		local fs = require("@lune/fs")
 		local others = fs.readFile("src/client/OtherCars.luau")
@@ -244,3 +233,76 @@ test("a new kid with no racer yet drives the starter's kart, not the red grey bo
 	local starter = CarCatalog.starter("race")
 	truthy(CarCatalog.get(starter.id) ~= nil and starter.price == 0, "the starter is a free car")
 end)
+
+test(
+	"the karts (carter's picture + his Meshy one): built in game from mesh data, painted by name",
+	function()
+		local KartMeshData = require("../src/shared/KartMeshData")
+		local names: { [string]: boolean } = {}
+		for _, name in ToyCars.KARTS do
+			names[name] = true
+		end
+		for name in names do
+			local kart = KartMeshData[name]
+			truthy(kart ~= nil, `{name}: no mesh data`)
+			local tris = 0
+			for g, mesh in kart do
+				local v, t = {}, {}
+				for n in string.gmatch(mesh.v, "-?%d+") do
+					table.insert(v, tonumber(n))
+				end
+				for n in string.gmatch(mesh.t, "%d+") do
+					table.insert(t, tonumber(n))
+				end
+				eq(#v % 3, 0)
+				eq(#t % 3, 0)
+				for _, i in t do
+					truthy(i >= 1 and i <= #v / 3, `{name}.{g}: vertex {i} out of range`)
+				end
+				tris += #t / 3
+				-- every part gets its colour from the car (no weapon plate: carter 10-28)
+				truthy(ToyCars.kartPaint(g, { 1, 2, 3 }, "muscle") ~= nil, `{name}.{g} not painted`)
+				truthy(g ~= "WeaponMount", `{name} has a weapon plate`)
+				if g == "Headlights" then
+					-- nose at +Z, as the skins expect
+					local z = 0
+					for k = 3, #v, 3 do
+						z += v[k]
+					end
+					truthy(z > 0, `{name}: headlights at the back`)
+				end
+			end
+			truthy(tris <= 5500, `{name}: {tris} triangles (phones)`)
+			for _, part in
+				{ "Body", "Head", "Cap", "WheelFL", "WheelFR", "WheelRL", "WheelRR", "RimFL" }
+			do
+				truthy(kart[part] ~= nil, `{name} has no {part}`)
+			end
+		end
+		-- carter's own kart (10-28): the racers wear it, its face rebuilt with two eyes and a smile
+		eq(ToyCars.KARTS.formula, "Kart_Carter1")
+		local face = KartMeshData.Kart_Carter1.Eyes
+		truthy(
+			face ~= nil and #string.split(face.t, ",") // 3 == 5 * 12,
+			"carter's driver has no clean face"
+		)
+		local fs = require("@lune/fs")
+		local km = fs.readFile("src/client/KartMesh.luau")
+		truthy(
+			string.find(km, "pcall(build", 1, true),
+			"a failed build must fall back to the toy car"
+		)
+		truthy(
+			string.find(km, 'p:SetAttribute("Baked", true)', 1, true),
+			"wheels keep their own colours"
+		)
+		local skin = fs.readFile("src/client/CarSkin.luau")
+		truthy(
+			string.find(skin, "return KartMesh.get(name, ToyCars.kartRim(", 1, true),
+			"karts not used"
+		)
+		truthy(string.find(skin, 'p:GetAttribute("Baked") ~= true', 1, true), "wheels repainted")
+		local others = fs.readFile("src/client/OtherCars.luau")
+		truthy(string.find(others, "o.toy = shell", 1, true), "other cars never get their kart")
+	end
+)
