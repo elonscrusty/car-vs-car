@@ -124,19 +124,16 @@ function RaceBots.skillRange(league: number?, easy: boolean?): (number, number)
 	return RaceBots.BRONZE_SKILL[1] * m, RaceBots.BRONZE_SKILL[2] * m
 end
 
--- How much faster a car typical of `league` is than an untrained one (RaceStats' top speed gain
--- at the league's usual bars: halfway between its entry strength and the next league's, spread
--- over the 3 bars). Bronze = 1.
+-- How fast a car typical of `league` is, x today's car (RaceStats' top speed at the league's usual
+-- bars: halfway between its entry strength and the next league's, spread over the 3 bars). Bronze
+-- is a bit under 1, like the low starter cars it races (carter 10-28).
 function RaceBots.leagueGain(league: number): number
 	local n = #League.NAMES
 	local l = League.clamp(league)
 	local need = League.NEED[l].strength
-	local upper = if l < n then League.NEED[l + 1].strength else need + 60
+	local upper = if l < n then League.NEED[l + 1].strength else math.min(need + 60, 300)
 	local bar = (need + upper) / 2 / 3 -- an average bar, 0..100
-	if l == 1 then
-		return 1
-	end
-	return 1 + RaceStats.TOP * math.clamp(bar, 0, 100) / 100
+	return RaceStats.topAt(bar)
 end
 
 -- How many bots a race with `humans` players needs (0 when nobody is there: no race at all).

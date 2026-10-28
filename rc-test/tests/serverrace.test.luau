@@ -468,3 +468,63 @@ test(
 		)
 	end
 )
+
+test(
+	"Car VS Car (carter's phone run 10-28): a car that creeps on the pole is no jump start",
+	function()
+		local LobbyLayout = require("../src/shared/LobbyLayout")
+		for _, k in { 1, 2 } do
+			local slot = LobbyLayout.mapIndex(k)
+			local t = LobbyLayout.track(slot)
+			local g = t.gates[1]
+			for i = 1, ServerRace.MAX do
+				local s = ServerRace.gridOn(LobbyLayout.mapAt(slot), i, t.spawn.y)
+				-- up to 10 forward (a lagging GO, a shove) is still behind the line
+				for d = 0, 10, 2 do
+					truthy(
+						not ServerRace.overLine(g, s.x + g.dx * d, s.y, s.z + g.dz * d),
+						`{t.map} spot {i}: {d} forward taken as a jump`
+					)
+				end
+			end
+			-- really over the line is a jump
+			truthy(ServerRace.overLine(g, g.x + g.dx * 3, g.y, g.z + g.dz * 3))
+			truthy(not ServerRace.overLine(g, g.x - g.dx * 3, g.y, g.z - g.dz * 3))
+		end
+		local fs = require("@lune/fs")
+		local src = fs.readFile("src/server/ServerRaceRunner.luau")
+		truthy(
+			string.find(src, "ServerRace.overLine(gate1, lx, ly, lz)", 1, true),
+			"server still uses the gate"
+		)
+		truthy(
+			string.find(src, "and not (groupEasy[gi] and r.new)", 1, true),
+			"a new kid can jump race 1"
+		)
+		-- the first race ends the moment its new kids are in
+		truthy(
+			string.find(
+				src,
+				"or (groupEasy[gi] and kidsIn and not kidsLeft and since > 0)",
+				1,
+				true
+			)
+		)
+	end
+)
+
+test("Car VS Car (carter's phone run 10-28): a new kid's RACE! has no clock to miss", function()
+	local fs = require("@lune/fs")
+	local src = fs.readFile("src/client/CvcScreens.client.luau")
+	truthy(string.find(src, 'local firstRace = num("Stage") < Profile.STAGE.RACED', 1, true))
+	truthy(
+		string.find(
+			src,
+			"if left and left > 0 and not firstRace then clock(left) else nil",
+			1,
+			true
+		)
+	)
+	-- (and the tap starts it soon: B8)
+	truthy(ServerRace.CVC_FIRST + ServerRace.JOIN_GRACE <= 5)
+end)
