@@ -16,7 +16,7 @@ local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local CarBuilder = require(script.Parent.CarBuilder)
 
-type Car = {
+export type Car = {
 	bot: RaceBots.Bot,
 	model: Model,
 	body: BasePart,

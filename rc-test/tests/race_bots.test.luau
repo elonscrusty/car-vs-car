@@ -720,3 +720,49 @@ test("Car VS Car (Studio after-810): a held easy bot eases off and never stops d
 	truthy(slowest >= RaceBots.FOLLOW_MIN - 1e-6, `stopped dead ({slowest})`)
 	truthy(bot.speed <= RaceBots.FOLLOW_MIN + 1e-6, "eased right down to a crawl")
 end)
+
+test("Car VS Car (Studio after-818): a put-back doesn't flip the new kid to 8TH", function()
+	for _, m in RaceMaps.list() do
+		local route = setup(m, 0.42, 1)
+		route.laps = 2
+		local function at(d: number, skill: number?): RaceBots.Bot
+			local _, b = setup(m, skill or 0.42, 2)
+			b.dist = d
+			b.seg = 1
+			return b
+		end
+		-- the kid was 1ST mid-lap, the held bots 10-30 behind; then put back 45 along the road
+		local mid = route.total * 0.55
+		local kidAt = mid - 45
+		local kid = RaceBots.progress(route, at(kidAt))
+		local runs: { ServerRace.Run } = { { time = nil, progress = kid } }
+		for k = 1, 6 do
+			local b = at(mid - 5 * k)
+			local real = RaceBots.progress(route, b)
+			table.insert(runs, {
+				time = nil,
+				progress = RaceBots.placeProgress(b, real, kidAt, kid, false),
+			})
+		end
+		eq(ServerRace.places(runs)[1], 1, `{m.id}: the kid stays 1ST over bots waiting for them`)
+		-- the rival in front still counts (2ND), and so does a bot far ahead of a stuck kid
+		local rival = at(kidAt + RaceBots.RIVAL_LEAD)
+		table.insert(runs, {
+			time = nil,
+			progress = RaceBots.placeProgress(
+				rival,
+				RaceBots.progress(route, rival),
+				kidAt,
+				kid,
+				true
+			),
+		})
+		eq(ServerRace.places(runs)[1], 2, `{m.id}: behind the rival`)
+		local far = at(kidAt + RaceBots.FOLLOW_WAIT + 50)
+		local real = RaceBots.progress(route, far)
+		eq(RaceBots.placeProgress(far, real, kidAt, kid, false), real)
+	end
+	local fs = require("@lune/fs")
+	local run = fs.readFile("src/server/ServerRaceRunner.luau")
+	truthy(string.find(run, "then RaceBots.placeProgress(", 1, true), "places not wired")
+end)

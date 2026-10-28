@@ -937,6 +937,7 @@ local function runRace(hooks: Hooks, slot: number)
 				tagCars()
 				local runs: { ServerRace.Run } = {}
 				kidLead = nil
+				local kidProgress: number? = nil
 				for _, r in racers do
 					local s = r.timer
 					local passed = if s.running then s.next - 1 else 0
@@ -969,6 +970,7 @@ local function runRace(hooks: Hooks, slot: number)
 							else RaceBots.distOf(bots.route, progress)
 						if kidLead == nil or at > kidLead then
 							kidLead = at
+							kidProgress = progress
 						end
 						kidFrom[r] = kidFrom[r] or at
 						kidMoved = kidMoved or at - kidFrom[r] > ServerRace.IDLE_MOVE
@@ -977,9 +979,18 @@ local function runRace(hooks: Hooks, slot: number)
 				local cars = #racers
 				if bots then
 					for _, car in bots.cars do
+						local real = RaceBots.progress(bots.route, car.bot)
 						table.insert(runs, {
 							time = car.bot.time,
-							progress = RaceBots.progress(bots.route, car.bot),
+							progress = if bots.easy
+								then RaceBots.placeProgress(
+									car.bot,
+									real,
+									kidLead,
+									kidProgress,
+									car.rival
+								)
+								else real,
 						})
 						cars += 1
 					end
