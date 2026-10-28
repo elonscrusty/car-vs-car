@@ -376,14 +376,16 @@ function Flow.podium(data: { [string]: any }, actions: Screen.Actions?): Screen.
 		end)
 		-- what training gave the car since the last race (review fix 4: training -> winning)
 		if data.trained then
-			Base.text(g.canvas, "Trained", 512, 202, 236, 34, data.trained, {
+			-- (in its own spot by the right edge: at canvas x 512 it ran past the Rewards card on a
+			-- wide screen, auditor L6)
+			Base.text(spot(g.canvas, "podium", "Trained"), "Words", 0, 0, 236, 34, data.trained, {
 				color = Base.color("go"),
 				stroke = 5,
 				z = 5,
 			})
 		end
 		placedButton(g.canvas, "podium", "Next", Screen.act(actions, "next"), data.nextWords)
-		placedButton(g.canvas, "podium", "Back", Screen.act(actions, "back"))
+		placedButton(g.canvas, "podium", "Back", Screen.act(actions, "back"), data.backWords)
 		return {}
 	end)
 end

@@ -303,6 +303,10 @@ end
 -- A quick nudge (-8, +6, -3 deg) every 4.5 s.
 function Anim.nudge(obj: GuiObject, first: number?)
 	Anim.every(obj, M.sideNudge, function()
+		-- (only the next thing to tap moves: the rest go quiet, auditor L2)
+		if obj:GetAttribute("Quiet") == true then
+			return
+		end
 		local steps = { -8, 6, -3, 0 }
 		for i, deg in steps do
 			task.delay((i - 1) * 0.09, function()

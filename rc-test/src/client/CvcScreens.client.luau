@@ -906,11 +906,14 @@ RunService.Heartbeat:Connect(function()
 	api.setShown("League", shopped)
 	api.setShown("Jobs", shopped)
 	-- (after the first race: by then there's a race to bring a friend to)
-	api.setShown("Invite", raced and canInvite)
+	-- (after the first crate, with the other later things: fewer pieces at once, auditor L2)
+	api.setShown("Invite", shopped and canInvite)
 	-- one arrow on the one thing to tap
 	local goal, goalWords = hudGoal()
 	if goal ~= lastGoal then
 		lastGoal = goal
+		-- (the world can follow the one next thing too: the plot thread reads it)
+		player:SetAttribute("HudGoal", goal)
 		lastInput = now
 	end
 	api.point(goal, goalWords, now - lastInput >= IDLE_NUDGE)
@@ -941,7 +944,8 @@ RunService.Heartbeat:Connect(function()
 			"Tap RACE! to join 8 cars",
 			left ~= nil and left < 10
 		)
-		api.setRace("RACE!", "lime", true)
+		-- (it pulses only when it's the next thing to do: one thing glows, auditor L2)
+		api.setRace("RACE!", "lime", goal == "Race")
 	end
 	-- COACH: 2x training for 10 s, once a minute
 	local at = num("CoachAt")
@@ -1209,7 +1213,9 @@ local function showPodiumWith(place: number, top: { [number]: { [string]: any } 
 		coins = coins,
 		trained = trained,
 		trophies = if League.trophy(place) then 1 else 0,
-		nextWords = if crate then "OPEN CRATE!" else nil,
+		-- the loop: open the new car, or race again; the other button goes training
+		nextWords = if crate then "OPEN CRATE!" else "RACE AGAIN!",
+		backWords = "TRAIN",
 	}, {
 		next = function()
 			Screen.closeOver()
@@ -1220,7 +1226,10 @@ local function showPodiumWith(place: number, top: { [number]: { [string]: any } 
 				join()
 			end
 		end,
-		back = Screen.closeOver,
+		back = function()
+			Screen.closeOver()
+			openGarage()
+		end,
 	})
 	-- it goes away by itself after a while
 	task.delay(15, function()
