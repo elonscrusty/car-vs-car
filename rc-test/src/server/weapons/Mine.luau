@@ -10,15 +10,18 @@
 local Mine = {}
 
 Mine.NAME = "Mine"
+-- RC size: big units (a kart is 3 x 5.5 big) times SCALE (= TrackData.RC_SCALE; a test checks)
+Mine.SCALE = 0.25
+local S = Mine.SCALE
 Mine.ammo = 3 -- mines per box
 Mine.cooldown = 0.6
 Mine.ARM = 0.5 -- seconds before a dropped mine can go off
-Mine.RADIUS = 7 -- studs from the mine to a kart's centre
+Mine.RADIUS = 5 * S -- mine to a kart's centre: touching its nose or side sets it off
 Mine.DAMAGE = 34 -- three hits smash a kart
 Mine.LIFE = 30 -- seconds; an untouched mine fizzles out
 Mine.PER_KART = 3 -- live mines per kart; a 4th removes that kart's oldest
-Mine.BEHIND = 6 -- studs behind the kart centre
-Mine.DROP = 1.2 -- studs below the kart centre (on the road)
+Mine.BEHIND = 5 * S -- behind the kart centre: just clear of its tail
+Mine.DROP = 1.5 * S -- below the kart centre (on the road)
 
 export type Kart = { id: any, cframe: CFrame, alive: boolean }
 export type Ctx = {
@@ -50,7 +53,7 @@ local function build(at: Vector3): Instance
 	local base = Instance.new("Part")
 	base.Name = "Base"
 	base.Shape = Enum.PartType.Cylinder
-	base.Size = Vector3.new(0.8, 3.2, 3.2)
+	base.Size = Vector3.new(0.6, 2.4, 2.4) * S
 	base.CFrame = cf * CFrame.Angles(0, 0, math.rad(90))
 	base.Color = Color3.fromRGB(34, 36, 64)
 	base.Material = Enum.Material.SmoothPlastic
@@ -62,8 +65,8 @@ local function build(at: Vector3): Instance
 	local light = Instance.new("Part")
 	light.Name = "Light"
 	light.Shape = Enum.PartType.Ball
-	light.Size = Vector3.new(1, 1, 1)
-	light.CFrame = cf + Vector3.new(0, 0.5, 0)
+	light.Size = Vector3.new(0.8, 0.8, 0.8) * S
+	light.CFrame = cf + Vector3.new(0, 0.4 * S, 0)
 	light.Color = Color3.fromRGB(232, 53, 46)
 	light.Material = Enum.Material.Neon
 	light.Anchored = true

@@ -116,6 +116,26 @@ test("gunmine: Gun, Mine and Freeze are weapons with the same numbers as their m
 	end
 end)
 
+-- ===== RC scale (FINISH-JOBS SCALE rule: a kart is 5.5 big x RC_SCALE long) =====
+
+test("gunmine: distances are RC size and make sense next to a kart", function()
+	local TrackData = require("../src/shared/TrackData")
+	local ArenaData = require("../src/shared/ArenaData")
+	local kartLen = 5.5 * TrackData.RC_SCALE
+	local arena = ArenaData.SIZE * TrackData.RC_SCALE
+	for _, m in { Gun, Mine, Freeze } do
+		eq(m.SCALE, TrackData.RC_SCALE, m.NAME .. " scale")
+	end
+	-- the gun and freeze reach far, but not across the whole arena
+	for _, m in { Gun, Freeze } do
+		truthy(m.RANGE >= 20 * kartLen and m.RANGE <= arena * 0.6, m.NAME .. " range")
+		truthy(m.MUZZLE > kartLen / 2 and m.MUZZLE < kartLen, m.NAME .. " muzzle at the nose")
+	end
+	-- a mine lands clear of the tail, and a kart touching it (nose or side) sets it off
+	truthy(Mine.BEHIND > kartLen / 2, "mine behind the tail")
+	truthy(Mine.RADIUS > kartLen / 2 and Mine.RADIUS < kartLen * 1.5, "mine radius about a kart")
+end)
+
 -- ===== gun =====
 
 test("gun: bullet damage adds up to exactly 34 per burst, all whole numbers", function()
@@ -130,7 +150,7 @@ test("gun: bullet damage adds up to exactly 34 per burst, all whole numbers", fu
 end)
 
 test("gun: a full burst on a kart ahead does 34 and three bursts smash", function()
-	local w = world({ kart(1, 0, 0), kart(2, 0, -40) })
+	local w = world({ kart(1, 0, 0), kart(2, 0, -10) })
 	truthy(Gun.fire(w.karts[1], AHEAD, w.ctx))
 	eq(w.total(2, "Gun"), Gun.bulletDamage(1), "first bullet lands at once")
 	w.run(1)
@@ -147,7 +167,7 @@ test("gun: a full burst on a kart ahead does 34 and three bursts smash", functio
 end)
 
 test("gun: aim help reaches a kart a little off to the side, not one far off", function()
-	local w = world({ kart(1, 0, 0), kart(2, 10, -60), kart(3, 60, -20) })
+	local w = world({ kart(1, 0, 0), kart(2, 2.5, -15), kart(3, 15, -5) })
 	Gun.fire(w.karts[1], AHEAD, w.ctx)
 	w.run(1)
 	eq(w.total(2), 34, "kart 9 degrees off is hit")
@@ -155,9 +175,9 @@ test("gun: aim help reaches a kart a little off to the side, not one far off", f
 end)
 
 test("gun: never hits a kart behind, out of range, smashed, or the shooter", function()
-	local behind = kart(2, 0, 30)
+	local behind = kart(2, 0, 7.5)
 	local far = kart(3, 0, -(Gun.RANGE + 20))
-	local dead = kart(4, 0, -20)
+	local dead = kart(4, 0, -5)
 	dead.alive = false
 	local w = world({ kart(1, 0, 0), behind, far, dead })
 	Gun.fire(w.karts[1], AHEAD, w.ctx)
@@ -167,16 +187,16 @@ test("gun: never hits a kart behind, out of range, smashed, or the shooter", fun
 end)
 
 test("gun: a wall in between stops the bullets", function()
-	local w = world({ kart(1, 0, 0), kart(2, 0, -50) })
-	table.insert(w.walls, -25)
+	local w = world({ kart(1, 0, 0), kart(2, 0, -12.5) })
+	table.insert(w.walls, -6.25)
 	Gun.fire(w.karts[1], AHEAD, w.ctx)
 	w.run(1)
 	eq(#w.hits, 0, "blocked")
-	near(w.fxs[1].data.to.z, -25, 1e-3, "tracer stops at the wall")
+	near(w.fxs[1].data.to.z, -6.25, 1e-3, "tracer stops at the wall")
 end)
 
 test("gun: the burst stops when the shooter is smashed mid-burst", function()
-	local w = world({ kart(1, 0, 0), kart(2, 0, -30) })
+	local w = world({ kart(1, 0, 0), kart(2, 0, -7.5) })
 	Gun.fire(w.karts[1], AHEAD, w.ctx)
 	w.karts[1].alive = false
 	w.run(1)
@@ -185,7 +205,7 @@ test("gun: the burst stops when the shooter is smashed mid-burst", function()
 end)
 
 test("gun: the burst follows the kart as it turns", function()
-	local w = world({ kart(1, 0, 0), kart(2, 0, -40), kart(3, 40, 0) })
+	local w = world({ kart(1, 0, 0), kart(2, 0, -10), kart(3, 10, 0) })
 	Gun.fire(w.karts[1], AHEAD, w.ctx)
 	-- the kart turns to face +x (kart 3) before the rest of the burst
 	w.karts[1].cframe = { Position = v(0, 0, 0), LookVector = v(1, 0, 0) }
@@ -196,7 +216,7 @@ end)
 
 test("gun: junk aim (zero or straight up) shoots straight ahead", function()
 	for _, aim in { v(0, 0, 0), v(0, 1, 0), v(0 / 0, 0, 0) } do
-		local w = world({ kart(1, 0, 0), kart(2, 0, -40) })
+		local w = world({ kart(1, 0, 0), kart(2, 0, -10) })
 		Gun.fire(w.karts[1], aim, w.ctx)
 		w.run(1)
 		eq(w.total(2), 34, "straight ahead")
@@ -204,7 +224,7 @@ test("gun: junk aim (zero or straight up) shoots straight ahead", function()
 end)
 
 test("gun: clear drops the rest of a burst still in the air", function()
-	local w = world({ kart(1, 0, 0), kart(2, 0, -40) })
+	local w = world({ kart(1, 0, 0), kart(2, 0, -10) })
 	Gun.fire(w.karts[1], AHEAD, w.ctx)
 	Gun.clear(w.ctx)
 	w.run(1)
@@ -261,7 +281,7 @@ end)
 
 test("mine: one boom hurts every kart inside the radius", function()
 	Mine.clear()
-	local w = world({ kart(1, 0, 0), kart(2, 2, Mine.BEHIND), kart(3, -2, Mine.BEHIND) })
+	local w = world({ kart(1, 0, 0), kart(2, 0.5, Mine.BEHIND), kart(3, -0.5, Mine.BEHIND) })
 	Mine.fire(w.karts[1], AHEAD, w.ctx)
 	w.t = 1
 	Mine.step(w.ctx)
@@ -295,7 +315,7 @@ end)
 
 test("freeze: first hit freezes and hurts a little, the second shatters", function()
 	Freeze.clear()
-	local w = world({ kart(1, 0, 0), kart(2, 0, -40) })
+	local w = world({ kart(1, 0, 0), kart(2, 0, -10) })
 	truthy(Freeze.fire(w.karts[1], AHEAD, w.ctx))
 	eq(w.total(2, "Freeze"), Freeze.DAMAGE, "freeze damage")
 	eq(w.frozen[2], Freeze.FROZEN, "kart stopped")
@@ -313,7 +333,7 @@ end)
 
 test("freeze: once the ice melts, the next hit only freezes again", function()
 	Freeze.clear()
-	local w = world({ kart(1, 0, 0), kart(2, 0, -40) })
+	local w = world({ kart(1, 0, 0), kart(2, 0, -10) })
 	Freeze.fire(w.karts[1], AHEAD, w.ctx)
 	w.t = Freeze.FROZEN + 0.1
 	Freeze.step(w.ctx)
@@ -325,8 +345,8 @@ end)
 
 test("freeze: walls block it; a miss still uses the shot; smashed karts are forgotten", function()
 	Freeze.clear()
-	local w = world({ kart(1, 0, 0), kart(2, 0, -40) })
-	table.insert(w.walls, -20)
+	local w = world({ kart(1, 0, 0), kart(2, 0, -10) })
+	table.insert(w.walls, -5)
 	truthy(Freeze.fire(w.karts[1], AHEAD, w.ctx), "shot went")
 	eq(#w.hits, 0, "blocked")
 	w.walls = {}

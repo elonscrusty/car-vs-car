@@ -46,12 +46,13 @@ local function tween(obj: Instance, secs: number, goal: { [string]: any }, style
 	):Play()
 end
 
-local function word(parent: Instance, name: string, color: Color3, y: number, h: number): TextLabel
+local function word(parent: Instance, name: string, color: Color3, spot: string): TextLabel
+	local at = SmashJuice.WORDS[spot]
 	local l = Instance.new("TextLabel")
 	l.Name = name
 	l.AnchorPoint = Vector2.new(0.5, 0.5)
-	l.Position = UDim2.fromScale(0.5, y)
-	l.Size = UDim2.fromScale(0.9, h)
+	l.Position = UDim2.fromScale(0.5, at.y)
+	l.Size = UDim2.fromScale(SmashJuice.WORDS_W, at.h)
 	l.BackgroundTransparency = 1
 	l.Font = Base.FONT
 	l.TextScaled = true
@@ -146,12 +147,12 @@ function SmashFx.start()
 		table.insert(bars, b)
 	end
 
-	-- the words (below the health bar at the top middle, above the car)
-	local you = word(gui, "YouSmashed", Color3.new(1, 1, 1), 0.2, 0.07)
-	local name = word(gui, "Name", SUN, 0.29, 0.13)
-	local streak = word(gui, "Streak", PINK, 0.4, 0.09)
-	local by = word(gui, "SmashedBy", CHERRY, 0.22, 0.09)
-	local count = word(gui, "Count", Color3.new(1, 1, 1), 0.36, 0.18)
+	-- the words (SmashJuice.WORDS: under the clock and health, between the scoreboard and FIRE)
+	local you = word(gui, "YouSmashed", Color3.new(1, 1, 1), "you")
+	local name = word(gui, "Name", SUN, "name")
+	local streak = word(gui, "Streak", PINK, "streak")
+	local by = word(gui, "SmashedBy", CHERRY, "by")
+	local count = word(gui, "Count", Color3.new(1, 1, 1), "count")
 
 	-- the confetti pool
 	type Bit = { frame: Frame, vx: number, vy: number, spin: number, life: number }
@@ -184,7 +185,8 @@ function SmashFx.start()
 				b.spin = rng:NextNumber(-540, 540)
 				local s = rng:NextInteger(7, 13)
 				b.frame.Size = UDim2.fromOffset(s, math.floor(s * 0.6))
-				b.frame.Position = UDim2.fromScale(0.5 + rng:NextNumber(-0.12, 0.12), 0.29)
+				b.frame.Position =
+					UDim2.fromScale(0.5 + rng:NextNumber(-0.12, 0.12), SmashJuice.WORDS.name.y)
 				b.frame.Rotation = rng:NextNumber(0, 360)
 				b.frame.BackgroundTransparency = 0
 				b.frame.Visible = true
@@ -329,7 +331,7 @@ function SmashFx.start()
 					if n ~= shownCount then
 						shownCount = n
 						if n then
-							showWord(count, tostring(n), 0.9, 1.8)
+							showWord(count, tostring(n), 0.9, 1.4)
 							Sfx.count(n)
 						end
 					end
@@ -412,15 +414,15 @@ function SmashFx.start()
 		if f.attacker and f.attacker.me and not f.victim.me then
 			local word2 = myStreak:smash(at)
 			by.Visible = false
-			showWord(you, SmashJuice.smashLine(f.weapon), SmashJuice.WORDS_SECONDS, 1.8)
+			showWord(you, SmashJuice.smashLine(f.weapon), SmashJuice.WORDS_SECONDS, 1.3)
 			showWord(
 				name,
 				SmashJuice.shortName(f.victim.name) .. "!",
 				SmashJuice.WORDS_SECONDS,
-				2.2
+				1.4
 			)
 			if word2 then
-				showWord(streak, word2, SmashJuice.STREAK_SECONDS, 2.6)
+				showWord(streak, word2, SmashJuice.STREAK_SECONDS, 1.5)
 			end
 			local juice = SmashJuice.feel("mySmash", myStreak.run, reduced)
 			feel(juice)
@@ -438,7 +440,7 @@ function SmashFx.start()
 				by,
 				SmashJuice.deathLine(f.weapon, other and other.name),
 				SmashJuice.SMASHED_BY_SECONDS,
-				1.6
+				1.3
 			)
 			local juice = SmashJuice.feel("smashed", nil, reduced)
 			feel(juice)

@@ -451,7 +451,9 @@ function Controls.new(
 	autoBtn.Text = "AUTO GAS"
 	HudLayout.place(autoBtn, "AutoGas", "drive")
 	autoBtn.Parent = gui
-	autoBtn.Visible = not stickGas -- (the stick is the gas)
+	-- (not in SMASH at all: the stick is a phone's gas, W a computer's; Audit F12)
+	local smash = (Features :: any).SMASH == true
+	autoBtn.Visible = not smash
 	-- alone (SMOKE, VIEW and CAM held back for a new player) it takes CAM's spot at the right edge:
 	-- at its own spot it stood alone in the middle of a wide screen, over the track signs (Studio
 	-- batch-2035 6)
@@ -513,7 +515,7 @@ function Controls.new(
 		-- CAM and VIEW do nothing there, so hide both and close the gap
 		viewBtn.Visible = not on
 		onRockNow = on
-		autoBtn.Visible = not on and not stickGas
+		autoBtn.Visible = not on and not smash
 		smokeBtn.Visible = not on and not inRace
 		camBtn.Visible = not on and not inRace
 		backBtn.Visible = on and not touchUi

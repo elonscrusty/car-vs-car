@@ -30,8 +30,6 @@ local Boxes = require(ReplicatedStorage.Shared.Boxes)
 local BoxServer = {}
 
 BoxServer.TAG = "SmashBox"
-BoxServer.SIZE = 4.5 -- the box, studs
-BoxServer.LIFT = 3.2 -- box middle above the spot (the spot is on the ground)
 
 local RED = Color3.fromRGB(222, 38, 52) -- cherry red
 local YELLOW = Color3.fromRGB(255, 214, 46) -- sunny yellow
@@ -47,6 +45,8 @@ export type Options = {
 	parent: Instance?,
 	name: string?,
 	seed: number?,
+	-- studs per big unit (ArenaData sizes; a kart is 5.5 big). Default Boxes.SCALE = the RC arena.
+	scale: number?,
 }
 
 export type Handle = {
@@ -81,14 +81,14 @@ end
 
 -- One box: a red low-poly cube with a yellow "?" on each side and on top, and a glowing yellow
 -- ring on the ground under it, so you can see where a box comes back.
-local function build(i: number, spot: Vector3, parent: Instance): Model
+local function build(i: number, spot: Vector3, parent: Instance, sc: number): Model
 	local m = Instance.new("Model")
 	m.Name = "Box" .. i
-	local home = CFrame.new(spot + Vector3.new(0, BoxServer.LIFT, 0))
+	local home = CFrame.new(spot + Vector3.new(0, Boxes.LIFT * sc, 0))
 
 	local body = Instance.new("Part")
 	body.Name = "Body"
-	body.Size = Vector3.one * BoxServer.SIZE
+	body.Size = Vector3.one * Boxes.SIZE * sc
 	body.CFrame = home
 	body.Color = RED
 	body.Material = Enum.Material.SmoothPlastic
@@ -115,8 +115,10 @@ local function build(i: number, spot: Vector3, parent: Instance): Model
 	local ring = Instance.new("Part")
 	ring.Name = "Ring"
 	ring.Shape = Enum.PartType.Cylinder
-	ring.Size = Vector3.new(0.2, Boxes.RADIUS * 2, Boxes.RADIUS * 2) -- the ring is the pickup reach
-	ring.CFrame = CFrame.new(spot + Vector3.new(0, 0.12, 0)) * CFrame.Angles(0, 0, math.rad(90))
+	local reach = Boxes.RADIUS * 2 * sc -- the ring is the pickup reach
+	ring.Size = Vector3.new(0.2 * sc, reach, reach)
+	ring.CFrame = CFrame.new(spot + Vector3.new(0, 0.12 * sc, 0))
+		* CFrame.Angles(0, 0, math.rad(90))
 	ring.Color = YELLOW
 	ring.Material = Enum.Material.Neon
 	ring.Transparency = 0.55
@@ -173,13 +175,17 @@ function BoxServer.start(opts: Options): Handle
 	folder.Name = name
 	folder.Parent = parent
 
+	local given = opts.scale
+	local sc = if type(given) == "number" and given > 0 then given else Boxes.SCALE
 	local spots = {}
 	local models: { Model } = {}
 	for i, v in opts.spots do
 		table.insert(spots, { x = v.X, y = v.Y, z = v.Z })
-		table.insert(models, build(i, v, folder))
+		table.insert(models, build(i, v, folder, sc))
 	end
-	local boxes = Boxes.new(spots)
+	local boxes = Boxes.new(spots, sc)
+	local sweepMax = Boxes.SWEEP_MAX * sc
+	local prev: { [any]: Vector3 } = {} -- each kart's spot at the last check
 	local rng = Random.new(opts.seed or os.clock() * 1e6)
 	local last: { [any]: string } = {} -- kart id -> its last weapon from a box
 	local streak: { [any]: number } = {}
@@ -222,24 +228,51 @@ function BoxServer.start(opts: Options): Handle
 
 	local list: { Boxes.Kart } = {}
 	local wait = 0
+	local since = 0 -- seconds since the last check (a slow frame makes it longer)
 	local conn = RunService.Heartbeat:Connect(function(dt: number)
 		wait -= dt
+		since += dt
 		if wait > 0 then
 			return
 		end
-		wait = 1 / Boxes.CHECK_HZ
+		wait = math.max(wait + 1 / Boxes.CHECK_HZ, 0)
+		-- SWEEP_MAX is per normal check; a late check allows a longer drive
+		local jump = sweepMax * math.max(since * Boxes.CHECK_HZ, 1)
+		since = 0
 		local ok, karts = pcall(opts.karts)
 		if not ok or type(karts) ~= "table" then
 			return
 		end
 		table.clear(list)
+		local seen: { [any]: Vector3 } = {}
+		local present: { [any]: boolean } = {}
 		for _, k in karts do
 			local p = k.position
-			if typeof(p) == "Vector3" then
-				table.insert(
-					list,
-					{ id = k.id, x = p.X, y = p.Y, z = p.Z, alive = k.alive == true }
-				)
+			if typeof(p) == "Vector3" and k.id ~= nil then
+				local alive = k.alive == true
+				present[k.id] = true
+				local was = prev[k.id]
+				-- the path since the last check counts, unless it was a jump (respawn, teleport)
+				local sweep = alive and was ~= nil and (p - was).Magnitude <= jump
+				table.insert(list, {
+					id = k.id,
+					x = p.X,
+					y = p.Y,
+					z = p.Z,
+					alive = alive,
+					px = if sweep then (was :: Vector3).X else nil,
+					pz = if sweep then (was :: Vector3).Z else nil,
+				})
+				if alive then
+					seen[k.id] = p
+				end
+			end
+		end
+		prev = seen -- a kart missing from this check (dead, hidden after a jump) starts fresh
+		for id in last do
+			if not present[id] then -- left the game: forget its weapon streak
+				last[id] = nil
+				streak[id] = nil
 			end
 		end
 		local taken, back = Boxes.step(boxes, list, os.clock(), take)
@@ -256,6 +289,7 @@ function BoxServer.start(opts: Options): Handle
 		folder = folder,
 		reset = function()
 			Boxes.reset(boxes)
+			table.clear(prev)
 			table.clear(last)
 			table.clear(streak)
 			for _, m in models do

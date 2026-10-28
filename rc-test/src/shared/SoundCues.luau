@@ -47,6 +47,14 @@ SoundCues.CHECKED = {
 	["rbxassetid://9119075972"] = "Shield Impacts 20 (SFX) (Pro Sound Effects)",
 	["rbxassetid://9039712090"] = "Family Friendly Tag - Sting 2 (Michael R Rado)",
 	["rbxassetid://9113071895"] = "Air Horn Various Lengths 3 (SFX) (Pro Sound Effects)",
+	-- (search 2, sounds/found2.txt)
+	["rbxassetid://9117886252"] = "Power Up Sweeteners 12 (SFX) (Pro Sound Effects)",
+	["rbxassetid://9117399569"] = "Pistol Single Shots 1 (SFX) (Pro Sound Effects)",
+	["rbxassetid://115842676995967"] = "Laser Zap - Daily Sounds (DailySoundsFX)",
+	["rbxassetid://9114862833"] = "Ice Cube Pour 2 (SFX) (Pro Sound Effects)",
+	["rbxassetid://9114855870"] = "Ice Block Drop To Concrete Shatter 1 (SFX) (Pro Sound Effects)",
+	["rbxassetid://9125648149"] = "Magic Zoom Up Sharp Tubular Whoosh Fast Hiss (SFX) (Pro Sound Effects)",
+	["rbxassetid://9114302200"] = "Elevator Bell Synth Chimes 4 (SFX) (Pro Sound Effects)",
 } :: { [string]: string }
 
 -- The actions the game must give a sound (FINISH-JOBS SOUNDS row), in play order.
@@ -115,7 +123,12 @@ SoundCues.ACTIONS = {
 		volume = L.LEVEL_UP,
 	},
 	-- a new training station opens on the plot: a bright three-note "ta-da"
-	unlock = { notes = { 1.5, 1.88, 2.25, 3 }, gap = 0.08, volume = L.UNLOCK },
+	unlock = {
+		id = "rbxassetid://9114302200",
+		notes = { 1.5, 1.88, 2.25, 3 },
+		gap = 0.08,
+		volume = L.UNLOCK,
+	},
 	-- 3, 2, 1 on the start line: one low beep each
 	count = { id = "rbxassetid://9117060347", notes = { 1 }, gap = 0, volume = L.COUNT },
 	-- GO: high and a little longer
@@ -144,7 +157,12 @@ SoundCues.ACTIONS = {
 	},
 	-- ===== Smash arena =====
 	-- you grabbed a "?" box: a quick rising blip
-	pickup = { notes = { 1.5, 2.25 }, gap = 0.05, volume = L.PICKUP },
+	pickup = {
+		id = "rbxassetid://9117886252",
+		notes = { 1.5, 2.25 },
+		gap = 0.05,
+		volume = L.PICKUP,
+	},
 	-- a rocket launches: a low-to-high whoosh
 	rocket = {
 		id = "rbxassetid://9114329395",
@@ -155,15 +173,30 @@ SoundCues.ACTIONS = {
 	-- a rocket or mine goes off: a deep thump
 	boom = { id = "rbxassetid://9125401226", notes = { 0.35, 0.3 }, gap = 0.06, volume = L.BOOM },
 	-- one machine-gun shot (Sfx spaces a burst out)
-	gun = { notes = { 2.8 }, gap = 0, volume = L.GUN },
+	gun = { id = "rbxassetid://9117399569", notes = { 2.8 }, gap = 0, volume = L.GUN },
 	-- a mine drops behind you: a low clunk then the arming tick
 	mine = { id = "rbxassetid://9119382002", notes = { 0.7, 2 }, gap = 0.5, volume = L.MINE },
 	-- the freeze gun fires: a cold high zap
-	freezeShot = { notes = { 3, 2.5 }, gap = 0.04, volume = L.FREEZE },
+	freezeShot = {
+		id = "rbxassetid://115842676995967",
+		notes = { 3, 2.5 },
+		gap = 0.04,
+		volume = L.FREEZE,
+	},
 	-- a kart freezes in ice: a crackle settling down
-	freeze = { notes = { 2.5, 2.2, 1.9, 1.7 }, gap = 0.05, volume = L.FREEZE },
+	freeze = {
+		id = "rbxassetid://9114862833",
+		notes = { 2.5, 2.2, 1.9, 1.7 },
+		gap = 0.05,
+		volume = L.FREEZE,
+	},
 	-- the ice bursts (and the kart is smashed): a bright glassy run down
-	shatter = { notes = { 3, 2.67, 2.25, 1.5 }, gap = 0.035, volume = L.FREEZE },
+	shatter = {
+		id = "rbxassetid://9114855870",
+		notes = { 3, 2.67, 2.25, 1.5 },
+		gap = 0.035,
+		volume = L.FREEZE,
+	},
 	-- a kart took damage: a short low knock
 	hit = { id = "rbxassetid://9113500221", notes = { 0.8 }, gap = 0, volume = L.HIT },
 	-- two karts bump (it hurts too): a dull double thud
@@ -182,7 +215,12 @@ SoundCues.ACTIONS = {
 		volume = L.SMASH,
 	},
 	-- you are back in the arena: three notes up
-	respawn = { notes = { 1, 1.33, 1.78 }, gap = 0.07, volume = L.RESPAWN },
+	respawn = {
+		id = "rbxassetid://9125648149",
+		notes = { 1, 1.33, 1.78 },
+		gap = 0.07,
+		volume = L.RESPAWN,
+	},
 	-- the shield goes up: a shimmer
 	shield = {
 		id = "rbxassetid://9119075972",
