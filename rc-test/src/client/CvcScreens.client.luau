@@ -598,6 +598,10 @@ local function openHud(stagger: boolean)
 		race = "RACE!",
 		jobs = jobsWords() or "0/3",
 		stagger = stagger,
+		-- (over the 3D plot: the scoreboard is top middle, the speed tracks right; the pads and the
+		-- board show the bars, the RACE! button the clock)
+		banner = false,
+		myCar = false,
 	}, {
 		Garage = openGarage,
 		Crates = openCrates,
@@ -749,7 +753,7 @@ CvcState.changed:Connect(function()
 					local words = if v >= cap
 						then `{stat.word} MAX!`
 						else `+{whole - was} {stat.word}`
-					h.api.float(560 + math.random(-30, 30), 120, words, stat.tone)
+					h.api.float(378 + math.random(-40, 40), 286, words, stat.tone)
 					if v >= cap then
 						Sfx.maxed()
 					else
