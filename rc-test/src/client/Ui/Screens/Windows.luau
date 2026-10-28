@@ -121,7 +121,7 @@ end
 
 -- ===== 6 Crates: 3 crate choices, a big shaking crate, OPEN with its price, the odds =====
 
--- data: { choices = { { word, rarity, price, odds = { { rarity, chance } } } } (3), chosen: n,
+-- data: { choices = { { word, rarity, price, priceWords?, odds = { { rarity, chance } } } } (3), chosen: n,
 --   best: n (the BEST VALUE tag), coins: n, note: string }
 -- actions: choose(i), open(i), close()
 function Windows.crates(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
@@ -170,7 +170,7 @@ function Windows.crates(data: { [string]: any }, actions: Screen.Actions?): Scre
 			end
 			openB = button(c, "crates", "Window.Open", function()
 				Screen.act(actions, "open")(chosen)
-			end, { chip = UiMotion.commas(ch.price or 0) })
+			end, { chip = ch.priceWords or UiMotion.commas(ch.price or 0) })
 		end
 		for i = 1, 3 do
 			local ch = choices[i]
@@ -229,7 +229,9 @@ end
 -- data: { onTrack = { car } (3), cars = { car }, selected: n, room: "14 / 50", trackTag: "3/3",
 --   trackWord: "ON TRACK" } where car = { id, name, rarity, stars, tone, count, badge, color,
 --   kind, stats = { power, air, speed } (words like "12") }
--- actions: select(i), equip(i), delete(i), equipBest(), room(), close()
+--   live game extras: slots (how many ON TRACK slots), more (a + slot), equipWord, deleteWord,
+--   deleteTone, bestWord (other words on the buttons; deleteWord = no red X on the car)
+-- actions: select(i), equip(i), delete(i), equipBest(), room(), station(i), more(), close()
 function Windows.garage(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
 	return Screen.open("garage", "window", false, function(g)
 		local win = window(g, "garage", actions)
@@ -238,13 +240,30 @@ function Windows.garage(data: { [string]: any }, actions: Screen.Actions?): Scre
 		Kit.section(c, op.x, op.y, op.w, op.h, data.trackWord or "ON TRACK", "goDeep")
 		local sp = piece("garage", "Window.OnSlots")
 		local onList: { GuiObject } = {}
-		for i = 1, 3 do
-			local car = (data.onTrack or {})[i]
-			local s = Kit.slot(c, "On" .. i, sp.x + (i - 1) * 70, sp.y, 62, {
-				tone = if car then "lime" else "empty",
-				count = car and car.count,
-				car = car and { id = car.id, color = car.color, kind = car.kind },
-			})
+		-- 3 slots, or one per station (the live game: up to 9, smaller so they fit the row) and
+		-- a + slot for one more station
+		local onTrack = data.onTrack or {}
+		local n = math.max(data.slots or 3, #onTrack) + (if data.more then 1 else 0)
+		local ss = math.min(62, (op.w - (n - 1) * 8) / n)
+		local ox = if n <= 3 then sp.x else op.x + (op.w - (n * ss + (n - 1) * 8)) / 2
+		local oy = sp.y + (62 - ss) / 2
+		for i = 1, n do
+			local car = onTrack[i]
+			local isMore = data.more and i == n
+			local s =
+				Kit.slot(c, if isMore then "More" else "On" .. i, ox + (i - 1) * (ss + 8), oy, ss, {
+					tone = if car then "lime" else "empty",
+					count = car and car.count,
+					badge = car and car.badge,
+					car = car and { id = car.id, color = car.color, kind = car.kind },
+				})
+			s.button.Activated:Connect(function()
+				if isMore then
+					Screen.act(actions, "more")()
+				else
+					Screen.act(actions, "station")(i)
+				end
+			end)
 			table.insert(onList, s.button)
 		end
 		Anim.cascade(onList)
@@ -318,25 +337,45 @@ function Windows.garage(data: { [string]: any }, actions: Screen.Actions?): Scre
 				)
 			end
 			local ep = piece("garage", "Card.Equip")
-			Kit.button(card.card, "Equip", ep.x, ep.y, ep.w, ep.h, "lime", "EQUIP", {
-				size = 18,
-				z = 8,
-				onClick = function()
-					Screen.act(actions, "equip")(i)
-				end,
-			})
+			Kit.button(
+				card.card,
+				"Equip",
+				ep.x,
+				ep.y,
+				ep.w,
+				ep.h,
+				"lime",
+				data.equipWord or "EQUIP",
+				{
+					size = 18,
+					z = 8,
+					onClick = function()
+						Screen.act(actions, "equip")(i)
+					end,
+				}
+			)
 			local dp = piece("garage", "Card.Delete")
-			Kit.button(card.card, "Delete", dp.x, dp.y, dp.w, dp.h, "danger", "DELETE", {
-				size = 18,
-				z = 8,
-				onClick = function()
-					local s = slots[i]
-					if s then
-						s.setMarked(true)
-					end
-					Screen.act(actions, "delete")(i)
-				end,
-			})
+			Kit.button(
+				card.card,
+				"Delete",
+				dp.x,
+				dp.y,
+				dp.w,
+				dp.h,
+				data.deleteTone or "danger",
+				data.deleteWord or "DELETE",
+				{
+					size = 18,
+					z = 8,
+					onClick = function()
+						local s = slots[i]
+						if s and not data.deleteWord then
+							s.setMarked(true)
+						end
+						Screen.act(actions, "delete")(i)
+					end,
+				}
+			)
 			if flip then
 				card.flip()
 			end
@@ -371,7 +410,13 @@ function Windows.garage(data: { [string]: any }, actions: Screen.Actions?): Scre
 		end
 		Anim.cascade(items)
 		showCard(selected, true)
-		button(c, "garage", "Window.EquipBest", Screen.act(actions, "equipBest"))
+		button(
+			c,
+			"garage",
+			"Window.EquipBest",
+			Screen.act(actions, "equipBest"),
+			if data.bestWord then { words = data.bestWord } else nil
+		)
 		local rp = piece("garage", "Window.Room")
 		Kit.pill(
 			c,
@@ -966,7 +1011,8 @@ Windows.POPUPS = {
 	},
 }
 
--- data: { kind = "coins" | "sell" | "leave", title?, text? } (words override the kind's)
+-- data: { kind = "coins" | "sell" | "leave", title?, text?, icon?, yes = { words, tone }?,
+--   no = { words, tone }? } (these override the kind's)
 -- actions: yes(), no()
 function Windows.popup(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
 	return Screen.open("popup", "popup", false, function(g)
@@ -976,8 +1022,9 @@ function Windows.popup(data: { [string]: any }, actions: Screen.Actions?): Scree
 		local c = win.content
 		c.Visible = false
 		local ip = piece("popups", "Window.Icon")
-		local icon = Icons.make(c, k.icon, ip.x, ip.y, ip.w, { z = 4 })
-		if k.icon == "coin" then
+		local iconName = data.icon or k.icon
+		local icon = Icons.make(c, iconName, ip.x, ip.y, ip.w, { z = 4 })
+		if iconName == "coin" then
 			Anim.shake(icon)
 		end
 		local tp = piece("popups", "Window.Title")
@@ -985,6 +1032,7 @@ function Windows.popup(data: { [string]: any }, actions: Screen.Actions?): Scree
 		local xp = piece("popups", "Window.Text")
 		Base.text(c, "Text", xp.x, xp.y, xp.w, xp.h, data.text or k.text, { stroke = 3.5, z = 4 })
 		local yp, np = piece("popups", "Window.Yes"), piece("popups", "Window.No")
+		local yes, no = data.yes or k.yes, data.no or k.no
 		Kit.button(
 			c,
 			"Yes",
@@ -992,8 +1040,8 @@ function Windows.popup(data: { [string]: any }, actions: Screen.Actions?): Scree
 			yp.y,
 			yp.w,
 			yp.h,
-			k.yes[2],
-			k.yes[1],
+			yes[2],
+			yes[1],
 			{ onClick = Screen.act(actions, "yes"), size = 17 }
 		)
 		Kit.button(
@@ -1003,8 +1051,8 @@ function Windows.popup(data: { [string]: any }, actions: Screen.Actions?): Scree
 			np.y,
 			np.w,
 			np.h,
-			k.no[2],
-			k.no[1],
+			no[2],
+			no[1],
 			{ onClick = Screen.act(actions, "no"), size = 17 }
 		)
 		task.delay(if Base.reduced() then 0 else UiTheme.MOTION.popupWords + 0.12, function()

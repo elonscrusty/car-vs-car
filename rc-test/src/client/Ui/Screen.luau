@@ -119,4 +119,13 @@ function Screen.closeAll()
 	end
 end
 
+-- Close every window, popup and big screen, keeping the HUD (the live game's plot screen).
+function Screen.closeOver()
+	for _, h in openOnes do
+		if h.api.layer ~= "hud" then
+			h.close()
+		end
+	end
+end
+
 return Screen

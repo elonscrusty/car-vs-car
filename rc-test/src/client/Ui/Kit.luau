@@ -927,7 +927,10 @@ end
 
 -- ===== StatBar: icon square + label + LV n + chunky navy bar with its colored fill =====
 
-export type Bar = { frame: Frame, set: (f: number, level: number?, animate: boolean?) -> () }
+export type Bar = {
+	frame: Frame,
+	set: (f: number, level: (number | string)?, animate: boolean?) -> (),
+}
 
 -- Moving diagonal stripes inside a bar fill (one loop every 0.7 s).
 local function stripes(fill: Frame)
@@ -1048,8 +1051,11 @@ function Kit.statBar(
 		{ color = INK, align = "r", z = 3 }
 	)
 	local track = Kit.bar(f, "Track", tx, h * 0.46, w - tx, h * 0.5, stat.tone)
-	local function set(v: number, level: number?, grow: boolean?)
-		if level then
+	-- level: a number ("LV 3") or the words to show there ("26/60")
+	local function set(v: number, level: (number | string)?, grow: boolean?)
+		if type(level) == "string" then
+			lv.Text = level
+		elseif level then
 			lv.Text = "LV " .. tostring(level)
 		end
 		Kit.setBar(track, v, grow)

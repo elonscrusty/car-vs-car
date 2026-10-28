@@ -11,7 +11,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Features = require(Shared:WaitForChild("Features"))
-if not Features.CVC then
+-- (Features.NEW_UI: the new screens do this instead, CvcScreens.client)
+if not Features.CVC or Features.NEW_UI then
 	return
 end
 local CarCatalog = require(Shared:WaitForChild("CarCatalog"))

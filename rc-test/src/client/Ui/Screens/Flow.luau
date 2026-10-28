@@ -445,7 +445,7 @@ end
 
 -- ===== 10 League up: rays, old badge, arrow, new badge (bobbing; wings for gold, diamond), reward =====
 
--- data: { from: number, to: number (1..4), coins: number }; actions: ok()
+-- data: { from: number, to: number (1..4), coins: number? }; actions: ok()
 function Flow.leagueUp(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
 	return Screen.open("leagueUp", "full", true, function(g)
 		local back = g.back :: ScreenGui
@@ -475,10 +475,13 @@ function Flow.leagueUp(data: { [string]: any }, actions: Screen.Actions?): Scree
 		for i, s in { { 516, 96 }, { 186, 120 }, { 596, 230 } } do
 			Kit.sparkle(g.canvas, s[1], s[2], 28, i * 0.4)
 		end
-		local rp = piece("leagueUp", "Reward")
-		local _, panel = Kit.placedPanel(g.canvas, rp)
-		local coins = Kit.currency(panel, "Coins", 12, 6, rp.w - 24, rp.h - 12, { value = 0 })
-		coins.set(data.coins or 0)
+		-- (no coins given: no reward box)
+		if data.coins then
+			local rp = piece("leagueUp", "Reward")
+			local _, panel = Kit.placedPanel(g.canvas, rp)
+			local coins = Kit.currency(panel, "Coins", 12, 6, rp.w - 24, rp.h - 12, { value = 0 })
+			coins.set(data.coins)
+		end
 		placedButton(g.canvas, "leagueUp", "Awesome", Screen.act(actions, "ok"))
 		return {}
 	end)

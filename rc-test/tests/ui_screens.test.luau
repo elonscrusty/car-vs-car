@@ -58,9 +58,13 @@ test("every tone has a fill and a darker ledge, and stats keep one color each", 
 		truthy(UiTheme.HEX[tone.fill], name .. " fill")
 		truthy(UiTheme.HEX[tone.deep], name .. " deep")
 	end
-	local want = { power = "boost", air = "pink", speed = "lime" }
+	-- the plot board's colors and words: SPEED blue (treadmills), BOOST orange (ramps), TURN
+	-- green (speed tracks), so a screen and the pads always say the same
+	local want = { power = "blue", air = "boost", speed = "lime" }
+	local words = { power = "SPEED", air = "BOOST", speed = "TURN" }
 	for _, s in UiTheme.STATS do
 		eq(s.tone, want[s.key], s.key)
+		eq(s.word, words[s.key], s.key)
 	end
 	eq(UiTheme.rarityId("legend"), "legendary")
 	eq(UiTheme.rarityId(nil), "common")

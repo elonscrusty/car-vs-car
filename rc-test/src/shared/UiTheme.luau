@@ -105,10 +105,13 @@ UiTheme.LEAGUES = {
 
 -- The 3 stats, one color each everywhere. `bar` is the game's name for it (Training.BARS), and
 -- `station` the machine that trains it most (Training.MAIN).
+-- (the words and colors are the plot's board: the treadmill trains SPEED, the ramp BOOST, the
+-- speed track TURN, so a screen never names a bar the pads don't; the spec's POWER / AIR / SPEED
+-- are the keys)
 UiTheme.STATS = {
-	{ key = "power", word = "POWER", tone = "boost", bar = "speed", station = "treadmill" },
-	{ key = "air", word = "AIR", tone = "pink", bar = "boost", station = "ramp" },
-	{ key = "speed", word = "SPEED", tone = "lime", bar = "turn", station = "track" },
+	{ key = "power", word = "SPEED", tone = "blue", bar = "speed", station = "treadmill" },
+	{ key = "air", word = "BOOST", tone = "boost", bar = "boost", station = "ramp" },
+	{ key = "speed", word = "TURN", tone = "lime", bar = "turn", station = "track" },
 }
 
 UiTheme.DESIGN = {
@@ -164,6 +167,7 @@ UiTheme.PATTERN = {
 
 -- Section 7: entrances and idle life, in seconds
 UiTheme.MOTION = {
+	staggerStep = 0.7, -- a new player's plot screen: the next piece pops in after this long
 	windowIn = 0.38,
 	windowFrom = 0.8,
 	titleIn = 0.55,

@@ -75,12 +75,25 @@ DailyJobs.CVC_POOLS = {
 	{
 		{ id = "win", text = "Win 1 race", event = "raceWin", goal = 1, coins = 50 },
 		{ id = "top3", text = "Get top 3 in a race", event = "raceTop3", goal = 1, coins = 50 },
-		{ id = "race2", text = "Finish 2 races", event = "raceDone", goal = 2, coins = 40 },
+		-- (a race you don't get to the end of doesn't count: the words say so, critic REPORT-1)
+		{
+			id = "race2",
+			text = "Cross the finish line in 2 races",
+			event = "raceDone",
+			goal = 2,
+			coins = 40,
+		},
 	},
 	{
 		{ id = "crate", text = "Open a crate", event = "crate", goal = 1, coins = 40 },
 		{ id = "upgrade", text = "Upgrade your plot", event = "upgrade", goal = 1, coins = 40 },
-		{ id = "races3", text = "Finish 3 races", event = "raceDone", goal = 3, coins = 50 },
+		{
+			id = "races3",
+			text = "Cross the finish line in 3 races",
+			event = "raceDone",
+			goal = 3,
+			coins = 50,
+		},
 	},
 } :: { { Job } }
 DailyJobs.TYCOON_POOLS = DailyJobs.POOLS

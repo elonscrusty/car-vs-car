@@ -21,7 +21,16 @@ function GasHintUi.new(gui: ScreenGui): { set: (on: boolean) -> () }
 	label.TextColor3 = Color3.fromRGB(120, 255, 120)
 	label.TextStrokeColor3 = Color3.fromRGB(15, 15, 20)
 	label.TextStrokeTransparency = 0
-	label.Text = GasHint.words(touch) .. (if touch then "\n▼" else "")
+	-- words for the buttons on screen: a GAS button there (a phone, a tablet) = HOLD GAS!, never
+	-- a key a phone hasn't got (critic REPORT-1 saw HOLD W TO GO! on a phone screen)
+	local shownTouch: boolean? = nil
+	local function setWords(t: boolean)
+		if t ~= shownTouch then
+			shownTouch = t
+			label.Text = GasHint.words(t) .. (if t then "\n▼" else "")
+		end
+	end
+	setWords(touch)
 	label.ZIndex = 20
 	label.Visible = false
 	label.Parent = gui
@@ -35,7 +44,14 @@ function GasHintUi.new(gui: ScreenGui): { set: (on: boolean) -> () }
 		end
 		-- over the GAS button when there is one (Controls makes it, named GAS), else mid-screen
 		local gas = gui:FindFirstChild("GAS")
-		if touch and gas and gas:IsA("GuiObject") and gas.Visible then
+		local hasGas = gas ~= nil and gas:IsA("GuiObject") and gas.Visible
+		setWords(
+			hasGas
+				or touch
+				or UserInputService:GetLastInputType() == Enum.UserInputType.Touch
+				or not UserInputService.KeyboardEnabled
+		)
+		if hasGas and gas and gas:IsA("GuiObject") then
 			local p, s = gas.AbsolutePosition, gas.AbsoluteSize
 			label.Position = UDim2.fromOffset(p.X + s.X / 2, p.Y - 4)
 			label.Size = UDim2.fromOffset(math.max(s.X * 1.6, 160), math.max(s.Y * 0.55, 50))
