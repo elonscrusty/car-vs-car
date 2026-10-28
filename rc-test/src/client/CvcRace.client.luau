@@ -78,6 +78,12 @@ end)
 local boost = button(hud, "BOOST", KartStyle.RED)
 boost.Name = "Boost"
 boost.Visible = false
+-- round: CvcUi.button gave it a 0.3 corner too, and that one won (Studio pr816)
+for _, c in boost:GetChildren() do
+	if c:IsA("UICorner") then
+		c:Destroy()
+	end
+end
 CvcUi.corner(boost, 0.5)
 -- square, just left of DRIFT on every screen (HudLayout.box; place() alone gave it no width)
 local boostSpot = HudLayout.find("Boost", "drive") :: HudLayout.Spot
