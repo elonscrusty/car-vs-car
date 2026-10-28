@@ -301,7 +301,10 @@ local function dailyGift(player: Player, data: Profile.Data)
 		coins, streak = Profile.daily(data, Profile.day(now), boost)
 	end
 	if coins > 0 then
+		-- marked taken (Profile.daily) before paying; saved now, not at the next autosave, so a
+		-- crash or a quick rejoin on another server can't give it twice
 		PlayerData.touch(player)
+		task.spawn(PlayerData.save, player, false)
 		if crate then
 			local mod = script.Parent:FindFirstChild("TrainingServer")
 			if mod and mod:IsA("ModuleScript") then

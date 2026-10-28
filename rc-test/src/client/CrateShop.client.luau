@@ -77,7 +77,9 @@ end
 -- crate's name on a pill in its colour and its price.
 local function plate(ring: BasePart, out: Vector3, kind: Crates.Kind): TextLabel
 	local color = rgb(Garage.CRATE_COLORS[kind.id] or Garage.CRATE_COLORS.basic)
-	local at = ring.Position + out * 3.4 + Vector3.new(0, 1.6, 0)
+	-- hung over its crate, above a kid's head (auditor L7: down at the turntable's front edge your
+	-- own avatar hid the middle price), tipped a little toward the plaza
+	local at = ring.Position + out * 1.2 + Vector3.new(0, 6.9, 0)
 	local p = Instance.new("Part")
 	p.Name = kind.id
 	p.Anchored = true
@@ -90,8 +92,25 @@ local function plate(ring: BasePart, out: Vector3, kind: Crates.Kind): TextLabel
 	p.Size = Vector3.new(5.3, 2.8, 0.15)
 	p.Color = INK
 	p.Material = Enum.Material.SmoothPlastic
-	p.CFrame = CFrame.lookAt(at, at + out) * CFrame.Angles(math.rad(25), 0, 0)
+	p.CFrame = CFrame.lookAt(at, at + out) * CFrame.Angles(math.rad(-12), 0, 0)
 	p.Parent = plates
+	-- two short rods up to the shop's roof
+	for _, side in { -1, 1 } do
+		local rod = Instance.new("Part")
+		rod.Name = "Rod"
+		rod.Anchored = true
+		rod.CanCollide = false
+		rod.CanQuery = false
+		rod.CanTouch = false
+		rod.CastShadow = false
+		rod.Size = Vector3.new(0.15, 1.4, 0.15)
+		rod.Color = INK
+		rod.Material = Enum.Material.SmoothPlastic
+		rod.CFrame = CFrame.new(
+			(p.CFrame * CFrame.new(side * 2.2, 1.3, 0)).Position + Vector3.new(0, 0.6, 0)
+		)
+		rod.Parent = plates
+	end
 	local g = Instance.new("SurfaceGui")
 	g.Face = Enum.NormalId.Front
 	g.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
@@ -173,14 +192,12 @@ local function addShop(shop: Model)
 		return
 	end
 	seen[shop] = true
-	-- the sign post's board (Garage.crateYard): CRATES on all 4 sides, big enough to read from
-	-- across the plaza
+	-- the sign post's board (Garage.crateYard): CRATES on two opposite sides only, big enough to
+	-- read from across the plaza (on all 4, two sides showed at once: "CRATES CRATES", L7)
 	local sign = shop:FindFirstChild("CrateSign")
 	local board = sign and sign:FindFirstChild("Board")
 	if board and board:IsA("BasePart") then
-		for _, face in
-			{ Enum.NormalId.Front, Enum.NormalId.Back, Enum.NormalId.Left, Enum.NormalId.Right }
-		do
+		for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
 			local g = Instance.new("SurfaceGui")
 			g.Face = face
 			g.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
