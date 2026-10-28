@@ -83,5 +83,6 @@ require("./racetags.test")
 require("./gashint.test")
 require("./autogas.test")
 require("./cvc_polish.test")
+require("./boxes.test")
 
 Harness.summary()
