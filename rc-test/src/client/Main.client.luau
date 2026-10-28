@@ -660,7 +660,11 @@ local function timerText(): string
 		-- the live place the server works out
 		local place, cars = player:GetAttribute("RacePlace"), player:GetAttribute("RaceCars")
 		if type(place) == "number" and type(cars) == "number" and cars > 1 then
-			table.insert(lines, `{ServerRace.ordinal(place)} OF {cars}`)
+			-- (gold, so the place stands out: phone 10-28 review fix 2)
+			table.insert(
+				lines,
+				`<font color="#FFC72C">{ServerRace.ordinal(place)} OF {cars}</font>`
+			)
 		end
 	elseif grid then
 		-- server race, on the grid before GO (it showed a solo "LAP 1  -:--.-" here)

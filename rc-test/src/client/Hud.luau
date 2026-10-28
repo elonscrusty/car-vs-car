@@ -88,6 +88,7 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }): Hud
 	-- cap read the box before it had a size and stuck at 8, Studio pr816)
 	timer.TextScaled = false
 	timer.TextWrapped = false
+	timer.RichText = true -- (the place line is gold, Main.client)
 	local function fitTimer()
 		local h = timer.AbsoluteSize.Y
 		timer.TextSize = if h > 0 then math.clamp(math.floor(h / 3.3), 14, 40) else 18
