@@ -13,6 +13,7 @@ local function sibling(name: string): any
 	return luneRequire("./" .. name)
 end
 local CarCatalog = sibling("CarCatalog")
+local Economy = sibling("Economy")
 
 local Crates = {}
 
@@ -24,7 +25,7 @@ export type Kind = {
 	odds: { [string]: number }, -- out of 100, by kind of car; they add up to 100
 }
 
--- Cheapest first. Prices are first guesses for the Economy thread to tune.
+-- Cheapest first. Prices live in Economy.luau.
 Crates.KINDS = {
 	{
 		id = "free",
@@ -35,19 +36,19 @@ Crates.KINDS = {
 	{
 		id = "basic",
 		label = "SMALL CRATE",
-		price = 300,
+		price = Economy.CRATE_PRICE.basic,
 		odds = { common = 70, rare = 25, epic = 4.5, legend = 0.5 },
 	},
 	{
 		id = "big",
 		label = "BIG CRATE",
-		price = 900,
+		price = Economy.CRATE_PRICE.big,
 		odds = { common = 45, rare = 40, epic = 13, legend = 2 },
 	},
 	{
 		id = "mega",
 		label = "MEGA CRATE",
-		price = 2500,
+		price = Economy.CRATE_PRICE.mega,
 		odds = { common = 0, rare = 55, epic = 37, legend = 8 },
 	},
 } :: { Kind }

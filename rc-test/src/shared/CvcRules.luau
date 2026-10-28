@@ -13,6 +13,7 @@ local function sibling(name: string): any
 	return luneRequire("./" .. name)
 end
 local CarCatalog = sibling("CarCatalog")
+local Economy = sibling("Economy")
 local CarStats = sibling("CarStats")
 local Crates = sibling("Crates")
 local League = sibling("League")
@@ -23,9 +24,9 @@ type Data = Profile.Data
 
 local CvcRules = {}
 
--- (stand-ins until Economy has them; Economy.luau takes these over)
-CvcRules.COINS_PER_MIN = 3 -- each training car, a win's boost doubles it
-CvcRules.WIN_BOOST_SECS = 600
+-- (the numbers live in Economy.luau)
+CvcRules.COINS_PER_MIN = Economy.TRAIN_COINS_PER_MIN -- each training car, a win's boost doubles it
+CvcRules.WIN_BOOST_SECS = Economy.WIN_BOOST_SECS
 
 function CvcRules.stats(id: string): Training.Stats
 	return CarStats.stats(id)
@@ -259,6 +260,20 @@ function CvcRules.tick(
 	end
 	data.league = League.next(CvcRules.best(data), data.raceWins, data.league)
 	return bits - whole, trainedCars
+end
+
+-- The "train N min" job's clock: real time with ANY car on a station, counted once for the
+-- player (not once per car), so 5 min means 5 min. `secs` = seconds toward the next minute;
+-- returns the new secs and whether a whole minute just passed.
+function CvcRules.trainClock(secs: number, dt: number, busy: boolean): (number, boolean)
+	if not busy or dt <= 0 then
+		return secs, false
+	end
+	secs += dt
+	if secs >= 60 then
+		return secs - 60, true
+	end
+	return secs, false
 end
 
 return CvcRules

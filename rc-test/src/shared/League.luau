@@ -3,6 +3,17 @@
 -- car's strength AND wins, and never move down. A higher league pays bigger prizes. All leagues
 -- race at once, each in its own race. (Numbers are first guesses; Economy tunes them.)
 
+-- Sibling loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
+local function sibling(name: string): any
+	if script then
+		return require((script :: any).Parent[name])
+	end
+	local luneRequire: any = require
+	return luneRequire("./" .. name)
+end
+
+local Economy = sibling("Economy")
+
 local League = {}
 
 League.NAMES = { "Bronze", "Silver", "Gold", "Diamond" }
@@ -13,17 +24,12 @@ League.COLORS = {
 	{ 90, 220, 255 },
 }
 -- what each league needs: best car strength (speed + turning + boost, 0..300) and race wins
-League.NEED = {
-	{ strength = 0, wins = 0 },
-	{ strength = 110, wins = 2 },
-	{ strength = 170, wins = 6 },
-	{ strength = 230, wins = 15 },
-}
-League.PLACE_PAY = { 100, 70, 50 } -- top 3 (Bronze); 4th and on get FINISH_PAY
-League.FINISH_PAY = 20
+League.NEED = Economy.LEAGUE_NEED
+League.PLACE_PAY = Economy.PLACE_PAY -- top 3 (Bronze); 4th and on get FINISH_PAY
+League.FINISH_PAY = Economy.FINISH_PAY
 -- raced but didn't finish (critic run 1: losing paid 0, so a lost kid got nothing for a race)
-League.TRY_PAY = 10
-League.PAY_MULT = { 1, 1.5, 2.2, 3 }
+League.TRY_PAY = Economy.TRY_PAY
+League.PAY_MULT = Economy.PAY_MULT
 
 function League.clamp(n: any): number
 	if type(n) ~= "number" or n ~= n then
