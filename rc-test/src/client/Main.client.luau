@@ -206,6 +206,7 @@ local function addBoost()
 end
 
 local hud: Hud.Hud
+local controls: Controls.Controls
 local function goTo(index: number)
 	if walking then
 		return
@@ -268,6 +269,7 @@ local stuckTime = 0
 local stuckFrom = Vector3.zero
 local creep = 0 -- average ground speed lately (for the stuck check)
 local lost = BackOnTrack.newLost() -- big race: still, off the road or WRONG WAY for a while
+local movedSincePut = true -- big race: gas or rolling since the last put-back (the still clock waits)
 local lostRoads: { [string]: { BackOnTrack.Road } } = {} -- each map's roads (BackOnTrack.roads)
 -- Plots with checkpoint flags: a reset (R, RESET, fell off, out) brings the car back to the last
 -- flag it drove through instead of the start. R twice quickly = start.
@@ -287,14 +289,9 @@ local function reset(why: string?)
 	-- facing the way to go (the small loss: the bit since that gate, from a standstill). It used
 	-- to be the grid, a whole lap's loss.
 	local timer = timers[current]
-	if
-		Features.CVC
-		and grid
-		and gridGone
-		and raceDone == nil
-		and timer.running
-		and #timer.gates > 0
-	then
+	if Features.CVC and grid and gridGone and raceDone == nil and #timer.gates > 0 then
+		-- (a TOO EARLY car's lap clock waits for its next time over the line: next = 1, the gate
+		-- before the line. It used to drop to the grid, and the lost clocks never ran for it)
 		local g = BackOnTrack.spot(t, timer.gates, timer.next) :: BackOnTrack.Spot
 		local x, y, z = TrackData.toWorld(t, rc, g.x, g.y, g.z)
 		local dx, dz = TrackData.dirToWorld(t, rc, g.dx, g.dz)
@@ -302,6 +299,10 @@ local function reset(why: string?)
 		car.teleport(CFrame.lookAt(pos, pos + Vector3.new(dx, 0, dz)))
 		camera.snap()
 		hud.flash("BACK ON TRACK")
+		-- AUTO GAS off: left on, it drove the car into the same post 8 times in 66 s (critic run 2);
+		-- and the still clock waits for gas, so a car left sitting there isn't put back again
+		controls.autoOff()
+		movedSincePut = false
 		return
 	end
 	local cps = t.checkpoints
@@ -331,7 +332,7 @@ end
 local gui = Hud.createGui()
 hud = Hud.new(gui, labels)
 local gasHint = GasHintUi.new(gui) -- HOLD GAS! when the car sits on the line after GO
-local controls = Controls.new(gui, reset, function()
+controls = Controls.new(gui, reset, function()
 	if tracks[current].id == "rock" then
 		return -- rocks is free cam only
 	end
@@ -515,6 +516,9 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown, gridSpot: u
 		end
 		gridGone, raceGo, raceDone, raceOver, movedSinceGo = false, nil, nil, false, false
 		setRacing(false)
+		if grid then
+			controls.autoOff() -- every race starts with AUTO GAS off (critic runs 1 and 2)
+		end
 		-- Car VS Car: in the big race the car drives with its trained bars (the server sets them)
 		local drive = if Features.CVC and grid
 			then RaceStats.fromAttributes(function(n: string): any
@@ -793,7 +797,6 @@ RunService.PreSimulation:Connect(function(dt: number)
 		and gridGone
 		and mapId
 		and t.id ~= "drift"
-		and timer.running
 		and raceDone == nil
 		and not raceOver
 	then
@@ -806,11 +809,16 @@ RunService.PreSimulation:Connect(function(dt: number)
 		local under = ly < BackOnTrack.UNDER
 		local off = under or (#roads > 0 and BackOnTrack.offRoad(roads, lx, lz))
 		local goAt = raceGo
+		if not movedSincePut then
+			local v = body.AssemblyLinearVelocity
+			movedSincePut = input.throttle > 0
+				or Vector3.new(v.X, 0, v.Z).Magnitude > 2 * Tuning.scale
+		end
 		local why = BackOnTrack.lost(
 			lost,
 			dt,
 			if goAt then os.clock() - goAt else nil,
-			movedSinceGo,
+			movedSinceGo and movedSincePut,
 			creep < 1.6 * Tuning.scale,
 			off,
 			car.telemetry.grounded == 0 and not under,
@@ -818,11 +826,22 @@ RunService.PreSimulation:Connect(function(dt: number)
 			-- a put-back would be put back again and again)
 			wrongNow and input.brake == 0
 		)
+		-- (Studio reads these to see why a lost car was or wasn't put back)
+		local seen = string.format(
+			"%.0f %.0f %.0f %d",
+			lost.still * 2,
+			lost.off * 2,
+			lost.wrong * 2,
+			if off then 1 else 0
+		)
+		if body:GetAttribute("LostClocks") ~= seen then
+			body:SetAttribute("LostClocks", seen)
+		end
 		if why then
 			reset()
 		end
-	elseif lost.still ~= 0 or lost.off ~= 0 or lost.wrong ~= 0 then
-		lost.still, lost.off, lost.wrong = 0, 0, 0
+	elseif lost.still ~= 0 or lost.off ~= 0 or lost.wrong ~= 0 or lost.air ~= 0 then
+		lost.still, lost.off, lost.wrong, lost.air = 0, 0, 0, 0
 	end
 
 	-- fell off the world, or got out of the plot

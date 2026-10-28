@@ -76,10 +76,13 @@ test("lost: 3 s off the road (in the air the clock waits), 3 s WRONG WAY", funct
 	local l = BackOnTrack.newLost()
 	local w = BackOnTrack.OFF_WAIT
 	eq(BackOnTrack.lost(l, w - 0.5, 10, true, false, true, false, false), nil)
-	eq(BackOnTrack.lost(l, 5, 10, true, false, true, true, false), nil) -- flying: waits
+	eq(BackOnTrack.lost(l, 1, 10, true, false, true, true, false), nil) -- flying: waits
 	eq(BackOnTrack.lost(l, 0.6, 10, true, false, true, false, false), "off")
 	eq(BackOnTrack.lost(l, w - 0.1, 10, true, false, true, false, false), nil)
-	eq(BackOnTrack.lost(l, 0.2, 10, true, false, false, false, false), nil) -- back on: clears
+	eq(BackOnTrack.lost(l, 0.2, 10, true, false, false, false, false), nil) -- back on: runs down
+	truthy(l.off > 0 and l.off < w - 0.1, "the off clock runs down near a road")
+	eq(BackOnTrack.lost(l, 9, 10, true, false, false, false, false), nil)
+	eq(l.off, 0)
 	eq(BackOnTrack.lost(l, BackOnTrack.WRONG_WAIT - 0.1, 10, true, false, false, false, true), nil)
 	eq(BackOnTrack.lost(l, 0.2, 10, true, false, false, false, true), "wrong")
 end)
@@ -225,4 +228,55 @@ test("back on track: driving off from every put-back spot is never WRONG WAY", f
 			end
 		end
 	end
+end)
+
+test(
+	"lost: wheels hanging off a prop (no wheel down for long) still counts as off the road",
+	function()
+		local l = BackOnTrack.newLost()
+		local t, why = 0, nil :: string?
+		while why == nil and t < 10 do
+			why = BackOnTrack.lost(l, 0.1, 10, true, false, true, true, false)
+			t += 0.1
+		end
+		eq(why, "off")
+		truthy(t <= BackOnTrack.AIR_MAX + BackOnTrack.OFF_WAIT + 0.11, `took {t} s`)
+	end
+)
+
+-- critic run 2, kitchen race 2: wide past the first left bend, out by the dog bowls, wandering
+-- round with AUTO GAS for 45 s and now and then back within reach of the road: never put back
+test("lost: kitchen, wandering off the first left bend by the dog bowls is put back", function()
+	local m = RaceMaps.get("kitchen")
+	local roads = BackOnTrack.roads(m)
+	local loop = m.loop()
+	local s0 = loop[(m.lineSample() + 20 - 1) % #loop + 1]
+	local way = { { x = s0.x, z = s0.z } }
+	for _ = 1, 4 do
+		for _, p in
+			{ { 430, 360 }, { 520, 420 }, { 570, 440 }, { 560, 360 }, { 470, 350 }, { 415, 345 } }
+		do
+			table.insert(way, { x = p[1], z = p[2] })
+		end
+	end
+	local l = BackOnTrack.newLost()
+	local SPEED, t, why = 40, 0, nil :: string?
+	for i = 1, #way - 1 do
+		local a, b = way[i], way[i + 1]
+		local len = math.sqrt((b.x - a.x) ^ 2 + (b.z - a.z) ^ 2)
+		local steps = math.ceil(len / (SPEED / 30))
+		for st = 1, steps do
+			local f = st / steps
+			local off = BackOnTrack.offRoad(roads, a.x + (b.x - a.x) * f, a.z + (b.z - a.z) * f)
+			why = why
+				or BackOnTrack.lost(l, len / steps / SPEED, 10 + t, true, false, off, false, false)
+			t += len / steps / SPEED
+		end
+		if why then
+			break
+		end
+	end
+	eq(why, "off")
+	truthy(t < 12, `put back only after {t} s`)
+	print(string.format("    kitchen dog bowls: put back after %.1f s", t))
 end)
