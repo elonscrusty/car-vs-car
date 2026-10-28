@@ -88,5 +88,6 @@ require("./autogas.test")
 require("./cvc_polish.test")
 require("./smash_screens.test")
 require("./boxes.test")
+require("./match.test")
 
 Harness.summary()
