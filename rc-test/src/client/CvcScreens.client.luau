@@ -1156,6 +1156,13 @@ end
 
 local function reveal(id: string, rarity: string)
 	Sfx.crate(table.find(CarCatalog.RARITY_ORDER, rarity) or 1)
+	-- its starting bars, as on the garage card ("20/70")
+	local car = CvcState.fresh(id)
+	local stats = {}
+	for _, stat in UiTheme.STATS do
+		local v, cap = CvcState.bar(car, stat.bar)
+		stats[stat.key] = `{math.floor(v)}/{cap}`
+	end
 	Flow.reveal({
 		id = id,
 		rarity = UiTheme.rarityId(rarity),
@@ -1163,6 +1170,7 @@ local function reveal(id: string, rarity: string)
 		color = colorOf(id),
 		kind = kindOf(id),
 		new = true,
+		stats = stats,
 		-- (the new car goes onto a free station by itself: then there's nothing to tap; with every
 		-- station full it only waits in the garage, Studio pr847 shot 03)
 		note = revealNote(id),

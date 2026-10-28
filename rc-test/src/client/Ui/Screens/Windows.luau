@@ -16,6 +16,7 @@ local Kit = require(Ui:WaitForChild("Kit"))
 local Icons = require(Ui:WaitForChild("Icons"))
 local Pattern = require(Ui:WaitForChild("Pattern"))
 local Screen = require(Ui:WaitForChild("Screen"))
+local CardStats = require(script.Parent:WaitForChild("CardStats"))
 
 local Windows = {}
 
@@ -313,38 +314,7 @@ function Windows.garage(data: { [string]: any }, actions: Screen.Actions?): Scre
 				kind = car.kind,
 				tilt = 2,
 			})
-			-- the 3 stats in a dark box
-			local box = Base.fill(card.card, "Stats", 10, card.contentY, cp.w - 20, 60, INK, 4)
-			box.BackgroundTransparency = 0.78
-			Base.corner(box, 12)
-			for j, stat in UiTheme.STATS do
-				local y = 4 + (j - 1) * 18
-				Base.text(
-					box,
-					stat.word,
-					10,
-					y,
-					80,
-					16,
-					stat.word,
-					{ stroke = 3.5, align = "l", z = 5 }
-				)
-				Base.text(
-					box,
-					stat.word .. "Value",
-					cp.w - 120,
-					y,
-					90,
-					16,
-					tostring((car.stats or {})[stat.key] or ""),
-					{
-						color = Base.color(UiTheme.TONES[stat.tone].fill),
-						stroke = 3.5,
-						align = "r",
-						z = 5,
-					}
-				)
-			end
+			CardStats.draw(card.card, 10, card.contentY, cp.w - 20, car.stats)
 			local ep = piece("garage", "Card.Equip")
 			Kit.button(
 				card.card,

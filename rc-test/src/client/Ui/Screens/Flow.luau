@@ -14,6 +14,7 @@ local Kit = require(Ui:WaitForChild("Kit"))
 local Icons = require(Ui:WaitForChild("Icons"))
 local Pattern = require(Ui:WaitForChild("Pattern"))
 local Screen = require(Ui:WaitForChild("Screen"))
+local CardStats = require(script.Parent:WaitForChild("CardStats"))
 
 local Flow = {}
 
@@ -392,7 +393,8 @@ end
 
 -- ===== 7 Crate reveal: rays in the rarity color, the shout, the card flips in, sparkles =====
 
--- data: { rarity, name, id?, color?, kind?, stars?, new: boolean?, note: string? }
+-- data: { rarity, name, id?, color?, kind?, stars?, new: boolean?, note: string?,
+--   stats: { power, air, speed }? (words like "20/70") }
 -- actions: cool(), again()
 function Flow.reveal(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
 	return Screen.open("reveal", "full", true, function(g)
@@ -436,6 +438,10 @@ function Flow.reveal(data: { [string]: any }, actions: Screen.Actions?): Screen.
 			kind = data.kind,
 			tilt = -3,
 		})
+		-- the new car's stats fill the card's empty lower half (Studio pr850 3a)
+		if data.stats then
+			CardStats.draw(card.card, 10, card.contentY, cp.w - 20, data.stats)
+		end
 		card.flip()
 		for i, s in { { 106, 84 }, { 576, 64 }, { 516, 244 }, { 166, 254 } } do
 			Kit.sparkle(g.canvas, s[1], s[2], 30, i * 0.3)
