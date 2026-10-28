@@ -131,14 +131,18 @@ function Freeze.fire(kart: Kart, aim: Vector3, ctx: Ctx): boolean
 	return true
 end
 
--- Each tick: forget melted ice and karts that were smashed some other way.
+-- Each tick: melted ice and karts smashed some other way are let go.
 function Freeze.step(ctx: Ctx, _dt: number?)
+	if next(frozenUntil) == nil then
+		return
+	end
 	local now = ctx.now()
+	local alive: { [any]: boolean } = {}
+	for _, k in ctx.karts() do
+		alive[k.id] = k.alive
+	end
 	for id, t in frozenUntil do
-		local k = ctx.getKart(id)
-		if now >= t then
-			frozenUntil[id] = nil
-		elseif not k or not k.alive then
+		if now >= t or not alive[id] then
 			frozenUntil[id] = nil
 			if ctx.freeze then
 				ctx.freeze(id, 0)

@@ -203,6 +203,17 @@ test("gun: junk aim (zero or straight up) shoots straight ahead", function()
 	end
 end)
 
+test("gun: clear drops the rest of a burst still in the air", function()
+	local w = world({ kart(1, 0, 0), kart(2, 0, -40) })
+	Gun.fire(w.karts[1], AHEAD, w.ctx)
+	Gun.clear(w.ctx)
+	w.run(1)
+	eq(w.total(2), Gun.bulletDamage(1), "only the bullet before clear")
+	Gun.fire(w.karts[1], AHEAD, w.ctx)
+	w.run(1)
+	eq(w.total(2), Gun.bulletDamage(1) + 34, "the next burst is whole")
+end)
+
 -- ===== mine =====
 
 test("mine: drops behind the kart on the road", function()
@@ -307,6 +318,7 @@ test("freeze: once the ice melts, the next hit only freezes again", function()
 	w.t = Freeze.FROZEN + 0.1
 	Freeze.step(w.ctx)
 	truthy(not Freeze.isFrozen(2, w.t), "melted")
+	eq(w.frozen[2], 0, "let go when it melts")
 	Freeze.fire(w.karts[1], AHEAD, w.ctx)
 	eq(w.total(2), Freeze.DAMAGE * 2, "two plain freezes")
 end)

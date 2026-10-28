@@ -8,10 +8,13 @@
 --   FreezeHit  { id, position, seconds } an ice block over the kart until it melts
 --   Shatter    { id, position }         the ice bursts into shards
 -- Look rule: low-poly, SmoothPlastic + Neon, no text.
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Sfx = require(script.Parent:WaitForChild("Sfx"))
+
+local me = Players.LocalPlayer
 
 local FxGunMine = {}
 
@@ -30,11 +33,14 @@ if not bits then
 	bits.Parent = workspace
 end
 
-local function sound(name: string)
+-- `at` makes the sound fade with distance; your own kart's sounds play full (no `at`)
+local function sound(name: string, data: any?, at: Vector3?)
 	local fn = (Sfx :: any)[name]
-	if type(fn) == "function" then
-		pcall(fn)
+	if type(fn) ~= "function" then
+		return
 	end
+	local mine = type(data) == "table" and data.owner == me.UserId
+	pcall(fn, if mine then nil else at)
 end
 
 local function part(name: string, color: Color3, neon: boolean, size: Vector3): Part
@@ -115,7 +121,7 @@ local function onGun(data: any)
 		flash(b, WHITE, 0.6, 2, 0.1)
 		chips(b, SUNNY, 2, 0.4, 3)
 	end
-	sound("gun")
+	sound("gun", data, a)
 end
 
 local function onMineBoom(data: any)
@@ -130,7 +136,7 @@ local function onMineBoom(data: any)
 	fade(ring, 0.4, { Size = Vector3.new(0.4, 16, 16), Color = PINK })
 	flash(at + Vector3.new(0, 1.5, 0), SUNNY, 2, 9, 0.3)
 	chips(at, CHERRY, 6, 0.8, 7)
-	sound("mineBoom")
+	sound("mineBoom", nil, at)
 end
 
 -- ice blocks on frozen karts, by kart id
@@ -158,7 +164,7 @@ local function onFreezeHit(data: any)
 	b.CFrame = CFrame.new(at + Vector3.new(0, 1, 0)) * CFrame.Angles(0, math.rad(12), 0)
 	ice[id] = b
 	flash(at, WHITE, 3, 10, 0.2)
-	sound("freeze")
+	sound("freeze", nil, at)
 	task.delay(seconds, function()
 		if ice[id] == b then
 			melt(id)
@@ -181,21 +187,21 @@ local function onShatter(data: any)
 		chips(at + Vector3.new(0, 1, 0), WHITE, 4, 0.8, 6)
 		flash(at, SKY, 3, 12, 0.25)
 	end
-	sound("shatter")
+	sound("shatter", nil, at)
 end
 
 function FxGunMine.handle(kind: string, data: any)
 	if kind == "GunShot" then
 		onGun(data)
 	elseif kind == "MineDrop" then
-		sound("mineDrop")
+		sound("mineDrop", data, vec(data, "position"))
 	elseif kind == "MineBoom" then
 		onMineBoom(data)
 	elseif kind == "FreezeShot" then
 		local a, b = vec(data, "from"), vec(data, "to")
 		if a and b then
 			beam(a, b, ICE, 0.6, 0.18)
-			sound("freezeShot")
+			sound("freezeShot", data, a)
 		end
 	elseif kind == "FreezeHit" then
 		onFreezeHit(data)

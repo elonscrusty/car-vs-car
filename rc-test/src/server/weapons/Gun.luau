@@ -37,6 +37,9 @@ function Gun.bulletDamage(i: number): number
 	return math.floor(Gun.BURST_DAMAGE * i / n) - math.floor(Gun.BURST_DAMAGE * (i - 1) / n)
 end
 
+-- bumped by clear(): bullets still queued from an older burst do nothing
+local gen = 0
+
 local function flat(v: Vector3): Vector3?
 	local f = vector.create(v.x, 0, v.z)
 	local m = vector.magnitude(f)
@@ -134,9 +137,13 @@ function Gun.fire(kart: Kart, aim: Vector3, ctx: Ctx): boolean
 	local right = vector.create(-look.z, 0, look.x)
 	local turn = vector.create(vector.dot(want, right), 0, vector.dot(want, look))
 	local id = kart.id
+	local myGen = gen
 	local prefer = Gun.shoot(id, turn, ctx, 1, nil)
 	for i = 2, Gun.BULLETS do
 		ctx.after(Gun.GAP * (i - 1), function()
+			if gen ~= myGen then
+				return
+			end
 			local hit = Gun.shoot(id, turn, ctx, i, prefer)
 			if hit ~= nil then
 				prefer = hit
@@ -144,6 +151,11 @@ function Gun.fire(kart: Kart, aim: Vector3, ctx: Ctx): boolean
 		end)
 	end
 	return true
+end
+
+-- Match end / reset: the rest of any burst in the air is dropped.
+function Gun.clear(_ctx: Ctx?)
+	gen += 1
 end
 
 return Gun
