@@ -467,6 +467,11 @@ function Controls.new(
 			return
 		end
 		inRace = on
+		if on then
+			-- each race starts with AUTO GAS off: left on from the last race it drove the car into
+			-- the first wall at GO (critic run 1, 6:53)
+			setAuto(false)
+		end
 		smokeBtn.Visible = not on and not onRockNow
 		camBtn.Visible = not on and not onRockNow
 		viewBtn.Visible = not on -- the race picks the chase view; just place, lap, gas and steer
