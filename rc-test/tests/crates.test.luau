@@ -116,3 +116,41 @@ test("many real rolls stay close to the odds shown", function()
 		truthy(math.abs(c / n * 100 - odds[tier]) < 1.5, tier .. " near its odds")
 	end
 end)
+
+test(
+	"a crate gives a car you don't have yet, a copy only once you have every one of its kind",
+	function()
+		local pool = { common = { "a", "b", "c" }, rare = { "r" }, epic = {}, legend = {} }
+		-- the kind is still rolled on the shown odds: same kind as without `owned`
+		local _, plain = Crates.roll("basic", rng(0.1, 0), pool)
+		local id, tier = Crates.roll("basic", rng(0.1, 0), pool, { a = true })
+		eq(tier, plain)
+		eq(id, "b") -- "a" is owned, so the first of the rest
+		id = Crates.roll("basic", rng(0.1, 0.99), pool, { a = true, c = true })
+		eq(id, "b") -- the only common left
+		-- every common owned: a copy, still a common (the odds stay honest)
+		id, tier = Crates.roll("basic", rng(0.1, 0.5), pool, { a = true, b = true, c = true })
+		eq(tier, "common")
+		truthy(id == "a" or id == "b" or id == "c")
+	end
+)
+
+test(
+	"the first free crate never gives the starter again (Studio 10-28: a 2nd BLUE DART)",
+	function()
+		local CvcRules = require("../src/shared/CvcRules")
+		local CarStats = require("../src/shared/CarStats")
+		local Profile = require("../src/shared/Profile")
+		for _, starter in CarStats.STARTERS do
+			for k = 0, 19 do
+				local data = Profile.new()
+				CvcRules.setUp(data)
+				CvcRules.pick(data, starter)
+				data.crates = 1
+				local id = CvcRules.open(data, rng(k / 20, (k * 7 % 20) / 20))
+				truthy(id ~= nil, "a car")
+				truthy(id ~= starter, `{starter}: got the starter again`)
+			end
+		end
+	end
+)

@@ -177,12 +177,21 @@ local function arrived(data: Data, car: Profile.GarageCar)
 	end
 end
 
+-- The car ids in the garage (a crate gives one the kid doesn't have yet: Crates.roll).
+local function owned(data: Data): { [string]: boolean }
+	local out = {}
+	for _, c in data.garage do
+		out[c.id] = true
+	end
+	return out
+end
+
 -- Opens a free crate (from your first race): the new car's id, or nil.
 function CvcRules.open(data: Data, rng: Crates.Rng): string?
 	if data.crates <= 0 then
 		return nil
 	end
-	local id = Crates.roll("free", rng)
+	local id = Crates.roll("free", rng, nil, owned(data))
 	local car = if type(id) == "string" and CarCatalog.get(id)
 		then Profile.addCar(data, id)
 		else nil
@@ -204,7 +213,7 @@ function CvcRules.buy(data: Data, kind: unknown, rng: Crates.Rng): string?
 	if data.coins < price or #data.garage >= Profile.MAX_GARAGE then
 		return nil
 	end
-	local id = Crates.roll(kind, rng)
+	local id = Crates.roll(kind, rng, nil, owned(data))
 	local car = if type(id) == "string" and CarCatalog.get(id)
 		then Profile.addCar(data, id)
 		else nil
