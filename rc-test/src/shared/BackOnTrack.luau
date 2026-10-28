@@ -54,6 +54,7 @@ BackOnTrack.STILL_WAIT = 2.5 -- nearly still after you got going, pedal or not
 BackOnTrack.OFF_WAIT = 3 -- on the ground, off every road
 BackOnTrack.WRONG_WAIT = 3 -- WRONG WAY the whole time
 BackOnTrack.GO_CALM = 3 -- none of it in the first seconds after GO (the pack shoves about)
+BackOnTrack.AIR_MAX = 1.5 -- longer than any hop in the air: wheels hanging off a prop, not a jump
 BackOnTrack.OFF_MARGIN = 20 -- big units past a road's curb before it counts as off the road
 BackOnTrack.CURB = 3 -- (MapKit.CURB_WIDTH)
 -- map-local big units: under the floor (the road is at 0, a car sits at 2.5) but not yet FALL
@@ -95,11 +96,13 @@ end
 
 -- The lost clocks, one frame. `sinceGo` = seconds from GO (nil = not racing yet), `moved` = got
 -- going since GO (a car still on the line is HOLD GAS!, not lost), `still` = nearly no ground
--- speed, `off` = offRoad, `air` = no wheel down (a jump: the off clock waits), `wrong` = driving
--- away from the next gate. Returns why to put the car back, or nil.
-export type Lost = { still: number, off: number, wrong: number }
+-- speed, `off` = offRoad, `air` = no wheel down (a jump: the off clock waits, up to AIR_MAX),
+-- `wrong` = driving away from the next gate. Returns why to put the car back, or nil.
+-- The off clock runs down (not back to 0) while back near a road: a kid wandering round just off
+-- the bend, now and then within reach of it, sat 45 s off the road (critic run 2, kitchen).
+export type Lost = { still: number, off: number, wrong: number, air: number }
 function BackOnTrack.newLost(): Lost
-	return { still = 0, off = 0, wrong = 0 }
+	return { still = 0, off = 0, wrong = 0, air = 0 }
 end
 
 function BackOnTrack.lost(
@@ -113,12 +116,13 @@ function BackOnTrack.lost(
 	wrong: boolean
 ): ("still" | "off" | "wrong")?
 	if sinceGo == nil or sinceGo < BackOnTrack.GO_CALM or not moved then
-		l.still, l.off, l.wrong = 0, 0, 0
+		l.still, l.off, l.wrong, l.air = 0, 0, 0, 0
 		return nil
 	end
 	l.still = if still then l.still + dt else 0
-	if not air then
-		l.off = if off then l.off + dt else 0
+	l.air = if air then l.air + dt else 0
+	if not air or l.air >= BackOnTrack.AIR_MAX then
+		l.off = if off then l.off + dt else math.max(0, l.off - dt)
 	end
 	l.wrong = if wrong then l.wrong + dt else 0
 	local why: ("still" | "off" | "wrong")? = nil
@@ -130,7 +134,7 @@ function BackOnTrack.lost(
 		why = "wrong"
 	end
 	if why then
-		l.still, l.off, l.wrong = 0, 0, 0
+		l.still, l.off, l.wrong, l.air = 0, 0, 0, 0
 	end
 	return why
 end

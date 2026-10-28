@@ -68,6 +68,7 @@ require("./backontrack.test")
 require("./racelooks.test")
 require("./racetags.test")
 require("./gashint.test")
+require("./autogas.test")
 require("./cvc_polish.test")
 
 Harness.summary()
