@@ -384,6 +384,10 @@ end
 
 local function showResult(rows: { any })
 	placeText.Visible = false
+	-- (Features.NEW_UI: the new podium screen shows the result, CvcScreens.client)
+	if Features.CVC and Features.NEW_UI then
+		return
+	end
 	if #rows == 0 or not StageGate.shows("race") then
 		return -- (a brand new player isn't in the race: no winner card over their first lap)
 	end

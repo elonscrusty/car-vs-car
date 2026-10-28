@@ -44,7 +44,8 @@ local SIDES = {
 --   dots = { Crates = 2, League = -1 (! ) }, signs: boolean (the viewer: sample world signs),
 --   race: words (the RACE! button; nil = none), jobs: words (the JOBS pill; nil = none),
 --   stagger: boolean (a new player: the pieces come in one at a time, not all at once),
---   banner = false / myCar = false: leave that piece off (the live game, over the 3D plot) }
+--   banner = false / myCar = false: leave that piece off (the live game, over the 3D plot),
+--   words = { Garage = "TRAIN" }: other words on a tile }
 -- actions: Garage(), Crates(), Shop(), League(), coins(), coach(), race(), jobs()
 -- api: setCoins(n), setRate(words), setNextUp(title, sub, hurry), setCar(name, stats),
 --   setCoach(f, words), setDot(name, n), float(x, y, words, color), setRace(words, tone, pulse),
@@ -68,13 +69,14 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 			plus = true,
 			onClick = Screen.act(actions, "coins"),
 		})
+		local words: { [string]: string } = data.words or {}
 		local sides: { [string]: Kit.Side } = {}
 		local tiles: { GuiObject } = {}
 		for i, sd in SIDES do
 			local holder = spot(c, "plot", sd.name)
 			local side: Kit.Side
 			if sd.icon == "car" then
-				side = Kit.side(holder, "Tile", 0, 0, sd.word, "bag", i)
+				side = Kit.side(holder, "Tile", 0, 0, words[sd.name] or sd.word, "bag", i)
 				-- the garage tile shows a car poking out instead of an icon
 				local tile = side.button:FindFirstChild("Tile") :: Frame
 				local ic = tile:FindFirstChild("Icon")
@@ -91,7 +93,8 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 				)
 				Anim.bob(car, UiTheme.MOTION.iconBob, 5, 0)
 			else
-				side = Kit.side(holder, "Tile", 0, 0, sd.word, sd.icon, i, sd.opts)
+				side =
+					Kit.side(holder, "Tile", 0, 0, words[sd.name] or sd.word, sd.icon, i, sd.opts)
 			end
 			sides[sd.name] = side
 			side.button.Activated:Connect(Screen.act(actions, sd.name))
@@ -351,6 +354,11 @@ function Hud.race(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 	return Screen.open("race", "hud", false, function(g)
 		local c = g.canvas
 		local pill = lapPill(c, "race", data.lap or "1/2")
+		-- (the live game: lap = false / top = false / boost = false leave that piece off; the old
+		-- drive HUD has the lap clock top left, and BOOST stays by DRIFT)
+		if data.lap == false then
+			pill.frame.Parent = nil
+		end
 		local pp = piece("race", "Place")
 		local placeSpot = spot(c, "race", "Place")
 		local big = Base.text(
@@ -424,7 +432,11 @@ function Hud.race(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 				table.insert(rows, row)
 			end
 		end
-		setTop(data.top or {})
+		if data.top == false then
+			topSpot.Parent = nil
+		else
+			setTop(data.top or {})
+		end
 		local bp = piece("race", "Boost")
 		local boost = Kit.round(
 			spot(c, "race", "Boost"),
@@ -436,7 +448,11 @@ function Hud.race(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 			"BOOST",
 			{ charge = true, onClick = Screen.act(actions, "boost") }
 		)
-		boost.setCharge(data.boost or 0)
+		if data.boost == false then
+			boost.button.Parent = nil
+		else
+			boost.setCharge(data.boost or 0)
+		end
 		return {
 			setLap = pill.set,
 			setPlace = setPlace,

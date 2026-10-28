@@ -238,7 +238,7 @@ end
 -- actions: select(i), equip(i), delete(i), equipBest(), room(), station(i), more(), close()
 function Windows.garage(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
 	return Screen.open("garage", "window", false, function(g)
-		local win = window(g, "garage", actions)
+		local win = window(g, "garage", actions, { title = data.title })
 		local c = win.content
 		local op = piece("garage", "Window.OnTrack")
 		Kit.section(c, op.x, op.y, op.w, op.h, data.trackWord or "ON TRACK", "goDeep")

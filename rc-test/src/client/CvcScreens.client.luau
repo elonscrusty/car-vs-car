@@ -122,7 +122,7 @@ end
 -- A reveal or LEAGUE UP! waits until no race, race card or other big screen is up (the daily
 -- gift waits for these too: the UiBusy attribute, Stars.client).
 
-local FULL = { "pick", "reveal", "leagueUp" }
+local FULL = { "pick", "reveal", "leagueUp", "podium" }
 local WINDOWS = { "crates", "garage", "shop", "quests", "popup" }
 
 local function anyOpen(list: { string }): boolean
@@ -484,6 +484,7 @@ function openGarage()
 		trackWord = "TRAINING",
 		cars = list,
 		selected = selected,
+		title = "Train",
 		trackTag = "CARS",
 		room = tostring(#cars),
 		equipWord = "RACE",
@@ -593,6 +594,25 @@ local function racer(): Training.Car?
 	return CvcState.find(CvcState.racer)
 end
 
+-- TRAIN shows "!" while a station stands empty and a car could go on it
+local function trainDot(): number?
+	local empty = false
+	for _, st in CvcState.stations do
+		if st.uid == "" then
+			empty = true
+		end
+	end
+	if not empty then
+		return nil
+	end
+	for _, car in CvcState.garage do
+		if not CvcState.stationOf(car.uid) then
+			return -1
+		end
+	end
+	return nil
+end
+
 local function openHud(stagger: boolean)
 	local car = racer()
 	hud = Hud.plot({
@@ -600,7 +620,12 @@ local function openHud(stagger: boolean)
 		rate = "",
 		nextUp = { title = "BIG RACE soon", sub = "Tap RACE! to join" },
 		car = { name = if car then CvcState.name(car.id) else "", stats = hudBars(car) },
-		dots = { Crates = if CvcState.crates > 0 then CvcState.crates else nil },
+		dots = {
+			Crates = if CvcState.crates > 0 then CvcState.crates else nil,
+			Garage = trainDot(),
+		},
+		-- (the garage is where a car goes on a station: the tile says so, 10 s test)
+		words = { Garage = "TRAIN" },
 		race = "RACE!",
 		jobs = jobsWords() or "JOBS",
 		stagger = stagger,
@@ -669,6 +694,7 @@ local function refreshHud()
 	local car = racer()
 	api.setCar(if car then CvcState.name(car.id) else "", hudBars(car))
 	api.setDot("Crates", if CvcState.crates > 0 then CvcState.crates else nil)
+	api.setDot("Garage", trainDot())
 	api.setJobs(jobsWords() or "JOBS")
 end
 
@@ -938,4 +964,100 @@ task.spawn(function()
 			refreshHud()
 		end
 	end)
+end)
+
+-- ===== the race: the big place pill top middle, then the podium =====
+
+-- (the old drive HUD keeps the lap clock top left and BOOST by DRIFT; this adds 2ND / 8)
+local raceHud: Screen.Handle? = nil
+local raceOn = false
+local lastPlace = ""
+RunService.Heartbeat:Connect(function()
+	local place, cars = attr("RacePlace"), attr("RaceCars")
+	local shows = attr("Racing") == true
+		and type(place) == "number"
+		and type(cars) == "number"
+		and cars > 1
+		and not anyOpen(FULL)
+	if shows and not raceHud then
+		raceHud = Hud.race({ lap = false, top = false, boost = false, place = place, total = cars })
+	end
+	local h = raceHud
+	if h and shows ~= raceOn then
+		raceOn = shows
+		Base.show(h.gui, shows)
+	end
+	if h and shows then
+		local key = `{place}/{cars}`
+		if key ~= lastPlace then
+			lastPlace = key
+			h.api.setPlace(place, cars)
+		end
+	end
+end)
+
+local podiumAt = 0
+local function showPodium(rows: { any })
+	local mine: number? = nil
+	for i, r in rows do
+		if type(r) == "table" and r.uid == player.UserId then
+			mine = i
+		end
+	end
+	if not mine then
+		return -- (not in this race)
+	end
+	local me = rows[mine]
+	local finished = type(me.time) == "number"
+	local myCar = racer()
+	local top = {}
+	for i = 1, math.min(3, #rows) do
+		local r = rows[i]
+		local isMe = i == mine
+		local name = if isMe then "YOU" elseif type(r.name) == "string" then r.name else "?"
+		if #name > 12 then
+			name = string.sub(name, 1, 11) .. "."
+		end
+		local key = if type(r.car) == "string" then r.car else name
+		top[i] = {
+			name = name,
+			id = if isMe and myCar then myCar.id else nil,
+			color = if isMe and myCar then colorOf(myCar.id) else colorOf(key),
+			kind = if isMe and myCar then kindOf(myCar.id) else kindOf(key),
+			me = isMe,
+		}
+	end
+	local at = os.clock()
+	podiumAt = at
+	Screen.closeOver()
+	if finished and mine == 1 then
+		Sfx.fireworks()
+	else
+		Sfx.cheer()
+	end
+	Flow.podium({
+		-- (didn't finish: NICE TRY!, whatever the row)
+		place = if finished then mine else #rows + 1,
+		top = top,
+		coins = if type(me.coins) == "number" then me.coins else 0,
+		trophies = if finished and League.trophy(mine) then 1 else 0,
+	}, {
+		next = function()
+			Screen.closeOver()
+			join()
+		end,
+		back = Screen.closeOver,
+	})
+	-- it goes away by itself after a while
+	task.delay(15, function()
+		if podiumAt == at and Screen.isOpen("podium") then
+			Screen.closeOver()
+		end
+	end)
+end
+
+raceEvent.OnClientEvent:Connect(function(what: unknown, a: unknown)
+	if what == "result" and type(a) == "table" then
+		showPodium(a :: { any })
+	end
 end)

@@ -922,6 +922,9 @@ end)
 -- After a server race (its result card shows first): how far your coins got you to the goal.
 local lastGoal: any = nil
 local function showPrize(before: any)
+	if Features.CVC and Features.NEW_UI then
+		return -- (the new podium screen has the rewards)
+	end
 	local g = lastGoal
 	if type(g) ~= "table" or type(g.name) ~= "string" or type(g.price) ~= "number" then
 		return
