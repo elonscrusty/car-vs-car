@@ -4,6 +4,7 @@
 -- (Meshy cars are fewer parts than these block stand-ins, so this is the most.)
 local H = require("./harness")
 local Garage = require("../src/shared/Garage")
+local ToyCars = require("../src/shared/ToyCars")
 local PlotTraining = require("../src/shared/PlotTraining")
 local LobbyLayout = require("../src/shared/LobbyLayout")
 
@@ -20,7 +21,11 @@ local BUDGET = 3200 -- everything the cars and people add on top of the lobby (c
 -- the most parts one tiny car makes (any look)
 local function carParts(): number
 	local most = 0
-	for _, style in { "", "rock", "drift" } do
+	local styles = { "" }
+	for _, shape in ToyCars.SHAPES do
+		table.insert(styles, shape .. "/dark/glow")
+	end
+	for _, style in styles do
 		local pieces = {}
 		Garage.toyCar(
 			Garage.adder(pieces),

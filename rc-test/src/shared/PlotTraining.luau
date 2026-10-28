@@ -23,6 +23,7 @@ local function sibling(name: string): any
 end
 
 local Garage = sibling("Garage")
+local ToyCars = sibling("ToyCars")
 local Finish = sibling("Finish")
 local Training = sibling("Training")
 local CarStats = sibling("CarStats")
@@ -111,8 +112,7 @@ PlotTraining.RAIL_X = 2.7 -- the treadmill rails' middles, each side (before K)
 
 -- Half a toy car's width over its wheels at size 1 (Garage.toyCar).
 function PlotTraining.halfWidth(style: string?): number
-	local ww = if style == "drift" then 0.65 elseif style == "rock" then 0.6 else 0.45
-	return 1 + ww + (if style == "rock" then 0.15 else 0)
+	return ToyCars.halfWidth(style)
 end
 
 -- A car's size on a station (`kind`) or a stand (kind nil): your race car grows, but on the

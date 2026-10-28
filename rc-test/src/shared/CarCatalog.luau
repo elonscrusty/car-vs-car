@@ -40,6 +40,36 @@ CarCatalog.RARITY = {
 } :: { [string]: Rarity }
 CarCatalog.RARITY_ORDER = { "common", "rare", "epic", "legend" }
 
+-- Each car's own toy look (ToyCars: "shape/accent", "/glow" for the flashiest): its shape, and an
+-- accent for stripes, wings and bumpers. No two cars the same; carter's models replace these
+-- through ReplicatedStorage.CarSkins.
+CarCatalog.LOOKS = {
+	race_bolt = "buggy/dark",
+	race_dart = "formula/white",
+	race_rocket = "muscle/white",
+	race_lime = "truck/dark",
+	race_berry = "rally/yellow",
+	race_storm = "crawler/yellow",
+	race_tiger = "wedge/black",
+	race_comet = "jet/cyan",
+	gb_bubble = "bubble/white",
+	gb_night = "wedge/cyan/glow",
+	gb_glow = "buggy/purple/glow",
+	gb_gold = "formula/black/glow",
+	drift_kid = "coupe/red",
+	drift_ghost = "hatch/dark",
+	drift_fury = "wedge/white",
+	drift_mint = "rally/dark",
+	drift_cocoa = "muscle/cream",
+	drift_shadow = "coupe/orange",
+	drift_aqua = "hatch/yellow/glow",
+	drift_sunset = "coupe/purple/glow",
+	gb_lime = "bubble/dark",
+	gb_candy = "hatch/white",
+	gb_lava = "crawler/black/glow",
+	gb_toxic = "truck/purple/glow",
+} :: { [string]: string }
+
 local function car(
 	id: string,
 	name: string,
@@ -55,7 +85,7 @@ local function car(
 		mode = mode,
 		price = price,
 		color = color,
-		style = mode,
+		style = CarCatalog.LOOKS[id] or mode,
 		rare = rare == true,
 		rarity = rarity,
 		source = if rare == true then "gumball" else "shop",
