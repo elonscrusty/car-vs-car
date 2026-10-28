@@ -58,7 +58,13 @@ PlotTraining.K = 1.15
 -- the pad's edge nearest the middle and facing it (signAt). carter 10-28: players walk round the
 -- plot while their cars train (no high camera), so the signs are read at eye level; up on posts,
 -- you see the station under them.
-PlotTraining.PAD_SIGN = { w = 18, h = 3.6, low = 6 }
+-- carter 10-28 "do the plot signs": bigger, and each station's name glows in its colour (a Neon
+-- rim round the board; the name in that colour, unlit). Vault: World-Space UI, Light Sources.
+PlotTraining.PAD_SIGN = { w = 20, h = 4.6, low = 5.5, rim = 0.35 }
+-- each station's colour: its sign's glowing rim and name, same as its bar on the scoreboard
+function PlotTraining.signColor(kind: string): { number }
+	return PlotTraining.BAR_COLORS[Training.MAIN[kind] or ""] or { 255, 220, 90 }
+end
 
 -- Where pad i's sign stands (plot-local x, z), its yaw in degrees (its words face +z turned by yaw)
 -- and how high its bottom is: the side walls' face the middle; the back wall's face the road, and
@@ -74,7 +80,8 @@ function PlotTraining.signAt(i: number): (number, number, number, number)
 	if math.abs(g.x - B.x) + S.w / 2 <= B.w / 2 then
 		return g.x, B.z + 0.4, 0, B.y - B.h / 2 - 0.4 - S.h
 	end
-	return g.x, g.z + P.d / 2 - 0.5, 0, S.low
+	-- the back corners': pushed out to the pad's outer edge, clear of the scoreboard's sides
+	return g.x + math.sign(g.x) * (P.w - S.w) / 2, g.z + P.d / 2 - 0.5, 0, S.low
 end
 PlotTraining.ROOM = { x0 = -14, x1 = 14, z0 = -32, z1 = 30 } -- the garage floor, in the middle
 PlotTraining.NEAR = 220 -- studs: a plot farther from the camera than this stops moving its cars
@@ -378,6 +385,17 @@ local function pad(add: Garage.Add, i: number, kind: string?)
 		rot = v(0, yaw, 0),
 		collide = false,
 	})
+	-- the glowing rim, just behind the board and a little bigger
+	local back = 0.25
+	local along0 = math.rad(yaw)
+	add(
+		group,
+		"PadSignGlow",
+		v(S.w + 2 * S.rim, S.h + 2 * S.rim, 0.2),
+		v(sx - back * math.sin(along0), cy, sz - back * math.cos(along0)),
+		PlotTraining.signColor(kind),
+		{ rot = v(0, yaw, 0), material = "Neon", collide = false }
+	)
 	local along = math.rad(yaw) -- the sign's own x, in the plot
 	for _, e in { -1, 1 } do
 		local off = e * (S.w / 2 - 0.4)
