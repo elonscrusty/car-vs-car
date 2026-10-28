@@ -55,16 +55,18 @@ test("nothing solid between the spawn and the street", function()
 end)
 
 test(
-	"a car stand for every plot, drift / race pads, drift and race car shops and a garage",
+	"a car stand for every plot, drift / race pads (Car VS Car: one SMASH! portal), shops and a garage",
 	function()
 		truthy(#S.STANDS >= #TrackData.order, "stands")
-		-- (Car VS Car: racing only, and the crate shop in the race shop's spot)
+		-- (Car VS Car Smash: one SMASH! portal pad, and the crate shop in the race shop's spot)
 		eq(#S.PADS, if Features.CVC then 1 else 2)
 		local kinds: { [string]: boolean } = {}
 		for _, pad in S.PADS do
 			kinds[pad.kind] = true
 		end
-		for _, k in if Features.CVC then { "race" } else { "drift", "race" } do
+		for _, k in
+			if S.SMASH then { "smash" } elseif Features.CVC then { "race" } else { "drift", "race" }
+		do
 			truthy(kinds[k], "pad for " .. k)
 		end
 		local groups: { [string]: boolean } = {}
