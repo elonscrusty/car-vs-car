@@ -24,6 +24,7 @@ end
 
 local CarCatalog = sibling("CarCatalog")
 local Garage = sibling("Garage")
+local ToyCars = sibling("ToyCars")
 local Finish = sibling("Finish")
 
 local PlotStands = {}
@@ -136,9 +137,8 @@ local TIRE = { 28, 28, 30 }
 local GLASS = { 40, 50, 66 }
 function PlotStands.shelfCar(add: Garage.Add, at: V3, c: Car)
 	local s = PlotStands.SHELF_CAR
-	local drift = c.style == "drift"
-	local wd = 0.9 -- wheel size
-	local ww = if drift then 0.65 else 0.45
+	local wheels = ToyCars.wheels(c.style)
+	local wd, ww = wheels.wd, wheels.ww
 	local track = 2 * (1 + ww / 2) + ww -- outside to outside of the two tyres
 	local noHit = { collide = false }
 	add("Shelf", "Body", v(2 * s, 0.7 * s, 3.6 * s), v(at.x, at.y + 0.85 * s, at.z), c.color, noHit)

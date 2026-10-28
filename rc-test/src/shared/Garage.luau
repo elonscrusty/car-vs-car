@@ -34,6 +34,7 @@ local function sibling(name: string): any
 end
 
 local CarCatalog = sibling("CarCatalog")
+local ToyCars = sibling("ToyCars")
 local Crates = sibling("Crates")
 
 local Garage = {}
@@ -67,6 +68,7 @@ Garage.SHOPS = {} :: {
 		color: { number },
 		cars: { { number } },
 		style: string,
+		styles: { string }, -- each car's own look (ToyCars), same order as cars
 		names: { string },
 		prices: { number },
 		ids: { string },
@@ -78,6 +80,7 @@ for kind, list in CarCatalog.SHOP do
 		color = SHOP_TRIM[kind],
 		cars = {},
 		style = kind,
+		styles = {},
 		names = {},
 		prices = {},
 		ids = {},
@@ -85,6 +88,7 @@ for kind, list in CarCatalog.SHOP do
 	}
 	for _, car in list do
 		table.insert(shop.cars, car.color)
+		table.insert(shop.styles, car.style)
 		table.insert(shop.names, car.name)
 		table.insert(shop.prices, car.price)
 		table.insert(shop.ids, car.id)
@@ -398,8 +402,8 @@ end
 
 -- A chunky toy car, `s` times the size of a 3.6-stud one, standing with its bottom middle on
 -- `at`, nose toward -Z turned by `yaw` degrees. Looks only (not solid).
--- style: "race" (default, low with a small wing), "drift" (low, wide wheels, big wing) or "rock"
--- (big wheels, lifted, no wing).
+-- style: a ToyCars look ("buggy/dark", "truck/purple/glow", ...; the old "race", "drift" and
+-- "rock" still work), each car's own from CarCatalog.
 -- The toy car's body is 3.6 long at s = 1: the s that makes it `length` long (a race car's toy
 -- look is sized to the grey body it covers, so the chase camera sees the same size car; sized by
 -- its wheels it came out a third bigger and filled the screen, Studio pr816 04b).
@@ -417,10 +421,8 @@ function Garage.toyCar(
 	s: number,
 	style: string?
 )
-	local rock, drift = style == "rock", style == "drift"
-	local wd = if rock then 1.4 else 0.9 -- wheel size
-	local ww = if drift then 0.65 elseif rock then 0.6 else 0.45 -- wheel width
-	local lift = if rock then 0.5 else 0
+	local spec = ToyCars.wheels(style)
+	local wd, ww = spec.wd, spec.ww
 	local r = math.rad(yaw)
 	local c, sn = math.cos(r), math.sin(r)
 	local function put(
@@ -430,10 +432,10 @@ function Garage.toyCar(
 		y: number,
 		z: number,
 		col: { number },
-		o: Opts?
+		o: ToyCars.Opts?
 	)
-		local opts: Opts = o or {}
-		local rot = opts.rot or v(0, 0, 0)
+		local opts: Opts = { shape = o and o.shape, material = o and o.material }
+		local rot = o and o.rot or v(0, 0, 0)
 		opts.rot = v(rot.x, rot.y + yaw, rot.z)
 		opts.collide = false
 		add(
@@ -445,35 +447,16 @@ function Garage.toyCar(
 			opts
 		)
 	end
-	local wx = 1 + ww / 2 + (if rock then 0.15 else 0)
-	for _, sx in { -wx, wx } do
-		for _, wz in { -1.2, 1.2 } do
+	local wx = 1 + ww / 2
+	for _, wz in { -ToyCars.WHEEL_Z, ToyCars.WHEEL_Z } do
+		for _, sx in { -wx, wx } do
 			put("Wheel", v(ww, wd, wd), sx, wd / 2, wz, C.tire, { shape = "Cylinder" })
-			put(
-				"Hub",
-				v(ww + 0.02, wd * 0.45, wd * 0.45),
-				sx,
-				wd / 2,
-				wz,
-				C.rim,
-				{ shape = "Cylinder" }
-			)
 		end
+		-- one hub bar through the axle shows as both wheels' rims (hidden in the body between)
+		local hub = 0.45 * wd
+		put("Hub", v(2 * wx + ww + 0.02, hub, hub), 0, wd / 2, wz, C.rim, { shape = "Cylinder" })
 	end
-	put("Body", v(2, 0.7, 3.6), 0, 0.85 + lift, 0, color)
-	put("Cab", v(1.6, 0.6, 1.5), 0, 1.5 + lift, 0.25, C.glass)
-	put("Roof", v(1.7, 0.15, 1.6), 0, 1.85 + lift, 0.25, color)
-	if not rock then
-		local wing = if drift then 2.4 else 2
-		local wy = if drift then 1.95 else 1.65
-		put("Spoiler", v(wing, 0.12, 0.5), 0, wy, 1.6, C.dark)
-		for _, sx in { -0.6, 0.6 } do
-			put("SpoilerPost", v(0.12, wy - 1.25, 0.12), sx, (wy + 1.15) / 2, 1.6, C.dark)
-		end
-	end
-	for _, sx in { -0.6, 0.6 } do
-		put("Headlight", v(0.4, 0.2, 0.06), sx, 0.95 + lift, -1.82, C.light, { material = "Neon" })
-	end
+	ToyCars.body(put, color, style)
 end
 
 -- kind: "garage" (default, the upgrades garage), or a car shop "drift" / "race" / "rock" (the
@@ -938,7 +921,7 @@ function Garage.parts(kind: string?): { Piece }
 					-30 + (i - 1) * 30,
 					shop.cars[shop.display[i]],
 					1,
-					shop.style
+					shop.styles[shop.display[i]]
 				)
 			else
 				Garage.crate(add, "Crate" .. i, v(x, F + 0.75, 1.5), Crates.SHOP[i])
