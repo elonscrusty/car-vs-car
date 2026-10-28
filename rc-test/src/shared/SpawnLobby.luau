@@ -477,10 +477,12 @@ do
 	end
 	local st = SpawnLobby.STATUE
 	table.insert(M, {
-		model = "RockCrawler", -- carter's own truck, made giant
+		model = "RockCrawler", -- carter's own truck, made big
 		group = "StatueCar",
 		at = v(st.x, 2.4, st.z),
-		fit = v(7, 7, 11),
+		-- smaller than the old 7x7x11: on a phone it was the biggest car on screen (4.4%), bigger
+		-- than the kid's own (art report #2)
+		fit = v(5, 5, 7.8),
 		long = "z",
 		keep = {},
 		collide = false,
