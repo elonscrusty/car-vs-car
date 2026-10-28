@@ -2,9 +2,10 @@
 -- Car VS Car plots come alive (carter 10-26, rc-game/cvc/pics/plot-training-topdown-2.png;
 -- PlotTraining has the layout, PlotGarageBuilder builds the room and the pads): a tiny car runs
 -- on every station that has one (up the treadmill, over the ramp, round the speed track), and
--- the cars that aren't training wait on the stands in the garage room, slowly turning. Each car
--- has its tag (CarTag: name, kind, bars). On your own plot the bars are your trained numbers
--- (CvcState); on other plots, the car's starting numbers. The treadmill belts scroll under
+-- the cars that aren't training wait on the stands in the garage room, slowly turning. A stand
+-- car has its tag (CarTag: name, kind, bars); a station car's name and the number it trains go on
+-- its pad's sign. On your own plot those are your trained numbers (CvcState); on other plots,
+-- the car's starting numbers. The treadmill belts scroll under
 -- their cars, and while the owner's COACH is on (CoachAt) the whole plot runs faster and the
 -- treadmill screens glow orange.
 -- Looks only, on this screen: nothing here is solid. Far plots stop moving to save the phone.
@@ -19,9 +20,11 @@ if not Features.CVC then
 end
 
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
+local CarStats = require(ReplicatedStorage.Shared.CarStats)
 local Garage = require(ReplicatedStorage.Shared.Garage)
 local PlotGarage = require(ReplicatedStorage.Shared.PlotGarage)
 local PlotTraining = require(ReplicatedStorage.Shared.PlotTraining)
+local Training = require(ReplicatedStorage.Shared.Training)
 local CarTag = require(script.Parent:WaitForChild("CarTag"))
 local CvcState = require(script.Parent:WaitForChild("CvcState"))
 
@@ -36,7 +39,7 @@ local CarGlow: any = if glowModule and glowModule:IsA("ModuleScript")
 local STAND_TOP = 0.8 -- a stand's top, where its car sits
 local SPIN = 20 -- degrees a second the stand cars turn
 
-type Rider = { model: Model, kind: string, pad: number, slats: { BasePart }, anchor: BasePart }
+type Rider = { model: Model, kind: string, pad: number, slats: { BasePart } }
 type Shown = {
 	plot: Instance,
 	training: Model,
@@ -167,10 +170,33 @@ local function tag(at: BasePart, e: Entry, w: number, h: number, up: number)
 	end
 end
 
--- a station car's tag stands still beside its car (PlotTraining.TAG)
-local function riderTag(r: Rider, e: Entry)
-	local T = PlotTraining.TAG
-	tag(r.anchor, e, T.w, T.h, 0)
+-- A station car's numbers go on its pad's sign, in the sign's own big letters (no tag over the
+-- car: too small to read from the plot camera). Yours trained, anyone else's as it comes.
+local function riderSign(s: Shown, i: number, e: Entry)
+	local group = s.training:FindFirstChild("Pad" .. i)
+	local sign = group and group:FindFirstChild("PadSign")
+	local words = sign and sign:FindFirstChild("Words")
+	local top = words and words:FindFirstChild("Top")
+	local bottom = words and words:FindFirstChild("Bottom")
+	if not (top and top:IsA("TextLabel") and bottom and bottom:IsA("TextLabel")) then
+		return
+	end
+	local pads = PlotTraining.parse(tostring(s.plot:GetAttribute("Stations") or ""))
+	local pad = pads[i] or { kind = PlotTraining.kindAt(i), level = 1, car = e.id }
+	local car = if e.uid then CvcState.find(e.uid) else nil
+	local data: any = car or CvcState.fresh(e.id)
+	local main = Training.MAIN[pad.kind]
+	local value = 0
+	for _, b in CarStats.view(data) do
+		if b.bar == main then
+			value = b.value
+		end
+	end
+	local info = CarCatalog.get(e.id) :: any
+	top.Text, bottom.Text = PlotTraining.carWords(pad, if info then info.name else e.id, value)
+	-- two even lines: the car's number as big as the station's name
+	top.Position, top.Size = UDim2.fromScale(0.03, 0.05), UDim2.fromScale(0.94, 0.44)
+	bottom.Position, bottom.Size = UDim2.fromScale(0.03, 0.52), UDim2.fromScale(0.94, 0.43)
 end
 
 local function standTag(model: Model, e: Entry)
@@ -190,7 +216,7 @@ local function refresh(s: Shown)
 			for _, r in s.riders do
 				local e = onPads[r.pad]
 				if e then
-					riderTag(r, e)
+					riderSign(s, r.pad, e)
 				end
 			end
 			for k, m in s.parked do
@@ -230,21 +256,9 @@ local function refresh(s: Shown)
 						table.insert(slats, p)
 					end
 				end
-				local anchor = Instance.new("Part")
-				anchor.Name = "TagSpot"
-				anchor.Anchored = true
-				anchor.CanCollide = false
-				anchor.CanQuery = false
-				anchor.CanTouch = false
-				anchor.Transparency = 1
-				anchor.Size = Vector3.new(0.2, 0.2, 0.2)
-				local tx, ty, tz = PlotTraining.tagSpot(i)
-				anchor.CFrame = s.pivot * CFrame.new(tx, ty, tz)
-				anchor.Parent = s.folder
-				local r: Rider =
-					{ model = model, kind = kind, pad = i, slats = slats, anchor = anchor }
+				local r: Rider = { model = model, kind = kind, pad = i, slats = slats }
 				table.insert(s.riders, r)
-				riderTag(r, e)
+				riderSign(s, i, e)
 			end
 		end
 	end

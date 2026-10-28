@@ -124,6 +124,15 @@ PlotTraining.PAINT = {
 	{ at = 0.3, w = 15, h = 3.6 }, -- PLOT LV n
 }
 
+-- An open pad's sign with a car on it (CvcPlot.client writes these over padWords): the station
+-- and its level, then the car and the one number that station trains, big enough to read from
+-- the plot camera on a phone (Studio round 5: the little tags beside the cars couldn't be read).
+function PlotTraining.carWords(pad: Pad, carName: string, value: number): (string, string)
+	local bar = CarStats.BAR_LABELS[Training.MAIN[pad.kind] or ""] or ""
+	local name = Training.NAMES[pad.kind] or string.upper(pad.kind)
+	return name .. "  LV " .. pad.level, string.upper(carName) .. "  " .. bar .. " " .. value
+end
+
 -- The words on a pad's sign.
 function PlotTraining.padWords(pad: Pad?, index: number): (string, string)
 	if pad == nil then
@@ -160,12 +169,10 @@ function PlotTraining.slats(t: number): { number }
 	return out
 end
 
--- The car tags on the plot are sized in studs (so they shrink with distance, not cover the next
--- pad). A station car's tag stands low beside the car, on the outer side of its pad: hung over
--- the car, the plot camera (high over the stand) saw it on top of the LOCKED words of the pad
--- behind (Studio best/plot2). A stand car's sits just over the car.
+-- the room sign stands left on the back wall (the trophy shelf is right)
 PlotTraining.ROOM_SIGN_X = -28
-PlotTraining.TAG = { w = 6, h = 3.6, y = 3, side = 8.8, back = 2 }
+-- A stand car's tag (in the garage room) sits just over the car, sized in studs. Station cars
+-- have no tag: their numbers are on their pad's sign (carWords).
 PlotTraining.STAND_TAG = { w = 6.5, h = 3.5, up = 3.6 }
 -- The camera while you stand on your own plot's pad (PlotCam.client), plot-local: high over the
 -- stand, looking down the pads to the garage room. The stations fill the middle and the gate's
@@ -173,16 +180,10 @@ PlotTraining.STAND_TAG = { w = 6.5, h = 3.5, up = 3.6 }
 -- side pads and the bottom of the screen was empty stand and road).
 PlotTraining.STAND_CAM = {
 	eye = { x = 0, y = 30, z = 70 },
-	look = { x = 0, y = 0, z = 8 },
-	fov = 60,
+	look = { x = 0, y = 0, z = 30 }, -- the open front row in the middle, locked rows up top
+	fov = 40,
 	off = 3, -- studs past the pad's reach before the walking camera comes back
 }
-function PlotTraining.tagSpot(index: number): (number, number, number)
-	local g = PlotTraining.GRID[index]
-	local T = PlotTraining.TAG
-	local out = if g.x < 0 then -1 else 1 -- the middle column's to the right
-	return g.x + out * T.side, T.y, g.z - T.back
-end
 
 PlotTraining.RAMP_SECS = 6 -- one ramp run: up, over the gap, round and back
 local function rideBase(kind: string, t: number): (number, number, number, number, number)
