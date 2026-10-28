@@ -52,6 +52,7 @@ end)
 test("the pool has every catalog car once, sorted, by its kind", function()
 	local pool = Crates.pool()
 	local seen = {}
+	local Stats = require("../src/shared/CarStats")
 	for tier, list in pool do
 		for i, id in list do
 			truthy(not seen[id], id .. " once")
@@ -63,6 +64,17 @@ test("the pool has every catalog car once, sorted, by its kind", function()
 		end
 	end
 	truthy(#pool.common > 0 and #pool.legend > 0, "commons and legends to give")
+	-- never a low starter: a crate car always starts above the car a new kid picked
+	for _, id in Stats.STARTERS do
+		truthy(not seen[id], id .. " is a starter, not a crate car")
+	end
+	for _, id in Stats.ids() do
+		truthy(seen[id] or table.find(Stats.STARTERS, id) ~= nil, id .. " is in a crate")
+	end
+	local low = Stats.total({ uid = "u", id = pool.common[1], speed = 0, turn = 0, boost = 0 })
+	for _, id in Stats.STARTERS do
+		truthy(low > Stats.total({ uid = "u", id = id, speed = 0, turn = 0, boost = 0 }))
+	end
 end)
 
 test("a roll lands on the kind its odds say, and picks evenly within it", function()

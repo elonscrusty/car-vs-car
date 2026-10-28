@@ -13,6 +13,7 @@ local function sibling(name: string): any
 	return luneRequire("./" .. name)
 end
 local CarCatalog = sibling("CarCatalog")
+local CarStats = sibling("CarStats")
 
 local Crates = {}
 
@@ -83,7 +84,8 @@ function Crates.price(kind: any): number?
 end
 
 -- Every car a crate can give, by kind of car, sorted by id so a roll is the same every time.
--- (Every car in the catalog: the Car names thread's 24 cars join it there.)
+-- (Every car in the catalog but the 3 low starters: a crate car is always a step up from the car
+-- a new kid picked. Studio after-818: the free crate gave a second BLUE DART, weaker than theirs.)
 export type Pool = { [string]: { string } }
 function Crates.pool(): Pool
 	local out: Pool = {}
@@ -92,7 +94,7 @@ function Crates.pool(): Pool
 	end
 	local seen: { [string]: boolean } = {}
 	local function add(c: any)
-		if c and not seen[c.id] and out[c.rarity] then
+		if c and not seen[c.id] and out[c.rarity] and not table.find(CarStats.STARTERS, c.id) then
 			seen[c.id] = true
 			table.insert(out[c.rarity], c.id)
 		end
