@@ -43,6 +43,19 @@ SoundCues.MUST = {
 	"finish",
 	"podium",
 	"leagueUp",
+	-- Smash arena
+	"pickup",
+	"rocket",
+	"boom",
+	"gun",
+	"mine",
+	"hit",
+	"bump",
+	"smash",
+	"respawn",
+	"shield",
+	"matchStart",
+	"matchEnd",
 }
 
 SoundCues.ACTIONS = {
@@ -74,6 +87,31 @@ SoundCues.ACTIONS = {
 		gap = 0.1,
 		volume = L.FIREWORKS,
 	},
+	-- ===== Smash arena =====
+	-- you grabbed a "?" box: a quick rising blip
+	pickup = { notes = { 1.5, 2.25 }, gap = 0.05, volume = L.PICKUP },
+	-- a rocket launches: a low-to-high whoosh
+	rocket = { notes = { 0.6, 0.9, 1.3 }, gap = 0.04, volume = L.ROCKET },
+	-- a rocket or mine goes off: a deep thump
+	boom = { notes = { 0.35, 0.3 }, gap = 0.06, volume = L.BOOM },
+	-- one machine-gun shot (Sfx spaces a burst out)
+	gun = { notes = { 2.8 }, gap = 0, volume = L.GUN },
+	-- a mine drops behind you: a low clunk then the arming tick
+	mine = { notes = { 0.7, 2 }, gap = 0.5, volume = L.MINE },
+	-- a kart took damage: a short low knock
+	hit = { notes = { 0.8 }, gap = 0, volume = L.HIT },
+	-- two karts bump (it hurts too): a dull double thud
+	bump = { notes = { 0.55, 0.45 }, gap = 0.05, volume = L.BUMP },
+	-- a kart got smashed: thump then a bright crash run
+	smash = { notes = { 0.4, 1.5, 2, 2.67 }, gap = 0.06, volume = L.SMASH },
+	-- you are back in the arena: three notes up
+	respawn = { notes = { 1, 1.33, 1.78 }, gap = 0.07, volume = L.RESPAWN },
+	-- the shield goes up: a shimmer
+	shield = { notes = { 2, 2.5, 2, 2.5 }, gap = 0.05, volume = L.SHIELD },
+	-- the match starts (after the 3-2-1): a bright fanfare
+	matchStart = { notes = { 1, 1.5, 2 }, gap = 0.1, volume = L.MATCH },
+	-- the match ends: a long low horn, two notes down
+	matchEnd = { notes = { 1, 0.75 }, gap = 0.25, volume = L.MATCH },
 	-- (older cues the screens already call)
 	trophy = { notes = { 1, 1.5, 2 }, gap = 0.1, volume = L.TROPHY },
 	gold = { notes = { 1, 1.25, 1.5, 2, 1.5, 2, 2.5 }, gap = 0.1, volume = L.TROPHY },
@@ -100,7 +138,7 @@ end
 
 -- the ping notes for a cue, cut to the first `count` (at least 1)
 function SoundCues.notesFor(cue: Cue, count: number?): { number }
-	local n = math.clamp(count or #cue.notes, 1, #cue.notes)
+	local n = math.clamp(math.floor(count or #cue.notes), 1, #cue.notes)
 	return table.move(cue.notes, 1, n, 1, {})
 end
 
