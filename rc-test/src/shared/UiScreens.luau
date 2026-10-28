@@ -112,10 +112,10 @@ local LIST: { Screen } = {
 		pieces = {
 			p("NextUp", 233, 20, 290, 74, { anchor = "t" }),
 			p("Coins", 548, 8, 204, 50, { anchor = "tr", tap = true }),
-			p("Garage", 4, 66, 62, 62, { anchor = "tl", tap = true, text = "GARAGE" }),
-			p("Crates", 82, 66, 62, 62, { anchor = "tl", tap = true, text = "CRATES" }),
-			p("Shop", 4, 152, 62, 62, { anchor = "tl", tap = true, text = "SHOP" }),
-			p("League", 82, 152, 62, 62, { anchor = "tl", tap = true, text = "LEAGUE" }),
+			p("Garage", 12, 66, 62, 62, { anchor = "tl", tap = true, text = "GARAGE" }),
+			p("Crates", 90, 66, 62, 62, { anchor = "tl", tap = true, text = "CRATES" }),
+			p("Shop", 12, 152, 62, 62, { anchor = "tl", tap = true, text = "SHOP" }),
+			p("League", 90, 152, 62, 62, { anchor = "tl", tap = true, text = "LEAGUE" }),
 			p("MyCar", 490, 100, 258, 156, { anchor = "tr" }),
 			button("Coach", 652, 284, 92, 92, "pink", "COACH", { anchor = "br" }),
 			p("SignPower", 150, 110, 150, 40, { world = true }),
@@ -156,7 +156,7 @@ local LIST: { Screen } = {
 		gameplay = false,
 		pieces = {
 			p("Shout", 10, 8, 330, 54, { anchor = "tl" }),
-			p("Steps", 4, 110, 464, 280, { anchor = "bl" }),
+			p("Steps", 10, 110, 458, 270, { anchor = "bl" }),
 			p("Rewards", 512, 46, 236, 150, {
 				anchor = "tr",
 				inner = {
@@ -226,7 +226,7 @@ local LIST: { Screen } = {
 					p("Room", 302, 284, 180, 42),
 				},
 			}),
-			p("Card", 556, 12, 196, 368, {
+			p("Card", 548, 12, 196, 368, {
 				anchor = "r",
 				inner = {
 					button("Equip", 10, 314, 84, 46, "lime", "EQUIP"),

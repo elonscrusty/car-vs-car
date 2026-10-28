@@ -558,7 +558,7 @@ function Windows.book(data: { [string]: any }, actions: Screen.Actions?): Screen
 		local gp = piece("book", "Window.Grid")
 		local cars = data.cars or {}
 		local cols, gap = 6, 8
-		local cw = (gp.w - (cols - 1) * gap) / cols
+		local cw = (gp.w - 12 - (cols - 1) * gap) / cols -- (12 kept for the scroll bar)
 		local ch = 84
 		local list = scroller(c, gp.x, gp.y, gp.w, gp.h, math.ceil(#cars / cols) * (ch + gap) + 4)
 		local items: { GuiObject } = {}
