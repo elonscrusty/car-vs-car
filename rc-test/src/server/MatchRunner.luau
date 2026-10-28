@@ -102,6 +102,19 @@ if not (board and board:IsA("Folder")) then
 end
 local matchBoard = board :: Folder
 
+-- WeaponServer (WEAPONS'), read when it's needed: it reads MatchRunner too.
+local function weapons(): any?
+	local mod = script.Parent:FindFirstChild("WeaponServer")
+	return if mod and mod:IsA("ModuleScript") then require(mod) :: any else nil
+end
+
+local function dropWeapon(id: number)
+	local W = weapons()
+	if W and W.drop then
+		pcall(W.drop, id)
+	end
+end
+
 local function log(msg: string)
 	print("[Match] " .. msg)
 end
@@ -296,6 +309,7 @@ local function addBoard(info: Info, name: string)
 end
 
 local function dropKart(id: number)
+	dropWeapon(id)
 	local info = infos[id]
 	infos[id] = nil
 	if state then
@@ -398,6 +412,7 @@ function MatchRunner.damage(
 			setAttr(info, "SmashedByName", by and by.name)
 			setAttr(info, "SmashedWeapon", w)
 			freeze(info, true)
+			dropWeapon(victimId)
 			if not info.player and fleet and ArenaBots then
 				pcall(ArenaBots.remove, fleet, victimId)
 			end
@@ -425,6 +440,7 @@ export type KartView = {
 	id: number,
 	name: string,
 	pos: Vector3?,
+	cframe: CFrame?,
 	alive: boolean,
 	shield: boolean,
 	human: boolean,
@@ -446,6 +462,7 @@ function MatchRunner.karts(): { KartView }
 			id = k.id,
 			name = k.name,
 			pos = body and body.Position,
+			cframe = body and body.CFrame,
 			alive = k.alive,
 			shield = Match.shielded(k, t),
 			human = k.human,
@@ -453,6 +470,47 @@ function MatchRunner.karts(): { KartView }
 		})
 	end
 	return out
+end
+
+-- A player's kart id, and the player who drives kart `id` (nil for a bot).
+function MatchRunner.kartOf(player: Player): number
+	return player.UserId
+end
+
+function MatchRunner.playerOf(id: number): Player?
+	local info = infos[id]
+	return info and info.player
+end
+
+-- FREEZE (GUNMINE): kart `id` can't move for `seconds` (0 = let go now). A smashed kart stays as
+-- it is (its respawn lets it go).
+function MatchRunner.freeze(id: number, seconds: number)
+	local info = infos[id]
+	local m = state
+	local k = m and m.karts[id]
+	if not (info and k and k.alive) or type(seconds) ~= "number" or seconds ~= seconds then
+		return
+	end
+	if seconds <= 0 then
+		freeze(info, false)
+		return
+	end
+	freeze(info, true)
+	local mine = (info.model and (info.model:GetAttribute("FrozenN") or 0) or 0) + 1
+	if info.model then
+		info.model:SetAttribute("FrozenN", mine)
+	end
+	task.delay(math.min(seconds, 10), function()
+		-- (only the last freeze lets go, and only if it's still that kart, alive)
+		if
+			infos[id] == info
+			and k.alive
+			and info.model
+			and info.model:GetAttribute("FrozenN") == mine
+		then
+			freeze(info, false)
+		end
+	end)
 end
 
 -- The SMASH! pad: on the list for the next round (never into one that's going). true = in.
@@ -692,6 +750,11 @@ local function firstCrate(player: Player)
 	PlayerData.touch(player)
 	PlayerData.raiseStage(player, Profile.STAGE.RACED)
 	player:SetAttribute("Crates", data.crates)
+	-- the crate count on the screens (they hear it with the Garage "cars" list, like the daily gift)
+	local mod = script.Parent:FindFirstChild("TrainingServer")
+	if mod and mod:IsA("ModuleScript") then
+		pcall((require(mod) :: any).refresh, player)
+	end
 	local stars = ReplicatedStorage:FindFirstChild("StarsEvent")
 	if stars and stars:IsA("RemoteEvent") then
 		stars:FireClient(player, "toast", "FREE CRATE!")
@@ -702,6 +765,10 @@ local function endRound()
 	local m = state :: Match.State
 	m.over = true
 	phase = "break"
+	local W = weapons()
+	if W and W.reset then
+		pcall(W.reset) -- held weapons and rockets still in the air
+	end
 	if fleet and ArenaBots then
 		pcall(ArenaBots.clear, fleet)
 	end
