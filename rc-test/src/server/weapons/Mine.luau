@@ -4,15 +4,17 @@
 -- Your own mines never hurt you. The server checks every trigger (step, each server tick) with
 -- plain distance maths, no physics touches, so a client can't fake or dodge a hit.
 -- The mine itself is a server part (everyone sees it, also players who join late); the boom
--- is "MineBoom" fx.
+-- is "MineBoom" fx ("MineDrop" when one lands, for its sound). Plain `vector` maths, so Lune
+-- tests run it.
 
 local Mine = {}
 
+Mine.NAME = "Mine"
 Mine.ammo = 3 -- mines per box
 Mine.cooldown = 0.6
 Mine.ARM = 0.5 -- seconds before a dropped mine can go off
 Mine.RADIUS = 7 -- studs from the mine to a kart's centre
-Mine.DAMAGE = 60
+Mine.DAMAGE = 34 -- three hits smash a kart
 Mine.LIFE = 30 -- seconds; an untouched mine fizzles out
 Mine.PER_KART = 3 -- live mines per kart; a 4th removes that kart's oldest
 Mine.BEHIND = 6 -- studs behind the kart centre
@@ -39,8 +41,8 @@ export type LiveMine = {
 local live: { LiveMine } = {}
 local count = 0
 
--- A small low-poly mine: a dark navy puck with a cherry-red neon light on top. Only used when
--- WeaponServer's ctx has no `place`.
+-- A small low-poly mine: a dark navy puck with a cherry-red neon light on top (clients blink it),
+-- in workspace.Mines. Only used when WeaponServer's ctx has no `place`.
 local function build(at: Vector3): Instance
 	local cf = CFrame.new(at)
 	local model = Instance.new("Model")
@@ -70,7 +72,13 @@ local function build(at: Vector3): Instance
 	light.CanTouch = false
 	light.Parent = model
 	model.PrimaryPart = base
-	model.Parent = workspace
+	local folder = workspace:FindFirstChild("Mines")
+	if not folder then
+		folder = Instance.new("Folder")
+		folder.Name = "Mines"
+		folder.Parent = workspace
+	end
+	model.Parent = folder
 	return model
 end
 
@@ -87,11 +95,15 @@ end
 
 -- Where a mine lands for a kart at `cf`: behind it, down on the road, lying flat.
 function Mine.dropSpot(cf: CFrame): Vector3
-	return cf.Position - cf.LookVector * Mine.BEHIND - cf.UpVector * Mine.DROP
+	local l = cf.LookVector
+	local back = vector.create(l.x, 0, l.z)
+	local m = vector.magnitude(back)
+	back = if m > 1e-4 then back / m else vector.create(0, 0, -1)
+	return cf.Position - back * Mine.BEHIND - vector.create(0, Mine.DROP, 0)
 end
 
 -- The weapon contract: drop one mine.
-function Mine.fire(kart: Kart, _aim: any, ctx: Ctx): boolean
+function Mine.fire(kart: Kart, _aim: Vector3, ctx: Ctx): boolean
 	if not kart.alive then
 		return false
 	end
@@ -124,12 +136,13 @@ function Mine.fire(kart: Kart, _aim: any, ctx: Ctx): boolean
 		diesAt = now + Mine.LIFE,
 		part = part,
 	})
+	ctx.fx("MineDrop", { position = pos, owner = kart.id })
 	return true
 end
 
 -- Each server tick: old mines fizzle; an armed mine with another live kart close by goes off
 -- (one boom per mine; it hurts every other kart inside the radius, never its owner).
-function Mine.step(ctx: Ctx)
+function Mine.step(ctx: Ctx, _dt: number?)
 	local now = ctx.now()
 	local karts = ctx.karts()
 	local i = 1
@@ -146,7 +159,7 @@ function Mine.step(ctx: Ctx)
 		local victims = {}
 		for _, k in karts do
 			if k.alive and k.id ~= m.owner then
-				if (k.cframe.Position - m.position).Magnitude <= Mine.RADIUS then
+				if vector.magnitude(k.cframe.Position - m.position) <= Mine.RADIUS then
 					table.insert(victims, k.id)
 				end
 			end
@@ -157,7 +170,7 @@ function Mine.step(ctx: Ctx)
 		end
 		remove(i)
 		for _, id in victims do
-			ctx.damage(id, m.owner, Mine.DAMAGE, "Mine")
+			ctx.damage(id, m.owner, Mine.DAMAGE, Mine.NAME)
 		end
 		ctx.fx("MineBoom", { position = m.position, owner = m.owner })
 	end

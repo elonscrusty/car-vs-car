@@ -1,0 +1,160 @@
+--!strict
+-- Freeze ("Freeze" from a "?" box). One tap of FIRE = one ice shot straight ahead (the same aim
+-- help as the gun). A kart it hits is frozen in an ice block for FROZEN seconds: it can't drive
+-- (ctx.freeze stops it) and takes DAMAGE. A second freeze hit while it is still frozen SHATTERS
+-- it: a smash at once ("You were shattered by X"). Two shots per box, so one box can do both.
+-- The server decides every hit; clients get "FreezeShot", "FreezeHit" and "Shatter" fx to draw.
+-- Plain `vector` maths, so Lune tests run it.
+
+local Freeze = {}
+
+Freeze.NAME = "Freeze"
+Freeze.ammo = 2
+Freeze.cooldown = 0.8
+Freeze.FROZEN = 2.5 -- seconds stuck in the ice
+Freeze.DAMAGE = 10 -- the freeze itself hurts a little
+Freeze.SHATTER = 1000 -- more than any health: a shattered kart is smashed
+Freeze.RANGE = 120
+Freeze.CONE = math.cos(math.rad(18))
+Freeze.MUZZLE = 4
+Freeze.HEIGHT = 1.5
+
+export type Kart = { id: any, cframe: CFrame, alive: boolean }
+export type Hit = { kartId: any?, position: Vector3 }
+export type Ctx = {
+	now: () -> number,
+	karts: () -> { Kart },
+	getKart: (id: any) -> Kart?,
+	raycast: (from: Vector3, to: Vector3, ignoreId: any?) -> Hit?,
+	damage: (victimId: any, attackerId: any, amount: number, weapon: string) -> (),
+	fx: (kind: string, data: { [string]: any }) -> (),
+	-- stops (seconds > 0) or frees (0) a kart; WeaponServer / MatchRunner does the real stop
+	freeze: ((id: any, seconds: number) -> ())?,
+}
+
+-- kart id -> server time its ice melts
+local frozenUntil: { [any]: number } = {}
+
+function Freeze.isFrozen(id: any, now: number): boolean
+	local t = frozenUntil[id]
+	return t ~= nil and now < t
+end
+
+local function flat(v: Vector3): Vector3?
+	local f = vector.create(v.x, 0, v.z)
+	local m = vector.magnitude(f)
+	if m ~= m or m < 1e-4 then
+		return nil
+	end
+	return f / m
+end
+
+-- The kart the shot goes for: alive, not the shooter, in range, inside the cone; closest to the
+-- aim line wins.
+function Freeze.pickTarget(shooterId: any, from: Vector3, dir: Vector3, karts: { Kart }): Kart?
+	local best: Kart? = nil
+	local bestScore = -math.huge
+	for _, k in karts do
+		if k.id == shooterId or not k.alive then
+			continue
+		end
+		local to = k.cframe.Position - from
+		local dist = vector.magnitude(to)
+		local along = flat(to)
+		if dist > Freeze.RANGE or not along then
+			continue
+		end
+		local dot = vector.dot(dir, along)
+		if dot < Freeze.CONE then
+			continue
+		end
+		local score = dot - dist / (Freeze.RANGE * 100)
+		if score > bestScore then
+			best, bestScore = k, score
+		end
+	end
+	return best
+end
+
+-- The weapon contract: one ice shot along `aim` (already checked by WeaponServer).
+function Freeze.fire(kart: Kart, aim: Vector3, ctx: Ctx): boolean
+	if not kart.alive then
+		return false
+	end
+	local cf = kart.cframe
+	local look = flat(cf.LookVector) or vector.create(0, 0, -1)
+	local dir = flat(aim) or look
+	local from = cf.Position + look * Freeze.MUZZLE + vector.create(0, Freeze.HEIGHT, 0)
+	local target = Freeze.pickTarget(kart.id, cf.Position, dir, ctx.karts())
+	local to = if target then target.cframe.Position else from + dir * Freeze.RANGE
+	local hit = ctx.raycast(from, to, kart.id)
+	local victim: any? = nil
+	local endAt = to
+	if hit then
+		endAt = hit.position
+		if hit.kartId ~= nil and hit.kartId ~= kart.id then
+			victim = hit.kartId
+		end
+	elseif target then
+		victim = target.id
+	end
+	local v = if victim ~= nil then ctx.getKart(victim) else nil
+	if not v or not v.alive then
+		victim = nil
+	end
+	ctx.fx("FreezeShot", { from = from, to = endAt, hit = victim ~= nil, owner = kart.id })
+	if victim == nil or v == nil then
+		return true
+	end
+	local now = ctx.now()
+	if Freeze.isFrozen(victim, now) then
+		-- second hit: shatter
+		frozenUntil[victim] = nil
+		if ctx.freeze then
+			ctx.freeze(victim, 0)
+		end
+		ctx.fx("Shatter", { id = victim, position = v.cframe.Position, owner = kart.id })
+		ctx.damage(victim, kart.id, Freeze.SHATTER, Freeze.NAME)
+	else
+		frozenUntil[victim] = now + Freeze.FROZEN
+		if ctx.freeze then
+			ctx.freeze(victim, Freeze.FROZEN)
+		end
+		ctx.fx("FreezeHit", {
+			id = victim,
+			position = v.cframe.Position,
+			seconds = Freeze.FROZEN,
+			owner = kart.id,
+		})
+		ctx.damage(victim, kart.id, Freeze.DAMAGE, Freeze.NAME)
+	end
+	return true
+end
+
+-- Each tick: forget melted ice and karts that were smashed some other way.
+function Freeze.step(ctx: Ctx, _dt: number?)
+	local now = ctx.now()
+	for id, t in frozenUntil do
+		local k = ctx.getKart(id)
+		if now >= t then
+			frozenUntil[id] = nil
+		elseif not k or not k.alive then
+			frozenUntil[id] = nil
+			if ctx.freeze then
+				ctx.freeze(id, 0)
+			end
+		end
+	end
+end
+
+-- Match end / reset: all ice melts.
+function Freeze.clear(ctx: Ctx?)
+	for id in frozenUntil do
+		if ctx and ctx.freeze then
+			ctx.freeze(id, 0)
+		end
+	end
+	table.clear(frozenUntil)
+end
+
+return Freeze

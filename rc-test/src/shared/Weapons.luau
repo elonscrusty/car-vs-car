@@ -19,9 +19,13 @@ export type Def = {
 
 Weapons.DEFS = {
 	Rockets = { ammo = 3, cooldown = 0.6, word = "ROCKETS", icon = "rocket" },
+	-- GUNMINE row (server/weapons/Gun, Mine, Freeze keep the same numbers; a test checks)
+	Gun = { ammo = 4, cooldown = 0.5, word = "GUN", icon = "gun" },
+	Mine = { ammo = 3, cooldown = 0.6, word = "MINES", icon = "mine" },
+	Freeze = { ammo = 2, cooldown = 0.8, word = "FREEZE", icon = "freeze" },
 } :: { [string]: Def }
 -- the order boxes and screens list them in
-Weapons.NAMES = { "Rockets" }
+Weapons.NAMES = { "Rockets", "Gun", "Mine", "Freeze" }
 
 -- aim: at most this far (degrees) from where the kart faces; more is turned back to the edge
 Weapons.MAX_AIM_DEG = 30
