@@ -136,12 +136,13 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 				if ic then
 					ic:Destroy()
 				end
+				-- (in the middle of the tile, over its word, like the other tiles' icons)
 				local car = Icons.car(
 					tile,
-					-4,
-					-16,
-					70,
-					46,
+					6,
+					10,
+					50,
+					32,
 					{ kind = "racer", color = Base.color("danger"), z = 5 }
 				)
 				Anim.bob(car, UiTheme.MOTION.iconBob, 5, 0)
