@@ -341,82 +341,165 @@ test("Car VS Car: a first race (easy bots) is 1 lap, so it's over in about 1 min
 	end
 end)
 
+-- An easy race the way the server runs it: `kidMove(kid, since, dt)` moves the new kid (a Bot
+-- used as a plain car), the 7 easy bots follow them (progress read 4 times a second, like the
+-- server). Returns the kid's time and the bots, and checks no bot ever gets in front.
+local function easyRace(
+	m: any,
+	kidMove: (RaceBots.Bot, number, number) -> ()
+): (number?, { RaceBots.Bot })
+	local route, kid = setup(m, 0.5, 1)
+	route.laps = ServerRace.FIRST_LAPS
+	local lo, hi = RaceBots.skillRange(1, true)
+	local bots = {}
+	for i = 1, ServerRace.MAX - 1 do
+		local _, b = setup(m, lo + (hi - lo) * (i - 1) / (ServerRace.MAX - 2), i + 1)
+		b.delay = 0.2 + RaceBots.EASY_DELAY
+		table.insert(bots, b)
+	end
+	local follow = RaceBots.newFollow()
+	local since, readAt = -3, -3
+	local kidAt: number? = nil
+	while since < ServerRace.MAP_TIME_LIMIT and kid.time == nil do
+		if since >= readAt then
+			readAt = since + 0.25
+			local pose = RaceBots.pose(route, kid)
+			kidAt = RaceBots.roadAt(route, RaceBots.progress(route, kid), pose.x, pose.z)
+		end
+		RaceBots.follow(follow, kidAt, since)
+		kidMove(kid, since, DT)
+		if kid.time == nil and kid.dist >= route.total * route.laps then
+			kid.time = since
+		end
+		for _, b in bots do
+			-- (no catch-up in an easy race: catchUp 0)
+			local was = b.speed
+			RaceBots.step(route, b, DT, since, 0, RaceBots.followCap(follow, b))
+			truthy(b.time == nil, `{m.id}: a bot (skill {b.skill}) finished before the kid`)
+			-- never past the kid; only a put-back can leave one in front (the server reads the
+			-- kid 4 times a second), and then it doesn't speed up and isn't far in front
+			if b.dist > kid.dist + 1 and kid.dist > -1 then
+				local seen = follow.at
+				truthy(
+					seen == nil or b.dist < seen or b.speed <= was + 1e-6,
+					`{m.id}: a bot in front of the kid sped up`
+				)
+				truthy(b.dist < kid.dist + 60, `{m.id}: a bot got well in front of the kid`)
+			end
+		end
+		since += DT
+	end
+	return kid.time, bots
+end
+
 test(
 	"Car VS Car (audit B1): a slow kid in the starter car wins the first race on both maps",
 	function()
-		-- a slow kid = 10% under the slowest untrained driver (BRONZE_SKILL), and late at GO
+		-- a slow kid = 10% under the slowest untrained driver (BRONZE_SKILL), 1 s late at GO
 		local kidSkill = RaceBots.BRONZE_SKILL[1] * 0.9
-		local lo, hi = RaceBots.skillRange(1, true)
 		for _, m in RaceMaps.list() do
-			local route, kid = setup(m, kidSkill, 1)
+			local route, pacer = setup(m, kidSkill, 1)
 			route.laps = ServerRace.FIRST_LAPS
-			kid.delay = 1
-			truthy(route.bendAt > 0 and route.bendAt < route.total, `{m.id}: no first bend found`)
-			-- the 7 easy bots behind on the grid, from slowest to quickest, late at GO like the server's
-			local bots = {}
-			for i = 1, ServerRace.MAX - 1 do
-				local _, b = setup(m, lo + (hi - lo) * (i - 1) / (ServerRace.MAX - 2), i + 1)
-				b.delay = 0.2 + RaceBots.EASY_DELAY
-				table.insert(bots, b)
-			end
+			pacer.delay = 1
+			local took, bots = easyRace(m, function(kid, since, dt)
+				RaceBots.step(route, pacer, dt, since, 0)
+				kid.dist, kid.speed = pacer.dist, pacer.speed
+			end)
+			truthy(took ~= nil, `{m.id}: the slow kid never finished`)
+			-- the easy bots are at least 20% slower on their own (they're not just held back)
+			local lo, hi = RaceBots.skillRange(1, true)
+			local _, quick = setup(m, hi, 2)
+			local r2 = route
 			local since = -3
-			local held = false
-			while since < 300 and kid.time == nil do
-				-- (no catch-up: easy bots get catchUp 0; they wait for the kid up to the first bend)
-				local lead = if since >= kid.delay then RaceBots.progress(route, kid) else nil
-				RaceBots.step(route, kid, DT, since, 0)
-				for _, b in bots do
-					local hold = b.time == nil and RaceBots.holds(route, b, lead)
-					held = held or (hold and since > 0)
-					RaceBots.step(route, b, DT, since, 0, hold)
-					truthy(b.time == nil, `{m.id}: a bot (skill {b.skill}) beat the kid`)
-				end
+			while since < 300 and quick.time == nil do
+				RaceBots.step(r2, quick, DT, since, 0)
 				since += DT
 			end
-			truthy(kid.time ~= nil, `{m.id}: the kid never finished`)
-			local kidTime = kid.time :: number
-			-- every bot is at least 20% slower: still short of the line at 1.2x the kid's time
-			while since < kidTime * 1.2 do
-				for _, b in bots do
-					RaceBots.step(route, b, DT, since, 0, false)
-				end
-				since += DT
-			end
-			for _, b in bots do
-				truthy(
-					b.time == nil or b.time >= kidTime * 1.2,
-					`{m.id}: bot {b.skill} under 20% slower`
-				)
-			end
-			print(
-				string.format("       %s: slow kid %.0f s, held %s", m.id, kidTime, tostring(held))
+			truthy(
+				(quick.time :: number) >= (took :: number) * 1.2,
+				`{m.id}: quickest easy bot under 20% slower`
 			)
+			truthy(lo < hi)
+			print(
+				string.format(
+					"       %s: slow kid %.0f s, quickest easy bot alone %.0f s",
+					m.id,
+					took :: number,
+					quick.time :: number
+				)
+			)
+			eq(#bots, ServerRace.MAX - 1)
 		end
 	end
 )
 
-test(
-	"Car VS Car (audit B1): easy bots wait for the kid only before the end of the first bend",
-	function()
-		for _, m in RaceMaps.list() do
-			local route, bot = setup(m, 0.45, 2)
-			bot.dist = route.bendAt * 0.5
-			truthy(RaceBots.holds(route, bot, nil), "nobody moving yet: wait")
-			truthy(RaceBots.holds(route, bot, -1), "ahead of the kid: wait")
-			truthy(not RaceBots.holds(route, bot, 99), "behind the kid: drive on")
-			bot.dist = route.bendAt + 1
-			truthy(not RaceBots.holds(route, bot, -1), "past the first bend: no more waiting")
+test("Car VS Car (audit B1): a kid who never steers (AUTO GAS into walls) still wins", function()
+	-- (Studio live 3: AUTO GAS, no steering, came last.) Gas for 8 s, hit a wall, sit still 3 s,
+	-- get put back 50 behind, again and again.
+	for _, m in RaceMaps.list() do
+		local took, bots = easyRace(m, function(kid, since, dt)
+			if since < 1 then
+				return
+			end
+			local t = (since - 1) % 11
+			if t < 8 then
+				kid.speed = math.min(40, kid.speed + RaceBots.ACCEL * dt)
+				kid.dist += kid.speed * dt
+			elseif t < 8 + dt * 1.5 and kid.speed > 0 then
+				kid.speed = 0
+				kid.dist -= 50 -- put back
+			else
+				kid.speed = 0
+			end
+		end)
+		truthy(took ~= nil, `{m.id}: the never-steer kid didn't finish in the time limit`)
+		local behind = 0
+		for _, b in bots do
+			if b.dist > 0 then
+				behind += 1
+			end
 		end
-		-- and the server gives easy bots no catch-up and passes the wait on
-		local fs = require("@lune/fs")
-		local src = fs.readFile("src/server/RaceBotCars.luau")
-		truthy(
-			string.find(src, "if lead and not fleet.easy then", 1, true),
-			"easy bots still catch up"
-		)
-		truthy(
-			string.find(src, "RaceBots.holds(fleet.route, bot, lead)", 1, true),
-			"no wait for the kid"
-		)
+		truthy(behind > 0, `{m.id}: the bots never left the grid`)
+		print(string.format("       %s: never-steer kid 1st in %.0f s", m.id, took :: number))
 	end
-)
+end)
+
+test("Car VS Car (audit B1): the bots know where the kid is on the road, from progress", function()
+	for _, m in RaceMaps.list() do
+		local route, bot = setup(m, 0.6, 1)
+		for _, d in { -10, 5, route.total * 0.3, route.total * 0.71, route.total - 20 } do
+			bot.dist = d
+			bot.seg = 1
+			local p = RaceBots.progress(route, bot)
+			truthy(math.abs(RaceBots.distOf(route, p) - d) < 1, `{m.id}: distOf at {d}`)
+			local pose = RaceBots.pose(route, bot)
+			truthy(
+				math.abs(RaceBots.roadAt(route, p, pose.x, pose.z) - d) < 15 or d < 0,
+				`{m.id}: roadAt at {d}`
+			)
+		end
+		-- the cap: none without a kid, under the kid's pace when close, 0 when level with them
+		local f = RaceBots.newFollow()
+		eq(RaceBots.followCap(f, bot), nil)
+		RaceBots.follow(f, 100, 0)
+		RaceBots.follow(f, 110, 0.25) -- 40/s
+		bot.dist = 100 - RaceBots.FOLLOW_GAP
+		local cap = RaceBots.followCap(f, bot) :: number
+		truthy(cap > 0 and cap < 40, "just under the kid's pace at the gap")
+		bot.dist = 110
+		eq(RaceBots.followCap(f, bot), 0)
+		RaceBots.follow(f, 60, 0.5) -- put back: wait
+		eq(f.speed, 0)
+		RaceBots.follow(f, nil, 0.75) -- no new kid racing: let go
+		eq(RaceBots.followCap(f, bot), nil)
+	end
+	-- and the server wires it: no catch-up, the cap, the furthest new kid's road spot
+	local fs = require("@lune/fs")
+	local src = fs.readFile("src/server/RaceBotCars.luau")
+	truthy(string.find(src, "if lead and not fleet.easy then", 1, true), "easy bots still catch up")
+	truthy(string.find(src, "RaceBots.followCap(fleet.follow, bot)", 1, true), "no follow cap")
+	local run = fs.readFile("src/server/ServerRaceRunner.luau")
+	truthy(string.find(run, "RaceBotCars.step(bots, clock, goAt, lead, kidLead)", 1, true))
+	truthy(string.find(run, "RaceBots.roadAt(bots.route, progress, lx, lz)", 1, true))
+	truthy(string.find(run, "new = solo[i],", 1, true), "racers don't know who is new")
+end)

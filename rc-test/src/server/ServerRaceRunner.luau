@@ -69,6 +69,7 @@ type Racer = {
 	run: RunCheck.State?, -- a drift round: the server's own drift count (from GO)
 	score: number, -- a drift round: points from slides that are over
 	leg: { x: number, z: number, t: number }?, -- where and when it crossed its last gate
+	new: boolean?, -- never raced: an easy race's bots stay behind them (RaceBots.follow)
 }
 
 local ServerRaceRunner = {}
@@ -651,6 +652,7 @@ local function runRace(hooks: Hooks, slot: number)
 				out = false,
 				place = k,
 				score = 0,
+				new = solo[i],
 			})
 		end
 	end
@@ -825,6 +827,7 @@ local function runRace(hooks: Hooks, slot: number)
 			end
 		end
 		local lead: number? = nil -- the leading player's progress, for the bots' catch-up
+		local kidLead: number? = nil -- how far round the furthest new kid is, for easy bots
 		while not drift do
 			RunService.Heartbeat:Wait()
 			local clock = os.clock()
@@ -885,7 +888,7 @@ local function runRace(hooks: Hooks, slot: number)
 				end
 			end
 			if bots then
-				RaceBotCars.step(bots, clock, goAt, lead)
+				RaceBotCars.step(bots, clock, goAt, lead, kidLead)
 				for _, car in bots.cars do
 					local b = car.bot
 					table.insert(
@@ -902,16 +905,19 @@ local function runRace(hooks: Hooks, slot: number)
 				placesAt = clock + 0.25
 				tagCars()
 				local runs: { ServerRace.Run } = {}
+				kidLead = nil
 				for _, r in racers do
 					local s = r.timer
 					local passed = if s.running then s.next - 1 else 0
 					local g = t.gates[((s.next - 1) % math.max(gates, 1)) + 1]
 					local dist = 0
+					local lx: number?, lz: number? = nil, nil
 					local body = if r.out then nil else carBody(r.player)
 					if body and g then
 						local pos = body.Position
-						local lx, _, lz = TrackData.toLocal(t, true, pos.X, pos.Y, pos.Z)
-						dist = math.sqrt((lx - g.x) ^ 2 + (lz - g.z) ^ 2)
+						local x, _, z = TrackData.toLocal(t, true, pos.X, pos.Y, pos.Z)
+						lx, lz = x, z
+						dist = math.sqrt((x - g.x) ^ 2 + (z - g.z) ^ 2)
 					end
 					local out = r.out and r.time == nil
 					local progress = if out
@@ -924,6 +930,15 @@ local function runRace(hooks: Hooks, slot: number)
 					})
 					if not out and (lead == nil or progress > lead) then
 						lead = progress
+					end
+					if not out and r.new and bots then
+						-- (how far along the road: the easy bots stay behind the furthest new kid)
+						local at = if lx and lz
+							then RaceBots.roadAt(bots.route, progress, lx, lz)
+							else RaceBots.distOf(bots.route, progress)
+						if kidLead == nil or at > kidLead then
+							kidLead = at
+						end
 					end
 				end
 				local cars = #racers

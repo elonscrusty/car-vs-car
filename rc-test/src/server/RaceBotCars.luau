@@ -31,7 +31,8 @@ export type Fleet = {
 	hover: number, -- body height over the road (the players' spawn height over the road)
 	ground: RaycastParams,
 	last: number?, -- clock of the last step
-	easy: boolean, -- a first race: no catch-up, and the bots wait for the kid (RaceBots.holds)
+	easy: boolean, -- a first race: no catch-up, and the bots stay behind the new kid (RaceBots.follow)
+	follow: RaceBots.Follow,
 }
 
 local RaceBotCars = {}
@@ -96,6 +97,7 @@ function RaceBotCars.spawn(
 		ground = ground,
 		last = nil,
 		easy = easy,
+		follow = RaceBots.newFollow(),
 	}
 	local names = table.clone(RaceBots.NAMES)
 	for i = 1, count do
@@ -164,14 +166,24 @@ function RaceBotCars.spawn(
 end
 
 -- One frame. `clock` = os.clock(), `goAt` = the clock at GO, `lead` = the leading player's
--- ServerRace.progress (nil = none racing: no catch-up). Returns the number of bots that finished
--- on this step, so the caller can start the finish countdown.
-function RaceBotCars.step(fleet: Fleet, clock: number, goAt: number, lead: number?): number
+-- ServerRace.progress (nil = none racing: no catch-up), `kid` = how far along the road the furthest
+-- new kid is (RaceBots.roadAt; an easy race's bots stay behind them; nil = none). Returns the number of bots that finished on this
+-- step, so the caller can start the finish countdown.
+function RaceBotCars.step(
+	fleet: Fleet,
+	clock: number,
+	goAt: number,
+	lead: number?,
+	kid: number?
+): number
 	local dt = math.clamp(clock - (fleet.last or clock), 0, 0.1)
 	fleet.last = clock
 	local since = clock - goAt
 	local done = 0
 	local t = fleet.track
+	if fleet.easy then
+		RaceBots.follow(fleet.follow, kid, since)
+	end
 	for _, car in fleet.cars do
 		local bot = car.bot
 		local catchUp = 0
@@ -180,8 +192,8 @@ function RaceBotCars.step(fleet: Fleet, clock: number, goAt: number, lead: numbe
 				math.clamp((RaceBots.progress(fleet.route, bot) - lead) / RaceBots.CATCH_GAP, -1, 1)
 		end
 		local had = bot.time
-		local hold = fleet.easy and bot.time == nil and RaceBots.holds(fleet.route, bot, lead)
-		RaceBots.step(fleet.route, bot, dt, since, catchUp, hold)
+		local cap = if fleet.easy then RaceBots.followCap(fleet.follow, bot) else nil
+		RaceBots.step(fleet.route, bot, dt, since, catchUp, cap)
 		if had == nil and bot.time ~= nil then
 			done += 1
 		end
