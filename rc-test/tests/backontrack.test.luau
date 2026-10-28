@@ -314,19 +314,31 @@ test(
 			local toG2 = math.sqrt((far.x - g2.x) ^ 2 + (far.z - g2.z) ^ 2)
 			local toG3 = math.sqrt((far.x - g3.x) ^ 2 + (far.z - g3.z) ^ 2)
 			truthy(toG2 < toG3 or #t.gates < 3, `{m.id}: put back past a gate it hasn't passed`)
+			-- put back at the same wall again (a first race, Studio pr841): further on each time,
+			-- but never onto the next gate
+			local pushed =
+				BackOnTrack.roadSpot(t, loop, t.gates, 2, mid.x, mid.z, 6) :: BackOnTrack.Spot
+			local d0 = (s.x - g2.x) ^ 2 + (s.z - g2.z) ^ 2
+			local d1 = (pushed.x - g2.x) ^ 2 + (pushed.z - g2.z) ^ 2
+			truthy(d1 < d0, `{m.id}: a push didn't move it on`)
+			local most =
+				BackOnTrack.roadSpot(t, loop, t.gates, 2, mid.x, mid.z, 1e6) :: BackOnTrack.Spot
+			local last = loop[at]
+			truthy(most.x ~= last.x or most.z ~= last.z, `{m.id}: pushed onto the next gate`)
 		end
 		-- and the client uses it, keeping AUTO GAS on in a first race
 		local fs = require("@lune/fs")
 		local src = fs.readFile("src/client/Main.client.luau")
 		truthy(
 			string.find(
-				src,
-				"BackOnTrack.roadSpot(t, m.loop(), timer.gates, timer.next, road.x, road.z)",
+				(string.gsub(src, "%s+", "")),
+				"BackOnTrack.roadSpot(t,m.loop(),timer.gates,timer.next,road.x,road.z,push)",
 				1,
 				true
 			)
 		)
 		truthy(string.find(src, 'if player:GetAttribute("EasyRace") ~= true then', 1, true))
 		truthy(string.find(src, "lastRoad = { x = lx, z = lz }", 1, true))
+		truthy(string.find(src, "push = putAgain * PUT_PUSH", 1, true), "push not wired")
 	end
 )

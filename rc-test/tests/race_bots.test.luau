@@ -747,27 +747,31 @@ test("Car VS Car (Studio after-818): a put-back doesn't flip the new kid to 8TH"
 		local mid = route.total * 0.55
 		local kidAt = mid - 45
 		local kid = RaceBots.progress(route, at(kidAt))
+		-- while the bots wait for the kid, every bot still racing is placed behind them, wherever
+		-- it is: just ahead after a put-back, the rival in front, far ahead (Studio pr841 read 8TH
+		-- from 1:08 to 1:47), and anywhere round the lap (a gate the kid's lap clock missed)
 		local runs: { ServerRace.Run } = { { time = nil, progress = kid } }
-		for k = 1, 6 do
-			local b = at(mid - 5 * k)
-			local real = RaceBots.progress(route, b)
+		local spots =
+			{ mid - 5, mid - 30, kidAt + RaceBots.RIVAL_LEAD, kidAt + RaceBots.FOLLOW_WAIT + 50 }
+		for k = 0, 20 do
+			table.insert(spots, route.total * 2 * k / 21)
+		end
+		for _, d in spots do
+			local b = at(d)
 			table.insert(runs, {
 				time = nil,
-				progress = RaceBots.placeProgress(b, real, kidAt, kid),
+				progress = RaceBots.placeProgress(b, RaceBots.progress(route, b), kid),
 			})
+			eq(ServerRace.places(runs)[1], 1, `{m.id}: a bot at {d} put the kid behind`)
 		end
-		eq(ServerRace.places(runs)[1], 1, `{m.id}: the kid stays 1ST over bots waiting for them`)
-		-- the rival riding in front counts as behind too (Studio pr839: the pill said 2ND, the
-		-- podium YOU WON!), but a bot far ahead of a stuck kid keeps its place
-		local rival = at(kidAt + RaceBots.RIVAL_LEAD)
-		table.insert(runs, {
-			time = nil,
-			progress = RaceBots.placeProgress(rival, RaceBots.progress(route, rival), kidAt, kid),
-		})
-		eq(ServerRace.places(runs)[1], 1, `{m.id}: the rival in front doesn't make the kid 2ND`)
+		-- the bots racing on (an idle kid): their real places
 		local far = at(kidAt + RaceBots.FOLLOW_WAIT + 50)
 		local real = RaceBots.progress(route, far)
-		eq(RaceBots.placeProgress(far, real, kidAt, kid), real)
+		eq(RaceBots.placeProgress(far, real, nil), real)
+		-- a bot that finished keeps its time
+		local done = at(mid)
+		done.time = 50
+		eq(RaceBots.placeProgress(done, real, kid), real)
 		-- at the finish the live place and the result rows agree: the kid crosses first and the
 		-- rival, held short of the line, is behind on both
 		local line = route.total * route.laps
@@ -783,7 +787,7 @@ test("Car VS Car (Studio after-818): a put-back doesn't flip the new kid to 8TH"
 			table.insert(finish, { name = `bot{k}`, laps = RaceBots.laps(route, b) })
 			table.insert(live, {
 				time = nil,
-				progress = RaceBots.placeProgress(b, RaceBots.progress(route, b), road, kid),
+				progress = RaceBots.placeProgress(b, RaceBots.progress(route, b), kid),
 			})
 		end
 		eq(ServerRace.places(live)[1], 1, `{m.id}: RacePlace at the finish`)
@@ -791,7 +795,7 @@ test("Car VS Car (Studio after-818): a put-back doesn't flip the new kid to 8TH"
 	end
 	local fs = require("@lune/fs")
 	local run = fs.readFile("src/server/ServerRaceRunner.luau")
-	truthy(string.find(run, "then RaceBots.placeProgress(", 1, true), "places not wired")
+	truthy(string.find(run, "if held then kidProgress else nil", 1, true), "places not wired")
 	truthy(string.find(run, "local at = RaceBots.kidRoad(", 1, true), "kid road not wired")
 	truthy(string.find(run, "placesAt = clock -- (this frame", 1, true), "place at once on finish")
 end)

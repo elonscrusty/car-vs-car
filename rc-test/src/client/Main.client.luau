@@ -289,6 +289,10 @@ local creep = 0 -- average ground speed lately (for the stuck check)
 local lost = BackOnTrack.newLost() -- big race: still, off the road or WRONG WAY for a while
 local movedSincePut = true -- big race: gas or rolling since the last put-back (the still clock waits)
 local lastRoad: { x: number, z: number }? = nil -- big race: where the car was last on the road (map-local)
+-- a first race: put back near the same spot again soon = a little further on each time
+local PUT_SAME, PUT_SOON, PUT_PUSH = 40, 20, 3 -- big units, seconds, road samples
+local putRoad: { x: number, z: number }? = nil
+local putAt, putAgain = -100, 0
 local lostRoads: { [string]: { BackOnTrack.Road } } = {} -- each map's roads (BackOnTrack.roads)
 -- Plots with checkpoint flags: a reset (R, RESET, fell off, out) brings the car back to the last
 -- flag it drove through instead of the start. R twice quickly = start.
@@ -323,9 +327,30 @@ local function reset(why: string?, from: string?)
 		-- the first bend back on the start line every time)
 		local m = if t.map then RaceMaps.get(t.map) else nil
 		local road = lastRoad
+		local push = 0
+		if road and player:GetAttribute("EasyRace") == true then
+			local was = putRoad
+			local same = was ~= nil
+				and now - putAt < PUT_SOON
+				and (road.x - was.x) ^ 2 + (road.z - was.z) ^ 2 < PUT_SAME ^ 2
+			putAgain = if same then putAgain + 1 else 0
+			if not same then
+				putRoad = { x = road.x, z = road.z }
+			end
+			putAt = now
+			push = putAgain * PUT_PUSH
+		end
 		local g = (
 			if m and road
-				then BackOnTrack.roadSpot(t, m.loop(), timer.gates, timer.next, road.x, road.z)
+				then BackOnTrack.roadSpot(
+					t,
+					m.loop(),
+					timer.gates,
+					timer.next,
+					road.x,
+					road.z,
+					push
+				)
 				else nil
 		) or BackOnTrack.spot(t, timer.gates, timer.next) :: BackOnTrack.Spot
 		local x, y, z = TrackData.toWorld(t, rc, g.x, g.y, g.z)
