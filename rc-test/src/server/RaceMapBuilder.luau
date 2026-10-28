@@ -1754,7 +1754,7 @@ local TOY_COLORS =
 
 local function kitchenEdges(folder: Instance, map: any)
 	local def: MapKit.Def = map.def
-	for n, e in MapKit.edgeSpots(map, 130, MapKit.TOY_OFF, MapKit.TOY_CLEAR) do
+	for n, e in MapKit.toySpots(map) do
 		local kind = TOYS[(n - 1) % #TOYS + 1]
 		local color = TOY_COLORS[(n - 1) % #TOY_COLORS + 1]
 		local spin = if kind == "crayon" then PI / 2 else n * 0.7 -- crayons lie along the road
@@ -1944,15 +1944,23 @@ local function kitchenWalls(folder: Instance, map: any)
 	end
 end
 
--- white arrows painted on the main road, pointing the way to go
+-- white arrows painted on the main road, pointing the way to go: big, and closer together into
+-- and round every bend, where each one points at the road a little way ahead
+local ARROW_GAP, ARROW_GAP_BEND, ARROW_AIM = 150, 45, 60
 local function roadArrows(folder: Instance, map: any)
 	local def: MapKit.Def = map.def
 	local loop: { MapKit.Sample } = map.loop()
-	local run = 0
+	local n = #loop
+	local bend: { [number]: boolean } = {}
+	for _, t in MapKit.turns(map) do
+		for i = t.from - 10, t.to do
+			bend[(i - 1) % n + 1] = true
+		end
+	end
+	local run = ARROW_GAP
 	for i, a in loop do
-		local b = loop[(i % #loop) + 1]
-		run += math.sqrt((b.x - a.x) ^ 2 + (b.z - a.z) ^ 2)
-		if run > 240 then
+		local b = loop[(i % n) + 1]
+		if run > (if bend[i] then ARROW_GAP_BEND else ARROW_GAP) then
 			local clearOf = true
 			for _, g in map.gates do
 				if (g.x - a.x) ^ 2 + (g.z - a.z) ^ 2 < 40 * 40 then
@@ -1971,17 +1979,59 @@ local function roadArrows(folder: Instance, map: any)
 			end
 			if clearOf then
 				run = 0
+				-- aim at the road ARROW_AIM ahead (on a straight that's straight on)
+				local k, ahead = i, 0
+				while ahead < ARROW_AIM and k < i + n do
+					local p, q = loop[(k - 1) % n + 1], loop[k % n + 1]
+					ahead += math.sqrt((q.x - p.x) ^ 2 + (q.z - p.z) ^ 2)
+					k += 1
+				end
+				local aim = loop[(k - 1) % n + 1]
+				local pos = Vector3.new(a.x, ROAD_TOP + 0.03, a.z)
+				local at = CFrame.lookAt(pos, Vector3.new(aim.x, pos.Y, aim.z))
 				for _, side in { -1, 1 } do
 					looks(
 						folder,
 						"Arrow",
-						Vector3.new(12, 0.05, 2.4),
-						frameAt(a, ROAD_TOP + 0.03)
-							* CFrame.new(side * 4.5, 0, 0)
-							* CFrame.Angles(0, side * 0.7, 0),
+						Vector3.new(20, 0.05, 4),
+						at * CFrame.new(side * 7.5, 0, 0) * CFrame.Angles(0, side * 0.7, 0),
 						C.white
 					)
 				end
+			end
+		end
+		run += math.sqrt((b.x - a.x) ^ 2 + (b.z - a.z) ^ 2)
+	end
+end
+
+-- yellow chevron boards round the outside of each bend (MapKit.turnSigns): a board on a post, two
+-- black arrows on its face pointing the way the road turns
+local SIGN_YELLOW = rgb(255, 205, 40)
+local function turnSigns(folder: Instance, map: any)
+	local w, h, low = MapKit.SIGN_W, 16, 4
+	for _, sg in MapKit.turnSigns(map) do
+		-- local +Z faces the oncoming car, +X is that driver's right
+		local at = CFrame.new(sg.x, 0, sg.z) * CFrame.Angles(0, sg.yaw, 0)
+		looks(
+			folder,
+			"SignPost",
+			Vector3.new(2, low + h / 2, 2),
+			at * CFrame.new(0, (low + h / 2) / 2, -1.5),
+			DARK
+		)
+		looks(folder, "Sign", Vector3.new(w, h, 1), at * CFrame.new(0, low + h / 2, 0), SIGN_YELLOW)
+		for _, cx in { -5, 5 } do
+			for _, up in { 1, -1 } do
+				-- ">" (or "<" on a left-hand bend): two bars meeting at the tip
+				looks(
+					folder,
+					"SignArrow",
+					Vector3.new(8, 2.6, 0.3),
+					at
+						* CFrame.new(sg.dir * cx, low + h / 2 + up * 2.6, 0.6)
+						* CFrame.Angles(0, 0, -up * sg.dir * 0.65),
+					DARK
+				)
 			end
 		end
 	end
@@ -2175,6 +2225,7 @@ function RaceMapBuilder.buildMap(map: any): Model
 		yardEdges(scenery, map)
 	end
 	roadArrows(track, map)
+	turnSigns(track, map)
 	shortcutArrows(track, map)
 	secretHint(scenery, map)
 	for _, e in def.props do

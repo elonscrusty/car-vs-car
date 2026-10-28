@@ -285,7 +285,7 @@ for _, m in maps do
 	test(m.id .. ": things lining the road stay off every road", function()
 		local spots = MapKit.edgeSpots(m, 34, def.road / 2 + MapKit.CURB_WIDTH + 10, 5)
 		truthy(#spots > 80, `only {#spots} spots by the road`)
-		local toys = MapKit.edgeSpots(m, 130, MapKit.TOY_OFF, MapKit.TOY_CLEAR)
+		local toys = MapKit.toySpots(m)
 		truthy(#toys > 8, `only {#toys} toy spots`)
 		for _, e in toys do
 			for k, ring in roads(m) do
@@ -360,6 +360,54 @@ for _, m in maps do
 						)
 					end
 				end
+			end
+		end
+	end)
+
+	-- a first-time kid on the low chase cam ran off every bend (10-28): each bend gets chevron
+	-- boards on its outside, facing the car coming in, pointing the way the road turns
+	test(m.id .. ": every bend has chevron boards on its outside, facing the car", function()
+		local loop = m.loop()
+		local n = #loop
+		local signs = MapKit.turnSigns(m)
+		local turns = MapKit.turns(m)
+		truthy(#turns >= 5, `only {#turns} bends found`)
+		for _, t in turns do
+			local count = 0
+			for _, sg in signs do
+				local s, i = MapKit.nearest(loop, sg)
+				local inBend = false
+				for k = t.from - 4, t.to do
+					if (k - 1) % n + 1 == i then
+						inBend = true
+					end
+				end
+				if inBend then
+					count += 1
+					eq(sg.dir, t.dir)
+					-- on the outside of the bend, past the curb
+					local ox, oz = s.tz * t.dir, -s.tx * t.dir
+					truthy(
+						(sg.x - s.x) * ox + (sg.z - s.z) * oz > def.road / 2 + MapKit.CURB_WIDTH,
+						`board at {math.floor(sg.x)}, {math.floor(sg.z)} is not out past the curb`
+					)
+					-- its face turned toward the road / the oncoming car
+					local fx, fz = math.sin(sg.yaw), math.cos(sg.yaw)
+					truthy(
+						fx * (-s.tx - ox) + fz * (-s.tz - oz) > 0.5,
+						`board at {math.floor(sg.x)}, {math.floor(sg.z)} faces away`
+					)
+				end
+			end
+			truthy(count >= 2, `bend at samples {t.from}-{t.to} has {count} boards`)
+		end
+		for _, sg in signs do
+			for k, ring in roads(m) do
+				local w = if k == 1 then def.road else def.paths[k - 1].width
+				truthy(
+					MapKit.distTo(ring, sg.x, sg.z) > w / 2 + MapKit.CURB_WIDTH + 2,
+					`board at {math.floor(sg.x)}, {math.floor(sg.z)} is on road {k}`
+				)
 			end
 		end
 	end)
