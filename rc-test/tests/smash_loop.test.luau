@@ -164,8 +164,13 @@ test("first smash (a bump) within 30 s; the bot is back in 3 s with a shield", f
 	print(`       first smash {math.floor(S.now() - roundStart + 0.5)} s into the round`)
 	truthy(#S.got(kid, "SmashFeed") >= 1, "the kill feed told the kid")
 	-- the smashed bot: down now, back within Match.RESPAWN with a bubble
-	local feed = S.got(kid, "SmashFeed")
-	local victim = feed[#feed][3]
+	local victim = nil
+	for _, f in S.got(kid, "SmashFeed") do
+		if type(f[2]) == "table" and f[2].userId == KID then
+			victim = f[3]
+			break
+		end
+	end
 	local vid = type(victim) == "table"
 		and (victim.userId or (victim.kart and tonumber(string.match(victim.kart.Name, "-?%d+$"))))
 	truthy(vid, "the feed names the victim's kart")
@@ -206,7 +211,9 @@ test("open the crate, then round 2 starts by itself after the break, with the la
 	S.advance(1, BEAT)
 	eq(#data.garage, had + 1, "a new car")
 	eq(#S.got(kid, "StarsEvent", "daily"), 1, "the daily gift came after the first crate")
-	while data.crates > 0 and #data.garage < had + 4 do
+	local tries = 0
+	while data.crates > 0 and tries < 10 do
+		tries += 1
 		S.send(kid, "Garage", "open")
 		S.advance(1, BEAT)
 	end
@@ -233,14 +240,16 @@ test("round 2 over: paid again, no second free crate", function()
 end)
 
 test("leave mid-round 3 and rejoin on another server: coins and cars come back", function()
-	waitFor(function()
+	local in3 = waitFor(function()
 		return kid:GetAttribute("InMatch") == true
 			and (S.workspace:GetAttribute("MatchRound") or 0) >= 3
 	end, 20)
+	truthy(in3, "round 3 started with the kid in it")
 	local want = { coins = data.coins, cars = carIds(data), crates = data.crates }
 	S.leave(kid)
 	S.advance(5, BEAT)
-	eq(#MR.karts() <= 8, true, "the round goes on")
+	-- (karts() is empty unless a round is playing)
+	truthy(#MR.karts() >= 7, "the round goes on without the kid")
 	eq(trouble(S), "", "server A errors or warns")
 	local S2 = boot(store, "smash-B")
 	local kid2 = S2.join(KID)
