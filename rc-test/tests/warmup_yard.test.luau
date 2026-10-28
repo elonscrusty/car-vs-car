@@ -90,3 +90,36 @@ test("yard: who goes there (queued, not playing, the round a while off)", functi
 	-- a round that's over (ROUND OVER break) with the next one far off
 	truthy(S.wants(true, false, now - 3, now + 30, now))
 end)
+
+test("yard: dressed like the arena, and nothing solid on a spawn, box or dummy spot", function()
+	local names: { [string]: number } = {}
+	for _, p in Y.parts() do
+		names[p.name] = (names[p.name] or 0) + 1
+	end
+	for _, n in { "TreeTop", "Cover", "Crate", "Barrel", "Bush", "Flower" } do
+		truthy((names[n] or 0) > 0, "no " .. n)
+	end
+	local spots = {}
+	for _, s in Y.spawns do
+		table.insert(spots, s)
+	end
+	for _, b in Y.boxSpots do
+		table.insert(spots, b)
+	end
+	for _, d in Y.DUMMIES do
+		table.insert(spots, d.at)
+	end
+	for _, p in Y.parts() do
+		if p.collide and p.group ~= "Ground" and p.group ~= "Walls" and p.group ~= "Board" then
+			-- the piece's widest half-extent on the floor, turned any way
+			local half = math.sqrt(p.size.x ^ 2 + p.size.z ^ 2) / 2
+			if p.shape == "Cylinder" and p.rot.z == 90 then
+				half = math.max(p.size.y, p.size.z) / 2 -- an upright stick
+			end
+			for _, s in spots do
+				local gap = math.sqrt((p.pos.x - s.x) ^ 2 + (p.pos.z - s.z) ^ 2) - half
+				truthy(gap >= 8, `{p.name} at {p.pos.x},{p.pos.z} is {gap} from a spot`)
+			end
+		end
+	end
+end)

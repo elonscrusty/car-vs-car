@@ -61,6 +61,19 @@ local PINK = { 255, 64, 160 }
 local NAVY = { 32, 40, 74 }
 local YELLOW = { 255, 210, 60 }
 
+-- the arena's dressing colours (ArenaBuilder)
+local STICK = { 252, 248, 240 }
+local CANDY, CANDY_2 = { 214, 44, 178 }, { 255, 110, 200 }
+local ORANGE = { 255, 140, 40 }
+local CRATE, CRATE_BAND = { 255, 196, 60 }, { 230, 120, 30 }
+local RED, WHITE = { 225, 40, 50 }, { 250, 250, 250 }
+local BUSH, BUSH_2 = { 56, 150, 64 }, { 84, 176, 72 }
+local GRASS_DARK, GRASS_LIGHT = { 92, 182, 70 }, { 146, 220, 100 }
+local PETALS = { PINK, YELLOW, WHITE, CANDY_2 }
+
+-- how far the grass runs past the walls (big units)
+local APRON = 90
+
 export type Spot = { x: number, y: number, z: number, dx: number, dz: number }
 
 -- start spots (big units), facing +z toward the board: 8, as many as a round takes
@@ -89,6 +102,35 @@ WarmupYard.DUMMIES = {
 	{ at = v(-26, 2.5, 2), mode = "circle" },
 	{ at = v(26, 2.5, 2), mode = "circle" },
 } :: { { at: V3, mode: string } }
+-- dressing (big units). Trees { x, z }: in the four corners inside, and a ring outside the walls.
+WarmupYard.TREES = {
+	{ -88, -58 },
+	{ 88, -58 },
+	{ -88, 58 },
+	{ 88, 58 },
+	{ -130, -40 },
+	{ -126, 20 },
+	{ -140, 70 },
+	{ 130, -36 },
+	{ 128, 24 },
+	{ 142, 68 },
+	{ -60, 104 },
+	{ 10, 112 },
+	{ 70, 100 },
+	{ -70, -100 },
+	{ 0, -112 },
+	{ 64, -104 },
+}
+-- low cover walls { x, z, length, turn in degrees }
+WarmupYard.COVER = { { -70, 36, 26, 0 }, { 70, 36, 26, 0 }, { 0, 12, 22, 90 } }
+WarmupYard.CRATES = { { -86, 10 }, { 86, 10 }, { 88, -16 } }
+-- barrel rows { x of the first, z, (unused), count }
+WarmupYard.BARRELS = { { -40, 62, 0, 5 }, { 20, 62, 0, 5 } }
+WarmupYard.BUSHES = { { -92, -30 }, { 92, -30 }, { 90, 44 }, { -118, -6 }, { 118, 4 }, { -30, 96 } }
+WarmupYard.FLOWERS =
+	{ { -80, -62 }, { 80, -62 }, { -52, 60 }, { 52, 60 }, { -110, 50 }, { 112, -60 } }
+WarmupYard.PATCHES = { { -60, -10, 26 }, { 60, -16, 22 }, { -20, 44, 20 }, { 34, -44, 18 } }
+
 -- the NEXT MATCH board: across the far end, facing the spawns (-z)
 WarmupYard.BOARD = { at = v(0, 30, WarmupYard.D / 2 - 6), w = 120, h = 28 }
 
@@ -143,7 +185,8 @@ function WarmupYard.parts(): { any }
 		})
 	end
 	local W, D, H, T = WarmupYard.W, WarmupYard.D, WarmupYard.WALL_H, WarmupYard.WALL_T
-	add("Ground", "Floor", v(W + 2 * T, 4, D + 2 * T), v(0, -2, 0), GRASS)
+	-- the grass runs well past the walls (trees out there), so the yard never sits on the void
+	add("Ground", "Floor", v(W + 2 * APRON, 4, D + 2 * APRON), v(0, -2, 0), GRASS)
 	add("Ground", "Sand", v(110, 0.4, 64), v(0, 0.2, 10), SAND, { collide = false })
 	for _, sx in { -1, 1 } do
 		add("Walls", "Side", v(T, H, D + 2 * T), v(sx * (W / 2 + T / 2), H / 2, 0), PURPLE)
@@ -168,6 +211,106 @@ function WarmupYard.parts(): { any }
 	local legH = b.at.y - b.h / 2
 	for _, sx in { -1, 1 } do
 		add("Board", "Leg", v(4, legH, 4), v(sx * (b.w / 2 - 10), legH / 2, b.at.z + 1.2), NAVY)
+	end
+
+	-- ===== dressing, the arena's look (ArenaBuilder): lollipop trees, orange cover walls, red
+	-- barrels, crates, bushes, flowers, grass patches. Nothing on a spawn, box or dummy spot. =====
+	local function tree(x: number, z: number, i: number)
+		local h, r = 26, 10
+		add("Trees", "TreeStick", v(h, 2.4, 2.4), v(x, h / 2, z), STICK, {
+			shape = "Cylinder",
+			rot = v(0, 0, 90),
+		})
+		local spin = i * 40
+		add("Trees", "TreeTop", v(r * 1.5, r * 1.5, r * 1.5), v(x, h + r * 0.6, z), CANDY, {
+			rot = v(34, spin, 34),
+			collide = false,
+		})
+		add("Trees", "TreeTop", v(r * 1.3, r * 1.3, r * 1.3), v(x, h + r * 0.6, z), CANDY_2, {
+			rot = v(-23, spin + 46, 52),
+			collide = false,
+		})
+	end
+	for i, t in WarmupYard.TREES do
+		tree(t[1], t[2], i)
+	end
+	for i, c in WarmupYard.COVER do
+		-- low orange cover walls, end on to the spawns
+		add("Cover", "Cover", v(c[3], 6, 4), v(c[1], 3, c[2]), ORANGE, { rot = v(0, c[4], 0) })
+		add("Cover", "CoverCap", v(c[3] + 0.6, 0.8, 4.6), v(c[1], 6.4, c[2]), YELLOW, {
+			rot = v(0, c[4], 0),
+			collide = false,
+		})
+		local _ = i
+	end
+	for i, c in WarmupYard.CRATES do
+		local sz = 8
+		add(
+			"Props",
+			"Crate",
+			v(sz, sz, sz),
+			v(c[1], sz / 2, c[2]),
+			CRATE,
+			{ rot = v(0, i * 25, 0) }
+		)
+		add("Props", "CrateBand", v(sz + 0.2, sz + 0.2, 1.8), v(c[1], sz / 2, c[2]), CRATE_BAND, {
+			rot = v(0, i * 25, 0),
+			collide = false,
+		})
+		add("Props", "CrateBand", v(1.8, sz + 0.2, sz + 0.2), v(c[1], sz / 2, c[2]), CRATE_BAND, {
+			rot = v(0, i * 25, 0),
+			collide = false,
+		})
+	end
+	-- a row of red and white barrels along the back wall's corners
+	for _, row in WarmupYard.BARRELS do
+		for k = 0, row[4] - 1 do
+			local x = row[1] + k * 5
+			add("Props", "Barrel", v(4.5, 4.4, 4.4), v(x, 2.25, row[2]), RED, {
+				shape = "Cylinder",
+				rot = v(0, 0, 90),
+			})
+			add("Props", "BarrelBand", v(0.8, 4.6, 4.6), v(x, 2.25, row[2]), WHITE, {
+				shape = "Cylinder",
+				rot = v(0, 0, 90),
+				collide = false,
+			})
+		end
+	end
+	-- looks only (karts drive through): bushes, flower clumps, two shades of grass patch
+	for i, b in WarmupYard.BUSHES do
+		add("Decor", "Bush", v(9.6, 5, 9.6), v(b[1], 1.75, b[2]), BUSH, {
+			rot = v(14, i * 50, 11),
+			collide = false,
+		})
+		add("Decor", "Bush", v(7.2, 4, 7.2), v(b[1] + 2, 2, b[2] - 1.2), BUSH_2, {
+			rot = v(-17, i * 50 + 40, 20),
+			collide = false,
+		})
+	end
+	for i, f in WarmupYard.FLOWERS do
+		for k = 0, 4 do
+			local a = k * 1.3 + i
+			local d = 1.2 + k * 0.5
+			add(
+				"Decor",
+				"Flower",
+				v(1.6, 1.6, 1.6),
+				v(f[1] + math.cos(a) * d, 0.9, f[2] + math.sin(a) * d),
+				PETALS[(k + i) % #PETALS + 1],
+				{ rot = v(34, math.deg(a), 34), collide = false }
+			)
+		end
+	end
+	for i, g in WarmupYard.PATCHES do
+		add(
+			"Decor",
+			"GrassPatch",
+			v(g[3], 0.12, g[3] * 0.7),
+			v(g[1], 0.06, g[2]),
+			if i % 2 == 0 then GRASS_DARK else GRASS_LIGHT,
+			{ rot = v(0, i * 37, 0), collide = false }
+		)
 	end
 	return out
 end
