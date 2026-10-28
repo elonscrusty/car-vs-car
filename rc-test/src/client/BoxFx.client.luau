@@ -1,0 +1,148 @@
+--!strict
+-- The "?" boxes' life on this screen (server/BoxServer makes them): each box that is up spins
+-- slowly and bobs; when it's taken, red and yellow bits burst out; when it's back it pops in from
+-- small. Only this screen moves the box, the server never does.
+
+local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
+local Debris = game:GetService("Debris")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
+local Sfx = require(script.Parent.Sfx)
+
+local TAG = "SmashBox"
+local ME = tostring(Players.LocalPlayer.UserId) -- a player's kart id is their UserId
+local SPIN = math.rad(90) -- turn per second
+-- sizes below are for a 4.5 stud box and shrink with the real box (RC arena boxes are ~1 stud)
+local DESIGN = 4.5
+local BOB = 0.45 -- up and down
+local BOB_SPEED = 2.4
+local TILT = math.rad(14) -- leans a little so two faces and the top show
+
+local RED = Color3.fromRGB(222, 38, 52)
+local YELLOW = Color3.fromRGB(255, 214, 46)
+
+type Live = { model: Model, body: BasePart, home: CFrame, phase: number, size: Vector3, up: boolean }
+
+local live: { [Model]: Live } = {}
+local conns: { [Model]: { RBXScriptConnection } } = {}
+
+local function burst(at: Vector3, s: number)
+	for n = 1, 8 do
+		local bit = Instance.new("Part")
+		bit.Size = Vector3.one * (0.6 + (n % 3) * 0.25) * s
+		bit.Color = if n % 2 == 0 then RED else YELLOW
+		bit.Material = if n % 2 == 0 then Enum.Material.SmoothPlastic else Enum.Material.Neon
+		bit.CFrame = CFrame.new(at) * CFrame.Angles(n, n * 2, n * 3)
+		bit.Anchored = true
+		bit.CanCollide = false
+		bit.CanTouch = false
+		bit.CanQuery = false
+		bit.CastShadow = false
+		local a = n / 8 * math.pi * 2
+		local to = at + Vector3.new(math.cos(a) * 5, 2.5 + (n % 3), math.sin(a) * 5) * s
+		bit.Parent = workspace
+		TweenService
+			:Create(bit, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				CFrame = CFrame.new(to) * CFrame.Angles(n * 3, n, n * 2),
+				Size = Vector3.one * 0.1,
+				Transparency = 1,
+			})
+			:Play()
+		Debris:AddItem(bit, 0.45)
+	end
+end
+
+local function popIn(l: Live)
+	l.body.Size = l.size * 0.2
+	TweenService:Create(
+		l.body,
+		TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+		{ Size = l.size }
+	):Play()
+end
+
+local function add(inst: Instance)
+	if not inst:IsA("Model") or live[inst] then
+		return
+	end
+	local body = inst:WaitForChild("Body", 5)
+	local home = inst:GetAttribute("Home")
+	if
+		not (body and body:IsA("BasePart"))
+		or typeof(home) ~= "CFrame"
+		or inst.Parent == nil
+		or live[inst]
+	then
+		return
+	end
+	local l: Live = {
+		model = inst,
+		body = body,
+		home = home,
+		phase = math.random() * math.pi * 2,
+		size = body.Size,
+		up = inst:GetAttribute("Up") == true,
+	}
+	live[inst] = l
+	conns[inst] = {
+		inst:GetAttributeChangedSignal("Up"):Connect(function()
+			l.up = inst:GetAttribute("Up") == true
+			if l.up then
+				popIn(l)
+			else
+				burst(l.body.Position, l.size.X / DESIGN)
+			end
+		end),
+		-- every pickup bumps TakenCount; the pickup sound is only for the one who grabbed it
+		inst:GetAttributeChangedSignal("TakenCount"):Connect(function()
+			if inst:GetAttribute("TakenBy") == ME then
+				Sfx.pickup()
+			end
+		end),
+	}
+end
+
+local function remove(inst: Instance)
+	if not inst:IsA("Model") then
+		return
+	end
+	live[inst] = nil
+	for _, c in conns[inst] or {} do
+		c:Disconnect()
+	end
+	conns[inst] = nil
+end
+
+for _, m in CollectionService:GetTagged(TAG) do
+	task.spawn(add, m)
+end
+CollectionService:GetInstanceAddedSignal(TAG):Connect(add)
+CollectionService:GetInstanceRemovedSignal(TAG):Connect(remove)
+
+-- all boxes move in one BulkMoveTo a frame (cheap on phones)
+local parts: { BasePart } = {}
+local frames: { CFrame } = {}
+local t = 0
+RunService.RenderStepped:Connect(function(dt: number)
+	t += dt
+	table.clear(parts)
+	table.clear(frames)
+	for _, l in live do
+		if l.up then
+			local y = math.sin(t * BOB_SPEED + l.phase) * BOB * l.size.X / DESIGN
+			table.insert(parts, l.body)
+			table.insert(
+				frames,
+				l.home
+					* CFrame.new(0, y, 0)
+					* CFrame.Angles(0, t * SPIN + l.phase, 0)
+					* CFrame.Angles(TILT, 0, 0)
+			)
+		end
+	end
+	if #parts > 0 then
+		workspace:BulkMoveTo(parts, frames, Enum.BulkMoveMode.FireCFrameChanged)
+	end
+end)

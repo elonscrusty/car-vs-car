@@ -18,6 +18,9 @@ local Screen = require(Ui:WaitForChild("Screen"))
 
 local Hud = {}
 
+local WHITE = Base.WHITE
+local INK = Base.color("ink")
+
 local function piece(id: string, name: string): UiScreens.Piece
 	return UiScreens.piece(id, name)
 end
@@ -642,6 +645,326 @@ function Hud.race(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 			setPlace = setPlace,
 			setTop = setTop,
 			setBoost = boost.setCharge,
+		}
+	end)
+end
+
+-- ===== SMASH match HUD (10-28): place + kill list top left, clock + health top middle, FIRE
+-- bottom right (with the weapon and its ammo); the stick corner stays free. Phone: the stick and
+-- FIRE are all it needs =====
+
+local FEED_ROWS = 3
+local FEED_SECS = 5
+local BOARD_TOP = 3 -- the top 3, then you (a phone's left side is the stick's: Audit F9)
+
+-- the weapon's icon (Icons) for a weapon from the server: a Weapons name (Rockets, Nuke, Gun,
+-- Mine, Freeze) or a kill-list word (rockets, machine gun, freeze ray, bump...). "" / nil /
+-- unknown = the "?" box
+local WEAPON_ICON: { [string]: string } = {
+	rocket = "rocket",
+	rockets = "rocket",
+	nuke = "nuke",
+	gun = "gun",
+	["machine gun"] = "gun",
+	mine = "mine",
+	mines = "mine",
+	freeze = "freeze",
+	["freeze ray"] = "freeze",
+	bump = "power",
+}
+function Hud.weaponIcon(name: string?): string
+	if name == nil or name == "" then
+		return "mystery"
+	end
+	return WEAPON_ICON[string.lower(name)] or "mystery"
+end
+
+-- the board's rows: the top 3, then you with your place when you are lower down
+function Hud.boardRows(list: { { [string]: any } }): { { [string]: any } }
+	local out = {}
+	for i, e in list do
+		if i <= BOARD_TOP or e.me == true then
+			local row = table.clone(e)
+			row.rank = i
+			table.insert(out, row)
+		end
+		if i > BOARD_TOP and e.me == true then
+			break
+		end
+	end
+	return out
+end
+
+-- data: { place, total, secs, hp, maxHp, shield: boolean, weapon: name or "", ammo,
+--   board = { { name, smashes, level?, me } } (most smashes first) }
+-- actions: fire()
+-- api: setPlace(p, total, smashes?) ("-" while you have none: a place not earned, Audit F11),
+--   setClock(secs), setHealth(hp, max, shield), setWeapon(name, ammo),
+--   setBoard(list),
+--   feed(attacker, victim, weapon, mine: boolean) (a new kill on top; mine = you are in it)
+function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
+	return Screen.open("match", "hud", false, function(g)
+		local c = g.canvas
+		-- PLACE: big yellow 1ST, small / 5
+		local pp = piece("match", "Place")
+		local placeSpot = spot(c, "match", "Place")
+		local big = Base.text(placeSpot, "Place", 6, 0, pp.w * 0.56, pp.h - 4, "", {
+			color = Base.color("go"),
+			stroke = 7,
+			drop = 4,
+			align = "l",
+			z = 3,
+		})
+		local of = Base.text(
+			placeSpot,
+			"Of",
+			pp.w * 0.58,
+			pp.h * 0.34,
+			pp.w * 0.4,
+			pp.h * 0.5,
+			"",
+			{ stroke = 5, drop = 3, align = "l", z = 3 }
+		)
+		local function setPlace(p: number, total: number, smashes: number?)
+			local was = big.Text
+			Base.setText(big, if smashes == 0 then "-" else UiMotion.place(p))
+			Base.setText(of, "/ " .. tostring(total))
+			if was ~= "" and was ~= big.Text then
+				Anim.shout(placeSpot)
+			end
+		end
+		setPlace(data.place or 1, data.total or 8, data.smashes)
+		-- CLOCK: a navy pill, red and breathing in the last 10 s
+		local cp = piece("match", "Clock")
+		local clock = Kit.pill(
+			spot(c, "match", "Clock"),
+			"Clock",
+			0,
+			0,
+			cp.w,
+			cp.h,
+			nil,
+			nil,
+			UiMotion.clock(data.secs or 180),
+			{ big = true, stroke = true }
+		)
+		local clockBody = clock.frame:FindFirstChild("Body") :: Frame?
+		local hurry: Tween? = nil
+		local function setClock(secs: number)
+			clock.set(UiMotion.clock(secs))
+			local late = secs <= 10 and secs > 0
+			if clockBody then
+				clockBody.BackgroundColor3 = Base.color(if late then "danger" else "navy")
+			end
+			if late and not hurry then
+				hurry = Anim.pulse(clock.frame, 1.08, 0.5)
+			elseif not late and hurry then
+				hurry:Cancel()
+				hurry = nil
+				Anim.scaler(clock.frame).Scale = 1
+			end
+		end
+		-- HEALTH: a heart, a chunky bar (lime, yellow under half, red under a quarter), the number;
+		-- a blue fill and SHIELD! while the shield is up
+		local hp = piece("match", "Health")
+		local hs = spot(c, "match", "Health")
+		Icons.make(hs, "heart", 0, -3, hp.h + 6, { z = 5 })
+		local bar = Kit.bar(hs, "Bar", hp.h * 0.7, 4, hp.w - hp.h * 0.7, hp.h - 8, "lime", {
+			still = true,
+			value = 1,
+			z = 3,
+		})
+		local hpWords = Base.text(
+			hs,
+			"Words",
+			hp.h * 0.7,
+			6,
+			hp.w - hp.h * 0.7,
+			hp.h - 12,
+			"",
+			{ stroke = 4, z = 6 }
+		)
+		local lastHp = -1
+		local function setHealth(n: number, max: number, shield: boolean?)
+			local f = if max > 0 then math.clamp(n / max, 0, 1) else 0
+			local fill = bar:FindFirstChild("Fill") :: Frame?
+			if fill then
+				fill.BackgroundColor3 = Base.color(
+					if shield
+						then "blue"
+						elseif f > 0.5 then "lime"
+						elseif f > 0.25 then "go"
+						else "danger"
+				)
+			end
+			Kit.setBar(bar, f)
+			Base.setText(
+				hpWords,
+				if shield then "SHIELD!" else tostring(math.max(0, math.floor(n)))
+			)
+			if lastHp >= 0 and n < lastHp then
+				Anim.shout(hs) -- (a hit: the bar jumps)
+			end
+			lastHp = n
+		end
+		setHealth(data.hp or 100, data.maxHp or 100, data.shield)
+		-- SCOREBOARD: the top 3 and you, most smashes first: the place, a level badge (when the
+		-- kart has a level), the name, the smashes; your row lime
+		local bp = piece("match", "Board")
+		local boardSpot = spot(c, "match", "Board")
+		local boardRows: { Frame } = {}
+		local function setBoard(list: { { [string]: any } })
+			for _, r in boardRows do
+				r:Destroy()
+			end
+			table.clear(boardRows)
+			for i, e in Hud.boardRows(list) do
+				local me = e.me == true
+				local row = Base.fill(
+					boardSpot,
+					"Row" .. i,
+					0,
+					(i - 1) * 23,
+					bp.w,
+					20,
+					Base.color(if me then "lime" else "navy"),
+					2
+				)
+				row.BackgroundTransparency = if me then 0 else 0.2
+				Base.corner(row)
+				Base.outline(row, UiTheme.OUTLINE.small)
+				Base.text(row, "Rank", 3, 3, 16, 14, tostring(e.rank or i), {
+					stroke = 3,
+					z = 3,
+				})
+				local left = 22
+				if type(e.level) == "number" then
+					local badge = Base.fill(row, "Level", 21, 2, 28, 16, Base.color("go"), 3)
+					Base.corner(badge)
+					Base.outline(badge, UiTheme.OUTLINE.small)
+					Base.text(badge, "N", 2, 2, 24, 12, tostring(math.floor(e.level)), {
+						color = INK,
+						z = 4,
+					})
+					left = 54
+				end
+				Base.text(row, "Name", left, 3, bp.w - left - 38, 14, string.upper(e.name or ""), {
+					stroke = 3,
+					align = "l",
+					z = 3,
+				})
+				Base.text(row, "Smashes", bp.w - 36, 2, 30, 16, tostring(e.smashes or 0), {
+					color = Base.color("go"),
+					stroke = 3.5,
+					align = "r",
+					z = 3,
+				})
+				table.insert(boardRows, row)
+			end
+		end
+		setBoard(data.board or {})
+		-- KILL LIST: up to 3 rows, newest on top, each gone after 5 s
+		local fp = piece("match", "Feed")
+		local feedSpot = spot(c, "match", "Feed")
+		local rows: { Frame } = {}
+		local function layoutRows()
+			for i, r in rows do
+				Anim.to(r, 0.2, { Position = UDim2.fromScale(0, (i - 1) * 32 / fp.h) })
+			end
+		end
+		local function feed(attacker: string, victim: string, weapon: string?, mine: boolean?)
+			local row = Base.fill(
+				feedSpot,
+				"Row",
+				0,
+				0,
+				fp.w,
+				28,
+				Base.color(if mine then "lime" else "navy"),
+				2
+			)
+			row.BackgroundTransparency = if mine then 0 else 0.15
+			Base.corner(row)
+			Base.outline(row, UiTheme.OUTLINE.normal)
+			local half = (fp.w - 40) / 2
+			Base.text(row, "Who", 8, 6, half - 4, 17, string.upper(attacker), {
+				stroke = 3.5,
+				align = "r",
+				z = 3,
+			})
+			Icons.make(row, Hud.weaponIcon(weapon), half + 6, 2, 24, { z = 4 })
+			Base.text(row, "Whom", half + 34, 6, half - 4, 17, string.upper(victim), {
+				stroke = 3.5,
+				align = "l",
+				z = 3,
+			})
+			table.insert(rows, 1, row)
+			while #rows > FEED_ROWS do
+				(table.remove(rows) :: Frame):Destroy()
+			end
+			layoutRows()
+			Anim.pop(row, nil, 0.4)
+			task.delay(FEED_SECS, function()
+				local i = table.find(rows, row)
+				if i then
+					table.remove(rows, i)
+					row:Destroy()
+					layoutRows()
+				end
+			end)
+		end
+		-- FIRE: the big red thumb button, the weapon's icon on it and a count ball with the ammo;
+		-- no weapon: a plain blue circle
+		local fpc = piece("match", "Fire")
+		local fireSpot = spot(c, "match", "Fire")
+		local fire = Kit.round(fireSpot, "Fire", 0, 0, fpc.w, "danger", "FIRE", {
+			onClick = Screen.act(actions, "fire"),
+		})
+		local body = fire.button:FindFirstChild("Body") :: Frame
+		local label = body:FindFirstChild("Label") :: TextLabel
+		local icon: GuiObject? = nil
+		local ball = Base.fill(fire.button, "Ammo", fpc.w * 0.7, -4, 38, 38, WHITE, 7)
+		Base.corner(ball)
+		Base.outline(ball, UiTheme.OUTLINE.normal)
+		local ammoWords = Base.text(ball, "N", 4, 6, 30, 24, "", { color = INK, z = 8 })
+		-- (empty hands: a plain blue circle, as in the video)
+		local dim =
+			Base.fill(body, "Empty", 0, 0, fpc.w, fpc.w - 9 * fpc.w / 100, Base.color("blue"), 7)
+		Base.corner(dim)
+		Base.outline(dim, UiTheme.OUTLINE.normal)
+		Kit.gloss(dim, Base.color("blue"))
+		local shownWeapon: string? = nil
+		local function setWeapon(name: string?, ammo: number?)
+			local has = name ~= nil and name ~= "" and (ammo or 0) > 0
+			local key = if has then Hud.weaponIcon(name) else "mystery"
+			if key ~= shownWeapon then
+				shownWeapon = key
+				if icon then
+					icon:Destroy()
+				end
+				icon = Icons.make(body, key, fpc.w * 0.32, fpc.w * 0.1, fpc.w * 0.36, { z = 6 })
+				if has then
+					Anim.pop(fire.button, nil, 0.6)
+				end
+			end
+			Base.setText(label, "FIRE")
+			label.Position = UDim2.fromScale(0.08, 0.5)
+			label.Visible = has
+			if icon then
+				icon.Visible = has
+			end
+			ball.Visible = has
+			ammoWords.Text = tostring(ammo or 0)
+			dim.Visible = not has
+		end
+		setWeapon(data.weapon, data.ammo)
+		return {
+			setPlace = setPlace,
+			setClock = setClock,
+			setHealth = setHealth,
+			setWeapon = setWeapon,
+			setBoard = setBoard,
+			feed = feed,
 		}
 	end)
 end

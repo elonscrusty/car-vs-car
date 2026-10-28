@@ -1,5 +1,6 @@
 --!strict
--- The lobby leaderboards: most trophies and fastest lap on each race map, on boards by the spawn.
+-- The lobby leaderboards: most trophies and fastest lap on each race map (Car VS Car Smash: the
+-- trophies board only), on boards by the spawn.
 -- Also the league badge over each player's head. Each board is an OrderedDataStore (key = UserId). Writes are gentle:
 -- a score is only sent when it beats the player's own best, a board is written at most every
 -- WRITE_GAP seconds per player, and the boards are read every REFRESH seconds. Every call retries
@@ -13,6 +14,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Forever = require(ReplicatedStorage.Shared.Forever)
+local Features = require(ReplicatedStorage.Shared.Features)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local Lb = require(ReplicatedStorage.Shared.Leaderboards)
 local RaceMaps = require(ReplicatedStorage.Shared.RaceMaps)
@@ -459,8 +461,11 @@ end
 function Leaderboards.start()
 	local originZ = LobbyLayout.PLAZA.maxZ - 36 -- the same origin LobbyBuilder gives the spawn lobby
 	local maps: { { id: string, label: string } } = {}
-	for _, m in RaceMaps.list() do
-		table.insert(maps, { id = m.id, label = m.label })
+	-- Car VS Car Smash has no race tracks: only the trophies board, no fastest-lap boards
+	if not (Features.CVC and Features.SMASH) then
+		for _, m in RaceMaps.list() do
+			table.insert(maps, { id = m.id, label = m.label })
+		end
 	end
 	boards = Lb.boards(maps)
 	local folder = Instance.new("Folder")

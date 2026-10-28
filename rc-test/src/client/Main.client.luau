@@ -15,6 +15,7 @@ local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local RaceStart = require(ReplicatedStorage.Shared.RaceStart)
 local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
 local Features = require(ReplicatedStorage.Shared.Features)
+local WarmupYard = require(ReplicatedStorage.Shared.WarmupYard)
 local SmokeColors = require(ReplicatedStorage.Shared.SmokeColors)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
@@ -151,6 +152,20 @@ for k in RaceMaps.list() do
 	tracks[i] = t
 	timers[i] = LapTimer.new(t.gates, t.mode)
 end
+-- and the Smash arena after them (MatchRunner drives it)
+local arenaAt = LobbyLayout.arenaIndex()
+if arenaAt then
+	local t: TrackData.Track = LobbyLayout.track(arenaAt)
+	tracks[arenaAt] = t
+	timers[arenaAt] = LapTimer.new(t.gates, t.mode)
+end
+-- and the warm-up yard, where kids waiting for the next round drive (WarmupYardServer)
+if WarmupYard.on() then
+	local yardAt = LobbyLayout.yardIndex()
+	local t: TrackData.Track = LobbyLayout.track(yardAt)
+	tracks[yardAt] = t
+	timers[yardAt] = LapTimer.new(t.gates, t.mode)
+end
 local labels: { string } = {}
 for i, id in TrackData.order do
 	labels[i] = TrackData.get(id).label
@@ -169,9 +184,8 @@ local function skinName(): string?
 	if type(id) ~= "string" then
 		return nil
 	end
-	-- carter's own model for this car wins over the toy (see CarSkin: how to add one)
-	local skins = ReplicatedStorage:FindFirstChild("CarSkins")
-	return if skins and skins:FindFirstChild(id) then id else CarSkin.TOY .. id
+	-- carter's own model for this car, else its kart model, else the toy (see CarSkin.lookFor)
+	return CarSkin.lookFor(id)
 end
 
 getEye = function(): Vector3
@@ -604,6 +618,10 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown, gridSpot: u
 		lost.still, lost.off, lost.wrong, lost.air = 0, 0, 0, 0
 		stuckTime, wrongFor, movedSincePut = 0, 0, true
 		lastRoad = nil
+		-- the Smash arena: no lights, no laps; a (re)spawn drives at once (MatchRunner)
+		if grid and tracks[index].mode == "arena" then
+			gridGone, raceGo = true, os.clock()
+		end
 		if grid then
 			controls.autoOff() -- every race starts with AUTO GAS off (critic runs 1 and 2)
 		end
@@ -940,6 +958,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 		and gridGone
 		and mapId
 		and t.id ~= "drift"
+		and t.mode ~= "arena"
 		and raceDone == nil
 		and not raceOver
 	then

@@ -96,11 +96,32 @@ DailyJobs.CVC_POOLS = {
 		},
 	},
 } :: { { Job } }
+-- Car VS Car SMASH's jobs (FINISH-JOBS SAVES row: "Smash 10 karts", "open a crate", "play 3
+-- matches"): smash, play, crates. Each list has one more job so the days aren't all the same.
+DailyJobs.SMASH_POOLS = {
+	{
+		{ id = "smash10", text = "Smash 10 karts", event = "smash", goal = 10, coins = 50 },
+		{ id = "smash6", text = "Smash 6 karts", event = "smash", goal = 6, coins = 30 },
+	},
+	{
+		{ id = "match3", text = "Play 3 matches", event = "matchDone", goal = 3, coins = 40 },
+		{ id = "mtop3", text = "Get top 3 in a match", event = "matchTop3", goal = 1, coins = 50 },
+	},
+	{
+		{ id = "crate", text = "Open a crate", event = "crate", goal = 1, coins = 40 },
+		{ id = "match5", text = "Play 5 matches", event = "matchDone", goal = 5, coins = 50 },
+	},
+} :: { { Job } }
 DailyJobs.TYCOON_POOLS = DailyJobs.POOLS
 
 -- Which jobs today's lists come from (true = Car VS Car's).
 function DailyJobs.useCvc(on: boolean)
 	DailyJobs.POOLS = if on then DailyJobs.CVC_POOLS else DailyJobs.TYCOON_POOLS
+end
+
+-- The smash game's jobs (call after useCvc; phase 5 of plans/smash turns it on).
+function DailyJobs.useSmash()
+	DailyJobs.POOLS = DailyJobs.SMASH_POOLS
 end
 
 -- every event a job may use, and who sends it (all can happen to a kid playing alone)
@@ -115,6 +136,9 @@ DailyJobs.EVENTS = {
 	raceTop3 = "ServerRaceRunner: 1st-3rd in a server race",
 	raceWin = "ServerRaceRunner: won a server race",
 	newCar = "CarShop: bought a car or won a new one from the gumball",
+	smash = "MatchRunner: smashed a kart (once per smash)",
+	matchDone = "MatchRunner: played a match to the end",
+	matchTop3 = "MatchRunner: 1st-3rd in a match",
 } :: { [string]: string }
 
 function DailyJobs.new(day: number): Save

@@ -257,6 +257,76 @@ DRAW.arrow = function(c)
 	shape(c, "Shaft", 4, 32, 60, 30, lime, 6, 8, nil, 3)
 end
 
+-- ===== SMASH (10-28): the three weapons, the "?" box and the heart (flat, one ink outline) =====
+
+DRAW.rocket = function(c)
+	local red = Base.color("danger")
+	-- flying up-right: fins, a long body, a round nose, a flame out the back
+	shape(c, "Flame", 6, 62, 26, 26, Base.color("boost"), nil, 6, 45, 1)
+	shape(c, "FinA", 18, 44, 20, 30, red, 4, 6, 45, 2)
+	shape(c, "FinB", 40, 66, 30, 20, red, 4, 6, 45, 2)
+	shape(c, "Body", 30, 30, 34, 60, WHITE, 16, 6, 45, 3)
+	shape(c, "Nose", 58, 14, 28, 28, red, nil, 6, nil, 4)
+	shape(c, "Window", 44, 42, 14, 14, Base.color("blue"), nil, 6, nil, 5)
+end
+
+DRAW.gun = function(c)
+	local navy, go = Base.color("navy"), Base.color("go")
+	-- a chunky toy blaster: two barrels, a body, a grip, a yellow band
+	shape(c, "BarrelA", 44, 22, 48, 14, Base.color("inkMuted"), 6, 6, nil, 1)
+	shape(c, "BarrelB", 44, 40, 48, 14, Base.color("inkMuted"), 6, 6, nil, 1)
+	shape(c, "Body", 10, 18, 48, 40, Base.color("blue"), 10, 6, nil, 3)
+	shape(c, "Grip", 14, 50, 22, 38, navy, 6, 6, -12, 2)
+	Base.fill(c, "Band", 40, 18, 8, 40, go, 6)
+end
+
+DRAW.mine = function(c)
+	local red = Base.color("danger")
+	-- a round mine with four spikes and a blinking light on top
+	shape(c, "SpikeT", 44, 6, 12, 22, Base.color("inkMuted"), 4, 6, nil, 1)
+	shape(c, "SpikeB", 44, 72, 12, 22, Base.color("inkMuted"), 4, 6, nil, 1)
+	shape(c, "SpikeL", 6, 44, 22, 12, Base.color("inkMuted"), 4, 6, nil, 1)
+	shape(c, "SpikeR", 72, 44, 22, 12, Base.color("inkMuted"), 4, 6, nil, 1)
+	shape(c, "Body", 18, 18, 64, 64, Base.color("navy"), nil, 6, nil, 3)
+	shape(c, "Light", 38, 38, 24, 24, red, nil, 6, nil, 5)
+end
+
+DRAW.nuke = function(c)
+	local go, navy = Base.color("go"), Base.color("navy")
+	-- a fat yellow bomb lying up-right: tail fins, a navy band, three navy dots (the warning mark)
+	shape(c, "FinA", 8, 52, 30, 18, navy, 4, 6, 45, 1)
+	shape(c, "FinB", 30, 74, 18, 30, navy, 4, 6, 45, 1)
+	shape(c, "Body", 22, 18, 62, 62, go, nil, 6, nil, 3)
+	Base.fill(c, "Band", 46, 26, 10, 46, navy, 5).Rotation = 45
+	shape(c, "DotA", 56, 26, 12, 12, navy, nil, 6, nil, 6)
+	shape(c, "DotB", 64, 46, 12, 12, navy, nil, 6, nil, 6)
+	shape(c, "DotC", 44, 52, 12, 12, navy, nil, 6, nil, 6)
+end
+
+DRAW.freeze = function(c)
+	local ice = Base.color("blue")
+	-- a snowflake: three white bars crossing, an ice-blue middle
+	for i, rot in { 0, 60, 120 } do
+		shape(c, "Bar" .. i, 44, 6, 12, 88, WHITE, 6, 6, rot, 1)
+	end
+	shape(c, "Middle", 34, 34, 32, 32, ice, nil, 6, 45, 3)
+end
+
+DRAW.mystery = function(c)
+	local red = Base.color("danger")
+	shape(c, "Box", 10, 10, 80, 80, red, 14, 7, nil, 2)
+	Base.text(c, "Q", 18, 14, 64, 70, "?", { stroke = 12 * unit(c), z = 5 })
+end
+
+DRAW.heart = function(c)
+	local red = Base.color("danger")
+	-- two round lobes on a square turned 45 deg
+	shape(c, "Point", 24, 30, 52, 52, red, 8, 7, 45, 1)
+	shape(c, "LobeL", 10, 12, 44, 44, red, nil, 7, nil, 2)
+	shape(c, "LobeR", 46, 12, 44, 44, red, nil, 7, nil, 2)
+	Base.fill(c, "Fill", 26, 30, 48, 30, red, 4)
+end
+
 DRAW.plus = function(c)
 	local lime = Base.color("lime")
 	local disc = shape(c, "Disc", 6, 6, 88, 88, lime, nil, 8)

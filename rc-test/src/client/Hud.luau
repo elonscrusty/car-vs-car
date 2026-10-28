@@ -201,7 +201,8 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }): Hud
 
 	function hud.setTimer(text: string)
 		fitTimer()
-		timer.Text = text
+		-- (no LAP / 1ST in a SMASH match: the match HUD has the clock and place, Studio 2250)
+		timer.Text = if Players.LocalPlayer:GetAttribute("InMatch") == true then "" else text
 	end
 
 	function hud.setSpeed(n: number)

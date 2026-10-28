@@ -8,6 +8,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
+local CarSkin = require(script.Parent.CarSkin)
 local CarMath = require(ReplicatedStorage.Shared.CarMath)
 local Features = require(ReplicatedStorage.Shared.Features)
 local Garage = require(ReplicatedStorage.Shared.Garage)
@@ -92,8 +93,13 @@ end
 
 -- carter's own model for this car (ReplicatedStorage.CarSkins, named the car id): its body parts,
 -- turned to drive toward -Z and sized to the grey body's length; this file's wheels stay
-local function modelShell(folder: Folder, m: Model, s: number): Toy?
+-- (a kart model, painted for car `kart`, the same way: see CarSkin's KART MODELS)
+local function modelShell(folder: Folder, m: Model, s: number, kart: string?): Toy?
 	local pivot, size = m:GetBoundingBox()
+	-- (Studio's 3D import puts the nose at +Z, like CarSkin: turned around; a kart already at -Z isn't)
+	local turn = if kart and not CarSkin.noseAtPlusZ(m)
+		then CFrame.identity
+		else CFrame.Angles(0, math.pi, 0)
 	if size.Z <= 0 then
 		return nil
 	end
@@ -111,12 +117,11 @@ local function modelShell(folder: Folder, m: Model, s: number): Toy?
 			p.CanTouch = false
 			p.CastShadow = false
 			p.Size *= k
-			-- (Studio's 3D import puts the nose at +Z, like CarSkin: turned around)
+			if kart then
+				CarSkin.paintKart(p, kart)
+			end
 			local rel = floor:Inverse() * pivot:Inverse() * d.CFrame
-			table.insert(
-				offsets,
-				CFrame.Angles(0, math.pi, 0) * (rel - rel.Position + rel.Position * k)
-			)
+			table.insert(offsets, turn * (rel - rel.Position + rel.Position * k))
 			table.insert(parts, p)
 			p.Parent = folder
 		end
@@ -226,10 +231,13 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 		local skins = ReplicatedStorage:FindFirstChild("CarSkins")
 		local own = id and skins and skins:FindFirstChild(id)
 		local toy = if own and own:IsA("Model") then modelShell(f, own, s) else nil
+		local kart = if id and not (own and own:IsA("Model")) then CarSkin.kartFor(id) else nil
+		toy = toy or if kart then modelShell(f, kart, s, id) else nil
 		toy = toy or if id then toyShell(f, id, s) else nil
 		if toy then
 			for _, d in model:GetDescendants() do
-				if d:IsA("BasePart") then
+				-- (a kart topper, Model "Hat", stays shown: it sits on the toy's roof)
+				if d:IsA("BasePart") and not d:FindFirstAncestor("Hat") then
 					d.LocalTransparencyModifier = 1
 				end
 			end
@@ -333,7 +341,8 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 				o.hidden = hide
 				for _, d in m:GetDescendants() do
 					if d:IsA("BasePart") then
-						d.LocalTransparencyModifier = if hide or o.toy then 1 else 0
+						local hat = d:FindFirstAncestor("Hat") ~= nil
+						d.LocalTransparencyModifier = if hide or (o.toy and not hat) then 1 else 0
 					end
 				end
 			end
