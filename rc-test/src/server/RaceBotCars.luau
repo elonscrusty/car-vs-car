@@ -22,6 +22,7 @@ type Car = {
 	pos: Vector3,
 	move: AlignPosition,
 	turn: AlignOrientation,
+	rival: boolean, -- an easy race's rival: rides just in front of the new kid, in view
 }
 
 export type Fleet = {
@@ -107,10 +108,13 @@ function RaceBotCars.spawn(
 		local side = if k % 2 == 1 then -1 else 1
 		local nm = table.remove(names, random:NextInteger(1, #names)) or `Bot {i}`
 		local colors = RaceBots.COLORS
+		local rival = easy and i == 1
 		local bot = RaceBots.new(
 			route,
 			`{nm} (bot)`,
-			RaceBots.skillFor(i, count, random:NextNumber(), lo, hi),
+			if rival
+				then RaceBots.RIVAL_SKILL
+				else RaceBots.skillFor(i, count, random:NextNumber(), lo, hi),
 			RaceBots.laneFor(i),
 			side * ServerRace.GRID_SIDE,
 			random:NextNumber() * 6.28,
@@ -160,6 +164,7 @@ function RaceBotCars.spawn(
 			pos = pos,
 			move = move,
 			turn = turn,
+			rival = rival,
 		})
 	end
 	return fleet
@@ -192,7 +197,13 @@ function RaceBotCars.step(
 				math.clamp((RaceBots.progress(fleet.route, bot) - lead) / RaceBots.CATCH_GAP, -1, 1)
 		end
 		local had = bot.time
-		local cap = if fleet.easy then RaceBots.followCap(fleet.follow, bot) else nil
+		local cap = if fleet.easy
+			then RaceBots.followCap(
+				fleet.follow,
+				bot,
+				if car.rival then -RaceBots.RIVAL_LEAD else nil
+			)
+			else nil
 		local line = if fleet.easy then RaceBots.lineCap(fleet.route, bot, kid) else nil
 		if line then
 			cap = math.min(cap or line, line)
