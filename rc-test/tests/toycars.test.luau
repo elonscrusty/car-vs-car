@@ -241,4 +241,6 @@ test("a new kid with no racer yet drives the starter's kart, not the red grey bo
 		string.find(src, 'if racer then racer.id else CarCatalog.starter("race").id', 1, true),
 		"no racer = no look"
 	)
+	local starter = CarCatalog.starter("race")
+	truthy(CarCatalog.get(starter.id) ~= nil and starter.price == 0, "the starter is a free car")
 end)

@@ -92,7 +92,7 @@ local function show(player: Player, data: Profile.Data)
 	player:SetAttribute("Trophies", data.trophies)
 	player:SetAttribute("RacerId", if data.racer ~= "" then data.racer else nil)
 	-- which car that is (the race car is painted its colour: it was always the plain red); no racer
-	-- yet = the free starter, so a new kid drives a kart too (Studio: was the red grey body)
+	-- yet = the free starter, so a new kid drives a toy car too
 	local racer = if data.racer ~= "" then Profile.findCar(data, data.racer) else nil
 	player:SetAttribute("RacerCar", if racer then racer.id else CarCatalog.starter("race").id)
 	player:SetAttribute("BoostUntil", if data.boostUntil > now then data.boostUntil else 0)
