@@ -698,7 +698,7 @@ end
 -- data: { place, total, secs, hp, maxHp, shield: boolean, weapon: name or "", ammo,
 --   board = { { name, smashes, level?, me } } (most smashes first) }
 -- actions: fire()
--- api: setPlace(p, total, smashes?) ("-" while you have none: a place not earned, Audit F11),
+-- api: setPlace(p, total, smashes?) (hidden while you have none: a place not earned, F11/R3-1),
 --   setClock(secs), setHealth(hp, max, shield), setWeapon(name, ammo),
 --   setBoard(list),
 --   feed(attacker, victim, weapon, mine: boolean) (a new kill on top; mine = you are in it)
@@ -727,9 +727,11 @@ function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 		)
 		local function setPlace(p: number, total: number, smashes: number?)
 			local was = big.Text
-			Base.setText(big, if smashes == 0 then "-" else UiMotion.place(p))
+			-- (no place until you've smashed someone: "- / 8" read as broken, audit R3-1)
+			placeSpot.Visible = smashes ~= 0
+			Base.setText(big, UiMotion.place(p))
 			Base.setText(of, "/ " .. tostring(total))
-			if was ~= "" and was ~= big.Text then
+			if was ~= "" and was ~= big.Text and placeSpot.Visible then
 				Anim.shout(placeSpot)
 			end
 		end

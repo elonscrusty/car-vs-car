@@ -4,6 +4,7 @@
 -- 3-step how-to over a match (DRIVE!, GRAB A ?, TAP FIRE!). Places come from shared/SmashScreens,
 -- words and numbers from shared/MatchEnd.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local UiTheme = require(Shared:WaitForChild("UiTheme"))
@@ -502,7 +503,9 @@ function Smash.howTo(step: number, actions: Screen.Actions?): Screen.Handle
 			tap.Parent = card
 			tap.Activated:Connect(Screen.act(actions, "skip"))
 			Anim.pop(card, 0.38, 0.8)
-			if st.arrow then
+			-- (the DRIVE arrow points at the phone's stick; with no stick on screen it meant
+			-- nothing, audit R3-1)
+			if st.arrow and (st.id ~= "drive" or UserInputService.TouchEnabled) then
 				local ap = piece("howTo", st.arrow)
 				local a =
 					Icons.make(spot(g.canvas, "howTo", st.arrow), "arrow", 0, 0, ap.w, { z = 6 })

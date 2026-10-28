@@ -19,6 +19,8 @@ local Smash = require(Ui:WaitForChild("Screens"):WaitForChild("Smash"))
 
 local player = Players.LocalPlayer
 
+local DRIVE_SECS = 5 -- the DRIVE! card goes by itself after this (audit R3-2)
+
 local done = false -- (this visit; once saves know about it, SAVES can keep it)
 local running = false
 
@@ -55,6 +57,7 @@ local function run()
 	local lastWeapon, lastAmmo = weapon(), ammo()
 	local fired = false
 	local shown = step
+	local shownAt = os.clock()
 	local handle = Smash.howTo(step, {
 		skip = function()
 			-- (from the card on screen: two quick taps still skip only one step)
@@ -86,6 +89,9 @@ local function run()
 			weapon = w,
 			fired = fired,
 		})
+		if now == 1 and shown == 1 and os.clock() - shownAt >= DRIVE_SECS then
+			now = 2
+		end
 		if now > #SmashScreens.STEPS then
 			break
 		end
@@ -94,6 +100,7 @@ local function run()
 		local card = SmashScreens.cardFor(now, w)
 		if card ~= shown then
 			shown = card
+			shownAt = os.clock()
 			handle.set(card)
 		end
 		task.wait(0.2)
