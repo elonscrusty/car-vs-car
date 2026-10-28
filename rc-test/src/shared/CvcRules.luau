@@ -232,8 +232,9 @@ export type RaceResult = { coins: number, trophy: boolean, league: number, first
 -- A race is over (place 0 = didn't finish): coins by league and place, a trophy for the top 3,
 -- a win's boost, and the first race ever gives a crate. The league can only go up. (The caller
 -- moves the save's stage on to RACED when firstCrate is true: the server tells its screens.)
-function CvcRules.raceDone(data: Data, place: number, now: number): RaceResult
-	local coins = League.prize(data.league, place)
+-- `tried` false = didn't finish and never got past a gate (JOIN then walk off): no try pay.
+function CvcRules.raceDone(data: Data, place: number, now: number, tried: boolean?): RaceResult
+	local coins = if place <= 0 and tried == false then 0 else League.prize(data.league, place)
 	data.coins = math.min(data.coins + coins, Profile.MAX_COINS)
 	local trophy = League.trophy(place)
 	if trophy then

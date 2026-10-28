@@ -67,6 +67,7 @@ type Racer = {
 	finishedNow: boolean?, -- crossed the line for the last time this frame
 	run: RunCheck.State?, -- a drift round: the server's own drift count (from GO)
 	score: number, -- a drift round: points from slides that are over
+	leg: { x: number, z: number, t: number }?, -- where and when it crossed its last gate
 }
 
 local ServerRaceRunner = {}
@@ -429,8 +430,11 @@ local function payRace(
 	slot: number
 ): ({ [number]: number }, { [number]: number })
 	local byId: { [number]: Player } = {}
+	local tried: { [number]: boolean } = {}
 	for _, r in racers do
 		byId[r.player.UserId] = r.player
+		-- (no try pay for JOIN-and-walk-off: past one gate, still on the stand)
+		tried[r.player.UserId] = not r.out and (r.laps > 0 or r.timer.next > 2)
 	end
 	local paid: { [number]: number } = {}
 	local starred: { [number]: number } = {}
@@ -442,12 +446,14 @@ local function payRace(
 			local done = ServerRace.finished(e)
 			local at = if done then place else 0
 			local data = PlayerData.get(p)
-			paid[p.UserId] = if data then League.prize(data.league, at) else 0
+			paid[p.UserId] = if data and (done or tried[p.UserId])
+				then League.prize(data.league, at)
+				else 0
 			starred[p.UserId] = 0
 			local mod = script.Parent:FindFirstChild("TrainingServer")
 			if mod and mod:IsA("ModuleScript") then
 				local ok, err = pcall(function()
-					(require(mod) :: any).raceDone(p, at)
+					(require(mod) :: any).raceDone(p, at, done or tried[p.UserId])
 				end)
 				if not ok then
 					warn("raceDone: " .. tostring(err))
@@ -822,20 +828,35 @@ local function runRace(hooks: Hooks, slot: number)
 						end
 					elseif not r.started then
 						r.started = true
+						r.leg = { x = lx, z = lz, t = clock }
 						if not r.jumped then
 							LapTimer.go(r.timer, goAt)
 						end
 					elseif r.waitLeave then
 						r.waitLeave = onLine
-					elseif LapTimer.update(r.timer, clock, lx, ly, lz) == "lap" then
-						r.laps += 1
-						if r.timer.last then
-							Leaderboards.lap(p, t.map, r.timer.last) -- fastest-lap boards (server clock)
+						r.leg = { x = lx, z = lz, t = clock }
+					else
+						local ev = LapTimer.update(r.timer, clock, lx, ly, lz)
+						local leg = r.leg
+						if ev and leg then
+							if not RunCheck.legOk(leg.x, leg.z, leg.t, lx, lz, clock) then
+								-- faster than any car drives (speed hack, teleport): out
+								warn(`server race: {p.Name} moved too fast between gates, out`)
+								r.out = true
+								ev = nil
+							end
+							r.leg = { x = lx, z = lz, t = clock }
 						end
-						if r.laps >= groupLaps[gi] then
-							r.time = clock - goAt
-							startCountdown(clock - goAt)
-							r.finishedNow = true
+						if ev == "lap" then
+							r.laps += 1
+							if r.timer.last then
+								Leaderboards.lap(p, t.map, r.timer.last) -- fastest-lap boards (server clock)
+							end
+							if r.laps >= groupLaps[gi] then
+								r.time = clock - goAt
+								startCountdown(clock - goAt)
+								r.finishedNow = true
+							end
 						end
 					end
 				end
@@ -1022,6 +1043,32 @@ local function runRace(hooks: Hooks, slot: number)
 	sendState()
 end
 
+-- A race that threw part-way: nobody stays pinned on the stand. Same clean-up as a race's end.
+local function rescue(hooks: Hooks, slot: number)
+	for _, p in Players:GetPlayers() do
+		if
+			p:GetAttribute("RaceGroup") ~= nil
+			or p:GetAttribute("StandSpot") ~= nil
+			or LobbyPlots.drivingOf(p) == slot
+		then
+			pcall(function()
+				p:SetAttribute("RacePlace", nil)
+				p:SetAttribute("RaceCars", nil)
+				p:SetAttribute("RaceGroup", nil)
+				p:SetAttribute("StandSpot", nil)
+				setDrive(p, false)
+				local body = carBody(p)
+				if body and body.Parent then
+					setCarGroup(body.Parent, nil)
+				end
+				if LobbyPlots.drivingOf(p) == slot then
+					hooks.walk(p)
+				end
+			end)
+		end
+	end
+end
+
 function ServerRaceRunner.start(hooks: Hooks)
 	signs = buildSign()
 	if Features.CVC then
@@ -1134,6 +1181,7 @@ function ServerRaceRunner.start(hooks: Hooks)
 						local ok, err = pcall(runRace, hooks, slot)
 						if not ok then
 							warn("server race: " .. tostring(err))
+							rescue(hooks, slot)
 							clearFleets()
 							workspace:SetAttribute("RaceSlot", 0)
 							phase, picked, where = "wait", nil, ""

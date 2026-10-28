@@ -142,29 +142,49 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 		end
 	end
 
+	-- every Car_<id> model in the workspace, kept as they come and go (not a GetChildren and two
+	-- new tables every frame: phone fps in a full race); the ray filter changes only with it
+	local cars: { [Model]: boolean } = {}
+	local carsChanged = true
+	local function watch(m: Instance)
+		if m:IsA("Model") and string.sub(m.Name, 1, 4) == "Car_" then
+			cars[m] = true
+			carsChanged = true
+		end
+	end
+	for _, m in workspace:GetChildren() do
+		watch(m)
+	end
+	workspace.ChildAdded:Connect(watch)
+	workspace.ChildRemoved:Connect(function(m)
+		if cars[m :: Model] then
+			cars[m :: Model] = nil
+			carsChanged = true
+		end
+	end)
+
 	local function update(dt: number)
 		local mine = myCarName()
 		local myGroup = Players.LocalPlayer:GetAttribute("RaceGroup")
 		local cam = workspace.CurrentCamera
 		local eye = if cam then cam.CFrame.Position else Vector3.zero
-		-- find cars: every Car_<id> model in the workspace that is not this player's
-		local seen: { [Model]: boolean } = {}
-		local skip: { Instance } = { folder }
-		for _, m in workspace:GetChildren() do
-			if m:IsA("Model") and string.sub(m.Name, 1, 4) == "Car_" then
+		if carsChanged then
+			carsChanged = false
+			local skip: { Instance } = { folder }
+			for m in cars do
 				table.insert(skip, m)
-				if m.Name ~= mine then
-					seen[m] = true
-				end
 			end
+			rayParams.FilterDescendantsInstances = skip
 		end
 		for m in others do
-			if not seen[m] or m.PrimaryPart ~= others[m].body then
+			if not cars[m] or m.Name == mine or m.PrimaryPart ~= others[m].body then
 				remove(m)
 			end
 		end
-		rayParams.FilterDescendantsInstances = skip
-		for m in seen do
+		for m in cars do
+			if m.Name == mine then
+				continue
+			end
 			local o = others[m] or add(m)
 			if not o then
 				continue

@@ -160,7 +160,9 @@ local function placePerson(player: Player, t: TrackData.Track, rc: boolean)
 		end
 		return
 	end
-	if player.Character == nil then
+	local was = player.Character
+	local wasHum = was and was:FindFirstChildOfClass("Humanoid")
+	if was == nil or wasHum == nil or wasHum.Health <= 0 then
 		player:LoadCharacter()
 		local char = player.Character
 		if char then
@@ -375,7 +377,9 @@ local function walk(player: Player)
 		return
 	end
 	local root = rootOf(player)
-	if not root then
+	local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	-- (Reset on the stand kills the body, and Died skips a driver: a new one, or stuck for good)
+	if not root or not hum or hum.Health <= 0 then
 		loadWalker(player)
 	else
 		local slot = slots[slotIndex]

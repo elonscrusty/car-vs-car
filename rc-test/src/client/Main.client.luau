@@ -988,6 +988,10 @@ local function hideOtherLeagues(dt: number, standing: boolean)
 end
 local airTime = 0 -- seconds in the air up to last frame
 
+local hiddenChar: Model? = nil -- the body last hidden or shown for the driver view
+local hiddenAs = -1
+local hideAgainAt = 0
+local hudTextAt = 0 -- next speed / clock text
 RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, function(dt: number)
 	otherCars.update(dt)
 	if walking then
@@ -1073,18 +1077,28 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 	hud.setRace(grid ~= nil)
 	-- driver view looks out of the person's eyes: hide them on this screen so the head and hat
 	-- don't block the view
+	-- (only when the view or the body changes, or once a second for a hat that loads late: not a
+	-- GetDescendants every frame on a phone)
 	local char = player.Character
+	local clock = os.clock()
 	if char then
 		local hide = if view == "driver" and not showCam then 1 else 0
-		for _, d in char:GetDescendants() do
-			if d:IsA("BasePart") and d.LocalTransparencyModifier ~= hide then
-				d.LocalTransparencyModifier = hide
+		if char ~= hiddenChar or hide ~= hiddenAs or clock >= hideAgainAt then
+			hiddenChar, hiddenAs, hideAgainAt = char, hide, clock + 1
+			for _, d in char:GetDescendants() do
+				if d:IsA("BasePart") and d.LocalTransparencyModifier ~= hide then
+					d.LocalTransparencyModifier = hide
+				end
 			end
 		end
 	end
-	-- speed shown in big-size numbers so both sizes read the same
-	-- flat speed, so a car settling on its springs reads 0
-	local v = body.AssemblyLinearVelocity
-	hud.setSpeed(Vector3.new(v.X, 0, v.Z).Magnitude / Tuning.scale)
-	hud.setTimer(timerText())
+	-- speed and clock text 10 times a second, not every frame (new strings each time)
+	if clock >= hudTextAt then
+		hudTextAt = clock + 0.1
+		-- speed shown in big-size numbers so both sizes read the same
+		-- flat speed, so a car settling on its springs reads 0
+		local v = body.AssemblyLinearVelocity
+		hud.setSpeed(Vector3.new(v.X, 0, v.Z).Magnitude / Tuning.scale)
+		hud.setTimer(timerText())
+	end
 end)
