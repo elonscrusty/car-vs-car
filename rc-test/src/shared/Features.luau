@@ -14,6 +14,11 @@ Features.GARAGES = true
 -- crates. On since 10-26 16:30 (the lead turned it on once every row of rc-game/cvc/SPLIT.md was on
 -- main); false brings back the tycoon game.
 Features.CVC = true
+-- Car VS Car's new screens (carter's UI handoff, 10-28 "Yes": rc-game/cvc): the plot screen,
+-- RACE!, the pick, crates, garage, shop and league moments in the new look (CvcScreens.client),
+-- in place of the old Kart ones. false brings the old screens back. The race itself and its
+-- result card stay as they were for now.
+Features.NEW_UI = true
 
 -- Phone speed, waiting for Studio numbers. Both are off / unchanged until someone flips them.
 -- Plot cars are moved this many times a second (60 = every frame, as before; 30 = half the work).

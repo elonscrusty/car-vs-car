@@ -102,7 +102,7 @@ HudLayout.place(coinChip, "CoinCount")
 coinChip.TextColor3 = Color3.fromRGB(255, 236, 150)
 coinChip.Text = "0"
 coinChip.Parent = hud
-noSave.Parent = hud
+noSave.Parent = if Features.CVC and Features.NEW_UI then top else hud
 -- a drawn coin (the coin emoji is missing from Roblox's font): gold disc, darker rim, a lighter
 -- inner ring. The number sits to its right.
 local coinPad = Instance.new("UIPadding")
@@ -504,6 +504,22 @@ for i, amount in DAILY do
 	table.insert(days, box)
 end
 
+-- Is gui's `name` on screen (it and every frame it sits in)?
+local function shownIn(gui: Instance?, name: string): boolean
+	local f = gui and gui:FindFirstChild(name, true)
+	if not (f and f:IsA("GuiObject") and f.Visible) then
+		return false
+	end
+	local up = f.Parent
+	while up and up ~= gui do
+		if up:IsA("GuiObject") and not up.Visible then
+			return false
+		end
+		up = up.Parent
+	end
+	return not (gui and gui:IsA("ScreenGui") and not gui.Enabled)
+end
+
 local cards = 0
 local function hideCard()
 	card.Visible = false
@@ -539,6 +555,12 @@ local function showDaily(coins: number, streak: number, boost: number, crate: bo
 			and not (race and race:GetAttribute("Busy") == true)
 			and not (prizeCard and (prizeCard :: GuiObject).Visible)
 			and not Popup.isOpen() -- (a shop or panel is up: no card on top of it)
+			-- (the race result card, the win card, or a new screen is up: it waits for them, it
+			-- landed under the result card, critic REPORT-1)
+			and not (race and shownIn(race, "Result"))
+			and not shownIn(pg:FindFirstChild("CvcRaceTop"), "Finish")
+			and me:GetAttribute("UiBusy") ~= true
+			and me:GetAttribute("Racing") ~= true
 	end
 	local waited, still = 0, 0
 	while still < 3 and waited < 600 do
@@ -1031,7 +1053,11 @@ end)
 
 -- hide the lobby HUD while this player drives (Lobby.setDriving sets the attribute)
 local function showWalkHud()
-	hud.Enabled = player:GetAttribute("Driving") ~= true and player:GetAttribute("Building") ~= true
+	-- (Features.NEW_UI: the new plot screen has the coins and the jobs, CvcScreens.client; NOT
+	-- SAVING moves to the top layer so it still shows)
+	hud.Enabled = not (Features.CVC and Features.NEW_UI)
+		and player:GetAttribute("Driving") ~= true
+		and player:GetAttribute("Building") ~= true
 	if hud.Enabled then
 		task.delay(0.5, flyCoins) -- coins won while driving fly in now
 	end

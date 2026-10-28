@@ -165,7 +165,11 @@ player:GetAttributeChangedSignal("BoostLeft"):Connect(function()
 end)
 
 RunService.Heartbeat:Connect(function()
-	local show = CvcState.loaded and player:GetAttribute("Picked") == true and not driving()
+	-- (Features.NEW_UI: the plot screen's RACE! button does this, CvcScreens.client)
+	local show = not Features.NEW_UI
+		and CvcState.loaded
+		and player:GetAttribute("Picked") == true
+		and not driving()
 	join.Visible = show
 	if not show then
 		return

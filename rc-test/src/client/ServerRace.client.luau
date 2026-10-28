@@ -261,10 +261,13 @@ RunService.RenderStepped:Connect(function()
 	-- the call: the small chip steps aside for the huge banner
 	-- the call, and on through the 3-2-1: whose track this is
 	-- (gone at the race start: the giant 3-2-1-GO sat on top of it, Studio backyard-1)
-	call.Visible = phase == "call" and startAt > 0
 	-- on foot (at spawn, in a shop) the call is a thin strip up top, clock and all: the big banner
 	-- covered the middle of a new kid's screen (check kid-03); in a car it stays big
 	local strip = player:GetAttribute("Driving") ~= true
+	-- (Features.NEW_UI: on foot the plot screen's BIG RACE banner and RACE! button count down
+	-- instead, CvcScreens.client)
+	local newUi = Features.CVC and Features.NEW_UI and strip
+	call.Visible = phase == "call" and startAt > 0 and not newUi
 	callAspect.AspectRatio = if strip then 7 else 2.6
 	callMax.MaxSize = Vector2.new(if strip then CvcLayout.CALL_STRIP.maxW else math.huge, math.huge)
 	callWhere.Size = UDim2.fromScale(1, if strip then 1 else 0.3)
@@ -301,6 +304,7 @@ RunService.RenderStepped:Connect(function()
 		and startAt > 0
 		and player:GetAttribute("Building") ~= true
 		and (not driving or secs <= 60)
+		and not newUi
 	if call.Visible then
 		if words or not wasCall or strip ~= wasStrip then
 			local verb = if kind == "drift" then "DRIFT" else "RACE"

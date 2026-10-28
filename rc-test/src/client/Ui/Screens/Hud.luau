@@ -41,10 +41,13 @@ local SIDES = {
 }
 
 -- data: { coins, rate, nextUp = { title, sub }, car = { name, stats = { power = { v, lv }, ... } },
---   dots = { Crates = 2, League = -1 (! ) }, signs: boolean (the viewer: sample world signs) }
--- actions: Garage(), Crates(), Shop(), League(), coins(), coach()
+--   dots = { Crates = 2, League = -1 (! ) }, signs: boolean (the viewer: sample world signs),
+--   race: words (the RACE! button; nil = none), jobs: words (the JOBS pill; nil = none),
+--   stagger: boolean (a new player: the pieces come in one at a time, not all at once) }
+-- actions: Garage(), Crates(), Shop(), League(), coins(), coach(), race(), jobs()
 -- api: setCoins(n), setRate(words), setNextUp(title, sub, hurry), setCar(name, stats),
---   setCoach(f, words), setDot(name, n), float(x, y, words, color)
+--   setCoach(f, words), setDot(name, n), float(x, y, words, color), setRace(words, tone, pulse),
+--   setJobs(words)
 function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
 	return Screen.open("plot", "hud", false, function(g)
 		local c = g.canvas
@@ -93,7 +96,7 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 		Anim.cascade(tiles)
 		-- MY CAR: the car's 3 bars
 		local mp = piece("plot", "MyCar")
-		local _, panel = Kit.placedPanel(c, mp)
+		local carHolder, panel = Kit.placedPanel(c, mp)
 		local car = data.car or {}
 		local title = Base.text(
 			panel,
@@ -127,6 +130,65 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 		)
 		if data.coach then
 			coach.setCooldown(data.coach[1], data.coach[2])
+		end
+		-- RACE! (the live game)
+		local race: TextButton? = nil
+		local raceHolder: Frame? = nil
+		local racePulse: Tween? = nil
+		local raceTone = "lime"
+		if data.race then
+			local rp = piece("plot", "Race")
+			local rh = spot(c, "plot", "Race")
+			raceHolder = rh
+			race = Kit.button(rh, "Race", 0, 0, rp.w, rp.h, "lime", data.race, {
+				main = true,
+				size = 24,
+				onClick = Screen.act(actions, "race"),
+			})
+		end
+		-- JOBS 1/3 (the live game)
+		local jobs: Kit.Pill? = nil
+		local jobsHolder: Frame? = nil
+		if data.jobs then
+			local jp = piece("plot", "Jobs")
+			local jh = spot(c, "plot", "Jobs")
+			jobsHolder = jh
+			jobs = Kit.pill(jh, "Jobs", 0, 0, jp.w, jp.h, "JOBS", "lime", data.jobs)
+			local tap = Instance.new("TextButton")
+			tap.Name = "Tap"
+			tap.Text = ""
+			tap.BackgroundTransparency = 1
+			tap.Size = UDim2.fromScale(1, 1)
+			tap.ZIndex = 9
+			tap.Parent = jh
+			tap.Activated:Connect(Screen.act(actions, "jobs"))
+			Anim.press(tap)
+		end
+		-- a new player: one piece at a time (the race first, then the car, the tiles, the coins,
+		-- COACH and the jobs), each popping in, so 6 things don't land at once
+		if data.stagger then
+			local steps: { { GuiObject? } } = {
+				{ banner.frame, raceHolder },
+				{ carHolder },
+				tiles,
+				{ coinsHolder },
+				{ coachHolder, jobsHolder },
+			}
+			for i, step in steps do
+				for _, obj in step do
+					if obj then
+						obj.Visible = false
+					end
+				end
+				task.delay(0.3 + (i - 1) * UiTheme.MOTION.staggerStep, function()
+					for _, obj in step do
+						if obj and obj.Parent then
+							obj.Visible = true
+							Anim.pop(obj, nil, 0.4)
+						end
+					end
+				end)
+			end
 		end
 		-- (the viewer only: what the 3D signs over the machines look like)
 		if data.signs then
@@ -165,6 +227,29 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 			end,
 			float = function(x: number, y: number, words: string, color: string?)
 				Kit.floatNum(c, x, y, words, color)
+			end,
+			setRace = function(words: string, toneName: string?, pulse: boolean?)
+				if not race then
+					return
+				end
+				Kit.setWords(race, words)
+				local t = toneName or "lime"
+				if t ~= raceTone then
+					raceTone = t
+					Kit.setTone(race, t)
+				end
+				if pulse and not racePulse then
+					racePulse = Anim.pulse(race, 1.06, 0.9)
+				elseif not pulse and racePulse then
+					racePulse:Cancel()
+					racePulse = nil
+					Anim.scaler(race).Scale = 1
+				end
+			end,
+			setJobs = function(words: string)
+				if jobs then
+					jobs.set(words)
+				end
 			end,
 		}
 	end)
