@@ -28,11 +28,20 @@ Leaderboards.MAX_TROPHIES = 1000000
 -- onto the street (|x| < SpawnLobby.GAP stays open), facing back at the spawn so they are the first
 -- thing in view past the play pads. Clear of the front bushes (x +-36) and the lamps (x +-10).
 -- Board i (the trophies first, then one a map) stands at SLOTS[i]; a board without a slot is not built.
+-- A slot is { x, z?, yaw? }: z defaults to BOARD_Z; yaw (degrees) turns the board's face from -z
+-- (back at the spawn) toward +x at 90.
 Leaderboards.BOARD_Z = 29
 Leaderboards.BOARD_Y = 5.25
 Leaderboards.BOARD_W = 10
 Leaderboards.BOARD_H = 7.5
-Leaderboards.SLOTS = { 19, -18, -30.5 }
+export type Slot = { x: number, z: number?, yaw: number? }
+Leaderboards.SLOTS = {
+	{ x = 19 },
+	{ x = -18 },
+	-- the third stands where Car VS Car has no drift shop, facing the middle: at the front left it
+	-- filled the view of anyone walking up to the crate shop (Studio u14)
+	{ x = -48, z = -20, yaw = 90 },
+} :: { Slot }
 
 export type Board = {
 	id: string, -- "coins" or "lap_<mapId>"
@@ -41,6 +50,8 @@ export type Board = {
 	sub: string,
 	low: boolean, -- true: the smaller score is better (lap times)
 	x: number, -- lobby-local centre
+	z: number,
+	yaw: number, -- degrees: 0 faces -z, 90 faces +x
 }
 
 export type Row = { uid: number, name: string, score: number }
@@ -57,6 +68,8 @@ function Leaderboards.boards(maps: { { id: string, label: string } }): { Board }
 			sub = "MOST WON",
 			low = false,
 			x = 0,
+			z = 0,
+			yaw = 0,
 		},
 	}
 	for _, m in maps do
@@ -67,10 +80,15 @@ function Leaderboards.boards(maps: { { id: string, label: string } }): { Board }
 			sub = "FASTEST LAP",
 			low = true,
 			x = 0,
+			z = 0,
+			yaw = 0,
 		})
 	end
 	for i, b in list do
-		b.x = Leaderboards.SLOTS[i] or 0
+		local slot = Leaderboards.SLOTS[i]
+		b.x = if slot then slot.x else 0
+		b.z = if slot then slot.z or Leaderboards.BOARD_Z else Leaderboards.BOARD_Z
+		b.yaw = if slot then slot.yaw or 0 else 0
 	end
 	return list
 end
@@ -173,7 +191,13 @@ end
 -- Where a board stands in the world: lobby-local (x, y, z) to world, for a lobby whose square's
 -- middle is at world z = `originZ` and whose +z runs down the street (LobbyBuilder).
 function Leaderboards.world(board: Board, originZ: number): (number, number, number)
-	return board.x, Leaderboards.BOARD_Y, originZ + Leaderboards.BOARD_Z
+	return board.x, Leaderboards.BOARD_Y, originZ + board.z
+end
+
+-- Which way a board's words face (x, z): back at the spawn (0, -1) unless its slot turns it.
+function Leaderboards.facing(board: Board): (number, number)
+	local r = math.rad(board.yaw)
+	return math.sin(r), -math.cos(r)
 end
 
 -- The league badge over a player's head: its words and colour (League.NAMES / COLORS). Anything
