@@ -28,7 +28,7 @@ local STEER_MAX = 0.75 -- radians, the base car's widest wheel angle
 local MAX_SUSP = 4 -- big-size spring travel; the ray stops it sooner on the ground
 local TAG_W, TAG_H = 120, 26 -- a name tag's size on screen (px)
 
-type Wheel = { part: Part, spot: Vector3, front: boolean, shown: number, spin: number }
+type Wheel = { part: Part, stripe: Part, spot: Vector3, front: boolean, shown: number, spin: number }
 -- Car VS Car: the toy car's shell (body, cab, roof, wing, lights) over the grey blocks, the same
 -- toy car the plots show (playtest u01: every rival was a grey block). Its round wheels are
 -- this file's own, which already roll and steer.
@@ -124,7 +124,7 @@ local function modelShell(folder: Folder, m: Model, s: number): Toy?
 	return if #parts > 0 then { parts = parts, offsets = offsets } else nil
 end
 
-local function wheelPart(folder: Folder, s: number): Part
+local function wheelPart(folder: Folder, s: number): (Part, Part)
 	local d = base("wheelRadius") * 2 * s
 	local p = Instance.new("Part")
 	p.Name = "Wheel"
@@ -150,7 +150,7 @@ local function wheelPart(folder: Folder, s: number): Part
 	stripe.CanTouch = false
 	stripe.CastShadow = false
 	stripe.Parent = p
-	return p
+	return p, stripe
 end
 
 local function nameTag(body: BasePart, text: string, s: number): BillboardGui
@@ -206,8 +206,10 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 		local wheels: { Wheel } = {}
 		for _, fz in { -1, 1 } do
 			for _, sx in { -1, 1 } do
+				local part, stripe = wheelPart(f, s)
 				table.insert(wheels, {
-					part = wheelPart(f, s),
+					part = part,
+					stripe = stripe,
 					spot = Vector3.new(sx * base("wheelX"), base("attachY"), fz * base("wheelZ"))
 						* s,
 					front = fz < 0,
@@ -267,6 +269,10 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 		end
 	end)
 
+	-- every wheel, stripe and toy shell part moved this frame, moved in one go at the end (one
+	-- BulkMoveTo instead of 8 CFrame sets and a new table per car: phone fps with 7 rivals)
+	local moveParts: { BasePart } = {}
+	local moveAt: { CFrame } = {}
 	-- this frame's shown tags, nearest first (reused: no new tables each frame)
 	local tags: { BillboardGui } = {}
 	local tagFar: { number } = {}
@@ -371,11 +377,10 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 					* rot
 					* CFrame.Angles(0, yaw, 0)
 					* CFrame.Angles(w.spin, 0, 0)
-				w.part.CFrame = wcf
-				local stripe = w.part:FindFirstChild("Stripe") :: Part?
-				if stripe then
-					stripe.CFrame = wcf
-				end
+				table.insert(moveParts, w.part)
+				table.insert(moveAt, wcf)
+				table.insert(moveParts, w.stripe)
+				table.insert(moveAt, wcf)
 			end
 			local toy = o.toy
 			if toy then
@@ -385,12 +390,16 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 					hang += w.shown / #o.wheels
 				end
 				local ground = cf * CFrame.new(0, base("attachY") * s - hang - radius, 0)
-				local at: { CFrame } = table.create(#toy.parts)
 				for k, off in toy.offsets do
-					at[k] = ground * off
+					table.insert(moveParts, toy.parts[k])
+					table.insert(moveAt, ground * off)
 				end
-				workspace:BulkMoveTo(toy.parts, at, Enum.BulkMoveMode.FireCFrameChanged)
 			end
+		end
+		if #moveParts > 0 then
+			workspace:BulkMoveTo(moveParts, moveAt, Enum.BulkMoveMode.FireCFrameChanged)
+			table.clear(moveParts)
+			table.clear(moveAt)
 		end
 		if cam then
 			unstack(cam)

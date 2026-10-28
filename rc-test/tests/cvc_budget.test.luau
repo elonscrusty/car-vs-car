@@ -62,3 +62,19 @@ test("a plot far from the camera stops moving its cars; a near one moves", funct
 	truthy(not PlotTraining.awake(PlotTraining.NEAR))
 	truthy(not PlotTraining.awake(5000))
 end)
+
+test("an 8-car race: far shop crates don't spin, rival wheels move in one go each frame", function()
+	local fs = require("@lune/fs")
+	local crates = fs.readFile("src/client/CrateShop.client.luau")
+	truthy(
+		string.find(crates, "(s.base.Position - eye).Magnitude < SPIN_NEAR", 1, true),
+		"far spin"
+	)
+	local others = fs.readFile("src/client/OtherCars.luau")
+	local _, moves = string.gsub(others, "BulkMoveTo%(", "")
+	eq(moves, 1) -- one per frame for every rival's wheels, stripes and shell
+	truthy(
+		not string.find(others, 'FindFirstChild("Stripe")', 1, true),
+		"a find per wheel per frame"
+	)
+end)

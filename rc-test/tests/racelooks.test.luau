@@ -94,7 +94,15 @@ test("Car VS Car (playtest u01): race bots and other players wear toy cars, vari
 	local bots = fs.readFile("src/server/RaceBotCars.luau")
 	truthy(string.find(bots, 'model:SetAttribute("ToyCar", look)', 1, true), "bots wear no car")
 	local others = fs.readFile("src/client/OtherCars.luau")
-	truthy(string.find(others, "workspace:BulkMoveTo(toy.parts, at", 1, true), "no toy shell drawn")
+	-- (the shell's parts go in the frame's one BulkMoveTo with the wheels)
+	truthy(
+		string.find(others, "table.insert(moveParts, toy.parts[k])", 1, true),
+		"no toy shell drawn"
+	)
+	truthy(
+		string.find(others, "workspace:BulkMoveTo(moveParts, moveAt", 1, true),
+		"no toy shell drawn"
+	)
 	truthy(string.find(others, 'p.Name ~= "Wheel" and p.Name ~= "Hub"', 1, true), "parts per car")
 end)
 
