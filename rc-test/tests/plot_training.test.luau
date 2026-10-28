@@ -269,3 +269,14 @@ test("LOCKED words fit the pad top once turned to read from the gate", function(
 	end
 	truthy(T.PAINT[1].at > T.PAINT[2].at, "LOCKED on the far line, PLOT LV under it")
 end)
+
+test("the scoreboard's rows are big enough to read on a phone", function()
+	local B = T.BOARD
+	-- each row's words are 80% of a row, and the rows share 80% of the board (CvcPlot.client)
+	local rowWords = B.h * 0.8 / T.BOARD_ROWS * 0.8
+	truthy(rowWords >= 2.5, `row words {rowWords} studs tall (5 rows of 1.3 were too small)`)
+	-- clear of the name sign on the left and the trophy shelf on the right
+	truthy(B.x - B.w / 2 > T.ROOM_SIGN_X + 9, "left of the board: the name sign")
+	truthy(B.x + B.w / 2 < T.SHELF.x - T.SHELF.w / 2, "right of the board: the shelf")
+	truthy(B.y - B.h / 2 > 5, "over the treadmills' screens")
+end)

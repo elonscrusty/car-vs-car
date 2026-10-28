@@ -75,11 +75,11 @@ local STANDS: { Stand } = {
 	{ x = 0, z = -16 },
 }
 PlotTraining.STANDS = STANDS
-PlotTraining.SHELF = { x = 26, z = -53.2, w = 22, y = 8 } -- the trophy shelf, high on the back wall
+PlotTraining.SHELF = { x = 28, z = -53.2, w = 18, y = 8 } -- the trophy shelf, high on the back wall
 -- the scoreboard on the back wall over the middle treadmill: every car's 3 bars, best on top
 -- (CvcPlot.client writes it); w by h studs, its middle at y
-PlotTraining.BOARD = { x = 0, z = -53.8, w = 26, h = 10, y = 13 }
-PlotTraining.BOARD_ROWS = 5
+PlotTraining.BOARD = { x = 0, z = -53.8, w = 34, h = 13, y = 12.5 }
+PlotTraining.BOARD_ROWS = 3 -- the top 3, big enough to read on a phone (Studio 10-28: 5 rows were tiny)
 PlotTraining.MAX_TROPHIES = 12 -- cups drawn on the shelf (the number on its sign keeps counting)
 
 -- Does a plot this far from the camera move its cars? (phone speed: far ones wait)
