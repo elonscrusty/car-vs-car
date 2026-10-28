@@ -106,27 +106,19 @@ end
 function Smash.matchEnd(view: MatchEnd.View, actions: Screen.Actions?): Screen.Handle
 	return Screen.open("matchEnd", "full", true, function(g)
 		local back = g.back :: ScreenGui
-		Kit.backdrop(back, "showroom")
-		Kit.confetti(back:FindFirstChild("Backdrop") :: Frame, if view.place == 1 then 30 else 14)
+		local bd = Kit.backdrop(back, "showroom")
+		Kit.confetti(bd, if view.place == 1 then 30 else 14)
 		local sp = piece("matchEnd", "Shout")
 		Kit.shout(spot(g.canvas, "matchEnd", "Shout"), 0, 0, sp.w, sp.h, "ROUND OVER!", "go")
 		local wp = piece("matchEnd", "Wins")
-		local wins = Base.text(
-			spot(g.canvas, "matchEnd", "Wins"),
-			"Words",
-			0,
-			0,
-			wp.w,
-			wp.h,
-			MatchEnd.winWords(view),
-			{
-				color = if view.winner and view.winner.me then Base.color("lime") else WHITE,
-				stroke = 5,
-				drop = 3,
-				z = 5,
-			}
-		)
-		Anim.pop(wins, 0.5, 0.3, 0.3)
+		local winsSpot = spot(g.canvas, "matchEnd", "Wins")
+		Base.text(winsSpot, "Words", 0, 0, wp.w, wp.h, MatchEnd.winWords(view), {
+			color = if view.winner and view.winner.me then Base.color("lime") else WHITE,
+			stroke = 5,
+			drop = 3,
+			z = 5,
+		})
+		Anim.pop(winsSpot, 0.5, 0.3, 0.3) -- (the holder: the words and their drop together)
 		-- the winner's kart on show, turning slowly in the rays
 		local w = view.winner
 		if w then
@@ -230,7 +222,7 @@ function Smash.matchEnd(view: MatchEnd.View, actions: Screen.Actions?): Screen.H
 				z = 5,
 			})
 		local function set(left: number)
-			count.Text = MatchEnd.countWords(left)
+			Base.setText(count, MatchEnd.countWords(left))
 		end
 		set(MatchEnd.AUTO)
 		placedButton(g.canvas, "matchEnd", "Leave", Screen.act(actions, "leave"))

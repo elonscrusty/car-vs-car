@@ -38,8 +38,13 @@ local function words(v: unknown): string
 		return "?"
 	end
 	local s = string.gsub(v, "[%c]", "")
-	if #s > MatchEnd.MAX_NAME then
-		s = string.sub(s, 1, MatchEnd.MAX_NAME)
+	if utf8.len(s) == nil then
+		return "?" -- not real text
+	end
+	-- cut by letters, not bytes (a cut through an accent or emoji shows as junk)
+	local cut = utf8.offset(s, MatchEnd.MAX_NAME + 1)
+	if cut then
+		s = string.sub(s, 1, cut - 1)
 	end
 	return if s == "" then "?" else s
 end
@@ -151,7 +156,8 @@ end
 -- Seconds until the next round: from the server's nextAt, else MatchEnd.AUTO after the screen
 -- opened. Never below 0, never above a minute (a junk nextAt can't hold the screen up).
 function MatchEnd.left(view: View, openedAt: number, now: number): number
-	local s = if view.nextAt then view.nextAt - now else MatchEnd.AUTO - (now - openedAt)
+	local shown = now - openedAt
+	local s = if view.nextAt then math.min(view.nextAt - now, 60 - shown) else MatchEnd.AUTO - shown
 	return math.clamp(math.ceil(s), 0, 60)
 end
 

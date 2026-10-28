@@ -65,6 +65,10 @@ test("junk from the wire never errors and shows nothing odd", function()
 	local v = MatchEnd.read(long, 1, nil, nil, ME)
 	truthy(#v.top[1].name <= MatchEnd.MAX_NAME)
 	eq(v.top[1].smashes, 9999)
+	-- cut by letters: 25 two-byte letters -> 20 letters, still real text
+	local accents = MatchEnd.read({ { name = string.rep("é", 25), smashes = 0 } }, 0, nil, nil, ME)
+	eq(utf8.len(accents.top[1].name), MatchEnd.MAX_NAME)
+	eq(MatchEnd.read({ { name = "\255\254", smashes = 0 } }, 0, nil, nil, ME).top[1].name, "?")
 	eq(MatchEnd.winWords(MatchEnd.read({}, 0, nil, nil, ME)), "")
 end)
 
@@ -84,6 +88,8 @@ test("the count: follows the server's next round, else 12 s; never below 0 or ab
 	eq(MatchEnd.left(v, 100, 130), 0)
 	local far = MatchEnd.read(places(), 0, 1e9, nil, ME)
 	eq(MatchEnd.left(far, 0, 0), 60)
+	eq(MatchEnd.left(far, 0, 61), 0) -- a junk far-off round can't hold the screen up
+	eq(MatchEnd.left(MatchEnd.read(places(), 0, math.huge, nil, ME), 0, 61), 0)
 	local none = MatchEnd.read(places(), 0, nil, nil, ME)
 	eq(MatchEnd.left(none, 50, 50), MatchEnd.AUTO)
 	eq(MatchEnd.left(none, 50, 55.5), 7)

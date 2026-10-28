@@ -10,6 +10,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local MatchEnd = require(Shared:WaitForChild("MatchEnd"))
 local Ui = script.Parent:WaitForChild("Ui")
 local Smash = require(Ui:WaitForChild("Screens"):WaitForChild("Smash"))
+local Screen = require(Ui:WaitForChild("Screen"))
 
 local player = Players.LocalPlayer
 
@@ -32,13 +33,18 @@ end
 
 local shown = 0 -- which result is on screen (a newer one stops the older count)
 local lastLeave = 0
+local leftAt = -math.huge -- when LEAVE took us out (a result already on its way is not shown)
+local LEFT_QUIET = 20
 
 local function show(places: unknown, coins: unknown, nextAt: unknown, xp: unknown)
+	if os.clock() - leftAt < LEFT_QUIET then
+		return
+	end
 	shown += 1
 	local mine = shown
 	local view = MatchEnd.read(places, coins, nextAt, xp, player.UserId)
 	local openedAt = workspace:GetServerTimeNow()
-	local handle: any
+	local handle: Screen.Handle
 	handle = Smash.matchEnd(view, {
 		leave = function()
 			-- (one ask a second at most; the server rate-limits too)
@@ -50,6 +56,7 @@ local function show(places: unknown, coins: unknown, nextAt: unknown, xp: unknow
 			local r = ReplicatedStorage:FindFirstChild("LeaveMatch")
 			if r and r:IsA("RemoteEvent") then
 				r:FireServer()
+				leftAt = now
 			end
 			shown += 1
 			handle.close()
