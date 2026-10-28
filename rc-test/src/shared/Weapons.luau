@@ -19,9 +19,10 @@ export type Def = {
 
 Weapons.DEFS = {
 	Rockets = { ammo = 3, cooldown = 0.6, word = "ROCKETS", icon = "rocket" },
+	Nuke = { ammo = 1, cooldown = 1, word = "NUKE", icon = "nuke" },
 } :: { [string]: Def }
--- the order boxes and screens list them in
-Weapons.NAMES = { "Rockets" }
+-- the order boxes and screens list them in (GUNMINE adds Gun, Mine, Freeze)
+Weapons.NAMES = { "Rockets", "Nuke" }
 
 -- aim: at most this far (degrees) from where the kart faces; more is turned back to the edge
 Weapons.MAX_AIM_DEG = 30
@@ -128,21 +129,55 @@ function Weapons.allow(b: Bucket, now: number): boolean
 	return true
 end
 
--- ===== rockets: fly fast, bend a little toward the nearest kart ahead, boom on a hit =====
+-- ===== flying weapons (rockets, nuke): fly, bend a little toward a kart ahead, boom on a hit =====
 
-Weapons.ROCKET = {
-	speed = 95, -- studs a second
-	life = 2.4, -- seconds, then it blows up where it is (about 230 studs)
-	seekDeg = 35, -- only karts within this cone ahead are chased
-	seekRange = 120,
-	turnDeg = 75, -- degrees a second it can bend toward its target
-	hitRadius = 6.5, -- a kart is about 5 x 9 studs
-	damage = 45, -- a direct hit (health 100: 3 hits smash, 2 + a splash)
-	splash = 12, -- studs around the boom
-	splashDamage = 20,
-	ahead = 7, -- starts this far in front of the kart
-	up = 1.5, -- and this high above its middle
+export type Flight = {
+	speed: number, -- studs a second
+	life: number, -- seconds, then it blows up where it is
+	seekDeg: number, -- only karts within this cone ahead are chased (0 = flies straight)
+	seekRange: number,
+	turnDeg: number, -- degrees a second it can bend toward its target
+	hitRadius: number, -- a kart is about 5 x 9 studs
+	damage: number, -- a direct hit (health 100)
+	splash: number, -- studs around the boom
+	splashDamage: number, -- at the middle of the boom; half at its edge
+	ahead: number, -- starts this far in front of the kart
+	up: number, -- and this high above its middle
 }
+
+-- ROCKETS: fast, bend a little toward the nearest kart ahead. 3 hits smash (2 + a splash).
+Weapons.ROCKET = {
+	speed = 95,
+	life = 2.4, -- about 230 studs
+	seekDeg = 35,
+	seekRange = 120,
+	turnDeg = 75,
+	hitRadius = 6.5,
+	damage = 45,
+	splash = 12,
+	splashDamage = 20,
+	ahead = 7,
+	up = 1.5,
+} :: Flight
+
+-- NUKE: one slow, big rocket that barely bends; its boom is huge and smashes a crowd. A direct
+-- hit always smashes; the middle of the boom too.
+Weapons.NUKE = {
+	speed = 48,
+	life = 4, -- about 190 studs
+	seekDeg = 25,
+	seekRange = 90,
+	turnDeg = 25,
+	hitRadius = 8,
+	damage = 100,
+	splash = 34,
+	splashDamage = 100,
+	ahead = 8,
+	up = 2.5,
+} :: Flight
+
+-- the flight of each flying weapon, by name
+Weapons.FLIGHTS = { Rockets = Weapons.ROCKET, Nuke = Weapons.NUKE } :: { [string]: Flight }
 
 export type Target = { id: any, pos: Vector3 }
 export type Rocket = {
@@ -151,10 +186,11 @@ export type Rocket = {
 	age: number,
 	owner: any,
 	target: any?,
+	spec: Flight,
 }
 
-function Weapons.rocket(owner: any, from: Vector3, dir: Vector3): Rocket
-	local R = Weapons.ROCKET
+function Weapons.rocket(owner: any, from: Vector3, dir: Vector3, spec: Flight?): Rocket
+	local R = spec or Weapons.ROCKET
 	local d = flat(dir) or vector.create(0, 0, -1)
 	return {
 		pos = from + d * R.ahead + vector.create(0, R.up, 0),
@@ -162,12 +198,16 @@ function Weapons.rocket(owner: any, from: Vector3, dir: Vector3): Rocket
 		age = 0,
 		owner = owner,
 		target = nil,
+		spec = R,
 	}
 end
 
 -- The kart a rocket chases: the nearest one within its cone and range, never its owner.
 function Weapons.seek(r: Rocket, targets: { Target }): any?
-	local R = Weapons.ROCKET
+	local R = r.spec
+	if R.seekDeg <= 0 then
+		return nil
+	end
 	local cosMax = math.cos(math.rad(R.seekDeg))
 	local best, bestD = nil, math.huge
 	for _, t in targets do
@@ -204,7 +244,7 @@ function Weapons.step(
 	targets: { Target },
 	blocked: ((from: Vector3, to: Vector3) -> Vector3?)?
 ): (string?, any?)
-	local R = Weapons.ROCKET
+	local R = r.spec
 	r.target = Weapons.seek(r, targets)
 	if r.target ~= nil then
 		for _, t in targets do
@@ -258,14 +298,15 @@ function Weapons.step(
 end
 
 -- Who a boom at `at` hurts and how much: the kart hit takes `damage`, others in `splash` take
--- splashDamage (less the farther away). Never the owner. One entry per kart.
+-- splashDamage (half at the edge). Never the owner. One entry per kart.
 function Weapons.boom(
 	at: Vector3,
 	targets: { Target },
 	owner: any,
-	direct: any?
+	direct: any?,
+	spec: Flight?
 ): { { id: any, damage: number } }
-	local R = Weapons.ROCKET
+	local R = spec or Weapons.ROCKET
 	local out = {}
 	for _, t in targets do
 		if t.id ~= owner then

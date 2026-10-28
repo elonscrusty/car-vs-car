@@ -26,6 +26,8 @@ export type Ctx = {
 	fx: (kind: string, data: { [string]: any }) -> (),
 	after: (seconds: number, fn: () -> ()) -> (),
 	place: ((kind: string, at: Vector3) -> Instance?)?,
+	-- FREEZE: seconds > 0 stops kart `id` (it frees itself after that); 0 lets it go now
+	freeze: ((id: any, seconds: number) -> ())?,
 }
 export type Module = {
 	fire: (kart: Kart, aim: Vector3, ctx: Ctx) -> boolean,
@@ -36,11 +38,19 @@ export type Module = {
 local held: { [any]: Weapons.Held } = {}
 local buckets: { [Player]: Weapons.Bucket } = {}
 local modules: { [string]: Module } = {}
+local frozenToken: { [any]: number } = {}
 local ctx: Ctx
 
 -- ===== the match's karts (MatchRunner; read lazily so either can start first) =====
 
+-- (tests) a stand-in match: { karts() -> {Kart}, damage(...), kartOf(player), playerOf(id),
+-- model(id) }, set by start({ match = ... })
+local stand: any? = nil
+
 local function matchRunner(): any?
+	if stand then
+		return stand
+	end
 	local m = script.Parent:FindFirstChild("MatchRunner")
 	if m and m:IsA("ModuleScript") then
 		local ok, mod = pcall(require, m)
@@ -68,6 +78,9 @@ local function pose(k: any): CFrame?
 end
 
 local function allKarts(): { Kart }
+	if stand then
+		return stand.karts()
+	end
 	local mr = matchRunner()
 	local out = {}
 	if not mr or type(mr.karts) ~= "function" then
@@ -89,6 +102,9 @@ local function allKarts(): { Kart }
 end
 
 local function kartModel(id: any): Instance?
+	if stand then
+		return if type(stand.model) == "function" then stand.model(id) else nil
+	end
 	local mr = matchRunner()
 	if not mr or type(mr.karts) ~= "function" then
 		return nil
@@ -112,6 +128,9 @@ local function kartIdOf(player: Player): any
 end
 
 local function playerOf(id: any): Player?
+	if stand and type(stand.playerOf) == "function" then
+		return stand.playerOf(id)
+	end
 	if type(id) == "number" and id > 0 then
 		return Players:GetPlayerByUserId(id)
 	end
@@ -190,6 +209,33 @@ local function makeCtx(fxRemote: RemoteEvent): Ctx
 			task.delay(seconds, fn)
 		end,
 		place = nil,
+		freeze = function(id: any, seconds: number)
+			local mr = matchRunner()
+			if mr and type(mr.freeze) == "function" then
+				mr.freeze(id, seconds)
+				return
+			end
+			-- no MatchRunner.freeze: hold the kart's main part still and mark it Frozen
+			local m = kartModel(id)
+			local root = m and m:IsA("Model") and (m :: Model).PrimaryPart
+			if not root then
+				return
+			end
+			local on = seconds > 0
+			root.Anchored = on
+			m:SetAttribute("Frozen", on)
+			local token = (frozenToken[id] or 0) + 1
+			frozenToken[id] = token
+			if on then
+				task.delay(seconds, function()
+					-- (only if nothing froze or freed it again since)
+					if frozenToken[id] == token and root.Parent then
+						root.Anchored = false
+						m:SetAttribute("Frozen", false)
+					end
+				end)
+			end
+		end,
 	}
 	return c
 end
@@ -272,11 +318,13 @@ local function remoteNamed(name: string): RemoteEvent
 end
 
 local started = false
-function WeaponServer.start()
+-- opts (tests only): { match = a stand-in for MatchRunner }
+function WeaponServer.start(opts: { match: any? }?)
 	if started then
 		return
 	end
 	started = true
+	stand = opts and opts.match
 	local folder = script.Parent:FindFirstChild("weapons")
 	if folder then
 		for _, name in Weapons.NAMES do
