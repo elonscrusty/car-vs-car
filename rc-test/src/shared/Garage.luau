@@ -946,7 +946,7 @@ function Garage.crateYard(add: Add, W: number, front: number)
 	local p = Garage.CRATE_POST
 	add("CrateSign", "Foot", v(3, 1, 3), v(p.x, 0.5, p.z), C.dark)
 	add("CrateSign", "Post", v(1, p.h, 1), v(p.x, p.h / 2, p.z), C.white)
-	add("CrateSign", "Board", v(6, 3, 6), v(p.x, p.h - 2.2, p.z), trim) -- written on all 4 sides
+	add("CrateSign", "Board", v(6, 3, 6), v(p.x, p.h - 2.2, p.z), trim) -- written front and back (CrateShop.client)
 	Garage.crate(add, "CrateSign", v(p.x, p.h, p.z), "mega", 4, true)
 	-- the mat out of the door: trim colour with a lighter middle
 	add("CrateMat", "Mat", v(16, 0.06, 7), v(0, 0.03, front + 3.5), trim, { collide = false })
