@@ -31,6 +31,7 @@ export type Fleet = {
 	hover: number, -- body height over the road (the players' spawn height over the road)
 	ground: RaycastParams,
 	last: number?, -- clock of the last step
+	easy: boolean, -- a first race: no catch-up, and the bots wait for the kid (RaceBots.holds)
 }
 
 local RaceBotCars = {}
@@ -94,6 +95,7 @@ function RaceBotCars.spawn(
 		hover = hover,
 		ground = ground,
 		last = nil,
+		easy = easy,
 	}
 	local names = table.clone(RaceBots.NAMES)
 	for i = 1, count do
@@ -173,12 +175,13 @@ function RaceBotCars.step(fleet: Fleet, clock: number, goAt: number, lead: numbe
 	for _, car in fleet.cars do
 		local bot = car.bot
 		local catchUp = 0
-		if lead then
+		if lead and not fleet.easy then
 			catchUp =
 				math.clamp((RaceBots.progress(fleet.route, bot) - lead) / RaceBots.CATCH_GAP, -1, 1)
 		end
 		local had = bot.time
-		RaceBots.step(fleet.route, bot, dt, since, catchUp)
+		local hold = fleet.easy and bot.time == nil and RaceBots.holds(fleet.route, bot, lead)
+		RaceBots.step(fleet.route, bot, dt, since, catchUp, hold)
 		if had == nil and bot.time ~= nil then
 			done += 1
 		end
