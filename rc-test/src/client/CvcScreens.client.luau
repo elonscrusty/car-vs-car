@@ -70,13 +70,22 @@ end
 -- ===== cars as the screens draw them =====
 
 local KINDS = { "racer", "truck", "buggy" }
--- a car's body for its stand-in picture (until carter's pictures are in): the same every time
-local function kindOf(id: string): string
+local function hash(id: string): number
 	local n = 0
 	for i = 1, #id do
 		n += string.byte(id, i)
 	end
-	return KINDS[n % #KINDS + 1]
+	return n
+end
+-- a car's body for its stand-in picture (until carter's pictures are in): the same every time
+local function kindOf(id: string): string
+	return KINDS[hash(id) % #KINDS + 1]
+end
+
+-- a bot on the podium (no car of ours): a color from its name, each its own (Studio live4 04)
+local BOT_COLORS = { "danger", "lime", "boost", "pink", "go", "blue" }
+local function botColor(name: string): Color3
+	return Base.color(BOT_COLORS[hash(name) % #BOT_COLORS + 1])
 end
 
 local function colorOf(id: string): Color3
@@ -737,7 +746,7 @@ local function openHud(stagger: boolean)
 			info(
 				"trophy",
 				`{string.upper(League.name(n))} LEAGUE`,
-				if n < #League.NAMES then "Win to move up!" else "Top league!"
+				if n < #League.NAMES then "Get top 3 to move up!" else "Top league!"
 			)
 		end,
 		race = join,
@@ -1158,11 +1167,15 @@ local function showPodium(rows: { any })
 			name = string.sub(name, 1, 11) .. "."
 		end
 		-- (bots all race the same car name: their own names give each its own color)
-		local key = if r.bot or type(r.car) ~= "string" then name else r.car
+		local bot = r.bot or type(r.car) ~= "string"
+		local key = if bot then name else r.car
 		top[i] = {
 			name = name,
 			id = if isMe and myCar then myCar.id else nil,
-			color = if isMe and myCar then colorOf(myCar.id) else colorOf(key),
+			color = if isMe and myCar
+				then colorOf(myCar.id)
+				elseif bot then botColor(name)
+				else colorOf(key),
 			kind = if isMe and myCar then kindOf(myCar.id) else kindOf(key),
 			me = isMe,
 		}
