@@ -3,7 +3,7 @@
 -- red/white curbs and crosswalks, the sand patch and its red bumper wall, the two pink hills with
 -- ramps, the purple step, orange cover walls, lollipop trees and the purple outer wall.
 -- LOOK RULE: clean low-poly, flat colours, SmoothPlastic only, faceted shapes (the hills are
--- wedge-built prisms, the tree tops two turned cubes). No studs, bricks, text or logos.
+-- wedge-built prisms, the tree tops turned blocks). No studs, bricks, text or logos.
 -- Built big (map-local big units) and shrunk to RC size like the race maps.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -111,14 +111,15 @@ local function wall(
 	b: Vector3,
 	thick: number,
 	h: number,
-	color: Color3
+	color: Color3,
+	exact: boolean? -- true: end exactly at a and b (no square overhang past the ends)
 )
 	local d = Vector3.new(b.X - a.X, 0, b.Z - a.Z)
 	local mid = Vector3.new((a.X + b.X) / 2, h / 2, (a.Z + b.Z) / 2)
 	return part(
 		parent,
 		name,
-		Vector3.new(thick, h, d.Magnitude + thick),
+		Vector3.new(thick, h, d.Magnitude + (if exact then 0 else thick)),
 		CFrame.lookAt(mid, mid + d),
 		color,
 		true
@@ -348,10 +349,8 @@ local function buildFloor(folder: Instance)
 		)
 	end
 	local GAP = 36
-	local k = 0
 	for along = -s / 2 + GAP, s / 2 - GAP / 2, GAP do
 		for _, face in { { 0, -1 }, { 1, 0 }, { 0, 1 }, { -1, 0 } } do
-			k += 1
 			local nx, nz = face[1], face[2] -- the wall's side of the arena
 			local tx, tz = -nz, nx -- along the wall
 			local base = Vector3.new(nx * inner + tx * along, 0, nz * inner + tz * along)
@@ -484,7 +483,8 @@ local function buildSand(folder: Instance)
 				a:Lerp(b, u1),
 				ArenaData.BUMPER_W * K,
 				ArenaData.BUMPER_H,
-				BUMPER
+				BUMPER,
+				true
 			)
 		end
 	end
@@ -534,18 +534,15 @@ local function buildCover(folder: Instance)
 			v(seg[2], 0),
 			ArenaData.COVER_W * K,
 			ArenaData.COVER_H,
-			ORANGE
+			ORANGE,
+			true
 		)
 		-- red bumper caps on both ends (round, like the barrels)
 		for _, e in seg do
 			local cap = part(
 				folder,
 				"CoverCap",
-				Vector3.new(
-					ArenaData.COVER_H + 1,
-					ArenaData.COVER_W * K + 1.5,
-					ArenaData.COVER_W * K + 1.5
-				),
+				Vector3.new(ArenaData.COVER_H + 1, ArenaData.COVER_W * K, ArenaData.COVER_W * K),
 				CFrame.new(v(e, (ArenaData.COVER_H + 1) / 2)) * CFrame.Angles(0, 0, math.pi / 2),
 				CURB_RED,
 				true

@@ -83,7 +83,7 @@ ArenaData.HILLS = {
 ArenaData.RAMPS = {
 	-- each runs square to its hill's cliff edge and ends just inside it, so there is no gap
 	{ from = { 120.3, 79.6 }, to = { 143.1, 86.1 }, width = 14, h = 11 },
-	{ from = { 148.8, 161 }, to = { 165.5, 155.9 }, width = 14, h = 8 },
+	{ from = { 149.4, 159.1 }, to = { 166.1, 154.0 }, width = 14, h = 8 },
 } :: { Ramp }
 -- each ramp's top runs on as a flat deck this far (picture units) over the hill's sloped edge
 ArenaData.RAMP_DECK = 5
