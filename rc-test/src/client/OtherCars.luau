@@ -89,6 +89,40 @@ local function toyShell(folder: Folder, id: string, s: number): Toy
 	return { parts = parts, offsets = offsets }
 end
 
+-- carter's own model for this car (ReplicatedStorage.CarSkins, named the car id): its body parts,
+-- turned to drive toward -Z and sized to the grey body's length; this file's wheels stay
+local function modelShell(folder: Folder, m: Model, s: number): Toy?
+	local pivot, size = m:GetBoundingBox()
+	if size.Z <= 0 then
+		return nil
+	end
+	local k = base("bodyZ") * s / size.Z
+	local floor = CFrame.new(0, -size.Y / 2, 0)
+	local parts: { BasePart } = {}
+	local offsets: { CFrame } = {}
+	for _, d in m:GetDescendants() do
+		if d:IsA("BasePart") and string.sub(d.Name, 1, 5) ~= "Wheel" then
+			local p = d:Clone()
+			p:ClearAllChildren()
+			p.Anchored = true
+			p.CanCollide = false
+			p.CanQuery = false
+			p.CanTouch = false
+			p.CastShadow = false
+			p.Size *= k
+			-- (Studio's 3D import puts the nose at +Z, like CarSkin: turned around)
+			local rel = floor:Inverse() * pivot:Inverse() * d.CFrame
+			table.insert(
+				offsets,
+				CFrame.Angles(0, math.pi, 0) * (rel - rel.Position + rel.Position * k)
+			)
+			table.insert(parts, p)
+			p.Parent = folder
+		end
+	end
+	return if #parts > 0 then { parts = parts, offsets = offsets } else nil
+end
+
 local function wheelPart(folder: Folder, s: number): Part
 	local d = base("wheelRadius") * 2 * s
 	local p = Instance.new("Part")
@@ -184,7 +218,10 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 		local tag = nameTag(body, playerName(model), s)
 		tag.Parent = body
 		local id = toyId(model)
-		local toy = if id then toyShell(f, id, s) else nil
+		local skins = ReplicatedStorage:FindFirstChild("CarSkins")
+		local own = id and skins and skins:FindFirstChild(id)
+		local toy = if own and own:IsA("Model") then modelShell(f, own, s) else nil
+		toy = toy or if id then toyShell(f, id, s) else nil
 		if toy then
 			for _, d in model:GetDescendants() do
 				if d:IsA("BasePart") then

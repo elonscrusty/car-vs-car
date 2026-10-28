@@ -157,3 +157,17 @@ test("Car VS Car (Studio pr816 04b): the toy car is the grey body's size, within
 		"other cars sized by wheels"
 	)
 end)
+
+test("carter's own car model (CarSkins, named the car id) wins over the toy look", function()
+	local fs = require("@lune/fs")
+	local main = fs.readFile("src/client/Main.client.luau")
+	truthy(
+		string.find(main, "skins:FindFirstChild(id) then id else CarSkin.TOY .. id", 1, true),
+		"own car"
+	)
+	local others = fs.readFile("src/client/OtherCars.luau")
+	truthy(string.find(others, "modelShell(f, own, s) else nil", 1, true), "other cars")
+	truthy(string.find(others, "toy or if id then toyShell", 1, true), "toy when no model")
+	local skin = fs.readFile("src/client/CarSkin.luau")
+	truthy(string.find(skin, "HOW TO ADD A CAR MODEL", 1, true), "how-to line")
+end)
