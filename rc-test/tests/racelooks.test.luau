@@ -172,7 +172,7 @@ test("carter's own car model (CarSkins, named the car id) wins over the toy look
 	truthy(string.find(main, "return CarSkin.lookFor(id)", 1, true), "own car")
 	local skinSrc = fs.readFile("src/client/CarSkin.luau")
 	truthy(
-		string.find(skinSrc, "if skins and skins:FindFirstChild(id) then\n\t\treturn id", 1, true),
+		string.find(skinSrc, 'if own and own:IsA("Model") then\n\t\treturn id', 1, true),
 		"own model first"
 	)
 	local others = fs.readFile("src/client/OtherCars.luau")

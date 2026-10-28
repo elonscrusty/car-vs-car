@@ -362,7 +362,8 @@ function ToyCars.kartPaint(name: string, color: { number }, style: string?): ({ 
 	elseif name == "Head" then
 		return ToyCars.PALETTE.yellow, false
 	elseif name == "Driver" then
-		return if color == SHIRT then ToyCars.PALETTE.white else SHIRT, false
+		local blue = color[1] == SHIRT[1] and color[2] == SHIRT[2] and color[3] == SHIRT[3]
+		return if blue then ToyCars.PALETTE.white else SHIRT, false
 	elseif name == "Headlights" then
 		return LIGHT, true
 	elseif name == "Taillights" then

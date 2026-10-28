@@ -221,7 +221,7 @@ test(
 			truthy(ToyCars.kartPaint(name, red, "muscle") ~= nil, `{name} not painted`)
 		end
 		-- the driver's shirt never matches a blue car
-		truthy(ToyCars.kartPaint("Driver", ToyCars.PALETTE.blue, "muscle") ~= ToyCars.PALETTE.blue)
+		eq(ToyCars.kartPaint("Driver", { 30, 111, 217 }, "muscle"), ToyCars.PALETTE.white) -- (a catalog colour is its own table)
 		-- own car and others both wear them
 		local fs = require("@lune/fs")
 		local others = fs.readFile("src/client/OtherCars.luau")

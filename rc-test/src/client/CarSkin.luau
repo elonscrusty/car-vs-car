@@ -116,7 +116,8 @@ end
 -- else the toy car.
 function CarSkin.lookFor(id: string): string
 	local skins = ReplicatedStorage:FindFirstChild("CarSkins")
-	if skins and skins:FindFirstChild(id) then
+	local own = skins and skins:FindFirstChild(id)
+	if own and own:IsA("Model") then
 		return id
 	end
 	return if CarSkin.kartFor(id) then CarSkin.KART .. id else CarSkin.TOY .. id
@@ -140,6 +141,8 @@ local function kart(id: string): Model?
 	for _, d in car:GetDescendants() do
 		if d:IsA("BasePart") then
 			CarSkin.paintKart(d, id)
+		elseif d:IsA("SurfaceAppearance") then
+			d:Destroy() -- (an import's own look would hide the paint)
 		end
 	end
 	-- (show turns the nose from +Z to -Z: a model already facing -Z is turned round first)
