@@ -987,7 +987,8 @@ local function reveal(id: string, rarity: string)
 		color = colorOf(id),
 		kind = kindOf(id),
 		new = true,
-		note = "TAP TRAIN!",
+		-- (the new car goes onto a free station by itself: then there's nothing to tap)
+		note = if trainDot() then "TAP TRAIN!" else "It's training!",
 		-- OPEN ANOTHER only with a free crate left or the coins for a small one
 		again = CvcState.crates > 0 or num("Coins") >= (Crates.price("basic") or math.huge),
 	}, {
@@ -1072,7 +1073,15 @@ RunService.Heartbeat:Connect(function()
 		and cars > 1
 		and not anyOpen(FULL)
 	if shows and not raceHud then
-		raceHud = Hud.race({ lap = false, top = false, boost = false, place = place, total = cars })
+		raceHud = Hud.race({
+			lap = false,
+			top = false,
+			boost = false,
+			place = place,
+			total = cars,
+			-- under the lap clock top left (the FINISH IN strip is top middle)
+			placeAt = { 6, 126, 176, 54 },
+		})
 	end
 	local h = raceHud
 	if h and shows ~= raceOn then
@@ -1089,40 +1098,12 @@ RunService.Heartbeat:Connect(function()
 end)
 
 local podiumAt = 0
-local function showPodium(rows: { any })
-	local mine: number? = nil
-	for i, r in rows do
-		if type(r) == "table" and r.uid == player.UserId then
-			mine = i
-		end
-	end
-	if not mine then
-		return -- (not in this race)
-	end
-	local me = rows[mine]
-	local finished = type(me.time) == "number"
-	local myCar = racer()
-	local top = {}
-	for i = 1, math.min(3, #rows) do
-		local r = rows[i]
-		local isMe = i == mine
-		local name = if isMe then "YOU" elseif type(r.name) == "string" then r.name else "?"
-		if #name > 12 then
-			name = string.sub(name, 1, 11) .. "."
-		end
-		local key = if type(r.car) == "string" then r.car else name
-		top[i] = {
-			name = name,
-			id = if isMe and myCar then myCar.id else nil,
-			color = if isMe and myCar then colorOf(myCar.id) else colorOf(key),
-			kind = if isMe and myCar then kindOf(myCar.id) else kindOf(key),
-			me = isMe,
-		}
-	end
+-- place: yours (past the cars = didn't finish: NICE TRY!); top: the top 3 cars, by place
+local function showPodiumWith(place: number, top: { [number]: { [string]: any } }, coins: number)
 	local at = os.clock()
 	podiumAt = at
 	Screen.closeOver()
-	if finished and mine == 1 then
+	if place == 1 then
 		Sfx.fireworks()
 	else
 		Sfx.cheer()
@@ -1130,11 +1111,10 @@ local function showPodium(rows: { any })
 	-- a crate to open (the first race's free one): the big button opens it, the car shows at once
 	local crate = CvcState.crates > 0 and #CvcState.garage < Profile.MAX_GARAGE
 	Flow.podium({
-		-- (didn't finish: NICE TRY!, whatever the row)
-		place = if finished then mine else #rows + 1,
+		place = place,
 		top = top,
-		coins = if type(me.coins) == "number" then me.coins else 0,
-		trophies = if finished and League.trophy(mine) then 1 else 0,
+		coins = coins,
+		trophies = if League.trophy(place) then 1 else 0,
 		nextWords = if crate then "OPEN CRATE!" else nil,
 	}, {
 		next = function()
@@ -1156,8 +1136,77 @@ local function showPodium(rows: { any })
 	end)
 end
 
+local function showPodium(rows: { any })
+	local mine: number? = nil
+	for i, r in rows do
+		if type(r) == "table" and r.uid == player.UserId then
+			mine = i
+		end
+	end
+	if not mine then
+		return -- (not in this race)
+	end
+	local me = rows[mine]
+	local finished = type(me.time) == "number"
+	local myCar = racer()
+	local top = {}
+	for i = 1, math.min(3, #rows) do
+		local r = rows[i]
+		local isMe = i == mine
+		local name = if isMe then "YOU" elseif type(r.name) == "string" then r.name else "?"
+		if #name > 12 then
+			name = string.sub(name, 1, 11) .. "."
+		end
+		-- (bots all race the same car name: their own names give each its own color)
+		local key = if r.bot or type(r.car) ~= "string" then name else r.car
+		top[i] = {
+			name = name,
+			id = if isMe and myCar then myCar.id else nil,
+			color = if isMe and myCar then colorOf(myCar.id) else colorOf(key),
+			kind = if isMe and myCar then kindOf(myCar.id) else kindOf(key),
+			me = isMe,
+		}
+	end
+	-- (didn't finish: NICE TRY!, whatever the row)
+	showPodiumWith(
+		if finished then mine else 99,
+		top,
+		if type(me.coins) == "number" then me.coins else 0
+	)
+end
+
 raceEvent.OnClientEvent:Connect(function(what: unknown, a: unknown)
 	if what == "result" and type(a) == "table" then
 		showPodium(a :: { any })
 	end
+end)
+
+-- (a race you were paid for whose result list never came, Studio live3 race 4: the podium shows
+-- your own place and coins anyway, a few seconds later)
+CvcState.event:Connect(function(kind: unknown, place: unknown, coins: unknown)
+	if kind ~= "race" or type(place) ~= "number" then
+		return
+	end
+	local at = os.clock()
+	task.delay(4, function()
+		if podiumAt >= at or Screen.isOpen("podium") then
+			return
+		end
+		local myCar = racer()
+		local top = {}
+		if place >= 1 and place <= 3 then
+			top[place] = {
+				name = "YOU",
+				id = if myCar then myCar.id else nil,
+				color = if myCar then colorOf(myCar.id) else nil,
+				kind = if myCar then kindOf(myCar.id) else nil,
+				me = true,
+			}
+		end
+		showPodiumWith(
+			if place >= 1 then place else 99,
+			top,
+			if type(coins) == "number" then coins else 0
+		)
+	end)
 end)

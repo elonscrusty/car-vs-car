@@ -344,16 +344,21 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 			end,
 			setShown = function(name: string, on: boolean)
 				local h = holders[name]
-				if h and (hidden[h] == true) == on then
-					if on then
-						hidden[h] = nil
-					else
-						hidden[h] = true
-					end
-					h.Visible = on
-					if on then
+				if not h then
+					return
+				end
+				-- (every call: the tiles' rise-in puts Visible back a beat after the screen opens,
+				-- Studio live3 shot 01)
+				local was = hidden[h] == true
+				if on then
+					hidden[h] = nil
+					if was then
+						h.Visible = true
 						Anim.pop(h, nil, 0.4)
 					end
+				else
+					hidden[h] = true
+					h.Visible = false
 				end
 			end,
 			point = function(name: string?, words: string?, loud: boolean?)
@@ -472,7 +477,18 @@ function Hud.race(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 			pill.frame.Parent = nil
 		end
 		local pp = piece("race", "Place")
-		local placeSpot = spot(c, "race", "Place")
+		-- (data.placeAt = { x, y, w, h }: somewhere else; the live game keeps the top middle for
+		-- the FINISH IN strip, Studio live3 shot 06)
+		local at = data.placeAt
+		if at then
+			pp = table.clone(pp)
+			pp.x, pp.y, pp.w, pp.h, pp.anchor = at[1], at[2], at[3], at[4], "tl"
+		end
+		local placeSpot = Instance.new("Frame")
+		placeSpot.Name = "Place"
+		placeSpot.BackgroundTransparency = 1
+		placeSpot.Parent = c
+		Base.place(placeSpot, pp)
 		local big = Base.text(
 			placeSpot,
 			"Place",
