@@ -329,11 +329,11 @@ function MapKit.turns(map: any): { Turn }
 	return out
 end
 
--- Chevron boards round the outside of every bend (yellow, black arrows pointing the way), facing
+-- Chevron boards round the outside of every bend (arrows pointing the way, two designs), facing
 -- the car as it comes in: on a low chase cam they show which way the road goes long before the
 -- painted arrows do. Looks only (you drive through them), on the floor clear of everything else.
 MapKit.SIGN_OFF = 14 -- past the curb
-MapKit.SIGN_GAP = 30 -- along the bend
+MapKit.SIGN_GAP = 40 -- along the bend (fewer boards in a row on a long bend)
 MapKit.SIGN_W = 24
 export type Sign = { x: number, z: number, yaw: number, dir: number }
 function MapKit.turnSigns(map: any): { Sign }

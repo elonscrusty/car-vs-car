@@ -24,8 +24,8 @@ local function rgb(r: number, g: number, b: number): Color3
 	return Color3.fromRGB(r, g, b)
 end
 
-local ROAD_COLOR = rgb(52, 52, 58)
-local GRASS = rgb(86, 150, 70)
+local ROAD_COLOR = rgb(70, 72, 82) -- a touch lighter than the plot's: the race has no lobby sun
+local GRASS = rgb(116, 186, 82) -- the lobby's grass
 local WOOD = rgb(150, 105, 65)
 local LIGHT_WOOD = rgb(214, 172, 120)
 local DARK = rgb(36, 36, 40)
@@ -36,8 +36,8 @@ local SIDE_TOP = 0.08 -- side roads sit a hair lower, so where they meet the mai
 local FLAT_TOP = 0.05 -- flat looks (patio, rug, mats) sit under both
 
 local LOOKS = {
-	dirt = { color = rgb(150, 105, 60), mat = Enum.Material.Ground },
-	mown = { color = rgb(128, 196, 96), mat = Enum.Material.Grass },
+	dirt = { color = rgb(150, 105, 60), mat = Enum.Material.SmoothPlastic },
+	mown = { color = rgb(146, 210, 108), mat = Enum.Material.SmoothPlastic },
 	tunnel = { color = rgb(196, 160, 112), mat = Enum.Material.WoodPlanks },
 	tiles = { color = rgb(118, 120, 128), mat = Enum.Material.SmoothPlastic },
 }
@@ -45,8 +45,8 @@ local PAD_LOOK: { [string]: { color: Color3, mat: Enum.Material } } = {
 	-- a warm orange, not glowing (playtest u02: a neon yellow pad filled a quarter of the screen
 	-- and its glow hid the car); the orange arrows still glow
 	boost = { color = rgb(225, 150, 40), mat = Enum.Material.SmoothPlastic },
-	puddle = { color = rgb(70, 140, 210), mat = Enum.Material.Glass },
-	milk = { color = rgb(248, 248, 244), mat = Enum.Material.Glass },
+	puddle = { color = rgb(92, 178, 236), mat = Enum.Material.SmoothPlastic },
+	milk = { color = rgb(250, 248, 240), mat = Enum.Material.SmoothPlastic },
 	mud = { color = rgb(120, 76, 36), mat = Enum.Material.Mud },
 	sand = { color = rgb(222, 196, 130), mat = Enum.Material.Sand },
 }
@@ -327,7 +327,7 @@ local function buildPaths(folder: Instance, map: any)
 					p.width * 0.4,
 					SIDE_TOP + 0.03,
 					rgb(150, 214, 116),
-					Enum.Material.Grass
+					Enum.Material.SmoothPlastic
 				)
 				finish(st, false)
 			end
@@ -353,6 +353,30 @@ local function buildPads(folder: Instance, map: any)
 			look.mat
 		)
 		surface(p, rule.grip, rule.drag)
+		if pad.kind == "puddle" or pad.kind == "milk" then
+			-- cartoon water: a lighter middle and a few white shine streaks (paint only)
+			local top = frameAt(s, ROAD_TOP + 0.04)
+			local mid = if pad.kind == "puddle" then rgb(150, 212, 248) else C.white
+			local shine = if pad.kind == "puddle" then C.white else rgb(236, 228, 210)
+			looks(
+				folder,
+				"Water",
+				Vector3.new(w * 0.7, 0.02, pad.len * 0.6),
+				top * CFrame.new(0, 0.03, 0),
+				mid
+			)
+			for k, c in { { -0.22, -0.2, 0.5 }, { 0.18, 0.05, 0.35 }, { -0.05, 0.28, 0.42 } } do
+				looks(
+					folder,
+					"Water",
+					Vector3.new(w * c[3], 0.02, 2.5),
+					top
+						* CFrame.new(w * c[1], 0.05, pad.len * c[2])
+						* CFrame.Angles(0, 0.3 - k * 0.15, 0),
+					shine
+				)
+			end
+		end
 		if rule.boost then
 			p:SetAttribute("Boost", true) -- the car pushes forward while on it
 			-- two orange arrows pointing the way to go
@@ -492,7 +516,7 @@ local function buildFloor(folder: Instance, map: any)
 		Vector3.new(w, 4, d),
 		CFrame.new(cx, -2, cz),
 		if kitchen then rgb(244, 236, 218) else GRASS,
-		if kitchen then Enum.Material.SmoothPlastic else Enum.Material.Grass
+		Enum.Material.SmoothPlastic
 	)
 	-- off the road: the race plot's grass (slower, a bit slidier)
 	surface(floor, MapKit.GRASS_GRIP, MapKit.GRASS_DRAG)
@@ -523,8 +547,8 @@ local function buildFloor(folder: Instance, map: any)
 			"Lawn",
 			Vector3.new(w + m * 2, 4, d + m * 2),
 			CFrame.new(cx, -2.2, cz),
-			rgb(76, 138, 62),
-			Enum.Material.Grass
+			rgb(104, 172, 74),
+			Enum.Material.SmoothPlastic
 		)
 		finish(out, true)
 	end
@@ -722,12 +746,12 @@ function BUILD.patio(box, e)
 	local s = 64
 	for i = 0, math.floor(w / s) - 1 do
 		for j = 0, math.floor(d / s) - 1 do
-			local shade = if (i + j) % 2 == 0 then rgb(200, 190, 174) else rgb(184, 174, 160)
+			local shade = if (i + j) % 2 == 0 then rgb(232, 220, 198) else rgb(216, 204, 182)
 			box(
 				Vector3.new(s - 4, 0.04, s - 4),
 				CFrame.new(-w / 2 + (i + 0.5) * s, FLAT_TOP, -d / 2 + (j + 0.5) * s),
 				shade,
-				Enum.Material.Slate
+				Enum.Material.SmoothPlastic
 			)
 		end
 	end
@@ -736,20 +760,64 @@ end
 
 function BUILD.steps(box, e)
 	local w, d = e.w or 100, e.d or 30
+	-- three steps up to the house door, each front painted a plot colour
+	local fronts = { C.red, C.orange, C.blue }
 	for i = 0, 2 do
 		box(
 			Vector3.new(w, e.h / 3 * (i + 1), d / 3),
-			CFrame.new(0, e.h / 6 * (i + 1), d / 2 - (i + 0.5) * d / 3),
-			rgb(176, 166, 154),
-			Enum.Material.Concrete
+			CFrame.new(0, e.h / 6 * (i + 1), -d / 2 + (i + 0.5) * d / 3),
+			if i % 2 == 0 then rgb(236, 214, 176) else rgb(222, 196, 154),
+			Enum.Material.SmoothPlastic
+		)
+		box(
+			Vector3.new(w, e.h / 3, 1),
+			CFrame.new(0, e.h / 3 * (i + 0.5), -d / 2 + i * d / 3 - 0.5),
+			fronts[i + 1]
 		)
 	end
+	-- the house: a cartoon wall in the plot colours (a door, windows and race posters, no words)
+	local hw = w + 400
+	local face = d / 2 - 0.5 -- 1 thick, flat on the wall; each layer on top sits 1 further out
+	box(Vector3.new(hw, 400, 20), CFrame.new(0, 200, d / 2 + 10), rgb(250, 232, 196))
+	box(Vector3.new(hw, 24, 1), CFrame.new(0, 12, face), C.orange)
+	box(Vector3.new(80, 118, 1), CFrame.new(0, e.h + 59, face), C.white)
+	box(Vector3.new(68, 110, 1), CFrame.new(0, e.h + 55, face - 1), C.red)
+	for _, x in { -250, -120, 175 } do
+		box(Vector3.new(80, 70, 1), CFrame.new(x, 140, face), C.white)
+		box(Vector3.new(70, 60, 1), CFrame.new(x, 140, face - 1), rgb(170, 215, 245))
+		box(Vector3.new(70, 4, 1), CFrame.new(x, 140, face - 2), C.white)
+		box(Vector3.new(4, 60, 1), CFrame.new(x, 140, face - 2), C.white)
+	end
+	-- posters right of the door (the driver stand stands in front of the left side)
+	-- a chequered race flag
+	for i = 0, 5 do
+		for j = 0, 3 do
+			box(
+				Vector3.new(9, 9, 1),
+				CFrame.new(95 - 22.5 + i * 9, 50 + j * 9, face - 1),
+				if (i + j) % 2 == 0 then C.white else DARK
+			)
+		end
+	end
+	box(Vector3.new(62, 44, 1), CFrame.new(95, 63.5, face), C.blue)
+	-- a big wheel with a speed stripe
+	box(Vector3.new(62, 44, 1), CFrame.new(255, 63.5, face), C.blue)
 	box(
-		Vector3.new(w + 400, 400, 20),
-		CFrame.new(0, 200, d / 2 + 10),
-		rgb(214, 196, 168),
-		Enum.Material.Brick
-	) -- the house
+		Vector3.new(1, 34, 34),
+		CFrame.new(248, 63.5, face - 1) * CFrame.Angles(0, PI / 2, 0),
+		DARK,
+		nil,
+		CYL
+	)
+	box(
+		Vector3.new(1, 14, 14),
+		CFrame.new(248, 63.5, face - 2) * CFrame.Angles(0, PI / 2, 0),
+		C.white,
+		nil,
+		CYL
+	)
+	box(Vector3.new(16, 5, 1), CFrame.new(276, 70, face - 1), C.orange)
+	box(Vector3.new(12, 5, 1), CFrame.new(278, 58, face - 1), C.orange)
 	return nil
 end
 
@@ -864,7 +932,7 @@ function BUILD.flowerBed(box, e)
 		Vector3.new(e.w or 100, 0.04, e.d or 80),
 		CFrame.new(0, FLAT_TOP, 0),
 		rgb(110, 76, 46),
-		Enum.Material.Ground
+		Enum.Material.SmoothPlastic
 	)
 	return nil
 end
@@ -875,14 +943,14 @@ function BUILD.flowerPot(box, e)
 		Vector3.new(e.h * 0.7, w * 0.8, w * 0.8),
 		CFrame.new(0, e.h * 0.35, 0) * UP,
 		rgb(196, 106, 66),
-		Enum.Material.Slate,
+		Enum.Material.SmoothPlastic,
 		CYL
 	)
 	box(
 		Vector3.new(e.h * 0.1, w, w),
 		CFrame.new(0, e.h * 0.72, 0) * UP,
 		rgb(206, 116, 74),
-		Enum.Material.Slate,
+		Enum.Material.SmoothPlastic,
 		CYL
 	)
 	box(Vector3.new(4, e.h * 1.6, 4), CFrame.new(0, e.h * 1.4, 0), rgb(60, 140, 50))
@@ -942,7 +1010,7 @@ function BUILD.dogHouse(box, e)
 			Vector3.new(w * 0.62, 8, d + 16),
 			CFrame.new(s * w * 0.24, wallH + h * 0.18, 0) * CFrame.Angles(0, 0, s * -0.55),
 			roof,
-			Enum.Material.Slate
+			Enum.Material.SmoothPlastic
 		)
 	end
 	-- front and back walls above the door
@@ -967,8 +1035,8 @@ function BUILD.bigBush(box, e)
 		box(
 			Vector3.new(w * c[3], e.h * c[3], d * c[3]),
 			CFrame.new(w * c[1], e.h * 0.45 * c[3], d * c[2]),
-			if i % 2 == 0 then rgb(48, 120, 52) else rgb(40, 104, 46),
-			Enum.Material.Grass,
+			if i % 2 == 0 then rgb(72, 160, 66) else rgb(58, 140, 58),
+			Enum.Material.SmoothPlastic,
 			BALL
 		)
 	end
@@ -999,21 +1067,21 @@ function BUILD.birdBath(box, e)
 		Vector3.new(14, w * 0.5, w * 0.5),
 		CFrame.new(0, 7, 0) * UP,
 		rgb(186, 186, 190),
-		Enum.Material.Concrete,
+		Enum.Material.SmoothPlastic,
 		CYL
 	)
 	box(
 		Vector3.new(e.h * 0.8, w * 0.22, w * 0.22),
 		CFrame.new(0, e.h * 0.4, 0) * UP,
 		rgb(190, 190, 195),
-		Enum.Material.Concrete,
+		Enum.Material.SmoothPlastic,
 		CYL
 	)
 	box(
 		Vector3.new(e.h * 0.14, w, w),
 		CFrame.new(0, e.h * 0.9, 0) * UP,
 		rgb(196, 196, 200),
-		Enum.Material.Concrete,
+		Enum.Material.SmoothPlastic,
 		CYL
 	)
 	box(
@@ -1135,8 +1203,8 @@ function BUILD.tree(box, e)
 		box(
 			Vector3.new(w * c[4], w * c[4] * 0.8, w * c[4]),
 			CFrame.new(w * c[1], e.h * c[2], w * c[3]),
-			rgb(66, 130, 58),
-			Enum.Material.Grass,
+			rgb(84, 166, 70),
+			Enum.Material.SmoothPlastic,
 			BALL
 		)
 	end
@@ -1151,8 +1219,8 @@ function BUILD.tuft(box, e)
 			Vector3.new(3, e.h * (0.7 + (i % 3) * 0.15), 1),
 			CFrame.new(math.cos(a) * 6, e.h * 0.35, math.sin(a) * 6)
 				* CFrame.Angles(math.sin(a) * lean, a, math.cos(a) * lean),
-			rgb(70, 150, 56),
-			Enum.Material.Grass
+			if i % 2 == 0 then rgb(96, 190, 72) else rgb(66, 158, 60),
+			Enum.Material.SmoothPlastic
 		)
 	end
 	return nil
@@ -1663,12 +1731,12 @@ local function blade(
 			* CFrame.Angles(0, yaw, 0)
 			* CFrame.Angles(0, 0, lean)
 			* CFrame.new(0, h / 2, 0),
-		color,
-		Enum.Material.Grass
+		color
 	)
 end
 
-local BLADES = { rgb(70, 150, 56), rgb(86, 168, 62), rgb(60, 132, 50) }
+-- two flat cartoon greens (carter's playtest: realistic grass looked like planks)
+local BLADES = { rgb(96, 190, 72), rgb(66, 158, 60) }
 
 local function yardEdges(folder: Instance, map: any)
 	local def: MapKit.Def = map.def
@@ -1687,7 +1755,7 @@ local function yardEdges(folder: Instance, map: any)
 				e.yaw + r:NextNumber(-0.4, 0.4),
 				h,
 				-e.side * r:NextNumber(0.15, 0.45),
-				BLADES[(b + n) % 3 + 1]
+				BLADES[(b + n) % 2 + 1]
 			)
 		end
 		if n % 7 == 0 then
@@ -1706,7 +1774,7 @@ local function yardEdges(folder: Instance, map: any)
 				Vector3.new(24, 16, 24),
 				CFrame.new(e.x, h + 4, e.z),
 				rgb(255, 214, 40),
-				Enum.Material.Grass,
+				Enum.Material.SmoothPlastic,
 				BALL
 			)
 		elseif n % 11 == 5 then
@@ -1726,7 +1794,7 @@ local function yardEdges(folder: Instance, map: any)
 					Vector3.new(1, 16, 16),
 					CFrame.new(e.x + math.cos(a) * 8, 20, e.z + math.sin(a) * 8) * UP,
 					rgb(80, 160, 64),
-					Enum.Material.Grass,
+					Enum.Material.SmoothPlastic,
 					CYL
 				)
 			end
@@ -1743,7 +1811,7 @@ local function yardEdges(folder: Instance, map: any)
 				e.yaw + r:NextNumber(-0.6, 0.6),
 				r:NextNumber(60, 95),
 				-e.side * r:NextNumber(0.1, 0.3),
-				BLADES[(b + n) % 3 + 1]
+				BLADES[(b + n) % 2 + 1]
 			)
 		end
 	end
@@ -2006,12 +2074,17 @@ local function roadArrows(folder: Instance, map: any)
 	end
 end
 
--- yellow chevron boards round the outside of each bend (MapKit.turnSigns): a board on a post, two
--- black arrows on its face pointing the way the road turns
+-- chevron boards round the outside of each bend (MapKit.turnSigns): a board on a post, two arrows
+-- on its face pointing the way the road turns; yellow/black and white/red take turns
 local SIGN_YELLOW = rgb(255, 205, 40)
 local function turnSigns(folder: Instance, map: any)
 	local w, h, low = MapKit.SIGN_W, 16, 4
-	for _, sg in MapKit.turnSigns(map) do
+	for n, sg in MapKit.turnSigns(map) do
+		-- two designs taking turns, so a long bend isn't the same board over and over
+		local board, arrow = SIGN_YELLOW, DARK
+		if n % 2 == 0 then
+			board, arrow = C.white, C.red
+		end
 		-- local +Z faces the oncoming car, +X is that driver's right
 		local at = CFrame.new(sg.x, 0, sg.z) * CFrame.Angles(0, sg.yaw, 0)
 		looks(
@@ -2021,7 +2094,7 @@ local function turnSigns(folder: Instance, map: any)
 			at * CFrame.new(0, (low + h / 2) / 2, -1.5),
 			DARK
 		)
-		looks(folder, "Sign", Vector3.new(w, h, 1), at * CFrame.new(0, low + h / 2, 0), SIGN_YELLOW)
+		looks(folder, "Sign", Vector3.new(w, h, 1), at * CFrame.new(0, low + h / 2, 0), board)
 		for _, cx in { -5, 5 } do
 			for _, up in { 1, -1 } do
 				-- ">" (or "<" on a left-hand bend): two bars meeting at the tip
@@ -2032,7 +2105,7 @@ local function turnSigns(folder: Instance, map: any)
 					at
 						* CFrame.new(sg.dir * cx, low + h / 2 + up * 2.6, 0.6)
 						* CFrame.Angles(0, 0, -up * sg.dir * 0.65),
-					DARK
+					arrow
 				)
 			end
 		end

@@ -60,7 +60,7 @@ local props: { MapKit.Prop } = {
 	prop("birdBath", -330, 80, 0, 154, true, 90, 90),
 	prop("bucket", 150, 120, 0.8, 66, true, 60, 60),
 	prop("sodaCan", 300, 250, 1.2, 14, true, 26, 14),
-	prop("ball", -80, 220, 0, 50, true, 50, 50),
+	prop("ball", -150, 100, 0, 50, true, 50, 50), -- out of the start-line view
 	prop("picnicTable", 120, -80, 0.2, 165, true, 400, 200),
 	-- leaves and pinecones on the lawn (bumps you can drive round)
 	prop("leaf", 380, 180, 0.7, 2, false, 60, 40),
