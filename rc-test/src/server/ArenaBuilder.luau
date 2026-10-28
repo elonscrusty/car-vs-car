@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ArenaData = require(ReplicatedStorage.Shared.ArenaData)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
+local MapKit = require(ReplicatedStorage.Shared.Maps.MapKit)
 
 local ArenaBuilder = {}
 
@@ -30,6 +31,14 @@ local PURPLE, PURPLE_STEP = rgb(136, 60, 196), rgb(176, 96, 220)
 local ORANGE = rgb(255, 140, 40)
 local CANDY, CANDY_2 = rgb(214, 44, 178), rgb(255, 110, 200)
 local STICK = rgb(252, 248, 240)
+local TRIM, NAVY = rgb(196, 128, 246), rgb(34, 40, 78)
+local YELLOW, SKY = rgb(255, 214, 40), rgb(80, 180, 255)
+local GRASS_DARK, GRASS_LIGHT = rgb(92, 182, 70), rgb(146, 220, 100)
+local BUSH, BUSH_2 = rgb(56, 150, 64), rgb(84, 176, 72)
+local ROCK, ROCK_2 = rgb(172, 168, 196), rgb(146, 142, 176)
+local CRATE, CRATE_BAND = rgb(255, 196, 60), rgb(230, 120, 30)
+local FLAGS = { CURB_RED, YELLOW, PINK, SKY }
+local PETALS = { PINK, YELLOW, CURB_WHITE, CANDY_2 }
 
 local K = ArenaData.K
 
@@ -120,7 +129,8 @@ local function rightPrism(
 	q: Vector3,
 	y0: number,
 	y1: number,
-	color: Color3
+	color: Color3,
+	solid: boolean?
 )
 	local lp, lq = (p - d).Magnitude, (q - d).Magnitude
 	if lp < 0.05 or lq < 0.05 then
@@ -137,7 +147,7 @@ local function rightPrism(
 	end
 	local c = d + uy * (lp / 2) - uz * (lq / 2)
 	local cf = CFrame.fromMatrix(Vector3.new(c.X, (y0 + y1) / 2, c.Z), ux, uy, uz)
-	part(parent, name, Vector3.new(y1 - y0, lp, lq), cf, color, true, "WedgePart")
+	part(parent, name, Vector3.new(y1 - y0, lp, lq), cf, color, solid ~= false, "WedgePart")
 end
 
 -- A convex polygon (picture points) as a solid flat-topped block from y0 to y1, built from
@@ -148,7 +158,8 @@ local function prism(
 	poly: { Pt },
 	y0: number,
 	y1: number,
-	color: Color3
+	color: Color3,
+	solid: boolean?
 )
 	local pts: { Vector3 } = {}
 	for _, p in poly do
@@ -167,8 +178,94 @@ local function prism(
 		local a, b, c = tri[bi], tri[bi % 3 + 1], tri[(bi + 1) % 3 + 1]
 		local ab = (b - a).Unit
 		local foot = a + ab * (c - a):Dot(ab)
-		rightPrism(parent, name, foot, c, a, y0, y1, color)
-		rightPrism(parent, name, foot, c, b, y0, y1, color)
+		rightPrism(parent, name, foot, c, a, y0, y1, color, solid)
+		rightPrism(parent, name, foot, c, b, y0, y1, color, solid)
+	end
+end
+
+-- A solid triangle a-b-c (map-local) as two wedges `thick` deep, its face on the triangle and its
+-- back toward -out (out: any direction on the face's outer side). The low-poly facet.
+local function tri(
+	parent: Instance,
+	name: string,
+	a: Vector3,
+	b: Vector3,
+	c: Vector3,
+	out: Vector3,
+	thick: number,
+	color: Color3
+)
+	local ab, ac, bc = b - a, c - a, c - b
+	local abd, acd, bcd = ab:Dot(ab), ac:Dot(ac), bc:Dot(bc)
+	if abd > acd and abd > bcd then
+		c, a = a, c
+	elseif acd > bcd and acd > abd then
+		a, b = b, a
+	end
+	ab, ac, bc = b - a, c - a, c - b
+	if ac:Cross(ab).Magnitude < 1e-4 then
+		return
+	end
+	local right = ac:Cross(ab).Unit
+	local up = bc:Cross(right).Unit
+	local back = bc.Unit
+	local height = math.abs(ab:Dot(up))
+	local n = if right:Dot(out) >= 0 then right else -right
+	local sink = -n * (thick / 2)
+	part(
+		parent,
+		name,
+		Vector3.new(thick, height, math.abs(ab:Dot(back))),
+		CFrame.fromMatrix((a + b) / 2 + sink, right, up, back),
+		color,
+		true,
+		"WedgePart"
+	)
+	part(
+		parent,
+		name,
+		Vector3.new(thick, height, math.abs(ac:Dot(back))),
+		CFrame.fromMatrix((a + c) / 2 + sink, -right, up, -back),
+		color,
+		true,
+		"WedgePart"
+	)
+end
+
+-- A flat-topped hill with faceted sloped sides: the top is poly moved in by `inset` on `sides`
+-- (ArenaData.insetPoly), each side a two-triangle facet from the foot up to the top edge.
+local function mesa(
+	parent: Instance,
+	name: string,
+	poly: { Pt },
+	h: number,
+	inset: number,
+	sides: { number }?,
+	top: Color3,
+	side: Color3
+)
+	local inner = ArenaData.insetPoly(poly, inset, sides)
+	local n = #poly
+	local tops: { Vector3 } = {}
+	for i = 1, n do
+		tops[i] = v(inner[i], h)
+	end
+	for i = 2, n - 1 do
+		tri(parent, name, tops[1], tops[i], tops[i + 1], Vector3.yAxis, 1, top)
+	end
+	local mid = Vector3.zero
+	for _, p in tops do
+		mid += p / n
+	end
+	for i = 1, n do
+		local j = i % n + 1
+		if sides == nil or table.find(sides, i) then
+			local a, b = v(poly[i], 0), v(poly[j], 0)
+			local out = (a + b) / 2 - mid
+			out = Vector3.new(out.X, 0, out.Z)
+			tri(parent, name, a, b, tops[j], out, 1, side)
+			tri(parent, name, a, tops[j], tops[i], out, 1, side)
+		end
 	end
 end
 
@@ -223,7 +320,94 @@ local function buildFloor(folder: Instance)
 			true
 		)
 	end
-	prism(folder, "Step", ArenaData.STEP, 0, ArenaData.STEP_H, PURPLE_STEP)
+	-- an unseen guard on top, as tall as the race maps' edge: no blast throws a kart out
+	local guard = MapKit.WALL_H - h
+	for _, side in { -1, 1 } do
+		for _, size in { Vector3.new(s, guard, w), Vector3.new(w, guard, s) } do
+			local at = if size.X > size.Z
+				then Vector3.new(0, h + guard / 2, side * (s - w) / 2)
+				else Vector3.new(side * (s - w) / 2, h + guard / 2, 0)
+			local g = part(folder, "WallGuard", size, CFrame.new(at), PURPLE, true)
+			g.Transparency = 1
+			g.CanQuery = false
+			g.CastShadow = false
+		end
+	end
+	-- a lighter trim along the top, a pillar every so often on the inside face, and on each pillar
+	-- a post with a bright pennant (looks only: up out of the way)
+	local inner = s / 2 - w
+	for _, side in { -1, 1 } do
+		part(
+			folder,
+			"WallTrim",
+			Vector3.new(s, 1.2, w + 1),
+			CFrame.new(0, h + 0.6, side * (s - w) / 2),
+			TRIM,
+			true
+		)
+		part(
+			folder,
+			"WallTrim",
+			Vector3.new(w + 1, 1.2, s),
+			CFrame.new(side * (s - w) / 2, h + 0.6, 0),
+			TRIM,
+			true
+		)
+	end
+	local GAP = 36
+	local k = 0
+	for along = -s / 2 + GAP, s / 2 - GAP / 2, GAP do
+		for _, face in { { 0, -1 }, { 1, 0 }, { 0, 1 }, { -1, 0 } } do
+			k += 1
+			local nx, nz = face[1], face[2] -- the wall's side of the arena
+			local tx, tz = -nz, nx -- along the wall
+			local base = Vector3.new(nx * inner + tx * along, 0, nz * inner + tz * along)
+			local into = Vector3.new(-nx, 0, -nz)
+			part(
+				folder,
+				"WallPillar",
+				Vector3.new(3, h + 1.6, 3),
+				CFrame.lookAt(base - into * 0.7, base) + Vector3.new(0, (h + 1.6) / 2, 0),
+				TRIM,
+				true
+			)
+			local post = part(
+				folder,
+				"FlagPost",
+				Vector3.new(8, 0.5, 0.5),
+				CFrame.new(base + Vector3.new(0, h + 5, 0)) * CFrame.Angles(0, 0, math.pi / 2),
+				NAVY,
+				false
+			) :: Part
+			post.Shape = Enum.PartType.Cylinder
+			-- the pennant: a thin wedge, its point flying along the wall
+			local top = base + Vector3.new(0, h + 7.5, 0)
+			part(
+				folder,
+				"Pennant",
+				Vector3.new(0.2, 2.6, 4.5),
+				CFrame.fromMatrix(
+					top + Vector3.new(tx, 0, tz) * 2.25,
+					into,
+					Vector3.yAxis,
+					Vector3.new(tx, 0, tz)
+				),
+				FLAGS[k % #FLAGS + 1],
+				false,
+				"WedgePart"
+			)
+		end
+	end
+	mesa(
+		folder,
+		"Platform",
+		ArenaData.STEP,
+		ArenaData.STEP_H,
+		ArenaData.STEP_SLOPE,
+		ArenaData.STEP_SIDES,
+		PURPLE_STEP,
+		PURPLE
+	)
 end
 
 local function buildRoad(folder: Instance)
@@ -320,7 +504,7 @@ end
 
 local function buildHills(folder: Instance)
 	for _, h in ArenaData.HILLS do
-		prism(folder, h.name, h.poly, 0, h.h, PINK)
+		mesa(folder, h.name, h.poly, h.h, h.slope, nil, PINK, CANDY)
 	end
 	for i, r in ArenaData.RAMPS do
 		local a, b = v(r.from, 0), v(r.to, 0)
@@ -338,6 +522,17 @@ local function buildHills(folder: Instance)
 			PINK_RAMP,
 			true,
 			"WedgePart"
+		)
+		-- the flat deck from the ramp's top over the hill's sloped edge
+		local deck = ArenaData.RAMP_DECK * K
+		local dm = b + dir * (deck / 2) + Vector3.new(0, r.h - 0.5, 0)
+		part(
+			folder,
+			"RampDeck" .. i,
+			Vector3.new(r.width * K, 1, deck),
+			CFrame.lookAt(dm, dm + dir),
+			PINK_RAMP,
+			true
 		)
 	end
 end
@@ -360,10 +555,11 @@ local function buildTrees(folder: Instance)
 	for i, t in ArenaData.TREES do
 		local base = v(t, 0)
 		local h = 26
+		local tk = ArenaData.TRUNK
 		local stick = part(
 			folder,
 			"TreeStick",
-			Vector3.new(h, 3, 3),
+			Vector3.new(h, tk, tk),
 			CFrame.new(base + Vector3.new(0, h / 2, 0)) * CFrame.Angles(0, 0, math.pi / 2),
 			STICK,
 			true
@@ -392,6 +588,176 @@ local function buildTrees(folder: Instance)
 	end
 end
 
+-- a low-poly lump: two turned blocks (rocks, bushes)
+local function lump(
+	parent: Instance,
+	name: string,
+	at: Vector3,
+	r: number,
+	h: number,
+	spin: number,
+	c1: Color3,
+	c2: Color3,
+	solid: boolean
+)
+	part(
+		parent,
+		name,
+		Vector3.new(r * 1.6, h, r * 1.6),
+		CFrame.new(at + Vector3.new(0, h * 0.35, 0)) * CFrame.Angles(0.25, spin, 0.2),
+		c1,
+		solid
+	)
+	part(
+		parent,
+		name,
+		Vector3.new(r * 1.2, h * 0.8, r * 1.2),
+		CFrame.new(at + Vector3.new(r * 0.35, h * 0.5, -r * 0.2))
+			* CFrame.Angles(-0.3, spin + 0.7, 0.35),
+		c2,
+		solid
+	)
+end
+
+local function buildCoverExtras(folder: Instance)
+	for i, r in ArenaData.ROCKS do
+		local rad = r[3] * K
+		lump(folder, "Rock", v({ r[1], r[2] }, 0), rad, rad * 1.3, i * 1.3, ROCK, ROCK_2, true)
+	end
+	local c = ArenaData.CRATE * K
+	for i, p in ArenaData.CRATES do
+		local cf = CFrame.new(v(p, c / 2)) * CFrame.Angles(0, i * 0.5, 0)
+		part(folder, "Crate", Vector3.new(c, c, c), cf, CRATE, true)
+		-- two bands round it
+		part(folder, "CrateBand", Vector3.new(c + 0.2, c + 0.2, c * 0.22), cf, CRATE_BAND, false)
+		part(folder, "CrateBand", Vector3.new(c * 0.22, c + 0.2, c + 0.2), cf, CRATE_BAND, false)
+	end
+	local br = ArenaData.BARREL_R * K
+	for _, seg in ArenaData.BARRELS do
+		local a, b = v(seg[1], 0), v(seg[2], 0)
+		local count = math.max(2, math.floor((b - a).Magnitude / (br * 2.1)) + 1)
+		for k = 0, count - 1 do
+			local at = a:Lerp(b, k / (count - 1))
+			local bh = 4.5
+			local barrel = part(
+				folder,
+				"Barrel",
+				Vector3.new(bh, br * 2, br * 2),
+				CFrame.new(at + Vector3.new(0, bh / 2, 0)) * CFrame.Angles(0, 0, math.pi / 2),
+				CURB_RED,
+				true
+			) :: Part
+			barrel.Shape = Enum.PartType.Cylinder
+			local band = part(
+				folder,
+				"BarrelBand",
+				Vector3.new(0.8, br * 2 + 0.15, br * 2 + 0.15),
+				barrel.CFrame,
+				CURB_WHITE,
+				false
+			) :: Part
+			band.Shape = Enum.PartType.Cylinder
+		end
+	end
+end
+
+local function buildArch(folder: Instance)
+	local a = ArenaData.ARCH
+	local pts = ArenaData.archPillars()
+	local p1, p2 = v(pts[1], 0), v(pts[2], 0)
+	local pw = a.pillar * K
+	for _, p in { p1, p2 } do
+		part(
+			folder,
+			"ArchPillar",
+			Vector3.new(pw, a.h, pw),
+			CFrame.new(p + Vector3.new(0, a.h / 2, 0)),
+			NAVY,
+			true
+		)
+		part(
+			folder,
+			"ArchCap",
+			Vector3.new(pw + 1, 1.5, pw + 1),
+			CFrame.new(p + Vector3.new(0, a.h + 0.75, 0)) * CFrame.Angles(0, math.pi / 4, 0),
+			YELLOW,
+			false
+		)
+	end
+	-- the beam: a two-row checker between the pillars (looks only: it never stops the camera)
+	local span = p2 - p1
+	local len = span.Magnitude
+	local dir = span.Unit
+	local cells = 12
+	local cl = len / cells
+	for row = 0, 1 do
+		for k = 0, cells - 1 do
+			local at = p1 + dir * (cl * (k + 0.5)) + Vector3.new(0, a.h - 1.25 - row * 2.5, 0)
+			part(
+				folder,
+				"ArchBeam",
+				Vector3.new(2, 2.5, cl),
+				CFrame.lookAt(at, at + dir),
+				if (k + row) % 2 == 0 then YELLOW else NAVY,
+				false
+			)
+		end
+	end
+	-- pennants hanging under the beam
+	for k = 1, 5 do
+		local at = p1 + dir * (len * k / 6) + Vector3.new(0, a.h - 4.3, 0)
+		part(
+			folder,
+			"ArchFlag",
+			Vector3.new(0.2, 2.6, 2.2),
+			CFrame.fromMatrix(at, dir, -Vector3.yAxis, Vector3.new(-dir.Z, 0, dir.X)),
+			FLAGS[k % #FLAGS + 1],
+			false,
+			"WedgePart"
+		)
+	end
+end
+
+-- looks only: grass patches in two shades, bushes, flower clumps (karts drive through them)
+local function buildDecor(folder: Instance)
+	for i, g in ArenaData.PATCHES do
+		local poly = {}
+		for k = 0, 6 do
+			local ang = k * math.pi * 2 / 7 + i
+			local r = g[3] * (0.8 + 0.2 * math.sin(k * 2.3 + i))
+			table.insert(poly, { g[1] + math.cos(ang) * r, g[2] + math.sin(ang) * r })
+		end
+		prism(
+			folder,
+			"GrassPatch",
+			poly,
+			-0.05,
+			0.03,
+			if g[4] == 1 then GRASS_DARK else GRASS_LIGHT,
+			false
+		)
+	end
+	for i, b in ArenaData.BUSHES do
+		lump(folder, "Bush", v(b, 0), 6, 5, i * 0.9, BUSH, BUSH_2, false)
+		lump(folder, "Bush", v(b, 0) + Vector3.new(4, 0, 3), 4, 3.5, i * 1.7, BUSH_2, BUSH, false)
+	end
+	for i, f in ArenaData.FLOWERS do
+		local at = v(f, 0)
+		for k = 0, 4 do
+			local ang = k * 1.3 + i
+			local off = Vector3.new(math.cos(ang), 0, math.sin(ang)) * (1.2 + k * 0.5)
+			part(
+				folder,
+				"Flower",
+				Vector3.new(1.6, 1.6, 1.6),
+				CFrame.new(at + off + Vector3.new(0, 0.9, 0)) * CFrame.Angles(0.6, ang, 0.6),
+				PETALS[(k + i) % #PETALS + 1],
+				false
+			)
+		end
+	end
+end
+
 -- The arena model, built big at the origin (no scaling, not placed): tests and renders read it.
 function ArenaBuilder.buildBig(): Model
 	local model = Instance.new("Model")
@@ -401,7 +767,10 @@ function ArenaBuilder.buildBig(): Model
 	buildSand(model)
 	buildHills(model)
 	buildCover(model)
+	buildCoverExtras(model)
+	buildArch(model)
 	buildTrees(model)
+	buildDecor(model)
 	return model
 end
 
