@@ -107,12 +107,42 @@ local function boostLeft(): number
 	local n = player:GetAttribute("BoostLeft")
 	return if type(n) == "number" then n else 0
 end
-boost.Activated:Connect(function()
+local function tapBoost()
 	if boostLeft() > 0 and player:GetAttribute("BoostOn") ~= true then
 		boostTap:Fire()
 		pop(boost, 1.3)
 	end
-end)
+end
+boost.Activated:Connect(tapBoost)
+-- (Features.NEW_UI: the same button, same spot, in the new look: a round orange BOOST with a
+-- ring that fills when one is ready, Kit.round; the old face goes see-through)
+local newBoost: any = nil
+if Features.NEW_UI then
+	local Ui = script.Parent:WaitForChild("Ui")
+	local Kit = require(Ui:WaitForChild("Kit")) :: any
+	boost.Text = ""
+	boost.BackgroundTransparency = 1
+	boost:SetAttribute("NoKart", true)
+	for _, d in boost:GetChildren() do
+		if d:IsA("UIStroke") then
+			d:Destroy()
+		end
+	end
+	local holder = Instance.new("Frame")
+	holder.Name = "NewBoost"
+	holder.BackgroundTransparency = 1
+	holder.Size = UDim2.fromScale(0.8, 0.8)
+	holder.Position = UDim2.fromScale(0.1, 0.1)
+	holder:SetAttribute("DW", 100)
+	holder:SetAttribute("DH", 100)
+	holder:SetAttribute("NoKart", true)
+	holder.Parent = boost
+	newBoost = Kit.round(holder, "Boost", 0, 0, 100, "boost", "BOOST", {
+		charge = true,
+		onClick = tapBoost,
+	})
+	boostCount.ZIndex = 12
+end
 -- the race result card is up (ServerRace "Result"): the race is over, BOOST steps away (it sat by
 -- the card's edge; CvcLayout.AFTER_RACE_HIDES)
 local result: GuiObject? = nil
@@ -123,6 +153,13 @@ local function showBoost()
 	boost.Visible = player:GetAttribute("Racing") == true and not resultUp()
 	local left = boostLeft()
 	boostCount.Text = tostring(left)
+	if newBoost then
+		-- full ring = one ready to use; empty while it's on or none saved
+		newBoost.setCharge(if player:GetAttribute("BoostOn") ~= true and left > 0 then 1 else 0)
+		boost:SetAttribute("KartPulse", nil)
+		boostCount.Visible = left > 0
+		return
+	end
 	if player:GetAttribute("BoostOn") == true then
 		boost.Text = "GO!!"
 		boost.BackgroundColor3 = KartStyle.YELLOW
@@ -367,7 +404,8 @@ local function finish(place: number, coins: number, trophy: boolean)
 end
 
 CvcState.event:Connect(function(kind: unknown, place: unknown, coins: unknown, trophy: unknown)
-	if kind == "race" and type(place) == "number" then
+	-- (Features.NEW_UI: the new podium screen shows the place and the coins, CvcScreens.client)
+	if kind == "race" and type(place) == "number" and not Features.NEW_UI then
 		task.spawn(function()
 			-- one card at a time: the race result with its podium first (it can come a beat later)
 			task.wait(1)
