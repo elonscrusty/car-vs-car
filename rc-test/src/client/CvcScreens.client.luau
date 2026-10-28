@@ -12,6 +12,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Features = require(Shared:WaitForChild("Features"))
@@ -20,6 +21,7 @@ if not (Features.CVC and Features.NEW_UI) then
 end
 local CarCatalog = require(Shared:WaitForChild("CarCatalog"))
 local Crates = require(Shared:WaitForChild("Crates"))
+local CvcGoal = require(Shared:WaitForChild("CvcGoal"))
 local League = require(Shared:WaitForChild("League"))
 local Profile = require(Shared:WaitForChild("Profile"))
 local Training = require(Shared:WaitForChild("Training"))
@@ -198,7 +200,7 @@ local function noCoins(need: number, back: (() -> ())?)
 	local short = need - num("Coins")
 	Windows.popup({
 		kind = "coins",
-		text = `You need {commas(short)} more. Race to win coins!`,
+		text = `Need {commas(short)} more coins!`,
 		yes = { "RACE!", "lime" },
 		no = { "OK", "white" },
 	}, {
@@ -252,7 +254,10 @@ local function oddsOf(kind: string): { { [string]: any } }
 	local got = Crates.odds(kind)
 	local out = {}
 	for _, r in CarCatalog.RARITY_ORDER do
-		table.insert(out, { rarity = UiTheme.rarityId(r), chance = got[r] or 0 })
+		-- (a 0% row is a word to read that never matters: left out)
+		if (got[r] or 0) > 0 then
+			table.insert(out, { rarity = UiTheme.rarityId(r), chance = got[r] })
+		end
 	end
 	return out
 end
@@ -281,7 +286,7 @@ function openCrates()
 		chosen = crateChoice,
 		best = 2,
 		coins = num("Coins"),
-		note = "1 new car per crate. The odds are shown before you open.",
+		note = "1 car per crate.",
 	}, {
 		choose = function(i: number)
 			crateChoice = i
@@ -292,7 +297,7 @@ function openCrates()
 				return
 			end
 			if #CvcState.garage >= Profile.MAX_GARAGE then
-				info("lock", "Garage full", "Your garage has no room for a new car.")
+				info("lock", "Garage full", "No room for cars.")
 				return
 			end
 			if ch.kind == "free" then
@@ -363,14 +368,14 @@ local function stationPopup(i: number)
 	end
 	local cost = Training.upgradeCost(st.level)
 	if st.level >= Training.MAX_STATION_LEVEL or not cost then
-		info("trophy", `{name} LV {st.level}`, `Trains {word}. It is at the top level!`)
+		info("trophy", `{name} LV {st.level}`, `{word}: top level!`)
 		return
 	end
 	Windows.popup({
 		kind = "sell",
 		icon = "coin",
 		title = `{name} LV {st.level}`,
-		text = `Trains {word}. LV {st.level + 1} trains faster: {commas(cost)} coins.`,
+		text = `{commas(cost)} coins: faster {word}!`,
 		yes = { "UPGRADE", "lime" },
 		no = { "LATER", "white" },
 	}, {
@@ -398,7 +403,7 @@ local function morePopup()
 		kind = "sell",
 		icon = "coin",
 		title = "One more station!",
-		text = `A new {Training.NAMES[kind] or "station"} for {commas(cost)} coins. One more car trains.`,
+		text = `{commas(cost)} coins: +1 {Training.NAMES[kind] or "station"}!`,
 		yes = { "BUY", "lime" },
 		no = { "LATER", "white" },
 	}, {
@@ -613,6 +618,47 @@ local function trainDot(): number?
 	return nil
 end
 
+local coachedAt = 0 -- (os.clock) this visit's last COACH tap
+
+-- the one thing to tap next on the plot screen, and its words (first 10 minutes: COACH, then
+-- RACE!, then the crate, a car onto its station, a crate to buy, the next race)
+local function hudGoal(): (string?, string?)
+	if attr("Picked") ~= true then
+		return nil, nil
+	end
+	local joined = attr("RaceJoined") == true
+	if num("Stage") < Profile.STAGE.RACED then
+		if num("CoachAt") == 0 and coachedAt == 0 then
+			return "Coach", "TAP COACH!"
+		end
+		if joined then
+			return nil, nil
+		end
+		return "Race", "TAP RACE!"
+	end
+	if CvcState.crates > 0 then
+		return "Crates", "OPEN CRATE!"
+	end
+	if trainDot() then
+		return "Garage", "TAP TRAIN!"
+	end
+	if num("Coins") >= CvcGoal.cheapest() and #CvcState.garage < Profile.MAX_GARAGE then
+		return "Crates", "GET A CRATE!"
+	end
+	if joined then
+		return nil, nil
+	end
+	return "Race", "TAP RACE!"
+end
+
+-- no tap for a while: the arrow gets louder (says what to tap)
+local IDLE_NUDGE = 5
+local lastInput = os.clock()
+UserInputService.InputBegan:Connect(function()
+	lastInput = os.clock()
+end)
+local lastGoal: string? = nil
+
 local function openHud(stagger: boolean)
 	local car = racer()
 	hud = Hud.plot({
@@ -642,25 +688,13 @@ local function openHud(stagger: boolean)
 				close = Screen.closeOver,
 				tab = function() end,
 				buyOffer = function()
-					info(
-						"bag",
-						"Coming soon!",
-						"The shop opens soon. Skins only: no car gets faster."
-					)
+					info("bag", "Coming soon!", "Skins only. Soon!")
 				end,
 				buySale = function()
-					info(
-						"bag",
-						"Coming soon!",
-						"The shop opens soon. Skins only: no car gets faster."
-					)
+					info("bag", "Coming soon!", "Skins only. Soon!")
 				end,
 				buyMini = function()
-					info(
-						"bag",
-						"Coming soon!",
-						"The shop opens soon. Skins only: no car gets faster."
-					)
+					info("bag", "Coming soon!", "Skins only. Soon!")
 				end,
 			})
 		end,
@@ -669,9 +703,7 @@ local function openHud(stagger: boolean)
 			info(
 				"trophy",
 				`{string.upper(League.name(n))} LEAGUE`,
-				if n < #League.NAMES
-					then "Train your car and win races to move up!"
-					else "The top league! Keep winning!"
+				if n < #League.NAMES then "Win to move up!" else "Top league!"
 			)
 		end,
 		race = join,
@@ -680,6 +712,12 @@ local function openHud(stagger: boolean)
 			if Training.coachReady(num("CoachAt"), workspace:GetServerTimeNow()) then
 				ask("coach")
 				Sfx.train()
+				-- (right away, not when the server's next bar step comes: the tap shows at once)
+				coachedAt = os.clock()
+				local h = hud
+				if h then
+					h.api.float(690, 262, `{Training.COACH_MULT}X TRAINING!`, "pink")
+				end
 			end
 		end,
 	})
@@ -731,6 +769,22 @@ RunService.Heartbeat:Connect(function()
 	end
 	lastText = now
 	local api = h.api
+	-- one step at a time: a tile shows once it has something for you (first 10 minutes)
+	local stage = num("Stage")
+	local raced = stage >= Profile.STAGE.RACED
+	local shopped = stage >= Profile.STAGE.SHOPPED
+	api.setShown("Crates", raced or CvcState.crates > 0)
+	api.setShown("Garage", raced or #CvcState.garage > 1 or trainDot() ~= nil)
+	api.setShown("Shop", shopped)
+	api.setShown("League", shopped)
+	api.setShown("Jobs", shopped)
+	-- one arrow on the one thing to tap
+	local goal, goalWords = hudGoal()
+	if goal ~= lastGoal then
+		lastGoal = goal
+		lastInput = now
+	end
+	api.point(goal, goalWords, now - lastInput >= IDLE_NUDGE)
 	local coins = num("Coins")
 	if coins ~= lastCoins then
 		lastCoins = coins
@@ -896,7 +950,7 @@ local function reveal(id: string, rarity: string)
 		color = colorOf(id),
 		kind = kindOf(id),
 		new = true,
-		note = "New car! It's in your GARAGE: tap TRAIN to put it on a station.",
+		note = "TAP TRAIN!",
 		-- OPEN ANOTHER only with a free crate left or the coins for a small one
 		again = CvcState.crates > 0 or num("Coins") >= (Crates.price("basic") or math.huge),
 	}, {
@@ -911,7 +965,8 @@ end
 CvcState.event:Connect(function(kind: unknown, a: unknown, b: unknown)
 	if kind == "crate" and type(a) == "string" then
 		local rarity = if type(b) == "string" then b else CarCatalog.rarity(a).id
-		if wantReveal and calm() then
+		-- (asked for: right away, even still on the driver stand after the race)
+		if wantReveal and not anyOpen(FULL) and not raceCardUp() then
 			wantReveal = false
 			Screen.closeOver()
 			reveal(a, rarity)
@@ -1035,16 +1090,24 @@ local function showPodium(rows: { any })
 	else
 		Sfx.cheer()
 	end
+	-- a crate to open (the first race's free one): the big button opens it, the car shows at once
+	local crate = CvcState.crates > 0 and #CvcState.garage < Profile.MAX_GARAGE
 	Flow.podium({
 		-- (didn't finish: NICE TRY!, whatever the row)
 		place = if finished then mine else #rows + 1,
 		top = top,
 		coins = if type(me.coins) == "number" then me.coins else 0,
 		trophies = if finished and League.trophy(mine) then 1 else 0,
+		nextWords = if crate then "OPEN CRATE!" else nil,
 	}, {
 		next = function()
 			Screen.closeOver()
-			join()
+			if crate and CvcState.crates > 0 then
+				wantReveal = true
+				ask("open")
+			else
+				join()
+			end
 		end,
 		back = Screen.closeOver,
 	})

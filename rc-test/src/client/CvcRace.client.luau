@@ -21,6 +21,7 @@ end
 local CvcLayout = require(Shared:WaitForChild("CvcLayout"))
 local HudLayout = require(Shared:WaitForChild("HudLayout"))
 local KartStyle = require(Shared:WaitForChild("KartStyle"))
+local Profile = require(Shared:WaitForChild("Profile"))
 local CvcState = require(script.Parent:WaitForChild("CvcState"))
 local CvcUi = require(script.Parent:WaitForChild("CvcUi"))
 local Party = require(script.Parent:WaitForChild("Party"))
@@ -107,7 +108,9 @@ local function boostLeft(): number
 	local n = player:GetAttribute("BoostLeft")
 	return if type(n) == "number" then n else 0
 end
+local hintRace = 0 -- (os.clock) when this race started for you; 0 = BOOST tapped this race
 local function tapBoost()
+	hintRace = 0
 	if boostLeft() > 0 and player:GetAttribute("BoostOn") ~= true then
 		boostTap:Fire()
 		pop(boost, 1.3)
@@ -117,9 +120,12 @@ boost.Activated:Connect(tapBoost)
 -- (Features.NEW_UI: the same button, same spot, in the new look: a round orange BOOST with a
 -- ring that fills when one is ready, Kit.round; the old face goes see-through)
 local newBoost: any = nil
+local boostHint: GuiObject? = nil
 if Features.NEW_UI then
 	local Ui = script.Parent:WaitForChild("Ui")
 	local Kit = require(Ui:WaitForChild("Kit")) :: any
+	local Base = require(Ui:WaitForChild("Base")) :: any
+	local Anim = require(Ui:WaitForChild("Anim")) :: any
 	boost.Text = ""
 	boost.BackgroundTransparency = 1
 	boost:SetAttribute("NoKart", true)
@@ -142,6 +148,16 @@ if Features.NEW_UI then
 		onClick = tapBoost,
 	})
 	boostCount.ZIndex = 12
+	-- the first race: TAP BOOST! over it, until it's tapped (MASTER-PROMPT first 10 minutes)
+	local hint = Base.text(holder, "TapHint", -50, -48, 200, 36, "TAP BOOST!", {
+		color = Base.color("go"),
+		stroke = 5,
+		z = 12,
+	})
+	hint:SetAttribute("NoKart", true)
+	hint.Visible = false
+	Anim.bob(hint, 0.8, 6)
+	boostHint = hint
 end
 -- the race result card is up (ServerRace "Result"): the race is over, BOOST steps away (it sat by
 -- the card's edge; CvcLayout.AFTER_RACE_HIDES)
@@ -153,6 +169,17 @@ local function showBoost()
 	boost.Visible = player:GetAttribute("Racing") == true and not resultUp()
 	local left = boostLeft()
 	boostCount.Text = tostring(left)
+	local hint = boostHint
+	if hint then
+		-- (a few seconds in, after the start lights and HOLD GAS!; only before the first race is done)
+		local stage = player:GetAttribute("Stage")
+		local first = type(stage) == "number" and stage < Profile.STAGE.RACED
+		hint.Visible = first
+			and hintRace > 0
+			and os.clock() - hintRace > 8
+			and left > 0
+			and player:GetAttribute("BoostOn") ~= true
+	end
 	if newBoost then
 		-- full ring = one ready to use; empty while it's on or none saved
 		newBoost.setCharge(if player:GetAttribute("BoostOn") ~= true and left > 0 then 1 else 0)
@@ -184,6 +211,12 @@ task.spawn(function()
 	if card and card:IsA("GuiObject") then
 		result = card
 		card:GetPropertyChangedSignal("Visible"):Connect(showBoost)
+	end
+end)
+player:GetAttributeChangedSignal("Racing"):Connect(function()
+	if player:GetAttribute("Racing") == true then
+		hintRace = os.clock()
+		task.delay(8.1, showBoost)
 	end
 end)
 for _, a in { "Racing", "BoostLeft", "BoostOn" } do
