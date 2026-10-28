@@ -280,3 +280,25 @@ test("the scoreboard's rows are big enough to read on a phone", function()
 	truthy(B.x + B.w / 2 < T.SHELF.x - T.SHELF.w / 2, "right of the board: the shelf")
 	truthy(B.y - B.h / 2 > 5, "over the treadmills' screens")
 end)
+
+test("pad signs: big, low, and clear of the next pad and the garage floor", function()
+	local S, P = T.PAD_SIGN, T.PAD
+	truthy(S.w <= P.w - 2, "narrower than the pad")
+	local rad = math.rad(S.lean)
+	local top = S.y + S.h / 2 * math.cos(rad)
+	truthy(top <= 2.6, "low, so it doesn't hide its station")
+	truthy(S.h * S.w >= 90, "big (was 14 by 3)")
+	local reach = S.h / 2 * math.sin(rad) -- how far the sign runs each way in z
+	for i, g in T.GRID do
+		local z0, z1 = g.z + P.d / 2 + S.out - reach, g.z + P.d / 2 + S.out + reach
+		for j, h in T.GRID do
+			if i ~= j and math.abs(g.x - h.x) < P.w then
+				local apart = z1 < h.z - P.d / 2 or z0 > h.z + P.d / 2
+				truthy(apart, `pad {i}'s sign off pad {j}`)
+			end
+		end
+		if math.abs(g.x) - P.w / 2 < T.ROOM.x1 then
+			truthy(z1 < T.ROOM.z0 or z0 > T.ROOM.z1, `pad {i}'s sign off the garage floor`)
+		end
+	end
+end)
