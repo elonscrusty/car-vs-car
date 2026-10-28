@@ -713,6 +713,30 @@ local coachedAt = 0 -- (os.clock) this visit's last COACH tap
 
 -- the one thing to tap next on the plot screen, and its words (first 10 minutes: COACH, then
 -- RACE!, then the crate, a car onto its station, a crate to buy, the next race)
+-- The small bar under the coins: coins toward the next buy, the cheaper of one more station and
+-- a crate (gap 4 of the first-10 timeline: always something to save up for). nil = nothing left.
+local function nextBuy(): (string?, number, string?)
+	local coins = num("Coins")
+	local station = Training.plotCost(CvcState.plotLevel)
+	local crate = if #CvcState.garage < Profile.MAX_GARAGE then CvcGoal.cheapest() else nil
+	if crate == math.huge then
+		crate = nil
+	end
+	local kind, cost
+	if station and (not crate or station <= crate) then
+		kind, cost = "STATION", station
+	elseif crate then
+		kind, cost = "CRATE", crate
+	else
+		return nil, 0, nil
+	end
+	if coins >= cost then
+		return `{kind} READY! TAP`, 1, kind
+	end
+	return `NEXT {kind}  {commas(coins)}/{commas(cost)}`, coins / cost, kind
+end
+local nextKind: string? = nil
+
 local function hudGoal(): (string?, string?)
 	if attr("Picked") ~= true then
 		return nil, nil
@@ -732,6 +756,11 @@ local function hudGoal(): (string?, string?)
 	end
 	if trainDot() then
 		return "Garage", "TAP TRAIN!"
+	end
+	-- (the bar under the coins is full: it is the next thing to tap)
+	local _, full, kind = nextBuy()
+	if full >= 1 and kind == "STATION" then
+		return "Next", "BUY A STATION!"
 	end
 	if num("Coins") >= CvcGoal.cheapest() and #CvcState.garage < Profile.MAX_GARAGE then
 		return "Crates", "GET A CRATE!"
@@ -798,6 +827,11 @@ local function openHud(stagger: boolean)
 		race = "RACE!",
 		jobs = jobsWords() or "JOBS",
 		invite = "INVITE",
+		next = (function()
+			local w, f, kind = nextBuy()
+			nextKind = kind
+			return { words = w or "", f = f }
+		end)(),
 		stagger = stagger,
 		-- (over the 3D plot: the scoreboard is top middle, the speed tracks right; the pads and the
 		-- board show the bars, the RACE! button the clock)
@@ -833,6 +867,14 @@ local function openHud(stagger: boolean)
 		race = join,
 		jobs = openJobs,
 		invite = invite,
+		-- (full: the buy itself; not yet: where it's bought, to see what it gets)
+		next = function()
+			if nextKind == "STATION" then
+				morePopup()
+			elseif nextKind == "CRATE" then
+				openCrates()
+			end
+		end,
 		coach = function()
 			if Training.coachReady(num("CoachAt"), workspace:GetServerTimeNow()) then
 				ask("coach")
@@ -865,6 +907,7 @@ end
 -- the plot screen shows on foot once you have a car; not in a race, not under a big screen
 local hudOn = false
 local lastCoins = -1
+local lastNext: string? = nil
 local lastText = 0
 RunService.Heartbeat:Connect(function()
 	local want = CvcState.loaded
@@ -921,7 +964,8 @@ RunService.Heartbeat:Connect(function()
 	end
 	api.point(goal, goalWords, now - lastInput >= IDLE_NUDGE)
 	local coins = num("Coins")
-	if coins ~= lastCoins then
+	local nw, nf, nk = nextBuy()
+	if coins ~= lastCoins or nk ~= nextKind or nw ~= lastNext then
 		-- coins came in: a ching, a short climbing stream for a big win (none on join)
 		if lastCoins >= 0 and coins > lastCoins then
 			for i = 1, math.clamp(math.ceil((coins - lastCoins) / 25), 1, 6) do
@@ -930,7 +974,11 @@ RunService.Heartbeat:Connect(function()
 		end
 		lastCoins = coins
 		api.setCoins(coins)
+		nextKind, lastNext = nk, nw
+		api.setNext(nw or "", nf)
 	end
+	-- (after the first race, with the other later things: one new thing at a time)
+	api.setShown("Next", raced and nk ~= nil)
 	-- BIG RACE in m:ss, and RACE! / YOU'RE IN! (white words on blue: never yellow on yellow)
 	local raw = workspace:GetAttribute("NextRaceAt")
 	local left = if type(raw) == "number" then raw - workspace:GetServerTimeNow() else nil
@@ -1096,6 +1144,15 @@ end)
 
 -- ===== a new car from a crate: the reveal =====
 
+local function revealNote(id: string): string
+	for _, car in CvcState.garage do
+		if car.id == id and CvcState.stationOf(car.uid) then
+			return "It's training!"
+		end
+	end
+	return if trainDot() then "TAP TRAIN!" else "It's in your garage!"
+end
+
 local function reveal(id: string, rarity: string)
 	Sfx.crate(table.find(CarCatalog.RARITY_ORDER, rarity) or 1)
 	Flow.reveal({
@@ -1105,8 +1162,9 @@ local function reveal(id: string, rarity: string)
 		color = colorOf(id),
 		kind = kindOf(id),
 		new = true,
-		-- (the new car goes onto a free station by itself: then there's nothing to tap)
-		note = if trainDot() then "TAP TRAIN!" else "It's training!",
+		-- (the new car goes onto a free station by itself: then there's nothing to tap; with every
+		-- station full it only waits in the garage, Studio pr847 shot 03)
+		note = revealNote(id),
 		-- OPEN ANOTHER only with a free crate left or the coins for a small one
 		again = CvcState.crates > 0 or num("Coins") >= (Crates.price("basic") or math.huge),
 	}, {

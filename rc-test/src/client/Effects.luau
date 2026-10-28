@@ -48,6 +48,8 @@ local SPRAYS: { [string]: Spray } = {
 	BoostPad = { color = Color3.fromRGB(255, 220, 60), rate = 80, size = 0.5, up = 6, fall = 10 },
 }
 local LAND_DUST = Color3.fromRGB(200, 195, 185)
+local SPARKLE = "rbxasset://textures/particles/sparkles_main.dds"
+local DUST = "rbxasset://textures/particles/smoke_main.dds"
 local BOOST_SPARK = Color3.fromRGB(255, 210, 60)
 
 local function loopSound(id: string, parent: Instance): Sound?
@@ -169,6 +171,9 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 		end
 		sp.kind = kind
 		local e = sp.emitter
+		-- (sparkle stars only for BOOST: dust in sparkle stars covered the car after each put-back,
+		-- audit L5, studio/pr842/01)
+		e.Texture = if kind == "boost" or kind == "BoostPad" then SPARKLE else DUST
 		e.Color = ColorSequence.new(color)
 		e.Size = NumberSequence.new({
 			NumberSequenceKeypoint.new(0, size * S),
@@ -181,7 +186,7 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 		local attach = Instance.new("Attachment")
 		attach.Parent = anchor
 		local e = Instance.new("ParticleEmitter")
-		e.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		e.Texture = SPARKLE
 		e.Rate = 0
 		e.Lifetime = NumberRange.new(0.35, 0.7)
 		e.SpreadAngle = Vector2.new(40, 40)
@@ -265,8 +270,9 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 				sp.attach.WorldPosition = info.contact + info.normal * 0.2 * S
 			end
 			if telemetry.landed > 0 and info.touching then
-				setSpray(sp, "land", LAND_DUST, 1.4, 5, 3)
-				sp.emitter:Emit(math.floor(4 + 10 * telemetry.landed))
+				-- (a low puff at the tyres, not a cloud over the car: audit L5)
+				setSpray(sp, "land", LAND_DUST, 0.7, 3, 3)
+				sp.emitter:Emit(math.floor(2 + 4 * telemetry.landed))
 			end
 			if rate > 0 then
 				sp.owed += rate * dt

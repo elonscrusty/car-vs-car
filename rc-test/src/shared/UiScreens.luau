@@ -22,6 +22,7 @@ export type Piece = {
 	tap: boolean?,
 	main: boolean?,
 	world: boolean?, -- a sign in the 3D world, not on the screen (shown in the viewer only)
+	instead: string?, -- shown in the live game in place of that piece (never both on screen)
 	inner: { Piece }?,
 }
 export type Screen = {
@@ -112,6 +113,8 @@ local LIST: { Screen } = {
 		pieces = {
 			p("NextUp", 233, 20, 290, 74, { anchor = "t" }),
 			p("Coins", 548, 8, 204, 50, { anchor = "tr", tap = true }),
+			-- (the live game: coins toward the next station or crate, under the coins' plate)
+			p("Next", 568, 60, 184, 44, { anchor = "tr", tap = true, instead = "MyCar" }),
 			p("Garage", 12, 66, 62, 62, { anchor = "tl", tap = true, text = "GARAGE" }),
 			p("Crates", 82, 66, 62, 62, { anchor = "tl", tap = true, text = "CRATES" }),
 			p("Shop", 12, 152, 62, 62, { anchor = "tl", tap = true, text = "SHOP" }),
