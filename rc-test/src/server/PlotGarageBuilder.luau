@@ -9,6 +9,9 @@
 -- Car VS Car (Features.CVC on): a "Training" model instead (PlotTraining has the layout): the
 -- garage room, the trophy shelf, the car stands and the station pads, from the plot's Stations,
 -- PlotLevel, GarageLevel and Trophies (TrainingServer sets them). CvcPlot.client puts the cars on.
+-- Car VS Car SMASH (Features.SMASH on): a "Showroom" model instead (PlotShowroom has the layout):
+-- the floor, the turntable, one stand for each kart and the crate, from the plot's Garage and
+-- RacerCar (GarageServer sets them). PlotShowroom.client puts the karts on.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -18,6 +21,7 @@ local Features = require(ReplicatedStorage.Shared.Features)
 local Garage = require(ReplicatedStorage.Shared.Garage)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local PlotGarage = require(ReplicatedStorage.Shared.PlotGarage)
+local PlotShowroom = require(ReplicatedStorage.Shared.PlotShowroom)
 local PlotTraining = require(ReplicatedStorage.Shared.PlotTraining)
 local Tycoon = require(ReplicatedStorage.Shared.Tycoon)
 
@@ -273,6 +277,31 @@ function PlotGarageBuilder.start()
 		model.Parent = plot
 	end
 
+	-- Car VS Car SMASH: the showroom, rebuilt when the number of stands changes
+	local roomKey: { [Instance]: string } = {}
+	local function buildShowroom(plot: Instance, pivot: CFrame)
+		local owned = (tonumber(plot:GetAttribute("OwnerId")) or 0) ~= 0
+		local ids = if owned then tostring(plot:GetAttribute("Garage") or "") else ""
+		local karts = if ids == "" then 0 else #string.split(ids, ",")
+		local racer = owned and type(plot:GetAttribute("RacerCar")) == "string"
+		local stands = PlotShowroom.standCount(karts, racer)
+		local key = tostring(stands)
+		if roomKey[plot] == key then
+			return
+		end
+		roomKey[plot] = key
+		local old = plot:FindFirstChild("Showroom")
+		if old then
+			old:Destroy()
+		end
+		local model = Instance.new("Model")
+		model.Name = "Showroom"
+		model:SetAttribute("Stands", stands)
+		Garage.makeParts(PlotShowroom.pieces(stands), model, pivot)
+		model.WorldPivot = pivot
+		model.Parent = plot
+	end
+
 	for _, slot in LobbyLayout.slots() do
 		local plot = workspace.Plots:FindFirstChild(slot.index .. "_" .. slot.id)
 		-- (Car VS Car: every plot is a training garage, the drift ones too)
@@ -300,6 +329,15 @@ function PlotGarageBuilder.start()
 				end
 			end)
 			local pivot = CFrame.new(slot.plotX, 0, slot.plotZ) * CFrame.Angles(0, slot.angle, 0)
+			if Features.CVC and Features.SMASH then
+				buildShowroom(plot, pivot)
+				for _, name in { "OwnerId", "Garage", "RacerCar" } do
+					plot:GetAttributeChangedSignal(name):Connect(function()
+						buildShowroom(plot, pivot)
+					end)
+				end
+				continue
+			end
 			if Features.CVC then
 				buildTraining(plot, pivot)
 				for _, name in
