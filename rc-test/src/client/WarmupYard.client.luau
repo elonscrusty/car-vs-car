@@ -5,11 +5,10 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Features = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Features"))
 local WarmupYard = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("WarmupYard"))
 local KartStyle = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("KartStyle"))
 
-if not (Features.CVC and Features.SMASH) then
+if not WarmupYard.on() then
 	return
 end
 

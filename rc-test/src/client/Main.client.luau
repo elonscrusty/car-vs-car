@@ -15,6 +15,7 @@ local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local RaceStart = require(ReplicatedStorage.Shared.RaceStart)
 local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
 local Features = require(ReplicatedStorage.Shared.Features)
+local WarmupYard = require(ReplicatedStorage.Shared.WarmupYard)
 local SmokeColors = require(ReplicatedStorage.Shared.SmokeColors)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
@@ -157,6 +158,13 @@ if arenaAt then
 	local t: TrackData.Track = LobbyLayout.track(arenaAt)
 	tracks[arenaAt] = t
 	timers[arenaAt] = LapTimer.new(t.gates, t.mode)
+end
+-- and the warm-up yard, where kids waiting for the next round drive (WarmupYardServer)
+if WarmupYard.on() then
+	local yardAt = LobbyLayout.yardIndex()
+	local t: TrackData.Track = LobbyLayout.track(yardAt)
+	tracks[yardAt] = t
+	timers[yardAt] = LapTimer.new(t.gates, t.mode)
 end
 local labels: { string } = {}
 for i, id in TrackData.order do

@@ -1,8 +1,10 @@
 --!strict
 -- Car VS Car Smash's warm-up yard (WarmupYard.luau): everything sits inside its walls and apart,
--- it's far from the lobby, and the clock words read right.
+-- it's far from the lobby and the arena, it drives like a map, and the clock words read right.
 local H = require("./harness")
 local Y = require("../src/shared/WarmupYard")
+local TrackData = require("../src/shared/TrackData")
+local LobbyLayout = require("../src/shared/LobbyLayout")
 
 local test, truthy, eq = H.test, H.truthy, H.eq
 
@@ -14,17 +16,18 @@ end
 
 test("yard: spawns, boxes and dummies all inside the walls, and apart", function()
 	local all = {}
-	for _, s in Y.SPAWNS do
-		truthy(within(s, 4), "spawn by a wall")
+	eq(#Y.spawns, 8)
+	for _, s in Y.spawns do
+		truthy(within(s, 10), "spawn by a wall")
 		table.insert(all, s)
 	end
-	eq(#Y.SPAWNS, 8)
-	for _, b in Y.BOXES do
-		truthy(within(b, 4), "box by a wall")
+	for _, b in Y.boxSpots do
+		truthy(within(b, 12), "box by a wall")
 		table.insert(all, b)
 	end
 	for _, d in Y.DUMMIES do
-		truthy(within(d.at, 6), "dummy by a wall")
+		-- a circling dummy loops 12 RC studs (48 big) across round its spot
+		truthy(within(d.at, if d.mode == "circle" then 30 else 12), "dummy by a wall")
 		truthy(d.mode == "still" or d.mode == "circle", d.mode)
 		table.insert(all, d.at)
 	end
@@ -32,16 +35,24 @@ test("yard: spawns, boxes and dummies all inside the walls, and apart", function
 		for j = i + 1, #all do
 			local b = all[j]
 			local gap = math.sqrt((a.x - b.x) ^ 2 + (a.z - b.z) ^ 2)
-			truthy(gap >= 6, `spots {i} and {j} only {gap} apart`)
+			truthy(gap >= 14, `spots {i} and {j} only {gap} apart`)
 		end
 	end
 end)
 
-test("yard: far from the lobby, plots and old race maps; inside() knows who's in", function()
-	truthy(Y.ORIGIN.z <= -1500, "too close to the lobby")
-	truthy(Y.inside(Y.world(Y.SPAWNS[1])))
+test("yard: its own drive slot after the arena, far from the lobby and the arena", function()
+	local i = LobbyLayout.yardIndex()
+	eq(LobbyLayout.mapAt(i), Y)
+	local t = LobbyLayout.track(i)
+	eq(t.map, "yard")
+	eq(t.mode, "arena") -- no lights, no laps
+	local w = Y.world(Y.spawns[1])
+	truthy(w.z <= -1500, "too close to the lobby")
+	truthy(math.abs(w.z - -3000) > 200, "too close to the arena")
+	truthy(Y.inside(w))
 	truthy(not Y.inside({ x = 0, y = 0, z = 1000 }))
-	truthy(not Y.inside(Y.world({ x = Y.W, y = 0, z = 0 })))
+	local x, _, z = TrackData.toWorld(Y.track(), true, Y.W, 0, 0)
+	truthy(not Y.inside({ x = x, y = 0, z = z }))
 end)
 
 test("yard: parts are low-poly (SmoothPlastic or Neon only) and the walls close it", function()
@@ -63,4 +74,19 @@ test("yard: the clock reads NEXT MATCH IN m:ss, GET READY! at 0, WARM UP! with n
 	eq(Y.clock(-3), "GET READY!")
 	eq(Y.clock(nil), "WARM UP!")
 	eq(Y.clock(0 / 0), "WARM UP!")
+end)
+
+test("yard: who goes there (queued, not playing, the round a while off)", function()
+	local S = Y
+	local now = 1000
+	-- a round is going: wait in the yard
+	truthy(S.wants(true, false, now + 100, nil, now))
+	-- nothing going, the next round soon: wait by the portal
+	truthy(not S.wants(true, false, nil, now + 5, now))
+	truthy(S.wants(true, false, nil, now + S.MIN_WAIT + 1, now))
+	-- not queued, or already playing
+	truthy(not S.wants(false, false, now + 100, nil, now))
+	truthy(not S.wants(true, true, now + 100, nil, now))
+	-- a round that's over (ROUND OVER break) with the next one far off
+	truthy(S.wants(true, false, now - 3, now + 30, now))
 end)
