@@ -115,6 +115,8 @@ Profile.BAR_MAX = 100 -- (Training.MAX_BAR) trained points per bar can't pass th
 -- Car VS Car SMASH has no training (CHANGE-LIST §2). While the training game still runs this
 -- stays true and saves keep stations, plot level, track and per-car training. Phase 3 (training
 -- removed) sets it false: every load then drops them (Profile.dropTraining). Cars and coins stay.
+-- When it flips, also bump VERSION (old servers then open the new saves read-only) and make
+-- sure nothing adds to `pile` after the load any more (TycoonServer's offline coins go with it).
 Profile.KEEP_TRAINING = true
 
 function Profile.new(): Data
@@ -631,16 +633,20 @@ function Profile.migrateGarage(d: Data, raw: any)
 	d.picked = raw.picked == true
 end
 
--- (Car VS Car SMASH) take the training game out of a save: stations, plot level, the built
--- track and each car's trained points go. Every car (by uid) and every coin stays: coins still
--- waiting in the plot's pile move into coins, so nobody loses one. Safe to run again.
+-- (Car VS Car SMASH) take the training game out of a save: stations, plot level, the tycoon's
+-- parked row, the built track with its records, and each car's trained points go. Every car (by
+-- uid, and in `cars`) and every coin stays: coins still waiting in the plot's pile move into
+-- coins (rounded up, so nobody loses part of one). Safe to run again.
 function Profile.dropTraining(d: Data)
-	d.coins = math.clamp(d.coins + math.floor(d.pile), 0, Profile.MAX_COINS)
+	d.coins = math.clamp(d.coins + math.ceil(d.pile), 0, Profile.MAX_COINS)
 	d.pile = 0
 	d.stations = {}
 	d.plotLevel = 0
+	d.parked = {}
 	d.track = nil
 	d.trackKind = "race"
+	d.plotRecords = {}
+	d.plotTop = {}
 	for _, c in d.garage do
 		c.speed, c.turn, c.boost = 0, 0, 0
 	end

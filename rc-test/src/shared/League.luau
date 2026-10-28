@@ -74,6 +74,8 @@ end
 -- no car strength). First guesses for a normal kid (~5 trophies a 3-min match, about 1.5 a
 -- minute; tests/smash_save): Silver ~35 min, Gold ~1.5 h, Diamond about day 12 at 20 min a day, the
 -- same pace as the racing game's sim (Silver 34 min, Gold 85 min, Diamond day 10.6).
+-- The same `trophies` count as the racing game, on purpose: a racer's old trophies (one per
+-- top 3) carry over and count towards the next league. The league itself never goes down.
 League.SMASH_NEED = { 0, 55, 140, 400 }
 League.PLACE_TROPHIES = { 3, 2, 1 } -- 1st, 2nd, 3rd; 4th and on get 0
 League.SMASH_TROPHY_CAP = 5

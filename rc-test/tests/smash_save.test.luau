@@ -56,6 +56,8 @@ local function oldSave(): any
 			{ kind = "turn", level = 2, uid = "" },
 		},
 		plotLevel = 6,
+		parked = { "zoomer", "mudbug", "rocket", "tank", "bolt", "comet" },
+		plotRecords = { drift = { value = 900, name = "Mia", userId = 7 } },
 		track = { tiles = { { c = 1, r = 1, piece = "straight", rot = 0 } } },
 		trackKind = "drift",
 		league = 2,
@@ -91,7 +93,7 @@ test(
 			eq(d.garage[i].uid, tostring(i))
 			eq(d.garage[i].id, id)
 		end
-		eq(d.coins, 12345 + 40) -- the pile's whole coins move in
+		eq(d.coins, 12345 + 41) -- the pile moves in, rounded up
 		eq(d.pile, 0)
 		eq(d.racer, "3") -- the car you drive stays picked
 		for _, id in IDS do
@@ -102,6 +104,8 @@ test(
 		eq(d.plotLevel, 0)
 		eq(d.track, nil)
 		eq(d.trackKind, "race")
+		eq(#d.parked, 0)
+		eq(next(d.plotRecords), nil)
 		for _, c in d.garage do
 			eq(c.speed + c.turn + c.boost, 0)
 		end
@@ -112,7 +116,9 @@ test(
 		eq(d.dayStreak, 4)
 		truthy(d.picked)
 		eq(d.nextUid, 11) -- a new car never gets an old car's uid
-		eq(Profile.addCar(d, "zoomer").uid, "11")
+		local car = Profile.addCar(d, "zoomer")
+		truthy(car ~= nil)
+		eq((car :: Profile.GarageCar).uid, "11")
 	end
 )
 
@@ -283,7 +289,7 @@ test("smash jobs: smash 10 karts, play 3 matches, open a crate (and back)", func
 	end
 	truthy(ids.smash10 and ids.match3 and ids.crate, "the three jobs are there")
 	-- find a kid who gets smash 10 today, and do it
-	local uid = nil
+	local uid: number? = nil
 	for u = 1, 60 do
 		if DailyJobs.list(10, u)[1].id == "smash10" then
 			uid = u
