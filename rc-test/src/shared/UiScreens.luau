@@ -411,6 +411,24 @@ local LIST: { Screen } = {
 			}),
 		},
 	},
+	-- Car VS Car SMASH (10-28): the match HUD: your place and the scoreboard top left, the clock and
+	-- your health top middle, the kill list top right, one big FIRE thumb button (VIDEO-STUDY)
+	{
+		id = "match",
+		n = 17,
+		title = "Match",
+		kind = "hud",
+		gameplay = true,
+		pieces = {
+			p("Place", 0, 8, 150, 48, { anchor = "tl" }),
+			-- (every kart: level badge, name, smashes; 8 rows of 22, clear of the stick corner)
+			p("Board", 0, 60, 200, 184, { anchor = "tl" }),
+			p("Feed", 536, 8, 220, 96, { anchor = "tr" }),
+			p("Clock", 323, 4, 110, 36, { anchor = "t" }),
+			p("Health", 238, 44, 280, 30, { anchor = "t" }),
+			button("Fire", 618, 244, 118, 118, "danger", "FIRE", { anchor = "br" }),
+		},
+	},
 }
 
 UiScreens.LIST = LIST

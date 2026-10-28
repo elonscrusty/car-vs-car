@@ -15,7 +15,8 @@ local Garage = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Ga
 local StageGate = require(script.Parent:WaitForChild("StageGate"))
 local KartStyle = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("KartStyle"))
 
-local WORDS: { [string]: string } = { drift = "DRIFT NOW", race = "JOIN RACE", build = "GO BUILD" }
+local WORDS: { [string]: string } =
+	{ drift = "DRIFT NOW", race = "JOIN RACE", smash = "SMASH!", build = "GO BUILD" }
 local SHOP_WORDS: { [string]: string } =
 	{ drift = "DRIFT CARS", race = "RACE CARS", looks = "LOOKS", crates = "CRATES" }
 
@@ -28,20 +29,34 @@ type Small = { label: TextLabel, base: BasePart }
 -- each sign's JoinStage name: a brand new player sees only the way to their own pad, the rest
 -- comes back as their Stage goes up (carter 10-25: joining was overwhelming)
 local gates: { [BillboardGui]: string } = {}
-local PAD_GATE: { [string]: string } = { drift = "pads", race = "joinrace" }
+local PAD_GATE: { [string]: string } = { drift = "pads", race = "joinrace", smash = "smash" }
 local SHOP_GATE: { [string]: string } =
 	{ drift = "shop", race = "shop", looks = "looks", crates = "shop" }
 local smalls: { Small } = {}
 -- the pad signs: off during the race call and race (BuildOpen false: the pads do nothing then,
 -- and the words sat on the race card and countdown), and smaller from close up
 local padSigns: { [BillboardGui]: string } = {} -- each pad sign's kind
-local PAD_SIZE = Vector2.new(9, 3.6) -- studs, from far
+-- studs, from far; low and small enough that from the plaza ring it doesn't stand in front of
+-- the crate shop (Studio batch-2035 #4: at 9x3.6, 6 up, it covered the prices)
+local PAD_SIZE = Vector2.new(7.5, 3)
+local PAD_UP = 4.2
 local PAD_NEAR = 26 -- closer than this (camera to sign) they shrink with the distance...
 local PAD_MIN = 0.35 -- ...down to this much (from the spawn the middle pad is ~12 away)
+
+-- the pad that puts you in the next race / Smash match (works any time, not a plot pad)
+local function joinPad(kind: any): boolean
+	return kind == "race" or kind == "smash"
+end
 
 local function smallText(base: BasePart): string
 	-- JOIN RACE: works any time, and says so once you're in (RaceJoined, set by the race runner
 	-- and cleared after each race)
+	-- SMASH!: in the queue for the next round (MatchRunner.join sets MatchQueued)
+	if base:GetAttribute("PlotType") == "smash" then
+		return if Players.LocalPlayer:GetAttribute("MatchQueued") == true
+			then "YOU'RE IN!"
+			else "STAND HERE"
+	end
 	if base:GetAttribute("PlotType") == "race" then
 		return if Players.LocalPlayer:GetAttribute("RaceJoined") == true
 			then "YOU'RE IN!"
@@ -148,7 +163,7 @@ local function addPad(base: Instance)
 	if word == nil then
 		return
 	end
-	local b = sign(base, "Pad" .. tostring(base:GetAttribute("Pad") or ""), PAD_SIZE, 6, 60)
+	local b = sign(base, "Pad" .. tostring(base:GetAttribute("Pad") or ""), PAD_SIZE, PAD_UP, 60)
 	gates[b] = PAD_GATE[kind] or "pads"
 	padSigns[b] = kind
 	-- the side pads' words lean in toward the middle pad, so from the spawn all three fit on a
@@ -158,12 +173,12 @@ local function addPad(base: Instance)
 			if
 				other ~= base
 				and other:IsA("BasePart")
-				and other:GetAttribute("PlotType") == "race"
+				and joinPad(other:GetAttribute("PlotType"))
 			then
 				local to = other.Position - base.Position
 				to = Vector3.new(to.X, 0, to.Z)
 				if to.Magnitude > 1 then
-					b.StudsOffsetWorldSpace = Vector3.new(0, 6, 0) + to.Unit * 10
+					b.StudsOffsetWorldSpace = Vector3.new(0, PAD_UP, 0) + to.Unit * 10
 				end
 			end
 		end
@@ -206,7 +221,7 @@ end
 
 local function middlePad(): BasePart?
 	for _, pad in CollectionService:GetTagged("QueuePad") do
-		if pad:IsA("BasePart") and pad:GetAttribute("PlotType") == "race" then
+		if pad:IsA("BasePart") and joinPad(pad:GetAttribute("PlotType")) then
 			return pad
 		end
 	end
@@ -272,7 +287,7 @@ local function showAll()
 			padSigns[b] = nil
 		elseif padSigns[b] then
 			-- JOIN RACE works any time (it waits for the next race)
-			b.Enabled = StageGate.shows(gate) and (not callOn or padSigns[b] == "race")
+			b.Enabled = StageGate.shows(gate) and (not callOn or joinPad(padSigns[b]))
 			local over = b.Adornee
 			if b.Enabled and eye and over and over:IsA("BasePart") then
 				local d = (over.Position + b.StudsOffsetWorldSpace - eye).Magnitude

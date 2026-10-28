@@ -1,5 +1,6 @@
 --!strict
--- The spawn lobby's play pads (SpawnLobby's "QueuePad" tags): drift and race.
+-- The spawn lobby's play pads (SpawnLobby's "QueuePad" tags): drift and race, or Car VS Car
+-- Smash's one SMASH! portal.
 -- Stand on one for a moment and it sends you to an open plot of that kind, the same as tapping
 -- that plot's own pad. Walking across a pad (on the way to the street) does nothing.
 -- Plots, owners and the "open" tick are LobbyPlots'; this only watches the pads and asks it.
@@ -14,8 +15,9 @@ export type Hooks = {
 	findOpen: (plotType: string, player: Player) -> number?,
 	-- claims that plot and starts the drive; false when it could not
 	sendTo: (player: Player, slot: number) -> boolean,
-	-- the race pad (JOIN RACE, tycoon plan): puts you in the next race instead of a plot. The
-	-- race runner sets it; without it the race pad looks for an open race plot as before.
+	-- the race pad (JOIN RACE, tycoon plan) and Car VS Car Smash's SMASH! portal: puts you in
+	-- the next race / match instead of a plot. The runner sets it; without it the race pad looks
+	-- for an open race plot as before.
 	join: ((player: Player) -> ())?,
 }
 
@@ -108,7 +110,7 @@ function QueuePads.start(hooks: Hooks)
 						busy[onPad] = true
 					end
 					if kind and QueuePads.tick(timers, player, kind, now) then
-						if kind == "race" and hooks.join then
+						if (kind == "race" or kind == "smash") and hooks.join then
 							hooks.join(player)
 						else
 							local slot = hooks.findOpen(kind, player)

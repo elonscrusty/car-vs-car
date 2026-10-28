@@ -40,7 +40,8 @@ Leaderboards.SLOTS = {
 	{ x = -18 },
 	-- the third stands where Car VS Car has no drift shop, facing the middle: at the front left it
 	-- filled the view of anyone walking up to the crate shop (Studio u14)
-	{ x = -48, z = -20, yaw = 90 },
+	-- (at z -20 it still crowded the crate shop's side, Studio batch-2035 #3: further back)
+	{ x = -48, z = -32, yaw = 90 },
 } :: { Slot }
 
 export type Board = {
