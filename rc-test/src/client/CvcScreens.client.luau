@@ -737,7 +737,7 @@ local function openHud(stagger: boolean)
 			info(
 				"trophy",
 				`{string.upper(League.name(n))} LEAGUE`,
-				if n < #League.NAMES then "Win to move up!" else "Top league!"
+				if n < #League.NAMES then "Get top 3 to move up!" else "Top league!"
 			)
 		end,
 		race = join,
