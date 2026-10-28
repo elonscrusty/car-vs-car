@@ -78,3 +78,22 @@ test("Car VS Car (phone 10-28 t096-t100): over the line, the car brakes to a sto
 		"backs up at a stop"
 	)
 end)
+
+test("Car VS Car (playtest u01): race bots and other players wear toy cars, varied", function()
+	local fs = require("@lune/fs")
+	local CarCatalog = require("../src/shared/CarCatalog")
+	local ids = CarCatalog.raceIds()
+	local seen: { [string]: boolean } = {}
+	for _, id in ids do
+		local c = CarCatalog.get(id)
+		truthy(c and c.mode == "race", `{id} is a race car`)
+		truthy(not seen[id], `{id} twice`)
+		seen[id] = true
+	end
+	truthy(#ids >= 7, "enough looks for 7 bots")
+	local bots = fs.readFile("src/server/RaceBotCars.luau")
+	truthy(string.find(bots, 'model:SetAttribute("ToyCar", look)', 1, true), "bots wear no car")
+	local others = fs.readFile("src/client/OtherCars.luau")
+	truthy(string.find(others, "workspace:BulkMoveTo(toy.parts, at", 1, true), "no toy shell drawn")
+	truthy(string.find(others, 'p.Name ~= "Wheel" and p.Name ~= "Hub"', 1, true), "parts per car")
+end)
