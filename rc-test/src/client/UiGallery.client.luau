@@ -451,7 +451,7 @@ Kit.button(controls, "Next", 76, 0, 70, 40, "lime", "NEXT", {
 })
 nameLabel = Base.text(controls, "Name", 152, 10, 178, 22, "", { stroke = 3.5, align = "l" })
 
-Kit.button(stage, "Toggle", 164, 348, 100, 36, "white", "SCREENS", {
+local toggle = Kit.button(stage, "Toggle", 164, 348, 100, 36, "white", "SCREENS", {
 	size = 14,
 	onClick = function()
 		open = not open
@@ -464,3 +464,7 @@ Kit.button(stage, "Toggle", 164, 348, 100, 36, "white", "SCREENS", {
 	end,
 })
 Base.show(bar, true)
+-- (out of the way of a game window's buttons: it sat on the crate window's OPEN, Studio garage 5)
+RunService.Heartbeat:Connect(function()
+	toggle.Visible = open or not Screen.anyOver()
+end)

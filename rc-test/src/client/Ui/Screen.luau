@@ -113,6 +113,16 @@ function Screen.isOpen(id: string): boolean
 	return openOnes[id] ~= nil
 end
 
+-- Is a window, popup or big screen open (anything over the HUD)?
+function Screen.anyOver(): boolean
+	for _, h in openOnes do
+		if h.api.layer ~= "hud" then
+			return true
+		end
+	end
+	return false
+end
+
 function Screen.closeAll()
 	for _, h in openOnes do
 		h.close()
