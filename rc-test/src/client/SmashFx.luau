@@ -2,13 +2,15 @@
 -- Smash juice (phase 4, JUICE row): listens to the SmashFeed remote and your Health, and plays
 --   * "You SMASHED <name>!" big in the middle top, popping in, with a white edge flash, confetti,
 --     a shake and a little slow-mo (the camera punches in, holds, and eases back)
---   * a streak word under it from your 2nd smash in a row (DOUBLE SMASH! ...)
---   * "SMASHED by <name>" in red when you get smashed, with a hard shake
+--   * a streak word under it (DOUBLE SMASH!, TRIPLE SMASH!, SMASH STREAK x3!)
+--   * when you get smashed: "You were smashed by X's rocket" in red, a hard shake, and the camera
+--     swings over to X with a big 3-2-1, then hands back when you respawn (or after 3.5 s)
 --   * a red edge flash and a small shake when you take a hit
 -- All numbers live in shared/SmashJuice. Everything is made once at start, so a smash only sets
 -- properties: the words are on screen on the next frame (hard target ≤ 0.1 s, logged as
 -- "[SmashFx] shown in N ms"). Looks only: the server decides every hit, and driving stays LOCKED
 -- (the shake and zoom are laid over the chase camera after it runs, never fed back into it).
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -31,12 +33,15 @@ local SUN = Color3.fromRGB(255, 210, 60)
 local PINK = Color3.fromRGB(255, 90, 170)
 
 local started = false
+local addFeel: ((SmashJuice.Feel) -> ())? = nil -- set by start()
 local timings: { number } = {} -- last few "event → on screen" times, seconds
 
 local function tween(obj: Instance, secs: number, goal: { [string]: any }, style: Enum.EasingStyle?)
-	TweenService
-		:Create(obj, TweenInfo.new(secs, style or Enum.EasingStyle.Quad, Enum.EasingDirection.Out), goal)
-		:Play()
+	TweenService:Create(
+		obj,
+		TweenInfo.new(secs, style or Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		goal
+	):Play()
 end
 
 local function word(parent: Instance, name: string, color: Color3, y: number, h: number): TextLabel
@@ -143,7 +148,8 @@ function SmashFx.start()
 	local you = word(gui, "YouSmashed", Color3.new(1, 1, 1), 0.2, 0.07)
 	local name = word(gui, "Name", SUN, 0.29, 0.13)
 	local streak = word(gui, "Streak", PINK, 0.4, 0.09)
-	local by = word(gui, "SmashedBy", CHERRY, 0.29, 0.11)
+	local by = word(gui, "SmashedBy", CHERRY, 0.22, 0.09)
+	local count = word(gui, "Count", Color3.new(1, 1, 1), 0.36, 0.18)
 
 	-- the confetti pool
 	type Bit = { frame: Frame, vx: number, vy: number, spin: number, life: number }
@@ -196,14 +202,24 @@ function SmashFx.start()
 		end
 	end
 
-	-- camera: shake + zoom punch, laid over whatever camera ran this frame
+	-- camera: shake + zoom punch + killer camera, laid over whatever camera ran this frame. If
+	-- nothing set the camera since our last frame, ours is taken back off first, so it never
+	-- piles up (vault "Snippets - Camera Shake and FX").
 	local trauma = 0
 	local punch, slow, punchAt = 0, 0, -math.huge
 	local fps = 60
 	local noiseT = 0
 	local seed = rng:NextNumber(0, 1000)
-	local pushedFov = 0
-	local pending: number? = nil -- os.clock() of a smash waiting to be seen on screen
+	local baseCf, outCf = CFrame.identity, CFrame.identity
+	local baseFov, outFov = 70, -1
+	local pending: number? = nil -- os.clock() of words waiting to be seen on screen
+
+	-- the killer camera
+	local killcam = false
+	local killAt = 0
+	local killFrom = CFrame.identity
+	local killer: SmashJuice.Side? = nil
+	local shownCount: number? = nil
 
 	local function feel(f: SmashJuice.Feel)
 		trauma = SmashJuice.addTrauma(trauma, f.trauma)
@@ -211,55 +227,142 @@ function SmashFx.start()
 			punch, slow, punchAt = f.punch, f.slow, os.clock()
 		end
 	end
+	addFeel = feel
 
-	RunService:BindToRenderStep("SmashFx", Enum.RenderPriority.Camera.Value + 1, function(dt: number)
-		if pending then
-			table.insert(timings, os.clock() - pending)
-			if #timings > 20 then
-				table.remove(timings, 1)
+	-- where the killer's kart is: the kart the server named, a tagged "Kart" model with their
+	-- OwnerId / KartName, or their character
+	local function killerAt(s: SmashJuice.Side): CFrame?
+		local k = s.kart
+		if k and k:IsDescendantOf(workspace) then
+			if k:IsA("Model") then
+				return k:GetPivot()
+			elseif k:IsA("BasePart") then
+				return k.CFrame
 			end
-			print(string.format("[SmashFx] shown in %d ms", math.floor((os.clock() - pending) * 1000 + 0.5)))
-			pending = nil
 		end
-		fps += ((1 / math.max(dt, 1 / 240)) - fps) * math.min(dt * 2, 1)
-		local cam = workspace.CurrentCamera
-		if cam then
-			-- the zoom is set fresh each frame from the base FOV (ours taken back off first)
-			local base = cam.FieldOfView + pushedFov
-			pushedFov = SmashJuice.punchAt(punch, slow, os.clock() - punchAt)
-			cam.FieldOfView = base - pushedFov
-			if trauma > 0 then
-				noiseT += dt * SmashJuice.noiseHz(fps)
-				local p, y, r = SmashJuice.tilt(
-					trauma,
-					math.noise(noiseT, seed),
-					math.noise(noiseT, seed + 31),
-					math.noise(noiseT, seed + 67)
+		for _, m in CollectionService:GetTagged("Kart") do
+			if
+				m:IsA("Model")
+				and m:IsDescendantOf(workspace)
+				and (
+					(s.userId and m:GetAttribute("OwnerId") == s.userId)
+					or (not s.userId and m:GetAttribute("KartName") == s.name)
 				)
-				cam.CFrame *= CFrame.Angles(math.rad(p), math.rad(y), math.rad(r))
-				trauma = SmashJuice.decay(trauma, dt)
+			then
+				return m:GetPivot()
 			end
 		end
-		if live > 0 then
-			for _, b in bits do
-				if b.life > 0 then
-					b.life -= dt
-					b.vy += 1.4 * dt
-					local pos = b.frame.Position
-					b.frame.Position =
-						UDim2.fromScale(pos.X.Scale + b.vx * dt * 0.6, pos.Y.Scale + b.vy * dt)
-					b.frame.Rotation += b.spin * dt
-					if b.life < 0.3 then
-						b.frame.BackgroundTransparency = 1 - b.life / 0.3
+		local p = if s.userId then Players:GetPlayerByUserId(s.userId) else nil
+		local char = p and p.Character
+		if char then
+			return char:GetPivot()
+		end
+		return nil
+	end
+
+	local function endKillcam()
+		killcam = false
+		killer = nil
+		shownCount = nil
+		count.Visible = false
+	end
+
+	RunService:BindToRenderStep(
+		"SmashFx",
+		Enum.RenderPriority.Camera.Value + 1,
+		function(dt: number)
+			if pending then
+				local ms = (os.clock() - pending) * 1000
+				table.insert(timings, ms / 1000)
+				if #timings > 20 then
+					table.remove(timings, 1)
+				end
+				print(string.format("[SmashFx] shown in %d ms", math.floor(ms + 0.5)))
+				pending = nil
+			end
+			fps += ((1 / math.max(dt, 1 / 240)) - fps) * math.min(dt * 2, 1)
+			local cam = workspace.CurrentCamera
+			if cam then
+				if cam.CFrame == outCf then
+					cam.CFrame = baseCf
+				end
+				if cam.FieldOfView == outFov then
+					cam.FieldOfView = baseFov
+				end
+				baseCf, baseFov = cam.CFrame, cam.FieldOfView
+				local cf = baseCf
+
+				if killcam then
+					local t = os.clock() - killAt
+					local n = SmashJuice.countdown(t)
+					if n ~= shownCount then
+						shownCount = n
+						if n then
+							showWord(count, tostring(n), 0.9, 1.8)
+						end
 					end
-					if b.life <= 0 then
-						b.frame.Visible = false
-						live -= 1
+					if t >= SmashJuice.KILLCAM_MAX then
+						endKillcam()
+					else
+						local at = killer and killerAt(killer)
+						if at then
+							local pos = at.Position
+							local back = -at.LookVector * Vector3.new(1, 0, 1)
+							back = if back.Magnitude > 1e-3 then back.Unit else Vector3.zAxis
+							local want = CFrame.lookAt(
+								pos
+									+ back * SmashJuice.KILLCAM_BACK
+									+ Vector3.yAxis * SmashJuice.KILLCAM_UP,
+								pos
+							)
+							cf = killFrom:Lerp(want, SmashJuice.flyAlpha(t))
+						else
+							cf = killFrom -- killer gone: hold still and count
+						end
+					end
+				end
+
+				local fov = baseFov - SmashJuice.punchAt(punch, slow, os.clock() - punchAt)
+				if trauma > 0 then
+					noiseT += dt * SmashJuice.noiseHz(fps)
+					local p, y, r = SmashJuice.tilt(
+						trauma,
+						math.noise(noiseT, seed),
+						math.noise(noiseT, seed + 31),
+						math.noise(noiseT, seed + 67)
+					)
+					cf *= CFrame.Angles(math.rad(p), math.rad(y), math.rad(r))
+					trauma = SmashJuice.decay(trauma, dt)
+				end
+				if cf ~= baseCf then
+					cam.CFrame = cf
+				end
+				if fov ~= baseFov then
+					cam.FieldOfView = fov
+				end
+				outCf, outFov = cam.CFrame, cam.FieldOfView
+			end
+			if live > 0 then
+				for _, b in bits do
+					if b.life > 0 then
+						b.life -= dt
+						b.vy += 1.4 * dt
+						local pos = b.frame.Position
+						b.frame.Position =
+							UDim2.fromScale(pos.X.Scale + b.vx * dt * 0.6, pos.Y.Scale + b.vy * dt)
+						b.frame.Rotation += b.spin * dt
+						if b.life < 0.3 then
+							b.frame.BackgroundTransparency = 1 - b.life / 0.3
+						end
+						if b.life <= 0 then
+							b.frame.Visible = false
+							live -= 1
+						end
 					end
 				end
 			end
 		end
-	end)
+	)
 
 	local myStreak = SmashJuice.streak()
 
@@ -279,15 +382,19 @@ function SmashFx.start()
 		end
 		local reduced = Base.reduced()
 		if f.attacker and f.attacker.me and not f.victim.me then
-			local n = myStreak:smash()
+			local word2 = myStreak:smash(at)
 			by.Visible = false
-			showWord(you, "You SMASHED", SmashJuice.WORDS_SECONDS, 1.8)
-			showWord(name, SmashJuice.shortName(f.victim.name) .. "!", SmashJuice.WORDS_SECONDS, 2.2)
-			local sw = SmashJuice.streakWord(n)
-			if sw then
-				showWord(streak, sw, SmashJuice.STREAK_SECONDS, 2.6)
+			showWord(you, SmashJuice.smashLine(f.weapon), SmashJuice.WORDS_SECONDS, 1.8)
+			showWord(
+				name,
+				SmashJuice.shortName(f.victim.name) .. "!",
+				SmashJuice.WORDS_SECONDS,
+				2.2
+			)
+			if word2 then
+				showWord(streak, word2, SmashJuice.STREAK_SECONDS, 2.6)
 			end
-			local juice = SmashJuice.feel("mySmash", n, reduced)
+			local juice = SmashJuice.feel("mySmash", myStreak.run, reduced)
 			feel(juice)
 			edge(Color3.new(1, 1, 1), juice.flash)
 			confetti(juice.confetti)
@@ -298,12 +405,24 @@ function SmashFx.start()
 			you.Visible = false
 			name.Visible = false
 			streak.Visible = false
-			local who = if f.attacker and not f.attacker.me then SmashJuice.shortName(f.attacker.name) else nil
-			showWord(by, if who then `SMASHED by {who}` else "SMASHED!", SmashJuice.SMASHED_BY_SECONDS, 1.6)
+			local other = if f.attacker and not f.attacker.me then f.attacker else nil
+			showWord(
+				by,
+				SmashJuice.deathLine(f.weapon, other and other.name),
+				SmashJuice.SMASHED_BY_SECONDS,
+				1.6
+			)
 			local juice = SmashJuice.feel("smashed", nil, reduced)
 			feel(juice)
 			edge(CHERRY, juice.flash)
 			pending = at
+			-- the killer camera (it's info, so reduced motion keeps it)
+			local cam = workspace.CurrentCamera
+			killcam = true
+			killAt = at
+			killFrom = if cam then cam.CFrame else CFrame.identity
+			killer = other
+			shownCount = nil
 		end
 	end
 
@@ -326,7 +445,8 @@ function SmashFx.start()
 		end)
 	end
 
-	-- a hit: Health went down (the server sets it; a respawn back to full is not a hit)
+	-- Health (the server sets it): going down is a hit; coming back up is the respawn, which hands
+	-- the camera back
 	local lastHealth: number? = nil
 	player:GetAttributeChangedSignal("Health"):Connect(function()
 		local h = player:GetAttribute("Health")
@@ -339,6 +459,8 @@ function SmashFx.start()
 			local juice = SmashJuice.feel("hit", was - h, Base.reduced())
 			feel(juice)
 			edge(CHERRY, juice.flash)
+		elseif was and h > was and killcam and os.clock() - killAt > 0.5 then
+			endKillcam()
 		end
 	end)
 end
@@ -346,12 +468,11 @@ end
 -- a boom (rocket, mine) at `at`: shakes you by how near it was. WeaponFx can call this.
 function SmashFx.boom(at: Vector3)
 	local cam = workspace.CurrentCamera
-	if not cam or not started then
+	local add = addFeel
+	if not cam or not add then
 		return
 	end
-	local _ = SmashJuice.feel("boom", (cam.Focus.Position - at).Magnitude, Base.reduced())
-	-- the trauma is applied through the same path as a hit
-	SmashFx._feel(SmashJuice.feel("boom", (cam.Focus.Position - at).Magnitude, Base.reduced()))
+	add(SmashJuice.feel("boom", (cam.Focus.Position - at).Magnitude, Base.reduced()))
 end
 
 -- the last few "smash arrived → words on screen" times in seconds (for the Studio timing log)

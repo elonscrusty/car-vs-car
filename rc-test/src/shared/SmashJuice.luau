@@ -1,13 +1,16 @@
 --!strict
--- Smash juice numbers (phase 4, JUICE row): what each smash moment looks like, as pure data so
--- Lune can test it. client/SmashFx plays it.
---   * The words: "You SMASHED <name>!" on your smash, a streak word from your 2nd smash in a row
---     ("DOUBLE SMASH!" ...), and "SMASHED by <name>" when you get smashed. A streak ends when
---     you get smashed.
+-- Smash juice numbers (JUICE row): what each smash moment looks like, as pure data so Lune can
+-- test it. client/SmashFx plays it.
+--   * The words (carter's video, VIDEO-STUDY.md): "You SMASHED <name>" on your smash (a freeze
+--     kill "SHATTERED"); "DOUBLE SMASH!" for 2 quick ones, "TRIPLE SMASH!" for 3; "SMASH STREAK
+--     x3!" for 3+ in a row without being smashed. Smashed yourself: "You were smashed by X's
+--     rocket" (mowed down by a machine gun, shattered by a freeze, ...), the camera shows X with
+--     3-2-1, and hands back when you respawn.
 --   * One strength ladder drives the shake, the zoom punch and the confetti (vault "Hit-Stop
 --     and Screen Shake Tuning by Numbers": shake = trauma squared, so small hits only add up;
 --     trauma is capped and decays).
---   * Reduced motion keeps the words, colors and confetti, and drops the shake and zoom.
+--   * Reduced motion keeps the words, colors, confetti and the killer camera (it's info), and
+--     drops the shake and zoom.
 local SmashJuice = {}
 
 -- ===== the words =====
@@ -16,52 +19,75 @@ SmashJuice.NAME_MAX = 14 -- longer names get cut, so the words fit a phone
 
 function SmashJuice.shortName(name: string): string
 	local clean = string.gsub(name, "%s+", " ")
-	if utf8.len(clean) == nil then
+	local n = utf8.len(clean)
+	if n == nil or n == 0 then
 		return "?"
 	end
-	if (utf8.len(clean) :: number) <= SmashJuice.NAME_MAX then
+	if n <= SmashJuice.NAME_MAX then
 		return clean
 	end
 	local cut = utf8.offset(clean, SmashJuice.NAME_MAX) :: number
 	return string.sub(clean, 1, cut - 1) .. "…"
 end
 
--- streak words by how many smashes in a row (nil for the first one: "You SMASHED X" is enough)
-SmashJuice.STREAK_WORDS = {
-	[2] = "DOUBLE SMASH!",
-	[3] = "TRIPLE SMASH!",
-	[4] = "MEGA SMASH!",
-	[5] = "UNSTOPPABLE!",
-}
+-- Weapon names on SmashFeed (lower case). Unknown weapons still read fine ("smashed by X").
+--   killer = how you got it ("You were <verb> by X<'s thing>"), mine = your smash word
+type WeaponWords = { verb: string, thing: string?, mine: string }
+SmashJuice.WEAPONS = {
+	rocket = { verb = "smashed", thing = "rocket", mine = "SMASHED" },
+	nuke = { verb = "smashed", thing = "nuke", mine = "SMASHED" },
+	gun = { verb = "mowed down", thing = "machine gun", mine = "SMASHED" },
+	mine = { verb = "blown up", thing = "mine", mine = "SMASHED" },
+	freeze = { verb = "shattered", thing = nil, mine = "SHATTERED" },
+	bump = { verb = "bumped out", thing = nil, mine = "SMASHED" },
+} :: { [string]: WeaponWords }
 
-function SmashJuice.streakWord(count: number): string?
-	if count < 2 then
-		return nil
+local function words(weapon: string): WeaponWords
+	return SmashJuice.WEAPONS[string.lower(weapon)] or { verb = "smashed", mine = "SMASHED" }
+end
+
+-- "You SMASHED" / "You SHATTERED" (the name goes on the big line under it)
+function SmashJuice.smashLine(weapon: string): string
+	return "You " .. words(weapon).mine
+end
+
+-- "You were smashed by Botty's rocket"; no killer (fell off, the arena) → "You were smashed!"
+function SmashJuice.deathLine(weapon: string, killer: string?): string
+	local w = words(weapon)
+	if not killer then
+		return "You were " .. w.verb .. "!"
 	end
-	local w = SmashJuice.STREAK_WORDS[count]
-	if w then
-		return w
+	local who = SmashJuice.shortName(killer)
+	if w.thing then
+		return `You were {w.verb} by {who}'s {w.thing}`
 	end
-	return `SMASH STREAK x{count}!`
+	return `You were {w.verb} by {who}`
 end
 
 -- ===== who did what (the SmashFeed remote) =====
 
--- SmashFeed sends (attacker, victim, weapon). Each side can be a Player, a bot's name (string),
--- or a table { name = string, userId = number? }. nil attacker = the arena got you (fell off).
-export type Side = { name: string, me: boolean }
+-- SmashFeed:FireAllClients(attacker, victim, weapon). Each side can be a Player, a bot's name
+-- (string), or a table { name = string, userId = number?, kart = Model? }. nil attacker = the
+-- arena got you (fell off). `kart` lets the killer camera find a bot's kart.
+export type Side = { name: string, me: boolean, userId: number?, kart: Instance? }
 export type Feed = { attacker: Side?, victim: Side, weapon: string }
 
 local function side(v: unknown, meId: number): Side?
 	if typeof(v) == "Instance" and v:IsA("Player") then
-		return { name = v.DisplayName, me = v.UserId == meId }
+		return { name = v.DisplayName, me = v.UserId == meId, userId = v.UserId }
 	elseif type(v) == "string" then
-		return { name = v, me = false }
+		return { name = string.sub(v, 1, 40), me = false }
 	elseif type(v) == "table" then
 		local t = v :: { [any]: unknown }
-		local name, id = t.name, t.userId
+		local name, id, kart = t.name, t.userId, t.kart
 		if type(name) == "string" then
-			return { name = name, me = type(id) == "number" and id == meId and meId ~= 0 }
+			local uid = if type(id) == "number" then id else nil
+			return {
+				name = string.sub(name, 1, 40),
+				me = uid ~= nil and uid == meId and meId ~= 0,
+				userId = uid,
+				kart = if typeof(kart) == "Instance" then kart else nil,
+			}
 		end
 	end
 	return nil
@@ -82,27 +108,69 @@ function SmashJuice.read(attacker: unknown, victim: unknown, weapon: unknown, me
 end
 
 -- ===== streaks =====
+-- quick: smashes within QUICK seconds of the one before (Double / Triple Smash)
+-- run: smashes since you were last smashed (Smash Streak)
+
+SmashJuice.QUICK = 4
 
 export type Streak = {
-	count: number,
-	smash: (self: Streak) -> number,
+	quick: number,
+	run: number,
+	last: number,
+	smash: (self: Streak, now: number) -> string?,
 	reset: (self: Streak) -> (),
 }
 
 local Streak = {}
 Streak.__index = Streak
 
-function Streak.smash(self: Streak): number
-	self.count += 1
-	return self.count
+-- counts one smash at time `now` and gives the streak word (nil = just "You SMASHED X")
+function Streak.smash(self: Streak, now: number): string?
+	self.quick = if now - self.last <= SmashJuice.QUICK then self.quick + 1 else 1
+	self.last = now
+	self.run += 1
+	if self.quick == 2 then
+		return "DOUBLE SMASH!"
+	elseif self.quick >= 3 then
+		return "TRIPLE SMASH!"
+	elseif self.run >= 3 then
+		return `SMASH STREAK x{self.run}!`
+	end
+	return nil
 end
 
 function Streak.reset(self: Streak)
-	self.count = 0
+	self.quick = 0
+	self.run = 0
+	self.last = -math.huge
 end
 
 function SmashJuice.streak(): Streak
-	return setmetatable({ count = 0 }, Streak) :: any
+	return setmetatable({ quick = 0, run = 0, last = -math.huge }, Streak) :: any
+end
+
+-- ===== the killer camera =====
+-- After you're smashed the camera flies to the killer and counts 3-2-1, then hands back when
+-- you respawn (server: 3 s) or after KILLCAM_MAX at the latest, so it can never get stuck.
+
+SmashJuice.KILLCAM_FLY = 0.35 -- seconds to swing over to the killer
+SmashJuice.KILLCAM_MAX = 3.5
+SmashJuice.KILLCAM_BACK = 16 -- studs behind the killer
+SmashJuice.KILLCAM_UP = 9 -- studs above
+
+-- the number to show t seconds after the smash (3, 2, 1, then nil)
+function SmashJuice.countdown(t: number, respawn: number?): number?
+	local total = respawn or 3
+	if t < 0 or t >= total then
+		return nil
+	end
+	return math.ceil(total - t)
+end
+
+-- how far (0..1) the camera has swung over to the killer
+function SmashJuice.flyAlpha(t: number): number
+	local u = math.clamp(t / SmashJuice.KILLCAM_FLY, 0, 1)
+	return u * u * (3 - 2 * u)
 end
 
 -- ===== how hard each moment hits =====
@@ -116,7 +184,9 @@ export type Feel = {
 	flash: number, -- 0..1 screen edge flash (red for hits, white for your smash)
 }
 
-local NONE: Feel = { trauma = 0, punch = 0, slow = 0, confetti = 0, flash = 0 }
+local function none(): Feel
+	return { trauma = 0, punch = 0, slow = 0, confetti = 0, flash = 0 }
+end
 
 -- `amount` = damage for "hit" (health 100), streak count for "mySmash", studs away for "boom"
 function SmashJuice.feel(kind: Kind, amount: number?, reduced: boolean?): Feel
@@ -135,7 +205,7 @@ function SmashJuice.feel(kind: Kind, amount: number?, reduced: boolean?): Feel
 		-- 10 damage is a nudge, 40+ (a rocket) is a real thump
 		local s = math.clamp(n / 40, 0, 1)
 		if s <= 0 then
-			return NONE
+			return none()
 		end
 		f = { trauma = 0.12 + 0.28 * s, punch = 0, slow = 0, confetti = 0, flash = 0.2 + 0.35 * s }
 	elseif kind == "smashed" then
@@ -145,11 +215,11 @@ function SmashJuice.feel(kind: Kind, amount: number?, reduced: boolean?): Feel
 		local u = math.clamp((n - 15) / (80 - 15), 0, 1)
 		local k = 1 - u * u * (3 - 2 * u)
 		if k <= 0 then
-			return NONE
+			return none()
 		end
 		f = { trauma = 0.25 * k, punch = 0, slow = 0, confetti = 0, flash = 0 }
 	else
-		return NONE
+		return none()
 	end
 	if reduced then
 		f.trauma = 0
@@ -180,7 +250,12 @@ function SmashJuice.noiseHz(fps: number): number
 end
 
 -- the tilt (pitch, yaw, roll) in degrees for this trauma; n1..n3 are noise in -1..1
-function SmashJuice.tilt(trauma: number, n1: number, n2: number, n3: number): (number, number, number)
+function SmashJuice.tilt(
+	trauma: number,
+	n1: number,
+	n2: number,
+	n3: number
+): (number, number, number)
 	local s = trauma * trauma * SmashJuice.MAX_DEGREES
 	return s * n1, s * n2, s * 0.5 * n3
 end
