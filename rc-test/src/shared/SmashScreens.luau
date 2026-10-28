@@ -73,10 +73,10 @@ local LIST: { Screen } = {
 		pieces = {
 			-- under the health bar and clock (top middle), over the empty middle of the arena
 			p("Tip", 238, 92, 280, 92, { anchor = "t", tap = true }),
-			-- where the arrow points for each step (the stick corner is free: the arrow sits just
-			-- above it and points down)
-			p("ArrowDrive", 46, 186, 56, 56, { anchor = "bl" }),
-			p("ArrowFire", 640, 160, 56, 56, { anchor = "br" }),
+			-- the arrow for each step: just right of the stick corner pointing left at it (the
+			-- scoreboard sits above the corner), and just above FIRE pointing down
+			p("ArrowDrive", 148, 290, 56, 56, { anchor = "bl" }),
+			p("ArrowFire", 650, 180, 56, 56, { anchor = "br" }),
 		},
 	},
 }
@@ -119,9 +119,22 @@ end
 
 -- The how-to's 3 steps, in order: the big words, one small line, and the arrow piece (if any).
 SmashScreens.STEPS = {
-	{ id = "drive", words = "DRIVE!", help = "Move the stick to drive.", arrow = "ArrowDrive" },
-	{ id = "grab", words = "GRAB A ?", help = "Drive into a red ? box.", arrow = nil },
-	{ id = "fire", words = "TAP FIRE!", help = "Smash the other cars!", arrow = "ArrowFire" },
+	-- (rot: the arrow drawing points right; 180 = left, 90 = down)
+	{
+		id = "drive",
+		words = "DRIVE!",
+		help = "Move the stick to drive.",
+		arrow = "ArrowDrive",
+		rot = 180,
+	},
+	{ id = "grab", words = "GRAB A ?", help = "Drive into a red ? box.", arrow = nil, rot = 0 },
+	{
+		id = "fire",
+		words = "TAP FIRE!",
+		help = "Smash the other cars!",
+		arrow = "ArrowFire",
+		rot = 90,
+	},
 }
 SmashScreens.DRIVE_STUDS = 12 -- driven this far = the drive step is done
 

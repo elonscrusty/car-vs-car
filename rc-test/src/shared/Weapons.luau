@@ -20,9 +20,13 @@ export type Def = {
 Weapons.DEFS = {
 	Rockets = { ammo = 3, cooldown = 0.6, word = "ROCKETS", icon = "rocket" },
 	Nuke = { ammo = 1, cooldown = 1, word = "NUKE", icon = "nuke" },
+	-- GUNMINE row (server/weapons/Gun, Mine, Freeze keep the same numbers; a test checks)
+	Gun = { ammo = 4, cooldown = 0.5, word = "GUN", icon = "gun" },
+	Mine = { ammo = 3, cooldown = 0.6, word = "MINES", icon = "mine" },
+	Freeze = { ammo = 2, cooldown = 0.8, word = "FREEZE", icon = "freeze" },
 } :: { [string]: Def }
 -- the order boxes and screens list them in (GUNMINE adds Gun, Mine, Freeze)
-Weapons.NAMES = { "Rockets", "Nuke" }
+Weapons.NAMES = { "Rockets", "Nuke", "Gun", "Mine", "Freeze" }
 
 -- aim: at most this far (degrees) from where the kart faces; more is turned back to the edge
 Weapons.MAX_AIM_DEG = 30
@@ -32,6 +36,22 @@ Weapons.REFILL = 8
 
 function Weapons.isName(x: any): boolean
 	return type(x) == "string" and Weapons.DEFS[x] ~= nil
+end
+
+function Weapons.get(name: any): Def?
+	return if Weapons.isName(name) then Weapons.DEFS[name] else nil
+end
+
+-- The word MatchRunner's smash words use ("smashed by X's rocket"): lowercase, one of a kind.
+Weapons.FEED = {
+	Rockets = "rocket",
+	Nuke = "nuke",
+	Gun = "machine gun",
+	Mine = "mine",
+	Freeze = "freeze ray",
+} :: { [string]: string }
+function Weapons.feedWord(name: string): string
+	return Weapons.FEED[name] or string.lower(name)
 end
 
 local function finite(n: number): boolean
@@ -145,7 +165,7 @@ export type Flight = {
 	up: number, -- and this high above its middle
 }
 
--- ROCKETS: fast, bend a little toward the nearest kart ahead. 3 hits smash (2 + a splash).
+-- ROCKETS: fast, bend a little toward the nearest kart ahead. 3 direct hits smash (health 100).
 Weapons.ROCKET = {
 	speed = 95,
 	life = 2.4, -- about 230 studs
@@ -153,7 +173,7 @@ Weapons.ROCKET = {
 	seekRange = 120,
 	turnDeg = 75,
 	hitRadius = 6.5,
-	damage = 45,
+	damage = 34,
 	splash = 12,
 	splashDamage = 20,
 	ahead = 7,

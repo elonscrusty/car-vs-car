@@ -18,6 +18,7 @@ end
 local Ui = script.Parent:WaitForChild("Ui")
 local Screen = require(Ui:WaitForChild("Screen"))
 local Hud = require(Ui:WaitForChild("Screens"):WaitForChild("Hud"))
+local Sfx = require(script.Parent:WaitForChild("Sfx"))
 
 local player = Players.LocalPlayer
 
@@ -237,6 +238,10 @@ RunService.Heartbeat:Connect(function()
 	local left = num("MatchEndsAt", 0) - workspace:GetServerTimeNow()
 	local secs = math.max(0, math.ceil(left))
 	if secs ~= lastSecs then
+		-- the clock hits 0 once per match (SOUNDS 10-28; the 3-2-1-GO is MATCH's, not here)
+		if secs == 0 and lastSecs > 0 then
+			Sfx.matchEnd()
+		end
 		lastSecs = secs
 		h.api.setClock(secs)
 	end

@@ -74,6 +74,9 @@ local function pose(k: any): CFrame?
 	if typeof(r) == "Instance" and (r :: Instance):IsA("BasePart") then
 		return (r :: BasePart).CFrame
 	end
+	if typeof(k.pos) == "Vector3" then
+		return CFrame.new(k.pos)
+	end
 	return nil
 end
 
@@ -231,7 +234,8 @@ local function makeCtx(fxRemote: RemoteEvent): Ctx
 		damage = function(victimId: any, attackerId: any, amount: number, weapon: string)
 			local mr = matchRunner()
 			if mr and type(mr.damage) == "function" then
-				mr.damage(victimId, attackerId, amount, weapon)
+				-- MatchRunner's words are lowercase and one of a kind: "rocket", "nuke", "gun"
+				mr.damage(victimId, attackerId, amount, Weapons.feedWord(weapon))
 			end
 		end,
 		fx = function(kind: string, data: { [string]: any })
@@ -284,6 +288,11 @@ function WeaponServer.give(id: any, name: string): boolean
 	Weapons.give(h, name)
 	show(id)
 	return true
+end
+
+-- Can a box hand out `name` now (its weapon module is built and loaded)?
+function WeaponServer.has(name: string): boolean
+	return Weapons.isName(name) and modules[name] ~= nil
 end
 
 -- What kart `id` holds now (name "" = nothing), for bots and screens.
