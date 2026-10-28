@@ -67,7 +67,10 @@ end
 LobbyDecor.ROW_Z = ROW_Z
 LobbyDecor.GAP_Z = GAP_Z
 
-LobbyDecor.BUNTING_Y = 9.2 -- where the string ties onto the lamp posts
+-- where the string ties on: on a short mast over each lamp post (9 studs), so the walking camera
+-- passes under the flags (phone playtest u29: at 9.2 with 3-stud flags they filled the top half
+-- of the screen)
+LobbyDecor.BUNTING_Y = 12.5
 LobbyDecor.PLANTER_DZ = 24 -- planters: this far down the street from a plot's middle
 LobbyDecor.BIT_DZ = -30 -- hydrant / bin / mailbox: this far up the street
 LobbyDecor.PATH_X = EDGE - 1.2 -- footpath things stand by the outer edge
@@ -148,11 +151,16 @@ local function bunting(add: Garage.Add, z: number, n: number)
 	local half = L.EDGE - 1 -- the lamps stand here (LobbyLayout.lamps)
 	local top = LobbyDecor.BUNTING_Y
 	add(g, "Rope", v(2 * half, 0.2, 0.2), v(0, top, z), C.rope, { collide = false })
+	for _, sx in { -1, 1 } do
+		add(g, "Mast", v(0.3, top - 8.4, 0.3), v(sx * half, (top + 8.4) / 2, z), C.rope, {
+			collide = false,
+		})
+	end
 	local flags = 11
 	for i = 1, flags do
 		local x = -half + i * (2 * half / (flags + 1))
 		-- a wedge pointing down: its slope faces -z, the point at the bottom
-		add(g, "Pennant", v(0.08, 3, 1.7), v(x, top - 1.5, z), BRIGHT[(i + n) % #BRIGHT + 1], {
+		add(g, "Pennant", v(0.08, 2, 1.5), v(x, top - 1, z), BRIGHT[(i + n) % #BRIGHT + 1], {
 			shape = "Wedge",
 			rot = v(180, 90, 0),
 			collide = false,
