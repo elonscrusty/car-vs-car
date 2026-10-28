@@ -655,6 +655,7 @@ end
 
 local FEED_ROWS = 3
 local FEED_SECS = 5
+local BOARD_ROWS = 8
 
 -- the weapon's icon (Icons) for a weapon name from the server ("" / nil = none: the "?" box)
 local WEAPON_ICON: { [string]: string } = { Rockets = "rocket", Gun = "gun", Mine = "mine" }
@@ -665,9 +666,11 @@ function Hud.weaponIcon(name: string?): string
 	return WEAPON_ICON[name] or string.lower(name)
 end
 
--- data: { place, total, secs, hp, maxHp, shield: boolean, weapon: name or "", ammo }
+-- data: { place, total, secs, hp, maxHp, shield: boolean, weapon: name or "", ammo,
+--   board = { { name, smashes, level?, me } } (most smashes first) }
 -- actions: fire()
 -- api: setPlace(p, total), setClock(secs), setHealth(hp, max, shield), setWeapon(name, ammo),
+--   setBoard(list),
 --   feed(attacker, victim, weapon, mine: boolean) (a new kill on top; mine = you are in it)
 function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
 	return Screen.open("match", "hud", false, function(g)
@@ -775,6 +778,58 @@ function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 			lastHp = n
 		end
 		setHealth(data.hp or 100, data.maxHp or 100, data.shield)
+		-- SCOREBOARD: every kart, most smashes first: a level badge (when the kart has a level),
+		-- the name, the smashes; your row lime
+		local bp = piece("match", "Board")
+		local boardSpot = spot(c, "match", "Board")
+		local boardRows: { Frame } = {}
+		local function setBoard(list: { { [string]: any } })
+			for _, r in boardRows do
+				r:Destroy()
+			end
+			table.clear(boardRows)
+			for i = 1, math.min(BOARD_ROWS, #list) do
+				local e = list[i]
+				local me = e.me == true
+				local row = Base.fill(
+					boardSpot,
+					"Row" .. i,
+					0,
+					(i - 1) * 23,
+					bp.w,
+					20,
+					Base.color(if me then "lime" else "navy"),
+					2
+				)
+				row.BackgroundTransparency = if me then 0 else 0.2
+				Base.corner(row)
+				Base.outline(row, UiTheme.OUTLINE.small)
+				local left = 6
+				if type(e.level) == "number" then
+					local badge = Base.fill(row, "Level", 3, 2, 28, 16, Base.color("go"), 3)
+					Base.corner(badge)
+					Base.outline(badge, UiTheme.OUTLINE.small)
+					Base.text(badge, "N", 2, 2, 24, 12, tostring(math.floor(e.level)), {
+						color = INK,
+						z = 4,
+					})
+					left = 36
+				end
+				Base.text(row, "Name", left, 3, bp.w - left - 38, 14, string.upper(e.name or ""), {
+					stroke = 3,
+					align = "l",
+					z = 3,
+				})
+				Base.text(row, "Smashes", bp.w - 36, 2, 30, 16, tostring(e.smashes or 0), {
+					color = Base.color("go"),
+					stroke = 3.5,
+					align = "r",
+					z = 3,
+				})
+				table.insert(boardRows, row)
+			end
+		end
+		setBoard(data.board or {})
 		-- KILL LIST: up to 3 rows, newest on top, each gone after 5 s
 		local fp = piece("match", "Feed")
 		local feedSpot = spot(c, "match", "Feed")
@@ -826,7 +881,7 @@ function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 			end)
 		end
 		-- FIRE: the big red thumb button, the weapon's icon on it and a count ball with the ammo;
-		-- no weapon: dim, "?" and GET A BOX words
+		-- no weapon: a plain blue circle
 		local fpc = piece("match", "Fire")
 		local fireSpot = spot(c, "match", "Fire")
 		local fire = Kit.round(fireSpot, "Fire", 0, 0, fpc.w, "danger", "FIRE", {
@@ -839,9 +894,12 @@ function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 		Base.corner(ball)
 		Base.outline(ball, UiTheme.OUTLINE.normal)
 		local ammoWords = Base.text(ball, "N", 4, 6, 30, 24, "", { color = INK, z = 8 })
-		local dim = Base.fill(body, "Dim", 0, 0, fpc.w, fpc.w, INK, 7)
+		-- (empty hands: a plain blue circle, as in the video)
+		local dim =
+			Base.fill(body, "Empty", 0, 0, fpc.w, fpc.w - 9 * fpc.w / 100, Base.color("blue"), 7)
 		Base.corner(dim)
-		dim.BackgroundTransparency = 0.55
+		Base.outline(dim, UiTheme.OUTLINE.normal)
+		Kit.gloss(dim, Base.color("blue"))
 		local shownWeapon: string? = nil
 		local function setWeapon(name: string?, ammo: number?)
 			local has = name ~= nil and name ~= "" and (ammo or 0) > 0
@@ -856,8 +914,12 @@ function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 					Anim.pop(fire.button, nil, 0.6)
 				end
 			end
-			Base.setText(label, if has then "FIRE" else "GET A ?")
+			Base.setText(label, "FIRE")
 			label.Position = UDim2.fromScale(0.08, 0.5)
+			label.Visible = has
+			if icon then
+				icon.Visible = has
+			end
 			ball.Visible = has
 			ammoWords.Text = tostring(ammo or 0)
 			dim.Visible = not has
@@ -868,6 +930,7 @@ function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 			setClock = setClock,
 			setHealth = setHealth,
 			setWeapon = setWeapon,
+			setBoard = setBoard,
 			feed = feed,
 		}
 	end)

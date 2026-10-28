@@ -1,13 +1,19 @@
 --!strict
 -- Car VS Car SMASH (10-28): the match HUD (Ui/Screens/Hud.match) while you are in a match. The
 -- server sets the player attributes (Health, MaxHealth, Shield, Place, MatchEndsAt, Weapon,
--- Ammo, and MatchKarts if it has it) and fires SmashFeed (attacker, victim, weapon) on each smash;
--- this only shows them. FIRE (the button, F, a gamepad's R2) asks the server through WeaponFire
+-- Ammo, InMatch), keeps the scoreboard in ReplicatedStorage.MatchBoard and
+-- fires SmashFeed (attacker, victim, weapon) on each smash; this only shows them. FIRE (the button, F, a gamepad's R2) asks the server through WeaponFire
 -- with the camera's flat look; the server checks everything (aim, ammo, cooldown).
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+
+local Features = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Features"))
+-- (only with the SMASH game on: the racing game keeps working with it off)
+if (Features :: any).SMASH ~= true then
+	return
+end
 
 local Ui = script.Parent:WaitForChild("Ui")
 local Screen = require(Ui:WaitForChild("Screen"))
@@ -18,7 +24,8 @@ local player = Players.LocalPlayer
 local FIRE_REMOTE = "WeaponFire" -- (= Weapons.REMOTE, WEAPONS thread)
 local FEED_REMOTE = "SmashFeed"
 local FIRE_GAP = 0.12 -- the client's own spacing; the server drops asks faster than a cooldown
-local DEFAULT_KARTS = 5
+local DEFAULT_KARTS = 8
+local BOARD = "MatchBoard" -- (MATCH: one Configuration per kart, attributes Name, Smashes, Level?, UserId)
 
 local function attr(name: string): any
 	return player:GetAttribute(name)
@@ -30,9 +37,20 @@ end
 
 local function inMatch(): boolean
 	local ends = attr("MatchEndsAt")
-	return type(ends) == "number"
-		and type(attr("Health")) == "number"
+	return attr("InMatch") == true
+		and type(ends) == "number"
 		and ends > workspace:GetServerTimeNow() - 1
+end
+
+-- how many karts: the board's MatchKarts, else its count, else 8
+local function karts(): number
+	local folder = ReplicatedStorage:FindFirstChild(BOARD)
+	local n = folder and folder:GetAttribute("MatchKarts")
+	if type(n) == "number" and n > 0 then
+		return n
+	end
+	local count = if folder then #folder:GetChildren() else 0
+	return if count > 0 then count else DEFAULT_KARTS
 end
 
 -- aim: where the camera looks, flat (the server keeps it within 30 deg of the kart's nose)
@@ -64,6 +82,33 @@ local function fire()
 	end
 end
 
+-- the scoreboard from MatchBoard, most smashes first (the level badge hides without a Level)
+local function boardList(): { { [string]: any } }
+	local list = {}
+	local folder = ReplicatedStorage:FindFirstChild(BOARD)
+	if not folder then
+		return list
+	end
+	for _, k in folder:GetChildren() do
+		local name = k:GetAttribute("Name")
+		local smashes = k:GetAttribute("Smashes")
+		local level = k:GetAttribute("Level")
+		table.insert(list, {
+			name = if type(name) == "string" then name else k.Name,
+			smashes = if type(smashes) == "number" then smashes else 0,
+			level = if type(level) == "number" then level else nil,
+			me = k:GetAttribute("UserId") == player.UserId,
+		})
+	end
+	table.sort(list, function(a, b)
+		if a.smashes ~= b.smashes then
+			return a.smashes > b.smashes
+		end
+		return a.name < b.name
+	end)
+	return list
+end
+
 local hud: Screen.Handle? = nil
 local function close()
 	if hud then
@@ -78,7 +123,7 @@ local function refresh()
 		return
 	end
 	local api = h.api
-	api.setPlace(num("Place", 1), num("MatchKarts", DEFAULT_KARTS))
+	api.setPlace(num("Place", 1), karts())
 	api.setHealth(num("Health", 100), num("MaxHealth", 100), attr("Shield") == true)
 	local w = attr("Weapon")
 	api.setWeapon(if type(w) == "string" then w else "", num("Ammo", 0))
@@ -87,13 +132,14 @@ end
 local function open()
 	hud = Hud.match({
 		place = num("Place", 1),
-		total = num("MatchKarts", DEFAULT_KARTS),
+		total = karts(),
 		secs = num("MatchEndsAt", 0) - workspace:GetServerTimeNow(),
 		hp = num("Health", 100),
 		maxHp = num("MaxHealth", 100),
 		shield = attr("Shield") == true,
 		weapon = attr("Weapon"),
 		ammo = num("Ammo", 0),
+		board = boardList(),
 	}, { fire = fire })
 end
 
@@ -108,11 +154,39 @@ local function check()
 end
 
 for _, name in
-	{ "Health", "MaxHealth", "Shield", "Place", "MatchKarts", "Weapon", "Ammo", "MatchEndsAt" }
+	{ "Health", "MaxHealth", "Shield", "Place", "Weapon", "Ammo", "MatchEndsAt", "InMatch" }
 do
 	player:GetAttributeChangedSignal(name):Connect(check)
 end
 check()
+
+-- the scoreboard: redrawn when the board changes, 4 times a second at most
+local boardDirty = true
+local lastBoard = 0
+local function watchKart(k: Instance)
+	k.AttributeChanged:Connect(function()
+		boardDirty = true
+	end)
+end
+task.spawn(function()
+	local folder = ReplicatedStorage:WaitForChild(BOARD, math.huge)
+	if not folder then
+		return
+	end
+	for _, k in folder:GetChildren() do
+		watchKart(k)
+	end
+	folder.ChildAdded:Connect(function(k: Instance)
+		watchKart(k)
+		boardDirty = true
+	end)
+	folder.ChildRemoved:Connect(function()
+		boardDirty = true
+	end)
+	folder.AttributeChanged:Connect(function()
+		boardDirty = true
+	end)
+end)
 
 -- the clock: words change once a second at most
 local lastSecs = -1
@@ -120,6 +194,13 @@ RunService.Heartbeat:Connect(function()
 	local h = hud
 	if not h then
 		return
+	end
+	if boardDirty and os.clock() - lastBoard >= 0.25 then
+		boardDirty = false
+		lastBoard = os.clock()
+		local list = boardList()
+		h.api.setBoard(list)
+		h.api.setPlace(num("Place", 1), karts())
 	end
 	local left = num("MatchEndsAt", 0) - workspace:GetServerTimeNow()
 	local secs = math.max(0, math.ceil(left))
