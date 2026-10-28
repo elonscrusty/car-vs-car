@@ -10,6 +10,10 @@
 -- HOW TO ADD A CAR MODEL: name the Model the car's id from CarCatalog (e.g. race_bolt), give it
 -- MeshParts Body, WheelFL, WheelFR, WheelRL, WheelRR, and drop it in ReplicatedStorage.CarSkins.
 -- It then replaces that car's toy look in races, for your own car and everyone else's.
+--
+-- KART MODELS: the 6 Blender karts (Kart_Racer, Kart_Buggy, ...; ToyCars.KARTS says which car
+-- shape wears which) sit in CarSkins too. Their MeshParts are named Body, Accent, Trim, Driver,
+-- Head, Headlights, Taillights, WeaponMount and the 4 wheels, and are painted per car by name.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
@@ -17,6 +21,7 @@ local UserInputService = game:GetService("UserInputService")
 local RCCar = require(script.Parent.RCCar)
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local Garage = require(ReplicatedStorage.Shared.Garage)
+local ToyCars = require(ReplicatedStorage.Shared.ToyCars)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
 
 local WHEEL_NAMES = { "WheelFL", "WheelFR", "WheelRL", "WheelRR" } -- same order as RCCar
@@ -76,7 +81,84 @@ local function toy(id: string): Model?
 	return car
 end
 
+-- "kart:<car id>": the car's Blender kart model (ToyCars.KARTS) painted in the car's colours
+CarSkin.KART = "kart:"
+
+local function rgb(c: { number }): Color3
+	return Color3.fromRGB(c[1], c[2], c[3])
+end
+
+-- The kart model a car wears, if it is in CarSkins.
+function CarSkin.kartFor(id: string): Model?
+	local info = CarCatalog.get(id)
+	local skins = ReplicatedStorage:FindFirstChild("CarSkins")
+	local m = info and skins and skins:FindFirstChild(ToyCars.kartModel(info.style))
+	return if m and m:IsA("Model") then m else nil
+end
+
+-- Paints a kart model's part for a car, by its name (ToyCars.kartPaint).
+function CarSkin.paintKart(p: BasePart, id: string)
+	local info = CarCatalog.get(id)
+	if not info then
+		return
+	end
+	local col, glow = ToyCars.kartPaint(p.Name, info.color, info.style)
+	if col then
+		p.Color = rgb(col)
+		p.Material = if glow then Enum.Material.Neon else Enum.Material.SmoothPlastic
+		if p:IsA("MeshPart") then
+			p.TextureID = ""
+		end
+	end
+end
+
+-- The look a car wears: carter's own model (CarSkins, named the car id), else its kart model,
+-- else the toy car.
+function CarSkin.lookFor(id: string): string
+	local skins = ReplicatedStorage:FindFirstChild("CarSkins")
+	if skins and skins:FindFirstChild(id) then
+		return id
+	end
+	return if CarSkin.kartFor(id) then CarSkin.KART .. id else CarSkin.TOY .. id
+end
+
+-- A kart model's nose is where its headlights are: true when that is at +Z (Studio's import).
+function CarSkin.noseAtPlusZ(m: Model): boolean
+	local lights = m:FindFirstChild("Headlights", true)
+	if not (lights and lights:IsA("BasePart")) then
+		return true
+	end
+	return m:GetPivot():PointToObjectSpace(lights.Position).Z > 0
+end
+
+local function kart(id: string): Model?
+	local src = CarSkin.kartFor(id)
+	if not src then
+		return nil
+	end
+	local car = src:Clone()
+	for _, d in car:GetDescendants() do
+		if d:IsA("BasePart") then
+			CarSkin.paintKart(d, id)
+		end
+	end
+	-- (show turns the nose from +Z to -Z: a model already facing -Z is turned round first)
+	if not CarSkin.noseAtPlusZ(car) then
+		car:PivotTo(car:GetPivot() * CFrame.Angles(0, math.pi, 0))
+	end
+	car:SetAttribute("Extras", true)
+	car:SetAttribute("Kart", true)
+	return car
+end
+
 local function template(name: string): Model?
+	if string.sub(name, 1, #CarSkin.KART) == CarSkin.KART then
+		local made = toys[name] or kart(string.sub(name, #CarSkin.KART + 1))
+		if made then
+			toys[name] = made
+		end
+		return made
+	end
 	if string.sub(name, 1, #CarSkin.TOY) == CarSkin.TOY then
 		local made = toys[name] or toy(string.sub(name, #CarSkin.TOY + 1))
 		if made then
@@ -121,7 +203,7 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 	for _, w in wheels do
 		meshRadius += w.Size.Y / 8
 	end
-	if copy:GetAttribute("Extras") == true then
+	if copy:GetAttribute("Extras") == true and copy:GetAttribute("Kart") ~= true then
 		-- a toy car: as long as the grey body it covers (built at s = 1, Garage.toyFit)
 		copy:ScaleTo(copy:GetScale() * Garage.toyFit(Tuning.bodyZ))
 	else
