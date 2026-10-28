@@ -125,7 +125,8 @@ function RaceBotCars.spawn(
 			RaceBots.laneFor(i),
 			side * ServerRace.GRID_SIDE,
 			random:NextNumber() * 6.28,
-			random:NextNumber() * 0.35 + (if easy then RaceBots.EASY_DELAY else 0),
+			-- (the rival goes at GO: it has to get in front of the kid)
+			random:NextNumber() * 0.35 + (if easy and not rival then RaceBots.EASY_DELAY else 0),
 			ServerRace.BACK + row * ServerRace.GRID_ROW,
 			colors[random:NextInteger(1, #colors)]
 		)
@@ -214,7 +215,8 @@ function RaceBotCars.step(
 			then RaceBots.followCap(
 				fleet.follow,
 				bot,
-				if car.rival then -RaceBots.RIVAL_LEAD else nil
+				if car.rival then -RaceBots.RIVAL_LEAD else nil,
+				if car.rival then since else nil
 			)
 			else nil
 		local line = if fleet.easy then RaceBots.lineCap(fleet.route, bot, kid) else nil
