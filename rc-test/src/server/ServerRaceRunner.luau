@@ -898,6 +898,7 @@ local function runRace(hooks: Hooks, slot: number)
 							end
 							if r.laps >= groupLaps[gi] then
 								r.time = clock - goAt
+								placesAt = clock -- (this frame: the pill and FINISHED say the same place)
 								startCountdown(clock - goAt)
 								r.finishedNow = true
 							end
@@ -973,10 +974,14 @@ local function runRace(hooks: Hooks, slot: number)
 					end
 					if not out and r.new and bots then
 						-- (how far along the road: the easy bots stay behind the furthest new kid)
-						local at = if lx and lz
-							then RaceBots.roadAt(bots.route, progress, lx, lz)
-							else RaceBots.distOf(bots.route, progress)
-						if kidLead == nil or at > kidLead then
+						local at = RaceBots.kidRoad(
+							bots.route,
+							if lx and lz
+								then RaceBots.roadAt(bots.route, progress, lx, lz)
+								else RaceBots.distOf(bots.route, progress),
+							r.time ~= nil
+						)
+						if at and (kidLead == nil or at > kidLead) then
 							kidLead = at
 							kidProgress = progress
 						end
@@ -990,13 +995,7 @@ local function runRace(hooks: Hooks, slot: number)
 						table.insert(runs, {
 							time = car.bot.time,
 							progress = if bots.easy
-								then RaceBots.placeProgress(
-									car.bot,
-									real,
-									kidLead,
-									kidProgress,
-									car.rival
-								)
+								then RaceBots.placeProgress(car.bot, real, kidLead, kidProgress)
 								else real,
 						})
 						cars += 1

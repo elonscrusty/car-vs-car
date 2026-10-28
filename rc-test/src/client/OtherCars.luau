@@ -26,6 +26,7 @@ local FAR = 400 -- studs: past this, other cars' wheels are not drawn (phones)
 local RACE_TAG_FAR = 90
 local STEER_MAX = 0.75 -- radians, the base car's widest wheel angle
 local MAX_SUSP = 4 -- big-size spring travel; the ray stops it sooner on the ground
+local TAG_W, TAG_H = 120, 26 -- a name tag's size on screen (px)
 
 type Wheel = { part: Part, spot: Vector3, front: boolean, shown: number, spin: number }
 -- Car VS Car: the toy car's shell (body, cab, roof, wing, lights) over the grey blocks, the same
@@ -155,7 +156,7 @@ end
 local function nameTag(body: BasePart, text: string, s: number): BillboardGui
 	local tag = Instance.new("BillboardGui")
 	tag.Name = "NameTag"
-	tag.Size = UDim2.fromOffset(120, 26)
+	tag.Size = UDim2.fromOffset(TAG_W, TAG_H)
 	tag.StudsOffsetWorldSpace = Vector3.new(0, 3.2 * s, 0)
 	tag.AlwaysOnTop = false -- (on carter's PC AlwaysOnTop tags never drew: Studio score/16-18)
 	-- (far off, two tags drew over each other and read garbled, "TRORBO TIM": near cars only)
@@ -266,6 +267,31 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 		end
 	end)
 
+	-- this frame's shown tags, nearest first (reused: no new tables each frame)
+	local tags: { BillboardGui } = {}
+	local tagFar: { number } = {}
+	local kept: { Vector3 } = {}
+	-- Tags that would sit on top of each other on screen: only the nearest shows (Studio pr839: a
+	-- bunch of cars read as one garbled line)
+	local function unstack(cam: Camera)
+		table.clear(kept)
+		for _, tag in tags do
+			local body = tag.Adornee :: BasePart
+			local p, onScreen = cam:WorldToViewportPoint(body.Position + tag.StudsOffsetWorldSpace)
+			if onScreen then
+				for _, q in kept do
+					if math.abs(p.X - q.X) < TAG_W and math.abs(p.Y - q.Y) < TAG_H then
+						tag.Enabled = false
+						break
+					end
+				end
+				if tag.Enabled then
+					table.insert(kept, p)
+				end
+			end
+		end
+	end
+
 	local function update(dt: number)
 		local mine = myCarName()
 		local myGroup = Players.LocalPlayer:GetAttribute("RaceGroup")
@@ -305,13 +331,23 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 					end
 				end
 			end
-			local near = not hide and (cf.Position - eye).Magnitude < FAR
+			local far = (cf.Position - eye).Magnitude
+			local near = not hide and far < FAR
 			o.folder.Parent = if near then folder else nil
 			-- carter's pick 18: in the big race every car in your race wears its name, however far
 			-- (the stand cam watches from the side of the track)
 			local inRace = myGroup ~= nil and group == myGroup
 			o.tag.MaxDistance = if inRace then RACE_TAG_FAR else 150
 			o.tag.Enabled = near or (inRace and not hide)
+			if o.tag.Enabled and far < o.tag.MaxDistance then
+				-- (kept nearest first)
+				local k = #tags + 1
+				while k > 1 and tagFar[k - 1] > far do
+					tags[k], tagFar[k] = tags[k - 1], tagFar[k - 1]
+					k -= 1
+				end
+				tags[k], tagFar[k] = o.tag, far
+			end
 			if not near then
 				continue
 			end
@@ -356,6 +392,10 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 				workspace:BulkMoveTo(toy.parts, at, Enum.BulkMoveMode.FireCFrameChanged)
 			end
 		end
+		if cam then
+			unstack(cam)
+		end
+		table.clear(tags)
 	end
 
 	return { update = update }

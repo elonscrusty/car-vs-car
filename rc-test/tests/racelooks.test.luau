@@ -171,3 +171,14 @@ test("carter's own car model (CarSkins, named the car id) wins over the toy look
 	local skin = fs.readFile("src/client/CarSkin.luau")
 	truthy(string.find(skin, "HOW TO ADD A CAR MODEL", 1, true), "how-to line")
 end)
+
+test("Studio pr839: name tags that would sit on each other show only the nearest", function()
+	local fs = require("@lune/fs")
+	local others = fs.readFile("src/client/OtherCars.luau")
+	truthy(
+		string.find(others, "math.abs(p.X - q.X) < TAG_W and math.abs(p.Y - q.Y) < TAG_H", 1, true)
+	)
+	truthy(string.find(others, "while k > 1 and tagFar[k - 1] > far do", 1, true), "nearest first")
+	truthy(string.find(others, "unstack(cam)", 1, true), "not wired")
+	truthy(string.find(others, "UDim2.fromOffset(TAG_W, TAG_H)", 1, true))
+end)
