@@ -347,24 +347,13 @@ function Icons.badge(
 		end
 		local top = shape(root, "Top", 16, 8, 68, 54, mid, 12, 8, nil, 3)
 		local tip = shape(root, "Tip", 25, 36, 50, 50, mid, 10, 8, 45, 3)
-		-- (the tip's ink copy would show over the top: lift the fills over both inks)
-		-- the top covers the tip where they meet; light to mid on the top, mid to dark on the tip
-		-- (the tip is turned 45 deg, so its shading turns back 45 to run the same way)
-		top.ZIndex, tip.ZIndex = 5, 4
-		local g = Instance.new("UIGradient")
-		g.Rotation = 90
-		g.Color = ColorSequence.new(hex(m[1]), mid)
-		top.BackgroundColor3 = WHITE
-		g.Parent = top
-		local g2 = Instance.new("UIGradient")
-		g2.Rotation = 45
-		g2.Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, mid),
-			ColorSequenceKeypoint.new(0.5, mid),
-			ColorSequenceKeypoint.new(1, hex(m[3])),
-		})
-		g2.Parent = tip
-		tip.BackgroundColor3 = WHITE
+		-- one solid metal color for both parts (no shading, so nothing shows where they overlap),
+		-- lifted over both inks; a light band on the top and a dark one low on the tip
+		top.ZIndex, tip.ZIndex = 5, 5
+		local shine = Base.fill(root, "Shine", 24, 14, 52, 14, hex(m[1]), 6)
+		Base.corner(shine, 7)
+		local shade = Base.fill(root, "Shade", 38, 70, 24, 8, hex(m[3]), 6)
+		Base.corner(shade, 4)
 		if L.id == "diamond" then
 			shape(root, "Gem", 36, 26, 28, 28, WHITE, 4, 6, 45, 7)
 		else

@@ -202,9 +202,9 @@ local LIST: { Screen } = {
 		pieces = {
 			p("Shout", 178, 6, 400, 62, { anchor = "t" }),
 			p("Card", 280, 74, 196, 290, { anchor = "c" }),
-			button("Cool", 566, 230, 190, 66, "lime", "COOL!", { anchor = "br", main = true }),
-			button("Again", 516, 312, 240, 50, "white", "OPEN ANOTHER", { anchor = "br" }),
-			p("Note", 0, 300, 210, 62, { anchor = "bl" }),
+			button("Cool", 558, 230, 190, 66, "lime", "COOL!", { anchor = "br", main = true }),
+			button("Again", 508, 312, 240, 50, "white", "OPEN ANOTHER", { anchor = "br" }),
+			p("Note", 8, 300, 210, 62, { anchor = "bl" }),
 		},
 	},
 	{

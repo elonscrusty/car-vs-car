@@ -100,24 +100,21 @@ local function scroller(
 	sf.Parent = parent
 	Base.at(sf, x, y, w, h)
 	local total = math.max(h, contentH)
-	-- the list is as wide as the scroller and keeps the design shape (Scale inside a
-	-- ScrollingFrame is not to be trusted), and the scroll room follows its real height
+	-- the list is sized in real px from the scroller's real width (Scale inside a ScrollingFrame
+	-- goes by the canvas, which stretches), and the scroll room follows it
 	local list = Instance.new("Frame")
 	list.Name = "List"
 	list.BackgroundTransparency = 1
-	list.Size = UDim2.fromScale(1, 0)
 	list:SetAttribute("DW", w)
 	list:SetAttribute("DH", total)
-	local ar = Instance.new("UIAspectRatioConstraint")
-	ar.AspectRatio = w / total
-	ar.AspectType = Enum.AspectType.ScaleWithParentSize
-	ar.DominantAxis = Enum.DominantAxis.Width
-	ar.Parent = list
 	list.Parent = sf
 	local function room()
-		sf.CanvasSize = UDim2.fromOffset(0, list.AbsoluteSize.Y)
+		local aw = sf.AbsoluteSize.X
+		local ah = aw * total / w
+		list.Size = UDim2.fromOffset(aw, ah)
+		sf.CanvasSize = UDim2.fromOffset(0, ah)
 	end
-	list:GetPropertyChangedSignal("AbsoluteSize"):Connect(room)
+	sf:GetPropertyChangedSignal("AbsoluteSize"):Connect(room)
 	room()
 	return list
 end
@@ -255,7 +252,7 @@ function Windows.garage(data: { [string]: any }, actions: Screen.Actions?): Scre
 		Kit.section(c, mp.x, mp.y, mp.w, mp.h, "MY CARS")
 		local gp = piece("garage", "Window.Grid")
 		local cars = data.cars or {}
-		local cols, size, gap = 7, 56, 6
+		local cols, size, gap = 7, 56, 10
 		local rows = math.ceil(#cars / cols)
 		local list = scroller(c, gp.x, gp.y, gp.w, gp.h, rows * (size + gap) + 8)
 		local x0 = (gp.w - (cols * size + (cols - 1) * gap)) / 2
@@ -348,7 +345,7 @@ function Windows.garage(data: { [string]: any }, actions: Screen.Actions?): Scre
 		for i, car in cars do
 			local col, r = (i - 1) % cols, (i - 1) // cols
 			local s =
-				Kit.slot(list, "Car" .. i, x0 + col * (size + gap), 4 + r * (size + gap), size, {
+				Kit.slot(list, "Car" .. i, x0 + col * (size + gap), 8 + r * (size + gap), size, {
 					tone = car.tone or "blue",
 					count = car.count,
 					badge = car.badge,
