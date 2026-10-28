@@ -314,7 +314,10 @@ function Windows.garage(data: { [string]: any }, actions: Screen.Actions?): Scre
 				kind = car.kind,
 				tilt = 2,
 			})
-			CardStats.draw(card.card, 10, card.contentY, cp.w - 20, car.stats)
+			-- (no stats: a Smash kart is looks only)
+			if car.stats then
+				CardStats.draw(card.card, 10, card.contentY, cp.w - 20, car.stats)
+			end
 			local ep = piece("garage", "Card.Equip")
 			Kit.button(
 				card.card,

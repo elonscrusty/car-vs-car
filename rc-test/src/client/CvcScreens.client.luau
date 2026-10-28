@@ -498,7 +498,7 @@ function openGarage()
 			kind = kindOf(car.id),
 			tone = if racing then "lime" else "blue",
 			badge = if racing then "RACE" elseif st then "TRAIN" else nil,
-			stats = stats,
+			stats = if SMASH then nil else stats,
 		})
 	end
 	local onTrack = {}
@@ -685,7 +685,8 @@ local function carTag()
 	pill.BackgroundTransparency = 0.15
 	Base.corner(pill)
 	Base.outline(pill, 3, Base.color("go"))
-	Base.text(pill, "Words", 10, 4, 240, 32, `{CvcState.name(car.id)}  SPD {spd}`, {
+	local words = if SMASH then CvcState.name(car.id) else `{CvcState.name(car.id)}  SPD {spd}`
+	Base.text(pill, "Words", 10, 4, 240, 32, words, {
 		color = Base.color("go"),
 		stroke = 4,
 		z = 3,
@@ -1189,6 +1190,11 @@ task.spawn(function()
 	while not CvcState.loaded do
 		task.wait(0.2)
 	end
+	-- SMASH: no pick screen (it would cover the match); the server gives a new kid the first
+	-- starter kart as their save loads (GARAGE)
+	if (Features :: any).SMASH == true then
+		return
+	end
 	while attr("Picked") ~= true do
 		if not Screen.isOpen("pick") then
 			openPick()
@@ -1227,7 +1233,7 @@ local function reveal(id: string, rarity: string)
 		color = colorOf(id),
 		kind = kindOf(id),
 		new = true,
-		stats = stats,
+		stats = if SMASH then nil else stats,
 		-- (the new car goes onto a free station by itself: then there's nothing to tap; with every
 		-- station full it only waits in the garage, Studio pr847 shot 03)
 		note = revealNote(id),
@@ -1332,6 +1338,7 @@ local function showPodiumWith(place: number, top: { [number]: { [string]: any } 
 	local me = racer()
 	local spd = if me then math.floor((CvcState.bar(me, "speed"))) else nil
 	local trained = if spd
+			and not SMASH
 			and spdAtRace
 			and spd > spdAtRace
 		then `+{spd - spdAtRace} SPD from training!`
