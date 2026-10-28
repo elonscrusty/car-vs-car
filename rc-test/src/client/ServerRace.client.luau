@@ -33,6 +33,12 @@ gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.DisplayOrder = 6
 gui.Parent = player:WaitForChild("PlayerGui")
+-- none of the race's words in a SMASH match (the banner, its count, NEXT RACE: Studio 2250)
+local function matchHides()
+	gui.Enabled = player:GetAttribute("InMatch") ~= true
+end
+player:GetAttributeChangedSignal("InMatch"):Connect(matchHides)
+matchHides()
 -- confetti falls in here, under the cards and words (ZIndex 0): over them it hid the results
 -- (Studio check race-4-5)
 local fall = Instance.new("Frame")
