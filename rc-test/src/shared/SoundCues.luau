@@ -27,7 +27,27 @@ export type Cue = {
 local SoundCues = {}
 
 -- Studio-checked Creator Store sounds: id -> its store name. Only ids here may be used.
-SoundCues.CHECKED = {} :: { [string]: string }
+-- (Studio search 10-28, sounds/found.txt: all loaded. Only Pro Sound Effects, DailySoundsFX, Roblox and
+-- licensed music-library stings: no voice lines, no clips from other games.)
+SoundCues.CHECKED = {
+	["rbxassetid://130378474223829"] = "Coin Pickup - Daily Sounds (DailySoundsFX)",
+	["rbxassetid://10066947742"] = "RBLX UI Purchase (SFX) (Roblox)",
+	["rbxassetid://9114895481"] = "Junk Rattle Box Of Miscellaneous Items 1 (SFX) (Pro Sound Effects)",
+	["rbxassetid://9120872602"] = "Wooden Chest Open Close Cedar Box 2 (SFX) (Pro Sound Effects)",
+	["rbxassetid://9120686092"] = "Whistle Ta Da 2 (SFX) (Pro Sound Effects)",
+	["rbxassetid://9117885276"] = "Power Up Sweeteners 14 (SFX) (Pro Sound Effects)",
+	["rbxassetid://9117060347"] = "Nasa Transmission Beep 1 (SFX) (Pro Sound Effects)",
+	["rbxassetid://9043512323"] = "Move to the Finish Line (sting a) (Juice Music)",
+	["rbxassetid://1844584807"] = "Glamour Fanfare 4 (Milan Pilar)",
+	["rbxassetid://9114329395"] = "Energy Cloud Whooshing By Very Fast 1 (SFX) (Pro Sound Effects)",
+	["rbxassetid://9125401226"] = "Boom Impact Deep Distant Thumping Hits (Pro Sound Effects)",
+	["rbxassetid://9119382002"] = "Solenoid Clunks 10 (SFX) (Pro Sound Effects)",
+	["rbxassetid://9113500221"] = "Body Hit Metal Impact 9 (SFX) (Pro Sound Effects)",
+	["rbxassetid://9119051578"] = "Shale Burst Smashing Rock With A Big Stone 4 (Pro Sound Effects)",
+	["rbxassetid://9119075972"] = "Shield Impacts 20 (SFX) (Pro Sound Effects)",
+	["rbxassetid://9039712090"] = "Family Friendly Tag - Sting 2 (Michael R Rado)",
+	["rbxassetid://9113071895"] = "Air Horn Various Lengths 3 (SFX) (Pro Sound Effects)",
+} :: { [string]: string }
 
 -- The actions the game must give a sound (FINISH-JOBS SOUNDS row), in play order.
 SoundCues.MUST = {
@@ -63,29 +83,61 @@ SoundCues.MUST = {
 
 SoundCues.ACTIONS = {
 	-- one coin lands in the coins number (Sfx climbs the pitch for a stream of them)
-	coin = { notes = { 1.6 }, gap = 0, volume = L.COIN },
+	coin = { id = "rbxassetid://130378474223829", notes = { 1.6 }, gap = 0, volume = L.COIN },
 	-- coins spent on a crate, a car or an upgrade: a quick "ka-ching"
-	buy = { notes = { 1.2, 1.8 }, gap = 0.06, volume = L.BUY },
+	buy = { id = "rbxassetid://10066947742", notes = { 1.2, 1.8 }, gap = 0.06, volume = L.BUY },
 	-- the crate rattles before it opens: low thumps
-	crateShake = { notes = { 0.75, 0.6, 0.75, 0.6, 0.75 }, gap = 0.12, volume = L.CRATE },
+	crateShake = {
+		id = "rbxassetid://9114895481",
+		notes = { 0.75, 0.6, 0.75, 0.6, 0.75 },
+		gap = 0.12,
+		volume = L.CRATE,
+	},
 	-- the lid pops
-	crateOpen = { notes = { 0.9, 1.4 }, gap = 0.05, volume = L.CRATE },
+	crateOpen = {
+		id = "rbxassetid://9120872602",
+		notes = { 0.9, 1.4 },
+		gap = 0.05,
+		volume = L.CRATE,
+	},
 	-- the new car shows: a sparkly run, longer for rarer cars (Sfx cuts it by rarity)
-	reveal = { notes = { 1, 1.25, 1.5, 1.88, 2, 2.5 }, gap = 0.09, volume = L.CRATE },
+	reveal = {
+		id = "rbxassetid://9120686092",
+		notes = { 1, 1.25, 1.5, 1.88, 2, 2.5 },
+		gap = 0.09,
+		volume = L.CRATE,
+	},
 	-- a car or plot level went up: four notes up
-	levelUp = { notes = { 1, 1.25, 1.5, 2 }, gap = 0.1, volume = L.LEVEL_UP },
+	levelUp = {
+		id = "rbxassetid://9117885276",
+		notes = { 1, 1.25, 1.5, 2 },
+		gap = 0.1,
+		volume = L.LEVEL_UP,
+	},
 	-- a new training station opens on the plot: a bright three-note "ta-da"
 	unlock = { notes = { 1.5, 1.88, 2.25, 3 }, gap = 0.08, volume = L.UNLOCK },
 	-- 3, 2, 1 on the start line: one low beep each
-	count = { notes = { 1 }, gap = 0, volume = L.COUNT },
+	count = { id = "rbxassetid://9117060347", notes = { 1 }, gap = 0, volume = L.COUNT },
 	-- GO: high and a little longer
-	go = { notes = { 2, 2.5 }, gap = 0.12, volume = L.COUNT },
+	go = {
+		id = "rbxassetid://9117060347",
+		pitch = 1.6,
+		notes = { 2, 2.5 },
+		gap = 0.12,
+		volume = L.COUNT,
+	},
 	-- your car crosses the line (4th or worse)
 	finish = { notes = { 1, 1.25 }, gap = 0.14, volume = L.FINISH },
 	-- your car crosses the line in the top 3
-	podium = { notes = { 1, 1.25, 1.5, 1.25, 2 }, gap = 0.11, volume = L.FINISH },
+	podium = {
+		id = "rbxassetid://9043512323",
+		notes = { 1, 1.25, 1.5, 1.25, 2 },
+		gap = 0.11,
+		volume = L.FINISH,
+	},
 	-- the league went up: a rising run with sparkles on top
 	leagueUp = {
+		id = "rbxassetid://1844584807",
 		notes = { 1, 1.25, 1.5, 2, 2.5, 2, 2.67, 2.2, 3 },
 		gap = 0.1,
 		volume = L.FIREWORKS,
@@ -94,13 +146,18 @@ SoundCues.ACTIONS = {
 	-- you grabbed a "?" box: a quick rising blip
 	pickup = { notes = { 1.5, 2.25 }, gap = 0.05, volume = L.PICKUP },
 	-- a rocket launches: a low-to-high whoosh
-	rocket = { notes = { 0.6, 0.9, 1.3 }, gap = 0.04, volume = L.ROCKET },
+	rocket = {
+		id = "rbxassetid://9114329395",
+		notes = { 0.6, 0.9, 1.3 },
+		gap = 0.04,
+		volume = L.ROCKET,
+	},
 	-- a rocket or mine goes off: a deep thump
-	boom = { notes = { 0.35, 0.3 }, gap = 0.06, volume = L.BOOM },
+	boom = { id = "rbxassetid://9125401226", notes = { 0.35, 0.3 }, gap = 0.06, volume = L.BOOM },
 	-- one machine-gun shot (Sfx spaces a burst out)
 	gun = { notes = { 2.8 }, gap = 0, volume = L.GUN },
 	-- a mine drops behind you: a low clunk then the arming tick
-	mine = { notes = { 0.7, 2 }, gap = 0.5, volume = L.MINE },
+	mine = { id = "rbxassetid://9119382002", notes = { 0.7, 2 }, gap = 0.5, volume = L.MINE },
 	-- the freeze gun fires: a cold high zap
 	freezeShot = { notes = { 3, 2.5 }, gap = 0.04, volume = L.FREEZE },
 	-- a kart freezes in ice: a crackle settling down
@@ -108,19 +165,40 @@ SoundCues.ACTIONS = {
 	-- the ice bursts (and the kart is smashed): a bright glassy run down
 	shatter = { notes = { 3, 2.67, 2.25, 1.5 }, gap = 0.035, volume = L.FREEZE },
 	-- a kart took damage: a short low knock
-	hit = { notes = { 0.8 }, gap = 0, volume = L.HIT },
+	hit = { id = "rbxassetid://9113500221", notes = { 0.8 }, gap = 0, volume = L.HIT },
 	-- two karts bump (it hurts too): a dull double thud
-	bump = { notes = { 0.55, 0.45 }, gap = 0.05, volume = L.BUMP },
+	bump = {
+		id = "rbxassetid://9113500221",
+		pitch = 0.75,
+		notes = { 0.55, 0.45 },
+		gap = 0.05,
+		volume = L.BUMP,
+	},
 	-- a kart got smashed: thump then a bright crash run
-	smash = { notes = { 0.4, 1.5, 2, 2.67 }, gap = 0.06, volume = L.SMASH },
+	smash = {
+		id = "rbxassetid://9119051578",
+		notes = { 0.4, 1.5, 2, 2.67 },
+		gap = 0.06,
+		volume = L.SMASH,
+	},
 	-- you are back in the arena: three notes up
 	respawn = { notes = { 1, 1.33, 1.78 }, gap = 0.07, volume = L.RESPAWN },
 	-- the shield goes up: a shimmer
-	shield = { notes = { 2, 2.5, 2, 2.5 }, gap = 0.05, volume = L.SHIELD },
+	shield = {
+		id = "rbxassetid://9119075972",
+		notes = { 2, 2.5, 2, 2.5 },
+		gap = 0.05,
+		volume = L.SHIELD,
+	},
 	-- the match starts (after the 3-2-1): a bright fanfare
-	matchStart = { notes = { 1, 1.5, 2 }, gap = 0.1, volume = L.MATCH },
+	matchStart = {
+		id = "rbxassetid://9039712090",
+		notes = { 1, 1.5, 2 },
+		gap = 0.1,
+		volume = L.MATCH,
+	},
 	-- the match ends: a long low horn, two notes down
-	matchEnd = { notes = { 1, 0.75 }, gap = 0.25, volume = L.MATCH },
+	matchEnd = { id = "rbxassetid://9113071895", notes = { 1, 0.75 }, gap = 0.25, volume = L.MATCH },
 	-- (older cues the screens already call)
 	trophy = { notes = { 1, 1.5, 2 }, gap = 0.1, volume = L.TROPHY },
 	gold = { notes = { 1, 1.25, 1.5, 2, 1.5, 2, 2.5 }, gap = 0.1, volume = L.TROPHY },

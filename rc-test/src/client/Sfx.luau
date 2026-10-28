@@ -60,7 +60,7 @@ local function one(id: string, pitch: number, volume: number, at: Vector3?)
 	s.Ended:Once(function()
 		root:Destroy()
 	end)
-	task.delay(4, function()
+	task.delay(10, function() -- (longer than any cue: the longest files run about 4 s)
 		if id ~= PING and not s.IsLoaded then
 			broken[id] = true
 		end
