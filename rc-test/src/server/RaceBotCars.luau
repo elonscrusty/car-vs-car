@@ -8,6 +8,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local Features = require(ReplicatedStorage.Shared.Features)
 local RaceBots = require(ReplicatedStorage.Shared.RaceBots)
 local RaceMaps = require(ReplicatedStorage.Shared.RaceMaps)
@@ -15,13 +16,14 @@ local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local CarBuilder = require(script.Parent.CarBuilder)
 
-type Car = {
+export type Car = {
 	bot: RaceBots.Bot,
 	model: Model,
 	body: BasePart,
 	pos: Vector3,
 	move: AlignPosition,
 	turn: AlignOrientation,
+	rival: boolean, -- an easy race's rival: rides just in front of the new kid, in view
 }
 
 export type Fleet = {
@@ -100,6 +102,12 @@ function RaceBotCars.spawn(
 		follow = RaceBots.newFollow(),
 	}
 	local names = table.clone(RaceBots.NAMES)
+	-- each bot wears a different race car (every screen draws it as that toy car, OtherCars)
+	local looks = CarCatalog.raceIds()
+	for k = #looks, 2, -1 do
+		local j = random:NextInteger(1, k)
+		looks[k], looks[j] = looks[j], looks[k]
+	end
 	for i = 1, count do
 		local k = humans + i
 		local g = ServerRace.gridOn(map, k, t.spawn.y)
@@ -107,14 +115,18 @@ function RaceBotCars.spawn(
 		local side = if k % 2 == 1 then -1 else 1
 		local nm = table.remove(names, random:NextInteger(1, #names)) or `Bot {i}`
 		local colors = RaceBots.COLORS
+		local rival = easy and i == 1
 		local bot = RaceBots.new(
 			route,
 			`{nm} (bot)`,
-			RaceBots.skillFor(i, count, random:NextNumber(), lo, hi),
+			if rival
+				then RaceBots.RIVAL_SKILL
+				else RaceBots.skillFor(i, count, random:NextNumber(), lo, hi),
 			RaceBots.laneFor(i),
 			side * ServerRace.GRID_SIDE,
 			random:NextNumber() * 6.28,
-			random:NextNumber() * 0.35 + (if easy then RaceBots.EASY_DELAY else 0),
+			-- (the rival goes at GO: it has to get in front of the kid)
+			random:NextNumber() * 0.35 + (if easy and not rival then RaceBots.EASY_DELAY else 0),
 			ServerRace.BACK + row * ServerRace.GRID_ROW,
 			colors[random:NextInteger(1, #colors)]
 		)
@@ -123,6 +135,12 @@ function RaceBotCars.spawn(
 		model:SetAttribute("BotName", bot.name)
 		local body = model.PrimaryPart :: BasePart
 		body.Color = Color3.fromRGB(bot.color[1], bot.color[2], bot.color[3])
+		local look = if Features.CVC and #looks > 0 then looks[(i - 1) % #looks + 1] else nil
+		local info = CarCatalog.get(look)
+		if info then
+			model:SetAttribute("ToyCar", look)
+			body.Color = Color3.fromRGB(info.color[1], info.color[2], info.color[3])
+		end
 		for _, d in model:GetDescendants() do
 			if d:IsA("BasePart") then
 				d.CanCollide = false
@@ -160,6 +178,7 @@ function RaceBotCars.spawn(
 			pos = pos,
 			move = move,
 			turn = turn,
+			rival = rival,
 		})
 	end
 	return fleet
@@ -192,7 +211,14 @@ function RaceBotCars.step(
 				math.clamp((RaceBots.progress(fleet.route, bot) - lead) / RaceBots.CATCH_GAP, -1, 1)
 		end
 		local had = bot.time
-		local cap = if fleet.easy then RaceBots.followCap(fleet.follow, bot) else nil
+		local cap = if fleet.easy
+			then RaceBots.followCap(
+				fleet.follow,
+				bot,
+				if car.rival then -RaceBots.RIVAL_LEAD else nil,
+				if car.rival then since else nil
+			)
+			else nil
 		local line = if fleet.easy then RaceBots.lineCap(fleet.route, bot, kid) else nil
 		if line then
 			cap = math.min(cap or line, line)

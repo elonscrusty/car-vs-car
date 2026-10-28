@@ -1,8 +1,10 @@
 --!strict
 -- Car VS Car screens: icons and car pictures. An uploaded picture (Images) wins; until there is
--- one, each is drawn from glossy rounded frames with the house ink outline (coin, gem, trophy,
--- bag, gift, crates, lock, check, league shields, the stat glyphs, and a stand-in toy car).
--- Every drawing works in 0..100 units of its own box, so it scales with the box.
+-- one, each is drawn from flat rounded frames with one ink outline, the same width on every
+-- icon (coin, gem, trophy, bag, gift, crates, lock, check, league shields, the stat glyphs, and
+-- a stand-in toy car): simple sticker shapes, no shine or gradients (carter 10-28: the glossy
+-- ones looked machine-made). Every drawing works in 0..100 units of its own box, centered in it,
+-- so it scales with the box.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -14,6 +16,7 @@ local Icons = {}
 
 local INK = Base.color("ink")
 local WHITE = Base.WHITE
+local OUTLINE = 6 -- every icon's ink outline, in units of its 0..100 box
 
 -- A box whose children are drawn in 0..ux by 0..uy units (default 100 x 100).
 local function canvas(
@@ -62,7 +65,8 @@ local function shape(
 	rot: number?,
 	z: number?
 ): Frame
-	local o = (ol or 6) / 2 -- the outline, in units, each side
+	local _ = ol -- (one outline width for every icon, so they read as one set)
+	local o = OUTLINE / 2 -- the outline, in units, each side
 	local zz = z or 1
 	local ink = Base.fill(c, name .. "Ink", x - o, y - o, w + 2 * o, h + 2 * o, INK, zz)
 	local fill = Base.fill(c, name, x, y, w, h, color, zz + 1)
@@ -80,24 +84,12 @@ local function shape(
 	return fill
 end
 
--- the glossy top: light at the top, the color at the middle
-local function gloss(f: GuiObject, color: Color3, amount: number?)
-	f.BackgroundColor3 = WHITE
-	local g = Instance.new("UIGradient")
-	g.Rotation = 90
-	g.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, color:Lerp(WHITE, amount or 0.45)),
-		ColorSequenceKeypoint.new(0.55, color),
-		ColorSequenceKeypoint.new(1, color:Lerp(INK, 0.18)),
-	})
-	g.Parent = f
+-- flat color (the icons have no shine: one color per part, carter 10-28)
+local function gloss(f: GuiObject, color: Color3, _amount: number?)
+	f.BackgroundColor3 = color
 end
 
-local function shineSpot(c: Frame, x: number, y: number, w: number, h: number, z: number)
-	local s = Base.fill(c, "Shine", x, y, w, h, WHITE, z)
-	s.BackgroundTransparency = 0.35
-	Base.corner(s)
-end
+local function shineSpot(_c: Frame, _x: number, _y: number, _w: number, _h: number, _z: number) end
 
 local function picture(
 	parent: Instance,
@@ -156,14 +148,12 @@ end
 
 DRAW.trophy = function(c)
 	local gold = Base.color("leagueGold")
-	shape(c, "HandleL", 6, 16, 26, 30, gold, nil, 7)
-	shape(c, "HandleR", 68, 16, 26, 30, gold, nil, 7)
-	local cup = shape(c, "Cup", 20, 8, 60, 52, gold, 20, 7, nil, 3)
-	gloss(cup, gold, 0.5)
-	shape(c, "Stem", 42, 56, 16, 16, Base.color("goDeep"), 3, 6, nil, 3)
-	local base = shape(c, "Foot", 24, 72, 52, 18, Base.color("goDeep"), 5, 7, nil, 3)
-	gloss(base, Base.color("goDeep"), 0.3)
-	star(c, 36, 18, 28, WHITE, 6)
+	local deep = Base.color("goDeep")
+	shape(c, "HandleL", 10, 18, 24, 26, gold, nil, 6)
+	shape(c, "HandleR", 66, 18, 24, 26, gold, nil, 6)
+	shape(c, "Cup", 22, 10, 56, 50, gold, 20, 6, nil, 3)
+	shape(c, "Stem", 43, 56, 14, 16, deep, 3, 6, nil, 3)
+	shape(c, "Foot", 26, 72, 48, 16, deep, 5, 6, nil, 3)
 end
 
 DRAW.bag = function(c)
@@ -213,18 +203,14 @@ end
 local function crate(c: Frame, opts: { [string]: any })
 	local r = UiTheme.rarityId(opts.rarity)
 	local col = Base.color(UiTheme.RARITY[r].color)
-	local box = shape(c, "Box", 10, 30, 80, 62, col, 10, 7, nil, 2)
-	gloss(box, col, 0.4)
-	Base.fill(c, "Plank", 10, 56, 80, 8, col:Lerp(INK, 0.3), 4)
-	Base.fill(c, "Band", 43, 30, 14, 62, col:Lerp(INK, 0.35), 4)
+	local deep = col:Lerp(INK, 0.3)
+	shape(c, "Box", 12, 32, 76, 56, col, 8, 6, nil, 2)
+	Base.fill(c, "Band", 44, 32, 12, 56, deep, 4)
 	if opts.open then
-		local lid = shape(c, "Lid", 4, 6, 88, 22, col, 8, 7, -16, 5)
-		gloss(lid, col, 0.5)
-		star(c, 34, 8, 32, Base.color("go"), 8)
+		shape(c, "Lid", 8, 6, 84, 20, col, 6, 6, -14, 5)
 	else
-		local lid = shape(c, "Lid", 6, 18, 88, 22, col, 8, 7, nil, 5)
-		gloss(lid, col, 0.5)
-		Base.fill(c, "Lock", 42, 30, 16, 14, Base.color("go"), 8)
+		shape(c, "Lid", 8, 14, 84, 20, col, 6, 6, nil, 5)
+		Base.corner(Base.fill(c, "Lock", 43, 30, 14, 12, Base.color("go"), 8), 3)
 	end
 end
 DRAW.crate = crate

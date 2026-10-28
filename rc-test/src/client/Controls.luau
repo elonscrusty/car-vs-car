@@ -19,6 +19,7 @@ export type Controls = {
 local Controls = {}
 
 local STICK_RADIUS = 80
+local KNOB_TRAVEL = STICK_RADIUS - 35 - 6 -- (the knob is 70 across; the ring's rim)
 local DEADZONE = 0.08
 
 local function isPress(input: InputObject): boolean
@@ -42,7 +43,9 @@ local function holdButton(
 	f.Position = pos
 	f.Size = UDim2.fromScale(heightScale, heightScale)
 	f.BackgroundColor3 = color
-	f.BackgroundTransparency = 0.35
+	-- solid: see-through they vanished over the yellow boost pads (carter's phone 10-28); a press
+	-- shows as a lighter face
+	f.BackgroundTransparency = 0
 	f.Active = true
 	f.Parent = gui
 	local ratio = Instance.new("UIAspectRatioConstraint")
@@ -70,12 +73,12 @@ local function holdButton(
 			return
 		end
 		held = true
-		f.BackgroundTransparency = 0.05
+		f.BackgroundColor3 = color:Lerp(Color3.new(1, 1, 1), 0.3)
 		local conn: RBXScriptConnection
 		conn = input.Changed:Connect(function()
 			if input.UserInputState == Enum.UserInputState.End then
 				held = false
-				f.BackgroundTransparency = 0.35
+				f.BackgroundColor3 = color
 				conn:Disconnect()
 			end
 		end)
@@ -207,8 +210,8 @@ function Controls.new(
 				end
 				local dx = input.Position.X - origin.X
 				local x = math.clamp(dx / STICK_RADIUS, -1, 1)
-				knob.Position =
-					UDim2.fromOffset(STICK_RADIUS + x * STICK_RADIUS * 0.8, STICK_RADIUS)
+				-- (the knob stays inside its ring: it went half out at full lock, phone 10-28)
+				knob.Position = UDim2.fromOffset(STICK_RADIUS + x * KNOB_TRAVEL, STICK_RADIUS)
 				if math.abs(x) < DEADZONE then
 					touchSteer = 0
 				else

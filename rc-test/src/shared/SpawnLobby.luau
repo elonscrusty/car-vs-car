@@ -175,8 +175,9 @@ function SpawnLobby.parts(): { Piece }
 	add(
 		"Ground",
 		"Path",
-		v(2 * SpawnLobby.GAP - 6, 0.05, front - 9),
-		v(0, 0.025, (front + 9) / 2),
+		-- (from the ring's outer edge: it used to start inside and cut a gap in it, playtest u18)
+		v(2 * SpawnLobby.GAP - 6, 0.05, front - 11),
+		v(0, 0.025, (front + 11) / 2),
 		L.paving2,
 		{
 			collide = false,
@@ -476,10 +477,12 @@ do
 	end
 	local st = SpawnLobby.STATUE
 	table.insert(M, {
-		model = "RockCrawler", -- carter's own truck, made giant
+		model = "RockCrawler", -- carter's own truck, made big
 		group = "StatueCar",
 		at = v(st.x, 2.4, st.z),
-		fit = v(7, 7, 11),
+		-- smaller than the old 7x7x11: on a phone it was the biggest car on screen (4.4%), bigger
+		-- than the kid's own (art report #2)
+		fit = v(5, 5, 7.8),
 		long = "z",
 		keep = {},
 		collide = false,

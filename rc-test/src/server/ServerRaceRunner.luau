@@ -70,6 +70,7 @@ type Racer = {
 	score: number, -- a drift round: points from slides that are over
 	leg: { x: number, z: number, t: number }?, -- where and when it crossed its last gate
 	new: boolean?, -- never raced: an easy race's bots stay behind them (RaceBots.follow)
+	moved: boolean?, -- drove off from where it stood at GO (ServerRace.moved)
 }
 
 local ServerRaceRunner = {}
@@ -306,26 +307,36 @@ local function buildSign(): { TextLabel }
 		return p
 	end
 	local postX = LobbyLayout.ROAD_W / 2 + 0.6
+	-- high enough that the walking camera passes under it (phone playtest u09: at 11 the camera
+	-- went in under the board)
+	local boardY = 15
 	for _, s in { -1, 1 } do
 		part(
 			"Post",
-			Vector3.new(0.8, 13, 0.8),
-			CFrame.new(s * postX, 6.5, z),
+			Vector3.new(0.8, boardY + 2, 0.8),
+			CFrame.new(s * postX, (boardY + 2) / 2, z),
 			Color3.fromRGB(40, 40, 46)
 		)
 	end
+	-- the world signs' look (the leaderboards): dark ink, a yellow rim, LuckiestGuy
+	part(
+		"Rim",
+		Vector3.new(2 * postX + 1.4, 5.2, 0.4),
+		CFrame.new(0, boardY, z),
+		Color3.fromRGB(255, 199, 44)
+	)
 	local board = part(
 		"Board",
 		Vector3.new(2 * postX + 0.8, 4.6, 0.6),
-		CFrame.new(0, 11, z),
-		Color3.fromRGB(22, 22, 26)
+		CFrame.new(0, boardY, z),
+		Color3.fromRGB(27, 27, 47)
 	)
 	-- checkered strip on top
 	for i = 0, 9 do
 		part(
 			"Checker",
 			Vector3.new((2 * postX + 0.8) / 10, 0.7, 0.7),
-			CFrame.new(-(postX + 0.4) + (i + 0.5) * (2 * postX + 0.8) / 10, 13.65, z),
+			CFrame.new(-(postX + 0.4) + (i + 0.5) * (2 * postX + 0.8) / 10, boardY + 2.95, z),
 			if i % 2 == 0 then Color3.new(1, 1, 1) else Color3.fromRGB(30, 30, 34)
 		)
 	end
@@ -342,9 +353,9 @@ local function buildSign(): { TextLabel }
 		text.Size = UDim2.fromScale(0.94, 0.86)
 		text.Position = UDim2.fromScale(0.03, 0.07)
 		text.BackgroundTransparency = 1
-		text.Font = Enum.Font.GothamBlack
+		text.Font = Enum.Font.LuckiestGuy
 		text.TextScaled = true
-		text.TextColor3 = Color3.fromRGB(255, 213, 79)
+		text.TextColor3 = Color3.fromRGB(255, 199, 44)
 		text.Parent = gui
 		table.insert(labels, text)
 	end
@@ -437,7 +448,9 @@ local function payRace(
 		byId[r.player.UserId] = r.player
 		-- (no try pay for JOIN-and-walk-off: drove over the line, still on the stand. Studio
 		-- after-810: "past one gate" left a kid stuck on the first bend with 0 coins)
-		tried[r.player.UserId] = not r.out and (r.laps > 0 or r.timer.next >= 2)
+		-- (moved, not "past gate 1": the lap clock jumps a gate at GO, so a kid who sat still got
+		-- 2ND, a trophy and 70 coins, Studio after-818)
+		tried[r.player.UserId] = not r.out and (r.laps > 0 or r.moved == true)
 	end
 	local paid: { [number]: number } = {}
 	local starred: { [number]: number } = {}
@@ -833,7 +846,7 @@ local function runRace(hooks: Hooks, slot: number)
 		local lead: number? = nil -- the leading player's progress, for the bots' catch-up
 		local kidLead: number? = nil -- how far round the furthest new kid is, for easy bots
 		-- (a new kid who sits still after GO doesn't hold the bots: Studio after-810 waited 2:47)
-		local kidFrom: { [Racer]: number } = {}
+		local startFrom: { [Racer]: { x: number, z: number } } = {} -- where each car was at GO
 		local kidMoved = false
 		while not drift do
 			RunService.Heartbeat:Wait()
@@ -885,6 +898,7 @@ local function runRace(hooks: Hooks, slot: number)
 							end
 							if r.laps >= groupLaps[gi] then
 								r.time = clock - goAt
+								placesAt = clock -- (this frame: the pill and FINISHED say the same place)
 								startCountdown(clock - goAt)
 								r.finishedNow = true
 							end
@@ -901,7 +915,7 @@ local function runRace(hooks: Hooks, slot: number)
 						-- trophy and then paid nothing, Studio after-810)
 						kid = if groupEasy[gi]
 								and r.new
-								and (r.laps > 0 or r.timer.next >= 2)
+								and (r.laps > 0 or r.moved == true)
 							then true
 							else nil,
 					})
@@ -927,6 +941,7 @@ local function runRace(hooks: Hooks, slot: number)
 				tagCars()
 				local runs: { ServerRace.Run } = {}
 				kidLead = nil
+				local kidProgress: number? = nil
 				for _, r in racers do
 					local s = r.timer
 					local passed = if s.running then s.next - 1 else 0
@@ -952,24 +967,36 @@ local function runRace(hooks: Hooks, slot: number)
 					if not out and (lead == nil or progress > lead) then
 						lead = progress
 					end
+					if not out and lx and lz and clock >= goAt and not r.moved then
+						local from = startFrom[r] or { x = lx, z = lz }
+						startFrom[r] = from
+						r.moved = ServerRace.moved(from, lx, lz)
+					end
 					if not out and r.new and bots then
 						-- (how far along the road: the easy bots stay behind the furthest new kid)
-						local at = if lx and lz
-							then RaceBots.roadAt(bots.route, progress, lx, lz)
-							else RaceBots.distOf(bots.route, progress)
-						if kidLead == nil or at > kidLead then
+						local at = RaceBots.kidRoad(
+							bots.route,
+							if lx and lz
+								then RaceBots.roadAt(bots.route, progress, lx, lz)
+								else RaceBots.distOf(bots.route, progress),
+							r.time ~= nil
+						)
+						if at and (kidLead == nil or at > kidLead) then
 							kidLead = at
+							kidProgress = progress
 						end
-						kidFrom[r] = kidFrom[r] or at
-						kidMoved = kidMoved or at - kidFrom[r] > ServerRace.IDLE_MOVE
+						kidMoved = kidMoved or r.moved == true
 					end
 				end
 				local cars = #racers
 				if bots then
 					for _, car in bots.cars do
+						local real = RaceBots.progress(bots.route, car.bot)
 						table.insert(runs, {
 							time = car.bot.time,
-							progress = RaceBots.progress(bots.route, car.bot),
+							progress = if bots.easy
+								then RaceBots.placeProgress(car.bot, real, kidLead, kidProgress)
+								else real,
 						})
 						cars += 1
 					end

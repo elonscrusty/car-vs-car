@@ -32,6 +32,7 @@ local Sfx = require(script.Parent:WaitForChild("Sfx"))
 local Ui = script.Parent:WaitForChild("Ui")
 local Screens = Ui:WaitForChild("Screens")
 local Base = require(Ui:WaitForChild("Base"))
+local Kit = require(Ui:WaitForChild("Kit"))
 local Screen = require(Ui:WaitForChild("Screen"))
 local Flow = require(Screens:WaitForChild("Flow"))
 local Hud = require(Screens:WaitForChild("Hud"))
@@ -637,6 +638,74 @@ local function trainDot(): number?
 	return nil
 end
 
+-- just picked: "THIS IS BOLT, YOUR CAR!" for a few seconds (the playtest: the kid never knew
+-- which car was his, review fix 4)
+local function yourCar()
+	local car = racer()
+	local h = hud
+	if not car or not h then
+		return
+	end
+	local words = `THIS IS {CvcState.name(car.id)}, YOUR CAR!`
+	local l = Kit.shout(h.gui.canvas, 168, 104, 420, 46, words, "go")
+	local holder = l.Parent
+	task.delay(4.5, function()
+		if holder then
+			holder:Destroy()
+		end
+	end)
+end
+
+-- the race countdown: the car's name and speed under the big 3, 2, 1 (review fix 4)
+local tagGui: Base.Gui? = nil
+local function carTag()
+	local car = racer()
+	if not car then
+		return
+	end
+	local g = tagGui or Base.screen("Ui_CarTag", Base.ORDER.hud, false)
+	tagGui = g
+	for _, c in g.canvas:GetChildren() do
+		c:Destroy()
+	end
+	local spd = math.floor((CvcState.bar(car, "speed")))
+	local pill = Base.fill(g.canvas, "Tag", 248, 230, 260, 40, Base.color("ink"), 2)
+	pill.BackgroundTransparency = 0.15
+	Base.corner(pill)
+	Base.outline(pill, 3, Base.color("go"))
+	Base.text(pill, "Words", 10, 4, 240, 32, `{CvcState.name(car.id)}  SPD {spd}`, {
+		color = Base.color("go"),
+		stroke = 4,
+		z = 3,
+	})
+	Base.show(g, true)
+	task.delay(5, function()
+		if tagGui == g and pill.Parent then
+			Base.show(g, false)
+		end
+	end)
+end
+-- from the first of 3, 2, 1 (Main's CountStep; Racing only comes on at GO, Studio pr816)
+local tagAt = 0
+local function tagOnce()
+	if os.clock() - tagAt > 8 then
+		tagAt = os.clock()
+		carTag()
+	end
+end
+player:GetAttributeChangedSignal("CountStep"):Connect(function()
+	if attr("Driving") == true then
+		tagOnce()
+	end
+end)
+player:GetAttributeChangedSignal("Racing"):Connect(function()
+	if attr("Racing") == true then
+		tagOnce()
+	elseif tagGui then
+		Base.show(tagGui, false)
+	end
+end)
+
 local coachedAt = 0 -- (os.clock) this visit's last COACH tap
 
 -- the one thing to tap next on the plot screen, and its words (first 10 minutes: COACH, then
@@ -769,7 +838,8 @@ local function openHud(stagger: boolean)
 				coachedAt = os.clock()
 				local h = hud
 				if h then
-					h.api.float(690, 262, `{Training.COACH_MULT}X TRAINING!`, "pink")
+					-- (in from the edge: its "!" was cut; up over INVITE, Studio pr816)
+					h.api.float(636, 205, `{Training.COACH_MULT}X TRAINING!`)
 				end
 			end
 		end,
@@ -803,8 +873,12 @@ RunService.Heartbeat:Connect(function()
 	-- is up, Studio live1)
 	local shows = want and not anyOpen(WINDOWS) and not raceCardUp()
 	if want and not hud then
-		openHud(not staggered and attr("JustPicked") == true)
+		local fresh = not staggered and attr("JustPicked") == true
+		openHud(fresh)
 		staggered = true
+		if fresh then
+			yourCar()
+		end
 	end
 	local h = hud
 	if h and shows ~= hudOn then
@@ -859,14 +933,15 @@ RunService.Heartbeat:Connect(function()
 			"You're in! Keep training",
 			left ~= nil and left < 10
 		)
-		api.setRace(if t then `YOU'RE IN! {t}` else "YOU'RE IN!", "blue", false)
+		-- (one clock only: BIG RACE in m:ss; the RACE! button has no clock)
+		api.setRace("YOU'RE IN!", "blue", false)
 	else
 		api.setNextUp(
 			if t then `BIG RACE in {t}` else "BIG RACE soon",
 			"Tap RACE! to join 8 cars",
 			left ~= nil and left < 10
 		)
-		api.setRace(if t then `RACE! {t}` else "RACE!", "lime", true)
+		api.setRace("RACE!", "lime", true)
 	end
 	-- COACH: 2x training for 10 s, once a minute
 	local at = num("CoachAt")
@@ -878,7 +953,8 @@ RunService.Heartbeat:Connect(function()
 		api.setCoach(0, "")
 	else
 		local wait = Training.COACH_EVERY - (sNow - at)
-		api.setCoach(wait / Training.COACH_EVERY, clock(wait))
+		-- (the ring fills back up; no third clock)
+		api.setCoach(wait / Training.COACH_EVERY, "")
 	end
 end)
 
@@ -888,19 +964,23 @@ end)
 -- ("+1 TURN" over "+1 BOOST", Studio plot-edges 16)
 local floatAt = 0
 local floatSide = 1
-local function floatUp(words: string, tone: string, max: boolean)
+local function floatUp(words: string, _tone: string, max: boolean)
 	local now = os.clock()
 	local at = math.max(now, floatAt)
 	if at - now > 3 then
 		return -- (lots at once: the rest wait for the next change)
 	end
-	floatAt = at + 0.7
+	-- (1 s apart and 180 px apart: at 0.7 s and 100 px "+1 TURN" still ran into "+1 BOOST",
+	-- carter's phone 10-28)
+	floatAt = at + 1
 	floatSide = -floatSide
-	local x = 378 + floatSide * 50
+	local x = 378 + floatSide * 90
 	task.delay(at - now, function()
 		local h = hud
 		if h and hudOn then
-			h.api.float(x, 290, words, tone)
+			-- (one look for every float: gold with the ink edge; lime "+1 TURN" was faint on the
+			-- light floor)
+			h.api.float(x, 290, words)
 			if max then
 				Sfx.maxed()
 			else
@@ -923,7 +1003,11 @@ CvcState.changed:Connect(function()
 				local whole = math.floor(v)
 				local key = car.uid .. stat.bar
 				local was = lastBars[key]
-				if was and whole > was and h and hudOn and car.uid == CvcState.racer then
+				-- (only while coaching, or at MAX: a +1 every few seconds while the kid walked away
+				-- rewarded nothing he did, phone 10-28)
+				local loud = v >= cap
+					or Training.coaching(num("CoachAt"), workspace:GetServerTimeNow())
+				if was and whole > was and h and hudOn and car.uid == CvcState.racer and loud then
 					local words = if v >= cap
 						then `{stat.word} MAX!`
 						else `+{whole - was} {stat.word}`
@@ -1080,45 +1164,21 @@ task.spawn(function()
 	end)
 end)
 
--- ===== the race: the big place pill top middle, then the podium =====
+-- ===== the race: the podium =====
 
--- (the old drive HUD keeps the lap clock top left and BOOST by DRIFT; this adds 2ND / 8)
-local raceHud: Screen.Handle? = nil
-local raceOn = false
-local lastPlace = ""
-RunService.Heartbeat:Connect(function()
-	local place, cars = attr("RacePlace"), attr("RaceCars")
-	local shows = attr("Racing") == true
-		and type(place) == "number"
-		and type(cars) == "number"
-		and cars > 1
-		and not anyOpen(FULL)
-	if shows and not raceHud then
-		raceHud = Hud.race({
-			lap = false,
-			top = false,
-			boost = false,
-			place = place,
-			total = cars,
-			-- under the lap clock top left (the FINISH IN strip is top middle)
-			placeAt = { 6, 126, 176, 54 },
-		})
-	end
-	local h = raceHud
-	if h and shows ~= raceOn then
-		raceOn = shows
-		Base.show(h.gui, shows)
-	end
-	if h and shows then
-		local key = `{place}/{cars}`
-		if key ~= lastPlace then
-			lastPlace = key
-			h.api.setPlace(place, cars)
-		end
-	end
-end)
+-- (the place shows in the lap clock top left, Main.client: no pill over the move stick)
 
 local podiumAt = 0
+-- the racer's SPEED at the last podium (or when the game started), for "+N SPD from training!"
+local spdAtRace: number? = nil
+local spdCar = "" -- (whose: a new racer starts again, its SPEED isn't training)
+CvcState.changed:Connect(function()
+	local me = racer()
+	if me and (spdAtRace == nil or me.uid ~= spdCar) then
+		spdAtRace = math.floor((CvcState.bar(me, "speed")))
+		spdCar = me.uid
+	end
+end)
 -- place: yours (past the cars = didn't finish: NICE TRY!); top: the top 3 cars, by place
 local function showPodiumWith(place: number, top: { [number]: { [string]: any } }, coins: number)
 	local at = os.clock()
@@ -1131,10 +1191,23 @@ local function showPodiumWith(place: number, top: { [number]: { [string]: any } 
 	end
 	-- a crate to open (the first race's free one): the big button opens it, the car shows at once
 	local crate = CvcState.crates > 0 and #CvcState.garage < Profile.MAX_GARAGE
+	-- +N SPD since the last race (the first: since the game started)
+	local me = racer()
+	local spd = if me then math.floor((CvcState.bar(me, "speed"))) else nil
+	local trained = if spd
+			and spdAtRace
+			and spd > spdAtRace
+		then `+{spd - spdAtRace} SPD from training!`
+		else nil
+	if spd and me then
+		spdAtRace = spd
+		spdCar = me.uid
+	end
 	Flow.podium({
 		place = place,
 		top = top,
 		coins = coins,
+		trained = trained,
 		trophies = if League.trophy(place) then 1 else 0,
 		nextWords = if crate then "OPEN CRATE!" else nil,
 	}, {
@@ -1172,17 +1245,26 @@ local function showPodium(rows: { any })
 	local myCar = racer()
 	local top = {}
 	local usedColors: { [number]: boolean } = {}
-	for i = 1, math.min(3, #rows) do
-		local r = rows[i]
+	for i, r in rows do
+		if #top >= 3 then
+			break
+		end
+		-- (YOU get no step when you didn't finish: YOU stood on 3 after NICE TRY, Studio after818;
+		-- bots keep theirs, race 1 ends at the kid's finish before any bot has a time)
+		if type(r) ~= "table" or (i == mine and not finished) then
+			continue
+		end
 		local isMe = i == mine
 		local name = if isMe then "YOU" elseif type(r.name) == "string" then r.name else "?"
+		-- (just the name: "Turbo Tim (bot)" was cut to "Turbo Tim (.")
+		name = string.gsub(name, "%s*%(bot%)$", "")
 		if #name > 12 then
 			name = string.sub(name, 1, 11) .. "."
 		end
 		-- (bots all race the same car name: their own names give each its own color)
 		local bot = r.bot or type(r.car) ~= "string"
 		local key = if bot then name else r.car
-		top[i] = {
+		top[#top + 1] = {
 			name = name,
 			id = if isMe and myCar then myCar.id else nil,
 			color = if isMe and myCar

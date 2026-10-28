@@ -282,8 +282,11 @@ test("pad signs: upright on posts over eye level, at the edge facing the middle"
 	truthy(S.w <= P.w - 2, "narrower than the pad")
 	for i, g in T.GRID do
 		local x, z, yaw = T.signAt(i)
-		-- on the pad's own edge
-		truthy(math.abs(x - g.x) <= P.w / 2 and math.abs(z - g.z) <= P.d / 2, `sign {i} on its pad`)
+		-- on the pad's own edge (or on the back wall just behind it)
+		truthy(
+			math.abs(x - g.x) <= P.w / 2 and math.abs(z - g.z) <= P.d / 2 + 1,
+			`sign {i} on its pad`
+		)
 		-- its words (+z turned by yaw) point toward the middle of the plot
 		local fx, fz = math.sin(math.rad(yaw)), math.cos(math.rad(yaw))
 		truthy(fx * (0 - x) + fz * (0 - z) > 0, `sign {i} faces the middle`)
@@ -302,6 +305,38 @@ test("walking in at the gate, you see the scoreboard over the back pad signs", f
 			truthy(y > S.low + S.h, `sign {i} under the board from the gate`)
 		end
 	end
+end)
+
+test("walking up close, no pad sign hides the scoreboard", function()
+	local B, S, R = T.BOARD, T.PAD_SIGN, T.ROOM
+	local bottom = B.y - B.h / 2
+	local hid = {}
+	for i = 1, #T.GRID do
+		local sx, sz, yaw, low = T.signAt(i)
+		if yaw == 0 and sz > B.z + 0.5 then
+			-- a sign on posts in front of the board: does any line from your eyes to the board pass
+			-- through it? (eyes or a low phone camera, anywhere on the garage floor)
+			for ex = R.x0, R.x1, 2 do
+				for ez = R.z0, R.z1, 4 do
+					for _, ey in { 5, 8 } do
+						for bx = B.x - B.w / 2, B.x + B.w / 2, 1 do
+							for by = bottom, B.y + B.h / 2, 1 do
+								local t = (ez - sz) / (ez - B.z)
+								local x, y = ex + (bx - ex) * t, ey + (by - ey) * t
+								if math.abs(x - sx) < S.w / 2 and y > low and y < low + S.h then
+									hid[i] = true
+								end
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+	truthy(next(hid) == nil, "a sign stands between you and the board")
+	-- the sign under the board hangs clear of it
+	local _, _, _, low = T.signAt(1)
+	truthy(low + S.h < bottom and low > 6, "the middle treadmill's sign under the board")
 end)
 
 test("locked pads stay hidden; only the next one shows, once you can pay for it", function()

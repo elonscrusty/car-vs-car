@@ -30,43 +30,81 @@ test("a trophies board, then a lap board for every map, in their own stores", fu
 	end
 end)
 
+-- a board's footprint on the ground: the line from one end to the other (lobby-local x, z)
+local function ends(b: Lb.Board): (number, number, number, number)
+	local fx, fz = Lb.facing(b)
+	local rx, rz = -fz, fx -- the board's own x
+	local h = Lb.BOARD_W / 2
+	return b.x - rx * h, b.z - rz * h, b.x + rx * h, b.z + rz * h
+end
+
+-- how far a point is from a board's footprint
+local function away(b: Lb.Board, px: number, pz: number): number
+	local ax, az, bx, bz = ends(b)
+	local dx, dz = bx - ax, bz - az
+	local t = math.clamp(((px - ax) * dx + (pz - az) * dz) / (dx * dx + dz * dz), 0, 1)
+	return math.sqrt((ax + t * dx - px) ^ 2 + (az + t * dz - pz) ^ 2)
+end
+
 test("every board has a spot, clear of each other, the walk, the bushes and the lamps", function()
 	for i, b in boards do
 		truthy(Lb.placed(b, i), b.id .. " has no slot")
-		truthy(
-			math.abs(b.x) - Lb.BOARD_W / 2 >= SpawnLobby.GAP,
-			b.id .. " blocks the walk to the street"
-		)
-		for j = 1, i - 1 do
+		local ax, az, bx, bz = ends(b)
+		for _, e in { { ax, az }, { bx, bz } } do
 			truthy(
-				math.abs(b.x - boards[j].x) >= Lb.BOARD_W + 0.5,
-				b.id .. " touches " .. boards[j].id
+				math.abs(e[1]) >= SpawnLobby.GAP or e[2] < SpawnLobby.PAD_Z,
+				b.id .. " blocks the walk to the street"
 			)
+			truthy(
+				e[1] >= SpawnLobby.BOX.minX + 1
+					and e[1] <= SpawnLobby.BOX.maxX - 1
+					and e[2] >= SpawnLobby.BOX.minZ + 1
+					and e[2] <= SpawnLobby.BOX.maxZ,
+				b.id .. " in the lobby"
+			)
+			for j = 1, i - 1 do
+				truthy(away(boards[j], e[1], e[2]) >= 0.5, b.id .. " touches " .. boards[j].id)
+			end
 		end
 		for _, bush in SpawnLobby.BUSHES do
-			if bush.z > 20 then
-				truthy(math.abs(b.x - bush.x) >= Lb.BOARD_W / 2 + 0.5, b.id .. " on a bush")
-			end
+			truthy(away(b, bush.x, bush.z) >= 2.5, b.id .. " on a bush")
 		end
 		for _, lamp in SpawnLobby.LAMPS do
-			if lamp.z > 20 then
-				truthy(math.abs(b.x - lamp.x) >= Lb.BOARD_W / 2 + 0.5, b.id .. " on a lamp")
-			end
+			truthy(away(b, lamp.x, lamp.z) >= 1, b.id .. " on a lamp")
 		end
+		-- not in a shop, and back from where you walk up to one (the KITCHEN board at the crate
+		-- shop's front corner filled the view there, Studio u14)
+		for _, shop in SpawnLobby.BUILDINGS do
+			truthy(
+				math.abs(b.x - shop.x) > 8 + 1 or math.abs(b.z - shop.z) > 12 + Lb.BOARD_W / 2,
+				b.id .. " in a shop"
+			)
+			local door = shop.x - 15 * math.sign(shop.x)
+			truthy(away(b, door, shop.z) >= 20, b.id .. " by the " .. shop.kind .. " shop's door")
+		end
+		-- a front board stands in front of the play pads (z 23) and behind the arch (z 33.5)
+		if b.yaw == 0 then
+			truthy(
+				b.z > SpawnLobby.PAD_Z + 3 and b.z < SpawnLobby.ARCH_Z - 2,
+				b.id .. " at the front"
+			)
+		end
+		-- its words face into the lobby
+		local fx, fz = Lb.facing(b)
 		truthy(
-			b.x - Lb.BOARD_W / 2 >= SpawnLobby.BOX.minX
-				and b.x + Lb.BOARD_W / 2 <= SpawnLobby.BOX.maxX
+			fx * (0 - b.x) + fz * (SpawnLobby.SPAWN.z - b.z) > 0,
+			b.id .. " faces the spawn side"
 		)
 	end
-	-- in front of the play pads (z 23) and behind the arch (z 33.5), above head height, under the box top
-	truthy(Lb.BOARD_Z > SpawnLobby.PAD_Z + 3 and Lb.BOARD_Z < SpawnLobby.ARCH_Z - 2)
 	truthy(
 		Lb.BOARD_Y - Lb.BOARD_H / 2 >= 1.5 and Lb.BOARD_Y + Lb.BOARD_H / 2 <= SpawnLobby.BOX.maxY
 	)
 	local x, y, z = Lb.world(lap, 100)
 	eq(x, lap.x)
 	eq(y, Lb.BOARD_Y)
-	eq(z, 100 + Lb.BOARD_Z)
+	eq(z, 100 + lap.z)
+	eq(trophies.z, Lb.BOARD_Z)
+	eq(select(2, Lb.facing(trophies)), -1)
 end)
 
 test("a lap is saved in whole milliseconds; a glitch lap or junk is no score", function()

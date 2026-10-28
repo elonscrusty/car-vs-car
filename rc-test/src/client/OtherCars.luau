@@ -7,7 +7,10 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local CarMath = require(ReplicatedStorage.Shared.CarMath)
+local Features = require(ReplicatedStorage.Shared.Features)
+local Garage = require(ReplicatedStorage.Shared.Garage)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
 
 local OtherCars = {}
@@ -23,8 +26,13 @@ local FAR = 400 -- studs: past this, other cars' wheels are not drawn (phones)
 local RACE_TAG_FAR = 90
 local STEER_MAX = 0.75 -- radians, the base car's widest wheel angle
 local MAX_SUSP = 4 -- big-size spring travel; the ray stops it sooner on the ground
+local TAG_W, TAG_H = 120, 26 -- a name tag's size on screen (px)
 
 type Wheel = { part: Part, spot: Vector3, front: boolean, shown: number, spin: number }
+-- Car VS Car: the toy car's shell (body, cab, roof, wing, lights) over the grey blocks, the same
+-- toy car the plots show (playtest u01: every rival was a grey block). Its round wheels are
+-- this file's own, which already roll and steer.
+type Toy = { parts: { BasePart }, offsets: { CFrame } }
 type Other = {
 	body: BasePart,
 	folder: Folder,
@@ -32,7 +40,89 @@ type Other = {
 	scale: number,
 	tag: BillboardGui,
 	hidden: boolean?,
+	toy: Toy?,
 }
+
+-- the toy car this model wears: a bot's ToyCar, a player's racer (nil = keep the grey blocks)
+local function toyId(model: Model): string?
+	if not Features.CVC then
+		return nil
+	end
+	local id = model:GetAttribute("ToyCar")
+	if type(id) ~= "string" then
+		local uid = tonumber(string.match(model.Name, "^Car_(%d+)$"))
+		local p = uid and Players:GetPlayerByUserId(uid)
+		id = p and p:GetAttribute("RacerCar")
+	end
+	return if type(id) == "string" and CarCatalog.get(id) then id else nil
+end
+
+-- as long as the grey body it covers (Garage.toyFit: the chase camera was tuned for that size)
+local TOY_SIZE = Garage.toyFit(base("bodyZ"))
+local function toyShell(folder: Folder, id: string, s: number): Toy
+	local info = CarCatalog.get(id) :: CarCatalog.Car
+	local pieces = {}
+	Garage.toyCar(
+		Garage.adder(pieces),
+		"Toy",
+		{ x = 0, y = 0, z = 0 },
+		0,
+		info.color,
+		TOY_SIZE * s,
+		info.style
+	)
+	local holder = Instance.new("Model")
+	local made = Garage.makeParts(pieces, holder, CFrame.identity).Toy
+	local parts: { BasePart } = {}
+	local offsets: { CFrame } = {}
+	for _, p in made:GetChildren() do
+		if p:IsA("BasePart") and p.Name ~= "Wheel" and p.Name ~= "Hub" then
+			p.CanCollide = false
+			p.CanQuery = false
+			p.CanTouch = false
+			p.CastShadow = false
+			table.insert(offsets, p.CFrame) -- (from the ground under the middle of the car)
+			table.insert(parts, p)
+			p.Parent = folder
+		end
+	end
+	holder:Destroy()
+	return { parts = parts, offsets = offsets }
+end
+
+-- carter's own model for this car (ReplicatedStorage.CarSkins, named the car id): its body parts,
+-- turned to drive toward -Z and sized to the grey body's length; this file's wheels stay
+local function modelShell(folder: Folder, m: Model, s: number): Toy?
+	local pivot, size = m:GetBoundingBox()
+	if size.Z <= 0 then
+		return nil
+	end
+	local k = base("bodyZ") * s / size.Z
+	local floor = CFrame.new(0, -size.Y / 2, 0)
+	local parts: { BasePart } = {}
+	local offsets: { CFrame } = {}
+	for _, d in m:GetDescendants() do
+		if d:IsA("BasePart") and string.sub(d.Name, 1, 5) ~= "Wheel" then
+			local p = d:Clone()
+			p:ClearAllChildren()
+			p.Anchored = true
+			p.CanCollide = false
+			p.CanQuery = false
+			p.CanTouch = false
+			p.CastShadow = false
+			p.Size *= k
+			-- (Studio's 3D import puts the nose at +Z, like CarSkin: turned around)
+			local rel = floor:Inverse() * pivot:Inverse() * d.CFrame
+			table.insert(
+				offsets,
+				CFrame.Angles(0, math.pi, 0) * (rel - rel.Position + rel.Position * k)
+			)
+			table.insert(parts, p)
+			p.Parent = folder
+		end
+	end
+	return if #parts > 0 then { parts = parts, offsets = offsets } else nil
+end
 
 local function wheelPart(folder: Folder, s: number): Part
 	local d = base("wheelRadius") * 2 * s
@@ -66,10 +156,11 @@ end
 local function nameTag(body: BasePart, text: string, s: number): BillboardGui
 	local tag = Instance.new("BillboardGui")
 	tag.Name = "NameTag"
-	tag.Size = UDim2.fromOffset(120, 26)
+	tag.Size = UDim2.fromOffset(TAG_W, TAG_H)
 	tag.StudsOffsetWorldSpace = Vector3.new(0, 3.2 * s, 0)
 	tag.AlwaysOnTop = false -- (on carter's PC AlwaysOnTop tags never drew: Studio score/16-18)
-	tag.MaxDistance = 150
+	-- (far off, two tags drew over each other and read garbled, "TRORBO TIM": near cars only)
+	tag.MaxDistance = 70
 	tag.Adornee = body
 	local l = Instance.new("TextLabel")
 	l.BackgroundTransparency = 1
@@ -86,7 +177,8 @@ end
 local function playerName(model: Model): string
 	local bot = model:GetAttribute("BotName") -- a race bot (server's RaceBotCars)
 	if type(bot) == "string" then
-		return bot
+		-- just the name: "TURBO TIM (bot)" ran off the screen edge (phone 10-28)
+		return (string.gsub(bot, "%s*%(bot%)$", ""))
 	end
 	local id = tonumber(string.match(model.Name, "^Car_(%-?%d+)$"))
 	local p = id and Players:GetPlayerByUserId(id)
@@ -128,7 +220,19 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 		-- showed in the Studio check
 		local tag = nameTag(body, playerName(model), s)
 		tag.Parent = body
-		local o = { body = body, folder = f, wheels = wheels, scale = s, tag = tag }
+		local id = toyId(model)
+		local skins = ReplicatedStorage:FindFirstChild("CarSkins")
+		local own = id and skins and skins:FindFirstChild(id)
+		local toy = if own and own:IsA("Model") then modelShell(f, own, s) else nil
+		toy = toy or if id then toyShell(f, id, s) else nil
+		if toy then
+			for _, d in model:GetDescendants() do
+				if d:IsA("BasePart") then
+					d.LocalTransparencyModifier = 1
+				end
+			end
+		end
+		local o = { body = body, folder = f, wheels = wheels, scale = s, tag = tag, toy = toy }
 		others[model] = o
 		return o
 	end
@@ -162,6 +266,31 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 			carsChanged = true
 		end
 	end)
+
+	-- this frame's shown tags, nearest first (reused: no new tables each frame)
+	local tags: { BillboardGui } = {}
+	local tagFar: { number } = {}
+	local kept: { Vector3 } = {}
+	-- Tags that would sit on top of each other on screen: only the nearest shows (Studio pr839: a
+	-- bunch of cars read as one garbled line)
+	local function unstack(cam: Camera)
+		table.clear(kept)
+		for _, tag in tags do
+			local body = tag.Adornee :: BasePart
+			local p, onScreen = cam:WorldToViewportPoint(body.Position + tag.StudsOffsetWorldSpace)
+			if onScreen then
+				for _, q in kept do
+					if math.abs(p.X - q.X) < TAG_W and math.abs(p.Y - q.Y) < TAG_H then
+						tag.Enabled = false
+						break
+					end
+				end
+				if tag.Enabled then
+					table.insert(kept, p)
+				end
+			end
+		end
+	end
 
 	local function update(dt: number)
 		local mine = myCarName()
@@ -198,17 +327,27 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 				o.hidden = hide
 				for _, d in m:GetDescendants() do
 					if d:IsA("BasePart") then
-						d.LocalTransparencyModifier = if hide then 1 else 0
+						d.LocalTransparencyModifier = if hide or o.toy then 1 else 0
 					end
 				end
 			end
-			local near = not hide and (cf.Position - eye).Magnitude < FAR
+			local far = (cf.Position - eye).Magnitude
+			local near = not hide and far < FAR
 			o.folder.Parent = if near then folder else nil
 			-- carter's pick 18: in the big race every car in your race wears its name, however far
 			-- (the stand cam watches from the side of the track)
 			local inRace = myGroup ~= nil and group == myGroup
 			o.tag.MaxDistance = if inRace then RACE_TAG_FAR else 150
 			o.tag.Enabled = near or (inRace and not hide)
+			if o.tag.Enabled and far < o.tag.MaxDistance then
+				-- (kept nearest first)
+				local k = #tags + 1
+				while k > 1 and tagFar[k - 1] > far do
+					tags[k], tagFar[k] = tags[k - 1], tagFar[k - 1]
+					k -= 1
+				end
+				tags[k], tagFar[k] = o.tag, far
+			end
 			if not near then
 				continue
 			end
@@ -238,7 +377,25 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 					stripe.CFrame = wcf
 				end
 			end
+			local toy = o.toy
+			if toy then
+				-- the shell sits on the wheels: its ground is where they touch, on average
+				local hang = 0
+				for _, w in o.wheels do
+					hang += w.shown / #o.wheels
+				end
+				local ground = cf * CFrame.new(0, base("attachY") * s - hang - radius, 0)
+				local at: { CFrame } = table.create(#toy.parts)
+				for k, off in toy.offsets do
+					at[k] = ground * off
+				end
+				workspace:BulkMoveTo(toy.parts, at, Enum.BulkMoveMode.FireCFrameChanged)
+			end
 		end
+		if cam then
+			unstack(cam)
+		end
+		table.clear(tags)
 	end
 
 	return { update = update }

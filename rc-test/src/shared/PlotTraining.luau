@@ -60,16 +60,21 @@ PlotTraining.K = 1.15
 -- you see the station under them.
 PlotTraining.PAD_SIGN = { w = 18, h = 3.6, low = 6 }
 
--- Where pad i's sign stands (plot-local x, z) and its yaw in degrees (its words face +z turned
--- by yaw): the back wall's toward the road, the side walls' toward the middle.
-function PlotTraining.signAt(i: number): (number, number, number)
+-- Where pad i's sign stands (plot-local x, z), its yaw in degrees (its words face +z turned by yaw)
+-- and how high its bottom is: the side walls' face the middle; the back wall's face the road, and
+-- the one right under the scoreboard hangs just below it on the wall (on posts at the pad's front,
+-- it hid the board's rows from anyone walking up close, Studio u23).
+function PlotTraining.signAt(i: number): (number, number, number, number)
 	local g = PlotTraining.GRID[i]
-	local P = PlotTraining.PAD
+	local P, S, B = PlotTraining.PAD, PlotTraining.PAD_SIGN, PlotTraining.BOARD
 	if math.abs(g.x) > P.w / 2 + 1 and g.z > -40 then
 		local side = if g.x < 0 then 1 else -1 -- the left wall faces +x, the right -x
-		return g.x + side * (P.w / 2 - 0.5), g.z, side * 90
+		return g.x + side * (P.w / 2 - 0.5), g.z, side * 90, S.low
 	end
-	return g.x, g.z + P.d / 2 - 0.5, 0
+	if math.abs(g.x - B.x) + S.w / 2 <= B.w / 2 then
+		return g.x, B.z + 0.4, 0, B.y - B.h / 2 - 0.4 - S.h
+	end
+	return g.x, g.z + P.d / 2 - 0.5, 0, S.low
 end
 PlotTraining.ROOM = { x0 = -14, x1 = 14, z0 = -32, z1 = 30 } -- the garage floor, in the middle
 PlotTraining.NEAR = 220 -- studs: a plot farther from the camera than this stops moving its cars
@@ -340,8 +345,8 @@ local function pad(add: Garage.Add, i: number, kind: string?)
 	end
 	-- the sign, up on two posts at the edge nearest the middle, facing it
 	local S = PlotTraining.PAD_SIGN
-	local sx, sz, yaw = PlotTraining.signAt(i)
-	local cy = S.low + S.h / 2
+	local sx, sz, yaw, low = PlotTraining.signAt(i)
+	local cy = low + S.h / 2
 	add(group, "PadSign", v(S.w, S.h, 0.3), v(sx, cy, sz), SIGN, {
 		rot = v(0, yaw, 0),
 		collide = false,
@@ -352,8 +357,8 @@ local function pad(add: Garage.Add, i: number, kind: string?)
 		add(
 			group,
 			"PadSignPost",
-			v(0.4, S.low + 0.2, 0.4),
-			v(sx + off * math.cos(along), (S.low + 0.2) / 2, sz - off * math.sin(along)),
+			v(0.4, low + 0.2, 0.4),
+			v(sx + off * math.cos(along), (low + 0.2) / 2, sz - off * math.sin(along)),
 			SIGN,
 			{ collide = false }
 		)
@@ -509,6 +514,16 @@ function PlotTraining.pieces(
 		WOOD_DARK,
 		{ collide = false }
 	)
+	for _, side in { -1, 1 } do
+		add(
+			"RoomSignLegs",
+			"Leg",
+			v(0.6, 12.2, 0.6),
+			v(PlotTraining.ROOM_SIGN_X + side * 8, 6.1, -53.4),
+			WOOD_DARK,
+			{ collide = false }
+		)
+	end
 	-- the scoreboard and its two legs (CvcPlot.client writes the rows)
 	local B = PlotTraining.BOARD
 	add("Board", "ScoreBoard", v(B.w, B.h, 0.4), v(B.x, B.y, B.z), SIGN, { collide = false })
@@ -527,6 +542,26 @@ function PlotTraining.pieces(
 	end
 	-- the trophy shelf on the back wall, its cups, and its sign
 	local S = PlotTraining.SHELF
+	-- a wooden back and two legs, so the shelf boards and the sign don't float over the hillside
+	-- (phone playtest u23)
+	add(
+		"Shelf",
+		"ShelfBack",
+		v(S.w, 9, 0.3),
+		v(S.x, S.y + 3.8, S.z - 0.15),
+		WOOD,
+		{ collide = false }
+	)
+	for _, side in { -1, 1 } do
+		add(
+			"Shelf",
+			"ShelfLeg",
+			v(0.8, S.y - 0.7, 0.8),
+			v(S.x + side * (S.w / 2 - 1), (S.y - 0.7) / 2, S.z - 0.15),
+			WOOD_DARK,
+			{ collide = false }
+		)
+	end
 	add(
 		"Shelf",
 		"ShelfBoard",

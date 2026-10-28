@@ -52,6 +52,7 @@ end)
 test("the pool has every catalog car once, sorted, by its kind", function()
 	local pool = Crates.pool()
 	local seen = {}
+	local Stats = require("../src/shared/CarStats")
 	for tier, list in pool do
 		for i, id in list do
 			truthy(not seen[id], id .. " once")
@@ -63,6 +64,17 @@ test("the pool has every catalog car once, sorted, by its kind", function()
 		end
 	end
 	truthy(#pool.common > 0 and #pool.legend > 0, "commons and legends to give")
+	-- never a low starter: a crate car always starts above the car a new kid picked
+	for _, id in Stats.STARTERS do
+		truthy(not seen[id], id .. " is a starter, not a crate car")
+	end
+	for _, id in Stats.ids() do
+		truthy(seen[id] or table.find(Stats.STARTERS, id) ~= nil, id .. " is in a crate")
+	end
+	local low = Stats.total({ uid = "u", id = pool.common[1], speed = 0, turn = 0, boost = 0 })
+	for _, id in Stats.STARTERS do
+		truthy(low > Stats.total({ uid = "u", id = id, speed = 0, turn = 0, boost = 0 }))
+	end
 end)
 
 test("a roll lands on the kind its odds say, and picks evenly within it", function()
@@ -116,3 +128,41 @@ test("many real rolls stay close to the odds shown", function()
 		truthy(math.abs(c / n * 100 - odds[tier]) < 1.5, tier .. " near its odds")
 	end
 end)
+
+test(
+	"a crate gives a car you don't have yet, a copy only once you have every one of its kind",
+	function()
+		local pool = { common = { "a", "b", "c" }, rare = { "r" }, epic = {}, legend = {} }
+		-- the kind is still rolled on the shown odds: same kind as without `owned`
+		local _, plain = Crates.roll("basic", rng(0.1, 0), pool)
+		local id, tier = Crates.roll("basic", rng(0.1, 0), pool, { a = true })
+		eq(tier, plain)
+		eq(id, "b") -- "a" is owned, so the first of the rest
+		id = Crates.roll("basic", rng(0.1, 0.99), pool, { a = true, c = true })
+		eq(id, "b") -- the only common left
+		-- every common owned: a copy, still a common (the odds stay honest)
+		id, tier = Crates.roll("basic", rng(0.1, 0.5), pool, { a = true, b = true, c = true })
+		eq(tier, "common")
+		truthy(id == "a" or id == "b" or id == "c")
+	end
+)
+
+test(
+	"the first free crate never gives the starter again (Studio 10-28: a 2nd BLUE DART)",
+	function()
+		local CvcRules = require("../src/shared/CvcRules")
+		local CarStats = require("../src/shared/CarStats")
+		local Profile = require("../src/shared/Profile")
+		for _, starter in CarStats.STARTERS do
+			for k = 0, 19 do
+				local data = Profile.new()
+				CvcRules.setUp(data)
+				CvcRules.pick(data, starter)
+				data.crates = 1
+				local id = CvcRules.open(data, rng(k / 20, (k * 7 % 20) / 20))
+				truthy(id ~= nil, "a car")
+				truthy(id ~= starter, `{starter}: got the starter again`)
+			end
+		end
+	end
+)

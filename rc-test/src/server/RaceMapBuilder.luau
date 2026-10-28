@@ -30,7 +30,7 @@ local WOOD = rgb(150, 105, 65)
 local LIGHT_WOOD = rgb(214, 172, 120)
 local DARK = rgb(36, 36, 40)
 local STEEL = rgb(190, 195, 202)
-local BOOST_COLOR = rgb(255, 186, 60) -- warm yellow, not a glare
+local BOOST_COLOR = rgb(255, 200, 40)
 local ROAD_TOP = 0.1 -- the main road's top
 local SIDE_TOP = 0.08 -- side roads sit a hair lower, so where they meet the main road it wins
 local FLAT_TOP = 0.05 -- flat looks (patio, rug, mats) sit under both
@@ -42,7 +42,9 @@ local LOOKS = {
 	tiles = { color = rgb(118, 120, 128), mat = Enum.Material.SmoothPlastic },
 }
 local PAD_LOOK: { [string]: { color: Color3, mat: Enum.Material } } = {
-	boost = { color = BOOST_COLOR, mat = Enum.Material.SmoothPlastic },
+	-- a warm orange, not glowing (playtest u02: a neon yellow pad filled a quarter of the screen
+	-- and its glow hid the car); the orange arrows still glow
+	boost = { color = rgb(225, 150, 40), mat = Enum.Material.SmoothPlastic },
 	puddle = { color = rgb(92, 178, 236), mat = Enum.Material.SmoothPlastic },
 	milk = { color = rgb(250, 248, 240), mat = Enum.Material.SmoothPlastic },
 	mud = { color = rgb(120, 76, 36), mat = Enum.Material.Mud },
@@ -388,7 +390,7 @@ local function buildPads(folder: Instance, map: any)
 							* CFrame.new(side * w * 0.15, 0, -pad.len * 0.25 + k * pad.len * 0.4)
 							* CFrame.Angles(0, side * 0.6, 0),
 						rgb(240, 110, 20),
-						Enum.Material.SmoothPlastic
+						Enum.Material.Neon
 					)
 					finish(arm, false)
 				end

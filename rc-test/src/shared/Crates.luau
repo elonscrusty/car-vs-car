@@ -13,6 +13,7 @@ local function sibling(name: string): any
 	return luneRequire("./" .. name)
 end
 local CarCatalog = sibling("CarCatalog")
+local CarStats = sibling("CarStats")
 
 local Crates = {}
 
@@ -83,7 +84,8 @@ function Crates.price(kind: any): number?
 end
 
 -- Every car a crate can give, by kind of car, sorted by id so a roll is the same every time.
--- (Every car in the catalog: the Car names thread's 24 cars join it there.)
+-- (Every car in the catalog but the 3 low starters: a crate car is always a step up from the car
+-- a new kid picked. Studio after-818: the free crate gave a second BLUE DART, weaker than theirs.)
 export type Pool = { [string]: { string } }
 function Crates.pool(): Pool
 	local out: Pool = {}
@@ -92,7 +94,7 @@ function Crates.pool(): Pool
 	end
 	local seen: { [string]: boolean } = {}
 	local function add(c: any)
-		if c and not seen[c.id] and out[c.rarity] then
+		if c and not seen[c.id] and out[c.rarity] and not table.find(CarStats.STARTERS, c.id) then
 			seen[c.id] = true
 			table.insert(out[c.rarity], c.id)
 		end
@@ -116,7 +118,15 @@ export type Rng = { NextNumber: (any) -> number }
 -- Opens one crate of `kind`: the car's id, and its kind (common, rare...). `rng` is a Random
 -- (or anything with NextNumber). A kind of car with no cars in the pool falls back to the next
 -- kind down, so a roll always gives a car. Nil only for an unknown crate or an empty pool.
-function Crates.roll(kind: any, rng: Rng, pool: Pool?): (string?, string?)
+-- `owned` (car ids the kid has): the kind of car is rolled on the shown odds as always, then the
+-- car is one of that kind the kid doesn't have yet; a copy only once they have every car of
+-- that kind (Studio 10-28: the first free crate gave a 2nd BLUE DART, the starter).
+function Crates.roll(
+	kind: any,
+	rng: Rng,
+	pool: Pool?,
+	owned: { [string]: boolean }?
+): (string?, string?)
 	local k = Crates.get(kind)
 	if not k then
 		return nil, nil
@@ -140,8 +150,15 @@ function Crates.roll(kind: any, rng: Rng, pool: Pool?): (string?, string?)
 		local tier = CarCatalog.RARITY_ORDER[j]
 		local list = cars[tier]
 		if list and #list > 0 then
-			local n = math.clamp(math.floor(rng:NextNumber() * #list) + 1, 1, #list)
-			return list[n], tier
+			local fresh = {}
+			for _, id in list do
+				if not (owned and owned[id]) then
+					table.insert(fresh, id)
+				end
+			end
+			local from = if #fresh > 0 then fresh else list
+			local n = math.clamp(math.floor(rng:NextNumber() * #from) + 1, 1, #from)
+			return from[n], tier
 		end
 	end
 	return nil, nil

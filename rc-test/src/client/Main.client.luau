@@ -95,6 +95,8 @@ do
 		task.wait()
 	end
 end
+-- a put-back car's body sits at least this high over what's under it (big-car units)
+local PUT_BACK_CLEAR = 2.5
 local function ignoreList(): { Instance }
 	local list: { Instance } = { model }
 	if player.Character then
@@ -154,6 +156,22 @@ for i, id in TrackData.order do
 end
 
 local current = 1
+
+-- the skin to draw: the track's Meshy model, else (Car VS Car) the toy car of the car you race
+-- with, the one your plot shows (playtest u01: big races drew the grey box)
+local function skinName(): string?
+	local own = SKINS[tracks[current].id]
+	if own or not Features.CVC then
+		return own
+	end
+	local id = player:GetAttribute("RacerCar")
+	if type(id) ~= "string" then
+		return nil
+	end
+	-- carter's own model for this car wins over the toy (see CarSkin: how to add one)
+	local skins = ReplicatedStorage:FindFirstChild("CarSkins")
+	return if skins and skins:FindFirstChild(id) then id else CarSkin.TOY .. id
+end
 
 getEye = function(): Vector3
 	local t = tracks[current]
@@ -312,6 +330,18 @@ local function reset(why: string?, from: string?)
 		) or BackOnTrack.spot(t, timer.gates, timer.next) :: BackOnTrack.Spot
 		local x, y, z = TrackData.toWorld(t, rc, g.x, g.y, g.z)
 		local dx, dz = TrackData.dirToWorld(t, rc, g.dx, g.dz)
+		-- on top of whatever is there: a spot on a jump ramp put the car inside it, stuck for good
+		-- (Studio after-818: put back into the same ramp from 74 s to the time limit)
+		local probe = RaycastParams.new()
+		probe.FilterType = Enum.RaycastFilterType.Exclude
+		probe.FilterDescendantsInstances = ignoreList()
+		probe.RespectCanCollide = true
+		local up = 6 * Tuning.scale -- (low: a tunnel roof above must not catch it)
+		local hit = workspace:Raycast(Vector3.new(x, y + up, z), Vector3.new(0, -up * 2, 0), probe)
+		local clear = PUT_BACK_CLEAR * Tuning.scale
+		if hit and hit.Position.Y + clear > y then
+			y = hit.Position.Y + clear
+		end
 		local pos = Vector3.new(x, y, z)
 		car.teleport(CFrame.lookAt(pos, pos + Vector3.new(dx, 0, dz)))
 		camera.snap()
@@ -622,17 +652,19 @@ local function timerText(): string
 		if t.id == "drift" then
 			table.insert(lines, "DRIFT!")
 		elseif done then
-			table.insert(lines, `FINISHED   {CarMath.formatTime(done)}`)
+			table.insert(lines, `FINISHED {CarMath.formatTime(done)}`)
 		else
 			local lap = math.min(s.laps + 1, raceLaps())
 			table.insert(lines, `LAP {lap}/{raceLaps()}   {CarMath.formatTime(now - go)}`)
 		end
 		-- the live place the server works out
 		local place, cars = player:GetAttribute("RacePlace"), player:GetAttribute("RaceCars")
-		-- (Features.NEW_UI: the big place pill top middle shows it, CvcScreens.client)
-		local newUi = Features.CVC and Features.NEW_UI
-		if type(place) == "number" and type(cars) == "number" and cars > 1 and not newUi then
-			table.insert(lines, `{ServerRace.ordinal(place)} OF {cars}`)
+		if type(place) == "number" and type(cars) == "number" and cars > 1 then
+			-- (gold, so the place stands out: phone 10-28 review fix 2)
+			table.insert(
+				lines,
+				`<font color="#FFC72C">{ServerRace.ordinal(place)} OF {cars}</font>`
+			)
 		end
 	elseif grid then
 		-- server race, on the grid before GO (it showed a solo "LAP 1  -:--.-" here)
@@ -653,7 +685,8 @@ local function timerText(): string
 		end
 		table.insert(lines, `CLIMB   {cur}`)
 	end
-	if s.best then
+	-- (a server race: no BEST under FINISHED, it was the same time twice, phone 10-28)
+	if s.best and not (grid and go) then
 		table.insert(lines, `BEST {CarMath.formatTime(s.best)}`)
 	end
 	return table.concat(lines, "\n")
@@ -668,6 +701,13 @@ RunService.PreSimulation:Connect(function(dt: number)
 		-- server race, lights still red: the car waits on the line for GO (carter 10-26: AUTO GAS
 		-- or a held GAS rolled it over the line = TOO EARLY and an extra lap). Steering still works.
 		input = { steer = input.steer, throttle = 0, brake = 0, drift = false }
+	elseif grid and (raceDone ~= nil or raceOver) then
+		-- server race, over the line: the car brakes to a stop at the finish and stays there (it
+		-- drove on, AUTO GAS too, and stuck on a sign until the results, phone 10-28 t096-t100).
+		-- Brake only while rolling forward: held at a stop it would back up.
+		local rolling = car.telemetry.vLong > 3
+		input =
+			{ steer = input.steer, throttle = 0, brake = if rolling then 1 else 0, drift = false }
 	end
 	car.step(dt, input)
 
@@ -690,6 +730,8 @@ RunService.PreSimulation:Connect(function(dt: number)
 				startBeep:Play()
 			end
 			bigCount.show(step, RaceStart.label(step), step >= RaceStart.GO)
+			-- (the new screens show the car's name tag from the first count, CvcScreens)
+			player:SetAttribute("CountStep", step)
 		end
 		if step == RaceStart.GO then
 			countdown = nil
@@ -752,7 +794,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 	if event == "lap" and grid and go and t.id ~= "drift" and timer.laps >= raceLaps() then
 		event = nil
 		raceDone = os.clock() - go
-		hud.flash(`FINISH!  {CarMath.formatTime(raceDone :: number)}`)
+		hud.flash(`FINISH!  {CarMath.formatTime(raceDone :: number)}`, true)
 		setRacing(false)
 	end
 	roadArrow.update(t, timer, rc, lx, lz)
@@ -1021,7 +1063,7 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 		youTag.Enabled = false
 		raceFx.update(dt, false) -- a race that ended mid-BOOST: fade its speed lines out
 		car.render(dt) -- keep the parked car's wheels drawn
-		skin.update(car, SKINS[tracks[current].id])
+		skin.update(car, skinName())
 		effects.quiet()
 		return
 	end
@@ -1029,7 +1071,7 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 		return
 	end
 	car.render(dt)
-	skin.update(car, SKINS[tracks[current].id])
+	skin.update(car, skinName())
 	effects.update(dt)
 	-- boost pads and jumps: a word on screen so you know what happened
 	local tel = car.telemetry

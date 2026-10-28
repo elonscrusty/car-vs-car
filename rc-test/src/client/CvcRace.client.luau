@@ -78,6 +78,12 @@ end)
 local boost = button(hud, "BOOST", KartStyle.RED)
 boost.Name = "Boost"
 boost.Visible = false
+-- round: CvcUi.button gave it a 0.3 corner too, and that one won (Studio pr816)
+for _, c in boost:GetChildren() do
+	if c:IsA("UICorner") then
+		c:Destroy()
+	end
+end
 CvcUi.corner(boost, 0.5)
 -- square, just left of DRIFT on every screen (HudLayout.box; place() alone gave it no width)
 local boostSpot = HudLayout.find("Boost", "drive") :: HudLayout.Spot
@@ -95,8 +101,9 @@ CvcUi.rim(boost, KartStyle.BUTTON_RIM)
 local boostCount = label(boost, "0", INK)
 boostCount.Name = "Left"
 boostCount.AnchorPoint = Vector2.new(0.5, 0.5)
-boostCount.Position = UDim2.fromScale(0.86, 0.04)
-boostCount.Size = UDim2.fromScale(0.42, 0.42)
+-- (on the rim, off the word)
+boostCount.Position = UDim2.fromScale(0.88, 0.1)
+boostCount.Size = UDim2.fromScale(0.34, 0.34)
 boostCount.BackgroundColor3 = WHITE
 boostCount.BackgroundTransparency = 0
 boostCount.ZIndex = 3
@@ -117,44 +124,63 @@ local function tapBoost()
 	end
 end
 boost.Activated:Connect(tapBoost)
--- (Features.NEW_UI: the same button, same spot, in the new look: a round orange BOOST with a
--- ring that fills when one is ready, Kit.round; the old face goes see-through)
-local newBoost: any = nil
+-- BOOST is round like DRIFT next to it, with the same big word (carter's phone 10-28: the
+-- new-look round sat in a dark square with a tiny word)
+-- (its own look, not KartSkin's: the Kart lip under it made a tall box, Studio pr816)
+boost:SetAttribute("NoKart", true)
+local boostShape = Instance.new("UIAspectRatioConstraint")
+boostShape.AspectRatio = 1
+boostShape.Parent = boost
+-- the word is its own label, DRIFT's size (Controls holdButton: the middle 40%); no padding on the
+-- button, so the count ball and TAP BOOST! sit by the whole circle (padded, the hint went thin)
+local boostPad = boost:FindFirstChildOfClass("UIPadding")
+if boostPad then
+	boostPad:Destroy()
+end
+boost.Text = ""
+local boostWord = label(boost, "BOOST", WHITE)
+boostWord.Name = "Word"
+boostWord.AnchorPoint = Vector2.new(0.5, 0.5)
+boostWord.Position = UDim2.fromScale(0.5, 0.5)
+boostWord.Size = UDim2.fromScale(0.88, 0.4)
+boostWord.TextStrokeColor3 = INK
+boostWord.TextStrokeTransparency = 0.2
+boostWord.ZIndex = 2
+local ORANGE = Color3.fromRGB(255, 132, 24)
 local boostHint: GuiObject? = nil
 if Features.NEW_UI then
 	local Ui = script.Parent:WaitForChild("Ui")
-	local Kit = require(Ui:WaitForChild("Kit")) :: any
-	local Base = require(Ui:WaitForChild("Base")) :: any
 	local Anim = require(Ui:WaitForChild("Anim")) :: any
-	boost.Text = ""
-	boost.BackgroundTransparency = 1
-	boost:SetAttribute("NoKart", true)
-	for _, d in boost:GetChildren() do
-		if d:IsA("UIStroke") then
-			d:Destroy()
-		end
-	end
-	local holder = Instance.new("Frame")
-	holder.Name = "NewBoost"
-	holder.BackgroundTransparency = 1
-	holder.Size = UDim2.fromScale(0.8, 0.8)
-	holder.Position = UDim2.fromScale(0.1, 0.1)
-	holder:SetAttribute("DW", 100)
-	holder:SetAttribute("DH", 100)
-	holder:SetAttribute("NoKart", true)
-	holder.Parent = boost
-	newBoost = Kit.round(holder, "Boost", 0, 0, 100, "boost", "BOOST", {
-		charge = true,
-		onClick = tapBoost,
-	})
-	boostCount.ZIndex = 12
 	-- the first race: TAP BOOST! over it, until it's tapped (MASTER-PROMPT first 10 minutes);
-	-- up past the count ball (Studio live3 shot 04)
-	local hint = Base.text(holder, "TapHint", -60, -86, 200, 36, "TAP BOOST!", {
-		color = Base.color("go"),
-		stroke = 5,
-		z = 12,
-	})
+	-- on a dark pill: yellow words on the yellow road signs didn't show (phone 10-28)
+	local hint = Instance.new("Frame")
+	hint.Name = "TapHint"
+	hint.AnchorPoint = Vector2.new(0.5, 1)
+	hint.Position = UDim2.fromScale(0.5, -0.12)
+	hint.Size = UDim2.fromScale(2, 0.44)
+	hint.BackgroundColor3 = INK
+	hint.BackgroundTransparency = 0.15
+	hint.ZIndex = 11
+	hint.Parent = boost
+	local hintShape = Instance.new("UIAspectRatioConstraint")
+	hintShape.AspectRatio = 4.5
+	hintShape.Parent = hint
+	CvcUi.corner(hint, 0.5)
+	local hintWords = label(hint, "TAP BOOST!", KartStyle.YELLOW)
+	hintWords.Size = UDim2.fromScale(1, 1)
+	hintWords.ZIndex = 12
+	hintWords:SetAttribute("NoKart", true)
+	local hintPad = Instance.new("UIPadding")
+	hintPad.PaddingTop = UDim.new(0.14, 0)
+	hintPad.PaddingBottom = UDim.new(0.14, 0)
+	hintPad.PaddingLeft = UDim.new(0.08, 0)
+	hintPad.PaddingRight = UDim.new(0.08, 0)
+	hintPad.Parent = hintWords
+	local hintRim = Instance.new("UIStroke")
+	hintRim.Color = INK
+	hintRim.Thickness = 2
+	hintRim.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+	hintRim.Parent = hintWords
 	hint:SetAttribute("NoKart", true)
 	hint.Visible = false
 	Anim.bob(hint, 0.8, 6)
@@ -181,27 +207,20 @@ local function showBoost()
 			and left > 0
 			and player:GetAttribute("BoostOn") ~= true
 	end
-	if newBoost then
-		-- full ring = one ready to use; empty while it's on or none saved
-		newBoost.setCharge(if player:GetAttribute("BoostOn") ~= true and left > 0 then 1 else 0)
-		boost:SetAttribute("KartPulse", nil)
-		boostCount.Visible = left > 0
-		return
-	end
 	if player:GetAttribute("BoostOn") == true then
-		boost.Text = "GO!!"
+		boostWord.Text = "GO!!"
 		boost.BackgroundColor3 = KartStyle.YELLOW
-		boost.TextColor3 = INK
+		boostWord.TextColor3 = INK
 		boost:SetAttribute("KartPulse", nil)
 	elseif left > 0 then
-		boost.Text = "BOOST"
-		boost.BackgroundColor3 = KartStyle.RED
-		boost.TextColor3 = WHITE
+		boostWord.Text = "BOOST"
+		boost.BackgroundColor3 = ORANGE
+		boostWord.TextColor3 = WHITE
 		boost:SetAttribute("KartPulse", true) -- one is ready: it breathes (KartSkin)
 	else
-		boost.Text = "BOOST"
+		boostWord.Text = "BOOST"
 		boost.BackgroundColor3 = GREY
-		boost.TextColor3 = WHITE
+		boostWord.TextColor3 = WHITE
 		boost:SetAttribute("KartPulse", nil)
 	end
 	boostCount.Visible = left > 0

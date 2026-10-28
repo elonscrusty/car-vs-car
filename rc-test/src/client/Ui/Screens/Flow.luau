@@ -282,8 +282,11 @@ function Flow.podium(data: { [string]: any }, actions: Screen.Actions?): Screen.
 	return Screen.open("podium", "full", true, function(g)
 		local back = g.back :: ScreenGui
 		Kit.backdrop(back, "showroom")
-		Kit.confetti(back:FindFirstChild("Backdrop") :: Frame, 30)
 		local place = data.place or 1
+		-- (confetti for a top 3 only: it fell on NICE TRY too, Studio after818 shot 13)
+		if place <= 3 then
+			Kit.confetti(back:FindFirstChild("Backdrop") :: Frame, 30)
+		end
 		local sp = piece("podium", "Shout")
 		Kit.shout(
 			spot(g.canvas, "podium", "Shout"),
@@ -371,6 +374,14 @@ function Flow.podium(data: { [string]: any }, actions: Screen.Actions?): Screen.
 		Anim.countUp(tro, 0, data.trophies or 0, function(n)
 			return "+" .. UiMotion.commas(n)
 		end)
+		-- what training gave the car since the last race (review fix 4: training -> winning)
+		if data.trained then
+			Base.text(g.canvas, "Trained", 512, 202, 236, 34, data.trained, {
+				color = Base.color("go"),
+				stroke = 5,
+				z = 5,
+			})
+		end
 		placedButton(g.canvas, "podium", "Next", Screen.act(actions, "next"), data.nextWords)
 		placedButton(g.canvas, "podium", "Back", Screen.act(actions, "back"))
 		return {}
