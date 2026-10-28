@@ -294,6 +294,8 @@ test(
 		eq(Weapons.get("Rockets"), Weapons.DEFS.Rockets)
 		eq(Weapons.feedWord("Rockets"), "rocket")
 		eq(Weapons.feedWord("Nuke"), "nuke")
-		eq(Weapons.feedWord("Gun"), "gun")
+		eq(Weapons.feedWord("Gun"), "machine gun")
+		eq(Weapons.feedWord("Freeze"), "freeze ray")
+		eq(Weapons.feedWord("Zap"), "zap")
 	end
 )

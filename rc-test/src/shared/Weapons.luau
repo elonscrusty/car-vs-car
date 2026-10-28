@@ -43,7 +43,13 @@ function Weapons.get(name: any): Def?
 end
 
 -- The word MatchRunner's smash words use ("smashed by X's rocket"): lowercase, one of a kind.
-Weapons.FEED = { Rockets = "rocket", Nuke = "nuke" } :: { [string]: string }
+Weapons.FEED = {
+	Rockets = "rocket",
+	Nuke = "nuke",
+	Gun = "machine gun",
+	Mine = "mine",
+	Freeze = "freeze ray",
+} :: { [string]: string }
 function Weapons.feedWord(name: string): string
 	return Weapons.FEED[name] or string.lower(name)
 end
