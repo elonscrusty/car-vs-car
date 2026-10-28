@@ -55,7 +55,7 @@ PlotTraining.K = 1.15
 PlotTraining.PAD_SIGN = { w = 14, h = 3, y = 1.5, lean = 40 }
 PlotTraining.ROOM = { x0 = -38, x1 = 38, z0 = -53, z1 = -25 } -- the garage room's floor
 PlotTraining.NEAR = 220 -- studs: a plot farther from the camera than this stops moving its cars
-PlotTraining.CAR = 1.3 -- toy car size on the stations and stands (times a 3.6-stud car)
+PlotTraining.CAR = 1.55 -- toy car size on the stations and stands (times a 3.6-stud car)
 -- the car stands down both sides of the room, in the order they open
 PlotTraining.STANDS = {
 	{ x = -33, z = -44 },
@@ -161,10 +161,11 @@ function PlotTraining.slats(t: number): { number }
 end
 
 -- The car tags on the plot are sized in studs (so they shrink with distance, not cover the next
--- pad): a station car's tag hangs still over the middle of its pad, just above the car's whole
--- run (the ramp hop too) and under the room's signs; a stand car's sits just over the car.
+-- pad). A station car's tag stands low beside the car, on the outer side of its pad: hung over
+-- the car, the plot camera (high over the stand) saw it on top of the LOCKED words of the pad
+-- behind (Studio best/plot2). A stand car's sits just over the car.
 PlotTraining.ROOM_SIGN_X = -28
-PlotTraining.TAG = { w = 8, h = 4.2, y = 8.8, back = 1 }
+PlotTraining.TAG = { w = 6, h = 3.6, y = 3, side = 8.8, back = 2 }
 PlotTraining.STAND_TAG = { w = 6.5, h = 3.5, up = 3.6 }
 -- The camera while you stand on your own plot's pad (PlotCam.client), plot-local: high over the
 -- stand, looking down the pads to the garage room. The stations fill the middle and the gate's
@@ -179,7 +180,8 @@ PlotTraining.STAND_CAM = {
 function PlotTraining.tagSpot(index: number): (number, number, number)
 	local g = PlotTraining.GRID[index]
 	local T = PlotTraining.TAG
-	return g.x, T.y, g.z - T.back
+	local out = if g.x < 0 then -1 else 1 -- the middle column's to the right
+	return g.x + out * T.side, T.y, g.z - T.back
 end
 
 PlotTraining.RAMP_SECS = 6 -- one ramp run: up, over the gap, round and back

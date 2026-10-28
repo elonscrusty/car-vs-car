@@ -167,7 +167,7 @@ local function tag(at: BasePart, e: Entry, w: number, h: number, up: number)
 	end
 end
 
--- a station car's tag hangs still over the back of its pad (the car runs about under it)
+-- a station car's tag stands still beside its car (PlotTraining.TAG)
 local function riderTag(r: Rider, e: Entry)
 	local T = PlotTraining.TAG
 	tag(r.anchor, e, T.w, T.h, 0)
