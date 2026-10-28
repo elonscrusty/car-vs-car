@@ -163,3 +163,26 @@ test("how-to: drive, grab, fire; doing a later thing first skips ahead", functio
 		end
 	end
 end)
+
+test("customize: EQUIP works only on an owned thing that isn't on yet", function()
+	eq(select(1, SmashScreens.equipButton({ own = true, on = false })), "EQUIP")
+	eq(select(2, SmashScreens.equipButton({ own = true, on = false })), true)
+	eq(select(1, SmashScreens.equipButton({ own = true, on = true })), "ON")
+	eq(select(2, SmashScreens.equipButton({ own = true, on = true })), false)
+	eq(select(1, SmashScreens.equipButton({ own = false })), "LOCKED")
+	eq(select(2, SmashScreens.equipButton({ own = false })), false)
+	eq(select(2, SmashScreens.equipButton(nil)), false)
+	eq(select(1, SmashScreens.equipButton({ own = true, on = true }, true)), "TAKE OFF")
+	eq(select(2, SmashScreens.equipButton({ own = true, on = true }, true)), true)
+	-- the window keeps the phone rules (title, X and slab room)
+	local w = SmashScreens.piece("customize", "Window")
+	truthy(w.y >= UiScreens.WINDOW_TOP and w.x >= UiScreens.WINDOW_LEFT)
+	truthy(w.x + w.w + UiScreens.WINDOW_RIGHT <= UiScreens.W)
+	for _, q in w.inner or {} do
+		truthy(
+			q.x >= 0 and q.y >= 0 and q.x + q.w <= w.w and q.y + q.h <= w.h,
+			q.name .. " runs out of its window"
+		)
+	end
+	truthy(not UiScreens.overlap(w, SmashScreens.piece("customize", "Card")))
+end)
