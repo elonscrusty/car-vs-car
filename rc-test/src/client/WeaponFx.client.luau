@@ -202,7 +202,11 @@ local gunMine: any = nil
 local function forward(kind: string, data: any)
 	if gunMine == nil then
 		local m = script.Parent:FindFirstChild("WeaponFxGunMine")
-		gunMine = if m and m:IsA("ModuleScript") then require(m) :: any else false
+		local ok, mod = false, nil
+		if m and m:IsA("ModuleScript") then
+			ok, mod = pcall(require, m)
+		end
+		gunMine = if ok then mod else false
 	end
 	if gunMine and type(gunMine.handle) == "function" then
 		gunMine.handle(kind, data)

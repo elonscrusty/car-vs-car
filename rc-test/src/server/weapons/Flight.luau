@@ -13,7 +13,9 @@ Flight.STEP = 1 / 30 -- the longest bit of flight checked at once
 Flight.TURN_EVERY = 0.1 -- while it bends toward a kart, clients get its new path this often
 Flight.MAX_DT = 0.25 -- a long server hitch moves a shot at most this much at once
 
-type Flying = { id: number, kind: string, r: any, sentAt: number }
+Flight.TURN_DEG = 4 -- ... and only once it has bent at least this much since the last word
+
+type Flying = { id: number, kind: string, r: any, sentAt: number, sentDir: Vector3 }
 
 -- shared by every flying weapon: ids are unique and the cap counts them all
 local flying: { Flying } = {}
@@ -27,6 +29,14 @@ local function targets(ctx: any): { any }
 		end
 	end
 	return out
+end
+
+-- walls and ground stop a shot; karts are hit by the shot's own check (a little wider than a
+-- kart), so the ray looks through them
+local stepCtx: any = nil
+local function blocked(from: Vector3, to: Vector3): Vector3?
+	local h = stepCtx.raycast(from, to, nil, true)
+	return if h then h.position else nil
 end
 
 -- A weapon module ({ ammo, cooldown, fire, step, clear }) for the flying weapon `name`.
@@ -45,7 +55,10 @@ function Flight.weapon(name: string, Weapons: any): { [string]: any }
 		end
 		nextId += 1
 		local r = Weapons.rocket(kart.id, kart.cframe.Position, aim, spec)
-		table.insert(flying, { id = nextId, kind = name, r = r, sentAt = ctx.now() })
+		table.insert(
+			flying,
+			{ id = nextId, kind = name, r = r, sentAt = ctx.now(), sentDir = r.dir }
+		)
 		ctx.fx(
 			"RocketLaunch",
 			{ id = nextId, kind = name, pos = r.pos, dir = r.dir, owner = kart.id }
@@ -55,6 +68,7 @@ function Flight.weapon(name: string, Weapons: any): { [string]: any }
 
 	-- Move this weapon's shots; boom the ones that hit something or ran out of time.
 	function W.step(ctx: any, dt: number)
+		stepCtx = ctx
 		local list: { any }? = nil
 		local i = 1
 		while i <= #flying do
@@ -65,14 +79,6 @@ function Flight.weapon(name: string, Weapons: any): { [string]: any }
 			end
 			list = list or targets(ctx)
 			local owner = f.r.owner
-			local function blocked(from: Vector3, to: Vector3): Vector3?
-				local h = ctx.raycast(from, to, owner)
-				-- karts are hit by the shot's own check (a little wider than the kart)
-				if h and h.kartId == nil then
-					return h.position
-				end
-				return nil
-			end
 			local left = math.min(dt, Flight.MAX_DT)
 			local what, who = nil, nil
 			while left > 1e-6 and what == nil do
@@ -84,13 +90,17 @@ function Flight.weapon(name: string, Weapons: any): { [string]: any }
 				local direct = if what == "hit" then who else nil
 				table.remove(flying, i)
 				for _, d in Weapons.boom(f.r.pos, list :: { any }, owner, direct, spec) do
-					ctx.damage(d.id, owner, d.damage, name)
+					local ok, err = pcall(ctx.damage, d.id, owner, d.damage, name)
+					if not ok then
+						warn("[Flight] damage failed: " .. tostring(err))
+					end
 				end
 				ctx.fx("RocketBoom", { id = f.id, kind = name, pos = f.r.pos, hit = direct })
 			else
 				local now = ctx.now()
-				if f.r.target ~= nil and now - f.sentAt >= Flight.TURN_EVERY then
-					f.sentAt = now
+				local bent = vector.dot(f.r.dir, f.sentDir) < math.cos(math.rad(Flight.TURN_DEG))
+				if bent and now - f.sentAt >= Flight.TURN_EVERY then
+					f.sentAt, f.sentDir = now, f.r.dir
 					ctx.fx("RocketTurn", { id = f.id, pos = f.r.pos, dir = f.r.dir })
 				end
 				i += 1

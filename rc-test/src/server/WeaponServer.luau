@@ -21,7 +21,7 @@ export type Ctx = {
 	now: () -> number,
 	karts: () -> { Kart },
 	getKart: (id: any) -> Kart?,
-	raycast: (from: Vector3, to: Vector3, ignoreId: any?) -> Hit?,
+	raycast: (from: Vector3, to: Vector3, ignoreId: any?, worldOnly: boolean?) -> Hit?,
 	damage: (victimId: any, attackerId: any, amount: number, weapon: string) -> (),
 	fx: (kind: string, data: { [string]: any }) -> (),
 	after: (seconds: number, fn: () -> ()) -> (),
@@ -77,7 +77,11 @@ local function pose(k: any): CFrame?
 	return nil
 end
 
-local function allKarts(): { Kart }
+-- karts and their models are read once per server frame (rockets ask many times a frame)
+local cacheKarts: { Kart }? = nil
+local cacheModels: { [any]: Instance }? = nil
+
+local function readKarts(): { Kart }
 	if stand then
 		return stand.karts()
 	end
@@ -101,7 +105,14 @@ local function allKarts(): { Kart }
 	return out
 end
 
-local function kartModel(id: any): Instance?
+local function allKarts(): { Kart }
+	if not cacheKarts then
+		cacheKarts = readKarts()
+	end
+	return cacheKarts :: { Kart }
+end
+
+local function readModel(id: any): Instance?
 	if stand then
 		return if type(stand.model) == "function" then stand.model(id) else nil
 	end
@@ -116,6 +127,20 @@ local function kartModel(id: any): Instance?
 		end
 	end
 	return nil
+end
+
+local function kartModel(id: any): Instance?
+	if not cacheModels then
+		local map = {}
+		for _, k in allKarts() do
+			local m = readModel(k.id)
+			if m then
+				map[k.id] = m
+			end
+		end
+		cacheModels = map
+	end
+	return (cacheModels :: { [any]: Instance })[id]
 end
 
 -- the kart a player drives (MatchRunner.kartOf if it has one, else the player's UserId)
@@ -168,29 +193,36 @@ local function makeCtx(fxRemote: RemoteEvent): Ctx
 			end
 			return nil
 		end,
-		-- the first thing between from and to: a kart (any part of its model) or the world
-		raycast = function(from: Vector3, to: Vector3, ignoreId: any?): Hit?
-			local params = RaycastParams.new()
-			params.FilterType = Enum.RaycastFilterType.Exclude
+		-- the first thing between from and to: a living kart (any part of its model) or the world.
+		-- worldOnly: karts (and smashed ones) are see-through, only walls and ground stop it.
+		raycast = function(from: Vector3, to: Vector3, ignoreId: any?, worldOnly: boolean?): Hit?
 			local skip = {}
-			local own = if ignoreId ~= nil then kartModel(ignoreId) else nil
-			if own then
-				table.insert(skip, own)
-			end
 			local fxFolder = workspace:FindFirstChild("WeaponBits")
 			if fxFolder then
 				table.insert(skip, fxFolder)
 			end
+			local live = {}
+			for _, k in allKarts() do
+				local m = kartModel(k.id)
+				if m then
+					if worldOnly or k.id == ignoreId or not k.alive then
+						table.insert(skip, m)
+					else
+						live[m] = k.id
+					end
+				end
+			end
+			local params = RaycastParams.new()
+			params.FilterType = Enum.RaycastFilterType.Exclude
 			params.FilterDescendantsInstances = skip
 			local res = workspace:Raycast(from, to - from, params)
 			if not res then
 				return nil
 			end
 			local hitId = nil
-			for _, k in allKarts() do
-				local m = kartModel(k.id)
-				if m and res.Instance:IsDescendantOf(m) then
-					hitId = k.id
+			for m, id in live do
+				if res.Instance:IsDescendantOf(m) then
+					hitId = id
 					break
 				end
 			end
@@ -273,23 +305,29 @@ function WeaponServer.fire(id: any, aim: any): boolean
 	if not kart or not kart.alive then
 		return false
 	end
+	local before = { name = h.name, ammo = h.ammo, readyAt = h.readyAt }
 	local name = Weapons.take(h, ctx.now())
 	if not name then
 		return false
 	end
-	show(id)
 	local dir = Weapons.aim(aim, kart.cframe.LookVector)
 	local ok, shot = pcall(modules[name].fire, kart, dir, ctx)
 	if not ok then
 		warn("[WeaponServer] " .. name .. " fire failed: " .. tostring(shot))
+	end
+	if not ok or shot ~= true then
+		-- nothing went out (too many in the air, or it broke): the shot isn't spent
+		h.name, h.ammo, h.readyAt = before.name, before.ammo, before.readyAt
 		return false
 	end
-	return shot == true
+	show(id)
+	return true
 end
 
 -- A kart is smashed or left: it drops what it held.
 function WeaponServer.drop(id: any)
 	held[id] = nil
+	frozenToken[id] = nil
 	show(id)
 end
 
@@ -299,6 +337,7 @@ function WeaponServer.reset()
 		held[id] = nil
 		show(id)
 	end
+	table.clear(frozenToken)
 	for _, m in modules do
 		if m.clear then
 			pcall(m.clear, ctx)
@@ -343,6 +382,9 @@ function WeaponServer.start(opts: { match: any? }?)
 	local fire = remoteNamed(Weapons.REMOTE)
 	-- one ask: (aim: Vector3?). Anything else in the call is ignored; bursts are dropped.
 	fire.OnServerEvent:Connect(function(player: Player, aim: unknown)
+		if player.Parent == nil then
+			return -- (an ask that arrived after the player left)
+		end
 		local now = os.clock()
 		local b = buckets[player]
 		if not b then
@@ -356,10 +398,15 @@ function WeaponServer.start(opts: { match: any? }?)
 	end)
 	Players.PlayerRemoving:Connect(function(player: Player)
 		buckets[player] = nil
-		held[kartIdOf(player)] = nil
 		held[player.UserId] = nil
+		local ok, id = pcall(kartIdOf, player)
+		if ok and id ~= nil then
+			held[id] = nil
+			frozenToken[id] = nil
+		end
 	end)
 	RunService.Heartbeat:Connect(function(dt: number)
+		cacheKarts, cacheModels = nil, nil
 		for name, m in modules do
 			if m.step then
 				local ok, err = pcall(m.step, ctx, dt)
