@@ -53,6 +53,9 @@ if Features.CVC then
 	require(script.Parent.XpServer).start() -- Car VS Car: XP and levels (the Level badge)
 end
 require(script.Parent.WeaponServer).start() -- Smash weapons: the fire remote, rockets, nuke (WEAPONS row)
+if Features.SMASH then
+	require(script.Parent.SpinServer).start() -- Smash: the daily Lucky Spin and kart hats
+end
 require(script.Parent.PlotGarageBuilder).start() -- plots are garages: the loop road, coin pile pad, level sign
 do -- phone speed pass over the plots (small bits: no shadow; tiny decor bits: no collision)
 	local before, after = require(script.Parent.LobbyPerf).plots(workspace.Plots)

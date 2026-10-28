@@ -13,6 +13,7 @@ local function sibling(name: string): any
 end
 
 local Xp = sibling("Xp")
+local Hats = sibling("Hats")
 
 export type Record = { value: number, name: string, userId: number }
 export type Data = {
@@ -59,6 +60,9 @@ export type Data = {
 	raceWins: number,
 	crates: number, -- free crates not opened yet
 	xp: number, -- all XP ever earned (Xp.levelOf gives the level)
+	spinDay: number, -- the day the free Lucky Spin was last used (0 = never)
+	hats: { [string]: boolean }, -- Hats ids won
+	hat: string, -- the hat on my kart ("" = none)
 	picked: boolean, -- chose the starter car
 	nextUid: number, -- for the next car's uid
 	friendsPaid: { [string]: number }, -- friend's user id -> the day we last got the friend coins
@@ -172,6 +176,9 @@ function Profile.new(): Data
 		raceWins = 0,
 		crates = 0,
 		xp = 0,
+		spinDay = 0,
+		hats = {},
+		hat = "",
 		picked = false,
 		nextUid = 1,
 		friendsPaid = {},
@@ -644,6 +651,20 @@ function Profile.migrateGarage(d: Data, raw: any)
 		end
 	end
 	d.picked = raw.picked == true
+	if goodNumber(raw.spinDay) then
+		-- never past tomorrow: a junk day can't lock the spin away for good
+		d.spinDay = math.clamp(math.floor(raw.spinDay), 0, Profile.day(os.time()) + 1)
+	end
+	if type(raw.hats) == "table" then
+		for id, on in raw.hats do
+			if on == true and Hats.get(id) then
+				d.hats[id] = true
+			end
+		end
+	end
+	if type(raw.hat) == "string" and d.hats[raw.hat] then
+		d.hat = raw.hat
+	end
 end
 
 -- (Car VS Car SMASH) take the training game out of a save: stations, plot level, the tycoon's
@@ -1135,6 +1156,13 @@ function Profile.mergeVisit(stored: Data, session: Data, base: Data): Data
 		out[k] = math.max(out[k], ses[k])
 	end
 	out.picked = out.picked or session.picked
+	out.spinDay = math.max(out.spinDay, session.spinDay)
+	for id in session.hats do
+		out.hats[id] = true
+	end
+	if out.hat == "" or session.hat ~= base.hat then
+		out.hat = session.hat
+	end
 	if out.racer == "" then
 		out.racer = session.racer
 	end
