@@ -21,6 +21,8 @@ League.NEED = {
 }
 League.PLACE_PAY = { 100, 70, 50 } -- top 3 (Bronze); 4th and on get FINISH_PAY
 League.FINISH_PAY = 20
+-- raced but didn't finish (critic run 1: losing paid 0, so a lost kid got nothing for a race)
+League.TRY_PAY = 10
 League.PAY_MULT = { 1, 1.5, 2.2, 3 }
 
 function League.clamp(n: any): number
@@ -42,12 +44,9 @@ function League.next(strength: number, wins: number, now: number): number
 	return best
 end
 
--- Coins for a place in a league race (0 = didn't finish).
+-- Coins for a place in a league race (0 = didn't finish: the small try pay).
 function League.prize(league: number, place: number): number
-	if place <= 0 then
-		return 0
-	end
-	local base = League.PLACE_PAY[place] or League.FINISH_PAY
+	local base = if place <= 0 then League.TRY_PAY else League.PLACE_PAY[place] or League.FINISH_PAY
 	return math.floor(base * League.PAY_MULT[League.clamp(league)])
 end
 

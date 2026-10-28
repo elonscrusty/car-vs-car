@@ -84,7 +84,9 @@ end)
 test("league: top 3 get a trophy, higher leagues pay more", function()
 	truthy(League.trophy(1) and League.trophy(3))
 	truthy(not League.trophy(4) and not League.trophy(0))
-	eq(League.prize(1, 0), 0)
+	eq(League.prize(1, 0), League.TRY_PAY) -- didn't finish: still a little
+	truthy(League.prize(1, 0) > 0)
+	truthy(League.prize(1, 0) < League.prize(1, 4), "finishing pays more")
 	truthy(League.prize(1, 1) > League.prize(1, 2))
 	truthy(League.prize(1, 4) > 0)
 	for i = 2, #League.NAMES do
