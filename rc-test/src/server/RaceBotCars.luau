@@ -193,6 +193,10 @@ function RaceBotCars.step(
 		end
 		local had = bot.time
 		local cap = if fleet.easy then RaceBots.followCap(fleet.follow, bot) else nil
+		local line = if fleet.easy then RaceBots.lineCap(fleet.route, bot, kid) else nil
+		if line then
+			cap = math.min(cap or line, line)
+		end
 		RaceBots.step(fleet.route, bot, dt, since, catchUp, cap)
 		if had == nil and bot.time ~= nil then
 			done += 1

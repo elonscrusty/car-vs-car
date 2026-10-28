@@ -487,7 +487,7 @@ test("Car VS Car (audit B1): the bots know where the kid is on the road, from pr
 		local cap = RaceBots.followCap(f, bot) :: number
 		truthy(cap > 0 and cap < 40, "just under the kid's pace at the gap")
 		bot.dist = 110
-		eq(RaceBots.followCap(f, bot), 0)
+		eq(RaceBots.followCap(f, bot), RaceBots.FOLLOW_MIN)
 		RaceBots.follow(f, 60, 0.5) -- put back: wait
 		eq(f.speed, 0)
 		RaceBots.follow(f, nil, 0.75) -- no new kid racing: let go
@@ -499,7 +499,14 @@ test("Car VS Car (audit B1): the bots know where the kid is on the road, from pr
 	truthy(string.find(src, "if lead and not fleet.easy then", 1, true), "easy bots still catch up")
 	truthy(string.find(src, "RaceBots.followCap(fleet.follow, bot)", 1, true), "no follow cap")
 	local run = fs.readFile("src/server/ServerRaceRunner.luau")
-	truthy(string.find(run, "RaceBotCars.step(bots, clock, goAt, lead, kidLead)", 1, true))
+	truthy(
+		string.find(
+			run,
+			"RaceBotCars.step(bots, clock, goAt, lead, if held then kidLead else nil)",
+			1,
+			true
+		)
+	)
 	truthy(string.find(run, "RaceBots.roadAt(bots.route, progress, lx, lz)", 1, true))
 	truthy(string.find(run, "new = solo[i],", 1, true), "racers don't know who is new")
 end)
@@ -529,6 +536,143 @@ test(
 		-- a kid only just behind (a put-back a few cars back) is still waited for
 		bot.dist = 1000
 		RaceBots.follow(f, 1000 - RaceBots.FOLLOW_WAIT + 10, 0.5)
-		eq(RaceBots.followCap(f, bot), 0)
+		eq(RaceBots.followCap(f, bot), RaceBots.FOLLOW_MIN)
 	end
 )
+
+test(
+	"Car VS Car (Studio after-810): a kid stuck on the first bend still ranks 1st, bots never finish first",
+	function()
+		-- AUTO GAS, no steering: straight into the first bend's wall, stuck (the stuck clock), put back
+		-- where BackOnTrack.roadSpot says with AUTO GAS still on, into the same wall again. The race
+		-- runs out of time; the kid must still be ahead of every bot.
+		local BackOnTrack = require("../src/shared/BackOnTrack")
+		local Tuning = require("../src/shared/Tuning")
+		for _, m in RaceMaps.list() do
+			local t = m.track()
+			local loop = m.loop()
+			local route, kid = setup(m, 0.5, 1)
+			route.laps = ServerRace.FIRST_LAPS
+			-- where a car that doesn't steer meets the first bend
+			local wallAt = route.total
+			for k = 1, route.n do
+				if route.cum[k] > 30 and route.kappa[k] > 0.01 then
+					wallAt = route.cum[k] + 10
+					break
+				end
+			end
+			local lo, hi = RaceBots.skillRange(1, true)
+			local bots = {}
+			for i = 1, ServerRace.MAX - 1 do
+				local _, b = setup(m, lo + (hi - lo) * (i - 1) / (ServerRace.MAX - 2), i + 1)
+				b.delay = 0.2 + RaceBots.EASY_DELAY
+				table.insert(bots, b)
+			end
+			local follow = RaceBots.newFollow()
+			local stuckFor, putBacks, leastBack = 0, 0, math.huge
+			local since, readAt = -3, -3
+			local kidAt: number? = nil
+			while since < ServerRace.MAP_TIME_LIMIT do
+				if since >= readAt then
+					readAt = since + 0.25
+					local pose = RaceBots.pose(route, kid)
+					kidAt = RaceBots.roadAt(route, RaceBots.progress(route, kid), pose.x, pose.z)
+				end
+				RaceBots.follow(follow, kidAt, since)
+				if since >= 1 then
+					if kid.dist < wallAt then
+						kid.speed = math.min(40, kid.speed + RaceBots.ACCEL * DT)
+						kid.dist = math.min(wallAt, kid.dist + kid.speed * DT)
+					else
+						kid.speed = 0
+						stuckFor += DT
+						-- the stuck clock (pedal held, not moving) plus its half-second average
+						if BackOnTrack.stuck(stuckFor - 0.5, Tuning.stuckWait, t.id) then
+							local pose = RaceBots.pose(route, kid)
+							-- (the lap timer waits for the gate after the last one it passed)
+							local passed = 1
+							for g = 2, #route.gateAt do
+								if route.gateAt[g] <= kid.dist then
+									passed = g
+								end
+							end
+							local s = BackOnTrack.roadSpot(
+								t,
+								loop,
+								t.gates,
+								passed + 1,
+								pose.x,
+								pose.z
+							) :: BackOnTrack.Spot
+							-- back on the route where that spot is
+							local best, at = math.huge, 0
+							for k = 1, route.n do
+								local d = (route.x[k] - s.x) ^ 2 + (route.z[k] - s.z) ^ 2
+								if d < best then
+									best, at = d, route.cum[k]
+								end
+							end
+							leastBack = math.min(leastBack, at)
+							kid.dist, stuckFor, putBacks = at, 0, putBacks + 1
+						end
+					end
+				end
+				for _, b in bots do
+					local cap = RaceBots.followCap(follow, b)
+					local line = RaceBots.lineCap(route, b, kidAt)
+					if line then
+						cap = math.min(cap or line, line)
+					end
+					RaceBots.step(route, b, DT, since, 0, cap)
+					truthy(b.time == nil, `{m.id}: a bot finished while the kid was stuck`)
+				end
+				since += DT
+			end
+			truthy(putBacks >= 3, `{m.id}: only {putBacks} put-backs`)
+			truthy(leastBack > 40, `{m.id}: put back on the start line`)
+			truthy(wallAt - leastBack < 80, `{m.id}: put back far from where it got stuck`)
+			-- the time limit: the kid (laps 0, a new kid) ranks ahead of every bot
+			local entries: { ServerRace.Entry } =
+				{ { name = "zz kid", uid = 1, laps = 0, kid = true } }
+			for i, b in bots do
+				table.insert(
+					entries,
+					{ name = `a bot {i}`, laps = RaceBots.laps(route, b), time = b.time }
+				)
+			end
+			eq(ServerRace.rank(entries)[1].uid, 1)
+			print(
+				string.format(
+					"       %s: stuck at %.0f, put back at %.0f, %d times",
+					m.id,
+					wallAt,
+					leastBack,
+					putBacks
+				)
+			)
+		end
+	end
+)
+
+test("Car VS Car (Studio after-810): a held easy bot eases off and never stops dead", function()
+	local m = RaceMaps.list()[1]
+	local route, bot = setup(m, 0.45, 2)
+	local f = RaceBots.newFollow()
+	-- following a kid at 40, then the kid hits a wall and stops
+	bot.dist, bot.speed = 500, 40
+	RaceBots.follow(f, 500 + RaceBots.FOLLOW_GAP, 0)
+	RaceBots.follow(f, 510 + RaceBots.FOLLOW_GAP, 0.25)
+	RaceBots.follow(f, 510 + RaceBots.FOLLOW_GAP, 0.5)
+	RaceBots.follow(f, 509 + RaceBots.FOLLOW_GAP, 0.75) -- (backing off the wall: stopped)
+	local since = 10
+	local slowest = math.huge
+	for _ = 1, 30 * 8 do
+		local was = bot.speed
+		RaceBots.step(route, bot, DT, since, 0, RaceBots.followCap(f, bot))
+		truthy(was - bot.speed <= RaceBots.FOLLOW_BRAKE * DT + 1e-6, "braked hard")
+		slowest = math.min(slowest, bot.speed)
+		since += DT
+	end
+	truthy(slowest >= RaceBots.FOLLOW_MIN - 1e-6, `stopped dead ({slowest})`)
+	truthy(bot.speed <= RaceBots.FOLLOW_MIN + 1e-6, "eased right down to a crawl")
+end)

@@ -22,6 +22,7 @@ export type Entry = {
 	laps: number, -- laps done
 	time: number?, -- seconds from GO to the finish (nil = didn't finish)
 	score: number?, -- a drift round: drift points (the server's own count)
+	kid: boolean?, -- a new kid in a first race: ahead of every bot that didn't finish either
 }
 
 local ServerRace = {}
@@ -164,6 +165,8 @@ function ServerRace.rank(entries: { Entry }): { Entry }
 			return ta < tb
 		elseif ta or tb then
 			return ta ~= nil
+		elseif (a.kid == true) ~= (b.kid == true) then
+			return a.kid == true -- (a first race on the time limit: the new kid is ahead)
 		elseif a.laps ~= b.laps then
 			return a.laps > b.laps
 		end
@@ -321,6 +324,10 @@ ServerRace.CVC_EVERY = 3 * 60
 ServerRace.CVC_GAP = 30 -- at least this long between a race's end and the next start
 -- a first race ever: it starts this soon after the tap (+ JOIN_GRACE: 4 s; audit B8, was 15 s)
 ServerRace.CVC_FIRST = 3
+-- A first race's bots wait for the new kid (RaceBots.follow), but not for one who hasn't moved
+-- IDLE_MOVE (big units) by IDLE_KID seconds after GO: then they race on and the race can end.
+ServerRace.IDLE_KID = 10
+ServerRace.IDLE_MOVE = 10
 
 -- When the next big race starts: 3 min after the last one started, but never sooner than GAP
 -- from now (a long race pushes the next one back a bit).

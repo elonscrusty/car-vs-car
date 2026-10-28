@@ -435,8 +435,9 @@ local function payRace(
 	local tried: { [number]: boolean } = {}
 	for _, r in racers do
 		byId[r.player.UserId] = r.player
-		-- (no try pay for JOIN-and-walk-off: past one gate, still on the stand)
-		tried[r.player.UserId] = not r.out and (r.laps > 0 or r.timer.next > 2)
+		-- (no try pay for JOIN-and-walk-off: drove over the line, still on the stand. Studio
+		-- after-810: "past one gate" left a kid stuck on the first bend with 0 coins)
+		tried[r.player.UserId] = not r.out and (r.laps > 0 or r.timer.next >= 2)
 	end
 	local paid: { [number]: number } = {}
 	local starred: { [number]: number } = {}
@@ -444,8 +445,9 @@ local function payRace(
 		local p = if e.uid then byId[e.uid] else nil
 		if p and p.Parent and Features.CVC then
 			-- Car VS Car: coins by league and place, a trophy for the top 3, a win's boost and the
-			-- first race's crate all come from TrainingServer (place 0 = didn't finish)
-			local done = ServerRace.finished(e)
+			-- first race's crate all come from TrainingServer (place 0 = didn't finish). A new kid
+			-- in a first race that ran out of time still won it: the bots wait for them.
+			local done = ServerRace.finished(e) or (e.kid == true and tried[p.UserId] == true)
 			local at = if done then place else 0
 			local data = PlayerData.get(p)
 			paid[p.UserId] = if data and (done or tried[p.UserId])
@@ -628,6 +630,8 @@ local function runRace(hooks: Hooks, slot: number)
 				continue
 			end
 			p:SetAttribute("RaceLaps", groupLaps[gi]) -- (the LAP 1/2 on their screen)
+			-- (a first race: their put-back keeps AUTO GAS on)
+			p:SetAttribute("EasyRace", if groupEasy[gi] then true else nil)
 			if LobbyPlots.drivingOf(p) ~= nil then
 				hooks.walk(p)
 			end
@@ -828,6 +832,9 @@ local function runRace(hooks: Hooks, slot: number)
 		end
 		local lead: number? = nil -- the leading player's progress, for the bots' catch-up
 		local kidLead: number? = nil -- how far round the furthest new kid is, for easy bots
+		-- (a new kid who sits still after GO doesn't hold the bots: Studio after-810 waited 2:47)
+		local kidFrom: { [Racer]: number } = {}
+		local kidMoved = false
 		while not drift do
 			RunService.Heartbeat:Wait()
 			local clock = os.clock()
@@ -881,14 +888,24 @@ local function runRace(hooks: Hooks, slot: number)
 					end
 				end
 				if p.Parent then
-					table.insert(
-						entries,
-						{ name = r.name, uid = p.UserId, laps = r.laps, time = r.time }
-					)
+					table.insert(entries, {
+						name = r.name,
+						uid = p.UserId,
+						laps = r.laps,
+						time = r.time,
+						-- (only one who drove over the line: an idle kid isn't put 1st with a
+						-- trophy and then paid nothing, Studio after-810)
+						kid = if groupEasy[gi]
+								and r.new
+								and (r.laps > 0 or r.timer.next >= 2)
+							then true
+							else nil,
+					})
 				end
 			end
 			if bots then
-				RaceBotCars.step(bots, clock, goAt, lead, kidLead)
+				local held = kidMoved or clock - goAt < ServerRace.IDLE_KID
+				RaceBotCars.step(bots, clock, goAt, lead, if held then kidLead else nil)
 				for _, car in bots.cars do
 					local b = car.bot
 					table.insert(
@@ -939,6 +956,8 @@ local function runRace(hooks: Hooks, slot: number)
 						if kidLead == nil or at > kidLead then
 							kidLead = at
 						end
+						kidFrom[r] = kidFrom[r] or at
+						kidMoved = kidMoved or at - kidFrom[r] > ServerRace.IDLE_MOVE
 					end
 				end
 				local cars = #racers
@@ -987,6 +1006,13 @@ local function runRace(hooks: Hooks, slot: number)
 				(not anyIn and since > 0)
 				or ServerRace.over(entries, since, firstAt, limit, afterWin)
 			then
+				-- (a first race on the time limit: the new kid who drove is in, at the end's time,
+				-- so the podium, the card and the pay all say they won; the bots waited for them)
+				for _, e in entries do
+					if e.kid and e.time == nil then
+						e.time = since
+					end
+				end
 				local ranked = ServerRace.rank(entries)
 				local paid, starred = payRace(ranked, racers, slot)
 				local rows = {}
@@ -1052,6 +1078,7 @@ local function runRace(hooks: Hooks, slot: number)
 			r.player:SetAttribute("RacePlace", nil)
 			r.player:SetAttribute("RaceCars", nil)
 			r.player:SetAttribute("RaceGroup", nil)
+			r.player:SetAttribute("EasyRace", nil)
 			r.player:SetAttribute("StandSpot", nil)
 			setDrive(r.player, false)
 			local body = carBody(r.player)
@@ -1087,6 +1114,7 @@ local function rescue(hooks: Hooks, slot: number)
 				p:SetAttribute("RacePlace", nil)
 				p:SetAttribute("RaceCars", nil)
 				p:SetAttribute("RaceGroup", nil)
+				p:SetAttribute("EasyRace", nil)
 				p:SetAttribute("StandSpot", nil)
 				setDrive(p, false)
 				local body = carBody(p)

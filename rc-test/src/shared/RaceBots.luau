@@ -106,6 +106,10 @@ RaceBots.FOLLOW_GAIN = 0.8 -- ... closing (or opening) the gap this fast (1/s)
 -- bots creep on at FOLLOW_CRAWL so the race still ends.
 RaceBots.FOLLOW_WAIT = 90
 RaceBots.FOLLOW_CRAWL = 20
+-- (Studio after-810: held bots went from 12 to 0 in under 2 s and froze, which reads as hard
+-- braking) a held bot never goes fully still, and slows down gently
+RaceBots.FOLLOW_MIN = 2 -- the slowest a held bot rolls (big units/s)
+RaceBots.FOLLOW_BRAKE = 30 -- how hard a held bot slows (big units/s^2; BRAKE is 110)
 
 -- The skill range (lowest, highest) for a race in `league` (1..4; nil = the old fixed range),
 -- or the easy range.
@@ -303,13 +307,15 @@ function RaceBots.step(
 	local u = if span > 0 then math.clamp((d - route.cum[k]) / span, 0, 1) else 0
 	local want = bot.limit[k] + (bot.limit[nextK] - bot.limit[k]) * u
 	want *= 1 - catchUp * RaceBots.CATCH_UP
-	if cap then
-		want = math.min(want, cap)
+	local brake = RaceBots.BRAKE
+	if cap and cap < want then
+		want = cap
+		brake = RaceBots.FOLLOW_BRAKE -- (held back by the kid: ease off, no hard stop)
 	end
 	if bot.speed < want then
 		bot.speed = math.min(want, bot.speed + RaceBots.ACCEL * dt)
 	else
-		bot.speed = math.max(want, bot.speed - RaceBots.BRAKE * dt)
+		bot.speed = math.max(want, bot.speed - brake * dt)
 	end
 	bot.dist += bot.speed * dt
 	if bot.time == nil and bot.dist >= route.total * lapsOf(route) then
@@ -464,12 +470,15 @@ function RaceBots.followCap(f: Follow, bot: Bot): number?
 		-- in front (the kid was put back behind it): wait for them to go by, unless they are far
 		-- behind, then creep on instead of freezing
 		if bot.dist - (f.at :: number) <= RaceBots.FOLLOW_WAIT then
-			return 0
+			return RaceBots.FOLLOW_MIN
 		end
 		return RaceBots.FOLLOW_CRAWL
 	end
 	local room = (f.at :: number) - RaceBots.FOLLOW_GAP - bot.dist
-	return math.max(0, f.speed * RaceBots.FOLLOW_PACE + room * RaceBots.FOLLOW_GAIN)
+	return math.max(
+		RaceBots.FOLLOW_MIN,
+		f.speed * RaceBots.FOLLOW_PACE + room * RaceBots.FOLLOW_GAIN
+	)
 end
 
 -- Spread of the bots: skill and lane for bot number `i` of `count` (r = a random number 0..1 per
@@ -484,6 +493,19 @@ end
 function RaceBots.laneFor(i: number): number
 	local lanes = { -4.5, 4.5, 0, -2, 2, -6, 6 }
 	return lanes[(i - 1) % #lanes + 1]
+end
+
+-- An easy race's bots never finish before a new kid still racing (Studio after-810: one was
+-- ranked over the kid): the most a bot may drive so it eases to a stop LINE_GAP short of the
+-- finish. nil = the kid is over the line already (`kid` = RaceBots.roadAt of the furthest new
+-- kid, nil = none racing), so the bots may finish.
+RaceBots.LINE_GAP = 15
+function RaceBots.lineCap(route: Route, bot: Bot, kid: number?): number?
+	local line = route.total * lapsOf(route)
+	if kid == nil or kid >= line or bot.time ~= nil then
+		return nil
+	end
+	return math.max(0, (line - RaceBots.LINE_GAP - bot.dist) * RaceBots.FOLLOW_GAIN)
 end
 
 return RaceBots

@@ -402,3 +402,69 @@ test("Car VS Car (audit C2): a new kid racing a friend still gets the easy first
 	local g = ServerRace.groups({ 2, 1 }, 8, { false, true }, { { 1, 2 } })
 	eq(#g, 1)
 end)
+
+test(
+	"Car VS Car (Studio after-810): a first race on the time limit ranks the new kid first and pays them",
+	function()
+		local r = ServerRace.rank({
+			{ name = "Aaron (bot)", laps = 0 },
+			{ name = "kid", uid = 7, laps = 0, kid = true },
+			{ name = "Abby (bot)", laps = 1 },
+		})
+		eq(r[1].uid, 7)
+		-- a finisher is still ahead of anyone who didn't
+		eq(
+			ServerRace.rank({
+				{ name = "kid", uid = 7, laps = 0, kid = true },
+				{ name = "b", laps = 1, time = 50 },
+			})[1].name,
+			"b"
+		)
+		local fs = require("@lune/fs")
+		local src = fs.readFile("src/server/ServerRaceRunner.luau")
+		truthy(
+			string.find(src, "(r.laps > 0 or r.timer.next >= 2)", 1, true),
+			"try pay needs a gate past the line"
+		)
+		truthy(
+			string.find(
+				src,
+				"ServerRace.finished(e) or (e.kid == true and tried[p.UserId] == true)",
+				1,
+				true
+			)
+		)
+		truthy(
+			string.find(
+				src,
+				"and (r.laps > 0 or r.timer.next >= 2)\n\t\t\t\t\t\t\tthen true",
+				1,
+				true
+			),
+			"an idle kid is still put first"
+		)
+		-- a kid who never moves doesn't hold the bots (or the race) for 3 min
+		truthy(ServerRace.IDLE_KID <= 15)
+		-- the podium and the card agree: the kid gets a finish time (the card's NICE TRY! is no time)
+		truthy(
+			string.find(src, "if e.kid and e.time == nil then\n\t\t\t\t\t\te.time = since", 1, true)
+		)
+		truthy(
+			string.find(src, "local held = kidMoved or clock - goAt < ServerRace.IDLE_KID", 1, true)
+		)
+		truthy(string.find(src, "if held then kidLead else nil", 1, true))
+		truthy(
+			string.find(
+				src,
+				'p:SetAttribute("EasyRace", if groupEasy[gi] then true else nil)',
+				1,
+				true
+			)
+		)
+		local bc = fs.readFile("src/server/RaceBotCars.luau")
+		truthy(
+			string.find(bc, "RaceBots.lineCap(fleet.route, bot, kid)", 1, true),
+			"bots may finish first"
+		)
+	end
+)
