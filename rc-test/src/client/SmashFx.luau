@@ -221,6 +221,7 @@ function SmashFx.start()
 	local killAt = 0
 	local killFrom = CFrame.identity
 	local killer: SmashJuice.Side? = nil
+	local wasSmashed = false -- a smash on you was seen, so the next Health rise is a respawn
 	local killerModel: Instance? = nil -- the kart, once found (no tag scan every frame)
 	local lastWant: CFrame? = nil
 	local shownCount: number? = nil
@@ -268,11 +269,17 @@ function SmashFx.start()
 	end
 
 	-- the killer's kart, found once per killer camera (no tag scan every frame)
+	local lookedAt = -math.huge
 	local function killerAt(s: SmashJuice.Side): CFrame?
 		local at = pivotOf(killerModel)
 		if at then
 			return at
 		end
+		-- not found yet: look again at most 4 times a second
+		if os.clock() - lookedAt < 0.25 then
+			return nil
+		end
+		lookedAt = os.clock()
 		killerModel = kartOf(s)
 		return pivotOf(killerModel)
 	end
@@ -443,13 +450,19 @@ function SmashFx.start()
 			killFrom = baseCf
 			killer = other
 			killerModel = nil
+			lookedAt = -math.huge
 			lastWant = nil
 			shownCount = nil
+			wasSmashed = true
 			Sfx.smash()
 		else
 			-- someone else's smash: heard from where it happened
+			-- (no kart found → no sound, so far-off smashes never play at full volume)
 			local where = pivotOf(kartOf(f.victim))
-			Sfx.smash(where and where.Position)
+				or (f.attacker and pivotOf(kartOf(f.attacker :: SmashJuice.Side)))
+			if where then
+				Sfx.smash(where.Position)
+			end
 		end
 	end
 
@@ -494,7 +507,8 @@ function SmashFx.start()
 			feel(juice)
 			edge(CHERRY, juice.flash)
 			Sfx.hit()
-		elseif was and h > was and was <= 0 then
+		elseif was and h > was and was <= 0 and wasSmashed then
+			wasSmashed = false
 			-- back from a smash (the respawn)
 			Sfx.respawn()
 			if killcam then
