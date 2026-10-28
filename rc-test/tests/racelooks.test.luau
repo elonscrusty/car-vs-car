@@ -20,8 +20,8 @@ test("Car VS Car (playtest u01): the race car is your racer's toy car, not the g
 	local Garage = require("../src/shared/Garage")
 	local main = fs.readFile("src/client/Main.client.luau")
 	truthy(string.find(main, "skin.update(car, skinName())", 1, true), "skin not used")
-	truthy(string.find(main, "CarSkin.TOY .. id", 1, true), "no toy car for the racer")
 	local skin = fs.readFile("src/client/CarSkin.luau")
+	truthy(string.find(skin, "else CarSkin.TOY .. id", 1, true), "no toy car for the racer")
 	truthy(string.find(skin, "Garage.toyCar(", 1, true), "not the plot's toy car")
 	-- the toy car's four wheels sit one at each corner, so each gets its own name
 	local pieces = {}
@@ -153,10 +153,9 @@ test("Car VS Car (Studio pr816 04b): the toy car is the grey body's size, within
 		truthy(math.abs(a - b) <= 0.1 * b, `{what}: {a} vs {b}`)
 	end
 	near(maxZ - minZ, bodyZ, "length")
-	-- a kart's deck covers its wheels' tops: no wider than the race car over its own wheels
-	local wheelX, wheelRadius = 1.9, 0.8
-	truthy(maxX - minX <= 2 * (wheelX + wheelRadius), `width {maxX - minX}`)
-	truthy(body ~= nil and body.size.y <= bodyY, "a low deck")
+	near(maxX - minX, bodyX, "width")
+	near(body.size.x, bodyX, "body width")
+	near(body.size.y, bodyY, "body height")
 	-- both the own car's skin and other cars use that size
 	local skin = fs.readFile("src/client/CarSkin.luau")
 	truthy(string.find(skin, "Garage.toyFit(Tuning.bodyZ)", 1, true), "own car sized by its wheels")
@@ -170,9 +169,11 @@ end)
 test("carter's own car model (CarSkins, named the car id) wins over the toy look", function()
 	local fs = require("@lune/fs")
 	local main = fs.readFile("src/client/Main.client.luau")
+	truthy(string.find(main, "return CarSkin.lookFor(id)", 1, true), "own car")
+	local skinSrc = fs.readFile("src/client/CarSkin.luau")
 	truthy(
-		string.find(main, "skins:FindFirstChild(id) then id else CarSkin.TOY .. id", 1, true),
-		"own car"
+		string.find(skinSrc, 'if own and own:IsA("Model") then\n\t\treturn id', 1, true),
+		"own model first"
 	)
 	local others = fs.readFile("src/client/OtherCars.luau")
 	truthy(string.find(others, "modelShell(f, own, s) else nil", 1, true), "other cars")

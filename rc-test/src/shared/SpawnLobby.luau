@@ -62,8 +62,17 @@ end
 SpawnLobby.PAD_Z = 23
 -- play pads (queue pads): race and drift send you to an open plot of that kind (each owner picks
 -- race or drift; rocks dropped, carter 23:42)
--- (Features.SMASH: Car VS Car Smash, FINISH-JOBS; nil until that flag lands, so read loosely)
-SpawnLobby.SMASH = Features.CVC and (Features :: any).SMASH == true
+-- (Features.SMASH: Car VS Car Smash, FINISH-JOBS; in Studio also workspace attribute Smash, the
+-- same switch Main gives MatchRunner)
+SpawnLobby.SMASH = Features.CVC
+	and (
+		Features.SMASH
+		or (
+			script ~= nil
+			and game:GetService("RunService"):IsStudio()
+			and workspace:GetAttribute("Smash") == true
+		)
+	)
 SpawnLobby.PADS = if SpawnLobby.SMASH
 	then { { x = 0, kind = "smash", color = { 255, 64, 160 } } } -- Smash: one SMASH! portal
 	elseif Features.CVC then { { x = 0, kind = "race", color = { 226, 52, 46 } } } -- racing only

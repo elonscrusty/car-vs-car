@@ -15,6 +15,7 @@ local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local RaceStart = require(ReplicatedStorage.Shared.RaceStart)
 local ServerRace = require(ReplicatedStorage.Shared.ServerRace)
 local Features = require(ReplicatedStorage.Shared.Features)
+local WarmupYard = require(ReplicatedStorage.Shared.WarmupYard)
 local SmokeColors = require(ReplicatedStorage.Shared.SmokeColors)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
@@ -158,6 +159,13 @@ if arenaAt then
 	tracks[arenaAt] = t
 	timers[arenaAt] = LapTimer.new(t.gates, t.mode)
 end
+-- and the warm-up yard, where kids waiting for the next round drive (WarmupYardServer)
+if WarmupYard.on() then
+	local yardAt = LobbyLayout.yardIndex()
+	local t: TrackData.Track = LobbyLayout.track(yardAt)
+	tracks[yardAt] = t
+	timers[yardAt] = LapTimer.new(t.gates, t.mode)
+end
 local labels: { string } = {}
 for i, id in TrackData.order do
 	labels[i] = TrackData.get(id).label
@@ -176,9 +184,8 @@ local function skinName(): string?
 	if type(id) ~= "string" then
 		return nil
 	end
-	-- carter's own model for this car wins over the toy (see CarSkin: how to add one)
-	local skins = ReplicatedStorage:FindFirstChild("CarSkins")
-	return if skins and skins:FindFirstChild(id) then id else CarSkin.TOY .. id
+	-- carter's own model for this car, else its kart model, else the toy (see CarSkin.lookFor)
+	return CarSkin.lookFor(id)
 end
 
 getEye = function(): Vector3

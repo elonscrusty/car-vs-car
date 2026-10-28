@@ -73,7 +73,7 @@ function CarBuilder.build(name: string, cf: CFrame, scale: number): Model
 	local lamp = Color3.fromRGB(255, 240, 170)
 	addPart(model, body, "LampLeft", Vector3.new(0.6, 0.3, 0.2), CFrame.new(-1, 0.1, -2.75), lamp)
 	addPart(model, body, "LampRight", Vector3.new(0.6, 0.3, 0.2), CFrame.new(1, 0.1, -2.75), lamp)
-	-- the hat spot (REWARDS welds the kart topper here): on top of the toy kart driver's head,
+	-- the hat spot (REWARDS welds the kart topper here): on the toy car's roof (ToyCars.HEAD_TOP),
 	-- worked out like CarSkin lines the toy kart up (its wheels' middle at the parked spring
 	-- length, sized to the body's length), +Y up
 	local rest =
@@ -81,8 +81,11 @@ function CarBuilder.build(name: string, cf: CFrame, scale: number): Model
 	local toy = Tuning.bodyZ / 3.6 -- Garage.toyFit
 	local topper = Instance.new("Attachment")
 	topper.Name = "Topper"
-	topper.Position =
-		Vector3.new(0, Tuning.attachY - rest + (ToyCars.HEAD_TOP - 0.5) * toy, 0.3 * toy)
+	topper.Position = Vector3.new(
+		0,
+		Tuning.attachY - rest + (ToyCars.HEAD_TOP - 0.5) * toy,
+		ToyCars.TOPPER_Z * toy
+	)
 	topper.Parent = body
 	if scale ~= 1 then
 		model:ScaleTo(scale)
