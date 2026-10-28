@@ -290,6 +290,18 @@ SmashJuice.STREAK_SECONDS = 1.9
 SmashJuice.SMASHED_BY_SECONDS = 2.2
 SmashJuice.SHOW_LIMIT = 0.1 -- hard target: words on screen ≤ 0.1 s after the hit arrives
 
+-- Where the words sit, as fractions of the whole phone screen (centre x 0.5, `y` = middle of the
+-- line). Under the clock and health bar, over the car, between the scoreboard and FIRE (Lead,
+-- Studio 10-28: they covered the clock and health at the top). Tested against the match HUD.
+SmashJuice.WORDS_W = 0.4
+SmashJuice.WORDS = {
+	you = { y = 0.33, h = 0.07 },
+	name = { y = 0.42, h = 0.1 },
+	streak = { y = 0.52, h = 0.08 },
+	by = { y = 0.36, h = 0.08 },
+	count = { y = 0.47, h = 0.13 },
+}
+
 -- Palette for confetti (the low-poly look: grass, sky, sun, cherry, pink).
 SmashJuice.CONFETTI = {
 	{ 120, 200, 70 },

@@ -175,3 +175,40 @@ test(
 		truthy(string.find(start, "SmashFx.start()", 1, true), "something starts it")
 	end
 )
+
+test(
+	"smash juice (Studio 10-28): the words sit under the clock and health, clear of the HUD",
+	function()
+		local UiScreens = require("../src/shared/UiScreens")
+		local UiTheme = require("../src/shared/UiTheme")
+		local D = UiTheme.DESIGN
+		-- the match HUD in whole-phone px (the canvas starts after the left safe side)
+		local hud = {}
+		for _, n in { "Place", "Board", "Feed", "Clock", "Health", "Fire" } do
+			local pc = UiScreens.piece("match", n)
+			table.insert(hud, { name = n, x = pc.x + D.safe, y = pc.y, w = pc.w, h = pc.h })
+		end
+		local st = UiScreens.stickZone()
+		table.insert(hud, { name = "Stick", x = st.x + D.safe, y = st.y, w = st.w, h = st.h })
+		local w = SmashJuice.WORDS_W * D.phoneW
+		for spot, at in SmashJuice.WORDS do
+			local r = {
+				x = (D.phoneW - w) / 2,
+				y = (at.y - at.h / 2) * D.phoneH,
+				w = w,
+				h = at.h * D.phoneH,
+			}
+			for _, h in hud do
+				truthy(not UiScreens.overlap(r :: any, h :: any), `{spot} covers {h.name}`)
+			end
+		end
+		-- the smash lines and the smashed-by lines each stack without covering each other
+		local function clear(a: string, b: string)
+			local A, B = SmashJuice.WORDS[a], SmashJuice.WORDS[b]
+			truthy(math.abs(A.y - B.y) >= (A.h + B.h) / 2 - 1e-9, `{a} and {b} overlap`)
+		end
+		clear("you", "name")
+		clear("name", "streak")
+		clear("by", "count")
+	end
+)
