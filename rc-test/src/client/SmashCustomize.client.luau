@@ -144,16 +144,30 @@ function open()
 				end
 			end)
 		end,
-		close = Screen.closeOver,
+		close = function()
+			-- (only when it's this window: never a round's end screen)
+			if Screen.isOpen("customize") then
+				Screen.closeOver()
+			end
+		end,
 	})
 end
 
+local pending = false
 local function refresh()
-	local now = look()
-	if now ~= seen and Screen.isOpen("customize") then
-		open()
+	-- (one rebuild for news that comes together, e.g. a hat won and put on)
+	if pending then
+		return
 	end
-	seen = now
+	pending = true
+	task.defer(function()
+		pending = false
+		local now = look()
+		if now ~= seen and Screen.isOpen("customize") then
+			open()
+		end
+		seen = now
+	end)
 end
 CvcState.changed:Connect(refresh)
 player:GetAttributeChangedSignal("Hat"):Connect(refresh)

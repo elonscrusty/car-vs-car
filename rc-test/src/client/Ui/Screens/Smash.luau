@@ -376,7 +376,9 @@ function Smash.customize(data: { [string]: any }, actions: Screen.Actions?): Scr
 			refreshButton()
 		end
 		local tp = piece("customize", "Window.Tabs")
-		Kit.tabs(c, tp.x, tp.y, tp.w, tp.h, { "KARTS", "HATS" }, tab, function(i: number)
+		local tabs: Kit.Tabs
+		tabs = Kit.tabs(c, tp.x, tp.y, tp.w, tp.h, { "KARTS", "HATS" }, tab, function(i: number)
+			tabs.set(i) -- (Kit.tabs only tells us: the highlight moves here)
 			tab = i
 			Screen.act(actions, "tab")(i)
 			fill()
