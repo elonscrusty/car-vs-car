@@ -20,6 +20,36 @@ local function boot(store: Fake.Store, jobId: string)
 	return S
 end
 
+-- remote name -> the words its server script compares the first argument with
+local function kindsByRemote(): { [string]: { string } }
+	local fs = require("@lune/fs")
+	local out = {}
+	for _, f in fs.readDir("src/server") do
+		local path = "src/server/" .. f
+		if not fs.isFile(path) then
+			path = path .. "/init.luau"
+			if not fs.isFile(path) then
+				continue
+			end
+		end
+		local src = fs.readFile(path)
+		local words, seen = {}, {}
+		for w in string.gmatch(src, '[%w_]+%s*==%s*"([%w_]+)"') do
+			if not seen[w] then
+				seen[w] = true
+				table.insert(words, w)
+			end
+		end
+		for name in string.gmatch(src, '%.Name%s*=%s*"([%w_]+)"') do
+			out[name] = out[name] or {}
+			for _, w in words do
+				table.insert(out[name], w)
+			end
+		end
+	end
+	return out
+end
+
 local function errors(S): string
 	return table.concat(S.errors, "\n")
 end
@@ -68,39 +98,45 @@ test("junk on every remote (wrong types, NaN, huge, other players) never errors"
 		a,
 		part,
 	}
-	local kinds = {
-		Garage = { "pick", "coach", "station", "racer", "upgrade", "level", "open", "buy", "nope" },
-		ServerRace = { "join", "vote", "drift", "nope" },
-		RCControl = { "walk", "quick", "open", "drive", "nope" },
-		PlotShopEvent = { "buy", "toggle", "open", "nope" },
-	}
+	-- every remote the server made, and the words its script checks for (kind == "x"), found
+	-- in the source, so a new remote is swept the day it's added
+	local kinds = kindsByRemote()
 	local n = 0
-	for remote, list in kinds do
+	local RS = S.game:GetService("ReplicatedStorage")
+	local swept = {}
+	for _, r in RS:GetDescendants() do
+		local isEvent = r.ClassName == "RemoteEvent" or r.ClassName == "UnreliableRemoteEvent"
+		if not (isEvent or r.ClassName == "RemoteFunction") then
+			continue
+		end
+		local list = table.clone(kinds[r.Name] or {})
+		table.insert(list, "nope")
+		table.insert(swept, r.Name)
+		local function ask(who, ...)
+			if isEvent then
+				(getmetatable(r) :: any).p.OnServerEvent._fire(who, ...)
+			else
+				truthy(type(r.OnServerInvoke) == "function", r.Name .. " has no OnServerInvoke")
+				S.task.spawn(r.OnServerInvoke, who, ...)
+			end
+			n += 1
+			S.advance(0.6, BEAT) -- (past every rate limit, so the junk reaches the checks)
+		end
 		for _, kind in list do
 			for _, who in { a, b } do
 				for i = 1, #junk + 1 do
-					local x, y = junk[i], junk[(i * 7) % #junk + 1]
-					S.send(who, remote, kind, x, y)
-					n += 1
-					S.advance(0.6, BEAT) -- (past every rate limit, so the junk reaches the checks)
+					ask(who, kind, junk[i], junk[(i * 7) % #junk + 1])
 				end
 			end
 		end
 		-- (and junk where the kind goes)
 		for i = 1, #junk do
-			S.send(a, remote, junk[i], junk[(i * 3) % #junk + 1])
-			S.advance(0.6, BEAT)
+			ask(a, junk[i], junk[(i * 3) % #junk + 1])
 		end
 	end
-	-- the car shop (a RemoteFunction): junk asks get an answer, never an error
-	local shop = S.game:GetService("ReplicatedStorage"):FindFirstChild("CarShop")
-	local invoke = shop.OnServerInvoke
-	truthy(type(invoke) == "function", "CarShop has a handler")
-	for _, action in { "state", "buy", "equip", "spin", "drive", "nope" } do
-		for i = 1, #junk + 1 do
-			S.task.spawn(invoke, b, action, junk[i])
-			S.advance(0.6, BEAT)
-		end
+	print("       swept " .. table.concat(swept, ", "))
+	for _, name in { "Garage", "ServerRace", "RCControl", "PlotShopEvent", "CarShop" } do
+		truthy(table.find(swept, name), name .. " swept")
 	end
 	truthy(n > 400, "sent " .. n)
 	eq(errors(S), "", "errors")
