@@ -392,16 +392,17 @@ end
 -- The progress a bot is placed by (live places). An easy race's bot that is only ahead because
 -- the new kid was put back behind it (it waits there, followCap) is placed behind the kid: the
 -- kid's place flipped to 8TH after each put-back and back to 2ND seconds later (Studio after-818).
--- The rival, a bot past the line, and one far ahead (a kid stuck for good: FOLLOW_CRAWL) keep
--- their real place. `kid` = the new kid's road distance (roadAt), `kidProgress` = their progress.
+-- The rival too: it rides in front only to be chased, and the pill said 2ND while the podium said
+-- YOU WON! (Studio pr839). A bot past the line, and one far ahead (a kid stuck for good:
+-- FOLLOW_CRAWL) keep their real place. `kid` = the new kid's road distance (roadAt),
+-- `kidProgress` = their progress.
 function RaceBots.placeProgress(
 	bot: Bot,
 	progress: number,
 	kid: number?,
-	kidProgress: number?,
-	rival: boolean
+	kidProgress: number?
 ): number
-	if rival or bot.time ~= nil or kid == nil or kidProgress == nil then
+	if bot.time ~= nil or kid == nil or kidProgress == nil then
 		return progress
 	end
 	local ahead = bot.dist - (kid :: number)
@@ -531,6 +532,15 @@ end
 -- finish. nil = the kid is over the line already (`kid` = RaceBots.roadAt of the furthest new
 -- kid, nil = none racing), so the bots may finish.
 RaceBots.LINE_GAP = 15
+-- How far round a new kid still racing is, for the bots to follow: never on the finish until the
+-- lap clock says they crossed it (the road guess got there first and let the rival finish ahead).
+-- nil when they are done: then the bots may finish.
+function RaceBots.kidRoad(route: Route, at: number, finished: boolean): number?
+	if finished then
+		return nil
+	end
+	return math.min(at, route.total * lapsOf(route) - 1)
+end
 function RaceBots.lineCap(route: Route, bot: Bot, kid: number?): number?
 	local line = route.total * lapsOf(route)
 	if kid == nil or kid >= line or bot.time ~= nil then
