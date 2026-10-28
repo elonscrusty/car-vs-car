@@ -129,8 +129,9 @@ local function build(board: Lb.Board, folder: Instance, originZ: number)
 	anchor.CanTouch = false
 	anchor.Transparency = 1
 	anchor.Size = Vector3.new(w, h, 0.3)
-	-- facing back at the spawn (-z)
-	anchor.CFrame = CFrame.lookAt(Vector3.new(x, y, z), Vector3.new(x, y, z - 10))
+	-- facing back at the spawn (-z), or where its slot turns it
+	local fx, fz = Lb.facing(board)
+	anchor.CFrame = CFrame.lookAt(Vector3.new(x, y, z), Vector3.new(x + fx * 10, y, z + fz * 10))
 	anchor.Parent = folder
 	-- a blue plate just behind the (rounded) panel: past the words' MaxDistance it still shows
 	-- as a board, not two black posts sticking out of the plaza (phone playtest u19)
@@ -157,7 +158,7 @@ local function build(board: Lb.Board, folder: Instance, originZ: number)
 		post.Color = INK
 		local ph = y - h / 2
 		post.Size = Vector3.new(0.5, ph, 0.5)
-		post.CFrame = CFrame.new(x + dx, ph / 2, z + 0.3)
+		post.CFrame = anchor.CFrame * CFrame.new(dx, ph / 2 - y, 0.3)
 		post.Parent = anchor
 	end
 	local gui = Instance.new("SurfaceGui")
