@@ -37,6 +37,8 @@ ServerRace.FIRST_LAPS = 1
 ServerRace.MAX = 8 -- cars on the grid
 ServerRace.TIME_LIMIT = 240 -- seconds from GO: the race ends even if nobody finished
 ServerRace.AFTER_WIN = 30 -- the others get this long to finish after the winner
+-- Car VS Car map races: 15 (critic run 1: a lost kid sat 30 s on FINISH IN, 3 times in 10 min)
+ServerRace.MAP_AFTER_WIN = 15
 ServerRace.DRIFT_TIME = 90 -- a drift round (the plot's owner picked drift): best score in this long
 ServerRace.SHOW = 7 -- seconds the result shows before the racers walk back
 -- GO comes when the start lights go green (the player's screen starts them as the car lands)
@@ -201,12 +203,13 @@ function ServerRace.over(
 	entries: { Entry },
 	since: number,
 	firstAt: number?,
-	limit: number?
+	limit: number?,
+	afterWin: number?
 ): boolean
 	if since >= (limit or ServerRace.TIME_LIMIT) then
 		return true
 	end
-	if firstAt and since - firstAt >= ServerRace.AFTER_WIN then
+	if firstAt and since - firstAt >= (afterWin or ServerRace.AFTER_WIN) then
 		return true
 	end
 	for _, e in entries do

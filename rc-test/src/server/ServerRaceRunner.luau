@@ -778,13 +778,16 @@ local function runRace(hooks: Hooks, slot: number)
 			end
 		end
 		-- the first one is in: the others race the clock (their screens count it down, the winner's too)
+		local afterWin = if Features.CVC and t.map
+			then ServerRace.MAP_AFTER_WIN
+			else ServerRace.AFTER_WIN
 		local function startCountdown(took: number)
 			if firstAt ~= nil then
 				return
 			end
 			firstAt = took
 			local limit = if t.map then ServerRace.MAP_TIME_LIMIT else ServerRace.TIME_LIMIT
-			local endsAt = now() + math.min(ServerRace.AFTER_WIN, limit - took)
+			local endsAt = now() + math.min(afterWin, limit - took)
 			for _, o in racers do
 				if o.player.Parent then
 					event:FireClient(o.player, "ends", endsAt)
@@ -920,7 +923,10 @@ local function runRace(hooks: Hooks, slot: number)
 			end
 			local since = clock - goAt
 			local limit = if t.map then ServerRace.MAP_TIME_LIMIT else nil
-			if (not anyIn and since > 0) or ServerRace.over(entries, since, firstAt, limit) then
+			if
+				(not anyIn and since > 0)
+				or ServerRace.over(entries, since, firstAt, limit, afterWin)
+			then
 				local ranked = ServerRace.rank(entries)
 				local paid, starred = payRace(ranked, racers, slot)
 				local rows = {}
