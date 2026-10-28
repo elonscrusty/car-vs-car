@@ -116,7 +116,15 @@ export type Rng = { NextNumber: (any) -> number }
 -- Opens one crate of `kind`: the car's id, and its kind (common, rare...). `rng` is a Random
 -- (or anything with NextNumber). A kind of car with no cars in the pool falls back to the next
 -- kind down, so a roll always gives a car. Nil only for an unknown crate or an empty pool.
-function Crates.roll(kind: any, rng: Rng, pool: Pool?): (string?, string?)
+-- `owned` (car ids the kid has): the kind of car is rolled on the shown odds as always, then the
+-- car is one of that kind the kid doesn't have yet; a copy only once they have every car of
+-- that kind (Studio 10-28: the first free crate gave a 2nd BLUE DART, the starter).
+function Crates.roll(
+	kind: any,
+	rng: Rng,
+	pool: Pool?,
+	owned: { [string]: boolean }?
+): (string?, string?)
 	local k = Crates.get(kind)
 	if not k then
 		return nil, nil
@@ -140,8 +148,15 @@ function Crates.roll(kind: any, rng: Rng, pool: Pool?): (string?, string?)
 		local tier = CarCatalog.RARITY_ORDER[j]
 		local list = cars[tier]
 		if list and #list > 0 then
-			local n = math.clamp(math.floor(rng:NextNumber() * #list) + 1, 1, #list)
-			return list[n], tier
+			local fresh = {}
+			for _, id in list do
+				if not (owned and owned[id]) then
+					table.insert(fresh, id)
+				end
+			end
+			local from = if #fresh > 0 then fresh else list
+			local n = math.clamp(math.floor(rng:NextNumber() * #from) + 1, 1, #from)
+			return from[n], tier
 		end
 	end
 	return nil, nil
