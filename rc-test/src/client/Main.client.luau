@@ -296,6 +296,12 @@ local putRoad: { x: number, z: number }? = nil
 local putAt, putAgain = -100, 0
 local steerLoops: { [string]: { { x: number, z: number } } } = {} -- each map's centre line
 local steerAt: number? = nil -- the centre line sample the car was last nearest
+-- the countdown's small screen shake (MASTER race moment: 3 sound cues + a shake): how strong and
+-- how long it has left; added on top of the camera, which stays as it is
+local raceFx = RaceFx.new() -- carter's picks 14 + 15: speed lines on BOOST, sparks on hits
+local SHAKE_TIME = 0.25
+local shakeBy, shakeLeft = 0, 0
+local shakeRng = Random.new()
 local lostRoads: { [string]: { BackOnTrack.Road } } = {} -- each map's roads (BackOnTrack.roads)
 -- Plots with checkpoint flags: a reset (R, RESET, fell off, out) brings the car back to the last
 -- flag it drove through instead of the start. R twice quickly = start.
@@ -790,6 +796,9 @@ RunService.PreSimulation:Connect(function(dt: number)
 			startBeep.Volume = SoundLevels.START_BEEP * (if grid then 1.8 else 1)
 			if grid then
 				Sfx.count(RaceStart.GO - step) -- 3, 2, 1, then 0 = GO (the sounds helper's)
+				-- (radians: a nudge on 3, 2, 1, a bigger one on GO)
+				shakeBy = if step >= RaceStart.GO then 0.018 else 0.008
+				shakeLeft = SHAKE_TIME
 			else
 				startBeep:Play()
 			end
@@ -859,6 +868,8 @@ RunService.PreSimulation:Connect(function(dt: number)
 		event = nil
 		raceDone = os.clock() - go
 		hud.flash(`FINISH!  {CarMath.formatTime(raceDone :: number)}`, true)
+		-- (at once, the frame you cross: MASTER asks for confetti within 0.5 s)
+		raceFx.confetti(body.Position + Vector3.new(0, 2 * Tuning.scale, 0), 90, Tuning.scale * 4)
 		setRacing(false)
 	end
 	roadArrow.update(t, timer, rc, lx, lz)
@@ -1031,7 +1042,6 @@ local otherCars = OtherCars.new(function(): string
 end)
 
 local boosting = false -- was on a boost last frame
-local raceFx = RaceFx.new() -- carter's picks 14 + 15: speed lines on BOOST, sparks on hits
 local speedWas = 0 -- flat speed last frame (sparks on a hard stop)
 -- carter's pick 18: in the big race your own car wears a yellow YOU (the others wear their names:
 -- OtherCars), so you find it from the stand
@@ -1192,6 +1202,12 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 		cam.FieldOfView = standFov
 	else
 		standLook = nil
+	end
+	if shakeLeft > 0 then
+		shakeLeft = math.max(0, shakeLeft - dt)
+		local a = shakeBy * shakeLeft / SHAKE_TIME
+		local cam = workspace.CurrentCamera
+		cam.CFrame *= CFrame.Angles(shakeRng:NextNumber(-a, a), shakeRng:NextNumber(-a, a), 0)
 	end
 	hideOtherLeagues(dt, spot ~= nil)
 	controls.setRock(tracks[current].id == "rock")
