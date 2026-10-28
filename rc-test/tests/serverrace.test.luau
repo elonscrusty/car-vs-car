@@ -92,6 +92,12 @@ test("rank: finishers by time, then by laps; race ends when all are in", functio
 		true
 	)
 	eq(ServerRace.over({ { name = "b", laps = 1 } }, ServerRace.TIME_LIMIT, nil), true)
+	-- Car VS Car map races: the wait after the winner is MAP_AFTER_WIN, not 30 s
+	local two = { { name = "a", laps = 2, time = 60 }, { name = "b", laps = 1 } }
+	local M = ServerRace.MAP_AFTER_WIN
+	truthy(M < ServerRace.AFTER_WIN, "map races wait less after the winner")
+	eq(ServerRace.over(two, 60 + M - 0.1, 60, ServerRace.MAP_TIME_LIMIT, M), false)
+	eq(ServerRace.over(two, 60 + M, 60, ServerRace.MAP_TIME_LIMIT, M), true)
 	near(ServerRace.GO_DELAY, 3.0, 1e-9)
 end)
 
