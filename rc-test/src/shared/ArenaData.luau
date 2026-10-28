@@ -98,10 +98,10 @@ ArenaData.TREE_R = 7 -- the candy top's radius in the picture
 
 -- the 12 start spots (picture), numbered like the picture
 ArenaData.START = {
-	{ 20, 20 },
+	{ 28, 28 }, -- the corners are moved in so the chase cam behind fits inside the wall
 	{ 120, 15 },
 	{ 225, 60 },
-	{ 225, 225 },
+	{ 210, 210 },
 	{ 120, 229 }, -- the picture has it on the wall: nudged in
 	{ 15, 150 },
 	{ 80, 48 },
@@ -177,15 +177,62 @@ function ArenaData.groundAt(p: Pt): number
 	return 0
 end
 
--- start spots (map-local big units), each facing the arena's middle
+-- The chase cam hangs this far behind a kart (big units, Tuning camDistance at RC size); a start
+-- spot must leave room for it inside the wall, and a kart must not start nose to the wall.
+ArenaData.CAM_BACK, ArenaData.NOSE_ROOM = 40, 20
+local MARGIN = ArenaData.WALL + 2 -- picture units from the outside edge
+
+-- The way a start spot faces: the arena's middle, else the nearest turn (15 degree steps) that
+-- keeps the chase cam and the kart's nose inside the walls (spots near a wall face along it).
+function ArenaData.facing(p: Pt): (number?, number?)
+	local back, front = ArenaData.CAM_BACK / ArenaData.K, ArenaData.NOSE_ROOM / ArenaData.K
+	local lo, hi = MARGIN, ArenaData.PIC - MARGIN
+	local base = math.atan2(ArenaData.PIC / 2 - p[2], ArenaData.PIC / 2 - p[1])
+	local best, bx, by = math.huge, nil, nil
+	for k = 0, 23 do
+		local a = k * math.pi / 12
+		local dx, dy = math.cos(a), math.sin(a)
+		local cx, cy = p[1] - dx * back, p[2] - dy * back
+		local fx, fy = p[1] + dx * front, p[2] + dy * front
+		if
+			cx >= lo
+			and cx <= hi
+			and cy >= lo
+			and cy <= hi
+			and fx >= lo
+			and fx <= hi
+			and fy >= lo
+			and fy <= hi
+		then
+			local diff = math.abs((a - base + math.pi) % (2 * math.pi) - math.pi)
+			if diff < best then
+				best, bx, by = diff, dx, dy
+			end
+		end
+	end
+	if bx == nil or by == nil then
+		return nil
+	end
+	return bx, by
+end
+
+-- start spots (map-local big units)
 ArenaData.spawns = {} :: { Spot }
 for _, p in ArenaData.START do
 	local x, z = ArenaData.at(p)
-	local n = math.max(math.sqrt(x * x + z * z), 1e-6)
-	table.insert(
-		ArenaData.spawns,
-		{ x = x, y = ArenaData.groundAt(p) + 2.5, z = z, dx = -x / n, dz = -z / n }
-	)
+	local dx, dz = ArenaData.facing(p)
+	if dx == nil or dz == nil then
+		-- no room anywhere (the test catches this): face the middle
+		local n = math.max(math.sqrt(x * x + z * z), 1e-6)
+		dx, dz = -x / n, -z / n
+	end
+	table.insert(ArenaData.spawns, {
+		x = x,
+		y = ArenaData.groundAt(p) + 2.5,
+		z = z,
+		dx = dx :: number,
+		dz = dz :: number,
+	})
 end
 
 -- box spots (map-local big units, y = the floor's top there). Plain {x, y, z} so Lune can test

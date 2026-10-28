@@ -158,16 +158,35 @@ test("12 start spots and 22 box spots, all inside the walls and on open floor", 
 	end
 end)
 
-test("start spots face the middle and are well apart", function()
-	for i, s in A.spawns do
-		truthy(math.abs(s.dx * s.dx + s.dz * s.dz - 1) < 1e-6, "unit direction " .. i)
-		truthy(s.dx * s.x + s.dz * s.z < 0, "spot " .. i .. " faces the middle")
-		for j = i + 1, #A.spawns do
-			local o = A.spawns[j]
-			truthy(math.sqrt((s.x - o.x) ^ 2 + (s.z - o.z) ^ 2) > 30, `spots {i} and {j} apart`)
+test(
+	"start spots face the middle (or along a wall), the chase cam fits behind, well apart",
+	function()
+		for i, s in A.spawns do
+			truthy(A.facing(A.START[i]) ~= nil, "spot " .. i .. " has a way to face")
+			truthy(math.abs(s.dx * s.dx + s.dz * s.dz - 1) < 1e-6, "unit direction " .. i)
+			truthy(
+				s.dx * s.x + s.dz * s.z <= 1e-6,
+				"spot " .. i .. " doesn't face away from the middle"
+			)
+			local half = A.SIZE / 2 - A.WALL * K
+			for _, q in
+				{
+					{ s.x - s.dx * A.CAM_BACK, s.z - s.dz * A.CAM_BACK },
+					{ s.x + s.dx * A.NOSE_ROOM, s.z + s.dz * A.NOSE_ROOM },
+				}
+			do
+				truthy(
+					math.abs(q[1]) < half and math.abs(q[2]) < half,
+					"spot " .. i .. ": cam and nose inside the walls"
+				)
+			end
+			for j = i + 1, #A.spawns do
+				local o = A.spawns[j]
+				truthy(math.sqrt((s.x - o.x) ^ 2 + (s.z - o.z) ^ 2) > 30, `spots {i} and {j} apart`)
+			end
 		end
 	end
-end)
+)
 
 test("hills: boxes on them sit on top, ramps are gentle", function()
 	eq(A.boxSpots[6].y, A.HILLS[1].h, "HIGH PINK box on top")
