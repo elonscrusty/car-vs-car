@@ -111,6 +111,14 @@ test(
 		for i, s in A.spawns do
 			truthy(A.facing(A.START[i]) ~= nil, "spot " .. i .. " has a way to face")
 			truthy(A.viewOpen(A.START[i], s.dx, s.dz), "spot " .. i .. " looks at open arena first")
+			local p = A.START[i]
+			for _, o in { { 3, 0 }, { -3, 0 }, { 0, 3 }, { 0, -3 } } do
+				eq(
+					A.groundAt({ p[1] + o[1], p[2] + o[2] }),
+					A.groundAt(p),
+					"spot " .. i .. " on flat ground"
+				)
+			end
 			truthy(math.abs(s.dx * s.dx + s.dz * s.dz - 1) < 1e-6, "unit direction " .. i)
 			truthy(
 				s.dx * s.x + s.dz * s.z <= 1e-6,
