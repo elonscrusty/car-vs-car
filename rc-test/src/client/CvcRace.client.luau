@@ -148,8 +148,9 @@ if Features.NEW_UI then
 		onClick = tapBoost,
 	})
 	boostCount.ZIndex = 12
-	-- the first race: TAP BOOST! over it, until it's tapped (MASTER-PROMPT first 10 minutes)
-	local hint = Base.text(holder, "TapHint", -50, -48, 200, 36, "TAP BOOST!", {
+	-- the first race: TAP BOOST! over it, until it's tapped (MASTER-PROMPT first 10 minutes);
+	-- up past the count ball (Studio live3 shot 04)
+	local hint = Base.text(holder, "TapHint", -60, -86, 200, 36, "TAP BOOST!", {
 		color = Base.color("go"),
 		stroke = 5,
 		z = 12,
