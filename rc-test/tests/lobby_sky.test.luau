@@ -27,3 +27,21 @@ test("haze is gentle so the lobby stays clear", function()
 	end
 	truthy(S.atmosphere.color[3] > S.atmosphere.color[1], "light blue, not grey or orange")
 end)
+
+test("a race keeps the lobby's brightness and ambient, not its sky or time of day", function()
+	for _, key in { "Brightness", "Ambient", "OutdoorAmbient" } do
+		truthy(table.find(S.raceKeeps, key) ~= nil, key .. " stays on in a race")
+	end
+	for _, key in { "ClockTime", "GeographicLatitude" } do
+		truthy(
+			table.find(S.raceKeeps, key) == nil,
+			key .. " comes back from the race map's own light"
+		)
+	end
+	for _, key in S.raceKeeps do
+		truthy(
+			S.lighting[key] ~= nil or key == "Ambient" or key == "OutdoorAmbient",
+			key .. " is a light the lobby sets"
+		)
+	end
+end)

@@ -1,6 +1,7 @@
 --!strict
 -- Puts the lobby's sky and light (LobbySkyLook) on Lighting while walking in the lobby, and the
--- light that was there before back while driving, so the plots keep their own look.
+-- light that was there before back while driving (all but the brightness and ambient,
+-- LobbySkyLook.raceKeeps, so a race is as bright as the plot).
 
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -68,8 +69,12 @@ function LobbySky.set(lobby: boolean)
 			table.insert(added, inst)
 		end
 	elseif not lobby and saved then
+		-- the race keeps the lobby's brightness and ambient (playtest: races looked darker than the
+		-- plot) but gets its own sky, haze and time of day back
 		for key, value in saved do
-			(Lighting :: any)[key] = value
+			if not table.find(LobbySkyLook.raceKeeps, key) then
+				(Lighting :: any)[key] = value
+			end
 		end
 		saved = nil
 		for _, inst in added do

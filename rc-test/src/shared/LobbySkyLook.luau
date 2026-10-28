@@ -2,7 +2,7 @@
 -- The lobby's sky and light (carter's picture): a bright sunny day, soft shadows, a light blue
 -- sky and a gentle haze far out over the water. Plain numbers (Lune tests load this);
 -- client/LobbySky.luau puts it on Lighting while you walk in the lobby and puts the old light
--- back when you drive, so the plots keep their own look.
+-- back when you drive, all but the brightness and ambient (raceKeeps).
 
 export type RGB = { number }
 
@@ -19,6 +19,8 @@ LobbySkyLook.lighting = {
 }
 LobbySkyLook.ambient = { 120, 125, 140 } -- shade under trees and roofs: cool, not black
 LobbySkyLook.outdoorAmbient = { 150, 155, 170 }
+-- what stays on while driving a race (the race map keeps its own sky, haze and time of day)
+LobbySkyLook.raceKeeps = { "Brightness", "ExposureCompensation", "Ambient", "OutdoorAmbient" }
 
 -- haze that thickens with distance: the lobby stays crisp, the far lake fades into light blue
 LobbySkyLook.atmosphere = {
