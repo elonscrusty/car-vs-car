@@ -20,19 +20,22 @@ local function rgb(r: number, g: number, b: number): Color3
 end
 
 -- palette (LOOK RULE: grass green, sky blue, sunny yellow, cherry red, hot pink, dark navy)
-local GRASS = rgb(116, 204, 84)
+local GRASS = rgb(112, 190, 88)
 local ROAD = rgb(92, 98, 118)
-local CURB_RED, CURB_WHITE = rgb(225, 40, 50), rgb(250, 250, 250)
+local CURB_RED, CURB_WHITE = rgb(214, 70, 72), rgb(240, 238, 232)
 local SAND = rgb(250, 190, 96)
 local BUMPER = rgb(225, 40, 50)
-local PINK, PINK_RAMP = rgb(240, 96, 200), rgb(255, 160, 225)
+local PINK, PINK_RAMP = rgb(234, 122, 196), rgb(246, 168, 220)
+local PINK_SIDE = rgb(212, 100, 176)
 local PURPLE, PURPLE_STEP = rgb(136, 60, 196), rgb(176, 96, 220)
 local ORANGE = rgb(255, 140, 40)
 local CANDY, CANDY_2 = rgb(214, 44, 178), rgb(255, 110, 200)
 local STICK = rgb(252, 248, 240)
 local TRIM, NAVY = rgb(196, 128, 246), rgb(34, 40, 78)
 local YELLOW, SKY = rgb(255, 214, 40), rgb(80, 180, 255)
-local GRASS_DARK, GRASS_LIGHT = rgb(92, 182, 70), rgb(146, 220, 100)
+local GRASS_DARK, GRASS_LIGHT = rgb(94, 170, 76), rgb(140, 206, 104)
+local GRASS_FAR, WATER, SHORE = rgb(104, 178, 86), rgb(96, 186, 236), rgb(240, 214, 150)
+local HILL_FAR, HILL_FAR_2 = rgb(88, 160, 84), rgb(120, 186, 96)
 local BUSH, BUSH_2 = rgb(56, 150, 64), rgb(84, 176, 72)
 local ROCK, ROCK_2 = rgb(172, 168, 196), rgb(146, 142, 176)
 local CRATE, CRATE_BAND = rgb(255, 196, 60), rgb(230, 120, 30)
@@ -299,6 +302,8 @@ local function roadLine(perSeg: number): { Vector3 }
 	return out
 end
 
+local ROAD_STEPS = 7 -- road pieces per picture point (fewer parts for phones)
+
 local function buildFloor(folder: Instance)
 	local s = ArenaData.SIZE
 	part(folder, "Grass", Vector3.new(s, 4, s), CFrame.new(0, -2, 0), GRASS, true)
@@ -395,12 +400,31 @@ local function buildFloor(folder: Instance)
 		ArenaData.STEP_SLOPE,
 		ArenaData.STEP_SIDES,
 		PURPLE_STEP,
-		PURPLE
+		TRIM
 	)
+	-- a dark skirting along the inside foot of the wall
+	for _, side in { -1, 1 } do
+		part(
+			folder,
+			"Skirting",
+			Vector3.new(s - 2 * w, 1.4, 0.6),
+			CFrame.new(0, 0.7, side * inner),
+			NAVY,
+			false
+		)
+		part(
+			folder,
+			"Skirting",
+			Vector3.new(0.6, 1.4, s - 2 * w),
+			CFrame.new(side * inner, 0.7, 0),
+			NAVY,
+			false
+		)
+	end
 end
 
 local function buildRoad(folder: Instance)
-	local line = roadLine(10)
+	local line = roadLine(ROAD_STEPS)
 	local n = #line
 	local rw, cw = ArenaData.ROAD_W * K, ArenaData.CURB * K
 	for i = 1, n do
@@ -426,7 +450,8 @@ local function buildRoad(folder: Instance)
 				a + off,
 				b + off,
 				cw,
-				0.12,
+				-- red and white a hair apart in height, so their overlaps never flicker
+				if i % 2 == 0 then 0.12 else 0.14,
 				if i % 2 == 0 then CURB_RED else CURB_WHITE,
 				0.4
 			)
@@ -493,7 +518,7 @@ end
 
 local function buildHills(folder: Instance)
 	for _, h in ArenaData.HILLS do
-		mesa(folder, h.name, h.poly, h.h, h.slope, nil, PINK, CANDY)
+		mesa(folder, h.name, h.poly, h.h, h.slope, nil, PINK, PINK_SIDE)
 	end
 	for i, r in ArenaData.RAMPS do
 		local a, b = v(r.from, 0), v(r.to, 0)
@@ -747,6 +772,152 @@ local function buildDecor(folder: Instance)
 	end
 end
 
+-- Outside the walls (looks only, nothing to hit): far grass, a lake with a sandy shore, rolling
+-- low-poly hills, grey cliffs and rows of trees, so every camera sees a world, not empty sky.
+local function buildWorld(folder: Instance)
+	local s = ArenaData.SIZE
+	part(folder, "FarGrass", Vector3.new(2400, 2, 2400), CFrame.new(0, -1.6, 0), GRASS_FAR, false)
+	part(
+		folder,
+		"Shore",
+		Vector3.new(1400, 0.4, 160),
+		CFrame.new(0, -0.15, -s / 2 - 100),
+		SHORE,
+		false
+	)
+	part(
+		folder,
+		"Lake",
+		Vector3.new(1400, 0.4, 260),
+		CFrame.new(0, 0.05, -s / 2 - 310),
+		WATER,
+		false
+	)
+	local rng = Random.new(28)
+	-- rolling hills: turned blocks sunk in the ground, in a ring well past the walls
+	for k = 0, 13 do
+		local ang = k / 14 * math.pi * 2 + rng:NextNumber(-0.15, 0.15)
+		local r = rng:NextNumber(430, 620)
+		local at = Vector3.new(math.cos(ang) * r, 0, math.sin(ang) * r)
+		local size = rng:NextNumber(110, 190)
+		if at.Z < -s / 2 - 60 and at.Z > -s / 2 - 440 - size * 0.8 then
+			at = Vector3.new(at.X, 0, -s / 2 - 440 - size * 0.8) -- behind the lake, not in it
+		end
+		local east = at.X > 300
+		part(
+			folder,
+			if east then "Cliff" else "FarHill",
+			Vector3.new(size, size * (if east then 0.9 else 0.55), size),
+			CFrame.new(at - Vector3.new(0, size * 0.18, 0))
+				* CFrame.Angles(rng:NextNumber(-0.25, 0.25), ang, rng:NextNumber(-0.25, 0.25)),
+			if east then ROCK_2 else HILL_FAR,
+			false
+		)
+		part(
+			folder,
+			if east then "Cliff" else "FarHill",
+			Vector3.new(size * 0.7, size * 0.5, size * 0.7),
+			CFrame.new(at + Vector3.new(size * 0.4, -size * 0.1, size * 0.2))
+				* CFrame.Angles(0.2, ang + 0.8, -0.3),
+			if east then ROCK else HILL_FAR_2,
+			false
+		)
+	end
+	-- rows of trees round the outside of the wall (not over the lake)
+	for k = 0, 47 do
+		local side = k % 4
+		local along = (math.floor(k / 4) / 11 - 0.5) * (s + 160)
+		local out = s / 2 + rng:NextNumber(70, 140)
+		local x, z
+		if side == 0 then
+			x, z = along, out
+		elseif side == 1 then
+			x, z = out, along
+		elseif side == 2 then
+			x, z = -out, along
+		else
+			x, z = along * 1.6, -s / 2 - 120 -- a row on the shore
+		end
+		local h = rng:NextNumber(22, 34)
+		local base = Vector3.new(x, 0, z)
+		local trunk = part(
+			folder,
+			"FarTrunk",
+			Vector3.new(h, 4, 4),
+			CFrame.new(base + Vector3.new(0, h / 2, 0)) * CFrame.Angles(0, 0, math.pi / 2),
+			STICK,
+			false
+		) :: Part
+		trunk.Shape = Enum.PartType.Cylinder
+		local r = rng:NextNumber(11, 17)
+		part(
+			folder,
+			"FarTreeTop",
+			Vector3.new(r, r, r),
+			CFrame.new(base + Vector3.new(0, h + r * 0.3, 0)) * CFrame.Angles(0.6, k * 0.9, 0.6),
+			if k % 3 == 0 then CANDY_2 elseif k % 3 == 1 then BUSH else BUSH_2,
+			false
+		)
+	end
+end
+
+-- Grass tufts scattered over the open grass (looks only): off the road, sand, hills and spots.
+local function buildTufts(folder: Instance)
+	local line = roadLine(4)
+	local rng = Random.new(7)
+	local clearOfRoad = (ArenaData.ROAD_W / 2 + ArenaData.CURB + 2) * K
+	local spots: { Pt } = {}
+	for _, p in ArenaData.START do
+		table.insert(spots, p)
+	end
+	for _, p in ArenaData.BOXES do
+		table.insert(spots, p)
+	end
+	for gx = 14, ArenaData.PIC - 14, 13 do
+		for gy = 14, ArenaData.PIC - 14, 13 do
+			local p = { gx + rng:NextNumber(-5, 5), gy + rng:NextNumber(-5, 5) }
+			local ok = ArenaData.groundAt(p) == 0
+				and not ArenaData.inside(ArenaData.SAND, p)
+				and ArenaData.clear(p[1], p[2], 2)
+			if ok then
+				for _, q in spots do
+					if math.abs(q[1] - p[1]) < 7 and math.abs(q[2] - p[2]) < 7 then
+						ok = false
+						break
+					end
+				end
+			end
+			local at = v(p, 0)
+			if ok then
+				-- distance to each road piece (not just its ends: the long legs have far-apart points)
+				for k, q in line do
+					local q2 = line[k % #line + 1]
+					local d = q2 - q
+					local u = math.clamp((at - q):Dot(d) / math.max(d:Dot(d), 1e-6), 0, 1)
+					if (q + d * u - at).Magnitude < clearOfRoad then
+						ok = false
+						break
+					end
+				end
+			end
+			if ok then
+				local spin = rng:NextNumber(0, math.pi * 2)
+				for t = 0, 1 do
+					part(
+						folder,
+						"Tuft",
+						Vector3.new(1.4, 2.4 - t * 0.6, 1.4),
+						CFrame.new(at + Vector3.new(t * 1.2, 0.9, t * 0.8))
+							* CFrame.Angles(0.3, spin + t, 0.35),
+						if t == 0 then GRASS_DARK else BUSH_2,
+						false
+					)
+				end
+			end
+		end
+	end
+end
+
 -- The arena model, built big at the origin (no scaling, not placed): tests and renders read it.
 function ArenaBuilder.buildBig(): Model
 	local model = Instance.new("Model")
@@ -760,6 +931,8 @@ function ArenaBuilder.buildBig(): Model
 	buildArch(model)
 	buildTrees(model)
 	buildDecor(model)
+	buildTufts(model)
+	buildWorld(model)
 	return model
 end
 

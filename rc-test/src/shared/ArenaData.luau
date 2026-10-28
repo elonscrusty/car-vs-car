@@ -157,7 +157,7 @@ ArenaData.FLOWERS = {
 	{ 170, 120 },
 } :: { Pt }
 ArenaData.PATCHES = {
-	{ 128, 125, 15, 1 },
+	{ 124, 128, 12, 1 },
 	{ 24, 212, 13, 2 },
 	{ 216, 22, 13, 1 },
 	{ 118, 182, 12, 2 },
@@ -167,7 +167,7 @@ ArenaData.PATCHES = {
 	{ 14, 135, 9, 1 },
 	{ 85, 200, 12, 1 },
 	{ 50, 118, 9, 2 },
-	{ 172, 122, 11, 2 },
+	{ 200, 132, 8, 2 },
 	{ 140, 168, 9, 1 },
 	{ 229, 62, 8, 1 },
 	{ 14, 70, 8, 2 },
@@ -398,13 +398,29 @@ end
 ArenaData.CAM_BACK, ArenaData.NOSE_ROOM = 40, 20
 local MARGIN = ArenaData.WALL + 2 -- picture units from the outside edge
 
+-- Is the view ahead of a kart at p (facing dx, dy) open: no wall, cover, rock or rise (a hill
+-- side) in the first VIEW big units?
+ArenaData.VIEW = 48
+function ArenaData.viewOpen(p: Pt, dx: number, dy: number): boolean
+	local g0 = ArenaData.groundAt(p)
+	local step = 1.5 -- picture units: fine enough to catch a bumper or a trunk
+	for k = 1, math.floor(ArenaData.VIEW / ArenaData.K / step) do
+		local q = { p[1] + dx * step * k, p[2] + dy * step * k }
+		if ArenaData.groundAt(q) > g0 + 1 or not ArenaData.clear(q[1], q[2], 1) then
+			return false
+		end
+	end
+	return true
+end
+
 -- The way a start spot faces: the arena's middle, else the nearest turn (15 degree steps) that
 -- keeps the chase cam and the kart's nose inside the walls (spots near a wall face along it).
 function ArenaData.facing(p: Pt): (number?, number?)
 	local back, front = ArenaData.CAM_BACK / ArenaData.K, ArenaData.NOSE_ROOM / ArenaData.K
 	local lo, hi = MARGIN, ArenaData.PIC - MARGIN
 	local base = math.atan2(ArenaData.PIC / 2 - p[2], ArenaData.PIC / 2 - p[1])
-	local best, bx, by = math.huge, nil, nil
+	local best = math.huge
+	local bx: number?, by: number? = nil, nil
 	for k = 0, 23 do
 		local a = k * math.pi / 12
 		local dx, dy = math.cos(a), math.sin(a)
@@ -421,6 +437,13 @@ function ArenaData.facing(p: Pt): (number?, number?)
 			and fy <= hi
 		then
 			local diff = math.abs((a - base + math.pi) % (2 * math.pi) - math.pi)
+			-- never away from the middle; an open first look (nothing solid or higher close
+			-- ahead) beats a blocked one
+			if diff > math.pi / 2 then
+				diff = math.huge
+			elseif not ArenaData.viewOpen(p, dx, dy) then
+				diff += math.pi
+			end
 			if diff < best then
 				best, bx, by = diff, dx, dy
 			end
@@ -490,8 +513,9 @@ ArenaData.lighting = {
 }
 ArenaData.ambient = { 140, 130, 150 }
 ArenaData.outdoorAmbient = { 170, 160, 175 }
+-- soft: no neon wash on phones
 ArenaData.colorCorrection =
-	{ Brightness = 0.03, Contrast = 0.08, Saturation = 0.2, tint = { 255, 246, 232 } }
-ArenaData.bloom = { Intensity = 0.4, Size = 24, Threshold = 1.4 }
+	{ Brightness = 0.02, Contrast = 0.06, Saturation = 0.04, tint = { 255, 248, 238 } }
+ArenaData.bloom = { Intensity = 0.2, Size = 20, Threshold = 2 }
 
 return ArenaData
