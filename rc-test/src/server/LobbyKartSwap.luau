@@ -17,7 +17,7 @@ LobbyKartSwap.KART = "Kart_HotRod"
 LobbyKartSwap.LONG = 9 -- studs nose to tail: a lobby show kart, bigger than a player's
 -- on the plaza floor, clear 14x14, 27 studs from the spawn, nose to it (Studio 10-29: the coupe's own
 -- spot is on the hill past the kerb, hidden in the bushes)
-LobbyKartSwap.SPOT = { x = 20, y = 0, z = 890, yaw = 132 }
+LobbyKartSwap.SPOT = { x = 22, y = 0, z = 892, yaw = 132 } -- (2 studs off the line to a lamp post)
 local BLUE = ToyCars.PALETTE.sky
 local STYLE = "muscle/white"
 

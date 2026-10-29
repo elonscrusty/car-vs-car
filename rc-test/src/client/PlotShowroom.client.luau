@@ -248,7 +248,7 @@ local function watch(plot: Instance)
 		folder = Instance.new("Folder"),
 		key = "",
 		spinner = nil,
-		angle = 0,
+		angle = 180, -- (the hero kart starts nose to the gate, +z: auditor round 13)
 		glow = {},
 		bulbs = {},
 	}
