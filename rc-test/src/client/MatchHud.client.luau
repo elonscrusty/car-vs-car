@@ -21,6 +21,7 @@ local Screen = require(Ui:WaitForChild("Screen"))
 local Hud = require(Ui:WaitForChild("Screens"):WaitForChild("Hud"))
 local SmashJuice = require(Shared:WaitForChild("SmashJuice"))
 local Sfx = require(script.Parent:WaitForChild("Sfx"))
+local TestThumb = require(script.Parent:WaitForChild("TestThumb"))
 
 local player = Players.LocalPlayer
 
@@ -262,6 +263,9 @@ RunService.Heartbeat:Connect(function()
 		check() -- (the match is over: the end screen takes it from here)
 	end
 end)
+
+-- the Studio-only test thumb presses this same FIRE (client/TestThumb)
+TestThumb.onFire(fire)
 
 -- keyboard F and a gamepad's R2 fire too (the button is the phone's)
 UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
