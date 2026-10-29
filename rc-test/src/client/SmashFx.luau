@@ -700,6 +700,14 @@ function SmashFx.boom(at: Vector3)
 	add(SmashJuice.feel("boom", (cam.CFrame.Position - at).Magnitude, Base.reduced()))
 end
 
+-- a shake and a zoom punch for a moment that isn't a hit (the match start's 3-2-1-GO)
+function SmashFx.kick(trauma: number, punch: number)
+	local add = addFeel
+	if add and not Base.reduced() then
+		add({ trauma = trauma, punch = punch, slow = 0.12, confetti = 0, flash = 0 })
+	end
+end
+
 -- your own hit on another kart (client/SmashHits): a small shake
 function SmashFx.myHit(damage: number)
 	local add = addFeel

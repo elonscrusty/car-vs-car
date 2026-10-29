@@ -393,6 +393,34 @@ SmashJuice.WRECK_TOUCH = {
 } :: { [string]: { y: number, h: number, w: number } }
 -- (the words pop in from at most 1.5x, so the pop never sweeps over the HUD for long)
 
+-- The match start (carter's pick A1, 10-29): a giant 3, 2, 1 and GO! over the first seconds of a
+-- round. It is only a show (the server starts the round at once; the spawn shield covers the
+-- first 2 s). `startStep(t)` is the word to show t seconds after the round began.
+SmashJuice.START_STEP = 1 -- seconds per number
+SmashJuice.START_GO_SECONDS = 1.4 -- how long GO! stays
+function SmashJuice.startStep(t: number): string?
+	if t < 0 then
+		return nil
+	end
+	local i = math.floor(t / SmashJuice.START_STEP)
+	if i < 3 then
+		return tostring(3 - i)
+	end
+	if t < 3 * SmashJuice.START_STEP + SmashJuice.START_GO_SECONDS then
+		return "GO!"
+	end
+	return nil
+end
+-- where the number and the "GET READY!" line sit (the same rule as the words: clear of the HUD)
+SmashJuice.START = {
+	num = { y = 0.5, h = 0.34, w = 0.24 },
+	ready = { y = 0.72, h = 0.05, w = 0.3 },
+} :: { [string]: { y: number, h: number, w: number } }
+SmashJuice.START_TOUCH = {
+	num = { y = 0.5, h = 0.3, w = 0.2 },
+	ready = { y = 0.7, h = 0.06, w = 0.26 },
+} :: { [string]: { y: number, h: number, w: number } }
+
 -- Palette for confetti (the low-poly look: grass, sky, sun, cherry, pink).
 SmashJuice.CONFETTI = {
 	{ 120, 200, 70 },

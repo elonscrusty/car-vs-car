@@ -469,6 +469,31 @@ test("FIRE: the ? orb and GRAB A ? BOX when empty, the weapon and ammo when held
 	h2.close()
 end)
 
+test("phone match start: the giant number and GET READY! clear of the phone HUD", function()
+	local SmashJuice = require("../src/shared/SmashJuice")
+	local UiScreens = require("../src/shared/UiScreens")
+	for _, ph in PHONE_SIZES do
+		local s = ph.safe
+		local k = math.min(s[3] / 756, s[4] / 390)
+		local ox = s[1] + (s[3] - 756 * k) / 2
+		for spot, at in SmashJuice.START_TOUCH do
+			local r = {
+				x = (ph.w - at.w * ph.w) / 2,
+				y = (at.y - at.h / 2) * ph.h,
+				w = at.w * ph.w,
+				h = at.h * ph.h,
+			}
+			truthy(at.h * ph.h * 0.7 >= 14, `start {spot} words under 14 px at {ph.name}`)
+			for _, pc in UiScreens.get("matchTouch").pieces do
+				if pc.name ~= "Words" then
+					local b = { x = ox + pc.x * k, y = s[2] + pc.y * k, w = pc.w * k, h = pc.h * k }
+					truthy(not overlap(r, b), `start {spot} covers {pc.name} at {ph.name}`)
+				end
+			end
+		end
+	end
+end)
+
 test("phone wrecked card: verb, tag and 3-2-1 ring clear of the phone HUD", function()
 	local SmashJuice = require("../src/shared/SmashJuice")
 	local UiScreens = require("../src/shared/UiScreens")
