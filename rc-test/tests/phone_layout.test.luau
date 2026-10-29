@@ -601,6 +601,37 @@ for _, ph in PHONE_SIZES do
 		h.close()
 	end)
 
+	-- auditor 15:35: SMASH! is whole on screen with a margin (a Studio crop cut it off)
+	test("phone lobby at " .. ph.name .. ": SMASH! whole on screen, 4 px clear", function()
+		local h = phoneLobby()
+		local s = ph.safe
+		local race
+		for _, b in L.boxes(h.gui.gui, s[1], s[2], s[3], s[4]) do
+			if b.obj.Name == "Race" and isButton(b) then
+				race = b
+			end
+		end
+		truthy(race ~= nil, "no SMASH! button")
+		if race then
+			local x, y, w, hh = seen(race)
+			print(
+				string.format(
+					"       %s SMASH! at %d,%d %dx%d (safe bottom %d, screen %d)",
+					ph.name,
+					x,
+					y,
+					w,
+					hh,
+					s[2] + s[4],
+					ph.h
+				)
+			)
+			truthy(y + hh <= s[2] + s[4] - 4, "SMASH! runs into the bottom edge")
+			truthy(x >= s[1] + 4 and x + w <= s[1] + s[3] - 4, "SMASH! runs off a side")
+		end
+		h.close()
+	end)
+
 	-- auditor 14:55: the 8 tiles spread over the panel, every word inside its tile at one
 	-- size, row 1 clear of row 2, the X clear of every tile
 	test("phone MENU at " .. ph.name .. ": rows spread, words in their tiles, X clear", function()
