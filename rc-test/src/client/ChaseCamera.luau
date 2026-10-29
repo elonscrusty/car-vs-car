@@ -24,6 +24,8 @@ export type Cam = {
 	kick: (degrees: number) -> (),
 	setArena: (on: boolean, now: boolean?) -> (),
 	arenaDistance: () -> number,
+	isArena: () -> boolean,
+	comeBack: () -> (),
 }
 
 export type View = "driver" | "chase" | "top" | "free"
@@ -169,6 +171,7 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 	-- the match camera: on or off, and how far into it (eased over ArenaCam.BLEND)
 	local arenaOn = false
 	local arenaFrom, arenaW, arenaT = 0, 0, 0
+	local whoosh = -1 -- seconds into the come-back whoosh after a respawn (below 0 = not playing)
 	refit(camera.ViewportSize) -- (this screen's numbers before the first spot: no swoop)
 	local arenaOff = -heading * ARENA_BACK + Vector3.new(0, ARENA_UP, 0) -- camera minus focus
 	local lean = Vector3.zero -- the look-ahead, eased
@@ -365,7 +368,18 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 		return arenaFit.distance
 	end
 
+	-- is the match camera on now (Main: a respawn in a match gets the come-back whoosh)
+	function cam.isArena(): boolean
+		return arenaOn
+	end
+
+	-- the come-back whoosh (shared/ArenaCam.comeBack): starts at the next frame
+	function cam.comeBack()
+		whoosh = 0
+	end
+
 	function cam.snap()
+		whoosh = -1
 		heading = flat(body.CFrame.LookVector)
 		pos = body.Position - heading * Tuning.camDistance + Vector3.new(0, Tuning.camHeight, 0)
 		lookAt = body.Position
@@ -620,8 +634,26 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 				)
 				else 0
 			local aLook = focus + heading * aim + lean
+			local wideBy = 0 -- the come-back's wider view
 			if arenaW >= 1 then
 				pos, lookAt = focus + arenaOff, aLook
+				if whoosh >= 0 then
+					-- the come-back: round the kart, wide and high, spiralling in to the chase spot
+					-- (the wall check still holds it off the walls)
+					whoosh += dt
+					local turn, out, hgt, wide = ArenaCam.comeBack(whoosh, flatOff, arenaOff.Y)
+					wideBy = wide
+					local back = Vector3.new(arenaOff.X, 0, arenaOff.Z)
+					if back.Magnitude > 1e-3 then
+						local c, s = math.cos(turn), math.sin(turn)
+						local u = back.Unit
+						local dir = Vector3.new(u.X * c - u.Z * s, 0, u.X * s + u.Z * c)
+						pos = focus + arenaWant(dir * out + Vector3.new(0, hgt, 0))
+					end
+					if whoosh >= ArenaCam.COMEBACK_SECONDS then
+						whoosh = -1
+					end
+				end
 			else
 				pos = pos:Lerp(focus + arenaOff, arenaW)
 				lookAt = lookAt:Lerp(aLook, arenaW)
@@ -629,7 +661,7 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 				-- spot itself)
 				pos = focus + arenaWant(pos - focus)
 			end
-			fov += (aFov - fov) * arenaW
+			fov += (aFov - fov) * arenaW + wideBy
 		end
 		camera.CFrame = CFrame.lookAt(pos, lookAt)
 		camera.FieldOfView = fov + kick

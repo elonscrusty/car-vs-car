@@ -288,3 +288,45 @@ test("kit world: the weapon icon floats over every kart but your own", function(
 	)
 	truthy(string.find(icon, "PHONE and model.Name == MINE", 1, true) == nil)
 end)
+
+test("arena cam: the come-back whoosh spirals in and lands exactly on the match camera", function()
+	local back, up = ArenaCam.offset(ArenaCam.PHONE_DISTANCE, ArenaCam.PHONE_PITCH)
+	-- the start: round the kart, wide, high and zoomed out
+	local turn0, out0, hgt0, wide0 = ArenaCam.comeBack(0, back, up)
+	truthy(turn0 > math.pi, "starts more than half way round")
+	eq(out0, ArenaCam.COMEBACK_RADIUS)
+	eq(hgt0, ArenaCam.COMEBACK_HEIGHT)
+	eq(wide0, ArenaCam.COMEBACK_FOV)
+	-- the end (and after): exactly the chase spot, nothing left over
+	for _, t in { ArenaCam.COMEBACK_SECONDS, ArenaCam.COMEBACK_SECONDS + 5 } do
+		local turn, out, hgt, wide = ArenaCam.comeBack(t, back, up)
+		eq(turn, 0)
+		eq(out, back)
+		eq(hgt, up)
+		eq(wide, 0)
+	end
+	-- smooth and one way: the turn and the extra view only shrink, never come back
+	local lastTurn, lastWide = math.huge, math.huge
+	for i = 0, 25 do
+		local turn, _, _, wide = ArenaCam.comeBack(i * 0.05, back, up)
+		truthy(turn <= lastTurn and wide <= lastWide, "never turns back")
+		lastTurn, lastWide = turn, wide
+	end
+	truthy(
+		ArenaCam.COMEBACK_SECONDS >= 1 and ArenaCam.COMEBACK_SECONDS <= 1.5,
+		"quick: about a second"
+	)
+	-- hooked up: a respawn in a match (the old camera was the match camera), once the car is
+	-- placed, and plain with reduced motion
+	local chase = fs.readFile("src/client/ChaseCamera.luau")
+	local main = fs.readFile("src/client/Main.client.luau")
+	truthy(string.find(chase, "ArenaCam.comeBack(whoosh, flatOff, arenaOff.Y)", 1, true) ~= nil)
+	truthy(string.find(main, "local respawned = camera.isArena()", 1, true) ~= nil)
+	local at = string.find(main, "camera.comeBack()", 1, true)
+	local placed = string.find(main, "goTo(index)\n\t\t-- the come-back whoosh", 1, true)
+	truthy(
+		at ~= nil and placed ~= nil and placed < at,
+		"after the car is placed (goTo snaps the camera)"
+	)
+	truthy(string.find(main, ".reduced()", 1, true) ~= nil, "reduced motion: no whoosh")
+end)

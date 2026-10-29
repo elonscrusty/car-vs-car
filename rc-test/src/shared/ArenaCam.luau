@@ -86,6 +86,32 @@ function ArenaCam.forced(isStudio: boolean, attr: unknown): boolean
 	return isStudio and attr == true
 end
 
+-- Come-back camera (carter 10-29, try C "whoosh" of 4 on camera/comeback.html): when you respawn
+-- in a match the camera starts wide, high and spun round your new kart, and spirals in to the
+-- chase spot, the view narrowing as it lands. Looks only: the camera ends exactly where the
+-- match camera always sits.
+ArenaCam.COMEBACK_SECONDS = 1.25
+ArenaCam.COMEBACK_RADIUS = 14 -- studs out from the kart at the start
+ArenaCam.COMEBACK_HEIGHT = 11 -- studs above it at the start
+ArenaCam.COMEBACK_TURN = 1.35 * math.pi -- radians still to turn round the kart at the start
+ArenaCam.COMEBACK_FOV = 28 -- degrees wider at the start (falls off as k squared)
+
+-- The whoosh `t` s after the respawn, for a match camera `flatBack` studs behind the kart and
+-- `up` above it: (turn left to go round the kart in radians, distance out along the ground,
+-- height, extra degrees of field of view). At COMEBACK_SECONDS and after: (0, flatBack, up, 0).
+function ArenaCam.comeBack(
+	t: number,
+	flatBack: number,
+	up: number
+): (number, number, number, number)
+	local u = math.clamp(t / ArenaCam.COMEBACK_SECONDS, 0, 1)
+	local k = 1 - (1 - u) ^ 3 -- fast at first, settles slowly
+	return (1 - k) * ArenaCam.COMEBACK_TURN,
+		(1 - k) * ArenaCam.COMEBACK_RADIUS + k * flatBack,
+		(1 - k) * ArenaCam.COMEBACK_HEIGHT + k * up,
+		(1 - k) * (1 - k) * ArenaCam.COMEBACK_FOV
+end
+
 -- The camera for a screen `w` x `h` px: a phone's close one, or the big screen's. `phone` (from
 -- isPhone) wins when given; without it the screen's size decides.
 function ArenaCam.fit(w: number, h: number, phone: boolean?): Fit

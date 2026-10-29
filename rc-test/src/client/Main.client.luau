@@ -462,6 +462,8 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown, gridSpot: u
 		wallRay.FilterDescendantsInstances = ignoreList()
 		grindFor, nudgeUntil = 0, 0
 		table.clear(nudges)
+		-- (the old camera was in the match camera: this is a respawn, not the match's start)
+		local respawned = camera.isArena()
 		camera = ChaseCamera.new(body, ignoreList(), eye)
 		camera.setView(view)
 		-- (a respawn in a match starts in the match camera, no swoop from the low one)
@@ -495,6 +497,15 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown, gridSpot: u
 		end
 		setStats(nil)
 		goTo(index)
+		-- the come-back whoosh round your new kart (reduced motion: a plain cut)
+		if
+			respawned
+			and grid ~= nil
+			and ArenaCam.on(player:GetAttribute("InMatch"), true)
+			and not require(script.Parent:WaitForChild("Ui"):WaitForChild("Base")).reduced()
+		then
+			camera.comeBack()
+		end
 	end
 end)
 setWalking(true)
