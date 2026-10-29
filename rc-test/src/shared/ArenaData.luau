@@ -102,7 +102,7 @@ ArenaData.STEP_SIDES = { 2, 3 }
 
 -- orange cover walls (segments, picture units)
 ArenaData.COVER = {
-	{ { 114, 118 }, { 130, 115 } }, -- (west, off the box behind it: round 12; clear of the sand)
+	{ { 110, 118 }, { 130, 115 } }, -- (west, off the box behind it: round 12)
 	{ { 110, 190 }, { 135, 200 } },
 	{ { 175, 30 }, { 195, 38 } },
 } :: { { Pt } }
