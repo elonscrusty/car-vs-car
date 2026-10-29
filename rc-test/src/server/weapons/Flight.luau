@@ -3,7 +3,8 @@
 -- kart's nose; shared/Weapons.step moves it, bends it a little toward a kart ahead and says what
 -- it hit; a boom hurts every kart in reach (Weapons.boom) through ctx.damage. Clients only draw:
 -- "RocketLaunch" { id, kind, pos, dir }, "RocketTurn" { id, pos, dir }, "RocketBoom" { id, kind,
--- pos, hit?, quiet? } (client/WeaponFx). Plain Luau with the Weapons module passed in, so Lune
+-- pos, hit?, hurt?, quiet? } (client/WeaponFx; hurt = { { id, damage } }: every kart the
+-- server really hurt and by how much, for the hit flash and "-N"). Plain Luau with the Weapons module passed in, so Lune
 -- tests run it with a fake ctx.
 
 local Flight = {}
@@ -114,16 +115,26 @@ function Flight.weapon(name: string, Weapons: any): { [string]: any }
 			if what ~= nil then
 				local direct = if what == "hit" then who else nil
 				table.remove(flying, i)
+				local hurt = {}
 				for _, d in Weapons.boom(f.r.pos, list :: { any }, owner, direct, spec) do
-					local ok, err = pcall(ctx.damage, d.id, owner, d.damage, name)
+					local ok, taken = pcall(ctx.damage, d.id, owner, d.damage, name)
 					if not ok then
-						warn("[Flight] damage failed: " .. tostring(err))
+						warn("[Flight] damage failed: " .. tostring(taken))
+					elseif type(taken) ~= "number" or taken > 0 then
+						table.insert(hurt, {
+							id = d.id,
+							damage = if type(taken) == "number" then taken else d.damage,
+						})
 					end
 				end
-				ctx.fx(
-					"RocketBoom",
-					{ id = f.id, kind = name, pos = f.r.pos, hit = direct, owner = owner }
-				)
+				ctx.fx("RocketBoom", {
+					id = f.id,
+					kind = name,
+					pos = f.r.pos,
+					hit = direct,
+					hurt = hurt,
+					owner = owner,
+				})
 			else
 				local now = ctx.now()
 				local bent = vector.dot(f.r.dir, f.sentDir) < math.cos(math.rad(Flight.TURN_DEG))
