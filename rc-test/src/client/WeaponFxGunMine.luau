@@ -204,7 +204,7 @@ function FxGunMine.handle(kind: string, data: any)
 	elseif kind == "FreezeShot" then
 		local a, b = vec(data, "from"), vec(data, "to")
 		if a and b then
-			beam(a, b, ICE, 0.6, 0.18)
+			beam(a, b, ICE, 0.6, 0.3) -- (≥ 0.3 s on screen: auditor Road to 9/10 item 2)
 			sound("freezeShot", data, a)
 		end
 	elseif kind == "FreezeHit" then
