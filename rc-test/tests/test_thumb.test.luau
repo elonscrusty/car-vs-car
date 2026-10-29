@@ -350,3 +350,18 @@ test(
 		eq(backed, false, "backed up while driving")
 	end
 )
+
+test("calm: a respawn or round start forgets being slow", function()
+	local s = ThumbBrain.new(rng())
+	local box = { { x = 3, z = -20 } }
+	local me = { x = 0, z = 0, fx = 0, fz = -1, speed = 0.5 }
+	for i = 0, 10 do
+		ThumbBrain.step(s, i * 0.05, me, box, {}, false) -- 0.5 s slow
+	end
+	ThumbBrain.calm(s)
+	eq(ThumbBrain.step(s, 0.6, me, box, {}, false).brake, 0, "no back-up right after a respawn")
+	local frozen = { x = 0, z = 0, fx = 0, fz = -1, speed = nil }
+	for i = 0, 40 do
+		eq(ThumbBrain.step(s, 1 + i * 0.05, frozen, box, {}, false).brake, 0, "frozen: never")
+	end
+end)

@@ -215,6 +215,11 @@ function ThumbBrain.tally(): Tally
 	}
 end
 
+-- Forget being slow or backing up (smashed, or frozen at a spawn).
+function ThumbBrain.calm(s: State)
+	s.slowFor, s.lastAt, s.backUntil = 0, nil, -math.huge
+end
+
 -- The angle (radians, + = right) from the nose to `p`.
 function ThumbBrain.angle(me: Me, p: Point): number
 	return (angleTo(me, p))
