@@ -210,6 +210,34 @@ test("a 3D kart fills ~70% of its view's width and never runs off the top", func
 	truthy(SmashScreens.KART_FILL >= 0.6 and SmashScreens.KART_FILL <= 0.8)
 end)
 
+test("ROUND OVER XP bar: fills from before to now, LEVEL UP! when it crosses", function()
+	-- level 1 needs 100: 0 -> 60 is "60 / 100", no level up
+	local b = MatchEnd.xpBar(60, 60) :: MatchEnd.XpBar
+	eq(b.fromLevel, 1)
+	eq(b.fromF, 0)
+	eq(b.toLevel, 1)
+	eq(b.toF, 0.6)
+	eq(b.into, 60)
+	eq(b.need, 100)
+	eq(b.levelUp, false)
+	-- 80 -> 130 crosses into level 2 (needs 125): 30 / 125
+	local u = MatchEnd.xpBar(130, 50) :: MatchEnd.XpBar
+	eq(u.fromLevel, 1)
+	eq(u.fromF, 0.8)
+	eq(u.toLevel, 2)
+	eq(u.into, 30)
+	eq(u.need, 125)
+	eq(u.levelUp, true)
+	-- nothing to show for junk or no XP; never below 0
+	eq(MatchEnd.xpBar(nil, 20), nil)
+	eq(MatchEnd.xpBar(50, 0), nil)
+	eq(MatchEnd.xpBar("x", 5), nil)
+	eq(MatchEnd.xpBar(0 / 0, 5), nil)
+	local low = MatchEnd.xpBar(10, 40) :: MatchEnd.XpBar
+	eq(low.fromF, 0)
+	eq(low.into, 10)
+end)
+
 test("how-to: TAP FIRE! shows only with a weapon", function()
 	eq(SmashScreens.cardFor(3, ""), 0)
 	eq(SmashScreens.cardFor(3, "Rockets"), 3)
