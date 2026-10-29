@@ -1,9 +1,9 @@
 --!strict
 -- Car VS Car Smash: three things move in the lobby, on this screen only (auditor cheap tells #1):
--- the SMASH! portal ring turns slowly ("PortalSpin": each piece has SpinCentre and SpinAxis),
--- the balloon bunches bob ("LobbyBob", Phase), and the "?" box over the crate shop spins
+-- the SMASH! portal ring and the yard's windmill sails turn ("PortalSpin": SpinCentre, SpinAxis),
+-- the balloon bunches bob ("LobbyBob", Phase), and the "?" box by the yard's board spins
 -- ("LobbySpin"). The server built them anchored; this only moves this screen's copies, all in one
--- BulkMoveTo a frame. Paused while you're far off (in a match or the yard), so a phone does no
+-- BulkMoveTo a frame. Paused for whatever's far off (the lobby from the yard, say), so a phone does no
 -- work it can't see.
 local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")

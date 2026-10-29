@@ -723,13 +723,12 @@ function WarmupYard.extras(kit: any, dress: Instance)
 		mill.Parent = dress
 	end
 	local b = WarmupYard.BOARD
-	-- (small and low enough to stay on a phone's chase view, clear of the board's top edge
-	-- however it bobs: Studio r4)
+	-- (beside the board, at its middle height: over it, the chase view cut it off, Studio r4/r6)
 	local box = kit.part(
 		dress,
 		"QuestionBox",
 		Vector3.new(10, 10, 10),
-		CFrame.new(b.at.x, b.at.y + b.h / 2 + 10, b.at.z),
+		CFrame.new(b.at.x + b.w / 2 + 12, b.at.y, b.at.z), -- (clear of the edge as it turns)
 		c3(YELLOW),
 		false
 	)
@@ -820,7 +819,7 @@ function WarmupYard.build(parent: Instance): Model
 		end
 		-- the empty field round the pen (auditor round 13): tyre stacks along the walls, a flag
 		-- on every corner, bush clumps out on the grass, balloon bunches that bob and a "?"
-		-- box spinning over the board (LobbyMotion moves them on each screen)
+		-- box spinning beside the board (LobbyMotion moves them on each screen)
 		local okExtras, why = pcall(WarmupYard.extras, kit, dress)
 		if not okExtras then
 			warn("[WarmupYard] dressing:", why)
