@@ -61,6 +61,28 @@ local function made(spec: Data.Spec, u: number, at: CFrame): BasePart
 	return p
 end
 
+-- Which way the model's nose is along its Body's own Z: +1 or -1. race_bolt's body is turned
+-- around (its front wheels sit at local -Z), so this is read from where the wheels are: the front
+-- wheels' middle against the rear wheels'. `scope` holds the wheels (the model, or the skin's folder).
+function FireDrake.noseSign(body: BasePart, scope: Instance): number
+	local front, rear, nf, nr = 0, 0, 0, 0
+	for _, n in { "WheelFL", "WheelFR", "WheelRL", "WheelRR" } do
+		local w = scope:FindFirstChild(n, true)
+		if w and w:IsA("BasePart") then
+			local z = body.CFrame:PointToObjectSpace(w.Position).Z
+			if string.sub(n, 6, 6) == "F" then
+				front, nf = front + z, nf + 1
+			else
+				rear, nr = rear + z, nr + 1
+			end
+		end
+	end
+	if nf == 0 or nr == 0 then
+		return 1
+	end
+	return if front / nf >= rear / nr then 1 else -1
+end
+
 -- Adds the two heads to a car model (once; later calls do nothing). Needs the model's Body and
 -- the Extras attribute: CarSkin only carries a model's other parts when it has that.
 function FireDrake.addTo(model: Model)
@@ -77,6 +99,7 @@ function FireDrake.addTo(model: Model)
 		return
 	end
 	local u = body.Size.Z / Data.DESIGN_LENGTH
+	local nose = FireDrake.noseSign(body, model)
 	local place = Data.PLACE
 	local folder = Instance.new("Folder")
 	folder.Name = "Drake"
@@ -85,8 +108,11 @@ function FireDrake.addTo(model: Model)
 			* CFrame.new(
 				side * place.x * body.Size.X,
 				(place.y - 0.5) * body.Size.Y,
-				place.z * body.Size.Z
+				nose * place.z * body.Size.Z
 			)
+		if nose < 0 then
+			at = at * CFrame.Angles(0, math.pi, 0) -- (the head's own +Z is the nose)
+		end
 		for _, spec in Data.pod() do
 			local s = if side > 0 then spec else Data.mirror(spec)
 			local p = made(s, u, at)

@@ -28,6 +28,9 @@ FireDrakeData.DESIGN_LENGTH = 9.9 -- the preview car, bumper to bumper
 -- where the head sits on the car: as a fraction of the body's size (x: of width, from the middle;
 -- y: of height, from the bottom; z: of length, from the middle). From the preview: (2.15, 2.2, 2.55)
 FireDrakeData.PLACE = { x = 2.15 / 4.9, y = (2.2 - 0.36) / 2.64, z = 2.55 / 9.9 }
+-- the two tailpipes, as fractions of the body's size from its middle (preview: x +-1.0 of 4.9,
+-- 0.55 high, at the tail end of 9.9); the flames come out of these (client/ExhaustFx)
+FireDrakeData.EXHAUST = { x = 1.0 / 4.9, y = (0.55 - 0.36) / 2.64 - 0.5, z = -0.5 }
 FireDrakeData.SCALE = 1.4 -- the preview drew each head 1.4 times its own size
 
 FireDrakeData.COLORS = {
