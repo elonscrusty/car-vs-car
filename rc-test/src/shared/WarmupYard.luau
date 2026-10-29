@@ -745,7 +745,7 @@ function WarmupYard.extras(kit: any, dress: Instance)
 		q.Size = UDim2.fromScale(1, 1)
 		q.BackgroundTransparency = 1
 		q.Text = "?"
-		q.Font = Enum.Font.FredokaOne
+		q.Font = Enum.Font.Oswald
 		q.TextScaled = true
 		q.TextColor3 = Color3.new(1, 1, 1)
 		q.Parent = gui
@@ -867,7 +867,7 @@ function WarmupYard.build(parent: Instance): Model
 			l.Position = UDim2.fromScale(0.05, w.y)
 			l.Size = UDim2.fromScale(0.9, w.h)
 			l.Text = w.text
-			l.Font = Enum.Font.FredokaOne
+			l.Font = Enum.Font.Oswald
 			l.TextScaled = true
 			l.TextColor3 = w.color
 			l.Parent = gui

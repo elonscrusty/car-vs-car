@@ -799,7 +799,7 @@ do
 	local l = Instance.new("TextLabel")
 	l.BackgroundTransparency = 1
 	l.Size = UDim2.fromScale(1, 1)
-	l.Font = Enum.Font.FredokaOne -- (carter's kit v41 face)
+	l.Font = Enum.Font.Oswald -- (carter's kit v41 face)
 	l.TextScaled = true
 	l.TextColor3 = Color3.fromRGB(255, 217, 59)
 	l.TextStrokeColor3 = Color3.fromRGB(13, 44, 64)

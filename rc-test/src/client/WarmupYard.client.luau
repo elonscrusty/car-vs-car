@@ -21,7 +21,7 @@ local function words(parent: Instance, size: UDim2, pos: UDim2): TextLabel
 	l.Size = size
 	l.Position = pos
 	l.AnchorPoint = Vector2.new(0.5, 0)
-	l.Font = Enum.Font.FredokaOne -- (UiTheme.FONT)
+	l.Font = Enum.Font.Oswald -- (UiTheme.FONT)
 	l.TextScaled = true
 	l.TextColor3 = KartStyle.YELLOW
 	l.Text = ""

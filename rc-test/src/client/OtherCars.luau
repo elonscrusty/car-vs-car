@@ -189,8 +189,8 @@ local function nameTag(body: BasePart, text: string, s: number): BillboardGui
 	local l = Instance.new("TextLabel")
 	l.BackgroundTransparency = 1
 	l.Size = UDim2.fromScale(1, 1)
-	-- carter's kit v41: white FredokaOne with a solid ink stroke
-	l.Font = Enum.Font.FredokaOne
+	-- carter's kit v41: white Roboto (small words) with a solid ink stroke
+	l.Font = Enum.Font.Roboto
 	l.TextScaled = true
 	l.TextColor3 = Color3.new(1, 1, 1)
 	l.TextStrokeColor3 = Color3.fromRGB(13, 44, 64)
