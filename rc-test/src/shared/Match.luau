@@ -58,6 +58,8 @@ export type Kart = {
 	deaths: number,
 	order: number, -- join order (the last tie-break)
 	lastBy: number?, -- who smashed it last (the killer cam)
+	hitBy: number?, -- who hurt it last, and when (bots leave a rookie's kill to the rookie)
+	hitAt: number?,
 	lastWeapon: string?,
 }
 
@@ -158,6 +160,9 @@ function Match.damage(
 	local k = m.karts[victimId]
 	local took = math.min(amount, k.health)
 	k.health -= took
+	if attackerId and attackerId ~= victimId then
+		k.hitBy, k.hitAt = attackerId, now
+	end
 	if k.health > 0 then
 		return took, false
 	end
@@ -194,6 +199,7 @@ function Match.respawn(m: State, id: number, now: number)
 	k.alive = true
 	k.health = Match.HEALTH
 	k.respawnAt = nil
+	k.hitBy, k.hitAt = nil, nil
 	k.shieldUntil = now + Match.SHIELD
 end
 
@@ -362,7 +368,15 @@ export type BotView = {
 	human: boolean,
 	model: any,
 	rookie: boolean?,
+	cframe: any?, -- (a rookie's facing: bots drive through an armed rookie's sights)
+	hitBy: number?,
+	hitAt: number?,
+	rookieHit: boolean?, -- a rookie hurt it in the last ROOKIE_HIT s: bots leave the kill to them
+	smashes: number?,
+	deaths: number?,
 }
+
+Match.ROOKIE_HIT = 8 -- s
 
 -- What the bots see: every kart with a place, and a new kid in their first NEW_KID_SAFE seconds
 -- of the round shown as shielded (bots never pick a shielded target).
@@ -385,6 +399,13 @@ function Match.forBots(
 				human = k.human,
 				model = k.model,
 				rookie = rookies ~= nil and rookies[k.id] == true,
+				cframe = k.cframe,
+				smashes = k.smashes,
+				deaths = k.deaths,
+				rookieHit = rookies ~= nil
+					and k.hitBy ~= nil
+					and rookies[k.hitBy] == true
+					and now - (k.hitAt or -math.huge) < Match.ROOKIE_HIT,
 			})
 		end
 	end

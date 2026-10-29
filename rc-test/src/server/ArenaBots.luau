@@ -31,6 +31,10 @@ export type Kart = {
 	shield: boolean?,
 	human: boolean?,
 	rookie: boolean?, -- a player in their first matches (ArenaBrain.ROOKIE): bots go easy on them
+	cframe: CFrame?, -- (a rookie's facing, for ArenaBrain.FEED)
+	rookieHit: boolean?, -- a rookie hurt it just now: leave the kill to them (Match.ROOKIE_HIT)
+	smashes: number?, -- this round's (a rookie's: ArenaBrain.FEED / ROOKIE.most)
+	deaths: number?,
 	model: Model?,
 }
 export type Ctx = {
@@ -204,6 +208,7 @@ end
 function ArenaBots.clear(fleet: Fleet)
 	table.clear(fleet.bots)
 	fleet.startAt = nil
+	fleet.world.feed = nil
 end
 
 function ArenaBots.count(fleet: Fleet): number
@@ -236,6 +241,18 @@ function ArenaBots.step(fleet: Fleet, dt: number, now: number)
 			continue -- (no body yet)
 		end
 		local x, z = toLocal(pos)
+		-- a rookie's facing and whether they hold a shot (ArenaBrain.FEED)
+		local fx, fz, armed = nil, nil, nil
+		local cf = k.cframe
+		if k.rookie and cf then
+			local ax, az = toLocal(pos + cf.LookVector)
+			local d = math.sqrt((ax - x) ^ 2 + (az - z) ^ 2)
+			if d > 1e-6 then
+				fx, fz = (ax - x) / d, (az - z) / d
+			end
+			local name, ammo = (ctx.weaponOf :: (number) -> (string?, number))(k.id)
+			armed = name ~= nil and ammo > 0
+		end
 		table.insert(w.karts, {
 			id = k.id,
 			x = x,
@@ -245,6 +262,12 @@ function ArenaBots.step(fleet: Fleet, dt: number, now: number)
 			shield = k.shield or (calm and k.rookie == true),
 			human = k.human,
 			rookie = k.rookie,
+			rookieHit = k.rookieHit,
+			smashes = k.smashes,
+			deaths = k.deaths,
+			fx = fx,
+			fz = fz,
+			armed = armed,
 		})
 	end
 	table.clear(w.boxes)
@@ -258,6 +281,7 @@ function ArenaBots.step(fleet: Fleet, dt: number, now: number)
 		table.insert(list, b)
 	end
 	local hunters = ArenaBrain.hunters(list)
+	ArenaBrain.feeders(list, w, now)
 	local step = math.clamp(dt, 0, 0.1)
 	for id, bot in fleet.bots do
 		local weapon, ammo = (ctx.weaponOf :: (number) -> (string?, number))(id)

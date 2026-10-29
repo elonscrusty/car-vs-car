@@ -462,6 +462,10 @@ export type KartView = {
 	shield: boolean,
 	human: boolean,
 	model: Model?,
+	hitBy: number?, -- who hurt it last, and when (Match.damage)
+	hitAt: number?,
+	smashes: number,
+	deaths: number,
 }
 
 -- Every kart in the round (BOTS, WEAPONS and BOXES read this).
@@ -484,6 +488,10 @@ function MatchRunner.karts(): { KartView }
 			shield = Match.shielded(k, t),
 			human = k.human,
 			model = info and info.model,
+			hitBy = k.hitBy,
+			hitAt = k.hitAt,
+			smashes = k.smashes,
+			deaths = k.deaths,
 		})
 	end
 	return out

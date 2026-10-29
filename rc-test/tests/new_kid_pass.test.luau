@@ -1,9 +1,13 @@
 --!nocheck
--- Car VS Car SMASH: a new kid's first match on the real server scripts (auditor R4-1). A pretend
--- kid with no skill at all drives to the nearest "?" box and fires whenever a kart is in the
--- cone ahead of it. Against the real bots (ArenaBots: easy on a rookie) and the real weapons,
--- it must get 2+ smashes and a top-5 place, and be smashed 1-3 times itself (some chaos), but
--- never in the first 30 s, in 8 of 10 seeded first matches.
+-- Car VS Car SMASH: a new kid's first match on the real server scripts (auditor R4-1). A kid with
+-- no skill, driving like the real game: the Studio test thumb's brain (shared/ThumbBrain: boxes
+-- when empty-handed, chases a kart when armed, sees 0.3 s late, wobbles) on a kart with the real
+-- RC car's numbers (Tuning: top speed, grip-limited steering, wheelbase) that bumps into the
+-- arena's walls and trees, and FIRE up the real remote a ping late, aimed where the camera looks.
+-- (The old pretend kid slid with instant turns through walls: it passed while Studio's thumb
+-- came 8th.) Against the real bots (ArenaBots: easy on a rookie) and the real weapons, it must
+-- get 2+ smashes and a top-5 place, and be smashed 1-3 times itself (some chaos), but never in
+-- the first 30 s, in 16 of 20 seeded first matches (20, not 10: one seed swinging can't flip it).
 local H = require("./harness")
 local Fake = require("./fakeroblox")
 local roblox = require("@lune/roblox")
@@ -13,92 +17,180 @@ local test, eq, truthy = H.test, H.eq, H.truthy
 print("Car VS Car SMASH: a no-skill new kid's first match")
 
 local KID = 601
+local RUNS, NEED = 20, 16
 local BEAT = 0.05
-local SPEED = 14 -- studs/s: a kid who holds the stick forward (an RC kart's top is about 24);
--- each seed's kid is a bit slower or faster (11..17), as kids are
-local CONE = math.rad(30) -- fires at any kart this close to straight ahead...
-local REACH = 35 -- ...and this near (studs)
+local PING = 0.1 -- s: the FIRE press reaches the server this late (a phone on wifi)
+local CAM_LAG = 0.2 -- s: FIRE aims where the chase camera looks, a little behind the nose
+local STUCK = 1.5 -- s at a crawl with the stick forward: a kid backs up...
+local BACK = 1 -- ...for this long, steering the other way
+local FIRE_GAP = 0.12 -- s between FIRE presses the button lets through (MatchHud)
 
-local function kid(S, player, speed: number)
+-- The kid drives like the real RC kart (Tuning's top speed, grip-limited steering, the wheelbase,
+-- RC scale) and bumps into the arena's walls and trees (ArenaBrain.blocked). Its thumb is the
+-- Studio test thumb's (shared/ThumbBrain: sees ~0.3 s late, wobbles, FIRE a moment after a kart
+-- lines up), and FIRE goes up the real remote PING s late, aimed where the camera looks.
+local function kid(S, player)
 	local TrackData = S.require("Shared.TrackData")
 	local LobbyLayout = S.require("Shared.LobbyLayout")
 	local Weapons = S.require("Shared.Weapons")
+	local Tuning = S.require("Shared.Tuning")
+	local ThumbBrain = S.require("Shared.ThumbBrain")
+	local ArenaBrain = S.require("Shared.ArenaBrain")
+	local ArenaData = S.require("Shared.ArenaData")
 	local MR = S.require("MatchRunner")
 	local CollectionService = S.game:GetService("CollectionService")
-	local seen, look = 0, roblox.Vector3.new(0, 0, -1)
-	local me = { smashed = {} :: { number }, startAt = nil :: number?, alive = true }
+	local world = ArenaBrain.fromArena(ArenaData)
+	local brain = ThumbBrain.new(ArenaBrain.rng(math.random(1, 2 ^ 30))) -- (math.randomseed(seed))
+	local scale = TrackData.RC_SCALE
+	local accel, base = Tuning.accel * scale, 2 * Tuning.wheelZ * scale
+	local top = Tuning.topSpeed * scale
+	local lastFire = -math.huge
+	local seen, t = 0, nil
+	local x, y, z, fx, fz, v, wheel = 0, 0, 0, 0, -1, 0, 0
+	local slowFor, backUntil, backSteer = 0, -math.huge, 1
+	local looks = {} :: { { at: number, x: number, z: number } }
+	local shots = {} :: { { at: number, aim: any } }
+	local me = {
+		smashed = {} :: { number },
+		startAt = nil :: number?,
+		alive = true,
+		backs = 0,
+		shots = 0,
+		picks = 0,
+		held = false,
+		crawl = 0,
+		armedFor = 0,
+		inCone = 0,
+	}
+	local function toLocal(px: number, pz: number): (number, number)
+		local lx, _, lz = TrackData.toLocal(t, true, px, y, pz)
+		return lx, lz
+	end
 	S.game:GetService("RunService").Heartbeat:Connect(function(dt)
 		local car = S.workspace:FindFirstChild("Car_" .. player.UserId)
 		local body = car and car.PrimaryPart
 		if not body then
 			return
 		end
+		local now = S.now()
+		-- FIRE presses that have reached the server by now
+		while shots[1] and shots[1].at <= now do
+			S.send(player, Weapons.REMOTE, table.remove(shots, 1).aim)
+			me.shots += 1
+		end
 		local drives = S.got(player, "RCControl", "drive")
 		if #drives > seen then
 			seen = #drives
 			local g = drives[#drives][4]
 			if type(g) == "table" then
-				local t = LobbyLayout.track(drives[#drives][3])
-				body.CFrame = roblox.CFrame.new(TrackData.toWorld(t, true, g.x, g.y, g.z))
+				t = LobbyLayout.track(drives[#drives][3])
+				x, y, z = TrackData.toWorld(t, true, g.x, g.y, g.z)
+				local ax, _, az =
+					TrackData.toWorld(t, true, g.x + (g.dx or 0), g.y, g.z + (g.dz or -1))
+				local d = math.sqrt((ax - x) ^ 2 + (az - z) ^ 2)
+				if d > 1e-3 then
+					fx, fz = (ax - x) / d, (az - z) / d
+				end
+				v, wheel, slowFor, backUntil = 0, 0, 0, -math.huge
 			end
 		end
 		body.AssemblyLinearVelocity = roblox.Vector3.zero
 		-- (when the kid gets smashed, s into the round)
 		if player:GetAttribute("InMatch") then
-			me.startAt = me.startAt or S.now()
+			me.startAt = me.startAt or now
 			local up = (player:GetAttribute("Health") or 0) > 0
 			if me.alive and not up then
-				table.insert(me.smashed, S.now() - (me.startAt :: number))
+				table.insert(me.smashed, now - (me.startAt :: number))
 			end
 			me.alive = up
 		end
-		if not (player:GetAttribute("InMatch") and (player:GetAttribute("Health") or 0) > 0) then
+		if
+			not (t and player:GetAttribute("InMatch") and (player:GetAttribute("Health") or 0) > 0)
+		then
 			return
 		end
-		local at = body.Position
-		-- drive at the nearest box that's up
-		local best, bestD = nil, math.huge
+		local boxes = {}
 		for _, m in CollectionService:GetTagged("SmashBox") do
 			local home = m:GetAttribute("Home")
 			if m:GetAttribute("Up") == true and home then
-				local d = (home.Position - at).Magnitude
-				if d < bestD then
-					best, bestD = home.Position, d
-				end
+				table.insert(boxes, { x = home.Position.X, z = home.Position.Z })
 			end
 		end
-		if best then
-			local dir = (best - at) * roblox.Vector3.new(1, 0, 1)
-			if dir.Magnitude > 0.2 then
-				look = dir.Unit
-				local step = math.min(speed * dt, dir.Magnitude)
-				body.CFrame = roblox.CFrame.lookAt(at + look * step, at + look * (step + 1))
-				body.AssemblyLinearVelocity = look * speed
+		local karts = {}
+		for _, k in MR.karts() do
+			if k.id ~= player.UserId and k.alive and k.pos then
+				table.insert(karts, { x = k.pos.X, z = k.pos.Z })
 			end
 		end
-		-- fire at whatever is in the cone ahead
+		local ammo = player:GetAttribute("Ammo")
 		local w = player:GetAttribute("Weapon")
-		if type(w) == "string" and w ~= "" then
-			for _, k in MR.karts() do
-				if k.id ~= player.UserId and k.alive and k.pos then
-					local to = (k.pos - body.Position) * roblox.Vector3.new(1, 0, 1)
-					local d = to.Magnitude
-					if
-						d > 0.1
-						and d < REACH
-						and math.acos(math.clamp(to.Unit:Dot(look), -1, 1)) < CONE
-					then
-						S.send(player, Weapons.REMOTE, look)
-						break
-					end
-				end
+		local armed = type(w) == "string" and w ~= "" and (type(ammo) ~= "number" or ammo > 0)
+		if armed and not me.held then
+			me.picks += 1
+		end
+		me.held = armed
+		if armed then
+			me.armedFor += dt
+		end
+		if math.abs(v) < 2 then
+			me.crawl += dt
+		end
+		local out =
+			ThumbBrain.step(brain, now, { x = x, z = z, fx = fx, fz = fz }, boxes, karts, armed)
+		local steer, throttle = out.steer, out.throttle
+		-- nose on a wall with the stick forward: a kid backs up, turning the other way
+		if now < backUntil then
+			steer, throttle = backSteer, -0.6
+		elseif math.abs(v) < 2 then
+			slowFor += dt
+			if slowFor > STUCK then
+				backUntil, backSteer, slowFor = now + BACK, -(if steer >= 0 then 1 else -1), 0
+				me.backs += 1
 			end
+		else
+			slowFor = 0
+		end
+		-- the kart: speed, front wheels that turn at steerRate up to the grip limit, wheelbase
+		v = math.clamp(v + throttle * accel * dt, -top * 0.5, top)
+		local lim = Tuning.steerLow
+			+ (Tuning.steerHigh - Tuning.steerLow)
+				* math.clamp(math.abs(v) / top, 0, 1) ^ Tuning.steerCurve
+		local want = steer * lim
+		wheel += math.clamp(want - wheel, -Tuning.steerRate * dt, Tuning.steerRate * dt)
+		local turn = v * math.tan(wheel) / base * dt -- + = to the right
+		local c, s = math.cos(turn), math.sin(turn)
+		fx, fz = fx * c - fz * s, fz * c + fx * s -- (right of (fx, fz) is (-fz, fx))
+		local nx, nz = x + fx * v * dt, z + fz * v * dt
+		local function hit(px: number, pz: number): boolean
+			return ArenaBrain.blocked(world, toLocal(px, pz))
+		end
+		if not hit(nx, nz) then
+			x, z = nx, nz
+		elseif not hit(nx, z) then
+			x, v = nx, v * 0.9
+		elseif not hit(x, nz) then
+			z, v = nz, v * 0.9
+		else
+			v = 0
+		end
+		body.CFrame =
+			roblox.CFrame.lookAt(roblox.Vector3.new(x, y, z), roblox.Vector3.new(x + fx, y, z + fz))
+		body.AssemblyLinearVelocity = roblox.Vector3.new(fx, 0, fz) * v
+		-- the camera's look: the nose CAM_LAG s ago
+		table.insert(looks, { at = now, x = fx, z = fz })
+		while #looks > 1 and looks[2].at <= now - CAM_LAG do
+			table.remove(looks, 1)
+		end
+		if out.fire and now - lastFire >= FIRE_GAP then
+			lastFire = now
+			local l = looks[1]
+			table.insert(shots, { at = now + PING, aim = roblox.Vector3.new(l.x, 0, l.z) })
 		end
 	end)
 	return me
 end
 
-local function firstMatch(seed: number): (number, number, { number })
+local function firstMatch(seed: number): (number, number, { number }, number)
 	math.randomseed(seed) -- (bot names, spawn picks: math.random)
 	local S = Fake.server(Fake.store(), { seed = seed, jobId = "newkid-" .. seed })
 	S.require("Shared.Features").SMASH = true
@@ -107,7 +199,7 @@ local function firstMatch(seed: number): (number, number, { number })
 	S.run("CarShop")
 	local MR = S.require("MatchRunner")
 	local p = S.join(KID)
-	local me = kid(S, p, SPEED + (seed % 7) - 3)
+	local me = kid(S, p)
 	S.advance(2 + seed * 0.37, BEAT) -- (joins at a different moment each time)
 	S.send(p, "Garage", "pick", "race_bolt")
 	S.advance(1, BEAT)
@@ -118,15 +210,24 @@ local function firstMatch(seed: number): (number, number, { number })
 	end
 	local smashes, place = p:GetAttribute("Smashes") or 0, p:GetAttribute("Place") or 0
 	S.close()
-	return smashes, place, me.smashed
+	print(
+		string.format(
+			"         (boxes %d, shots %d, %.0f s at a crawl, %.0f s armed)",
+			me.picks,
+			me.shots,
+			me.crawl,
+			me.armedFor
+		)
+	)
+	return smashes, place, me.smashed, me.backs
 end
 
 test(
-	"a no-skill kid's first match: 2+ smashes, top 5 and smashed 1-3 times (never in the first 30 s) in 8 of 10 runs",
+	"a no-skill kid's first match: 2+ smashes, top 5 and smashed 1-3 times (never in the first 30 s) in 16 of 20 runs",
 	function()
 		local good, early = 0, 0
-		for seed = 1, 10 do
-			local smashes, place, smashed = firstMatch(seed)
+		for seed = 1, RUNS do
+			local smashes, place, smashed, backs = firstMatch(seed)
 			local first = smashed[1]
 			if first and first < 30 then
 				early += 1
@@ -141,18 +242,19 @@ test(
 			end
 			print(
 				string.format(
-					"       seed %d: %d smashes, place %d, smashed %d times (first at %s)%s",
+					"       seed %d: %d smashes, place %d, smashed %d times (first at %s), backed off a wall %d times%s",
 					seed,
 					smashes,
 					place,
 					#smashed,
 					if first then string.format("%.0f s", first) else "-",
+					backs,
 					if ok then "" else "  <- miss"
 				)
 			)
 		end
-		print(string.format("       %d of 10 first matches pass", good))
-		truthy(good >= 8, `{good} of 10`)
+		print(string.format("       %d of %d first matches pass", good, RUNS))
+		truthy(good >= NEED, `{good} of {RUNS}`)
 		eq(early, 0, "smashed in the first 30 s")
 	end
 )
