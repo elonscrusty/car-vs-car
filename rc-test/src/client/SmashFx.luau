@@ -217,6 +217,7 @@ function SmashFx.start()
 	local baseCf, outCf = CFrame.identity, CFrame.identity
 	local baseFov, outFov = 70, -1
 	local pending: number? = nil -- os.clock() of words waiting to be seen on screen
+	local pendingWhat = "" -- (the log: which words)
 
 	-- the killer camera
 	local killcam = false
@@ -306,7 +307,13 @@ function SmashFx.start()
 					table.remove(timings, 1)
 				end
 				if RunService:IsStudio() then
-					print(string.format("[SmashFx] shown in %d ms", math.floor(ms + 0.5)))
+					print(
+						string.format(
+							"[SmashFx] shown in %d ms: %s",
+							math.floor(ms + 0.5),
+							pendingWhat
+						)
+					)
 				end
 				pending = nil
 			end
@@ -429,6 +436,11 @@ function SmashFx.start()
 			edge(Color3.new(1, 1, 1), juice.flash)
 			confetti(juice.confetti)
 			pending = at
+			pendingWhat = SmashJuice.smashLine(f.weapon)
+				.. " "
+				.. SmashJuice.shortName(f.victim.name)
+				.. "!"
+				.. (if word2 then " + " .. word2 .. " + confetti" else "")
 			Sfx.smash()
 		elseif f.victim.me then
 			myStreak:reset()
@@ -446,6 +458,7 @@ function SmashFx.start()
 			feel(juice)
 			edge(CHERRY, juice.flash)
 			pending = at
+			pendingWhat = SmashJuice.deathLine(f.weapon, other and other.name) .. " + 3-2-1"
 			-- the killer camera (it's info, so reduced motion keeps it)
 			killcam = true
 			killAt = at
@@ -512,6 +525,11 @@ function SmashFx.start()
 		elseif was and h > was and was <= 0 and wasSmashed then
 			wasSmashed = false
 			-- back from a smash (the respawn)
+			if RunService:IsStudio() then
+				print(
+					string.format("[SmashFx] back in %.1f s after the smash", os.clock() - killAt)
+				)
+			end
 			Sfx.respawn()
 			if killcam then
 				endKillcam()
@@ -530,6 +548,14 @@ function SmashFx.boom(at: Vector3)
 		return
 	end
 	add(SmashJuice.feel("boom", (cam.CFrame.Position - at).Magnitude, Base.reduced()))
+end
+
+-- your own hit on another kart (client/SmashHits): a small shake
+function SmashFx.myHit(damage: number)
+	local add = addFeel
+	if add then
+		add(SmashJuice.feel("myHit", damage, Base.reduced()))
+	end
 end
 
 -- the last few "smash arrived → words on screen" times in seconds (for the Studio timing log)

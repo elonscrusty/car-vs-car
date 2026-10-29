@@ -175,7 +175,7 @@ end
 
 -- ===== how hard each moment hits =====
 
-export type Kind = "mySmash" | "hit" | "smashed" | "boom"
+export type Kind = "mySmash" | "hit" | "myHit" | "smashed" | "boom"
 export type Feel = {
 	trauma: number, -- added to the shake (0..1)
 	punch: number, -- camera zoom-in, degrees of field of view
@@ -188,7 +188,7 @@ local function none(): Feel
 	return { trauma = 0, punch = 0, slow = 0, confetti = 0, flash = 0 }
 end
 
--- `amount` = damage for "hit" (health 100), streak count for "mySmash", studs away for "boom"
+-- `amount` = damage for "hit" and "myHit" (health 100), streak count for "mySmash", studs away for "boom"
 function SmashJuice.feel(kind: Kind, amount: number?, reduced: boolean?): Feel
 	local n = amount or 0
 	local f: Feel
@@ -208,6 +208,13 @@ function SmashJuice.feel(kind: Kind, amount: number?, reduced: boolean?): Feel
 			return none()
 		end
 		f = { trauma = 0.12 + 0.28 * s, punch = 0, slow = 0, confetti = 0, flash = 0.2 + 0.35 * s }
+	elseif kind == "myHit" then
+		-- your shot landed: a small kick, half a hit taken's, no flash
+		local s = math.clamp(n / 40, 0, 1)
+		if s <= 0 then
+			return none()
+		end
+		f = { trauma = 0.06 + 0.14 * s, punch = 0, slow = 0, confetti = 0, flash = 0 }
 	elseif kind == "smashed" then
 		f = { trauma = 0.6, punch = 0, slow = 0, confetti = 0, flash = 0.6 }
 	elseif kind == "boom" then
