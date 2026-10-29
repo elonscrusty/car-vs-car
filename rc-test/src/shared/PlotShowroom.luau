@@ -375,8 +375,8 @@ function PlotShowroom.pieces(stands: number): { Piece }
 		add(
 			"Lift",
 			"LiftArm",
-			v(0.8, 0.5, 4),
-			v(LI.x + sx * 2.2, 2.2, LI.z),
+			v(1.2, 0.5, 4),
+			v(LI.x + sx * 3.2, 2.2, LI.z + 0.2), -- (from the post, swung out toward the gate)
 			RED,
 			{ collide = false }
 		)
