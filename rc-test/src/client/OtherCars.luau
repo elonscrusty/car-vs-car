@@ -188,10 +188,12 @@ local function nameTag(body: BasePart, text: string, s: number): BillboardGui
 	local l = Instance.new("TextLabel")
 	l.BackgroundTransparency = 1
 	l.Size = UDim2.fromScale(1, 1)
-	l.Font = Enum.Font.LuckiestGuy
+	-- carter's kit v41: white FredokaOne with a solid ink stroke
+	l.Font = Enum.Font.FredokaOne
 	l.TextScaled = true
 	l.TextColor3 = Color3.new(1, 1, 1)
-	l.TextStrokeTransparency = 0.4
+	l.TextStrokeColor3 = Color3.fromRGB(13, 44, 64)
+	l.TextStrokeTransparency = 0
 	l.Text = text
 	l.Parent = tag
 	return tag

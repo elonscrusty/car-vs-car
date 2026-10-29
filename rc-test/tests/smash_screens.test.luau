@@ -402,7 +402,24 @@ test(
 			{ name = "Me", smashes = 0, place = 0, userId = ME },
 		}
 		local none = MatchEnd.read(noneRows, 0, nil, nil, ME)
-		eq(MatchEnd.placeWords(none.place, none.total), "- / 2", "no smashes: no place")
+		-- (auditor round 12b: never "- / 8"; the place every kart on 0 shares)
+		eq(
+			MatchEnd.placeWords(none.place, none.total),
+			"2ND / 2",
+			"no smashes: the shared last place"
+		)
+		-- (never on the podium with no smashes, as Match.payPlace pays it)
+		local rows = {}
+		for i = 1, 8 do
+			rows[i] =
+				{ name = "K" .. i, smashes = 0, place = 0, userId = if i == 5 then ME else nil }
+		end
+		local allNone = MatchEnd.read(rows, 0, nil, nil, ME)
+		eq(
+			MatchEnd.placeWords(allNone.place, allNone.total),
+			"4TH / 8",
+			"nobody scored: 4th, not 1st"
+		)
 		local junkRows = { { name = "Me", smashes = 1, place = 1e9, userId = ME } }
 		local junk = MatchEnd.read(junkRows, 0, nil, nil, ME)
 		eq(junk.place, 1, "a junk place falls back to the row")

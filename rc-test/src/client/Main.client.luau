@@ -788,7 +788,8 @@ end)
 local phoneUi = require(script.Parent:WaitForChild("Ui"):WaitForChild("Base")).phone()
 local youTag = Instance.new("BillboardGui")
 youTag.Name = "YouTag"
-youTag.Size = UDim2.fromOffset(90, 30)
+local YOU_BIG, YOU_SMALL = UDim2.fromOffset(90, 30), UDim2.fromOffset(54, 18)
+youTag.Size = YOU_BIG
 -- (not AlwaysOnTop: on carter's PC no AlwaysOnTop billboard drew at all, Studio score/16-18)
 youTag.AlwaysOnTop = false
 youTag.MaxDistance = 1200
@@ -798,9 +799,10 @@ do
 	local l = Instance.new("TextLabel")
 	l.BackgroundTransparency = 1
 	l.Size = UDim2.fromScale(1, 1)
-	l.Font = Enum.Font.LuckiestGuy
+	l.Font = Enum.Font.FredokaOne -- (carter's kit v41 face)
 	l.TextScaled = true
-	l.TextColor3 = Color3.fromRGB(255, 220, 40)
+	l.TextColor3 = Color3.fromRGB(255, 217, 59)
+	l.TextStrokeColor3 = Color3.fromRGB(13, 44, 64)
 	l.TextStrokeTransparency = 0
 	l.Text = "▼ YOU"
 	l.Parent = youTag
@@ -844,11 +846,16 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 	-- just over the car's roof (it was 4x higher: off the top of the screen under the chase camera,
 	-- Studio 10-26; then still floating well above it once it drew, Studio score/24)
 	youTag.StudsOffsetWorldSpace = Vector3.new(0, 1.6 * Tuning.scale, 0)
-	-- (a phone in a match: no tag over your own kart, the middle of the screen stays clear,
-	-- carter 10-29)
-	youTag.Enabled = grid ~= nil
-		and Features.CVC
-		and not (phoneUi and player:GetAttribute("InMatch") == true)
+	-- (a phone or a match: a small one, so you find your kart and the middle stays clear;
+	-- with none at all phones lost their kart, auditor round 12b)
+	local smallTag = phoneUi
+		or player:GetAttribute("PhoneUi") == true -- (Studio shots turn it on late)
+		or player:GetAttribute("InMatch") == true
+	local tagSize = if smallTag then YOU_SMALL else YOU_BIG
+	if youTag.Size ~= tagSize then
+		youTag.Size = tagSize
+	end
+	youTag.Enabled = grid ~= nil and Features.CVC
 	raceFx.update(dt, tel.boost > 0)
 	local fv = body.AssemblyLinearVelocity
 	local flatNow = Vector3.new(fv.X, 0, fv.Z).Magnitude
