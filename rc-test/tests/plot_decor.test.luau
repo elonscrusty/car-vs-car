@@ -113,6 +113,37 @@ for _, kind in { "race", "drift", "rock" } do
 		eq(n, 1)
 	end)
 
+	test(kind .. ": Smash: no chequered flags or checker strips (no racing)", function()
+		for _, p in P.parts(kind) do
+			truthy(p.name ~= "Check" and p.name ~= "Checker", `{p.group}/{p.name}`)
+		end
+	end)
+
+	test(
+		kind .. ": Smash: the gate is plain garage posts (navy, no Neon, no race gate model)",
+		function()
+			for _, p in P.parts(kind) do
+				-- (the rock plot keeps its log gate: wood, not a race start)
+				if
+					kind ~= "rock"
+					and p.group == "Arch"
+					and (p.name == "Pillar" or p.name == "Beam")
+				then
+					eq(table.concat(p.color, ","), "35,45,80", p.name)
+				end
+				if
+					(p.group == "Arch" or p.group == "Bunting")
+					and (p.name == "Lantern" or p.name == "Glow")
+				then
+					truthy(p.material ~= "Neon", `{p.group}/{p.name} glows`)
+				end
+			end
+			for _, m in P.meshes(kind) do
+				truthy(m.model ~= "PlotGate" and m.model ~= "DriftGate", m.model)
+			end
+		end
+	)
+
 	test(kind .. ": light on phones (under 66 parts)", function()
 		truthy(#P.parts(kind) < 66, tostring(#P.parts(kind)))
 	end)

@@ -113,6 +113,12 @@ function PlotDecor.parts(kind: string): { Piece }
 	local W, D, H, T = PlotDecor.HALF_W, PlotDecor.HALF_D, PlotDecor.WALL_H, PlotDecor.WALL_T
 	local G = PlotDecor.GATE
 	local noHit = { collide = false }
+	-- Smash game (LOBBY's Studio check 10-29): the gate reads as a garage, not a race start: plain
+	-- navy posts with sunny-yellow caps (no stripes, no Neon), in the LOOK RULE palette
+	local smash = Features.SMASH
+	local post = if smash then { 35, 45, 80 } else t.pillar
+	local lampColor = if smash then { 255, 205, 50 } else { 255, 226, 150 }
+	local lampMaterial = if smash then "SmoothPlastic" else "Neon"
 	local function o(extra: Garage.Opts): Garage.Opts
 		extra.collide = if extra.collide == nil then false else extra.collide
 		return extra
@@ -227,11 +233,13 @@ function PlotDecor.parts(kind: string): { Piece }
 				"Pillar",
 				v(PILLAR, ARCH_H + 2.6, PILLAR),
 				v(sx * px, (ARCH_H + 2.6) / 2, D),
-				t.pillar
+				post
 			)
 		end
-		add("Arch", "Beam", v(beamW, 2.6, 1.2), v(0, beamY, D), t.pillar, noHit)
-		if kind == "drift" then
+		add("Arch", "Beam", v(beamW, 2.6, 1.2), v(0, beamY, D), post, noHit)
+		if kind == "drift" and smash then
+			-- (no glow strips in the Smash game)
+		elseif kind == "drift" then
 			-- neon strips up the pillars' road side and under the beam
 			for _, sx in { -1, 1 } do
 				add(
@@ -251,8 +259,9 @@ function PlotDecor.parts(kind: string): { Piece }
 				t.trim,
 				o({ material = "Neon" })
 			)
-		else
+		elseif not Features.SMASH then
 			-- race: a checkered strip on top of the beam (white strip, black squares on it)
+			-- (not in the Smash game: there's no racing, LOBBY's Studio check 10-29)
 			local n = 6
 			local len = beamW - 0.4
 			add("Arch", "Checker", v(len, 0.8, 1), v(0, beamY + 1.7, D), t.board, noHit)
@@ -284,8 +293,8 @@ function PlotDecor.parts(kind: string): { Piece }
 			"Lantern",
 			v(1, 1, 1),
 			v(sx * px, topY + 0.5, D),
-			{ 255, 226, 150 },
-			o({ material = "Neon" })
+			lampColor,
+			o({ material = lampMaterial })
 		)
 	end
 
@@ -294,14 +303,14 @@ function PlotDecor.parts(kind: string): { Piece }
 	local POST_H = 8 -- the low end stays above a walker's eye line
 	for _, sx in { -1, 1 } do
 		local cx = sx * (W - 0.3)
-		add("Bunting", "Post", v(0.5, POST_H, 0.5), v(cx, POST_H / 2, D), t.pillar)
+		add("Bunting", "Post", v(0.5, POST_H, 0.5), v(cx, POST_H / 2, D), post)
 		add(
 			"Bunting",
 			"Lantern",
 			v(0.9, 0.9, 0.9),
 			v(cx, POST_H + 0.45, D),
-			{ 255, 226, 150 },
-			o({ material = "Neon" })
+			lampColor,
+			o({ material = lampMaterial })
 		)
 		if Features.CVC then
 			continue
@@ -349,9 +358,14 @@ function PlotDecor.parts(kind: string): { Piece }
 		)
 		-- the cloth points inward, over the plot
 		local cloth = t.flags[i]
+		local pale = cloth[1] + cloth[2] + cloth[3] > 600
+		if pale and Features.SMASH then
+			-- no race flags in the Smash game: a plain sky-blue cloth, like the lobby's BlueFlag
+			cloth = { 60, 150, 255 }
+		end
 		add("Flags", "Cloth", v(3.6, 2.2, 0.1), v(fx - sx * 1.9, FLAG_H - 1.3, fz), cloth, noHit)
 		-- a pale cloth gets black squares (a chequered flag) so it doesn't read as a blank card
-		if cloth[1] + cloth[2] + cloth[3] > 600 then
+		if pale and not Features.SMASH then
 			for col = 0, 3 do
 				for row = 0, 1 do
 					if (col + row) % 2 == 0 then
@@ -536,6 +550,10 @@ function PlotDecor.meshes(kind: string): { Mesh }
 		}
 	local out: { Mesh } = {}
 	for _, m in list do
+		-- (Smash game: carter's striped race gates stay out; the block garage posts stand instead)
+		if Features.SMASH and (m[1] == "PlotGate" or m[1] == "DriftGate") then
+			continue
+		end
 		local fit: V3 = m[3]
 		table.insert(out, {
 			model = m[1],
