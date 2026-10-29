@@ -222,6 +222,9 @@ local function freeze(info: Info, on: boolean)
 	end
 	if info.model then
 		info.model:SetAttribute("Smashed", if on then true else nil)
+		if not on then
+			info.model:SetAttribute("Wrecked", nil) -- (client/CarBoom: the come-back)
+		end
 	end
 end
 
@@ -445,6 +448,10 @@ function MatchRunner.damage(
 			setAttr(info, "SmashedByName", by and by.name)
 			setAttr(info, "SmashedWeapon", w)
 			freeze(info, true)
+			-- (client/CarBoom: the big boom; "Smashed" alone is also a FREEZE hit)
+			if info.model then
+				info.model:SetAttribute("Wrecked", true)
+			end
 			dropWeapon(victimId)
 			if not info.player and fleet and ArenaBots then
 				pcall(ArenaBots.remove, fleet, victimId)
