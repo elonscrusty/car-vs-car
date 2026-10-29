@@ -51,9 +51,20 @@ gui.Name = "WarmupClock"
 gui.ResetOnSpawn = false
 gui.Enabled = false
 gui.Parent = me:WaitForChild("PlayerGui")
-local onScreen = words(gui, UDim2.new(0.4, 0, 0, 28), UDim2.new(0.5, 0, 0, 4))
+-- a navy rounded pill behind it, so it reads as the screen's own clock and not as words on the
+-- board behind (Studio r4)
+local onScreen = words(gui, UDim2.new(0.4, 0, 0, 32), UDim2.new(0.5, 0, 0, 6))
+onScreen.BackgroundTransparency = 0.1
+onScreen.BackgroundColor3 = Color3.fromRGB(30, 42, 90) -- LOOK-BIBLE navy
+local round = Instance.new("UICorner")
+round.CornerRadius = UDim.new(0.5, 0)
+round.Parent = onScreen
+local pad = Instance.new("UIPadding")
+pad.PaddingLeft, pad.PaddingRight = UDim.new(0, 14), UDim.new(0, 14)
+pad.PaddingTop, pad.PaddingBottom = UDim.new(0, 4), UDim.new(0, 4)
+pad.Parent = onScreen
 local sizeCap = Instance.new("UISizeConstraint")
-sizeCap.MaxSize = Vector2.new(320, 28)
+sizeCap.MaxSize = Vector2.new(300, 32)
 sizeCap.Parent = onScreen
 
 local function where(): Vector3?
