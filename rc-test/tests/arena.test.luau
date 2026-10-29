@@ -194,7 +194,7 @@ test(
 	function()
 		eq(#A.ROCKS, 0, "no rocks")
 		eq(#A.CRATES, 0, "no crates")
-	eq(#A.rampFillets, 2 * #A.RAMPS, "a fillet each side of each ramp")
+		eq(#A.rampFillets, 2 * #A.RAMPS, "a fillet each side of each ramp")
 		-- a kart can't get its nose into a wall corner
 		for _, c in { { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 } } do
 			local x = A.PIC / 2 + c[1] * (A.PIC / 2 - A.WALL - 1)
