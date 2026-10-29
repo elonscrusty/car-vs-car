@@ -725,7 +725,7 @@ local function startRound()
 	local W = weapons()
 	-- (Studio only, workspace TestVeteran: the player counts as a veteran, not a rookie)
 	local veteran =
-		TestVeteran.allowed(RunService:IsStudio(), workspace:GetAttribute(TestVeteran.ATTR))
+		TestVeteran.wanted(RunService:IsStudio(), workspace:GetAttribute(TestVeteran.ATTR))
 	local fewest = math.huge -- (the least-played player's matches: the bots' skill, RAMP)
 	for i, p in list do
 		-- (a fresh round: nothing held over from the last one or the warm-up yard, LOBBY)
