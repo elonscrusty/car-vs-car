@@ -44,7 +44,8 @@ local function addProp(d: Instance)
 			x = p.X,
 			y = p.Y,
 			z = p.Z,
-			r = d.Size.Magnitude / 2 + SeeKart.PAD + SeeKart.NEAR_CAM,
+			-- (wide enough for the whole beside-the-camera box, corners too)
+			r = (d.Size / 2 + Vector3.one * SeeKart.NEAR_CAM).Magnitude + SeeKart.PAD,
 		})
 	end
 end

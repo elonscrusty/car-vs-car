@@ -15,10 +15,10 @@ SeeKart.MAX_FADED = 12 -- never more at once (phones)
 SeeKart.PAD = 0.15 -- studs added round a prop (the arena is built at RC size, 1/4)
 -- the line stops this far short of the kart's centre, so a prop just past the kart never fades
 -- (Studio round 8 shot 3: a bush behind the kart)
-SeeKart.KART_MARGIN = 1.2
+SeeKart.KART_MARGIN = 0.9
 -- a prop this close to the camera fades even off the line: it fills the screen edge (round 8,
 -- 13 s: a white tree stick beside the camera)
-SeeKart.NEAR_CAM = 2
+SeeKart.NEAR_CAM = 0.7 -- (the chase camera is only ~2.6 studs from the kart at RC size)
 
 -- ArenaBuilder part names that may fade (workspace.SmashArena). Not the low red Bumper: the kart
 -- sits taller than it, so it would fade a long strip for nothing.
