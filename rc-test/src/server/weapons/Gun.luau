@@ -84,8 +84,13 @@ function Gun.pickTarget(
 	for _, k in karts do
 		local side = flat(k.cframe.Position - from)
 		if side and vector.dot(side, look) >= noseCos then
-			local row = { id = k.id, pos = k.cframe.Position, alive = k.alive, shield = k.shield }
-			row.kart = k
+			local row: any = {
+				id = k.id,
+				pos = k.cframe.Position,
+				alive = k.alive,
+				shield = k.shield,
+				kart = k,
+			}
 			if prefer ~= nil and k.id == prefer then
 				if Weapons.cone(from, dir, { row }, Gun.AIM_DEG, range, shooterId) then
 					return k
@@ -94,7 +99,7 @@ function Gun.pickTarget(
 			table.insert(list, row)
 		end
 	end
-	local best = Weapons.cone(from, dir, list, Gun.AIM_DEG, range, shooterId)
+	local best: any = Weapons.cone(from, dir, list, Gun.AIM_DEG, range, shooterId)
 	return if best then best.kart else nil
 end
 

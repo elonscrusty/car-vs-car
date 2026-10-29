@@ -86,8 +86,8 @@ function Freeze.fire(kart: Kart, aim: Vector3, ctx: Ctx): boolean
 		victim = target.id
 	end
 	local v = if victim ~= nil then ctx.getKart(victim) else nil
-	if not v or not v.alive then
-		victim = nil
+	if not v or not v.alive or v.shield then
+		victim = nil -- a shield bubble stops the ice too
 	end
 	ctx.fx("FreezeShot", { from = from, to = endAt, hit = victim ~= nil, owner = kart.id })
 	if victim == nil or v == nil then

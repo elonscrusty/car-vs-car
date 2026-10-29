@@ -212,6 +212,22 @@ test("gun: an aim at the 30 degree edge can't lock a kart far off the nose", fun
 	eq(w.total(2), 0, "not locked")
 end)
 
+test("freeze: a shielded kart in the way isn't frozen", function()
+	Freeze.clear()
+	local shielded = kart(2, 0, -3)
+	shielded.shield = true
+	local w = world({ kart(1, 0, 0), shielded, kart(3, 0, -10) })
+	-- the real ray hits the shielded kart in front of the target
+	w.ctx.raycast = function(from, _to, _ignore)
+		return { kartId = 2, position = from + v(0, 0, -2) }
+	end
+	Freeze.fire(w.karts[1], AHEAD, w.ctx)
+	eq(#w.hits, 0, "no damage")
+	eq(w.frozen[2], nil, "not stopped")
+	eq(w.count("FreezeHit"), 0, "no ice")
+	Freeze.clear(w.ctx)
+end)
+
 test("freeze: uses the same aim help (nearest in 25 degrees, never shielded)", function()
 	Freeze.clear()
 	local shielded = kart(2, 0, -3)
