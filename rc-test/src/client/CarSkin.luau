@@ -21,6 +21,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local RCCar = require(script.Parent.RCCar)
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
+local FireDrake = require(script.Parent.FireDrake)
 local Garage = require(ReplicatedStorage.Shared.Garage)
 local KartMesh = require(script.Parent.KartMesh)
 local ToyCars = require(ReplicatedStorage.Shared.ToyCars)
@@ -261,6 +262,13 @@ local function kart(id: string): Model?
 	return car
 end
 
+-- A model from CarSkins, ready to wear: the Fire Drake's heads are added to the cars that have them.
+function CarSkin.prepare(m: Model)
+	if FireDrake.wants(m.Name) then
+		pcall(FireDrake.addTo, m) -- (no heads is fine: never a car that fails to show)
+	end
+end
+
 local function template(name: string): Model?
 	if string.sub(name, 1, #CarSkin.KART) == CarSkin.KART then
 		local made = toys[name] or kart(string.sub(name, #CarSkin.KART + 1))
@@ -278,7 +286,11 @@ local function template(name: string): Model?
 	end
 	local skins = ReplicatedStorage:FindFirstChild("CarSkins")
 	local m = skins and skins:FindFirstChild(name)
-	return if m and m:IsA("Model") then m else nil
+	if m and m:IsA("Model") then
+		CarSkin.prepare(m)
+		return m
+	end
+	return nil
 end
 
 local function lookOnly(p: BasePart)

@@ -113,5 +113,6 @@ require("./same_karts.test")
 require("./match_overflow.test")
 require("./rejoin_wait.test")
 require("./coins_chip.test")
+require("./fire_drake.test")
 
 Harness.summary()
