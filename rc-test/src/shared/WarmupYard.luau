@@ -72,7 +72,7 @@ local GRASS_DARK, GRASS_LIGHT = { 92, 182, 70 }, { 146, 220, 100 }
 -- the world outside (ArenaBuilder's buildWorld colours)
 local GRASS_FAR, WATER, SHORE = { 104, 178, 86 }, { 96, 186, 236 }, { 240, 214, 150 }
 local HILL_FAR, HILL_FAR_2 = { 88, 160, 84 }, { 120, 186, 96 }
-local ROCK, ROCK_2 = { 172, 168, 196 }, { 146, 142, 176 }
+local HILL_DARK = { 62, 138, 70 } -- (no grey-lilac cliffs: they read as stand-ins, critic 10-29)
 local PETALS = { PINK, YELLOW, WHITE, CANDY_2 }
 
 -- how far the grass runs past the walls (big units)
@@ -285,11 +285,11 @@ function WarmupYard.parts(): { any }
 	end
 	-- looks only (karts drive through): bushes, flower clumps, two shades of grass patch
 	for i, b in WarmupYard.BUSHES do
-		add("Decor", "Bush", v(9.6, 5, 9.6), v(b[1], 1.75, b[2]), BUSH, {
+		add("Decor", "Bush", v(8, 7, 8), v(b[1], 2.6, b[2]), BUSH, {
 			rot = v(14, i * 50, 11),
 			collide = false,
 		})
-		add("Decor", "Bush", v(7.2, 4, 7.2), v(b[1] + 2, 2, b[2] - 1.2), BUSH_2, {
+		add("Decor", "Bush", v(6, 5.5, 6), v(b[1] + 3, 2.4, b[2] - 2), BUSH_2, {
 			rot = v(-17, i * 50 + 40, 20),
 			collide = false,
 		})
@@ -309,7 +309,7 @@ function WarmupYard.parts(): { any }
 		end
 	end
 	-- ===== the world outside, like the arena's (looks only, nothing to hit): far grass, a lake
-	-- with a sandy shore past the board, a ring of low-poly hills and grey cliffs, and rows of
+	-- with a sandy shore past the board, a ring of green low-poly hills, and rows of
 	-- trees, so no camera in the yard sees empty sky under the horizon =====
 	local function hash(n: number): number -- 0..1, the same every build (no Random in tests)
 		local x = math.sin(n * 12.9898 + 78.233) * 43758.5453
@@ -321,19 +321,19 @@ function WarmupYard.parts(): { any }
 	add("World", "Lake", v(1200, 0.4, 200), v(0, -0.15, edgeZ + 200), WATER, { collide = false })
 	for k = 0, 13 do
 		local ang = k / 14 * math.pi * 2 + (hash(k) - 0.5) * 0.3
-		local r = 380 + hash(k + 20) * 140
+		local r = 290 + hash(k + 20) * 110 -- close in, so the yard doesn't sit on an empty plain
 		local x, z = math.cos(ang) * r, math.sin(ang) * r
 		local size = 100 + hash(k + 40) * 80
 		if z > edgeZ and z < edgeZ + 300 + size * 0.8 then
 			z = edgeZ + 300 + size * 0.8 -- behind the lake, not in it
 		end
-		local rocky = x > 260
+		local tall = x > 200
 		add(
 			"World",
-			if rocky then "Cliff" else "FarHill",
-			v(size, size * (if rocky then 0.9 else 0.55), size),
+			"FarHill",
+			v(size, size * (if tall then 0.8 else 0.55), size),
 			v(x, -size * 0.18, z),
-			if rocky then ROCK_2 else HILL_FAR,
+			if tall then HILL_DARK else HILL_FAR,
 			{
 				rot = v((hash(k + 60) - 0.5) * 28, math.deg(ang), (hash(k + 80) - 0.5) * 28),
 				collide = false,
@@ -341,10 +341,10 @@ function WarmupYard.parts(): { any }
 		)
 		add(
 			"World",
-			if rocky then "Cliff" else "FarHill",
+			"FarHill",
 			v(size * 0.7, size * 0.5, size * 0.7),
-			v(x + size * 0.4, -size * 0.1, z + size * 0.2),
-			if rocky then ROCK else HILL_FAR_2,
+			v(x + math.cos(ang) * size * 0.4, -size * 0.1, z + math.sin(ang) * size * 0.4), -- (outward)
+			HILL_FAR_2,
 			{ rot = v(11, math.deg(ang) + 46, -17), collide = false }
 		)
 	end
