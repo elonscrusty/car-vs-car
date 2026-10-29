@@ -7,7 +7,8 @@
 --   * your own hit on someone gives you a small shake; a boom near you shakes you by how near
 --   * the blue spawn bubble over every kart that just came back (players: the server's Shield)
 --   * Studio only, workspace TestSlowMo = true (or seconds): every shot, boom and hit is frozen on
---     screen for that long, and the Output says "[SmashHits] ..." and "[Sfx] <sound>" per cue
+--     screen for that long, and the Output says "[SmashHits] ..." and "[Sfx] <sound>" per cue;
+--     TestSlowMo = "hold" keeps each kind's last frozen frame up until the attribute is cleared
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -70,6 +71,27 @@ end
 local frozen = Instance.new("Folder")
 frozen.Name = "SlowMoFreeze"
 local lastFreeze: { [string]: number } = {}
+-- ("hold": each kind's last frozen frame and each weapon's last number, newest wins; and the
+-- karts' flashes, held on)
+local kept: { [string]: Instance } = {}
+local keptFlash: { [Highlight]: boolean } = {}
+local function held(): boolean
+	return SmashHits.held(studio, workspace:GetAttribute(SmashHits.ATTR))
+end
+if studio then
+	workspace:GetAttributeChangedSignal(SmashHits.ATTR):Connect(function()
+		if not held() then
+			for kind, snap in kept do
+				snap:Destroy()
+				kept[kind] = nil
+			end
+			for hl in keptFlash do
+				hl.Enabled = false
+				keptFlash[hl] = nil
+			end
+		end
+	end)
+end
 -- Copy every weapon bit on screen right now (rockets, tracers, blasts, ice) as a still picture
 -- for `secs` seconds; the real ones carry on and fade as usual. Once a second per kind at most.
 local function freezeFrame(kind: string)
@@ -86,16 +108,26 @@ local function freezeFrame(kind: string)
 		frozen.Parent = workspace
 		local snap = Instance.new("Folder")
 		snap.Name = kind
+		if not hold() then -- (TestSlowMo cleared in the last 0.06 s)
+			return
+		end
 		for _, c in bits:GetChildren() do
 			if c:IsA("BasePart") or c:IsA("Model") then
 				local ok, copy = pcall(function()
 					return c:Clone()
 				end)
 				if ok and copy then
-					for _, d in copy:GetDescendants() do
+					for _, d in (copy :: Instance):GetDescendants() do
 						if d:IsA("ParticleEmitter") then
 							d.Enabled = false
+						elseif d:IsA("BasePart") then
+							d.Anchored = true
+							d.CanCollide = false
 						end
+					end
+					if copy:IsA("BasePart") then
+						copy.Anchored = true -- (a held copy must not drift or block a kart)
+						copy.CanCollide = false
 					end
 					copy.Parent = snap
 				end
@@ -107,6 +139,15 @@ local function freezeFrame(kind: string)
 			end
 		end
 		snap.Parent = frozen
+		if held() then
+			local old = kept[kind]
+			if old then
+				old:Destroy()
+			end
+			kept[kind] = snap
+			print(string.format("[SmashHits] slow-mo: %s frozen until TestSlowMo is cleared", kind))
+			return
+		end
 		print(string.format("[SmashHits] slow-mo: %s frozen for %.1f s", kind, secs))
 		task.delay(secs, function()
 			snap:Destroy()
@@ -238,6 +279,18 @@ local function flashKart(id: number)
 		end)
 	end
 	local hl = h :: Highlight
+	if held() then
+		-- (Studio "hold": the flash stays on, mid white-to-red, until TestSlowMo is cleared)
+		hl:SetAttribute("FlashId", ((hl:GetAttribute("FlashId") :: number?) or 0) + 1)
+		hl.Enabled = true
+		keptFlash[hl] = true
+		TweenService:Create(hl, TweenInfo.new(0), {
+			FillColor = WHITE:Lerp(CHERRY, 0.5),
+			FillTransparency = 0.3,
+			OutlineTransparency = 0,
+		}):Play()
+		return
+	end
 	local secs = math.max(SmashHits.FLASH_SECONDS, hold() or 0)
 	-- (off between hits: an idle Highlight still costs a render pass on a phone)
 	local flashId = ((hl:GetAttribute("FlashId") :: number?) or 0) + 1
@@ -298,6 +351,17 @@ local function showNumber(id: number, amount: number, weapon: string)
 	bb.Parent = numbersGui
 	local secs = math.max(SmashHits.NUMBER_SECONDS, hold() or 0)
 	TweenService:Create(pop, TweenInfo.new(0.15, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+	if held() then
+		-- (Studio "hold": this weapon's newest number stays up until TestSlowMo is cleared)
+		local key = "number " .. weapon
+		local old = kept[key]
+		if old then
+			old:Destroy()
+		end
+		kept[key] = bb
+		bb.StudsOffset = Vector3.new(0, 1 * K, 0)
+		return
+	end
 	TweenService:Create(
 		bb,
 		TweenInfo.new(secs, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),

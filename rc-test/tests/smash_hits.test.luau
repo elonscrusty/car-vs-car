@@ -119,6 +119,12 @@ test("smash hits: the slow-mo hook is Studio only", function()
 	eq(SmashHits.hold(true, 0.1), 0.5)
 	eq(SmashHits.hold(true, 0 / 0), nil)
 	eq(SmashHits.hold(true, "yes"), nil)
+	eq(SmashHits.hold(true, "hold"), SmashHits.HOLD, "hold mode still times numbers and flashes")
+	eq(SmashHits.hold(false, "hold"), nil, "hold mode never in a live game")
+	eq(SmashHits.held(true, "hold"), true)
+	eq(SmashHits.held(false, "hold"), false, "never kept in a live game")
+	eq(SmashHits.held(true, true), false, "true is the 3 s freeze, not hold")
+	eq(SmashHits.held(true, nil), false)
 end)
 
 test("smash hits: your own hit is a smaller kick than one you take", function()
@@ -133,6 +139,23 @@ end)
 test("smash hits: client text checks", function()
 	local src = fs.readFile("src/client/SmashHits.client.luau")
 	truthy(string.find(src, "SmashHits.hold(studio", 1, true) ~= nil, "slow-mo gated on Studio")
+	truthy(string.find(src, "SmashHits.held(studio", 1, true) ~= nil, "hold gated on Studio")
+	truthy(
+		string.find(
+			src,
+			"if studio then\n\tworkspace:GetAttributeChangedSignal(SmashHits.ATTR)",
+			1,
+			true
+		) ~= nil,
+		"clearing TestSlowMo drops the kept frames (Studio only)"
+	)
+	truthy(
+		string.find(src, "snap:Destroy()\n\t\t\t\tkept[kind] = nil", 1, true) ~= nil,
+		"kept frames go"
+	)
+	truthy(string.find(src, "keptFlash[hl] = nil", 1, true) ~= nil, "held flashes go off")
+	truthy(string.find(src, "kept[key] = bb", 1, true) ~= nil, "hold keeps a number per weapon")
+	truthy(string.find(src, "keptFlash[hl] = true", 1, true) ~= nil, "hold keeps the flash")
 	truthy(string.find(src, "local studio = RunService:IsStudio()", 1, true) ~= nil)
 	truthy(
 		string.find(src, "if studio then\n\tlocal t = Sfx :: any", 1, true) ~= nil,
