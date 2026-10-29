@@ -22,6 +22,7 @@ export type Piece = {
 	material: string, -- Enum.Material name
 	collide: boolean,
 	light: number?, -- PointLight range, for lamps
+	face: boolean?, -- a Roblox smiley on its front (-Z) face: the toy kart driver's head
 }
 
 -- Loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
@@ -371,6 +372,7 @@ export type Opts = {
 	material: string?,
 	collide: boolean?,
 	light: number?,
+	face: boolean?,
 }
 export type Add = (
 	group: string,
@@ -396,6 +398,7 @@ function Garage.adder(out: { Piece }): Add
 			material = o.material or "SmoothPlastic",
 			collide = if o.collide == nil then true else o.collide,
 			light = o.light,
+			face = o.face,
 		})
 	end
 end
@@ -434,7 +437,8 @@ function Garage.toyCar(
 		col: { number },
 		o: ToyCars.Opts?
 	)
-		local opts: Opts = { shape = o and o.shape, material = o and o.material }
+		local opts: Opts =
+			{ shape = o and o.shape, material = o and o.material, face = o and o.face }
 		local rot = o and o.rot or v(0, 0, 0)
 		opts.rot = v(rot.x, rot.y + yaw, rot.z)
 		opts.collide = false
@@ -1044,6 +1048,13 @@ function Garage.makeParts(pieces: { Piece }, model: Instance, origin: CFrame): {
 			light.Brightness = 1.2
 			light.Color = part.Color
 			light.Parent = part
+		end
+		if p.face then
+			local face = Instance.new("Decal")
+			face.Name = "face"
+			face.Texture = "rbxasset://textures/face.png" -- (Roblox's classic smile, built in)
+			face.Face = Enum.NormalId.Front
+			face.Parent = part
 		end
 		part.Parent = group
 	end

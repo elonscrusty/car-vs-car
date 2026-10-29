@@ -17,7 +17,7 @@
 local ToyCars = {}
 
 type V3 = { x: number, y: number, z: number }
-export type Opts = { shape: string?, rot: V3?, material: string? }
+export type Opts = { shape: string?, rot: V3?, material: string?, face: boolean? }
 -- puts one piece: name, size, middle x y z, colour, options
 export type Put = (
 	name: string,
@@ -132,10 +132,11 @@ local SHAPES: { [string]: Build } = {}
 
 -- carter's picture (10-28): open karts with a Roblox kid driving, shirt and cap in the car's
 -- colour, yellow head. The cap's top is the hat spot (HEAD_TOP, TOPPER_Z), whatever the shape.
-local SKIN = { 255, 199, 44 }
+local SKIN = { 245, 205, 48 } -- Roblox yellow
+local FACE: Opts = { face = true }
 local function driver(p: Put, c: { number })
 	p("Driver", v(1.1, 0.6, 0.5), 0, 1.02, ToyCars.TOPPER_Z + 0.1, c)
-	p("Head", v(0.66, 0.6, 0.66), 0, ToyCars.HEAD_TOP - 0.44, ToyCars.TOPPER_Z, SKIN)
+	p("Head", v(0.66, 0.6, 0.66), 0, ToyCars.HEAD_TOP - 0.44, ToyCars.TOPPER_Z, SKIN, FACE)
 	p("Cap", v(0.74, 0.14, 0.84), 0, ToyCars.HEAD_TOP - 0.07, ToyCars.TOPPER_Z - 0.08, c)
 end
 
