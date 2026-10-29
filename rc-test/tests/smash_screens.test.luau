@@ -167,6 +167,33 @@ test("how-to tip ends well above the FIRE / gas circle", function()
 	truthy(tip.y + tip.h <= fire.y - 50, "the tip sits on the FIRE circle")
 end)
 
+test("a 3D kart fills ~70% of its view's width and never runs off the top", function()
+	-- (what the camera sees across at that distance: 2 d tan(fov/2) high, times aspect wide)
+	local function seen(w: number, h: number, l: number, aspect: number): (number, number)
+		local d = SmashScreens.kartDistance(w, h, l, 30, aspect, SmashScreens.KART_FILL)
+		local tanV = math.tan(math.rad(15))
+		local r = math.sqrt(w * w + l * l) / 2
+		return r / (d * tanV * aspect), (h / 2) / (d * tanV)
+	end
+	-- a kart (about 4 wide, 2.5 high, 6 long) on a wide card spot and on the round-over stage
+	for _, aspect in { 1.37, 1.85 } do
+		local across, up = seen(4, 2.5, 6, aspect)
+		truthy(
+			math.abs(across - SmashScreens.KART_FILL) < 0.001,
+			`fills {across} across at {aspect}`
+		)
+		truthy(up <= 0.85 + 1e-6, `runs off the top at {aspect}`)
+	end
+	-- a tall thin view: the height wins, so it still fits (and is narrower than 70%)
+	local across, up = seen(4, 2.5, 6, 0.4)
+	truthy(up <= 0.85 + 1e-6 and across <= SmashScreens.KART_FILL + 1e-6)
+	-- a bigger kart stands further back but looks the same size
+	local a1 = seen(4, 2.5, 6, 1.5)
+	local a2 = seen(8, 5, 12, 1.5)
+	truthy(math.abs(a1 - a2) < 0.001)
+	truthy(SmashScreens.KART_FILL >= 0.6 and SmashScreens.KART_FILL <= 0.8)
+end)
+
 test("how-to: TAP FIRE! shows only with a weapon", function()
 	eq(SmashScreens.cardFor(3, ""), 0)
 	eq(SmashScreens.cardFor(3, "Rockets"), 3)
