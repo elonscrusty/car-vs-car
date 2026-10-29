@@ -142,7 +142,8 @@ local LIST: { Screen } = {
 			p("Coins", 8, 6, 170, 44, { anchor = "tl" }),
 			p("Tabs", 268, 4, 220, 52, { anchor = "t", tap = true }),
 			p("Close", 700, 2, 52, 52, { anchor = "tr", tap = true }),
-			p("Panel", 8, 66, 740, 316, { anchor = "c" }),
+			-- (16 px clear of the bottom: the panel's ink line sits 6 px outside it, Studio r51)
+			p("Panel", 8, 66, 740, 308, { anchor = "c" }),
 		},
 	},
 	-- one crate's odds, always before OPEN: the big crate and OPEN left, the odds right
@@ -153,8 +154,9 @@ local LIST: { Screen } = {
 		kind = "window",
 		gameplay = false,
 		pieces = {
-			p("Close", 0, 0, 52, 52, { anchor = "tl", tap = true }),
-			p("Coins", 64, 4, 160, 44, { anchor = "tl" }),
+			-- (8 in: the tilted X lost ~5 px on a 667 phone, Studio r52)
+			p("Close", 8, 0, 52, 52, { anchor = "tl", tap = true }),
+			p("Coins", 72, 4, 160, 44, { anchor = "tl" }),
 			p("Crate", 60, 56, 270, 214, { anchor = "l" }),
 			p(
 				"Open",
@@ -181,7 +183,7 @@ local LIST: { Screen } = {
 			p("Crate", 303, 262, 150, 128, { anchor = "b" }),
 			p("SideL", 0, 120, 130, 120, { anchor = "l" }),
 			p("SideR", 626, 70, 130, 120, { anchor = "r" }),
-			p("Note", 0, 300, 220, 62, { anchor = "bl" }),
+			p("Note", 8, 300, 212, 62, { anchor = "bl" }),
 			p(
 				"Cool",
 				566,
@@ -267,6 +269,43 @@ local LIST: { Screen } = {
 			p("ArrowL2", 104, 282, 52, 100, { anchor = "bl" }),
 			p("ArrowR2", 600, 282, 52, 100, { anchor = "br" }),
 			p("ArrowR1", 664, 230, 72, 150, { anchor = "br" }),
+		},
+	},
+	-- the garage (CUSTOMIZE): KARTS / HATS tabs, a 4-wide grid of cards with rarity dots, the
+	-- picked one big in 3D on the right, EQUIP under it (karts are looks: no stat bars)
+	{
+		id = "kitGarage",
+		n = 112,
+		title = "Garage",
+		kind = "window",
+		gameplay = false,
+		pieces = {
+			p("Tabs", 8, 4, 300, 52, { anchor = "tl", tap = true }),
+			p("Close", 700, 0, 52, 52, { anchor = "tr", tap = true }),
+			p("Grid", 8, 64, 500, 318, { anchor = "bl" }),
+			p("Show", 524, 64, 224, 228, { anchor = "r" }),
+			p(
+				"Equip",
+				524,
+				302,
+				224,
+				70,
+				{ anchor = "br", tone = "lime", text = "EQUIP", main = true }
+			),
+		},
+	},
+	-- settings: only what the game can really do (music, sounds, shadows, name tags)
+	{
+		id = "kitSettings",
+		n = 113,
+		title = "Settings",
+		kind = "window",
+		gameplay = false,
+		pieces = {
+			p("Title", 8, 0, 300, 56, { anchor = "tl" }),
+			p("Close", 700, 0, 52, 52, { anchor = "tr", tap = true }),
+			p("Sliders", 8, 66, 400, 316, { anchor = "bl" }),
+			p("Toggles", 424, 66, 324, 316, { anchor = "br" }),
 		},
 	},
 }
@@ -555,6 +594,29 @@ function SmashScreens.friendRows(list: { BoardRow }, limit: number): { BoardRow 
 	return out
 end
 
+-- A rarity as dots on a card: how many of the 4 are lit (common 1 .. legendary 4).
+function SmashScreens.rarityDots(rarity: string?): number
+	local r = if rarity == "legend" then "legendary" else rarity
+	for i, id in { "common", "rare", "epic", "legendary" } do
+		if r == id then
+			return i
+		end
+	end
+	return 1
+end
+
+-- The garage grid's card boxes: 4 across in a w-wide area (gap 10), rows down from 0.
+function SmashScreens.garageCards(n: number, w: number): { Box }
+	local cols, gap, h = 4, 10, 140
+	local cw = (w - (cols - 1) * gap) / cols
+	local out: { Box } = {}
+	for i = 1, n do
+		local col, row = (i - 1) % cols, (i - 1) // cols
+		out[i] = { x = col * (cw + gap), y = row * (h + gap), w = cw, h = h }
+	end
+	return out
+end
+
 -- The kit windows' lines (crates give looks, never a win)
 SmashScreens.KIT_WORDS = {
 	shopNote = "Crates change the look only.",
@@ -565,6 +627,8 @@ SmashScreens.KIT_WORDS = {
 	noScores = "No scores yet. Play a match!",
 	loading = "Loading...",
 	noFriends = "Invite friends to see them here!",
+	noKarts = "Open a crate to get a kart!",
+	hatsSoon = "HATS COMING SOON!",
 }
 
 return SmashScreens

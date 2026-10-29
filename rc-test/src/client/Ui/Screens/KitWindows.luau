@@ -4,6 +4,7 @@
 -- Places come from shared/SmashScreens, prices and odds from shared/Crates (via the caller); the
 -- server decides every buy and every kart, these only show it and ask.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local UiTheme = require(Shared:WaitForChild("UiTheme"))
@@ -16,6 +17,7 @@ local Kit = require(Ui:WaitForChild("Kit"))
 local Icons = require(Ui:WaitForChild("Icons"))
 local Screen = require(Ui:WaitForChild("Screen"))
 local KartView = require(script.Parent:WaitForChild("KartView"))
+local Smash = require(script.Parent:WaitForChild("Smash"))
 
 local KitWindows = {}
 
@@ -265,26 +267,31 @@ function KitWindows.crateOdds(data: { [string]: any }, actions: Screen.Actions?)
 			shade.BackgroundTransparency = 0.55
 			Base.corner(shade, 12)
 			local rw = op.w - 2 * pad
-			Icons.car(row, 8, rh * 0.1, rh * 1.5, rh * 0.8, { color = color, z = 5 })
-			local dot = Base.fill(row, "Dot", rh * 1.5 + 16, rh * 0.3, rh * 0.4, rh * 0.4, color, 5)
+			-- every rarity word the same size, the size LEGENDARY fits (TextScaled made COMMON and
+			-- LEGENDARY smaller than RARE and EPIC, Studio r51)
+			local wordX = rh * 1.6 + 26
+			local wordW = rw * 0.72 - wordX - 8
+			local wordH = math.min(rh * 0.5, wordW / (9 * 0.62))
+			Icons.car(row, 8, rh * 0.1, rh * 1.2, rh * 0.8, { color = color, z = 5 })
+			local dot = Base.fill(row, "Dot", rh * 1.2 + 14, rh * 0.3, rh * 0.4, rh * 0.4, color, 5)
 			Base.corner(dot)
 			Base.outline(dot, 2, WHITE)
 			Base.text(
 				row,
 				"Word",
-				rh * 1.9 + 22,
-				rh * 0.22,
-				rw * 0.6 - (rh * 1.9 + 22) - 8,
-				rh * 0.56,
+				wordX,
+				(rh - wordH) / 2,
+				wordW,
+				wordH,
 				UiTheme.RARITY[UiTheme.rarityId(r.rarity)].word,
 				{ stroke = 3, align = "l", z = 5 }
 			)
 			Base.text(
 				row,
 				"Chance",
-				rw * 0.6,
+				rw * 0.72,
 				rh * 0.18,
-				rw * 0.4 - 12,
+				rw * 0.28 - 12,
 				rh * 0.64,
 				UiMotion.percent(r.chance),
 				{ stroke = 3.5, align = "r", z = 5 }
@@ -321,8 +328,11 @@ function KitWindows.reveal(data: { [string]: any }, actions: Screen.Actions?): S
 		local colorName = UiTheme.RARITY[r].color
 		local color = Base.color(colorName)
 		local back = g.back :: ScreenGui
-		Kit.backdrop(back, "reveal", colorName)
-		Kit.confetti(back:FindFirstChild("Backdrop") :: Frame, 22)
+		local bdrop = Kit.backdrop(back, "reveal", colorName)
+		-- the kit's warm ground: purple at the top to orange at the bottom (Studio r51: flat navy)
+		bdrop.BackgroundColor3 = WHITE
+		Kit.face(bdrop, { "5a2a8c", "9a3f8f", "e07a4a" })
+		Kit.confetti(bdrop, 22)
 		local canvas = g.canvas
 		-- the crates it came from, small and dim at the sides, and the open one under the card
 		for i, side in { "SideL", "SideR" } do
@@ -866,6 +876,459 @@ function KitWindows.leagueUp(data: { [string]: any }, actions: Screen.Actions?):
 				Anim.pop(okSpot, 0.35, 0.6)
 			end
 		end)
+		return {}
+	end)
+end
+
+-- A scrolling area x, y, w, h of parent whose list is contentH tall (in design px; sized from
+-- the scroller's real width so it never stretches)
+local function scroller(
+	parent: Instance,
+	x: number,
+	y: number,
+	w: number,
+	h: number,
+	contentH: number
+): Frame
+	local sf = Instance.new("ScrollingFrame")
+	sf.Name = "Scroll"
+	sf.BackgroundTransparency = 1
+	sf.BorderSizePixel = 0
+	sf.ScrollingDirection = Enum.ScrollingDirection.Y
+	sf.ScrollBarImageColor3 = Kit.hex(UiTheme.CHROME.panelRim)
+	sf.ScrollBarThickness = math.floor(6 * Base.k)
+	sf.ZIndex = 4
+	sf.Parent = parent
+	Base.at(sf, x, y, w, h)
+	local total = math.max(h, contentH)
+	local list = Instance.new("Frame")
+	list.Name = "List"
+	list.BackgroundTransparency = 1
+	list:SetAttribute("DW", w)
+	list:SetAttribute("DH", total)
+	list.Parent = sf
+	local function room()
+		local aw = sf.AbsoluteSize.X
+		local ah = aw * total / w
+		list.Size = UDim2.fromOffset(aw, ah)
+		sf.CanvasSize = UDim2.fromOffset(0, ah)
+	end
+	sf:GetPropertyChangedSignal("AbsoluteSize"):Connect(room)
+	room()
+	return list
+end
+
+-- ===== Garage (CUSTOMIZE): KARTS / HATS, a card grid with rarity dots, the picked one big, EQUIP =====
+
+-- data: { tab: 1 | 2, karts = { Item }, hats = { Item }?, hatsSoon: boolean?, hatOn = { name }? }
+--   Item = { name, rarity, id? (a kart's car id), own: boolean?, on: boolean? }
+-- actions: tab(i), equip(tab, i), close()  (the same as Smash.customize)
+function KitWindows.garage(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
+	return Screen.open("customize", "window", false, function(g)
+		local canvas = g.canvas
+		local tab = if data.tab == 2 then 2 else 1
+		local picked = 1
+		local cp = piece("kitGarage", "Close")
+		Kit.close(spot(canvas, "kitGarage", "Close"), 0, 0, Screen.act(actions, "close"), cp.w)
+		local gp = piece("kitGarage", "Grid")
+		local gridPanel =
+			Kit.navyPanel(spot(canvas, "kitGarage", "Grid"), "Panel", 0, 0, gp.w, gp.h)
+		local sp = piece("kitGarage", "Show")
+		local showPanel =
+			Kit.navyPanel(spot(canvas, "kitGarage", "Show"), "Panel", 0, 0, sp.w, sp.h)
+		local equip: TextButton
+		local function list(): { any }
+			return (if tab == 1 then data.karts else data.hats) or {}
+		end
+		local function refreshButton()
+			local words, works = SmashScreens.equipButton(list()[picked], tab == 2)
+			Kit.setWords(equip, words)
+			Kit.enable(equip, works)
+		end
+		equip = placedButton(canvas, "kitGarage", "Equip", function()
+			local _, works = SmashScreens.equipButton(list()[picked], tab == 2)
+			if works then
+				Screen.act(actions, "equip")(tab, picked)
+			end
+		end)
+		local show: Frame? = nil
+		-- the picked one, big: the 3D kart (or the hat), its name and rarity
+		local function showPicked()
+			if show then
+				show:Destroy()
+			end
+			local holder = Base.box(showPanel, "Show", 0, 0, sp.w, sp.h, 4)
+			show = holder
+			local it = list()[picked]
+			if tab == 2 and data.hatsSoon then
+				return -- (the grid already says hats are on the way)
+			end
+			if not it then
+				local words = if tab == 1 then SmashScreens.KIT_WORDS.noKarts else "No hats yet."
+				Base.text(
+					holder,
+					"Empty",
+					12,
+					sp.h / 2 - 30,
+					sp.w - 24,
+					60,
+					words,
+					{ stroke = 3, z = 5 }
+				).TextWrapped =
+					true
+				return
+			end
+			local color = if tab == 1 then Smash.carColor(it.id, 1) else rarityColor(it.rarity)
+			Kit.rays(
+				holder,
+				sp.w / 2,
+				84,
+				160,
+				UiTheme.RARITY[UiTheme.rarityId(it.rarity)].color,
+				0.7
+			)
+			if tab == 1 then
+				local view = Base.box(holder, "KartSpot", 10, 10, sp.w - 20, 150, 5)
+				if not KartView.over(view, it.id) then
+					Icons.car(view, 0, 0, sp.w - 20, 150, { id = it.id, color = color, z = 5 })
+				end
+				-- the hat on the kart you drive, in the corner (the old card's "with its hat")
+				local hatOn = data.hatOn
+				if it.on and hatOn then
+					Smash.hat(holder, 8, 6, 40, rarityColor(hatOn.rarity))
+					Base.text(holder, "HatName", 4, 46, 90, 16, string.upper(hatOn.name or ""), {
+						stroke = 2.5,
+						z = 7,
+					})
+				end
+			elseif it.own ~= false then
+				Smash.hat(holder, sp.w / 2 - 50, 30, 100, color)
+			else
+				Icons.make(holder, "lock", sp.w / 2 - 36, 44, 72, { z = 5 })
+			end
+			Base.text(
+				holder,
+				"Name",
+				10,
+				164,
+				sp.w - 20,
+				28,
+				string.upper(it.name or ""),
+				{ stroke = 3.5, z = 6 }
+			)
+			Base.text(
+				holder,
+				"Rarity",
+				10,
+				194,
+				sp.w - 20,
+				22,
+				UiTheme.RARITY[UiTheme.rarityId(it.rarity)].word,
+				{
+					color = color,
+					stroke = 3,
+					z = 6,
+				}
+			)
+		end
+		local grid: Frame? = nil
+		local function fill()
+			if grid then
+				grid:Destroy()
+			end
+			local holder = Base.box(gridPanel, "Grid", 0, 0, gp.w, gp.h, 4)
+			grid = holder
+			local items = list()
+			picked = 1
+			for i, it in items do
+				if it.on then
+					picked = i
+				end
+			end
+			if tab == 2 and data.hatsSoon then
+				Base.text(
+					holder,
+					"Soon",
+					12,
+					gp.h / 2 - 24,
+					gp.w - 24,
+					48,
+					SmashScreens.KIT_WORDS.hatsSoon,
+					{
+						stroke = 4,
+						z = 5,
+					}
+				)
+				showPicked()
+				refreshButton()
+				Kit.enable(equip, false)
+				return
+			end
+			-- (cards 8 in from the scroller's sides: the picked one's ring and glow sit outside its
+			-- card, and the scroller clips; room for the scroll bar on the right)
+			local pad, edge = 4, 8
+			local boxes = SmashScreens.garageCards(#items, gp.w - 2 * pad - 2 * edge - 8)
+			local last = boxes[#boxes]
+			local inner = scroller(
+				holder,
+				pad,
+				pad,
+				gp.w - 2 * pad,
+				gp.h - 2 * pad,
+				if last then last.y + last.h + 2 * edge else 0
+			)
+			local cards: { Frame } = {}
+			local shown: { GuiObject } = {}
+			for i, it in items do
+				local b = boxes[i]
+				local tile = Instance.new("TextButton")
+				tile.Name = "Item" .. i
+				tile.Text = ""
+				tile.AutoButtonColor = false
+				tile.BackgroundTransparency = 1
+				tile.ZIndex = 5
+				tile.Parent = inner
+				Base.at(tile, b.x + edge, b.y + edge, b.w, b.h)
+				local card = Kit.plate(tile, "Card", 0, 0, b.w, b.h - 4, i == picked, 12)
+				-- (a kart's own colour: drawn karts of one rarity all looked alike)
+				local color = if tab == 1 then Smash.carColor(it.id, 1) else rarityColor(it.rarity)
+				if tab == 1 then
+					Icons.car(card, 6, 14, b.w - 12, b.h - 54, { id = it.id, color = color, z = 4 })
+				elseif it.own ~= false then
+					Smash.hat(card, b.w / 2 - 34, 22, 68, color)
+				else
+					Icons.make(card, "lock", b.w / 2 - 24, 30, 48, { z = 4 })
+				end
+				if it.on then
+					Kit.tag(card, 8, 8, "ON", "lime", 22, 9)
+				end
+				-- the rarity dots (lit up to its rarity, in its colour)
+				local lit = SmashScreens.rarityDots(it.rarity)
+				local ds, dg = 12, 6
+				local dx = (b.w - (4 * ds + 3 * dg)) / 2
+				for d = 1, 4 do
+					local dot = Base.fill(
+						card,
+						"Dot" .. d,
+						dx + (d - 1) * (ds + dg),
+						b.h - 30,
+						ds,
+						ds,
+						if d <= lit then color else Kit.hex(UiTheme.CHROME.track[2]),
+						5
+					)
+					Base.corner(dot)
+					Base.outline(dot, 1.5)
+				end
+				Anim.press(tile)
+				tile.Activated:Connect(function()
+					local was = cards[picked]
+					if was then
+						Kit.select(was, false)
+					end
+					picked = i
+					Kit.select(card, true)
+					refreshButton()
+					showPicked()
+				end)
+				cards[i] = card
+				table.insert(shown, tile)
+			end
+			task.defer(function()
+				Anim.cascade(shown)
+			end)
+			showPicked()
+			refreshButton()
+		end
+		local tp = piece("kitGarage", "Tabs")
+		local tabs: Kit.Tabs
+		tabs = Kit.tabs(
+			spot(canvas, "kitGarage", "Tabs"),
+			0,
+			0,
+			tp.w,
+			tp.h,
+			{ "KARTS", "HATS" },
+			tab,
+			function(i: number)
+				tabs.set(i) -- (Kit.tabs only tells us: the highlight moves here)
+				tab = i
+				Screen.act(actions, "tab")(i)
+				fill()
+			end
+		)
+		fill()
+		return {}
+	end)
+end
+
+-- ===== Settings: MUSIC and SOUNDS sliders, SHADOWS and NAME TAGS switches =====
+
+-- A slider: a recessed bar and a knob, set by a tap or a drag (0..1); onChange on letting go.
+local function slider(
+	parent: Instance,
+	x: number,
+	y: number,
+	w: number,
+	h: number,
+	value: number,
+	onChange: (v: number) -> ()
+)
+	local b = Instance.new("TextButton")
+	b.Name = "Slider"
+	b.Text = ""
+	b.AutoButtonColor = false
+	b.BackgroundTransparency = 1
+	b.ZIndex = 5
+	b.Parent = parent
+	Base.at(b, x, y, w, h)
+	local bh = 16
+	local knobS = 36
+	local track =
+		Kit.bar(b, "Bar", knobS / 2, (h - bh) / 2, w - knobS, bh, "blue", { still = true, z = 5 })
+	local knob = Base.fill(b, "Knob", 0, (h - knobS) / 2, knobS, knobS, WHITE, 7)
+	Base.corner(knob)
+	Base.outline(knob, UiTheme.OUTLINE.normal)
+	local kg = Instance.new("UIGradient")
+	kg.Rotation = 90
+	kg.Color = ColorSequence.new(WHITE, Kit.hex("8fd8ff"))
+	kg.Parent = knob
+	local v = math.clamp(value, 0, 1)
+	local function draw()
+		local fill = track:FindFirstChild("Fill") :: Frame?
+		if fill then
+			fill.Size = UDim2.fromScale(v, 1)
+		end
+		knob.Position = UDim2.fromScale(v * (w - knobS) / w, knob.Position.Y.Scale)
+	end
+	draw()
+	local function at(px: number)
+		local left = b.AbsolutePosition.X + b.AbsoluteSize.X * (knobS / 2) / w
+		local span = b.AbsoluteSize.X * (w - knobS) / w
+		v = math.clamp((px - left) / math.max(span, 1), 0, 1)
+		draw()
+	end
+	local moving: RBXScriptConnection? = nil
+	local ending: RBXScriptConnection? = nil
+	local function stop()
+		if moving then
+			moving:Disconnect()
+			moving = nil
+		end
+		if ending then
+			ending:Disconnect()
+			ending = nil
+		end
+	end
+	b.InputBegan:Connect(function(input: InputObject)
+		local t = input.UserInputType
+		if t ~= Enum.UserInputType.MouseButton1 and t ~= Enum.UserInputType.Touch then
+			return
+		end
+		stop()
+		at(input.Position.X)
+		moving = UserInputService.InputChanged:Connect(function(m: InputObject)
+			if m.UserInputType == Enum.UserInputType.MouseMovement or m == input then
+				at(m.Position.X)
+			end
+		end)
+		ending = UserInputService.InputEnded:Connect(function(e: InputObject)
+			if e == input or e.UserInputType == Enum.UserInputType.MouseButton1 then
+				stop()
+				onChange(v)
+			end
+		end)
+	end)
+	-- (the window closes mid-drag: nothing left listening)
+	b.Destroying:Connect(stop)
+end
+
+-- data: { music: 0..1, sfx: 0..1, shadows: boolean, names: boolean }
+-- actions: set(key, value), close()
+function KitWindows.settings(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
+	return Screen.open("settings", "window", false, function(g)
+		local canvas = g.canvas
+		local tp = piece("kitSettings", "Title")
+		Kit.title(spot(canvas, "kitSettings", "Title"), 0, 0, tp.w, tp.h, "SETTINGS", nil, "l")
+		local cp = piece("kitSettings", "Close")
+		Kit.close(spot(canvas, "kitSettings", "Close"), 0, 0, Screen.act(actions, "close"), cp.w)
+		local set = Screen.act(actions, "set")
+		local sp = piece("kitSettings", "Sliders")
+		local left =
+			Kit.navyPanel(spot(canvas, "kitSettings", "Sliders"), "Panel", 0, 0, sp.w, sp.h)
+		for i, row in { { "music", "MUSIC" }, { "sfx", "SOUNDS" } } do
+			local y = 30 + (i - 1) * 120
+			Base.text(
+				left,
+				"Word" .. i,
+				20,
+				y,
+				sp.w - 40,
+				32,
+				row[2],
+				{ stroke = 3.5, align = "l", z = 5 }
+			)
+			slider(
+				left,
+				16,
+				y + 40,
+				sp.w - 32,
+				56,
+				if type(data[row[1]]) == "number" then data[row[1]] else 1,
+				function(v)
+					set(row[1], v)
+				end
+			)
+		end
+		local op = piece("kitSettings", "Toggles")
+		local right =
+			Kit.navyPanel(spot(canvas, "kitSettings", "Toggles"), "Panel", 0, 0, op.w, op.h)
+		for i, row in { { "shadows", "SHADOWS" }, { "names", "NAME TAGS" } } do
+			local y = 24 + (i - 1) * 100
+			local key = row[1]
+			local state = data[key] ~= false
+			-- (the whole row is the tap: the switch alone is under 44 px tall)
+			local hit = Instance.new("TextButton")
+			hit.Name = "Row" .. i
+			hit.Text = ""
+			hit.AutoButtonColor = false
+			hit.BackgroundTransparency = 1
+			hit.ZIndex = 5
+			hit.Parent = right
+			Base.at(hit, 12, y, op.w - 24, 80)
+			local line = Base.fill(
+				right,
+				"Line" .. i,
+				12,
+				y + 86,
+				op.w - 24,
+				2,
+				Kit.hex(UiTheme.CHROME.panelRim),
+				4
+			)
+			line.BackgroundTransparency = 0.6
+			Base.text(
+				hit,
+				"Word",
+				8,
+				24,
+				op.w - 130,
+				32,
+				row[2],
+				{ stroke = 3.5, align = "l", z = 6 }
+			)
+			local toggle: Kit.Toggle
+			toggle = Kit.toggle(hit, op.w - 24 - 84, 20, state, function(on: boolean)
+				state = on
+				set(key, on)
+			end)
+			toggle.button.ZIndex = 7
+			hit.Activated:Connect(function()
+				state = not state
+				toggle.set(state)
+				set(key, state)
+			end)
+		end
 		return {}
 	end)
 end
