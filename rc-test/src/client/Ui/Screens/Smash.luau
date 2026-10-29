@@ -18,6 +18,7 @@ local Kit = require(Ui:WaitForChild("Kit"))
 local Icons = require(Ui:WaitForChild("Icons"))
 local Pattern = require(Ui:WaitForChild("Pattern"))
 local Screen = require(Ui:WaitForChild("Screen"))
+local KartView = require(script.Parent:WaitForChild("KartView"))
 
 local Smash = {}
 
@@ -85,69 +86,6 @@ local function panel(canvas: Instance, id: string, name: string): (Frame, SmashS
 	return f, pc
 end
 
--- The winner's real kart (CarSkin: carter's model, else the kart, else the toy car) turning in a
--- 3D window; nil when it can't be made (then the drawn car shows).
-local function kartView(
-	parent: Instance,
-	x: number,
-	y: number,
-	w: number,
-	h: number,
-	carId: string?
-): ViewportFrame?
-	if not carId then
-		return nil
-	end
-	local client = script.Parent.Parent.Parent
-	local mod = client:FindFirstChild("CarSkin")
-	if not (mod and mod:IsA("ModuleScript")) then
-		return nil
-	end
-	-- (any trouble making it: the drawn car instead, never a screen that fails to build)
-	local ok, made = pcall(function()
-		return (require(mod) :: any).copyOf(carId)
-	end)
-	if not ok then
-		return nil
-	end
-	if not (made and typeof(made) == "Instance" and made:IsA("Model")) then
-		return nil
-	end
-	local model = made :: Model
-	local view = Instance.new("ViewportFrame")
-	view.Name = "Kart"
-	view.BackgroundTransparency = 1
-	view.Ambient = Color3.fromRGB(190, 190, 200)
-	view.LightColor = Color3.new(1, 1, 1)
-	view.LightDirection = Vector3.new(-0.4, -1, -0.6)
-	view.ZIndex = 4
-	view.Parent = parent
-	Base.at(view, x, y, w, h)
-	local world = Instance.new("WorldModel")
-	world.Parent = view
-	model:PivotTo(CFrame.identity)
-	model.Parent = world
-	local cf, size = model:GetBoundingBox()
-	local mid = cf.Position
-	local cam = Instance.new("Camera")
-	cam.FieldOfView = 30
-	-- far enough back that the kart's longest side fits, from a little above and in front
-	local dist = math.max(size.X, size.Y, size.Z) / math.tan(math.rad(15)) * 0.62
-	cam.CFrame = CFrame.lookAt(mid + Vector3.new(0, 0.35, 1).Unit * dist, mid)
-	cam.Parent = view
-	view.CurrentCamera = cam
-	-- turning slowly (stops when the screen closes)
-	task.spawn(function()
-		local a = math.rad(-30)
-		while view.Parent do
-			a += 0.02
-			model:PivotTo(CFrame.new(mid) * CFrame.Angles(0, a, 0) * CFrame.new(-mid))
-			task.wait(1 / 30)
-		end
-	end)
-	return view
-end
-
 -- show `obj` after `delay` s with a pop (the screen may be closed by then: then nothing)
 local function popLater(obj: GuiObject, delay: number, then_: (() -> ())?)
 	obj.Visible = false
@@ -190,7 +128,7 @@ function Smash.matchEnd(view: MatchEnd.View, actions: Screen.Actions?): Screen.H
 			local stage = spot(g.canvas, "matchEnd", "Winner")
 			Kit.rays(stage, kp.w / 2, kp.h / 2, kp.h * 1.5, "go", 0.7)
 			local cw = kp.w * 0.9
-			local car: GuiObject = kartView(stage, (kp.w - cw) / 2, 0, cw, kp.h, w.carId)
+			local car: GuiObject = KartView.make(stage, (kp.w - cw) / 2, 0, cw, kp.h, w.carId)
 				or Icons.car(stage, (kp.w - cw) / 2, (kp.h - cw * 0.64) / 2, cw, cw * 0.64, {
 					id = w.carId,
 					color = carColor(w.carId, 1),
