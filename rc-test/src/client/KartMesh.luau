@@ -9,6 +9,7 @@
 local AssetService = game:GetService("AssetService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local KartCode = require(ReplicatedStorage.Shared.KartCode)
 local KartMeshData = require(ReplicatedStorage.Shared.KartMeshData)
 
 local KartMesh = {}
@@ -24,14 +25,6 @@ local making: { [string]: boolean } = {} -- a kart's body being built (other col
 local tries: { [string]: number } = {}
 local broken = false -- no mesh memory, or builds keep failing: this device can't, so stop trying
 
-local function nums(s: string): { number }
-	local out = {}
-	for n in string.gmatch(s, "-?%d+") do
-		table.insert(out, tonumber(n) :: number)
-	end
-	return out
-end
-
 type Piece = { mesh: KartMeshData.Mesh, color: Color3? }
 
 -- One MeshPart from one or more pieces of the data. A piece with a colour gets it as vertex colours
@@ -42,10 +35,10 @@ local function meshPart(name: string, pieces: { Piece }): MeshPart
 	local lo = Vector3.one * math.huge
 	local hi = -lo
 	for i, piece in pieces do
-		local v = nums(piece.mesh.v)
+		local v = KartCode.verts(piece.mesh.v)
 		all[i] = v
 		for k = 1, #v, 3 do
-			local p = Vector3.new(v[k], v[k + 1], v[k + 2]) / 100
+			local p = Vector3.new(v[k], v[k + 1], v[k + 2])
 			lo, hi = lo:Min(p), hi:Max(p)
 		end
 	end
@@ -60,12 +53,12 @@ local function meshPart(name: string, pieces: { Piece }): MeshPart
 		local ids: { number } = {}
 		local at: { Vector3 } = {}
 		for k = 1, #v, 3 do
-			local p = Vector3.new(v[k], v[k + 1], v[k + 2]) / 100 - mid
+			local p = Vector3.new(v[k], v[k + 1], v[k + 2]) - mid
 			table.insert(at, p)
 			table.insert(ids, em:AddVertex(p))
 		end
 		local col = if piece.color then em:AddColor(piece.color, 1) else nil
-		local t = nums(piece.mesh.t)
+		local t = KartCode.tris(piece.mesh.t, piece.mesh.w)
 		for k = 1, #t, 3 do
 			local a, b, c = t[k], t[k + 1], t[k + 2]
 			local n = (at[b] - at[a]):Cross(at[c] - at[a])
