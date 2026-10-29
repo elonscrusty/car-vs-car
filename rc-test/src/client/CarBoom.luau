@@ -27,6 +27,7 @@ local TRIM = Color3.fromRGB(216, 28, 42)
 local TIRE = Color3.fromRGB(16, 16, 18)
 local BURNT = Color3.fromRGB(Spec.BURNT[1], Spec.BURNT[2], Spec.BURNT[3])
 local HOT = Color3.fromRGB(255, 122, 32)
+local CHARCOAL = Color3.fromRGB(34, 34, 40)
 
 local CarBoom = {}
 
@@ -342,8 +343,9 @@ function CarBoom.boom(model: Model, mine: boolean?)
 	end
 
 	-- the car's parts fly off (made in its colors); one wheel rolls far away
+	-- flying body parts are charcoal for a textured (mesh) car, else the body's own color
 	local body = model.PrimaryPart
-	local paint = if body then body.Color else Color3.fromRGB(21, 22, 28)
+	local paint = if body and not body:IsA("MeshPart") then body.Color else CHARCOAL
 	local look = mid.Rotation
 	for _, p in Spec.PIECES do
 		local size = Vector3.new(p.size[1], p.size[2], p.size[3]) * u
