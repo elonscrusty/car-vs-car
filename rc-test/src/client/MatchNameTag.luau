@@ -210,11 +210,12 @@ function MatchNameTag.attach(
 	heart.ZIndex = 4
 	heart.Parent = bar
 	local red = Color3.fromRGB(235, 40, 60)
-	for _, spec in {
+	local heartParts = {
 		{ Vector2.new(0.28, 0.32), 0.58, 0 },
 		{ Vector2.new(0.72, 0.32), 0.58, 0 },
 		{ Vector2.new(0.5, 0.55), 0.5, 45 },
-	} do
+	}
+	for _, spec in heartParts do
 		local at = UDim2.fromScale(spec[1].X, spec[1].Y)
 		local p = box(heart, red, UDim2.fromScale(spec[2], spec[2]), at, 6)
 		p.AnchorPoint = Vector2.new(0.5, 0.5)
