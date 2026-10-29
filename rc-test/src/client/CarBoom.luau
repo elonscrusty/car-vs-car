@@ -200,7 +200,11 @@ type Wreck = {
 }
 local wrecks: { [Model]: Wreck } = {}
 
-local function ring(at: Vector3, r: { color: { number }, size: number, secs: number, delay: number }, u: number)
+local function ring(
+	at: Vector3,
+	r: { color: { number }, size: number, secs: number, delay: number },
+	u: number
+)
 	local cf = CFrame.new(at) * CFrame.Angles(0, 0, math.rad(90))
 	local p = part("Ring", rgb(r.color), true, Vector3.new(0.05 * u, 0.2 * u, 0.2 * u), cf)
 	p.Shape = Enum.PartType.Cylinder
@@ -320,11 +324,16 @@ function CarBoom.boom(model: Model, mine: boolean?)
 			Vector3.new(0.4 * s, 0.3 * s, 0.5 * s),
 			at
 		)
-		local dir = Vector3.new(rng:NextNumber(-1, 1), rng:NextNumber(0.2, 1), rng:NextNumber(-1, 1)).Unit
+		local dir =
+			Vector3.new(rng:NextNumber(-1, 1), rng:NextNumber(0.2, 1), rng:NextNumber(-1, 1)).Unit
 		fly({
 			part = c,
 			vel = (dir * rng:NextNumber(9, 17) + Vector3.new(0, 8, 0)) * u,
-			spin = Vector3.new(rng:NextNumber(-12, 12), rng:NextNumber(-12, 12), rng:NextNumber(-12, 12)),
+			spin = Vector3.new(
+				rng:NextNumber(-12, 12),
+				rng:NextNumber(-12, 12),
+				rng:NextNumber(-12, 12)
+			),
 			floor = floorY,
 			half = 0.15 * s,
 			till = os.clock() + 1.6,
@@ -338,7 +347,9 @@ function CarBoom.boom(model: Model, mine: boolean?)
 	local look = mid.Rotation
 	for _, p in Spec.PIECES do
 		local size = Vector3.new(p.size[1], p.size[2], p.size[3]) * u
-		local cf = CFrame.new(mid.Position) * look * CFrame.new(p.at[1] * u, p.at[2] * u, -p.at[3] * u)
+		local cf = CFrame.new(mid.Position)
+			* look
+			* CFrame.new(p.at[1] * u, p.at[2] * u, -p.at[3] * u)
 		local color = if p.paint == "tire" then TIRE elseif p.paint == "trim" then TRIM else paint
 		local piece = part(p.name, color, false, size, cf)
 		piece.CastShadow = true
@@ -356,7 +367,11 @@ function CarBoom.boom(model: Model, mine: boolean?)
 		fly({
 			part = piece,
 			vel = (look * Vector3.new(x, y, -z)) * u,
-			spin = Vector3.new(rng:NextNumber(-14, 14), rng:NextNumber(-14, 14), rng:NextNumber(-14, 14)),
+			spin = Vector3.new(
+				rng:NextNumber(-14, 14),
+				rng:NextNumber(-14, 14),
+				rng:NextNumber(-14, 14)
+			),
 			floor = floorY,
 			half = size.Y / 2,
 			smoke = smoke,
@@ -377,10 +392,21 @@ function CarBoom.boom(model: Model, mine: boolean?)
 	tween(hl, Spec.BURN_IN, { FillTransparency = 0.12 })
 	table.insert(stuff, hl)
 
-	local top = part("Fire", Color3.new(), false, Vector3.new(1.4 * u, 0.1, 2.4 * u), at * CFrame.new(0, 0.3 * u, 0))
+	local top = part(
+		"Fire",
+		Color3.new(),
+		false,
+		Vector3.new(1.4 * u, 0.1, 2.4 * u),
+		at * CFrame.new(0, 0.3 * u, 0)
+	)
 	top.Transparency = 1
 	for name, layer in Spec.WRECK do
-		local e = emitter(layer, u, if name == "smoke" then SMOKE elseif name == "embers" then SPARK else FIRE, top)
+		local e = emitter(
+			layer,
+			u,
+			if name == "smoke" then SMOKE elseif name == "embers" then SPARK else FIRE,
+			top
+		)
 		e.Shape = Enum.ParticleEmitterShape.Box
 		e.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
 		e.Rate = Spec.count(layer.count, isPhone)
@@ -463,10 +489,17 @@ function CarBoom.back(model: Model, quiet: boolean?)
 		local b = Spec.BEAM
 		local h = b.height * u
 		local up = CFrame.new(ground + Vector3.new(0, h / 2, 0)) * CFrame.Angles(0, 0, math.rad(90))
-		local beam = part("Beam", Color3.fromRGB(111, 212, 255), true, Vector3.new(h, b.width * u, b.width * u), up)
+		local beam = part(
+			"Beam",
+			Color3.fromRGB(111, 212, 255),
+			true,
+			Vector3.new(h, b.width * u, b.width * u),
+			up
+		)
 		beam.Shape = Enum.PartType.Cylinder
 		beam.Transparency = 0.3
-		local core = part("BeamCore", Color3.new(1, 1, 1), true, Vector3.new(h, b.core * u, b.core * u), up)
+		local core =
+			part("BeamCore", Color3.new(1, 1, 1), true, Vector3.new(h, b.core * u, b.core * u), up)
 		core.Shape = Enum.PartType.Cylinder
 		tween(beam, b.secs, { Size = Vector3.new(h, 0.05 * u, 0.05 * u), Transparency = 1 })
 		tween(core, b.secs, { Size = Vector3.new(h, 0.02 * u, 0.02 * u), Transparency = 1 })
