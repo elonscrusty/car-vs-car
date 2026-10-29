@@ -32,9 +32,15 @@ ArenaCam.PHONE_SHORT = 500 -- px: a screen whose short side is this or less is a
 ArenaCam.PHONE_DISTANCE = 8
 ArenaCam.PHONE_PITCH = 45
 ArenaCam.PHONE_FOV = 50
-ArenaCam.PHONE_FOV_FAST = 2
+ArenaCam.PHONE_FOV_FAST = 4
+-- Speed zoom (carter 10-29, try A of 4 on camera/speed-zoom.html): at top speed the camera slides
+-- this share further back (18%), and the view is PHONE_FOV_FAST wider. It eases out slowly and
+-- back in at once, the same as the wall check does (ChaseCamera).
+ArenaCam.PHONE_BACK_FAST = 0.18
 -- your kart's width, of the screen's width (phone): try A shows it ~4.7% wide, small but clear
 ArenaCam.MIN_SHARE = 0.04
+-- (at top speed, pulled back and wider: carter picked A knowing the kart is a little smaller)
+ArenaCam.MIN_SHARE_FAST = 0.034
 ArenaCam.KART_LONG = 5.5 * 0.25 -- studs (Weapons.KART)
 ArenaCam.KART_WIDE = 0.55 * ArenaCam.KART_LONG -- studs (a kart is 1 x 0.55 KART)
 ArenaCam.PHONE_AHEAD_MIN = 8 -- kart lengths still seen ahead of your kart (the fight round you)
@@ -48,7 +54,8 @@ export type Fit = {
 	distance: number,
 	pitch: number,
 	fov: number,
-	fast: number,
+	fast: number, -- degrees wider at top speed
+	back: number, -- share further back at top speed
 	low: number, -- the kart's middle, this far below the screen's middle (of the half screen)
 	lean: number, -- the look-ahead lean, as a share of LEAD_MAX
 }
@@ -79,6 +86,62 @@ function ArenaCam.forced(isStudio: boolean, attr: unknown): boolean
 	return isStudio and attr == true
 end
 
+-- Come-back camera (carter 10-29, try C "whoosh" of 4 on camera/comeback.html): when you respawn
+-- in a match the camera starts wide, high and spun round your new kart, and spirals in to the
+-- chase spot, the view narrowing as it lands. Looks only: the camera ends exactly where the
+-- match camera always sits.
+ArenaCam.COMEBACK_SECONDS = 1.25
+ArenaCam.COMEBACK_RADIUS = 14 -- studs out from the kart at the start
+ArenaCam.COMEBACK_HEIGHT = 11 -- studs above it at the start
+ArenaCam.COMEBACK_TURN = 1.35 * math.pi -- radians still to turn round the kart at the start
+ArenaCam.COMEBACK_FOV = 28 -- degrees wider at the start (falls off as k squared)
+
+-- The whoosh `t` s after the respawn, for a match camera `flatBack` studs behind the kart and
+-- `up` above it: (turn left to go round the kart in radians, distance out along the ground,
+-- height, extra degrees of field of view). At COMEBACK_SECONDS and after: (0, flatBack, up, 0).
+function ArenaCam.comeBack(
+	t: number,
+	flatBack: number,
+	up: number
+): (number, number, number, number)
+	local u = math.clamp(t / ArenaCam.COMEBACK_SECONDS, 0, 1)
+	local k = 1 - (1 - u) ^ 3 -- fast at first, settles slowly
+	return (1 - k) * ArenaCam.COMEBACK_TURN,
+		(1 - k) * ArenaCam.COMEBACK_RADIUS + k * flatBack,
+		(1 - k) * ArenaCam.COMEBACK_HEIGHT + k * up,
+		(1 - k) * (1 - k) * ArenaCam.COMEBACK_FOV
+end
+
+-- Match start fly-in (carter 10-29, try C "orbit down" of 4 on camera/match-fly-in.html): the
+-- match opens high over the arena, circling it, and spirals down onto your kart. It lands
+-- exactly on the match camera. A kart that starts driving speeds it up (a 3 s swoop never
+-- keeps you from driving: ChaseCamera runs its clock FLYIN_RUSH times faster while you move).
+ArenaCam.FLYIN_SECONDS = 3
+ArenaCam.FLYIN_RADIUS = 44 -- studs out from the middle of the arena at the start
+ArenaCam.FLYIN_HEIGHT = 40 -- studs up at the start
+ArenaCam.FLYIN_TURN = 1.5 * math.pi -- radians still to turn at the start
+ArenaCam.FLYIN_FOV = 10 -- degrees wider at the start
+ArenaCam.FLYIN_RUSH = 3
+ArenaCam.FLYIN_WALLS = 0.85 -- from this far in the wall check holds the camera off the walls
+
+-- The fly-in `t` s after the match began, for a match camera `flatBack` studs behind the kart and
+-- `up` above it: (k 0..1 = how far down and in, turn left in radians, distance out along the
+-- ground, height, extra degrees of view). The caller circles a point k of the way from the
+-- arena's middle to your kart. At FLYIN_SECONDS and after: (1, 0, flatBack, up, 0).
+function ArenaCam.flyIn(
+	t: number,
+	flatBack: number,
+	up: number
+): (number, number, number, number, number)
+	local u = math.clamp(t / ArenaCam.FLYIN_SECONDS, 0, 1)
+	local k = 1 - (1 - u) ^ 3 -- fast at first, settles slowly
+	return k,
+		(1 - k) * ArenaCam.FLYIN_TURN,
+		(1 - k) * ArenaCam.FLYIN_RADIUS + k * flatBack,
+		(1 - k) * ArenaCam.FLYIN_HEIGHT + k * up,
+		(1 - k) * ArenaCam.FLYIN_FOV
+end
+
 -- The camera for a screen `w` x `h` px: a phone's close one, or the big screen's. `phone` (from
 -- isPhone) wins when given; without it the screen's size decides.
 function ArenaCam.fit(w: number, h: number, phone: boolean?): Fit
@@ -89,6 +152,7 @@ function ArenaCam.fit(w: number, h: number, phone: boolean?): Fit
 			pitch = ArenaCam.PHONE_PITCH,
 			fov = ArenaCam.PHONE_FOV,
 			fast = ArenaCam.PHONE_FOV_FAST,
+			back = ArenaCam.PHONE_BACK_FAST,
 			low = ArenaCam.PHONE_LOW,
 			lean = ArenaCam.PHONE_LEAN,
 		}
@@ -98,6 +162,7 @@ function ArenaCam.fit(w: number, h: number, phone: boolean?): Fit
 		pitch = ArenaCam.PITCH,
 		fov = ArenaCam.FOV,
 		fast = ArenaCam.FOV_FAST,
+		back = 0, -- (the big screen keeps its camera: carter's speed zoom pick was a phone one)
 		low = ArenaCam.KART_LOW,
 		lean = 1,
 	}
