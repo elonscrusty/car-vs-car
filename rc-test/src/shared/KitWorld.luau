@@ -36,6 +36,9 @@ KitWorld.STROKE_PX = 4 -- the ink stroke on the number (kit: 4-7 px)
 KitWorld.DROP_PX = 4 -- the ink drop under the number
 KitWorld.NUMBER_SIDE = 0.75 -- the number's gui sits this many of its widths right of the kart
 KitWorld.BURST_POINTS = 3 -- squares turned 0, 30 and 60 degrees: a 12-point burst
+-- the number starts this far up from the kart's roof spot (px), so it never sits on the weapon
+-- badge floating over other karts (auditor 10-29: "-34" sat on it); see numberAbove
+KitWorld.NUMBER_LIFT = 0.4 -- studs over the kart's middle: the same spot as the badge's
 
 -- The number's look `t` s after it shows: its scale, how far it has risen (px) and how see-through
 -- it is (0 solid .. 1 gone). Reduced motion: no grow and no rise, it only fades.
@@ -146,6 +149,18 @@ function KitWorld.streak(t: number): (number, number)
 end
 
 -- ===== the weapon icon over a kart (carter 10-28: an icon, never a weapon model) =====
+-- just over the roof (ICON_LIFT studs), then ICON_RAISE icon heights up on screen so it floats
+-- above the YOU / name tag; ICON_PX across (ICON_PX_PHONE on a phone)
+KitWorld.ICON_PX = 40
+KitWorld.ICON_PX_PHONE = 26
+KitWorld.ICON_LIFT = 0.4
+KitWorld.ICON_RAISE = 1.4
+
+-- How far up (px) the hit number's bottom starts from the badge's spot: clear of the top of the
+-- biggest badge, with a small gap.
+function KitWorld.numberAbove(): number
+	return math.ceil((KitWorld.ICON_RAISE + 0.5) * KitWorld.ICON_PX) + 6
+end
 -- The kit look: a round pink bubble with an ink rim and a top shine (the kit's fire button with a
 -- weapon), the weapon's icon in it, and a yellow ammo coin with an ink rim.
 KitWorld.ICON_RIM_PX = 3
@@ -161,6 +176,17 @@ KitWorld.WEAPON_IMAGES = {
 	power = "",
 	mystery = "",
 } :: { [string]: string }
+
+-- Is the icon shown over a kart? Only while it holds a weapon with ammo, and never over your own
+-- kart (Lead 10-29: FIRE already shows yours, and it stacked with the YOU tag); every other kart
+-- keeps it (carter 10-28).
+function KitWorld.iconShown(weapon: unknown, ammo: unknown, mine: boolean): boolean
+	return not mine
+		and type(weapon) == "string"
+		and weapon ~= ""
+		and type(ammo) == "number"
+		and ammo > 0
+end
 
 -- The uploaded picture for an icon key, or nil (draw the stand-in).
 function KitWorld.weaponImage(key: string): string?
