@@ -167,7 +167,8 @@ end
 -- ===== sizes: the arena is RC-scale (FINISH-JOBS SCALE rule) =====
 -- Every distance below is in kart lengths (KART studs): a kart is 5.5 big units long, shrunk to RC
 -- size by TrackData.RC_SCALE (about 1.4 studs). The arena is about 65 karts wall to wall, and a
--- kart's top speed (Tuning.topSpeed 95 big units/s) is about 17 karts a second.
+-- kart's top speed in the arena (Tuning.topSpeed 95 big units/s at Match.SPEED_SCALE 0.8) is about
+-- 14 karts a second.
 
 local function sibling(name: string): any
 	if script then
@@ -218,8 +219,8 @@ Weapons.ROCKET = {
 -- its boom is huge (8 karts around, an eighth of the arena) and smashes a crowd. A direct hit
 -- always smashes; the middle of the boom too.
 Weapons.NUKE = {
-	speed = 14 * KART,
-	life = 4.5, -- about 63 karts
+	speed = 12 * KART, -- (under the arena's top speed, about 14 karts a second)
+	life = 4.5, -- about 54 karts
 	seekDeg = 25,
 	seekRange = 16 * KART,
 	turnDeg = 25,

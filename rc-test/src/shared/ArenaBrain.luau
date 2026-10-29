@@ -7,15 +7,27 @@
 -- hurt); with one it picks a target and closes in,
 -- fires only when the target is in range, in front and in sight, after a short "saw you" delay,
 -- and with a little aim error (both shrink with skill). It backs up and turns away when stuck.
--- Fair to a new kid: at most one bot hunts each player at a time (TOKENS), and on an easy match
--- bots would rather fight each other and aim worse at players.
+-- Fair to a new kid: at most one bot hunts each player at a time (TOKENS; sharp bots past the
+-- rookie matches hunt in pairs, threes on the leader), and on an easy match bots would rather
+-- fight each other and aim worse at players.
 --
 -- Plan coordinates are the arena's (map-local big units, 0,0 at the middle; ArenaData). yaw is Roblox's: forward is
 -- (-sin yaw, -cos yaw), so the server's pose is CFrame.new(x, y, z) * CFrame.Angles(0, yaw, 0).
 
 local ArenaBrain = {}
 
-ArenaBrain.TOP_SPEED = 65 -- big units/s (a player's top is 95), before skill and easy
+-- a sibling module (Roblox: next to this one; Lune: by path)
+local function sibling(name: string): any
+	if script then
+		return require((script :: any).Parent:WaitForChild(name))
+	end
+	local luneRequire: any = require
+	return luneRequire("./" .. name)
+end
+
+-- big units/s (a player's top is 95), before skill and easy; the arena's Match.SPEED_SCALE, as
+-- the players'
+ArenaBrain.TOP_SPEED = 65 * (sibling("Match").SPEED_SCALE :: number)
 ArenaBrain.ACCEL = 60 -- big units/s²
 ArenaBrain.TURN = 2.6 -- rad/s at full lock
 ArenaBrain.RADIUS = 3 -- a kart's size, for bumping into things
@@ -38,10 +50,11 @@ ArenaBrain.LOCK = { deg = 35, range = 110 }
 -- Past the rookie matches the bots sharpen up as the players do: a round's bot skill comes from
 -- its least-played player's matches, `low` at `from` matches rising to `high` at `to` (and
 -- after). Sharp bots react sooner, aim tighter and lead a moving kart, and go after the leader.
-ArenaBrain.RAMP = { from = 3, to = 10, low = 0.5, high = 0.8 }
+ArenaBrain.RAMP = { from = 3, to = 10, low = 0.5, high = 0.75 }
 -- The leader (most smashes, at least `min`) counts as this much nearer to a sharp bot (scaled by
--- how far its skill is past RAMP.low), so a runaway gets hunted. Never on an easy match.
-ArenaBrain.LEADER = { pull = 1.3, min = 2 }
+-- how far its skill is past RAMP.low), so a runaway gets hunted; `human`: a player counts this
+-- much nearer the same way. Never on an easy match.
+ArenaBrain.LEADER = { pull = 1.3, min = 2, human = 0.15 }
 -- How fast a shot flies (big units/s; Weapons.ROCKET is 29 karts/s): for leading a moving kart.
 ArenaBrain.SHOT_SPEED = 160
 
@@ -397,16 +410,23 @@ local function pickTarget(bot: Bot, world: World, hunters: { [number]: number })
 		if k.id ~= bot.id and k.alive and not k.shield and not spared(k) then
 			local busy = k.human
 				and k.id ~= bot.target
-				-- (a leading player can draw a second sharp hunter)
+				-- (sharp bots hunt a player in pairs, and a leading one in threes)
 				and (hunters[k.id] or 0)
-					>= ArenaBrain.TOKENS + (if k.id == leader and sharp >= 0.5 then 1 else 0)
+					>= ArenaBrain.TOKENS + (if sharp >= 0.5 then 1 else 0) + (if k.id == leader
+							and sharp >= 0.5
+						then 1
+						else 0)
 			if not busy then
 				local d = math.sqrt((k.x - bot.x) ^ 2 + (k.z - bot.z) ^ 2)
 				local score = d
 					* (
 						if k.rookie
 							then ArenaBrain.ROOKIE.chase
-							elseif k.human and bot.easy then 1.8
+							elseif
+								k.human and bot.easy
+							then 1.8 -- (sharp bots know players are the real threat)
+
+							elseif k.human then 1 - ArenaBrain.LEADER.human * sharp
 							else 1
 					)
 				if k.id == bot.target then

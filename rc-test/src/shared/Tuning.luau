@@ -162,6 +162,18 @@ local SCALED = {
 	"freeDistance",
 }
 
+-- a sibling module (Roblox: next to this one; Lune: by path)
+local function sibling(name: string): any
+	if script then
+		return require((script :: any).Parent:WaitForChild(name))
+	end
+	local luneRequire: any = require
+	return luneRequire("./" .. name)
+end
+
+-- Top speed by track mode on top of its numbers: the arena runs at Match.SPEED_SCALE.
+local MODE_TOP: { [string]: number } = { arena = sibling("Match").SPEED_SCALE }
+
 local base: { [string]: any } = table.clone(Tuning)
 local currentMode = "race"
 local currentScale = 1
@@ -179,7 +191,7 @@ local function apply()
 			t[key] = value
 		end
 	end
-	t.topSpeed *= currentStats.top
+	t.topSpeed *= currentStats.top * (MODE_TOP[currentMode] or 1)
 	t.accel *= currentStats.start
 	t.steerLow *= currentStats.turn
 	t.steerHigh *= currentStats.turn
