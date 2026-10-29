@@ -421,6 +421,18 @@ SmashJuice.START_TOUCH = {
 	ready = { y = 0.7, h = 0.06, w = 0.26 },
 } :: { [string]: { y: number, h: number, w: number } }
 
+-- ROUND OVER! at 0:00 (carter's pick A, 10-29): the gold words play this long before the
+-- between-rounds screen opens. Spots as above: clear of the HUD, under the clock and health bar.
+SmashJuice.ROUND_OVER_SECONDS = 1.6
+SmashJuice.ROUND_OVER = {
+	word = { y = 0.56, h = 0.11, w = 0.36 },
+	sub = { y = 0.66, h = 0.05, w = 0.2 },
+} :: { [string]: { y: number, h: number, w: number } }
+SmashJuice.ROUND_OVER_TOUCH = {
+	word = { y = 0.52, h = 0.14, w = 0.38 },
+	sub = { y = 0.64, h = 0.06, w = 0.2 },
+} :: { [string]: { y: number, h: number, w: number } }
+
 -- Palette for confetti (the low-poly look: grass, sky, sun, cherry, pink).
 SmashJuice.CONFETTI = {
 	{ 120, 200, 70 },

@@ -4,6 +4,8 @@
 -- Looks only: the server starts the round at once (the spawn shield covers the first 2 s) and
 -- nothing waits for this. It plays when the round number changes and you are in that round.
 -- Reduced motion: the words only, no slam, shake, sparks or flash.
+-- Also ROUND OVER! (carter's pick A, 10-29): a gold slam at 0:00 with a ring, sparks and a flash
+-- before the between-rounds screen opens (client/SmashEnd).
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 
@@ -31,6 +33,7 @@ local CONFETTI = {
 }
 
 local started = false
+local roundOverFn: (() -> ())? = nil -- set by start()
 
 local function tween(obj: Instance, secs: number, goal: { [string]: any }, style: Enum.EasingStyle?)
 	TweenService:Create(
@@ -107,12 +110,12 @@ function MatchStart.start()
 	ready.Parent = gui
 
 	-- a ring that bursts out from the number
-	local function ring(color: Color3, thick: number, delay: number)
+	local function ring(color: Color3, thick: number, delay: number, y: number?)
 		task.delay(delay, function()
 			local d = gui.AbsoluteSize.Y * spot.num.h * 0.8
 			local f = Instance.new("Frame")
 			f.AnchorPoint = Vector2.new(0.5, 0.5)
-			f.Position = UDim2.fromScale(0.5, spot.num.y)
+			f.Position = UDim2.fromScale(0.5, y or spot.num.y)
 			f.Size = UDim2.fromOffset(d * 0.3, d * 0.3)
 			f.BackgroundTransparency = 1
 			Base.corner(f, 999)
@@ -130,14 +133,21 @@ function MatchStart.start()
 	end
 
 	-- little stars (or confetti with `fall`) flying out of the number
-	local function sparks(n: number, colors: { Color3 }, reach: number, size: number, fall: number)
+	local function sparks(
+		n: number,
+		colors: { Color3 },
+		reach: number,
+		size: number,
+		fall: number,
+		y0: number?
+	)
 		local y = gui.AbsoluteSize.Y
 		for i = 1, n do
 			local a = math.pi * 2 * i / n + rng:NextNumber(-0.15, 0.15)
 			local r = y * reach * rng:NextNumber(0.7, 1.3)
 			local f = Instance.new("Frame")
 			f.AnchorPoint = Vector2.new(0.5, 0.5)
-			f.Position = UDim2.fromScale(0.5, spot.num.y)
+			f.Position = UDim2.fromScale(0.5, y0 or spot.num.y)
 			f.Size = UDim2.fromOffset(size, size)
 			f.Rotation = rng:NextNumber(0, 90)
 			f.BackgroundColor3 = colors[(i - 1) % #colors + 1]
@@ -145,7 +155,12 @@ function MatchStart.start()
 			f.Parent = gui
 			local life = if fall > 0 then 1.3 else 0.7
 			tween(f, life, {
-				Position = UDim2.new(0.5, math.cos(a) * r, spot.num.y, math.sin(a) * r + fall * y),
+				Position = UDim2.new(
+					0.5,
+					math.cos(a) * r,
+					y0 or spot.num.y,
+					math.sin(a) * r + fall * y
+				),
 				Rotation = f.Rotation + rng:NextNumber(-360, 360),
 				BackgroundTransparency = 1,
 				Size = UDim2.fromOffset(size * 0.3, size * 0.3),
@@ -260,12 +275,86 @@ function MatchStart.start()
 		end)
 	end
 
+	-- ROUND OVER!: a gold slam at 0:00 (the end screen waits SmashJuice.ROUND_OVER_SECONDS for it)
+	local over = if PHONE then SmashJuice.ROUND_OVER_TOUCH else SmashJuice.ROUND_OVER
+	local overWord = Instance.new("TextLabel")
+	overWord.Name = "RoundOver"
+	overWord.AnchorPoint = Vector2.new(0.5, 0.5)
+	overWord.Position = UDim2.fromScale(0.5, over.word.y)
+	overWord.Size = UDim2.fromScale(over.word.w, over.word.h)
+	overWord.BackgroundTransparency = 1
+	overWord.Font = Enum.Font.LuckiestGuy
+	overWord.TextScaled = true
+	overWord.Text = "ROUND OVER!"
+	overWord.TextColor3 = SUN
+	overWord.Visible = false
+	local overStroke = stroked(overWord, if PHONE then 6 else 10)
+	local overPop = Instance.new("UIScale")
+	overPop.Parent = overWord
+	overWord.Parent = gui
+	local overSub = Instance.new("TextLabel")
+	overSub.Name = "TimesUp"
+	overSub.AnchorPoint = Vector2.new(0.5, 0.5)
+	overSub.Position = UDim2.fromScale(0.5, over.sub.y)
+	overSub.Size = UDim2.fromScale(over.sub.w, over.sub.h)
+	overSub.BackgroundTransparency = 1
+	overSub.Font = Base.FONT
+	overSub.TextScaled = true
+	overSub.Text = "Time's up!"
+	overSub.TextColor3 = SUN
+	overSub.Visible = false
+	local subStroke = stroked(overSub, if PHONE then 3 else 5)
+	overSub.Parent = gui
+	roundOverFn = function()
+		runId += 1 -- (a 3-2-1 still on screen goes away)
+		number.Visible = false
+		ready.Visible = false
+		local id = runId
+		local reduced = Base.reduced()
+		overWord.TextTransparency = 0
+		overStroke.Transparency = 0
+		overSub.TextTransparency = 0
+		subStroke.Transparency = 0
+		overWord.Visible = true
+		overSub.Visible = true
+		Sfx.count(0)
+		if reduced then
+			overPop.Scale = 1
+			overWord.Rotation = 0
+		else
+			overPop.Scale = 3.4
+			overWord.Rotation = -12
+			tween(overPop, 0.5, { Scale = 1 }, Enum.EasingStyle.Back)
+			tween(overWord, 0.5, { Rotation = 0 }, Enum.EasingStyle.Back)
+			SmashFx.kick(0.45, 0)
+			ring(WHITE, if PHONE then 6 else 10, 0, over.word.y)
+			sparks(14, { SUN }, 0.5, if PHONE then 12 else 18, 0, over.word.y)
+			sparks(8, { WHITE }, 0.35, if PHONE then 8 else 12, 0, over.word.y)
+			flash.BackgroundTransparency = 0.2
+			tween(flash, 0.5, { BackgroundTransparency = 1 })
+		end
+		hold(id, SmashJuice.ROUND_OVER_SECONDS - 0.3, function()
+			tween(overWord, 0.25, { TextTransparency = 1 })
+			tween(overStroke, 0.25, { Transparency = 1 })
+			tween(overSub, 0.25, { TextTransparency = 1 })
+			tween(subStroke, 0.25, { Transparency = 1 })
+			task.delay(0.3, function()
+				if runId == id then
+					overWord.Visible = false
+					overSub.Visible = false
+				end
+			end)
+		end)
+	end
+
 	-- a new round: show it if you are in it (InMatch can arrive a moment after the round number)
 	workspace:GetAttributeChangedSignal("MatchRound"):Connect(function()
 		runId += 1
 		local id = runId
 		number.Visible = false
 		ready.Visible = false
+		overWord.Visible = false
+		overSub.Visible = false
 		task.delay(0.25, function()
 			if runId == id and player:GetAttribute("InMatch") == true then
 				play(id)
@@ -278,8 +367,20 @@ function MatchStart.start()
 			runId += 1
 			number.Visible = false
 			ready.Visible = false
+			overWord.Visible = false
+			overSub.Visible = false
 		end
 	end)
+end
+
+-- play ROUND OVER! now; true when it is up (the caller then waits SmashJuice.ROUND_OVER_SECONDS)
+function MatchStart.roundOver(): boolean
+	local f = roundOverFn
+	if f then
+		f()
+		return true
+	end
+	return false
 end
 
 return MatchStart

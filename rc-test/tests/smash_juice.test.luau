@@ -59,6 +59,11 @@ test("smash juice: the match start shows 3, 2, 1, GO! then nothing", function()
 	truthy(not string.find(src, "FireServer", 1, true), "no asks to the server")
 	local start = fs.readFile("src/client/SmashFxStart.client.luau")
 	truthy(string.find(start, "MatchStart", 1, true), "something starts it")
+	-- ROUND OVER! plays first, then the between-rounds screen opens (a newer result wins)
+	local sEnd = fs.readFile("src/client/SmashEnd.client.luau")
+	truthy(string.find(sEnd, "MatchStart.roundOver()", 1, true), "the end screen waits for it")
+	truthy(string.find(sEnd, "SmashJuice.ROUND_OVER_SECONDS", 1, true), "and for how long")
+	truthy(SmashJuice.ROUND_OVER_SECONDS < 2.5, "a short wait before the podium")
 end)
 
 test("smash juice: long names are cut so they fit a phone", function()
@@ -252,6 +257,21 @@ test(
 					truthy(
 						not UiScreens.overlap(r :: any, h :: any),
 						`{spot} covers {h.name} (top bar {inset.top})`
+					)
+				end
+			end
+			-- ROUND OVER! and Time's up!
+			for spot, at in SmashJuice.ROUND_OVER do
+				local r = {
+					x = (D.phoneW - at.w * D.phoneW) / 2,
+					y = (at.y - at.h / 2) * D.phoneH,
+					w = at.w * D.phoneW,
+					h = at.h * D.phoneH,
+				}
+				for _, h in hud do
+					truthy(
+						not UiScreens.overlap(r :: any, h :: any),
+						`round over {spot} covers {h.name} (top bar {inset.top})`
 					)
 				end
 			end
