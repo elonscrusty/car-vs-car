@@ -362,7 +362,19 @@ DRAW.oilSlick = function(c)
 	shape(c, "LobeR", 52, 38, 38, 36, black, nil, 6, nil, 1)
 	local shine = { "ff3fa4", "35e0ff", "8d5bff", "7dff6a", "ffd23f" }
 	for i, h in shine do
-		shape(c, "Shine" .. i, 22 + (i - 1) * 11, 62 - math.abs(i - 3) * 6, 10, 5, Color3.fromHex(h), 3, nil, (i - 3) * 12, 4)
+		shape(
+			c,
+			"Shine" .. i,
+			22 + (i - 1) * 11,
+			62 - math.abs(i - 3) * 6,
+			10,
+			5,
+			Color3.fromHex(h),
+			3,
+			nil,
+			(i - 3) * 12,
+			4
+		)
 	end
 	shape(c, "BubbleA", 58, 28, 18, 18, Color3.fromRGB(34, 40, 84), nil, 6, nil, 5)
 	shape(c, "GlintA", 62, 31, 5, 5, WHITE, nil, 6, nil, 6)

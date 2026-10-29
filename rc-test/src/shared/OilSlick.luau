@@ -11,7 +11,8 @@ OilSlick.NAME = "Oil Slick"
 OilSlick.HEIGHT = 0.14 -- puddle thickness
 OilSlick.SPREAD_TIME = 0.7 -- seconds from a tiny drop to full size
 OilSlick.COLOR = { 4, 4, 8 } -- near black (RGB 0-255)
-OilSlick.RAINBOW = { { 255, 63, 164 }, { 53, 224, 255 }, { 141, 91, 255 }, { 125, 255, 106 }, { 255, 210, 63 } }
+OilSlick.RAINBOW =
+	{ { 255, 63, 164 }, { 53, 224, 255 }, { 141, 91, 255 }, { 125, 255, 106 }, { 255, 210, 63 } }
 
 export type Lobe = { x: number, z: number, rx: number, rz: number, rot: number }
 -- x, z = centre; rx, rz = half sizes; rot = turn in radians

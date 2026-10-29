@@ -78,7 +78,8 @@ function OilSlickModel.build(at: Vector3, scale: number): Model
 			local ring = Instance.new("Frame")
 			ring.Name = "Ring" .. r
 			ring.AnchorPoint = Vector2.new(0.5, 0.5)
-			ring.Position = UDim2.fromScale(0.5 + (((r * 37) % 7) - 3) / 140, 0.5 + (((r * 53) % 7) - 3) / 140)
+			ring.Position =
+				UDim2.fromScale(0.5 + (((r * 37) % 7) - 3) / 140, 0.5 + (((r * 53) % 7) - 3) / 140)
 			ring.Size = UDim2.fromScale(f, f * (0.84 + ((r * 29) % 5) / 25))
 			ring.BackgroundTransparency = 1
 			ring.Rotation = (r * 71) % 180
