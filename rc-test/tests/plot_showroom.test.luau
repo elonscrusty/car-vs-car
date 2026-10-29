@@ -111,28 +111,21 @@ test("the showroom fits in the plot, inside its floor", function()
 	end
 end)
 
-test(
-	"look bible: SmoothPlastic, Neon only for the glow ring and lamp bulbs, round discs",
-	function()
-		local round = 0
-		for _, p in R.pieces(#R.SPOTS) do
-			eq(
-				p.material,
-				if p.name == "TableGlow"
-						or p.name == "LampBulb"
-						or p.name == "SignGlow"
-					then "Neon"
-					else "SmoothPlastic",
-				p.name
-			)
-			if string.find(p.name, "Stand") or string.find(p.name, "Table") then
-				eq(p.shape, "Cylinder", p.name)
-				round += 1
-			end
+test("look bible: SmoothPlastic, Neon only for the glow ring and the sign, round discs", function()
+	local round = 0
+	for _, p in R.pieces(#R.SPOTS) do
+		eq(
+			p.material,
+			if p.name == "TableGlow" or p.name == "SignGlow" then "Neon" else "SmoothPlastic",
+			p.name
+		)
+		if string.find(p.name, "Stand") or string.find(p.name, "Table") then
+			eq(p.shape, "Cylinder", p.name)
+			round += 1
 		end
-		truthy(round > 0)
 	end
-)
+	truthy(round > 0)
+end)
 
 test("the hero: a pink carpet from the gate end to the turntable", function()
 	local T = R.TURNTABLE
@@ -211,6 +204,9 @@ test("a real showroom: banner with words, trophies, little crates, floor edge ba
 			lines += 1
 		elseif string.sub(p.name, 1, 9) == "BayNumber" then
 			numbers += 1
+			-- turned half way from its bay, so the number reads upright from the aisle
+			local i = tonumber(string.sub(p.name, 10)) :: number
+			eq(p.rot.y, R.SPOTS[i].yaw + 180)
 		end
 	end
 	eq(lines, 4 * #R.SPOTS)
@@ -220,6 +216,7 @@ test("a real showroom: banner with words, trophies, little crates, floor edge ba
 	truthy(math.sqrt(B.w ^ 2 + B.l ^ 2) <= 12.2, "neighbour bays clear")
 	truthy(B.w > R.STAND.w and B.l > R.STAND.w, "a box round the stand")
 	eq(names.BackWall, 1)
+	eq(names.RollerDoor, 2) -- the back wall has panels, not a flat black face
 	-- the little crates sit beside the carpet, clear of the lamps and the stands
 	local T, L = R.TURNTABLE, R.LAMPS
 	for i, m in R.MINI_CRATES do

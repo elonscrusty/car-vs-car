@@ -244,6 +244,19 @@ function PlotGarageBuilder.start()
 				gui.Parent = tile
 			end
 		end
+		-- each lamp bulb gets a soft light, not Neon (as LOBBY's lamps, #999)
+		local lamps = groups.Lamps
+		if lamps then
+			for _, bulb in lamps:GetChildren() do
+				if bulb:IsA("BasePart") and bulb.Name == "LampBulb" then
+					local glow = Instance.new("PointLight")
+					glow.Range = 10
+					glow.Brightness = 1
+					glow.Color = bulb.Color
+					glow.Parent = bulb
+				end
+			end
+		end
 		model.WorldPivot = pivot
 		model.Parent = plot
 	end
