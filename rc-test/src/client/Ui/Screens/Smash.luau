@@ -11,6 +11,7 @@ local UiTheme = require(Shared:WaitForChild("UiTheme"))
 local SmashScreens = require(Shared:WaitForChild("SmashScreens"))
 local MatchEnd = require(Shared:WaitForChild("MatchEnd"))
 local CarCatalog = require(Shared:WaitForChild("CarCatalog"))
+local SmashJuice = require(Shared:WaitForChild("SmashJuice"))
 local Ui = script.Parent.Parent
 local Base = require(Ui:WaitForChild("Base"))
 local Anim = require(Ui:WaitForChild("Anim"))
@@ -145,7 +146,8 @@ function Smash.matchEnd(
 				Anim.bob(tro, UiTheme.MOTION.carBob, 5)
 			end
 		end
-		-- the top 3: a metal place disc, the name, the smashes
+		-- the top 3: a metal place disc, the name, and under it "8 SMASHES" (two lines: on one,
+		-- a 14 letter name and the smashes read 11 px on a phone, Lead item 5)
 		local top, tp = panel(g.canvas, "matchEnd", "Top3")
 		local rows: { GuiObject } = {}
 		for i, row in view.top do
@@ -155,37 +157,32 @@ function Smash.matchEnd(
 			Base.corner(disc)
 			Base.outline(disc, UiTheme.OUTLINE.normal)
 			Base.text(disc, "N", 0, 2, 38, 34, tostring(i), { stroke = 4, z = 4 })
+			local tw = tp.w - 20 - 46 - 6
 			Base.text(
 				r,
 				"Name",
 				46,
-				6,
-				tp.w - 20 - 46 - 58,
-				34,
-				if row.me then "YOU" else row.name,
+				2,
+				tw,
+				22,
+				if row.me then "YOU" else SmashJuice.shortName(row.name),
 				{
 					color = if row.me then Base.color("limeDeep") else INK,
 					align = "l",
 					z = 4,
 				}
 			)
-			Base.text(r, "Smashes", tp.w - 20 - 56, 2, 56, 26, tostring(row.smashes), {
-				color = Base.color("danger"),
-				stroke = 4,
-				align = "r",
-				z = 4,
-			})
 			Base.text(
 				r,
-				"Word",
-				tp.w - 20 - 76,
-				28,
-				76,
-				14,
-				if row.smashes == 1 then "SMASH" else "SMASHES",
+				"Smashes",
+				46,
+				25,
+				tw,
+				20,
+				`{row.smashes} {if row.smashes == 1 then "SMASH" else "SMASHES"}`,
 				{
-					color = Base.color("inkMuted"),
-					align = "r",
+					color = Base.color("danger"),
+					align = "l",
 					z = 4,
 				}
 			)
@@ -373,7 +370,8 @@ function Smash.customize(data: { [string]: any }, actions: Screen.Actions?): Scr
 				Kit.enable(equip, false)
 				return
 			end
-			local cols, size, gap = 6, 62, 15
+			-- (2 rows of 7 fit over EQUIP; a third row sat on it)
+			local cols, rowsFit, size, gap = 7, 2, 60, 6
 			local slots: { Kit.Slot } = {}
 			local shown: { GuiObject } = {}
 			-- the one on now is picked first
@@ -384,8 +382,8 @@ function Smash.customize(data: { [string]: any }, actions: Screen.Actions?): Scr
 				end
 			end
 			for i, it in items do
-				if i > cols * 3 then
-					break -- (3 rows fit; a scroller can come with more karts)
+				if i > cols * rowsFit then
+					break -- (a scroller can come with more karts)
 				end
 				local col, r = (i - 1) % cols, (i - 1) // cols
 				local isKart = tab == 1

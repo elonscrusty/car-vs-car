@@ -214,7 +214,7 @@ local LIST: { Screen } = {
 			p("Shout", 178, 6, 400, 62, { anchor = "t" }),
 			p("Card", 280, 74, 196, 290, { anchor = "c" }),
 			button("Cool", 558, 230, 190, 66, "lime", "COOL!", { anchor = "br", main = true }),
-			button("Again", 508, 312, 240, 50, "white", "OPEN ANOTHER", { anchor = "br" }),
+			button("Again", 508, 312, 240, 56, "white", "OPEN ANOTHER", { anchor = "br" }),
 			p("Note", 8, 300, 210, 62, { anchor = "bl" }),
 		},
 	},
@@ -255,7 +255,7 @@ local LIST: { Screen } = {
 		pieces = {
 			p("Title", 0, 4, 110, 54, { anchor = "tl" }),
 			p("Tabs", 116, 10, 430, 44, { anchor = "tl", tap = true }),
-			button("Close", 702, 4, 54, 54, "danger", "X", { anchor = "tr" }),
+			button("Close", 700, 4, 56, 56, "danger", "X", { anchor = "tr" }),
 			p("Offer", 0, 64, 500, 158, {
 				anchor = "l",
 				inner = {
@@ -421,14 +421,16 @@ local LIST: { Screen } = {
 		gameplay = true,
 		pieces = {
 			p("Place", 0, 8, 150, 48, { anchor = "tl" }),
-			-- (every kart: level badge, name, smashes; 8 rows of 22, clear of the stick corner)
-			p("Board", 0, 60, 190, 92, { anchor = "tl" }), -- (the top 3 + you, 23 px a row)
-			p("Feed", 536, 8, 220, 96, { anchor = "tr" }),
+			-- (the top 3 + you, 27 px a row: level badge, name, smashes, clear of the stick corner;
+			-- words 18 tall so they read 14 px on a 667x375 phone, Lead road to 9/10 item 5)
+			-- (224 wide: any wider and it sits under the SMASHED BY words, SmashJuice.WORDS)
+			p("Board", 0, 60, 224, 108, { anchor = "tl" }),
+			p("Feed", 486, 8, 270, 88, { anchor = "tr" }),
 			p("Clock", 323, 4, 110, 36, { anchor = "t" }),
-			p("Health", 238, 44, 280, 30, { anchor = "t" }),
+			p("Health", 250, 44, 230, 30, { anchor = "t" }),
 			-- the short flash words (STUCK - BACK TO START...), drawn by client/Hud: under the health
 			-- bar, clear of the board and the feed (they sat on the health bar, Studio round 5)
-			p("Words", 228, 110, 280, 34, { anchor = "t" }),
+			p("Words", 244, 110, 264, 34, { anchor = "t" }),
 			button("Fire", 618, 244, 118, 118, "danger", "FIRE", { anchor = "br" }),
 		},
 	},
