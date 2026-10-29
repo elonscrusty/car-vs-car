@@ -2,7 +2,8 @@
 -- Hits you can feel (JUICE row, auditor "Road to 9/10" items 2 and 3). Numbers and rules live in
 -- shared/SmashHits. Looks and sounds only: the server decides every hit.
 --   * any kart that loses health (its MatchBoard row) flashes white-to-red and a "-34" floats up
---     over it in the weapon's colour (a gun burst or a bump scrape adds up into one number)
+--     beside it (UI kit v41: a red number on a yellow burst; a gun burst or a bump scrape adds up
+--     into one number)
 --   * other karts' hits are heard where they happen; a bump plays the bump sound
 --   * your own hit on someone gives you a small shake; a boom near you shakes you by how near
 --   * the blue spawn bubble over every kart that just came back (players: the server's Shield)
@@ -18,6 +19,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local SmashHits = require(Shared:WaitForChild("SmashHits"))
 local Weapons = require(Shared:WaitForChild("Weapons"))
 local Match = require(Shared:WaitForChild("Match"))
+local KitWorld = require(Shared:WaitForChild("KitWorld"))
 local Base = require(script.Parent:WaitForChild("Ui"):WaitForChild("Base"))
 local Sfx = require(script.Parent:WaitForChild("Sfx"))
 local SmashFx = require(script.Parent:WaitForChild("SmashFx"))
@@ -37,7 +39,6 @@ local SIZES = {
 local WHITE = Color3.new(1, 1, 1)
 local CHERRY = Color3.fromRGB(230, 50, 60)
 local SKY = Color3.fromRGB(90, 190, 255)
-local NAVY = Color3.fromRGB(28, 32, 64)
 
 -- ===== the Studio-only slow-mo hook and log =====
 local function hold(): number?
@@ -284,9 +285,10 @@ local function flashKart(id: number)
 		hl:SetAttribute("FlashId", ((hl:GetAttribute("FlashId") :: number?) or 0) + 1)
 		hl.Enabled = true
 		keptFlash[hl] = true
-		TweenService:Create(hl, TweenInfo.new(0), {
-			FillColor = WHITE:Lerp(CHERRY, 0.5),
-			FillTransparency = 0.3,
+		-- (a short tween, not a zero one: it also takes over from a fade still running)
+		TweenService:Create(hl, TweenInfo.new(0.05), {
+			FillColor = WHITE:Lerp(CHERRY, 0.6),
+			FillTransparency = 0.15,
 			OutlineTransparency = 0,
 		}):Play()
 		return
@@ -311,8 +313,162 @@ local function flashKart(id: number)
 	):Play()
 end
 
+-- ===== the "-N" hit number (UI kit v41: a red stroked number on a yellow burst) =====
+-- Grows 0.4 -> 1.2 -> 1, rises 44 px and fades (KitWorld.number). Pooled, 12 at most: the oldest
+-- is reused. On the kart's body, not AlwaysOnTop (on carter's PC AlwaysOnTop billboards never
+-- drew: KartWeaponIcon).
 local numbersGui = Instance.new("Folder")
 numbersGui.Name = "SmashNumbers"
+local function kitColor(c: { number }): Color3
+	return Color3.fromRGB(c[1], c[2], c[3])
+end
+local INK = kitColor(KitWorld.INK)
+
+type Num = {
+	bb: BillboardGui,
+	body: Frame,
+	scale: UIScale,
+	label: TextLabel,
+	drop: TextLabel,
+	burst: { Frame },
+	strokes: { UIStroke },
+}
+
+local function makeNumber(): Num
+	local bb = Instance.new("BillboardGui")
+	bb.Name = "Hit"
+	bb.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	bb.AlwaysOnTop = false
+	bb.LightInfluence = 0
+	bb.MaxDistance = 60 -- (past that a kart is a few pixels: no big number over it)
+	bb.ResetOnSpawn = false
+	local w = KitWorld.BURST_PX + 48
+	local h = KitWorld.BURST_PX + KitWorld.RISE_PX + 16
+	bb.Size = UDim2.fromOffset(w, h)
+	bb:SetAttribute("DW", w)
+	bb:SetAttribute("DH", h)
+	-- beside the kart's roof, to the right, so it never covers the name tag or the weapon icon over
+	-- the kart (Studio 10-29: "-34" sat on "CAPTAIN CRASH"); its bottom sits there and it rises
+	bb.StudsOffset = Vector3.new(0, 0.2 * K, 0)
+	bb.SizeOffset = Vector2.new(KitWorld.NUMBER_SIDE, 0.5)
+	bb.Enabled = false
+	local body = Instance.new("Frame")
+	body.Name = "Body"
+	body.BackgroundTransparency = 1
+	body.AnchorPoint = Vector2.new(0.5, 1)
+	body.Size = UDim2.fromOffset(KitWorld.BURST_PX, KitWorld.BURST_PX)
+	body.Position = UDim2.new(0.5, 0, 1, 0)
+	body.Parent = bb
+	local scale = Instance.new("UIScale")
+	scale.Parent = body
+	-- the burst: squares turned a little each, ink ones a rim bigger under yellow ones (so no ink
+	-- lines show inside)
+	local burst: { Frame } = {}
+	local side = KitWorld.BURST_PX / math.sqrt(2)
+	for layer = 1, 2 do
+		for i = 0, KitWorld.BURST_POINTS - 1 do
+			local f = Instance.new("Frame")
+			f.BorderSizePixel = 0
+			f.AnchorPoint = Vector2.new(0.5, 0.5)
+			f.Position = UDim2.fromScale(0.5, 0.5)
+			f.Rotation = i * 90 / KitWorld.BURST_POINTS
+			if layer == 1 then
+				local r = KitWorld.STROKE_PX * 0.75
+				f.Size = UDim2.fromOffset(side + 2 * r, side + 2 * r)
+				f.BackgroundColor3 = INK
+				f.ZIndex = 1
+			else
+				f.Size = UDim2.fromOffset(side, side)
+				f.BackgroundColor3 = Color3.new(1, 1, 1)
+				f.ZIndex = 2
+				local g = Instance.new("UIGradient")
+				g.Color = ColorSequence.new(kitColor(KitWorld.GO), kitColor(KitWorld.GO_DEEP))
+				g.Rotation = 90 - f.Rotation -- (light at the top for every square)
+				g.Parent = f
+			end
+			f.Parent = body
+			table.insert(burst, f)
+		end
+	end
+	local strokes: { UIStroke } = {}
+	local function word(name: string, z: number, down: number): TextLabel
+		local l = Instance.new("TextLabel")
+		l.Name = name
+		l.BackgroundTransparency = 1
+		l.AnchorPoint = Vector2.new(0.5, 0.5)
+		l.Position = UDim2.new(0.5, 0, 0.5, down)
+		l.Size = UDim2.fromOffset(KitWorld.BURST_PX + 40, KitWorld.NUMBER_PX + 8)
+		l.Font = Base.FONT
+		l.TextSize = KitWorld.NUMBER_PX
+		l.ZIndex = z
+		local st = Instance.new("UIStroke")
+		st.Color = INK
+		st.Thickness = KitWorld.STROKE_PX
+		st.LineJoinMode = Enum.LineJoinMode.Round
+		st.Parent = l
+		table.insert(strokes, st)
+		l.Parent = body
+		return l
+	end
+	local drop = word("Drop", 3, KitWorld.DROP_PX)
+	drop.TextColor3 = INK
+	local label = word("Number", 4, 0)
+	label.TextColor3 = Color3.new(1, 1, 1)
+	local fill = Instance.new("UIGradient")
+	fill.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, kitColor(KitWorld.NUMBER_TOP)),
+		ColorSequenceKeypoint.new(0.45, kitColor(KitWorld.NUMBER_MID)),
+		ColorSequenceKeypoint.new(1, kitColor(KitWorld.NUMBER_LOW)),
+	})
+	fill.Rotation = 90
+	fill.Parent = label
+	bb.Parent = numbersGui
+	return {
+		bb = bb,
+		body = body,
+		scale = scale,
+		label = label,
+		drop = drop,
+		burst = burst,
+		strokes = strokes,
+	}
+end
+
+-- the number's look `t` s in (stretched to `secs` for the Studio slow-mo)
+local function pose(n: Num, t: number, secs: number, reduced: boolean)
+	local u = t * KitWorld.SECONDS / secs
+	local s, rise, see = KitWorld.number(u, reduced)
+	if u <= KitWorld.POP_GROW + KitWorld.POP_SETTLE + 0.05 or reduced then
+		n.scale.Scale = s
+	end
+	n.body.Position = UDim2.new(0.5, 0, 1, -rise)
+	if see == 0 and u > 0 then
+		return -- (solid until the fade: nothing to write)
+	end
+	for _, f in n.burst do
+		f.BackgroundTransparency = see
+	end
+	n.label.TextTransparency = see
+	n.drop.TextTransparency = see
+	for _, st in n.strokes do
+		st.Transparency = see
+	end
+end
+
+local pool: { Num } = {}
+local busy: { [number]: number? } = {} -- [slot] = when it showed
+local busyFor: { [number]: number } = {} -- [slot] = how long it shows
+
+local function freeNumber(slot: number)
+	busy[slot] = nil
+	local n = pool[slot]
+	if n and n.bb.Parent ~= nil then -- (nil: it went with its kart)
+		n.bb.Enabled = false
+		n.bb.Adornee = nil
+		n.bb.Parent = numbersGui
+	end
+end
+
 local function showNumber(id: number, amount: number, weapon: string)
 	local m = kartOf(id)
 	local part = m and m.PrimaryPart
@@ -320,67 +476,59 @@ local function showNumber(id: number, amount: number, weapon: string)
 		return
 	end
 	numbersGui.Parent = player:FindFirstChildOfClass("PlayerGui")
-	local rgb = SmashHits.COLORS[weapon] or SmashHits.COLORS.bump
-	local bb = Instance.new("BillboardGui")
-	bb.Name = "Hit"
-	bb.Adornee = part
-	bb.AlwaysOnTop = true
-	bb.LightInfluence = 0
-	bb.MaxDistance = 60 -- (past that a kart is a few pixels: no big number over it)
-	bb.Size = UDim2.fromOffset(96, 44)
-	bb.StudsOffset = Vector3.new(0, 0.6 * K, 0)
-	local l = Instance.new("TextLabel")
-	l.BackgroundTransparency = 1
-	l.Size = UDim2.fromScale(1, 1)
-	l.Font = Base.FONT
-	l.TextScaled = true
-	local fit = Instance.new("UITextSizeConstraint")
-	fit.MinTextSize = 18
-	fit.MaxTextSize = 40
-	fit.Parent = l
-	l.Text = SmashHits.text(amount)
-	l.TextColor3 = Color3.fromRGB(rgb[1], rgb[2], rgb[3])
-	l.Parent = bb
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = NAVY
-	stroke.Thickness = 3
-	stroke.Parent = l
-	local pop = Instance.new("UIScale")
-	pop.Scale = 1.5
-	pop.Parent = l
-	bb.Parent = numbersGui
-	local secs = math.max(SmashHits.NUMBER_SECONDS, hold() or 0)
-	TweenService:Create(pop, TweenInfo.new(0.15, Enum.EasingStyle.Back), { Scale = 1 }):Play()
+	local text = SmashHits.text(amount)
 	if held() then
-		-- (Studio "hold": this weapon's newest number stays up until TestSlowMo is cleared)
+		-- (Studio "hold": this weapon's newest number stays up until TestSlowMo is cleared; not
+		-- from the pool, so the pool never reuses it)
+		local n = makeNumber()
+		n.label.Text, n.drop.Text = text, text
+		pose(n, KitWorld.POP_GROW + KitWorld.POP_SETTLE, KitWorld.SECONDS, Base.reduced())
+		local bb = n.bb
+		bb.Adornee = part
+		bb.Parent = part
+		bb.Enabled = true
 		local key = "number " .. weapon
 		local old = kept[key]
 		if old then
 			old:Destroy()
 		end
 		kept[key] = bb
-		bb.StudsOffset = Vector3.new(0, 1 * K, 0)
 		return
 	end
-	TweenService:Create(
-		bb,
-		TweenInfo.new(secs, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{ StudsOffset = Vector3.new(0, 1.3 * K, 0) }
-	):Play()
-	-- (holds solid for the first half, then fades)
-	local fade = TweenInfo.new(
-		secs * 0.5,
-		Enum.EasingStyle.Quad,
-		Enum.EasingDirection.In,
-		0,
-		false,
-		secs * 0.5
-	)
-	TweenService:Create(l, fade, { TextTransparency = 1 }):Play()
-	TweenService:Create(stroke, fade, { Transparency = 1 }):Play()
-	task.delay(secs + 0.05, function()
-		bb:Destroy()
-	end)
+	local slot = KitWorld.pick(busy, #pool)
+	local n = pool[slot]
+	if n == nil or n.bb.Parent == nil then
+		n = makeNumber()
+		pool[slot] = n
+	end
+	assert(n)
+	n.label.Text, n.drop.Text = text, text
+	busy[slot] = os.clock()
+	busyFor[slot] = math.max(KitWorld.SECONDS, hold() or 0)
+	pose(n, 0, busyFor[slot], Base.reduced())
+	n.bb.Adornee = part
+	n.bb.Parent = part
+	n.bb.Enabled = true
+end
+
+-- every frame: move the numbers showing on, free the ones that are done
+local function stepNumbers(now: number)
+	if next(busy) == nil then
+		return
+	end
+	local reduced = Base.reduced()
+	for slot, at in busy do
+		if at == nil then
+			continue
+		end
+		local n = pool[slot]
+		local t = now - at
+		if not n or t >= busyFor[slot] then
+			freeNumber(slot)
+		else
+			pose(n, t, busyFor[slot], reduced)
+		end
+	end
 end
 
 local function nameOf(id: number): string
@@ -588,6 +736,7 @@ end
 RunService.RenderStepped:Connect(function()
 	local now = os.clock()
 	SmashHits.prune(shots, now)
+	stepNumbers(now)
 	for id, p in pending do
 		if SmashHits.due(p, now) then
 			pending[id] = nil
@@ -625,7 +774,7 @@ RunService.RenderStepped:Connect(function()
 						nameOf(id),
 						SmashHits.text(p.amount),
 						if owner then " by " .. nameOf(owner) else "",
-						math.max(SmashHits.NUMBER_SECONDS, hold() or 0),
+						math.max(KitWorld.SECONDS, hold() or 0),
 						math.max(SmashHits.FLASH_SECONDS, hold() or 0)
 					)
 				)

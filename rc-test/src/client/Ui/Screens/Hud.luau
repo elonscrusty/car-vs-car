@@ -685,8 +685,8 @@ end
 -- bottom right (with the weapon and its ammo); the stick corner stays free. Phone: the stick and
 -- FIRE are all it needs =====
 
-local FEED_ROWS = 3
-local FEED_SECS = 5
+local FEED_ROWS = 2 -- (any screen: at most 2, auditor round 12)
+local FEED_SECS = 3
 local BOARD_TOP = 3 -- the top 3, then you (a phone's left side is the stick's: Audit F9)
 -- the board's and the kill list's words are 18 tall: 14 px on a 667x375 phone (Lead item 5)
 local WORDS = 18
@@ -749,8 +749,8 @@ function Hud.weaponIcon(name: string?): string
 	return WEAPON_ICON[string.lower(name)] or "mystery"
 end
 
--- the board's rows: the top 3, then you with your place when you are lower down (short: a
--- phone's board, just the leader and you)
+-- the board's rows: the top 3, then you with your place when you are lower down (short: the
+-- leader and you, the match HUD on every screen since auditor round 12)
 function Hud.boardRows(list: { { [string]: any } }, short: boolean?): { { [string]: any } }
 	local out = {}
 	local top = if short then 1 else BOARD_TOP
@@ -775,8 +775,8 @@ end
 --   setBoard(list),
 --   feed(attacker, victim, weapon, mine: boolean, attackerLevel?, victimLevel?) (a new kill on
 --   top; mine = you are in it; a level puts its badge before that name)
--- touch: a phone's small layout (UiScreens matchTouch): a 2/8 chip, the leader and you, a slim
---   health bar, 2 kill lines for 3 s, no level badges
+-- touch: a phone's small layout (UiScreens matchTouch): a 2/8 chip, a slim health bar, small
+--   rows, no level badges (every screen: the leader and you, 2 kill lines for 3 s)
 function Hud.match(
 	data: { [string]: any },
 	actions: Screen.Actions?,
@@ -940,8 +940,8 @@ function Hud.match(
 			lastHp = n
 		end
 		setHealth(data.hp or 100, data.maxHp or 100, data.shield)
-		-- SCOREBOARD: the top 3 and you, most smashes first: the place, a level badge (when the
-		-- kart has a level), the name, the smashes; your row lime
+		-- SCOREBOARD: the leader and you (any screen, auditor round 12), most smashes first: the
+		-- place, a level badge (when the kart has a level), the name, the smashes; your row lime
 		local bp = piece(L, "Board")
 		local boardSpot = spot(c, L, "Board")
 		local boardRows: { Frame } = {}
@@ -950,7 +950,7 @@ function Hud.match(
 				r:Destroy()
 			end
 			table.clear(boardRows)
-			for i, e in Hud.boardRows(list, touch) do
+			for i, e in Hud.boardRows(list, true) do
 				local me = e.me == true
 				local row = Base.fill(
 					boardSpot,
@@ -998,13 +998,12 @@ function Hud.match(
 			end
 		end
 		setBoard(data.board or {})
-		-- KILL LIST: up to 3 rows, newest on top, each gone after 5 s
+		-- KILL LIST: up to 2 rows, newest on top, each gone after 3 s (any screen, auditor round 12)
 		local fp = piece(L, "Feed")
 		local feedSpot = spot(c, L, "Feed")
 		local rows: { Frame } = {}
-		-- (a phone: 2 small lines, each gone after 3 s)
-		local feedRows = if touch then 2 else FEED_ROWS
-		local feedSecs = if touch then 3 else FEED_SECS
+		local feedRows = FEED_ROWS
+		local feedSecs = FEED_SECS
 		local feedStep = if touch then 30 else FEED_STEP
 		local function layoutRows()
 			for i, r in rows do

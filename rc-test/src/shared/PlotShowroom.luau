@@ -45,6 +45,7 @@ local SKY = { 90, 200, 250 }
 local PINK = { 255, 95, 180 }
 local YELLOW = { 255, 210, 63 }
 local RED = { 242, 64, 74 }
+local GOLD = { 255, 196, 40 }
 
 PlotShowroom.FLOOR = { x0 = -34, x1 = 34, z0 = -50, z1 = 32, border = 1.5 }
 PlotShowroom.CARPET = 5 -- the pink carpet's width, gate end to turntable
@@ -56,6 +57,13 @@ PlotShowroom.LAMPS = { r = 13, n = 8, h = 3, ball = 1.4 }
 -- each stand: a disc w across, its top at `top`
 PlotShowroom.STAND = { w = 7, top = 1, car = 1.55 }
 PlotShowroom.CRATE = { x = 0, z = -42, w = 10, size = 5.5 }
+-- the back of the showroom: a big banner on two posts over the crate (its words go on its gate
+-- side, PlotGarageBuilder) and a gold trophy on a plinth either side of the crate
+PlotShowroom.BANNER = { z = -53.5, w = 26, h = 4.5, y = 7.8 }
+PlotShowroom.BANNER_TEXT = "KART GARAGE"
+PlotShowroom.TROPHIES = { { x = -7, z = -48 }, { x = 7, z = -48 } }
+-- two little "?" crates either side of the carpet at the gate end (the mid-ground)
+PlotShowroom.MINI_CRATES = { { x = -8, z = 27 }, { x = 8, z = 27 } }
 -- walk-up prompts: in reach this close (studs). Stands are 12 apart, so two are never both in
 -- reach (vault Lobby and Hub Design: prompt points at least twice the range apart).
 PlotShowroom.PICK_RANGE = 6
@@ -163,6 +171,18 @@ function PlotShowroom.pieces(stands: number): { Piece }
 			collide = false,
 		})
 	end
+	-- a darker edge band all round the floor's rim
+	local E = 1.5
+	for _, sz in { -1, 1 } do
+		add("Floor", "FloorEdge", v(fw, 0.4, E), v(fx, 0.2, fz + sz * (fd - E) / 2), BAND, {
+			collide = false,
+		})
+	end
+	for _, sx in { -1, 1 } do
+		add("Floor", "FloorEdge", v(E, 0.4, fd - 2 * E), v(fx + sx * (fw - E) / 2, 0.2, fz), BAND, {
+			collide = false,
+		})
+	end
 	-- the hero: a pink carpet from the gate end to the turntable, yellow edges
 	local T = PlotShowroom.TURNTABLE
 	local c0, c1 = T.z + (T.w + T.step) / 2, F.z1
@@ -187,6 +207,7 @@ function PlotShowroom.pieces(stands: number): { Piece }
 	end
 	-- the turntable, raised on a wide step: navy step and skirt, a pink glow ring, pink deck,
 	-- yellow top
+	disc(add, "Turntable", "TableBay", T.x, T.z, T.w + T.step + 2, 0.06, 0.41, YELLOW, false)
 	disc(add, "Turntable", "TableStep", T.x, T.z, T.w + T.step, 0.8, 0.8, NAVY_DARK, true)
 	disc(add, "Turntable", "TableSkirt", T.x, T.z, T.w + 2, 0.6, 1.4, NAVY, true)
 	disc(add, "Turntable", "TableGlow", T.x, T.z, T.w + 1.2, 0.2, 1.6, PINK, false, "Neon")
@@ -209,6 +230,8 @@ function PlotShowroom.pieces(stands: number): { Piece }
 	for i = 1, math.clamp(stands, 0, #SPOTS) do
 		local p = SPOTS[i]
 		local group = "Stand" .. i
+		-- a painted yellow bay on the floor round each stand
+		disc(add, group, "StandBay", p.x, p.z, S.w + 1.6, 0.06, 0.41, YELLOW, false)
 		disc(add, group, "StandBase", p.x, p.z, S.w, S.top - 0.2, S.top - 0.2, NAVY, true)
 		disc(add, group, "StandTop", p.x, p.z, S.w - 0.8, 0.2, S.top, SKY, false)
 	end
@@ -239,6 +262,76 @@ function PlotShowroom.pieces(stands: number): { Piece }
 	add("Crate", "CrateLid", v(cs + 0.6, 0.8, cs + 0.6), v(K.x, 1 + cs * 0.8 + 0.4, K.z), RED, {
 		collide = false,
 	})
+	-- the banner over the back: navy board, pink lip, yellow rail on top, round posts
+	local B = PlotShowroom.BANNER
+	for _, sx in { -1, 1 } do
+		disc(
+			add,
+			"Banner",
+			"BannerPost",
+			sx * (B.w / 2 + 0.6),
+			B.z,
+			1.2,
+			B.y + B.h / 2,
+			B.y + B.h / 2,
+			NAVY,
+			true
+		)
+	end
+	add("Banner", "BannerBoard", v(B.w, B.h, 0.8), v(0, B.y, B.z), NAVY, { collide = false })
+	add(
+		"Banner",
+		"BannerLip",
+		v(B.w + 0.4, 0.6, 1),
+		v(0, B.y - B.h / 2, B.z),
+		PINK,
+		{ collide = false }
+	)
+	add("Banner", "BannerRail", v(B.w + 2.4, 0.9, 0.9), v(0, B.y + B.h / 2 + 0.3, B.z), YELLOW, {
+		shape = "Cylinder",
+		collide = false,
+	})
+	-- gold trophies on navy plinths
+	for i, t in PlotShowroom.TROPHIES do
+		local g = "Trophy" .. i
+		disc(add, g, "TrophyPlinth", t.x, t.z, 3, 1.4, 1.4, NAVY, true)
+		disc(add, g, "TrophyBase", t.x, t.z, 1.6, 0.4, 1.8, GOLD, false)
+		disc(add, g, "TrophyStem", t.x, t.z, 0.6, 0.9, 2.7, GOLD, false)
+		add(
+			g,
+			"TrophyCup",
+			v(1.9, 1.9, 1.9),
+			v(t.x, 3.4, t.z),
+			GOLD,
+			{ shape = "Ball", collide = false }
+		)
+		for _, sx in { -1, 1 } do
+			add(g, "TrophyHandle", v(0.6, 0.6, 0.6), v(t.x + sx * 1.05, 3.6, t.z), GOLD, {
+				shape = "Ball",
+				collide = false,
+			})
+		end
+	end
+	-- the little "?" crates: yellow, a red lid, navy corner bands
+	for i, m in PlotShowroom.MINI_CRATES do
+		local g = "MiniCrate" .. i
+		add(
+			g,
+			"MiniCrateBody",
+			v(2.6, 2.2, 2.6),
+			v(m.x, 1.1, m.z),
+			YELLOW,
+			{ rot = v(0, 20 * (2 * i - 3), 0) }
+		)
+		add(g, "MiniCrateLid", v(2.9, 0.5, 2.9), v(m.x, 2.45, m.z), RED, {
+			rot = v(0, 20 * (2 * i - 3), 0),
+			collide = false,
+		})
+		add(g, "MiniCrateBand", v(2.75, 0.4, 2.75), v(m.x, 0.9, m.z), NAVY, {
+			rot = v(0, 20 * (2 * i - 3), 0),
+			collide = false,
+		})
+	end
 	return out
 end
 

@@ -187,7 +187,29 @@ function PlotGarageBuilder.start()
 		local model = Instance.new("Model")
 		model.Name = "Showroom"
 		model:SetAttribute("Stands", stands)
-		Garage.makeParts(PlotShowroom.pieces(stands), model, pivot)
+		local groups = Garage.makeParts(PlotShowroom.pieces(stands), model, pivot)
+		-- the banner's words, in the game's chunky font, on its gate side
+		local board = groups.Banner and groups.Banner:FindFirstChild("BannerBoard")
+		if board and board:IsA("BasePart") then
+			local gui = Instance.new("SurfaceGui")
+			gui.Name = "Words"
+			gui.Face = Enum.NormalId.Back
+			gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+			gui.PixelsPerStud = 30
+			gui.LightInfluence = 0
+			local l = Instance.new("TextLabel")
+			l.BackgroundTransparency = 1
+			l.Position = UDim2.fromScale(0.04, 0.1)
+			l.Size = UDim2.fromScale(0.92, 0.8)
+			l.Font = Enum.Font.FredokaOne
+			l.TextScaled = true
+			l.TextColor3 = Color3.fromRGB(255, 210, 63)
+			l.TextStrokeTransparency = 0
+			l.TextStrokeColor3 = Color3.fromRGB(22, 30, 66)
+			l.Text = PlotShowroom.BANNER_TEXT
+			l.Parent = gui
+			gui.Parent = board
+		end
 		model.WorldPivot = pivot
 		model.Parent = plot
 	end
