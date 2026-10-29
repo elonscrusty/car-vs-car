@@ -8,6 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ArenaData = require(ReplicatedStorage.Shared.ArenaData)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
+local LobbySky = require(script.Parent.LobbySky)
 
 local function rgb(c: { number }): Color3
 	return Color3.fromRGB(c[1], c[2], c[3])
@@ -27,6 +28,9 @@ local saved: { [string]: any }? = nil -- the light from before the arena, put ba
 
 local function on(camera: Camera)
 	if not saved then
+		-- the game's world light steps aside while over the arena (the arena keeps its own look
+		-- until it's retuned to WorldLook)
+		LobbySky.suspend()
 		local old: { [string]: any } =
 			{ Ambient = Lighting.Ambient, OutdoorAmbient = Lighting.OutdoorAmbient }
 		for key in ArenaData.lighting do
@@ -74,6 +78,7 @@ local function off()
 			(Lighting :: any)[key] = value
 		end
 		saved = nil
+		LobbySky.resume()
 	end
 end
 
