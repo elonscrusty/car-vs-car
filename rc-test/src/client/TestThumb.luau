@@ -105,6 +105,9 @@ local function startRound()
 	nextAt, lastHealth, lastPlace, lastAmmo, lastPos, held = nil, nil, nil, nil, nil, nil
 	lastTarget = nil
 	settleUntil = os.clock() + SETTLE
+	if brain then
+		ThumbBrain.calm(brain)
+	end
 	say("match start")
 end
 local function endRound(smashes: number, place: number, total: number)
@@ -311,6 +314,9 @@ function TestThumb.drive(body: BasePart, input: any): any
 	if player:GetAttribute("InMatch") ~= true or (player:GetAttribute("Health") or 0) <= 0 then
 		lastPos = nil
 		tally.stuckRun, tally.flipRun = 0, 0 -- (smashed: a new moment after the respawn)
+		if brain then
+			ThumbBrain.calm(brain)
+		end
 		return input
 	end
 	-- (rounds roll on with InMatch staying true; also turned on mid round)
@@ -349,6 +355,10 @@ function TestThumb.drive(body: BasePart, input: any): any
 		z = body.Position.Z,
 		fx = look.X,
 		fz = look.Z,
+		-- (frozen at a round start or a respawn: no speed, so no back-up while it can't move)
+		speed = if now < settleUntil
+			then nil
+			else (body.AssemblyLinearVelocity * Vector3.new(1, 0, 1)).Magnitude,
 	}, boxes(), karts(), armed)
 	lastTarget = out.target
 	if out.fire then
@@ -356,7 +366,7 @@ function TestThumb.drive(body: BasePart, input: any): any
 			task.spawn(fn)
 		end
 	end
-	return { steer = out.steer, throttle = out.throttle, brake = 0, drift = false }
+	return { steer = out.steer, throttle = out.throttle, brake = out.brake, drift = false }
 end
 
 return TestThumb
