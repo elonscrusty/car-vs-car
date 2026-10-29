@@ -34,6 +34,7 @@ local CarSkin = require(script.Parent.CarSkin)
 local ChaseCamera = require(script.Parent.ChaseCamera)
 local Match = require(ReplicatedStorage.Shared.Match)
 local Controls = require(script.Parent.Controls)
+local TestThumb = require(script.Parent.TestThumb)
 local Effects = require(script.Parent.Effects)
 local Hud = require(script.Parent.Hud)
 local Lobby = require(script.Parent.Lobby)
@@ -516,6 +517,9 @@ RunService.PreSimulation:Connect(function(dt: number)
 		return
 	end
 	local input = controls.read()
+	if TestThumb.on() then
+		input = TestThumb.drive(body, input) -- Studio-only test thumb (workspace TestThumb)
+	end
 	car.step(dt, input)
 
 	local t = tracks[current]
