@@ -124,6 +124,13 @@ ThumbBrain.STUCK_SPEED = 2 -- studs/s: slower than this while alive = stuck or w
 ThumbBrain.FLIPPED_UP = 0.5 -- the kart's up this far off the sky = on its side or roof
 ThumbBrain.JUMP = 8 -- studs in one frame while alive = put back (OOPS) or a respawn
 ThumbBrain.SIM_SPEED = "11-17" -- the sim kid's speed (tests/new_kid_pass), studs/s
+ThumbBrain.STUCK_LOG = 1 -- s slow in a row = a stuck moment (logged with where and what)
+ThumbBrain.FLIP_LOG = 0.5 -- s on its side in a row = a flip moment
+ThumbBrain.STRAIGHT = math.rad(20) -- stuck with the target this close to the nose = the arena's
+-- doing (it was driving straight at it); more = it was turning (its wobble or turning circle)
+ThumbBrain.CELL = 6 -- studs: catch spots this close together are one spot
+
+export type Spot = { kind: string, x: number, z: number, what: string, straight: boolean }
 
 export type Tally = {
 	boxes: number, -- weapons picked up
@@ -138,6 +145,9 @@ export type Tally = {
 	flipped: number, -- seconds on its side or roof
 	putBack: number, -- jumps while alive (OOPS / back to start)
 	dist: number, -- studs driven while alive
+	stuckRun: number, -- s slow in a row right now
+	flipRun: number, -- s on its side in a row right now
+	spots: { Spot }, -- each stuck or flip moment
 }
 
 function ThumbBrain.tally(): Tally
@@ -154,26 +164,113 @@ function ThumbBrain.tally(): Tally
 		flipped = 0,
 		putBack = 0,
 		dist = 0,
+		stuckRun = 0,
+		flipRun = 0,
+		spots = {},
 	}
 end
 
--- One frame alive: moved `moved` studs (flat) in `dt` s, the kart's up has `upY`.
-function ThumbBrain.sample(t: Tally, dt: number, moved: number, upY: number)
+-- The angle (radians, + = right) from the nose to `p`.
+function ThumbBrain.angle(me: Me, p: Point): number
+	return (angleTo(me, p))
+end
+
+-- One frame alive: moved `moved` studs (flat) in `dt` s, the kart's up has `upY`. Returns
+-- "stuck" or "flip" on the frame a stuck or flip moment starts (the caller logs where), else nil.
+function ThumbBrain.sample(t: Tally, dt: number, moved: number, upY: number): string?
 	if dt <= 0 or dt > 0.5 then
-		return -- (a hitch or a pause: not driving)
+		return nil -- (a hitch or a pause: not driving)
 	end
 	if moved > ThumbBrain.JUMP then
 		t.putBack += 1
-		return
+		t.stuckRun, t.flipRun = 0, 0
+		return nil
 	end
 	t.alive += dt
 	t.dist += moved
+	local event = nil
 	if moved / dt < ThumbBrain.STUCK_SPEED then
 		t.stuck += dt
+		local was = t.stuckRun
+		t.stuckRun += dt
+		if was < ThumbBrain.STUCK_LOG and t.stuckRun >= ThumbBrain.STUCK_LOG then
+			event = "stuck"
+		end
+	else
+		t.stuckRun = 0
 	end
 	if upY < ThumbBrain.FLIPPED_UP then
 		t.flipped += dt
+		local was = t.flipRun
+		t.flipRun += dt
+		if was < ThumbBrain.FLIP_LOG and t.flipRun >= ThumbBrain.FLIP_LOG then
+			event = "flip" -- (a flip is the bigger news)
+		end
+	else
+		t.flipRun = 0
 	end
+	return event
+end
+
+-- A stuck or flip moment at (x, z), touching `what`; `straight` = its target was near the nose.
+function ThumbBrain.spot(
+	t: Tally,
+	kind: string,
+	x: number,
+	z: number,
+	what: string,
+	straight: boolean
+)
+	table.insert(t.spots, { kind = kind, x = x, z = z, what = what, straight = straight })
+end
+
+-- The catch spots, most hit first: "(x, z) N stuck M flip on <what>", grouped by CELL.
+function ThumbBrain.spotList(spots: { Spot }, most: number): { string }
+	local cells: { [string]: { x: number, z: number, stuck: number, flip: number, what: { [string]: number } } } =
+		{}
+	local order = {}
+	for _, sp in spots do
+		local key = math.floor(sp.x / ThumbBrain.CELL) .. "," .. math.floor(sp.z / ThumbBrain.CELL)
+		local c = cells[key]
+		if not c then
+			c = { x = sp.x, z = sp.z, stuck = 0, flip = 0, what = {} }
+			cells[key] = c
+			table.insert(order, c)
+		end
+		if sp.kind == "flip" then
+			c.flip += 1
+		else
+			c.stuck += 1
+		end
+		c.what[sp.what] = (c.what[sp.what] or 0) + 1
+	end
+	table.sort(order, function(a, b)
+		return a.stuck + a.flip > b.stuck + b.flip
+	end)
+	local out = {}
+	for i, c in order do
+		if i > most then
+			break
+		end
+		local best, n = "?", 0
+		for w, k in c.what do
+			if k > n or (k == n and w < best) then
+				best, n = w, k
+			end
+		end
+		table.insert(
+			out,
+			string.format(
+				"(%d, %d) %d stuck %d flip on %s",
+				math.floor(c.x + 0.5),
+				math.floor(c.z + 0.5),
+				c.stuck,
+				c.flip,
+				best
+			)
+		)
+	end
+	return out
 end
 
 -- Is this WeaponFx (kind, data) a shot of kart `myId` that hit someone?
@@ -218,7 +315,7 @@ function ThumbBrain.report(
 			if firstAt then string.format("%.1f s", firstAt) else "none"
 		),
 		string.format(
-			"  boxes %d (%s), shots %d, locked on %d (nose %d), hits landed %d",
+			"  boxes %d (%s), shots %d, locked on %d (nose %d), hits landed %d (each gun bullet counts)",
 			t.boxes,
 			if #t.weapons > 0 then table.concat(t.weapons, " ") else "-",
 			t.shots,
@@ -236,6 +333,27 @@ function ThumbBrain.report(
 			t.flipped,
 			t.putBack
 		),
+		(function(): string
+			local straight, turning, flips = 0, 0, 0
+			for _, sp in t.spots do
+				if sp.kind == "flip" then
+					flips += 1
+				elseif sp.straight then
+					straight += 1
+				else
+					turning += 1
+				end
+			end
+			return string.format(
+				"  stuck moments %d (%d driving straight at its target = the arena, %d turning = the thumb), flips %d",
+				straight + turning,
+				straight,
+				turning,
+				flips
+			)
+		end)(),
+		"  catch spots: "
+			.. (if #t.spots > 0 then table.concat(ThumbBrain.spotList(t.spots, 8), "; ") else "-"),
 	}
 end
 

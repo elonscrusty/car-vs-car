@@ -82,6 +82,8 @@ local held: string? = nil -- the weapon in hand (the server blanks Weapon before
 local pickedAt = -math.huge -- (a pickup sets Weapon and Ammo: count it once)
 local settleUntil = 0 -- no driving samples until then (a round start or a respawn: frozen, then moved)
 local lastPos: Vector3? = nil
+local lastTarget: ThumbBrain.Point? = nil -- where the thumb was heading last frame
+local catchSpot: (kind: string, body: BasePart, pos: Vector3) -> ()
 local lastAt = 0
 local function say(text: string)
 	print("[TestThumb] " .. text)
@@ -244,6 +246,57 @@ if RunService:IsStudio() then -- (never listens in a live game)
 	end)
 end
 
+-- What the kart is touching: the nose first (a wall, a rock), else what's under it (a ramp).
+local rayParams = RaycastParams.new()
+rayParams.FilterType = Enum.RaycastFilterType.Exclude
+local function touching(body: BasePart): string
+	local car = body:FindFirstAncestorOfClass("Model") or body
+	rayParams.FilterDescendantsInstances = { car }
+	local cf = body.CFrame
+	local flatLook = cf.LookVector * Vector3.new(1, 0, 1)
+	local tries = {
+		if flatLook.Magnitude > 0.1 then flatLook.Unit * 2.5 else cf.LookVector * 2.5,
+		-cf.LookVector * 2.5,
+		cf.RightVector * 2,
+		-cf.RightVector * 2,
+		Vector3.new(0, -3, 0),
+	}
+	for _, dir in tries do
+		local hit = workspace:Raycast(cf.Position, dir, rayParams)
+		if hit then
+			local inst = hit.Instance
+			local parent = inst.Parent
+			local where = if parent and parent ~= workspace then parent.Name .. "." else ""
+			return where .. inst.Name
+		end
+	end
+	return "nothing"
+end
+
+-- A stuck or flip moment: Output line with where, what it touched and where its target was.
+catchSpot = function(kind: string, body: BasePart, pos: Vector3)
+	local what = touching(body)
+	local look = body.CFrame.LookVector * Vector3.new(1, 0, 1)
+	local off = 0
+	if lastTarget and look.Magnitude > 1e-3 then
+		local u = look.Unit
+		off = ThumbBrain.angle({ x = pos.X, z = pos.Z, fx = u.X, fz = u.Z }, lastTarget)
+	end
+	local straight = math.abs(off) <= ThumbBrain.STRAIGHT
+	ThumbBrain.spot(tally, kind, pos.X, pos.Z, what, straight)
+	say(
+		string.format(
+			"%s at (%.0f, %.0f) touching %s, target %.0f deg off the nose, %.1f s",
+			kind,
+			pos.X,
+			pos.Z,
+			what,
+			math.deg(off),
+			os.clock() - (log.startAt or os.clock())
+		)
+	)
+end
+
 -- The stick this frame: the thumb's when it's on and you're in a match, else `input` unchanged.
 function TestThumb.drive(body: BasePart, input: any): any
 	if player:GetAttribute("InMatch") ~= true or (player:GetAttribute("Health") or 0) <= 0 then
@@ -260,7 +313,10 @@ function TestThumb.drive(body: BasePart, input: any): any
 		lastPos = nil -- (still frozen or about to be moved to a spawn)
 	elseif log.startAt and lastPos then
 		local d = (pos - lastPos) * Vector3.new(1, 0, 1)
-		ThumbBrain.sample(tally, now - lastAt, d.Magnitude, body.CFrame.UpVector.Y)
+		local event = ThumbBrain.sample(tally, now - lastAt, d.Magnitude, body.CFrame.UpVector.Y)
+		if event then
+			catchSpot(event, body, pos)
+		end
 	end
 	lastPos, lastAt = pos, now
 	local b = brain
@@ -283,6 +339,7 @@ function TestThumb.drive(body: BasePart, input: any): any
 		fx = look.X,
 		fz = look.Z,
 	}, boxes(), karts(), armed)
+	lastTarget = out.target
 	if out.fire then
 		for _, fn in fireFns do
 			task.spawn(fn)
