@@ -23,11 +23,19 @@ ArenaBrain.THINK = 0.2 -- s between decisions (5 Hz); moving runs every step
 -- A rookie (a player's first 3 matches, MatchRunner): bots chase them less, see them later, wait
 -- longer between shots and hold some shots on purpose, so a new kid gets their smashes in.
 -- `calm`: s from the match start that bots leave a rookie alone (ArenaBots: they see them
--- shielded). After it, some chaos: a rookie should be smashed now and then (Lead: 1-3 a match).
-ArenaBrain.ROOKIE = { matches = 3, chase = 3, react = 1.2, gap = 1.2, spare = 0.35, calm = 30 }
+-- shielded). After it, some chaos: a rookie should be smashed now and then (Lead: 1-3 a match),
+-- but once they've been smashed `most` times bots leave them be.
+ArenaBrain.ROOKIE =
+	{ matches = 3, chase = 1.8, react = 1.2, gap = 1.2, spare = 0.15, calm = 30, most = 2 }
 -- The weapons' aim help (Weapons.ROCKET seekDeg / seekRange, in big units): a shot locks onto the
 -- nearest kart within this cone, so a bot shooting past a rookie would hit the rookie.
 ArenaBrain.LOCK = { deg = 35, range = 110 }
+-- A rookie with a shot to fire gets a target: one easy bot (the feeder) cruises slowly across
+-- the ground ahead of them, weaving, and doesn't shoot. `ahead`/`side`: big units in front of
+-- the rookie and the weave either side; `speed`: throttle; `gap`: s after a feeder is smashed
+-- (or let go) before the next one comes; `upTo`: only while the rookie has fewer smashes. Bots also leave a rookie's kill (a kart a rookie just
+-- hurt, Match.ROOKIE_HIT) and the box a rookie is going for.
+ArenaBrain.FEED = { ahead = 55, side = 25, speed = 0.45, gap = 6, upTo = 4 }
 -- Each boom's splash in big units (Weapons' splash studs / its SCALE): no shot whose boom would
 -- catch a rookie.
 ArenaBrain.SPLASH = { Rockets = 11, Nuke = 44 } :: { [string]: number }
@@ -82,7 +90,15 @@ export type Target = {
 	shield: boolean?,
 	human: boolean?,
 	rookie: boolean?, -- a player in their first ROOKIE.matches matches: bots go easy on them
+	rookieHit: boolean?, -- a rookie just hurt it: bots leave the kill to them
+	fx: number?, -- a rookie's facing (FEED)
+	fz: number?,
+	armed: boolean?, -- a rookie holds a shot (FEED)
+	smashes: number?, -- this round's
+	deaths: number?,
 }
+-- A rookie's feeder (FEED): the bot on it, and when the next may come.
+export type Feed = { bot: number?, nextAt: number }
 -- A place walled all round but at its doors: a hill (cliff sides, its door is the ramp) or the
 -- sand (bumper wall, its doors are the gaps). To get in or out a bot drives through a door, from
 -- its `out` spot to its `inn` spot (or back). poly in arena units.
@@ -94,6 +110,7 @@ export type World = {
 	zones: { Zone }?,
 	boxes: { { x: number, z: number } }, -- live "?" boxes
 	karts: { Target }, -- everyone in the match, bots too
+	feed: { [number]: Feed }?, -- by rookie id (ArenaBrain.feeders)
 	-- (filled by ArenaBrain.near: solids by grid cell, so a check only looks at the ones close by)
 	grid: { [number]: { Solid } }?,
 	gridOf: { Solid }?,
@@ -121,6 +138,7 @@ export type Bot = {
 	fireAt: number, -- next time it may fire
 	armedSince: number, -- when it got the weapon it holds (math.huge = none)
 	weapon: string?, -- the one it held at its last decision
+	feeding: number?, -- the rookie it's a target for (FEED)
 	-- stuck
 	checkAt: number,
 	checkX: number,
@@ -277,13 +295,76 @@ function ArenaBrain.hunters(bots: { Bot }): { [number]: number }
 	return out
 end
 
+-- Left alone: a kart a rookie just hurt (their kill), and a rookie smashed ROOKIE.most times.
+local function spared(k: Target): boolean
+	return k.rookieHit == true or (k.rookie == true and (k.deaths or 0) >= ArenaBrain.ROOKIE.most)
+end
+
+-- Pick and keep each armed rookie's feeder (FEED): the nearest easy bot that isn't one yet.
+-- A rookie with nothing to fire, or smashed, lets theirs go; a smashed feeder (gone from `bots`)
+-- is replaced FEED.gap s later. Call once a frame, before stepping the bots.
+function ArenaBrain.feeders(bots: { Bot }, world: World, now: number)
+	local feed = world.feed or {}
+	world.feed = feed
+	local byId: { [number]: Bot } = {}
+	for _, b in bots do
+		byId[b.id] = b
+	end
+	local seen: { [number]: boolean } = {}
+	for _, k in world.karts do
+		if k.rookie then
+			seen[k.id] = true
+			local f = feed[k.id] or { bot = nil, nextAt = now + ArenaBrain.FEED.gap }
+			feed[k.id] = f
+			local cur = f.bot and byId[f.bot]
+			if cur and cur.feeding ~= k.id then
+				cur = nil -- (back from a smash: a new bot)
+			end
+			if f.bot and not cur then
+				f.bot, f.nextAt = nil, now + ArenaBrain.FEED.gap -- (smashed)
+			end
+			if not (k.alive and k.armed and (k.smashes or 0) < ArenaBrain.FEED.upTo) then
+				if cur then
+					cur.feeding = nil
+					f.bot, f.nextAt = nil, math.max(f.nextAt, now + ArenaBrain.FEED.gap * 0.5)
+				end
+			elseif not f.bot and now >= f.nextAt then
+				local best, bestD = nil, math.huge
+				for _, b in bots do
+					if b.easy and not b.feeding then
+						local d = (b.x - k.x) ^ 2 + (b.z - k.z) ^ 2
+						if d < bestD then
+							best, bestD = b, d
+						end
+					end
+				end
+				if best then
+					best.feeding, f.bot = k.id, best.id
+					best.think = 0
+				end
+			end
+		end
+	end
+	-- (a rookie who left: let their feeder go)
+	for id in feed do
+		if not seen[id] then
+			feed[id] = nil
+		end
+	end
+	for _, b in bots do
+		if b.feeding and not (feed[b.feeding] and feed[b.feeding].bot == b.id) then
+			b.feeding = nil
+		end
+	end
+end
+
 -- Who to hunt: the nearest fair target. Players already hunted by TOKENS bots are left alone;
 -- on an easy match players count as farther away, so bots mostly fight each other.
 local function pickTarget(bot: Bot, world: World, hunters: { [number]: number }): Target?
 	local best: Target? = nil
 	local bestScore = math.huge
 	for _, k in world.karts do
-		if k.id ~= bot.id and k.alive and not k.shield then
+		if k.id ~= bot.id and k.alive and not k.shield and not spared(k) then
 			local busy = k.human
 				and k.id ~= bot.target
 				and (hunters[k.id] or 0) >= ArenaBrain.TOKENS
@@ -308,10 +389,34 @@ local function pickTarget(bot: Bot, world: World, hunters: { [number]: number })
 	return best
 end
 
+-- The box nearest each rookie with nothing to fire (but `me`): theirs (bots leave it).
+local function rookieBoxes(world: World, me: number): { [any]: boolean }
+	local out = {}
+	for _, k in world.karts do
+		if k.rookie and k.alive and not k.armed and k.id ~= me then
+			local best, bestD = nil, math.huge
+			for _, b in world.boxes do
+				local d = (b.x - k.x) ^ 2 + (b.z - k.z) ^ 2
+				if d < bestD then
+					best, bestD = b, d
+				end
+			end
+			if best then
+				out[best] = true
+			end
+		end
+	end
+	return out
+end
+
 local function nearestBox(bot: Bot, world: World): { x: number, z: number }?
 	local best, bestD = nil, math.huge
 	local fx, fz = ArenaBrain.forward(bot.yaw)
+	local theirs = rookieBoxes(world, bot.id)
 	for _, b in world.boxes do
+		if theirs[b] and #world.boxes > 1 then
+			continue
+		end
 		local dx, dz = b.x - bot.x, b.z - bot.z
 		local d = math.sqrt(dx * dx + dz * dz)
 		-- a box behind costs a turn: count it a bit farther
@@ -400,6 +505,22 @@ local function decide(
 		bot.armedSince = now
 	end
 	bot.weapon = if armed then weapon else nil
+	local fed = bot.feeding and kartById(world, bot.feeding)
+	if fed and fed.alive then
+		-- a target for a rookie: cruise across the ground ahead of them, weaving (FEED)
+		if bot.target then
+			hunters[bot.target] = math.max((hunters[bot.target] or 1) - 1, 0)
+			bot.target, bot.sawAt = nil, math.huge
+		end
+		local F = ArenaBrain.FEED
+		local fx, fz = fed.fx or 0, fed.fz or -1
+		local weave = math.sin(now * 0.9 + bot.id) * F.side
+		bot.goalX = fed.x + fx * F.ahead - fz * weave
+		bot.goalZ = fed.z + fz * F.ahead + fx * weave
+		bot.throttle = F.speed
+		bot.detour = nil
+		return
+	end
 	local target = pickTarget(bot, world, hunters)
 	-- no weapon: bumps hurt too, so ram one that's close, else go and get a box
 	if
@@ -488,24 +609,34 @@ local function aimAt(
 	weapon: string?,
 	ammo: number
 ): { x: number, z: number }?
-	if weapon == nil or ammo <= 0 or now < bot.fireAt then
+	if weapon == nil or ammo <= 0 or now < bot.fireAt or bot.feeding then
 		return nil
 	end
 	local use = ArenaBrain.USE[weapon] or DEFAULT_USE
 	if use.behind then
 		-- a mine: drop it when anyone is close behind, or after holding it a while
 		local bx, bz = ArenaBrain.forward(bot.yaw)
+		local leave = false -- a rookie the bots leave alone is close behind: hold it
+		local chaser = false
 		for _, k in world.karts do
 			if k.id ~= bot.id and k.alive then
 				local dx, dz = k.x - bot.x, k.z - bot.z
 				local d = math.sqrt(dx * dx + dz * dz)
 				if d <= use.range and d > 0 and -(dx * bx + dz * bz) / d >= math.cos(use.cone) then
-					bot.fireAt = now
-						+ ArenaBrain.FIRE_GAP
-						+ (if bot.easy then ArenaBrain.EASY.gap else 0)
-					return { x = bot.x, z = bot.z }
+					if k.rookie and (k.shield or spared(k)) then
+						leave = true
+					else
+						chaser = true
+					end
 				end
 			end
+		end
+		if leave then
+			return nil
+		end
+		if chaser then
+			bot.fireAt = now + ArenaBrain.FIRE_GAP + (if bot.easy then ArenaBrain.EASY.gap else 0)
+			return { x = bot.x, z = bot.z }
 		end
 		if now - bot.armedSince >= ArenaBrain.MINE_HOLD then
 			bot.fireAt = now + ArenaBrain.FIRE_GAP + (if bot.easy then ArenaBrain.EASY.gap else 0)
@@ -514,7 +645,7 @@ local function aimAt(
 		return nil
 	end
 	local target = kartById(world, bot.target)
-	if not target or not target.alive or target.shield then
+	if not target or not target.alive or target.shield or spared(target) then
 		return nil
 	end
 	local dx, dz = target.x - bot.x, target.z - bot.z

@@ -131,6 +131,98 @@ test("no shot past a rookie: the weapons' lock-on would take it onto them", func
 	eq(B.rookieInLock(bot, w, 0, -60, 60), false)
 end)
 
+test("a rookie's kill is theirs: bots don't pick a kart a rookie just hurt", function()
+	local w = world()
+	w.karts = {
+		{ id = 1, x = 0, z = 0, alive = true },
+		{ id = -2, x = 0, z = -40, alive = true, rookieHit = true },
+	}
+	local bot = B.new(1, 0, 0, 0, { skill = 1 })
+	local s = run(bot, w, 2, "Rockets", 3)
+	eq(bot.target, nil, "left the rookie's kill")
+	eq(s.fire, nil)
+	w.karts[2].rookieHit = nil
+	bot.think, bot.fireAt = 0, 0
+	run(bot, w, 2, "Rockets", 3)
+	eq(bot.target, -2, "fair game again")
+end)
+
+test("a rookie's box is theirs: bots go for another one", function()
+	local w = world()
+	w.boxes = { { x = 40, z = 0 }, { x = -80, z = 0 } }
+	w.karts = { { id = 7, x = 50, z = 0, alive = true, human = true, rookie = true } }
+	local bot = B.new(1, 0, 0, 0, { skill = 0.5 })
+	run(bot, w, 0.5)
+	truthy(bot.goalX < 0, "left the near box to the rookie: " .. bot.goalX)
+	-- armed rookies don't need it
+	w.karts[1].armed = true
+	bot = B.new(1, 0, 0, 0, { skill = 0.5 })
+	run(bot, w, 0.5)
+	truthy(bot.goalX > 0, "took the near box: " .. bot.goalX)
+end)
+
+test("an armed rookie gets a feeder: one easy bot cruising ahead of them, not shooting", function()
+	local w = world()
+	local rookie = {
+		id = 7,
+		x = 0,
+		z = 0,
+		alive = true,
+		human = true,
+		rookie = true,
+		armed = true,
+		fx = 0,
+		fz = -1,
+	}
+	w.karts = { rookie }
+	local bots = { B.new(-1, 20, 20, 0, { easy = true }), B.new(-2, 90, 90, 0, { easy = true }) }
+	local function frames(secs: number, t0: number): number
+		local t = t0
+		while t < t0 + secs do
+			t += 0.05
+			B.feeders(bots, w, t)
+			for _, b in bots do
+				local s = B.step(b, w, 0.05, t, "Rockets", 3)
+				eq(if b.feeding then s.fire else nil, nil, "a feeder never shoots")
+			end
+		end
+		return t
+	end
+	-- the first one comes FEED.gap s into the match
+	local t = frames(B.FEED.gap - 1, 0)
+	eq(bots[1].feeding or bots[2].feeding, nil, "not yet")
+	t = frames(2, t)
+	local feeder = if bots[1].feeding then bots[1] else bots[2]
+	local other = if feeder == bots[1] then bots[2] else bots[1]
+	eq(feeder.feeding, 7, "one easy bot")
+	eq(other.feeding, nil, "only one at a time")
+	t = frames(4, t)
+	local ahead = -(feeder.z - rookie.z)
+	truthy(
+		ahead > 15 and math.abs(feeder.x - rookie.x) < 45,
+		`in front of the rookie: {feeder.x}, {feeder.z}`
+	)
+	-- smashed: gone from the bots; the next one comes FEED.gap s later
+	bots = { other }
+	t = frames(B.FEED.gap - 1, t)
+	eq(other.feeding, nil, "a gap first")
+	t = frames(2, t)
+	eq(other.feeding, 7)
+	-- the rookie fired it all: the feeder goes back to the match
+	rookie.armed = false
+	frames(0.2, t)
+	eq(other.feeding, nil)
+	-- not easy bots: never feed
+	local w2 = world()
+	w2.karts = { table.clone(rookie) }
+	w2.karts[1].armed = true
+	local sharp = B.new(-3, 10, 10, 0, { skill = 1 })
+	for i = 1, 400 do
+		B.feeders({ sharp }, w2, i * 0.05)
+	end
+	eq(sharp.feeding, nil)
+end)
+
 test("stuck against a wall: backs up and gets away", function()
 	local w = world()
 	w.solids = { { x = 0, z = -12, r = 8 } }
