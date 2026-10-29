@@ -24,6 +24,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local ArenaBrain = require(ReplicatedStorage.Shared.ArenaBrain)
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local Match = require(ReplicatedStorage.Shared.Match)
@@ -400,12 +401,15 @@ function MatchRunner.damage(
 	end
 	local t = now()
 	-- new-kid safety: no bot hurts a player in their first round's first 15 s (a stray bullet
-	-- that locked on, a bump), not just the bots looking away
+	-- that locked on, a bump), not just the bots looking away; nor a rookie in a round's calm
+	-- start (ArenaBrain.ROOKIE.calm: a nuke's splash at the kart next to them, say)
 	if
 		attackerId
 		and attackerId < 0
-		and newKids[victimId]
-		and t - m.startAt < Match.NEW_KID_SAFE
+		and (
+			(newKids[victimId] and t - m.startAt < Match.NEW_KID_SAFE)
+			or (rookies[victimId] and t - m.startAt < ArenaBrain.ROOKIE.calm)
+		)
 	then
 		return 0, false
 	end
