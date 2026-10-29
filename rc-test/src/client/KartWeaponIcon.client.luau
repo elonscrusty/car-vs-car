@@ -19,7 +19,7 @@ local Players = game:GetService("Players")
 local PHONE = require(Ui:WaitForChild("Base")).phone()
 local MINE = "Car_" .. tostring(Players.LocalPlayer.UserId)
 
-local SIZE = if PHONE then 26 else 40 -- pixels
+local SIZE = if PHONE then KitWorld.ICON_PX_PHONE else KitWorld.ICON_PX -- pixels
 local INSET = math.floor(SIZE * 0.14) -- the icon sits this far inside the bubble
 local function kitColor(c: { number }): Color3
 	return Color3.fromRGB(c[1], c[2], c[3])
@@ -27,8 +27,8 @@ end
 local INK = kitColor(KitWorld.INK)
 -- just over the roof, where the YOU tag sits (Main), then lifted a little more than its own
 -- height on screen so it floats above the YOU / name tag and never off the top under the chase cam
-local LIFT = 0.4 -- studs over the kart's middle (a kart is about 1.4 studs long)
-local RAISE = 1.4 -- icon heights up, on screen
+local LIFT = KitWorld.ICON_LIFT -- studs over the kart's middle (a kart is about 1.4 studs long)
+local RAISE = KitWorld.ICON_RAISE -- icon heights up, on screen
 
 local function bodyOf(model: Model): BasePart?
 	if model.PrimaryPart then

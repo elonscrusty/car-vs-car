@@ -376,10 +376,11 @@ local function makeNumber(): Num
 	bb.Size = UDim2.fromOffset(w, h)
 	bb:SetAttribute("DW", w)
 	bb:SetAttribute("DH", h)
-	-- beside the kart's roof, to the right, so it never covers the name tag or the weapon icon over
-	-- the kart (Studio 10-29: "-34" sat on "CAPTAIN CRASH"); its bottom sits there and it rises
-	bb.StudsOffset = Vector3.new(0, 0.2 * K, 0)
-	bb.SizeOffset = Vector2.new(KitWorld.NUMBER_SIDE, 0.5)
+	-- to the right of the kart's roof (Studio 10-29: "-34" sat on "CAPTAIN CRASH") and lifted clear
+	-- above the weapon badge over the kart (auditor 10-29: it sat on the badge); its bottom starts
+	-- there and it rises
+	bb.StudsOffsetWorldSpace = Vector3.new(0, KitWorld.NUMBER_LIFT, 0)
+	bb.SizeOffset = Vector2.new(KitWorld.NUMBER_SIDE, 0.5 + KitWorld.numberAbove() / h)
 	bb.Enabled = false
 	local body = Instance.new("Frame")
 	body.Name = "Body"
