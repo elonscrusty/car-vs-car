@@ -390,3 +390,18 @@ test("R8-4: the DRIVE! card sits by the stick, out of the road ahead, for 3 s at
 	local secs = tonumber(string.match(src, "local DRIVE_SECS = (%d+)"))
 	truthy(secs ~= nil and secs <= 3, "DRIVE! stays more than 3 s")
 end)
+
+test("Studio round 10: the TAP FIRE! card sits just above FIRE, out of the middle", function()
+	eq(SmashScreens.STEPS[3].id, "fire")
+	local tip = SmashScreens.piece("howTo", SmashScreens.STEPS[3].tip or "Tip")
+	local fire = UiScreens.piece("match", "Fire")
+	truthy(tip.name == "TipFire", "TAP FIRE! still uses the GRAB spot")
+	truthy(tip.x >= 504, "the TAP FIRE! card is in the middle third")
+	truthy(tip.y + tip.h <= fire.y and fire.y - (tip.y + tip.h) <= 16, "not just above FIRE")
+	truthy(tip.x + tip.w >= fire.x + fire.w, "not lined up with FIRE's right side")
+	truthy(tip.x + tip.w <= UiScreens.W - 16, "touches the right edge")
+	for _, hud in UiScreens.get("match").pieces do
+		truthy(not UiScreens.overlap(tip, hud), `TAP FIRE! covers match.{hud.name}`)
+	end
+	truthy(not UiScreens.overlap(tip, SmashScreens.piece("howTo", "ArrowFire")), "covers its arrow")
+end)

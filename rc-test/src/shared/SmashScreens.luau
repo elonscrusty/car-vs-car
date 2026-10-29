@@ -100,6 +100,9 @@ local LIST: { Screen } = {
 			-- DRIVE! sits bottom left, just over the stick it explains: on the right it covered
 			-- the nearest ? box at GO, where the kid should drive (audit R8-4)
 			p("TipDrive", 8, 166, 220, 76, { anchor = "l", tap = true }),
+			-- TAP FIRE! just above the FIRE button it explains: higher up on the right it
+			-- half-covered a ? box (Studio round 10)
+			p("TipFire", 516, 162, 220, 76, { anchor = "br", tap = true }),
 			-- the arrow for each step: just right of the stick corner pointing left at it (the
 			-- scoreboard sits above the corner), and just left of FIRE pointing at it
 			p("ArrowDrive", 148, 290, 56, 56, { anchor = "bl" }),
@@ -170,6 +173,7 @@ local STEPS: { Step } = {
 		help = "Smash the other cars!",
 		arrow = "ArrowFire",
 		rot = 0,
+		tip = "TipFire",
 	},
 }
 SmashScreens.STEPS = STEPS
