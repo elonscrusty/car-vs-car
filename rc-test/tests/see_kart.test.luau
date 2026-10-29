@@ -9,56 +9,67 @@ local test, eq, truthy = H.test, H.eq, H.truthy
 
 print("See kart")
 
-local function hit(over: { [string]: any }): SeeKart.Hit
-	local h: any = {
-		normalY = 0,
-		hitY = 5,
-		kartY = 2,
-		size = { x = 2, y = 12, z = 2 }, -- a white post
-		kart = false,
-		terrain = false,
-		transparency = 0,
-	}
-	for k, v in over do
-		h[k] = v
+test(
+	"see kart: only arena props fade, never the floor, road, hills, outer wall or karts",
+	function()
+		for _, n in { "Cover", "CoverCap", "TreeStick", "TreeTop", "Crate", "Barrel", "WallPillar" } do
+			truthy(SeeKart.PROPS[n], n)
+		end
+		for _, n in
+			{ "Grass", "Road", "Curb", "Platform", "OuterWall", "WallTrim", "Sand", "Hill", "Ramp" }
+		do
+			eq(SeeKart.PROPS[n], nil, n)
+		end
+		-- every prop name is a real ArenaBuilder part name
+		local src = fs.readFile("src/server/ArenaBuilder.luau")
+		for n in SeeKart.PROPS do
+			truthy(string.find(src, `"{n}"`, 1, true), `{n} is built by ArenaBuilder`)
+		end
 	end
-	return h
-end
+)
 
-test("see kart: a post, a wall or a tree in the way fades", function()
-	eq(SeeKart.skip(hit({})), false)
-	eq(SeeKart.skip(hit({ size = { x = 30, y = 6, z = 2 } })), false, "an orange cover wall")
-	eq(SeeKart.skip(hit({ normalY = 1, hitY = 6, kartY = 2 })), false, "the top of a tall wall")
-end)
-
-test("see kart: floors, ground, hills, karts and see-through things never fade", function()
-	truthy(SeeKart.skip(hit({ normalY = 1, hitY = 0, kartY = 2 })), "floor under the kart")
-	truthy(SeeKart.skip(hit({ size = { x = 240, y = 2, z = 240 } })), "the arena ground")
-	truthy(SeeKart.skip(hit({ size = { x = 70, y = 20, z = 60 } })), "a big hill")
-	truthy(SeeKart.skip(hit({ kart = true })), "a kart")
-	truthy(SeeKart.skip(hit({ terrain = true })), "terrain")
-	truthy(SeeKart.skip(hit({ transparency = 1 })), "already invisible")
+test("see kart: the quick ball test", function()
+	-- a line along x, a prop centre 1 stud off it
+	truthy(SeeKart.near(0, 0, 0, 10, 0, 0, 5, 1, 0, 1.5))
+	eq(SeeKart.near(0, 0, 0, 10, 0, 0, 5, 3, 0, 1.5), false)
+	-- past the ends doesn't count
+	eq(SeeKart.near(0, 0, 0, 10, 0, 0, 14, 0, 0, 2), false)
+	truthy(SeeKart.near(0, 0, 0, 10, 0, 0, 11, 0, 0, 2))
+	-- a zero-length line is just a point
+	truthy(SeeKart.near(1, 1, 1, 1, 1, 1, 1, 1, 2, 1))
 end)
 
 test("see kart: the line-through-box check", function()
-	local half = { x = 1, y = 6, z = 1 }
-	-- straight through
-	truthy(SeeKart.segmentHitsBox({ x = -10, y = 0, z = 0 }, { x = 10, y = 0, z = 0 }, half))
-	-- passes beside it (past the 0.5 pad)
-	eq(SeeKart.segmentHitsBox({ x = -10, y = 0, z = 3 }, { x = 10, y = 0, z = 3 }, half), false)
-	-- stops short of it
-	eq(SeeKart.segmentHitsBox({ x = -10, y = 0, z = 0 }, { x = -4, y = 0, z = 0 }, half), false)
-	-- over the top
-	eq(SeeKart.segmentHitsBox({ x = -10, y = 9, z = 0 }, { x = 10, y = 9, z = 0 }, half), false)
-	-- grazing inside the pad still counts (no flicker at the edge)
-	truthy(SeeKart.segmentHitsBox({ x = -10, y = 0, z = 1.3 }, { x = 10, y = 0, z = 1.3 }, half))
-	-- a line along an axis, outside
-	eq(SeeKart.segmentHitsBox({ x = 5, y = -10, z = 0 }, { x = 5, y = 10, z = 0 }, half), false)
-	truthy(SeeKart.segmentHitsBox({ x = 0, y = -10, z = 0 }, { x = 0, y = 10, z = 0 }, half))
+	local p = SeeKart.PAD
+	-- a post: half sizes 0.4 x 1.5 x 0.4
+	truthy(SeeKart.segmentHitsBox(-10, 0, 0, 10, 0, 0, 0.4, 1.5, 0.4), "straight through")
+	eq(SeeKart.segmentHitsBox(-10, 0, 1, 10, 0, 1, 0.4, 1.5, 0.4), false, "beside it")
+	eq(SeeKart.segmentHitsBox(-10, 0, 0, -2, 0, 0, 0.4, 1.5, 0.4), false, "stops short")
+	eq(SeeKart.segmentHitsBox(-10, 2, 0, 10, 2, 0, 0.4, 1.5, 0.4), false, "over the top")
+	truthy(
+		SeeKart.segmentHitsBox(-10, 0, 0.4 + p * 0.5, 10, 0, 0.4 + p * 0.5, 0.4, 1.5, 0.4),
+		"in the pad"
+	)
+	eq(SeeKart.segmentHitsBox(1, -10, 0, 1, 10, 0, 0.4, 1.5, 0.4), false, "along an axis, outside")
+	truthy(SeeKart.segmentHitsBox(0, -10, 0, 0, 10, 0, 0.4, 1.5, 0.4), "along an axis, inside")
+	-- a slanted line from above (the chase camera looks down at the kart)
+	truthy(SeeKart.segmentHitsBox(-6, 4, 0, 6, -1, 0, 0.4, 1.5, 0.4))
+end)
+
+test("see kart: put back only our own fade; never undo another script's hide", function()
+	-- LocalTransparencyModifier is a float32: 0.7 reads back as 0.699999988
+	truthy(SeeKart.ours(0.699999988))
+	truthy(SeeKart.ours(SeeKart.FADE))
+	eq(SeeKart.ours(0), false)
+	eq(SeeKart.ours(1), false)
+	truthy(SeeKart.hiddenAlready(1), "TopViewClear hid it")
+	eq(SeeKart.hiddenAlready(0.699999988), false)
+	eq(SeeKart.hiddenAlready(0), false)
 end)
 
 test("see kart: faded things come back HOLD seconds after they stop blocking", function()
 	local f = SeeKart.fader() :: SeeKart.Fader<string>
+	eq(#f:due(0), 0, "nothing faded")
 	truthy(f:add("post", 0))
 	eq(f:add("post", 0), false, "not twice")
 	eq(#f:due(0.1), 0)
@@ -68,7 +79,6 @@ test("see kart: faded things come back HOLD seconds after they stop blocking", f
 	eq(#back, 1)
 	eq(back[1], "post")
 	eq(f.count, 0)
-	-- gone parts can be dropped; keep on an unknown key does nothing
 	f:add("tree", 1)
 	f:drop("tree")
 	f:keep("tree", 2)
@@ -88,13 +98,15 @@ test("see kart: never more than MAX_FADED at once (phones)", function()
 end)
 
 test(
-	"see kart: the client casts one ray a frame, restores what it faded, and leaves the camera alone",
+	"see kart: the client uses no rays, works in the arena only, restores, and leaves the camera alone",
 	function()
 		local src = fs.readFile("src/client/SeeKart.client.luau")
-		local _, rays = string.gsub(src, "workspace:Raycast%(", "")
-		eq(rays, 1, "one ray a frame")
+		truthy(not string.find(src, "workspace:Raycast(", 1, true), "no rays")
 		truthy(not string.find(src, "Spherecast", 1, true))
+		truthy(string.find(src, 'FindFirstChild("SmashArena")', 1, true), "arena props only")
 		truthy(string.find(src, "LocalTransparencyModifier = was", 1, true), "puts it back")
+		truthy(string.find(src, "SeeKart.ours(", 1, true), "float-safe compare")
+		truthy(string.find(src, "SeeKart.hiddenAlready(", 1, true), "never undoes another hide")
 		truthy(
 			string.find(src, "RenderPriority.Camera.Value + 4", 1, true),
 			"after the camera and SmashFx"

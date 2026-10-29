@@ -1,69 +1,112 @@
 --!strict
--- See your kart (auditor R7-5, Studio round 6 shot 3): when an arena prop (a post, a wall, a
--- tree) sits between the camera and your kart, it fades to see-through and comes back once it
--- is out of the way. Pure rules here so Lune can test them; client/SeeKart.client plays them.
--- Driving and the chase camera stay LOCKED: this only changes what you can see through.
+-- See your kart (auditor R7-5, Studio round 6 shot 3): when an arena prop (a post, a cover wall,
+-- a tree, a crate) sits between the camera and your kart, it fades to see-through on your screen
+-- and comes back once it is out of the way. Pure rules here so Lune can test them;
+-- client/SeeKart.client plays them. Driving and the chase camera stay LOCKED.
+--   * Only named arena props ever fade (PROPS): never the floor, road, hills, ramps, the outer
+--     wall, karts or people. Many prop pieces (tree crowns, crate bands) can't be hit by rays,
+--     so the check is box maths on each prop, no ray at all: a quick ball test first, then the
+--     exact box.
 local SeeKart = {}
 
 SeeKart.FADE = 0.7 -- LocalTransparencyModifier while in the way
 SeeKart.HOLD = 0.25 -- seconds it stays faded after it stops blocking (no flicker)
-SeeKart.MAX_FADED = 8 -- never more at once (phones)
-SeeKart.BIG = 60 -- a part this wide (studs, flat) is ground or a hill, never faded
-SeeKart.PAD = 0.5 -- studs added round a faded part when checking it still blocks
+SeeKart.MAX_FADED = 12 -- never more at once (phones)
+SeeKart.PAD = 0.15 -- studs added round a prop (the arena is built at RC size, 1/4)
 
-export type Hit = {
-	normalY: number, -- the hit face's normal, Y part
-	hitY: number, -- where the ray hit, height
-	kartY: number, -- your kart's height
-	size: { x: number, y: number, z: number },
-	kart: boolean, -- part of any kart (or a character)
-	terrain: boolean,
-	transparency: number,
-}
+-- ArenaBuilder part names that may fade (workspace.SmashArena)
+SeeKart.PROPS = {
+	Cover = true,
+	CoverCap = true,
+	TreeStick = true,
+	TreeTop = true,
+	Crate = true,
+	CrateBand = true,
+	Barrel = true,
+	BarrelBand = true,
+	Rock = true,
+	Bush = true,
+	Bumper = true,
+	WallPillar = true,
+	ArchPillar = true,
+	ArchCap = true,
+	ArchBeam = true,
+	ArchFlag = true,
+} :: { [string]: boolean }
 
--- Should this hit be left alone? Floors, ground, hills, karts and things already see-through.
-function SeeKart.skip(h: Hit): boolean
-	if h.kart or h.terrain or h.transparency >= 0.95 then
-		return true
+-- Is a point within `r` of the line from a to b? (the quick ball test)
+function SeeKart.near(
+	ax: number,
+	ay: number,
+	az: number,
+	bx: number,
+	by: number,
+	bz: number,
+	cx: number,
+	cy: number,
+	cz: number,
+	r: number
+): boolean
+	local dx, dy, dz = bx - ax, by - ay, bz - az
+	local len2 = dx * dx + dy * dy + dz * dz
+	local t = 0
+	if len2 > 1e-12 then
+		t = math.clamp(((cx - ax) * dx + (cy - ay) * dy + (cz - az) * dz) / len2, 0, 1)
 	end
-	-- the floor (a top face at or below the kart)
-	if h.normalY > 0.7 and h.hitY <= h.kartY + 1 then
-		return true
-	end
-	-- big flat pieces: the ground, a hill, a ramp
-	local wide = math.max(h.size.x, h.size.z)
-	if wide >= SeeKart.BIG and h.size.y < wide then
-		return true
-	end
-	return false
+	local px, py, pz = ax + dx * t - cx, ay + dy * t - cy, az + dz * t - cz
+	return px * px + py * py + pz * pz <= r * r
 end
 
-export type V3 = { x: number, y: number, z: number }
-
--- Does the line from a to b (both in the part's own space) pass through its box (half sizes,
--- padded by PAD)? The slab test.
-function SeeKart.segmentHitsBox(a: V3, b: V3, half: V3): boolean
-	local t0, t1 = 0, 1
-	for _, axis in { "x", "y", "z" } do
-		local s, e, h = (a :: any)[axis], (b :: any)[axis], (half :: any)[axis] + SeeKart.PAD
-		local d = e - s
-		if math.abs(d) < 1e-9 then
-			if s < -h or s > h then
-				return false
-			end
-		else
-			local u0, u1 = (-h - s) / d, (h - s) / d
-			if u0 > u1 then
-				u0, u1 = u1, u0
-			end
-			t0 = math.max(t0, u0)
-			t1 = math.min(t1, u1)
-			if t0 > t1 then
-				return false
-			end
+local function slab(s: number, e: number, h: number, t0: number, t1: number): (number, number)
+	local d = e - s
+	if math.abs(d) < 1e-9 then
+		if s < -h or s > h then
+			return 1, 0
 		end
+		return t0, t1
 	end
-	return true
+	local u0, u1 = (-h - s) / d, (h - s) / d
+	if u0 > u1 then
+		u0, u1 = u1, u0
+	end
+	return math.max(t0, u0), math.min(t1, u1)
+end
+
+-- Does the line from a to b (both in the part's own space) pass through its box (half sizes
+-- hx, hy, hz, padded by PAD)?
+function SeeKart.segmentHitsBox(
+	ax: number,
+	ay: number,
+	az: number,
+	bx: number,
+	by: number,
+	bz: number,
+	hx: number,
+	hy: number,
+	hz: number
+): boolean
+	local p = SeeKart.PAD
+	local t0, t1 = slab(ax, bx, hx + p, 0, 1)
+	if t0 > t1 then
+		return false
+	end
+	t0, t1 = slab(ay, by, hy + p, t0, t1)
+	if t0 > t1 then
+		return false
+	end
+	t0, t1 = slab(az, bz, hz + p, t0, t1)
+	return t0 <= t1
+end
+
+-- Should a part we faded be put back to what it was? Only if it still shows our fade (the
+-- property is a float32, so 0.7 reads back as 0.69999...: compare loosely).
+function SeeKart.ours(modifier: number): boolean
+	return math.abs(modifier - SeeKart.FADE) < 1e-3
+end
+
+-- Leave alone a part another script already hid more than we would (e.g. TopViewClear sets 1).
+function SeeKart.hiddenAlready(modifier: number): boolean
+	return modifier >= SeeKart.FADE + 1e-3
 end
 
 -- What's faded right now, and when each last blocked the view.
@@ -78,6 +121,8 @@ export type Fader<K> = {
 
 local Fader = {}
 Fader.__index = Fader
+
+local NONE = table.freeze({})
 
 -- start fading `key`; false when it's already faded or the list is full
 function Fader.add<K>(self: Fader<K>, key: K, now: number): boolean
@@ -105,6 +150,9 @@ end
 
 -- the ones that stopped blocking HOLD seconds ago: taken off the list, to be shown again
 function Fader.due<K>(self: Fader<K>, now: number): { K }
+	if self.count == 0 then
+		return NONE :: any
+	end
 	local out = {}
 	for key, at in self.seen do
 		if now - at >= SeeKart.HOLD then
