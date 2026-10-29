@@ -207,6 +207,7 @@ function PlotShowroom.pieces(stands: number): { Piece }
 	end
 	-- the turntable, raised on a wide step: navy step and skirt, a pink glow ring, pink deck,
 	-- yellow top
+	disc(add, "Turntable", "TableBay", T.x, T.z, T.w + T.step + 2, 0.06, 0.41, YELLOW, false)
 	disc(add, "Turntable", "TableStep", T.x, T.z, T.w + T.step, 0.8, 0.8, NAVY_DARK, true)
 	disc(add, "Turntable", "TableSkirt", T.x, T.z, T.w + 2, 0.6, 1.4, NAVY, true)
 	disc(add, "Turntable", "TableGlow", T.x, T.z, T.w + 1.2, 0.2, 1.6, PINK, false, "Neon")
@@ -229,6 +230,8 @@ function PlotShowroom.pieces(stands: number): { Piece }
 	for i = 1, math.clamp(stands, 0, #SPOTS) do
 		local p = SPOTS[i]
 		local group = "Stand" .. i
+		-- a painted yellow bay on the floor round each stand
+		disc(add, group, "StandBay", p.x, p.z, S.w + 1.6, 0.06, 0.41, YELLOW, false)
 		disc(add, group, "StandBase", p.x, p.z, S.w, S.top - 0.2, S.top - 0.2, NAVY, true)
 		disc(add, group, "StandTop", p.x, p.z, S.w - 0.8, 0.2, S.top, SKY, false)
 	end

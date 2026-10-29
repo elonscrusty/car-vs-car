@@ -196,6 +196,14 @@ test("a real showroom: banner with words, trophies, little crates, floor edge ba
 	eq(names.TrophyCup, #R.TROPHIES)
 	eq(names.MiniCrateBody, #R.MINI_CRATES)
 	eq(names.FloorEdge, 4)
+	eq(names.TableBay, 1) -- painted bays round the turntable and every stand
+	local bays = 0
+	for _, p in R.pieces(#R.SPOTS) do
+		if p.name == "StandBay" then
+			bays += 1
+		end
+	end
+	eq(bays, #R.SPOTS)
 	-- the little crates sit beside the carpet, clear of the lamps and the stands
 	local T, L = R.TURNTABLE, R.LAMPS
 	for i, m in R.MINI_CRATES do
