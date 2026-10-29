@@ -6,9 +6,11 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Features = require(ReplicatedStorage.Shared.Features)
 local Garage = require(ReplicatedStorage.Shared.Garage)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local PlotDecor = require(ReplicatedStorage.Shared.PlotDecor)
+local PropKit = require(ReplicatedStorage.Shared.PropKit)
 
 local PlotDecorBuilder = {}
 
@@ -45,8 +47,20 @@ function PlotDecorBuilder.build()
 		local theme = PlotDecor.theme(slot.id)
 		local wall = Color3.fromRGB(theme.wall[1], theme.wall[2], theme.wall[3])
 		local pillar = Color3.fromRGB(theme.pillar[1], theme.pillar[2], theme.pillar[3])
+		local K = PlotDecor.SMASH
 		for _, d in plot:GetChildren() do
-			if d:IsA("BasePart") and isBaseWall(d, pivot) then
+			if Features.SMASH and d:IsA("BasePart") then
+				-- (LOOK-BIBLE: navy walls inside the thick skirts, a warm grey base, a sand walk-in)
+				local c = if isBaseWall(d, pivot)
+					then K.navy
+					elseif d.Name == "Ground" then K.ground
+					elseif d.Name == "Entrance" then K.entrance
+					else nil
+				if c then
+					d.Color = Color3.fromRGB(c[1], c[2], c[3])
+					d.Material = Enum.Material.SmoothPlastic
+				end
+			elseif d:IsA("BasePart") and isBaseWall(d, pivot) then
 				d.Color = wall
 				if slot.id == "rock" then
 					d.Material = Enum.Material.WoodPlanks
@@ -84,6 +98,33 @@ function PlotDecorBuilder.build()
 				local y = top - (1 - bar.y) * size.Y
 				board.CFrame = pivot * CFrame.new(0, y, at.Z + bar.z * size.X + 0.06)
 			end
+		end
+		if Features.SMASH then
+			-- the flags and theme props come from the shared PropKit (one look with the arena)
+			local props = Instance.new("Model")
+			props.Name = "Props"
+			local a = PlotDecor.SMASH.accent[slot.id] or PlotDecor.SMASH.accent.race
+			local accent = Color3.fromRGB(a[1], a[2], a[3])
+			for _, p in PlotDecor.smashProps() do
+				local at = (pivot * CFrame.new(p.x, 0, p.z)).Position
+				if p.kind == "flag" then
+					local f = p.face or { 1, 0 }
+					PropKit.flag(
+						props,
+						at,
+						p.h,
+						accent,
+						pivot:VectorToWorldSpace(Vector3.new(f[1], 0, f[2]))
+					)
+				elseif p.kind == "tyres" then
+					PropKit.tyreStack(props, at, p.h)
+				elseif p.kind == "barrel" then
+					PropKit.barrel(props, at, p.h, accent)
+				elseif p.kind == "cone" then
+					PropKit.cone(props, at, p.h)
+				end
+			end
+			props.Parent = decor
 		end
 		decor.Parent = plot
 	end

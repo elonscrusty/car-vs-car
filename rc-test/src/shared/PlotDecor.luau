@@ -105,8 +105,151 @@ function PlotDecor.theme(kind: string): Theme
 	return PlotDecor.THEMES[kind] or PlotDecor.THEMES.race
 end
 
+-- Smash game (LOOK-BIBLE, Lead 10-29): every plot is a chunky toy garage. Thick navy skirts on
+-- the walls with a round rail on top in the plot's colour, ball ends, round gate posts with
+-- balloons; the flags and theme props (tyre stacks, barrels, cones) come from PropKit
+-- (smashProps). SmoothPlastic only, no Neon, no wood, no thin poles.
+PlotDecor.SMASH = {
+	navy = { 30, 42, 90 },
+	navyDark = { 22, 30, 66 },
+	ground = { 141, 141, 150 }, -- warm grey road: the plot's base around the showroom
+	entrance = { 242, 217, 166 }, -- sand: the front area people walk in
+	yellow = { 255, 210, 63 },
+	accent = {
+		race = { 242, 64, 74 },
+		drift = { 142, 68, 255 },
+		rock = { 255, 95, 180 },
+	} :: { [string]: { number } },
+	balloons = { { 255, 95, 180 }, { 90, 200, 250 } },
+}
+
+-- The props on a Smash plot, built from ARENA's shared PropKit (PlotDecorBuilder) so they match
+-- the rest of the game: back-corner flags (the cloth points inward), tyre stacks in the left
+-- front corner, barrels and cones in the right one (never in the walk from the gate).
+-- Plot-local foot points; `h` the whole height; `face` the flag cloth's way (x, z).
+export type Prop = { kind: string, x: number, z: number, h: number, face: { number }? }
+function PlotDecor.smashProps(): { Prop }
+	local W, D = PlotDecor.HALF_W, PlotDecor.HALF_D
+	local out: { Prop } = {}
+	for _, sx in { -1, 1 } do
+		table.insert(
+			out,
+			{ kind = "flag", x = sx * (W - 0.8), z = -D + 0.8, h = 14, face = { -sx, 0 } }
+		)
+	end
+	for _, at in { { -36.5, 40 }, { -33.6, 40 }, { -35, 42.6 } } do
+		table.insert(out, { kind = "tyres", x = at[1], z = at[2], h = 2.4 })
+	end
+	for _, at in { { 36.2, 40 }, { 33.4, 39.8 } } do
+		table.insert(out, { kind = "barrel", x = at[1], z = at[2], h = 2.6 })
+	end
+	for _, at in { { 35.5, 44.5 }, { 33, 46.5 } } do
+		table.insert(out, { kind = "cone", x = at[1], z = at[2], h = 1.8 })
+	end
+	return out
+end
+
+local function smashParts(kind: string): { Piece }
+	local out: { Piece } = {}
+	local add = Garage.adder(out)
+	local K = PlotDecor.SMASH
+	local accent = K.accent[kind] or K.accent.race
+	local W, D, H = PlotDecor.HALF_W, PlotDecor.HALF_D, PlotDecor.WALL_H
+	local G = PlotDecor.GATE
+	local noHit = { collide = false }
+	local function up(len: number, dia: number): V3 -- a standing cylinder's size
+		return v(len, dia, dia)
+	end
+	local standing = v(0, 0, 90)
+
+	-- the walls: a thick navy skirt (the thin base wall stays inside it) and a round rail on top
+	local SKIRT, RAIL = 1, 1
+	local railY = H + RAIL / 2
+	for _, sx in { -1, 1 } do
+		add("Walls", "Skirt", v(SKIRT, H, 2 * D), v(sx * W, H / 2, 0), K.navy, noHit)
+		add("Walls", "Rail", v(2 * D, RAIL, RAIL), v(sx * W, railY, 0), accent, {
+			shape = "Cylinder",
+			rot = v(0, 90, 0),
+			collide = false,
+		})
+	end
+	add("Walls", "Skirt", v(2 * W - SKIRT, H, SKIRT), v(0, H / 2, -D), K.navy, noHit)
+	add("Walls", "Rail", v(2 * W, RAIL, RAIL), v(0, railY, -D), accent, {
+		shape = "Cylinder",
+		collide = false,
+	})
+	local frontLen = W - G - SKIRT / 2
+	for _, sx in { -1, 1 } do
+		local cx = sx * (G + frontLen / 2)
+		add("Walls", "Skirt", v(frontLen, H, SKIRT), v(cx, H / 2, D), K.navy, noHit)
+		add("Walls", "Rail", v(frontLen, RAIL, RAIL), v(cx, railY, D), accent, {
+			shape = "Cylinder",
+			collide = false,
+		})
+		for _, z in { -D, D } do
+			add("Walls", "RailEnd", v(1, 1, 1), v(sx * W, railY, z), K.yellow, {
+				shape = "Ball",
+				collide = false,
+			})
+		end
+	end
+
+	-- the gate: round navy posts, a chunky beam with a yellow rail and a dark lip, balloons
+	local POST = 2
+	local ARCH_H = 9
+	local px = G + POST / 2 -- (the posts' inner edge on the gap's edge: the gap stays open)
+	local beamY = ARCH_H + 1.3
+	local beamW = 2 * px + POST
+	local topY = ARCH_H + 2.6
+	for _, sx in { -1, 1 } do
+		add(
+			"Arch",
+			"Pillar",
+			up(topY, POST),
+			v(sx * px, topY / 2, D),
+			K.navy,
+			{ shape = "Cylinder", rot = standing }
+		)
+		add("Arch", "Cap", v(POST, POST, POST), v(sx * px, topY + 0.6, D), K.yellow, {
+			shape = "Ball",
+			collide = false,
+		})
+		for i, c in K.balloons do
+			local off = if i == 1 then -0.5 else 0.5
+			add(
+				"Arch",
+				"Balloon",
+				v(1.7, 1.7, 1.7),
+				v(sx * px + off, topY + 2.2 + (i - 1) * 0.5, D),
+				c,
+				{ shape = "Ball", collide = false }
+			)
+		end
+	end
+	add("Arch", "Beam", v(beamW - POST, 2.6, 1.4), v(0, beamY, D), K.navy, noHit)
+	add("Arch", "BeamRail", v(beamW - POST, 0.9, 0.9), v(0, beamY + 1.6, D), K.yellow, {
+		shape = "Cylinder",
+		collide = false,
+	})
+	add("Arch", "BeamLip", v(beamW - POST, 0.4, 1.5), v(0, beamY - 1.3, D), K.navyDark, noHit)
+	-- the driver's name goes on this board (LobbyBuilder puts a SurfaceGui on its road side)
+	add(
+		"Arch",
+		"NameBoard",
+		v(2 * G - 2.4, 2, 0.1),
+		v(0, beamY, D + 0.75),
+		{ 250, 250, 250 },
+		noHit
+	)
+
+	return out
+end
+
 -- The decor pieces of one plot of `kind` ("race", "drift" or "rock"), plot-local.
 function PlotDecor.parts(kind: string): { Piece }
+	if Features.SMASH then
+		return smashParts(kind)
+	end
 	local out: { Piece } = {}
 	local add = Garage.adder(out)
 	local t = PlotDecor.theme(kind)
@@ -549,11 +692,11 @@ function PlotDecor.meshes(kind: string): { Mesh }
 			},
 		}
 	local out: { Mesh } = {}
+	-- (Smash game: no Meshy extras or race gates, LOOK-BIBLE: theme props are blocks in smashParts)
+	if Features.SMASH then
+		return out
+	end
 	for _, m in list do
-		-- (Smash game: carter's striped race gates stay out; the block garage posts stand instead)
-		if Features.SMASH and (m[1] == "PlotGate" or m[1] == "DriftGate") then
-			continue
-		end
 		local fit: V3 = m[3]
 		table.insert(out, {
 			model = m[1],

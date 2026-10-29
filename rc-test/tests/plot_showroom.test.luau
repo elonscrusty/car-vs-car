@@ -86,13 +86,18 @@ test("the showroom fits in the plot, inside its floor", function()
 	local F = R.FLOOR
 	for _, p in R.pieces(#R.SPOTS) do
 		-- (a turned piece: its whole diagonal, either way)
+		-- (a standing cylinder: its length is up; a turned piece: its whole diagonal, either way)
+		local sx, sy, sz = p.size.x, p.size.y, p.size.z
+		if p.rot.z % 180 == 90 then
+			sx, sy = sy, sx
+		end
 		local turned = p.rot.y % 180 ~= 0
-		local diag = math.sqrt(p.size.x ^ 2 + p.size.z ^ 2) / 2
-		local hx = if turned then diag else p.size.x / 2
-		local hz = if turned then diag else p.size.z / 2
+		local diag = math.sqrt(sx ^ 2 + sz ^ 2) / 2
+		local hx = if turned then diag else sx / 2
+		local hz = if turned then diag else sz / 2
 		truthy(p.pos.x - hx >= -40 and p.pos.x + hx <= 40, `{p.name} inside x`)
 		truthy(p.pos.z - hz >= -55 and p.pos.z + hz <= 37, `{p.name} inside z`)
-		truthy(p.pos.y + p.size.y / 2 <= 12, `{p.name} low`)
+		truthy(p.pos.y + sy / 2 <= 12, `{p.name} low`)
 	end
 	for i, s in R.SPOTS do
 		local r = R.STAND.w / 2
@@ -103,24 +108,82 @@ test("the showroom fits in the plot, inside its floor", function()
 	end
 end)
 
-test("low-poly look: SmoothPlastic only, nothing glows", function()
-	for _, p in R.pieces(#R.SPOTS) do
-		eq(p.material, "SmoothPlastic", p.name)
-		eq(p.shape, "Block", p.name)
+test(
+	"look bible: SmoothPlastic, Neon only for the glow ring and lamp bulbs, round discs",
+	function()
+		local round = 0
+		for _, p in R.pieces(#R.SPOTS) do
+			eq(
+				p.material,
+				if p.name == "TableGlow" or p.name == "LampBulb" then "Neon" else "SmoothPlastic",
+				p.name
+			)
+			if string.find(p.name, "Stand") or string.find(p.name, "Table") then
+				eq(p.shape, "Cylinder", p.name)
+				round += 1
+			end
+		end
+		truthy(round > 0)
 	end
+)
+
+test("the hero: a pink carpet from the gate end to the turntable", function()
+	local T = R.TURNTABLE
+	local n = 0
+	for _, p in R.pieces(0) do
+		if p.name == "Carpet" then
+			n += 1
+			eq(p.pos.x, T.x)
+			truthy(
+				math.abs((p.pos.z - p.size.z / 2) - (T.z + (T.w + T.step) / 2)) < 0.01,
+				"starts at the table's step"
+			)
+			truthy(math.abs((p.pos.z + p.size.z / 2) - R.FLOOR.z1) < 0.01, "ends at the gate end")
+		end
+	end
+	eq(n, 1)
 end)
 
-test("the floor is warm paving, not snow-white", function()
+test("the floor is warm two-tone sand, not snow-white", function()
 	local found = false
 	for _, p in R.pieces(0) do
 		if p.name == "Floor" then
 			found = true
 			local c = p.color
-			truthy(c[1] < 225 and c[2] < 225 and c[3] < 225, "not near-white")
-			truthy(c[1] > c[3], "warm (more red than blue)")
+			truthy(c[1] + c[2] + c[3] < 640 and c[3] < 200, "not near-white")
+			truthy(c[1] - c[3] >= 50, "warm (more red than blue)")
 		end
 	end
 	truthy(found, "there is a floor")
+	-- two tones: darker bands over it
+	local bands = 0
+	for _, p in R.pieces(0) do
+		if p.name == "FloorBand" then
+			bands += 1
+		end
+	end
+	truthy(bands >= 2, "a second tone")
+end)
+
+test("the hero: a raised turntable, a big kart, a spotlight ring clear of the carpet", function()
+	local T, L = R.TURNTABLE, R.LAMPS
+	truthy(T.top >= 2, "raised")
+	truthy(T.car >= 3, "big kart")
+	local lamps = 0
+	for _, p in R.pieces(0) do
+		if p.name == "LampPost" then
+			lamps += 1
+			truthy(
+				math.abs(p.pos.x - T.x) > R.CARPET / 2 + 1,
+				"a lamp beside the carpet, not on it"
+			)
+			truthy(dist(p.pos, T) > (T.w + T.step) / 2, "outside the step")
+		end
+	end
+	eq(lamps, L.n)
+	for i, s in R.SPOTS do
+		truthy(dist(s, T) >= L.r + R.STAND.w / 2 + 2, `stand {i} clear of the lamps`)
+	end
 end)
 
 test("stands, turntable and crate keep apart; prompts never overlap", function()
