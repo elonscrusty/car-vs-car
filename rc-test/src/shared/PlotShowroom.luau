@@ -145,7 +145,7 @@ function PlotShowroom.pieces(stands: number): { Piece }
 	local F = PlotShowroom.FLOOR
 	local fx, fz = (F.x0 + F.x1) / 2, (F.z0 + F.z1) / 2
 	local fw, fd = F.x1 - F.x0, F.z1 - F.z0
-	-- a pale floor with a navy edge
+	-- a warm grey floor with a navy edge
 	add("Floor", "Border", v(fw + 2 * F.border, 0.16, fd + 2 * F.border), v(fx, 0.08, fz), NAVY, {
 		collide = false,
 	})

@@ -111,13 +111,16 @@ test("low-poly look: SmoothPlastic only, nothing glows", function()
 end)
 
 test("the floor is warm paving, not snow-white", function()
+	local found = false
 	for _, p in R.pieces(0) do
 		if p.name == "Floor" then
+			found = true
 			local c = p.color
 			truthy(c[1] < 225 and c[2] < 225 and c[3] < 225, "not near-white")
 			truthy(c[1] > c[3], "warm (more red than blue)")
 		end
 	end
+	truthy(found, "there is a floor")
 end)
 
 test("stands, turntable and crate keep apart; prompts never overlap", function()
