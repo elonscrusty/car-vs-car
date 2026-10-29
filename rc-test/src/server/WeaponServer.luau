@@ -354,7 +354,13 @@ local function makeCtx(fxRemote: RemoteEvent): Ctx
 			local mr = matchRunner()
 			if mr and type(mr.damage) == "function" then
 				-- MatchRunner's words are lowercase and one of a kind: "rocket", "nuke", "gun"
-				local taken = mr.damage(victimId, attackerId, amount, Weapons.feedWord(weapon))
+				-- (pcall: one bad hit mustn't stop a boom hurting the rest, or its fx)
+				local ok, taken =
+					pcall(mr.damage, victimId, attackerId, amount, Weapons.feedWord(weapon))
+				if not ok then
+					warn("[WeaponServer] match damage failed: " .. tostring(taken))
+					return 0
+				end
 				return if type(taken) == "number" then taken else amount
 			end
 			return 0
