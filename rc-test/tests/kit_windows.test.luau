@@ -3,6 +3,7 @@
 -- prices, each crate's odds add up to 100 and show before OPEN, and the layouts keep to the canvas.
 local H = require("./harness")
 local Crates = require("../src/shared/Crates")
+local Profile = require("../src/shared/Profile")
 local SmashScreens = require("../src/shared/SmashScreens")
 local UiScreens = require("../src/shared/UiScreens")
 local fs = require("@lune/fs")
@@ -58,7 +59,7 @@ test("shop tiles fit the panel, side by side, big enough to tap", function()
 end)
 
 test("kit layouts: nothing covers anything else", function()
-	for _, id in { "kitShop", "kitOdds", "kitReveal" } do
+	for _, id in { "kitShop", "kitOdds", "kitReveal", "kitDaily", "kitQuests" } do
 		local ps = SmashScreens.get(id).pieces
 		for i = 1, #ps do
 			for j = i + 1, #ps do
@@ -81,4 +82,29 @@ test("the looks-only lines stay, and the shop has no SOON or Robux", function()
 	-- the odds window is the only way to OPEN a crate from the shop
 	local cvc = fs.readFile("src/client/CvcScreens.client.luau")
 	truthy(cvc:find("pick = openKitOdds", 1, true) ~= nil, "a shop tile doesn't open the odds")
+end)
+
+test("daily: the 7 real days, today's coins as paid, a crate only when one came", function()
+	local days = SmashScreens.dailyDays(Profile.DAILY, 3, 40, false)
+	eq(#days, #Profile.DAILY)
+	eq(days[1].state, "got")
+	eq(days[3].state, "today")
+	eq(days[3].coins, 40) -- (a 2X boost day: what the server paid)
+	eq(days[4].state, "later")
+	eq(days[7].coins, Profile.DAILY[7])
+	for _, d in days do
+		eq(d.crate, false)
+	end
+	eq(SmashScreens.dailyDays(Profile.DAILY, 1, nil, true)[1].crate, true)
+	eq(SmashScreens.dailyDays(Profile.DAILY, 99, nil, false)[7].state, "today")
+	local stars = fs.readFile("src/client/Stars.client.luau")
+	truthy(stars:find("SmashScreens.dailyDays(DAILY", 1, true) ~= nil, "Smash daily not from DAILY")
+end)
+
+test("jobs: each Smash job line gets its icon", function()
+	eq(SmashScreens.jobIcon("Smash 10 karts"), "nuke")
+	eq(SmashScreens.jobIcon("Open a crate"), "crate")
+	eq(SmashScreens.jobIcon("Play 3 matches"), "trophy")
+	eq(SmashScreens.jobIcon("Get top 3 in a match"), "trophy")
+	eq(SmashScreens.jobIcon("Something new"), "coin")
 end)
