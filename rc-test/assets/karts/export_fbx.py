@@ -4,6 +4,9 @@
 # ReplicatedStorage.CarSkins by hand, and CarSkin paints the parts by name.
 # Run: lune decode first (see IMPORT-STEPS.md), then
 #   J=<karts.json> OUT=<folder> <blender python> -I export_fbx.py
+# With ALL=1 it writes them all into one Karts.fbx instead (one import for carter): each part is
+# named "<kart>__<part>" (Kart_Buggy__Body) and the karts stand in a row 12 studs apart;
+# studio_import_fix.luau sorts the parts back into one model per kart.
 import json
 import os
 
@@ -29,35 +32,54 @@ COLORS = {
 
 data = json.load(open(os.environ["J"]))
 out = os.environ["OUT"]
+one = os.environ.get("ALL") == "1"
 os.makedirs(out, exist_ok=True)
-for kart, parts in sorted(data.items()):
-    bpy.ops.wm.read_factory_settings(use_empty=True)
-    for name, mesh in sorted(parts.items()):
-        v = mesh["v"]
-        # Roblox (x, y, z) -> Blender (x, -z, y): the FBX exporter's Y-up turns it straight back
-        verts = [(v[i], -v[i + 2], v[i + 1]) for i in range(0, len(v), 3)]
-        t = mesh["t"]
-        faces = [(t[i] - 1, t[i + 1] - 1, t[i + 2] - 1) for i in range(0, len(t), 3)]
-        me = bpy.data.meshes.new(name)
-        me.from_pydata(verts, [], faces)
-        me.validate()
-        mat = bpy.data.materials.new(name)
-        if name.startswith("Wheel"):
-            col = (0.11, 0.11, 0.12)
-        elif name.startswith("Rim"):
-            col = (1.0, 1.0, 1.0)
-        else:
-            col = COLORS.get(name, (0.8, 0.8, 0.8))
-        mat.diffuse_color = (*col, 1.0)
-        me.materials.append(mat)
-        ob = bpy.data.objects.new(name, me)
-        bpy.context.scene.collection.objects.link(ob)
+
+
+def add(name, mesh, label, dx):
+    v = mesh["v"]
+    # Roblox (x, y, z) -> Blender (x, -z, y): the FBX exporter's Y-up turns it straight back
+    verts = [(v[i] + dx, -v[i + 2], v[i + 1]) for i in range(0, len(v), 3)]
+    t = mesh["t"]
+    faces = [(t[i] - 1, t[i + 1] - 1, t[i + 2] - 1) for i in range(0, len(t), 3)]
+    me = bpy.data.meshes.new(label)
+    me.from_pydata(verts, [], faces)
+    me.validate()
+    mat = bpy.data.materials.new(label)
+    if name.startswith("Wheel"):
+        col = (0.11, 0.11, 0.12)
+    elif name.startswith("Rim"):
+        col = (1.0, 1.0, 1.0)
+    else:
+        col = COLORS.get(name, (0.8, 0.8, 0.8))
+    mat.diffuse_color = (*col, 1.0)
+    me.materials.append(mat)
+    ob = bpy.data.objects.new(label, me)
+    bpy.context.scene.collection.objects.link(ob)
+
+
+def export(path):
     bpy.ops.export_scene.fbx(
-        filepath=os.path.join(out, kart + ".fbx"),
+        filepath=path,
         axis_forward="-Z",
         axis_up="Y",
         apply_unit_scale=True,
         mesh_smooth_type="FACE",
         bake_space_transform=True,
     )
-    print("wrote", kart, len(parts), "parts")
+
+
+if one:
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    for i, (kart, parts) in enumerate(sorted(data.items())):
+        for name, mesh in sorted(parts.items()):
+            add(name, mesh, kart + "__" + name, i * 12)
+    export(os.path.join(out, "Karts.fbx"))
+    print("wrote Karts.fbx", len(data), "karts")
+else:
+    for kart, parts in sorted(data.items()):
+        bpy.ops.wm.read_factory_settings(use_empty=True)
+        for name, mesh in sorted(parts.items()):
+            add(name, mesh, name, 0)
+        export(os.path.join(out, kart + ".fbx"))
+        print("wrote", kart, len(parts), "parts")
