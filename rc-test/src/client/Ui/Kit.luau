@@ -660,10 +660,11 @@ function Kit.side(
 	-- (in the middle of the tile, over its word: it poked out of the top, carter 10-28)
 	local ic = Icons.make(holder, icon, (s - 40) / 2, 5, 40, io)
 	Base.text(holder, "Word", -8, s - 14, s + 16, 22, word, { stroke = 4, z = 7 })
-	local dot = Base.fill(holder, "Dot", s - 14, -8, 22, 22, Base.color("danger"), 8)
+	-- (26 round, its number 18 tall: 14 px on a phone, carter 10-29)
+	local dot = Base.fill(holder, "Dot", s - 16, -10, 26, 26, Base.color("danger"), 8)
 	Base.corner(dot)
 	Base.outline(dot, UiTheme.OUTLINE.small)
-	local dotWords = Base.text(dot, "N", 2, 3, 18, 15, "", { z = 9 })
+	local dotWords = Base.text(dot, "N", 2, 4, 22, 18, "", { z = 9 })
 	dot.Visible = false
 	Anim.dot(dot)
 	Anim.nudge(holder, 1 + i * 0.6)
@@ -769,7 +770,9 @@ function Kit.currency(
 	if o.plus then
 		Icons.make(b, "plus", w - plusW, (h - plusW) / 2, plusW, { z = 5 })
 	end
-	Anim.press(b)
+	if not o.noPress then
+		Anim.press(b)
+	end
 	local shown = o.value or 0
 	local function set(n: number)
 		Anim.countUp(num, shown, n)

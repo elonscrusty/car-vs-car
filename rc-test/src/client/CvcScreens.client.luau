@@ -44,6 +44,7 @@ local Flow = require(Screens:WaitForChild("Flow"))
 local Hud = require(Screens:WaitForChild("Hud"))
 local Windows = require(Screens:WaitForChild("Windows"))
 local Shop = require(Screens:WaitForChild("Shop"))
+local Smash = require(Screens:WaitForChild("Smash"))
 
 local player = Players.LocalPlayer
 local pgui = player:WaitForChild("PlayerGui")
@@ -864,6 +865,75 @@ local function smashHow()
 	info("power", "SMASH!", "Drive onto the SMASH! pad to play!")
 end
 
+-- a phone's Smash lobby (carter 10-29: too cluttered): MENU + SMASH! and the coins; the other
+-- buttons live in the MENU window (Smash.menu)
+local PHONE_LOBBY = SMASH and Base.phone()
+local plotActions: { [string]: (...any) -> () } = {}
+-- (found or made here and in LuckySpin, whichever runs first: a tap never falls through)
+local function spinEvent(): BindableEvent
+	local ev = ReplicatedStorage:FindFirstChild("OpenSpin")
+	if ev and ev:IsA("BindableEvent") then
+		return ev
+	end
+	local made = Instance.new("BindableEvent")
+	made.Name = "OpenSpin"
+	made.Parent = ReplicatedStorage
+	return made
+end
+local function openSpin()
+	spinEvent():Fire()
+end
+local menuHandle: Screen.Handle? = nil
+-- (a match starting puts the MENU away, as CUSTOMIZE and SPIN do)
+player:GetAttributeChangedSignal("InMatch"):Connect(function()
+	local m = menuHandle
+	if attr("InMatch") == true and m and Screen.isOpen("menu") then
+		m.close()
+		menuHandle = nil
+	end
+end)
+local function openMenu()
+	local stage = num("Stage")
+	local shopped = stage >= Profile.STAGE.SHOPPED
+	local items: { { [string]: any } } = {
+		{ id = "customize", word = "GARAGE", icon = "power" },
+		{
+			id = "crates",
+			word = "CRATES",
+			icon = "crate",
+			dot = if CvcState.crates > 0 then CvcState.crates else nil,
+		},
+		{
+			id = "spin",
+			word = "SPIN",
+			icon = "gift",
+			dot = if attr("SpinReady") == true then -1 else nil,
+		},
+	}
+	if shopped then
+		table.insert(items, { id = "shop", word = "SHOP", icon = "bag" })
+		table.insert(items, { id = "league", word = "LEAGUE", icon = "trophy" })
+		table.insert(items, { id = "jobs", word = "JOBS", icon = "check" })
+		if canInvite then
+			table.insert(items, { id = "invite", word = "INVITE", icon = "heart" })
+		end
+	end
+	menuHandle = Smash.menu({ items = items }, {
+		close = Screen.closeOver,
+		customize = openCustomize,
+		crates = openCrates,
+		spin = openSpin,
+		shop = function()
+			plotActions.Shop()
+		end,
+		league = function()
+			plotActions.League()
+		end,
+		jobs = openJobs,
+		invite = invite,
+	})
+end
+
 local function openHud(stagger: boolean)
 	local car = racer()
 	hud = Hud.plot({
@@ -876,7 +946,9 @@ local function openHud(stagger: boolean)
 			Garage = if SMASH then nil else trainDot(),
 		},
 		-- (the garage is where a car goes on a station: the tile says so, 10 s test)
-		words = { Garage = if SMASH then "CUSTOMIZE" else "TRAIN" },
+		words = { Garage = if PHONE_LOBBY then "MENU" elseif SMASH then "CUSTOMIZE" else "TRAIN" },
+		icons = if PHONE_LOBBY then { Garage = "plus" } else nil,
+		smallCoins = PHONE_LOBBY,
 		race = if SMASH then "SMASH!" else "RACE!",
 		jobs = jobsWords() or "JOBS",
 		invite = "INVITE",
@@ -890,62 +962,64 @@ local function openHud(stagger: boolean)
 		-- board show the bars, the RACE! button the clock)
 		banner = false,
 		myCar = false,
-	}, {
-		Garage = if SMASH then openCustomize else openGarage,
-		Crates = openCrates,
-		Shop = function()
-			-- (no Robux prices until carter sets them: SOON, not R$ ???)
-			Shop.open({ tab = 1, offer = { price = "SOON" } }, {
-				close = Screen.closeOver,
-				tab = function() end,
-				buyOffer = function()
-					info("bag", "Coming soon!", "Skins only. Soon!")
-				end,
-				buySale = function()
-					info("bag", "Coming soon!", "Skins only. Soon!")
-				end,
-				buyMini = function()
-					info("bag", "Coming soon!", "Skins only. Soon!")
-				end,
-			})
-		end,
-		League = function()
-			local n = League.clamp(attr("League"))
-			info(
-				"trophy",
-				`{string.upper(League.name(n))} LEAGUE`,
-				if n < #League.NAMES then "Get top 3 to move up!" else "Top league!"
-			)
-		end,
-		race = if SMASH then smashHow else join,
-		jobs = openJobs,
-		invite = invite,
-		-- (full: the buy itself; not yet: where it's bought, to see what it gets)
-		next = function()
-			if nextKind == "STATION" then
-				morePopup()
-			elseif nextKind == "CRATE" then
-				openCrates()
-			end
-		end,
-		coach = function()
-			if Training.coachReady(num("CoachAt"), workspace:GetServerTimeNow()) then
-				ask("coach")
-				Sfx.train()
-				-- (right away, not when the server's next bar step comes: the tap shows at once)
-				coachedAt = os.clock()
-				local h = hud
-				if h then
-					-- (in from the edge: its "!" was cut; up over INVITE, Studio pr816)
-					h.api.float(636, 205, `{Training.COACH_MULT}X TRAINING!`)
-				end
-			end
-		end,
-	})
+	}, plotActions)
 	if SMASH and hud then
 		hud.api.setShown("Coach", false) -- (from the first frame, not the next tick)
 	end
 end
+
+plotActions = {
+	Garage = if PHONE_LOBBY then openMenu elseif SMASH then openCustomize else openGarage,
+	Crates = openCrates,
+	Shop = function()
+		-- (no Robux prices until carter sets them: SOON, not R$ ???)
+		Shop.open({ tab = 1, offer = { price = "SOON" } }, {
+			close = Screen.closeOver,
+			tab = function() end,
+			buyOffer = function()
+				info("bag", "Coming soon!", "Skins only. Soon!")
+			end,
+			buySale = function()
+				info("bag", "Coming soon!", "Skins only. Soon!")
+			end,
+			buyMini = function()
+				info("bag", "Coming soon!", "Skins only. Soon!")
+			end,
+		})
+	end,
+	League = function()
+		local n = League.clamp(attr("League"))
+		info(
+			"trophy",
+			`{string.upper(League.name(n))} LEAGUE`,
+			if n < #League.NAMES then "Get top 3 to move up!" else "Top league!"
+		)
+	end,
+	race = if SMASH then smashHow else join,
+	jobs = openJobs,
+	invite = invite,
+	-- (full: the buy itself; not yet: where it's bought, to see what it gets)
+	next = function()
+		if nextKind == "STATION" then
+			morePopup()
+		elseif nextKind == "CRATE" then
+			openCrates()
+		end
+	end,
+	coach = function()
+		if Training.coachReady(num("CoachAt"), workspace:GetServerTimeNow()) then
+			ask("coach")
+			Sfx.train()
+			-- (right away, not when the server's next bar step comes: the tap shows at once)
+			coachedAt = os.clock()
+			local h = hud
+			if h then
+				-- (in from the edge: its "!" was cut; up over INVITE, Studio pr816)
+				h.api.float(636, 205, `{Training.COACH_MULT}X TRAINING!`)
+			end
+		end
+	end,
+}
 
 local function refreshHud()
 	local h = hud
@@ -956,7 +1030,9 @@ local function refreshHud()
 	local car = racer()
 	api.setCar(if car then CvcState.name(car.id) else "", hudBars(car))
 	api.setDot("Crates", if CvcState.crates > 0 then CvcState.crates else nil)
-	api.setDot("Garage", if SMASH then nil else trainDot())
+	if not PHONE_LOBBY then -- (a phone's MENU dot is set with the tiles)
+		api.setDot("Garage", if SMASH then nil else trainDot())
+	end
 	api.setJobs(jobsWords() or "JOBS")
 end
 
@@ -1014,16 +1090,31 @@ RunService.Heartbeat:Connect(function()
 	-- (SMASH: the lobby shows its tiles from the start; there's no first race to wait for)
 	local raced = SMASH or stage >= Profile.STAGE.RACED
 	local shopped = stage >= Profile.STAGE.SHOPPED
-	api.setShown("Crates", raced or CvcState.crates > 0)
+	-- (a phone's Smash lobby: MENU holds all of these)
+	local menu = PHONE_LOBBY
+	api.setShown("Crates", not menu and (raced or CvcState.crates > 0))
 	api.setShown("Garage", raced or #CvcState.garage > 1 or trainDot() ~= nil)
-	api.setShown("Shop", shopped)
-	api.setShown("League", shopped)
-	api.setShown("Jobs", shopped)
+	api.setShown("Shop", shopped and not menu)
+	api.setShown("League", shopped and not menu)
+	api.setShown("Jobs", shopped and not menu)
 	-- (after the first race: by then there's a race to bring a friend to)
 	-- (after the first crate, with the other later things: fewer pieces at once, auditor L2)
-	api.setShown("Invite", shopped and canInvite)
+	api.setShown("Invite", shopped and canInvite and not menu)
+	if menu then
+		-- the MENU tile's dot: a crate to open or today's free spin
+		api.setDot(
+			"Garage",
+			if CvcState.crates > 0
+				then CvcState.crates
+				elseif attr("SpinReady") == true then -1
+				else nil
+		)
+	end
 	-- one arrow on the one thing to tap
 	local goal, goalWords = hudGoal()
+	if menu and goal == "Crates" then
+		goal = "Garage" -- (the crates are in the MENU)
+	end
 	if goal ~= lastGoal then
 		lastGoal = goal
 		-- (the world can follow the one next thing too: the plot thread reads it)
@@ -1054,7 +1145,7 @@ RunService.Heartbeat:Connect(function()
 		api.setNext(nw or "", nf)
 	end
 	-- (after the first race, with the other later things: one new thing at a time)
-	api.setShown("Next", raced and nk ~= nil)
+	api.setShown("Next", raced and nk ~= nil and not PHONE_LOBBY)
 	if SMASH then
 		-- SMASH! / YOU'RE IN! (the pad queues you); no coach
 		api.setShown("Coach", false)

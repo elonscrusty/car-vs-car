@@ -785,6 +785,7 @@ task.spawn(function()
 		task.wait(0.5)
 	end
 end)
+local phoneUi = require(script.Parent:WaitForChild("Ui"):WaitForChild("Base")).phone()
 local youTag = Instance.new("BillboardGui")
 youTag.Name = "YouTag"
 youTag.Size = UDim2.fromOffset(90, 30)
@@ -843,7 +844,11 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 	-- just over the car's roof (it was 4x higher: off the top of the screen under the chase camera,
 	-- Studio 10-26; then still floating well above it once it drew, Studio score/24)
 	youTag.StudsOffsetWorldSpace = Vector3.new(0, 1.6 * Tuning.scale, 0)
-	youTag.Enabled = grid ~= nil and Features.CVC
+	-- (a phone in a match: no tag over your own kart, the middle of the screen stays clear,
+	-- carter 10-29)
+	youTag.Enabled = grid ~= nil
+		and Features.CVC
+		and not (phoneUi and player:GetAttribute("InMatch") == true)
 	raceFx.update(dt, tel.boost > 0)
 	local fv = body.AssemblyLinearVelocity
 	local flatNow = Vector3.new(fv.X, 0, fv.Z).Magnitude

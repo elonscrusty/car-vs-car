@@ -138,13 +138,23 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 		end
 		local cp = piece("plot", "Coins")
 		local coinsHolder = spot(c, "plot", "Coins")
+		-- (small: a phone's lobby, carter 10-29: a smaller chip to read, not to tap; the shop is in
+		-- the MENU)
+		local small = data.smallCoins == true
 		local coins = Kit.currency(coinsHolder, "Coins", 0, 0, cp.w, cp.h, {
 			value = data.coins or 0,
 			rate = data.rate or "",
-			plus = true,
+			plus = not small,
 			plate = true,
-			onClick = Screen.act(actions, "coins"),
+			onClick = if small then nil else Screen.act(actions, "coins"),
+			noPress = small,
 		})
+		if small then
+			coins.button.Active = false
+			local scale = Instance.new("UIScale")
+			scale.Scale = 0.8
+			scale.Parent = coinsHolder
+		end
 		-- NEXT CRATE 120/200 (the live game): a small bar under the coins, coins toward the next
 		-- buy; no glow of its own (the one glow is the HUD goal's)
 		local nextHolder: Frame? = nil
@@ -183,7 +193,8 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 		for i, sd in SIDES do
 			local holder = spot(c, "plot", sd.name)
 			local side: Kit.Side
-			if sd.icon == "car" then
+			local icon = (data.icons or {})[sd.name] -- (a phone's MENU tile: another icon)
+			if sd.icon == "car" and not icon then
 				side = Kit.side(holder, "Tile", 0, 0, words[sd.name] or sd.word, "bag", i)
 				-- the garage tile shows a car poking out instead of an icon
 				local tile = side.button:FindFirstChild("Tile") :: Frame
@@ -202,8 +213,16 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 				)
 				Anim.bob(car, UiTheme.MOTION.iconBob, 5, 0)
 			else
-				side =
-					Kit.side(holder, "Tile", 0, 0, words[sd.name] or sd.word, sd.icon, i, sd.opts)
+				side = Kit.side(
+					holder,
+					"Tile",
+					0,
+					0,
+					words[sd.name] or sd.word,
+					icon or sd.icon,
+					i,
+					if icon then nil else sd.opts
+				)
 			end
 			sides[sd.name] = side
 			side.button.Activated:Connect(Screen.act(actions, sd.name))
@@ -730,16 +749,18 @@ function Hud.weaponIcon(name: string?): string
 	return WEAPON_ICON[string.lower(name)] or "mystery"
 end
 
--- the board's rows: the top 3, then you with your place when you are lower down
-function Hud.boardRows(list: { { [string]: any } }): { { [string]: any } }
+-- the board's rows: the top 3, then you with your place when you are lower down (short: a
+-- phone's board, just the leader and you)
+function Hud.boardRows(list: { { [string]: any } }, short: boolean?): { { [string]: any } }
 	local out = {}
+	local top = if short then 1 else BOARD_TOP
 	for i, e in list do
-		if i <= BOARD_TOP or e.me == true then
+		if i <= top or e.me == true then
 			local row = table.clone(e)
 			row.rank = e.rank or i -- (SmashScreens.rank: ties share a place, as the chip does)
 			table.insert(out, row)
 		end
-		if i > BOARD_TOP and e.me == true then
+		if i > top and e.me == true then
 			break
 		end
 	end
@@ -754,19 +775,36 @@ end
 --   setBoard(list),
 --   feed(attacker, victim, weapon, mine: boolean, attackerLevel?, victimLevel?) (a new kill on
 --   top; mine = you are in it; a level puts its badge before that name)
-function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
+-- touch: a phone's small layout (UiScreens matchTouch): a 2/8 chip, the leader and you, a slim
+--   health bar, 2 kill lines for 3 s, no level badges
+function Hud.match(
+	data: { [string]: any },
+	actions: Screen.Actions?,
+	touch: boolean?
+): Screen.Handle
+	-- a phone: the small layout (UiScreens matchTouch), the middle of the screen left empty
+	local L = if touch then "matchTouch" else "match"
 	return Screen.open("match", "hud", false, function(g)
 		local c = g.canvas
 		-- PLACE: big yellow 1ST, small / 5
-		local pp = piece("match", "Place")
-		local placeSpot = spot(c, "match", "Place")
-		local big = Base.text(placeSpot, "Place", 6, 0, pp.w * 0.56, pp.h - 4, "", {
-			color = Base.color("go"),
-			stroke = 7,
-			drop = 4,
-			align = "l",
-			z = 3,
-		})
+		local pp = piece(L, "Place")
+		local placeSpot = spot(c, L, "Place")
+		local big = Base.text(
+			placeSpot,
+			"Place",
+			6,
+			0,
+			pp.w * (if touch then 0.84 else 0.56),
+			pp.h - 4,
+			"",
+			{
+				color = Base.color("go"),
+				stroke = 7,
+				drop = 4,
+				align = "l",
+				z = 3,
+			}
+		)
 		local of = Base.text(
 			placeSpot,
 			"Of",
@@ -779,25 +817,35 @@ function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 		)
 		-- (before your first smash the chip says GO SMASH! instead: "- / 8" read as broken, audit
 		-- R3-1, and an empty corner read as missing, audit R6-3)
-		local go = Base.text(placeSpot, "Go", 6, 4, pp.w - 12, pp.h - 12, "GO SMASH!", {
-			color = Base.color("go"),
-			stroke = 6,
-			drop = 3,
-			align = "l",
-			z = 3,
-		})
+		-- (a phone: one small "2/8", and GO! before your first smash)
+		local go = Base.text(
+			placeSpot,
+			"Go",
+			6,
+			4,
+			pp.w - 12,
+			pp.h - 12,
+			if touch then "GO!" else "GO SMASH!",
+			{
+				color = Base.color("go"),
+				stroke = 6,
+				drop = 3,
+				align = "l",
+				z = 3,
+			}
+		)
 		local function setPlace(p: number, total: number, smashes: number?)
 			local was = big.Text
 			local placed = smashes ~= 0
 			-- (each with its drop: GO SMASH!'s shadow stayed behind 3RD / 8, Studio round 6)
-			for l, on in { [go] = not placed, [big] = placed, [of] = placed } do
+			for l, on in { [go] = not placed, [big] = placed, [of] = placed and not touch } do
 				l.Visible = on
 				local d = placeSpot:FindFirstChild(l.Name .. "Drop")
 				if d and d:IsA("GuiObject") then
 					d.Visible = on
 				end
 			end
-			Base.setText(big, UiMotion.place(p))
+			Base.setText(big, if touch then `{p}/{total}` else UiMotion.place(p))
 			Base.setText(of, "/ " .. tostring(total))
 			if was ~= "" and was ~= big.Text and placed then
 				Anim.shout(placeSpot)
@@ -805,9 +853,9 @@ function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 		end
 		setPlace(data.place or 1, data.total or 8, data.smashes)
 		-- CLOCK: a navy pill, red and breathing in the last 10 s
-		local cp = piece("match", "Clock")
+		local cp = piece(L, "Clock")
 		local clock = Kit.pill(
-			spot(c, "match", "Clock"),
+			spot(c, L, "Clock"),
 			"Clock",
 			0,
 			0,
@@ -836,24 +884,38 @@ function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 		end
 		-- HEALTH: a heart, a chunky bar (lime, yellow under half, red under a quarter), the number;
 		-- a blue fill and SHIELD! while the shield is up
-		local hp = piece("match", "Health")
-		local hs = spot(c, "match", "Health")
-		Icons.make(hs, "heart", 0, -3, hp.h + 6, { z = 5 })
-		local bar = Kit.bar(hs, "Bar", hp.h * 0.7, 4, hp.w - hp.h * 0.7, hp.h - 8, "lime", {
-			still = true,
-			value = 1,
-			z = 3,
-		})
+		local hp = piece(L, "Health")
+		local hs = spot(c, L, "Health")
+		-- (a phone: just the slim bar, no heart or number)
+		local lead = if touch then 0 else hp.h * 0.7
+		if not touch then
+			Icons.make(hs, "heart", 0, -3, hp.h + 6, { z = 5 })
+		end
+		local bar = Kit.bar(
+			hs,
+			"Bar",
+			lead,
+			if touch then 0 else 4,
+			hp.w - lead,
+			if touch then hp.h else hp.h - 8,
+			"lime",
+			{
+				still = true,
+				value = 1,
+				z = 3,
+			}
+		)
 		local hpWords = Base.text(
 			hs,
 			"Words",
 			hp.h * 0.7,
 			6,
 			hp.w - hp.h * 0.7,
-			hp.h - 12,
+			math.max(hp.h - 12, 1),
 			"",
 			{ stroke = 4, z = 6 }
 		)
+		hpWords.Visible = not touch -- (a phone: the slim bar only)
 		local lastHp = -1
 		local function setHealth(n: number, max: number, shield: boolean?)
 			local f = if max > 0 then math.clamp(n / max, 0, 1) else 0
@@ -880,35 +942,35 @@ function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 		setHealth(data.hp or 100, data.maxHp or 100, data.shield)
 		-- SCOREBOARD: the top 3 and you, most smashes first: the place, a level badge (when the
 		-- kart has a level), the name, the smashes; your row lime
-		local bp = piece("match", "Board")
-		local boardSpot = spot(c, "match", "Board")
+		local bp = piece(L, "Board")
+		local boardSpot = spot(c, L, "Board")
 		local boardRows: { Frame } = {}
 		local function setBoard(list: { { [string]: any } })
 			for _, r in boardRows do
 				r:Destroy()
 			end
 			table.clear(boardRows)
-			for i, e in Hud.boardRows(list) do
+			for i, e in Hud.boardRows(list, touch) do
 				local me = e.me == true
 				local row = Base.fill(
 					boardSpot,
 					"Row" .. i,
 					0,
-					(i - 1) * BOARD_STEP,
+					(i - 1) * (if touch then 25 else BOARD_STEP),
 					bp.w,
-					BOARD_ROW,
+					if touch then 22 else BOARD_ROW,
 					Base.color(if me then "lime" else "navy"),
 					2
 				)
 				row.BackgroundTransparency = if me then 0 else 0.2
 				Base.corner(row)
 				Base.outline(row, UiTheme.OUTLINE.small)
-				Base.text(row, "Rank", 2, 3, 20, WORDS, tostring(e.rank or i), {
+				Base.text(row, "Rank", 2, 2, 20, WORDS, tostring(e.rank or i), {
 					stroke = 3,
 					z = 3,
 				})
 				local left = 24
-				if type(e.level) == "number" then
+				if type(e.level) == "number" and not touch then
 					levelBadge(row, 23, 1, e.level)
 					left = 58
 				end
@@ -916,10 +978,10 @@ function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 					row,
 					"Name",
 					left,
-					3,
+					2,
 					bp.w - left - 36,
 					WORDS,
-					Hud.cut(e.name, BOARD_NAME),
+					Hud.cut(e.name, if touch then 10 else BOARD_NAME),
 					{
 						stroke = 3,
 						align = "l",
@@ -937,12 +999,16 @@ function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 		end
 		setBoard(data.board or {})
 		-- KILL LIST: up to 3 rows, newest on top, each gone after 5 s
-		local fp = piece("match", "Feed")
-		local feedSpot = spot(c, "match", "Feed")
+		local fp = piece(L, "Feed")
+		local feedSpot = spot(c, L, "Feed")
 		local rows: { Frame } = {}
+		-- (a phone: 2 small lines, each gone after 3 s)
+		local feedRows = if touch then 2 else FEED_ROWS
+		local feedSecs = if touch then 3 else FEED_SECS
+		local feedStep = if touch then 30 else FEED_STEP
 		local function layoutRows()
 			for i, r in rows do
-				Anim.to(r, 0.2, { Position = UDim2.fromScale(0, (i - 1) * FEED_STEP / fp.h) })
+				Anim.to(r, 0.2, { Position = UDim2.fromScale(0, (i - 1) * feedStep / fp.h) })
 			end
 		end
 		local function feed(
@@ -959,7 +1025,7 @@ function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 				0,
 				0,
 				fp.w,
-				28,
+				if touch then 26 else 28,
 				Base.color(if mine then "lime" else "navy"),
 				2
 			)
@@ -971,27 +1037,36 @@ function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 			local half = (fp.w - 32) / 2
 			local function side(x: number, name: string, level: number?, key: string, align: string)
 				local nx, nw = x, half - 4
-				if type(level) == "number" then
+				if type(level) == "number" and not touch then
 					levelBadge(row, x, 3, level, key .. "Level", 24)
 					nx, nw = x + 26, half - 30
 					align = "l" -- (the name right after its badge)
 				end
-				Base.text(row, key, nx, 5, nw, WORDS, Hud.cut(name, FEED_NAME), {
-					stroke = 3.5,
-					align = align,
-					z = 3,
-				})
+				Base.text(
+					row,
+					key,
+					nx,
+					if touch then 4 else 5,
+					nw,
+					WORDS,
+					Hud.cut(name, if touch then 7 else FEED_NAME),
+					{
+						stroke = 3.5,
+						align = align,
+						z = 3,
+					}
+				)
 			end
 			side(4, attacker, attackerLevel, "Who", "r")
 			Icons.make(row, Hud.weaponIcon(weapon), half + 4, 2, 24, { z = 4 })
 			side(half + 30, victim, victimLevel, "Whom", "l")
 			table.insert(rows, 1, row)
-			while #rows > FEED_ROWS do
+			while #rows > feedRows do
 				(table.remove(rows) :: Frame):Destroy()
 			end
 			layoutRows()
 			Anim.pop(row, nil, 0.4)
-			task.delay(FEED_SECS, function()
+			task.delay(feedSecs, function()
 				local i = table.find(rows, row)
 				if i then
 					table.remove(rows, i)
@@ -1002,8 +1077,8 @@ function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 		end
 		-- FIRE: the big red thumb button, the weapon's icon on it and a count ball with the ammo;
 		-- no weapon: a plain blue circle
-		local fpc = piece("match", "Fire")
-		local fireSpot = spot(c, "match", "Fire")
+		local fpc = piece(L, "Fire")
+		local fireSpot = spot(c, L, "Fire")
 		local fire = Kit.round(fireSpot, "Fire", 0, 0, fpc.w, "danger", "FIRE", {
 			onClick = Screen.act(actions, "fire"),
 		})

@@ -1,5 +1,5 @@
 --!strict
--- Smash how-to (WINDOWS): in your first match of a visit, one tip card at a time over the arena:
+-- Smash how-to (WINDOWS): in your first match ever (no XP yet), one tip card at a time over the arena:
 -- DRIVE! (arrow at the stick), GRAB A ? (the red box), TAP FIRE! (arrow at FIRE). Each goes as
 -- soon as you've done it (SmashScreens.step: doing a later one first skips ahead), a tap on the
 -- card skips it, and the round ending puts it away. Only reads the server's player attributes
@@ -113,8 +113,15 @@ local function run()
 	running = false
 end
 
+-- a kid's first match only: no XP yet (each match pays some; carter 10-29: the cards cluttered
+-- every match on a phone). No Xp attribute yet = saves not loaded: a first match too.
+local function firstMatch(): boolean
+	local xp = player:GetAttribute("Xp")
+	return type(xp) ~= "number" or xp <= 0
+end
+
 local function check()
-	if player:GetAttribute("InMatch") == true then
+	if player:GetAttribute("InMatch") == true and firstMatch() then
 		task.delay(1.5, function() -- (after the round's own GO moment)
 			if player:GetAttribute("InMatch") == true then
 				run()

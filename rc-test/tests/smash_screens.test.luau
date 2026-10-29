@@ -139,19 +139,23 @@ test(
 )
 
 test("match HUD: nothing covers anything else, the flash words (STUCK...) included", function()
-	local ps = UiScreens.get("match").pieces
-	truthy(UiScreens.piece("match", "Words") ~= nil, "no spot for the flash words")
-	for i = 1, #ps do
-		for j = i + 1, #ps do
-			truthy(
-				not UiScreens.overlap(ps[i], ps[j]),
-				`match.{ps[i].name} covers match.{ps[j].name}`
-			)
+	for _, id in { "match", "matchTouch" } do
+		local ps = UiScreens.get(id).pieces
+		truthy(UiScreens.piece(id, "Words") ~= nil, "no spot for the flash words")
+		for i = 1, #ps do
+			for j = i + 1, #ps do
+				truthy(
+					not UiScreens.overlap(ps[i], ps[j]),
+					`{id}.{ps[i].name} covers {id}.{ps[j].name}`
+				)
+			end
 		end
 	end
-	-- (client/Hud puts its flash words there in a match: they sat on the health bar, Studio round 5)
+	-- (client/Hud puts its flash words there in a match: they sat on the health bar, Studio round 5;
+	-- on a phone the small HUD's spot)
 	local src = require("@lune/fs").readFile("src/client/Hud.luau")
-	truthy(string.find(src, 'UiScreens.piece("match", "Words")', 1, true) ~= nil, "flash not moved")
+	truthy(string.find(src, 'UiScreens.piece(layout, "Words")', 1, true) ~= nil, "flash not moved")
+	truthy(string.find(src, '"matchTouch"', 1, true) ~= nil, "no phone spot for the flash")
 end)
 
 test("how-to tips never cover the match HUD (board, feed, clock, health, FIRE)", function()

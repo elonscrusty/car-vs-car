@@ -46,13 +46,20 @@ local function tween(obj: Instance, secs: number, goal: { [string]: any }, style
 	):Play()
 end
 
+-- a phone: the small, high, brief words (SmashJuice.WORDS_TOUCH)
+local PHONE = Base.phone()
+local SPOTS = if PHONE then SmashJuice.WORDS_TOUCH else SmashJuice.WORDS
+local function secs(s: number): number
+	return if PHONE then math.min(s, SmashJuice.TOUCH_SECONDS) else s
+end
+
 local function word(parent: Instance, name: string, color: Color3, spot: string): TextLabel
-	local at = SmashJuice.WORDS[spot]
+	local at = SPOTS[spot]
 	local l = Instance.new("TextLabel")
 	l.Name = name
 	l.AnchorPoint = Vector2.new(0.5, 0.5)
 	l.Position = UDim2.fromScale(0.5, at.y)
-	l.Size = UDim2.fromScale(SmashJuice.WORDS_W, at.h)
+	l.Size = UDim2.fromScale(if PHONE then SmashJuice.WORDS_W_TOUCH else SmashJuice.WORDS_W, at.h)
 	l.BackgroundTransparency = 1
 	l.Font = Base.FONT
 	l.TextScaled = true
@@ -65,7 +72,7 @@ local function word(parent: Instance, name: string, color: Color3, spot: string)
 	stroke.LineJoinMode = Enum.LineJoinMode.Round
 	stroke.Parent = l
 	local max = Instance.new("UITextSizeConstraint")
-	max.MaxTextSize = 64
+	max.MaxTextSize = if PHONE then 36 else 64
 	max.Parent = l
 	local pop = Instance.new("UIScale")
 	pop.Name = "Pop"
@@ -185,8 +192,7 @@ function SmashFx.start()
 				b.spin = rng:NextNumber(-540, 540)
 				local s = rng:NextInteger(7, 13)
 				b.frame.Size = UDim2.fromOffset(s, math.floor(s * 0.6))
-				b.frame.Position =
-					UDim2.fromScale(0.5 + rng:NextNumber(-0.12, 0.12), SmashJuice.WORDS.name.y)
+				b.frame.Position = UDim2.fromScale(0.5 + rng:NextNumber(-0.12, 0.12), SPOTS.name.y)
 				b.frame.Rotation = rng:NextNumber(0, 360)
 				b.frame.BackgroundTransparency = 0
 				b.frame.Visible = true
@@ -421,15 +427,15 @@ function SmashFx.start()
 		if f.attacker and f.attacker.me and not f.victim.me then
 			local word2 = myStreak:smash(at)
 			by.Visible = false
-			showWord(you, SmashJuice.smashLine(f.weapon), SmashJuice.WORDS_SECONDS, 1.3)
+			showWord(you, SmashJuice.smashLine(f.weapon), secs(SmashJuice.WORDS_SECONDS), 1.3)
 			showWord(
 				name,
 				SmashJuice.shortName(f.victim.name) .. "!",
-				SmashJuice.WORDS_SECONDS,
+				secs(SmashJuice.WORDS_SECONDS),
 				1.4
 			)
 			if word2 then
-				showWord(streak, word2, SmashJuice.STREAK_SECONDS, 1.5)
+				showWord(streak, word2, secs(SmashJuice.STREAK_SECONDS), 1.5)
 			end
 			local juice = SmashJuice.feel("mySmash", myStreak.run, reduced)
 			feel(juice)
@@ -451,7 +457,7 @@ function SmashFx.start()
 			showWord(
 				by,
 				SmashJuice.deathLine(f.weapon, other and other.name),
-				SmashJuice.SMASHED_BY_SECONDS,
+				secs(SmashJuice.SMASHED_BY_SECONDS),
 				1.3
 			)
 			local juice = SmashJuice.feel("smashed", nil, reduced)

@@ -434,6 +434,29 @@ local LIST: { Screen } = {
 			button("Fire", 618, 244, 118, 118, "danger", "FIRE", { anchor = "br" }),
 		},
 	},
+	-- the match HUD on a phone (carter 10-29: "can't see on mobile, too cluttered"): the Smash
+	-- Karts minimum, every piece at an edge and the middle half of the screen empty. A tiny 2/8
+	-- chip and your row + the leader top left, the clock over a slim health bar top centre, two
+	-- small kill lines top right, FIRE (with the weapon and ammo on it) bottom right.
+	{
+		id = "matchTouch",
+		n = 18,
+		title = "Match (phone)",
+		kind = "hud",
+		gameplay = true,
+		pieces = {
+			p("Place", 6, 6, 74, 30, { anchor = "tl" }),
+			p("Board", 6, 40, 170, 47, { anchor = "tl" }),
+			-- (the top centre ends by 39: on a 667x375 phone under the 58 px top bar that is just
+			-- above the middle half; the kill lines stay in the right quarter, even on a tall phone)
+			p("Feed", 566, 6, 190, 56, { anchor = "tr" }),
+			p("Clock", 336, 3, 84, 27, { anchor = "t" }),
+			p("Health", 318, 32, 120, 7, { anchor = "t" }),
+			p("Words", 228, 54, 300, 30, { anchor = "t" }),
+			-- (112: 88 px on a 667x375 phone)
+			button("Fire", 624, 260, 112, 112, "danger", "FIRE", { anchor = "br" }),
+		},
+	},
 }
 
 UiScreens.LIST = LIST
