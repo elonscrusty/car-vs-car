@@ -510,8 +510,8 @@ local function buildSand(folder: Instance)
 			p:SetAttribute("Drag", 0.3)
 		end
 	end
-	-- the red bumper wall round it, open where SAND_GAPS says
-	local n = #sand
+	-- the red bumper wall round it, open where SAND_GAPS says (when it's on)
+	local n = if ArenaData.SAND_WALL then #sand else 0
 	for i = 1, n do
 		local a, b = v(sand[i], 0), v(sand[i % n + 1], 0)
 		local cuts = { 0 }
