@@ -855,7 +855,9 @@ function SpawnLobby.dress(model: Instance, origin: CFrame)
 				"QuestionBox",
 				-- (small and just over the roof: higher, it went off the top of the spawn view)
 				Vector3.new(3.2, 3.2, 3.2),
-				CFrame.new(at(crates.x, crates.z) + Vector3.new(0, 13.6, 0)),
+				-- (over the shop's back half, away from the plaza: lower on screen, clear of the
+				-- desktop coin chip, Studio r5)
+				CFrame.new(at(crates.x - 4, crates.z) + Vector3.new(0, 13.6, 0)),
 				Color3.fromRGB(255, 210, 63),
 				false
 			)
