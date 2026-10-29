@@ -426,6 +426,9 @@ local LIST: { Screen } = {
 			p("Feed", 536, 8, 220, 96, { anchor = "tr" }),
 			p("Clock", 323, 4, 110, 36, { anchor = "t" }),
 			p("Health", 238, 44, 280, 30, { anchor = "t" }),
+			-- the short flash words (STUCK - BACK TO START...), drawn by client/Hud: under the health
+			-- bar, clear of the board and the feed (they sat on the health bar, Studio round 5)
+			p("Words", 228, 110, 280, 34, { anchor = "t" }),
 			button("Fire", 618, 244, 118, 118, "danger", "FIRE", { anchor = "br" }),
 		},
 	},

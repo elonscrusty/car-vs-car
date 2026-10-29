@@ -94,8 +94,9 @@ local LIST: { Screen } = {
 		kind = "hud",
 		gameplay = true,
 		pieces = {
-			-- at the right edge, between the feed and FIRE: never over the middle of the road
-			p("Tip", 536, 108, 220, 76, { anchor = "r", tap = true }),
+			-- right side, between the feed and FIRE: never over the middle of the road, and 20 off
+			-- the edge (its right edge was cut on a phone, audit R6-4)
+			p("Tip", 516, 108, 220, 76, { anchor = "r", tap = true }),
 			-- the arrow for each step: just right of the stick corner pointing left at it (the
 			-- scoreboard sits above the corner), and just left of FIRE pointing at it
 			p("ArrowDrive", 148, 290, 56, 56, { anchor = "bl" }),
@@ -196,14 +197,18 @@ SmashScreens.WORDS = {
 }
 
 SmashScreens.DRIVE_STUDS = 12 -- driven this far = the drive step is done
+-- GRAB A ? only in a kid's first seconds of the tips: a minute in it read as late and sat over a
+-- box (audit R6-4); after this the next tip is TAP FIRE!, shown once a box gives a weapon
+SmashScreens.GRAB_SECS = 15
 
 -- Which how-to step shows now (4 = all done), from the one showing and what the kid has done:
--- moved (studs from where the tip started), weapon ("" = none), fired (ammo went down).
+-- moved (studs from where the tip started), weapon ("" = none), fired (ammo went down), secs
+-- (since the tips started; GRAB A ? is over at GRAB_SECS).
 -- Doing a later thing first skips ahead: a kid who grabs a box before the tip says so never
 -- sees GRAB A ?.
 function SmashScreens.step(
 	at: number,
-	did: { moved: number, weapon: string, fired: boolean }
+	did: { moved: number, weapon: string, fired: boolean, secs: number? }
 ): number
 	local s = math.clamp(at, 1, 4)
 	if did.fired then
@@ -214,6 +219,9 @@ function SmashScreens.step(
 	end
 	if s == 1 and did.moved >= SmashScreens.DRIVE_STUDS then
 		s = 2
+	end
+	if s == 2 and (did.secs or 0) >= SmashScreens.GRAB_SECS then
+		s = 3
 	end
 	return s
 end

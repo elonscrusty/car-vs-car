@@ -58,6 +58,7 @@ local function run()
 	local fired = false
 	local shown = step
 	local shownAt = os.clock()
+	local startedAt = os.clock()
 	local handle = Smash.howTo(step, {
 		skip = function()
 			-- (from the card on screen: two quick taps still skip only one step)
@@ -88,6 +89,7 @@ local function run()
 			moved = if pos and start then (pos - start).Magnitude else 0,
 			weapon = w,
 			fired = fired,
+			secs = os.clock() - startedAt,
 		})
 		if now == 1 and shown == 1 and os.clock() - shownAt >= DRIVE_SECS then
 			now = 2
