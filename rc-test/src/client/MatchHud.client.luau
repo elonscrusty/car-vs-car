@@ -20,6 +20,7 @@ local Ui = script.Parent:WaitForChild("Ui")
 local Screen = require(Ui:WaitForChild("Screen"))
 local Hud = require(Ui:WaitForChild("Screens"):WaitForChild("Hud"))
 local SmashJuice = require(Shared:WaitForChild("SmashJuice"))
+local SmashScreens = require(Shared:WaitForChild("SmashScreens"))
 local Sfx = require(script.Parent:WaitForChild("Sfx"))
 local TestThumb = require(script.Parent:WaitForChild("TestThumb"))
 
@@ -110,7 +111,19 @@ local function boardList(): { { [string]: any } }
 		end
 		return a.name < b.name
 	end)
+	SmashScreens.rank(list)
 	return list
+end
+
+-- your place for the chip: the board's own rank, so the two always agree (audit R7-6); the
+-- server's Place only while you're not on the board yet
+local function myPlace(list: { { [string]: any } }): number
+	for _, e in list do
+		if e.me == true then
+			return e.rank
+		end
+	end
+	return num("Place", 1)
 end
 
 local hud: Screen.Handle? = nil
@@ -136,7 +149,7 @@ local function refresh()
 		return
 	end
 	local api = h.api
-	api.setPlace(num("Place", 1), karts(), num("Smashes", 0))
+	api.setPlace(myPlace(boardList()), karts(), num("Smashes", 0))
 	api.setHealth(num("Health", 100), num("MaxHealth", 100), attr("Shield") == true)
 	local w = attr("Weapon")
 	api.setWeapon(if type(w) == "string" then w else "", num("Ammo", 0))
@@ -247,7 +260,7 @@ RunService.Heartbeat:Connect(function()
 		lastBoard = os.clock()
 		local list = boardList()
 		h.api.setBoard(list)
-		h.api.setPlace(num("Place", 1), karts(), num("Smashes", 0))
+		h.api.setPlace(myPlace(list), karts(), num("Smashes", 0))
 	end
 	local left = num("MatchEndsAt", 0) - workspace:GetServerTimeNow()
 	local secs = math.max(0, math.ceil(left))

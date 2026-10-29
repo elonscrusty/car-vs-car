@@ -675,7 +675,9 @@ end
 local tagGui: Base.Gui? = nil
 local function carTag()
 	local car = racer()
-	if not car then
+	-- (Smash: no name bar over the kart at the start; the YOU tag and the weapon icon are
+	-- enough, Studio round 6)
+	if SMASH or not car then
 		return
 	end
 	local g = tagGui or Base.screen("Ui_CarTag", Base.ORDER.hud, false)
@@ -688,7 +690,7 @@ local function carTag()
 	pill.BackgroundTransparency = 0.15
 	Base.corner(pill)
 	Base.outline(pill, 3, Base.color("go"))
-	local words = if SMASH then CvcState.name(car.id) else `{CvcState.name(car.id)}  SPD {spd}`
+	local words = `{CvcState.name(car.id)}  SPD {spd}`
 	Base.text(pill, "Words", 10, 4, 240, 32, words, {
 		color = Base.color("go"),
 		stroke = 4,

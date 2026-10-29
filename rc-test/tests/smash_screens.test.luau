@@ -316,3 +316,39 @@ test("R6-2: stuck in Smash says OOPS! FLIPPING YOU BACK (no race words)", functi
 	local src = require("@lune/fs").readFile("src/client/Main.client.luau")
 	truthy(string.find(src, '"OOPS! FLIPPING YOU BACK"', 1, true) ~= nil, "still race words")
 end)
+
+test("Studio round 6: GO SMASH!'s drop hides with it; no car name bar in Smash", function()
+	local fs = require("@lune/fs")
+	local hud = fs.readFile("src/client/Ui/Screens/Hud.luau")
+	truthy(string.find(hud, 'FindFirstChild(l.Name .. "Drop")', 1, true) ~= nil, "drop left behind")
+	local screens = fs.readFile("src/client/CvcScreens.client.luau")
+	truthy(string.find(screens, "if SMASH or not car then", 1, true) ~= nil, "BOLT bar in Smash")
+end)
+
+test("R7-6: the place chip and the board agree, ties share a place", function()
+	-- (the kid on 1 smash tied with two others behind two leaders: 3RD on both, never 5)
+	local list = {
+		{ name = "A", smashes = 4 },
+		{ name = "B", smashes = 2 },
+		{ name = "C", smashes = 1 },
+		{ name = "D", smashes = 1 },
+		{ name = "ME", smashes = 1, me = true },
+		{ name = "E", smashes = 0 },
+	}
+	local mine = SmashScreens.rank(list)
+	eq(mine, 3)
+	eq(list[5].rank, 3, "the board row says the same as the chip")
+	eq(list[3].rank, 3)
+	eq(list[1].rank, 1)
+	eq(list[6].rank, 6)
+	eq(SmashScreens.rank({ { name = "X", smashes = 2 } }), nil, "not on the board")
+	local fs = require("@lune/fs")
+	local mh = fs.readFile("src/client/MatchHud.client.luau")
+	truthy(
+		string.find(mh, 'num("Place", 1), karts()', 1, true) == nil,
+		"the chip reads Place again"
+	)
+	truthy(string.find(mh, "SmashScreens.rank(list)", 1, true) ~= nil, "the board has no ranks")
+	local hud = fs.readFile("src/client/Ui/Screens/Hud.luau")
+	truthy(string.find(hud, "row.rank = e.rank or i", 1, true) ~= nil, "board rows ignore the rank")
+end)

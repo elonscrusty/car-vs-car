@@ -249,4 +249,25 @@ function SmashScreens.step(
 	return s
 end
 
+-- One place rule for the place chip and the board (audit R7-6: the chip said 3RD while the
+-- board had the kid 5th): a kart's place is 1 + the karts with MORE smashes, so karts tied on
+-- smashes share it. Sets .rank on each entry ({ smashes, me? }) and returns your place (nil when
+-- you're not on the board).
+function SmashScreens.rank(list: { { [string]: any } }): number?
+	local mine: number? = nil
+	for _, e in list do
+		local ahead = 0
+		for _, o in list do
+			if (o.smashes or 0) > (e.smashes or 0) then
+				ahead += 1
+			end
+		end
+		e.rank = ahead + 1
+		if e.me == true then
+			mine = e.rank
+		end
+	end
+	return mine
+end
+
 return SmashScreens
