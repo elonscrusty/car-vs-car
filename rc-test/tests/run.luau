@@ -114,5 +114,6 @@ require("./match_overflow.test")
 require("./rejoin_wait.test")
 require("./coins_chip.test")
 require("./fire_drake.test")
+require("./weapon_mounts.test")
 
 Harness.summary()

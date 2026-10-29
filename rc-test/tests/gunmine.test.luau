@@ -144,8 +144,11 @@ test("gunmine: distances are RC size and make sense next to a kart", function()
 	-- the gun and freeze reach far, but not across the whole arena
 	for _, m in { Gun, Freeze } do
 		truthy(m.RANGE >= 20 * kartLen and m.RANGE <= arena * 0.6, m.NAME .. " range")
-		truthy(m.MUZZLE > kartLen / 2 and m.MUZZLE < kartLen, m.NAME .. " muzzle at the nose")
 	end
+	truthy(Freeze.MUZZLE > kartLen / 2 and Freeze.MUZZLE < kartLen, "freeze muzzle at the nose")
+	-- the gun's barrel is on the roof: ahead of the middle, not past the nose, above the roofline
+	truthy(Gun.MUZZLE > kartLen * 0.2 and Gun.MUZZLE < kartLen, "gun muzzle at the barrel tip")
+	truthy(Gun.HEIGHT > kartLen * 0.2 and Gun.HEIGHT < kartLen, "gun muzzle above the roof")
 	-- a mine lands clear of the tail, and a kart touching it (nose or side) sets it off
 	truthy(Mine.BEHIND > kartLen / 2, "mine behind the tail")
 	truthy(Mine.RADIUS > kartLen / 2 and Mine.RADIUS < kartLen * 1.5, "mine radius about a kart")

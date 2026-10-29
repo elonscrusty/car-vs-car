@@ -18,6 +18,8 @@ local function shared(name: string): any
 end
 
 local Weapons = shared("Weapons")
+local WeaponMounts = shared("WeaponMounts")
+local WeaponLooks = shared("WeaponLooks")
 
 local Gun = {}
 
@@ -33,8 +35,13 @@ Gun.GAP = 0.07 -- seconds between bullets in a burst
 Gun.BURST_DAMAGE = 34 -- a whole burst, split over its bullets
 Gun.RANGE = 160 * S -- about 29 kart lengths, 44% of the arena's width
 Gun.AIM_DEG = 25 -- aim help: snaps to the nearest kart this close to the aim
-Gun.MUZZLE = 3.5 * S -- just past the kart's nose
-Gun.HEIGHT = 1.5 * S -- above the kart centre
+-- Bullets leave the barrel tip of the gun part that clicks onto the car (shared/WeaponMounts,
+-- WeaponLooks). It is the Gun's own look, the same for every look and skin, so a skin never
+-- changes where bullets start (looks only, no pay-to-win).
+local gunLook = assert(WeaponLooks.forWeapon(Gun.NAME, nil), "the Gun has no look")
+local AHEAD, UP = WeaponMounts.muzzle(gunLook.mount, gunLook.muzzles[1])
+Gun.MUZZLE = AHEAD * 5.5 * S -- ahead of the kart centre
+Gun.HEIGHT = UP * 5.5 * S -- above the kart centre
 
 export type Kart = { id: any, cframe: CFrame, alive: boolean, shield: boolean? }
 export type Hit = { kartId: any?, position: Vector3 }
