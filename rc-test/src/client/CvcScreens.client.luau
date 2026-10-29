@@ -30,6 +30,7 @@ local League = require(Shared:WaitForChild("League"))
 local Profile = require(Shared:WaitForChild("Profile"))
 local Training = require(Shared:WaitForChild("Training"))
 local SmashScreens = require(Shared:WaitForChild("SmashScreens"))
+local WarmupYard = require(Shared:WaitForChild("WarmupYard"))
 local UiTheme = require(Shared:WaitForChild("UiTheme"))
 local CvcState = require(script.Parent:WaitForChild("CvcState"))
 local LeagueUp = require(script.Parent:WaitForChild("LeagueUp"))
@@ -750,6 +751,19 @@ local function nextBuy(): (string?, number, string?)
 end
 local nextKind: string? = nil
 
+-- driving in Smash's warm-up yard? (your kart, or you on foot; WarmupYard.client's check)
+local function inYard(): boolean
+	local car = workspace:FindFirstChild("Car_" .. player.UserId)
+	local body = if car and car:IsA("Model") then car.PrimaryPart else nil
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	local part = body or (if root and root:IsA("BasePart") then root else nil)
+	if not part then
+		return false
+	end
+	local p = part.Position
+	return WarmupYard.inside({ x = p.X, y = p.Y, z = p.Z })
+end
+
 local function hudGoal(): (string?, string?)
 	if attr("Picked") ~= true then
 		return nil, nil
@@ -1004,7 +1018,14 @@ RunService.Heartbeat:Connect(function()
 		player:SetAttribute("HudGoal", goal)
 		lastInput = now
 	end
-	api.point(goal, goalWords, now - lastInput >= IDLE_NUDGE)
+	-- (Smash's warm-up yard: the SMASH! button and its arrow sat on your kart there, and the yard
+	-- has its own NEXT MATCH clock; LOBBY 00:37)
+	local yard = SMASH and inYard()
+	api.point(
+		if yard and goal == "Race" then nil else goal,
+		goalWords,
+		now - lastInput >= IDLE_NUDGE
+	)
 	local coins = num("Coins")
 	local nw, nf, nk = nextBuy()
 	if coins ~= lastCoins or nk ~= nextKind or nw ~= lastNext then
@@ -1025,7 +1046,7 @@ RunService.Heartbeat:Connect(function()
 		-- SMASH! / YOU'RE IN! (the pad queues you); no coach
 		api.setShown("Coach", false)
 		local queued = attr("MatchQueued") == true
-		api.setShown("Race", attr("InMatch") ~= true)
+		api.setShown("Race", attr("InMatch") ~= true and not yard)
 		-- (no clock here: LOBBY's top strip has NEXT MATCH IN m:ss, one clock only, audit R4-5)
 		if queued then
 			api.setRace("YOU'RE IN!", "blue", false)
