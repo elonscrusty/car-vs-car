@@ -94,6 +94,31 @@ function SmashJuice.deathLine(weapon: string, killer: string?): string
 	return `You were {w.verb} by {SmashJuice.shortName(killer)}'s {w.thing}`
 end
 
+-- The "wrecked" card (carter 10-29, tries A): a big red verb, a name tag with the weapon on a
+-- pink badge, and the 3-2-1 ring. `verb` is the shout ("MOWED DOWN!"), `tag` the line on the tag
+-- ("by Zed's machine gun", "no one to blame" for a fall), `icon` the Icons.make name.
+local WRECK_ICONS =
+	{ rocket = "rocket", nuke = "nuke", gun = "gun", mine = "mine", freeze = "freeze" }
+export type Wreck = { verb: string, tag: string, icon: string }
+function SmashJuice.wreck(weapon: string, killer: string?): Wreck
+	local key = string.lower(weapon or "")
+	key = ALIAS[key] or key
+	if not killer and FELL[key] then
+		return { verb = "YOU FELL OUT!", tag = "no one to blame", icon = "arrow" }
+	end
+	local w = words(weapon)
+	local icon = WRECK_ICONS[key] or "burst"
+	if not killer then
+		local a = if string.match(w.thing, "^[aeiou]") then "an" else "a"
+		return { verb = string.upper(w.verb) .. "!", tag = `by {a} {w.thing}`, icon = icon }
+	end
+	return {
+		verb = string.upper(w.verb) .. "!",
+		tag = `by {SmashJuice.shortName(killer)}'s {w.thing}`,
+		icon = icon,
+	}
+end
+
 -- ===== who did what (the SmashFeed remote) =====
 
 -- SmashFeed:FireAllClients(attacker, victim, weapon). Each side can be a Player, a bot's name
@@ -353,7 +378,60 @@ SmashJuice.WORDS_TOUCH = {
 	count = { y = 0.5, h = 0.09 },
 } :: { [string]: { y: number, h: number } }
 SmashJuice.TOUCH_SECONDS = 1
+
+-- The wrecked card's spots (same rule as the words: under the clock and health bar, clear of
+-- FIRE). `w` = width of the verb / tag as a fraction of the screen; ring h = height fraction.
+SmashJuice.WRECK = {
+	verb = { y = 0.4, h = 0.08, w = 0.36 },
+	tag = { y = 0.5, h = 0.07, w = 0.34 },
+	ring = { y = 0.72, h = 0.22, w = 0 },
+} :: { [string]: { y: number, h: number, w: number } }
+SmashJuice.WRECK_TOUCH = {
+	verb = { y = 0.385, h = 0.12, w = 0.3 },
+	tag = { y = 0.49, h = 0.08, w = 0.26 },
+	ring = { y = 0.7, h = 0.26, w = 0 },
+} :: { [string]: { y: number, h: number, w: number } }
 -- (the words pop in from at most 1.5x, so the pop never sweeps over the HUD for long)
+
+-- The match start (carter's pick A1, 10-29): a giant 3, 2, 1 and GO! over the first seconds of a
+-- round. It is only a show (the server starts the round at once; the spawn shield covers the
+-- first 2 s). `startStep(t)` is the word to show t seconds after the round began.
+SmashJuice.START_STEP = 1 -- seconds per number
+SmashJuice.START_GO_SECONDS = 1.4 -- how long GO! stays
+function SmashJuice.startStep(t: number): string?
+	if t < 0 then
+		return nil
+	end
+	local i = math.floor(t / SmashJuice.START_STEP)
+	if i < 3 then
+		return tostring(3 - i)
+	end
+	if t < 3 * SmashJuice.START_STEP + SmashJuice.START_GO_SECONDS then
+		return "GO!"
+	end
+	return nil
+end
+-- where the number and the "GET READY!" line sit (the same rule as the words: clear of the HUD)
+SmashJuice.START = {
+	num = { y = 0.5, h = 0.34, w = 0.24 },
+	ready = { y = 0.72, h = 0.05, w = 0.3 },
+} :: { [string]: { y: number, h: number, w: number } }
+SmashJuice.START_TOUCH = {
+	num = { y = 0.5, h = 0.3, w = 0.2 },
+	ready = { y = 0.7, h = 0.06, w = 0.26 },
+} :: { [string]: { y: number, h: number, w: number } }
+
+-- ROUND OVER! at 0:00 (carter's pick A, 10-29): the gold words play this long before the
+-- between-rounds screen opens. Spots as above: clear of the HUD, under the clock and health bar.
+SmashJuice.ROUND_OVER_SECONDS = 1.6
+SmashJuice.ROUND_OVER = {
+	word = { y = 0.56, h = 0.11, w = 0.36 },
+	sub = { y = 0.66, h = 0.05, w = 0.2 },
+} :: { [string]: { y: number, h: number, w: number } }
+SmashJuice.ROUND_OVER_TOUCH = {
+	word = { y = 0.52, h = 0.14, w = 0.38 },
+	sub = { y = 0.64, h = 0.06, w = 0.2 },
+} :: { [string]: { y: number, h: number, w: number } }
 
 -- Palette for confetti (the low-poly look: grass, sky, sun, cherry, pink).
 SmashJuice.CONFETTI = {

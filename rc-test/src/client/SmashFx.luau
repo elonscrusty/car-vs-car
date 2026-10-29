@@ -22,6 +22,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local SmashJuice = require(Shared:WaitForChild("SmashJuice"))
 local Ui = script.Parent:WaitForChild("Ui")
 local Base = require(Ui:WaitForChild("Base"))
+local Icons = require(Ui:WaitForChild("Icons"))
 local Sfx = require(script.Parent:WaitForChild("Sfx"))
 
 local player = Players.LocalPlayer
@@ -172,8 +173,147 @@ function SmashFx.start()
 	end
 	local name = word(gui, "Name", Color3.new(1, 1, 1), "name")
 	local streak = word(gui, "Streak", PINK, "streak")
-	local by = word(gui, "SmashedBy", CHERRY, "by")
-	local count = word(gui, "Count", Color3.new(1, 1, 1), "count")
+
+	-- the wrecked card (carter's pick A, 10-29): a red verb, a name tag with the weapon on a pink
+	-- badge, and a 3-2-1 ring. Made once; a death only sets text and icon.
+	local RED = Color3.fromRGB(255, 67, 56)
+	local PANEL = Color3.fromRGB(19, 48, 74)
+	local spot = if PHONE then SmashJuice.WRECK_TOUCH else SmashJuice.WRECK
+	local function popScale(parent: Instance): UIScale
+		local sc = Instance.new("UIScale")
+		sc.Name = "Pop"
+		sc.Parent = parent
+		return sc
+	end
+	local function popIn(sc: UIScale, from: number, delay: number)
+		if Base.reduced() then
+			sc.Scale = 1
+			return
+		end
+		sc.Scale = from
+		task.delay(delay, function()
+			tween(sc, 0.22, { Scale = 1 }, Enum.EasingStyle.Back)
+		end)
+	end
+	local function ink(l: GuiObject, px: number)
+		local st = Instance.new("UIStroke")
+		st.Color = NAVY
+		st.Thickness = px
+		st.LineJoinMode = Enum.LineJoinMode.Round
+		st.Parent = l
+	end
+	local function text(parent: Instance, name: string, color: Color3): TextLabel
+		local l = Instance.new("TextLabel")
+		l.Name = name
+		l.BackgroundTransparency = 1
+		l.Font = Base.FONT
+		l.TextScaled = true
+		l.TextColor3 = color
+		l.Text = ""
+		l.Parent = parent
+		return l
+	end
+
+	local card = Instance.new("Frame")
+	card.Name = "Wreck"
+	card.Size = UDim2.fromScale(1, 1)
+	card.BackgroundTransparency = 1
+	card.Visible = false
+	card.Parent = gui
+
+	local verb = text(card, "Verb", RED)
+	verb.AnchorPoint = Vector2.new(0.5, 0.5)
+	verb.Position = UDim2.fromScale(0.5, spot.verb.y)
+	verb.Size = UDim2.fromScale(spot.verb.w, spot.verb.h)
+	ink(verb, if PHONE then 4 else 6)
+	local verbMax = Instance.new("UITextSizeConstraint")
+	verbMax.MaxTextSize = if PHONE then 44 else 84
+	verbMax.Parent = verb
+	local verbPop = popScale(verb)
+
+	local tag = Instance.new("Frame")
+	tag.Name = "Tag"
+	tag.AnchorPoint = Vector2.new(0.5, 0.5)
+	tag.Position = UDim2.fromScale(0.5, spot.tag.y)
+	tag.Size = UDim2.fromScale(spot.tag.w, spot.tag.h)
+	tag.BackgroundColor3 = PANEL
+	tag.Parent = card
+	Base.corner(tag, 999)
+	ink(tag, if PHONE then 3 else 4)
+	local tagPop = popScale(tag)
+	local tagText = text(tag, "Words", Color3.new(1, 1, 1))
+	tagText.RichText = true
+	tagText.Position = UDim2.fromScale(0.05, 0.12)
+	tagText.Size = UDim2.fromScale(0.68, 0.76)
+	tagText.TextXAlignment = Enum.TextXAlignment.Left
+	local badge = Instance.new("Frame")
+	badge.Name = "Badge"
+	badge.AnchorPoint = Vector2.new(1, 0.5)
+	badge.Position = UDim2.fromScale(0.985, 0.5)
+	badge.Size = UDim2.fromScale(0.95, 0.95)
+	badge.BackgroundColor3 = PINK
+	badge.Parent = tag
+	Base.corner(badge, 999)
+	ink(badge, 3)
+	local square = Instance.new("UIAspectRatioConstraint")
+	square.DominantAxis = Enum.DominantAxis.Height
+	square.Parent = badge
+
+	local ring = Instance.new("Frame")
+	ring.Name = "Ring"
+	ring.AnchorPoint = Vector2.new(0.5, 0.5)
+	ring.Position = UDim2.fromScale(0.5, spot.ring.y)
+	ring.BackgroundColor3 = PANEL
+	ring.BackgroundTransparency = 0.15
+	ring.Parent = card
+	Base.corner(ring, 999)
+	local ringEdge = Instance.new("UIStroke")
+	ringEdge.Color = SUN
+	ringEdge.Parent = ring
+	local ringPop = popScale(ring)
+	local num = text(ring, "Number", Color3.new(1, 1, 1))
+	num.AnchorPoint = Vector2.new(0.5, 0.5)
+	num.Position = UDim2.fromScale(0.5, 0.5)
+	num.Size = UDim2.fromScale(0.6, 0.6)
+	ink(num, if PHONE then 3 else 5)
+	local backIn = text(ring, "BackIn", Color3.new(1, 1, 1))
+	backIn.AnchorPoint = Vector2.new(1, 0.5)
+	backIn.Position = UDim2.new(0, -8, 0.5, 0)
+	backIn.Size = UDim2.fromScale(0.9, 0.22)
+	backIn.TextXAlignment = Enum.TextXAlignment.Right
+	backIn.Text = "BACK IN"
+	ink(backIn, 3)
+
+	local function showWreck(w: SmashJuice.Wreck)
+		local screen = gui.AbsoluteSize
+		verb.Text = w.verb
+		local who, thing = string.match(w.tag, "^by (.-)'s (.+)$")
+		tagText.Text = if who
+			then `by <font color="#ff4f9a">{who}'s {thing}</font>`
+			else if string.sub(w.tag, 1, 3) == "by "
+				then `by <font color="#ff4f9a">{string.sub(w.tag, 4)}</font>`
+				else w.tag
+		local tagH = screen.Y * spot.tag.h
+		for _, c in badge:GetChildren() do
+			if c:IsA("GuiObject") then
+				c:Destroy()
+			end
+		end
+		local bs = tagH * 0.95
+		local icon = bs * 0.66
+		Icons.make(badge, w.icon, (bs - icon) / 2, (bs - icon) / 2, icon, { z = 3 })
+		local d = math.floor(screen.Y * spot.ring.h)
+		ring.Size = UDim2.fromOffset(d, d)
+		ringEdge.Thickness = math.max(4, d * 0.06)
+		num.Text = ""
+		card.Visible = true
+		popIn(verbPop, 0.2, 0)
+		popIn(tagPop, 0.2, 0.12)
+	end
+	local function showCount(n: number)
+		num.Text = tostring(n)
+		popIn(ringPop, 1.35, 0)
+	end
 
 	-- the confetti pool
 	type Bit = { frame: Frame, vx: number, vy: number, spin: number, life: number }
@@ -313,7 +453,7 @@ function SmashFx.start()
 		killerModel = nil
 		lastWant = nil
 		shownCount = nil
-		count.Visible = false
+		card.Visible = false
 	end
 
 	RunService:BindToRenderStep(
@@ -358,7 +498,7 @@ function SmashFx.start()
 					if n ~= shownCount then
 						shownCount = n
 						if n then
-							showWord(count, tostring(n), 0.9, 1.4)
+							showCount(n)
 							Sfx.count(n)
 						end
 					end
@@ -440,7 +580,7 @@ function SmashFx.start()
 		local reduced = Base.reduced()
 		if f.attacker and f.attacker.me and not f.victim.me then
 			local word2 = myStreak:smash(at)
-			by.Visible = false
+			card.Visible = false
 			showWord(you, SmashJuice.popWord(f.weapon), secs(SmashJuice.WORDS_SECONDS), 0.3)
 			showWord(name, SmashJuice.shortName(f.victim.name), secs(SmashJuice.WORDS_SECONDS), 1.4)
 			if word2 then
@@ -463,12 +603,7 @@ function SmashFx.start()
 			name.Visible = false
 			streak.Visible = false
 			local other = if f.attacker and not f.attacker.me then f.attacker else nil
-			showWord(
-				by,
-				SmashJuice.deathLine(f.weapon, other and other.name),
-				secs(SmashJuice.SMASHED_BY_SECONDS),
-				1.3
-			)
+			showWreck(SmashJuice.wreck(f.weapon, other and other.name))
 			local juice = SmashJuice.feel("smashed", nil, reduced)
 			feel(juice)
 			edge(CHERRY, juice.flash)
@@ -563,6 +698,14 @@ function SmashFx.boom(at: Vector3)
 		return
 	end
 	add(SmashJuice.feel("boom", (cam.CFrame.Position - at).Magnitude, Base.reduced()))
+end
+
+-- a shake and a zoom punch for a moment that isn't a hit (the match start's 3-2-1-GO)
+function SmashFx.kick(trauma: number, punch: number)
+	local add = addFeel
+	if add and not Base.reduced() then
+		add({ trauma = trauma, punch = punch, slow = 0.12, confetti = 0, flash = 0 })
+	end
 end
 
 -- your own hit on another kart (client/SmashHits): a small shake
