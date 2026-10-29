@@ -464,7 +464,9 @@ local toggle = Kit.button(stage, "Toggle", 164, 348, 100, 36, "white", "SCREENS"
 	end,
 })
 Base.show(bar, true)
--- (out of the way of a game window's buttons: it sat on the crate window's OPEN, Studio garage 5)
+-- (out of the way of a game window's buttons: it sat on the crate window's OPEN, Studio garage 5;
+-- and out of every match shot, Studio round3)
+local me = game:GetService("Players").LocalPlayer
 RunService.Heartbeat:Connect(function()
-	toggle.Visible = open or not Screen.anyOver()
+	toggle.Visible = open or not (Screen.anyOver() or me:GetAttribute("InMatch") == true)
 end)
