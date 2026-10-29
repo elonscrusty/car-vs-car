@@ -103,12 +103,9 @@ test("map: skips a box behind a cliff for one it can see; goes by the ramp", fun
 	truthy(out.steer < -0.3, `left toward it, got {out.steer}`)
 	-- none in sight: the nearest, as before
 	local s2 = ThumbBrain.new(rng())
-	eq(
-		ThumbBrain.step(s2, 0, ME, { near }, {}, false, cliff).target.x,
-		10,
-		"no other: the near one"
-	)
-	-- the box up a hill: steer at the ramp's foot (on the left), keep the box as the target
+	local o2 = ThumbBrain.step(s2, 0, ME, { near }, {}, false, cliff)
+	eq(o2.target and o2.target.x, 10, "no other: the near one")
+	-- the box up a hill: steer at the ramp's foot (on the left)
 	local ramp: ThumbBrain.Map = {
 		sight = function(): boolean
 			return true
@@ -119,7 +116,7 @@ test("map: skips a box behind a cliff for one it can see; goes by the ramp", fun
 	}
 	local s3 = ThumbBrain.new(rng())
 	local up = ThumbBrain.step(s3, 0, ME, { near }, {}, false, ramp)
-	eq(up.target and up.target.x, 10, "still after the box")
+	eq(up.target and up.target.x, -10, "heading for the ramp")
 	truthy(up.steer < -0.3, `left, to the ramp, got {up.steer}`)
 end)
 

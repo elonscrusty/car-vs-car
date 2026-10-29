@@ -48,7 +48,7 @@ export type Out = {
 	throttle: number,
 	brake: number,
 	fire: boolean,
-	target: Point?,
+	target: Point?, -- where it's steering: the box or kart, a detour point, or a ramp's foot
 	mode: string,
 }
 -- (optional) what the kid can see of the arena, in the same units as Me (ArenaBrain.sight and
@@ -188,12 +188,12 @@ function ThumbBrain.step(
 	if detouring then
 		aim = s.detour
 	end
-	local target = aim
+	local onWay = false
 	if aim and map and not detouring then
 		-- (on or off a hill: by its ramp)
 		local wx, wz = map.via(me.x, me.z, aim.x, aim.z)
 		if wx ~= aim.x or wz ~= aim.z then
-			aim = { x = wx, z = wz }
+			aim, onWay = { x = wx, z = wz }, true
 		end
 	end
 	if aim then
@@ -218,7 +218,9 @@ function ThumbBrain.step(
 			a, d = angleTo(me, aim)
 		end
 		local behind = aim ~= nil and math.abs(a) > ThumbBrain.BEHIND
+		-- (a ramp's foot is a point to pass, not one to circle: via moves it on near it)
 		local orbiting = not detouring
+			and not onWay
 			and d < ThumbBrain.ORBIT_NEAR
 			and math.abs(a) > ThumbBrain.ORBIT_ANGLE
 		s.orbitFor = if orbiting then s.orbitFor + dt else 0
@@ -288,7 +290,7 @@ function ThumbBrain.step(
 		throttle = throttle,
 		brake = brake,
 		fire = fire,
-		target = target,
+		target = aim,
 		mode = mode,
 	}
 end
