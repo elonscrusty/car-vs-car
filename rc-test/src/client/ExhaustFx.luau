@@ -9,6 +9,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Data = require(ReplicatedStorage.Shared.FireDrakeData)
+local FireDrake = require(script.Parent.FireDrake)
 
 local JET_RATE = 150 -- particles a second at full boost, a pipe
 local RISE, FALL = 7, 3 -- how fast the flame grows and dies back
@@ -49,13 +50,16 @@ local function emitter(
 	fx.Lifetime = life
 	fx.Speed = NumberRange.new(speed.Min * u, speed.Max * u)
 	fx.SpreadAngle = Vector2.new(5, 5)
-	fx.EmissionDirection = Enum.NormalId.Front -- (-Z of the model: its tail)
+	fx.EmissionDirection = tail
 	fx.Rate = 0
 	return fx
 end
 
 local function build(body: BasePart): Rig
 	local u = body.Size.Z / Data.DESIGN_LENGTH
+	-- the tail is at the body's local -Z when its nose is at +Z, and the other way round if not
+	local nose = if body.Parent then FireDrake.noseSign(body, body.Parent) else 1
+	local tail = if nose > 0 then Enum.NormalId.Front else Enum.NormalId.Back -- (Front is -Z)
 	local jets, pops = {}, {}
 	for _, side in { 1, -1 } do
 		local a = Instance.new("Attachment")
@@ -63,13 +67,13 @@ local function build(body: BasePart): Rig
 		a.Position = Vector3.new(
 			side * Data.EXHAUST.x * body.Size.X,
 			Data.EXHAUST.y * body.Size.Y,
-			Data.EXHAUST.z * body.Size.Z
+			nose * Data.EXHAUST.z * body.Size.Z
 		)
 		a.Parent = body
-		local jet = emitter(u, 0.7, NumberRange.new(0.14, 0.26), NumberRange.new(10, 18))
+		local jet = emitter(u, 0.7, NumberRange.new(0.14, 0.26), NumberRange.new(10, 18), tail)
 		jet.Parent = a
 		table.insert(jets, jet)
-		local pop = emitter(u, 1.1, NumberRange.new(0.1, 0.16), NumberRange.new(4, 6))
+		local pop = emitter(u, 1.1, NumberRange.new(0.1, 0.16), NumberRange.new(4, 6), tail)
 		pop.Parent = a
 		table.insert(pops, pop)
 	end
