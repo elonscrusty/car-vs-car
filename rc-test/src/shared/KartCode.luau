@@ -12,7 +12,7 @@ end
 
 -- The vertex coordinates, x, y, z, x, y, z, ... in toy units.
 function KartCode.verts(s: string): { number }
-	local out = table.create(#s // 2)
+	local out: { number } = table.create(#s // 2)
 	for i = 1, #s, 2 do
 		local a, b = string.byte(s, i, i + 1)
 		table.insert(out, (VAL[a] * 64 + VAL[b] - 2048) / 100)
@@ -22,7 +22,7 @@ end
 
 -- The triangles' vertex numbers (1-based), three per triangle.
 function KartCode.tris(s: string, w: number): { number }
-	local out = table.create(#s // w)
+	local out: { number } = table.create(#s // w)
 	for i = 1, #s, w do
 		if w == 1 then
 			table.insert(out, VAL[string.byte(s, i)] + 1)
