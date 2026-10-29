@@ -224,6 +224,31 @@ test("BoxServer on the pretend server: pickup gives a weapon, box comes back, no
 	eq(box1:GetAttribute("TakenCount"), 1)
 	eq((handle.folder:FindFirstChild("Box2") :: any):GetAttribute("Up"), true)
 
+	-- the Royal look: a taken box hides everything but a faint ring; only Body, Halo, Beam and Ring
+	-- are anchored (the rest is welded to Body or Halo so BoxFx moves just those two)
+	local marks = 0
+	for _, d in box1:GetDescendants() do
+		if d:IsA("BasePart") then
+			if d.Name == "Ring" then
+				near(d.Transparency, 0.85, 1e-6, "ring stays faint")
+			else
+				near(d.Transparency, 1, 1e-6, `{d.Name} hidden`)
+			end
+			local root = d.Name == "Body"
+				or d.Name == "Halo"
+				or d.Name == "Beam"
+				or d.Name == "Ring"
+			eq(d.Anchored, root, `{d.Name} anchored only if a root`)
+			if not root then
+				truthy(d:FindFirstChildOfClass("WeldConstraint"), `{d.Name} welded`)
+			end
+		elseif d:IsA("SurfaceGui") then
+			marks += 1
+			eq(d.Enabled, false, "? hidden")
+		end
+	end
+	eq(marks, 5, "a ? on 4 sides and the top")
+
 	-- a jump (teleport) right across box 2 doesn't pick it up; a short drive across it does
 	pos = Vector3.new(90, 0, 0)
 	S.advance(0.2, 0.05)
@@ -246,6 +271,8 @@ test("BoxServer on the pretend server: pickup gives a weapon, box comes back, no
 	pos = Vector3.new(50, 0, 50)
 	S.advance(8, 0.05)
 	eq(box1:GetAttribute("Up"), true)
+	near((box1:FindFirstChild("Beam") :: any).Transparency, 0.88, 1e-6, "beam back to its glow")
+	near((box1:FindFirstChild("Body") :: any).Transparency, 0, 1e-6, "box back")
 
 	-- a kart that's full doesn't take it
 	full = true
