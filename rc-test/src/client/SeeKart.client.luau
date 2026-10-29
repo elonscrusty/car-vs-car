@@ -44,7 +44,7 @@ local function addProp(d: Instance)
 			x = p.X,
 			y = p.Y,
 			z = p.Z,
-			r = d.Size.Magnitude / 2 + SeeKart.PAD,
+			r = d.Size.Magnitude / 2 + SeeKart.PAD + SeeKart.NEAR_CAM,
 		})
 	end
 end
@@ -98,9 +98,7 @@ RunService:BindToRenderStep("SeeKart", Enum.RenderPriority.Camera.Value + 4, fun
 				local a = cf:PointToObjectSpace(from)
 				local b = cf:PointToObjectSpace(to)
 				local s = part.Size
-				if
-					SeeKart.segmentHitsBox(a.X, a.Y, a.Z, b.X, b.Y, b.Z, s.X / 2, s.Y / 2, s.Z / 2)
-				then
+				if SeeKart.blocks(a.X, a.Y, a.Z, b.X, b.Y, b.Z, s.X / 2, s.Y / 2, s.Z / 2) then
 					local m = part.LocalTransparencyModifier
 					if fader.seen[part] ~= nil then
 						fader:keep(part, now)

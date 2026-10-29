@@ -13,6 +13,12 @@ SeeKart.FADE = 0.7 -- LocalTransparencyModifier while in the way
 SeeKart.HOLD = 0.25 -- seconds it stays faded after it stops blocking (no flicker)
 SeeKart.MAX_FADED = 12 -- never more at once (phones)
 SeeKart.PAD = 0.15 -- studs added round a prop (the arena is built at RC size, 1/4)
+-- the line stops this far short of the kart's centre, so a prop just past the kart never fades
+-- (Studio round 8 shot 3: a bush behind the kart)
+SeeKart.KART_MARGIN = 1.2
+-- a prop this close to the camera fades even off the line: it fills the screen edge (round 8,
+-- 13 s: a white tree stick beside the camera)
+SeeKart.NEAR_CAM = 2
 
 -- ArenaBuilder part names that may fade (workspace.SmashArena). Not the low red Bumper: the kart
 -- sits taller than it, so it would fade a long strip for nothing.
@@ -96,6 +102,45 @@ function SeeKart.segmentHitsBox(
 	end
 	t0, t1 = slab(az, bz, hz + p, t0, t1)
 	return t0 <= t1
+end
+
+-- Is the point a (in the part's own space) within `d` studs of its box?
+function SeeKart.pointNearBox(
+	ax: number,
+	ay: number,
+	az: number,
+	hx: number,
+	hy: number,
+	hz: number,
+	d: number
+): boolean
+	return math.abs(ax) <= hx + d and math.abs(ay) <= hy + d and math.abs(az) <= hz + d
+end
+
+-- Does this prop get in the way? a = the camera, b = the kart's centre, both in the part's own
+-- space; hx, hy, hz = its half size. Either it sits on the line from the camera to KART_MARGIN
+-- short of the kart, or it is right beside the camera.
+function SeeKart.blocks(
+	ax: number,
+	ay: number,
+	az: number,
+	bx: number,
+	by: number,
+	bz: number,
+	hx: number,
+	hy: number,
+	hz: number
+): boolean
+	if SeeKart.pointNearBox(ax, ay, az, hx, hy, hz, SeeKart.NEAR_CAM) then
+		return true
+	end
+	local dx, dy, dz = bx - ax, by - ay, bz - az
+	local len = math.sqrt(dx * dx + dy * dy + dz * dz)
+	if len <= SeeKart.KART_MARGIN then
+		return false
+	end
+	local k = (len - SeeKart.KART_MARGIN) / len
+	return SeeKart.segmentHitsBox(ax, ay, az, ax + dx * k, ay + dy * k, az + dz * k, hx, hy, hz)
 end
 
 -- Should a part we faded be put back to what it was? Only if it still shows our fade (the
