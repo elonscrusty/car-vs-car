@@ -2,12 +2,13 @@
 -- Car VS Car SMASH: a new kid's first match on the real server scripts (auditor R4-1). A pretend
 -- kid with no skill at all drives to the nearest "?" box and fires whenever a kart is in the
 -- cone ahead of it. Against the real bots (ArenaBots: easy on a rookie) and the real weapons,
--- it must get 2+ smashes and a top-5 place in 8 of 10 seeded first matches.
+-- it must get 2+ smashes and a top-5 place, and be smashed 1-3 times itself (some chaos), but
+-- never in the first 30 s, in 8 of 10 seeded first matches.
 local H = require("./harness")
 local Fake = require("./fakeroblox")
 local roblox = require("@lune/roblox")
 
-local test, truthy = H.test, H.truthy
+local test, eq, truthy = H.test, H.eq, H.truthy
 
 print("Car VS Car SMASH: a no-skill new kid's first match")
 
@@ -25,6 +26,7 @@ local function kid(S, player, speed: number)
 	local MR = S.require("MatchRunner")
 	local CollectionService = S.game:GetService("CollectionService")
 	local seen, look = 0, roblox.Vector3.new(0, 0, -1)
+	local me = { smashed = {} :: { number }, startAt = nil :: number?, alive = true }
 	S.game:GetService("RunService").Heartbeat:Connect(function(dt)
 		local car = S.workspace:FindFirstChild("Car_" .. player.UserId)
 		local body = car and car.PrimaryPart
@@ -41,6 +43,15 @@ local function kid(S, player, speed: number)
 			end
 		end
 		body.AssemblyLinearVelocity = roblox.Vector3.zero
+		-- (when the kid gets smashed, s into the round)
+		if player:GetAttribute("InMatch") then
+			me.startAt = me.startAt or S.now()
+			local up = (player:GetAttribute("Health") or 0) > 0
+			if me.alive and not up then
+				table.insert(me.smashed, S.now() - (me.startAt :: number))
+			end
+			me.alive = up
+		end
 		if not (player:GetAttribute("InMatch") and (player:GetAttribute("Health") or 0) > 0) then
 			return
 		end
@@ -84,9 +95,10 @@ local function kid(S, player, speed: number)
 			end
 		end
 	end)
+	return me
 end
 
-local function firstMatch(seed: number): (number, number)
+local function firstMatch(seed: number): (number, number, { number })
 	math.randomseed(seed) -- (bot names, spawn picks: math.random)
 	local S = Fake.server(Fake.store(), { seed = seed, jobId = "newkid-" .. seed })
 	S.require("Shared.Features").SMASH = true
@@ -95,7 +107,7 @@ local function firstMatch(seed: number): (number, number)
 	S.run("CarShop")
 	local MR = S.require("MatchRunner")
 	local p = S.join(KID)
-	kid(S, p, SPEED + (seed % 7) - 3)
+	local me = kid(S, p, SPEED + (seed % 7) - 3)
 	S.advance(2 + seed * 0.37, BEAT) -- (joins at a different moment each time)
 	S.send(p, "Garage", "pick", "race_bolt")
 	S.advance(1, BEAT)
@@ -106,27 +118,41 @@ local function firstMatch(seed: number): (number, number)
 	end
 	local smashes, place = p:GetAttribute("Smashes") or 0, p:GetAttribute("Place") or 0
 	S.close()
-	return smashes, place
+	return smashes, place, me.smashed
 end
 
-test("a no-skill kid's first match: 2+ smashes and top 5 in 8 of 10 runs", function()
-	local good = 0
-	for seed = 1, 10 do
-		local smashes, place = firstMatch(seed)
-		local ok = smashes >= 2 and place >= 1 and place <= 5
-		if ok then
-			good += 1
-		end
-		print(
-			string.format(
-				"       seed %d: %d smashes, place %d%s",
-				seed,
-				smashes,
-				place,
-				if ok then "" else "  <- miss"
+test(
+	"a no-skill kid's first match: 2+ smashes, top 5 and smashed 1-3 times (never in the first 30 s) in 8 of 10 runs",
+	function()
+		local good, early = 0, 0
+		for seed = 1, 10 do
+			local smashes, place, smashed = firstMatch(seed)
+			local first = smashed[1]
+			if first and first < 30 then
+				early += 1
+			end
+			local ok = smashes >= 2
+				and place >= 1
+				and place <= 5
+				and #smashed >= 1
+				and #smashed <= 3
+			if ok then
+				good += 1
+			end
+			print(
+				string.format(
+					"       seed %d: %d smashes, place %d, smashed %d times (first at %s)%s",
+					seed,
+					smashes,
+					place,
+					#smashed,
+					if first then string.format("%.0f s", first) else "-",
+					if ok then "" else "  <- miss"
+				)
 			)
-		)
+		end
+		print(string.format("       %d of 10 first matches pass", good))
+		truthy(good >= 8, `{good} of 10`)
+		eq(early, 0, "smashed in the first 30 s")
 	end
-	print(string.format("       %d of 10 first matches pass", good))
-	truthy(good >= 8, `{good} of 10`)
-end)
+)
