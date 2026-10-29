@@ -5,8 +5,9 @@
 --   MUSIC / SOUNDS: two SoundGroups every sound is put in (sounds named "Music" in the music one)
 --   SHADOWS: Lighting.GlobalShadows on this screen
 --   NAME TAGS: other players' names and league badges over their heads
--- The server keeps them (SettingsServer: RemoteEvent SaveSettings, one save each SAVE_GAP s;
--- the saved ones come back on the attributes SetMusic, SetSfx, SetShadows, SetNames).
+-- The server keeps them (SettingsServer: RemoteEvent SaveSettings, one send each SAVE_GAP s;
+-- the saved ones come once, on the attributes SetMusic, SetSfx, SetShadows, SetNames and then
+-- SetLoaded: the window opens only after that, so nothing sent can put defaults over a save).
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -44,7 +45,12 @@ local function sort(d: Instance)
 		d.SoundGroup = if d.Name == "Music" then musicGroup else sfxGroup
 	end
 end
-for _, root in { workspace, SoundService, pgui } :: { Instance } do
+local roots: { Instance } = { workspace, SoundService, pgui }
+local scripts = player:FindFirstChild("PlayerScripts")
+if scripts then
+	table.insert(roots, scripts) -- (the race beeps live with their scripts)
+end
+for _, root in roots do
 	for _, d in root:GetDescendants() do
 		sort(d)
 	end
@@ -53,13 +59,21 @@ end
 
 -- ===== name tags =====
 
-local function tags(char: Model?)
+-- the humanoids whose names we hid, and what the server had them at (put back when NAME TAGS
+-- goes on again; the server hides names in a match on purpose, and that stays)
+local hidden: { [Humanoid]: Enum.HumanoidDisplayDistanceType } = setmetatable({}, { __mode = "k" }) :: any
+local NONE = Enum.HumanoidDisplayDistanceType.None
+
+local function hideName(hum: Humanoid)
+	if not state.names and hum.DisplayDistanceType ~= NONE then
+		hidden[hum] = hum.DisplayDistanceType
+		hum.DisplayDistanceType = NONE
+	end
+end
+
+local function badges(char: Model?)
 	if not char then
 		return
-	end
-	local hum = char:FindFirstChildOfClass("Humanoid")
-	if hum and not state.names then
-		hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 	end
 	for _, d in char:GetDescendants() do
 		if d:IsA("BillboardGui") and d.Name == "LeagueBadge" then
@@ -73,23 +87,21 @@ local function watch(p: Player)
 		return
 	end
 	local function onChar(char: Model)
-		tags(char)
-		-- (the server shows and hides names around a match: put ours back over it)
-		local hum = char:WaitForChild("Humanoid", 10)
-		if hum and hum:IsA("Humanoid") then
-			hum:GetPropertyChangedSignal("DisplayDistanceType"):Connect(function()
-				if
-					not state.names
-					and hum.DisplayDistanceType ~= Enum.HumanoidDisplayDistanceType.None
-				then
-					hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
-				end
-			end)
-		end
+		badges(char)
 		char.DescendantAdded:Connect(function(d: Instance)
 			if d:IsA("BillboardGui") and d.Name == "LeagueBadge" then
 				d.Enabled = state.names
 			end
+		end)
+		local found = char:WaitForChild("Humanoid", 10)
+		if not (found and found:IsA("Humanoid")) then
+			return
+		end
+		local hum: Humanoid = found
+		hideName(hum)
+		-- (the server shows names again after a match: still hidden for us)
+		hum:GetPropertyChangedSignal("DisplayDistanceType"):Connect(function()
+			hideName(hum)
 		end)
 	end
 	if p.Character then
@@ -108,38 +120,41 @@ local function apply()
 	musicGroup.Volume = state.music
 	sfxGroup.Volume = state.sfx
 	Lighting.GlobalShadows = state.shadows
-	for _, p in Players:GetPlayers() do
-		if p ~= player then
-			local char = p.Character
-			local hum = char and char:FindFirstChildOfClass("Humanoid")
-			if
-				hum
-				and state.names
-				and hum.DisplayDistanceType == Enum.HumanoidDisplayDistanceType.None
-			then
-				-- (back on: the way Roblox shows names; the server hides them again in a match)
-				hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Viewer
+	if state.names then
+		for hum, was in hidden do
+			hidden[hum] = nil
+			if hum.Parent and hum.DisplayDistanceType == NONE then
+				hum.DisplayDistanceType = was
 			end
-			tags(char)
+		end
+	end
+	for _, p in Players:GetPlayers() do
+		if p ~= player and p.Character then
+			local hum = p.Character:FindFirstChildOfClass("Humanoid")
+			if hum then
+				hideName(hum)
+			end
+			badges(p.Character)
 		end
 	end
 end
 
--- the saved ones, from the server
+-- the saved ones, once, from the server
+local loaded = false
 local function fromServer()
-	local m = player:GetAttribute("SetMusic")
-	if m == nil then
+	if loaded or player:GetAttribute("SetLoaded") ~= true then
 		return
 	end
+	loaded = true
 	state = GameSettings.clean({
-		music = m,
+		music = player:GetAttribute("SetMusic"),
 		sfx = player:GetAttribute("SetSfx"),
 		shadows = player:GetAttribute("SetShadows"),
 		names = player:GetAttribute("SetNames"),
 	})
 	apply()
 end
-player:GetAttributeChangedSignal("SetMusic"):Connect(fromServer)
+player:GetAttributeChangedSignal("SetLoaded"):Connect(fromServer)
 fromServer()
 apply()
 
@@ -152,10 +167,9 @@ local function send()
 		return
 	end
 	queued = true
-	local wait = math.max(0, sendAt - os.clock())
-	task.delay(wait, function()
+	task.delay(math.max(0, sendAt - os.clock()), function()
 		queued = false
-		sendAt = os.clock() + GameSettings.SAVE_GAP + 0.1
+		sendAt = os.clock() + GameSettings.SAVE_GAP
 		local r = ReplicatedStorage:FindFirstChild("SaveSettings")
 		if r and r:IsA("RemoteEvent") then
 			r:FireServer({
@@ -171,7 +185,18 @@ end
 -- ===== the window =====
 
 local current: Screen.Handle? = nil
+local function shut()
+	if current then
+		current.close()
+		current = nil
+	end
+end
+
 local function open()
+	-- (not before the saved ones came: a change then would send defaults over them)
+	if not loaded or player:GetAttribute("InMatch") == true then
+		return
+	end
 	current = KitWindows.settings({
 		music = state.music,
 		sfx = state.sfx,
@@ -190,14 +215,16 @@ local function open()
 			apply()
 			send()
 		end,
-		close = function()
-			if current then
-				current.close()
-				current = nil
-			end
-		end,
+		close = shut,
 	})
 end
+
+-- a match starting closes it (never a window over the arena)
+player:GetAttributeChangedSignal("InMatch"):Connect(function()
+	if player:GetAttribute("InMatch") == true then
+		shut()
+	end
+end)
 
 local ev = ReplicatedStorage:FindFirstChild("OpenSettings")
 if not (ev and ev:IsA("BindableEvent")) then

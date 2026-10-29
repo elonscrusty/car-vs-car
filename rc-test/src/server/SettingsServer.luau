@@ -1,10 +1,13 @@
 --!strict
 -- Smash SETTINGS (WINDOWS): each player's music / sound volume, shadows and name tags, kept in
 -- their own small DataStore key (not the profile: a lost write only resets a slider).
--- The client sends its whole settings table on RemoteEvent SaveSettings; the server cleans it
--- (shared/GameSettings), takes at most one each SAVE_GAP s per player, shows it back on the
--- player's attributes (SetMusic, SetSfx, SetShadows, SetNames) and writes it when they leave
--- or at the next flush (only when it changed). No DataStore (Studio): this session only.
+--   * join: the saved ones are read (retries) and shown once on the player's attributes SetMusic,
+--     SetSfx, SetShadows, SetNames, then SetLoaded = true (defaults when there are none)
+--   * RemoteEvent SaveSettings: the client's whole settings table, cleaned (shared/GameSettings);
+--     the newest is kept in memory (asks closer than MIN_GAP are dropped), never echoed back
+--   * written at the next flush or when they leave, only when changed, one write at a time per
+--     player; a load that failed never writes (it would put defaults over a real save)
+-- No DataStore (Studio): this session only.
 local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -14,13 +17,18 @@ local GameSettings = require(ReplicatedStorage.Shared.GameSettings)
 
 local FLUSH = 60
 local TRIES = 3
+local MIN_GAP = 0.25 -- (the client sends at most one each SAVE_GAP s: this only stops a flood)
+local CLOSE_WAIT = 25
 
 local SettingsServer = {}
 
 local store: DataStore? = nil
 local now: { [Player]: GameSettings.Settings } = {}
 local dirty: { [Player]: boolean } = {}
+local canSave: { [Player]: boolean } = {} -- the load answered (a save, or none yet)
+local saving: { [Player]: boolean } = {}
 local lastAsk: { [Player]: number } = {}
+local inFlight = 0
 
 local function call(what: string, fn: () -> any): (boolean, any)
 	for i = 1, TRIES do
@@ -39,28 +47,29 @@ local function call(what: string, fn: () -> any): (boolean, any)
 	return false, nil
 end
 
-local function show(player: Player, s: GameSettings.Settings)
-	player:SetAttribute("SetMusic", s.music)
-	player:SetAttribute("SetSfx", s.sfx)
-	player:SetAttribute("SetShadows", s.shadows)
-	player:SetAttribute("SetNames", s.names)
-end
-
-local function save(player: Player)
+-- Write this player's settings if they changed (waits for a write already going out).
+local function save(player: Player, uid: number)
+	while saving[player] do
+		task.wait(0.2)
+	end
 	local s = now[player]
 	local ds = store
-	if not (s and ds and dirty[player]) then
+	if not (s and ds and dirty[player] and canSave[player]) then
 		return
 	end
 	dirty[player] = nil
-	local key = tostring(player.UserId)
+	saving[player] = true
+	inFlight += 1
 	local ok = call("save", function()
 		return ds:SetAsync(
-			key,
-			{ music = s.music, sfx = s.sfx, shadows = s.shadows, names = s.names }
+			tostring(uid),
+			{ music = s.music, sfx = s.sfx, shadows = s.shadows, names = s.names },
+			{ uid }
 		)
 	end)
-	if not ok and now[player] then
+	inFlight -= 1
+	saving[player] = nil
+	if not ok and player.Parent ~= nil then
 		dirty[player] = true -- (the next flush tries again)
 	end
 end
@@ -69,20 +78,25 @@ local function join(player: Player)
 	local s = GameSettings.DEFAULTS
 	local ds = store
 	if ds then
-		local key = tostring(player.UserId)
 		local ok, got = call("load", function()
-			return ds:GetAsync(key)
+			return ds:GetAsync(tostring(player.UserId))
 		end)
 		if ok then
 			s = GameSettings.clean(got)
+			canSave[player] = true
 		end
 	end
 	if player.Parent == nil then
 		return
 	end
 	-- (a change sent while the load was out wins)
-	now[player] = now[player] or s
-	show(player, now[player])
+	local use = now[player] or s
+	now[player] = use
+	player:SetAttribute("SetMusic", use.music)
+	player:SetAttribute("SetSfx", use.sfx)
+	player:SetAttribute("SetShadows", use.shadows)
+	player:SetAttribute("SetNames", use.names)
+	player:SetAttribute("SetLoaded", true)
 end
 
 function SettingsServer.start()
@@ -96,7 +110,7 @@ function SettingsServer.start()
 	remote.OnServerEvent:Connect(function(player: Player, sent: any)
 		local t = os.clock()
 		local last = lastAsk[player]
-		if last and t - last < GameSettings.SAVE_GAP then
+		if (last and t - last < MIN_GAP) or player.Parent == nil then
 			return
 		end
 		lastAsk[player] = t
@@ -107,7 +121,6 @@ function SettingsServer.start()
 		end
 		now[player] = s
 		dirty[player] = true
-		show(player, s)
 	end)
 	Players.PlayerAdded:Connect(function(p: Player)
 		task.spawn(join, p)
@@ -116,21 +129,30 @@ function SettingsServer.start()
 		task.spawn(join, p)
 	end
 	Players.PlayerRemoving:Connect(function(p: Player)
-		save(p)
-		now[p], dirty[p], lastAsk[p] = nil, nil, nil
+		save(p, p.UserId)
+		now[p], dirty[p], canSave[p], lastAsk[p] = nil, nil, nil, nil
 	end)
 	game:BindToClose(function()
 		for _, p in Players:GetPlayers() do
-			task.spawn(save, p)
+			task.spawn(save, p, p.UserId)
 		end
-		task.wait(2)
+		local t = os.clock()
+		task.wait(0.1)
+		while inFlight > 0 and os.clock() - t < CLOSE_WAIT do
+			task.wait(0.2)
+		end
 	end)
 	task.spawn(function()
 		while true do
 			task.wait(FLUSH)
 			Forever.step("Settings.flush", function()
+				-- (the list first: a save yields, and asks change `dirty` meanwhile)
+				local list: { Player } = {}
 				for p in dirty do
-					save(p)
+					table.insert(list, p)
+				end
+				for _, p in list do
+					save(p, p.UserId)
 				end
 			end)
 		end

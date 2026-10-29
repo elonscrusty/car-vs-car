@@ -936,7 +936,6 @@ function KitWindows.garage(data: { [string]: any }, actions: Screen.Actions?): S
 		local sp = piece("kitGarage", "Show")
 		local showPanel =
 			Kit.navyPanel(spot(canvas, "kitGarage", "Show"), "Panel", 0, 0, sp.w, sp.h)
-		local ep = piece("kitGarage", "Equip")
 		local equip: TextButton
 		local function list(): { any }
 			return (if tab == 1 then data.karts else data.hats) or {}
@@ -961,6 +960,9 @@ function KitWindows.garage(data: { [string]: any }, actions: Screen.Actions?): S
 			local holder = Base.box(showPanel, "Show", 0, 0, sp.w, sp.h, 4)
 			show = holder
 			local it = list()[picked]
+			if tab == 2 and data.hatsSoon then
+				return -- (the grid already says hats are on the way)
+			end
 			if not it then
 				local words = if tab == 1 then SmashScreens.KIT_WORDS.noKarts else "No hats yet."
 				Base.text(
@@ -976,12 +978,12 @@ function KitWindows.garage(data: { [string]: any }, actions: Screen.Actions?): S
 					true
 				return
 			end
-			local color = rarityColor(it.rarity)
+			local color = if tab == 1 then Smash.carColor(it.id, 1) else rarityColor(it.rarity)
 			Kit.rays(
 				holder,
 				sp.w / 2,
 				84,
-				200,
+				160,
 				UiTheme.RARITY[UiTheme.rarityId(it.rarity)].color,
 				0.7
 			)
@@ -989,6 +991,15 @@ function KitWindows.garage(data: { [string]: any }, actions: Screen.Actions?): S
 				local view = Base.box(holder, "KartSpot", 10, 10, sp.w - 20, 150, 5)
 				if not KartView.over(view, it.id) then
 					Icons.car(view, 0, 0, sp.w - 20, 150, { id = it.id, color = color, z = 5 })
+				end
+				-- the hat on the kart you drive, in the corner (the old card's "with its hat")
+				local hatOn = data.hatOn
+				if it.on and hatOn then
+					Smash.hat(holder, 8, 6, 40, rarityColor(hatOn.rarity))
+					Base.text(holder, "HatName", 4, 46, 90, 16, string.upper(hatOn.name or ""), {
+						stroke = 2.5,
+						z = 7,
+					})
 				end
 			elseif it.own ~= false then
 				Smash.hat(holder, sp.w / 2 - 50, 30, 100, color)
@@ -1053,8 +1064,10 @@ function KitWindows.garage(data: { [string]: any }, actions: Screen.Actions?): S
 				Kit.enable(equip, false)
 				return
 			end
-			local pad = 12
-			local boxes = SmashScreens.garageCards(#items, gp.w - 2 * pad - 8)
+			-- (cards 8 in from the scroller's sides: the picked one's ring and glow sit outside its
+			-- card, and the scroller clips; room for the scroll bar on the right)
+			local pad, edge = 4, 8
+			local boxes = SmashScreens.garageCards(#items, gp.w - 2 * pad - 2 * edge - 8)
 			local last = boxes[#boxes]
 			local inner = scroller(
 				holder,
@@ -1062,7 +1075,7 @@ function KitWindows.garage(data: { [string]: any }, actions: Screen.Actions?): S
 				pad,
 				gp.w - 2 * pad,
 				gp.h - 2 * pad,
-				if last then last.y + last.h + 8 else 0
+				if last then last.y + last.h + 2 * edge else 0
 			)
 			local cards: { Frame } = {}
 			local shown: { GuiObject } = {}
@@ -1075,9 +1088,10 @@ function KitWindows.garage(data: { [string]: any }, actions: Screen.Actions?): S
 				tile.BackgroundTransparency = 1
 				tile.ZIndex = 5
 				tile.Parent = inner
-				Base.at(tile, b.x, b.y, b.w, b.h)
+				Base.at(tile, b.x + edge, b.y + edge, b.w, b.h)
 				local card = Kit.plate(tile, "Card", 0, 0, b.w, b.h - 4, i == picked, 12)
-				local color = rarityColor(it.rarity)
+				-- (a kart's own colour: drawn karts of one rarity all looked alike)
+				local color = if tab == 1 then Smash.carColor(it.id, 1) else rarityColor(it.rarity)
 				if tab == 1 then
 					Icons.car(card, 6, 14, b.w - 12, b.h - 54, { id = it.id, color = color, z = 4 })
 				elseif it.own ~= false then

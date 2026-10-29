@@ -347,6 +347,7 @@ local function hat(parent: Instance, x: number, y: number, s: number, color: Col
 end
 
 Smash.hat = hat
+Smash.carColor = carColor
 
 local function rarityColor(r: string?): Color3
 	return Base.color(UiTheme.RARITY[UiTheme.rarityId(r or "common")].color)
