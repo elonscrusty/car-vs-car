@@ -53,6 +53,11 @@ function UiMotion.clock(secs: number): string
 	return string.format("%d:%02d", s // 60, s % 60)
 end
 
+-- "1 day", "3 days" (the daily gift's STREAK pill)
+function UiMotion.days(n: number): string
+	return tostring(n) .. (if n == 1 then " day" else " days")
+end
+
 -- 1 -> "1ST", 2 -> "2ND", 3 -> "3RD", 11 -> "11TH", 22 -> "22ND"
 function UiMotion.place(n: number): string
 	local teen = n % 100 >= 11 and n % 100 <= 13
