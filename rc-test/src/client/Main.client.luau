@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local SoundLevels = require(ReplicatedStorage.Shared.SoundLevels)
+local ArenaCam = require(ReplicatedStorage.Shared.ArenaCam)
 local CarMath = require(ReplicatedStorage.Shared.CarMath)
 local LapTimer = require(ReplicatedStorage.Shared.LapTimer)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
@@ -861,15 +862,21 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 		hud.flash("BIG AIR!")
 	end
 	airTime = tel.air
+	-- the match camera (shared/ArenaCam) only while in a match
+	camera.setArena(ArenaCam.on(player:GetAttribute("InMatch"), grid ~= nil))
 	camera.update(dt)
 	-- in the arena the chase camera always comes back to your own kart (Studio round 3: it sat
 	-- ~40 studs off, on a wall, for 30-60 s while the kart drove on); only which kart it
-	-- follows, never how it follows (ChaseCamera is locked)
+	-- follows (how it follows: ChaseCamera and shared/ArenaCam)
 	if grid ~= nil and view == "chase" and not showCam then
 		local far = (workspace.CurrentCamera.CFrame.Position - body.Position).Magnitude
 		local lost
-		camLostFor, lost =
-			Match.camLost(camLostFor, far, 3 * (Tuning.camDistance + Tuning.camHeight), dt)
+		camLostFor, lost = Match.camLost(
+			camLostFor,
+			far,
+			3 * math.max(ArenaCam.DISTANCE, Tuning.camDistance + Tuning.camHeight),
+			dt
+		)
 		if lost then
 			if RunService:IsStudio() then
 				print(`[Main] camera lost the kart ({math.floor(far)} studs): back behind it`)

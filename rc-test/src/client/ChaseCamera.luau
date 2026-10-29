@@ -3,12 +3,16 @@
 -- their side), and widens the view with speed. Also: the show cam (circles the car), the driver
 -- view (watch from the person's eyes like real RC, zooming in when the car is far away), the
 -- top-down view (straight above, for drifting) and the free view (drag to look from any side).
+-- In a Smash match the chase view eases into the match camera (shared/ArenaCam: higher, further
+-- back, tilted down, a little look-ahead); Main switches it with setArena while InMatch.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 
+local ArenaCam = require(ReplicatedStorage.Shared.ArenaCam)
 local CarMath = require(ReplicatedStorage.Shared.CarMath)
+local SeeKart = require(ReplicatedStorage.Shared.SeeKart)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
 
 export type Cam = {
@@ -18,6 +22,7 @@ export type Cam = {
 	setView: (view: View) -> (),
 	setUp: (dir: Vector3) -> (),
 	kick: (degrees: number) -> (),
+	setArena: (on: boolean) -> (),
 }
 
 export type View = "driver" | "chase" | "top" | "free"
@@ -131,6 +136,16 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 	-- driver view: how far the eyes are lifted to see over a wall, and walls see-through for now
 	local lift = 0
 	local faded: { [BasePart]: boolean } = {}
+	-- the match camera: on or off, and how far into it (eased over ArenaCam.BLEND)
+	local arenaOn = false
+	local arenaFrom, arenaW, arenaT = 0, 0, 0
+	local arenaReach = 1
+	local lean = Vector3.zero -- the look-ahead, eased
+	-- (its wall check looks past the arena props: SeeKart fades those instead of the camera
+	-- jumping in at every tree)
+	local arenaParams = RaycastParams.new()
+	arenaParams.FilterType = Enum.RaycastFilterType.Exclude
+	arenaParams.FilterDescendantsInstances = ignore
 
 	local function clearFaded()
 		for part in faded do
@@ -239,6 +254,18 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 		freeYaw = math.atan2(back.Z, back.X)
 		freePitch, freeZoom, freeReach = 0.5, 1, 1
 		turnX, turnY, zoomBy = 0, 0, 1
+		-- (a jump: straight into the match camera if it's on, no blend)
+		arenaReach = 1
+		lean = Vector3.zero
+		arenaW = if arenaOn then 1 else 0
+		arenaFrom, arenaT = arenaW, ArenaCam.BLEND
+	end
+
+	function cam.setArena(on: boolean)
+		if on ~= arenaOn then
+			arenaOn = on
+			arenaFrom, arenaT = arenaW, 0
+		end
 	end
 
 	function cam.setUp(dir: Vector3)
@@ -397,8 +424,43 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 		pos += Vector3.new(0, floorLift, 0)
 
 		lookAt = focus + heading * 5 * Tuning.scale
+		local fov = CarMath.fov(flatSpeed)
+
+		-- the match camera, blended in over ArenaCam.BLEND s (and out again)
+		arenaT += dt
+		arenaW = arenaFrom + ((if arenaOn then 1 else 0) - arenaFrom) * ArenaCam.blend(arenaT)
+		if arenaW > 1e-3 then
+			local backS, upS = ArenaCam.offset()
+			local out = -heading * backS + Vector3.new(0, upS, 0)
+			local hit: RaycastResult? = nil
+			for _ = 1, 4 do
+				hit = workspace:Raycast(focus, out, arenaParams)
+				local inst = hit and hit.Instance
+				if not (inst and SeeKart.PROPS[inst.Name]) then
+					break
+				end
+				arenaParams:AddToFilter(inst) -- (a prop: it fades, the camera stays put)
+				hit = nil
+			end
+			local limit = ArenaCam.reach(if hit then hit.Distance else nil)
+			local rateA = if limit < arenaReach then 20 else 2.5
+			arenaReach += (limit - arenaReach) * (1 - math.exp(-rateA * dt))
+			local aPos = focus + out * arenaReach
+			local vel = body.AssemblyLinearVelocity
+			local flatVel = Vector3.new(vel.X, 0, vel.Z)
+			local wantLean = if flatVel.Magnitude > 0.5
+				then flatVel.Unit * ArenaCam.lead(flatVel.Magnitude)
+				else Vector3.zero
+			lean += (wantLean - lean) * (1 - math.exp(-ArenaCam.LEAD_EASE * dt))
+			local aLook = focus + heading * ArenaCam.aimAhead() + lean
+			local aFov = ArenaCam.FOV
+				+ ArenaCam.FOV_FAST * CarMath.clamp(flatSpeed / Tuning.topSpeed, 0, 1)
+			pos = pos:Lerp(aPos, arenaW)
+			lookAt = lookAt:Lerp(aLook, arenaW)
+			fov += (aFov - fov) * arenaW
+		end
 		camera.CFrame = CFrame.lookAt(pos, lookAt)
-		camera.FieldOfView = CarMath.fov(flatSpeed) + kick
+		camera.FieldOfView = fov + kick
 	end
 
 	return cam
