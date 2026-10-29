@@ -44,6 +44,8 @@ local function show(places: unknown, coins: unknown, nextAt: unknown, xp: unknow
 	local mine = shown
 	local view = MatchEnd.read(places, coins, nextAt, xp, player.UserId)
 	local openedAt = workspace:GetServerTimeNow()
+	-- (the next round starting puts it away, even before the count gets there: no ROUND OVER under GO!)
+	local round = workspace:GetAttribute("MatchRound")
 	local handle: Screen.Handle
 	handle = Smash.matchEnd(view, {
 		leave = function()
@@ -64,6 +66,11 @@ local function show(places: unknown, coins: unknown, nextAt: unknown, xp: unknow
 	})
 	task.spawn(function()
 		while shown == mine do
+			if workspace:GetAttribute("MatchRound") ~= round then
+				shown += 1
+				handle.close()
+				return
+			end
 			local left = MatchEnd.left(view, openedAt, workspace:GetServerTimeNow())
 			handle.set(left)
 			if left <= 0 then
