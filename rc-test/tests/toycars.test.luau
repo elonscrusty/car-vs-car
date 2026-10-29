@@ -107,7 +107,7 @@ test("every car: 16 parts at most, four wheels one per corner, no weapon plate",
 end)
 
 test(
-	"glow (rare and up): the accent bits light up, no extra parts; rims take the accent",
+	"glow (rare and up): the accent bits light up, no extra parts; rims take the car's colour",
 	function()
 		for _, shape in ToyCars.SHAPES do
 			local plain, glow = pieces(shape .. "/sky"), pieces(shape .. "/sky/glow")
@@ -117,12 +117,13 @@ test(
 				if p.material == "Neon" and p.color == ToyCars.PALETTE.sky then
 					lit += 1
 				elseif p.name == "Hub" then
-					eq(p.color, ToyCars.PALETTE.sky)
+					eq(p.color[1], 200) -- carter's picture: rims in the car's own colour
 				end
 			end
 			truthy(lit >= 1, `{shape}: nothing glows`)
 		end
 		eq(ToyCars.rim("muscle/navy"), ToyCars.PALETTE.white) -- navy rims would vanish
+		eq(ToyCars.rim("muscle/red", { 27, 27, 47 }), ToyCars.PALETTE.white)
 	end
 )
 
@@ -143,6 +144,20 @@ test("wheels stay near the race car's own (springs hold them: big tyres would si
 	local own = 2 * 0.8 * Garage.TOY_LENGTH / 5.5
 	for shape, w in ToyCars.WHEELS do
 		truthy(w.wd >= own - 0.15 and w.wd <= own + 0.2, `{shape} wheels {w.wd}`)
+	end
+end)
+
+test("every car is an open kart with a Roblox kid driving, cap top on the hat spot", function()
+	for _, shape in ToyCars.SHAPES do
+		local named: { [string]: Garage.Piece } = {}
+		for _, p in pieces(shape .. "/white") do
+			named[p.name] = p
+		end
+		truthy(named.Driver and named.Head and named.Cap, `{shape}: no driver`)
+		eq(named.Cap.pos.y + named.Cap.size.y / 2, ToyCars.HEAD_TOP)
+		eq(table.concat(named.Head.color, ","), "255,199,44")
+		eq(table.concat(named.Cap.color, ","), "200,40,40")
+		eq(named.Cab, nil)
 	end
 end)
 
