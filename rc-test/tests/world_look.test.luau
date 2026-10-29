@@ -21,9 +21,21 @@ test("a warm sun about 40 degrees up, soft shadows, bright not blown out", funct
 		S.lighting.GeographicLatitude == 0 and up >= 32 and up <= 48,
 		"sun ~40 degrees up: " .. up
 	)
-	truthy(S.lighting.ShadowSoftness > 0.2 and S.lighting.ShadowSoftness < 0.8, "soft, not blurry")
+	truthy(
+		S.lighting.ShadowSoftness >= 0.15 and S.lighting.ShadowSoftness <= 0.4,
+		"soft edges, but shadows still clear"
+	)
 	truthy(S.lighting.Brightness >= 1.5 and S.lighting.Brightness <= 4, "bright, not blown out")
 	truthy(S.colorCorrection.tint[1] >= S.colorCorrection.tint[3], "warm, not cold")
+end)
+
+test("shadows stay visible: the shade fill is well under the sun", function()
+	truthy(S.lighting.GlobalShadows == true, "shadows on")
+	truthy(S.lighting.EnvironmentDiffuseScale <= 0.3, "sky fill low enough not to wash shadows out")
+	for _, c in { S.ambient, S.outdoorAmbient } do
+		truthy(math.max(c[1], c[2], c[3]) <= 150, "shade not too bright")
+		truthy(math.min(c[1], c[2], c[3]) >= 60, "shade never black")
+	end
 end)
 
 test("no grey haze; light bloom; a little more colour", function()
@@ -40,4 +52,14 @@ test("no grey haze; light bloom; a little more colour", function()
 	end
 	truthy(S.atmosphere.color[3] > S.atmosphere.color[1], "light blue, not grey or orange")
 	truthy(S.atmosphere.color[1] <= 170, "a real blue horizon, not pale white")
+end)
+
+test("phones keep the shadows: the place asks for light quality first", function()
+	local fs = require("@lune/fs")
+	local serde = require("@lune/serde")
+	local proj = serde.decode("json", fs.readFile("default.project.json"))
+	local light = proj.tree.Lighting["$properties"]
+	truthy(light.LightingStyle == "Realistic", "realistic light and shadows")
+	-- when a phone drops its graphics level, keep shadows near the camera, give up view distance
+	truthy(light.PrioritizeLightingQuality == true, "shadows kept on low graphics")
 end)

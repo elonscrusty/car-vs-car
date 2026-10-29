@@ -15,13 +15,15 @@ WorldLook.lighting = {
 	GeographicLatitude = 0,
 	Brightness = 3,
 	ExposureCompensation = 0,
-	ShadowSoftness = 0.5,
-	EnvironmentDiffuseScale = 0.5,
+	-- clear, soft-edged shadows under every prop and kart (auditor: "no edges or shadows")
+	ShadowSoftness = 0.25,
+	EnvironmentDiffuseScale = 0.25, -- the sky fill that washed the shadows out at 0.5
 	EnvironmentSpecularScale = 0.2,
 	GlobalShadows = true,
 }
-WorldLook.ambient = { 112, 112, 128 } -- shade stays a soft cool blue-grey, never black
-WorldLook.outdoorAmbient = { 142, 140, 156 }
+-- shade stays a soft cool blue, never black, but dark enough that shadows read on a phone
+WorldLook.ambient = { 84, 88, 110 }
+WorldLook.outdoorAmbient = { 112, 116, 140 }
 
 -- a thin, clear atmosphere: a little depth far away, no grey haze. Its colour is a real sky blue,
 -- so the horizon stays blue instead of fading to a pale white (Studio shots, 10-29)
