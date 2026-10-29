@@ -94,5 +94,6 @@ require("./boxes.test")
 require("./match.test")
 require("./same_karts.test")
 require("./match_overflow.test")
+require("./rejoin_wait.test")
 
 Harness.summary()
