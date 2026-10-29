@@ -45,6 +45,8 @@ type Rig = {
 	dust: ParticleEmitter,
 	puff: ParticleEmitter,
 	last: Vector3?,
+	lastAt: number,
+	speed: number,
 	owedDust: number,
 	owedPuff: number,
 }
@@ -89,6 +91,8 @@ local function rig(m: Model): Rig?
 		dust = dust,
 		puff = puff,
 		last = nil,
+		lastAt = 0,
+		speed = 0,
 		owedDust = 0,
 		owedPuff = 0,
 	}
@@ -97,18 +101,29 @@ local function rig(m: Model): Rig?
 end
 
 -- ===== boxes: sparkles while up =====
-type Box = { model: Model, body: BasePart, sparkle: ParticleEmitter }
+type Box = { model: Model, body: BasePart, sparkle: ParticleEmitter, conn: RBXScriptConnection }
 local boxes: { [Model]: Box } = {}
+local inMatch = false
+local eyeAt = Vector3.zero -- the camera, last frame
 
 local function boxRig(m: Instance)
 	if not m:IsA("Model") or boxes[m] then
 		return
 	end
-	local body = m:FindFirstChild("Body")
-	if not (body and body:IsA("BasePart")) then
+	-- (with streaming the Body can come later; BoxFx waits the same)
+	local body = m:WaitForChild("Body", 5)
+	if not (body and body:IsA("BasePart")) or boxes[m] or m.Parent == nil then
 		return
 	end
+	-- the full size, not a pop-in's small one (BoxFx grows a box back from 0.2 over 0.3 s)
 	local s = body.Size.X
+	if m:GetAttribute("Up") == true then
+		task.wait(0.35)
+		s = math.max(s, body.Size.X)
+		if boxes[m] or m.Parent == nil then
+			return
+		end
+	end
 	local e = emitter(body, SPARKLE, ColorSequence.new(SUNNY, Color3.new(1, 1, 1)))
 	e.Size = NumberSequence.new({
 		NumberSequenceKeypoint.new(0, 0.25 * s),
@@ -121,7 +136,28 @@ local function boxRig(m: Instance)
 	e.LightEmission = 0.8
 	e.Rotation = NumberRange.new(0, 360)
 	e.RotSpeed = NumberRange.new(-90, 90)
-	boxes[m] = { model = m, body = body, sparkle = e }
+	local function update()
+		e.Rate = if inMatch
+			then ArenaLife.sparkles(m:GetAttribute("Up") == true, (body.Position - eyeAt).Magnitude)
+			else 0
+	end
+	boxes[m] = {
+		model = m,
+		body = body,
+		sparkle = e,
+		-- taken: off at once (BoxFx bursts it)
+		conn = m:GetAttributeChangedSignal("Up"):Connect(update),
+	}
+	update()
+end
+
+-- ===== the karts in the world (Car_<id>), kept by events, shared with client/SmashHits =====
+local karts: { [Model]: boolean } = {}
+local function isKart(c: Instance): boolean
+	return c:IsA("Model") and string.match(c.Name, "^Car_%-?%d+$") ~= nil
+end
+function ArenaLifeFx.karts(): { [Model]: boolean }
+	return karts
 end
 
 -- ===== sparks where karts bump =====
@@ -157,7 +193,13 @@ local function sparks(): (Part, ParticleEmitter)
 end
 
 -- sparks fly at `at` (a bump between two karts, or a kart into a wall)
+local lastSpark, lastSparkAt = Vector3.zero, -math.huge
 function ArenaLifeFx.spark(at: Vector3)
+	-- (a bump hurts both karts: one burst for the pair)
+	if os.clock() - lastSparkAt < 0.15 and (at - lastSpark).Magnitude < K then
+		return
+	end
+	lastSpark, lastSparkAt = at, os.clock()
 	local cam = workspace.CurrentCamera
 	if cam and (cam.CFrame.Position - at).Magnitude > ArenaLife.FAR then
 		return
@@ -174,35 +216,49 @@ function ArenaLifeFx.start()
 		return
 	end
 	started = true
+	inMatch = player:GetAttribute("InMatch") == true
 	for _, m in CollectionService:GetTagged("SmashBox") do
-		boxRig(m)
+		task.spawn(boxRig, m)
 	end
 	CollectionService:GetInstanceAddedSignal("SmashBox"):Connect(function(m)
-		task.defer(boxRig, m) -- (its Body may come a moment later)
+		task.spawn(boxRig, m)
 	end)
 	CollectionService:GetInstanceRemovedSignal("SmashBox"):Connect(function(m)
-		if m:IsA("Model") then
-			boxes[m] = nil
+		local b = if m:IsA("Model") then boxes[m] else nil
+		if b then
+			b.conn:Disconnect()
+			boxes[m :: Model] = nil
+		end
+	end)
+	for _, c in workspace:GetChildren() do
+		if isKart(c) then
+			karts[c :: Model] = true
+		end
+	end
+	workspace.ChildAdded:Connect(function(c)
+		if isKart(c) then
+			karts[c :: Model] = true
+		end
+	end)
+	workspace.ChildRemoved:Connect(function(c)
+		if c:IsA("Model") then
+			karts[c] = nil
+			rigs[c] = nil
 		end
 	end)
 
-	local scanAt = 0
 	local boxAt = 0
 	RunService.Heartbeat:Connect(function(dt: number)
 		local now = os.clock()
 		local cam = workspace.CurrentCamera
-		local inMatch = player:GetAttribute("InMatch") == true
 		if not cam or not inMatch then
 			return
 		end
 		local eye = cam.CFrame.Position
-		-- new karts, once a second (bots and players come and go)
-		if now >= scanAt then
-			scanAt = now + 1
-			for _, c in workspace:GetChildren() do
-				if c:IsA("Model") and not rigs[c] and string.match(c.Name, "^Car_%-?%d+$") then
-					rig(c)
-				end
+		eyeAt = eye
+		for m in karts do
+			if not rigs[m] and m.PrimaryPart then
+				rig(m)
 			end
 		end
 		for m, r in rigs do
@@ -212,12 +268,17 @@ function ArenaLifeFx.start()
 			end
 			local pos = r.part.Position
 			local last = r.last
-			r.last = pos
 			if not last then
+				r.last, r.lastAt = pos, now
 				continue
 			end
+			-- the speed over at least SAMPLE s (bots step in network batches)
+			if now - r.lastAt >= ArenaLife.SAMPLE then
+				r.speed = ArenaLife.speed(pos.X - last.X, pos.Z - last.Z, now - r.lastAt)
+				r.last, r.lastAt = pos, now
+			end
+			local speed = r.speed
 			local dist = (pos - eye).Magnitude
-			local speed = ArenaLife.speed(pos.X - last.X, pos.Z - last.Z, dt)
 			local n
 			n, r.owedDust = ArenaLife.owe(r.owedDust, ArenaLife.dust(speed, dist), dt)
 			if n > 0 then
@@ -243,7 +304,8 @@ function ArenaLifeFx.start()
 	end)
 	-- out of a match: the boxes stop sparkling
 	player:GetAttributeChangedSignal("InMatch"):Connect(function()
-		if player:GetAttribute("InMatch") ~= true then
+		inMatch = player:GetAttribute("InMatch") == true
+		if not inMatch then
 			for _, b in boxes do
 				b.sparkle.Rate = 0
 			end

@@ -54,14 +54,17 @@ function ArenaLife.owe(owed: number, rate: number, dt: number): (number, number)
 	return n, total - n
 end
 
--- a kart's speed from where it was a frame ago (bots move by the server, so no velocity): flat
--- studs/s, and a teleport (a respawn) reads as 0, not a dust storm
+-- a kart's speed from where it was SAMPLE s or more ago (bots are moved by the server in
+-- network steps, so one frame often shows no move and the next a few frames' worth): flat
+-- studs/s, and a jump of more than TELEPORT studs (a respawn) reads as 0, not a dust storm
+ArenaLife.SAMPLE = 0.1
+ArenaLife.TELEPORT = 6
 function ArenaLife.speed(dx: number, dz: number, dt: number): number
 	if dt <= 0 then
 		return 0
 	end
-	local v = math.sqrt(dx * dx + dz * dz) / dt
-	return if v > 60 then 0 else v
+	local d = math.sqrt(dx * dx + dz * dz)
+	return if d > ArenaLife.TELEPORT then 0 else d / dt
 end
 
 return ArenaLife
