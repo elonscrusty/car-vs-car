@@ -115,8 +115,8 @@ local function build(i: number, spot: Vector3, parent: Instance, sc: number): Mo
 	local ring = Instance.new("Part")
 	ring.Name = "Ring"
 	ring.Shape = Enum.PartType.Cylinder
-	local reach = Boxes.RADIUS * 2 * sc -- the ring is the pickup reach
-	ring.Size = Vector3.new(0.2 * sc, reach, reach)
+	local width = Boxes.RING * sc -- the look only (the reach is wider)
+	ring.Size = Vector3.new(0.2 * sc, width, width)
 	ring.CFrame = CFrame.new(spot + Vector3.new(0, 0.12 * sc, 0))
 		* CFrame.Angles(0, 0, math.rad(90))
 	ring.Color = YELLOW

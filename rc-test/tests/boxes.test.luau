@@ -157,8 +157,8 @@ test(
 		k.px, k.pz = -10, 1 -- 20 studs since the last check, right past the box
 		eq(#B.step(boxes, { k }, 0, yes), 1)
 		local boxes2 = B.new({ { x = 0, y = 0, z = 0 } }, 1)
-		local k2 = kart("b", 10, 8)
-		k2.px, k2.pz = -10, 8 -- path 8 studs to the side: too far
+		local k2 = kart("b", 10, 15)
+		k2.px, k2.pz = -10, 15 -- path 15 studs to the side: too far
 		eq(#B.step(boxes2, { k2 }, 0, yes), 0)
 	end
 )
@@ -168,11 +168,15 @@ test("sizes come from the arena scale: reach and box fit a kart, not raw studs",
 	local b = B.new({ { x = 0, y = 0, z = 0 } })[1]
 	near(b.r, B.RADIUS * B.SCALE, 1e-9)
 	local kartLen = B.KART * B.SCALE
-	truthy(b.r >= kartLen * 0.5 and b.r <= kartLen * 1.5, `reach {b.r} vs kart {kartLen}`)
+	truthy(
+		b.r >= kartLen * 1.8 and b.r <= kartLen * 2.4,
+		`reach {b.r} = about 2 kart lengths ({kartLen})`
+	)
+	truthy(b.r > 2.5 and b.r < 3.2, `reach {b.r} studs`)
 	truthy(B.SIZE <= B.KART, "box no longer than a kart")
-	-- a kart one kart-length to the side doesn't get it; touching it does
-	eq(#B.step(B.new({ { x = 0, y = 0, z = 0 } }), { kart("far", kartLen * 1.6, 0) }, 0, yes), 0)
-	eq(#B.step(B.new({ { x = 0, y = 0, z = 0 } }), { kart("on", kartLen * 0.6, 0) }, 0, yes), 1)
+	-- a kart 2.5 kart lengths away doesn't get it; 1.9 lengths away does
+	eq(#B.step(B.new({ { x = 0, y = 0, z = 0 } }), { kart("far", kartLen * 2.5, 0) }, 0, yes), 0)
+	eq(#B.step(B.new({ { x = 0, y = 0, z = 0 } }), { kart("on", kartLen * 1.9, 0) }, 0, yes), 1)
 end)
 
 test("reset puts every box back up", function()
@@ -226,10 +230,10 @@ test("BoxServer on the pretend server: pickup gives a weapon, box comes back, no
 	pos = Vector3.new(110, 0, 0) -- 20 studs in one check: a jump at RC scale
 	S.advance(0.1, 0.05)
 	eq((handle.folder:FindFirstChild("Box2") :: any):GetAttribute("Up"), true, "jump skips")
-	pos = Vector3.new(98, 0, 0.3) -- 2 studs before box 2, out of reach
+	pos = Vector3.new(96, 0, 0.3) -- 4 studs before box 2, out of reach
 	S.advance(0.2, 0.05)
 	eq(#gave, 1)
-	pos = Vector3.new(102, 0, 0.3) -- 2 studs past it: only the path between was in reach
+	pos = Vector3.new(104, 0, 0.3) -- 4 studs past it: only the path between was in reach
 	S.advance(0.2, 0.05)
 	eq(
 		(handle.folder:FindFirstChild("Box2") :: any):GetAttribute("Up"),
