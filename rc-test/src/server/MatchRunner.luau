@@ -781,14 +781,10 @@ end
 
 -- The save's coins (and league, trophies) on the player's attributes: the garage chip and the
 -- lobby read those (Studio round 5: the chip said 25 with 75 saved after 3 rounds).
-local function showCoins(player: Player, data: any)
+local function showCoins(player: Player, data: Profile.Data)
 	player:SetAttribute("Coins", data.coins)
-	if type(data.league) == "number" or type(data.league) == "string" then
-		player:SetAttribute("League", data.league)
-	end
-	if type(data.trophies) == "number" then
-		player:SetAttribute("Trophies", data.trophies)
-	end
+	player:SetAttribute("League", data.league)
+	player:SetAttribute("Trophies", data.trophies)
 end
 
 local function pay(player: Player, coins: number, why: string): number
