@@ -3,6 +3,7 @@
   "tree": {
     "$className": "DataModel",
     "Workspace": {
+      "$ignoreUnknownInstances": true,
       "$properties": {
         "StreamingEnabled": false
       }
@@ -15,6 +16,7 @@
       }
     },
     "ReplicatedStorage": {
+      "$ignoreUnknownInstances": true,
       "Shared": {
         "$path": "src/shared"
       }

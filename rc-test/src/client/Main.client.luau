@@ -158,12 +158,13 @@ end
 
 local current = 1
 
--- the skin to draw: the track's Meshy model, else (Car VS Car) the toy car of the car you race
--- with, the one your plot shows (playtest u01: big races drew the grey box)
+-- the skin to draw: the track's Meshy model, or (Car VS Car) the look of the car you race with,
+-- the one your plot shows (playtest u01: big races drew the grey box)
+-- (Car VS Car: always the kart, so every car is one of the imported karts, the Lead 10-29; the
+-- old rock and drift Meshy models are for the RC game only)
 local function skinName(): string?
-	local own = SKINS[tracks[current].id]
-	if own or not Features.CVC then
-		return own
+	if not Features.CVC then
+		return SKINS[tracks[current].id]
 	end
 	local id = player:GetAttribute("RacerCar")
 	if type(id) ~= "string" then
