@@ -126,11 +126,27 @@ function WarmupYardServer.start(hooks: Hooks)
 				return out
 			end,
 			-- practice: only the dummies take damage (no score, no coins)
-			damage = function(victimId: any, _attackerId: any, amount: number, _weapon: string)
+			-- returns the health the hit really took (0 on a missing or popped dummy), for the
+			-- hit flash and "-N" (WeaponServer)
+			damage = function(
+				victimId: any,
+				_attackerId: any,
+				amount: number,
+				_weapon: string
+			): number
 				local d = dummies[victimId]
-				if d and type(amount) == "number" and amount > 0 then
-					d:hit(amount)
+				if
+					not d
+					or d.popped
+					or type(amount) ~= "number"
+					or amount ~= amount
+					or amount <= 0
+				then
+					return 0
 				end
+				local before = d.health
+				d:hit(amount)
+				return math.max(0, before - d.health)
 			end,
 			model = function(id: any): Instance?
 				local d = dummies[id]

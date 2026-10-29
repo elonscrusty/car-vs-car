@@ -75,13 +75,15 @@ test(
 		end
 		local want = {
 			"Ground",
-			"Statue",
 			"QueuePad1",
 			"QueuePad" .. #S.PADS,
-			"Stand8",
 			"Arch",
 			"garage/Lift",
 		}
+		-- (Smash: no statue or car stands, the portal is the hero, LOOK-BIBLE rule 9)
+		for _, g in if S.SMASH then { "Portal1" } else { "Statue", "Stand8" } do
+			table.insert(want, g)
+		end
 		for _, g in
 			if Features.CVC
 				then { "crates/Shell", "crates/Counter", "crates/Crate3" }

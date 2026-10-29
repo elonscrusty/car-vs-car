@@ -8,6 +8,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
+local SpawnLobby = require(ReplicatedStorage.Shared.SpawnLobby)
 local Forever = require(ReplicatedStorage.Shared.Forever)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local CarBuilder = require(script.Parent.CarBuilder)
@@ -290,7 +291,9 @@ local WALK_SPEED = 24 -- on foot in the lobby (Roblox's 16 felt slow on the long
 local function homeOf(player: Player): CFrame
 	local own = LobbyPlots.slotOf(player)
 	local slot = own and slots[own]
-	if slot then
+	-- (Smash: everyone appears in the plaza looking at the SMASH! portal, LOOK-BIBLE rule 9 and
+	-- the hub's first job: the main action in the first frame)
+	if slot and not SpawnLobby.SMASH then
 		local pos = Vector3.new(slot.exitX, 3, slot.exitZ)
 		return CFrame.lookAt(pos, Vector3.new(slot.plotX, 3, slot.exitZ))
 	end
