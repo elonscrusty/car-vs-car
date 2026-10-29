@@ -25,8 +25,7 @@ local ROAD = rgb(150, 150, 158)
 local CURB_RED, CURB_WHITE = rgb(214, 70, 72), rgb(240, 238, 232)
 local SAND = rgb(250, 190, 96)
 local BUMPER = rgb(225, 40, 50)
-local PINK, PINK_RAMP = rgb(234, 122, 196), rgb(246, 168, 220)
-local PINK_SIDE = rgb(212, 100, 176)
+local PINK = rgb(234, 122, 196)
 local PURPLE, PURPLE_STEP = rgb(136, 60, 196), rgb(176, 96, 220)
 local ORANGE = rgb(255, 140, 40)
 local CANDY, CANDY_2 = rgb(214, 44, 178), rgb(255, 110, 200)
@@ -290,7 +289,7 @@ local function mesa(
 	inset: number,
 	sides: { number }?,
 	top: Color3,
-	side: Color3
+	side: Color3 | { Color3 }
 )
 	local inner = ArenaData.insetPoly(poly, inset, sides)
 	local n = #poly
@@ -311,8 +310,9 @@ local function mesa(
 			local a, b = v(poly[i], 0), v(poly[j], 0)
 			local out = (a + b) / 2 - mid
 			out = Vector3.new(out.X, 0, out.Z)
-			tri(parent, name, a, b, tops[j], out, 1, side)
-			tri(parent, name, a, tops[j], tops[i], out, 1, side)
+			local sc: Color3 = if type(side) == "table" then side[(i - 1) % #side + 1] else side
+			tri(parent, name, a, b, tops[j], out, 1, sc)
+			tri(parent, name, a, tops[j], tops[i], out, 1, sc)
 		end
 	end
 end
@@ -652,9 +652,194 @@ local function rampLooks(folder: Instance, a: Vector3, b: Vector3, w: number, h:
 	end
 end
 
+-- the junkyard-night hills (carter's pick, 10-29): cracked grey concrete, a yellow/black warning band
+-- round the top, broken slabs and rebar lying on the slopes, cones on the corners
+local CONC, CONC_FOOT = rgb(138, 140, 150), rgb(92, 94, 106)
+local CONC_SIDES = {
+	rgb(111, 113, 124),
+	rgb(124, 126, 138),
+	rgb(103, 105, 117),
+	rgb(119, 121, 135),
+	rgb(114, 116, 127),
+}
+local SLABS = { rgb(128, 130, 142), rgb(116, 118, 129), rgb(138, 140, 150) }
+local CRACK, CONE_ORANGE, CONE_WHITE = rgb(74, 76, 88), rgb(255, 122, 26), rgb(242, 242, 242)
+local BLACK_BAND = rgb(28, 28, 36)
+
+-- Looks only (nothing solid, nothing for the camera or a kart to hit): dress one hill. The solid
+-- shape is mesa()'s; everything here lies on it. `ramp` is the ramp that climbs it (kept clear).
+local function dressHill(
+	folder: Instance,
+	poly: { Pt },
+	h: number,
+	inset: number,
+	seed: number,
+	ramp: ArenaData.Ramp?
+)
+	local rng = Random.new(seed)
+	local inner = ArenaData.insetPoly(poly, inset, nil)
+	local n = #poly
+	local feet: { Vector3 }, tops: { Vector3 } = {}, {}
+	local mid = Vector3.zero
+	for i = 1, n do
+		feet[i] = v(poly[i], 0)
+		tops[i] = v(inner[i], h)
+		mid += tops[i] / n
+	end
+	local dress = Instance.new("Folder")
+	dress.Name = "HillDress"
+	dress.Parent = folder
+	-- the ramp's top, where the band and cones stay away
+	local clearAt: Vector3? = nil
+	local clearR = 0
+	if ramp then
+		local dir = (v(ramp.to, 0) - v(ramp.from, 0)).Unit
+		clearAt = v(ramp.to, h) + dir * (ArenaData.RAMP_DECK * K / 2)
+		clearR = ramp.width * K / 2 + ArenaData.RAMP_DECK * K
+	end
+	local function clear(p: Vector3): boolean
+		return clearAt ~= nil
+			and (Vector3.new(p.X, 0, p.Z) - Vector3.new(clearAt.X, 0, clearAt.Z)).Magnitude
+				< clearR
+	end
+	-- a random spot on the flat top (a random triangle of its fan)
+	local function topSpot(): Vector3
+		local i = rng:NextInteger(2, n - 1)
+		local r1, r2 = rng:NextNumber(), rng:NextNumber()
+		if r1 + r2 > 1 then
+			r1, r2 = 1 - r1, 1 - r2
+		end
+		return tops[1] + (tops[i] - tops[1]) * r1 + (tops[i + 1] - tops[1]) * r2
+	end
+	-- slabs and rebar lying on each sloped side
+	for i = 1, n do
+		local j = i % n + 1
+		local a, b, ta, tb = feet[i], feet[j], tops[i], tops[j]
+		local along = b - a
+		local out = (a + b) / 2 - mid
+		out = Vector3.new(out.X, 0, out.Z)
+		local up = along:Cross(ta - a).Unit
+		if up:Dot(out) < 0 then
+			up = -up
+		end
+		local right = along.Unit
+		local back = right:Cross(up)
+		for k = 1, 4 do
+			local s, t = 0.12 + rng:NextNumber() * 0.76, 0.15 + rng:NextNumber() * 0.65
+			local at = a:Lerp(b, s):Lerp(ta:Lerp(tb, s), t)
+			if not clear(at) then
+				local lie = CFrame.fromMatrix(at + up * 0.3, right, up, back)
+					* CFrame.Angles(0, rng:NextNumber() * math.pi, (rng:NextNumber() - 0.5) * 0.35)
+				part(
+					dress,
+					"HillSlab",
+					Vector3.new(4 + rng:NextNumber() * 3, 0.5, 2.6 + rng:NextNumber() * 2),
+					lie,
+					SLABS[(i + k) % #SLABS + 1],
+					false
+				)
+				if k % 2 == 0 then
+					part(
+						dress,
+						"HillRebar",
+						Vector3.new(0.2, 0.2, 2.4),
+						CFrame.fromMatrix(at + up * 0.5, right, up, back)
+							* CFrame.Angles(0.4, rng:NextNumber() * math.pi, 0),
+						RUST,
+						false
+					)
+				end
+			end
+		end
+	end
+	-- cracks across the top
+	for _ = 1, 9 do
+		local p = topSpot()
+		if not clear(p) then
+			part(
+				dress,
+				"HillCrack",
+				Vector3.new(0.3, 0.06, 3 + rng:NextNumber() * 5),
+				CFrame.new(p.X, h + 0.04, p.Z) * CFrame.Angles(0, rng:NextNumber() * math.pi, 0),
+				CRACK,
+				false
+			)
+		end
+	end
+	-- the yellow and black warning band just inside the top edge
+	for i = 1, n do
+		local j = i % n + 1
+		local a, b = tops[i], tops[j]
+		local len = (b - a).Magnitude
+		local inward = Vector3.new(mid.X - (a.X + b.X) / 2, 0, mid.Z - (a.Z + b.Z) / 2).Unit
+		local count = math.max(2, math.floor(len / 3 + 0.5))
+		local seg = len / count
+		for k = 0, count - 1 do
+			local p = a:Lerp(b, (k + 0.5) / count) + inward * 0.9
+			if not clear(p) then
+				local at = Vector3.new(p.X, h + 0.07, p.Z)
+				part(
+					dress,
+					"HillBand",
+					Vector3.new(1.5, 0.1, seg + 0.02),
+					CFrame.lookAt(at, at + (b - a)),
+					if k % 2 == 0 then HAZARD else BLACK_BAND,
+					false
+				)
+			end
+		end
+	end
+	-- a traffic cone near most corners (a black foot, orange and white rings)
+	for i = 1, n do
+		local p = tops[i]:Lerp(mid, 0.18)
+		if i % 2 == 1 and not clear(p) then
+			local base = Vector3.new(p.X, h, p.Z)
+			disc(
+				dress,
+				"HillCone",
+				CFrame.new(base + Vector3.new(0, 0.15, 0)),
+				2.4,
+				0.3,
+				BLACK_BAND
+			)
+			disc(
+				dress,
+				"HillCone",
+				CFrame.new(base + Vector3.new(0, 0.7, 0)),
+				1.8,
+				0.8,
+				CONE_ORANGE
+			)
+			disc(
+				dress,
+				"HillCone",
+				CFrame.new(base + Vector3.new(0, 1.25, 0)),
+				1.4,
+				0.4,
+				CONE_WHITE
+			)
+			disc(
+				dress,
+				"HillCone",
+				CFrame.new(base + Vector3.new(0, 1.7, 0)),
+				0.9,
+				0.6,
+				CONE_ORANGE
+			)
+		end
+	end
+end
+
 local function buildHills(folder: Instance)
-	for _, h in ArenaData.HILLS do
-		mesa(folder, h.name, h.poly, h.h, h.slope, nil, PINK, PINK_SIDE)
+	for hi, h in ArenaData.HILLS do
+		mesa(folder, h.name, h.poly, h.h, h.slope, nil, CONC, CONC_SIDES)
+		local ramp: ArenaData.Ramp? = nil
+		for _, r in ArenaData.RAMPS do
+			if ArenaData.inside(h.poly, r.to) then
+				ramp = r
+			end
+		end
+		dressHill(folder, h.poly, h.h, h.slope, 100 + hi, ramp)
 	end
 	-- the soft bumper round each hill's foot (open at the ramp), pushed out so its inside face
 	-- is on the foot line, with a round post at every end
@@ -677,14 +862,14 @@ local function buildHills(folder: Instance)
 			out = -out
 		end
 		local push = out * (fw / 2)
-		wall(folder, "HillFoot", a + push, b + push, fw, fh, PINK_SIDE, true)
+		wall(folder, "HillFoot", a + push, b + push, fw, fh, CONC_FOOT, true)
 		for _, e in { a, b } do
-			round(folder, "HillFootPost", e + push, fw, fh, PINK_SIDE)
+			round(folder, "HillFootPost", e + push, fw, fh, CONC_FOOT)
 		end
 	end
 	-- a 45 degree fillet each side of each ramp, in the corner of the bumper and the ramp's side
 	for _, f in ArenaData.rampFillets do
-		rightPrism(folder, "HillFoot", v(f[1], 0), v(f[2], 0), v(f[3], 0), 0, fh, PINK_SIDE)
+		rightPrism(folder, "HillFoot", v(f[1], 0), v(f[2], 0), v(f[3], 0), 0, fh, CONC_FOOT)
 	end
 	for i, r in ArenaData.RAMPS do
 		local a, b = v(r.from, 0), v(r.to, 0)
