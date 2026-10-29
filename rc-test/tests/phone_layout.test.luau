@@ -601,6 +601,65 @@ for _, ph in PHONE_SIZES do
 		h.close()
 	end)
 
+	-- auditor 14:55: the 8 tiles spread over the panel, every word inside its tile at one
+	-- size, row 1 clear of row 2, the X clear of every tile
+	test("phone MENU at " .. ph.name .. ": rows spread, words in their tiles, X clear", function()
+		local items = {}
+		for i, w in { "GARAGE", "CRATES", "SPIN", "SHOP", "LEAGUE", "JOBS", "INVITE", "SETTINGS" } do
+			table.insert(items, { id = "i" .. i, word = w, icon = "bag" })
+		end
+		local h = Smash.menu({ items = items })
+		S.advance(2)
+		local s = ph.safe
+		local tile, word, close, grid = {}, {}, nil, nil
+		for _, b in L.boxes(h.gui.gui, s[1], s[2], s[3], s[4]) do
+			local n = string.match(b.path, "Item(%d+)%.Tile%.Tile$")
+			if n then
+				tile[tonumber(n)] = b
+			end
+			n = string.match(b.path, "Item(%d+)%.Tile%.Tile%.Word$")
+			if n then
+				word[tonumber(n)] = b
+			end
+			if b.obj.Name == "Close" then
+				close = b
+			end
+			if string.find(b.path, "%.Grid$") then
+				grid = b
+			end
+		end
+		local caps = {}
+		for i = 1, 8 do
+			local t, w = tile[i], word[i]
+			truthy(t ~= nil and w ~= nil, "tile or word " .. i .. " missing")
+			if t and w then
+				truthy(
+					w.x >= t.x - 1 and w.x + w.w <= t.x + t.w + 1,
+					items[i].word .. " spills out"
+				)
+				truthy(w.y + w.h <= t.y + t.h + 1, items[i].word .. " hangs below its tile")
+				if close then
+					truthy(not overlap(t, close), "the X covers " .. items[i].word)
+				end
+				local c = w.obj:FindFirstChildOfClass("UITextSizeConstraint")
+				table.insert(caps, c and c.MaxTextSize or -1)
+			end
+		end
+		for i = 2, #caps do
+			truthy(caps[i] == caps[1], "words differ in size")
+		end
+		if tile[1] and tile[5] then
+			truthy(tile[1].y + tile[1].h < tile[5].y - 8, "row 1 touches row 2")
+			if grid then
+				truthy(
+					tile[5].y + tile[5].h >= grid.y + grid.h * 0.9,
+					"the panel's bottom is empty"
+				)
+			end
+		end
+		h.close()
+	end)
+
 	test("end screen at " .. ph.name .. ": prints its size", function()
 		local h = Smash.matchEnd({
 			place = 5,

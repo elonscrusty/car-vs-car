@@ -297,6 +297,8 @@ end
 
 -- ===== Menu: a phone's lobby buttons in one window =====
 
+local MENU_TILE = 62 * 1.6 -- a tile in the MENU (design px)
+
 -- data: { items = { { id, word, icon, dot: number? } } } (up to 8, in order)
 -- actions: [id]() for each item (the window closes first), close()
 function Smash.menu(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
@@ -306,18 +308,31 @@ function Smash.menu(data: { [string]: any }, actions: Screen.Actions?): Screen.H
 		win.open()
 		local gp = piece("menu", "Window.Grid")
 		local grid = Base.box(win.content, "Grid", gp.x, gp.y, gp.w, gp.h, 3)
-		-- (each tile 1.3x the lobby's: its word and dot 14 px on a phone)
-		local size = 62 * 1.3
-		local cols, step, rowStep = 4, (gp.w - size) / 3, size + 10
+		-- (each tile 1.6x the lobby's: its word and dot 14 px on a phone; the two rows spread
+		-- over the grid with a gap, every word inside its own tile at one shared size: they
+		-- spilled wider than the tiles and row 1 touched row 2, auditor 14:55)
+		local items = data.items or {}
+		local k = MENU_TILE / 62
+		local size = 62 * k
+		local cols = 4
+		local step = (gp.w - size) / (cols - 1)
+		local rowStep = gp.h - size
+		local longest = 1
+		for i, it in items do
+			if i <= cols * 2 then
+				longest = math.max(longest, #tostring(it.word or ""))
+			end
+		end
 		local tiles: { GuiObject } = {}
-		for i, it in data.items or {} do
+		local words: { TextLabel } = {}
+		for i, it in items do
 			if i > cols * 2 then
 				break
 			end
 			local col, r = (i - 1) % cols, (i - 1) // cols
 			local cell = Base.box(grid, "Item" .. i, col * step, r * rowStep, 62, 62, 3)
 			local grow = Instance.new("UIScale")
-			grow.Scale = 1.3
+			grow.Scale = k
 			grow.Parent = cell
 			local side = Kit.side(cell, "Tile", 0, 0, it.word, it.icon, i)
 			side.setDot(it.dot)
@@ -325,7 +340,32 @@ function Smash.menu(data: { [string]: any }, actions: Screen.Actions?): Screen.H
 				Screen.closeOver() -- (the menu goes, then its window opens)
 				Screen.act(actions, it.id)()
 			end)
+			local tile = side.button:FindFirstChild("Tile")
+			local word = tile and tile:FindFirstChild("Word")
+			if word and word:IsA("TextLabel") then
+				Base.at(word, 1, 62 - 19, 60, 17)
+				table.insert(words, word)
+			end
 			table.insert(tiles, side.button)
+		end
+		-- one text size for every word: what the longest one gets (about 0.62 of a letter's
+		-- height across, FredokaOne capitals)
+		if #words > 0 then
+			local cap: { UITextSizeConstraint } = {}
+			for _, w in words do
+				local c = Instance.new("UITextSizeConstraint")
+				c.Parent = w
+				table.insert(cap, c)
+			end
+			local function fit()
+				local w = words[1].AbsoluteSize
+				local px = math.floor(math.min(w.Y, w.X / (longest * 0.62)))
+				for _, c in cap do
+					c.MaxTextSize = math.max(1, px)
+				end
+			end
+			fit()
+			words[1]:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
 		end
 		Anim.cascade(tiles)
 		return nil
