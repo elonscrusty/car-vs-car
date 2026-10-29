@@ -842,6 +842,7 @@ function SpawnLobby.dress(model: Instance, origin: CFrame)
 					col,
 					false
 				)
+				b.CastShadow = false -- (it moves every frame)
 				b:SetAttribute("Phase", i * 1.3 + k)
 				CollectionService:AddTag(b, "LobbyBob")
 			end
