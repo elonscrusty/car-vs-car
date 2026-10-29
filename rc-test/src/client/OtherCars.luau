@@ -333,6 +333,7 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 	local function update(dt: number)
 		local mine = myCarName()
 		local myGroup = Players.LocalPlayer:GetAttribute("RaceGroup")
+		local matchOn = Players.LocalPlayer:GetAttribute("InMatch") == true
 		local cam = workspace.CurrentCamera
 		local eye = if cam then cam.CFrame.Position else Vector3.zero
 		if carsChanged then
@@ -391,7 +392,7 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 			-- carter's pick 18: in the big race every car in your race wears its name, however far
 			-- (the stand cam watches from the side of the track)
 			local inRace = myGroup ~= nil and group == myGroup
-			local inMatch = not inRace and Players.LocalPlayer:GetAttribute("InMatch") == true
+			local inMatch = not inRace and matchOn
 			o.tag.MaxDistance = if inRace
 				then RACE_TAG_FAR
 				elseif inMatch then MATCH_TAG_FAR
