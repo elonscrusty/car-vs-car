@@ -352,3 +352,36 @@ test("R7-6: the place chip and the board agree, ties share a place", function()
 	local hud = fs.readFile("src/client/Ui/Screens/Hud.luau")
 	truthy(string.find(hud, "row.rank = e.rank or i", 1, true) ~= nil, "board rows ignore the rank")
 end)
+
+test(
+	"MatchResult: the server's shared place wins over the row number (ties, no smashes)",
+	function()
+		local tied = {
+			{ name = "Pepper", smashes = 3, place = 1 },
+			{ name = "Me", smashes = 3, place = 1, userId = ME },
+			{ name = "Skid", smashes = 0, place = 0 },
+		}
+		local v = MatchEnd.read(tied, 0, nil, nil, ME)
+		eq(v.place, 1, "tied for 1st, not 2nd")
+		eq(MatchEnd.placeWords(v.place, v.total), "1ST / 3")
+		local none = MatchEnd.read(
+			{
+				{ name = "A", smashes = 2, place = 1 },
+				{ name = "Me", smashes = 0, place = 0, userId = ME },
+			},
+			0,
+			nil,
+			nil,
+			ME
+		)
+		eq(MatchEnd.placeWords(none.place, none.total), "- / 2", "no smashes: no place")
+		local junk = MatchEnd.read(
+			{ { name = "Me", smashes = 1, place = 1e9, userId = ME } },
+			0,
+			nil,
+			nil,
+			ME
+		)
+		eq(junk.place, 1, "a junk place falls back to the row")
+	end
+)

@@ -108,7 +108,14 @@ function MatchEnd.read(
 		local me = uid ~= nil and uid == myId
 		local smashes = count(row.smashes, 9999)
 		if me then
-			view.place = i
+			-- the server's shared place (ties share it; 0 = no smashes), else the row's number
+			local pl = row.place
+			view.place = if type(pl) == "number"
+					and pl == math.floor(pl)
+					and pl >= 0
+					and pl <= MatchEnd.MAX_ROWS
+				then pl
+				else i
 			view.smashes = smashes
 		end
 		if i <= 3 then
@@ -129,7 +136,7 @@ end
 -- "3RD / 5"
 function MatchEnd.placeWords(place: number, total: number): string
 	if place < 1 then
-		return ""
+		return if total >= 1 then `- / {total}` else "" -- (no smashes: no place, like the chip)
 	end
 	local tail = "TH"
 	local t, h = place % 10, place % 100

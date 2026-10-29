@@ -847,6 +847,8 @@ local function endRound()
 		table.insert(rows, {
 			name = k.name,
 			smashes = k.smashes,
+			-- (the shared place the board and the chip show; 0 = no smashes, "-")
+			place = Match.shownPlace(k, Match.rank(m, k.id)),
 			userId = if k.human then k.id else nil,
 			carId = if info and info.player
 				then info.player:GetAttribute("RacerCar")
@@ -896,7 +898,7 @@ local function endRound()
 		local p = if k.human then Players:GetPlayerByUserId(k.id) else nil
 		if p and p.Parent then
 			-- (paid by the shared place: two karts on the same smashes get the same pay)
-			local ok, err = pcall(payOut, Match.rank(m, k.id), k, p)
+			local ok, err = pcall(payOut, Match.payPlace(m, k.id), k, p)
 			if not ok then
 				warn(`[Match] pay {p.Name}: {err}`)
 			end

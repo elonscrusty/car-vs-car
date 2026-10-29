@@ -257,6 +257,17 @@ function Match.rank(m: State, id: number): number
 	return ahead + 1
 end
 
+-- The place a round pays for: the shared place, but a kart with no smashes is never on the
+-- podium (all on 0 would all be "1st"; an idle kid isn't "2nd" behind one scorer).
+function Match.payPlace(m: State, id: number): number
+	local k = m.karts[id]
+	if not k then
+		return 0
+	end
+	local r = Match.rank(m, id)
+	return if k.smashes > 0 then r else math.max(r, #Match.PLACE_COINS + 1)
+end
+
 function Match.placeOf(m: State, id: number): number
 	for i, k in Match.places(m) do
 		if k.id == id then

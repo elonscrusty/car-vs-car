@@ -312,6 +312,14 @@ test("Match: ties share a place (1 + karts with more smashes), as on the board",
 	for _, r in rows do
 		eq(r.rank, Match.rank(m, r.id), `kart {r.id} on the board`)
 	end
+	-- pay: the shared place, but no smashes is never the podium
+	eq(Match.payPlace(m, 1), 2)
+	eq(Match.payPlace(m, 4), #Match.PLACE_COINS + 1, "0 smashes: not on the podium")
+	local idle = Match.new(0)
+	Match.add(idle, 1, "a", true, 0)
+	Match.add(idle, 2, "b", true, 0)
+	eq(Match.payPlace(idle, 1), #Match.PLACE_COINS + 1, "nobody smashed: nobody is 1st")
+	eq(Match.payPlace(idle, 2), #Match.PLACE_COINS + 1)
 	-- same smashes, same pay
 	eq(Match.coinsFor(Match.rank(m, 1), 1), Match.coinsFor(Match.rank(m, 2), 1))
 end)
