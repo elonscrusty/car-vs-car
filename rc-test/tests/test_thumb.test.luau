@@ -178,3 +178,89 @@ test(
 		)
 	end
 )
+
+test("round report: stuck, flipped and put-back time, speed, from frames", function()
+	local t = ThumbBrain.tally()
+	for _ = 1, 100 do
+		ThumbBrain.sample(t, 0.1, 1.5, 1) -- 15 studs/s, upright
+	end
+	for _ = 1, 30 do
+		ThumbBrain.sample(t, 0.1, 0.05, 1) -- wedged on a wall
+	end
+	for _ = 1, 10 do
+		ThumbBrain.sample(t, 0.1, 0, 0.1) -- on its roof
+	end
+	ThumbBrain.sample(t, 0.1, 30, 1) -- put back
+	ThumbBrain.sample(t, 3, 1, 1) -- a hitch: skipped
+	truthy(math.abs(t.alive - 14) < 1e-6, `alive {t.alive}`)
+	truthy(math.abs(t.stuck - 4) < 1e-6, `stuck {t.stuck}`)
+	truthy(math.abs(t.flipped - 1) < 1e-6, `flipped {t.flipped}`)
+	eq(t.putBack, 1, "put back")
+	local lines = ThumbBrain.report(t, 2, 3, 8, 21.04)
+	eq(lines[1], "round over: smashes 2, place 3/8, hits taken 0, first smash 21.0 s", "line 1")
+	truthy(string.find(lines[3], "stuck 4 s (29%)", 1, true), lines[3])
+	truthy(string.find(lines[3], "put back 1", 1, true), lines[3])
+	truthy(string.find(lines[3], "avg speed 10.8", 1, true), lines[3])
+	eq(
+		ThumbBrain.report(ThumbBrain.tally(), 0, 8, 8, nil)[1],
+		"round over: smashes 0, place 8/8, hits taken 0, first smash none",
+		"no smash"
+	)
+end)
+
+test("hits landed: only our own shots that hit (WeaponFx)", function()
+	eq(ThumbBrain.isHit("GunShot", { owner = 5, hit = true }, 5), true, "gun hit")
+	eq(ThumbBrain.isHit("GunShot", { owner = 5, hit = false }, 5), false, "gun miss")
+	eq(ThumbBrain.isHit("GunShot", { owner = -2, hit = true }, 5), false, "a bot's hit")
+	eq(ThumbBrain.isHit("FreezeShot", { owner = 5, hit = true }, 5), true, "freeze hit")
+	eq(ThumbBrain.isHit("RocketBoom", { owner = 5, hit = -3 }, 5), true, "rocket direct hit")
+	eq(ThumbBrain.isHit("RocketBoom", { owner = 5 }, 5), false, "rocket into a wall")
+	eq(ThumbBrain.isHit("RocketBoom", { owner = 5, hit = -3, quiet = true }, 5), false, "cleared")
+	eq(ThumbBrain.isHit("MineBoom", { owner = 5 }, 5), true, "our mine went off")
+	eq(ThumbBrain.isHit("GunShot", "junk", 5), false, "junk")
+	eq(ThumbBrain.isHit("RocketLaunch", { owner = 5 }, 5), false, "a launch isn't a hit")
+end)
+
+test("the round report hooks MatchResult and WeaponFx only in Studio", function()
+	local client = fs.readFile("src/client/TestThumb.luau")
+	local gate = string.find(client, "if RunService:IsStudio() then", 1, true)
+	local result = string.find(client, 'onRemote("MatchResult"', 1, true)
+	local fx = string.find(client, "onRemote(Weapons.FX_REMOTE", 1, true)
+	truthy(gate and result and fx and gate < result and gate < fx, "both inside the Studio check")
+	truthy(string.find(client, "MatchEnd.read(", 1, true), "place from the end screen's own read")
+end)
+
+test(
+	"armed: chases a kart instead of the box; the one ahead (60 deg) over a nearer one behind",
+	function()
+		local s = ThumbBrain.new(rng())
+		local out = ThumbBrain.step(
+			s,
+			0,
+			ME,
+			{ { x = 10, z = -10 } },
+			{ { x = -10, z = -20 } },
+			true
+		)
+		truthy(out.steer < -0.3, `left at the kart, not right at the box, got {out.steer}`)
+		truthy(out.target and out.target.x == -10, "target is the kart")
+		local s2 = ThumbBrain.new(rng())
+		local ahead = { x = 8, z = -25 }
+		local behind = { x = 0, z = 6 }
+		local o2 = ThumbBrain.step(s2, 0, ME, {}, { behind, ahead }, true)
+		truthy(o2.target and o2.target.x == 8, "the kart ahead, though the one behind is nearer")
+		local s3 = ThumbBrain.new(rng())
+		local o3 = ThumbBrain.step(s3, 0, ME, {}, { behind }, true)
+		truthy(o3.target and o3.target.z == 6, "none ahead: turns for the nearest")
+		local s4 = ThumbBrain.new(rng())
+		local o4 = ThumbBrain.step(
+			s4,
+			0,
+			ME,
+			{ { x = 10, z = -10 } },
+			{ { x = -10, z = -20 } },
+			false
+		)
+		truthy(o4.target and o4.target.x == 10, "unarmed: the box")
+	end
+)
