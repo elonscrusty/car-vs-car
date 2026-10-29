@@ -14,9 +14,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Forever = require(ReplicatedStorage.Shared.Forever)
-local Features = require(ReplicatedStorage.Shared.Features)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local Lb = require(ReplicatedStorage.Shared.Leaderboards)
+local SpawnLobby = require(ReplicatedStorage.Shared.SpawnLobby)
 local RaceMaps = require(ReplicatedStorage.Shared.RaceMaps)
 local PlayerData = require(script.Parent.PlayerData)
 
@@ -96,7 +96,9 @@ end
 
 local INK = Color3.fromRGB(27, 27, 47)
 local YELLOW = Color3.fromRGB(255, 199, 44)
-local BLUE = Color3.fromRGB(30, 123, 224)
+local SMASH = SpawnLobby.SMASH -- (Smash on, or the Studio Smash switch)
+-- Smash (LOOK-BIBLE): the bible navy and yellow, chunky round posts
+local BLUE = if SMASH then Color3.fromRGB(30, 42, 90) else Color3.fromRGB(30, 123, 224)
 local WHITE = Color3.new(1, 1, 1)
 local RANK_COLORS =
 	{ Color3.fromRGB(255, 199, 44), Color3.fromRGB(190, 200, 214), Color3.fromRGB(217, 140, 72) }
@@ -156,11 +158,32 @@ local function build(board: Lb.Board, folder: Instance, originZ: number)
 		post.CanCollide = false
 		post.CanQuery = false
 		post.CanTouch = false
-		post.Material = Enum.Material.Metal
-		post.Color = INK
+		post.Material = if SMASH then Enum.Material.SmoothPlastic else Enum.Material.Metal
+		post.Color = if SMASH then BLUE else INK
 		local ph = y - h / 2
-		post.Size = Vector3.new(0.5, ph, 0.5)
-		post.CFrame = anchor.CFrame * CFrame.new(dx, ph / 2 - y, 0.3)
+		if SMASH then
+			-- a fat round post with a yellow ball on top (rule 1, 2)
+			post.Shape = Enum.PartType.Cylinder
+			post.Size = Vector3.new(ph, 1.1, 1.1)
+			post.CFrame = anchor.CFrame
+				* CFrame.new(dx, ph / 2 - y, 0.3)
+				* CFrame.Angles(0, 0, math.pi / 2)
+			local cap = Instance.new("Part")
+			cap.Name = "PostCap"
+			cap.Anchored = true
+			cap.CanCollide = false
+			cap.CanQuery = false
+			cap.CanTouch = false
+			cap.Material = Enum.Material.SmoothPlastic
+			cap.Color = YELLOW
+			cap.Shape = Enum.PartType.Ball
+			cap.Size = Vector3.new(1.6, 1.6, 1.6)
+			cap.CFrame = anchor.CFrame * CFrame.new(dx, -h / 2, 0.3)
+			cap.Parent = anchor
+		else
+			post.Size = Vector3.new(0.5, ph, 0.5)
+			post.CFrame = anchor.CFrame * CFrame.new(dx, ph / 2 - y, 0.3)
+		end
 		post.Parent = anchor
 	end
 	local gui = Instance.new("SurfaceGui")
@@ -172,7 +195,9 @@ local function build(board: Lb.Board, folder: Instance, originZ: number)
 	gui.Parent = anchor
 	-- Kart Party: a blue panel with an ink rim, a yellow title pill, white row cards
 	local panel = Instance.new("Frame")
-	panel.Size = UDim2.fromScale(1, 1)
+	-- (Smash: inset, so the yellow rim drawn outside the panel still lands on the face)
+	panel.Size = if SMASH then UDim2.fromScale(0.96, 0.95) else UDim2.fromScale(1, 1)
+	panel.Position = if SMASH then UDim2.fromScale(0.02, 0.025) else UDim2.new()
 	panel.BackgroundColor3 = BLUE
 	panel.BorderSizePixel = 0
 	panel.Parent = gui
@@ -180,8 +205,8 @@ local function build(board: Lb.Board, folder: Instance, originZ: number)
 	corner.CornerRadius = UDim.new(0.07, 0)
 	corner.Parent = panel
 	local rim = Instance.new("UIStroke")
-	rim.Color = INK
-	rim.Thickness = 10
+	rim.Color = if SMASH then YELLOW else INK
+	rim.Thickness = if SMASH then 16 else 10
 	rim.Parent = panel
 	local pill = Instance.new("Frame")
 	pill.Size = UDim2.fromScale(0.86, 0.17)
@@ -462,7 +487,7 @@ function Leaderboards.start()
 	local originZ = LobbyLayout.PLAZA.maxZ - 36 -- the same origin LobbyBuilder gives the spawn lobby
 	local maps: { { id: string, label: string } } = {}
 	-- Car VS Car Smash has no race tracks: only the trophies board, no fastest-lap boards
-	if not (Features.CVC and Features.SMASH) then
+	if not SMASH then
 		for _, m in RaceMaps.list() do
 			table.insert(maps, { id = m.id, label = m.label })
 		end

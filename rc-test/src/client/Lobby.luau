@@ -19,6 +19,7 @@ local HudLayout = require(ReplicatedStorage.Shared.HudLayout)
 local KartStyle = require(ReplicatedStorage.Shared.KartStyle)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local SoundLevels = require(ReplicatedStorage.Shared.SoundLevels)
+local SpawnLobby = require(ReplicatedStorage.Shared.SpawnLobby)
 local PlotGuide = require(script.Parent.PlotGuide)
 local StageGate = require(script.Parent.StageGate)
 
@@ -221,8 +222,13 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 			if s and slot ~= ownSlot then
 				if marker then
 					marker:Destroy()
+					marker = nil
 				end
-				marker = makeMarker(s.padX, s.padZ)
+				-- (Smash: no YOUR PLOT light column; the SMASH! portal is the one thing to walk to,
+				-- LOOK-BIBLE rule 9)
+				if not SpawnLobby.SMASH then
+					marker = makeMarker(s.padX, s.padZ)
+				end
 			end
 			ownSlot = slot
 			friendsOn = open
