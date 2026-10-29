@@ -1,8 +1,12 @@
 --!strict
 -- On-screen words: track buttons, timer, speed, drift score, short messages.
 
+local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+
+local UiScreens = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("UiScreens"))
 
 export type Hud = {
 	gui: ScreenGui,
@@ -256,6 +260,21 @@ function Hud.new(gui: ScreenGui, trackLabels: { string }): Hud
 		-- smaller, over the sky and not the road ahead (Studio batch-2035 6)
 		msg.Position = UDim2.fromScale(0.5, if gold then 0.32 else 0.28)
 		msg.Size = UDim2.fromScale(0.5, if gold then 0.14 else 0.08)
+		if not gold and Players.LocalPlayer:GetAttribute("InMatch") == true then
+			-- Smash arena: the match HUD's Words spot, under the health bar (STUCK sat on it,
+			-- Studio round 5). That HUD sits under the top bar; this gui covers the whole screen.
+			local wp = UiScreens.piece("match", "Words")
+			local top = GuiService:GetGuiInset().Y
+			local tall = math.max(gui.AbsoluteSize.Y - top, 1)
+			local h = wp.h / UiScreens.H * tall
+			msg.Position = UDim2.new(
+				(wp.x + wp.w / 2) / UiScreens.W,
+				0,
+				0,
+				top + wp.y / UiScreens.H * tall + h / 2
+			)
+			msg.Size = UDim2.new(wp.w / UiScreens.W, 0, 0, h)
+		end
 		msg.TextTransparency = 0
 		msg.TextStrokeTransparency = 0.5
 		task.delay(1.6, function()

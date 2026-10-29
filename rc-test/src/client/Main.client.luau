@@ -596,7 +596,9 @@ RunService.PreSimulation:Connect(function(dt: number)
 	end
 	-- rocks: being stuck is part of crawling, so it never resets by itself (R or RESET does)
 	if stuckTime > Tuning.stuckWait and t.id ~= "rock" then
-		reset("STUCK - BACK TO START", "stuck")
+		-- (Smash: no race talk, audit R6-2)
+		local smash = player:GetAttribute("InMatch") == true or WarmupYard.on()
+		reset(if smash then "OOPS! FLIPPING YOU BACK" else "STUCK - BACK TO START", "stuck")
 	end
 	-- fell off the world, or got out of the plot
 	local lx, _, lz = TrackData.toLocal(t, rc, p.X, p.Y, p.Z)

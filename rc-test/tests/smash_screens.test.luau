@@ -138,6 +138,22 @@ test(
 	end
 )
 
+test("match HUD: nothing covers anything else, the flash words (STUCK...) included", function()
+	local ps = UiScreens.get("match").pieces
+	truthy(UiScreens.piece("match", "Words") ~= nil, "no spot for the flash words")
+	for i = 1, #ps do
+		for j = i + 1, #ps do
+			truthy(
+				not UiScreens.overlap(ps[i], ps[j]),
+				`match.{ps[i].name} covers match.{ps[j].name}`
+			)
+		end
+	end
+	-- (client/Hud puts its flash words there in a match: they sat on the health bar, Studio round 5)
+	local src = require("@lune/fs").readFile("src/client/Hud.luau")
+	truthy(string.find(src, 'UiScreens.piece("match", "Words")', 1, true) ~= nil, "flash not moved")
+end)
+
 test("how-to tips never cover the match HUD (board, feed, clock, health, FIRE)", function()
 	for _, tip in SmashScreens.get("howTo").pieces do
 		for _, hud in UiScreens.get("match").pieces do
@@ -240,4 +256,63 @@ test("customize: EQUIP works only on an owned thing that isn't on yet", function
 		)
 	end
 	truthy(not UiScreens.overlap(w, SmashScreens.piece("customize", "Card")))
+end)
+
+-- ===== audit round 6 =====
+
+test("R6-4: GRAB A ? only in the first 15 s of the tips, then TAP FIRE! waits for a box", function()
+	local none = { moved = 0, weapon = "", fired = false }
+	eq(SmashScreens.step(2, { moved = 0, weapon = "", fired = false, secs = 5 }), 2)
+	eq(SmashScreens.step(2, { moved = 0, weapon = "", fired = false, secs = 15 }), 3)
+	eq(SmashScreens.step(2, { moved = 0, weapon = "", fired = false, secs = 60 }), 3)
+	eq(
+		SmashScreens.cardFor(
+			SmashScreens.step(2, { moved = 0, weapon = "", fired = false, secs = 60 }),
+			""
+		),
+		0
+	)
+	eq(SmashScreens.step(2, none), 2) -- (no clock: as before)
+	truthy(
+		string.find(
+			require("@lune/fs").readFile("src/client/SmashHowTo.client.luau"),
+			"secs = ",
+			1,
+			true
+		) ~= nil,
+		"the how-to never passes the time"
+	)
+end)
+
+test(
+	"R6-4: the how-to tip sits fully on screen with room to spare, small phone included",
+	function()
+		local tip = SmashScreens.piece("howTo", "Tip")
+		truthy(tip.x + tip.w <= UiScreens.W - 16, "the tip touches the right edge")
+		-- (Base.place: anchor point at its scale spot, the box fit to the piece's shape)
+		for _, s in { { 667, 375 }, { 844, 390 }, { 1914, 753 } } do
+			local sw, sh = s[1], s[2] - 58 -- (under the top bar)
+			local bw, bh = tip.w / UiScreens.W * sw, tip.h / UiScreens.H * sh
+			local ratio = tip.w / tip.h
+			if bw / bh > ratio then
+				bw = bh * ratio
+			else
+				bh = bw / ratio
+			end
+			local right = (tip.x + tip.w) / UiScreens.W * sw -- (anchor r: the right edge holds)
+			truthy(right <= sw and right - bw >= 0, `tip off a {s[1]}x{s[2]} screen`)
+			truthy(sw - right >= 8, `tip flush with the edge at {s[1]}x{s[2]}`)
+		end
+	end
+)
+
+test("R6-3: the place chip is never blank: GO SMASH! before your first smash", function()
+	local src = require("@lune/fs").readFile("src/client/Ui/Screens/Hud.luau")
+	truthy(string.find(src, '"GO SMASH!"', 1, true) ~= nil, "no GO SMASH! in the place chip")
+	truthy(string.find(src, "placeSpot.Visible = smashes", 1, true) == nil, "the chip still hides")
+end)
+
+test("R6-2: stuck in Smash says OOPS! FLIPPING YOU BACK (no race words)", function()
+	local src = require("@lune/fs").readFile("src/client/Main.client.luau")
+	truthy(string.find(src, '"OOPS! FLIPPING YOU BACK"', 1, true) ~= nil, "still race words")
 end)

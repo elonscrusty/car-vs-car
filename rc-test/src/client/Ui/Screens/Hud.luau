@@ -725,13 +725,24 @@ function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 			"",
 			{ stroke = 5, drop = 3, align = "l", z = 3 }
 		)
+		-- (before your first smash the chip says GO SMASH! instead: "- / 8" read as broken, audit
+		-- R3-1, and an empty corner read as missing, audit R6-3)
+		local go = Base.text(placeSpot, "Go", 6, 4, pp.w - 12, pp.h - 12, "GO SMASH!", {
+			color = Base.color("go"),
+			stroke = 6,
+			drop = 3,
+			align = "l",
+			z = 3,
+		})
 		local function setPlace(p: number, total: number, smashes: number?)
 			local was = big.Text
-			-- (no place until you've smashed someone: "- / 8" read as broken, audit R3-1)
-			placeSpot.Visible = smashes ~= 0
+			local placed = smashes ~= 0
+			go.Visible = not placed
+			big.Visible = placed
+			of.Visible = placed
 			Base.setText(big, UiMotion.place(p))
 			Base.setText(of, "/ " .. tostring(total))
-			if was ~= "" and was ~= big.Text and placeSpot.Visible then
+			if was ~= "" and was ~= big.Text and placed then
 				Anim.shout(placeSpot)
 			end
 		end
