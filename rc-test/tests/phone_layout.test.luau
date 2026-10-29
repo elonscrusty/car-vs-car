@@ -677,3 +677,37 @@ test("words and the match toast stay out of the kart's box (60-85% down)", funct
 	truthy((tonumber(y) + tonumber(h)) / H0 < 0.25, "the match toast sits low")
 	truthy(string.find(src, "if inMatch then 2 else", 1, true) ~= nil, "match toast over 2 s")
 end)
+
+-- auditor 14:48: the end screen's right panel is full on every layout within a moment (coins,
+-- +XP, the level bar and YOU: 2ND / 8), and +XP has an ink stroke (white smeared it on white)
+test("end screen: coins, XP, level bar and your place all in by 1.6 s, XP readable", function()
+	local MatchEnd = require("../src/shared/MatchEnd")
+	local h = Smash.matchEnd({
+		place = 2,
+		total = 8,
+		top = {
+			{ name = "ZIPPY", smashes = 12, me = false },
+			{ name = "YOU", smashes = 9, me = true },
+			{ name = "TURBO TACO", smashes = 7, me = false },
+		},
+		winner = { name = "ZIPPY", smashes = 12, me = false },
+		coins = 120,
+		xp = 40,
+		smashes = 9,
+		nextAt = 10,
+	}, nil, MatchEnd.xpBar(140, 40))
+	S.advance(1.6)
+	local rew = h.gui.gui:FindFirstChild("Rewards", true)
+	truthy(rew ~= nil, "no rewards panel")
+	for _, n in { "Coins", "Xp", "Level", "Place" } do
+		local o = rew and rew:FindFirstChild(n, true)
+		truthy(o ~= nil and o.Visible, n .. " not shown yet")
+	end
+	local xp = rew and rew:FindFirstChild("Xp", true)
+	local st = xp and xp:FindFirstChildOfClass("UIStroke")
+	truthy(
+		st == nil or st.Color ~= roblox.Color3.new(1, 1, 1),
+		"+XP has a white stroke on the white panel"
+	)
+	h.close()
+end)

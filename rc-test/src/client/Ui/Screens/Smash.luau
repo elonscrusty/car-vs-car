@@ -189,7 +189,8 @@ function Smash.matchEnd(
 			table.insert(rows, r)
 		end
 		Anim.cascade(rows)
-		-- what you got, popping in one after the other: coins, XP, then your place
+		-- what you got, popping in one after the other: coins, XP, the level bar, then your place
+		-- (all in by 1.6 s: a shot in the first seconds read as a half-empty panel, auditor 14:48)
 		local rew, rp = panel(g.canvas, "matchEnd", "Rewards")
 		-- what this round paid (not your wallet): a spinning coin and "+25"
 		local won = Base.box(rew, "Coins", 12, 12, rp.w - 24, 46, 4)
@@ -203,18 +204,19 @@ function Smash.matchEnd(
 			align = "l",
 			z = 5,
 		})
-		popLater(won, 1.0)
+		popLater(won, 0.5)
 		if view.xp > 0 then
 			local xp = Base.text(rew, "Xp", 12, 60, rp.w - 24, 30, `+{view.xp} XP`, {
+				-- (an ink stroke like the coins: white on the white panel smeared it into a blue
+				-- blob, auditor 14:48)
 				color = Base.color("blue"),
 				stroke = 5,
-				strokeColor = WHITE,
 				drop = 3,
 				dropColor = Base.color("blueDeep"),
 				align = "l",
 				z = 4,
 			})
-			popLater(xp, 1.6)
+			popLater(xp, 0.8)
 		end
 		-- the level bar filling from before the round to now; LEVEL UP! when it crosses (no popup)
 		if bar then
@@ -238,7 +240,7 @@ function Smash.matchEnd(
 				z = 9,
 			})
 			up.Visible = false
-			popLater(row, 1.9, function()
+			popLater(row, 1.0, function()
 				if bar.levelUp then
 					Kit.setBar(track, 1)
 					task.delay(0.5, function()
@@ -273,7 +275,7 @@ function Smash.matchEnd(
 				align = "l",
 				z = 4,
 			})
-			popLater(pl, 2.2)
+			popLater(pl, 1.2)
 		end
 		-- the count to the next round
 		local kp = piece("matchEnd", "Count")

@@ -299,7 +299,7 @@ local function shoutToast(text: string, mine: number)
 	-- (in a Smash match: a thin strip at the top for 2 s, not across your kart, auditor qa_r61)
 	local inMatch = player:GetAttribute("InMatch") == true
 	-- (short there: "+30 COINS: JOB DONE!", the job's name is in the JOBS window)
-	local short = if inMatch then string.match(text, "^(.-!)") or text else text
+	local short = if inMatch then string.match(text, "^(%+.-!)") or text else text
 	local l = if inMatch
 		then Kit.shout(toastGui.canvas, 244, 56, 240, 26, string.upper(short), "go")
 		else Kit.shout(toastGui.canvas, 158, 270, 440, 36, string.upper(text), "go")

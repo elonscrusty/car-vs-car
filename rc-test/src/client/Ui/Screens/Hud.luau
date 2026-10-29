@@ -959,7 +959,7 @@ function Hud.match(
 				"Name",
 				bx + 8,
 				0,
-				(hp.w - bx - 8) * 0.6,
+				(hp.w - bx - 8) * 0.5,
 				19,
 				Hud.cut(string.upper(tostring(data.name or "")), BOARD_NAME),
 				{ stroke = 3.5, align = "l", z = 6 }
