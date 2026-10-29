@@ -4,6 +4,7 @@
 local Harness = require("./harness")
 
 require("./carmath.test")
+require("./oil_slick.test")
 require("./league_up.test")
 require("./weapons.test")
 require("./weapon_server.test")
