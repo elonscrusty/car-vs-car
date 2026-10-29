@@ -50,6 +50,7 @@ export type Fleet = {
 	bots: { [number]: ArenaBrain.Bot },
 	world: ArenaBrain.World,
 	models: { [number]: Model }, -- this frame's kart models by id (for the default place)
+	startAt: number?, -- `now` at the first step: a rookie's calm (ArenaBrain.ROOKIE.calm) counts from here
 	list: { ArenaBrain.Bot }, -- (reused each frame)
 }
 
@@ -202,6 +203,7 @@ end
 
 function ArenaBots.clear(fleet: Fleet)
 	table.clear(fleet.bots)
+	fleet.startAt = nil
 end
 
 function ArenaBots.count(fleet: Fleet): number
@@ -221,6 +223,8 @@ function ArenaBots.step(fleet: Fleet, dt: number, now: number)
 	local toLocal = ctx.toLocal :: (Vector3) -> (number, number)
 	local toWorld = ctx.toWorld :: (number, number) -> Vector3
 	local w = fleet.world
+	fleet.startAt = fleet.startAt or now
+	local calm = now - (fleet.startAt :: number) < ArenaBrain.ROOKIE.calm
 	table.clear(w.karts)
 	table.clear(fleet.models)
 	for _, k in (ctx.karts :: () -> { Kart })() do
@@ -237,7 +241,8 @@ function ArenaBots.step(fleet: Fleet, dt: number, now: number)
 			x = x,
 			z = z,
 			alive = k.alive,
-			shield = k.shield, -- (a new kid's first 15 s shows as shielded: Match.forBots)
+			-- (shielded to the bots: a new kid's first 15 s, Match.forBots; a rookie's calm start)
+			shield = k.shield or (calm and k.rookie == true),
 			human = k.human,
 			rookie = k.rookie,
 		})

@@ -22,7 +22,9 @@ ArenaBrain.RADIUS = 3 -- a kart's size, for bumping into things
 ArenaBrain.THINK = 0.2 -- s between decisions (5 Hz); moving runs every step
 -- A rookie (a player's first 3 matches, MatchRunner): bots chase them less, see them later, wait
 -- longer between shots and hold some shots on purpose, so a new kid gets their smashes in.
-ArenaBrain.ROOKIE = { matches = 3, chase = 4, react = 1.5, gap = 1.5, spare = 0.6 }
+-- `calm`: s from the match start that bots leave a rookie alone (ArenaBots: they see them
+-- shielded). After it, some chaos: a rookie should be smashed now and then (Lead: 1-3 a match).
+ArenaBrain.ROOKIE = { matches = 3, chase = 3, react = 1.2, gap = 1.2, spare = 0.35, calm = 30 }
 -- The weapons' aim help (Weapons.ROCKET seekDeg / seekRange, in big units): a shot locks onto the
 -- nearest kart within this cone, so a bot shooting past a rookie would hit the rookie.
 ArenaBrain.LOCK = { deg = 35, range = 110 }
