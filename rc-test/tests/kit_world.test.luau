@@ -115,3 +115,27 @@ test("kit world: client text checks", function()
 		truthy(string.find(src, "rbxassetid://%d") == nil, "no made-up asset ids")
 	end
 end)
+
+test(
+	"kit world: Studio 10-29 fixes: flash on the kart you see, edge free of the kart skin",
+	function()
+		local hits = fs.readFile("src/client/SmashHits.client.luau")
+		truthy(
+			string.find(hits, 'workspace:FindFirstChild("OtherCars")', 1, true) ~= nil,
+			"the drawn kart"
+		)
+		local edge = fs.readFile("src/client/LowHealthEdge.client.luau")
+		truthy(
+			string.find(edge, 'gui:SetAttribute("NoKart", true)', 1, true) ~= nil,
+			"no kart-skin rims"
+		)
+		truthy(string.find(edge, 'f:SetAttribute("NoKart", true)', 1, true) ~= nil)
+		truthy(string.find(edge, "Enum.ScreenInsets.None", 1, true) ~= nil, "the whole screen")
+		-- exactly 4 soft sides and 1 thin rim, no tiles (Studio 10-29: lines like a grid)
+		local _, sides = string.gsub(edge, '\nlocal %w+ = side%("', "")
+		eq(sides, 4, "one soft side per edge")
+		local _, frames = string.gsub(edge, 'Instance%.new%("Frame"%)', "")
+		eq(frames, 2, "the side maker and the rim: no other frames")
+		truthy(string.find(edge, "ImageLabel", 1, true) == nil, "no pictures, no tiles")
+	end
+)
