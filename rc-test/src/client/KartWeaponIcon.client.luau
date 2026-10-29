@@ -14,8 +14,8 @@ local Base = require(Ui:WaitForChild("Base"))
 local KitWorld = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("KitWorld"))
 
 local Players = game:GetService("Players")
--- a phone (carter 10-29: too cluttered): smaller icons, near karts only, and none over your own
--- kart in the middle of the screen (its weapon and ammo are on FIRE)
+-- a phone (carter 10-29: too cluttered): smaller icons, near karts only; and on every screen none
+-- over your own kart (KitWorld.iconShown: its weapon and ammo are on FIRE)
 local PHONE = require(Ui:WaitForChild("Base")).phone()
 local MINE = "Car_" .. tostring(Players.LocalPlayer.UserId)
 
@@ -46,7 +46,7 @@ local function watch(model: Model)
 		local a = model:GetAttribute("Ammo")
 		local name = if type(w) == "string" then w else ""
 		local ammo = if type(a) == "number" then a else 0
-		if name == "" or ammo <= 0 or (PHONE and model.Name == MINE) then
+		if not KitWorld.iconShown(w, a, model.Name == MINE) then
 			if gui then
 				gui.Enabled = false
 			end

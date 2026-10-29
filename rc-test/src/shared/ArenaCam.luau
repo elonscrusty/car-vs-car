@@ -37,10 +37,12 @@ ArenaCam.KART_LONG = 5.5 * 0.25 -- studs (Weapons.KART)
 ArenaCam.KART_WIDE = 0.55 * ArenaCam.KART_LONG -- studs (a kart is 1 x 0.55 KART)
 ArenaCam.PHONE_AHEAD_MIN = 8 -- kart lengths still seen ahead of your kart (the fight round you)
 -- Lead 10-29 (Studio: the close camera put the back wheels on the bottom edge, under the thumbs):
--- on a phone the kart's middle sits 70% down the screen, and the look-ahead leans much less (a
--- full 2-stud lean at 4 studs away pushed the kart down to ~85%).
-ArenaCam.PHONE_LOW = 0.4 -- of the half screen below the middle: 70% down
-ArenaCam.PHONE_LEAN = 0.2 -- of the big camera's lean
+-- on a phone the kart sits ~72% down the screen, standing or at speed, so no look-ahead lean (a
+-- full 2-stud lean at 4 studs away pushed the kart down to ~85%). Studio r57 (#1016): aim at the
+-- kart you SEE (CarSkin's skin, down to the ground), not the smaller physics box above it (the
+-- box at 68% left the drawn kart at 79-81%): ChaseCamera passes the skin's middle as drop/fwd.
+ArenaCam.PHONE_LOW = 0.44 -- of the half screen below the middle: 72% down
+ArenaCam.PHONE_LEAN = 0 -- of the big camera's lean
 
 export type Fit = {
 	distance: number,
@@ -115,13 +117,14 @@ function ArenaCam.seeAhead(
 	pitch: number,
 	fov: number,
 	low: number?,
-	drop: number?
+	drop: number?,
+	fwd: number?
 ): number
 	local back, up = ArenaCam.offset(distance, pitch)
 	-- the screen's top edge: the view's middle (tipped up by the lower-third aim, at the kart's
-	-- middle `drop` below the followed spot), then half the field of view above it
+	-- middle `drop` below and `fwd` ahead of the followed spot), then half the field of view above
 	local half = math.rad(fov) / 2
-	local look = math.atan2(up + (drop or 0), back)
+	local look = math.atan2(up + (drop or 0), back + (fwd or 0))
 		- math.atan(math.tan(half) * (low or ArenaCam.KART_LOW))
 		- half
 	if look <= 0 then
@@ -139,16 +142,18 @@ end
 
 -- How far ahead of the kart (studs, along the ground) the camera aims, so the kart itself shows
 -- `low` of the half-screen below the middle (KART_LOW = lower third). `drop`: studs the kart's
--- middle sits below the point the camera follows (ChaseCamera follows a spot above the body).
+-- middle sits below the point the camera follows (ChaseCamera follows a spot above the body);
+-- `fwd`: studs it sits ahead of that point (behind when below 0).
 function ArenaCam.aimAhead(
 	distance: number?,
 	pitch: number?,
 	fov: number?,
 	low: number?,
-	drop: number?
+	drop: number?,
+	fwd: number?
 ): number
 	local back, up = ArenaCam.offset(distance, pitch)
-	local p = math.atan2(up + (drop or 0), back) -- down to the kart's middle
+	local p = math.atan2(up + (drop or 0), back + (fwd or 0)) -- down to the kart's middle
 	local half = math.rad((fov or ArenaCam.FOV) / 2)
 	-- the angle between the middle of the screen and the kart, for that screen spot
 	local off = math.atan(math.tan(half) * (low or ArenaCam.KART_LOW))
@@ -158,18 +163,19 @@ end
 
 -- Where the kart's middle lands, as a share of the screen's height from the top (0.5 = the
 -- middle), for a camera `distance`/`pitch`/`fov` aiming `ahead` + `lean` studs past the followed
--- point, with the kart's middle `drop` studs below it.
+-- point, with the kart's middle `drop` studs below it and `fwd` studs ahead of it.
 function ArenaCam.kartDown(
 	distance: number,
 	pitch: number,
 	fov: number,
 	ahead: number,
 	lean: number,
-	drop: number
+	drop: number,
+	fwd: number?
 ): number
 	local back, up = ArenaCam.offset(distance, pitch)
 	local look = math.atan2(up, back + ahead + lean)
-	local below = math.atan2(up + drop, back) - look
+	local below = math.atan2(up + drop, back + (fwd or 0)) - look
 	return 0.5 + 0.5 * math.tan(below) / math.tan(math.rad(fov) / 2)
 end
 

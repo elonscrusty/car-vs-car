@@ -162,6 +162,17 @@ KitWorld.WEAPON_IMAGES = {
 	mystery = "",
 } :: { [string]: string }
 
+-- Is the icon shown over a kart? Only while it holds a weapon with ammo, and never over your own
+-- kart (Lead 10-29: FIRE already shows yours, and it stacked with the YOU tag); every other kart
+-- keeps it (carter 10-28).
+function KitWorld.iconShown(weapon: unknown, ammo: unknown, mine: boolean): boolean
+	return not mine
+		and type(weapon) == "string"
+		and weapon ~= ""
+		and type(ammo) == "number"
+		and ammo > 0
+end
+
 -- The uploaded picture for an icon key, or nil (draw the stand-in).
 function KitWorld.weaponImage(key: string): string?
 	local id = KitWorld.WEAPON_IMAGES[key]
