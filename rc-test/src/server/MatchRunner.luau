@@ -451,6 +451,7 @@ function MatchRunner.damage(
 			-- (client/CarBoom: the big boom; "Smashed" alone is also a FREEZE hit)
 			if info.model then
 				info.model:SetAttribute("Wrecked", true)
+				info.model:SetAttribute("Streak", nil) -- (the fire goes out)
 			end
 			dropWeapon(victimId)
 			if not info.player and fleet and ArenaBots then
@@ -462,6 +463,10 @@ function MatchRunner.damage(
 			-- (Place first: the HUD redraws on Smashes and must not see a 0 Place with 1 smash)
 			setAttr(byInfo, "Place", Match.shownPlace(by, Match.rank(m, by.id)))
 			setAttr(byInfo, "Smashes", by.smashes)
+			if byInfo.model then
+				-- (client/StreakFire: the car burns from 3 smashes in a row)
+				byInfo.model:SetAttribute("Streak", by.streak)
+			end
 			if byInfo.player then
 				Jobs.fire(byInfo.player, "smash", 1)
 			end
