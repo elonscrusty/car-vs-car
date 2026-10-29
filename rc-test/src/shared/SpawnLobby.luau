@@ -23,6 +23,7 @@ local CarCatalog = sibling("CarCatalog")
 local CarGlow = sibling("CarGlow")
 local Features = sibling("Features")
 local Garage = sibling("Garage")
+local LobbyDock = sibling("LobbyDock")
 
 type V3 = Garage.V3
 type Piece = Garage.Piece
@@ -80,6 +81,13 @@ SpawnLobby.PORTAL_DAIS = 0.35 -- the round dais under it (low and walk-through)
 SpawnLobby.PORTAL_T = 1.8 -- the ring's thickness: thick and chunky (rule 2)
 if SpawnLobby.SMASH then
 	SpawnLobby.BOX.maxY = 21 -- (the big portal ring stands taller than the rest)
+end
+-- The Junkyard Dock look (carter picked D, 10-29): container walls round the square, hazard
+-- kerbs, a crane and tyre piles (LobbyDock), concrete paving. Smash only; false = the sandy plaza.
+SpawnLobby.DOCK = SpawnLobby.SMASH
+if SpawnLobby.DOCK then
+	-- the walls stand just outside the floor (4.8 deep) and the crane behind the back wall
+	SpawnLobby.BOX = { minX = -66, maxX = 66, minZ = -62, maxZ = 36, maxY = LobbyDock.CRANE_TOP }
 end
 SpawnLobby.PADS = if SpawnLobby.SMASH
 	then { { x = 0, kind = "smash", color = { 255, 95, 180 } } } -- Smash: one SMASH! portal (bible pink)
@@ -165,6 +173,12 @@ local L = {
 	green = { 70, 210, 90 },
 	statue = { 214, 48, 44 },
 }
+if SpawnLobby.DOCK then
+	-- concrete, not sand (carter's D): two greys under the orange and yellow of the dock
+	L.paving = { 138, 138, 150 }
+	L.paving2 = { 160, 160, 172 }
+	L.kerb = { 255, 177, 0 }
+end
 -- one colour per player's car on the stands, and the bunting
 local CAR_COLORS = {
 	{ 214, 48, 44 },
@@ -239,7 +253,7 @@ function SpawnLobby.parts(): { Piece }
 						"SlabEdge",
 						v(TILE - GAP_IN, 0.04, TILE - GAP_IN),
 						v(x, 0.02, z),
-						{ 200, 158, 104 },
+						if SpawnLobby.DOCK then { 118, 118, 130 } else { 200, 158, 104 },
 						{ collide = false }
 					)
 					add(
@@ -267,9 +281,12 @@ function SpawnLobby.parts(): { Piece }
 			}
 		)
 	end
-	add("Ground", "KerbBack", v(W, 0.6, 1), v(0, 0.3, back + 0.5), L.kerb)
-	add("Ground", "KerbLeft", v(1, 0.6, D), v(-W / 2 + 0.5, 0.3, 0), L.kerb)
-	add("Ground", "KerbRight", v(1, 0.6, D), v(W / 2 - 0.5, 0.3, 0), L.kerb)
+	-- (the dock look has its own hazard kerbs along the container walls: LobbyDock)
+	if not SpawnLobby.DOCK then
+		add("Ground", "KerbBack", v(W, 0.6, 1), v(0, 0.3, back + 0.5), L.kerb)
+		add("Ground", "KerbLeft", v(1, 0.6, D), v(-W / 2 + 0.5, 0.3, 0), L.kerb)
+		add("Ground", "KerbRight", v(1, 0.6, D), v(W / 2 - 0.5, 0.3, 0), L.kerb)
+	end
 	local side = W / 2 - SpawnLobby.GAP
 	for _, sx in { -1, 1 } do
 		add(
@@ -617,6 +634,10 @@ function SpawnLobby.parts(): { Piece }
 		add(g, "Leaves", v(2.6, 2, 2.6), v(p.x, 2.2, p.z), L.leaf, { rot = v(0, 45, 0) })
 	end
 
+	if SpawnLobby.DOCK then
+		LobbyDock.parts(add, W, D)
+	end
+
 	return out
 end
 
@@ -772,7 +793,8 @@ function SpawnLobby.dress(model: Instance, origin: CFrame)
 	local function at(x: number, z: number): Vector3
 		return origin:PointToWorldSpace(Vector3.new(x, 0, z))
 	end
-	for i, x in SpawnLobby.TREES do
+	-- (the dock look has container walls there instead of the trees and bushes)
+	for i, x in if SpawnLobby.DOCK then {} else SpawnLobby.TREES do
 		local z = SpawnLobby.TREE_Z + (if i % 2 == 0 then 1.5 else -1)
 		pcall(
 			kit.tree,
@@ -783,7 +805,7 @@ function SpawnLobby.dress(model: Instance, origin: CFrame)
 			200 + i
 		)
 	end
-	for i, p in SpawnLobby.BUSHES do
+	for i, p in if SpawnLobby.DOCK then {} else SpawnLobby.BUSHES do
 		pcall(kit.bush, folder, at(p.x, p.z), 3, 300 + i, false)
 	end
 	local pz = SpawnLobby.PAD_Z
@@ -866,6 +888,17 @@ SpawnLobby.REPAINT = {
 	RoofRib = { 255, 210, 63 },
 	Floor = { 242, 217, 166 },
 } :: { [string]: { number } }
+if SpawnLobby.DOCK then
+	-- the dock's palette (LobbyDock): steel-blue shells, dark roof, hazard ribs, concrete floor
+	SpawnLobby.REPAINT = {
+		BackWall = { 58, 111, 176 },
+		LeftWall = { 58, 111, 176 },
+		RightWall = { 58, 111, 176 },
+		Roof = { 42, 45, 58 },
+		RoofRib = { 255, 177, 0 },
+		Floor = { 160, 160, 172 },
+	}
+end
 function SpawnLobby.repaint(shop: Instance)
 	local shell = shop:FindFirstChild("Shell")
 	if not shell then
