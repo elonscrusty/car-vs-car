@@ -354,6 +354,22 @@ DRAW.plus = function(c)
 	Base.text(c, "Plus", 10, 4, 80, 84, "+", { stroke = 14 * unit(c), z = 5 })
 end
 
+-- Oil slick puddle (carter 10-29, try A): a fat black puddle, rainbow shine bars, two bubbles.
+DRAW.oilSlick = function(c)
+	local black = Color3.fromRGB(14, 14, 24)
+	shape(c, "Blob", 6, 30, 88, 56, black, nil, 6, nil, 1)
+	shape(c, "LobeL", 14, 22, 40, 34, black, nil, 6, nil, 1)
+	shape(c, "LobeR", 52, 38, 38, 36, black, nil, 6, nil, 1)
+	local shine = { "ff3fa4", "35e0ff", "8d5bff", "7dff6a", "ffd23f" }
+	for i, h in shine do
+		shape(c, "Shine" .. i, 22 + (i - 1) * 11, 62 - math.abs(i - 3) * 6, 10, 5, Color3.fromHex(h), 3, nil, (i - 3) * 12, 4)
+	end
+	shape(c, "BubbleA", 58, 28, 18, 18, Color3.fromRGB(34, 40, 84), nil, 6, nil, 5)
+	shape(c, "GlintA", 62, 31, 5, 5, WHITE, nil, 6, nil, 6)
+	shape(c, "BubbleB", 30, 38, 11, 11, Color3.fromRGB(34, 40, 84), nil, 6, nil, 5)
+	shape(c, "GlintB", 32, 40, 3, 3, WHITE, nil, 6, nil, 6)
+end
+
 -- Draw icon `name` in x, y, s x s of parent. opts: rarity / open (crates).
 function Icons.make(
 	parent: Instance,
