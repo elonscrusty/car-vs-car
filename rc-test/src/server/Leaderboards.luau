@@ -1,6 +1,6 @@
 --!strict
--- The lobby leaderboards: most trophies and fastest lap on each race map (Car VS Car Smash: the
--- trophies board only), on boards by the spawn.
+-- The lobby leaderboards: most trophies and fastest lap on each race map, on boards by the spawn
+-- (Car VS Car Smash: no boards; scores still saved, no board reads).
 -- Also the league badge over each player's head. Each board is an OrderedDataStore (key = UserId). Writes are gentle:
 -- a score is only sent when it beats the player's own best, a board is written at most every
 -- WRITE_GAP seconds per player, and the boards are read every REFRESH seconds. Every call retries
@@ -507,7 +507,9 @@ function Leaderboards.start()
 	end
 	for i, b in boards do
 		byId[b.id] = b
-		if Lb.placed(b, i) then
+		if SMASH then
+			continue -- (Smash: no board in the plaza, a racing leftover; auditor cheap tells #6)
+		elseif Lb.placed(b, i) then
 			build(b, folder, originZ)
 			draw(b)
 		else
@@ -601,7 +603,7 @@ function Leaderboards.start()
 		end
 	end)
 	task.spawn(function()
-		while true do
+		while not SMASH do -- (Smash: no board to show, so no reads)
 			for _, b in boards do
 				Forever.step("Leaderboards.read", function()
 					refresh(b)

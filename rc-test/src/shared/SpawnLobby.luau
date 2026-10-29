@@ -76,6 +76,8 @@ SpawnLobby.SMASH = Features.CVC
 -- back, so the first frame is the big SMASH! portal with the street behind it
 SpawnLobby.SPAWN = if SpawnLobby.SMASH then { x = 0, z = -6 } else { x = 0, z = 15 }
 SpawnLobby.PORTAL_R = 8.5 -- the SMASH! ring's radius
+SpawnLobby.PORTAL_DAIS = 0.35 -- the round dais under it (low and walk-through)
+SpawnLobby.PORTAL_T = 1.8 -- the ring's thickness: thick and chunky (rule 2)
 if SpawnLobby.SMASH then
 	SpawnLobby.BOX.maxY = 21 -- (the big portal ring stands taller than the rest)
 end
@@ -124,6 +126,13 @@ SpawnLobby.LAMPS = {
 }
 SpawnLobby.TREES = { -54, -38, -22, -8, 8, 22, 38, 54 } -- x, behind the back edge
 SpawnLobby.TREE_Z = -40
+-- Smash: the themed prop clusters (dress()), in the spawn view and off the walk lines
+SpawnLobby.CLUSTERS = {
+	{ x = -22, z = -2 },
+	{ x = 22, z = -2 },
+	{ x = -25, z = 26 },
+	{ x = 25, z = 26 },
+}
 SpawnLobby.BUSHES = {
 	{ x = -36, z = 31 },
 	{ x = 36, z = 31 },
@@ -224,11 +233,20 @@ function SpawnLobby.parts(): { Piece }
 					end
 				end
 				if (ix + iz) % 2 == 0 and clear then
+					-- a darker edge band round every slab (auditor cheap tells #2)
+					add(
+						"Ground",
+						"SlabEdge",
+						v(TILE - GAP_IN, 0.04, TILE - GAP_IN),
+						v(x, 0.02, z),
+						{ 200, 158, 104 },
+						{ collide = false }
+					)
 					add(
 						"Ground",
 						"Slab",
-						v(TILE - GAP_IN, 0.06, TILE - GAP_IN),
-						v(x, 0.03, z),
+						v(TILE - GAP_IN - 1.6, 0.08, TILE - GAP_IN - 1.6),
+						v(x, 0.04, z),
 						L.paving2,
 						{ collide = false }
 					)
@@ -344,7 +362,7 @@ function SpawnLobby.parts(): { Piece }
 			-- start lights (no racing now)
 			local P = "Portal" .. i -- its own group: the PlayPad mesh would replace the pad's
 			-- (low and walk-through: the walk to the street passes its edge)
-			local DAIS = 0.35
+			local DAIS = SpawnLobby.PORTAL_DAIS
 			add(P, "Dais", v(DAIS, 23, 23), v(px, DAIS / 2, pz), { 30, 42, 90 }, {
 				shape = "Cylinder",
 				rot = v(0, 0, 90),
@@ -368,7 +386,7 @@ function SpawnLobby.parts(): { Piece }
 				collide = false,
 			})
 			local R, N = SpawnLobby.PORTAL_R, 24
-			local T = 1.8 -- thick and chunky (rule 2)
+			local T = SpawnLobby.PORTAL_T
 			local seg = 2 * R * math.tan(math.pi / N) + 0.2
 			for k = 0, N - 1 do
 				local a = (k + 0.5) / N * 2 * math.pi
@@ -377,7 +395,8 @@ function SpawnLobby.parts(): { Piece }
 					"Ring",
 					v(seg, T, T),
 					v(px + math.cos(a) * R, DAIS + R + T / 2 + math.sin(a) * R, pz),
-					pad.color,
+					-- every 4th piece sunny, so the ring's slow spin shows (LobbyMotion)
+					if k % 4 == 0 then { 255, 210, 63 } else pad.color,
 					{ rot = v(0, 0, math.deg(a) + 90), material = "Neon", collide = false }
 				)
 			end
@@ -746,6 +765,7 @@ function SpawnLobby.dress(model: Instance, origin: CFrame)
 	if not ok or type(kit) ~= "table" then
 		return
 	end
+	local CollectionService = game:GetService("CollectionService")
 	local folder = Instance.new("Folder")
 	folder.Name = "Dressing"
 	local function at(x: number, z: number): Vector3
@@ -774,10 +794,93 @@ function SpawnLobby.dress(model: Instance, origin: CFrame)
 			pos,
 			12,
 			if k == 1 then Color3.fromRGB(255, 210, 63) else Color3.fromRGB(91, 209, 91),
-			origin:VectorToWorldSpace(Vector3.new(-sx, 0, 0)),
+			origin:VectorToWorldSpace(Vector3.new(sx, 0, 0)), -- (outward: clear of the turning ring)
 			false
 		)
 	end
+	-- (one pcall: a PropKit change must never take the whole lobby down)
+	pcall(function()
+		-- themed clusters in the mid-ground (auditor cheap tells #5): a tyre stack, a barrel, a
+		-- cone and a bunch of balloons that bob (LobbyMotion), off every walk line
+		local BALLOONS = {
+			Color3.fromRGB(255, 95, 180),
+			Color3.fromRGB(255, 210, 63),
+			Color3.fromRGB(142, 68, 255),
+		}
+		for i, c in SpawnLobby.CLUSTERS do
+			local side = if c.x < 0 then -1 else 1
+			pcall(kit.tyreStack, folder, at(c.x, c.z), 3, 3, false)
+			local bx = c.x + side * 2.6 -- (the outer side, off the walk to the shop doors)
+			pcall(
+				kit.barrel,
+				folder,
+				at(bx, c.z + 1),
+				2.6,
+				if i % 2 == 0 then Color3.fromRGB(242, 64, 74) else Color3.fromRGB(142, 68, 255),
+				false
+			)
+			pcall(kit.cone, folder, at(c.x - side * 2.2, c.z - 1.6), 2, false)
+			local cord = kit.post(
+				folder,
+				"BalloonString",
+				at(bx, c.z + 1) + Vector3.new(0, 2.6, 0),
+				0.15,
+				5.6,
+				Color3.fromRGB(255, 255, 255),
+				false
+			)
+			cord.CastShadow = false
+			for k, col in BALLOONS do
+				local a = (k + i) * 2.1
+				local b = kit.ball(
+					folder,
+					"Balloon",
+					at(bx + math.cos(a) * 0.9, c.z + 1 + math.sin(a) * 0.9)
+						+ Vector3.new(0, 8 + k * 0.5, 0),
+					2.3,
+					col,
+					false
+				)
+				b:SetAttribute("Phase", i * 1.3 + k)
+				CollectionService:AddTag(b, "LobbyBob")
+			end
+		end
+		-- a big "?" box spinning over the crate shop (the boxes in a match look like it)
+		local crates = SpawnLobby.BUILDINGS[1]
+		if crates and crates.kind == "crates" then
+			local box = kit.part(
+				folder,
+				"QuestionBox",
+				Vector3.new(4, 4, 4),
+				CFrame.new(at(crates.x, crates.z) + Vector3.new(0, 15, 0)),
+				Color3.fromRGB(255, 210, 63),
+				false
+			)
+			for _, face in
+				{ Enum.NormalId.Front, Enum.NormalId.Back, Enum.NormalId.Left, Enum.NormalId.Right }
+			do
+				local gui = Instance.new("SurfaceGui")
+				gui.Face = face
+				gui.LightInfluence = 0
+				gui.CanvasSize = Vector2.new(200, 200)
+				gui.Parent = box
+				local q = Instance.new("TextLabel")
+				q.Size = UDim2.fromScale(1, 1)
+				q.BackgroundTransparency = 1
+				q.Text = "?"
+				q.Font = Enum.Font.FredokaOne
+				q.TextScaled = true
+				q.TextColor3 = Color3.new(1, 1, 1)
+				q.Parent = gui
+				local stroke = Instance.new("UIStroke")
+				stroke.Color = Color3.fromRGB(30, 42, 90)
+				stroke.Thickness = 6
+				stroke.Parent = q
+			end
+			box.CastShadow = false -- (it moves every frame)
+			CollectionService:AddTag(box, "LobbySpin")
+		end
+	end)
 	folder.Parent = model
 end
 
@@ -819,6 +922,29 @@ function SpawnLobby.build(parent: Instance, at: CFrame): Model
 		base:SetAttribute("Pad", i)
 		base:SetAttribute("PlotType", pad.kind)
 		game:GetService("CollectionService"):AddTag(base, "QueuePad")
+	end
+	-- Smash: the portal ring turns slowly on each screen (LobbyMotion): every piece knows the
+	-- ring's middle and its axis
+	for i, pad in SpawnLobby.PADS do
+		local ring = groups["Portal" .. i]
+		if pad.kind == "smash" and ring then
+			local c = origin:PointToWorldSpace(
+				Vector3.new(
+					pad.x,
+					SpawnLobby.PORTAL_DAIS + SpawnLobby.PORTAL_R + SpawnLobby.PORTAL_T / 2,
+					SpawnLobby.PAD_Z
+				)
+			)
+			local axis = origin:VectorToWorldSpace(Vector3.new(0, 0, 1))
+			for _, p in ring:GetChildren() do
+				if p.Name == "Ring" then
+					p:SetAttribute("SpinCentre", c)
+					p:SetAttribute("SpinAxis", axis)
+					p.CanQuery = false -- (it moves every frame on screens: keep it out of queries)
+					game:GetService("CollectionService"):AddTag(p, "PortalSpin")
+				end
+			end
+		end
 	end
 	-- CarShops (client) puts the "spin" prompt on it
 	local gumball = groups.Gumball and groups.Gumball:FindFirstChild("Base")

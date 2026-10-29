@@ -143,6 +143,34 @@ function LobbyBuilder.build(): Built
 		dash.CanCollide = false
 		z += 10
 	end
+	if SMASH then
+		-- road paint (auditor cheap tells #2): a sunny edge line down each side and a zebra
+		-- crossing where the plaza's walk meets the street
+		for _, sx in { -1, 1 } do
+			local edge = part(
+				folder,
+				"RoadEdge",
+				Vector3.new(0.6, 0.05, road.maxZ - road.minZ - 2),
+				CFrame.new(
+					sx * ((road.maxX - road.minX) / 2 - 0.9),
+					0.12,
+					(road.minZ + road.maxZ) / 2
+				),
+				YELLOW
+			)
+			edge.CanCollide = false
+		end
+		for k = -2, 2 do
+			local bar = part(
+				folder,
+				"Zebra",
+				Vector3.new(1.1, 0.05, 3),
+				CFrame.new(k * 2.4, 0.12, road.minZ + 2.3), -- (before the first middle dash)
+				Color3.fromRGB(245, 245, 245)
+			)
+			bar.CanCollide = false
+		end
+	end
 
 	local built: Built = { prompts = {}, signs = {} }
 	for _, slot in LobbyLayout.slots() do
@@ -174,9 +202,14 @@ function LobbyBuilder.build(): Built
 		local text = Instance.new("TextLabel")
 		text.Size = UDim2.fromScale(1, 1)
 		text.BackgroundTransparency = 1
-		text.Font = Enum.Font.GothamBlack
+		-- (Smash: the UI's chunky font with a navy outline, auditor cheap tells #4)
+		text.Font = if SMASH then Enum.Font.FredokaOne else Enum.Font.GothamBlack
 		text.TextScaled = true
 		text.TextColor3 = Color3.new(1, 1, 1)
+		if SMASH then
+			text.TextStrokeColor3 = NAVY
+			text.TextStrokeTransparency = 0
+		end
 		text.Parent = gui
 		local padding = Instance.new("UIPadding")
 		padding.PaddingLeft = UDim.new(0.06, 0)
