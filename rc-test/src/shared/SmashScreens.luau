@@ -195,6 +195,29 @@ SmashScreens.WORDS = {
 	revealNote = "New kart! Try it in CUSTOMIZE.",
 }
 
+-- A 3D kart on a screen (KartView: the crate reveal, the round's winner) fills this much of its
+-- view's width (auditor R6-5: it was a speck).
+SmashScreens.KART_FILL = 0.7
+
+-- How far back (studs) the camera stands from the middle of a kart w x h x l studs so that, turning,
+-- it fills `fill` of a view `aspect` wide (width / height) with a `fov` degree (up-down) camera,
+-- and never runs off the top or bottom.
+function SmashScreens.kartDistance(
+	w: number,
+	h: number,
+	l: number,
+	fov: number,
+	aspect: number,
+	fill: number
+): number
+	local tanV = math.tan(math.rad(fov) / 2)
+	local tanH = tanV * math.max(aspect, 0.1)
+	local r = math.sqrt(w * w + l * l) / 2 -- (its widest, side on while it turns)
+	local byWidth = r / (fill * tanH)
+	local byHeight = (h / 2) / (0.85 * tanV)
+	return math.max(byWidth, byHeight, 0.1)
+end
+
 SmashScreens.DRIVE_STUDS = 12 -- driven this far = the drive step is done
 
 -- Which how-to step shows now (4 = all done), from the one showing and what the kid has done:
