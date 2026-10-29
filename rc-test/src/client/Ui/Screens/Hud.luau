@@ -20,6 +20,8 @@ local Hud = {}
 
 local WHITE = Base.WHITE
 local INK = Base.color("ink")
+local PIP_ON = Color3.fromRGB(139, 232, 28) -- (the kit's lime)
+local PIP_OFF = Color3.fromRGB(109, 122, 146) -- slate: a used shot
 
 local function piece(id: string, name: string): UiScreens.Piece
 	return UiScreens.piece(id, name)
@@ -1167,6 +1169,29 @@ function Hud.match(
 		Base.outline(ball, UiTheme.OUTLINE.normal)
 		Kit.face(ball, { UiTheme.FACE.go.hi, UiTheme.FACE.go.c, UiTheme.FACE.go.c2 })
 		local ammoWords = Base.text(ball, "N", 4, 6, 30, 24, "", { color = INK, z = 8 })
+		-- ammo pips on an arc at the top left (the kit): lime = a shot left, slate = used. Only for
+		-- small stocks (5 or fewer); a big stock is just the coin's number
+		local PIP_MAX = 5
+		local pips: { Frame } = {}
+		for i = 1, PIP_MAX do
+			local a = math.rad(190 + (i - 1) * 28)
+			local r = fpc.w / 2 + 10
+			local pip = Base.fill(
+				fire.button,
+				"Pip" .. i,
+				fpc.w / 2 + math.cos(a) * r - 6.5,
+				fpc.w / 2 + math.sin(a) * r - 6.5,
+				13,
+				13,
+				PIP_ON,
+				7
+			)
+			Base.corner(pip)
+			Base.outline(pip, 3)
+			pip.Visible = false
+			pips[i] = pip
+		end
+		local maxAmmo = 0 -- (the stock the weapon came with)
 		local orbH = fpc.w - 9 * fpc.w / 100
 		local dim = Base.fill(body, "Empty", 0, 0, fpc.w, orbH, WHITE, 7)
 		Base.corner(dim)
@@ -1204,6 +1229,7 @@ function Hud.match(
 					icon:Destroy()
 				end
 				icon = Icons.make(body, key, fpc.w * 0.22, fpc.w * 0.14, fpc.w * 0.56, { z = 6 })
+				maxAmmo = if has then ammo or 0 else 0
 				if has then
 					Anim.pop(fire.button, nil, 0.6)
 					if tipOn then
@@ -1237,6 +1263,11 @@ function Hud.match(
 			end
 			ball.Visible = has
 			ammoWords.Text = tostring(ammo or 0)
+			maxAmmo = math.max(maxAmmo, ammo or 0)
+			for i, pip in pips do
+				pip.Visible = has and maxAmmo <= PIP_MAX and i <= maxAmmo
+				pip.BackgroundColor3 = if i <= (ammo or 0) then PIP_ON else PIP_OFF
+			end
 			dim.Visible = not has
 		end
 		setWeapon(data.weapon, data.ammo)
