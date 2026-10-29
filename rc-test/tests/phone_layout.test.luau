@@ -655,3 +655,25 @@ test("a phone's Smash lobby hides the tiles MENU holds (CvcScreens)", function()
 		"SPIN tile still shows"
 	)
 end)
+
+-- Studio qa_r61: your kart sits 60-85% down the screen; the HUD's words and the job toast stay
+-- above it, and the desktop health bar keeps to the top (under the clock it reached the centre)
+test("words and the match toast stay out of the kart's box (60-85% down)", function()
+	local UiS = require("../src/shared/UiScreens")
+	local H0 = UiS.H
+	for _, id in { "match", "matchTouch" } do
+		for _, name in { "Words", "Health", "Clock" } do
+			local pc = UiS.get(id) and UiS.piece(id, name)
+			if pc then
+				truthy((pc.y + pc.h) / H0 < 0.6, `{id}.{name} reaches the kart`)
+			end
+		end
+	end
+	local hp = UiS.piece("match", "Health")
+	truthy((hp.y + hp.h) / H0 <= 0.15, "desktop health bar below the top row")
+	local src = require("@lune/fs").readFile("src/client/Stars.client.luau")
+	local y, h = string.match(src, "then Kit%.shout%(toastGui%.canvas, %d+, (%d+), %d+, (%d+),")
+	truthy(y ~= nil, "no match toast strip")
+	truthy((tonumber(y) + tonumber(h)) / H0 < 0.25, "the match toast sits low")
+	truthy(string.find(src, "if inMatch then 2 else", 1, true) ~= nil, "match toast over 2 s")
+end)
