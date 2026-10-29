@@ -5,6 +5,7 @@ local H = require("./harness")
 local A = require("../src/shared/ArenaData")
 local Tuning = require("../src/shared/Tuning")
 local TrackData = require("../src/shared/TrackData")
+local ArenaCam = require("../src/shared/ArenaCam")
 
 local test, truthy, eq = H.test, H.truthy, H.eq
 
@@ -310,4 +311,13 @@ test("the arena is a track the driving code can place karts in", function()
 	eq(#t.gates, 0, "no gates")
 	eq(t.rcZ, A.RC_Z, "placed")
 	eq(t.spawn.x, A.spawns[1].x, "spawn = start spot 1")
+end)
+
+test("the match camera (ArenaCam) fits behind every spawn and sees over the cover", function()
+	-- CAM_BACK is in big units; the match camera's spot behind the kart is in RC studs
+	local back, up = ArenaCam.offset()
+	local S = TrackData.RC_SCALE
+	truthy(back / S <= A.CAM_BACK, "the spawn check's room covers the match camera")
+	-- high enough that the box covers never stand between it and the kart
+	truthy(up / S >= 2 * A.COVER_H, "camera at least twice the cover's height up")
 end)

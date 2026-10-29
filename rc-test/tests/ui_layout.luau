@@ -162,6 +162,8 @@ end
 L.PHONES = {
 	{ name = "667x375", w = 667, h = 375, safe = { 0, 58, 667, 375 - 58 } },
 	{ name = "844x390", w = 844, h = 390, safe = { 47, 58, 844 - 94, 390 - 58 - 21 } },
+	-- a tall phone (iPhone Pro Max on its side): the island each side and the home bar
+	{ name = "932x430", w = 932, h = 430, safe = { 59, 58, 932 - 118, 430 - 58 - 21 } },
 }
 
 return L

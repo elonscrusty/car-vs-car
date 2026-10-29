@@ -392,4 +392,16 @@ function Base.reduced(): boolean
 	return Base.forceReduced or (ok and on == true)
 end
 
+-- A phone or tablet (a touch screen with no keyboard): the small Smash layouts, the middle of the
+-- screen kept clear (carter 10-29: too cluttered on mobile). Studio: the device emulator, or the
+-- PhoneUi attribute on your player for phone shots.
+function Base.phone(): boolean
+	local me = Players.LocalPlayer
+	if me and me:GetAttribute("PhoneUi") == true then
+		return true
+	end
+	local UserInputService = game:GetService("UserInputService")
+	return UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+end
+
 return Base

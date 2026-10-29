@@ -217,6 +217,32 @@ function CarSkin.copyOf(id: string): Model?
 	return m
 end
 
+-- A car's real look for a still spot (the garage showroom, a picture) in place of its toy: its kart
+-- or carter's own model, `long` studs nose to tail, nose to -Z and pivot at its bottom middle like
+-- the toy. nil when the car only has the toy look (the caller keeps its toy).
+function CarSkin.standIn(id: string, long: number): Model?
+	if string.sub(CarSkin.lookFor(id), 1, #CarSkin.TOY) == CarSkin.TOY then
+		return nil
+	end
+	local m = CarSkin.copyOf(id)
+	if not m then
+		return nil
+	end
+	local _, size = m:GetBoundingBox()
+	if size.Z <= 0 then
+		m:Destroy()
+		return nil
+	end
+	m:ScaleTo(m:GetScale() * long / size.Z)
+	local cf
+	cf, size = m:GetBoundingBox()
+	-- (every look's nose is at +Z, see show: the pivot turned round puts it at -Z)
+	m.WorldPivot = CFrame.new(cf.Position - Vector3.new(0, size.Y / 2, 0))
+		* CFrame.Angles(0, math.pi, 0)
+	m.Name = id
+	return m
+end
+
 local function show(car: RCCar.Car, name: string, src: Model): Shown?
 	local copy = src:Clone()
 	local body = copy:FindFirstChild("Body", true)

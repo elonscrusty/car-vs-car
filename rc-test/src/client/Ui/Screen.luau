@@ -77,7 +77,11 @@ function Screen.open(
 	local g = guiFor(id, layer, full)
 	clear(g)
 	local got: { [string]: any } = build(g) or {}
-	Base.show(g, true)
+	-- nothing pops up in a Smash match (carter 10-29: too cluttered on a phone): a popup opened
+	-- then is built, never shown, and closed at once
+	local me = game:GetService("Players").LocalPlayer
+	local quiet = layer == "popup" and me ~= nil and me:GetAttribute("InMatch") == true
+	Base.show(g, not quiet)
 	local blurred = layer == "window" and got.noBlur ~= true
 	if blurred then
 		Base.blur(true)
@@ -106,6 +110,9 @@ function Screen.open(
 	}
 	got.layer = layer
 	openOnes[id] = handle
+	if quiet then
+		handle.close() -- (never left open unseen: it would hold the lobby HUD away after the match)
+	end
 	return handle
 end
 

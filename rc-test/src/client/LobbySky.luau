@@ -38,6 +38,12 @@ local function apply()
 		(Lighting :: any)[key] = value
 	end
 	placeLight = saved
+	-- keep shadows on phones that drop their graphics level. These are place settings that a
+	-- script may not be allowed to write, so try quietly; the Studio place sets them too.
+	pcall(function()
+		(Lighting :: any).LightingStyle = Enum.LightingStyle.Realistic;
+		(Lighting :: any).PrioritizeLightingQuality = true
+	end)
 	Lighting.Ambient = rgb(WorldLook.ambient)
 	Lighting.OutdoorAmbient = rgb(WorldLook.outdoorAmbient)
 	local terrain = workspace.Terrain

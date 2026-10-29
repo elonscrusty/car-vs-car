@@ -89,6 +89,24 @@ local LIST: { Screen } = {
 			p("Card", 540, 12, 196, 356, { anchor = "r" }),
 		},
 	},
+	-- a phone's lobby (carter 10-29: too cluttered): one MENU tile opens this, the rest of the
+	-- lobby's buttons (CUSTOMIZE, CRATES, SHOP, LEAGUE, SPIN, JOBS, INVITE) in two rows of 4
+	{
+		id = "menu",
+		n = 104,
+		title = "Menu",
+		kind = "window",
+		gameplay = false,
+		pieces = {
+			p("Window", 158, 60, 440, 270, {
+				anchor = "c",
+				text = "Menu",
+				inner = {
+					p("Grid", 20, 18, 400, 182),
+				},
+			}),
+		},
+	},
 	{
 		id = "howTo",
 		n = 102,

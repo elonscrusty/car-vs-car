@@ -29,7 +29,14 @@ local FAR = 400 -- studs: past this, other cars' wheels are not drawn (phones)
 local RACE_TAG_FAR = 90
 local STEER_MAX = 0.75 -- radians, the base car's widest wheel angle
 local MAX_SUSP = 4 -- big-size spring travel; the ray stops it sooner on the ground
-local TAG_W, TAG_H = 120, 26 -- a name tag's size on screen (px)
+local PHONE = require(script.Parent:WaitForChild("Ui"):WaitForChild("Base")).phone()
+-- a name tag's size on screen (px); a phone's small (carter 10-29: too cluttered on mobile)
+local TAG_W, TAG_H = if PHONE then 84 else 120, if PHONE then 18 else 26
+-- in a Smash match (any screen): only karts near yours wear names, small ones (about 6 kart
+-- lengths past the chase camera: a kart is about 1.4 studs; auditor round 12, desktop Studio)
+local MATCH_TAG_FAR = 14
+local TAG_SIZE = UDim2.fromOffset(TAG_W, TAG_H)
+local MATCH_TAG_SIZE = UDim2.fromOffset(84, 18)
 
 type Wheel = { part: Part, stripe: Part, spot: Vector3, front: boolean, shown: number, spin: number }
 -- Car VS Car: the toy car's shell (body, cab, roof, wing, lights) over the grey blocks, the same
@@ -172,7 +179,7 @@ end
 local function nameTag(body: BasePart, text: string, s: number): BillboardGui
 	local tag = Instance.new("BillboardGui")
 	tag.Name = "NameTag"
-	tag.Size = UDim2.fromOffset(TAG_W, TAG_H)
+	tag.Size = TAG_SIZE
 	tag.StudsOffsetWorldSpace = Vector3.new(0, 3.2 * s, 0)
 	tag.AlwaysOnTop = false -- (on carter's PC AlwaysOnTop tags never drew: Studio score/16-18)
 	-- (far off, two tags drew over each other and read garbled, "TRORBO TIM": near cars only)
@@ -326,6 +333,7 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 	local function update(dt: number)
 		local mine = myCarName()
 		local myGroup = Players.LocalPlayer:GetAttribute("RaceGroup")
+		local matchOn = Players.LocalPlayer:GetAttribute("InMatch") == true
 		local cam = workspace.CurrentCamera
 		local eye = if cam then cam.CFrame.Position else Vector3.zero
 		if carsChanged then
@@ -384,7 +392,15 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 			-- carter's pick 18: in the big race every car in your race wears its name, however far
 			-- (the stand cam watches from the side of the track)
 			local inRace = myGroup ~= nil and group == myGroup
-			o.tag.MaxDistance = if inRace then RACE_TAG_FAR else 150
+			local inMatch = not inRace and matchOn
+			o.tag.MaxDistance = if inRace
+				then RACE_TAG_FAR
+				elseif inMatch then MATCH_TAG_FAR
+				else 150
+			local size = if inMatch then MATCH_TAG_SIZE else TAG_SIZE
+			if o.tag.Size ~= size then
+				o.tag.Size = size
+			end
 			o.tag.Enabled = near or (inRace and not hide)
 			if o.tag.Enabled and far < o.tag.MaxDistance then
 				-- (kept nearest first)

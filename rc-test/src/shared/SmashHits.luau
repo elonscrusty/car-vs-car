@@ -155,19 +155,27 @@ end
 -- ===== the Studio-only slow-mo test hook =====
 -- workspace:SetAttribute("TestSlowMo", true) (or a number of seconds, 0.5 to 10): each shot,
 -- boom and hit is frozen on screen for that long (true = 3 s), so Studio can take a picture of
--- every weapon's fire, travel and hit. Off in a live game whatever the attribute says.
+-- every weapon's fire, travel and hit. "hold" keeps each kind's last frozen frame up until the
+-- attribute is cleared (Studio's screen grab can lag 10-26 s). Off in a live game whatever the
+-- attribute says.
 SmashHits.ATTR = "TestSlowMo"
 SmashHits.HOLD = 3
+SmashHits.HOLD_ON = "hold"
 function SmashHits.hold(isStudio: boolean, attr: unknown): number?
 	if not isStudio then
 		return nil
 	end
-	if attr == true then
+	if attr == true or attr == SmashHits.HOLD_ON then
 		return SmashHits.HOLD
 	elseif type(attr) == "number" and attr == attr and attr > 0 then
 		return math.clamp(attr, 0.5, 10)
 	end
 	return nil
+end
+
+-- is the frozen frame kept up until TestSlowMo is cleared? (Studio only)
+function SmashHits.held(isStudio: boolean, attr: unknown): boolean
+	return isStudio and attr == SmashHits.HOLD_ON
 end
 
 return SmashHits

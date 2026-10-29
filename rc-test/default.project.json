@@ -3,6 +3,7 @@
   "tree": {
     "$className": "DataModel",
     "Workspace": {
+      "$ignoreUnknownInstances": true,
       "$properties": {
         "StreamingEnabled": false
       }
@@ -11,10 +12,13 @@
       "$className": "Lighting",
       "$ignoreUnknownInstances": true,
       "$properties": {
-        "Technology": "Future"
+        "Technology": "Future",
+        "LightingStyle": "Realistic",
+        "PrioritizeLightingQuality": true
       }
     },
     "ReplicatedStorage": {
+      "$ignoreUnknownInstances": true,
       "Shared": {
         "$path": "src/shared"
       }

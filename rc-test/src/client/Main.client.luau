@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local SoundLevels = require(ReplicatedStorage.Shared.SoundLevels)
+local ArenaCam = require(ReplicatedStorage.Shared.ArenaCam)
 local CarMath = require(ReplicatedStorage.Shared.CarMath)
 local LapTimer = require(ReplicatedStorage.Shared.LapTimer)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
@@ -158,12 +159,13 @@ end
 
 local current = 1
 
--- the skin to draw: the track's Meshy model, else (Car VS Car) the toy car of the car you race
--- with, the one your plot shows (playtest u01: big races drew the grey box)
+-- the skin to draw: the track's Meshy model, or (Car VS Car) the look of the car you race with,
+-- the one your plot shows (playtest u01: big races drew the grey box)
+-- (Car VS Car: always the kart, so every car is one of the imported karts, the Lead 10-29; the
+-- old rock and drift Meshy models are for the RC game only)
 local function skinName(): string?
-	local own = SKINS[tracks[current].id]
-	if own or not Features.CVC then
-		return own
+	if not Features.CVC then
+		return SKINS[tracks[current].id]
 	end
 	local id = player:GetAttribute("RacerCar")
 	if type(id) ~= "string" then
@@ -462,6 +464,11 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown, gridSpot: u
 		table.clear(nudges)
 		camera = ChaseCamera.new(body, ignoreList(), eye)
 		camera.setView(view)
+		-- (a respawn in a match starts in the match camera, no swoop from the low one)
+		camera.setArena(
+			ArenaCam.on(player:GetAttribute("InMatch"), type(gridSpot) == "table"),
+			true
+		)
 		showCam = false
 		effects = Effects.new(car.telemetry)
 		-- ("drive", slot, spot): MatchRunner puts this car on an arena spawn (arena-local)
@@ -778,6 +785,7 @@ task.spawn(function()
 		task.wait(0.5)
 	end
 end)
+local phoneUi = require(script.Parent:WaitForChild("Ui"):WaitForChild("Base")).phone()
 local youTag = Instance.new("BillboardGui")
 youTag.Name = "YouTag"
 youTag.Size = UDim2.fromOffset(90, 30)
@@ -836,7 +844,11 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 	-- just over the car's roof (it was 4x higher: off the top of the screen under the chase camera,
 	-- Studio 10-26; then still floating well above it once it drew, Studio score/24)
 	youTag.StudsOffsetWorldSpace = Vector3.new(0, 1.6 * Tuning.scale, 0)
-	youTag.Enabled = grid ~= nil and Features.CVC
+	-- (a phone in a match: no tag over your own kart, the middle of the screen stays clear,
+	-- carter 10-29)
+	youTag.Enabled = grid ~= nil
+		and Features.CVC
+		and not (phoneUi and player:GetAttribute("InMatch") == true)
 	raceFx.update(dt, tel.boost > 0)
 	local fv = body.AssemblyLinearVelocity
 	local flatNow = Vector3.new(fv.X, 0, fv.Z).Magnitude
@@ -861,15 +873,26 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 		hud.flash("BIG AIR!")
 	end
 	airTime = tel.air
+	-- the match camera (shared/ArenaCam) only while in a match
+	camera.setArena(ArenaCam.on(player:GetAttribute("InMatch"), grid ~= nil))
 	camera.update(dt)
 	-- in the arena the chase camera always comes back to your own kart (Studio round 3: it sat
 	-- ~40 studs off, on a wall, for 30-60 s while the kart drove on); only which kart it
-	-- follows, never how it follows (ChaseCamera is locked)
+	-- follows (how it follows: ChaseCamera and shared/ArenaCam)
 	if grid ~= nil and view == "chase" and not showCam then
 		local far = (workspace.CurrentCamera.CFrame.Position - body.Position).Magnitude
 		local lost
-		camLostFor, lost =
-			Match.camLost(camLostFor, far, 3 * (Tuning.camDistance + Tuning.camHeight), dt)
+		camLostFor, lost = Match.camLost(
+			camLostFor,
+			far,
+			3
+				* (
+					if ArenaCam.on(player:GetAttribute("InMatch"), true)
+						then ArenaCam.DISTANCE
+						else Tuning.camDistance + Tuning.camHeight
+				),
+			dt
+		)
 		if lost then
 			if RunService:IsStudio() then
 				print(`[Main] camera lost the kart ({math.floor(far)} studs): back behind it`)
