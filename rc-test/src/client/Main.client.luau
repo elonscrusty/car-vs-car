@@ -265,6 +265,11 @@ local grindFor = 0 -- seconds the arena kart has been nosed into a wall with the
 local nudgeUntil = 0 -- a wall bounce runs until then (os.clock)
 local nudgeSide = 1 -- which way it turns (1 = right)
 local nudges: { number } = {} -- when the last bounces were
+-- (the wall bounce's rays: not the kart itself or the person)
+local wallRay = RaycastParams.new()
+wallRay.FilterType = Enum.RaycastFilterType.Exclude
+wallRay.RespectCanCollide = true
+wallRay.FilterDescendantsInstances = ignoreList()
 local FALL = -8 -- big-size studs: below this the car fell off the world
 local raceFx = RaceFx.new() -- carter's picks 14 + 15: speed lines on BOOST, sparks on hits
 -- Plots with checkpoint flags: a reset (R, RESET, fell off, out) brings the car back to the last
@@ -282,6 +287,7 @@ local function reset(why: string?, from: string?)
 	end
 	stuckTime = 0
 	grindFor, nudgeUntil = 0, 0
+	table.clear(nudges)
 	beep:Play()
 	local now = os.clock()
 	local again = now - lastReset < 1.5
@@ -451,6 +457,9 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown, gridSpot: u
 		car.destroy()
 		effects.destroy()
 		car = RCCar.new(model, ignoreList())
+		wallRay.FilterDescendantsInstances = ignoreList()
+		grindFor, nudgeUntil = 0, 0
+		table.clear(nudges)
 		camera = ChaseCamera.new(body, ignoreList(), eye)
 		camera.setView(view)
 		showCam = false
@@ -516,16 +525,26 @@ end
 -- no keys: the parked car while walking still stands on its springs (without them it sank onto
 -- its belly with the wheels under the road, Studio PR 936 check)
 local IDLE: RCCar.Input = { steer = 0, throttle = 0, brake = 0, drift = false }
--- How far the first solid thing is along a flat direction from the kart's middle (nil = none
--- within `len`): the wall bounce's rays (other karts count, see-through bushes don't).
-local wallRay = RaycastParams.new()
-wallRay.FilterType = Enum.RaycastFilterType.Exclude
-wallRay.RespectCanCollide = true
+-- How far the first wall is along a flat direction from the kart's middle (nil = none within
+-- `len`): the wall bounce's rays. Not the ground rising ahead (a ramp), not another kart (pushing
+-- one is the game), not a see-through bush.
 local function wallAt(dir: Vector3, len: number): number?
-	wallRay.FilterDescendantsInstances = ignoreList()
 	local hit = workspace:Raycast(body.Position, dir * len, wallRay)
-	return if hit then hit.Distance else nil
+	if not hit or math.abs(hit.Normal.Y) > 0.6 then
+		return nil
+	end
+	local top: Instance = hit.Instance
+	while top.Parent and top.Parent ~= workspace do
+		top = top.Parent
+	end
+	return if string.sub(top.Name, 1, 4) == "Car_" then nil else hit.Distance
 end
+-- Ground behind the kart, about a kart length back? (no bounce backwards off a ledge)
+local function groundBehind(look: Vector3): boolean
+	local from = body.Position - look * Tuning.bodyZ
+	return workspace:Raycast(from, Vector3.new(0, -Tuning.bodyZ, 0), wallRay) ~= nil
+end
+local nudgeBack = true -- this bounce goes backwards (false: ledge behind, turn only)
 RunService.PreSimulation:Connect(function(dt: number)
 	if body.Parent == nil then
 		return
@@ -566,6 +585,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 					wallAt(CFrame.Angles(0, -math.pi / 4, 0):VectorToWorldSpace(look), far)
 				)
 				nudgeUntil = now + WallNudge.TIME
+				nudgeBack = groundBehind(look)
 				nudging = true
 				input = IDLE
 			end
@@ -580,7 +600,9 @@ RunService.PreSimulation:Connect(function(dt: number)
 		local cf = body.CFrame
 		local look = Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z)
 		if look.Magnitude > 0.1 then
-			local back = -look.Unit * (Tuning.bodyZ / WallNudge.TIME)
+			local back = if nudgeBack
+				then -look.Unit * (Tuning.bodyZ / WallNudge.TIME)
+				else Vector3.zero
 			local v = body.AssemblyLinearVelocity
 			body.AssemblyLinearVelocity = Vector3.new(back.X, v.Y, back.Z)
 			local w = body.AssemblyAngularVelocity
@@ -682,6 +704,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 				FlipBack.facing(cf.LookVector.X, cf.LookVector.Z, cf.UpVector.X, cf.UpVector.Z)
 			local at = cf.Position + Vector3.new(0, 3 * Tuning.scale, 0)
 			car.teleport(CFrame.lookAt(at, at + Vector3.new(fx, 0, fz)))
+			nudgeUntil = 0
 			hud.flash("OOPS! FLIPPING YOU BACK")
 		end
 	else
