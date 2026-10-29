@@ -24,32 +24,55 @@ local NEED = {
 	"RimRR",
 	"Headlights", -- (CarSkin finds the nose by it)
 }
--- the one-file import: sort "Kart_X__Part" parts into a Kart_X model each
-local sorted: { [string]: Model } = {}
+-- the one-file import: sort "Kart_X__Part" parts into a Kart_X model each (the name may be on the
+-- part or on the node Model the importer wrapped it in)
+local function split(name: string): (string?, string?)
+	return (name:gsub("%.%d+$", "")):match("^(Kart_.-)__(.+)$")
+end
+local targets: { [Instance]: boolean } = {}
+local function target(kart: string): Model
+	local m = workspace:FindFirstChild(kart)
+	if not (m and m:IsA("Model")) then
+		m = Instance.new("Model")
+		m.Name = kart
+		m.Parent = workspace
+	end
+	targets[m] = true
+	return m :: Model
+end
+local tops = {}
 for _, top in workspace:GetChildren() do
-	local took = false
-	for _, d in top:GetDescendants() do
-		local kart, part = d.Name:gsub("%.%d+$", ""):match("^(Kart_%w+)__(.+)$")
-		if kart and d:IsA("BasePart") then
-			local m = sorted[kart]
-			if not m then
-				m = Instance.new("Model")
-				m.Name = kart
-				m.Parent = workspace
-				sorted[kart] = m
+	local all = top:GetDescendants()
+	table.insert(all, top)
+	for _, d in all do
+		if d:IsA("BasePart") then
+			local kart, part
+			local at: Instance? = d
+			while at and at ~= workspace and not kart do
+				kart, part = split(at.Name)
+				at = at.Parent
 			end
-			d.Name = part
-			d.Parent = m
-			took = true
+			if kart and part then
+				local m = target(kart)
+				if m:FindFirstChild(part) and m:FindFirstChild(part) ~= d then
+					warn(kart, "has two", part, "- left one in", d:GetFullName())
+				else
+					d.Name = part
+					d.Parent = m
+					tops[top] = true
+				end
+			end
 		end
 	end
-	if took and not top.Name:match("^Kart_%w+$") then
+end
+for top in tops do
+	if top.Parent and top:IsA("Model") and not targets[top] then
 		local left = false
 		for _, d in top:GetDescendants() do
-			left = left or d:IsA("BasePart")
+			left = left or not d:IsA("Model")
 		end
 		if not left then
-			top:Destroy()
+			top:Destroy() -- (the importer's emptied wrapper)
 		end
 	end
 end

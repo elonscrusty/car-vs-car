@@ -167,6 +167,7 @@ SHAPES.muscle = function(p, c, a, l)
 	p("Body", v(2, 0.62, 3.6), 0, 0.81 + l, 0, c)
 	driver(p, c, a)
 	p("Stripes", v(0.7, 0.02, 3.62), 0, 1.13 + l, 0, a)
+	p("Bumper", v(2.1, 0.3, 0.3), 0, 0.55 + l, -1.82, DARK, CYL)
 	p("Taillight", v(1.7, 0.14, 0.06), 0, 0.85 + l, 1.82, TAIL, NEON)
 	for _, x in { -0.55, 0.55 } do
 		p("Headlight", v(0.4, 0.16, 0.06), x, 0.85 + l, -1.82, LIGHT, NEON)
@@ -178,8 +179,9 @@ SHAPES.coupe = function(p, c, a, l)
 	p("Body", v(2, 0.5, 3.6), 0, 0.72 + l, 0, c)
 	driver(p, c, a)
 	p("Splitter", v(2.1, 0.08, 0.35), 0, 0.52 + l, -1.72, a)
-	p("Wing", v(2.15, 0.1, 0.45), 0, 1.72 + l, 1.55, a)
-	p("WingPost", v(0.16, 0.6, 0.14), 0, 1.4 + l, 1.55, DARK)
+	-- (a chunky spoiler, not a stick: LOOK-BIBLE rule 1)
+	p("Wing", v(2.15, 0.22, 0.5), 0, 1.7 + l, 1.55, a)
+	p("WingPost", v(1.2, 0.62, 0.4), 0, 1.28 + l, 1.55, DARK, BACK_WEDGE)
 	for _, x in { -0.6, 0.6 } do
 		p("Headlight", v(0.45, 0.12, 0.06), x * 1.15, 0.8 + l, -1.82, LIGHT, NEON)
 	end
@@ -204,7 +206,7 @@ SHAPES.wedge = function(p, c, a, l)
 	p("Nose", v(2, 0.3, 1.3), 0, 1.15 + l, -1.15, c, WEDGE)
 	driver(p, c, a)
 	p("Back", v(1.8, 0.4, 1.1), 0, 1.2 + l, 1.25, c, BACK_WEDGE)
-	p("Wing", v(2.1, 0.08, 0.4), 0, 1.44 + l, 1.62, a)
+	p("Wing", v(2.1, 0.2, 0.45), 0, 1.5 + l, 1.6, a)
 	for _, x in { -0.65, 0.65 } do
 		p("Headlight", v(0.45, 0.1, 0.06), x, 0.92 + l, -1.82, LIGHT, NEON)
 	end
@@ -230,12 +232,13 @@ end
 SHAPES.formula = function(p, c, a, l)
 	p("Body", v(0.9, 0.45, 2.7), 0, 0.62 + l, 0.15, c)
 	p("Nose", v(0.8, 0.4, 0.7), 0, 0.6 + l, -1.55, c, WEDGE)
-	p("FrontWing", v(2, 0.08, 0.4), 0, 0.3 + l, -1.7, a)
+	p("FrontWing", v(2, 0.16, 0.45), 0, 0.32 + l, -1.7, a)
 	for _, x in { -0.65, 0.65 } do
 		p("SidePod", v(0.4, 0.35, 1.2), x, 0.58 + l, 0.4, c)
 	end
 	driver(p, c, a)
-	p("RearWing", v(2, 0.1, 0.45), 0, 1.35 + l, 1.62, a)
+	p("RearWing", v(2, 0.22, 0.5), 0, 1.35 + l, 1.5, a)
+	p("WingPost", v(0.8, 0.42, 0.4), 0, 1.05 + l, 1.4, DARK, BACK_WEDGE)
 end
 
 -- Monster kart: big tyres, fat bumpers, a light bar on the hood.
@@ -295,8 +298,9 @@ end
 SHAPES.rally = function(p, c, a, l)
 	p("Body", v(2, 0.5, 3.4), 0, 0.75 + l, 0, c)
 	driver(p, c, a)
-	p("Wing", v(1.9, 0.1, 0.4), 0, 1.4 + l, 1.45, a, BACK_WEDGE)
+	p("Wing", v(1.9, 0.3, 0.5), 0, 1.15 + l, 1.45, a, BACK_WEDGE)
 	p("Door", v(2.02, 0.3, 1), 0, 0.75 + l, 0.3, a)
+	p("Bumper", v(2.1, 0.3, 0.3), 0, 0.55 + l, -1.75, DARK, CYL)
 	p("LampBar", v(1.4, 0.16, 0.08), 0, 1.0 + l, -1.73, AMBER, NEON)
 	for _, x in { -0.9, 0.9 } do
 		p("MudFlap", v(0.35, 0.4, 0.05), x, 0.4 + l, 1.82, DARK)
