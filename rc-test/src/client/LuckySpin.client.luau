@@ -203,20 +203,20 @@ end)
 
 -- LEVEL UP: right away out of a match, else when it ends
 local pending: { { number } } = {}
-local waitingLevels = false
+local levelCard: Screen.Handle? = nil
+local shownLevels: { { number } } = {} -- what the card on screen holds (put back if it must go)
+local calmFor = 0
+-- Only in the garage (the lobby HUD is up), never in a match, the warm-up yard / its countdown,
+-- or under the match end, a crate reveal or another window (Studio round 10: LEVEL 5! popped
+-- up at GO after a re-join, over the kart).
+local function levelsCalm(): boolean
+	return not inMatch()
+		and player:GetAttribute("MatchQueued") ~= true
+		and not Screen.anyOver()
+		and lobbyHudUp()
+end
 local function showLevels()
-	if #pending == 0 then
-		return
-	end
-	-- (never on top of the match end, a crate reveal or another window: it waits its turn)
-	if inMatch() or Screen.anyOver() then
-		if not waitingLevels then
-			waitingLevels = true
-			task.delay(1, function()
-				waitingLevels = false
-				showLevels()
-			end)
-		end
+	if #pending == 0 or levelCard ~= nil or not levelsCalm() or calmFor < 3 then
 		return
 	end
 	local top, coins = 0, 0
@@ -224,6 +224,7 @@ local function showLevels()
 		top = math.max(top, l[1])
 		coins += l[2]
 	end
+	shownLevels = table.clone(pending)
 	table.clear(pending)
 	local card: Screen.Handle? = nil
 	card = Windows.popup({
@@ -238,11 +239,39 @@ local function showLevels()
 			if card then
 				card.close()
 			end
+			levelCard, shownLevels = nil, {}
 		end,
 	})
+	levelCard = card
+end
+-- a match or the yard started with the card up: it goes, and comes back in the garage
+local function levelsStepAway()
+	local card = levelCard
+	if card and not levelsCalm() and (inMatch() or player:GetAttribute("MatchQueued") == true) then
+		card.close()
+		for _, l in shownLevels do
+			table.insert(pending, l)
+		end
+		levelCard, shownLevels = nil, {}
+	elseif card and not Screen.isOpen("popup") then
+		-- another window or card closed it before AWESOME!: the levels wait for the next calm
+		for _, l in shownLevels do
+			table.insert(pending, l)
+		end
+		levelCard, shownLevels = nil, {}
+	end
 end
 levelUp.OnClientEvent:Connect(function(level: any, coins: any)
 	table.insert(pending, { tonumber(level) or 1, tonumber(coins) or 0 })
-	showLevels()
 end)
-player:GetAttributeChangedSignal("InMatch"):Connect(showLevels)
+player:GetAttributeChangedSignal("InMatch"):Connect(levelsStepAway)
+player:GetAttributeChangedSignal("MatchQueued"):Connect(levelsStepAway)
+-- calm for 2 s in a row first (the moments between rounds flicker)
+task.spawn(function()
+	while true do
+		task.wait(1)
+		calmFor = if levelsCalm() then calmFor + 1 else 0
+		levelsStepAway()
+		showLevels()
+	end
+end)

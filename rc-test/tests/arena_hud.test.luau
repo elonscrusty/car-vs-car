@@ -79,3 +79,22 @@ test(
 		)
 	end
 )
+
+test("LEVEL UP waits for the garage: never in a match, the yard or under another screen", function()
+	local src = fs.readFile("src/client/LuckySpin.client.luau")
+	local calm = string.match(src, "local function levelsCalm%(%)(.-)\nend") or ""
+	truthy(string.find(calm, "not inMatch()", 1, true) ~= nil, "level card in the match")
+	truthy(string.find(calm, '"MatchQueued"', 1, true) ~= nil, "level card in the yard countdown")
+	truthy(string.find(calm, "Screen.anyOver()", 1, true) ~= nil, "level card over the match end")
+	truthy(string.find(calm, "lobbyHudUp()", 1, true) ~= nil, "level card away from the garage")
+	-- a card already up when a round starts goes, and its levels wait for later
+	local away = string.match(src, "local function levelsStepAway%(%)(.-)\nend") or ""
+	truthy(string.find(away, "card.close()", 1, true) ~= nil, "level card stays over the round")
+	truthy(
+		string.find(away, "table.insert(pending, l)", 1, true) ~= nil,
+		"levels lost when it goes"
+	)
+	-- the server's LevelUp only queues it (no card the moment it lands)
+	local onLevel = string.match(src, "levelUp%.OnClientEvent:Connect%(function(.-)\nend%)") or ""
+	truthy(string.find(onLevel, "showLevels", 1, true) == nil, "LevelUp shows the card at once")
+end)
