@@ -958,7 +958,7 @@ function ArenaBrain.fromArena(A: any): World
 		line(c[1], c[2], A.COVER_W)
 	end
 	local zones: { Zone } = {}
-	-- the sand's bumper wall, open at its gaps (each gap a door in and out)
+	-- the sand's bumper wall when SAND_WALL is on, open at its gaps (each gap a door in and out)
 	local sand = A.SAND
 	local sandPoly, sandDoors = {}, {}
 	local cx, cz = 0, 0
@@ -967,7 +967,7 @@ function ArenaBrain.fromArena(A: any): World
 		table.insert(sandPoly, { x, z })
 		cx, cz = cx + x / #sand, cz + z / #sand
 	end
-	for i = 1, if A.SAND_WALL == false then 0 else #sand do
+	for i = 1, if A.SAND_WALL then #sand else 0 do
 		local a, b = sand[i], sand[i % #sand + 1]
 		local gaps = {}
 		for _, g in A.SAND_GAPS do

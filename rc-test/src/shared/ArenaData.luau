@@ -56,7 +56,7 @@ ArenaData.CROSSWALKS = {
 	{ at = { 110, 220 }, across = true },
 } :: { { at: Pt, across: boolean } }
 
--- the sand patch inside the west loop: a low red bumper wall round it, open on the road sides
+-- the sand patch inside the west loop (a low red bumper wall round it when SAND_WALL is on)
 ArenaData.SAND =
 	{ { 60, 80 }, { 95, 70 }, { 115, 95 }, { 100, 170 }, { 70, 190 }, { 55, 160 } } :: { Pt }
 -- the gaps in the bumper wall: {edge index (from SAND[i] to SAND[i+1]), start, end} along it 0..1
@@ -102,7 +102,7 @@ ArenaData.STEP_SIDES = { 2, 3 }
 
 -- orange cover walls (segments, picture units)
 ArenaData.COVER = {
-	{ { 110, 118 }, { 130, 115 } }, -- (west, off the box behind it: round 12)
+	{ { 114, 118 }, { 130, 115 } }, -- (west, off the box behind it: round 12; clear of the sand)
 	{ { 110, 190 }, { 135, 200 } },
 	{ { 175, 30 }, { 195, 38 } },
 } :: { { Pt } }
