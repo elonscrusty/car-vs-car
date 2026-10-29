@@ -100,40 +100,101 @@ local ar = Instance.new("UIAspectRatioConstraint")
 ar.AspectRatio = 844 / 390
 ar.Parent = stage
 
--- the logo: Car (blue) vs (yellow) Car (red), white then ink outlines, a slight lean
+-- the logo, one stacked piece like the kit: an ink layer with a thick outline and a drop, a white
+-- outline over it, then the letters in their colors (Car blue, vs yellow, Car red), a slight lean
 local logo = Instance.new("Frame")
 logo.Name = "Logo"
 logo.BackgroundTransparency = 1
 logo.AnchorPoint = Vector2.new(0.5, 0)
-logo.Position = UDim2.fromScale(0.5, 0.08)
-logo.Size = UDim2.fromScale(0.62, 0.3)
+logo.Position = UDim2.fromScale(0.5, 0.06)
+logo.Size = UDim2.fromScale(0.66, 0.3)
 logo.Rotation = -3
+logo.ZIndex = 5
 logo.Parent = stage
-local function word(text: string, x: number, w: number, stops: { string }, small: boolean?)
-	for _, layer in { "Ink", "Fill" } do
-		local l = Instance.new("TextLabel")
-		l.Name = text .. layer
-		l.BackgroundTransparency = 1
-		l.Font = Enum.Font.FredokaOne
-		l.TextScaled = true
-		l.Text = text
-		l.TextColor3 = if layer == "Ink" then INK else WHITE
-		l.Position = UDim2.fromScale(x, if small then 0.3 else 0)
-			+ (if layer == "Ink" then UDim2.fromScale(0, 0.06) else UDim2.new())
-		l.Size = UDim2.fromScale(w, if small then 0.6 else 1)
-		l.ZIndex = if layer == "Ink" then 2 else 3
-		l.Parent = logo
-		if layer == "Ink" then
-			stroke(l, 6, INK, true)
-		else
-			stroke(l, 3, WHITE, true)
-			gradient(l, stops)
-		end
+local LOGO_RICH = '<font color="#1fa8f5">Car</font><font color="#ffd93b"> vs </font>'
+	.. '<font color="#ff4a4a">Car</font>'
+for i, layer in { "Drop", "Outline", "Letters" } do
+	local l = Instance.new("TextLabel")
+	l.Name = layer
+	l.BackgroundTransparency = 1
+	l.Font = Enum.Font.FredokaOne
+	l.TextScaled = true
+	l.RichText = layer == "Letters"
+	l.Text = if layer == "Letters" then LOGO_RICH else "Car vs Car"
+	l.TextColor3 = if layer == "Drop" then INK else WHITE
+	l.Position = if layer == "Drop" then UDim2.fromScale(0, 0.07) else UDim2.new()
+	l.Size = UDim2.fromScale(1, 1)
+	l.ZIndex = 5 + i
+	l.Parent = logo
+	if layer == "Drop" then
+		stroke(l, 9, INK, true)
+	elseif layer == "Outline" then
+		stroke(l, 5, WHITE, true)
+	else
+		stroke(l, 2, INK, true)
 	end
 end
-word("Car", 0, 0.4, { "8fd8ff", "1fa8f5", "0b78c9" })
-word("vs", 0.4, 0.2, { "fff7b8", "ffd93b", "ffb400" }, true)
-word("Car", 0.6, 0.4, { "ffd3c6", "ff4a4a", "e01428" })
+-- (a soft shine down the letters, as the kit's glossy words)
+local shineG = Instance.new("UIGradient")
+shineG.Rotation = 90
+shineG.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+	ColorSequenceKeypoint.new(0.45, Color3.fromRGB(235, 245, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 215, 235)),
+})
+shineG.Parent = logo:FindFirstChild("Letters")
+
+-- the arena's edges like the kit: a wooden fence along the wall, a round tree each side
+local fence = Instance.new("Frame")
+fence.Name = "Fence"
+fence.BackgroundTransparency = 1
+fence.Position = UDim2.fromScale(0, 0.46)
+fence.Size = UDim2.fromScale(1, 0.09)
+fence.ZIndex = 2
+fence.Parent = root
+local WOOD = hex("b97a45")
+for _, y in { 0.2, 0.6 } do
+	local rail = frame(fence, "Rail", UDim2.fromScale(0, y), UDim2.fromScale(1, 0.2), WOOD)
+	rail.ZIndex = 2
+	stroke(rail, 2, INK)
+end
+for i = 0, 20 do
+	local post =
+		frame(fence, "Post", UDim2.fromScale(i / 20 - 0.006, 0), UDim2.fromScale(0.012, 1), WOOD)
+	post.ZIndex = 3
+	stroke(post, 2, INK)
+end
+local function tree(x: number)
+	local t = Instance.new("Frame")
+	t.Name = "Tree"
+	t.BackgroundTransparency = 1
+	t.Position = UDim2.fromScale(x, 0.12)
+	t.Size = UDim2.fromScale(0.16, 0.5)
+	t.ZIndex = 4
+	t.Parent = root
+	local trunk =
+		frame(t, "Trunk", UDim2.fromScale(0.42, 0.55), UDim2.fromScale(0.16, 0.45), hex("8a5a30"))
+	trunk.ZIndex = 4
+	stroke(trunk, 2.5, INK)
+	for k, b in { { 0.05, 0.25, 0.6 }, { 0.35, 0.05, 0.6 }, { 0.4, 0.3, 0.55 } } do
+		local ball = frame(
+			t,
+			"Leaves",
+			UDim2.fromScale(b[1], b[2]),
+			UDim2.fromScale(b[3], b[3] * 0.62),
+			WHITE
+		)
+		ball.ZIndex = 4 + k
+		round(ball)
+		gradient(ball, { "8be81c", "4fbf1a", "2f8a10" })
+		stroke(ball, 3, INK)
+	end
+	local ar2 = Instance.new("UIAspectRatioConstraint")
+	ar2.AspectRatio = 0.62
+	ar2.Parent = t
+end
+tree(-0.04)
+tree(0.88)
 
 -- the bar: a recessed dark track, a striped yellow fill that runs as things load
 local track = frame(stage, "Track", UDim2.fromScale(0.2, 0.76), UDim2.fromScale(0.6, 0.085), WHITE)
@@ -150,16 +211,22 @@ track.ZIndex = 1
 local fill = Instance.new("CanvasGroup")
 fill.Name = "Fill"
 fill.BorderSizePixel = 0
-fill.BackgroundColor3 = WHITE
+fill.BackgroundTransparency = 1
 fill.Size = UDim2.fromScale(0.04, 1)
 fill.Parent = track
-gradient(fill, { "fff6b0", "ffd93b", "ffb000" })
 round(fill)
+-- (the yellow is its own frame: a UIGradient on the group would tint the stripes and shine yellow
+-- too, Studio r52)
+local color = frame(fill, "Color", UDim2.fromScale(0, 0), UDim2.fromScale(1, 1), WHITE)
+gradient(color, { "fff6b0", "ffd93b", "ffb000" })
+round(color)
+color.ZIndex = 1
 -- the kit's diagonal stripes: light bars leaning across the fill, sliding along
 local stripes = Instance.new("Frame")
 stripes.Name = "Stripes"
 stripes.BackgroundTransparency = 1
 stripes.Size = UDim2.new(0, 2000, 1, 0)
+stripes.ZIndex = 2
 stripes.Parent = fill
 local STEP = 22 -- px between stripes
 for i = 0, 2000 / STEP do
@@ -169,6 +236,7 @@ for i = 0, 2000 / STEP do
 	st.Rotation = 35
 end
 local shine = frame(fill, "Shine", UDim2.fromScale(0.02, 0.12), UDim2.fromScale(0.96, 0.25), WHITE)
+shine.ZIndex = 3
 shine.BackgroundTransparency = 0.45
 round(shine)
 
@@ -192,9 +260,96 @@ gui.Parent = player:WaitForChild("PlayerGui")
 -- (only now: ours is up, so nothing shows uncovered in between)
 ReplicatedFirst:RemoveDefaultLoadingScreen()
 
+-- the karts (the kit's three: pink, lime, blue): the game's real ones in 3D as soon as they can be
+-- made (CarSkin, once the player scripts are in); until then the sky and the logo. Their own layer
+-- over the group: a ViewportFrame may not draw inside a CanvasGroup.
+local KARTS = {
+	{ id = "race_berry", x = 0.1, y = 0.42, w = 0.26, h = 0.36 },
+	{ id = "race_lime", x = 0.34, y = 0.34, w = 0.32, h = 0.44 },
+	{ id = "race_dart", x = 0.64, y = 0.42, w = 0.26, h = 0.36 },
+}
+local kartLayer = Instance.new("Frame")
+kartLayer.Name = "Karts"
+kartLayer.BackgroundTransparency = 1
+kartLayer.AnchorPoint = Vector2.new(0.5, 0.5)
+kartLayer.Position = UDim2.fromScale(0.5, 0.5)
+kartLayer.Size = UDim2.fromScale(1, 1)
+kartLayer.ZIndex = 10
+kartLayer.Parent = gui
+local kar = Instance.new("UIAspectRatioConstraint")
+kar.AspectRatio = 844 / 390
+kar.Parent = kartLayer
+local views: { ViewportFrame } = {}
+local done = false
+local function showKart(spot: { [string]: any }, model: Model)
+	local view = Instance.new("ViewportFrame")
+	view.Name = spot.id
+	view.BackgroundTransparency = 1
+	view.Ambient = Color3.fromRGB(190, 190, 200)
+	view.LightDirection = Vector3.new(-0.4, -1, -0.6)
+	view.Position = UDim2.fromScale(spot.x, spot.y)
+	view.Size = UDim2.fromScale(spot.w, spot.h)
+	view.ZIndex = 10
+	view.Parent = kartLayer
+	local world = Instance.new("WorldModel")
+	world.Parent = view
+	model:PivotTo(CFrame.identity)
+	model.Parent = world
+	local cf, size = model:GetBoundingBox()
+	local mid = cf.Position
+	local cam = Instance.new("Camera")
+	cam.FieldOfView = 30
+	-- (from the front and a little above, nose to -Z: far enough that it fills the spot)
+	local dist = math.max(size.X, size.Y, size.Z) * 2.1
+	cam.CFrame = CFrame.lookAt(mid + Vector3.new(-0.45, 0.35, -1).Unit * dist, mid)
+	cam.Parent = view
+	view.CurrentCamera = cam
+	table.insert(views, view)
+end
+task.spawn(function()
+	local ps = player:WaitForChild("PlayerScripts", 10)
+	local client = ps and ps:WaitForChild("Client", 10)
+	local mod = client and client:WaitForChild("CarSkin", 10)
+	if not (mod and mod:IsA("ModuleScript")) then
+		return
+	end
+	-- (CarSkin reaches the game's shared modules on load: only once the game is in, or a failed
+	-- first load would break it for the whole visit)
+	if not game:IsLoaded() then
+		game.Loaded:Wait()
+	end
+	if done then
+		return
+	end
+	local ok, CarSkin = pcall(require, mod)
+	if not ok then
+		return
+	end
+	local left = table.clone(KARTS)
+	-- (a kart built in game can take a moment: try again until the screen goes. Until it is
+	-- built copyOf gives the plain toy, so wait for the kart itself; after a few tries, the toy.)
+	local tries = 0
+	while not done and #left > 0 do
+		tries += 1
+		for i = #left, 1, -1 do
+			local made, m = pcall(function()
+				local skin = CarSkin :: any
+				if tries < 8 and not skin.kartFor(left[i].id) then
+					return nil
+				end
+				return skin.copyOf(left[i].id)
+			end)
+			if made and typeof(m) == "Instance" and m:IsA("Model") and not done then
+				showKart(left[i], m)
+				table.remove(left, i)
+			end
+		end
+		task.wait(0.4)
+	end
+end)
+
 local started = os.clock()
 local shown = 0.04
-local done = false
 local function ready(): boolean
 	return game:IsLoaded() and type(player:GetAttribute("Coins")) == "number"
 end
@@ -216,6 +371,9 @@ conn = RunService.RenderStepped:Connect(function(dt: number)
 		shown = 1
 		fill.Size = UDim2.fromScale(1, 1)
 		TweenService:Create(root, TweenInfo.new(FADE), { GroupTransparency = 1 }):Play()
+		for _, v in views do
+			TweenService:Create(v, TweenInfo.new(FADE), { ImageTransparency = 1 }):Play()
+		end
 		task.delay(FADE + 0.05, function()
 			conn:Disconnect()
 			gui:Destroy()

@@ -14,6 +14,7 @@ local CarMath = require(ReplicatedStorage.Shared.CarMath)
 local Features = require(ReplicatedStorage.Shared.Features)
 local Garage = require(ReplicatedStorage.Shared.Garage)
 local ToyCars = require(ReplicatedStorage.Shared.ToyCars)
+local TagStack = require(ReplicatedStorage.Shared.TagStack)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
 
 local OtherCars = {}
@@ -310,24 +311,34 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 	-- this frame's shown tags, nearest first (reused: no new tables each frame)
 	local tags: { BillboardGui } = {}
 	local tagFar: { number } = {}
-	local kept: { Vector3 } = {}
-	-- Tags that would sit on top of each other on screen: only the nearest shows (Studio pr839: a
-	-- bunch of cars read as one garbled line)
+	-- each shown tag's spot on screen (reused), and the tags hidden last frame
+	local spots: { TagStack.Spot } = {}
+	local shown: { boolean } = {}
+	local hid: { [BillboardGui]: boolean } = {}
+	-- Tags that would sit on or right next to each other on screen: only the nearest shows
+	-- (Studio pr839: a bunch of cars read as one garbled line; auditor 13: two touching karts'
+	-- names stacked one over the other). TagStack has the rule.
 	local function unstack(cam: Camera)
-		table.clear(kept)
-		for _, tag in tags do
+		for i, tag in tags do
 			local body = tag.Adornee :: BasePart
 			local p, onScreen = cam:WorldToViewportPoint(body.Position + tag.StudsOffsetWorldSpace)
-			if onScreen then
-				for _, q in kept do
-					if math.abs(p.X - q.X) < TAG_W and math.abs(p.Y - q.Y) < TAG_H then
-						tag.Enabled = false
-						break
-					end
-				end
-				if tag.Enabled then
-					table.insert(kept, p)
-				end
+			local s = spots[i]
+			if not s then
+				s = { x = 0, y = 0, on = false }
+				spots[i] = s
+			end
+			s.x, s.y, s.on, s.hid = p.X, p.Y, onScreen, hid[tag] == true
+			s.w, s.h = tag.Size.X.Offset, tag.Size.Y.Offset
+		end
+		for i = #spots, #tags + 1, -1 do
+			spots[i] = nil
+		end
+		TagStack.pick(spots, TAG_W, TAG_H, shown)
+		table.clear(hid)
+		for i, tag in tags do
+			if not shown[i] then
+				tag.Enabled = false
+				hid[tag] = true
 			end
 		end
 	end

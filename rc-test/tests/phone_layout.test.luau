@@ -444,6 +444,23 @@ test("FIRE: the ? orb and GRAB A ? BOX when empty, the weapon and ammo when held
 	truthy(orb:FindFirstChild("Q") and orb:FindFirstChild("Q").Text == "?", "no ? on the orb")
 	truthy(tip and tip.Visible, "no GRAB A ? BOX tip")
 	truthy(tip:FindFirstChild("Words").Text == "GRAB A ? BOX", tip:FindFirstChild("Words").Text)
+	-- (a how-to card up says the same: the tip steps aside, Studio r52)
+	h.api.quiet(true)
+	truthy(not tip.Visible, "the tip and the how-to card both say it")
+	h.api.quiet(false)
+	truthy(tip.Visible, "the tip stayed away after the card")
+	-- (the chip shows your board place even on 0 smashes: GO! sat by a board with you 6th)
+	h.api.setPlace(6, 8, 0)
+	local chip
+	for _, d in h.gui.canvas:GetDescendants() do
+		if d.ClassName == "TextLabel" and d.Name == "Place" then
+			chip = d
+		end
+	end
+	truthy(
+		chip and chip.Visible and chip.Text == "6/8",
+		"place chip: " .. tostring(chip and chip.Text)
+	)
 	h.api.setWeapon("Rockets", 3)
 	truthy(not orb.Visible, "the orb stayed over the weapon")
 	truthy(fire:FindFirstChild("Ammo", true).Visible, "no ammo coin")

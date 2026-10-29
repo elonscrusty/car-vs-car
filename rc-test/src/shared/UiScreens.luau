@@ -427,7 +427,8 @@ local LIST: { Screen } = {
 			p("Board", 0, 60, 224, 108, { anchor = "tl" }),
 			p("Feed", 486, 8, 270, 88, { anchor = "tr" }),
 			p("Clock", 323, 4, 110, 36, { anchor = "t" }),
-			p("Health", 250, 44, 230, 30, { anchor = "t" }),
+			-- (carter's kit v41: the level star, your name and 72/100 over the bar, the heart on it)
+			p("Health", 250, 42, 232, 42, { anchor = "t" }),
 			-- the short flash words (STUCK - BACK TO START...), drawn by client/Hud: under the health
 			-- bar, clear of the board and the feed (they sat on the health bar, Studio round 5)
 			p("Words", 244, 110, 264, 34, { anchor = "t" }),
@@ -450,8 +451,10 @@ local LIST: { Screen } = {
 			-- (the top centre ends by 39: on a 667x375 phone under the 58 px top bar that is just
 			-- above the middle half; the kill lines stay in the right quarter, even on a tall phone)
 			p("Feed", 566, 6, 190, 56, { anchor = "tr" }),
-			p("Clock", 336, 3, 84, 27, { anchor = "t" }),
-			p("Health", 318, 32, 120, 7, { anchor = "t" }),
+			-- (kit v41 at its smallest: the clock, then the heart on a short bar and the number on
+			-- the same top row, so the middle half stays empty on a 667x375 phone)
+			p("Clock", 250, 3, 84, 27, { anchor = "t" }),
+			p("Health", 338, 4, 210, 24, { anchor = "t" }),
 			p("Words", 228, 54, 300, 30, { anchor = "t" }),
 			-- (112: 88 px on a 667x375 phone)
 			button("Fire", 624, 260, 112, 112, "danger", "FIRE", { anchor = "br" }),
