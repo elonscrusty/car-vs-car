@@ -957,7 +957,8 @@ RunService.Heartbeat:Connect(function()
 		and not anyOpen(FULL)
 	-- (and it steps away under a window, so nothing peeks out past it, and while the race card
 	-- is up, Studio live1)
-	local shows = want and not anyOpen(WINDOWS) and not raceCardUp()
+	-- (any window at all, Customize too: INVITE peeked out behind its card)
+	local shows = want and not anyOpen(WINDOWS) and not Screen.anyOver() and not raceCardUp()
 	if want and not hud then
 		local fresh = not staggered and attr("JustPicked") == true
 		openHud(fresh)
