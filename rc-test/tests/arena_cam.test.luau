@@ -88,7 +88,8 @@ test("arena cam: ChaseCamera and Main use it only while InMatch, still a chase c
 		"only the arena pulls it in (not other karts)"
 	)
 	truthy(
-		string.find(chase, "arenaOff = if dir.Magnitude > 1e-3 then arenaWant(", 1, true) ~= nil,
+		string.find(chase, "elseif dir.Magnitude > 1e-3 then arenaWant(dir.Unit * len)", 1, true)
+			~= nil,
 		"in at once, never inside a wall"
 	)
 	truthy(string.find(chase, "ArenaCam.blend(arenaT)", 1, true) ~= nil, "eased")
