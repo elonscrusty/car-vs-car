@@ -34,7 +34,7 @@ BoxServer.TAG = "SmashBox"
 -- the "Royal" look carter picked (10-29): gold box, dark frame, glowing gem corners, a gold trim
 -- panel with a 3D "?" on each side, a spinning glow halo and a light beam
 local GOLD = Color3.fromRGB(255, 204, 60)
-local PANEL = Color3.fromRGB(255, 176, 32)
+local PANEL = Color3.fromRGB(235, 150, 20)
 local TRIM = Color3.fromRGB(255, 226, 122)
 local FRAME = Color3.fromRGB(42, 26, 58)
 local GEM = Color3.fromRGB(255, 154, 30)
@@ -187,8 +187,14 @@ local function build(i: number, spot: Vector3, parent: Instance, sc: number): Mo
 			true
 		)
 		weld(trim, body)
-		local panel =
-			part(m, "Panel", Vector3.new(p, p, 0.16 * sc), fc * CFrame.new(0, 0, -0.06 * sc), PANEL)
+		local panel = part(
+			m,
+			"Panel",
+			Vector3.new(p, p, 0.16 * sc),
+			fc * CFrame.new(0, 0, -0.06 * sc),
+			PANEL,
+			true
+		)
 		mark(panel)
 		weld(panel, body)
 	end
