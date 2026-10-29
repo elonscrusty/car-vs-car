@@ -428,6 +428,11 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown, gridSpot: u
 		setRacing(false)
 		setStats(nil)
 		setWalking(true)
+		-- parked on its springs while walking: base numbers (not the rock plot's tall ones), and
+		-- a fresh car so no held heading or leftover boost moves it
+		setMode("race")
+		car.destroy()
+		car = RCCar.new(model, ignoreList())
 		LobbyLife.start() -- butterflies and birds (looks only, this screen)
 		LobbyWelcome.start() -- first time only: street lights on, confetti
 		LakeLife.start() -- sailboats drift, ducks paddle, the water glints (this screen)
@@ -499,8 +504,15 @@ local function timerText(): string
 	return table.concat(lines, "\n")
 end
 
+-- no keys: the parked car while walking still stands on its springs (without them it sank onto
+-- its belly with the wheels under the road, Studio PR 936 check)
+local IDLE: RCCar.Input = { steer = 0, throttle = 0, brake = 0, drift = false }
 RunService.PreSimulation:Connect(function(dt: number)
-	if walking or body.Parent == nil then
+	if body.Parent == nil then
+		return
+	end
+	if walking then
+		car.step(dt, IDLE)
 		return
 	end
 	local input = controls.read()
