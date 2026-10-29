@@ -35,7 +35,8 @@ end
 local PlotShowroom = {}
 
 -- the palette (LOOK RULE)
-local FLOOR = { 236, 240, 248 }
+-- warm grey paving, like the lobby's sandy streets (Lead 10-29: the near-white read as snow)
+local FLOOR = { 206, 190, 166 }
 local NAVY = { 35, 45, 80 }
 local SKY = { 90, 180, 255 }
 local PINK = { 255, 90, 170 }
