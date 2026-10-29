@@ -422,9 +422,9 @@ function LobbyDecor.parts(): { Piece }
 	local add = Garage.adder(out)
 	local road = L.road()
 
-	-- bunting at every lamp pair
+	-- bunting at every lamp pair (not in Smash: rope and masts over the road read as a finish arch)
 	for i, l in L.lamps() do
-		if l.x < 0 then
+		if l.x < 0 and not SMASH then
 			bunting(add, l.z, i)
 		end
 	end
