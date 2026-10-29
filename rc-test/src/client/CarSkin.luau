@@ -23,6 +23,7 @@ local RCCar = require(script.Parent.RCCar)
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local ExhaustFx = require(script.Parent.ExhaustFx)
 local FireDrake = require(script.Parent.FireDrake)
+local WeaponPart = require(script.Parent.WeaponPart)
 local Garage = require(ReplicatedStorage.Shared.Garage)
 local KartMesh = require(script.Parent.KartMesh)
 local ToyCars = require(ReplicatedStorage.Shared.ToyCars)
@@ -85,6 +86,9 @@ local function toy(id: string): Model?
 	car:SetAttribute("Extras", true)
 	return car
 end
+
+-- the weapon every car wears until loadouts exist (shared/WeaponLooks.DEFAULT gives its look)
+CarSkin.STARTER = "Gun"
 
 -- "kart:<car id>": the car's Blender kart model (ToyCars.KARTS) painted in the car's colours
 CarSkin.KART = "kart:"
@@ -268,6 +272,8 @@ function CarSkin.prepare(m: Model)
 	if FireDrake.wants(m.Name) then
 		pcall(FireDrake.addTo, m) -- (no heads is fine: never a car that fails to show)
 	end
+	-- every car carries the starter weapon on its mount (WeaponPart: roof or front, by its look)
+	pcall(WeaponPart.addTo, m, CarSkin.STARTER)
 end
 
 local function template(name: string): Model?
@@ -275,6 +281,7 @@ local function template(name: string): Model?
 		local made = toys[name] or kart(string.sub(name, #CarSkin.KART + 1))
 		if made then
 			toys[name] = made
+			CarSkin.prepare(made)
 		end
 		return made
 	end
@@ -282,6 +289,7 @@ local function template(name: string): Model?
 		local made = toys[name] or toy(string.sub(name, #CarSkin.TOY + 1))
 		if made then
 			toys[name] = made
+			CarSkin.prepare(made)
 		end
 		return made
 	end
@@ -426,6 +434,17 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 				extras[d] = body.CFrame:ToObjectSpace(d.CFrame)
 				d.Parent = folder
 			end
+		end
+	end
+	-- a weapon clicked onto the car (WeaponPart) rides on its body whatever kind of model this is;
+	-- its welds are not needed here, the skin places every part itself
+	for _, d in copy:GetDescendants() do
+		local on = d.Parent ~= nil and d.Parent:GetAttribute("WeaponMount") ~= nil
+		if on and d:IsA("WeldConstraint") then
+			d:Destroy()
+		elseif on and d:IsA("BasePart") then
+			extras[d] = body.CFrame:ToObjectSpace(d.CFrame)
+			d.Parent = folder
 		end
 	end
 	copy:Destroy()
