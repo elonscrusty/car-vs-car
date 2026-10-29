@@ -84,6 +84,9 @@ local settleUntil = 0 -- no driving samples until then (a round start or a respa
 local lastPos: Vector3? = nil
 local lastTarget: ThumbBrain.Point? = nil -- where the thumb was heading last frame
 local catchSpot: (kind: string, body: BasePart, pos: Vector3) -> ()
+local TRACE = 2 -- s between trace lines
+local lastTrace = -math.huge
+local lastModeAt: number? = nil
 local lastAt = 0
 local function say(text: string)
 	print("[TestThumb] " .. text)
@@ -157,6 +160,7 @@ player:GetAttributeChangedSignal("Health"):Connect(function()
 	elseif lastHealth and hp > lastHealth then
 		lastPos = nil -- (respawned somewhere else: not a put back)
 		tally.stuckRun, tally.flipRun = 0, 0
+		ThumbBrain.netReset(tally)
 		settleUntil = os.clock() + SETTLE
 	end
 	lastHealth = hp
@@ -314,6 +318,7 @@ function TestThumb.drive(body: BasePart, input: any): any
 	if player:GetAttribute("InMatch") ~= true or (player:GetAttribute("Health") or 0) <= 0 then
 		lastPos = nil
 		tally.stuckRun, tally.flipRun = 0, 0 -- (smashed: a new moment after the respawn)
+		ThumbBrain.netReset(tally)
 		if brain then
 			ThumbBrain.calm(brain)
 		end
@@ -328,11 +333,16 @@ function TestThumb.drive(body: BasePart, input: any): any
 	if now < settleUntil then
 		lastPos = nil -- (still frozen or about to be moved to a spawn)
 		tally.stuckRun, tally.flipRun = 0, 0
+		ThumbBrain.netReset(tally)
 	elseif log.startAt and lastPos then
 		local d = (pos - lastPos) * Vector3.new(1, 0, 1)
 		local events = ThumbBrain.sample(tally, now - lastAt, d.Magnitude, body.CFrame.UpVector.Y)
 		for _, event in events or {} do
 			catchSpot(event, body, pos)
+		end
+		local net = ThumbBrain.net(tally, now, pos.X, pos.Z)
+		if net then
+			catchSpot(net, body, pos)
 		end
 	end
 	lastPos, lastAt = pos, now
@@ -361,6 +371,46 @@ function TestThumb.drive(body: BasePart, input: any): any
 			else (body.AssemblyLinearVelocity * Vector3.new(1, 0, 1)).Magnitude,
 	}, boxes(), karts(), armed)
 	lastTarget = out.target
+	if log.startAt and now >= settleUntil then
+		ThumbBrain.mode(tally, now - (lastModeAt or now), out.mode)
+		-- every TRACE s: where, how fast, the pedals, what it's doing and where it's heading
+		if now - lastTrace >= TRACE then
+			lastTrace = now
+			local tgt = out.target
+			local v = body.AssemblyLinearVelocity * Vector3.new(1, 0, 1)
+			local tgtText = "none"
+			if tgt then
+				local a = ThumbBrain.angle(
+					{ x = body.Position.X, z = body.Position.Z, fx = look.X, fz = look.Z },
+					tgt
+				)
+				local dist =
+					math.sqrt((tgt.x - body.Position.X) ^ 2 + (tgt.z - body.Position.Z) ^ 2)
+				tgtText = string.format(
+					"(%.0f, %.0f) %.0f studs %.0f deg",
+					tgt.x,
+					tgt.z,
+					dist,
+					math.deg(a)
+				)
+			end
+			say(
+				string.format(
+					"trace %.0f s: (%.0f, %.0f) %.1f studs/s gas %.2f brake %d %s, %s, target %s",
+					now - (log.startAt :: number),
+					body.Position.X,
+					body.Position.Z,
+					v.Magnitude,
+					out.throttle,
+					out.brake,
+					out.mode,
+					if armed then "armed" else "unarmed",
+					tgtText
+				)
+			)
+		end
+	end
+	lastModeAt = now
 	if out.fire then
 		for _, fn in fireFns do
 			task.spawn(fn)
