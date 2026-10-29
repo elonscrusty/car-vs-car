@@ -45,6 +45,7 @@ local Hud = require(Screens:WaitForChild("Hud"))
 local Windows = require(Screens:WaitForChild("Windows"))
 local Shop = require(Screens:WaitForChild("Shop"))
 local Smash = require(Screens:WaitForChild("Smash"))
+local KitWindows = require(Screens:WaitForChild("KitWindows"))
 
 local player = Players.LocalPlayer
 local pgui = player:WaitForChild("PlayerGui")
@@ -293,7 +294,103 @@ end
 
 local crateChoice = 1
 local wantReveal = false -- a crate was asked for: its car shows the moment it comes
+
+-- Ask the server for crate `kind` (free: one you were given); back: the window to go back to
+-- when there's no room or not enough coins.
+-- (one ask at a time: a double tap on OPEN must not buy twice before the server's crate comes)
+local buyingUntil = 0
+local function buyCrate(kind: string, back: () -> ())
+	if os.clock() < buyingUntil then
+		return
+	end
+	if #CvcState.garage >= Profile.MAX_GARAGE then
+		info(
+			"lock",
+			"Garage full",
+			if SMASH then SmashScreens.WORDS.garageFull else "No room for cars."
+		)
+		return
+	end
+	if kind == "free" then
+		if CvcState.crates > 0 then
+			buyingUntil = os.clock() + 3
+			wantReveal = true
+			ask("open")
+		end
+		return
+	end
+	local price = Crates.price(kind)
+	if not price then
+		return
+	end
+	if num("Coins") < price then
+		noCoins(price, back)
+	else
+		buyingUntil = os.clock() + 3
+		wantReveal = true
+		Sfx.buy()
+		ask("buy", kind)
+	end
+end
+
+-- Smash (carter's kit v41): the shop's CRATES tab, each crate opening its odds, OPEN on the odds
+local openKitShop: () -> ()
+local function openKitOdds(kind: string, fromSign: boolean?)
+	local tile: SmashScreens.CrateTile? = nil
+	for _, t in SmashScreens.CRATE_TILES do
+		if t.kind == kind then
+			tile = t
+		end
+	end
+	if not tile or (kind == "free" and CvcState.crates <= 0) then
+		openKitShop()
+		return
+	end
+	local function again()
+		openKitOdds(kind, fromSign)
+	end
+	KitWindows.crateOdds({
+		kind = kind,
+		word = tile.word,
+		rarity = tile.rarity,
+		price = Crates.price(kind) or 0,
+		priceWords = if kind == "free" then `FREE x{CvcState.crates}` else nil,
+		coins = num("Coins"),
+		odds = SmashScreens.oddsRows(Crates.odds(kind)),
+	}, {
+		open = function()
+			buyCrate(kind, again)
+		end,
+		-- (opened by a crate's sign: X goes back to the world, not to the shop)
+		close = if fromSign
+			then Screen.closeOver
+			else function()
+				openKitShop()
+			end,
+	})
+end
+function openKitShop()
+	local tiles = {}
+	for _, t in SmashScreens.crateTiles(CvcState.crates) do
+		table.insert(tiles, {
+			kind = t.kind,
+			word = t.word,
+			rarity = t.rarity,
+			price = Crates.price(t.kind),
+			priceWords = if t.kind == "free" then `FREE x{CvcState.crates}` else nil,
+		})
+	end
+	KitWindows.shop({ coins = num("Coins"), tiles = tiles }, {
+		pick = openKitOdds,
+		close = Screen.closeOver,
+	})
+end
+
 function openCrates()
+	if SMASH then
+		openKitShop()
+		return
+	end
 	local kinds: { string } = if CvcState.crates > 0
 		then { "free", "big", "mega" }
 		else { "basic", "big", "mega" }
@@ -326,24 +423,7 @@ function openCrates()
 			if not ch then
 				return
 			end
-			if #CvcState.garage >= Profile.MAX_GARAGE then
-				info(
-					"lock",
-					"Garage full",
-					if SMASH then SmashScreens.WORDS.garageFull else "No room for cars."
-				)
-				return
-			end
-			if ch.kind == "free" then
-				wantReveal = true
-				ask("open")
-			elseif num("Coins") < ch.price then
-				noCoins(ch.price, openCrates)
-			else
-				wantReveal = true
-				Sfx.buy()
-				ask("buy", ch.kind)
-			end
+			buyCrate(ch.kind, openCrates)
 		end,
 		close = Screen.closeOver,
 	})
@@ -358,6 +438,15 @@ if not (shopEvent and shopEvent:IsA("BindableEvent")) then
 	shopEvent = made
 end
 (shopEvent :: BindableEvent).Event:Connect(function(kind: unknown)
+	-- (Smash: a sign for one crate opens that crate's odds)
+	if SMASH then
+		if type(kind) == "string" then
+			openKitOdds(kind, true)
+		else
+			openKitShop()
+		end
+		return
+	end
 	local list = if CvcState.crates > 0
 		then { "free", "big", "mega" }
 		else { "basic", "big", "mega" }
@@ -971,22 +1060,24 @@ end
 plotActions = {
 	Garage = if PHONE_LOBBY then openMenu elseif SMASH then openCustomize else openGarage,
 	Crates = openCrates,
-	Shop = function()
-		-- (no Robux prices until carter sets them: SOON, not R$ ???)
-		Shop.open({ tab = 1, offer = { price = "SOON" } }, {
-			close = Screen.closeOver,
-			tab = function() end,
-			buyOffer = function()
-				info("bag", "Coming soon!", "Skins only. Soon!")
-			end,
-			buySale = function()
-				info("bag", "Coming soon!", "Skins only. Soon!")
-			end,
-			buyMini = function()
-				info("bag", "Coming soon!", "Skins only. Soon!")
-			end,
-		})
-	end,
+	Shop = if SMASH
+		then openCrates
+		else function()
+			-- (no Robux prices until carter sets them: SOON, not R$ ???)
+			Shop.open({ tab = 1, offer = { price = "SOON" } }, {
+				close = Screen.closeOver,
+				tab = function() end,
+				buyOffer = function()
+					info("bag", "Coming soon!", "Skins only. Soon!")
+				end,
+				buySale = function()
+					info("bag", "Coming soon!", "Skins only. Soon!")
+				end,
+				buyMini = function()
+					info("bag", "Coming soon!", "Skins only. Soon!")
+				end,
+			})
+		end,
 	League = function()
 		local n = League.clamp(attr("League"))
 		info(
@@ -1345,6 +1436,21 @@ end
 
 local function reveal(id: string, rarity: string)
 	Sfx.crate(table.find(CarCatalog.RARITY_ORDER, rarity) or 1)
+	if SMASH then
+		KitWindows.reveal({
+			id = id,
+			rarity = UiTheme.rarityId(rarity),
+			note = revealNote(id),
+			again = CvcState.crates > 0 or num("Coins") >= (Crates.price("basic") or math.huge),
+		}, {
+			cool = Screen.closeOver,
+			again = function()
+				Screen.closeOver()
+				openCrates()
+			end,
+		})
+		return
+	end
 	-- its starting bars, as on the garage card ("20/70")
 	local car = CvcState.fresh(id)
 	local stats = {}
@@ -1376,6 +1482,7 @@ end
 
 CvcState.event:Connect(function(kind: unknown, a: unknown, b: unknown)
 	if kind == "crate" and type(a) == "string" then
+		buyingUntil = 0
 		local rarity = if type(b) == "string" then b else CarCatalog.rarity(a).id
 		-- (asked for: right away, even still on the driver stand after the race)
 		if wantReveal and not anyOpen(FULL) and not raceCardUp() then
