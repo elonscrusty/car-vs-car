@@ -75,6 +75,7 @@ local botCount = 0
 local botNames: { string } = {} -- this round's (Match.botNames)
 local newKids: { [number]: boolean } = {} -- players in their first round (new-kid safety)
 local rookies: { [number]: boolean } = {} -- players in their first 3 matches (bots go easy)
+local botSkill: number? = nil -- this round's (ArenaBrain.skillFor the least-played player)
 local ROOKIE_MATCHES = 3 -- (ArenaBrain.ROOKIE.matches)
 local stepWarned = 0
 local fleet: any = nil
@@ -262,7 +263,13 @@ local function place(info: Info, i: number)
 		info.last = cf.Position
 		if fleet and ArenaBots then
 			local k = state and state.karts[info.id]
-			pcall(ArenaBots.add, fleet, info.id, cf, { skill = nil, easy = next(rookies) ~= nil })
+			pcall(
+				ArenaBots.add,
+				fleet,
+				info.id,
+				cf,
+				{ skill = botSkill, easy = next(rookies) ~= nil }
+			)
 			if k then
 				k.shieldUntil = math.max(k.shieldUntil, now() + Match.SHIELD)
 			end
@@ -382,7 +389,13 @@ function MatchRunner.addBot(name: string?, skill: number?): number?
 	infos[id] = info
 	addBoard(info, nm)
 	if fleet and ArenaBots then
-		pcall(ArenaBots.add, fleet, id, cf, { skill = skill, easy = next(rookies) ~= nil })
+		pcall(
+			ArenaBots.add,
+			fleet,
+			id,
+			cf,
+			{ skill = skill or botSkill, easy = next(rookies) ~= nil }
+		)
 	end
 	matchBoard:SetAttribute("MatchKarts", #m.list)
 	return id
@@ -588,6 +601,7 @@ local function clearBots()
 		pcall(ArenaBots.clear, fleet)
 	end
 	fleet = nil
+	botSkill = nil
 	for id in infos do
 		if id < 0 then
 			dropKart(id)
@@ -712,6 +726,7 @@ local function startRound()
 	-- (Studio only, workspace TestVeteran: the player counts as a veteran, not a rookie)
 	local veteran =
 		TestVeteran.allowed(RunService:IsStudio(), workspace:GetAttribute(TestVeteran.ATTR))
+	local fewest = math.huge -- (the least-played player's matches: the bots' skill, RAMP)
 	for i, p in list do
 		-- (a fresh round: nothing held over from the last one or the warm-up yard, LOBBY)
 		if W and W.drop then
@@ -726,6 +741,7 @@ local function startRound()
 		if played == nil or played < ROOKIE_MATCHES then
 			rookies[p.UserId] = true
 		end
+		fewest = math.min(fewest, played or 0)
 		p:SetAttribute("MatchQueued", nil)
 		p:SetAttribute("StandSpot", nil) -- (a race's stand spot: not in the arena)
 		Match.add(m, p.UserId, p.DisplayName, true, t0)
@@ -752,6 +768,7 @@ local function startRound()
 		freeze(info, false)
 		place(info, (i - 1) % math.max(#spawns, 1) + 1)
 	end
+	botSkill = if fewest < math.huge then ArenaBrain.skillFor(fewest) else nil
 	-- bots fill the round (ArenaBots drives them when it's there)
 	local mod = script.Parent:FindFirstChild("ArenaBots")
 	ArenaBots = if mod and mod:IsA("ModuleScript") then require(mod) :: any else nil

@@ -303,3 +303,42 @@ test(
 		truthy(good >= 12, `{good} of {RUNS}`)
 	end
 )
+
+test(
+	"a seasoned kid (11th match, the sharpest bots): top 4 in about 4 of 5, 1st in only about a third, smashed 4-8 times",
+	function()
+		local top4, wins, hurt = 0, 0, 0
+		for seed = 1, RUNS do
+			local smashes, place, smashed = firstMatch(200 + seed, 10)
+			if place >= 1 and place <= 4 then
+				top4 += 1
+			end
+			if place == 1 then
+				wins += 1
+			end
+			hurt += #smashed
+			print(
+				string.format(
+					"       seed %d: %d smashes, place %d, smashed %d times",
+					200 + seed,
+					smashes,
+					place,
+					#smashed
+				)
+			)
+		end
+		local avg = hurt / RUNS
+		print(
+			string.format(
+				"       top 4 in %d of %d, 1st in %d, smashed %.1f times a match",
+				top4,
+				RUNS,
+				wins,
+				avg
+			)
+		)
+		truthy(top4 >= 14, `top 4 in {top4} of {RUNS}`)
+		truthy(wins >= 4 and wins <= 9, `1st in {wins} of {RUNS}`)
+		truthy(avg >= 4 and avg <= 8, `smashed {avg} times a match`)
+	end
+)

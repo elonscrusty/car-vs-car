@@ -54,6 +54,7 @@ export type Fleet = {
 	bots: { [number]: ArenaBrain.Bot },
 	world: ArenaBrain.World,
 	models: { [number]: Model }, -- this frame's kart models by id (for the default place)
+	seen: { [number]: { x: number, z: number, t: number, vx: number, vz: number } }?, -- last spots (velocity)
 	startAt: number?, -- `now` at the first step: a rookie's calm (ArenaBrain.ROOKIE.calm) counts from here
 	list: { ArenaBrain.Bot }, -- (reused each frame)
 }
@@ -209,6 +210,7 @@ function ArenaBots.clear(fleet: Fleet)
 	table.clear(fleet.bots)
 	fleet.startAt = nil
 	fleet.world.feed = nil
+	fleet.seen = nil
 end
 
 function ArenaBots.count(fleet: Fleet): number
@@ -241,6 +243,26 @@ function ArenaBots.step(fleet: Fleet, dt: number, now: number)
 			continue -- (no body yet)
 		end
 		local x, z = toLocal(pos)
+		-- its velocity from the last frame (big units/s), for leading a shot
+		local seen = fleet.seen or {}
+		fleet.seen = seen
+		local was = seen[k.id]
+		if not was then
+			was = { x = x, z = z, t = now, vx = 0, vz = 0 }
+			seen[k.id] = was
+		elseif now > was.t then
+			local gap = now - was.t
+			local vx, vz = (x - was.x) / gap, (z - was.z) / gap
+			if gap > 0.25 or vx * vx + vz * vz > 200 * 200 then
+				-- (a respawn jump or a kart that was away a while: not driving)
+				was.vx, was.vz = 0, 0
+			else
+				-- (a little smoothing: one frame's jitter isn't a heading)
+				was.vx, was.vz = was.vx + (vx - was.vx) * 0.3, was.vz + (vz - was.vz) * 0.3
+			end
+			was.x, was.z, was.t = x, z, now
+		end
+		local vx, vz = was.vx, was.vz
 		-- a rookie's facing and whether they hold a shot (ArenaBrain.FEED)
 		local fx, fz, armed = nil, nil, nil
 		local cf = k.cframe
@@ -265,6 +287,8 @@ function ArenaBots.step(fleet: Fleet, dt: number, now: number)
 			rookieHit = k.rookieHit,
 			smashes = k.smashes,
 			deaths = k.deaths,
+			vx = vx,
+			vz = vz,
 			fx = fx,
 			fz = fz,
 			armed = armed,

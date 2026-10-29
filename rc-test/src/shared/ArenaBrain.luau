@@ -35,6 +35,23 @@ ArenaBrain.LOCK = { deg = 35, range = 110 }
 -- the rookie and the weave either side; `speed`: throttle; `gap`: s after a feeder is smashed
 -- (or let go) before the next one comes; `upTo`: only while the rookie has fewer smashes. Bots also leave a rookie's kill (a kart a rookie just
 -- hurt, Match.ROOKIE_HIT) and the box a rookie is going for.
+-- Past the rookie matches the bots sharpen up as the players do: a round's bot skill comes from
+-- its least-played player's matches, `low` at `from` matches rising to `high` at `to` (and
+-- after). Sharp bots react sooner, aim tighter and lead a moving kart, and go after the leader.
+ArenaBrain.RAMP = { from = 3, to = 10, low = 0.5, high = 0.8 }
+-- The leader (most smashes, at least `min`) counts as this much nearer to a sharp bot (scaled by
+-- how far its skill is past RAMP.low), so a runaway gets hunted. Never on an easy match.
+ArenaBrain.LEADER = { pull = 1.3, min = 2 }
+-- How fast a shot flies (big units/s; Weapons.ROCKET is 29 karts/s): for leading a moving kart.
+ArenaBrain.SHOT_SPEED = 160
+
+-- A round's bot skill for the least-played player's `matches` (RAMP).
+function ArenaBrain.skillFor(matches: number): number
+	local R = ArenaBrain.RAMP
+	local t = math.clamp((matches - R.from) / (R.to - R.from), 0, 1)
+	return R.low + (R.high - R.low) * t
+end
+
 ArenaBrain.FEED = { ahead = 55, side = 25, speed = 0.45, gap = 6, upTo = 4 }
 -- Each boom's splash in big units (Weapons' splash studs / its SCALE): no shot whose boom would
 -- catch a rookie.
@@ -96,6 +113,8 @@ export type Target = {
 	armed: boolean?, -- a rookie holds a shot (FEED)
 	smashes: number?, -- this round's
 	deaths: number?,
+	vx: number?, -- its velocity (big units/s), for leading a shot
+	vz: number?,
 }
 -- A rookie's feeder (FEED): the bot on it, and when the next may come.
 export type Feed = { bot: number?, nextAt: number }
@@ -363,11 +382,24 @@ end
 local function pickTarget(bot: Bot, world: World, hunters: { [number]: number }): Target?
 	local best: Target? = nil
 	local bestScore = math.huge
+	-- the leader, for a sharp bot to go after (LEADER)
+	local R = ArenaBrain.RAMP
+	local sharp = if bot.easy then 0 else clamp((bot.skill - R.low) / (R.high - R.low), 0, 1)
+	local leader, most = nil, ArenaBrain.LEADER.min - 1
+	if sharp > 0 then
+		for _, k in world.karts do
+			if k.id ~= bot.id and (k.smashes or 0) > most then
+				leader, most = k.id, k.smashes or 0
+			end
+		end
+	end
 	for _, k in world.karts do
 		if k.id ~= bot.id and k.alive and not k.shield and not spared(k) then
 			local busy = k.human
 				and k.id ~= bot.target
-				and (hunters[k.id] or 0) >= ArenaBrain.TOKENS
+				-- (a leading player can draw a second sharp hunter)
+				and (hunters[k.id] or 0)
+					>= ArenaBrain.TOKENS + (if k.id == leader and sharp >= 0.5 then 1 else 0)
 			if not busy then
 				local d = math.sqrt((k.x - bot.x) ^ 2 + (k.z - bot.z) ^ 2)
 				local score = d
@@ -379,6 +411,9 @@ local function pickTarget(bot: Bot, world: World, hunters: { [number]: number })
 					)
 				if k.id == bot.target then
 					score *= 0.7 -- stick with the one you're after
+				end
+				if k.id == leader then
+					score *= math.max(1 - ArenaBrain.LEADER.pull * sharp, 0.15)
 				end
 				if score < bestScore then
 					best, bestScore = k, score
@@ -691,7 +726,18 @@ local function aimAt(
 	local miss = (1 - bot.skill) * 6 + (if target.human and bot.easy then 4 else 0)
 	local a = bot.rng:NextNumber() * 2 * math.pi
 	local m = bot.rng:NextNumber() * miss
-	local shot = { x = target.x + math.cos(a) * m, z = target.z + math.sin(a) * m }
+	-- a sharp bot leads a moving kart: where it'll be when the shot gets there
+	local lead = if bot.easy
+		then 0
+		else clamp(
+			(bot.skill - ArenaBrain.RAMP.low) / (ArenaBrain.RAMP.high - ArenaBrain.RAMP.low),
+			0,
+			1
+		)
+	local fly = math.sqrt((target.x - bot.x) ^ 2 + (target.z - bot.z) ^ 2) / ArenaBrain.SHOT_SPEED
+	local tx = target.x + (target.vx or 0) * fly * lead
+	local tz = target.z + (target.vz or 0) * fly * lead
+	local shot = { x = tx + math.cos(a) * m, z = tz + math.sin(a) * m }
 	if not target.rookie then
 		-- the way the shot really goes (miss and all), and the boom where it lands
 		local sx, sz = shot.x - bot.x, shot.z - bot.z

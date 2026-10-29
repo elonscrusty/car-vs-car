@@ -223,6 +223,33 @@ test("an armed rookie gets a feeder: one easy bot cruising ahead of them, not sh
 	eq(sharp.feeding, nil)
 end)
 
+test("skill ramp: medium bots through the rookie matches, sharp by match 10", function()
+	eq(B.skillFor(0), B.RAMP.low)
+	eq(B.skillFor(B.RAMP.from), B.RAMP.low)
+	truthy(B.skillFor(6) > B.RAMP.low and B.skillFor(6) < B.RAMP.high, "in between at 6")
+	eq(B.skillFor(B.RAMP.to), B.RAMP.high)
+	eq(B.skillFor(40), B.RAMP.high)
+end)
+
+test("a sharp bot goes after the leader; a medium one after the nearest", function()
+	local w = world()
+	w.karts = {
+		{ id = 1, x = 0, z = 0, alive = true },
+		{ id = -2, x = 0, z = -40, alive = true, smashes = 0 },
+		{ id = -3, x = 0, z = 60, alive = true, smashes = 6 },
+	}
+	local medium = B.new(1, 0, 0, 0, { skill = B.RAMP.low })
+	run(medium, w, 0.3, "Rockets", 3)
+	eq(medium.target, -2, "nearest")
+	local sharp = B.new(1, 0, 0, 0, { skill = 1 })
+	run(sharp, w, 0.3, "Rockets", 3)
+	eq(sharp.target, -3, "the leader")
+	-- not on an easy match
+	local easy = B.new(1, 0, 0, 0, { skill = 1, easy = true })
+	run(easy, w, 0.3, "Rockets", 3)
+	eq(easy.target, -2)
+end)
+
 test("stuck against a wall: backs up and gets away", function()
 	local w = world()
 	w.solids = { { x = 0, z = -12, r = 8 } }
