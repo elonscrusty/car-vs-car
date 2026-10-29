@@ -15,6 +15,7 @@ local Icons = require(Ui:WaitForChild("Icons"))
 local Pattern = require(Ui:WaitForChild("Pattern"))
 local Screen = require(Ui:WaitForChild("Screen"))
 local CardStats = require(script.Parent:WaitForChild("CardStats"))
+local KartView = require(script.Parent:WaitForChild("KartView"))
 
 local Flow = {}
 
@@ -438,6 +439,11 @@ function Flow.reveal(data: { [string]: any }, actions: Screen.Actions?): Screen.
 			kind = data.kind,
 			tilt = -3,
 		})
+		-- the real kart in 3D over the card's drawn car (auditor R5-4: not a white outline)
+		local spotF = card.card:FindFirstChild("CarSpot", true)
+		if spotF and spotF:IsA("GuiObject") then
+			KartView.over(spotF, data.id)
+		end
 		-- the new car's stats fill the card's empty lower half (Studio pr850 3a)
 		if data.stats then
 			CardStats.draw(card.card, 10, card.contentY, cp.w - 20, data.stats)
