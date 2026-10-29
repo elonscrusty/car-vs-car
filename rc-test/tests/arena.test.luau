@@ -263,9 +263,13 @@ test(
 	end
 )
 
-test("hills: boxes on them sit on top, ramps are gentle", function()
+test("hills: no boxes on them (karts pinned on the cliffs), ramps are gentle", function()
 	eq(A.boxSpots[6].y, 0, "the high hill's box came down to open ground (round 9)")
-	eq(A.boxSpots[15].y, A.HILLS[2].h, "LOW PINK box on top")
+	eq(
+		A.boxSpots[15].y,
+		0,
+		"the low hill's box came down too (round 12: karts pinned on its cliff)"
+	)
 	for i, r in A.RAMPS do
 		local len = math.sqrt((r.to[1] - r.from[1]) ^ 2 + (r.to[2] - r.from[2]) ^ 2) * K
 		truthy(math.deg(math.atan(r.h / len)) < 18, "ramp " .. i .. " under 18 degrees")
