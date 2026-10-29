@@ -36,3 +36,19 @@ test("Loading ends when the lobby is ready, 15 s at most, and cleans up", functi
 	truthy(string.find(src, "gui:Destroy()", 1, true) ~= nil, "the screen is never removed")
 	truthy(string.find(src, "conn:Disconnect()", 1, true) ~= nil, "its frame loop keeps running")
 end)
+
+test("one logo, karts clear of the bar (Studio qa_r58)", function()
+	-- (a plain TextScaled layer stops at 100 px, a rich one doesn't: all three must match)
+	truthy(string.find(src, "l.RichText = true", 1, true) ~= nil, "logo layers differ in size")
+	local barTop =
+		tonumber(string.match(src, 'frame%(stage, "Track", UDim2.fromScale%([%d.]+, ([%d.]+)%)'))
+	truthy(barTop ~= nil, "no bar")
+	local n = 0
+	for y, h in
+		string.gmatch(src, 'id = "race_%a+", x = [%d.]+, y = ([%d.]+), w = [%d.]+, h = ([%d.]+)')
+	do
+		n += 1
+		truthy(tonumber(y) + tonumber(h) <= (barTop :: number) - 0.04, "a kart sits on the bar")
+	end
+	truthy(n == 3, "3 karts, got " .. n)
+end)

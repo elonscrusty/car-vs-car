@@ -320,7 +320,7 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 			settingsHolder = sh
 			Kit.button(sh, "Gear", 0, 0, sp.w, sp.h, "steel", "", {
 				size = 20,
-				icon = "speed",
+				icon = "gear",
 				onClick = Screen.act(actions, "Settings"),
 			})
 		end
@@ -911,10 +911,25 @@ function Hud.match(
 		-- (a phone: no star, its number would read under 14 px)
 		local starS = if touch then 0 else 34
 		if not touch then
-			local star = Base.fill(hs, "Level", 0, (hp.h - starS) / 2, starS, starS, WHITE, 5)
-			Base.corner(star)
-			Base.outline(star, UiTheme.OUTLINE.normal)
-			Kit.face(star, { UiTheme.FACE.blue.hi, UiTheme.FACE.blue.c, UiTheme.FACE.blue.c2 })
+			-- (a star badge: two blue squares, one turned 45, so it reads as a star, not a ball:
+			-- Studio qa_r58)
+			local star = Base.box(hs, "Level", 0, (hp.h - starS) / 2, starS, starS, 5)
+			local ps = math.floor(starS * 0.74)
+			-- (twice: the outlined pair under, a fill-only pair over, so no edge crosses the blue)
+			for layer = 1, 2 do
+				for k, turn in { 0, 45 } do
+					local off = (starS - ps) / 2
+					local pt =
+						Base.fill(star, `Point{layer}{k}`, off, off, ps, ps, WHITE, 3 + layer)
+					pt.Rotation = turn
+					Base.corner(pt, 4)
+					if layer == 1 then
+						Base.outline(pt, UiTheme.OUTLINE.normal)
+					end
+					local f = UiTheme.FACE.blue
+					Kit.face(pt, { f.hi, f.c, f.c2 }, 90 - turn)
+				end
+			end
 			Base.text(
 				star,
 				"N",

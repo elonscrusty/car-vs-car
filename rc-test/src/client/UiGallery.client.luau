@@ -469,10 +469,10 @@ Base.show(bar, true)
 local me = game:GetService("Players").LocalPlayer
 RunService.Heartbeat:Connect(function()
 	-- (Studio only, never in a player's game; and not in phone-size shots, PhoneUi: auditor 12b)
+	-- (and only while workspace.ShowScreensGallery is on: never in shots, auditor 13)
 	toggle.Visible = open
-		or not (
-			Screen.anyOver()
-			or me:GetAttribute("InMatch") == true
-			or me:GetAttribute("PhoneUi") == true
-		)
+		or workspace:GetAttribute("ShowScreensGallery") == true
+			and not (Screen.anyOver() or me:GetAttribute("InMatch") == true or me:GetAttribute(
+				"PhoneUi"
+			) == true)
 end)

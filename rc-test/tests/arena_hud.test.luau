@@ -38,6 +38,14 @@ end)
 
 test("the other lobby screens step away in the arena too", function()
 	truthy(has("src/client/UiGallery.client.luau", "InMatch"), "SCREENS pill in the arena")
+	-- (auditor 13: never in Studio shots unless asked for)
+	truthy(
+		has(
+			"src/client/UiGallery.client.luau",
+			'workspace:GetAttribute("ShowScreensGallery") == true'
+		),
+		"SCREENS pill without the workspace switch"
+	)
 	truthy(has("src/client/Hud.luau", "InMatch"), "race timer in the arena")
 end)
 
