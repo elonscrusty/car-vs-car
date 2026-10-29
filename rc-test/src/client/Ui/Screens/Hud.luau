@@ -320,7 +320,7 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 			settingsHolder = sh
 			Kit.button(sh, "Gear", 0, 0, sp.w, sp.h, "steel", "", {
 				size = 20,
-				icon = "speed",
+				icon = "gear",
 				onClick = Screen.act(actions, "Settings"),
 			})
 		end
