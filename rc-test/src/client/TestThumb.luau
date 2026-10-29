@@ -379,6 +379,7 @@ function TestThumb.drive(body: BasePart, input: any): any
 		ThumbBrain.netReset(tally)
 	elseif log.startAt and lastPos then
 		local d = (pos - lastPos) * Vector3.new(1, 0, 1)
+		ThumbBrain.flipBacks(tally, tonumber(player:GetAttribute("FlipBacks")) or 0)
 		local events = ThumbBrain.sample(tally, now - lastAt, d.Magnitude, body.CFrame.UpVector.Y)
 		for _, event in events or {} do
 			catchSpot(event, body, pos)

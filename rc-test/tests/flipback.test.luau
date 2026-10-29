@@ -5,9 +5,17 @@ local FlipBack = require("../src/shared/FlipBack")
 local test, eq = H.test, H.eq
 
 test("a kart upside down or on its side is put back after 1 s, not before", function()
-	local held, fire = FlipBack.tick(0, 0.5, -1, true) -- upside down
+	local held, fire = 0, false
+	for _ = 1, 5 do
+		held, fire = FlipBack.tick(held, 0.1, -1, true) -- upside down
+	end
 	eq(fire, false)
-	held, fire = FlipBack.tick(held, 0.5, 0, true) -- now on its side: still tipped
+	for _ = 1, 6 do
+		held, fire = FlipBack.tick(held, 0.1, 0, true) -- now on its side: still tipped
+		if fire then
+			break
+		end
+	end
 	eq(fire, true)
 	eq(held, 0) -- starts counting again
 end)
@@ -19,8 +27,10 @@ test("a kart that rights itself, or just leans in a turn or on a ramp, is left a
 	eq(fire, false)
 	held, fire = FlipBack.tick(0, 5, 0.7, true) -- 45 degrees over for a long time
 	eq(fire, false)
-	held, fire = FlipBack.tick(0, 0.8, -1, false) -- upside down, a short tumble or slide
-	eq(held, 0.8)
+	for _ = 1, 8 do
+		held, fire = FlipBack.tick(held, 0.1, -1, false) -- upside down, a short tumble or slide
+	end
+	eq(math.floor(held * 10 + 0.5), 8)
 	eq(fire, false)
 end)
 
@@ -53,6 +63,30 @@ test("upside down, on its side, nose down: back on its wheels inside 2 s, moving
 	end
 	eq(until_(-1, true) and math.floor(until_(-1, true) * 10 + 0.5) / 10, 1, "stopped: after 1 s")
 	eq(until_(0.6, false), nil, "a hard lean in a turn: never")
+end)
+
+test("rocking on its side round TILT keeps counting; a hitch counts as one short frame", function()
+	local held, fire = 0, false
+	for i = 1, 120 do -- 2 s, up arrow wobbling 0.45 / 0.55
+		held, fire = FlipBack.tick(held, 1 / 60, if i % 2 == 0 then 0.45 else 0.55, false)
+		if fire then
+			break
+		end
+	end
+	eq(fire, true, "put back while rocking")
+	held, fire = FlipBack.tick(0, 3, -1, true) -- one 3 s hitch
+	eq(fire, false)
+	eq(held, FlipBack.STEP)
+end)
+
+test("in the air: MOST waits for the ground; stopped still counts at WAIT", function()
+	local held, fire = 0, false
+	for _ = 1, 120 do
+		held, fire = FlipBack.tick(held, 1 / 60, -1, false, false)
+		eq(fire, false, "never in the air")
+	end
+	held, fire = FlipBack.tick(held, 1 / 60, -1, false, true)
+	eq(fire, true, "first frame near the ground")
 end)
 
 test("a tumble that lands on its wheels starts the count over", function()

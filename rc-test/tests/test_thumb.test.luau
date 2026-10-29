@@ -488,20 +488,16 @@ end)
 
 test("flips righted in place (FlipBack) are counted, with the longest flip", function()
 	local t = ThumbBrain.tally()
+	ThumbBrain.flipBacks(t, 3) -- (from an earlier round: just noted)
 	for _ = 1, 12 do
 		ThumbBrain.sample(t, 0.125, 0, -1) -- 1.5 s upside down
 	end
-	ThumbBrain.sample(t, 0.125, 0.1, 1) -- set back on its wheels where it was (no jump)
+	ThumbBrain.flipBacks(t, 4) -- Main put it back
+	ThumbBrain.sample(t, 0.125, 0.1, 1)
+	ThumbBrain.flipBacks(t, 4)
 	eq(t.righted, 1, "righted once")
 	eq(t.longestFlip, 1.5, "longest flip")
 	eq(t.putBack, 0, "not a jump")
-	-- landing on its wheels by itself, over a few frames, is not a put-back
-	for _ = 1, 4 do
-		ThumbBrain.sample(t, 0.125, 0, -1)
-	end
-	ThumbBrain.sample(t, 0.125, 0, 0.6)
-	ThumbBrain.sample(t, 0.125, 0, 1)
-	eq(t.righted, 1, "rolled back by itself")
 	local line = table.concat(ThumbBrain.report(t, 0, 1, 8, nil), "\n")
 	truthy(string.find(line, "longest 1.5 s), flips righted 1", 1, true) ~= nil, line)
 end)

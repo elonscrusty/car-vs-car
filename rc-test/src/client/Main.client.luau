@@ -706,7 +706,16 @@ RunService.PreSimulation:Connect(function(dt: number)
 		local cf = body.CFrame
 		local still = body.AssemblyLinearVelocity.Magnitude < 12 * Tuning.scale
 		local fire: boolean
-		tippedFor, fire = FlipBack.tick(tippedFor, dt, cf.UpVector.Y, still)
+		-- (the ground right under it: straight down, as the wheels' rays miss when it's on its roof;
+		-- only cast near MOST, before that it can't matter)
+		local low = tippedFor >= FlipBack.MOST - 0.5
+			and workspace:Raycast(
+					cf.Position,
+					Vector3.new(0, -(Tuning.bodyY + Tuning.bodyZ), 0),
+					wallRay
+				)
+				~= nil
+		tippedFor, fire = FlipBack.tick(tippedFor, dt, cf.UpVector.Y, still, low)
 		if fire then
 			local fx, fz =
 				FlipBack.facing(cf.LookVector.X, cf.LookVector.Z, cf.UpVector.X, cf.UpVector.Z)
@@ -714,6 +723,8 @@ RunService.PreSimulation:Connect(function(dt: number)
 			car.teleport(CFrame.lookAt(at, at + Vector3.new(fx, 0, fz)))
 			nudgeUntil = 0
 			hud.flash("OOPS! FLIPPING YOU BACK")
+			-- (a count on this client only: the Studio test thumb reads it, TestThumb)
+			player:SetAttribute("FlipBacks", (tonumber(player:GetAttribute("FlipBacks")) or 0) + 1)
 		end
 	else
 		tippedFor = 0
