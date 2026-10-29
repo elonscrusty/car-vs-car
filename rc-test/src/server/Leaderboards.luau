@@ -1,6 +1,7 @@
 --!strict
 -- The lobby leaderboards: most trophies and fastest lap on each race map, on boards by the spawn
--- (Car VS Car Smash: no boards; scores still saved, no board reads).
+-- (Car VS Car Smash: no boards in the world; scores still saved, and the trophies board is read
+-- for the LEAGUE window, TopTrophies).
 -- Also the league badge over each player's head. Each board is an OrderedDataStore (key = UserId). Writes are gentle:
 -- a score is only sent when it beats the player's own best, a board is written at most every
 -- WRITE_GAP seconds per player, and the boards are read every REFRESH seconds. Every call retries
@@ -539,7 +540,32 @@ function Leaderboards.start()
 		join(p)
 		watchBadge(p)
 	end
+	-- Smash: the LEAGUE window asks for the trophies board. It sends nothing (any args are
+	-- ignored), gets this server's last read (never a store call per ask), at most once each
+	-- ASK_GAP seconds per player.
+	local asked: { [Player]: number } = {}
+	if SMASH then
+		local rf = ReplicatedStorage:FindFirstChild("TopTrophies")
+		if not (rf and rf:IsA("RemoteFunction")) then
+			local made = Instance.new("RemoteFunction")
+			made.Name = "TopTrophies"
+			made.Parent = ReplicatedStorage
+			rf = made
+		end
+		(rf :: RemoteFunction).OnServerInvoke = function(player: Player): any
+			if player.Parent == nil then
+				return nil -- (gone: nothing kept for them)
+			end
+			local now = os.clock()
+			if not Lb.mayAsk(asked[player], now) then
+				return nil
+			end
+			asked[player] = now
+			return Lb.wire(rows.trophies)
+		end
+	end
 	Players.PlayerRemoving:Connect(function(p: Player)
+		asked[p] = nil
 		-- their last scores go now (nothing waits for the gap)
 		task.spawn(function()
 			flushPlayer(p, p.UserId, true, 99)
@@ -603,8 +629,10 @@ function Leaderboards.start()
 		end
 	end)
 	task.spawn(function()
-		while not SMASH do -- (Smash: no board to show, so no reads)
-			for _, b in boards do
+		while true do
+			-- (Smash: no boards in the world; only the trophies board, for the LEAGUE window)
+			local trophies = byId.trophies
+			for _, b in if SMASH then (if trophies then { trophies } else {}) else boards do
 				Forever.step("Leaderboards.read", function()
 					refresh(b)
 				end)

@@ -4,6 +4,7 @@
 local H = require("./harness")
 local Crates = require("../src/shared/Crates")
 local Profile = require("../src/shared/Profile")
+local Lb = require("../src/shared/Leaderboards")
 local SmashScreens = require("../src/shared/SmashScreens")
 local UiScreens = require("../src/shared/UiScreens")
 local fs = require("@lune/fs")
@@ -59,7 +60,9 @@ test("shop tiles fit the panel, side by side, big enough to tap", function()
 end)
 
 test("kit layouts: nothing covers anything else", function()
-	for _, id in { "kitShop", "kitOdds", "kitReveal", "kitDaily", "kitQuests" } do
+	for _, id in
+		{ "kitShop", "kitOdds", "kitReveal", "kitDaily", "kitQuests", "kitBoard", "kitLeagueUp" }
+	do
 		local ps = SmashScreens.get(id).pieces
 		for i = 1, #ps do
 			for j = i + 1, #ps do
@@ -107,4 +110,68 @@ test("jobs: each Smash job line gets its icon", function()
 	eq(SmashScreens.jobIcon("Play 3 matches"), "trophy")
 	eq(SmashScreens.jobIcon("Get top 3 in a match"), "trophy")
 	eq(SmashScreens.jobIcon("Something new"), "coin")
+end)
+
+test("global board: what the server sends is checked and cut", function()
+	local rows = {
+		{ uid = 1, name = "Pepper", score = 12450.7 },
+		{ uid = -3, name = "bad id", score = 5 },
+		{ uid = 2.5, name = "half id", score = 5 },
+		{ uid = 3, name = string.rep("é", 30), score = 9 },
+		{ uid = 4, name = "\255\254", score = 0 / 0 },
+		{ uid = 5, name = 42, score = -10 },
+		"junk",
+		{ uid = 6, name = "Six", score = 1e12 },
+		{ uid = 7, name = "Seven", score = 1 },
+		{ uid = 8, name = "Eight", score = 1 },
+	}
+	local out = Lb.wire(rows)
+	eq(#out, Lb.SHOWN)
+	eq(out[1].userId, 1)
+	eq(out[1].score, 12450)
+	eq(out[2].userId, 3)
+	eq(utf8.len(out[2].name), Lb.MAX_NAME)
+	eq(out[3].userId, 5)
+	eq(out[3].name, "PLAYER")
+	eq(out[3].score, 0)
+	eq(out[4].score, Lb.MAX_TROPHIES)
+	eq(#Lb.wire(nil), 0)
+	eq(#Lb.wire("x"), 0)
+end)
+
+test("global board: one ask each ASK_GAP s, answered from the server's last read", function()
+	truthy(Lb.mayAsk(nil, 0), "a first ask is refused")
+	truthy(not Lb.mayAsk(10, 10 + Lb.ASK_GAP - 0.1), "a fast ask goes through")
+	truthy(Lb.mayAsk(10, 10 + Lb.ASK_GAP), "a later ask is refused")
+	local src = fs.readFile("src/server/Leaderboards.luau")
+	local at = src:find("OnServerInvoke", 1, true)
+	truthy(at ~= nil, "no TopTrophies handler")
+	local body = src:sub(at :: number, (src:find("\n\t\tend\n", at, true) or #src) :: number)
+	truthy(body:find("Lb.mayAsk", 1, true) ~= nil, "the ask isn't rate-limited")
+	truthy(body:find("Lb.wire", 1, true) ~= nil, "the answer isn't checked")
+	truthy(body:find("Async", 1, true) == nil, "an ask calls the store")
+end)
+
+test("friends tab: most trophies first, you first on a tie, cut to 5", function()
+	local list = {
+		{ userId = 1, name = "Zed", score = 5 },
+		{ userId = 2, name = "Me", score = 5, me = true },
+		{ userId = 3, name = "Amy", score = 9 },
+		{ userId = 4, name = "Bo", score = 5 },
+		{ userId = 5, name = "Cy", score = 1 },
+		{ userId = 6, name = "Di", score = 0 },
+	}
+	local out = SmashScreens.friendRows(list, 5)
+	eq(#out, 5)
+	eq(out[1].name, "Amy")
+	eq(out[2].name, "Me")
+	eq(out[3].name, "Bo")
+	eq(out[4].name, "Zed")
+	eq(#list, 6) -- (the list given is left as it was)
+end)
+
+test("league up under Smash: the kit screen, and matches (not races) pay", function()
+	local src = fs.readFile("src/client/LeagueUp.luau")
+	truthy(src:find("KitWindows.leagueUp", 1, true) ~= nil, "no kit league up")
+	truthy(src:find('"^Races", "Matches"', 1, true) ~= nil, "Smash league up says races")
 end)

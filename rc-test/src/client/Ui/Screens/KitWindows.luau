@@ -660,4 +660,214 @@ function KitWindows.quests(data: { [string]: any }, actions: Screen.Actions?): S
 	end)
 end
 
+-- ===== Leaderboard: GLOBAL / FRIENDS tabs, 5 rows (top 3 gold, silver, bronze), face, kart =====
+
+local PLACE_FACE = {
+	{ "fff7b8", "ffd93b", "ffb400" },
+	{ "e6f0ff", "a9c3ea", "7f9cc8" },
+	{ "ffd2b8", "e89a6c", "c06a3c" },
+}
+local PLACE_DISC = { "ffc22e", "c3cddc", "d68a4c" }
+
+-- data: { tab = 1 | 2, rows = { { userId, name, score, carId?, me? } }?, words? (shown when no
+--   rows: loading, none yet), mine: number (your trophies) }
+-- actions: tab(i), close()
+function KitWindows.board(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
+	return Screen.open("leaderboard", "window", false, function(g)
+		local canvas = g.canvas
+		local mp = piece("kitBoard", "Mine")
+		Kit.currency(
+			canvas,
+			"Mine",
+			mp.x,
+			mp.y,
+			mp.w,
+			mp.h,
+			{ value = data.mine or 0, icon = "trophy" }
+		)
+		local tp = piece("kitBoard", "Tabs")
+		Kit.tabs(
+			spot(canvas, "kitBoard", "Tabs"),
+			0,
+			0,
+			tp.w,
+			tp.h,
+			{ "GLOBAL", "FRIENDS" },
+			data.tab or 1,
+			Screen.act(actions, "tab")
+		)
+		local cp = piece("kitBoard", "Close")
+		Kit.close(spot(canvas, "kitBoard", "Close"), 0, 0, Screen.act(actions, "close"), cp.w)
+		local pp = piece("kitBoard", "Panel")
+		local panel = Kit.navyPanel(spot(canvas, "kitBoard", "Panel"), "Panel", 0, 0, pp.w, pp.h)
+		local rows: { { [string]: any } } = data.rows or {}
+		if #rows == 0 then
+			Base.text(
+				panel,
+				"Empty",
+				20,
+				pp.h / 2 - 20,
+				pp.w - 40,
+				40,
+				data.words or "",
+				{ stroke = 3, z = 5 }
+			)
+			return {}
+		end
+		local pad, gap = 12, 8
+		local rh = (pp.h - 2 * pad - 4 * gap) / 5
+		local rw = pp.w - 2 * pad
+		local shown: { GuiObject } = {}
+		for i, r in rows do
+			if i > 5 then
+				break
+			end
+			local box = Base.box(panel, "Row" .. i, pad, pad + (i - 1) * (rh + gap), rw, rh, 4)
+			local row = Kit.plate(box, "Plate", 0, 0, rw, rh - 4, r.me == true, 12)
+			local face = PLACE_FACE[i]
+			if face then
+				Kit.face(row, face)
+			end
+			local ih = rh - 12
+			-- the place: a metal disc for the top 3, else the number
+			if PLACE_DISC[i] then
+				local disc = Base.fill(row, "Disc", 10, 4, ih, ih, Kit.hex(PLACE_DISC[i]), 5)
+				Base.corner(disc)
+				Base.outline(disc, UiTheme.OUTLINE.small)
+				Base.text(disc, "N", 0, ih * 0.15, ih, ih * 0.7, tostring(i), { stroke = 3, z = 6 })
+			else
+				Base.text(row, "N", 10, 6, ih, ih - 4, tostring(i), { stroke = 3, z = 5 })
+			end
+			-- their face (Roblox's own head shot of the user id)
+			local fx = ih + 20
+			local ring = Base.fill(row, "Face", fx, 4, ih, ih, Kit.hex(UiTheme.CHROME.panelRim), 5)
+			Base.corner(ring)
+			Base.outline(ring, UiTheme.OUTLINE.small)
+			local img = Instance.new("ImageLabel")
+			img.Name = "Head"
+			img.BackgroundTransparency = 1
+			img.ZIndex = 6
+			img.Image = `rbxthumb://type=AvatarHeadShot&id={math.floor(r.userId or 0)}&w=150&h=150`
+			img.Size = UDim2.fromScale(1, 1)
+			img.Parent = ring
+			Base.corner(img)
+			-- their kart, when we know it (players in this server)
+			local kx = fx + ih + 10
+			local kw = ih * 1.6
+			if r.carId then
+				KartView.make(row, kx, 0, kw, rh - 4, r.carId, 6)
+			end
+			local nx = kx + kw + 10
+			Base.text(row, "Name", nx, rh * 0.24, rw * 0.62 - nx - 8, rh * 0.42, r.name or "", {
+				stroke = 3,
+				align = "l",
+				z = 6,
+			})
+			Base.text(
+				row,
+				"Score",
+				rw * 0.62,
+				rh * 0.16,
+				rw * 0.38 - 16,
+				rh * 0.56,
+				UiMotion.commas(r.score or 0),
+				{
+					stroke = 3.5,
+					align = "r",
+					z = 6,
+				}
+			)
+			table.insert(shown, box)
+		end
+		task.defer(function()
+			Anim.cascade(shown)
+		end)
+		return {}
+	end)
+end
+
+-- ===== League up: LEAGUE UP! in gold, the new badge with rays, its name and pay, arrows rising =====
+
+-- data: { to: number (1..4), name, pay, color: Color3, confetti: number, hold: number (AWESOME!
+--   waits this long), shake: boolean, top: boolean }
+-- actions: ok()
+function KitWindows.leagueUp(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
+	return Screen.open("leagueUp", "full", true, function(g)
+		local back = g.back :: ScreenGui
+		Kit.backdrop(back, "showroom")
+		local bd = back:FindFirstChild("Backdrop") :: Frame
+		Kit.confetti(bd, 22 + (data.confetti or 0))
+		local canvas = g.canvas
+		local tp = piece("kitLeagueUp", "Title")
+		local title =
+			Kit.title(spot(canvas, "kitLeagueUp", "Title"), 0, 0, tp.w, tp.h, "LEAGUE UP!", "gold")
+		Anim.shout(title)
+		local bp = piece("kitLeagueUp", "Badge")
+		local color: Color3 = data.color or Base.color("go")
+		local rays = Kit.rays(canvas, bp.x + bp.w / 2, bp.y + bp.h / 2, 360, "go", 0.3)
+		for _, r in rays:GetChildren() do
+			if r:IsA("Frame") then
+				r.BackgroundColor3 = color
+			end
+		end
+		local badgeSpot = spot(canvas, "kitLeagueUp", "Badge")
+		badgeSpot.ZIndex = 3
+		local badge = Icons.badge(badgeSpot, data.to or 2, 0, 0, bp.w, false)
+		Anim.pop(badge, 0.6, 0.3, 0.3)
+		Anim.bob(badgeSpot, UiTheme.MOTION.carBob, 6)
+		if data.shake and not Base.reduced() then
+			task.delay(0.6, function()
+				for i, deg in { -8, 8, -6, 6, -3, 0 } do
+					task.delay((i - 1) * 0.07, function()
+						if badgeSpot.Parent then
+							Anim.to(badgeSpot, 0.07, { Rotation = deg })
+						end
+					end)
+				end
+			end)
+		end
+		for i, name in { "ArrowL1", "ArrowL2", "ArrowR2", "ArrowR1" } do
+			local ap = piece("kitLeagueUp", name)
+			local holder = spot(canvas, "kitLeagueUp", name)
+			local s = math.min(ap.w, ap.h)
+			local arrow = Icons.make(holder, "arrow", (ap.w - s) / 2, ap.h - s, s, { z = 3 })
+			arrow.Rotation = -90
+			Anim.bob(holder, 1.2, 8, i * 0.25)
+		end
+		for i, sp in { { 230, 110 }, { 520, 96 }, { 560, 220 }, { 196, 240 } } do
+			Kit.sparkle(canvas, sp[1], sp[2], 26, i * 0.4)
+		end
+		local np = piece("kitLeagueUp", "Name")
+		local pill =
+			Kit.navyPanel(spot(canvas, "kitLeagueUp", "Name"), "Pill", 0, 0, np.w, np.h, 16)
+		Base.text(
+			pill,
+			"League",
+			10,
+			4,
+			np.w - 20,
+			26,
+			if data.top then "TOP LEAGUE!" else data.name or "",
+			{
+				color = color,
+				stroke = 4,
+				z = 5,
+			}
+		)
+		Base.text(pill, "Pay", 10, 32, np.w - 20, 18, data.pay or "", { z = 5 })
+		Anim.pop(pill, 0.5, 0.3, 0.5)
+		-- AWESOME! comes last, so a tapping kid doesn't skip the moment
+		local ok = placedButton(canvas, "kitLeagueUp", "Awesome", Screen.act(actions, "ok"))
+		local okSpot = ok.Parent :: GuiObject
+		okSpot.Visible = false
+		task.delay(data.hold or 0.9, function()
+			if okSpot.Parent then
+				okSpot.Visible = true
+				Anim.pop(okSpot, 0.35, 0.6)
+			end
+		end)
+		return {}
+	end)
+end
+
 return KitWindows

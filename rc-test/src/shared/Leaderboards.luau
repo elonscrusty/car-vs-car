@@ -208,4 +208,52 @@ function Leaderboards.badge(league: any): (string, { number })
 	return string.upper(League.NAMES[n]), League.COLORS[n]
 end
 
+-- ===== the trophies board in the Smash LEAGUE window (RemoteFunction TopTrophies) =====
+
+-- How long a player waits between asks; a sooner ask gets nothing (the window keeps its rows).
+Leaderboards.ASK_GAP = 2
+Leaderboards.MAX_NAME = 20
+
+function Leaderboards.mayAsk(last: number?, now: number): boolean
+	return last == nil or now - last >= Leaderboards.ASK_GAP
+end
+
+-- The rows as sent to a client: at most SHOWN, a whole user id, a name of at most MAX_NAME
+-- letters (bad text: "PLAYER"), and a whole score 0..MAX_TROPHIES; anything else is left out.
+export type WireRow = { userId: number, name: string, score: number }
+function Leaderboards.wire(rows: any): { WireRow }
+	local out: { WireRow } = {}
+	if type(rows) ~= "table" then
+		return out
+	end
+	for _, r in rows do
+		if #out >= Leaderboards.SHOWN then
+			break
+		end
+		if type(r) ~= "table" then
+			continue
+		end
+		local uid, score = r.uid, r.score
+		if type(uid) ~= "number" or uid ~= uid or uid <= 0 or uid % 1 ~= 0 then
+			continue
+		end
+		if type(score) ~= "number" or score ~= score then
+			continue
+		end
+		local name = if type(r.name) == "string" then r.name else ""
+		local n = utf8.len(name)
+		if n == nil or n == 0 then
+			name = "PLAYER"
+		elseif n > Leaderboards.MAX_NAME then
+			name = string.sub(name, 1, (utf8.offset(name, Leaderboards.MAX_NAME + 1) :: number) - 1)
+		end
+		table.insert(out, {
+			userId = uid,
+			name = name,
+			score = math.clamp(math.floor(score), 0, Leaderboards.MAX_TROPHIES),
+		})
+	end
+	return out
+end
+
 return Leaderboards

@@ -693,6 +693,138 @@ local function jobsWords(): string?
 	return `JOBS {done}/{#jobLines}`
 end
 
+-- ===== the leaderboard (Smash: the LEAGUE tile) =====
+
+-- GLOBAL: the saved trophies board, asked of the server (TopTrophies; at most one ask each
+-- Leaderboards.ASK_GAP s, the server answers from its own last read). FRIENDS: you and your
+-- friends in this server.
+local globalRows: { SmashScreens.BoardRow }? = nil
+local boardTab = 1
+local friendOf: { [number]: boolean } = {}
+local lastTopAsk = -math.huge -- (the server allows one ask each 2 s: none sooner from here)
+
+local function carOf(uid: number): string?
+	local p = Players:GetPlayerByUserId(uid)
+	local id = p and p:GetAttribute("RacerCar")
+	return if type(id) == "string" then id else nil
+end
+
+local function boardRows(tab: number): ({ { [string]: any } }, string)
+	if tab == 1 then
+		if not globalRows then
+			return {}, SmashScreens.KIT_WORDS.loading
+		end
+		local out = {}
+		for _, r in globalRows do
+			table.insert(out, {
+				userId = r.userId,
+				name = r.name,
+				score = r.score,
+				carId = carOf(r.userId),
+				me = r.userId == player.UserId,
+			})
+		end
+		return out, SmashScreens.KIT_WORDS.noScores
+	end
+	local list: { SmashScreens.BoardRow } = {}
+	for _, p in Players:GetPlayers() do
+		if p == player or friendOf[p.UserId] then
+			local t = p:GetAttribute("Trophies")
+			table.insert(list, {
+				userId = p.UserId,
+				name = p.DisplayName,
+				score = if type(t) == "number" then t else 0,
+				me = p == player,
+			})
+		end
+	end
+	local out = {}
+	for _, r in SmashScreens.friendRows(list, 5) do
+		table.insert(
+			out,
+			{
+				userId = r.userId,
+				name = r.name,
+				score = r.score,
+				carId = carOf(r.userId),
+				me = r.me,
+			}
+		)
+	end
+	return out, if #out <= 1 then SmashScreens.KIT_WORDS.noFriends else ""
+end
+
+local openBoard: (tab: number) -> ()
+-- draw the board from what we have (no asks)
+local function showBoard(tab: number)
+	boardTab = tab
+	local rows, words = boardRows(tab)
+	if tab == 2 and #rows <= 1 then
+		rows = {} -- (only you: say to invite friends)
+	end
+	KitWindows.board({ tab = tab, rows = rows, words = words, mine = num("Trophies") }, {
+		tab = function(i: number)
+			openBoard(i)
+		end,
+		close = Screen.closeOver,
+	})
+end
+
+-- draw it, then ask for what's new (the answer redraws it, never asks again)
+function openBoard(tab: number)
+	showBoard(tab)
+	local found = ReplicatedStorage:FindFirstChild("TopTrophies")
+	if tab == 1 and found and found:IsA("RemoteFunction") and os.clock() - lastTopAsk >= 2 then
+		lastTopAsk = os.clock()
+		local ask = found
+		task.spawn(function()
+			local ok, got = pcall(function()
+				return ask:InvokeServer()
+			end)
+			-- (nil: asked too soon, keep what we have)
+			if ok and type(got) == "table" then
+				local list: { SmashScreens.BoardRow } = {}
+				for _, r in got do
+					if
+						type(r) == "table"
+						and type(r.userId) == "number"
+						and type(r.name) == "string"
+						and type(r.score) == "number"
+					then
+						table.insert(list, { userId = r.userId, name = r.name, score = r.score })
+					end
+				end
+				globalRows = list
+			elseif globalRows == nil then
+				globalRows = {}
+			end
+			if Screen.isOpen("leaderboard") and boardTab == 1 then
+				showBoard(1)
+			end
+		end)
+	elseif tab == 1 and globalRows == nil and not found then
+		globalRows = {} -- (no board on this server: say none yet, not loading forever)
+		showBoard(1)
+	elseif tab == 2 then
+		-- who of the people here are your friends (asked once each)
+		task.spawn(function()
+			local changed = false
+			for _, p in Players:GetPlayers() do
+				if p ~= player and friendOf[p.UserId] == nil then
+					local ok, yes = pcall(function()
+						return player:IsFriendsWith(p.UserId)
+					end)
+					friendOf[p.UserId] = ok and yes == true
+					changed = changed or friendOf[p.UserId]
+				end
+			end
+			if changed and Screen.isOpen("leaderboard") and boardTab == 2 then
+				showBoard(2)
+			end
+		end)
+	end
+end
+
 local function openJobs()
 	local rows = {}
 	for _, l in jobLines do
@@ -1098,14 +1230,18 @@ plotActions = {
 				end,
 			})
 		end,
-	League = function()
-		local n = League.clamp(attr("League"))
-		info(
-			"trophy",
-			`{string.upper(League.name(n))} LEAGUE`,
-			if n < #League.NAMES then "Get top 3 to move up!" else "Top league!"
-		)
-	end,
+	League = if SMASH
+		then function()
+			openBoard(1)
+		end
+		else function()
+			local n = League.clamp(attr("League"))
+			info(
+				"trophy",
+				`{string.upper(League.name(n))} LEAGUE`,
+				if n < #League.NAMES then "Get top 3 to move up!" else "Top league!"
+			)
+		end,
 	race = if SMASH then smashHow else join,
 	jobs = openJobs,
 	invite = invite,
