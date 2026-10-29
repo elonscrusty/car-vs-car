@@ -23,6 +23,7 @@ gui.ScreenInsets = Enum.ScreenInsets.None
 gui.DisplayOrder = Base.ORDER.hud - 2 -- (under the HUD and its back layer)
 gui:SetAttribute("NoKart", true)
 gui.Enabled = false
+gui.Parent = player:WaitForChild("PlayerGui")
 
 -- the kit's spots are for an 844 x 390 screen: scale them by the screen's height
 local streaks: { Frame } = {}
@@ -51,6 +52,7 @@ local function place(view: Vector2, i: number, drop: number)
 end
 
 local t = 0
+local smooth = 0 -- the speed share, eased (bumps and jolts don't flicker the lines)
 RunService.RenderStepped:Connect(function(dt: number)
 	local car = workspace:FindFirstChild(MINE)
 	local body = car and car:IsA("Model") and car.PrimaryPart
@@ -59,6 +61,8 @@ RunService.RenderStepped:Connect(function(dt: number)
 		local v = body.AssemblyLinearVelocity
 		share = Vector3.new(v.X, 0, v.Z).Magnitude / Tuning.topSpeed
 	end
+	smooth += (share - smooth) * (1 - math.exp(-6 * dt))
+	share = smooth
 	local strength = KitWorld.speedLines(share, player:GetAttribute("InMatch"), Base.reduced())
 	if strength <= 0 then
 		if gui.Enabled then
@@ -68,7 +72,6 @@ RunService.RenderStepped:Connect(function(dt: number)
 		return
 	end
 	if not gui.Enabled then
-		gui.Parent = player:FindFirstChildOfClass("PlayerGui")
 		gui.Enabled = true
 	end
 	t += dt
