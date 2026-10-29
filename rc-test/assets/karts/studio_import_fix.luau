@@ -10,7 +10,18 @@ if not skins then
 	skins.Name = "CarSkins"
 	skins.Parent = RS
 end
-local NEED = { "Body", "WheelFL", "WheelFR", "WheelRL", "WheelRR" }
+local NEED = {
+	"Body",
+	"WheelFL",
+	"WheelFR",
+	"WheelRL",
+	"WheelRR",
+	"RimFL",
+	"RimFR",
+	"RimRL",
+	"RimRR",
+	"Headlights", -- (CarSkin finds the nose by it)
+}
 for _, m in workspace:GetChildren() do
 	if m:IsA("Model") and m.Name:match("^Kart_") then
 		local old = skins:FindFirstChild(m.Name)
@@ -18,6 +29,8 @@ for _, m in workspace:GetChildren() do
 			old:Destroy()
 		end
 		for _, d in m:GetDescendants() do
+			-- ("Body.001" from a Blender copy: CarSkin finds and paints parts by their exact name)
+			d.Name = d.Name:gsub("%.%d+$", "")
 			if d:IsA("BasePart") then
 				d.Anchored, d.CanCollide, d.CanQuery, d.CanTouch = true, false, false, false
 				if d:IsA("MeshPart") then
