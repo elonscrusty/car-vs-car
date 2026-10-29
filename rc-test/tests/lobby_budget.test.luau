@@ -19,7 +19,7 @@ print("Lobby part budget")
 
 -- each builder's cap (about 15% over today's count) and the whole lobby's
 local BUDGET = {
-	spawn = 870, -- 757 today
+	spawn = 1090, -- 920 today (the floodlight towers and the scrap claw added 163)
 	decor = 380, -- 331 (bunting, planters, flags, road paint, RC corners)
 	water = 250, -- 218 (docks, beach)
 	lake = 320, -- 278 (boats, shore)
