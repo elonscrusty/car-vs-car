@@ -71,6 +71,15 @@ local function slab(
 end
 
 function LobbyBuilder.build(): Built
+	if SMASH then
+		-- a realistic AI-made test car saved in the place (Studio r3: Workspace.PurpleSportsCoupe,
+		-- no script makes it) sits on the hill by the plaza: mixed styles (LOOK-BIBLE rule 6).
+		-- Moved out of the world, not deleted, so carter keeps it.
+		local stray = workspace:FindFirstChild("PurpleSportsCoupe")
+		if stray then
+			stray.Parent = game:GetService("ServerStorage")
+		end
+	end
 	local folder = Instance.new("Folder")
 	folder.Name = "Lobby"
 	folder.Parent = workspace
@@ -295,11 +304,16 @@ function LobbyBuilder.build(): Built
 				"LampBall",
 				Vector3.new(2.2, 2.2, 2.2),
 				CFrame.new(l.x, 9.8, l.z),
-				YELLOW
+				Color3.fromRGB(255, 226, 110)
 			)
 			bulb.Shape = Enum.PartType.Ball
-			bulb.Material = Enum.Material.Neon
 			bulb.CanCollide = false
+			-- a soft glow, not Neon (Neon bloomed into big yellow blobs up close)
+			local glow = Instance.new("PointLight")
+			glow.Range = 12
+			glow.Brightness = 1.2 -- (as the plaza lamps)
+			glow.Color = bulb.Color
+			glow.Parent = bulb
 			continue
 		end
 		local lamp = MeshProps.place(props, "StreetLamp", spot(l), 9)
