@@ -81,6 +81,21 @@ for _, p in LuckySpin.PRIZES do
 end
 
 local handle: Screen.Handle? = nil
+-- a match started: the spin window and its prize card step away (the prize is already paid)
+local prizeCard: Screen.Handle? = nil -- the won card, if it's ours
+player:GetAttributeChangedSignal("InMatch"):Connect(function()
+	if not inMatch() then
+		return
+	end
+	if Screen.isOpen("spin") and handle then
+		handle.close()
+		handle = nil
+	end
+	if prizeCard then
+		prizeCard.close() -- (safe if it's closed already or another card took its place)
+		prizeCard = nil
+	end
+end)
 local waitLeft, waitAt = 0, os.clock()
 
 local function hatRows(owned: { string }, on: string): { { [string]: any } }
@@ -154,7 +169,7 @@ remote.OnClientEvent:Connect(function(kind: string, a: any, b: any, c: any, d: a
 		waitLeft, waitAt = tonumber(d) or 0, os.clock()
 		local function reveal()
 			local title, text = prizeWords(index, coins, hat)
-			Windows.popup({
+			prizeCard = Windows.popup({
 				kind = "coins",
 				icon = if hat then "gift" else "coin",
 				title = title,
@@ -163,7 +178,10 @@ remote.OnClientEvent:Connect(function(kind: string, a: any, b: any, c: any, d: a
 				no = false,
 			}, {
 				yes = function()
-					Screen.closeOver()
+					if prizeCard then
+						prizeCard.close()
+						prizeCard = nil
+					end
 					if hat then
 						remote:FireServer("equip", hat)
 					end
@@ -207,7 +225,8 @@ local function showLevels()
 		coins += l[2]
 	end
 	table.clear(pending)
-	Windows.popup({
+	local card: Screen.Handle? = nil
+	card = Windows.popup({
 		kind = "coins",
 		icon = "trophy",
 		title = "LEVEL " .. top .. "!",
@@ -216,7 +235,9 @@ local function showLevels()
 		no = false,
 	}, {
 		yes = function()
-			Screen.closeOver()
+			if card then
+				card.close()
+			end
 		end,
 	})
 end
