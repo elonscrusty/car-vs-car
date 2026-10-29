@@ -11,7 +11,9 @@
       "$className": "Lighting",
       "$ignoreUnknownInstances": true,
       "$properties": {
-        "Technology": "Future"
+        "Technology": "Future",
+        "LightingStyle": "Realistic",
+        "PrioritizeLightingQuality": true
       }
     },
     "ReplicatedStorage": {
