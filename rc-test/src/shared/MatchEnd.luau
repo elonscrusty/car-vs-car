@@ -10,7 +10,7 @@
 
 local function sibling(name: string): any
 	if script then
-		return require((script :: any).Parent[name])
+		return require((script :: any).Parent:WaitForChild(name))
 	end
 	local luneRequire: any = require
 	return luneRequire("./" .. name)
@@ -177,7 +177,6 @@ function MatchEnd.left(view: View, openedAt: number, now: number): number
 	return math.clamp(math.ceil(s), 0, 60)
 end
 
--- "NEW ROUND STARTING IN 12"
 export type XpBar = {
 	fromLevel: number,
 	fromF: number, -- where the bar starts (0..1 of fromLevel's need)
@@ -212,6 +211,8 @@ function MatchEnd.xpBar(now: unknown, gained: unknown): XpBar?
 		levelUp = l2 > l1,
 	}
 end
+
+-- "NEW ROUND STARTING IN 12"
 
 function MatchEnd.countWords(left: number): string
 	return if left > 0 then `NEW ROUND STARTING IN {left}` else "GO!"

@@ -234,12 +234,10 @@ function Smash.matchEnd(
 				z = 8,
 			})
 			num.Visible = false
-			local up = Base.text(rew, "LevelUp", 12, 64, rp.w - 24, 30, "LEVEL UP!", {
+			-- (over the bar, then the numbers take its place)
+			local up = Base.text(row, "LevelUp", 56, -4, bw, 28, "LEVEL UP!", {
 				color = Base.color("go"),
-				stroke = 5,
-				drop = 3,
-				dropColor = Base.color("goDeep"),
-				align = "r",
+				stroke = 4,
 				z = 9,
 			})
 			up.Visible = false
@@ -258,7 +256,12 @@ function Smash.matchEnd(
 							fill.Size = UDim2.fromScale(0, 1)
 						end
 						Kit.setBar(track, bar.toF)
-						num.Visible = true
+						task.delay(1.4, function()
+							if row.Parent then
+								up.Visible = false
+								num.Visible = true
+							end
+						end)
 					end)
 				else
 					Kit.setBar(track, bar.toF)

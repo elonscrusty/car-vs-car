@@ -227,6 +227,7 @@ test("ROUND OVER XP bar: fills from before to now, LEVEL UP! when it crosses", f
 	eq(u.toLevel, 2)
 	eq(u.into, 30)
 	eq(u.need, 125)
+	eq(u.toF, 30 / 125)
 	eq(u.levelUp, true)
 	-- nothing to show for junk or no XP; never below 0
 	eq(MatchEnd.xpBar(nil, 20), nil)
