@@ -238,6 +238,7 @@ test(
 	"the karts (carter's picture + his Meshy one): built in game from mesh data, painted by name",
 	function()
 		local KartMeshData = require("../src/shared/KartMeshData")
+		local KartCode = require("../src/shared/KartCode")
 		local names: { [string]: boolean } = {}
 		for _, name in ToyCars.KARTS do
 			names[name] = true
@@ -247,13 +248,7 @@ test(
 			truthy(kart ~= nil, `{name}: no mesh data`)
 			local tris = 0
 			for g, mesh in kart do
-				local v, t = {}, {}
-				for n in string.gmatch(mesh.v, "-?%d+") do
-					table.insert(v, tonumber(n))
-				end
-				for n in string.gmatch(mesh.t, "%d+") do
-					table.insert(t, tonumber(n))
-				end
+				local v, t = KartCode.verts(mesh.v), KartCode.tris(mesh.t, mesh.w)
 				eq(#v % 3, 0)
 				eq(#t % 3, 0)
 				for _, i in t do
@@ -283,7 +278,7 @@ test(
 		eq(ToyCars.KARTS.formula, "Kart_Carter1")
 		local face = KartMeshData.Kart_Carter1.Eyes
 		truthy(
-			face ~= nil and #string.split(face.t, ",") // 3 == 5 * 12,
+			face ~= nil and #KartCode.tris(face.t, face.w) // 3 == 5 * 12,
 			"carter's driver has no clean face"
 		)
 		local fs = require("@lune/fs")
@@ -304,5 +299,27 @@ test(
 		truthy(string.find(skin, 'p:GetAttribute("Baked") ~= true', 1, true), "wheels repainted")
 		local others = fs.readFile("src/client/OtherCars.luau")
 		truthy(string.find(others, "o.toy = shell", 1, true), "other cars never get their kart")
+	end
+)
+
+test(
+	"kart mesh numbers: compact base-64 reads back exactly (Studio paste, phone download)",
+	function()
+		local KartCode = require("../src/shared/KartCode")
+		local v = KartCode.verts("gAgBf/")
+		eq(#v, 3)
+		eq(v[1], 0)
+		eq(v[2], 0.01)
+		eq(v[3], -0.01)
+		local one, two = KartCode.tris("AB/", 1), KartCode.tris("AAAB//", 2)
+		eq(one[1], 1)
+		eq(one[3], 64)
+		eq(two[2], 2)
+		eq(two[3], 4096)
+		local fs = require("@lune/fs")
+		truthy(
+			#fs.readFile("src/shared/KartMeshData.luau") < 200000,
+			"kart data too big to paste into Studio"
+		)
 	end
 )
