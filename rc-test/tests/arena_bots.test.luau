@@ -6,6 +6,7 @@
 local H = require("./harness")
 local B = require("../src/shared/ArenaBrain")
 local Boxes = require("../src/shared/Boxes")
+local Match = require("../src/shared/Match")
 
 local test, eq, truthy = H.test, H.eq, H.truthy
 
@@ -211,7 +212,9 @@ local function match(seed: number, secs: number): (number, number, number, numbe
 		end
 	end
 	local function hurt(k: any, dmg: number, now: number, by: any?)
-		if k.alive and now >= k.shieldTo then
+		-- (MatchRunner.damage: no bot hurts a new kid in their first NEW_KID_SAFE s)
+		local safe = k.id == 1 and by ~= nil and by.id < 0 and now < Match.NEW_KID_SAFE
+		if k.alive and now >= k.shieldTo and not safe then
 			k.hp -= dmg
 			if k.hp <= 0 then
 				smash(k, now, by)
@@ -234,9 +237,11 @@ local function match(seed: number, secs: number): (number, number, number, numbe
 				x = k.brain.x,
 				z = k.brain.z,
 				alive = k.alive,
-				-- (the kid: no bot goes for them in their first GRACE s, as ArenaBots does)
-				shield = t < k.shieldTo or (k.id == 1 and t < B.GRACE),
+				-- (the kid, in their first match: no bot goes for them in the first NEW_KID_SAFE s,
+				-- as Match.forBots shows it, and bots go easy on a rookie)
+				shield = t < k.shieldTo or (k.id == 1 and t < Match.NEW_KID_SAFE),
 				human = k.id == 1,
+				rookie = k.id == 1,
 			})
 		end
 		local brains = {}

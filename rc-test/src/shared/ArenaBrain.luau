@@ -20,7 +20,11 @@ ArenaBrain.ACCEL = 60 -- big units/s²
 ArenaBrain.TURN = 2.6 -- rad/s at full lock
 ArenaBrain.RADIUS = 3 -- a kart's size, for bumping into things
 ArenaBrain.THINK = 0.2 -- s between decisions (5 Hz); moving runs every step
-ArenaBrain.GRACE = 15 -- s: no bot goes for a new kid (first match) this long (ArenaBots)
+-- A rookie (a player's first 3 matches, MatchRunner): bots chase them less, see them later, wait
+-- longer between shots and send some shots wide on purpose, so a new kid gets their smashes in.
+ArenaBrain.ROOKIE = { matches = 3, chase = 2.5, react = 1.2, gap = 1.0, wide = 0.4 }
+ArenaBrain.LINE_UP = 0.7 -- armed and this far into the weapon's range: slow down to aim
+ArenaBrain.SAW_KEEP = 0.6 -- s a target can slip out of a fair shot and still count as seen
 ArenaBrain.TOKENS = 1 -- bots allowed to hunt the same player at once
 ArenaBrain.FIRE_GAP = 0.6 -- s between a bot's shots (WeaponServer has the real cooldown)
 ArenaBrain.STUCK_CHECK = 0.5 -- s: how often progress is checked
@@ -66,6 +70,7 @@ export type Target = {
 	alive: boolean,
 	shield: boolean?,
 	human: boolean?,
+	rookie: boolean?, -- a player in their first ROOKIE.matches matches: bots go easy on them
 }
 -- A place walled all round but at its doors: a hill (cliff sides, its door is the ramp) or the
 -- sand (bumper wall, its doors are the gaps). To get in or out a bot drives through a door, from
@@ -101,6 +106,7 @@ export type Bot = {
 	throttle: number,
 	target: number?, -- kart id being hunted
 	sawAt: number, -- when the target came into a fair shot
+	fairAt: number, -- the last time it had a fair shot (a blink out of the cone keeps sawAt)
 	fireAt: number, -- next time it may fire
 	armedSince: number, -- when it got the weapon it holds (math.huge = none)
 	weapon: string?, -- the one it held at its last decision
@@ -152,6 +158,7 @@ function ArenaBrain.new(id: number, x: number, z: number, yaw: number, opts: Opt
 		throttle = 0,
 		target = nil,
 		sawAt = math.huge,
+		fairAt = -math.huge,
 		fireAt = 0,
 		armedSince = math.huge,
 		checkAt = 0,
@@ -271,7 +278,13 @@ local function pickTarget(bot: Bot, world: World, hunters: { [number]: number })
 				and (hunters[k.id] or 0) >= ArenaBrain.TOKENS
 			if not busy then
 				local d = math.sqrt((k.x - bot.x) ^ 2 + (k.z - bot.z) ^ 2)
-				local score = d * (if k.human and bot.easy then 1.8 else 1)
+				local score = d
+					* (
+						if k.rookie
+							then ArenaBrain.ROOKIE.chase
+							elseif k.human and bot.easy then 1.8
+							else 1
+					)
 				if k.id == bot.target then
 					score *= 0.7 -- stick with the one you're after
 				end
@@ -405,7 +418,8 @@ local function decide(
 		local use = ArenaBrain.USE[weapon :: string] or DEFAULT_USE
 		local dx, dz = target.x - bot.x, target.z - bot.z
 		local d = math.sqrt(dx * dx + dz * dz)
-		if d < 10 then
+		bot.throttle = 1
+		if d < 10 and not armed then
 			-- bumper to bumper: drive on through and come round again, don't sit on it
 			local fx, fz = ArenaBrain.forward(bot.yaw)
 			bot.goalX, bot.goalZ = bot.x + fx * 30, bot.z + fz * 30
@@ -415,9 +429,12 @@ local function decide(
 			-- a mine: drive away from the target so it chases over the drop
 			bot.goalX, bot.goalZ = bot.x - dx, bot.z - dz
 		else
+			-- in range: ease off and line up the shot, don't fly past and circle it
 			bot.goalX, bot.goalZ = target.x, target.z
+			if d < use.range * ArenaBrain.LINE_UP then
+				bot.throttle = 0.3
+			end
 		end
-		bot.throttle = 1
 		return
 	end
 	local box = nearestBox(bot, world)
@@ -474,18 +491,35 @@ local function aimAt(
 		and off <= use.cone
 		and ArenaBrain.sight(world, bot.x, bot.z, target.x, target.z)
 	if not fair then
-		bot.sawAt = math.huge
+		if now - bot.fairAt > ArenaBrain.SAW_KEEP then
+			bot.sawAt = math.huge
+		end
 		return nil
 	end
+	bot.fairAt = now
 	if bot.sawAt == math.huge then
 		bot.sawAt = now
 	end
 	-- the "saw you" delay: slower for easy bots and when the target is a player
-	local react = 1.1 - 0.65 * bot.skill + (if target.human and bot.easy then 0.6 else 0)
+	local react = 1.1
+		- 0.65 * bot.skill
+		+ (
+			if target.rookie
+				then ArenaBrain.ROOKIE.react
+				elseif target.human and bot.easy then 0.6
+				else 0
+		)
 	if now - bot.sawAt < react then
 		return nil
 	end
-	bot.fireAt = now + ArenaBrain.FIRE_GAP
+	bot.fireAt = now + ArenaBrain.FIRE_GAP + (if target.rookie then ArenaBrain.ROOKIE.gap else 0)
+	if target.rookie and bot.rng:NextNumber() < ArenaBrain.ROOKIE.wide then
+		-- wide on purpose: off to one side by more than a kart's width plus the aim cone's slack
+		local side = if bot.rng:NextNumber() < 0.5 then -1 else 1
+		local w = math.max(10, d * 0.4) * side
+		local n = math.max(d, 1e-3)
+		return { x = target.x - dz / n * w, z = target.z + dx / n * w }
+	end
 	local miss = (1 - bot.skill) * 6 + (if target.human and bot.easy then 4 else 0)
 	local a = bot.rng:NextNumber() * 2 * math.pi
 	local m = bot.rng:NextNumber() * miss

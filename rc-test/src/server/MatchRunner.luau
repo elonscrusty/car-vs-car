@@ -72,6 +72,8 @@ local infos: { [number]: Info } = {}
 local botCount = 0
 local botNames: { string } = {} -- this round's (Match.botNames)
 local newKids: { [number]: boolean } = {} -- players in their first round (new-kid safety)
+local rookies: { [number]: boolean } = {} -- players in their first 3 matches (bots go easy)
+local ROOKIE_MATCHES = 3 -- (ArenaBrain.ROOKIE.matches)
 local stepWarned = 0
 local fleet: any = nil
 local boxes: any = nil -- BoxServer's handle (the "?" boxes in the arena)
@@ -680,6 +682,7 @@ local function startRound()
 	workspace:SetAttribute("MatchRound", round)
 	local spawns = spawnsOf()
 	newKids = {}
+	rookies = {}
 	botNames = Match.botNames(function(n: number): number
 		return math.random(1, n)
 	end)
@@ -692,6 +695,9 @@ local function startRound()
 		local data = PlayerData.get(p)
 		if data and data.stage < Profile.STAGE.RACED then
 			newKids[p.UserId] = true
+		end
+		if data and (data.matches or 0) < ROOKIE_MATCHES then
+			rookies[p.UserId] = true
 		end
 		p:SetAttribute("MatchQueued", nil)
 		p:SetAttribute("StandSpot", nil) -- (a race's stand spot: not in the arena)
@@ -727,7 +733,7 @@ local function startRound()
 		local ok, f = pcall(ArenaBots.new, {
 			-- (karts with a place only; a new kid hides from them for a while: Match.forBots)
 			karts = function(): any
-				return Match.forBots(MatchRunner.karts() :: any, newKids, now(), startAt)
+				return Match.forBots(MatchRunner.karts() :: any, newKids, now(), startAt, rookies)
 			end,
 			weaponOf = function(id: number): (string?, number)
 				local Wn = weapons()
