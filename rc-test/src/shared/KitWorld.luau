@@ -106,6 +106,45 @@ function KitWorld.breath(t: number, reduced: boolean?): number
 	return KitWorld.EDGE_LOW + (1 - KitWorld.EDGE_LOW) * u
 end
 
+-- ===== speed lines (kit "speed": white streaks at the screen's sides at top speed) =====
+-- 4 thin white streaks near the left and right edges slide down and fade, a 0.45 s loop, while
+-- your kart is near top speed in a match. Never in the middle of the screen; off with reduced
+-- motion (the kit's prefers-reduced-motion turns .speed off).
+KitWorld.LINES_FROM = 0.85 -- of top speed: the lines start to show
+KitWorld.LINES_FULL = 0.97 -- of top speed: full strength
+KitWorld.LINES_LOOP = 0.45 -- s for one streak to slide down
+KitWorld.LINES_DROP = 200 -- px a streak slides (kit: -40 -> 160)
+KitWorld.LINES_ALPHA = 0.9 -- a streak's strongest (kit opacity .9)
+-- the kit's 4 streaks at 844 x 390: from the left (or right) edge, from the top, width, height,
+-- and how far into the loop each starts (s)
+KitWorld.LINES = {
+	{ side = -1, x = 24, y = 150, w = 6, h = 70, lag = 0 },
+	{ side = -1, x = 70, y = 200, w = 5, h = 56, lag = 0.2 },
+	{ side = 1, x = 24, y = 140, w = 6, h = 70, lag = 0.1 },
+	{ side = 1, x = 76, y = 120, w = 5, h = 56, lag = 0.3 },
+}
+
+-- How strong (0..1) the speed lines are at `share` of top speed (0 below LINES_FROM); 0 out of a
+-- match and with reduced motion.
+function KitWorld.speedLines(share: number, inMatch: unknown, reduced: boolean?): number
+	if reduced or inMatch ~= true then
+		return 0
+	end
+	return math.clamp(
+		(share - KitWorld.LINES_FROM) / (KitWorld.LINES_FULL - KitWorld.LINES_FROM),
+		0,
+		1
+	)
+end
+
+-- One streak `t` s into the loop: how far down it has slid (px, from its spot) and how strong
+-- (0..1): it fades in over the first 30% and out to the end (kit @keyframes speed).
+function KitWorld.streak(t: number): (number, number)
+	local u = (t % KitWorld.LINES_LOOP) / KitWorld.LINES_LOOP
+	local a = if u < 0.3 then u / 0.3 else 1 - (u - 0.3) / 0.7
+	return -40 + KitWorld.LINES_DROP * u, a * KitWorld.LINES_ALPHA
+end
+
 -- ===== the weapon icon over a kart (carter 10-28: an icon, never a weapon model) =====
 -- The kit look: a round pink bubble with an ink rim and a top shine (the kit's fire button with a
 -- weapon), the weapon's icon in it, and a yellow ammo coin with an ink rim.

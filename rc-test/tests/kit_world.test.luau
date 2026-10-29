@@ -143,3 +143,31 @@ test(
 		truthy(string.find(edge, "ImageLabel", 1, true) == nil, "no pictures, no tiles")
 	end
 )
+
+test("kit world: speed lines near top speed, at the sides only, off with reduced motion", function()
+	eq(KitWorld.speedLines(0.5, true), 0, "slow: none")
+	eq(KitWorld.speedLines(KitWorld.LINES_FROM, true), 0)
+	eq(KitWorld.speedLines(1, true), 1, "top speed: full")
+	truthy(KitWorld.speedLines(0.92, true) > 0, "near top speed: some")
+	eq(KitWorld.speedLines(1, false), 0, "lobby: never")
+	eq(KitWorld.speedLines(1, true, true), 0, "reduced motion: off")
+	local _, a0 = KitWorld.streak(0)
+	eq(a0, 0, "fades in")
+	local _, aPeak = KitWorld.streak(KitWorld.LINES_LOOP * 0.3)
+	near(aPeak, KitWorld.LINES_ALPHA, "strongest at 30%")
+	local d1 = KitWorld.streak(0.1)
+	local d2 = KitWorld.streak(0.2)
+	truthy(d2 > d1, "slides down")
+	eq(#KitWorld.LINES, 4, "the kit's 4 streaks")
+	for _, l in KitWorld.LINES do
+		truthy(l.x + l.w <= 844 * 0.15, "by the edge, never in the middle")
+	end
+	local src = fs.readFile("src/client/SpeedLines.client.luau")
+	truthy(
+		string.find(src, 'gui:SetAttribute("NoKart", true)', 1, true) ~= nil,
+		"no kart-skin rims"
+	)
+	truthy(string.find(src, "Base.ORDER.hud - 2", 1, true) ~= nil, "under the HUD")
+	truthy(string.find(src, "Tuning.topSpeed", 1, true) ~= nil, "the live (arena) top speed")
+	truthy(string.find(src, "FireServer", 1, true) == nil, "looks only")
+end)
