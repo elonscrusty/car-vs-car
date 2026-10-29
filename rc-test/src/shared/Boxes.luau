@@ -30,7 +30,10 @@ Boxes.SHOW_GAP = 0.4
 -- (the arena is RC size: TrackData.RC_SCALE = 0.25, so a kart is about 1.4 studs long).
 Boxes.KART = 5.5 -- a kart's length, big
 Boxes.SCALE = 0.25 -- studs per big unit when the caller gives none (the RC arena)
-Boxes.RADIUS = 4.5 -- big, flat, from the box's middle to the kart's middle (box half + kart half)
+-- big, flat, from the box's middle to the kart's middle: about 2 kart lengths, ~3 studs (Lead
+-- 10-29, BOTS: at 1 kart length real drivers had to crawl round a box to get it)
+Boxes.RADIUS = 2.2 * Boxes.KART
+Boxes.RING = 9 -- big, the glowing ground ring's width (the look, not the reach)
 Boxes.HEIGHT = 6 -- big, up or down still counted as touching (boxes on the pink hills)
 Boxes.SIZE = 4 -- big, the box's side (a bit under a kart length)
 Boxes.LIFT = 3 -- big, the box's middle above its spot on the ground
