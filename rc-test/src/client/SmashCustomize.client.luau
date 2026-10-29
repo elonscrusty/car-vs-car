@@ -1,6 +1,6 @@
 --!strict
 -- Smash CUSTOMIZE window glue (WINDOWS): ReplicatedStorage.OpenCustomize (a BindableEvent: the
--- garage sign or a HUD tile fires it) opens Smash.customize.
+-- garage sign or a HUD tile fires it) opens the garage (KitWindows.garage, carter's kit v41).
 --   KARTS: your garage (CvcState); EQUIP asks the server through Garage ("racer", uid) (GARAGE).
 --   HATS: shared/Hats (REWARDS) with the player attributes Hat (on) and HatsOwned (comma ids);
 --     EQUIP fires ReplicatedStorage.LuckySpin ("equip", id), TAKE OFF ("equip", ""). Until Hats
@@ -17,7 +17,7 @@ end
 local CarCatalog = require(Shared:WaitForChild("CarCatalog"))
 local Ui = script.Parent:WaitForChild("Ui")
 local Screen = require(Ui:WaitForChild("Screen"))
-local Smash = require(Ui:WaitForChild("Screens"):WaitForChild("Smash"))
+local KitWindows = require(Ui:WaitForChild("Screens"):WaitForChild("KitWindows"))
 local CvcState = require(script.Parent:WaitForChild("CvcState"))
 
 local player = Players.LocalPlayer
@@ -130,7 +130,7 @@ function open()
 			end
 		end
 	end
-	current = Smash.customize({
+	current = KitWindows.garage({
 		tab = tab,
 		karts = karts,
 		hats = hats,

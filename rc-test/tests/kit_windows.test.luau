@@ -5,6 +5,7 @@ local H = require("./harness")
 local Crates = require("../src/shared/Crates")
 local Profile = require("../src/shared/Profile")
 local Lb = require("../src/shared/Leaderboards")
+local GameSettings = require("../src/shared/GameSettings")
 local SmashScreens = require("../src/shared/SmashScreens")
 local UiScreens = require("../src/shared/UiScreens")
 local fs = require("@lune/fs")
@@ -61,7 +62,17 @@ end)
 
 test("kit layouts: nothing covers anything else", function()
 	for _, id in
-		{ "kitShop", "kitOdds", "kitReveal", "kitDaily", "kitQuests", "kitBoard", "kitLeagueUp" }
+		{
+			"kitShop",
+			"kitOdds",
+			"kitReveal",
+			"kitDaily",
+			"kitQuests",
+			"kitBoard",
+			"kitLeagueUp",
+			"kitGarage",
+			"kitSettings",
+		}
 	do
 		local ps = SmashScreens.get(id).pieces
 		for i = 1, #ps do
@@ -174,4 +185,48 @@ test("league up under Smash: the kit screen, and matches (not races) pay", funct
 	local src = fs.readFile("src/client/LeagueUp.luau")
 	truthy(src:find("KitWindows.leagueUp", 1, true) ~= nil, "no kit league up")
 	truthy(src:find('"^Races", "Matches"', 1, true) ~= nil, "Smash league up says races")
+end)
+
+test("garage: 4 cards a row with rarity dots, karts are looks (no stat bars)", function()
+	eq(SmashScreens.rarityDots("common"), 1)
+	eq(SmashScreens.rarityDots("legend"), 4)
+	eq(SmashScreens.rarityDots("legendary"), 4)
+	eq(SmashScreens.rarityDots(nil), 1)
+	local grid = SmashScreens.piece("kitGarage", "Grid")
+	local boxes = SmashScreens.garageCards(9, grid.w - 32)
+	eq(boxes[5].y, boxes[1].y + boxes[1].h + 10)
+	eq(boxes[5].x, 0)
+	for i = 1, 8 do
+		local b = boxes[i]
+		truthy(b.x + b.w <= grid.w - 32 + 1e-6, `card {i} runs out`)
+		truthy(b.y + b.h <= grid.h - 24, `card {i} of the first 8 needs a scroll`)
+		truthy(b.w >= 44 and b.h >= 44, `card {i} too small`)
+	end
+	local src = fs.readFile("src/client/Ui/Screens/KitWindows.luau")
+	for _, bad in { "statBar", "CardStats", "stats" } do
+		truthy(not src:find(bad, 1, true), "the kit windows show " .. bad)
+	end
+	local glue = fs.readFile("src/client/SmashCustomize.client.luau")
+	truthy(glue:find("KitWindows.garage(", 1, true) ~= nil, "CUSTOMIZE isn't the kit garage")
+end)
+
+test("settings: anything sent is cleaned, defaults on junk, one save each 2 s", function()
+	local d = GameSettings.clean(nil)
+	eq(d.music, 1)
+	eq(d.names, true)
+	local s =
+		GameSettings.clean({ music = 0.333, sfx = -4, shadows = "no", names = false, evil = 1 })
+	eq(s.music, 0.35)
+	eq(s.sfx, 0)
+	eq(s.shadows, true)
+	eq(s.names, false)
+	eq((s :: any).evil, nil)
+	eq(GameSettings.clean({ music = 0 / 0 }).music, 1)
+	eq(GameSettings.clean({ music = math.huge }).music, 1)
+	truthy(GameSettings.same(d, GameSettings.clean({})), "defaults differ")
+	local src = fs.readFile("src/server/SettingsServer.luau")
+	truthy(src:find("GameSettings.clean(sent)", 1, true) ~= nil, "a sent table isn't cleaned")
+	truthy(src:find("GameSettings.SAVE_GAP", 1, true) ~= nil, "saves aren't rate-limited")
+	local main = fs.readFile("src/server/Main.server.luau")
+	truthy(main:find("SettingsServer", 1, true) ~= nil, "SettingsServer never starts")
 end)

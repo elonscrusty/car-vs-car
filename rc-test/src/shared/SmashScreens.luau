@@ -269,6 +269,43 @@ local LIST: { Screen } = {
 			p("ArrowR1", 664, 230, 72, 150, { anchor = "br" }),
 		},
 	},
+	-- the garage (CUSTOMIZE): KARTS / HATS tabs, a 4-wide grid of cards with rarity dots, the
+	-- picked one big in 3D on the right, EQUIP under it (karts are looks: no stat bars)
+	{
+		id = "kitGarage",
+		n = 112,
+		title = "Garage",
+		kind = "window",
+		gameplay = false,
+		pieces = {
+			p("Tabs", 8, 4, 300, 52, { anchor = "tl", tap = true }),
+			p("Close", 700, 0, 52, 52, { anchor = "tr", tap = true }),
+			p("Grid", 8, 64, 500, 318, { anchor = "bl" }),
+			p("Show", 524, 64, 224, 228, { anchor = "r" }),
+			p(
+				"Equip",
+				524,
+				302,
+				224,
+				70,
+				{ anchor = "br", tone = "lime", text = "EQUIP", main = true }
+			),
+		},
+	},
+	-- settings: only what the game can really do (music, sounds, shadows, name tags)
+	{
+		id = "kitSettings",
+		n = 113,
+		title = "Settings",
+		kind = "window",
+		gameplay = false,
+		pieces = {
+			p("Title", 8, 0, 300, 56, { anchor = "tl" }),
+			p("Close", 700, 0, 52, 52, { anchor = "tr", tap = true }),
+			p("Sliders", 8, 66, 400, 316, { anchor = "bl" }),
+			p("Toggles", 424, 66, 324, 316, { anchor = "br" }),
+		},
+	},
 }
 
 SmashScreens.LIST = LIST
@@ -555,6 +592,29 @@ function SmashScreens.friendRows(list: { BoardRow }, limit: number): { BoardRow 
 	return out
 end
 
+-- A rarity as dots on a card: how many of the 4 are lit (common 1 .. legendary 4).
+function SmashScreens.rarityDots(rarity: string?): number
+	local r = if rarity == "legend" then "legendary" else rarity
+	for i, id in { "common", "rare", "epic", "legendary" } do
+		if r == id then
+			return i
+		end
+	end
+	return 1
+end
+
+-- The garage grid's card boxes: 4 across in a w-wide area (gap 10), rows down from 0.
+function SmashScreens.garageCards(n: number, w: number): { Box }
+	local cols, gap, h = 4, 10, 140
+	local cw = (w - (cols - 1) * gap) / cols
+	local out: { Box } = {}
+	for i = 1, n do
+		local col, row = (i - 1) % cols, (i - 1) // cols
+		out[i] = { x = col * (cw + gap), y = row * (h + gap), w = cw, h = h }
+	end
+	return out
+end
+
 -- The kit windows' lines (crates give looks, never a win)
 SmashScreens.KIT_WORDS = {
 	shopNote = "Crates change the look only.",
@@ -565,6 +625,8 @@ SmashScreens.KIT_WORDS = {
 	noScores = "No scores yet. Play a match!",
 	loading = "Loading...",
 	noFriends = "Invite friends to see them here!",
+	noKarts = "Open a crate to get a kart!",
+	hatsSoon = "HATS COMING SOON!",
 }
 
 return SmashScreens

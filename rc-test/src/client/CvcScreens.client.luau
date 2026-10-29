@@ -1156,6 +1156,7 @@ local function openMenu()
 			table.insert(items, { id = "invite", word = "INVITE", icon = "heart" })
 		end
 	end
+	table.insert(items, { id = "settings", word = "SETTINGS", icon = "speed" })
 	menuHandle = Smash.menu({ items = items }, {
 		close = Screen.closeOver,
 		customize = openCustomize,
@@ -1169,6 +1170,12 @@ local function openMenu()
 		end,
 		jobs = openJobs,
 		invite = invite,
+		settings = function()
+			local ev = ReplicatedStorage:FindFirstChild("OpenSettings")
+			if ev and ev:IsA("BindableEvent") then
+				ev:Fire()
+			end
+		end,
 	})
 end
 
