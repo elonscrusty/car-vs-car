@@ -204,9 +204,9 @@ test("a real showroom: banner with words, trophies, little crates, floor edge ba
 			lines += 1
 		elseif string.sub(p.name, 1, 9) == "BayNumber" then
 			numbers += 1
-			-- turned half way from its bay, so the number reads upright from the aisle
+			-- turned a quarter from its bay, so the number reads upright from the aisle
 			local i = tonumber(string.sub(p.name, 10)) :: number
-			eq(p.rot.y, R.SPOTS[i].yaw + 180)
+			eq(p.rot.y, R.SPOTS[i].yaw + 90)
 		end
 	end
 	eq(lines, 4 * #R.SPOTS)

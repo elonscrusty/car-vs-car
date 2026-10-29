@@ -251,6 +251,17 @@ DRAW.speed = function(c)
 	shape(c, "Head", 52, 28, 34, 34, WHITE, 6, 7, 45, 3)
 end
 
+-- SETTINGS: a grey gear, 8 teeth round a disc with a hole (the kit's gear.png replaces it once
+-- the icons are uploaded, Images.icon)
+DRAW.gear = function(c)
+	local grey = Base.color("silver")
+	for i, turn in { 0, 45, 90, 135 } do
+		shape(c, "Tooth" .. i, 38, 4, 24, 92, grey, 5, 7, turn, 1)
+	end
+	shape(c, "Disc", 16, 16, 68, 68, grey, nil, 7, nil, 2)
+	shape(c, "Hole", 37, 37, 26, 26, WHITE, nil, 6, nil, 3)
+end
+
 DRAW.arrow = function(c)
 	local lime = Base.color("lime")
 	shape(c, "Head", 44, 22, 46, 46, lime, 6, 8, 45, 1)

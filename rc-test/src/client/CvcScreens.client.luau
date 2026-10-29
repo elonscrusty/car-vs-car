@@ -1156,7 +1156,7 @@ local function openMenu()
 			table.insert(items, { id = "invite", word = "INVITE", icon = "heart" })
 		end
 	end
-	table.insert(items, { id = "settings", word = "SETTINGS", icon = "speed" })
+	table.insert(items, { id = "settings", word = "SETTINGS", icon = "gear" })
 	menuHandle = Smash.menu({ items = items }, {
 		close = Screen.closeOver,
 		customize = openCustomize,

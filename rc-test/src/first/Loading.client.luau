@@ -119,7 +119,9 @@ for i, layer in { "Drop", "Outline", "Letters" } do
 	l.BackgroundTransparency = 1
 	l.Font = Enum.Font.FredokaOne
 	l.TextScaled = true
-	l.RichText = layer == "Letters"
+	-- (all three RichText: a plain TextScaled layer stops at 100 px and a rich one doesn't, so a
+	-- smaller white logo peeked out behind the big letters, Studio qa_r58)
+	l.RichText = true
 	l.Text = if layer == "Letters" then LOGO_RICH else "Car vs Car"
 	l.TextColor3 = if layer == "Drop" then INK else WHITE
 	l.Position = if layer == "Drop" then UDim2.fromScale(0, 0.07) else UDim2.new()
@@ -264,9 +266,10 @@ ReplicatedFirst:RemoveDefaultLoadingScreen()
 -- made (CarSkin, once the player scripts are in); until then the sky and the logo. Their own layer
 -- over the group: a ViewportFrame may not draw inside a CanvasGroup.
 local KARTS = {
-	{ id = "race_berry", x = 0.1, y = 0.42, w = 0.26, h = 0.36 },
-	{ id = "race_lime", x = 0.34, y = 0.34, w = 0.32, h = 0.44 },
-	{ id = "race_dart", x = 0.64, y = 0.42, w = 0.26, h = 0.36 },
+	-- (every kart's wheels end over the bar's top at 0.75, not on it: Studio qa_r58)
+	{ id = "race_berry", x = 0.1, y = 0.36, w = 0.26, h = 0.34 },
+	{ id = "race_lime", x = 0.34, y = 0.28, w = 0.32, h = 0.42 },
+	{ id = "race_dart", x = 0.64, y = 0.36, w = 0.26, h = 0.34 },
 }
 local kartLayer = Instance.new("Frame")
 kartLayer.Name = "Karts"
