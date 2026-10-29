@@ -8,6 +8,8 @@
 -- came 8th.) Against the real bots (ArenaBots: easy on a rookie) and the real weapons, it must
 -- get 2+ smashes and a top-5 place, and be smashed 1-3 times itself (some chaos), but never in
 -- the first 30 s, in 16 of 20 seeded first matches (20, not 10: one seed swinging can't flip it).
+-- And no cliff after the rookie matches (auditor R9-3): the same kid in a later match, against
+-- full bots, still makes the top half with 3+ smashes in 12 of 20.
 local H = require("./harness")
 local Fake = require("./fakeroblox")
 local roblox = require("@lune/roblox")
@@ -199,7 +201,8 @@ local function kid(S, player)
 	return me
 end
 
-local function firstMatch(seed: number): (number, number, { number }, number)
+-- `matches`: how many the kid has played before (nil: none, a first match)
+local function firstMatch(seed: number, matches: number?): (number, number, { number }, number)
 	math.randomseed(seed) -- (bot names, spawn picks: math.random)
 	local S = Fake.server(Fake.store(), { seed = seed, jobId = "newkid-" .. seed })
 	S.require("Shared.Features").SMASH = true
@@ -212,6 +215,13 @@ local function firstMatch(seed: number): (number, number, { number }, number)
 	S.advance(2 + seed * 0.37, BEAT) -- (joins at a different moment each time)
 	S.send(p, "Garage", "pick", "race_bolt")
 	S.advance(1, BEAT)
+	if matches then
+		-- a kid who has played before: past the rookie matches, raced, no new-kid safety
+		local data = S.require("PlayerData").get(p)
+		local Profile = S.require("Shared.Profile")
+		data.matches = matches
+		data.stage = math.max(data.stage, Profile.STAGE.RACED)
+	end
 	MR.join(p)
 	local t0 = S.now()
 	while #S.got(p, "MatchResult") == 0 and S.now() - t0 < MR.MATCH_SECS + 30 do
@@ -265,5 +275,31 @@ test(
 		print(string.format("       %d of %d first matches pass", good, RUNS))
 		truthy(good >= NEED, `{good} of {RUNS}`)
 		eq(early, 0, "smashed in the first 30 s")
+	end
+)
+
+test(
+	"no cliff after the rookie matches: the same kid in their 6th match (full bots) is top 4 with 3+ smashes in 12 of 20 runs",
+	function()
+		local good = 0
+		for seed = 1, RUNS do
+			local smashes, place, smashed = firstMatch(100 + seed, 5)
+			local ok = smashes >= 3 and place >= 1 and place <= 4
+			if ok then
+				good += 1
+			end
+			print(
+				string.format(
+					"       seed %d: %d smashes, place %d, smashed %d times%s",
+					100 + seed,
+					smashes,
+					place,
+					#smashed,
+					if ok then "" else "  <- miss"
+				)
+			)
+		end
+		print(string.format("       %d of %d 6th matches pass", good, RUNS))
+		truthy(good >= 12, `{good} of {RUNS}`)
 	end
 )
