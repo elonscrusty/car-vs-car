@@ -968,7 +968,10 @@ RunService.Heartbeat:Connect(function()
 		and attr("Picked") == true
 		and attr("Driving") ~= true
 		and attr("Racing") ~= true
+		and attr("InMatch") ~= true
 		and not anyOpen(FULL)
+	-- (and not in the Smash arena: only the match HUD there, the lobby SMASH! button and its
+	-- arrow sat on your kart all match, WEAPONS Studio after-923)
 	-- (and it steps away under a window, so nothing peeks out past it, and while the race card
 	-- is up, Studio live1)
 	-- (any window at all, Customize too: INVITE peeked out behind its card)
@@ -987,6 +990,11 @@ RunService.Heartbeat:Connect(function()
 		Base.show(h.gui, shows)
 	end
 	player:SetAttribute("UiBusy", anyOpen(FULL) or anyOpen(WINDOWS))
+	if attr("InMatch") == true then
+		-- (the match pays out while this is hidden: no late coin ching back in the lobby, the
+		-- match end has its own +coins)
+		lastCoins = -1
+	end
 	if not (h and shows) then
 		return
 	end
