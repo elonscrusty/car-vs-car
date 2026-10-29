@@ -611,6 +611,34 @@ local function buildHills(folder: Instance)
 			PINK_RAMP,
 			true
 		)
+		-- a sloped flank down each side, so a kart hitting the ramp's side from the grass rides up
+		-- onto it or (mostly, it's steep) glances off, never pins against an upright side (round 11)
+		local side = Vector3.new(dir.Z, 0, -dir.X)
+		local half, flank = r.width * K / 2, ArenaData.RAMP_FLANK * K
+		for _, sgn in { -1, 1 } do
+			local n = side * sgn
+			tri(
+				folder,
+				"RampFlank",
+				a + n * half,
+				b + n * half + Vector3.new(0, h, 0),
+				b + n * (half + flank),
+				Vector3.yAxis + n,
+				1,
+				PINK_SIDE
+			)
+			-- close its upright top end, so nothing can nose in under it where the hill isn't there
+			tri(
+				folder,
+				"RampFlank",
+				b + n * half,
+				b + n * half + Vector3.new(0, h, 0),
+				b + n * (half + flank),
+				dir,
+				1,
+				PINK_SIDE
+			)
+		end
 	end
 end
 
