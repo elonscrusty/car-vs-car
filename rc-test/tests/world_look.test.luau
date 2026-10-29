@@ -39,4 +39,5 @@ test("no grey haze; light bloom; a little more colour", function()
 		eq3(c)
 	end
 	truthy(S.atmosphere.color[3] > S.atmosphere.color[1], "light blue, not grey or orange")
+	truthy(S.atmosphere.color[1] <= 170, "a real blue horizon, not pale white")
 end)

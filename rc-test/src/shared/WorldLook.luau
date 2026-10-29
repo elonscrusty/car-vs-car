@@ -23,14 +23,15 @@ WorldLook.lighting = {
 WorldLook.ambient = { 112, 112, 128 } -- shade stays a soft cool blue-grey, never black
 WorldLook.outdoorAmbient = { 142, 140, 156 }
 
--- a thin, clear atmosphere: a little depth far away, no grey haze
+-- a thin, clear atmosphere: a little depth far away, no grey haze. Its colour is a real sky blue,
+-- so the horizon stays blue instead of fading to a pale white (Studio shots, 10-29)
 WorldLook.atmosphere = {
-	Density = 0.16,
+	Density = 0.1,
 	Offset = 0,
 	Glare = 0,
 	Haze = 0,
-	color = { 200, 232, 255 },
-	decay = { 120, 190, 240 },
+	color = { 150, 205, 255 },
+	decay = { 90, 160, 235 },
 }
 
 WorldLook.sky = { SunAngularSize = 12, MoonAngularSize = 8, StarCount = 0 }
