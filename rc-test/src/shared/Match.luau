@@ -333,6 +333,7 @@ export type BotView = {
 	shield: boolean,
 	human: boolean,
 	model: any,
+	rookie: boolean?,
 }
 
 -- What the bots see: every kart with a place, and a new kid in their first NEW_KID_SAFE seconds
@@ -341,7 +342,8 @@ function Match.forBots(
 	list: { BotView },
 	newKids: { [number]: boolean },
 	now: number,
-	startAt: number
+	startAt: number,
+	rookies: { [number]: boolean }? -- players in their first matches: bots go easy (ArenaBrain.ROOKIE)
 ): { BotView }
 	local out = {}
 	local safe = now - startAt < Match.NEW_KID_SAFE
@@ -354,6 +356,7 @@ function Match.forBots(
 				shield = k.shield or (safe and newKids[k.id] == true),
 				human = k.human,
 				model = k.model,
+				rookie = rookies ~= nil and rookies[k.id] == true,
 			})
 		end
 	end

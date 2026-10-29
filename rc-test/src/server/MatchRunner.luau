@@ -72,6 +72,8 @@ local infos: { [number]: Info } = {}
 local botCount = 0
 local botNames: { string } = {} -- this round's (Match.botNames)
 local newKids: { [number]: boolean } = {} -- players in their first round (new-kid safety)
+local rookies: { [number]: boolean } = {} -- players in their first 3 matches (bots go easy)
+local ROOKIE_MATCHES = 3 -- (ArenaBrain.ROOKIE.matches)
 local stepWarned = 0
 local fleet: any = nil
 local boxes: any = nil -- BoxServer's handle (the "?" boxes in the arena)
@@ -258,7 +260,7 @@ local function place(info: Info, i: number)
 		info.last = cf.Position
 		if fleet and ArenaBots then
 			local k = state and state.karts[info.id]
-			pcall(ArenaBots.add, fleet, info.id, cf, { skill = nil, easy = next(newKids) ~= nil })
+			pcall(ArenaBots.add, fleet, info.id, cf, { skill = nil, easy = next(rookies) ~= nil })
 			if k then
 				k.shieldUntil = math.max(k.shieldUntil, now() + Match.SHIELD)
 			end
@@ -378,7 +380,7 @@ function MatchRunner.addBot(name: string?, skill: number?): number?
 	infos[id] = info
 	addBoard(info, nm)
 	if fleet and ArenaBots then
-		pcall(ArenaBots.add, fleet, id, cf, { skill = skill, easy = next(newKids) ~= nil })
+		pcall(ArenaBots.add, fleet, id, cf, { skill = skill, easy = next(rookies) ~= nil })
 	end
 	matchBoard:SetAttribute("MatchKarts", #m.list)
 	return id
@@ -689,6 +691,7 @@ local function startRound()
 	workspace:SetAttribute("MatchRound", round)
 	local spawns = spawnsOf()
 	newKids = {}
+	rookies = {}
 	botNames = Match.botNames(function(n: number): number
 		return math.random(1, n)
 	end)
@@ -701,6 +704,10 @@ local function startRound()
 		local data = PlayerData.get(p)
 		if data and data.stage < Profile.STAGE.RACED then
 			newKids[p.UserId] = true
+		end
+		-- (no save loaded yet: count them a rookie, the safe side)
+		if not data or (data.matches or 0) < ROOKIE_MATCHES then
+			rookies[p.UserId] = true
 		end
 		p:SetAttribute("MatchQueued", nil)
 		p:SetAttribute("StandSpot", nil) -- (a race's stand spot: not in the arena)
@@ -736,7 +743,7 @@ local function startRound()
 		local ok, f = pcall(ArenaBots.new, {
 			-- (karts with a place only; a new kid hides from them for a while: Match.forBots)
 			karts = function(): any
-				return Match.forBots(MatchRunner.karts() :: any, newKids, now(), startAt)
+				return Match.forBots(MatchRunner.karts() :: any, newKids, now(), startAt, rookies)
 			end,
 			weaponOf = function(id: number): (string?, number)
 				local Wn = weapons()

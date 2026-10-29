@@ -4,6 +4,7 @@
 local H = require("./harness")
 local Fake = require("./fakeroblox")
 local roblox = require("@lune/roblox")
+local B = require("../src/shared/ArenaBrain")
 
 local test, eq, truthy = H.test, H.eq, H.truthy
 
@@ -76,4 +77,61 @@ test("a bot with Rockets fires through WeaponServer and hits the kart ahead", fu
 	eq(hurt[1][1], 201)
 	eq(hurt[1][2], -1)
 	eq(#S.errors, 0)
+end)
+
+test("a rookie (first 3 matches): bots fire at them far less often", function()
+	local function run(rookie: boolean): (number, number)
+		local S = Fake.server(Fake.store())
+		local Bots = S.require("ArenaBots")
+		local shots, close = 0, 0
+		local fleet = Bots.new({
+			karts = function()
+				return {
+					{ id = -1, pos = roblox.Vector3.new(0, 0, 0), alive = true },
+					{
+						id = 201,
+						pos = roblox.Vector3.new(0, 0, -40),
+						alive = true,
+						human = true,
+						rookie = rookie,
+					},
+				}
+			end,
+			weaponOf = function()
+				return "Rockets", 3
+			end,
+			fire = function(_, aim)
+				shots += 1
+				if (aim - roblox.Vector3.new(0, 0, -40)).Magnitude < 6 then
+					close += 1
+				end
+			end,
+			boxes = function()
+				return {}
+			end,
+			place = function() end,
+			toLocal = function(p)
+				return p.X, p.Z
+			end,
+			toWorld = function(x, z)
+				return roblox.Vector3.new(x, 0, z)
+			end,
+			world = { half = 170, solids = {}, boxes = {}, karts = {} },
+		}, B.rng(7))
+		Bots.add(fleet, -1, roblox.CFrame.new(0, 0, 0), { skill = 1 })
+		local t = 100
+		while t < 160 do
+			t += 1 / 30
+			Bots.step(fleet, 1 / 30, t)
+		end
+		eq(#S.errors, 0)
+		return shots, close
+	end
+	local vetShots, vetClose = run(false)
+	local kidShots, kidClose = run(true)
+	print(
+		`       60 s at a kart ahead: a veteran gets {vetShots} shots ({vetClose} on target), a rookie {kidShots} ({kidClose})`
+	)
+	truthy(kidShots < vetShots * 0.5, "far fewer shots at a rookie")
+	eq(vetClose, vetShots, "a sharp bot hits a veteran sitting still")
 end)

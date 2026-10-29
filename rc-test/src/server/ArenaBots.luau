@@ -26,10 +26,11 @@ ArenaBots.BOX_TAG = "SmashBox" -- BoxServer's boxes (attributes Up, Home)
 
 export type Kart = {
 	id: number,
-	pos: Vector3, -- world
+	pos: Vector3?, -- world (nil: no body yet)
 	alive: boolean,
 	shield: boolean?,
 	human: boolean?,
+	rookie: boolean?, -- a player in their first matches (ArenaBrain.ROOKIE): bots go easy on them
 	model: Model?,
 }
 export type Ctx = {
@@ -226,14 +227,19 @@ function ArenaBots.step(fleet: Fleet, dt: number, now: number)
 		if k.model then
 			fleet.models[k.id] = k.model
 		end
-		local x, z = toLocal(k.pos)
+		local pos = k.pos
+		if not pos then
+			continue -- (no body yet)
+		end
+		local x, z = toLocal(pos)
 		table.insert(w.karts, {
 			id = k.id,
 			x = x,
 			z = z,
 			alive = k.alive,
-			shield = k.shield,
+			shield = k.shield, -- (a new kid's first 15 s shows as shielded: Match.forBots)
 			human = k.human,
+			rookie = k.rookie,
 		})
 	end
 	table.clear(w.boxes)
