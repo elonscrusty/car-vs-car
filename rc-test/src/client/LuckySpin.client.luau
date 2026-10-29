@@ -3,7 +3,7 @@
 -- Features.SMASH on. A SPIN tile on the right (a dot while today's free spin waits) opens the spin
 -- window (Ui/Screens/Spin); the server (SpinServer, RemoteEvent LuckySpin) rolls and pays.
 -- LevelUp (XpServer) shows "LEVEL n!" with the coins, after the match if you're in one.
--- Out of a match only: the tile hides while the Health attribute is set (MatchRunner).
+-- Out of a match only: the tile hides while the InMatch attribute is set (MatchRunner).
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -29,7 +29,7 @@ local levelUp = ReplicatedStorage:WaitForChild("LevelUp") :: RemoteEvent
 local TILE_X, TILE_Y = 682, 120 -- design px: the right edge, under the coins
 
 local function inMatch(): boolean
-	return player:GetAttribute("Health") ~= nil
+	return player:GetAttribute("InMatch") == true
 end
 
 local tileGui = Base.screen("Ui_spinTile", Base.ORDER.hud, false)
@@ -39,7 +39,7 @@ local function showTile()
 	Base.show(tileGui, not inMatch())
 	tile.setDot(if player:GetAttribute("SpinReady") == true then -1 else nil)
 end
-player:GetAttributeChangedSignal("Health"):Connect(showTile)
+player:GetAttributeChangedSignal("InMatch"):Connect(showTile)
 player:GetAttributeChangedSignal("SpinReady"):Connect(showTile)
 showTile()
 
@@ -153,8 +153,20 @@ end)
 
 -- LEVEL UP: right away out of a match, else when it ends
 local pending: { { number } } = {}
+local waitingLevels = false
 local function showLevels()
-	if inMatch() or #pending == 0 then
+	if #pending == 0 then
+		return
+	end
+	-- (never on top of the match end, a crate reveal or another window: it waits its turn)
+	if inMatch() or Screen.anyOver() then
+		if not waitingLevels then
+			waitingLevels = true
+			task.delay(1, function()
+				waitingLevels = false
+				showLevels()
+			end)
+		end
 		return
 	end
 	local top, coins = 0, 0
@@ -180,4 +192,4 @@ levelUp.OnClientEvent:Connect(function(level: any, coins: any)
 	table.insert(pending, { tonumber(level) or 1, tonumber(coins) or 0 })
 	showLevels()
 end)
-player:GetAttributeChangedSignal("Health"):Connect(showLevels)
+player:GetAttributeChangedSignal("InMatch"):Connect(showLevels)

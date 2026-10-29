@@ -14,7 +14,7 @@ local Weapons = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("W
 
 local WeaponServer = {}
 
-export type Kart = { id: any, cframe: CFrame, alive: boolean }
+export type Kart = { id: any, cframe: CFrame, alive: boolean, shield: boolean }
 export type Hit = { kartId: any?, position: Vector3 }
 -- what a weapon module may use (the same table for every weapon)
 export type Ctx = {
@@ -132,7 +132,12 @@ local function readSources(out: { Kart })
 				local cf = pose(k)
 				if cf then
 					cacheOwner[k.id] = src
-					table.insert(out, { id = k.id, cframe = plain(cf), alive = k.alive ~= false })
+					table.insert(out, {
+						id = k.id,
+						cframe = plain(cf),
+						alive = k.alive ~= false,
+						shield = k.shield == true,
+					})
 				end
 			end
 		end
@@ -159,7 +164,10 @@ local function readKarts(): { Kart }
 				local alive = if type(mr.isAlive) == "function"
 					then mr.isAlive(id) == true
 					else true
-				table.insert(out, { id = id, cframe = plain(cf), alive = alive })
+				table.insert(
+					out,
+					{ id = id, cframe = plain(cf), alive = alive, shield = k.shield == true }
+				)
 			end
 		end
 	end

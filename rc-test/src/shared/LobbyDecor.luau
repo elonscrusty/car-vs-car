@@ -2,7 +2,7 @@
 -- Street decorations for the walking lobby (LobbyLayout): what makes the street feel alive.
 -- Bunting strung across the road between the lamps, flower planters and street bits (hydrant,
 -- bin, mailbox) on the footpaths, a flag and a flower bed in each grass gap between plots, a
--- zebra crossing at each gap and a checker start line where the road leaves the spawn lobby,
+-- zebra crossing at each gap and a checker start line where the road leaves the spawn lobby (not in Smash),
 -- and a big RC corner on each side of the spawn lobby (a giant remote and a giant battery with
 -- tyres and cones round them). Butterflies and birds (life()) fly on each player's own screen
 -- (client LobbyLife). No benches or tables, no text or logos. Low-poly flat colours.
@@ -22,6 +22,8 @@ local Features = sibling("Features")
 local Garage = sibling("Garage")
 local LobbyLayout = sibling("LobbyLayout")
 local LobbyWater = sibling("LobbyWater")
+-- Smash (no racing): no checker start line and no checkered Meshy flags on the street
+local SMASH = sibling("SpawnLobby").SMASH
 
 type V3 = Garage.V3
 type Piece = Garage.Piece
@@ -430,7 +432,7 @@ function LobbyDecor.parts(): { Piece }
 	-- road paint: a checker start line by the spawn lobby, zebra crossings at the gaps
 	local startZ = road.minZ + 6.25 -- past where cars wait (LobbyLayout.parkSpot)
 	local w = L.ROAD_W
-	for i = 0, w - 1 do
+	for i = 0, if SMASH then -1 else w - 1 do
 		for r = 0, 1 do
 			if (i + r) % 2 == 0 then
 				add(
@@ -620,7 +622,7 @@ do
 		for _, side in { -1, 1 } do
 			n += 1
 			local road = v(-side, 0, 0)
-			local model = if n % 2 == 0 then "BlueFlag" else "Flag"
+			local model = if n % 2 == 0 or SMASH then "BlueFlag" else "Flag" -- (Flag: checkered)
 			faced(model, "Flag" .. n, v(side * LobbyDecor.FLAG_X, 0, z - 2), 11.5, road)
 			local bx = side * (LobbyDecor.FLAG_X + 5)
 			local bed = "FlowerBed" .. n
