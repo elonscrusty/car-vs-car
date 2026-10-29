@@ -245,8 +245,8 @@ local LIST: { Screen } = {
 			p("Mine", 8, 6, 200, 44, { anchor = "tl" }),
 			p("Tabs", 248, 4, 260, 52, { anchor = "t", tap = true }),
 			p("Close", 700, 0, 52, 52, { anchor = "tr", tap = true }),
-			-- (ends 12 px above the canvas bottom: at 8 its line sat 5 px off the edge, Studio r60)
-			p("Panel", 8, 64, 740, 314, { anchor = "b" }),
+			-- (ends 16 px above the canvas bottom: its light line is drawn ~4 px outside, Studio r65)
+			p("Panel", 8, 64, 740, 310, { anchor = "b" }),
 		},
 	},
 	-- LEAGUE UP!: the new badge with wings and rays, the league's name and pay, arrows rising
@@ -310,7 +310,8 @@ local LIST: { Screen } = {
 			p("Close", 700, 0, 52, 52, { anchor = "tr", tap = true }),
 			-- the sliders (400 wide) and toggles (324) side by side in one piece, so a wide
 			-- computer keeps them together in the middle (one piece each hugged the edges, Studio r60)
-			p("Body", 8, 66, 740, 316, { anchor = "b" }),
+			-- (ends 16 px above the canvas bottom, as the board: at 8 its line sat 4.5 px off, r65)
+			p("Body", 8, 66, 740, 308, { anchor = "b" }),
 		},
 	},
 }

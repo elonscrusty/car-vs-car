@@ -306,7 +306,8 @@ function Smash.menu(data: { [string]: any }, actions: Screen.Actions?): Screen.H
 		local grid = Base.box(win.content, "Grid", gp.x, gp.y, gp.w, gp.h, 3)
 		-- (each tile 1.3x the lobby's: its word and dot 14 px on a phone)
 		local size = 62 * 1.3
-		local cols, step, rowStep = 4, (gp.w - size) / 3, size + 10
+		-- (a tile's word hangs ~10 px under it: rows 22 apart so row 1's words clear row 2, r65)
+		local cols, step, rowStep = 4, (gp.w - size) / 3, size + 22
 		local tiles: { GuiObject } = {}
 		for i, it in data.items or {} do
 			if i > cols * 2 then
