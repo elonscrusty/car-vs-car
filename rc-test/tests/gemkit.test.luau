@@ -11,6 +11,8 @@ local test, truthy, eq = H.test, H.truthy, H.eq
 local data = luau.load(fs.readFile("src/shared/GemData.luau"), { environment = { math = math } })()
 local yard =
 	luau.load(fs.readFile("src/shared/GemYardData.luau"), { environment = { math = math } })()
+local junk =
+	luau.load(fs.readFile("src/shared/JunkPropData.luau"), { environment = { math = math } })()
 local env = {
 	Instance = roblox.Instance,
 	Vector3 = roblox.Vector3,
@@ -25,7 +27,7 @@ local env = {
 			error("no AssetService here")
 		end,
 	},
-	script = { Parent = { GemData = data, GemYardData = yard } },
+	script = { Parent = { GemData = data, GemYardData = yard, JunkPropData = junk } },
 	require = function(d)
 		return d
 	end,
@@ -36,8 +38,12 @@ print("GemKit")
 
 local KINDS = { "bush", "chunks", "dead", "junk", "pine", "rock", "tree", "wall" }
 local YARD = { "yardCrane", "yardDebris", "yardHeap", "yardLamp", "yardStack2", "yardStack3" }
+local JUNK = { "junkBarrier", "junkCars", "junkDrums", "junkHeap", "junkTyres" }
 local ALL = table.clone(KINDS)
 for _, k in YARD do
+	table.insert(ALL, k)
+end
+for _, k in JUNK do
 	table.insert(ALL, k)
 end
 table.sort(ALL)
@@ -47,7 +53,7 @@ test("every picked kind is in the data", function()
 end)
 
 test("every triangle points at real vertices and has three different corners", function()
-	for _, set in { data, yard } do
+	for _, set in { data, yard, junk } do
 		for kind, pieces in set do
 			for _, piece in pieces do
 				eq(#piece.color, 3, kind .. " colour")
@@ -85,6 +91,28 @@ test(
 			total += n
 		end
 		truthy(total <= 5500, `yard total {total}`)
+	end
+)
+
+test(
+	"each junkyard arena prop stays cheap (1200 triangles, the whole set under 3500) and stands on the ground",
+	function()
+		local total = 0
+		for _, kind in JUNK do
+			local n = GemKit.triangles(kind)
+			truthy(n > 20 and n <= 1200, `{kind}: {n} triangles`)
+			total += n
+			local low = math.huge
+			for _, piece in junk[kind] do
+				eq(piece.glow, nil, `{kind}/{piece.name} glow`)
+				for _, p in piece.v do
+					low = math.min(low, p[2])
+				end
+			end
+			truthy(low > -0.5 and low < 0.5, `{kind}: lowest vertex {low}`)
+			truthy(GemKit.height(kind) > 2, kind .. " has height")
+		end
+		truthy(total <= 3500, `set total {total}`)
 	end
 )
 
@@ -139,6 +167,7 @@ test("no EditableMesh on the server: build returns nil, never errors", function(
 	local folder = roblox.Instance.new("Folder")
 	eq(GemKit.build(folder, "tree", roblox.Vector3.new(0, 0, 0), 20, 0.5), nil)
 	eq(GemKit.build(folder, "yardHeap", roblox.Vector3.new(0, 0, 0), 20, 0.5), nil)
+	eq(GemKit.build(folder, "junkBarrier", roblox.Vector3.new(0, 0, 0), 3, 0.5), nil)
 	eq(GemKit.build(folder, "nope", roblox.Vector3.new(0, 0, 0), 20), nil)
 	eq(#folder:GetChildren(), 0)
 end)
