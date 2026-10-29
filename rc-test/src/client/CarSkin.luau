@@ -21,6 +21,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local RCCar = require(script.Parent.RCCar)
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
+local ExhaustFx = require(script.Parent.ExhaustFx)
 local FireDrake = require(script.Parent.FireDrake)
 local Garage = require(ReplicatedStorage.Shared.Garage)
 local KartMesh = require(script.Parent.KartMesh)
@@ -499,6 +500,7 @@ function CarSkin.new()
 	local enabled = true
 	local shown: Shown? = nil
 	local broken: { [Model]: boolean } = {} -- models missing a part: don't keep trying them every frame
+	local exhaust = ExhaustFx.new() -- the Fire Drake car's tailpipe jets while it boosts
 
 	UserInputService.InputBegan:Connect(function(input: InputObject, typing: boolean)
 		if not typing and input.KeyCode == Enum.KeyCode.B then
@@ -541,6 +543,10 @@ function CarSkin.new()
 				paint(cur, car.body.Color)
 			end
 		end
+		exhaust.step(
+			if cur and FireDrake.wants(cur.name) then cur.body else nil,
+			cur ~= nil and car.telemetry.boost > 0
+		)
 	end
 
 	return self

@@ -124,3 +124,18 @@ test("fire drake: CarSkin and OtherCars both ready the model first", function()
 	local drake = fs.readFile("src/client/FireDrake.luau")
 	truthy(drake:find("race_bolt", 1, true), "it is on the black+red car")
 end)
+
+test("fire drake: the tailpipes are at the car's tail, either side of the middle", function()
+	local e = D.EXHAUST
+	truthy(e.x > 0.1 and e.x < 0.4, "pipes either side of the middle, inside the body")
+	truthy(e.z <= -0.45 and e.z >= -0.55, "at the tail")
+	truthy(e.y > -0.5 and e.y < 0, "low on the body")
+end)
+
+test("fire drake: the exhaust jets follow boost, on the black+red car only", function()
+	local skin = fs.readFile("src/client/CarSkin.luau")
+	truthy(skin:find("car.telemetry.boost > 0", 1, true), "boost drives the jets")
+	truthy(skin:find("FireDrake.wants(cur.name)", 1, true), "only the Fire Drake car")
+	local fx = fs.readFile("src/client/ExhaustFx.luau")
+	truthy(fx:find("Enum.NormalId.Front", 1, true), "flames go out the tail (-Z)")
+end)
