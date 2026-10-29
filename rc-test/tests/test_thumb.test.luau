@@ -264,3 +264,42 @@ test(
 		truthy(o4.target and o4.target.x == 10, "unarmed: the box")
 	end
 )
+
+test("stuck and flip moments: one event each, grouped into catch spots", function()
+	local t = ThumbBrain.tally()
+	local events = {}
+	local function run(n: number, moved: number, upY: number)
+		for _ = 1, n do
+			for _, e in ThumbBrain.sample(t, 0.1, moved, upY) or {} do
+				table.insert(events, e)
+			end
+		end
+	end
+	run(25, 0.02, 1) -- 2.5 s on a rock: one stuck moment, not 15
+	run(10, 1.5, 1) -- free
+	run(12, 0.02, 0.1) -- tipped: the flip at 0.5 s, then stuck at 1 s
+	eq(table.concat(events, " "), "stuck flip stuck", "events")
+	-- slow for 0.5 s, then it tips: both moments start on the same frame, both are logged
+	local t2 = ThumbBrain.tally()
+	for _ = 1, 4 do
+		ThumbBrain.sample(t2, 0.125, 0.02, 1) -- (0.125: exact in binary, so 4 + 4 frames = 1 s)
+	end
+	local both = {}
+	for _ = 1, 4 do
+		for _, e in ThumbBrain.sample(t2, 0.125, 0.02, 0.1) or {} do
+			table.insert(both, e)
+		end
+	end
+	eq(table.concat(both, " "), "stuck flip", "same frame")
+	ThumbBrain.spot(t, "stuck", 7, 19, "Rocks.Rock3", true)
+	ThumbBrain.spot(t, "stuck", 8, 20, "Rocks.Rock3", false)
+	ThumbBrain.spot(t, "flip", 9, 21, "Ramps.RampA", false)
+	ThumbBrain.spot(t, "stuck", -40, 5, "Walls.North", true)
+	local list = ThumbBrain.spotList(t.spots, 8)
+	eq(list[1], "(7, 19) 2 stuck 1 flip on Rocks.Rock3", "the busiest spot first")
+	eq(list[2], "(-40, 5) 1 stuck 0 flip on Walls.North", "then the next")
+	local lines = ThumbBrain.report(t, 0, 1, 8, nil)
+	truthy(string.find(lines[4], "stuck moments 3 (2 driving straight", 1, true), lines[4])
+	truthy(string.find(lines[4], "1 turning = the thumb), flips 1", 1, true), lines[4])
+	truthy(string.find(lines[5], "catch spots: (7, 19)", 1, true), lines[5])
+end)
