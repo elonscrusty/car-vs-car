@@ -17,6 +17,9 @@ local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Features = require(Shared:WaitForChild("Features"))
+-- SMASH (10-28): the plot screen is the lobby's: coins, CUSTOMIZE, crates and the SMASH! goal (the
+-- pad in the world starts a match); no coach, training or race goals
+local SMASH = (Features :: any).SMASH == true
 if not (Features.CVC and Features.NEW_UI) then
 	return
 end
@@ -26,6 +29,7 @@ local CvcGoal = require(Shared:WaitForChild("CvcGoal"))
 local League = require(Shared:WaitForChild("League"))
 local Profile = require(Shared:WaitForChild("Profile"))
 local Training = require(Shared:WaitForChild("Training"))
+local SmashScreens = require(Shared:WaitForChild("SmashScreens"))
 local UiTheme = require(Shared:WaitForChild("UiTheme"))
 local CvcState = require(script.Parent:WaitForChild("CvcState"))
 local LeagueUp = require(script.Parent:WaitForChild("LeagueUp"))
@@ -42,7 +46,8 @@ local Shop = require(Screens:WaitForChild("Shop"))
 
 local player = Players.LocalPlayer
 local pgui = player:WaitForChild("PlayerGui")
-local raceEvent = ReplicatedStorage:WaitForChild("ServerRace") :: RemoteEvent
+-- (Smash: the server race is gone; RCControl "quick" puts you on the next round's list)
+local rcControl = ReplicatedStorage:WaitForChild("RCControl") :: RemoteEvent
 
 CvcState.start()
 
@@ -212,8 +217,8 @@ local openGarage: () -> ()
 local openCrates: () -> ()
 
 local function join()
-	if attr("RaceJoined") ~= true then
-		raceEvent:FireServer("join")
+	if attr("MatchQueued") ~= true and attr("InMatch") ~= true then
+		rcControl:FireServer("quick")
 		Sfx.spark()
 	end
 end
@@ -308,7 +313,8 @@ function openCrates()
 		chosen = crateChoice,
 		best = 2,
 		coins = num("Coins"),
-		note = "1 car per crate.",
+		-- (smash: karts; every one drives the same, so a crate is a new look, not a win)
+		note = if SMASH then SmashScreens.WORDS.crateNote else "1 car per crate.",
 	}, {
 		choose = function(i: number)
 			crateChoice = i
@@ -319,7 +325,11 @@ function openCrates()
 				return
 			end
 			if #CvcState.garage >= Profile.MAX_GARAGE then
-				info("lock", "Garage full", "No room for cars.")
+				info(
+					"lock",
+					"Garage full",
+					if SMASH then SmashScreens.WORDS.garageFull else "No room for cars."
+				)
 				return
 			end
 			if ch.kind == "free" then
@@ -490,7 +500,7 @@ function openGarage()
 			kind = kindOf(car.id),
 			tone = if racing then "lime" else "blue",
 			badge = if racing then "RACE" elseif st then "TRAIN" else nil,
-			stats = stats,
+			stats = if SMASH then nil else stats,
 		})
 	end
 	local onTrack = {}
@@ -677,7 +687,8 @@ local function carTag()
 	pill.BackgroundTransparency = 0.15
 	Base.corner(pill)
 	Base.outline(pill, 3, Base.color("go"))
-	Base.text(pill, "Words", 10, 4, 240, 32, `{CvcState.name(car.id)}  SPD {spd}`, {
+	local words = if SMASH then CvcState.name(car.id) else `{CvcState.name(car.id)}  SPD {spd}`
+	Base.text(pill, "Words", 10, 4, 240, 32, words, {
 		color = Base.color("go"),
 		stroke = 4,
 		z = 3,
@@ -718,7 +729,8 @@ local coachedAt = 0 -- (os.clock) this visit's last COACH tap
 -- a crate (gap 4 of the first-10 timeline: always something to save up for). nil = nothing left.
 local function nextBuy(): (string?, number, string?)
 	local coins = num("Coins")
-	local station = Training.plotCost(CvcState.plotLevel)
+	-- (SMASH: no training stations, only crates)
+	local station = if SMASH then nil else Training.plotCost(CvcState.plotLevel)
 	local crate = if #CvcState.garage < Profile.MAX_GARAGE then CvcGoal.cheapest() else nil
 	if crate == math.huge then
 		crate = nil
@@ -741,6 +753,18 @@ local nextKind: string? = nil
 local function hudGoal(): (string?, string?)
 	if attr("Picked") ~= true then
 		return nil, nil
+	end
+	if SMASH then
+		if CvcState.crates > 0 then
+			return "Crates", "OPEN CRATE!"
+		end
+		if num("Coins") >= CvcGoal.cheapest() and #CvcState.garage < Profile.MAX_GARAGE then
+			return "Crates", "GET A CRATE!"
+		end
+		if attr("InMatch") == true or attr("MatchQueued") == true then
+			return nil, nil
+		end
+		return "Race", "GO SMASH!"
 	end
 	local joined = attr("RaceJoined") == true
 	if num("Stage") < Profile.STAGE.RACED then
@@ -812,6 +836,18 @@ local function invite()
 	end)
 end
 
+-- SMASH: CUSTOMIZE is WINDOWS' window (SmashCustomize.client listens on OpenCustomize)
+local function openCustomize()
+	local ev = ReplicatedStorage:FindFirstChild("OpenCustomize")
+	if ev and ev:IsA("BindableEvent") then
+		ev:Fire()
+	end
+end
+-- SMASH: the pad in the world starts a match, so the SMASH! button says where it is
+local function smashHow()
+	info("power", "SMASH!", "Drive onto the SMASH! pad to play!")
+end
+
 local function openHud(stagger: boolean)
 	local car = racer()
 	hud = Hud.plot({
@@ -821,11 +857,11 @@ local function openHud(stagger: boolean)
 		car = { name = if car then CvcState.name(car.id) else "", stats = hudBars(car) },
 		dots = {
 			Crates = if CvcState.crates > 0 then CvcState.crates else nil,
-			Garage = trainDot(),
+			Garage = if SMASH then nil else trainDot(),
 		},
 		-- (the garage is where a car goes on a station: the tile says so, 10 s test)
-		words = { Garage = "TRAIN" },
-		race = "RACE!",
+		words = { Garage = if SMASH then "CUSTOMIZE" else "TRAIN" },
+		race = if SMASH then "SMASH!" else "RACE!",
 		jobs = jobsWords() or "JOBS",
 		invite = "INVITE",
 		next = (function()
@@ -839,7 +875,7 @@ local function openHud(stagger: boolean)
 		banner = false,
 		myCar = false,
 	}, {
-		Garage = openGarage,
+		Garage = if SMASH then openCustomize else openGarage,
 		Crates = openCrates,
 		Shop = function()
 			-- (no Robux prices until carter sets them: SOON, not R$ ???)
@@ -865,7 +901,7 @@ local function openHud(stagger: boolean)
 				if n < #League.NAMES then "Get top 3 to move up!" else "Top league!"
 			)
 		end,
-		race = join,
+		race = if SMASH then smashHow else join,
 		jobs = openJobs,
 		invite = invite,
 		-- (full: the buy itself; not yet: where it's bought, to see what it gets)
@@ -890,6 +926,9 @@ local function openHud(stagger: boolean)
 			end
 		end,
 	})
+	if SMASH and hud then
+		hud.api.setShown("Coach", false) -- (from the first frame, not the next tick)
+	end
 end
 
 local function refreshHud()
@@ -901,7 +940,7 @@ local function refreshHud()
 	local car = racer()
 	api.setCar(if car then CvcState.name(car.id) else "", hudBars(car))
 	api.setDot("Crates", if CvcState.crates > 0 then CvcState.crates else nil)
-	api.setDot("Garage", trainDot())
+	api.setDot("Garage", if SMASH then nil else trainDot())
 	api.setJobs(jobsWords() or "JOBS")
 end
 
@@ -945,7 +984,8 @@ RunService.Heartbeat:Connect(function()
 	local api = h.api
 	-- one step at a time: a tile shows once it has something for you (first 10 minutes)
 	local stage = num("Stage")
-	local raced = stage >= Profile.STAGE.RACED
+	-- (SMASH: the lobby shows its tiles from the start; there's no first race to wait for)
+	local raced = SMASH or stage >= Profile.STAGE.RACED
 	local shopped = stage >= Profile.STAGE.SHOPPED
 	api.setShown("Crates", raced or CvcState.crates > 0)
 	api.setShown("Garage", raced or #CvcState.garage > 1 or trainDot() ~= nil)
@@ -980,6 +1020,26 @@ RunService.Heartbeat:Connect(function()
 	end
 	-- (after the first race, with the other later things: one new thing at a time)
 	api.setShown("Next", raced and nk ~= nil)
+	if SMASH then
+		-- SMASH! / YOU'RE IN! m:ss (the pad queues you); no coach
+		-- (the NextUp banner stays off over the 3D plot, as in the race game: the clock is on the
+		-- button once you're queued)
+		api.setShown("Coach", false)
+		local queued = attr("MatchQueued") == true
+		api.setShown("Race", attr("InMatch") ~= true)
+		local at = workspace:GetAttribute("NextMatchAt")
+		local left = if type(at) == "number" then at - workspace:GetServerTimeNow() else nil
+		if queued then
+			api.setRace(
+				if left and left > 0 then `YOU'RE IN! {clock(left)}` else "YOU'RE IN!",
+				"blue",
+				false
+			)
+		else
+			api.setRace("SMASH!", "lime", goal == "Race")
+		end
+		return
+	end
 	-- BIG RACE in m:ss, and RACE! / YOU'RE IN! (white words on blue: never yellow on yellow)
 	local raw = workspace:GetAttribute("NextRaceAt")
 	local left = if type(raw) == "number" then raw - workspace:GetServerTimeNow() else nil
@@ -1132,6 +1192,11 @@ task.spawn(function()
 	while not CvcState.loaded do
 		task.wait(0.2)
 	end
+	-- SMASH: no pick screen (it would cover the match); the server gives a new kid the first
+	-- starter kart as their save loads (GARAGE)
+	if (Features :: any).SMASH == true then
+		return
+	end
 	while attr("Picked") ~= true do
 		if not Screen.isOpen("pick") then
 			openPick()
@@ -1146,6 +1211,9 @@ end)
 -- ===== a new car from a crate: the reveal =====
 
 local function revealNote(id: string): string
+	if SMASH then
+		return SmashScreens.WORDS.revealNote
+	end
 	for _, car in CvcState.garage do
 		if car.id == id and CvcState.stationOf(car.uid) then
 			return "It's training!"
@@ -1170,7 +1238,7 @@ local function reveal(id: string, rarity: string)
 		color = colorOf(id),
 		kind = kindOf(id),
 		new = true,
-		stats = stats,
+		stats = if SMASH then nil else stats,
 		-- (the new car goes onto a free station by itself: then there's nothing to tap; with every
 		-- station full it only waits in the garage, Studio pr847 shot 03)
 		note = revealNote(id),
@@ -1275,6 +1343,7 @@ local function showPodiumWith(place: number, top: { [number]: { [string]: any } 
 	local me = racer()
 	local spd = if me then math.floor((CvcState.bar(me, "speed"))) else nil
 	local trained = if spd
+			and not SMASH
 			and spdAtRace
 			and spd > spdAtRace
 		then `+{spd - spdAtRace} SPD from training!`
@@ -1368,11 +1437,8 @@ local function showPodium(rows: { any })
 	)
 end
 
-raceEvent.OnClientEvent:Connect(function(what: unknown, a: unknown)
-	if what == "result" and type(a) == "table" then
-		showPodium(a :: { any })
-	end
-end)
+-- (the race result's podium: the server race is gone; a round's end screen is WINDOWS')
+local _ = showPodium
 
 -- (a race you were paid for whose result list never came, Studio live3 race 4: the podium shows
 -- your own place and coins anyway, a few seconds later)

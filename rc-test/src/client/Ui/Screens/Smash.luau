@@ -4,6 +4,7 @@
 -- 3-step how-to over a match (DRIVE!, GRAB A ?, TAP FIRE!). Places come from shared/SmashScreens,
 -- words and numbers from shared/MatchEnd.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local UiTheme = require(Shared:WaitForChild("UiTheme"))
@@ -230,6 +231,219 @@ function Smash.matchEnd(view: MatchEnd.View, actions: Screen.Actions?): Screen.H
 	end)
 end
 
+-- ===== Customize: KARTS / HATS tabs, a grid, EQUIP, and the kart you drive (with its hat) on a
+-- card =====
+
+-- A simple hat drawing (brim + crown) in a colour: the hat pictures come later (REWARDS).
+local function hat(parent: Instance, x: number, y: number, s: number, color: Color3): Frame
+	local f = Base.box(parent, "Hat", x, y, s, s, 6)
+	local crown = Base.fill(f, "Crown", s * 0.28, s * 0.18, s * 0.44, s * 0.5, color, 6)
+	Base.corner(crown, 6)
+	Base.outline(crown, UiTheme.OUTLINE.normal)
+	Kit.gloss(crown, color, 0.35)
+	local brim = Base.fill(f, "Brim", s * 0.1, s * 0.62, s * 0.8, s * 0.16, color, 7)
+	Base.corner(brim)
+	Base.outline(brim, UiTheme.OUTLINE.normal)
+	return f
+end
+
+local function rarityColor(r: string?): Color3
+	return Base.color(UiTheme.RARITY[UiTheme.rarityId(r or "common")].color)
+end
+
+-- data: { tab: 1 | 2, karts = { Item }, hats = { Item }?, hatsSoon: boolean?,
+--   driving = { id, name, rarity }?, hatOn = { name, rarity }? }
+--   Item = { name, rarity, id? (a kart's car id), own: boolean?, on: boolean? }
+-- actions: tab(i), equip(tab, i), close()
+function Smash.customize(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
+	return Screen.open("customize", "window", false, function(g)
+		local o: { [string]: any } = { onClose = Screen.act(actions, "close") }
+		local win = Kit.window(g.canvas, piece("customize", "Window"), o)
+		win.open()
+		local c = win.content
+		local tab = if data.tab == 2 then 2 else 1
+		local picked = 1
+		local gp = piece("customize", "Window.Grid")
+		local np = piece("customize", "Window.Note")
+		local grid: Frame? = nil
+		local note: TextLabel? = nil
+		local ep = piece("customize", "Window.Equip")
+		local equip: TextButton
+		local function list(): { any }
+			return (if tab == 1 then data.karts else data.hats) or {}
+		end
+		local function refreshButton()
+			local words, works = SmashScreens.equipButton(list()[picked], tab == 2)
+			Kit.setWords(equip, words)
+			Kit.enable(equip, works)
+		end
+		equip = Kit.button(c, "Equip", ep.x, ep.y, ep.w, ep.h, "lime", "EQUIP", {
+			main = true,
+			onClick = function()
+				local _, works = SmashScreens.equipButton(list()[picked], tab == 2)
+				if works then
+					Screen.act(actions, "equip")(tab, picked)
+				end
+			end,
+		})
+		local function fill()
+			if grid then
+				grid:Destroy()
+			end
+			if note then
+				note:Destroy()
+				note = nil
+			end
+			local holder = Base.box(c, "Grid", gp.x, gp.y, gp.w, gp.h, 3)
+			grid = holder
+			local items = list()
+			if tab == 2 and data.hatsSoon then
+				Base.text(holder, "Soon", 0, gp.h / 2 - 24, gp.w, 48, "HATS COMING SOON!", {
+					color = Base.color("blue"),
+					stroke = 5,
+					strokeColor = WHITE,
+					z = 4,
+				})
+				refreshButton()
+				Kit.enable(equip, false)
+				return
+			end
+			local cols, size, gap = 6, 62, 15
+			local slots: { Kit.Slot } = {}
+			local shown: { GuiObject } = {}
+			-- the one on now is picked first
+			picked = 1
+			for i, it in items do
+				if it.on then
+					picked = i
+				end
+			end
+			for i, it in items do
+				if i > cols * 3 then
+					break -- (3 rows fit; a scroller can come with more karts)
+				end
+				local col, r = (i - 1) % cols, (i - 1) // cols
+				local isKart = tab == 1
+				local s = Kit.slot(
+					holder,
+					"Item" .. i,
+					4 + col * (size + gap),
+					4 + r * (size + gap),
+					size,
+					{
+						tone = if it.own == false then "locked" elseif it.on then "lime" else "blue",
+						badge = if it.on then "ON" else nil,
+						selected = i == picked,
+						car = if isKart then { id = it.id, color = carColor(it.id, 1) } else nil,
+					}
+				)
+				if not isKart and it.own ~= false then
+					hat(s.button, size * 0.15, size * 0.12, size * 0.7, rarityColor(it.rarity))
+				end
+				s.button.Activated:Connect(function()
+					local was = slots[picked]
+					if was then
+						was.setSelected(false)
+					end
+					picked = i
+					s.setSelected(true)
+					refreshButton()
+					if note then
+						note.Text =
+							`{string.upper(it.name or "")}, {UiTheme.RARITY[UiTheme.rarityId(
+								it.rarity or "common"
+							)].word}`
+					end
+				end)
+				slots[i] = s
+				table.insert(shown, s.button)
+			end
+			Anim.cascade(shown)
+			local first = items[picked]
+			note = Base.text(
+				c,
+				"Note",
+				np.x,
+				np.y,
+				np.w,
+				np.h,
+				if first
+					then `{string.upper(first.name or "")}, {UiTheme.RARITY[UiTheme.rarityId(
+						first.rarity or "common"
+					)].word}`
+					else if tab == 1 then "Open a crate to get a kart!" else "No hats yet.",
+				{ color = Base.color("inkMuted"), align = "l", z = 4 }
+			)
+			refreshButton()
+		end
+		local tp = piece("customize", "Window.Tabs")
+		local tabs: Kit.Tabs
+		tabs = Kit.tabs(c, tp.x, tp.y, tp.w, tp.h, { "KARTS", "HATS" }, tab, function(i: number)
+			tabs.set(i) -- (Kit.tabs only tells us: the highlight moves here)
+			tab = i
+			Screen.act(actions, "tab")(i)
+			fill()
+		end)
+		fill()
+		-- the kart you drive, with its hat
+		local d = data.driving
+		if d then
+			local cp = piece("customize", "Card")
+			local spotF = spot(g.canvas, "customize", "Card")
+			local card = Kit.card(spotF, "Card", 0, 0, cp.w, cp.h, {
+				name = d.name,
+				rarity = d.rarity,
+				carId = d.id,
+				color = carColor(d.id, 1),
+				tilt = 2,
+			})
+			local h = data.hatOn
+			if h then
+				hat(card.card, cp.w / 2 - 22, card.contentY + 4, 44, rarityColor(h.rarity))
+				Base.text(
+					card.card,
+					"HatName",
+					8,
+					card.contentY + 52,
+					cp.w - 16,
+					22,
+					string.upper(h.name or ""),
+					{
+						stroke = 4,
+						z = 6,
+					}
+				)
+			else
+				Base.text(card.card, "HatName", 8, card.contentY + 20, cp.w - 16, 22, "NO HAT", {
+					stroke = 4,
+					z = 6,
+				})
+			end
+		elseif #(data.karts or {}) == 0 then
+			-- (a new kid with no kart yet: say where karts come from, not an empty card)
+			local cp = piece("customize", "Card")
+			local spotF = spot(g.canvas, "customize", "Card")
+			local box = Base.fill(spotF, "Empty", 0, 0, cp.w, cp.h, Base.color("blue"), 3)
+			Base.corner(box, 14)
+			Base.outline(box, UiTheme.OUTLINE.normal)
+			Base.text(
+				box,
+				"Words",
+				10,
+				cp.h / 2 - 40,
+				cp.w - 20,
+				80,
+				"OPEN A CRATE TO GET A KART!",
+				{
+					stroke = 4,
+					z = 6,
+				}
+			)
+		end
+		return {}
+	end)
+end
+
 -- ===== How-to: one tip card at a time =====
 
 -- The red "?" box the arena has (drawn here, no picture needed).
@@ -264,10 +478,10 @@ function Smash.howTo(step: number, actions: Screen.Actions?): Screen.Handle
 			table.insert(built, card)
 			local tx = 14
 			if st.id == "grab" then
-				questionBox(card, 14, (tp.h - 56) / 2, 56)
-				tx = 82
+				questionBox(card, 12, (tp.h - 52) / 2, 52)
+				tx = 74
 			end
-			Base.text(card, "Words", tx, 8, tp.w - tx - 14, 46, st.words, {
+			Base.text(card, "Words", tx, 4, tp.w - tx - 14, tp.h * 0.55, st.words, {
 				color = Base.color("blue"),
 				stroke = 6,
 				strokeColor = WHITE,
@@ -275,7 +489,7 @@ function Smash.howTo(step: number, actions: Screen.Actions?): Screen.Handle
 				dropColor = Base.color("blueDeep"),
 				z = 5,
 			})
-			Base.text(card, "Help", tx, 58, tp.w - tx - 14, 24, st.help, {
+			Base.text(card, "Help", tx, tp.h * 0.6, tp.w - tx - 14, tp.h * 0.3, st.help, {
 				color = Base.color("inkMuted"),
 				z = 5,
 			})
@@ -289,11 +503,13 @@ function Smash.howTo(step: number, actions: Screen.Actions?): Screen.Handle
 			tap.Parent = card
 			tap.Activated:Connect(Screen.act(actions, "skip"))
 			Anim.pop(card, 0.38, 0.8)
-			if st.arrow then
+			-- (the DRIVE arrow points at the phone's stick; with no stick on screen it meant
+			-- nothing, audit R3-1)
+			if st.arrow and (st.id ~= "drive" or UserInputService.TouchEnabled) then
 				local ap = piece("howTo", st.arrow)
 				local a =
 					Icons.make(spot(g.canvas, "howTo", st.arrow), "arrow", 0, 0, ap.w, { z = 6 })
-				a.Rotation = 90 -- the arrow points right; down at the stick or FIRE
+				a.Rotation = st.rot
 				Anim.bob(a.Parent :: GuiObject, 0.9, 8)
 				table.insert(built, a.Parent :: Instance)
 			end

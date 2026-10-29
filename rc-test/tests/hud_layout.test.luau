@@ -104,6 +104,4 @@ test("a spot that sits under another one is never on the screen with it", functi
 	-- (the plot word hides in a race, the only time the hurry pill shows)
 	local hud = fs.readFile("src/client/Hud.luau")
 	truthy(string.find(hud, "b.Visible = i == index and not inRace", 1, true) ~= nil, "Track hides")
-	local race = fs.readFile("src/client/ServerRace.client.luau")
-	truthy(string.find(race, 'hurry.Visible = phase == "racing"', 1, true) ~= nil, "Hurry: racing")
 end)

@@ -19,15 +19,11 @@ Features.CVC = true
 -- in place of the old Kart ones. false brings the old screens back. The race itself and its
 -- result card stay as they were for now.
 Features.NEW_UI = true
--- The high locked camera over your stations while you stand on your plot's pad (PlotCam.client).
--- Off (carter 10-28: "walk around the lobby during training, not a locked viewpoint"): the normal
--- walking camera stays. Training runs while you are in the game either way.
-Features.PLOT_CAM = false
-
 -- Car VS Car SMASH (carter 10-28 "yes", plans/smash/MASTER-PLAN.md): the arena match with "?"
 -- boxes and weapons, and the plot as a garage with no training. The one flag for every Smash
 -- part: off keeps the racing and training game working; the lead turns it on at phase 3.
-Features.SMASH = false
+-- (Studio proof runs: a workspace attribute Smash = true starts MatchRunner, Main.server.)
+Features.SMASH = true
 
 -- Phone speed, waiting for Studio numbers. Both are off / unchanged until someone flips them.
 -- Plot cars are moved this many times a second (60 = every frame, as before; 30 = half the work).

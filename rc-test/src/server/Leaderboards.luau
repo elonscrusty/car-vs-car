@@ -462,7 +462,7 @@ function Leaderboards.start()
 	local originZ = LobbyLayout.PLAZA.maxZ - 36 -- the same origin LobbyBuilder gives the spawn lobby
 	local maps: { { id: string, label: string } } = {}
 	-- Car VS Car Smash has no race tracks: only the trophies board, no fastest-lap boards
-	if not (Features.CVC and (Features :: any).SMASH == true) then
+	if not (Features.CVC and Features.SMASH) then
 		for _, m in RaceMaps.list() do
 			table.insert(maps, { id = m.id, label = m.label })
 		end

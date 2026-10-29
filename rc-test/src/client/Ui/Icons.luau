@@ -291,6 +291,27 @@ DRAW.mine = function(c)
 	shape(c, "Light", 38, 38, 24, 24, red, nil, 6, nil, 5)
 end
 
+DRAW.nuke = function(c)
+	local go, navy = Base.color("go"), Base.color("navy")
+	-- a fat yellow bomb lying up-right: tail fins, a navy band, three navy dots (the warning mark)
+	shape(c, "FinA", 8, 52, 30, 18, navy, 4, 6, 45, 1)
+	shape(c, "FinB", 30, 74, 18, 30, navy, 4, 6, 45, 1)
+	shape(c, "Body", 22, 18, 62, 62, go, nil, 6, nil, 3)
+	Base.fill(c, "Band", 46, 26, 10, 46, navy, 5).Rotation = 45
+	shape(c, "DotA", 56, 26, 12, 12, navy, nil, 6, nil, 6)
+	shape(c, "DotB", 64, 46, 12, 12, navy, nil, 6, nil, 6)
+	shape(c, "DotC", 44, 52, 12, 12, navy, nil, 6, nil, 6)
+end
+
+DRAW.freeze = function(c)
+	local ice = Base.color("blue")
+	-- a snowflake: three white bars crossing, an ice-blue middle
+	for i, rot in { 0, 60, 120 } do
+		shape(c, "Bar" .. i, 44, 6, 12, 88, WHITE, 6, 6, rot, 1)
+	end
+	shape(c, "Middle", 34, 34, 32, 32, ice, nil, 6, 45, 3)
+end
+
 DRAW.mystery = function(c)
 	local red = Base.color("danger")
 	shape(c, "Box", 10, 10, 80, 80, red, 14, 7, nil, 2)

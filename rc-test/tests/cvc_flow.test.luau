@@ -12,6 +12,13 @@ local Profile = require("../src/shared/Profile")
 local Training = require("../src/shared/Training")
 
 local test, eq, truthy = H.test, H.eq, H.truthy
+-- (Car VS Car SMASH drops the training-era fields on load) these tests round-trip them, so they
+-- run with them kept
+local function trainingEra(name: string, fn: () -> ())
+	test(name, function()
+		H.withTraining(Profile, fn)
+	end)
+end
 
 print("Car VS Car: a new player's first minutes")
 
@@ -124,7 +131,7 @@ test("flow: no wins means no league up, however strong the car", function()
 	eq(run.data.trophies, 0)
 end)
 
-test("flow: the save keeps everything after a play", function()
+trainingEra("flow: the save keeps everything after a play", function()
 	local run = play(10, { 1, 1, 2 })
 	local back = Profile.migrate(run.data)
 	eq(#back.garage, #run.data.garage)

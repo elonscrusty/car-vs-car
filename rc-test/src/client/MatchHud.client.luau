@@ -9,7 +9,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
-local Features = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Features"))
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Features = require(Shared:WaitForChild("Features"))
 -- (only with the SMASH game on: the racing game keeps working with it off)
 if (Features :: any).SMASH ~= true then
 	return
@@ -18,6 +19,8 @@ end
 local Ui = script.Parent:WaitForChild("Ui")
 local Screen = require(Ui:WaitForChild("Screen"))
 local Hud = require(Ui:WaitForChild("Screens"):WaitForChild("Hud"))
+local SmashJuice = require(Shared:WaitForChild("SmashJuice"))
+local Sfx = require(script.Parent:WaitForChild("Sfx"))
 
 local player = Players.LocalPlayer
 
@@ -132,7 +135,7 @@ local function refresh()
 		return
 	end
 	local api = h.api
-	api.setPlace(num("Place", 1), karts())
+	api.setPlace(num("Place", 1), karts(), num("Smashes", 0))
 	api.setHealth(num("Health", 100), num("MaxHealth", 100), attr("Shield") == true)
 	local w = attr("Weapon")
 	api.setWeapon(if type(w) == "string" then w else "", num("Ammo", 0))
@@ -144,6 +147,7 @@ local function open()
 	hud = Hud.match({
 		place = num("Place", 1),
 		total = karts(),
+		smashes = num("Smashes", 0),
 		secs = math.max(0, math.ceil(num("MatchEndsAt", 0) - workspace:GetServerTimeNow())),
 		hp = num("Health", 100),
 		maxHp = num("MaxHealth", 100),
@@ -166,7 +170,17 @@ local function check()
 end
 
 for _, name in
-	{ "Health", "MaxHealth", "Shield", "Place", "Weapon", "Ammo", "MatchEndsAt", "InMatch" }
+	{
+		"Health",
+		"MaxHealth",
+		"Shield",
+		"Place",
+		"Smashes",
+		"Weapon",
+		"Ammo",
+		"MatchEndsAt",
+		"InMatch",
+	}
 do
 	player:GetAttributeChangedSignal(name):Connect(check)
 end
@@ -232,11 +246,15 @@ RunService.Heartbeat:Connect(function()
 		lastBoard = os.clock()
 		local list = boardList()
 		h.api.setBoard(list)
-		h.api.setPlace(num("Place", 1), karts())
+		h.api.setPlace(num("Place", 1), karts(), num("Smashes", 0))
 	end
 	local left = num("MatchEndsAt", 0) - workspace:GetServerTimeNow()
 	local secs = math.max(0, math.ceil(left))
 	if secs ~= lastSecs then
+		-- the clock hits 0 once per match (SOUNDS 10-28; the 3-2-1-GO is MATCH's, not here)
+		if secs == 0 and lastSecs > 0 then
+			Sfx.matchEnd()
+		end
 		lastSecs = secs
 		h.api.setClock(secs)
 	end
@@ -255,24 +273,8 @@ UserInputService.InputBegan:Connect(function(input: InputObject, processed: bool
 	end
 end)
 
--- the kill list: names from the server (a player's DisplayName, a bot's name), your own rows lime
-local function nameOf(who: unknown): string
-	if type(who) == "string" then
-		return who
-	end
-	if type(who) == "number" then
-		local p = Players:GetPlayerByUserId(who)
-		return if p then p.DisplayName else "BOT"
-	end
-	if typeof(who) == "Instance" and (who :: Instance):IsA("Player") then
-		return (who :: Player).DisplayName
-	end
-	return "?"
-end
-local function isMe(who: unknown): boolean
-	return who == player or who == player.UserId or who == player.DisplayName or who == player.Name
-end
-
+-- the kill list: SmashFeed's sides read by SmashJuice (a Player, a bot's name, or
+-- { name, userId?, kart? }; nil attacker = the arena got them), your own rows lime
 task.spawn(function()
 	local feedRemote = ReplicatedStorage:WaitForChild(FEED_REMOTE, math.huge)
 	if not (feedRemote and feedRemote:IsA("RemoteEvent")) then
@@ -283,11 +285,16 @@ task.spawn(function()
 		if not h then
 			return
 		end
+		local f = SmashJuice.read(attacker, victim, weapon, player.UserId)
+		if not f then
+			return
+		end
+		local a = f.attacker
 		h.api.feed(
-			nameOf(attacker),
-			nameOf(victim),
-			if type(weapon) == "string" then weapon else nil,
-			isMe(attacker) or isMe(victim)
+			if a then SmashJuice.shortName(a.name) else "ARENA",
+			SmashJuice.shortName(f.victim.name),
+			f.weapon,
+			(a ~= nil and a.me) or f.victim.me
 		)
 	end)
 end)

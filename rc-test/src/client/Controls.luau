@@ -85,7 +85,10 @@ local function holdButton(
 		f.BackgroundColor3 = color:Lerp(Color3.new(1, 1, 1), 0.3)
 		local conn: RBXScriptConnection
 		conn = input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
+			if
+				input.UserInputState == Enum.UserInputState.End
+				or input.UserInputState == Enum.UserInputState.Cancel
+			then
 				held = false
 				f.BackgroundColor3 = color
 				conn:Disconnect()
@@ -266,6 +269,18 @@ function Controls.new(
 			end)
 		end)
 	end
+	-- DRIFT stays in SMASH too (carter: drifting is part of the game), above FIRE at the right edge
+	if touchUi then
+		drift = holdButton(
+			gui,
+			"DRIFT",
+			Vector2.new(1, 1),
+			-- (lower in SMASH: at 0.58 the kill list's bottom edge covered its top; FIRE is below)
+			UDim2.fromScale(0.97, if stickGas then 0.62 else 0.58),
+			0.22,
+			Color3.fromRGB(70, 130, 235)
+		)
+	end
 	if touchUi and not stickGas then
 		gas = holdButton(
 			gui,
@@ -282,14 +297,6 @@ function Controls.new(
 			UDim2.fromScale(0.76, 0.95),
 			0.22,
 			Color3.fromRGB(215, 70, 70)
-		)
-		drift = holdButton(
-			gui,
-			"DRIFT",
-			Vector2.new(1, 1),
-			UDim2.fromScale(0.97, 0.58),
-			0.22,
-			Color3.fromRGB(70, 130, 235)
 		)
 		-- BRAKE sits just left of GAS on every screen (GAS is 0.34 of the height wide, so on a
 		-- 4:3 tablet a fixed 0.76 would push them together). See HudLayout "Brake".
@@ -444,7 +451,9 @@ function Controls.new(
 	autoBtn.Text = "AUTO GAS"
 	HudLayout.place(autoBtn, "AutoGas", "drive")
 	autoBtn.Parent = gui
-	autoBtn.Visible = not stickGas -- (the stick is the gas)
+	-- (not in SMASH at all: the stick is a phone's gas, W a computer's; Audit F12)
+	local smash = (Features :: any).SMASH == true
+	autoBtn.Visible = not smash
 	-- alone (SMOKE, VIEW and CAM held back for a new player) it takes CAM's spot at the right edge:
 	-- at its own spot it stood alone in the middle of a wide screen, over the track signs (Studio
 	-- batch-2035 6)
@@ -506,7 +515,7 @@ function Controls.new(
 		-- CAM and VIEW do nothing there, so hide both and close the gap
 		viewBtn.Visible = not on
 		onRockNow = on
-		autoBtn.Visible = not on and not stickGas
+		autoBtn.Visible = not on and not smash
 		smokeBtn.Visible = not on and not inRace
 		camBtn.Visible = not on and not inRace
 		backBtn.Visible = on and not touchUi

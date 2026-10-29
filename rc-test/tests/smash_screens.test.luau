@@ -138,6 +138,42 @@ test(
 	end
 )
 
+test("how-to tips never cover the match HUD (board, feed, clock, health, FIRE)", function()
+	for _, tip in SmashScreens.get("howTo").pieces do
+		for _, hud in UiScreens.get("match").pieces do
+			truthy(not UiScreens.overlap(tip, hud), `howTo.{tip.name} covers match.{hud.name}`)
+		end
+	end
+end)
+
+test("how-to tips and arrows stay out of the middle third (the road ahead)", function()
+	for _, tip in SmashScreens.get("howTo").pieces do
+		truthy(tip.x + tip.w <= 252 or tip.x >= 504, `howTo.{tip.name} sits in the middle`)
+	end
+end)
+
+test("Smash crate words: no training, racing or stats", function()
+	for key, words in SmashScreens.WORDS do
+		local low = string.lower(words)
+		for _, bad in { "train", "race", "racing", "coach", "spd", "speed", "stat", "car " } do
+			truthy(not low:find(bad, 1, true), `WORDS.{key} says "{bad}": {words}`)
+		end
+	end
+end)
+
+test("how-to tip ends well above the FIRE / gas circle", function()
+	local tip = SmashScreens.piece("howTo", "Tip")
+	local fire = UiScreens.piece("match", "Fire")
+	truthy(tip.y + tip.h <= fire.y - 50, "the tip sits on the FIRE circle")
+end)
+
+test("how-to: TAP FIRE! shows only with a weapon", function()
+	eq(SmashScreens.cardFor(3, ""), 0)
+	eq(SmashScreens.cardFor(3, "Rockets"), 3)
+	eq(SmashScreens.cardFor(2, ""), 2)
+	eq(SmashScreens.cardFor(1, ""), 1)
+end)
+
 test("how-to: drive, grab, fire; doing a later thing first skips ahead", function()
 	eq(#SmashScreens.STEPS, 3)
 	local none = { moved = 0, weapon = "", fired = false }
@@ -154,4 +190,27 @@ test("how-to: drive, grab, fire; doing a later thing first skips ahead", functio
 			truthy(SmashScreens.piece("howTo", st.arrow))
 		end
 	end
+end)
+
+test("customize: EQUIP works only on an owned thing that isn't on yet", function()
+	eq(select(1, SmashScreens.equipButton({ own = true, on = false })), "EQUIP")
+	eq(select(2, SmashScreens.equipButton({ own = true, on = false })), true)
+	eq(select(1, SmashScreens.equipButton({ own = true, on = true })), "ON")
+	eq(select(2, SmashScreens.equipButton({ own = true, on = true })), false)
+	eq(select(1, SmashScreens.equipButton({ own = false })), "LOCKED")
+	eq(select(2, SmashScreens.equipButton({ own = false })), false)
+	eq(select(2, SmashScreens.equipButton(nil)), false)
+	eq(select(1, SmashScreens.equipButton({ own = true, on = true }, true)), "TAKE OFF")
+	eq(select(2, SmashScreens.equipButton({ own = true, on = true }, true)), true)
+	-- the window keeps the phone rules (title, X and slab room)
+	local w = SmashScreens.piece("customize", "Window")
+	truthy(w.y >= UiScreens.WINDOW_TOP and w.x >= UiScreens.WINDOW_LEFT)
+	truthy(w.x + w.w + UiScreens.WINDOW_RIGHT <= UiScreens.W)
+	for _, q in w.inner or {} do
+		truthy(
+			q.x >= 0 and q.y >= 0 and q.x + q.w <= w.w and q.y + q.h <= w.h,
+			q.name .. " runs out of its window"
+		)
+	end
+	truthy(not UiScreens.overlap(w, SmashScreens.piece("customize", "Card")))
 end)

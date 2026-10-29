@@ -9,15 +9,18 @@
 local Freeze = {}
 
 Freeze.NAME = "Freeze"
+-- RC size: big units (a kart is 3 x 5.5 big) times SCALE (= TrackData.RC_SCALE; a test checks)
+Freeze.SCALE = 0.25
+local S = Freeze.SCALE
 Freeze.ammo = 2
 Freeze.cooldown = 0.8
 Freeze.FROZEN = 2.5 -- seconds stuck in the ice
 Freeze.DAMAGE = 10 -- the freeze itself hurts a little
 Freeze.SHATTER = 1000 -- more than any health: a shattered kart is smashed
-Freeze.RANGE = 120
+Freeze.RANGE = 160 * S -- the gun's reach
 Freeze.CONE = math.cos(math.rad(18))
-Freeze.MUZZLE = 4
-Freeze.HEIGHT = 1.5
+Freeze.MUZZLE = 3.5 * S
+Freeze.HEIGHT = 1.5 * S
 
 export type Kart = { id: any, cframe: CFrame, alive: boolean }
 export type Hit = { kartId: any?, position: Vector3 }

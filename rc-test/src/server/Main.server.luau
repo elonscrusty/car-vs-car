@@ -10,14 +10,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local Forever = require(ReplicatedStorage.Shared.Forever)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
-local RaceStand = require(ReplicatedStorage.Shared.RaceStand)
 local CarBuilder = require(script.Parent.CarBuilder)
 local LobbyBuilder = require(script.Parent.LobbyBuilder)
-local ServerRaceRunner = require(script.Parent.ServerRaceRunner)
+local MatchRunner = require(script.Parent.MatchRunner)
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local JoinStage = require(ReplicatedStorage.Shared.JoinStage)
 local Features = require(ReplicatedStorage.Shared.Features)
-local SpawnLobby = require(ReplicatedStorage.Shared.SpawnLobby)
 local LobbyPlots = require(script.Parent.LobbyPlots)
 local PlotGarage = require(ReplicatedStorage.Shared.PlotGarage)
 local TrackBuilder = require(script.Parent.TrackBuilder)
@@ -36,7 +34,6 @@ for _, name in { "Baseplate", "SpawnLocation" } do
 end
 
 TrackBuilder.build()
-require(script.Parent.RaceMapBuilder).build() -- the big race maps (Backyard, Kitchen), far away
 PlotDecorBuilder.build()
 PlotLooksBuilder.start()
 PlotShop.start()
@@ -48,7 +45,7 @@ if not Features.CVC then
 	require(script.Parent.TycoonServer).start() -- parked cars make coins in their owner's plot
 end
 if Features.CVC then
-	require(script.Parent.TrainingServer).start() -- Car VS Car: cars train on their owner's plot
+	require(script.Parent.GarageServer).start() -- Car VS Car: your cars, crates, the car you play with
 	require(script.Parent.FriendBonus).start() -- Car VS Car: coins for playing with a friend
 	require(script.Parent.XpServer).start() -- Car VS Car: XP and levels (the Level badge)
 end
@@ -156,6 +153,29 @@ local function addRemote(character: Model)
 	end
 end
 
+-- In the Smash arena only the kart's own driver figure shows: the person is see-through until they
+-- walk again (Studio preview: a floating person over the arena).
+local function showPerson(char: Model, show: boolean)
+	for _, d in char:GetDescendants() do
+		if (d:IsA("BasePart") and d.Name ~= "HumanoidRootPart") or d:IsA("Decal") then
+			local was = d:GetAttribute("ArenaWasT")
+			if not show and was == nil then
+				d:SetAttribute("ArenaWasT", d.Transparency)
+				d.Transparency = 1
+			elseif show and type(was) == "number" then
+				d.Transparency = was
+				d:SetAttribute("ArenaWasT", nil)
+			end
+		end
+	end
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.DisplayDistanceType = if show
+			then Enum.HumanoidDisplayDistanceType.Viewer
+			else Enum.HumanoidDisplayDistanceType.None
+	end
+end
+
 -- Puts the player's person next to the small track (RC size), or removes them (big size).
 local function placePerson(player: Player, t: TrackData.Track, rc: boolean)
 	if not rc then
@@ -180,19 +200,15 @@ local function placePerson(player: Player, t: TrackData.Track, rc: boolean)
 	if not (char and root and root:IsA("BasePart")) then
 		return
 	end
-	-- Car VS Car big race: on the map's driver stand, at your grid number's spot (RaceStand)
-	local k = player:GetAttribute("StandSpot")
-	local onStand = if Features.CVC
-			and t.map
-			and type(k) == "number"
-		then RaceStand.spot(t, k)
-		else nil
-	if onStand then
-		local pos = Vector3.new(onStand.x, onStand.y + 3, onStand.z)
+	-- the Smash arena: the person waits out of sight behind its south wall (the keys drive the kart)
+	if t.mode == "arena" then
+		local x, _, z = TrackData.toWorld(t, true, 0, 0, 240)
 		root.Anchored = true
-		char:PivotTo(CFrame.lookAt(pos, pos + Vector3.new(onStand.dx, 0, onStand.dz)))
+		char:PivotTo(CFrame.new(x, 3, z))
+		showPerson(char, false)
 		return
 	end
+	showPerson(char, true)
 	local spot, lookX, lookZ = TrackData.standSpot(t)
 	local x, _, z = TrackData.toWorld(t, true, spot.x, 0, spot.z)
 	local fx, _, fz = TrackData.toWorld(t, true, lookX, 0, lookZ)
@@ -341,28 +357,11 @@ end
 -- The spawn lobby's drift / race pads: stand on one to go drive an open plot of that kind (the
 -- race pad is JOIN RACE).
 local QueuePads = require(script.Parent.QueuePads)
--- Car VS Car Smash: the SMASH! pad queues you for the next round (MatchRunner, MATCH's)
-local matchRunner: any = nil
-if SpawnLobby.SMASH then
-	local m = script.Parent:FindFirstChild("MatchRunner")
-	if m and m:IsA("ModuleScript") then
-		matchRunner = require(m) :: any
-	else
-		warn("[Main] Features.SMASH is on but there is no MatchRunner: the SMASH! pad does nothing")
-	end
-end
 local CollectionService = game:GetService("CollectionService")
 QueuePads.start({
-	-- the race pad is JOIN RACE (Car VS Car Smash: the SMASH! portal): on the list for the next
-	-- race / match (anyone, a new player too). MatchRunner (MATCH) when it's in the game.
+	-- the SMASH! portal: on the list for the next round (anyone, a new player too)
 	join = function(player: Player)
-		if SpawnLobby.SMASH then
-			if matchRunner then
-				matchRunner.join(player)
-			end
-		else
-			ServerRaceRunner.join(player)
-		end
+		MatchRunner.join(player)
 	end,
 	findOpen = function(kind: string, player: Player): number?
 		-- a brand new player's spawn shows only the way to their own pad (JoinStage)
@@ -408,6 +407,7 @@ local function walk(player: Player)
 		local slot = slots[slotIndex]
 		local char = player.Character :: Model
 		root.Anchored = false
+		showPerson(char, true)
 		if slot == nil then
 			-- off a race map: back to the spawn lobby (beside the JOIN pad, never on it)
 			char:PivotTo(homeOf(player))
@@ -431,8 +431,10 @@ LobbyPlots.onBump = function(visitor: Player, _slotIndex: number)
 	end
 end
 
--- The server race every 15 minutes: everyone who joins races on one race plot.
-ServerRaceRunner.start({ remote = remote, walk = walk })
+-- Smash rounds in the arena, back to back (MatchRunner)
+MatchRunner.start({ remote = remote, walk = walk })
+-- kids waiting for the next round drive the warm-up yard meanwhile (LOBBY)
+require(script.Parent.WarmupYardServer).start({ remote = remote, walk = walk })
 
 -- E on a lobby pad: drive that plot (if it's yours, nobody's or open, and free), or stop.
 for slotIndex, prompt in lobby.prompts do
@@ -470,20 +472,14 @@ remote.OnServerEvent:Connect(function(player: Player, kind: unknown, rc: unknown
 		return
 	end
 	if kind == "quick" then
-		-- QUICK RACE from the lobby: the best free race plot (their own first), like the race pad
+		-- QUICK PLAY from the lobby: on the list for the next round, like the SMASH! pad
 		local now = os.clock()
 		if now - (lastPrompt[player] or 0) < 0.5 or LobbyPlots.drivingOf(player) ~= nil then
 			return
 		end
 		lastPrompt[player] = now
-		-- the server race's join window comes first: racing friends beats racing alone
-		if ServerRaceRunner.joinOpen(player) then
+		if MatchRunner.join(player) then
 			remote:FireClient(player, "raceJoined")
-			return
-		end
-		local slot = LobbyPlots.findOpen("race", player)
-		if not slot or not LobbyPlots.sendTo(player, slot) then
-			remote:FireClient(player, "noRace")
 		end
 		return
 	end

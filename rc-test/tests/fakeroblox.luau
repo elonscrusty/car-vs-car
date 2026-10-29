@@ -778,7 +778,20 @@ function Fake.server(store: Store, opts: { seed: number?, jobId: string?, at: nu
 		return result
 	end
 
-	local Vector3, CFrame, Color3 = roblox.Vector3, roblox.CFrame, roblox.Color3
+	local Vector3, Color3 = roblox.Vector3, roblox.Color3
+	-- in real Roblox the built-in `vector` IS Vector3; Lune's are two types, so turn one into
+	-- the other where game code hands a `vector` to CFrame
+	local function v3(x: any): any
+		return if type(x) == "vector" then Vector3.new(x.x, x.y, x.z) else x
+	end
+	local CFrame = setmetatable({
+		new = function(a: any, ...)
+			return roblox.CFrame.new(v3(a), ...)
+		end,
+		lookAt = function(a: any, b: any, up: any?)
+			return roblox.CFrame.lookAt(v3(a), v3(b), v3(up))
+		end,
+	}, { __index = roblox.CFrame })
 	function makeEnv(script)
 		return setmetatable({
 			game = game,

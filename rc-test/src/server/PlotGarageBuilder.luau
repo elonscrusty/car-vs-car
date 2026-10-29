@@ -6,9 +6,9 @@
 -- yard goes in its place. The open drift plot keeps its track for free drift play. Rebuilt when
 -- the plot's level or owner changes (TycoonServer sets PlotLevel on the owner's plot). The cars
 -- and the coins are drawn by PlotGarage.client.
--- Car VS Car (Features.CVC on): a "Training" model instead (PlotTraining has the layout): the
--- garage room, the trophy shelf, the car stands and the station pads, from the plot's Stations,
--- PlotLevel, GarageLevel and Trophies (TrainingServer sets them). CvcPlot.client puts the cars on.
+-- Car VS Car (Features.CVC on, the Smash game): a "Showroom" model instead (PlotShowroom has the layout):
+-- the floor, the turntable, one stand for each kart and the crate, from the plot's Garage and
+-- RacerCar (GarageServer sets them). PlotShowroom.client puts the karts on.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -18,7 +18,7 @@ local Features = require(ReplicatedStorage.Shared.Features)
 local Garage = require(ReplicatedStorage.Shared.Garage)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local PlotGarage = require(ReplicatedStorage.Shared.PlotGarage)
-local PlotTraining = require(ReplicatedStorage.Shared.PlotTraining)
+local PlotShowroom = require(ReplicatedStorage.Shared.PlotShowroom)
 local Tycoon = require(ReplicatedStorage.Shared.Tycoon)
 
 local PlotGarageBuilder = {}
@@ -59,39 +59,6 @@ local function label(board: BasePart, top: string, bottom: string, one: boolean?
 		local t = gui:FindFirstChild("Top") :: TextLabel
 		t.TextStrokeTransparency = 0.55
 		t.TextStrokeColor3 = Color3.new(1, 1, 1)
-	end
-end
-
--- Words painted big across a locked pad's top, turned to read upright from the road
--- (PlotTraining.PAINT has the layout and why).
-local function paint(base: BasePart, top: string, bottom: string)
-	local ppu = 20
-	local gui = Instance.new("SurfaceGui")
-	gui.Name = "Words"
-	gui.Face = Enum.NormalId.Top
-	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
-	gui.PixelsPerStud = ppu
-	gui.LightInfluence = 0
-	gui.Parent = base
-	-- quiet dark green on the grass-green locked pad: there, not shouting (carter 10-28: the
-	-- old big LOCKED words were most of what you saw from the stand)
-	local colors = { Color3.fromRGB(60, 100, 50), Color3.fromRGB(60, 100, 50) }
-	for k, text in { top, bottom } do
-		local line = PlotTraining.PAINT[k]
-		local l = Instance.new("TextLabel")
-		l.Name = if k == 1 then "Top" else "Bottom"
-		l.BackgroundTransparency = 1
-		l.AnchorPoint = Vector2.new(0.5, 0.5)
-		l.Position = UDim2.fromScale(line.at, 0.5)
-		l.Size = UDim2.fromOffset(line.w * ppu, line.h * ppu)
-		l.Rotation = 90
-		l.Font = Enum.Font.GothamBlack
-		l.TextScaled = true
-		l.TextColor3 = colors[k]
-		l.TextTransparency = 0.25
-		l.TextStrokeTransparency = 1
-		l.Text = text
-		l.Parent = gui
 	end
 end
 
@@ -200,75 +167,27 @@ function PlotGarageBuilder.start()
 		showIncome(plot)
 	end
 
-	-- Car VS Car: the training garage, rebuilt when its looks change (not when a car moves pads)
-	local trainedKey: { [Instance]: string } = {}
-	local function buildTraining(plot: Instance, pivot: CFrame)
-		local ownerId = tonumber(plot:GetAttribute("OwnerId")) or 0
-		local owned = ownerId ~= 0
-		local function num(name: string): number
-			return if owned
-				then math.max(0, math.floor(tonumber(plot:GetAttribute(name)) or 0))
-				else 0
-		end
-		local plotLevel, garageLevel, trophies =
-			num("PlotLevel"), num("GarageLevel"), num("Trophies")
-		local nextOpen = owned and plot:GetAttribute("NextOpen") == true
-		local pads =
-			PlotTraining.parse(if owned then tostring(plot:GetAttribute("Stations") or "") else "")
-		local kinds = {}
-		for _, p in pads do
-			table.insert(kinds, p.kind .. p.level)
-		end
-		local key = table.concat({
-			ownerId,
-			plotLevel,
-			garageLevel,
-			trophies,
-			table.concat(kinds, ","),
-			tostring(nextOpen),
-		}, "|")
-		if trainedKey[plot] == key then
+	-- Car VS Car SMASH: the showroom, rebuilt when the number of stands changes
+	local roomKey: { [Instance]: string } = {}
+	local function buildShowroom(plot: Instance, pivot: CFrame)
+		local owned = (tonumber(plot:GetAttribute("OwnerId")) or 0) ~= 0
+		local ids = if owned then tostring(plot:GetAttribute("Garage") or "") else ""
+		local karts = if ids == "" then 0 else #string.split(ids, ",")
+		local racer = owned and type(plot:GetAttribute("RacerCar")) == "string"
+		local stands = PlotShowroom.standCount(karts, racer)
+		local key = tostring(stands)
+		if roomKey[plot] == key then
 			return
 		end
-		trainedKey[plot] = key
-		local old = plot:FindFirstChild("Training")
+		roomKey[plot] = key
+		local old = plot:FindFirstChild("Showroom")
 		if old then
 			old:Destroy()
 		end
 		local model = Instance.new("Model")
-		model.Name = "Training"
-		local groups = Garage.makeParts(
-			PlotTraining.pieces(plotLevel, garageLevel, trophies, nextOpen),
-			model,
-			pivot
-		)
-		Garage.useMeshes(groups, pivot, PlotTraining.meshes())
-		for i = 1, #PlotTraining.GRID do
-			local g = groups["Pad" .. i]
-			local base = g and g:FindFirstChild("PadBase")
-			if i > PlotTraining.open(plotLevel) and base and base:IsA("BasePart") then
-				paint(base, PlotTraining.padWords(nil, i))
-			end
-			local sign = g and g:FindFirstChild("PadSign")
-			if sign and sign:IsA("BasePart") then
-				-- an open pad the server hasn't listed yet still says its station
-				local pad = pads[i]
-				if pad == nil and i <= PlotTraining.open(plotLevel) then
-					pad = { kind = PlotTraining.kindAt(i), level = 1, car = "" }
-				end
-				local top, bottom = PlotTraining.padWords(pad, i)
-				label(sign, top, bottom, false, pad and PlotTraining.signColor(pad.kind))
-			end
-		end
-		local owner = Players:GetPlayerByUserId(ownerId)
-		local room = groups.Room and groups.Room:FindFirstChild("RoomSign")
-		if room and room:IsA("BasePart") then
-			label(room, PlotGarage.signText(if owner then owner.DisplayName else nil), "", true)
-		end
-		local shelf = groups.Shelf and groups.Shelf:FindFirstChild("ShelfSign")
-		if shelf and shelf:IsA("BasePart") then
-			label(shelf, "TROPHIES " .. trophies, "", true)
-		end
+		model.Name = "Showroom"
+		model:SetAttribute("Stands", stands)
+		Garage.makeParts(PlotShowroom.pieces(stands), model, pivot)
 		model.WorldPivot = pivot
 		model.Parent = plot
 	end
@@ -301,12 +220,10 @@ function PlotGarageBuilder.start()
 			end)
 			local pivot = CFrame.new(slot.plotX, 0, slot.plotZ) * CFrame.Angles(0, slot.angle, 0)
 			if Features.CVC then
-				buildTraining(plot, pivot)
-				for _, name in
-					{ "OwnerId", "PlotLevel", "GarageLevel", "Trophies", "Stations", "NextOpen" }
-				do
+				buildShowroom(plot, pivot)
+				for _, name in { "OwnerId", "Garage", "RacerCar" } do
 					plot:GetAttributeChangedSignal(name):Connect(function()
-						buildTraining(plot, pivot)
+						buildShowroom(plot, pivot)
 					end)
 				end
 				continue

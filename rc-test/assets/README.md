@@ -13,3 +13,14 @@ It needs MeshParts `Body`, `WheelFL`, `WheelFR`, `WheelRL`, `WheelRR` (front is 
 coupe. The back badge was painted out, and the front wheels are copies of the clean back wheels.
 Import it the same way and name the model `DriftCoupe` in `CarSkins`. `Main.client.luau` picks
 the skin per track (`SKINS`).
+
+## Kart models (`karts/`)
+
+Six low-poly karts from carter's reference picture (racer, bulldozer, buggy, monster, rocket, hot-rod),
+made in Blender by `karts/build.py`, with a blocky Roblox driver in a cap and no weapon on them.
+`karts/to_luau.py` turns its `karts.json` into `src/shared/KartMeshData.luau`, and the game builds
+the karts from that while it runs (`src/client/KartMesh.luau`, EditableMesh): nothing to import.
+Parts are painted per car by name (`ToyCars.kartPaint`), so 6 karts dress all 24 cars
+(`ToyCars.KARTS`). To remake them: run `build.py` with Blender's Python, then
+`python3 to_luau.py out/karts.json ../../src/shared/KartMeshData.luau` and `stylua` that file.
+A model in `ReplicatedStorage.CarSkins` named a kart (`Kart_Racer`, ...) or a car id still wins.

@@ -655,21 +655,51 @@ end
 
 local FEED_ROWS = 3
 local FEED_SECS = 5
-local BOARD_ROWS = 8
+local BOARD_TOP = 3 -- the top 3, then you (a phone's left side is the stick's: Audit F9)
 
--- the weapon's icon (Icons) for a weapon name from the server ("" / nil = none: the "?" box)
-local WEAPON_ICON: { [string]: string } = { Rockets = "rocket", Gun = "gun", Mine = "mine" }
+-- the weapon's icon (Icons) for a weapon from the server: a Weapons name (Rockets, Nuke, Gun,
+-- Mine, Freeze) or a kill-list word (rockets, machine gun, freeze ray, bump...). "" / nil /
+-- unknown = the "?" box
+local WEAPON_ICON: { [string]: string } = {
+	rocket = "rocket",
+	rockets = "rocket",
+	nuke = "nuke",
+	gun = "gun",
+	["machine gun"] = "gun",
+	mine = "mine",
+	mines = "mine",
+	freeze = "freeze",
+	["freeze ray"] = "freeze",
+	bump = "power",
+}
 function Hud.weaponIcon(name: string?): string
 	if name == nil or name == "" then
 		return "mystery"
 	end
-	return WEAPON_ICON[name] or "mystery"
+	return WEAPON_ICON[string.lower(name)] or "mystery"
+end
+
+-- the board's rows: the top 3, then you with your place when you are lower down
+function Hud.boardRows(list: { { [string]: any } }): { { [string]: any } }
+	local out = {}
+	for i, e in list do
+		if i <= BOARD_TOP or e.me == true then
+			local row = table.clone(e)
+			row.rank = i
+			table.insert(out, row)
+		end
+		if i > BOARD_TOP and e.me == true then
+			break
+		end
+	end
+	return out
 end
 
 -- data: { place, total, secs, hp, maxHp, shield: boolean, weapon: name or "", ammo,
 --   board = { { name, smashes, level?, me } } (most smashes first) }
 -- actions: fire()
--- api: setPlace(p, total), setClock(secs), setHealth(hp, max, shield), setWeapon(name, ammo),
+-- api: setPlace(p, total, smashes?) (hidden while you have none: a place not earned, F11/R3-1),
+--   setClock(secs), setHealth(hp, max, shield), setWeapon(name, ammo),
 --   setBoard(list),
 --   feed(attacker, victim, weapon, mine: boolean) (a new kill on top; mine = you are in it)
 function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
@@ -695,15 +725,17 @@ function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 			"",
 			{ stroke = 5, drop = 3, align = "l", z = 3 }
 		)
-		local function setPlace(p: number, total: number)
+		local function setPlace(p: number, total: number, smashes: number?)
 			local was = big.Text
+			-- (no place until you've smashed someone: "- / 8" read as broken, audit R3-1)
+			placeSpot.Visible = smashes ~= 0
 			Base.setText(big, UiMotion.place(p))
 			Base.setText(of, "/ " .. tostring(total))
-			if was ~= "" and was ~= big.Text then
+			if was ~= "" and was ~= big.Text and placeSpot.Visible then
 				Anim.shout(placeSpot)
 			end
 		end
-		setPlace(data.place or 1, data.total or 5)
+		setPlace(data.place or 1, data.total or 8, data.smashes)
 		-- CLOCK: a navy pill, red and breathing in the last 10 s
 		local cp = piece("match", "Clock")
 		local clock = Kit.pill(
@@ -778,8 +810,8 @@ function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 			lastHp = n
 		end
 		setHealth(data.hp or 100, data.maxHp or 100, data.shield)
-		-- SCOREBOARD: every kart, most smashes first: a level badge (when the kart has a level),
-		-- the name, the smashes; your row lime
+		-- SCOREBOARD: the top 3 and you, most smashes first: the place, a level badge (when the
+		-- kart has a level), the name, the smashes; your row lime
 		local bp = piece("match", "Board")
 		local boardSpot = spot(c, "match", "Board")
 		local boardRows: { Frame } = {}
@@ -788,8 +820,7 @@ function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 				r:Destroy()
 			end
 			table.clear(boardRows)
-			for i = 1, math.min(BOARD_ROWS, #list) do
-				local e = list[i]
+			for i, e in Hud.boardRows(list) do
 				local me = e.me == true
 				local row = Base.fill(
 					boardSpot,
@@ -804,16 +835,20 @@ function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 				row.BackgroundTransparency = if me then 0 else 0.2
 				Base.corner(row)
 				Base.outline(row, UiTheme.OUTLINE.small)
-				local left = 6
+				Base.text(row, "Rank", 3, 3, 16, 14, tostring(e.rank or i), {
+					stroke = 3,
+					z = 3,
+				})
+				local left = 22
 				if type(e.level) == "number" then
-					local badge = Base.fill(row, "Level", 3, 2, 28, 16, Base.color("go"), 3)
+					local badge = Base.fill(row, "Level", 21, 2, 28, 16, Base.color("go"), 3)
 					Base.corner(badge)
 					Base.outline(badge, UiTheme.OUTLINE.small)
 					Base.text(badge, "N", 2, 2, 24, 12, tostring(math.floor(e.level)), {
 						color = INK,
 						z = 4,
 					})
-					left = 36
+					left = 54
 				end
 				Base.text(row, "Name", left, 3, bp.w - left - 38, 14, string.upper(e.name or ""), {
 					stroke = 3,

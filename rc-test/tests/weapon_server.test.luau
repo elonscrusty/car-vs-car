@@ -11,6 +11,11 @@ local test, eq, truthy = H.test, H.eq, H.truthy
 print("WeaponServer (pretend server)")
 
 local v = vector.create
+-- test spots were drawn with a kart about 6 units long; at() turns them into real RC studs
+local U = Weapons.KART / 6
+local function at(x: number, y: number, z: number): Vector3
+	return v(x * U, y * U, z * U)
+end
 local AHEAD = v(0, 0, -1)
 
 local function setup()
@@ -19,7 +24,7 @@ local function setup()
 	local hurt = {}
 	local karts = {
 		{ id = 201, cframe = { Position = v(0, 0, 0), LookVector = AHEAD }, alive = true },
-		{ id = -1, cframe = { Position = v(0, 0, -50), LookVector = AHEAD }, alive = true },
+		{ id = -1, cframe = { Position = at(0, 0, -50), LookVector = AHEAD }, alive = true },
 	}
 	local match = {
 		karts = function()
@@ -60,6 +65,8 @@ end)
 test("give: only weapons that exist; Weapon and Ammo show on the player", function()
 	local _, kid, WS = setup()
 	eq(WS.give(201, "Banana"), false)
+	truthy(WS.has("Rockets") and WS.has("Nuke"))
+	eq(WS.has("Banana"), false)
 	eq(WS.give(201, nil), false)
 	truthy(WS.give(201, "Nuke"))
 	eq(kid:GetAttribute("Weapon"), "Nuke")
@@ -82,7 +89,7 @@ test(
 		eq(#hurt, 1)
 		eq(hurt[1][1], -1)
 		eq(hurt[1][2], 201)
-		eq(hurt[1][4], "Rockets")
+		eq(hurt[1][4], "rocket") -- MatchRunner's word
 		S.send(kid, Weapons.REMOTE, AHEAD)
 		S.advance(1, 1 / 30)
 		S.send(kid, Weapons.REMOTE, AHEAD)
@@ -112,3 +119,104 @@ test("a smashed kart can't fire; drop and reset empty the hands", function()
 	eq(#hurt, 0) -- reset cleared the nuke in the air
 	eq(#S.errors, 0)
 end)
+
+test(
+	"a warm-up yard source: a player outside the match fires, dummies get hit, the match hears nothing",
+	function()
+		local S, kid, WS, hurt, karts = setup()
+		-- the kid isn't in the match any more: only a match bot is
+		table.remove(karts, 1)
+		local popped = {}
+		WS.addSource("Yard", {
+			karts = function()
+				return {
+					{ id = 201, cframe = { Position = at(500, 0, 0), LookVector = AHEAD } },
+					{ id = -9001, cframe = { Position = at(500, 0, -40), LookVector = AHEAD } },
+				}
+			end,
+			damage = function(victim, attacker, amount, weapon)
+				table.insert(popped, { victim, attacker, amount, weapon })
+			end,
+			model = function()
+				return nil
+			end,
+		})
+		truthy(WS.give(201, "Rockets"))
+		S.send(kid, Weapons.REMOTE, AHEAD)
+		S.advance(2, 1 / 30)
+		eq(#popped, 1)
+		eq(popped[1][1], -9001)
+		eq(popped[1][2], 201)
+		eq(popped[1][4], "rocket")
+		eq(#hurt, 0)
+		-- gone: the kid can't fire from the yard any more
+		WS.removeSource("Yard")
+		S.send(kid, Weapons.REMOTE, AHEAD)
+		S.advance(2, 1 / 30)
+		eq(#popped, 1)
+		eq(#S.errors, 0)
+	end
+)
+
+test("yard shots never hurt a match kart; a player in both counts as in the match", function()
+	local S, kid, WS, hurt, karts = setup()
+	table.remove(karts, 1)
+	-- a match kart parked right in front of the yard shooter
+	table.insert(
+		karts,
+		{ id = -2, cframe = { Position = at(500, 0, -25), LookVector = AHEAD }, alive = true }
+	)
+	local popped = {}
+	WS.addSource("Yard", {
+		karts = function()
+			return {
+				{ id = 201, cframe = { Position = at(500, 0, 0), LookVector = AHEAD } },
+				{ id = -2, cframe = { Position = v(0, 0, 999), LookVector = AHEAD } }, -- (claims a match id)
+			}
+		end,
+		damage = function(victim)
+			table.insert(popped, victim)
+		end,
+	})
+	WS.give(201, "Nuke")
+	S.send(kid, Weapons.REMOTE, AHEAD)
+	S.advance(3, 1 / 30)
+	eq(#hurt, 0)
+	eq(#popped, 0)
+	eq(#S.errors, 0)
+end)
+
+test("bots: held(id) tells what they carry and fire(id) shoots for them", function()
+	local S, _, WS, hurt = setup()
+	eq((WS.held(-1)), "")
+	WS.give(-1, "Rockets")
+	local name, ammo = WS.held(-1)
+	eq(name, "Rockets")
+	eq(ammo, 3)
+	-- the bot faces the kid at 201 (0,0,0) from (0,0,-50): turn it round
+	truthy(WS.fire(-1, v(0, 0, 1)) == false or true)
+	S.advance(2, 1 / 30)
+	eq(select(2, WS.held(-1)), 2)
+	eq(#S.errors, 0)
+	local _ = hurt
+end)
+
+test(
+	"what a kart holds shows on its model too, so everyone (bots included) sees the icon",
+	function()
+		local S, _, WS, _, karts = setup()
+		local m = S.Instance.new("Model")
+		m.Name = "Car_-1"
+		karts[2].model = m
+		WS.give(-1, "Nuke")
+		eq(m:GetAttribute("Weapon"), "Nuke")
+		eq(m:GetAttribute("Ammo"), 1)
+		WS.fire(-1, v(0, 0, 1))
+		eq(m:GetAttribute("Ammo"), 0)
+		WS.give(-1, "Rockets")
+		WS.drop(-1)
+		eq(m:GetAttribute("Weapon"), "")
+		eq(m:GetAttribute("Ammo"), 0)
+		eq(#S.errors, 0)
+	end
+)

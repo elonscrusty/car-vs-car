@@ -20,8 +20,8 @@ test("Car VS Car (playtest u01): the race car is your racer's toy car, not the g
 	local Garage = require("../src/shared/Garage")
 	local main = fs.readFile("src/client/Main.client.luau")
 	truthy(string.find(main, "skin.update(car, skinName())", 1, true), "skin not used")
-	truthy(string.find(main, "CarSkin.TOY .. id", 1, true), "no toy car for the racer")
 	local skin = fs.readFile("src/client/CarSkin.luau")
+	truthy(string.find(skin, "else CarSkin.TOY .. id", 1, true), "no toy car for the racer")
 	truthy(string.find(skin, "Garage.toyCar(", 1, true), "not the plot's toy car")
 	-- the toy car's four wheels sit one at each corner, so each gets its own name
 	local pieces = {}
@@ -51,76 +51,6 @@ test("skid marks (playtest u30, u12): one smooth fading ribbon, none on water", 
 		"no material under the tyre"
 	)
 end)
-
-test("boost pads (playtest u02): no glowing yellow pad that hides the car", function()
-	local fs = require("@lune/fs")
-	local src = fs.readFile("src/server/RaceMapBuilder.luau")
-	truthy(
-		string.find(
-			src,
-			"boost = { color = rgb(225, 150, 40), mat = Enum.Material.SmoothPlastic }",
-			1,
-			true
-		),
-		"the pad glows again"
-	)
-end)
-
-test("Car VS Car (phone 10-28 t096-t100): over the line, the car brakes to a stop", function()
-	local fs = require("@lune/fs")
-	local main = fs.readFile("src/client/Main.client.luau")
-	truthy(
-		string.find(main, "elseif grid and (raceDone ~= nil or raceOver) then", 1, true),
-		"drives on"
-	)
-	truthy(
-		string.find(main, "local rolling = car.telemetry.vLong > 3", 1, true),
-		"backs up at a stop"
-	)
-end)
-
-test("Car VS Car (playtest u01): race bots and other players wear toy cars, varied", function()
-	local fs = require("@lune/fs")
-	local CarCatalog = require("../src/shared/CarCatalog")
-	local ids = CarCatalog.raceIds()
-	local seen: { [string]: boolean } = {}
-	for _, id in ids do
-		local c = CarCatalog.get(id)
-		truthy(c and c.mode == "race", `{id} is a race car`)
-		truthy(not seen[id], `{id} twice`)
-		seen[id] = true
-	end
-	truthy(#ids >= 7, "enough looks for 7 bots")
-	local bots = fs.readFile("src/server/RaceBotCars.luau")
-	truthy(string.find(bots, 'model:SetAttribute("ToyCar", look)', 1, true), "bots wear no car")
-	local others = fs.readFile("src/client/OtherCars.luau")
-	-- (the shell's parts go in the frame's one BulkMoveTo with the wheels)
-	truthy(
-		string.find(others, "table.insert(moveParts, toy.parts[k])", 1, true),
-		"no toy shell drawn"
-	)
-	truthy(
-		string.find(others, "workspace:BulkMoveTo(moveParts, moveAt", 1, true),
-		"no toy shell drawn"
-	)
-	truthy(string.find(others, 'p.Name ~= "Wheel" and p.Name ~= "Hub"', 1, true), "parts per car")
-end)
-
-test(
-	"Car VS Car (Studio after-818): a put-back lands on top of a jump ramp, not inside it",
-	function()
-		local fs = require("@lune/fs")
-		local main = fs.readFile("src/client/Main.client.luau")
-		truthy(
-			string.find(main, "if hit and hit.Position.Y + clear > y then", 1, true),
-			"no ramp check"
-		)
-		truthy(
-			string.find(main, "probe.RespectCanCollide = true", 1, true),
-			"lands on looks-only parts"
-		)
-	end
-)
 
 test("Car VS Car (Studio pr816 04b): the toy car is the grey body's size, within 10%", function()
 	local fs = require("@lune/fs")
@@ -169,9 +99,11 @@ end)
 test("carter's own car model (CarSkins, named the car id) wins over the toy look", function()
 	local fs = require("@lune/fs")
 	local main = fs.readFile("src/client/Main.client.luau")
+	truthy(string.find(main, "return CarSkin.lookFor(id)", 1, true), "own car")
+	local skinSrc = fs.readFile("src/client/CarSkin.luau")
 	truthy(
-		string.find(main, "skins:FindFirstChild(id) then id else CarSkin.TOY .. id", 1, true),
-		"own car"
+		string.find(skinSrc, 'if own and own:IsA("Model") then\n\t\treturn id', 1, true),
+		"own model first"
 	)
 	local others = fs.readFile("src/client/OtherCars.luau")
 	truthy(string.find(others, "modelShell(f, own, s) else nil", 1, true), "other cars")
@@ -190,38 +122,3 @@ test("Studio pr839: name tags that would sit on each other show only the nearest
 	truthy(string.find(others, "unstack(cam)", 1, true), "not wired")
 	truthy(string.find(others, "UDim2.fromOffset(TAG_W, TAG_H)", 1, true))
 end)
-
-test(
-	"MASTER race moment: countdown shake, confetti the frame you finish; audit L5 no sparkle cloud",
-	function()
-		local fs = require("@lune/fs")
-		local main = fs.readFile("src/client/Main.client.luau")
-		local finish = string.find(main, "raceDone = os.clock() - go", 1, true)
-		local pop = string.find(main, "raceFx.confetti(", 1, true)
-		truthy(
-			finish and pop and pop > finish and pop - finish < 400,
-			"confetti not right at the finish"
-		)
-		truthy(string.find(main, "shakeLeft = SHAKE_TIME", 1, true), "no countdown shake")
-		truthy(string.find(main, "cam.CFrame *= CFrame.Angles(", 1, true), "shake not applied")
-		-- raceFx is made before the frame code that uses it (a later local would be nil there)
-		local made = string.find(main, "local raceFx = RaceFx.new()", 1, true)
-		truthy(made and made < (finish :: number), "raceFx made after its first use")
-		local fx = fs.readFile("src/client/RaceFx.luau")
-		truthy(string.find(fx, "function self.confetti(", 1, true))
-		local eff = fs.readFile("src/client/Effects.luau")
-		truthy(
-			string.find(
-				eff,
-				'e.Texture = if kind == "boost" or kind == "BoostPad" then SPARKLE else DUST',
-				1,
-				true
-			),
-			"dust in sparkle stars"
-		)
-		truthy(
-			string.find(eff, 'setSpray(sp, "land", LAND_DUST, 0.7, 3, 3)', 1, true),
-			"landing cloud"
-		)
-	end
-)

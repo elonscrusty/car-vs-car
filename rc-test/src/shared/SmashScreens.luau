@@ -6,6 +6,8 @@
 --   matchEnd: the 12 s break between rounds (VIDEO-STUDY.md). ROUND OVER, "<name> WINS" with the
 --     winner's kart, the top 3 with smashes, your coins and XP popping in, "NEW ROUND STARTING IN
 --     12" (the next round starts by itself), and a small LEAVE back to the lobby.
+--   customize: KARTS / HATS tabs, a grid of your karts (or hats), EQUIP, and the kart you drive
+--     with its hat on a card.
 --   howTo: the 3-step tip over a match (drive, grab a "?", fire), one card at a time.
 -- (the same shapes as UiScreens.Piece / UiScreens.Screen; no require, so Lune tests load it)
 export type Piece = {
@@ -65,18 +67,39 @@ local LIST: { Screen } = {
 		},
 	},
 	{
+		id = "customize",
+		n = 103,
+		title = "Customize",
+		kind = "window",
+		gameplay = false,
+		pieces = {
+			p("Window", 8, 40, 496, 328, {
+				anchor = "l",
+				text = "Customize",
+				inner = {
+					p("Tabs", 14, 14, 240, 44, { tap = true }),
+					p("Grid", 14, 68, 468, 196),
+					p("Equip", 14, 272, 180, 50, { tone = "lime", text = "EQUIP", main = true }),
+					p("Note", 206, 276, 276, 42),
+				},
+			}),
+			-- the kart you drive, with its hat, on a glowing card
+			p("Card", 540, 12, 196, 356, { anchor = "r" }),
+		},
+	},
+	{
 		id = "howTo",
 		n = 102,
 		title = "How to smash",
 		kind = "hud",
 		gameplay = true,
 		pieces = {
-			-- under the health bar and clock (top middle), over the empty middle of the arena
-			p("Tip", 238, 92, 280, 92, { anchor = "t", tap = true }),
-			-- where the arrow points for each step (the stick corner is free: the arrow sits just
-			-- above it and points down)
-			p("ArrowDrive", 46, 186, 56, 56, { anchor = "bl" }),
-			p("ArrowFire", 640, 160, 56, 56, { anchor = "br" }),
+			-- at the right edge, between the feed and FIRE: never over the middle of the road
+			p("Tip", 536, 108, 220, 76, { anchor = "r", tap = true }),
+			-- the arrow for each step: just right of the stick corner pointing left at it (the
+			-- scoreboard sits above the corner), and just left of FIRE pointing at it
+			p("ArrowDrive", 148, 290, 56, 56, { anchor = "bl" }),
+			p("ArrowFire", 556, 276, 56, 56, { anchor = "br" }),
 		},
 	},
 }
@@ -119,10 +142,59 @@ end
 
 -- The how-to's 3 steps, in order: the big words, one small line, and the arrow piece (if any).
 SmashScreens.STEPS = {
-	{ id = "drive", words = "DRIVE!", help = "Move the stick to drive.", arrow = "ArrowDrive" },
-	{ id = "grab", words = "GRAB A ?", help = "Drive into a red ? box.", arrow = nil },
-	{ id = "fire", words = "TAP FIRE!", help = "Smash the other cars!", arrow = "ArrowFire" },
+	-- (rot: the arrow drawing points right; 180 = left)
+	{
+		id = "drive",
+		words = "DRIVE!",
+		help = "Move the stick to drive.",
+		arrow = "ArrowDrive",
+		rot = 180,
+	},
+	{ id = "grab", words = "GRAB A ?", help = "Drive into a red ? box.", arrow = nil, rot = 0 },
+	{
+		id = "fire",
+		words = "TAP FIRE!",
+		help = "Smash the other cars!",
+		arrow = "ArrowFire",
+		rot = 0,
+	},
 }
+-- The customize window's EQUIP button for the picked item: its words and whether it works.
+-- item = { own: boolean?, on: boolean? } (a kart in your garage is always owned); offable: the
+-- thing on can be taken off (a hat; you always drive some kart)
+function SmashScreens.equipButton(
+	item: { own: boolean?, on: boolean? }?,
+	offable: boolean?
+): (string, boolean)
+	if not item then
+		return "EQUIP", false
+	elseif item.own == false then
+		return "LOCKED", false
+	elseif item.on then
+		if offable then
+			return "TAKE OFF", true
+		end
+		return "ON", false
+	end
+	return "EQUIP", true
+end
+
+-- The tip card to show for a step (0 = none): TAP FIRE! only once you hold a weapon (a kid who
+-- skipped GRAB A ? sees nothing until a box gives one)
+function SmashScreens.cardFor(step: number, weapon: string): number
+	if step == 3 and weapon == "" then
+		return 0
+	end
+	return step
+end
+
+-- The crate words a Smash kid reads (no training, racing or stats: a kart is a look)
+SmashScreens.WORDS = {
+	crateNote = "1 new kart per crate.",
+	garageFull = "No room for karts.",
+	revealNote = "New kart! Try it in CUSTOMIZE.",
+}
+
 SmashScreens.DRIVE_STUDS = 12 -- driven this far = the drive step is done
 
 -- Which how-to step shows now (4 = all done), from the one showing and what the kid has done:

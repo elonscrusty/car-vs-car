@@ -306,7 +306,7 @@ local function dailyGift(player: Player, data: Profile.Data)
 		PlayerData.touch(player)
 		task.spawn(PlayerData.save, player, false)
 		if crate then
-			local mod = script.Parent:FindFirstChild("TrainingServer")
+			local mod = script.Parent:FindFirstChild("GarageServer")
 			if mod and mod:IsA("ModuleScript") then
 				(require(mod) :: any).refresh(player) -- the crate count on the screens
 			end

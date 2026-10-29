@@ -26,6 +26,10 @@ local FLAME = Color3.fromRGB(255, 130, 30)
 local ICE = Color3.fromRGB(150, 220, 255)
 local SKY = Color3.fromRGB(61, 155, 255)
 
+-- the arena is RC size (TrackData.RC_SCALE): every size below is in big units (a kart is
+-- 3 x 5.5 big) times S
+local S = 0.25
+
 local bits = workspace:FindFirstChild("WeaponBits")
 if not bits then
 	bits = Instance.new("Folder")
@@ -77,9 +81,9 @@ local function beam(a: Vector3, b: Vector3, color: Color3, width: number, second
 	if len < 0.1 then
 		return
 	end
-	local p = part("Tracer", color, true, Vector3.new(width, width, len))
+	local p = part("Tracer", color, true, Vector3.new(width * S, width * S, len))
 	p.CFrame = CFrame.lookAt((a + b) / 2, b)
-	fade(p, seconds, { Size = Vector3.new(width * 0.3, width * 0.3, len) })
+	fade(p, seconds, { Size = Vector3.new(width * S * 0.3, width * S * 0.3, len) })
 end
 
 -- a few faceted chips flying out from `at`
@@ -93,21 +97,21 @@ local function chips(at: Vector3, color: Color3, n: number, size: number, speed:
 		w.CastShadow = false
 		w.Material = Enum.Material.SmoothPlastic
 		w.Color = color
-		w.Size = Vector3.new(size, size, size)
+		w.Size = Vector3.new(size, size, size) * S
 		local spin = CFrame.Angles(math.random() * 6.28, math.random() * 6.28, 0)
 		w.CFrame = CFrame.new(at) * spin
 		w.Parent = bits
 		local out = Vector3.new(math.random() - 0.5, math.random() * 0.8 + 0.2, math.random() - 0.5)
-		local goal = w.CFrame + out.Unit * speed
+		local goal = w.CFrame + out.Unit * speed * S
 		fade(w, 0.45, { CFrame = goal * CFrame.Angles(2, 1, 0) })
 	end
 end
 
 local function flash(at: Vector3, color: Color3, from: number, to: number, seconds: number)
-	local b = part("Flash", color, true, Vector3.new(from, from, from))
+	local b = part("Flash", color, true, Vector3.new(from, from, from) * S)
 	b.Shape = Enum.PartType.Ball
 	b.Position = at
-	fade(b, seconds, { Size = Vector3.new(to, to, to) })
+	fade(b, seconds, { Size = Vector3.new(to, to, to) * S })
 end
 
 local function onGun(data: any)
@@ -130,11 +134,11 @@ local function onMineBoom(data: any)
 		return
 	end
 	-- a flat blast disc that grows out along the road, and a hot flash
-	local ring = part("MineBlast", FLAME, true, Vector3.new(0.4, 2, 2))
+	local ring = part("MineBlast", FLAME, true, Vector3.new(0.4, 2, 2) * S)
 	ring.Shape = Enum.PartType.Cylinder
 	ring.CFrame = CFrame.new(at) * CFrame.Angles(0, 0, math.rad(90))
-	fade(ring, 0.4, { Size = Vector3.new(0.4, 16, 16), Color = PINK })
-	flash(at + Vector3.new(0, 1.5, 0), SUNNY, 2, 9, 0.3)
+	fade(ring, 0.4, { Size = Vector3.new(0.4, 12, 12) * S, Color = PINK })
+	flash(at + Vector3.new(0, 1.5 * S, 0), SUNNY, 2, 9, 0.3)
 	chips(at, CHERRY, 6, 0.8, 7)
 	sound("mineBoom", nil, at)
 end
@@ -158,10 +162,10 @@ local function onFreezeHit(data: any)
 	local id = data.id
 	local seconds = if type(data.seconds) == "number" then math.clamp(data.seconds, 0, 10) else 2.5
 	melt(id)
-	local b = part("Ice", ICE, false, Vector3.new(7, 5, 9))
+	local b = part("Ice", ICE, false, Vector3.new(4.5, 4, 7.5) * S)
 	b.Transparency = 0.35
 	b.Reflectance = 0.2
-	b.CFrame = CFrame.new(at + Vector3.new(0, 1, 0)) * CFrame.Angles(0, math.rad(12), 0)
+	b.CFrame = CFrame.new(at + Vector3.new(0, S, 0)) * CFrame.Angles(0, math.rad(12), 0)
 	ice[id] = b
 	flash(at, WHITE, 3, 10, 0.2)
 	sound("freeze", nil, at)
@@ -183,8 +187,8 @@ local function onShatter(data: any)
 		b:Destroy()
 	end
 	if at then
-		chips(at + Vector3.new(0, 1, 0), ICE, 10, 1.2, 9)
-		chips(at + Vector3.new(0, 1, 0), WHITE, 4, 0.8, 6)
+		chips(at + Vector3.new(0, S, 0), ICE, 10, 1.2, 9)
+		chips(at + Vector3.new(0, S, 0), WHITE, 4, 0.8, 6)
 		flash(at, SKY, 3, 12, 0.25)
 	end
 	sound("shatter", nil, at)

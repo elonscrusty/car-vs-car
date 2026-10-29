@@ -40,33 +40,33 @@ CarCatalog.RARITY = {
 } :: { [string]: Rarity }
 CarCatalog.RARITY_ORDER = { "common", "rare", "epic", "legend" }
 
--- Each car's own toy look (ToyCars: "shape/accent", "/glow" for the flashiest): its shape, and an
+-- Each car's own toy kart look (ToyCars: "shape/accent", "/glow" = underglow, rare and up): its shape, and an
 -- accent for stripes, wings and bumpers. No two cars the same; carter's models replace these
 -- through ReplicatedStorage.CarSkins.
 CarCatalog.LOOKS = {
-	race_bolt = "buggy/dark",
+	race_bolt = "buggy/navy",
 	race_dart = "formula/white",
 	race_rocket = "muscle/white",
-	race_lime = "truck/dark",
-	race_berry = "rally/yellow",
-	race_storm = "crawler/yellow",
-	race_tiger = "wedge/black",
-	race_comet = "jet/cyan",
-	gb_bubble = "bubble/white",
-	gb_night = "wedge/cyan/glow",
-	gb_glow = "buggy/purple/glow",
-	gb_gold = "formula/black/glow",
+	race_lime = "truck/yellow",
+	race_berry = "rally/yellow/glow",
+	race_storm = "crawler/yellow/glow",
+	race_tiger = "wedge/navy/glow",
+	race_comet = "jet/sky/glow",
+	gb_bubble = "bubble/white/glow",
+	gb_night = "wedge/sky/glow",
+	gb_glow = "buggy/pink/glow",
+	gb_gold = "formula/red/glow",
 	drift_kid = "coupe/red",
-	drift_ghost = "hatch/dark",
+	drift_ghost = "hatch/navy",
 	drift_fury = "wedge/white",
-	drift_mint = "rally/dark",
-	drift_cocoa = "muscle/cream",
-	drift_shadow = "coupe/orange",
+	drift_mint = "rally/navy",
+	drift_cocoa = "muscle/yellow/glow",
+	drift_shadow = "coupe/orange/glow",
 	drift_aqua = "hatch/yellow/glow",
 	drift_sunset = "coupe/purple/glow",
-	gb_lime = "bubble/dark",
-	gb_candy = "hatch/white",
-	gb_lava = "crawler/black/glow",
+	gb_lime = "bubble/navy/glow",
+	gb_candy = "hatch/white/glow",
+	gb_lava = "crawler/navy/glow",
 	gb_toxic = "truck/purple/glow",
 } :: { [string]: string }
 
@@ -99,22 +99,22 @@ end
 CarCatalog.SHOP = {
 	drift = {
 		car("drift_kid", "Slide Kid", "drift", 0, { 245, 245, 250 }, "common"),
-		car("drift_ghost", "Neon Ghost", "drift", 120, { 40, 200, 220 }, "common"),
-		car("drift_fury", "Pink Fury", "drift", 250, { 255, 120, 190 }, "common"),
-		car("drift_mint", "Mint Swirl", "drift", 400, { 120, 230, 180 }, "common"),
-		car("drift_cocoa", "Choco Slide", "drift", 600, { 120, 72, 40 }, "rare"),
-		car("drift_shadow", "Night Fox", "drift", 850, { 45, 45, 60 }, "rare"),
-		car("drift_aqua", "Aqua Glide", "drift", 1150, { 30, 150, 200 }, "epic"),
-		car("drift_sunset", "Sunset", "drift", 1500, { 255, 140, 40 }, "epic"),
+		car("drift_ghost", "Neon Ghost", "drift", 120, { 0, 200, 200 }, "common"),
+		car("drift_fury", "Pink Fury", "drift", 250, { 255, 111, 181 }, "common"),
+		car("drift_mint", "Mint Swirl", "drift", 400, { 45, 190, 78 }, "common"),
+		car("drift_cocoa", "Choco Slide", "drift", 600, { 255, 140, 30 }, "rare"),
+		car("drift_shadow", "Night Fox", "drift", 850, { 27, 27, 47 }, "rare"),
+		car("drift_aqua", "Aqua Glide", "drift", 1150, { 61, 155, 255 }, "epic"),
+		car("drift_sunset", "Sunset", "drift", 1500, { 255, 140, 30 }, "epic"),
 	},
 	race = {
-		car("race_bolt", "Bolt", "race", 0, { 246, 196, 40 }, "common"),
-		car("race_dart", "Blue Dart", "race", 120, { 40, 110, 220 }, "common"),
-		car("race_rocket", "Red Rocket", "race", 250, { 230, 60, 50 }, "common"),
-		car("race_lime", "Lime Flash", "race", 400, { 140, 220, 40 }, "common"),
-		car("race_berry", "Berry Blast", "race", 600, { 150, 40, 110 }, "rare"),
-		car("race_storm", "Thunder Pup", "race", 850, { 120, 120, 135 }, "rare"),
-		car("race_tiger", "Tiger", "race", 1150, { 255, 120, 0 }, "epic"),
+		car("race_bolt", "Bolt", "race", 0, { 255, 199, 44 }, "common"),
+		car("race_dart", "Blue Dart", "race", 120, { 30, 111, 217 }, "common"),
+		car("race_rocket", "Red Rocket", "race", 250, { 232, 53, 46 }, "common"),
+		car("race_lime", "Lime Flash", "race", 400, { 45, 190, 78 }, "common"),
+		car("race_berry", "Berry Blast", "race", 600, { 255, 111, 181 }, "rare"),
+		car("race_storm", "Thunder Pup", "race", 850, { 61, 155, 255 }, "rare"),
+		car("race_tiger", "Tiger", "race", 1150, { 255, 140, 30 }, "epic"),
 		car("race_comet", "Comet Cat", "race", 1500, { 245, 245, 250 }, "epic"),
 	},
 } :: { [string]: { Car } }
@@ -122,23 +122,23 @@ CarCatalog.SHOP = {
 -- The gumball machine: one spin, one rare car. `chance` is out of 100 and they add up to 100.
 CarCatalog.GUMBALL_PRICE = 100
 CarCatalog.GUMBALL = {
-	{ car = car("gb_lime", "Lime Zip", "drift", 0, { 150, 230, 40 }, "rare", true), chance = 22 },
+	{ car = car("gb_lime", "Lime Zip", "drift", 0, { 160, 230, 40 }, "rare", true), chance = 22 },
 	{
-		car = car("gb_bubble", "Bubblegum", "race", 0, { 255, 160, 210 }, "rare", true),
+		car = car("gb_bubble", "Bubblegum", "race", 0, { 255, 111, 181 }, "rare", true),
 		chance = 18,
 	},
 	{
-		car = car("gb_candy", "Cotton Candy", "drift", 0, { 190, 160, 255 }, "rare", true),
+		car = car("gb_candy", "Cotton Candy", "drift", 0, { 150, 80, 255 }, "rare", true),
 		chance = 16,
 	},
-	{ car = car("gb_night", "Midnight", "race", 0, { 70, 40, 120 }, "epic", true), chance = 12 },
-	{ car = car("gb_glow", "Glow Worm", "race", 0, { 200, 255, 90 }, "rare", true), chance = 10 },
-	{ car = car("gb_lava", "Lava Slide", "drift", 0, { 255, 80, 20 }, "legend", true), chance = 9 },
+	{ car = car("gb_night", "Midnight", "race", 0, { 150, 80, 255 }, "epic", true), chance = 12 },
+	{ car = car("gb_glow", "Glow Worm", "race", 0, { 160, 230, 40 }, "rare", true), chance = 10 },
+	{ car = car("gb_lava", "Lava Slide", "drift", 0, { 232, 53, 46 }, "legend", true), chance = 9 },
 	{
-		car = car("gb_toxic", "Slime Time", "drift", 0, { 90, 255, 60 }, "legend", true),
+		car = car("gb_toxic", "Slime Time", "drift", 0, { 45, 190, 78 }, "legend", true),
 		chance = 8,
 	},
-	{ car = car("gb_gold", "Gold Rush", "race", 0, { 255, 200, 30 }, "legend", true), chance = 5 },
+	{ car = car("gb_gold", "Gold Rush", "race", 0, { 255, 199, 44 }, "legend", true), chance = 5 },
 }
 -- A car you already have: half the spin back, so a spin is never wasted.
 CarCatalog.DUPLICATE_REFUND = 50
