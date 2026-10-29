@@ -485,3 +485,23 @@ test("pinned or circling: under 4 studs from 3 s ago, once per 3 s", function()
 	eq(t3.detours, 1, "one detour")
 	eq(t3.eased, 0.5, "eased")
 end)
+
+test("flips righted in place (FlipBack) are counted, with the longest flip", function()
+	local t = ThumbBrain.tally()
+	for _ = 1, 12 do
+		ThumbBrain.sample(t, 0.125, 0, -1) -- 1.5 s upside down
+	end
+	ThumbBrain.sample(t, 0.125, 0.1, 1) -- set back on its wheels where it was (no jump)
+	eq(t.righted, 1, "righted once")
+	eq(t.longestFlip, 1.5, "longest flip")
+	eq(t.putBack, 0, "not a jump")
+	-- landing on its wheels by itself, over a few frames, is not a put-back
+	for _ = 1, 4 do
+		ThumbBrain.sample(t, 0.125, 0, -1)
+	end
+	ThumbBrain.sample(t, 0.125, 0, 0.6)
+	ThumbBrain.sample(t, 0.125, 0, 1)
+	eq(t.righted, 1, "rolled back by itself")
+	local line = table.concat(ThumbBrain.report(t, 0, 1, 8, nil), "\n")
+	truthy(string.find(line, "longest 1.5 s), flips righted 1", 1, true) ~= nil, line)
+end)

@@ -302,6 +302,8 @@ ThumbBrain.JUMP = 8 -- studs in one frame while alive = put back (OOPS) or a res
 ThumbBrain.SIM_SPEED = "11-17" -- the sim kid's speed (tests/new_kid_pass), studs/s
 ThumbBrain.STUCK_LOG = 1 -- s slow in a row = a stuck moment (logged with where and what)
 ThumbBrain.FLIP_LOG = 0.5 -- s on its side in a row = a flip moment
+ThumbBrain.RIGHTED = 0.9 -- tipped one frame, this flat the next = put back on its wheels (FlipBack
+-- does it in place, so it never shows as a JUMP)
 ThumbBrain.STRAIGHT = math.rad(20) -- stuck with the target this close to the nose = the arena's
 -- doing (it was driving straight at it); more = it was turning (its wobble or turning circle)
 ThumbBrain.CELL = 6 -- studs: catch spots this close together are one spot
@@ -320,6 +322,8 @@ export type Tally = {
 	stuck: number, -- of those, seconds slower than STUCK_SPEED
 	flipped: number, -- seconds on its side or roof
 	putBack: number, -- jumps while alive (OOPS / back to start)
+	righted: number, -- flips set back on its wheels in place (FlipBack)
+	longestFlip: number, -- s: the longest time on its side or roof in one go
 	dist: number, -- studs driven while alive
 	stuckRun: number, -- s slow in a row right now
 	flipRun: number, -- s on its side in a row right now
@@ -347,6 +351,8 @@ function ThumbBrain.tally(): Tally
 		stuck = 0,
 		flipped = 0,
 		putBack = 0,
+		righted = 0,
+		longestFlip = 0,
 		dist = 0,
 		stuckRun = 0,
 		flipRun = 0,
@@ -458,11 +464,15 @@ function ThumbBrain.sample(t: Tally, dt: number, moved: number, upY: number): { 
 		t.flipped += dt
 		local was = t.flipRun
 		t.flipRun += dt
+		t.longestFlip = math.max(t.longestFlip, t.flipRun)
 		if was < ThumbBrain.FLIP_LOG and t.flipRun >= ThumbBrain.FLIP_LOG then
 			events = events or {}
 			table.insert(events, "flip")
 		end
 	else
+		if t.flipRun > 0 and upY >= ThumbBrain.RIGHTED then
+			t.righted += 1
+		end
 		t.flipRun = 0
 	end
 	return events
@@ -592,13 +602,15 @@ function ThumbBrain.report(
 			t.hits
 		),
 		string.format(
-			"  alive %.0f s, avg speed %.1f studs/s (sim kid %s), stuck %.0f s (%s), flipped %.0f s, put back %d",
+			"  alive %.0f s, avg speed %.1f studs/s (sim kid %s), stuck %.0f s (%s), flipped %.0f s (longest %.1f s), flips righted %d, put back %d",
 			t.alive,
 			speed,
 			ThumbBrain.SIM_SPEED,
 			t.stuck,
 			pct(t.stuck, t.alive),
 			t.flipped,
+			t.longestFlip,
+			t.righted,
 			t.putBack
 		),
 		(function(): string
