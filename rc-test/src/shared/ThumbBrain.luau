@@ -33,7 +33,7 @@ ThumbBrain.ORBIT_BACK = 3 -- ...for this long: back up
 -- the same back-up again and again in one spot (a corner): drive off to the side and give up on
 -- that target for a while
 ThumbBrain.LOOP_NEAR = 5 -- studs between back-ups that count as the same spot
-ThumbBrain.LOOP_TIME = 5 -- s between them
+ThumbBrain.LOOP_TIME = 5 -- s from the first of them
 ThumbBrain.LOOPS = 3 -- this many = a loop
 ThumbBrain.DETOUR_TIME = 1.8 -- s driving at a point off to the side
 ThumbBrain.DETOUR_DIST = 12 -- studs
@@ -208,8 +208,13 @@ function ThumbBrain.step(
 			local again = s.backAt ~= nil
 				and now - s.backT < ThumbBrain.LOOP_TIME
 				and (me.x - s.backAt.x) ^ 2 + (me.z - s.backAt.z) ^ 2 < ThumbBrain.LOOP_NEAR ^ 2
-			s.loops = if again then s.loops + 1 else 1
-			s.backAt, s.backT = { x = me.x, z = me.z }, now
+			-- (measured from the first back-up of the run, so a slow drift isn't a loop)
+			if again then
+				s.loops += 1
+			else
+				s.loops = 1
+				s.backAt, s.backT = { x = me.x, z = me.z }, now
+			end
 			s.backUntil = now + ThumbBrain.BACK_TIME
 			s.slowFor, s.orbitFor = 0, 0
 			throttle, brake, mode = 0, 1, "back"
@@ -448,26 +453,37 @@ end
 
 -- The catch spots, most hit first: "(x, z) N stuck M flip on <what>", grouped by CELL.
 function ThumbBrain.spotList(spots: { Spot }, most: number): { string }
-	local cells: { [string]: { x: number, z: number, stuck: number, flip: number, what: { [string]: number } } } =
+	local cells: {
+		[string]: {
+			x: number,
+			z: number,
+			stuck: number,
+			flip: number,
+			pinned: number,
+			what: { [string]: number },
+		},
+	} =
 		{}
 	local order = {}
 	for _, sp in spots do
 		local key = math.floor(sp.x / ThumbBrain.CELL) .. "," .. math.floor(sp.z / ThumbBrain.CELL)
 		local c = cells[key]
 		if not c then
-			c = { x = sp.x, z = sp.z, stuck = 0, flip = 0, what = {} }
+			c = { x = sp.x, z = sp.z, stuck = 0, flip = 0, pinned = 0, what = {} }
 			cells[key] = c
 			table.insert(order, c)
 		end
 		if sp.kind == "flip" then
 			c.flip += 1
-		else
+		elseif sp.kind == "stuck" then
 			c.stuck += 1
+		else
+			c.pinned += 1 -- (pinned / circling)
 		end
 		c.what[sp.what] = (c.what[sp.what] or 0) + 1
 	end
 	table.sort(order, function(a, b)
-		return a.stuck + a.flip > b.stuck + b.flip
+		return a.stuck + a.flip + a.pinned > b.stuck + b.flip + b.pinned
 	end)
 	local out = {}
 	for i, c in order do
@@ -483,11 +499,12 @@ function ThumbBrain.spotList(spots: { Spot }, most: number): { string }
 		table.insert(
 			out,
 			string.format(
-				"(%d, %d) %d stuck %d flip on %s",
+				"(%d, %d) %d stuck %d flip%s on %s",
 				math.floor(c.x + 0.5),
 				math.floor(c.z + 0.5),
 				c.stuck,
 				c.flip,
+				if c.pinned > 0 then string.format(" %d pinned", c.pinned) else "",
 				best
 			)
 		)
