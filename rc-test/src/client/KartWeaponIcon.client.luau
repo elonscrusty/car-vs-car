@@ -14,12 +14,12 @@ local Base = require(Ui:WaitForChild("Base"))
 local KitWorld = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("KitWorld"))
 
 local Players = game:GetService("Players")
--- a phone (carter 10-29: too cluttered): smaller icons, near karts only, and none over your own
--- kart in the middle of the screen (its weapon and ammo are on FIRE)
+-- a phone (carter 10-29: too cluttered): smaller icons, near karts only; and on every screen none
+-- over your own kart (KitWorld.iconShown: its weapon and ammo are on FIRE)
 local PHONE = require(Ui:WaitForChild("Base")).phone()
 local MINE = "Car_" .. tostring(Players.LocalPlayer.UserId)
 
-local SIZE = if PHONE then 26 else 40 -- pixels
+local SIZE = if PHONE then KitWorld.ICON_PX_PHONE else KitWorld.ICON_PX -- pixels
 local INSET = math.floor(SIZE * 0.14) -- the icon sits this far inside the bubble
 local function kitColor(c: { number }): Color3
 	return Color3.fromRGB(c[1], c[2], c[3])
@@ -27,8 +27,8 @@ end
 local INK = kitColor(KitWorld.INK)
 -- just over the roof, where the YOU tag sits (Main), then lifted a little more than its own
 -- height on screen so it floats above the YOU / name tag and never off the top under the chase cam
-local LIFT = 0.4 -- studs over the kart's middle (a kart is about 1.4 studs long)
-local RAISE = 1.4 -- icon heights up, on screen
+local LIFT = KitWorld.ICON_LIFT -- studs over the kart's middle (a kart is about 1.4 studs long)
+local RAISE = KitWorld.ICON_RAISE -- icon heights up, on screen
 
 local function bodyOf(model: Model): BasePart?
 	if model.PrimaryPart then
@@ -46,7 +46,7 @@ local function watch(model: Model)
 		local a = model:GetAttribute("Ammo")
 		local name = if type(w) == "string" then w else ""
 		local ammo = if type(a) == "number" then a else 0
-		if name == "" or ammo <= 0 or (PHONE and model.Name == MINE) then
+		if not KitWorld.iconShown(w, a, model.Name == MINE) then
 			if gui then
 				gui.Enabled = false
 			end

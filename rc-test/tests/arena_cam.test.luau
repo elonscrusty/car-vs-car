@@ -199,36 +199,70 @@ test(
 	end
 )
 
-test("arena cam: on a phone the kart's middle sits ~70% down, clear of the thumbs", function()
-	local T: any = Tuning
-	T.setMode("race")
-	T.setScale(TrackData.RC_SCALE)
-	local drop = 1.5 * Tuning.scale -- ChaseCamera follows a spot this far above the body
+test("arena cam: on a phone the kart you see sits ~72% down, still and at speed", function()
 	local f = ArenaCam.fit(844, 390, true)
-	local function down(fov: number, lean: number): number
-		local ahead = ArenaCam.aimAhead(f.distance, f.pitch, fov, f.low, drop)
-		return ArenaCam.kartDown(f.distance, f.pitch, fov, ahead, lean, drop)
+	local function down(fov: number, lean: number, drop: number, fwd: number): number
+		local ahead = ArenaCam.aimAhead(f.distance, f.pitch, fov, f.low, drop, fwd)
+		return ArenaCam.kartDown(f.distance, f.pitch, fov, ahead, lean, drop, fwd)
 	end
-	local still = down(f.fov, 0)
-	print(string.format("  phone: kart middle %.0f%% down standing", still * 100))
-	truthy(math.abs(still - 0.7) < 1e-6, "70% down standing still")
-	-- at top speed: the full (phone) lean and the wider fov
-	local fast = down(f.fov + f.fast, ArenaCam.LEAD_MAX * f.lean)
-	print(string.format("  phone: kart middle %.0f%% down at top speed", fast * 100))
-	truthy(fast <= 0.76, "still well clear of the bottom at top speed")
-	-- the old full lean pushed it to the bottom
-	truthy(down(f.fov, ArenaCam.LEAD_MAX) > 0.8, "the full lean was the low kart")
-	-- same distance and fov: still 10%+ wide and the fight ahead still seen
+	-- the kart you see (the skin) sits somewhere under and around the followed spot: from the
+	-- physics box's middle (0.375 under) down to a skin reaching the ground, a little ahead or behind
+	for _, at in { { 0.375, 0 }, { 0.6, -0.2 }, { 0.8, 0 }, { 0.8, 0.3 } } do
+		local drop, fwd = at[1], at[2]
+		local still = down(f.fov, 0, drop, fwd)
+		local fast = down(f.fov + f.fast, ArenaCam.LEAD_MAX * f.lean, drop, fwd)
+		print(
+			string.format(
+				"  phone (skin %.2f under, %.1f ahead): %.0f%% down still, %.0f%% at speed",
+				drop,
+				fwd,
+				still * 100,
+				fast * 100
+			)
+		)
+		truthy(math.abs(still - 0.72) < 1e-6, "72% down standing still")
+		truthy(math.abs(fast - 0.72) <= 0.02, "72% +-2 at top speed")
+		local ahead = ArenaCam.seeAhead(f.distance, f.pitch, f.fov, f.low, drop, fwd)
+		truthy(ahead < math.huge, "the top of the screen is still the arena, not the sky")
+		truthy(ahead >= ArenaCam.PHONE_AHEAD_MIN * ArenaCam.KART_LONG, "the fight ahead seen")
+	end
+	-- Studio r57: aiming the physics box at 68% left the drawn kart (0.45 lower) at ~80%
+	local boxAim = ArenaCam.aimAhead(f.distance, f.pitch, f.fov, f.low, 0.375, 0)
+	truthy(
+		ArenaCam.kartDown(f.distance, f.pitch, f.fov, boxAim, 0, 0.375 + 0.45, 0) > 0.76,
+		"aiming at the box puts the drawn kart too low: aim at the drawn kart"
+	)
+	-- same distance and fov: still 10%+ wide
 	truthy(ArenaCam.share(844, 390, f.distance, f.fov + f.fast) >= ArenaCam.MIN_SHARE)
-	local ahead = ArenaCam.seeAhead(f.distance, f.pitch, f.fov, f.low, drop)
-	print(string.format("  phone: sees %.1f studs ahead", ahead))
-	truthy(ahead < math.huge, "the top of the screen is still the arena, not the sky")
-	truthy(ahead >= ArenaCam.PHONE_AHEAD_MIN * ArenaCam.KART_LONG, "the fight ahead still seen")
 	-- the big screen keeps its lower third and full lean
 	local big = ArenaCam.fit(1920, 1080)
 	eq(big.low, ArenaCam.KART_LOW)
 	eq(big.lean, 1)
 	local chase = fs.readFile("src/client/ChaseCamera.luau")
 	truthy(string.find(chase, "ArenaCam.lead(flatVel.Magnitude) * arenaFit.lean", 1, true) ~= nil)
-	truthy(string.find(chase, "arenaFit.low,", 1, true) ~= nil, "aims for the fitted spot")
+	truthy(string.find(chase, 'workspace:FindFirstChild("RCSkin")', 1, true) ~= nil, "the skin")
+	truthy(
+		string.find(chase, "seen:Dot(-Vector3.new(arenaOff.X, 0, arenaOff.Z).Unit)", 1, true) ~= nil,
+		"aims at the skin's middle"
+	)
+	truthy(
+		string.find(chase, "body.CFrame:ToObjectSpace(d.CFrame)", 1, true) ~= nil,
+		"turned parts"
+	)
+end)
+
+test("kit world: the weapon icon floats over every kart but your own", function()
+	local KitWorld = require("../src/shared/KitWorld")
+	eq(KitWorld.iconShown("rocket", 2, false), true, "another kart with a rocket")
+	eq(KitWorld.iconShown("rocket", 2, true), false, "never over your own (FIRE shows it)")
+	eq(KitWorld.iconShown("rocket", 0, false), false, "out of ammo")
+	eq(KitWorld.iconShown("", 3, false), false, "nothing held")
+	eq(KitWorld.iconShown(nil, 3, false), false)
+	eq(KitWorld.iconShown("gun", "3", false), false)
+	local icon = fs.readFile("src/client/KartWeaponIcon.client.luau")
+	truthy(
+		string.find(icon, "KitWorld.iconShown(w, a, model.Name == MINE)", 1, true) ~= nil,
+		"on every screen, not just phones"
+	)
+	truthy(string.find(icon, "PHONE and model.Name == MINE", 1, true) == nil)
 end)

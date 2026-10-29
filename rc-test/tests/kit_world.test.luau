@@ -33,6 +33,15 @@ test(
 		near(seeLate, 0.5, "half faded mid-fade")
 		truthy(KitWorld.NUMBER_PX >= 15, "nothing under 15 px")
 		truthy(KitWorld.NUMBER_SIDE >= 0.6, "beside the kart, off the name tag")
+		-- clear above the weapon badge: the badge's top is (RAISE + 0.5) icons up from the same spot
+		eq(KitWorld.NUMBER_LIFT, KitWorld.ICON_LIFT, "measured from the badge's spot")
+		local badgeTop = (KitWorld.ICON_RAISE + 0.5)
+			* math.max(KitWorld.ICON_PX, KitWorld.ICON_PX_PHONE)
+		truthy(KitWorld.numberAbove() > badgeTop, "the number starts above the badge")
+		local hits = fs.readFile("src/client/SmashHits.client.luau")
+		truthy(string.find(hits, "0.5 + KitWorld.numberAbove() / h", 1, true) ~= nil)
+		local icon = fs.readFile("src/client/KartWeaponIcon.client.luau")
+		truthy(string.find(icon, "local RAISE = KitWorld.ICON_RAISE", 1, true) ~= nil, "one number")
 	end
 )
 

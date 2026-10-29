@@ -172,6 +172,52 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 	refit(camera.ViewportSize) -- (this screen's numbers before the first spot: no swoop)
 	local arenaOff = -heading * ARENA_BACK + Vector3.new(0, ARENA_UP, 0) -- camera minus focus
 	local lean = Vector3.zero -- the look-ahead, eased
+	-- the kart you SEE (CarSkin's RCSkin: bigger than the physics box, down to the ground): its
+	-- middle in the body's own space, measured per skin; the match camera aims at it
+	local seenSkin: Instance? = nil -- the skin measured (kept once two frames agree)
+	local seenTry: Vector3? = nil -- last frame's measure of a skin not kept yet
+	local seenMid = Vector3.zero
+	local seenRel: Vector3? = nil -- its middle minus the followed spot, eased (no spring shake)
+	local function measure(skin: Instance): Vector3?
+		local lo, hi = nil :: Vector3?, nil :: Vector3?
+		for _, d in skin:GetDescendants() do
+			if d:IsA("BasePart") then
+				-- the part's box in the body's axes (a skin part keeps its imported turn)
+				local rel = body.CFrame:ToObjectSpace(d.CFrame)
+				local h = d.Size / 2
+				local r, u, l = rel.RightVector, rel.UpVector, rel.LookVector
+				local ext = Vector3.new(
+					math.abs(r.X) * h.X + math.abs(u.X) * h.Y + math.abs(l.X) * h.Z,
+					math.abs(r.Y) * h.X + math.abs(u.Y) * h.Y + math.abs(l.Y) * h.Z,
+					math.abs(r.Z) * h.X + math.abs(u.Z) * h.Y + math.abs(l.Z) * h.Z
+				)
+				local c = rel.Position
+				lo = if lo then lo:Min(c - ext) else c - ext
+				hi = if hi then hi:Max(c + ext) else c + ext
+			end
+		end
+		return if lo and hi then (lo + hi) / 2 else nil
+	end
+	local function seenMiddle(): Vector3
+		local skin = workspace:FindFirstChild("RCSkin")
+		if skin == nil then
+			seenSkin, seenTry, seenMid = nil, nil, Vector3.zero
+		elseif skin ~= seenSkin then
+			-- (a new skin is placed over a frame or two: keep its middle once two frames agree
+			-- and it sits on the kart; the body until then)
+			local m = measure(skin)
+			if m and m.Magnitude <= 2 * ArenaCam.KART_LONG then
+				if seenTry and (seenTry - m).Magnitude < 0.05 then
+					seenSkin, seenTry, seenMid = skin, nil, m
+				else
+					seenTry = m
+				end
+			else
+				seenTry = nil
+			end
+		end
+		return body.CFrame:PointToWorldSpace(if skin == seenSkin then seenMid else Vector3.zero)
+	end
 	-- its wall check sees only the arena itself (not other karts, shots or boxes) and looks past
 	-- the arena props: SeeKart fades those instead of the camera jumping in at every tree
 	local arenaParams = RaycastParams.new()
@@ -337,6 +383,7 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 		refit(camera.ViewportSize)
 		arenaOff = -heading * ARENA_BACK + Vector3.new(0, ARENA_UP, 0)
 		lean = Vector3.zero
+		seenRel = nil
 		arenaW = if arenaOn then 1 else 0
 		arenaFrom, arenaT = arenaW, ArenaCam.BLEND
 	end
@@ -554,13 +601,19 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 			local aFov = arenaFit.fov
 				+ arenaFit.fast * CarMath.clamp(flatSpeed / Tuning.topSpeed, 0, 1)
 			local flatOff = Vector3.new(arenaOff.X, 0, arenaOff.Z).Magnitude
+			local rel = seenMiddle() - focus
+			seenRel = if seenRel then seenRel:Lerp(rel, 1 - math.exp(-8 * dt)) else rel
+			local seen = seenRel :: Vector3
 			local aim = if offLen > 1e-3
 				then ArenaCam.aimAhead(
 					offLen,
 					math.deg(math.atan2(arenaOff.Y, flatOff)),
 					aFov,
 					arenaFit.low,
-					1.5 * Tuning.scale
+					-seen.Y,
+					if flatOff > 1e-3
+						then seen:Dot(-Vector3.new(arenaOff.X, 0, arenaOff.Z).Unit)
+						else 0
 				)
 				else 0
 			local aLook = focus + heading * aim + lean
