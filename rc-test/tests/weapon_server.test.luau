@@ -220,3 +220,20 @@ test(
 		eq(#S.errors, 0)
 	end
 )
+
+test(
+	"a smashed kart waiting to respawn can't take a weapon: hand and HUD never disagree",
+	function()
+		local S, kid, WS, _, karts = setup()
+		karts[1].alive = false
+		S.advance(0.1, 1 / 30) -- next frame: the kart list is read again
+		eq(WS.give(201, "Nuke"), false)
+		eq((WS.holding(201)), "")
+		eq(kid:GetAttribute("Weapon") or "", "")
+		karts[1].alive = true
+		S.advance(0.1, 1 / 30)
+		truthy(WS.give(201, "Nuke"))
+		eq(kid:GetAttribute("Weapon"), "Nuke")
+		eq(#S.errors, 0)
+	end
+)

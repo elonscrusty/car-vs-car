@@ -404,6 +404,12 @@ function WeaponServer.give(id: any, name: string): boolean
 	if id == nil or not Weapons.isName(name) or not modules[name] then
 		return false
 	end
+	-- a smashed kart waiting to respawn can't take one: it couldn't fire it, and the HUD would
+	-- show a weapon its hand can't use (Studio 10-29: a Nuke given then did nothing on FIRE)
+	local kart = ctx and ctx.getKart(id)
+	if kart and not kart.alive then
+		return false
+	end
 	local h = held[id] or Weapons.held()
 	held[id] = h
 	Weapons.give(h, name)
