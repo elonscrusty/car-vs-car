@@ -32,12 +32,11 @@ local function on(camera: Camera)
 		-- the game's world light steps aside while over the arena (the arena keeps its own look
 		-- until it's retuned to WorldLook)
 		LobbySky.suspend()
-		local old: { [string]: any } =
-			{
-				Ambient = Lighting.Ambient,
-				OutdoorAmbient = Lighting.OutdoorAmbient,
-				ColorShift_Top = Lighting.ColorShift_Top,
-			}
+		local old: { [string]: any } = {
+			Ambient = Lighting.Ambient,
+			OutdoorAmbient = Lighting.OutdoorAmbient,
+			ColorShift_Top = Lighting.ColorShift_Top,
+		}
 		for key in ArenaData.lighting do
 			old[key] = (Lighting :: any)[key]
 		end

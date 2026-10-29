@@ -627,8 +627,14 @@ ArenaData.lighting = {
 ArenaData.ambient = { 110, 110, 128 }
 ArenaData.outdoorAmbient = { 150, 150, 165 }
 ArenaData.colorShiftTop = { 255, 240, 215 }
-ArenaData.atmosphere =
-	{ Density = 0.3, Offset = 0.25, Haze = 0.6, Glare = 0, color = { 205, 228, 255 }, decay = { 170, 210, 250 } }
+ArenaData.atmosphere = {
+	Density = 0.3,
+	Offset = 0.25,
+	Haze = 0.6,
+	Glare = 0,
+	color = { 205, 228, 255 },
+	decay = { 170, 210, 250 },
+}
 ArenaData.clouds = { Cover = 0.5, Density = 0.6 }
 ArenaData.colorCorrection =
 	{ Brightness = 0.02, Contrast = 0.1, Saturation = 0.22, tint = { 255, 248, 238 } }
