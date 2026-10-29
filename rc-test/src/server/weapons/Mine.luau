@@ -96,12 +96,11 @@ local function build(at: Vector3): Instance
 	for i = 0, 7 do
 		local a = i * math.pi / 4
 		-- a glowing slit in the side, and a spike between each two slits, leaning out and up
-		local slit = piece(model, "Part", "Slit", Vector3.new(0.06, 0.12, 0.42), CFrame.new(), GLOW)
+		local slit = piece(model, "Part", "Slit", Vector3.new(0.06, 0.12, 0.42), cf, GLOW)
 		slit.CFrame = up(0.01) * CFrame.Angles(0, -a, 0) * CFrame.new(1.39 * S, 0, 0)
 		slit.Material = Enum.Material.Neon
 		local b = a + math.pi / 8
-		local spike =
-			piece(model, "WedgePart", "Spike", Vector3.new(0.3, 0.6, 0.3), CFrame.new(), RED)
+		local spike = piece(model, "WedgePart", "Spike", Vector3.new(0.3, 0.6, 0.3), cf, RED)
 		spike.CFrame = up(0.13)
 			* CFrame.Angles(0, -b, 0)
 			* CFrame.new(1.36 * S, 0, 0)
