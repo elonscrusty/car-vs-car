@@ -3,7 +3,7 @@
 -- red/white curbs and crosswalks, the sand patch and its red bumper wall, the two pink hills with
 -- ramps, the purple step, orange cover walls, lollipop trees and the purple outer wall.
 -- LOOK RULE: clean low-poly, flat colours, SmoothPlastic only, faceted shapes (the hills are
--- wedge-built prisms, the tree tops two turned cubes). No studs, bricks, text or logos.
+-- wedge-built prisms, the tree tops turned blocks). No studs, bricks, text or logos.
 -- Built big (map-local big units) and shrunk to RC size like the race maps.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -21,7 +21,7 @@ end
 
 -- palette (LOOK RULE: grass green, sky blue, sunny yellow, cherry red, hot pink, dark navy)
 local GRASS = rgb(112, 190, 88)
-local ROAD = rgb(92, 98, 118)
+local ROAD = rgb(150, 150, 158)
 local CURB_RED, CURB_WHITE = rgb(214, 70, 72), rgb(240, 238, 232)
 local SAND = rgb(250, 190, 96)
 local BUMPER = rgb(225, 40, 50)
@@ -111,14 +111,15 @@ local function wall(
 	b: Vector3,
 	thick: number,
 	h: number,
-	color: Color3
+	color: Color3,
+	exact: boolean? -- true: end exactly at a and b (no square overhang past the ends)
 )
 	local d = Vector3.new(b.X - a.X, 0, b.Z - a.Z)
 	local mid = Vector3.new((a.X + b.X) / 2, h / 2, (a.Z + b.Z) / 2)
 	return part(
 		parent,
 		name,
-		Vector3.new(thick, h, d.Magnitude + thick),
+		Vector3.new(thick, h, d.Magnitude + (if exact then 0 else thick)),
 		CFrame.lookAt(mid, mid + d),
 		color,
 		true
@@ -327,32 +328,29 @@ local function buildFloor(folder: Instance)
 			true
 		)
 	end
-	-- a lighter trim along the top, a pillar every so often on the inside face, and on each pillar
-	-- a post with a bright pennant (looks only: up out of the way)
+	-- a chunky light rail along the top and a lighter pillar every so often on the inside face
 	local inner = s / 2 - w
 	for _, side in { -1, 1 } do
 		part(
 			folder,
 			"WallTrim",
-			Vector3.new(s, 1.2, w + 1),
-			CFrame.new(0, h + 0.6, side * (s - w) / 2),
+			Vector3.new(s, 2, w + 1),
+			CFrame.new(0, h + 1, side * (s - w) / 2),
 			TRIM,
 			true
 		)
 		part(
 			folder,
 			"WallTrim",
-			Vector3.new(w + 1, 1.2, s),
-			CFrame.new(side * (s - w) / 2, h + 0.6, 0),
+			Vector3.new(w + 1, 2, s),
+			CFrame.new(side * (s - w) / 2, h + 1, 0),
 			TRIM,
 			true
 		)
 	end
 	local GAP = 36
-	local k = 0
 	for along = -s / 2 + GAP, s / 2 - GAP / 2, GAP do
 		for _, face in { { 0, -1 }, { 1, 0 }, { 0, 1 }, { -1, 0 } } do
-			k += 1
 			local nx, nz = face[1], face[2] -- the wall's side of the arena
 			local tx, tz = -nz, nx -- along the wall
 			local base = Vector3.new(nx * inner + tx * along, 0, nz * inner + tz * along)
@@ -364,31 +362,6 @@ local function buildFloor(folder: Instance)
 				CFrame.lookAt(base - into * 0.7, base) + Vector3.new(0, (h + 1.6) / 2, 0),
 				TRIM,
 				false
-			)
-			local post = part(
-				folder,
-				"FlagPost",
-				Vector3.new(8, 0.5, 0.5),
-				CFrame.new(base + Vector3.new(0, h + 5, 0)) * CFrame.Angles(0, 0, math.pi / 2),
-				NAVY,
-				false
-			) :: Part
-			post.Shape = Enum.PartType.Cylinder
-			-- the pennant: a thin wedge, its point flying along the wall
-			local top = base + Vector3.new(0, h + 7.5, 0)
-			part(
-				folder,
-				"Pennant",
-				Vector3.new(0.2, 2.6, 4.5),
-				CFrame.fromMatrix(
-					top + Vector3.new(tx, 0, tz) * 2.25,
-					into,
-					Vector3.yAxis,
-					-Vector3.new(tx, 0, tz)
-				),
-				FLAGS[k % #FLAGS + 1],
-				false,
-				"WedgePart"
 			)
 		end
 	end
@@ -510,7 +483,8 @@ local function buildSand(folder: Instance)
 				a:Lerp(b, u1),
 				ArenaData.BUMPER_W * K,
 				ArenaData.BUMPER_H,
-				BUMPER
+				BUMPER,
+				true
 			)
 		end
 	end
@@ -560,15 +534,28 @@ local function buildCover(folder: Instance)
 			v(seg[2], 0),
 			ArenaData.COVER_W * K,
 			ArenaData.COVER_H,
-			ORANGE
+			ORANGE,
+			true
 		)
+		-- red bumper caps on both ends (round, like the barrels)
+		for _, e in seg do
+			local cap = part(
+				folder,
+				"CoverCap",
+				Vector3.new(ArenaData.COVER_H + 1, ArenaData.COVER_W * K, ArenaData.COVER_W * K),
+				CFrame.new(v(e, (ArenaData.COVER_H + 1) / 2)) * CFrame.Angles(0, 0, math.pi / 2),
+				CURB_RED,
+				true
+			) :: Part
+			cap.Shape = Enum.PartType.Cylinder
+		end
 	end
 end
 
 local function buildTrees(folder: Instance)
 	for i, t in ArenaData.TREES do
 		local base = v(t, 0)
-		local h = 26
+		local h = 24
 		local tk = ArenaData.TRUNK
 		local stick = part(
 			folder,
@@ -579,24 +566,36 @@ local function buildTrees(folder: Instance)
 			true
 		) :: Part
 		stick.Shape = Enum.PartType.Cylinder
-		-- the candy top: two turned cubes make a faceted gem, up out of the karts' way
-		local r = ArenaData.TREE_R * K
-		local top = base + Vector3.new(0, h + r * 0.6, 0)
+		-- a chunky faceted top: three turned blocks, up out of the karts' way (two trees green)
+		local r = ArenaData.TREE_R * K * 1.5
+		local top = base + Vector3.new(0, h + r * 0.45, 0)
 		local spin = i * 0.7
+		local green = i == 2 or i == 5
+		local c1, c2 = if green then BUSH else CANDY, if green then BUSH_2 else CANDY_2
 		part(
 			folder,
 			"TreeTop",
-			Vector3.new(r * 1.5, r * 1.5, r * 1.5),
-			CFrame.new(top) * CFrame.Angles(0.6, spin, 0.6),
-			CANDY,
+			Vector3.new(r * 1.3, r, r * 1.3),
+			CFrame.new(top) * CFrame.Angles(0.2, spin, 0.15),
+			c1,
 			false
 		)
 		part(
 			folder,
 			"TreeTop",
-			Vector3.new(r * 1.3, r * 1.3, r * 1.3),
-			CFrame.new(top) * CFrame.Angles(-0.4, spin + 0.8, 0.9),
-			CANDY_2,
+			Vector3.new(r * 0.95, r * 0.85, r * 0.95),
+			CFrame.new(top + Vector3.new(r * 0.35, r * 0.3, -r * 0.2))
+				* CFrame.Angles(-0.25, spin + 0.8, 0.3),
+			c2,
+			false
+		)
+		part(
+			folder,
+			"TreeTop",
+			Vector3.new(r * 0.8, r * 0.7, r * 0.8),
+			CFrame.new(top + Vector3.new(-r * 0.35, r * 0.2, r * 0.3))
+				* CFrame.Angles(0.3, spin + 1.6, -0.2),
+			c2,
 			false
 		)
 	end
@@ -752,8 +751,8 @@ local function buildDecor(folder: Instance)
 		)
 	end
 	for i, b in ArenaData.BUSHES do
-		lump(folder, "Bush", v(b, 0), 6, 5, i * 0.9, BUSH, BUSH_2, false)
-		lump(folder, "Bush", v(b, 0) + Vector3.new(4, 0, 3), 4, 3.5, i * 1.7, BUSH_2, BUSH, false)
+		lump(folder, "Bush", v(b, 0), 9, 7, i * 0.9, BUSH, BUSH_2, false)
+		lump(folder, "Bush", v(b, 0) + Vector3.new(6, 0, 4), 6, 5, i * 1.7, BUSH_2, BUSH, false)
 	end
 	for i, f in ArenaData.FLOWERS do
 		local at = v(f, 0)
@@ -873,8 +872,8 @@ local function buildTufts(folder: Instance)
 	for _, p in ArenaData.BOXES do
 		table.insert(spots, p)
 	end
-	for gx = 14, ArenaData.PIC - 14, 13 do
-		for gy = 14, ArenaData.PIC - 14, 13 do
+	for gx = 14, ArenaData.PIC - 14, 22 do
+		for gy = 14, ArenaData.PIC - 14, 22 do
 			local p = { gx + rng:NextNumber(-5, 5), gy + rng:NextNumber(-5, 5) }
 			local ok = ArenaData.groundAt(p) == 0
 				and not ArenaData.inside(ArenaData.SAND, p)
@@ -906,7 +905,7 @@ local function buildTufts(folder: Instance)
 					part(
 						folder,
 						"Tuft",
-						Vector3.new(1.4, 2.4 - t * 0.6, 1.4),
+						Vector3.new(2.6, 4 - t * 1, 2.6),
 						CFrame.new(at + Vector3.new(t * 1.2, 0.9, t * 0.8))
 							* CFrame.Angles(0.3, spin + t, 0.35),
 						if t == 0 then GRASS_DARK else BUSH_2,
