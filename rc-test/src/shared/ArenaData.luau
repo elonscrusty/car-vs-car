@@ -97,7 +97,7 @@ ArenaData.STEP_SIDES = { 2, 3 }
 
 -- orange cover walls (segments, picture units)
 ArenaData.COVER = {
-	{ { 120, 115 }, { 140, 112 } },
+	{ { 120, 115 }, { 140, 112 } }, -- (west end cut back: the pocket by the sand bumper caught karts)
 	{ { 110, 190 }, { 135, 200 } },
 	{ { 175, 30 }, { 195, 38 } },
 } :: { { Pt } }
@@ -136,7 +136,6 @@ ArenaData.BUSHES = {
 	{ 229, 140 },
 	{ 148, 200 },
 	{ 100, 190 },
-	{ 195, 135 },
 	{ 52, 100 },
 } :: { Pt }
 ArenaData.FLOWERS = {
