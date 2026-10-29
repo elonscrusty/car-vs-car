@@ -26,6 +26,9 @@ local Jobs = require(script.Parent.Jobs)
 local PlayerData = require(script.Parent.PlayerData)
 
 DailyJobs.useCvc(Features.CVC) -- Car VS Car: train, race and crate jobs
+if Features.SMASH then
+	DailyJobs.useSmash() -- Smash: smash, match and crate jobs (old race progress starts over)
+end
 
 local LOOK = 0.1 -- seconds between looks at the cars
 
@@ -110,6 +113,7 @@ local function job(player: Player, event: string, n: number?)
 		print(`[Stars] job {j.id} done by {player.Name} +{j.coins * boost} coins`)
 	end
 	if #done > 0 then
+		player:SetAttribute("Coins", data.coins) -- (the garage and lobby chips read this)
 		remote:FireClient(player, "coins", data.coins)
 	end
 	sendJobs(player)

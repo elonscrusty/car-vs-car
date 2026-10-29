@@ -34,7 +34,7 @@ export type Data = {
 	rivals: { [string]: Rival }, -- other player's user id -> my score against them
 	dailyDay: number, -- the day the daily gift was last taken (0 = never)
 	dayStreak: number, -- days in a row the daily gift was taken
-	jobs: { day: number, have: { number } }, -- daily jobs: the day, and how far each job got
+	jobs: { day: number, have: { number }, pool: string? }, -- daily jobs: the day, how far each job got, and which lists (DailyJobs.POOL)
 	looks: { [string]: boolean }, -- plot looks bought in the plot shop (PlotShop ids)
 	lookOff: { [string]: boolean }, -- plot looks I have but turned off
 	cars: { [string]: boolean }, -- CarCatalog ids bought or won (starters are everyone's anyway)
@@ -453,6 +453,10 @@ function Profile.migrate(raw: any): Data
 		and type(raw.jobs.have) == "table"
 	then
 		d.jobs.day = math.floor(raw.jobs.day)
+		local pool = raw.jobs.pool
+		if pool == "tycoon" or pool == "cvc" or pool == "smash" then
+			d.jobs.pool = pool
+		end
 		for i = 1, 3 do
 			local v = raw.jobs.have[i]
 			if goodNumber(v) and v > 0 then
@@ -1100,8 +1104,16 @@ function Profile.mergeVisit(stored: Data, session: Data, base: Data): Data
 		out.dailyDay = session.dailyDay
 		out.dayStreak = session.dayStreak
 	end
-	if session.jobs.day > stored.jobs.day then
-		out.jobs = { day = session.jobs.day, have = table.clone(session.jobs.have) }
+	-- (the same day on other lists, e.g. race jobs saved before Smash: the visit's lists win)
+	if
+		session.jobs.day > stored.jobs.day
+		or (session.jobs.day == stored.jobs.day and session.jobs.pool ~= stored.jobs.pool)
+	then
+		out.jobs = {
+			day = session.jobs.day,
+			have = table.clone(session.jobs.have),
+			pool = session.jobs.pool,
+		}
 	elseif session.jobs.day == stored.jobs.day then
 		for i = 1, 3 do
 			out.jobs.have[i] = math.max(out.jobs.have[i] or 0, session.jobs.have[i] or 0)
