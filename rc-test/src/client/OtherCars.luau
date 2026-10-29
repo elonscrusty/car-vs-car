@@ -29,7 +29,12 @@ local FAR = 400 -- studs: past this, other cars' wheels are not drawn (phones)
 local RACE_TAG_FAR = 90
 local STEER_MAX = 0.75 -- radians, the base car's widest wheel angle
 local MAX_SUSP = 4 -- big-size spring travel; the ray stops it sooner on the ground
-local TAG_W, TAG_H = 120, 26 -- a name tag's size on screen (px)
+local PHONE = require(script.Parent:WaitForChild("Ui"):WaitForChild("Base")).phone()
+-- a name tag's size on screen (px); a phone's small (carter 10-29: too cluttered on mobile)
+local TAG_W, TAG_H = if PHONE then 84 else 120, if PHONE then 18 else 26
+-- a phone in a Smash match: only karts near yours wear names (about 6 kart lengths past the
+-- chase camera: a kart is about 1.4 studs)
+local MATCH_TAG_FAR = 14
 
 type Wheel = { part: Part, stripe: Part, spot: Vector3, front: boolean, shown: number, spin: number }
 -- Car VS Car: the toy car's shell (body, cab, roof, wing, lights) over the grey blocks, the same
@@ -384,7 +389,12 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 			-- carter's pick 18: in the big race every car in your race wears its name, however far
 			-- (the stand cam watches from the side of the track)
 			local inRace = myGroup ~= nil and group == myGroup
-			o.tag.MaxDistance = if inRace then RACE_TAG_FAR else 150
+			o.tag.MaxDistance = if inRace
+				then RACE_TAG_FAR
+				elseif
+					PHONE and Players.LocalPlayer:GetAttribute("InMatch") == true
+				then MATCH_TAG_FAR
+				else 150
 			o.tag.Enabled = near or (inRace and not hide)
 			if o.tag.Enabled and far < o.tag.MaxDistance then
 				-- (kept nearest first)

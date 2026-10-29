@@ -177,9 +177,9 @@ local function eachPiece(fn: (
 end
 
 test(
-	"18 screens: the spec's 17, numbered 0 to 16 in its order, then the SMASH match HUD",
+	"19 screens: the spec's 17, numbered 0 to 16 in its order, then the SMASH match HUD and its phone layout",
 	function()
-		eq(#UiScreens.LIST, 18)
+		eq(#UiScreens.LIST, 19)
 		for i, s in UiScreens.LIST do
 			eq(s.n, i - 1, s.id)
 		end

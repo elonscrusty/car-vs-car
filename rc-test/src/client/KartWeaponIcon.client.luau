@@ -7,7 +7,13 @@ local Ui = script.Parent:WaitForChild("Ui")
 local Icons = require(Ui:WaitForChild("Icons"))
 local Hud = require(Ui:WaitForChild("Screens"):WaitForChild("Hud"))
 
-local SIZE = 40 -- pixels
+local Players = game:GetService("Players")
+-- a phone (carter 10-29: too cluttered): smaller icons, near karts only, and none over your own
+-- kart in the middle of the screen (its weapon and ammo are on FIRE)
+local PHONE = require(Ui:WaitForChild("Base")).phone()
+local MINE = "Car_" .. tostring(Players.LocalPlayer.UserId)
+
+local SIZE = if PHONE then 26 else 40 -- pixels
 -- just over the roof, where the YOU tag sits (Main), then lifted a little more than its own
 -- height on screen so it floats above the YOU / name tag and never off the top under the chase cam
 local LIFT = 0.4 -- studs over the kart's middle (a kart is about 1.4 studs long)
@@ -29,7 +35,7 @@ local function watch(model: Model)
 		local a = model:GetAttribute("Ammo")
 		local name = if type(w) == "string" then w else ""
 		local ammo = if type(a) == "number" then a else 0
-		if name == "" or ammo <= 0 then
+		if name == "" or ammo <= 0 or (PHONE and model.Name == MINE) then
 			if gui then
 				gui.Enabled = false
 			end
@@ -54,7 +60,7 @@ local function watch(model: Model)
 			g.SizeOffset = Vector2.new(0, RAISE)
 			-- (not AlwaysOnTop: on carter's PC AlwaysOnTop billboards never drew)
 			g.AlwaysOnTop = false
-			g.MaxDistance = 1200
+			g.MaxDistance = if PHONE then 40 else 1200
 			g.ResetOnSpawn = false
 			g.Adornee = body
 			local count = Instance.new("TextLabel")
@@ -62,7 +68,7 @@ local function watch(model: Model)
 			count.BackgroundTransparency = 1
 			count.AnchorPoint = Vector2.new(1, 1)
 			count.Position = UDim2.fromScale(1.15, 1.1)
-			count.Size = UDim2.fromOffset(18, 18)
+			count.Size = UDim2.fromOffset(if PHONE then 14 else 18, if PHONE then 14 else 18)
 			count.Font = Enum.Font.LuckiestGuy
 			count.TextScaled = true
 			count.TextColor3 = Color3.new(1, 1, 1)

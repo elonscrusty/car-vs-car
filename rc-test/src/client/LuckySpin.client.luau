@@ -43,8 +43,10 @@ local function lobbyHudUp(): boolean
 	local hud = playerGui:FindFirstChild("Ui_plot")
 	return hud ~= nil and hud:IsA("ScreenGui") and hud.Enabled
 end
+-- (a phone: no tile; SPIN is in the lobby's MENU, which fires OpenSpin)
+local PHONE = Base.phone()
 local function showTile()
-	local on = not inMatch() and lobbyHudUp()
+	local on = not inMatch() and lobbyHudUp() and not PHONE
 	if tileGui.gui.Enabled ~= on then
 		Base.show(tileGui, on)
 	end
@@ -131,6 +133,21 @@ local function open()
 	remote:FireServer("open")
 end
 tile.button.Activated:Connect(open)
+-- the lobby's MENU on a phone (CvcScreens) opens the spin window through this
+do
+	local ev = ReplicatedStorage:FindFirstChild("OpenSpin")
+	if not (ev and ev:IsA("BindableEvent")) then
+		local made = Instance.new("BindableEvent")
+		made.Name = "OpenSpin"
+		made.Parent = ReplicatedStorage
+		ev = made
+	end
+	(ev :: BindableEvent).Event:Connect(function()
+		if not inMatch() then
+			open()
+		end
+	end)
+end
 
 -- the clock on the button ticks down while the window is open
 task.spawn(function()

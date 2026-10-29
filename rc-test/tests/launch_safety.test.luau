@@ -53,6 +53,10 @@ test("INVITE is on the plot screen (after the first crate, where Roblox allows i
 	truthy(has("src/client/Ui/Screens/Hud.luau", "holders.Invite = inviteHolder"))
 	local src = fs.readFile("src/client/CvcScreens.client.luau")
 	truthy(string.find(src, "SocialService:PromptGameInvite(player, options)", 1, true) ~= nil)
-	truthy(string.find(src, 'api.setShown("Invite", shopped and canInvite)', 1, true) ~= nil)
+	-- (a phone's Smash lobby keeps it in the MENU instead)
+	truthy(
+		string.find(src, 'api.setShown("Invite", shopped and canInvite and not menu)', 1, true)
+			~= nil
+	)
 	truthy(string.find(src, "CanSendGameInviteAsync", 1, true) ~= nil)
 end)

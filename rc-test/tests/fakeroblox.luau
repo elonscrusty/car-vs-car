@@ -369,6 +369,7 @@ function Fake.server(store: Store, opts: { seed: number?, jobId: string?, at: nu
 			return p.ClassName == cls
 				or cls == "Instance"
 				or (cls == "BasePart" and (p.ClassName == "Part" or p.ClassName == "MeshPart"))
+				or (cls == "GuiObject" and p._gui == true)
 				or (
 					cls == "LuaSourceContainer"
 					and (p.ClassName == "ModuleScript" or p.ClassName == "Script")

@@ -310,6 +310,18 @@ SmashJuice.WORDS = {
 	by = { y = 0.43, h = 0.08 },
 	count = { y = 0.54, h = 0.13 },
 } :: { [string]: { y: number, h: number } }
+-- On a phone (carter 10-29: too cluttered): smaller, higher (just under the small HUD's clock and
+-- health bar) and briefer: at most TOUCH_SECONDS, so the middle of the screen is only crossed by
+-- a flash.
+SmashJuice.WORDS_W_TOUCH = 0.3
+SmashJuice.WORDS_TOUCH = {
+	you = { y = 0.3, h = 0.055 },
+	name = { y = 0.355, h = 0.065 },
+	streak = { y = 0.41, h = 0.05 },
+	by = { y = 0.31, h = 0.06 },
+	count = { y = 0.4, h = 0.09 },
+} :: { [string]: { y: number, h: number } }
+SmashJuice.TOUCH_SECONDS = 1
 -- (the words pop in from at most 1.5x, so the pop never sweeps over the HUD for long)
 
 -- Palette for confetti (the low-poly look: grass, sky, sun, cherry, pink).

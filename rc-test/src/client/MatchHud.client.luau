@@ -17,6 +17,7 @@ if (Features :: any).SMASH ~= true then
 end
 
 local Ui = script.Parent:WaitForChild("Ui")
+local Base = require(Ui:WaitForChild("Base"))
 local Screen = require(Ui:WaitForChild("Screen"))
 local Hud = require(Ui:WaitForChild("Screens"):WaitForChild("Hud"))
 local SmashJuice = require(Shared:WaitForChild("SmashJuice"))
@@ -169,7 +170,7 @@ local function open()
 		weapon = if type(w) == "string" then w else "",
 		ammo = num("Ammo", 0),
 		board = boardList(),
-	}, { fire = fire })
+	}, { fire = fire }, Base.phone())
 end
 
 local function check()

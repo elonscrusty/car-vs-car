@@ -5,6 +5,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 
 local Crates = require(ReplicatedStorage.Shared.Crates)
 local CvcLayout = require(ReplicatedStorage.Shared.CvcLayout)
@@ -1096,7 +1097,8 @@ end)
 remote.OnClientEvent:Connect(function(kind: unknown, info: unknown, saving: unknown, ...: unknown)
 	if kind == "saving" then
 		-- true = saving works; false = not saving; "retry" = DataStore down, trying again
-		noSave.Visible = info ~= true
+		-- (Studio only: a player can't fix it, and it cluttered the phone screen, carter 10-29)
+		noSave.Visible = info ~= true and RunService:IsStudio()
 		noSave.Text = if info == "retry" then "SAVING IS OFF, TRYING AGAIN" else "NOT SAVING"
 		return
 	end
