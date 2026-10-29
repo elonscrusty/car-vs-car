@@ -20,13 +20,14 @@ local Effects = {}
 
 local SLIDE_START = 7 -- sideways tyre speed (studs/s) where smoke and marks begin
 local SMOKE_PER_SECOND = 70
+local FRONT_SMOKE = 0.5 -- front tyres put out this share of the rear smoke
 local smokeColor = Color3.fromRGB(235, 235, 235) -- the player's pick (looks only)
 -- Skid marks are Trails lying flat between two points across the tyre: one smooth ribbon that
 -- fades out (playtest u30: the old row of boxes drew jagged zig-zags). Each slide takes the next
 -- of MARK_RIGS ribbons per tyre, so the last few slides stay on the road while they fade.
 local MARK_LIFE = 12 -- seconds a skid mark lasts (Trails top out at 20)
 local MARK_RIGS = 4
-local MARK_WIDTH = 0.65 -- across the tyre (car sizes)
+local MARK_WIDTH = 0.8 -- across the tyre (car sizes); carter picked "Classic" (10-29): bold black lines
 -- no marks where a tyre can't leave one (playtest u12: dark stripes on the water)
 local NO_MARKS: { [Enum.Material]: boolean } = {
 	[Enum.Material.Water] = true,
@@ -95,10 +96,10 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 		trail.Enabled = false
 		trail.Lifetime = MARK_LIFE
 		trail.MinLength = 0.1 * S
-		trail.Color = ColorSequence.new(Color3.fromRGB(25, 25, 28))
+		trail.Color = ColorSequence.new(Color3.fromRGB(4, 4, 6))
 		trail.Transparency = NumberSequence.new({
-			NumberSequenceKeypoint.new(0, 0.35),
-			NumberSequenceKeypoint.new(0.6, 0.5),
+			NumberSequenceKeypoint.new(0, 0.12),
+			NumberSequenceKeypoint.new(0.65, 0.2),
 			NumberSequenceKeypoint.new(1, 1),
 		})
 		trail.LightEmission = 0
@@ -293,8 +294,9 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 			if sliding then
 				local strength = math.clamp((info.slide - SLIDE_START * S) / (20 * S), 0, 1)
 				t.attach.WorldPosition = info.contact + info.normal * 0.3 * S
-				if info.rear then
-					t.owed += SMOKE_PER_SECOND * (0.3 + strength) * dt
+				do -- the front tyres puff too, half as much (Classic look)
+					local share = if info.rear then 1 else FRONT_SMOKE
+					t.owed += SMOKE_PER_SECOND * share * (0.3 + strength) * dt
 					local n = math.floor(t.owed)
 					if n > 0 then
 						t.emitter:Emit(n)
