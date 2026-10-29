@@ -428,12 +428,14 @@ local LIST: { Screen } = {
 			-- (224 wide: any wider and it sits under the SMASHED BY words, SmashJuice.WORDS)
 			p("Board", 0, 60, 224, 108, { anchor = "tl" }),
 			p("Feed", 486, 8, 270, 88, { anchor = "tr" }),
-			p("Clock", 323, 4, 110, 36, { anchor = "t" }),
+			-- (the clock by the place chip and the health bar up in the top row: under the clock it
+			-- reached the centre box on a wide screen, auditor qa_r61)
+			p("Clock", 156, 8, 104, 36, { anchor = "tl" }),
 			-- (carter's kit v41: the level star, your name and 72/100 over the bar, the heart on it)
-			p("Health", 250, 42, 232, 42, { anchor = "t" }),
+			p("Health", 268, 4, 216, 42, { anchor = "t" }),
 			-- the short flash words (STUCK - BACK TO START...), drawn by client/Hud: under the health
 			-- bar, clear of the board and the feed (they sat on the health bar, Studio round 5)
-			p("Words", 244, 110, 264, 34, { anchor = "t" }),
+			p("Words", 244, 56, 240, 34, { anchor = "t" }),
 			button("Fire", 618, 244, 118, 118, "danger", "FIRE", { anchor = "br" }),
 		},
 	},
