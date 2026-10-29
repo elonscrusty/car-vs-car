@@ -696,7 +696,8 @@ local function startRound()
 		if data and data.stage < Profile.STAGE.RACED then
 			newKids[p.UserId] = true
 		end
-		if data and (data.matches or 0) < ROOKIE_MATCHES then
+		-- (no save loaded yet: count them a rookie, the safe side)
+		if not data or (data.matches or 0) < ROOKIE_MATCHES then
 			rookies[p.UserId] = true
 		end
 		p:SetAttribute("MatchQueued", nil)

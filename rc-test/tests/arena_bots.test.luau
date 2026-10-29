@@ -112,33 +112,23 @@ test(
 
 test("no shot past a rookie: the weapons' lock-on would take it onto them", function()
 	local w = world()
+	local bot = B.new(-1, 0, 0, 0, { skill = 1 })
 	w.karts = {
 		{ id = -1, x = 0, z = 0, alive = true },
 		{ id = 201, x = 3, z = -30, alive = true, human = true, rookie = true },
 		{ id = -2, x = 0, z = -60, alive = true },
 	}
-	local bot = B.new(-1, 0, 0, 0, { skill = 1 })
-	-- (it goes after the bot: a rookie counts as ROOKIE.chase times farther)
-	local fired = 0
-	local t = 0
-	while t < 5 do
-		t += 0.05
-		w.karts[1].x, w.karts[1].z = bot.x, bot.z
-		if B.step(bot, w, 0.05, t, "Rockets", 3).fire then
-			fired += 1
-		end
-	end
-	eq(bot.target, -2)
-	eq(fired, 0, "held fire with the rookie in the cone")
-	w.karts[2].x = 60 -- the kid out of the way
-	while t < 10 do
-		t += 0.05
-		w.karts[1].x, w.karts[1].z = bot.x, bot.z
-		if B.step(bot, w, 0.05, t, "Rockets", 3).fire then
-			fired += 1
-		end
-	end
-	truthy(fired > 0, "fires once the kid is clear")
+	-- shooting at -2 (60 ahead): the rookie 30 ahead, just off the line, is in the cone
+	eq(B.rookieInLock(bot, w, 0, -60, 60), true)
+	-- off to the side (60 degrees): clear
+	w.karts[2].x, w.karts[2].z = 30, -17
+	eq(B.rookieInLock(bot, w, 0, -60, 60), false)
+	-- behind the target: the shot locks onto the target first
+	w.karts[2].x, w.karts[2].z = 0, -80
+	eq(B.rookieInLock(bot, w, 0, -60, 60), false)
+	-- not a rookie any more: fair game
+	w.karts[2].x, w.karts[2].z, w.karts[2].rookie = 3, -30, false
+	eq(B.rookieInLock(bot, w, 0, -60, 60), false)
 end)
 
 test("stuck against a wall: backs up and gets away", function()

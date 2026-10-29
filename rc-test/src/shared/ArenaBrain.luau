@@ -26,6 +26,9 @@ ArenaBrain.ROOKIE = { matches = 3, chase = 4, react = 1.5, gap = 1.5, spare = 0.
 -- The weapons' aim help (Weapons.ROCKET seekDeg / seekRange, in big units): a shot locks onto the
 -- nearest kart within this cone, so a bot shooting past a rookie would hit the rookie.
 ArenaBrain.LOCK = { deg = 35, range = 110 }
+-- Each boom's splash in big units (Weapons' splash studs / its SCALE): no shot whose boom would
+-- catch a rookie.
+ArenaBrain.SPLASH = { Rockets = 11, Nuke = 44 } :: { [string]: number }
 -- An easy match (a rookie is in it): every bot is a bit slower to shoot and to drive, at anyone,
 -- so the rookie's smashes count for more of the board.
 ArenaBrain.EASY = { gap = 0.8, react = 0.3, speed = 0.8 }
@@ -438,7 +441,7 @@ local function decide(
 			-- in range: ease off and line up the shot, don't fly past and circle it
 			bot.goalX, bot.goalZ = target.x, target.z
 			if d < use.range * ArenaBrain.LINE_UP then
-				bot.throttle = 0.3
+				bot.throttle = 0.5
 			end
 		end
 		return
@@ -472,6 +475,8 @@ local function rookieInLock(bot: Bot, world: World, dx: number, dz: number, d: n
 	end
 	return false
 end
+
+ArenaBrain.rookieInLock = rookieInLock
 
 -- A shot, if the target is a fair one right now.
 local function aimAt(
@@ -545,17 +550,34 @@ local function aimAt(
 		+ (if target.rookie then ArenaBrain.ROOKIE.gap else 0)
 		+ (if bot.easy then ArenaBrain.EASY.gap else 0)
 	-- (the weapons' aim help locks a shot onto the nearest kart in its cone, so a shot sent wide
-	-- would still find a rookie: a bot spares one by holding the shot instead)
+	-- would still find a rookie: a bot spares one by holding the shot instead. The rest still
+	-- go: a rookie is hit less often, not never)
 	if target.rookie and bot.rng:NextNumber() < ArenaBrain.ROOKIE.spare then
 		return nil
-	end
-	if not target.rookie and rookieInLock(bot, world, dx, dz, d) then
-		return nil -- the shot would lock onto the rookie in front of the target
 	end
 	local miss = (1 - bot.skill) * 6 + (if target.human and bot.easy then 4 else 0)
 	local a = bot.rng:NextNumber() * 2 * math.pi
 	local m = bot.rng:NextNumber() * miss
-	return { x = target.x + math.cos(a) * m, z = target.z + math.sin(a) * m }
+	local shot = { x = target.x + math.cos(a) * m, z = target.z + math.sin(a) * m }
+	if not target.rookie then
+		-- the way the shot really goes (miss and all), and the boom where it lands
+		local sx, sz = shot.x - bot.x, shot.z - bot.z
+		local sd = math.sqrt(sx * sx + sz * sz)
+		if rookieInLock(bot, world, sx, sz, sd) then
+			return nil -- it would lock onto the rookie in front of the target
+		end
+		local splash = ArenaBrain.SPLASH[weapon :: string] or 0
+		for _, k in world.karts do
+			if
+				k.rookie
+				and k.alive
+				and (k.x - shot.x) ^ 2 + (k.z - shot.z) ^ 2 < splash * splash
+			then
+				return nil -- the boom would catch the rookie
+			end
+		end
+	end
+	return shot
 end
 
 -- Steering: toward the goal, bending away from a solid just ahead.
@@ -675,7 +697,8 @@ function ArenaBrain.step(
 	-- point off to the side; still stuck after FREE_AFTER: lift it clear.
 	if now >= bot.checkAt then
 		local moved = math.sqrt((bot.x - bot.checkX) ^ 2 + (bot.z - bot.checkZ) ^ 2)
-		local trying = bot.throttle > 0 and not backing
+		-- (lining up a shot at half throttle still counts: it moves faster than STUCK_MOVE)
+		local trying = bot.throttle > 0.4 and not backing
 		if moved < ArenaBrain.STUCK_MOVE and trying then
 			bot.stuckFor += ArenaBrain.STUCK_CHECK
 		else
