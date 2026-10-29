@@ -885,7 +885,7 @@ function Hud.match(
 				Anim.scaler(clockFrame).Scale = 1
 			end
 		end
-		-- HEALTH: a heart, a chunky bar (lime, yellow under half, red under a quarter), the number;
+		-- HEALTH: a heart, a chunky bar (lime over 60%, orange to 31%, red at 30% and under), the number;
 		-- a blue fill and SHIELD! while the shield is up
 		local hp = piece(L, "Health")
 		local hs = spot(c, L, "Health")
@@ -1025,17 +1025,18 @@ function Hud.match(
 			-- carter's kit v41: a dark ink plate, its left edge lime when you are in it
 			row.BackgroundTransparency = 0.22
 			Base.corner(row)
+			local rowH = if touch then 26 else 28
 			local edge = Base.fill(
 				row,
 				"Edge",
-				0,
-				0,
-				6,
-				if touch then 26 else 28,
+				4,
+				5,
+				5,
+				rowH - 10,
 				Base.color(if mine then "lime" else "pink"),
 				2
 			)
-			Base.corner(edge, 3)
+			Base.corner(edge)
 			-- each side: [level] NAME, the weapon between (a side with no level: the name
 			-- takes the badge's room)
 			local half = (fp.w - 32) / 2
@@ -1061,7 +1062,7 @@ function Hud.match(
 					}
 				)
 			end
-			side(4, attacker, attackerLevel, "Who", "r")
+			side(10, attacker, attackerLevel, "Who", "r")
 			Icons.make(row, Hud.weaponIcon(weapon), half + 4, 2, 24, { z = 4 })
 			side(half + 30, victim, victimLevel, "Whom", "l")
 			table.insert(rows, 1, row)
@@ -1114,13 +1115,16 @@ function Hud.match(
 		local tipWords =
 			Base.text(tip, "Words", 6, 5, fpc.w + 16, 18, "GRAB A ? BOX", { color = INK, z = 7 })
 		tip.Visible = false
-		local tipUntil = 0
+		local tipSeq = 0 -- (each weapon name shown counts up; only the newest one hides it)
+		local naming = false -- the weapon's name is up
 		local shownWeapon: string? = nil
 		local function setWeapon(name: string?, ammo: number?)
 			local has = name ~= nil and name ~= "" and (ammo or 0) > 0
 			local key = if has then Hud.weaponIcon(name) else "mystery"
-			if key ~= shownWeapon then
-				shownWeapon = key
+			-- (keyed on the name too: a weapon with no icon of its own also shows "mystery")
+			local shown = if has then `{key}|{name}` else ""
+			if shown ~= shownWeapon then
+				shownWeapon = shown
 				if icon then
 					icon:Destroy()
 				end
@@ -1129,10 +1133,15 @@ function Hud.match(
 					Anim.pop(fire.button, nil, 0.6)
 					if tipOn then
 						tipWords.Text = string.upper(tostring(name)) .. "!"
-						tipUntil = os.clock() + 1.4
-						task.delay(1.45, function()
-							if os.clock() >= tipUntil and shownWeapon ~= "mystery" then
-								tip.Visible = false
+						naming = true
+						tipSeq += 1
+						local mine = tipSeq
+						task.delay(1.4, function()
+							if mine == tipSeq then
+								naming = false
+								if shownWeapon ~= "" then
+									tip.Visible = false
+								end
 							end
 						end)
 					end
@@ -1141,10 +1150,11 @@ function Hud.match(
 			label.Visible = false -- (the kit: the big icon says it, no FIRE words)
 			if tipOn then
 				if not has then
+					naming = false
 					tipWords.Text = "GRAB A ? BOX"
 					tip.Visible = true
 				else
-					tip.Visible = os.clock() < tipUntil
+					tip.Visible = naming
 				end
 			end
 			if icon then

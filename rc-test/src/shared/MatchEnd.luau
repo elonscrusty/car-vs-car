@@ -16,6 +16,7 @@ local function sibling(name: string): any
 	return luneRequire("./" .. name)
 end
 local Xp = sibling("Xp")
+local Match = sibling("Match")
 
 local MatchEnd = {}
 
@@ -144,10 +145,10 @@ function MatchEnd.read(
 		end
 	end
 	view.total = n
-	-- no smashes (the server's 0): the place every kart on 0 shares, after the ones who scored, never
-	-- "- / 8" (auditor round 12b)
+	-- no smashes (the server's 0): the place every kart on 0 shares, after the ones who scored and
+	-- never on the podium, as the round pays it (Match.payPlace); never "- / 8" (auditor round 12b)
 	if found and view.place == 0 then
-		view.place = math.min(n, scored + 1)
+		view.place = math.min(n, math.max(scored + 1, #Match.PLACE_COINS + 1))
 	end
 	view.winner = view.top[1]
 	return view

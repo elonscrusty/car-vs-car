@@ -848,7 +848,9 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 	youTag.StudsOffsetWorldSpace = Vector3.new(0, 1.6 * Tuning.scale, 0)
 	-- (a phone or a match: a small one, so you find your kart and the middle stays clear;
 	-- with none at all phones lost their kart, auditor round 12b)
-	local smallTag = phoneUi or player:GetAttribute("InMatch") == true
+	local smallTag = phoneUi
+		or player:GetAttribute("PhoneUi") == true -- (Studio shots turn it on late)
+		or player:GetAttribute("InMatch") == true
 	local tagSize = if smallTag then YOU_SMALL else YOU_BIG
 	if youTag.Size ~= tagSize then
 		youTag.Size = tagSize

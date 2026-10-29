@@ -90,16 +90,20 @@ function Kit.rim(face: Frame, w: number, h: number, radius: number?)
 	Base.corner(rim, math.max(2, r - 2))
 	local st = Base.outline(rim, 2, WHITE)
 	st.Transparency = UiTheme.CHROME.rim
-	local top = Base.fill(
-		face,
-		"Top",
-		7,
-		4,
-		math.max(1, w - 14),
-		h * UiTheme.CHROME.gloss,
-		WHITE,
-		face.ZIndex
-	)
+	-- (a round face: the band inset to stay inside the circle)
+	local round = r >= math.min(w, h) / 2 - 0.5
+	local top = if round
+		then Base.fill(face, "Top", w * 0.2, h * 0.06, w * 0.6, h * 0.22, WHITE, face.ZIndex)
+		else Base.fill(
+			face,
+			"Top",
+			7,
+			4,
+			math.max(1, w - 14),
+			h * UiTheme.CHROME.gloss,
+			WHITE,
+			face.ZIndex
+		)
 	Base.corner(top, math.max(2, r - 4))
 	local tg = Instance.new("UIGradient")
 	tg.Rotation = 90
