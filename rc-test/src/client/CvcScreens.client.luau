@@ -29,6 +29,7 @@ local CvcGoal = require(Shared:WaitForChild("CvcGoal"))
 local League = require(Shared:WaitForChild("League"))
 local Profile = require(Shared:WaitForChild("Profile"))
 local Training = require(Shared:WaitForChild("Training"))
+local SmashScreens = require(Shared:WaitForChild("SmashScreens"))
 local UiTheme = require(Shared:WaitForChild("UiTheme"))
 local CvcState = require(script.Parent:WaitForChild("CvcState"))
 local LeagueUp = require(script.Parent:WaitForChild("LeagueUp"))
@@ -312,7 +313,7 @@ function openCrates()
 		best = 2,
 		coins = num("Coins"),
 		-- (smash: karts; every one drives the same, so a crate is a new look, not a win)
-		note = if (Features :: any).SMASH then "1 new kart per crate." else "1 car per crate.",
+		note = if SMASH then SmashScreens.WORDS.crateNote else "1 car per crate.",
 	}, {
 		choose = function(i: number)
 			crateChoice = i
@@ -326,7 +327,7 @@ function openCrates()
 				info(
 					"lock",
 					"Garage full",
-					if (Features :: any).SMASH then "No room for karts." else "No room for cars."
+					if SMASH then SmashScreens.WORDS.garageFull else "No room for cars."
 				)
 				return
 			end
@@ -1209,6 +1210,9 @@ end)
 -- ===== a new car from a crate: the reveal =====
 
 local function revealNote(id: string): string
+	if SMASH then
+		return SmashScreens.WORDS.revealNote
+	end
 	for _, car in CvcState.garage do
 		if car.id == id and CvcState.stationOf(car.uid) then
 			return "It's training!"
