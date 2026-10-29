@@ -155,7 +155,8 @@ test("every car is an open kart with a Roblox kid driving, cap top on the hat sp
 		end
 		truthy(named.Driver and named.Head and named.Cap, `{shape}: no driver`)
 		eq(named.Cap.pos.y + named.Cap.size.y / 2, ToyCars.HEAD_TOP)
-		eq(table.concat(named.Head.color, ","), "255,199,44")
+		eq(table.concat(named.Head.color, ","), "245,205,48")
+		truthy(named.Head.face, `{shape}: the driver has no face`)
 		eq(table.concat(named.Cap.color, ","), "200,40,40")
 		eq(named.Cab, nil)
 	end
