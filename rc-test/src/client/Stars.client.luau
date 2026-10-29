@@ -618,7 +618,12 @@ local function showDaily(coins: number, streak: number, boost: number, crate: bo
 			})
 		end
 		local h: any = nil
+		local watch: RBXScriptConnection? = nil
 		local close = function()
+			if watch then
+				watch:Disconnect()
+				watch = nil
+			end
 			if h then
 				h.close()
 			end
@@ -630,6 +635,18 @@ local function showDaily(coins: number, streak: number, boost: number, crate: bo
 			days = tiles,
 			claimWords = if crate then `+{coins} + CRATE!` else `+{coins} COINS!`,
 		}, { claim = close, close = close })
+		-- a match started with it still up (a re-join put you straight in, Studio round 4): it
+		-- steps away and comes back in the garage or yard, after the match
+		watch = me:GetAttributeChangedSignal("InMatch"):Connect(function()
+			if me:GetAttribute("InMatch") ~= true then
+				return
+			end
+			local stillUp = h ~= nil and Screen.isOpen("daily")
+			close()
+			if stillUp and cards == mine then
+				task.spawn(showDaily, coins, streak, boost, crate)
+			end
+		end)
 		return
 	end
 	card.Visible = true

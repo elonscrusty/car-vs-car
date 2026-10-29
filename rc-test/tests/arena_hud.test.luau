@@ -44,3 +44,38 @@ end)
 test("the match HUD is the one that shows while InMatch", function()
 	truthy(has("src/client/MatchHud.client.luau", 'attr("InMatch") == true'), "no match HUD")
 end)
+
+test("the Lucky Spin tile leaves in the arena (InMatch) and goes with the lobby HUD", function()
+	local src = fs.readFile("src/client/LuckySpin.client.luau")
+	local fn = string.match(src, "local function showTile%(%)(.-)\nend") or ""
+	truthy(string.find(fn, "not inMatch()", 1, true) ~= nil, "SPIN tile shows in the arena")
+	truthy(
+		string.find(fn, "lobbyHudUp()", 1, true) ~= nil,
+		"SPIN tile doesn't follow the lobby HUD"
+	)
+	truthy(
+		string.find(src, 'GetAttribute("InMatch") == true', 1, true) ~= nil,
+		"inMatch reads InMatch"
+	)
+	truthy(string.find(src, 'FindFirstChild("Ui_plot")', 1, true) ~= nil, "lobby HUD is Ui_plot")
+end)
+
+test(
+	"a match starting closes the daily gift and the spin window; the gift comes back later",
+	function()
+		local stars = fs.readFile("src/client/Stars.client.luau")
+		truthy(
+			string.find(stars, 'GetAttributeChangedSignal("InMatch")', 1, true) ~= nil,
+			"daily ignores InMatch"
+		)
+		truthy(
+			string.find(stars, "task.spawn(showDaily, coins, streak, boost, crate)", 1, true) ~= nil,
+			"daily not re-queued"
+		)
+		local spin = fs.readFile("src/client/LuckySpin.client.luau")
+		truthy(
+			string.find(spin, 'Screen.isOpen("spin") and handle', 1, true) ~= nil,
+			"spin window stays in the match"
+		)
+	end
+)

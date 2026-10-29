@@ -3,7 +3,7 @@
 -- Features.SMASH on. A SPIN tile on the right (a dot while today's free spin waits) opens the spin
 -- window (Ui/Screens/Spin); the server (SpinServer, RemoteEvent LuckySpin) rolls and pays.
 -- LevelUp (XpServer) shows "LEVEL n!" with the coins, after the match if you're in one.
--- Out of a match only: the tile hides while the InMatch attribute is set (MatchRunner).
+-- Lobby only: the tile shows with the lobby HUD (Ui_plot) and never while InMatch (MatchRunner).
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -35,13 +35,45 @@ end
 local tileGui = Base.screen("Ui_spinTile", Base.ORDER.hud, false)
 local tile = Kit.side(tileGui.canvas, "Spin", TILE_X, TILE_Y, "SPIN", "gift", 4)
 
+-- The tile is part of the lobby HUD: it shows only while that HUD (CvcScreens' Ui_plot) shows,
+-- so it leaves with it in the arena, the warm-up yard and under windows; and never while InMatch
+-- (Studio round 4: it stayed on in the arena over the "GRAB A ?" tip).
+local playerGui = player:WaitForChild("PlayerGui")
+local function lobbyHudUp(): boolean
+	local hud = playerGui:FindFirstChild("Ui_plot")
+	return hud ~= nil and hud:IsA("ScreenGui") and hud.Enabled
+end
 local function showTile()
-	Base.show(tileGui, not inMatch())
+	local on = not inMatch() and lobbyHudUp()
+	if tileGui.gui.Enabled ~= on then
+		Base.show(tileGui, on)
+	end
+end
+local function showDot()
 	tile.setDot(if player:GetAttribute("SpinReady") == true then -1 else nil)
 end
 player:GetAttributeChangedSignal("InMatch"):Connect(showTile)
-player:GetAttributeChangedSignal("SpinReady"):Connect(showTile)
+player:GetAttributeChangedSignal("SpinReady"):Connect(showDot)
+-- follow the lobby HUD the moment it turns on or off
+local function watchHud(child: Instance)
+	if child.Name == "Ui_plot" and child:IsA("ScreenGui") then
+		child:GetPropertyChangedSignal("Enabled"):Connect(showTile)
+		showTile()
+	end
+end
+playerGui.ChildAdded:Connect(watchHud)
+for _, child in playerGui:GetChildren() do
+	watchHud(child)
+end
 showTile()
+showDot()
+-- (and a slow look again, in case something else turns the tile's gui on)
+task.spawn(function()
+	while true do
+		task.wait(1)
+		showTile()
+	end
+end)
 
 local prizes: { { [string]: any } } = {}
 for _, p in LuckySpin.PRIZES do
@@ -49,6 +81,21 @@ for _, p in LuckySpin.PRIZES do
 end
 
 local handle: Screen.Handle? = nil
+-- a match started: the spin window and its prize card step away (the prize is already paid)
+local prizeCard: Screen.Handle? = nil -- the won card, if it's ours
+player:GetAttributeChangedSignal("InMatch"):Connect(function()
+	if not inMatch() then
+		return
+	end
+	if Screen.isOpen("spin") and handle then
+		handle.close()
+		handle = nil
+	end
+	if prizeCard then
+		prizeCard.close() -- (safe if it's closed already or another card took its place)
+		prizeCard = nil
+	end
+end)
 local waitLeft, waitAt = 0, os.clock()
 
 local function hatRows(owned: { string }, on: string): { { [string]: any } }
@@ -122,7 +169,7 @@ remote.OnClientEvent:Connect(function(kind: string, a: any, b: any, c: any, d: a
 		waitLeft, waitAt = tonumber(d) or 0, os.clock()
 		local function reveal()
 			local title, text = prizeWords(index, coins, hat)
-			Windows.popup({
+			prizeCard = Windows.popup({
 				kind = "coins",
 				icon = if hat then "gift" else "coin",
 				title = title,
@@ -131,7 +178,10 @@ remote.OnClientEvent:Connect(function(kind: string, a: any, b: any, c: any, d: a
 				no = false,
 			}, {
 				yes = function()
-					Screen.closeOver()
+					if prizeCard then
+						prizeCard.close()
+						prizeCard = nil
+					end
 					if hat then
 						remote:FireServer("equip", hat)
 					end
@@ -175,7 +225,8 @@ local function showLevels()
 		coins += l[2]
 	end
 	table.clear(pending)
-	Windows.popup({
+	local card: Screen.Handle? = nil
+	card = Windows.popup({
 		kind = "coins",
 		icon = "trophy",
 		title = "LEVEL " .. top .. "!",
@@ -184,7 +235,9 @@ local function showLevels()
 		no = false,
 	}, {
 		yes = function()
-			Screen.closeOver()
+			if card then
+				card.close()
+			end
 		end,
 	})
 end
