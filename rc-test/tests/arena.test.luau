@@ -144,6 +144,18 @@ test(
 	end
 )
 
+test("from every spawn: nothing solid on the chase cam's line or 3 kart lengths ahead", function()
+	for i, s in A.spawns do
+		local p = A.START[i]
+		local t = -A.CAM_BACK / K
+		while t <= 3 * 5.5 / K do
+			local q = { p[1] + s.dx * t, p[2] + s.dz * t }
+			truthy(A.clear(q[1], q[2], 1.5), `spot {i}: clear at {math.floor(t * K)} big`)
+			t += 0.5
+		end
+	end
+end)
+
 test("hills: boxes on them sit on top, ramps are gentle", function()
 	eq(A.boxSpots[6].y, A.HILLS[1].h, "HIGH PINK box on top")
 	eq(A.boxSpots[15].y, A.HILLS[2].h, "LOW PINK box on top")

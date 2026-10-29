@@ -113,7 +113,6 @@ ArenaData.TRUNK = 5 -- the trunk's thickness, big units
 -- block each), red barrel rows (from, to)
 ArenaData.ROCKS = {
 	{ 60, 63, 3 },
-	{ 228, 36, 2.5 },
 	{ 12, 192, 2.5 },
 	{ 75, 135, 3 },
 	{ 148, 108, 2.5 },
