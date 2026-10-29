@@ -111,6 +111,14 @@ test(
 		for i, s in A.spawns do
 			truthy(A.facing(A.START[i]) ~= nil, "spot " .. i .. " has a way to face")
 			truthy(A.viewOpen(A.START[i], s.dx, s.dz), "spot " .. i .. " looks at open arena first")
+			local p = A.START[i]
+			for _, o in { { 3, 0 }, { -3, 0 }, { 0, 3 }, { 0, -3 } } do
+				eq(
+					A.groundAt({ p[1] + o[1], p[2] + o[2] }),
+					A.groundAt(p),
+					"spot " .. i .. " on flat ground"
+				)
+			end
 			truthy(math.abs(s.dx * s.dx + s.dz * s.dz - 1) < 1e-6, "unit direction " .. i)
 			truthy(
 				s.dx * s.x + s.dz * s.z <= 1e-6,
@@ -135,6 +143,18 @@ test(
 		end
 	end
 )
+
+test("from every spawn: nothing solid on the chase cam's line or 3 kart lengths ahead", function()
+	for i, s in A.spawns do
+		local p = A.START[i]
+		local t = -A.CAM_BACK / K
+		while t <= 3 * 5.5 / K do
+			local q = { p[1] + s.dx * t, p[2] + s.dz * t }
+			truthy(A.clear(q[1], q[2], 1.5), `spot {i}: clear at {math.floor(t * K)} big`)
+			t += 0.5
+		end
+	end
+end)
 
 test("hills: boxes on them sit on top, ramps are gentle", function()
 	eq(A.boxSpots[6].y, A.HILLS[1].h, "HIGH PINK box on top")

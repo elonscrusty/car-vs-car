@@ -151,11 +151,11 @@ function PlotGarage.incomeWords(perMin: number, cars: number, boosted: boolean):
 	return top, "FROM " .. cars .. (if cars == 1 then " CAR" else " CARS")
 end
 
--- The gate sign over a garage plot: "MIA'S GARAGE" ("JAMES' GARAGE"), or "GARAGE" when it is
--- nobody's.
+-- The gate sign over a garage plot: "MIA'S GARAGE" ("JAMES' GARAGE"), or "FREE GARAGE" when it
+-- is nobody's (LOBBY's Studio check 10-29: a bare "GARAGE" read as a missing name).
 function PlotGarage.signText(name: string?): string
 	if name == nil or name == "" then
-		return "GARAGE"
+		return "FREE GARAGE"
 	end
 	local up = string.upper(name)
 	return if string.sub(up, -1) == "S" then up .. "' GARAGE" else up .. "'S GARAGE"

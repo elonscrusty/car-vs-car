@@ -8,7 +8,10 @@ local Icons = require(Ui:WaitForChild("Icons"))
 local Hud = require(Ui:WaitForChild("Screens"):WaitForChild("Hud"))
 
 local SIZE = 40 -- pixels
-local LIFT = 1.6 -- studs over the kart's middle (a kart is about 1.4 studs; its name tag is at 0.8)
+-- just over the roof, where the YOU tag sits (Main), then lifted a little more than its own
+-- height on screen so it floats above the YOU / name tag and never off the top under the chase cam
+local LIFT = 0.4 -- studs over the kart's middle (a kart is about 1.4 studs long)
+local RAISE = 1.4 -- icon heights up, on screen
 
 local function bodyOf(model: Model): BasePart?
 	if model.PrimaryPart then
@@ -33,6 +36,9 @@ local function watch(model: Model)
 			return
 		end
 		local g = gui
+		if g and g.Parent == nil then
+			g, shown = nil, "" -- its body was rebuilt
+		end
 		if not g then
 			local body = bodyOf(model)
 			if not body then
@@ -45,9 +51,10 @@ local function watch(model: Model)
 			g:SetAttribute("DW", SIZE)
 			g:SetAttribute("DH", SIZE)
 			g.StudsOffsetWorldSpace = Vector3.new(0, LIFT, 0)
+			g.SizeOffset = Vector2.new(0, RAISE)
 			-- (not AlwaysOnTop: on carter's PC AlwaysOnTop billboards never drew)
 			g.AlwaysOnTop = false
-			g.MaxDistance = 150
+			g.MaxDistance = 1200
 			g.ResetOnSpawn = false
 			g.Adornee = body
 			local count = Instance.new("TextLabel")
@@ -62,7 +69,9 @@ local function watch(model: Model)
 			count.TextStrokeTransparency = 0.2
 			count.ZIndex = 6
 			count.Parent = g
-			g.Parent = model
+			-- on the car's body, like the YOU tag (that one draws on your own kart; Studio 10-29 saw
+			-- this icon parented to the model draw over bots but not over your own kart)
+			g.Parent = body
 			gui = g
 		end
 		assert(g)
@@ -83,6 +92,12 @@ local function watch(model: Model)
 		g.Enabled = true
 	end
 
+	-- (streaming: the kart can arrive before its parts; try again as they come)
+	model.DescendantAdded:Connect(function(d: Instance)
+		if gui == nil and d:IsA("BasePart") then
+			refresh()
+		end
+	end)
 	model:GetAttributeChangedSignal("Weapon"):Connect(refresh)
 	model:GetAttributeChangedSignal("Ammo"):Connect(refresh)
 	refresh()

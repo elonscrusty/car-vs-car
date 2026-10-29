@@ -1,13 +1,12 @@
 --!strict
 -- Car VS Car: your cars on the server (RemoteEvent ReplicatedStorage.Garage). Only with
--- Features.CVC on. Out of TrainingServer (Smash plan, 10-28) so training can go at phase 3 and
--- the garage stays: picking the starter, the car you play with, crates, the player attributes the
+-- Features.CVC on (Smash plan, 10-28: training is gone, the plot is your garage): picking the
+-- starter, the car you play with, crates, the player attributes the
 -- screens read, the "cars" list each phone keeps (CvcState) and the owner's plot attribute
 -- Garage (every car owned, for the garage stands).
 -- Client -> server: ("pick", carId) the starter, ("racer", uid) the car you play with, ("open") a
 -- free crate, ("buy", crateKind) a crate for coins (Crates.SHOP). Other asks are handed to
--- whoever said they take them (GarageServer.handle: TrainingServer's coach, station, upgrade,
--- level). Server -> client: ("cars", {garage, stations, racer, plotLevel, crates}),
+-- whoever said they take them (GarageServer.handle). Server -> client: ("cars", {garage, stations, racer, plotLevel, crates}),
 -- ("crate", carId, rarity).
 -- Player attributes: Coins, League, Trophies, RacerId, RacerCar, BoostUntil, Picked, Stage.
 

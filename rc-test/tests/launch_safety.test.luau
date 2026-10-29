@@ -44,13 +44,6 @@ test("saves: the lock waits ~45 s; a failed leave-save is tried again", function
 	truthy(has("src/server/PlayerData.luau", "round < LEAVE_RETRIES"))
 end)
 
-test("training: one player per step", function()
-	local src = fs.readFile("src/server/TrainingServer.luau")
-	local a = string.find(src, "for _, p in Players:GetPlayers() do", 1, true)
-	local b = string.find(src, 'Forever.step("Training"', 1, true)
-	truthy(a ~= nil and b ~= nil and a < b)
-end)
-
 test("the old car shop's buy and spin are shut in Car VS Car", function()
 	truthy(has("src/server/CarShop.server.luau", "elseif Features.CVC then"))
 end)

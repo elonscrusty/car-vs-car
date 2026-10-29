@@ -957,7 +957,8 @@ RunService.Heartbeat:Connect(function()
 		and not anyOpen(FULL)
 	-- (and it steps away under a window, so nothing peeks out past it, and while the race card
 	-- is up, Studio live1)
-	local shows = want and not anyOpen(WINDOWS) and not raceCardUp()
+	-- (any window at all, Customize too: INVITE peeked out behind its card)
+	local shows = want and not anyOpen(WINDOWS) and not Screen.anyOver() and not raceCardUp()
 	if want and not hud then
 		local fresh = not staggered and attr("JustPicked") == true
 		openHud(fresh)
@@ -1021,20 +1022,13 @@ RunService.Heartbeat:Connect(function()
 	-- (after the first race, with the other later things: one new thing at a time)
 	api.setShown("Next", raced and nk ~= nil)
 	if SMASH then
-		-- SMASH! / YOU'RE IN! m:ss (the pad queues you); no coach
-		-- (the NextUp banner stays off over the 3D plot, as in the race game: the clock is on the
-		-- button once you're queued)
+		-- SMASH! / YOU'RE IN! (the pad queues you); no coach
 		api.setShown("Coach", false)
 		local queued = attr("MatchQueued") == true
 		api.setShown("Race", attr("InMatch") ~= true)
-		local at = workspace:GetAttribute("NextMatchAt")
-		local left = if type(at) == "number" then at - workspace:GetServerTimeNow() else nil
+		-- (no clock here: LOBBY's top strip has NEXT MATCH IN m:ss, one clock only, audit R4-5)
 		if queued then
-			api.setRace(
-				if left and left > 0 then `YOU'RE IN! {clock(left)}` else "YOU'RE IN!",
-				"blue",
-				false
-			)
+			api.setRace("YOU'RE IN!", "blue", false)
 		else
 			api.setRace("SMASH!", "lime", goal == "Race")
 		end
