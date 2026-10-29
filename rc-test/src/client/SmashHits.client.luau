@@ -254,19 +254,51 @@ task.spawn(function()
 end)
 
 -- ===== the victim flash and the floating number =====
-local flashes: { [Model]: Highlight } = {}
+-- What the flash goes on: the kart you SEE. Other karts are drawn by OtherCars as a FOLDER of
+-- mesh parts (workspace.OtherCars.Car_<id>: Body, Wheel, Seat, ...), and a Highlight under a
+-- Folder never draws, so it goes on that kart's Body part (the shell, most of what you see). The
+-- Car_<id> model itself is the small hidden physics body (Studio 10-29: a flash on it never
+-- showed); it is used only when nothing is drawn for it (your own kart is the real model).
+local function flashOn(id: number, body: Model): Instance?
+	if id == myId then
+		return body
+	end
+	local others = workspace:FindFirstChild("OtherCars")
+	local seen = others and others:FindFirstChild(body.Name)
+	if not seen then
+		-- (OtherCars hides far karts: nothing drawn, no flash; no OtherCars at all: the model)
+		return if others then nil else body
+	end
+	if seen:IsA("Model") then
+		return seen
+	end
+	local shell = seen:FindFirstChild("Body")
+	if shell and shell:IsA("BasePart") then
+		return shell
+	end
+	-- (no Body: the biggest part there)
+	local best: BasePart? = nil
+	for _, d in seen:GetDescendants() do
+		if d:IsA("BasePart") and (best == nil or d.Size.Magnitude > best.Size.Magnitude) then
+			best = d
+		end
+	end
+	return best or body
+end
+
 local function flashKart(id: number)
 	local body = kartOf(id)
 	if not body then
 		return
 	end
-	-- the kart you SEE: other karts are drawn by OtherCars (workspace.OtherCars.Car_<id>); the
-	-- Car_<id> body is the small physics one (Studio 10-29: a flash on it never showed)
-	local others = workspace:FindFirstChild("OtherCars")
-	local seen = others and others:FindFirstChild(body.Name)
-	local m: Model = if seen and seen:IsA("Model") then seen else body
-	local h = flashes[m]
-	if not h or h.Parent ~= m then
+	local m = flashOn(id, body)
+	if not m then
+		return
+	end
+	-- (one per drawn kart, kept on it: OtherCars hides a far kart by unparenting it and brings it
+	-- back with its flash, so look for it instead of caching it)
+	local h = m:FindFirstChild("HitFlash")
+	if not (h and h:IsA("Highlight")) then
 		local new = Instance.new("Highlight")
 		new.Name = "HitFlash"
 		new.DepthMode = Enum.HighlightDepthMode.Occluded
@@ -275,14 +307,6 @@ local function flashKart(id: number)
 		new.OutlineTransparency = 1
 		new.Parent = m
 		h = new
-		flashes[m] = new
-		local gone: RBXScriptConnection
-		gone = m.AncestryChanged:Connect(function()
-			if not m:IsDescendantOf(workspace) then
-				gone:Disconnect()
-				flashes[m] = nil
-			end
-		end)
 	end
 	local hl = h :: Highlight
 	if held() then

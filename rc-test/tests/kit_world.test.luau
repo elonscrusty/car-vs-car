@@ -124,6 +124,10 @@ test(
 			string.find(hits, 'workspace:FindFirstChild("OtherCars")', 1, true) ~= nil,
 			"the drawn kart"
 		)
+		-- OtherCars draws a Folder of parts: the flash goes on its Body part (never under a Folder)
+		truthy(string.find(hits, 'seen:FindFirstChild("Body")', 1, true) ~= nil, "the drawn shell")
+		truthy(string.find(hits, "new.Parent = m", 1, true) ~= nil)
+		truthy(string.find(hits, "local m: Model = if seen", 1, true) == nil, "not only a Model")
 		local edge = fs.readFile("src/client/LowHealthEdge.client.luau")
 		truthy(
 			string.find(edge, 'gui:SetAttribute("NoKart", true)', 1, true) ~= nil,
