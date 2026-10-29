@@ -241,8 +241,19 @@ test(
 	end
 )
 
+test(
+	"every box on the floor stands in the open: room round it, not tucked behind a hill foot",
+	function()
+		for i, b in A.BOXES do
+			if A.groundAt(b) == 0 then
+				truthy(A.clear(b[1], b[2], 4), `box {i} has room round it`)
+			end
+		end
+	end
+)
+
 test("hills: boxes on them sit on top, ramps are gentle", function()
-	eq(A.boxSpots[6].y, A.HILLS[1].h, "HIGH PINK box on top")
+	eq(A.boxSpots[6].y, 0, "the high hill's box came down to open ground (round 9)")
 	eq(A.boxSpots[15].y, A.HILLS[2].h, "LOW PINK box on top")
 	for i, r in A.RAMPS do
 		local len = math.sqrt((r.to[1] - r.from[1]) ^ 2 + (r.to[2] - r.from[2]) ^ 2) * K

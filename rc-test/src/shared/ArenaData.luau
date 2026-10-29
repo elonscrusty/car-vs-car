@@ -105,7 +105,7 @@ ArenaData.COVER_W, ArenaData.COVER_H = 5, 10 -- picture units thick, big units t
 
 -- lollipop trees: a solid trunk, a candy top up high
 ArenaData.TREES =
-	{ { 108, 44 }, { 226, 125 }, { 122, 170 }, { 18, 220 }, { 226, 18 }, { 170, 205 } } :: { Pt }
+	{ { 108, 46 }, { 226, 125 }, { 122, 170 }, { 18, 220 }, { 226, 18 }, { 170, 205 } } :: { Pt }
 ArenaData.TREE_R = 7 -- the candy top's radius in the picture
 ArenaData.TRUNK = 5 -- the trunk's thickness, big units
 
@@ -115,8 +115,7 @@ ArenaData.TRUNK = 5 -- the trunk's thickness, big units
 ArenaData.ROCKS = {} :: { { number } }
 ArenaData.CRATES = {} :: { Pt }
 ArenaData.CRATE = 4
-ArenaData.BARRELS = {
-	{ { 112, 154 }, { 112, 166 } },
+ArenaData.BARRELS = { -- (the row by the sand's east side came out: it held karts, round 9)
 	{ { 92, 88 }, { 100, 96 } },
 } :: { { Pt } }
 ArenaData.BARREL_R = 1.5
@@ -184,8 +183,8 @@ ArenaData.BOXES = {
 	{ 205, 70 },
 	{ 200, 125 },
 	{ 140, 130 },
-	{ 165, 85 },
-	{ 190, 200 },
+	{ 132, 72 }, -- (off the high hill: karts kept driving at it from below, round 9)
+	{ 132, 72 }, -- (off the high hill: karts kept driving at it from below, round 9)
 	{ 140, 215 },
 	{ 80, 218 },
 	{ 35, 165 },
@@ -437,11 +436,11 @@ function ArenaData.clear(x: number, y: number, room: number): boolean
 	-- the corner curves: room from the curve across the nearest corner
 	local u = math.min(x, ArenaData.PIC - x) - ArenaData.WALL
 	local w = math.min(y, ArenaData.PIC - y) - ArenaData.WALL
-	local r = cornerRadius(x, y)
-	if u < r and w < r then
+	local cr = cornerRadius(x, y)
+	if u < cr and w < cr then
 		-- inside the curve's circle by `room`, less the flat slabs' sag
-		local sag = r * (1 - math.cos(math.pi / 4 / ArenaData.CORNER_STEPS))
-		if math.sqrt((r - u) ^ 2 + (r - w) ^ 2) > r - sag - room then
+		local sag = cr * (1 - math.cos(math.pi / 4 / ArenaData.CORNER_STEPS))
+		if math.sqrt((cr - u) ^ 2 + (cr - w) ^ 2) > cr - sag - room then
 			return false
 		end
 	end
