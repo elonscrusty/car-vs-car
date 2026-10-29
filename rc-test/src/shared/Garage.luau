@@ -460,7 +460,7 @@ function Garage.toyCar(
 			0,
 			wd / 2,
 			wz,
-			ToyCars.rim(style),
+			ToyCars.rim(style, color),
 			{ shape = "Cylinder" }
 		)
 	end
