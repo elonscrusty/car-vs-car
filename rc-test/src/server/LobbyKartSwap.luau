@@ -15,10 +15,11 @@ local LobbyKartSwap = {}
 LobbyKartSwap.COUPE = "PurpleSportsCoupe"
 LobbyKartSwap.KART = "Kart_HotRod"
 LobbyKartSwap.LONG = 9 -- studs nose to tail: a lobby show kart, bigger than a player's
--- on the plaza floor, 17.5 studs from the spawn camera, nose to it: Studio scanned the plaza for
--- the clearest view from the spawn (10-29: no lamp or tree right behind the cockpit; Lamp2 is 7.8
--- off the line). The coupe's own spot is on the hill past the kerb, hidden in the bushes.
-LobbyKartSwap.SPOT = { x = 13, y = 0, z = 903, yaw = 121 }
+-- on the plaza floor beside the spawn, 18.7 studs from the first-join camera (0, 8, 896), nose
+-- three-quarters to it: Studio scanned from that camera (10-29) for a spot fully on screen, clear of
+-- MENU, off the walk ahead (|x| >= 8) and with only the low portal pad behind the cockpit.
+-- The coupe's own spot is on the hill past the kerb, hidden in the bushes.
+LobbyKartSwap.SPOT = { x = 8, y = 0, z = 913, yaw = 60 }
 local BLUE = ToyCars.PALETTE.sky
 local STYLE = "muscle/white"
 

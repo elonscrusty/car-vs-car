@@ -951,14 +951,15 @@ function Hud.match(
 			z = 3,
 		})
 		local heart = barH + 10
-		Icons.make(hs, "heart", bx - 4, barY + (barH - heart) / 2, heart, { z = 5 })
+		local heartIcon =
+			Icons.make(hs, "heart", bx - 4, barY + (barH - heart) / 2, heart, { z = 5 })
 		if not touch then
 			Base.text(
 				hs,
 				"Name",
 				bx + 8,
 				0,
-				(hp.w - bx - 8) * 0.6,
+				(hp.w - bx - 8) * 0.5,
 				19,
 				Hud.cut(string.upper(tostring(data.name or "")), BOARD_NAME),
 				{ stroke = 3.5, align = "l", z = 6 }
@@ -1007,7 +1008,9 @@ function Hud.match(
 					else `{now}/{math.max(0, math.floor(max))}`
 			)
 			if lastHp >= 0 and n < lastHp then
-				Anim.shout(hs) -- (a hit: the bar jumps)
+				-- (a hit: the heart jumps; the bar keeps its size, it read as a third-size bar
+				-- caught mid-jump, Studio qa_r61)
+				Anim.pop(heartIcon, 0.3, 1.45)
 			end
 			lastHp = n
 		end

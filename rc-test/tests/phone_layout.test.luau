@@ -601,6 +601,65 @@ for _, ph in PHONE_SIZES do
 		h.close()
 	end)
 
+	-- auditor 14:55: the 8 tiles spread over the panel, every word inside its tile at one
+	-- size, row 1 clear of row 2, the X clear of every tile
+	test("phone MENU at " .. ph.name .. ": rows spread, words in their tiles, X clear", function()
+		local items = {}
+		for i, w in { "GARAGE", "CRATES", "SPIN", "SHOP", "LEAGUE", "JOBS", "INVITE", "SETTINGS" } do
+			table.insert(items, { id = "i" .. i, word = w, icon = "bag" })
+		end
+		local h = Smash.menu({ items = items })
+		S.advance(2)
+		local s = ph.safe
+		local tile, word, close, grid = {}, {}, nil, nil
+		for _, b in L.boxes(h.gui.gui, s[1], s[2], s[3], s[4]) do
+			local n = string.match(b.path, "Item(%d+)%.Tile%.Tile$")
+			if n then
+				tile[tonumber(n)] = b
+			end
+			n = string.match(b.path, "Item(%d+)%.Tile%.Tile%.Word$")
+			if n then
+				word[tonumber(n)] = b
+			end
+			if b.obj.Name == "Close" then
+				close = b
+			end
+			if string.find(b.path, "%.Grid$") then
+				grid = b
+			end
+		end
+		local caps = {}
+		for i = 1, 8 do
+			local t, w = tile[i], word[i]
+			truthy(t ~= nil and w ~= nil, "tile or word " .. i .. " missing")
+			if t and w then
+				truthy(
+					w.x >= t.x - 1 and w.x + w.w <= t.x + t.w + 1,
+					items[i].word .. " spills out"
+				)
+				truthy(w.y + w.h <= t.y + t.h + 1, items[i].word .. " hangs below its tile")
+				if close then
+					truthy(not overlap(t, close), "the X covers " .. items[i].word)
+				end
+				local c = w.obj:FindFirstChildOfClass("UITextSizeConstraint")
+				table.insert(caps, c and c.MaxTextSize or -1)
+			end
+		end
+		for i = 2, #caps do
+			truthy(caps[i] == caps[1], "words differ in size")
+		end
+		if tile[1] and tile[5] then
+			truthy(tile[1].y + tile[1].h < tile[5].y - 8, "row 1 touches row 2")
+			if grid then
+				truthy(
+					tile[5].y + tile[5].h >= grid.y + grid.h * 0.9,
+					"the panel's bottom is empty"
+				)
+			end
+		end
+		h.close()
+	end)
+
 	test("end screen at " .. ph.name .. ": prints its size", function()
 		local h = Smash.matchEnd({
 			place = 5,
@@ -654,4 +713,60 @@ test("a phone's Smash lobby hides the tiles MENU holds (CvcScreens)", function()
 				~= nil,
 		"SPIN tile still shows"
 	)
+end)
+
+-- Studio qa_r61: your kart sits 60-85% down the screen; the HUD's words and the job toast stay
+-- above it, and the desktop health bar keeps to the top (under the clock it reached the centre)
+test("words and the match toast stay out of the kart's box (60-85% down)", function()
+	local UiS = require("../src/shared/UiScreens")
+	local H0 = UiS.H
+	for _, id in { "match", "matchTouch" } do
+		for _, name in { "Words", "Health", "Clock" } do
+			local pc = UiS.get(id) and UiS.piece(id, name)
+			if pc then
+				truthy((pc.y + pc.h) / H0 < 0.6, `{id}.{name} reaches the kart`)
+			end
+		end
+	end
+	local hp = UiS.piece("match", "Health")
+	truthy((hp.y + hp.h) / H0 <= 0.15, "desktop health bar below the top row")
+	local src = require("@lune/fs").readFile("src/client/Stars.client.luau")
+	local y, h = string.match(src, "then Kit%.shout%(toastGui%.canvas, %d+, (%d+), %d+, (%d+),")
+	truthy(y ~= nil, "no match toast strip")
+	truthy((tonumber(y) + tonumber(h)) / H0 < 0.25, "the match toast sits low")
+	truthy(string.find(src, "if inMatch then 2 else", 1, true) ~= nil, "match toast over 2 s")
+end)
+
+-- auditor 14:48: the end screen's right panel is full on every layout within a moment (coins,
+-- +XP, the level bar and YOU: 2ND / 8), and +XP has an ink stroke (white smeared it on white)
+test("end screen: coins, XP, level bar and your place all in by 1.6 s, XP readable", function()
+	local MatchEnd = require("../src/shared/MatchEnd")
+	local h = Smash.matchEnd({
+		place = 2,
+		total = 8,
+		top = {
+			{ name = "ZIPPY", smashes = 12, me = false },
+			{ name = "YOU", smashes = 9, me = true },
+			{ name = "TURBO TACO", smashes = 7, me = false },
+		},
+		winner = { name = "ZIPPY", smashes = 12, me = false },
+		coins = 120,
+		xp = 40,
+		smashes = 9,
+		nextAt = 10,
+	}, nil, MatchEnd.xpBar(140, 40))
+	S.advance(1.6)
+	local rew = h.gui.gui:FindFirstChild("Rewards", true)
+	truthy(rew ~= nil, "no rewards panel")
+	for _, n in { "Coins", "Xp", "Level", "Place" } do
+		local o = rew and rew:FindFirstChild(n, true)
+		truthy(o ~= nil and o.Visible, n .. " not shown yet")
+	end
+	local xp = rew and rew:FindFirstChild("Xp", true)
+	local st = xp and xp:FindFirstChildOfClass("UIStroke")
+	truthy(
+		st == nil or st.Color ~= roblox.Color3.new(1, 1, 1),
+		"+XP has a white stroke on the white panel"
+	)
+	h.close()
 end)

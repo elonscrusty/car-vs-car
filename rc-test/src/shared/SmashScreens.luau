@@ -98,11 +98,14 @@ local LIST: { Screen } = {
 		kind = "window",
 		gameplay = false,
 		pieces = {
-			p("Window", 158, 60, 440, 270, {
+			-- (wide enough that CUSTOMIZE reads 14 px inside its own tile on a 667x375 phone)
+			p("Window", 98, 40, 560, 310, {
 				anchor = "c",
 				text = "Menu",
 				inner = {
-					p("Grid", 20, 18, 400, 182),
+					-- (from y 40: the X sits on the window's top right corner, clear of row 1;
+					-- down to the panel's bottom, the two rows spread over it, auditor 14:55)
+					p("Grid", 20, 40, 520, 250),
 				},
 			}),
 		},

@@ -847,44 +847,8 @@ function SpawnLobby.dress(model: Instance, origin: CFrame)
 				CollectionService:AddTag(b, "LobbyBob")
 			end
 		end
-		-- a big "?" box spinning over the crate shop (the boxes in a match look like it)
-		local crates = SpawnLobby.BUILDINGS[1]
-		if crates and crates.kind == "crates" then
-			local box = kit.part(
-				folder,
-				"QuestionBox",
-				-- (small and just over the roof: higher, it went off the top of the spawn view)
-				Vector3.new(3.2, 3.2, 3.2),
-				-- (over the shop's back half, away from the plaza: lower on screen, clear of the
-				-- desktop coin chip, Studio r5)
-				CFrame.new(at(crates.x - 4, crates.z) + Vector3.new(0, 13.6, 0)),
-				Color3.fromRGB(255, 210, 63),
-				false
-			)
-			for _, face in
-				{ Enum.NormalId.Front, Enum.NormalId.Back, Enum.NormalId.Left, Enum.NormalId.Right }
-			do
-				local gui = Instance.new("SurfaceGui")
-				gui.Face = face
-				gui.LightInfluence = 0
-				gui.CanvasSize = Vector2.new(200, 200)
-				gui.Parent = box
-				local q = Instance.new("TextLabel")
-				q.Size = UDim2.fromScale(1, 1)
-				q.BackgroundTransparency = 1
-				q.Text = "?"
-				q.Font = Enum.Font.FredokaOne
-				q.TextScaled = true
-				q.TextColor3 = Color3.new(1, 1, 1)
-				q.Parent = gui
-				local stroke = Instance.new("UIStroke")
-				stroke.Color = Color3.fromRGB(30, 42, 90)
-				stroke.Thickness = 6
-				stroke.Parent = q
-			end
-			box.CastShadow = false -- (it moves every frame)
-			CollectionService:AddTag(box, "LobbySpin")
-		end
+		-- (no "?" box over the crate shop any more: next to the camera it always sat in the top
+		-- corner under the coin chip, Studio r5/r6, and the portal is the one hero here: LOOK-BIBLE)
 	end)
 	folder.Parent = model
 end
