@@ -200,3 +200,46 @@ test("yard: sits in a valley (round hills on every side, the lake open), looks o
 		)
 	end
 end)
+
+test("yard: the karts start on the sand pen, and the field has a fence and a tree line", function()
+	local pen = Y.PEN
+	local function onSand(x: number, z: number, m: number): boolean
+		return math.abs(x - pen.x) <= pen.w / 2 - m and math.abs(z - pen.z) <= pen.d / 2 - m
+	end
+	for _, s in Y.spawns do
+		truthy(onSand(s.x, s.z, 4), "a spawn off the sand")
+	end
+	for _, b in Y.boxSpots do
+		truthy(onSand(b.x, b.z, 2), "a box off the sand")
+	end
+	truthy(math.abs(pen.z) + pen.d / 2 <= Y.D / 2, "the pen goes under a wall")
+	local f = Y.FENCE
+	local grassX, grassZ = Y.W / 2 + 90, Y.D / 2 + 90
+	truthy(f.x > Y.W / 2 + Y.WALL_T + 30 and f.x < grassX, "the fence off the grass")
+	truthy(-f.z > Y.D / 2 + Y.WALL_T + 30 and -f.z < grassZ, "the fence off the grass")
+	local line = Y.treeLine()
+	truthy(#line >= 12, "a thin tree line")
+	for _, t in line do
+		truthy(math.abs(t.x) < f.x and t.z > f.z, "a tree past the fence")
+		truthy(
+			math.abs(t.x) > Y.W / 2 + Y.WALL_T + 20 or t.z < -(Y.D / 2 + Y.WALL_T + 20),
+			"a tree on the wall"
+		)
+		for _, m in Y.WINDMILLS do
+			truthy((t.x - m[1]) ^ 2 + (t.z - m[2]) ^ 2 >= 30 * 30, "a tree in a windmill")
+		end
+	end
+	for _, m in Y.WINDMILLS do
+		truthy(math.abs(m[1]) < f.x - 10 and math.abs(m[1]) > Y.W / 2 + Y.WALL_T + 20, "mill spot")
+	end
+	-- nothing out in the field stands in the fence
+	for _, b in Y.FIELD_BUSHES do
+		truthy(
+			math.abs(f.x - math.abs(b[1])) >= 12 and math.abs(b[2] - f.z) >= 12,
+			"a bush in the fence"
+		)
+	end
+	for _, m in Y.WINDMILLS do
+		truthy(math.abs(m[2] - f.z) >= 12, "a windmill in the fence")
+	end
+end)
