@@ -550,12 +550,12 @@ local function buildSand(folder: Instance)
 end
 
 -- the junkyard look (carter picked it on the preview page, 10-29): a fence of beat-up corrugated
--- sheets, flat tyre piles and oil drums; a plank ramp with steel rails. All of it is looks only
+-- sheets and oil drums; a plank ramp with steel rails. All of it is looks only
 -- (not solid): the solid walls, caps and ramps under it keep their old shapes.
 local TIN, TIN_2 = rgb(139, 144, 153), rgb(170, 176, 184)
 local RUST, RUST_2 = rgb(181, 83, 42), rgb(138, 61, 30)
 local OLIVE, FADE_RED, FADE_BLUE = rgb(93, 106, 69), rgb(156, 47, 42), rgb(63, 95, 125)
-local STEEL_DARK, RUBBER, HUB = rgb(52, 55, 63), rgb(38, 38, 44), rgb(85, 85, 94)
+local STEEL_DARK = rgb(52, 55, 63)
 local SHEETS = { RUST, TIN, OLIVE, FADE_BLUE, RUST_2, TIN_2, FADE_RED }
 local WOOD, WOOD_2, WOOD_3 = rgb(155, 114, 72), rgb(123, 90, 54), rgb(169, 130, 85)
 local DRUM_BLUE, HAZARD = rgb(47, 95, 140), rgb(242, 194, 48)
@@ -769,9 +769,9 @@ local function sheet(
 		part(
 			parent,
 			"CoverRib",
-			Vector3.new(0.22, h - 0.4, 0.5),
+			Vector3.new(0.22, h - 0.4, 0.3),
 			cf * CFrame.new(out * 0.3, 0, z),
-			STEEL_DARK,
+			color:Lerp(STEEL_DARK, 0.4),
 			false
 		)
 	end
@@ -786,7 +786,7 @@ local function sheet(
 end
 
 -- the cover walls: the solid wall and round end caps stay as they were (karts slide off them),
--- now dressed as a junkyard fence: two rows of mismatched rusty sheets, tyre piles at the ends
+-- now dressed as a junkyard fence: two rows of mismatched rusty sheets, a big oil drum at each end
 local function buildCover(folder: Instance)
 	local W, H = ArenaData.COVER_W * K, ArenaData.COVER_H
 	for n, seg in ArenaData.COVER do
@@ -795,29 +795,40 @@ local function buildCover(folder: Instance)
 		local dress = Instance.new("Folder")
 		dress.Name = "CoverDress" .. n
 		dress.Parent = folder
-		wall(folder, "Cover", a, b, W, H, STEEL_DARK, true):SetAttribute("Dress", dress.Name)
+		local core = wall(folder, "Cover", a, b, W, H, STEEL_DARK, true)
+		core:SetAttribute("Dress", dress.Name)
+		core.Transparency = 1 -- the sheets below are what you see; this is the solid under them
 		for _, e in seg do
 			local cap = part(
 				folder,
 				"CoverCap",
 				Vector3.new(H + 1, W, W),
 				CFrame.new(v(e, (H + 1) / 2)) * CFrame.Angles(0, 0, math.pi / 2),
-				RUBBER,
+				if n % 2 == 1 then FADE_RED else DRUM_BLUE,
 				true
 			) :: Part
 			cap.Shape = Enum.PartType.Cylinder
-			-- a tyre-pile look: lighter hub bands round it
-			for _, y in { 2, 5, 8 } do
-				disc(dress, "TyreBand", CFrame.new(v(e, y)), W + 0.2, 0.5, HUB)
+			-- a big oil drum look: yellow bands round it
+			for _, y in { 1.2, 8.8 } do
+				disc(dress, "DrumBand", CFrame.new(v(e, y)), W + 0.2, 0.7, HAZARD)
 			end
 		end
 		local mid = (a + b) / 2
 		local look = CFrame.lookAt(mid, b)
 		local L = (b - a).Magnitude
+		-- a steel lid over the hollow top, between the round end caps
+		part(
+			dress,
+			"CoverLid",
+			Vector3.new(W - 0.4, 0.4, L),
+			look * CFrame.new(0, H - 0.2, 0),
+			STEEL_DARK,
+			false
+		)
 		for r, across in { -W / 2 + 0.55, W / 2 - 0.55 } do
-			local x, i = -L / 2 + 1.5, 0
-			while x < L / 2 - 1.5 do
-				local w = math.min(5 + jitter(i + r * 9 + n * 30) * 2.6, L / 2 - 1 - x)
+			local x, i = -L / 2 + 3.9, 0
+			while x < L / 2 - 3.9 do
+				local w = math.min(5 + jitter(i + r * 9 + n * 30) * 2.6, L / 2 - 3.9 - x)
 				if w < 2 then
 					break
 				end
