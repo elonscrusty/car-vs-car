@@ -92,6 +92,75 @@ local function rgb(c: { number }): Color3
 end
 
 -- The kart model a car wears, if it is in CarSkins.
+-- A bright stripe down an imported kart's middle (auditor round 12: two-tone trim, a stripe in the
+-- palette). The meshes live only in the saved place, so it's laid on at run time: cast down on a
+-- hidden copy of the body at a few spots along it and put a thin Stripe part between each pair of
+-- flat hits (ToyCars.kartPaint paints it the car's accent). Only on the front half, the hood: the
+-- rays hit the body's rough collision shape, which over an open cockpit is a lid, not the seat.
+-- Once per model, on this device's copy; the hot-rod and monster have their own stripes (Accent).
+local STRIPE_SPOTS = 9
+local function addStripe(m: Model)
+	if m:GetAttribute("Striped") ~= nil then
+		return
+	end
+	m:SetAttribute("Striped", false)
+	if m:FindFirstChild("Accent", true) then
+		return
+	end
+	local body = m:FindFirstChild("Body", true)
+	if not (body and body:IsA("BasePart")) or body:GetAttribute("Baked") == true then
+		return
+	end
+	if body:IsA("MeshPart") and body.CollisionFidelity == Enum.CollisionFidelity.Box then
+		return -- (a box: every ray would hit its flat top)
+	end
+	local cf, size = body.CFrame, body.Size
+	if math.abs(cf.UpVector.Y) < 0.99 then
+		return -- (a tilted body: its own axes aren't the kart's)
+	end
+	-- which way the body's own Z runs to the nose (an import's is at the model's +Z, noseAtPlusZ)
+	local look = m:GetPivot().LookVector -- (the model's -Z)
+	local nose = if CarSkin.noseAtPlusZ(m) then -look else look
+	local along = if cf:VectorToObjectSpace(nose).Z >= 0 then 1 else -1
+	local probe = body:Clone()
+	probe:ClearAllChildren()
+	probe.Anchored, probe.CanCollide, probe.CanTouch, probe.CanQuery = true, false, false, true
+	probe.Transparency = 1
+	probe.Parent = workspace
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = { probe }
+	local hits: { RaycastResult? } = {}
+	pcall(function()
+		for i = 0, STRIPE_SPOTS - 1 do
+			local z = along * (0.05 + 0.4 * i / (STRIPE_SPOTS - 1)) * size.Z
+			local hit =
+				workspace:Raycast(cf * Vector3.new(0, size.Y, z), cf.UpVector * -size.Y * 2, params)
+			hits[i + 1] = if hit and hit.Normal:Dot(cf.UpVector) > 0.75 then hit else nil
+		end
+	end)
+	probe:Destroy()
+	local width, lift = size.X * 0.2, 0.045 * size.Y
+	local made = 0
+	for i = 1, STRIPE_SPOTS - 1 do
+		local a, b = hits[i], hits[i + 1]
+		if a and b and math.abs(cf.UpVector:Dot(b.Position - a.Position)) < size.Y * 0.25 then
+			local up = (a.Normal + b.Normal).Unit
+			local from, to = a.Position + up * lift, b.Position + up * lift
+			local p = Instance.new("Part")
+			p.Name = "Stripe"
+			p.Size = Vector3.new(width, 0.05 * size.Y, (to - from).Magnitude + 0.02)
+			p.CFrame = CFrame.lookAt((from + to) / 2, to, up)
+			p.Anchored, p.CanCollide, p.CanTouch, p.CanQuery = true, false, false, false
+			p.Material = Enum.Material.SmoothPlastic
+			p.TopSurface, p.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
+			p.Parent = body.Parent
+			made += 1
+		end
+	end
+	m:SetAttribute("Striped", made > 0)
+end
+
 -- The kart model a car wears: an imported one in CarSkins, else the one built in game (KartMesh;
 -- nil while it builds or on a device that can't).
 function CarSkin.kartFor(id: string): Model?
@@ -103,6 +172,7 @@ function CarSkin.kartFor(id: string): Model?
 	local skins = ReplicatedStorage:FindFirstChild("CarSkins")
 	local m = skins and skins:FindFirstChild(name)
 	if m and m:IsA("Model") then
+		pcall(addStripe, m) -- (no stripe is fine: never a kart that fails to show)
 		return m
 	end
 	return KartMesh.get(name, ToyCars.kartRim(info.color, info.style))
@@ -124,6 +194,9 @@ function CarSkin.paintKart(p: BasePart, id: string)
 	if col and p:GetAttribute("Baked") ~= true then
 		p.Color = rgb(col)
 		p.Material = if glow then Enum.Material.Neon else Enum.Material.SmoothPlastic
+		if p.Name == "Body" then
+			p.Reflectance = 0.08 -- (a little shine on the paint: auditor round 12)
+		end
 		if p:IsA("MeshPart") then
 			p.TextureID = ""
 		end

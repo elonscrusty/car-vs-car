@@ -53,6 +53,7 @@ end
 require(script.Parent.WeaponServer).start() -- Smash weapons: the fire remote, rockets, nuke (WEAPONS row)
 if Features.SMASH then
 	require(script.Parent.SpinServer).start() -- Smash: the daily Lucky Spin and kart hats
+	require(script.Parent.LobbyKartSwap).start() -- Smash: the realistic lobby coupe becomes a kart
 end
 require(script.Parent.PlotGarageBuilder).start() -- plots are garages: the loop road, coin pile pad, level sign
 do -- phone speed pass over the plots (small bits: no shadow; tiny decor bits: no collision)
