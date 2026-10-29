@@ -327,10 +327,13 @@ local function bumperPieces(): { { Pt } }
 end
 ArenaData.bumperPieces = bumperPieces()
 
--- a low round-topped bumper along each hill's foot (picture units thick, big units tall), so a
--- kart hits a soft upright edge and slides off, not ride up the steep side and flip; open where
--- the ramp comes in (the same door the bots use: the ramp's width / 2 + 3 big round its top)
+-- a low upright bumper along each hill's foot (picture units thick, big units tall), so a kart
+-- hits a soft upright edge and slides off, not ride up the steep side and flip; open exactly the
+-- ramp's width where the ramp comes in, with a 45 degree fillet each side of the ramp so the
+-- bumper-ramp corner can't catch a kart (rampFillets: {right-angle corner, leg end, leg end})
 ArenaData.FOOT_W, ArenaData.FOOT_H = 1.4, 3
+ArenaData.FILLET = 3 -- the fillets' legs, picture units
+local fillets: { { Pt } } = {}
 local function hillFeet(): { { Pt } }
 	local out = {}
 	for _, h in ArenaData.HILLS do
@@ -345,28 +348,41 @@ local function hillFeet(): { { Pt } }
 			local a, b = h.poly[i], h.poly[i % n + 1]
 			local cuts = { 0, 1 }
 			if ramp then
-				-- where the segment runs inside the door's circle: |a + t (b - a) - to| < r
-				local r = ramp.width / 2 + 3 / ArenaData.K
 				local dx, dy = b[1] - a[1], b[2] - a[2]
-				local fx, fy = a[1] - ramp.to[1], a[2] - ramp.to[2]
-				local qa, qb, qc =
-					dx * dx + dy * dy, 2 * (fx * dx + fy * dy), fx * fx + fy * fy - r * r
-				local disc = qb * qb - 4 * qa * qc
-				if disc > 0 then
-					local t0 = math.clamp((-qb - math.sqrt(disc)) / (2 * qa), 0, 1)
-					local t1 = math.clamp((-qb + math.sqrt(disc)) / (2 * qa), 0, 1)
-					if t1 > t0 then
-						cuts = { 0, t0, t1, 1 }
+				local len = math.sqrt(dx * dx + dy * dy)
+				local ex, ey = dx / len, dy / len
+				-- the ramp's top along this edge, and how far off the edge's line it is
+				local along = (ramp.to[1] - a[1]) * ex + (ramp.to[2] - a[2]) * ey
+				local off = math.abs((ramp.to[1] - a[1]) * ey - (ramp.to[2] - a[2]) * ex)
+				if along > 0 and along < len and off < ramp.width / 2 then
+					local half = ramp.width / 2
+					local t0 = math.clamp((along - half) / len, 0, 1)
+					local t1 = math.clamp((along + half) / len, 0, 1)
+					cuts = { 0, t0, t1, 1 }
+					-- the edge's outward normal (away from the hill)
+					local nx, ny = ey, -ex
+					local mid = { a[1] + ex * along + nx * 0.5, a[2] + ey * along + ny * 0.5 }
+					if ArenaData.inside(h.poly, mid) then
+						nx, ny = -nx, -ny
+					end
+					local fw, l = ArenaData.FOOT_W, ArenaData.FILLET
+					for _, side in { -1, 1 } do
+						local cx = a[1] + ex * (along + side * half) + nx * fw
+						local cy = a[2] + ey * (along + side * half) + ny * fw
+						table.insert(fillets, {
+							{ cx, cy },
+							{ cx + ex * side * l, cy + ey * side * l },
+							{ cx + nx * l, cy + ny * l },
+						})
 					end
 				end
 			end
 			for k = 1, #cuts - 1, 2 do
 				local u0, u1 = cuts[k], cuts[k + 1]
-				if u1 - u0 > 1e-3 then
-					table.insert(out, {
-						{ a[1] + (b[1] - a[1]) * u0, a[2] + (b[2] - a[2]) * u0 },
-						{ a[1] + (b[1] - a[1]) * u1, a[2] + (b[2] - a[2]) * u1 },
-					})
+				local a0 = { a[1] + (b[1] - a[1]) * u0, a[2] + (b[2] - a[2]) * u0 }
+				local b0 = { a[1] + (b[1] - a[1]) * u1, a[2] + (b[2] - a[2]) * u1 }
+				if math.sqrt((b0[1] - a0[1]) ^ 2 + (b0[2] - a0[2]) ^ 2) > 0.5 then
+					table.insert(out, { a0, b0 })
 				end
 			end
 		end
@@ -374,6 +390,7 @@ local function hillFeet(): { { Pt } }
 	return out
 end
 ArenaData.hillFeet = hillFeet()
+ArenaData.rampFillets = fillets
 
 -- the outer wall's four inside corners are filled with a 45 degree slab this long on each leg
 -- (picture units), so a kart driving into a corner glances off instead of wedging
@@ -440,6 +457,11 @@ function ArenaData.clear(x: number, y: number, room: number): boolean
 	-- the hill-foot bumpers stand just outside the foot line
 	for _, seg in ArenaData.hillFeet do
 		if segDist(x, y, seg[1], seg[2]) < ArenaData.FOOT_W + room then
+			return false
+		end
+	end
+	for _, f in ArenaData.rampFillets do
+		if ArenaData.inside(f, { x, y }) or segDist(x, y, f[2], f[3]) < room then
 			return false
 		end
 	end

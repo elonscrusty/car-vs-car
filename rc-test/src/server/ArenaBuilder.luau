@@ -583,6 +583,10 @@ local function buildHills(folder: Instance)
 			round(folder, "HillFootPost", e + push, fw, fh, PINK_SIDE)
 		end
 	end
+	-- a 45 degree fillet each side of each ramp, in the corner of the bumper and the ramp's side
+	for _, f in ArenaData.rampFillets do
+		rightPrism(folder, "HillFoot", v(f[1], 0), v(f[2], 0), v(f[3], 0), 0, fh, PINK_SIDE)
+	end
 	for i, r in ArenaData.RAMPS do
 		local a, b = v(r.from, 0), v(r.to, 0)
 		local len = (b - a).Magnitude
