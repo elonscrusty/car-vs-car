@@ -53,6 +53,24 @@ end
 -- flat floor layers throw no shadow worth the phone's time
 local FLAT = { Grass = true, Road = true, Curb = true, Crosswalk = true, Sand = true }
 
+-- upright things a kart bumps: next to no friction, so a kart that hits one at an angle slides
+-- along it and off instead of sticking (round 7: karts were stuck half the match)
+local SLIP = {
+	OuterWall = true,
+	WallTrim = true,
+	WallCorner = true,
+	Cover = true,
+	CoverCap = true,
+	Bumper = true,
+	BumperCap = true,
+	HillFoot = true,
+	HillFootPost = true,
+	Barrel = true,
+	ArchPillar = true,
+	TreeStick = true,
+}
+local SLIPPY = PhysicalProperties.new(0.7, 0.02, 0.15, 100, 1)
+
 -- every part: anchored, no touch events; solid = karts bump it and the wheels and camera see it
 local function part(
 	parent: Instance,
@@ -76,6 +94,9 @@ local function part(
 	p.CanCollide = solid
 	p.CanQuery = solid
 	p.CastShadow = solid and not FLAT[name]
+	if SLIP[name] then
+		p.CustomPhysicalProperties = SLIPPY
+	end
 	p.Parent = parent
 	return p
 end
@@ -124,6 +145,27 @@ local function wall(
 		color,
 		true
 	)
+end
+
+-- a solid upright round post (diameter d, height h) standing at `at` (map-local, y ignored)
+local function round(
+	parent: Instance,
+	name: string,
+	at: Vector3,
+	d: number,
+	h: number,
+	color: Color3
+)
+	local p = part(
+		parent,
+		name,
+		Vector3.new(h, d, d),
+		CFrame.new(at.X, h / 2, at.Z) * CFrame.Angles(0, 0, math.pi / 2),
+		color,
+		true
+	) :: Part
+	p.Shape = Enum.PartType.Cylinder
+	return p
 end
 
 -- A right-triangle prism standing from y0 to y1: right angle at d, the other corners p and q.
@@ -394,6 +436,16 @@ local function buildFloor(folder: Instance)
 			false
 		)
 	end
+	-- a 45 degree slab in each inside corner, so a kart glances off and never wedges there
+	local leg = ArenaData.CORNER * K
+	for _, sx in { -1, 1 } do
+		for _, sz in { -1, 1 } do
+			local d = Vector3.new(sx * inner, 0, sz * inner)
+			local p = d - Vector3.new(sx * leg, 0, 0)
+			local q = d - Vector3.new(0, 0, sz * leg)
+			rightPrism(folder, "WallCorner", d, p, q, 0, h, PURPLE)
+		end
+	end
 end
 
 local function buildRoad(folder: Instance)
@@ -486,6 +538,17 @@ local function buildSand(folder: Instance)
 				BUMPER,
 				true
 			)
+			-- round ends, so a kart nosing the gap's edge slides round it
+			for _, u in { u0, u1 } do
+				round(
+					folder,
+					"BumperCap",
+					a:Lerp(b, u),
+					ArenaData.BUMPER_W * K,
+					ArenaData.BUMPER_H,
+					BUMPER
+				)
+			end
 		end
 	end
 end
@@ -493,6 +556,36 @@ end
 local function buildHills(folder: Instance)
 	for _, h in ArenaData.HILLS do
 		mesa(folder, h.name, h.poly, h.h, h.slope, nil, PINK, PINK_SIDE)
+	end
+	-- the soft bumper round each hill's foot (open at the ramp), pushed out so its inside face
+	-- is on the foot line, with a round post at every end
+	local fw, fh = ArenaData.FOOT_W * K, ArenaData.FOOT_H
+	for _, seg in ArenaData.hillFeet do
+		local a, b = v(seg[1], 0), v(seg[2], 0)
+		local along = (b - a).Unit
+		local out = Vector3.new(along.Z, 0, -along.X)
+		-- picture axes run the same way as map x and z: step half a unit out and see if that's
+		-- still a hill
+		local probe =
+			{ (seg[1][1] + seg[2][1]) / 2 + out.X * 0.5, (seg[1][2] + seg[2][2]) / 2 + out.Z * 0.5 }
+		local inHill = false
+		for _, hh in ArenaData.HILLS do
+			if ArenaData.inside(hh.poly, probe) then
+				inHill = true
+			end
+		end
+		if inHill then
+			out = -out
+		end
+		local push = out * (fw / 2)
+		wall(folder, "HillFoot", a + push, b + push, fw, fh, PINK_SIDE, true)
+		for _, e in { a, b } do
+			round(folder, "HillFootPost", e + push, fw, fh, PINK_SIDE)
+		end
+	end
+	-- a 45 degree fillet each side of each ramp, in the corner of the bumper and the ramp's side
+	for _, f in ArenaData.rampFillets do
+		rightPrism(folder, "HillFoot", v(f[1], 0), v(f[2], 0), v(f[3], 0), 0, fh, PINK_SIDE)
 	end
 	for i, r in ArenaData.RAMPS do
 		local a, b = v(r.from, 0), v(r.to, 0)
@@ -680,14 +773,7 @@ local function buildArch(folder: Instance)
 	local p1, p2 = v(pts[1], 0), v(pts[2], 0)
 	local pw = a.pillar * K
 	for _, p in { p1, p2 } do
-		part(
-			folder,
-			"ArchPillar",
-			Vector3.new(pw, a.h, pw),
-			CFrame.new(p + Vector3.new(0, a.h / 2, 0)),
-			NAVY,
-			true
-		)
+		round(folder, "ArchPillar", p, pw, a.h, NAVY) -- round: a kart brushing it slides past
 		part(
 			folder,
 			"ArchCap",
