@@ -408,7 +408,15 @@ function Kit.round(
 	Base.outline(body, UiTheme.OUTLINE.normal)
 	local face = Base.fill(body, "Face", 0, 0, s, s - 9 * s / 100, WHITE, 1)
 	Base.corner(face)
-	Kit.gloss(face, Base.color(t.fill))
+	-- carter's kit v41: the 3D face (hi -> c -> c2 over the deep base) and its rim and gloss
+	local f3 = UiTheme.FACE[toneName]
+	if f3 then
+		body.BackgroundColor3 = Kit.hex(f3.deep)
+		Kit.face(face, { f3.hi, f3.c, f3.c2 })
+		Kit.rim(face, s, s - 9 * s / 100, s / 2)
+	else
+		Kit.gloss(face, Base.color(t.fill))
+	end
 	local clip = Base.box(face, "Clip", s * 0.16, s * 0.16, s * 0.68, s * 0.62, 1)
 	Pattern.attach(clip)
 	local label = Base.text(

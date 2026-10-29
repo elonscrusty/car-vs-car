@@ -786,15 +786,18 @@ function Hud.match(
 	local L = if touch then "matchTouch" else "match"
 	return Screen.open("match", "hud", false, function(g)
 		local c = g.canvas
-		-- PLACE: big yellow 1ST, small / 5
+		-- PLACE: a trophy, big yellow 1ST, small / 5 (carter's kit v41)
 		local pp = piece(L, "Place")
 		local placeSpot = spot(c, L, "Place")
+		local cup = pp.h * (if touch then 0.86 else 0.78)
+		Icons.make(placeSpot, "trophy", 0, (pp.h - cup) / 2, cup, { z = 3 })
+		local px = cup + 2
 		local big = Base.text(
 			placeSpot,
 			"Place",
-			6,
+			px,
 			0,
-			pp.w * (if touch then 0.84 else 0.56),
+			if touch then pp.w - px else pp.w * 0.56 - px + 6,
 			pp.h - 4,
 			"",
 			{
@@ -808,9 +811,9 @@ function Hud.match(
 		local of = Base.text(
 			placeSpot,
 			"Of",
-			pp.w * 0.58,
+			pp.w * 0.62,
 			pp.h * 0.34,
-			pp.w * 0.4,
+			pp.w * 0.36,
 			pp.h * 0.5,
 			"",
 			{ stroke = 5, drop = 3, align = "l", z = 3 }
@@ -821,9 +824,9 @@ function Hud.match(
 		local go = Base.text(
 			placeSpot,
 			"Go",
-			6,
+			px,
 			4,
-			pp.w - 12,
+			pp.w - px - 4,
 			pp.h - 12,
 			if touch then "GO!" else "GO SMASH!",
 			{
@@ -852,34 +855,34 @@ function Hud.match(
 			end
 		end
 		setPlace(data.place or 1, data.total or 8, data.smashes)
-		-- CLOCK: a navy pill, red and breathing in the last 10 s
+		-- CLOCK: a clock and big white stroked words, no plate; red and breathing in the last
+		-- 10 s (carter's kit v41)
 		local cp = piece(L, "Clock")
-		local clock = Kit.pill(
-			spot(c, L, "Clock"),
-			"Clock",
+		local clockSpot = spot(c, L, "Clock")
+		local clockFrame = Base.box(clockSpot, "Clock", 0, 0, cp.w, cp.h, 2)
+		local dial = cp.h * 0.9
+		Icons.make(clockFrame, "clock", 0, (cp.h - dial) / 2, dial, { z = 3 })
+		local clockWords = Base.text(
+			clockFrame,
+			"Value",
+			dial + 2,
 			0,
-			0,
-			cp.w,
-			cp.h,
-			nil,
-			nil,
+			cp.w - dial - 2,
+			cp.h - 3,
 			UiMotion.clock(data.secs or 180),
-			{ big = true, stroke = true }
+			{ stroke = 6, drop = 3, align = "l", z = 4 }
 		)
-		local clockBody = clock.frame:FindFirstChild("Body") :: Frame?
 		local hurry: Tween? = nil
 		local function setClock(secs: number)
-			clock.set(UiMotion.clock(secs))
+			Base.setText(clockWords, UiMotion.clock(secs))
 			local late = secs <= 10 and secs > 0
-			if clockBody then
-				clockBody.BackgroundColor3 = Base.color(if late then "danger" else "navy")
-			end
+			clockWords.TextColor3 = if late then Base.color("danger") else WHITE
 			if late and not hurry then
-				hurry = Anim.pulse(clock.frame, 1.08, 0.5)
+				hurry = Anim.pulse(clockFrame, 1.16, 0.5)
 			elseif not late and hurry then
 				hurry:Cancel()
 				hurry = nil
-				Anim.scaler(clock.frame).Scale = 1
+				Anim.scaler(clockFrame).Scale = 1
 			end
 		end
 		-- HEALTH: a heart, a chunky bar (lime, yellow under half, red under a quarter), the number;
@@ -924,8 +927,8 @@ function Hud.match(
 				fill.BackgroundColor3 = Base.color(
 					if shield
 						then "blue"
-						elseif f > 0.5 then "lime"
-						elseif f > 0.25 then "go"
+						elseif f > 0.6 then "lime"
+						elseif f > 0.3 then "boost"
 						else "danger"
 				)
 			end
@@ -1018,19 +1021,21 @@ function Hud.match(
 			attackerLevel: number?,
 			victimLevel: number?
 		)
-			local row = Base.fill(
-				feedSpot,
-				"Row",
+			local row = Base.fill(feedSpot, "Row", 0, 0, fp.w, if touch then 26 else 28, INK, 2)
+			-- carter's kit v41: a dark ink plate, its left edge lime when you are in it
+			row.BackgroundTransparency = 0.22
+			Base.corner(row)
+			local edge = Base.fill(
+				row,
+				"Edge",
 				0,
 				0,
-				fp.w,
+				6,
 				if touch then 26 else 28,
-				Base.color(if mine then "lime" else "navy"),
+				Base.color(if mine then "lime" else "pink"),
 				2
 			)
-			row.BackgroundTransparency = if mine then 0 else 0.15
-			Base.corner(row)
-			Base.outline(row, UiTheme.OUTLINE.normal)
+			Base.corner(edge, 3)
 			-- each side: [level] NAME, the weapon between (a side with no level: the name
 			-- takes the badge's room)
 			local half = (fp.w - 32) / 2
@@ -1074,26 +1079,42 @@ function Hud.match(
 				end
 			end)
 		end
-		-- FIRE: the big red thumb button, the weapon's icon on it and a count ball with the ammo;
-		-- no weapon: a plain blue circle
+		-- FIRE (carter's kit v41): a glossy pink thumb button with the weapon's big icon, the ammo
+		-- in a yellow coin on its bottom left; no weapon: a purple orb with a big "?"
 		local fpc = piece(L, "Fire")
 		local fireSpot = spot(c, L, "Fire")
-		local fire = Kit.round(fireSpot, "Fire", 0, 0, fpc.w, "danger", "FIRE", {
+		local fire = Kit.round(fireSpot, "Fire", 0, 0, fpc.w, "pink", "FIRE", {
 			onClick = Screen.act(actions, "fire"),
 		})
 		local body = fire.button:FindFirstChild("Body") :: Frame
 		local label = body:FindFirstChild("Label") :: TextLabel
 		local icon: GuiObject? = nil
-		local ball = Base.fill(fire.button, "Ammo", fpc.w * 0.7, -4, 38, 38, WHITE, 7)
+		local ball = Base.fill(fire.button, "Ammo", -2, fpc.w * 0.64, 38, 38, WHITE, 7)
 		Base.corner(ball)
 		Base.outline(ball, UiTheme.OUTLINE.normal)
+		Kit.face(ball, { UiTheme.FACE.go.hi, UiTheme.FACE.go.c, UiTheme.FACE.go.c2 })
 		local ammoWords = Base.text(ball, "N", 4, 6, 30, 24, "", { color = INK, z = 8 })
-		-- (empty hands: a plain blue circle, as in the video)
-		local dim =
-			Base.fill(body, "Empty", 0, 0, fpc.w, fpc.w - 9 * fpc.w / 100, Base.color("blue"), 7)
+		local orbH = fpc.w - 9 * fpc.w / 100
+		local dim = Base.fill(body, "Empty", 0, 0, fpc.w, orbH, WHITE, 7)
 		Base.corner(dim)
 		Base.outline(dim, UiTheme.OUTLINE.normal)
-		Kit.gloss(dim, Base.color("blue"))
+		Kit.face(dim, { "c9a8ff", "8a4dff", "5a22c8" })
+		Base.text(dim, "Q", fpc.w * 0.25, orbH * 0.18, fpc.w * 0.5, orbH * 0.6, "?", {
+			stroke = 7,
+			drop = 3,
+			z = 8,
+		})
+		-- the tip over it: GRAB A ? BOX while empty, the weapon's name for 1.4 s when one comes;
+		-- your first match only (data.tip), then the button alone (carter: the minimum)
+		local tipOn = data.tip == true
+		local tip = Base.fill(fireSpot, "Tip", -14, -34, fpc.w + 28, 28, WHITE, 6)
+		Base.corner(tip, 10)
+		Base.outline(tip, UiTheme.OUTLINE.normal)
+		Kit.face(tip, { UiTheme.FACE.go.hi, UiTheme.FACE.go.c, UiTheme.FACE.go.c2 })
+		local tipWords =
+			Base.text(tip, "Words", 6, 5, fpc.w + 16, 18, "GRAB A ? BOX", { color = INK, z = 7 })
+		tip.Visible = false
+		local tipUntil = 0
 		local shownWeapon: string? = nil
 		local function setWeapon(name: string?, ammo: number?)
 			local has = name ~= nil and name ~= "" and (ammo or 0) > 0
@@ -1103,14 +1124,29 @@ function Hud.match(
 				if icon then
 					icon:Destroy()
 				end
-				icon = Icons.make(body, key, fpc.w * 0.32, fpc.w * 0.1, fpc.w * 0.36, { z = 6 })
+				icon = Icons.make(body, key, fpc.w * 0.22, fpc.w * 0.14, fpc.w * 0.56, { z = 6 })
 				if has then
 					Anim.pop(fire.button, nil, 0.6)
+					if tipOn then
+						tipWords.Text = string.upper(tostring(name)) .. "!"
+						tipUntil = os.clock() + 1.4
+						task.delay(1.45, function()
+							if os.clock() >= tipUntil and shownWeapon ~= "mystery" then
+								tip.Visible = false
+							end
+						end)
+					end
 				end
 			end
-			Base.setText(label, "FIRE")
-			label.Position = UDim2.fromScale(0.08, 0.5)
-			label.Visible = has
+			label.Visible = false -- (the kit: the big icon says it, no FIRE words)
+			if tipOn then
+				if not has then
+					tipWords.Text = "GRAB A ? BOX"
+					tip.Visible = true
+				else
+					tip.Visible = os.clock() < tipUntil
+				end
+			end
 			if icon then
 				icon.Visible = has
 			end

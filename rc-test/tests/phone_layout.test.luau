@@ -422,6 +422,42 @@ test("phone match HUD: kill lines go after 3 s, and FIRE carries the weapon", fu
 	h.close()
 end)
 
+-- auditor round 12b / carter's kit v41: empty hands are a purple "?" orb with GRAB A ? BOX over
+-- it (first match only); a weapon shows its icon and the ammo coin, the tip names it for 1.4 s
+test("FIRE: the ? orb and GRAB A ? BOX when empty, the weapon and ammo when held", function()
+	local h = Hud.match({
+		place = 1,
+		total = 8,
+		secs = 120,
+		hp = 100,
+		maxHp = 100,
+		smashes = 0,
+		weapon = "",
+		ammo = 0,
+		board = {},
+		tip = true,
+	}, nil, true)
+	local fire = h.gui.canvas:FindFirstChild("Fire", true)
+	local orb = fire:FindFirstChild("Empty", true)
+	local tip = h.gui.canvas:FindFirstChild("Tip", true)
+	truthy(orb and orb.Visible, "no ? orb when empty")
+	truthy(orb:FindFirstChild("Q") and orb:FindFirstChild("Q").Text == "?", "no ? on the orb")
+	truthy(tip and tip.Visible, "no GRAB A ? BOX tip")
+	truthy(tip:FindFirstChild("Words").Text == "GRAB A ? BOX", tip:FindFirstChild("Words").Text)
+	h.api.setWeapon("Rockets", 3)
+	truthy(not orb.Visible, "the orb stayed over the weapon")
+	truthy(fire:FindFirstChild("Ammo", true).Visible, "no ammo coin")
+	truthy(tip:FindFirstChild("Words").Text == "ROCKETS!", tip:FindFirstChild("Words").Text)
+	S.advance(1.6)
+	truthy(not tip.Visible, "the weapon's name stayed up")
+	h.close()
+	-- after the first match: no tip at all
+	local h2 = Hud.match({ place = 1, total = 8, weapon = "", ammo = 0, board = {} }, nil, true)
+	local tip2 = h2.gui.canvas:FindFirstChild("Tip", true)
+	truthy(tip2 and not tip2.Visible, "the tip shows after the first match")
+	h2.close()
+end)
+
 test("phone smash words: brief (1 s at most) and clear of the phone HUD", function()
 	local SmashJuice = require("../src/shared/SmashJuice")
 	local UiScreens = require("../src/shared/UiScreens")
