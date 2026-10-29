@@ -29,6 +29,7 @@ local setStats: (d: RaceStats.Drive?) -> () = (Tuning :: any).setStats
 
 local BigCount = require(script.Parent.BigCount)
 local GasHintUi = require(script.Parent.GasHintUi)
+local FlipBack = require(ReplicatedStorage.Shared.FlipBack)
 local GasHint = require(ReplicatedStorage.Shared.GasHint)
 local CarSkin = require(script.Parent.CarSkin)
 local ChaseCamera = require(script.Parent.ChaseCamera)
@@ -258,6 +259,7 @@ startBeep.Parent = script
 local stuckTime = 0
 local stuckFrom = Vector3.zero
 local creep = 0 -- average ground speed lately (for the stuck check)
+local tippedFor = 0 -- seconds the arena kart has been on its roof or side (FlipBack)
 local FALL = -8 -- big-size studs: below this the car fell off the world
 local raceFx = RaceFx.new() -- carter's picks 14 + 15: speed lines on BOOST, sparks on hits
 -- Plots with checkpoint flags: a reset (R, RESET, fell off, out) brings the car back to the last
@@ -599,6 +601,23 @@ RunService.PreSimulation:Connect(function(dt: number)
 		-- (Smash: no race talk, audit R6-2)
 		local smash = player:GetAttribute("InMatch") == true or WarmupYard.on()
 		reset(if smash then "OOPS! FLIPPING YOU BACK" else "STUCK - BACK TO START", "stuck")
+	end
+	-- the arena: upside down or on its side for a moment = back on its wheels right there, same
+	-- facing (not off to a spawn; a smashed kart is the server's to bring back)
+	if grid and not body.Anchored and player:GetAttribute("Health") ~= 0 then
+		local cf = body.CFrame
+		local fire: boolean
+		tippedFor, fire = FlipBack.tick(tippedFor, dt, cf.UpVector.Y)
+		if fire then
+			local fx, fz =
+				FlipBack.facing(cf.LookVector.X, cf.LookVector.Z, cf.UpVector.X, cf.UpVector.Z)
+			local at = p + Vector3.new(0, 3 * Tuning.scale, 0)
+			car.teleport(CFrame.lookAt(at, at + Vector3.new(fx, 0, fz)))
+			stuckTime = 0
+			hud.flash("OOPS! FLIPPING YOU BACK")
+		end
+	else
+		tippedFor = 0
 	end
 	-- fell off the world, or got out of the plot
 	local lx, _, lz = TrackData.toLocal(t, rc, p.X, p.Y, p.Z)
