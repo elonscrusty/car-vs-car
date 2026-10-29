@@ -318,6 +318,15 @@ DRAW.mystery = function(c)
 	Base.text(c, "Q", 18, 14, 64, 70, "?", { stroke = 12 * unit(c), z = 5 })
 end
 
+-- carter's kit v41: the match clock (a white face, ink hands, a red knob on top)
+DRAW.clock = function(c)
+	shape(c, "Knob", 40, 2, 20, 14, Base.color("danger"), 4, 6, nil, 1)
+	shape(c, "Face", 8, 12, 84, 84, WHITE, nil, 7, nil, 2)
+	Base.fill(c, "HandUp", 46, 26, 8, 30, INK, 5)
+	Base.fill(c, "HandSide", 48, 50, 26, 8, INK, 5)
+	shape(c, "Middle", 44, 48, 12, 12, INK, nil, 6, nil, 6)
+end
+
 DRAW.heart = function(c)
 	local red = Base.color("danger")
 	-- two round lobes on a square turned 45 deg

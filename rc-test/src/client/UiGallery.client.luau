@@ -468,5 +468,11 @@ Base.show(bar, true)
 -- and out of every match shot, Studio round3)
 local me = game:GetService("Players").LocalPlayer
 RunService.Heartbeat:Connect(function()
-	toggle.Visible = open or not (Screen.anyOver() or me:GetAttribute("InMatch") == true)
+	-- (Studio only, never in a player's game; and not in phone-size shots, PhoneUi: auditor 12b)
+	toggle.Visible = open
+		or not (
+			Screen.anyOver()
+			or me:GetAttribute("InMatch") == true
+			or me:GetAttribute("PhoneUi") == true
+		)
 end)

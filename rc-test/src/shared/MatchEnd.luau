@@ -16,6 +16,7 @@ local function sibling(name: string): any
 	return luneRequire("./" .. name)
 end
 local Xp = sibling("Xp")
+local Match = sibling("Match")
 
 local MatchEnd = {}
 
@@ -106,6 +107,8 @@ function MatchEnd.read(
 		return view
 	end
 	local n = 0
+	local scored = 0 -- rows with a smash
+	local found = false -- your row is in the list
 	for i = 1, MatchEnd.MAX_ROWS do
 		local r = (places :: { unknown })[i]
 		if type(r) ~= "table" then
@@ -116,7 +119,11 @@ function MatchEnd.read(
 		local uid = if type(row.userId) == "number" then row.userId :: number else nil
 		local me = uid ~= nil and uid == myId
 		local smashes = count(row.smashes, 9999)
+		if smashes > 0 then
+			scored += 1
+		end
 		if me then
+			found = true
 			-- the server's shared place (ties share it; 0 = no smashes), else the row's number
 			local pl = row.place
 			view.place = if type(pl) == "number"
@@ -138,6 +145,11 @@ function MatchEnd.read(
 		end
 	end
 	view.total = n
+	-- no smashes (the server's 0): the place every kart on 0 shares, after the ones who scored and
+	-- never on the podium, as the round pays it (Match.payPlace); never "- / 8" (auditor round 12b)
+	if found and view.place == 0 then
+		view.place = math.min(n, math.max(scored + 1, #Match.PLACE_COINS + 1))
+	end
 	view.winner = view.top[1]
 	return view
 end

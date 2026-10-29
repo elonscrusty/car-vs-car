@@ -170,6 +170,8 @@ local function open()
 		weapon = if type(w) == "string" then w else "",
 		ammo = num("Ammo", 0),
 		board = boardList(),
+		-- (your first match: the GRAB A ? BOX tip over FIRE; after it, the button alone)
+		tip = type(attr("Xp")) ~= "number" or (attr("Xp") :: number) <= 0,
 	}, { fire = fire }, Base.phone())
 end
 

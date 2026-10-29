@@ -90,16 +90,20 @@ function Kit.rim(face: Frame, w: number, h: number, radius: number?)
 	Base.corner(rim, math.max(2, r - 2))
 	local st = Base.outline(rim, 2, WHITE)
 	st.Transparency = UiTheme.CHROME.rim
-	local top = Base.fill(
-		face,
-		"Top",
-		7,
-		4,
-		math.max(1, w - 14),
-		h * UiTheme.CHROME.gloss,
-		WHITE,
-		face.ZIndex
-	)
+	-- (a round face: the band inset to stay inside the circle)
+	local round = r >= math.min(w, h) / 2 - 0.5
+	local top = if round
+		then Base.fill(face, "Top", w * 0.2, h * 0.06, w * 0.6, h * 0.22, WHITE, face.ZIndex)
+		else Base.fill(
+			face,
+			"Top",
+			7,
+			4,
+			math.max(1, w - 14),
+			h * UiTheme.CHROME.gloss,
+			WHITE,
+			face.ZIndex
+		)
 	Base.corner(top, math.max(2, r - 4))
 	local tg = Instance.new("UIGradient")
 	tg.Rotation = 90
@@ -408,7 +412,15 @@ function Kit.round(
 	Base.outline(body, UiTheme.OUTLINE.normal)
 	local face = Base.fill(body, "Face", 0, 0, s, s - 9 * s / 100, WHITE, 1)
 	Base.corner(face)
-	Kit.gloss(face, Base.color(t.fill))
+	-- carter's kit v41: the 3D face (hi -> c -> c2 over the deep base) and its rim and gloss
+	local f3 = UiTheme.FACE[toneName]
+	if f3 then
+		body.BackgroundColor3 = Kit.hex(f3.deep)
+		Kit.face(face, { f3.hi, f3.c, f3.c2 })
+		Kit.rim(face, s, s - 9 * s / 100, s / 2)
+	else
+		Kit.gloss(face, Base.color(t.fill))
+	end
 	local clip = Base.box(face, "Clip", s * 0.16, s * 0.16, s * 0.68, s * 0.62, 1)
 	Pattern.attach(clip)
 	local label = Base.text(
