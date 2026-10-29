@@ -426,7 +426,14 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 			d.Transparency = 1
 		end
 	end
-	car.setLook({ wheels = wheels, spots = spots, turns = turns })
+	-- (a model's MaxTurn attribute: its front wheels are drawn turned no further, to stay in the fenders)
+	local maxTurn = src:GetAttribute("MaxTurn")
+	car.setLook({
+		wheels = wheels,
+		spots = spots,
+		turns = turns,
+		maxTurn = if type(maxTurn) == "number" then maxTurn else nil,
+	})
 	local looks: { Instance } = {}
 	for _, d in body:GetChildren() do
 		if d:IsA("SurfaceAppearance") then

@@ -36,8 +36,14 @@ export type WheelInfo = {
 -- A look-only skin for the wheels: mesh wheels drawn on the springs in place of the grey ones.
 -- `spots` are where each wheel sits under the body (only X and Z are used), in the same order
 -- as the wheels: front left, front right, rear left, rear right. `turns` is how each mesh is
--- turned inside the car. Nothing here touches the driving.
-export type WheelLook = { wheels: { BasePart }, spots: { Vector3 }, turns: { CFrame } }
+-- turned inside the car. `maxTurn` (radians) caps how far the front meshes are drawn turned, so a
+-- car with fenders keeps its tyres inside them (carter 10-29). Nothing here touches the driving.
+export type WheelLook = {
+	wheels: { BasePart },
+	spots: { Vector3 },
+	turns: { CFrame },
+	maxTurn: number?,
+}
 
 export type Car = {
 	model: Model,
@@ -520,6 +526,13 @@ function RCCar.new(model: Model, ignore: { Instance }): Car
 			w.part.CFrame = wcf
 			w.bar.CFrame = wcf
 			if look then
+				local cap = look.maxTurn
+				if cap and w.front and math.abs(yaw) > cap then
+					wcf = CFrame.new(center)
+						* rot
+						* CFrame.Angles(0, math.clamp(yaw, -cap, cap), 0)
+						* CFrame.Angles(w.spin, 0, 0)
+				end
 				look.wheels[i].CFrame = wcf * look.turns[i]
 			end
 		end
