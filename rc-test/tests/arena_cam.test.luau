@@ -105,7 +105,7 @@ test("arena cam: ChaseCamera and Main use it only while InMatch, still a chase c
 		"switched by InMatch"
 	)
 	truthy(
-		string.find(main, "then ArenaCam.fit(", 1, true) ~= nil,
+		string.find(main, "then camera.arenaDistance()", 1, true) ~= nil,
 		"lost-cam check fits the screen"
 	)
 	truthy(
@@ -163,5 +163,38 @@ test(
 		truthy(string.find(chase, "refit(camera.ViewportSize)", 1, true) ~= nil, "fits the screen")
 		truthy(string.find(chase, "ArenaCam.MIN_REACH * arenaFit.distance", 1, true) ~= nil)
 		truthy(string.find(chase, "local aFov = arenaFit.fov", 1, true) ~= nil)
+	end
+)
+
+test(
+	"arena cam: a real phone gets the phone camera; Studio can force it with TestPhoneCam",
+	function()
+		-- iPhone and Android phones (points), touch, no keyboard: the close camera
+		for _, size in { { 844, 390 }, { 667, 375 }, { 932, 430 }, { 915, 412 }, { 1280, 600 } } do
+			truthy(
+				ArenaCam.isPhone(size[1], size[2], true, false, false),
+				`{size[1]}x{size[2]} phone`
+			)
+		end
+		eq(ArenaCam.isPhone(844, 390, false, true, false), true, "phone-shaped by size alone")
+		eq(ArenaCam.isPhone(1024, 768, true, false, false), false, "a tablet keeps the big camera")
+		eq(ArenaCam.isPhone(1914, 604, false, true, false), false, "Studio's view: big camera")
+		eq(ArenaCam.isPhone(1914, 604, false, true, true), true, "TestPhoneCam forces it")
+		eq(ArenaCam.forced(true, true), true)
+		eq(ArenaCam.forced(false, true), false, "never in a live game")
+		eq(ArenaCam.forced(true, "yes"), false)
+		eq(ArenaCam.forced(true, nil), false)
+		local f = ArenaCam.fit(1914, 604, true)
+		eq(f.distance, ArenaCam.PHONE_DISTANCE, "forced: the phone camera on Studio's screen")
+		eq(
+			ArenaCam.fit(844, 390, false).distance,
+			ArenaCam.DISTANCE,
+			"told not a phone: big camera"
+		)
+		eq(ArenaCam.fit(844, 390).distance, ArenaCam.PHONE_DISTANCE, "by size when not told")
+		local chase = fs.readFile("src/client/ChaseCamera.luau")
+		truthy(string.find(chase, "workspace:GetAttribute(ArenaCam.TEST_ATTR)", 1, true) ~= nil)
+		truthy(string.find(chase, "ArenaCam.forced(STUDIO,", 1, true) ~= nil, "Studio only")
+		truthy(string.find(chase, "UserInputService.TouchEnabled", 1, true) ~= nil, "touch counts")
 	end
 )
