@@ -308,9 +308,9 @@ local LIST: { Screen } = {
 		pieces = {
 			p("Title", 8, 0, 300, 56, { anchor = "tl" }),
 			p("Close", 700, 0, 52, 52, { anchor = "tr", tap = true }),
-			-- (both "b": on a wide computer "bl"/"br" pushed them to the edges, Studio r60)
-			p("Sliders", 8, 66, 400, 316, { anchor = "b" }),
-			p("Toggles", 424, 66, 324, 316, { anchor = "b" }),
+			-- the sliders (400 wide) and toggles (324) side by side in one piece, so a wide
+			-- computer keeps them together in the middle (one piece each hugged the edges, Studio r60)
+			p("Body", 8, 66, 740, 316, { anchor = "b" }),
 		},
 	},
 }
