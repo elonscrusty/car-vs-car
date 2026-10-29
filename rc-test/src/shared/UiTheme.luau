@@ -114,6 +114,60 @@ UiTheme.STATS = {
 	{ key = "speed", word = "TURN", tone = "lime", bar = "turn", station = "track" },
 }
 
+-- carter's UI kit v41 (ui-kit/v41, "UI chrome v2", 10-29): the chunky 3D look. A tone's face
+-- runs hi -> c -> c2 top to bottom over its deep base; panels and cards are navy and blue.
+export type Face = { hi: string, c: string, c2: string, deep: string }
+UiTheme.FACE = {
+	lime = { hi = "d2ff96", c = "55ea2c", c2 = "2bc414", deep = "178f0a" },
+	blue = { hi = "c4ecff", c = "3fb8ff", c2 = "1c84ea", deep = "0b5cb4" },
+	go = { hi = "fff7b8", c = "ffd93b", c2 = "ffb400", deep = "b86d00" },
+	gold = { hi = "fff7b8", c = "ffd93b", c2 = "ffb400", deep = "b86d00" },
+	pink = { hi = "ffd0e6", c = "ff5fa6", c2 = "e6267c", deep = "a50f56" },
+	danger = { hi = "ffc0c0", c = "ff4a4a", c2 = "e01428", deep = "8f0014" },
+	boost = { hi = "ffd2a8", c = "ff8a2a", c2 = "f0660a", deep = "a84000" },
+	white = { hi = "ffffff", c = "f1f5fb", c2 = "d3dcea", deep = "8794ad" },
+	steel = { hi = "f1f5fb", c = "b8c4d8", c2 = "8794ad", deep = "4a566e" },
+	navy = { hi = "5a8fe0", c = "2f5fae", c2 = "22478a", deep = "122a55" },
+	off = { hi = "dfe5ec", c = "b8c2cc", c2 = "9aa5b1", deep = "6d7884" },
+} :: { [string]: Face }
+
+-- a bar's fill (the kit's .tr > b): green, blue, yellow; other colors use their button face
+UiTheme.BAR_FACE = {
+	lime = { hi = "c4ff8a", c = "48e322", c2 = "25b812", deep = "178f0a" },
+	blue = { hi = "bfe9ff", c = "38b0ff", c2 = "1a7fe6", deep = "0b5cb4" },
+	go = { hi = "fff6b0", c = "ffd93b", c2 = "ffb000", deep = "b86d00" },
+} :: { [string]: Face }
+
+UiTheme.CHROME = {
+	ground = { "21468f", "0b1a3d" }, -- the menu ground behind full screens
+	panel = { "27509a", "183a74", "112b5c" }, -- .pn
+	panelRim = "4f93ec",
+	card = { "3d7bd2", "2a5aa8", "1f4382" }, -- .cd
+	cardSelected = "ffd93b",
+	track = { "071226", "10264a" }, -- a bar or toggle's recessed track
+	tabOff = { "1e3d76", "14305f" },
+	tabOffWords = "9fc0ec",
+	tabOn = { "9fdcff", "3fb3ff", "1c7ee6" },
+	tabGold = { "fff7b8", "ffd93b", "ffb400" },
+	-- titles: white -> sky, gold, red, ice (the kit's .t-title)
+	title = {
+		white = { "ffffff", "ffffff", "e2f2ff", "bfe3ff" },
+		gold = { "fffbd0", "ffe95a", "ffc21f", "ff8f00" },
+		red = { "ffd3c6", "ff6a4a", "ec1c2e", "b80d22" },
+		ice = { "ffffff", "dff5ff", "8fd8ff", "3aa2f0" },
+	},
+	rim = 0.8, -- a face's inner white rim, 20% white
+	gloss = 0.34, -- the top gloss band's share of the face
+	press = 3, -- px the face moves down on a press
+}
+
+-- "ffd93b" -> Color3
+function UiTheme.hex(h: string): (number, number, number)
+	return tonumber(h:sub(1, 2), 16) :: number,
+		tonumber(h:sub(3, 4), 16) :: number,
+		tonumber(h:sub(5, 6), 16) :: number
+end
+
 UiTheme.DESIGN = {
 	phoneW = 844,
 	phoneH = 390,
