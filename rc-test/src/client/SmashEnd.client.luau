@@ -43,6 +43,8 @@ local function show(places: unknown, coins: unknown, nextAt: unknown, xp: unknow
 	shown += 1
 	local mine = shown
 	local view = MatchEnd.read(places, coins, nextAt, xp, player.UserId)
+	-- (the server set Xp before sending the result: the bar runs from Xp - this round's XP to Xp)
+	local bar = MatchEnd.xpBar(player:GetAttribute("Xp"), view.xp)
 	local openedAt = workspace:GetServerTimeNow()
 	-- (the next round starting puts it away, even before the count gets there: no ROUND OVER under GO!)
 	local round = workspace:GetAttribute("MatchRound")
@@ -63,7 +65,7 @@ local function show(places: unknown, coins: unknown, nextAt: unknown, xp: unknow
 			shown += 1
 			handle.close()
 		end,
-	})
+	}, bar)
 	task.spawn(function()
 		while shown == mine do
 			if workspace:GetAttribute("MatchRound") ~= round then

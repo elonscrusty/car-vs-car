@@ -105,7 +105,11 @@ end
 
 -- view: MatchEnd.read(...); actions: leave()
 -- The handle's set(secondsLeft) updates the count.
-function Smash.matchEnd(view: MatchEnd.View, actions: Screen.Actions?): Screen.Handle
+function Smash.matchEnd(
+	view: MatchEnd.View,
+	actions: Screen.Actions?,
+	bar: MatchEnd.XpBar?
+): Screen.Handle
 	return Screen.open("matchEnd", "full", true, function(g)
 		local back = g.back :: ScreenGui
 		local bd = Kit.backdrop(back, "showroom")
@@ -204,7 +208,7 @@ function Smash.matchEnd(view: MatchEnd.View, actions: Screen.Actions?): Screen.H
 		})
 		popLater(won, 1.0)
 		if view.xp > 0 then
-			local xp = Base.text(rew, "Xp", 12, 66, rp.w - 24, 40, `+{view.xp} XP`, {
+			local xp = Base.text(rew, "Xp", 12, 60, rp.w - 24, 30, `+{view.xp} XP`, {
 				color = Base.color("blue"),
 				stroke = 5,
 				strokeColor = WHITE,
@@ -215,9 +219,59 @@ function Smash.matchEnd(view: MatchEnd.View, actions: Screen.Actions?): Screen.H
 			})
 			popLater(xp, 1.6)
 		end
+		-- the level bar filling from before the round to now; LEVEL UP! when it crosses (no popup)
+		if bar then
+			local row = Base.box(rew, "Level", 12, 94, rp.w - 24, 24, 4)
+			local lv = Base.text(row, "Lv", 0, 0, 52, 24, `LV {bar.fromLevel}`, {
+				color = INK,
+				align = "l",
+				z = 5,
+			})
+			local bw = rp.w - 24 - 56
+			local track = Kit.bar(row, "Bar", 56, 3, bw, 18, "blue", { value = bar.fromF, z = 5 })
+			local num = Base.text(row, "Num", 56, 3, bw, 18, `{bar.into} / {bar.need}`, {
+				stroke = 3,
+				z = 8,
+			})
+			num.Visible = false
+			-- (over the bar, then the numbers take its place)
+			local up = Base.text(row, "LevelUp", 56, -4, bw, 28, "LEVEL UP!", {
+				color = Base.color("go"),
+				stroke = 4,
+				z = 9,
+			})
+			up.Visible = false
+			popLater(row, 1.9, function()
+				if bar.levelUp then
+					Kit.setBar(track, 1)
+					task.delay(0.5, function()
+						if not row.Parent then
+							return
+						end
+						Base.setText(lv, `LV {bar.toLevel}`)
+						up.Visible = true
+						Anim.pop(up, 0.38, 0.3)
+						local fill = track:FindFirstChild("Fill") :: Frame?
+						if fill then
+							fill.Size = UDim2.fromScale(0, 1)
+						end
+						Kit.setBar(track, bar.toF)
+						task.delay(1.4, function()
+							if row.Parent then
+								up.Visible = false
+								num.Visible = true
+							end
+						end)
+					end)
+				else
+					Kit.setBar(track, bar.toF)
+					num.Visible = true
+				end
+			end)
+		end
 		local you = MatchEnd.placeWords(view.place, view.total)
 		if you ~= "" then
-			local pl = Base.text(rew, "Place", 12, 114, rp.w - 24, 40, `YOU: {you}`, {
+			local pl = Base.text(rew, "Place", 12, 124, rp.w - 24, 36, `YOU: {you}`, {
 				color = INK,
 				align = "l",
 				z = 4,
