@@ -1,9 +1,9 @@
 --!strict
 -- Smash: the realistic blue sports coupe carter made with Studio's AI mesh tool
 -- (Workspace.PurpleSportsCoupe, two copies, by the spawn plaza) clashes with the toy karts
--- (auditor round 12). It is kept, moved to ServerStorage (nothing deleted), and an imported kart
--- in the coupe's blue parks where its first copy stood. Nothing happens without the coupe or the
--- karts (ReplicatedStorage.CarSkins).
+-- (auditor round 12). It is kept, moved to ServerStorage (nothing deleted; LOBBY may have moved it
+-- there already), and an imported kart in the coupe's blue parks where its first copy stood.
+-- Nothing happens without the coupe or the karts (ReplicatedStorage.CarSkins).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
@@ -20,6 +20,7 @@ local STYLE = "muscle/white"
 
 function LobbyKartSwap.start()
 	local coupe = workspace:FindFirstChild(LobbyKartSwap.COUPE)
+		or ServerStorage:FindFirstChild(LobbyKartSwap.COUPE)
 	local skins = ReplicatedStorage:FindFirstChild("CarSkins")
 	local src = skins and skins:FindFirstChild(LobbyKartSwap.KART)
 	if not (coupe and coupe:IsA("Model") and src and src:IsA("Model")) then
@@ -38,7 +39,7 @@ function LobbyKartSwap.start()
 			d.Anchored = true -- (kept still in storage)
 		end
 	end
-	coupe.Parent = ServerStorage
+	coupe.Parent = ServerStorage -- (both copies: they are both inside it)
 
 	local kart = src:Clone()
 	kart.Name = "LobbyKart"
