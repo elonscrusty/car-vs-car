@@ -567,11 +567,12 @@ function SpawnLobby.parts(): { Piece }
 			-- chunky navy posts with a sunny ball (LOOK-BIBLE rules 2 and 3)
 			add(g, "Foot", v(0.8, 1.6, 1.6), v(p.x, 0.4, p.z), { 30, 42, 90 }, cyl())
 			add(g, "Post", v(9.5, 1, 1), v(p.x, 4.75, p.z), { 30, 42, 90 }, cyl())
-			add(g, "Light", v(2.4, 2.4, 2.4), v(p.x, 10.3, p.z), { 255, 210, 63 }, {
+			-- (SmoothPlastic and a soft light, not Neon: up close Neon bloomed into big yellow
+			-- blobs, auditor shadow shots)
+			add(g, "Light", v(2.4, 2.4, 2.4), v(p.x, 10.3, p.z), { 255, 226, 110 }, {
 				shape = "Ball",
-				material = "Neon",
 				collide = false,
-				light = 18,
+				light = 12,
 			})
 			continue
 		end
