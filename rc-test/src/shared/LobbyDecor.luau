@@ -54,6 +54,7 @@ export type Flyer = {
 }
 
 local LobbyDecor = {}
+LobbyDecor.SMASH = SMASH
 
 local L = LobbyLayout
 local EDGE = L.EDGE -- plot fronts / outer footpath edge (x)
@@ -207,8 +208,9 @@ end
 local function flag(add: Garage.Add, g: string, x: number, z: number, n: number)
 	local out = if x < 0 then -1 else 1
 	add(g, "Foot", v(1, 0.4, 1), v(x, 0.2, z), C.pole)
-	add(g, "Pole", v(0.3, 11, 0.3), v(x, 5.5, z), C.pole)
-	add(g, "Ball", v(0.5, 0.5, 0.5), v(x, 11.2, z), C.cell, { shape = "Ball" })
+	local t = if SMASH then 0.9 else 0.3 -- (LOOK-BIBLE rule 2: nothing spindly)
+	add(g, "Pole", v(t, 11, t), v(x, 5.5, z), C.pole)
+	add(g, "Ball", v(t + 0.5, t + 0.5, t + 0.5), v(x, 11.2, z), C.cell, { shape = "Ball" })
 	add(g, "Flag", v(3.4, 2, 0.1), v(x + out * 1.85, 9.8, z), BRIGHT[n % #BRIGHT + 1], {
 		collide = false,
 	})
@@ -303,6 +305,7 @@ end
 -- real front (door, latch) at -Z (props/HANDOFF.md "FRONT DIRECTION"), so they turn round.
 LobbyDecor.FRONT_TURN = { Mailbox = 180, Toolbox = 180, Speaker = 180 } :: { [string]: number }
 
+local SMASH_EXTRAS = { TrafficBarrel = true, Speaker = true } -- (Speaker: the street music)
 local function extras(): { Extra }
 	local out: { Extra } = {}
 	local function put(
@@ -317,6 +320,9 @@ local function extras(): { Extra }
 		solid: boolean,
 		turn: number?
 	)
+		if SMASH and not SMASH_EXTRAS[model] then
+			return -- (LOOK-BIBLE rule 7: no street junk)
+		end
 		table.insert(out, {
 			model = model,
 			x = x,
@@ -463,12 +469,32 @@ function LobbyDecor.parts(): { Piece }
 		end
 	end
 
-	-- footpath: a planter down from each plot's middle, a hydrant / bin / mailbox up from it
+	-- footpath: a planter down from each plot's middle, a hydrant / bin / mailbox up from it.
+	-- Smash (LOOK-BIBLE rule 7, theme props only): a tyre stack or a pair of cones instead
 	local n = 0
 	for _, z in ROW_Z do
 		for _, side in { -1, 1 } do
 			n += 1
 			local x = side * LobbyDecor.PATH_X
+			if SMASH then
+				if n % 2 == 0 then
+					-- a red and white tyre stack, narrow enough to stay off the walking lane
+					for k = 0, 2 do
+						add(
+							"PathTires" .. n,
+							"Tire",
+							v(0.75, 1.9, 1.9),
+							v(x, 0.38 + k * 0.75, z + LobbyDecor.BIT_DZ),
+							if k % 2 == 0 then { 242, 64, 74 } else { 250, 250, 250 },
+							{ shape = "Cylinder", rot = v(0, 0, 90) }
+						)
+					end
+				else
+					cone(add, "PathCone" .. n, x, z + LobbyDecor.BIT_DZ - 1.2)
+					cone(add, "PathCone" .. n, x, z + LobbyDecor.BIT_DZ + 1.2)
+				end
+				continue
+			end
 			planter(add, "Planter" .. n, x, z + LobbyDecor.PLANTER_DZ, n)
 			local kind = n % 3
 			if kind == 0 then
@@ -494,9 +520,11 @@ function LobbyDecor.parts(): { Piece }
 
 	-- the RC corners beside the spawn lobby: a giant remote (left), a giant battery (right)
 	local cx, cz = LobbyDecor.CORNER.x, LobbyDecor.CORNER.z
-	giantRemote(add, "GiantRemote", -cx, cz)
-	giantBattery(add, "GiantBattery", cx, cz)
-	ramp(add, "Ramp", -cx + 2, cz + 20)
+	if not SMASH then -- (RC toys: not the Smash theme)
+		giantRemote(add, "GiantRemote", -cx, cz)
+		giantBattery(add, "GiantBattery", cx, cz)
+		ramp(add, "Ramp", -cx + 2, cz + 20)
+	end
 	for _, side in { -1, 1 } do
 		tireStack(add, "CornerTires" .. side, side * (cx + 17), cz - 11, 3)
 		tireStack(add, "CornerTires2" .. side, side * (cx + 19.5), cz - 8.5, 2)
@@ -528,7 +556,7 @@ end
 
 -- carter's Meshy models in place of some stand-ins (see Garage.Mesh). No model, blocks stay.
 LobbyDecor.MESHES = {} :: { Mesh }
-do
+if not SMASH then -- (Smash: the chunky block stand-ins stay, not the realistic models)
 	local M = LobbyDecor.MESHES
 	local function mesh(model: string, group: string, at: V3, fit: V3, collide: boolean)
 		table.insert(M, {
@@ -592,43 +620,61 @@ do
 			turn = (turn or 0) + (LobbyDecor.FRONT_TURN[model] or 0),
 		})
 	end
-	local n = 0
-	for _, z in ROW_Z do
-		for _, side in { -1, 1 } do
-			n += 1
-			local road = v(-side, 0, 0)
-			local at = v(side * LobbyDecor.PATH_X, 0, z + LobbyDecor.BIT_DZ)
-			-- FlowerBox (carter's Meshy planter): its front to the road, so its long side runs
-			-- along the street
-			faced(
-				"FlowerBox",
-				"Planter" .. n,
-				v(side * LobbyDecor.PATH_X, 0, z + LobbyDecor.PLANTER_DZ),
-				2.4,
-				road
-			)
-			local kind = n % 3
-			if kind == 0 then
-				faced("Hydrant", "Hydrant" .. n, at, 2.2, road)
-			elseif kind == 1 then
-				faced("TrashCan", "TrashCan" .. n, at, 3, road)
-			else
-				faced("Mailbox", "Mailbox" .. n, at, 3.4, road)
+	if not SMASH then -- (Smash: no planters, street junk, realistic flags or pots)
+		local n = 0
+		for _, z in ROW_Z do
+			for _, side in { -1, 1 } do
+				n += 1
+				local road = v(-side, 0, 0)
+				local at = v(side * LobbyDecor.PATH_X, 0, z + LobbyDecor.BIT_DZ)
+				-- FlowerBox (carter's Meshy planter): its front to the road, so its long side runs
+				-- along the street
+				faced(
+					"FlowerBox",
+					"Planter" .. n,
+					v(side * LobbyDecor.PATH_X, 0, z + LobbyDecor.PLANTER_DZ),
+					2.4,
+					road
+				)
+				local kind = n % 3
+				if kind == 0 then
+					faced("Hydrant", "Hydrant" .. n, at, 2.2, road)
+				elseif kind == 1 then
+					faced("TrashCan", "TrashCan" .. n, at, 3, road)
+				else
+					faced("Mailbox", "Mailbox" .. n, at, 3.4, road)
+				end
 			end
 		end
-	end
-	n = 0
-	for _, z in GAP_Z do
-		for _, side in { -1, 1 } do
-			n += 1
-			local road = v(-side, 0, 0)
-			local model = if n % 2 == 0 or SMASH then "BlueFlag" else "Flag" -- (Flag: checkered)
-			faced(model, "Flag" .. n, v(side * LobbyDecor.FLAG_X, 0, z - 2), 11.5, road)
-			local bx = side * (LobbyDecor.FLAG_X + 5)
-			local bed = "FlowerBed" .. n
-			faced("Bush", bed, v(bx + side * 0.6, 0.2, z - 0.6), 2.2, road, { "Bed" }, false)
-			faced("FlowerPot", bed, v(bx - side * 0.8, 0.2, z - 2.2), 1.8, road, { "Bed" }, false)
-			faced("FlowerPot", bed, v(bx - side * 0.8, 0.2, z + 1.8), 1.8, road, { "Bed" }, false)
+		n = 0
+		for _, z in GAP_Z do
+			for _, side in { -1, 1 } do
+				n += 1
+				local road = v(-side, 0, 0)
+				local model = if n % 2 == 0 or SMASH then "BlueFlag" else "Flag" -- (Flag: checkered)
+				faced(model, "Flag" .. n, v(side * LobbyDecor.FLAG_X, 0, z - 2), 11.5, road)
+				local bx = side * (LobbyDecor.FLAG_X + 5)
+				local bed = "FlowerBed" .. n
+				faced("Bush", bed, v(bx + side * 0.6, 0.2, z - 0.6), 2.2, road, { "Bed" }, false)
+				faced(
+					"FlowerPot",
+					bed,
+					v(bx - side * 0.8, 0.2, z - 2.2),
+					1.8,
+					road,
+					{ "Bed" },
+					false
+				)
+				faced(
+					"FlowerPot",
+					bed,
+					v(bx - side * 0.8, 0.2, z + 1.8),
+					1.8,
+					road,
+					{ "Bed" },
+					false
+				)
+			end
 		end
 	end
 	for i, e in extras() do

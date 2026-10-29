@@ -67,7 +67,7 @@ test("yard: parts are low-poly (SmoothPlastic or Neon only) and the walls close 
 	local walls = 0
 	for _, p in Y.parts() do
 		truthy(p.material == "SmoothPlastic" or p.material == "Neon", p.material)
-		if p.group == "Walls" and p.name ~= "Post" then
+		if p.group == "Walls" and (p.name == "Side" or p.name == "End") then
 			walls += 1
 		end
 	end
@@ -104,7 +104,7 @@ test("yard: dressed like the arena, and nothing solid on a spawn, box or dummy s
 	for _, p in Y.parts() do
 		names[p.name] = (names[p.name] or 0) + 1
 	end
-	for _, n in { "TreeTop", "Cover", "Crate", "Barrel", "Bush", "Flower" } do
+	for _, n in { "Cover", "CoverEnd", "Crate", "Barrel", "GrassPatch", "Stripe" } do
 		truthy((names[n] or 0) > 0, "no " .. n)
 	end
 	local spots = {}
@@ -144,21 +144,47 @@ test("yard: dressed like the arena, and nothing solid on a spawn, box or dummy s
 	end
 end)
 
-test("yard: a world round it like the arena's (grass, lake, hills, trees), looks only", function()
+test("yard: sits in a valley (round hills on every side, the lake open), looks only", function()
 	local names: { [string]: number } = {}
 	for _, p in Y.parts() do
 		if p.group == "World" then
 			names[p.name] = (names[p.name] or 0) + 1
 			eq(p.collide, false)
-			-- all outside the yard's own grass, except the far grass under everything
-			if p.name ~= "FarGrass" then
-				local out = math.abs(p.pos.x) > Y.W / 2 + 60 or math.abs(p.pos.z) > Y.D / 2 + 60
-				truthy(out, `{p.name} at {p.pos.x},{p.pos.z} is in the yard`)
-			end
 		end
 	end
-	for _, n in { "FarGrass", "Lake", "Shore", "FarHill", "FarTreeTop" } do
+	for _, n in { "FarGrass", "Lake", "Shore" } do
 		truthy((names[n] or 0) > 0, "no " .. n)
 	end
-	truthy((names.FarTreeTop or 0) >= 30, "too few trees outside")
+	local domes, trees = Y.valley()
+	truthy(#domes >= 30, "too few hills")
+	truthy(#trees >= 6, "too few trees on the hills")
+	local hx, hz = Y.W / 2 + 90, Y.D / 2 + 90 -- the yard's own grass
+	local sides = { n = 0, s = 0, e = 0, w = 0 }
+	for _, d in domes do
+		-- no hill on the yard's grass, and none in the lake (z past the grass, |x| < 280)
+		local inGrass = math.abs(d.x) - d.w / 2 < hx and math.abs(d.z) - d.d / 2 < hz
+		truthy(not inGrass, `hill at {d.x},{d.z} is on the yard's grass`)
+		truthy(
+			not (d.z - d.d / 2 < hz + 195 and d.z + d.d / 2 > hz and math.abs(d.x) < 200),
+			`hill at {d.x},{d.z} is in the lake`
+		)
+		if d.x > hx then
+			sides.e += 1
+		elseif d.x < -hx then
+			sides.w += 1
+		elseif d.z > hz then
+			sides.n += 1
+		else
+			sides.s += 1
+		end
+	end
+	for k, c in sides do
+		truthy(c > 0, `no hills on the {k} side`)
+	end
+	for _, t in trees do
+		truthy(
+			math.abs(t.x) > Y.W / 2 + 20 or math.abs(t.z) > Y.D / 2 + 20,
+			"a hill tree in the yard"
+		)
+	end
 end)

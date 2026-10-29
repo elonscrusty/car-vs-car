@@ -9,6 +9,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LobbyWater = require(ReplicatedStorage.Shared.LobbyWater)
 local LobbyLake = require(ReplicatedStorage.Shared.LobbyLake)
+local SpawnLobby = require(ReplicatedStorage.Shared.SpawnLobby)
 local LobbyProps = require(script.Parent.LobbyProps)
 local MeshProps = require(script.Parent.MeshProps)
 
@@ -177,6 +178,22 @@ end
 function LobbyWaterBuilder.build(lobby: Instance)
 	local folder = Instance.new("Folder")
 	folder.Name = "Water"
+	if SpawnLobby.SMASH then
+		-- Smash (LOOK-BIBLE rules 4, 6, 7): just the bank, beach and water; no wooden docks,
+		-- rowboats, buoys or the lake's fishing spots and boats
+		for _, pc in LobbyWater.pieces() do
+			local n = pc.name
+			if
+				string.sub(n, 1, 4) ~= "Dock"
+				and string.sub(n, 1, 4) ~= "Boat"
+				and string.sub(n, 1, 4) ~= "Buoy"
+			then
+				makePart(folder, pc)
+			end
+		end
+		folder.Parent = lobby
+		return
+	end
 	local meshyBoats = meshBoats(folder, 7.5)
 	local meshyRings = meshRings(folder, 2.2)
 	for _, pc in LobbyWater.pieces() do

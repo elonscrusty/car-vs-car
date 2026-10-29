@@ -133,7 +133,8 @@ test("every Meshy swap has its block stand-in", function()
 end)
 
 test("footpath props and gap flags face the road", function()
-	truthy(#D.FACED >= 8 + 6 * 4, "faced props")
+	-- (Smash: no planters, street junk or realistic flags, LOOK-BIBLE rule 7)
+	truthy(#D.FACED >= (if D.SMASH then 1 else 8 + 6 * 4), "faced props")
 	for _, f in D.FACED do
 		local toRoad = f.face.x * f.at.x < 0 and f.face.z == 0
 		local toSpawn = f.face.z < 0 and f.at.z < L.FIRST_Z

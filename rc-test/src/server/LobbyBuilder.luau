@@ -26,6 +26,24 @@ export type Built = {
 
 local part = LobbyProps.part
 
+-- Smash (LOOK-BIBLE): the bible palette on the ground, ARENA's PropKit for trees, cones, tyres
+local SMASH = SpawnLobby.SMASH
+local GRASS = if SMASH then Color3.fromRGB(91, 209, 91) else Color3.fromRGB(116, 186, 82)
+local GRASS_STRIPE = Color3.fromRGB(78, 192, 82)
+local SAND, SAND_LIP = Color3.fromRGB(242, 217, 166), Color3.fromRGB(214, 180, 120)
+local ROAD = if SMASH then Color3.fromRGB(141, 141, 150) else Color3.fromRGB(58, 58, 64)
+local NAVY, YELLOW = Color3.fromRGB(30, 42, 90), Color3.fromRGB(255, 210, 63)
+local function propKit(): any
+	if not SMASH then
+		return nil
+	end
+	local m = ReplicatedStorage.Shared:FindFirstChild("PropKit")
+	local ok, kit = pcall(function()
+		return require(m :: ModuleScript)
+	end)
+	return if ok and type(kit) == "table" then kit else nil
+end
+
 -- name sign colours by plot kind (the arch colours on the plots: race red, drift purple, rocks
 -- brown)
 local SIGN_COLORS: { [string]: Color3 } = {
@@ -59,7 +77,7 @@ function LobbyBuilder.build(): Built
 
 	-- grass a hair under the plots' floors so they never flicker, the light footpaths, the dark
 	-- road on top (the spawn lobby is SpawnLobby's; water, shore, hills: LobbyWater, scenery)
-	slab(folder, "Grass", LobbyLayout.ground(), -0.05, 2, Color3.fromRGB(116, 186, 82))
+	slab(folder, "Grass", LobbyLayout.ground(), -0.05, 2, GRASS)
 	-- a wide field a hair lower, under the hills round the street and the spawn end, so nothing
 	-- stands over the sky (the lake end has its own ground)
 	local g = LobbyLayout.ground()
@@ -69,11 +87,49 @@ function LobbyBuilder.build(): Built
 		{ minX = g.minX - 190, maxX = g.maxX + 190, minZ = g.minZ - 220, maxZ = g.maxZ },
 		-0.15,
 		2,
-		Color3.fromRGB(116, 186, 82)
+		GRASS
 	)
-	slab(folder, "Footpath", LobbyLayout.walks(), 0.05, 1, Color3.fromRGB(196, 184, 166)) -- warm grey
+	if SMASH then
+		-- mowed stripes across the grass (LOOK-BIBLE rule 5: a second tone on big flat areas)
+		local gz = g.minZ + 8
+		while gz < g.maxZ - 8 do
+			local stripe = part(
+				folder,
+				"GrassStripe",
+				Vector3.new(g.maxX - g.minX, 0.04, 10),
+				CFrame.new((g.minX + g.maxX) / 2, -0.04, gz + 5),
+				GRASS_STRIPE
+			)
+			stripe.CanCollide = false
+			stripe.CanQuery = false
+			stripe.CastShadow = false
+			gz += 24
+		end
+	end
+	local walks = LobbyLayout.walks()
+	slab(
+		folder,
+		"Footpath",
+		walks,
+		0.05,
+		1,
+		if SMASH then SAND else Color3.fromRGB(196, 184, 166) -- warm grey
+	)
 	local road = LobbyLayout.road()
-	slab(folder, "Road", road, 0.1, 1, Color3.fromRGB(58, 58, 64))
+	if SMASH then
+		-- a darker sand lip where the footpath meets the grass
+		for _, sx in { -1, 1 } do
+			local lip = part(
+				folder,
+				"FootpathLip",
+				Vector3.new(0.8, 0.3, road.maxZ - road.minZ),
+				CFrame.new(sx * (LobbyLayout.EDGE - 0.4), 0.1, (road.minZ + road.maxZ) / 2),
+				SAND_LIP
+			)
+			lip.CanCollide = false
+		end
+	end
+	slab(folder, "Road", road, 0.1, 1, ROAD)
 	-- dashed white middle line
 	local z = road.minZ + 4
 	while z < road.maxZ - 4 do
@@ -104,9 +160,9 @@ function LobbyBuilder.build(): Built
 			part(
 				folder,
 				"SignPost",
-				Vector3.new(0.4, 2.5, 0.4),
+				if SMASH then Vector3.new(0.9, 2.5, 0.9) else Vector3.new(0.4, 2.5, 0.4),
 				CFrame.new(slot.signX, 1.25, slot.signZ + sz * 4.2),
-				Color3.fromRGB(140, 98, 60)
+				if SMASH then NAVY else Color3.fromRGB(140, 98, 60) -- (no wood in Smash)
 			)
 		end
 		local gui = Instance.new("SurfaceGui")
@@ -181,7 +237,38 @@ function LobbyBuilder.build(): Built
 			Vector3.new(s.x + s.faceX, 0.1, s.z + s.faceZ)
 		)
 	end
+	local kit = propKit()
 	for _, l in LobbyLayout.lamps() do
+		if SMASH then
+			-- a chunky navy post with a sunny ball on top (no realistic lantern)
+			local post = part(
+				props,
+				"LampPost",
+				Vector3.new(9, 1.1, 1.1),
+				CFrame.new(l.x, 4.5, l.z) * CFrame.Angles(0, 0, math.pi / 2),
+				NAVY
+			)
+			post.Shape = Enum.PartType.Cylinder
+			local foot = part(
+				props,
+				"LampFoot",
+				Vector3.new(0.8, 2.2, 2.2),
+				CFrame.new(l.x, 0.4, l.z) * CFrame.Angles(0, 0, math.pi / 2),
+				NAVY
+			)
+			foot.Shape = Enum.PartType.Cylinder
+			local bulb = part(
+				props,
+				"LampBall",
+				Vector3.new(2.2, 2.2, 2.2),
+				CFrame.new(l.x, 9.8, l.z),
+				YELLOW
+			)
+			bulb.Shape = Enum.PartType.Ball
+			bulb.Material = Enum.Material.Neon
+			bulb.CanCollide = false
+			continue
+		end
 		local lamp = MeshProps.place(props, "StreetLamp", spot(l), 9)
 		if lamp then
 			local glow = Instance.new("PointLight")
@@ -195,6 +282,19 @@ function LobbyBuilder.build(): Built
 	end
 	-- trees in the grass gaps between plots (pine and leafy in turn, a little turned and sized)
 	for i, t in LobbyLayout.trees() do
+		if SMASH then
+			if kit then
+				pcall(
+					kit.tree,
+					props,
+					Vector3.new(t.x, 0, t.z),
+					12 + (i * 7) % 5,
+					if i % 3 == 0 then "pink" else "green",
+					100 + i
+				)
+			end
+			continue
+		end
 		local mesh = if i % 2 == 1 then "PineTree" else "LeafyTree"
 		local turn = CFrame.Angles(0, math.rad((i * 67) % 360), 0)
 		local tree = MeshProps.place(props, mesh, spot(t) * turn, 12 + (i * 7) % 5)
@@ -211,11 +311,23 @@ function LobbyBuilder.build(): Built
 		end
 	end
 	for _, c in LobbyLayout.cones() do
+		if SMASH then
+			if kit then
+				pcall(kit.cone, props, Vector3.new(c.x, 0, c.z), 2.2)
+			end
+			continue
+		end
 		if not MeshProps.place(props, "Cone", spot(c), 1.4) then
 			LobbyProps.cone(props, c.x, c.z)
 		end
 	end
 	for _, t in LobbyLayout.tires() do
+		if SMASH then
+			if kit then
+				pcall(kit.tyreStack, props, Vector3.new(t.x, 0, t.z), 3)
+			end
+			continue
+		end
 		if not MeshProps.place(props, "TireStack", spot(t), 2.4) then
 			LobbyProps.tires(props, t.x, t.z)
 		end
