@@ -40,6 +40,7 @@ local PlotShowroom = {}
 local FLOOR = { 236, 206, 152 }
 local BAND = { 214, 184, 132 }
 local NAVY = { 30, 42, 90 }
+local NAVY_DARK = { 22, 30, 66 }
 local SKY = { 90, 200, 250 }
 local PINK = { 255, 95, 180 }
 local YELLOW = { 255, 210, 63 }
@@ -48,7 +49,10 @@ local RED = { 242, 64, 74 }
 PlotShowroom.FLOOR = { x0 = -34, x1 = 34, z0 = -50, z1 = 32, border = 1.5 }
 PlotShowroom.CARPET = 5 -- the pink carpet's width, gate end to turntable
 -- the turntable: a disc w across, its top at `top`; the kart on it is this much bigger
-PlotShowroom.TURNTABLE = { x = 0, z = 6, w = 14, top = 1.3, car = 2.4, spin = 20 }
+PlotShowroom.TURNTABLE = { x = 0, z = 6, w = 16, top = 2.2, car = 3.2, spin = 20, step = 6 }
+-- the spotlight ring round it: chunky lamp posts this far out, the front pair either side of the
+-- carpet (Lead 10-29: the kart is the hero, a raised turntable with a spotlight ring)
+PlotShowroom.LAMPS = { r = 13, n = 8, h = 3, ball = 1.4 }
 -- each stand: a disc w across, its top at `top`
 PlotShowroom.STAND = { w = 7, top = 1, car = 1.55 }
 PlotShowroom.CRATE = { x = 0, z = -42, w = 10, size = 5.5 }
@@ -161,7 +165,7 @@ function PlotShowroom.pieces(stands: number): { Piece }
 	end
 	-- the hero: a pink carpet from the gate end to the turntable, yellow edges
 	local T = PlotShowroom.TURNTABLE
-	local c0, c1 = T.z + T.w / 2, F.z1
+	local c0, c1 = T.z + (T.w + T.step) / 2, F.z1
 	local C = PlotShowroom.CARPET
 	add(
 		"Floor",
@@ -181,11 +185,25 @@ function PlotShowroom.pieces(stands: number): { Piece }
 			{ collide = false }
 		)
 	end
-	-- the turntable: navy skirt, a pink glow ring, pink deck, yellow top
-	disc(add, "Turntable", "TableSkirt", T.x, T.z, T.w + 2, 0.6, 0.6, NAVY, true)
-	disc(add, "Turntable", "TableGlow", T.x, T.z, T.w + 1.2, 0.2, 0.8, PINK, false, "Neon")
+	-- the turntable, raised on a wide step: navy step and skirt, a pink glow ring, pink deck,
+	-- yellow top
+	disc(add, "Turntable", "TableStep", T.x, T.z, T.w + T.step, 0.8, 0.8, NAVY_DARK, true)
+	disc(add, "Turntable", "TableSkirt", T.x, T.z, T.w + 2, 0.6, 1.4, NAVY, true)
+	disc(add, "Turntable", "TableGlow", T.x, T.z, T.w + 1.2, 0.2, 1.6, PINK, false, "Neon")
 	disc(add, "Turntable", "TableDeck", T.x, T.z, T.w, 0.6, T.top - 0.2, PINK, true)
 	disc(add, "Turntable", "TableTop", T.x, T.z, T.w - 1.6, 0.2, T.top, YELLOW, false)
+	-- the spotlight ring: chunky navy lamp posts with glowing yellow bulbs
+	local L = PlotShowroom.LAMPS
+	for k = 0, L.n - 1 do
+		local a = math.rad((k + 0.5) * 360 / L.n)
+		local x, z = T.x + L.r * math.sin(a), T.z + L.r * math.cos(a)
+		disc(add, "Lamps", "LampPost", x, z, 0.9, L.h, L.h, NAVY, false)
+		add("Lamps", "LampBulb", v(L.ball, L.ball, L.ball), v(x, L.h + L.ball * 0.4, z), YELLOW, {
+			shape = "Ball",
+			material = "Neon",
+			collide = false,
+		})
+	end
 	-- the stands
 	local S = PlotShowroom.STAND
 	for i = 1, math.clamp(stands, 0, #SPOTS) do
