@@ -612,32 +612,32 @@ function ArenaData.track(): any -- a TrackData.Track (Lune can't load the type h
 	}
 end
 
--- The arena's light (LOOK RULE: warm sun, bloom), put on while the camera is in the arena.
--- carter picked the "sunny" look (10-29, sky-tries picture A): bright blue sky, soft clouds,
--- clear warm light, a little extra colour and glow. ArenaSky puts it on while over the arena.
+-- The arena's light, put on while the camera is in the arena. carter picked the NIGHT yard
+-- (derby junkyard at night, fire barrels, 10-29): moonlit blue shade, deep blue haze, stars, and a
+-- strong bloom so fire, lamps and lit windows glow. ArenaSky puts it on while over the arena.
 ArenaData.lighting = {
-	ClockTime = 13.5,
+	ClockTime = 23.5,
 	GeographicLatitude = 20,
-	Brightness = 2.6,
-	ExposureCompensation = 0.1,
-	ShadowSoftness = 0.2,
-	EnvironmentDiffuseScale = 0.3,
+	Brightness = 1.4,
+	ExposureCompensation = 0.25,
+	ShadowSoftness = 0.3,
+	EnvironmentDiffuseScale = 0.2,
 	EnvironmentSpecularScale = 0,
 }
-ArenaData.ambient = { 110, 110, 128 }
-ArenaData.outdoorAmbient = { 150, 150, 165 }
-ArenaData.colorShiftTop = { 255, 240, 215 }
+ArenaData.ambient = { 62, 70, 116 }
+ArenaData.outdoorAmbient = { 72, 82, 132 }
+ArenaData.colorShiftTop = { 150, 168, 235 }
 ArenaData.atmosphere = {
-	Density = 0.3,
-	Offset = 0.25,
-	Haze = 0.6,
+	Density = 0.32,
+	Offset = 0.1,
+	Haze = 0.8,
 	Glare = 0,
-	color = { 205, 228, 255 },
-	decay = { 170, 210, 250 },
+	color = { 28, 37, 72 },
+	decay = { 20, 26, 56 },
 }
-ArenaData.clouds = { Cover = 0.5, Density = 0.6 }
+ArenaData.clouds = { Cover = 0.25, Density = 0.4 }
 ArenaData.colorCorrection =
-	{ Brightness = 0.02, Contrast = 0.1, Saturation = 0.22, tint = { 255, 248, 238 } }
-ArenaData.bloom = { Intensity = 0.45, Size = 24, Threshold = 1.4 }
+	{ Brightness = 0, Contrast = 0.12, Saturation = 0.1, tint = { 225, 232, 255 } }
+ArenaData.bloom = { Intensity = 0.9, Size = 28, Threshold = 0.85 }
 
 return ArenaData
