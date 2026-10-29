@@ -36,8 +36,20 @@ ArenaCam.MIN_SHARE = 0.1 -- your kart's width, of the screen's width (phone)
 ArenaCam.KART_LONG = 5.5 * 0.25 -- studs (Weapons.KART)
 ArenaCam.KART_WIDE = 0.55 * ArenaCam.KART_LONG -- studs (a kart is 1 x 0.55 KART)
 ArenaCam.PHONE_AHEAD_MIN = 8 -- kart lengths still seen ahead of your kart (the fight round you)
+-- Lead 10-29 (Studio: the close camera put the back wheels on the bottom edge, under the thumbs):
+-- on a phone the kart's middle sits 70% down the screen, and the look-ahead leans much less (a
+-- full 2-stud lean at 4 studs away pushed the kart down to ~85%).
+ArenaCam.PHONE_LOW = 0.4 -- of the half screen below the middle: 70% down
+ArenaCam.PHONE_LEAN = 0.2 -- of the big camera's lean
 
-export type Fit = { distance: number, pitch: number, fov: number, fast: number }
+export type Fit = {
+	distance: number,
+	pitch: number,
+	fov: number,
+	fast: number,
+	low: number, -- the kart's middle, this far below the screen's middle (of the half screen)
+	lean: number, -- the look-ahead lean, as a share of LEAD_MAX
+}
 
 -- A touch screen with no keyboard up to this short side is a phone too (a big phone that reports
 -- more points than an iPhone); a tablet (768+) keeps the big camera.
@@ -75,6 +87,8 @@ function ArenaCam.fit(w: number, h: number, phone: boolean?): Fit
 			pitch = ArenaCam.PHONE_PITCH,
 			fov = ArenaCam.PHONE_FOV,
 			fast = ArenaCam.PHONE_FOV_FAST,
+			low = ArenaCam.PHONE_LOW,
+			lean = ArenaCam.PHONE_LEAN,
 		}
 	end
 	return {
@@ -82,6 +96,8 @@ function ArenaCam.fit(w: number, h: number, phone: boolean?): Fit
 		pitch = ArenaCam.PITCH,
 		fov = ArenaCam.FOV,
 		fast = ArenaCam.FOV_FAST,
+		low = ArenaCam.KART_LOW,
+		lean = 1,
 	}
 end
 
@@ -94,12 +110,20 @@ end
 
 -- How far ahead of the kart (studs, along the ground) the top of the screen reaches, with the
 -- kart in the lower third (math.huge: up to the sky).
-function ArenaCam.seeAhead(distance: number, pitch: number, fov: number): number
+function ArenaCam.seeAhead(
+	distance: number,
+	pitch: number,
+	fov: number,
+	low: number?,
+	drop: number?
+): number
 	local back, up = ArenaCam.offset(distance, pitch)
-	-- the screen's top edge: the view's middle (tipped up by the lower-third aim), then half the
-	-- field of view above it
+	-- the screen's top edge: the view's middle (tipped up by the lower-third aim, at the kart's
+	-- middle `drop` below the followed spot), then half the field of view above it
 	local half = math.rad(fov) / 2
-	local look = math.rad(pitch) - math.atan(math.tan(half) * ArenaCam.KART_LOW) - half
+	local look = math.atan2(up + (drop or 0), back)
+		- math.atan(math.tan(half) * (low or ArenaCam.KART_LOW))
+		- half
 	if look <= 0 then
 		return math.huge
 	end
@@ -114,15 +138,39 @@ function ArenaCam.offset(distance: number?, pitch: number?): (number, number)
 end
 
 -- How far ahead of the kart (studs, along the ground) the camera aims, so the kart itself shows
--- `low` of the half-screen below the middle (KART_LOW = lower third).
-function ArenaCam.aimAhead(distance: number?, pitch: number?, fov: number?, low: number?): number
+-- `low` of the half-screen below the middle (KART_LOW = lower third). `drop`: studs the kart's
+-- middle sits below the point the camera follows (ChaseCamera follows a spot above the body).
+function ArenaCam.aimAhead(
+	distance: number?,
+	pitch: number?,
+	fov: number?,
+	low: number?,
+	drop: number?
+): number
 	local back, up = ArenaCam.offset(distance, pitch)
-	local p = math.rad(pitch or ArenaCam.PITCH)
+	local p = math.atan2(up + (drop or 0), back) -- down to the kart's middle
 	local half = math.rad((fov or ArenaCam.FOV) / 2)
 	-- the angle between the middle of the screen and the kart, for that screen spot
 	local off = math.atan(math.tan(half) * (low or ArenaCam.KART_LOW))
 	local look = math.max(p - off, math.rad(5))
 	return up / math.tan(look) - back
+end
+
+-- Where the kart's middle lands, as a share of the screen's height from the top (0.5 = the
+-- middle), for a camera `distance`/`pitch`/`fov` aiming `ahead` + `lean` studs past the followed
+-- point, with the kart's middle `drop` studs below it.
+function ArenaCam.kartDown(
+	distance: number,
+	pitch: number,
+	fov: number,
+	ahead: number,
+	lean: number,
+	drop: number
+): number
+	local back, up = ArenaCam.offset(distance, pitch)
+	local look = math.atan2(up, back + ahead + lean)
+	local below = math.atan2(up + drop, back) - look
+	return 0.5 + 0.5 * math.tan(below) / math.tan(math.rad(fov) / 2)
 end
 
 -- The look-ahead lean (studs) for a ground speed (studs/s), capped.
