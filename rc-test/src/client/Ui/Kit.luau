@@ -650,12 +650,24 @@ function Kit.navyPanel(
 	radius: number?
 ): Frame
 	local r = radius or 20
-	local line = Base.fill(parent, name .. "Line", x - 3, y - 3, w + 6, h + 6, INK, 1)
-	Base.corner(line, r + 3)
-	local f = Base.fill(parent, name, x, y, w, h, WHITE, 2)
+	-- (the rim and the ink line are frames behind it: a UIStroke on the panel would be tinted by
+	-- its navy gradient)
+	local line = Base.fill(parent, name .. "Line", x - 6, y - 6, w + 12, h + 12, INK, 1)
+	Base.corner(line, r + 6)
+	local rim = Base.fill(
+		parent,
+		name .. "Rim",
+		x - 3,
+		y - 3,
+		w + 6,
+		h + 6,
+		Kit.hex(UiTheme.CHROME.panelRim),
+		2
+	)
+	Base.corner(rim, r + 3)
+	local f = Base.fill(parent, name, x, y, w, h, WHITE, 3)
 	Base.corner(f, r)
 	Kit.face(f, UiTheme.CHROME.panel)
-	Base.outline(f, 3, Kit.hex(UiTheme.CHROME.panelRim))
 	-- (the kit's faint 3.5% stripes are left off: a rotated frame is not clipped in Roblox)
 	local top = Base.fill(f, "Top", 14, 3, math.max(1, w - 28), math.min(22, h * 0.3), WHITE, 1)
 	Base.corner(top, 12)
@@ -695,10 +707,11 @@ function Kit.select(f: Frame, on: boolean)
 	local ring = f:FindFirstChild("Ring") :: Frame?
 	if not ring then
 		local w, h = Base.designSize(f)
-		local made = Base.box(f, "Ring", -4, -4, w + 8, h + 12, f.ZIndex + 1)
-		Base.corner(made, 18)
+		-- (just outside the card's 2.5 px ink outline and its 4 px drop)
+		local made = Base.box(f, "Ring", -2.5, -2.5, w + 5, h + 9, f.ZIndex + 1)
+		Base.corner(made, 16)
 		Base.outline(made, 4, Kit.hex(UiTheme.CHROME.cardSelected))
-		local glow = Base.box(made, "Glow", -6, -6, w + 20, h + 24, f.ZIndex)
+		local glow = Base.box(made, "Glow", -4, -4, w + 13, h + 17, f.ZIndex)
 		Base.corner(glow, 24)
 		local gs = Base.outline(glow, 6, Kit.hex(UiTheme.CHROME.cardSelected))
 		gs.Transparency = 0.6
@@ -708,8 +721,8 @@ function Kit.select(f: Frame, on: boolean)
 	f:SetAttribute("Selected", on)
 end
 
--- The kit's title (.t-title): a thick ink outline and ink drop, a thin white line inside it and the
--- letters filled top to bottom (look: "white" -> sky, "gold", "red" or "ice").
+-- The kit's title (.t-title): a thick ink outline and ink drop, the letters filled top to bottom
+-- (look: "white" -> sky, "gold", "red" or "ice"; the kit's thin white inner line is left off).
 function Kit.title(
 	parent: Instance,
 	x: number,
@@ -1181,21 +1194,20 @@ function Kit.bar(
 	Base.corner(track)
 	Base.outline(track, if h < 20 then UiTheme.OUTLINE.small else UiTheme.OUTLINE.normal)
 	track.ClipsDescendants = true
-	local inner = Base.fill(track, "Shadow", 0, 0, w, math.max(2, h * 0.22), Color3.new(0, 0, 0), 4)
-	inner.BackgroundTransparency = 0.6
-	local ig = Instance.new("UIGradient")
-	ig.Rotation = 90
-	ig.Transparency = NumberSequence.new(0, 1)
-	ig.Parent = inner
 	local fill = Base.fill(track, "Fill", 0, 0, w, h, Base.color(colorName), 1)
 	Base.corner(fill)
 	-- the kit's fill runs light -> color -> deeper: a soft dark band over its lower half (the
 	-- color stays the fill's BackgroundColor3, so screens can still recolor it)
-	local low = Base.fill(fill, "Low", 0, h * 0.5, w, h * 0.5, Color3.new(0, 0, 0), 2)
+	-- (the fill's full size and corners, clear on top: square corners poked out past its ends)
+	local low = Base.fill(fill, "Low", 0, 0, w, h, Color3.new(0, 0, 0), 2)
 	Base.corner(low)
 	local lg = Instance.new("UIGradient")
 	lg.Rotation = 90
-	lg.Transparency = NumberSequence.new(1, 0.82)
+	lg.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.5, 1),
+		NumberSequenceKeypoint.new(1, 0.82),
+	})
 	lg.Parent = low
 	local hi = Base.fill(fill, "Shine", 6, 2, w - 12, h * 0.3, WHITE, 3)
 	hi.BackgroundTransparency = 0.45
@@ -1487,7 +1499,8 @@ function Kit.tabs(
 	end
 	local pad = 4
 	local cx = pad
-	local tabs: { { b: TextButton, on: Frame, off: Frame, words: TextLabel } } = {}
+	local tabs: { { b: TextButton, on: Frame, off: Frame, words: TextLabel, up: UDim2, th: number } } =
+		{}
 	for i, t in items do
 		local tw = (w - pad * 2 - (#items - 1) * 4) * (#t + 4) / total
 		local b = Instance.new("TextButton")
@@ -1526,7 +1539,10 @@ function Kit.tabs(
 			t,
 			{ stroke = 3.5, z = 4 }
 		)
-		table.insert(tabs, { b = b, on = on, off = off, words = words })
+		table.insert(
+			tabs,
+			{ b = b, on = on, off = off, words = words, up = words.Position, th = th }
+		)
 		Anim.press(b)
 		b.Activated:Connect(function()
 			if onChange then
@@ -1540,6 +1556,8 @@ function Kit.tabs(
 			local sel = i == n
 			t.on.Visible = sel
 			t.off.Visible = not sel
+			-- (the words sit 3 px lower with the tab when it is not picked)
+			t.words.Position = if sel then t.up else t.up + UDim2.fromScale(0, 3 / t.th)
 			local inkWords = sel and gold
 			t.words.TextColor3 = if inkWords
 				then INK
