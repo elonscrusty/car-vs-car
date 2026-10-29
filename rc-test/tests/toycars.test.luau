@@ -347,6 +347,17 @@ test(
 	end
 )
 
+test("toxic rod: rim pieces ride on their wheel and the car's files are all there", function()
+	local fs = require("@lune/fs")
+	local skin = fs.readFile("src/client/CarSkin.luau")
+	truthy(string.find(skin, "isRimOf(rim, wheelEnd)", 1, true), "every Rim<..>FL piece rides")
+	-- the parts CarSkin needs: Body, the 4 wheels, and Headlights (it finds the nose by them)
+	for _, part in { "Body", "WheelFL", "WheelFR", "WheelRL", "WheelRR", "Headlights" } do
+		local file = `assets/toxic_rod/obj/ToxicRod__{part}.obj`
+		truthy(fs.isFile(file), `{file} missing: run node assets/toxic_rod/export.js`)
+	end
+end)
+
 test(
 	"kart mesh numbers: compact base-64 reads back exactly (Studio paste, phone download)",
 	function()
