@@ -605,15 +605,18 @@ RunService.PreSimulation:Connect(function(dt: number)
 	-- the arena: upside down or on its side for a moment = back on its wheels right there, same
 	-- facing (not off to a spawn; a smashed kart is the server's to bring back)
 	if grid and not body.Anchored and player:GetAttribute("Health") ~= 0 then
+		-- (read again: a stuck reset this frame already moved it; only once it has nearly stopped,
+		-- so a tumble in the air or a slide after a hit plays out. A put-back that can't right it
+		-- leaves the stuck count running, so the stuck reset still takes it to a spawn)
 		local cf = body.CFrame
+		local still = body.AssemblyLinearVelocity.Magnitude < 12 * Tuning.scale
 		local fire: boolean
-		tippedFor, fire = FlipBack.tick(tippedFor, dt, cf.UpVector.Y)
+		tippedFor, fire = FlipBack.tick(tippedFor, dt, cf.UpVector.Y, still)
 		if fire then
 			local fx, fz =
 				FlipBack.facing(cf.LookVector.X, cf.LookVector.Z, cf.UpVector.X, cf.UpVector.Z)
-			local at = p + Vector3.new(0, 3 * Tuning.scale, 0)
+			local at = cf.Position + Vector3.new(0, 3 * Tuning.scale, 0)
 			car.teleport(CFrame.lookAt(at, at + Vector3.new(fx, 0, fz)))
-			stuckTime = 0
 			hud.flash("OOPS! FLIPPING YOU BACK")
 		end
 	else

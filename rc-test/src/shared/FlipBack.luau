@@ -8,10 +8,11 @@ local FlipBack = {}
 FlipBack.TILT = 0.5 -- the kart's up arrow points less up than this (60 degrees or more over) = tipped
 FlipBack.WAIT = 1 -- seconds tipped before it is put back
 
--- One frame: `held` = seconds tipped so far, `upY` = the kart's up arrow's height (1 = flat).
+-- One frame: `held` = seconds tipped so far, `upY` = the kart's up arrow's height (1 = flat),
+-- `still` = it has nearly stopped (a tumble in the air or a slide after a hit is left to play out).
 -- Returns the new seconds tipped, and true when it is time to put it back (the count starts over).
-function FlipBack.tick(held: number, dt: number, upY: number): (number, boolean)
-	if upY >= FlipBack.TILT then
+function FlipBack.tick(held: number, dt: number, upY: number, still: boolean): (number, boolean)
+	if upY >= FlipBack.TILT or not still then
 		return 0, false
 	end
 	held += dt
