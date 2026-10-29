@@ -11,7 +11,8 @@ export type Job = {
 	goal: number,
 	coins: number,
 }
-export type Save = { day: number, have: { number } }
+-- pool: which lists the progress is for (DailyJobs.POOL; nil = an old save from before Smash)
+export type Save = { day: number, have: { number }, pool: string? }
 export type Line = { text: string, have: number, goal: number, coins: number, done: boolean }
 
 local DailyJobs = {}
@@ -113,15 +114,34 @@ DailyJobs.SMASH_POOLS = {
 	},
 } :: { { Job } }
 DailyJobs.TYCOON_POOLS = DailyJobs.POOLS
+-- the name of the lists in use: saved with the progress, so progress made on other lists
+-- (an old race day) never counts towards these (have[] is by index)
+DailyJobs.POOL = "tycoon"
+DailyJobs.POOL_NAMES = { tycoon = true, cvc = true, smash = true } :: { [string]: boolean }
 
 -- Which jobs today's lists come from (true = Car VS Car's).
 function DailyJobs.useCvc(on: boolean)
 	DailyJobs.POOLS = if on then DailyJobs.CVC_POOLS else DailyJobs.TYCOON_POOLS
+	DailyJobs.POOL = if on then "cvc" else "tycoon"
 end
 
--- The smash game's jobs (call after useCvc; phase 5 of plans/smash turns it on).
+-- The smash game's jobs (call after useCvc; Stars.server does while Features.SMASH is on).
 function DailyJobs.useSmash()
 	DailyJobs.POOLS = DailyJobs.SMASH_POOLS
+	DailyJobs.POOL = "smash"
+end
+
+-- Is `s` today's progress on the lists in use? (An old save with no pool was made on the
+-- race lists, before Smash.)
+function DailyJobs.current(s: Save, day: number): boolean
+	if s.day ~= day then
+		return false
+	end
+	local pool = s.pool
+	if pool == nil or pool == "" then
+		return DailyJobs.POOL ~= "smash"
+	end
+	return pool == DailyJobs.POOL
 end
 
 -- every event a job may use, and who sends it (all can happen to a kid playing alone)
@@ -142,7 +162,7 @@ DailyJobs.EVENTS = {
 } :: { [string]: string }
 
 function DailyJobs.new(day: number): Save
-	return { day = day, have = { 0, 0, 0 } }
+	return { day = day, have = { 0, 0, 0 }, pool = DailyJobs.POOL }
 end
 
 -- Today's 3 jobs for this player. Neighbours on the same day get different picks, and the same
@@ -156,9 +176,14 @@ function DailyJobs.list(day: number, userId: number): { Job }
 	return out
 end
 
--- Bring the save to today: true when a new day started (new jobs to show).
+-- Bring the save to today: true when a new day started (new jobs to show). Progress from other
+-- lists (race jobs saved before Smash) starts over on today's lists: a job is paid the moment
+-- it's done, so nothing owed is lost, only half-done steps on jobs that can't happen any more.
 function DailyJobs.today(d: { jobs: Save }, day: number): boolean
-	if d.jobs.day == day then
+	if DailyJobs.current(d.jobs, day) then
+		if d.jobs.pool == nil or d.jobs.pool == "" then
+			d.jobs.pool = DailyJobs.POOL
+		end
 		return false
 	end
 	d.jobs = DailyJobs.new(day)
@@ -195,7 +220,7 @@ end
 function DailyJobs.lines(d: { jobs: Save }, userId: number, day: number): { Line }
 	local out: { Line } = {}
 	for i, job in DailyJobs.list(day, userId) do
-		local have = if d.jobs.day == day then d.jobs.have[i] or 0 else 0
+		local have = if DailyJobs.current(d.jobs, day) then d.jobs.have[i] or 0 else 0
 		table.insert(out, {
 			text = job.text,
 			have = have,

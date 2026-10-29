@@ -311,3 +311,59 @@ test("smash jobs: smash 10 karts, play 3 matches, open a crate (and back)", func
 	eq(DailyJobs.POOLS, DailyJobs.CVC_POOLS)
 	DailyJobs.useCvc(false)
 end)
+
+test("smash jobs: the server uses them, and old race jobs saved today swap out safely", function()
+	local fs = require("@lune/fs")
+	local src = fs.readFile("src/server/Stars.server.luau")
+	truthy(
+		string.find(src, "if Features.SMASH then%s+DailyJobs.useSmash%(%)") ~= nil,
+		"Stars.server turns the Smash jobs on"
+	)
+	local day = 20000
+	-- today's progress on the race lists (an old save: no pool), "Win 1 race" done and paid
+	DailyJobs.useCvc(true)
+	local raw = Profile.new()
+	raw.coins = 500
+	raw.jobs = { day = day, have = { 3, 1, 2 } }
+	local d = Profile.migrate(stored(raw))
+	eq(d.jobs.pool, nil)
+	eq(DailyJobs.lines(d, 7, day)[2].done, true) -- (on the race lists it still counts)
+	-- Smash on: only Smash jobs, nothing shows done that wasn't, no coins taken
+	DailyJobs.useSmash()
+	for _, l in DailyJobs.lines(d, 7, day) do
+		truthy(not string.find(l.text, "[Rr]ace") and not string.find(l.text, "Train"), l.text)
+		eq(l.have, 0)
+		eq(l.done, false)
+	end
+	DailyJobs.today(d, day)
+	eq(d.jobs.day, day)
+	eq(d.jobs.pool, "smash")
+	eq(d.coins, 500)
+	-- the Smash jobs pay as normal after the swap
+	local before = d.coins
+	local jobsToday = DailyJobs.list(day, 7)
+	for _, j in jobsToday do
+		for _ = 1, j.goal do
+			DailyJobs.add(d, 7, day, j.event)
+		end
+	end
+	truthy(d.coins > before, "smash jobs pay")
+	-- saved and loaded back: the pool stays, progress stays
+	local back = Profile.migrate(stored(d))
+	eq(back.jobs.pool, "smash")
+	eq(DailyJobs.lines(back, 7, day)[1].done, true)
+	-- junk pool names are dropped
+	eq(Profile.migrate({ jobs = { day = day, have = { 1 }, pool = "hax" } }).jobs.pool, nil)
+	-- a visit on the Smash lists merged over a stored race-list day: the Smash day wins
+	local storedRace = Profile.migrate(stored(raw))
+	local session = Profile.new()
+	session.jobs = { day = day, have = { 0, 1, 0 }, pool = "smash" }
+	local merged = Profile.mergeVisit(storedRace, session, Profile.new())
+	eq(merged.jobs.pool, "smash")
+	eq(merged.jobs.have[1], 0)
+	eq(merged.jobs.have[2], 1)
+	-- a new day starts on the Smash lists
+	local fresh = { jobs = DailyJobs.new(day + 1), coins = 0 }
+	eq(fresh.jobs.pool, "smash")
+	DailyJobs.useCvc(false)
+end)
