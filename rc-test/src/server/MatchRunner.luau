@@ -733,7 +733,8 @@ local function startRound()
 			pcall(W.drop, p.UserId)
 		end
 		local data = PlayerData.get(p)
-		if data and data.stage < Profile.STAGE.RACED and not veteran then
+		-- (a faked match count of 1+ has raced before; 0 is a brand-new kid on purpose)
+		if data and data.stage < Profile.STAGE.RACED and (veteran == nil or veteran < 1) then
 			newKids[p.UserId] = true
 		end
 		-- (no save loaded yet: count them a rookie, the safe side)
@@ -1073,6 +1074,10 @@ end
 -- Is player `id` a rookie this round (bots go easy on them)?
 function MatchRunner.isRookie(id: number): boolean
 	return rookies[id] == true
+end
+
+function MatchRunner.isNewKid(id: number): boolean
+	return newKids[id] == true
 end
 
 function MatchRunner.start(h: Hooks)

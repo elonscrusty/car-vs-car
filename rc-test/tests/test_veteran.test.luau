@@ -1,6 +1,6 @@
 --!nocheck
 -- The Studio-only veteran switch (shared/TestVeteran, MatchRunner's round start): never on in a
--- live game, and in Studio with workspace TestVeteran = true a fresh save is not a rookie.
+-- live game, and in Studio workspace TestVeteran = true (5) or a number counts that many matches.
 local H = require("./harness")
 local Fake = require("./fakeroblox")
 local TestVeteran = require("../src/shared/TestVeteran")
@@ -9,7 +9,7 @@ local test, eq = H.test, H.eq
 
 print("Test veteran (Studio only)")
 
-test("the gate: only Studio AND workspace TestVeteran == true", function()
+test("the gate: only Studio AND workspace TestVeteran true or a number", function()
 	eq(TestVeteran.allowed(false, true), false, "live game, attribute on")
 	eq(TestVeteran.allowed(true, nil), false, "Studio, off (the default)")
 	eq(TestVeteran.allowed(true, "true"), false, "a string is not true")
@@ -31,7 +31,7 @@ test("the gate: only Studio AND workspace TestVeteran == true", function()
 	eq(TestVeteran.matches(nil, nil), nil, "off: no save stays no save")
 end)
 
-local function firstRound(studio: boolean, attr: any): boolean
+local function firstRound(studio: boolean, attr: any): (boolean, boolean)
 	local S = Fake.server(Fake.store(), { jobId = "vet" })
 	S.require("Shared.Features").SMASH = true
 	if studio then
@@ -55,10 +55,10 @@ local function firstRound(studio: boolean, attr: any): boolean
 		waited += 1
 	end
 	eq(p:GetAttribute("InMatch"), true, "in the round")
-	local rookie = MR.isRookie(701)
+	local rookie, newKid = MR.isRookie(701), MR.isNewKid(701)
 	eq(table.concat(S.errors, "\n"), "", "errors")
 	S.close()
-	return rookie
+	return rookie, newKid
 end
 
 test("a fresh save: a rookie, unless Studio with TestVeteran on", function()
@@ -68,4 +68,12 @@ test("a fresh save: a rookie, unless Studio with TestVeteran on", function()
 	eq(firstRound(true, true), false, "Studio, on: a veteran")
 	eq(firstRound(true, 11), false, "Studio, 11: a veteran")
 	eq(firstRound(true, 1), true, "Studio, 1: still a rookie (under 3)")
+end)
+
+test("new-kid safety: on for a fresh save, off once the faked count is 1+", function()
+	eq(select(2, firstRound(false, 11)), true, "live, attribute on: still a new kid")
+	eq(select(2, firstRound(true, nil)), true, "Studio, off")
+	eq(select(2, firstRound(true, 0)), true, "Studio, 0: a brand-new kid")
+	eq(select(2, firstRound(true, 1)), false, "Studio, 1: has raced")
+	eq(select(2, firstRound(true, true)), false, "Studio, on")
 end)
