@@ -112,7 +112,7 @@ end
 PlotDecor.SMASH = {
 	navy = { 30, 42, 90 },
 	navyDark = { 22, 30, 66 },
-	ground = { 141, 141, 150 }, -- warm grey road: the plot's base around the showroom
+	ground = { 91, 209, 91 }, -- grass round the showroom (grey read as the old race road)
 	entrance = { 242, 217, 166 }, -- sand: the front area people walk in
 	yellow = { 255, 210, 63 },
 	accent = {

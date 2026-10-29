@@ -107,9 +107,21 @@ do
 	)
 end
 
--- the match camera's fixed numbers (shared/ArenaCam), worked out once
-local ARENA_BACK, ARENA_UP = ArenaCam.offset()
-local STEEP_BACK, STEEP_UP = ArenaCam.offset(nil, ArenaCam.STEEP)
+-- the match camera's numbers (shared/ArenaCam), worked out again only when the screen's size
+-- changes: a phone-shaped screen gets the close camera (ArenaCam.fit)
+local arenaFit: ArenaCam.Fit = ArenaCam.fit(844, 390)
+local arenaFitFor = Vector2.zero
+local ARENA_BACK, ARENA_UP = ArenaCam.offset(arenaFit.distance, arenaFit.pitch)
+local STEEP_BACK, STEEP_UP = ArenaCam.offset(arenaFit.distance, ArenaCam.STEEP)
+local function refit(view: Vector2)
+	if view == arenaFitFor or view.X < 1 or view.Y < 1 then
+		return
+	end
+	arenaFitFor = view
+	arenaFit = ArenaCam.fit(view.X, view.Y)
+	ARENA_BACK, ARENA_UP = ArenaCam.offset(arenaFit.distance, arenaFit.pitch)
+	STEEP_BACK, STEEP_UP = ArenaCam.offset(arenaFit.distance, ArenaCam.STEEP)
+end
 
 local function flat(v: Vector3): Vector3
 	local f = Vector3.new(v.X, 0, v.Z)
@@ -143,6 +155,7 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 	-- the match camera: on or off, and how far into it (eased over ArenaCam.BLEND)
 	local arenaOn = false
 	local arenaFrom, arenaW, arenaT = 0, 0, 0
+	refit(camera.ViewportSize) -- (this screen's numbers before the first spot: no swoop)
 	local arenaOff = -heading * ARENA_BACK + Vector3.new(0, ARENA_UP, 0) -- camera minus focus
 	local lean = Vector3.zero -- the look-ahead, eased
 	-- its wall check sees only the arena itself (not other karts, shots or boxes) and looks past
@@ -302,6 +315,7 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 		turnX, turnY, zoomBy = 0, 0, 1
 		-- (a jump: straight into the match camera if it's on, no blend; the wall check pulls it
 		-- in on the first frame if it must)
+		refit(camera.ViewportSize)
 		arenaOff = -heading * ARENA_BACK + Vector3.new(0, ARENA_UP, 0)
 		lean = Vector3.zero
 		arenaW = if arenaOn then 1 else 0
@@ -483,9 +497,10 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 		end
 
 		if arenaW > 1e-3 then
+			refit(camera.ViewportSize)
 			-- where it wants to be: behind and above, or swung up steeper when a wall is close
 			local want = arenaWant(-heading * ARENA_BACK + Vector3.new(0, ARENA_UP, 0))
-			if want.Magnitude < ArenaCam.MIN_REACH * ArenaCam.DISTANCE then
+			if want.Magnitude < ArenaCam.MIN_REACH * arenaFit.distance then
 				local steep = arenaWant(-heading * STEEP_BACK + Vector3.new(0, STEEP_UP, 0))
 				if steep.Magnitude > want.Magnitude then
 					want = steep
@@ -517,13 +532,13 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 			lean += (wantLean - lean) * (1 - math.exp(-ArenaCam.LEAD_EASE * dt))
 			-- (the aim fits the camera's real distance and pitch, so a pulled-in or swung-up
 			-- camera keeps the kart in the lower third too)
+			local aFov = arenaFit.fov
+				+ arenaFit.fast * CarMath.clamp(flatSpeed / Tuning.topSpeed, 0, 1)
 			local flatOff = Vector3.new(arenaOff.X, 0, arenaOff.Z).Magnitude
 			local aim = if offLen > 1e-3
-				then ArenaCam.aimAhead(offLen, math.deg(math.atan2(arenaOff.Y, flatOff)))
+				then ArenaCam.aimAhead(offLen, math.deg(math.atan2(arenaOff.Y, flatOff)), aFov)
 				else 0
 			local aLook = focus + heading * aim + lean
-			local aFov = ArenaCam.FOV
-				+ ArenaCam.FOV_FAST * CarMath.clamp(flatSpeed / Tuning.topSpeed, 0, 1)
 			if arenaW >= 1 then
 				pos, lookAt = focus + arenaOff, aLook
 			else

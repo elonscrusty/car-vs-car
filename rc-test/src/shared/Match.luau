@@ -26,6 +26,10 @@ Match.RAM_MIN = 6
 Match.RAM_FULL = 22
 Match.RAM_COOLDOWN = 0.8 -- the same two karts hurt each other once in this long
 
+-- The arena's top speed for everyone, players and bots (carter 10-29: "maybe the cars go too fast").
+-- Players: Tuning's "arena" mode; bots: ArenaBrain.TOP_SPEED. 1 = the lobby's speed. Handling
+-- (steering, grip, the accel curve) reads speed as a share of the top, so it feels the same.
+Match.SPEED_SCALE = 0.8
 -- New-kid safety (Lead, Studio preview-2250): in a player's first round the bots leave them alone
 -- this long, and aim worse at players all round (ArenaBrain's easy bots).
 Match.NEW_KID_SAFE = 15

@@ -232,3 +232,24 @@ test("boostAccel: pushes past top speed, fades out at the boost top", function()
 	eq(CarMath.boostAccel(Tuning.topSpeed * CarMath.BOOST_TOP), 0)
 	eq(CarMath.boostAccel(Tuning.topSpeed * 2), 0)
 end)
+
+test(
+	"the arena runs at Match.SPEED_SCALE of the top speed; the lobby and other tracks don't",
+	function()
+		local Match = require("../src/shared/Match");
+		(Tuning :: any).setScale(1);
+		(Tuning :: any).setMode("race")
+		local top, accel, steer = Tuning.topSpeed, Tuning.accel, Tuning.steerLow;
+		(Tuning :: any).setMode("arena")
+		near(Tuning.topSpeed, top * Match.SPEED_SCALE)
+		eq(Tuning.accel, accel, "same pick-up")
+		eq(Tuning.steerLow, steer, "same steering")
+		-- (steering at half the top speed: the same wheel angle as before at half its top)
+		near(
+			CarMath.steerLimit(Tuning.topSpeed * 0.5),
+			Tuning.steerLow + (Tuning.steerHigh - Tuning.steerLow) * 0.5 ^ Tuning.steerCurve
+		);
+		(Tuning :: any).setMode("race")
+		eq(Tuning.topSpeed, top, "back to the lobby's speed")
+	end
+)

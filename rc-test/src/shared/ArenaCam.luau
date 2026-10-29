@@ -24,6 +24,60 @@ ArenaCam.WALL_GAP = 0.3 -- studs kept between the camera and a wall it slid in f
 ArenaCam.MIN_REACH = 0.35 -- pulled in closer than this share by a wall: swing up to STEEP
 ArenaCam.STEEP = 72 -- degrees: the swung-up pitch, over the kart, when a wall is right behind
 
+-- Phone-shaped screens (auditor round 12b #4: on a phone your kart was ~4% of the screen's width,
+-- "can't see my kart"): closer, a little lower and narrower, so your kart is at least MIN_SHARE of
+-- the width, while still seeing PHONE_AHEAD_MIN kart lengths of the fight ahead of you.
+ArenaCam.PHONE_SHORT = 500 -- px: a screen whose short side is this or less is a phone
+ArenaCam.PHONE_DISTANCE = 4
+ArenaCam.PHONE_PITCH = 30
+ArenaCam.PHONE_FOV = 44
+ArenaCam.PHONE_FOV_FAST = 2
+ArenaCam.MIN_SHARE = 0.1 -- your kart's width, of the screen's width (phone)
+ArenaCam.KART_LONG = 5.5 * 0.25 -- studs (Weapons.KART)
+ArenaCam.KART_WIDE = 0.55 * ArenaCam.KART_LONG -- studs (a kart is 1 x 0.55 KART)
+ArenaCam.PHONE_AHEAD_MIN = 8 -- kart lengths still seen ahead of your kart (the fight round you)
+
+export type Fit = { distance: number, pitch: number, fov: number, fast: number }
+
+-- The camera for a screen `w` x `h` px: a phone's close one, or the big screen's.
+function ArenaCam.fit(w: number, h: number): Fit
+	if math.min(w, h) <= ArenaCam.PHONE_SHORT then
+		return {
+			distance = ArenaCam.PHONE_DISTANCE,
+			pitch = ArenaCam.PHONE_PITCH,
+			fov = ArenaCam.PHONE_FOV,
+			fast = ArenaCam.PHONE_FOV_FAST,
+		}
+	end
+	return {
+		distance = ArenaCam.DISTANCE,
+		pitch = ArenaCam.PITCH,
+		fov = ArenaCam.FOV,
+		fast = ArenaCam.FOV_FAST,
+	}
+end
+
+-- How much (0..1) of a `w` x `h` screen's width your kart fills, seen from behind at `distance`
+-- studs with a vertical field of view of `fov` degrees.
+function ArenaCam.share(w: number, h: number, distance: number, fov: number): number
+	local seen = 2 * distance * math.tan(math.rad(fov) / 2) * (w / math.max(h, 1))
+	return ArenaCam.KART_WIDE / seen
+end
+
+-- How far ahead of the kart (studs, along the ground) the top of the screen reaches, with the
+-- kart in the lower third (math.huge: up to the sky).
+function ArenaCam.seeAhead(distance: number, pitch: number, fov: number): number
+	local back, up = ArenaCam.offset(distance, pitch)
+	-- the screen's top edge: the view's middle (tipped up by the lower-third aim), then half the
+	-- field of view above it
+	local half = math.rad(fov) / 2
+	local look = math.rad(pitch) - math.atan(math.tan(half) * ArenaCam.KART_LOW) - half
+	if look <= 0 then
+		return math.huge
+	end
+	return up / math.tan(look) - back
+end
+
 -- The camera's spot as an offset from the kart: `back` studs behind it and `up` studs above.
 function ArenaCam.offset(distance: number?, pitch: number?): (number, number)
 	local d = distance or ArenaCam.DISTANCE
