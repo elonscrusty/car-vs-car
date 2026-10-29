@@ -16,11 +16,11 @@ test("smash juice: the words from carter's video", function()
 	eq(SmashJuice.deathLine("rocket", "Botty"), "You were smashed by Botty's rocket")
 	eq(SmashJuice.deathLine("nuke", "Botty"), "You were smashed by Botty's nuke")
 	eq(SmashJuice.deathLine("gun", "CheriBibi"), "You were mowed down by CheriBibi's machine gun")
-	eq(SmashJuice.deathLine("freeze", "Huy"), "You were shattered by Huy")
-	eq(SmashJuice.deathLine("bump", "Huy"), "You were bumped out by Huy")
+	eq(SmashJuice.deathLine("freeze", "Huy"), "You were shattered by Huy's freeze ray")
+	eq(SmashJuice.deathLine("bump", "Huy"), "You were bumped out by Huy's bump")
 	eq(SmashJuice.deathLine("ROCKET", "Huy"), "You were smashed by Huy's rocket")
-	eq(SmashJuice.deathLine("rocket", nil), "You were smashed!")
-	eq(SmashJuice.deathLine("", "Huy"), "You were smashed by Huy")
+	eq(SmashJuice.deathLine("rocket", nil), "You were smashed by a rocket!")
+	eq(SmashJuice.deathLine("", "Huy"), "You were bumped out by Huy's bump")
 end)
 
 test("smash juice: long names are cut so they fit a phone", function()
@@ -227,5 +227,42 @@ test(
 		clear("you", "name")
 		clear("name", "streak")
 		clear("by", "count")
+	end
+)
+
+test(
+	"every death line names the weapon (audit 12 #9): every server word, bumps and falls",
+	function()
+		local Weapons = require("../src/shared/Weapons")
+		local seen = 0
+		for _, name in Weapons.NAMES do
+			local word = Weapons.feedWord(name) -- what MatchRunner sends
+			local line = SmashJuice.deathLine(word, "Rocket Raccoon")
+			truthy(string.find(line, "by Rocket Raccoon's ", 1, true) ~= nil)
+			-- and it ends with a real word for the weapon, not nothing
+			local thing = string.match(line, "Raccoon's (.+)$")
+			truthy(thing ~= nil and #thing >= 3)
+			seen += 1
+		end
+		truthy(seen >= 5)
+		eq(
+			SmashJuice.deathLine("rocket", "Rocket Raccoon"),
+			"You were smashed by Rocket Raccoon's rocket"
+		)
+		eq(
+			SmashJuice.deathLine("machine gun", "Rocket Raccoon"),
+			"You were mowed down by Rocket Raccoon's machine gun"
+		)
+		eq(SmashJuice.deathLine("freeze ray", "Huy"), "You were shattered by Huy's freeze ray")
+		eq(SmashJuice.smashLine("freeze ray"), "You SHATTERED")
+		eq(SmashJuice.deathLine("bump", "Huy"), "You were bumped out by Huy's bump")
+		-- falls: no killer
+		eq(SmashJuice.deathLine("bump", nil), "You fell out of the arena!")
+		eq(SmashJuice.deathLine("fall", nil), "You fell out of the arena!")
+		eq(SmashJuice.deathLine("mine", nil), "You were blown up by a mine!")
+		-- a weapon nobody listed yet still names itself
+		eq(SmashJuice.deathLine("laser", "Huy"), "You were smashed by Huy's laser")
+		-- short enough for the two-row feed: a long name is cut by shortName
+		truthy(#SmashJuice.deathLine("machine gun", string.rep("W", 40)) <= 60)
 	end
 )
