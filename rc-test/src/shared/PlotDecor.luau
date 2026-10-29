@@ -146,6 +146,17 @@ function PlotDecor.smashProps(): { Prop }
 	for _, at in { { 35.5, 44.5 }, { 33, 46.5 } } do
 		table.insert(out, { kind = "cone", x = at[1], z = at[2], h = 1.8 })
 	end
+	-- the rest of the front yard, beside the walk: a tyre pile, drums and a cone line on the
+	-- left, a small pile on the right short of the lane
+	for _, at in { { -21, 45, 2.4 }, { -23.8, 46.8, 1.6 }, { 20, 40, 1.6 } } do
+		table.insert(out, { kind = "tyres", x = at[1], z = at[2], h = at[3] })
+	end
+	for _, at in { { -28, 50.5 }, { -30.6, 51.8 }, { 24, 40.2 } } do
+		table.insert(out, { kind = "barrel", x = at[1], z = at[2], h = 2.6 })
+	end
+	for _, z in { 41, 46, 51 } do
+		table.insert(out, { kind = "cone", x = -13.5, z = z, h = 1.8 })
+	end
 	return out
 end
 

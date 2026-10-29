@@ -46,6 +46,7 @@ local PINK = { 255, 95, 180 }
 local YELLOW = { 255, 210, 63 }
 local RED = { 242, 64, 74 }
 local GOLD = { 255, 196, 40 }
+local DOOR = { 74, 96, 156 } -- the roller doors, a lighter navy
 
 PlotShowroom.FLOOR = { x0 = -34, x1 = 34, z0 = -50, z1 = 35, border = 1.5 }
 PlotShowroom.CARPET = 5 -- the pink carpet's width, gate end to turntable
@@ -63,6 +64,8 @@ PlotShowroom.CRATE = { x = 0, z = -42, w = 10, size = 5.5 }
 -- side, PlotGarageBuilder) and a gold trophy on a plinth either side of the crate
 PlotShowroom.BANNER = { w = 30, h = 5, y = 12 } -- (high: seen over the hero kart from the gate)
 PlotShowroom.BACK_WALL = { z = -53.6, w = 66, h = 15 }
+-- a roller door either side of the sign, and a yellow stripe along the wall's top
+PlotShowroom.ROLLER_DOORS = { x = 23, w = 14, h = 10, slats = 6 }
 PlotShowroom.BANNER_TEXT = "MY GARAGE"
 PlotShowroom.TROPHIES = { { x = -6, z = -48 }, { x = 6, z = -48 } }
 -- two little "?" crates either side of the carpet at the gate end (the mid-ground)
@@ -73,7 +76,7 @@ PlotShowroom.MINI_CRATES = { { x = -8, z = 27 }, { x = 8, z = 27 } }
 PlotShowroom.TOOL_WALL = { x = 37, z0 = -44, z1 = 16, h = 4.5 }
 PlotShowroom.LIFT = { x = 24, z = 31 }
 PlotShowroom.BENCH = { x = -24, z = 31 }
-PlotShowroom.CART = { x = -9.5, z = -27 } -- a toolbox cart in the middle cluster
+PlotShowroom.CART = { x = -14, z = 19 } -- a toolbox cart in the front middle cluster
 PlotShowroom.PROPS = {
 	{ kind = "tyres", x = 31, z = 28, h = 2.4 },
 	{ kind = "tyres", x = -31, z = 28, h = 2.4 },
@@ -81,11 +84,18 @@ PlotShowroom.PROPS = {
 	{ kind = "tyres", x = -30, z = -47, h = 2.4 },
 	{ kind = "barrel", x = -31.5, z = 33, h = 2.6 },
 	{ kind = "barrel", x = 31.5, z = -43, h = 2.6 },
-	-- the middle cluster, off the gate-to-crate line
+	-- the back middle, off the gate-to-crate line
 	{ kind = "tyres", x = -12, z = -21, h = 2.4 },
 	{ kind = "tyres", x = -14.6, z = -23, h = 1.6 },
 	{ kind = "barrel", x = 11, z = -23, h = 2.6 },
 	{ kind = "barrel", x = 13.6, z = -25, h = 2.6 },
+	-- the front middle cluster (seen from the gate): the cart, tyres and drums either side of
+	-- the carpet, between the bays and the turntable's lamps
+	{ kind = "tyres", x = -15.5, z = 25, h = 2.4 },
+	{ kind = "tyres", x = -18.2, z = 22.8, h = 1.6 },
+	{ kind = "barrel", x = 14, z = 20, h = 2.6 },
+	{ kind = "barrel", x = 16.6, z = 22.2, h = 2.6 },
+	{ kind = "tyres", x = 15, z = 25.5, h = 1.6 },
 } :: { { kind: string, x: number, z: number, h: number } }
 -- walk-up prompts: in reach this close (studs). Stands are 12 apart, so two are never both in
 -- reach (vault Lobby and Hub Design: prompt points at least twice the range apart).
@@ -242,9 +252,9 @@ function PlotShowroom.pieces(stands: number): { Piece }
 		local a = math.rad((k + 0.5) * 360 / L.n)
 		local x, z = T.x + L.r * math.sin(a), T.z + L.r * math.cos(a)
 		disc(add, "Lamps", "LampPost", x, z, 0.9, L.h, L.h, NAVY, false)
+		-- (not Neon: it bloomed into blobs up close; PlotGarageBuilder gives each a soft light)
 		add("Lamps", "LampBulb", v(L.ball, L.ball, L.ball), v(x, L.h + L.ball * 0.4, z), YELLOW, {
 			shape = "Ball",
-			material = "Neon",
 			collide = false,
 		})
 	end
@@ -284,7 +294,8 @@ function PlotShowroom.pieces(stands: number): { Piece }
 			v(2.4, 0.08, 2.4),
 			v(nx, 0.42, nz),
 			NAVY,
-			{ rot = turn, collide = false }
+			-- turned half way so the number's top points into the bay: it reads upright from the aisle
+			{ rot = v(0, p.yaw + 180, 0), collide = false }
 		)
 	end
 	for i = 1, math.clamp(stands, 0, #SPOTS) do
@@ -330,6 +341,50 @@ function PlotShowroom.pieces(stands: number): { Piece }
 		collide = false,
 	})
 	local face = BW.z + 0.6
+	-- panels: roller doors with navy slats, posts at the ends, a yellow stripe up top
+	local RD = PlotShowroom.ROLLER_DOORS
+	for _, sx in { -1, 1 } do
+		local dx = sx * RD.x
+		add("Banner", "RollerDoor", v(RD.w, RD.h, 0.3), v(dx, RD.h / 2, face + 0.15), DOOR, {
+			collide = false,
+		})
+		for k = 1, RD.slats do
+			local y = RD.h * k / (RD.slats + 1)
+			add("Banner", "DoorSlat", v(RD.w, 0.25, 0.2), v(dx, y, face + 0.4), NAVY, {
+				collide = false,
+			})
+		end
+		add(
+			"Banner",
+			"DoorHeader",
+			v(RD.w + 1.2, 0.9, 0.6),
+			v(dx, RD.h + 0.45, face + 0.3),
+			YELLOW,
+			{
+				collide = false,
+			}
+		)
+		add(
+			"Banner",
+			"WallPost",
+			v(1.4, BW.h, 0.6),
+			v(sx * (BW.w / 2 - 0.7), BW.h / 2, face + 0.3),
+			NAVY,
+			{
+				collide = false,
+			}
+		)
+		add(
+			"Banner",
+			"WallStripe",
+			v(BW.w / 2 - B.w / 2 - 2.4, 0.7, 0.3),
+			v(sx * (BW.w / 4 + B.w / 4 - 0.5), BW.h - 1.6, face + 0.15),
+			YELLOW,
+			{
+				collide = false,
+			}
+		)
+	end
 	add("Banner", "BannerBoard", v(B.w, B.h, 0.4), v(0, B.y, face + 0.2), NAVY, { collide = false })
 	for _, sy in { -1, 1 } do
 		add(

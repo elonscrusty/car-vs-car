@@ -37,8 +37,8 @@ type Shown = {
 	key: string,
 	spinner: Model?,
 	angle: number,
-	glow: { BasePart }, -- the turntable's glow ring and the lamp bulbs (they pulse)
-	bulbs: { BasePart },
+	glow: { BasePart }, -- the turntable's glow ring (it pulses)
+	bulbs: { PointLight }, -- the lamp bulbs' soft lights (they chase round the ring)
 }
 
 local shown: { [Instance]: Shown } = {}
@@ -263,16 +263,17 @@ local function watch(plot: Instance)
 			for _, d in room:GetDescendants() do
 				if d:IsA("BasePart") and d.Name == "TableGlow" then
 					table.insert(s.glow, d)
-				elseif d:IsA("BasePart") and d.Name == "LampBulb" then
+				elseif d:IsA("PointLight") and d.Parent and d.Parent.Name == "LampBulb" then
 					table.insert(s.bulbs, d)
 				end
 			end
 			-- (in order round the ring, so the chase runs round it)
-			local function turn(b: BasePart): number
+			local function turn(l: PointLight): number
+				local b = l.Parent :: BasePart
 				local at = s.pivot:PointToObjectSpace(b.Position)
 				return math.atan2(at.X, at.Z - PlotShowroom.TURNTABLE.z)
 			end
-			table.sort(s.bulbs, function(a: BasePart, b: BasePart): boolean
+			table.sort(s.bulbs, function(a: PointLight, b: PointLight): boolean
 				return turn(a) < turn(b)
 			end)
 		end
@@ -336,7 +337,7 @@ RunService.RenderStepped:Connect(function(dt: number)
 					g.Transparency = 0.2 + 0.2 * math.sin(t * 2.5)
 				end
 				for i, b in s.bulbs do
-					b.Transparency = 0.3 + 0.3 * math.sin(t * 4 - i * math.pi / 4)
+					b.Brightness = 0.6 + 0.5 * math.sin(t * 4 - i * math.pi / 4)
 				end
 			end
 		end
