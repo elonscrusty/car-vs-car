@@ -198,3 +198,37 @@ test(
 		truthy(string.find(chase, "UserInputService.TouchEnabled", 1, true) ~= nil, "touch counts")
 	end
 )
+
+test("arena cam: on a phone the kart's middle sits ~70% down, clear of the thumbs", function()
+	local T: any = Tuning
+	T.setMode("race")
+	T.setScale(TrackData.RC_SCALE)
+	local drop = 1.5 * Tuning.scale -- ChaseCamera follows a spot this far above the body
+	local f = ArenaCam.fit(844, 390, true)
+	local function down(fov: number, lean: number): number
+		local ahead = ArenaCam.aimAhead(f.distance, f.pitch, fov, f.low, drop)
+		return ArenaCam.kartDown(f.distance, f.pitch, fov, ahead, lean, drop)
+	end
+	local still = down(f.fov, 0)
+	print(string.format("  phone: kart middle %.0f%% down standing", still * 100))
+	truthy(math.abs(still - 0.7) < 1e-6, "70% down standing still")
+	-- at top speed: the full (phone) lean and the wider fov
+	local fast = down(f.fov + f.fast, ArenaCam.LEAD_MAX * f.lean)
+	print(string.format("  phone: kart middle %.0f%% down at top speed", fast * 100))
+	truthy(fast <= 0.76, "still well clear of the bottom at top speed")
+	-- the old full lean pushed it to the bottom
+	truthy(down(f.fov, ArenaCam.LEAD_MAX) > 0.8, "the full lean was the low kart")
+	-- same distance and fov: still 10%+ wide and the fight ahead still seen
+	truthy(ArenaCam.share(844, 390, f.distance, f.fov + f.fast) >= ArenaCam.MIN_SHARE)
+	local ahead = ArenaCam.seeAhead(f.distance, f.pitch, f.fov, f.low, drop)
+	print(string.format("  phone: sees %.1f studs ahead", ahead))
+	truthy(ahead < math.huge, "the top of the screen is still the arena, not the sky")
+	truthy(ahead >= ArenaCam.PHONE_AHEAD_MIN * ArenaCam.KART_LONG, "the fight ahead still seen")
+	-- the big screen keeps its lower third and full lean
+	local big = ArenaCam.fit(1920, 1080)
+	eq(big.low, ArenaCam.KART_LOW)
+	eq(big.lean, 1)
+	local chase = fs.readFile("src/client/ChaseCamera.luau")
+	truthy(string.find(chase, "ArenaCam.lead(flatVel.Magnitude) * arenaFit.lean", 1, true) ~= nil)
+	truthy(string.find(chase, "arenaFit.low,", 1, true) ~= nil, "aims for the fitted spot")
+end)

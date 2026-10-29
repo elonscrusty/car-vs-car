@@ -546,7 +546,7 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 			local vel = body.AssemblyLinearVelocity
 			local flatVel = Vector3.new(vel.X, 0, vel.Z)
 			local wantLean = if flatVel.Magnitude > 0.5
-				then flatVel.Unit * ArenaCam.lead(flatVel.Magnitude)
+				then flatVel.Unit * ArenaCam.lead(flatVel.Magnitude) * arenaFit.lean
 				else Vector3.zero
 			lean += (wantLean - lean) * (1 - math.exp(-ArenaCam.LEAD_EASE * dt))
 			-- (the aim fits the camera's real distance and pitch, so a pulled-in or swung-up
@@ -555,7 +555,13 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 				+ arenaFit.fast * CarMath.clamp(flatSpeed / Tuning.topSpeed, 0, 1)
 			local flatOff = Vector3.new(arenaOff.X, 0, arenaOff.Z).Magnitude
 			local aim = if offLen > 1e-3
-				then ArenaCam.aimAhead(offLen, math.deg(math.atan2(arenaOff.Y, flatOff)), aFov)
+				then ArenaCam.aimAhead(
+					offLen,
+					math.deg(math.atan2(arenaOff.Y, flatOff)),
+					aFov,
+					arenaFit.low,
+					1.5 * Tuning.scale
+				)
 				else 0
 			local aLook = focus + heading * aim + lean
 			if arenaW >= 1 then
