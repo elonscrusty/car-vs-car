@@ -99,6 +99,7 @@ end
 -- rays hit the body's rough collision shape, which over an open cockpit is a lid, not the seat.
 -- Once per model, on this device's copy; the hot-rod and monster have their own stripes (Accent).
 local STRIPE_SPOTS = 9
+local STRIPE_MIN = 4 -- segments in a row (of 8)
 local function addStripe(m: Model)
 	if m:GetAttribute("Striped") ~= nil then
 		return
@@ -140,23 +141,38 @@ local function addStripe(m: Model)
 		end
 	end)
 	probe:Destroy()
-	local width, lift = size.X * 0.2, 0.045 * size.Y
-	local made = 0
+	-- the longest run of flat hits in a row: a stripe shorter than half the hood reads as a patch
+	-- (Studio #997: the formula's and the dozer's 2-part bits at the nose), so none then
+	local best, bestFrom, run = 0, 1, 0
 	for i = 1, STRIPE_SPOTS - 1 do
 		local a, b = hits[i], hits[i + 1]
 		if a and b and math.abs(cf.UpVector:Dot(b.Position - a.Position)) < size.Y * 0.25 then
-			local up = (a.Normal + b.Normal).Unit
-			local from, to = a.Position + up * lift, b.Position + up * lift
-			local p = Instance.new("Part")
-			p.Name = "Stripe"
-			p.Size = Vector3.new(width, 0.05 * size.Y, (to - from).Magnitude + 0.02)
-			p.CFrame = CFrame.lookAt((from + to) / 2, to, up)
-			p.Anchored, p.CanCollide, p.CanTouch, p.CanQuery = true, false, false, false
-			p.Material = Enum.Material.SmoothPlastic
-			p.TopSurface, p.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
-			p.Parent = body.Parent
-			made += 1
+			run += 1
+			if run > best then
+				best, bestFrom = run, i - run + 1
+			end
+		else
+			run = 0
 		end
+	end
+	if best < STRIPE_MIN then
+		return
+	end
+	local width, lift = size.X * 0.2, 0.045 * size.Y
+	local made = 0
+	for i = bestFrom, bestFrom + best - 1 do
+		local a, b = hits[i] :: RaycastResult, hits[i + 1] :: RaycastResult
+		local up = (a.Normal + b.Normal).Unit
+		local from, to = a.Position + up * lift, b.Position + up * lift
+		local p = Instance.new("Part")
+		p.Name = "Stripe"
+		p.Size = Vector3.new(width, 0.05 * size.Y, (to - from).Magnitude + 0.02)
+		p.CFrame = CFrame.lookAt((from + to) / 2, to, up)
+		p.Anchored, p.CanCollide, p.CanTouch, p.CanQuery = true, false, false, false
+		p.Material = Enum.Material.SmoothPlastic
+		p.TopSurface, p.BottomSurface = Enum.SurfaceType.Smooth, Enum.SurfaceType.Smooth
+		p.Parent = body.Parent
+		made += 1
 	end
 	m:SetAttribute("Striped", made > 0)
 end
