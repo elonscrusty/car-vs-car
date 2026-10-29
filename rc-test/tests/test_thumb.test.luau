@@ -86,6 +86,40 @@ test("unarmed: steers at the nearest box (right is +)", function()
 	truthy(left.steer < -0.5, `left toward a box on the left, got {left.steer}`)
 end)
 
+test("map: skips a box behind a cliff for one it can see; goes by the ramp", function()
+	-- a cliff on the right: nothing at x > 5 can be seen
+	local cliff: ThumbBrain.Map = {
+		sight = function(_ax: number, _az: number, bx: number, _bz: number): boolean
+			return bx <= 5
+		end,
+		via = function(_x: number, _z: number, gx: number, gz: number): (number, number)
+			return gx, gz
+		end,
+	}
+	local near, far = { x = 10, z = -10 }, { x = -20, z = -30 }
+	local s = ThumbBrain.new(rng())
+	local out = ThumbBrain.step(s, 0, ME, { near, far }, {}, false, cliff)
+	eq(out.target and out.target.x, -20, "the box it can see, though farther")
+	truthy(out.steer < -0.3, `left toward it, got {out.steer}`)
+	-- none in sight: the nearest, as before
+	local s2 = ThumbBrain.new(rng())
+	local o2 = ThumbBrain.step(s2, 0, ME, { near }, {}, false, cliff)
+	eq(o2.target and o2.target.x, 10, "no other: the near one")
+	-- the box up a hill: steer at the ramp's foot (on the left)
+	local ramp: ThumbBrain.Map = {
+		sight = function(): boolean
+			return true
+		end,
+		via = function(_x: number, _z: number, _gx: number, _gz: number): (number, number)
+			return -10, -10
+		end,
+	}
+	local s3 = ThumbBrain.new(rng())
+	local up = ThumbBrain.step(s3, 0, ME, { near }, {}, false, ramp)
+	eq(up.target and up.target.x, -10, "heading for the ramp")
+	truthy(up.steer < -0.3, `left, to the ramp, got {up.steer}`)
+end)
+
 test("unarmed: no FIRE even with a kart dead ahead", function()
 	local s = ThumbBrain.new(rng())
 	local fired = false

@@ -12,8 +12,11 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
+local ArenaBrain = require(ReplicatedStorage.Shared.ArenaBrain)
+local ArenaData = require(ReplicatedStorage.Shared.ArenaData)
 local MatchEnd = require(ReplicatedStorage.Shared.MatchEnd)
 local ThumbBrain = require(ReplicatedStorage.Shared.ThumbBrain)
+local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local Weapons = require(ReplicatedStorage.Shared.Weapons)
 
 local TestThumb = {}
@@ -34,6 +37,46 @@ end
 -- MatchHud hands over its FIRE (the button's own function, so the same checks run).
 function TestThumb.onFire(fn: () -> ())
 	table.insert(fireFns, fn)
+end
+
+-- What the kid sees of the arena (cliffs, cover, ramps: ArenaBrain on ArenaData, as ArenaBots),
+-- in world studs. Built once; nil if the arena can't be read (then it drives straight, as before).
+local map: ThumbBrain.Map? = nil
+local mapTried = false
+local function arenaMap(): ThumbBrain.Map?
+	if mapTried then
+		return map
+	end
+	mapTried = true
+	local ok, err = pcall(function()
+		local world = ArenaBrain.fromArena(ArenaData)
+		local t = ArenaData.track()
+		local function toLocal(x: number, z: number): (number, number)
+			local lx, _, lz = TrackData.toLocal(t, true, x, 0, z)
+			return lx, lz
+		end
+		map = {
+			sight = function(ax: number, az: number, bx: number, bz: number): boolean
+				local lax, laz = toLocal(ax, az)
+				local lbx, lbz = toLocal(bx, bz)
+				return ArenaBrain.sight(world, lax, laz, lbx, lbz)
+			end,
+			via = function(x: number, z: number, gx: number, gz: number): (number, number)
+				local lx, lz = toLocal(x, z)
+				local lgx, lgz = toLocal(gx, gz)
+				local wx, wz = ArenaBrain.via(world, lx, lz, lgx, lgz)
+				if wx == lgx and wz == lgz then
+					return gx, gz
+				end
+				local ox, _, oz = TrackData.toWorld(t, true, wx, 0, wz)
+				return ox, oz
+			end,
+		}
+	end)
+	if not ok then
+		warn("[TestThumb] no arena map, driving straight:", err)
+	end
+	return map
 end
 
 local function alive(id: string): boolean
@@ -369,7 +412,7 @@ function TestThumb.drive(body: BasePart, input: any): any
 		speed = if now < settleUntil
 			then nil
 			else (body.AssemblyLinearVelocity * Vector3.new(1, 0, 1)).Magnitude,
-	}, boxes(), karts(), armed)
+	}, boxes(), karts(), armed, arenaMap())
 	lastTarget = out.target
 	if log.startAt and now >= settleUntil then
 		ThumbBrain.mode(tally, now - (lastModeAt or now), out.mode)

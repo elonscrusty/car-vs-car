@@ -67,6 +67,24 @@ local function kid(S, player)
 		local lx, _, lz = TrackData.toLocal(t, true, px, y, pz)
 		return lx, lz
 	end
+	-- what the kid sees of the arena (cliffs, ramps), as TestThumb hands ThumbBrain
+	local map = {
+		sight = function(ax: number, az: number, bx: number, bz: number): boolean
+			local lax, laz = toLocal(ax, az)
+			local lbx, lbz = toLocal(bx, bz)
+			return ArenaBrain.sight(world, lax, laz, lbx, lbz)
+		end,
+		via = function(px: number, pz: number, gx: number, gz: number): (number, number)
+			local lx, lz = toLocal(px, pz)
+			local lgx, lgz = toLocal(gx, gz)
+			local wx, wz = ArenaBrain.via(world, lx, lz, lgx, lgz)
+			if wx == lgx and wz == lgz then
+				return gx, gz
+			end
+			local ox, _, oz = TrackData.toWorld(t, true, wx, y, wz)
+			return ox, oz
+		end,
+	}
 	S.game:GetService("RunService").Heartbeat:Connect(function(dt)
 		local car = S.workspace:FindFirstChild("Car_" .. player.UserId)
 		local body = car and car.PrimaryPart
@@ -143,7 +161,8 @@ local function kid(S, player)
 			{ x = x, z = z, fx = fx, fz = fz, speed = math.abs(v) },
 			boxes,
 			karts,
-			armed
+			armed,
+			if t then map else nil
 		)
 		local steer = out.steer
 		-- (the thumb backs up itself, ThumbBrain: brake slows the kart, then reverses it, as RCCar)
