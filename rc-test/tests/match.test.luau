@@ -281,3 +281,37 @@ test("Match: the arena camera comes back to a kart it lost (far or junk for 0.5 
 	local t2 = Match.camLost(0, 40, 10, 0 / 0)
 	eq(t2, 0, "junk dt adds nothing")
 end)
+
+test("Match: ties share a place (1 + karts with more smashes), as on the board", function()
+	local m = Match.new(0)
+	for id = 1, 4 do
+		Match.add(m, id, "k" .. id, true, 0)
+	end
+	-- 1 and 2 both smash once; 3 smashes twice; 4 none
+	Match.damage(m, 4, 1, Match.HEALTH, 5)
+	Match.respawn(m, 4, 9)
+	Match.damage(m, 4, 2, Match.HEALTH, 12)
+	Match.respawn(m, 4, 16)
+	Match.damage(m, 4, 3, Match.HEALTH, 19)
+	Match.respawn(m, 4, 23)
+	Match.damage(m, 1, 3, Match.HEALTH, 26)
+	eq(Match.rank(m, 3), 1)
+	eq(Match.rank(m, 1), 2, "tied on 1 smash")
+	eq(Match.rank(m, 2), 2, "tied on 1 smash")
+	eq(Match.rank(m, 4), 4)
+	eq(Match.rank(m, 99), 0, "not in the round")
+	-- the list still breaks the tie (fewest smashed, then join order) for the one winner's name
+	eq(Match.places(m)[2].id, 2, "2 was never smashed: listed ahead of 1")
+	-- the same places the board shows (SmashScreens.rank)
+	local SmashScreens = require("../src/shared/SmashScreens")
+	local rows = {}
+	for _, k in m.list do
+		table.insert(rows, { id = k.id, smashes = k.smashes })
+	end
+	SmashScreens.rank(rows)
+	for _, r in rows do
+		eq(r.rank, Match.rank(m, r.id), `kart {r.id} on the board`)
+	end
+	-- same smashes, same pay
+	eq(Match.coinsFor(Match.rank(m, 1), 1), Match.coinsFor(Match.rank(m, 2), 1))
+end)

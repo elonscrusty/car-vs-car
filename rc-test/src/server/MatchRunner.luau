@@ -435,7 +435,7 @@ function MatchRunner.damage(
 		local byInfo = if attackerId then infos[attackerId] else nil
 		if by and byInfo then
 			-- (Place first: the HUD redraws on Smashes and must not see a 0 Place with 1 smash)
-			setAttr(byInfo, "Place", Match.shownPlace(by, Match.placeOf(m, by.id)))
+			setAttr(byInfo, "Place", Match.shownPlace(by, Match.rank(m, by.id)))
 			setAttr(byInfo, "Smashes", by.smashes)
 			if byInfo.player then
 				Jobs.fire(byInfo.player, "smash", 1)
@@ -841,7 +841,7 @@ local function endRound()
 	workspace:SetAttribute("MatchEndsAt", nil)
 	local places = Match.places(m)
 	local rows = {}
-	for i, k in places do
+	for _, k in places do
 		local info = infos[k.id]
 		local model = info and info.model
 		table.insert(rows, {
@@ -854,7 +854,7 @@ local function endRound()
 				else nil,
 		})
 		if info then
-			setAttr(info, "Place", Match.shownPlace(k, i))
+			setAttr(info, "Place", Match.shownPlace(k, Match.rank(m, k.id)))
 		end
 	end
 	local xpMod = script.Parent:FindFirstChild("XpServer")
@@ -892,10 +892,11 @@ local function endRound()
 		end
 		matchResult:FireClient(p, rows, coins, nextAt, xp)
 	end
-	for i, k in places do
+	for _, k in places do
 		local p = if k.human then Players:GetPlayerByUserId(k.id) else nil
 		if p and p.Parent then
-			local ok, err = pcall(payOut, i, k, p)
+			-- (paid by the shared place: two karts on the same smashes get the same pay)
+			local ok, err = pcall(payOut, Match.rank(m, k.id), k, p)
 			if not ok then
 				warn(`[Match] pay {p.Name}: {err}`)
 			end
@@ -1009,10 +1010,10 @@ local function tick()
 			place(info, spawnFor(k.id))
 		end
 	end
-	for i, k in Match.places(m) do
+	for _, k in m.list do
 		local info = infos[k.id]
 		if info then
-			setAttr(info, "Place", Match.shownPlace(k, i))
+			setAttr(info, "Place", Match.shownPlace(k, Match.rank(m, k.id)))
 			setAttr(info, "Shield", Match.shielded(k, t))
 		end
 	end

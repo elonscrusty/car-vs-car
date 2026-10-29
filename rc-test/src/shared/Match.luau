@@ -240,6 +240,23 @@ function Match.places(m: State): { Kart }
 	return out
 end
 
+-- The place a kart is shown and paid for: 1 + the karts with more smashes, so a tie shares a
+-- place (SmashScreens.rank, the board and ROUND OVER use the same rule). Match.places' tie-break
+-- (fewest deaths, then join order) only orders the list and picks the one "X WINS" name.
+function Match.rank(m: State, id: number): number
+	local k = m.karts[id]
+	if not k then
+		return 0
+	end
+	local ahead = 0
+	for _, o in m.list do
+		if o.smashes > k.smashes then
+			ahead += 1
+		end
+	end
+	return ahead + 1
+end
+
 function Match.placeOf(m: State, id: number): number
 	for i, k in Match.places(m) do
 		if k.id == id then
