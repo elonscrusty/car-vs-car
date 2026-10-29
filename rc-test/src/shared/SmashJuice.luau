@@ -94,6 +94,31 @@ function SmashJuice.deathLine(weapon: string, killer: string?): string
 	return `You were {w.verb} by {SmashJuice.shortName(killer)}'s {w.thing}`
 end
 
+-- The "wrecked" card (carter 10-29, tries A): a big red verb, a name tag with the weapon on a
+-- pink badge, and the 3-2-1 ring. `verb` is the shout ("MOWED DOWN!"), `tag` the line on the tag
+-- ("by Zed's machine gun", "no one to blame" for a fall), `icon` the Icons.make name.
+local WRECK_ICONS =
+	{ rocket = "rocket", nuke = "nuke", gun = "gun", mine = "mine", freeze = "freeze" }
+export type Wreck = { verb: string, tag: string, icon: string }
+function SmashJuice.wreck(weapon: string, killer: string?): Wreck
+	local key = string.lower(weapon or "")
+	key = ALIAS[key] or key
+	if not killer and FELL[key] then
+		return { verb = "YOU FELL OUT!", tag = "no one to blame", icon = "arrow" }
+	end
+	local w = words(weapon)
+	local icon = WRECK_ICONS[key] or "burst"
+	if not killer then
+		local a = if string.match(w.thing, "^[aeiou]") then "an" else "a"
+		return { verb = string.upper(w.verb) .. "!", tag = `by {a} {w.thing}`, icon = icon }
+	end
+	return {
+		verb = string.upper(w.verb) .. "!",
+		tag = `by {SmashJuice.shortName(killer)}'s {w.thing}`,
+		icon = icon,
+	}
+end
+
 -- ===== who did what (the SmashFeed remote) =====
 
 -- SmashFeed:FireAllClients(attacker, victim, weapon). Each side can be a Player, a bot's name
@@ -353,6 +378,19 @@ SmashJuice.WORDS_TOUCH = {
 	count = { y = 0.5, h = 0.09 },
 } :: { [string]: { y: number, h: number } }
 SmashJuice.TOUCH_SECONDS = 1
+
+-- The wrecked card's spots (same rule as the words: under the clock and health bar, clear of
+-- FIRE). `w` = width of the verb / tag as a fraction of the screen; ring h = height fraction.
+SmashJuice.WRECK = {
+	verb = { y = 0.4, h = 0.08, w = 0.36 },
+	tag = { y = 0.5, h = 0.07, w = 0.34 },
+	ring = { y = 0.72, h = 0.22, w = 0 },
+} :: { [string]: { y: number, h: number, w: number } }
+SmashJuice.WRECK_TOUCH = {
+	verb = { y = 0.385, h = 0.12, w = 0.3 },
+	tag = { y = 0.49, h = 0.08, w = 0.26 },
+	ring = { y = 0.7, h = 0.26, w = 0 },
+} :: { [string]: { y: number, h: number, w: number } }
 -- (the words pop in from at most 1.5x, so the pop never sweeps over the HUD for long)
 
 -- Palette for confetti (the low-poly look: grass, sky, sun, cherry, pink).

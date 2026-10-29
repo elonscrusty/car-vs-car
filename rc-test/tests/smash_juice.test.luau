@@ -23,6 +23,26 @@ test("smash juice: the words from carter's video", function()
 	eq(SmashJuice.deathLine("", "Huy"), "You were bumped out by Huy's bump")
 end)
 
+test("smash juice: the wrecked card has a verb, a tag and a weapon badge", function()
+	local r = SmashJuice.wreck("gun", "CheriBibi")
+	eq(r.verb, "MOWED DOWN!")
+	eq(r.tag, "by CheriBibi's machine gun")
+	eq(r.icon, "gun")
+	eq(SmashJuice.wreck("rocket", "Zed").verb, "SMASHED!")
+	eq(SmashJuice.wreck("rocket", "Zed").icon, "rocket")
+	eq(SmashJuice.wreck("mine", "Ava").verb, "BLOWN UP!")
+	eq(SmashJuice.wreck("freeze ray", "Huy").verb, "SHATTERED!")
+	eq(SmashJuice.wreck("freeze ray", "Huy").icon, "freeze")
+	eq(SmashJuice.wreck("bump", "Huy").icon, "burst")
+	-- the arena got you: no one to blame
+	local fell = SmashJuice.wreck("bump", nil)
+	eq(fell.verb, "YOU FELL OUT!")
+	eq(fell.tag, "no one to blame")
+	-- a killer who left: the weapon still names itself
+	eq(SmashJuice.wreck("rocket", nil).tag, "by a rocket")
+	eq(SmashJuice.wreck("mine", nil).tag, "by a mine")
+end)
+
 test("smash juice: long names are cut so they fit a phone", function()
 	eq(SmashJuice.shortName("Botty"), "Botty")
 	eq(SmashJuice.shortName("BottyMcBotface"), "BottyMcBotface")
@@ -214,6 +234,23 @@ test(
 					truthy(
 						not UiScreens.overlap(r :: any, h :: any),
 						`{spot} covers {h.name} (top bar {inset.top})`
+					)
+				end
+			end
+			-- the wrecked card: verb, tag, and the ring with its BACK IN words on the left
+			for spot, at in SmashJuice.WRECK do
+				local ring = at.h * D.phoneH
+				local rw = if at.w > 0 then at.w * D.phoneW else ring * 1.9
+				local r = {
+					x = (D.phoneW - rw) / 2 - (if at.w > 0 then 0 else ring * 0.45),
+					y = (at.y - at.h / 2) * D.phoneH,
+					w = rw,
+					h = ring,
+				}
+				for _, h in hud do
+					truthy(
+						not UiScreens.overlap(r :: any, h :: any),
+						`wreck {spot} covers {h.name} (top bar {inset.top})`
 					)
 				end
 			end

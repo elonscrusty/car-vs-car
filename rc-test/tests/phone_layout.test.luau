@@ -469,6 +469,33 @@ test("FIRE: the ? orb and GRAB A ? BOX when empty, the weapon and ammo when held
 	h2.close()
 end)
 
+test("phone wrecked card: verb, tag and 3-2-1 ring clear of the phone HUD", function()
+	local SmashJuice = require("../src/shared/SmashJuice")
+	local UiScreens = require("../src/shared/UiScreens")
+	for _, ph in PHONE_SIZES do
+		local s = ph.safe
+		local k = math.min(s[3] / 756, s[4] / 390)
+		local ox = s[1] + (s[3] - 756 * k) / 2
+		for spot, at in SmashJuice.WRECK_TOUCH do
+			local hpx = at.h * ph.h
+			local rw = if at.w > 0 then at.w * ph.w else hpx * 1.9
+			local r = {
+				x = (ph.w - rw) / 2 - (if at.w > 0 then 0 else hpx * 0.45),
+				y = (at.y - at.h / 2) * ph.h,
+				w = rw,
+				h = hpx,
+			}
+			truthy(hpx * 0.7 >= 14, `wreck {spot} words under 14 px at {ph.name}`)
+			for _, pc in UiScreens.get("matchTouch").pieces do
+				if pc.name ~= "Words" then
+					local b = { x = ox + pc.x * k, y = s[2] + pc.y * k, w = pc.w * k, h = pc.h * k }
+					truthy(not overlap(r, b), `wreck {spot} covers {pc.name} at {ph.name}`)
+				end
+			end
+		end
+	end
+end)
+
 test("phone smash words: brief (1 s at most) and clear of the phone HUD", function()
 	local SmashJuice = require("../src/shared/SmashJuice")
 	local UiScreens = require("../src/shared/UiScreens")
