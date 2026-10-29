@@ -7,8 +7,8 @@
 -- kart: PICK THIS KART; walk up to the crate: OPEN CRATE (the crate window, with its odds); walk
 -- up to the turntable: CUSTOMIZE (WINDOWS' kart window).
 -- Look (review/LOOK-BIBLE.md): round discs, the palette, a two-tone sand floor, a pink carpet to
--- the hero kart; SmoothPlastic, Neon only for the turntable's glow ring, no words on
--- the models.
+-- the hero kart; SmoothPlastic, Neon only for the glow ring, lamp bulbs and sign frame; words
+-- only on the MY GARAGE sign and the bay numbers.
 -- Plain numbers and Garage pieces (Lune tests load this): PlotGarageBuilder (server) builds the
 -- floor, the stands and the crate; PlotShowroom.client puts the karts on and adds the prompts.
 --
@@ -56,12 +56,15 @@ PlotShowroom.TURNTABLE = { x = 0, z = 6, w = 16, top = 2.2, car = 3.2, spin = 20
 PlotShowroom.LAMPS = { r = 13, n = 8, h = 3, ball = 1.4 }
 -- each stand: a disc w across, its top at `top`
 PlotShowroom.STAND = { w = 7, top = 1, car = 1.55 }
+-- each stand's painted parking box (turned with its kart): w across, l long, lines this wide
+PlotShowroom.BAY = { w = 8, l = 9, line = 0.5 }
 PlotShowroom.CRATE = { x = 0, z = -42, w = 10, size = 5.5 }
 -- the back of the showroom: a big banner on two posts over the crate (its words go on its gate
 -- side, PlotGarageBuilder) and a gold trophy on a plinth either side of the crate
-PlotShowroom.BANNER = { z = -53.5, w = 30, h = 5, y = 13 } -- (high: seen over the hero kart from the gate)
-PlotShowroom.BANNER_TEXT = "KART GARAGE"
-PlotShowroom.TROPHIES = { { x = -7, z = -48 }, { x = 7, z = -48 } }
+PlotShowroom.BANNER = { w = 30, h = 5, y = 12 } -- (high: seen over the hero kart from the gate)
+PlotShowroom.BACK_WALL = { z = -53.6, w = 66, h = 15 }
+PlotShowroom.BANNER_TEXT = "MY GARAGE"
+PlotShowroom.TROPHIES = { { x = -6, z = -48 }, { x = 6, z = -48 } }
 -- two little "?" crates either side of the carpet at the gate end (the mid-ground)
 PlotShowroom.MINI_CRATES = { { x = -8, z = 27 }, { x = 8, z = 27 } }
 -- garage dressing that fills the floor even with one kart (Lead 10-29): a tool wall down each
@@ -70,6 +73,7 @@ PlotShowroom.MINI_CRATES = { { x = -8, z = 27 }, { x = 8, z = 27 } }
 PlotShowroom.TOOL_WALL = { x = 37, z0 = -44, z1 = 16, h = 4.5 }
 PlotShowroom.LIFT = { x = 24, z = 31 }
 PlotShowroom.BENCH = { x = -24, z = 31 }
+PlotShowroom.CART = { x = -9.5, z = -27 } -- a toolbox cart in the middle cluster
 PlotShowroom.PROPS = {
 	{ kind = "tyres", x = 31, z = 28, h = 2.4 },
 	{ kind = "tyres", x = -31, z = 28, h = 2.4 },
@@ -77,6 +81,11 @@ PlotShowroom.PROPS = {
 	{ kind = "tyres", x = -30, z = -47, h = 2.4 },
 	{ kind = "barrel", x = -31.5, z = 33, h = 2.6 },
 	{ kind = "barrel", x = 31.5, z = -43, h = 2.6 },
+	-- the middle cluster, off the gate-to-crate line
+	{ kind = "tyres", x = -12, z = -21, h = 2.4 },
+	{ kind = "tyres", x = -14.6, z = -23, h = 1.6 },
+	{ kind = "barrel", x = 11, z = -23, h = 2.6 },
+	{ kind = "barrel", x = 13.6, z = -25, h = 2.6 },
 } :: { { kind: string, x: number, z: number, h: number } }
 -- walk-up prompts: in reach this close (studs). Stands are 12 apart, so two are never both in
 -- reach (vault Lobby and Hub Design: prompt points at least twice the range apart).
@@ -242,8 +251,41 @@ function PlotShowroom.pieces(stands: number): { Piece }
 	-- the stands, each in a painted yellow bay (every bay is painted, the empty ones too: room
 	-- for more karts)
 	local S = PlotShowroom.STAND
-	for _, p in SPOTS do
-		disc(add, "Bays", "StandBay", p.x, p.z, S.w + 1.6, 0.06, 0.41, YELLOW, false)
+	local BA = PlotShowroom.BAY
+	for i, p in SPOTS do
+		-- a parking box turned with the kart: two long lines, two short ones, and the bay's
+		-- number on a navy tile in front of its nose (PlotGarageBuilder writes the number)
+		local yaw = math.rad(p.yaw)
+		local function at(lx: number, lz: number): (number, number)
+			return p.x + lx * math.cos(yaw) + lz * math.sin(yaw),
+				p.z - lx * math.sin(yaw) + lz * math.cos(yaw)
+		end
+		local turn = v(0, p.yaw, 0)
+		for _, sx in { -1, 1 } do
+			local x, z = at(sx * BA.w / 2, 0)
+			add(
+				"Bays",
+				"BayLine",
+				v(BA.line, 0.06, BA.l),
+				v(x, 0.41, z),
+				YELLOW,
+				{ rot = turn, collide = false }
+			)
+			x, z = at(0, sx * BA.l / 2)
+			add("Bays", "BayLine", v(BA.w + BA.line, 0.06, BA.line), v(x, 0.41, z), YELLOW, {
+				rot = turn,
+				collide = false,
+			})
+		end
+		local nx, nz = at(0, -BA.l / 2 - 1.5)
+		add(
+			"Bays",
+			"BayNumber" .. i,
+			v(2.4, 0.08, 2.4),
+			v(nx, 0.42, nz),
+			NAVY,
+			{ rot = turn, collide = false }
+		)
 	end
 	for i = 1, math.clamp(stands, 0, #SPOTS) do
 		local p = SPOTS[i]
@@ -278,51 +320,52 @@ function PlotShowroom.pieces(stands: number): { Piece }
 	add("Crate", "CrateLid", v(cs + 0.6, 0.8, cs + 0.6), v(K.x, 1 + cs * 0.8 + 0.4, K.z), RED, {
 		collide = false,
 	})
-	-- the banner over the back: navy board, pink lip, yellow rail on top, round posts
+	-- the back wall: a tall dark wall across the back with a pink rail, and the neon sign on it
+	-- (carter's kit Plot.png: a dark wall with a glowing MY GARAGE sign)
 	local B = PlotShowroom.BANNER
-	for _, sx in { -1, 1 } do
-		disc(
-			add,
-			"Banner",
-			"BannerPost",
-			sx * (B.w / 2 + 0.6),
-			B.z,
-			1.6,
-			B.y + B.h / 2,
-			B.y + B.h / 2,
-			NAVY,
-			true
-		)
-	end
-	add("Banner", "BannerBoard", v(B.w, B.h, 0.8), v(0, B.y, B.z), NAVY, { collide = false })
-	add(
-		"Banner",
-		"BannerLip",
-		v(B.w + 0.4, 0.6, 1),
-		v(0, B.y - B.h / 2, B.z),
-		PINK,
-		{ collide = false }
-	)
-	add("Banner", "BannerRail", v(B.w + 2.4, 0.9, 0.9), v(0, B.y + B.h / 2 + 0.3, B.z), YELLOW, {
+	local BW = PlotShowroom.BACK_WALL
+	add("Banner", "BackWall", v(BW.w, BW.h, 1.2), v(0, BW.h / 2, BW.z), NAVY_DARK)
+	add("Banner", "BackWallRail", v(BW.w + 1, 1, 1), v(0, BW.h + 0.4, BW.z), PINK, {
 		shape = "Cylinder",
 		collide = false,
 	})
+	local face = BW.z + 0.6
+	add("Banner", "BannerBoard", v(B.w, B.h, 0.4), v(0, B.y, face + 0.2), NAVY, { collide = false })
+	for _, sy in { -1, 1 } do
+		add(
+			"Banner",
+			"SignGlow",
+			v(B.w + 1, 0.5, 0.5),
+			v(0, B.y + sy * (B.h / 2 + 0.25), face + 0.3),
+			PINK,
+			{
+				material = "Neon",
+				collide = false,
+			}
+		)
+	end
+	for _, sx in { -1, 1 } do
+		add(
+			"Banner",
+			"SignGlow",
+			v(0.5, B.h, 0.5),
+			v(sx * (B.w / 2 + 0.25), B.y, face + 0.3),
+			PINK,
+			{
+				material = "Neon",
+				collide = false,
+			}
+		)
+	end
 	-- gold trophies on navy plinths
 	for i, t in PlotShowroom.TROPHIES do
 		local g = "Trophy" .. i
-		disc(add, g, "TrophyPlinth", t.x, t.z, 3.6, 1.6, 1.6, NAVY, true)
-		disc(add, g, "TrophyBase", t.x, t.z, 2.4, 0.6, 2.2, GOLD, false)
-		disc(add, g, "TrophyStem", t.x, t.z, 0.9, 1.4, 3.6, GOLD, false)
-		add(
-			g,
-			"TrophyCup",
-			v(2.9, 2.9, 2.9),
-			v(t.x, 4.8, t.z),
-			GOLD,
-			{ shape = "Ball", collide = false }
-		)
+		disc(add, g, "TrophyPlinth", t.x, t.z, 4.4, 2, 2, NAVY, true)
+		disc(add, g, "TrophyBase", t.x, t.z, 3, 0.8, 2.8, GOLD, false)
+		disc(add, g, "TrophyStem", t.x, t.z, 1.2, 1.8, 4.6, GOLD, false)
+		add(g, "TrophyCup", v(4, 4, 4), v(t.x, 6.4, t.z), GOLD, { shape = "Ball", collide = false })
 		for _, sx in { -1, 1 } do
-			add(g, "TrophyHandle", v(0.9, 0.9, 0.9), v(t.x + sx * 1.6, 5.1, t.z), GOLD, {
+			add(g, "TrophyHandle", v(1.3, 1.3, 1.3), v(t.x + sx * 2.2, 6.8, t.z), GOLD, {
 				shape = "Ball",
 				collide = false,
 			})
@@ -403,6 +446,35 @@ function PlotShowroom.pieces(stands: number): { Piece }
 		YELLOW,
 		{ collide = false }
 	)
+	-- the toolbox cart: a red box of drawers on a navy base with four round wheels
+	local CA = PlotShowroom.CART
+	add("Cart", "CartBase", v(3.4, 0.5, 2.2), v(CA.x, 0.75, CA.z), NAVY)
+	add("Cart", "CartBox", v(3, 2.6, 2), v(CA.x, 2.3, CA.z), RED)
+	for _, y in { 1.6, 2.4, 3.2 } do
+		add(
+			"Cart",
+			"CartDrawer",
+			v(2.4, 0.4, 0.15),
+			v(CA.x, y, CA.z + 1.05),
+			YELLOW,
+			{ collide = false }
+		)
+	end
+	for _, sx in { -1, 1 } do
+		for _, sz in { -1, 1 } do
+			add(
+				"Cart",
+				"CartWheel",
+				v(0.8, 0.8, 0.8),
+				v(CA.x + sx * 1.3, 0.4, CA.z + sz * 0.8),
+				NAVY_DARK,
+				{
+					shape = "Ball",
+					collide = false,
+				}
+			)
+		end
+	end
 	-- the little "?" crates: yellow, a red lid, navy corner bands
 	for i, m in PlotShowroom.MINI_CRATES do
 		local g = "MiniCrate" .. i
