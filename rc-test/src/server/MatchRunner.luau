@@ -31,6 +31,7 @@ local Match = require(ReplicatedStorage.Shared.Match)
 local Profile = require(ReplicatedStorage.Shared.Profile)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local League = require(ReplicatedStorage.Shared.League)
+local TestVeteran = require(ReplicatedStorage.Shared.TestVeteran)
 local CarBuilder = require(script.Parent.CarBuilder)
 local Jobs = require(script.Parent.Jobs)
 local LobbyPlots = require(script.Parent.LobbyPlots)
@@ -708,17 +709,21 @@ local function startRound()
 		return math.random(1, n)
 	end)
 	local W = weapons()
+	-- (Studio only, workspace TestVeteran: the player counts as a veteran, not a rookie)
+	local veteran =
+		TestVeteran.allowed(RunService:IsStudio(), workspace:GetAttribute(TestVeteran.ATTR))
 	for i, p in list do
 		-- (a fresh round: nothing held over from the last one or the warm-up yard, LOBBY)
 		if W and W.drop then
 			pcall(W.drop, p.UserId)
 		end
 		local data = PlayerData.get(p)
-		if data and data.stage < Profile.STAGE.RACED then
+		if data and data.stage < Profile.STAGE.RACED and not veteran then
 			newKids[p.UserId] = true
 		end
 		-- (no save loaded yet: count them a rookie, the safe side)
-		if not data or (data.matches or 0) < ROOKIE_MATCHES then
+		local played = TestVeteran.matches(if data then data.matches or 0 else nil, veteran)
+		if played == nil or played < ROOKIE_MATCHES then
 			rookies[p.UserId] = true
 		end
 		p:SetAttribute("MatchQueued", nil)
@@ -1046,6 +1051,11 @@ local function tick()
 		workspace:SetAttribute("MatchEndsAt", nil)
 		setNext(if #queue > 0 then t + MatchRunner.START_SECS else nil)
 	end
+end
+
+-- Is player `id` a rookie this round (bots go easy on them)?
+function MatchRunner.isRookie(id: number): boolean
+	return rookies[id] == true
 end
 
 function MatchRunner.start(h: Hooks)
