@@ -27,7 +27,7 @@ local function targets(ctx: any, Weapons: any): { any }
 		if k.alive then
 			local pos = Weapons.vec(k.cframe.Position)
 			if pos then
-				table.insert(out, { id = k.id, pos = pos })
+				table.insert(out, { id = k.id, pos = pos, shield = k.shield == true })
 			end
 		end
 	end
@@ -58,7 +58,7 @@ function Flight.weapon(name: string, Weapons: any): { [string]: any }
 		end
 		nextId += 1
 		local from = Weapons.vec(kart.cframe.Position) or vector.zero
-		local r = Weapons.rocket(kart.id, from, aim, spec)
+		local r = Weapons.rocket(kart.id, from, aim, spec, targets(ctx, Weapons))
 		-- nose against a wall: the shot would start inside it (a ray from inside a part sees
 		-- nothing), so look from the kart's middle to the start and boom right there on a wall
 		local h = ctx.raycast(from + vector.create(0, spec.up, 0), r.pos, nil, true)

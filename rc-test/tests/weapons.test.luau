@@ -122,6 +122,76 @@ test("rocket: bends toward a kart a little off line, but not one far to the side
 	eq(what2, "gone") -- a miss: it flew on and blew up at the end
 end)
 
+test("aim help: cone picks the nearest live, unshielded kart ahead, never the shooter", function()
+	local K = Weapons.KART
+	local me = v(0, 0, 0)
+	local function pick(list, deg, range)
+		local t = Weapons.cone(me, AHEAD, list, deg or 35, range or 20 * K, "me")
+		return t and t.id
+	end
+	-- nearest of two ahead
+	eq(
+		pick({ { id = "far", pos = v(0, 0, -10 * K) }, { id = "near", pos = v(2 * K, 0, -5 * K) } }),
+		"near"
+	)
+	-- the shooter itself, a dead kart and a shielded kart are never picked
+	eq(pick({ { id = "me", pos = v(0, 0, -2 * K) } }), nil)
+	eq(pick({ { id = "dead", pos = v(0, 0, -3 * K), alive = false } }), nil)
+	eq(
+		pick({
+			{ id = "shield", pos = v(0, 0, -3 * K), shield = true },
+			{ id = "ok", pos = v(0, 0, -9 * K) },
+		}),
+		"ok"
+	)
+	-- 30 degrees off: in a 35 cone, not a 25 one; 40 off: out
+	local a30 = v(math.sin(math.rad(30)) * 8 * K, 0, -math.cos(math.rad(30)) * 8 * K)
+	local a40 = v(math.sin(math.rad(40)) * 8 * K, 0, -math.cos(math.rad(40)) * 8 * K)
+	eq(pick({ { id = "a", pos = a30 } }), "a")
+	eq(pick({ { id = "a", pos = a30 } }, 25), nil)
+	eq(pick({ { id = "b", pos = a40 } }), nil)
+	-- height doesn't count (flat angle); range does
+	eq(pick({ { id = "up", pos = v(0, 4 * K, -6 * K) } }), "up")
+	eq(pick({ { id = "far", pos = v(0, 0, -21 * K) } }), nil)
+	-- junk aim: nobody
+	eq(Weapons.cone(me, v(0, 1, 0), { { id = "x", pos = v(0, 0, -K) } }, 35, 20 * K), nil)
+end)
+
+test(
+	"aim help: a rocket locks on at fire, leaves straight at the kart and follows its dodge",
+	function()
+		local K = Weapons.KART
+		local bot = {
+			id = "bot",
+			pos = v(math.sin(math.rad(30)) * 10 * K, 0, -math.cos(math.rad(30)) * 10 * K),
+		}
+		local r = Weapons.rocket("me", v(0, 0, 0), AHEAD, Weapons.ROCKET, { bot })
+		eq(r.target, "bot")
+		near(vector.dot(r.dir, vector.normalize(bot.pos)), 1)
+		-- the bot swerves sideways at top speed (17 karts a second): still caught
+		local what, who
+		for _ = 1, 360 do
+			bot.pos += v(17 * K / 60, 0, 0)
+			what, who = Weapons.step(r, 1 / 60, { bot })
+			if what then
+				break
+			end
+		end
+		eq(what, "hit")
+		eq(who, "bot")
+		-- nobody in the cone: straight on as aimed
+		local r2 = Weapons.rocket(
+			"me",
+			v(0, 0, 0),
+			AHEAD,
+			Weapons.ROCKET,
+			{ { id = "side", pos = v(10 * K, 0, 0) } }
+		)
+		eq(r2.target, nil)
+		near(r2.dir.z, -1)
+	end
+)
+
 test("rocket: a wall stops it before the kart behind the wall", function()
 	local r = Weapons.rocket("me", v(0, 0, 0), AHEAD)
 	local what, who = fly(r, { { id = "bot", pos = at(0, 0, -80) } }, -40 * U)
