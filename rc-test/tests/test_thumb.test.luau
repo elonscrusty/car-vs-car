@@ -295,9 +295,10 @@ test("stuck and flip moments: one event each, grouped into catch spots", functio
 	ThumbBrain.spot(t, "stuck", 8, 20, "Rocks.Rock3", false)
 	ThumbBrain.spot(t, "flip", 9, 21, "Ramps.RampA", false)
 	ThumbBrain.spot(t, "stuck", -40, 5, "Walls.North", true)
+	ThumbBrain.spot(t, "pinned", -41, 4, "Walls.North", true)
 	local list = ThumbBrain.spotList(t.spots, 8)
 	eq(list[1], "(7, 19) 2 stuck 1 flip on Rocks.Rock3", "the busiest spot first")
-	eq(list[2], "(-40, 5) 1 stuck 0 flip on Walls.North", "then the next")
+	eq(list[2], "(-40, 5) 1 stuck 0 flip 1 pinned on Walls.North", "then the next")
 	local lines = ThumbBrain.report(t, 0, 1, 8, nil)
 	truthy(string.find(lines[4], "stuck moments 3 (2 driving straight", 1, true), lines[4])
 	truthy(string.find(lines[4], "1 turning = the thumb), flips 1", 1, true), lines[4])
@@ -364,4 +365,89 @@ test("calm: a respawn or round start forgets being slow", function()
 	for i = 0, 40 do
 		eq(ThumbBrain.step(s, 1 + i * 0.05, frozen, box, {}, false).brake, 0, "frozen: never")
 	end
+end)
+
+test("round and round a near target: eases off the gas, then backs up", function()
+	local s = ThumbBrain.new(rng())
+	local box = { { x = 6, z = 0 } } -- 6 studs off to the right: 90 deg, too near to turn onto
+	local me = { x = 0, z = 0, fx = 0, fz = -1, speed = 6 }
+	local modes = {}
+	local t = 0
+	while t <= 3.2 do
+		local out = ThumbBrain.step(s, t, me, box, {}, false)
+		if modes[#modes] ~= out.mode then
+			table.insert(modes, out.mode)
+		end
+		if out.mode == "ease" then
+			eq(out.throttle, ThumbBrain.ORBIT_GAS, "eased gas")
+		end
+		t += 0.05
+	end
+	eq(table.concat(modes, " "), "drive ease back", "drive, then ease at 1 s, back at 3 s")
+	-- a far target off to the side: just turns, no easing
+	local s2 = ThumbBrain.new(rng())
+	for i = 0, 60 do
+		eq(ThumbBrain.step(s2, i * 0.05, me, { { x = 30, z = 0 } }, {}, false).mode, "drive", "far")
+	end
+end)
+
+test(
+	"the same back-up three times in one spot: gives up on that target and drives off to the side",
+	function()
+		local s = ThumbBrain.new(rng())
+		local corner = { x = 0, z = -20 } -- the box past a corner it can't reach
+		local other = { x = 40, z = -40 }
+		local me = { x = 0, z = 0, fx = 0, fz = -1, speed = 0.5 } -- pinned: never moves
+		local t, detourAt = 0, nil
+		local targets = {}
+		while t < 12 do
+			local out = ThumbBrain.step(s, t, me, { corner, other }, {}, false)
+			if out.mode == "detour" and not detourAt then
+				detourAt = t
+			end
+			if out.target then
+				targets[out.target.x .. "," .. out.target.z] = true
+			end
+			t += 0.05
+		end
+		truthy(detourAt and detourAt < 8, `detoured ({detourAt})`)
+		truthy(targets["40,-40"], "went for the other box once it gave up on the corner one")
+		truthy(targets["12,0"] or targets["-12,0"], "the detour point is 12 studs to one side")
+	end
+)
+
+test("pinned or circling: under 4 studs from 3 s ago, once per 3 s", function()
+	local t = ThumbBrain.tally()
+	local got = {}
+	-- pinned: sliding a stud back and forth along a wall
+	for i = 0, 80 do
+		local e = ThumbBrain.net(t, i * 0.1, math.sin(i * 0.3) * 0.5, 0)
+		if e then
+			table.insert(got, e)
+		end
+	end
+	eq(table.concat(got, " "), "pinned pinned", "8 s pinned: logged at 3 s and 6 s")
+	-- circling: round a 1.2-stud circle at speed
+	local t2 = ThumbBrain.tally()
+	local got2 = {}
+	for i = 0, 40 do
+		local a = i * 0.1 * 4
+		local e = ThumbBrain.net(t2, i * 0.1, math.cos(a) * 1.2, math.sin(a) * 1.2)
+		if e then
+			table.insert(got2, e)
+		end
+	end
+	eq(table.concat(got2, " "), "circling", "circling")
+	-- driving: never
+	local t3 = ThumbBrain.tally()
+	for i = 0, 80 do
+		eq(ThumbBrain.net(t3, i * 0.1, i * 1.0, 0), nil, "driving")
+	end
+	ThumbBrain.mode(t3, 0.1, "back")
+	ThumbBrain.mode(t3, 0.1, "back")
+	ThumbBrain.mode(t3, 0.1, "detour")
+	ThumbBrain.mode(t3, 0.5, "ease")
+	eq(t3.backs, 1, "one back-up")
+	eq(t3.detours, 1, "one detour")
+	eq(t3.eased, 0.5, "eased")
 end)

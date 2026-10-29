@@ -23,11 +23,34 @@ ThumbBrain.BACK_SLOW = 2 -- studs/s
 ThumbBrain.BEHIND = math.rad(120) -- the target this far off the nose...
 ThumbBrain.BEHIND_SPEED = 4 -- ...while slower than this (studs/s) = back up and swing round
 ThumbBrain.BACK_GAP = 1 -- s of driving before it may back up again
+-- round and round a box or kart it's too close to turn onto (Lead R8: 3.5 studs/s, 3 boxes): a
+-- kid lifts off the gas to turn tighter, then backs up
+ThumbBrain.ORBIT_NEAR = 10 -- studs
+ThumbBrain.ORBIT_ANGLE = math.rad(50) -- the target this far off the nose, this near...
+ThumbBrain.ORBIT_EASE = 1 -- ...for this long (s): ease off the gas
+ThumbBrain.ORBIT_GAS = 0.35
+ThumbBrain.ORBIT_BACK = 3 -- ...for this long: back up
+-- the same back-up again and again in one spot (a corner): drive off to the side and give up on
+-- that target for a while
+ThumbBrain.LOOP_NEAR = 5 -- studs between back-ups that count as the same spot
+ThumbBrain.LOOP_TIME = 5 -- s from the first of them
+ThumbBrain.LOOPS = 3 -- this many = a loop
+ThumbBrain.DETOUR_TIME = 1.8 -- s driving at a point off to the side
+ThumbBrain.DETOUR_DIST = 12 -- studs
+ThumbBrain.AVOID_TIME = 6 -- s it skips the target it couldn't reach
 
 export type Point = { x: number, z: number }
 -- where, the nose, and (optional) the flat speed in studs/s (no speed = never backs up)
 export type Me = { x: number, z: number, fx: number, fz: number, speed: number? }
-export type Out = { steer: number, throttle: number, brake: number, fire: boolean, target: Point? }
+-- mode: "drive", "ease" (off the gas to turn tighter), "back" (reverse) or "detour"
+export type Out = {
+	steer: number,
+	throttle: number,
+	brake: number,
+	fire: boolean,
+	target: Point?,
+	mode: string,
+}
 export type Rng = { NextNumber: (any) -> number }
 export type State = {
 	rng: Rng,
@@ -39,6 +62,15 @@ export type State = {
 	slowFor: number, -- s slow while pressing the gas
 	lastAt: number?, -- the last step's time
 	backUntil: number, -- reversing until then
+	orbitFor: number, -- s with the target near and off to the side
+	backAt: Point?, -- where it last started backing up...
+	backT: number, -- ...when
+	loops: number, -- back-ups in a row in one spot
+	detour: Point?, -- driving at this point instead...
+	detourUntil: number, -- ...until then
+	detourSide: number, -- which side the next detour goes (+1 right, -1 left)
+	avoid: Point?, -- the target it gave up on...
+	avoidUntil: number, -- ...until then
 }
 
 -- On only in Studio, and only with the workspace attribute set to true (off by default).
@@ -57,6 +89,15 @@ function ThumbBrain.new(rng: Rng): State
 		slowFor = 0,
 		lastAt = nil,
 		backUntil = -math.huge,
+		orbitFor = 0,
+		backAt = nil,
+		backT = -math.huge,
+		loops = 0,
+		detour = nil,
+		detourUntil = -math.huge,
+		detourSide = 1,
+		avoid = nil,
+		avoidUntil = -math.huge,
 	}
 end
 
@@ -69,10 +110,18 @@ local function angleTo(me: Me, p: Point): (number, number)
 	return math.atan2(right, fwd), math.sqrt(dx * dx + dz * dz)
 end
 
+-- (near the target it gave up on: skip it)
+local function skipped(avoid: Point?, p: Point): boolean
+	return avoid ~= nil and (p.x - avoid.x) ^ 2 + (p.z - avoid.z) ^ 2 < 9
+end
+
 -- The kart to chase: the nearest one within CHASE of the nose, else the nearest of all.
-local function chase(me: Me, karts: { Point }): Point?
+local function chase(me: Me, karts: { Point }, avoid: Point?): Point?
 	local ahead, aheadD, any, anyD = nil, math.huge, nil, math.huge
 	for _, k in karts do
+		if skipped(avoid, k) then
+			continue
+		end
 		local a, d = angleTo(me, k)
 		if d < anyD then
 			any, anyD = k, d
@@ -99,12 +148,13 @@ function ThumbBrain.step(
 	-- it looks again every REACT seconds: in between it acts on what it saw (a late thumb)
 	if now - s.seenAt >= ThumbBrain.REACT then
 		s.seenAt = now
-		local best = if armed then chase(me, karts) else nil
+		local avoid = if now < s.avoidUntil then s.avoid else nil
+		local best = if armed then chase(me, karts, avoid) else nil
 		if not best then
 			local bestD = math.huge
 			for _, b in boxes do
 				local d = math.sqrt((b.x - me.x) ^ 2 + (b.z - me.z) ^ 2)
-				if d < bestD then
+				if d < bestD and not skipped(avoid, b) then
 					best, bestD = b, d
 				end
 			end
@@ -115,6 +165,10 @@ function ThumbBrain.step(
 	end
 	local steer = s.noise
 	local aim = s.aimAt
+	local detouring = s.detour ~= nil and now < s.detourUntil
+	if detouring then
+		aim = s.detour
+	end
 	if aim then
 		local a = angleTo(me, aim)
 		steer = math.clamp(a / ThumbBrain.FULL_TURN, -1, 1) + s.noise
@@ -124,23 +178,64 @@ function ThumbBrain.step(
 	local dt = if s.lastAt then math.clamp(now - s.lastAt, 0, 0.5) else 0
 	s.lastAt = now
 	local throttle, brake = 1, 0
+	local mode = if detouring then "detour" else "drive"
 	local speed = me.speed
 	if now < s.backUntil then
-		throttle, brake = 0, 1
+		throttle, brake, mode = 0, 1, "back"
 		-- (in reverse the nose swings the other way: steer away to point it at the target)
 		steer = -(if aim and angleTo(me, aim) < 0 then -1 else 1)
 	elseif speed then
 		s.slowFor = if speed < ThumbBrain.BACK_SLOW then s.slowFor + dt else 0
-		local behind = aim ~= nil and math.abs((angleTo(me, aim))) > ThumbBrain.BEHIND
+		local a, d = 0, math.huge
+		if aim then
+			a, d = angleTo(me, aim)
+		end
+		local behind = aim ~= nil and math.abs(a) > ThumbBrain.BEHIND
+		local orbiting = not detouring
+			and d < ThumbBrain.ORBIT_NEAR
+			and math.abs(a) > ThumbBrain.ORBIT_ANGLE
+		s.orbitFor = if orbiting then s.orbitFor + dt else 0
 		local free = now >= s.backUntil + ThumbBrain.BACK_GAP
 		if
 			free
-			and (s.slowFor >= ThumbBrain.BACK_STUCK or (behind and speed < ThumbBrain.BEHIND_SPEED))
+			and (
+				s.slowFor >= ThumbBrain.BACK_STUCK
+				or (behind and speed < ThumbBrain.BEHIND_SPEED)
+				or s.orbitFor >= ThumbBrain.ORBIT_BACK
+			)
 		then
+			-- the same spot again and again: a loop (a corner it can't turn out of)
+			local again = s.backAt ~= nil
+				and now - s.backT < ThumbBrain.LOOP_TIME
+				and (me.x - s.backAt.x) ^ 2 + (me.z - s.backAt.z) ^ 2 < ThumbBrain.LOOP_NEAR ^ 2
+			-- (measured from the first back-up of the run, so a slow drift isn't a loop)
+			if again then
+				s.loops += 1
+			else
+				s.loops = 1
+				s.backAt, s.backT = { x = me.x, z = me.z }, now
+			end
 			s.backUntil = now + ThumbBrain.BACK_TIME
-			s.slowFor = 0
-			throttle, brake = 0, 1
-			steer = -(if aim and angleTo(me, aim) < 0 then -1 else 1)
+			s.slowFor, s.orbitFor = 0, 0
+			throttle, brake, mode = 0, 1, "back"
+			steer = -(if aim and a < 0 then -1 else 1)
+			if s.loops >= ThumbBrain.LOOPS then
+				-- give up on that target for a while; once backed out, drive off to one side
+				s.loops = 0
+				if s.aimAt then
+					s.avoid, s.avoidUntil = s.aimAt, now + ThumbBrain.AVOID_TIME
+					s.seenAt = -math.huge -- (look again for another one)
+				end
+				local side = s.detourSide
+				s.detourSide = -side
+				s.detour = {
+					x = me.x - me.fz * side * ThumbBrain.DETOUR_DIST,
+					z = me.z + me.fx * side * ThumbBrain.DETOUR_DIST,
+				}
+				s.detourUntil = s.backUntil + ThumbBrain.DETOUR_TIME
+			end
+		elseif s.orbitFor >= ThumbBrain.ORBIT_EASE then
+			throttle, mode = ThumbBrain.ORBIT_GAS, "ease"
 		end
 	end
 	local fire = false
@@ -161,7 +256,14 @@ function ThumbBrain.step(
 	else
 		s.coneSince = nil
 	end
-	return { steer = steer, throttle = throttle, brake = brake, fire = fire, target = aim }
+	return {
+		steer = steer,
+		throttle = throttle,
+		brake = brake,
+		fire = fire,
+		target = aim,
+		mode = mode,
+	}
 end
 
 -- ===== the round report (Studio copies it; Lead R7-1: why 1 smash in Studio, 2+ in the sim) =====
@@ -193,6 +295,14 @@ export type Tally = {
 	stuckRun: number, -- s slow in a row right now
 	flipRun: number, -- s on its side in a row right now
 	spots: { Spot }, -- each stuck or flip moment
+	backs: number, -- back-ups started
+	detours: number, -- loops it drove out of
+	eased: number, -- s off the gas to turn tighter
+	pinned: number, -- moments it got under NET_MIN studs in NET_TIME s, slowly (pinned, sliding)
+	circling: number, -- ... or quickly (round and round)
+	modeWas: string, -- last frame's mode
+	trail: { { t: number, x: number, z: number, d: number } }, -- recent spots, and dist so far
+	netAt: number, -- when the last pinned/circling moment was logged
 }
 
 function ThumbBrain.tally(): Tally
@@ -212,12 +322,77 @@ function ThumbBrain.tally(): Tally
 		stuckRun = 0,
 		flipRun = 0,
 		spots = {},
+		backs = 0,
+		detours = 0,
+		eased = 0,
+		pinned = 0,
+		circling = 0,
+		modeWas = "drive",
+		trail = {},
+		netAt = -math.huge,
 	}
+end
+
+ThumbBrain.NET_TIME = 3 -- s: got under NET_MIN studs from where it was this long ago...
+ThumbBrain.NET_MIN = 4 -- ...= a pinned or circling moment (catches what STUCK_LOG misses:
+-- sliding along a wall with the gas on, a back-up loop, round and round a box)
+ThumbBrain.CIRCLE_SPEED = 2.5 -- studs/s along its path: faster than this = circling, else pinned
+
+-- The thumb's mode this frame (from ThumbBrain.step): counts back-ups, detours and ease time.
+function ThumbBrain.mode(t: Tally, dt: number, mode: string)
+	if mode ~= t.modeWas then
+		if mode == "back" then
+			t.backs += 1
+		elseif mode == "detour" then
+			t.detours += 1
+		end
+		t.modeWas = mode
+	end
+	if mode == "ease" and dt > 0 and dt <= 0.5 then
+		t.eased += dt
+	end
+end
+
+-- Where it is now (call every frame alive, after sample). Returns "pinned" or "circling" when it
+-- has got under NET_MIN studs from where it was NET_TIME s ago (once per NET_TIME s), else nil.
+function ThumbBrain.net(t: Tally, now: number, x: number, z: number): string?
+	local trail = t.trail
+	local last = trail[#trail]
+	if last and now - last.t < 0.25 then
+		return nil -- (a spot every 0.25 s is plenty)
+	end
+	local d = if last then last.d + math.sqrt((x - last.x) ^ 2 + (z - last.z) ^ 2) else 0
+	table.insert(trail, { t = now, x = x, z = z, d = d })
+	while #trail > 1 and now - trail[2].t >= ThumbBrain.NET_TIME do
+		table.remove(trail, 1)
+	end
+	local first = trail[1]
+	if now - first.t < ThumbBrain.NET_TIME or now - t.netAt < ThumbBrain.NET_TIME then
+		return nil
+	end
+	if (x - first.x) ^ 2 + (z - first.z) ^ 2 >= ThumbBrain.NET_MIN ^ 2 then
+		return nil
+	end
+	t.netAt = now
+	local pathSpeed = (d - first.d) / (now - first.t)
+	if pathSpeed > ThumbBrain.CIRCLE_SPEED then
+		t.circling += 1
+		return "circling"
+	end
+	t.pinned += 1
+	return "pinned"
+end
+
+-- (a jump, a death or a respawn: the trail starts again)
+function ThumbBrain.netReset(t: Tally)
+	table.clear(t.trail)
 end
 
 -- Forget being slow or backing up (smashed, or frozen at a spawn).
 function ThumbBrain.calm(s: State)
 	s.slowFor, s.lastAt, s.backUntil = 0, nil, -math.huge
+	s.orbitFor, s.loops, s.backAt, s.detour, s.detourUntil = 0, 0, nil, nil, -math.huge
+	s.avoid, s.avoidUntil = nil, -math.huge
 end
 
 -- The angle (radians, + = right) from the nose to `p`.
@@ -234,6 +409,7 @@ function ThumbBrain.sample(t: Tally, dt: number, moved: number, upY: number): { 
 	if moved > ThumbBrain.JUMP then
 		t.putBack += 1
 		t.stuckRun, t.flipRun = 0, 0
+		table.clear(t.trail)
 		return nil
 	end
 	t.alive += dt
@@ -277,26 +453,37 @@ end
 
 -- The catch spots, most hit first: "(x, z) N stuck M flip on <what>", grouped by CELL.
 function ThumbBrain.spotList(spots: { Spot }, most: number): { string }
-	local cells: { [string]: { x: number, z: number, stuck: number, flip: number, what: { [string]: number } } } =
+	local cells: {
+		[string]: {
+			x: number,
+			z: number,
+			stuck: number,
+			flip: number,
+			pinned: number,
+			what: { [string]: number },
+		},
+	} =
 		{}
 	local order = {}
 	for _, sp in spots do
 		local key = math.floor(sp.x / ThumbBrain.CELL) .. "," .. math.floor(sp.z / ThumbBrain.CELL)
 		local c = cells[key]
 		if not c then
-			c = { x = sp.x, z = sp.z, stuck = 0, flip = 0, what = {} }
+			c = { x = sp.x, z = sp.z, stuck = 0, flip = 0, pinned = 0, what = {} }
 			cells[key] = c
 			table.insert(order, c)
 		end
 		if sp.kind == "flip" then
 			c.flip += 1
-		else
+		elseif sp.kind == "stuck" then
 			c.stuck += 1
+		else
+			c.pinned += 1 -- (pinned / circling)
 		end
 		c.what[sp.what] = (c.what[sp.what] or 0) + 1
 	end
 	table.sort(order, function(a, b)
-		return a.stuck + a.flip > b.stuck + b.flip
+		return a.stuck + a.flip + a.pinned > b.stuck + b.flip + b.pinned
 	end)
 	local out = {}
 	for i, c in order do
@@ -312,11 +499,12 @@ function ThumbBrain.spotList(spots: { Spot }, most: number): { string }
 		table.insert(
 			out,
 			string.format(
-				"(%d, %d) %d stuck %d flip on %s",
+				"(%d, %d) %d stuck %d flip%s on %s",
 				math.floor(c.x + 0.5),
 				math.floor(c.z + 0.5),
 				c.stuck,
 				c.flip,
+				if c.pinned > 0 then string.format(" %d pinned", c.pinned) else "",
 				best
 			)
 		)
@@ -389,6 +577,8 @@ function ThumbBrain.report(
 			for _, sp in t.spots do
 				if sp.kind == "flip" then
 					flips += 1
+				elseif sp.kind ~= "stuck" then
+					continue -- (pinned / circling: their own counts)
 				elseif sp.straight then
 					straight += 1
 				else
@@ -396,11 +586,16 @@ function ThumbBrain.report(
 				end
 			end
 			return string.format(
-				"  stuck moments %d (%d driving straight at its target = the arena, %d turning = the thumb), flips %d",
+				"  stuck moments %d (%d driving straight at its target = the arena, %d turning = the thumb), flips %d, pinned %d, circling %d, back-ups %d, detours %d, eased %.0f s",
 				straight + turning,
 				straight,
 				turning,
-				flips
+				flips,
+				t.pinned,
+				t.circling,
+				t.backs,
+				t.detours,
+				t.eased
 			)
 		end)(),
 		"  catch spots: "
