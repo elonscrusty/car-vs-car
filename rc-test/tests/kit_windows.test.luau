@@ -231,3 +231,10 @@ test("settings: anything sent is cleaned, defaults on junk, one save each 2 s", 
 	local main = fs.readFile("src/server/Main.server.luau")
 	truthy(main:find("SettingsServer", 1, true) ~= nil, "SettingsServer never starts")
 end)
+
+test("Studio r56: every kit window covers the lobby HUD with the kit ground", function()
+	local src = fs.readFile("src/client/Ui/Screens/KitWindows.luau")
+	truthy(src:find('"window", false', 1, true) == nil, "a kit window has no ground behind it")
+	local _, n = src:gsub("ground%(g%.back%)", "")
+	truthy(n >= 7, `only {n} windows draw the ground`)
+end)

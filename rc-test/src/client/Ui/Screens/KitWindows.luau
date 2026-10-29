@@ -213,7 +213,8 @@ end
 -- data: { kind, word, rarity, price?, priceWords?, coins, odds = { { rarity, chance } } }
 -- actions: open(), close()
 function KitWindows.crateOdds(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
-	return Screen.open("crates", "window", false, function(g)
+	return Screen.open("crates", "window", true, function(g)
+		ground(g.back) -- (the lobby HUD showed through the kit's gaps, Studio r56)
 		local canvas = g.canvas
 		local cp = piece("kitOdds", "Close")
 		Kit.close(spot(canvas, "kitOdds", "Close"), 0, 0, Screen.act(actions, "close"), cp.w)
@@ -406,7 +407,8 @@ end
 --   claimWords? } (the gift is already paid by the server: CLAIM only takes it)
 -- actions: claim(), close()
 function KitWindows.daily(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
-	return Screen.open("daily", "window", false, function(g)
+	return Screen.open("daily", "window", true, function(g)
+		ground(g.back) -- (the lobby HUD showed through the kit's gaps, Studio r56)
 		local canvas = g.canvas
 		local cp = piece("kitDaily", "Close")
 		Kit.close(spot(canvas, "kitDaily", "Close"), 0, 0, Screen.act(actions, "close"), cp.w)
@@ -477,7 +479,11 @@ function KitWindows.daily(data: { [string]: any }, actions: Screen.Actions?): Sc
 		task.defer(function()
 			Anim.cascade(cards)
 		end)
-		placedButton(canvas, "kitDaily", "Claim", Screen.act(actions, "claim"))
+		-- (today's coins on CLAIM's chip: alone at the bottom they read as a stray line, r56)
+		local todayDay = days[math.clamp(data.today or 1, 1, math.max(#days, 1))]
+		placedButton(canvas, "kitDaily", "Claim", Screen.act(actions, "claim"), {
+			chip = if todayDay then `+{UiMotion.commas(todayDay.coins or 0)}` else nil,
+		})
 		-- the streak track: a dot a day, lit up to today
 		local tp = piece("kitDaily", "Track")
 		local track = spot(canvas, "kitDaily", "Track")
@@ -503,19 +509,12 @@ function KitWindows.daily(data: { [string]: any }, actions: Screen.Actions?): Sc
 			Base.outline(dot, UiTheme.OUTLINE.small)
 		end
 		local np = piece("kitDaily", "Note")
-		Base.text(
-			canvas,
-			"Note",
-			np.x,
-			np.y + 8,
-			np.w,
-			np.h - 16,
-			data.claimWords or SmashScreens.KIT_WORDS.dailyNote,
-			{
-				stroke = 3,
-				z = 3,
-			}
-		)
+		local notePill =
+			Kit.navyPanel(spot(canvas, "kitDaily", "Note"), "Pill", 0, 0, np.w, np.h, 14)
+		Base.text(notePill, "Note", 12, 8, np.w - 24, np.h - 16, SmashScreens.KIT_WORDS.dailyNote, {
+			stroke = 3,
+			z = 3,
+		})
 		return {}
 	end)
 end
@@ -525,7 +524,8 @@ end
 -- data: { title?, timer?, rows = { { icon, words, have, need, reward, done } } }
 -- actions: close()
 function KitWindows.quests(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
-	return Screen.open("quests", "window", false, function(g)
+	return Screen.open("quests", "window", true, function(g)
+		ground(g.back) -- (the lobby HUD showed through the kit's gaps, Studio r56)
 		local canvas = g.canvas
 		local tp = piece("kitQuests", "Title")
 		Kit.title(
@@ -683,7 +683,8 @@ local PLACE_DISC = { "ffc22e", "c3cddc", "d68a4c" }
 --   rows: loading, none yet), mine: number (your trophies) }
 -- actions: tab(i), close()
 function KitWindows.board(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
-	return Screen.open("leaderboard", "window", false, function(g)
+	return Screen.open("leaderboard", "window", true, function(g)
+		ground(g.back) -- (the lobby HUD showed through the kit's gaps, Studio r56)
 		local canvas = g.canvas
 		local mp = piece("kitBoard", "Mine")
 		Kit.currency(
@@ -804,8 +805,14 @@ end
 function KitWindows.leagueUp(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
 	return Screen.open("leagueUp", "full", true, function(g)
 		local back = g.back :: ScreenGui
-		Kit.backdrop(back, "showroom")
-		local bd = back:FindFirstChild("Backdrop") :: Frame
+		local bd = Kit.backdrop(back, "showroom")
+		-- the kit's ground: blue at the top to warm orange (r56: sky blue)
+		bd.BackgroundColor3 = WHITE
+		Kit.face(bd, { "3f7fe0", "8a6aa8", "d9784a" })
+		local floor = bd:FindFirstChild("Floor")
+		if floor then
+			floor:Destroy()
+		end
 		Kit.confetti(bd, 22 + (data.confetti or 0))
 		local canvas = g.canvas
 		local tp = piece("kitLeagueUp", "Title")
@@ -924,7 +931,8 @@ end
 --   Item = { name, rarity, id? (a kart's car id), own: boolean?, on: boolean? }
 -- actions: tab(i), equip(tab, i), close()  (the same as Smash.customize)
 function KitWindows.garage(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
-	return Screen.open("customize", "window", false, function(g)
+	return Screen.open("customize", "window", true, function(g)
+		ground(g.back) -- (the lobby HUD showed through the kit's gaps, Studio r56)
 		local canvas = g.canvas
 		local tab = if data.tab == 2 then 2 else 1
 		local picked = 1
@@ -1099,6 +1107,22 @@ function KitWindows.garage(data: { [string]: any }, actions: Screen.Actions?): S
 				else
 					Icons.make(card, "lock", b.w / 2 - 24, 30, 48, { z = 4 })
 				end
+				if tab == 2 then
+					-- (a hat's name under it: the cards were nameless, Studio r56)
+					Base.text(
+						card,
+						"Name",
+						6,
+						b.h - 54,
+						b.w - 12,
+						18,
+						string.upper(it.name or ""),
+						{
+							stroke = 2.5,
+							z = 5,
+						}
+					)
+				end
 				if it.on then
 					Kit.tag(card, 8, 8, "ON", "lime", 22, 9)
 				end
@@ -1246,7 +1270,8 @@ end
 -- data: { music: 0..1, sfx: 0..1, shadows: boolean, names: boolean }
 -- actions: set(key, value), close()
 function KitWindows.settings(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
-	return Screen.open("settings", "window", false, function(g)
+	return Screen.open("settings", "window", true, function(g)
+		ground(g.back) -- (the lobby HUD showed through the kit's gaps, Studio r56)
 		local canvas = g.canvas
 		local tp = piece("kitSettings", "Title")
 		Kit.title(spot(canvas, "kitSettings", "Title"), 0, 0, tp.w, tp.h, "SETTINGS", nil, "l")

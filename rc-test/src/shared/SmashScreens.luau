@@ -183,16 +183,17 @@ local LIST: { Screen } = {
 			p("Crate", 303, 262, 150, 128, { anchor = "b" }),
 			p("SideL", 0, 120, 130, 120, { anchor = "l" }),
 			p("SideR", 626, 70, 130, 120, { anchor = "r" }),
-			p("Note", 8, 300, 212, 62, { anchor = "bl" }),
+			-- (14 in, the buttons 12 in: the panel line and the button rims poked past a 667 phone, r56)
+			p("Note", 14, 300, 206, 62, { anchor = "bl" }),
 			p(
 				"Cool",
-				566,
+				554,
 				228,
 				190,
 				66,
 				{ anchor = "br", tone = "lime", text = "COOL!", main = true }
 			),
-			p("Again", 516, 306, 240, 58, { anchor = "br", tone = "white", text = "OPEN ANOTHER" }),
+			p("Again", 504, 306, 240, 58, { anchor = "br", tone = "white", text = "OPEN ANOTHER" }),
 		},
 	},
 	-- the daily gift: 7 day cards (day 7 gold), CLAIM and the streak track under them
@@ -255,12 +256,13 @@ local LIST: { Screen } = {
 		gameplay = false,
 		pieces = {
 			p("Title", 178, 2, 400, 70, { anchor = "t" }),
-			p("Badge", 288, 74, 180, 180, { anchor = "c" }),
-			p("Name", 238, 258, 280, 56, { anchor = "b" }),
+			p("Badge", 293, 74, 170, 170, { anchor = "c" }),
+			p("Name", 238, 250, 280, 52, { anchor = "b" }),
+			-- (off the bottom edge, Studio r56)
 			p(
 				"Awesome",
 				283,
-				322,
+				310,
 				190,
 				60,
 				{ anchor = "b", tone = "go", text = "AWESOME!", main = true }
