@@ -86,6 +86,64 @@ local function panel(canvas: Instance, id: string, name: string): (Frame, SmashS
 end
 
 -- show `obj` after `delay` s with a pop (the screen may be closed by then: then nothing)
+-- The winner's real kart (CarSkin: carter's model, else the kart, else the toy car) turning in a
+-- 3D window; nil when it can't be made (then the drawn car shows).
+local function kartView(
+	parent: Instance,
+	x: number,
+	y: number,
+	w: number,
+	h: number,
+	carId: string?
+): ViewportFrame?
+	if not carId then
+		return nil
+	end
+	local client = script.Parent.Parent.Parent
+	local mod = client:FindFirstChild("CarSkin")
+	if not (mod and mod:IsA("ModuleScript")) then
+		return nil
+	end
+	local ok, CarSkin = pcall(require, mod)
+	local made = if ok and type(CarSkin) == "table" then (CarSkin :: any).copyOf(carId) else nil
+	if not (made and typeof(made) == "Instance" and made:IsA("Model")) then
+		return nil
+	end
+	local model = made :: Model
+	local view = Instance.new("ViewportFrame")
+	view.Name = "Kart"
+	view.BackgroundTransparency = 1
+	view.Ambient = Color3.fromRGB(190, 190, 200)
+	view.LightColor = Color3.new(1, 1, 1)
+	view.LightDirection = Vector3.new(-0.4, -1, -0.6)
+	view.ZIndex = 4
+	view.Parent = parent
+	Base.at(view, x, y, w, h)
+	local world = Instance.new("WorldModel")
+	world.Parent = view
+	model:PivotTo(CFrame.identity)
+	model.Parent = world
+	local cf, size = model:GetBoundingBox()
+	local mid = cf.Position
+	local cam = Instance.new("Camera")
+	cam.FieldOfView = 30
+	-- far enough back that the kart's longest side fits, from a little above and in front
+	local dist = math.max(size.X, size.Y, size.Z) / math.tan(math.rad(15)) * 0.62
+	cam.CFrame = CFrame.lookAt(mid + Vector3.new(0, 0.35, 1).Unit * dist, mid)
+	cam.Parent = view
+	view.CurrentCamera = cam
+	-- turning slowly (stops when the screen closes)
+	task.spawn(function()
+		local a = math.rad(-30)
+		while view.Parent do
+			a += 0.02
+			model:PivotTo(CFrame.new(mid) * CFrame.Angles(0, a, 0) * CFrame.new(-mid))
+			task.wait(1 / 30)
+		end
+	end)
+	return view
+end
+
 local function popLater(obj: GuiObject, delay: number, then_: (() -> ())?)
 	obj.Visible = false
 	task.delay(delay, function()
@@ -127,11 +185,12 @@ function Smash.matchEnd(view: MatchEnd.View, actions: Screen.Actions?): Screen.H
 			local stage = spot(g.canvas, "matchEnd", "Winner")
 			Kit.rays(stage, kp.w / 2, kp.h / 2, kp.h * 1.5, "go", 0.7)
 			local cw = kp.w * 0.9
-			local car = Icons.car(stage, (kp.w - cw) / 2, (kp.h - cw * 0.64) / 2, cw, cw * 0.64, {
-				id = w.carId,
-				color = carColor(w.carId, 1),
-				z = 4,
-			})
+			local car: GuiObject = kartView(stage, (kp.w - cw) / 2, 0, cw, kp.h, w.carId)
+				or Icons.car(stage, (kp.w - cw) / 2, (kp.h - cw * 0.64) / 2, cw, cw * 0.64, {
+					id = w.carId,
+					color = carColor(w.carId, 1),
+					z = 4,
+				})
 			Anim.pop(car, 0.6, 0.2, 0.4)
 			Anim.bob(car, UiTheme.MOTION.carBob, 5)
 			if w.me then
@@ -188,10 +247,19 @@ function Smash.matchEnd(view: MatchEnd.View, actions: Screen.Actions?): Screen.H
 		Anim.cascade(rows)
 		-- what you got, popping in one after the other: coins, XP, then your place
 		local rew, rp = panel(g.canvas, "matchEnd", "Rewards")
-		local coins = Kit.currency(rew, "Coins", 12, 12, rp.w - 24, 46, { value = 0 })
-		popLater(coins.button, 1.0, function()
-			coins.set(view.coins)
-		end)
+		-- what this round paid (not your wallet): a spinning coin and "+25"
+		local won = Base.box(rew, "Coins", 12, 12, rp.w - 24, 46, 4)
+		local coin = Icons.make(won, "coin", 0, 2, 42, { z = 5 })
+		Kit.coinSpin(coin)
+		Base.text(won, "Amount", 50, 2, rp.w - 24 - 50, 42, `+{view.coins}`, {
+			color = Base.color("go"),
+			stroke = 5,
+			drop = 3,
+			dropColor = Base.color("goDeep"),
+			align = "l",
+			z = 5,
+		})
+		popLater(won, 1.0)
 		if view.xp > 0 then
 			local xp = Base.text(rew, "Xp", 12, 66, rp.w - 24, 40, `+{view.xp} XP`, {
 				color = Base.color("blue"),

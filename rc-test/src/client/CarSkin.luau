@@ -194,6 +194,22 @@ local function lookOnly(p: BasePart)
 	p.CastShadow = true
 end
 
+-- A fresh copy of the look a car wears (its own model, else its kart, else the toy car), every
+-- part anchored and look-only, nose at +Z: for a picture (the round's winner). nil: no such car.
+function CarSkin.copyOf(id: string): Model?
+	local src = template(CarSkin.lookFor(id))
+	if not src then
+		return nil
+	end
+	local m = src:Clone()
+	for _, d in m:GetDescendants() do
+		if d:IsA("BasePart") then
+			lookOnly(d)
+		end
+	end
+	return m
+end
+
 local function show(car: RCCar.Car, name: string, src: Model): Shown?
 	local copy = src:Clone()
 	local body = copy:FindFirstChild("Body", true)
