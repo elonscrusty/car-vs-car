@@ -189,6 +189,44 @@ test(
 	end
 )
 
+test(
+	"no wedge spots: rocks and crates gone, round-off corners, a bumper round each hill but its ramp",
+	function()
+		eq(#A.ROCKS, 0, "no rocks")
+		eq(#A.CRATES, 0, "no crates")
+		-- a kart can't get its nose into a wall corner
+		for _, c in { { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 } } do
+			local x = A.PIC / 2 + c[1] * (A.PIC / 2 - A.WALL - 1)
+			local y = A.PIC / 2 + c[2] * (A.PIC / 2 - A.WALL - 1)
+			truthy(not A.clear(x, y, 0), `corner {c[1]},{c[2]} filled`)
+		end
+		-- the way up each ramp is open; every hill edge's middle (away from a ramp) is bumpered
+		for i, r in A.RAMPS do
+			for k = 0, 10 do
+				local u = k / 10
+				local q =
+					{ r.from[1] + (r.to[1] - r.from[1]) * u, r.from[2] + (r.to[2] - r.from[2]) * u }
+				truthy(A.clear(q[1], q[2], 1), `ramp {i} open at {u}`)
+			end
+		end
+		for _, h in A.HILLS do
+			for j = 1, #h.poly do
+				local a, b = h.poly[j], h.poly[j % #h.poly + 1]
+				local m = { (a[1] + b[1]) / 2, (a[2] + b[2]) / 2 }
+				local nearRamp = false
+				for _, r in A.RAMPS do
+					if math.sqrt((m[1] - r.to[1]) ^ 2 + (m[2] - r.to[2]) ^ 2) < r.width then
+						nearRamp = true
+					end
+				end
+				if not nearRamp then
+					truthy(not A.clear(m[1], m[2], 0), `{h.name} edge {j} has its bumper`)
+				end
+			end
+		end
+	end
+)
+
 test("hills: boxes on them sit on top, ramps are gentle", function()
 	eq(A.boxSpots[6].y, A.HILLS[1].h, "HIGH PINK box on top")
 	eq(A.boxSpots[15].y, A.HILLS[2].h, "LOW PINK box on top")

@@ -111,14 +111,9 @@ ArenaData.TRUNK = 5 -- the trunk's thickness, big units
 
 -- extra cover on the open grass (picture units): low-poly rocks {x, y, radius}, crates (a 4 x 4
 -- block each), red barrel rows (from, to)
-ArenaData.ROCKS = {
-	{ 60, 63, 3 },
-	{ 12, 192, 2.5 },
-	{ 75, 135, 3 },
-	{ 148, 108, 2.5 },
-	{ 230, 150, 2.5 },
-} :: { { number } }
-ArenaData.CRATES = { { 88, 62 }, { 122, 104 }, { 224, 110 } } :: { Pt }
+-- (rocks and crates came out: karts wedged on their turned corners in play, round 7)
+ArenaData.ROCKS = {} :: { { number } }
+ArenaData.CRATES = {} :: { Pt }
 ArenaData.CRATE = 4
 ArenaData.BARRELS = {
 	{ { 112, 154 }, { 112, 166 } },
@@ -332,6 +327,58 @@ local function bumperPieces(): { { Pt } }
 end
 ArenaData.bumperPieces = bumperPieces()
 
+-- a low round-topped bumper along each hill's foot (picture units thick, big units tall), so a
+-- kart hits a soft upright edge and slides off, not ride up the steep side and flip; open where
+-- the ramp comes in (the same door the bots use: the ramp's width / 2 + 3 big round its top)
+ArenaData.FOOT_W, ArenaData.FOOT_H = 1.4, 3
+local function hillFeet(): { { Pt } }
+	local out = {}
+	for _, h in ArenaData.HILLS do
+		local ramp: Ramp? = nil
+		for _, r in ArenaData.RAMPS do
+			if ArenaData.inside(h.poly, r.to) then
+				ramp = r
+			end
+		end
+		local n = #h.poly
+		for i = 1, n do
+			local a, b = h.poly[i], h.poly[i % n + 1]
+			local cuts = { 0, 1 }
+			if ramp then
+				-- where the segment runs inside the door's circle: |a + t (b - a) - to| < r
+				local r = ramp.width / 2 + 3 / ArenaData.K
+				local dx, dy = b[1] - a[1], b[2] - a[2]
+				local fx, fy = a[1] - ramp.to[1], a[2] - ramp.to[2]
+				local qa, qb, qc =
+					dx * dx + dy * dy, 2 * (fx * dx + fy * dy), fx * fx + fy * fy - r * r
+				local disc = qb * qb - 4 * qa * qc
+				if disc > 0 then
+					local t0 = math.clamp((-qb - math.sqrt(disc)) / (2 * qa), 0, 1)
+					local t1 = math.clamp((-qb + math.sqrt(disc)) / (2 * qa), 0, 1)
+					if t1 > t0 then
+						cuts = { 0, t0, t1, 1 }
+					end
+				end
+			end
+			for k = 1, #cuts - 1, 2 do
+				local u0, u1 = cuts[k], cuts[k + 1]
+				if u1 - u0 > 1e-3 then
+					table.insert(out, {
+						{ a[1] + (b[1] - a[1]) * u0, a[2] + (b[2] - a[2]) * u0 },
+						{ a[1] + (b[1] - a[1]) * u1, a[2] + (b[2] - a[2]) * u1 },
+					})
+				end
+			end
+		end
+	end
+	return out
+end
+ArenaData.hillFeet = hillFeet()
+
+-- the outer wall's four inside corners are filled with a 45 degree slab this long on each leg
+-- (picture units), so a kart driving into a corner glances off instead of wedging
+ArenaData.CORNER = 4
+
 -- the start arch's two pillar spots (picture units)
 function ArenaData.archPillars(): { Pt }
 	local a = ArenaData.ARCH
@@ -344,6 +391,12 @@ end
 function ArenaData.clear(x: number, y: number, room: number): boolean
 	local lo, hi = ArenaData.WALL + room, ArenaData.PIC - ArenaData.WALL - room
 	if x < lo or x > hi or y < lo or y > hi then
+		return false
+	end
+	-- the corner slabs: room from the slanted face across the nearest corner
+	local u = math.min(x, ArenaData.PIC - x) - ArenaData.WALL
+	local w = math.min(y, ArenaData.PIC - y) - ArenaData.WALL
+	if (u + w - ArenaData.CORNER) / math.sqrt(2) < room then
 		return false
 	end
 	local trunk = ArenaData.TRUNK / ArenaData.K / 2
@@ -381,6 +434,12 @@ function ArenaData.clear(x: number, y: number, room: number): boolean
 	end
 	for _, seg in ArenaData.bumperPieces do
 		if segDist(x, y, seg[1], seg[2]) < ArenaData.BUMPER_W / 2 + room then
+			return false
+		end
+	end
+	-- the hill-foot bumpers stand just outside the foot line
+	for _, seg in ArenaData.hillFeet do
+		if segDist(x, y, seg[1], seg[2]) < ArenaData.FOOT_W + room then
 			return false
 		end
 	end
