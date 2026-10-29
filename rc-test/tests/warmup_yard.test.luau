@@ -165,7 +165,7 @@ test("yard: sits in a valley (round hills on every side, the lake open), looks o
 		local inGrass = math.abs(d.x) - d.w / 2 < hx and math.abs(d.z) - d.d / 2 < hz
 		truthy(not inGrass, `hill at {d.x},{d.z} is on the yard's grass`)
 		truthy(
-			not (d.z - d.d / 2 < hz + 195 and d.z + d.d / 2 > hz and math.abs(d.x) < 200),
+			not (d.z - d.d / 2 < hz + 220 and d.z + d.d / 2 > hz and math.abs(d.x) < 200),
 			`hill at {d.x},{d.z} is in the lake`
 		)
 		if d.x > hx then

@@ -1124,8 +1124,10 @@ RunService.Heartbeat:Connect(function()
 	-- (Smash's warm-up yard: the SMASH! button and its arrow sat on your kart there, and the yard
 	-- has its own NEXT MATCH clock; LOBBY 00:37)
 	local yard = SMASH and inYard()
+	-- (Smash: no arrow or GO SMASH! words at the SMASH! button, it pulses instead; beside it the
+	-- words still sat over your kart, auditor round 12)
 	api.point(
-		if yard and goal == "Race" then nil else goal,
+		if goal == "Race" and (yard or SMASH) then nil else goal,
 		goalWords,
 		now - lastInput >= IDLE_NUDGE,
 		SMASH -- (from the side: over the SMASH! button it sat on the kart, auditor garage shot)

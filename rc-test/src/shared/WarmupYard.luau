@@ -392,7 +392,8 @@ WarmupYard.VALLEY_ROWS = {
 	{ out = 110, step = 90, w = 120, h = 62, d = 100 },
 	{ out = 210, step = 140, w = 190, h = 110, d = 150 },
 	-- big soft mountains: the horizon, so the arena far off never shows floating in the sky
-	{ out = 340, step = 190, w = 300, h = 230, d = 230 },
+	-- (wide and low: tall narrow ones read as eggs from above, Studio r3)
+	{ out = 360, step = 240, w = 440, h = 200, d = 330 },
 }
 function WarmupYard.valley(): ({ Dome }, { TreeSpot })
 	local function hash(n: number): number -- 0..1, the same every build
@@ -400,7 +401,7 @@ function WarmupYard.valley(): ({ Dome }, { TreeSpot })
 		return x - math.floor(x)
 	end
 	local hx, hz = WarmupYard.W / 2 + APRON, WarmupYard.D / 2 + APRON -- the yard's grass edge
-	local lakeEnd = hz + 195 -- the lake's far shore (parts(): Lake)
+	local lakeEnd = hz + 220 -- the lake's far shore (parts(): Lake at edgeZ + 145, 150 deep)
 	local domes: { Dome } = {}
 	local trees: { TreeSpot } = {}
 	local n = 0

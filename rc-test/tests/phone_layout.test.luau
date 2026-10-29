@@ -221,10 +221,12 @@ test("a level badge sits before each name with a level, on the board and the kil
 	local h = matchHud()
 	local c = h.gui.canvas
 	local board = c:FindFirstChild("Board")
+	-- (the board is the leader and you: auditor round 12)
+	local row1 = board and board:FindFirstChild("Row1")
+	truthy(row1 and row1:FindFirstChild("Level"), "no board badge for the level 3 leader")
 	local row2 = board and board:FindFirstChild("Row2")
-	truthy(row2 and row2:FindFirstChild("Level"), "no board badge for a level 12 kart")
-	local row3 = board and board:FindFirstChild("Row3")
-	truthy(row3 and row3:FindFirstChild("Level") == nil, "a badge with no level")
+	truthy(row2 and row2:FindFirstChild("Level"), "no board badge for your level 1 kart")
+	truthy(board and board:FindFirstChild("Row3") == nil, "a third board row")
 	local feed = c:FindFirstChild("Feed")
 	local n = 0
 	for _, r in feed:GetChildren() do
@@ -280,7 +282,7 @@ end)
 -- fifth of the screen, the board just you and the leader, at most 2 kill lines. Prints the
 -- numbers for each phone (the auditor's bars).
 
-local function phoneHud()
+local function phoneHud(desk: boolean?)
 	local h = Hud.match({
 		place = 3,
 		total = 8,
@@ -296,7 +298,7 @@ local function phoneHud()
 			{ name = "DIZZY DASH", smashes = 2 },
 			{ name = "MRCARTER", smashes = 2, me = true, level = 1 },
 		},
-	}, nil, true)
+	}, nil, not desk)
 	h.api.feed("ROCKET RACCOON", "LIL SMASHER", "rocket", false)
 	h.api.feed("MRCARTER", "ZIPPY", "mine", true, 1, 7)
 	h.api.feed("SUPERLONGNAME99", "ANOTHERLONGNAME", "gun", false, 12, 99)
@@ -376,6 +378,35 @@ for _, ph in PHONE_SIZES do
 		end
 	)
 end
+
+-- auditor round 12 (desktop Studio shots): the board is you and the leader, at most 2 kill lines,
+-- on every screen, not just a phone's
+test("desktop match HUD too: board you and the leader, kill feed 2 rows at most", function()
+	local h = phoneHud(true)
+	local board = h.gui.canvas:FindFirstChild("Board")
+	local feed = h.gui.canvas:FindFirstChild("Feed")
+	truthy(rowsIn(board) == 2, "board rows: " .. rowsIn(board))
+	truthy(rowsIn(feed) <= 2, "feed rows: " .. rowsIn(feed))
+	h.close()
+end)
+
+-- round 12 fix 5: no GO SMASH! arrow or words in the Smash lobby (the SMASH! button pulses);
+-- far karts wear no names in a match on any screen, the near ones small
+test("Smash lobby: no GO SMASH! pointer; match name tags small and near on any screen", function()
+	local fs = require("@lune/fs")
+	local cvc = fs.readFile("src/client/CvcScreens.client.luau")
+	truthy(
+		string.find(cvc, 'if goal == "Race" and (yard or SMASH) then nil else goal', 1, true) ~= nil,
+		"the SMASH! button still gets an arrow"
+	)
+	local oc = fs.readFile("src/client/OtherCars.luau")
+	truthy(
+		string.find(oc, "elseif inMatch then MATCH_TAG_FAR", 1, true) ~= nil,
+		"far tags in a match"
+	)
+	truthy(string.find(oc, "if inMatch then MATCH_TAG_SIZE", 1, true) ~= nil, "big tags in a match")
+	truthy(string.find(oc, "PHONE and Players.LocalPlayer", 1, true) == nil, "still phone only")
+end)
 
 test("phone match HUD: kill lines go after 3 s, and FIRE carries the weapon", function()
 	local h = phoneHud()

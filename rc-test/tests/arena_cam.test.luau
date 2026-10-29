@@ -104,7 +104,10 @@ test("arena cam: ChaseCamera and Main use it only while InMatch, still a chase c
 		) ~= nil,
 		"switched by InMatch"
 	)
-	truthy(string.find(main, "then ArenaCam.DISTANCE", 1, true) ~= nil, "lost-cam check fits")
+	truthy(
+		string.find(main, "then ArenaCam.fit(", 1, true) ~= nil,
+		"lost-cam check fits the screen"
+	)
 	truthy(
 		string.find(
 			main,
@@ -117,3 +120,48 @@ test("arena cam: ChaseCamera and Main use it only while InMatch, still a chase c
 	-- driving stays locked
 	truthy(string.find(chase, "RCCar", 1, true) == nil)
 end)
+
+test(
+	"arena cam: on a phone your kart is at least 10% of the screen's width, the fight still seen",
+	function()
+		local Weapons = require("../src/shared/Weapons")
+		truthy(math.abs(ArenaCam.KART_LONG - Weapons.KART) < 1e-9, "the kart's real length")
+		for _, size in { { 667, 375 }, { 844, 390 }, { 932, 430 } } do
+			local w, h = size[1], size[2]
+			local f = ArenaCam.fit(w, h)
+			eq(f.distance, ArenaCam.PHONE_DISTANCE, "a phone: the close camera")
+			local still = ArenaCam.share(w, h, f.distance, f.fov)
+			local fast = ArenaCam.share(w, h, f.distance, f.fov + f.fast)
+			print(
+				string.format(
+					"  %dx%d: kart %.1f%% of the width (%.1f%% at top speed)",
+					w,
+					h,
+					still * 100,
+					fast * 100
+				)
+			)
+			truthy(still >= ArenaCam.MIN_SHARE, `{w}x{h}: kart at least 10% wide`)
+			truthy(fast >= ArenaCam.MIN_SHARE, `{w}x{h}: still 10% at top speed`)
+			local ahead = ArenaCam.seeAhead(f.distance, f.pitch, f.fov)
+			truthy(
+				ahead >= ArenaCam.PHONE_AHEAD_MIN * ArenaCam.KART_LONG,
+				`{w}x{h}: the fight ahead still seen`
+			)
+			truthy(f.pitch >= 25, "still looking down on the fight, a chase cam")
+			-- the middle of the view still looks well down at the arena (the kart in the lower third)
+			local back, up = ArenaCam.offset(f.distance, f.pitch)
+			local middleDown = math.atan2(up, back + ArenaCam.aimAhead(f.distance, f.pitch, f.fov))
+			truthy(middleDown > math.rad(20), `{w}x{h}: looking down at the arena, not the sky`)
+			-- the old far camera was the "can't see my kart" one
+			truthy(ArenaCam.share(w, h, ArenaCam.DISTANCE, ArenaCam.FOV) < ArenaCam.MIN_SHARE)
+		end
+		local big = ArenaCam.fit(1920, 1080)
+		eq(big.distance, ArenaCam.DISTANCE, "a big screen keeps the wide camera")
+		eq(big.fov, ArenaCam.FOV)
+		local chase = fs.readFile("src/client/ChaseCamera.luau")
+		truthy(string.find(chase, "refit(camera.ViewportSize)", 1, true) ~= nil, "fits the screen")
+		truthy(string.find(chase, "ArenaCam.MIN_REACH * arenaFit.distance", 1, true) ~= nil)
+		truthy(string.find(chase, "local aFov = arenaFit.fov", 1, true) ~= nil)
+	end
+)
