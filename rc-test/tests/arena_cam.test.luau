@@ -122,7 +122,7 @@ test("arena cam: ChaseCamera and Main use it only while InMatch, still a chase c
 end)
 
 test(
-	"arena cam: on a phone your kart is at least 10% of the screen's width, the fight still seen",
+	"arena cam: on a phone your kart is at least MIN_SHARE of the screen's width, the fight still seen",
 	function()
 		local Weapons = require("../src/shared/Weapons")
 		truthy(math.abs(ArenaCam.KART_LONG - Weapons.KART) < 1e-9, "the kart's real length")
@@ -141,8 +141,8 @@ test(
 					fast * 100
 				)
 			)
-			truthy(still >= ArenaCam.MIN_SHARE, `{w}x{h}: kart at least 10% wide`)
-			truthy(fast >= ArenaCam.MIN_SHARE, `{w}x{h}: still 10% at top speed`)
+			truthy(still >= ArenaCam.MIN_SHARE, `{w}x{h}: kart at least MIN_SHARE wide`)
+			truthy(fast >= ArenaCam.MIN_SHARE, `{w}x{h}: still MIN_SHARE at top speed`)
 			local ahead = ArenaCam.seeAhead(f.distance, f.pitch, f.fov)
 			truthy(
 				ahead >= ArenaCam.PHONE_AHEAD_MIN * ArenaCam.KART_LONG,
@@ -153,8 +153,8 @@ test(
 			local back, up = ArenaCam.offset(f.distance, f.pitch)
 			local middleDown = math.atan2(up, back + ArenaCam.aimAhead(f.distance, f.pitch, f.fov))
 			truthy(middleDown > math.rad(20), `{w}x{h}: looking down at the arena, not the sky`)
-			-- the old far camera was the "can't see my kart" one
-			truthy(ArenaCam.share(w, h, ArenaCam.DISTANCE, ArenaCam.FOV) < ArenaCam.MIN_SHARE)
+			-- carter's pick (try A, 10-29): further back and higher than the old 4-stud phone camera
+			truthy(f.distance >= 8 and f.pitch >= 45, `{w}x{h}: back and up, not the close camera`)
 		end
 		local big = ArenaCam.fit(1920, 1080)
 		eq(big.distance, ArenaCam.DISTANCE, "a big screen keeps the wide camera")
@@ -199,7 +199,7 @@ test(
 	end
 )
 
-test("arena cam: on a phone the kart you see sits ~72% down, still and at speed", function()
+test("arena cam: on a phone the kart you see sits PHONE_LOW down, still and at speed", function()
 	local f = ArenaCam.fit(844, 390, true)
 	local function down(fov: number, lean: number, drop: number, fwd: number): number
 		local ahead = ArenaCam.aimAhead(f.distance, f.pitch, fov, f.low, drop, fwd)
@@ -220,8 +220,9 @@ test("arena cam: on a phone the kart you see sits ~72% down, still and at speed"
 				fast * 100
 			)
 		)
-		truthy(math.abs(still - 0.72) < 1e-6, "72% down standing still")
-		truthy(math.abs(fast - 0.72) <= 0.02, "72% +-2 at top speed")
+		local want = 0.5 + 0.5 * ArenaCam.PHONE_LOW
+		truthy(math.abs(still - want) < 1e-6, "PHONE_LOW down standing still")
+		truthy(math.abs(fast - want) <= 0.02, "+-2% at top speed")
 		local ahead = ArenaCam.seeAhead(f.distance, f.pitch, f.fov, f.low, drop, fwd)
 		truthy(ahead < math.huge, "the top of the screen is still the arena, not the sky")
 		truthy(ahead >= ArenaCam.PHONE_AHEAD_MIN * ArenaCam.KART_LONG, "the fight ahead seen")
@@ -229,10 +230,11 @@ test("arena cam: on a phone the kart you see sits ~72% down, still and at speed"
 	-- Studio r57: aiming the physics box at 68% left the drawn kart (0.45 lower) at ~80%
 	local boxAim = ArenaCam.aimAhead(f.distance, f.pitch, f.fov, f.low, 0.375, 0)
 	truthy(
-		ArenaCam.kartDown(f.distance, f.pitch, f.fov, boxAim, 0, 0.375 + 0.45, 0) > 0.76,
+		ArenaCam.kartDown(f.distance, f.pitch, f.fov, boxAim, 0, 0.375 + 0.45, 0)
+			> 0.5 + 0.5 * ArenaCam.PHONE_LOW + 0.01,
 		"aiming at the box puts the drawn kart too low: aim at the drawn kart"
 	)
-	-- same distance and fov: still 10%+ wide
+	-- same distance and fov: still MIN_SHARE+ wide
 	truthy(ArenaCam.share(844, 390, f.distance, f.fov + f.fast) >= ArenaCam.MIN_SHARE)
 	-- the big screen keeps its lower third and full lean
 	local big = ArenaCam.fit(1920, 1080)
