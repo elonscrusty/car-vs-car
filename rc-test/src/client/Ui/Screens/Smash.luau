@@ -471,8 +471,16 @@ end
 -- The handle's set(step) moves to another step.
 function Smash.howTo(step: number, actions: Screen.Actions?): Screen.Handle
 	return Screen.open("howTo", "hud", false, function(g)
-		local tp = piece("howTo", "Tip")
-		local holder = spot(g.canvas, "howTo", "Tip")
+		-- (each step's card in its own spot: DRIVE! by the stick, the rest on the right)
+		local holders: { [string]: Frame } = {}
+		local function holderFor(name: string): Frame
+			local h = holders[name]
+			if not h then
+				h = spot(g.canvas, "howTo", name)
+				holders[name] = h
+			end
+			return h
+		end
 		local built: { Instance } = {}
 		local function set(n: number)
 			for _, x in built do
@@ -483,7 +491,9 @@ function Smash.howTo(step: number, actions: Screen.Actions?): Screen.Handle
 			if not st then
 				return
 			end
-			local card = Base.fill(holder, "Card", 0, 0, tp.w, tp.h, WHITE, 3)
+			local tipName = st.tip or "Tip"
+			local tp = piece("howTo", tipName)
+			local card = Base.fill(holderFor(tipName), "Card", 0, 0, tp.w, tp.h, WHITE, 3)
 			Base.corner(card, 22)
 			Base.outline(card, UiTheme.OUTLINE.thick)
 			table.insert(built, card)

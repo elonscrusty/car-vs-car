@@ -375,3 +375,18 @@ test(
 		eq(junk.place, 1, "a junk place falls back to the row")
 	end
 )
+
+test("R8-4: the DRIVE! card sits by the stick, out of the road ahead, for 3 s at most", function()
+	eq(SmashScreens.STEPS[1].id, "drive")
+	local tip = SmashScreens.piece("howTo", SmashScreens.STEPS[1].tip or "Tip")
+	truthy(tip.name == "TipDrive", "DRIVE! still uses the right-hand tip")
+	truthy(tip.x + tip.w <= 252, "the DRIVE! card is in the middle third")
+	truthy(tip.x < 100, "the DRIVE! card isn't on the left by the stick")
+	truthy(not UiScreens.overlap(tip, UiScreens.stickZone()), "the DRIVE! card sits on the stick")
+	for _, hud in UiScreens.get("match").pieces do
+		truthy(not UiScreens.overlap(tip, hud), `DRIVE! covers match.{hud.name}`)
+	end
+	local src = require("@lune/fs").readFile("src/client/SmashHowTo.client.luau")
+	local secs = tonumber(string.match(src, "local DRIVE_SECS = (%d+)"))
+	truthy(secs ~= nil and secs <= 3, "DRIVE! stays more than 3 s")
+end)
