@@ -19,7 +19,7 @@ local Smash = require(Ui:WaitForChild("Screens"):WaitForChild("Smash"))
 
 local player = Players.LocalPlayer
 
-local DRIVE_SECS = 5 -- the DRIVE! card goes by itself after this (audit R3-2)
+local DRIVE_SECS = 3 -- the DRIVE! card goes by itself after this (audit R3-2, 3 s: R8-4)
 
 local done = false -- (this visit; once saves know about it, SAVES can keep it)
 local running = false

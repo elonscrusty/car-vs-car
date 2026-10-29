@@ -97,6 +97,9 @@ local LIST: { Screen } = {
 			-- right side, between the feed and FIRE: never over the middle of the road, and 20 off
 			-- the edge (its right edge was cut on a phone, audit R6-4)
 			p("Tip", 516, 108, 220, 76, { anchor = "r", tap = true }),
+			-- DRIVE! sits bottom left, just over the stick it explains: on the right it covered
+			-- the nearest ? box at GO, where the kid should drive (audit R8-4)
+			p("TipDrive", 8, 166, 220, 76, { anchor = "l", tap = true }),
 			-- the arrow for each step: just right of the stick corner pointing left at it (the
 			-- scoreboard sits above the corner), and just left of FIRE pointing at it
 			p("ArrowDrive", 148, 290, 56, 56, { anchor = "bl" }),
@@ -142,7 +145,15 @@ function SmashScreens.piece(id: string, path: string): Piece
 end
 
 -- The how-to's 3 steps, in order: the big words, one small line, and the arrow piece (if any).
-SmashScreens.STEPS = {
+export type Step = {
+	id: string,
+	words: string,
+	help: string,
+	arrow: string?,
+	rot: number,
+	tip: string?, -- its card's piece (default "Tip")
+}
+local STEPS: { Step } = {
 	-- (rot: the arrow drawing points right; 180 = left)
 	{
 		id = "drive",
@@ -150,6 +161,7 @@ SmashScreens.STEPS = {
 		help = "Move the stick to drive.",
 		arrow = "ArrowDrive",
 		rot = 180,
+		tip = "TipDrive",
 	},
 	{ id = "grab", words = "GRAB A ?", help = "Drive into a red ? box.", arrow = nil, rot = 0 },
 	{
@@ -160,6 +172,7 @@ SmashScreens.STEPS = {
 		rot = 0,
 	},
 }
+SmashScreens.STEPS = STEPS
 -- The customize window's EQUIP button for the picked item: its words and whether it works.
 -- item = { own: boolean?, on: boolean? } (a kart in your garage is always owned); offable: the
 -- thing on can be taken off (a hat; you always drive some kart)
