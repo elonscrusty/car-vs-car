@@ -107,15 +107,14 @@ end
 
 -- Smash game (LOOK-BIBLE, Lead 10-29): every plot is a chunky toy garage. Thick navy skirts on
 -- the walls with a round rail on top in the plot's colour, ball ends, round gate posts with
--- balloons, round flag poles, and theme props only in the front corners (tyre stacks, barrels,
--- cones). SmoothPlastic only, no Neon, no wood, no thin poles.
+-- balloons; the flags and theme props (tyre stacks, barrels, cones) come from PropKit
+-- (smashProps). SmoothPlastic only, no Neon, no wood, no thin poles.
 PlotDecor.SMASH = {
 	navy = { 30, 42, 90 },
 	navyDark = { 22, 30, 66 },
 	ground = { 141, 141, 150 }, -- warm grey road: the plot's base around the showroom
 	entrance = { 242, 217, 166 }, -- sand: the front area people walk in
 	yellow = { 255, 210, 63 },
-	tyre = { 44, 46, 58 },
 	accent = {
 		race = { 242, 64, 74 },
 		drift = { 142, 68, 255 },
@@ -123,6 +122,32 @@ PlotDecor.SMASH = {
 	} :: { [string]: { number } },
 	balloons = { { 255, 95, 180 }, { 90, 200, 250 } },
 }
+
+-- The props on a Smash plot, built from ARENA's shared PropKit (PlotDecorBuilder) so they match
+-- the rest of the game: back-corner flags (the cloth points inward), tyre stacks in the left
+-- front corner, barrels and cones in the right one (never in the walk from the gate).
+-- Plot-local foot points; `h` the whole height; `face` the flag cloth's way (x, z).
+export type Prop = { kind: string, x: number, z: number, h: number, face: { number }? }
+function PlotDecor.smashProps(): { Prop }
+	local W, D = PlotDecor.HALF_W, PlotDecor.HALF_D
+	local out: { Prop } = {}
+	for _, sx in { -1, 1 } do
+		table.insert(
+			out,
+			{ kind = "flag", x = sx * (W - 0.8), z = -D + 0.8, h = 14, face = { -sx, 0 } }
+		)
+	end
+	for _, at in { { -36.5, 40 }, { -33.6, 40 }, { -35, 42.6 } } do
+		table.insert(out, { kind = "tyres", x = at[1], z = at[2], h = 2.4 })
+	end
+	for _, at in { { 36.2, 40 }, { 33.4, 39.8 } } do
+		table.insert(out, { kind = "barrel", x = at[1], z = at[2], h = 2.6 })
+	end
+	for _, at in { { 35.5, 44.5 }, { 33, 46.5 } } do
+		table.insert(out, { kind = "cone", x = at[1], z = at[2], h = 1.8 })
+	end
+	return out
+end
 
 local function smashParts(kind: string): { Piece }
 	local out: { Piece } = {}
@@ -217,68 +242,6 @@ local function smashParts(kind: string): { Piece }
 		noHit
 	)
 
-	-- two flags at the back corners, seen from down the street: round pole, two-tone cloth
-	local FLAG_H = 14
-	for _, sx in { -1, 1 } do
-		local fx, fz = sx * (W - 0.6), -D + 0.3
-		add("Flags", "Pole", up(FLAG_H, 0.8), v(fx, FLAG_H / 2, fz), K.navy, {
-			shape = "Cylinder",
-			rot = standing,
-		})
-		add("Flags", "Ball", v(1.2, 1.2, 1.2), v(fx, FLAG_H + 0.4, fz), K.yellow, {
-			shape = "Ball",
-			collide = false,
-		})
-		add("Flags", "Cloth", v(3.6, 2.2, 0.3), v(fx - sx * 2.2, FLAG_H - 1.3, fz), accent, noHit)
-		add(
-			"Flags",
-			"Stripe",
-			v(3.6, 0.6, 0.34),
-			v(fx - sx * 2.2, FLAG_H - 1.3, fz),
-			K.yellow,
-			noHit
-		)
-	end
-
-	-- theme props in the front corners (never in the walk from the gate)
-	-- left: three tyre stacks, the tyres two-tone
-	for i, at in { { -36.5, 40 }, { -33.8, 40 }, { -35.15, 42.4 } } do
-		for k = 0, 2 do
-			add(
-				"Props",
-				"Tyre",
-				up(0.8, 2.3),
-				v(at[1], 0.4 + k * 0.8, at[2]),
-				if (k + i) % 2 == 0 then accent else K.tyre,
-				{ shape = "Cylinder", rot = standing, collide = k == 0 }
-			)
-		end
-	end
-	-- right: two barrels and two cones
-	for _, at in { { 36, 40 }, { 33.4, 39.6 } } do
-		add("Props", "Barrel", up(2.6, 2), v(at[1], 1.3, at[2]), accent, {
-			shape = "Cylinder",
-			rot = standing,
-		})
-		add("Props", "BarrelBand", up(0.5, 2.1), v(at[1], 1.6, at[2]), K.yellow, {
-			shape = "Cylinder",
-			rot = standing,
-			collide = false,
-		})
-	end
-	for _, at in { { 35.5, 44.5 }, { 33, 46.5 } } do
-		add("Props", "ConeBase", v(1.8, 0.3, 1.8), v(at[1], 0.15, at[2]), K.navy)
-		for k, d in { 1.3, 0.95, 0.6 } do
-			add(
-				"Props",
-				"Cone",
-				up(0.55, d),
-				v(at[1], 0.3 + (k - 0.5) * 0.55, at[2]),
-				if k == 2 then K.yellow else { 255, 130, 40 },
-				{ shape = "Cylinder", rot = standing, collide = false }
-			)
-		end
-	end
 	return out
 end
 

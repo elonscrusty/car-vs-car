@@ -154,6 +154,25 @@ for _, kind in { "race", "drift", "rock" } do
 		eq(#P.meshes(kind), 0)
 	end)
 
+	test(kind .. ": Smash PropKit props: front corners or back wall, never in the walk", function()
+		local lane = P.LANE
+		local kinds = {}
+		for _, p in P.smashProps() do
+			kinds[p.kind] = true
+			local r = if p.kind == "flag" then 0.6 else p.h * 0.6
+			truthy(math.abs(p.x) + r <= P.HALF_W, p.kind .. " inside x")
+			local back = p.z <= -P.HALF_D + 1
+			local front = p.z - r >= P.FRONT_Z + 0.3 and p.z + r <= P.HALF_D
+			truthy(back or front, p.kind .. " on the plot's edge")
+			local inLane = p.x + r > lane.minX
+				and p.x - r < lane.maxX
+				and p.z + r > lane.minZ
+				and p.z - r < lane.maxZ
+			truthy(not inLane, p.kind .. " out of the walk")
+		end
+		truthy(kinds.flag and kinds.tyres and kinds.barrel and kinds.cone, "all four kinds")
+	end)
+
 	test(kind .. ": light on phones (under 66 parts)", function()
 		truthy(#P.parts(kind) < 66, tostring(#P.parts(kind)))
 	end)

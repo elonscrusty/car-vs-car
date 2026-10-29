@@ -10,6 +10,7 @@ local Features = require(ReplicatedStorage.Shared.Features)
 local Garage = require(ReplicatedStorage.Shared.Garage)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local PlotDecor = require(ReplicatedStorage.Shared.PlotDecor)
+local PropKit = require(ReplicatedStorage.Shared.PropKit)
 
 local PlotDecorBuilder = {}
 
@@ -97,6 +98,33 @@ function PlotDecorBuilder.build()
 				local y = top - (1 - bar.y) * size.Y
 				board.CFrame = pivot * CFrame.new(0, y, at.Z + bar.z * size.X + 0.06)
 			end
+		end
+		if Features.SMASH then
+			-- the flags and theme props come from the shared PropKit (one look with the arena)
+			local props = Instance.new("Model")
+			props.Name = "Props"
+			local a = PlotDecor.SMASH.accent[slot.id] or PlotDecor.SMASH.accent.race
+			local accent = Color3.fromRGB(a[1], a[2], a[3])
+			for _, p in PlotDecor.smashProps() do
+				local at = (pivot * CFrame.new(p.x, 0, p.z)).Position
+				if p.kind == "flag" then
+					local f = p.face or { 1, 0 }
+					PropKit.flag(
+						props,
+						at,
+						p.h,
+						accent,
+						pivot:VectorToWorldSpace(Vector3.new(f[1], 0, f[2]))
+					)
+				elseif p.kind == "tyres" then
+					PropKit.tyreStack(props, at, p.h)
+				elseif p.kind == "barrel" then
+					PropKit.barrel(props, at, p.h, accent)
+				elseif p.kind == "cone" then
+					PropKit.cone(props, at, p.h)
+				end
+			end
+			props.Parent = decor
 		end
 		decor.Parent = plot
 	end
