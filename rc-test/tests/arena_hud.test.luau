@@ -23,6 +23,17 @@ test("the lobby HUD (SMASH! button, its arrow, the tiles) is off while InMatch",
 		"the lobby HUD shows in the arena"
 	)
 	truthy(has("src/client/CvcScreens.client.luau", "Base.show(h.gui, shows)"), "no show switch")
+	-- (it checks the gui itself: a HUD opened while it shouldn't show stayed up, Studio final)
+	truthy(
+		has("src/client/CvcScreens.client.luau", "h.gui.gui.Enabled ~= shows"),
+		"the switch only watches its own flag"
+	)
+end)
+
+test("in Smash, driving the lobby kart keeps the lobby HUD (only the arena hides it)", function()
+	local src = fs.readFile("src/client/CvcScreens.client.luau")
+	local want = string.match(src, "local want = CvcState%.loaded(.-)not anyOpen%(FULL%)") or ""
+	truthy(string.find(want, "SMASH or (", 1, true) ~= nil, "driving hides the Smash lobby HUD")
 end)
 
 test("the other lobby screens step away in the arena too", function()

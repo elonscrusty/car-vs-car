@@ -966,8 +966,8 @@ local lastText = 0
 RunService.Heartbeat:Connect(function()
 	local want = CvcState.loaded
 		and attr("Picked") == true
-		and attr("Driving") ~= true
-		and attr("Racing") ~= true
+		-- (Smash: you drive a kart all over the lobby, so driving doesn't hide it; the arena does)
+		and (SMASH or (attr("Driving") ~= true and attr("Racing") ~= true))
 		and attr("InMatch") ~= true
 		and not anyOpen(FULL)
 	-- (and not in the Smash arena: only the match HUD there, the lobby SMASH! button and its
@@ -985,7 +985,9 @@ RunService.Heartbeat:Connect(function()
 		end
 	end
 	local h = hud
-	if h and shows ~= hudOn then
+	-- (against the gui itself too: it opens on, so a HUD made while it shouldn't show stayed up,
+	-- the SMASH! button over the kart in the yard and the arena, Studio final)
+	if h and (shows ~= hudOn or h.gui.gui.Enabled ~= shows) then
 		hudOn = shows
 		Base.show(h.gui, shows)
 	end
