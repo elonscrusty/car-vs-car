@@ -20,6 +20,8 @@ local Icons = require(Ui:WaitForChild("Icons"))
 local Screen = require(Ui:WaitForChild("Screen"))
 local KartView = require(script.Parent:WaitForChild("KartView"))
 local Party = require(Ui:WaitForChild("Party"))
+local Reward = require(Ui:WaitForChild("Reward"))
+local WinReward = require(Shared:WaitForChild("WinReward"))
 
 local Smash = {}
 
@@ -103,7 +105,8 @@ local STEP_DISC = { "ffc22e", "c3cddc", "d68a4c" }
 function Smash.matchEnd(
 	view: MatchEnd.View,
 	actions: Screen.Actions?,
-	bar: MatchEnd.XpBar?
+	bar: MatchEnd.XpBar?,
+	fx: Reward.Fx?
 ): Screen.Handle
 	return Screen.open("matchEnd", "full", true, function(g)
 		local back = g.back :: ScreenGui
@@ -206,7 +209,7 @@ function Smash.matchEnd(
 		local paid = Base.box(rew, "Coins", 10, 6, 150, 34, 4)
 		local coin = Icons.make(paid, "coin", 0, 0, 34, { z = 5 })
 		Kit.coinSpin(coin)
-		Base.text(paid, "Amount", 40, 0, 110, 34, `+{view.coins}`, {
+		local amount = Base.text(paid, "Amount", 40, 0, 110, 34, `+{view.coins}`, {
 			color = Base.color("go"),
 			stroke = 4,
 			drop = 2,
@@ -214,6 +217,9 @@ function Smash.matchEnd(
 			z = 5,
 		})
 		popLater(paid, 0.5)
+		-- coins fly from the winner's step into that number, a ding each (carter's pick A, 10-29)
+		local rewardLayer = Base.box(canvas, "Reward", 0, 0, Base.W, Base.H, 10)
+		Reward.coins(rewardLayer, cars[1] or podium, coin, paid, amount, view.coins, fx)
 		if view.xp > 0 then
 			local xp = Base.text(rew, "Xp", 170, 6, 214, 24, `+{view.xp} XP`, {
 				color = Kit.hex("9fe0ff"),
@@ -223,7 +229,8 @@ function Smash.matchEnd(
 			})
 			popLater(xp, 0.8)
 		end
-		-- the level bar filling from before the round to now; LEVEL UP! when it crosses (no popup)
+		-- the level bar: it waits for the last coin, then fills; LEVEL UP! slams down when it is full
+		-- (carter's pick A, 10-29): the level changes and the bar starts again from what is left
 		if bar then
 			local row = Base.box(rew, "Level", 170, 36, 214, 24, 4)
 			local lv = Base.text(row, "Lv", 0, 0, 52, 24, `LV {bar.fromLevel}`, {
@@ -238,39 +245,40 @@ function Smash.matchEnd(
 				z = 8,
 			})
 			num.Visible = false
-			-- (over the bar, then the numbers take its place)
-			local up = Base.text(row, "LevelUp", 56, -4, bw, 28, "LEVEL UP!", {
-				color = Base.color("go"),
-				stroke = 4,
-				z = 9,
-			})
-			up.Visible = false
+			local fill = track:FindFirstChild("Fill") :: Frame?
 			popLater(row, 1.0, function()
-				if bar.levelUp then
-					Kit.setBar(track, 1)
-					task.delay(0.5, function()
-						if not row.Parent then
-							return
-						end
-						Base.setText(lv, `LV {bar.toLevel}`)
-						up.Visible = true
-						Anim.pop(up, 0.38, 0.3)
-						local fill = track:FindFirstChild("Fill") :: Frame?
-						if fill then
-							fill.Size = UDim2.fromScale(0, 1)
-						end
-						Kit.setBar(track, bar.toF)
-						task.delay(1.4, function()
-							if row.Parent then
-								up.Visible = false
-								num.Visible = true
-							end
-						end)
-					end)
-				else
+				if not bar.levelUp then
 					Kit.setBar(track, bar.toF)
 					num.Visible = true
+					return
 				end
+				task.delay(WinReward.FILL_AT - 1.0, function()
+					if fill and row.Parent then
+						Anim.to(
+							fill,
+							WinReward.FILL_SECS,
+							{ Size = UDim2.fromScale(1, 1) },
+							Enum.EasingStyle.Quart
+						)
+					end
+				end)
+				task.delay(WinReward.BANNER_AT - 1.0, function()
+					if not row.Parent then
+						return
+					end
+					Base.setText(lv, `LV {bar.toLevel}`)
+					Anim.pop(lv, 0.38, 0.3)
+					Reward.levelUp(rewardLayer, bar.toLevel, fx)
+					if fill then
+						fill.Size = UDim2.fromScale(0, 1)
+					end
+					Kit.setBar(track, bar.toF)
+					task.delay(1.4, function()
+						if row.Parent then
+							num.Visible = true
+						end
+					end)
+				end)
 			end)
 		end
 		local you = MatchEnd.placeWords(view.place, view.total)

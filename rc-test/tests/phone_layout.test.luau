@@ -9,7 +9,7 @@ local H = require("./harness")
 local L = require("./ui_layout")
 local roblox = require("@lune/roblox")
 
-local test, truthy = H.test, H.truthy
+local test, truthy, eq = H.test, H.truthy, H.eq
 
 print("Phone layout")
 
@@ -768,5 +768,47 @@ test("end screen: coins, XP, level bar and your place all in by 1.6 s, XP readab
 		st == nil or st.Color ~= roblox.Color3.new(1, 1, 1),
 		"+XP has a white stroke on the white panel"
 	)
+	h.close()
+end)
+
+-- the win screen's coins + LEVEL UP! (carter's pick A, 10-29): the coins start at +0 (the fake
+-- has no frame ticks, so their flight is checked in Studio), the banner slams down after the
+-- bar fills and is gone before the next round
+test("end screen: LEVEL UP! comes after the coins and goes before the next round", function()
+	local WinReward = require("../src/shared/WinReward")
+	local h = Smash.matchEnd(
+		{
+			place = 1,
+			total = 8,
+			top = { { name = "YOU", smashes = 9, me = true } },
+			winner = { name = "YOU", smashes = 9, me = true },
+			coins = 120,
+			xp = 40,
+			smashes = 9,
+			nextAt = 10,
+		},
+		nil,
+		{
+			fromLevel = 4,
+			fromF = 0.8,
+			toLevel = 5,
+			toF = 0.2,
+			into = 20,
+			need = 100,
+			levelUp = true,
+		}
+	)
+	local function amount(): string
+		local a = h.gui.gui:FindFirstChild("Amount", true)
+		return if a then a.Text else ""
+	end
+	eq(amount(), "+0", "the coins start at +0")
+	truthy(h.gui.gui:FindFirstChild("LevelUp", true) == nil, "banner too early")
+	S.advance(WinReward.lands(WinReward.COINS) + 0.3, 1 / 30)
+	truthy(h.gui.gui:FindFirstChild("Reward", true) ~= nil, "no coin layer")
+	S.advance(WinReward.BANNER_AT - WinReward.lands(WinReward.COINS) + 0.6, 1 / 30)
+	truthy(h.gui.gui:FindFirstChild("LevelUp", true) ~= nil, "no LEVEL UP!")
+	S.advance(WinReward.BANNER_HOLD + 0.8, 1 / 30)
+	truthy(h.gui.gui:FindFirstChild("LevelUp", true) == nil, "LEVEL UP! stays")
 	h.close()
 end)
