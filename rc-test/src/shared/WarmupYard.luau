@@ -85,7 +85,7 @@ for i = 0, 7 do
 	local row = i // 4
 	table.insert(
 		WarmupYard.spawns,
-		{ x = -54 + (i % 4) * 36, y = 2.5, z = -52 + row * 18, dx = 0, dz = 1 }
+		{ x = -54 + (i % 4) * 36, y = 2.5, z = -52 + row * 26, dx = 0, dz = 1 }
 	)
 end
 -- "?" box spots (big units, y = the floor's top): BoxServer.start, name WarmupBoxes
@@ -102,8 +102,9 @@ WarmupYard.boxSpots = {
 -- it goes round the centre wall and clear of the side walls and the barrels)
 WarmupYard.CIRCLE_R = 48
 WarmupYard.DUMMIES = {
-	{ at = v(-50, 2.5, 14), mode = "still" },
-	{ at = v(50, 2.5, 14), mode = "still" },
+	-- (the still ones well off the circling one's loop, which the floor paint marks)
+	{ at = v(-64, 2.5, 14), mode = "still" },
+	{ at = v(64, 2.5, 14), mode = "still" },
 	{ at = v(-20, 2.5, 34), mode = "still" },
 	{ at = v(0, 2.5, 10), mode = "circle" },
 } :: { { at: V3, mode: string } }
@@ -194,10 +195,36 @@ function WarmupYard.parts(): { any }
 	add("Ground", "Floor", v(W + 2 * APRON, 4, D + 2 * APRON), v(0, -2, 0), GRASS)
 	add("Ground", "Sand", v(110, 0.4, 64), v(0, 0.2, 10), SAND, { collide = false })
 	-- two-tone sand (rule 5): a darker lip round it and two raked bands across it
-	add("Ground", "SandLip", v(116, 0.1, 70), v(0, 0.05, 10), SAND_DARK, { collide = false })
+	add("Ground", "SandLip", v(116, 0.1, 70), v(0, 0.15, 10), SAND_DARK, { collide = false })
 	for _, bz in { -6, 26 } do
 		add("Ground", "SandBand", v(110, 0.4, 8), v(0, 0.6, bz), SAND_DARK, { collide = false })
 	end
+	-- floor paint (auditor round 13: the pen read flat): a dashed sunny ring on the circling
+	-- target kart's path, and a white start line behind the spawns
+	local ring = WarmupYard.DUMMIES[4].at
+	for k = 0, 31 do
+		local a = (k + 0.5) / 32 * 2 * math.pi
+		add(
+			"Ground",
+			"RingPaint",
+			v(5, 0.2, 2),
+			v(
+				ring.x + math.cos(a) * WarmupYard.CIRCLE_R,
+				0.9,
+				ring.z + math.sin(a) * WarmupYard.CIRCLE_R
+			),
+			YELLOW,
+			{ rot = v(0, -math.deg(a) + 90, 0), collide = false }
+		)
+	end
+	add(
+		"Ground",
+		"StartLine",
+		v(150, 0.2, 3),
+		v(0, 0.9, WarmupYard.spawns[1].z - 10),
+		WHITE,
+		{ collide = false }
+	)
 	-- mowed stripes (LOOK-BIBLE rule 5: a second tone on the big floor)
 	for k = -4, 4 do
 		if k % 2 == 0 then
@@ -364,8 +391,8 @@ function WarmupYard.parts(): { any }
 		add(
 			"Decor",
 			"GrassPatch",
-			v(g[3], 0.12, g[3] * 0.7),
-			v(g[1], 0.06, g[2]),
+			v(g[3], 0.1, g[3] * 0.7),
+			v(g[1], 0.25, g[2]), -- (its own height: over the stripes and the sand lip)
 			if i % 2 == 0 then GRASS_DARK else GRASS_LIGHT,
 			{ rot = v(0, i * 37, 0), collide = false }
 		)
@@ -496,12 +523,110 @@ end
 
 -- Build it under `parent` (server), at RC size. The board's Face carries the clock
 -- (WarmupYard.client draws on it).
+-- Smash dressing round the pen (big units, before the yard shrinks to RC size). Looks only.
+WarmupYard.TYRES =
+	{ { -122, -58 }, { -122, -24 }, { -122, 44 }, { 122, -58 }, { 122, -24 }, { 122, 44 } }
+WarmupYard.FIELD_BUSHES =
+	{ { -165, -125 }, { 165, -125 }, { -170, 30 }, { 170, 30 }, { -90, -150 }, { 90, -150 } }
+WarmupYard.BALLOONS = { { 0, -96 }, { -128, 0 }, { 128, 0 }, { -40, 100 }, { 40, 100 } }
+function WarmupYard.extras(kit: any, dress: Instance)
+	local CollectionService = game:GetService("CollectionService")
+	local function c3(c: { number }): Color3
+		return Color3.fromRGB(c[1], c[2], c[3])
+	end
+	for _, t in WarmupYard.TYRES do
+		kit.tyreStack(dress, Vector3.new(t[1], 0, t[2]), 12, 3, false)
+	end
+	local cx, cz =
+		WarmupYard.W / 2 + WarmupYard.WALL_T + 8, WarmupYard.D / 2 + WarmupYard.WALL_T + 8
+	local FLAGS = { PINK, YELLOW, { 91, 209, 91 }, PURPLE }
+	local k = 0
+	for _, sx in { -1, 1 } do
+		for _, sz in { -1, 1 } do
+			k += 1
+			kit.flag(
+				dress,
+				Vector3.new(sx * cx, 0, sz * cz),
+				40,
+				c3(FLAGS[k]),
+				Vector3.new(sx, 0, 0),
+				false
+			)
+		end
+	end
+	for i, b in WarmupYard.FIELD_BUSHES do
+		kit.bush(dress, Vector3.new(b[1], 0, b[2]), 10, 90 + i, false)
+	end
+	local COLS = { PINK, YELLOW, PURPLE }
+	for i, b in WarmupYard.BALLOONS do
+		local foot = Vector3.new(b[1], 0, b[2])
+		local cord = kit.post(dress, "BalloonString", foot, 0.6, 33, c3(WHITE), false)
+		cord.CastShadow = false
+		for j, col in COLS do
+			local a = (i + j) * 2.1
+			local ball = kit.ball(
+				dress,
+				"Balloon",
+				foot + Vector3.new(math.cos(a) * 3.6, 30 + j * 2, math.sin(a) * 3.6),
+				9,
+				c3(col),
+				false
+			)
+			ball.CastShadow = false -- (it moves every frame)
+			ball:SetAttribute("Phase", i * 1.3 + j)
+			CollectionService:AddTag(ball, "LobbyBob")
+		end
+	end
+	local b = WarmupYard.BOARD
+	local box = kit.part(
+		dress,
+		"QuestionBox",
+		Vector3.new(14, 14, 14),
+		CFrame.new(b.at.x, b.at.y + b.h / 2 + 14, b.at.z),
+		c3(YELLOW),
+		false
+	)
+	box.CastShadow = false -- (it moves every frame)
+	for _, face in
+		{ Enum.NormalId.Front, Enum.NormalId.Back, Enum.NormalId.Left, Enum.NormalId.Right }
+	do
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = face
+		gui.LightInfluence = 0
+		gui.CanvasSize = Vector2.new(200, 200)
+		gui.Parent = box
+		local q = Instance.new("TextLabel")
+		q.Size = UDim2.fromScale(1, 1)
+		q.BackgroundTransparency = 1
+		q.Text = "?"
+		q.Font = Enum.Font.FredokaOne
+		q.TextScaled = true
+		q.TextColor3 = Color3.new(1, 1, 1)
+		q.Parent = gui
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = c3(NAVY)
+		stroke.Thickness = 6
+		stroke.Parent = q
+	end
+	CollectionService:AddTag(box, "LobbySpin")
+end
+
 function WarmupYard.build(parent: Instance): Model
 	local model = Instance.new("Model")
 	model.Name = "WarmupYard"
 	-- (StreamingEnabled: small, and the board's clock must always be there)
 	model.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
 	Garage.makeParts(WarmupYard.parts(), model, CFrame.identity)
+	-- floor paint and layers are looks only: out of the wheels' rays too, or every kart bumps
+	-- over the ring dashes and the start line (Garage pieces are queryable by default)
+	local ground = model:FindFirstChild("Ground")
+	if ground then
+		for _, p in ground:GetChildren() do
+			if p:IsA("BasePart") and not p.CanCollide then
+				p.CanQuery = false
+			end
+		end
+	end
 	-- the valley's round hills: an ellipsoid each (a Part with a sphere mesh), half sunk
 	local valley = Instance.new("Folder")
 	valley.Name = "Valley"
@@ -545,6 +670,13 @@ function WarmupYard.build(parent: Instance): Model
 		end
 		for i, b in WarmupYard.BUSHES do
 			pcall(kit.bush, dress, Vector3.new(b[1], 0, b[2]), 7, 60 + i, false)
+		end
+		-- the empty field round the pen (auditor round 13): tyre stacks along the walls, a flag
+		-- on every corner, bush clumps out on the grass, balloon bunches that bob and a "?"
+		-- box spinning over the board (LobbyMotion moves them on each screen)
+		local okExtras, why = pcall(WarmupYard.extras, kit, dress)
+		if not okExtras then
+			warn("[WarmupYard] dressing:", why)
 		end
 		dress.Parent = model
 	end

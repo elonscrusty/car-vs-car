@@ -37,6 +37,18 @@ test("yard: spawns, boxes and dummies all inside the walls, and apart", function
 				local r = math.sqrt((b.x - d.at.x) ^ 2 + (b.z - d.at.z) ^ 2)
 				truthy(math.abs(r - Y.CIRCLE_R) >= 6, "a box on the dummy's loop")
 			end
+			-- nor a spawn or a still dummy (the circling one would drive through it; the floor
+			-- paint marks the loop)
+			for _, p in Y.spawns do
+				local r = math.sqrt((p.x - d.at.x) ^ 2 + (p.z - d.at.z) ^ 2)
+				truthy(math.abs(r - Y.CIRCLE_R) >= 6, "a spawn on the dummy's loop")
+			end
+			for _, o in Y.DUMMIES do
+				if o.mode == "still" then
+					local r = math.sqrt((o.at.x - d.at.x) ^ 2 + (o.at.z - d.at.z) ^ 2)
+					truthy(math.abs(r - Y.CIRCLE_R) >= 6, "a still dummy on the dummy's loop")
+				end
+			end
 		end
 	end
 	for i, a in all do
