@@ -47,6 +47,66 @@ function Kit.gloss(f: GuiObject, color: Color3, amount: number?, rotation: numbe
 	return gg
 end
 
+-- carter's kit v41: a hex color, cached
+local hexes: { [string]: Color3 } = {}
+function Kit.hex(h: string): Color3
+	local c = hexes[h]
+	if not c then
+		c = Color3.fromRGB(UiTheme.hex(h))
+		hexes[h] = c
+	end
+	return c
+end
+
+-- A face run top to bottom through the kit's colors (2-4 hex stops, evenly spread; 3 stops put
+-- the middle one at 0.5). Its BackgroundColor3 goes white so the gradient is the color.
+function Kit.face(f: GuiObject, stops: { string }, rotation: number?): UIGradient
+	f.BackgroundColor3 = WHITE
+	local g = f:FindFirstChild("Gloss") :: UIGradient?
+	if not g then
+		local made = Instance.new("UIGradient")
+		made.Name = "Gloss"
+		made.Parent = f
+		g = made
+	end
+	local gg = g :: UIGradient
+	gg.Rotation = rotation or 90
+	local keys = {}
+	for i, h in stops do
+		table.insert(keys, ColorSequenceKeypoint.new((i - 1) / math.max(1, #stops - 1), Kit.hex(h)))
+	end
+	if #keys == 1 then
+		table.insert(keys, ColorSequenceKeypoint.new(1, Kit.hex(stops[1])))
+	end
+	gg.Color = ColorSequence.new(keys)
+	return gg
+end
+
+-- The kit's inner white rim (2 px at 20% white) just inside a face, and the gloss band over its
+-- top third (white 62% fading to 10%).
+function Kit.rim(face: Frame, w: number, h: number, radius: number?)
+	local r = radius or 12
+	local rim = Base.box(face, "Rim", 2, 2, w - 4, h - 4, face.ZIndex)
+	Base.corner(rim, math.max(2, r - 2))
+	local st = Base.outline(rim, 2, WHITE)
+	st.Transparency = UiTheme.CHROME.rim
+	local top = Base.fill(
+		face,
+		"Top",
+		7,
+		4,
+		math.max(1, w - 14),
+		h * UiTheme.CHROME.gloss,
+		WHITE,
+		face.ZIndex
+	)
+	Base.corner(top, math.max(2, r - 4))
+	local tg = Instance.new("UIGradient")
+	tg.Rotation = 90
+	tg.Transparency = NumberSequence.new(0.38, 0.9)
+	tg.Parent = top
+end
+
 -- ===== Button =====
 
 export type Button = TextButton
@@ -59,9 +119,16 @@ local function paintButton(b: TextButton, toneName: string)
 	local face = body:FindFirstChild("Face") :: Frame
 	local label = body:FindFirstChild("Label") :: TextLabel?
 	local off = b:GetAttribute("Off") == true
-	local fill = if off then GREY else Base.color(t.fill)
-	body.BackgroundColor3 = if off then GREY_DEEP else Base.color(t.deep)
-	Kit.gloss(face, fill)
+	-- the kit's 3D face: hi -> c -> c2 over its deep base (carter's kit v41)
+	local f3 = UiTheme.FACE[if off then "off" else toneName]
+	if f3 then
+		body.BackgroundColor3 = Kit.hex(f3.deep)
+		Kit.face(face, { f3.hi, f3.c, f3.c2 })
+	else
+		local fill = if off then GREY else Base.color(t.fill)
+		body.BackgroundColor3 = if off then GREY_DEEP else Base.color(t.deep)
+		Kit.gloss(face, fill)
+	end
 	local white = toneName == "white" and not off
 	if label then
 		label.TextColor3 = if white then INK else WHITE
@@ -117,6 +184,7 @@ function Kit.button(
 	Base.outline(body, UiTheme.OUTLINE.normal)
 	local face = Base.fill(body, "Face", 0, 0, w, h - ledge, WHITE, 1)
 	Base.corner(face, radius)
+	Kit.rim(face, w, h - ledge, radius)
 	local inset = radius * 0.25
 	local clip =
 		Base.box(face, "Clip", inset, inset * 0.6, w - 2 * inset, h - ledge - inset * 1.2, 1)
@@ -475,7 +543,8 @@ export type Window = {
 
 -- A window on the canvas at `piece` (the body's box): white body (faint dots), blue slab 8 px left
 -- and 9 px down behind it, cyan title half outside the top-left, tilted red X off the top-right.
--- opts: blue (a blue glossy popup body with the pattern, no X), noClose, onClose.
+-- opts: blue (a blue glossy popup body with the pattern, no X), navy (carter's kit v41: the
+-- navy panel body, its title white on an ink outline), noClose, onClose.
 function Kit.window(canvas: Instance, piece: UiScreens.Piece, opts: { [string]: any }?): Window
 	local o: { [string]: any } = opts or {}
 	local w, h = piece.w, piece.h
@@ -485,15 +554,22 @@ function Kit.window(canvas: Instance, piece: UiScreens.Piece, opts: { [string]: 
 	root.ZIndex = 2
 	root.Parent = canvas
 	Base.place(root, piece)
-	local slab =
-		Base.fill(root, "Slab", UiTheme.SLAB.x, UiTheme.SLAB.y, w, h, Base.color("blue"), 1)
-	Base.corner(slab, C.window)
-	Base.outline(slab, UiTheme.OUTLINE.thick, Base.color("blueDeep"))
-	local body = Base.fill(root, "Body", 0, 0, w, h, WHITE, 2)
-	Base.corner(body, C.window)
-	Base.outline(body, UiTheme.OUTLINE.thick, Base.color("blueDeep"))
+	local body: Frame
+	if o.navy then
+		body = Kit.navyPanel(root, "Body", 0, 0, w, h, C.window)
+	else
+		local slab =
+			Base.fill(root, "Slab", UiTheme.SLAB.x, UiTheme.SLAB.y, w, h, Base.color("blue"), 1)
+		Base.corner(slab, C.window)
+		Base.outline(slab, UiTheme.OUTLINE.thick, Base.color("blueDeep"))
+		body = Base.fill(root, "Body", 0, 0, w, h, WHITE, 2)
+		Base.corner(body, C.window)
+		Base.outline(body, UiTheme.OUTLINE.thick, Base.color("blueDeep"))
+	end
 	local back = Base.box(body, "Back", 6, 6, w - 12, h - 12, 1)
-	if o.blue then
+	if o.navy then
+		-- (the panel's own stripes are its texture)
+	elseif o.blue then
 		Kit.gloss(body, Base.color("blue"), 0.3)
 		Pattern.attach(back)
 	else
@@ -504,15 +580,19 @@ function Kit.window(canvas: Instance, piece: UiScreens.Piece, opts: { [string]: 
 	local words = o.title or piece.text
 	if words then
 		local tw = math.min(w - 70, #words * 0.6 * T.title.size + 24)
-		title = Base.text(root, "Title", 14, -40, tw, 50, words, {
-			color = Base.color("blue"),
-			stroke = T.title.stroke,
-			strokeColor = WHITE,
-			drop = T.title.drop,
-			dropColor = Base.color("blueDeep"),
-			align = "l",
-			z = 9,
-		})
+		if o.navy then
+			title = Kit.title(root, 14, -40, tw, 50, words, nil, "l")
+		else
+			title = Base.text(root, "Title", 14, -40, tw, 50, words, {
+				color = Base.color("blue"),
+				stroke = T.title.stroke,
+				strokeColor = WHITE,
+				drop = T.title.drop,
+				dropColor = Base.color("blueDeep"),
+				align = "l",
+				z = 9,
+			})
+		end
 	end
 	local close: TextButton? = nil
 	if not o.blue and not o.noClose then
@@ -554,6 +634,124 @@ function Kit.placedPanel(canvas: Instance, piece: UiScreens.Piece, radius: numbe
 	Base.place(holder, piece)
 	local f = Kit.panel(holder, "Panel", 0, 0, piece.w, piece.h, radius)
 	return holder, f
+end
+
+-- ===== carter's kit v41 chrome: navy panel, blue card, title =====
+
+-- The kit's panel (.pn): navy top to bottom, a 3 px light-blue rim, a 3 px ink line outside it
+-- and a soft highlight across the top.
+function Kit.navyPanel(
+	parent: Instance,
+	name: string,
+	x: number,
+	y: number,
+	w: number,
+	h: number,
+	radius: number?
+): Frame
+	local r = radius or 20
+	-- (the rim and the ink line are frames behind it: a UIStroke on the panel would be tinted by
+	-- its navy gradient)
+	local line = Base.fill(parent, name .. "Line", x - 6, y - 6, w + 12, h + 12, INK, 1)
+	Base.corner(line, r + 6)
+	local rim = Base.fill(
+		parent,
+		name .. "Rim",
+		x - 3,
+		y - 3,
+		w + 6,
+		h + 6,
+		Kit.hex(UiTheme.CHROME.panelRim),
+		2
+	)
+	Base.corner(rim, r + 3)
+	local f = Base.fill(parent, name, x, y, w, h, WHITE, 3)
+	Base.corner(f, r)
+	Kit.face(f, UiTheme.CHROME.panel)
+	-- (the kit's faint 3.5% stripes are left off: a rotated frame is not clipped in Roblox)
+	local top = Base.fill(f, "Top", 14, 3, math.max(1, w - 28), math.min(22, h * 0.3), WHITE, 1)
+	Base.corner(top, 12)
+	local tg = Instance.new("UIGradient")
+	tg.Rotation = 90
+	tg.Transparency = NumberSequence.new(0.88, 1)
+	tg.Parent = top
+	return f
+end
+
+-- The kit's card (.cd): blue top to bottom, 2.5 px ink outline, an inner light rim and a 4 px ink
+-- drop. selected: a 4 px gold ring and a soft gold glow (Kit.select).
+function Kit.plate(
+	parent: Instance,
+	name: string,
+	x: number,
+	y: number,
+	w: number,
+	h: number,
+	selected: boolean?,
+	radius: number?
+): Frame
+	local r = radius or 14
+	local drop = Base.fill(parent, name .. "Drop", x, y + 4, w, h, INK, 1)
+	Base.corner(drop, r)
+	local f = Base.fill(parent, name, x, y, w, h, WHITE, 2)
+	Base.corner(f, r)
+	Kit.face(f, UiTheme.CHROME.card)
+	Base.outline(f, UiTheme.OUTLINE.small)
+	Kit.rim(f, w, h, r)
+	Kit.select(f, selected == true)
+	return f
+end
+
+-- A plate's gold ring and glow, on or off.
+function Kit.select(f: Frame, on: boolean)
+	local ring = f:FindFirstChild("Ring") :: Frame?
+	if not ring then
+		local w, h = Base.designSize(f)
+		-- (just outside the card's 2.5 px ink outline and its 4 px drop)
+		local made = Base.box(f, "Ring", -2.5, -2.5, w + 5, h + 9, f.ZIndex + 1)
+		Base.corner(made, 16)
+		Base.outline(made, 4, Kit.hex(UiTheme.CHROME.cardSelected))
+		local glow = Base.box(made, "Glow", -4, -4, w + 13, h + 17, f.ZIndex)
+		Base.corner(glow, 24)
+		local gs = Base.outline(glow, 6, Kit.hex(UiTheme.CHROME.cardSelected))
+		gs.Transparency = 0.6
+		ring = made
+	end
+	(ring :: Frame).Visible = on
+	f:SetAttribute("Selected", on)
+end
+
+-- The kit's title (.t-title): a thick ink outline and ink drop, the letters filled top to bottom
+-- (look: "white" -> sky, "gold", "red" or "ice"; the kit's thin white inner line is left off).
+function Kit.title(
+	parent: Instance,
+	x: number,
+	y: number,
+	w: number,
+	h: number,
+	words: string,
+	look: string?,
+	align: string?
+): TextLabel
+	local stops = UiTheme.CHROME.title[look or "white"] or UiTheme.CHROME.title.white
+	local l = Base.text(parent, "Title", x, y, w, h - T.title.drop, words, {
+		color = WHITE,
+		stroke = T.title.stroke,
+		drop = T.title.drop,
+		align = align,
+		z = 9,
+	})
+	local g = Instance.new("UIGradient")
+	g.Name = "Fill"
+	g.Rotation = 90
+	g.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Kit.hex(stops[1])),
+		ColorSequenceKeypoint.new(0.5, Kit.hex(stops[2])),
+		ColorSequenceKeypoint.new(0.54, Kit.hex(stops[3])),
+		ColorSequenceKeypoint.new(1, Kit.hex(stops[4])),
+	})
+	g.Parent = l
+	return l
 end
 
 -- A section line: words with a line each side.
@@ -989,13 +1187,30 @@ function Kit.bar(
 ): Frame
 	local o: { [string]: any } = opts or {}
 	local track = Base.fill(parent, name, x, y, w, h, Base.color(o.track or "navy"), o.z or 2)
+	if not o.track then
+		-- carter's kit v41: a recessed dark track, its top in shadow
+		Kit.face(track, UiTheme.CHROME.track)
+	end
 	Base.corner(track)
 	Base.outline(track, if h < 20 then UiTheme.OUTLINE.small else UiTheme.OUTLINE.normal)
 	track.ClipsDescendants = true
 	local fill = Base.fill(track, "Fill", 0, 0, w, h, Base.color(colorName), 1)
 	Base.corner(fill)
-	local hi = Base.fill(fill, "Shine", 8, h * 0.14, w - 16, h * 0.2, WHITE, 3)
-	hi.BackgroundTransparency = 0.5
+	-- the kit's fill runs light -> color -> deeper: a soft dark band over its lower half (the
+	-- color stays the fill's BackgroundColor3, so screens can still recolor it)
+	-- (the fill's full size and corners, clear on top: square corners poked out past its ends)
+	local low = Base.fill(fill, "Low", 0, 0, w, h, Color3.new(0, 0, 0), 2)
+	Base.corner(low)
+	local lg = Instance.new("UIGradient")
+	lg.Rotation = 90
+	lg.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.5, 1),
+		NumberSequenceKeypoint.new(1, 0.82),
+	})
+	lg.Parent = low
+	local hi = Base.fill(fill, "Shine", 6, 2, w - 12, h * 0.3, WHITE, 3)
+	hi.BackgroundTransparency = 0.45
 	Base.corner(hi)
 	if not o.still then
 		stripes(fill)
@@ -1257,7 +1472,8 @@ function Kit.tag(
 	return holder
 end
 
--- ===== Tabs: a navy pill of 2-4 tabs; the selected one glossy lime with the pattern =====
+-- ===== Tabs: a navy pill of 2-4 tabs (carter's kit v41: the others sit 3 px lower and darker, the
+-- selected one raised and cyan, or gold with look "gold" on the shop) =====
 
 export type Tabs = { frame: Frame, set: (i: number) -> () }
 
@@ -1270,8 +1486,10 @@ function Kit.tabs(
 	items: { string },
 	active: number?,
 	onChange: ((i: number) -> ())?,
-	icons: { string? }?
+	icons: { string? }?,
+	look: string?
 ): Tabs
+	local gold = look == "gold"
 	local f = Base.fill(parent, "Tabs", x, y, w, h, Base.color("navy"), 3)
 	Base.corner(f)
 	Base.outline(f, UiTheme.OUTLINE.normal)
@@ -1281,7 +1499,8 @@ function Kit.tabs(
 	end
 	local pad = 4
 	local cx = pad
-	local tabs: { { b: TextButton, on: Frame, words: TextLabel } } = {}
+	local tabs: { { b: TextButton, on: Frame, off: Frame, words: TextLabel, up: UDim2, th: number } } =
+		{}
 	for i, t in items do
 		local tw = (w - pad * 2 - (#items - 1) * 4) * (#t + 4) / total
 		local b = Instance.new("TextButton")
@@ -1292,14 +1511,18 @@ function Kit.tabs(
 		b.ZIndex = 2
 		b.Parent = f
 		Base.at(b, cx, pad, tw, h - pad * 2)
-		local on = Base.fill(b, "On", 0, 0, tw, h - pad * 2, Base.color("limeDeep"), 1)
-		Base.corner(on)
+		local th = h - pad * 2
+		local off = Base.fill(b, "Off", 0, 3, tw, th - 3, WHITE, 1)
+		Base.corner(off, 12)
+		Kit.face(off, UiTheme.CHROME.tabOff)
+		Base.outline(off, UiTheme.OUTLINE.small)
+		local on = Base.fill(b, "On", 0, 0, tw, th, Kit.hex(if gold then "b86d00" else "0b5cb4"), 1)
+		Base.corner(on, 12)
 		Base.outline(on, UiTheme.OUTLINE.small)
-		local face = Base.fill(on, "Face", 0, 0, tw, h - pad * 2 - 4, WHITE, 1)
-		Base.corner(face)
-		Kit.gloss(face, Base.color("lime"), 0.4)
-		local clip = Base.box(face, "Clip", 6, 2, tw - 12, h - pad * 2 - 8, 1)
-		Pattern.attach(clip)
+		local face = Base.fill(on, "Face", 0, 0, tw, th - 4, WHITE, 1)
+		Base.corner(face, 12)
+		Kit.face(face, if gold then UiTheme.CHROME.tabGold else UiTheme.CHROME.tabOn)
+		Kit.rim(face, tw, th - 4, 12)
 		local tx = 6
 		local ic = icons and icons[i]
 		if ic then
@@ -1316,7 +1539,10 @@ function Kit.tabs(
 			t,
 			{ stroke = 3.5, z = 4 }
 		)
-		table.insert(tabs, { b = b, on = on, words = words })
+		table.insert(
+			tabs,
+			{ b = b, on = on, off = off, words = words, up = words.Position, th = th }
+		)
 		Anim.press(b)
 		b.Activated:Connect(function()
 			if onChange then
@@ -1329,10 +1555,17 @@ function Kit.tabs(
 		for i, t in tabs do
 			local sel = i == n
 			t.on.Visible = sel
-			t.words.TextColor3 = if sel then WHITE else Base.color("rowEdge")
+			t.off.Visible = not sel
+			-- (the words sit 3 px lower with the tab when it is not picked)
+			t.words.Position = if sel then t.up else t.up + UDim2.fromScale(0, 3 / t.th)
+			local inkWords = sel and gold
+			t.words.TextColor3 = if inkWords
+				then INK
+				elseif sel then WHITE
+				else Kit.hex(UiTheme.CHROME.tabOffWords)
 			local st = t.words:FindFirstChildOfClass("UIStroke")
 			if st then
-				st.Enabled = sel
+				st.Enabled = sel and not inkWords
 			end
 		end
 	end
@@ -1374,18 +1607,16 @@ function Kit.toggle(
 	local state = on
 	local function set(v: boolean, instant: boolean?)
 		state = v
+		-- carter's kit v41: green when on, a recessed dark track when off
 		if v then
-			Kit.gloss(body, Base.color("lime"), 0.35)
+			local f3 = UiTheme.FACE.lime
+			Kit.face(body, { f3.hi, f3.c, f3.c2 })
 		else
-			local g = body:FindFirstChild("Gloss")
-			if g then
-				g:Destroy()
-			end
-			body.BackgroundColor3 = Base.color("barEmpty")
+			Kit.face(body, UiTheme.CHROME.track)
 		end
 		Base.at(words, if v then 8 else 36, 11, 32, 18)
 		words.Text = if v then "ON" else "OFF"
-		words.TextColor3 = if v then WHITE else Base.color("inkMuted")
+		words.TextColor3 = if v then WHITE else Kit.hex(UiTheme.CHROME.tabOffWords)
 		local st = words:FindFirstChildOfClass("UIStroke")
 		if st then
 			st.Enabled = v
