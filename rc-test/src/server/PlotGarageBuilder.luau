@@ -19,6 +19,7 @@ local Garage = require(ReplicatedStorage.Shared.Garage)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local PlotGarage = require(ReplicatedStorage.Shared.PlotGarage)
 local PlotShowroom = require(ReplicatedStorage.Shared.PlotShowroom)
+local PropKit = require(ReplicatedStorage.Shared.PropKit)
 local Tycoon = require(ReplicatedStorage.Shared.Tycoon)
 
 local PlotGarageBuilder = {}
@@ -210,6 +211,18 @@ function PlotGarageBuilder.start()
 			l.Parent = gui
 			gui.Parent = board
 		end
+		-- the tyre stacks and barrels, from the shared PropKit (one look with the arena)
+		local props = Instance.new("Model")
+		props.Name = "Props"
+		for _, p in PlotShowroom.PROPS do
+			local at = (pivot * CFrame.new(p.x, 0.36, p.z)).Position
+			if p.kind == "tyres" then
+				PropKit.tyreStack(props, at, p.h)
+			elseif p.kind == "barrel" then
+				PropKit.barrel(props, at, p.h)
+			end
+		end
+		props.Parent = model
 		model.WorldPivot = pivot
 		model.Parent = plot
 	end

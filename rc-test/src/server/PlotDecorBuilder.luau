@@ -60,6 +60,12 @@ function PlotDecorBuilder.build()
 					d.Color = Color3.fromRGB(c[1], c[2], c[3])
 					d.Material = Enum.Material.SmoothPlastic
 				end
+				if d.Name == "Entrance" then
+					-- a wide sand walk from the gate to the showroom (no grass gap at the gate)
+					local depth = PlotDecor.HALF_D - PlotDecor.FRONT_Z
+					d.Size = Vector3.new(2 * PlotDecor.GATE + 4, 0.2, depth)
+					d.CFrame = pivot * CFrame.new(0, 0.1, PlotDecor.FRONT_Z + depth / 2)
+				end
 			elseif d:IsA("BasePart") and isBaseWall(d, pivot) then
 				d.Color = wall
 				if slot.id == "rock" then
