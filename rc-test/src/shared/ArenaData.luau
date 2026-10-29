@@ -613,20 +613,31 @@ function ArenaData.track(): any -- a TrackData.Track (Lune can't load the type h
 end
 
 -- The arena's light (LOOK RULE: warm sun, bloom), put on while the camera is in the arena.
+-- carter picked the "sunny" look (10-29, sky-tries picture A): bright blue sky, soft clouds,
+-- clear warm light, a little extra colour and glow. ArenaSky puts it on while over the arena.
 ArenaData.lighting = {
-	ClockTime = 14,
-	GeographicLatitude = 25,
-	Brightness = 3,
-	ExposureCompensation = 0.15,
-	ShadowSoftness = 0.3,
-	EnvironmentDiffuseScale = 0.7,
-	EnvironmentSpecularScale = 0.3,
+	ClockTime = 13.5,
+	GeographicLatitude = 20,
+	Brightness = 2.6,
+	ExposureCompensation = 0.1,
+	ShadowSoftness = 0.2,
+	EnvironmentDiffuseScale = 0.3,
+	EnvironmentSpecularScale = 0,
 }
-ArenaData.ambient = { 140, 130, 150 }
-ArenaData.outdoorAmbient = { 170, 160, 175 }
--- soft: no neon wash on phones
+ArenaData.ambient = { 110, 110, 128 }
+ArenaData.outdoorAmbient = { 150, 150, 165 }
+ArenaData.colorShiftTop = { 255, 240, 215 }
+ArenaData.atmosphere = {
+	Density = 0.3,
+	Offset = 0.25,
+	Haze = 0.6,
+	Glare = 0,
+	color = { 205, 228, 255 },
+	decay = { 170, 210, 250 },
+}
+ArenaData.clouds = { Cover = 0.5, Density = 0.6 }
 ArenaData.colorCorrection =
-	{ Brightness = 0.02, Contrast = 0.06, Saturation = 0.04, tint = { 255, 248, 238 } }
-ArenaData.bloom = { Intensity = 0.2, Size = 20, Threshold = 2 }
+	{ Brightness = 0.02, Contrast = 0.1, Saturation = 0.22, tint = { 255, 248, 238 } }
+ArenaData.bloom = { Intensity = 0.45, Size = 24, Threshold = 1.4 }
 
 return ArenaData
