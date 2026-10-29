@@ -65,7 +65,7 @@ PlotShowroom.CRATE = { x = 0, z = -42, w = 10, size = 5.5 }
 PlotShowroom.BANNER = { w = 30, h = 5, y = 12 } -- (high: seen over the hero kart from the gate)
 PlotShowroom.BACK_WALL = { z = -53.6, w = 66, h = 15 }
 -- a roller door either side of the sign, and a yellow stripe along the wall's top
-PlotShowroom.ROLLER_DOORS = { x = 23, w = 14, h = 10, slats = 6 }
+PlotShowroom.ROLLER_DOORS = { x = 23.2, w = 14, h = 10, slats = 6 }
 PlotShowroom.BANNER_TEXT = "MY GARAGE"
 PlotShowroom.TROPHIES = { { x = -6, z = -48 }, { x = 6, z = -48 } }
 -- two little "?" crates either side of the carpet at the gate end (the mid-ground)

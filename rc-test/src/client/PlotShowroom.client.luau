@@ -336,8 +336,12 @@ RunService.RenderStepped:Connect(function(dt: number)
 				for _, g in s.glow do
 					g.Transparency = 0.2 + 0.2 * math.sin(t * 2.5)
 				end
-				for i, b in s.bulbs do
-					b.Brightness = 0.6 + 0.5 * math.sin(t * 4 - i * math.pi / 4)
+				-- (the lights only on the plot you're in, ~80 studs: cheap on phones)
+				if (mid.Position - eye).Magnitude < 80 then
+					local step = 2 * math.pi / math.max(#s.bulbs, 1)
+					for i, b in s.bulbs do
+						b.Brightness = 0.6 + 0.5 * math.sin(t * 4 - i * step)
+					end
 				end
 			end
 		end
