@@ -857,12 +857,15 @@ function Kit.side(
 	holder.Position = UDim2.fromScale(0.5, 0.5)
 	local drop = Base.fill(holder, "Drop", 0, 3, s, s, INK, 1)
 	Base.corner(drop, C.slot)
-	local body = Base.fill(holder, "Body", 0, 0, s, s, Base.color("blueDeep"), 2)
+	-- carter's kit v41: the blue 3D tile (hi -> c -> c2 over its deep base, rim and gloss)
+	local f3 = UiTheme.FACE.blue
+	local body = Base.fill(holder, "Body", 0, 0, s, s, Kit.hex(f3.deep), 2)
 	Base.corner(body, C.slot)
 	Base.outline(body, UiTheme.OUTLINE.normal)
 	local face = Base.fill(body, "Face", 0, 0, s, s - 5, WHITE, 1)
 	Base.corner(face, C.slot)
-	Kit.gloss(face, Base.color("blue"), 0.35)
+	Kit.face(face, { f3.hi, f3.c, f3.c2 })
+	Kit.rim(face, s, s - 5, C.slot)
 	local clip = Base.box(face, "Clip", 3, 3, s - 6, s - 11, 1)
 	Pattern.attach(clip)
 	local io: { [string]: any } = iconOpts or {}
