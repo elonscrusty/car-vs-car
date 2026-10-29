@@ -364,24 +364,14 @@ test(
 		local v = MatchEnd.read(tied, 0, nil, nil, ME)
 		eq(v.place, 1, "tied for 1st, not 2nd")
 		eq(MatchEnd.placeWords(v.place, v.total), "1ST / 3")
-		local none = MatchEnd.read(
-			{
-				{ name = "A", smashes = 2, place = 1 },
-				{ name = "Me", smashes = 0, place = 0, userId = ME },
-			},
-			0,
-			nil,
-			nil,
-			ME
-		)
+		local noneRows = {
+			{ name = "A", smashes = 2, place = 1 },
+			{ name = "Me", smashes = 0, place = 0, userId = ME },
+		}
+		local none = MatchEnd.read(noneRows, 0, nil, nil, ME)
 		eq(MatchEnd.placeWords(none.place, none.total), "- / 2", "no smashes: no place")
-		local junk = MatchEnd.read(
-			{ { name = "Me", smashes = 1, place = 1e9, userId = ME } },
-			0,
-			nil,
-			nil,
-			ME
-		)
+		local junkRows = { { name = "Me", smashes = 1, place = 1e9, userId = ME } }
+		local junk = MatchEnd.read(junkRows, 0, nil, nil, ME)
 		eq(junk.place, 1, "a junk place falls back to the row")
 	end
 )
