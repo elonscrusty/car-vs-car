@@ -11,6 +11,7 @@ local test, eq, truthy = H.test, H.eq, H.truthy
 
 print("Smash hits")
 
+local myGun = 77
 local SIZES = { kart = 1.375, rocket = 2.75, nuke = 11, mine = 1.25 }
 
 local function shot(t: number, kind: string, x: number, z: number, extra: { [string]: any }?): any
@@ -56,6 +57,12 @@ test("smash hits: the weapon behind a Health drop", function()
 		shot(9.8, "GunShot", 0, 0, { owner = 3, hit = true }),
 	}
 	eq((SmashHits.guess(two, -1, 0, 0, 10, SIZES)), "gun")
+	-- the kart on your screen lags the server's hit point: a few studs off still counts
+	local moving = { shot(9.9, "GunShot", 10, 0, { owner = myGun, hit = true }) }
+	local mw, mby = SmashHits.guess(moving, -1, 13.5, 0, 10, SIZES)
+	eq(mw, "gun", "a gun hit on a fast kart is still the gun")
+	eq(mby, myGun)
+	eq((SmashHits.guess(moving, -1, 30, 0, 10, SIZES)), "bump", "far off is not that bullet")
 	SmashHits.prune(shots, 20)
 	eq(#shots, 0, "old shots are dropped")
 end)
@@ -118,7 +125,11 @@ test("smash hits: client text checks", function()
 	local src = fs.readFile("src/client/SmashHits.client.luau")
 	truthy(string.find(src, "SmashHits.hold(studio", 1, true) ~= nil, "slow-mo gated on Studio")
 	truthy(string.find(src, "local studio = RunService:IsStudio()", 1, true) ~= nil)
-	truthy(string.find(src, "if studio then", 1, true) ~= nil, "the Sfx log is Studio only")
+	truthy(
+		string.find(src, "if studio then\n\tlocal t = Sfx :: any", 1, true) ~= nil,
+		"the Sfx log is Studio only"
+	)
+	truthy(string.find(src, "SmashHits.SOUND_WAIT", 1, true) ~= nil, "the sound waits for the shot")
 	truthy(string.find(src, '"[Sfx] " .. name', 1, true) ~= nil, "each cue is logged")
 	truthy(string.find(src, "SmashFx.boom(at)", 1, true) ~= nil, "booms shake you")
 	truthy(string.find(src, "SmashFx.myHit(", 1, true) ~= nil, "your hit shakes you")

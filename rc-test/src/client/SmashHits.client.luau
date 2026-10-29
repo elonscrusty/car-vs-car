@@ -123,10 +123,7 @@ local function posOf(id: number): Vector3?
 	if not m then
 		return nil
 	end
-	local ok, cf = pcall(function()
-		return m:GetPivot()
-	end)
-	return if ok then cf.Position else nil
+	return m:GetPivot().Position
 end
 
 -- ===== the shots the WeaponFx remote showed (to tell which weapon hit) =====
@@ -212,12 +209,25 @@ local function flashKart(id: number)
 		new.Parent = m
 		h = new
 		flashes[m] = new
-		m.Destroying:Once(function()
-			flashes[m] = nil
+		local gone: RBXScriptConnection
+		gone = m.AncestryChanged:Connect(function()
+			if not m:IsDescendantOf(workspace) then
+				gone:Disconnect()
+				flashes[m] = nil
+			end
 		end)
 	end
 	local hl = h :: Highlight
 	local secs = math.max(SmashHits.FLASH_SECONDS, hold() or 0)
+	-- (off between hits: an idle Highlight still costs a render pass on a phone)
+	local flashId = ((hl:GetAttribute("FlashId") :: number?) or 0) + 1
+	hl:SetAttribute("FlashId", flashId)
+	task.delay(secs + 0.05, function()
+		if hl:GetAttribute("FlashId") == flashId then
+			hl.Enabled = false
+		end
+	end)
+	hl.Enabled = true
 	hl.FillColor = WHITE
 	hl.FillTransparency = 0.15
 	hl.OutlineTransparency = 0
@@ -243,7 +253,7 @@ local function showNumber(id: number, amount: number, weapon: string)
 	bb.Adornee = part
 	bb.AlwaysOnTop = true
 	bb.LightInfluence = 0
-	bb.MaxDistance = 150
+	bb.MaxDistance = 60 -- (past that a kart is a few pixels: no big number over it)
 	bb.Size = UDim2.fromOffset(96, 44)
 	bb.StudsOffset = Vector3.new(0, 0.6 * K, 0)
 	local l = Instance.new("TextLabel")
@@ -251,6 +261,10 @@ local function showNumber(id: number, amount: number, weapon: string)
 	l.Size = UDim2.fromScale(1, 1)
 	l.Font = Base.FONT
 	l.TextScaled = true
+	local fit = Instance.new("UITextSizeConstraint")
+	fit.MinTextSize = 18
+	fit.MaxTextSize = 40
+	fit.Parent = l
 	l.Text = SmashHits.text(amount)
 	l.TextColor3 = Color3.fromRGB(rgb[1], rgb[2], rgb[3])
 	l.Parent = bb
@@ -319,7 +333,9 @@ local function bubbleUp(id: number, till: number?)
 	p.Transparency = 1
 	p.Parent = bubbleFolder
 	bubbles[id] = { part = p, from = os.clock(), till = till }
-	say(string.format("shield bubble up on %s", nameOf(id)))
+	if logging() then
+		say(string.format("shield bubble up on %s", nameOf(id)))
+	end
 end
 
 local function bubbleDown(id: number)
@@ -339,6 +355,7 @@ local function bubbleDown(id: number)
 end
 
 -- players: the server's Shield attribute (on at a respawn and a round start, off after 2 s)
+local watchers: { [Player]: { RBXScriptConnection } } = {}
 local function watchPlayer(p: Player)
 	local function update()
 		if p:GetAttribute("Shield") == true and p:GetAttribute("InMatch") == true then
@@ -347,8 +364,10 @@ local function watchPlayer(p: Player)
 			bubbleDown(p.UserId)
 		end
 	end
-	p:GetAttributeChangedSignal("Shield"):Connect(update)
-	p:GetAttributeChangedSignal("InMatch"):Connect(update)
+	watchers[p] = {
+		p:GetAttributeChangedSignal("Shield"):Connect(update),
+		p:GetAttributeChangedSignal("InMatch"):Connect(update),
+	}
 	update()
 end
 for _, p in Players:GetPlayers() do
@@ -356,6 +375,10 @@ for _, p in Players:GetPlayers() do
 end
 Players.PlayerAdded:Connect(watchPlayer)
 Players.PlayerRemoving:Connect(function(p)
+	for _, c in watchers[p] or {} do
+		c:Disconnect()
+	end
+	watchers[p] = nil
 	bubbleDown(p.UserId)
 end)
 
@@ -372,24 +395,32 @@ local function onHealth(id: number, hp: number)
 	if hp < was and was > 0 then
 		local now = os.clock()
 		local amount = was - math.max(hp, 0)
-		pending[id] = SmashHits.add(pending[id], amount, now)
-		flashKart(id)
-		-- the sound right away (the number waits for the burst to end)
 		local pos = posOf(id)
-		if id ~= myId and pos then
-			local w = SmashHits.guess(shots, id, pos.X, pos.Z, now, SIZES)
-			if w == "bump" then
+		local p = SmashHits.add(pending[id], amount, now)
+		if pos and p.first == now then
+			p.x, p.z = pos.X, pos.Z -- (where it was hit: the kart moves on before the number)
+		end
+		pending[id] = p
+		flashKart(id)
+		-- the sound a moment later: the server sets Health just before it sends the shot or boom,
+		-- so wait for that to land before telling a weapon hit from a bump
+		task.delay(SmashHits.SOUND_WAIT, function()
+			if not pos then
+				return
+			end
+			local w = SmashHits.guess(shots, id, pos.X, pos.Z, now, SIZES, SmashHits.SOUND_WAIT)
+			if id == myId then
+				if w == "bump" then
+					Sfx.bump() -- (SmashFx plays your hit sound)
+				end
+			elseif w == "bump" then
 				local mine = posOf(myId)
 				local close = mine and (mine - pos).Magnitude < K * 1.6
 				Sfx.bump(if close then nil else pos)
 			else
 				Sfx.hit(pos)
 			end
-		elseif id == myId and pos then
-			if SmashHits.guess(shots, id, pos.X, pos.Z, now, SIZES) == "bump" then
-				Sfx.bump()
-			end
-		end
+		end)
 	elseif hp > was and was <= 0 then
 		-- back from a smash: the bots' bubble (players have the server's Shield)
 		if id < 0 then
@@ -424,7 +455,14 @@ local function watchBoard(board: Instance)
 	for _, row in board:GetChildren() do
 		watchRow(row)
 	end
-	board.ChildAdded:Connect(watchRow)
+	board.ChildAdded:Connect(function(row)
+		watchRow(row)
+		-- a bot joining a round starts behind the spawn shield too
+		local id = tonumber(row.Name)
+		if id and id < 0 then
+			bubbleUp(id, os.clock() + Match.SHIELD)
+		end
+	end)
 end
 do
 	local board = ReplicatedStorage:FindFirstChild("MatchBoard")
@@ -450,9 +488,17 @@ RunService.RenderStepped:Connect(function()
 			pending[id] = nil
 			local pos = posOf(id)
 			local weapon: string, owner: number? = "bump", nil
-			if pos then
-				weapon, owner =
-					SmashHits.guess(shots, id, pos.X, pos.Z, p.first, SIZES, SmashHits.MERGE)
+			local x, z = p.x or (pos and pos.X), p.z or (pos and pos.Z)
+			if x and z then
+				weapon, owner = SmashHits.guess(
+					shots,
+					id,
+					x,
+					z,
+					p.first,
+					SIZES,
+					p.last - p.first + SmashHits.MERGE
+				)
 			end
 			showNumber(id, p.amount, weapon)
 			-- your own hit: a small shake (a bump counts when you were right there)
@@ -466,17 +512,19 @@ RunService.RenderStepped:Connect(function()
 					SmashFx.myHit(p.amount)
 				end
 			end
-			say(
-				string.format(
-					"hit %s on %s %s%s (number %.1f s, flash %.2f s)",
-					weapon,
-					nameOf(id),
-					SmashHits.text(p.amount),
-					if owner then " by " .. nameOf(owner) else "",
-					math.max(SmashHits.NUMBER_SECONDS, hold() or 0),
-					math.max(SmashHits.FLASH_SECONDS, hold() or 0)
+			if logging() then
+				say(
+					string.format(
+						"hit %s on %s %s%s (number %.1f s, flash %.2f s)",
+						weapon,
+						nameOf(id),
+						SmashHits.text(p.amount),
+						if owner then " by " .. nameOf(owner) else "",
+						math.max(SmashHits.NUMBER_SECONDS, hold() or 0),
+						math.max(SmashHits.FLASH_SECONDS, hold() or 0)
+					)
 				)
-			)
+			end
 			freezeFrame("hit")
 		end
 	end

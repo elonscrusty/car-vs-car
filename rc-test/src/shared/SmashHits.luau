@@ -13,12 +13,16 @@ SmashHits.MERGE_MAX = 0.5 -- s: a number shows at most this long after its first
 SmashHits.NUMBER_SECONDS = 0.9 -- s the number floats up and fades (≥ 0.3 s on screen)
 SmashHits.FLASH_SECONDS = 0.35 -- s the victim's white-to-red flash fades
 SmashHits.LOOK_BACK = 0.6 -- s: shots and booms this old can still be the hit's cause
-SmashHits.NEAR = 1.6 -- kart lengths: how close a shot's end or a boom's edge is to count
+SmashHits.NEAR = 1.6 -- kart lengths: how close a bullet's or bolt's end is to count
+-- studs of slack on every reach: the kart on your screen is ~0.1-0.3 s behind the server's
+-- (a kart at RC top speed moves ~5 studs in 0.2 s)
+SmashHits.SLACK = 4
+SmashHits.SOUND_WAIT = 0.1 -- s the hit sound waits for the shot or boom (sent just after Health)
 
 -- the number's colour by weapon (the shot's own colour, so you can tell what hit you)
 SmashHits.COLORS = {
 	rocket = { 255, 130, 30 },
-	nuke = { 255, 210, 60 },
+	nuke = { 230, 40, 60 }, -- (cherry: clearly not the gun's yellow)
 	gun = { 255, 230, 120 },
 	mine = { 255, 111, 181 },
 	freeze = { 150, 220, 255 },
@@ -47,11 +51,11 @@ export type Shot = {
 -- how far a shot's end can be from the kart and still be its hit (studs; kart = `kart` studs)
 local function reach(s: Shot, kart: number, rocketSplash: number, nukeSplash: number, mine: number)
 	if s.kind == "RocketBoom" then
-		return (if s.nuke then nukeSplash else rocketSplash) + kart * 0.5
+		return (if s.nuke then nukeSplash else rocketSplash) + kart * 0.5 + SmashHits.SLACK
 	elseif s.kind == "MineBoom" then
-		return mine + kart * 0.5
+		return mine + kart * 0.5 + SmashHits.SLACK
 	end
-	return kart * SmashHits.NEAR
+	return kart * SmashHits.NEAR + SmashHits.SLACK
 end
 
 local WEAPON_OF: { [string]: string } = {
@@ -113,7 +117,7 @@ function SmashHits.prune(shots: { Shot }, now: number)
 end
 
 -- ===== one kart's hits merged into one number =====
-export type Pending = { first: number, last: number, amount: number }
+export type Pending = { first: number, last: number, amount: number, x: number?, z: number? }
 
 -- a hit of `amount` at `t`: add it to `p` (or start one); returns the pending number
 function SmashHits.add(p: Pending?, amount: number, t: number): Pending
