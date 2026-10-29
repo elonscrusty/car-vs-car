@@ -204,9 +204,9 @@ function PlotGarageBuilder.start()
 			l.Size = UDim2.fromScale(0.92, 0.8)
 			l.Font = Enum.Font.FredokaOne
 			l.TextScaled = true
-			l.TextColor3 = Color3.fromRGB(255, 210, 63)
+			l.TextColor3 = Color3.fromRGB(255, 95, 180) -- a neon sign: pink, a white edge
 			l.TextStrokeTransparency = 0
-			l.TextStrokeColor3 = Color3.fromRGB(22, 30, 66)
+			l.TextStrokeColor3 = Color3.fromRGB(255, 255, 255)
 			l.Text = PlotShowroom.BANNER_TEXT
 			l.Parent = gui
 			gui.Parent = board
@@ -223,6 +223,27 @@ function PlotGarageBuilder.start()
 			end
 		end
 		props.Parent = model
+		-- each bay's number on its tile, in the game font
+		local bays = groups.Bays
+		for i in PlotShowroom.SPOTS do
+			local tile = bays and bays:FindFirstChild("BayNumber" .. i)
+			if tile and tile:IsA("BasePart") then
+				local gui = Instance.new("SurfaceGui")
+				gui.Face = Enum.NormalId.Top
+				gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+				gui.PixelsPerStud = 40
+				gui.LightInfluence = 0
+				local l = Instance.new("TextLabel")
+				l.BackgroundTransparency = 1
+				l.Size = UDim2.fromScale(1, 1)
+				l.Font = Enum.Font.FredokaOne
+				l.TextScaled = true
+				l.TextColor3 = Color3.fromRGB(255, 210, 63)
+				l.Text = tostring(i)
+				l.Parent = gui
+				gui.Parent = tile
+			end
+		end
 		model.WorldPivot = pivot
 		model.Parent = plot
 	end

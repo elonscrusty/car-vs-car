@@ -118,7 +118,11 @@ test(
 		for _, p in R.pieces(#R.SPOTS) do
 			eq(
 				p.material,
-				if p.name == "TableGlow" or p.name == "LampBulb" then "Neon" else "SmoothPlastic",
+				if p.name == "TableGlow"
+						or p.name == "LampBulb"
+						or p.name == "SignGlow"
+					then "Neon"
+					else "SmoothPlastic",
 				p.name
 			)
 			if string.find(p.name, "Stand") or string.find(p.name, "Table") then
@@ -200,13 +204,22 @@ test("a real showroom: banner with words, trophies, little crates, floor edge ba
 	eq(names.MiniCrateBody, #R.MINI_CRATES)
 	eq(names.FloorEdge, 4)
 	eq(names.TableBay, 1) -- painted bays round the turntable and every stand
-	local bays = 0 -- (every bay painted, even with no stands)
+	-- every bay painted as a parking box with a number tile, even with no stands
+	local lines, numbers = 0, 0
 	for _, p in R.pieces(0) do
-		if p.name == "StandBay" then
-			bays += 1
+		if p.name == "BayLine" then
+			lines += 1
+		elseif string.sub(p.name, 1, 9) == "BayNumber" then
+			numbers += 1
 		end
 	end
-	eq(bays, #R.SPOTS)
+	eq(lines, 4 * #R.SPOTS)
+	eq(numbers, #R.SPOTS)
+	-- the boxes of side-by-side bays don't run into each other
+	local B = R.BAY
+	truthy(math.sqrt(B.w ^ 2 + B.l ^ 2) <= 12.2, "neighbour bays clear")
+	truthy(B.w > R.STAND.w and B.l > R.STAND.w, "a box round the stand")
+	eq(names.BackWall, 1)
 	-- the little crates sit beside the carpet, clear of the lamps and the stands
 	local T, L = R.TURNTABLE, R.LAMPS
 	for i, m in R.MINI_CRATES do
@@ -243,6 +256,7 @@ test("garage dressing fills the floor and keeps clear of the stands, lamps and c
 	end
 	keep(R.LIFT, 4.6, "lift")
 	keep(R.BENCH, 4.3, "bench")
+	keep(R.CART, 2.2, "toolbox cart")
 	for i, p in R.PROPS do
 		keep(p, p.h * 0.6, `prop {i}`)
 		truthy(math.abs(p.x) + p.h * 0.6 <= 34 and p.z - p.h * 0.6 >= -55, `prop {i} in the plot`)
