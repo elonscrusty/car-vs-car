@@ -260,7 +260,7 @@ local function place(info: Info, i: number)
 		info.last = cf.Position
 		if fleet and ArenaBots then
 			local k = state and state.karts[info.id]
-			pcall(ArenaBots.add, fleet, info.id, cf, { skill = nil, easy = next(newKids) ~= nil })
+			pcall(ArenaBots.add, fleet, info.id, cf, { skill = nil, easy = next(rookies) ~= nil })
 			if k then
 				k.shieldUntil = math.max(k.shieldUntil, now() + Match.SHIELD)
 			end
@@ -380,7 +380,7 @@ function MatchRunner.addBot(name: string?, skill: number?): number?
 	infos[id] = info
 	addBoard(info, nm)
 	if fleet and ArenaBots then
-		pcall(ArenaBots.add, fleet, id, cf, { skill = skill, easy = next(newKids) ~= nil })
+		pcall(ArenaBots.add, fleet, id, cf, { skill = skill, easy = next(rookies) ~= nil })
 	end
 	matchBoard:SetAttribute("MatchKarts", #m.list)
 	return id

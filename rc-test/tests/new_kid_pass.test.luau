@@ -13,11 +13,12 @@ print("Car VS Car SMASH: a no-skill new kid's first match")
 
 local KID = 601
 local BEAT = 0.05
-local SPEED = 14 -- studs/s: a kid who holds the stick forward (an RC kart's top is about 24)
+local SPEED = 14 -- studs/s: a kid who holds the stick forward (an RC kart's top is about 24);
+-- each seed's kid is a bit slower or faster (11..17), as kids are
 local CONE = math.rad(30) -- fires at any kart this close to straight ahead...
 local REACH = 35 -- ...and this near (studs)
 
-local function kid(S, player)
+local function kid(S, player, speed: number)
 	local TrackData = S.require("Shared.TrackData")
 	local LobbyLayout = S.require("Shared.LobbyLayout")
 	local Weapons = S.require("Shared.Weapons")
@@ -59,9 +60,9 @@ local function kid(S, player)
 			local dir = (best - at) * roblox.Vector3.new(1, 0, 1)
 			if dir.Magnitude > 0.2 then
 				look = dir.Unit
-				local step = math.min(SPEED * dt, dir.Magnitude)
+				local step = math.min(speed * dt, dir.Magnitude)
 				body.CFrame = roblox.CFrame.lookAt(at + look * step, at + look * (step + 1))
-				body.AssemblyLinearVelocity = look * SPEED
+				body.AssemblyLinearVelocity = look * speed
 			end
 		end
 		-- fire at whatever is in the cone ahead
@@ -86,6 +87,7 @@ local function kid(S, player)
 end
 
 local function firstMatch(seed: number): (number, number)
+	math.randomseed(seed) -- (bot names, spawn picks: math.random)
 	local S = Fake.server(Fake.store(), { seed = seed, jobId = "newkid-" .. seed })
 	S.require("Shared.Features").SMASH = true
 	S.run("Main")
@@ -93,8 +95,8 @@ local function firstMatch(seed: number): (number, number)
 	S.run("CarShop")
 	local MR = S.require("MatchRunner")
 	local p = S.join(KID)
-	kid(S, p)
-	S.advance(3, BEAT)
+	kid(S, p, SPEED + (seed % 7) - 3)
+	S.advance(2 + seed * 0.37, BEAT) -- (joins at a different moment each time)
 	S.send(p, "Garage", "pick", "race_bolt")
 	S.advance(1, BEAT)
 	MR.join(p)

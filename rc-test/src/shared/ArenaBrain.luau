@@ -22,7 +22,10 @@ ArenaBrain.RADIUS = 3 -- a kart's size, for bumping into things
 ArenaBrain.THINK = 0.2 -- s between decisions (5 Hz); moving runs every step
 -- A rookie (a player's first 3 matches, MatchRunner): bots chase them less, see them later, wait
 -- longer between shots and send some shots wide on purpose, so a new kid gets their smashes in.
-ArenaBrain.ROOKIE = { matches = 3, chase = 2.5, react = 1.2, gap = 1.0, wide = 0.4 }
+ArenaBrain.ROOKIE = { matches = 3, chase = 4, react = 1.5, gap = 1.5, wide = 0.6 }
+-- An easy match (a rookie is in it): every bot is a bit slower to shoot and to drive, at anyone,
+-- so the rookie's smashes count for more of the board.
+ArenaBrain.EASY = { gap = 0.8, react = 0.3, speed = 0.8 }
 ArenaBrain.LINE_UP = 0.7 -- armed and this far into the weapon's range: slow down to aim
 ArenaBrain.SAW_KEEP = 0.6 -- s a target can slip out of a fair shot and still count as seen
 ArenaBrain.TOKENS = 1 -- bots allowed to hunt the same player at once
@@ -468,13 +471,15 @@ local function aimAt(
 				local dx, dz = k.x - bot.x, k.z - bot.z
 				local d = math.sqrt(dx * dx + dz * dz)
 				if d <= use.range and d > 0 and -(dx * bx + dz * bz) / d >= math.cos(use.cone) then
-					bot.fireAt = now + ArenaBrain.FIRE_GAP
+					bot.fireAt = now
+						+ ArenaBrain.FIRE_GAP
+						+ (if bot.easy then ArenaBrain.EASY.gap else 0)
 					return { x = bot.x, z = bot.z }
 				end
 			end
 		end
 		if now - bot.armedSince >= ArenaBrain.MINE_HOLD then
-			bot.fireAt = now + ArenaBrain.FIRE_GAP
+			bot.fireAt = now + ArenaBrain.FIRE_GAP + (if bot.easy then ArenaBrain.EASY.gap else 0)
 			return { x = bot.x, z = bot.z }
 		end
 		return nil
@@ -506,13 +511,17 @@ local function aimAt(
 		+ (
 			if target.rookie
 				then ArenaBrain.ROOKIE.react
-				elseif target.human and bot.easy then 0.6
+				elseif target.human and bot.easy then 0.6 + ArenaBrain.EASY.react
+				elseif bot.easy then ArenaBrain.EASY.react
 				else 0
 		)
 	if now - bot.sawAt < react then
 		return nil
 	end
-	bot.fireAt = now + ArenaBrain.FIRE_GAP + (if target.rookie then ArenaBrain.ROOKIE.gap else 0)
+	bot.fireAt = now
+		+ ArenaBrain.FIRE_GAP
+		+ (if target.rookie then ArenaBrain.ROOKIE.gap else 0)
+		+ (if bot.easy then ArenaBrain.EASY.gap else 0)
 	if target.rookie and bot.rng:NextNumber() < ArenaBrain.ROOKIE.wide then
 		-- wide on purpose: off to one side by more than a kart's width plus the aim cone's slack
 		local side = if bot.rng:NextNumber() < 0.5 then -1 else 1
@@ -601,7 +610,9 @@ function ArenaBrain.step(
 		bot.goalX, bot.goalZ = ArenaBrain.via(world, bot.x, bot.z, bot.goalX, bot.goalZ)
 		bot.think = now + ArenaBrain.THINK
 	end
-	local top = ArenaBrain.TOP_SPEED * (0.8 + 0.2 * bot.skill) * (if bot.easy then 0.9 else 1)
+	local top = ArenaBrain.TOP_SPEED
+		* (0.8 + 0.2 * bot.skill)
+		* (if bot.easy then ArenaBrain.EASY.speed else 1)
 	local backing = now < bot.backUntil
 	local want: number
 	if backing then
