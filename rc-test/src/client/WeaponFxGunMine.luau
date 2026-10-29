@@ -162,7 +162,11 @@ local function puff(at: Vector3, from: number, to: number, seconds: number)
 	b.Shape = Enum.PartType.Ball
 	b.Transparency = 0.6
 	b.Position = at
-	fade(b, seconds, { Size = Vector3.new(to, to, to) * S, Position = at + Vector3.new(0, 1.2 * S, 0) })
+	fade(
+		b,
+		seconds,
+		{ Size = Vector3.new(to, to, to) * S, Position = at + Vector3.new(0, 1.2 * S, 0) }
+	)
 end
 
 -- a brass shell kicked up and back off the car, landing about where it started
@@ -217,7 +221,11 @@ local function hitFx(at: Vector3, back: Vector3, kart: boolean)
 		local mark = part("HotSpot", EMBER, true, Vector3.new(0.55, 0.55, 0.55) * S)
 		mark.Shape = Enum.PartType.Ball
 		mark.Position = at + back * 0.05 * S
-		fade(mark, 1.2, { Size = Vector3.new(0.35, 0.35, 0.35) * S, Color = Color3.fromRGB(64, 16, 0) })
+		fade(
+			mark,
+			1.2,
+			{ Size = Vector3.new(0.35, 0.35, 0.35) * S, Color = Color3.fromRGB(64, 16, 0) }
+		)
 		chips(at, Color3.fromRGB(40, 40, 46), 2, 0.18, 7)
 		puff(at, 0.5, 1.7, 0.8)
 	end
