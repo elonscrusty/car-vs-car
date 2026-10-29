@@ -1284,9 +1284,11 @@ function KitWindows.settings(data: { [string]: any }, actions: Screen.Actions?):
 		local cp = piece("kitSettings", "Close")
 		Kit.close(spot(canvas, "kitSettings", "Close"), 0, 0, Screen.act(actions, "close"), cp.w)
 		local set = Screen.act(actions, "set")
-		local sp = piece("kitSettings", "Sliders")
-		local left =
-			Kit.navyPanel(spot(canvas, "kitSettings", "Sliders"), "Panel", 0, 0, sp.w, sp.h)
+		local bp = piece("kitSettings", "Body")
+		local body = spot(canvas, "kitSettings", "Body")
+		local sp = { w = 400, h = bp.h }
+		local op = { w = bp.w - sp.w - 16, h = bp.h }
+		local left = Kit.navyPanel(body, "Sliders", 0, 0, sp.w, sp.h)
 		for i, row in { { "music", "MUSIC" }, { "sfx", "SOUNDS" } } do
 			local y = 30 + (i - 1) * 120
 			Base.text(
@@ -1311,9 +1313,7 @@ function KitWindows.settings(data: { [string]: any }, actions: Screen.Actions?):
 				end
 			)
 		end
-		local op = piece("kitSettings", "Toggles")
-		local right =
-			Kit.navyPanel(spot(canvas, "kitSettings", "Toggles"), "Panel", 0, 0, op.w, op.h)
+		local right = Kit.navyPanel(body, "Toggles", sp.w + 16, 0, op.w, op.h)
 		for i, row in { { "shadows", "SHADOWS" }, { "names", "NAME TAGS" } } do
 			local y = 24 + (i - 1) * 100
 			local key = row[1]
