@@ -3,7 +3,7 @@
 -- client/WeaponFx hands this module every WeaponFx kind that isn't a rocket:
 --   GunShot    { from, to, hit }        a sunny-yellow tracer, a muzzle flash, sparks if it hit
 --   MineDrop   { position }             the drop sound (the mine is a server part, workspace.Mines)
---   MineBoom   { position }             a flat pink-orange blast ring and a flash
+--   MineBoom   { position }             the Spike boom: fireball, sparks, smoke, ring, chips
 --   FreezeShot { from, to, hit }        a sky-blue ice bolt
 --   FreezeHit  { id, position, seconds } an ice block over the kart until it melts
 --   Shatter    { id, position }         the ice bursts into shards
@@ -20,8 +20,6 @@ local FxGunMine = {}
 
 local SUNNY = Color3.fromRGB(255, 205, 40)
 local WHITE = Color3.new(1, 1, 1)
-local CHERRY = Color3.fromRGB(230, 40, 60)
-local PINK = Color3.fromRGB(255, 111, 181)
 local FLAME = Color3.fromRGB(255, 130, 30)
 local ICE = Color3.fromRGB(150, 220, 255)
 local SKY = Color3.fromRGB(61, 155, 255)
@@ -128,19 +126,139 @@ local function onGun(data: any)
 	sound("gun", data, a)
 end
 
+-- the Spike mine's boom (carter picked "A Pro" on the preview page, 10-29): a white flash, a
+-- hot core and an orange fireball that rise, sparks that fall, black smoke going up, dust rolling
+-- out over the road, a thin ring, black/red/steel chips and a dark scorch that fades. Sizes are
+-- the page's in big units times S.
+local FIRE_TEX = "rbxasset://textures/particles/fire_main.dds"
+local SMOKE_TEX = "rbxasset://textures/particles/smoke_main.dds"
+local SPARK_TEX = "rbxassetid://6101261905" -- the Roblox explosion tutorial's spark
+
+local function seq(...: number): NumberSequence
+	local v = { ... }
+	local keys = {}
+	for i, x in v do
+		table.insert(keys, NumberSequenceKeypoint.new((i - 1) / (#v - 1), x))
+	end
+	return NumberSequence.new(keys)
+end
+
+local function burst(host: Attachment, count: number, props: { [string]: any })
+	local e = Instance.new("ParticleEmitter")
+	e.Rate = 0
+	e.SpreadAngle = Vector2.new(180, 180)
+	e.Rotation = NumberRange.new(0, 360)
+	e.LightInfluence = 0
+	for k, v in props do
+		(e :: any)[k] = v
+	end
+	e.Parent = host
+	e:Emit(count)
+end
+
 local function onMineBoom(data: any)
 	local at = vec(data, "position")
 	if not at then
 		return
 	end
-	-- a flat blast disc that grows out along the road, and a hot flash
-	local ring = part("MineBlast", FLAME, true, Vector3.new(0.4, 2, 2) * S)
+	local host = part("MineBoom", FLAME, false, Vector3.one * 0.1)
+	host.Transparency = 1
+	host.Position = at + Vector3.new(0, 0.8 * S, 0)
+	local a = Instance.new("Attachment")
+	a.Parent = host
+	local light = Instance.new("PointLight")
+	light.Color = Color3.fromRGB(255, 170, 80)
+	light.Range = 14 * S * 2
+	light.Brightness = 6
+	light.Parent = host
+	TweenService:Create(light, TweenInfo.new(0.35), { Brightness = 0 }):Play()
+
+	flash(at + Vector3.new(0, 1.2 * S, 0), Color3.fromRGB(255, 241, 200), 2, 11, 0.09)
+	burst(a, 14, { -- hot core
+		Texture = FIRE_TEX,
+		Color = ColorSequence.new(Color3.fromRGB(255, 224, 128), Color3.fromRGB(255, 64, 0)),
+		Transparency = seq(0.1, 1),
+		Size = seq(2.6 * S, 3.8 * S),
+		Speed = NumberRange.new(1.5 * S, 4 * S),
+		Acceleration = Vector3.new(0, 6 * S, 0),
+		Drag = 3,
+		Lifetime = NumberRange.new(0.35, 0.6),
+		LightEmission = 1,
+		Brightness = 2,
+		ZOffset = 3,
+	})
+	burst(a, 22, { -- orange fireball
+		Texture = FIRE_TEX,
+		Color = ColorSequence.new(Color3.fromRGB(255, 160, 64), Color3.fromRGB(176, 16, 0)),
+		Transparency = seq(0.1, 1),
+		Size = seq(2.8 * S, 4.6 * S),
+		Speed = NumberRange.new(1.5 * S, 4 * S),
+		Acceleration = Vector3.new(0, 3.5 * S, 0),
+		Drag = 3,
+		Lifetime = NumberRange.new(0.35, 0.6),
+		LightEmission = 1,
+		Brightness = 1.5,
+		ZOffset = 2,
+	})
+	burst(a, 30, { -- sparks that fall
+		Texture = SPARK_TEX,
+		Color = ColorSequence.new(Color3.fromRGB(255, 233, 160), Color3.fromRGB(255, 64, 16)),
+		Size = seq(0.35 * S, 0),
+		Speed = NumberRange.new(16 * S, 30 * S),
+		SpreadAngle = Vector2.new(70, 70),
+		EmissionDirection = Enum.NormalId.Top,
+		Acceleration = Vector3.new(0, -30 * S, 0),
+		Drag = 1.8,
+		Lifetime = NumberRange.new(0.4, 0.9),
+		LightEmission = 1,
+		ZOffset = 3,
+	})
+	burst(a, 20, { -- black smoke going up (the dark layer gives the fire its shape)
+		Texture = SMOKE_TEX,
+		Color = ColorSequence.new(Color3.fromRGB(42, 34, 36), Color3.fromRGB(15, 15, 18)),
+		Transparency = seq(0.15, 0.5, 1),
+		Size = seq(1.8 * S, 6 * S),
+		Speed = NumberRange.new(4 * S, 9 * S),
+		SpreadAngle = Vector2.new(25, 25),
+		EmissionDirection = Enum.NormalId.Top,
+		Drag = 1.6,
+		Lifetime = NumberRange.new(1.4, 2.2),
+		LightEmission = 0,
+		ZOffset = -1,
+		RotSpeed = NumberRange.new(-40, 40),
+	})
+	burst(a, 14, { -- dust rolling out over the road
+		Texture = SMOKE_TEX,
+		Color = ColorSequence.new(Color3.fromRGB(74, 68, 70), Color3.fromRGB(37, 35, 38)),
+		Transparency = seq(0.5, 1),
+		Size = seq(1 * S, 3 * S),
+		Speed = NumberRange.new(7 * S, 11 * S),
+		SpreadAngle = Vector2.new(180, 8),
+		EmissionDirection = Enum.NormalId.Right,
+		Drag = 2.5,
+		Lifetime = NumberRange.new(0.8, 1.2),
+		LightEmission = 0,
+		ZOffset = -2,
+	})
+
+	-- a thin ring and a dark scorch on the road
+	local ring = part("MineRing", Color3.fromRGB(255, 74, 32), true, Vector3.new(0.05, 1, 1) * S)
 	ring.Shape = Enum.PartType.Cylinder
 	ring.CFrame = CFrame.new(at) * CFrame.Angles(0, 0, math.rad(90))
-	fade(ring, 0.4, { Size = Vector3.new(0.4, 12, 12) * S, Color = PINK })
-	flash(at + Vector3.new(0, 1.5 * S, 0), SUNNY, 2, 9, 0.3)
-	chips(at, CHERRY, 6, 0.8, 7)
+	ring.Transparency = 0.5
+	fade(ring, 0.45, { Size = Vector3.new(0.05, 18, 18) * S })
+	local scorch = part("Scorch", Color3.new(0, 0, 0), false, Vector3.new(0.02, 4, 4) * S)
+	scorch.Shape = Enum.PartType.Cylinder
+	scorch.CFrame = CFrame.new(at - Vector3.new(0, 0.15 * S, 0)) * CFrame.Angles(0, 0, math.rad(90))
+	scorch.Transparency = 0.3
+	fade(scorch, 1.8, {})
+	chips(at, Color3.fromRGB(20, 21, 25), 4, 0.5, 9)
+	chips(at, Color3.fromRGB(232, 32, 47), 4, 0.5, 9)
+	chips(at, Color3.fromRGB(106, 112, 124), 2, 0.5, 9)
 	sound("mineBoom", nil, at)
+	task.delay(2.4, function()
+		host:Destroy()
+	end)
 end
 
 -- ice blocks on frozen karts, by kart id
@@ -214,7 +332,7 @@ function FxGunMine.handle(kind: string, data: any)
 	end
 end
 
--- mines blink their red light (server parts in workspace.Mines)
+-- mines blink their red dome, side slits and road glow (server parts in workspace.Mines)
 local blink = 0
 local wasOn = false
 RunService.RenderStepped:Connect(function(dt: number)
@@ -229,9 +347,16 @@ RunService.RenderStepped:Connect(function(dt: number)
 	end
 	wasOn = on
 	for _, m in mines:GetChildren() do
-		local light = m:FindFirstChild("Light")
-		if light and light:IsA("BasePart") then
-			light.Transparency = if on then 0 else 0.6
+		for _, p in m:GetChildren() do
+			if p.Name == "Light" and p:IsA("BasePart") then
+				p.Transparency = if on then 0 else 0.6
+				local glow = p:FindFirstChildOfClass("PointLight")
+				if glow then
+					glow.Enabled = on
+				end
+			elseif p.Name == "Slit" and p:IsA("BasePart") then
+				p.Color = if on then Color3.fromRGB(255, 26, 42) else Color3.fromRGB(58, 5, 8)
+			end
 		end
 	end
 end)

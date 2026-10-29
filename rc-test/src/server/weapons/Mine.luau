@@ -45,36 +45,78 @@ export type LiveMine = {
 local live: { LiveMine } = {}
 local count = 0
 
--- A small low-poly mine: a dark navy puck with a cherry-red neon light on top (clients blink it),
--- in workspace.Mines. Only used when WeaponServer's ctx has no `place`.
+-- The Spike mine (carter picked "A Pro", 10-29): a heavy black puck with a steel lid, eight red
+-- spikes round the rim, eight glowing red slits in its side and a red glass dome on top that
+-- lights the road red (clients blink the dome, slits and light). Sizes are the preview page's
+-- (mine-preview/mine-pick.html) in big units times S. In workspace.Mines. Only used when
+-- WeaponServer's ctx has no `place`.
+local function piece(
+	model: Model,
+	kind: string,
+	name: string,
+	size: Vector3,
+	cf: CFrame,
+	color: Color3
+): BasePart
+	local p = Instance.new(kind) :: BasePart
+	p.Name = name
+	p.Size = size * S
+	p.CFrame = cf
+	p.Color = color
+	p.Material = Enum.Material.SmoothPlastic
+	p.Anchored = true
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.CastShadow = false
+	p.Parent = model
+	return p
+end
+
 local function build(at: Vector3): Instance
+	local BLACK = Color3.fromRGB(20, 21, 25)
+	local STEEL = Color3.fromRGB(106, 112, 124)
+	local DARK = Color3.fromRGB(38, 40, 47)
+	local RED = Color3.fromRGB(232, 32, 47)
+	local GLOW = Color3.fromRGB(255, 26, 42)
 	local cf = CFrame.new(at.X, at.Y, at.Z) -- (by numbers: the pretend server can't take a vector here)
+	local up = function(y: number): CFrame
+		return cf * CFrame.new(0, y * S, 0)
+	end
+	local flat = CFrame.Angles(0, 0, math.rad(90)) -- a Cylinder's round faces point along X
 	local model = Instance.new("Model")
 	model.Name = "Mine"
-	local base = Instance.new("Part")
-	base.Name = "Base"
+	local base = piece(model, "Part", "Base", Vector3.new(0.38, 2.85, 2.85), up(0) * flat, BLACK)
 	base.Shape = Enum.PartType.Cylinder
-	base.Size = Vector3.new(0.6, 2.4, 2.4) * S
-	base.CFrame = cf * CFrame.Angles(0, 0, math.rad(90))
-	base.Color = Color3.fromRGB(34, 36, 64)
-	base.Material = Enum.Material.SmoothPlastic
-	base.Anchored = true
-	base.CanCollide = false
-	base.CanQuery = false
-	base.CanTouch = false
-	base.Parent = model
-	local light = Instance.new("Part")
-	light.Name = "Light"
+	local lid = piece(model, "Part", "Lid", Vector3.new(0.18, 2.42, 2.42), up(0.28) * flat, STEEL)
+	lid.Shape = Enum.PartType.Cylinder
+	lid.Material = Enum.Material.Metal
+	local cap = piece(model, "Part", "Cap", Vector3.new(0.22, 1.25, 1.25), up(0.47) * flat, DARK)
+	cap.Shape = Enum.PartType.Cylinder
+	for i = 0, 7 do
+		local a = i * math.pi / 4
+		-- a glowing slit in the side, and a spike between each two slits, leaning out and up
+		local slit = piece(model, "Part", "Slit", Vector3.new(0.06, 0.12, 0.42), cf, GLOW)
+		slit.CFrame = up(0.01) * CFrame.Angles(0, -a, 0) * CFrame.new(1.39 * S, 0, 0)
+		slit.Material = Enum.Material.Neon
+		local b = a + math.pi / 8
+		local spike = piece(model, "WedgePart", "Spike", Vector3.new(0.3, 0.6, 0.3), cf, RED)
+		spike.CFrame = up(0.13)
+			* CFrame.Angles(0, -b, 0)
+			* CFrame.new(1.36 * S, 0, 0)
+			* CFrame.Angles(0, math.rad(90), 0)
+			* CFrame.Angles(math.rad(-50), 0, 0)
+	end
+	local light = piece(model, "Part", "Light", Vector3.new(0.68, 0.68, 0.68), up(0.58), GLOW)
 	light.Shape = Enum.PartType.Ball
-	light.Size = Vector3.new(0.8, 0.8, 0.8) * S
-	light.CFrame = cf + Vector3.new(0, 0.4 * S, 0)
-	light.Color = Color3.fromRGB(232, 53, 46)
 	light.Material = Enum.Material.Neon
-	light.Anchored = true
-	light.CanCollide = false
-	light.CanQuery = false
-	light.CanTouch = false
-	light.Parent = model
+	local glow = Instance.new("PointLight")
+	glow.Name = "Glow"
+	glow.Color = GLOW
+	glow.Range = 4 * S * 3
+	glow.Brightness = 3
+	glow.Shadows = false
+	glow.Parent = light
 	model.PrimaryPart = base
 	local folder = workspace:FindFirstChild("Mines")
 	if not folder then
