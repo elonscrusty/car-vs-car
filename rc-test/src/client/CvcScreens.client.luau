@@ -1194,6 +1194,8 @@ local function openHud(stagger: boolean)
 		words = { Garage = if PHONE_LOBBY then "MENU" elseif SMASH then "CUSTOMIZE" else "TRAIN" },
 		icons = if PHONE_LOBBY then { Garage = "plus" } else nil,
 		smallCoins = PHONE_LOBBY,
+		-- (WINDOWS' SETTINGS window, from a tile on a computer; a phone has it in MENU)
+		settings = SMASH and not PHONE_LOBBY,
 		race = if SMASH then "SMASH!" else "RACE!",
 		jobs = jobsWords() or "JOBS",
 		invite = "INVITE",
@@ -1247,6 +1249,12 @@ plotActions = {
 			)
 		end,
 	race = if SMASH then smashHow else join,
+	Settings = function()
+		local ev = ReplicatedStorage:FindFirstChild("OpenSettings")
+		if ev and ev:IsA("BindableEvent") then
+			ev:Fire()
+		end
+	end,
 	jobs = openJobs,
 	invite = invite,
 	-- (full: the buy itself; not yet: where it's bought, to see what it gets)

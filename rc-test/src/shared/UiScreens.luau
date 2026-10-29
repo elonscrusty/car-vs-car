@@ -119,6 +119,8 @@ local LIST: { Screen } = {
 			p("Crates", 82, 66, 62, 62, { anchor = "tl", tap = true, text = "CRATES" }),
 			p("Shop", 12, 152, 62, 62, { anchor = "tl", tap = true, text = "SHOP" }),
 			p("League", 82, 152, 62, 62, { anchor = "tl", tap = true, text = "LEAGUE" }),
+			-- (a computer's SETTINGS gear, top left by the tiles: a phone has it in MENU)
+			p("Settings", 160, 14, 44, 44, { anchor = "tl", tap = true }),
 			p("MyCar", 530, 64, 218, 156, { anchor = "tr" }),
 			button("Coach", 644, 284, 92, 92, "pink", "COACH", { anchor = "br" }),
 			-- (the live game: join the next BIG RACE, bottom middle by the thumbs, off the stick;

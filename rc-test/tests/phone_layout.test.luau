@@ -497,6 +497,19 @@ test("phone smash words: brief (1 s at most) and clear of the phone HUD", functi
 	end
 end)
 
+-- WINDOWS' SETTINGS window: a computer's lobby has a SETTINGS gear (a phone's is in MENU)
+test("a computer's lobby has a SETTINGS gear; none without it", function()
+	local h =
+		Hud.plot({ coins = 0, race = "SMASH!", banner = false, myCar = false, settings = true })
+	local holder = h.gui.gui:FindFirstChild("Settings", true)
+	truthy(holder ~= nil, "no Settings gear")
+	truthy(holder and holder:FindFirstChild("Gear") ~= nil, "no button")
+	h.close()
+	local h2 = Hud.plot({ coins = 0, race = "SMASH!", banner = false, myCar = false })
+	truthy(h2.gui.gui:FindFirstChild("Settings", true) == nil, "a gear with settings off")
+	h2.close()
+end)
+
 -- ===== a phone's lobby: MENU + SMASH! and the coins; the rest in the MENU window =====
 
 local function phoneLobby()

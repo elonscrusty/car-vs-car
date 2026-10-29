@@ -312,10 +312,22 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 				onClick = Screen.act(actions, "invite"),
 			})
 		end
+		-- data.settings: a computer's SETTINGS gear (WINDOWS' window; a phone has it in MENU)
+		local settingsHolder: Frame? = nil
+		if data.settings then
+			local sp = piece("plot", "Settings")
+			local sh = spot(c, "plot", "Settings")
+			settingsHolder = sh
+			Kit.button(sh, "Gear", 0, 0, sp.w, sp.h, "steel", "", {
+				size = 20,
+				icon = "speed",
+				onClick = Screen.act(actions, "Settings"),
+			})
+		end
 		-- every piece by name, for setShown and point
 		local holders: { [string]: Frame } = {}
-		for _, sd in SIDES do
-			holders[sd.name] = sides[sd.name].button.Parent :: Frame
+		for name, side in sides do
+			holders[name] = side.button.Parent :: Frame
 		end
 		holders.Coach = coachHolder
 		if raceHolder then
@@ -326,6 +338,9 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 		end
 		if inviteHolder then
 			holders.Invite = inviteHolder
+		end
+		if settingsHolder then
+			holders.Settings = settingsHolder
 		end
 		if nextHolder then
 			holders.Next = nextHolder
