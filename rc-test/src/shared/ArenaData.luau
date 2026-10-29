@@ -61,6 +61,9 @@ ArenaData.SAND =
 	{ { 60, 80 }, { 95, 70 }, { 115, 95 }, { 100, 170 }, { 70, 190 }, { 55, 160 } } :: { Pt }
 -- the gaps in the bumper wall: {edge index (from SAND[i] to SAND[i+1]), start, end} along it 0..1
 ArenaData.SAND_GAPS = { { 3, 0.3, 0.55 }, { 6, 0.3, 0.6 } } :: { { number } }
+-- the wall is off (round 12: karts kept pinning on it, steering at a box inside or across the
+-- sand): the sand is open all round, just a softer floor. SAND_GAPS stays for when it comes back.
+ArenaData.SAND_WALL = false
 ArenaData.BUMPER_H = 2.4 -- big: a kart can't climb it, so the gaps are the way in
 ArenaData.BUMPER_W = 3 -- picture units
 
@@ -99,7 +102,7 @@ ArenaData.STEP_SIDES = { 2, 3 }
 
 -- orange cover walls (segments, picture units)
 ArenaData.COVER = {
-	{ { 120, 115 }, { 140, 112 } },
+	{ { 110, 118 }, { 130, 115 } }, -- (west, off the box behind it: round 12)
 	{ { 110, 190 }, { 135, 200 } },
 	{ { 175, 30 }, { 195, 38 } },
 } :: { { Pt } }
@@ -194,7 +197,7 @@ ArenaData.BOXES = {
 	{ 85, 105 },
 	{ 85, 160 },
 	{ 115, 140 },
-	{ 190, 160 },
+	{ 165, 190 }, -- (off the low hill: karts pinned on its cliff steering at it, round 12)
 	{ 225, 170 },
 	{ 20, 50 },
 	{ 30, 228 },
@@ -304,6 +307,9 @@ end
 -- the bumper wall's solid pieces (the sand's edges, minus the gaps)
 local function bumperPieces(): { { Pt } }
 	local out = {}
+	if not ArenaData.SAND_WALL then
+		return out
+	end
 	local n = #ArenaData.SAND
 	for i = 1, n do
 		local a, b = ArenaData.SAND[i], ArenaData.SAND[i % n + 1]

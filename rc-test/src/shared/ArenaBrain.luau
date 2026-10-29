@@ -967,7 +967,7 @@ function ArenaBrain.fromArena(A: any): World
 		table.insert(sandPoly, { x, z })
 		cx, cz = cx + x / #sand, cz + z / #sand
 	end
-	for i = 1, #sand do
+	for i = 1, if A.SAND_WALL == false then 0 else #sand do
 		local a, b = sand[i], sand[i % #sand + 1]
 		local gaps = {}
 		for _, g in A.SAND_GAPS do
