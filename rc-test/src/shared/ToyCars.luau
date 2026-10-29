@@ -158,7 +158,7 @@ local function driver(p: Put, c: { number }, a: { number })
 	p("Driver", v(0.36, 1.1, 1.1), 0, 1.05, ToyCars.TOPPER_Z + 0.1, shirt, ROUND)
 	p("Head", v(0.72, 0.64, 0.72), 0, ToyCars.HEAD_TOP - 0.62, ToyCars.TOPPER_Z, SKIN, HEAD)
 	-- (a ball sunk in the head's top: its top half shows as a round cap)
-	p("Cap", v(0.84, 0.84, 0.84), 0, ToyCars.HEAD_TOP - 0.42, ToyCars.TOPPER_Z - 0.04, shirt, BALL)
+	p("Cap", v(0.8, 0.8, 0.8), 0, ToyCars.HEAD_TOP - 0.4, ToyCars.TOPPER_Z, shirt, BALL)
 end
 
 -- Hot-rod: long hood, twin stripes, the driver out in the open.

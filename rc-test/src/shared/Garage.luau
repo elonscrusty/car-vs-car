@@ -1058,7 +1058,7 @@ function Garage.makeParts(pieces: { Piece }, model: Instance, origin: CFrame): {
 		end
 		if p.mesh then
 			local mesh = Instance.new("SpecialMesh")
-			mesh.MeshType = (Enum.MeshType :: any)[p.mesh]
+			mesh.MeshType = assert((Enum.MeshType :: any)[p.mesh], p.mesh)
 			mesh.Scale = Vector3.new(1.25, 1.25, 1.25) -- (a Roblox character's own head size in its part)
 			mesh.Parent = part
 		end
