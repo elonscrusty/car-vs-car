@@ -447,7 +447,7 @@ function Windows.daily(data: { [string]: any }, actions: Screen.Actions?): Scree
 			stp.h,
 			"STREAK",
 			"boost",
-			tostring(data.streak or 1) .. " days"
+			UiMotion.days(data.streak or 1)
 		)
 		local tp = piece("daily", "Window.Tiles")
 		local tiles: { GuiObject } = {}

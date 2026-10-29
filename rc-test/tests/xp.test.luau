@@ -3,6 +3,7 @@
 local H = require("./harness")
 local Xp = require("../src/shared/Xp")
 local Profile = require("../src/shared/Profile")
+local UiMotion = require("../src/shared/UiMotion")
 
 local test, eq, truthy = H.test, H.eq, H.truthy
 
@@ -137,4 +138,10 @@ test("xp: a late visit's level-up coins come from the merged save's levels", fun
 	out = Profile.mergeVisit(stored, session, base)
 	eq(out.xp, 140)
 	eq(out.coins, Xp.LEVEL_COINS)
+end)
+
+test("daily streak pill: 1 day, 2 days", function()
+	eq(UiMotion.days(1), "1 day")
+	eq(UiMotion.days(2), "2 days")
+	eq(UiMotion.days(7), "7 days")
 end)
