@@ -21,7 +21,8 @@ ArenaCam.LEAD_MAX = 2
 ArenaCam.LEAD_EASE = 3 -- 1/s: how fast the lean follows (no jerk on a turn)
 ArenaCam.BLEND = 0.6 -- s to ease from the race camera into this one (and back)
 ArenaCam.WALL_GAP = 0.3 -- studs kept between the camera and a wall it slid in for
-ArenaCam.MIN_REACH = 0.35 -- share of DISTANCE it may slide in to, at most
+ArenaCam.MIN_REACH = 0.35 -- pulled in closer than this share by a wall: swing up to STEEP
+ArenaCam.STEEP = 72 -- degrees: the swung-up pitch, over the kart, when a wall is right behind
 
 -- The camera's spot as an offset from the kart: `back` studs behind it and `up` studs above.
 function ArenaCam.offset(distance: number?, pitch: number?): (number, number)
@@ -59,13 +60,13 @@ function ArenaCam.on(inMatch: unknown, inArena: boolean): boolean
 end
 
 -- The share of the full distance the camera may be out when a wall is `hitAt` studs along the
--- way (nil = nothing in the way).
+-- way (nil = nothing in the way): always on this side of the wall, never into the kart.
 function ArenaCam.reach(hitAt: number?, distance: number?): number
 	if hitAt == nil then
 		return 1
 	end
 	local d = distance or ArenaCam.DISTANCE
-	return math.clamp((hitAt - ArenaCam.WALL_GAP) / d, ArenaCam.MIN_REACH, 1)
+	return math.clamp((hitAt - ArenaCam.WALL_GAP) / d, 0.05, 1)
 end
 
 return ArenaCam

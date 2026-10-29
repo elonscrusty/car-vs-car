@@ -16,7 +16,11 @@ test("arena cam: higher, further back and tilted 35-45 degrees down", function()
 	local back, up = ArenaCam.offset()
 	truthy(math.abs(back * back + up * up - ArenaCam.DISTANCE ^ 2) < 1e-6, "on the distance")
 	truthy(math.abs(math.deg(math.atan2(up, back)) - ArenaCam.PITCH) < 1e-6, "at the pitch")
-	-- the race chase cam at the arena's RC size, for comparison
+		-- the race chase cam at the arena's RC size, for comparison (race numbers, whatever an
+		-- earlier test left)
+		(Tuning :: any)
+		.setMode("race");
+	(Tuning :: any).setScale(1)
 	local S = TrackData.RC_SCALE
 	local oldBack, oldUp = Tuning.camDistance * S, Tuning.camHeight * S
 	truthy(up > oldUp * 4, "much higher than the low race cam")
@@ -63,13 +67,30 @@ test("arena cam: slides in for a wall, never into the kart", function()
 	eq(ArenaCam.reach(nil), 1)
 	eq(ArenaCam.reach(100), 1)
 	truthy(ArenaCam.reach(4) < 1, "a wall pulls it in")
-	eq(ArenaCam.reach(0), ArenaCam.MIN_REACH, "never closer than MIN_REACH")
+	truthy(ArenaCam.reach(4) * ArenaCam.DISTANCE <= 4 - ArenaCam.WALL_GAP + 1e-9, "this side of it")
+	eq(ArenaCam.reach(0), 0.05, "never into the kart")
+	-- swung up over the kart when a wall is right behind
+	local _, upHigh = ArenaCam.offset(nil, ArenaCam.STEEP)
+	local _, up = ArenaCam.offset()
+	truthy(ArenaCam.STEEP > ArenaCam.PITCH and upHigh > up, "steeper and higher")
 end)
 
 test("arena cam: ChaseCamera and Main use it only while InMatch, still a chase cam", function()
 	local chase = fs.readFile("src/client/ChaseCamera.luau")
 	truthy(string.find(chase, "function cam.setArena(on: boolean)", 1, true) ~= nil)
-	truthy(string.find(chase, "-heading * backS", 1, true) ~= nil, "behind the kart, turns with it")
+	truthy(
+		string.find(chase, "-heading * ARENA_BACK", 1, true) ~= nil,
+		"behind the kart, turns with it"
+	)
+	truthy(
+		string.find(chase, "arenaParams.FilterType = Enum.RaycastFilterType.Include", 1, true)
+			~= nil,
+		"only the arena pulls it in (not other karts)"
+	)
+	truthy(
+		string.find(chase, "arenaOff = if dir.Magnitude > 1e-3 then arenaWant(", 1, true) ~= nil,
+		"in at once, never inside a wall"
+	)
 	truthy(string.find(chase, "ArenaCam.blend(arenaT)", 1, true) ~= nil, "eased")
 	truthy(string.find(chase, "SeeKart.PROPS[inst.Name]", 1, true) ~= nil, "props fade, no jumps")
 	local main = fs.readFile("src/client/Main.client.luau")
@@ -82,7 +103,16 @@ test("arena cam: ChaseCamera and Main use it only while InMatch, still a chase c
 		) ~= nil,
 		"switched by InMatch"
 	)
-	truthy(string.find(main, "math.max(ArenaCam.DISTANCE", 1, true) ~= nil, "lost-cam check fits")
+	truthy(string.find(main, "then ArenaCam.DISTANCE", 1, true) ~= nil, "lost-cam check fits")
+	truthy(
+		string.find(
+			main,
+			'ArenaCam.on(player:GetAttribute("InMatch"), type(gridSpot) == "table")',
+			1,
+			true
+		) ~= nil,
+		"respawn: no swoop"
+	)
 	-- driving stays locked
 	truthy(string.find(chase, "RCCar", 1, true) == nil)
 end)

@@ -317,6 +317,6 @@ test("the match camera (ArenaCam) fits behind every spawn and sees over the cove
 	local back, up = ArenaCam.offset()
 	local S = TrackData.RC_SCALE
 	truthy(back / S <= A.CAM_BACK, "the spawn check's room covers the match camera")
-	-- high enough that the box covers and low walls never stand between it and the kart
-	truthy(up / S >= 16, "camera at least 16 big units up")
+	-- high enough that the box covers never stand between it and the kart
+	truthy(up / S >= 2 * A.COVER_H, "camera at least twice the cover's height up")
 end)

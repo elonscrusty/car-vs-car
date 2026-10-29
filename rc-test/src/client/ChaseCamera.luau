@@ -22,7 +22,7 @@ export type Cam = {
 	setView: (view: View) -> (),
 	setUp: (dir: Vector3) -> (),
 	kick: (degrees: number) -> (),
-	setArena: (on: boolean) -> (),
+	setArena: (on: boolean, now: boolean?) -> (),
 }
 
 export type View = "driver" | "chase" | "top" | "free"
@@ -107,6 +107,11 @@ do
 	)
 end
 
+-- the match camera's fixed numbers (shared/ArenaCam), worked out once
+local ARENA_BACK, ARENA_UP = ArenaCam.offset()
+local STEEP_BACK, STEEP_UP = ArenaCam.offset(nil, ArenaCam.STEEP)
+local ARENA_AIM = ArenaCam.aimAhead()
+
 local function flat(v: Vector3): Vector3
 	local f = Vector3.new(v.X, 0, v.Z)
 	if f.Magnitude < 0.01 then
@@ -139,13 +144,51 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 	-- the match camera: on or off, and how far into it (eased over ArenaCam.BLEND)
 	local arenaOn = false
 	local arenaFrom, arenaW, arenaT = 0, 0, 0
-	local arenaReach = 1
+	local arenaOff = -heading * ARENA_BACK + Vector3.new(0, ARENA_UP, 0) -- camera minus focus
 	local lean = Vector3.zero -- the look-ahead, eased
-	-- (its wall check looks past the arena props: SeeKart fades those instead of the camera
-	-- jumping in at every tree)
+	-- its wall check sees only the arena itself (not other karts, shots or boxes) and looks past
+	-- the arena props: SeeKart fades those instead of the camera jumping in at every tree
 	local arenaParams = RaycastParams.new()
-	arenaParams.FilterType = Enum.RaycastFilterType.Exclude
-	arenaParams.FilterDescendantsInstances = ignore
+	arenaParams.FilterType = Enum.RaycastFilterType.Include
+	local arenaModel: Instance? = nil
+
+	-- how far out along `out` (camera minus focus) the camera can go before a wall or the floor,
+	-- keeping WALL_GAP off the surface; never further than `out`
+	local function arenaWant(out: Vector3): Vector3
+		local model = workspace:FindFirstChild("SmashArena")
+		if model ~= arenaModel then
+			arenaModel = model
+			arenaParams.FilterDescendantsInstances = if model
+				then { model, workspace.Terrain }
+				else { workspace.Terrain }
+		end
+		local len = out.Magnitude
+		if len < 1e-3 then
+			return out
+		end
+		local from = focus
+		local left = len
+		local dir = out / len
+		for _ = 1, 6 do
+			local hit = workspace:Raycast(from, dir * left, arenaParams)
+			if not hit then
+				return out
+			end
+			local inst = hit.Instance
+			if not SeeKart.PROPS[inst.Name] then
+				-- the spot just off the surface, back along the ray
+				return out * ArenaCam.reach(hit.Distance + (len - left), len)
+			end
+			-- a prop: go on from just past it
+			local step = hit.Distance + 0.01
+			from += dir * step
+			left -= step
+			if left <= 0 then
+				return out
+			end
+		end
+		return out
+	end
 
 	local function clearFaded()
 		for part in faded do
@@ -254,15 +297,21 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 		freeYaw = math.atan2(back.Z, back.X)
 		freePitch, freeZoom, freeReach = 0.5, 1, 1
 		turnX, turnY, zoomBy = 0, 0, 1
-		-- (a jump: straight into the match camera if it's on, no blend)
-		arenaReach = 1
+		-- (a jump: straight into the match camera if it's on, no blend; the wall check pulls it
+		-- in on the first frame if it must)
+		arenaOff = -heading * ARENA_BACK + Vector3.new(0, ARENA_UP, 0)
 		lean = Vector3.zero
 		arenaW = if arenaOn then 1 else 0
 		arenaFrom, arenaT = arenaW, ArenaCam.BLEND
 	end
 
-	function cam.setArena(on: boolean)
-		if on ~= arenaOn then
+	-- the match camera on or off; `now` = no blend (a fresh camera for a respawn)
+	function cam.setArena(on: boolean, now: boolean?)
+		if now then
+			arenaOn = on
+			arenaW = if on then 1 else 0
+			arenaFrom, arenaT = arenaW, ArenaCam.BLEND
+		elseif on ~= arenaOn then
 			arenaOn = on
 			arenaFrom, arenaT = arenaW, 0
 		end
@@ -396,67 +445,82 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 		end
 		follow(dt)
 
-		local dist = Tuning.camDistance
-			* (1 + 0.2 * CarMath.clamp(flatSpeed / Tuning.topSpeed, 0, 1))
-		local back = -heading * dist + Vector3.new(0, Tuning.camHeight, 0)
-		-- a wall behind: slide in smoothly (fast in, slow out) instead of jumping every frame
-		local limit = 1
-		local hit = workspace:Raycast(focus, back, params)
-		if hit then
-			limit = CarMath.clamp((hit.Distance - 0.6 * Tuning.scale) / back.Magnitude, 0.15, 1)
-		end
-		local rate = if limit < reach then 20 else 2.5
-		reach += (limit - reach) * (1 - math.exp(-rate * dt))
-		pos = focus + back * reach
-
-		-- never dip into the floor (eased, so bumps under the camera don't jolt it)
-		local need = 0
-		local down = workspace:Raycast(
-			pos + Vector3.new(0, Tuning.camHeight, 0),
-			Vector3.new(0, -Tuning.camHeight * 3, 0),
-			params
-		)
-		if down then
-			need = math.max(0, down.Position.Y + Tuning.camHeight * 0.4 - pos.Y)
-		end
-		local liftRate = if need > floorLift then 15 else 3
-		floorLift += (need - floorLift) * (1 - math.exp(-liftRate * dt))
-		pos += Vector3.new(0, floorLift, 0)
-
-		lookAt = focus + heading * 5 * Tuning.scale
-		local fov = CarMath.fov(flatSpeed)
-
-		-- the match camera, blended in over ArenaCam.BLEND s (and out again)
+		-- the match camera's share, eased over ArenaCam.BLEND s (in and out)
 		arenaT += dt
 		arenaW = arenaFrom + ((if arenaOn then 1 else 0) - arenaFrom) * ArenaCam.blend(arenaT)
-		if arenaW > 1e-3 then
-			local backS, upS = ArenaCam.offset()
-			local out = -heading * backS + Vector3.new(0, upS, 0)
-			local hit: RaycastResult? = nil
-			for _ = 1, 4 do
-				hit = workspace:Raycast(focus, out, arenaParams)
-				local inst = hit and hit.Instance
-				if not (inst and SeeKart.PROPS[inst.Name]) then
-					break
-				end
-				arenaParams:AddToFilter(inst) -- (a prop: it fades, the camera stays put)
-				hit = nil
+		local fov = CarMath.fov(flatSpeed)
+		if not (arenaOn and arenaW >= 1) then
+			local dist = Tuning.camDistance
+				* (1 + 0.2 * CarMath.clamp(flatSpeed / Tuning.topSpeed, 0, 1))
+			local back = -heading * dist + Vector3.new(0, Tuning.camHeight, 0)
+			-- a wall behind: slide in smoothly (fast in, slow out) instead of jumping every frame
+			local limit = 1
+			local hit = workspace:Raycast(focus, back, params)
+			if hit then
+				limit = CarMath.clamp((hit.Distance - 0.6 * Tuning.scale) / back.Magnitude, 0.15, 1)
 			end
-			local limit = ArenaCam.reach(if hit then hit.Distance else nil)
-			local rateA = if limit < arenaReach then 20 else 2.5
-			arenaReach += (limit - arenaReach) * (1 - math.exp(-rateA * dt))
-			local aPos = focus + out * arenaReach
+			local rate = if limit < reach then 20 else 2.5
+			reach += (limit - reach) * (1 - math.exp(-rate * dt))
+			pos = focus + back * reach
+
+			-- never dip into the floor (eased, so bumps under the camera don't jolt it)
+			local need = 0
+			local down = workspace:Raycast(
+				pos + Vector3.new(0, Tuning.camHeight, 0),
+				Vector3.new(0, -Tuning.camHeight * 3, 0),
+				params
+			)
+			if down then
+				need = math.max(0, down.Position.Y + Tuning.camHeight * 0.4 - pos.Y)
+			end
+			local liftRate = if need > floorLift then 15 else 3
+			floorLift += (need - floorLift) * (1 - math.exp(-liftRate * dt))
+			pos += Vector3.new(0, floorLift, 0)
+			lookAt = focus + heading * 5 * Tuning.scale
+		end
+
+		if arenaW > 1e-3 then
+			-- where it wants to be: behind and above, or swung up steeper when a wall is close
+			local want = arenaWant(-heading * ARENA_BACK + Vector3.new(0, ARENA_UP, 0))
+			if want.Magnitude < ArenaCam.MIN_REACH * ArenaCam.DISTANCE then
+				local steep = arenaWant(-heading * STEEP_BACK + Vector3.new(0, STEEP_UP, 0))
+				if steep.Magnitude > want.Magnitude then
+					want = steep
+				end
+			end
+			-- the length: in at once (never inside a wall), back out slowly; the direction eases
+			-- quickly (a swing up over the kart isn't a jump); then the same wall check on the
+			-- spot itself
+			local wantLen, len = want.Magnitude, arenaOff.Magnitude
+			if wantLen <= len + 1e-3 then
+				len = wantLen
+			else
+				len += (wantLen - len) * (1 - math.exp(-2.5 * dt))
+			end
+			local dir = if len > 1e-3 and wantLen > 1e-3
+				then arenaOff.Unit:Lerp(want.Unit, 1 - math.exp(-12 * dt))
+				else want
+			arenaOff = if dir.Magnitude > 1e-3 then arenaWant(dir.Unit * len) else want
+			local share = arenaOff.Magnitude / ArenaCam.DISTANCE
 			local vel = body.AssemblyLinearVelocity
 			local flatVel = Vector3.new(vel.X, 0, vel.Z)
 			local wantLean = if flatVel.Magnitude > 0.5
 				then flatVel.Unit * ArenaCam.lead(flatVel.Magnitude)
 				else Vector3.zero
 			lean += (wantLean - lean) * (1 - math.exp(-ArenaCam.LEAD_EASE * dt))
-			local aLook = focus + heading * ArenaCam.aimAhead() + lean
+			-- (the aim shrinks with the camera, so a pulled-in camera keeps the kart low too)
+			local aLook = focus + heading * ARENA_AIM * share + lean
 			local aFov = ArenaCam.FOV
 				+ ArenaCam.FOV_FAST * CarMath.clamp(flatSpeed / Tuning.topSpeed, 0, 1)
-			pos = pos:Lerp(aPos, arenaW)
-			lookAt = lookAt:Lerp(aLook, arenaW)
+			if arenaW >= 1 then
+				pos, lookAt = focus + arenaOff, aLook
+			else
+				pos = pos:Lerp(focus + arenaOff, arenaW)
+				lookAt = lookAt:Lerp(aLook, arenaW)
+				-- (the blend's in-between spots can cross a hill: the same wall check on the
+				-- spot itself)
+				pos = focus + arenaWant(pos - focus)
+			end
 			fov += (aFov - fov) * arenaW
 		end
 		camera.CFrame = CFrame.lookAt(pos, lookAt)

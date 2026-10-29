@@ -463,6 +463,11 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown, gridSpot: u
 		table.clear(nudges)
 		camera = ChaseCamera.new(body, ignoreList(), eye)
 		camera.setView(view)
+		-- (a respawn in a match starts in the match camera, no swoop from the low one)
+		camera.setArena(
+			ArenaCam.on(player:GetAttribute("InMatch"), type(gridSpot) == "table"),
+			true
+		)
 		showCam = false
 		effects = Effects.new(car.telemetry)
 		-- ("drive", slot, spot): MatchRunner puts this car on an arena spawn (arena-local)
@@ -874,7 +879,12 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 		camLostFor, lost = Match.camLost(
 			camLostFor,
 			far,
-			3 * math.max(ArenaCam.DISTANCE, Tuning.camDistance + Tuning.camHeight),
+			3
+				* (
+					if ArenaCam.on(player:GetAttribute("InMatch"), true)
+						then ArenaCam.DISTANCE
+						else Tuning.camDistance + Tuning.camHeight
+				),
 			dt
 		)
 		if lost then
