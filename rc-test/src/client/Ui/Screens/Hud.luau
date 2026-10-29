@@ -656,6 +656,44 @@ end
 local FEED_ROWS = 3
 local FEED_SECS = 5
 local BOARD_TOP = 3 -- the top 3, then you (a phone's left side is the stick's: Audit F9)
+-- the board's and the kill list's words are 18 tall: 14 px on a 667x375 phone (Lead item 5)
+local WORDS = 18
+local BOARD_ROW, BOARD_STEP = 24, 27
+local FEED_STEP = 30 -- (3 rows of 28 in 88: lower and the YOU SMASHED words sat on it)
+local BOARD_NAME, FEED_NAME = 12, 8 -- letters a name keeps (then …) so it never shrinks small
+
+-- A name in capitals, cut to `max` letters (the last one a …) so its words stay big.
+function Hud.cut(name: string?, max: number): string
+	local s = string.upper(name or "")
+	local n = utf8.len(s)
+	if n == nil then
+		return "?" -- (not UTF-8, as SmashJuice.shortName)
+	end
+	if n <= max then
+		return s
+	end
+	return string.sub(s, 1, (utf8.offset(s, max) :: number) - 1) .. "…"
+end
+
+-- A yellow level badge, w x 22 (28 unless given), with the level in it.
+local function levelBadge(
+	parent: Instance,
+	x: number,
+	y: number,
+	level: number,
+	name: string?,
+	w: number?
+)
+	local bw = w or 28
+	local badge = Base.fill(parent, name or "Level", x, y, bw, 22, Base.color("go"), 3)
+	Base.corner(badge)
+	Base.outline(badge, UiTheme.OUTLINE.small)
+	Base.text(badge, "N", 1, 2, bw - 2, WORDS, tostring(math.floor(level)), {
+		color = INK,
+		z = 4,
+	})
+	return badge
+end
 
 -- the weapon's icon (Icons) for a weapon from the server: a Weapons name (Rockets, Nuke, Gun,
 -- Mine, Freeze) or a kill-list word (rockets, machine gun, freeze ray, bump...). "" / nil /
@@ -701,7 +739,8 @@ end
 -- api: setPlace(p, total, smashes?) (hidden while you have none: a place not earned, F11/R3-1),
 --   setClock(secs), setHealth(hp, max, shield), setWeapon(name, ammo),
 --   setBoard(list),
---   feed(attacker, victim, weapon, mine: boolean) (a new kill on top; mine = you are in it)
+--   feed(attacker, victim, weapon, mine: boolean, attackerLevel?, victimLevel?) (a new kill on
+--   top; mine = you are in it; a level puts its badge before that name)
 function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
 	return Screen.open("match", "hud", false, function(g)
 		local c = g.canvas
@@ -842,36 +881,39 @@ function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 					boardSpot,
 					"Row" .. i,
 					0,
-					(i - 1) * 23,
+					(i - 1) * BOARD_STEP,
 					bp.w,
-					20,
+					BOARD_ROW,
 					Base.color(if me then "lime" else "navy"),
 					2
 				)
 				row.BackgroundTransparency = if me then 0 else 0.2
 				Base.corner(row)
 				Base.outline(row, UiTheme.OUTLINE.small)
-				Base.text(row, "Rank", 3, 3, 16, 14, tostring(e.rank or i), {
+				Base.text(row, "Rank", 2, 3, 20, WORDS, tostring(e.rank or i), {
 					stroke = 3,
 					z = 3,
 				})
-				local left = 22
+				local left = 24
 				if type(e.level) == "number" then
-					local badge = Base.fill(row, "Level", 21, 2, 28, 16, Base.color("go"), 3)
-					Base.corner(badge)
-					Base.outline(badge, UiTheme.OUTLINE.small)
-					Base.text(badge, "N", 2, 2, 24, 12, tostring(math.floor(e.level)), {
-						color = INK,
-						z = 4,
-					})
-					left = 54
+					levelBadge(row, 23, 1, e.level)
+					left = 58
 				end
-				Base.text(row, "Name", left, 3, bp.w - left - 38, 14, string.upper(e.name or ""), {
-					stroke = 3,
-					align = "l",
-					z = 3,
-				})
-				Base.text(row, "Smashes", bp.w - 36, 2, 30, 16, tostring(e.smashes or 0), {
+				Base.text(
+					row,
+					"Name",
+					left,
+					3,
+					bp.w - left - 36,
+					WORDS,
+					Hud.cut(e.name, BOARD_NAME),
+					{
+						stroke = 3,
+						align = "l",
+						z = 3,
+					}
+				)
+				Base.text(row, "Smashes", bp.w - 34, 2, 30, 20, tostring(e.smashes or 0), {
 					color = Base.color("go"),
 					stroke = 3.5,
 					align = "r",
@@ -887,10 +929,17 @@ function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 		local rows: { Frame } = {}
 		local function layoutRows()
 			for i, r in rows do
-				Anim.to(r, 0.2, { Position = UDim2.fromScale(0, (i - 1) * 32 / fp.h) })
+				Anim.to(r, 0.2, { Position = UDim2.fromScale(0, (i - 1) * FEED_STEP / fp.h) })
 			end
 		end
-		local function feed(attacker: string, victim: string, weapon: string?, mine: boolean?)
+		local function feed(
+			attacker: string,
+			victim: string,
+			weapon: string?,
+			mine: boolean?,
+			attackerLevel: number?,
+			victimLevel: number?
+		)
 			local row = Base.fill(
 				feedSpot,
 				"Row",
@@ -904,18 +953,25 @@ function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 			row.BackgroundTransparency = if mine then 0 else 0.15
 			Base.corner(row)
 			Base.outline(row, UiTheme.OUTLINE.normal)
-			local half = (fp.w - 40) / 2
-			Base.text(row, "Who", 8, 6, half - 4, 17, string.upper(attacker), {
-				stroke = 3.5,
-				align = "r",
-				z = 3,
-			})
-			Icons.make(row, Hud.weaponIcon(weapon), half + 6, 2, 24, { z = 4 })
-			Base.text(row, "Whom", half + 34, 6, half - 4, 17, string.upper(victim), {
-				stroke = 3.5,
-				align = "l",
-				z = 3,
-			})
+			-- each side: [level] NAME, the weapon between (a side with no level: the name
+			-- takes the badge's room)
+			local half = (fp.w - 32) / 2
+			local function side(x: number, name: string, level: number?, key: string, align: string)
+				local nx, nw = x, half - 4
+				if type(level) == "number" then
+					levelBadge(row, x, 3, level, key .. "Level", 24)
+					nx, nw = x + 26, half - 30
+					align = "l" -- (the name right after its badge)
+				end
+				Base.text(row, key, nx, 5, nw, WORDS, Hud.cut(name, FEED_NAME), {
+					stroke = 3.5,
+					align = align,
+					z = 3,
+				})
+			end
+			side(4, attacker, attackerLevel, "Who", "r")
+			Icons.make(row, Hud.weaponIcon(weapon), half + 4, 2, 24, { z = 4 })
+			side(half + 30, victim, victimLevel, "Whom", "l")
 			table.insert(rows, 1, row)
 			while #rows > FEED_ROWS do
 				(table.remove(rows) :: Frame):Destroy()

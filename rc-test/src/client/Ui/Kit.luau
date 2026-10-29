@@ -1181,11 +1181,14 @@ function Kit.slot(
 		)
 	end
 	if o.badge then
-		local bw = math.max(s * 0.36, #o.badge * s * 0.12 + 10)
-		local badge = Base.fill(b, "Badge", 4, 4, bw, s * 0.24, WHITE, 7)
+		-- (its words at least 18 tall: 14 px on a phone, Lead item 5)
+		local th = math.max(s * 0.18, 18)
+		-- (never wider than the slot: TRAIN ran onto the next one)
+		local bw = math.min(math.max(s * 0.36, #o.badge * th * 0.66 + 10), s - 8)
+		local badge = Base.fill(b, "Badge", 4, 4, bw, th + 6, WHITE, 7)
 		Base.corner(badge)
 		Base.outline(badge, 2)
-		Base.text(badge, "Words", 2, s * 0.03, bw - 4, s * 0.18, o.badge, { color = INK, z = 8 })
+		Base.text(badge, "Words", 2, 3, bw - 4, th, o.badge, { color = INK, z = 8 })
 	end
 	local mark = Base.text(
 		b,
@@ -1560,11 +1563,12 @@ function Kit.card(
 	Pattern.attach(clip)
 	local yy = 12
 	if opts.ribbon then
-		local rw = #opts.ribbon * 8 + 22
-		local rib = Base.fill(card, "Ribbon", 10, 8, rw, 22, INK, 4)
+		-- (words 18 tall: 14 px on a phone, Lead item 5)
+		local rw = #opts.ribbon * 11 + 22
+		local rib = Base.fill(card, "Ribbon", 10, 8, rw, 26, INK, 4)
 		Base.corner(rib, 8)
-		Base.text(rib, "Words", 3, 4, rw - 6, 14, opts.ribbon, { z = 5 })
-		yy = 34
+		Base.text(rib, "Words", 3, 4, rw - 6, 18, opts.ribbon, { z = 5 })
+		yy = 38
 	end
 	Base.text(card, "Name", 8, yy, w - 16, w * 0.12, opts.name or "CAR", { stroke = 5, z = 4 })
 	yy += w * 0.12 + 4
@@ -1603,13 +1607,13 @@ function Kit.card(
 	if rarity == "golden" then
 		word = "GOLDEN"
 	end
-	local cw = #word * 10 + 26
-	local chip = Base.fill(card, "Rarity", (w - cw) / 2, yy, cw, 22, INK, 4)
+	local cw = #word * 11 + 26
+	local chip = Base.fill(card, "Rarity", (w - cw) / 2, yy, cw, 26, INK, 4)
 	chip.BackgroundTransparency = 0.7
 	Base.corner(chip)
 	Base.outline(chip, UiTheme.OUTLINE.small)
-	Base.text(chip, "Words", 4, 3, cw - 8, 16, word, { stroke = 3.5, z = 5 })
-	yy += 30
+	Base.text(chip, "Words", 4, 4, cw - 8, 18, word, { stroke = 3.5, z = 5 })
+	yy += 34
 	local content = Base.box(card, "Content", 10, yy, w - 20, math.max(10, h - yy - 10), 6)
 	-- glow breathes (26 px to 48 px)
 	for i, gf in glows do

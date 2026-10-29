@@ -59,11 +59,12 @@ local LIST: { Screen } = {
 			-- the winner's kart on show in the middle, rays behind it
 			p("Winner", 258, 100, 240, 170, { anchor = "c" }),
 			-- 1st, 2nd, 3rd with smashes
-			p("Top3", 0, 104, 230, 168, { anchor = "l" }),
+			p("Top3", 0, 104, 250, 168, { anchor = "l" }),
 			-- what you got: coins, XP, your place
-			p("Rewards", 526, 104, 230, 168, { anchor = "r" }),
+			p("Rewards", 506, 104, 250, 168, { anchor = "r" }),
 			p("Count", 128, 292, 500, 40, { anchor = "b" }),
-			p("Leave", 646, 334, 110, 48, { anchor = "br", tone = "white", text = "LEAVE" }),
+			-- (56 tall: 44 px, a thumb, on a phone)
+			p("Leave", 636, 328, 120, 56, { anchor = "br", tone = "white", text = "LEAVE" }),
 		},
 	},
 	{
@@ -77,10 +78,11 @@ local LIST: { Screen } = {
 				anchor = "l",
 				text = "Customize",
 				inner = {
-					p("Tabs", 14, 14, 240, 44, { tap = true }),
-					p("Grid", 14, 68, 468, 196),
-					p("Equip", 14, 272, 180, 50, { tone = "lime", text = "EQUIP", main = true }),
-					p("Note", 206, 276, 276, 42),
+					-- (64 tall: each tab 56, 44 px on a phone)
+					p("Tabs", 14, 14, 240, 64, { tap = true }),
+					p("Grid", 14, 86, 468, 172),
+					p("Equip", 14, 266, 180, 56, { tone = "lime", text = "EQUIP", main = true }),
+					p("Note", 206, 270, 276, 48),
 				},
 			}),
 			-- the kart you drive, with its hat, on a glowing card
@@ -99,7 +101,7 @@ local LIST: { Screen } = {
 			p("Tip", 516, 108, 220, 76, { anchor = "r", tap = true }),
 			-- DRIVE! sits bottom left, just over the stick it explains: on the right it covered
 			-- the nearest ? box at GO, where the kid should drive (audit R8-4)
-			p("TipDrive", 8, 166, 220, 76, { anchor = "l", tap = true }),
+			p("TipDrive", 8, 172, 220, 72, { anchor = "l", tap = true }),
 			-- TAP FIRE! just above the FIRE button it explains: higher up on the right it
 			-- half-covered a ? box (Studio round 10)
 			p("TipFire", 516, 162, 220, 76, { anchor = "br", tap = true }),
