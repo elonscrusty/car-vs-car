@@ -23,6 +23,7 @@ export type Cam = {
 	setUp: (dir: Vector3) -> (),
 	kick: (degrees: number) -> (),
 	setArena: (on: boolean, now: boolean?) -> (),
+	arenaDistance: () -> number,
 }
 
 export type View = "driver" | "chase" | "top" | "free"
@@ -109,16 +110,29 @@ end
 
 -- the match camera's numbers (shared/ArenaCam), worked out again only when the screen's size
 -- changes: a phone-shaped screen gets the close camera (ArenaCam.fit)
+local STUDIO = game:GetService("RunService"):IsStudio()
 local arenaFit: ArenaCam.Fit = ArenaCam.fit(844, 390)
 local arenaFitFor = Vector2.zero
+local arenaFitPhone: boolean? = nil
 local ARENA_BACK, ARENA_UP = ArenaCam.offset(arenaFit.distance, arenaFit.pitch)
 local STEEP_BACK, STEEP_UP = ArenaCam.offset(arenaFit.distance, ArenaCam.STEEP)
 local function refit(view: Vector2)
-	if view == arenaFitFor or view.X < 1 or view.Y < 1 then
+	if view.X < 1 or view.Y < 1 then
 		return
 	end
-	arenaFitFor = view
-	arenaFit = ArenaCam.fit(view.X, view.Y)
+	-- a phone: by size, a touch screen with no keyboard, or Studio's TestPhoneCam switch
+	local phone = ArenaCam.isPhone(
+		view.X,
+		view.Y,
+		UserInputService.TouchEnabled,
+		UserInputService.KeyboardEnabled,
+		ArenaCam.forced(STUDIO, workspace:GetAttribute(ArenaCam.TEST_ATTR))
+	)
+	if view == arenaFitFor and phone == arenaFitPhone then
+		return
+	end
+	arenaFitFor, arenaFitPhone = view, phone
+	arenaFit = ArenaCam.fit(view.X, view.Y, phone)
 	ARENA_BACK, ARENA_UP = ArenaCam.offset(arenaFit.distance, arenaFit.pitch)
 	STEEP_BACK, STEEP_UP = ArenaCam.offset(arenaFit.distance, ArenaCam.STEEP)
 end
@@ -298,6 +312,11 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 		orbitAngle = math.atan2(back.Z, back.X) + 0.8
 		cam.snap()
 		return orbiting
+	end
+
+	-- the match camera's distance for this screen (Main's lost-camera check)
+	function cam.arenaDistance(): number
+		return arenaFit.distance
 	end
 
 	function cam.snap()

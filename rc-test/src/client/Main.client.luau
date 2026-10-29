@@ -895,10 +895,7 @@ RunService:BindToRenderStep("RCCar", Enum.RenderPriority.Camera.Value + 1, funct
 			3
 				* (
 					if ArenaCam.on(player:GetAttribute("InMatch"), true)
-						then ArenaCam.fit(
-							workspace.CurrentCamera.ViewportSize.X,
-							workspace.CurrentCamera.ViewportSize.Y
-						).distance
+						then camera.arenaDistance()
 						else Tuning.camDistance + Tuning.camHeight
 				),
 			dt

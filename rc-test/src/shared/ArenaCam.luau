@@ -39,9 +39,37 @@ ArenaCam.PHONE_AHEAD_MIN = 8 -- kart lengths still seen ahead of your kart (the 
 
 export type Fit = { distance: number, pitch: number, fov: number, fast: number }
 
--- The camera for a screen `w` x `h` px: a phone's close one, or the big screen's.
-function ArenaCam.fit(w: number, h: number): Fit
-	if math.min(w, h) <= ArenaCam.PHONE_SHORT then
+-- A touch screen with no keyboard up to this short side is a phone too (a big phone that reports
+-- more points than an iPhone); a tablet (768+) keeps the big camera.
+ArenaCam.TOUCH_SHORT = 700
+-- Studio only: workspace TestPhoneCam = true forces the phone camera on any screen (Studio's
+-- view is 1914 x 604, never phone-shaped), so the auditor can see the phone view.
+ArenaCam.TEST_ATTR = "TestPhoneCam"
+
+-- Is this screen a phone (the close camera)? `forced`: the Studio test switch.
+function ArenaCam.isPhone(
+	w: number,
+	h: number,
+	touch: boolean?,
+	keyboard: boolean?,
+	forced: boolean?
+): boolean
+	local short = math.min(w, h)
+	return forced == true
+		or short <= ArenaCam.PHONE_SHORT
+		or (touch == true and keyboard ~= true and short <= ArenaCam.TOUCH_SHORT)
+end
+
+-- The Studio test switch: on only in Studio and only when the attribute is exactly true.
+function ArenaCam.forced(isStudio: boolean, attr: unknown): boolean
+	return isStudio and attr == true
+end
+
+-- The camera for a screen `w` x `h` px: a phone's close one, or the big screen's. `phone` (from
+-- isPhone) wins when given; without it the screen's size decides.
+function ArenaCam.fit(w: number, h: number, phone: boolean?): Fit
+	local isPhone = if phone == nil then math.min(w, h) <= ArenaCam.PHONE_SHORT else phone
+	if isPhone then
 		return {
 			distance = ArenaCam.PHONE_DISTANCE,
 			pitch = ArenaCam.PHONE_PITCH,
