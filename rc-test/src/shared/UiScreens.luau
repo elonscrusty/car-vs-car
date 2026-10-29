@@ -439,10 +439,10 @@ local LIST: { Screen } = {
 			button("Fire", 618, 244, 118, 118, "danger", "FIRE", { anchor = "br" }),
 		},
 	},
-	-- the match HUD on a phone (carter 10-29: "can't see on mobile, too cluttered"): the Smash
-	-- Karts minimum, every piece at an edge and the middle half of the screen empty. A tiny 2/8
-	-- chip and your row + the leader top left, the clock over a slim health bar top centre, two
-	-- small kill lines top right, FIRE (with the weapon and ammo on it) bottom right.
+	-- the match HUD on a phone (carter 10-29 picked "1A" from 3 rounds of tries,
+	-- /mnt/project-files/car-vs-car/match-screen/): the kit v41 look cleaned up. Your place and
+	-- smashes top left with 2 kill lines under them, the clock top centre over your health bar
+	-- (name and 89/100 on it), FIRE bottom right. No scoreboard: the place chip says it.
 	{
 		id = "matchTouch",
 		n = 18,
@@ -450,18 +450,15 @@ local LIST: { Screen } = {
 		kind = "hud",
 		gameplay = true,
 		pieces = {
-			p("Place", 6, 6, 74, 30, { anchor = "tl" }),
-			p("Board", 6, 40, 170, 47, { anchor = "tl" }),
-			-- (the top centre ends by 39: on a 667x375 phone under the 58 px top bar that is just
-			-- above the middle half; the kill lines stay in the right quarter, even on a tall phone)
-			p("Feed", 566, 6, 190, 56, { anchor = "tr" }),
-			-- (kit v41 at its smallest: the clock, then the heart on a short bar and the number on
-			-- the same top row, so the middle half stays empty on a 667x375 phone)
-			p("Clock", 250, 3, 84, 27, { anchor = "t" }),
-			p("Health", 338, 4, 210, 24, { anchor = "t" }),
-			p("Words", 228, 54, 300, 30, { anchor = "t" }),
-			-- (112: 88 px on a 667x375 phone)
-			button("Fire", 624, 260, 112, 112, "danger", "FIRE", { anchor = "br" }),
+			-- (sized so only the health bar's foot dips into the middle half, and no lower than a
+			-- third of the screen, on a 667x375 phone under the 58 px top bar)
+			p("Place", 6, 2, 230, 40, { anchor = "tl" }),
+			p("Feed", 6, 46, 184, 60, { anchor = "tl" }),
+			p("Clock", 324, 0, 108, 32, { anchor = "t" }),
+			p("Health", 248, 32, 260, 38, { anchor = "t" }),
+			-- the short flash words (STUCK - BACK TO START...), under the health bar
+			p("Words", 228, 74, 300, 30, { anchor = "t" }),
+			button("Fire", 618, 252, 116, 116, "danger", "FIRE", { anchor = "br" }),
 		},
 	},
 }

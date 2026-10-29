@@ -72,6 +72,12 @@ function SmashJuice.smashLine(weapon: string): string
 	return "You " .. words(weapon).mine
 end
 
+-- The big gold pop word on your smash (match 1A, carter 10-29): "SMASH!" ("SHATTERED!" for a
+-- freeze), the victim's name under it
+function SmashJuice.popWord(weapon: string): string
+	return if words(weapon).mine == "SHATTERED" then "SHATTERED!" else "SMASH!"
+end
+
 -- "You were smashed by Botty's rocket"; no killer: "You fell out of the arena!" for a fall or a
 -- bump, else "You were smashed by a rocket!" (whoever fired it has left)
 function SmashJuice.deathLine(weapon: string, killer: string?): string
@@ -337,13 +343,14 @@ SmashJuice.WORDS = {
 -- On a phone (carter 10-29: too cluttered): smaller, higher (just under the small HUD's clock and
 -- health bar) and briefer: at most TOUCH_SECONDS, so the middle of the screen is only crossed by
 -- a flash.
-SmashJuice.WORDS_W_TOUCH = 0.3
+SmashJuice.WORDS_W_TOUCH = 0.26
+-- (match 1A: a big gold SMASH! with the name under it)
 SmashJuice.WORDS_TOUCH = {
-	you = { y = 0.3, h = 0.055 },
-	name = { y = 0.355, h = 0.065 },
-	streak = { y = 0.41, h = 0.05 },
-	by = { y = 0.31, h = 0.06 },
-	count = { y = 0.4, h = 0.09 },
+	you = { y = 0.385, h = 0.12 },
+	name = { y = 0.485, h = 0.06 },
+	streak = { y = 0.55, h = 0.05 },
+	by = { y = 0.41, h = 0.06 },
+	count = { y = 0.5, h = 0.09 },
 } :: { [string]: { y: number, h: number } }
 SmashJuice.TOUCH_SECONDS = 1
 -- (the words pop in from at most 1.5x, so the pop never sweeps over the HUD for long)

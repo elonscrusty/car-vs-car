@@ -72,7 +72,7 @@ local function word(parent: Instance, name: string, color: Color3, spot: string)
 	stroke.LineJoinMode = Enum.LineJoinMode.Round
 	stroke.Parent = l
 	local max = Instance.new("UITextSizeConstraint")
-	max.MaxTextSize = if PHONE then 36 else 64
+	max.MaxTextSize = if PHONE then 56 else 64
 	max.Parent = l
 	local pop = Instance.new("UIScale")
 	pop.Name = "Pop"
@@ -156,7 +156,21 @@ function SmashFx.start()
 
 	-- the words (SmashJuice.WORDS: under the clock and health, between the scoreboard and FIRE)
 	local you = word(gui, "YouSmashed", Color3.new(1, 1, 1), "you")
-	local name = word(gui, "Name", SUN, "name")
+	-- (match 1A: SMASH! in gold, a thick ink line, the name white under it)
+	local gold = Instance.new("UIGradient")
+	gold.Rotation = 90
+	gold.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 251, 224)),
+		ColorSequenceKeypoint.new(0.38, Color3.fromRGB(255, 233, 90)),
+		ColorSequenceKeypoint.new(0.7, Color3.fromRGB(255, 196, 0)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 154, 0)),
+	})
+	gold.Parent = you
+	local youLine = you:FindFirstChildOfClass("UIStroke")
+	if youLine then
+		youLine.Thickness = 6
+	end
+	local name = word(gui, "Name", Color3.new(1, 1, 1), "name")
 	local streak = word(gui, "Streak", PINK, "streak")
 	local by = word(gui, "SmashedBy", CHERRY, "by")
 	local count = word(gui, "Count", Color3.new(1, 1, 1), "count")
@@ -427,13 +441,8 @@ function SmashFx.start()
 		if f.attacker and f.attacker.me and not f.victim.me then
 			local word2 = myStreak:smash(at)
 			by.Visible = false
-			showWord(you, SmashJuice.smashLine(f.weapon), secs(SmashJuice.WORDS_SECONDS), 1.3)
-			showWord(
-				name,
-				SmashJuice.shortName(f.victim.name) .. "!",
-				secs(SmashJuice.WORDS_SECONDS),
-				1.4
-			)
+			showWord(you, SmashJuice.popWord(f.weapon), secs(SmashJuice.WORDS_SECONDS), 0.3)
+			showWord(name, SmashJuice.shortName(f.victim.name), secs(SmashJuice.WORDS_SECONDS), 1.4)
 			if word2 then
 				showWord(streak, word2, secs(SmashJuice.STREAK_SECONDS), 1.5)
 			end

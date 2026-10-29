@@ -347,6 +347,15 @@ DRAW.heart = function(c)
 	Base.fill(c, "Fill", 26, 30, 48, 30, red, 4)
 end
 
+-- the smash count's crash burst (match 1A, carter 10-29): an orange 8-point star, a yellow one in it
+DRAW.burst = function(c)
+	local boost, go = Base.color("boost"), Base.color("go")
+	shape(c, "OuterA", 14, 14, 72, 72, boost, 6, 6, nil, 1)
+	shape(c, "OuterB", 14, 14, 72, 72, boost, 6, 6, 45, 1)
+	Base.fill(c, "InnerA", 30, 30, 40, 40, go, 4)
+	Base.fill(c, "InnerB", 30, 30, 40, 40, go, 4).Rotation = 45
+end
+
 DRAW.plus = function(c)
 	local lime = Base.color("lime")
 	local disc = shape(c, "Disc", 6, 6, 88, 88, lime, nil, 8)
