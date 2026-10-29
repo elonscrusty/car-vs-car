@@ -117,6 +117,10 @@ test(
 		truthy(string.find(src, 'FindFirstChild("SmashArena")', 1, true), "arena props only")
 		truthy(string.find(src, "LocalTransparencyModifier = was", 1, true), "puts it back")
 		truthy(string.find(src, "SeeKart.ours(", 1, true), "float-safe compare")
+		truthy(
+			string.find(src, "SeeKart.blocks(", 1, true),
+			"the margin and beside-the-camera rules"
+		)
 		truthy(string.find(src, "SeeKart.hiddenAlready(", 1, true), "never undoes another hide")
 		truthy(
 			string.find(src, "RenderPriority.Camera.Value + 4", 1, true),
@@ -127,3 +131,33 @@ test(
 		truthy(not string.find(src, "RCCar", 1, true))
 	end
 )
+
+test("see kart (Studio round 8): a prop just past the kart never fades", function()
+	local m = SeeKart.KART_MARGIN
+	-- camera at x = -10, kart centre at x = 0; a bush box centred 0.5 past the kart
+	-- (in the bush's own space: camera at -10.5, kart at -0.5, half size 0.6)
+	eq(SeeKart.blocks(-10.5, 0, 0, -0.5, 0, 0, 0.6, 0.6, 0.6), false, "bush just past the kart")
+	-- the same bush halfway between camera and kart fades
+	truthy(SeeKart.blocks(-5, 0, 0, 5, 0, 0, 0.6, 0.6, 0.6), "bush in between")
+	-- a prop that ends just before the margin still fades
+	truthy(SeeKart.blocks(-10, 0, 0, m + 0.6 + 0.1, 0, 0, 0.6, 0.6, 0.6))
+	-- camera right on top of the kart: nothing in between
+	eq(SeeKart.blocks(-10, 0, 5, -10 + m * 0.5, 0, 5, 0.6, 0.6, 0.6), false)
+end)
+
+test("see kart (Studio round 8): a prop right beside the camera fades even off the line", function()
+	local d = SeeKart.NEAR_CAM
+	-- a tree stick (half 0.3 x 2 x 0.3) one stud to the side of the camera; the kart is ahead
+	truthy(SeeKart.blocks(0.8, 0, 0, 0.8, 0, 10, 0.3, 2, 0.3), "fills the screen edge")
+	truthy(SeeKart.pointNearBox(0.3 + d, 0, 0, 0.3, 2, 0.3, d))
+	eq(SeeKart.pointNearBox(0.3 + d + 0.1, 0, 0, 0.3, 2, 0.3, d), false)
+	-- far to the side: no
+	eq(SeeKart.blocks(6, 0, 0, 6, 0, 10, 0.3, 2, 0.3), false)
+	-- a wall pillar 1.5 studs to the side of the camera (driving along the wall): stays solid
+	eq(
+		SeeKart.blocks(1.5, 0, 0, 1.5, 0, 2.6, 0.375, 1.45, 0.375),
+		false,
+		"no strobe along the wall"
+	)
+	truthy(d < 1, "beside the camera means really beside it (the camera is ~2.6 studs back)")
+end)
