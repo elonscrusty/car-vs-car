@@ -241,3 +241,36 @@ end)
 test("the phone screens built with no script errors", function()
 	none(S.errors)
 end)
+
+-- The lobby's GO SMASH! arrow and words sit at the screen's edge, past the middle third where the
+-- kart is (from above the SMASH! button they sat on the kart, auditor's garage shot)
+test("GO SMASH! points at the SMASH! button from the side, out of the middle third", function()
+	local h = Hud.plot({ coins = 0, race = "SMASH!", banner = false, myCar = false })
+	h.api.point("Race", "GO SMASH!", true, true)
+	local s = L.PHONES[1].safe
+	local k = math.min(s[3] / 756, s[4] / 390)
+	local mid1, mid2 = s[1] + 252 * k, s[1] + 504 * k
+	local seenArrow, seenWords = false, false
+	for _, b in L.boxes(h.gui.gui, s[1], s[2], s[3], s[4]) do
+		if
+			string.find(b.path, "Pointer.", 1, true)
+			and (b.obj.Name == "Arrow" or b.obj.Name == "Words")
+		then
+			seenArrow = seenArrow or b.obj.Name == "Arrow"
+			seenWords = seenWords or b.obj.Name == "Words"
+			truthy(b.x + b.w <= mid1 + 1 or b.x >= mid2 - 1, "in the middle third: " .. name(b))
+			truthy(b.x + b.w <= s[1] + s[3] + 1, "off screen: " .. name(b))
+		end
+	end
+	truthy(seenArrow and seenWords, "no arrow or words")
+	-- (with SMASH off the arrow still comes from above, as before)
+	h.api.point("Race", "TAP RACE!", true, false)
+	local above = false
+	for _, b in L.boxes(h.gui.gui, s[1], s[2], s[3], s[4]) do
+		if string.find(b.path, "Pointer.Arrow", 1, true) and b.obj.Name == "Arrow" then
+			above = b.x > mid1 and b.x + b.w < mid2
+		end
+	end
+	truthy(above, "the race arrow moved with SMASH off")
+	h.close()
+end)

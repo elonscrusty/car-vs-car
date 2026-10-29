@@ -1036,7 +1036,8 @@ RunService.Heartbeat:Connect(function()
 	api.point(
 		if yard and goal == "Race" then nil else goal,
 		goalWords,
-		now - lastInput >= IDLE_NUDGE
+		now - lastInput >= IDLE_NUDGE,
+		SMASH -- (from the side: over the SMASH! button it sat on the kart, auditor garage shot)
 	)
 	local coins = num("Coins")
 	local nw, nf, nk = nextBuy()

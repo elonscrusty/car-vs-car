@@ -46,7 +46,13 @@ local SIDES = {
 -- One arrow at a piece (its spot frame h, design rect p), bobbing toward it: above the pieces at
 -- the bottom middle (RACE!) and the top left tiles, beside the ones at the edges. loud (no tap for
 -- a while): it bobs further and says what to tap.
-local function pointAt(h: Frame, p: UiScreens.Piece, words: string?, loud: boolean): Frame
+local function pointAt(
+	h: Frame,
+	p: UiScreens.Piece,
+	words: string?,
+	loud: boolean,
+	aside: boolean?
+): Frame
 	-- a see-through frame over the piece holds the arrow and its words (gone with it)
 	local over = Base.box(h, "Pointer", 0, 0, p.w, p.h, 8)
 	local s = if loud then 54 else 44
@@ -63,6 +69,12 @@ local function pointAt(h: Frame, p: UiScreens.Piece, words: string?, loud: boole
 			-- level with the arrow they ran under it, carter's phone 10-28)
 			wy = -12
 		end
+	elseif aside and p.y > Base.H * 0.6 then
+		-- bottom middle, aside (SMASH): from the right, past the middle third, the words at the
+		-- edge; from above, the arrow and GO SMASH! sat on the kart (auditor's garage shot)
+		-- (0.69 of the canvas, not 2/3: a wider phone's middle third reaches a little further)
+		x, y, rot, dx, dy = math.max(p.w + 6, Base.W * 0.69 - p.x), (p.h - s) / 2, 180, -1, 0
+		wx, wy, align = x + s + 4, (p.h - th) / 2, "l"
 	elseif p.y > Base.H * 0.6 then
 		-- bottom middle: from above, the words over it
 		x, y, rot, dx, dy = (p.w - s) / 2, -s - 6, 90, 0, 1
@@ -111,7 +123,8 @@ end
 -- api: setCoins(n), setRate(words), setNextUp(title, sub, hurry), setCar(name, stats), setNext(words, f),
 --   setCoach(f, words), setDot(name, n), float(x, y, words, color), setRace(words, tone, pulse),
 --   setJobs(words), setShown(name, on) (a tile, Coach, Race or Jobs steps away / comes back),
---   point(name?, words?, loud?) (one bouncing arrow at that piece; loud: bigger, with its words)
+--   point(name?, words?, loud?, aside?) (one bouncing arrow at that piece; loud: bigger, with its
+--   words; aside: a bottom middle piece is pointed at from the side, clear of the middle third)
 function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
 	return Screen.open("plot", "hud", false, function(g)
 		local c = g.canvas
@@ -413,8 +426,8 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 					h.Visible = false
 				end
 			end,
-			point = function(name: string?, words: string?, loud: boolean?)
-				local key = `{name}|{words}|{loud}`
+			point = function(name: string?, words: string?, loud: boolean?, aside: boolean?)
+				local key = `{name}|{words}|{loud}|{aside}`
 				if key == pointKey then
 					return
 				end
@@ -434,7 +447,7 @@ function Hud.plot(data: { [string]: any }, actions: Screen.Actions?): Screen.Han
 				if not (name and h) then
 					return
 				end
-				pointer = pointAt(h, piece("plot", name), words, loud == true)
+				pointer = pointAt(h, piece("plot", name), words, loud == true, aside)
 			end,
 		}
 	end)
