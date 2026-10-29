@@ -16,6 +16,7 @@ local Ui = script.Parent:WaitForChild("Ui")
 local Base = require(Ui:WaitForChild("Base"))
 local Kit = require(Ui:WaitForChild("Kit"))
 local Windows = require(Ui:WaitForChild("Screens"):WaitForChild("Windows"))
+local Screen = require(Ui:WaitForChild("Screen"))
 local StageGate = require(script.Parent:WaitForChild("StageGate"))
 local Profile = require(ReplicatedStorage.Shared.Profile)
 
@@ -591,6 +592,11 @@ local function showDaily(coins: number, streak: number, boost: number, crate: bo
 			and not shownIn(pg:FindFirstChild("CvcRaceTop"), "Finish")
 			and me:GetAttribute("UiBusy") ~= true
 			and me:GetAttribute("Racing") ~= true
+			-- (Smash: never on top of a crate reveal, the match end or any window, and not in or
+			-- queued for a match: it waits for the garage or the yard, Studio 10-29)
+			and not Screen.anyOver()
+			and me:GetAttribute("InMatch") ~= true
+			and me:GetAttribute("MatchQueued") ~= true
 	end
 	local waited, still = 0, 0
 	while still < 3 and waited < 600 do
