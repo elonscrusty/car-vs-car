@@ -51,6 +51,13 @@ export type Out = {
 	target: Point?,
 	mode: string,
 }
+-- (optional) what the kid can see of the arena, in the same units as Me (ArenaBrain.sight and
+-- ArenaBrain.via on ArenaBrain.fromArena: the caller converts). ARENA R12: a box across a hill
+-- pinned it on the cliff ~5 s a time; a kid sees the cliff, takes a box it can see or the ramp.
+export type Map = {
+	sight: (ax: number, az: number, bx: number, bz: number) -> boolean,
+	via: (x: number, z: number, gx: number, gz: number) -> (number, number),
+}
 export type Rng = { NextNumber: (any) -> number }
 export type State = {
 	rng: Rng,
@@ -143,7 +150,8 @@ function ThumbBrain.step(
 	me: Me,
 	boxes: { Point },
 	karts: { Point },
-	armed: boolean
+	armed: boolean,
+	map: Map?
 ): Out
 	-- it looks again every REACT seconds: in between it acts on what it saw (a late thumb)
 	if now - s.seenAt >= ThumbBrain.REACT then
@@ -151,13 +159,24 @@ function ThumbBrain.step(
 		local avoid = if now < s.avoidUntil then s.avoid else nil
 		local best = if armed then chase(me, karts, avoid) else nil
 		if not best then
-			local bestD = math.huge
+			-- the nearest box it can get at (in sight, or its ramp is); none: the nearest
+			local bestD, seenD, seen = math.huge, math.huge, nil
 			for _, b in boxes do
 				local d = math.sqrt((b.x - me.x) ^ 2 + (b.z - me.z) ^ 2)
-				if d < bestD and not skipped(avoid, b) then
+				if skipped(avoid, b) then
+					continue
+				end
+				if d < bestD then
 					best, bestD = b, d
 				end
+				if map and d < seenD then
+					local wx, wz = map.via(me.x, me.z, b.x, b.z)
+					if map.sight(me.x, me.z, wx, wz) then
+						seen, seenD = b, d
+					end
+				end
 			end
+			best = seen or best
 		end
 		s.aimAt = if best then { x = best.x, z = best.z } else nil
 		s.karts = table.clone(karts)
@@ -168,6 +187,14 @@ function ThumbBrain.step(
 	local detouring = s.detour ~= nil and now < s.detourUntil
 	if detouring then
 		aim = s.detour
+	end
+	local target = aim
+	if aim and map and not detouring then
+		-- (on or off a hill: by its ramp)
+		local wx, wz = map.via(me.x, me.z, aim.x, aim.z)
+		if wx ~= aim.x or wz ~= aim.z then
+			aim = { x = wx, z = wz }
+		end
 	end
 	if aim then
 		local a = angleTo(me, aim)
@@ -261,7 +288,7 @@ function ThumbBrain.step(
 		throttle = throttle,
 		brake = brake,
 		fire = fire,
-		target = aim,
+		target = target,
 		mode = mode,
 	}
 end
