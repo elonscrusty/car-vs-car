@@ -6,6 +6,7 @@
 -- wedge-built prisms, the tree tops turned blocks). No studs, bricks, text or logos.
 -- Built big (map-local big units) and shrunk to RC size like the race maps.
 
+local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ArenaData = require(ReplicatedStorage.Shared.ArenaData)
@@ -559,6 +560,7 @@ local STEEL_DARK = rgb(52, 55, 63)
 local SHEETS = { RUST, TIN, OLIVE, FADE_BLUE, RUST_2, TIN_2, FADE_RED }
 local WOOD, WOOD_2, WOOD_3 = rgb(155, 114, 72), rgb(123, 90, 54), rgb(169, 130, 85)
 local DRUM_BLUE, HAZARD = rgb(47, 95, 140), rgb(242, 194, 48)
+local BOOST_ORANGE = rgb(255, 176, 46)
 
 -- a steady wobble from a number (0..1), so every build looks the same
 local function jitter(i: number): number
@@ -610,9 +612,9 @@ local function rampLooks(folder: Instance, a: Vector3, b: Vector3, w: number, h:
 		lift: number,
 		color: Color3,
 		turn: number?
-	)
+	): BasePart
 		local at = a + run * u + up * u + side * x + Vector3.new(0, lift, 0)
-		part(
+		return part(
 			folder,
 			name,
 			size,
@@ -631,6 +633,25 @@ local function rampLooks(folder: Instance, a: Vector3, b: Vector3, w: number, h:
 			0.08,
 			woods[i % 3 + 1]
 		)
+	end
+	-- boost arrows (carter's pick: orange): five pairs of chevrons up the ramp, glowing; the client
+	-- pulses them one after the other, bottom to top
+	for i = 0, 4 do
+		local u = 0.12 + i * 0.17
+		for _, sgn in { -1, 1 } do
+			local arrow = onSlope(
+				"BoostArrow",
+				Vector3.new(5.4, 0.16, 1.5),
+				sgn * 2.6,
+				u,
+				0.14,
+				BOOST_ORANGE,
+				sgn * 0.65
+			)
+			arrow.Material = Enum.Material.Neon
+			arrow:SetAttribute("U", u)
+			CollectionService:AddTag(arrow, ArenaData.BOOST_TAG)
+		end
 	end
 	for _, sgn in { -1, 1 } do
 		onSlope("RampRail", Vector3.new(0.7, 0.7, len), sgn * (w / 2 - 0.35), 0.5, 0.3, STEEL_DARK)
