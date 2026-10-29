@@ -30,20 +30,41 @@ function SmashJuice.shortName(name: string): string
 	return string.sub(clean, 1, cut - 1) .. "…"
 end
 
--- Weapon names on SmashFeed (lower case). Unknown weapons still read fine ("smashed by X").
---   killer = how you got it ("You were <verb> by X<'s thing>"), mine = your smash word
-type WeaponWords = { verb: string, thing: string?, mine: string }
+-- Weapon names on SmashFeed (lower case: MatchRunner sends Weapons.feedWord, "rocket", "nuke",
+-- "machine gun", "mine", "freeze ray", or "bump"). Every death line names the thing that got you
+-- (audit round 12 #9): "You were smashed by X's rocket", never just "by X".
+--   killer = how you got it ("You were <verb> by X's <thing>"), mine = your smash word
+type WeaponWords = { verb: string, thing: string, mine: string }
 SmashJuice.WEAPONS = {
 	rocket = { verb = "smashed", thing = "rocket", mine = "SMASHED" },
 	nuke = { verb = "smashed", thing = "nuke", mine = "SMASHED" },
 	gun = { verb = "mowed down", thing = "machine gun", mine = "SMASHED" },
 	mine = { verb = "blown up", thing = "mine", mine = "SMASHED" },
-	freeze = { verb = "shattered", thing = nil, mine = "SHATTERED" },
-	bump = { verb = "bumped out", thing = nil, mine = "SMASHED" },
+	freeze = { verb = "shattered", thing = "freeze ray", mine = "SHATTERED" },
+	bump = { verb = "bumped out", thing = "bump", mine = "SMASHED" },
 } :: { [string]: WeaponWords }
+-- the server's feed words and other spellings, to the rows above
+local ALIAS = {
+	rockets = "rocket",
+	["machine gun"] = "gun",
+	["freeze ray"] = "freeze",
+	mines = "mine",
+	ram = "bump",
+	[""] = "bump", -- (MatchRunner's own default: no weapon word = a bump)
+}
+-- no killer: the arena got you (fell off, no one to blame)
+local FELL = { bump = true, fall = true, arena = true, [""] = true }
 
 local function words(weapon: string): WeaponWords
-	return SmashJuice.WEAPONS[string.lower(weapon)] or { verb = "smashed", mine = "SMASHED" }
+	local key = string.lower(weapon)
+	key = ALIAS[key] or key
+	local w = SmashJuice.WEAPONS[key]
+	if w then
+		return w
+	end
+	-- a weapon this list doesn't know yet still names itself (cut short: two feed rows)
+	local thing = string.sub(key, 1, 14)
+	return { verb = "smashed", thing = thing, mine = "SMASHED" }
 end
 
 -- "You SMASHED" / "You SHATTERED" (the name goes on the big line under it)
@@ -51,17 +72,20 @@ function SmashJuice.smashLine(weapon: string): string
 	return "You " .. words(weapon).mine
 end
 
--- "You were smashed by Botty's rocket"; no killer (fell off, the arena) → "You were smashed!"
+-- "You were smashed by Botty's rocket"; no killer: "You fell out of the arena!" for a fall or a
+-- bump, else "You were smashed by a rocket!" (whoever fired it has left)
 function SmashJuice.deathLine(weapon: string, killer: string?): string
-	local w = words(weapon)
+	local key = string.lower(weapon or "")
 	if not killer then
-		return "You were " .. w.verb .. "!"
+		if FELL[ALIAS[key] or key] then
+			return "You fell out of the arena!"
+		end
+		local w = words(weapon)
+		local a = if string.match(w.thing, "^[aeiou]") then "an" else "a"
+		return `You were {w.verb} by {a} {w.thing}!`
 	end
-	local who = SmashJuice.shortName(killer)
-	if w.thing then
-		return `You were {w.verb} by {who}'s {w.thing}`
-	end
-	return `You were {w.verb} by {who}`
+	local w = words(weapon)
+	return `You were {w.verb} by {SmashJuice.shortName(killer)}'s {w.thing}`
 end
 
 -- ===== who did what (the SmashFeed remote) =====
