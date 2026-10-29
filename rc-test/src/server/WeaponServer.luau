@@ -22,7 +22,8 @@ export type Ctx = {
 	karts: () -> { Kart },
 	getKart: (id: any) -> Kart?,
 	raycast: (from: Vector3, to: Vector3, ignoreId: any?, worldOnly: boolean?) -> Hit?,
-	damage: (victimId: any, attackerId: any, amount: number, weapon: string) -> (),
+	-- returns the health it really took (0 = none: another place, a shield); clients show it
+	damage: (victimId: any, attackerId: any, amount: number, weapon: string) -> number,
 	fx: (kind: string, data: { [string]: any }) -> (),
 	after: (seconds: number, fn: () -> ()) -> (),
 	place: ((kind: string, at: Vector3) -> Instance?)?,
@@ -330,29 +331,33 @@ local function makeCtx(fxRemote: RemoteEvent): Ctx
 		end,
 		-- Hurts only karts in the same place as the shooter: yard shots never reach the match, a
 		-- match shot never pops a yard dummy, and a shot landing after its target left hurts nothing.
-		damage = function(victimId: any, attackerId: any, amount: number, weapon: string)
+		damage = function(victimId: any, attackerId: any, amount: number, weapon: string): number
 			local src = ownerOf(victimId)
 			if src ~= ownerOf(attackerId) then
-				return
+				return 0
 			end
 			if src then
 				if type(src.damage) == "function" then
-					local ok, err =
+					local ok, taken =
 						pcall(src.damage, victimId, attackerId, amount, Weapons.feedWord(weapon))
 					if not ok then
-						warn("[WeaponServer] source damage failed: " .. tostring(err))
+						warn("[WeaponServer] source damage failed: " .. tostring(taken))
+						return 0
 					end
+					return if type(taken) == "number" then taken else amount
 				end
-				return
+				return 0
 			end
 			if not cacheMatch[victimId] then
-				return
+				return 0
 			end
 			local mr = matchRunner()
 			if mr and type(mr.damage) == "function" then
 				-- MatchRunner's words are lowercase and one of a kind: "rocket", "nuke", "gun"
-				mr.damage(victimId, attackerId, amount, Weapons.feedWord(weapon))
+				local taken = mr.damage(victimId, attackerId, amount, Weapons.feedWord(weapon))
+				return if type(taken) == "number" then taken else amount
 			end
+			return 0
 		end,
 		fx = function(kind: string, data: { [string]: any })
 			fxRemote:FireAllClients(kind, data)
