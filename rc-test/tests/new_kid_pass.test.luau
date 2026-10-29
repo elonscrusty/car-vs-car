@@ -1,8 +1,8 @@
 --!nocheck
 -- Car VS Car SMASH: a new kid's first match on the real server scripts (auditor R4-1). A kid with
 -- no skill, driving like the real game: the Studio test thumb's brain (shared/ThumbBrain: boxes
--- when empty-handed, chases a kart when armed, sees 0.3 s late, wobbles) on a kart with the real
--- RC car's numbers (Tuning: top speed, grip-limited steering, wheelbase) that bumps into the
+-- when empty-handed, chases a kart when armed, sees 0.3 s late, wobbles, backs up) on a kart with
+-- the real RC car's numbers (Tuning: top speed, grip-limited steering, wheelbase) that bumps into the
 -- arena's walls and trees, and FIRE up the real remote a ping late, aimed where the camera looks.
 -- (The old pretend kid slid with instant turns through walls: it passed while Studio's thumb
 -- came 8th.) Against the real bots (ArenaBots: easy on a rookie) and the real weapons, it must
@@ -21,8 +21,6 @@ local RUNS, NEED = 20, 16
 local BEAT = 0.05
 local PING = 0.1 -- s: the FIRE press reaches the server this late (a phone on wifi)
 local CAM_LAG = 0.2 -- s: FIRE aims where the chase camera looks, a little behind the nose
-local STUCK = 1.5 -- s at a crawl with the stick forward: a kid backs up...
-local BACK = 1 -- ...for this long, steering the other way
 local FIRE_GAP = 0.12 -- s between FIRE presses the button lets through (MatchHud)
 
 -- The kid drives like the real RC kart (Tuning's top speed, grip-limited steering, the wheelbase,
@@ -44,10 +42,11 @@ local function kid(S, player)
 	local scale = TrackData.RC_SCALE
 	local accel, base = Tuning.accel * scale, 2 * Tuning.wheelZ * scale
 	local top = Tuning.topSpeed * scale
+	local brakeAccel, reverseTop = Tuning.brakeAccel * scale, Tuning.reverseTop * scale
 	local lastFire = -math.huge
 	local seen, t = 0, nil
 	local x, y, z, fx, fz, v, wheel = 0, 0, 0, 0, -1, 0, 0
-	local slowFor, backUntil, backSteer = 0, -math.huge, 1
+	local backing = false
 	local looks = {} :: { { at: number, x: number, z: number } }
 	local shots = {} :: { { at: number, aim: any } }
 	local me = {
@@ -91,7 +90,8 @@ local function kid(S, player)
 				if d > 1e-3 then
 					fx, fz = (ax - x) / d, (az - z) / d
 				end
-				v, wheel, slowFor, backUntil = 0, 0, 0, -math.huge
+				v, wheel = 0, 0
+				ThumbBrain.calm(brain) -- (a respawn, as TestThumb does)
 			end
 		end
 		body.AssemblyLinearVelocity = roblox.Vector3.zero
@@ -135,23 +135,28 @@ local function kid(S, player)
 		if math.abs(v) < 2 then
 			me.crawl += dt
 		end
-		local out =
-			ThumbBrain.step(brain, now, { x = x, z = z, fx = fx, fz = fz }, boxes, karts, armed)
-		local steer, throttle = out.steer, out.throttle
-		-- nose on a wall with the stick forward: a kid backs up, turning the other way
-		if now < backUntil then
-			steer, throttle = backSteer, -0.6
-		elseif math.abs(v) < 2 then
-			slowFor += dt
-			if slowFor > STUCK then
-				backUntil, backSteer, slowFor = now + BACK, -(if steer >= 0 then 1 else -1), 0
-				me.backs += 1
-			end
-		else
-			slowFor = 0
+		local out = ThumbBrain.step(
+			brain,
+			now,
+			{ x = x, z = z, fx = fx, fz = fz, speed = math.abs(v) },
+			boxes,
+			karts,
+			armed
+		)
+		local steer = out.steer
+		-- (the thumb backs up itself, ThumbBrain: brake slows the kart, then reverses it, as RCCar)
+		if out.brake > 0 and not backing then
+			me.backs += 1
 		end
+		backing = out.brake > 0
 		-- the kart: speed, front wheels that turn at steerRate up to the grip limit, wheelbase
-		v = math.clamp(v + throttle * accel * dt, -top * 0.5, top)
+		if out.brake > 0 and v > 0.5 then
+			v = math.max(v - out.brake * brakeAccel * dt, 0)
+		elseif out.brake > 0 then
+			v = math.max(v - out.brake * accel * dt, -reverseTop)
+		else
+			v = math.clamp(v + out.throttle * accel * dt, -reverseTop, top)
+		end
 		local lim = Tuning.steerLow
 			+ (Tuning.steerHigh - Tuning.steerLow)
 				* math.clamp(math.abs(v) / top, 0, 1) ^ Tuning.steerCurve
@@ -164,14 +169,18 @@ local function kid(S, player)
 		local function hit(px: number, pz: number): boolean
 			return ArenaBrain.blocked(world, toLocal(px, pz))
 		end
+		local x0, z0 = x, z
 		if not hit(nx, nz) then
 			x, z = nx, nz
 		elseif not hit(nx, z) then
-			x, v = nx, v * 0.9
+			x = nx
 		elseif not hit(x, nz) then
-			z, v = nz, v * 0.9
-		else
-			v = 0
+			z = nz
+		end
+		if x ~= nx or z ~= nz then
+			-- scraping a wall: the kart only goes as fast as it really moves along its nose
+			-- (so a nose on a wall reads as stuck, as on the real kart)
+			v = if dt > 0 then ((x - x0) * fx + (z - z0) * fz) / dt else 0
 		end
 		body.CFrame =
 			roblox.CFrame.lookAt(roblox.Vector3.new(x, y, z), roblox.Vector3.new(x + fx, y, z + fz))
@@ -242,7 +251,7 @@ test(
 			end
 			print(
 				string.format(
-					"       seed %d: %d smashes, place %d, smashed %d times (first at %s), backed off a wall %d times%s",
+					"       seed %d: %d smashes, place %d, smashed %d times (first at %s), backed up %d times%s",
 					seed,
 					smashes,
 					place,
