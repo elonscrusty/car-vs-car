@@ -79,7 +79,7 @@ test("a bot with Rockets fires through WeaponServer and hits the kart ahead", fu
 	eq(#S.errors, 0)
 end)
 
-test("a rookie (first 3 matches): bots fire at them less often and send some shots wide", function()
+test("a rookie (first 3 matches): bots fire at them far less often", function()
 	local function run(rookie: boolean): (number, number)
 		local S = Fake.server(Fake.store())
 		local Bots = S.require("ArenaBots")
@@ -132,7 +132,6 @@ test("a rookie (first 3 matches): bots fire at them less often and send some sho
 	print(
 		`       60 s at a kart ahead: a veteran gets {vetShots} shots ({vetClose} on target), a rookie {kidShots} ({kidClose})`
 	)
-	truthy(kidShots < vetShots * 0.75, "fewer shots at a rookie")
-	truthy(kidClose < kidShots * 0.8, "some go wide")
+	truthy(kidShots < vetShots * 0.5, "far fewer shots at a rookie")
 	eq(vetClose, vetShots, "a sharp bot hits a veteran sitting still")
 end)

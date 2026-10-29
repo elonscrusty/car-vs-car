@@ -21,8 +21,11 @@ ArenaBrain.TURN = 2.6 -- rad/s at full lock
 ArenaBrain.RADIUS = 3 -- a kart's size, for bumping into things
 ArenaBrain.THINK = 0.2 -- s between decisions (5 Hz); moving runs every step
 -- A rookie (a player's first 3 matches, MatchRunner): bots chase them less, see them later, wait
--- longer between shots and send some shots wide on purpose, so a new kid gets their smashes in.
-ArenaBrain.ROOKIE = { matches = 3, chase = 4, react = 1.5, gap = 1.5, wide = 0.6 }
+-- longer between shots and hold some shots on purpose, so a new kid gets their smashes in.
+ArenaBrain.ROOKIE = { matches = 3, chase = 4, react = 1.5, gap = 1.5, spare = 0.6 }
+-- The weapons' aim help (Weapons.ROCKET seekDeg / seekRange, in big units): a shot locks onto the
+-- nearest kart within this cone, so a bot shooting past a rookie would hit the rookie.
+ArenaBrain.LOCK = { deg = 35, range = 110 }
 -- An easy match (a rookie is in it): every bot is a bit slower to shoot and to drive, at anyone,
 -- so the rookie's smashes count for more of the board.
 ArenaBrain.EASY = { gap = 0.8, react = 0.3, speed = 0.8 }
@@ -451,6 +454,25 @@ local function decide(
 	end
 end
 
+-- Is a rookie inside the weapons' lock-on cone along (dx, dz), nearer than the target `d` away?
+local function rookieInLock(bot: Bot, world: World, dx: number, dz: number, d: number): boolean
+	local n = math.max(d, 1e-3)
+	local ux, uz = dx / n, dz / n
+	local cosMax = math.cos(math.rad(ArenaBrain.LOCK.deg))
+	for _, k in world.karts do
+		if k.rookie and k.alive and not k.shield and k.id ~= bot.id then
+			local ox, oz = k.x - bot.x, k.z - bot.z
+			local kd = math.sqrt(ox * ox + oz * oz)
+			if kd > 1e-3 and kd < math.min(ArenaBrain.LOCK.range, d + 6) then
+				if (ox * ux + oz * uz) / kd >= cosMax then
+					return true
+				end
+			end
+		end
+	end
+	return false
+end
+
 -- A shot, if the target is a fair one right now.
 local function aimAt(
 	bot: Bot,
@@ -522,12 +544,13 @@ local function aimAt(
 		+ ArenaBrain.FIRE_GAP
 		+ (if target.rookie then ArenaBrain.ROOKIE.gap else 0)
 		+ (if bot.easy then ArenaBrain.EASY.gap else 0)
-	if target.rookie and bot.rng:NextNumber() < ArenaBrain.ROOKIE.wide then
-		-- wide on purpose: off to one side by more than a kart's width plus the aim cone's slack
-		local side = if bot.rng:NextNumber() < 0.5 then -1 else 1
-		local w = math.max(10, d * 0.4) * side
-		local n = math.max(d, 1e-3)
-		return { x = target.x - dz / n * w, z = target.z + dx / n * w }
+	-- (the weapons' aim help locks a shot onto the nearest kart in its cone, so a shot sent wide
+	-- would still find a rookie: a bot spares one by holding the shot instead)
+	if target.rookie and bot.rng:NextNumber() < ArenaBrain.ROOKIE.spare then
+		return nil
+	end
+	if not target.rookie and rookieInLock(bot, world, dx, dz, d) then
+		return nil -- the shot would lock onto the rookie in front of the target
 	end
 	local miss = (1 - bot.skill) * 6 + (if target.human and bot.easy then 4 else 0)
 	local a = bot.rng:NextNumber() * 2 * math.pi

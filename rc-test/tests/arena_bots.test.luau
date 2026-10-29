@@ -110,6 +110,37 @@ test(
 	end
 )
 
+test("no shot past a rookie: the weapons' lock-on would take it onto them", function()
+	local w = world()
+	w.karts = {
+		{ id = -1, x = 0, z = 0, alive = true },
+		{ id = 201, x = 3, z = -30, alive = true, human = true, rookie = true },
+		{ id = -2, x = 0, z = -60, alive = true },
+	}
+	local bot = B.new(-1, 0, 0, 0, { skill = 1 })
+	-- (it goes after the bot: a rookie counts as ROOKIE.chase times farther)
+	local fired = 0
+	local t = 0
+	while t < 5 do
+		t += 0.05
+		w.karts[1].x, w.karts[1].z = bot.x, bot.z
+		if B.step(bot, w, 0.05, t, "Rockets", 3).fire then
+			fired += 1
+		end
+	end
+	eq(bot.target, -2)
+	eq(fired, 0, "held fire with the rookie in the cone")
+	w.karts[2].x = 60 -- the kid out of the way
+	while t < 10 do
+		t += 0.05
+		w.karts[1].x, w.karts[1].z = bot.x, bot.z
+		if B.step(bot, w, 0.05, t, "Rockets", 3).fire then
+			fired += 1
+		end
+	end
+	truthy(fired > 0, "fires once the kid is clear")
+end)
+
 test("stuck against a wall: backs up and gets away", function()
 	local w = world()
 	w.solids = { { x = 0, z = -12, r = 8 } }
