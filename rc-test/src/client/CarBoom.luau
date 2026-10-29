@@ -190,9 +190,130 @@ local function fly(f: Flyer)
 	end
 end
 
+-- ===== the detail: shards, road streaks, road fires, dust =====
+local function shards(
+	at: Vector3,
+	n: number,
+	floorY: number,
+	u: number,
+	rng: Random,
+	hotOnly: boolean?
+)
+	local cols = Spec.SHARD_COLORS
+	for i = 1, n do
+		local c = if hotOnly
+			then (if i % 2 == 0 then cols[4] else cols[5])
+			else cols[(i - 1) % #cols + 1]
+		local glass = c[1] == 159
+		local hot = c[1] == 255
+		local s = rng:NextNumber(0.5, 1.4) * u
+		local p =
+			part("Shard", rgb(c), hot, Vector3.new(0.5 * s, 0.04 * s, 0.25 * s), CFrame.new(at))
+		if glass then
+			p.Transparency = 0.3
+		end
+		local dir =
+			Vector3.new(rng:NextNumber(-1, 1), rng:NextNumber(0.1, 1), rng:NextNumber(-1, 1)).Unit
+		fly({
+			part = p,
+			vel = (
+				dir * rng:NextNumber(Spec.SHARDS.speed * 0.5, Spec.SHARDS.speed)
+				+ Vector3.new(0, 6, 0)
+			) * u,
+			spin = Vector3.new(
+				rng:NextNumber(-16, 16),
+				rng:NextNumber(-16, 16),
+				rng:NextNumber(-16, 16)
+			),
+			floor = floorY,
+			half = 0.05 * s,
+			till = os.clock() + rng:NextNumber(Spec.SHARDS.secs[1], Spec.SHARDS.secs[2]),
+			gravity = Spec.GRAVITY * u,
+		})
+	end
+end
+
+local function streaks(ground: Vector3, u: number, rng: Random, stuff: { Instance })
+	local st = Spec.STREAKS
+	for i = 1, st.count do
+		local len = rng:NextNumber(st.len[1], st.len[2]) * u
+		local a = (i / st.count) * math.pi * 2 + rng:NextNumber(-0.2, 0.2)
+		local mid = ground + Vector3.new(math.cos(a), 0, math.sin(a)) * (len / 2)
+		local s = part(
+			"Streak",
+			Color3.fromRGB(10, 8, 6),
+			false,
+			Vector3.new(len, 0.03 * u, st.wide * u),
+			CFrame.new(mid + Vector3.new(0, 0.03 * u, 0)) * CFrame.Angles(0, -a, 0)
+		)
+		s.Transparency = st.see
+		table.insert(stuff, s)
+	end
+end
+
+local function roadFires(
+	ground: Vector3,
+	u: number,
+	rng: Random,
+	isPhone: boolean,
+	stuff: { Instance }
+)
+	for _ = 1, Spec.ROAD_FIRES.count do
+		local off = Vector3.new(
+			rng:NextNumber(-Spec.ROAD_FIRES.spread, Spec.ROAD_FIRES.spread),
+			0,
+			rng:NextNumber(-Spec.ROAD_FIRES.spread, Spec.ROAD_FIRES.spread)
+		) * u
+		local p = part(
+			"RoadFire",
+			Color3.new(),
+			false,
+			Vector3.new(0.6, 0.1, 0.6) * u,
+			CFrame.new(ground + off)
+		)
+		p.Transparency = 1
+		local e = emitter(Spec.WRECK.flames, u * 0.4, FIRE, p)
+		e.Rate = Spec.count(8, isPhone)
+		local k = emitter(Spec.WRECK.smoke, u * 0.25, SMOKE, p)
+		k.Rate = Spec.count(3, isPhone)
+		table.insert(stuff, p)
+	end
+end
+
+local function dust(ground: Vector3, u: number, isPhone: boolean)
+	local d = Spec.DUST
+	local layer: Spec.Layer = {
+		count = d.count,
+		speed = d.speed,
+		life = { 0.6, 0.9 },
+		size = { 1.2, 3.2 },
+		from = { 138, 127, 114 },
+		to = { 74, 68, 64 },
+		glow = 0,
+		drag = 3,
+		gravity = 0,
+		spread = 90,
+		see = { 0.45, 1 },
+	}
+	local holder = part(
+		"Dust",
+		Color3.new(),
+		false,
+		Vector3.one * 0.1,
+		CFrame.new(ground + Vector3.new(0, 0.3 * u, 0))
+	)
+	holder.Transparency = 1
+	local e = emitter(layer, u, SMOKE, holder)
+	e.EmissionDirection = Enum.NormalId.Front
+	e.SpreadAngle = Vector2.new(180, 0)
+	e:Emit(Spec.count(layer.count, isPhone))
+	gone(holder, 1.1)
+end
+
 -- ===== the wrecks being shown, by model =====
 type Wreck = {
 	at: CFrame,
+	second: number?, -- seconds until the second pop (nil once it popped)
 	stuff: { Instance }, -- removed at the come-back
 	highlight: Highlight,
 	heat: PointLight,
@@ -313,6 +434,13 @@ function CarBoom.boom(model: Model, mine: boolean?)
 	burst(Spec.BURST.sparks, u, SPARK, at, isPhone)
 	burst(Spec.BURST.smoke, u, SMOKE, at * CFrame.new(0, 0.5 * u, 0), isPhone)
 
+	-- detail: shards (glass, metal, red, hot), streaks on the road, a dust ring, small road fires
+	local shardRng = Random.new()
+	shards(at.Position, Spec.count(Spec.SHARDS.count, isPhone), floorY, u, shardRng)
+	streaks(ground, u, shardRng, stuff)
+	dust(ground, u, isPhone)
+	roadFires(ground, u, shardRng, isPhone, stuff)
+
 	-- glowing chunks
 	local rng = Random.new()
 	for i = 1, Spec.CHUNKS do
@@ -423,11 +551,33 @@ function CarBoom.boom(model: Model, mine: boolean?)
 		countdown(top, u)
 	end
 
-	local w: Wreck = { at = at, stuff = stuff, highlight = hl, heat = heat, started = os.clock() }
+	local w: Wreck = {
+		at = at,
+		stuff = stuff,
+		highlight = hl,
+		heat = heat,
+		started = os.clock(),
+		second = Spec.SECOND.at,
+	}
 	wrecks[model] = w
 	w.beat = task.spawn(function()
 		while wrecks[model] == w do
 			heat.Brightness = Spec.HEAT.light + rng:NextNumber(-0.5, 1) * Spec.HEAT.flicker
+			local pop = w.second
+			if pop and os.clock() - w.started >= pop then
+				w.second = nil
+				-- the second pop: a smaller fireball, black smoke, hot shards and a ring
+				local sp = Spec.SECOND
+				local over = CFrame.new(at.Position + Vector3.new(0, 0.2 * u, 0))
+				burst(Spec.BURST.fire, u * 0.6, FIRE, over, isPhone)
+				burst(Spec.BURST.smoke, u * 0.8, SMOKE, over, isPhone)
+				shards(over.Position, Spec.count(sp.count // 4, isPhone), floorY, u, rng, true)
+				ring(
+					ground,
+					{ color = { 255, 160, 64 }, size = sp.ring * 2.5, secs = 0.4, delay = 0 },
+					u
+				)
+			end
 			task.wait(0.06)
 		end
 	end)

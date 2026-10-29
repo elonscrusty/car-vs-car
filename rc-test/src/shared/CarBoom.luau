@@ -172,6 +172,14 @@ CarBoom.BACK_FLASH = 0.5 -- seconds of white on the car that came back
 CarBoom.GRAVITY = 38 -- flying parts and chunks, studs/s²
 CarBoom.FLY_SECS = 3 -- flying parts stay this long (the wait), then fade
 CarBoom.CHUNKS = 14 -- small glowing bits (every 3rd one glows)
+-- the detail: shards (glass, metal, red, hot), dark streaks on the road, small road fires, a second pop
+CarBoom.SHARDS = { count = 26, speed = 20, secs = { 1.1, 1.8 }, second = 8 }
+CarBoom.SHARD_COLORS =
+	{ { 159, 216, 255 }, { 159, 216, 255 }, { 207, 211, 220 }, { 216, 29, 42 }, { 255, 160, 48 } }
+CarBoom.STREAKS = { count = 9, len = { 3, 6.5 }, wide = 0.35, see = 0.4 }
+CarBoom.ROAD_FIRES = { count = 7, spread = 4.5 }
+CarBoom.DUST = { count = 26, speed = { 9, 13 } }
+CarBoom.SECOND = { at = 0.42, count = 34, smoke = 16, ring = 8, light = 9 }
 CarBoom.FIND_BACK = 1 -- seconds to wait for the car to land on its new spot
 CarBoom.PHONE = 0.6 -- bursts are this much smaller on a phone
 
@@ -230,6 +238,17 @@ CarBoom.PIECES = {
 	{ name = "Door", size = { 0.08, 0.7, 1.9 }, at = { 1.58, 0.05, 0.2 }, paint = "body" },
 	{ name = "Hood", size = { 2.4, 0.12, 1.6 }, at = { 0, 0.5, 2.1 }, paint = "trim" },
 	{ name = "Bumper", size = { 3, 0.3, 0.3 }, at = { 0, -0.3, 3.2 }, paint = "trim" },
+	{ name = "Mirror", size = { 0.3, 0.22, 0.3 }, at = { -1.7, 0.75, 1.0 }, paint = "body" },
+	{ name = "Mirror", size = { 0.3, 0.22, 0.3 }, at = { 1.7, 0.75, 1.0 }, paint = "body" },
+	{
+		name = "Exhaust",
+		size = { 0.28, 0.28, 0.9 },
+		at = { -0.7, -0.5, -3.0 },
+		paint = "trim",
+		smoke = true,
+	},
+	{ name = "Exhaust", size = { 0.28, 0.28, 0.9 }, at = { 0.7, -0.5, -3.0 }, paint = "trim" },
+	{ name = "Grille", size = { 1.5, 0.4, 0.12 }, at = { 0, 0.05, 3.13 }, paint = "trim" },
 } :: { Piece }
 
 -- How much to scale the 6-stud numbers for a car `length` studs long.
