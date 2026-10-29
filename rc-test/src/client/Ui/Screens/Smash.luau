@@ -85,7 +85,6 @@ local function panel(canvas: Instance, id: string, name: string): (Frame, SmashS
 	return f, pc
 end
 
--- show `obj` after `delay` s with a pop (the screen may be closed by then: then nothing)
 -- The winner's real kart (CarSkin: carter's model, else the kart, else the toy car) turning in a
 -- 3D window; nil when it can't be made (then the drawn car shows).
 local function kartView(
@@ -104,8 +103,13 @@ local function kartView(
 	if not (mod and mod:IsA("ModuleScript")) then
 		return nil
 	end
-	local ok, CarSkin = pcall(require, mod)
-	local made = if ok and type(CarSkin) == "table" then (CarSkin :: any).copyOf(carId) else nil
+	-- (any trouble making it: the drawn car instead, never a screen that fails to build)
+	local ok, made = pcall(function()
+		return (require(mod) :: any).copyOf(carId)
+	end)
+	if not ok then
+		return nil
+	end
 	if not (made and typeof(made) == "Instance" and made:IsA("Model")) then
 		return nil
 	end
@@ -144,6 +148,7 @@ local function kartView(
 	return view
 end
 
+-- show `obj` after `delay` s with a pop (the screen may be closed by then: then nothing)
 local function popLater(obj: GuiObject, delay: number, then_: (() -> ())?)
 	obj.Visible = false
 	task.delay(delay, function()

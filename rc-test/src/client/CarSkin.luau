@@ -195,7 +195,7 @@ local function lookOnly(p: BasePart)
 end
 
 -- A fresh copy of the look a car wears (its own model, else its kart, else the toy car), every
--- part anchored and look-only, nose at +Z: for a picture (the round's winner). nil: no such car.
+-- part anchored and look-only (a kart's nose at +Z): for a picture (the round's winner). nil: no such car.
 function CarSkin.copyOf(id: string): Model?
 	local src = template(CarSkin.lookFor(id))
 	if not src then
