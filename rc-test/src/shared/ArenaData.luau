@@ -87,6 +87,8 @@ ArenaData.RAMPS = {
 } :: { Ramp }
 -- each ramp's top runs on as a flat deck this far (picture units) over the hill's sloped edge
 ArenaData.RAMP_DECK = 5
+-- each ramp's sides slope down to the grass this far out (picture units) at the top end
+ArenaData.RAMP_FLANK = 6
 
 -- the purple platform in the north-west corner (start spot 1 is on it): against the outer wall on
 -- two sides, gentle slopes a kart drives down (and up) on the other two (STEP_SIDES: edge numbers)
