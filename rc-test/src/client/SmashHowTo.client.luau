@@ -59,6 +59,7 @@ local function run()
 	local shown = step
 	local shownAt = os.clock()
 	local startedAt = os.clock()
+	player:SetAttribute("HowToCard", step)
 	local handle = Smash.howTo(step, {
 		skip = function()
 			-- (from the card on screen: two quick taps still skip only one step)
@@ -104,10 +105,13 @@ local function run()
 			shown = card
 			shownAt = os.clock()
 			handle.set(card)
+			-- (MatchHud: the GRAB A ? BOX tip over FIRE steps aside while a card is up)
+			player:SetAttribute("HowToCard", card)
 		end
 		task.wait(0.2)
 	end
 	handle.close()
+	player:SetAttribute("HowToCard", nil)
 	-- (once a visit: a round that ends halfway through doesn't start the tips over)
 	done = true
 	running = false

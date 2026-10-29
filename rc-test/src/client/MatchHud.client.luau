@@ -22,6 +22,7 @@ local Screen = require(Ui:WaitForChild("Screen"))
 local Hud = require(Ui:WaitForChild("Screens"):WaitForChild("Hud"))
 local SmashJuice = require(Shared:WaitForChild("SmashJuice"))
 local SmashScreens = require(Shared:WaitForChild("SmashScreens"))
+local Xp = require(Shared:WaitForChild("Xp"))
 local Sfx = require(script.Parent:WaitForChild("Sfx"))
 local TestThumb = require(script.Parent:WaitForChild("TestThumb"))
 
@@ -154,6 +155,9 @@ local function refresh()
 	api.setHealth(num("Health", 100), num("MaxHealth", 100), attr("Shield") == true)
 	local w = attr("Weapon")
 	api.setWeapon(if type(w) == "string" then w else "", num("Ammo", 0))
+	-- (a how-to card up: SmashHowTo; the tip over FIRE would say the same)
+	local card = attr("HowToCard")
+	api.quiet(type(card) == "number" and card > 0)
 end
 
 local function open()
@@ -170,6 +174,9 @@ local function open()
 		weapon = if type(w) == "string" then w else "",
 		ammo = num("Ammo", 0),
 		board = boardList(),
+		-- (the kit's health bar: your name and level star)
+		name = player.DisplayName,
+		level = (Xp.levelOf(num("Xp", 0))),
 		-- (your first match: the GRAB A ? BOX tip over FIRE; after it, the button alone)
 		tip = type(attr("Xp")) ~= "number" or (attr("Xp") :: number) <= 0,
 	}, { fire = fire }, Base.phone())
@@ -197,6 +204,7 @@ for _, name in
 		"Ammo",
 		"MatchEndsAt",
 		"InMatch",
+		"HowToCard",
 	}
 do
 	player:GetAttributeChangedSignal(name):Connect(check)

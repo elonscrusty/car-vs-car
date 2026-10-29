@@ -839,7 +839,9 @@ function Hud.match(
 		)
 		local function setPlace(p: number, total: number, smashes: number?)
 			local was = big.Text
-			local placed = smashes ~= 0
+			-- (your place as the board shows it, smashes or not: GO! read as broken next to a board
+			-- with you 6th, Studio r52; GO! only before there is a place at all)
+			local placed = p >= 1
 			-- (each with its drop: GO SMASH!'s shadow stayed behind 3RD / 8, Studio round 6)
 			for l, on in { [go] = not placed, [big] = placed, [of] = placed and not touch } do
 				l.Visible = on
@@ -885,40 +887,73 @@ function Hud.match(
 				Anim.scaler(clockFrame).Scale = 1
 			end
 		end
-		-- HEALTH: a heart, a chunky bar (lime over 60%, orange to 31%, red at 30% and under), the number;
-		-- a blue fill and SHIELD! while the shield is up
+		-- HEALTH (carter's kit v41): the blue level star, your name and 72/100 over the bar, the
+		-- heart on its left end; lime over 60%, orange to 31%, red at 30% and under; a blue fill
+		-- and SHIELD! while the shield is up. A phone: the star, the heart on a short bar, the
+		-- number beside it.
 		local hp = piece(L, "Health")
 		local hs = spot(c, L, "Health")
-		-- (a phone: just the slim bar, no heart or number)
-		local lead = if touch then 0 else hp.h * 0.7
+		-- (a phone: no star, its number would read under 14 px)
+		local starS = if touch then 0 else 34
 		if not touch then
-			Icons.make(hs, "heart", 0, -3, hp.h + 6, { z = 5 })
+			local star = Base.fill(hs, "Level", 0, (hp.h - starS) / 2, starS, starS, WHITE, 5)
+			Base.corner(star)
+			Base.outline(star, UiTheme.OUTLINE.normal)
+			Kit.face(star, { UiTheme.FACE.blue.hi, UiTheme.FACE.blue.c, UiTheme.FACE.blue.c2 })
+			Base.text(
+				star,
+				"N",
+				starS * 0.1,
+				starS * 0.12,
+				starS * 0.8,
+				starS * 0.72,
+				tostring(math.floor(tonumber(data.level) or 1)),
+				{ stroke = 3.5, z = 6 }
+			)
 		end
-		local bar = Kit.bar(
-			hs,
-			"Bar",
-			lead,
-			if touch then 0 else 4,
-			hp.w - lead,
-			if touch then hp.h else hp.h - 8,
-			"lime",
-			{
-				still = true,
-				value = 1,
-				z = 3,
-			}
-		)
-		local hpWords = Base.text(
-			hs,
-			"Words",
-			hp.h * 0.7,
-			6,
-			hp.w - hp.h * 0.7,
-			math.max(hp.h - 12, 1),
-			"",
-			{ stroke = 4, z = 6 }
-		)
-		hpWords.Visible = not touch -- (a phone: the slim bar only)
+		local bx = starS + 4
+		local barY = if touch then 3 else 21
+		local barH = if touch then hp.h - 6 else hp.h - 21
+		local numW = if touch then 44 else 0
+		local bar = Kit.bar(hs, "Bar", bx + 8, barY, hp.w - bx - 8 - numW, barH, "lime", {
+			still = true,
+			value = 1,
+			z = 3,
+		})
+		local heart = barH + 10
+		Icons.make(hs, "heart", bx - 4, barY + (barH - heart) / 2, heart, { z = 5 })
+		if not touch then
+			Base.text(
+				hs,
+				"Name",
+				bx + 8,
+				0,
+				(hp.w - bx - 8) * 0.6,
+				19,
+				Hud.cut(string.upper(tostring(data.name or "")), BOARD_NAME),
+				{ stroke = 3.5, align = "l", z = 6 }
+			)
+		end
+		local hpWords = if touch
+			then Base.text(hs, "Words", hp.w - numW + 2, 0, numW - 2, hp.h, "", {
+				stroke = 3.5,
+				align = "l",
+				z = 6,
+			})
+			else Base.text(
+				hs,
+				"Words",
+				bx + 8 + (hp.w - bx - 8) * 0.5,
+				0,
+				(hp.w - bx - 8) * 0.5,
+				19,
+				"",
+				{
+					stroke = 3.5,
+					align = "r",
+					z = 6,
+				}
+			)
 		local lastHp = -1
 		local function setHealth(n: number, max: number, shield: boolean?)
 			local f = if max > 0 then math.clamp(n / max, 0, 1) else 0
@@ -933,9 +968,13 @@ function Hud.match(
 				)
 			end
 			Kit.setBar(bar, f)
+			local now = math.max(0, math.floor(n))
 			Base.setText(
 				hpWords,
-				if shield then "SHIELD!" else tostring(math.max(0, math.floor(n)))
+				if shield
+					then (if touch then "" else "SHIELD!")
+					elseif touch then tostring(now)
+					else `{now}/{math.max(0, math.floor(max))}`
 			)
 			if lastHp >= 0 and n < lastHp then
 				Anim.shout(hs) -- (a hit: the bar jumps)
@@ -1108,6 +1147,7 @@ function Hud.match(
 		-- the tip over it: GRAB A ? BOX while empty, the weapon's name for 1.4 s when one comes;
 		-- your first match only (data.tip), then the button alone (carter: the minimum)
 		local tipOn = data.tip == true
+		local quiet = false -- (a how-to card is up: it says the same, Studio r52)
 		local tip = Base.fill(fireSpot, "Tip", -14, -34, fpc.w + 28, 28, WHITE, 6)
 		Base.corner(tip, 10)
 		Base.outline(tip, UiTheme.OUTLINE.normal)
@@ -1118,7 +1158,9 @@ function Hud.match(
 		local tipSeq = 0 -- (each weapon name shown counts up; only the newest one hides it)
 		local naming = false -- the weapon's name is up
 		local shownWeapon: string? = nil
+		local lastName: string?, lastAmmo: number? = nil, nil
 		local function setWeapon(name: string?, ammo: number?)
+			lastName, lastAmmo = name, ammo
 			local has = name ~= nil and name ~= "" and (ammo or 0) > 0
 			local key = if has then Hud.weaponIcon(name) else "mystery"
 			-- (keyed on the name too: a weapon with no icon of its own also shows "mystery")
@@ -1152,9 +1194,9 @@ function Hud.match(
 				if not has then
 					naming = false
 					tipWords.Text = "GRAB A ? BOX"
-					tip.Visible = true
+					tip.Visible = not quiet
 				else
-					tip.Visible = naming
+					tip.Visible = naming and not quiet
 				end
 			end
 			if icon then
@@ -1170,6 +1212,11 @@ function Hud.match(
 			setClock = setClock,
 			setHealth = setHealth,
 			setWeapon = setWeapon,
+			-- quiet(on): a how-to card is up, so the tip over FIRE steps aside (same words twice)
+			quiet = function(on: boolean)
+				quiet = on
+				setWeapon(lastName, lastAmmo)
+			end,
 			setBoard = setBoard,
 			feed = feed,
 		}
