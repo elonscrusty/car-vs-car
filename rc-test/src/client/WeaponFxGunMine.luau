@@ -134,7 +134,7 @@ sparks.Enabled = false
 sparks.LightEmission = 1
 sparks.LightInfluence = 0
 sparks.Color = ColorSequence.new(CREAM, EMBER)
-sparks.Size = NumberSequence.new(0.26 * S, 0.04 * S)
+sparks.Size = NumberSequence.new(0.4 * S, 0.06 * S)
 sparks.Lifetime = NumberRange.new(0.3, 0.6)
 sparks.Speed = NumberRange.new(9 * S, 18 * S)
 sparks.SpreadAngle = Vector2.new(70, 70)
@@ -195,9 +195,9 @@ local function bullet(a: Vector3, b: Vector3)
 		return
 	end
 	local seconds = math.min(len / (BULLET_SPEED * S), BULLET_MAX)
-	local glow = part("Bullet", HOT, true, Vector3.new(0.3, 0.3, 3.4) * 0.6 * S)
+	local glow = part("Bullet", HOT, true, Vector3.new(0.54, 0.54, 3.4) * S)
 	glow.Transparency = 0.3
-	local core = part("BulletCore", CREAM, true, Vector3.new(0.17, 0.17, 2.4) * 0.6 * S)
+	local core = part("BulletCore", CREAM, true, Vector3.new(0.17, 0.17, 2.4) * S)
 	local start = CFrame.lookAt(a, b)
 	local goal = start + (b - a)
 	glow.CFrame = start
@@ -209,11 +209,11 @@ local function bullet(a: Vector3, b: Vector3)
 		glow:Destroy()
 		core:Destroy()
 	end)
-	beam(a, b, GOLD, 0.1, seconds + 0.06)
+	beam(a, b, GOLD, 0.14, seconds + 0.06)
 end
 
 local function hitFx(at: Vector3, back: Vector3, kart: boolean)
-	star(at, back, WHITE, 2.2, 0.07)
+	star(at, back, GOLD, 2.2, 0.07)
 	flash(at, CREAM, 1.8, 0.6, 0.12)
 	spray(at, back, if kart then 14 else 5)
 	if kart then
@@ -251,8 +251,8 @@ local function onGun(data: any)
 		a += right.Unit * side[k] * TWIN * S
 	end
 	-- muzzle: a big star, a hot ball, a few sparks forward, a puff, a shell
-	star(a, dir, CREAM, 3.4, 0.06)
-	star(a + dir * 0.6 * S, dir, WHITE, 2, 0.05)
+	star(a, dir, HOT, 3.4, 0.06)
+	star(a + dir * 0.6 * S, dir, CREAM, 2, 0.05)
 	local light = part("MuzzleLight", HOT, true, Vector3.new(1.6, 1.6, 1.6) * S)
 	light.Shape = Enum.PartType.Ball
 	light.Position = a + dir * S
