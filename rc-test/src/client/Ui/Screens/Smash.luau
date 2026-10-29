@@ -19,6 +19,7 @@ local Kit = require(Ui:WaitForChild("Kit"))
 local Icons = require(Ui:WaitForChild("Icons"))
 local Screen = require(Ui:WaitForChild("Screen"))
 local KartView = require(script.Parent:WaitForChild("KartView"))
+local Party = require(Ui:WaitForChild("Party"))
 
 local Smash = {}
 
@@ -118,9 +119,6 @@ function Smash.matchEnd(
 			floor:Destroy()
 		end
 		local won = view.winner ~= nil and view.winner.me
-		if won then
-			Kit.confetti(bd, 30)
-		end
 		local canvas = g.canvas
 		local sp = piece("matchEnd", "Shout")
 		local title = Kit.title(
@@ -136,6 +134,7 @@ function Smash.matchEnd(
 		-- the podium: each kart on its step, a place disc, the name and the smashes
 		local pp = piece("matchEnd", "Podium")
 		local podium = spot(canvas, "matchEnd", "Podium")
+		local cars: { [number]: GuiObject } = {}
 		for _, st in STEPS do
 			local i, x, h = st[1], st[2], st[3]
 			local row = view.top[i]
@@ -156,7 +155,8 @@ function Smash.matchEnd(
 					z = 4,
 				})
 			Anim.pop(car, 0.5, 0.2 + i * 0.12, 0.3)
-			if i == 1 then
+			cars[i] = car
+			if i == 1 and not won then
 				Anim.bob(car, UiTheme.MOTION.carBob, 5)
 			end
 			local step = Base.fill(hold, "Step", 0, top, STEP_W, h, WHITE, 3)
@@ -192,6 +192,10 @@ function Smash.matchEnd(
 				z = 5,
 			})
 			Anim.pop(step, 0.4, 0.15 + i * 0.12, 0.3)
+		end
+		-- the win party (carter's pick A): paper from two corner guns, a light rain, the karts cheer
+		if won then
+			Party.start(Base.box(canvas, "Party", 0, 0, Base.W, Base.H, 9), cars)
 		end
 		-- what you got, popping in one after the other: coins, XP, the level bar, then your place
 		-- (all in by 1.6 s: a shot in the first seconds read as a half-empty panel, auditor 14:48)
