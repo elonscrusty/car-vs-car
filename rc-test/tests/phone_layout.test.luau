@@ -279,8 +279,8 @@ end)
 
 -- ===== a phone's match (carter 10-29: "can't see on mobile, too cluttered") =====
 -- The small layout (UiScreens matchTouch): the middle half of the screen empty, our UI at most a
--- fifth of the screen, the board just you and the leader, at most 2 kill lines. Prints the
--- numbers for each phone (the auditor's bars).
+-- fifth of the screen, no board (carter's pick 1A, 10-29: the place chip says it), at most 2
+-- kill lines. Prints the numbers for each phone (the auditor's bars).
 
 local function phoneHud(desk: boolean?)
 	local h = Hud.match({
@@ -335,9 +335,14 @@ for _, ph in PHONE_SIZES do
 			local area = 0
 			for _, b in L.boxes(h.gui.gui, s[1], s[2], s[3], s[4]) do
 				local x, y, w, hh = seen(b)
+				-- (carter's pick 1A, 10-29: the clock over the health bar, so the bar's foot may
+				-- dip into the middle half, never past a third of the screen)
+				local topBar = string.find(b.path, "Canvas.Health", 1, true) ~= nil
+					and y + hh <= ph.h / 3
 				if
 					(isText(b) or isButton(b) or b.obj.BackgroundTransparency ~= 1)
 					and overlap({ x = x, y = y, w = w, h = hh }, mid)
+					and not topBar
 				then
 					table.insert(inMid, name(b))
 				end
@@ -348,7 +353,7 @@ for _, ph in PHONE_SIZES do
 			local pct = area / (ph.w * ph.h) * 100
 			local board = h.gui.canvas:FindFirstChild("Board")
 			local feed = h.gui.canvas:FindFirstChild("Feed")
-			local boardRows, feedRows = rowsIn(board), rowsIn(feed)
+			local boardRows, feedRows = if board then rowsIn(board) else 0, rowsIn(feed)
 			print(
 				string.format(
 					"       %s: UI %.1f%% of the screen, %d in the centre box, board %d rows, feed %d rows",
@@ -361,19 +366,8 @@ for _, ph in PHONE_SIZES do
 			)
 			none(inMid)
 			truthy(pct <= 20, string.format("UI is %.1f%% of the screen", pct))
-			truthy(boardRows == 2, "board rows: " .. boardRows)
+			truthy(board == nil, "a board on the phone")
 			truthy(feedRows <= 2, "feed rows: " .. feedRows)
-			-- the leader and you, nobody else
-			local names = {}
-			for _, r in board:GetChildren() do
-				for _, l in r:GetChildren() do
-					if l.ClassName == "TextLabel" and l.Name == "Name" then
-						table.insert(names, l.Text)
-					end
-				end
-			end
-			table.sort(names)
-			truthy(names[1] == "BUBBLE BU…" and names[2] == "MRCARTER", table.concat(names, ", "))
 			h.close()
 		end
 	)
@@ -458,7 +452,7 @@ test("FIRE: the ? orb and GRAB A ? BOX when empty, the weapon and ammo when held
 		end
 	end
 	truthy(
-		chip and chip.Visible and chip.Text == "6/8",
+		chip and chip.Visible and chip.Text == "6TH",
 		"place chip: " .. tostring(chip and chip.Text)
 	)
 	h.api.setWeapon("Rockets", 3)
