@@ -172,13 +172,13 @@ function MatchEnd.smashWords(n: number): string
 	return if n == 1 then "1 SMASH" else `{n} SMASHES`
 end
 
--- "PEPPER WINS" / "YOU WIN!" ("" with nobody in the list)
+-- "PEPPER WINS!" / "YOU WIN!" ("" with nobody in the list)
 function MatchEnd.winWords(view: View): string
 	local w = view.winner
 	if not w then
 		return ""
 	end
-	return if w.me then "YOU WIN!" else `{string.upper(w.name)} WINS`
+	return if w.me then "YOU WIN!" else `{string.upper(w.name)} WINS!`
 end
 
 -- Seconds until the next round: from the server's nextAt, else MatchEnd.AUTO after the screen
@@ -224,10 +224,10 @@ function MatchEnd.xpBar(now: unknown, gained: unknown): XpBar?
 	}
 end
 
--- "NEW ROUND STARTING IN 12"
+-- "NEXT ROUND 12"
 
 function MatchEnd.countWords(left: number): string
-	return if left > 0 then `NEW ROUND STARTING IN {left}` else "GO!"
+	return if left > 0 then `NEXT ROUND {left}` else "GO!"
 end
 
 return MatchEnd
