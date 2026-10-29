@@ -740,16 +740,13 @@ local function boardRows(tab: number): ({ { [string]: any } }, string)
 	end
 	local out = {}
 	for _, r in SmashScreens.friendRows(list, 5) do
-		table.insert(
-			out,
-			{
-				userId = r.userId,
-				name = r.name,
-				score = r.score,
-				carId = carOf(r.userId),
-				me = r.me,
-			}
-		)
+		table.insert(out, {
+			userId = r.userId,
+			name = r.name,
+			score = r.score,
+			carId = carOf(r.userId),
+			me = r.me,
+		})
 	end
 	return out, if #out <= 1 then SmashScreens.KIT_WORDS.noFriends else ""
 end
