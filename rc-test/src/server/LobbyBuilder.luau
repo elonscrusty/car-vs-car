@@ -71,7 +71,7 @@ function LobbyBuilder.build(): Built
 		2,
 		Color3.fromRGB(116, 186, 82)
 	)
-	slab(folder, "Footpath", LobbyLayout.walks(), 0.05, 1, Color3.fromRGB(217, 214, 207))
+	slab(folder, "Footpath", LobbyLayout.walks(), 0.05, 1, Color3.fromRGB(196, 184, 166)) -- warm grey
 	local road = LobbyLayout.road()
 	slab(folder, "Road", road, 0.1, 1, Color3.fromRGB(58, 58, 64))
 	-- dashed white middle line

@@ -131,9 +131,10 @@ end
 
 local C = Garage.COLORS
 local L = {
-	paving = { 236, 214, 172 },
-	paving2 = { 246, 232, 202 },
-	kerb = { 196, 166, 124 },
+	-- (sandy, not near-white: under the sun the old cream read as snow, critic 10-29)
+	paving = { 222, 186, 132 },
+	paving2 = { 234, 204, 156 },
+	kerb = { 166, 128, 88 },
 	ring = { 240, 140, 40 },
 	stone = { 150, 162, 182 },
 	iron = { 46, 48, 54 },
@@ -172,7 +173,7 @@ function SpawnLobby.parts(): { Piece }
 	local W, D = SpawnLobby.WIDTH, SpawnLobby.DEPTH
 	local front, back = D / 2, -D / 2
 
-	-- ===== Ground: warm paving, kerb round three sides, a cream circle with an orange ring =====
+	-- ===== Ground: warm paving, kerb round three sides, a light sand circle with an orange ring =====
 	add("Ground", "Floor", v(W, 0.4, D), v(0, -0.2, 0), L.paving)
 	add("Ground", "Ring", v(0.03, 30, 30), v(0, 0.015, -4), L.ring, {
 		shape = "Cylinder",
