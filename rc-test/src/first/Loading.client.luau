@@ -13,9 +13,6 @@ local MAX_WAIT = 15 -- seconds: never hold a kid longer than this
 local FADE = 0.3
 
 local player = Players.LocalPlayer
-pcall(function()
-	ReplicatedFirst:RemoveDefaultLoadingScreen()
-end)
 
 local INK = Color3.fromRGB(13, 44, 64)
 local WHITE = Color3.new(1, 1, 1)
@@ -69,14 +66,23 @@ gui.IgnoreGuiInset = true
 gui.ResetOnSpawn = false
 gui.DisplayOrder = 1000
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+-- (one group under everything: the whole screen fades as one, no layer showing through another)
+local root = Instance.new("CanvasGroup")
+root.Name = "Root"
+root.BackgroundTransparency = 1
+root.Size = UDim2.fromScale(1, 1)
+root.Parent = gui
 
 -- the world behind: sky over a sandy floor with a red / white wall line
-local sky = frame(gui, "Sky", UDim2.fromScale(0, 0), UDim2.fromScale(1, 1), WHITE)
+local sky = frame(root, "Sky", UDim2.fromScale(0, 0), UDim2.fromScale(1, 1), WHITE)
+sky.ZIndex = 0
 gradient(sky, { "3fb3ff", "8fd8ff", "e6f5ff" })
-local floor = frame(gui, "Floor", UDim2.fromScale(0, 0.58), UDim2.fromScale(1, 0.42), WHITE)
+local floor = frame(root, "Floor", UDim2.fromScale(0, 0.58), UDim2.fromScale(1, 0.42), WHITE)
+floor.ZIndex = 1
 gradient(floor, { "f3c99a", "e0a571" })
-local wall = frame(gui, "Wall", UDim2.fromScale(0, 0.55), UDim2.fromScale(1, 0.035), hex("ec1c2e"))
-for i = 0, 24 do
+local wall = frame(root, "Wall", UDim2.fromScale(0, 0.55), UDim2.fromScale(1, 0.035), hex("ec1c2e"))
+wall.ZIndex = 2
+for i = 0, 12 do
 	frame(wall, "White", UDim2.fromScale(i / 12.5, 0), UDim2.fromScale(1 / 25, 1), WHITE)
 end
 wall.ClipsDescendants = true
@@ -88,7 +94,8 @@ stage.BackgroundTransparency = 1
 stage.AnchorPoint = Vector2.new(0.5, 0.5)
 stage.Position = UDim2.fromScale(0.5, 0.5)
 stage.Size = UDim2.fromScale(1, 1)
-stage.Parent = gui
+stage.ZIndex = 3
+stage.Parent = root
 local ar = Instance.new("UIAspectRatioConstraint")
 ar.AspectRatio = 844 / 390
 ar.Parent = stage
@@ -129,20 +136,38 @@ word("vs", 0.4, 0.2, { "fff7b8", "ffd93b", "ffb400" }, true)
 word("Car", 0.6, 0.4, { "ffd3c6", "ff4a4a", "e01428" })
 
 -- the bar: a recessed dark track, a striped yellow fill that runs as things load
-local track = frame(stage, "Track", UDim2.fromScale(0.2, 0.83), UDim2.fromScale(0.6, 0.085), WHITE)
+local track = frame(stage, "Track", UDim2.fromScale(0.2, 0.76), UDim2.fromScale(0.6, 0.085), WHITE)
 gradient(track, { "071226", "10264a" })
 round(track)
 stroke(track, 3, INK)
 local rim =
-	frame(stage, "Rim", UDim2.fromScale(0.195, 0.82), UDim2.fromScale(0.61, 0.105), hex("1fa8f5"))
+	frame(stage, "Rim", UDim2.fromScale(0.195, 0.75), UDim2.fromScale(0.61, 0.105), hex("1fa8f5"))
 rim.ZIndex = 0
 round(rim)
 stroke(rim, 3, INK)
 track.ZIndex = 1
-local fill = frame(track, "Fill", UDim2.fromScale(0, 0), UDim2.fromScale(0.04, 1), WHITE)
+-- (a CanvasGroup clips its stripes to the rounded ends; ClipsDescendants would leave them square)
+local fill = Instance.new("CanvasGroup")
+fill.Name = "Fill"
+fill.BorderSizePixel = 0
+fill.BackgroundColor3 = WHITE
+fill.Size = UDim2.fromScale(0.04, 1)
+fill.Parent = track
 gradient(fill, { "fff6b0", "ffd93b", "ffb000" })
 round(fill)
-fill.ClipsDescendants = true
+-- the kit's diagonal stripes: light bars leaning across the fill, sliding along
+local stripes = Instance.new("Frame")
+stripes.Name = "Stripes"
+stripes.BackgroundTransparency = 1
+stripes.Size = UDim2.new(0, 2000, 1, 0)
+stripes.Parent = fill
+local STEP = 22 -- px between stripes
+for i = 0, 2000 / STEP do
+	local st =
+		frame(stripes, "Stripe", UDim2.new(0, i * STEP, -0.5, 0), UDim2.new(0, 9, 2, 0), WHITE)
+	st.BackgroundTransparency = 0.72
+	st.Rotation = 35
+end
 local shine = frame(fill, "Shine", UDim2.fromScale(0.02, 0.12), UDim2.fromScale(0.96, 0.25), WHITE)
 shine.BackgroundTransparency = 0.45
 round(shine)
@@ -154,12 +179,18 @@ tip.Font = Enum.Font.FredokaOne
 tip.TextScaled = true
 tip.TextColor3 = WHITE
 tip.Text = "TIP: grab a ? box, then smash the others!"
-tip.Position = UDim2.fromScale(0.2, 0.935)
-tip.Size = UDim2.fromScale(0.6, 0.05)
+-- (above a phone's home bar, readable on a 667x375 phone, not huge on a PC)
+tip.Position = UDim2.fromScale(0.15, 0.885)
+tip.Size = UDim2.fromScale(0.7, 0.065)
 tip.Parent = stage
 stroke(tip, 2.5, INK, true)
+local cap = Instance.new("UITextSizeConstraint")
+cap.MaxTextSize = 28
+cap.Parent = tip
 
 gui.Parent = player:WaitForChild("PlayerGui")
+-- (only now: ours is up, so nothing shows uncovered in between)
+ReplicatedFirst:RemoveDefaultLoadingScreen()
 
 local started = os.clock()
 local shown = 0.04
@@ -169,6 +200,9 @@ local function ready(): boolean
 end
 local conn: RBXScriptConnection
 conn = RunService.RenderStepped:Connect(function(dt: number)
+	if done then
+		return
+	end
 	-- the bar: creeps toward 0.4, then 0.7 once the game is in, toward 0.9 with time, full when
 	-- ready; never back
 	local t = math.clamp((os.clock() - started) / MAX_WAIT, 0, 1)
@@ -176,22 +210,12 @@ conn = RunService.RenderStepped:Connect(function(dt: number)
 	local goal = if ready() then 1 else base + (0.9 - base) * t
 	shown = math.max(shown, math.min(1, shown + (goal - shown) * math.min(1, dt * 6)))
 	fill.Size = UDim2.fromScale(math.max(0.04, shown), 1)
-	if done then
-		return
-	end
+	stripes.Position = UDim2.fromOffset(-((os.clock() * 30) % STEP), 0)
 	if ready() or os.clock() - started >= MAX_WAIT then
 		done = true
+		shown = 1
 		fill.Size = UDim2.fromScale(1, 1)
-		local info = TweenInfo.new(FADE)
-		for _, d in gui:GetDescendants() do
-			if d:IsA("Frame") then
-				TweenService:Create(d, info, { BackgroundTransparency = 1 }):Play()
-			elseif d:IsA("TextLabel") then
-				TweenService:Create(d, info, { TextTransparency = 1 }):Play()
-			elseif d:IsA("UIStroke") then
-				TweenService:Create(d, info, { Transparency = 1 }):Play()
-			end
-		end
+		TweenService:Create(root, TweenInfo.new(FADE), { GroupTransparency = 1 }):Play()
 		task.delay(FADE + 0.05, function()
 			conn:Disconnect()
 			gui:Destroy()
