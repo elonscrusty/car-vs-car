@@ -196,14 +196,16 @@ export type Flight = {
 
 local KART = Weapons.KART
 
--- ROCKETS: fast (about 1.7x a kart's top speed), bend a little toward the nearest kart ahead.
+-- ROCKETS: fast (about 1.7x a kart's top speed). Aim help (a phone kid can't aim): on fire they
+-- lock onto the nearest live, unshielded kart within 35 degrees and 20 karts, leave straight at
+-- it and curve after it; with no kart in that cone they fly straight.
 -- 3 direct hits smash (health 100).
 Weapons.ROCKET = {
 	speed = 29 * KART,
 	life = 2.4, -- about 70 karts: across the arena
 	seekDeg = 35,
 	seekRange = 20 * KART,
-	turnDeg = 75,
+	turnDeg = 150, -- a kart dodging at full speed across its path is still caught from 6 karts
 	hitRadius = 0.8 * KART,
 	damage = 34,
 	splash = 2 * KART,
@@ -232,7 +234,7 @@ Weapons.NUKE = {
 -- the flight of each flying weapon, by name
 Weapons.FLIGHTS = { Rockets = Weapons.ROCKET, Nuke = Weapons.NUKE } :: { [string]: Flight }
 
-export type Target = { id: any, pos: Vector3 }
+export type Target = { id: any, pos: Vector3, alive: boolean?, shield: boolean? }
 export type Rocket = {
 	pos: Vector3,
 	dir: Vector3,
@@ -242,43 +244,89 @@ export type Rocket = {
 	spec: Flight,
 }
 
-function Weapons.rocket(owner: any, from: Vector3, dir: Vector3, spec: Flight?): Rocket
+-- Aim help, shared by every weapon (rockets, nuke, GUNMINE's gun): the nearest target that is
+-- alive, not shielded and not `ignoreId`, within `range` studs and within `deg` of `dir` (flat,
+-- seen from above). nil = nobody there: fire straight.
+function Weapons.cone(
+	from: Vector3,
+	dir: Vector3,
+	targets: { Target },
+	deg: number,
+	range: number,
+	ignoreId: any?
+): Target?
+	local ahead = flat(Weapons.vec(dir) or vector.zero)
+	local at = Weapons.vec(from)
+	if not ahead or not at or deg <= 0 or range <= 0 then
+		return nil
+	end
+	local cosMax = math.cos(math.rad(deg))
+	local best, bestD = nil, math.huge
+	for _, t in targets do
+		local pos = Weapons.vec(t.pos)
+		if pos and t.id ~= ignoreId and t.alive ~= false and t.shield ~= true then
+			local to = pos - at
+			local d = vector.magnitude(to)
+			local side = flat(to)
+			if d <= range and d < bestD and side and vector.dot(side, ahead) >= cosMax then
+				best, bestD = t, d
+			end
+		end
+	end
+	return best
+end
+
+-- A new shot from a kart at `from` (its middle) aimed along `dir`. With `targets` it locks onto
+-- the kart in its cone (Weapons.cone) and leaves straight at it, but never more than
+-- MAX_AIM_DEG off `facing` (the kart's nose), so a cheat aiming at the edge can't lock sideways.
+function Weapons.rocket(
+	owner: any,
+	from: Vector3,
+	dir: Vector3,
+	spec: Flight?,
+	targets: { Target }?,
+	facing: Vector3?
+): Rocket
 	local R = spec or Weapons.ROCKET
 	local d = flat(Weapons.vec(dir) or vector.create(0, 0, -1)) or vector.create(0, 0, -1)
 	from = Weapons.vec(from) or vector.zero
+	local lock = if targets
+		then Weapons.cone(from, d, targets, R.seekDeg, R.seekRange, owner)
+		else nil
+	local lockAt = lock and Weapons.vec(lock.pos)
+	if lockAt then
+		d = Weapons.aim(lockAt - from, facing or d)
+	end
 	return {
 		pos = from + d * R.ahead + vector.create(0, R.up, 0),
 		dir = d,
 		age = 0,
 		owner = owner,
-		target = nil,
+		target = if lock then lock.id else nil,
 		spec = R,
 	}
 end
 
--- The kart a rocket chases: the nearest one within its cone and range, never its owner.
+-- The kart a flying rocket chases: the one it locked onto while it's still fair game, else the
+-- nearest one in its cone from where it is now.
 function Weapons.seek(r: Rocket, targets: { Target }): any?
 	local R = r.spec
 	if R.seekDeg <= 0 then
 		return nil
 	end
-	local cosMax = math.cos(math.rad(R.seekDeg))
-	local best, bestD = nil, math.huge
-	for _, t in targets do
-		if t.id ~= r.owner then
-			local to = t.pos - r.pos
-			local d = vector.magnitude(to)
-			if
-				d > 1e-3
-				and d <= R.seekRange
-				and vector.dot(to / d, r.dir) >= cosMax
-				and d < bestD
-			then
-				best, bestD = t.id, d
+	if r.target ~= nil then
+		for _, t in targets do
+			local pos = Weapons.vec(t.pos)
+			if t.id == r.target and pos and t.alive ~= false and t.shield ~= true then
+				local d = vector.magnitude(pos - r.pos)
+				if d <= R.seekRange * 1.5 then
+					return t.id
+				end
 			end
 		end
 	end
-	return best
+	local t = Weapons.cone(r.pos, r.dir, targets, R.seekDeg, R.seekRange, r.owner)
+	return if t then t.id else nil
 end
 
 -- the closest a segment a -> b comes to point p
