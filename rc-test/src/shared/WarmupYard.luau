@@ -127,6 +127,11 @@ WarmupYard.TREES = {
 	{ 0, -112 },
 	{ 64, -104 },
 }
+-- the fence round the field (big units): its sides at x = +-x, its back at z, running to zEnd
+-- by the lake (the yard's grass is W/2 + APRON = 190 out, D/2 + APRON = 160)
+WarmupYard.FENCE = { x = 178, z = -150, zEnd = 150 }
+-- windmills out in the field { x, z }: their sails turn (LobbyMotion), facing the spawns
+WarmupYard.WINDMILLS = { { -158, -70 }, { 158, -70 } }
 -- low cover walls { x, z, length, turn in degrees }
 WarmupYard.COVER = { { -70, 36, 26, 0 }, { 70, 36, 26, 0 }, { 0, 12, 22, 90 } }
 WarmupYard.CRATES = { { -86, 10 }, { 86, 10 }, { 88, -16 } }
@@ -135,7 +140,10 @@ WarmupYard.BARRELS = { { -40, 62, 0, 5 }, { 20, 62, 0, 5 } }
 WarmupYard.BUSHES = { { -92, -30 }, { 92, -30 }, { 90, 44 }, { -118, -6 }, { 118, 4 }, { -30, 96 } }
 WarmupYard.FLOWERS =
 	{ { -80, -62 }, { 80, -62 }, { -52, 60 }, { 52, 60 }, { -110, 50 }, { 112, -60 } }
-WarmupYard.PATCHES = { { -60, -10, 26 }, { 60, -16, 22 }, { -20, 44, 20 }, { 34, -44, 18 } }
+-- (out on the grass between the sand pen and the walls: the sand would hide them)
+WarmupYard.PATCHES = { { -90, -44, 16 }, { 90, -46, 16 }, { -88, 40, 16 }, { 88, 36, 14 } }
+-- the sand pen (big units): under every spawn, box and dummy, so a kart starts on the sand
+WarmupYard.PEN = { x = 0, z = -2, w = 150, d = 124 }
 
 -- the NEXT MATCH board: across the far end, facing the spawns (-z)
 WarmupYard.BOARD = { at = v(0, 30, WarmupYard.D / 2 - 6), w = 120, h = 28 }
@@ -193,38 +201,62 @@ function WarmupYard.parts(): { any }
 	local W, D, H, T = WarmupYard.W, WarmupYard.D, WarmupYard.WALL_H, WarmupYard.WALL_T
 	-- the grass runs well past the walls (trees out there), so the yard never sits on the void
 	add("Ground", "Floor", v(W + 2 * APRON, 4, D + 2 * APRON), v(0, -2, 0), GRASS)
-	add("Ground", "Sand", v(110, 0.4, 64), v(0, 0.2, 10), SAND, { collide = false })
-	-- two-tone sand (rule 5): a darker lip round it and two raked bands across it
-	add("Ground", "SandLip", v(116, 0.1, 70), v(0, 0.15, 10), SAND_DARK, { collide = false })
-	for _, bz in { -6, 26 } do
-		add("Ground", "SandBand", v(110, 0.4, 8), v(0, 0.6, bz), SAND_DARK, { collide = false })
+	local pen = WarmupYard.PEN
+	add("Ground", "Sand", v(pen.w, 0.4, pen.d), v(pen.x, 0.2, pen.z), SAND, { collide = false })
+	-- two-tone sand (rule 5): a darker lip round it and raked bands across it
+	add(
+		"Ground",
+		"SandLip",
+		v(pen.w + 6, 0.1, pen.d + 6),
+		v(pen.x, 0.15, pen.z),
+		SAND_DARK,
+		{ collide = false }
+	)
+	for _, bz in { -38, -4, 26 } do
+		add("Ground", "SandBand", v(pen.w, 0.4, 8), v(pen.x, 0.6, bz), SAND_DARK, {
+			collide = false,
+		})
 	end
 	-- floor paint (auditor round 13: the pen read flat): a dashed sunny ring on the circling
 	-- target kart's path, and a white start line behind the spawns
 	local ring = WarmupYard.DUMMIES[4].at
 	for k = 0, 31 do
 		local a = (k + 0.5) / 32 * 2 * math.pi
-		add(
-			"Ground",
-			"RingPaint",
-			v(5, 0.2, 2),
-			v(
-				ring.x + math.cos(a) * WarmupYard.CIRCLE_R,
-				0.9,
-				ring.z + math.sin(a) * WarmupYard.CIRCLE_R
-			),
-			YELLOW,
-			{ rot = v(0, -math.deg(a) + 90, 0), collide = false }
-		)
+		local dx = ring.x + math.cos(a) * WarmupYard.CIRCLE_R
+		local dz = ring.z + math.sin(a) * WarmupYard.CIRCLE_R
+		-- (none in a start slot's paint, below: the two would fight at the same height)
+		local inSlot = false
+		for _, sp in WarmupYard.spawns do
+			if math.abs(dx - sp.x) < 9 and math.abs(dz - sp.z) < 10 then
+				inSlot = true
+			end
+		end
+		if not inSlot then
+			add("Ground", "RingPaint", v(5, 0.2, 2), v(dx, 0.9, dz), YELLOW, {
+				rot = v(0, -math.deg(a) + 90, 0),
+				collide = false,
+			})
+		end
 	end
 	add(
 		"Ground",
 		"StartLine",
-		v(150, 0.2, 3),
-		v(0, 0.9, WarmupYard.spawns[1].z - 10),
+		v(pen.w - 10, 0.2, 3),
+		v(0, 0.9, WarmupYard.spawns[1].z - 10), -- (inside the pen's sand, behind the slots)
 		WHITE,
 		{ collide = false }
 	)
+	-- a painted slot round every start spot (auditor round 15: the start was bare sand)
+	for _, sp in WarmupYard.spawns do
+		for _, e in { -1, 1 } do
+			add("Ground", "SlotPaint", v(11, 0.2, 0.8), v(sp.x, 0.9, sp.z + e * 7), WHITE, {
+				collide = false,
+			})
+			add("Ground", "SlotPaint", v(0.8, 0.2, 14.8), v(sp.x + e * 5.9, 0.9, sp.z), WHITE, {
+				collide = false,
+			})
+		end
+	end
 	-- mowed stripes (LOOK-BIBLE rule 5: a second tone on the big floor)
 	for k = -4, 4 do
 		if k % 2 == 0 then
@@ -309,6 +341,11 @@ function WarmupYard.parts(): { any }
 			}
 		)
 	end
+	-- the board's back (auditor round 14: a blank yellow slab from the far side): a navy panel,
+	-- its words drawn in build()
+	add("Board", "BackPanel", v(b.w - 6, b.h - 6, 0.4), v(b.at.x, b.at.y, b.at.z + 2.4), NAVY, {
+		collide = false,
+	})
 	local legH = b.at.y - b.h / 2
 	for _, sx in { -1, 1 } do
 		add(
@@ -382,6 +419,40 @@ function WarmupYard.parts(): { any }
 	-- ===== the ground outside: grass to the valley's hills, a lake with a sandy shore past the
 	-- board. The hills round it (a valley, so the yard sits in a real place, not on a plate) and
 	-- their trees are WarmupYard.valley(), built in build(). =====
+	-- a chunky fence round the field on three sides (the lake side stays open): fat yellow posts
+	-- with round caps, two round white rails (auditor round 14: the field read empty)
+	local fx, fz, fzEnd = WarmupYard.FENCE.x, WarmupYard.FENCE.z, WarmupYard.FENCE.zEnd
+	local function fence(ax: number, az: number, bx: number, bz: number)
+		local len = math.sqrt((bx - ax) ^ 2 + (bz - az) ^ 2)
+		local n = math.max(1, math.floor(len / 22 + 0.5))
+		local turn = if math.abs(bx - ax) > math.abs(bz - az) then 0 else 90
+		for k = 0, n do
+			local t = k / n
+			local px, pz = ax + (bx - ax) * t, az + (bz - az) * t
+			add("Fence", "FencePost", v(9, 3.6, 3.6), v(px, 4.5, pz), YELLOW, {
+				shape = "Cylinder",
+				rot = v(0, 0, 90),
+				collide = false,
+			})
+			add("Fence", "FenceCap", v(4.4, 4.4, 4.4), v(px, 9.2, pz), YELLOW, {
+				shape = "Ball",
+				collide = false,
+			})
+		end
+		for _, ry in { 3.4, 6.8 } do
+			add(
+				"Fence",
+				"FenceRail",
+				v(len, 1.8, 1.8),
+				v((ax + bx) / 2, ry, (az + bz) / 2),
+				WHITE,
+				{ shape = "Cylinder", rot = v(0, turn, 0), collide = false }
+			)
+		end
+	end
+	fence(-fx, fz, fx, fz)
+	fence(-fx, fz, -fx, fzEnd)
+	fence(fx, fz, fx, fzEnd)
 	local edgeZ = D / 2 + APRON -- where the yard's own grass ends
 	add("World", "FarGrass", v(2000, 2, 1900), v(0, -1.4, 0), GRASS_FAR, { collide = false })
 	add("World", "Shore", v(560, 0.4, 50), v(0, -0.2, edgeZ + 45), SHORE, { collide = false })
@@ -527,8 +598,44 @@ end
 WarmupYard.TYRES =
 	{ { -122, -58 }, { -122, -24 }, { -122, 44 }, { 122, -58 }, { 122, -24 }, { 122, 44 } }
 WarmupYard.FIELD_BUSHES =
-	{ { -165, -125 }, { 165, -125 }, { -170, 30 }, { 170, 30 }, { -90, -150 }, { 90, -150 } }
+	{ { -165, -125 }, { 165, -125 }, { -158, 30 }, { 158, 30 }, { -90, -132 }, { 90, -132 } }
 WarmupYard.BALLOONS = { { 0, -96 }, { -128, 0 }, { 128, 0 }, { -40, 100 }, { 40, 100 } }
+-- A line of trees just inside the fence (auditor round 14), every 34 or so, kept clear of the
+-- bushes, balloons, windmills and the trees already there. Pure.
+export type LineTree = { x: number, z: number, style: string }
+function WarmupYard.treeLine(): { LineTree }
+	local f = WarmupYard.FENCE
+	local taken: { { number } } = {}
+	for _, list in { WarmupYard.FIELD_BUSHES, WarmupYard.BALLOONS, WarmupYard.TREES } do
+		for _, p in list do
+			table.insert(taken, { p[1], p[2], 22 })
+		end
+	end
+	for _, m in WarmupYard.WINDMILLS do
+		table.insert(taken, { m[1], m[2], 30 })
+	end
+	local out: { LineTree } = {}
+	local function try(x: number, z: number)
+		for _, t in taken do
+			if (x - t[1]) ^ 2 + (z - t[2]) ^ 2 < t[3] * t[3] then
+				return
+			end
+		end
+		local style = if #out % 4 == 1 then "pink" elseif #out % 4 == 3 then "yellow" else "green"
+		table.insert(out, { x = x, z = z, style = style })
+		table.insert(taken, { x, z, 22 })
+	end
+	local inX, inZ = f.x - 16, f.z + 16
+	local n = math.floor(2 * inX / 34 + 0.5) -- (even both ends)
+	for k = 0, n do
+		try(-inX + k * 2 * inX / n, inZ)
+	end
+	for z = inZ + 34, f.zEnd - 20, 34 do
+		try(-inX, z)
+		try(inX, z)
+	end
+	return out
+end
 function WarmupYard.extras(kit: any, dress: Instance)
 	local CollectionService = game:GetService("CollectionService")
 	local function c3(c: { number }): Color3
@@ -577,12 +684,52 @@ function WarmupYard.extras(kit: any, dress: Instance)
 			CollectionService:AddTag(ball, "LobbyBob")
 		end
 	end
+	-- cones down both sides of the start rows
+	for _, sx in { -1, 1 } do
+		for _, cz in { -58, -44, -30 } do
+			kit.cone(dress, Vector3.new(sx * 68, 0.4, cz), 5, false)
+		end
+	end
+	for i, t in WarmupYard.treeLine() do
+		kit.tree(dress, Vector3.new(t.x, 0, t.z), 30 + (i % 3) * 4, t.style, 700 + i, false)
+	end
+	-- windmills: a fat white tower with a navy cap, four sails in the palette round a hub. The
+	-- sails turn on each screen (LobbyMotion "PortalSpin"); build() gives them their middle once
+	-- the yard is at its real size and place.
+	local SAILS = { PINK, YELLOW, PURPLE, { 91, 209, 91 } }
+	for i, w in WarmupYard.WINDMILLS do
+		local mill = Instance.new("Model")
+		mill.Name = "Windmill"
+		local foot = Vector3.new(w[1], 0, w[2])
+		kit.post(mill, "Tower", foot, 8, 44, c3(WHITE), false)
+		kit.ball(mill, "TowerCap", foot + Vector3.new(0, 44, 0), 10, c3(NAVY), false)
+		local hubAt = foot + Vector3.new(0, 44, 6) -- in front of the tower, toward the spawns (+z)
+		local hub = kit.ball(mill, "Hub", hubAt, 5, c3(NAVY), false)
+		hub.CastShadow = false
+		for k, col in SAILS do
+			local a = (k - 1) * math.pi / 2 + i * 0.4
+			local sail = kit.part(
+				mill,
+				"Sail",
+				Vector3.new(5, 20, 1),
+				CFrame.new(hubAt + Vector3.new(0, 0, 0.6))
+					* CFrame.Angles(0, 0, a)
+					* CFrame.new(0, 12, 0),
+				c3(col),
+				false
+			)
+			sail.CastShadow = false -- (it moves every frame)
+		end
+		mill.Parent = dress
+	end
 	local b = WarmupYard.BOARD
+	-- (small and low enough to stay on a phone's chase view, clear of the board's top edge
+	-- however it bobs: Studio r4)
 	local box = kit.part(
 		dress,
 		"QuestionBox",
-		Vector3.new(14, 14, 14),
-		CFrame.new(b.at.x, b.at.y + b.h / 2 + 14, b.at.z),
+		Vector3.new(10, 10, 10),
+		CFrame.new(b.at.x, b.at.y + b.h / 2 + 10, b.at.z),
 		c3(YELLOW),
 		false
 	)
@@ -685,6 +832,52 @@ function WarmupYard.build(parent: Instance): Model
 	model:PivotTo(
 		CFrame.new(WarmupYard.RC_X, 0, WarmupYard.RC_Z) * CFrame.Angles(0, WarmupYard.RC_ANGLE, 0)
 	)
+	-- the windmills' sails turn round their hub, now it's in its world place
+	local dressing = model:FindFirstChild("Dressing")
+	if dressing then
+		local CollectionService = game:GetService("CollectionService")
+		for _, mill in dressing:GetChildren() do
+			local hub = mill.Name == "Windmill" and mill:FindFirstChild("Hub")
+			if hub and hub:IsA("BasePart") then
+				for _, p in mill:GetChildren() do
+					if p.Name == "Sail" then -- (the round hub looks the same turned: left still)
+						p:SetAttribute("SpinCentre", hub.Position)
+						p:SetAttribute("SpinAxis", hub.CFrame.LookVector)
+						CollectionService:AddTag(p, "PortalSpin")
+					end
+				end
+			end
+		end
+	end
+	-- the board's back: the game's name, not a blank slab
+	local board = model:FindFirstChild("Board")
+	local back = board and board:FindFirstChild("BackPanel")
+	if back and back:IsA("BasePart") then
+		local gui = Instance.new("SurfaceGui")
+		gui.Face = Enum.NormalId.Back
+		gui.LightInfluence = 0
+		gui.CanvasSize = Vector2.new(1140, 220)
+		gui.Parent = back
+		local WORDS: { { text: string, y: number, h: number, color: Color3 } } = {
+			{ text = "CAR VS CAR", y = 0.04, h = 0.34, color = Color3.fromRGB(255, 95, 180) },
+			{ text = "SMASH!", y = 0.36, h = 0.6, color = Color3.fromRGB(255, 210, 63) },
+		}
+		for _, w in WORDS do
+			local l = Instance.new("TextLabel")
+			l.BackgroundTransparency = 1
+			l.Position = UDim2.fromScale(0.05, w.y)
+			l.Size = UDim2.fromScale(0.9, w.h)
+			l.Text = w.text
+			l.Font = Enum.Font.FredokaOne
+			l.TextScaled = true
+			l.TextColor3 = w.color
+			l.Parent = gui
+			local rim = Instance.new("UIStroke")
+			rim.Color = Color3.fromRGB(27, 27, 47)
+			rim.Thickness = 6
+			rim.Parent = l
+		end
+	end
 	model.Parent = parent
 	return model
 end

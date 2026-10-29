@@ -294,8 +294,9 @@ function PlotShowroom.pieces(stands: number): { Piece }
 			v(2.4, 0.08, 2.4),
 			v(nx, 0.42, nz),
 			NAVY,
-			-- turned half way so the number's top points into the bay: it reads upright from the aisle
-			{ rot = v(0, p.yaw + 180, 0), collide = false }
+			-- turned a quarter: a Top-face SurfaceGui's up is the part's -X (Studio), so the
+			-- number's top points into the bay and it reads upright from the aisle
+			{ rot = v(0, p.yaw + 90, 0), collide = false }
 		)
 	end
 	for i = 1, math.clamp(stands, 0, #SPOTS) do
