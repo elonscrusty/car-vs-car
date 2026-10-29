@@ -47,6 +47,14 @@ test(
 		eq(count("InMatch"), Match.MAX, "round 1: 8 in")
 		eq(count("MatchQueued"), 1, "round 1: 1 waits")
 		local round1 = S.workspace:GetAttribute("MatchRound")
+		-- the kid who won't fit next round (the highest id of the stayers) is smashed in the last
+		-- seconds: its kart must not stay frozen for the round it waits out
+		local last = kids[Match.MAX]
+		S.advance(MR.MATCH_SECS - 2, 0.1) -- (round 1 is a few tenths in: ~1.5 s to go)
+		for _ = 1, 3 do
+			MR.damage(last.UserId, kids[1].UserId, Match.HIT, "rocket")
+		end
+		eq(last:GetAttribute("Health"), 0, "smashed at the end")
 		for _ = 1, 120 do
 			if (S.workspace:GetAttribute("MatchRound") or 0) > round1 then
 				break
@@ -72,6 +80,10 @@ test(
 			LobbyPlots.drivingOf(o) ~= S.require("Shared.LobbyLayout").arenaIndex(),
 			"not in the arena"
 		)
+		eq(o, last, "the one left over is the late-smashed kid")
+		local car = S.workspace:FindFirstChild("Car_" .. o.UserId)
+		truthy(car and car.PrimaryPart and not car.PrimaryPart.Anchored, "its kart isn't frozen")
+		eq(car and car:GetAttribute("Smashed"), nil, "nor shown smashed")
 		eq(#S.errors, 0, "errors")
 	end
 )

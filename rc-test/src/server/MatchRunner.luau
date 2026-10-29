@@ -657,7 +657,12 @@ local function startRound()
 		if #list < Match.MAX then
 			table.insert(list, p)
 		else
-			-- (out of this round: no match HUD, no kart in the arena while it waits its turn)
+			-- (out of this round: no match HUD, no kart in the arena while it waits its turn; a
+			-- kart smashed in the last round's final seconds is let go, as in leave)
+			local info = infos[p.UserId]
+			if info then
+				freeze(info, false)
+			end
 			clearPlayer(p)
 			dropWeapon(p.UserId)
 			h.walk(p)
