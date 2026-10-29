@@ -171,6 +171,19 @@ function CvcUi.carPic(parent: Instance, id: string): ViewportFrame
 		)
 		local model = Instance.new("Model")
 		Garage.makeParts(pieces, model, CFrame.identity)
+		model.WorldPivot = CFrame.identity
+		-- (its real kart when it has one, as long as the toy)
+		local mod = script.Parent:FindFirstChild("CarSkin")
+		if mod and mod:IsA("ModuleScript") then
+			local _, toySize = model:GetBoundingBox()
+			local ok, real = pcall(function()
+				return (require(mod) :: any).standIn(id, toySize.Z)
+			end)
+			if ok and typeof(real) == "Instance" and real:IsA("Model") then
+				model:Destroy()
+				model = real
+			end
+		end
 		model.Parent = pic
 		local cf, size = model:GetBoundingBox()
 		local cam = Instance.new("Camera")
