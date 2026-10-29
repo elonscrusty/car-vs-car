@@ -13,6 +13,8 @@ local yard =
 	luau.load(fs.readFile("src/shared/GemYardData.luau"), { environment = { math = math } })()
 local junk =
 	luau.load(fs.readFile("src/shared/JunkPropData.luau"), { environment = { math = math } })()
+local ringData =
+	luau.load(fs.readFile("src/shared/JunkRingData.luau"), { environment = { math = math } })()
 local env = {
 	Instance = roblox.Instance,
 	Vector3 = roblox.Vector3,
@@ -27,7 +29,14 @@ local env = {
 			error("no AssetService here")
 		end,
 	},
-	script = { Parent = { GemData = data, GemYardData = yard, JunkPropData = junk } },
+	script = {
+		Parent = {
+			GemData = data,
+			GemYardData = yard,
+			JunkPropData = junk,
+			JunkRingData = ringData,
+		},
+	},
 	require = function(d)
 		return d
 	end,
@@ -44,6 +53,9 @@ for _, k in YARD do
 	table.insert(ALL, k)
 end
 for _, k in JUNK do
+	table.insert(ALL, k)
+end
+for k in ringData.kinds do
 	table.insert(ALL, k)
 end
 table.sort(ALL)
@@ -115,6 +127,48 @@ test(
 		truthy(total <= 3500, `set total {total}`)
 	end
 )
+
+test("the junk hill ring is cheap, low, outside the wall and all round it", function()
+	local total, tri = 0, {}
+	for kind, pieces in ringData.kinds do
+		local n = 0
+		local low, top = math.huge, 0
+		for _, piece in pieces do
+			n += #piece.f
+			for _, p in piece.v do
+				low = math.min(low, p[2])
+				top = math.max(top, p[2])
+			end
+		end
+		tri[kind] = n
+		truthy(n > 100 and n <= 1500, `{kind}: {n} triangles`)
+		truthy(
+			low > -3 and low < 1,
+			`{kind}: lowest vertex {low} (a little sunk in the ground is fine)`
+		)
+		truthy(top >= 8 and top <= 20, `{kind}: {top} high`)
+	end
+	local seen = { N = 0, S = 0, E = 0, W = 0 }
+	for _, spot in ringData.layout do
+		total += tri[spot.k]
+		local dist = math.max(math.abs(spot.x), math.abs(spot.z))
+		truthy(dist >= 190 and dist <= 240, `spot at {spot.x},{spot.z} is not in the ring`)
+		if spot.z > 150 then
+			seen.S += 1
+		elseif spot.z < -150 then
+			seen.N += 1
+		end
+		if spot.x > 150 then
+			seen.E += 1
+		elseif spot.x < -150 then
+			seen.W += 1
+		end
+	end
+	for side, n in seen do
+		truthy(n >= 6, `side {side} has {n} hills`)
+	end
+	truthy(total <= 50000, `ring total {total} triangles`)
+end)
 
 test("props stand on the ground: the lowest vertex is near 0, nothing is buried", function()
 	for _, kind in KINDS do
