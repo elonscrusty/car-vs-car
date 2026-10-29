@@ -222,27 +222,41 @@ function WarmupYard.parts(): { any }
 	local ring = WarmupYard.DUMMIES[4].at
 	for k = 0, 31 do
 		local a = (k + 0.5) / 32 * 2 * math.pi
-		add(
-			"Ground",
-			"RingPaint",
-			v(5, 0.2, 2),
-			v(
-				ring.x + math.cos(a) * WarmupYard.CIRCLE_R,
-				0.9,
-				ring.z + math.sin(a) * WarmupYard.CIRCLE_R
-			),
-			YELLOW,
-			{ rot = v(0, -math.deg(a) + 90, 0), collide = false }
-		)
+		local dx = ring.x + math.cos(a) * WarmupYard.CIRCLE_R
+		local dz = ring.z + math.sin(a) * WarmupYard.CIRCLE_R
+		-- (none in a start slot's paint, below: the two would fight at the same height)
+		local inSlot = false
+		for _, sp in WarmupYard.spawns do
+			if math.abs(dx - sp.x) < 9 and math.abs(dz - sp.z) < 10 then
+				inSlot = true
+			end
+		end
+		if not inSlot then
+			add("Ground", "RingPaint", v(5, 0.2, 2), v(dx, 0.9, dz), YELLOW, {
+				rot = v(0, -math.deg(a) + 90, 0),
+				collide = false,
+			})
+		end
 	end
 	add(
 		"Ground",
 		"StartLine",
 		v(pen.w - 10, 0.2, 3),
-		v(0, 0.9, WarmupYard.spawns[1].z - 7), -- (inside the pen's sand, behind the karts)
+		v(0, 0.9, WarmupYard.spawns[1].z - 10), -- (inside the pen's sand, behind the slots)
 		WHITE,
 		{ collide = false }
 	)
+	-- a painted slot round every start spot (auditor round 15: the start was bare sand)
+	for _, sp in WarmupYard.spawns do
+		for _, e in { -1, 1 } do
+			add("Ground", "SlotPaint", v(11, 0.2, 0.8), v(sp.x, 0.9, sp.z + e * 7), WHITE, {
+				collide = false,
+			})
+			add("Ground", "SlotPaint", v(0.8, 0.2, 14.8), v(sp.x + e * 5.9, 0.9, sp.z), WHITE, {
+				collide = false,
+			})
+		end
+	end
 	-- mowed stripes (LOOK-BIBLE rule 5: a second tone on the big floor)
 	for k = -4, 4 do
 		if k % 2 == 0 then
@@ -668,6 +682,12 @@ function WarmupYard.extras(kit: any, dress: Instance)
 			ball.CastShadow = false -- (it moves every frame)
 			ball:SetAttribute("Phase", i * 1.3 + j)
 			CollectionService:AddTag(ball, "LobbyBob")
+		end
+	end
+	-- cones down both sides of the start rows
+	for _, sx in { -1, 1 } do
+		for _, cz in { -58, -44, -30 } do
+			kit.cone(dress, Vector3.new(sx * 68, 0.4, cz), 5, false)
 		end
 	end
 	for i, t in WarmupYard.treeLine() do
