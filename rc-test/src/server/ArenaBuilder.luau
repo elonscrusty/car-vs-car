@@ -34,6 +34,8 @@ local STICK = rgb(252, 248, 240)
 local TRIM, NAVY = rgb(196, 128, 246), rgb(34, 40, 78)
 local YELLOW, SKY = rgb(255, 214, 40), rgb(80, 180, 255)
 local GRASS_DARK, GRASS_LIGHT = rgb(94, 170, 76), rgb(140, 206, 104)
+local PURPLE_BAND = rgb(196, 128, 236)
+local GRASS_MOWN, SKID, PINK_LIP = rgb(130, 206, 102), rgb(118, 118, 128), rgb(190, 80, 158)
 local GRASS_FAR, WATER, SHORE = rgb(104, 178, 86), rgb(96, 186, 236), rgb(240, 214, 150)
 local HILL_FAR, HILL_FAR_2 = rgb(88, 160, 84), rgb(120, 186, 96)
 local BUSH, BUSH_2 = rgb(56, 150, 64), rgb(84, 176, 72)
@@ -349,7 +351,22 @@ local ROAD_STEPS = 7 -- road pieces per picture point (fewer parts for phones)
 
 local function buildFloor(folder: Instance)
 	local s = ArenaData.SIZE
-	part(folder, "Grass", Vector3.new(s, 4, s), CFrame.new(0, -2, 0), GRASS, true)
+	-- the grass mowed in a big two-green checker (one layer, nothing to flicker), so no view
+	-- along or across the arena is one flat green
+	local tiles = 8
+	local tw = s / tiles
+	for i = 0, tiles - 1 do
+		for j = 0, tiles - 1 do
+			part(
+				folder,
+				"Grass",
+				Vector3.new(tw, 4, tw),
+				CFrame.new(-s / 2 + tw * (i + 0.5), -2, -s / 2 + tw * (j + 0.5)),
+				if (i + j) % 2 == 1 then GRASS_MOWN else GRASS,
+				true
+			)
+		end
+	end
 	-- the purple outer wall, all round
 	local w, h = ArenaData.WALL * K, ArenaData.WALL_H
 	for _, side in { -1, 1 } do
@@ -1028,6 +1045,166 @@ local function buildTufts(folder: Instance)
 end
 
 -- The arena model, built big at the origin (no scaling, not placed): tests and renders read it.
+-- Looks only, all flat and never solid (nothing a kart can catch on): a dashed middle line, a few arrows and skid marks on the road, a yellow spot under every "?"
+-- box, and a darker pink lip round each hill top.
+local function buildPaint(folder: Instance)
+	local line = roadLine(ROAD_STEPS)
+	local n = #line
+	for i = 1, n, 2 do
+		local a, b = line[i], line[i % n + 1]
+		local d = b - a
+		local mid = (a + b) / 2 + Vector3.new(0, 0.12, 0)
+		part(
+			folder,
+			"RoadDash",
+			Vector3.new(1.2, 0.06, d.Magnitude * 0.45),
+			CFrame.lookAt(mid, mid + d),
+			CURB_WHITE,
+			false
+		)
+	end
+	-- arrows: a yellow chevron at four spots round the loop, pointing the way the line runs
+	local half = ArenaData.ROAD_W * K / 4
+	for q = 0, 3 do
+		local i = math.floor(n * (q + 0.3) / 4) + 1
+		local a, b = line[i], line[i % n + 1]
+		local d = (b - a).Unit
+		local right = Vector3.new(-d.Z, 0, d.X)
+		local tip = a + Vector3.new(0, 0.12, 0)
+		for _, side in { -1, 1 } do
+			local tail = tip - d * half + right * side * half
+			local mid = (tip + tail) / 2
+			part(
+				folder,
+				"RoadArrow",
+				Vector3.new(2.2, 0.06, (tip - tail).Magnitude + 1.1),
+				CFrame.lookAt(mid, tip),
+				YELLOW,
+				false
+			)
+		end
+	end
+	-- skid marks: two dark streaks side by side at three bends
+	for q = 0, 2 do
+		local i = math.floor(n * (q + 0.7) / 3) + 1
+		local a, b = line[i], line[i % n + 1]
+		local d = b - a
+		local right = Vector3.new(-d.Z, 0, d.X).Unit
+		for _, side in { -1, 1 } do
+			local off = right * (side * 1.6 + 3)
+			local mid = (a + b) / 2 + off + Vector3.new(0, 0.12, 0)
+			part(
+				folder,
+				"Skid",
+				Vector3.new(0.9, 0.06, d.Magnitude * 0.8),
+				CFrame.lookAt(mid, mid + d) * CFrame.Angles(0, 0.08 * side, 0),
+				SKID,
+				false
+			)
+		end
+	end
+	-- a soft yellow spot under each "?" box, so a kid sees where the boxes come back
+	for _, b in ArenaData.boxSpots do
+		local spot = part(
+			folder,
+			"BoxSpot",
+			Vector3.new(0.06, 9, 9),
+			CFrame.new(b.x, b.y + 0.15, b.z) * CFrame.Angles(0, 0, math.pi / 2),
+			YELLOW,
+			false
+		) :: Part
+		spot.Shape = Enum.PartType.Cylinder
+		spot.Transparency = 0.25
+	end
+	-- two broad light bands across the purple platform's flat top, parallel to its slope (side 2),
+	-- from the north wall to where the south slope starts
+	local st = ArenaData.STEP
+	local a2, b2 = st[2], st[3]
+	local ex, ey = b2[1] - a2[1], b2[2] - a2[2]
+	local el = math.sqrt(ex * ex + ey * ey)
+	ex, ey = ex / el, ey / el
+	local nx, ny = -ey, ex
+	if nx > 0 then -- point the normal in, toward the corner the platform fills
+		nx, ny = -nx, -ny
+	end
+	local yTop = st[1][2] + 0.5
+	local yBot = st[3][2] - ArenaData.STEP_SLOPE - 0.5
+	for _, inset in { 11, 19 } do
+		local ox, oy = a2[1] + nx * inset, a2[2] + ny * inset
+		-- along the edge's line: where it crosses yTop and yBot
+		local p0 = { ox + ex * (yTop - oy) / ey, yTop }
+		local p1 = { ox + ex * (yBot - oy) / ey, yBot }
+		local q0, q1 = v(p0, ArenaData.STEP_H + 0.05), v(p1, ArenaData.STEP_H + 0.05)
+		local mid = (q0 + q1) / 2
+		part(
+			folder,
+			"PlatformBand",
+			Vector3.new(4 * K, 0.1, (q1 - q0).Magnitude),
+			CFrame.lookAt(mid, q1),
+			PURPLE_BAND,
+			false
+		)
+	end
+	-- a white start box painted round every start spot (on the floor under the kart)
+	for _, sp in ArenaData.spawns do
+		local f = Vector3.new(sp.dx, 0, sp.dz)
+		local r = Vector3.new(-sp.dz, 0, sp.dx)
+		local c = Vector3.new(sp.x, sp.y - 2.5 + 0.15, sp.z)
+		local bw, bl = 9, 12
+		for _, e in
+			{
+				{ f * (bl / 2), r, bw },
+				{ -f * (bl / 2), r, bw },
+				{ r * (bw / 2), f, bl },
+				{ -r * (bw / 2), f, bl },
+			}
+		do
+			local mid = c + e[1]
+			local along = e[2] :: Vector3
+			part(
+				folder,
+				"StartBox",
+				Vector3.new(0.8, 0.06, (e[3] :: number) + 0.8),
+				CFrame.lookAt(mid, mid + along),
+				CURB_WHITE,
+				false
+			)
+		end
+	end
+	-- a darker lip round each hill's flat top, and a light one round the purple platform's
+	local function lip(poly: { Pt }, h: number, color: Color3)
+		local into = Vector3.zero
+		for _, p in poly do
+			into += v(p, h) / #poly
+		end
+		for i = 1, #poly do
+			local a, b = v(poly[i], h + 0.05), v(poly[i % #poly + 1], h + 0.05)
+			local d = b - a
+			local right = Vector3.new(-d.Z, 0, d.X).Unit
+			if right:Dot(into - a) < 0 then
+				right = -right
+			end
+			local mid = (a + b) / 2 + right * 1
+			part(
+				folder,
+				"Lip",
+				Vector3.new(2, 0.1, d.Magnitude + 2),
+				CFrame.lookAt(mid, mid + d),
+				color,
+				false
+			)
+		end
+	end
+	for _, h in ArenaData.HILLS do
+		lip(ArenaData.insetPoly(h.poly, h.slope), h.h, PINK_LIP)
+	end
+	lip(
+		ArenaData.insetPoly(ArenaData.STEP, ArenaData.STEP_SLOPE, ArenaData.STEP_SIDES),
+		ArenaData.STEP_H,
+		TRIM
+	)
+end
+
 function ArenaBuilder.buildBig(): Model
 	local model = Instance.new("Model")
 	model.Name = "SmashArena"
@@ -1040,6 +1217,7 @@ function ArenaBuilder.buildBig(): Model
 	buildArch(model)
 	buildTrees(model)
 	buildDecor(model)
+	buildPaint(model)
 	buildTufts(model)
 	buildWorld(model)
 	return model
