@@ -143,3 +143,24 @@ test("fire drake: the exhaust jets follow boost, on the black+red car only", fun
 	truthy(fx:find("Enum.NormalId.Back", 1, true), "flames go out the tail, either way round")
 	truthy(fx:find("FireDrake.noseSign", 1, true), "the tail is found from the wheels")
 end)
+
+test(
+	"blocky redline: every colour is known, the parts are small in number and stay near the body",
+	function()
+		local B = require("../src/shared/BlockyRedlineData")
+		for i, v in B.VARIANTS do
+			local parts = B.parts(i)
+			truthy(#parts >= 80 and #parts <= 140, `{v.name}: {#parts} parts`)
+			for _, p in parts do
+				truthy(B.COLORS[p.g] ~= nil, "colour " .. p.g)
+				truthy(
+					math.abs(p.at[1]) < 3.5 and math.abs(p.at[3]) < 5.2,
+					"inside the car's footprint"
+				)
+				truthy(p.at[2] > -1.7 and p.at[2] < 2.2, "inside the car's height")
+			end
+		end
+		local wheel = B.wheelParts()
+		truthy(#wheel <= 25, "a wheel is a few parts")
+	end
+)

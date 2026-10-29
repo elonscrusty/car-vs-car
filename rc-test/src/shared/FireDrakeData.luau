@@ -231,6 +231,45 @@ function FireDrakeData.pod(): { Spec }
 	return L
 end
 
+-- The same head with its mouth open `open` degrees (the jaw swings down about its back, the teeth
+-- with it) and no rocket tubes: the glowing throat shows. For the "Reference Drake" look.
+function FireDrakeData.podOpen(open: number): { Spec }
+	local hy, hz = 0.17, 0.05 -- where the jaw hinges (this file's units, from the head's origin)
+	local c, s = math.cos(math.rad(open)), math.sin(math.rad(open))
+	local L: { Spec } = {}
+	for _, p in FireDrakeData.pod() do
+		if p.shape == "Cylinder" then
+			continue
+		end
+		local lower = p.name == "Jaw" or p.name == "JawFront" or p.name:sub(1, 5) == "Tooth"
+		if lower then
+			local y, z = p.at[2] - hy, p.at[3] - hz
+			L[#L + 1] = {
+				name = p.name,
+				shape = p.shape,
+				mat = p.mat,
+				neon = p.neon,
+				size = p.size,
+				at = { p.at[1], hy + y * c - z * s, hz + y * s + z * c },
+				rot = { p.rot[1] + open, p.rot[2], p.rot[3] },
+			}
+		elseif p.name == "Throat" then
+			L[#L + 1] = {
+				name = p.name,
+				shape = p.shape,
+				mat = p.mat,
+				neon = true,
+				size = { p.size[1] * 1.15, p.size[2], p.size[3] * 1.6 },
+				at = { p.at[1], p.at[2] - 0.02, p.at[3] + 0.5 },
+				rot = p.rot,
+			}
+		else
+			L[#L + 1] = p
+		end
+	end
+	return L
+end
+
 -- the same part on the -X head: across the car's middle
 function FireDrakeData.mirror(s: Spec): Spec
 	return {
