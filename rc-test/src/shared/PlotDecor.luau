@@ -172,7 +172,7 @@ local function smashParts(kind: string): { Piece }
 	-- the gate: round navy posts, a chunky beam with a yellow rail and a dark lip, balloons
 	local POST = 2
 	local ARCH_H = 9
-	local px = G + 0.8
+	local px = G + POST / 2 -- (the posts' inner edge on the gap's edge: the gap stays open)
 	local beamY = ARCH_H + 1.3
 	local beamW = 2 * px + POST
 	local topY = ARCH_H + 2.6
@@ -734,10 +734,6 @@ function PlotDecor.meshes(kind: string): { Mesh }
 		return out
 	end
 	for _, m in list do
-		-- (Smash game: carter's striped race gates stay out; the block garage posts stand instead)
-		if Features.SMASH and (m[1] == "PlotGate" or m[1] == "DriftGate") then
-			continue
-		end
 		local fit: V3 = m[3]
 		table.insert(out, {
 			model = m[1],
