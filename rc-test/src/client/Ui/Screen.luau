@@ -123,16 +123,6 @@ function Screen.anyOver(): boolean
 	return false
 end
 
--- Is a window, popup or big screen (a crate reveal, the match end) up? (the HUD doesn't count)
-function Screen.anyOver(): boolean
-	for _, h in openOnes do
-		if h.api.layer ~= "hud" then
-			return true
-		end
-	end
-	return false
-end
-
 function Screen.closeAll()
 	for _, h in openOnes do
 		h.close()
