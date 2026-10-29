@@ -373,6 +373,10 @@ end
 local function kartAccent(look: Look): { number }
 	return if look.accent == NAVY then (if look.glow then PAL.sky else PAL.white) else look.accent
 end
+-- A kart's trim: the body colour, half as bright (a red kart's trim deep red, a white one's grey).
+function ToyCars.trimTone(color: { number }): { number }
+	return { math.floor(color[1] * 0.5), math.floor(color[2] * 0.5), math.floor(color[3] * 0.5) }
+end
 -- (carter's picture: the shirt, cap and rims are the kart's own colour)
 -- A kart's rims: the kart's own colour.
 function ToyCars.kartRim(color: { number }, _style: string?): { number }
@@ -386,9 +390,15 @@ function ToyCars.kartPaint(name: string, color: { number }, style: string?): ({ 
 		return color, false
 	elseif name == "Cap" or name == "Driver" then
 		return ToyCars.outfit(color, look.accent), false
-	elseif name == "Accent" then
+	elseif name == "Accent" or name == "Stripe" then
+		-- (Stripe: the bright stripe CarSkin lays down an imported kart's middle)
 		return kartAccent(look), look.glow
-	elseif name == "Trim" or name == "Eyes" or name == "Seat" then
+	elseif name == "Trim" then
+		-- two-tone (auditor round 12): splitters, grilles, floor pan in a dark tone of the body
+		return ToyCars.trimTone(color), false
+	elseif name == "Seat" then
+		return kartAccent(look), false -- (a bright pop in the open cockpit)
+	elseif name == "Eyes" then
 		return NAVY, false
 	elseif name == "Metal" then
 		return METAL, false

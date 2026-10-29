@@ -252,6 +252,10 @@ test(
 			table.concat(red, ",")
 		)
 		eq(ToyCars.kartRim(red, "muscle"), red)
+		-- two-tone (auditor round 12): trim a dark tone of the body, a bright seat and stripe
+		eq(table.concat(ToyCars.kartPaint("Trim", red, "muscle") :: { number }, ","), "116,26,23")
+		eq(ToyCars.kartPaint("Seat", red, "formula/white"), ToyCars.PALETTE.white)
+		eq(ToyCars.kartPaint("Stripe", red, "formula/white"), ToyCars.PALETTE.white)
 		-- own car and others both wear them
 		local fs = require("@lune/fs")
 		local others = fs.readFile("src/client/OtherCars.luau")
