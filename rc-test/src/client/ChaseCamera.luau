@@ -564,10 +564,13 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 
 		if arenaW > 1e-3 then
 			refit(camera.ViewportSize)
-			-- where it wants to be: behind and above, or swung up steeper when a wall is close
-			local want = arenaWant(-heading * ARENA_BACK + Vector3.new(0, ARENA_UP, 0))
-			if want.Magnitude < ArenaCam.MIN_REACH * arenaFit.distance then
-				local steep = arenaWant(-heading * STEEP_BACK + Vector3.new(0, STEEP_UP, 0))
+			-- where it wants to be: behind and above (further back at speed: the speed zoom),
+			-- or swung up steeper when a wall is close
+			local pull = 1 + arenaFit.back * CarMath.clamp(flatSpeed / Tuning.topSpeed, 0, 1)
+			local want = arenaWant((-heading * ARENA_BACK + Vector3.new(0, ARENA_UP, 0)) * pull)
+			if want.Magnitude < ArenaCam.MIN_REACH * arenaFit.distance * pull then
+				local steep =
+					arenaWant((-heading * STEEP_BACK + Vector3.new(0, STEEP_UP, 0)) * pull)
 				if steep.Magnitude > want.Magnitude then
 					want = steep
 				end

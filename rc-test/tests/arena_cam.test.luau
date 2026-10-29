@@ -131,7 +131,7 @@ test(
 			local f = ArenaCam.fit(w, h)
 			eq(f.distance, ArenaCam.PHONE_DISTANCE, "a phone: the close camera")
 			local still = ArenaCam.share(w, h, f.distance, f.fov)
-			local fast = ArenaCam.share(w, h, f.distance, f.fov + f.fast)
+			local fast = ArenaCam.share(w, h, f.distance * (1 + f.back), f.fov + f.fast)
 			print(
 				string.format(
 					"  %dx%d: kart %.1f%% of the width (%.1f%% at top speed)",
@@ -142,7 +142,7 @@ test(
 				)
 			)
 			truthy(still >= ArenaCam.MIN_SHARE, `{w}x{h}: kart at least MIN_SHARE wide`)
-			truthy(fast >= ArenaCam.MIN_SHARE, `{w}x{h}: still MIN_SHARE at top speed`)
+			truthy(fast >= ArenaCam.MIN_SHARE_FAST, `{w}x{h}: still MIN_SHARE_FAST at top speed`)
 			local ahead = ArenaCam.seeAhead(f.distance, f.pitch, f.fov)
 			truthy(
 				ahead >= ArenaCam.PHONE_AHEAD_MIN * ArenaCam.KART_LONG,
@@ -156,6 +156,21 @@ test(
 			-- carter's pick (try A, 10-29): further back and higher than the old 4-stud phone camera
 			truthy(f.distance >= 8 and f.pitch >= 45, `{w}x{h}: back and up, not the close camera`)
 		end
+		-- speed zoom (carter's pick A, 10-29): a phone slides about a fifth further back and a few
+		-- degrees wider at top speed, never more than a third; the big screen keeps its camera
+		local phone = ArenaCam.fit(844, 390)
+		truthy(phone.back >= 0.15 and phone.back <= 0.33, "a phone pulls back a bit at speed")
+		truthy(phone.fast >= 3 and phone.fast <= 8, "and goes a little wider")
+		eq(ArenaCam.fit(1920, 1080).back, 0, "the big screen's camera is not pulled back")
+		truthy(
+			string.find(
+				fs.readFile("src/client/ChaseCamera.luau"),
+				"1 + arenaFit.back * CarMath.clamp(flatSpeed / Tuning.topSpeed, 0, 1)",
+				1,
+				true
+			) ~= nil,
+			"ChaseCamera pulls back with speed"
+		)
 		local big = ArenaCam.fit(1920, 1080)
 		eq(big.distance, ArenaCam.DISTANCE, "a big screen keeps the wide camera")
 		eq(big.fov, ArenaCam.FOV)
@@ -202,8 +217,10 @@ test(
 test("arena cam: on a phone the kart you see sits PHONE_LOW down, still and at speed", function()
 	local f = ArenaCam.fit(844, 390, true)
 	local function down(fov: number, lean: number, drop: number, fwd: number): number
-		local ahead = ArenaCam.aimAhead(f.distance, f.pitch, fov, f.low, drop, fwd)
-		return ArenaCam.kartDown(f.distance, f.pitch, fov, ahead, lean, drop, fwd)
+		-- (at top speed the camera is f.back further out: the numbers it really aims with)
+		local dist = if fov > f.fov then f.distance * (1 + f.back) else f.distance
+		local ahead = ArenaCam.aimAhead(dist, f.pitch, fov, f.low, drop, fwd)
+		return ArenaCam.kartDown(dist, f.pitch, fov, ahead, lean, drop, fwd)
 	end
 	-- the kart you see (the skin) sits somewhere under and around the followed spot: from the
 	-- physics box's middle (0.375 under) down to a skin reaching the ground, a little ahead or behind
@@ -235,7 +252,10 @@ test("arena cam: on a phone the kart you see sits PHONE_LOW down, still and at s
 		"aiming at the box puts the drawn kart too low: aim at the drawn kart"
 	)
 	-- same distance and fov: still MIN_SHARE+ wide
-	truthy(ArenaCam.share(844, 390, f.distance, f.fov + f.fast) >= ArenaCam.MIN_SHARE)
+	truthy(
+		ArenaCam.share(844, 390, f.distance * (1 + f.back), f.fov + f.fast)
+			>= ArenaCam.MIN_SHARE_FAST
+	)
 	-- the big screen keeps its lower third and full lean
 	local big = ArenaCam.fit(1920, 1080)
 	eq(big.low, ArenaCam.KART_LOW)

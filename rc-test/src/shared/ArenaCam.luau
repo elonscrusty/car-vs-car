@@ -32,9 +32,15 @@ ArenaCam.PHONE_SHORT = 500 -- px: a screen whose short side is this or less is a
 ArenaCam.PHONE_DISTANCE = 8
 ArenaCam.PHONE_PITCH = 45
 ArenaCam.PHONE_FOV = 50
-ArenaCam.PHONE_FOV_FAST = 2
+ArenaCam.PHONE_FOV_FAST = 4
+-- Speed zoom (carter 10-29, try A of 4 on camera/speed-zoom.html): at top speed the camera slides
+-- this share further back (18%), and the view is PHONE_FOV_FAST wider. It eases out slowly and
+-- back in at once, the same as the wall check does (ChaseCamera).
+ArenaCam.PHONE_BACK_FAST = 0.18
 -- your kart's width, of the screen's width (phone): try A shows it ~4.7% wide, small but clear
 ArenaCam.MIN_SHARE = 0.04
+-- (at top speed, pulled back and wider: carter picked A knowing the kart is a little smaller)
+ArenaCam.MIN_SHARE_FAST = 0.034
 ArenaCam.KART_LONG = 5.5 * 0.25 -- studs (Weapons.KART)
 ArenaCam.KART_WIDE = 0.55 * ArenaCam.KART_LONG -- studs (a kart is 1 x 0.55 KART)
 ArenaCam.PHONE_AHEAD_MIN = 8 -- kart lengths still seen ahead of your kart (the fight round you)
@@ -48,7 +54,8 @@ export type Fit = {
 	distance: number,
 	pitch: number,
 	fov: number,
-	fast: number,
+	fast: number, -- degrees wider at top speed
+	back: number, -- share further back at top speed
 	low: number, -- the kart's middle, this far below the screen's middle (of the half screen)
 	lean: number, -- the look-ahead lean, as a share of LEAD_MAX
 }
@@ -89,6 +96,7 @@ function ArenaCam.fit(w: number, h: number, phone: boolean?): Fit
 			pitch = ArenaCam.PHONE_PITCH,
 			fov = ArenaCam.PHONE_FOV,
 			fast = ArenaCam.PHONE_FOV_FAST,
+			back = ArenaCam.PHONE_BACK_FAST,
 			low = ArenaCam.PHONE_LOW,
 			lean = ArenaCam.PHONE_LEAN,
 		}
@@ -98,6 +106,7 @@ function ArenaCam.fit(w: number, h: number, phone: boolean?): Fit
 		pitch = ArenaCam.PITCH,
 		fov = ArenaCam.FOV,
 		fast = ArenaCam.FOV_FAST,
+		back = 0, -- (the big screen keeps its camera: carter's speed zoom pick was a phone one)
 		low = ArenaCam.KART_LOW,
 		lean = 1,
 	}
