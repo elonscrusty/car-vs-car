@@ -51,9 +51,9 @@ local ALIAS = {
 	mines = "mine",
 	ram = "bump",
 	[""] = "bump", -- (MatchRunner's own default: no weapon word = a bump)
-}
+} :: { [string]: string }
 -- no killer: the arena got you (fell off, no one to blame)
-local FELL = { bump = true, fall = true, arena = true, [""] = true }
+local FELL = { bump = true, fall = true, arena = true, [""] = true } :: { [string]: boolean }
 
 local function words(weapon: string): WeaponWords
 	local key = string.lower(weapon)
