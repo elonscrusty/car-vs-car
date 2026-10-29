@@ -290,6 +290,26 @@ UserInputService.InputBegan:Connect(function(input: InputObject, processed: bool
 	end
 end)
 
+-- a kill list side's level, from its scoreboard entry (by player, else by name; nil = no badge)
+local function levelOf(s: SmashJuice.Side?): number?
+	local folder = ReplicatedStorage:FindFirstChild(BOARD)
+	if not (s and folder) then
+		return nil
+	end
+	for _, k in folder:GetChildren() do
+		local id = k:GetAttribute("UserId")
+		-- (a bot is on the board as UserId 0: a player with a bot's name keeps their own level)
+		local hit = if s.userId ~= nil
+			then id == s.userId
+			else (id == nil or id == 0) and k:GetAttribute("Name") == s.name
+		if hit then
+			local level = k:GetAttribute("Level")
+			return if type(level) == "number" then level else nil
+		end
+	end
+	return nil
+end
+
 -- the kill list: SmashFeed's sides read by SmashJuice (a Player, a bot's name, or
 -- { name, userId?, kart? }; nil attacker = the arena got them), your own rows lime
 task.spawn(function()
@@ -311,7 +331,9 @@ task.spawn(function()
 			if a then SmashJuice.shortName(a.name) else "ARENA",
 			SmashJuice.shortName(f.victim.name),
 			f.weapon,
-			(a ~= nil and a.me) or f.victim.me
+			(a ~= nil and a.me) or f.victim.me,
+			levelOf(a),
+			levelOf(f.victim)
 		)
 	end)
 end)

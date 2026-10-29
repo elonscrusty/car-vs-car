@@ -27,7 +27,8 @@ export type Kart = { id: any, cframe: CFrame, alive: boolean }
 export type Ctx = {
 	now: () -> number,
 	karts: () -> { Kart },
-	damage: (victimId: any, attackerId: any, amount: number, weapon: string) -> (),
+	-- returns the health it really took (0 = blocked: a shield, not in the match)
+	damage: (victimId: any, attackerId: any, amount: number, weapon: string) -> number?,
 	fx: (kind: string, data: { [string]: any }) -> (),
 	place: ((kind: string, at: Vector3) -> Instance?)?,
 }
@@ -172,10 +173,16 @@ function Mine.step(ctx: Ctx, _dt: number?)
 			continue
 		end
 		remove(i)
+		-- hurt: only the karts that really lost health (an older ctx returns nothing: all of it)
+		local hurt = {}
 		for _, id in victims do
-			ctx.damage(id, m.owner, Mine.DAMAGE, Mine.NAME)
+			local taken = ctx.damage(id, m.owner, Mine.DAMAGE, Mine.NAME)
+			taken = if type(taken) == "number" then taken else Mine.DAMAGE
+			if taken > 0 then
+				table.insert(hurt, { id = id, damage = taken })
+			end
 		end
-		ctx.fx("MineBoom", { position = m.position, owner = m.owner })
+		ctx.fx("MineBoom", { position = m.position, owner = m.owner, hurt = hurt })
 	end
 end
 

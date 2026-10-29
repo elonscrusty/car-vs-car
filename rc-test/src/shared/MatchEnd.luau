@@ -8,6 +8,15 @@
 --   coins / xp = what this player earned; nextAt = workspace:GetServerTimeNow() at the next round.
 -- MatchEnd.args builds those (server), MatchEnd.read checks them (client: junk never errors).
 
+local function sibling(name: string): any
+	if script then
+		return require((script :: any).Parent:WaitForChild(name))
+	end
+	local luneRequire: any = require
+	return luneRequire("./" .. name)
+end
+local Xp = sibling("Xp")
+
 local MatchEnd = {}
 
 MatchEnd.AUTO = 12 -- the break between rounds when the server sends no nextAt
@@ -168,7 +177,43 @@ function MatchEnd.left(view: View, openedAt: number, now: number): number
 	return math.clamp(math.ceil(s), 0, 60)
 end
 
+export type XpBar = {
+	fromLevel: number,
+	fromF: number, -- where the bar starts (0..1 of fromLevel's need)
+	toLevel: number,
+	toF: number, -- where it ends (0..1 of toLevel's need)
+	into: number, -- XP into toLevel and what it needs: "60 / 100"
+	need: number,
+	levelUp: boolean,
+}
+
+-- The ROUND OVER XP bar (auditor "Road to 9/10" item 7): from the XP you had before this round to
+-- now. `now` = the player's Xp attribute (the server sets it before MatchResult), `gained` = the
+-- round's XP. nil when there's nothing to show (junk, or no XP).
+function MatchEnd.xpBar(now: unknown, gained: unknown): XpBar?
+	if type(now) ~= "number" or type(gained) ~= "number" or now ~= now or gained ~= gained then
+		return nil
+	end
+	if gained <= 0 then
+		return nil
+	end
+	local after = math.max(0, math.floor(now))
+	local before = math.max(0, after - math.floor(gained))
+	local l1, i1, n1 = Xp.levelOf(before)
+	local l2, i2, n2 = Xp.levelOf(after)
+	return {
+		fromLevel = l1,
+		fromF = if n1 > 0 then i1 / n1 else 0,
+		toLevel = l2,
+		toF = if n2 > 0 then i2 / n2 else 0,
+		into = i2,
+		need = n2,
+		levelUp = l2 > l1,
+	}
+end
+
 -- "NEW ROUND STARTING IN 12"
+
 function MatchEnd.countWords(left: number): string
 	return if left > 0 then `NEW ROUND STARTING IN {left}` else "GO!"
 end

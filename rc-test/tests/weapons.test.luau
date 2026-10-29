@@ -311,7 +311,33 @@ test("server rockets: fire, fly, hit, damage goes to the match with who and what
 	eq(ctx.hurt[1].amount, Weapons.ROCKET.damage)
 	eq(ctx.hurt[1].weapon, "Rockets")
 	eq(ctx.sent[#ctx.sent].kind, "RocketBoom")
+	-- the boom says who the server really hurt and by how much, for the client's flash and "-N"
+	local hurt = ctx.sent[#ctx.sent].data.hurt
+	eq(#hurt, 1)
+	eq(hurt[1].id, -1)
+	eq(hurt[1].damage, Weapons.ROCKET.damage)
 end)
+
+test(
+	"server rockets: a kart the match didn't hurt (shield) is left out of the boom's hurt list",
+	function()
+		local Rockets = Flight.weapon("Rockets", Weapons)
+		local me, bot = kart(1, 0, 0), kart(-1, 0, -60)
+		local ctx = fakeCtx({ me, bot })
+		function ctx.damage()
+			return 0
+		end
+		truthy(Rockets.fire(me, AHEAD, ctx))
+		for _ = 1, 120 do
+			ctx.t += 1 / 60
+			Rockets.step(ctx, 1 / 60)
+		end
+		local last = ctx.sent[#ctx.sent]
+		eq(last.kind, "RocketBoom")
+		eq(last.data.hit, -1)
+		eq(#last.data.hurt, 0)
+	end
+)
 
 test(
 	"server rockets: nose against a wall, the shot booms there and never comes out the far side",

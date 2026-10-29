@@ -40,7 +40,8 @@ export type Ctx = {
 	karts: () -> { Kart },
 	getKart: (id: any) -> Kart?,
 	raycast: (from: Vector3, to: Vector3, ignoreId: any?) -> Hit?,
-	damage: (victimId: any, attackerId: any, amount: number, weapon: string) -> (),
+	-- returns the health it really took (0 = blocked: a shield, not in the match)
+	damage: (victimId: any, attackerId: any, amount: number, weapon: string) -> number?,
 	fx: (kind: string, data: { [string]: any }) -> (),
 	-- stops (seconds > 0) or frees (0) a kart; WeaponServer / MatchRunner does the real stop
 	freeze: ((id: any, seconds: number) -> ())?,
@@ -100,20 +101,26 @@ function Freeze.fire(kart: Kart, aim: Vector3, ctx: Ctx): boolean
 		if ctx.freeze then
 			ctx.freeze(victim, 0)
 		end
-		ctx.fx("Shatter", { id = victim, position = v.cframe.Position, owner = kart.id })
-		ctx.damage(victim, kart.id, Freeze.SHATTER, Freeze.NAME)
+		local taken = Gun.hurt(ctx, victim, kart.id, Freeze.SHATTER, Freeze.NAME)
+		ctx.fx("Shatter", {
+			id = victim,
+			position = v.cframe.Position,
+			owner = kart.id,
+			hurt = if taken > 0 then { { id = victim, damage = taken } } else {},
+		})
 	else
 		frozenUntil[victim] = now + Freeze.FROZEN
 		if ctx.freeze then
 			ctx.freeze(victim, Freeze.FROZEN)
 		end
+		local taken = Gun.hurt(ctx, victim, kart.id, Freeze.DAMAGE, Freeze.NAME)
 		ctx.fx("FreezeHit", {
 			id = victim,
 			position = v.cframe.Position,
 			seconds = Freeze.FROZEN,
 			owner = kart.id,
+			hurt = if taken > 0 then { { id = victim, damage = taken } } else {},
 		})
-		ctx.damage(victim, kart.id, Freeze.DAMAGE, Freeze.NAME)
 	end
 	return true
 end

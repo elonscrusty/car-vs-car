@@ -228,6 +228,10 @@ function Fake.server(store: Store, opts: { seed: number?, jobId: string?, at: nu
 				elseif k == "Position" then
 					return p._position or p.CFrame.Position
 				elseif k == "Orientation" or k == "Rotation" then
+					-- (a 2D gui object's Rotation is a number)
+					if p._gui then
+						return p.Rotation or 0
+					end
 					return roblox.Vector3.zero
 				elseif k == "PrimaryPart" then
 					return rawget(p, "PrimaryPart")
@@ -923,6 +927,104 @@ function Fake.server(store: Store, opts: { seed: number?, jobId: string?, at: nu
 	local Shared = mount("src/shared", game:GetService("ReplicatedStorage"), "Shared")
 	local Server = mount("src/server", game:GetService("ServerScriptService"), "Server")
 	S.game, S.workspace, S.Shared, S.Server = game, workspace, Shared, Server
+
+	S.classes = classes -- (a test can give a class its own starting properties)
+
+	-- The client's modules (src/client, LocalScripts left out) for a layout test: a LocalPlayer
+	-- with a PlayerGui, and require("Ui.Screens.Hud") by dotted path from src/client.
+	function S.client(userId: number): (string) -> any
+		local pl = S.join(userId)
+		local gui = newInst("PlayerGui", "PlayerGui")
+		gui.Parent = pl;
+		(getmetatable(game:GetService("Players")) :: any).p.LocalPlayer = pl
+		local starter = game:GetService("StarterPlayer")
+		local scripts = starter:FindFirstChild("StarterPlayerScripts")
+		if not scripts then
+			scripts = newInst("Folder", "StarterPlayerScripts")
+			scripts.Parent = starter
+		end
+		-- (client services the UI touches: tweens jump to the end, no touch screen)
+		local ts = (getmetatable(game:GetService("TweenService")) :: any).p
+		function ts.Create(_, obj, _info, goal)
+			local tw = { Completed = signal(task.spawn), PlaybackState = "Begin" }
+			function tw.Play()
+				for k, v in goal do
+					obj[k] = v
+				end
+				tw.Completed._fire("Completed")
+			end
+			function tw.Cancel() end
+			function tw.Pause() end
+			function tw.Destroy() end
+			return tw
+		end
+		local uis = (getmetatable(game:GetService("UserInputService")) :: any).p
+		uis.TouchEnabled = uis.TouchEnabled or false
+		local gs = (getmetatable(game:GetService("GuiService")) :: any).p
+		function gs.GetGuiInset()
+			return roblox.Vector2.new(0, 58), roblox.Vector2.new(0, 0)
+		end
+		-- (gui events: present, never fired)
+		for _, cls in
+			{
+				"Frame",
+				"TextLabel",
+				"TextButton",
+				"ImageLabel",
+				"ImageButton",
+				"ScrollingFrame",
+				"CanvasGroup",
+				"ViewportFrame",
+				"TextBox",
+			}
+		do
+			local before = classes[cls]
+			classes[cls] = function(p, inst)
+				for _, ev in
+					{
+						"InputBegan",
+						"InputEnded",
+						"InputChanged",
+						"Activated",
+						"MouseButton1Click",
+						"MouseButton1Down",
+						"MouseButton1Up",
+						"MouseEnter",
+						"MouseLeave",
+						"FocusLost",
+					}
+				do
+					p[ev] = signal(task.spawn)
+				end
+				-- (Base's safe-area probe reads this once, for its stroke scale k)
+				p.AbsoluteSize = roblox.Vector2.new(756, 390)
+				p.AnchorPoint = roblox.Vector2.new(0, 0)
+				p._position = roblox.UDim2.new()
+				p.Size = roblox.UDim2.new()
+				p.Visible = true
+				p.ZIndex = 1
+				p._gui = true
+				if before then
+					before(p, inst)
+				end
+			end
+		end
+		local Client = mount("src/client", scripts, "Client")
+		S.Client = Client
+		return function(path: string): any
+			local at = Client
+			for part in string.gmatch(path, "[^%.]+") do
+				at = at:FindFirstChild(part)
+				assert(at, "no client module " .. path)
+			end
+			local out
+			local co = coroutine.create(function()
+				out = fakeRequire(at)
+			end)
+			resume(co)
+			return out
+		end
+	end
 
 	-- require a server or shared module by name ("TrainingServer", "Shared.CvcRules")
 	function S.require(name: string): any

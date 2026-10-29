@@ -25,7 +25,16 @@ local function kart(id, x, z, look)
 end
 
 local function world(karts)
-	local w = { t = 0, karts = karts, hits = {}, fxs = {}, queue = {}, walls = {}, frozen = {} }
+	local w = {
+		t = 0,
+		karts = karts,
+		hits = {},
+		fxs = {},
+		queue = {},
+		walls = {},
+		frozen = {},
+		takes = {},
+	}
 	local ctx = {}
 	function ctx.now()
 		return w.t
@@ -54,6 +63,12 @@ local function world(karts)
 	function ctx.damage(victim, attacker, amount, weapon)
 		local h = { victim = victim, attacker = attacker, amount = amount, weapon = weapon }
 		table.insert(w.hits, h)
+		-- w.takes[id] = what the match really takes from that kart (nil: an older ctx, no return)
+		local t = w.takes[victim]
+		if t ~= nil then
+			return math.min(t, amount)
+		end
+		return nil
 	end
 	function ctx.fx(kind, data)
 		table.insert(w.fxs, { kind = kind, data = data })
@@ -421,5 +436,57 @@ test("freeze: walls block it; a miss still uses the shot; smashed karts are forg
 	Freeze.step(w.ctx)
 	truthy(not Freeze.isFrozen(2, w.t), "forgotten")
 	eq(w.frozen[2], 0, "let go")
+	Freeze.clear(w.ctx)
+end)
+
+-- ===== hurt lists: fx name only the karts that really lost health =====
+
+local function hurtOf(w, kind)
+	local out = {}
+	for _, f in w.fxs do
+		if f.kind == kind then
+			for _, h in f.data.hurt do
+				out[h.id] = (out[h.id] or 0) + h.damage
+			end
+		end
+	end
+	return out
+end
+
+test("hurt: gun tracers list what each bullet really took; a blocked hit lists nobody", function()
+	local w = world({ kart(1, 0, 0), kart(2, 0, -10) })
+	Gun.fire(w.karts[1], AHEAD, w.ctx)
+	w.run(1)
+	eq(hurtOf(w, "GunShot")[2], 34, "older ctx (no return): the whole burst")
+	w = world({ kart(1, 0, 0), kart(2, 0, -10) })
+	w.takes[2] = 0
+	Gun.fire(w.karts[1], AHEAD, w.ctx)
+	w.run(1)
+	eq(hurtOf(w, "GunShot")[2], nil, "blocked: not in hurt")
+	eq(w.fxs[1].data.hit, true, "the tracer still reached it")
+end)
+
+test("hurt: a mine boom lists each kart with what it really took", function()
+	Mine.clear()
+	local w = world({ kart(1, 0, 0), kart(2, 0.5, Mine.BEHIND), kart(3, -0.5, Mine.BEHIND) })
+	w.takes[2] = 20
+	w.takes[3] = 0
+	Mine.fire(w.karts[1], AHEAD, w.ctx)
+	w.t = 1
+	Mine.step(w.ctx)
+	local hurt = hurtOf(w, "MineBoom")
+	eq(hurt[2], 20, "partly taken")
+	eq(hurt[3], nil, "shielded / blocked")
+end)
+
+test("hurt: freeze and shatter list the kart they really hurt", function()
+	Freeze.clear()
+	local w = world({ kart(1, 0, 0), kart(2, 0, -10) })
+	Freeze.fire(w.karts[1], AHEAD, w.ctx)
+	eq(hurtOf(w, "FreezeHit")[2], Freeze.DAMAGE, "freeze")
+	w.t = 1
+	w.takes[2] = 66
+	Freeze.fire(w.karts[1], AHEAD, w.ctx)
+	eq(hurtOf(w, "Shatter")[2], 66, "shatter: what was left")
 	Freeze.clear(w.ctx)
 end)
