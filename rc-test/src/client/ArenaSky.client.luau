@@ -24,6 +24,7 @@ local function inArena(p: Vector3): boolean
 end
 
 local effects: { Instance } = {}
+local clouds: Clouds? = nil
 local saved: { [string]: any }? = nil -- the light from before the arena, put back on the way out
 
 local function on(camera: Camera)
@@ -31,10 +32,23 @@ local function on(camera: Camera)
 		-- the game's world light steps aside while over the arena (the arena keeps its own look
 		-- until it's retuned to WorldLook)
 		LobbySky.suspend()
-		local old: { [string]: any } =
-			{ Ambient = Lighting.Ambient, OutdoorAmbient = Lighting.OutdoorAmbient }
+		local old: { [string]: any } = {
+			Ambient = Lighting.Ambient,
+			OutdoorAmbient = Lighting.OutdoorAmbient,
+			ColorShift_Top = Lighting.ColorShift_Top,
+		}
 		for key in ArenaData.lighting do
 			old[key] = (Lighting :: any)[key]
+		end
+		local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
+		if atmosphere then
+			for key in ArenaData.atmosphere do
+				if key ~= "color" and key ~= "decay" then
+					old["Atmosphere." .. key] = (atmosphere :: any)[key]
+				end
+			end
+			old["Atmosphere.Color"] = atmosphere.Color
+			old["Atmosphere.Decay"] = atmosphere.Decay
 		end
 		saved = old
 	end
@@ -45,6 +59,24 @@ local function on(camera: Camera)
 	end
 	Lighting.Ambient = rgb(ArenaData.ambient)
 	Lighting.OutdoorAmbient = rgb(ArenaData.outdoorAmbient)
+	Lighting.ColorShift_Top = rgb(ArenaData.colorShiftTop)
+	local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
+	if atmosphere then
+		local a = ArenaData.atmosphere
+		atmosphere.Density = a.Density
+		atmosphere.Offset = a.Offset
+		atmosphere.Haze = a.Haze
+		atmosphere.Glare = a.Glare
+		atmosphere.Color = rgb(a.color)
+		atmosphere.Decay = rgb(a.decay)
+	end
+	if not clouds or not clouds.Parent then
+		clouds = Instance.new("Clouds")
+		clouds.Name = "ArenaClouds"
+		clouds.Cover = ArenaData.clouds.Cover
+		clouds.Density = ArenaData.clouds.Density
+		clouds.Parent = workspace.Terrain
+	end
 	if #effects == 0 or effects[1].Parent ~= camera then
 		for _, e in effects do
 			e:Destroy()
@@ -73,9 +105,21 @@ local function off()
 		e:Destroy()
 	end
 	effects = {}
+	if clouds then
+		clouds:Destroy()
+		clouds = nil
+	end
 	if saved then
+		local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
 		for key, value in saved do
-			(Lighting :: any)[key] = value
+			local prop = string.match(key, "^Atmosphere%.(.+)$")
+			if prop then
+				if atmosphere then
+					(atmosphere :: any)[prop] = value
+				end
+			else
+				(Lighting :: any)[key] = value
+			end
 		end
 		saved = nil
 		LobbySky.resume()

@@ -24,24 +24,24 @@ ArenaCam.WALL_GAP = 0.3 -- studs kept between the camera and a wall it slid in f
 ArenaCam.MIN_REACH = 0.35 -- pulled in closer than this share by a wall: swing up to STEEP
 ArenaCam.STEEP = 72 -- degrees: the swung-up pitch, over the kart, when a wall is right behind
 
--- Phone-shaped screens (auditor round 12b #4: on a phone your kart was ~4% of the screen's width,
--- "can't see my kart"): closer, a little lower and narrower, so your kart is at least MIN_SHARE of
--- the width, while still seeing PHONE_AHEAD_MIN kart lengths of the fight ahead of you.
+-- Phone-shaped screens. carter 10-29 15:56: the close phone camera (4 studs back, 30 deg down)
+-- was "terrible", you couldn't see the fight. He picked try A of three real match pictures
+-- (/mnt/project-files/car-vs-car/camera/camera-tries-1.jpg): back and up, Smash Karts style, so
+-- the road, walls, ? boxes and karts round you show, and your kart is still easy to find.
 ArenaCam.PHONE_SHORT = 500 -- px: a screen whose short side is this or less is a phone
-ArenaCam.PHONE_DISTANCE = 4
-ArenaCam.PHONE_PITCH = 30
-ArenaCam.PHONE_FOV = 44
+ArenaCam.PHONE_DISTANCE = 8
+ArenaCam.PHONE_PITCH = 45
+ArenaCam.PHONE_FOV = 50
 ArenaCam.PHONE_FOV_FAST = 2
-ArenaCam.MIN_SHARE = 0.1 -- your kart's width, of the screen's width (phone)
+-- your kart's width, of the screen's width (phone): try A shows it ~4.7% wide, small but clear
+ArenaCam.MIN_SHARE = 0.04
 ArenaCam.KART_LONG = 5.5 * 0.25 -- studs (Weapons.KART)
 ArenaCam.KART_WIDE = 0.55 * ArenaCam.KART_LONG -- studs (a kart is 1 x 0.55 KART)
 ArenaCam.PHONE_AHEAD_MIN = 8 -- kart lengths still seen ahead of your kart (the fight round you)
--- Lead 10-29 (Studio: the close camera put the back wheels on the bottom edge, under the thumbs):
--- on a phone the kart sits ~72% down the screen, standing or at speed, so no look-ahead lean (a
--- full 2-stud lean at 4 studs away pushed the kart down to ~85%). Studio r57 (#1016): aim at the
--- kart you SEE (CarSkin's skin, down to the ground), not the smaller physics box above it (the
--- box at 68% left the drawn kart at 79-81%): ChaseCamera passes the skin's middle as drop/fwd.
-ArenaCam.PHONE_LOW = 0.44 -- of the half screen below the middle: 72% down
+-- No look-ahead lean on a phone, so the kart stays put on the screen, standing or at speed.
+-- Studio r57 (#1016): aim at the kart you SEE (CarSkin's skin, down to the ground), not the
+-- smaller physics box above it: ChaseCamera passes the skin's middle as drop/fwd.
+ArenaCam.PHONE_LOW = 0.35 -- of the half screen below the middle: ~68% down (try A)
 ArenaCam.PHONE_LEAN = 0 -- of the big camera's lean
 
 export type Fit = {

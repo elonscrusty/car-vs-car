@@ -254,6 +254,9 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 		tag.Parent = body
 		local skins = ReplicatedStorage:FindFirstChild("CarSkins")
 		local own = id and skins and skins:FindFirstChild(id)
+		if own and own:IsA("Model") then
+			CarSkin.prepare(own)
+		end
 		local toy = if own and own:IsA("Model") then modelShell(f, own, s) else nil
 		local kart = if id and not (own and own:IsA("Model")) then CarSkin.kartFor(id) else nil
 		toy = toy or if kart then modelShell(f, kart, s, id) else nil
