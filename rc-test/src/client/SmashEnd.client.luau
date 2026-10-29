@@ -11,6 +11,7 @@ local MatchEnd = require(Shared:WaitForChild("MatchEnd"))
 local Ui = script.Parent:WaitForChild("Ui")
 local Smash = require(Ui:WaitForChild("Screens"):WaitForChild("Smash"))
 local Screen = require(Ui:WaitForChild("Screen"))
+local Sfx = require(script.Parent:WaitForChild("Sfx"))
 
 local player = Players.LocalPlayer
 
@@ -65,7 +66,7 @@ local function show(places: unknown, coins: unknown, nextAt: unknown, xp: unknow
 			shown += 1
 			handle.close()
 		end,
-	}, bar)
+	}, bar, { coin = Sfx.coin, levelUp = Sfx.levelUp })
 	task.spawn(function()
 		while shown == mine do
 			if workspace:GetAttribute("MatchRound") ~= round then
