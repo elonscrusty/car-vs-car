@@ -62,28 +62,28 @@ ArenaData.SAND =
 -- the gaps in the bumper wall: {edge index (from SAND[i] to SAND[i+1]), start, end} along it 0..1
 ArenaData.SAND_GAPS = { { 3, 0.3, 0.55 }, { 6, 0.3, 0.6 } } :: { { number } }
 ArenaData.BUMPER_H = 2.4 -- big: a kart can't climb it, so the gaps are the way in
-ArenaData.BUMPER_W = 2 -- picture units
+ArenaData.BUMPER_W = 3 -- picture units
 
 -- the pink hills (flat-topped, steep faceted sides a kart can't climb), heights in big units
 ArenaData.HILLS = {
 	{
 		name = "HighPink",
 		poly = { { 150, 60 }, { 185, 62 }, { 190, 95 }, { 160, 108 }, { 140, 95 } },
-		h = 8,
+		h = 11,
 		slope = 3,
 	},
 	{
 		name = "LowPink",
 		poly = { { 160, 140 }, { 215, 140 }, { 220, 175 }, { 170, 172 } },
-		h = 4,
-		slope = 1.5,
+		h = 8,
+		slope = 1.8,
 	},
 } :: { Hill }
 -- ramps up onto them (picture units, from the low end to the top end), gentle: under 18 degrees
 ArenaData.RAMPS = {
 	-- each runs square to its hill's cliff edge and ends just inside it, so there is no gap
-	{ from = { 126.2, 81.3 }, to = { 143.1, 86.1 }, width = 12, h = 8 },
-	{ from = { 152.1, 160 }, to = { 165.5, 155.9 }, width = 12, h = 4 },
+	{ from = { 120.3, 79.6 }, to = { 143.1, 86.1 }, width = 14, h = 11 },
+	{ from = { 149.4, 159.1 }, to = { 166.1, 154.0 }, width = 14, h = 8 },
 } :: { Ramp }
 -- each ramp's top runs on as a flat deck this far (picture units) over the hill's sloped edge
 ArenaData.RAMP_DECK = 5
@@ -92,7 +92,7 @@ ArenaData.RAMP_DECK = 5
 -- two sides, gentle slopes a kart drives down (and up) on the other two (STEP_SIDES: edge numbers)
 ArenaData.STEP = { { 6, 6 }, { 52, 6 }, { 30, 44 }, { 6, 44 } } :: { Pt }
 ArenaData.STEP_H = 3
-ArenaData.STEP_SLOPE = 9
+ArenaData.STEP_SLOPE = 7
 ArenaData.STEP_SIDES = { 2, 3 }
 
 -- orange cover walls (segments, picture units)
@@ -101,7 +101,7 @@ ArenaData.COVER = {
 	{ { 110, 190 }, { 135, 200 } },
 	{ { 175, 30 }, { 195, 38 } },
 } :: { { Pt } }
-ArenaData.COVER_W, ArenaData.COVER_H = 4, 6 -- picture units thick, big units tall
+ArenaData.COVER_W, ArenaData.COVER_H = 5, 10 -- picture units thick, big units tall
 
 -- lollipop trees: a solid trunk, a candy top up high
 ArenaData.TREES =
@@ -113,7 +113,6 @@ ArenaData.TRUNK = 5 -- the trunk's thickness, big units
 -- block each), red barrel rows (from, to)
 ArenaData.ROCKS = {
 	{ 60, 63, 3 },
-	{ 228, 36, 2.5 },
 	{ 12, 192, 2.5 },
 	{ 75, 135, 3 },
 	{ 148, 108, 2.5 },
@@ -139,7 +138,7 @@ ArenaData.BUSHES = {
 	{ 229, 190 },
 	{ 80, 13 },
 	{ 170, 13 },
-	{ 135, 62 },
+	{ 229, 140 },
 	{ 148, 200 },
 	{ 100, 190 },
 	{ 195, 135 },
@@ -147,14 +146,9 @@ ArenaData.BUSHES = {
 } :: { Pt }
 ArenaData.FLOWERS = {
 	{ 128, 126 },
-	{ 100, 62 },
 	{ 48, 140 },
-	{ 215, 30 },
 	{ 24, 212 },
-	{ 222, 225 },
 	{ 190, 110 },
-	{ 85, 200 },
-	{ 170, 120 },
 } :: { Pt }
 ArenaData.PATCHES = {
 	{ 124, 128, 12, 1 },
@@ -176,7 +170,7 @@ ArenaData.PATCHES = {
 -- the 12 start spots (picture), numbered like the picture
 ArenaData.START = {
 	{ 28, 28 }, -- the corners are moved in so the chase cam behind fits inside the wall
-	{ 120, 15 },
+	{ 140, 50 }, -- off the north wall (the picture has it on the wall: the wall filled the view)
 	{ 225, 60 },
 	{ 210, 210 },
 	{ 120, 229 }, -- the picture has it on the wall: nudged in
