@@ -91,5 +91,6 @@ require("./smash_screens.test")
 require("./boxes.test")
 require("./match.test")
 require("./same_karts.test")
+require("./match_overflow.test")
 
 Harness.summary()

@@ -657,6 +657,10 @@ local function startRound()
 		if #list < Match.MAX then
 			table.insert(list, p)
 		else
+			-- (out of this round: no match HUD, no kart in the arena while it waits its turn)
+			clearPlayer(p)
+			dropWeapon(p.UserId)
+			h.walk(p)
 			table.insert(queue, 1, p)
 			p:SetAttribute("MatchQueued", true)
 		end
