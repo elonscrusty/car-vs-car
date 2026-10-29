@@ -1,11 +1,11 @@
 --!strict
--- Phone speed for Car VS Car: the tiny training cars on all 8 plots, the race cars and the people
--- on the stand stay under a part budget, and plots far from the camera stop moving their cars.
+-- Phone speed for Car VS Car: the karts in all 8 garages (PlotShowroom), the race cars and the
+-- people on the stand stay under a part budget, and garages far from the camera stop turning.
 -- (Meshy cars are fewer parts than these block stand-ins, so this is the most.)
 local H = require("./harness")
 local Garage = require("../src/shared/Garage")
 local ToyCars = require("../src/shared/ToyCars")
-local PlotTraining = require("../src/shared/PlotTraining")
+local PlotShowroom = require("../src/shared/PlotShowroom")
 local LobbyLayout = require("../src/shared/LobbyLayout")
 
 local test, eq, truthy = H.test, H.eq, H.truthy
@@ -33,7 +33,7 @@ local function carParts(): number
 			{ x = 0, y = 0, z = 0 },
 			0,
 			{ 200, 40, 40 },
-			PlotTraining.CAR,
+			PlotShowroom.TURNTABLE.car,
 			if style == "" then nil else style
 		)
 		most = math.max(most, #pieces)
@@ -41,9 +41,9 @@ local function carParts(): number
 	return most
 end
 
--- every pad and every stand full, on every plot
-local function training(): number
-	local perPlot = #PlotTraining.GRID + #PlotTraining.STANDS
+-- every stand and the turntable full, in every garage
+local function garages(): number
+	local perPlot = #PlotShowroom.SPOTS + 1
 	return PLOTS * perPlot * carParts()
 end
 
@@ -56,16 +56,16 @@ test("there are 8 plots and 8 racers", function()
 end)
 
 test("full plots, 8 race cars and 8 people on the stand stay under budget", function()
-	local total = training() + RACERS * (RACE_CAR + AVATAR)
+	local total = garages() + RACERS * (RACE_CAR + AVATAR)
 	print(`       {total} parts of {BUDGET}`)
 	truthy(total <= BUDGET, `{total} parts, budget {BUDGET}`)
 end)
 
-test("a plot far from the camera stops moving its cars; a near one moves", function()
-	truthy(PlotTraining.awake(0))
-	truthy(PlotTraining.awake(PlotTraining.NEAR - 1))
-	truthy(not PlotTraining.awake(PlotTraining.NEAR))
-	truthy(not PlotTraining.awake(5000))
+test("a garage far from the camera stops turning its kart; a near one turns", function()
+	local fs = require("@lune/fs")
+	local src = fs.readFile("src/client/PlotShowroom.client.luau")
+	truthy(string.find(src, "Magnitude < PlotShowroom.NEAR then", 1, true), "far garages wait")
+	truthy(PlotShowroom.NEAR > 0 and PlotShowroom.NEAR <= 300)
 end)
 
 test("an 8-car race: far shop crates don't spin, rival wheels move in one go each frame", function()
