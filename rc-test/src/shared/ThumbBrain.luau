@@ -175,9 +175,9 @@ function ThumbBrain.angle(me: Me, p: Point): number
 	return (angleTo(me, p))
 end
 
--- One frame alive: moved `moved` studs (flat) in `dt` s, the kart's up has `upY`. Returns
--- "stuck" or "flip" on the frame a stuck or flip moment starts (the caller logs where), else nil.
-function ThumbBrain.sample(t: Tally, dt: number, moved: number, upY: number): string?
+-- One frame alive: moved `moved` studs (flat) in `dt` s, the kart's up has `upY`. Returns the
+-- moments that start this frame ({"stuck"}, {"flip"} or both; the caller logs where), else nil.
+function ThumbBrain.sample(t: Tally, dt: number, moved: number, upY: number): { string }?
 	if dt <= 0 or dt > 0.5 then
 		return nil -- (a hitch or a pause: not driving)
 	end
@@ -188,13 +188,13 @@ function ThumbBrain.sample(t: Tally, dt: number, moved: number, upY: number): st
 	end
 	t.alive += dt
 	t.dist += moved
-	local event = nil
+	local events: { string }? = nil
 	if moved / dt < ThumbBrain.STUCK_SPEED then
 		t.stuck += dt
 		local was = t.stuckRun
 		t.stuckRun += dt
 		if was < ThumbBrain.STUCK_LOG and t.stuckRun >= ThumbBrain.STUCK_LOG then
-			event = "stuck"
+			events = { "stuck" }
 		end
 	else
 		t.stuckRun = 0
@@ -204,12 +204,13 @@ function ThumbBrain.sample(t: Tally, dt: number, moved: number, upY: number): st
 		local was = t.flipRun
 		t.flipRun += dt
 		if was < ThumbBrain.FLIP_LOG and t.flipRun >= ThumbBrain.FLIP_LOG then
-			event = "flip" -- (a flip is the bigger news)
+			events = events or {}
+			table.insert(events, "flip")
 		end
 	else
 		t.flipRun = 0
 	end
-	return event
+	return events
 end
 
 -- A stuck or flip moment at (x, z), touching `what`; `straight` = its target was near the nose.

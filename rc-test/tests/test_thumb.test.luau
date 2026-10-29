@@ -270,8 +270,7 @@ test("stuck and flip moments: one event each, grouped into catch spots", functio
 	local events = {}
 	local function run(n: number, moved: number, upY: number)
 		for _ = 1, n do
-			local e = ThumbBrain.sample(t, 0.1, moved, upY)
-			if e then
+			for _, e in ThumbBrain.sample(t, 0.1, moved, upY) or {} do
 				table.insert(events, e)
 			end
 		end
@@ -280,6 +279,18 @@ test("stuck and flip moments: one event each, grouped into catch spots", functio
 	run(10, 1.5, 1) -- free
 	run(12, 0.02, 0.1) -- tipped: the flip at 0.5 s, then stuck at 1 s
 	eq(table.concat(events, " "), "stuck flip stuck", "events")
+	-- slow for 0.5 s, then it tips: both moments start on the same frame, both are logged
+	local t2 = ThumbBrain.tally()
+	for _ = 1, 4 do
+		ThumbBrain.sample(t2, 0.125, 0.02, 1) -- (0.125: exact in binary, so 4 + 4 frames = 1 s)
+	end
+	local both = {}
+	for _ = 1, 4 do
+		for _, e in ThumbBrain.sample(t2, 0.125, 0.02, 0.1) or {} do
+			table.insert(both, e)
+		end
+	end
+	eq(table.concat(both, " "), "stuck flip", "same frame")
 	ThumbBrain.spot(t, "stuck", 7, 19, "Rocks.Rock3", true)
 	ThumbBrain.spot(t, "stuck", 8, 20, "Rocks.Rock3", false)
 	ThumbBrain.spot(t, "flip", 9, 21, "Ramps.RampA", false)

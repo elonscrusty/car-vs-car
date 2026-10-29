@@ -103,6 +103,7 @@ local function startRound()
 	log = { startAt = os.clock(), firstAt = nil, smashes = 0 }
 	tally = ThumbBrain.tally()
 	nextAt, lastHealth, lastPlace, lastAmmo, lastPos, held = nil, nil, nil, nil, nil, nil
+	lastTarget = nil
 	settleUntil = os.clock() + SETTLE
 	say("match start")
 end
@@ -152,6 +153,7 @@ player:GetAttributeChangedSignal("Health"):Connect(function()
 		say(string.format("hit: health %d at %.1f s", hp, os.clock() - log.startAt))
 	elseif lastHealth and hp > lastHealth then
 		lastPos = nil -- (respawned somewhere else: not a put back)
+		tally.stuckRun, tally.flipRun = 0, 0
 		settleUntil = os.clock() + SETTLE
 	end
 	lastHealth = hp
@@ -250,8 +252,15 @@ end
 local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Exclude
 local function touching(body: BasePart): string
-	local car = body:FindFirstAncestorOfClass("Model") or body
-	rayParams.FilterDescendantsInstances = { car }
+	local skip: { Instance } = { body }
+	local car = workspace:FindFirstChild("Car_" .. myId)
+	if car then
+		table.insert(skip, car)
+	end
+	if player.Character then
+		table.insert(skip, player.Character)
+	end
+	rayParams.FilterDescendantsInstances = skip
 	local cf = body.CFrame
 	local flatLook = cf.LookVector * Vector3.new(1, 0, 1)
 	local tries = {
@@ -301,6 +310,7 @@ end
 function TestThumb.drive(body: BasePart, input: any): any
 	if player:GetAttribute("InMatch") ~= true or (player:GetAttribute("Health") or 0) <= 0 then
 		lastPos = nil
+		tally.stuckRun, tally.flipRun = 0, 0 -- (smashed: a new moment after the respawn)
 		return input
 	end
 	-- (rounds roll on with InMatch staying true; also turned on mid round)
@@ -311,10 +321,11 @@ function TestThumb.drive(body: BasePart, input: any): any
 	local pos = body.Position
 	if now < settleUntil then
 		lastPos = nil -- (still frozen or about to be moved to a spawn)
+		tally.stuckRun, tally.flipRun = 0, 0
 	elseif log.startAt and lastPos then
 		local d = (pos - lastPos) * Vector3.new(1, 0, 1)
-		local event = ThumbBrain.sample(tally, now - lastAt, d.Magnitude, body.CFrame.UpVector.Y)
-		if event then
+		local events = ThumbBrain.sample(tally, now - lastAt, d.Magnitude, body.CFrame.UpVector.Y)
+		for _, event in events or {} do
 			catchSpot(event, body, pos)
 		end
 	end
