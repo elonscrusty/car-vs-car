@@ -206,6 +206,7 @@ local FIRE_WORD: { [string]: string } = {
 	MineBoom = "boom mine",
 	FreezeHit = "hit freeze (iced)",
 	Shatter = "boom freeze (shatter)",
+	FlameBurst = "fire flame",
 }
 
 local function onFx(kind: unknown, data: unknown)

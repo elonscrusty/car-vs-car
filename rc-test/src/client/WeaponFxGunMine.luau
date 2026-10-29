@@ -7,6 +7,8 @@
 --   FreezeShot { from, to, hit }        a sky-blue ice bolt
 --   FreezeHit  { id, position, seconds } an ice block over the kart until it melts
 --   Shatter    { id, position }         the ice bursts into shards
+--   FlameBurst { pos, to, life, range } a stream of fire balls out of the Flame Nozzle (FlameTick: nothing to draw,
+--                                       SmashHits flashes the karts it burned)
 -- Look rule: low-poly, SmoothPlastic + Neon, no text.
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -194,8 +196,53 @@ local function onShatter(data: any)
 	sound("shatter", nil, at)
 end
 
+-- a stream of fire balls from the nozzle along the burst, over its `life`; the hot yellow ones
+-- stay near the nozzle, the orange and red ones carry the whole range and swell as they go
+local function onFlame(data: any)
+	local a, b = vec(data, "pos"), vec(data, "to")
+	if not a or not b or type(data) ~= "table" then
+		return
+	end
+	local life = if type(data.life) == "number" then math.clamp(data.life, 0.2, 2) else 1
+	local dir = b - a
+	if dir.Magnitude < 0.1 then
+		return
+	end
+	flash(a, SUNNY, 1.5, 4, 0.12)
+	local steps = math.floor(life / 0.04)
+	for i = 0, steps do
+		task.delay(i * 0.04, function()
+			for j = 1, 2 do
+				local hot = j == 1
+				local ball = part(
+					"Flame",
+					if hot then SUNNY else FLAME,
+					true,
+					Vector3.new(1, 1, 1) * 1.2 * S
+				)
+				ball.Shape = Enum.PartType.Ball
+				ball.Position = a
+				local reach = if hot then 0.55 else 0.7 + math.random() * 0.3
+				local spread = Vector3.new(
+					math.random() - 0.5,
+					math.random() * 0.4,
+					math.random() - 0.5
+				) * dir.Magnitude * 0.22
+				local to = a + dir * reach + spread
+				fade(ball, 0.3 + math.random() * 0.15, {
+					Position = to,
+					Size = Vector3.new(1, 1, 1) * (if hot then 2.4 else 4.2) * S,
+					Color = if hot then FLAME else CHERRY,
+				})
+			end
+		end)
+	end
+end
+
 function FxGunMine.handle(kind: string, data: any)
-	if kind == "GunShot" then
+	if kind == "FlameBurst" then
+		onFlame(data)
+	elseif kind == "GunShot" then
 		onGun(data)
 	elseif kind == "MineDrop" then
 		sound("mineDrop", data, vec(data, "position"))

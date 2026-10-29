@@ -24,9 +24,11 @@ Weapons.DEFS = {
 	Gun = { ammo = 4, cooldown = 0.5, word = "GUN", icon = "gun" },
 	Mine = { ammo = 3, cooldown = 0.6, word = "MINES", icon = "mine" },
 	Freeze = { ammo = 2, cooldown = 0.8, word = "FREEZE", icon = "freeze" },
+	-- click-on weapons row (server/weapons/Flame; Hud.weaponIcon has no flame icon yet: "?")
+	Flame = { ammo = 3, cooldown = 1.4, word = "FLAME", icon = "flame" },
 } :: { [string]: Def }
 -- the order boxes and screens list them in (GUNMINE adds Gun, Mine, Freeze)
-Weapons.NAMES = { "Rockets", "Nuke", "Gun", "Mine", "Freeze" }
+Weapons.NAMES = { "Rockets", "Nuke", "Gun", "Mine", "Freeze", "Flame" }
 
 -- aim: at most this far (degrees) from where the kart faces; more is turned back to the edge
 Weapons.MAX_AIM_DEG = 30
@@ -49,6 +51,7 @@ Weapons.FEED = {
 	Gun = "machine gun",
 	Mine = "mine",
 	Freeze = "freeze ray",
+	Flame = "flame",
 } :: { [string]: string }
 function Weapons.feedWord(name: string): string
 	return Weapons.FEED[name] or string.lower(name)
