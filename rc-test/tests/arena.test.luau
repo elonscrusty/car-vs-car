@@ -241,6 +241,15 @@ test(
 	end
 )
 
+test("no two box spots are the same", function()
+	for i, a in A.BOXES do
+		for j = i + 1, #A.BOXES do
+			local b = A.BOXES[j]
+			truthy(a[1] ~= b[1] or a[2] ~= b[2], `boxes {i} and {j} differ`)
+		end
+	end
+end)
+
 test(
 	"every box on the floor stands in the open: room round it, not tucked behind a hill foot",
 	function()
