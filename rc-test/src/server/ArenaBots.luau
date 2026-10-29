@@ -55,6 +55,7 @@ export type Fleet = {
 	world: ArenaBrain.World,
 	models: { [number]: Model }, -- this frame's kart models by id (for the default place)
 	seen: { [number]: { x: number, z: number, t: number, vx: number, vz: number } }?, -- last spots (velocity)
+	knocks: { [number]: { vx: number, vz: number } }?, -- a shove (SHOCKWAVE) fading out, big units/s
 	startAt: number?, -- `now` at the first step: a rookie's calm (ArenaBrain.ROOKIE.calm) counts from here
 	list: { ArenaBrain.Bot }, -- (reused each frame)
 }
@@ -204,6 +205,9 @@ end
 
 function ArenaBots.remove(fleet: Fleet, id: number)
 	fleet.bots[id] = nil
+	if fleet.knocks then
+		fleet.knocks[id] = nil
+	end
 end
 
 function ArenaBots.clear(fleet: Fleet)
@@ -211,6 +215,23 @@ function ArenaBots.clear(fleet: Fleet)
 	fleet.startAt = nil
 	fleet.world.feed = nil
 	fleet.seen = nil
+	fleet.knocks = nil
+end
+
+-- SHOCKWAVE: shove bot `id` by `v` (a world velocity, studs/s). The push fades out in about half a
+-- second and keeps the bot inside the arena; the bot's brain carries on from where it lands.
+function ArenaBots.knock(fleet: Fleet, id: number, v: Vector3)
+	if not fleet.bots[id] or v.X ~= v.X or v.Z ~= v.Z then
+		return
+	end
+	local toLocal = fleet.ctx.toLocal :: (Vector3) -> (number, number)
+	local model = fleet.models[id]
+	local at = if model then model:GetPivot().Position else Vector3.zero
+	local x0, z0 = toLocal(at)
+	local x1, z1 = toLocal(at + Vector3.new(v.X, 0, v.Z))
+	local knocks = fleet.knocks or {}
+	fleet.knocks = knocks
+	knocks[id] = { vx = x1 - x0, vz = z1 - z0 }
 end
 
 function ArenaBots.count(fleet: Fleet): number
@@ -308,6 +329,18 @@ function ArenaBots.step(fleet: Fleet, dt: number, now: number)
 	ArenaBrain.feeders(list, w, now)
 	local step = math.clamp(dt, 0, 0.1)
 	for id, bot in fleet.bots do
+		local kn = if fleet.knocks then fleet.knocks[id] else nil
+		if kn then
+			local limit = w.half * 0.97
+			bot.x = math.clamp(bot.x + kn.vx * step, -limit, limit)
+			bot.z = math.clamp(bot.z + kn.vz * step, -limit, limit)
+			local fade = math.exp(-6 * step)
+			kn.vx *= fade
+			kn.vz *= fade
+			if kn.vx * kn.vx + kn.vz * kn.vz < 1 and fleet.knocks then
+				fleet.knocks[id] = nil
+			end
+		end
 		local weapon, ammo = (ctx.weaponOf :: (number) -> (string?, number))(id)
 		local s = ArenaBrain.step(bot, w, step, now, weapon, ammo, hunters)
 		local at = toWorld(s.x, s.z)
