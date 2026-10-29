@@ -36,6 +36,8 @@ type Shown = {
 	key: string,
 	spinner: Model?,
 	angle: number,
+	glow: { BasePart }, -- the turntable's glow ring and the lamp bulbs (they pulse)
+	bulbs: { BasePart },
 }
 
 local shown: { [Instance]: Shown } = {}
@@ -240,14 +242,24 @@ local function watch(plot: Instance)
 		key = "",
 		spinner = nil,
 		angle = 0,
+		glow = {},
+		bulbs = {},
 	}
 	s.folder.Name = "ShowroomKarts_" .. plot.Name
 	s.folder.Parent = workspace
 	shown[plot] = s
 	local function find()
 		room = plot:FindFirstChild("Showroom")
+		s.glow, s.bulbs = {}, {}
 		if room and room:IsA("Model") then
 			s.pivot = room.WorldPivot
+			for _, d in room:GetDescendants() do
+				if d:IsA("BasePart") and d.Name == "TableGlow" then
+					table.insert(s.glow, d)
+				elseif d:IsA("BasePart") and d.Name == "LampBulb" then
+					table.insert(s.bulbs, d)
+				end
+			end
 		end
 		s.key = ""
 		refresh(s)
@@ -298,6 +310,19 @@ RunService.RenderStepped:Connect(function(dt: number)
 			local at = s.pivot * CFrame.new(T.x, T.top, T.z)
 			if (at.Position - eye).Magnitude < PlotShowroom.NEAR then
 				car:PivotTo(at * CFrame.Angles(0, math.rad(s.angle), 0))
+			end
+		end
+		-- the glow ring breathes and the lamp bulbs chase round it (near plots only)
+		if #s.glow + #s.bulbs > 0 then
+			local mid = s.pivot * CFrame.new(T.x, T.top, T.z)
+			if (mid.Position - eye).Magnitude < PlotShowroom.NEAR then
+				local t = os.clock()
+				for _, g in s.glow do
+					g.Transparency = 0.2 + 0.2 * math.sin(t * 2.5)
+				end
+				for i, b in s.bulbs do
+					b.Transparency = 0.3 + 0.3 * math.sin(t * 4 - i * math.pi / 4)
+				end
 			end
 		end
 	end

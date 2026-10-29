@@ -186,6 +186,34 @@ test("the hero: a raised turntable, a big kart, a spotlight ring clear of the ca
 	end
 end)
 
+test("a real showroom: banner with words, trophies, little crates, floor edge bands", function()
+	local names: { [string]: number } = {}
+	for _, p in R.pieces(0) do
+		names[p.name] = (names[p.name] or 0) + 1
+	end
+	eq(names.BannerBoard, 1)
+	truthy(#R.BANNER_TEXT > 0)
+	eq(names.TrophyCup, #R.TROPHIES)
+	eq(names.MiniCrateBody, #R.MINI_CRATES)
+	eq(names.FloorEdge, 4)
+	-- the little crates sit beside the carpet, clear of the lamps and the stands
+	local T, L = R.TURNTABLE, R.LAMPS
+	for i, m in R.MINI_CRATES do
+		truthy(math.abs(m.x) > R.CARPET / 2 + 3, `mini crate {i} off the carpet`)
+		truthy(dist(m, T) > L.r + 3, `mini crate {i} clear of the lamps`)
+		for j, st in R.SPOTS do
+			truthy(dist(m, st) > R.STAND.w / 2 + 3, `mini crate {i} clear of stand {j}`)
+		end
+	end
+	-- the trophies stand clear of the crate's walk-up and the back stands
+	for i, t in R.TROPHIES do
+		truthy(dist(t, R.CRATE) > R.CRATE.w / 2 + 1, `trophy {i} off the crate pedestal`)
+		for j, st in R.SPOTS do
+			truthy(dist(t, st) > R.STAND.w / 2 + 2, `trophy {i} clear of stand {j}`)
+		end
+	end
+end)
+
 test("stands, turntable and crate keep apart; prompts never overlap", function()
 	local T, C = R.TURNTABLE, R.CRATE
 	for i, a in R.SPOTS do
