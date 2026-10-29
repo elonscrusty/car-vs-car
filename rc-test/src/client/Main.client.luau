@@ -497,14 +497,18 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown, gridSpot: u
 		end
 		setStats(nil)
 		goTo(index)
-		-- the come-back whoosh round your new kart (reduced motion: a plain cut)
+		-- the camera's entrance (reduced motion: a plain cut): a respawn whooshes round your new
+		-- kart, the match start flies in over the arena
 		if
-			respawned
-			and grid ~= nil
+			grid ~= nil
 			and ArenaCam.on(player:GetAttribute("InMatch"), true)
 			and not require(script.Parent:WaitForChild("Ui"):WaitForChild("Base")).reduced()
 		then
-			camera.comeBack()
+			if respawned then
+				camera.comeBack()
+			else
+				camera.flyIn()
+			end
 		end
 	end
 end)

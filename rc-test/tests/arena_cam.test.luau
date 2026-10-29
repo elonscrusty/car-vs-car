@@ -323,10 +323,49 @@ test("arena cam: the come-back whoosh spirals in and lands exactly on the match 
 	truthy(string.find(chase, "ArenaCam.comeBack(whoosh, flatOff, arenaOff.Y)", 1, true) ~= nil)
 	truthy(string.find(main, "local respawned = camera.isArena()", 1, true) ~= nil)
 	local at = string.find(main, "camera.comeBack()", 1, true)
-	local placed = string.find(main, "goTo(index)\n\t\t-- the come-back whoosh", 1, true)
+	local placed = string.find(main, "goTo(index)\n\t\t-- the camera's entrance", 1, true)
 	truthy(
 		at ~= nil and placed ~= nil and placed < at,
 		"after the car is placed (goTo snaps the camera)"
 	)
 	truthy(string.find(main, ".reduced()", 1, true) ~= nil, "reduced motion: no whoosh")
 end)
+
+test(
+	"arena cam: the match start fly-in circles down and lands exactly on the match camera",
+	function()
+		local back, up = ArenaCam.offset(ArenaCam.PHONE_DISTANCE, ArenaCam.PHONE_PITCH)
+		local k0, turn0, out0, hgt0, wide0 = ArenaCam.flyIn(0, back, up)
+		eq(k0, 0)
+		truthy(turn0 > math.pi, "starts more than half way round")
+		eq(out0, ArenaCam.FLYIN_RADIUS)
+		eq(hgt0, ArenaCam.FLYIN_HEIGHT)
+		eq(wide0, ArenaCam.FLYIN_FOV)
+		for _, t in { ArenaCam.FLYIN_SECONDS, ArenaCam.FLYIN_SECONDS + 5 } do
+			local k, turn, out, hgt, wide = ArenaCam.flyIn(t, back, up)
+			eq(k, 1)
+			eq(turn, 0)
+			eq(out, back)
+			eq(hgt, up)
+			eq(wide, 0)
+		end
+		-- one way: lower, closer and straighter every step, never back up
+		local lastK, lastH, lastTurn = -1, math.huge, math.huge
+		for i = 0, 60 do
+			local k, turn, _, hgt = ArenaCam.flyIn(i * 0.05, back, up)
+			truthy(k >= lastK and hgt <= lastH and turn <= lastTurn, "never climbs or turns back")
+			lastK, lastH, lastTurn = k, hgt, turn
+		end
+		truthy(ArenaCam.FLYIN_SECONDS >= 2 and ArenaCam.FLYIN_SECONDS <= 4, "a short swoop")
+		truthy(ArenaCam.FLYIN_RUSH > 1, "a moving kart rushes it")
+		-- hooked up: only at the match's start (the old camera was not the match camera), after the
+		-- car is placed, never in reduced motion; the wall check holds it off the walls near the end
+		local chase = fs.readFile("src/client/ChaseCamera.luau")
+		local main = fs.readFile("src/client/Main.client.luau")
+		truthy(string.find(chase, "ArenaCam.flyIn(flying, flatOff, arenaOff.Y)", 1, true) ~= nil)
+		truthy(string.find(chase, "k >= ArenaCam.FLYIN_WALLS", 1, true) ~= nil)
+		truthy(string.find(chase, "ArenaCam.FLYIN_RUSH", 1, true) ~= nil, "driving rushes it")
+		truthy(string.find(main, "camera.flyIn()", 1, true) ~= nil)
+		truthy(string.find(main, "if respawned then", 1, true) ~= nil, "a respawn is the whoosh")
+	end
+)

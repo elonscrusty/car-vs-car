@@ -112,6 +112,36 @@ function ArenaCam.comeBack(
 		(1 - k) * (1 - k) * ArenaCam.COMEBACK_FOV
 end
 
+-- Match start fly-in (carter 10-29, try C "orbit down" of 4 on camera/match-fly-in.html): the
+-- match opens high over the arena, circling it, and spirals down onto your kart. It lands
+-- exactly on the match camera. A kart that starts driving speeds it up (a 3 s swoop never
+-- keeps you from driving: ChaseCamera runs its clock FLYIN_RUSH times faster while you move).
+ArenaCam.FLYIN_SECONDS = 3
+ArenaCam.FLYIN_RADIUS = 44 -- studs out from the middle of the arena at the start
+ArenaCam.FLYIN_HEIGHT = 40 -- studs up at the start
+ArenaCam.FLYIN_TURN = 1.5 * math.pi -- radians still to turn at the start
+ArenaCam.FLYIN_FOV = 10 -- degrees wider at the start
+ArenaCam.FLYIN_RUSH = 3
+ArenaCam.FLYIN_WALLS = 0.85 -- from this far in the wall check holds the camera off the walls
+
+-- The fly-in `t` s after the match began, for a match camera `flatBack` studs behind the kart and
+-- `up` above it: (k 0..1 = how far down and in, turn left in radians, distance out along the
+-- ground, height, extra degrees of view). The caller circles a point k of the way from the
+-- arena's middle to your kart. At FLYIN_SECONDS and after: (1, 0, flatBack, up, 0).
+function ArenaCam.flyIn(
+	t: number,
+	flatBack: number,
+	up: number
+): (number, number, number, number, number)
+	local u = math.clamp(t / ArenaCam.FLYIN_SECONDS, 0, 1)
+	local k = 1 - (1 - u) ^ 3 -- fast at first, settles slowly
+	return k,
+		(1 - k) * ArenaCam.FLYIN_TURN,
+		(1 - k) * ArenaCam.FLYIN_RADIUS + k * flatBack,
+		(1 - k) * ArenaCam.FLYIN_HEIGHT + k * up,
+		(1 - k) * ArenaCam.FLYIN_FOV
+end
+
 -- The camera for a screen `w` x `h` px: a phone's close one, or the big screen's. `phone` (from
 -- isPhone) wins when given; without it the screen's size decides.
 function ArenaCam.fit(w: number, h: number, phone: boolean?): Fit

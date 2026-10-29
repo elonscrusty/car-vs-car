@@ -26,6 +26,7 @@ export type Cam = {
 	arenaDistance: () -> number,
 	isArena: () -> boolean,
 	comeBack: () -> (),
+	flyIn: () -> (),
 }
 
 export type View = "driver" | "chase" | "top" | "free"
@@ -172,6 +173,7 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 	local arenaOn = false
 	local arenaFrom, arenaW, arenaT = 0, 0, 0
 	local whoosh = -1 -- seconds into the come-back whoosh after a respawn (below 0 = not playing)
+	local flying = -1 -- seconds into the match start fly-in (below 0 = not playing)
 	refit(camera.ViewportSize) -- (this screen's numbers before the first spot: no swoop)
 	local arenaOff = -heading * ARENA_BACK + Vector3.new(0, ARENA_UP, 0) -- camera minus focus
 	local lean = Vector3.zero -- the look-ahead, eased
@@ -378,8 +380,13 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 		whoosh = 0
 	end
 
+	-- the match start fly-in (shared/ArenaCam.flyIn): starts at the next frame
+	function cam.flyIn()
+		flying = 0
+	end
+
 	function cam.snap()
-		whoosh = -1
+		whoosh, flying = -1, -1
 		heading = flat(body.CFrame.LookVector)
 		pos = body.Position - heading * Tuning.camDistance + Vector3.new(0, Tuning.camHeight, 0)
 		lookAt = body.Position
@@ -637,7 +644,32 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 			local wideBy = 0 -- the come-back's wider view
 			if arenaW >= 1 then
 				pos, lookAt = focus + arenaOff, aLook
-				if whoosh >= 0 then
+				if flying >= 0 then
+					-- the fly-in: round the arena from high up, tightening down onto the kart; a
+					-- moving kart rushes it, so it never gets in the way of driving
+					flying += dt * (if flatSpeed > 3 * Tuning.scale then ArenaCam.FLYIN_RUSH else 1)
+					local k, turn, out, hgt, wide = ArenaCam.flyIn(flying, flatOff, arenaOff.Y)
+					wideBy = wide
+					local arena = arenaModel
+					local middle = if arena and arena:IsA("Model")
+						then arena:GetBoundingBox().Position
+						else focus
+					local mid = Vector3.new(middle.X, focus.Y, middle.Z):Lerp(focus, k)
+					local back = Vector3.new(arenaOff.X, 0, arenaOff.Z)
+					if back.Magnitude > 1e-3 then
+						local c, s = math.cos(turn), math.sin(turn)
+						local u = back.Unit
+						local dir = Vector3.new(u.X * c - u.Z * s, 0, u.X * s + u.Z * c)
+						pos = mid + dir * out + Vector3.new(0, hgt, 0)
+						if k >= ArenaCam.FLYIN_WALLS then
+							pos = focus + arenaWant(pos - focus)
+						end
+						lookAt = Vector3.new(middle.X, focus.Y, middle.Z):Lerp(aLook, k)
+					end
+					if flying >= ArenaCam.FLYIN_SECONDS then
+						flying = -1
+					end
+				elseif whoosh >= 0 then
 					-- the come-back: round the kart, wide and high, spiralling in to the chase spot
 					-- (the wall check still holds it off the walls)
 					whoosh += dt
