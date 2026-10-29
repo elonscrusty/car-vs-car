@@ -128,7 +128,6 @@ end
 -- the Car VS Car buttons a tip must never cover
 local AVOID = {
 	{ "Cvc", "Coach" },
-	{ "CvcRace", "BigJoin" },
 	{ "CvcCrateButton", "CrateButton" },
 	{ "CvcGarageButton", "GarageButton" },
 }
@@ -157,11 +156,8 @@ local function pick(): Tip?
 	if panelOpen("CvcGarage") then
 		garageSeen = true
 	end
-	local boost = find("CvcRace", "Boost")
-	if player:GetAttribute("Racing") == true then
-		if not boosted and not raced() and shown(boost) and boost then
-			return { target = boost, text = "TAP TO GO FAST!", below = false, drive = true }
-		end
+	-- (Smash: no tip while driving a round)
+	if player:GetAttribute("InMatch") == true then
 		return nil
 	end
 	if Popup.isOpen() then
@@ -179,11 +175,6 @@ local function pick(): Tip?
 	local coach = find("Cvc", "Coach")
 	if not coached and shown(coach) and coach then
 		return { target = coach, text = "TRAIN YOUR CAR!", below = true }
-	end
-	local join = find("CvcRace", "BigJoin")
-	if not raced() and player:GetAttribute("RaceJoined") ~= true and shown(join) and join then
-		-- (under JOIN RACE, pointing up at it: from over it the arrow sat on the kid's head, Studio polish-13)
-		return { target = join, text = "RACE!", below = true }
 	end
 	local garage = find("CvcGarageButton", "GarageButton")
 	if raced() and not garageSeen and shown(garage) and garage then

@@ -135,7 +135,7 @@ test("junk on every remote (wrong types, NaN, huge, other players) never errors"
 		end
 	end
 	print("       swept " .. table.concat(swept, ", "))
-	for _, name in { "Garage", "ServerRace", "RCControl", "PlotShopEvent", "CarShop" } do
+	for _, name in { "Garage", "RCControl", "CarShop", "LeaveMatch", "SmashFeed", "MatchResult" } do
 		truthy(table.find(swept, name), name .. " swept")
 	end
 	truthy(n > 400, "sent " .. n)
@@ -143,48 +143,53 @@ test("junk on every remote (wrong types, NaN, huge, other players) never errors"
 	eq(warnsBut(S, {}), "", "warns")
 end)
 
-test("8 kids race; one leaves mid-race, one while loading: no errors, the rest get paid", function()
-	local S = boot(Fake.store(), "full")
-	local kids = {}
-	for i = 1, 8 do
-		kids[i] = S.join(300 + i)
+test(
+	"8 kids in a smash round; one leaves mid-round, one while loading: the rest get results",
+	function()
+		local S = boot(Fake.store(), "full")
+		local MR = S.require("MatchRunner")
+		MR.MATCH_SECS = 40
+		local kids = {}
+		for i = 1, 8 do
+			kids[i] = S.join(300 + i)
+		end
+		S.advance(3, BEAT)
+		for i, k in kids do
+			S.send(
+				k,
+				"Garage",
+				"pick",
+				({ "race_bolt", "race_dart", "race_rocket" })[(i - 1) % 3 + 1]
+			)
+			MR.join(k)
+		end
+		local waited = 0
+		while not kids[1]:GetAttribute("InMatch") and waited < 30 do
+			S.advance(1, BEAT)
+			waited += 1
+		end
+		for i, k in kids do
+			eq(k:GetAttribute("InMatch"), true, `kid {i} in the round`)
+		end
+		eq(#MR.karts(), 8, "8 karts, no bots needed")
+		S.advance(8, BEAT)
+		S.leave(kids[8]) -- leaves mid-round
+		local late = S.join(399)
+		S.leave(late) -- left before the save loaded
+		S.advance(45, BEAT)
+		for i = 1, 7 do
+			truthy(#S.got(kids[i], "MatchResult") >= 1, `kid {i} got a result`)
+		end
+		eq(#S.got(kids[8], "MatchResult"), 0, "the kid who left gets nothing")
+		-- the next round runs too: the runner isn't stuck
+		S.advance(60, BEAT)
+		for i = 1, 7 do
+			truthy(#S.got(kids[i], "MatchResult") >= 2, `kid {i} played twice`)
+		end
+		eq(errors(S), "", "errors")
+		eq(warnsBut(S, {}), "", "warns")
 	end
-	S.advance(3, BEAT)
-	for i, k in kids do
-		S.send(k, "Garage", "pick", ({ "race_bolt", "race_dart", "race_rocket" })[(i - 1) % 3 + 1])
-	end
-	S.advance(1, BEAT)
-	for _, k in kids do
-		S.send(k, "ServerRace", "join")
-	end
-	-- the race starts (first race: a few seconds after a new kid's JOIN)
-	local waited = 0
-	while (S.workspace:GetAttribute("RaceSlot") or 0) == 0 and waited < 200 do
-		S.advance(1, BEAT)
-		waited += 1
-	end
-	truthy((S.workspace:GetAttribute("RaceSlot") or 0) ~= 0, "a race started")
-	S.advance(8, BEAT)
-	S.leave(kids[8]) -- leaves mid-race
-	local late = S.join(399)
-	S.leave(late) -- left before the save loaded
-	S.advance(200, BEAT)
-	eq(S.workspace:GetAttribute("RaceSlot"), 0, "the race ended")
-	for i = 1, 7 do
-		truthy(#S.got(kids[i], "Garage", "race") >= 1, `kid {i} got a result`)
-	end
-	eq(#S.got(kids[8], "Garage", "race"), 0, "the kid who left isn't paid")
-	-- a second race with 7: the runner isn't stuck
-	for i = 1, 7 do
-		S.send(kids[i], "ServerRace", "join")
-	end
-	S.advance(240, BEAT)
-	for i = 1, 7 do
-		truthy(#S.got(kids[i], "Garage", "race") >= 2, `kid {i} raced twice`)
-	end
-	eq(errors(S), "", "errors")
-	eq(warnsBut(S, {}), "", "warns")
-end)
+)
 
 test("DataStore down at join: plays unsaved, then the visit reaches the save", function()
 	local store = Fake.store()

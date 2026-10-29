@@ -1045,7 +1045,11 @@ local function showPrize(before: any)
 	end)
 end
 task.spawn(function()
-	local raceEvent = ReplicatedStorage:WaitForChild("ServerRace") :: RemoteEvent
+	-- (Smash: no server race, so no race result; nothing waits for it)
+	local raceEvent = ReplicatedStorage:FindFirstChild("ServerRace")
+	if not (raceEvent and raceEvent:IsA("RemoteEvent")) then
+		return
+	end
 	raceEvent.OnClientEvent:Connect(function(kind: unknown)
 		if kind == "result" then
 			-- the race pay comes in the next second or two: show the goal after it

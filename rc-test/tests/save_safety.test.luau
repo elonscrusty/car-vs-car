@@ -6,6 +6,13 @@ local Profile = require("../src/shared/Profile")
 local SaveRetry = require("../src/shared/SaveRetry")
 
 local test, eq, truthy = H.test, H.eq, H.truthy
+-- (Car VS Car SMASH drops the training-era fields on load) these tests round-trip them, so they
+-- run with them kept
+local function trainingEra(name: string, fn: () -> ())
+	test(name, function()
+		H.withTraining(Profile, fn)
+	end)
+end
 
 print("Save safety")
 
@@ -36,7 +43,7 @@ test("migrate: every old version comes up to the current one", function()
 	end
 end)
 
-test("migrate: what a kid earned survives a save and load", function()
+trainingEra("migrate: what a kid earned survives a save and load", function()
 	local d = Profile.new()
 	d.coins = 1234
 	d.cars["buggy"] = true
@@ -75,7 +82,7 @@ end)
 
 -- Saves from before the tycoon: coins and cars come through, the garage is empty and never seen,
 -- so the server parks the free starter on the first join.
-test(
+trainingEra(
 	"old saves (v1..v14) keep coins, cars and old stars/tiles; tycoon fields start clean",
 	function()
 		for v = 1, 14 do
@@ -103,7 +110,7 @@ test(
 	end
 )
 
-test("tycoon fields survive a save and load", function()
+trainingEra("tycoon fields survive a save and load", function()
 	local d = Profile.new()
 	d.pile = 91.5
 	d.lastSeen = 1000
@@ -118,7 +125,7 @@ test("tycoon fields survive a save and load", function()
 	eq(#back.parked, 4)
 end)
 
-test("broken numbers and lists are cleaned, never crash", function()
+trainingEra("broken numbers and lists are cleaned, never crash", function()
 	local d = Profile.migrate({
 		coins = 1e300,
 		pile = 0 / 0,

@@ -6,6 +6,13 @@ local Profile = require("../src/shared/Profile")
 local CarCatalog = require("../src/shared/CarCatalog")
 
 local test, eq, truthy, near = H.test, H.eq, H.truthy, H.near
+-- (Car VS Car SMASH drops the training-era fields on load) these tests round-trip them, so they
+-- run with them kept
+local function trainingEra(name: string, fn: () -> ())
+	test(name, function()
+		H.withTraining(Profile, fn)
+	end)
+end
 
 print("Tycoon")
 
@@ -69,7 +76,7 @@ test("tycoon: a new player's garage starts with the free race car", function()
 	eq(best[1], "gb_gold")
 end)
 
-test("tycoon: saved, junk cleaned", function()
+trainingEra("tycoon: saved, junk cleaned", function()
 	local d = Profile.new()
 	eq(d.pile, 0)
 	eq(#d.parked, 0)
