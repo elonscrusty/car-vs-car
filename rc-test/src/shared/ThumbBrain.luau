@@ -320,6 +320,9 @@ export type Tally = {
 	stuck: number, -- of those, seconds slower than STUCK_SPEED
 	flipped: number, -- seconds on its side or roof
 	putBack: number, -- jumps while alive (OOPS / back to start)
+	righted: number, -- flips set back on its wheels in place (FlipBack: never a JUMP)
+	flipBacksSeen: number?, -- Main's FlipBacks count when last looked
+	longestFlip: number, -- s: the longest time on its side or roof in one go
 	dist: number, -- studs driven while alive
 	stuckRun: number, -- s slow in a row right now
 	flipRun: number, -- s on its side in a row right now
@@ -347,6 +350,8 @@ function ThumbBrain.tally(): Tally
 		stuck = 0,
 		flipped = 0,
 		putBack = 0,
+		righted = 0,
+		longestFlip = 0,
 		dist = 0,
 		stuckRun = 0,
 		flipRun = 0,
@@ -458,6 +463,7 @@ function ThumbBrain.sample(t: Tally, dt: number, moved: number, upY: number): { 
 		t.flipped += dt
 		local was = t.flipRun
 		t.flipRun += dt
+		t.longestFlip = math.max(t.longestFlip, t.flipRun)
 		if was < ThumbBrain.FLIP_LOG and t.flipRun >= ThumbBrain.FLIP_LOG then
 			events = events or {}
 			table.insert(events, "flip")
@@ -466,6 +472,15 @@ function ThumbBrain.sample(t: Tally, dt: number, moved: number, upY: number): { 
 		t.flipRun = 0
 	end
 	return events
+end
+
+-- Main's count of flip-backs (player attribute FlipBacks) now: the new ones since last time are
+-- flips righted (the first look only notes where the count stands).
+function ThumbBrain.flipBacks(t: Tally, count: number)
+	if t.flipBacksSeen and count > t.flipBacksSeen then
+		t.righted += count - t.flipBacksSeen
+	end
+	t.flipBacksSeen = count
 end
 
 -- A stuck or flip moment at (x, z), touching `what`; `straight` = its target was near the nose.
@@ -592,13 +607,15 @@ function ThumbBrain.report(
 			t.hits
 		),
 		string.format(
-			"  alive %.0f s, avg speed %.1f studs/s (sim kid %s), stuck %.0f s (%s), flipped %.0f s, put back %d",
+			"  alive %.0f s, avg speed %.1f studs/s (sim kid %s), stuck %.0f s (%s), flipped %.0f s (longest %.1f s), flips righted %d, put back %d",
 			t.alive,
 			speed,
 			ThumbBrain.SIM_SPEED,
 			t.stuck,
 			pct(t.stuck, t.alive),
 			t.flipped,
+			t.longestFlip,
+			t.righted,
 			t.putBack
 		),
 		(function(): string

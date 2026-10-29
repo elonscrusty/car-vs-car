@@ -699,13 +699,23 @@ RunService.PreSimulation:Connect(function(dt: number)
 	-- the arena: upside down or on its side for a moment = back on its wheels right there, same
 	-- facing (not off to a spawn; a smashed kart is the server's to bring back)
 	if grid and not body.Anchored and player:GetAttribute("Health") ~= 0 then
-		-- (read again: a stuck reset this frame already moved it; only once it has nearly stopped,
-		-- so a tumble in the air or a slide after a hit plays out. A put-back that can't right it
+		-- (read again: a stuck reset this frame already moved it; once it has nearly stopped, so a
+		-- tumble in the air or a slide after a hit plays out, and always by FlipBack.MOST: a phone
+		-- kid can't right it themselves. A put-back that can't right it
 		-- leaves the stuck count running, so the stuck reset still takes it to a spawn)
 		local cf = body.CFrame
 		local still = body.AssemblyLinearVelocity.Magnitude < 12 * Tuning.scale
 		local fire: boolean
-		tippedFor, fire = FlipBack.tick(tippedFor, dt, cf.UpVector.Y, still)
+		-- (the ground right under it: straight down, as the wheels' rays miss when it's on its roof;
+		-- only cast near MOST, before that it can't matter)
+		local low = tippedFor >= FlipBack.MOST - 0.5
+			and workspace:Raycast(
+					cf.Position,
+					Vector3.new(0, -(Tuning.bodyY + Tuning.bodyZ), 0),
+					wallRay
+				)
+				~= nil
+		tippedFor, fire = FlipBack.tick(tippedFor, dt, cf.UpVector.Y, still, low)
 		if fire then
 			local fx, fz =
 				FlipBack.facing(cf.LookVector.X, cf.LookVector.Z, cf.UpVector.X, cf.UpVector.Z)
@@ -713,6 +723,8 @@ RunService.PreSimulation:Connect(function(dt: number)
 			car.teleport(CFrame.lookAt(at, at + Vector3.new(fx, 0, fz)))
 			nudgeUntil = 0
 			hud.flash("OOPS! FLIPPING YOU BACK")
+			-- (a count on this client only: the Studio test thumb reads it, TestThumb)
+			player:SetAttribute("FlipBacks", (tonumber(player:GetAttribute("FlipBacks")) or 0) + 1)
 		end
 	else
 		tippedFor = 0
