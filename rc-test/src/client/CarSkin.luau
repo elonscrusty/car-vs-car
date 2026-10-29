@@ -44,6 +44,7 @@ type Shown = {
 	texture: string, -- the body's own paint, put back when there's no pick
 	looks: { Instance }, -- its SurfaceAppearance, if any, taken off while tinted
 	extras: { [BasePart]: CFrame }, -- a toy car's cab, roof, wing and lights, seen from its body
+	rims: { [BasePart]: { wheel: BasePart, rel: CFrame } }, -- an imported kart's RimFL..: they turn with their wheel
 }
 
 -- "toy:<car id>": the same toy car the plot shows for that car (Garage.toyCar: its colour and
@@ -279,10 +280,18 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 	end
 	-- a toy car's other parts ride on its body (a Meshy model's are dropped, as before)
 	local extras: { [BasePart]: CFrame } = {}
+	local rims: { [BasePart]: { wheel: BasePart, rel: CFrame } } = {}
 	if copy:GetAttribute("Extras") == true then
 		local keep: { [Instance]: boolean } = { [body] = true }
-		for _, w in wheels do
+		for i, w in wheels do
 			keep[w] = true
+			-- (a kart imported in Studio has its rims apart from its tyres: RimFL rides on WheelFL)
+			local rim = copy:FindFirstChild("Rim" .. string.sub(WHEEL_NAMES[i], 6), true)
+			if rim and rim:IsA("BasePart") then
+				keep[rim] = true
+				rims[rim] = { wheel = w, rel = w.CFrame:ToObjectSpace(rim.CFrame) }
+				rim.Parent = folder
+			end
 		end
 		for _, d in copy:GetDescendants() do
 			if d:IsA("BasePart") and not keep[d] then
@@ -321,6 +330,7 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 		texture = if body:IsA("MeshPart") then body.TextureID else "",
 		looks = looks,
 		extras = extras,
+		rims = rims,
 	}
 end
 
@@ -389,6 +399,9 @@ function CarSkin.new()
 			cur.body.CFrame = car.body.CFrame * cur.offset
 			for p, rel in cur.extras do
 				p.CFrame = cur.body.CFrame * rel
+			end
+			for p, r in cur.rims do
+				p.CFrame = r.wheel.CFrame * r.rel
 			end
 			if cur.tint ~= car.body.Color then
 				paint(cur, car.body.Color)

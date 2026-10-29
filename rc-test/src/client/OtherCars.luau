@@ -13,6 +13,7 @@ local KartMesh = require(script.Parent.KartMesh)
 local CarMath = require(ReplicatedStorage.Shared.CarMath)
 local Features = require(ReplicatedStorage.Shared.Features)
 local Garage = require(ReplicatedStorage.Shared.Garage)
+local ToyCars = require(ReplicatedStorage.Shared.ToyCars)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
 
 local OtherCars = {}
@@ -110,7 +111,14 @@ local function modelShell(folder: Folder, m: Model, s: number, kart: string?): T
 	local parts: { BasePart } = {}
 	local offsets: { CFrame } = {}
 	for _, d in m:GetDescendants() do
-		if d:IsA("BasePart") and string.sub(d.Name, 1, 5) ~= "Wheel" then
+		-- (this file's own wheels and rims stand in for a model's: an imported kart's RimFL...
+		-- would float beside them)
+		local n = d.Name
+		if
+			d:IsA("BasePart")
+			and string.sub(n, 1, 5) ~= "Wheel"
+			and string.sub(n, 1, 3) ~= "Rim"
+		then
 			local p = d:Clone()
 			p:ClearAllChildren()
 			p.Anchored = true
@@ -131,7 +139,7 @@ local function modelShell(folder: Folder, m: Model, s: number, kart: string?): T
 	return if #parts > 0 then { parts = parts, offsets = offsets } else nil
 end
 
-local function wheelPart(folder: Folder, s: number): (Part, Part)
+local function wheelPart(folder: Folder, s: number, rim: Color3): (Part, Part)
 	local d = base("wheelRadius") * 2 * s
 	local p = Instance.new("Part")
 	p.Name = "Wheel"
@@ -145,11 +153,12 @@ local function wheelPart(folder: Folder, s: number): (Part, Part)
 	p.CanTouch = false
 	p.CastShadow = false
 	p.Parent = folder
-	-- a light stripe so the roll shows
+	-- a big rim in the car's rim colour, like carter's picture (auditor 10-29: "bare tyres")
 	local stripe = Instance.new("Part")
 	stripe.Name = "Stripe"
-	stripe.Size = Vector3.new(p.Size.X + 0.02, d * 0.2, d * 0.7)
-	stripe.Color = Color3.fromRGB(215, 215, 220)
+	stripe.Shape = Enum.PartType.Cylinder
+	stripe.Size = Vector3.new(p.Size.X + 0.02, d * 0.62, d * 0.62)
+	stripe.Color = rim
 	stripe.Material = Enum.Material.SmoothPlastic
 	stripe.Anchored = true
 	stripe.CanCollide = false
@@ -210,10 +219,14 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 		local f = Instance.new("Folder")
 		f.Name = model.Name
 		f.Parent = folder
+		local id = toyId(model)
+		local info = id and CarCatalog.get(id)
+		local rgb = if info then ToyCars.rim(info.style, info.color) else { 215, 215, 220 }
+		local rim = Color3.fromRGB(rgb[1], rgb[2], rgb[3])
 		local wheels: { Wheel } = {}
 		for _, fz in { -1, 1 } do
 			for _, sx in { -1, 1 } do
-				local part, stripe = wheelPart(f, s)
+				local part, stripe = wheelPart(f, s, rim)
 				table.insert(wheels, {
 					part = part,
 					stripe = stripe,
@@ -229,7 +242,6 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 		-- showed in the Studio check
 		local tag = nameTag(body, playerName(model), s)
 		tag.Parent = body
-		local id = toyId(model)
 		local skins = ReplicatedStorage:FindFirstChild("CarSkins")
 		local own = id and skins and skins:FindFirstChild(id)
 		local toy = if own and own:IsA("Model") then modelShell(f, own, s) else nil
