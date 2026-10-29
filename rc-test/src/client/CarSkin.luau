@@ -95,8 +95,9 @@ end
 -- A bright stripe down an imported kart's middle (auditor round 12: two-tone trim, a stripe in the
 -- palette). The meshes live only in the saved place, so it's laid on at run time: cast down on a
 -- hidden copy of the body at a few spots along it and put a thin Stripe part between each pair of
--- flat hits (ToyCars.kartPaint paints it the car's accent). Once per model, on this device's copy;
--- the hot-rod and monster have their own stripes (Accent).
+-- flat hits (ToyCars.kartPaint paints it the car's accent). Only on the front half, the hood: the
+-- rays hit the body's rough collision shape, which over an open cockpit is a lid, not the seat.
+-- Once per model, on this device's copy; the hot-rod and monster have their own stripes (Accent).
 local STRIPE_SPOTS = 9
 local function addStripe(m: Model)
 	if m:GetAttribute("Striped") ~= nil then
@@ -107,9 +108,20 @@ local function addStripe(m: Model)
 		return
 	end
 	local body = m:FindFirstChild("Body", true)
-	if not (body and body:IsA("BasePart")) then
+	if not (body and body:IsA("BasePart")) or body:GetAttribute("Baked") == true then
 		return
 	end
+	if body:IsA("MeshPart") and body.CollisionFidelity == Enum.CollisionFidelity.Box then
+		return -- (a box: every ray would hit its flat top)
+	end
+	local cf, size = body.CFrame, body.Size
+	if math.abs(cf.UpVector.Y) < 0.99 then
+		return -- (a tilted body: its own axes aren't the kart's)
+	end
+	-- which way the body's own Z runs to the nose (an import's is at the model's +Z, noseAtPlusZ)
+	local look = m:GetPivot().LookVector -- (the model's -Z)
+	local nose = if CarSkin.noseAtPlusZ(m) then -look else look
+	local along = if cf:VectorToObjectSpace(nose).Z >= 0 then 1 else -1
 	local probe = body:Clone()
 	probe:ClearAllChildren()
 	probe.Anchored, probe.CanCollide, probe.CanTouch, probe.CanQuery = true, false, false, true
@@ -118,16 +130,17 @@ local function addStripe(m: Model)
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Include
 	params.FilterDescendantsInstances = { probe }
-	local cf, size = body.CFrame, body.Size
 	local hits: { RaycastResult? } = {}
-	for i = 0, STRIPE_SPOTS - 1 do
-		local z = (i / (STRIPE_SPOTS - 1) - 0.5) * size.Z * 0.9
-		local hit =
-			workspace:Raycast(cf * Vector3.new(0, size.Y, z), cf.UpVector * -size.Y * 2, params)
-		hits[i + 1] = if hit and hit.Normal:Dot(cf.UpVector) > 0.75 then hit else nil
-	end
+	pcall(function()
+		for i = 0, STRIPE_SPOTS - 1 do
+			local z = along * (0.05 + 0.4 * i / (STRIPE_SPOTS - 1)) * size.Z
+			local hit =
+				workspace:Raycast(cf * Vector3.new(0, size.Y, z), cf.UpVector * -size.Y * 2, params)
+			hits[i + 1] = if hit and hit.Normal:Dot(cf.UpVector) > 0.75 then hit else nil
+		end
+	end)
 	probe:Destroy()
-	local width, lift = size.X * 0.2, 0.03 * size.Y
+	local width, lift = size.X * 0.2, 0.045 * size.Y
 	local made = 0
 	for i = 1, STRIPE_SPOTS - 1 do
 		local a, b = hits[i], hits[i + 1]
