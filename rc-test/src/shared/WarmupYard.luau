@@ -69,6 +69,10 @@ local CRATE, CRATE_BAND = { 255, 196, 60 }, { 230, 120, 30 }
 local RED, WHITE = { 225, 40, 50 }, { 250, 250, 250 }
 local BUSH, BUSH_2 = { 56, 150, 64 }, { 84, 176, 72 }
 local GRASS_DARK, GRASS_LIGHT = { 92, 182, 70 }, { 146, 220, 100 }
+-- the world outside (ArenaBuilder's buildWorld colours)
+local GRASS_FAR, WATER, SHORE = { 104, 178, 86 }, { 96, 186, 236 }, { 240, 214, 150 }
+local HILL_FAR, HILL_FAR_2 = { 88, 160, 84 }, { 120, 186, 96 }
+local ROCK, ROCK_2 = { 172, 168, 196 }, { 146, 142, 176 }
 local PETALS = { PINK, YELLOW, WHITE, CANDY_2 }
 
 -- how far the grass runs past the walls (big units)
@@ -303,6 +307,78 @@ function WarmupYard.parts(): { any }
 				{ rot = v(34, math.deg(a), 34), collide = false }
 			)
 		end
+	end
+	-- ===== the world outside, like the arena's (looks only, nothing to hit): far grass, a lake
+	-- with a sandy shore past the board, a ring of low-poly hills and grey cliffs, and rows of
+	-- trees, so no camera in the yard sees empty sky under the horizon =====
+	local function hash(n: number): number -- 0..1, the same every build (no Random in tests)
+		local x = math.sin(n * 12.9898 + 78.233) * 43758.5453
+		return x - math.floor(x)
+	end
+	local edgeZ = D / 2 + APRON -- where the yard's own grass ends
+	add("World", "FarGrass", v(1600, 2, 1600), v(0, -1.4, 0), GRASS_FAR, { collide = false })
+	add("World", "Shore", v(1200, 0.4, 80), v(0, -0.2, edgeZ + 60), SHORE, { collide = false })
+	add("World", "Lake", v(1200, 0.4, 200), v(0, -0.15, edgeZ + 200), WATER, { collide = false })
+	for k = 0, 13 do
+		local ang = k / 14 * math.pi * 2 + (hash(k) - 0.5) * 0.3
+		local r = 380 + hash(k + 20) * 140
+		local x, z = math.cos(ang) * r, math.sin(ang) * r
+		local size = 100 + hash(k + 40) * 80
+		if z > edgeZ and z < edgeZ + 300 + size * 0.8 then
+			z = edgeZ + 300 + size * 0.8 -- behind the lake, not in it
+		end
+		local rocky = x > 260
+		add(
+			"World",
+			if rocky then "Cliff" else "FarHill",
+			v(size, size * (if rocky then 0.9 else 0.55), size),
+			v(x, -size * 0.18, z),
+			if rocky then ROCK_2 else HILL_FAR,
+			{
+				rot = v((hash(k + 60) - 0.5) * 28, math.deg(ang), (hash(k + 80) - 0.5) * 28),
+				collide = false,
+			}
+		)
+		add(
+			"World",
+			if rocky then "Cliff" else "FarHill",
+			v(size * 0.7, size * 0.5, size * 0.7),
+			v(x + size * 0.4, -size * 0.1, z + size * 0.2),
+			if rocky then ROCK else HILL_FAR_2,
+			{ rot = v(11, math.deg(ang) + 46, -17), collide = false }
+		)
+	end
+	-- rows of trees round the yard's grass (the shore side has its own row)
+	local W2 = W / 2 + APRON
+	for k = 0, 39 do
+		local side = k % 4
+		local along = ((k // 4) / 9 - 0.5)
+		local out = 30 + hash(k + 100) * 50
+		local x, z
+		if side == 0 then
+			x, z = along * (W + 2 * APRON + 80), -(edgeZ + out)
+		elseif side == 1 then
+			x, z = W2 + out, along * (D + 2 * APRON + 80)
+		elseif side == 2 then
+			x, z = -(W2 + out), along * (D + 2 * APRON + 80)
+		else
+			x, z = along * (W + 2 * APRON + 200), edgeZ + 24 -- on the shore
+		end
+		local h = 22 + hash(k + 120) * 12
+		add("World", "FarTrunk", v(h, 4, 4), v(x, h / 2, z), STICK, {
+			shape = "Cylinder",
+			rot = v(0, 0, 90),
+			collide = false,
+		})
+		local r = 11 + hash(k + 140) * 6
+		add(
+			"World",
+			"FarTreeTop",
+			v(r, r, r),
+			v(x, h + r * 0.3, z),
+			if k % 3 == 0 then CANDY_2 elseif k % 3 == 1 then BUSH else BUSH_2,
+			{ rot = v(34, k * 52, 34), collide = false }
+		)
 	end
 	for i, g in WarmupYard.PATCHES do
 		add(

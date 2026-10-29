@@ -143,3 +143,22 @@ test("yard: dressed like the arena, and nothing solid on a spawn, box or dummy s
 		end
 	end
 end)
+
+test("yard: a world round it like the arena's (grass, lake, hills, trees), looks only", function()
+	local names: { [string]: number } = {}
+	for _, p in Y.parts() do
+		if p.group == "World" then
+			names[p.name] = (names[p.name] or 0) + 1
+			eq(p.collide, false)
+			-- all outside the yard's own grass, except the far grass under everything
+			if p.name ~= "FarGrass" then
+				local out = math.abs(p.pos.x) > Y.W / 2 + 60 or math.abs(p.pos.z) > Y.D / 2 + 60
+				truthy(out, `{p.name} at {p.pos.x},{p.pos.z} is in the yard`)
+			end
+		end
+	end
+	for _, n in { "FarGrass", "Lake", "Shore", "FarHill", "FarTreeTop" } do
+		truthy((names[n] or 0) > 0, "no " .. n)
+	end
+	truthy((names.FarTreeTop or 0) >= 30, "too few trees outside")
+end)
