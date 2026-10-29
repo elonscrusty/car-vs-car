@@ -4,6 +4,7 @@
 local H = require("./harness")
 local A = require("../src/shared/ArenaData")
 local Tuning = require("../src/shared/Tuning")
+local TrackData = require("../src/shared/TrackData")
 
 local test, truthy, eq = H.test, H.truthy, H.eq
 
@@ -155,6 +156,38 @@ test("from every spawn: nothing solid on the chase cam's line or 3 kart lengths 
 		end
 	end
 end)
+
+test(
+	"placed the way the match places a kart (TrackData world spot and facing): open ahead and behind",
+	function()
+		-- MatchRunner.spawnWorld and the client's "drive" both turn ArenaData's spot into the world
+		-- with TrackData.toWorld / dirToWorld on ArenaData.track(): walk that same world line back
+		-- to the arena and check it
+		local t = A.track()
+		local S = TrackData.RC_SCALE
+		for i, s in A.spawns do
+			local wx, wy, wz = TrackData.toWorld(t, true, s.x, s.y, s.z)
+			local dx, dz = TrackData.dirToWorld(t, true, s.dx, s.dz)
+			truthy(math.abs(dx * dx + dz * dz - 1) < 1e-6, `spot {i}: a unit facing in the world`)
+			local d = -A.CAM_BACK * S
+			while d <= 3 * 5.5 * S do
+				local lx, _, lz = TrackData.toLocal(t, true, wx + dx * d, wy, wz + dz * d)
+				local px, py = lx / K + A.PIC / 2, lz / K + A.PIC / 2
+				truthy(
+					A.clear(px, py, 1.5),
+					`spot {i}: clear {math.floor(d / S)} big along its world facing`
+				)
+				d += 0.5 * K * S
+			end
+			-- and the world facing points into the arena, not at the wall behind
+			local lx, _, lz = TrackData.toLocal(t, true, wx + dx, wy, wz + dz)
+			truthy(
+				(lx - s.x) * -s.x + (lz - s.z) * -s.z >= -1e-6,
+				`spot {i}: faces the middle side`
+			)
+		end
+	end
+)
 
 test("hills: boxes on them sit on top, ramps are gentle", function()
 	eq(A.boxSpots[6].y, A.HILLS[1].h, "HIGH PINK box on top")
