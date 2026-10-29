@@ -15,12 +15,13 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local UiTheme = require(Shared:WaitForChild("UiTheme"))
 local UiScreens = require(Shared:WaitForChild("UiScreens"))
+local UiFonts = require(Shared:WaitForChild("UiFonts"))
 
 local Base = {}
 
 Base.W = UiTheme.DESIGN.w
 Base.H = UiTheme.DESIGN.h
-Base.FONT = Enum.Font.FredokaOne
+Base.FONT = UiFonts.TITLE
 
 local colors: { [string]: Color3 } = {}
 function Base.color(name: string): Color3
@@ -294,6 +295,7 @@ export type TextStyle = {
 	align: string?, -- "l", "c" (default), "r"
 	drop: number?, -- px of a solid drop under the words
 	dropColor: Color3?,
+	role: string?, -- "title" | "num" | "small"; nil = picked from the words (UiFonts.role)
 	z: number?,
 }
 
@@ -311,11 +313,12 @@ function Base.text(
 ): TextLabel
 	local st: TextStyle = style or {}
 	local z = st.z or 3
+	local font = UiFonts.forRole(st.role or UiFonts.role(words, h, st.stroke))
 	local function make(n: string): TextLabel
 		local l = Instance.new("TextLabel")
 		l.Name = n
 		l.BackgroundTransparency = 1
-		l.Font = Base.FONT
+		l.Font = font
 		l.TextScaled = true
 		l.Text = words
 		l.TextXAlignment = if st.align == "l"

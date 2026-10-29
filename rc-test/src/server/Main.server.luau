@@ -240,7 +240,7 @@ for _, d in workspace.Plots:GetDescendants() do
 		local text = Instance.new("TextLabel")
 		text.Size = UDim2.fromScale(1, 1)
 		text.BackgroundTransparency = 1
-		text.Font = Enum.Font.GothamBlack
+		text.Font = Enum.Font.Oswald
 		text.TextScaled = true
 		text.TextColor3 = Color3.fromRGB(30, 30, 34)
 		text.Parent = gui

@@ -212,7 +212,7 @@ function LobbyBuilder.build(): Built
 		text.Size = UDim2.fromScale(1, 1)
 		text.BackgroundTransparency = 1
 		-- (Smash: the UI's chunky font with a navy outline, auditor cheap tells #4)
-		text.Font = if SMASH then Enum.Font.FredokaOne else Enum.Font.GothamBlack
+		text.Font = if SMASH then Enum.Font.Oswald else Enum.Font.Oswald
 		text.TextScaled = true
 		text.TextColor3 = Color3.new(1, 1, 1)
 		if SMASH then

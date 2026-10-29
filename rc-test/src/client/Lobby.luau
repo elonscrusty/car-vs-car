@@ -68,7 +68,7 @@ local function makeMarker(x: number, z: number): Model
 	text.Size = UDim2.fromScale(1, 1)
 	text.BackgroundColor3 = Color3.fromRGB(255, 210, 63)
 	text.TextColor3 = Color3.fromRGB(30, 30, 34)
-	text.Font = Enum.Font.LuckiestGuy
+	text.Font = Enum.Font.Oswald
 	text.TextScaled = true
 	text.Text = "YOUR GARAGE"
 	text.Parent = sign
@@ -113,7 +113,7 @@ function Lobby.new(remote: RemoteEvent, canWalk: () -> boolean): Lobby
 		button.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 		button.BackgroundTransparency = 0.2
 		button.TextColor3 = Color3.new(1, 1, 1)
-		button.Font = Enum.Font.LuckiestGuy
+		button.Font = Enum.Font.Oswald
 		button.TextSize = 20
 		button.Text = text
 		button.Parent = gui
