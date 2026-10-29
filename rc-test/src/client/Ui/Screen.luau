@@ -32,6 +32,11 @@ local function guiFor(id: string, layer: string, full: boolean): Base.Gui
 	if not g then
 		g = Base.screen("Ui_" .. id, LAYER[layer] or Base.ORDER.window, full)
 		guis[id] = g
+	elseif full and not g.back then
+		-- (an id first opened as a plain window, e.g. by the gallery, still gets its back layer)
+		local fresh = Base.screen("Ui_" .. id, LAYER[layer] or Base.ORDER.window, true)
+		fresh.gui:Destroy()
+		g.back = fresh.back
 	end
 	return g
 end

@@ -205,18 +205,19 @@ local LIST: { Screen } = {
 		gameplay = false,
 		pieces = {
 			p("Close", 700, 0, 52, 52, { anchor = "tr", tap = true }),
-			-- (today's glow reaches ~10 px past its card: clear of Close and CLAIM)
-			p("Days", 8, 62, 740, 180, { anchor = "t" }),
+			-- (today's glow reaches ~10 px past its card: inset 12, clear of Close and CLAIM)
+			p("Days", 12, 62, 732, 180, { anchor = "t" }),
 			p(
 				"Claim",
 				8,
 				254,
-				180,
+				250,
 				66,
 				{ anchor = "bl", tone = "lime", text = "CLAIM", main = true }
 			),
-			p("Track", 200, 268, 548, 38, { anchor = "b" }),
-			p("Note", 200, 318, 548, 40, { anchor = "b" }),
+			-- (CLAIM is wide enough for a "+1,000" chip and still reads)
+			p("Track", 270, 268, 478, 38, { anchor = "b" }),
+			p("Note", 270, 318, 478, 40, { anchor = "b" }),
 		},
 	},
 	-- today's jobs: a row each (icon, words, bar, the coins it pays)

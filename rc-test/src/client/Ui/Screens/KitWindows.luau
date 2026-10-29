@@ -404,7 +404,8 @@ end
 -- ===== Daily: 7 day cards (got dim with a check, today ringed, day 7 gold), CLAIM, the track =====
 
 -- data: { days = { { day, coins, state = "got" | "today" | "later", crate } } (7), today: n,
---   claimWords? } (the gift is already paid by the server: CLAIM only takes it)
+--   claimWords? (unused here: today's card shows the crate) } (the gift is already paid by
+--   the server: CLAIM only takes it)
 -- actions: claim(), close()
 function KitWindows.daily(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
 	return Screen.open("daily", "window", true, function(g)
@@ -808,6 +809,11 @@ function KitWindows.leagueUp(data: { [string]: any }, actions: Screen.Actions?):
 		local bd = Kit.backdrop(back, "showroom")
 		-- the kit's ground: blue at the top to warm orange (r56: sky blue)
 		bd.BackgroundColor3 = WHITE
+		-- (the showroom's own sky gradient goes first: two UIGradients on one frame, one wins)
+		local sky = bd:FindFirstChildOfClass("UIGradient")
+		if sky then
+			sky:Destroy()
+		end
 		Kit.face(bd, { "3f7fe0", "8a6aa8", "d9784a" })
 		local floor = bd:FindFirstChild("Floor")
 		if floor then
@@ -1113,7 +1119,7 @@ function KitWindows.garage(data: { [string]: any }, actions: Screen.Actions?): S
 						card,
 						"Name",
 						6,
-						b.h - 54,
+						b.h - 50,
 						b.w - 12,
 						18,
 						string.upper(it.name or ""),
