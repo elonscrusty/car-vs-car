@@ -1,10 +1,22 @@
 --!strict
--- Freeze ("Freeze" from a "?" box). One tap of FIRE = one ice shot straight ahead (the same aim
--- help as the gun). A kart it hits is frozen in an ice block for FROZEN seconds: it can't drive
--- (ctx.freeze stops it) and takes DAMAGE. A second freeze hit while it is still frozen SHATTERS
--- it: a smash at once ("You were shattered by X"). Two shots per box, so one box can do both.
+-- Freeze ("Freeze" from a "?" box). One tap of FIRE = one ice shot straight ahead (the gun's
+-- aim help, Gun.pickTarget). A kart it hits is frozen in an ice block for FROZEN seconds: it
+-- can't drive (ctx.freeze stops it) and takes DAMAGE. A second freeze hit while it is still
+-- frozen SHATTERS it: a smash at once ("You were shattered by X"). Two shots per box, so one box
+-- can do both.
 -- The server decides every hit; clients get "FreezeShot", "FreezeHit" and "Shatter" fx to draw.
 -- Plain `vector` maths, so Lune tests run it.
+
+-- the gun's aim help (one function for both): Roblox by script.Parent, plain Lune by path
+local function sibling(name: string): any
+	if script then
+		return require((script :: any).Parent:WaitForChild(name))
+	end
+	local luneRequire: any = require
+	return luneRequire("./" .. name)
+end
+
+local Gun = sibling("Gun")
 
 local Freeze = {}
 
@@ -18,11 +30,10 @@ Freeze.FROZEN = 2.5 -- seconds stuck in the ice
 Freeze.DAMAGE = 10 -- the freeze itself hurts a little
 Freeze.SHATTER = 1000 -- more than any health: a shattered kart is smashed
 Freeze.RANGE = 160 * S -- the gun's reach
-Freeze.CONE = math.cos(math.rad(18))
 Freeze.MUZZLE = 3.5 * S
 Freeze.HEIGHT = 1.5 * S
 
-export type Kart = { id: any, cframe: CFrame, alive: boolean }
+export type Kart = { id: any, cframe: CFrame, alive: boolean, shield: boolean? }
 export type Hit = { kartId: any?, position: Vector3 }
 export type Ctx = {
 	now: () -> number,
@@ -52,33 +63,6 @@ local function flat(v: Vector3): Vector3?
 	return f / m
 end
 
--- The kart the shot goes for: alive, not the shooter, in range, inside the cone; closest to the
--- aim line wins.
-function Freeze.pickTarget(shooterId: any, from: Vector3, dir: Vector3, karts: { Kart }): Kart?
-	local best: Kart? = nil
-	local bestScore = -math.huge
-	for _, k in karts do
-		if k.id == shooterId or not k.alive then
-			continue
-		end
-		local to = k.cframe.Position - from
-		local dist = vector.magnitude(to)
-		local along = flat(to)
-		if dist > Freeze.RANGE or not along then
-			continue
-		end
-		local dot = vector.dot(dir, along)
-		if dot < Freeze.CONE then
-			continue
-		end
-		local score = dot - dist / (Freeze.RANGE * 100)
-		if score > bestScore then
-			best, bestScore = k, score
-		end
-	end
-	return best
-end
-
 -- The weapon contract: one ice shot along `aim` (already checked by WeaponServer).
 function Freeze.fire(kart: Kart, aim: Vector3, ctx: Ctx): boolean
 	if not kart.alive then
@@ -88,7 +72,7 @@ function Freeze.fire(kart: Kart, aim: Vector3, ctx: Ctx): boolean
 	local look = flat(cf.LookVector) or vector.create(0, 0, -1)
 	local dir = flat(aim) or look
 	local from = cf.Position + look * Freeze.MUZZLE + vector.create(0, Freeze.HEIGHT, 0)
-	local target = Freeze.pickTarget(kart.id, cf.Position, dir, ctx.karts())
+	local target = Gun.pickTarget(kart.id, cf.Position, dir, look, ctx.karts(), Freeze.RANGE)
 	local to = if target then target.cframe.Position else from + dir * Freeze.RANGE
 	local hit = ctx.raycast(from, to, kart.id)
 	local victim: any? = nil

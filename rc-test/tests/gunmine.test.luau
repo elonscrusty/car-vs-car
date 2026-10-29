@@ -174,6 +174,55 @@ test("gun: aim help reaches a kart a little off to the side, not one far off", f
 	eq(w.total(3), 0, "kart 72 degrees off is not")
 end)
 
+test("gun: aim help snaps to the NEAREST kart within 25 degrees", function()
+	-- kart 2 straight ahead but far; kart 3 is 22 degrees off (outside the old 18) and near
+	local near3 = kart(3, 4 * math.tan(math.rad(22)), -4)
+	local w = world({ kart(1, 0, 0), kart(2, 0, -20), near3 })
+	Gun.fire(w.karts[1], AHEAD, w.ctx)
+	w.run(1)
+	eq(w.total(3), 34, "nearest in the cone")
+	eq(w.total(2), 0, "far one left alone")
+end)
+
+test("gun: aim help skips shielded karts and fires straight when none is left", function()
+	local shielded = kart(2, 0, -10)
+	shielded.shield = true
+	local w = world({ kart(1, 0, 0), shielded })
+	Gun.fire(w.karts[1], AHEAD, w.ctx)
+	w.run(1)
+	-- straight ahead, nothing in the way: the tracer flies the full range, no damage
+	eq(#w.hits, 0, "a shielded kart isn't snapped to")
+	near(w.fxs[1].data.to.z, -(Gun.MUZZLE + Gun.RANGE), 1e-3, "straight")
+	local open = kart(3, 3, -10)
+	table.insert(w.karts, open)
+	Gun.fire(w.karts[1], AHEAD, w.ctx)
+	w.run(1)
+	eq(w.total(3), 34, "the unshielded one beside it is")
+end)
+
+test("gun: an aim at the 30 degree edge can't lock a kart far off the nose", function()
+	-- aim 30 degrees right; kart 2 is 50 degrees right: inside the 25 degree cone of the aim, but
+	-- outside Weapons.MAX_AIM_DEG of the nose
+	local a = math.rad(30)
+	local aim = v(math.sin(a), 0, -math.cos(a))
+	local b = math.rad(50)
+	local w = world({ kart(1, 0, 0), kart(2, 10 * math.sin(b), -10 * math.cos(b)) })
+	Gun.fire(w.karts[1], aim, w.ctx)
+	w.run(1)
+	eq(w.total(2), 0, "not locked")
+end)
+
+test("freeze: uses the same aim help (nearest in 25 degrees, never shielded)", function()
+	Freeze.clear()
+	local shielded = kart(2, 0, -3)
+	shielded.shield = true
+	local w = world({ kart(1, 0, 0), shielded, kart(3, 4 * math.tan(math.rad(22)), -4) })
+	Freeze.fire(w.karts[1], AHEAD, w.ctx)
+	eq(w.total(3, "Freeze"), Freeze.DAMAGE, "kart 3 frozen")
+	eq(w.total(2), 0, "shielded kart skipped")
+	Freeze.clear(w.ctx)
+end)
+
 test("gun: never hits a kart behind, out of range, smashed, or the shooter", function()
 	local behind = kart(2, 0, 7.5)
 	local far = kart(3, 0, -(Gun.RANGE + 20))

@@ -1,10 +1,23 @@
 --!strict
 -- Machine gun ("Gun" from a "?" box). One tap of FIRE = one short burst of bullets.
--- The server decides every bullet: it picks the target ahead (a little aim help, so a phone
--- thumb and a bot play fair), checks the line of sight with a ray, then calls ctx.damage. A full
+-- The server decides every bullet: it snaps to the nearest kart in a cone ahead (aim help, so a
+-- phone thumb and a bot play fair; Weapons.cone, shared with the rocket lock), checks the line of
+-- sight with a ray, then calls ctx.damage. A full
 -- burst on one kart does BURST_DAMAGE (34: three hits smash a kart). Clients only get
 -- "GunShot" fx (a tracer from the muzzle to where it hit) to draw. Plain `vector` maths, so Lune
 -- tests run it.
+
+-- shared/Weapons: Roblox from ReplicatedStorage, plain Lune (tests) by path
+local function shared(name: string): any
+	if script then
+		local rs: any = game:GetService("ReplicatedStorage")
+		return require(rs:WaitForChild("Shared"):WaitForChild(name))
+	end
+	local luneRequire: any = require
+	return luneRequire("../../shared/" .. name)
+end
+
+local Weapons = shared("Weapons")
 
 local Gun = {}
 
@@ -19,11 +32,11 @@ Gun.BULLETS = 6
 Gun.GAP = 0.07 -- seconds between bullets in a burst
 Gun.BURST_DAMAGE = 34 -- a whole burst, split over its bullets
 Gun.RANGE = 160 * S -- about 29 kart lengths, 44% of the arena's width
-Gun.CONE = math.cos(math.rad(18)) -- a target this close to the aim gets aimed at
+Gun.AIM_DEG = 25 -- aim help: snaps to the nearest kart this close to the aim
 Gun.MUZZLE = 3.5 * S -- just past the kart's nose
 Gun.HEIGHT = 1.5 * S -- above the kart centre
 
-export type Kart = { id: any, cframe: CFrame, alive: boolean }
+export type Kart = { id: any, cframe: CFrame, alive: boolean, shield: boolean? }
 export type Hit = { kartId: any?, position: Vector3 }
 export type Ctx = {
 	now: () -> number,
@@ -53,41 +66,36 @@ local function flat(v: Vector3): Vector3?
 	return f / m
 end
 
--- The best target for a shooter at `from` aiming along `dir` (flat, unit): alive, not the
--- shooter, in range and inside the cone. The one closest to the aim line wins (nearer breaks a
--- tie). `prefer` keeps a burst on the kart it started on while that kart is still fair game.
+-- Aim help (also Freeze's): the nearest kart that is alive, not shielded, not the shooter, in
+-- `range` and within AIM_DEG of `dir` (Weapons.cone), and never more than Weapons.MAX_AIM_DEG
+-- off the kart's nose `look`, so a cheat aiming at the edge can't hit sideways. `prefer` keeps a
+-- burst on the kart it started on while that kart is still fair game. nil = fire straight.
 function Gun.pickTarget(
 	shooterId: any,
 	from: Vector3,
 	dir: Vector3,
+	look: Vector3,
 	karts: { Kart },
+	range: number,
 	prefer: any?
 ): Kart?
-	local best: Kart? = nil
-	local bestScore = -math.huge
+	local noseCos = math.cos(math.rad(Weapons.MAX_AIM_DEG))
+	local list: { any } = {}
 	for _, k in karts do
-		if k.id == shooterId or not k.alive then
-			continue
-		end
-		local to = k.cframe.Position - from
-		local dist = vector.magnitude(to)
-		if dist < 1e-3 or dist > Gun.RANGE then
-			continue
-		end
-		local along = flat(to)
-		local dot = if along then vector.dot(dir, along) else 0
-		if dot < Gun.CONE then
-			continue
-		end
-		if prefer ~= nil and k.id == prefer then
-			return k
-		end
-		local score = dot - dist / (Gun.RANGE * 100)
-		if score > bestScore then
-			best, bestScore = k, score
+		local side = flat(k.cframe.Position - from)
+		if side and vector.dot(side, look) >= noseCos then
+			local row = { id = k.id, pos = k.cframe.Position, alive = k.alive, shield = k.shield }
+			row.kart = k
+			if prefer ~= nil and k.id == prefer then
+				if Weapons.cone(from, dir, { row }, Gun.AIM_DEG, range, shooterId) then
+					return k
+				end
+			end
+			table.insert(list, row)
 		end
 	end
-	return best
+	local best = Weapons.cone(from, dir, list, Gun.AIM_DEG, range, shooterId)
+	return if best then best.kart else nil
 end
 
 -- One bullet from the shooter's spot right now, along `aim` turned with the kart since the burst
@@ -103,7 +111,7 @@ function Gun.shoot(shooterId: any, turn: Vector3, ctx: Ctx, i: number, prefer: a
 	local right = vector.create(-look.z, 0, look.x)
 	local dir = flat(look * turn.z + right * turn.x) or look
 	local from = cf.Position + look * Gun.MUZZLE + vector.create(0, Gun.HEIGHT, 0)
-	local target = Gun.pickTarget(shooterId, cf.Position, dir, ctx.karts(), prefer)
+	local target = Gun.pickTarget(shooterId, cf.Position, dir, look, ctx.karts(), Gun.RANGE, prefer)
 	local to = if target then target.cframe.Position else from + dir * Gun.RANGE
 	local hit = ctx.raycast(from, to, shooterId)
 	local victim: any? = nil
