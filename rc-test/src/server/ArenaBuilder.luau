@@ -549,6 +549,163 @@ local function buildSand(folder: Instance)
 	end
 end
 
+-- the tyre-wall look (carter picked it on the preview page, 10-29): chunky tyres with tread,
+-- coloured rims and a silver hub, red and white straps, blue ramps with candy rails. All of it is
+-- looks only (not solid): the solid walls, caps and ramps under it keep their old shapes.
+local TYRE, TYRE_LIP, TYRE_GROOVE = rgb(43, 43, 51), rgb(69, 69, 79), rgb(23, 23, 29)
+local SILVER, DIRT = rgb(201, 205, 216), rgb(138, 122, 92)
+local RIMS = { YELLOW, CURB_RED, rgb(58, 140, 255), CURB_WHITE }
+local RAMP_BLUE, RAMP_BLUE_DARK = rgb(58, 140, 255), rgb(42, 100, 200)
+local TREAD = 8 -- tread blocks round each tyre (phone budget: about 19 parts a tyre)
+
+-- a steady wobble from a number (0..1), so every build looks the same
+local function jitter(i: number): number
+	local x = math.sin(i * 127.1 + 3.7) * 43758.5
+	return x - math.floor(x)
+end
+
+-- a round flat disc (diameter d, thickness t) lying level at cf
+local function disc(
+	parent: Instance,
+	name: string,
+	cf: CFrame,
+	d: number,
+	t: number,
+	color: Color3
+): Part
+	local p = part(
+		parent,
+		name,
+		Vector3.new(t, d, d),
+		cf * CFrame.Angles(0, 0, math.pi / 2),
+		color,
+		false
+	) :: Part
+	p.Shape = Enum.PartType.Cylinder
+	return p
+end
+
+-- one tyre lying flat, centred at cf (radius r, thickness th): lips, tread, rim, hub, and spokes
+-- on the top one of a stack
+local function tyre(
+	parent: Instance,
+	cf: CFrame,
+	r: number,
+	th: number,
+	rim: Color3,
+	spokes: boolean
+)
+	disc(parent, "Tyre", cf, r * 1.88, th, TYRE)
+	for _, s in { -1, 1 } do
+		disc(parent, "TyreLip", cf + Vector3.new(0, s * th * 0.42, 0), r * 2, th * 0.16, TYRE_LIP)
+	end
+	for i = 0, TREAD - 1 do
+		local a = i / TREAD * math.pi * 2
+		local at = cf * CFrame.Angles(0, -a, 0) * CFrame.new(r * 0.95, 0, 0)
+		part(
+			parent,
+			"TyreTread",
+			Vector3.new(r * 0.2, th * 0.62, r * 0.36),
+			at * CFrame.Angles(0, if i % 2 == 0 then 0.35 else -0.35, 0),
+			if i % 2 == 0 then TYRE_GROOVE else TYRE,
+			false
+		)
+	end
+	disc(parent, "TyreRim", cf, r * 1.2, th + 0.04, rim)
+	disc(parent, "TyreRim", cf, r * 1.04, th + 0.08, TYRE_GROOVE)
+	disc(parent, "TyreHub", cf, r * 0.4, th + 0.2, SILVER)
+	if spokes then
+		for i = 0, 4 do
+			local at = cf
+				* CFrame.Angles(0, -i / 5 * math.pi * 2, 0)
+				* CFrame.new(r * 0.33, th / 2 + 0.08, 0)
+			part(parent, "TyreSpoke", Vector3.new(r * 0.36, 0.12, r * 0.1), at, rim, false)
+		end
+	end
+end
+
+-- a ramp's paint and trim (looks only): from foot a to top b (map-local, y 0), width w, rise h.
+-- Candy rails on posts just outside each edge, white dashes and two skid marks up the middle,
+-- a yellow and black lip at the foot, and a little tyre stack by each foot corner.
+local function rampLooks(folder: Instance, a: Vector3, b: Vector3, w: number, h: number)
+	local up = Vector3.new(0, h, 0)
+	local run = b - a
+	local dir = run.Unit
+	local side = Vector3.new(dir.Z, 0, -dir.X)
+	local len = (run + up).Magnitude
+	-- a flat piece on the slope at u (0 foot .. 1 top), off the middle by x, lifted by lift
+	local function onSlope(
+		name: string,
+		size: Vector3,
+		x: number,
+		u: number,
+		lift: number,
+		color: Color3,
+		turn: number?
+	)
+		local at = a + run * u + up * u + side * x + Vector3.new(0, lift, 0)
+		part(
+			folder,
+			name,
+			size,
+			CFrame.lookAt(at, at + run + up) * CFrame.Angles(0, turn or 0, 0),
+			color,
+			false
+		)
+	end
+	for _, sgn in { -1, 1 } do
+		local x = sgn * (w / 2 + 0.45)
+		for i = 0, 9 do
+			onSlope(
+				"RampRail",
+				Vector3.new(0.95, 0.55, len / 10),
+				x,
+				(i + 0.5) / 10,
+				1.9,
+				if i % 2 == 0 then CURB_RED else CURB_WHITE
+			)
+		end
+		for i = 0, 5 do
+			local u = i / 5
+			local at = a + run * u + side * x + Vector3.new(0, u * h + 0.8, 0)
+			part(folder, "RampPost", Vector3.new(0.6, 1.9, 0.6), CFrame.new(at), CURB_WHITE, false)
+			disc(folder, "RampPost", CFrame.new(at + Vector3.new(0, 1.1, 0)), 0.9, 0.3, CURB_RED)
+		end
+		-- two tyres stacked by the foot corner
+		local foot = a + side * (sgn * (w / 2 + 2.6)) - dir * 0.5
+		tyre(folder, CFrame.new(foot + Vector3.new(0, 1.2, 0)), 2.2, 2.3, CURB_RED, false)
+		tyre(folder, CFrame.new(foot + Vector3.new(0, 3.5, 0)), 2.2, 2.3, CURB_WHITE, true)
+	end
+	for i = 0, 5 do
+		onSlope("RampDash", Vector3.new(1, 0.12, 2.5), 0, (i + 0.5) / 6, 0.06, CURB_WHITE)
+	end
+	for _, x in { -5, 5 } do
+		for i = 0, 7 do
+			onSlope(
+				"RampSkid",
+				Vector3.new(0.7, 0.1, len / 8 + 0.1),
+				x + math.sin(i * 1.2) * 0.8,
+				(i + 0.5) / 8,
+				0.05,
+				RAMP_BLUE_DARK,
+				math.cos(i * 1.2) * 0.12
+			)
+		end
+	end
+	-- the lip at the foot: yellow and black blocks, flat on the grass
+	for i = 0, 6 do
+		local at = a + side * (-w / 2 + w / 7 * (i + 0.5)) - dir * 0.7 + Vector3.new(0, 0.15, 0)
+		part(
+			folder,
+			"RampLip",
+			Vector3.new(w / 7, 0.3, 1.4),
+			CFrame.lookAt(at, at + dir),
+			if i % 2 == 0 then YELLOW else NAVY,
+			false
+		)
+	end
+end
+
 local function buildHills(folder: Instance)
 	for _, h in ArenaData.HILLS do
 		mesa(folder, h.name, h.poly, h.h, h.slope, nil, PINK, PINK_SIDE)
@@ -596,7 +753,7 @@ local function buildHills(folder: Instance)
 			"Ramp" .. i,
 			Vector3.new(r.width * K, h, len),
 			CFrame.lookAt(mid, mid - dir),
-			PINK_RAMP,
+			RAMP_BLUE,
 			true,
 			"WedgePart"
 		)
@@ -608,7 +765,7 @@ local function buildHills(folder: Instance)
 			"RampDeck" .. i,
 			Vector3.new(r.width * K, 1, deck),
 			CFrame.lookAt(dm, dm + dir),
-			PINK_RAMP,
+			RAMP_BLUE,
 			true
 		)
 		-- a sloped flank down each side, so a kart hitting the ramp's side from the grass rides up
@@ -625,7 +782,7 @@ local function buildHills(folder: Instance)
 				b + n * (half + flank),
 				Vector3.yAxis + n,
 				1,
-				PINK_SIDE
+				RAMP_BLUE_DARK
 			)
 			-- close its upright top end, so nothing can nose in under it where the hill isn't there
 			tri(
@@ -636,35 +793,90 @@ local function buildHills(folder: Instance)
 				b + n * (half + flank),
 				dir,
 				1,
-				PINK_SIDE
+				RAMP_BLUE_DARK
 			)
+		end
+		rampLooks(folder, a, b, r.width * K, h)
+	end
+end
+
+-- a red and white strap round a tyre stack at height y, along cf's look axis (length L, width W),
+-- with a silver buckle on each face a quarter in from each end
+local function strap(folder: Instance, cf: CFrame, L: number, W: number, y: number)
+	local at = cf + Vector3.new(0, y, 0)
+	part(folder, "CoverStrap", Vector3.new(W + 0.3, 0.7, L + 0.3), at, CURB_RED, false)
+	for i = 0, 5 do
+		part(
+			folder,
+			"CoverStrap",
+			Vector3.new(W + 0.34, 0.74, 1.4),
+			at * CFrame.new(0, 0, -L / 2 + L / 6 * (i + 0.5)),
+			CURB_WHITE,
+			false
+		)
+	end
+	for _, s in { -1, 1 } do
+		for _, z in { -L / 4, L / 4 } do
+			local face = at * CFrame.new(s * (W / 2 + 0.25), 0, z)
+			part(folder, "CoverBuckle", Vector3.new(0.25, 1.1, 1.2), face, SILVER, false)
+			part(folder, "CoverBuckle", Vector3.new(0.3, 0.5, 0.6), face, TYRE_GROOVE, false)
 		end
 	end
 end
 
+-- the cover walls: the solid wall and round end caps stay as they were (karts slide off them),
+-- now dark like tyres and dressed as a stack of tyres three high with two straps round it
 local function buildCover(folder: Instance)
-	for _, seg in ArenaData.COVER do
-		wall(
-			folder,
-			"Cover",
-			v(seg[1], 0),
-			v(seg[2], 0),
-			ArenaData.COVER_W * K,
-			ArenaData.COVER_H,
-			ORANGE,
-			true
-		)
-		-- red bumper caps on both ends (round, like the barrels)
+	local W, H = ArenaData.COVER_W * K, ArenaData.COVER_H
+	local r, th = W / 2, H / 3
+	for n, seg in ArenaData.COVER do
+		local a, b = v(seg[1], 0), v(seg[2], 0)
+		-- the tyres and straps go in their own folder; the chase cam fades it with the wall
+		local dress = Instance.new("Folder")
+		dress.Name = "CoverDress" .. n
+		dress.Parent = folder
+		wall(folder, "Cover", a, b, W, H - 1, TYRE, true):SetAttribute("Dress", dress.Name)
 		for _, e in seg do
 			local cap = part(
 				folder,
 				"CoverCap",
-				Vector3.new(ArenaData.COVER_H + 1, ArenaData.COVER_W * K, ArenaData.COVER_W * K),
-				CFrame.new(v(e, (ArenaData.COVER_H + 1) / 2)) * CFrame.Angles(0, 0, math.pi / 2),
-				CURB_RED,
+				Vector3.new(H - 1, W, W),
+				CFrame.new(v(e, (H - 1) / 2)) * CFrame.Angles(0, 0, math.pi / 2),
+				TYRE,
 				true
 			) :: Part
 			cap.Shape = Enum.PartType.Cylinder
+		end
+		local mid = (a + b) / 2
+		local look = CFrame.lookAt(mid, b)
+		local L = (b - a).Magnitude
+		-- a worn dirt patch under it
+		part(
+			folder,
+			"CoverDirt",
+			Vector3.new(W + 1.6, 0.04, L + W + 1),
+			look + Vector3.new(0, 0.03, 0),
+			DIRT,
+			false
+		)
+		local cols = math.max(2, math.floor(L / (W * 0.95) + 0.5) + 1)
+		for c = 0, cols - 1 do
+			local at = a:Lerp(b, c / (cols - 1))
+			for row = 0, 2 do
+				local i = n * 100 + c * 7 + row
+				local cf = CFrame.new(
+					at
+						+ Vector3.new(
+							(jitter(i) - 0.5) * 0.5,
+							th * row + th * 0.46,
+							(jitter(i + 50) - 0.5) * 0.5
+						)
+				) * CFrame.Angles(0, jitter(i + 20) * 6, (jitter(i + 90) - 0.5) * 0.07)
+				tyre(dress, cf, r, th * 0.92, RIMS[(c + row) % #RIMS + 1], row == 2)
+			end
+		end
+		for _, y in { th, th * 2 } do
+			strap(dress, look, L, W * 0.98, y)
 		end
 	end
 end
