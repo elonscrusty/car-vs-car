@@ -95,7 +95,7 @@ local LIST: { Screen } = {
 		gameplay = true,
 		pieces = {
 			-- at the right edge, between the feed and FIRE: never over the middle of the road
-			p("Tip", 536, 112, 220, 92, { anchor = "r", tap = true }),
+			p("Tip", 536, 108, 220, 76, { anchor = "r", tap = true }),
 			-- the arrow for each step: just right of the stick corner pointing left at it (the
 			-- scoreboard sits above the corner), and just left of FIRE pointing at it
 			p("ArrowDrive", 148, 290, 56, 56, { anchor = "bl" }),
@@ -187,6 +187,13 @@ function SmashScreens.cardFor(step: number, weapon: string): number
 	end
 	return step
 end
+
+-- The crate words a Smash kid reads (no training, racing or stats: a kart is a look)
+SmashScreens.WORDS = {
+	crateNote = "1 new kart per crate.",
+	garageFull = "No room for karts.",
+	revealNote = "New kart! Try it in CUSTOMIZE.",
+}
 
 SmashScreens.DRIVE_STUDS = 12 -- driven this far = the drive step is done
 
