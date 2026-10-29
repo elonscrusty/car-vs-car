@@ -779,6 +779,18 @@ local function tell(player: Player, kind: string, value: any)
 	end
 end
 
+-- The save's coins (and league, trophies) on the player's attributes: the garage chip and the
+-- lobby read those (Studio round 5: the chip said 25 with 75 saved after 3 rounds).
+local function showCoins(player: Player, data: any)
+	player:SetAttribute("Coins", data.coins)
+	if type(data.league) == "number" or type(data.league) == "string" then
+		player:SetAttribute("League", data.league)
+	end
+	if type(data.trophies) == "number" then
+		player:SetAttribute("Trophies", data.trophies)
+	end
+end
+
 local function pay(player: Player, coins: number, why: string): number
 	local data = PlayerData.get(player)
 	if not data or coins <= 0 then
@@ -787,6 +799,7 @@ local function pay(player: Player, coins: number, why: string): number
 	coins *= Profile.boost(os.time()) -- double coins on weekends
 	data.coins = math.min(data.coins + coins, Profile.MAX_COINS)
 	PlayerData.touch(player)
+	showCoins(player, data)
 	local stars = ReplicatedStorage:FindFirstChild("StarsEvent")
 	if stars and stars:IsA("RemoteEvent") then
 		stars:FireClient(player, "coins", data.coins)
@@ -862,6 +875,7 @@ local function endRound()
 			if ok and type(r) == "table" and type(r.coins) == "number" then
 				coins = r.coins
 				PlayerData.touch(p)
+				showCoins(p, data)
 				tell(p, "coins", data.coins)
 				tell(p, "toast", `+{coins} coins: {why}`)
 			else
