@@ -23,8 +23,9 @@ local NAVY = Color3.fromRGB(30, 36, 70)
 
 -- the arena is RC-sized: a kart is Weapons.KART studs long, so every look is sized from that
 local K = Weapons.KART
--- the rocket is built about 5 studs long; it should be about 0.6 of a kart
-local ROCKET_SCALE = 0.6 * K / 5.05
+-- the rocket is built about 5 studs long; it should be about 0.85 of a kart (big enough to read
+-- from the arena camera)
+local ROCKET_SCALE = 0.85 * K / 5.05
 
 local bits = Instance.new("Folder")
 bits.Name = "WeaponBits"
@@ -96,8 +97,8 @@ local function rocketModel(nuke: boolean): Model
 	local main = if nuke then NAVY else INK
 	local trim = if nuke then SUNNY else SHARK_RED
 	local body = tube("Body", main, false, 2.8, 0.95, 0)
+	-- no PrimaryPart: the body is turned a quarter, so the model turns about its own pivot
 	body.Parent = m
-	m.PrimaryPart = body
 	-- a pointed nose: a stretched ball, half inside the body
 	local nose = part("Nose", trim, nuke, Vector3.new(0.95, 0.95, 2.5))
 	nose.CFrame = CFrame.new(0, 0, -1.4)
@@ -281,33 +282,34 @@ local function boom(at: Vector3, spec: Weapons.Flight, nuke: boolean)
 	local a = Instance.new("Attachment")
 	a.Parent = host
 
-	local flash = part("Flash", Color3.fromRGB(255, 241, 200), true, Vector3.one * 0.3 * r)
+	local flash = part("Flash", Color3.fromRGB(255, 200, 120), true, Vector3.one * 0.2 * r)
 	flash.Shape = Enum.PartType.Ball
+	flash.Transparency = 0.35
 	flash.Position = at
 	flash.Parent = bits
 	TweenService:Create(
 		flash,
 		TweenInfo.new(0.09, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{ Size = Vector3.one * 1.6 * r, Transparency = 1 }
+		{ Size = Vector3.one * 0.9 * r, Transparency = 1 }
 	):Play()
 	local light = Instance.new("PointLight")
 	light.Color = Color3.fromRGB(255, 160, 64)
 	light.Range = math.min(3 * r, 60)
-	light.Brightness = 6
+	light.Brightness = 2
 	light.Parent = host
 	TweenService:Create(light, TweenInfo.new(0.35), { Brightness = 0 }):Play()
 
 	burst(a, "Fireball", math.floor(50 * n), {
 		Texture = FIRE_TEX,
-		Color = ColorSequence.new(Color3.fromRGB(255, 176, 64), DEEP),
-		Transparency = seq(0.15, 1),
+		Color = ColorSequence.new(Color3.fromRGB(255, 150, 40), Color3.fromRGB(230, 40, 0)),
+		Transparency = seq(0.1, 1),
 		Size = seq(0.45 * r, 0.1 * r),
 		Speed = NumberRange.new(1.2 * r, 3 * r),
 		Drag = 4,
 		Lifetime = NumberRange.new(0.3, 0.6),
 		LightEmission = 1,
 		LightInfluence = 0,
-		Brightness = 2,
+		Brightness = 1,
 		ZOffset = 2,
 		RotSpeed = NumberRange.new(-120, 120),
 	})
@@ -325,9 +327,9 @@ local function boom(at: Vector3, spec: Weapons.Flight, nuke: boolean)
 	})
 	burst(a, "Smoke", math.floor(22 * n), {
 		Texture = SMOKE_TEX,
-		Color = ColorSequence.new(SOOT, SOOT_DARK),
-		Transparency = seq(0.2, 0.5, 1),
-		Size = seq(0.3 * r, 1.1 * r),
+		Color = ColorSequence.new(Color3.fromRGB(78, 70, 70), Color3.fromRGB(40, 38, 42)),
+		Transparency = seq(0.45, 0.65, 1),
+		Size = seq(0.25 * r, 0.7 * r),
 		Speed = NumberRange.new(0.4 * r, 1.2 * r),
 		Acceleration = Vector3.new(0, 0.6 * r, 0),
 		Drag = 2,
@@ -347,7 +349,7 @@ local function boom(at: Vector3, spec: Weapons.Flight, nuke: boolean)
 		part("Ring", Color3.fromRGB(255, 138, 42), true, Vector3.new(0.05 * K, 0.2 * r, 0.2 * r))
 	ring.Shape = Enum.PartType.Cylinder
 	ring.CFrame = CFrame.new(floor) * CFrame.Angles(0, 0, math.rad(90))
-	ring.Transparency = 0.2
+	ring.Transparency = 0.4
 	ring.Parent = bits
 	TweenService:Create(
 		ring,
