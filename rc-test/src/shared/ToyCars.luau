@@ -134,17 +134,32 @@ local SHAPES: { [string]: Build } = {}
 -- colour, yellow head. The cap's top is the hat spot (HEAD_TOP, TOPPER_Z), whatever the shape.
 local SKIN = { 245, 205, 48 } -- Roblox yellow
 local FACE: Opts = { face = true }
-local function driver(p: Put, c: { number })
-	p("Driver", v(1.1, 0.6, 0.5), 0, 1.02, ToyCars.TOPPER_Z + 0.1, c)
+-- The kid's shirt and cap: the car's colour, unless that is near his yellow head (a yellow or
+-- orange car: Studio 10-29 "the kid blends into the car"), then the accent (white if that's yellow
+-- too). A copy, so a glow car's accent wrapper doesn't light the shirt.
+function ToyCars.outfit(color: { number }, accent: { number }): { number }
+	local function nearSkin(c: { number }): boolean
+		return math.abs(c[1] - SKIN[1]) + math.abs(c[2] - SKIN[2]) + math.abs(c[3] - SKIN[3]) < 150
+	end
+	local c = if not nearSkin(color)
+		then color
+		elseif not nearSkin(accent) then accent
+		else ToyCars.PALETTE.white
+	return { c[1], c[2], c[3] }
+end
+
+local function driver(p: Put, c: { number }, a: { number })
+	local shirt = ToyCars.outfit(c, a)
+	p("Driver", v(1.1, 0.6, 0.5), 0, 1.02, ToyCars.TOPPER_Z + 0.1, shirt)
 	p("Head", v(0.66, 0.6, 0.66), 0, ToyCars.HEAD_TOP - 0.44, ToyCars.TOPPER_Z, SKIN, FACE)
-	p("Cap", v(0.74, 0.14, 0.84), 0, ToyCars.HEAD_TOP - 0.07, ToyCars.TOPPER_Z - 0.08, c)
+	p("Cap", v(0.74, 0.14, 0.84), 0, ToyCars.HEAD_TOP - 0.07, ToyCars.TOPPER_Z - 0.08, shirt)
 end
 
 -- Hot-rod: long hood, twin stripes, the driver out in the open.
 SHAPES.muscle = function(p, c, a, l)
 	-- (as tall as the grey race body it covers: racelooks test)
 	p("Body", v(2, 0.62, 3.6), 0, 0.81 + l, 0, c)
-	driver(p, c)
+	driver(p, c, a)
 	p("Stripes", v(0.7, 0.02, 3.62), 0, 1.13 + l, 0, a)
 	p("Taillight", v(1.7, 0.14, 0.06), 0, 0.85 + l, 1.82, TAIL, NEON)
 	for _, x in { -0.55, 0.55 } do
@@ -155,7 +170,7 @@ end
 -- Low drift coupe: bulged hood, splitter, a big wing on posts, red tail bar.
 SHAPES.coupe = function(p, c, a, l)
 	p("Body", v(2, 0.5, 3.6), 0, 0.72 + l, 0, c)
-	driver(p, c)
+	driver(p, c, a)
 	p("Splitter", v(2.1, 0.08, 0.35), 0, 0.52 + l, -1.72, a)
 	p("Wing", v(2.15, 0.1, 0.45), 0, 1.72 + l, 1.55, a)
 	p("WingPost", v(0.16, 0.6, 0.14), 0, 1.4 + l, 1.55, DARK)
@@ -169,7 +184,7 @@ end
 SHAPES.hatch = function(p, c, a, l)
 	p("Body", v(2, 0.55, 3.3), 0, 0.775 + l, 0, c)
 	p("Hood", v(1.9, 0.15, 0.9), 0, 1.125 + l, -1.15, c, WEDGE)
-	driver(p, c)
+	driver(p, c, a)
 	p("Blade", v(2.2, 0.45, 0.14), 0, 0.75 + l, -1.75, a)
 	p("Taillight", v(1.6, 0.14, 0.06), 0, 0.95 + l, 1.66, TAIL, NEON)
 	for _, x in { -0.62, 0.62 } do
@@ -181,7 +196,7 @@ end
 SHAPES.wedge = function(p, c, a, l)
 	p("Body", v(2, 0.5, 3.6), 0, 0.75 + l, 0, c)
 	p("Nose", v(2, 0.3, 1.3), 0, 1.15 + l, -1.15, c, WEDGE)
-	driver(p, c)
+	driver(p, c, a)
 	p("Back", v(1.8, 0.4, 1.1), 0, 1.2 + l, 1.25, c, BACK_WEDGE)
 	p("Wing", v(2.1, 0.08, 0.4), 0, 1.44 + l, 1.62, a)
 	for _, x in { -0.65, 0.65 } do
@@ -195,7 +210,7 @@ SHAPES.buggy = function(p, c, a, l)
 	p("Body", v(1.7, 0.45, 2.9), 0, 0.8 + l, 0.15, c)
 	p("Nose", v(1.7, 0.4, 0.7), 0, 0.82 + l, -1.65, c, WEDGE)
 	p("Bumper", v(2, 0.18, 0.18), 0, 0.6 + l, -1.95, a)
-	driver(p, c)
+	driver(p, c, a)
 	for _, x in { -0.72, 0.72 } do
 		for _, z in { 0.9 } do
 			p("CagePost", v(0.12, 0.85, 0.12), x, 1.45 + l, z, a)
@@ -213,14 +228,14 @@ SHAPES.formula = function(p, c, a, l)
 	for _, x in { -0.65, 0.65 } do
 		p("SidePod", v(0.4, 0.35, 1.2), x, 0.58 + l, 0.4, c)
 	end
-	driver(p, c)
+	driver(p, c, a)
 	p("RearWing", v(2, 0.1, 0.45), 0, 1.35 + l, 1.62, a)
 end
 
 -- Monster kart: big tyres, fat bumpers, a light bar on the hood.
 SHAPES.truck = function(p, c, a, l)
 	p("Body", v(2, 0.55, 3.5), 0, 0.62 + l, 0, c)
-	driver(p, c)
+	driver(p, c, a)
 	p("LightBar", v(1.4, 0.14, 0.18), 0, 0.97 + l, -1.5, AMBER, NEON)
 	p("BumperF", v(2, 0.25, 0.25), 0, 0.35 + l, -1.8, a)
 	p("BumperR", v(2, 0.25, 0.25), 0, 0.35 + l, 1.8, a)
@@ -232,7 +247,7 @@ end
 -- Rock crawler: roll hoop with lights on top, spare tyre on the back.
 SHAPES.crawler = function(p, c, a, l)
 	p("Body", v(2, 0.55, 3), 0, 0.6 + l, 0, c)
-	driver(p, c)
+	driver(p, c, a)
 	for _, x in { -0.8, 0.8 } do
 		p("HoopPost", v(0.14, 0.75, 0.14), x, 1.35 + l, 0.95, a)
 	end
@@ -245,7 +260,7 @@ end
 SHAPES.bubble = function(p, c, a, l)
 	p("Body", v(2, 0.5, 3.15), 0, 0.75 + l, 0.175, c)
 	p("Nose", v(2, 0.6, 0.6), 0, 0.8 + l, -1.4, c, CYL)
-	driver(p, c)
+	driver(p, c, a)
 	p("Belt", v(2.02, 0.14, 2.8), 0, 0.85 + l, 0, a)
 	for _, x in { -0.5, 0.5 } do
 		p("Eye", v(0.45, 0.45, 0.45), x, 1.08 + l, -1.5, LIGHT, BALL)
@@ -257,7 +272,7 @@ end
 SHAPES.jet = function(p, c, a, l)
 	p("Body", v(1.4, 0.5, 2.6), 0, 0.75 + l, 0.2, c)
 	p("Nose", v(1.4, 0.5, 0.8), 0, 0.75 + l, -1.45, c, WEDGE)
-	driver(p, c)
+	driver(p, c, a)
 	for _, x in { -0.85, 0.85 } do
 		p("Wing", v(0.35, 0.1, 1.2), x, 1.02 + l, 0.6, a)
 	end
@@ -273,7 +288,7 @@ end
 -- Rally kart: a lamp bar on the nose, mud flaps, a door patch, a spoiler.
 SHAPES.rally = function(p, c, a, l)
 	p("Body", v(2, 0.5, 3.4), 0, 0.75 + l, 0, c)
-	driver(p, c)
+	driver(p, c, a)
 	p("Wing", v(1.9, 0.1, 0.4), 0, 1.4 + l, 1.45, a, BACK_WEDGE)
 	p("Door", v(2.02, 0.3, 1), 0, 0.75 + l, 0.3, a)
 	p("LampBar", v(1.4, 0.16, 0.08), 0, 1.0 + l, -1.73, AMBER, NEON)
@@ -357,8 +372,10 @@ end
 -- A kart model's part, by name: its colour and whether it glows (nil: keep the model's own).
 function ToyCars.kartPaint(name: string, color: { number }, style: string?): ({ number }?, boolean)
 	local look = ToyCars.parse(style)
-	if name == "Body" or name == "Cap" or name == "Driver" then
+	if name == "Body" then
 		return color, false
+	elseif name == "Cap" or name == "Driver" then
+		return ToyCars.outfit(color, look.accent), false
 	elseif name == "Accent" then
 		return kartAccent(look), look.glow
 	elseif name == "Trim" or name == "Eyes" or name == "Seat" then

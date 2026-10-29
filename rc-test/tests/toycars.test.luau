@@ -158,6 +158,23 @@ test("every car is an open kart with a Roblox kid driving, cap top on the hat sp
 		eq(table.concat(named.Head.color, ","), "245,205,48")
 		truthy(named.Head.face, `{shape}: the driver has no face`)
 		eq(table.concat(named.Cap.color, ","), "200,40,40")
+		-- a yellow car's kid wears the accent, so he doesn't blend into the car (Studio 10-29)
+		local yellow: { [string]: Garage.Piece } = {}
+		local out = {}
+		Garage.toyCar(
+			Garage.adder(out),
+			"Car",
+			{ x = 0, y = 0, z = 0 },
+			0,
+			{ 255, 199, 44 },
+			1,
+			shape .. "/navy"
+		)
+		for _, p in out do
+			yellow[p.name] = p
+		end
+		eq(table.concat(yellow.Cap.color, ","), "27,27,47")
+		eq(yellow.Driver.material, "SmoothPlastic")
 		eq(named.Cab, nil)
 	end
 end)
@@ -224,8 +241,14 @@ test(
 			truthy(ToyCars.kartPaint(name, red, "muscle") ~= nil, `{name} not painted`)
 		end
 		-- carter's picture: the shirt, cap and rims are the kart's own colour
-		eq(ToyCars.kartPaint("Driver", red, "muscle"), red)
-		eq(ToyCars.kartPaint("Cap", red, "muscle"), red)
+		eq(
+			table.concat(ToyCars.kartPaint("Driver", red, "muscle") :: { number }, ","),
+			table.concat(red, ",")
+		)
+		eq(
+			table.concat(ToyCars.kartPaint("Cap", red, "muscle") :: { number }, ","),
+			table.concat(red, ",")
+		)
 		eq(ToyCars.kartRim(red, "muscle"), red)
 		-- own car and others both wear them
 		local fs = require("@lune/fs")
