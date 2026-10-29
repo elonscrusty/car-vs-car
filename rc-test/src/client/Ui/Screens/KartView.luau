@@ -83,9 +83,12 @@ function KartView.make(
 	Base.at(view, x, y, w, h)
 	local world = Instance.new("WorldModel")
 	world.Parent = view
-	model:PivotTo(CFrame.identity)
+	-- (moved, not turned: a kart CarSkin turned nose-first keeps that turn; PivotTo(identity)
+	-- undid it and the reveal showed the kart's back, Studio 10-29)
+	model:TranslateBy(-model:GetPivot().Position)
 	model.Parent = world
 	local mid, size = visibleBox(model)
+	local base = model:GetPivot() -- (its own turn: the spin is on top of it)
 	local cam = Instance.new("Camera")
 	cam.FieldOfView = FOV
 	-- back just far enough that the turning kart fills KART_FILL of the width, from a little above
@@ -102,10 +105,10 @@ function KartView.make(
 	view.CurrentCamera = cam
 	-- turning slowly (stops when the screen closes)
 	task.spawn(function()
-		local a = math.rad(-30)
+		local a = math.rad(-20) -- (starts almost front-on: auditor round 13)
 		while view.Parent do
 			a += 0.02
-			model:PivotTo(CFrame.new(mid) * CFrame.Angles(0, a, 0) * CFrame.new(-mid))
+			model:PivotTo(CFrame.new(mid) * CFrame.Angles(0, a, 0) * CFrame.new(-mid) * base)
 			task.wait(1 / 30)
 		end
 	end)
