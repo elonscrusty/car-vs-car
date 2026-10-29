@@ -145,9 +145,10 @@ function Smash.matchEnd(
 			local top = pp.h - h
 			local hold = Base.box(podium, "Step" .. i, x, 0, STEP_W, pp.h, 3)
 			-- the kart, bigger for the winner, bobbing on top of its step
-			local cw = if i == 1 then 168 else 150
-			local ch = cw * 0.55
-			local cx, cy = (STEP_W - cw) / 2, top - ch + 4
+			-- (the picture has air round the kart, so it is drawn bigger than the kart looks)
+			local cw = if i == 1 then 220 else 180
+			local ch = if i == 1 then 136 else 100
+			local cx, cy = (STEP_W - cw) / 2, top - ch * 0.82
 			local car: GuiObject = KartView.make(hold, cx, cy, cw, ch, row.carId, 4)
 				or Icons.car(hold, cx, cy + ch * 0.1, cw, cw * 0.5, {
 					id = row.carId,
@@ -167,11 +168,11 @@ function Smash.matchEnd(
 			else
 				Base.outline(step, UiTheme.OUTLINE.normal)
 			end
-			local disc =
-				Base.fill(hold, "Disc", STEP_W / 2 - 20, top - 18, 40, 40, Kit.hex(STEP_DISC[i]), 6)
+			-- (the place disc sits on the step's top left corner, off the kart)
+			local disc = Base.fill(hold, "Disc", -8, top - 14, 38, 38, Kit.hex(STEP_DISC[i]), 6)
 			Base.corner(disc)
 			Base.outline(disc, UiTheme.OUTLINE.small)
-			Base.text(disc, "N", 0, 6, 40, 28, tostring(i), { stroke = 3, z = 7 })
+			Base.text(disc, "N", 0, 5, 38, 27, tostring(i), { stroke = 3, z = 7 })
 			Base.text(
 				step,
 				"Name",
