@@ -49,13 +49,14 @@ WarmupYard.RC_X, WarmupYard.RC_Z, WarmupYard.RC_ANGLE = 0, -2000, 0
 -- map-local big units (a kart is 3 x 5.5): about half the arena's 360 across
 WarmupYard.W = 200 -- x
 WarmupYard.D = 140 -- z
-WarmupYard.WALL_H = 8 -- low, so it reads as a play yard; karts bounce off it
-WarmupYard.WALL_T = 6
+WarmupYard.WALL_H = 11 -- low, so it reads as a play yard; karts bounce off it
+WarmupYard.WALL_T = 12 -- chunky (auditor looks round 2); grows outward, the inside stays W x D
 
 -- LOOK-BIBLE palette (review/LOOK-BIBLE.md): grass green, sunny yellow, cherry red, hot pink,
 -- purple, dark navy, sand; each big area with a second, darker tone
 local GRASS, GRASS_DARK, GRASS_LIGHT = { 91, 209, 91 }, { 76, 190, 80 }, { 120, 222, 104 }
 local SAND = { 242, 217, 166 }
+local SAND_DARK = { 222, 190, 132 } -- the second sand tone
 local PURPLE, PURPLE_TOP = { 142, 68, 255 }, { 176, 128, 255 }
 local PINK = { 255, 95, 180 }
 local NAVY = { 30, 42, 90 }
@@ -70,6 +71,7 @@ WarmupYard.HILL_TONES = {
 	{ { 91, 209, 91 }, { 76, 190, 80 } },
 	{ { 62, 172, 86 }, { 52, 156, 92 } },
 	{ { 255, 150, 206 }, { 176, 128, 255 } },
+	{ { 200, 160, 255 }, { 255, 170, 214 } },
 }
 
 -- how far the grass runs past the walls (big units)
@@ -191,6 +193,11 @@ function WarmupYard.parts(): { any }
 	-- the grass runs well past the walls (trees out there), so the yard never sits on the void
 	add("Ground", "Floor", v(W + 2 * APRON, 4, D + 2 * APRON), v(0, -2, 0), GRASS)
 	add("Ground", "Sand", v(110, 0.4, 64), v(0, 0.2, 10), SAND, { collide = false })
+	-- two-tone sand (rule 5): a darker lip round it and two raked bands across it
+	add("Ground", "SandLip", v(116, 0.1, 70), v(0, 0.05, 10), SAND_DARK, { collide = false })
+	for _, bz in { -6, 26 } do
+		add("Ground", "SandBand", v(110, 0.4, 8), v(0, 0.6, bz), SAND_DARK, { collide = false })
+	end
 	-- mowed stripes (LOOK-BIBLE rule 5: a second tone on the big floor)
 	for k = -4, 4 do
 		if k % 2 == 0 then
@@ -231,7 +238,7 @@ function WarmupYard.parts(): { any }
 			add(
 				"Walls",
 				"Post",
-				v(H + 6, T + 3, T + 3),
+				v(H + 6, T * 1.5 + 1, T * 1.5 + 1), -- (covers the wall corners: T x T needs T * 0.71)
 				v(sx * (W / 2 + T / 2), (H + 6) / 2, sz * (D / 2 + T / 2)),
 				PINK,
 				{ shape = "Cylinder", rot = v(0, 0, 90) }
@@ -239,7 +246,7 @@ function WarmupYard.parts(): { any }
 			add(
 				"Walls",
 				"PostCap",
-				v(T + 4, T + 4, T + 4),
+				v(T * 1.5 + 2, T * 1.5 + 2, T * 1.5 + 2),
 				v(sx * (W / 2 + T / 2), H + 6, sz * (D / 2 + T / 2)),
 				YELLOW,
 				{ shape = "Ball", collide = false }
@@ -349,7 +356,7 @@ function WarmupYard.parts(): { any }
 	-- board. The hills round it (a valley, so the yard sits in a real place, not on a plate) and
 	-- their trees are WarmupYard.valley(), built in build(). =====
 	local edgeZ = D / 2 + APRON -- where the yard's own grass ends
-	add("World", "FarGrass", v(1300, 2, 1200), v(0, -1.4, 0), GRASS_FAR, { collide = false })
+	add("World", "FarGrass", v(2000, 2, 1900), v(0, -1.4, 0), GRASS_FAR, { collide = false })
 	add("World", "Shore", v(560, 0.4, 50), v(0, -0.2, edgeZ + 45), SHORE, { collide = false })
 	add("World", "Lake", v(560, 0.4, 150), v(0, -0.15, edgeZ + 145), WATER, { collide = false })
 	-- looks only (karts drive through): two shades of grass patch (bushes: PropKit, build())
@@ -384,6 +391,8 @@ WarmupYard.VALLEY_ROWS = {
 	{ out = 40, step = 60, w = 80, h = 34, d = 70 },
 	{ out = 110, step = 90, w = 120, h = 62, d = 100 },
 	{ out = 210, step = 140, w = 190, h = 110, d = 150 },
+	-- big soft mountains: the horizon, so the arena far off never shows floating in the sky
+	{ out = 340, step = 190, w = 300, h = 230, d = 230 },
 }
 function WarmupYard.valley(): ({ Dome }, { TreeSpot })
 	local function hash(n: number): number -- 0..1, the same every build

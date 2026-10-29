@@ -181,16 +181,19 @@ function SpawnLobby.parts(): { Piece }
 
 	-- ===== Ground: warm paving, kerb round three sides, a light sand circle with an orange ring =====
 	add("Ground", "Floor", v(W, 0.4, D), v(0, -0.2, 0), L.paving)
-	add("Ground", "Ring", v(0.03, 30, 30), v(0, 0.015, -4), L.ring, {
-		shape = "Cylinder",
-		rot = v(0, 0, 90),
-		collide = false,
-	})
-	add("Ground", "Circle", v(0.05, 27, 27), v(0, 0.025, -4), L.paving2, {
-		shape = "Cylinder",
-		rot = v(0, 0, 90),
-		collide = false,
-	})
+	-- (Smash: no spawn circle; the checker paving and the portal's painted ring instead)
+	if not SpawnLobby.SMASH then
+		add("Ground", "Ring", v(0.03, 30, 30), v(0, 0.015, -4), L.ring, {
+			shape = "Cylinder",
+			rot = v(0, 0, 90),
+			collide = false,
+		})
+		add("Ground", "Circle", v(0.05, 27, 27), v(0, 0.025, -4), L.paving2, {
+			shape = "Cylinder",
+			rot = v(0, 0, 90),
+			collide = false,
+		})
+	end
 	add(
 		"Ground",
 		"Path",
@@ -202,6 +205,50 @@ function SpawnLobby.parts(): { Piece }
 			collide = false,
 		}
 	)
+	if SpawnLobby.SMASH then
+		-- two-tone paving (LOOK-BIBLE rule 5, auditor looks round 2): big light slabs in a
+		-- checker, none touching the walk out or the portal's painted ring
+		local TILE, GAP_IN = 12, 1
+		local pr = 12 -- the painted ring round the portal's dais (the dais is 23 across, so a band shows)
+		for ix = 0, math.floor(W / TILE) - 1 do
+			for iz = 0, math.floor(D / TILE) - 1 do
+				local x = -W / 2 + TILE / 2 + ix * TILE
+				local z = back + TILE / 2 + iz * TILE
+				local far = TILE * 0.71 -- the slab's half diagonal
+				local clear = math.sqrt(x * x + (z - SpawnLobby.PAD_Z) ^ 2) > pr + 1 + far
+					and not (math.abs(x) < SpawnLobby.GAP + TILE / 2 and z > 11 - TILE / 2)
+				for _, b in SpawnLobby.BUILDINGS do
+					-- (off the shops and their yards: the crate mat lies flat on the plaza)
+					if math.abs(x - b.x) < 22 and math.abs(z - b.z) < 22 then
+						clear = false
+					end
+				end
+				if (ix + iz) % 2 == 0 and clear then
+					add(
+						"Ground",
+						"Slab",
+						v(TILE - GAP_IN, 0.06, TILE - GAP_IN),
+						v(x, 0.03, z),
+						L.paving2,
+						{ collide = false }
+					)
+				end
+			end
+		end
+		-- a painted yellow ring on the floor round the portal (the dais sits in it)
+		add(
+			"Ground",
+			"PortalRing",
+			v(0.2, 2 * pr + 2, 2 * pr + 2),
+			v(0, 0.1, SpawnLobby.PAD_Z),
+			L.yellow,
+			{
+				shape = "Cylinder",
+				rot = v(0, 0, 90),
+				collide = false,
+			}
+		)
+	end
 	add("Ground", "KerbBack", v(W, 0.6, 1), v(0, 0.3, back + 0.5), L.kerb)
 	add("Ground", "KerbLeft", v(1, 0.6, D), v(-W / 2 + 0.5, 0.3, 0), L.kerb)
 	add("Ground", "KerbRight", v(1, 0.6, D), v(W / 2 - 0.5, 0.3, 0), L.kerb)
@@ -737,6 +784,30 @@ end
 -- Builds it under `parent`. `at` is the middle of the square on the floor, its LookVector
 -- pointing down the street. Play pad bases are tagged "QueuePad" (attributes Pad = 1..3 and
 -- PlotType = "drift" / "race"); QueuePads (server) watches them.
+-- Smash (LOOK-BIBLE rules 3, 4): the shops' dark grey shell, roof and concrete floor in the
+-- bible's purple, navy and sand, all SmoothPlastic (the orange frame and the insides stay)
+SpawnLobby.REPAINT = {
+	BackWall = { 142, 68, 255 },
+	LeftWall = { 142, 68, 255 },
+	RightWall = { 142, 68, 255 },
+	Roof = { 30, 42, 90 },
+	RoofRib = { 255, 210, 63 },
+	Floor = { 242, 217, 166 },
+} :: { [string]: { number } }
+function SpawnLobby.repaint(shop: Instance)
+	local shell = shop:FindFirstChild("Shell")
+	if not shell then
+		return
+	end
+	for _, p in shell:GetChildren() do
+		local c = SpawnLobby.REPAINT[p.Name]
+		if c and p:IsA("BasePart") then
+			p.Color = Color3.fromRGB(c[1], c[2], c[3])
+			p.Material = Enum.Material.SmoothPlastic
+		end
+	end
+end
+
 function SpawnLobby.build(parent: Instance, at: CFrame): Model
 	local origin = at * CFrame.Angles(0, math.pi, 0) -- lobby-local +Z = the LookVector
 	local model = Instance.new("Model")
@@ -770,7 +841,7 @@ function SpawnLobby.build(parent: Instance, at: CFrame): Model
 		end
 	end
 	for _, b in SpawnLobby.BUILDINGS do
-		Garage.build(
+		local shop = Garage.build(
 			model,
 			origin
 				* CFrame.new(b.x, 0, b.z)
@@ -780,6 +851,9 @@ function SpawnLobby.build(parent: Instance, at: CFrame): Model
 			nil,
 			b.kind
 		)
+		if SpawnLobby.SMASH then
+			SpawnLobby.repaint(shop)
+		end
 	end
 	model.Parent = parent
 	return model
