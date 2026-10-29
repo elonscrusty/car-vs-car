@@ -150,6 +150,7 @@ function KartMesh.get(name: string, rim: { number }): Model?
 	end
 	busy[key] = true
 	task.spawn(function()
+		local wasBroken = broken
 		local ok, res = pcall(build, name, Color3.fromRGB(rim[1], rim[2], rim[3]), key)
 		if ok then
 			made[key] = res
@@ -157,15 +158,18 @@ function KartMesh.get(name: string, rim: { number }): Model?
 			if string.find(tostring(res), "memory budget", 1, true) then
 				-- out of mesh memory (Studio on a busy PC, small phones): wait 10, 20, 40, 80 s and
 				-- try again, then toy cars for good
-				noMemory += 1
-				waitUntil = os.clock() + 10 * 2 ^ (noMemory - 1)
-				broken = noMemory >= 5
+				-- (builds failing together in one wave count once)
+				if os.clock() >= waitUntil then
+					noMemory += 1
+					waitUntil = os.clock() + 10 * 2 ^ (noMemory - 1)
+				end
+				broken = broken or noMemory >= 5
 			else
 				-- a hiccup gets another go (next call); 3 fails: toy cars for good
 				tries[key] = (tries[key] or 0) + 1
 				broken = broken or tries[key] >= 3
 			end
-			if broken then
+			if broken and not wasBroken then
 				warn(`KartMesh: can't build karts here, the toy cars show instead ({res})`)
 			end
 		end

@@ -16,7 +16,10 @@ if not skins then
 	skins.Parent = RS
 end
 local TIRE, RIM = Color3.fromRGB(28, 28, 30), Color3.new(1, 1, 1)
-local uploaded = {} -- mesh data key -> asset id (parts several karts share upload once)
+-- mesh data key -> { id, mid }: parts several karts share upload once. Kept in _G so running the
+-- script again after a failure reuses what was already uploaded instead of uploading copies.
+_G.KartBakeUploads = _G.KartBakeUploads or {}
+local uploaded = _G.KartBakeUploads
 
 -- same geometry as KartMesh.meshPart: centred on its middle, flat shaded, optional vertex colours
 local function editable(pieces)
@@ -62,24 +65,38 @@ local function part(name, pieces, label)
 	for _, piece in pieces do
 		key ..= piece.mesh.v .. "|" .. piece.mesh.t .. "|" .. (if piece.color then "c" else "") .. "|"
 	end
-	local em, mid = editable(pieces)
-	local id = uploaded[key]
-	if not id then
-		local result, newId =
-			AssetService:CreateAssetAsync(em, Enum.AssetType.Mesh, { Name = label })
-		assert(result == Enum.CreateAssetResult.Success, `upload {label} failed: {result}`)
-		id, uploaded[key] = newId, newId
-		print("uploaded", label, id)
+	local done = uploaded[key]
+	if not done then
+		local em, mid = editable(pieces)
+		local ok, result, newId = pcall(function()
+			return AssetService:CreateAssetAsync(em, Enum.AssetType.Mesh, { Name = label })
+		end)
+		em:Destroy()
+		assert(ok and result == Enum.CreateAssetResult.Success, `upload {label} failed: {result}`)
+		done = { id = newId, mid = mid }
+		uploaded[key] = done
+		print("uploaded", label, newId)
 	end
-	em:Destroy()
-	local p = AssetService:CreateMeshPartAsync(
-		Content.fromUri("rbxassetid://" .. id),
-		{ CollisionFidelity = Enum.CollisionFidelity.Box }
-	)
+	local p
+	for try = 1, 5 do -- a new upload can take a moment before it loads
+		local ok, res = pcall(function()
+			return AssetService:CreateMeshPartAsync(
+				Content.fromUri("rbxassetid://" .. done.id),
+				{ CollisionFidelity = Enum.CollisionFidelity.Box }
+			)
+		end)
+		if ok then
+			p = res
+			break
+		end
+		warn(`{label}: mesh {done.id} not ready ({res}), try {try}/5`)
+		task.wait(3 * try)
+	end
+	assert(p, `{label}: mesh {done.id} never loaded; run the script again (uploads are reused)`)
 	p.Name = name
 	p.Color = Color3.new(1, 1, 1)
 	p.Material = Enum.Material.SmoothPlastic
-	p.CFrame = CFrame.new(mid)
+	p.CFrame = CFrame.new(done.mid)
 	p.Anchored, p.CanCollide, p.CanQuery, p.CanTouch = true, false, false, false
 	return p
 end
