@@ -24,6 +24,9 @@ local Anim = require(Ui:WaitForChild("Anim"))
 local Kit = require(Ui:WaitForChild("Kit"))
 local Screen = require(Ui:WaitForChild("Screen"))
 local Flow = require(Ui:WaitForChild("Screens"):WaitForChild("Flow"))
+local KitWindows = require(Ui:WaitForChild("Screens"):WaitForChild("KitWindows"))
+local Features = require(Shared:WaitForChild("Features"))
+local SMASH = (Features :: any).SMASH == true
 local Sfx = require(script.Parent:WaitForChild("Sfx"))
 
 local player = Players.LocalPlayer
@@ -252,13 +255,27 @@ function LeagueUp.play(from: number, to: number, closed: (() -> ())?)
 			closed()
 		end
 	end
-	local h = Flow.leagueUp({ from = from, to = c.to }, {
-		ok = function()
-			Screen.closeOver()
-			after()
-		end,
-	})
-	dress(h, c, color)
+	local ok = function()
+		Screen.closeOver()
+		after()
+	end
+	local h: Screen.Handle
+	if SMASH then
+		-- carter's kit v41 look: everything dress() adds is on the screen itself
+		h = KitWindows.leagueUp({
+			to = c.to,
+			name = c.name,
+			pay = (string.gsub(c.pay, "^Races", "Matches")),
+			color = color,
+			confetti = c.confetti,
+			hold = c.hold,
+			shake = c.shake,
+			top = c.top,
+		}, { ok = ok })
+	else
+		h = Flow.leagueUp({ from = from, to = c.to }, { ok = ok })
+		dress(h, c, color)
+	end
 	-- closed some other way (another big moment, a race): still finish cleanly
 	local gui = h.gui.gui
 	local watch: RBXScriptConnection

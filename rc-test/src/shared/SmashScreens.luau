@@ -230,6 +230,45 @@ local LIST: { Screen } = {
 			p("List", 8, 62, 740, 322, { anchor = "b" }),
 		},
 	},
+	-- the trophies board: GLOBAL (the saved board) / FRIENDS (friends in this server), 5 rows
+	{
+		id = "kitBoard",
+		n = 110,
+		title = "Leaderboard",
+		kind = "window",
+		gameplay = false,
+		pieces = {
+			p("Mine", 8, 6, 200, 44, { anchor = "tl" }),
+			p("Tabs", 248, 4, 260, 52, { anchor = "t", tap = true }),
+			p("Close", 700, 0, 52, 52, { anchor = "tr", tap = true }),
+			p("Panel", 8, 64, 740, 318, { anchor = "b" }),
+		},
+	},
+	-- LEAGUE UP!: the new badge with wings and rays, the league's name and pay, arrows rising
+	{
+		id = "kitLeagueUp",
+		n = 111,
+		title = "League up",
+		kind = "full",
+		gameplay = false,
+		pieces = {
+			p("Title", 178, 2, 400, 70, { anchor = "t" }),
+			p("Badge", 288, 74, 180, 180, { anchor = "c" }),
+			p("Name", 238, 258, 280, 56, { anchor = "b" }),
+			p(
+				"Awesome",
+				283,
+				322,
+				190,
+				60,
+				{ anchor = "b", tone = "go", text = "AWESOME!", main = true }
+			),
+			p("ArrowL1", 20, 230, 72, 150, { anchor = "bl" }),
+			p("ArrowL2", 104, 282, 52, 100, { anchor = "bl" }),
+			p("ArrowR2", 600, 282, 52, 100, { anchor = "br" }),
+			p("ArrowR1", 664, 230, 72, 150, { anchor = "br" }),
+		},
+	},
 }
 
 SmashScreens.LIST = LIST
@@ -496,6 +535,26 @@ function SmashScreens.jobIcon(text: string): string
 	return "coin"
 end
 
+-- The FRIENDS tab: you and your friends in this server ({ userId, name, score, me? }), most
+-- trophies first (ties: you first, then by name), at most `limit`.
+export type BoardRow = { userId: number, name: string, score: number, me: boolean? }
+function SmashScreens.friendRows(list: { BoardRow }, limit: number): { BoardRow }
+	local out = table.clone(list)
+	table.sort(out, function(a: BoardRow, b: BoardRow)
+		if a.score ~= b.score then
+			return a.score > b.score
+		end
+		if (a.me == true) ~= (b.me == true) then
+			return a.me == true
+		end
+		return a.name < b.name
+	end)
+	while #out > limit do
+		table.remove(out)
+	end
+	return out
+end
+
 -- The kit windows' lines (crates give looks, never a win)
 SmashScreens.KIT_WORDS = {
 	shopNote = "Crates change the look only.",
@@ -503,6 +562,9 @@ SmashScreens.KIT_WORDS = {
 	newKart = "NEW KART!",
 	dailyNote = "Come back every day for more coins!",
 	noJobs = "No jobs yet. Play a match!",
+	noScores = "No scores yet. Play a match!",
+	loading = "Loading...",
+	noFriends = "Invite friends to see them here!",
 }
 
 return SmashScreens
