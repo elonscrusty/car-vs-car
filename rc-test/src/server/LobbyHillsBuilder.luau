@@ -8,6 +8,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LobbyHills = require(ReplicatedStorage.Shared.LobbyHills)
+local SpawnLobby = require(ReplicatedStorage.Shared.SpawnLobby)
 local MeshProps = require(script.Parent.MeshProps)
 
 local LobbyHillsBuilder = {}
@@ -107,11 +108,128 @@ local function chimneySmoke(cabin: Model)
 	holder.Parent = cabin
 end
 
+-- Smash (LOOK-BIBLE rule 6, one world): the same hills as soft round domes in the arena's
+-- palette (green near, deeper green behind, pink and purple far away), round trees from ARENA's
+-- PropKit on the near two rows, and nothing else: no rocks, snow, cabins, windmill or props.
+local SMASH_ROW = {
+	{ Color3.fromRGB(91, 209, 91), Color3.fromRGB(76, 190, 80) },
+	{ Color3.fromRGB(62, 172, 86), Color3.fromRGB(52, 156, 92) },
+	{ Color3.fromRGB(255, 150, 206), Color3.fromRGB(176, 128, 255) },
+}
+type Dome = { at: CFrame, w: number, h: number, d: number }
+local function dome(
+	parent: Instance,
+	at: CFrame,
+	size: Vector3,
+	color: Color3,
+	solid: boolean,
+	list: { Dome }
+)
+	local p = Instance.new("Part")
+	p.Name = "Hill"
+	-- an ellipsoid half sunk in the ground: a rounded hill from one part. Its collision would be
+	-- the whole box (flat invisible tops and corners), so it never collides; a solid hill gets a
+	-- hidden block inside the curve to stop walkers instead
+	p.Size = Vector3.new(size.X, size.Y * 2, size.Z)
+	p.CFrame = at
+	p.Color = color
+	tidy(p, false)
+	p.CastShadow = false
+	local mesh = Instance.new("SpecialMesh")
+	mesh.MeshType = Enum.MeshType.Sphere
+	mesh.Parent = p
+	p.Parent = parent
+	if solid then
+		local wall = Instance.new("Part")
+		wall.Name = "HillStop"
+		wall.Size = Vector3.new(size.X * 0.7, size.Y * 0.7, size.Z * 0.7)
+		wall.CFrame = at * CFrame.new(0, size.Y * 0.35, 0)
+		wall.Transparency = 1
+		tidy(wall, true)
+		wall.CastShadow = false
+		wall.Parent = parent
+	end
+	table.insert(list, { at = at, w = size.X, h = size.Y, d = size.Z })
+end
+
+-- the ground's height at x, z: the highest dome surface over it (the hills' grass at -0.2 else)
+local function heightAt(list: { Dome }, x: number, z: number): number
+	local y = LobbyHills.BASE_TOP
+	for _, d in list do
+		local l = d.at:PointToObjectSpace(Vector3.new(x, d.at.Y, z))
+		local k = (l.X / (d.w / 2)) ^ 2 + (l.Z / (d.d / 2)) ^ 2
+		if k < 1 then
+			y = math.max(y, d.at.Y + d.h * math.sqrt(1 - k))
+		end
+	end
+	return y
+end
+
+local function smashBuild(folder: Instance, hills: { LobbyHills.Hill }, trees: { LobbyHills.Tree })
+	for i, b in LobbyHills.baseBoxes(hills) do
+		local base = Instance.new("Part")
+		base.Name = `HillGrass{i}`
+		base.Size = Vector3.new(b.maxX - b.minX, 2, b.maxZ - b.minZ)
+		base.CFrame =
+			CFrame.new((b.minX + b.maxX) / 2, LobbyHills.BASE_TOP - 1, (b.minZ + b.maxZ) / 2)
+		base.Color = SMASH_ROW[1][2]
+		tidy(base, true)
+		base.CastShadow = false
+		base.Parent = folder
+	end
+	local list: { Dome } = {}
+	for i, h in hills do
+		local tone = SMASH_ROW[h.row] or SMASH_ROW[3]
+		local turn = CFrame.Angles(0, math.rad(h.turn), 0)
+		local at = CFrame.new(h.x, -0.5, h.z) * turn
+		local hh = if h.row == 3 then h.h * 0.8 else h.h
+		dome(folder, at, Vector3.new(h.w, hh, h.d), tone[i % 2 + 1], h.row == 1, list)
+		-- a smaller lump on its shoulder, so the ring isn't a row of eggs
+		dome(
+			folder,
+			at * CFrame.new(h.w * 0.28, 0, h.d * 0.12),
+			Vector3.new(h.w * 0.55, hh * 0.7, h.d * 0.6),
+			tone[(i + 1) % 2 + 1],
+			false,
+			list
+		)
+	end
+	local ok, PropKit = pcall(function()
+		return require(ReplicatedStorage.Shared:FindFirstChild("PropKit") :: ModuleScript)
+	end)
+	if not ok or type(PropKit) ~= "table" or type(PropKit.tree) ~= "function" then
+		return
+	end
+	local treeFolder = Instance.new("Folder")
+	treeFolder.Name = "HillTrees"
+	local STYLES = { "green", "green", "pink", "green", "yellow" }
+	for i, t in trees do
+		if i % 3 ~= 0 then
+			continue -- (a third as many: round crowns read fuller, and phones come first)
+		end
+		local y = heightAt(list, t.x, t.z) - 0.6 -- (a little sunk, so it never floats)
+		pcall(
+			PropKit.tree,
+			treeFolder,
+			Vector3.new(t.x, y, t.z),
+			t.height,
+			STYLES[i % #STYLES + 1],
+			i,
+			false
+		)
+	end
+	treeFolder.Parent = folder
+end
+
 function LobbyHillsBuilder.build(parent: Instance): Folder
 	local folder = Instance.new("Folder")
 	folder.Name = "Hills"
 	folder.Parent = parent
 	local hills, trees, props, marks = LobbyHills.layout()
+	if SpawnLobby.SMASH then
+		smashBuild(folder, hills, trees)
+		return folder
+	end
 	for i, b in LobbyHills.baseBoxes(hills) do
 		local base = Instance.new("Part")
 		base.Name = `HillGrass{i}`

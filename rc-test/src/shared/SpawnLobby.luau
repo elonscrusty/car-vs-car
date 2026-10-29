@@ -48,7 +48,6 @@ SpawnLobby.BUILDINGS = if Features.CVC
 		{ kind = "race", x = -50, z = 12, yaw = 90 },
 		{ kind = "garage", x = 50, z = 10, yaw = -90 },
 	}
-SpawnLobby.SPAWN = { x = 0, z = 15 } -- where people appear, looking at the pads and the street (+Z)
 SpawnLobby.GAP = 13 -- the front edge is open for |x| < GAP: the walk onto the street
 SpawnLobby.STATUE = { x = 0, z = -6 }
 SpawnLobby.STAND_Z = -28
@@ -73,8 +72,15 @@ SpawnLobby.SMASH = Features.CVC
 			and workspace:GetAttribute("Smash") == true
 		)
 	)
+-- where people appear, looking at the pads and the street (+Z). Smash (LOOK-BIBLE rule 9): further
+-- back, so the first frame is the big SMASH! portal with the street behind it
+SpawnLobby.SPAWN = if SpawnLobby.SMASH then { x = 0, z = -6 } else { x = 0, z = 15 }
+SpawnLobby.PORTAL_R = 8.5 -- the SMASH! ring's radius
+if SpawnLobby.SMASH then
+	SpawnLobby.BOX.maxY = 21 -- (the big portal ring stands taller than the rest)
+end
 SpawnLobby.PADS = if SpawnLobby.SMASH
-	then { { x = 0, kind = "smash", color = { 255, 64, 160 } } } -- Smash: one SMASH! portal
+	then { { x = 0, kind = "smash", color = { 255, 95, 180 } } } -- Smash: one SMASH! portal (bible pink)
 	elseif Features.CVC then { { x = 0, kind = "race", color = { 226, 52, 46 } } } -- racing only
 	else {
 		{ x = -27, kind = "drift", color = { 150, 70, 210 } },
@@ -211,13 +217,17 @@ function SpawnLobby.parts(): { Piece }
 	end
 
 	-- ===== Giant toy car on a round plinth in the middle =====
+	-- (Smash: no statue, no toy cars on stands, no bunting: the portal is the one hero, and the
+	-- spawn stands where the statue was)
 	local st = SpawnLobby.STATUE
-	add("Statue", "Plinth", v(2, 9, 9), v(st.x, 1, st.z), L.stone, cyl())
-	add("Statue", "Band", v(0.4, 9.6, 9.6), v(st.x, 2.2, st.z), L.ring, cyl())
-	Garage.toyCar(add, "StatueCar", v(st.x, 2.4, st.z), 215, L.statue, 1.9) -- nose to the spawn
+	if not SpawnLobby.SMASH then
+		add("Statue", "Plinth", v(2, 9, 9), v(st.x, 1, st.z), L.stone, cyl())
+		add("Statue", "Band", v(0.4, 9.6, 9.6), v(st.x, 2.2, st.z), L.ring, cyl())
+		Garage.toyCar(add, "StatueCar", v(st.x, 2.4, st.z), 215, L.statue, 1.9) -- nose to the spawn
+	end
 
 	-- ===== Everyone's car on a turntable, in a row between the shop and the garage =====
-	for i, x in SpawnLobby.STANDS do
+	for i, x in if SpawnLobby.SMASH then {} else SpawnLobby.STANDS do
 		local g = "Stand" .. i
 		local z = SpawnLobby.STAND_Z
 		add(g, "Ring", v(0.06, 5.1, 5.1), v(x, 0.03, z), C.cyan, {
@@ -246,12 +256,14 @@ function SpawnLobby.parts(): { Piece }
 
 	-- ===== Bunting over the stands, on two poles =====
 	local bz, by = SpawnLobby.STAND_Z - 3, 9.5
-	for _, px in { -25, 25 } do
+	for _, px in if SpawnLobby.SMASH then {} else { -25, 25 } do
 		add("Bunting", "Pole", v(0.4, 10, 0.4), v(px, 5, bz), L.iron)
 		add("Bunting", "Knob", v(0.8, 0.8, 0.8), v(px, 10.2, bz), L.yellow, { shape = "Cylinder" })
 	end
-	add("Bunting", "Rope", v(50, 0.1, 0.1), v(0, by, bz), L.iron, { collide = false })
-	for i = 0, 24 do
+	if not SpawnLobby.SMASH then
+		add("Bunting", "Rope", v(50, 0.1, 0.1), v(0, by, bz), L.iron, { collide = false })
+	end
+	for i = 0, if SpawnLobby.SMASH then -1 else 24 do
 		add(
 			"Bunting",
 			"Flag",
@@ -269,29 +281,77 @@ function SpawnLobby.parts(): { Piece }
 	for i, pad in SpawnLobby.PADS do
 		local g = "QueuePad" .. i
 		local px, pz = pad.x, SpawnLobby.PAD_Z
+		local lift = if pad.kind == "smash" then 0.55 else 0 -- (on the Smash portal's dais)
 		add(
 			g,
 			"Rim",
 			v(12.6, 0.06, 10.6),
-			v(px, 0.03, pz),
+			v(px, 0.03 + lift, pz),
 			pad.color,
 			{ material = "Neon", collide = false }
 		)
-		add(g, "Base", v(12, 0.08, 10), v(px, 0.04, pz), C.dark, { collide = false })
+		add(g, "Base", v(12, 0.08, 10), v(px, 0.04 + lift, pz), C.dark, { collide = false })
 		if pad.kind == "smash" then
-			-- Smash (FINISH-JOBS LOBBY): a hot pink portal ring standing over the pad, so it reads
-			-- as "go through here" from the spawn; no start grid or start lights (no racing now)
-			local R, N = 5.2, 16
-			local seg = 2 * R * math.tan(math.pi / N) + 0.1
+			-- Smash (FINISH-JOBS LOBBY, LOOK-BIBLE rule 9): the lobby's hero. A big, thick hot pink
+			-- portal ring on a round navy and pink dais, seen first from the spawn; no start grid or
+			-- start lights (no racing now)
+			local P = "Portal" .. i -- its own group: the PlayPad mesh would replace the pad's
+			-- (low and walk-through: the walk to the street passes its edge)
+			local DAIS = 0.35
+			add(P, "Dais", v(DAIS, 23, 23), v(px, DAIS / 2, pz), { 30, 42, 90 }, {
+				shape = "Cylinder",
+				rot = v(0, 0, 90),
+				collide = false,
+			})
+			add(
+				P,
+				"DaisLip",
+				v(DAIS + 0.1, 21.4, 21.4),
+				v(px, DAIS / 2 + 0.05, pz),
+				{ 255, 210, 63 },
+				{
+					shape = "Cylinder",
+					rot = v(0, 0, 90),
+					collide = false,
+				}
+			)
+			add(P, "DaisTop", v(DAIS + 0.2, 20, 20), v(px, DAIS / 2 + 0.1, pz), { 255, 120, 196 }, {
+				shape = "Cylinder",
+				rot = v(0, 0, 90),
+				collide = false,
+			})
+			local R, N = SpawnLobby.PORTAL_R, 24
+			local T = 1.8 -- thick and chunky (rule 2)
+			local seg = 2 * R * math.tan(math.pi / N) + 0.2
 			for k = 0, N - 1 do
 				local a = (k + 0.5) / N * 2 * math.pi
 				add(
-					"Portal" .. i, -- its own group: the PlayPad mesh would replace the pad's
+					P,
 					"Ring",
-					v(seg, 0.9, 0.9),
-					v(px + math.cos(a) * R, R + 0.35 + math.sin(a) * R, pz),
+					v(seg, T, T),
+					v(px + math.cos(a) * R, DAIS + R + T / 2 + math.sin(a) * R, pz),
 					pad.color,
 					{ rot = v(0, 0, math.deg(a) + 90), material = "Neon", collide = false }
+				)
+			end
+			-- two fat navy feet with sunny caps hold the ring on the dais
+			for _, sx in { -1, 1 } do
+				add(
+					P,
+					"Foot",
+					v(2.6, 3, 2.6),
+					v(px + sx * (R - 1.2), DAIS + 1.5, pz),
+					{ 30, 42, 90 }
+				)
+				add(
+					P,
+					"FootCap",
+					v(3, 0.8, 3),
+					v(px + sx * (R - 1.2), DAIS + 3.4, pz),
+					{ 255, 210, 63 },
+					{
+						collide = false,
+					}
 				)
 			end
 			continue
@@ -437,6 +497,18 @@ function SpawnLobby.parts(): { Piece }
 	-- ===== Lamps =====
 	for i, p in SpawnLobby.LAMPS do
 		local g = "Lamp" .. i
+		if SpawnLobby.SMASH then
+			-- chunky navy posts with a sunny ball (LOOK-BIBLE rules 2 and 3)
+			add(g, "Foot", v(0.8, 1.6, 1.6), v(p.x, 0.4, p.z), { 30, 42, 90 }, cyl())
+			add(g, "Post", v(9.5, 1, 1), v(p.x, 4.75, p.z), { 30, 42, 90 }, cyl())
+			add(g, "Light", v(2.4, 2.4, 2.4), v(p.x, 10.3, p.z), { 255, 210, 63 }, {
+				shape = "Ball",
+				material = "Neon",
+				collide = false,
+				light = 18,
+			})
+			continue
+		end
 		add(g, "Base", v(1.6, 0.8, 1.6), v(p.x, 0.4, p.z), L.iron)
 		add(g, "Post", v(0.6, 9, 0.6), v(p.x, 4.5, p.z), L.iron)
 		add(g, "Cap", v(1.8, 0.4, 1.8), v(p.x, 11.3, p.z), L.iron)
@@ -451,7 +523,8 @@ function SpawnLobby.parts(): { Piece }
 	end
 
 	-- ===== Trees behind the back, bushes and flower pots round the edge =====
-	for i, x in SpawnLobby.TREES do
+	-- (Smash: ARENA's PropKit trees and bushes, put in by build())
+	for i, x in if SpawnLobby.SMASH then {} else SpawnLobby.TREES do
 		local g = "Tree" .. i
 		local z = SpawnLobby.TREE_Z + (if i % 2 == 0 then 1.5 else -1)
 		add(g, "Trunk", v(1.2, 4, 1.2), v(x, 2, z), L.trunk)
@@ -471,7 +544,7 @@ function SpawnLobby.parts(): { Piece }
 			end
 		end
 	end
-	for i, p in SpawnLobby.BUSHES do
+	for i, p in if SpawnLobby.SMASH then {} else SpawnLobby.BUSHES do
 		local g = "Bush" .. i
 		add(g, "Pot", v(1.2, 2, 2), v(p.x, 0.6, p.z), L.pot, cyl())
 		add(g, "Leaves", v(2.6, 2, 2.6), v(p.x, 2.2, p.z), L.leaf, { rot = v(0, 45, 0) })
@@ -520,19 +593,23 @@ do
 		})
 	end
 	local st = SpawnLobby.STATUE
-	table.insert(M, {
-		model = "RockCrawler", -- carter's own truck, made big
-		group = "StatueCar",
-		at = v(st.x, 2.4, st.z),
-		-- smaller than the old 7x7x11: on a phone it was the biggest car on screen (4.4%), bigger
-		-- than the kid's own (art report #2)
-		fit = v(5, 5, 7.8),
-		long = "z",
-		keep = {},
-		collide = false,
-		carSkin = true,
-	})
-	for i, x in SpawnLobby.STANDS do
+	-- (Smash: no statue or stands, block lamps, PropKit trees: none of these models)
+	local SMASH = SpawnLobby.SMASH
+	if not SMASH then
+		table.insert(M, {
+			model = "RockCrawler", -- carter's own truck, made big
+			group = "StatueCar",
+			at = v(st.x, 2.4, st.z),
+			-- smaller than the old 7x7x11: on a phone it was the biggest car on screen (4.4%), bigger
+			-- than the kid's own (art report #2)
+			fit = v(5, 5, 7.8),
+			long = "z",
+			keep = {},
+			collide = false,
+			carSkin = true,
+		})
+	end
+	for i, x in if SMASH then {} else SpawnLobby.STANDS do
 		mesh(
 			"Turntable",
 			"Stand" .. i,
@@ -588,10 +665,10 @@ do
 			collide = true,
 		})
 	end
-	for i, p in SpawnLobby.LAMPS do
+	for i, p in if SMASH then {} else SpawnLobby.LAMPS do
 		mesh("StreetLamp", "Lamp" .. i, v(p.x, 0, p.z), v(2, 11.5, 2), {}, true)
 	end
-	for i, x in SpawnLobby.TREES do
+	for i, x in if SMASH then {} else SpawnLobby.TREES do
 		local z = SpawnLobby.TREE_Z + (if i % 2 == 0 then 1.5 else -1)
 		if i % 2 == 1 then
 			mesh("LeafyTree", "Tree" .. i, v(x, 0, z), v(9, 11, 9), {}, true)
@@ -599,7 +676,7 @@ do
 			mesh("PineTree", "Tree" .. i, v(x, 0, z), v(7, 12, 7), {}, true)
 		end
 	end
-	for i, p in SpawnLobby.BUSHES do
+	for i, p in if SMASH then {} else SpawnLobby.BUSHES do
 		mesh("FlowerPot", "Bush" .. i, v(p.x, 0, p.z), v(2.6, 3.2, 2.6), {}, true)
 	end
 end
@@ -610,6 +687,51 @@ function SpawnLobby.spawnCFrame(at: CFrame): CFrame
 	local s = SpawnLobby.SPAWN
 	-- facing the play pads and the street (lobby-local +Z): where to go first, nothing in the way
 	return origin * CFrame.new(s.x, 3, s.z) * CFrame.Angles(0, math.pi, 0)
+end
+
+-- Smash: ARENA's PropKit round trees along the back, bushes round the edge, and a palette flag
+-- each side of the SMASH! portal (LOOK-BIBLE rules 1, 7). Missing PropKit = none.
+function SpawnLobby.dress(model: Instance, origin: CFrame)
+	local m = script and (script :: any).Parent:FindFirstChild("PropKit")
+	local ok, kit = pcall(function()
+		return require(m)
+	end)
+	if not ok or type(kit) ~= "table" then
+		return
+	end
+	local folder = Instance.new("Folder")
+	folder.Name = "Dressing"
+	local function at(x: number, z: number): Vector3
+		return origin:PointToWorldSpace(Vector3.new(x, 0, z))
+	end
+	for i, x in SpawnLobby.TREES do
+		local z = SpawnLobby.TREE_Z + (if i % 2 == 0 then 1.5 else -1)
+		pcall(
+			kit.tree,
+			folder,
+			at(x, z),
+			13 + (i % 3) * 1.5,
+			if i % 3 == 0 then "pink" else "green",
+			200 + i
+		)
+	end
+	for i, p in SpawnLobby.BUSHES do
+		pcall(kit.bush, folder, at(p.x, p.z), 3, 300 + i, false)
+	end
+	local pz = SpawnLobby.PAD_Z
+	for k, sx in { -1, 1 } do
+		local pos = at(sx * (SpawnLobby.PORTAL_R + 5), pz)
+		pcall(
+			kit.flag,
+			folder,
+			pos,
+			12,
+			if k == 1 then Color3.fromRGB(255, 210, 63) else Color3.fromRGB(91, 209, 91),
+			origin:VectorToWorldSpace(Vector3.new(-sx, 0, 0)),
+			false
+		)
+	end
+	folder.Parent = model
 end
 
 -- Builds it under `parent`. `at` is the middle of the square on the floor, its LookVector
@@ -633,6 +755,9 @@ function SpawnLobby.build(parent: Instance, at: CFrame): Model
 		game:GetService("CollectionService"):AddTag(gumball, "Gumball")
 	end
 	Garage.useMeshes(groups, origin, SpawnLobby.MESHES)
+	if SpawnLobby.SMASH then
+		SpawnLobby.dress(model, origin)
+	end
 	-- each dream car's kind: its turntable ring glows in that colour
 	for i in SpawnLobby.STANDS do
 		local stand = groups["Stand" .. i]
