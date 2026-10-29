@@ -267,26 +267,31 @@ function KitWindows.crateOdds(data: { [string]: any }, actions: Screen.Actions?)
 			shade.BackgroundTransparency = 0.55
 			Base.corner(shade, 12)
 			local rw = op.w - 2 * pad
-			Icons.car(row, 8, rh * 0.1, rh * 1.5, rh * 0.8, { color = color, z = 5 })
-			local dot = Base.fill(row, "Dot", rh * 1.5 + 16, rh * 0.3, rh * 0.4, rh * 0.4, color, 5)
+			-- every rarity word the same size, the size LEGENDARY fits (TextScaled made COMMON and
+			-- LEGENDARY smaller than RARE and EPIC, Studio r51)
+			local wordX = rh * 1.6 + 26
+			local wordW = rw * 0.72 - wordX - 8
+			local wordH = math.min(rh * 0.5, wordW / (9 * 0.62))
+			Icons.car(row, 8, rh * 0.1, rh * 1.2, rh * 0.8, { color = color, z = 5 })
+			local dot = Base.fill(row, "Dot", rh * 1.2 + 14, rh * 0.3, rh * 0.4, rh * 0.4, color, 5)
 			Base.corner(dot)
 			Base.outline(dot, 2, WHITE)
 			Base.text(
 				row,
 				"Word",
-				rh * 1.9 + 22,
-				rh * 0.22,
-				rw * 0.6 - (rh * 1.9 + 22) - 8,
-				rh * 0.56,
+				wordX,
+				(rh - wordH) / 2,
+				wordW,
+				wordH,
 				UiTheme.RARITY[UiTheme.rarityId(r.rarity)].word,
 				{ stroke = 3, align = "l", z = 5 }
 			)
 			Base.text(
 				row,
 				"Chance",
-				rw * 0.6,
+				rw * 0.72,
 				rh * 0.18,
-				rw * 0.4 - 12,
+				rw * 0.28 - 12,
 				rh * 0.64,
 				UiMotion.percent(r.chance),
 				{ stroke = 3.5, align = "r", z = 5 }
@@ -323,8 +328,11 @@ function KitWindows.reveal(data: { [string]: any }, actions: Screen.Actions?): S
 		local colorName = UiTheme.RARITY[r].color
 		local color = Base.color(colorName)
 		local back = g.back :: ScreenGui
-		Kit.backdrop(back, "reveal", colorName)
-		Kit.confetti(back:FindFirstChild("Backdrop") :: Frame, 22)
+		local bdrop = Kit.backdrop(back, "reveal", colorName)
+		-- the kit's warm ground: purple at the top to orange at the bottom (Studio r51: flat navy)
+		bdrop.BackgroundColor3 = WHITE
+		Kit.face(bdrop, { "5a2a8c", "9a3f8f", "e07a4a" })
+		Kit.confetti(bdrop, 22)
 		local canvas = g.canvas
 		-- the crates it came from, small and dim at the sides, and the open one under the card
 		for i, side in { "SideL", "SideR" } do

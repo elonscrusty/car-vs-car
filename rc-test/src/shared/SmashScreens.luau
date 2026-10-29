@@ -142,7 +142,8 @@ local LIST: { Screen } = {
 			p("Coins", 8, 6, 170, 44, { anchor = "tl" }),
 			p("Tabs", 268, 4, 220, 52, { anchor = "t", tap = true }),
 			p("Close", 700, 2, 52, 52, { anchor = "tr", tap = true }),
-			p("Panel", 8, 66, 740, 316, { anchor = "c" }),
+			-- (16 px clear of the bottom: the panel's ink line sits 6 px outside it, Studio r51)
+			p("Panel", 8, 66, 740, 308, { anchor = "c" }),
 		},
 	},
 	-- one crate's odds, always before OPEN: the big crate and OPEN left, the odds right
@@ -153,8 +154,9 @@ local LIST: { Screen } = {
 		kind = "window",
 		gameplay = false,
 		pieces = {
-			p("Close", 0, 0, 52, 52, { anchor = "tl", tap = true }),
-			p("Coins", 64, 4, 160, 44, { anchor = "tl" }),
+			-- (8 in: the tilted X lost ~5 px on a 667 phone, Studio r52)
+			p("Close", 8, 0, 52, 52, { anchor = "tl", tap = true }),
+			p("Coins", 72, 4, 160, 44, { anchor = "tl" }),
 			p("Crate", 60, 56, 270, 214, { anchor = "l" }),
 			p(
 				"Open",
@@ -181,7 +183,7 @@ local LIST: { Screen } = {
 			p("Crate", 303, 262, 150, 128, { anchor = "b" }),
 			p("SideL", 0, 120, 130, 120, { anchor = "l" }),
 			p("SideR", 626, 70, 130, 120, { anchor = "r" }),
-			p("Note", 0, 300, 220, 62, { anchor = "bl" }),
+			p("Note", 8, 300, 212, 62, { anchor = "bl" }),
 			p(
 				"Cool",
 				566,
