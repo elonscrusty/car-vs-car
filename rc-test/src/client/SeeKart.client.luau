@@ -34,6 +34,21 @@ local function restore(part: BasePart)
 	end
 end
 
+local addedConn: RBXScriptConnection? = nil
+
+local function addProp(d: Instance)
+	if d:IsA("BasePart") and SeeKart.PROPS[d.Name] then
+		local p = d.Position
+		table.insert(props, {
+			part = d,
+			x = p.X,
+			y = p.Y,
+			z = p.Z,
+			r = d.Size.Magnitude / 2 + SeeKart.PAD,
+		})
+	end
+end
+
 -- once a second at most: find your kart and the arena (rebuilt arena → new prop list)
 local function look()
 	if os.clock() - lookedAt < 1 then
@@ -52,19 +67,16 @@ local function look()
 		fader = SeeKart.fader() :: SeeKart.Fader<BasePart>
 		arena = a
 		table.clear(props)
+		if addedConn then
+			addedConn:Disconnect()
+			addedConn = nil
+		end
 		if a then
 			for _, d in a:GetDescendants() do
-				if d:IsA("BasePart") and SeeKart.PROPS[d.Name] then
-					local p = d.Position
-					table.insert(props, {
-						part = d,
-						x = p.X,
-						y = p.Y,
-						z = p.Z,
-						r = d.Size.Magnitude / 2 + SeeKart.PAD,
-					})
-				end
+				addProp(d)
 			end
+			-- parts that arrive after the first look (the client can start mid-replication)
+			addedConn = a.DescendantAdded:Connect(addProp)
 		end
 	end
 end
@@ -81,7 +93,7 @@ RunService:BindToRenderStep("SeeKart", Enum.RenderPriority.Camera.Value + 4, fun
 		local bx, by, bz = to.X, to.Y, to.Z
 		for _, pr in props do
 			local part = pr.part
-			if part.Parent and SeeKart.near(ax, ay, az, bx, by, bz, pr.x, pr.y, pr.z, pr.r) then
+			if SeeKart.near(ax, ay, az, bx, by, bz, pr.x, pr.y, pr.z, pr.r) and part.Parent then
 				local cf = part.CFrame
 				local a = cf:PointToObjectSpace(from)
 				local b = cf:PointToObjectSpace(to)

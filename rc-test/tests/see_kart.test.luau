@@ -16,7 +16,18 @@ test(
 			truthy(SeeKart.PROPS[n], n)
 		end
 		for _, n in
-			{ "Grass", "Road", "Curb", "Platform", "OuterWall", "WallTrim", "Sand", "Hill", "Ramp" }
+			{
+				"Grass",
+				"Road",
+				"Curb",
+				"Platform",
+				"OuterWall",
+				"WallTrim",
+				"Sand",
+				"Hill",
+				"Ramp",
+				"Bumper",
+			}
 		do
 			eq(SeeKart.PROPS[n], nil, n)
 		end

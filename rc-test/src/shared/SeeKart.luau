@@ -14,7 +14,8 @@ SeeKart.HOLD = 0.25 -- seconds it stays faded after it stops blocking (no flicke
 SeeKart.MAX_FADED = 12 -- never more at once (phones)
 SeeKart.PAD = 0.15 -- studs added round a prop (the arena is built at RC size, 1/4)
 
--- ArenaBuilder part names that may fade (workspace.SmashArena)
+-- ArenaBuilder part names that may fade (workspace.SmashArena). Not the low red Bumper: the kart
+-- sits taller than it, so it would fade a long strip for nothing.
 SeeKart.PROPS = {
 	Cover = true,
 	CoverCap = true,
@@ -26,7 +27,6 @@ SeeKart.PROPS = {
 	BarrelBand = true,
 	Rock = true,
 	Bush = true,
-	Bumper = true,
 	WallPillar = true,
 	ArchPillar = true,
 	ArchCap = true,
