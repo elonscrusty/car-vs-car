@@ -16,11 +16,11 @@ test("arena cam: higher, further back and tilted 35-45 degrees down", function()
 	local back, up = ArenaCam.offset()
 	truthy(math.abs(back * back + up * up - ArenaCam.DISTANCE ^ 2) < 1e-6, "on the distance")
 	truthy(math.abs(math.deg(math.atan2(up, back)) - ArenaCam.PITCH) < 1e-6, "at the pitch")
-		-- the race chase cam at the arena's RC size, for comparison (race numbers, whatever an
-		-- earlier test left)
-		(Tuning :: any)
-		.setMode("race");
-	(Tuning :: any).setScale(1)
+	-- the race chase cam at the arena's RC size, for comparison (race numbers, whatever an
+	-- earlier test left)
+	local T: any = Tuning
+	T.setMode("race")
+	T.setScale(1)
 	local S = TrackData.RC_SCALE
 	local oldBack, oldUp = Tuning.camDistance * S, Tuning.camHeight * S
 	truthy(up > oldUp * 4, "much higher than the low race cam")
