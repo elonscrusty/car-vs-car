@@ -129,6 +129,70 @@ local LIST: { Screen } = {
 			p("ArrowFire", 556, 276, 56, 56, { anchor = "br" }),
 		},
 	},
+	-- carter's kit v41 windows (ui-kit/v41/WINDOWS-PLAN.md), in the kit pictures' places
+	-- the shop: only tabs with real items (Lead 10-29: no COINS or BOOSTS saying SOON), so one
+	-- CRATES tab over the crates you can buy (SmashScreens.shopTiles places them in the panel)
+	{
+		id = "kitShop",
+		n = 105,
+		title = "Shop",
+		kind = "window",
+		gameplay = false,
+		pieces = {
+			p("Coins", 8, 6, 170, 44, { anchor = "tl" }),
+			p("Tabs", 268, 4, 220, 52, { anchor = "t", tap = true }),
+			p("Close", 700, 2, 52, 52, { anchor = "tr", tap = true }),
+			p("Panel", 8, 66, 740, 316, { anchor = "c" }),
+		},
+	},
+	-- one crate's odds, always before OPEN: the big crate and OPEN left, the odds right
+	{
+		id = "kitOdds",
+		n = 106,
+		title = "Crate odds",
+		kind = "window",
+		gameplay = false,
+		pieces = {
+			p("Close", 0, 0, 52, 52, { anchor = "tl", tap = true }),
+			p("Coins", 64, 4, 160, 44, { anchor = "tl" }),
+			p("Crate", 60, 56, 270, 214, { anchor = "l" }),
+			p(
+				"Open",
+				80,
+				284,
+				230,
+				70,
+				{ anchor = "b", tone = "lime", text = "OPEN", main = true }
+			),
+			p("Title", 400, 0, 340, 56, { anchor = "tr" }),
+			p("Odds", 400, 62, 340, 248, { anchor = "r" }),
+			p("Note", 400, 316, 340, 60, { anchor = "br" }),
+		},
+	},
+	-- a new kart from a crate: its card (rarity ribbon, the 3D kart, NEW KART!) over the open crate
+	{
+		id = "kitReveal",
+		n = 107,
+		title = "Crate reveal",
+		kind = "full",
+		gameplay = false,
+		pieces = {
+			p("Card", 258, 6, 240, 250, { anchor = "t" }),
+			p("Crate", 303, 262, 150, 128, { anchor = "b" }),
+			p("SideL", 0, 120, 130, 120, { anchor = "l" }),
+			p("SideR", 626, 70, 130, 120, { anchor = "r" }),
+			p("Note", 0, 300, 220, 62, { anchor = "bl" }),
+			p(
+				"Cool",
+				566,
+				228,
+				190,
+				66,
+				{ anchor = "br", tone = "lime", text = "COOL!", main = true }
+			),
+			p("Again", 516, 306, 240, 58, { anchor = "br", tone = "white", text = "OPEN ANOTHER" }),
+		},
+	},
 }
 
 SmashScreens.LIST = LIST
@@ -306,5 +370,63 @@ function SmashScreens.rank(list: { { [string]: any } }): number?
 	end
 	return mine
 end
+
+-- ===== the kit shop and crates =====
+
+-- The crates on the shop's CRATES tab: a free one first while you have any, then the 3 you buy
+-- with coins (Crates.SHOP; their prices come from Crates.price, never written here).
+export type CrateTile = { kind: string, word: string, rarity: string }
+SmashScreens.CRATE_TILES = {
+	{ kind = "free", word = "FREE CRATE", rarity = "common" },
+	{ kind = "basic", word = "SMALL CRATE", rarity = "common" },
+	{ kind = "big", word = "BIG CRATE", rarity = "rare" },
+	{ kind = "mega", word = "MEGA CRATE", rarity = "epic" },
+} :: { CrateTile }
+
+function SmashScreens.crateTiles(free: number): { CrateTile }
+	local out: { CrateTile } = {}
+	for _, t in SmashScreens.CRATE_TILES do
+		if t.kind ~= "free" or free > 0 then
+			table.insert(out, t)
+		end
+	end
+	return out
+end
+
+-- Where n tiles sit in the shop panel (pw wide): the same size side by side, in the middle.
+export type Box = { x: number, y: number, w: number, h: number }
+function SmashScreens.shopTiles(n: number, pw: number): { Box }
+	local gap, edge = 14, 16
+	local w = math.min(216, (pw - 2 * edge - (n - 1) * gap) / math.max(n, 1))
+	local x0 = (pw - (n * w + (n - 1) * gap)) / 2
+	local out: { Box } = {}
+	for i = 1, n do
+		out[i] = { x = x0 + (i - 1) * (w + gap), y = 16, w = w, h = 236 }
+	end
+	return out
+end
+
+-- A crate's odds rows, rarest last, from Crates.odds (by CarCatalog id: legend), as the screen's
+-- rarity ids; a 0% row is a word to read that never matters, so it is left out.
+export type OddsRow = { rarity: string, chance: number }
+local ODDS_ORDER =
+	{ { "common", "common" }, { "rare", "rare" }, { "epic", "epic" }, { "legend", "legendary" } }
+function SmashScreens.oddsRows(odds: { [string]: number }): { OddsRow }
+	local out: { OddsRow } = {}
+	for _, r in ODDS_ORDER do
+		local chance = odds[r[1]] or 0
+		if chance > 0 then
+			table.insert(out, { rarity = r[2], chance = chance })
+		end
+	end
+	return out
+end
+
+-- The kit windows' lines (crates give looks, never a win)
+SmashScreens.KIT_WORDS = {
+	shopNote = "Crates change the look only.",
+	oddsNote = "Crates give skins only. They change the look, not speed.",
+	newKart = "NEW KART!",
+}
 
 return SmashScreens
