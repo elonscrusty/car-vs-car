@@ -188,7 +188,7 @@ ArenaData.BOXES = {
 	{ 205, 70 },
 	{ 200, 125 },
 	{ 140, 130 },
-	{ 132, 72 }, -- (off the high hill: karts kept driving at it from below, round 9)
+	{ 126, 64 }, -- (off the high hill, round 9; off ramp 1's flank, round 15: karts pinned on it)
 	{ 190, 200 },
 	{ 140, 215 },
 	{ 80, 218 },
