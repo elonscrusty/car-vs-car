@@ -20,6 +20,7 @@ local Match = require(Shared:WaitForChild("Match"))
 local Base = require(script.Parent:WaitForChild("Ui"):WaitForChild("Base"))
 local Sfx = require(script.Parent:WaitForChild("Sfx"))
 local SmashFx = require(script.Parent:WaitForChild("SmashFx"))
+local ArenaLifeFx = require(script.Parent:WaitForChild("ArenaLifeFx"))
 
 local player = Players.LocalPlayer
 local myId = player.UserId
@@ -401,6 +402,22 @@ Players.PlayerRemoving:Connect(function(p)
 	bubbleDown(p.UserId)
 end)
 
+-- where a bump happened: between the kart and the nearest other kart touching it (else on it)
+local function bumpSpot(id: number, pos: Vector3): Vector3
+	local best, bestD = pos, K * 2.5
+	local name = "Car_" .. id
+	for c in ArenaLifeFx.karts() do
+		if c.Name ~= name and c.Parent then
+			local p = c:GetPivot().Position
+			local d = (p - pos).Magnitude
+			if d < bestD then
+				best, bestD = (p + pos) / 2, d
+			end
+		end
+	end
+	return best
+end
+
 -- ===== the board: every kart's Health =====
 local pending: { [number]: SmashHits.Pending } = {}
 local lastHp: { [number]: number } = {}
@@ -423,11 +440,16 @@ local function onHealth(id: number, hp: number)
 		flashKart(id)
 		-- the sound a moment later: the server sets Health just before it sends the shot or boom,
 		-- so wait for that to land before telling a weapon hit from a bump
+		-- (where a bump would be: now, while both karts are still there)
+		local spot = if pos then bumpSpot(id, pos) else nil
 		task.delay(SmashHits.SOUND_WAIT, function()
 			if not pos then
 				return
 			end
 			local w = SmashHits.guess(shots, id, pos.X, pos.Z, now, SIZES, SmashHits.SOUND_WAIT)
+			if w == "bump" and spot then
+				ArenaLifeFx.spark(spot)
+			end
 			if id == myId then
 				if w == "bump" then
 					Sfx.bump() -- (SmashFx plays your hit sound)
