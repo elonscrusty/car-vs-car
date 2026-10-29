@@ -7,8 +7,8 @@
 -- kart: PICK THIS KART; walk up to the crate: OPEN CRATE (the crate window, with its odds); walk
 -- up to the turntable: CUSTOMIZE (WINDOWS' kart window).
 -- Look (review/LOOK-BIBLE.md): round discs, the palette, a two-tone sand floor, a pink carpet to
--- the hero kart; SmoothPlastic, Neon only for the turntable's glow ring, no words on
--- the models.
+-- the hero kart; SmoothPlastic, Neon only for the glow ring, lamp bulbs and sign frame; words
+-- only on the MY GARAGE sign and the bay numbers.
 -- Plain numbers and Garage pieces (Lune tests load this): PlotGarageBuilder (server) builds the
 -- floor, the stands and the crate; PlotShowroom.client puts the karts on and adds the prompts.
 --
@@ -62,7 +62,7 @@ PlotShowroom.CRATE = { x = 0, z = -42, w = 10, size = 5.5 }
 -- the back of the showroom: a big banner on two posts over the crate (its words go on its gate
 -- side, PlotGarageBuilder) and a gold trophy on a plinth either side of the crate
 PlotShowroom.BANNER = { w = 30, h = 5, y = 12 } -- (high: seen over the hero kart from the gate)
-PlotShowroom.BACK_WALL = { z = -53.6, w = 76, h = 15 }
+PlotShowroom.BACK_WALL = { z = -53.6, w = 66, h = 15 }
 PlotShowroom.BANNER_TEXT = "MY GARAGE"
 PlotShowroom.TROPHIES = { { x = -6, z = -48 }, { x = 6, z = -48 } }
 -- two little "?" crates either side of the carpet at the gate end (the mid-ground)
