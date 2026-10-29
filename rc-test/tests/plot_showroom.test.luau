@@ -91,13 +91,16 @@ test("the showroom fits in the plot, inside its floor", function()
 		if p.rot.z % 180 == 90 then
 			sx, sy = sy, sx
 		end
-		local turned = p.rot.y % 180 ~= 0
+		if p.rot.y % 180 == 90 then
+			sx, sz = sz, sx
+		end
+		local turned = p.rot.y % 90 ~= 0
 		local diag = math.sqrt(sx ^ 2 + sz ^ 2) / 2
 		local hx = if turned then diag else sx / 2
 		local hz = if turned then diag else sz / 2
 		truthy(p.pos.x - hx >= -40 and p.pos.x + hx <= 40, `{p.name} inside x`)
 		truthy(p.pos.z - hz >= -55 and p.pos.z + hz <= 37, `{p.name} inside z`)
-		truthy(p.pos.y + sy / 2 <= 12, `{p.name} low`)
+		truthy(p.pos.y + sy / 2 <= 17, `{p.name} low`)
 	end
 	for i, s in R.SPOTS do
 		local r = R.STAND.w / 2
@@ -197,8 +200,8 @@ test("a real showroom: banner with words, trophies, little crates, floor edge ba
 	eq(names.MiniCrateBody, #R.MINI_CRATES)
 	eq(names.FloorEdge, 4)
 	eq(names.TableBay, 1) -- painted bays round the turntable and every stand
-	local bays = 0
-	for _, p in R.pieces(#R.SPOTS) do
+	local bays = 0 -- (every bay painted, even with no stands)
+	for _, p in R.pieces(0) do
 		if p.name == "StandBay" then
 			bays += 1
 		end
@@ -220,6 +223,35 @@ test("a real showroom: banner with words, trophies, little crates, floor edge ba
 			truthy(dist(t, st) > R.STAND.w / 2 + 2, `trophy {i} clear of stand {j}`)
 		end
 	end
+end)
+
+test("garage dressing fills the floor and keeps clear of the stands, lamps and carpet", function()
+	local names: { [string]: number } = {}
+	for _, p in R.pieces(0) do
+		names[p.name] = (names[p.name] or 0) + 1
+	end
+	truthy((names.ToolWall or 0) == 2, "a tool wall each side")
+	truthy((names.LiftPost or 0) == 2, "a kart lift")
+	truthy((names.BenchCabinet or 0) == 1, "a workbench")
+	local T, L = R.TURNTABLE, R.LAMPS
+	local keep = function(at: any, r: number, what: string)
+		for j, st in R.SPOTS do
+			truthy(dist(at, st) >= R.STAND.w / 2 + 0.8 + r, `{what} clear of stand {j}`)
+		end
+		truthy(dist(at, T) >= L.r + 1 + r, `{what} clear of the lamps`)
+		truthy(math.abs(at.x) - r > R.CARPET / 2 + 1, `{what} off the carpet`)
+	end
+	keep(R.LIFT, 4.6, "lift")
+	keep(R.BENCH, 4.3, "bench")
+	for i, p in R.PROPS do
+		keep(p, p.h * 0.6, `prop {i}`)
+		truthy(math.abs(p.x) + p.h * 0.6 <= 34 and p.z - p.h * 0.6 >= -55, `prop {i} in the plot`)
+	end
+	local TW = R.TOOL_WALL
+	truthy(
+		TW.x - 0.6 > R.FLOOR.x1 + R.FLOOR.border and TW.x + 0.6 < 39.5,
+		"tool walls on the margin"
+	)
 end)
 
 test("stands, turntable and crate keep apart; prompts never overlap", function()

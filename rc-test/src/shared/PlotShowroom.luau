@@ -47,7 +47,7 @@ local YELLOW = { 255, 210, 63 }
 local RED = { 242, 64, 74 }
 local GOLD = { 255, 196, 40 }
 
-PlotShowroom.FLOOR = { x0 = -34, x1 = 34, z0 = -50, z1 = 32, border = 1.5 }
+PlotShowroom.FLOOR = { x0 = -34, x1 = 34, z0 = -50, z1 = 35, border = 1.5 }
 PlotShowroom.CARPET = 5 -- the pink carpet's width, gate end to turntable
 -- the turntable: a disc w across, its top at `top`; the kart on it is this much bigger
 PlotShowroom.TURNTABLE = { x = 0, z = 6, w = 16, top = 2.2, car = 3.2, spin = 20, step = 6 }
@@ -59,11 +59,25 @@ PlotShowroom.STAND = { w = 7, top = 1, car = 1.55 }
 PlotShowroom.CRATE = { x = 0, z = -42, w = 10, size = 5.5 }
 -- the back of the showroom: a big banner on two posts over the crate (its words go on its gate
 -- side, PlotGarageBuilder) and a gold trophy on a plinth either side of the crate
-PlotShowroom.BANNER = { z = -53.5, w = 26, h = 4.5, y = 7.8 }
+PlotShowroom.BANNER = { z = -53.5, w = 30, h = 5, y = 13 } -- (high: seen over the hero kart from the gate)
 PlotShowroom.BANNER_TEXT = "KART GARAGE"
 PlotShowroom.TROPHIES = { { x = -7, z = -48 }, { x = 7, z = -48 } }
 -- two little "?" crates either side of the carpet at the gate end (the mid-ground)
 PlotShowroom.MINI_CRATES = { { x = -8, z = 27 }, { x = 8, z = 27 } }
+-- garage dressing that fills the floor even with one kart (Lead 10-29): a tool wall down each
+-- side on the grass margin, a kart lift in the right front corner, a workbench in the left one,
+-- and PropKit tyre stacks and barrels (PlotGarageBuilder builds those: `PROPS`)
+PlotShowroom.TOOL_WALL = { x = 37, z0 = -44, z1 = 16, h = 4.5 }
+PlotShowroom.LIFT = { x = 24, z = 31 }
+PlotShowroom.BENCH = { x = -24, z = 31 }
+PlotShowroom.PROPS = {
+	{ kind = "tyres", x = 31, z = 28, h = 2.4 },
+	{ kind = "tyres", x = -31, z = 28, h = 2.4 },
+	{ kind = "tyres", x = 30, z = -47, h = 2.4 },
+	{ kind = "tyres", x = -30, z = -47, h = 2.4 },
+	{ kind = "barrel", x = -31.5, z = 33, h = 2.6 },
+	{ kind = "barrel", x = 31.5, z = -43, h = 2.6 },
+} :: { { kind: string, x: number, z: number, h: number } }
 -- walk-up prompts: in reach this close (studs). Stands are 12 apart, so two are never both in
 -- reach (vault Lobby and Hub Design: prompt points at least twice the range apart).
 PlotShowroom.PICK_RANGE = 6
@@ -225,13 +239,15 @@ function PlotShowroom.pieces(stands: number): { Piece }
 			collide = false,
 		})
 	end
-	-- the stands
+	-- the stands, each in a painted yellow bay (every bay is painted, the empty ones too: room
+	-- for more karts)
 	local S = PlotShowroom.STAND
+	for _, p in SPOTS do
+		disc(add, "Bays", "StandBay", p.x, p.z, S.w + 1.6, 0.06, 0.41, YELLOW, false)
+	end
 	for i = 1, math.clamp(stands, 0, #SPOTS) do
 		local p = SPOTS[i]
 		local group = "Stand" .. i
-		-- a painted yellow bay on the floor round each stand
-		disc(add, group, "StandBay", p.x, p.z, S.w + 1.6, 0.06, 0.41, YELLOW, false)
 		disc(add, group, "StandBase", p.x, p.z, S.w, S.top - 0.2, S.top - 0.2, NAVY, true)
 		disc(add, group, "StandTop", p.x, p.z, S.w - 0.8, 0.2, S.top, SKY, false)
 	end
@@ -271,7 +287,7 @@ function PlotShowroom.pieces(stands: number): { Piece }
 			"BannerPost",
 			sx * (B.w / 2 + 0.6),
 			B.z,
-			1.2,
+			1.6,
 			B.y + B.h / 2,
 			B.y + B.h / 2,
 			NAVY,
@@ -294,24 +310,99 @@ function PlotShowroom.pieces(stands: number): { Piece }
 	-- gold trophies on navy plinths
 	for i, t in PlotShowroom.TROPHIES do
 		local g = "Trophy" .. i
-		disc(add, g, "TrophyPlinth", t.x, t.z, 3, 1.4, 1.4, NAVY, true)
-		disc(add, g, "TrophyBase", t.x, t.z, 1.6, 0.4, 1.8, GOLD, false)
-		disc(add, g, "TrophyStem", t.x, t.z, 0.6, 0.9, 2.7, GOLD, false)
+		disc(add, g, "TrophyPlinth", t.x, t.z, 3.6, 1.6, 1.6, NAVY, true)
+		disc(add, g, "TrophyBase", t.x, t.z, 2.4, 0.6, 2.2, GOLD, false)
+		disc(add, g, "TrophyStem", t.x, t.z, 0.9, 1.4, 3.6, GOLD, false)
 		add(
 			g,
 			"TrophyCup",
-			v(1.9, 1.9, 1.9),
-			v(t.x, 3.4, t.z),
+			v(2.9, 2.9, 2.9),
+			v(t.x, 4.8, t.z),
 			GOLD,
 			{ shape = "Ball", collide = false }
 		)
 		for _, sx in { -1, 1 } do
-			add(g, "TrophyHandle", v(0.6, 0.6, 0.6), v(t.x + sx * 1.05, 3.6, t.z), GOLD, {
+			add(g, "TrophyHandle", v(0.9, 0.9, 0.9), v(t.x + sx * 1.6, 5.1, t.z), GOLD, {
 				shape = "Ball",
 				collide = false,
 			})
 		end
 	end
+	-- the tool walls: navy, a pink rail, sky pegboards with chunky tools on them
+	local TW = PlotShowroom.TOOL_WALL
+	local len = TW.z1 - TW.z0
+	local mid = (TW.z0 + TW.z1) / 2
+	local TOOLS = { RED, YELLOW, PINK }
+	for _, sx in { -1, 1 } do
+		local x = sx * TW.x
+		add("ToolWall", "ToolWall", v(1.2, TW.h, len), v(x, TW.h / 2, mid), NAVY)
+		add("ToolWall", "ToolWallRail", v(len + 1, 1, 1), v(x, TW.h + 0.3, mid), PINK, {
+			shape = "Cylinder",
+			rot = v(0, 90, 0),
+			collide = false,
+		})
+		for k = 0, 2 do
+			local pz = TW.z0 + (k + 0.5) * len / 3
+			local face = x - sx * 0.7
+			add(
+				"ToolWall",
+				"Pegboard",
+				v(0.3, 2.6, len / 3 - 2),
+				v(face, 2.5, pz),
+				SKY,
+				{ collide = false }
+			)
+			for t = -1, 1 do
+				local c = TOOLS[(k + t + 1) % 3 + 1]
+				local tz = pz + t * 4.5
+				add("ToolWall", "Tool", v(2, 0.55, 0.55), v(face - sx * 0.3, 2.3, tz), c, {
+					shape = "Cylinder",
+					rot = v(0, 0, 90),
+					collide = false,
+				})
+				add("ToolWall", "ToolHead", v(1, 1, 1), v(face - sx * 0.3, 3.4, tz), c, {
+					shape = "Ball",
+					collide = false,
+				})
+			end
+		end
+	end
+	-- the kart lift: navy base, two yellow posts, a navy top beam, red arms
+	local LI = PlotShowroom.LIFT
+	add("Lift", "LiftBase", v(9, 0.5, 5), v(LI.x, 0.25, LI.z), NAVY_DARK)
+	for _, sx in { -1, 1 } do
+		disc(add, "Lift", "LiftPost", LI.x + sx * 4, LI.z - 1.8, 1.2, 5.5, 5.5, YELLOW, true)
+		add(
+			"Lift",
+			"LiftArm",
+			v(1.2, 0.5, 4),
+			v(LI.x + sx * 3.2, 2.2, LI.z + 0.2), -- (from the post, swung out toward the gate)
+			RED,
+			{ collide = false }
+		)
+	end
+	add("Lift", "LiftBeam", v(9.2, 0.9, 0.9), v(LI.x, 5.7, LI.z - 1.8), NAVY, {
+		shape = "Cylinder",
+		collide = false,
+	})
+	-- the workbench: a navy cabinet, a red top, yellow drawer fronts, a toolbox on top
+	local BE = PlotShowroom.BENCH
+	add("Bench", "BenchCabinet", v(8, 2.4, 2.6), v(BE.x, 1.2, BE.z), NAVY)
+	add("Bench", "BenchTop", v(8.4, 0.5, 3), v(BE.x, 2.65, BE.z), RED, { collide = false })
+	for _, dx in { -2.5, 0, 2.5 } do
+		add("Bench", "BenchDrawer", v(2, 0.7, 0.2), v(BE.x + dx, 1.6, BE.z + 1.35), YELLOW, {
+			collide = false,
+		})
+	end
+	add("Bench", "Toolbox", v(2.4, 1.3, 1.3), v(BE.x - 1.8, 3.55, BE.z), RED, { collide = false })
+	add(
+		"Bench",
+		"ToolboxLid",
+		v(2.5, 0.35, 1.4),
+		v(BE.x - 1.8, 4.35, BE.z),
+		YELLOW,
+		{ collide = false }
+	)
 	-- the little "?" crates: yellow, a red lid, navy corner bands
 	for i, m in PlotShowroom.MINI_CRATES do
 		local g = "MiniCrate" .. i
