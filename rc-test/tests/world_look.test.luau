@@ -63,3 +63,13 @@ test("phones keep the shadows: the place asks for light quality first", function
 	-- when a phone drops its graphics level, keep shadows near the camera, give up view distance
 	truthy(light.PrioritizeLightingQuality == true, "shadows kept on low graphics")
 end)
+
+test("the arena keeps carter's sunny look: bright, clear, warm, soft clouds", function()
+	local D = require("../src/shared/ArenaData")
+	truthy(D.lighting.Brightness >= 1.5 and D.lighting.Brightness <= 4, "bright, not blown out")
+	truthy(D.lighting.ShadowSoftness <= 0.4, "shadows still clear")
+	truthy(D.colorShiftTop[1] >= D.colorShiftTop[3], "warm sun, not cold")
+	truthy(D.atmosphere.Haze <= 1 and D.atmosphere.Density <= 0.4, "a little depth, no grey fog")
+	truthy(D.clouds.Cover > 0 and D.clouds.Cover <= 0.7, "some clouds, not overcast")
+	truthy(D.colorCorrection.Saturation > 0 and D.colorCorrection.Saturation <= 0.3, "more colour")
+end)
