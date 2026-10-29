@@ -5,6 +5,7 @@
 --   RocketTurn   { id, pos, dir }  it bent toward a kart: carry on from the new spot
 --   RocketBoom   { id, kind, pos, quiet? }  it blew up there (quiet = match over, just vanish)
 -- Gun and mine kinds go to client/WeaponFxGunMine (the GUNMINE row's file) when it is there.
+-- Shockwave, ShockHit and Knock (the Ice Viper's special) go to client/ShockwaveFx.
 -- Look rule: low-poly, SmoothPlastic + Neon, no text.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -217,12 +218,30 @@ local function forward(kind: string, data: any)
 	end
 end
 
+-- the Ice Viper's Shockwave (its own file too)
+local shock: any = nil
+local function forwardShock(kind: string, data: any)
+	if shock == nil then
+		local m = script.Parent:FindFirstChild("ShockwaveFx")
+		local ok, mod = false, nil
+		if m and m:IsA("ModuleScript") then
+			ok, mod = pcall(require, m)
+		end
+		shock = if ok then mod else false
+	end
+	if shock and type(shock.handle) == "function" then
+		shock.handle(kind, data)
+	end
+end
+
 remote.OnClientEvent:Connect(function(kind: unknown, data: unknown)
 	if type(kind) ~= "string" then
 		return
 	end
 	if string.sub(kind, 1, 6) == "Rocket" then
 		onRocket(kind, data)
+	elseif kind == "Shockwave" or kind == "ShockHit" or kind == "Knock" then
+		forwardShock(kind, data)
 	else
 		forward(kind, data)
 	end
