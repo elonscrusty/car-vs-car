@@ -685,7 +685,7 @@ function Hud.boardRows(list: { { [string]: any } }): { { [string]: any } }
 	for i, e in list do
 		if i <= BOARD_TOP or e.me == true then
 			local row = table.clone(e)
-			row.rank = i
+			row.rank = e.rank or i -- (SmashScreens.rank: ties share a place, as the chip does)
 			table.insert(out, row)
 		end
 		if i > BOARD_TOP and e.me == true then
@@ -737,9 +737,14 @@ function Hud.match(data: { [string]: any }, actions: Screen.Actions?): Screen.Ha
 		local function setPlace(p: number, total: number, smashes: number?)
 			local was = big.Text
 			local placed = smashes ~= 0
-			go.Visible = not placed
-			big.Visible = placed
-			of.Visible = placed
+			-- (each with its drop: GO SMASH!'s shadow stayed behind 3RD / 8, Studio round 6)
+			for l, on in { [go] = not placed, [big] = placed, [of] = placed } do
+				l.Visible = on
+				local d = placeSpot:FindFirstChild(l.Name .. "Drop")
+				if d and d:IsA("GuiObject") then
+					d.Visible = on
+				end
+			end
 			Base.setText(big, UiMotion.place(p))
 			Base.setText(of, "/ " .. tostring(total))
 			if was ~= "" and was ~= big.Text and placed then
