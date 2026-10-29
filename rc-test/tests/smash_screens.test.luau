@@ -455,3 +455,12 @@ test("Studio round 10: the TAP FIRE! card sits just above FIRE, out of the middl
 	end
 	truthy(not UiScreens.overlap(tip, SmashScreens.piece("howTo", "ArrowFire")), "covers its arrow")
 end)
+
+test("end screen: the panels and LEAVE keep 8 in from the screen edges (Studio qa_r70)", function()
+	for _, p in SmashScreens.get("matchEnd").pieces do
+		if p.name == "Top3" or p.name == "Rewards" or p.name == "Leave" then
+			truthy(p.x >= 8 and p.x + p.w <= UiScreens.W - 8, p.name .. " hugs a side edge")
+			truthy(p.y + p.h <= UiScreens.H - 8, p.name .. " hugs the bottom")
+		end
+	end
+end)

@@ -59,12 +59,14 @@ local LIST: { Screen } = {
 			-- the winner's kart on show in the middle, rays behind it
 			p("Winner", 258, 100, 240, 170, { anchor = "c" }),
 			-- 1st, 2nd, 3rd with smashes
-			p("Top3", 0, 104, 250, 168, { anchor = "l" }),
+			-- (8 in from the edges: on a wide computer their outlines were cut at the screen edge,
+			-- Studio qa_r70)
+			p("Top3", 8, 104, 242, 168, { anchor = "l" }),
 			-- what you got: coins, XP, your place
-			p("Rewards", 506, 104, 250, 168, { anchor = "r" }),
+			p("Rewards", 506, 104, 242, 168, { anchor = "r" }),
 			p("Count", 128, 292, 500, 40, { anchor = "b" }),
 			-- (56 tall: 44 px, a thumb, on a phone)
-			p("Leave", 636, 328, 120, 56, { anchor = "br", tone = "white", text = "LEAVE" }),
+			p("Leave", 628, 326, 120, 56, { anchor = "br", tone = "white", text = "LEAVE" }),
 		},
 	},
 	{
