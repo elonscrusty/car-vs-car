@@ -17,7 +17,7 @@
 local ToyCars = {}
 
 type V3 = { x: number, y: number, z: number }
-export type Opts = { shape: string?, rot: V3?, material: string?, face: boolean? }
+export type Opts = { shape: string?, rot: V3?, material: string?, face: boolean?, mesh: string? }
 -- puts one piece: name, size, middle x y z, colour, options
 export type Put = (
 	name: string,
@@ -123,7 +123,7 @@ end
 
 -- the hat spot (CarBuilder's "Topper"), at size 1: about a roof's height above the ground, at
 -- the front of the roof
-ToyCars.HEAD_TOP = 1.8
+ToyCars.HEAD_TOP = 2.25 -- (the kid sits up: the big head and smile show over the body)
 ToyCars.TOPPER_Z = -0.05
 
 type Build = (p: Put, c: { number }, a: { number }, l: number) -> ()
@@ -133,7 +133,9 @@ local SHAPES: { [string]: Build } = {}
 -- carter's picture (10-28): open karts with a Roblox kid driving, shirt and cap in the car's
 -- colour, yellow head. The cap's top is the hat spot (HEAD_TOP, TOPPER_Z), whatever the shape.
 local SKIN = { 245, 205, 48 } -- Roblox yellow
-local FACE: Opts = { face = true }
+-- the classic rounded Roblox head (a SpecialMesh "Head" on the part) with the smile
+local HEAD: Opts = { mesh = "Head", face = true }
+local ROUND: Opts = { shape = "Cylinder", rot = v(0, 0, 90) } -- standing up: its height is size.x
 -- The kid's shirt and cap: the car's colour, unless that is near his yellow head (a yellow or
 -- orange car: Studio 10-29 "the kid blends into the car"), then the accent (white if that's yellow
 -- too). A copy, so a glow car's accent wrapper doesn't light the shirt.
@@ -150,9 +152,13 @@ end
 
 local function driver(p: Put, c: { number }, a: { number })
 	local shirt = ToyCars.outfit(c, a)
-	p("Driver", v(1.1, 0.6, 0.5), 0, 1.02, ToyCars.TOPPER_Z + 0.1, shirt)
-	p("Head", v(0.66, 0.6, 0.66), 0, ToyCars.HEAD_TOP - 0.44, ToyCars.TOPPER_Z, SKIN, FACE)
-	p("Cap", v(0.74, 0.14, 0.84), 0, ToyCars.HEAD_TOP - 0.07, ToyCars.TOPPER_Z - 0.08, shirt)
+	-- all round, not Lego (LOOK-BIBLE rule 1, auditor 10-29 "cube-head driver"): round shoulders,
+	-- the classic Roblox head with the smile, a round cap
+	-- (a big head, Smash Karts style: it is what you see of the kid over the body)
+	p("Driver", v(0.36, 1.1, 1.1), 0, 1.05, ToyCars.TOPPER_Z + 0.1, shirt, ROUND)
+	p("Head", v(0.72, 0.64, 0.72), 0, ToyCars.HEAD_TOP - 0.62, ToyCars.TOPPER_Z, SKIN, HEAD)
+	-- (a ball sunk in the head's top: its top half shows as a round cap)
+	p("Cap", v(0.8, 0.8, 0.8), 0, ToyCars.HEAD_TOP - 0.4, ToyCars.TOPPER_Z, shirt, BALL)
 end
 
 -- Hot-rod: long hood, twin stripes, the driver out in the open.
@@ -209,7 +215,7 @@ end
 SHAPES.buggy = function(p, c, a, l)
 	p("Body", v(1.7, 0.45, 2.9), 0, 0.8 + l, 0.15, c)
 	p("Nose", v(1.7, 0.4, 0.7), 0, 0.82 + l, -1.65, c, WEDGE)
-	p("Bumper", v(2, 0.18, 0.18), 0, 0.6 + l, -1.95, a)
+	p("Bumper", v(2, 0.2, 0.2), 0, 0.6 + l, -1.95, a, CYL)
 	driver(p, c, a)
 	for _, x in { -0.72, 0.72 } do
 		for _, z in { 0.9 } do
@@ -237,8 +243,8 @@ SHAPES.truck = function(p, c, a, l)
 	p("Body", v(2, 0.55, 3.5), 0, 0.62 + l, 0, c)
 	driver(p, c, a)
 	p("LightBar", v(1.4, 0.14, 0.18), 0, 0.97 + l, -1.5, AMBER, NEON)
-	p("BumperF", v(2, 0.25, 0.25), 0, 0.35 + l, -1.8, a)
-	p("BumperR", v(2, 0.25, 0.25), 0, 0.35 + l, 1.8, a)
+	p("BumperF", v(2, 0.3, 0.3), 0, 0.35 + l, -1.8, a, CYL)
+	p("BumperR", v(2, 0.3, 0.3), 0, 0.35 + l, 1.8, a, CYL)
 	for _, x in { -0.6, 0.6 } do
 		p("Headlight", v(0.4, 0.16, 0.06), x, 0.72 + l, -1.76, LIGHT, NEON)
 	end

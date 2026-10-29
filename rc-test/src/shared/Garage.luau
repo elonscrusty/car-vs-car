@@ -23,6 +23,7 @@ export type Piece = {
 	collide: boolean,
 	light: number?, -- PointLight range, for lamps
 	face: boolean?, -- a Roblox smiley on its front (-Z) face: the toy kart driver's head
+	mesh: string?, -- a SpecialMesh of this Enum.MeshType name on it ("Head": the classic round head)
 }
 
 -- Loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
@@ -373,6 +374,7 @@ export type Opts = {
 	collide: boolean?,
 	light: number?,
 	face: boolean?,
+	mesh: string?,
 }
 export type Add = (
 	group: string,
@@ -399,6 +401,7 @@ function Garage.adder(out: { Piece }): Add
 			collide = if o.collide == nil then true else o.collide,
 			light = o.light,
 			face = o.face,
+			mesh = o.mesh,
 		})
 	end
 end
@@ -437,8 +440,12 @@ function Garage.toyCar(
 		col: { number },
 		o: ToyCars.Opts?
 	)
-		local opts: Opts =
-			{ shape = o and o.shape, material = o and o.material, face = o and o.face }
+		local opts: Opts = {
+			shape = o and o.shape,
+			material = o and o.material,
+			face = o and o.face,
+			mesh = o and o.mesh,
+		}
 		local rot = o and o.rot or v(0, 0, 0)
 		opts.rot = v(rot.x, rot.y + yaw, rot.z)
 		opts.collide = false
@@ -457,7 +464,7 @@ function Garage.toyCar(
 			put("Wheel", v(ww, wd, wd), sx, wd / 2, wz, C.tire, { shape = "Cylinder" })
 		end
 		-- one hub bar through the axle shows as both wheels' rims (hidden in the body between)
-		local hub = 0.45 * wd
+		local hub = 0.62 * wd -- (a big rim, like carter's picture: not a bare tyre)
 		put(
 			"Hub",
 			v(2 * wx + ww + 0.02, hub, hub),
@@ -1048,6 +1055,12 @@ function Garage.makeParts(pieces: { Piece }, model: Instance, origin: CFrame): {
 			light.Brightness = 1.2
 			light.Color = part.Color
 			light.Parent = part
+		end
+		if p.mesh then
+			local mesh = Instance.new("SpecialMesh")
+			mesh.MeshType = assert((Enum.MeshType :: any)[p.mesh], p.mesh)
+			mesh.Scale = Vector3.new(1.25, 1.25, 1.25) -- (a Roblox character's own head size in its part)
+			mesh.Parent = part
 		end
 		if p.face then
 			local face = Instance.new("Decal")
