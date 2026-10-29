@@ -390,4 +390,274 @@ function KitWindows.reveal(data: { [string]: any }, actions: Screen.Actions?): S
 	end)
 end
 
+-- ===== Daily: 7 day cards (got dim with a check, today ringed, day 7 gold), CLAIM, the track =====
+
+-- data: { days = { { day, coins, state = "got" | "today" | "later", crate } } (7), today: n,
+--   claimWords? } (the gift is already paid by the server: CLAIM only takes it)
+-- actions: claim(), close()
+function KitWindows.daily(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
+	return Screen.open("daily", "window", false, function(g)
+		local canvas = g.canvas
+		local cp = piece("kitDaily", "Close")
+		Kit.close(spot(canvas, "kitDaily", "Close"), 0, 0, Screen.act(actions, "close"), cp.w)
+		local dp = piece("kitDaily", "Days")
+		local holder = spot(canvas, "kitDaily", "Days")
+		local days: { { [string]: any } } = data.days or {}
+		local n = math.max(#days, 1)
+		local gap = 8
+		local cw = (dp.w - (n - 1) * gap) / n
+		local cards: { GuiObject } = {}
+		for i, d in days do
+			local x = (i - 1) * (cw + gap)
+			local last = i == #days
+			-- (each card in its own holder, so its drop and glow rise with it)
+			local box = Base.box(holder, "Day" .. i, x, 0, cw, dp.h, 2)
+			local card = Kit.plate(box, "Card", 0, 0, cw, dp.h, d.state == "today")
+			if last then
+				Kit.face(card, UiTheme.CHROME.tabGold)
+			end
+			if d.state == "today" then
+				-- (the kit rings today in green)
+				local ring = card:FindFirstChild("Ring")
+				for _, st in if ring then ring:GetDescendants() else {} do
+					if st:IsA("UIStroke") then
+						st.Color = Base.color("lime")
+					end
+				end
+			end
+			Base.text(card, "Head", 4, 8, cw - 8, 22, `DAY {d.day}`, { stroke = 3, z = 5 })
+			local slot = Base.fill(
+				card,
+				"Slot",
+				8,
+				38,
+				cw - 16,
+				dp.h - 82,
+				Kit.hex(UiTheme.CHROME.track[2]),
+				3
+			)
+			Base.corner(slot, 10)
+			local s = math.min(cw - 24, dp.h - 96)
+			local icon = Icons.make(
+				slot,
+				if d.crate then "crate" else "coin",
+				(cw - 16 - s) / 2,
+				(dp.h - 82 - s) / 2,
+				s,
+				{
+					rarity = "common", -- (the free crate the server gives)
+					z = 4,
+				}
+			)
+			if d.state == "today" then
+				Anim.bob(icon, UiTheme.MOTION.carBob, 4)
+			end
+			Base.text(card, "Coins", 4, dp.h - 38, cw - 8, 26, `+{UiMotion.commas(d.coins or 0)}`, {
+				stroke = 3,
+				z = 5,
+			})
+			if d.state == "got" then
+				local dim = Base.fill(card, "Dim", 0, 0, cw, dp.h, INK, 6)
+				dim.BackgroundTransparency = 0.5
+				Base.corner(dim, 14)
+				Icons.make(card, "check", (cw - 44) / 2, (dp.h - 44) / 2, 44, { z = 7 })
+			end
+			table.insert(cards, box)
+		end
+		task.defer(function()
+			Anim.cascade(cards)
+		end)
+		placedButton(canvas, "kitDaily", "Claim", Screen.act(actions, "claim"))
+		-- the streak track: a dot a day, lit up to today
+		local tp = piece("kitDaily", "Track")
+		local track = spot(canvas, "kitDaily", "Track")
+		local today = math.clamp(data.today or 1, 1, n)
+		local bh = 14
+		local bar = Kit.bar(track, "Bar", 0, (tp.h - bh) / 2, tp.w, bh, "go", { still = true })
+		bar.ClipsDescendants = false
+		Kit.setBar(bar, if n > 1 then (today - 1) / (n - 1) else 1, true)
+		for i = 1, n do
+			local ds = if i == today then 30 else 22
+			local cx = if n > 1 then (i - 1) / (n - 1) * (tp.w - 30) + 15 else tp.w / 2
+			local dot = Base.fill(
+				track,
+				"Dot" .. i,
+				cx - ds / 2,
+				(tp.h - ds) / 2,
+				ds,
+				ds,
+				Base.color(if i <= today then "go" else "barEmpty"),
+				4
+			)
+			Base.corner(dot)
+			Base.outline(dot, UiTheme.OUTLINE.small)
+		end
+		local np = piece("kitDaily", "Note")
+		Base.text(
+			canvas,
+			"Note",
+			np.x,
+			np.y + 8,
+			np.w,
+			np.h - 16,
+			data.claimWords or SmashScreens.KIT_WORDS.dailyNote,
+			{
+				stroke = 3,
+				z = 3,
+			}
+		)
+		return {}
+	end)
+end
+
+-- ===== Quests (today's jobs): a row each with its icon tile, words, bar and gold coin pill =====
+
+-- data: { title?, timer?, rows = { { icon, words, have, need, reward, done } } }
+-- actions: close()
+function KitWindows.quests(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
+	return Screen.open("quests", "window", false, function(g)
+		local canvas = g.canvas
+		local tp = piece("kitQuests", "Title")
+		Kit.title(
+			spot(canvas, "kitQuests", "Title"),
+			0,
+			0,
+			tp.w,
+			tp.h,
+			data.title or "JOBS",
+			nil,
+			"l"
+		)
+		if data.timer and data.timer ~= "" then
+			local mp = piece("kitQuests", "Timer")
+			Base.text(
+				canvas,
+				"Timer",
+				mp.x,
+				mp.y + 6,
+				mp.w,
+				mp.h - 12,
+				`NEW JOBS IN {data.timer}`,
+				{
+					stroke = 3,
+					z = 3,
+				}
+			)
+		end
+		local cp = piece("kitQuests", "Close")
+		Kit.close(spot(canvas, "kitQuests", "Close"), 0, 0, Screen.act(actions, "close"), cp.w)
+		local lp = piece("kitQuests", "List")
+		local list = spot(canvas, "kitQuests", "List")
+		local rows: { { [string]: any } } = data.rows or {}
+		if #rows == 0 then
+			Base.text(
+				list,
+				"Empty",
+				0,
+				120,
+				lp.w,
+				40,
+				SmashScreens.KIT_WORDS.noJobs,
+				{ stroke = 3, z = 3 }
+			)
+		end
+		local n = math.max(#rows, 1)
+		local gap = 10
+		local rh = math.min(78, (lp.h - (n - 1) * gap) / n)
+		local shown: { GuiObject } = {}
+		for i, r in rows do
+			local box =
+				Base.box(list, "Row" .. i, 6, (i - 1) * (rh + gap) + 4, lp.w - 12, rh - 8, 2)
+			local row = Kit.navyPanel(box, "Panel", 0, 0, lp.w - 12, rh - 8, 14)
+			local rw = lp.w - 12
+			local ih = rh - 22
+			local tile = Base.fill(
+				row,
+				"Icon",
+				8,
+				7,
+				ih,
+				ih,
+				Base.color(if r.done then "lime" else "blue"),
+				4
+			)
+			Base.corner(tile, 10)
+			Base.outline(tile, UiTheme.OUTLINE.small)
+			Kit.gloss(tile, tile.BackgroundColor3, 0.3)
+			Icons.make(tile, r.icon or "coin", ih * 0.12, ih * 0.12, ih * 0.76, { z = 5 })
+			local left = ih + 22
+			local pw = 130
+			local mid = rw - left - pw - 22
+			Base.text(
+				row,
+				"Words",
+				left,
+				6,
+				mid,
+				(rh - 8) * 0.38,
+				r.words or "",
+				{ stroke = 3, align = "l", z = 5 }
+			)
+			local need = math.max(r.need or 1, 1)
+			local have = math.clamp(r.have or 0, 0, need)
+			local bar = Kit.bar(
+				row,
+				"Bar",
+				left,
+				(rh - 8) * 0.52,
+				mid,
+				(rh - 8) * 0.34,
+				if r.done then "lime" else "blue",
+				{
+					z = 5,
+				}
+			)
+			Kit.setBar(bar, have / need, true)
+			Base.text(
+				bar,
+				"Count",
+				0,
+				2,
+				mid,
+				(rh - 8) * 0.34 - 4,
+				`{have}/{need}`,
+				{ stroke = 2.5, z = 6 }
+			)
+			local pill = Base.fill(
+				row,
+				"Reward",
+				rw - pw - 10,
+				7,
+				pw,
+				rh - 22,
+				Kit.hex(UiTheme.CHROME.track[2]),
+				4
+			)
+			Base.corner(pill, 12)
+			Base.outline(pill, 2.5, Kit.hex(UiTheme.CHROME.cardSelected))
+			local ps = rh - 34
+			Icons.make(pill, if r.done then "check" else "coin", 8, 6, ps, { z = 5 })
+			Base.text(
+				pill,
+				"Coins",
+				ps + 14,
+				8,
+				pw - ps - 22,
+				ps - 4,
+				if r.done then "DONE!" else UiMotion.commas(r.reward or 0),
+				{
+					stroke = 3,
+					align = "l",
+					z = 5,
+				}
+			)
+			table.insert(shown, box)
+		end
+		task.defer(function()
+			Anim.cascade(shown)
+		end)
+		return {}
+	end)
+end
+
 return KitWindows

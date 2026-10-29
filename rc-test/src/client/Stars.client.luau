@@ -17,6 +17,8 @@ local Ui = script.Parent:WaitForChild("Ui")
 local Base = require(Ui:WaitForChild("Base"))
 local Kit = require(Ui:WaitForChild("Kit"))
 local Windows = require(Ui:WaitForChild("Screens"):WaitForChild("Windows"))
+local KitWindows = require(Ui:WaitForChild("Screens"):WaitForChild("KitWindows"))
+local SmashScreens = require(ReplicatedStorage.Shared.SmashScreens)
 local Screen = require(Ui:WaitForChild("Screen"))
 local StageGate = require(script.Parent:WaitForChild("StageGate"))
 local Profile = require(ReplicatedStorage.Shared.Profile)
@@ -629,13 +631,20 @@ local function showDaily(coins: number, streak: number, boost: number, crate: bo
 				h.close()
 			end
 		end
-		h = Windows.daily({
-			streak = streak,
-			today = today,
-			day7 = if today >= #DAILY then `+{coins} TODAY!` else `{DAILY[#DAILY]} COINS`,
-			days = tiles,
-			claimWords = if crate then `+{coins} + CRATE!` else `+{coins} COINS!`,
-		}, { claim = close, close = close })
+		-- (Smash: carter's kit v41 daily, the same gift and the 7 real days)
+		h = if (Features :: any).SMASH == true
+			then KitWindows.daily({
+				days = SmashScreens.dailyDays(DAILY, today, coins, crate),
+				today = today,
+				claimWords = if crate then `+{coins} + CRATE!` else `+{coins} COINS!`,
+			}, { claim = close, close = close })
+			else Windows.daily({
+				streak = streak,
+				today = today,
+				day7 = if today >= #DAILY then `+{coins} TODAY!` else `{DAILY[#DAILY]} COINS`,
+				days = tiles,
+				claimWords = if crate then `+{coins} + CRATE!` else `+{coins} COINS!`,
+			}, { claim = close, close = close })
 		-- a match started with it still up (a re-join put you straight in, Studio round 4): it
 		-- steps away and comes back in the garage or yard, after the match
 		watch = me:GetAttributeChangedSignal("InMatch"):Connect(function()

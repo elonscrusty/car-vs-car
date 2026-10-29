@@ -706,6 +706,26 @@ local function openJobs()
 			state = if l.done then "done" else "go",
 		})
 	end
+	if SMASH then
+		local list = {}
+		for _, l in jobLines do
+			local need = l.goal or 1
+			table.insert(list, {
+				icon = SmashScreens.jobIcon(l.text),
+				words = l.text,
+				have = math.min(l.have or 0, need),
+				need = need,
+				reward = l.coins or 0,
+				done = l.done == true,
+			})
+		end
+		KitWindows.quests({
+			title = "JOBS",
+			timer = if jobsResetAt > 0 then clock(jobsResetAt - os.time()) else "",
+			rows = list,
+		}, { close = Screen.closeOver })
+		return
+	end
 	Windows.quests({
 		title = "Jobs",
 		tabs = { "TODAY" },

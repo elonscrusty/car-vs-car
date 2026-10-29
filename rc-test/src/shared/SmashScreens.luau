@@ -193,6 +193,43 @@ local LIST: { Screen } = {
 			p("Again", 516, 306, 240, 58, { anchor = "br", tone = "white", text = "OPEN ANOTHER" }),
 		},
 	},
+	-- the daily gift: 7 day cards (day 7 gold), CLAIM and the streak track under them
+	{
+		id = "kitDaily",
+		n = 108,
+		title = "Daily",
+		kind = "window",
+		gameplay = false,
+		pieces = {
+			p("Close", 700, 0, 52, 52, { anchor = "tr", tap = true }),
+			-- (today's glow reaches ~10 px past its card: clear of Close and CLAIM)
+			p("Days", 8, 62, 740, 180, { anchor = "t" }),
+			p(
+				"Claim",
+				8,
+				254,
+				180,
+				66,
+				{ anchor = "bl", tone = "lime", text = "CLAIM", main = true }
+			),
+			p("Track", 200, 268, 548, 38, { anchor = "b" }),
+			p("Note", 200, 318, 548, 40, { anchor = "b" }),
+		},
+	},
+	-- today's jobs: a row each (icon, words, bar, the coins it pays)
+	{
+		id = "kitQuests",
+		n = 109,
+		title = "Jobs",
+		kind = "window",
+		gameplay = false,
+		pieces = {
+			p("Title", 8, 0, 240, 54, { anchor = "tl" }),
+			p("Timer", 260, 8, 300, 40, { anchor = "t" }),
+			p("Close", 700, 0, 52, 52, { anchor = "tr", tap = true }),
+			p("List", 8, 62, 740, 322, { anchor = "b" }),
+		},
+	},
 }
 
 SmashScreens.LIST = LIST
@@ -422,11 +459,50 @@ function SmashScreens.oddsRows(odds: { [string]: number }): { OddsRow }
 	return out
 end
 
+-- The daily gift's 7 days, from Profile.DAILY (coins a day): "got" before today, "today" (its
+-- coins as the server paid them, a boost included; crate: a free crate came too), "later" after.
+export type Day = { day: number, coins: number, state: string, crate: boolean }
+function SmashScreens.dailyDays(
+	daily: { number },
+	today: number,
+	coins: number?,
+	crate: boolean?
+): { Day }
+	local out: { Day } = {}
+	local t = math.clamp(today, 1, #daily)
+	for i, c in daily do
+		out[i] = {
+			day = i,
+			coins = if i == t then coins or c else c,
+			state = if i < t then "got" elseif i == t then "today" else "later",
+			crate = i == t and crate == true,
+		}
+	end
+	return out
+end
+
+-- A job line's icon (DailyJobs' words; Smash jobs first)
+function SmashScreens.jobIcon(text: string): string
+	local t = string.lower(text)
+	if t:find("smash") then
+		return "nuke"
+	elseif t:find("crate") then
+		return "crate"
+	elseif t:find("match") or t:find("top 3") or t:find("race") then
+		return "trophy"
+	elseif t:find("spin") or t:find("gumball") then
+		return "mystery"
+	end
+	return "coin"
+end
+
 -- The kit windows' lines (crates give looks, never a win)
 SmashScreens.KIT_WORDS = {
 	shopNote = "Crates change the look only.",
 	oddsNote = "Crates give skins only. They change the look, not speed.",
 	newKart = "NEW KART!",
+	dailyNote = "Come back every day for more coins!",
+	noJobs = "No jobs yet. Play a match!",
 }
 
 return SmashScreens
