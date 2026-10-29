@@ -26,6 +26,7 @@ local LobbyProps = {}
 LobbyProps.TOWERS = { { x = -21, z = 19 }, { x = 21, z = 19 } } -- banks face -Z, toward the spawn
 LobbyProps.TOWER_SCALE = 0.6 -- the preview tower is 33 high; the lobby's box tops out at 21
 LobbyProps.CLAW = { x = 40, z = -27 } -- the crane's base; its arm reaches toward -X, to the pile
+LobbyProps.CLAW_SCALE = 0.9 -- (the box test reads a tilted arm as upright: the preview forearm would top 21)
 LobbyProps.COLORS = {
 	steel = { 42, 45, 58 },
 	concrete = { 108, 108, 124 },
@@ -347,7 +348,10 @@ function LobbyProps.parts(add: Garage.Add)
 	for i, t in LobbyProps.TOWERS do
 		tower(placed(add, t.x, t.z, LobbyProps.TOWER_SCALE, true), "FloodTower" .. i)
 	end
-	claw(placed(add, LobbyProps.CLAW.x, LobbyProps.CLAW.z, 1, true), "ScrapClaw")
+	claw(
+		placed(add, LobbyProps.CLAW.x, LobbyProps.CLAW.z, LobbyProps.CLAW_SCALE, true),
+		"ScrapClaw"
+	)
 end
 
 return LobbyProps
