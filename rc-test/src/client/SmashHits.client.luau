@@ -256,10 +256,15 @@ end)
 -- ===== the victim flash and the floating number =====
 local flashes: { [Model]: Highlight } = {}
 local function flashKart(id: number)
-	local m = kartOf(id)
-	if not m then
+	local body = kartOf(id)
+	if not body then
 		return
 	end
+	-- the kart you SEE: other karts are drawn by OtherCars (workspace.OtherCars.Car_<id>); the
+	-- Car_<id> body is the small physics one (Studio 10-29: a flash on it never showed)
+	local others = workspace:FindFirstChild("OtherCars")
+	local seen = others and others:FindFirstChild(body.Name)
+	local m: Model = if seen and seen:IsA("Model") then seen else body
 	local h = flashes[m]
 	if not h or h.Parent ~= m then
 		local new = Instance.new("Highlight")

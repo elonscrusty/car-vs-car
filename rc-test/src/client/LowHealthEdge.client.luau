@@ -19,6 +19,8 @@ local gui = Instance.new("ScreenGui")
 gui.Name = "LowHealthEdge"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
+gui.ScreenInsets = Enum.ScreenInsets.None -- (the whole screen, under the top bar too)
+gui:SetAttribute("NoKart", true) -- (KartSkin's rims and pop scale stay off: Studio 10-29 saw lines)
 gui.DisplayOrder = Base.ORDER.hud - 2 -- (under the HUD and its back layer)
 gui.Enabled = false
 
@@ -33,6 +35,7 @@ local function side(name: string, rotation: number, pos: UDim2, size: UDim2, anc
 	f.Position = pos
 	f.Size = size
 	f.Active = false
+	f:SetAttribute("NoKart", true)
 	local g = Instance.new("UIGradient")
 	g.Rotation = rotation
 	g.Transparency = NumberSequence.new({
@@ -54,6 +57,7 @@ local right = side("Right", 180, UDim2.fromScale(1, 0), UDim2.fromScale(0, 1), V
 local rimFrame = Instance.new("Frame")
 rimFrame.Name = "Rim"
 rimFrame.BackgroundTransparency = 1
+rimFrame:SetAttribute("NoKart", true)
 rimFrame.Position = UDim2.fromOffset(KitWorld.EDGE_RIM_PX, KitWorld.EDGE_RIM_PX)
 rimFrame.Size = UDim2.new(1, -2 * KitWorld.EDGE_RIM_PX, 1, -2 * KitWorld.EDGE_RIM_PX)
 local rim = Instance.new("UIStroke")
