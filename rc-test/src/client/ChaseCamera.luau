@@ -110,7 +110,6 @@ end
 -- the match camera's fixed numbers (shared/ArenaCam), worked out once
 local ARENA_BACK, ARENA_UP = ArenaCam.offset()
 local STEEP_BACK, STEEP_UP = ArenaCam.offset(nil, ArenaCam.STEEP)
-local ARENA_AIM = ArenaCam.aimAhead()
 
 local function flat(v: Vector3): Vector3
 	local f = Vector3.new(v.X, 0, v.Z)
@@ -155,7 +154,9 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 	-- how far out along `out` (camera minus focus) the camera can go before a wall or the floor,
 	-- keeping WALL_GAP off the surface; never further than `out`
 	local function arenaWant(out: Vector3): Vector3
-		local model = workspace:FindFirstChild("SmashArena")
+		local model = if arenaModel and arenaModel.Parent == workspace
+			then arenaModel
+			else workspace:FindFirstChild("SmashArena")
 		if model ~= arenaModel then
 			arenaModel = model
 			arenaParams.FilterDescendantsInstances = if model
@@ -175,7 +176,9 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 				return out
 			end
 			local inst = hit.Instance
-			if not SeeKart.PROPS[inst.Name] then
+			-- (a wall pillar stands in the wall: it counts as the wall, so the camera never
+			-- steps past it into the wall behind)
+			if not SeeKart.PROPS[inst.Name] or inst.Name == "WallPillar" then
 				-- the spot just off the surface, back along the ray
 				return out * ArenaCam.reach(hit.Distance + (len - left), len)
 			end
@@ -500,16 +503,25 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 			local dir = if len > 1e-3 and wantLen > 1e-3
 				then arenaOff.Unit:Lerp(want.Unit, 1 - math.exp(-12 * dt))
 				else want
-			arenaOff = if dir.Magnitude > 1e-3 then arenaWant(dir.Unit * len) else want
-			local share = arenaOff.Magnitude / ArenaCam.DISTANCE
+			-- (settled on `want`: it was just checked, no second check)
+			arenaOff = if len == wantLen and dir:FuzzyEq(want.Unit, 1e-4)
+				then want
+				elseif dir.Magnitude > 1e-3 then arenaWant(dir.Unit * len)
+				else want
+			local offLen = arenaOff.Magnitude
 			local vel = body.AssemblyLinearVelocity
 			local flatVel = Vector3.new(vel.X, 0, vel.Z)
 			local wantLean = if flatVel.Magnitude > 0.5
 				then flatVel.Unit * ArenaCam.lead(flatVel.Magnitude)
 				else Vector3.zero
 			lean += (wantLean - lean) * (1 - math.exp(-ArenaCam.LEAD_EASE * dt))
-			-- (the aim shrinks with the camera, so a pulled-in camera keeps the kart low too)
-			local aLook = focus + heading * ARENA_AIM * share + lean
+			-- (the aim fits the camera's real distance and pitch, so a pulled-in or swung-up
+			-- camera keeps the kart in the lower third too)
+			local flatOff = Vector3.new(arenaOff.X, 0, arenaOff.Z).Magnitude
+			local aim = if offLen > 1e-3
+				then ArenaCam.aimAhead(offLen, math.deg(math.atan2(arenaOff.Y, flatOff)))
+				else 0
+			local aLook = focus + heading * aim + lean
 			local aFov = ArenaCam.FOV
 				+ ArenaCam.FOV_FAST * CarMath.clamp(flatSpeed / Tuning.topSpeed, 0, 1)
 			if arenaW >= 1 then

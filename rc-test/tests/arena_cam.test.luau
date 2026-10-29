@@ -77,7 +77,7 @@ end)
 
 test("arena cam: ChaseCamera and Main use it only while InMatch, still a chase cam", function()
 	local chase = fs.readFile("src/client/ChaseCamera.luau")
-	truthy(string.find(chase, "function cam.setArena(on: boolean)", 1, true) ~= nil)
+	truthy(string.find(chase, "function cam.setArena(on: boolean, now: boolean?)", 1, true) ~= nil)
 	truthy(
 		string.find(chase, "-heading * ARENA_BACK", 1, true) ~= nil,
 		"behind the kart, turns with it"
