@@ -120,9 +120,9 @@ ArenaData.TRUNK = 5 -- the trunk's thickness, big units
 ArenaData.ROCKS = {} :: { { number } }
 ArenaData.CRATES = {} :: { Pt }
 ArenaData.CRATE = 4
-ArenaData.BARRELS = { -- (the row by the sand's east side came out: it held karts, round 9)
-	{ { 92, 88 }, { 100, 96 } },
-} :: { { Pt } }
+-- (the row by the sand's east side came out: it held karts, round 9; the last pair by the sand's
+-- box too: karts circled the box and caught on it, round 13)
+ArenaData.BARRELS = {} :: { { Pt } }
 ArenaData.BARREL_R = 1.5
 
 -- the start arch over the west crosswalk (the road runs north-south there): two solid pillars
