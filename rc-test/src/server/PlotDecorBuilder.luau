@@ -6,6 +6,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Features = require(ReplicatedStorage.Shared.Features)
 local Garage = require(ReplicatedStorage.Shared.Garage)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local PlotDecor = require(ReplicatedStorage.Shared.PlotDecor)
@@ -45,8 +46,20 @@ function PlotDecorBuilder.build()
 		local theme = PlotDecor.theme(slot.id)
 		local wall = Color3.fromRGB(theme.wall[1], theme.wall[2], theme.wall[3])
 		local pillar = Color3.fromRGB(theme.pillar[1], theme.pillar[2], theme.pillar[3])
+		local K = PlotDecor.SMASH
 		for _, d in plot:GetChildren() do
-			if d:IsA("BasePart") and isBaseWall(d, pivot) then
+			if Features.SMASH and d:IsA("BasePart") then
+				-- (LOOK-BIBLE: navy walls inside the thick skirts, a warm grey base, a sand walk-in)
+				local c = if isBaseWall(d, pivot)
+					then K.navy
+					elseif d.Name == "Ground" then K.ground
+					elseif d.Name == "Entrance" then K.entrance
+					else nil
+				if c then
+					d.Color = Color3.fromRGB(c[1], c[2], c[3])
+					d.Material = Enum.Material.SmoothPlastic
+				end
+			elseif d:IsA("BasePart") and isBaseWall(d, pivot) then
 				d.Color = wall
 				if slot.id == "rock" then
 					d.Material = Enum.Material.WoodPlanks

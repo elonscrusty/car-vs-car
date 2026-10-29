@@ -6,7 +6,8 @@
 -- empty one), and the crate sits on its pedestal at the back, in line with the gate. Walk up to a
 -- kart: PICK THIS KART; walk up to the crate: OPEN CRATE (the crate window, with its odds); walk
 -- up to the turntable: CUSTOMIZE (WINDOWS' kart window).
--- Low-poly look (FINISH-JOBS LOOK RULE): flat octagons, SmoothPlastic only, no Neon, no words on
+-- Look (review/LOOK-BIBLE.md): round discs, the palette, a two-tone sand floor, a pink carpet to
+-- the hero kart; SmoothPlastic, Neon only for the turntable's glow ring, no words on
 -- the models.
 -- Plain numbers and Garage pieces (Lune tests load this): PlotGarageBuilder (server) builds the
 -- floor, the stands and the crate; PlotShowroom.client puts the karts on and adds the prompts.
@@ -35,19 +36,20 @@ end
 local PlotShowroom = {}
 
 -- the palette (LOOK RULE)
--- warm grey paving, like the lobby's sandy streets (Lead 10-29: the near-white read as snow)
-local FLOOR = { 206, 190, 166 }
-local NAVY = { 35, 45, 80 }
-local SKY = { 90, 180, 255 }
-local PINK = { 255, 90, 170 }
-local WHITE = { 245, 245, 250 }
-local YELLOW = { 255, 205, 50 }
-local RED = { 230, 50, 60 }
+-- warm sand in two tones, like the lobby's sandy streets (LOOK-BIBLE: no near-white floors)
+local FLOOR = { 236, 206, 152 }
+local BAND = { 214, 184, 132 }
+local NAVY = { 30, 42, 90 }
+local SKY = { 90, 200, 250 }
+local PINK = { 255, 95, 180 }
+local YELLOW = { 255, 210, 63 }
+local RED = { 242, 64, 74 }
 
-PlotShowroom.FLOOR = { x0 = -34, x1 = 34, z0 = -50, z1 = 32, border = 1 }
--- the turntable: an octagon w across, its top at `top`; the kart on it is this much bigger
+PlotShowroom.FLOOR = { x0 = -34, x1 = 34, z0 = -50, z1 = 32, border = 1.5 }
+PlotShowroom.CARPET = 5 -- the pink carpet's width, gate end to turntable
+-- the turntable: a disc w across, its top at `top`; the kart on it is this much bigger
 PlotShowroom.TURNTABLE = { x = 0, z = 6, w = 14, top = 1.3, car = 2.4, spin = 20 }
--- each stand: an octagon w across, its top at `top`
+-- each stand: a disc w across, its top at `top`
 PlotShowroom.STAND = { w = 7, top = 1, car = 1.55 }
 PlotShowroom.CRATE = { x = 0, z = -42, w = 10, size = 5.5 }
 -- walk-up prompts: in reach this close (studs). Stands are 12 apart, so two are never both in
@@ -115,9 +117,9 @@ function PlotShowroom.order(cars: { Entry }, racer: string?): (Entry?, { Entry }
 	return top, rest
 end
 
--- A flat octagon (four boxes turned 0, 45, 90 and 135 degrees), w across, h tall, its top at `top`
--- (`solid`: you can stand on it; low enough to walk up)
-local function octagon(
+-- A flat round disc (a standing cylinder), w across, h tall, its top at `top` (`solid`: you can
+-- stand on it; low enough to walk up)
+local function disc(
 	add: Garage.Add,
 	group: string,
 	name: string,
@@ -127,15 +129,15 @@ local function octagon(
 	h: number,
 	top: number,
 	color: { number },
-	solid: boolean
+	solid: boolean,
+	material: string?
 )
-	local side = w * math.tan(math.rad(22.5))
-	for k = 0, 3 do
-		add(group, name, v(w, h, side), v(x, top - h / 2, z), color, {
-			rot = v(0, k * 45, 0),
-			collide = solid,
-		})
-	end
+	add(group, name, v(h, w, w), v(x, top - h / 2, z), color, {
+		shape = "Cylinder",
+		rot = v(0, 0, 90),
+		collide = solid,
+		material = material,
+	})
 end
 
 -- Everything in the showroom with `stands` stands (PlotShowroom.standCount).
@@ -145,37 +147,78 @@ function PlotShowroom.pieces(stands: number): { Piece }
 	local F = PlotShowroom.FLOOR
 	local fx, fz = (F.x0 + F.x1) / 2, (F.z0 + F.z1) / 2
 	local fw, fd = F.x1 - F.x0, F.z1 - F.z0
-	-- a warm grey floor with a navy edge
-	add("Floor", "Border", v(fw + 2 * F.border, 0.16, fd + 2 * F.border), v(fx, 0.08, fz), NAVY, {
+	-- a warm sand floor in two tones (wide darker bands across it) on a navy lip
+	add("Floor", "Border", v(fw + 2 * F.border, 0.24, fd + 2 * F.border), v(fx, 0.12, fz), NAVY, {
 		collide = false,
 	})
-	add("Floor", "Floor", v(fw, 0.2, fd), v(fx, 0.1, fz), FLOOR, { collide = false })
-	-- the turntable: navy skirt, pink deck, white top
+	add("Floor", "Floor", v(fw, 0.36, fd), v(fx, 0.18, fz), FLOOR, { collide = false })
+	local bands = 7
+	local bw = fd / bands
+	for k = 2, bands, 2 do
+		add("Floor", "FloorBand", v(fw, 0.38, bw), v(fx, 0.19, F.z0 + (k - 0.5) * bw), BAND, {
+			collide = false,
+		})
+	end
+	-- the hero: a pink carpet from the gate end to the turntable, yellow edges
 	local T = PlotShowroom.TURNTABLE
-	octagon(add, "Turntable", "TableSkirt", T.x, T.z, T.w + 1, 0.5, 0.6, NAVY, true)
-	octagon(add, "Turntable", "TableDeck", T.x, T.z, T.w, 0.7, T.top - 0.2, PINK, true)
-	octagon(add, "Turntable", "TableTop", T.x, T.z, T.w - 1.6, 0.2, T.top, WHITE, false)
+	local c0, c1 = T.z + T.w / 2, F.z1
+	local C = PlotShowroom.CARPET
+	add(
+		"Floor",
+		"Carpet",
+		v(C, 0.42, c1 - c0),
+		v(T.x, 0.21, (c0 + c1) / 2),
+		PINK,
+		{ collide = false }
+	)
+	for _, sx in { -1, 1 } do
+		add(
+			"Floor",
+			"CarpetEdge",
+			v(0.6, 0.44, c1 - c0),
+			v(T.x + sx * (C / 2 + 0.3), 0.22, (c0 + c1) / 2),
+			YELLOW,
+			{ collide = false }
+		)
+	end
+	-- the turntable: navy skirt, a pink glow ring, pink deck, yellow top
+	disc(add, "Turntable", "TableSkirt", T.x, T.z, T.w + 2, 0.6, 0.6, NAVY, true)
+	disc(add, "Turntable", "TableGlow", T.x, T.z, T.w + 1.2, 0.2, 0.8, PINK, false, "Neon")
+	disc(add, "Turntable", "TableDeck", T.x, T.z, T.w, 0.6, T.top - 0.2, PINK, true)
+	disc(add, "Turntable", "TableTop", T.x, T.z, T.w - 1.6, 0.2, T.top, YELLOW, false)
 	-- the stands
 	local S = PlotShowroom.STAND
 	for i = 1, math.clamp(stands, 0, #SPOTS) do
 		local p = SPOTS[i]
 		local group = "Stand" .. i
-		octagon(add, group, "StandBase", p.x, p.z, S.w, S.top - 0.2, S.top - 0.2, NAVY, true)
-		octagon(add, group, "StandTop", p.x, p.z, S.w - 0.8, 0.2, S.top, SKY, false)
+		disc(add, group, "StandBase", p.x, p.z, S.w, S.top - 0.2, S.top - 0.2, NAVY, true)
+		disc(add, group, "StandTop", p.x, p.z, S.w - 0.8, 0.2, S.top, SKY, false)
 	end
-	-- the crate on its pedestal: yellow, two navy bands, a red lid
-	local C = PlotShowroom.CRATE
-	local cs = C.size
-	octagon(add, "Crate", "CratePedestal", C.x, C.z, C.w, 1, 1, NAVY, true)
-	add("Crate", "CrateBody", v(cs, cs * 0.8, cs), v(C.x, 1 + cs * 0.4, C.z), YELLOW, {
+	-- the crate on its round pedestal: yellow, two navy bands, round navy corners, a red lid
+	local K = PlotShowroom.CRATE
+	local cs = K.size
+	disc(add, "Crate", "CratePedestal", K.x, K.z, K.w, 1, 1, NAVY, true)
+	add("Crate", "CrateBody", v(cs, cs * 0.8, cs), v(K.x, 1 + cs * 0.4, K.z), YELLOW, {
 		collide = true,
 	})
 	for _, y in { 0.3, 0.6 } do
-		add("Crate", "CrateBand", v(cs + 0.2, 0.5, cs + 0.2), v(C.x, 1 + cs * 0.8 * y, C.z), NAVY, {
+		add("Crate", "CrateBand", v(cs + 0.2, 0.5, cs + 0.2), v(K.x, 1 + cs * 0.8 * y, K.z), NAVY, {
 			collide = false,
 		})
 	end
-	add("Crate", "CrateLid", v(cs + 0.6, 0.8, cs + 0.6), v(C.x, 1 + cs * 0.8 + 0.4, C.z), RED, {
+	for _, sx in { -1, 1 } do
+		for _, sz in { -1, 1 } do
+			add(
+				"Crate",
+				"CrateCorner",
+				v(cs * 0.8, 0.9, 0.9),
+				v(K.x + sx * cs / 2, 1 + cs * 0.4, K.z + sz * cs / 2),
+				NAVY,
+				{ shape = "Cylinder", rot = v(0, 0, 90), collide = false }
+			)
+		end
+	end
+	add("Crate", "CrateLid", v(cs + 0.6, 0.8, cs + 0.6), v(K.x, 1 + cs * 0.8 + 0.4, K.z), RED, {
 		collide = false,
 	})
 	return out

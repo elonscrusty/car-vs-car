@@ -123,13 +123,9 @@ for _, kind in { "race", "drift", "rock" } do
 		kind .. ": Smash: the gate is plain garage posts (navy, no Neon, no race gate model)",
 		function()
 			for _, p in P.parts(kind) do
-				-- (the rock plot keeps its log gate: wood, not a race start)
-				if
-					kind ~= "rock"
-					and p.group == "Arch"
-					and (p.name == "Pillar" or p.name == "Beam")
-				then
-					eq(table.concat(p.color, ","), "35,45,80", p.name)
+				-- (every kind, the rock plot too: LOOK-BIBLE navy, no logs)
+				if p.group == "Arch" and (p.name == "Pillar" or p.name == "Beam") then
+					eq(table.concat(p.color, ","), "30,42,90", p.name)
 				end
 				if
 					(p.group == "Arch" or p.group == "Bunting")
@@ -143,6 +139,20 @@ for _, kind in { "race", "drift", "rock" } do
 			end
 		end
 	)
+
+	test(kind .. ": Smash look bible: SmoothPlastic only, round posts, no thin poles", function()
+		for _, p in P.parts(kind) do
+			local name = `{p.group}/{p.name}`
+			eq(p.material, "SmoothPlastic", name)
+			local thin = math.min(p.size.x, p.size.y, p.size.z)
+			local long = math.max(p.size.x, p.size.y, p.size.z)
+			truthy(not (long > 4 and thin < 0.3 and p.name ~= "NameBoard"), name .. " thin pole")
+			if p.name == "Pillar" or p.name == "Pole" or p.name == "Rail" then
+				eq(p.shape, "Cylinder", name)
+			end
+		end
+		eq(#P.meshes(kind), 0)
+	end)
 
 	test(kind .. ": light on phones (under 66 parts)", function()
 		truthy(#P.parts(kind) < 66, tostring(#P.parts(kind)))
