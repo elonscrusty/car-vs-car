@@ -20,6 +20,7 @@ local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local Garage = require(ReplicatedStorage.Shared.Garage)
 local PlotShowroom = require(ReplicatedStorage.Shared.PlotShowroom)
 local CvcState = require(script.Parent:WaitForChild("CvcState"))
+local CarSkin = require(script.Parent:WaitForChild("CarSkin"))
 
 CvcState.start()
 
@@ -56,7 +57,8 @@ local function crateEvent(): BindableEvent
 	return made
 end
 
--- one toy kart, nose to -z around its bottom middle
+-- one kart, nose to -z around its bottom middle: its real kart (CarSkins) as long as the toy, else
+-- the toy
 local function makeCar(id: string, parent: Instance, scale: number): Model?
 	local info = CarCatalog.get(id) :: any
 	if not info then
@@ -77,6 +79,11 @@ local function makeCar(id: string, parent: Instance, scale: number): Model?
 	local model = groups.Car
 	model.Name = id
 	model.WorldPivot = CFrame.identity
+	local _, toySize = model:GetBoundingBox()
+	local ok, real = pcall(CarSkin.standIn, id, toySize.Z)
+	if ok and real then
+		model = real -- (the toy goes with its holder below)
+	end
 	for _, p in model:GetDescendants() do
 		if p:IsA("BasePart") then
 			p.CanCollide = false
