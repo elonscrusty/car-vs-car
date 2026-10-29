@@ -60,6 +60,7 @@ export type Kart = {
 	respawnAt: number?, -- set while smashed
 	smashes: number,
 	deaths: number,
+	streak: number, -- smashes since it was last smashed (the fire from 3: StreakFire)
 	order: number, -- join order (the last tie-break)
 	lastBy: number?, -- who smashed it last (the killer cam)
 	hitBy: number?, -- who hurt it last, and when (bots leave a rookie's kill to the rookie)
@@ -111,6 +112,7 @@ function Match.add(m: State, id: number, name: string, human: boolean, now: numb
 		respawnAt = nil,
 		smashes = 0,
 		deaths = 0,
+		streak = 0,
 		order = m.joined,
 		lastBy = nil,
 		lastWeapon = nil,
@@ -174,11 +176,13 @@ function Match.damage(
 	k.alive = false
 	k.respawnAt = now + Match.RESPAWN
 	k.deaths += 1
+	k.streak = 0
 	k.lastBy = if attackerId ~= victimId then attackerId else nil
 	k.lastWeapon = weapon
 	local by = if attackerId and attackerId ~= victimId then m.karts[attackerId] else nil
 	if by then
 		by.smashes += 1
+		by.streak += 1
 	end
 	return took, true
 end
