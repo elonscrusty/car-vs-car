@@ -303,3 +303,50 @@ test("stuck and flip moments: one event each, grouped into catch spots", functio
 	truthy(string.find(lines[4], "1 turning = the thumb), flips 1", 1, true), lines[4])
 	truthy(string.find(lines[5], "catch spots: (7, 19)", 1, true), lines[5])
 end)
+
+test(
+	"backs up like a kid: stuck, or the target far behind at low speed; then drives again",
+	function()
+		local function me(speed: number?): ThumbBrain.Me
+			return { x = 0, z = 0, fx = 0, fz = -1, speed = speed }
+		end
+		local box = { { x = 3, z = -20 } } -- ahead, a little right
+		-- stuck against something: 0.6 s under 2 studs/s with the gas on
+		local s = ThumbBrain.new(rng())
+		local out
+		local t = 0
+		while t < 0.55 do
+			out = ThumbBrain.step(s, t, me(0.5), box, {}, false)
+			eq(out.brake, 0, "not yet")
+			t += 0.05
+		end
+		out = ThumbBrain.step(s, 0.65, me(0.5), box, {}, false)
+		eq(out.throttle, 0, "off the gas")
+		eq(out.brake, 1, "reverse")
+		eq(out.steer, -1, "target right: steer left so the nose swings right")
+		out = ThumbBrain.step(s, 1.3, me(0.5), box, {}, false)
+		eq(out.brake, 1, "still backing at 0.65 s in")
+		out = ThumbBrain.step(s, 1.5, me(0.5), box, {}, false)
+		eq(out.brake, 0, "0.8 s up: drives again")
+		eq(out.throttle, 1, "gas")
+		out = ThumbBrain.step(s, 2.3, me(0.5), box, {}, false)
+		eq(out.brake, 0, "no backing again inside the gap")
+		-- target behind at low speed: back up at once, swinging round; fast: just turn
+		local behind = { { x = -2, z = 20 } }
+		local s2 = ThumbBrain.new(rng())
+		local o2 = ThumbBrain.step(s2, 0, me(3), behind, {}, false)
+		eq(o2.brake, 1, "slow with the target behind: reverse")
+		eq(o2.steer, 1, "target behind-left: steer right so the nose swings left")
+		local s3 = ThumbBrain.new(rng())
+		eq(ThumbBrain.step(s3, 0, me(10), behind, {}, false).brake, 0, "fast: no reverse")
+		local s4 = ThumbBrain.new(rng())
+		eq(ThumbBrain.step(s4, 0, me(nil), behind, {}, false).brake, 0, "no speed given: never")
+		-- driving fine: never backs up
+		local s5 = ThumbBrain.new(rng())
+		local backed = false
+		for i = 0, 60 do
+			backed = backed or ThumbBrain.step(s5, i * 0.05, me(12), box, {}, false).brake > 0
+		end
+		eq(backed, false, "backed up while driving")
+	end
+)

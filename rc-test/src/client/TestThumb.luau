@@ -349,6 +349,7 @@ function TestThumb.drive(body: BasePart, input: any): any
 		z = body.Position.Z,
 		fx = look.X,
 		fz = look.Z,
+		speed = (body.AssemblyLinearVelocity * Vector3.new(1, 0, 1)).Magnitude,
 	}, boxes(), karts(), armed)
 	lastTarget = out.target
 	if out.fire then
@@ -356,7 +357,7 @@ function TestThumb.drive(body: BasePart, input: any): any
 			task.spawn(fn)
 		end
 	end
-	return { steer = out.steer, throttle = out.throttle, brake = 0, drift = false }
+	return { steer = out.steer, throttle = out.throttle, brake = out.brake, drift = false }
 end
 
 return TestThumb

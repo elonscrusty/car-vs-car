@@ -15,10 +15,19 @@ ThumbBrain.FULL_TURN = 0.6 -- radians off the nose for full steer
 ThumbBrain.CONE = math.rad(30) -- FIRE when a kart is this close to straight ahead...
 ThumbBrain.RANGE = 35 -- ...and this near (studs), as new_kid_pass's kid
 ThumbBrain.CHASE = math.rad(60) -- armed: chases the nearest kart this close to ahead, else the nearest
+-- backing up, like a kid (Lead R7-1; ArenaBrain.BACK_TIME): stuck, or the target far behind at
+-- low speed (a turn on the spot it can't make), so it holds brake (= reverse) and turns the nose
+ThumbBrain.BACK_TIME = 0.8 -- s of reverse
+ThumbBrain.BACK_STUCK = 0.6 -- s slower than BACK_SLOW pressing the gas = stuck
+ThumbBrain.BACK_SLOW = 2 -- studs/s
+ThumbBrain.BEHIND = math.rad(120) -- the target this far off the nose...
+ThumbBrain.BEHIND_SPEED = 4 -- ...while slower than this (studs/s) = back up and swing round
+ThumbBrain.BACK_GAP = 1 -- s of driving before it may back up again
 
 export type Point = { x: number, z: number }
-export type Me = { x: number, z: number, fx: number, fz: number } -- where, and the nose
-export type Out = { steer: number, throttle: number, fire: boolean, target: Point? }
+-- where, the nose, and (optional) the flat speed in studs/s (no speed = never backs up)
+export type Me = { x: number, z: number, fx: number, fz: number, speed: number? }
+export type Out = { steer: number, throttle: number, brake: number, fire: boolean, target: Point? }
 export type Rng = { NextNumber: (any) -> number }
 export type State = {
 	rng: Rng,
@@ -27,6 +36,9 @@ export type State = {
 	karts: { Point }, -- the karts it saw then
 	coneSince: number?, -- since when a kart has been in the cone
 	noise: number,
+	slowFor: number, -- s slow while pressing the gas
+	lastAt: number?, -- the last step's time
+	backUntil: number, -- reversing until then
 }
 
 -- On only in Studio, and only with the workspace attribute set to true (off by default).
@@ -35,7 +47,17 @@ function ThumbBrain.allowed(isStudio: boolean, attr: unknown): boolean
 end
 
 function ThumbBrain.new(rng: Rng): State
-	return { rng = rng, seenAt = -math.huge, aimAt = nil, karts = {}, coneSince = nil, noise = 0 }
+	return {
+		rng = rng,
+		seenAt = -math.huge,
+		aimAt = nil,
+		karts = {},
+		coneSince = nil,
+		noise = 0,
+		slowFor = 0,
+		lastAt = nil,
+		backUntil = -math.huge,
+	}
 end
 
 -- The angle (radians, + = to the right) from the nose to `p`, and how far it is.
@@ -98,6 +120,29 @@ function ThumbBrain.step(
 		steer = math.clamp(a / ThumbBrain.FULL_TURN, -1, 1) + s.noise
 	end
 	steer = math.clamp(steer + math.sin(now * 2.3) * ThumbBrain.WOBBLE * 0.5, -1, 1)
+	-- back up: stuck, or a target far behind it can't turn to at this speed
+	local dt = if s.lastAt then math.clamp(now - s.lastAt, 0, 0.5) else 0
+	s.lastAt = now
+	local throttle, brake = 1, 0
+	local speed = me.speed
+	if now < s.backUntil then
+		throttle, brake = 0, 1
+		-- (in reverse the nose swings the other way: steer away to point it at the target)
+		steer = -(if aim and angleTo(me, aim) < 0 then -1 else 1)
+	elseif speed then
+		s.slowFor = if speed < ThumbBrain.BACK_SLOW then s.slowFor + dt else 0
+		local behind = aim ~= nil and math.abs((angleTo(me, aim))) > ThumbBrain.BEHIND
+		local free = now >= s.backUntil + ThumbBrain.BACK_GAP
+		if
+			free
+			and (s.slowFor >= ThumbBrain.BACK_STUCK or (behind and speed < ThumbBrain.BEHIND_SPEED))
+		then
+			s.backUntil = now + ThumbBrain.BACK_TIME
+			s.slowFor = 0
+			throttle, brake = 0, 1
+			steer = -(if aim and angleTo(me, aim) < 0 then -1 else 1)
+		end
+	end
 	local fire = false
 	local inCone = false
 	if armed then
@@ -116,7 +161,7 @@ function ThumbBrain.step(
 	else
 		s.coneSince = nil
 	end
-	return { steer = steer, throttle = 1, fire = fire, target = aim }
+	return { steer = steer, throttle = throttle, brake = brake, fire = fire, target = aim }
 end
 
 -- ===== the round report (Studio copies it; Lead R7-1: why 1 smash in Studio, 2+ in the sim) =====
