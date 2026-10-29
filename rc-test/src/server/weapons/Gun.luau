@@ -43,7 +43,8 @@ export type Ctx = {
 	karts: () -> { Kart },
 	getKart: (id: any) -> Kart?,
 	raycast: (from: Vector3, to: Vector3, ignoreId: any?) -> Hit?,
-	damage: (victimId: any, attackerId: any, amount: number, weapon: string) -> (),
+	-- returns the health it really took (0 = blocked: a shield, not in the match)
+	damage: (victimId: any, attackerId: any, amount: number, weapon: string) -> number?,
 	fx: (kind: string, data: { [string]: any }) -> (),
 	after: (seconds: number, fn: () -> ()) -> (),
 }
@@ -52,6 +53,13 @@ export type Ctx = {
 function Gun.bulletDamage(i: number): number
 	local n = Gun.BULLETS
 	return math.floor(Gun.BURST_DAMAGE * i / n) - math.floor(Gun.BURST_DAMAGE * (i - 1) / n)
+end
+
+-- Damage through ctx and what it really took: the fx's `hurt` list names only karts that lost
+-- health, so the client's hit flash and "-N" never guess. An older ctx returns nothing: all of it.
+function Gun.hurt(ctx: Ctx, victim: any, attacker: any, amount: number, weapon: string): number
+	local taken = ctx.damage(victim, attacker, amount, weapon)
+	return if type(taken) == "number" then taken else amount
 end
 
 -- bumped by clear(): bullets still queued from an older burst do nothing
@@ -135,10 +143,15 @@ function Gun.shoot(shooterId: any, turn: Vector3, ctx: Ctx, i: number, prefer: a
 			victim = nil
 		end
 	end
+	local hurt = {}
 	if victim ~= nil then
-		ctx.damage(victim, shooterId, Gun.bulletDamage(i), Gun.NAME)
+		local taken = Gun.hurt(ctx, victim, shooterId, Gun.bulletDamage(i), Gun.NAME)
+		if taken > 0 then
+			table.insert(hurt, { id = victim, damage = taken })
+		end
 	end
-	ctx.fx("GunShot", { from = from, to = endAt, hit = victim ~= nil, owner = shooterId })
+	local data = { from = from, to = endAt, hit = victim ~= nil, owner = shooterId, hurt = hurt }
+	ctx.fx("GunShot", data)
 	return victim
 end
 
