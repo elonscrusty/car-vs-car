@@ -50,18 +50,15 @@ function ArenaHorizon.pieces(hazeColor: { number }): { Piece }
 		color: { number },
 		neon: boolean?
 	)
-		table.insert(
-			out,
-			{
-				name = name,
-				shape = shape,
-				size = size,
-				pos = pos,
-				yaw = yaw,
-				color = color,
-				neon = neon,
-			}
-		)
+		table.insert(out, {
+			name = name,
+			shape = shape,
+			size = size,
+			pos = pos,
+			yaw = yaw,
+			color = color,
+			neon = neon,
+		})
 	end
 
 	-- 1. far ground tiles (the middle one is the existing far ground)
