@@ -30,6 +30,7 @@ local setStats: (d: RaceStats.Drive?) -> () = (Tuning :: any).setStats
 local BigCount = require(script.Parent.BigCount)
 local GasHintUi = require(script.Parent.GasHintUi)
 local FlipBack = require(ReplicatedStorage.Shared.FlipBack)
+local WallNudge = require(ReplicatedStorage.Shared.WallNudge)
 local GasHint = require(ReplicatedStorage.Shared.GasHint)
 local CarSkin = require(script.Parent.CarSkin)
 local ChaseCamera = require(script.Parent.ChaseCamera)
@@ -260,6 +261,15 @@ local stuckTime = 0
 local stuckFrom = Vector3.zero
 local creep = 0 -- average ground speed lately (for the stuck check)
 local tippedFor = 0 -- seconds the arena kart has been on its roof or side (FlipBack)
+local grindFor = 0 -- seconds the arena kart has been nosed into a wall with the gas on (WallNudge)
+local nudgeUntil = 0 -- a wall bounce runs until then (os.clock)
+local nudgeSide = 1 -- which way it turns (1 = right)
+local nudges: { number } = {} -- when the last bounces were
+-- (the wall bounce's rays: not the kart itself or the person)
+local wallRay = RaycastParams.new()
+wallRay.FilterType = Enum.RaycastFilterType.Exclude
+wallRay.RespectCanCollide = true
+wallRay.FilterDescendantsInstances = ignoreList()
 local FALL = -8 -- big-size studs: below this the car fell off the world
 local raceFx = RaceFx.new() -- carter's picks 14 + 15: speed lines on BOOST, sparks on hits
 -- Plots with checkpoint flags: a reset (R, RESET, fell off, out) brings the car back to the last
@@ -276,6 +286,8 @@ local function reset(why: string?, from: string?)
 		return
 	end
 	stuckTime = 0
+	grindFor, nudgeUntil = 0, 0
+	table.clear(nudges)
 	beep:Play()
 	local now = os.clock()
 	local again = now - lastReset < 1.5
@@ -445,6 +457,9 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown, gridSpot: u
 		car.destroy()
 		effects.destroy()
 		car = RCCar.new(model, ignoreList())
+		wallRay.FilterDescendantsInstances = ignoreList()
+		grindFor, nudgeUntil = 0, 0
+		table.clear(nudges)
 		camera = ChaseCamera.new(body, ignoreList(), eye)
 		camera.setView(view)
 		showCam = false
@@ -510,6 +525,26 @@ end
 -- no keys: the parked car while walking still stands on its springs (without them it sank onto
 -- its belly with the wheels under the road, Studio PR 936 check)
 local IDLE: RCCar.Input = { steer = 0, throttle = 0, brake = 0, drift = false }
+-- How far the first wall is along a flat direction from the kart's middle (nil = none within
+-- `len`): the wall bounce's rays. Not the ground rising ahead (a ramp), not another kart (pushing
+-- one is the game), not a see-through bush.
+local function wallAt(dir: Vector3, len: number): number?
+	local hit = workspace:Raycast(body.Position, dir * len, wallRay)
+	if not hit or math.abs(hit.Normal.Y) > 0.6 then
+		return nil
+	end
+	local top: Instance = hit.Instance
+	while top.Parent and top.Parent ~= workspace do
+		top = top.Parent
+	end
+	return if string.sub(top.Name, 1, 4) == "Car_" then nil else hit.Distance
+end
+-- Ground behind the kart, about a kart length back? (no bounce backwards off a ledge)
+local function groundBehind(look: Vector3): boolean
+	local from = body.Position - look * Tuning.bodyZ
+	return workspace:Raycast(from, Vector3.new(0, -Tuning.bodyZ, 0), wallRay) ~= nil
+end
+local nudgeBack = true -- this bounce goes backwards (false: ledge behind, turn only)
 RunService.PreSimulation:Connect(function(dt: number)
 	if body.Parent == nil then
 		return
@@ -522,7 +557,59 @@ RunService.PreSimulation:Connect(function(dt: number)
 	if TestThumb.on() then
 		input = TestThumb.drive(body, input) -- Studio-only test thumb (workspace TestThumb)
 	end
+	local raw = input -- (what was pressed: a wall bounce holds the gas back, not the stuck count)
+	-- the arena: nosed into a wall with the gas on, getting nowhere = a short bounce back and a
+	-- turn toward open space, then the keys again (WallNudge; no words, like a bump)
+	local nudging = false
+	if grid and not body.Anchored and player:GetAttribute("Health") ~= 0 then
+		local now = os.clock()
+		nudging = now < nudgeUntil
+		local cf = body.CFrame
+		local look = Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z)
+		if nudging then
+			input = IDLE
+		elseif look.Magnitude > 0.1 then
+			look = look.Unit
+			local v = body.AssemblyLinearVelocity
+			local gas = input.throttle > 0
+			local slow = Vector3.new(v.X, 0, v.Z).Magnitude < WallNudge.SLOW * Tuning.scale
+			-- (the ray only when it can matter: about one kart length past the nose)
+			local blocked = gas and slow and wallAt(look, Tuning.bodyZ * 1.5) ~= nil
+			local fire: boolean
+			grindFor, fire = WallNudge.tick(grindFor, dt, gas, slow, blocked)
+			if fire and WallNudge.allowed(nudges, now) then
+				table.insert(nudges, now)
+				local far = Tuning.bodyZ * 3
+				nudgeSide = WallNudge.side(
+					wallAt(CFrame.Angles(0, math.pi / 4, 0):VectorToWorldSpace(look), far),
+					wallAt(CFrame.Angles(0, -math.pi / 4, 0):VectorToWorldSpace(look), far)
+				)
+				nudgeUntil = now + WallNudge.TIME
+				nudgeBack = groundBehind(look)
+				nudging = true
+				input = IDLE
+			end
+		end
+	else
+		grindFor, nudgeUntil = 0, 0
+	end
 	car.step(dt, input)
+	if nudging then
+		-- back about a kart length and round about 45 degrees over the bounce (set after the
+		-- car's own pushes, so this frame moves the way the bounce says)
+		local cf = body.CFrame
+		local look = Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z)
+		if look.Magnitude > 0.1 then
+			local back = if nudgeBack
+				then -look.Unit * (Tuning.bodyZ / WallNudge.TIME)
+				else Vector3.zero
+			local v = body.AssemblyLinearVelocity
+			body.AssemblyLinearVelocity = Vector3.new(back.X, v.Y, back.Z)
+			local w = body.AssemblyAngularVelocity
+			local yaw = -nudgeSide * WallNudge.TURN / WallNudge.TIME
+			body.AssemblyAngularVelocity = Vector3.new(w.X, yaw, w.Z)
+		end
+	end
 
 	local t = tracks[current]
 	local p = body.Position
@@ -585,7 +672,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 	-- on a wall, spinning its wheels on a slope): start over. Uses the car's average ground speed
 	-- over about half a second, so a car creeping or pivoting along a wall still counts as stuck, while
 	-- slow rock crawling (several times faster) never does.
-	local pressing = input.throttle > 0 or input.brake > 0
+	local pressing = raw.throttle > 0 or raw.brake > 0
 	local moved = Vector3.new(p.X - stuckFrom.X, 0, p.Z - stuckFrom.Z).Magnitude
 	stuckFrom = p
 	-- (capped, so a teleport back to the start doesn't hide being stuck for long)
@@ -617,6 +704,7 @@ RunService.PreSimulation:Connect(function(dt: number)
 				FlipBack.facing(cf.LookVector.X, cf.LookVector.Z, cf.UpVector.X, cf.UpVector.Z)
 			local at = cf.Position + Vector3.new(0, 3 * Tuning.scale, 0)
 			car.teleport(CFrame.lookAt(at, at + Vector3.new(fx, 0, fz)))
+			nudgeUntil = 0
 			hud.flash("OOPS! FLIPPING YOU BACK")
 		end
 	else
