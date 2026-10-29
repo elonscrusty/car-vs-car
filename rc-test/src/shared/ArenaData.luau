@@ -105,7 +105,7 @@ ArenaData.COVER_W, ArenaData.COVER_H = 5, 10 -- picture units thick, big units t
 
 -- lollipop trees: a solid trunk, a candy top up high
 ArenaData.TREES =
-	{ { 120, 62 }, { 226, 125 }, { 122, 170 }, { 18, 220 }, { 226, 18 }, { 170, 205 } } :: { Pt }
+	{ { 108, 46 }, { 226, 125 }, { 122, 170 }, { 18, 220 }, { 226, 18 }, { 170, 205 } } :: { Pt }
 ArenaData.TREE_R = 7 -- the candy top's radius in the picture
 ArenaData.TRUNK = 5 -- the trunk's thickness, big units
 
@@ -115,8 +115,7 @@ ArenaData.TRUNK = 5 -- the trunk's thickness, big units
 ArenaData.ROCKS = {} :: { { number } }
 ArenaData.CRATES = {} :: { Pt }
 ArenaData.CRATE = 4
-ArenaData.BARRELS = {
-	{ { 112, 154 }, { 112, 166 } },
+ArenaData.BARRELS = { -- (the row by the sand's east side came out: it held karts, round 9)
 	{ { 92, 88 }, { 100, 96 } },
 } :: { { Pt } }
 ArenaData.BARREL_R = 1.5
@@ -166,7 +165,7 @@ ArenaData.START = {
 	{ 28, 28 }, -- the corners are moved in so the chase cam behind fits inside the wall
 	{ 140, 50 }, -- off the north wall (the picture has it on the wall: the wall filled the view)
 	{ 225, 60 },
-	{ 210, 210 },
+	{ 202, 202 }, -- (in off the south-east corner: its curve fills where the chase cam hung)
 	{ 120, 229 }, -- the picture has it on the wall: nudged in
 	{ 15, 150 },
 	{ 80, 48 },
@@ -184,8 +183,8 @@ ArenaData.BOXES = {
 	{ 205, 70 },
 	{ 200, 125 },
 	{ 140, 130 },
-	{ 165, 85 },
-	{ 190, 200 },
+	{ 132, 72 }, -- (off the high hill: karts kept driving at it from below, round 9)
+	{ 132, 72 }, -- (off the high hill: karts kept driving at it from below, round 9)
 	{ 140, 215 },
 	{ 80, 218 },
 	{ 35, 165 },
@@ -391,9 +390,34 @@ end
 ArenaData.hillFeet = hillFeet()
 ArenaData.rampFillets = fillets
 
--- the outer wall's four inside corners are filled with a 45 degree slab this long on each leg
--- (picture units), so a kart driving into a corner glances off instead of wedging
-ArenaData.CORNER = 4
+-- the outer wall's four inside corners are filled out to a quarter-circle curve this radius
+-- (picture units), in CORNER_STEPS flat slabs, so a kart driving into a corner is turned along
+-- the wall instead of nosing in: a big sweep (its middle stands about 2 kart lengths off the
+-- corner) but the north-west one, where spot 1's chase cam needs the room
+ArenaData.CORNER, ArenaData.CORNER_NW, ArenaData.CORNER_STEPS = 16, 6.5, 6
+local function cornerRadius(x: number, y: number): number
+	return if x < ArenaData.PIC / 2 and y < ArenaData.PIC / 2
+		then ArenaData.CORNER_NW
+		else ArenaData.CORNER
+end
+ArenaData.cornerRadius = cornerRadius
+-- each corner as {the walls' inside corner, then the curve's points from one wall to the other}
+local function cornerCurves(): { { Pt } }
+	local out = {}
+	local lo, hi = ArenaData.WALL, ArenaData.PIC - ArenaData.WALL
+	for _, c in { { lo, lo, 1, 1 }, { hi, lo, -1, 1 }, { hi, hi, -1, -1 }, { lo, hi, 1, -1 } } do
+		local cx, cy, sx, sy = c[1], c[2], c[3], c[4]
+		local r = cornerRadius(cx, cy)
+		local pts: { Pt } = { { cx, cy } }
+		for k = 0, ArenaData.CORNER_STEPS do
+			local a = k / ArenaData.CORNER_STEPS * math.pi / 2
+			table.insert(pts, { cx + sx * (r - r * math.cos(a)), cy + sy * (r - r * math.sin(a)) })
+		end
+		table.insert(out, pts)
+	end
+	return out
+end
+ArenaData.cornerCurves = cornerCurves()
 
 -- the start arch's two pillar spots (picture units)
 function ArenaData.archPillars(): { Pt }
@@ -409,11 +433,16 @@ function ArenaData.clear(x: number, y: number, room: number): boolean
 	if x < lo or x > hi or y < lo or y > hi then
 		return false
 	end
-	-- the corner slabs: room from the slanted face across the nearest corner
+	-- the corner curves: room from the curve across the nearest corner
 	local u = math.min(x, ArenaData.PIC - x) - ArenaData.WALL
 	local w = math.min(y, ArenaData.PIC - y) - ArenaData.WALL
-	if (u + w - ArenaData.CORNER) / math.sqrt(2) < room then
-		return false
+	local cr = cornerRadius(x, y)
+	if u < cr and w < cr then
+		-- inside the curve's circle by `room`, less the flat slabs' sag
+		local sag = cr * (1 - math.cos(math.pi / 4 / ArenaData.CORNER_STEPS))
+		if math.sqrt((cr - u) ^ 2 + (cr - w) ^ 2) > cr - sag - room then
+			return false
+		end
 	end
 	local trunk = ArenaData.TRUNK / ArenaData.K / 2
 	for _, t in ArenaData.TREES do

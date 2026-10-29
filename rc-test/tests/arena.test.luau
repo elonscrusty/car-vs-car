@@ -145,14 +145,25 @@ test(
 	end
 )
 
-test("from every spawn: nothing solid on the chase cam's line or 3 kart lengths ahead", function()
+test("from every spawn: nothing solid on the chase cam's line or 6 kart lengths ahead", function()
 	for i, s in A.spawns do
 		local p = A.START[i]
 		local t = -A.CAM_BACK / K
-		while t <= 3 * 5.5 / K do
+		local ahead = 6 * 5.5 / K
+		while t <= ahead do
 			local q = { p[1] + s.dx * t, p[2] + s.dz * t }
 			truthy(A.clear(q[1], q[2], 1.5), `spot {i}: clear at {math.floor(t * K)} big`)
 			t += 0.5
+		end
+		-- and no tree stem standing in the view lane (a kart width either side of the line)
+		local a = { p[1] - s.dx * A.CAM_BACK / K, p[2] - s.dz * A.CAM_BACK / K }
+		local b = { p[1] + s.dx * ahead, p[2] + s.dz * ahead }
+		for j, tr in A.TREES do
+			local ax, ay = b[1] - a[1], b[2] - a[2]
+			local u =
+				math.clamp(((tr[1] - a[1]) * ax + (tr[2] - a[2]) * ay) / (ax * ax + ay * ay), 0, 1)
+			local d = math.sqrt((tr[1] - a[1] - ax * u) ^ 2 + (tr[2] - a[2] - ay * u) ^ 2)
+			truthy(d > 6, `spot {i}: tree {j} in the view lane ({math.floor(d * 10) / 10} off it)`)
 		end
 	end
 end)
@@ -195,10 +206,12 @@ test(
 		eq(#A.ROCKS, 0, "no rocks")
 		eq(#A.CRATES, 0, "no crates")
 		eq(#A.rampFillets, 2 * #A.RAMPS, "a fillet each side of each ramp")
-		-- a kart can't get its nose into a wall corner
+		-- a kart can't get its nose into a wall corner: a curve fills each one, the big ones (all
+		-- but the north-west) well out
 		for _, c in { { 1, 1 }, { 1, -1 }, { -1, 1 }, { -1, -1 } } do
-			local x = A.PIC / 2 + c[1] * (A.PIC / 2 - A.WALL - 1)
-			local y = A.PIC / 2 + c[2] * (A.PIC / 2 - A.WALL - 1)
+			local reach = if c[1] < 0 and c[2] < 0 then 1.5 else 4.5
+			local x = A.PIC / 2 + c[1] * (A.PIC / 2 - A.WALL - reach)
+			local y = A.PIC / 2 + c[2] * (A.PIC / 2 - A.WALL - reach)
 			truthy(not A.clear(x, y, 0), `corner {c[1]},{c[2]} filled`)
 		end
 		-- the way up each ramp is open; every hill edge's middle (away from a ramp) is bumpered
@@ -228,8 +241,19 @@ test(
 	end
 )
 
+test(
+	"every box on the floor stands in the open: room round it, not tucked behind a hill foot",
+	function()
+		for i, b in A.BOXES do
+			if A.groundAt(b) == 0 then
+				truthy(A.clear(b[1], b[2], 4), `box {i} has room round it`)
+			end
+		end
+	end
+)
+
 test("hills: boxes on them sit on top, ramps are gentle", function()
-	eq(A.boxSpots[6].y, A.HILLS[1].h, "HIGH PINK box on top")
+	eq(A.boxSpots[6].y, 0, "the high hill's box came down to open ground (round 9)")
 	eq(A.boxSpots[15].y, A.HILLS[2].h, "LOW PINK box on top")
 	for i, r in A.RAMPS do
 		local len = math.sqrt((r.to[1] - r.from[1]) ^ 2 + (r.to[2] - r.from[2]) ^ 2) * K

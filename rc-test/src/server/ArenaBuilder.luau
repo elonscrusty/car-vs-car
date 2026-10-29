@@ -436,14 +436,10 @@ local function buildFloor(folder: Instance)
 			false
 		)
 	end
-	-- a 45 degree slab in each inside corner, so a kart glances off and never wedges there
-	local leg = ArenaData.CORNER * K
-	for _, sx in { -1, 1 } do
-		for _, sz in { -1, 1 } do
-			local d = Vector3.new(sx * inner, 0, sz * inner)
-			local p = d - Vector3.new(sx * leg, 0, 0)
-			local q = d - Vector3.new(0, 0, sz * leg)
-			rightPrism(folder, "WallCorner", d, p, q, 0, h, PURPLE)
+	-- each inside corner filled out to a curve of flat slabs, so a kart is turned along the wall
+	for _, c in ArenaData.cornerCurves do
+		for k = 2, #c - 1 do
+			prism(folder, "WallCorner", { c[1], c[k], c[k + 1] }, 0, h, PURPLE)
 		end
 	end
 end
