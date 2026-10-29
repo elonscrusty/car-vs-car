@@ -277,13 +277,15 @@ function Weapons.cone(
 end
 
 -- A new shot from a kart at `from` (its middle) aimed along `dir`. With `targets` it locks onto
--- the kart in its cone (Weapons.cone) and leaves straight at it.
+-- the kart in its cone (Weapons.cone) and leaves straight at it, but never more than
+-- MAX_AIM_DEG off `facing` (the kart's nose), so a cheat aiming at the edge can't lock sideways.
 function Weapons.rocket(
 	owner: any,
 	from: Vector3,
 	dir: Vector3,
 	spec: Flight?,
-	targets: { Target }?
+	targets: { Target }?,
+	facing: Vector3?
 ): Rocket
 	local R = spec or Weapons.ROCKET
 	local d = flat(Weapons.vec(dir) or vector.create(0, 0, -1)) or vector.create(0, 0, -1)
@@ -291,8 +293,9 @@ function Weapons.rocket(
 	local lock = if targets
 		then Weapons.cone(from, d, targets, R.seekDeg, R.seekRange, owner)
 		else nil
-	if lock then
-		d = flat(lock.pos - from) or d
+	local lockAt = lock and Weapons.vec(lock.pos)
+	if lockAt then
+		d = Weapons.aim(lockAt - from, facing or d)
 	end
 	return {
 		pos = from + d * R.ahead + vector.create(0, R.up, 0),
@@ -313,8 +316,9 @@ function Weapons.seek(r: Rocket, targets: { Target }): any?
 	end
 	if r.target ~= nil then
 		for _, t in targets do
-			if t.id == r.target and t.alive ~= false and t.shield ~= true then
-				local d = vector.magnitude(t.pos - r.pos)
+			local pos = Weapons.vec(t.pos)
+			if t.id == r.target and pos and t.alive ~= false and t.shield ~= true then
+				local d = vector.magnitude(pos - r.pos)
 				if d <= R.seekRange * 1.5 then
 					return t.id
 				end

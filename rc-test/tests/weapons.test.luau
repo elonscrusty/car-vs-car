@@ -179,6 +179,15 @@ test(
 		end
 		eq(what, "hit")
 		eq(who, "bot")
+		-- a cheat aiming at the 30 degree edge can't lock a kart 60 degrees off its nose and leave
+		-- straight at it: the launch stays within MAX_AIM_DEG of the nose
+		local edge = v(math.sin(math.rad(30)), 0, -math.cos(math.rad(30)))
+		local wide = {
+			id = "wide",
+			pos = v(math.sin(math.rad(60)) * 8 * K, 0, -math.cos(math.rad(60)) * 8 * K),
+		}
+		local r3 = Weapons.rocket("me", v(0, 0, 0), edge, Weapons.ROCKET, { wide }, AHEAD)
+		truthy(vector.dot(r3.dir, AHEAD) >= math.cos(math.rad(Weapons.MAX_AIM_DEG)) - 1e-6)
 		-- nobody in the cone: straight on as aimed
 		local r2 = Weapons.rocket(
 			"me",

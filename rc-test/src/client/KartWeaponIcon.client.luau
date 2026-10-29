@@ -92,6 +92,12 @@ local function watch(model: Model)
 		g.Enabled = true
 	end
 
+	-- (streaming: the kart can arrive before its parts; try again as they come)
+	model.DescendantAdded:Connect(function(d: Instance)
+		if gui == nil and d:IsA("BasePart") then
+			refresh()
+		end
+	end)
 	model:GetAttributeChangedSignal("Weapon"):Connect(refresh)
 	model:GetAttributeChangedSignal("Ammo"):Connect(refresh)
 	refresh()

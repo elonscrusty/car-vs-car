@@ -58,7 +58,14 @@ function Flight.weapon(name: string, Weapons: any): { [string]: any }
 		end
 		nextId += 1
 		local from = Weapons.vec(kart.cframe.Position) or vector.zero
-		local r = Weapons.rocket(kart.id, from, aim, spec, targets(ctx, Weapons))
+		local r = Weapons.rocket(
+			kart.id,
+			from,
+			aim,
+			spec,
+			targets(ctx, Weapons),
+			Weapons.vec(kart.cframe.LookVector)
+		)
 		-- nose against a wall: the shot would start inside it (a ray from inside a part sees
 		-- nothing), so look from the kart's middle to the start and boom right there on a wall
 		local h = ctx.raycast(from + vector.create(0, spec.up, 0), r.pos, nil, true)
