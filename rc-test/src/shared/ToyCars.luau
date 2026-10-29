@@ -106,7 +106,8 @@ function ToyCars.wheels(style: string?): Wheels
 	return ToyCars.WHEELS[ToyCars.parse(style).shape]
 end
 
--- The rims' colour: the accent, white when the accent is navy (dark rims vanish on a phone).
+-- The rims' colour: the car's (the accent when no colour is given), white for navy (dark rims
+-- vanish on a phone).
 function ToyCars.rim(style: string?, color: { number }?): { number }
 	-- carter's picture: rims in the car's own colour (navy would vanish against the tyre)
 	local c = color or ToyCars.parse(style).accent
@@ -292,17 +293,21 @@ ToyCars.MAX_BODY = 10
 function ToyCars.body(p: Put, color: { number }, style: string?)
 	local look = ToyCars.parse(style)
 	local put = p
+	local accent = look.accent
 	if look.glow then
-		-- rare cars and up: their accent bits light up (no extra parts)
+		-- rare cars and up: their accent bits light up (no extra parts); navy can't glow, sky does
+		if accent == NAVY then
+			accent = ToyCars.PALETTE.sky
+		end
 		put = function(name, size, x, y, z, col, o)
-			if col == look.accent then
+			if col == accent then
 				o = { shape = o and o.shape, rot = o and o.rot, material = "Neon" }
 			end
 			p(name, size, x, y, z, col, o)
 		end
 	end
 	local lift = ToyCars.WHEELS[look.shape].lift
-	SHAPES[look.shape](put, color, look.accent, lift)
+	SHAPES[look.shape](put, color, accent, lift)
 end
 
 -- The Blender kart models (ReplicatedStorage.CarSkins.Kart_*, made from assets/karts/build.py):
