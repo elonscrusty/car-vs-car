@@ -1,12 +1,19 @@
 --!strict
--- The "?" boxes in a smash match (shared/Boxes has the rules and odds). The server alone decides
--- a pickup: 10 times a second it looks where every live kart is and hands a touched box's weapon
--- to that kart through `give` (WeaponServer.give). No remote: a client can't ask for a box.
+-- The gold boxes in a smash match (shared/Boxes has the rules). The server alone decides a pickup:
+-- 10 times a second it looks where every live kart is and hands a touched box to that kart. No
+-- remote: a client can't ask for a box.
+--
+-- Two kinds of box (carter 10-29 22:30: no random weapon boxes):
+--   CHARGE (the game): a box adds one third to the kart's one special, through `charge`. A kart
+--     with a full special leaves the box for someone else.
+--   WEAPON (old, the warm-up yard): a box hands a rolled weapon through `give`.
 --
 -- Use (MatchRunner, when the arena is built):
 --   local boxes = BoxServer.start({
 --       spots = ArenaData.boxSpots,
 --       karts = function() return list of { id, position: Vector3, alive } end,
+--       charge = SpecialCharge.add, -- (kartId, amount) -> the kart's new level 0..1, nil = full
+--       -- or, the old weapon boxes:
 --       give = WeaponServer.give, -- (kartId, name) -> boolean; false = can't take it now
 --       has = function(name) return Weapons.get(name) ~= nil end, -- weapons built so far
 --   })
@@ -16,9 +23,10 @@
 -- `name` (default "SmashBoxes"). Starting a name again stops the old set of that name first.
 --
 -- Each box is a Model tagged "SmashBox" in <parent>.<name> with attributes Up (bool), Home
--- (CFrame of the box's middle), TakenBy (kart id as a string), TakenWeapon and TakenCount (goes
--- up by one on every pickup: listen to this one for sounds and screens). client/BoxFx spins it,
--- plays the pop, and plays the pickup sound for the grabber: a player's kart id must be their
+-- (CFrame of the box's middle), TakenBy (kart id as a string), TakenWeapon (weapon boxes),
+-- TakenLevel (charge boxes: the kart's special, 0..1, right after it took the box) and TakenCount
+-- (goes up by one on every pickup: listen to this one for sounds and screens). client/BoxFx spins
+-- it, plays the pop, and plays the pickup sound for the grabber: a player's kart id must be their
 -- UserId (bots can use any other id).
 
 local CollectionService = game:GetService("CollectionService")
@@ -51,7 +59,9 @@ export type KartInfo = { id: any, position: Vector3, alive: boolean }
 export type Options = {
 	spots: { Vector3 },
 	karts: () -> { KartInfo },
-	give: (any, string) -> boolean?,
+	-- charge boxes: (kartId, amount) -> the kart's special level after it, or nil when it is full
+	charge: ((any, number) -> number?)?,
+	give: ((any, string) -> boolean?)?,
 	has: ((string) -> boolean)?,
 	parent: Instance?,
 	name: string?,
@@ -262,6 +272,7 @@ local function build(i: number, spot: Vector3, parent: Instance, sc: number): Mo
 	m:SetAttribute("Home", home)
 	m:SetAttribute("TakenBy", "")
 	m:SetAttribute("TakenWeapon", "")
+	m:SetAttribute("TakenLevel", 0)
 	m:SetAttribute("TakenCount", 0)
 	CollectionService:AddTag(m, BoxServer.TAG)
 	m.Parent = parent
@@ -328,13 +339,35 @@ function BoxServer.start(opts: Options): Handle
 		return ok and yes == true
 	end
 
-	-- Called by Boxes.step for a kart touching box i: roll and try to give it.
+	-- Called by Boxes.step for a kart touching box i: charge its special, or roll a weapon.
 	local function take(id: any, i: number): boolean
+		local chargeFn = opts.charge
+		if chargeFn ~= nil then
+			local ok, level = pcall(chargeFn, id, Boxes.CHARGE)
+			if not ok then
+				warn(`BoxServer: charge failed for {tostring(id)}: {level}`)
+				return false
+			end
+			if type(level) ~= "number" then
+				return false -- its special is full: leave the box for someone else
+			end
+			local m = models[i]
+			m:SetAttribute("TakenWeapon", "")
+			m:SetAttribute("TakenLevel", level)
+			m:SetAttribute("TakenBy", tostring(id))
+			local count = m:GetAttribute("TakenCount")
+			m:SetAttribute("TakenCount", (if type(count) == "number" then count else 0) + 1)
+			return true
+		end
+		local giveFn = opts.give
+		if giveFn == nil then
+			return false
+		end
 		local weapon = Boxes.roll(rng:NextNumber(), hasSafe, last[id], streak[id])
 		if weapon == nil then
 			return false -- no weapon built yet: the box stays
 		end
-		local ok, res = pcall(opts.give, id, weapon)
+		local ok, res = pcall(giveFn, id, weapon)
 		if not ok then
 			warn(`BoxServer: give failed for {tostring(id)} ({weapon}): {res}`)
 			return false
@@ -434,6 +467,9 @@ function BoxServer.start(opts: Options): Handle
 			end
 		end,
 		odds = function()
+			if opts.charge ~= nil then
+				return {} -- charge boxes have no odds: every box is the same
+			end
 			return Boxes.odds(hasSafe)
 		end,
 	}

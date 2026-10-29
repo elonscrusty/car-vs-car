@@ -312,3 +312,63 @@ test("BoxServer on the pretend server: pickup gives a weapon, box comes back, no
 	eq(handle.folder.Parent, nil)
 	eq(#S.errors, 0, table.concat(S.errors, "\n"))
 end)
+
+test(
+	"charge boxes: a pickup adds a third, a full kart leaves the box, no weapon is given",
+	function()
+		local S = Fake.server(Fake.store())
+		local BoxServer = S.require("BoxServer")
+		local pos = Vector3.new(0, 0, 0)
+		local level = 0
+		local calls: { string } = {}
+		local gaveWeapon = false
+		local handle = BoxServer.start({
+			spots = { Vector3.new(0, 0, 0) },
+			karts = function()
+				return { { id = 9, position = pos, alive = true } }
+			end,
+			charge = function(id, amount)
+				table.insert(calls, `{id}:{string.format("%.3f", amount)}`)
+				if level >= 1 - 1e-9 then
+					return nil
+				end
+				level = math.min(1, level + amount)
+				return level
+			end,
+			give = function()
+				gaveWeapon = true
+				return true
+			end,
+		})
+		local box1 = handle.folder:FindFirstChild("Box1") :: any
+		S.advance(0.3, 0.05)
+		eq(gaveWeapon, false, "a charge box never gives a weapon")
+		eq(#calls, 1)
+		eq(calls[1], "9:0.333")
+		eq(box1:GetAttribute("Up"), false)
+		eq(box1:GetAttribute("TakenBy"), "9")
+		eq(box1:GetAttribute("TakenWeapon"), "")
+		near(box1:GetAttribute("TakenLevel") :: number, 1 / 3, 1e-9)
+		eq(box1:GetAttribute("TakenCount"), 1)
+		eq(next(handle.odds()), nil, "no odds for charge boxes")
+
+		-- it comes back, then two more boxes fill the special; a full kart can't take a fourth
+		for n = 2, 3 do
+			pos = Vector3.new(50, 0, 50)
+			S.advance(8, 0.05)
+			eq(box1:GetAttribute("Up"), true)
+			pos = Vector3.new(0, 0, 0)
+			S.advance(0.5, 0.05)
+			eq(box1:GetAttribute("TakenCount"), n)
+		end
+		near(box1:GetAttribute("TakenLevel") :: number, 1, 1e-9)
+		pos = Vector3.new(50, 0, 50)
+		S.advance(8, 0.05)
+		pos = Vector3.new(0, 0, 0)
+		S.advance(1, 0.05)
+		eq(box1:GetAttribute("Up"), true, "full: the box stays for someone else")
+		eq(box1:GetAttribute("TakenCount"), 3)
+		handle.stop()
+		eq(#S.errors, 0, table.concat(S.errors, "\n"))
+	end
+)

@@ -11,6 +11,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Sfx = require(script.Parent.Sfx)
+local ChargeFx = require(script.Parent.ChargeFx)
 
 local TAG = "SmashBox"
 local ME = tostring(Players.LocalPlayer.UserId) -- a player's kart id is their UserId
@@ -108,10 +109,16 @@ local function add(inst: Instance)
 				burst(l.body.Position, l.size.X / DESIGN)
 			end
 		end),
-		-- every pickup bumps TakenCount; the pickup sound is only for the one who grabbed it
+		-- every pickup bumps TakenCount; the pickup sound is only for the one who grabbed it. A
+		-- charge box (no weapon) also sends its swirl into the grabber's kart, for everyone to see.
 		inst:GetAttributeChangedSignal("TakenCount"):Connect(function()
-			if inst:GetAttribute("TakenBy") == ME then
+			local by = inst:GetAttribute("TakenBy")
+			if by == ME then
 				Sfx.pickup()
+			end
+			local level = inst:GetAttribute("TakenLevel")
+			if type(by) == "string" and by ~= "" and type(level) == "number" and level > 0 then
+				ChargeFx.play(l.body.Position, by, level, l.size.X)
 			end
 		end),
 	}
