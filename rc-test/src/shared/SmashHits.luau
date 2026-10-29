@@ -46,6 +46,7 @@ export type Shot = {
 	id: number?, -- the kart (FreezeHit, Shatter)
 	nuke: boolean?, -- a RocketBoom from the nuke
 	hit: boolean?, -- GunShot / FreezeShot: it hit a kart
+	hurt: { [number]: boolean }?, -- the karts the server says it really hurt (exact, beats distance)
 }
 
 -- how far a shot's end can be from the kart and still be its hit (studs; kart = `kart` studs)
@@ -83,7 +84,9 @@ function SmashHits.guess(
 	for _, s in shots do
 		if s.t >= t - SmashHits.LOOK_BACK and s.t <= t + (after or 0) and s.owner ~= id then
 			local near
-			if s.kind == "FreezeHit" or s.kind == "Shatter" then
+			if s.hurt then
+				near = s.hurt[id] == true
+			elseif s.kind == "FreezeHit" or s.kind == "Shatter" then
 				near = s.id == id
 			elseif (s.kind == "GunShot" or s.kind == "FreezeShot") and s.hit ~= true then
 				near = false

@@ -136,6 +136,24 @@ local function num(v: any): number?
 	return if type(v) == "number" and v == v then v else nil
 end
 
+-- the fx's hurt = { { id, damage } } (WEAPONS #972, GUNMINE #973) as a set of kart ids
+local function hurtOf(list: any): { [number]: boolean }?
+	if type(list) ~= "table" then
+		return nil
+	end
+	local out: { [number]: boolean } = {}
+	for i, h in list do
+		if type(i) ~= "number" or i > 16 then
+			break
+		end
+		local id = type(h) == "table" and num(h.id)
+		if id then
+			out[id] = true
+		end
+	end
+	return out
+end
+
 local FIRE_WORD: { [string]: string } = {
 	RocketLaunch = "fire",
 	GunShot = "fire gun",
@@ -166,6 +184,7 @@ local function onFx(kind: unknown, data: unknown)
 			id = num(d.id),
 			nuke = d.kind == "Nuke",
 			hit = d.hit == true,
+			hurt = hurtOf(d.hurt),
 		})
 	end
 	-- a boom near you shakes you by how near (SmashFx)

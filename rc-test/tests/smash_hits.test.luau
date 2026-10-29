@@ -63,6 +63,15 @@ test("smash hits: the weapon behind a Health drop", function()
 	eq(mw, "gun", "a gun hit on a fast kart is still the gun")
 	eq(mby, myGun)
 	eq((SmashHits.guess(moving, -1, 30, 0, 10, SIZES)), "bump", "far off is not that bullet")
+	-- the server's hurt list is exact: it beats distance both ways
+	local named = {
+		shot(9.9, "GunShot", 500, 500, { owner = 3, hit = true, hurt = { [-1] = true } }),
+		shot(9.9, "RocketBoom", 0, 0, { owner = 4, hurt = {} }),
+	}
+	local nw, nby = SmashHits.guess(named, -1, 0, 0, 10, SIZES)
+	eq(nw, "gun", "named in the hurt list, however far")
+	eq(nby, 3)
+	eq((SmashHits.guess(named, -2, 0, 0, 10, SIZES)), "bump", "a boom that hurt nobody is no hit")
 	SmashHits.prune(shots, 20)
 	eq(#shots, 0, "old shots are dropped")
 end)
