@@ -40,7 +40,7 @@ local function apply()
 	placeLight = saved
 	Lighting.Ambient = rgb(WorldLook.ambient)
 	Lighting.OutdoorAmbient = rgb(WorldLook.outdoorAmbient)
-	local terrain = workspace:FindFirstChildOfClass("Terrain")
+	local terrain = workspace.Terrain
 	if #added == 0 then
 		-- the first time only: park the place's own look (a screen effect another script adds
 		-- later, like the league-up glow, is left alone)
@@ -49,11 +49,9 @@ local function apply()
 				park(child)
 			end
 		end
-		if terrain then
-			for _, child in terrain:GetChildren() do
-				if child:IsA("Clouds") then
-					park(child)
-				end
+		for _, child in terrain:GetChildren() do
+			if child:IsA("Clouds") then
+				park(child)
 			end
 		end
 		local a = WorldLook.atmosphere
@@ -105,10 +103,13 @@ end
 -- The arena's own light (ArenaSky) asks for the place's old light while the camera is over it,
 -- so the arena looks just as it did until it gets retuned to WorldLook.
 function LobbySky.suspend()
-	if not applied or suspended then
+	if suspended then
 		return
 	end
 	suspended = true
+	if not applied then
+		return -- not on yet: set() waits, and resume() puts it on
+	end
 	if placeLight then
 		for key, value in placeLight do
 			(Lighting :: any)[key] = value
@@ -117,7 +118,7 @@ function LobbySky.suspend()
 	for _, inst in added do
 		inst.Parent = nil
 	end
-	local terrain = workspace:FindFirstChildOfClass("Terrain")
+	local terrain = workspace.Terrain
 	for _, inst in parked do
 		inst.Parent = if inst:IsA("Clouds") then terrain else Lighting
 	end

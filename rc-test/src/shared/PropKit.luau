@@ -236,16 +236,19 @@ function PropKit.cone(parent: Instance, at: Vector3, h: number, solid: boolean?)
 		C.red,
 		solid ~= false
 	)
-	local rings =
-		{ { 0.1, 0.42, d, C.red }, { 0.42, 0.66, d * 0.72, C.white }, { 0.66, 1, d * 0.46, C.red } }
+	local rings: { { from: number, to: number, d: number, color: Color3 } } = {
+		{ from = 0.1, to = 0.42, d = d, color = C.red },
+		{ from = 0.42, to = 0.66, d = d * 0.72, color = C.white },
+		{ from = 0.66, to = 1, d = d * 0.46, color = C.red },
+	}
 	for _, r in rings do
 		post(
 			parent,
 			"Cone",
-			at + Vector3.new(0, h * r[1], 0),
-			r[3],
-			h * (r[2] - r[1]),
-			r[4],
+			at + Vector3.new(0, h * r.from, 0),
+			r.d,
+			h * (r.to - r.from),
+			r.color,
 			solid ~= false
 		)
 	end
@@ -265,7 +268,8 @@ function PropKit.flag(
 	post(parent, "FlagPole", at, d, h, C.white, solid ~= false)
 	ball(parent, "FlagTop", at + Vector3.new(0, h + d * 0.4, 0), d * 1.8, C.yellow, false)
 	local f = facing or Vector3.new(1, 0, 0)
-	f = Vector3.new(f.X, 0, f.Z).Unit
+	f = Vector3.new(f.X, 0, f.Z)
+	f = if f.Magnitude > 1e-3 then f.Unit else Vector3.xAxis
 	local len, tall = h * 0.4, h * 0.26
 	local mid = at + Vector3.new(0, h - tall / 2 - d * 0.5, 0) + f * (len / 2 + d / 2)
 	-- a WedgePart pennant: thick, so it never reads as a paper-thin sliver
@@ -273,7 +277,7 @@ function PropKit.flag(
 	w.Name = "FlagCloth"
 	w.Anchored = true
 	w.Size = Vector3.new(math.max(h * 0.04, 0.3), tall, len)
-	w.CFrame = CFrame.lookAt(mid, mid - f)
+	w.CFrame = CFrame.lookAt(mid, mid + f)
 	w.Color = color or C.red
 	w.Material = Enum.Material.SmoothPlastic
 	w.CanCollide = false
