@@ -224,6 +224,31 @@ test("BoxServer on the pretend server: pickup gives a weapon, box comes back, no
 	eq(box1:GetAttribute("TakenCount"), 1)
 	eq((handle.folder:FindFirstChild("Box2") :: any):GetAttribute("Up"), true)
 
+	-- the Royal look: a taken box hides everything but a faint ring; only Body, Halo, Beam and Ring
+	-- are anchored (the rest is welded to Body or Halo so BoxFx moves just those two)
+	local marks = 0
+	for _, d in box1:GetDescendants() do
+		if d:IsA("BasePart") then
+			if d.Name == "Ring" then
+				near(d.Transparency, 0.85, 1e-6, "ring stays faint")
+			else
+				near(d.Transparency, 1, 1e-6, `{d.Name} hidden`)
+			end
+			local root = d.Name == "Body"
+				or d.Name == "Halo"
+				or d.Name == "Beam"
+				or d.Name == "Ring"
+			eq(d.Anchored, root, `{d.Name} anchored only if a root`)
+			if not root then
+				truthy(d:FindFirstChildOfClass("WeldConstraint"), `{d.Name} welded`)
+			end
+		elseif d:IsA("SurfaceGui") then
+			marks += 1
+			eq(d.Enabled, false, "? hidden")
+		end
+	end
+	eq(marks, 5, "a ? on 4 sides and the top")
+
 	-- a jump (teleport) right across box 2 doesn't pick it up; a short drive across it does
 	pos = Vector3.new(90, 0, 0)
 	S.advance(0.2, 0.05)
@@ -246,6 +271,8 @@ test("BoxServer on the pretend server: pickup gives a weapon, box comes back, no
 	pos = Vector3.new(50, 0, 50)
 	S.advance(8, 0.05)
 	eq(box1:GetAttribute("Up"), true)
+	near((box1:FindFirstChild("Beam") :: any).Transparency, 0.88, 1e-6, "beam back to its glow")
+	near((box1:FindFirstChild("Body") :: any).Transparency, 0, 1e-6, "box back")
 
 	-- a kart that's full doesn't take it
 	full = true
@@ -285,3 +312,63 @@ test("BoxServer on the pretend server: pickup gives a weapon, box comes back, no
 	eq(handle.folder.Parent, nil)
 	eq(#S.errors, 0, table.concat(S.errors, "\n"))
 end)
+
+test(
+	"charge boxes: a pickup adds a third, a full kart leaves the box, no weapon is given",
+	function()
+		local S = Fake.server(Fake.store())
+		local BoxServer = S.require("BoxServer")
+		local pos = Vector3.new(0, 0, 0)
+		local level = 0
+		local calls: { string } = {}
+		local gaveWeapon = false
+		local handle = BoxServer.start({
+			spots = { Vector3.new(0, 0, 0) },
+			karts = function()
+				return { { id = 9, position = pos, alive = true } }
+			end,
+			charge = function(id, amount)
+				table.insert(calls, `{id}:{string.format("%.3f", amount)}`)
+				if level >= 1 - 1e-9 then
+					return nil
+				end
+				level = math.min(1, level + amount)
+				return level
+			end,
+			give = function()
+				gaveWeapon = true
+				return true
+			end,
+		})
+		local box1 = handle.folder:FindFirstChild("Box1") :: any
+		S.advance(0.3, 0.05)
+		eq(gaveWeapon, false, "a charge box never gives a weapon")
+		eq(#calls, 1)
+		eq(calls[1], "9:0.333")
+		eq(box1:GetAttribute("Up"), false)
+		eq(box1:GetAttribute("TakenBy"), "9")
+		eq(box1:GetAttribute("TakenWeapon"), "")
+		near(box1:GetAttribute("TakenLevel") :: number, 1 / 3, 1e-9)
+		eq(box1:GetAttribute("TakenCount"), 1)
+		eq(next(handle.odds()), nil, "no odds for charge boxes")
+
+		-- it comes back, then two more boxes fill the special; a full kart can't take a fourth
+		for n = 2, 3 do
+			pos = Vector3.new(50, 0, 50)
+			S.advance(8, 0.05)
+			eq(box1:GetAttribute("Up"), true)
+			pos = Vector3.new(0, 0, 0)
+			S.advance(0.5, 0.05)
+			eq(box1:GetAttribute("TakenCount"), n)
+		end
+		near(box1:GetAttribute("TakenLevel") :: number, 1, 1e-9)
+		pos = Vector3.new(50, 0, 50)
+		S.advance(8, 0.05)
+		pos = Vector3.new(0, 0, 0)
+		S.advance(1, 0.05)
+		eq(box1:GetAttribute("Up"), true, "full: the box stays for someone else")
+		eq(box1:GetAttribute("TakenCount"), 3)
+		handle.stop()
+		eq(#S.errors, 0, table.concat(S.errors, "\n"))
+	end
+)

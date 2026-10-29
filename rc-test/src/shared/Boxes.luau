@@ -39,6 +39,7 @@ Boxes.SIZE = 4 -- big, the box's side (a bit under a kart length)
 Boxes.LIFT = 3 -- big, the box's middle above its spot on the ground
 Boxes.CHECK_HZ = 10 -- pickup checks a second; between checks the kart's path is checked too
 Boxes.SWEEP_MAX = 40 -- big; a move longer than this between checks is a jump, not a drive
+Boxes.CHARGE = 1 / 3 -- one box fills this much of a kart's special (a third; carter 10-29 22:30)
 Boxes.MAX_SAME = 2 -- one kart gets the same weapon at most this many times in a row
 
 export type Box = {

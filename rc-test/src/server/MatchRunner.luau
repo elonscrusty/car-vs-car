@@ -123,6 +123,12 @@ local function dropWeapon(id: number)
 	end
 end
 
+-- SpecialCharge: each kart's one special, charged by the gold boxes (BOXES' charge boxes)
+local function special(): any?
+	local mod = script.Parent:FindFirstChild("SpecialCharge")
+	return if mod and mod:IsA("ModuleScript") then require(mod) :: any else nil
+end
+
 local function log(msg: string)
 	print("[Match] " .. msg)
 end
@@ -324,6 +330,10 @@ end
 
 local function dropKart(id: number)
 	dropWeapon(id)
+	local C = special()
+	if C and C.drop then
+		pcall(C.drop, id)
+	end
 	local info = infos[id]
 	infos[id] = nil
 	if state then
@@ -609,7 +619,8 @@ local function clearBots()
 	end
 end
 
--- The arena's "?" boxes (BoxServer, BOXES'): started once, every box up at each round's start.
+-- The arena's gold boxes (BoxServer, BOXES'): started once, every box up at each round's start.
+-- A box charges the kart's special by a third (no random weapons any more, carter 10-29).
 -- A kart only picks one up where the server sees it, and not just after a teleport.
 local function startBoxes()
 	local mod = script.Parent:FindFirstChild("BoxServer")
@@ -623,10 +634,7 @@ local function startBoxes()
 		local x, y, z = TrackData.toWorld(t, true, sp.x, sp.y, sp.z)
 		table.insert(spots, Vector3.new(x, y, z))
 	end
-	local ws = script.Parent:FindFirstChild("WeaponServer")
-	local wr = ReplicatedStorage.Shared:FindFirstChild("Weapons")
-	local W: any = if ws and ws:IsA("ModuleScript") then require(ws) else nil
-	local WR: any = if wr and wr:IsA("ModuleScript") then require(wr) else nil
+	local C = special()
 	local ok, h = pcall((require(mod) :: any).start, {
 		spots = spots,
 		karts = function()
@@ -641,11 +649,11 @@ local function startBoxes()
 			end
 			return out
 		end,
-		give = function(id: any, name: string): boolean
-			return W ~= nil and W.give ~= nil and W.give(id, name) == true
-		end,
-		has = function(name: string): boolean
-			return WR ~= nil and WR.get ~= nil and WR.get(name) ~= nil
+		charge = function(id: any, amount: number): number?
+			if C == nil or C.add == nil then
+				return nil
+			end
+			return C.add(id, amount)
 		end,
 	})
 	if ok then
@@ -801,6 +809,10 @@ local function startRound()
 	startBoxes()
 	if boxes then
 		pcall(boxes.reset)
+	end
+	local C = special()
+	if C and C.reset then
+		pcall(C.reset) -- every special starts empty
 	end
 	log(
 		`round {round} start: {#list} players + {#m.list - #list} bots, ends in {MatchRunner.MATCH_SECS} s`
