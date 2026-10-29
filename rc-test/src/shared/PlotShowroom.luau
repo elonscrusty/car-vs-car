@@ -61,7 +61,7 @@ PlotShowroom.CRATE = { x = 0, z = -42, w = 10, size = 5.5 }
 -- side, PlotGarageBuilder) and a gold trophy on a plinth either side of the crate
 PlotShowroom.BANNER = { z = -53.5, w = 26, h = 4.5, y = 7.8 }
 PlotShowroom.BANNER_TEXT = "KART GARAGE"
-PlotShowroom.TROPHIES = { { x = -7, z = -51 }, { x = 7, z = -51 } }
+PlotShowroom.TROPHIES = { { x = -7, z = -48 }, { x = 7, z = -48 } }
 -- two little "?" crates either side of the carpet at the gate end (the mid-ground)
 PlotShowroom.MINI_CRATES = { { x = -8, z = 27 }, { x = 8, z = 27 } }
 -- walk-up prompts: in reach this close (studs). Stands are 12 apart, so two are never both in

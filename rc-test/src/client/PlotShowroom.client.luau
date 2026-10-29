@@ -260,6 +260,14 @@ local function watch(plot: Instance)
 					table.insert(s.bulbs, d)
 				end
 			end
+			-- (in order round the ring, so the chase runs round it)
+			local function turn(b: BasePart): number
+				local at = s.pivot:PointToObjectSpace(b.Position)
+				return math.atan2(at.X, at.Z - PlotShowroom.TURNTABLE.z)
+			end
+			table.sort(s.bulbs, function(a: BasePart, b: BasePart): boolean
+				return turn(a) < turn(b)
+			end)
 		end
 		s.key = ""
 		refresh(s)
