@@ -23,7 +23,9 @@ local made: { [string]: Model } = {}
 local busy: { [string]: boolean } = {}
 local making: { [string]: boolean } = {} -- a kart's body being built (other colours wait for it)
 local tries: { [string]: number } = {}
-local broken = false -- no mesh memory, or builds keep failing: this device can't, so stop trying
+local broken = false -- builds keep failing, or no mesh memory after several waits: stop trying
+local noMemory = 0 -- times the device had no mesh memory left
+local waitUntil = 0 -- (os.clock) no builds before this: memory may free up meanwhile
 
 type Piece = { mesh: KartMeshData.Mesh, color: Color3? }
 
@@ -45,8 +47,7 @@ local function meshPart(name: string, pieces: { Piece }): MeshPart
 	local mid = (lo + hi) / 2
 	local em: any = (AssetService :: any):CreateEditableMesh()
 	if not em then
-		broken = true
-		error("no EditableMesh (memory budget)")
+		error("no EditableMesh (memory budget)", 0)
 	end
 	for i, piece in pieces do
 		local v = all[i]
@@ -144,7 +145,7 @@ end
 function KartMesh.get(name: string, rim: { number }): Model?
 	local key = name .. "/" .. table.concat(rim, ",")
 	local m = made[key]
-	if m or broken or busy[key] or not KartMeshData[name] then
+	if m or broken or busy[key] or os.clock() < waitUntil or not KartMeshData[name] then
 		return m
 	end
 	busy[key] = true
@@ -153,10 +154,16 @@ function KartMesh.get(name: string, rim: { number }): Model?
 		if ok then
 			made[key] = res
 		else
-			-- a hiccup gets another go (next call); out of mesh memory or 3 fails: toy cars for good
-			tries[key] = (tries[key] or 0) + 1
-			if tries[key] >= 3 then
-				broken = true
+			if string.find(tostring(res), "memory budget", 1, true) then
+				-- out of mesh memory (Studio on a busy PC, small phones): wait 10, 20, 40, 80 s and
+				-- try again, then toy cars for good
+				noMemory += 1
+				waitUntil = os.clock() + 10 * 2 ^ (noMemory - 1)
+				broken = noMemory >= 5
+			else
+				-- a hiccup gets another go (next call); 3 fails: toy cars for good
+				tries[key] = (tries[key] or 0) + 1
+				broken = broken or tries[key] >= 3
 			end
 			if broken then
 				warn(`KartMesh: can't build karts here, the toy cars show instead ({res})`)

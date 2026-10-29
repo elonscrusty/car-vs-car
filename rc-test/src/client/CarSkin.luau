@@ -114,6 +114,12 @@ function CarSkin.paintKart(p: BasePart, id: string)
 		return
 	end
 	local col, glow = ToyCars.kartPaint(p.Name, info.color, info.style)
+	if p:GetAttribute("RimTint") == true then
+		-- a baked kart's wheel (assets/karts/studio_bake.luau): dark tyre, white rim; the part's
+		-- colour tints the rim to the car's rim colour
+		p.Color = rgb(ToyCars.kartRim(info.color, info.style))
+		return
+	end
 	if col and p:GetAttribute("Baked") ~= true then
 		p.Color = rgb(col)
 		p.Material = if glow then Enum.Material.Neon else Enum.Material.SmoothPlastic
