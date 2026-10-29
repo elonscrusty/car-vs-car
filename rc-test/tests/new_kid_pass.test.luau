@@ -43,7 +43,7 @@ local function kid(S, player)
 	local brain = ThumbBrain.new(ArenaBrain.rng(math.random(1, 2 ^ 30))) -- (math.randomseed(seed))
 	local scale = TrackData.RC_SCALE
 	local accel, base = Tuning.accel * scale, 2 * Tuning.wheelZ * scale
-	local top = Tuning.topSpeed * scale
+	local top = Tuning.topSpeed * scale * S.require("Shared.Match").SPEED_SCALE -- (the arena's)
 	local brakeAccel, reverseTop = Tuning.brakeAccel * scale, Tuning.reverseTop * scale
 	local lastFire = -math.huge
 	local seen, t = 0, nil

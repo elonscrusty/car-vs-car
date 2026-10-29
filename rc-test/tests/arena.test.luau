@@ -85,9 +85,10 @@ end
 -- and other karts keep a kart under its top speed most of the time)
 local CRUISE = 0.6
 local function driveTime(d: number): number
-	(Tuning :: any).setMode("race");
+	(Tuning :: any).setMode("arena"); -- (the arena's top speed, Match.SPEED_SCALE)
 	(Tuning :: any).setScale(1) -- big units, whatever an earlier test left
-	local v, a = Tuning.topSpeed * CRUISE, Tuning.accel
+	local v, a = Tuning.topSpeed * CRUISE, Tuning.accel;
+	(Tuning :: any).setMode("race")
 	local ramp = v * v / (2 * a)
 	if d <= ramp then
 		return math.sqrt(2 * d / a)

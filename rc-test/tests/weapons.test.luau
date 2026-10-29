@@ -443,9 +443,10 @@ test("sizes fit the RC-scale arena: measured in kart lengths", function()
 		truthy(f.ahead > 0.5 * K and f.ahead <= 1.5 * K) -- leaves from its own kart's nose
 		truthy(f.speed * f.life >= 50 * K) -- reaches most of the way across (about 65 karts)
 	end
-	-- a rocket outruns a kart (top speed about 17 karts a second); the nuke can be outrun
-	truthy(Weapons.ROCKET.speed > 17 * K)
-	truthy(Weapons.NUKE.speed < 17 * K)
+	-- a rocket outruns a kart (the arena's top speed, about 14 karts a second); the nuke can be outrun
+	local top = 95 * 0.25 * require("../src/shared/Match").SPEED_SCALE -- (Tuning.topSpeed at RC size)
+	truthy(Weapons.ROCKET.speed > top)
+	truthy(Weapons.NUKE.speed < top * 0.95, "a kart at full speed gets away from the nuke")
 	truthy(Weapons.ROCKET.splash <= 3 * K)
 	truthy(Weapons.NUKE.splash >= 6 * K and Weapons.NUKE.splash <= 65 * K / 6)
 end)
