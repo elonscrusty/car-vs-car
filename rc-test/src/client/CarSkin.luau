@@ -356,6 +356,11 @@ function CarSkin.standIn(id: string, long: number): Model?
 	return m
 end
 
+-- A rim piece of a wheel: named Rim, then anything, then the wheel's end (RimFL, RimChromeFL)
+local function isRimOf(p: Instance, e: string): boolean
+	return p:IsA("BasePart") and string.sub(p.Name, 1, 3) == "Rim" and p.Name:sub(-#e) == e
+end
+
 local function show(car: RCCar.Car, name: string, src: Model): Shown?
 	local copy = src:Clone()
 	local body = copy:FindFirstChild("Body", true)
@@ -424,12 +429,16 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 		local keep: { [Instance]: boolean } = { [body] = true }
 		for i, w in wheels do
 			keep[w] = true
-			-- (a kart imported in Studio has its rims apart from its tyres: RimFL rides on WheelFL)
-			local rim = copy:FindFirstChild("Rim" .. string.sub(WHEEL_NAMES[i], 6), true)
-			if rim and rim:IsA("BasePart") then
-				keep[rim] = true
-				rims[rim] = { wheel = w, rel = w.CFrame:ToObjectSpace(rim.CFrame) }
-				rim.Parent = folder
+			-- (a kart imported in Studio has its rims apart from its tyres: RimFL rides on WheelFL,
+			-- and so does every other Rim<..>FL piece, like RimChromeFL)
+			local wheelEnd = string.sub(WHEEL_NAMES[i], 6)
+			for _, rim in copy:GetDescendants() do
+				if isRimOf(rim, wheelEnd) then
+					local part = rim :: BasePart
+					keep[part] = true
+					rims[part] = { wheel = w, rel = w.CFrame:ToObjectSpace(part.CFrame) }
+					part.Parent = folder
+				end
 			end
 		end
 		for _, d in copy:GetDescendants() do
