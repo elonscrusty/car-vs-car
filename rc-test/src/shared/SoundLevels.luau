@@ -30,6 +30,7 @@ local SoundLevels = {
 	HIT_GAP = 0.08, -- seconds between hit sounds
 	BUMP = 0.4, -- two karts bump (bumps hurt too, carter 10-28)
 	FREEZE = 0.45, -- freeze shot, a kart freezing, the ice shattering
+	FLAME = 0.5, -- the Flame Nozzle's burst: one smooth roar, no ticking (carter 10-30)
 	SMASH = 0.75, -- a kart got smashed
 	RESPAWN = 0.4, -- you are back in
 	SHIELD = 0.35, -- the shield goes up
