@@ -700,13 +700,13 @@ end
 -- bottom right (with the weapon and its ammo); the stick corner stays free. Phone: the stick and
 -- FIRE are all it needs =====
 
-local FEED_ROWS = 2 -- (any screen: at most 2, auditor round 12)
-local FEED_SECS = 3
+local FEED_ROWS = 4 -- (carter's pick B, 10-30: was 2; the old 3 s was 5 s in the preview)
+local FEED_SECS = 5
+local FEED_ROW = 22
 local BOARD_TOP = 3 -- the top 3, then you (a phone's left side is the stick's: Audit F9)
 -- the board's and the kill list's words are 18 tall: 14 px on a 667x375 phone (Lead item 5)
 local WORDS = 18
 local BOARD_ROW, BOARD_STEP = 24, 27
-local FEED_STEP = 30 -- (3 rows of 28 in 88: lower and the YOU SMASHED words sat on it)
 local BOARD_NAME, FEED_NAME = 12, 8 -- letters a name keeps (then …) so it never shrinks small
 
 -- A name in capitals, cut to `max` letters (the last one a …) so its words stay big.
@@ -1161,13 +1161,13 @@ function Hud.match(
 			end
 		end
 		setBoard(data.board or {})
-		-- KILL LIST: up to 2 rows, newest on top, each gone after 3 s (any screen, auditor round 12)
+		-- KILL LIST: up to 4 rows, newest on top, each gone after 5 s (carter's pick B)
 		local fp = piece(L, "Feed")
 		local feedSpot = spot(c, L, "Feed")
 		local rows: { Frame } = {}
 		local feedRows = FEED_ROWS
 		local feedSecs = FEED_SECS
-		local feedStep = if touch then 30 else FEED_STEP
+		local feedStep = FEED_ROW
 		local function layoutRows()
 			for i, r in rows do
 				Anim.to(r, 0.2, { Position = UDim2.fromScale(0, (i - 1) * feedStep / fp.h) })
@@ -1181,50 +1181,39 @@ function Hud.match(
 			attackerLevel: number?,
 			victimLevel: number?
 		)
-			local row = Base.fill(feedSpot, "Row", 0, 0, fp.w, if touch then 26 else 28, INK, 2)
-			-- carter's kit v41: a dark ink plate, its left edge lime when you are in it
-			row.BackgroundTransparency = 0.22
-			Base.corner(row)
-			local rowH = if touch then 26 else 28
-			local edge = Base.fill(
-				row,
-				"Edge",
-				4,
-				5,
-				5,
-				rowH - 10,
-				Base.color(if mine then "lime" else "pink"),
-				2
-			)
-			Base.corner(edge)
-			-- each side: [level] NAME, the weapon between (a side with no level: the name
-			-- takes the badge's room)
-			local half = (fp.w - 32) / 2
-			local function side(x: number, name: string, level: number?, key: string, align: string)
-				local nx, nw = x, half - 4
-				if type(level) == "number" and not touch then
-					levelBadge(row, x, 3, level, key .. "Level", 24)
-					nx, nw = x + 26, half - 30
-					align = "l" -- (the name right after its badge)
-				end
+			-- carter's pick B (10-30, match-screen/killlist): bare outlined words, no plate: WHO
+			-- (gold when you are in it), the weapon, a red arrow, WHOM
+			local rowH = FEED_ROW
+			local row = Base.box(feedSpot, "Row", 0, 0, fp.w, rowH, 2)
+			local nameW = math.floor((fp.w - rowH - 14) / 2)
+			local function side(x: number, name: string, key: string, gold: boolean)
 				Base.text(
 					row,
 					key,
-					nx,
-					if touch then 4 else 5,
-					nw,
-					WORDS,
+					x,
+					2,
+					nameW,
+					rowH - 4,
 					Hud.cut(name, if touch then 6 else FEED_NAME),
 					{
 						stroke = 3.5,
-						align = align,
+						align = "l",
 						z = 3,
+						color = if gold then Base.color("go") else nil,
 					}
 				)
 			end
-			side(10, attacker, attackerLevel, "Who", "r")
-			Icons.make(row, Hud.weaponIcon(weapon), half + 4, 2, 24, { z = 4 })
-			side(half + 30, victim, victimLevel, "Whom", "l")
+			-- (levels stay off this line: the kit's board and health bar show them)
+			side(0, attacker, "Who", mine == true)
+			Icons.make(row, Hud.weaponIcon(weapon), nameW + 2, 0, rowH, { z = 4 })
+			local arrow = Base.text(row, "Arrow", nameW + rowH + 2, 2, 10, rowH - 4, "›", {
+				stroke = 3.5,
+				align = "c",
+				z = 3,
+				color = Base.color("danger"),
+			})
+			arrow.Name = "Arrow"
+			side(nameW + rowH + 12, victim, "Whom", false)
 			table.insert(rows, 1, row)
 			while #rows > feedRows do
 				(table.remove(rows) :: Frame):Destroy()
