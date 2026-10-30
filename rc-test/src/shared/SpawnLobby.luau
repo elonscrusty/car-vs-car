@@ -23,7 +23,7 @@ local CarCatalog = sibling("CarCatalog")
 local CarGlow = sibling("CarGlow")
 local Features = sibling("Features")
 local Garage = sibling("Garage")
-local LobbyDock = sibling("LobbyDock")
+local LobbyGarage = sibling("LobbyGarage")
 
 type V3 = Garage.V3
 type Piece = Garage.Piece
@@ -85,12 +85,13 @@ SpawnLobby.PAD_BEAM = 9 -- studs the light column stands
 SpawnLobby.PAD_RINGS = { 2.6, 4.8, 7 } -- heights of the turning rings
 SpawnLobby.PAD_BASE = 8.4 -- the hidden square the server watches, inside the round pad
 SpawnLobby.SMASH_PADS = { -19, 0, 19 }
--- The Junkyard Dock look (carter picked D, 10-29): container walls round the square, hazard
--- kerbs, a crane and tyre piles (LobbyDock), concrete paving. Smash only; false = the sandy plaza.
-SpawnLobby.DOCK = SpawnLobby.SMASH
-if SpawnLobby.DOCK then
-	-- the walls stand just outside the floor (4.8 deep) and the crane behind the back wall
-	SpawnLobby.BOX = { minX = -66, maxX = 66, minZ = -62, maxZ = 36, maxY = LobbyDock.CRANE_TOP }
+-- The Garage Hub look (carter picked layout F, 10-30; it replaces the Junkyard Dock): a garage hall
+-- round the plaza (LobbyGarage), grey concrete paving, yellow hazard kerbs. Smash only; false =
+-- the sandy plaza.
+SpawnLobby.GARAGE = SpawnLobby.SMASH
+if SpawnLobby.GARAGE then
+	-- the back and front walls stand just outside the floor (1.6 deep)
+	SpawnLobby.BOX = { minX = -60, maxX = 60, minZ = -41, maxZ = 38, maxY = 21 }
 end
 SpawnLobby.PADS = if SpawnLobby.SMASH
 	then {
@@ -180,11 +181,11 @@ local L = {
 	green = { 70, 210, 90 },
 	statue = { 214, 48, 44 },
 }
-if SpawnLobby.DOCK then
-	-- concrete, not sand (carter's D): two greys under the orange and yellow of the dock
-	L.paving = { 138, 138, 150 }
-	L.paving2 = { 160, 160, 172 }
-	L.kerb = { 255, 177, 0 }
+if SpawnLobby.GARAGE then
+	-- concrete, not sand: two greys under the yellow hazard kerbs
+	L.paving = { 112, 116, 130 }
+	L.paving2 = { 134, 138, 152 }
+	L.kerb = { 255, 205, 40 }
 end
 -- one colour per player's car on the stands, and the bunting
 local CAR_COLORS = {
@@ -264,7 +265,7 @@ function SpawnLobby.parts(): { Piece }
 						"SlabEdge",
 						v(TILE - GAP_IN, 0.04, TILE - GAP_IN),
 						v(x, 0.02, z),
-						if SpawnLobby.DOCK then { 118, 118, 130 } else { 200, 158, 104 },
+						if SpawnLobby.GARAGE then { 96, 100, 114 } else { 200, 158, 104 },
 						{ collide = false }
 					)
 					add(
@@ -279,12 +280,9 @@ function SpawnLobby.parts(): { Piece }
 			end
 		end
 	end
-	-- (the dock look has its own hazard kerbs along the container walls: LobbyDock)
-	if not SpawnLobby.DOCK then
-		add("Ground", "KerbBack", v(W, 0.6, 1), v(0, 0.3, back + 0.5), L.kerb)
-		add("Ground", "KerbLeft", v(1, 0.6, D), v(-W / 2 + 0.5, 0.3, 0), L.kerb)
-		add("Ground", "KerbRight", v(1, 0.6, D), v(W / 2 - 0.5, 0.3, 0), L.kerb)
-	end
+	add("Ground", "KerbBack", v(W, 0.6, 1), v(0, 0.3, back + 0.5), L.kerb)
+	add("Ground", "KerbLeft", v(1, 0.6, D), v(-W / 2 + 0.5, 0.3, 0), L.kerb)
+	add("Ground", "KerbRight", v(1, 0.6, D), v(W / 2 - 0.5, 0.3, 0), L.kerb)
 	local side = W / 2 - SpawnLobby.GAP
 	for _, sx in { -1, 1 } do
 		add(
@@ -573,7 +571,8 @@ function SpawnLobby.parts(): { Piece }
 	end
 
 	-- ===== Lamps =====
-	for i, p in SpawnLobby.LAMPS do
+	-- (the garage hall has its own lamp arms: LobbyGarage)
+	for i, p in if SpawnLobby.GARAGE then {} else SpawnLobby.LAMPS do
 		local g = "Lamp" .. i
 		if SpawnLobby.SMASH then
 			-- chunky navy posts with a sunny ball (LOOK-BIBLE rules 2 and 3)
@@ -634,8 +633,8 @@ function SpawnLobby.parts(): { Piece }
 		add(g, "Leaves", v(2.6, 2, 2.6), v(p.x, 2.2, p.z), L.leaf, { rot = v(0, 45, 0) })
 	end
 
-	if SpawnLobby.DOCK then
-		LobbyDock.parts(add, W, D)
+	if SpawnLobby.GARAGE then
+		LobbyGarage.parts(add, W, D, SpawnLobby.SMASH_PADS)
 	end
 
 	return out
@@ -793,8 +792,8 @@ function SpawnLobby.dress(model: Instance, origin: CFrame)
 	local function at(x: number, z: number): Vector3
 		return origin:PointToWorldSpace(Vector3.new(x, 0, z))
 	end
-	-- (the dock look has container walls there instead of the trees and bushes)
-	for i, x in if SpawnLobby.DOCK then {} else SpawnLobby.TREES do
+	-- (the garage hall has container walls there instead of the trees and bushes)
+	for i, x in if SpawnLobby.GARAGE then {} else SpawnLobby.TREES do
 		local z = SpawnLobby.TREE_Z + (if i % 2 == 0 then 1.5 else -1)
 		pcall(
 			kit.tree,
@@ -805,11 +804,12 @@ function SpawnLobby.dress(model: Instance, origin: CFrame)
 			200 + i
 		)
 	end
-	for i, p in if SpawnLobby.DOCK then {} else SpawnLobby.BUSHES do
+	for i, p in if SpawnLobby.GARAGE then {} else SpawnLobby.BUSHES do
 		pcall(kit.bush, folder, at(p.x, p.z), 3, 300 + i, false)
 	end
 	local pz = SpawnLobby.PAD_Z
-	for k, sx in { -1, 1 } do
+	-- (simple and clear, carter 10-30: no flags, balloons or clusters round the pads)
+	for k, sx in if SpawnLobby.GARAGE then {} else { -1, 1 } do
 		local pos = at(sx * (SpawnLobby.SMASH_PADS[3] + SpawnLobby.PAD_R + 4), pz)
 		pcall(
 			kit.flag,
@@ -830,7 +830,7 @@ function SpawnLobby.dress(model: Instance, origin: CFrame)
 			Color3.fromRGB(255, 210, 63),
 			Color3.fromRGB(142, 68, 255),
 		}
-		for i, c in SpawnLobby.CLUSTERS do
+		for i, c in if SpawnLobby.GARAGE then {} else SpawnLobby.CLUSTERS do
 			local side = if c.x < 0 then -1 else 1
 			pcall(kit.tyreStack, folder, at(c.x, c.z), 3, 3, false)
 			local bx = c.x + side * 2.6 -- (the outer side, off the walk to the shop doors)
@@ -888,8 +888,8 @@ SpawnLobby.REPAINT = {
 	RoofRib = { 255, 210, 63 },
 	Floor = { 242, 217, 166 },
 } :: { [string]: { number } }
-if SpawnLobby.DOCK then
-	-- the dock's palette (LobbyDock): steel-blue shells, dark roof, hazard ribs, concrete floor
+if SpawnLobby.GARAGE then
+	-- the garage's palette: steel-blue shells, dark roof, hazard ribs, concrete floor
 	SpawnLobby.REPAINT = {
 		BackWall = { 58, 111, 176 },
 		LeftWall = { 58, 111, 176 },
