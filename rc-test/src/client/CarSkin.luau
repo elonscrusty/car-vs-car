@@ -21,6 +21,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local RCCar = require(script.Parent.RCCar)
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
+local DamageFx = require(script.Parent.DamageFx)
 local ExhaustFx = require(script.Parent.ExhaustFx)
 local FireDrake = require(script.Parent.FireDrake)
 local Garage = require(ReplicatedStorage.Shared.Garage)
@@ -501,6 +502,7 @@ function CarSkin.new()
 	local shown: Shown? = nil
 	local broken: { [Model]: boolean } = {} -- models missing a part: don't keep trying them every frame
 	local exhaust = ExhaustFx.new() -- the Fire Drake car's tailpipe jets while it boosts
+	local damage = DamageFx.new() -- cracks, smoke, sparks and fire as my Health drops (any car)
 
 	UserInputService.InputBegan:Connect(function(input: InputObject, typing: boolean)
 		if not typing and input.KeyCode == Enum.KeyCode.B then
@@ -547,6 +549,7 @@ function CarSkin.new()
 			if cur and FireDrake.wants(cur.name) then cur.body else nil,
 			cur ~= nil and car.telemetry.boost > 0
 		)
+		damage.step(if cur then cur.body else nil)
 	end
 
 	return self
