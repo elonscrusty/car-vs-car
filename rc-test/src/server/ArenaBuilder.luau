@@ -1,7 +1,8 @@
 --!strict
--- Builds the Smash arena from ArenaData (arena-topdown-v2.png): grass floor, the winding road with
--- red/white curbs and crosswalks, the sand patch and its red bumper wall, the two pink hills with
--- ramps, the purple step, orange cover walls, lollipop trees and the purple outer wall.
+-- Builds the Smash arena from ArenaData: a destruction-derby junkyard (carter's pick "B night yard",
+-- 10-29): one open dirt floor with tyre tracks (no road, curbs or lane lines: not a racetrack), a
+-- mud pit, the pink hills with ramps, orange cover walls, a steel outer wall with crushed cars
+-- piled against it, grandstands and light towers outside.
 -- LOOK RULE: clean low-poly, flat colours, SmoothPlastic only, faceted shapes (the hills are
 -- wedge-built prisms, the tree tops turned blocks). No studs, bricks, text or logos.
 -- Built big (map-local big units) and shrunk to RC size like the race maps.
@@ -21,10 +22,23 @@ local function rgb(r: number, g: number, b: number): Color3
 end
 
 -- palette (LOOK RULE: grass green, sky blue, sunny yellow, cherry red, hot pink, dark navy)
-local GRASS = rgb(112, 190, 88)
-local ROAD = rgb(150, 150, 158)
+local GRASS, GRASS_CHECK = rgb(150, 108, 70), rgb(134, 96, 62) -- (the dirt floor)
 local CURB_RED, CURB_WHITE = rgb(214, 70, 72), rgb(240, 238, 232)
-local SAND = rgb(250, 190, 96)
+-- the night-yard look: yellow/black hazard wall top, a dark steel wall, crushed cars, grandstands
+local HAZARD, HAZARD_DARK = rgb(255, 214, 40), rgb(36, 38, 58)
+local WALL_BLUE, SKID = rgb(70, 76, 98), rgb(88, 62, 40)
+local STEEL, STAND = rgb(138, 142, 154), rgb(58, 58, 74)
+local WRECKS = {
+	rgb(168, 74, 42),
+	rgb(106, 122, 138),
+	rgb(200, 162, 58),
+	rgb(138, 58, 58),
+	rgb(74, 106, 138),
+	rgb(122, 106, 88),
+	rgb(200, 200, 192),
+}
+local SEATS = { rgb(224, 56, 60), rgb(255, 214, 40), rgb(47, 140, 255), rgb(240, 238, 232) }
+local SAND = rgb(96, 70, 48) -- (the mud pit)
 local BUMPER = rgb(225, 40, 50)
 local PINK = rgb(234, 122, 196)
 local PURPLE, PURPLE_STEP = rgb(136, 60, 196), rgb(176, 96, 220)
@@ -33,10 +47,11 @@ local CANDY, CANDY_2 = rgb(214, 44, 178), rgb(255, 110, 200)
 local STICK = rgb(252, 248, 240)
 local TRIM, NAVY = rgb(196, 128, 246), rgb(34, 40, 78)
 local YELLOW, SKY = rgb(255, 214, 40), rgb(80, 180, 255)
-local GRASS_DARK, GRASS_LIGHT = rgb(94, 170, 76), rgb(140, 206, 104)
-local GRASS_FAR, WATER, SHORE = rgb(104, 178, 86), rgb(96, 186, 236), rgb(240, 214, 150)
-local HILL_FAR, HILL_FAR_2 = rgb(88, 160, 84), rgb(120, 186, 96)
+local GRASS_DARK, GRASS_LIGHT = rgb(112, 78, 50), rgb(168, 126, 86)
+local GRASS_FAR = rgb(116, 88, 62)
+local HILL_FAR, HILL_FAR_2 = rgb(124, 96, 70), rgb(146, 114, 82)
 local BUSH, BUSH_2 = rgb(56, 150, 64), rgb(84, 176, 72)
+local SCRAP, SCRAP_2 = rgb(110, 96, 88), rgb(150, 70, 44)
 local ROCK, ROCK_2 = rgb(172, 168, 196), rgb(146, 142, 176)
 local CRATE, CRATE_BAND = rgb(255, 196, 60), rgb(230, 120, 30)
 local FLAGS = { CURB_RED, YELLOW, PINK, SKY }
@@ -51,7 +66,7 @@ local function v(p: Pt, y: number): Vector3
 end
 
 -- flat floor layers throw no shadow worth the phone's time
-local FLAT = { Grass = true, Road = true, Curb = true, Crosswalk = true, Sand = true }
+local FLAT = { Grass = true, Sand = true }
 
 -- upright things a kart bumps: next to no friction, so a kart that hits one at an angle slides
 -- along it and off instead of sticking (round 7: karts were stuck half the match)
@@ -99,29 +114,6 @@ local function part(
 	end
 	p.Parent = parent
 	return p
-end
-
--- a flat strip from a to b (map-local), top at `top`
-local function strip(
-	parent: Instance,
-	name: string,
-	a: Vector3,
-	b: Vector3,
-	width: number,
-	top: number,
-	color: Color3,
-	extra: number
-)
-	local d = Vector3.new(b.X - a.X, 0, b.Z - a.Z)
-	local mid = Vector3.new((a.X + b.X) / 2, top - 0.05, (a.Z + b.Z) / 2)
-	return part(
-		parent,
-		name,
-		Vector3.new(width, 0.1, d.Magnitude + extra),
-		CFrame.lookAt(mid, mid + d),
-		color,
-		true
-	)
 end
 
 -- a solid upright wall from a to b (map-local, y ignored)
@@ -346,11 +338,23 @@ local function roadLine(perSeg: number): { Vector3 }
 	return out
 end
 
-local ROAD_STEPS = 7 -- road pieces per picture point (fewer parts for phones)
-
 local function buildFloor(folder: Instance)
 	local s = ArenaData.SIZE
-	part(folder, "Grass", Vector3.new(s, 4, s), CFrame.new(0, -2, 0), GRASS, true)
+	-- the grass in a big two-green checker, so no view across the arena is one flat green
+	local tiles = 8
+	local tw = s / tiles
+	for i = 0, tiles - 1 do
+		for j = 0, tiles - 1 do
+			part(
+				folder,
+				"Grass",
+				Vector3.new(tw, 4, tw),
+				CFrame.new(-s / 2 + tw * (i + 0.5), -2, -s / 2 + tw * (j + 0.5)),
+				if (i + j) % 2 == 1 then GRASS_CHECK else GRASS,
+				true
+			)
+		end
+	end
 	-- the purple outer wall, all round
 	local w, h = ArenaData.WALL * K, ArenaData.WALL_H
 	for _, side in { -1, 1 } do
@@ -359,7 +363,7 @@ local function buildFloor(folder: Instance)
 			"OuterWall",
 			Vector3.new(s, h, w),
 			CFrame.new(0, h / 2, side * (s - w) / 2),
-			PURPLE,
+			WALL_BLUE,
 			true
 		)
 		part(
@@ -367,35 +371,97 @@ local function buildFloor(folder: Instance)
 			"OuterWall",
 			Vector3.new(w, h, s),
 			CFrame.new(side * (s - w) / 2, h / 2, 0),
-			PURPLE,
+			WALL_BLUE,
 			true
 		)
 	end
-	-- a chunky light rail along the top and a lighter pillar every so often on the inside face
+	-- a yellow and black hazard rail along the top, in blocks
 	local inner = s / 2 - w
-	for _, side in { -1, 1 } do
-		part(
-			folder,
-			"WallTrim",
-			Vector3.new(s, 2, w + 1),
-			CFrame.new(0, h + 1, side * (s - w) / 2),
-			TRIM,
-			true
-		)
-		part(
-			folder,
-			"WallTrim",
-			Vector3.new(w + 1, 2, s),
-			CFrame.new(side * (s - w) / 2, h + 1, 0),
-			TRIM,
-			true
-		)
+	local BLOCK = 12
+	local nb = math.floor(s / BLOCK)
+	for k = 0, nb - 1 do
+		local along = -s / 2 + BLOCK * (k + 0.5)
+		local col = if k % 2 == 0 then HAZARD else HAZARD_DARK
+		for _, side in { -1, 1 } do
+			local z = side * (s - w) / 2
+			part(
+				folder,
+				"WallTrim",
+				Vector3.new(BLOCK, 2, w + 1),
+				CFrame.new(along, h + 1, z),
+				col,
+				true
+			)
+			part(
+				folder,
+				"WallTrim",
+				Vector3.new(w + 1, 2, BLOCK),
+				CFrame.new(z, h + 1, along),
+				col,
+				true
+			)
+		end
 	end
-	local GAP = 36
-	for along = -s / 2 + GAP, s / 2 - GAP / 2, GAP do
+	-- crushed cars piled three high against the wall's inside face, each nosed into it so only
+	-- its front shows (looks only: the kart still bumps the flat wall)
+	local k = 0
+	for along = -inner + 4, inner - 4, 8.4 do
+		k += 1
 		for _, face in { { 0, -1 }, { 1, 0 }, { 0, 1 }, { -1, 0 } } do
 			local nx, nz = face[1], face[2] -- the wall's side of the arena
 			local tx, tz = -nz, nx -- along the wall
+			local pc = {
+				ArenaData.PIC / 2 + (nx * inner + tx * along) / K,
+				ArenaData.PIC / 2 + (nz * inner + tz * along) / K,
+			}
+			local r = ArenaData.cornerRadius(pc[1], pc[2])
+			-- the curved corners have no straight face to pile against
+			if math.abs(along / K) > ArenaData.PIC / 2 - ArenaData.WALL - r - 4 / K then
+				continue
+			end
+			local at =
+				Vector3.new(nx * (inner + 0.3) + tx * along, 0, nz * (inner + 0.3) + tz * along)
+			for l = 0, 2 do
+				local col = WRECKS[(k + l * 2 + (nx + nz + 3)) % #WRECKS + 1]
+				local cf = CFrame.new(at.X, l * 2.4, at.Z)
+					* CFrame.Angles(0, if nx == 0 then 0 else math.pi / 2, 0)
+				part(
+					folder,
+					"Wreck",
+					Vector3.new(7, 1.6, 3.4),
+					cf * CFrame.new(0, 0.8, 0),
+					col,
+					false
+				)
+				part(
+					folder,
+					"Wreck",
+					Vector3.new(3.4, 1.1, 2.8),
+					cf * CFrame.new(-0.4, 2.1, 0),
+					col,
+					false
+				)
+			end
+			-- a rust-red steel sheet leaning on every third pile
+			if k % 3 == 0 then
+				part(
+					folder,
+					"Sheet",
+					Vector3.new(8, 5, 0.5),
+					CFrame.new(at.X, 9.2, at.Z)
+						* CFrame.Angles(0, if nx == 0 then 0 else math.pi / 2, 0),
+					rgb(154, 90, 56),
+					false
+				)
+			end
+		end
+	end
+	-- steel posts up the wall, a light tower at each corner and mid-wall, banners and fire pots
+	local GAP = 36
+	for along = -s / 2 + GAP, s / 2 - GAP / 2, GAP do
+		for _, face in { { 0, -1 }, { 1, 0 }, { 0, 1 }, { -1, 0 } } do
+			local nx, nz = face[1], face[2]
+			local tx, tz = -nz, nx
 			local base = Vector3.new(nx * inner + tx * along, 0, nz * inner + tz * along)
 			local into = Vector3.new(-nx, 0, -nz)
 			part(
@@ -403,7 +469,7 @@ local function buildFloor(folder: Instance)
 				"WallPillar",
 				Vector3.new(3, h + 1.6, 3),
 				CFrame.lookAt(base - into * 0.7, base) + Vector3.new(0, (h + 1.6) / 2, 0),
-				TRIM,
+				STEEL,
 				false
 			)
 		end
@@ -415,8 +481,8 @@ local function buildFloor(folder: Instance)
 		ArenaData.STEP_H,
 		ArenaData.STEP_SLOPE,
 		ArenaData.STEP_SIDES,
-		PURPLE_STEP,
-		TRIM
+		STEEL,
+		HAZARD_DARK
 	)
 	-- a dark skirting along the inside foot of the wall
 	for _, side in { -1, 1 } do
@@ -440,62 +506,48 @@ local function buildFloor(folder: Instance)
 	-- each inside corner filled out to a curve of flat slabs, so a kart is turned along the wall
 	for _, c in ArenaData.cornerCurves do
 		for k = 2, #c - 1 do
-			prism(folder, "WallCorner", { c[1], c[k], c[k + 1] }, 0, h, PURPLE)
+			prism(folder, "WallCorner", { c[1], c[k], c[k + 1] }, 0, h, WALL_BLUE)
 		end
 	end
 end
 
-local function buildRoad(folder: Instance)
-	local line = roadLine(ROAD_STEPS)
-	local n = #line
-	local rw, cw = ArenaData.ROAD_W * K, ArenaData.CURB * K
-	for i = 1, n do
-		local a, b = line[i], line[i % n + 1]
-		strip(folder, "Road", a, b, rw, 0.1, ROAD, 2)
-		-- a round patch at each joint fills the wedge on the outside of a bend
-		local patch = part(
-			folder,
-			"Road",
-			Vector3.new(0.1, rw, rw),
-			CFrame.new(a.X, 0.05, a.Z) * CFrame.Angles(0, 0, math.pi / 2),
-			ROAD,
-			true
-		) :: Part
-		patch.Shape = Enum.PartType.Cylinder
-		local d = (b - a)
-		local right = Vector3.new(-d.Z, 0, d.X).Unit
-		for _, side in { -1, 1 } do
-			local off = right * side * (rw / 2 + cw / 2)
-			strip(
+-- Looks only, flat and never solid: dark tyre-track pairs scuffed over the dirt, and a white ring
+-- painted round each start spot.
+local function buildYardPaint(folder: Instance)
+	local rng = Random.new(11)
+	local lo, hi = ArenaData.WALL + 14, ArenaData.PIC - ArenaData.WALL - 14
+	for _ = 1, 40 do
+		local p = { rng:NextNumber(lo, hi), rng:NextNumber(lo, hi) }
+		if ArenaData.groundAt(p) ~= 0 then
+			continue
+		end
+		local ang = rng:NextNumber(0, math.pi)
+		local len = rng:NextNumber(18, 40)
+		local dir = Vector3.new(math.cos(ang), 0, math.sin(ang))
+		local right = Vector3.new(-dir.Z, 0, dir.X)
+		for _, w in { -1.3, 1.3 } do
+			local mid = v(p, 0.12) + right * w
+			part(
 				folder,
-				"Curb",
-				a + off,
-				b + off,
-				cw,
-				-- red and white a hair apart in height, so their overlaps never flicker
-				if i % 2 == 0 then 0.12 else 0.14,
-				if i % 2 == 0 then CURB_RED else CURB_WHITE,
-				0.4
+				"Skid",
+				Vector3.new(0.8, 0.04, len),
+				CFrame.lookAt(mid, mid + dir),
+				SKID,
+				false
 			)
 		end
 	end
-	-- crosswalks: white bars across the road
-	for _, c in ArenaData.CROSSWALKS do
-		local mid = v(c.at, 0)
-		for k = -3, 3 do
-			local along = if c.across
-				then Vector3.new(k * 3 * K, 0, 0)
-				else Vector3.new(0, 0, k * 3 * K)
-			local size = if c.across
-				then Vector3.new(2 * K, 0.1, 16 * K)
-				else Vector3.new(16 * K, 0.1, 2 * K)
+	for _, p in ArenaData.START do
+		local c = v(p, ArenaData.groundAt(p) + 0.14)
+		for k = 0, 9 do
+			local ang = k * math.pi / 5
 			part(
 				folder,
-				"Crosswalk",
-				size,
-				CFrame.new(mid + along + Vector3.new(0, 0.11, 0)),
+				"SpawnRing",
+				Vector3.new(3.4, 0.05, 0.9),
+				CFrame.new(c) * CFrame.Angles(0, ang, 0) * CFrame.new(0, 0, 6),
 				CURB_WHITE,
-				true
+				false
 			)
 		end
 	end
@@ -1228,7 +1280,7 @@ local function buildArch(folder: Instance)
 	end
 end
 
--- looks only: grass patches in two shades, bushes, flower clumps (karts drive through them)
+-- looks only: dirt patches in two shades and scrap piles (karts drive through them)
 local function buildDecor(folder: Instance)
 	for i, g in ArenaData.PATCHES do
 		local poly = {}
@@ -1248,47 +1300,16 @@ local function buildDecor(folder: Instance)
 		)
 	end
 	for i, b in ArenaData.BUSHES do
-		lump(folder, "Bush", v(b, 0), 9, 7, i * 0.9, BUSH, BUSH_2, false)
-		lump(folder, "Bush", v(b, 0) + Vector3.new(6, 0, 4), 6, 5, i * 1.7, BUSH_2, BUSH, false)
-	end
-	for i, f in ArenaData.FLOWERS do
-		local at = v(f, 0)
-		for k = 0, 4 do
-			local ang = k * 1.3 + i
-			local off = Vector3.new(math.cos(ang), 0, math.sin(ang)) * (1.2 + k * 0.5)
-			part(
-				folder,
-				"Flower",
-				Vector3.new(1.6, 1.6, 1.6),
-				CFrame.new(at + off + Vector3.new(0, 0.9, 0)) * CFrame.Angles(0.6, ang, 0.6),
-				PETALS[(k + i) % #PETALS + 1],
-				false
-			)
-		end
+		lump(folder, "Bush", v(b, 0), 9, 7, i * 0.9, SCRAP, SCRAP_2, false)
+		lump(folder, "Bush", v(b, 0) + Vector3.new(6, 0, 4), 6, 5, i * 1.7, SCRAP_2, SCRAP, false)
 	end
 end
 
--- Outside the walls (looks only, nothing to hit): far grass, a lake with a sandy shore, rolling
--- low-poly hills, grey cliffs and rows of trees, so every camera sees a world, not empty sky.
+-- Outside the walls (looks only, nothing to hit): far dirt, rolling
+-- low-poly hills, grey cliffs, grandstands and light towers, so every camera sees a world, not empty sky.
 local function buildWorld(folder: Instance)
 	local s = ArenaData.SIZE
 	part(folder, "FarGrass", Vector3.new(2400, 2, 2400), CFrame.new(0, -1.6, 0), GRASS_FAR, false)
-	part(
-		folder,
-		"Shore",
-		Vector3.new(1400, 0.4, 160),
-		CFrame.new(0, -0.15, -s / 2 - 100),
-		SHORE,
-		false
-	)
-	part(
-		folder,
-		"Lake",
-		Vector3.new(1400, 0.4, 260),
-		CFrame.new(0, 0.05, -s / 2 - 310),
-		WATER,
-		false
-	)
 	local rng = Random.new(28)
 	-- rolling hills: turned blocks sunk in the ground, in a ring well past the walls
 	for k = 0, 13 do
@@ -1319,41 +1340,77 @@ local function buildWorld(folder: Instance)
 			false
 		)
 	end
-	-- rows of trees round the outside of the wall (not over the lake)
-	for k = 0, 47 do
-		local side = k % 4
-		local along = (math.floor(k / 4) / 11 - 0.5) * (s + 160)
-		local out = s / 2 + rng:NextNumber(70, 140)
-		local x, z
-		if side == 0 then
-			x, z = along, out
-		elseif side == 1 then
-			x, z = out, along
-		elseif side == 2 then
-			x, z = -out, along
-		else
-			x, z = along * 1.6, -s / 2 - 120 -- a row on the shore
+	-- grandstands along the north and south walls, five tiers of dark steel with a coloured seat
+	-- strip on each (looks only)
+	for _, side in { -1, 1 } do
+		for i = 0, 4 do
+			local hh = 5 + i * 5
+			part(
+				folder,
+				"Stand",
+				Vector3.new(s + 20, hh, 7),
+				CFrame.new(0, hh / 2, side * (s / 2 + 10 + i * 7)),
+				STAND,
+				false
+			)
+			part(
+				folder,
+				"Stand",
+				Vector3.new(s + 20, 0.8, 4),
+				CFrame.new(0, hh + 0.4, side * (s / 2 + 10 + i * 7)),
+				SEATS[(i + (side + 1) / 2) % #SEATS + 1],
+				false
+			)
 		end
-		local h = rng:NextNumber(22, 34)
-		local base = Vector3.new(x, 0, z)
-		local trunk = part(
-			folder,
-			"FarTrunk",
-			Vector3.new(h, 4, 4),
-			CFrame.new(base + Vector3.new(0, h / 2, 0)) * CFrame.Angles(0, 0, math.pi / 2),
-			STICK,
-			false
-		) :: Part
-		trunk.Shape = Enum.PartType.Cylinder
-		local r = rng:NextNumber(11, 17)
+	end
+	-- light towers round the outside (a tall steel pole, a white lamp bank)
+	for _, p in
+		{
+			{ -1, -1 },
+			{ 1, -1 },
+			{ 1, 1 },
+			{ -1, 1 },
+			{ 0, -1 },
+			{ 0, 1 },
+		}
+	do
+		local x, z = p[1] * (s / 2 + 4), p[2] * (s / 2 + 4)
+		if p[1] == 0 then
+			x = 0
+		else
+			z = p[2] * (s / 2 - 30)
+		end
+		part(folder, "LightPole", Vector3.new(1, 34, 1), CFrame.new(x, 17, z), STEEL, false)
 		part(
 			folder,
-			"FarTreeTop",
-			Vector3.new(r, r, r),
-			CFrame.new(base + Vector3.new(0, h + r * 0.3, 0)) * CFrame.Angles(0.6, k * 0.9, 0.6),
-			if k % 3 == 0 then CANDY_2 elseif k % 3 == 1 then BUSH else BUSH_2,
+			"LightLamp",
+			Vector3.new(9, 3, 3),
+			CFrame.lookAt(Vector3.new(x, 35, z), Vector3.new(0, 10, 0)),
+			CURB_WHITE,
 			false
 		)
+	end
+	-- a fire pot every so often on top of the north and south wall (a dark drum, an orange flame)
+	for _, side in { -1, 1 } do
+		for k = 0, 11 do
+			local x, z = -s / 2 + 30 + k * 30, side * (s / 2 - ArenaData.WALL * K / 2)
+			part(
+				folder,
+				"FirePot",
+				Vector3.new(3, 3, 3),
+				CFrame.new(x, ArenaData.WALL_H + 3.7, z),
+				HAZARD_DARK,
+				false
+			)
+			part(
+				folder,
+				"FireFlame",
+				Vector3.new(2, 3.4, 2),
+				CFrame.new(x, ArenaData.WALL_H + 6.8, z) * CFrame.Angles(0, k, 0),
+				ORANGE,
+				false
+			)
+		end
 	end
 end
 
@@ -1405,7 +1462,7 @@ local function buildTufts(folder: Instance)
 						Vector3.new(2.6, 4 - t * 1, 2.6),
 						CFrame.new(at + Vector3.new(t * 1.2, 0.9, t * 0.8))
 							* CFrame.Angles(0.3, spin + t, 0.35),
-						if t == 0 then GRASS_DARK else BUSH_2,
+						if t == 0 then GRASS_DARK else SCRAP,
 						false
 					)
 				end
@@ -1419,7 +1476,7 @@ function ArenaBuilder.buildBig(): Model
 	local model = Instance.new("Model")
 	model.Name = "SmashArena"
 	buildFloor(model)
-	buildRoad(model)
+	buildYardPaint(model)
 	buildSand(model)
 	buildHills(model)
 	buildCover(model)
