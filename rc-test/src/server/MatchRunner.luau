@@ -1299,6 +1299,15 @@ local function tick()
 			place(info, spawnFor(k.id))
 		end
 	end
+	-- every live kart carries the starter Gun (boxes only charge the special now)
+	local W = weapons()
+	if W and W.starter then
+		for _, k in m.list do
+			if k.alive then
+				pcall(W.starter, k.id, t)
+			end
+		end
+	end
 	for _, k in m.list do
 		local info = infos[k.id]
 		if info then

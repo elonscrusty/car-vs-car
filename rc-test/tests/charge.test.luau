@@ -46,8 +46,9 @@ test("the last box tops it off at exactly full", function()
 	local s = C.slot(0)
 	C.add(s, 0)
 	C.add(s, 0)
-	-- 30 s of timer makes it 2/3 + 2/3: a box must clamp at 1, not 1.33
-	near(C.add(s, 30) :: number, 1, 1e-9)
+	-- 10 s of timer makes it 2/3 + 2/9: the box must clamp at 1, not 1.22
+	-- (30 s would fill it on the timer alone, and a full special refuses the box)
+	near(C.add(s, 10) :: number, 1, 1e-9)
 end)
 
 test("use needs a full special and empties it", function()

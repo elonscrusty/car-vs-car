@@ -42,6 +42,7 @@ local held: { [any]: Weapons.Held } = {}
 local buckets: { [Player]: Weapons.Bucket } = {}
 local modules: { [string]: Module } = {}
 local frozenToken: { [any]: number } = {}
+local emptyAt: { [any]: number } = {} -- when a kart's starter clip ran out (Weapons.STARTER_RELOAD)
 local ctx: Ctx
 
 -- ===== the match's karts (MatchRunner; read lazily so either can start first) =====
@@ -452,6 +453,29 @@ function WeaponServer.give(id: any, name: string): boolean
 	return true
 end
 
+-- The starter (MatchRunner's tick, every live kart in a round): a kart with empty hands gets
+-- Weapons.STARTER, at once the first time (and after a respawn), else STARTER_RELOAD s after it
+-- ran out. A kart holding something else keeps it. True when a clip was given.
+function WeaponServer.starter(id: any, now: number): boolean
+	local h = held[id]
+	if h and h.name ~= "" then
+		emptyAt[id] = nil
+		return false
+	end
+	if h then
+		local since = emptyAt[id]
+		if not since then
+			emptyAt[id] = now
+			return false
+		end
+		if now - since < Weapons.STARTER_RELOAD then
+			return false
+		end
+	end
+	emptyAt[id] = nil
+	return WeaponServer.give(id, Weapons.STARTER)
+end
+
 -- Another place with karts that shoot and get hit outside a match (the warm-up yard). Its karts
 -- join the match's for aiming, hits and booms; damage to them goes to src.damage. Same name
 -- again replaces it.
@@ -516,6 +540,7 @@ end
 function WeaponServer.drop(id: any)
 	held[id] = nil
 	frozenToken[id] = nil
+	emptyAt[id] = nil
 	show(id)
 end
 
@@ -526,6 +551,7 @@ function WeaponServer.reset()
 		show(id)
 	end
 	table.clear(frozenToken)
+	table.clear(emptyAt)
 	for _, m in modules do
 		if m.clear then
 			pcall(m.clear, ctx)

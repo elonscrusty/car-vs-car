@@ -27,6 +27,12 @@ Weapons.DEFS = {
 	-- click-on weapons row (server/weapons/Flame; its icon is Icons.flame, its sound the "flame" cue)
 	Flame = { ammo = 3, cooldown = 1.4, word = "FLAME", icon = "flame" },
 } :: { [string]: Def }
+-- Every kart's own weapon (carter 10-29: the Roof Gatling is the starter on every car; boxes
+-- charge the special instead of handing out weapons). An empty kart gets a fresh clip this many
+-- seconds after its last shot ran out (at once after a respawn).
+Weapons.STARTER = "Gun"
+Weapons.STARTER_RELOAD = 2
+
 -- the order boxes and screens list them in (GUNMINE adds Gun, Mine, Freeze)
 Weapons.NAMES = { "Rockets", "Nuke", "Gun", "Mine", "Freeze", "Flame" }
 

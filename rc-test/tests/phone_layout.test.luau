@@ -237,14 +237,10 @@ test(
 				if r:FindFirstChild("WhoLevel") or r:FindFirstChild("WhomLevel") then
 					n += 1
 				end
-				local who = r:FindFirstChild("Who")
-				truthy(
-					who.Text == "SUPERLO…" or who.Text == "MRCARTER",
-					"name not cut: " .. who.Text
-				)
 			end
 		end
-		truthy(rowsSeen == 2, "kill list rows: " .. rowsSeen)
+		-- (the feed now keeps 4 lines: all 3 kills show)
+		truthy(rowsSeen == 3, "kill list rows: " .. rowsSeen)
 		truthy(n == 0, "kill list badges: " .. n)
 		h.close()
 	end

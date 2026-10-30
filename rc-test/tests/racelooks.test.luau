@@ -109,7 +109,7 @@ test("carter's own car model (CarSkins, named the car id) wins over the toy look
 		"own model first"
 	)
 	local others = fs.readFile("src/client/OtherCars.luau")
-	truthy(string.find(others, "modelShell(f, own, s) else nil", 1, true), "other cars")
+	truthy(string.find(others, "modelShell(f, own, s, nil, paint) else nil", 1, true), "other cars")
 	truthy(string.find(others, "toy or if id then toyShell", 1, true), "toy when no model")
 	local skin = fs.readFile("src/client/CarSkin.luau")
 	truthy(string.find(skin, "HOW TO ADD A CAR MODEL", 1, true), "how-to line")

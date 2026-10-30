@@ -31,9 +31,10 @@ Flight.TURN_DEG = 4 -- ... and only once it has bent at least this much since th
 
 type Flying = { id: number, kind: string, r: any, sentAt: number, sentDir: Vector3, atWall: boolean? }
 
--- The Missile Rack fires its tubes in this order (the order the preview page shows): left, right,
--- middle left, middle right, ... one rocket per tube, then round again.
-local TUBE_ORDER = { 1, 4, 2, 5, 3, 6 }
+-- The Missile Rack fires its tubes in this order: left, right, middle on the low row, then the same
+-- on the top row, one rocket per tube, then round again. (WeaponLooks lists the rack's muzzles
+-- by column: 1-2 left, 3-4 middle, 5-6 right; odd = low, even = top.)
+local TUBE_ORDER = { 1, 5, 3, 2, 6, 4 }
 local tubeCount: { [any]: number } = {}
 
 -- Where tube number `n` (1, 2, 3 ...) of the rack on a kart at `at`, facing `look`, is. `kartLen` is
