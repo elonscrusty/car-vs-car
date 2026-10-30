@@ -27,7 +27,16 @@ local COLORS = {
 	Color3.fromRGB(255, 106, 0),
 }
 
-type Spark = { frame: Frame, x: number, y: number, vx: number, vy: number, life: number, max: number, streak: boolean }
+type Spark = {
+	frame: Frame,
+	x: number,
+	y: number,
+	vx: number,
+	vy: number,
+	life: number,
+	max: number,
+	streak: boolean,
+}
 
 local started = false
 
@@ -54,7 +63,10 @@ function SmashSparks.start()
 		f.BackgroundColor3 = COLORS[(i - 1) % #COLORS + 1]
 		f.Visible = false
 		f.Parent = gui
-		table.insert(sparks, { frame = f, x = 0, y = 0, vx = 0, vy = 0, life = 0, max = 1, streak = false })
+		table.insert(
+			sparks,
+			{ frame = f, x = 0, y = 0, vx = 0, vy = 0, life = 0, max = 1, streak = false }
+		)
 	end
 
 	local live = 0
@@ -86,7 +98,14 @@ function SmashSparks.start()
 		end
 	end
 
-	local function throw(n: number, x: number, y: number, speed: { number }, size: { number }, streak: boolean)
+	local function throw(
+		n: number,
+		x: number,
+		y: number,
+		speed: { number },
+		size: { number },
+		streak: boolean
+	)
 		local thrown = 0
 		for _, s in sparks do
 			if thrown >= n then
@@ -102,7 +121,9 @@ function SmashSparks.start()
 				s.life = s.max
 				s.streak = streak
 				local px = rng:NextInteger(size[1], size[2])
-				s.frame.Size = if streak then UDim2.fromOffset(px * 4, math.max(2, px)) else UDim2.fromOffset(px, px)
+				s.frame.Size = if streak
+					then UDim2.fromOffset(px * 4, math.max(2, px))
+					else UDim2.fromOffset(px, px)
 				s.frame.Rotation = 0
 				s.frame.BackgroundTransparency = 0
 				s.frame.Position = UDim2.fromScale(x, y)
@@ -131,12 +152,14 @@ function SmashSparks.start()
 
 	local function hook(remote: Instance)
 		if remote:IsA("RemoteEvent") then
-			remote.OnClientEvent:Connect(function(attacker: unknown, victim: unknown, weapon: unknown)
-				local f = SmashJuice.read(attacker, victim, weapon, player.UserId)
-				if f and f.attacker and f.attacker.me and not f.victim.me then
-					burst()
+			remote.OnClientEvent:Connect(
+				function(attacker: unknown, victim: unknown, weapon: unknown)
+					local f = SmashJuice.read(attacker, victim, weapon, player.UserId)
+					if f and f.attacker and f.attacker.me and not f.victim.me then
+						burst()
+					end
 				end
-			end)
+			)
 		end
 	end
 	local feed = ReplicatedStorage:FindFirstChild("SmashFeed")

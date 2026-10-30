@@ -2,8 +2,9 @@
 -- The "Bold" faceted low-poly nature + rubble kit (carter's pick, 2026-10-29): trees, pines, rocks,
 -- bushes, concrete chunks, a broken wall, a junk pile and a dead tree, plus the junkyard "crane yard"
 -- set for the hills outside the wall (scrap heap, crane, car stacks, lamp, tyres; GemYardData), and the junkyard
--- arena props (tyre stacks, wrecks, drums, junk heap, barriers; JunkPropData, carter picked A 2026-10-29), and the
--- ring of low junk hills outside the wall (JunkRingData, carter picked A "Low dunes" 2026-10-29).
+-- arena props (tyre stacks, wrecks, drums, junk heap, barriers; JunkPropData, carter picked A 2026-10-29), the
+-- ring of low junk hills outside the wall (JunkRingData, carter picked A "Low dunes" 2026-10-29), and the
+-- breakable crate + its loose bits (CrateData, carter picked A Plain wood 2026-10-29).
 -- Same call shape as PropKit
 -- (a parent, a base point, a height), so a builder can swap one for the other.
 --
@@ -18,6 +19,7 @@ local GemData = require(script.Parent.GemData)
 local GemYardData = require(script.Parent.GemYardData)
 local JunkPropData = require(script.Parent.JunkPropData)
 local JunkRingData = require(script.Parent.JunkRingData)
+local CrateData = require(script.Parent.CrateData)
 
 local GemKit = {}
 
@@ -28,6 +30,7 @@ local function dataOf(kind: string): { Piece }?
 		or GemYardData[kind]
 		or JunkPropData[kind]
 		or JunkRingData.kinds[kind]
+		or CrateData[kind]
 	return found
 end
 
@@ -67,6 +70,9 @@ function GemKit.kinds(): { string }
 		table.insert(out, k)
 	end
 	for k in JunkRingData.kinds do
+		table.insert(out, k)
+	end
+	for k in CrateData do
 		table.insert(out, k)
 	end
 	table.sort(out)
