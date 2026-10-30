@@ -64,23 +64,15 @@ test("phones keep the shadows: the place asks for light quality first", function
 	truthy(light.PrioritizeLightingQuality == true, "shadows kept on low graphics")
 end)
 
-test(
-	"the arena is a moonlit night (carter picked the night yard): dim but readable, glowing",
-	function()
-		local D = require("../src/shared/ArenaData")
-		truthy(D.lighting.ClockTime >= 22 or D.lighting.ClockTime <= 3, "night clock")
-		truthy(D.lighting.Brightness >= 0.8 and D.lighting.Brightness <= 2, "moonlight, not black")
-		for _, c in { D.ambient, D.outdoorAmbient } do
-			truthy(math.min(c[1], c[2], c[3]) >= 50, "shade never black, karts stay readable")
-			truthy(c[3] > c[1], "moon-blue shade")
-		end
-		truthy(D.colorShiftTop[3] > D.colorShiftTop[1], "cool moon, not warm sun")
-		truthy(D.atmosphere.color[3] > D.atmosphere.color[1], "blue haze")
-		truthy(D.atmosphere.color[3] <= 100, "dark haze at night")
-		truthy(D.bloom.Intensity >= 0.6 and D.bloom.Threshold <= 1, "fire and lamps glow")
-		truthy(
-			D.colorCorrection.Saturation > 0 and D.colorCorrection.Saturation <= 0.3,
-			"some colour"
-		)
+test("the arena is a sunny day (carter 10-30: no night, nothing glowing, easy to read)", function()
+	local D = require("../src/shared/ArenaData")
+	truthy(D.lighting.ClockTime >= 10 and D.lighting.ClockTime <= 16, "daytime clock")
+	truthy(D.lighting.Brightness >= 2, "bright sun")
+	for _, c in { D.ambient, D.outdoorAmbient } do
+		truthy(math.min(c[1], c[2], c[3]) >= 80, "shade never dark, karts stay readable")
 	end
-)
+	truthy(D.atmosphere.color[3] > D.atmosphere.color[1], "blue sky haze")
+	truthy(D.atmosphere.color[3] >= 200, "bright haze by day")
+	truthy(D.bloom.Intensity <= 0.3 and D.bloom.Threshold >= 1.5, "almost no glow")
+	truthy(D.colorCorrection.Saturation > 0 and D.colorCorrection.Saturation <= 0.3, "some colour")
+end)

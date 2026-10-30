@@ -91,6 +91,7 @@ local crates: any = nil -- CrateServer's handle (the breakable crates in the are
 local barrels: any = nil -- BarrelServer's handle (the dynamite kegs in the arena)
 local crane: any = nil -- CraneServer's handle (the swinging crane ball in the arena)
 local firePits: any = nil -- FirePitServer's handle (the burning patches in the arena)
+local burningYard: any = nil -- BurningYardServer's handle (burning piles, towers, beacons: looks only)
 local rollDrums: any = nil -- RollBarrelServer's handle (the rolling Toxic Drums)
 local ArenaBots: any = nil
 local lastLeave: { [Player]: number } = {}
@@ -732,6 +733,28 @@ local function startCrates()
 	end
 end
 
+-- The arena's Burning Yard look (BurningYardServer, shared/BurningYard): built once, never solid,
+-- never hurts anyone.
+local function startBurningYard()
+	local mod = script.Parent:FindFirstChild("BurningYardServer")
+	local _, t = arena()
+	if burningYard or not (mod and mod:IsA("ModuleScript") and t) then
+		return
+	end
+	local ok, h = pcall((require(mod) :: any).start, {
+		at = function(x: number, y: number): Vector3
+			local ax, az = ArenaData.at({ x, y })
+			local wx, wy, wz = TrackData.toWorld(t, true, ax, ArenaData.groundAt({ x, y }), az)
+			return Vector3.new(wx, wy, wz)
+		end,
+	})
+	if ok then
+		burningYard = h
+	else
+		warn("[Match] burning yard: " .. tostring(h))
+	end
+end
+
 -- WeaponServer tells us what its weapons did (GunShot, RocketBoom, MineBoom): they break crates.
 function MatchRunner.crateFx(kind: string, data: any)
 	local h = crates
@@ -1100,6 +1123,7 @@ local function startRound()
 	if rollDrums then
 		pcall(rollDrums.reset)
 	end
+	startBurningYard()
 	log(
 		`round {round} start: {#list} players + {#m.list - #list} bots, ends in {MatchRunner.MATCH_SECS} s`
 	)

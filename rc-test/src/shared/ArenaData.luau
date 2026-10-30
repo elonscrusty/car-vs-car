@@ -619,28 +619,28 @@ end
 -- (derby junkyard at night, fire barrels, 10-29): moonlit blue shade, deep blue haze, stars, and a
 -- strong bloom so fire, lamps and lit windows glow. ArenaSky puts it on while over the arena.
 ArenaData.lighting = {
-	ClockTime = 23.5,
-	GeographicLatitude = 20,
-	Brightness = 1.4,
-	ExposureCompensation = 0.25,
-	ShadowSoftness = 0.3,
-	EnvironmentDiffuseScale = 0.2,
-	EnvironmentSpecularScale = 0,
+	ClockTime = 15.3, -- sunny afternoon (carter 10-30: no night, too much glow, hard to read)
+	GeographicLatitude = 0,
+	Brightness = 3,
+	ExposureCompensation = 0,
+	ShadowSoftness = 0.25,
+	EnvironmentDiffuseScale = 0.25,
+	EnvironmentSpecularScale = 0.2,
 }
-ArenaData.ambient = { 62, 70, 116 }
-ArenaData.outdoorAmbient = { 72, 82, 132 }
-ArenaData.colorShiftTop = { 150, 168, 235 }
+ArenaData.ambient = { 96, 100, 122 }
+ArenaData.outdoorAmbient = { 120, 124, 146 }
+ArenaData.colorShiftTop = { 255, 246, 226 }
 ArenaData.atmosphere = {
-	Density = 0.32,
-	Offset = 0.1,
-	Haze = 0.8,
+	Density = 0.1,
+	Offset = 0,
+	Haze = 0,
 	Glare = 0,
-	color = { 28, 37, 72 },
-	decay = { 20, 26, 56 },
+	color = { 150, 205, 255 },
+	decay = { 90, 160, 235 },
 }
-ArenaData.clouds = { Cover = 0.25, Density = 0.4 }
+ArenaData.clouds = { Cover = 0.45, Density = 0.55 }
 ArenaData.colorCorrection =
-	{ Brightness = 0, Contrast = 0.12, Saturation = 0.1, tint = { 225, 232, 255 } }
-ArenaData.bloom = { Intensity = 0.9, Size = 28, Threshold = 0.85 }
+	{ Brightness = 0.02, Contrast = 0.06, Saturation = 0.15, tint = { 255, 248, 236 } }
+ArenaData.bloom = { Intensity = 0.2, Size = 24, Threshold = 2 } -- barely any glow
 
 return ArenaData

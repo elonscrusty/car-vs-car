@@ -90,7 +90,7 @@ function ArenaHorizon.pieces(hazeColor: { number }): { Piece }
 	end
 
 	-- 3. skyline: factory blocks, tall chimneys, cranes (ring radii 2200..2800 big)
-	local WINDOW, WINDOW_2 = { 255, 176, 64 }, { 255, 216, 144 }
+	local WINDOW, WINDOW_2 = { 92, 102, 120 }, { 112, 122, 138 }
 	for k = 0, 109 do
 		local a = k / 110 * math.pi * 2
 		local d = 2560 + rnd() * 240
@@ -98,7 +98,7 @@ function ArenaHorizon.pieces(hazeColor: { number }): { Piece }
 		local x, z = math.cos(a) * d, math.sin(a) * d
 		local face = math.atan2(-math.cos(a), -math.sin(a)) -- local Z points at the arena
 		add("FarFactory", "Block", { w, h, w }, { x, h / 2, z }, face, CITY[k % 4 + 1])
-		if k % 4 ~= 3 then -- a few lit windows on the face toward the arena
+		if k % 4 ~= 3 then -- a few dark windows on the face toward the arena
 			local nx, nz = -math.cos(a), -math.sin(a)
 			for _ = 1, 2 + k % 3 do
 				local off, wy = (rnd() - 0.5) * w * 0.7, 30 + rnd() * (h - 60)
@@ -109,7 +109,7 @@ function ArenaHorizon.pieces(hazeColor: { number }): { Piece }
 					{ x + nx * (w / 2 + 1) - nz * off, wy, z + nz * (w / 2 + 1) + nx * off },
 					face,
 					if rnd() > 0.25 then WINDOW else WINDOW_2,
-					true
+					false
 				)
 			end
 		end
@@ -125,10 +125,6 @@ function ArenaHorizon.pieces(hazeColor: { number }): { Piece }
 			0,
 			if k % 3 == 0 then CITY[1] else CHIMNEY
 		)
-		if k % 3 == 0 then -- a flare burning on top
-			add("FarFlare", "Block", { 64, 120, 64 }, { x, h + 60, z }, 0, { 255, 122, 26 }, true)
-			add("FarFlare", "Block", { 36, 104, 36 }, { x, h + 140, z }, 0, { 255, 208, 112 }, true)
-		end
 	end
 	for k = 0, 11 do
 		local a = k / 12 * math.pi * 2 + rnd() * 0.4
@@ -138,7 +134,7 @@ function ArenaHorizon.pieces(hazeColor: { number }): { Piece }
 		add("FarCrane", "Block", { 32, 32, 32 }, { x, h, z }, 0, CRANE_DARK)
 		add("FarCrane", "Block", { 520, 32, 32 }, { x + rnd() * 120, h + 16, z }, a + 0.4, CRANE)
 		add("FarCrane", "Block", { 12, 240, 12 }, { x + 220, h - 120, z }, 0, { 68, 68, 72 })
-		add("FarCraneLamp", "Block", { 20, 20, 20 }, { x, h + 44, z }, 0, { 255, 42, 42 }, true)
+		add("FarCraneLamp", "Block", { 20, 20, 20 }, { x, h + 44, z }, 0, { 255, 42, 42 }, false)
 	end
 	return out
 end
