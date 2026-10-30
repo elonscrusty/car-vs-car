@@ -25,6 +25,7 @@ local ExhaustFx = require(script.Parent.ExhaustFx)
 local FireDrake = require(script.Parent.FireDrake)
 local Garage = require(ReplicatedStorage.Shared.Garage)
 local KartMesh = require(script.Parent.KartMesh)
+local LandingBounce = require(ReplicatedStorage.Shared.LandingBounce)
 local ToyCars = require(ReplicatedStorage.Shared.ToyCars)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
 
@@ -47,6 +48,8 @@ type Shown = {
 	looks: { Instance }, -- its SurfaceAppearance, if any, taken off while tinted
 	extras: { [BasePart]: CFrame }, -- a toy car's cab, roof, wing and lights, seen from its body
 	rims: { [BasePart]: { wheel: BasePart, rel: CFrame } }, -- an imported kart's RimFL..: they turn with their wheel
+	squashed: boolean, -- the sizes above are not what is drawn right now
+	sizes: { [BasePart]: Vector3 }, -- the body's and extras' own sizes, for the landing squash
 }
 
 -- "toy:<car id>": the same toy car the plot shows for that car (Garage.toyCar: its colour and
@@ -430,6 +433,10 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 	end
 	copy:Destroy()
 	folder.Parent = workspace
+	local sizes: { [BasePart]: Vector3 } = { [body] = body.Size }
+	for p in extras do
+		sizes[p] = p.Size
+	end
 
 	local hidden: { [BasePart]: number } = {}
 	for _, d in car.model:GetDescendants() do
@@ -466,6 +473,8 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 		looks = looks,
 		extras = extras,
 		rims = rims,
+		sizes = sizes,
+		squashed = false,
 	}
 end
 
@@ -508,6 +517,9 @@ function CarSkin.new()
 		end
 	end)
 
+	local bounce = LandingBounce.new()
+	local lastAir, lastVy, lastAt = 0, 0, os.clock()
+
 	local self = {}
 
 	function self.update(car: RCCar.Car, name: string?)
@@ -531,10 +543,47 @@ function CarSkin.new()
 				end
 			end
 		end
+		-- landing bounce (looks only): after real air time the body squashes, stretches, settles
+		local now = os.clock()
+		local dt = math.min(now - lastAt, 0.1)
+		lastAt = now
+		local tel = car.telemetry
+		if lastAir > 0.3 and tel.air == 0 then
+			LandingBounce.land(bounce, math.clamp(-lastVy / (40 * Tuning.scale), 0.2, 1))
+		end
+		lastAir = tel.air
+		if tel.air > 0 then
+			lastVy = car.body.AssemblyLinearVelocity.Y
+		end
+		local sx, sy = LandingBounce.step(bounce, dt)
 		if cur then
-			cur.body.CFrame = car.body.CFrame * cur.offset
-			for p, rel in cur.extras do
-				p.CFrame = cur.body.CFrame * rel
+			local carCf = car.body.CFrame
+			if sx == 1 and sy == 1 then
+				cur.body.CFrame = carCf * cur.offset
+				for p, rel in cur.extras do
+					p.CFrame = cur.body.CFrame * rel
+				end
+				if cur.squashed then
+					cur.squashed = false
+					for p, size in cur.sizes do
+						p.Size = size
+					end
+				end
+			else
+				-- scaled in the car's own width / height / length about the middle of the body's
+				-- underside, so the tyres stay on the ground
+				cur.squashed = true
+				local k = Vector3.new(sx, sy, sx)
+				local pivot = cur.offset * Vector3.new(0, -cur.sizes[cur.body].Y / 2, 0)
+				local function put(p: BasePart, local_: CFrame)
+					local at = pivot + (local_.Position - pivot) * k
+					p.CFrame = carCf * (CFrame.new(at) * local_.Rotation)
+					p.Size = cur.sizes[p] * k
+				end
+				put(cur.body, cur.offset)
+				for p, rel in cur.extras do
+					put(p, cur.offset * rel)
+				end
 			end
 			for p, r in cur.rims do
 				p.CFrame = r.wheel.CFrame * r.rel
