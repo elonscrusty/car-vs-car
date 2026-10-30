@@ -549,6 +549,109 @@ local function buildSand(folder: Instance)
 	end
 end
 
+-- the junkyard look (carter picked it on the preview page, 10-29): a fence of beat-up corrugated
+-- sheets and oil drums; a plank ramp with steel rails. All of it is looks only
+-- (not solid): the solid walls, caps and ramps under it keep their old shapes.
+local TIN, TIN_2 = rgb(139, 144, 153), rgb(170, 176, 184)
+local RUST, RUST_2 = rgb(181, 83, 42), rgb(138, 61, 30)
+local OLIVE, FADE_RED, FADE_BLUE = rgb(93, 106, 69), rgb(156, 47, 42), rgb(63, 95, 125)
+local STEEL_DARK = rgb(52, 55, 63)
+local SHEETS = { RUST, TIN, OLIVE, FADE_BLUE, RUST_2, TIN_2, FADE_RED }
+local WOOD, WOOD_2, WOOD_3 = rgb(155, 114, 72), rgb(123, 90, 54), rgb(169, 130, 85)
+local DRUM_BLUE, HAZARD = rgb(47, 95, 140), rgb(242, 194, 48)
+
+-- a steady wobble from a number (0..1), so every build looks the same
+local function jitter(i: number): number
+	local x = math.sin(i * 127.1 + 3.7) * 43758.5
+	return x - math.floor(x)
+end
+
+-- a round flat disc (diameter d, thickness t) lying level at cf
+local function disc(
+	parent: Instance,
+	name: string,
+	cf: CFrame,
+	d: number,
+	t: number,
+	color: Color3
+): Part
+	local p = part(
+		parent,
+		name,
+		Vector3.new(t, d, d),
+		cf * CFrame.Angles(0, 0, math.pi / 2),
+		color,
+		false
+	) :: Part
+	p.Shape = Enum.PartType.Cylinder
+	return p
+end
+
+-- an oil drum standing at `at` (feet on y 0), a yellow band round its middle
+local function drum(parent: Instance, at: Vector3, color: Color3)
+	disc(parent, "Drum", CFrame.new(at + Vector3.new(0, 1.6, 0)), 3, 3.2, color)
+	disc(parent, "DrumBand", CFrame.new(at + Vector3.new(0, 2.2, 0)), 3.04, 0.4, HAZARD)
+end
+
+-- a ramp's paint and trim (looks only): from foot a to top b (map-local, y 0), width w, rise h.
+-- Planks laid across it, a steel rail down each edge, rust patches, and oil drums at the foot.
+local function rampLooks(folder: Instance, a: Vector3, b: Vector3, w: number, h: number)
+	local up = Vector3.new(0, h, 0)
+	local run = b - a
+	local dir = run.Unit
+	local side = Vector3.new(dir.Z, 0, -dir.X)
+	local len = (run + up).Magnitude
+	-- a flat piece on the slope at u (0 foot .. 1 top), off the middle by x, lifted by lift
+	local function onSlope(
+		name: string,
+		size: Vector3,
+		x: number,
+		u: number,
+		lift: number,
+		color: Color3,
+		turn: number?
+	)
+		local at = a + run * u + up * u + side * x + Vector3.new(0, lift, 0)
+		part(
+			folder,
+			name,
+			size,
+			CFrame.lookAt(at, at + run + up) * CFrame.Angles(0, turn or 0, 0),
+			color,
+			false
+		)
+	end
+	local woods = { WOOD, WOOD_2, WOOD_3 }
+	for i = 0, 9 do
+		onSlope(
+			"RampPlank",
+			Vector3.new(w - 0.4, 0.16, len / 10 - 0.35),
+			0,
+			(i + 0.5) / 10,
+			0.08,
+			woods[i % 3 + 1]
+		)
+	end
+	for _, sgn in { -1, 1 } do
+		onSlope("RampRail", Vector3.new(0.7, 0.7, len), sgn * (w / 2 - 0.35), 0.5, 0.3, STEEL_DARK)
+		for i = 0, 2 do
+			onSlope(
+				"RampPatch",
+				Vector3.new(0.5, 0.18, 2.6),
+				sgn * (w / 2 - 1.1),
+				0.2 + i * 0.3,
+				0.25,
+				RUST,
+				0.2
+			)
+		end
+		for i = 0, 1 do
+			local at = a + side * (sgn * (w / 2 + 2.3)) + dir * (2 + i * 3.4)
+			drum(folder, at, if (i + (sgn + 1) / 2) % 2 == 0 then DRUM_BLUE else FADE_RED)
+		end
+	end
+end
+
 local function buildHills(folder: Instance)
 	for _, h in ArenaData.HILLS do
 		mesa(folder, h.name, h.poly, h.h, h.slope, nil, PINK, PINK_SIDE)
@@ -596,7 +699,7 @@ local function buildHills(folder: Instance)
 			"Ramp" .. i,
 			Vector3.new(r.width * K, h, len),
 			CFrame.lookAt(mid, mid - dir),
-			PINK_RAMP,
+			WOOD,
 			true,
 			"WedgePart"
 		)
@@ -608,7 +711,7 @@ local function buildHills(folder: Instance)
 			"RampDeck" .. i,
 			Vector3.new(r.width * K, 1, deck),
 			CFrame.lookAt(dm, dm + dir),
-			PINK_RAMP,
+			WOOD,
 			true
 		)
 		-- a sloped flank down each side, so a kart hitting the ramp's side from the grass rides up
@@ -625,7 +728,7 @@ local function buildHills(folder: Instance)
 				b + n * (half + flank),
 				Vector3.yAxis + n,
 				1,
-				PINK_SIDE
+				STEEL_DARK
 			)
 			-- close its upright top end, so nothing can nose in under it where the hill isn't there
 			tri(
@@ -636,35 +739,113 @@ local function buildHills(folder: Instance)
 				b + n * (half + flank),
 				dir,
 				1,
-				PINK_SIDE
+				STEEL_DARK
 			)
 		end
+		rampLooks(folder, a, b, r.width * K, h)
 	end
 end
 
-local function buildCover(folder: Instance)
-	for _, seg in ArenaData.COVER do
-		wall(
-			folder,
-			"Cover",
-			v(seg[1], 0),
-			v(seg[2], 0),
-			ArenaData.COVER_W * K,
-			ArenaData.COVER_H,
-			ORANGE,
-			true
+-- one corrugated sheet standing across the fence: centre `at` (map-local), `along` the wall's
+-- length axis, width w, height h, ribs on its outer face (out = +1 or -1 across the wall)
+local function sheet(
+	parent: Instance,
+	look: CFrame,
+	across: number,
+	along: number,
+	w: number,
+	h: number,
+	color: Color3,
+	i: number
+)
+	local out = if across > 0 then 1 else -1
+	local base = look * CFrame.new(across, 0, along) * CFrame.Angles(0, (jitter(i) - 0.5) * 0.15, 0)
+	local tilt = CFrame.Angles(0, 0, (jitter(i + 7) - 0.5) * 0.07)
+	local cf = base * CFrame.new(0, h / 2, 0) * tilt
+	part(parent, "CoverSheet", Vector3.new(0.5, h, w), cf, color, false)
+	local n = math.floor(w / 1.1)
+	for k = 0, n - 1 do
+		local z = -w / 2 + 0.7 + k * (w - 1.4) / (n - 1)
+		part(
+			parent,
+			"CoverRib",
+			Vector3.new(0.22, h - 0.4, 0.3),
+			cf * CFrame.new(out * 0.3, 0, z),
+			color:Lerp(STEEL_DARK, 0.4),
+			false
 		)
-		-- red bumper caps on both ends (round, like the barrels)
+	end
+	part(
+		parent,
+		"CoverSheet",
+		Vector3.new(0.7, 0.35, w),
+		cf * CFrame.new(0, h / 2 - 0.17, 0),
+		STEEL_DARK,
+		false
+	)
+end
+
+-- the cover walls: the solid wall and round end caps stay as they were (karts slide off them),
+-- now dressed as a junkyard fence: two rows of mismatched rusty sheets, a big oil drum at each end
+local function buildCover(folder: Instance)
+	local W, H = ArenaData.COVER_W * K, ArenaData.COVER_H
+	for n, seg in ArenaData.COVER do
+		local a, b = v(seg[1], 0), v(seg[2], 0)
+		-- the sheets go in their own folder; the chase cam fades it with the wall
+		local dress = Instance.new("Folder")
+		dress.Name = "CoverDress" .. n
+		dress.Parent = folder
+		local core = wall(folder, "Cover", a, b, W, H, STEEL_DARK, true)
+		core:SetAttribute("Dress", dress.Name)
+		core.Transparency = 1 -- the sheets below are what you see; this is the solid under them
 		for _, e in seg do
 			local cap = part(
 				folder,
 				"CoverCap",
-				Vector3.new(ArenaData.COVER_H + 1, ArenaData.COVER_W * K, ArenaData.COVER_W * K),
-				CFrame.new(v(e, (ArenaData.COVER_H + 1) / 2)) * CFrame.Angles(0, 0, math.pi / 2),
-				CURB_RED,
+				Vector3.new(H + 1, W, W),
+				CFrame.new(v(e, (H + 1) / 2)) * CFrame.Angles(0, 0, math.pi / 2),
+				if n % 2 == 1 then FADE_RED else DRUM_BLUE,
 				true
 			) :: Part
 			cap.Shape = Enum.PartType.Cylinder
+			-- a big oil drum look: yellow bands round it
+			for _, y in { 1.2, 8.8 } do
+				disc(dress, "DrumBand", CFrame.new(v(e, y)), W + 0.2, 0.7, HAZARD)
+			end
+		end
+		local mid = (a + b) / 2
+		local look = CFrame.lookAt(mid, b)
+		local L = (b - a).Magnitude
+		-- a steel lid over the hollow top, between the round end caps
+		part(
+			dress,
+			"CoverLid",
+			Vector3.new(W - 0.4, 0.4, L),
+			look * CFrame.new(0, H - 0.2, 0),
+			STEEL_DARK,
+			false
+		)
+		for r, across in { -W / 2 + 0.55, W / 2 - 0.55 } do
+			local x, i = -L / 2 + 3.9, 0
+			while x < L / 2 - 3.9 do
+				local w = math.min(5 + jitter(i + r * 9 + n * 30) * 2.6, L / 2 - 3.9 - x)
+				if w < 2 then
+					break
+				end
+				local h = H + 0.4 - jitter(i + 3 + r + n * 30) * 0.8
+				sheet(
+					dress,
+					look,
+					across,
+					x + w / 2,
+					w,
+					h,
+					SHEETS[(i + r * 3 + n) % #SHEETS + 1],
+					i + n * 40 + r * 11
+				)
+				x += w + 0.1
+				i += 1
+			end
 		end
 	end
 end
