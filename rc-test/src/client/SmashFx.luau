@@ -719,7 +719,17 @@ end
 function SmashFx.kick(trauma: number, punch: number)
 	local add = addFeel
 	if add and not Base.reduced() then
-		add({ trauma = trauma, punch = punch, slow = 0.12, confetti = 0, flash = 0 })
+		-- (every Feel field: a missing kick / lift / twist read as nil broke the camera every frame)
+		add({
+			trauma = trauma,
+			punch = punch,
+			kick = 0,
+			lift = 0,
+			twist = 0,
+			slow = 0.12,
+			confetti = 0,
+			flash = 0,
+		})
 	end
 end
 
