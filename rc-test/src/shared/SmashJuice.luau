@@ -9,8 +9,11 @@
 --   * One strength ladder drives the shake, the zoom punch and the confetti (vault "Hit-Stop
 --     and Screen Shake Tuning by Numbers": shake = trauma squared, so small hits only add up;
 --     trauma is capped and decays).
+--   * Hit shake "C" (carter's pick, 10-29, camera/hit-shake.html): a hit shoves the camera away
+--     (a spring that wobbles back), shakes it quickly, and pops the zoom. The numbers are the
+--     page's, with 11 px of the page = 1 degree.
 --   * Reduced motion keeps the words, colors, confetti and the killer camera (it's info), and
---     drops the shake and zoom.
+--     drops the shake, shove and zoom.
 local SmashJuice = {}
 
 -- ===== the words =====
@@ -233,14 +236,26 @@ end
 export type Kind = "mySmash" | "hit" | "myHit" | "smashed" | "boom"
 export type Feel = {
 	trauma: number, -- added to the shake (0..1)
-	punch: number, -- camera zoom-in, degrees of field of view
+	punch: number, -- camera zoom-in, degrees of field of view (below 0 = zoom out)
+	kick: number, -- camera shoved sideways, degrees (the side is picked when it plays)
+	lift: number, -- camera shoved up (below 0 = down), degrees
+	twist: number, -- camera rolled, degrees (the side is picked when it plays)
 	slow: number, -- seconds the zoom holds before it eases back (the little slow-mo)
 	confetti: number, -- pieces
 	flash: number, -- 0..1 screen edge flash (red for hits, white for your smash)
 }
 
 local function none(): Feel
-	return { trauma = 0, punch = 0, slow = 0, confetti = 0, flash = 0 }
+	return {
+		trauma = 0,
+		punch = 0,
+		kick = 0,
+		lift = 0,
+		twist = 0,
+		slow = 0,
+		confetti = 0,
+		flash = 0,
+	}
 end
 
 -- `amount` = damage for "hit" and "myHit" (health 100), streak count for "mySmash", studs away for "boom"
@@ -250,28 +265,50 @@ function SmashJuice.feel(kind: Kind, amount: number?, reduced: boolean?): Feel
 	if kind == "mySmash" then
 		local streak = math.max(1, n)
 		f = {
-			trauma = math.min(0.35 + 0.08 * (streak - 1), 0.6),
-			punch = 8,
-			slow = 0.18,
+			trauma = math.min(0.6 + 0.08 * (streak - 1), 1),
+			punch = 9,
+			kick = 0,
+			lift = -2, -- the camera dips, then bounces back
+			twist = 0,
+			slow = 0.16,
 			confetti = math.min(24 + 8 * (streak - 1), 48),
 			flash = 0.35,
 		}
 	elseif kind == "hit" then
-		-- 10 damage is a nudge, 40+ (a rocket) is a real thump
+		-- 10 damage is a nudge, 40+ (a rocket) is a real thump; the zoom pop starts above a nudge
 		local s = math.clamp(n / 40, 0, 1)
 		if s <= 0 then
 			return none()
 		end
-		f = { trauma = 0.12 + 0.28 * s, punch = 0, slow = 0, confetti = 0, flash = 0.2 + 0.35 * s }
+		f = {
+			trauma = 0.25 + 0.55 * s,
+			punch = 3.5 * math.clamp((s - 0.25) / 0.75, 0, 1),
+			kick = 0.3 + 2.8 * s,
+			lift = 0.1 + 0.72 * s,
+			twist = 0.2 + 2.2 * s,
+			slow = 0.02,
+			confetti = 0,
+			flash = 0.2 + 0.35 * s,
+		}
 	elseif kind == "myHit" then
 		-- your shot landed: a small kick, half a hit taken's, no flash
 		local s = math.clamp(n / 40, 0, 1)
 		if s <= 0 then
 			return none()
 		end
-		f = { trauma = 0.06 + 0.14 * s, punch = 0, slow = 0, confetti = 0, flash = 0 }
+		f = none()
+		f.trauma = 0.06 + 0.14 * s
 	elseif kind == "smashed" then
-		f = { trauma = 0.6, punch = 0, slow = 0, confetti = 0, flash = 0.6 }
+		f = {
+			trauma = 1,
+			punch = -5, -- the view pulls out
+			kick = 6.4,
+			lift = 1.6,
+			twist = 4,
+			slow = 0.06,
+			confetti = 0,
+			flash = 0.6,
+		}
 	elseif kind == "boom" then
 		-- a boom near you: full at 15 studs, nothing past 80 (smoothstep)
 		local u = math.clamp((n - 15) / (80 - 15), 0, 1)
@@ -279,13 +316,17 @@ function SmashJuice.feel(kind: Kind, amount: number?, reduced: boolean?): Feel
 		if k <= 0 then
 			return none()
 		end
-		f = { trauma = 0.25 * k, punch = 0, slow = 0, confetti = 0, flash = 0 }
+		f = none()
+		f.trauma = 0.5 * k
 	else
 		return none()
 	end
 	if reduced then
 		f.trauma = 0
 		f.punch = 0
+		f.kick = 0
+		f.lift = 0
+		f.twist = 0
 		f.slow = 0
 	end
 	return f
@@ -294,9 +335,10 @@ end
 -- ===== the shake =====
 
 SmashJuice.MAX_TRAUMA = 1
-SmashJuice.DECAY = 1.6 -- trauma lost per second
-SmashJuice.MAX_DEGREES = 2.4 -- tilt at full trauma (about 3% of a phone screen at FOV 70)
-SmashJuice.NOISE_HZ = 16
+SmashJuice.DECAY = 3 -- trauma lost per second (a quick shake, not a long wobble)
+SmashJuice.MAX_DEGREES = 2.2 -- look-around at full trauma (24 px of the 980 px preview)
+SmashJuice.MAX_ROLL = 3.2 -- roll at full trauma
+SmashJuice.NOISE_HZ = 24
 
 function SmashJuice.addTrauma(now: number, add: number): number
 	return math.clamp(now + add, 0, SmashJuice.MAX_TRAUMA)
@@ -319,7 +361,21 @@ function SmashJuice.tilt(
 	n3: number
 ): (number, number, number)
 	local s = trauma * trauma * SmashJuice.MAX_DEGREES
-	return s * n1, s * n2, s * 0.5 * n3
+	return s * n1, s * n2, trauma * trauma * SmashJuice.MAX_ROLL * n3
+end
+
+-- the shove: a spring that starts at full push and wobbles back to 0 (1 at t = 0), t seconds in
+SmashJuice.KICK_HZ = 9
+SmashJuice.KICK_DAMP = 0.34
+SmashJuice.KICK_SECONDS = 1.2 -- past this it is under 1% and over
+
+function SmashJuice.kickAt(t: number): number
+	if t < 0 or t >= SmashJuice.KICK_SECONDS then
+		return 0
+	end
+	local w = 2 * math.pi * SmashJuice.KICK_HZ
+	local z = SmashJuice.KICK_DAMP
+	return math.exp(-z * w * t) * math.cos(w * math.sqrt(1 - z * z) * t)
 end
 
 -- the zoom punch: in fast, hold `slow` seconds, ease back over 0.3 s. t = seconds since the smash
@@ -327,7 +383,7 @@ SmashJuice.PUNCH_IN = 0.05
 SmashJuice.PUNCH_OUT = 0.3
 
 function SmashJuice.punchAt(punch: number, slow: number, t: number): number
-	if punch <= 0 or t < 0 then
+	if punch == 0 or t < 0 then
 		return 0
 	end
 	if t < SmashJuice.PUNCH_IN then

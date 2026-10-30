@@ -159,11 +159,22 @@ test("smash juice: hits shake by damage; reduced motion keeps words, not shake",
 	truthy(mine.punch > 0 and mine.slow > 0 and mine.confetti > 0)
 	eq(SmashJuice.feel("hit", 0).trauma, 0)
 	truthy(SmashJuice.feel("mySmash", 5).confetti <= 48, "confetti pool is 48")
-	truthy(SmashJuice.feel("mySmash", 99).trauma <= 0.6)
+	truthy(SmashJuice.feel("mySmash", 99).trauma <= SmashJuice.MAX_TRAUMA)
 	local calm = SmashJuice.feel("mySmash", 3, true)
 	eq(calm.trauma, 0)
 	eq(calm.punch, 0)
+	eq(calm.kick, 0)
+	eq(calm.lift, 0)
+	eq(calm.twist, 0)
+	local calmHit = SmashJuice.feel("hit", 40, true)
+	eq(calmHit.trauma + calmHit.punch + calmHit.kick + calmHit.lift + calmHit.twist, 0)
 	truthy(calm.confetti > 0, "confetti stays")
+	-- hit shake C: a rocket shoves harder than a nudge and pops the zoom in; a nudge only shoves;
+	-- being smashed pulls the view out; your smash dips the camera
+	truthy(rocket.kick > nudge.kick and rocket.twist > nudge.twist)
+	eq(nudge.punch, 0)
+	truthy(rocket.punch > 0 and smashed.punch < 0 and smashed.kick > rocket.kick)
+	truthy(mine.lift < 0 and mine.kick == 0)
 	truthy(SmashJuice.feel("boom", 10).trauma > SmashJuice.feel("boom", 50).trauma)
 	eq(SmashJuice.feel("boom", 200).trauma, 0)
 	-- the empty feel is fresh every time (no shared table to change by mistake)
@@ -180,8 +191,29 @@ test("smash juice: shake is capped, decays, and never jitters on a 30 fps phone"
 	eq(SmashJuice.noiseHz(60), SmashJuice.NOISE_HZ)
 	local p = SmashJuice.tilt(1, 1, 0, 0)
 	eq(p, SmashJuice.MAX_DEGREES)
+	local _, _, roll = SmashJuice.tilt(1, 0, 0, 1)
+	eq(roll, SmashJuice.MAX_ROLL)
 	local small = SmashJuice.tilt(0.12, 1, 0, 0)
-	truthy(small < 0.05, "a nudge barely moves the screen (trauma squared)")
+	truthy(small < 0.05, "a tiny trauma barely moves the screen (trauma squared)")
+	-- a nudge you can see now (hit shake C): about 1/3 of a degree or more, right on the hit
+	local nudgeShake = SmashJuice.tilt(SmashJuice.feel("hit", 10).trauma, 1, 0, 0)
+	truthy(nudgeShake > 0.25, "a nudge is seen")
+	-- and it is calm again within a second
+	local nudgeT = SmashJuice.feel("hit", 10).trauma
+	eq(SmashJuice.decay(nudgeT, 1), 0)
+	-- the shove: starts at full push, wobbles back past 0 once, gone after KICK_SECONDS
+	eq(SmashJuice.kickAt(0), 1)
+	truthy(SmashJuice.kickAt(0.06) < 1)
+	local low = 0
+	for i = 1, 60 do
+		low = math.min(low, SmashJuice.kickAt(i / 100))
+	end
+	truthy(low < 0 and low > -0.5, "one wobble back the other way, smaller")
+	eq(SmashJuice.kickAt(SmashJuice.KICK_SECONDS), 0)
+	eq(SmashJuice.kickAt(-1), 0)
+	-- zoom out (being smashed): below 0 holds, then returns
+	eq(SmashJuice.punchAt(-5, 0.06, SmashJuice.PUNCH_IN + 0.03), -5)
+	eq(SmashJuice.punchAt(-5, 0.06, 5), 0)
 	-- the zoom: in, hold, back to 0
 	eq(SmashJuice.punchAt(8, 0.18, 0), 0)
 	eq(SmashJuice.punchAt(8, 0.18, SmashJuice.PUNCH_IN + 0.1), 8)

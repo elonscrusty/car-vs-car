@@ -5,7 +5,7 @@
 --   * a streak word under it (DOUBLE SMASH!, TRIPLE SMASH!, SMASH STREAK x3!)
 --   * when you get smashed: "You were smashed by X's rocket" in red, a hard shake, and the camera
 --     swings over to X with a big 3-2-1, then hands back when you respawn (or after 3.5 s)
---   * a red edge flash and a small shake when you take a hit
+--   * a red edge flash, a shove, a quick shake and a zoom pop when you take a hit
 -- Sounds come from client/Sfx (the SOUNDS row): smash (yours and others', placed), hit, the
 -- 3-2-1 count, respawn and shield.
 -- All numbers live in shared/SmashJuice. Everything is made once at start, so a smash only sets
@@ -371,6 +371,8 @@ function SmashFx.start()
 	-- piles up (vault "Snippets - Camera Shake and FX").
 	local trauma = 0
 	local punch, slow, punchAt = 0, 0, -math.huge
+	-- the shove: how far (degrees), which side, and when it began
+	local kickYaw, kickPitch, kickRoll, kickSide, kickAt = 0, 0, 0, 1, -math.huge
 	local fps = 60
 	local noiseT = 0
 	local seed = rng:NextNumber(0, 1000)
@@ -391,8 +393,13 @@ function SmashFx.start()
 
 	local function feel(f: SmashJuice.Feel)
 		trauma = SmashJuice.addTrauma(trauma, f.trauma)
-		if f.punch > 0 then
+		if f.punch ~= 0 then
 			punch, slow, punchAt = f.punch, f.slow, os.clock()
+		end
+		if f.kick ~= 0 or f.lift ~= 0 or f.twist ~= 0 then
+			-- (the server doesn't say which side a hit came from: they alternate)
+			kickSide = -kickSide
+			kickYaw, kickPitch, kickRoll, kickAt = f.kick, f.lift, f.twist, os.clock()
 		end
 	end
 	addFeel = feel
@@ -538,6 +545,14 @@ function SmashFx.start()
 					)
 					cf *= CFrame.Angles(math.rad(p), math.rad(y), math.rad(r))
 					trauma = SmashJuice.decay(trauma, dt)
+				end
+				local sp = SmashJuice.kickAt(os.clock() - kickAt)
+				if sp ~= 0 then
+					cf *= CFrame.Angles(
+						math.rad(kickPitch * sp),
+						math.rad(kickSide * kickYaw * sp),
+						math.rad(kickSide * kickRoll * sp)
+					)
 				end
 				if scriptable and cf ~= baseCf then
 					cam.CFrame = cf
