@@ -17,7 +17,6 @@ local Base = require(Ui:WaitForChild("Base"))
 local Anim = require(Ui:WaitForChild("Anim"))
 local Kit = require(Ui:WaitForChild("Kit"))
 local Icons = require(Ui:WaitForChild("Icons"))
-local Pattern = require(Ui:WaitForChild("Pattern"))
 local Screen = require(Ui:WaitForChild("Screen"))
 local KartView = require(script.Parent:WaitForChild("KartView"))
 
@@ -59,13 +58,6 @@ local function placedButton(
 	)
 end
 
--- gold, silver, bronze place discs
-local METAL = {
-	[1] = Color3.fromRGB(255, 194, 46),
-	[2] = Color3.fromRGB(195, 205, 220),
-	[3] = Color3.fromRGB(214, 138, 76),
-}
-
 -- a car's own colour, or one per place for a bot with no car of ours (three different colours)
 local PLACE_COLORS = { "danger", "blue", "pink" }
 local function carColor(carId: string?, pl: number): Color3
@@ -74,17 +66,6 @@ local function carColor(carId: string?, pl: number): Color3
 		return Color3.fromRGB(c.color[1], c.color[2], c.color[3])
 	end
 	return Base.color(PLACE_COLORS[pl] or "blue")
-end
-
--- a white panel at a screen piece
-local function panel(canvas: Instance, id: string, name: string): (Frame, SmashScreens.Piece)
-	local pc = piece(id, name)
-	local holder = spot(canvas, id, name)
-	local f = Base.fill(holder, "Panel", 0, 0, pc.w, pc.h, WHITE, 2)
-	Base.corner(f, 22)
-	Base.outline(f, UiTheme.OUTLINE.thick)
-	Pattern.dots(Base.box(f, "Back", 6, 6, pc.w - 12, pc.h - 12, 1))
-	return f, pc
 end
 
 -- show `obj` after `delay` s with a pop (the screen may be closed by then: then nothing)
@@ -101,8 +82,20 @@ local function popLater(obj: GuiObject, delay: number, then_: (() -> ())?)
 	end)
 end
 
--- ===== Between rounds (12 s): ROUND OVER, "<name> WINS" + the winner's kart, the top 3 with
--- smashes, your coins and XP popping in, NEW ROUND STARTING IN n, a small LEAVE =====
+-- ===== Between rounds (12 s), carter's pick B (10-29, win-screen/ in project files): YOU WIN! in
+-- gold (or "<NAME> WINS!"), the top 3 karts on podium steps 2-1-3 with names and smashes, a navy
+-- strip with your coins, XP and place, NEXT ROUND n counting down, a small LEAVE =====
+
+-- the podium steps, left to right: which place, x, height (design px in the Podium piece)
+local STEPS = { { 2, 0, 100 }, { 1, 192, 130 }, { 3, 384, 78 } }
+local STEP_W = 176
+-- gold, silver, bronze: the step's face and its place disc (the kit's leaderboard rows)
+local STEP_FACE = {
+	{ "fff7b8", "ffd93b", "ffb400" },
+	{ "e6f0ff", "a9c3ea", "7f9cc8" },
+	{ "ffd2b8", "e89a6c", "c06a3c" },
+}
+local STEP_DISC = { "ffc22e", "c3cddc", "d68a4c" }
 
 -- view: MatchEnd.read(...); actions: leave()
 -- The handle's set(secondsLeft) updates the count.
@@ -113,120 +106,128 @@ function Smash.matchEnd(
 ): Screen.Handle
 	return Screen.open("matchEnd", "full", true, function(g)
 		local back = g.back :: ScreenGui
+		-- the kit's navy ground with gold rays (as League up)
 		local bd = Kit.backdrop(back, "showroom")
-		Kit.confetti(bd, if view.place == 1 then 30 else 14)
+		local sky = bd:FindFirstChildOfClass("UIGradient")
+		if sky then
+			sky:Destroy()
+		end
+		Kit.face(bd, UiTheme.CHROME.ground)
+		local floor = bd:FindFirstChild("Floor")
+		if floor then
+			floor:Destroy()
+		end
+		local won = view.winner ~= nil and view.winner.me
+		if won then
+			Kit.confetti(bd, 30)
+		end
+		local canvas = g.canvas
 		local sp = piece("matchEnd", "Shout")
-		Kit.shout(spot(g.canvas, "matchEnd", "Shout"), 0, 0, sp.w, sp.h, "ROUND OVER!", "go")
-		local wp = piece("matchEnd", "Wins")
-		local winsSpot = spot(g.canvas, "matchEnd", "Wins")
-		Base.text(winsSpot, "Words", 0, 0, wp.w, wp.h, MatchEnd.winWords(view), {
-			color = if view.winner and view.winner.me then Base.color("lime") else WHITE,
-			stroke = 5,
-			drop = 3,
-			z = 5,
-		})
-		Anim.pop(winsSpot, 0.5, 0.3, 0.3) -- (the holder: the words and their drop together)
-		-- the winner's kart on show, turning slowly in the rays
-		local w = view.winner
-		if w then
-			local kp = piece("matchEnd", "Winner")
-			local stage = spot(g.canvas, "matchEnd", "Winner")
-			Kit.rays(stage, kp.w / 2, kp.h / 2, kp.h * 1.5, "go", 0.7)
-			local cw = kp.w * 0.9
-			local car: GuiObject = KartView.make(stage, (kp.w - cw) / 2, 0, cw, kp.h, w.carId)
-				or Icons.car(stage, (kp.w - cw) / 2, (kp.h - cw * 0.64) / 2, cw, cw * 0.64, {
-					id = w.carId,
-					color = carColor(w.carId, 1),
+		local title = Kit.title(
+			spot(canvas, "matchEnd", "Shout"),
+			0,
+			0,
+			sp.w,
+			sp.h,
+			MatchEnd.winWords(view),
+			if won then "gold" else "white"
+		)
+		Anim.shout(title)
+		-- the podium: each kart on its step, a place disc, the name and the smashes
+		local pp = piece("matchEnd", "Podium")
+		local podium = spot(canvas, "matchEnd", "Podium")
+		for _, st in STEPS do
+			local i, x, h = st[1], st[2], st[3]
+			local row = view.top[i]
+			if not row then
+				continue
+			end
+			local top = pp.h - h
+			local hold = Base.box(podium, "Step" .. i, x, 0, STEP_W, pp.h, 3)
+			-- the kart, bigger for the winner, bobbing on top of its step
+			-- (the picture has air round the kart, so it is drawn bigger than the kart looks)
+			local cw = if i == 1 then 220 else 180
+			local ch = if i == 1 then 136 else 100
+			local cx, cy = (STEP_W - cw) / 2, top - ch * 0.82
+			local car: GuiObject = KartView.make(hold, cx, cy, cw, ch, row.carId, 4)
+				or Icons.car(hold, cx, cy + ch * 0.1, cw, cw * 0.5, {
+					id = row.carId,
+					color = carColor(row.carId, i),
 					z = 4,
 				})
-			Anim.pop(car, 0.6, 0.2, 0.4)
-			Anim.bob(car, UiTheme.MOTION.carBob, 5)
-			if w.me then
-				local tro = Icons.make(stage, "trophy", kp.w / 2 - 22, 0, 44, { z = 5 })
-				Anim.bob(tro, UiTheme.MOTION.carBob, 5)
+			Anim.pop(car, 0.5, 0.2 + i * 0.12, 0.3)
+			if i == 1 then
+				Anim.bob(car, UiTheme.MOTION.carBob, 5)
 			end
-		end
-		-- the top 3: a metal place disc, the name, and under it "8 SMASHES" (two lines: on one,
-		-- a 14 letter name and the smashes read 11 px on a phone, Lead item 5)
-		local top, tp = panel(g.canvas, "matchEnd", "Top3")
-		local rows: { GuiObject } = {}
-		for i, row in view.top do
-			local y = 10 + (i - 1) * 50
-			local r = Base.box(top, "Row" .. i, 10, y, tp.w - 20, 46, 3)
-			local disc = Base.fill(r, "Disc", 0, 4, 38, 38, METAL[i], 3)
+			local step = Base.fill(hold, "Step", 0, top, STEP_W, h, WHITE, 3)
+			Base.corner(step, 14)
+			Kit.face(step, STEP_FACE[i])
+			-- (you: a lime ring round your step)
+			if row.me then
+				Base.outline(step, 4, Base.color("lime"))
+			else
+				Base.outline(step, UiTheme.OUTLINE.normal)
+			end
+			-- (the place disc sits on the step's top left corner, off the kart)
+			local disc = Base.fill(hold, "Disc", -8, top - 14, 38, 38, Kit.hex(STEP_DISC[i]), 6)
 			Base.corner(disc)
-			Base.outline(disc, UiTheme.OUTLINE.normal)
-			Base.text(disc, "N", 0, 2, 38, 34, tostring(i), { stroke = 4, z = 4 })
-			local tw = tp.w - 20 - 46 - 6
+			Base.outline(disc, UiTheme.OUTLINE.small)
+			Base.text(disc, "N", 0, 5, 38, 27, tostring(i), { stroke = 3, z = 7 })
 			Base.text(
-				r,
+				step,
 				"Name",
-				46,
-				2,
-				tw,
-				22,
+				8,
+				24,
+				STEP_W - 16,
+				26,
 				if row.me then "YOU" else SmashJuice.shortName(row.name),
 				{
-					color = if row.me then Base.color("limeDeep") else INK,
-					align = "l",
-					z = 4,
+					color = if row.me then Base.color("lime") else WHITE,
+					stroke = 4,
+					z = 5,
 				}
 			)
-			Base.text(
-				r,
-				"Smashes",
-				46,
-				25,
-				tw,
-				20,
-				`{row.smashes} {if row.smashes == 1 then "SMASH" else "SMASHES"}`,
-				{
-					color = Base.color("danger"),
-					align = "l",
-					z = 4,
-				}
-			)
-			table.insert(rows, r)
+			Base.text(step, "Smashes", 8, 50, STEP_W - 16, 22, MatchEnd.smashWords(row.smashes), {
+				stroke = 3,
+				z = 5,
+			})
+			Anim.pop(step, 0.4, 0.15 + i * 0.12, 0.3)
 		end
-		Anim.cascade(rows)
 		-- what you got, popping in one after the other: coins, XP, the level bar, then your place
 		-- (all in by 1.6 s: a shot in the first seconds read as a half-empty panel, auditor 14:48)
-		local rew, rp = panel(g.canvas, "matchEnd", "Rewards")
+		local rp = piece("matchEnd", "Rewards")
+		local rew =
+			Kit.navyPanel(spot(canvas, "matchEnd", "Rewards"), "Panel", 0, 0, rp.w, rp.h, 16)
 		-- what this round paid (not your wallet): a spinning coin and "+25"
-		local won = Base.box(rew, "Coins", 12, 12, rp.w - 24, 46, 4)
-		local coin = Icons.make(won, "coin", 0, 2, 42, { z = 5 })
+		local paid = Base.box(rew, "Coins", 10, 6, 150, 34, 4)
+		local coin = Icons.make(paid, "coin", 0, 0, 34, { z = 5 })
 		Kit.coinSpin(coin)
-		Base.text(won, "Amount", 50, 2, rp.w - 24 - 50, 42, `+{view.coins}`, {
+		Base.text(paid, "Amount", 40, 0, 110, 34, `+{view.coins}`, {
 			color = Base.color("go"),
-			stroke = 5,
-			drop = 3,
-			dropColor = Base.color("goDeep"),
+			stroke = 4,
+			drop = 2,
 			align = "l",
 			z = 5,
 		})
-		popLater(won, 0.5)
+		popLater(paid, 0.5)
 		if view.xp > 0 then
-			local xp = Base.text(rew, "Xp", 12, 60, rp.w - 24, 30, `+{view.xp} XP`, {
-				-- (an ink stroke like the coins: white on the white panel smeared it into a blue
-				-- blob, auditor 14:48)
-				color = Base.color("blue"),
-				stroke = 5,
-				drop = 3,
-				dropColor = Base.color("blueDeep"),
-				align = "l",
-				z = 4,
+			local xp = Base.text(rew, "Xp", 170, 6, 214, 24, `+{view.xp} XP`, {
+				color = Kit.hex("9fe0ff"),
+				stroke = 3,
+				align = "r",
+				z = 5,
 			})
 			popLater(xp, 0.8)
 		end
 		-- the level bar filling from before the round to now; LEVEL UP! when it crosses (no popup)
 		if bar then
-			local row = Base.box(rew, "Level", 12, 94, rp.w - 24, 24, 4)
+			local row = Base.box(rew, "Level", 170, 36, 214, 24, 4)
 			local lv = Base.text(row, "Lv", 0, 0, 52, 24, `LV {bar.fromLevel}`, {
-				color = INK,
+				stroke = 3,
 				align = "l",
 				z = 5,
 			})
-			local bw = rp.w - 24 - 56
+			local bw = 214 - 56
 			local track = Kit.bar(row, "Bar", 56, 3, bw, 18, "blue", { value = bar.fromF, z = 5 })
 			local num = Base.text(row, "Num", 56, 3, bw, 18, `{bar.into} / {bar.need}`, {
 				stroke = 3,
@@ -270,27 +271,35 @@ function Smash.matchEnd(
 		end
 		local you = MatchEnd.placeWords(view.place, view.total)
 		if you ~= "" then
-			local pl = Base.text(rew, "Place", 12, 124, rp.w - 24, 36, `YOU: {you}`, {
-				color = INK,
+			local pl = Base.text(rew, "Place", 10, 44, 150, 20, `YOU: {you}`, {
+				color = if view.place == 1 then Base.color("go") else WHITE,
+				stroke = 3,
 				align = "l",
-				z = 4,
+				z = 5,
 			})
 			popLater(pl, 1.2)
 		end
-		-- the count to the next round
+		-- the count to the next round, on a lime plate (the round starts by itself: no tap)
 		local kp = piece("matchEnd", "Count")
-		local count =
-			Base.text(spot(g.canvas, "matchEnd", "Count"), "Words", 0, 0, kp.w, kp.h, "", {
-				color = Base.color("go"),
-				stroke = 5,
-				drop = 3,
-				z = 5,
-			})
+		local countSpot = spot(canvas, "matchEnd", "Count")
+		local drop = Base.fill(countSpot, "Drop", 0, 4, kp.w, kp.h - 4, INK, 2)
+		Base.corner(drop, 16)
+		local plate = Base.fill(countSpot, "Plate", 0, 0, kp.w, kp.h - 4, WHITE, 3)
+		Base.corner(plate, 16)
+		local lime = UiTheme.FACE.lime
+		Kit.face(plate, { lime.hi, lime.c, lime.c2 })
+		Base.outline(plate, UiTheme.OUTLINE.normal)
+		local count = Base.text(plate, "Words", 10, 10, kp.w - 20, kp.h - 24, "", {
+			stroke = 4,
+			drop = 2,
+			z = 5,
+		})
+		Anim.pulse(countSpot, 1.04, 1)
 		local function set(left: number)
 			Base.setText(count, MatchEnd.countWords(left))
 		end
 		set(MatchEnd.AUTO)
-		placedButton(g.canvas, "matchEnd", "Leave", Screen.act(actions, "leave"))
+		placedButton(canvas, "matchEnd", "Leave", Screen.act(actions, "leave"))
 		return { set = set }
 	end)
 end
