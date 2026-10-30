@@ -34,10 +34,18 @@ for _, name in { "Baseplate", "SpawnLocation" } do
 	end
 end
 
-TrackBuilder.build()
-PlotDecorBuilder.build()
-PlotLooksBuilder.start()
-PlotShop.start()
+if SpawnLobby.GARAGE then
+	-- carter 10-30: Smash has no plots. An empty "Plots" folder stays, so every script that
+	-- looks for plots finds none instead of waiting for them.
+	local none = Instance.new("Folder")
+	none.Name = "Plots"
+	none.Parent = workspace
+else
+	TrackBuilder.build()
+	PlotDecorBuilder.build()
+	PlotLooksBuilder.start()
+	PlotShop.start()
+end
 local lobby = LobbyBuilder.build()
 LobbyPlots.init()
 require(script.Parent.PlotStandsBuilder).start() -- owners' cars on their plot's stands
@@ -56,7 +64,9 @@ if Features.SMASH then
 	require(script.Parent.LobbyKartSwap).start() -- Smash: the realistic lobby coupe becomes a kart
 	require(script.Parent.SettingsServer).start() -- Smash: music, sounds, shadows, name tags
 end
-require(script.Parent.PlotGarageBuilder).start() -- plots are garages: the loop road, coin pile pad, level sign
+if not SpawnLobby.GARAGE then
+	require(script.Parent.PlotGarageBuilder).start() -- plots are garages: the loop road, coin pile pad, level sign
+end
 do -- phone speed pass over the plots (small bits: no shadow; tiny decor bits: no collision)
 	local before, after = require(script.Parent.LobbyPerf).plots(workspace.Plots)
 	print(
