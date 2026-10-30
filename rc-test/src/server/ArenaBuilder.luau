@@ -11,6 +11,7 @@ local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ArenaData = require(ReplicatedStorage.Shared.ArenaData)
+local ArenaHorizon = require(ReplicatedStorage.Shared.ArenaHorizon)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 
 local ArenaBuilder = {}
@@ -1414,6 +1415,32 @@ local function buildWorld(folder: Instance)
 	end
 end
 
+-- The far ground, the haze wall and the far skyline (ArenaHorizon): no dark sky band past the edge.
+local function buildHorizon(folder: Instance)
+	local haze = ArenaData.atmosphere.color
+	for _, d in ArenaHorizon.pieces(haze) do
+		local p = part(
+			folder,
+			d.name,
+			Vector3.new(d.size[1], d.size[2], d.size[3]),
+			CFrame.new(d.pos[1], d.pos[2], d.pos[3]) * CFrame.Angles(0, d.yaw, 0),
+			rgb(d.color[1], d.color[2], d.color[3]),
+			false,
+			if d.shape == "Cylinder" then "Part" else nil
+		) :: Part
+		if d.shape == "Cylinder" then
+			p.Shape = Enum.PartType.Cylinder
+			-- a Roblox cylinder lies along X: stand it up
+			p.CFrame = CFrame.new(d.pos[1], d.pos[2], d.pos[3]) * CFrame.Angles(0, 0, math.pi / 2)
+			p.Size = Vector3.new(d.size[2], d.size[1], d.size[3])
+		end
+		p.CastShadow = false
+		if d.neon then
+			p.Material = Enum.Material.Neon
+		end
+	end
+end
+
 -- Grass tufts scattered over the open grass (looks only): off the road, sand, hills and spots.
 local function buildTufts(folder: Instance)
 	local line = roadLine(4)
@@ -1486,6 +1513,7 @@ function ArenaBuilder.buildBig(): Model
 	buildDecor(model)
 	buildTufts(model)
 	buildWorld(model)
+	buildHorizon(model)
 	return model
 end
 
