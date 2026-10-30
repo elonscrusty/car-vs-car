@@ -62,4 +62,10 @@ function WeaponMounts.muzzle(mount: string, muzzle: { number }): (number, number
 	return (p.z * len + muzzle[3]) / len, (p.y * WeaponMounts.DESIGN_HEIGHT + muzzle[2]) / len
 end
 
+-- How far a muzzle sits to the side of the kart's middle (+ = right), in kart lengths. The Missile
+-- Rack's six tubes sit side by side, so each rocket leaves from its own tube.
+function WeaponMounts.side(muzzle: { number }): number
+	return muzzle[1] / WeaponMounts.DESIGN_LENGTH
+end
+
 return WeaponMounts

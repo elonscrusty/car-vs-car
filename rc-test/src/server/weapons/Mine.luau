@@ -7,6 +7,19 @@
 -- is "MineBoom" fx ("MineDrop" when one lands, for its sound). Plain `vector` maths, so Lune
 -- tests run it.
 
+-- shared/*: Roblox from ReplicatedStorage, plain Lune (tests) by path
+local function shared(name: string): any
+	if script then
+		local rs: any = game:GetService("ReplicatedStorage")
+		return require(rs:WaitForChild("Shared"):WaitForChild(name))
+	end
+	local luneRequire: any = require
+	return luneRequire("../../shared/" .. name)
+end
+
+local WeaponMounts = shared("WeaponMounts")
+local WeaponLooks = shared("WeaponLooks")
+
 local Mine = {}
 
 Mine.NAME = "Mine"
@@ -106,6 +119,24 @@ function Mine.dropSpot(cf: CFrame): Vector3
 	return cf.Position - back * Mine.BEHIND - vector.create(0, Mine.DROP, 0)
 end
 
+-- Where the Mine Dropper's throwing arm lets go of a mine for a kart at `cf`: the spoon, on the roof
+-- toward the tail. Looks only: the mine still lands at dropSpot; clients draw the toss between the two.
+-- nil when the Mine has no look.
+function Mine.spoonSpot(cf: CFrame): Vector3?
+	local look = WeaponLooks.forWeapon("Mine", nil)
+	local muzzle = look and look.muzzles[1]
+	if not look or not muzzle then
+		return nil
+	end
+	local l = cf.LookVector
+	local fwd = vector.create(l.x, 0, l.z)
+	local m = vector.magnitude(fwd)
+	fwd = if m > 1e-4 then fwd / m else vector.create(0, 0, -1)
+	local len = 5.5 * Mine.SCALE
+	local ahead, up = WeaponMounts.muzzle(look.mount, muzzle)
+	return cf.Position + fwd * (ahead * len) + vector.create(0, up * len, 0)
+end
+
 -- The weapon contract: drop one mine.
 function Mine.fire(kart: Kart, _aim: Vector3, ctx: Ctx): boolean
 	if not kart.alive then
@@ -140,7 +171,7 @@ function Mine.fire(kart: Kart, _aim: Vector3, ctx: Ctx): boolean
 		diesAt = now + Mine.LIFE,
 		part = part,
 	})
-	ctx.fx("MineDrop", { position = pos, owner = kart.id })
+	ctx.fx("MineDrop", { position = pos, owner = kart.id, from = Mine.spoonSpot(kart.cframe) })
 	return true
 end
 

@@ -7,6 +7,19 @@
 -- server really hurt and by how much, for the hit flash and "-N"). Plain Luau with the Weapons module passed in, so Lune
 -- tests run it with a fake ctx.
 
+-- shared/*: Roblox from ReplicatedStorage, plain Lune (tests) by path
+local function shared(name: string): any
+	if script then
+		local rs: any = game:GetService("ReplicatedStorage")
+		return require(rs:WaitForChild("Shared"):WaitForChild(name))
+	end
+	local luneRequire: any = require
+	return luneRequire("../../shared/" .. name)
+end
+
+local WeaponMounts = shared("WeaponMounts")
+local WeaponLooks = shared("WeaponLooks")
+
 local Flight = {}
 
 Flight.MAX_FLYING = 40 -- in the whole server, all flying weapons together
@@ -17,6 +30,31 @@ Flight.MAX_DT = 0.25 -- a long server hitch moves a shot at most this much at on
 Flight.TURN_DEG = 4 -- ... and only once it has bent at least this much since the last word
 
 type Flying = { id: number, kind: string, r: any, sentAt: number, sentDir: Vector3, atWall: boolean? }
+
+-- The Missile Rack fires its tubes in this order (the order the preview page shows): left, right,
+-- middle left, middle right, ... one rocket per tube, then round again.
+local TUBE_ORDER = { 1, 4, 2, 5, 3, 6 }
+local tubeCount: { [any]: number } = {}
+
+-- Where tube number `n` (1, 2, 3 ...) of the rack on a kart at `at`, facing `look`, is. `kartLen` is
+-- the kart's length in studs. nil when the Rockets have no look. Looks only: the shot itself still
+-- flies from the nose, the client blends from the tube into that path (client/WeaponFx).
+function Flight.tubeSpot(at: Vector3, look: Vector3, n: number, kartLen: number): Vector3?
+	local rack = WeaponLooks.forWeapon("Rockets", nil)
+	local muzzle = rack and rack.muzzles[TUBE_ORDER[(n - 1) % #TUBE_ORDER + 1]]
+	if not rack or not muzzle then
+		return nil
+	end
+	local fwd = vector.create(look.x, 0, look.z)
+	local mag = vector.magnitude(fwd)
+	fwd = if mag > 1e-4 then fwd / mag else vector.create(0, 0, -1)
+	local right = vector.create(-fwd.z, 0, fwd.x)
+	local ahead, up = WeaponMounts.muzzle(rack.mount, muzzle)
+	return at
+		+ fwd * (ahead * kartLen)
+		+ right * (WeaponMounts.side(muzzle) * kartLen)
+		+ vector.create(0, up * kartLen, 0)
+end
 
 -- shared by every flying weapon: ids are unique and the cap counts them all
 local flying: { Flying } = {}
@@ -82,9 +120,21 @@ function Flight.weapon(name: string, Weapons: any): { [string]: any }
 			sentDir = r.dir,
 			atWall = wall ~= nil,
 		})
+		-- a Rockets shot also says which rack tube it left from (the Nuke has no rack)
+		local tube: Vector3? = nil
+		if name == "Rockets" then
+			local n = (tubeCount[kart.id] or 0) + 1
+			tubeCount[kart.id] = n
+			tube = Flight.tubeSpot(
+				from,
+				Weapons.vec(kart.cframe.LookVector) or vector.create(0, 0, -1),
+				n,
+				Weapons.KART
+			)
+		end
 		ctx.fx(
 			"RocketLaunch",
-			{ id = nextId, kind = name, pos = r.pos, dir = r.dir, owner = kart.id }
+			{ id = nextId, kind = name, pos = r.pos, dir = r.dir, owner = kart.id, from = tube }
 		)
 		return true
 	end
