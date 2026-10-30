@@ -220,6 +220,11 @@ function Sfx.freeze(at: Vector3?)
 	play("freeze", nil, nil, at)
 end
 
+-- the Flame Nozzle sends a burst of fire
+function Sfx.flame(at: Vector3?)
+	play("flame", nil, nil, at)
+end
+
 -- the ice bursts and the kart is smashed
 function Sfx.shatter(at: Vector3?)
 	play("shatter", nil, nil, at)

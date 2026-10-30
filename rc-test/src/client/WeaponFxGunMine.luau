@@ -208,6 +208,7 @@ local function onFlame(data: any)
 	if dir.Magnitude < 0.1 then
 		return
 	end
+	sound("flame", data, a)
 	flash(a, SUNNY, 1.5, 4, 0.12)
 	local steps = math.floor(life / 0.04)
 	for i = 0, steps do

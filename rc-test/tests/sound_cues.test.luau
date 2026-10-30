@@ -94,6 +94,7 @@ test("Smash arena sounds: every new action has a Sfx call", function()
 			"mine",
 			"freezeShot",
 			"freeze",
+			"flame",
 			"shatter",
 			"hit",
 			"bump",
