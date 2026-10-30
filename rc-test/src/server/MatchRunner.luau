@@ -34,6 +34,7 @@ local FirePits = require(ReplicatedStorage.Shared.FirePits)
 local BotPaints = require(ReplicatedStorage.Shared.BotPaints)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local Match = require(ReplicatedStorage.Shared.Match)
+local RollBarrels = require(ReplicatedStorage.Shared.RollBarrels)
 local Profile = require(ReplicatedStorage.Shared.Profile)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local League = require(ReplicatedStorage.Shared.League)
@@ -90,6 +91,7 @@ local crates: any = nil -- CrateServer's handle (the breakable crates in the are
 local barrels: any = nil -- BarrelServer's handle (the dynamite kegs in the arena)
 local crane: any = nil -- CraneServer's handle (the swinging crane ball in the arena)
 local firePits: any = nil -- FirePitServer's handle (the burning patches in the arena)
+local rollDrums: any = nil -- RollBarrelServer's handle (the rolling Toxic Drums)
 local ArenaBots: any = nil
 local lastLeave: { [Player]: number } = {}
 
@@ -887,6 +889,46 @@ function MatchRunner.weaponFx(kind: string, data: any)
 	end
 end
 
+-- The arena's rolling Toxic Drums (RollBarrelServer, shared/RollBarrels): started once, every drum
+-- back home and still at each round's start. Karts shove them; they never hurt anyone.
+local function startRollBarrels()
+	local mod = script.Parent:FindFirstChild("RollBarrelServer")
+	local _, t = arena()
+	if rollDrums or not (mod and mod:IsA("ModuleScript") and t) then
+		return
+	end
+	local spots: { Vector3 } = {}
+	for _, p in RollBarrels.SPOTS do
+		local x, z = ArenaData.at(p :: any)
+		local wx, wy, wz = TrackData.toWorld(t, true, x, ArenaData.groundAt(p :: any), z)
+		table.insert(spots, Vector3.new(wx, wy, wz))
+	end
+	local ok, h = pcall((require(mod) :: any).start, {
+		spots = spots,
+		karts = function()
+			local out = {}
+			for _, k in MatchRunner.karts() do
+				if k.pos then
+					table.insert(out, { id = k.id, position = k.pos, alive = k.alive })
+				end
+			end
+			return out
+		end,
+		-- solid (wall, tree, cover, bumper...) or not flat (hill, ramp) at this world spot?
+		blocked = function(pos: Vector3): boolean
+			local lx, _, lz = TrackData.toLocal(t, true, pos.X, pos.Y, pos.Z)
+			local px, py =
+				lx / ArenaData.K + ArenaData.PIC / 2, lz / ArenaData.K + ArenaData.PIC / 2
+			return not ArenaData.clear(px, py, 4) or ArenaData.groundAt({ px, py }) >= 0.01
+		end,
+	})
+	if ok then
+		rollDrums = h
+	else
+		warn("[Match] rolling barrels: " .. tostring(h))
+	end
+end
+
 local function startRound()
 	local h = hooks :: Hooks
 	local idx = LobbyLayout.arenaIndex()
@@ -1053,6 +1095,10 @@ local function startRound()
 	startFirePits()
 	if firePits then
 		pcall(firePits.reset)
+	end
+	startRollBarrels()
+	if rollDrums then
+		pcall(rollDrums.reset)
 	end
 	log(
 		`round {round} start: {#list} players + {#m.list - #list} bots, ends in {MatchRunner.MATCH_SECS} s`
