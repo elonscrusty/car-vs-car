@@ -367,6 +367,11 @@ local function makeCtx(fxRemote: RemoteEvent): Ctx
 		end,
 		fx = function(kind: string, data: { [string]: any })
 			fxRemote:FireAllClients(kind, data)
+			-- (guns, rockets and mines break the arena's crates)
+			local mr = matchRunner()
+			if mr and type(mr.crateFx) == "function" then
+				pcall(mr.crateFx, kind, data)
+			end
 		end,
 		after = function(seconds: number, fn: () -> ())
 			task.delay(seconds, fn)
