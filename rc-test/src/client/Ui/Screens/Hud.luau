@@ -1187,12 +1187,21 @@ function Hud.match(
 			local row = Base.box(feedSpot, "Row", 0, 0, fp.w, rowH, 2)
 			local nameW = math.floor((fp.w - rowH - 14) / 2)
 			local function side(x: number, name: string, key: string, gold: boolean)
-				Base.text(row, key, x, 2, nameW, rowH - 4, Hud.cut(name, if touch then 6 else FEED_NAME), {
-					stroke = 3.5,
-					align = "l",
-					z = 3,
-					color = if gold then Base.color("go") else nil,
-				})
+				Base.text(
+					row,
+					key,
+					x,
+					2,
+					nameW,
+					rowH - 4,
+					Hud.cut(name, if touch then 6 else FEED_NAME),
+					{
+						stroke = 3.5,
+						align = "l",
+						z = 3,
+						color = if gold then Base.color("go") else nil,
+					}
+				)
 			end
 			-- (levels stay off this line: the kit's board and health bar show them)
 			side(0, attacker, "Who", mine == true)
