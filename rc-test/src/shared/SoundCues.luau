@@ -93,6 +93,7 @@ SoundCues.MUST = {
 	"shield",
 	"matchStart",
 	"matchEnd",
+	"tap",
 }
 
 SoundCues.ACTIONS = {
@@ -278,6 +279,8 @@ SoundCues.ACTIONS = {
 		volume = L.DING,
 	},
 	spark = { id = "rbxassetid://9116911070", notes = { 2.5 }, gap = 0, volume = L.SPARK },
+	-- any button tapped: a soft round click (carter picked A "Soft click" 10-30)
+	tap = { id = "rbxassetid://16480568294", pitch = 1.15, notes = { 2 }, gap = 0, volume = L.TAP },
 } :: { [string]: Cue }
 
 -- the cue for an action (nil if there is none)
