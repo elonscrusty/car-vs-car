@@ -6,15 +6,15 @@ mines out the back. ~15-19k triangles per car, 38 parts each (Body, Accent, Chro
 12 Rim pieces that turn with their wheel, Arm* and Loaded* for the arm). Nose +Z, car's left +X, ground y = 0.
 
 Preview page with a Drop mine button (arm swing, flying mine, blink, boom): project files `kart-preview/minelayer-tries/`
-(`car5.html`; same generator). Pick of the 3: see the handoff, plans/handoffs/car-mine-layer.md.
+(`car5.html`; same generator). Main car: Widow Maker (carter 10-30); Grave Layer and Rust Hopper are its skins.
 
 ## Put it in the game (carter's batch, Edit mode, no Play)
 1. Studio: File > Import 3D, pick ALL files in `obj/<car>/` except `<Prefix>.obj` (the whole car in one file, the
    backup if multi-select is awkward). Import as Model, leave textures off. Do this for each car you want
    (`grave_layer`, `widow_maker`, `rust_hopper`); the mover skips a car it finds no parts for.
 2. Command bar: run `studio_mine_layer.luau`. It makes `ReplicatedStorage.CarSkins.<id>` for each car, paints the parts,
-   and checks nose and left/right. Set `MAIN` at the top to the main car's id and the other cars get attribute
-   `SkinOf` = that id (skins of the main car).
+   and checks nose and left/right. `MAIN` at the top is `widow_maker` (carter picked it 10-30); the other cars get attribute
+   `SkinOf` = `widow_maker` (skins of it).
 3. Ctrl+S.
 
 ## Still to do (not done here)

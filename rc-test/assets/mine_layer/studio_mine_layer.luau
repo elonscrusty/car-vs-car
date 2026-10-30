@@ -7,7 +7,7 @@
 -- Each model carries Kart + Extras attributes like CarSkins.ice_viper: CarSkin sizes it by its tyres and carries every
 -- other part on the body. Rim pieces named Rim<anything><FL|FR|RL|RR> turn with that wheel. Nose at +Z, left at +X.
 -- The swing arm is the parts named Arm* plus Loaded*: they turn about the centre of ArmHinge (a pin across X).
-local MAIN: string? = nil -- the id of the main mine-layer car; the other cars become its skins (attribute SkinOf)
+local MAIN: string? = "widow_maker" -- the main mine-layer car (carter 10-30); the other cars become its skins (attribute SkinOf)
 local MAX_TURN = 0.35 -- how far the front wheels are drawn turned (radians), to stay in the arches
 
 local STEEL = { Enum.Material.Metal, 0.2 }
