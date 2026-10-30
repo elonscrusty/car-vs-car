@@ -52,6 +52,15 @@ ArenaCam.PHONE_AHEAD_MIN = 8 -- kart lengths still seen ahead of your kart (the 
 ArenaCam.PHONE_LOW = 0.35 -- of the half screen below the middle: ~68% down (try A)
 ArenaCam.PHONE_LEAN = 0 -- of the big camera's lean
 
+-- carter 10-30 (batch 1 play): "it needs to be further behind the car so I can see more in front
+-- of me". Two tries over the normal fit, on every screen: press T in a match to go 1 -> 2 -> off.
+-- Try 1 is on from the start. After his pick, the numbers move into the fit and this goes.
+ArenaCam.TRIES = {
+	{ distance = 13, pitch = 26, low = 0.55 },
+	{ distance = 18, pitch = 22, low = 0.6 },
+} :: { { distance: number, pitch: number, low: number } }
+ArenaCam.TRY_START = 1
+
 export type Fit = {
 	distance: number,
 	pitch: number,
