@@ -17,16 +17,19 @@
 -- car by name (ToyCars.kartPaint). No weapon on the kart: an icon above it shows that (carter).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 
 local RCCar = require(script.Parent.RCCar)
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
+local CarFxStyles = require(ReplicatedStorage.Shared.CarFxStyles)
 local ExhaustFx = require(script.Parent.ExhaustFx)
 local FireDrake = require(script.Parent.FireDrake)
 local WeaponPart = require(script.Parent.WeaponPart)
 local Garage = require(ReplicatedStorage.Shared.Garage)
 local KartMesh = require(script.Parent.KartMesh)
 local ToyCars = require(ReplicatedStorage.Shared.ToyCars)
+local TrailFx = require(script.Parent.TrailFx)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
 
 local WHEEL_NAMES = { "WheelFL", "WheelFR", "WheelRL", "WheelRR" } -- same order as RCCar
@@ -513,13 +516,21 @@ local function hide(s: Shown)
 	s.folder:Destroy()
 end
 
+-- The look the player picked for their flames / wheel trails (a Player attribute the loadout sets;
+-- nil gives the starter).
+local function styleOf(attr: string): string?
+	local v = Players.LocalPlayer:GetAttribute(attr)
+	return if typeof(v) == "string" then v else nil
+end
+
 -- Starts the skin. Call update(car, name) every frame right after car.render, with the skin's
 -- name in CarSkins, or nil for none.
 function CarSkin.new()
 	local enabled = true
 	local shown: Shown? = nil
 	local broken: { [Model]: boolean } = {} -- models missing a part: don't keep trying them every frame
-	local exhaust = ExhaustFx.new() -- the Fire Drake car's tailpipe jets while it boosts
+	local exhaust = ExhaustFx.new() -- the tailpipe flames while it boosts (the player's pick)
+	local trails = TrailFx.new() -- the sparks off the rear tyres
 
 	UserInputService.InputBegan:Connect(function(input: InputObject, typing: boolean)
 		if not typing and input.KeyCode == Enum.KeyCode.B then
@@ -563,9 +574,11 @@ function CarSkin.new()
 			end
 		end
 		exhaust.step(
-			if cur and FireDrake.wants(cur.name) then cur.body else nil,
-			cur ~= nil and car.telemetry.boost > 0
+			if cur then cur.body else nil,
+			cur ~= nil and car.telemetry.boost > 0,
+			styleOf(CarFxStyles.ATTR_EXHAUST)
 		)
+		trails.step(if cur then car else nil, styleOf(CarFxStyles.ATTR_TRAIL))
 	end
 
 	return self

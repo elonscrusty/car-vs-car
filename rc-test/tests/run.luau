@@ -129,5 +129,6 @@ require("./fonts.test")
 require("./weapon_mounts.test")
 require("./flame.test")
 require("./launch_spots.test")
+require("./car_fx.test")
 
 Harness.summary()
