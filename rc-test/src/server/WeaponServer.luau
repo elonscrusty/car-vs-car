@@ -29,6 +29,8 @@ export type Ctx = {
 	place: ((kind: string, at: Vector3) -> Instance?)?,
 	-- FREEZE: seconds > 0 stops kart `id` (it frees itself after that); 0 lets it go now
 	freeze: ((id: any, seconds: number) -> ())?,
+	-- SHOCKWAVE: shoves kart `id`: v = a flat velocity to add (studs/s), up = a hop (studs/s)
+	push: ((id: any, v: Vector3, up: number) -> ())?,
 }
 export type Module = {
 	fire: (kart: Kart, aim: Vector3, ctx: Ctx) -> boolean,
@@ -377,6 +379,19 @@ local function makeCtx(fxRemote: RemoteEvent): Ctx
 			task.delay(seconds, fn)
 		end,
 		place = nil,
+		-- A player's car is driven by their own client (its owner moves it), so that client is told
+		-- ("Knock") and shoves its own car; a bot is moved by MatchRunner.knock (ArenaBots).
+		push = function(id: any, v: Vector3, up: number)
+			local p = playerOf(id)
+			if p then
+				fxRemote:FireClient(p, "Knock", { v = v, up = up })
+				return
+			end
+			local mr = matchRunner()
+			if mr and type(mr.knock) == "function" then
+				pcall(mr.knock, id, v, up)
+			end
+		end,
 		freeze = function(id: any, seconds: number)
 			local src = ownerOf(id)
 			if src and type(src.freeze) == "function" then

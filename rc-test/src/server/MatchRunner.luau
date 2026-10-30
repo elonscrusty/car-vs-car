@@ -571,6 +571,15 @@ function MatchRunner.freeze(id: number, seconds: number)
 	end)
 end
 
+-- SHOCKWAVE (WeaponServer ctx.push): shove a bot kart by `v` studs/s (ArenaBots moves it). A
+-- player's own client moves their car (WeaponServer sends it "Knock"), so a player is left alone.
+function MatchRunner.knock(id: number, v: Vector3, _up: number?)
+	local info = infos[id]
+	if info and not info.player and fleet and ArenaBots and type(ArenaBots.knock) == "function" then
+		pcall(ArenaBots.knock, fleet, id, v)
+	end
+end
+
 -- The SMASH! pad: on the list for the next round (never into one that's going). true = in.
 function MatchRunner.join(player: Player): boolean
 	if not hooks or not arena() or player.Parent == nil then
