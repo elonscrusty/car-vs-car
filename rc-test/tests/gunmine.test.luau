@@ -185,22 +185,25 @@ test("gun: a full burst on a kart ahead does 34 and three bursts smash", functio
 end)
 
 test("gun: aim help reaches a kart a little off to the side, not one far off", function()
-	local w = world({ kart(1, 0, 0), kart(2, 2.5, -15), kart(3, 15, -5) })
+	local w = world({ kart(1, 0, 0), kart(2, 1, -15), kart(3, 15, -5) })
 	Gun.fire(w.karts[1], AHEAD, w.ctx)
 	w.run(1)
-	eq(w.total(2), 34, "kart 9 degrees off is hit")
+	eq(w.total(2), 34, "kart 4 degrees off is hit")
 	eq(w.total(3), 0, "kart 72 degrees off is not")
 end)
 
-test("gun: aim help snaps to the NEAREST kart within 25 degrees", function()
-	-- kart 2 straight ahead but far; kart 3 is 22 degrees off (outside the old 18) and near
-	local near3 = kart(3, 4 * math.tan(math.rad(22)), -4)
-	local w = world({ kart(1, 0, 0), kart(2, 0, -20), near3 })
-	Gun.fire(w.karts[1], AHEAD, w.ctx)
-	w.run(1)
-	eq(w.total(3), 34, "nearest in the cone")
-	eq(w.total(2), 0, "far one left alone")
-end)
+test(
+	"gun: aim help snaps to the NEAREST kart within Gun.AIM_DEG (8 degrees: no auto-aim)",
+	function()
+		-- kart 2 straight ahead but far; kart 3 is 6 degrees off and near
+		local near3 = kart(3, 4 * math.tan(math.rad(6)), -4)
+		local w = world({ kart(1, 0, 0), kart(2, 0, -20), near3 })
+		Gun.fire(w.karts[1], AHEAD, w.ctx)
+		w.run(1)
+		eq(w.total(3), 34, "nearest in the cone")
+		eq(w.total(2), 0, "far one left alone")
+	end
+)
 
 test("gun: aim help skips shielded karts and fires straight when none is left", function()
 	local shielded = kart(2, 0, -10)
@@ -211,7 +214,7 @@ test("gun: aim help skips shielded karts and fires straight when none is left", 
 	-- straight ahead, nothing in the way: the tracer flies the full range, no damage
 	eq(#w.hits, 0, "a shielded kart isn't snapped to")
 	near(w.fxs[1].data.to.z, -(Gun.MUZZLE + Gun.RANGE), 1e-3, "straight")
-	local open = kart(3, 3, -10)
+	local open = kart(3, 1, -10)
 	table.insert(w.karts, open)
 	Gun.fire(w.karts[1], AHEAD, w.ctx)
 	w.run(1)
@@ -246,11 +249,11 @@ test("freeze: a shielded kart in the way isn't frozen", function()
 	Freeze.clear(w.ctx)
 end)
 
-test("freeze: uses the same aim help (nearest in 25 degrees, never shielded)", function()
+test("freeze: uses the same aim help (nearest in Gun.AIM_DEG, never shielded)", function()
 	Freeze.clear()
 	local shielded = kart(2, 0, -3)
 	shielded.shield = true
-	local w = world({ kart(1, 0, 0), shielded, kart(3, 4 * math.tan(math.rad(22)), -4) })
+	local w = world({ kart(1, 0, 0), shielded, kart(3, 4 * math.tan(math.rad(6)), -4) })
 	Freeze.fire(w.karts[1], AHEAD, w.ctx)
 	eq(w.total(3, "Freeze"), Freeze.DAMAGE, "kart 3 frozen")
 	eq(w.total(2), 0, "shielded kart skipped")
