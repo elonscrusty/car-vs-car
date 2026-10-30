@@ -11,22 +11,25 @@ local test, eq, truthy = H.test, H.eq, H.truthy
 
 print("Arena camera")
 
-test("arena cam: higher, further back and tilted 35-45 degrees down", function()
-	truthy(ArenaCam.PITCH >= 35 and ArenaCam.PITCH <= 45, "Smash Karts tilt")
-	local back, up = ArenaCam.offset()
-	truthy(math.abs(back * back + up * up - ArenaCam.DISTANCE ^ 2) < 1e-6, "on the distance")
-	truthy(math.abs(math.deg(math.atan2(up, back)) - ArenaCam.PITCH) < 1e-6, "at the pitch")
-	-- the race chase cam at the arena's RC size, for comparison (race numbers, whatever an
-	-- earlier test left)
-	local T: any = Tuning
-	T.setMode("race")
-	T.setScale(1)
-	local S = TrackData.RC_SCALE
-	local oldBack, oldUp = Tuning.camDistance * S, Tuning.camHeight * S
-	truthy(up > oldUp * 4, "much higher than the low race cam")
-	truthy(back > oldBack * 2, "much further back")
-	truthy(ArenaCam.FOV >= 50 and ArenaCam.FOV <= 70, "a normal view, not a fish-eye")
-end)
+test(
+	"arena cam: higher, further back and tilted 25-35 degrees down (carter 10-30: lower)",
+	function()
+		truthy(ArenaCam.PITCH >= 25 and ArenaCam.PITCH <= 35, "a low chase tilt")
+		local back, up = ArenaCam.offset()
+		truthy(math.abs(back * back + up * up - ArenaCam.DISTANCE ^ 2) < 1e-6, "on the distance")
+		truthy(math.abs(math.deg(math.atan2(up, back)) - ArenaCam.PITCH) < 1e-6, "at the pitch")
+		-- the race chase cam at the arena's RC size, for comparison (race numbers, whatever an
+		-- earlier test left)
+		local T: any = Tuning
+		T.setMode("race")
+		T.setScale(1)
+		local S = TrackData.RC_SCALE
+		local oldBack, oldUp = Tuning.camDistance * S, Tuning.camHeight * S
+		truthy(up > oldUp * 4, "much higher than the low race cam")
+		truthy(back > oldBack * 2, "much further back")
+		truthy(ArenaCam.FOV >= 50 and ArenaCam.FOV <= 70, "a normal view, not a fish-eye")
+	end
+)
 
 test("arena cam: your kart sits in the lower third", function()
 	local back, up = ArenaCam.offset()
@@ -37,7 +40,7 @@ test("arena cam: your kart sits in the lower third", function()
 	local kartDown = math.rad(ArenaCam.PITCH)
 	local share = math.tan(kartDown - lookDown) / math.tan(math.rad(ArenaCam.FOV / 2))
 	truthy(math.abs(share - ArenaCam.KART_LOW) < 1e-6, "kart a third of the half screen down")
-	truthy(lookDown > math.rad(20), "still looking down at the arena, not at the sky")
+	truthy(lookDown > math.rad(15), "still looking down at the arena, not at the sky")
 end)
 
 test("arena cam: the look-ahead leans a little, never a lot", function()

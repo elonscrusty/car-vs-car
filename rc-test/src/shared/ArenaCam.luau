@@ -9,8 +9,10 @@
 
 local ArenaCam = {}
 
-ArenaCam.DISTANCE = 9 -- studs from the kart to the camera (~6.5 kart lengths)
-ArenaCam.PITCH = 40 -- degrees the camera looks down at the kart (Smash Karts ~35-45)
+-- carter 10-30 (batch 1, Studio on PC): 9 studs at 40 deg was "way too close and way too high":
+-- further back and lower, so you see what is ahead of you
+ArenaCam.DISTANCE = 11.5 -- studs from the kart to the camera (~8 kart lengths; fits ArenaData.CAM_BACK)
+ArenaCam.PITCH = 30 -- degrees the camera looks down at the kart
 ArenaCam.FOV = 60 -- vertical field of view, degrees
 ArenaCam.FOV_FAST = 5 -- a little wider at top speed
 ArenaCam.KART_LOW = 1 / 3 -- the kart sits this far below the screen's middle (lower third)
