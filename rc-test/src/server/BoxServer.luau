@@ -66,7 +66,7 @@ local function mark(body: BasePart, face: Enum.NormalId)
 	local t = Instance.new("TextLabel")
 	t.BackgroundTransparency = 1
 	t.Size = UDim2.fromScale(1, 1)
-	t.Font = Enum.Font.FredokaOne
+	t.Font = Enum.Font.Oswald
 	t.Text = "?"
 	t.TextSize = 90 -- fixed size on the 100 px canvas (TextScaled costs more on phones)
 	t.TextColor3 = YELLOW

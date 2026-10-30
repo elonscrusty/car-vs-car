@@ -117,7 +117,7 @@ for i, layer in { "Drop", "Outline", "Letters" } do
 	local l = Instance.new("TextLabel")
 	l.Name = layer
 	l.BackgroundTransparency = 1
-	l.Font = Enum.Font.FredokaOne
+	l.Font = Enum.Font.Oswald
 	l.TextScaled = true
 	-- (all three RichText: a plain TextScaled layer stops at 100 px and a rich one doesn't, so a
 	-- smaller white logo peeked out behind the big letters, Studio qa_r58)
@@ -245,7 +245,7 @@ round(shine)
 local tip = Instance.new("TextLabel")
 tip.Name = "Tip"
 tip.BackgroundTransparency = 1
-tip.Font = Enum.Font.FredokaOne
+tip.Font = Enum.Font.Oswald
 tip.TextScaled = true
 tip.TextColor3 = WHITE
 tip.Text = "TIP: grab a ? box, then smash the others!"

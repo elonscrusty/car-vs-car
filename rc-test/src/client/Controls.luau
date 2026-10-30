@@ -40,7 +40,7 @@ end
 -- ===== the chunky look (carter picked "A Kit Chunky" 10-29: dark ring, arrows, glossy blue ball) =====
 -- Looks only: every number above (radius, dead zone, gas and brake ramps) is untouched.
 local INK = Color3.fromRGB(13, 44, 64)
-local FONT = Enum.Font.FredokaOne
+local FONT = Enum.Font.Oswald -- big words (UiFonts.TITLE)
 
 local function stroke(obj: Instance, thickness: number, color: Color3?): UIStroke
 	local s = Instance.new("UIStroke")
@@ -318,7 +318,7 @@ function Controls.new(
 		hint.AnchorPoint = Vector2.new(0.5, 1)
 		hint.Position = UDim2.new(0, 44 + STICK_RADIUS + 18, 1, -(24 + STICK_RADIUS * 2 + 12))
 		hint.Size = UDim2.fromOffset(200, 22)
-		hint.Font = FONT
+		hint.Font = Enum.Font.Roboto
 		hint.TextSize = 18
 		hint.TextColor3 = Color3.new(1, 1, 1)
 		hint.Text = if stickGas then "PUSH TO DRIVE" else "STEER"
@@ -439,7 +439,7 @@ function Controls.new(
 	resetBtn.AnchorPoint = Vector2.new(1, 0)
 	resetBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 	resetBtn.BackgroundTransparency = 0.25
-	resetBtn.Font = Enum.Font.LuckiestGuy
+	resetBtn.Font = Enum.Font.Oswald
 	resetBtn.TextScaled = true
 	resetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	-- the same word size on all four (SMOKE was tiny next to a big VIEW), a little inside the edge
@@ -509,7 +509,7 @@ function Controls.new(
 		b.Size = UDim2.fromScale(0.22, 0.22)
 		b.BackgroundColor3 = Color3.fromRGB(235, 150, 40)
 		b.BackgroundTransparency = 0.25
-		b.Font = Enum.Font.LuckiestGuy
+		b.Font = Enum.Font.Oswald
 		b.TextScaled = true
 		b.TextColor3 = Color3.fromRGB(255, 255, 255)
 		b.Visible = false
@@ -538,7 +538,7 @@ function Controls.new(
 		l.AnchorPoint = Vector2.new(0.5, 0.5)
 		l.Position = UDim2.fromScale(0.62, 0.4)
 		l.Size = UDim2.fromScale(0.2, 0.06)
-		l.Font = Enum.Font.LuckiestGuy
+		l.Font = Enum.Font.Oswald
 		l.TextScaled = true
 		l.TextColor3 = Color3.fromRGB(255, 255, 255)
 		l.TextTransparency = 0.5
@@ -556,7 +556,7 @@ function Controls.new(
 		help.AnchorPoint = Vector2.new(0.5, 1)
 		help.Position = UDim2.fromScale(0.5, 0.985)
 		help.Size = UDim2.fromScale(0.6, 0.035)
-		help.Font = Enum.Font.LuckiestGuy
+		help.Font = Enum.Font.Roboto
 		help.TextScaled = true
 		help.TextColor3 = Color3.fromRGB(255, 255, 255)
 		help.TextTransparency = 0.35

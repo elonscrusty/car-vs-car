@@ -370,7 +370,7 @@ function Smash.menu(data: { [string]: any }, actions: Screen.Actions?): Screen.H
 			table.insert(tiles, side.button)
 		end
 		-- one text size for every word: what the longest one gets (about 0.62 of a letter's
-		-- height across, FredokaOne capitals)
+		-- height across, Oswald capitals)
 		if #words > 0 then
 			local cap: { UITextSizeConstraint } = {}
 			for _, w in words do
