@@ -35,6 +35,8 @@ local NO_MARKS: { [Enum.Material]: boolean } = {
 local NO_MARK_SURFACES: { [string]: boolean } = { Puddle = true, OilPatch = true }
 -- Sound ids (free Creator Store sounds, checked to load in Studio). Empty = no sound.
 local MOTOR_SOUND = "rbxassetid://137730930796096" -- "ENV Electric Motor Steady"
+local GROWL_SLOW = 0.4 -- motor pitch at a stop (low and deep)
+local GROWL_RISE = 0.8 -- how far it climbs by top speed
 local SQUEAL_SOUND = "rbxassetid://109487442763183" -- "Tire Squealing / Screeching Loop"
 
 -- What flies off the tyres on each track-tile surface (by part name), and how much per second at
@@ -210,6 +212,15 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 	end
 
 	local motor = loopSound(MOTOR_SOUND, folder)
+	if motor then
+		-- engine growl (carter 10-30, pick 2: smooth, not distorted): play the file slow so it sits
+		-- low, and cut the highs so the whine never buzzes
+		local eq = Instance.new("EqualizerSoundEffect")
+		eq.LowGain = 4
+		eq.MidGain = -5
+		eq.HighGain = -30
+		eq.Parent = motor
+	end
 	local squeal = loopSound(SQUEAL_SOUND, folder)
 	local squealLevel = 0
 
@@ -236,7 +247,7 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 		-- motor buzz rises with speed; squeal follows the hardest sliding back tyre
 		local share = math.clamp(telemetry.speed / math.max(Tuning.topSpeed, 0.01), 0, 1)
 		if motor then
-			motor.PlaybackSpeed = 0.7 + 1.1 * share
+			motor.PlaybackSpeed = GROWL_SLOW + GROWL_RISE * share
 			motor.Volume = SoundLevels.MOTOR_MIN
 				+ (SoundLevels.MOTOR_MAX - SoundLevels.MOTOR_MIN) * share
 		end
