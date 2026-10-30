@@ -140,5 +140,6 @@ require("./flame.test")
 require("./launch_spots.test")
 require("./car_fx.test")
 require("./nitro_flames.test")
+require("./damage_look.test")
 
 Harness.summary()

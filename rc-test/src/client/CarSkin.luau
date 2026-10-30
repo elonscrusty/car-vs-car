@@ -23,6 +23,7 @@ local UserInputService = game:GetService("UserInputService")
 local RCCar = require(script.Parent.RCCar)
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local CarFxStyles = require(ReplicatedStorage.Shared.CarFxStyles)
+local DamageFx = require(script.Parent.DamageFx)
 local ExhaustFx = require(script.Parent.ExhaustFx)
 local FireDrake = require(script.Parent.FireDrake)
 local WeaponPart = require(script.Parent.WeaponPart)
@@ -551,6 +552,7 @@ function CarSkin.new()
 	local broken: { [Model]: boolean } = {} -- models missing a part: don't keep trying them every frame
 	local exhaust = ExhaustFx.new() -- the tailpipe flames while it boosts (the player's pick)
 	local trails = TrailFx.new() -- the sparks off the rear tyres
+	local damage = DamageFx.new() -- cracks, smoke, sparks and fire as my Health drops (any car)
 
 	UserInputService.InputBegan:Connect(function(input: InputObject, typing: boolean)
 		if not typing and input.KeyCode == Enum.KeyCode.B then
@@ -639,6 +641,7 @@ function CarSkin.new()
 			styleOf(CarFxStyles.ATTR_EXHAUST)
 		)
 		trails.step(if cur then car else nil, styleOf(CarFxStyles.ATTR_TRAIL))
+		damage.step(if cur then cur.body else nil)
 	end
 
 	return self
