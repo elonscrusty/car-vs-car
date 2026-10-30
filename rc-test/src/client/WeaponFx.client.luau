@@ -104,11 +104,80 @@ local function rocketModel(nuke: boolean): Model
 	return m
 end
 
-type Live = { model: Model, pos: Vector3, dir: Vector3, age: number, spec: Weapons.Flight }
+-- Missile Rack launch (carter 10-30, "Pop & Light"): the rocket is pushed out of its tube on a puff
+-- of white gas with no fire, then lights a moment later while it bends onto the server's path.
+local POP = 0.14 -- seconds from the tube to the path, and until the fire lights
+
+type Live = {
+	model: Model,
+	pos: Vector3,
+	dir: Vector3,
+	age: number,
+	spec: Weapons.Flight,
+	start: Vector3?, -- the rack tube it left from (nil: no blend, no puff)
+	cold: boolean?, -- true until the fire lights
+}
 local live: { [number]: Live } = {}
 
 local function place(l: Live)
-	l.model:PivotTo(CFrame.lookAt(l.pos, l.pos + l.dir))
+	local at = l.pos
+	if l.start and l.age < POP then
+		local a = l.age / POP
+		at = l.start:Lerp(l.pos, a * a * (3 - 2 * a))
+	end
+	l.model:PivotTo(CFrame.lookAt(at, at + l.dir))
+end
+
+-- the fire of a rocket: on or off (the trail goes with it)
+local function lit(model: Model, on: boolean)
+	local flame = model:FindFirstChild("Flame") :: BasePart?
+	if not flame then
+		return
+	end
+	flame.Transparency = if on then 0 else 1
+	local trail = flame:FindFirstChildOfClass("Trail")
+	if trail then
+		trail.Enabled = on
+	end
+end
+
+-- a puff of cold white gas at the tube, and a small flash when the fire lights
+local function gas(at: Vector3)
+	local p = part("Gas", Color3.new(1, 1, 1), false, Vector3.one * 0.1)
+	p.Shape = Enum.PartType.Ball
+	p.Transparency = 1
+	p.Position = at
+	p.Parent = bits
+	local e = Instance.new("ParticleEmitter")
+	e.Color = ColorSequence.new(Color3.fromRGB(245, 245, 248), Color3.fromRGB(150, 150, 160))
+	e.Transparency =
+		NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) })
+	e.Size = NumberSequence.new(0.25 * K, 0.7 * K)
+	e.Speed = NumberRange.new(0.6 * K, 1.6 * K)
+	e.SpreadAngle = Vector2.new(180, 180)
+	e.Lifetime = NumberRange.new(0.5, 0.9)
+	e.Drag = 3
+	e.Rate = 0
+	e.Parent = p
+	e:Emit(12)
+	task.delay(1.2, function()
+		p:Destroy()
+	end)
+end
+
+local function ignite(at: Vector3)
+	local f = part("Ignite", SUNNY, true, Vector3.one * 0.3 * K)
+	f.Shape = Enum.PartType.Ball
+	f.Position = at
+	f.Parent = bits
+	TweenService:Create(
+		f,
+		TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{ Size = Vector3.one * 0.9 * K, Transparency = 1 }
+	):Play()
+	task.delay(0.2, function()
+		f:Destroy()
+	end)
 end
 
 local function boom(at: Vector3, spec: Weapons.Flight, nuke: boolean)
@@ -172,13 +241,19 @@ local function onRocket(kind: string, data: any)
 			old.model:Destroy()
 		end
 		local name = if data.kind == "Nuke" then "Nuke" else "Rockets"
-		local l = {
+		local l: Live = {
 			model = rocketModel(name == "Nuke"),
 			pos = pos,
 			dir = dir,
 			age = 0,
 			spec = Weapons.FLIGHTS[name],
 		}
+		local from = fromData(data, "from")
+		if from and name == "Rockets" then
+			l.start, l.cold = from, true
+			lit(l.model, false)
+			gas(from)
+		end
 		place(l)
 		l.model.Parent = bits
 		live[id] = l
@@ -257,6 +332,11 @@ RunService.RenderStepped:Connect(function(dt: number)
 			live[id] = nil
 		else
 			l.pos += l.dir * l.spec.speed * dt
+			if l.cold and l.age >= POP then
+				l.cold = false
+				lit(l.model, true)
+				ignite(l.pos)
+			end
 			place(l)
 		end
 	end
