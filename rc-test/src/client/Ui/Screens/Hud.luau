@@ -755,6 +755,7 @@ local WEAPON_ICON: { [string]: string } = {
 	mines = "mine",
 	freeze = "freeze",
 	["freeze ray"] = "freeze",
+	flame = "flame",
 	bump = "power",
 }
 function Hud.weaponIcon(name: string?): string

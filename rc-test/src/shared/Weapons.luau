@@ -24,7 +24,7 @@ Weapons.DEFS = {
 	Gun = { ammo = 4, cooldown = 0.5, word = "GUN", icon = "gun" },
 	Mine = { ammo = 3, cooldown = 0.6, word = "MINES", icon = "mine" },
 	Freeze = { ammo = 2, cooldown = 0.8, word = "FREEZE", icon = "freeze" },
-	-- click-on weapons row (server/weapons/Flame; Hud.weaponIcon has no flame icon yet: "?")
+	-- click-on weapons row (server/weapons/Flame; its icon is Icons.flame, its sound the "flame" cue)
 	Flame = { ammo = 3, cooldown = 1.4, word = "FLAME", icon = "flame" },
 } :: { [string]: Def }
 -- the order boxes and screens list them in (GUNMINE adds Gun, Mine, Freeze)

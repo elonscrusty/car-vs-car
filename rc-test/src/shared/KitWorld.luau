@@ -173,6 +173,7 @@ KitWorld.WEAPON_IMAGES = {
 	gun = "",
 	mine = "",
 	freeze = "",
+	flame = "",
 	power = "",
 	mystery = "",
 } :: { [string]: string }

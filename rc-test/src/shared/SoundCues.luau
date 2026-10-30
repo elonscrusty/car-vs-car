@@ -85,6 +85,7 @@ SoundCues.MUST = {
 	"mine",
 	"freezeShot",
 	"freeze",
+	"flame",
 	"shatter",
 	"hit",
 	"bump",
@@ -202,6 +203,8 @@ SoundCues.ACTIONS = {
 		gap = 0.05,
 		volume = L.FREEZE,
 	},
+	-- a Flame Nozzle burst: one long low whoosh (a single slow note, so no ticking; carter 10-30)
+	flame = { id = "rbxassetid://9114329395", notes = { 0.4 }, gap = 0, volume = L.FLAME },
 	-- the ice bursts (and the kart is smashed): a bright glassy run down
 	shatter = {
 		id = "rbxassetid://9114855870",

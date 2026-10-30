@@ -323,6 +323,20 @@ DRAW.freeze = function(c)
 	shape(c, "Middle", 34, 34, 32, 32, ice, nil, 6, 45, 3)
 end
 
+-- the Flame Nozzle: three tongues of fire, red outside, orange in, a yellow heart (carter 10-30, triple flame)
+DRAW.flame = function(c)
+	shape(c, "Base", 18, 50, 64, 42, Base.color("danger"), nil, 6, nil, 1)
+	shape(c, "L", 12, 22, 24, 60, Base.color("danger"), 12, 6, -16, 1)
+	shape(c, "R", 64, 22, 24, 60, Base.color("danger"), 12, 6, 16, 1)
+	shape(c, "C", 34, 2, 32, 80, Base.color("danger"), 16, 6, nil, 1)
+	shape(c, "Base2", 26, 56, 48, 32, Base.color("boost"), nil, 6, nil, 3)
+	shape(c, "L2", 20, 32, 18, 46, Base.color("boost"), 9, 6, -16, 3)
+	shape(c, "R2", 62, 32, 18, 46, Base.color("boost"), 9, 6, 16, 3)
+	shape(c, "C2", 39, 14, 22, 66, Base.color("boost"), 11, 6, nil, 3)
+	shape(c, "Hot", 40, 52, 20, 30, Base.color("go"), 10, 6, nil, 5)
+	shape(c, "HotTop", 44, 36, 12, 26, Base.color("go"), 6, 6, nil, 5)
+end
+
 DRAW.mystery = function(c)
 	local red = Base.color("danger")
 	shape(c, "Box", 10, 10, 80, 80, red, 14, 7, nil, 2)
