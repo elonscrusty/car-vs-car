@@ -61,17 +61,13 @@ local function save(player: Player, uid: number)
 	saving[player] = true
 	inFlight += 1
 	local ok = call("save", function()
-		return ds:SetAsync(
-			tostring(uid),
-			{
-				music = s.music,
-				sfx = s.sfx,
-				shadows = s.shadows,
-				names = s.names,
-				camera = s.camera,
-			},
-			{ uid }
-		)
+		return ds:SetAsync(tostring(uid), {
+			music = s.music,
+			sfx = s.sfx,
+			shadows = s.shadows,
+			names = s.names,
+			camera = s.camera,
+		}, { uid })
 	end)
 	inFlight -= 1
 	saving[player] = nil
