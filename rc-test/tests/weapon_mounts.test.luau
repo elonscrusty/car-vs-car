@@ -7,6 +7,7 @@ local H = require("./harness")
 local Mounts = require("../src/shared/WeaponMounts")
 local Looks = require("../src/shared/WeaponLooks")
 local Gun = require("../src/server/weapons/Gun")
+local Weapons = require("../src/shared/Weapons")
 local TrackData = require("../src/shared/TrackData")
 
 local test, eq, near, truthy = H.test, H.eq, H.near, H.truthy
@@ -87,7 +88,7 @@ test("weapon looks: small part lists that sit on their mount and stay on the car
 			`{id}: {#look.parts} parts (phones move every one)`
 		)
 		truthy(#look.muzzles >= 1, id .. " has a muzzle")
-		local maxZ = -1e9
+		local maxZ, minZ = -1e9, 1e9
 		for _, p in look.parts do
 			truthy(Looks.COLORS[p.mat] ~= nil, `{id}: colour {p.mat}`)
 			for i = 1, 3 do
@@ -99,12 +100,18 @@ test("weapon looks: small part lists that sit on their mount and stay on the car
 			truthy(lo[1] > -2.45 and hi[1] < 2.45, `{id}: {p.name} wider than the car`)
 			truthy(lo[3] > -3 and hi[3] < 5, `{id}: {p.name} hangs off the car`)
 			maxZ = math.max(maxZ, hi[3])
+			minZ = math.min(minZ, lo[3])
 		end
 		for _, m in look.muzzles do
-			truthy(m[3] >= maxZ - 0.6, id .. " the shots leave from the barrel's end")
+			-- (the Mine Dropper throws its mines out of the back end)
+			truthy(
+				m[3] >= maxZ - 0.6 or m[3] <= minZ + 0.6,
+				id .. " the shots leave from the weapon's end"
+			)
 		end
 	end
-	eq(n, 3, "three looks to pick from (carter 10-29 22:43)")
+	-- carter 10-29 22:43: the 3 gun looks; 23:02: Missile Rack, Flame Nozzle, Mine Dropper too
+	eq(n, 6, "six looks to pick from")
 end)
 
 test("weapon looks: a weapon's own look is the default, a skin id swaps it", function()
@@ -116,6 +123,26 @@ test("weapon looks: a weapon's own look is the default, a skin id swaps it", fun
 	eq(Looks.forWeapon("Gun", "nonsense") == own, true, "junk skin: the weapon's own look")
 	eq(Looks.forWeapon("Nope", nil), nil, "a weapon with no look")
 	eq(Looks.forWeapon(nil, nil), nil, "junk weapon")
+end)
+
+test("weapon looks: every weapon that has a part wears its own look by default", function()
+	local want = { Gun = "gatling", Rockets = "rack", Flame = "flame", Mine = "dropper" }
+	for weapon, id in want do
+		local look = Looks.forWeapon(weapon, nil)
+		eq(look and look.id, id, weapon .. " look")
+		truthy(Weapons.isName(weapon), weapon .. " is a weapon")
+	end
+	eq(Looks.LOOKS.rack.mount, "Roof", "the rack rides the roof")
+	eq(Looks.LOOKS.flame.mount, "Front", "the nozzle sits on the hood")
+	eq(Looks.LOOKS.dropper.mount, "Roof", "the dropper rides the roof")
+	-- the arm's parts are one rigid piece in the game: only the preview swings them
+	local arms = 0
+	for _, p in Looks.LOOKS.dropper.parts do
+		if p.arm then
+			arms += 1
+		end
+	end
+	truthy(arms >= 4, "the throwing arm is marked")
 end)
 
 test("gun: bullets leave the barrel tip, the same for every look (looks only)", function()
