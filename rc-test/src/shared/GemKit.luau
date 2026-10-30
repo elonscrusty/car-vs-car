@@ -2,7 +2,8 @@
 -- The "Bold" faceted low-poly nature + rubble kit (carter's pick, 2026-10-29): trees, pines, rocks,
 -- bushes, concrete chunks, a broken wall, a junk pile and a dead tree, plus the junkyard "crane yard"
 -- set for the hills outside the wall (scrap heap, crane, car stacks, lamp, tyres; GemYardData), and the junkyard
--- arena props (tyre stacks, wrecks, drums, junk heap, barriers; JunkPropData, carter picked A 2026-10-29).
+-- arena props (tyre stacks, wrecks, drums, junk heap, barriers; JunkPropData, carter picked A 2026-10-29), and the
+-- ring of low junk hills outside the wall (JunkRingData, carter picked A "Low dunes" 2026-10-29).
 -- Same call shape as PropKit
 -- (a parent, a base point, a height), so a builder can swap one for the other.
 --
@@ -16,13 +17,17 @@
 local GemData = require(script.Parent.GemData)
 local GemYardData = require(script.Parent.GemYardData)
 local JunkPropData = require(script.Parent.JunkPropData)
+local JunkRingData = require(script.Parent.JunkRingData)
 
 local GemKit = {}
 
 type Piece = GemYardData.Piece
 
 local function dataOf(kind: string): { Piece }?
-	local found: any = GemData[kind] or GemYardData[kind] or JunkPropData[kind]
+	local found: any = GemData[kind]
+		or GemYardData[kind]
+		or JunkPropData[kind]
+		or JunkRingData.kinds[kind]
 	return found
 end
 
@@ -59,6 +64,9 @@ function GemKit.kinds(): { string }
 		table.insert(out, k)
 	end
 	for k in JunkPropData do
+		table.insert(out, k)
+	end
+	for k in JunkRingData.kinds do
 		table.insert(out, k)
 	end
 	table.sort(out)
@@ -215,6 +223,32 @@ function GemKit.craneYard(
 	end
 	yard.Parent = parent
 	return yard
+end
+
+-- The ring of low junk hills round the outside of the arena wall (carter picked A "Low dunes", 2026-10-29):
+-- 36 scrap mounds (3 shapes, dark dirt with a few crushed cars, sheets, tyres and a drum poking out), 28 big
+-- units outside the wall's centre line, about 11-15 big high. `at` is the arena centre, `scale` 1 = the arena's
+-- big units (pass the arena's build scale). Looks only: nothing is solid. Returns nil when no EditableMesh can be
+-- made here (nothing is left behind).
+function GemKit.junkRing(parent: Instance, at: Vector3, scale: number): Model?
+	local ring = Instance.new("Model")
+	ring.Name = "JunkRing"
+	for _, spot in JunkRingData.layout do
+		local m = GemKit.build(
+			ring,
+			spot.k,
+			at + Vector3.new(spot.x, 0, spot.z) * scale,
+			GemKit.height(spot.k) * spot.s * scale,
+			spot.yaw,
+			false
+		)
+		if m == nil then
+			ring:Destroy()
+			return nil
+		end
+	end
+	ring.Parent = parent
+	return ring
 end
 
 return GemKit
