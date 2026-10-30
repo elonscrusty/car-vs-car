@@ -453,7 +453,7 @@ local LIST: { Screen } = {
 			-- (sized so only the health bar's foot dips into the middle half, and no lower than a
 			-- third of the screen, on a 667x375 phone under the 58 px top bar)
 			p("Place", 6, 2, 230, 40, { anchor = "tl" }),
-			p("Feed", 6, 46, 184, 60, { anchor = "tl" }),
+			p("Feed", 6, 46, 184, 88, { anchor = "tl" }),
 			p("Clock", 324, 0, 108, 32, { anchor = "t" }),
 			p("Health", 248, 32, 260, 38, { anchor = "t" }),
 			-- the short flash words (STUCK - BACK TO START...), under the health bar
