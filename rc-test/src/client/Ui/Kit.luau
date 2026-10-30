@@ -871,7 +871,7 @@ function Kit.side(
 	local io: { [string]: any } = iconOpts or {}
 	io.z = 5
 	-- (in the middle of the tile, over its word: it poked out of the top, carter 10-28)
-	-- (carter 10-30: icon centred in the space above a dark name plate, a gloss strip on top)
+	-- (carter 10-30: icon centred in the space above a dark name plate)
 	local zone = s - 20
 	local isz = zone - 8
 	local ic = Icons.make(holder, icon, (s - isz) / 2, 4, isz, io)
