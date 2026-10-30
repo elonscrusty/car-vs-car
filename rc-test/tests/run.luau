@@ -115,5 +115,6 @@ require("./rejoin_wait.test")
 require("./coins_chip.test")
 require("./fire_drake.test")
 require("./car_fx.test")
+require("./nitro_flames.test")
 
 Harness.summary()

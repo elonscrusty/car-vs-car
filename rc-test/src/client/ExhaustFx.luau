@@ -1,8 +1,10 @@
 --!strict
 -- Tailpipe flames + boost glow, as a swappable look (CarFxStyles.EXHAUST): Twin Jets (carter's
--- pick, the starter), Dragon Breath, Afterburner. While the car boosts, two flames stream out of
--- its tailpipes, the rear glows hot, and the underglow brightens; with no boost it only gives a
--- quick pop now and then. Looks only: nothing here touches the driving.
+-- pick, the starter), Dragon Breath, Afterburner, Nitro Flames (carter's speed boost pick). While
+-- the car boosts, two flames stream out of its tailpipes, the rear glows hot, and the underglow
+-- brightens; with no boost it only gives a quick pop now and then. A style with `licks` (Nitro
+-- Flames) also streams thin fire off the fenders, mirrors and rear corners while boosting.
+-- Looks only: nothing here touches the driving.
 --
 -- Made from the skin's body (CarSkin shows it over the grey car): two Attachments at the pipes
 -- (FireDrakeData.EXHAUST, fractions of the body) with ParticleEmitters, and one PointLight.
@@ -29,7 +31,7 @@ type Burner = { fx: ParticleEmitter, rate: number, idle: number }
 type Rig = {
 	body: BasePart,
 	style: CarFxStyles.Exhaust,
-	pipes: { Attachment },
+	pipes: { Attachment }, -- the pipes and the lick spots (all made here, all destroyed together)
 	burners: { Burner },
 	pops: { ParticleEmitter },
 	light: PointLight,
@@ -66,6 +68,23 @@ local function build(body: BasePart, style: CarFxStyles.Exhaust): Rig
 		local pop = FxEmitter.make(style.pop, u, tail)
 		pop.Parent = a
 		table.insert(pops, pop)
+	end
+	-- fire licks off the fenders, mirrors and rear corners: only while boosting (idle 0)
+	local licks = style.licks
+	if licks then
+		for _, p in CarFxStyles.LICK_SPOTS do
+			local a = Instance.new("Attachment")
+			a.Name = "ExhaustLick"
+			a.Position =
+				Vector3.new(p[1] * body.Size.X, p[2] * body.Size.Y, nose * p[3] * body.Size.Z)
+			a.Parent = body
+			table.insert(pipes, a)
+			for _, lick in licks do
+				local e = FxEmitter.make(lick, u, tail)
+				e.Parent = a
+				table.insert(burners, { fx = e, rate = lick.rate, idle = 0 })
+			end
+		end
 	end
 	local light = Instance.new("PointLight")
 	light.Color = Color3.fromRGB(style.light[1], style.light[2], style.light[3])
