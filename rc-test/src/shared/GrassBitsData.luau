@@ -3,7 +3,15 @@
 -- thin grass blades and a few pale flower dots for the night junkyard floor. Units are the arena's big units from the arena
 -- centre. Looks only. Don't edit by hand.
 
-export type Blade = { x: number, z: number, yaw: number, lean: number, h: number, w: number, c: { number } }
+export type Blade = {
+	x: number,
+	z: number,
+	yaw: number,
+	lean: number,
+	h: number,
+	w: number,
+	c: { number },
+}
 export type Tuft = { k: string, x: number, z: number, yaw: number, s: number }
 export type Dot = { x: number, y: number, z: number, r: number, yaw: number, c: { number } }
 
@@ -17,7 +25,15 @@ local Kinds: { [string]: { Blade } } = {
 		{ x = 0.03, z = 0, yaw = 4.11, lean = 0.29, h = 1.29, w = 0.35, c = { 78, 160, 98 } },
 	},
 	t1 = {
-		{ x = -0.03, z = -0.11, yaw = 1.44, lean = 0.26, h = 0.95, w = 0.33, c = { 104, 190, 104 } },
+		{
+			x = -0.03,
+			z = -0.11,
+			yaw = 1.44,
+			lean = 0.26,
+			h = 0.95,
+			w = 0.33,
+			c = { 104, 190, 104 },
+		},
 		{ x = 0.08, z = 0.06, yaw = 0.42, lean = 0.18, h = 1.38, w = 0.27, c = { 78, 160, 98 } },
 		{ x = -0.34, z = 0.06, yaw = 2.5, lean = 0.2, h = 1.34, w = 0.33, c = { 104, 190, 104 } },
 		{ x = -0.06, z = 0.09, yaw = 0.1, lean = 0.29, h = 1.55, w = 0.26, c = { 140, 214, 112 } },

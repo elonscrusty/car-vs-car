@@ -12,7 +12,19 @@ local DEFAULT_KEEP = 0.4
 local BLADE_THICK = 0.1 -- big units
 
 export type Data = {
-	kinds: { [string]: { { x: number, z: number, yaw: number, lean: number, h: number, w: number, c: { number } } } },
+	kinds: {
+		[string]: {
+			{
+				x: number,
+				z: number,
+				yaw: number,
+				lean: number,
+				h: number,
+				w: number,
+				c: { number },
+			}
+		},
+	},
 	tufts: { { k: string, x: number, z: number, yaw: number, s: number } },
 	dots: { { x: number, y: number, z: number, r: number, yaw: number, c: { number } } },
 }
@@ -47,7 +59,13 @@ end
 
 -- Builds the weeds in a "GrassBits" folder under `parent`. `centre` is the arena centre, `unit` the stud size
 -- of one big unit.
-function GrassKit.build(parent: Instance, data: Data, centre: Vector3, unit: number, keep: number?): Folder
+function GrassKit.build(
+	parent: Instance,
+	data: Data,
+	centre: Vector3,
+	unit: number,
+	keep: number?
+): Folder
 	local k = math.clamp(keep or DEFAULT_KEEP, 0, 1)
 	local folder = Instance.new("Folder")
 	folder.Name = "GrassBits"
@@ -55,7 +73,8 @@ function GrassKit.build(parent: Instance, data: Data, centre: Vector3, unit: num
 		if (i - 1) % 10 >= math.floor(k * 10 + 0.5) then
 			continue
 		end
-		local base = CFrame.new(centre + Vector3.new(t.x, 0, t.z) * unit) * CFrame.Angles(0, t.yaw, 0)
+		local base = CFrame.new(centre + Vector3.new(t.x, 0, t.z) * unit)
+			* CFrame.Angles(0, t.yaw, 0)
 		for _, b in data.kinds[t.k] do
 			local h, w = b.h * t.s * unit, b.w * t.s * unit
 			local cf = base
@@ -76,7 +95,8 @@ function GrassKit.build(parent: Instance, data: Data, centre: Vector3, unit: num
 		local p = Instance.new("Part")
 		p.Name = "FlowerDot"
 		p.Size = Vector3.new(s, s, s)
-		p.CFrame = CFrame.new(centre + Vector3.new(d.x, d.y, d.z) * unit) * CFrame.Angles(0.6, d.yaw, 0.5)
+		p.CFrame = CFrame.new(centre + Vector3.new(d.x, d.y, d.z) * unit)
+			* CFrame.Angles(0.6, d.yaw, 0.5)
 		looksOnly(p, colour(d.c), Enum.Material.Neon)
 		p.Parent = folder
 	end

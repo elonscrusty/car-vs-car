@@ -55,11 +55,15 @@ test("thinning: keep 0 builds only the dots, keep 1 builds every blade", functio
 	end
 	eq(GrassKit.count(Data, 0), #Data.dots)
 	eq(GrassKit.count(Data, 1), #Data.dots + nBlades)
-	truthy(GrassKit.count(Data, 0.4) < GrassKit.count(Data, 1) / 2 + #Data.dots, "0.4 keeps about 4 in 10")
+	truthy(
+		GrassKit.count(Data, 0.4) < GrassKit.count(Data, 1) / 2 + #Data.dots,
+		"0.4 keeps about 4 in 10"
+	)
 end)
 
 test("scale: the unit moves and sizes the weeds", function()
-	local f = GrassKit.build(roblox.Instance.new("Folder"), Data, roblox.Vector3.new(0, 10, 0), 2, 0.1)
+	local f =
+		GrassKit.build(roblox.Instance.new("Folder"), Data, roblox.Vector3.new(0, 10, 0), 2, 0.1)
 	local p = f:GetChildren()[1]
 	truthy(p.Size.Y > 0, "has a size")
 end)
