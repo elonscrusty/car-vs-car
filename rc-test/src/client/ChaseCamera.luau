@@ -119,7 +119,6 @@ local arenaFitFor = Vector2.zero
 local arenaFitPhone: boolean? = nil
 local ARENA_BACK, ARENA_UP = ArenaCam.offset(arenaFit.distance, arenaFit.pitch)
 local STEEP_BACK, STEEP_UP = ArenaCam.offset(arenaFit.distance, ArenaCam.STEEP)
-local camTry = ArenaCam.TRY_START -- carter's camera tries (ArenaCam.TRIES); T switches, 0 = off
 local function refit(view: Vector2)
 	if view.X < 1 or view.Y < 1 then
 		return
@@ -137,23 +136,9 @@ local function refit(view: Vector2)
 	end
 	arenaFitFor, arenaFitPhone = view, phone
 	arenaFit = ArenaCam.fit(view.X, view.Y, phone)
-	local try = ArenaCam.TRIES[camTry]
-	if try then
-		arenaFit.distance, arenaFit.pitch, arenaFit.low = try.distance, try.pitch, try.low
-	end
 	ARENA_BACK, ARENA_UP = ArenaCam.offset(arenaFit.distance, arenaFit.pitch)
 	STEEP_BACK, STEEP_UP = ArenaCam.offset(arenaFit.distance, ArenaCam.STEEP)
 end
-
--- T: the next camera try (1 -> 2 -> off -> 1), said in the Output so carter knows which one
-UserInputService.InputBegan:Connect(function(input: InputObject, typing: boolean)
-	if typing or input.KeyCode ~= Enum.KeyCode.T then
-		return
-	end
-	camTry = if camTry >= #ArenaCam.TRIES then 0 else camTry + 1
-	arenaFitFor = Vector2.zero -- (refit works it out again on the next frame)
-	print(`[Camera] try {if camTry == 0 then "off (the old one)" else tostring(camTry)}`)
-end)
 
 local function flat(v: Vector3): Vector3
 	local f = Vector3.new(v.X, 0, v.Z)

@@ -155,9 +155,9 @@ test(
 			-- the middle of the view still looks well down at the arena (the kart in the lower third)
 			local back, up = ArenaCam.offset(f.distance, f.pitch)
 			local middleDown = math.atan2(up, back + ArenaCam.aimAhead(f.distance, f.pitch, f.fov))
-			truthy(middleDown > math.rad(20), `{w}x{h}: looking down at the arena, not the sky`)
-			-- carter's pick (try A, 10-29): further back and higher than the old 4-stud phone camera
-			truthy(f.distance >= 8 and f.pitch >= 45, `{w}x{h}: back and up, not the close camera`)
+			truthy(middleDown > math.rad(12), `{w}x{h}: looking down at the arena, not the sky`)
+			-- carter's pick (10-30 batch play): further back and lower than try A (8 studs at 45 deg)
+			truthy(f.distance >= 9 and f.pitch <= 35, `{w}x{h}: back and low, so you see ahead`)
 		end
 		-- speed zoom (carter's pick A, 10-29): a phone slides about a fifth further back and a few
 		-- degrees wider at top speed, never more than a third; the big screen keeps its camera
@@ -244,7 +244,7 @@ test("arena cam: on a phone the kart you see sits PHONE_LOW down, still and at s
 		truthy(math.abs(still - want) < 1e-6, "PHONE_LOW down standing still")
 		truthy(math.abs(fast - want) <= 0.02, "+-2% at top speed")
 		local ahead = ArenaCam.seeAhead(f.distance, f.pitch, f.fov, f.low, drop, fwd)
-		truthy(ahead < math.huge, "the top of the screen is still the arena, not the sky")
+		-- (carter 10-30: a lower camera, so the top of the screen may reach the far side and the sky)
 		truthy(ahead >= ArenaCam.PHONE_AHEAD_MIN * ArenaCam.KART_LONG, "the fight ahead seen")
 	end
 	-- Studio r57: aiming the physics box at 68% left the drawn kart (0.45 lower) at ~80%

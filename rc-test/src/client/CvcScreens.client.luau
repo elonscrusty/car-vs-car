@@ -1103,10 +1103,6 @@ local function openCustomize()
 	end
 end
 -- SMASH: the pad in the world starts a match, so the SMASH! button says where it is
-local function smashHow()
-	info("power", "SMASH!", "Drive onto the SMASH! pad to play!")
-end
-
 -- a phone's Smash lobby (carter 10-29: too cluttered): MENU + SMASH! and the coins; the other
 -- buttons live in the MENU window (Smash.menu)
 local PHONE_LOBBY = SMASH and Base.phone()
@@ -1252,7 +1248,7 @@ plotActions = {
 				if n < #League.NAMES then "Get top 3 to move up!" else "Top league!"
 			)
 		end,
-	race = if SMASH then smashHow else join,
+	race = join, -- (Smash too: carter 10-30, "queue from the button, not just standing on the pad")
 	Settings = function()
 		local ev = ReplicatedStorage:FindFirstChild("OpenSettings")
 		if ev and ev:IsA("BindableEvent") then

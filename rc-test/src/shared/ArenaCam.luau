@@ -9,13 +9,14 @@
 
 local ArenaCam = {}
 
--- carter 10-30 (batch 1, Studio on PC): 9 studs at 40 deg was "way too close and way too high":
--- further back and lower, so you see what is ahead of you
-ArenaCam.DISTANCE = 11.5 -- studs from the kart to the camera (~8 kart lengths; fits ArenaData.CAM_BACK)
-ArenaCam.PITCH = 30 -- degrees the camera looks down at the kart
+-- carter 10-30 (batch 1 play): 9 studs at 40 deg was "way too close and way too high", 13 at 26
+-- "way too far back"; 10 studs at 32 deg, the kart half way down the lower half: "way better,
+-- keep it". Phones and big screens use the same numbers.
+ArenaCam.DISTANCE = 10 -- studs from the kart to the camera (~7 kart lengths)
+ArenaCam.PITCH = 32 -- degrees the camera looks down at the kart
 ArenaCam.FOV = 60 -- vertical field of view, degrees
 ArenaCam.FOV_FAST = 5 -- a little wider at top speed
-ArenaCam.KART_LOW = 1 / 3 -- the kart sits this far below the screen's middle (lower third)
+ArenaCam.KART_LOW = 0.5 -- the kart sits this far below the screen's middle (of the half screen)
 -- look-ahead: the view leans this many seconds ahead along where the kart is going, up to
 -- LEAD_MAX studs (tuned for the arena's lowered top speed, ~19 studs/s)
 ArenaCam.LEAD_TIME = 0.12
@@ -31,8 +32,8 @@ ArenaCam.STEEP = 72 -- degrees: the swung-up pitch, over the kart, when a wall i
 -- (/mnt/project-files/car-vs-car/camera/camera-tries-1.jpg): back and up, Smash Karts style, so
 -- the road, walls, ? boxes and karts round you show, and your kart is still easy to find.
 ArenaCam.PHONE_SHORT = 500 -- px: a screen whose short side is this or less is a phone
-ArenaCam.PHONE_DISTANCE = 8
-ArenaCam.PHONE_PITCH = 45
+ArenaCam.PHONE_DISTANCE = 10 -- (carter 10-30: was 8 at 45 deg, the same as the big screen now)
+ArenaCam.PHONE_PITCH = 32
 ArenaCam.PHONE_FOV = 50
 ArenaCam.PHONE_FOV_FAST = 4
 -- Speed zoom (carter 10-29, try A of 4 on camera/speed-zoom.html): at top speed the camera slides
@@ -40,27 +41,17 @@ ArenaCam.PHONE_FOV_FAST = 4
 -- back in at once, the same as the wall check does (ChaseCamera).
 ArenaCam.PHONE_BACK_FAST = 0.18
 -- your kart's width, of the screen's width (phone): try A shows it ~4.7% wide, small but clear
-ArenaCam.MIN_SHARE = 0.04
+ArenaCam.MIN_SHARE = 0.035 -- (carter 10-30 kept the further-back camera: 3.7% on 844x390)
 -- (at top speed, pulled back and wider: carter picked A knowing the kart is a little smaller)
-ArenaCam.MIN_SHARE_FAST = 0.034
+ArenaCam.MIN_SHARE_FAST = 0.028
 ArenaCam.KART_LONG = 5.5 * 0.25 -- studs (Weapons.KART)
 ArenaCam.KART_WIDE = 0.55 * ArenaCam.KART_LONG -- studs (a kart is 1 x 0.55 KART)
 ArenaCam.PHONE_AHEAD_MIN = 8 -- kart lengths still seen ahead of your kart (the fight round you)
 -- No look-ahead lean on a phone, so the kart stays put on the screen, standing or at speed.
 -- Studio r57 (#1016): aim at the kart you SEE (CarSkin's skin, down to the ground), not the
 -- smaller physics box above it: ChaseCamera passes the skin's middle as drop/fwd.
-ArenaCam.PHONE_LOW = 0.35 -- of the half screen below the middle: ~68% down (try A)
+ArenaCam.PHONE_LOW = 0.5 -- of the half screen below the middle: 75% down (carter 10-30)
 ArenaCam.PHONE_LEAN = 0 -- of the big camera's lean
-
--- carter 10-30 (batch 1 play): "it needs to be further behind the car so I can see more in front
--- of me". Two tries over the normal fit, on every screen: press T in a match to go 1 -> 2 -> off.
--- Try 1 is on from the start. After his pick, the numbers move into the fit and this goes.
-ArenaCam.TRIES = {
-	-- (round 2, carter: 13 studs was "way too far back, scoot in a little")
-	{ distance = 10, pitch = 32, low = 0.5 },
-	{ distance = 11.5, pitch = 29, low = 0.5 },
-} :: { { distance: number, pitch: number, low: number } }
-ArenaCam.TRY_START = 1
 
 export type Fit = {
 	distance: number,
