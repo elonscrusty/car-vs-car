@@ -4,6 +4,8 @@
 -- scale with the car; colours are {r, g, b} 0-255 so this file runs in the plain-Lua tests.
 -- Preview: kart-preview/trails-tries.html. Twin Jets (carter's pick) and Scrap Sparks (his pick)
 -- are the starters; the other flames are options for later.
+-- Nitro Flames (carter's pick 2 of 3 speed boost looks, 10-30; kart-preview/boost-tries.html) is a
+-- flame look too: it adds fire licks that stream off the fenders and a pickup badge (icon).
 --
 -- A player's choice is read from their Player attributes ExhaustStyle / TrailStyle (set by the
 -- loadout when it exists); no attribute, or one we don't know, gives the starter.
@@ -21,6 +23,13 @@ export type Emit = {
 	gravity: number, -- pulls down
 }
 
+-- the badge for the boost box item: a glyph name for the UI to draw, and its colours
+export type Icon = {
+	glyph: string,
+	rim: { number },
+	fill: { number },
+}
+
 export type Exhaust = {
 	id: string,
 	name: string,
@@ -31,6 +40,8 @@ export type Exhaust = {
 	bang: number, -- pops let off when the boost ends
 	light: { number }, -- rear glow colour
 	lightPower: number,
+	licks: { Emit }?, -- fire streaks off the LICK_SPOTS, only while boosting
+	icon: Icon?, -- the pickup badge that goes with this look
 }
 
 export type Trail = {
@@ -49,6 +60,22 @@ CarFxStyles.ATTR_EXHAUST = "ExhaustStyle"
 CarFxStyles.ATTR_TRAIL = "TrailStyle"
 CarFxStyles.DEFAULT_EXHAUST = "twin_jets"
 CarFxStyles.DEFAULT_TRAIL = "scrap_sparks"
+
+-- where the fire licks start, as fractions of the body's size from its middle (preview car: x of
+-- 4.9 wide, y of 2.64 high from 0.36, z of 9.9 long; z is negative at the tail, the nose side is
+-- flipped by the car's nose sign at build time). Both rear corners, both mirrors, both fenders.
+local function spot(px: number, py: number, pz: number): { number }
+	return { pz / 4.9, (py - 0.36) / 2.64 - 0.5, px / 9.9 }
+end
+
+CarFxStyles.LICK_SPOTS = {
+	spot(-4.8, 1.3, 2.25),
+	spot(-4.8, 1.3, -2.25),
+	spot(1.5, 2.25, 2.65),
+	spot(1.5, 2.25, -2.65),
+	spot(3.8, 1.3, 2.55),
+	spot(3.8, 1.3, -2.55),
+} :: { { number } }
 
 local FLAME = { { 207, 234, 255 }, { 255, 176, 96 }, { 255, 48, 0 } }
 
@@ -176,6 +203,81 @@ CarFxStyles.EXHAUST = {
 		bang = 6,
 		light = { 160, 200, 255 },
 		lightPower = 3,
+	},
+	nitro_flames = {
+		id = "nitro_flames",
+		name = "Nitro Flames",
+		-- a fat blue-white core with an orange shell round it, very long at full boost
+		jet = {
+			size = { 0.8, 0.12 },
+			life = { 0.2, 0.38 },
+			speed = { 13, 24 },
+			spread = 3,
+			rate = 90,
+			colors = { { 168, 212, 255 }, { 47, 107, 255 } },
+			glow = 1,
+			fade = { 0.1, 1 },
+			drag = 0,
+			gravity = 0,
+		},
+		extras = {
+			{ -- orange shell
+				size = { 0.9, 0.4 },
+				life = { 0.3, 0.55 },
+				speed = { 8, 17 },
+				spread = 12,
+				rate = 60,
+				colors = { { 255, 154, 48 }, { 192, 24, 0 } },
+				glow = 1,
+				fade = { 0.4, 1 },
+				drag = 1.2,
+				gravity = 0,
+			},
+			{ -- embers
+				size = { 0.14, 0.04 },
+				life = { 0.5, 0.9 },
+				speed = { 6, 14 },
+				spread = 25,
+				rate = 40,
+				colors = { { 255, 233, 160 }, { 255, 96, 16 } },
+				glow = 1,
+				fade = { 0, 1 },
+				drag = 0,
+				gravity = 8,
+			},
+		},
+		idle = 0,
+		pop = {
+			size = { 1.6, 0.5 },
+			life = { 0.1, 0.2 },
+			speed = { 4, 6 },
+			spread = 10,
+			rate = 0,
+			colors = { { 255, 255, 255 }, { 47, 107, 255 } },
+			glow = 1,
+			fade = { 0.1, 1 },
+			drag = 0,
+			gravity = 0,
+		},
+		bang = 0,
+		light = { 255, 140, 50 },
+		lightPower = 4,
+		-- thin fire streaks stream back off the fenders, mirrors and rear corners
+		licks = {
+			{
+				size = { 0.4, 0.05 },
+				life = { 0.2, 0.34 },
+				speed = { 14, 24 },
+				spread = 4,
+				rate = 22,
+				colors = { { 255, 240, 192 }, { 255, 74, 0 } },
+				glow = 1,
+				fade = { 0.1, 1 },
+				drag = 0,
+				gravity = 0,
+			},
+		},
+		icon = { glyph = "flame", rim = { 255, 138, 28 }, fill = { 13, 17, 32 } },
 	},
 } :: { [string]: Exhaust }
 
