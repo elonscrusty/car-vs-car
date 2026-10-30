@@ -27,6 +27,14 @@ local Smash = {}
 
 local INK, WHITE = Base.color("ink"), Base.WHITE
 
+-- how-to steel plate colors
+local STEEL_TOP = Color3.fromRGB(74, 80, 104)
+local STEEL_BOTTOM = Color3.fromRGB(42, 46, 64)
+local STEEL_TEXT = Color3.fromRGB(216, 220, 238)
+local GOLD_TOP = Color3.fromRGB(255, 243, 176)
+local GOLD_BOTTOM = Color3.fromRGB(255, 138, 20)
+local HAZARD_DARK = Color3.fromRGB(26, 22, 18)
+
 local function piece(id: string, path: string): SmashScreens.Piece
 	return SmashScreens.piece(id, path)
 end
@@ -648,25 +656,52 @@ function Smash.howTo(step: number, actions: Screen.Actions?): Screen.Handle
 			end
 			local tipName = st.tip or "Tip"
 			local tp = piece("howTo", tipName)
-			local card = Base.fill(holderFor(tipName), "Card", 0, 0, tp.w, tp.h, WHITE, 3)
-			Base.corner(card, 22)
-			Base.outline(card, UiTheme.OUTLINE.thick)
+			-- steel plate: dark gradient, hazard stripe on top, gold words (carter picked A 10-30)
+			local card = Base.fill(holderFor(tipName), "Card", 0, 0, tp.w, tp.h, STEEL_TOP, 3)
+			Base.corner(card, 14)
+			Base.outline(card, UiTheme.OUTLINE.thick, Base.color("ink"))
+			local steel = Instance.new("UIGradient")
+			steel.Color = ColorSequence.new(STEEL_TOP, STEEL_BOTTOM)
+			steel.Rotation = 90
+			steel.Parent = card
+			card.ClipsDescendants = true
 			table.insert(built, card)
+			-- hazard stripe: alternating gold and dark bars along the top edge
+			local stripeH = 10
+			local barW = 14
+			for i = 0, math.ceil(tp.w / barW) do
+				local bar = Base.fill(
+					card,
+					"Hazard",
+					i * barW,
+					0,
+					barW,
+					stripeH,
+					if i % 2 == 0 then GOLD_BOTTOM else HAZARD_DARK,
+					4
+				)
+				bar.BorderSizePixel = 0
+			end
 			local tx = 14
 			if st.id == "grab" then
-				questionBox(card, 12, (tp.h - 52) / 2, 52)
-				tx = 74
+				questionBox(card, 12, (tp.h - stripeH - 44) / 2 + stripeH, 44)
+				tx = 68
 			end
-			Base.text(card, "Words", tx, 4, tp.w - tx - 14, tp.h * 0.55, st.words, {
-				color = Base.color("blue"),
+			local textW = tp.w - tx - 12
+			local words = Base.text(card, "Words", tx, stripeH + 2, textW, tp.h * 0.5, st.words, {
+				color = WHITE,
 				stroke = 6,
-				strokeColor = WHITE,
+				strokeColor = Base.color("ink"),
 				drop = 3,
-				dropColor = Base.color("blueDeep"),
+				dropColor = Base.color("ink"),
 				z = 5,
 			})
-			Base.text(card, "Help", tx, tp.h * 0.6, tp.w - tx - 14, tp.h * 0.3, st.help, {
-				color = Base.color("inkMuted"),
+			local gold = Instance.new("UIGradient")
+			gold.Color = ColorSequence.new(GOLD_TOP, GOLD_BOTTOM)
+			gold.Rotation = 90
+			gold.Parent = words
+			Base.text(card, "Help", tx, stripeH + tp.h * 0.54, textW, tp.h * 0.28, st.help, {
+				color = STEEL_TEXT,
 				z = 5,
 			})
 			-- a tap on the card skips this step
