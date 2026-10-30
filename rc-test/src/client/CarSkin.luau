@@ -40,6 +40,10 @@ local NO_PICK = Color3.fromRGB(220, 50, 47)
 
 local CarSkin = {}
 
+-- radians a second: a model part with a SpinAxis attribute (the Saw Rammer's blades) turns, on
+-- your own car and everyone else's (OtherCars)
+CarSkin.SPIN_RATE = 14
+
 type Shown = {
 	car: RCCar.Car,
 	name: string,
@@ -53,6 +57,7 @@ type Shown = {
 	looks: { Instance }, -- its SurfaceAppearance, if any, taken off while tinted
 	extras: { [BasePart]: CFrame }, -- a toy car's cab, roof, wing and lights, seen from its body
 	rims: { [BasePart]: { wheel: BasePart, rel: CFrame } }, -- an imported kart's RimFL..: they turn with their wheel
+	spins: { [BasePart]: Vector3 }, -- saw blades (SpinAxis): the axis in the part's own space
 	squashed: boolean, -- the sizes above are not what is drawn right now
 	sizes: { [BasePart]: Vector3 }, -- the body's and extras' own sizes, for the landing squash
 }
@@ -374,6 +379,15 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 		copy:Destroy()
 		return nil
 	end
+	-- a blade's SpinAxis is in the model's space as it was made: keep it seen from the body, which
+	-- the turn and scale below don't change
+	local spinBody: { [BasePart]: Vector3 } = {}
+	for _, d in copy:GetDescendants() do
+		local a = d:GetAttribute("SpinAxis")
+		if d:IsA("BasePart") and typeof(a) == "Vector3" and a.Magnitude > 1e-4 then
+			spinBody[d] = body.CFrame:VectorToObjectSpace(a.Unit)
+		end
+	end
 	local wheels: { BasePart } = {}
 	for i, name in WHEEL_NAMES do
 		local w = copy:FindFirstChild(name, true)
@@ -471,6 +485,13 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 	for p in extras do
 		sizes[p] = p.Size
 	end
+	local spins: { [BasePart]: Vector3 } = {}
+	for p, axis in spinBody do
+		local rel = extras[p]
+		if rel then
+			spins[p] = rel:VectorToObjectSpace(axis)
+		end
+	end
 
 	local hidden: { [BasePart]: number } = {}
 	for _, d in car.model:GetDescendants() do
@@ -507,6 +528,7 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 		looks = looks,
 		extras = extras,
 		rims = rims,
+		spins = spins,
 		sizes = sizes,
 		squashed = false,
 	}
@@ -605,6 +627,10 @@ function CarSkin.new()
 				cur.body.CFrame = carCf * cur.offset
 				for p, rel in cur.extras do
 					p.CFrame = cur.body.CFrame * rel
+				end
+				local turn = os.clock() * CarSkin.SPIN_RATE
+				for p, axis in cur.spins do
+					p.CFrame *= CFrame.fromAxisAngle(axis, turn)
 				end
 				if cur.squashed then
 					cur.squashed = false

@@ -45,7 +45,7 @@ type Wheel = { part: Part, stripe: Part, spot: Vector3, front: boolean, shown: n
 -- Car VS Car: the toy car's shell (body, cab, roof, wing, lights) over the grey blocks, the same
 -- toy car the plots show (playtest u01: every rival was a grey block). Its round wheels are
 -- this file's own, which already roll and steer.
-type Toy = { parts: { BasePart }, offsets: { CFrame } }
+type Toy = { parts: { BasePart }, offsets: { CFrame }, spins: { [number]: Vector3 } }
 type Other = {
 	body: BasePart,
 	folder: Folder,
@@ -112,7 +112,7 @@ local function toyShell(folder: Folder, id: string, s: number, paint: { number }
 		end
 	end
 	holder:Destroy()
-	return { parts = parts, offsets = offsets }
+	return { parts = parts, offsets = offsets, spins = {} }
 end
 
 -- carter's own model for this car (ReplicatedStorage.CarSkins, named the car id): its body parts,
@@ -137,6 +137,7 @@ local function modelShell(
 	local floor = CFrame.new(0, -size.Y / 2, 0)
 	local parts: { BasePart } = {}
 	local offsets: { CFrame } = {}
+	local spins: { [number]: Vector3 } = {} -- saw blades (SpinAxis), the axis in the part's own space
 	for _, d in m:GetDescendants() do
 		-- (this file's own wheels and rims stand in for a model's: an imported kart's RimFL...
 		-- would float beside them)
@@ -161,9 +162,13 @@ local function modelShell(
 			table.insert(offsets, turn * (rel - rel.Position + rel.Position * k))
 			table.insert(parts, p)
 			p.Parent = folder
+			local axis = d:GetAttribute("SpinAxis")
+			if typeof(axis) == "Vector3" and axis.Magnitude > 1e-4 then
+				spins[#parts] = d.CFrame:VectorToObjectSpace(axis.Unit)
+			end
 		end
 	end
-	return if #parts > 0 then { parts = parts, offsets = offsets } else nil
+	return if #parts > 0 then { parts = parts, offsets = offsets, spins = spins } else nil
 end
 
 local function wheelPart(folder: Folder, s: number, rim: Color3): (Part, Part)
@@ -491,9 +496,16 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 					hang += w.shown / #o.wheels
 				end
 				local ground = cf * CFrame.new(0, base("attachY") * s - hang - radius, 0)
+				local spin = os.clock() * CarSkin.SPIN_RATE
 				for k, off in toy.offsets do
 					table.insert(moveParts, toy.parts[k])
-					table.insert(moveAt, ground * off)
+					local axis = toy.spins[k]
+					table.insert(
+						moveAt,
+						if axis
+							then ground * off * CFrame.fromAxisAngle(axis, spin)
+							else ground * off
+					)
 				end
 			end
 		end

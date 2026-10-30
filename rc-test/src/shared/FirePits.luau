@@ -23,7 +23,7 @@ FirePits.NAME = "Fire" -- the word the match shows when a pit smashes a kart
 -- Where the pits are, in picture units (the arena's 240 x 240 picture). Open, flat, far from
 -- every start spot, box and dynamite keg; tests/firepits.test checks all of it.
 FirePits.SPOTS = {
-	{ 45, 65 },
+	{ 25, 195 }, -- (batch 10-30: moved off the two crates at 40,70 / 50,80)
 	{ 110, 85 },
 	{ 88, 133 },
 	{ 155, 205 },
