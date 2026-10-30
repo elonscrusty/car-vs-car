@@ -2,7 +2,7 @@
 -- Smash SETTINGS (WINDOWS): each player's music / sound volume, shadows and name tags, kept in
 -- their own small DataStore key (not the profile: a lost write only resets a slider).
 --   * join: the saved ones are read (retries) and shown once on the player's attributes SetMusic,
---     SetSfx, SetShadows, SetNames, then SetLoaded = true (defaults when there are none)
+--     SetSfx, SetShadows, SetNames, SetCamera, then SetLoaded = true (defaults when there are none)
 --   * RemoteEvent SaveSettings: the client's whole settings table, cleaned (shared/GameSettings);
 --     the newest is kept in memory (asks closer than MIN_GAP are dropped), never echoed back
 --   * written at the next flush or when they leave, only when changed, one write at a time per
@@ -63,7 +63,13 @@ local function save(player: Player, uid: number)
 	local ok = call("save", function()
 		return ds:SetAsync(
 			tostring(uid),
-			{ music = s.music, sfx = s.sfx, shadows = s.shadows, names = s.names },
+			{
+				music = s.music,
+				sfx = s.sfx,
+				shadows = s.shadows,
+				names = s.names,
+				camera = s.camera,
+			},
 			{ uid }
 		)
 	end)
@@ -96,6 +102,7 @@ local function join(player: Player)
 	player:SetAttribute("SetSfx", use.sfx)
 	player:SetAttribute("SetShadows", use.shadows)
 	player:SetAttribute("SetNames", use.names)
+	player:SetAttribute("SetCamera", use.camera)
 	player:SetAttribute("SetLoaded", true)
 end
 

@@ -5,9 +5,10 @@
 --   MUSIC / SOUNDS: two SoundGroups every sound is put in (sounds named "Music" in the music one)
 --   SHADOWS: Lighting.GlobalShadows on this screen
 --   NAME TAGS: other players' names and league badges over their heads
+--   CAMERA: FOLLOW or FIXED (player attribute CamFixed, read by ChaseCamera)
 -- The server keeps them (SettingsServer: RemoteEvent SaveSettings, one send each SAVE_GAP s;
--- the saved ones come once, on the attributes SetMusic, SetSfx, SetShadows, SetNames and then
--- SetLoaded: the window opens only after that, so nothing sent can put defaults over a save).
+-- the saved ones come once, on the attributes SetMusic, SetSfx, SetShadows, SetNames, SetCamera and
+-- then SetLoaded: the window opens only after that, so nothing sent can put defaults over a save).
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -120,6 +121,7 @@ local function apply()
 	musicGroup.Volume = state.music
 	sfxGroup.Volume = state.sfx
 	Lighting.GlobalShadows = state.shadows
+	player:SetAttribute("CamFixed", state.camera == "fixed")
 	if state.names then
 		for hum, was in hidden do
 			hidden[hum] = nil
@@ -151,6 +153,7 @@ local function fromServer()
 		sfx = player:GetAttribute("SetSfx"),
 		shadows = player:GetAttribute("SetShadows"),
 		names = player:GetAttribute("SetNames"),
+		camera = player:GetAttribute("SetCamera"),
 	})
 	apply()
 end
@@ -177,6 +180,7 @@ local function send()
 				sfx = state.sfx,
 				shadows = state.shadows,
 				names = state.names,
+				camera = state.camera,
 			})
 		end
 	end)
@@ -202,6 +206,7 @@ local function open()
 		sfx = state.sfx,
 		shadows = state.shadows,
 		names = state.names,
+		camera = state.camera,
 	}, {
 		set = function(key: string, value: any)
 			local t: { [string]: any } = {
@@ -209,6 +214,7 @@ local function open()
 				sfx = state.sfx,
 				shadows = state.shadows,
 				names = state.names,
+				camera = state.camera,
 			}
 			t[key] = value
 			state = GameSettings.clean(t)

@@ -302,7 +302,9 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 		end
 		-- tumbling or on its side: the nose points anywhere, so hold the heading still
 		if cf.UpVector.Y > 0.7 then
-			heading = flat(heading:Lerp(want, 1 - math.exp(-5 * dt)))
+			-- (settings CAMERA fixed: the view turns slowly, it doesn't swing with the car)
+			local rate = if Players.LocalPlayer:GetAttribute("CamFixed") == true then 0.6 else 5
+			heading = flat(heading:Lerp(want, 1 - math.exp(-rate * dt)))
 		end
 
 		-- carry the focus along at the car's speed, then pull it onto the car: no lag, no shake
