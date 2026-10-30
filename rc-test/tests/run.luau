@@ -126,5 +126,6 @@ require("./fire_drake.test")
 require("./crate_reel.test")
 require("./crate_reel_show.test")
 require("./fonts.test")
+require("./weapon_mounts.test")
 
 Harness.summary()
