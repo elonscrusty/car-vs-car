@@ -30,10 +30,10 @@ LobbyGarage.PAD_X = 19 -- the side match pads: an arena door stands over each
 LobbyGarage.DOORS = { -45, -15, 15, 45 } -- x of each roll-up door
 LobbyGarage.GANTRY = { x = 14, z = -30 }
 LobbyGarage.RACK = { x = -56.5, z = -29 }
-LobbyGarage.DRUMS = { x = 44, z = -28 }
-LobbyGarage.CRATES = { x = 26, z = -24 }
+LobbyGarage.DRUMS = { x = -50, z = -16 } -- (the scrap claw stands at x 40, z -27)
+LobbyGarage.CRATES = { x = -14, z = -31 }
 LobbyGarage.STACKS =
-	{ { x = -45, z = -32 }, { x = -41.5, z = -32.6 }, { x = 41, z = -33 }, { x = 52, z = -22 } }
+	{ { x = -45, z = -32 }, { x = -41.5, z = -32.6 }, { x = -30, z = -32 }, { x = 52, z = -22 } }
 LobbyGarage.LAMP_ARMS = { -48, -24, 0, 24, 48 }
 LobbyGarage.ARROW_Z = { 6, 9.6, 13.2 } -- the three chevrons in front of each pad
 
