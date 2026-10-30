@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local CarSkin = require(script.Parent.CarSkin)
 local KartMesh = require(script.Parent.KartMesh)
+local MatchNameTag = require(script.Parent.MatchNameTag)
 local CarMath = require(ReplicatedStorage.Shared.CarMath)
 local Features = require(ReplicatedStorage.Shared.Features)
 local Garage = require(ReplicatedStorage.Shared.Garage)
@@ -37,7 +38,8 @@ local TAG_W, TAG_H = if PHONE then 84 else 120, if PHONE then 18 else 26
 -- lengths past the chase camera: a kart is about 1.4 studs; auditor round 12, desktop Studio)
 local MATCH_TAG_FAR = 14
 local TAG_SIZE = UDim2.fromOffset(TAG_W, TAG_H)
-local MATCH_TAG_SIZE = UDim2.fromOffset(84, 18)
+-- (the New Classic tag in a match: star + name, the health bar, states; client/MatchNameTag)
+local MATCH_TAG_SIZE = UDim2.fromOffset(116, 62)
 
 type Wheel = { part: Part, stripe: Part, spot: Vector3, front: boolean, shown: number, spin: number }
 -- Car VS Car: the toy car's shell (body, cab, roof, wing, lights) over the grey blocks, the same
@@ -50,6 +52,8 @@ type Other = {
 	wheels: { Wheel },
 	scale: number,
 	tag: BillboardGui,
+	mt: MatchNameTag.Handle, -- the match look of that tag
+	inMatch: boolean?,
 	hidden: boolean?,
 	toy: Toy?,
 	kartId: string?, -- wears the part toy until its kart is built in game (KartMesh), then that
@@ -252,6 +256,8 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 		-- showed in the Studio check
 		local tag = nameTag(body, playerName(model), s)
 		tag.Parent = body
+		local plain = tag:FindFirstChildOfClass("TextLabel") :: TextLabel
+		local mt = MatchNameTag.attach(tag, plain, model, playerName(model))
 		local skins = ReplicatedStorage:FindFirstChild("CarSkins")
 		local own = id and skins and skins:FindFirstChild(id)
 		if own and own:IsA("Model") then
@@ -271,7 +277,7 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 			end
 		end
 		local o: Other =
-			{ body = body, folder = f, wheels = wheels, scale = s, tag = tag, toy = toy }
+			{ body = body, folder = f, wheels = wheels, scale = s, tag = tag, mt = mt, toy = toy }
 		o.kartId = if waiting then id else nil
 		others[model] = o
 		return o
@@ -281,6 +287,7 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 		local o = others[model]
 		if o then
 			o.folder:Destroy()
+			o.mt.destroy()
 			o.tag:Destroy()
 			others[model] = nil
 		end
@@ -413,6 +420,10 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 				then RACE_TAG_FAR
 				elseif inMatch then MATCH_TAG_FAR
 				else 150
+			if (o.inMatch == true) ~= inMatch then
+				o.inMatch = inMatch
+				o.mt.show(inMatch)
+			end
 			local size = if inMatch then MATCH_TAG_SIZE else TAG_SIZE
 			if o.tag.Size ~= size then
 				o.tag.Size = size

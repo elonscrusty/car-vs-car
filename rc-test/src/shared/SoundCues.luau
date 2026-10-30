@@ -226,6 +226,36 @@ SoundCues.ACTIONS = {
 		gap = 0.06,
 		volume = L.SMASH,
 	},
+	-- the Big Boom (carter picked it, 10-29): the deep boom, a metal crunch, the crowd "oooh" and a
+	-- small second pop play together with the crash above (Sfx.smash times them)
+	smashBoom = {
+		id = "rbxassetid://9125401226",
+		pitch = 0.8,
+		notes = { 0.3, 0.25 },
+		gap = 0.06,
+		volume = L.SMASH_BOOM,
+	},
+	smashMetal = {
+		id = "rbxassetid://9113500221",
+		pitch = 0.9,
+		notes = { 1.2, 0.8 },
+		gap = 0.05,
+		volume = L.SMASH_METAL,
+	},
+	smashCrowd = {
+		id = "rbxassetid://9114360486",
+		pitch = 0.9,
+		notes = { 1, 1.25, 1.5 },
+		gap = 0.1,
+		volume = L.SMASH_CROWD,
+	},
+	smashPop = {
+		id = "rbxassetid://9125401226",
+		pitch = 1.3,
+		notes = { 0.5 },
+		gap = 0,
+		volume = L.SMASH_POP,
+	},
 	-- you are back in the arena: three notes up
 	respawn = {
 		id = "rbxassetid://9125648149",
