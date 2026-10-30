@@ -1,6 +1,8 @@
 --!strict
 -- The dynamite kegs (shared/Barrels): the damage line, the shove, touch -> fuse -> boom, chains,
 -- grow-back, flying karts, weapon fx, and the keg spots (open, flat, far from starts and boxes).
+local fs = require("@lune/fs")
+local luau = require("@lune/luau")
 local H = require("./harness")
 local B = require("../src/shared/Barrels")
 local A = require("../src/shared/ArenaData")
@@ -152,6 +154,17 @@ test("weapon fx: a bullet through a keg lights it; one that misses does not", fu
 	eq(B.lightFromFx(k2, "GunShot", { from = at(-20, 9) + y, to = at(20, 9) + y }, 1), 0)
 	-- a bullet that stops short of it
 	eq(B.lightFromFx(k2, "GunShot", { from = at(-20, 0) + y, to = at(-10, 0) + y }, 1), 0)
+end)
+
+test("weapon fx works before any keg has blown up (a fresh copy, damage never called)", function()
+	local fresh = (luau.load(
+		fs.readFile("src/shared/Barrels.luau"),
+		{ environment = { math = math, vector = vector, type = type } }
+	) :: any)()
+	truthy(type(fresh.hitSegment) == "function", "hitSegment")
+	truthy(type(fresh.lightFromFx) == "function", "lightFromFx")
+	local k = { fresh.newKeg(at(0, 0)) }
+	eq(fresh.lightFromFx(k, "RocketBoom", { pos = at(2, 0), owner = 3 }, 1), 1)
 end)
 
 test("keg spots: open, flat, off the starts and boxes, apart from each other", function()

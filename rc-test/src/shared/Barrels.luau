@@ -43,65 +43,65 @@ function Barrels.damage(dist: number): number
 		return 0
 	end
 	local f = math.clamp(dist / Barrels.RADIUS, 0, 1)
-	-- Flat-ish distance (big units) from keg to the segment a..b, 3D.
-	local function segDist(p: vector, a: vector, b: vector): number
-		local ab = b - a
-		local len2 = vector.dot(ab, ab)
-		local t = if len2 > 1e-9 then math.clamp(vector.dot(p - a, ab) / len2, 0, 1) else 0
-		return vector.magnitude(p - (a + ab * t))
-	end
+	return Barrels.DAMAGE_MAX + (Barrels.DAMAGE_MIN - Barrels.DAMAGE_MAX) * f
+end
 
-	-- A bullet flew from a to b: light every keg within HIT of its path. Returns how many it lit.
-	function Barrels.hitSegment(
-		kegs: { Keg },
-		a: vector,
-		b: vector,
-		now: number,
-		owner: any?,
-		scale: number?
-	): number
-		local s = scale or Barrels.SCALE
-		local n = 0
-		for _, k in kegs do
-			-- (a keg is about 5 big tall: aim at its middle, not the floor)
-			local mid = k.pos + vector.create(0, 2.5 * s, 0)
-			if k.up and segDist(mid, a, b) / s <= Barrels.HIT then
-				if Barrels.light(k, now, owner) then
-					n += 1
-				end
-			end
-		end
-		return n
-	end
+-- Flat-ish distance (big units) from keg to the segment a..b, 3D.
+local function segDist(p: vector, a: vector, b: vector): number
+	local ab = b - a
+	local len2 = vector.dot(ab, ab)
+	local t = if len2 > 1e-9 then math.clamp(vector.dot(p - a, ab) / len2, 0, 1) else 0
+	return vector.magnitude(p - (a + ab * t))
+end
 
-	-- A weapon announced itself (the WeaponFx kinds WeaponServer sends everyone): which ones light a
-	-- keg? GunShot lights kegs on the bullet's path, RocketBoom / MineBoom the kegs near the boom
-	-- (not the silent end-of-match boom). `data` is the fx table (clients never send it).
-	function Barrels.lightFromFx(
-		kegs: { Keg },
-		kind: string,
-		data: any,
-		now: number,
-		scale: number?
-	): number
-		if type(data) ~= "table" then
-			return 0
-		end
-		if kind == "GunShot" then
-			local a, b = data.from, data.to
-			if type(a) == "vector" and type(b) == "vector" then
-				return Barrels.hitSegment(kegs, a, b, now, data.owner, scale)
-			end
-		elseif kind == "RocketBoom" or kind == "MineBoom" then
-			local at = if kind == "RocketBoom" then data.pos else data.position
-			if type(at) == "vector" and data.quiet ~= true then
-				return Barrels.hitAt(kegs, at, Barrels.HIT_BOOM, now, data.owner, scale)
+-- A bullet flew from a to b: light every keg within HIT of its path. Returns how many it lit.
+function Barrels.hitSegment(
+	kegs: { Keg },
+	a: vector,
+	b: vector,
+	now: number,
+	owner: any?,
+	scale: number?
+): number
+	local s = scale or Barrels.SCALE
+	local n = 0
+	for _, k in kegs do
+		-- (a keg is about 5 big tall: aim at its middle, not the floor)
+		local mid = k.pos + vector.create(0, 2.5 * s, 0)
+		if k.up and segDist(mid, a, b) / s <= Barrels.HIT then
+			if Barrels.light(k, now, owner) then
+				n += 1
 			end
 		end
+	end
+	return n
+end
+
+-- A weapon announced itself (the WeaponFx kinds WeaponServer sends everyone): which ones light a
+-- keg? GunShot lights kegs on the bullet's path, RocketBoom / MineBoom the kegs near the boom
+-- (not the silent end-of-match boom). `data` is the fx table (clients never send it).
+function Barrels.lightFromFx(
+	kegs: { Keg },
+	kind: string,
+	data: any,
+	now: number,
+	scale: number?
+): number
+	if type(data) ~= "table" then
 		return 0
 	end
-
-	return Barrels.DAMAGE_MAX + (Barrels.DAMAGE_MIN - Barrels.DAMAGE_MAX) * f
+	if kind == "GunShot" then
+		local a, b = data.from, data.to
+		if type(a) == "vector" and type(b) == "vector" then
+			return Barrels.hitSegment(kegs, a, b, now, data.owner, scale)
+		end
+	elseif kind == "RocketBoom" or kind == "MineBoom" then
+		local at = if kind == "RocketBoom" then data.pos else data.position
+		if type(at) == "vector" and data.quiet ~= true then
+			return Barrels.hitAt(kegs, at, Barrels.HIT_BOOM, now, data.owner, scale)
+		end
+	end
+	return 0
 end
 
 -- The shove for a kart at `kart` from a keg at `keg` (world studs): away from the keg along the
