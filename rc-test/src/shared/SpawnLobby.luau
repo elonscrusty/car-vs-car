@@ -28,6 +28,7 @@ local LobbyDock = sibling("LobbyDock")
 type V3 = Garage.V3
 type Piece = Garage.Piece
 type Mesh = Garage.Mesh
+local LobbyProps = sibling("LobbyProps")
 
 local SpawnLobby = {}
 
@@ -598,6 +599,11 @@ function SpawnLobby.parts(): { Piece }
 			L.glow,
 			{ material = "Neon", collide = false, light = 18 }
 		)
+	end
+
+	-- ===== Smash: two floodlight towers by the portal and the scrap claw (LobbyProps) =====
+	if SpawnLobby.SMASH then
+		LobbyProps.parts(add)
 	end
 
 	-- ===== Trees behind the back, bushes and flower pots round the edge =====
