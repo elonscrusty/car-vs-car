@@ -31,6 +31,7 @@ local Barrels = require(ReplicatedStorage.Shared.Barrels)
 local Crane = require(ReplicatedStorage.Shared.Crane)
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local FirePits = require(ReplicatedStorage.Shared.FirePits)
+local BotPaints = require(ReplicatedStorage.Shared.BotPaints)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local Match = require(ReplicatedStorage.Shared.Match)
 local Profile = require(ReplicatedStorage.Shared.Profile)
@@ -393,9 +394,12 @@ function MatchRunner.addBot(name: string?, skill: number?): number?
 	local look = if #looks > 0 then looks[botCount % #looks + 1] else nil
 	local car = CarCatalog.get(look)
 	local body = model.PrimaryPart :: BasePart
+	local paint = BotPaints.forBot(botCount)
 	if car then
 		model:SetAttribute("ToyCar", look)
-		body.Color = Color3.fromRGB(car.color[1], car.color[2], car.color[3])
+		-- (each bot its own colour, so they are easy to tell apart: BotPaints)
+		model:SetAttribute("BotPaint", Color3.fromRGB(paint[1], paint[2], paint[3]))
+		body.Color = Color3.fromRGB(paint[1], paint[2], paint[3])
 	end
 	for _, d in model:GetDescendants() do
 		if d:IsA("BasePart") then

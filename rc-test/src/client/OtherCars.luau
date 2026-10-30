@@ -73,9 +73,18 @@ local function toyId(model: Model): string?
 	return if type(id) == "string" and CarCatalog.get(id) then id else nil
 end
 
+-- a bot's own paint (the server's BotPaint attribute, BotPaints), over its car's colour
+local function botPaint(model: Model): { number }?
+	local pc = model:GetAttribute("BotPaint")
+	if typeof(pc) ~= "Color3" then
+		return nil
+	end
+	return { math.round(pc.R * 255), math.round(pc.G * 255), math.round(pc.B * 255) }
+end
+
 -- as long as the grey body it covers (Garage.toyFit: the chase camera was tuned for that size)
 local TOY_SIZE = Garage.toyFit(base("bodyZ"))
-local function toyShell(folder: Folder, id: string, s: number): Toy
+local function toyShell(folder: Folder, id: string, s: number, paint: { number }?): Toy
 	local info = CarCatalog.get(id) :: CarCatalog.Car
 	local pieces = {}
 	Garage.toyCar(
@@ -83,7 +92,7 @@ local function toyShell(folder: Folder, id: string, s: number): Toy
 		"Toy",
 		{ x = 0, y = 0, z = 0 },
 		0,
-		info.color,
+		paint or info.color,
 		TOY_SIZE * s,
 		info.style
 	)
@@ -109,7 +118,13 @@ end
 -- carter's own model for this car (ReplicatedStorage.CarSkins, named the car id): its body parts,
 -- turned to drive toward -Z and sized to the grey body's length; this file's wheels stay
 -- (a kart model, painted for car `kart`, the same way: see CarSkin's KART MODELS)
-local function modelShell(folder: Folder, m: Model, s: number, kart: string?): Toy?
+local function modelShell(
+	folder: Folder,
+	m: Model,
+	s: number,
+	kart: string?,
+	paint: { number }?
+): Toy?
 	local pivot, size = m:GetBoundingBox()
 	-- (Studio's 3D import puts the nose at +Z, like CarSkin: turned around; a kart already at -Z isn't)
 	local turn = if kart and not CarSkin.noseAtPlusZ(m)
@@ -140,7 +155,7 @@ local function modelShell(folder: Folder, m: Model, s: number, kart: string?): T
 			p.CastShadow = false
 			p.Size *= k
 			if kart then
-				CarSkin.paintKart(p, kart)
+				CarSkin.paintKart(p, kart, paint)
 			end
 			local rel = floor:Inverse() * pivot:Inverse() * d.CFrame
 			table.insert(offsets, turn * (rel - rel.Position + rel.Position * k))
@@ -235,7 +250,9 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 		f.Parent = folder
 		local id = toyId(model)
 		local info = id and CarCatalog.get(id)
-		local rgb = if info then ToyCars.rim(info.style, info.color) else { 215, 215, 220 }
+		-- a bot's own paint (server's BotPaint attribute, BotPaints), over the car's colour
+		local paint = botPaint(model)
+		local rgb = if info then ToyCars.rim(info.style, paint or info.color) else { 215, 215, 220 }
 		local rim = Color3.fromRGB(rgb[1], rgb[2], rgb[3])
 		local wheels: { Wheel } = {}
 		for _, fz in { -1, 1 } do
@@ -263,11 +280,11 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 		if own and own:IsA("Model") then
 			CarSkin.prepare(own)
 		end
-		local toy = if own and own:IsA("Model") then modelShell(f, own, s) else nil
+		local toy = if own and own:IsA("Model") then modelShell(f, own, s, nil, paint) else nil
 		local kart = if id and not (own and own:IsA("Model")) then CarSkin.kartFor(id) else nil
-		toy = toy or if kart then modelShell(f, kart, s, id) else nil
+		toy = toy or if kart then modelShell(f, kart, s, id, paint) else nil
 		local waiting = id ~= nil and toy == nil and not (own and own:IsA("Model"))
-		toy = toy or if id then toyShell(f, id, s) else nil
+		toy = toy or if id then toyShell(f, id, s, paint) else nil
 		if toy then
 			for _, d in model:GetDescendants() do
 				-- (a kart topper, Model "Hat", stays shown: it sits on the toy's roof)
@@ -384,7 +401,7 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 			local kartId = o.kartId
 			if kartId then
 				local kart = CarSkin.kartFor(kartId)
-				local shell = kart and modelShell(o.folder, kart, o.scale, kartId)
+				local shell = kart and modelShell(o.folder, kart, o.scale, kartId, botPaint(m))
 				if shell then
 					for _, p in (o.toy :: Toy).parts do
 						p:Destroy()
