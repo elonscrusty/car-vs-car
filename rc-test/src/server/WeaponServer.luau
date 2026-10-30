@@ -5,12 +5,14 @@
 -- ctx) -> boolean, step(ctx)?, clear(ctx)? }). Players fire through the remote, bots call fire()
 -- directly. The match (server/MatchRunner) owns the karts and their health: damage goes through
 -- MatchRunner.damage. Clients only draw: the WeaponFx remote says what to show.
--- Player attributes for screens: Weapon ("" = none) and Ammo.
+-- Player attributes for screens: Weapon ("" = none) and Ammo; the special move (FIRE SWARM, run
+-- from its own SpecialFire remote) adds SpecialName ("" = none) and SpecialReadyAt (server time).
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Weapons = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Weapons"))
+local FireSwarm = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("FireSwarm"))
 
 local WeaponServer = {}
 
@@ -39,6 +41,10 @@ export type Module = {
 local held: { [any]: Weapons.Held } = {}
 local buckets: { [Player]: Weapons.Bucket } = {}
 local modules: { [string]: Module } = {}
+-- the special move: modules by name, and each kart's own (name + the server time it is ready)
+local specials: { [string]: Module } = {}
+local specialOf: { [any]: { name: string, readyAt: number } } = {}
+local specialBuckets: { [Player]: Weapons.Bucket } = {}
 local frozenToken: { [any]: number } = {}
 local ctx: Ctx
 
@@ -277,6 +283,15 @@ local function show(id: any)
 	end
 end
 
+local function showSpecial(id: any)
+	local p = playerOf(id)
+	local s = specialOf[id]
+	if p then
+		p:SetAttribute("SpecialName", if s then s.name else "")
+		p:SetAttribute("SpecialReadyAt", if s then s.readyAt else 0)
+	end
+end
+
 -- ===== the context every weapon gets =====
 
 local function makeCtx(fxRemote: RemoteEvent): Ctx
@@ -488,8 +503,69 @@ function WeaponServer.fire(id: any, aim: any): boolean
 	return true
 end
 
+-- The special move of kart `id` (nil = none): it starts empty and is ready FIRST_WAIT seconds
+-- later. Any kart may call it again to change the special; a smashed kart gets it back (empty)
+-- on its next respawn.
+function WeaponServer.setSpecial(id: any, name: string?)
+	if id == nil then
+		return
+	end
+	if name ~= nil and specials[name] ~= nil and ctx then
+		specialOf[id] = { name = name, readyAt = ctx.now() + FireSwarm.FIRST_WAIT }
+	else
+		specialOf[id] = nil
+	end
+	showSpecial(id)
+end
+
+-- A charge box (or anything else): add `fraction` (0 to 1) of a full refill to kart `id`'s special.
+function WeaponServer.chargeSpecial(id: any, fraction: number)
+	local s = specialOf[id]
+	if not s or not ctx then
+		return
+	end
+	s.readyAt = FireSwarm.charged(s.readyAt, ctx.now(), fraction)
+	showSpecial(id)
+end
+
+-- Is kart `id`'s special ready? (name, or nil when it has none or is still charging)
+function WeaponServer.specialReady(id: any): string?
+	local s = specialOf[id]
+	if s and ctx and ctx.now() >= s.readyAt then
+		return s.name
+	end
+	return nil
+end
+
+-- Kart `id` uses its special toward `aim` (anything: it is checked). True if it went off.
+function WeaponServer.special(id: any, aim: any): boolean
+	local name = WeaponServer.specialReady(id)
+	local kart = ctx and ctx.getKart(id)
+	if not name or not kart or not kart.alive then
+		return false
+	end
+	local dir = Weapons.aim(aim, kart.cframe.LookVector)
+	local ok, shot = pcall(specials[name].fire, kart, dir, ctx)
+	if not ok then
+		warn("[WeaponServer] special " .. name .. " failed: " .. tostring(shot))
+	end
+	if not ok or shot ~= true then
+		return false
+	end
+	local s = specialOf[id]
+	if s then
+		s.readyAt = ctx.now() + FireSwarm.REFILL
+	end
+	showSpecial(id)
+	return true
+end
+
 -- A kart is smashed or left: it drops what it held.
 function WeaponServer.drop(id: any)
+	if specialOf[id] then
+		specialOf[id] = nil
+		showSpecial(id)
+	end
 	held[id] = nil
 	frozenToken[id] = nil
 	show(id)
@@ -502,7 +578,16 @@ function WeaponServer.reset()
 		show(id)
 	end
 	table.clear(frozenToken)
+	for id in specialOf do
+		specialOf[id] = nil
+		showSpecial(id)
+	end
 	for _, m in modules do
+		if m.clear then
+			pcall(m.clear, ctx)
+		end
+	end
+	for _, m in specials do
 		if m.clear then
 			pcall(m.clear, ctx)
 		end
@@ -521,6 +606,7 @@ local function remoteNamed(name: string): RemoteEvent
 end
 
 local started = false
+local grantAt = 0
 -- opts (tests only): { match = a stand-in for MatchRunner }
 function WeaponServer.start(opts: { match: any? }?)
 	if started then
@@ -542,6 +628,22 @@ function WeaponServer.start(opts: { match: any? }?)
 			end
 		end
 	end
+	if folder then
+		local m = folder:FindFirstChild(FireSwarm.NAME)
+		if m and m:IsA("ModuleScript") then
+			local ok, mod = pcall(require, m)
+			if ok and type(mod) == "table" and type(mod.fire) == "function" then
+				specials[FireSwarm.NAME] = mod :: any
+			else
+				warn(
+					"[WeaponServer] special "
+						.. FireSwarm.NAME
+						.. " did not load: "
+						.. tostring(mod)
+				)
+			end
+		end
+	end
 	ctx = makeCtx(remoteNamed(Weapons.FX_REMOTE))
 	local fire = remoteNamed(Weapons.REMOTE)
 	-- one ask: (aim: Vector3?). Anything else in the call is ignored; bursts are dropped.
@@ -560,17 +662,47 @@ function WeaponServer.start(opts: { match: any? }?)
 		end
 		WeaponServer.fire(kartIdOf(player), aim)
 	end)
+	-- the special's own remote: one ask (aim: Vector3?), its own rate limit; the kart's own
+	-- charge timer is the real gate
+	remoteNamed(FireSwarm.REMOTE).OnServerEvent:Connect(function(player: Player, aim: unknown)
+		if player.Parent == nil then
+			return
+		end
+		local now = os.clock()
+		local b = specialBuckets[player]
+		if not b then
+			b = Weapons.bucket(now)
+			specialBuckets[player] = b
+		end
+		if not Weapons.allow(b, now) then
+			return
+		end
+		WeaponServer.special(kartIdOf(player), aim)
+	end)
 	Players.PlayerRemoving:Connect(function(player: Player)
+		specialBuckets[player] = nil
 		buckets[player] = nil
 		held[player.UserId] = nil
+		specialOf[player.UserId] = nil
 		local ok, id = pcall(kartIdOf, player)
 		if ok and id ~= nil then
 			held[id] = nil
+			specialOf[id] = nil
 			frozenToken[id] = nil
 		end
 	end)
 	RunService.Heartbeat:Connect(function(dt: number)
 		cacheKarts, cacheModels = nil, nil
+		-- every player's kart in a match gets the special (a car-by-car choice comes later)
+		grantAt -= dt
+		if grantAt <= 0 and specials[FireSwarm.NAME] then
+			grantAt = 1
+			for _, k in allKarts() do
+				if k.alive and specialOf[k.id] == nil and playerOf(k.id) ~= nil then
+					WeaponServer.setSpecial(k.id, FireSwarm.NAME)
+				end
+			end
+		end
 		for name, m in modules do
 			if m.step then
 				local ok, err = pcall(m.step, ctx, dt)
