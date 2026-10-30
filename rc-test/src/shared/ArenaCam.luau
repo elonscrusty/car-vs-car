@@ -56,8 +56,9 @@ ArenaCam.PHONE_LEAN = 0 -- of the big camera's lean
 -- of me". Two tries over the normal fit, on every screen: press T in a match to go 1 -> 2 -> off.
 -- Try 1 is on from the start. After his pick, the numbers move into the fit and this goes.
 ArenaCam.TRIES = {
-	{ distance = 13, pitch = 26, low = 0.55 },
-	{ distance = 18, pitch = 22, low = 0.6 },
+	-- (round 2, carter: 13 studs was "way too far back, scoot in a little")
+	{ distance = 10, pitch = 32, low = 0.5 },
+	{ distance = 11.5, pitch = 29, low = 0.5 },
 } :: { { distance: number, pitch: number, low: number } }
 ArenaCam.TRY_START = 1
 
