@@ -12,6 +12,8 @@ local Ui = script.Parent:WaitForChild("Ui")
 local Smash = require(Ui:WaitForChild("Screens"):WaitForChild("Smash"))
 local Screen = require(Ui:WaitForChild("Screen"))
 local Sfx = require(script.Parent:WaitForChild("Sfx"))
+local MatchStart = require(script.Parent:WaitForChild("MatchStart"))
+local SmashJuice = require(Shared:WaitForChild("SmashJuice"))
 
 local player = Players.LocalPlayer
 
@@ -88,6 +90,20 @@ local function show(places: unknown, coins: unknown, nextAt: unknown, xp: unknow
 	end)
 end
 
+-- the clock hit 0:00: ROUND OVER! first (carter's pick A), then the screen; a newer result wins
+local waiting = 0
 onRemote("MatchResult", function(r)
-	r.OnClientEvent:Connect(show)
+	r.OnClientEvent:Connect(function(places: unknown, coins: unknown, nextAt: unknown, xp: unknown)
+		waiting += 1
+		local mine = waiting
+		if MatchStart.roundOver() then
+			task.delay(SmashJuice.ROUND_OVER_SECONDS, function()
+				if waiting == mine then
+					show(places, coins, nextAt, xp)
+				end
+			end)
+		else
+			show(places, coins, nextAt, xp)
+		end
+	end)
 end)

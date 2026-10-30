@@ -23,6 +23,49 @@ test("smash juice: the words from carter's video", function()
 	eq(SmashJuice.deathLine("", "Huy"), "You were bumped out by Huy's bump")
 end)
 
+test("smash juice: the wrecked card has a verb, a tag and a weapon badge", function()
+	local r = SmashJuice.wreck("gun", "CheriBibi")
+	eq(r.verb, "MOWED DOWN!")
+	eq(r.tag, "by CheriBibi's machine gun")
+	eq(r.icon, "gun")
+	eq(SmashJuice.wreck("rocket", "Zed").verb, "SMASHED!")
+	eq(SmashJuice.wreck("rocket", "Zed").icon, "rocket")
+	eq(SmashJuice.wreck("mine", "Ava").verb, "BLOWN UP!")
+	eq(SmashJuice.wreck("freeze ray", "Huy").verb, "SHATTERED!")
+	eq(SmashJuice.wreck("freeze ray", "Huy").icon, "freeze")
+	eq(SmashJuice.wreck("bump", "Huy").icon, "burst")
+	-- the arena got you: no one to blame
+	local fell = SmashJuice.wreck("bump", nil)
+	eq(fell.verb, "YOU FELL OUT!")
+	eq(fell.tag, "no one to blame")
+	-- a killer who left: the weapon still names itself
+	eq(SmashJuice.wreck("rocket", nil).tag, "by a rocket")
+	eq(SmashJuice.wreck("mine", nil).tag, "by a mine")
+end)
+
+test("smash juice: the match start shows 3, 2, 1, GO! then nothing", function()
+	eq(SmashJuice.startStep(-0.1), nil)
+	eq(SmashJuice.startStep(0), "3")
+	eq(SmashJuice.startStep(0.99), "3")
+	eq(SmashJuice.startStep(1), "2")
+	eq(SmashJuice.startStep(2.5), "1")
+	eq(SmashJuice.startStep(3), "GO!")
+	eq(SmashJuice.startStep(3 + SmashJuice.START_GO_SECONDS - 0.01), "GO!")
+	eq(SmashJuice.startStep(3 + SmashJuice.START_GO_SECONDS), nil)
+	-- looks only: the client file never touches the server or the cars
+	local src = fs.readFile("src/client/MatchStart.luau")
+	truthy(string.find(src, "MatchRound", 1, true), "starts on the round number")
+	truthy(string.find(src, "InMatch", 1, true), "only when you are in the round")
+	truthy(not string.find(src, "FireServer", 1, true), "no asks to the server")
+	local start = fs.readFile("src/client/SmashFxStart.client.luau")
+	truthy(string.find(start, "MatchStart", 1, true), "something starts it")
+	-- ROUND OVER! plays first, then the between-rounds screen opens (a newer result wins)
+	local sEnd = fs.readFile("src/client/SmashEnd.client.luau")
+	truthy(string.find(sEnd, "MatchStart.roundOver()", 1, true), "the end screen waits for it")
+	truthy(string.find(sEnd, "SmashJuice.ROUND_OVER_SECONDS", 1, true), "and for how long")
+	truthy(SmashJuice.ROUND_OVER_SECONDS < 2.5, "a short wait before the podium")
+end)
+
 test("smash juice: long names are cut so they fit a phone", function()
 	eq(SmashJuice.shortName("Botty"), "Botty")
 	eq(SmashJuice.shortName("BottyMcBotface"), "BottyMcBotface")
@@ -214,6 +257,53 @@ test(
 					truthy(
 						not UiScreens.overlap(r :: any, h :: any),
 						`{spot} covers {h.name} (top bar {inset.top})`
+					)
+				end
+			end
+			-- ROUND OVER! and Time's up!
+			for spot, at in SmashJuice.ROUND_OVER do
+				local r = {
+					x = (D.phoneW - at.w * D.phoneW) / 2,
+					y = (at.y - at.h / 2) * D.phoneH,
+					w = at.w * D.phoneW,
+					h = at.h * D.phoneH,
+				}
+				for _, h in hud do
+					truthy(
+						not UiScreens.overlap(r :: any, h :: any),
+						`round over {spot} covers {h.name} (top bar {inset.top})`
+					)
+				end
+			end
+			-- the match start: the giant number and GET READY!
+			for spot, at in SmashJuice.START do
+				local r = {
+					x = (D.phoneW - at.w * D.phoneW) / 2,
+					y = (at.y - at.h / 2) * D.phoneH,
+					w = at.w * D.phoneW,
+					h = at.h * D.phoneH,
+				}
+				for _, h in hud do
+					truthy(
+						not UiScreens.overlap(r :: any, h :: any),
+						`start {spot} covers {h.name} (top bar {inset.top})`
+					)
+				end
+			end
+			-- the wrecked card: verb, tag, and the ring with its BACK IN words on the left
+			for spot, at in SmashJuice.WRECK do
+				local ring = at.h * D.phoneH
+				local rw = if at.w > 0 then at.w * D.phoneW else ring * 1.9
+				local r = {
+					x = (D.phoneW - rw) / 2 - (if at.w > 0 then 0 else ring * 0.45),
+					y = (at.y - at.h / 2) * D.phoneH,
+					w = rw,
+					h = ring,
+				}
+				for _, h in hud do
+					truthy(
+						not UiScreens.overlap(r :: any, h :: any),
+						`wreck {spot} covers {h.name} (top bar {inset.top})`
 					)
 				end
 			end
