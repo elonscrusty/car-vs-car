@@ -27,6 +27,7 @@ local RunService = game:GetService("RunService")
 local ArenaBrain = require(ReplicatedStorage.Shared.ArenaBrain)
 local ArenaData = require(ReplicatedStorage.Shared.ArenaData)
 local BreakCrates = require(ReplicatedStorage.Shared.BreakCrates)
+local Barrels = require(ReplicatedStorage.Shared.Barrels)
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local Match = require(ReplicatedStorage.Shared.Match)
@@ -83,6 +84,7 @@ local stepWarned = 0
 local fleet: any = nil
 local boxes: any = nil -- BoxServer's handle (the "?" boxes in the arena)
 local crates: any = nil -- CrateServer's handle (the breakable crates in the arena)
+local barrels: any = nil -- BarrelServer's handle (the dynamite kegs in the arena)
 local ArenaBots: any = nil
 local lastLeave: { [Player]: number } = {}
 
@@ -728,6 +730,68 @@ function MatchRunner.crateFx(kind: string, data: any)
 	end
 end
 
+-- The arena's dynamite kegs (BarrelServer, shared/Barrels): started once, every keg up at each
+-- round's start. The server lights, hurts and shoves; a player's own client is asked to take the
+-- shove (BarrelFx "Kick"), a bot is shoved here.
+local function startBarrels()
+	local mod = script.Parent:FindFirstChild("BarrelServer")
+	local _, t = arena()
+	if barrels or not (mod and mod:IsA("ModuleScript") and t) then
+		return
+	end
+	local spots: { Vector3 } = {}
+	for _, p in Barrels.SPOTS do
+		local x, z = ArenaData.at(p :: any)
+		local wx, wy, wz = TrackData.toWorld(t, true, x, ArenaData.groundAt(p :: any), z)
+		table.insert(spots, Vector3.new(wx, wy, wz))
+	end
+	local ok, h = pcall((require(mod) :: any).start, {
+		spots = spots,
+		karts = function()
+			local out = {}
+			for _, k in MatchRunner.karts() do
+				if k.pos then
+					table.insert(out, { id = k.id, position = k.pos, alive = k.alive })
+				end
+			end
+			return out
+		end,
+		damage = function(victimId: any, attackerId: any, amount: number, word: string)
+			return MatchRunner.damage(victimId, attackerId, amount, string.lower(word))
+		end,
+		push = function(id: any, impulse: Vector3)
+			local info = infos[id]
+			if not info then
+				return
+			end
+			if info.player then
+				local hh = barrels
+				if hh then
+					hh.kick(info.player, impulse)
+				end
+			else
+				local body = bodyOf(info)
+				if body and not body.Anchored then
+					body.AssemblyLinearVelocity += impulse
+				end
+			end
+		end,
+	})
+	if ok then
+		barrels = h
+	else
+		warn("[Match] barrels: " .. tostring(h))
+	end
+end
+
+-- WeaponServer tells us what its weapons did (GunShot, RocketBoom, MineBoom): they light kegs.
+function MatchRunner.weaponFx(kind: string, data: any)
+	local h = barrels
+	if h and phase == "playing" then
+		h.weaponFx(kind, data)
+	end
+end
+
 local function startRound()
 	local h = hooks :: Hooks
 	local idx = LobbyLayout.arenaIndex()
@@ -882,6 +946,10 @@ local function startRound()
 	local C = special()
 	if C and C.reset then
 		pcall(C.reset) -- every special starts empty
+	end
+	startBarrels()
+	if barrels then
+		pcall(barrels.reset)
 	end
 	log(
 		`round {round} start: {#list} players + {#m.list - #list} bots, ends in {MatchRunner.MATCH_SECS} s`

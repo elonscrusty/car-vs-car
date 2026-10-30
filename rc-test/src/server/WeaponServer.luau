@@ -374,6 +374,10 @@ local function makeCtx(fxRemote: RemoteEvent): Ctx
 			if mr and type(mr.crateFx) == "function" then
 				pcall(mr.crateFx, kind, data)
 			end
+			-- (guns, rockets and mines light the arena's dynamite kegs)
+			if mr and type(mr.weaponFx) == "function" then
+				pcall(mr.weaponFx, kind, data)
+			end
 		end,
 		after = function(seconds: number, fn: () -> ())
 			task.delay(seconds, fn)
