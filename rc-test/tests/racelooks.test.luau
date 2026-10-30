@@ -45,6 +45,9 @@ test("skid marks (playtest u30, u12): one smooth fading ribbon, none on water", 
 	truthy(not string.find(fx, 'p.Name = "Skid"', 1, true), "the old box marks are back")
 	truthy(string.find(fx, "[Enum.Material.Water] = true", 1, true), "marks on water")
 	truthy(string.find(fx, "[Enum.Material.Glass] = true", 1, true), "marks on puddles")
+	-- carter's pick "Classic" (10-29): bold black lines, and the front tyres puff too
+	truthy(string.find(fx, "MARK_WIDTH = 0.8", 1, true), "Classic mark width")
+	truthy(string.find(fx, "FRONT_SMOKE", 1, true), "front tyre smoke")
 	local car = fs.readFile("src/client/RCCar.luau")
 	truthy(
 		string.find(car, "w.info.material = hit.Material", 1, true),
