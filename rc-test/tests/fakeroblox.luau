@@ -633,6 +633,7 @@ function Fake.server(store: Store, opts: { seed: number?, jobId: string?, at: nu
 		rp.Heartbeat = signal(task.spawn)
 		rp.Stepped = signal(task.spawn)
 		rp.PostSimulation = rp.Heartbeat
+		rp.RenderStepped = rp.Heartbeat -- (the client draws once per beat)
 		function rp.IsStudio()
 			return false -- a live server: Studio-only test remotes must stay shut
 		end
@@ -1005,6 +1006,18 @@ function Fake.server(store: Store, opts: { seed: number?, jobId: string?, at: nu
 				p.Visible = true
 				p.ZIndex = 1
 				p._gui = true
+				if before then
+					before(p, inst)
+				end
+			end
+		end
+		-- (sounds: Play does nothing, the clip never ends)
+		do
+			local before = classes.Sound
+			classes.Sound = function(p, inst)
+				p.Play = function() end
+				p.Stop = function() end
+				p.Ended = signal(task.spawn)
 				if before then
 					before(p, inst)
 				end
