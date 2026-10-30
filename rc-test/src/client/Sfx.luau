@@ -145,6 +145,11 @@ function Sfx.speedUp()
 	play("speedUp")
 end
 
+-- any button tapped: one soft click
+function Sfx.tap()
+	play("tap")
+end
+
 -- a bar hit its cap (MAX!)
 function Sfx.maxed()
 	play("maxed")
