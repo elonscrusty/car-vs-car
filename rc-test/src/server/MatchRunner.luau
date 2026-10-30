@@ -28,6 +28,7 @@ local ArenaBrain = require(ReplicatedStorage.Shared.ArenaBrain)
 local ArenaData = require(ReplicatedStorage.Shared.ArenaData)
 local Barrels = require(ReplicatedStorage.Shared.Barrels)
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
+local FirePits = require(ReplicatedStorage.Shared.FirePits)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local Match = require(ReplicatedStorage.Shared.Match)
 local Profile = require(ReplicatedStorage.Shared.Profile)
@@ -83,6 +84,7 @@ local stepWarned = 0
 local fleet: any = nil
 local boxes: any = nil -- BoxServer's handle (the "?" boxes in the arena)
 local barrels: any = nil -- BarrelServer's handle (the dynamite kegs in the arena)
+local firePits: any = nil -- FirePitServer's handle (the burning patches in the arena)
 local ArenaBots: any = nil
 local lastLeave: { [Player]: number } = {}
 
@@ -712,6 +714,42 @@ local function startBarrels()
 	end
 end
 
+-- The arena's fire pits (FirePitServer, shared/FirePits): started once, the flare clock restarts
+-- at each round's start. The server burns the karts on a pit; nothing is pushed.
+local function startFirePits()
+	local mod = script.Parent:FindFirstChild("FirePitServer")
+	local _, t = arena()
+	if firePits or not (mod and mod:IsA("ModuleScript") and t) then
+		return
+	end
+	local spots: { Vector3 } = {}
+	for _, p in FirePits.SPOTS do
+		local x, z = ArenaData.at(p :: any)
+		local wx, wy, wz = TrackData.toWorld(t, true, x, ArenaData.groundAt(p :: any), z)
+		table.insert(spots, Vector3.new(wx, wy, wz))
+	end
+	local ok, h = pcall((require(mod) :: any).start, {
+		spots = spots,
+		karts = function()
+			local out = {}
+			for _, k in MatchRunner.karts() do
+				if k.pos then
+					table.insert(out, { id = k.id, position = k.pos, alive = k.alive })
+				end
+			end
+			return out
+		end,
+		damage = function(victimId: any, attackerId: any, amount: number, word: string)
+			return MatchRunner.damage(victimId, attackerId, amount, string.lower(word))
+		end,
+	})
+	if ok then
+		firePits = h
+	else
+		warn("[Match] fire pits: " .. tostring(h))
+	end
+end
+
 -- WeaponServer tells us what its weapons did (GunShot, RocketBoom, MineBoom): they light kegs.
 function MatchRunner.weaponFx(kind: string, data: any)
 	local h = barrels
@@ -870,6 +908,10 @@ local function startRound()
 	startBarrels()
 	if barrels then
 		pcall(barrels.reset)
+	end
+	startFirePits()
+	if firePits then
+		pcall(firePits.reset)
 	end
 	log(
 		`round {round} start: {#list} players + {#m.list - #list} bots, ends in {MatchRunner.MATCH_SECS} s`
