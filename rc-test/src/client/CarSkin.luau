@@ -196,17 +196,19 @@ function CarSkin.kartFor(id: string): Model?
 	return KartMesh.get(name, ToyCars.kartRim(info.color, info.style))
 end
 
--- Paints a kart model's part for a car, by its name (ToyCars.kartPaint).
-function CarSkin.paintKart(p: BasePart, id: string)
+-- Paints a kart model's part for a car, by its name (ToyCars.kartPaint). `color` paints it
+-- instead of the car's own colour (a bot's BotPaints paint).
+function CarSkin.paintKart(p: BasePart, id: string, color: { number }?)
 	local info = CarCatalog.get(id)
 	if not info then
 		return
 	end
-	local col, glow = ToyCars.kartPaint(p.Name, info.color, info.style)
+	local paint = color or info.color
+	local col, glow = ToyCars.kartPaint(p.Name, paint, info.style)
 	if p:GetAttribute("RimTint") == true then
 		-- a baked kart's wheel (assets/karts/studio_bake.luau): dark tyre, white rim; the part's
 		-- colour tints the rim to the car's rim colour
-		p.Color = rgb(ToyCars.kartRim(info.color, info.style))
+		p.Color = rgb(ToyCars.kartRim(paint, info.style))
 		return
 	end
 	if col and p:GetAttribute("Baked") ~= true then

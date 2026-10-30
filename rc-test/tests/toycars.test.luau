@@ -260,7 +260,7 @@ test(
 		local fs = require("@lune/fs")
 		local others = fs.readFile("src/client/OtherCars.luau")
 		truthy(
-			string.find(others, "modelShell(f, kart, s, id)", 1, true),
+			string.find(others, "modelShell(f, kart, s, id, paint)", 1, true),
 			"other cars wear no kart"
 		)
 		local skin = fs.readFile("src/client/CarSkin.luau")
