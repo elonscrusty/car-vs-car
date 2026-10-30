@@ -92,6 +92,9 @@ ArenaData.RAMPS = {
 ArenaData.RAMP_DECK = 5
 -- each ramp's sides slope down to the grass this far out (picture units) at the top end
 ArenaData.RAMP_FLANK = 6
+-- the glowing boost arrows on each ramp wear this tag and a number attribute "U" (0 foot .. 1 top);
+-- client/BoostArrows pulses them up the ramp on each screen (looks only, no extra air)
+ArenaData.BOOST_TAG = "BoostArrow"
 
 -- the purple platform in the north-west corner (start spot 1 is on it): against the outer wall on
 -- two sides, gentle slopes a kart drives down (and up) on the other two (STEP_SIDES: edge numbers)
