@@ -1,7 +1,7 @@
 --!strict
 -- The name tag over a kart in a Smash match (carter's pick: "New Classic",
 -- nametag-preview/nametag-pick.html). On top of OtherCars' BillboardGui it draws:
---   a level star (blue, purple from 10, gold from 25) + the name (FredokaOne, ink stroke),
+--   a level star (blue, purple from 10, gold from 25) + the name (Roboto, ink stroke),
 --   a shiny health bar with a heart, ticks, a gold chunk that trails behind a hit, a red throb
 --   when low, a glow + shield for the spawn shield, a FROZEN pill, a crown for the leader.
 -- Rules and numbers are in shared/NameTagLook. Looks only: the server sets Health (the
@@ -137,7 +137,7 @@ function MatchNameTag.attach(
 	levelLabel.BackgroundTransparency = 1
 	levelLabel.Size = UDim2.fromScale(1, 1)
 	levelLabel.Position = UDim2.fromOffset(0, 1)
-	levelLabel.Font = Enum.Font.FredokaOne
+	levelLabel.Font = Enum.Font.RobotoCondensed
 	levelLabel.TextSize = 11
 	levelLabel.TextColor3 = Color3.new(1, 1, 1)
 	levelLabel.Text = ""
@@ -151,7 +151,7 @@ function MatchNameTag.attach(
 	nameLabel.AutomaticSize = Enum.AutomaticSize.X
 	nameLabel.Size = UDim2.fromOffset(0, 20)
 	nameLabel.LayoutOrder = 2
-	nameLabel.Font = Enum.Font.FredokaOne
+	nameLabel.Font = Enum.Font.Roboto
 	nameLabel.TextSize = 16
 	nameLabel.TextColor3 = Color3.new(1, 1, 1)
 	nameLabel.Text = Look.shortName(name)
@@ -236,7 +236,7 @@ function MatchNameTag.attach(
 	pill.Size = UDim2.fromOffset(52, 13)
 	pill.AnchorPoint = Vector2.new(0.5, 0)
 	pill.Position = UDim2.new(0.5, 0, 0, 48)
-	pill.Font = Enum.Font.FredokaOne
+	pill.Font = Enum.Font.Roboto
 	pill.TextSize = 10
 	pill.TextColor3 = Color3.new(1, 1, 1)
 	pill.Text = "FROZEN"

@@ -143,7 +143,7 @@ local function build(
 	local label = Instance.new("TextLabel")
 	label.BackgroundTransparency = 1
 	label.Size = UDim2.fromScale(1, 1)
-	label.Font = Enum.Font.FredokaOne
+	label.Font = Enum.Font.Oswald
 	label.Text = "TNT"
 	label.TextSize = 70 -- fixed on the canvas (TextScaled costs more on phones)
 	label.TextColor3 = Color3.fromRGB(22, 22, 26)

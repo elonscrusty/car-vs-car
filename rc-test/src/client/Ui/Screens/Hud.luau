@@ -1188,7 +1188,7 @@ function Hud.match(
 			-- (gold when you are in it), the weapon, a red arrow, WHOM
 			local rowH = FEED_ROW
 			local row = Base.box(feedSpot, "Row", 0, 0, fp.w, rowH, 2)
-			local nameW = math.floor((fp.w - rowH - 14) / 2)
+			local nameW = math.floor((fp.w - rowH - 18) / 2)
 			local function side(x: number, name: string, key: string, gold: boolean)
 				Base.text(
 					row,
@@ -1209,14 +1209,14 @@ function Hud.match(
 			-- (levels stay off this line: the kit's board and health bar show them)
 			side(0, attacker, "Who", mine == true)
 			Icons.make(row, Hud.weaponIcon(weapon), nameW + 2, 0, rowH, { z = 4 })
-			local arrow = Base.text(row, "Arrow", nameW + rowH + 2, 2, 10, rowH - 4, "›", {
+			local arrow = Base.text(row, "Arrow", nameW + rowH + 2, 2, 14, rowH - 4, "›", {
 				stroke = 3.5,
 				align = "c",
 				z = 3,
 				color = Base.color("danger"),
 			})
 			arrow.Name = "Arrow"
-			side(nameW + rowH + 12, victim, "Whom", false)
+			side(nameW + rowH + 16, victim, "Whom", false)
 			table.insert(rows, 1, row)
 			while #rows > feedRows do
 				(table.remove(rows) :: Frame):Destroy()

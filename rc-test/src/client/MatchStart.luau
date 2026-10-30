@@ -84,7 +84,7 @@ function MatchStart.start()
 	number.Position = UDim2.fromScale(0.5, spot.num.y)
 	number.Size = UDim2.fromScale(spot.num.w, spot.num.h)
 	number.BackgroundTransparency = 1
-	number.Font = Enum.Font.LuckiestGuy
+	number.Font = Enum.Font.Oswald
 	number.TextScaled = true
 	number.Text = ""
 	number.Visible = false
@@ -283,7 +283,7 @@ function MatchStart.start()
 	overWord.Position = UDim2.fromScale(0.5, over.word.y)
 	overWord.Size = UDim2.fromScale(over.word.w, over.word.h)
 	overWord.BackgroundTransparency = 1
-	overWord.Font = Enum.Font.LuckiestGuy
+	overWord.Font = Enum.Font.Oswald
 	overWord.TextScaled = true
 	overWord.Text = "ROUND OVER!"
 	overWord.TextColor3 = SUN

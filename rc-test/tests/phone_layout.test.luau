@@ -217,28 +217,38 @@ for _, ph in L.PHONES do
 	end)
 end
 
-test("a level badge sits before each name with a level, on the board and the kill list", function()
-	local h = matchHud()
-	local c = h.gui.canvas
-	local board = c:FindFirstChild("Board")
-	-- (the board is the leader and you: auditor round 12)
-	local row1 = board and board:FindFirstChild("Row1")
-	truthy(row1 and row1:FindFirstChild("Level"), "no board badge for the level 3 leader")
-	local row2 = board and board:FindFirstChild("Row2")
-	truthy(row2 and row2:FindFirstChild("Level"), "no board badge for your level 1 kart")
-	truthy(board and board:FindFirstChild("Row3") == nil, "a third board row")
-	local feed = c:FindFirstChild("Feed")
-	local n = 0
-	for _, r in feed:GetChildren() do
-		if r:FindFirstChild("WhoLevel") and r:FindFirstChild("WhomLevel") then
-			n += 1
-			local who = r:FindFirstChild("Who")
-			truthy(who.Text == "SUPERLO…" or who.Text == "MRCARTER", "name not cut: " .. who.Text)
+test(
+	"a level badge sits before each name on the board; the kill list is bare words (carter B, 10-30)",
+	function()
+		local h = matchHud()
+		local c = h.gui.canvas
+		local board = c:FindFirstChild("Board")
+		-- (the board is the leader and you: auditor round 12)
+		local row1 = board and board:FindFirstChild("Row1")
+		truthy(row1 and row1:FindFirstChild("Level"), "no board badge for the level 3 leader")
+		local row2 = board and board:FindFirstChild("Row2")
+		truthy(row2 and row2:FindFirstChild("Level"), "no board badge for your level 1 kart")
+		truthy(board and board:FindFirstChild("Row3") == nil, "a third board row")
+		local feed = c:FindFirstChild("Feed")
+		local n, rowsSeen = 0, 0
+		for _, r in feed:GetChildren() do
+			if r:FindFirstChild("Who") then
+				rowsSeen += 1
+				if r:FindFirstChild("WhoLevel") or r:FindFirstChild("WhomLevel") then
+					n += 1
+				end
+				local who = r:FindFirstChild("Who")
+				truthy(
+					who.Text == "SUPERLO…" or who.Text == "MRCARTER",
+					"name not cut: " .. who.Text
+				)
+			end
 		end
+		truthy(rowsSeen == 2, "kill list rows: " .. rowsSeen)
+		truthy(n == 0, "kill list badges: " .. n)
+		h.close()
 	end
-	truthy(n == 2, "kill list badges: " .. n)
-	h.close()
-end)
+)
 
 test("the phone screens built with no script errors", function()
 	none(S.errors)

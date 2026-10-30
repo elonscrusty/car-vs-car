@@ -359,7 +359,7 @@ local function countdown(holder: BasePart, u: number): BillboardGui
 	local l = Instance.new("TextLabel")
 	l.Size = UDim2.fromScale(1, 1)
 	l.BackgroundTransparency = 1
-	l.Font = Enum.Font.FredokaOne
+	l.Font = Enum.Font.Oswald
 	l.TextScaled = true
 	l.TextColor3 = Color3.new(1, 1, 1)
 	l.Text = ""

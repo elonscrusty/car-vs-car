@@ -160,7 +160,7 @@ local function dots(body: BasePart, unit: number, level: number)
 	word.BackgroundTransparency = 1
 	word.Size = UDim2.fromScale(1, 0.55)
 	word.Position = UDim2.fromScale(0, 0.45)
-	word.Font = Enum.Font.FredokaOne
+	word.Font = Enum.Font.RobotoCondensed
 	word.Text = "+1/3"
 	word.TextScaled = true
 	word.TextColor3 = WORD
