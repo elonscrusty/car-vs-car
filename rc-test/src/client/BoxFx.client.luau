@@ -1,7 +1,8 @@
 --!strict
 -- The "?" boxes' life on this screen (server/BoxServer makes them): each box that is up spins
--- slowly and bobs; when it's taken, red and yellow bits burst out; when it's back it pops in from
--- small. Only this screen moves the box, the server never does.
+-- slowly and bobs, and its glow halo turns; when it's taken, gold and orange bits burst out; when
+-- it's back it drops in from above with a bounce. Only this screen moves the box, the server never
+-- does (it moves the Body and Halo roots; everything else is welded to them).
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -10,6 +11,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Sfx = require(script.Parent.Sfx)
+local ChargeFx = require(script.Parent.ChargeFx)
 
 local TAG = "SmashBox"
 local ME = tostring(Players.LocalPlayer.UserId) -- a player's kart id is their UserId
@@ -20,10 +22,24 @@ local BOB = 0.45 -- up and down
 local BOB_SPEED = 2.4
 local TILT = math.rad(14) -- leans a little so two faces and the top show
 
-local RED = Color3.fromRGB(222, 38, 52)
-local YELLOW = Color3.fromRGB(255, 214, 46)
+local HALO_SPIN = math.rad(60) -- the halo turns around its own middle, per second
+local HALO_TIP = CFrame.Angles(math.rad(70), 0, math.rad(15)) -- same tip as server/BoxServer's halo
+local DROP = 0.45 -- seconds to drop back in
+local DROP_HIGH = 3 -- box sizes above home when the drop starts
 
-type Live = { model: Model, body: BasePart, home: CFrame, phase: number, size: Vector3, up: boolean }
+local GOLD = Color3.fromRGB(255, 194, 46)
+local ORANGE = Color3.fromRGB(255, 154, 30)
+
+type Live = {
+	model: Model,
+	body: BasePart,
+	halo: BasePart?,
+	home: CFrame,
+	phase: number,
+	size: Vector3,
+	up: boolean,
+	back: number, -- clock time the box came back (for the drop)
+}
 
 local live: { [Model]: Live } = {}
 local conns: { [Model]: { RBXScriptConnection } } = {}
@@ -32,7 +48,7 @@ local function burst(at: Vector3, s: number)
 	for n = 1, 8 do
 		local bit = Instance.new("Part")
 		bit.Size = Vector3.one * (0.6 + (n % 3) * 0.25) * s
-		bit.Color = if n % 2 == 0 then RED else YELLOW
+		bit.Color = if n % 2 == 0 then GOLD else ORANGE
 		bit.Material = if n % 2 == 0 then Enum.Material.SmoothPlastic else Enum.Material.Neon
 		bit.CFrame = CFrame.new(at) * CFrame.Angles(n, n * 2, n * 3)
 		bit.Anchored = true
@@ -55,12 +71,7 @@ local function burst(at: Vector3, s: number)
 end
 
 local function popIn(l: Live)
-	l.body.Size = l.size * 0.2
-	TweenService:Create(
-		l.body,
-		TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-		{ Size = l.size }
-	):Play()
+	l.back = os.clock()
 end
 
 local function add(inst: Instance)
@@ -77,13 +88,16 @@ local function add(inst: Instance)
 	then
 		return
 	end
+	local halo = inst:FindFirstChild("Halo")
 	local l: Live = {
 		model = inst,
 		body = body,
+		halo = if halo and halo:IsA("BasePart") then halo else nil,
 		home = home,
 		phase = math.random() * math.pi * 2,
 		size = body.Size,
 		up = inst:GetAttribute("Up") == true,
+		back = -math.huge,
 	}
 	live[inst] = l
 	conns[inst] = {
@@ -95,10 +109,16 @@ local function add(inst: Instance)
 				burst(l.body.Position, l.size.X / DESIGN)
 			end
 		end),
-		-- every pickup bumps TakenCount; the pickup sound is only for the one who grabbed it
+		-- every pickup bumps TakenCount; the pickup sound is only for the one who grabbed it. A
+		-- charge box (no weapon) also sends its swirl into the grabber's kart, for everyone to see.
 		inst:GetAttributeChangedSignal("TakenCount"):Connect(function()
-			if inst:GetAttribute("TakenBy") == ME then
+			local by = inst:GetAttribute("TakenBy")
+			if by == ME then
 				Sfx.pickup()
+			end
+			local level = inst:GetAttribute("TakenLevel")
+			if type(by) == "string" and by ~= "" and type(level) == "number" and level > 0 then
+				ChargeFx.play(l.body.Position, by, level, l.size.X)
 			end
 		end),
 	}
@@ -132,14 +152,28 @@ RunService.RenderStepped:Connect(function(dt: number)
 	for _, l in live do
 		if l.up then
 			local y = math.sin(t * BOB_SPEED + l.phase) * BOB * l.size.X / DESIGN
+			local k = math.clamp((os.clock() - l.back) / DROP, 0, 1)
+			if k < 1 then
+				local fall =
+					TweenService:GetValue(k, Enum.EasingStyle.Bounce, Enum.EasingDirection.Out)
+				y += (1 - fall) * DROP_HIGH * l.size.X
+			end
+			local at = l.home * CFrame.new(0, y, 0)
 			table.insert(parts, l.body)
 			table.insert(
 				frames,
-				l.home
-					* CFrame.new(0, y, 0)
-					* CFrame.Angles(0, t * SPIN + l.phase, 0)
-					* CFrame.Angles(TILT, 0, 0)
+				at * CFrame.Angles(0, t * SPIN + l.phase, 0) * CFrame.Angles(TILT, 0, 0)
 			)
+			if l.halo then
+				table.insert(parts, l.halo)
+				table.insert(
+					frames,
+					at
+						* HALO_TIP
+						* CFrame.Angles(0, 0, t * HALO_SPIN + l.phase)
+						* HALO_TIP:Inverse()
+				)
+			end
 		end
 	end
 	if #parts > 0 then
