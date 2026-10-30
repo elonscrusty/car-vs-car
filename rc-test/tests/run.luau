@@ -116,5 +116,6 @@ require("./coins_chip.test")
 require("./fire_drake.test")
 require("./weapon_mounts.test")
 require("./flame.test")
+require("./launch_spots.test")
 
 Harness.summary()

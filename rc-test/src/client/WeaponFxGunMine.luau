@@ -2,7 +2,8 @@
 -- Machine gun, mines and freeze, drawn (plans/smash, GUNMINE row). The server decides every hit;
 -- client/WeaponFx hands this module every WeaponFx kind that isn't a rocket:
 --   GunShot    { from, to, hit }        a sunny-yellow tracer, a muzzle flash, sparks if it hit
---   MineDrop   { position }             the drop sound (the mine is a server part, workspace.Mines)
+--   MineDrop   { position, from? }      the drop sound; the mine is a server part (workspace.Mines), a toy
+--                                       one is flung from the dropper's spoon `from` to it
 --   MineBoom   { position }             a flat pink-orange blast ring and a flash
 --   FreezeShot { from, to, hit }        a sky-blue ice bolt
 --   FreezeHit  { id, position, seconds } an ice block over the kart until it melts
@@ -239,6 +240,71 @@ local function onFlame(data: any)
 	end
 end
 
+-- the Mine Dropper's "Fling" (carter 10-30): the arm lets go at the spoon on the roof and the mine
+-- sails back in an arc to where the server put it. The server's mine is already there, so it is
+-- hidden on this screen until the toy mine lands; a puff of dust marks the landing.
+local FLING = 0.4 -- seconds in the air
+local function onMineDrop(data: any)
+	local from, to = vec(data, "from"), vec(data, "position")
+	if not from or not to then
+		return
+	end
+	local toy = Instance.new("Model")
+	toy.Name = "FlungMine"
+	local base = part("Base", Color3.fromRGB(34, 36, 64), false, Vector3.new(0.6, 2.4, 2.4) * S)
+	base.Shape = Enum.PartType.Cylinder
+	base.Parent = toy
+	local light = part("Light", Color3.fromRGB(232, 53, 46), true, Vector3.new(0.8, 0.8, 0.8) * S)
+	light.Shape = Enum.PartType.Ball
+	light.Parent = toy
+	toy.Parent = bits
+	-- hide the real one (it may take a moment to arrive) until the toy has landed
+	local hidden: { BasePart } = {}
+	local folder = workspace:FindFirstChild("Mines")
+	local function hideReal()
+		if not folder then
+			folder = workspace:FindFirstChild("Mines")
+		end
+		if not folder or #hidden > 0 then
+			return
+		end
+		for _, m in folder:GetChildren() do
+			local b = m:FindFirstChild("Base") :: BasePart?
+			if b and (b.Position - to).Magnitude < 1.5 * S then
+				for _, p in m:GetChildren() do
+					if p:IsA("BasePart") and p.Transparency == 0 then
+						p.Transparency = 1
+						table.insert(hidden, p)
+					end
+				end
+			end
+		end
+	end
+	local t = 0
+	local spin = math.random() * 6.28
+	local conn: RBXScriptConnection
+	conn = RunService.RenderStepped:Connect(function(dt: number)
+		t += dt
+		local a = math.min(1, t / FLING)
+		hideReal()
+		local at = from:Lerp(to, a) + Vector3.new(0, 4 * a * (1 - a) * 3 * S, 0)
+		spin += dt * 12
+		local cf = CFrame.new(at) * CFrame.Angles(spin, 0, spin * 0.6)
+		base.CFrame = cf * CFrame.Angles(0, 0, math.rad(90))
+		light.CFrame = cf * CFrame.new(0, 0.4 * S, 0)
+		if a >= 1 then
+			conn:Disconnect()
+			toy:Destroy()
+			for _, p in hidden do
+				if p.Parent then
+					p.Transparency = 0
+				end
+			end
+			chips(to, Color3.fromRGB(120, 112, 100), 6, 0.5, 2)
+		end
+	end)
+end
+
 function FxGunMine.handle(kind: string, data: any)
 	if kind == "FlameBurst" then
 		onFlame(data)
@@ -246,6 +312,7 @@ function FxGunMine.handle(kind: string, data: any)
 		onGun(data)
 	elseif kind == "MineDrop" then
 		sound("mineDrop", data, vec(data, "position"))
+		onMineDrop(data)
 	elseif kind == "MineBoom" then
 		onMineBoom(data)
 	elseif kind == "FreezeShot" then
