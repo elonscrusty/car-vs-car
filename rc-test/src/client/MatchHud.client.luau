@@ -189,7 +189,7 @@ local function showHints()
 	label.BackgroundTransparency = 0.45
 	label.TextColor3 = Color3.fromRGB(240, 240, 240)
 	label.TextTransparency = 0.1
-	label.Font = Enum.Font.GothamMedium
+	label.Font = Enum.Font.Roboto
 	label.TextSize = 14
 	label.Text = "W A S D drive    SPACE drift    CLICK fire (aim with mouse)    G special"
 	label.Parent = gui

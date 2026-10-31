@@ -1260,8 +1260,8 @@ function Hud.match(
 		local PIP_MAX = 5
 		local pips: { Frame } = {}
 		for i = 1, PIP_MAX do
-			local a = math.rad(190 + (i - 1) * 28)
-			local r = fpc.w / 2 + 10
+			local a = math.rad(222 + (i - 1) * 24)
+			local r = fpc.w / 2 + 17 -- (FIRE grew: the arc stays out of the middle of the screen)
 			local pip = Base.fill(
 				fire.button,
 				"Pip" .. i,
@@ -1359,11 +1359,14 @@ function Hud.match(
 		end
 		setWeapon(data.weapon, data.ammo)
 		-- BUTTONS (Settings): FIRE grows or shrinks around its own middle
+		-- (the spot may be anchored at a corner: the middle is the position moved by the size)
+		local was = fireSpot.AnchorPoint
+		local pos, size = fireSpot.Position, fireSpot.Size
 		fireSpot.AnchorPoint = Vector2.new(0.5, 0.5)
 		fireSpot.Position = UDim2.new(
-			fireSpot.Position.X.Scale + fireSpot.Size.X.Scale / 2,
+			pos.X.Scale + size.X.Scale * (0.5 - was.X),
 			0,
-			fireSpot.Position.Y.Scale + fireSpot.Size.Y.Scale / 2,
+			pos.Y.Scale + size.Y.Scale * (0.5 - was.Y),
 			0
 		)
 		local fireScale = Instance.new("UIScale")
