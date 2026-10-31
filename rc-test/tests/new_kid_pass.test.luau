@@ -360,6 +360,7 @@ test(
 		-- The sim kid now sees boxes across cliffs and takes the ramps (test thumb #1007), so it won 14 of 20
 		-- (7 before). The ceiling still catches bots that stopped fighting back; top 4 and smashes taken guard the rest.
 		truthy(wins >= 4 and wins <= 16, `1st in {wins} of {RUNS}`)
-		truthy(avg >= 4 and avg <= 8, `smashed {avg} times a match`)
+		-- (10-31 calm pass: 5 bots, slower bot fire, so a seasoned kid is smashed a bit less; floor 4 -> 2.5)
+		truthy(avg >= 2.5 and avg <= 8, `smashed {avg} times a match`)
 	end
 )
