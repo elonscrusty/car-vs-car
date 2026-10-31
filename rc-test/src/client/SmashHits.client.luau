@@ -24,6 +24,7 @@ local Base = require(script.Parent:WaitForChild("Ui"):WaitForChild("Base"))
 local Sfx = require(script.Parent:WaitForChild("Sfx"))
 local SmashFx = require(script.Parent:WaitForChild("SmashFx"))
 local ArenaLifeFx = require(script.Parent:WaitForChild("ArenaLifeFx"))
+local Buzz = require(script.Parent:WaitForChild("Buzz"))
 
 local player = Players.LocalPlayer
 local myId = player.UserId
@@ -688,7 +689,13 @@ local function onHealth(id: number, hp: number)
 			if not pos then
 				return
 			end
-			local w = SmashHits.guess(shots, id, pos.X, pos.Z, now, SIZES, SmashHits.SOUND_WAIT)
+			local w, by = SmashHits.guess(shots, id, pos.X, pos.Z, now, SIZES, SmashHits.SOUND_WAIT)
+			-- the phone buzzes: a hit on you, and a bigger one when you smash a kart
+			if id == myId then
+				Buzz.hit()
+			elseif hp <= 0 and by == myId then
+				Buzz.smash()
+			end
 			if w == "bump" and spot then
 				ArenaLifeFx.spark(spot)
 			end
