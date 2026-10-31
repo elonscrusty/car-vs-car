@@ -7,6 +7,7 @@
 -- MatchRunner.damage. Clients only draw: the WeaponFx remote says what to show.
 -- Player attributes for screens: Weapon ("" = none) and Ammo; the special move (FIRE SWARM, run
 -- from its own SpecialFire remote) adds SpecialName ("" = none) and SpecialReadyAt (server time).
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -16,6 +17,7 @@ local FireSwarm = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild(
 local Specials = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Specials"))
 
 local WeaponServer = {}
+WeaponServer.LOCK_TAG = "LockedOn"
 
 export type Kart = { id: any, cframe: CFrame, alive: boolean, shield: boolean }
 export type Hit = { kartId: any?, position: Vector3 }
@@ -34,6 +36,9 @@ export type Ctx = {
 	freeze: ((id: any, seconds: number) -> ())?,
 	-- SHOCKWAVE: shoves kart `id`: v = a flat velocity to add (studs/s), up = a hop (studs/s)
 	push: ((id: any, v: Vector3, up: number) -> ())?,
+	-- LOCK-ON: a rocket chases kart `id` (true) or let go of it (false); the kart's model carries
+	-- the "LockedOn" tag while any rocket chases it (client/LockOn draws the red brackets)
+	mark: ((id: any, on: boolean) -> ())?,
 }
 export type Module = {
 	fire: (kart: Kart, aim: Vector3, ctx: Ctx) -> boolean,
@@ -298,6 +303,9 @@ end
 
 -- ===== the context every weapon gets =====
 
+-- how many rockets chase each kart right now (LOCK-ON tag)
+local chasers: { [any]: number } = {}
+
 local function makeCtx(fxRemote: RemoteEvent): Ctx
 	local c: Ctx
 	c = {
@@ -411,6 +419,18 @@ local function makeCtx(fxRemote: RemoteEvent): Ctx
 			local mr = matchRunner()
 			if mr and type(mr.knock) == "function" then
 				pcall(mr.knock, id, v, up)
+			end
+		end,
+		mark = function(id: any, on: boolean)
+			local n = math.max(0, (chasers[id] or 0) + (if on then 1 else -1))
+			chasers[id] = if n > 0 then n else nil
+			local m = kartModel(id)
+			if m then
+				if n > 0 then
+					CollectionService:AddTag(m, WeaponServer.LOCK_TAG)
+				else
+					CollectionService:RemoveTag(m, WeaponServer.LOCK_TAG)
+				end
 			end
 		end,
 		freeze = function(id: any, seconds: number)

@@ -74,6 +74,22 @@ local function targets(ctx: any, Weapons: any): { any }
 	return out
 end
 
+-- LOCK-ON: tell the match which kart a rocket chases (ctx.mark is optional: tests may not have it)
+local function setLock(ctx: any, f: any, id: any)
+	if f.lock == id then
+		return
+	end
+	if type(ctx.mark) == "function" then
+		if f.lock ~= nil then
+			ctx.mark(f.lock, false)
+		end
+		if id ~= nil then
+			ctx.mark(id, true)
+		end
+	end
+	f.lock = id
+end
+
 -- walls and ground stop a shot; karts are hit by the shot's own check (a little wider than a
 -- kart), so the ray looks through them
 local stepCtx: any = nil
@@ -163,6 +179,7 @@ function Flight.weapon(name: string, Weapons: any): { [string]: any }
 				left -= bit
 				what, who = Weapons.step(f.r, bit, list, blocked)
 			end
+			setLock(ctx, f, if what == nil then f.r.target else nil)
 			if what ~= nil then
 				local direct = if what == "hit" then who else nil
 				table.remove(flying, i)
@@ -204,6 +221,7 @@ function Flight.weapon(name: string, Weapons: any): { [string]: any }
 		while i <= #flying do
 			local f = flying[i]
 			if f.kind == name then
+				setLock(ctx, f, nil)
 				ctx.fx("RocketBoom", { id = f.id, kind = name, pos = f.r.pos, quiet = true })
 				table.remove(flying, i)
 			else
