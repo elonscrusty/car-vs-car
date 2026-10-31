@@ -198,6 +198,18 @@ function Match.due(m: State, now: number): { Kart }
 	return out
 end
 
+-- Mend a kart by `share` (0..1) of its full health (a wrench). Returns the health given back, or 0
+-- when the kart is smashed, already full or the share is junk.
+function Match.heal(m: State, id: number, share: number): number
+	local k = m.karts[id]
+	if not k or not k.alive or not finite(share) or share <= 0 or k.health >= Match.HEALTH then
+		return 0
+	end
+	local give = math.min(Match.HEALTH * share, Match.HEALTH - k.health)
+	k.health += give
+	return give
+end
+
 -- Back in: full health and the bubble.
 function Match.respawn(m: State, id: number, now: number)
 	local k = m.karts[id]
