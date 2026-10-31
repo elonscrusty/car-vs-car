@@ -3,6 +3,7 @@
 -- plus gas, brake and drift buttons on the right.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local Features = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Features"))
@@ -20,7 +21,7 @@ export type Controls = {
 local Controls = {}
 
 local STICK_RADIUS = 80
-local KNOB_TRAVEL = STICK_RADIUS - 35 - 6 -- (the knob is 70 across; the ring's rim)
+local KNOB_TRAVEL = STICK_RADIUS - 38 - 6 -- (the knob is 76 across; the ring's rim)
 local DEADZONE = 0.08
 -- SMASH on a phone: the stick is the gas too (Lead 10-28: "joystick + fire only"). Push up to
 -- go, pull down to brake and back up. Input only: the car's numbers don't change.
@@ -34,6 +35,125 @@ end
 local function isPress(input: InputObject): boolean
 	return input.UserInputType == Enum.UserInputType.Touch
 		or input.UserInputType == Enum.UserInputType.MouseButton1
+end
+
+-- ===== the chunky look (carter picked "A Kit Chunky" 10-29: dark ring, arrows, glossy blue ball) =====
+-- Looks only: every number above (radius, dead zone, gas and brake ramps) is untouched.
+local INK = Color3.fromRGB(13, 44, 64)
+local FONT = Enum.Font.Oswald -- big words (UiFonts.TITLE)
+
+local function stroke(obj: Instance, thickness: number, color: Color3?): UIStroke
+	local s = Instance.new("UIStroke")
+	s.Color = color or INK
+	s.Thickness = thickness
+	s.LineJoinMode = Enum.LineJoinMode.Round
+	s.Parent = obj
+	return s
+end
+
+local function round(obj: Instance)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0.5, 0)
+	c.Parent = obj
+end
+
+local function gradient(obj: Instance, a: Color3, b: Color3, c: Color3)
+	local g = Instance.new("UIGradient")
+	g.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, a),
+		ColorSequenceKeypoint.new(0.4, b),
+		ColorSequenceKeypoint.new(1, c),
+	})
+	g.Rotation = 90
+	g.Parent = obj
+end
+
+-- a white shine band on the top of a round face
+local function gloss(parent: GuiObject)
+	local g = Instance.new("Frame")
+	g.Name = "Gloss"
+	g.AnchorPoint = Vector2.new(0.5, 0)
+	g.Position = UDim2.fromScale(0.5, 0.07)
+	g.Size = UDim2.fromScale(0.64, 0.3)
+	g.BackgroundColor3 = Color3.new(1, 1, 1)
+	g.BackgroundTransparency = 0.55
+	g.BorderSizePixel = 0
+	g.Parent = parent
+	round(g)
+	local fade = Instance.new("UIGradient")
+	fade.Rotation = 90
+	fade.Transparency = NumberSequence.new(0, 1)
+	fade.Parent = g
+end
+
+local KNOB_SIZE = 76
+local ARROWS: { { glyph: string, at: UDim2, color: Color3 } } = {
+	{ glyph = "▲", at = UDim2.fromScale(0.5, 0.1), color = Color3.fromRGB(139, 232, 28) }, -- push = gas
+	{ glyph = "▼", at = UDim2.fromScale(0.5, 0.9), color = Color3.fromRGB(255, 106, 106) }, -- pull = brake
+	{ glyph = "◀", at = UDim2.fromScale(0.09, 0.5), color = Color3.new(1, 1, 1) },
+	{ glyph = "▶", at = UDim2.fromScale(0.91, 0.5), color = Color3.new(1, 1, 1) },
+}
+
+-- the ring + ball. `ghost` is the see-through copy that waits bottom left until a thumb lands.
+local function makeStick(parent: Instance, ghost: boolean): (GuiObject, Frame)
+	local base: GuiObject
+	if ghost then
+		local cg = Instance.new("CanvasGroup")
+		cg.GroupTransparency = 0.4
+		base = cg
+	else
+		base = Instance.new("Frame")
+	end
+	base.Name = if ghost then "StickGhost" else "StickBase"
+	base.AnchorPoint = Vector2.new(0.5, 0.5)
+	base.Size = UDim2.fromOffset(STICK_RADIUS * 2, STICK_RADIUS * 2)
+	base.BackgroundColor3 = Color3.fromRGB(19, 48, 74)
+	base.BackgroundTransparency = 0
+	base.Parent = parent
+	round(base)
+	stroke(base, 5)
+	-- the thin light rim just inside the dark edge
+	local rim = Instance.new("Frame")
+	rim.Name = "Rim"
+	rim.AnchorPoint = Vector2.new(0.5, 0.5)
+	rim.Position = UDim2.fromScale(0.5, 0.5)
+	rim.Size = UDim2.new(1, -10, 1, -10)
+	rim.BackgroundTransparency = 1
+	rim.Parent = base
+	round(rim)
+	stroke(rim, 3, Color3.fromRGB(143, 216, 255)).Transparency = 0.45
+	for _, a in ARROWS do
+		local l = Instance.new("TextLabel")
+		l.Name = "Arrow"
+		l.AnchorPoint = Vector2.new(0.5, 0.5)
+		l.Position = a.at
+		l.Size = UDim2.fromOffset(26, 26)
+		l.BackgroundTransparency = 1
+		l.Font = FONT
+		l.Text = a.glyph
+		l.TextSize = 22
+		l.TextColor3 = a.color
+		l.Parent = base
+		stroke(l, 3)
+	end
+	-- the ball: a deep blue base, a light-to-dark blue face, a shine
+	local knob = Instance.new("Frame")
+	knob.Name = "Knob"
+	knob.AnchorPoint = Vector2.new(0.5, 0.5)
+	knob.Size = UDim2.fromOffset(KNOB_SIZE, KNOB_SIZE)
+	knob.Position = UDim2.fromScale(0.5, 0.5)
+	knob.BackgroundColor3 = Color3.new(1, 1, 1)
+	knob.Parent = base
+	round(knob)
+	stroke(knob, 4)
+	gradient(
+		knob,
+		Color3.fromRGB(196, 236, 255),
+		Color3.fromRGB(63, 184, 255),
+		Color3.fromRGB(28, 132, 234)
+	)
+	gloss(knob)
+	return base, knob
 end
 
 -- A round button that stays "held" while a finger is on it.
@@ -64,14 +184,24 @@ local function holdButton(
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0.5, 0)
 	corner.Parent = f
+	-- chunky look (carter's kit): ink edge, a darker bottom, a shine, the word stroked in ink
+	stroke(f, 4)
+	local shade = Instance.new("UIGradient")
+	shade.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(190, 190, 190))
+	shade.Rotation = 90
+	shade.Parent = f
+	gloss(f)
+	local squash = Instance.new("UIScale")
+	squash.Parent = f
 	local l = Instance.new("TextLabel")
 	l.BackgroundTransparency = 1
 	l.Size = UDim2.fromScale(1, 1)
-	l.Font = Enum.Font.LuckiestGuy
+	l.Font = FONT
 	l.TextScaled = true
 	l.TextColor3 = Color3.fromRGB(255, 255, 255)
 	l.Text = text
 	l.Parent = f
+	stroke(l, 3)
 	local pad = Instance.new("UIPadding")
 	pad.PaddingTop = UDim.new(0.3, 0)
 	pad.PaddingBottom = UDim.new(0.3, 0)
@@ -83,6 +213,7 @@ local function holdButton(
 		end
 		held = true
 		f.BackgroundColor3 = color:Lerp(Color3.new(1, 1, 1), 0.3)
+		squash.Scale = 0.94 -- (the kit: squash in 0.05 s, spring back)
 		local conn: RBXScriptConnection
 		conn = input.Changed:Connect(function()
 			if
@@ -91,6 +222,11 @@ local function holdButton(
 			then
 				held = false
 				f.BackgroundColor3 = color
+				TweenService:Create(
+					squash,
+					TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+					{ Scale = 1 }
+				):Play()
 				conn:Disconnect()
 			end
 		end)
@@ -170,39 +306,24 @@ function Controls.new(
 		zone.Size = UDim2.fromScale(0.5, 0.8)
 		zone.Parent = gui
 
-		local base = Instance.new("Frame")
-		base.Name = "StickBase"
-		base.AnchorPoint = Vector2.new(0.5, 0.5)
-		base.Size = UDim2.fromOffset(STICK_RADIUS * 2, STICK_RADIUS * 2)
-		base.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-		base.BackgroundTransparency = 0.75
+		local base, knob = makeStick(gui, false)
 		base.Visible = false
-		base.Parent = gui
-		local bc = Instance.new("UICorner")
-		bc.CornerRadius = UDim.new(0.5, 0)
-		bc.Parent = base
-		local knob = Instance.new("Frame")
-		knob.AnchorPoint = Vector2.new(0.5, 0.5)
-		knob.Size = UDim2.fromOffset(70, 70)
-		knob.Position = UDim2.fromScale(0.5, 0.5)
-		knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-		knob.BackgroundTransparency = 0.2
-		knob.Parent = base
-		local kc = Instance.new("UICorner")
-		kc.CornerRadius = UDim.new(0.5, 0)
-		kc.Parent = knob
+		-- waits bottom left (the kit keeps that corner clear) until a thumb lands
+		local ghost = makeStick(gui, true)
+		ghost.Position = UDim2.new(0, 44 + STICK_RADIUS + 18, 1, -(24 + STICK_RADIUS + 6))
 
 		local hint = Instance.new("TextLabel")
+		hint.Name = "StickHint"
 		hint.BackgroundTransparency = 1
 		hint.AnchorPoint = Vector2.new(0.5, 1)
-		hint.Position = UDim2.fromScale(0.22, 0.93)
-		hint.Size = UDim2.fromScale(0.3, 0.08)
-		hint.Font = Enum.Font.LuckiestGuy
-		hint.TextScaled = true
-		hint.TextColor3 = Color3.fromRGB(255, 255, 255)
-		hint.TextTransparency = 0.45
-		hint.Text = if stickGas then "▲  PUSH TO DRIVE  ▲" else "◄  STEER  ►"
+		hint.Position = UDim2.new(0, 44 + STICK_RADIUS + 18, 1, -(24 + STICK_RADIUS * 2 + 12))
+		hint.Size = UDim2.fromOffset(200, 22)
+		hint.Font = Enum.Font.Roboto
+		hint.TextSize = 18
+		hint.TextColor3 = Color3.new(1, 1, 1)
+		hint.Text = if stickGas then "PUSH TO DRIVE" else "STEER"
 		hint.Parent = gui
+		stroke(hint, 3)
 
 		-- one finger drives the stick; a second one in the zone is ignored until it lets go
 		local active: InputObject? = nil
@@ -217,6 +338,7 @@ function Controls.new(
 			touchGas, touchBrake = 0, 0
 			base.Visible = false
 			hint.Visible = true
+			ghost.Visible = true
 			knob.Position = UDim2.fromScale(0.5, 0.5)
 		end
 		-- (a touch the phone takes away ends as Cancel, not End: the gas must not stay down)
@@ -238,6 +360,7 @@ function Controls.new(
 			base.Position = UDim2.fromOffset(origin.X, origin.Y)
 			base.Visible = true
 			hint.Visible = false
+			ghost.Visible = false
 			stickConn = input.Changed:Connect(function()
 				if
 					input.UserInputState == Enum.UserInputState.End
@@ -316,7 +439,7 @@ function Controls.new(
 	resetBtn.AnchorPoint = Vector2.new(1, 0)
 	resetBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 46)
 	resetBtn.BackgroundTransparency = 0.25
-	resetBtn.Font = Enum.Font.LuckiestGuy
+	resetBtn.Font = Enum.Font.Oswald
 	resetBtn.TextScaled = true
 	resetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	-- the same word size on all four (SMOKE was tiny next to a big VIEW), a little inside the edge
@@ -386,7 +509,7 @@ function Controls.new(
 		b.Size = UDim2.fromScale(0.22, 0.22)
 		b.BackgroundColor3 = Color3.fromRGB(235, 150, 40)
 		b.BackgroundTransparency = 0.25
-		b.Font = Enum.Font.LuckiestGuy
+		b.Font = Enum.Font.Oswald
 		b.TextScaled = true
 		b.TextColor3 = Color3.fromRGB(255, 255, 255)
 		b.Visible = false
@@ -415,7 +538,7 @@ function Controls.new(
 		l.AnchorPoint = Vector2.new(0.5, 0.5)
 		l.Position = UDim2.fromScale(0.62, 0.4)
 		l.Size = UDim2.fromScale(0.2, 0.06)
-		l.Font = Enum.Font.LuckiestGuy
+		l.Font = Enum.Font.Oswald
 		l.TextScaled = true
 		l.TextColor3 = Color3.fromRGB(255, 255, 255)
 		l.TextTransparency = 0.5
@@ -433,7 +556,7 @@ function Controls.new(
 		help.AnchorPoint = Vector2.new(0.5, 1)
 		help.Position = UDim2.fromScale(0.5, 0.985)
 		help.Size = UDim2.fromScale(0.6, 0.035)
-		help.Font = Enum.Font.LuckiestGuy
+		help.Font = Enum.Font.Roboto
 		help.TextScaled = true
 		help.TextColor3 = Color3.fromRGB(255, 255, 255)
 		help.TextTransparency = 0.35

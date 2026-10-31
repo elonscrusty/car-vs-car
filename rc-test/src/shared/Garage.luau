@@ -24,6 +24,7 @@ export type Piece = {
 	light: number?, -- PointLight range, for lamps
 	face: boolean?, -- a Roblox smiley on its front (-Z) face: the toy kart driver's head
 	mesh: string?, -- a SpecialMesh of this Enum.MeshType name on it ("Head": the classic round head)
+	alpha: number?, -- Transparency (0..1), for light columns and glows
 }
 
 -- Loader: Roblox uses script.Parent, plain Lune (tests) uses relative paths.
@@ -375,6 +376,7 @@ export type Opts = {
 	light: number?,
 	face: boolean?,
 	mesh: string?,
+	alpha: number?,
 }
 export type Add = (
 	group: string,
@@ -402,6 +404,7 @@ function Garage.adder(out: { Piece }): Add
 			light = o.light,
 			face = o.face,
 			mesh = o.mesh,
+			alpha = o.alpha,
 		})
 	end
 end
@@ -1049,6 +1052,10 @@ function Garage.makeParts(pieces: { Piece }, model: Instance, origin: CFrame): {
 		part.Material = (Enum.Material :: any)[p.material]
 		part.TopSurface = Enum.SurfaceType.Smooth
 		part.BottomSurface = Enum.SurfaceType.Smooth
+		if p.alpha then
+			part.Transparency = p.alpha
+			part.CanQuery = false
+		end
 		if p.light then
 			local light = Instance.new("PointLight")
 			light.Range = p.light

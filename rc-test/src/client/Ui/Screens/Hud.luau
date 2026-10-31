@@ -20,6 +20,8 @@ local Hud = {}
 
 local WHITE = Base.WHITE
 local INK = Base.color("ink")
+local PIP_ON = Color3.fromRGB(139, 232, 28) -- (the kit's lime)
+local PIP_OFF = Color3.fromRGB(109, 122, 146) -- slate: a used shot
 
 local function piece(id: string, name: string): UiScreens.Piece
 	return UiScreens.piece(id, name)
@@ -700,13 +702,13 @@ end
 -- bottom right (with the weapon and its ammo); the stick corner stays free. Phone: the stick and
 -- FIRE are all it needs =====
 
-local FEED_ROWS = 2 -- (any screen: at most 2, auditor round 12)
-local FEED_SECS = 3
+local FEED_ROWS = 4 -- (carter's pick B, 10-30: was 2; the old 3 s was 5 s in the preview)
+local FEED_SECS = 5
+local FEED_ROW = 22
 local BOARD_TOP = 3 -- the top 3, then you (a phone's left side is the stick's: Audit F9)
 -- the board's and the kill list's words are 18 tall: 14 px on a 667x375 phone (Lead item 5)
 local WORDS = 18
 local BOARD_ROW, BOARD_STEP = 24, 27
-local FEED_STEP = 30 -- (3 rows of 28 in 88: lower and the YOU SMASHED words sat on it)
 local BOARD_NAME, FEED_NAME = 12, 8 -- letters a name keeps (then …) so it never shrinks small
 
 -- A name in capitals, cut to `max` letters (the last one a …) so its words stay big.
@@ -742,6 +744,22 @@ local function levelBadge(
 	return badge
 end
 
+-- Gold words (match 1A): a light-to-orange gradient over the letters (the ink stroke stays)
+local GOLD = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 251, 224)),
+	ColorSequenceKeypoint.new(0.38, Color3.fromRGB(255, 233, 90)),
+	ColorSequenceKeypoint.new(0.7, Color3.fromRGB(255, 196, 0)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 154, 0)),
+})
+function Hud.gold(l: TextLabel)
+	l.TextColor3 = WHITE
+	local g = Instance.new("UIGradient")
+	g.Name = "Gold"
+	g.Color = GOLD
+	g.Rotation = 90
+	g.Parent = l
+end
+
 -- the weapon's icon (Icons) for a weapon from the server: a Weapons name (Rockets, Nuke, Gun,
 -- Mine, Freeze) or a kill-list word (rockets, machine gun, freeze ray, bump...). "" / nil /
 -- unknown = the "?" box
@@ -755,6 +773,7 @@ local WEAPON_ICON: { [string]: string } = {
 	mines = "mine",
 	freeze = "freeze",
 	["freeze ray"] = "freeze",
+	flame = "flame",
 	bump = "power",
 }
 function Hud.weaponIcon(name: string?): string
@@ -799,8 +818,22 @@ function Hud.match(
 ): Screen.Handle
 	-- a phone: the small layout (UiScreens matchTouch), the middle of the screen left empty
 	local L = if touch then "matchTouch" else "match"
-	return Screen.open("match", "hud", false, function(g)
+	return Screen.open("match", "hud", true, function(g)
 		local c = g.canvas
+		-- (match 1A) a soft dark shade down from the top edge, so the white words read on bright
+		-- ground; on the back layer, edge to edge under the top bar
+		if g.back then
+			local shade = Instance.new("Frame")
+			shade.Name = "Shade"
+			shade.BorderSizePixel = 0
+			shade.BackgroundColor3 = Color3.fromRGB(8, 24, 40)
+			shade.Size = UDim2.new(1, 0, 0.3, 0)
+			shade.Parent = g.back
+			local sg = Instance.new("UIGradient")
+			sg.Rotation = 90
+			sg.Transparency = NumberSequence.new(0.32, 1)
+			sg.Parent = shade
+		end
 		-- PLACE: a trophy, big yellow 1ST, small / 5 (carter's kit v41)
 		local pp = piece(L, "Place")
 		local placeSpot = spot(c, L, "Place")
@@ -812,7 +845,7 @@ function Hud.match(
 			"Place",
 			px,
 			0,
-			if touch then pp.w - px else pp.w * 0.56 - px + 6,
+			if touch then 76 else pp.w * 0.56 - px + 6,
 			pp.h - 4,
 			"",
 			{
@@ -823,16 +856,60 @@ function Hud.match(
 				z = 3,
 			}
 		)
+		Hud.gold(big)
 		local of = Base.text(
 			placeSpot,
 			"Of",
-			pp.w * 0.62,
-			pp.h * 0.34,
-			pp.w * 0.36,
+			if touch then px + 78 else pp.w * 0.62,
+			pp.h * (if touch then 0.36 else 0.4),
+			if touch then 40 else pp.w * 0.36,
 			pp.h * 0.5,
 			"",
 			{ stroke = 5, drop = 3, align = "l", z = 3 }
 		)
+		-- (a phone, match 1A: the crash burst and your smashes right after the place)
+		local smashIcon: GuiObject? = nil
+		local smashWords: TextLabel? = nil
+		if touch then
+			local bs = pp.h * 0.8
+			smashIcon = Icons.make(placeSpot, "burst", px + 116, (pp.h - bs) / 2, bs, { z = 3 })
+			smashWords = Base.text(
+				placeSpot,
+				"Smashes",
+				px + 118 + bs,
+				pp.h * 0.18,
+				pp.w - (px + 118 + bs),
+				pp.h * 0.66,
+				"x0",
+				{ stroke = 6, drop = 3, align = "l", z = 3 }
+			)
+		end
+		local shownSmashes: number? = nil
+		-- +1 flies from the middle up to the smash count, which then bounces (match 1A)
+		local function plusOne()
+			local sw = smashWords
+			if not sw or Base.reduced() then
+				return
+			end
+			local w = Base.text(c, "PlusOne", 330, 150, 60, 36, "+1", { stroke = 6, z = 20 })
+			Hud.gold(w)
+			Anim.pop(w, 0.2, 0.4)
+			local to = sw.AbsolutePosition - c.AbsolutePosition
+			local cs = c.AbsoluteSize
+			Anim.to(w, 0.55, {
+				Position = UDim2.fromScale(
+					if cs.X > 0 then to.X / cs.X else 0.1,
+					if cs.Y > 0 then to.Y / cs.Y else 0.02
+				),
+				TextTransparency = 0.3,
+			}, Enum.EasingStyle.Quad, Enum.EasingDirection.In, 0.25)
+			task.delay(0.8, function()
+				w:Destroy()
+				if sw.Parent then
+					Anim.pop(sw, 0.3, 1.6)
+				end
+			end)
+		end
 		-- (before your first smash the chip says GO SMASH! instead: "- / 8" read as broken, audit
 		-- R3-1, and an empty corner read as missing, audit R6-3)
 		-- (a phone: one small "2/8", and GO! before your first smash)
@@ -858,15 +935,22 @@ function Hud.match(
 			-- with you 6th, Studio r52; GO! only before there is a place at all)
 			local placed = p >= 1
 			-- (each with its drop: GO SMASH!'s shadow stayed behind 3RD / 8, Studio round 6)
-			for l, on in { [go] = not placed, [big] = placed, [of] = placed and not touch } do
+			for l, on in { [go] = not placed, [big] = placed, [of] = placed } do
 				l.Visible = on
 				local d = placeSpot:FindFirstChild(l.Name .. "Drop")
 				if d and d:IsA("GuiObject") then
 					d.Visible = on
 				end
 			end
-			Base.setText(big, if touch then `{p}/{total}` else UiMotion.place(p))
-			Base.setText(of, "/ " .. tostring(total))
+			Base.setText(big, UiMotion.place(p))
+			Base.setText(of, (if touch then "/" else "/ ") .. tostring(total))
+			if smashWords and smashes then
+				Base.setText(smashWords, "x" .. tostring(math.floor(smashes)))
+				if shownSmashes and smashes > shownSmashes then
+					plusOne()
+				end
+				shownSmashes = smashes
+			end
 			if was ~= "" and was ~= big.Text and placed then
 				Anim.shout(placeSpot)
 			end
@@ -942,49 +1026,49 @@ function Hud.match(
 			)
 		end
 		local bx = starS + 4
-		local barY = if touch then 3 else 21
-		local barH = if touch then hp.h - 6 else hp.h - 21
-		local numW = if touch then 44 else 0
-		local bar = Kit.bar(hs, "Bar", bx + 8, barY, hp.w - bx - 8 - numW, barH, "lime", {
-			still = true,
+		local labelH = if touch then 16 else 19
+		local barY = if touch then 17 else 21
+		local barH = hp.h - barY
+		-- (match 1A: moving stripes, a tick every fifth, and a white chunk that lingers on a hit)
+		local bar = Kit.bar(hs, "Bar", bx + 8, barY, hp.w - bx - 8, barH, "lime", {
 			value = 1,
 			z = 3,
 		})
+		local chunk = Base.fill(bar, "Chunk", 0, 0, hp.w - bx - 8, barH, WHITE, 0)
+		Base.corner(chunk)
+		for i = 1, 4 do
+			local t = Base.fill(bar, "Tick" .. i, (hp.w - bx - 8) * i / 5 - 1, 0, 2, barH, INK, 4)
+			t.BackgroundTransparency = 0.55
+		end
 		local heart = barH + 10
 		local heartIcon =
 			Icons.make(hs, "heart", bx - 4, barY + (barH - heart) / 2, heart, { z = 5 })
-		if not touch then
+		do
 			Base.text(
 				hs,
 				"Name",
 				bx + 8,
 				0,
 				(hp.w - bx - 8) * 0.5,
-				19,
+				labelH,
 				Hud.cut(string.upper(tostring(data.name or "")), BOARD_NAME),
 				{ stroke = 3.5, align = "l", z = 6 }
 			)
 		end
-		local hpWords = if touch
-			then Base.text(hs, "Words", hp.w - numW + 2, 0, numW - 2, hp.h, "", {
+		local hpWords = Base.text(
+			hs,
+			"Words",
+			bx + 8 + (hp.w - bx - 8) * 0.5,
+			0,
+			(hp.w - bx - 8) * 0.5,
+			19,
+			"",
+			{
 				stroke = 3.5,
-				align = "l",
+				align = "r",
 				z = 6,
-			})
-			else Base.text(
-				hs,
-				"Words",
-				bx + 8 + (hp.w - bx - 8) * 0.5,
-				0,
-				(hp.w - bx - 8) * 0.5,
-				19,
-				"",
-				{
-					stroke = 3.5,
-					align = "r",
-					z = 6,
-				}
-			)
+			}
+		)
 		local lastHp = -1
 		local function setHealth(n: number, max: number, shield: boolean?)
 			local f = if max > 0 then math.clamp(n / max, 0, 1) else 0
@@ -999,13 +1083,16 @@ function Hud.match(
 				)
 			end
 			Kit.setBar(bar, f)
+			-- (the chunk waits 0.35 s, then shrinks; healing jumps it up with the fill)
+			if lastHp >= 0 and n < lastHp then
+				Anim.to(chunk, 0.3, { Size = UDim2.fromScale(f, 1) }, nil, nil, 0.35)
+			else
+				chunk.Size = UDim2.fromScale(f, 1)
+			end
 			local now = math.max(0, math.floor(n))
 			Base.setText(
 				hpWords,
-				if shield
-					then (if touch then "" else "SHIELD!")
-					elseif touch then tostring(now)
-					else `{now}/{math.max(0, math.floor(max))}`
+				if shield then "SHIELD!" else `{now}/{math.max(0, math.floor(max))}`
 			)
 			if lastHp >= 0 and n < lastHp then
 				-- (a hit: the heart jumps; the bar keeps its size, it read as a third-size bar
@@ -1017,10 +1104,14 @@ function Hud.match(
 		setHealth(data.hp or 100, data.maxHp or 100, data.shield)
 		-- SCOREBOARD: the leader and you (any screen, auditor round 12), most smashes first: the
 		-- place, a level badge (when the kart has a level), the name, the smashes; your row lime
-		local bp = piece(L, "Board")
-		local boardSpot = spot(c, L, "Board")
+		-- (a phone, match 1A: no board, the place chip says it)
+		local bp = if touch then nil else piece(L, "Board")
+		local boardSpot = if touch then nil else spot(c, L, "Board")
 		local boardRows: { Frame } = {}
 		local function setBoard(list: { { [string]: any } })
+			if not (bp and boardSpot) then
+				return
+			end
 			for _, r in boardRows do
 				r:Destroy()
 			end
@@ -1073,13 +1164,13 @@ function Hud.match(
 			end
 		end
 		setBoard(data.board or {})
-		-- KILL LIST: up to 2 rows, newest on top, each gone after 3 s (any screen, auditor round 12)
+		-- KILL LIST: up to 4 rows, newest on top, each gone after 5 s (carter's pick B)
 		local fp = piece(L, "Feed")
 		local feedSpot = spot(c, L, "Feed")
 		local rows: { Frame } = {}
 		local feedRows = FEED_ROWS
 		local feedSecs = FEED_SECS
-		local feedStep = if touch then 30 else FEED_STEP
+		local feedStep = FEED_ROW
 		local function layoutRows()
 			for i, r in rows do
 				Anim.to(r, 0.2, { Position = UDim2.fromScale(0, (i - 1) * feedStep / fp.h) })
@@ -1093,50 +1184,39 @@ function Hud.match(
 			attackerLevel: number?,
 			victimLevel: number?
 		)
-			local row = Base.fill(feedSpot, "Row", 0, 0, fp.w, if touch then 26 else 28, INK, 2)
-			-- carter's kit v41: a dark ink plate, its left edge lime when you are in it
-			row.BackgroundTransparency = 0.22
-			Base.corner(row)
-			local rowH = if touch then 26 else 28
-			local edge = Base.fill(
-				row,
-				"Edge",
-				4,
-				5,
-				5,
-				rowH - 10,
-				Base.color(if mine then "lime" else "pink"),
-				2
-			)
-			Base.corner(edge)
-			-- each side: [level] NAME, the weapon between (a side with no level: the name
-			-- takes the badge's room)
-			local half = (fp.w - 32) / 2
-			local function side(x: number, name: string, level: number?, key: string, align: string)
-				local nx, nw = x, half - 4
-				if type(level) == "number" and not touch then
-					levelBadge(row, x, 3, level, key .. "Level", 24)
-					nx, nw = x + 26, half - 30
-					align = "l" -- (the name right after its badge)
-				end
+			-- carter's pick B (10-30, match-screen/killlist): bare outlined words, no plate: WHO
+			-- (gold when you are in it), the weapon, a red arrow, WHOM
+			local rowH = FEED_ROW
+			local row = Base.box(feedSpot, "Row", 0, 0, fp.w, rowH, 2)
+			local nameW = math.floor((fp.w - rowH - 18) / 2)
+			local function side(x: number, name: string, key: string, gold: boolean)
 				Base.text(
 					row,
 					key,
-					nx,
-					if touch then 4 else 5,
-					nw,
-					WORDS,
-					Hud.cut(name, if touch then 7 else FEED_NAME),
+					x,
+					2,
+					nameW,
+					rowH - 4,
+					Hud.cut(name, if touch then 6 else FEED_NAME),
 					{
 						stroke = 3.5,
-						align = align,
+						align = "l",
 						z = 3,
+						color = if gold then Base.color("go") else nil,
 					}
 				)
 			end
-			side(10, attacker, attackerLevel, "Who", "r")
-			Icons.make(row, Hud.weaponIcon(weapon), half + 4, 2, 24, { z = 4 })
-			side(half + 30, victim, victimLevel, "Whom", "l")
+			-- (levels stay off this line: the kit's board and health bar show them)
+			side(0, attacker, "Who", mine == true)
+			Icons.make(row, Hud.weaponIcon(weapon), nameW + 2, 0, rowH, { z = 4 })
+			local arrow = Base.text(row, "Arrow", nameW + rowH + 2, 2, 14, rowH - 4, "›", {
+				stroke = 3.5,
+				align = "c",
+				z = 3,
+				color = Base.color("danger"),
+			})
+			arrow.Name = "Arrow"
+			side(nameW + rowH + 16, victim, "Whom", false)
 			table.insert(rows, 1, row)
 			while #rows > feedRows do
 				(table.remove(rows) :: Frame):Destroy()
@@ -1159,6 +1239,14 @@ function Hud.match(
 		local fire = Kit.round(fireSpot, "Fire", 0, 0, fpc.w, "pink", "FIRE", {
 			onClick = Screen.act(actions, "fire"),
 		})
+		-- (match 1A) empty hands: a soft white ring breathes around the orb
+		local ring = Base.box(fireSpot, "Ring", -8, -8, fpc.w + 16, fpc.w + 16, 2)
+		Base.corner(ring)
+		local ringLine = Base.outline(ring, 4, WHITE)
+		ringLine.Transparency = 0.45
+		if not Base.reduced() then
+			Anim.pulse(ring, 1.08, 0.7)
+		end
 		local body = fire.button:FindFirstChild("Body") :: Frame
 		local label = body:FindFirstChild("Label") :: TextLabel
 		local icon: GuiObject? = nil
@@ -1167,6 +1255,29 @@ function Hud.match(
 		Base.outline(ball, UiTheme.OUTLINE.normal)
 		Kit.face(ball, { UiTheme.FACE.go.hi, UiTheme.FACE.go.c, UiTheme.FACE.go.c2 })
 		local ammoWords = Base.text(ball, "N", 4, 6, 30, 24, "", { color = INK, z = 8 })
+		-- ammo pips on an arc at the top left (the kit): lime = a shot left, slate = used. Only for
+		-- small stocks (5 or fewer); a big stock is just the coin's number
+		local PIP_MAX = 5
+		local pips: { Frame } = {}
+		for i = 1, PIP_MAX do
+			local a = math.rad(190 + (i - 1) * 28)
+			local r = fpc.w / 2 + 10
+			local pip = Base.fill(
+				fire.button,
+				"Pip" .. i,
+				fpc.w / 2 + math.cos(a) * r - 6.5,
+				fpc.w / 2 + math.sin(a) * r - 6.5,
+				13,
+				13,
+				PIP_ON,
+				7
+			)
+			Base.corner(pip)
+			Base.outline(pip, 3)
+			pip.Visible = false
+			pips[i] = pip
+		end
+		local maxAmmo = 0 -- (the stock the weapon came with)
 		local orbH = fpc.w - 9 * fpc.w / 100
 		local dim = Base.fill(body, "Empty", 0, 0, fpc.w, orbH, WHITE, 7)
 		Base.corner(dim)
@@ -1204,6 +1315,7 @@ function Hud.match(
 					icon:Destroy()
 				end
 				icon = Icons.make(body, key, fpc.w * 0.22, fpc.w * 0.14, fpc.w * 0.56, { z = 6 })
+				maxAmmo = if has then ammo or 0 else 0
 				if has then
 					Anim.pop(fire.button, nil, 0.6)
 					if tipOn then
@@ -1237,7 +1349,13 @@ function Hud.match(
 			end
 			ball.Visible = has
 			ammoWords.Text = tostring(ammo or 0)
+			maxAmmo = math.max(maxAmmo, ammo or 0)
+			for i, pip in pips do
+				pip.Visible = has and maxAmmo <= PIP_MAX and i <= maxAmmo
+				pip.BackgroundColor3 = if i <= (ammo or 0) then PIP_ON else PIP_OFF
+			end
 			dim.Visible = not has
+			ring.Visible = not has
 		end
 		setWeapon(data.weapon, data.ammo)
 		return {

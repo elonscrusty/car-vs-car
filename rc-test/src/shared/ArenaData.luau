@@ -92,6 +92,9 @@ ArenaData.RAMPS = {
 ArenaData.RAMP_DECK = 5
 -- each ramp's sides slope down to the grass this far out (picture units) at the top end
 ArenaData.RAMP_FLANK = 6
+-- the glowing boost arrows on each ramp wear this tag and a number attribute "U" (0 foot .. 1 top);
+-- client/BoostArrows pulses them up the ramp on each screen (looks only, no extra air)
+ArenaData.BOOST_TAG = "BoostArrow"
 
 -- the purple platform in the north-west corner (start spot 1 is on it): against the outer wall on
 -- two sides, gentle slopes a kart drives down (and up) on the other two (STEP_SIDES: edge numbers)
@@ -612,32 +615,32 @@ function ArenaData.track(): any -- a TrackData.Track (Lune can't load the type h
 	}
 end
 
--- The arena's light (LOOK RULE: warm sun, bloom), put on while the camera is in the arena.
--- carter picked the "sunny" look (10-29, sky-tries picture A): bright blue sky, soft clouds,
--- clear warm light, a little extra colour and glow. ArenaSky puts it on while over the arena.
+-- The arena's light, put on while the camera is in the arena. carter picked the NIGHT yard
+-- (derby junkyard at night, fire barrels, 10-29): moonlit blue shade, deep blue haze, stars, and a
+-- strong bloom so fire, lamps and lit windows glow. ArenaSky puts it on while over the arena.
 ArenaData.lighting = {
-	ClockTime = 13.5,
-	GeographicLatitude = 20,
-	Brightness = 2.6,
-	ExposureCompensation = 0.1,
-	ShadowSoftness = 0.2,
-	EnvironmentDiffuseScale = 0.3,
-	EnvironmentSpecularScale = 0,
+	ClockTime = 15.3, -- sunny afternoon (carter 10-30: no night, too much glow, hard to read)
+	GeographicLatitude = 0,
+	Brightness = 3,
+	ExposureCompensation = 0,
+	ShadowSoftness = 0.25,
+	EnvironmentDiffuseScale = 0.25,
+	EnvironmentSpecularScale = 0.2,
 }
-ArenaData.ambient = { 110, 110, 128 }
-ArenaData.outdoorAmbient = { 150, 150, 165 }
-ArenaData.colorShiftTop = { 255, 240, 215 }
+ArenaData.ambient = { 96, 100, 122 }
+ArenaData.outdoorAmbient = { 120, 124, 146 }
+ArenaData.colorShiftTop = { 255, 246, 226 }
 ArenaData.atmosphere = {
-	Density = 0.3,
-	Offset = 0.25,
-	Haze = 0.6,
+	Density = 0.1,
+	Offset = 0,
+	Haze = 0,
 	Glare = 0,
-	color = { 205, 228, 255 },
-	decay = { 170, 210, 250 },
+	color = { 150, 205, 255 },
+	decay = { 90, 160, 235 },
 }
-ArenaData.clouds = { Cover = 0.5, Density = 0.6 }
+ArenaData.clouds = { Cover = 0.45, Density = 0.55 }
 ArenaData.colorCorrection =
-	{ Brightness = 0.02, Contrast = 0.1, Saturation = 0.22, tint = { 255, 248, 238 } }
-ArenaData.bloom = { Intensity = 0.45, Size = 24, Threshold = 1.4 }
+	{ Brightness = 0.02, Contrast = 0.06, Saturation = 0.15, tint = { 255, 248, 236 } }
+ArenaData.bloom = { Intensity = 0.2, Size = 24, Threshold = 2 } -- barely any glow
 
 return ArenaData

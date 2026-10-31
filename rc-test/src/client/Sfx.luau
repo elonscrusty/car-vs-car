@@ -145,6 +145,11 @@ function Sfx.speedUp()
 	play("speedUp")
 end
 
+-- any button tapped: one soft click
+function Sfx.tap()
+	play("tap")
+end
+
 -- a bar hit its cap (MAX!)
 function Sfx.maxed()
 	play("maxed")
@@ -220,6 +225,11 @@ function Sfx.freeze(at: Vector3?)
 	play("freeze", nil, nil, at)
 end
 
+-- the Flame Nozzle sends a burst of fire
+function Sfx.flame(at: Vector3?)
+	play("flame", nil, nil, at)
+end
+
 -- the ice bursts and the kart is smashed
 function Sfx.shatter(at: Vector3?)
 	play("shatter", nil, nil, at)
@@ -250,9 +260,14 @@ function Sfx.bump(at: Vector3?)
 	play("bump", 0.9 + math.random() * 0.2, nil, at)
 end
 
--- a kart got smashed
+-- a kart got smashed: the Big Boom (carter's pick). The boom, the crash and the metal crunch hit
+-- together, the crowd goes "oooh", and a small second pop lands with the fire's second pop (0.42 s).
 function Sfx.smash(at: Vector3?)
+	play("smashBoom", nil, nil, at)
 	play("smash", nil, nil, at)
+	task.delay(0.05, play, "smashMetal", nil, nil, at)
+	task.delay(0.3, play, "smashCrowd", nil, nil, at)
+	task.delay(0.42, play, "smashPop", nil, nil, at)
 end
 
 -- you are back in the arena

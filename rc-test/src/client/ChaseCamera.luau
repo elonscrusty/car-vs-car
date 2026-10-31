@@ -24,6 +24,9 @@ export type Cam = {
 	kick: (degrees: number) -> (),
 	setArena: (on: boolean, now: boolean?) -> (),
 	arenaDistance: () -> number,
+	isArena: () -> boolean,
+	comeBack: () -> (),
+	flyIn: () -> (),
 }
 
 export type View = "driver" | "chase" | "top" | "free"
@@ -169,6 +172,8 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 	-- the match camera: on or off, and how far into it (eased over ArenaCam.BLEND)
 	local arenaOn = false
 	local arenaFrom, arenaW, arenaT = 0, 0, 0
+	local whoosh = -1 -- seconds into the come-back whoosh after a respawn (below 0 = not playing)
+	local flying = -1 -- seconds into the match start fly-in (below 0 = not playing)
 	refit(camera.ViewportSize) -- (this screen's numbers before the first spot: no swoop)
 	local arenaOff = -heading * ARENA_BACK + Vector3.new(0, ARENA_UP, 0) -- camera minus focus
 	local lean = Vector3.zero -- the look-ahead, eased
@@ -302,7 +307,9 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 		end
 		-- tumbling or on its side: the nose points anywhere, so hold the heading still
 		if cf.UpVector.Y > 0.7 then
-			heading = flat(heading:Lerp(want, 1 - math.exp(-5 * dt)))
+			-- (settings CAMERA fixed: the view turns slowly, it doesn't swing with the car)
+			local rate = if Players.LocalPlayer:GetAttribute("CamFixed") == true then 0.6 else 5
+			heading = flat(heading:Lerp(want, 1 - math.exp(-rate * dt)))
 		end
 
 		-- carry the focus along at the car's speed, then pull it onto the car: no lag, no shake
@@ -331,7 +338,7 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 	local arrow = Instance.new("TextLabel")
 	arrow.Size = UDim2.fromScale(1, 1)
 	arrow.BackgroundTransparency = 1
-	arrow.Font = Enum.Font.LuckiestGuy
+	arrow.Font = Enum.Font.Oswald
 	arrow.TextScaled = true
 	arrow.Text = "▼"
 	arrow.TextColor3 = Color3.fromRGB(255, 220, 40)
@@ -365,7 +372,23 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 		return arenaFit.distance
 	end
 
+	-- is the match camera on now (Main: a respawn in a match gets the come-back whoosh)
+	function cam.isArena(): boolean
+		return arenaOn
+	end
+
+	-- the come-back whoosh (shared/ArenaCam.comeBack): starts at the next frame
+	function cam.comeBack()
+		whoosh = 0
+	end
+
+	-- the match start fly-in (shared/ArenaCam.flyIn): starts at the next frame
+	function cam.flyIn()
+		flying = 0
+	end
+
 	function cam.snap()
+		whoosh, flying = -1, -1
 		heading = flat(body.CFrame.LookVector)
 		pos = body.Position - heading * Tuning.camDistance + Vector3.new(0, Tuning.camHeight, 0)
 		lookAt = body.Position
@@ -564,10 +587,13 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 
 		if arenaW > 1e-3 then
 			refit(camera.ViewportSize)
-			-- where it wants to be: behind and above, or swung up steeper when a wall is close
-			local want = arenaWant(-heading * ARENA_BACK + Vector3.new(0, ARENA_UP, 0))
-			if want.Magnitude < ArenaCam.MIN_REACH * arenaFit.distance then
-				local steep = arenaWant(-heading * STEEP_BACK + Vector3.new(0, STEEP_UP, 0))
+			-- where it wants to be: behind and above (further back at speed: the speed zoom),
+			-- or swung up steeper when a wall is close
+			local pull = 1 + arenaFit.back * CarMath.clamp(flatSpeed / Tuning.topSpeed, 0, 1)
+			local want = arenaWant((-heading * ARENA_BACK + Vector3.new(0, ARENA_UP, 0)) * pull)
+			if want.Magnitude < ArenaCam.MIN_REACH * arenaFit.distance * pull then
+				local steep =
+					arenaWant((-heading * STEEP_BACK + Vector3.new(0, STEEP_UP, 0)) * pull)
 				if steep.Magnitude > want.Magnitude then
 					want = steep
 				end
@@ -617,8 +643,51 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 				)
 				else 0
 			local aLook = focus + heading * aim + lean
+			local wideBy = 0 -- the come-back's wider view
 			if arenaW >= 1 then
 				pos, lookAt = focus + arenaOff, aLook
+				if flying >= 0 then
+					-- the fly-in: round the arena from high up, tightening down onto the kart; a
+					-- moving kart rushes it, so it never gets in the way of driving
+					flying += dt * (if flatSpeed > 3 * Tuning.scale then ArenaCam.FLYIN_RUSH else 1)
+					local k, turn, out, hgt, wide = ArenaCam.flyIn(flying, flatOff, arenaOff.Y)
+					wideBy = wide
+					local arena = arenaModel
+					local middle = if arena and arena:IsA("Model")
+						then arena:GetBoundingBox().Position
+						else focus
+					local mid = Vector3.new(middle.X, focus.Y, middle.Z):Lerp(focus, k)
+					local back = Vector3.new(arenaOff.X, 0, arenaOff.Z)
+					if back.Magnitude > 1e-3 then
+						local c, s = math.cos(turn), math.sin(turn)
+						local u = back.Unit
+						local dir = Vector3.new(u.X * c - u.Z * s, 0, u.X * s + u.Z * c)
+						pos = mid + dir * out + Vector3.new(0, hgt, 0)
+						if k >= ArenaCam.FLYIN_WALLS then
+							pos = focus + arenaWant(pos - focus)
+						end
+						lookAt = Vector3.new(middle.X, focus.Y, middle.Z):Lerp(aLook, k)
+					end
+					if flying >= ArenaCam.FLYIN_SECONDS then
+						flying = -1
+					end
+				elseif whoosh >= 0 then
+					-- the come-back: round the kart, wide and high, spiralling in to the chase spot
+					-- (the wall check still holds it off the walls)
+					whoosh += dt
+					local turn, out, hgt, wide = ArenaCam.comeBack(whoosh, flatOff, arenaOff.Y)
+					wideBy = wide
+					local back = Vector3.new(arenaOff.X, 0, arenaOff.Z)
+					if back.Magnitude > 1e-3 then
+						local c, s = math.cos(turn), math.sin(turn)
+						local u = back.Unit
+						local dir = Vector3.new(u.X * c - u.Z * s, 0, u.X * s + u.Z * c)
+						pos = focus + arenaWant(dir * out + Vector3.new(0, hgt, 0))
+					end
+					if whoosh >= ArenaCam.COMEBACK_SECONDS then
+						whoosh = -1
+					end
+				end
 			else
 				pos = pos:Lerp(focus + arenaOff, arenaW)
 				lookAt = lookAt:Lerp(aLook, arenaW)
@@ -626,7 +695,7 @@ function ChaseCamera.new(body: BasePart, ignore: { Instance }, eye: () -> Vector
 				-- spot itself)
 				pos = focus + arenaWant(pos - focus)
 			end
-			fov += (aFov - fov) * arenaW
+			fov += (aFov - fov) * arenaW + wideBy
 		end
 		camera.CFrame = CFrame.lookAt(pos, lookAt)
 		camera.FieldOfView = fov + kick

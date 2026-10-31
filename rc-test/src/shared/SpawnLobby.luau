@@ -23,10 +23,12 @@ local CarCatalog = sibling("CarCatalog")
 local CarGlow = sibling("CarGlow")
 local Features = sibling("Features")
 local Garage = sibling("Garage")
+local LobbyGarage = sibling("LobbyGarage")
 
 type V3 = Garage.V3
 type Piece = Garage.Piece
 type Mesh = Garage.Mesh
+local LobbyProps = sibling("LobbyProps")
 
 local SpawnLobby = {}
 
@@ -75,14 +77,28 @@ SpawnLobby.SMASH = Features.CVC
 -- where people appear, looking at the pads and the street (+Z). Smash (LOOK-BIBLE rule 9): further
 -- back, so the first frame is the big SMASH! portal with the street behind it
 SpawnLobby.SPAWN = if SpawnLobby.SMASH then { x = 0, z = -6 } else { x = 0, z = 15 }
-SpawnLobby.PORTAL_R = 8.5 -- the SMASH! ring's radius
-SpawnLobby.PORTAL_DAIS = 0.35 -- the round dais under it (low and walk-through)
-SpawnLobby.PORTAL_T = 1.8 -- the ring's thickness: thick and chunky (rule 2)
-if SpawnLobby.SMASH then
-	SpawnLobby.BOX.maxY = 21 -- (the big portal ring stands taller than the rest)
+-- Smash match pads (carter 10-29: no portal, "just pads to stand on to queue into the next match";
+-- try C "light ring" of camera: lobby-preview/match-pads.html): three round light-ring pads in a
+-- row, a short pink beam over each and three rings turning round it. Stand on one 2 s to join.
+SpawnLobby.PAD_R = 6 -- a pad's radius (its plate is a little wider)
+SpawnLobby.PAD_BEAM = 9 -- studs the light column stands
+SpawnLobby.PAD_RINGS = { 2.6, 4.8, 7 } -- heights of the turning rings
+SpawnLobby.PAD_BASE = 8.4 -- the hidden square the server watches, inside the round pad
+SpawnLobby.SMASH_PADS = { -19, 0, 19 }
+-- The Garage Hub look (carter picked layout F, 10-30; it replaces the Junkyard Dock): a garage hall
+-- round the plaza (LobbyGarage), grey concrete paving, yellow hazard kerbs. Smash only; false =
+-- the sandy plaza.
+SpawnLobby.GARAGE = SpawnLobby.SMASH
+if SpawnLobby.GARAGE then
+	-- the back and front walls stand just outside the floor (1.6 deep)
+	SpawnLobby.BOX = { minX = -60, maxX = 60, minZ = -41, maxZ = 38, maxY = 21 }
 end
 SpawnLobby.PADS = if SpawnLobby.SMASH
-	then { { x = 0, kind = "smash", color = { 255, 95, 180 } } } -- Smash: one SMASH! portal (bible pink)
+	then {
+		{ x = SpawnLobby.SMASH_PADS[1], kind = "smash", color = { 255, 95, 180 } },
+		{ x = SpawnLobby.SMASH_PADS[2], kind = "smash", color = { 255, 95, 180 } },
+		{ x = SpawnLobby.SMASH_PADS[3], kind = "smash", color = { 255, 95, 180 } },
+	} -- Smash: three light-ring match pads (bible pink)
 	elseif Features.CVC then { { x = 0, kind = "race", color = { 226, 52, 46 } } } -- racing only
 	else {
 		{ x = -27, kind = "drift", color = { 150, 70, 210 } },
@@ -165,6 +181,12 @@ local L = {
 	green = { 70, 210, 90 },
 	statue = { 214, 48, 44 },
 }
+if SpawnLobby.GARAGE then
+	-- concrete, not sand: two greys under the yellow hazard kerbs
+	L.paving = { 112, 116, 130 }
+	L.paving2 = { 134, 138, 152 }
+	L.kerb = { 255, 205, 40 }
+end
 -- one colour per player's car on the stands, and the bunting
 local CAR_COLORS = {
 	{ 214, 48, 44 },
@@ -218,14 +240,18 @@ function SpawnLobby.parts(): { Piece }
 		-- two-tone paving (LOOK-BIBLE rule 5, auditor looks round 2): big light slabs in a
 		-- checker, none touching the walk out or the portal's painted ring
 		local TILE, GAP_IN = 12, 1
-		local pr = 12 -- the painted ring round the portal's dais (the dais is 23 across, so a band shows)
+		local pr = SpawnLobby.PAD_R + 1.5 -- clear round each pad's plate
 		for ix = 0, math.floor(W / TILE) - 1 do
 			for iz = 0, math.floor(D / TILE) - 1 do
 				local x = -W / 2 + TILE / 2 + ix * TILE
 				local z = back + TILE / 2 + iz * TILE
 				local far = TILE * 0.71 -- the slab's half diagonal
-				local clear = math.sqrt(x * x + (z - SpawnLobby.PAD_Z) ^ 2) > pr + 1 + far
-					and not (math.abs(x) < SpawnLobby.GAP + TILE / 2 and z > 11 - TILE / 2)
+				local clear = not (math.abs(x) < SpawnLobby.GAP + TILE / 2 and z > 11 - TILE / 2)
+				for _, px in SpawnLobby.SMASH_PADS do
+					if math.sqrt((x - px) ^ 2 + (z - SpawnLobby.PAD_Z) ^ 2) <= pr + 1 + far then
+						clear = false
+					end
+				end
 				for _, b in SpawnLobby.BUILDINGS do
 					-- (off the shops and their yards: the crate mat lies flat on the plaza)
 					if math.abs(x - b.x) < 22 and math.abs(z - b.z) < 22 then
@@ -239,7 +265,7 @@ function SpawnLobby.parts(): { Piece }
 						"SlabEdge",
 						v(TILE - GAP_IN, 0.04, TILE - GAP_IN),
 						v(x, 0.02, z),
-						{ 200, 158, 104 },
+						if SpawnLobby.GARAGE then { 96, 100, 114 } else { 200, 158, 104 },
 						{ collide = false }
 					)
 					add(
@@ -253,19 +279,6 @@ function SpawnLobby.parts(): { Piece }
 				end
 			end
 		end
-		-- a painted yellow ring on the floor round the portal (the dais sits in it)
-		add(
-			"Ground",
-			"PortalRing",
-			v(0.2, 2 * pr + 2, 2 * pr + 2),
-			v(0, 0.1, SpawnLobby.PAD_Z),
-			L.yellow,
-			{
-				shape = "Cylinder",
-				rot = v(0, 0, 90),
-				collide = false,
-			}
-		)
 	end
 	add("Ground", "KerbBack", v(W, 0.6, 1), v(0, 0.3, back + 0.5), L.kerb)
 	add("Ground", "KerbLeft", v(1, 0.6, D), v(-W / 2 + 0.5, 0.3, 0), L.kerb)
@@ -346,7 +359,70 @@ function SpawnLobby.parts(): { Piece }
 	for i, pad in SpawnLobby.PADS do
 		local g = "QueuePad" .. i
 		local px, pz = pad.x, SpawnLobby.PAD_Z
-		local lift = if pad.kind == "smash" then 0.55 else 0 -- (on the Smash portal's dais)
+		local lift = 0
+		if pad.kind == "smash" then
+			-- carter's pick C, "light ring": a navy plate with a sunny lip, a pink glowing disc, a
+			-- short light column and three rings turning round it. "Rim" is the glowing disc (it
+			-- blinks while someone waits); "Base" is the square the server watches, hidden under
+			-- the paler core. No collision: you drive straight on.
+			local R, B = SpawnLobby.PAD_R, SpawnLobby.PAD_BASE
+			local flat = { shape = "Cylinder", rot = v(0, 0, 90), collide = false }
+			local function disc(
+				name: string,
+				d: number,
+				y: number,
+				h: number,
+				c: { number },
+				neon: boolean
+			)
+				add(g, name, v(h, d, d), v(px, y, pz), c, {
+					shape = flat.shape,
+					rot = flat.rot,
+					collide = false,
+					material = if neon then "Neon" else nil,
+				})
+			end
+			disc("Plate", 2 * R + 0.8, 0.15, 0.3, { 30, 42, 90 }, false)
+			disc("Lip", 2 * R + 0.4, 0.31, 0.1, { 255, 210, 63 }, false)
+			disc("Rim", 2 * R - 0.4, 0.37, 0.08, pad.color, true)
+			add(g, "Base", v(B, 0.08, B), v(px, 0.38, pz), pad.color, {
+				material = "Neon",
+				collide = false,
+			})
+			disc("Core", 0.75 * R * 2, 0.43, 0.06, { 255, 170, 215 }, true)
+			local P = "Portal" .. i -- the beam and the turning rings (LobbyMotion "PortalSpin")
+			local H = SpawnLobby.PAD_BEAM
+			add(P, "Beam", v(H, 0.72 * 2 * R, 0.72 * 2 * R), v(px, H / 2 + 0.4, pz), pad.color, {
+				shape = "Cylinder",
+				rot = v(0, 0, 90),
+				material = "Neon",
+				collide = false,
+				alpha = 0.62,
+			})
+			add(P, "BeamCore", v(H, 4.4, 4.4), v(px, H / 2 + 0.4, pz), { 255, 224, 120 }, {
+				shape = "Cylinder",
+				rot = v(0, 0, 90),
+				material = "Neon",
+				collide = false,
+				alpha = 0.72,
+			})
+			local N, RR, T = 12, 0.87 * R, 0.5
+			local seg = 2 * RR * math.tan(math.pi / N) + 0.1
+			for ri, y in SpawnLobby.PAD_RINGS do
+				for k = 0, N - 1 do
+					local a = (k + 0.5) / N * 2 * math.pi
+					add(
+						P,
+						"Ring",
+						v(seg, T, T),
+						v(px + math.cos(a) * RR, y, pz + math.sin(a) * RR),
+						if (k + ri) % 2 == 0 then pad.color else { 255, 210, 63 },
+						{ rot = v(0, -math.deg(a) + 90, 0), material = "Neon", collide = false }
+					)
+				end
+			end
+			continue
+		end
 		add(
 			g,
 			"Rim",
@@ -356,72 +432,6 @@ function SpawnLobby.parts(): { Piece }
 			{ material = "Neon", collide = false }
 		)
 		add(g, "Base", v(12, 0.08, 10), v(px, 0.04 + lift, pz), C.dark, { collide = false })
-		if pad.kind == "smash" then
-			-- Smash (FINISH-JOBS LOBBY, LOOK-BIBLE rule 9): the lobby's hero. A big, thick hot pink
-			-- portal ring on a round navy and pink dais, seen first from the spawn; no start grid or
-			-- start lights (no racing now)
-			local P = "Portal" .. i -- its own group: the PlayPad mesh would replace the pad's
-			-- (low and walk-through: the walk to the street passes its edge)
-			local DAIS = SpawnLobby.PORTAL_DAIS
-			add(P, "Dais", v(DAIS, 23, 23), v(px, DAIS / 2, pz), { 30, 42, 90 }, {
-				shape = "Cylinder",
-				rot = v(0, 0, 90),
-				collide = false,
-			})
-			add(
-				P,
-				"DaisLip",
-				v(DAIS + 0.1, 21.4, 21.4),
-				v(px, DAIS / 2 + 0.05, pz),
-				{ 255, 210, 63 },
-				{
-					shape = "Cylinder",
-					rot = v(0, 0, 90),
-					collide = false,
-				}
-			)
-			add(P, "DaisTop", v(DAIS + 0.2, 20, 20), v(px, DAIS / 2 + 0.1, pz), { 255, 120, 196 }, {
-				shape = "Cylinder",
-				rot = v(0, 0, 90),
-				collide = false,
-			})
-			local R, N = SpawnLobby.PORTAL_R, 24
-			local T = SpawnLobby.PORTAL_T
-			local seg = 2 * R * math.tan(math.pi / N) + 0.2
-			for k = 0, N - 1 do
-				local a = (k + 0.5) / N * 2 * math.pi
-				add(
-					P,
-					"Ring",
-					v(seg, T, T),
-					v(px + math.cos(a) * R, DAIS + R + T / 2 + math.sin(a) * R, pz),
-					-- every 4th piece sunny, so the ring's slow spin shows (LobbyMotion)
-					if k % 4 == 0 then { 255, 210, 63 } else pad.color,
-					{ rot = v(0, 0, math.deg(a) + 90), material = "Neon", collide = false }
-				)
-			end
-			-- two fat navy feet with sunny caps hold the ring on the dais
-			for _, sx in { -1, 1 } do
-				add(
-					P,
-					"Foot",
-					v(2.6, 3, 2.6),
-					v(px + sx * (R - 1.2), DAIS + 1.5, pz),
-					{ 30, 42, 90 }
-				)
-				add(
-					P,
-					"FootCap",
-					v(3, 0.8, 3),
-					v(px + sx * (R - 1.2), DAIS + 3.4, pz),
-					{ 255, 210, 63 },
-					{
-						collide = false,
-					}
-				)
-			end
-			continue
-		end
 		for _, lx in { -2.8, 2.8 } do
 			add(
 				g,
@@ -561,7 +571,8 @@ function SpawnLobby.parts(): { Piece }
 	end
 
 	-- ===== Lamps =====
-	for i, p in SpawnLobby.LAMPS do
+	-- (the garage hall has its own lamp arms: LobbyGarage)
+	for i, p in if SpawnLobby.GARAGE then {} else SpawnLobby.LAMPS do
 		local g = "Lamp" .. i
 		if SpawnLobby.SMASH then
 			-- chunky navy posts with a sunny ball (LOOK-BIBLE rules 2 and 3)
@@ -587,6 +598,11 @@ function SpawnLobby.parts(): { Piece }
 			L.glow,
 			{ material = "Neon", collide = false, light = 18 }
 		)
+	end
+
+	-- ===== Smash: two floodlight towers by the portal and the scrap claw (LobbyProps) =====
+	if SpawnLobby.SMASH then
+		LobbyProps.parts(add)
 	end
 
 	-- ===== Trees behind the back, bushes and flower pots round the edge =====
@@ -615,6 +631,10 @@ function SpawnLobby.parts(): { Piece }
 		local g = "Bush" .. i
 		add(g, "Pot", v(1.2, 2, 2), v(p.x, 0.6, p.z), L.pot, cyl())
 		add(g, "Leaves", v(2.6, 2, 2.6), v(p.x, 2.2, p.z), L.leaf, { rot = v(0, 45, 0) })
+	end
+
+	if SpawnLobby.GARAGE then
+		LobbyGarage.parts(add, W, D, SpawnLobby.SMASH_PADS)
 	end
 
 	return out
@@ -757,7 +777,7 @@ function SpawnLobby.spawnCFrame(at: CFrame): CFrame
 end
 
 -- Smash: ARENA's PropKit round trees along the back, bushes round the edge, and a palette flag
--- each side of the SMASH! portal (LOOK-BIBLE rules 1, 7). Missing PropKit = none.
+-- each side of the row of match pads (LOOK-BIBLE rules 1, 7). Missing PropKit = none.
 function SpawnLobby.dress(model: Instance, origin: CFrame)
 	local m = script and (script :: any).Parent:FindFirstChild("PropKit")
 	local ok, kit = pcall(function()
@@ -772,7 +792,8 @@ function SpawnLobby.dress(model: Instance, origin: CFrame)
 	local function at(x: number, z: number): Vector3
 		return origin:PointToWorldSpace(Vector3.new(x, 0, z))
 	end
-	for i, x in SpawnLobby.TREES do
+	-- (the garage hall has container walls there instead of the trees and bushes)
+	for i, x in if SpawnLobby.GARAGE then {} else SpawnLobby.TREES do
 		local z = SpawnLobby.TREE_Z + (if i % 2 == 0 then 1.5 else -1)
 		pcall(
 			kit.tree,
@@ -783,12 +804,13 @@ function SpawnLobby.dress(model: Instance, origin: CFrame)
 			200 + i
 		)
 	end
-	for i, p in SpawnLobby.BUSHES do
+	for i, p in if SpawnLobby.GARAGE then {} else SpawnLobby.BUSHES do
 		pcall(kit.bush, folder, at(p.x, p.z), 3, 300 + i, false)
 	end
 	local pz = SpawnLobby.PAD_Z
-	for k, sx in { -1, 1 } do
-		local pos = at(sx * (SpawnLobby.PORTAL_R + 5), pz)
+	-- (simple and clear, carter 10-30: no flags, balloons or clusters round the pads)
+	for k, sx in if SpawnLobby.GARAGE then {} else { -1, 1 } do
+		local pos = at(sx * (SpawnLobby.SMASH_PADS[3] + SpawnLobby.PAD_R + 4), pz)
 		pcall(
 			kit.flag,
 			folder,
@@ -808,7 +830,7 @@ function SpawnLobby.dress(model: Instance, origin: CFrame)
 			Color3.fromRGB(255, 210, 63),
 			Color3.fromRGB(142, 68, 255),
 		}
-		for i, c in SpawnLobby.CLUSTERS do
+		for i, c in if SpawnLobby.GARAGE then {} else SpawnLobby.CLUSTERS do
 			local side = if c.x < 0 then -1 else 1
 			pcall(kit.tyreStack, folder, at(c.x, c.z), 3, 3, false)
 			local bx = c.x + side * 2.6 -- (the outer side, off the walk to the shop doors)
@@ -866,6 +888,17 @@ SpawnLobby.REPAINT = {
 	RoofRib = { 255, 210, 63 },
 	Floor = { 242, 217, 166 },
 } :: { [string]: { number } }
+if SpawnLobby.GARAGE then
+	-- the garage's palette: steel-blue shells, dark roof, hazard ribs, concrete floor
+	SpawnLobby.REPAINT = {
+		BackWall = { 58, 111, 176 },
+		LeftWall = { 58, 111, 176 },
+		RightWall = { 58, 111, 176 },
+		Roof = { 42, 45, 58 },
+		RoofRib = { 255, 177, 0 },
+		Floor = { 160, 160, 172 },
+	}
+end
 function SpawnLobby.repaint(shop: Instance)
 	local shell = shop:FindFirstChild("Shell")
 	if not shell then
@@ -892,19 +925,13 @@ function SpawnLobby.build(parent: Instance, at: CFrame): Model
 		base:SetAttribute("PlotType", pad.kind)
 		game:GetService("CollectionService"):AddTag(base, "QueuePad")
 	end
-	-- Smash: the portal ring turns slowly on each screen (LobbyMotion): every piece knows the
-	-- ring's middle and its axis
+	-- Smash: the rings turn slowly round each pad's beam on each screen (LobbyMotion): every piece
+	-- knows the ring's middle and its axis (straight up)
 	for i, pad in SpawnLobby.PADS do
 		local ring = groups["Portal" .. i]
 		if pad.kind == "smash" and ring then
-			local c = origin:PointToWorldSpace(
-				Vector3.new(
-					pad.x,
-					SpawnLobby.PORTAL_DAIS + SpawnLobby.PORTAL_R + SpawnLobby.PORTAL_T / 2,
-					SpawnLobby.PAD_Z
-				)
-			)
-			local axis = origin:VectorToWorldSpace(Vector3.new(0, 0, 1))
+			local c = origin:PointToWorldSpace(Vector3.new(pad.x, 0, SpawnLobby.PAD_Z))
+			local axis = origin:VectorToWorldSpace(Vector3.new(0, 1, 0))
 			for _, p in ring:GetChildren() do
 				if p.Name == "Ring" then
 					p:SetAttribute("SpinCentre", c)

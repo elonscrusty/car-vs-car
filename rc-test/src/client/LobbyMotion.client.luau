@@ -1,6 +1,6 @@
 --!strict
 -- Car VS Car Smash: three things move in the lobby, on this screen only (auditor cheap tells #1):
--- the SMASH! portal ring and the yard's windmill sails turn ("PortalSpin": SpinCentre, SpinAxis),
+-- the rings round the match pads' light beams and the yard's windmill sails turn ("PortalSpin": SpinCentre, SpinAxis),
 -- the balloon bunches bob ("LobbyBob", Phase), and the "?" box by the yard's board spins
 -- ("LobbySpin"). The server built them anchored; this only moves this screen's copies, all in one
 -- BulkMoveTo a frame. Paused for whatever's far off (the lobby from the yard, say), so a phone does no
@@ -16,7 +16,7 @@ if not SpawnLobby.SMASH then
 end
 
 local FAR = 400 -- studs from the camera: past this nothing here is worth moving
-local SPIN = 0.35 -- portal ring, radians a second
+local SPIN = 0.35 -- pad rings, radians a second
 local BOB = 0.5 -- balloons, studs up and down
 
 type Moving = {

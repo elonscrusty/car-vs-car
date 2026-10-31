@@ -9,8 +9,11 @@
 --   * One strength ladder drives the shake, the zoom punch and the confetti (vault "Hit-Stop
 --     and Screen Shake Tuning by Numbers": shake = trauma squared, so small hits only add up;
 --     trauma is capped and decays).
+--   * Hit shake "C" (carter's pick, 10-29, camera/hit-shake.html): a hit shoves the camera away
+--     (a spring that wobbles back), shakes it quickly, and pops the zoom. The numbers are the
+--     page's, with 11 px of the page = 1 degree.
 --   * Reduced motion keeps the words, colors, confetti and the killer camera (it's info), and
---     drops the shake and zoom.
+--     drops the shake, shove and zoom.
 local SmashJuice = {}
 
 -- ===== the words =====
@@ -41,6 +44,7 @@ SmashJuice.WEAPONS = {
 	gun = { verb = "mowed down", thing = "machine gun", mine = "SMASHED" },
 	mine = { verb = "blown up", thing = "mine", mine = "SMASHED" },
 	freeze = { verb = "shattered", thing = "freeze ray", mine = "SHATTERED" },
+	flame = { verb = "burned", thing = "flamethrower", mine = "SMASHED" },
 	bump = { verb = "bumped out", thing = "bump", mine = "SMASHED" },
 } :: { [string]: WeaponWords }
 -- the server's feed words and other spellings, to the rows above
@@ -72,6 +76,12 @@ function SmashJuice.smashLine(weapon: string): string
 	return "You " .. words(weapon).mine
 end
 
+-- The big gold pop word on your smash (match 1A, carter 10-29): "SMASH!" ("SHATTERED!" for a
+-- freeze), the victim's name under it
+function SmashJuice.popWord(weapon: string): string
+	return if words(weapon).mine == "SHATTERED" then "SHATTERED!" else "SMASH!"
+end
+
 -- "You were smashed by Botty's rocket"; no killer: "You fell out of the arena!" for a fall or a
 -- bump, else "You were smashed by a rocket!" (whoever fired it has left)
 function SmashJuice.deathLine(weapon: string, killer: string?): string
@@ -86,6 +96,31 @@ function SmashJuice.deathLine(weapon: string, killer: string?): string
 	end
 	local w = words(weapon)
 	return `You were {w.verb} by {SmashJuice.shortName(killer)}'s {w.thing}`
+end
+
+-- The "wrecked" card (carter 10-29, tries A): a big red verb, a name tag with the weapon on a
+-- pink badge, and the 3-2-1 ring. `verb` is the shout ("MOWED DOWN!"), `tag` the line on the tag
+-- ("by Zed's machine gun", "no one to blame" for a fall), `icon` the Icons.make name.
+local WRECK_ICONS =
+	{ rocket = "rocket", nuke = "nuke", gun = "gun", mine = "mine", freeze = "freeze" }
+export type Wreck = { verb: string, tag: string, icon: string }
+function SmashJuice.wreck(weapon: string, killer: string?): Wreck
+	local key = string.lower(weapon or "")
+	key = ALIAS[key] or key
+	if not killer and FELL[key] then
+		return { verb = "YOU FELL OUT!", tag = "no one to blame", icon = "arrow" }
+	end
+	local w = words(weapon)
+	local icon = WRECK_ICONS[key] or "burst"
+	if not killer then
+		local a = if string.match(w.thing, "^[aeiou]") then "an" else "a"
+		return { verb = string.upper(w.verb) .. "!", tag = `by {a} {w.thing}`, icon = icon }
+	end
+	return {
+		verb = string.upper(w.verb) .. "!",
+		tag = `by {SmashJuice.shortName(killer)}'s {w.thing}`,
+		icon = icon,
+	}
 end
 
 -- ===== who did what (the SmashFeed remote) =====
@@ -202,14 +237,26 @@ end
 export type Kind = "mySmash" | "hit" | "myHit" | "smashed" | "boom"
 export type Feel = {
 	trauma: number, -- added to the shake (0..1)
-	punch: number, -- camera zoom-in, degrees of field of view
+	punch: number, -- camera zoom-in, degrees of field of view (below 0 = zoom out)
+	kick: number, -- camera shoved sideways, degrees (the side is picked when it plays)
+	lift: number, -- camera shoved up (below 0 = down), degrees
+	twist: number, -- camera rolled, degrees (the side is picked when it plays)
 	slow: number, -- seconds the zoom holds before it eases back (the little slow-mo)
 	confetti: number, -- pieces
 	flash: number, -- 0..1 screen edge flash (red for hits, white for your smash)
 }
 
 local function none(): Feel
-	return { trauma = 0, punch = 0, slow = 0, confetti = 0, flash = 0 }
+	return {
+		trauma = 0,
+		punch = 0,
+		kick = 0,
+		lift = 0,
+		twist = 0,
+		slow = 0,
+		confetti = 0,
+		flash = 0,
+	}
 end
 
 -- `amount` = damage for "hit" and "myHit" (health 100), streak count for "mySmash", studs away for "boom"
@@ -219,28 +266,50 @@ function SmashJuice.feel(kind: Kind, amount: number?, reduced: boolean?): Feel
 	if kind == "mySmash" then
 		local streak = math.max(1, n)
 		f = {
-			trauma = math.min(0.35 + 0.08 * (streak - 1), 0.6),
-			punch = 8,
-			slow = 0.18,
+			trauma = math.min(0.6 + 0.08 * (streak - 1), 1),
+			punch = 9,
+			kick = 0,
+			lift = -2, -- the camera dips, then bounces back
+			twist = 0,
+			slow = 0.16,
 			confetti = math.min(24 + 8 * (streak - 1), 48),
 			flash = 0.35,
 		}
 	elseif kind == "hit" then
-		-- 10 damage is a nudge, 40+ (a rocket) is a real thump
+		-- 10 damage is a nudge, 40+ (a rocket) is a real thump; the zoom pop starts above a nudge
 		local s = math.clamp(n / 40, 0, 1)
 		if s <= 0 then
 			return none()
 		end
-		f = { trauma = 0.12 + 0.28 * s, punch = 0, slow = 0, confetti = 0, flash = 0.2 + 0.35 * s }
+		f = {
+			trauma = 0.25 + 0.55 * s,
+			punch = 3.5 * math.clamp((s - 0.25) / 0.75, 0, 1),
+			kick = 0.3 + 2.8 * s,
+			lift = 0.1 + 0.72 * s,
+			twist = 0.2 + 2.2 * s,
+			slow = 0.02,
+			confetti = 0,
+			flash = 0.2 + 0.35 * s,
+		}
 	elseif kind == "myHit" then
 		-- your shot landed: a small kick, half a hit taken's, no flash
 		local s = math.clamp(n / 40, 0, 1)
 		if s <= 0 then
 			return none()
 		end
-		f = { trauma = 0.06 + 0.14 * s, punch = 0, slow = 0, confetti = 0, flash = 0 }
+		f = none()
+		f.trauma = 0.06 + 0.14 * s
 	elseif kind == "smashed" then
-		f = { trauma = 0.6, punch = 0, slow = 0, confetti = 0, flash = 0.6 }
+		f = {
+			trauma = 1,
+			punch = -5, -- the view pulls out
+			kick = 6.4,
+			lift = 1.6,
+			twist = 4,
+			slow = 0.06,
+			confetti = 0,
+			flash = 0.6,
+		}
 	elseif kind == "boom" then
 		-- a boom near you: full at 15 studs, nothing past 80 (smoothstep)
 		local u = math.clamp((n - 15) / (80 - 15), 0, 1)
@@ -248,13 +317,17 @@ function SmashJuice.feel(kind: Kind, amount: number?, reduced: boolean?): Feel
 		if k <= 0 then
 			return none()
 		end
-		f = { trauma = 0.25 * k, punch = 0, slow = 0, confetti = 0, flash = 0 }
+		f = none()
+		f.trauma = 0.5 * k
 	else
 		return none()
 	end
 	if reduced then
 		f.trauma = 0
 		f.punch = 0
+		f.kick = 0
+		f.lift = 0
+		f.twist = 0
 		f.slow = 0
 	end
 	return f
@@ -263,9 +336,10 @@ end
 -- ===== the shake =====
 
 SmashJuice.MAX_TRAUMA = 1
-SmashJuice.DECAY = 1.6 -- trauma lost per second
-SmashJuice.MAX_DEGREES = 2.4 -- tilt at full trauma (about 3% of a phone screen at FOV 70)
-SmashJuice.NOISE_HZ = 16
+SmashJuice.DECAY = 3 -- trauma lost per second (a quick shake, not a long wobble)
+SmashJuice.MAX_DEGREES = 2.2 -- look-around at full trauma (24 px of the 980 px preview)
+SmashJuice.MAX_ROLL = 3.2 -- roll at full trauma
+SmashJuice.NOISE_HZ = 24
 
 function SmashJuice.addTrauma(now: number, add: number): number
 	return math.clamp(now + add, 0, SmashJuice.MAX_TRAUMA)
@@ -288,7 +362,21 @@ function SmashJuice.tilt(
 	n3: number
 ): (number, number, number)
 	local s = trauma * trauma * SmashJuice.MAX_DEGREES
-	return s * n1, s * n2, s * 0.5 * n3
+	return s * n1, s * n2, trauma * trauma * SmashJuice.MAX_ROLL * n3
+end
+
+-- the shove: a spring that starts at full push and wobbles back to 0 (1 at t = 0), t seconds in
+SmashJuice.KICK_HZ = 9
+SmashJuice.KICK_DAMP = 0.34
+SmashJuice.KICK_SECONDS = 1.2 -- past this it is under 1% and over
+
+function SmashJuice.kickAt(t: number): number
+	if t < 0 or t >= SmashJuice.KICK_SECONDS then
+		return 0
+	end
+	local w = 2 * math.pi * SmashJuice.KICK_HZ
+	local z = SmashJuice.KICK_DAMP
+	return math.exp(-z * w * t) * math.cos(w * math.sqrt(1 - z * z) * t)
 end
 
 -- the zoom punch: in fast, hold `slow` seconds, ease back over 0.3 s. t = seconds since the smash
@@ -296,7 +384,7 @@ SmashJuice.PUNCH_IN = 0.05
 SmashJuice.PUNCH_OUT = 0.3
 
 function SmashJuice.punchAt(punch: number, slow: number, t: number): number
-	if punch <= 0 or t < 0 then
+	if punch == 0 or t < 0 then
 		return 0
 	end
 	if t < SmashJuice.PUNCH_IN then
@@ -337,16 +425,70 @@ SmashJuice.WORDS = {
 -- On a phone (carter 10-29: too cluttered): smaller, higher (just under the small HUD's clock and
 -- health bar) and briefer: at most TOUCH_SECONDS, so the middle of the screen is only crossed by
 -- a flash.
-SmashJuice.WORDS_W_TOUCH = 0.3
+SmashJuice.WORDS_W_TOUCH = 0.26
+-- (match 1A: a big gold SMASH! with the name under it)
 SmashJuice.WORDS_TOUCH = {
-	you = { y = 0.3, h = 0.055 },
-	name = { y = 0.355, h = 0.065 },
-	streak = { y = 0.41, h = 0.05 },
-	by = { y = 0.31, h = 0.06 },
-	count = { y = 0.4, h = 0.09 },
+	you = { y = 0.385, h = 0.12 },
+	name = { y = 0.485, h = 0.06 },
+	streak = { y = 0.55, h = 0.05 },
+	by = { y = 0.41, h = 0.06 },
+	count = { y = 0.5, h = 0.09 },
 } :: { [string]: { y: number, h: number } }
 SmashJuice.TOUCH_SECONDS = 1
+
+-- The wrecked card's spots (same rule as the words: under the clock and health bar, clear of
+-- FIRE). `w` = width of the verb / tag as a fraction of the screen; ring h = height fraction.
+SmashJuice.WRECK = {
+	verb = { y = 0.4, h = 0.08, w = 0.36 },
+	tag = { y = 0.5, h = 0.07, w = 0.34 },
+	ring = { y = 0.72, h = 0.22, w = 0 },
+} :: { [string]: { y: number, h: number, w: number } }
+SmashJuice.WRECK_TOUCH = {
+	verb = { y = 0.385, h = 0.12, w = 0.3 },
+	tag = { y = 0.49, h = 0.08, w = 0.26 },
+	ring = { y = 0.7, h = 0.26, w = 0 },
+} :: { [string]: { y: number, h: number, w: number } }
 -- (the words pop in from at most 1.5x, so the pop never sweeps over the HUD for long)
+
+-- The match start (carter's pick A1, 10-29): a giant 3, 2, 1 and GO! over the first seconds of a
+-- round. It is only a show (the server starts the round at once; the spawn shield covers the
+-- first 2 s). `startStep(t)` is the word to show t seconds after the round began.
+SmashJuice.START_STEP = 1 -- seconds per number
+SmashJuice.START_GO_SECONDS = 1.4 -- how long GO! stays
+function SmashJuice.startStep(t: number): string?
+	if t < 0 then
+		return nil
+	end
+	local i = math.floor(t / SmashJuice.START_STEP)
+	if i < 3 then
+		return tostring(3 - i)
+	end
+	if t < 3 * SmashJuice.START_STEP + SmashJuice.START_GO_SECONDS then
+		return "GO!"
+	end
+	return nil
+end
+-- where the number and the "GET READY!" line sit (the same rule as the words: clear of the HUD)
+SmashJuice.START = {
+	num = { y = 0.5, h = 0.34, w = 0.24 },
+	ready = { y = 0.72, h = 0.05, w = 0.3 },
+} :: { [string]: { y: number, h: number, w: number } }
+SmashJuice.START_TOUCH = {
+	num = { y = 0.5, h = 0.3, w = 0.2 },
+	ready = { y = 0.7, h = 0.06, w = 0.26 },
+} :: { [string]: { y: number, h: number, w: number } }
+
+-- ROUND OVER! at 0:00 (carter's pick A, 10-29): the gold words play this long before the
+-- between-rounds screen opens. Spots as above: clear of the HUD, under the clock and health bar.
+SmashJuice.ROUND_OVER_SECONDS = 1.6
+SmashJuice.ROUND_OVER = {
+	word = { y = 0.56, h = 0.11, w = 0.36 },
+	sub = { y = 0.66, h = 0.05, w = 0.2 },
+} :: { [string]: { y: number, h: number, w: number } }
+SmashJuice.ROUND_OVER_TOUCH = {
+	word = { y = 0.52, h = 0.14, w = 0.38 },
+	sub = { y = 0.64, h = 0.06, w = 0.2 },
+} :: { [string]: { y: number, h: number, w: number } }
 
 -- Palette for confetti (the low-poly look: grass, sky, sun, cherry, pink).
 SmashJuice.CONFETTI = {

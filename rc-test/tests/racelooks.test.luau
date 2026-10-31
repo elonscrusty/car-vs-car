@@ -45,6 +45,9 @@ test("skid marks (playtest u30, u12): one smooth fading ribbon, none on water", 
 	truthy(not string.find(fx, 'p.Name = "Skid"', 1, true), "the old box marks are back")
 	truthy(string.find(fx, "[Enum.Material.Water] = true", 1, true), "marks on water")
 	truthy(string.find(fx, "[Enum.Material.Glass] = true", 1, true), "marks on puddles")
+	-- carter's pick "Classic" (10-29): bold black lines, and the front tyres puff too
+	truthy(string.find(fx, "MARK_WIDTH = 0.8", 1, true), "Classic mark width")
+	truthy(string.find(fx, "FRONT_SMOKE", 1, true), "front tyre smoke")
 	local car = fs.readFile("src/client/RCCar.luau")
 	truthy(
 		string.find(car, "w.info.material = hit.Material", 1, true),
@@ -106,7 +109,7 @@ test("carter's own car model (CarSkins, named the car id) wins over the toy look
 		"own model first"
 	)
 	local others = fs.readFile("src/client/OtherCars.luau")
-	truthy(string.find(others, "modelShell(f, own, s) else nil", 1, true), "other cars")
+	truthy(string.find(others, "modelShell(f, own, s, nil, paint) else nil", 1, true), "other cars")
 	truthy(string.find(others, "toy or if id then toyShell", 1, true), "toy when no model")
 	local skin = fs.readFile("src/client/CarSkin.luau")
 	truthy(string.find(skin, "HOW TO ADD A CAR MODEL", 1, true), "how-to line")

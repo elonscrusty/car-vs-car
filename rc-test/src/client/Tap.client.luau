@@ -1,25 +1,16 @@
 --!strict
 -- Every button on this screen answers a tap at once: a quick squish while pressed, a bounce back,
--- and one soft tick. One place for all of them (any TextButton or ImageButton added to PlayerGui),
+-- and one soft click (Sfx.tap). One place for all of them (any TextButton or ImageButton added to PlayerGui),
 -- so a new button gets it too. GAS, BRAKE and the steer pad are Frames, not buttons: left alone.
 -- A button opts out with the attribute NoTap = true.
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
 
-local SoundLevels = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("SoundLevels"))
+local Sfx = require(script.Parent.Sfx)
 
 local SQUISH = 0.9 -- size while held
 local DOWN = TweenInfo.new(0.06, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local UP = TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-
-local tickSound = Instance.new("Sound")
-tickSound.Name = "TapTick"
-tickSound.SoundId = "rbxasset://sounds/electronicpingshort.wav"
-tickSound.PlaybackSpeed = 2 -- short and high: not the race countdown beep
-tickSound.Volume = SoundLevels.TAP
-tickSound.Parent = SoundService
 
 local lastTick = 0
 local function playTick()
@@ -28,7 +19,7 @@ local function playTick()
 		return
 	end
 	lastTick = os.clock()
-	SoundService:PlayLocalSound(tickSound)
+	Sfx.tap()
 end
 
 -- (a table, not an attribute: a button cloned from a hooked one must be hooked too)

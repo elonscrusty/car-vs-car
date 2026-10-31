@@ -17,15 +17,21 @@
 -- car by name (ToyCars.kartPaint). No weapon on the kart: an icon above it shows that (carter).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 
 local RCCar = require(script.Parent.RCCar)
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
+local CarFxStyles = require(ReplicatedStorage.Shared.CarFxStyles)
+local DamageFx = require(script.Parent.DamageFx)
 local ExhaustFx = require(script.Parent.ExhaustFx)
 local FireDrake = require(script.Parent.FireDrake)
+local WeaponPart = require(script.Parent.WeaponPart)
 local Garage = require(ReplicatedStorage.Shared.Garage)
 local KartMesh = require(script.Parent.KartMesh)
+local LandingBounce = require(ReplicatedStorage.Shared.LandingBounce)
 local ToyCars = require(ReplicatedStorage.Shared.ToyCars)
+local TrailFx = require(script.Parent.TrailFx)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
 
 local WHEEL_NAMES = { "WheelFL", "WheelFR", "WheelRL", "WheelRR" } -- same order as RCCar
@@ -33,6 +39,10 @@ local WHEEL_NAMES = { "WheelFL", "WheelFR", "WheelRL", "WheelRR" } -- same order
 local NO_PICK = Color3.fromRGB(220, 50, 47)
 
 local CarSkin = {}
+
+-- radians a second: a model part with a SpinAxis attribute (the Saw Rammer's blades) turns, on
+-- your own car and everyone else's (OtherCars)
+CarSkin.SPIN_RATE = 14
 
 type Shown = {
 	car: RCCar.Car,
@@ -47,6 +57,9 @@ type Shown = {
 	looks: { Instance }, -- its SurfaceAppearance, if any, taken off while tinted
 	extras: { [BasePart]: CFrame }, -- a toy car's cab, roof, wing and lights, seen from its body
 	rims: { [BasePart]: { wheel: BasePart, rel: CFrame } }, -- an imported kart's RimFL..: they turn with their wheel
+	spins: { [BasePart]: Vector3 }, -- saw blades (SpinAxis): the axis in the part's own space
+	squashed: boolean, -- the sizes above are not what is drawn right now
+	sizes: { [BasePart]: Vector3 }, -- the body's and extras' own sizes, for the landing squash
 }
 
 -- "toy:<car id>": the same toy car the plot shows for that car (Garage.toyCar: its colour and
@@ -85,6 +98,9 @@ local function toy(id: string): Model?
 	car:SetAttribute("Extras", true)
 	return car
 end
+
+-- the weapon every car wears until loadouts exist (shared/WeaponLooks.DEFAULT gives its look)
+CarSkin.STARTER = "Gun"
 
 -- "kart:<car id>": the car's Blender kart model (ToyCars.KARTS) painted in the car's colours
 CarSkin.KART = "kart:"
@@ -196,17 +212,19 @@ function CarSkin.kartFor(id: string): Model?
 	return KartMesh.get(name, ToyCars.kartRim(info.color, info.style))
 end
 
--- Paints a kart model's part for a car, by its name (ToyCars.kartPaint).
-function CarSkin.paintKart(p: BasePart, id: string)
+-- Paints a kart model's part for a car, by its name (ToyCars.kartPaint). `color` paints it
+-- instead of the car's own colour (a bot's BotPaints paint).
+function CarSkin.paintKart(p: BasePart, id: string, color: { number }?)
 	local info = CarCatalog.get(id)
 	if not info then
 		return
 	end
-	local col, glow = ToyCars.kartPaint(p.Name, info.color, info.style)
+	local paint = color or info.color
+	local col, glow = ToyCars.kartPaint(p.Name, paint, info.style)
 	if p:GetAttribute("RimTint") == true then
 		-- a baked kart's wheel (assets/karts/studio_bake.luau): dark tyre, white rim; the part's
 		-- colour tints the rim to the car's rim colour
-		p.Color = rgb(ToyCars.kartRim(info.color, info.style))
+		p.Color = rgb(ToyCars.kartRim(paint, info.style))
 		return
 	end
 	if col and p:GetAttribute("Baked") ~= true then
@@ -268,6 +286,8 @@ function CarSkin.prepare(m: Model)
 	if FireDrake.wants(m.Name) then
 		pcall(FireDrake.addTo, m) -- (no heads is fine: never a car that fails to show)
 	end
+	-- every car carries the starter weapon on its mount (WeaponPart: roof or front, by its look)
+	pcall(WeaponPart.addTo, m, CarSkin.STARTER)
 end
 
 local function template(name: string): Model?
@@ -275,6 +295,7 @@ local function template(name: string): Model?
 		local made = toys[name] or kart(string.sub(name, #CarSkin.KART + 1))
 		if made then
 			toys[name] = made
+			CarSkin.prepare(made)
 		end
 		return made
 	end
@@ -282,6 +303,7 @@ local function template(name: string): Model?
 		local made = toys[name] or toy(string.sub(name, #CarSkin.TOY + 1))
 		if made then
 			toys[name] = made
+			CarSkin.prepare(made)
 		end
 		return made
 	end
@@ -345,12 +367,26 @@ function CarSkin.standIn(id: string, long: number): Model?
 	return m
 end
 
+-- A rim piece of a wheel: named Rim, then anything, then the wheel's end (RimFL, RimChromeFL)
+local function isRimOf(p: Instance, e: string): boolean
+	return p:IsA("BasePart") and string.sub(p.Name, 1, 3) == "Rim" and p.Name:sub(-#e) == e
+end
+
 local function show(car: RCCar.Car, name: string, src: Model): Shown?
 	local copy = src:Clone()
 	local body = copy:FindFirstChild("Body", true)
 	if not (body and body:IsA("BasePart")) then
 		copy:Destroy()
 		return nil
+	end
+	-- a blade's SpinAxis is in the model's space as it was made: keep it seen from the body, which
+	-- the turn and scale below don't change
+	local spinBody: { [BasePart]: Vector3 } = {}
+	for _, d in copy:GetDescendants() do
+		local a = d:GetAttribute("SpinAxis")
+		if d:IsA("BasePart") and typeof(a) == "Vector3" and a.Magnitude > 1e-4 then
+			spinBody[d] = body.CFrame:VectorToObjectSpace(a.Unit)
+		end
 	end
 	local wheels: { BasePart } = {}
 	for i, name in WHEEL_NAMES do
@@ -413,12 +449,16 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 		local keep: { [Instance]: boolean } = { [body] = true }
 		for i, w in wheels do
 			keep[w] = true
-			-- (a kart imported in Studio has its rims apart from its tyres: RimFL rides on WheelFL)
-			local rim = copy:FindFirstChild("Rim" .. string.sub(WHEEL_NAMES[i], 6), true)
-			if rim and rim:IsA("BasePart") then
-				keep[rim] = true
-				rims[rim] = { wheel = w, rel = w.CFrame:ToObjectSpace(rim.CFrame) }
-				rim.Parent = folder
+			-- (a kart imported in Studio has its rims apart from its tyres: RimFL rides on WheelFL,
+			-- and so does every other Rim<..>FL piece, like RimChromeFL)
+			local wheelEnd = string.sub(WHEEL_NAMES[i], 6)
+			for _, rim in copy:GetDescendants() do
+				if isRimOf(rim, wheelEnd) then
+					local part = rim :: BasePart
+					keep[part] = true
+					rims[part] = { wheel = w, rel = w.CFrame:ToObjectSpace(part.CFrame) }
+					part.Parent = folder
+				end
 			end
 		end
 		for _, d in copy:GetDescendants() do
@@ -428,8 +468,30 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 			end
 		end
 	end
+	-- a weapon clicked onto the car (WeaponPart) rides on its body whatever kind of model this is;
+	-- its welds are not needed here, the skin places every part itself
+	for _, d in copy:GetDescendants() do
+		local on = d.Parent ~= nil and d.Parent:GetAttribute("WeaponMount") ~= nil
+		if on and d:IsA("WeldConstraint") then
+			d:Destroy()
+		elseif on and d:IsA("BasePart") then
+			extras[d] = body.CFrame:ToObjectSpace(d.CFrame)
+			d.Parent = folder
+		end
+	end
 	copy:Destroy()
 	folder.Parent = workspace
+	local sizes: { [BasePart]: Vector3 } = { [body] = body.Size }
+	for p in extras do
+		sizes[p] = p.Size
+	end
+	local spins: { [BasePart]: Vector3 } = {}
+	for p, axis in spinBody do
+		local rel = extras[p]
+		if rel then
+			spins[p] = rel:VectorToObjectSpace(axis)
+		end
+	end
 
 	local hidden: { [BasePart]: number } = {}
 	for _, d in car.model:GetDescendants() do
@@ -466,6 +528,9 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 		looks = looks,
 		extras = extras,
 		rims = rims,
+		spins = spins,
+		sizes = sizes,
+		squashed = false,
 	}
 end
 
@@ -494,19 +559,31 @@ local function hide(s: Shown)
 	s.folder:Destroy()
 end
 
+-- The look the player picked for their flames / wheel trails (a Player attribute the loadout sets;
+-- nil gives the starter).
+local function styleOf(attr: string): string?
+	local v = Players.LocalPlayer:GetAttribute(attr)
+	return if typeof(v) == "string" then v else nil
+end
+
 -- Starts the skin. Call update(car, name) every frame right after car.render, with the skin's
 -- name in CarSkins, or nil for none.
 function CarSkin.new()
 	local enabled = true
 	local shown: Shown? = nil
 	local broken: { [Model]: boolean } = {} -- models missing a part: don't keep trying them every frame
-	local exhaust = ExhaustFx.new() -- the Fire Drake car's tailpipe jets while it boosts
+	local exhaust = ExhaustFx.new() -- the tailpipe flames while it boosts (the player's pick)
+	local trails = TrailFx.new() -- the sparks off the rear tyres
+	local damage = DamageFx.new() -- cracks, smoke, sparks and fire as my Health drops (any car)
 
 	UserInputService.InputBegan:Connect(function(input: InputObject, typing: boolean)
 		if not typing and input.KeyCode == Enum.KeyCode.B then
 			enabled = not enabled
 		end
 	end)
+
+	local bounce = LandingBounce.new()
+	local lastAir, lastVy, lastAt = 0, 0, os.clock()
 
 	local self = {}
 
@@ -531,10 +608,51 @@ function CarSkin.new()
 				end
 			end
 		end
+		-- landing bounce (looks only): after real air time the body squashes, stretches, settles
+		local now = os.clock()
+		local dt = math.min(now - lastAt, 0.1)
+		lastAt = now
+		local tel = car.telemetry
+		if lastAir > 0.3 and tel.air == 0 then
+			LandingBounce.land(bounce, math.clamp(-lastVy / (40 * Tuning.scale), 0.2, 1))
+		end
+		lastAir = tel.air
+		if tel.air > 0 then
+			lastVy = car.body.AssemblyLinearVelocity.Y
+		end
+		local sx, sy = LandingBounce.step(bounce, dt)
 		if cur then
-			cur.body.CFrame = car.body.CFrame * cur.offset
-			for p, rel in cur.extras do
-				p.CFrame = cur.body.CFrame * rel
+			local carCf = car.body.CFrame
+			if sx == 1 and sy == 1 then
+				cur.body.CFrame = carCf * cur.offset
+				for p, rel in cur.extras do
+					p.CFrame = cur.body.CFrame * rel
+				end
+				local turn = os.clock() * CarSkin.SPIN_RATE
+				for p, axis in cur.spins do
+					p.CFrame *= CFrame.fromAxisAngle(axis, turn)
+				end
+				if cur.squashed then
+					cur.squashed = false
+					for p, size in cur.sizes do
+						p.Size = size
+					end
+				end
+			else
+				-- scaled in the car's own width / height / length about the middle of the body's
+				-- underside, so the tyres stay on the ground
+				cur.squashed = true
+				local k = Vector3.new(sx, sy, sx)
+				local pivot = cur.offset * Vector3.new(0, -cur.sizes[cur.body].Y / 2, 0)
+				local function put(p: BasePart, local_: CFrame)
+					local at = pivot + (local_.Position - pivot) * k
+					p.CFrame = carCf * (CFrame.new(at) * local_.Rotation)
+					p.Size = cur.sizes[p] * k
+				end
+				put(cur.body, cur.offset)
+				for p, rel in cur.extras do
+					put(p, cur.offset * rel)
+				end
 			end
 			for p, r in cur.rims do
 				p.CFrame = r.wheel.CFrame * r.rel
@@ -544,9 +662,12 @@ function CarSkin.new()
 			end
 		end
 		exhaust.step(
-			if cur and FireDrake.wants(cur.name) then cur.body else nil,
-			cur ~= nil and car.telemetry.boost > 0
+			if cur then cur.body else nil,
+			cur ~= nil and car.telemetry.boost > 0,
+			styleOf(CarFxStyles.ATTR_EXHAUST)
 		)
+		trails.step(if cur then car else nil, styleOf(CarFxStyles.ATTR_TRAIL))
+		damage.step(if cur then cur.body else nil)
 	end
 
 	return self

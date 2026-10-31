@@ -17,7 +17,7 @@ function GasHintUi.new(gui: ScreenGui): { set: (on: boolean) -> () }
 	label.AnchorPoint = Vector2.new(0.5, 1)
 	label.Size = UDim2.fromScale(0.34, 0.11)
 	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.LuckiestGuy
+	label.Font = Enum.Font.Oswald
 	label.TextScaled = true
 	label.TextColor3 = Color3.fromRGB(120, 255, 120)
 	label.TextStrokeColor3 = Color3.fromRGB(15, 15, 20)

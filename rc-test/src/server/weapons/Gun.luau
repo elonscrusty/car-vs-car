@@ -1,7 +1,7 @@
 --!strict
 -- Machine gun ("Gun" from a "?" box). One tap of FIRE = one short burst of bullets.
--- The server decides every bullet: it snaps to the nearest kart in a cone ahead (aim help, so a
--- phone thumb and a bot play fair; Weapons.cone, shared with the rocket lock), checks the line of
+-- The server decides every bullet: it snaps to the nearest kart in a narrow cone ahead (a little aim
+-- help, AIM_DEG, so a phone thumb and a bot play fair; Weapons.cone, shared with the rocket lock), checks the line of
 -- sight with a ray, then calls ctx.damage. A full
 -- burst on one kart does BURST_DAMAGE (34: three hits smash a kart). Clients only get
 -- "GunShot" fx (a tracer from the muzzle to where it hit) to draw. Plain `vector` maths, so Lune
@@ -18,6 +18,8 @@ local function shared(name: string): any
 end
 
 local Weapons = shared("Weapons")
+local WeaponMounts = shared("WeaponMounts")
+local WeaponLooks = shared("WeaponLooks")
 
 local Gun = {}
 
@@ -32,9 +34,16 @@ Gun.BULLETS = 6
 Gun.GAP = 0.07 -- seconds between bullets in a burst
 Gun.BURST_DAMAGE = 34 -- a whole burst, split over its bullets
 Gun.RANGE = 160 * S -- about 29 kart lengths, 44% of the arena's width
-Gun.AIM_DEG = 25 -- aim help: snaps to the nearest kart this close to the aim
-Gun.MUZZLE = 3.5 * S -- just past the kart's nose
-Gun.HEIGHT = 1.5 * S -- above the kart centre
+-- aim help: snaps to the nearest kart this close to the aim. carter 10-30 (batch 1): "don't make the
+-- weapon auto-aim, you have to point your car at something": was 25, now only a little forgiveness
+Gun.AIM_DEG = 8
+-- Bullets leave the barrel tip of the gun part that clicks onto the car (shared/WeaponMounts,
+-- WeaponLooks). It is the Gun's own look, the same for every look and skin, so a skin never
+-- changes where bullets start (looks only, no pay-to-win).
+local gunLook = assert(WeaponLooks.forWeapon(Gun.NAME, nil), "the Gun has no look")
+local AHEAD, UP = WeaponMounts.muzzle(gunLook.mount, gunLook.muzzles[1])
+Gun.MUZZLE = AHEAD * 5.5 * S -- ahead of the kart centre
+Gun.HEIGHT = UP * 5.5 * S -- above the kart centre
 
 export type Kart = { id: any, cframe: CFrame, alive: boolean, shield: boolean? }
 export type Hit = { kartId: any?, position: Vector3 }

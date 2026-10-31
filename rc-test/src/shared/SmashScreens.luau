@@ -3,8 +3,8 @@
 -- same design px and Piece shape as UiScreens (756 x 390 canvas inside the phone's safe area), so
 -- client/Ui/Screens/Smash places from here and tests/smash_screens.test.luau checks the same rules
 -- (safe area, move-stick corner free while driving, tap sizes, short ALL CAPS button words).
---   matchEnd: the 12 s break between rounds (VIDEO-STUDY.md). ROUND OVER, "<name> WINS" with the
---     winner's kart, the top 3 with smashes, your coins and XP popping in, "NEW ROUND STARTING IN
+--   matchEnd: the 12 s break between rounds (VIDEO-STUDY.md, carter's pick B 10-29). YOU WIN! or
+--     "<NAME> WINS!", the top 3 karts on podium steps, your coins and XP popping in, "NEXT ROUND
 --     12" (the next round starts by itself), and a small LEAVE back to the lobby.
 --   customize: KARTS / HATS tabs, a grid of your karts (or hats), EQUIP, and the kart you drive
 --     with its hat on a card.
@@ -54,15 +54,13 @@ local LIST: { Screen } = {
 		kind = "full",
 		gameplay = false,
 		pieces = {
-			p("Shout", 178, 4, 400, 58, { anchor = "t" }),
-			p("Wins", 178, 62, 400, 34, { anchor = "t" }),
-			-- the winner's kart on show in the middle, rays behind it
-			p("Winner", 258, 100, 240, 170, { anchor = "c" }),
-			-- 1st, 2nd, 3rd with smashes
-			p("Top3", 0, 104, 250, 168, { anchor = "l" }),
-			-- what you got: coins, XP, your place
-			p("Rewards", 506, 104, 250, 168, { anchor = "r" }),
-			p("Count", 128, 292, 500, 40, { anchor = "b" }),
+			p("Shout", 128, 0, 500, 64, { anchor = "t" }),
+			-- 2nd, 1st, 3rd karts on podium steps (carter's pick B, 10-29)
+			p("Podium", 98, 68, 560, 242, { anchor = "c" }),
+			-- what you got: coins, XP, the level bar, your place
+			p("Rewards", 6, 320, 390, 64, { anchor = "bl" }),
+			-- NEXT ROUND n (the next round starts by itself: not a button)
+			p("Count", 406, 320, 220, 62, { anchor = "b" }),
 			-- (56 tall: 44 px, a thumb, on a phone)
 			p("Leave", 636, 328, 120, 56, { anchor = "br", tone = "white", text = "LEAVE" }),
 		},

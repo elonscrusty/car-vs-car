@@ -94,6 +94,7 @@ test("Smash arena sounds: every new action has a Sfx call", function()
 			"mine",
 			"freezeShot",
 			"freeze",
+			"flame",
 			"shatter",
 			"hit",
 			"bump",
@@ -121,4 +122,18 @@ test("GUNMINE's names exist (mineDrop, mineBoom)", function()
 	local src = fs.readFile("src/client/Sfx.luau")
 	truthy(string.find(src, "Sfx.mineDrop = Sfx.mine", 1, true) ~= nil)
 	truthy(string.find(src, "Sfx.mineBoom = Sfx.boom", 1, true) ~= nil)
+end)
+
+test("the Big Boom: four layers, all checked files, each quieter than the start beeps", function()
+	for _, name in { "smashBoom", "smash", "smashMetal", "smashCrowd", "smashPop" } do
+		local cue = C.get(name) :: C.Cue
+		truthy(cue ~= nil, `{name} has no cue`)
+		truthy(C.fileFor(cue) ~= nil, `{name} has no checked file`)
+		truthy(cue.volume > 0 and cue.volume < L.START_BEEP, `{name} volume`)
+	end
+	local src = fs.readFile("src/client/Sfx.luau")
+	for _, name in { "smashBoom", "smashMetal", "smashCrowd", "smashPop" } do
+		truthy(string.find(src, `"{name}"`, 1, true) ~= nil, `Sfx never plays {name}`)
+	end
+	truthy(L.SMASH_POP < L.SMASH_CROWD and L.SMASH_CROWD < L.SMASH_BOOM, "pop < crowd < boom")
 end)

@@ -128,7 +128,7 @@ local function makeCar(id: string, parent: Instance): Model
 			l.BackgroundTransparency = 1
 			l.Position = UDim2.fromScale(0, y)
 			l.Size = UDim2.fromScale(1, h)
-			l.Font = Enum.Font.GothamBlack
+			l.Font = Enum.Font.Oswald
 			l.TextScaled = true
 			l.TextColor3 = color
 			l.TextStrokeTransparency = 0.2
@@ -195,7 +195,7 @@ local function makeOpen(parent: Instance): Model
 	local mark = Instance.new("TextLabel")
 	mark.BackgroundTransparency = 1
 	mark.Size = UDim2.fromScale(1, 1)
-	mark.Font = Enum.Font.GothamBlack
+	mark.Font = Enum.Font.Oswald
 	mark.TextScaled = true
 	mark.TextColor3 = Color3.new(1, 1, 1)
 	mark.TextStrokeTransparency = 0.3
@@ -326,7 +326,7 @@ local function setUp(plot: Instance, garage: Model)
 	local count = Instance.new("TextLabel")
 	count.BackgroundTransparency = 1
 	count.Size = UDim2.fromScale(1, 1)
-	count.Font = Enum.Font.GothamBlack
+	count.Font = Enum.Font.Oswald
 	count.TextScaled = true
 	count.TextColor3 = COIN
 	count.TextStrokeTransparency = 0
@@ -396,7 +396,7 @@ local function float(at: BasePart, text: string, offset: number)
 	local l = Instance.new("TextLabel")
 	l.BackgroundTransparency = 1
 	l.Size = UDim2.fromScale(1, 1)
-	l.Font = Enum.Font.GothamBlack
+	l.Font = Enum.Font.Oswald
 	l.TextScaled = true
 	l.TextColor3 = COIN
 	l.TextStrokeTransparency = 0

@@ -18,7 +18,9 @@ local Data = require(ReplicatedStorage.Shared.FireDrakeData)
 local FireDrake = {}
 
 -- the CarSkins models that wear the heads
-FireDrake.CARS = { race_bolt = true } :: { [string]: boolean }
+-- carter 10-30 (batch 1): "one car, one ability": the heads and launcher are off the starter car
+-- (race_bolt) for now; they come back as a weapon skin. Put race_bolt = true back to show them.
+FireDrake.CARS = {} :: { [string]: boolean }
 
 local MIN_SIZE = 0.05 -- Roblox's smallest part
 

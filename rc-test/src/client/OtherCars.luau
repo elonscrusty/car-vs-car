@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local CarSkin = require(script.Parent.CarSkin)
 local KartMesh = require(script.Parent.KartMesh)
+local MatchNameTag = require(script.Parent.MatchNameTag)
 local CarMath = require(ReplicatedStorage.Shared.CarMath)
 local Features = require(ReplicatedStorage.Shared.Features)
 local Garage = require(ReplicatedStorage.Shared.Garage)
@@ -37,19 +38,22 @@ local TAG_W, TAG_H = if PHONE then 84 else 120, if PHONE then 18 else 26
 -- lengths past the chase camera: a kart is about 1.4 studs; auditor round 12, desktop Studio)
 local MATCH_TAG_FAR = 14
 local TAG_SIZE = UDim2.fromOffset(TAG_W, TAG_H)
-local MATCH_TAG_SIZE = UDim2.fromOffset(84, 18)
+-- (the New Classic tag in a match: star + name, the health bar, states; client/MatchNameTag)
+local MATCH_TAG_SIZE = UDim2.fromOffset(116, 62)
 
 type Wheel = { part: Part, stripe: Part, spot: Vector3, front: boolean, shown: number, spin: number }
 -- Car VS Car: the toy car's shell (body, cab, roof, wing, lights) over the grey blocks, the same
 -- toy car the plots show (playtest u01: every rival was a grey block). Its round wheels are
 -- this file's own, which already roll and steer.
-type Toy = { parts: { BasePart }, offsets: { CFrame } }
+type Toy = { parts: { BasePart }, offsets: { CFrame }, spins: { [number]: Vector3 } }
 type Other = {
 	body: BasePart,
 	folder: Folder,
 	wheels: { Wheel },
 	scale: number,
 	tag: BillboardGui,
+	mt: MatchNameTag.Handle, -- the match look of that tag
+	inMatch: boolean?,
 	hidden: boolean?,
 	toy: Toy?,
 	kartId: string?, -- wears the part toy until its kart is built in game (KartMesh), then that
@@ -69,9 +73,18 @@ local function toyId(model: Model): string?
 	return if type(id) == "string" and CarCatalog.get(id) then id else nil
 end
 
+-- a bot's own paint (the server's BotPaint attribute, BotPaints), over its car's colour
+local function botPaint(model: Model): { number }?
+	local pc = model:GetAttribute("BotPaint")
+	if typeof(pc) ~= "Color3" then
+		return nil
+	end
+	return { math.round(pc.R * 255), math.round(pc.G * 255), math.round(pc.B * 255) }
+end
+
 -- as long as the grey body it covers (Garage.toyFit: the chase camera was tuned for that size)
 local TOY_SIZE = Garage.toyFit(base("bodyZ"))
-local function toyShell(folder: Folder, id: string, s: number): Toy
+local function toyShell(folder: Folder, id: string, s: number, paint: { number }?): Toy
 	local info = CarCatalog.get(id) :: CarCatalog.Car
 	local pieces = {}
 	Garage.toyCar(
@@ -79,7 +92,7 @@ local function toyShell(folder: Folder, id: string, s: number): Toy
 		"Toy",
 		{ x = 0, y = 0, z = 0 },
 		0,
-		info.color,
+		paint or info.color,
 		TOY_SIZE * s,
 		info.style
 	)
@@ -99,13 +112,19 @@ local function toyShell(folder: Folder, id: string, s: number): Toy
 		end
 	end
 	holder:Destroy()
-	return { parts = parts, offsets = offsets }
+	return { parts = parts, offsets = offsets, spins = {} }
 end
 
 -- carter's own model for this car (ReplicatedStorage.CarSkins, named the car id): its body parts,
 -- turned to drive toward -Z and sized to the grey body's length; this file's wheels stay
 -- (a kart model, painted for car `kart`, the same way: see CarSkin's KART MODELS)
-local function modelShell(folder: Folder, m: Model, s: number, kart: string?): Toy?
+local function modelShell(
+	folder: Folder,
+	m: Model,
+	s: number,
+	kart: string?,
+	paint: { number }?
+): Toy?
 	local pivot, size = m:GetBoundingBox()
 	-- (Studio's 3D import puts the nose at +Z, like CarSkin: turned around; a kart already at -Z isn't)
 	local turn = if kart and not CarSkin.noseAtPlusZ(m)
@@ -118,6 +137,7 @@ local function modelShell(folder: Folder, m: Model, s: number, kart: string?): T
 	local floor = CFrame.new(0, -size.Y / 2, 0)
 	local parts: { BasePart } = {}
 	local offsets: { CFrame } = {}
+	local spins: { [number]: Vector3 } = {} -- saw blades (SpinAxis), the axis in the part's own space
 	for _, d in m:GetDescendants() do
 		-- (this file's own wheels and rims stand in for a model's: an imported kart's RimFL...
 		-- would float beside them)
@@ -136,15 +156,19 @@ local function modelShell(folder: Folder, m: Model, s: number, kart: string?): T
 			p.CastShadow = false
 			p.Size *= k
 			if kart then
-				CarSkin.paintKart(p, kart)
+				CarSkin.paintKart(p, kart, paint)
 			end
 			local rel = floor:Inverse() * pivot:Inverse() * d.CFrame
 			table.insert(offsets, turn * (rel - rel.Position + rel.Position * k))
 			table.insert(parts, p)
 			p.Parent = folder
+			local axis = d:GetAttribute("SpinAxis")
+			if typeof(axis) == "Vector3" and axis.Magnitude > 1e-4 then
+				spins[#parts] = d.CFrame:VectorToObjectSpace(axis.Unit)
+			end
 		end
 	end
-	return if #parts > 0 then { parts = parts, offsets = offsets } else nil
+	return if #parts > 0 then { parts = parts, offsets = offsets, spins = spins } else nil
 end
 
 local function wheelPart(folder: Folder, s: number, rim: Color3): (Part, Part)
@@ -189,8 +213,8 @@ local function nameTag(body: BasePart, text: string, s: number): BillboardGui
 	local l = Instance.new("TextLabel")
 	l.BackgroundTransparency = 1
 	l.Size = UDim2.fromScale(1, 1)
-	-- carter's kit v41: white FredokaOne with a solid ink stroke
-	l.Font = Enum.Font.FredokaOne
+	-- carter's kit v41: white Roboto (small words) with a solid ink stroke
+	l.Font = Enum.Font.Roboto
 	l.TextScaled = true
 	l.TextColor3 = Color3.new(1, 1, 1)
 	l.TextStrokeColor3 = Color3.fromRGB(13, 44, 64)
@@ -231,7 +255,9 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 		f.Parent = folder
 		local id = toyId(model)
 		local info = id and CarCatalog.get(id)
-		local rgb = if info then ToyCars.rim(info.style, info.color) else { 215, 215, 220 }
+		-- a bot's own paint (server's BotPaint attribute, BotPaints), over the car's colour
+		local paint = botPaint(model)
+		local rgb = if info then ToyCars.rim(info.style, paint or info.color) else { 215, 215, 220 }
 		local rim = Color3.fromRGB(rgb[1], rgb[2], rgb[3])
 		local wheels: { Wheel } = {}
 		for _, fz in { -1, 1 } do
@@ -252,16 +278,18 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 		-- showed in the Studio check
 		local tag = nameTag(body, playerName(model), s)
 		tag.Parent = body
+		local plain = tag:FindFirstChildOfClass("TextLabel") :: TextLabel
+		local mt = MatchNameTag.attach(tag, plain, model, playerName(model))
 		local skins = ReplicatedStorage:FindFirstChild("CarSkins")
 		local own = id and skins and skins:FindFirstChild(id)
 		if own and own:IsA("Model") then
 			CarSkin.prepare(own)
 		end
-		local toy = if own and own:IsA("Model") then modelShell(f, own, s) else nil
+		local toy = if own and own:IsA("Model") then modelShell(f, own, s, nil, paint) else nil
 		local kart = if id and not (own and own:IsA("Model")) then CarSkin.kartFor(id) else nil
-		toy = toy or if kart then modelShell(f, kart, s, id) else nil
+		toy = toy or if kart then modelShell(f, kart, s, id, paint) else nil
 		local waiting = id ~= nil and toy == nil and not (own and own:IsA("Model"))
-		toy = toy or if id then toyShell(f, id, s) else nil
+		toy = toy or if id then toyShell(f, id, s, paint) else nil
 		if toy then
 			for _, d in model:GetDescendants() do
 				-- (a kart topper, Model "Hat", stays shown: it sits on the toy's roof)
@@ -271,7 +299,7 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 			end
 		end
 		local o: Other =
-			{ body = body, folder = f, wheels = wheels, scale = s, tag = tag, toy = toy }
+			{ body = body, folder = f, wheels = wheels, scale = s, tag = tag, mt = mt, toy = toy }
 		o.kartId = if waiting then id else nil
 		others[model] = o
 		return o
@@ -281,6 +309,7 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 		local o = others[model]
 		if o then
 			o.folder:Destroy()
+			o.mt.destroy()
 			o.tag:Destroy()
 			others[model] = nil
 		end
@@ -377,7 +406,7 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 			local kartId = o.kartId
 			if kartId then
 				local kart = CarSkin.kartFor(kartId)
-				local shell = kart and modelShell(o.folder, kart, o.scale, kartId)
+				local shell = kart and modelShell(o.folder, kart, o.scale, kartId, botPaint(m))
 				if shell then
 					for _, p in (o.toy :: Toy).parts do
 						p:Destroy()
@@ -413,6 +442,10 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 				then RACE_TAG_FAR
 				elseif inMatch then MATCH_TAG_FAR
 				else 150
+			if (o.inMatch == true) ~= inMatch then
+				o.inMatch = inMatch
+				o.mt.show(inMatch)
+			end
 			local size = if inMatch then MATCH_TAG_SIZE else TAG_SIZE
 			if o.tag.Size ~= size then
 				o.tag.Size = size
@@ -463,9 +496,16 @@ function OtherCars.new(myCarName: () -> string): { update: (dt: number) -> () }
 					hang += w.shown / #o.wheels
 				end
 				local ground = cf * CFrame.new(0, base("attachY") * s - hang - radius, 0)
+				local spin = os.clock() * CarSkin.SPIN_RATE
 				for k, off in toy.offsets do
 					table.insert(moveParts, toy.parts[k])
-					table.insert(moveAt, ground * off)
+					local axis = toy.spins[k]
+					table.insert(
+						moveAt,
+						if axis
+							then ground * off * CFrame.fromAxisAngle(axis, spin)
+							else ground * off
+					)
 				end
 			end
 		end

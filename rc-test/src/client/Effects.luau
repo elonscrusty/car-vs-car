@@ -20,13 +20,14 @@ local Effects = {}
 
 local SLIDE_START = 7 -- sideways tyre speed (studs/s) where smoke and marks begin
 local SMOKE_PER_SECOND = 70
+local FRONT_SMOKE = 0.5 -- front tyres put out this share of the rear smoke
 local smokeColor = Color3.fromRGB(235, 235, 235) -- the player's pick (looks only)
 -- Skid marks are Trails lying flat between two points across the tyre: one smooth ribbon that
 -- fades out (playtest u30: the old row of boxes drew jagged zig-zags). Each slide takes the next
 -- of MARK_RIGS ribbons per tyre, so the last few slides stay on the road while they fade.
 local MARK_LIFE = 12 -- seconds a skid mark lasts (Trails top out at 20)
 local MARK_RIGS = 4
-local MARK_WIDTH = 0.65 -- across the tyre (car sizes)
+local MARK_WIDTH = 0.8 -- across the tyre (car sizes); carter picked "Classic" (10-29): bold black lines
 -- no marks where a tyre can't leave one (playtest u12: dark stripes on the water)
 local NO_MARKS: { [Enum.Material]: boolean } = {
 	[Enum.Material.Water] = true,
@@ -35,6 +36,8 @@ local NO_MARKS: { [Enum.Material]: boolean } = {
 local NO_MARK_SURFACES: { [string]: boolean } = { Puddle = true, OilPatch = true }
 -- Sound ids (free Creator Store sounds, checked to load in Studio). Empty = no sound.
 local MOTOR_SOUND = "rbxassetid://137730930796096" -- "ENV Electric Motor Steady"
+local GROWL_SLOW = 0.4 -- motor pitch at a stop (low and deep)
+local GROWL_RISE = 0.8 -- how far it climbs by top speed
 local SQUEAL_SOUND = "rbxassetid://109487442763183" -- "Tire Squealing / Screeching Loop"
 
 -- What flies off the tyres on each track-tile surface (by part name), and how much per second at
@@ -95,10 +98,10 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 		trail.Enabled = false
 		trail.Lifetime = MARK_LIFE
 		trail.MinLength = 0.1 * S
-		trail.Color = ColorSequence.new(Color3.fromRGB(25, 25, 28))
+		trail.Color = ColorSequence.new(Color3.fromRGB(4, 4, 6))
 		trail.Transparency = NumberSequence.new({
-			NumberSequenceKeypoint.new(0, 0.35),
-			NumberSequenceKeypoint.new(0.6, 0.5),
+			NumberSequenceKeypoint.new(0, 0.12),
+			NumberSequenceKeypoint.new(0.65, 0.2),
 			NumberSequenceKeypoint.new(1, 1),
 		})
 		trail.LightEmission = 0
@@ -210,6 +213,15 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 	end
 
 	local motor = loopSound(MOTOR_SOUND, folder)
+	if motor then
+		-- engine growl (carter 10-30, pick 2: smooth, not distorted): play the file slow so it sits
+		-- low, and cut the highs so the whine never buzzes
+		local eq = Instance.new("EqualizerSoundEffect")
+		eq.LowGain = 4
+		eq.MidGain = -5
+		eq.HighGain = -30
+		eq.Parent = motor
+	end
 	local squeal = loopSound(SQUEAL_SOUND, folder)
 	local squealLevel = 0
 
@@ -236,7 +248,7 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 		-- motor buzz rises with speed; squeal follows the hardest sliding back tyre
 		local share = math.clamp(telemetry.speed / math.max(Tuning.topSpeed, 0.01), 0, 1)
 		if motor then
-			motor.PlaybackSpeed = 0.7 + 1.1 * share
+			motor.PlaybackSpeed = GROWL_SLOW + GROWL_RISE * share
 			motor.Volume = SoundLevels.MOTOR_MIN
 				+ (SoundLevels.MOTOR_MAX - SoundLevels.MOTOR_MIN) * share
 		end
@@ -293,8 +305,9 @@ function Effects.new(telemetry: RCCar.Telemetry): Effects
 			if sliding then
 				local strength = math.clamp((info.slide - SLIDE_START * S) / (20 * S), 0, 1)
 				t.attach.WorldPosition = info.contact + info.normal * 0.3 * S
-				if info.rear then
-					t.owed += SMOKE_PER_SECOND * (0.3 + strength) * dt
+				do -- the front tyres puff too, half as much (Classic look)
+					local share = if info.rear then 1 else FRONT_SMOKE
+					t.owed += SMOKE_PER_SECOND * share * (0.3 + strength) * dt
 					local n = math.floor(t.owed)
 					if n > 0 then
 						t.emitter:Emit(n)

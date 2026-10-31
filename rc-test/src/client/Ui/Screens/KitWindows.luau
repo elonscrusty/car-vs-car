@@ -1273,7 +1273,7 @@ local function slider(
 	b.Destroying:Connect(stop)
 end
 
--- data: { music: 0..1, sfx: 0..1, shadows: boolean, names: boolean }
+-- data: { music: 0..1, sfx: 0..1, shadows: boolean, names: boolean, camera: "follow"|"fixed" }
 -- actions: set(key, value), close()
 function KitWindows.settings(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
 	return Screen.open("settings", "window", true, function(g)
@@ -1290,7 +1290,7 @@ function KitWindows.settings(data: { [string]: any }, actions: Screen.Actions?):
 		local op = { w = bp.w - sp.w - 16, h = bp.h }
 		local left = Kit.navyPanel(body, "Sliders", 0, 0, sp.w, sp.h)
 		for i, row in { { "music", "MUSIC" }, { "sfx", "SOUNDS" } } do
-			local y = 30 + (i - 1) * 120
+			local y = 10 + (i - 1) * 96
 			Base.text(
 				left,
 				"Word" .. i,
@@ -1312,6 +1312,42 @@ function KitWindows.settings(data: { [string]: any }, actions: Screen.Actions?):
 					set(row[1], v)
 				end
 			)
+		end
+		-- CAMERA: two buttons, the picked one gold
+		local camY = 10 + 2 * 96
+		Base.text(
+			left,
+			"CamWord",
+			20,
+			camY,
+			sp.w - 40,
+			32,
+			"CAMERA",
+			{ stroke = 3.5, align = "l", z = 5 }
+		)
+		local camBtns: { [string]: TextButton } = {}
+		local half = (sp.w - 32 - 12) / 2
+		for i, row in { { "follow", "FOLLOW" }, { "fixed", "FIXED" } } do
+			local id = row[1]
+			local picked = data.camera == id or (id == "follow" and data.camera ~= "fixed")
+			local btn = Kit.button(
+				left,
+				"Cam" .. id,
+				16 + (i - 1) * (half + 12),
+				camY + 38,
+				half,
+				50,
+				if picked then "gold" else "white",
+				row[2],
+				{ z = 5 }
+			)
+			camBtns[id] = btn
+			btn.Activated:Connect(function()
+				for other, b in camBtns do
+					Kit.setTone(b, if other == id then "gold" else "white")
+				end
+				set("camera", id)
+			end)
 		end
 		local right = Kit.navyPanel(body, "Toggles", sp.w + 16, 0, op.w, op.h)
 		for i, row in { { "shadows", "SHADOWS" }, { "names", "NAME TAGS" } } do
