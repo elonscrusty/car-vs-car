@@ -10,10 +10,20 @@ export type Settings = {
 	shadows: boolean,
 	names: boolean,
 	camera: string,
+	buttons: string, -- the phone's FIRE button size: "small" | "medium" | "large"
+	buzz: boolean, -- a controller's rumble
 }
 
-GameSettings.DEFAULTS =
-	{ music = 1, sfx = 1, shadows = true, names = true, camera = "follow" } :: Settings
+GameSettings.DEFAULTS = {
+	music = 1,
+	sfx = 1,
+	shadows = true,
+	names = true,
+	camera = "follow",
+	buttons = "medium",
+	buzz = true,
+} :: Settings
+GameSettings.BUTTON_SCALE = { small = 0.8, medium = 1, large = 1.25 }
 GameSettings.SAVE_GAP = 2 -- seconds between saves taken from one player
 
 local function volume(v: any, default: number): number
@@ -34,6 +44,10 @@ function GameSettings.clean(t: any): Settings
 		shadows = if type(src.shadows) == "boolean" then src.shadows else d.shadows,
 		names = if type(src.names) == "boolean" then src.names else d.names,
 		camera = if src.camera == "fixed" then "fixed" else "follow",
+		buttons = if src.buttons == "small" or src.buttons == "large"
+			then src.buttons
+			else "medium",
+		buzz = if type(src.buzz) == "boolean" then src.buzz else d.buzz,
 	}
 end
 
@@ -43,6 +57,8 @@ function GameSettings.same(a: Settings, b: Settings): boolean
 		and a.shadows == b.shadows
 		and a.names == b.names
 		and a.camera == b.camera
+		and a.buttons == b.buttons
+		and a.buzz == b.buzz
 end
 
 return GameSettings
