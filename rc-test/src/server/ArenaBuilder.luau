@@ -43,7 +43,6 @@ local SAND = rgb(96, 70, 48) -- (the mud pit)
 local BUMPER = rgb(225, 40, 50)
 local PINK = rgb(234, 122, 196)
 local PURPLE, PURPLE_STEP = rgb(136, 60, 196), rgb(176, 96, 220)
-local ORANGE = rgb(255, 140, 40)
 local CANDY, CANDY_2 = rgb(214, 44, 178), rgb(255, 110, 200)
 local STICK = rgb(252, 248, 240)
 local TRIM, NAVY = rgb(196, 128, 246), rgb(34, 40, 78)
@@ -1390,28 +1389,6 @@ local function buildWorld(folder: Instance)
 			CURB_WHITE,
 			false
 		)
-	end
-	-- a fire pot every so often on top of the north and south wall (a dark drum, an orange flame)
-	for _, side in { -1, 1 } do
-		for k = 0, 11 do
-			local x, z = -s / 2 + 30 + k * 30, side * (s / 2 - ArenaData.WALL * K / 2)
-			part(
-				folder,
-				"FirePot",
-				Vector3.new(3, 3, 3),
-				CFrame.new(x, ArenaData.WALL_H + 3.7, z),
-				HAZARD_DARK,
-				false
-			)
-			part(
-				folder,
-				"FireFlame",
-				Vector3.new(2, 3.4, 2),
-				CFrame.new(x, ArenaData.WALL_H + 6.8, z) * CFrame.Angles(0, k, 0),
-				ORANGE,
-				false
-			)
-		end
 	end
 end
 

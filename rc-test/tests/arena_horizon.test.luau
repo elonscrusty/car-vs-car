@@ -68,21 +68,18 @@ test("skyline: factories, chimneys, cranes, all outside the ground the game uses
 	end
 end)
 
-test("lit windows, crane lamps and flares glow; the part budget stays small", function()
-	truthy(count("FarWindow") >= 150, "windows")
-	truthy(count("FarCraneLamp") >= 10, "crane lamps")
-	truthy(count("FarFlare") >= 8, "flares")
-	for _, p in pieces do
-		if
-			string.sub(p.name, 1, 9) == "FarWindow"
-			or p.name == "FarFlare"
-			or p.name == "FarCraneLamp"
-		then
-			truthy(p.neon == true, p.name .. " glows")
+test(
+	"day look: windows and crane lamps are plain, no glowing flares; part budget stays small",
+	function()
+		truthy(count("FarWindow") >= 150, "windows")
+		truthy(count("FarCraneLamp") >= 10, "crane lamps")
+		eq(count("FarFlare"), 0, "no burning flares (carter 10-30: nothing glows)")
+		for _, p in pieces do
+			truthy(p.neon ~= true, p.name .. " glows")
 		end
+		truthy(#pieces <= 600, "phone budget: " .. #pieces)
 	end
-	truthy(#pieces <= 600, "phone budget: " .. #pieces)
-end)
+)
 
 test("same every build", function()
 	local again = D.pieces(A.atmosphere.color)
