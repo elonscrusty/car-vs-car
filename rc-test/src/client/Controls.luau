@@ -22,10 +22,12 @@ local Controls = {}
 
 local STICK_RADIUS = 80
 local KNOB_TRAVEL = STICK_RADIUS - 38 - 6 -- (the knob is 76 across; the ring's rim)
-local DEADZONE = 0.08
+local DEADZONE = 0.05
+-- the touch stick reaches full lock at this part of its ring: small thumb moves steer (input only)
+local STEER_REACH = 0.7
 -- SMASH on a phone: the stick is the gas too (Lead 10-28: "joystick + fire only"). Push up to
 -- go, pull down to brake and back up. Input only: the car's numbers don't change.
-local GAS_START, GAS_FULL = 0.15, 0.7 -- (stick up this far: gas starts, gas is full)
+local GAS_START, GAS_FULL = 0.1, 0.55 -- (stick up this far: gas starts, gas is full)
 local BRAKE_START, BRAKE_FULL = 0.3, 0.8 -- (a bit more pull: a sideways drag never brakes)
 
 local function ramp(v: number, start: number, full: number): number
@@ -319,7 +321,8 @@ function Controls.new(
 		hint.Position = UDim2.new(0, 44 + STICK_RADIUS + 18, 1, -(24 + STICK_RADIUS * 2 + 12))
 		hint.Size = UDim2.fromOffset(200, 22)
 		hint.Font = Enum.Font.Roboto
-		hint.TextSize = 18
+		hint.TextSize = 14
+		hint.TextTransparency = 0.35
 		hint.TextColor3 = Color3.new(1, 1, 1)
 		hint.Text = if stickGas then "PUSH TO DRIVE" else "STEER"
 		hint.Parent = gui
@@ -384,10 +387,11 @@ function Controls.new(
 					touchGas = ramp(y, GAS_START, GAS_FULL)
 					touchBrake = ramp(-y, BRAKE_START, BRAKE_FULL)
 				end
-				if math.abs(x) < DEADZONE then
+				local sx = math.clamp(dx / (STICK_RADIUS * STEER_REACH), -1, 1)
+				if math.abs(sx) < DEADZONE then
 					touchSteer = 0
 				else
-					touchSteer = math.sign(x) * math.abs(x) ^ 1.2
+					touchSteer = math.sign(sx) * math.abs(sx) ^ 1.2
 				end
 			end)
 		end)
@@ -399,7 +403,7 @@ function Controls.new(
 			"DRIFT",
 			Vector2.new(1, 1),
 			-- (lower in SMASH: at 0.58 the kill list's bottom edge covered its top; FIRE is below)
-			UDim2.fromScale(0.97, if stickGas then 0.62 else 0.58),
+			UDim2.fromScale(0.97, if stickGas then 0.54 else 0.58),
 			0.22,
 			Color3.fromRGB(70, 130, 235)
 		)
