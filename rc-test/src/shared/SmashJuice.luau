@@ -337,8 +337,8 @@ end
 
 SmashJuice.MAX_TRAUMA = 1
 SmashJuice.DECAY = 3 -- trauma lost per second (a quick shake, not a long wobble)
-SmashJuice.MAX_DEGREES = 2.2 -- look-around at full trauma (24 px of the 980 px preview)
-SmashJuice.MAX_ROLL = 3.2 -- roll at full trauma
+SmashJuice.MAX_DEGREES = 1.1 -- look-around at full trauma (24 px of the 980 px preview)
+SmashJuice.MAX_ROLL = 1.6 -- roll at full trauma
 SmashJuice.NOISE_HZ = 24
 
 function SmashJuice.addTrauma(now: number, add: number): number

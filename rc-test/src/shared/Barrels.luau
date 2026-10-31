@@ -30,10 +30,7 @@ Barrels.NAME = "Keg" -- the word the match shows when a keg smashes a kart
 Barrels.SPOTS = {
 	{ 120, 120 },
 	{ 155, 175 },
-	{ 125, 185 },
 	{ 55, 140 },
-	{ 80, 80 },
-	{ 175, 50 },
 } :: { { number } }
 
 -- Health a kart `dist` big units from the keg loses (0 outside the ring): straight line from
