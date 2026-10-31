@@ -90,6 +90,7 @@ SoundCues.MUST = {
 	"hit",
 	"bump",
 	"smash",
+	"announce",
 	"respawn",
 	"shield",
 	"matchStart",
@@ -313,6 +314,15 @@ SoundCues.ACTIONS = {
 	},
 	spark = { id = "rbxassetid://9116911070", notes = { 2.5 }, gap = 0, volume = L.SPARK },
 	-- any button tapped: a soft round click (carter picked A "Soft click" 10-30)
+	-- the announcer's big word (FIRST SMASH!, DOUBLE SMASH!, UNSTOPPABLE!): a bright two-note
+	-- stinger on a checked sound. No voice clip has a checked id yet, so this is the placeholder.
+	announce = {
+		id = "rbxassetid://9120686092",
+		pitch = 1.3,
+		notes = { 1.5, 2 },
+		gap = 0.08,
+		volume = L.ANNOUNCE,
+	},
 	tap = { id = "rbxassetid://16480568294", pitch = 1.15, notes = { 2 }, gap = 0, volume = L.TAP },
 } :: { [string]: Cue }
 
