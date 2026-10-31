@@ -116,7 +116,14 @@ local function weld(p: BasePart, root: BasePart)
 	w.Parent = p
 end
 
--- a "?" on the panel's front: a dark copy just behind and below it gives it depth
+-- a lightning bolt on the panel's front (carter picked the bolt over the "?", 10-31): three bars in a
+-- zigzag, drawn twice: a dark copy just behind and below gives it depth, then the bright one
+local BOLT = {
+	{ 66, 8, 38, 54 }, -- top stroke, going down-left
+	{ 34, 54, 64, 54 }, -- the little step across
+	{ 62, 54, 34, 94 }, -- bottom stroke, going down-left
+}
+
 local function mark(panel: BasePart)
 	local gui = Instance.new("SurfaceGui")
 	gui.Name = "Mark"
@@ -124,21 +131,24 @@ local function mark(panel: BasePart)
 	gui.CanvasSize = Vector2.new(100, 100)
 	gui.LightInfluence = 0
 	gui.Brightness = 3
-	for _, layer in { { Q_DEPTH, Q_DEPTH, 5 }, { Q_FILL, Q_EDGE, 0 } } do
-		local t = Instance.new("TextLabel")
-		t.BackgroundTransparency = 1
-		t.Size = UDim2.fromScale(1, 1)
-		t.Position = UDim2.fromOffset(layer[3], layer[3])
-		t.Font = Enum.Font.Oswald
-		t.Text = "?"
-		t.TextSize = 82 -- fixed size on the 100 px canvas (TextScaled costs more on phones)
-		t.TextColor3 = layer[1]
-		t.TextStrokeTransparency = 1
-		local stroke = Instance.new("UIStroke")
-		stroke.Color = layer[2]
-		stroke.Thickness = 5
-		stroke.Parent = t
-		t.Parent = gui
+	for _, layer in { { Q_DEPTH, 5, 8 }, { Q_EDGE, 0, 8 }, { Q_FILL, 0, 0 } } do
+		local grow = layer[3] -- the orange edge layer is fatter than the bright one
+		for _, seg in BOLT do
+			local dx, dy = seg[3] - seg[1], seg[4] - seg[2]
+			local len = math.sqrt(dx * dx + dy * dy) + 12
+			local f = Instance.new("Frame")
+			f.AnchorPoint = Vector2.new(0.5, 0.5)
+			f.Position =
+				UDim2.fromOffset((seg[1] + seg[3]) / 2 + layer[2], (seg[2] + seg[4]) / 2 + layer[2])
+			f.Size = UDim2.fromOffset(len, 14 + grow)
+			f.Rotation = math.deg(math.atan2(dy, dx))
+			f.BackgroundColor3 = layer[1]
+			f.BorderSizePixel = 0
+			local c = Instance.new("UICorner")
+			c.CornerRadius = UDim.new(0.5, 0)
+			c.Parent = f
+			f.Parent = gui
+		end
 	end
 	gui.Parent = panel
 end
