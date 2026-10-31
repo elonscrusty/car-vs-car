@@ -15,7 +15,7 @@ end
 
 test("Match: 3 hits smash a kart, the attacker scores, junk does nothing", function()
 	local m = round(2)
-	local now = Match.SHIELD + 1
+	local now = Match.START_SHIELD + 1
 	eq(select(1, Match.damage(m, 2, 1, Match.HIT, now)), Match.HIT)
 	eq(m.karts[2].health, Match.HEALTH - Match.HIT)
 	Match.damage(m, 2, 1, Match.HIT, now)
@@ -36,8 +36,8 @@ end)
 
 test("Match: the shield blocks hits; respawn after 3 s with a fresh shield", function()
 	local m = round(2)
-	eq(select(1, Match.damage(m, 2, 1, Match.HIT, Match.SHIELD - 0.1)), 0)
-	local t = Match.SHIELD + 0.5
+	eq(select(1, Match.damage(m, 2, 1, Match.HIT, Match.START_SHIELD - 0.1)), 0)
+	local t = Match.START_SHIELD + 0.5
 	for _ = 1, 3 do
 		Match.damage(m, 2, 1, Match.HIT, t)
 	end

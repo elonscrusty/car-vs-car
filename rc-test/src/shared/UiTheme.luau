@@ -199,7 +199,7 @@ UiTheme.SLAB = { x = -8, y = 9 } -- the blue slab behind a window
 
 -- Type: font px at 844 x 390, and the stroke in CSS px (half of it is a UIStroke's Thickness:
 -- CSS strokes sit half inside the letters, UIStroke all outside)
-UiTheme.FONT = "FredokaOne"
+UiTheme.FONT = "Oswald"
 UiTheme.TYPE = {
 	shout = { size = 52, stroke = 7, drop = 5 },
 	title = { size = 45, stroke = 9, drop = 3 },

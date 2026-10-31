@@ -1,11 +1,12 @@
 --!strict
--- Style A, "Kart Party" (carter's pick, 10-26): one font, bright red / yellow / blue / green,
+-- Style A, "Kart Party" (carter's pick, 10-26): the big-word font (UiFonts.TITLE), bright red /
+-- yellow / blue / green,
 -- thick dark ink outlines, glossy pushable buttons. Every screen and sign takes its colours and
 -- font from here, so the whole game looks like one game. KartSkin.client puts the look on the
 -- screens; 3D signs (PadWords) use these too.
 local KartStyle = {}
 
-KartStyle.FONT = Enum.Font.LuckiestGuy
+KartStyle.FONT = Enum.Font.Oswald
 
 KartStyle.RED = Color3.fromRGB(232, 53, 46) -- #E8352E
 KartStyle.YELLOW = Color3.fromRGB(255, 199, 44) -- #FFC72C

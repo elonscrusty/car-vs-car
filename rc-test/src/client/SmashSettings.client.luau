@@ -5,9 +5,11 @@
 --   MUSIC / SOUNDS: two SoundGroups every sound is put in (sounds named "Music" in the music one)
 --   SHADOWS: Lighting.GlobalShadows on this screen
 --   NAME TAGS: other players' names and league badges over their heads
+--   BUTTONS: S / M / L (attribute BtnScale, read by MatchHud); BUZZ: controller rumble (attribute Buzz)
+--   CAMERA: FOLLOW or FIXED (player attribute CamFixed, read by ChaseCamera)
 -- The server keeps them (SettingsServer: RemoteEvent SaveSettings, one send each SAVE_GAP s;
--- the saved ones come once, on the attributes SetMusic, SetSfx, SetShadows, SetNames and then
--- SetLoaded: the window opens only after that, so nothing sent can put defaults over a save).
+-- the saved ones come once, on the attributes SetMusic, SetSfx, SetShadows, SetNames, SetCamera and
+-- then SetLoaded: the window opens only after that, so nothing sent can put defaults over a save).
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -120,6 +122,9 @@ local function apply()
 	musicGroup.Volume = state.music
 	sfxGroup.Volume = state.sfx
 	Lighting.GlobalShadows = state.shadows
+	player:SetAttribute("CamFixed", state.camera == "fixed")
+	player:SetAttribute("BtnScale", GameSettings.BUTTON_SCALE[state.buttons] or 1)
+	player:SetAttribute("Buzz", state.buzz)
 	if state.names then
 		for hum, was in hidden do
 			hidden[hum] = nil
@@ -151,6 +156,9 @@ local function fromServer()
 		sfx = player:GetAttribute("SetSfx"),
 		shadows = player:GetAttribute("SetShadows"),
 		names = player:GetAttribute("SetNames"),
+		camera = player:GetAttribute("SetCamera"),
+		buttons = player:GetAttribute("SetButtons"),
+		buzz = player:GetAttribute("SetBuzz"),
 	})
 	apply()
 end
@@ -177,6 +185,9 @@ local function send()
 				sfx = state.sfx,
 				shadows = state.shadows,
 				names = state.names,
+				camera = state.camera,
+				buttons = state.buttons,
+				buzz = state.buzz,
 			})
 		end
 	end)
@@ -202,6 +213,9 @@ local function open()
 		sfx = state.sfx,
 		shadows = state.shadows,
 		names = state.names,
+		camera = state.camera,
+		buttons = state.buttons,
+		buzz = state.buzz,
 	}, {
 		set = function(key: string, value: any)
 			local t: { [string]: any } = {
@@ -209,6 +223,9 @@ local function open()
 				sfx = state.sfx,
 				shadows = state.shadows,
 				names = state.names,
+				camera = state.camera,
+				buttons = state.buttons,
+				buzz = state.buzz,
 			}
 			t[key] = value
 			state = GameSettings.clean(t)

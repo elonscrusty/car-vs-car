@@ -323,6 +323,20 @@ DRAW.freeze = function(c)
 	shape(c, "Middle", 34, 34, 32, 32, ice, nil, 6, 45, 3)
 end
 
+-- the Flame Nozzle: three tongues of fire, red outside, orange in, a yellow heart (carter 10-30, triple flame)
+DRAW.flame = function(c)
+	shape(c, "Base", 18, 50, 64, 42, Base.color("danger"), nil, 6, nil, 1)
+	shape(c, "L", 12, 22, 24, 60, Base.color("danger"), 12, 6, -16, 1)
+	shape(c, "R", 64, 22, 24, 60, Base.color("danger"), 12, 6, 16, 1)
+	shape(c, "C", 34, 2, 32, 80, Base.color("danger"), 16, 6, nil, 1)
+	shape(c, "Base2", 26, 56, 48, 32, Base.color("boost"), nil, 6, nil, 3)
+	shape(c, "L2", 20, 32, 18, 46, Base.color("boost"), 9, 6, -16, 3)
+	shape(c, "R2", 62, 32, 18, 46, Base.color("boost"), 9, 6, 16, 3)
+	shape(c, "C2", 39, 14, 22, 66, Base.color("boost"), 11, 6, nil, 3)
+	shape(c, "Hot", 40, 52, 20, 30, Base.color("go"), 10, 6, nil, 5)
+	shape(c, "HotTop", 44, 36, 12, 26, Base.color("go"), 6, 6, nil, 5)
+end
+
 DRAW.mystery = function(c)
 	local red = Base.color("danger")
 	shape(c, "Box", 10, 10, 80, 80, red, 14, 7, nil, 2)
@@ -347,11 +361,48 @@ DRAW.heart = function(c)
 	Base.fill(c, "Fill", 26, 30, 48, 30, red, 4)
 end
 
+-- the smash count's crash burst (match 1A, carter 10-29): an orange 8-point star, a yellow one in it
+DRAW.burst = function(c)
+	local boost, go = Base.color("boost"), Base.color("go")
+	shape(c, "OuterA", 14, 14, 72, 72, boost, 6, 6, nil, 1)
+	shape(c, "OuterB", 14, 14, 72, 72, boost, 6, 6, 45, 1)
+	Base.fill(c, "InnerA", 30, 30, 40, 40, go, 4)
+	Base.fill(c, "InnerB", 30, 30, 40, 40, go, 4).Rotation = 45
+end
+
 DRAW.plus = function(c)
 	local lime = Base.color("lime")
 	local disc = shape(c, "Disc", 6, 6, 88, 88, lime, nil, 8)
 	gloss(disc, lime, 0.35)
 	Base.text(c, "Plus", 10, 4, 80, 84, "+", { stroke = 14 * unit(c), z = 5 })
+end
+
+-- Oil slick puddle (carter 10-29, try A): a fat black puddle, rainbow shine bars, two bubbles.
+DRAW.oilSlick = function(c)
+	local black = Color3.fromRGB(14, 14, 24)
+	shape(c, "Blob", 6, 30, 88, 56, black, nil, 6, nil, 1)
+	shape(c, "LobeL", 14, 22, 40, 34, black, nil, 6, nil, 1)
+	shape(c, "LobeR", 52, 38, 38, 36, black, nil, 6, nil, 1)
+	local shine = { "ff3fa4", "35e0ff", "8d5bff", "7dff6a", "ffd23f" }
+	for i, h in shine do
+		shape(
+			c,
+			"Shine" .. i,
+			22 + (i - 1) * 11,
+			62 - math.abs(i - 3) * 6,
+			10,
+			5,
+			Color3.fromHex(h),
+			3,
+			nil,
+			(i - 3) * 12,
+			4
+		)
+	end
+	shape(c, "BubbleA", 58, 28, 18, 18, Color3.fromRGB(34, 40, 84), nil, 6, nil, 5)
+	shape(c, "GlintA", 62, 31, 5, 5, WHITE, nil, 6, nil, 6)
+	shape(c, "BubbleB", 30, 38, 11, 11, Color3.fromRGB(34, 40, 84), nil, 6, nil, 5)
+	shape(c, "GlintB", 32, 40, 3, 3, WHITE, nil, 6, nil, 6)
 end
 
 -- Draw icon `name` in x, y, s x s of parent. opts: rarity / open (crates).

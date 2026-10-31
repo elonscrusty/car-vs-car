@@ -462,6 +462,8 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown, gridSpot: u
 		wallRay.FilterDescendantsInstances = ignoreList()
 		grindFor, nudgeUntil = 0, 0
 		table.clear(nudges)
+		-- (the old camera was in the match camera: this is a respawn, not the match's start)
+		local respawned = camera.isArena()
 		camera = ChaseCamera.new(body, ignoreList(), eye)
 		camera.setView(view)
 		-- (a respawn in a match starts in the match camera, no swoop from the low one)
@@ -495,6 +497,19 @@ remote.OnClientEvent:Connect(function(kind: unknown, index: unknown, gridSpot: u
 		end
 		setStats(nil)
 		goTo(index)
+		-- the camera's entrance (reduced motion: a plain cut): a respawn whooshes round your new
+		-- kart, the match start flies in over the arena
+		if
+			grid ~= nil
+			and ArenaCam.on(player:GetAttribute("InMatch"), true)
+			and not require(script.Parent:WaitForChild("Ui"):WaitForChild("Base")).reduced()
+		then
+			if respawned then
+				camera.comeBack()
+			else
+				camera.flyIn()
+			end
+		end
 	end
 end)
 setWalking(true)
@@ -799,7 +814,7 @@ do
 	local l = Instance.new("TextLabel")
 	l.BackgroundTransparency = 1
 	l.Size = UDim2.fromScale(1, 1)
-	l.Font = Enum.Font.FredokaOne -- (carter's kit v41 face)
+	l.Font = Enum.Font.Oswald -- (carter's kit v41 face)
 	l.TextScaled = true
 	l.TextColor3 = Color3.fromRGB(255, 217, 59)
 	l.TextStrokeColor3 = Color3.fromRGB(13, 44, 64)

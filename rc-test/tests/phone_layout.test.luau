@@ -9,7 +9,7 @@ local H = require("./harness")
 local L = require("./ui_layout")
 local roblox = require("@lune/roblox")
 
-local test, truthy = H.test, H.truthy
+local test, truthy, eq = H.test, H.truthy, H.eq
 
 print("Phone layout")
 
@@ -217,28 +217,34 @@ for _, ph in L.PHONES do
 	end)
 end
 
-test("a level badge sits before each name with a level, on the board and the kill list", function()
-	local h = matchHud()
-	local c = h.gui.canvas
-	local board = c:FindFirstChild("Board")
-	-- (the board is the leader and you: auditor round 12)
-	local row1 = board and board:FindFirstChild("Row1")
-	truthy(row1 and row1:FindFirstChild("Level"), "no board badge for the level 3 leader")
-	local row2 = board and board:FindFirstChild("Row2")
-	truthy(row2 and row2:FindFirstChild("Level"), "no board badge for your level 1 kart")
-	truthy(board and board:FindFirstChild("Row3") == nil, "a third board row")
-	local feed = c:FindFirstChild("Feed")
-	local n = 0
-	for _, r in feed:GetChildren() do
-		if r:FindFirstChild("WhoLevel") and r:FindFirstChild("WhomLevel") then
-			n += 1
-			local who = r:FindFirstChild("Who")
-			truthy(who.Text == "SUPERLO…" or who.Text == "MRCARTER", "name not cut: " .. who.Text)
+test(
+	"a level badge sits before each name on the board; the kill list is bare words (carter B, 10-30)",
+	function()
+		local h = matchHud()
+		local c = h.gui.canvas
+		local board = c:FindFirstChild("Board")
+		-- (the board is the leader and you: auditor round 12)
+		local row1 = board and board:FindFirstChild("Row1")
+		truthy(row1 and row1:FindFirstChild("Level"), "no board badge for the level 3 leader")
+		local row2 = board and board:FindFirstChild("Row2")
+		truthy(row2 and row2:FindFirstChild("Level"), "no board badge for your level 1 kart")
+		truthy(board and board:FindFirstChild("Row3") == nil, "a third board row")
+		local feed = c:FindFirstChild("Feed")
+		local n, rowsSeen = 0, 0
+		for _, r in feed:GetChildren() do
+			if r:FindFirstChild("Who") then
+				rowsSeen += 1
+				if r:FindFirstChild("WhoLevel") or r:FindFirstChild("WhomLevel") then
+					n += 1
+				end
+			end
 		end
+		-- (the feed now keeps 4 lines: all 3 kills show)
+		truthy(rowsSeen == 3, "kill list rows: " .. rowsSeen)
+		truthy(n == 0, "kill list badges: " .. n)
+		h.close()
 	end
-	truthy(n == 2, "kill list badges: " .. n)
-	h.close()
-end)
+)
 
 test("the phone screens built with no script errors", function()
 	none(S.errors)
@@ -279,8 +285,8 @@ end)
 
 -- ===== a phone's match (carter 10-29: "can't see on mobile, too cluttered") =====
 -- The small layout (UiScreens matchTouch): the middle half of the screen empty, our UI at most a
--- fifth of the screen, the board just you and the leader, at most 2 kill lines. Prints the
--- numbers for each phone (the auditor's bars).
+-- fifth of the screen, no board (carter's pick 1A, 10-29: the place chip says it), at most 4
+-- kill lines. Prints the numbers for each phone (the auditor's bars).
 
 local function phoneHud(desk: boolean?)
 	local h = Hud.match({
@@ -335,9 +341,14 @@ for _, ph in PHONE_SIZES do
 			local area = 0
 			for _, b in L.boxes(h.gui.gui, s[1], s[2], s[3], s[4]) do
 				local x, y, w, hh = seen(b)
+				-- (carter's pick 1A, 10-29: the clock over the health bar, so the bar's foot may
+				-- dip into the middle half, never past a third of the screen)
+				local topBar = string.find(b.path, "Canvas.Health", 1, true) ~= nil
+					and y + hh <= ph.h / 3
 				if
 					(isText(b) or isButton(b) or b.obj.BackgroundTransparency ~= 1)
 					and overlap({ x = x, y = y, w = w, h = hh }, mid)
+					and not topBar
 				then
 					table.insert(inMid, name(b))
 				end
@@ -348,7 +359,7 @@ for _, ph in PHONE_SIZES do
 			local pct = area / (ph.w * ph.h) * 100
 			local board = h.gui.canvas:FindFirstChild("Board")
 			local feed = h.gui.canvas:FindFirstChild("Feed")
-			local boardRows, feedRows = rowsIn(board), rowsIn(feed)
+			local boardRows, feedRows = if board then rowsIn(board) else 0, rowsIn(feed)
 			print(
 				string.format(
 					"       %s: UI %.1f%% of the screen, %d in the centre box, board %d rows, feed %d rows",
@@ -361,19 +372,8 @@ for _, ph in PHONE_SIZES do
 			)
 			none(inMid)
 			truthy(pct <= 20, string.format("UI is %.1f%% of the screen", pct))
-			truthy(boardRows == 2, "board rows: " .. boardRows)
-			truthy(feedRows <= 2, "feed rows: " .. feedRows)
-			-- the leader and you, nobody else
-			local names = {}
-			for _, r in board:GetChildren() do
-				for _, l in r:GetChildren() do
-					if l.ClassName == "TextLabel" and l.Name == "Name" then
-						table.insert(names, l.Text)
-					end
-				end
-			end
-			table.sort(names)
-			truthy(names[1] == "BUBBLE BU…" and names[2] == "MRCARTER", table.concat(names, ", "))
+			truthy(board == nil, "a board on the phone")
+			truthy(feedRows <= 4, "feed rows: " .. feedRows)
 			h.close()
 		end
 	)
@@ -381,12 +381,12 @@ end
 
 -- auditor round 12 (desktop Studio shots): the board is you and the leader, at most 2 kill lines,
 -- on every screen, not just a phone's
-test("desktop match HUD too: board you and the leader, kill feed 2 rows at most", function()
+test("desktop match HUD too: board you and the leader, kill feed 4 rows at most", function()
 	local h = phoneHud(true)
 	local board = h.gui.canvas:FindFirstChild("Board")
 	local feed = h.gui.canvas:FindFirstChild("Feed")
 	truthy(rowsIn(board) == 2, "board rows: " .. rowsIn(board))
-	truthy(rowsIn(feed) <= 2, "feed rows: " .. rowsIn(feed))
+	truthy(rowsIn(feed) <= 4, "feed rows: " .. rowsIn(feed))
 	h.close()
 end)
 
@@ -408,12 +408,12 @@ test("Smash lobby: no GO SMASH! pointer; match name tags small and near on any s
 	truthy(string.find(oc, "PHONE and Players.LocalPlayer", 1, true) == nil, "still phone only")
 end)
 
-test("phone match HUD: kill lines go after 3 s, and FIRE carries the weapon", function()
+test("phone match HUD: kill lines go after 5 s, and FIRE carries the weapon", function()
 	local h = phoneHud()
 	local feed = h.gui.canvas:FindFirstChild("Feed")
-	truthy(rowsIn(feed) == 2, "feed rows: " .. rowsIn(feed))
-	S.advance(3.2)
-	truthy(rowsIn(feed) == 0, "kill lines still up after 3 s: " .. rowsIn(feed))
+	truthy(rowsIn(feed) == 3, "feed rows: " .. rowsIn(feed))
+	S.advance(5.2)
+	truthy(rowsIn(feed) == 0, "kill lines still up after 5 s: " .. rowsIn(feed))
 	local fire = h.gui.canvas:FindFirstChild("Fire")
 	truthy(
 		fire:FindFirstChild("Ammo", true) ~= nil and fire:FindFirstChild("Icon", true) ~= nil,
@@ -458,7 +458,7 @@ test("FIRE: the ? orb and GRAB A ? BOX when empty, the weapon and ammo when held
 		end
 	end
 	truthy(
-		chip and chip.Visible and chip.Text == "6/8",
+		chip and chip.Visible and chip.Text == "6TH",
 		"place chip: " .. tostring(chip and chip.Text)
 	)
 	h.api.setWeapon("Rockets", 3)
@@ -473,6 +473,83 @@ test("FIRE: the ? orb and GRAB A ? BOX when empty, the weapon and ammo when held
 	local tip2 = h2.gui.canvas:FindFirstChild("Tip", true)
 	truthy(tip2 and not tip2.Visible, "the tip shows after the first match")
 	h2.close()
+end)
+
+test("phone match start: the giant number and GET READY! clear of the phone HUD", function()
+	local SmashJuice = require("../src/shared/SmashJuice")
+	local UiScreens = require("../src/shared/UiScreens")
+	for _, ph in PHONE_SIZES do
+		local s = ph.safe
+		local k = math.min(s[3] / 756, s[4] / 390)
+		local ox = s[1] + (s[3] - 756 * k) / 2
+		for spot, at in SmashJuice.START_TOUCH do
+			local r = {
+				x = (ph.w - at.w * ph.w) / 2,
+				y = (at.y - at.h / 2) * ph.h,
+				w = at.w * ph.w,
+				h = at.h * ph.h,
+			}
+			truthy(at.h * ph.h * 0.7 >= 14, `start {spot} words under 14 px at {ph.name}`)
+			for _, pc in UiScreens.get("matchTouch").pieces do
+				if pc.name ~= "Words" then
+					local b = { x = ox + pc.x * k, y = s[2] + pc.y * k, w = pc.w * k, h = pc.h * k }
+					truthy(not overlap(r, b), `start {spot} covers {pc.name} at {ph.name}`)
+				end
+			end
+		end
+	end
+end)
+
+test("phone ROUND OVER!: the words clear of the phone HUD", function()
+	local SmashJuice = require("../src/shared/SmashJuice")
+	local UiScreens = require("../src/shared/UiScreens")
+	for _, ph in PHONE_SIZES do
+		local s = ph.safe
+		local k = math.min(s[3] / 756, s[4] / 390)
+		local ox = s[1] + (s[3] - 756 * k) / 2
+		for spot, at in SmashJuice.ROUND_OVER_TOUCH do
+			local r = {
+				x = (ph.w - at.w * ph.w) / 2,
+				y = (at.y - at.h / 2) * ph.h,
+				w = at.w * ph.w,
+				h = at.h * ph.h,
+			}
+			truthy(at.h * ph.h * 0.7 >= 14, `round over {spot} under 14 px at {ph.name}`)
+			for _, pc in UiScreens.get("matchTouch").pieces do
+				if pc.name ~= "Words" then
+					local b = { x = ox + pc.x * k, y = s[2] + pc.y * k, w = pc.w * k, h = pc.h * k }
+					truthy(not overlap(r, b), `round over {spot} covers {pc.name} at {ph.name}`)
+				end
+			end
+		end
+	end
+end)
+
+test("phone wrecked card: verb, tag and 3-2-1 ring clear of the phone HUD", function()
+	local SmashJuice = require("../src/shared/SmashJuice")
+	local UiScreens = require("../src/shared/UiScreens")
+	for _, ph in PHONE_SIZES do
+		local s = ph.safe
+		local k = math.min(s[3] / 756, s[4] / 390)
+		local ox = s[1] + (s[3] - 756 * k) / 2
+		for spot, at in SmashJuice.WRECK_TOUCH do
+			local hpx = at.h * ph.h
+			local rw = if at.w > 0 then at.w * ph.w else hpx * 1.9
+			local r = {
+				x = (ph.w - rw) / 2 - (if at.w > 0 then 0 else hpx * 0.45),
+				y = (at.y - at.h / 2) * ph.h,
+				w = rw,
+				h = hpx,
+			}
+			truthy(hpx * 0.7 >= 14, `wreck {spot} words under 14 px at {ph.name}`)
+			for _, pc in UiScreens.get("matchTouch").pieces do
+				if pc.name ~= "Words" then
+					local b = { x = ox + pc.x * k, y = s[2] + pc.y * k, w = pc.w * k, h = pc.h * k }
+					truthy(not overlap(r, b), `wreck {spot} covers {pc.name} at {ph.name}`)
+				end
+			end
+		end
+	end
 end)
 
 test("phone smash words: brief (1 s at most) and clear of the phone HUD", function()
@@ -768,5 +845,47 @@ test("end screen: coins, XP, level bar and your place all in by 1.6 s, XP readab
 		st == nil or st.Color ~= roblox.Color3.new(1, 1, 1),
 		"+XP has a white stroke on the white panel"
 	)
+	h.close()
+end)
+
+-- the win screen's coins + LEVEL UP! (carter's pick A, 10-29): the coins start at +0 (the fake
+-- has no frame ticks, so their flight is checked in Studio), the banner slams down after the
+-- bar fills and is gone before the next round
+test("end screen: LEVEL UP! comes after the coins and goes before the next round", function()
+	local WinReward = require("../src/shared/WinReward")
+	local h = Smash.matchEnd(
+		{
+			place = 1,
+			total = 8,
+			top = { { name = "YOU", smashes = 9, me = true } },
+			winner = { name = "YOU", smashes = 9, me = true },
+			coins = 120,
+			xp = 40,
+			smashes = 9,
+			nextAt = 10,
+		},
+		nil,
+		{
+			fromLevel = 4,
+			fromF = 0.8,
+			toLevel = 5,
+			toF = 0.2,
+			into = 20,
+			need = 100,
+			levelUp = true,
+		}
+	)
+	local function amount(): string
+		local a = h.gui.gui:FindFirstChild("Amount", true)
+		return if a then a.Text else ""
+	end
+	eq(amount(), "+0", "the coins start at +0")
+	truthy(h.gui.gui:FindFirstChild("LevelUp", true) == nil, "banner too early")
+	S.advance(WinReward.lands(WinReward.COINS) + 0.3, 1 / 30)
+	truthy(h.gui.gui:FindFirstChild("Reward", true) ~= nil, "no coin layer")
+	S.advance(WinReward.BANNER_AT - WinReward.lands(WinReward.COINS) + 0.6, 1 / 30)
+	truthy(h.gui.gui:FindFirstChild("LevelUp", true) ~= nil, "no LEVEL UP!")
+	S.advance(WinReward.BANNER_HOLD + 0.8, 1 / 30)
+	truthy(h.gui.gui:FindFirstChild("LevelUp", true) == nil, "LEVEL UP! stays")
 	h.close()
 end)

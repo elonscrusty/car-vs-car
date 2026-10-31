@@ -25,9 +25,17 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local ArenaBrain = require(ReplicatedStorage.Shared.ArenaBrain)
+local ArenaData = require(ReplicatedStorage.Shared.ArenaData)
+local BreakCrates = require(ReplicatedStorage.Shared.BreakCrates)
+local Barrels = require(ReplicatedStorage.Shared.Barrels)
+local Crane = require(ReplicatedStorage.Shared.Crane)
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
+local FirePits = require(ReplicatedStorage.Shared.FirePits)
+local Wrenches = require(ReplicatedStorage.Shared.Wrenches)
+local BotPaints = require(ReplicatedStorage.Shared.BotPaints)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local Match = require(ReplicatedStorage.Shared.Match)
+local RollBarrels = require(ReplicatedStorage.Shared.RollBarrels)
 local Profile = require(ReplicatedStorage.Shared.Profile)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local League = require(ReplicatedStorage.Shared.League)
@@ -80,6 +88,13 @@ local ROOKIE_MATCHES = 3 -- (ArenaBrain.ROOKIE.matches)
 local stepWarned = 0
 local fleet: any = nil
 local boxes: any = nil -- BoxServer's handle (the "?" boxes in the arena)
+local crates: any = nil -- CrateServer's handle (the breakable crates in the arena)
+local barrels: any = nil -- BarrelServer's handle (the dynamite kegs in the arena)
+local crane: any = nil -- CraneServer's handle (the swinging crane ball in the arena)
+local firePits: any = nil -- FirePitServer's handle (the burning patches in the arena)
+local wrenches: any = nil -- WrenchServer's handle (the health wrenches in the arena)
+local burningYard: any = nil -- BurningYardServer's handle (burning piles, towers, beacons: looks only)
+local rollDrums: any = nil -- RollBarrelServer's handle (the rolling Toxic Drums)
 local ArenaBots: any = nil
 local lastLeave: { [Player]: number } = {}
 
@@ -121,6 +136,12 @@ local function dropWeapon(id: number)
 	if W and W.drop then
 		pcall(W.drop, id)
 	end
+end
+
+-- SpecialCharge: each kart's one special, charged by the gold boxes (BOXES' charge boxes)
+local function special(): any?
+	local mod = script.Parent:FindFirstChild("SpecialCharge")
+	return if mod and mod:IsA("ModuleScript") then require(mod) :: any else nil
 end
 
 local function log(msg: string)
@@ -222,6 +243,9 @@ local function freeze(info: Info, on: boolean)
 	end
 	if info.model then
 		info.model:SetAttribute("Smashed", if on then true else nil)
+		if not on then
+			info.model:SetAttribute("Wrecked", nil) -- (client/CarBoom: the come-back)
+		end
 	end
 end
 
@@ -324,6 +348,10 @@ end
 
 local function dropKart(id: number)
 	dropWeapon(id)
+	local C = special()
+	if C and C.drop then
+		pcall(C.drop, id)
+	end
 	local info = infos[id]
 	infos[id] = nil
 	if state then
@@ -371,9 +399,12 @@ function MatchRunner.addBot(name: string?, skill: number?): number?
 	local look = if #looks > 0 then looks[botCount % #looks + 1] else nil
 	local car = CarCatalog.get(look)
 	local body = model.PrimaryPart :: BasePart
+	local paint = BotPaints.forBot(botCount)
 	if car then
 		model:SetAttribute("ToyCar", look)
-		body.Color = Color3.fromRGB(car.color[1], car.color[2], car.color[3])
+		-- (each bot its own colour, so they are easy to tell apart: BotPaints)
+		model:SetAttribute("BotPaint", Color3.fromRGB(paint[1], paint[2], paint[3]))
+		body.Color = Color3.fromRGB(paint[1], paint[2], paint[3])
 	end
 	for _, d in model:GetDescendants() do
 		if d:IsA("BasePart") then
@@ -445,6 +476,11 @@ function MatchRunner.damage(
 			setAttr(info, "SmashedByName", by and by.name)
 			setAttr(info, "SmashedWeapon", w)
 			freeze(info, true)
+			-- (client/CarBoom: the big boom; "Smashed" alone is also a FREEZE hit)
+			if info.model then
+				info.model:SetAttribute("Wrecked", true)
+				info.model:SetAttribute("Streak", nil) -- (the fire goes out)
+			end
 			dropWeapon(victimId)
 			if not info.player and fleet and ArenaBots then
 				pcall(ArenaBots.remove, fleet, victimId)
@@ -455,6 +491,10 @@ function MatchRunner.damage(
 			-- (Place first: the HUD redraws on Smashes and must not see a 0 Place with 1 smash)
 			setAttr(byInfo, "Place", Match.shownPlace(by, Match.rank(m, by.id)))
 			setAttr(byInfo, "Smashes", by.smashes)
+			if byInfo.model then
+				-- (client/StreakFire: the car burns from 3 smashes in a row)
+				byInfo.model:SetAttribute("Streak", by.streak)
+			end
 			if byInfo.player then
 				Jobs.fire(byInfo.player, "smash", 1)
 			end
@@ -556,6 +596,15 @@ function MatchRunner.freeze(id: number, seconds: number)
 	end)
 end
 
+-- SHOCKWAVE (WeaponServer ctx.push): shove a bot kart by `v` studs/s (ArenaBots moves it). A
+-- player's own client moves their car (WeaponServer sends it "Knock"), so a player is left alone.
+function MatchRunner.knock(id: number, v: Vector3, _up: number?)
+	local info = infos[id]
+	if info and not info.player and fleet and ArenaBots and type(ArenaBots.knock) == "function" then
+		pcall(ArenaBots.knock, fleet, id, v)
+	end
+end
+
 -- The SMASH! pad: on the list for the next round (never into one that's going). true = in.
 function MatchRunner.join(player: Player): boolean
 	if not hooks or not arena() or player.Parent == nil then
@@ -609,7 +658,8 @@ local function clearBots()
 	end
 end
 
--- The arena's "?" boxes (BoxServer, BOXES'): started once, every box up at each round's start.
+-- The arena's gold boxes (BoxServer, BOXES'): started once, every box up at each round's start.
+-- A box charges the kart's special by a third (no random weapons any more, carter 10-29).
 -- A kart only picks one up where the server sees it, and not just after a teleport.
 local function startBoxes()
 	local mod = script.Parent:FindFirstChild("BoxServer")
@@ -623,10 +673,7 @@ local function startBoxes()
 		local x, y, z = TrackData.toWorld(t, true, sp.x, sp.y, sp.z)
 		table.insert(spots, Vector3.new(x, y, z))
 	end
-	local ws = script.Parent:FindFirstChild("WeaponServer")
-	local wr = ReplicatedStorage.Shared:FindFirstChild("Weapons")
-	local W: any = if ws and ws:IsA("ModuleScript") then require(ws) else nil
-	local WR: any = if wr and wr:IsA("ModuleScript") then require(wr) else nil
+	local C = special()
 	local ok, h = pcall((require(mod) :: any).start, {
 		spots = spots,
 		karts = function()
@@ -641,17 +688,329 @@ local function startBoxes()
 			end
 			return out
 		end,
-		give = function(id: any, name: string): boolean
-			return W ~= nil and W.give ~= nil and W.give(id, name) == true
-		end,
-		has = function(name: string): boolean
-			return WR ~= nil and WR.get ~= nil and WR.get(name) ~= nil
+		charge = function(id: any, amount: number): number?
+			-- the box also fills the SPECIAL button's move (Fire Swarm) by the same share
+			local W = weapons()
+			if W and W.chargeSpecial then
+				pcall(W.chargeSpecial, id, amount)
+			end
+			if C == nil or C.add == nil then
+				return nil
+			end
+			return C.add(id, amount)
 		end,
 	})
 	if ok then
 		boxes = h
 	else
 		warn("[Match] boxes: " .. tostring(h))
+	end
+end
+
+-- The arena's breakable crates (CrateServer, shared/BreakCrates): started once, every crate up at
+-- each round's start. Looks and fun only (never solid, never hurt, give nothing).
+local function startCrates()
+	local mod = script.Parent:FindFirstChild("CrateServer")
+	local _, t = arena()
+	if crates or not (mod and mod:IsA("ModuleScript") and t) then
+		return
+	end
+	local spots: { Vector3 } = {}
+	for _, p in BreakCrates.SPOTS do
+		local x, z = ArenaData.at(p :: any)
+		local wx, wy, wz = TrackData.toWorld(t, true, x, ArenaData.groundAt(p :: any), z)
+		table.insert(spots, Vector3.new(wx, wy, wz))
+	end
+	local ok, h = pcall((require(mod) :: any).start, {
+		spots = spots,
+		karts = function()
+			local out = {}
+			for _, k in MatchRunner.karts() do
+				if k.pos then
+					table.insert(out, { id = k.id, position = k.pos, alive = k.alive })
+				end
+			end
+			return out
+		end,
+	})
+	if ok then
+		crates = h
+	else
+		warn("[Match] crates: " .. tostring(h))
+	end
+end
+
+-- The arena's Burning Yard look (BurningYardServer, shared/BurningYard): built once, never solid,
+-- never hurts anyone.
+local function startBurningYard()
+	local mod = script.Parent:FindFirstChild("BurningYardServer")
+	local _, t = arena()
+	if burningYard or not (mod and mod:IsA("ModuleScript") and t) then
+		return
+	end
+	local ok, h = pcall((require(mod) :: any).start, {
+		at = function(x: number, y: number): Vector3
+			local ax, az = ArenaData.at({ x, y })
+			local wx, wy, wz = TrackData.toWorld(t, true, ax, ArenaData.groundAt({ x, y }), az)
+			return Vector3.new(wx, wy, wz)
+		end,
+	})
+	if ok then
+		burningYard = h
+	else
+		warn("[Match] burning yard: " .. tostring(h))
+	end
+end
+
+-- The arena's health wrenches (WrenchServer, shared/Wrenches): started once, every wrench up at
+-- each round's start. A hurt kart on one gets 40% back. The server decides; nothing is pushed.
+local function startWrenches()
+	local mod = script.Parent:FindFirstChild("WrenchServer")
+	local _, t = arena()
+	if wrenches or not (mod and mod:IsA("ModuleScript") and t) then
+		return
+	end
+	local spots: { Vector3 } = {}
+	for _, p in Wrenches.SPOTS do
+		local x, z = ArenaData.at(p :: any)
+		local wx, wy, wz = TrackData.toWorld(t, true, x, ArenaData.groundAt(p :: any), z)
+		table.insert(spots, Vector3.new(wx, wy, wz))
+	end
+	local ok, h = pcall((require(mod) :: any).start, {
+		spots = spots,
+		karts = function()
+			local out = {}
+			local m = state
+			for _, k in MatchRunner.karts() do
+				local mk = m and m.karts[k.id]
+				if k.pos and mk then
+					table.insert(out, {
+						id = k.id,
+						position = k.pos,
+						alive = k.alive,
+						hurt = mk.health < Match.HEALTH,
+					})
+				end
+			end
+			return out
+		end,
+		heal = function(kartId: any, share: number): boolean
+			local m = state
+			if not m or phase ~= "playing" or type(kartId) ~= "number" then
+				return false
+			end
+			if Match.heal(m, kartId, share) <= 0 then
+				return false
+			end
+			local info = infos[kartId]
+			local k = m.karts[kartId]
+			if info and k then
+				setAttr(info, "Health", k.health)
+			end
+			return true
+		end,
+	})
+	if ok then
+		wrenches = h
+	else
+		warn("[Match] wrenches: " .. tostring(h))
+	end
+end
+
+-- WeaponServer tells us what its weapons did (GunShot, RocketBoom, MineBoom): they break crates.
+function MatchRunner.crateFx(kind: string, data: any)
+	local h = crates
+	if h and phase == "playing" then
+		h.weaponFx(kind, data)
+	end
+end
+
+-- The arena's dynamite kegs (BarrelServer, shared/Barrels): started once, every keg up at each
+-- round's start. The server lights, hurts and shoves; a player's own client is asked to take the
+-- shove (BarrelFx "Kick"), a bot is shoved here.
+local function startBarrels()
+	local mod = script.Parent:FindFirstChild("BarrelServer")
+	local _, t = arena()
+	if barrels or not (mod and mod:IsA("ModuleScript") and t) then
+		return
+	end
+	local spots: { Vector3 } = {}
+	for _, p in Barrels.SPOTS do
+		local x, z = ArenaData.at(p :: any)
+		local wx, wy, wz = TrackData.toWorld(t, true, x, ArenaData.groundAt(p :: any), z)
+		table.insert(spots, Vector3.new(wx, wy, wz))
+	end
+	local ok, h = pcall((require(mod) :: any).start, {
+		spots = spots,
+		karts = function()
+			local out = {}
+			for _, k in MatchRunner.karts() do
+				if k.pos then
+					table.insert(out, { id = k.id, position = k.pos, alive = k.alive })
+				end
+			end
+			return out
+		end,
+		damage = function(victimId: any, attackerId: any, amount: number, word: string)
+			return MatchRunner.damage(victimId, attackerId, amount, string.lower(word))
+		end,
+		push = function(id: any, impulse: Vector3)
+			local info = infos[id]
+			if not info then
+				return
+			end
+			if info.player then
+				local hh = barrels
+				if hh then
+					hh.kick(info.player, impulse)
+				end
+			else
+				local body = bodyOf(info)
+				if body and not body.Anchored then
+					body.AssemblyLinearVelocity += impulse
+				end
+			end
+		end,
+	})
+	if ok then
+		barrels = h
+	else
+		warn("[Match] barrels: " .. tostring(h))
+	end
+end
+
+-- The arena's swinging crane ball (CraneServer, shared/Crane): started once, swing + cooldowns
+-- restart at each round's start. The server hurts and shoves; a player's own client is asked to
+-- take the shove (CraneFx "Kick"), a bot is shoved here.
+local function startCrane()
+	local mod = script.Parent:FindFirstChild("CraneServer")
+	local _, t = arena()
+	if crane or not (mod and mod:IsA("ModuleScript") and t) then
+		return
+	end
+	local p = Crane.SPOT
+	local x, z = ArenaData.at(p :: any)
+	local wx, wy, wz = TrackData.toWorld(t, true, x, ArenaData.groundAt(p :: any), z)
+	local ok, h = pcall((require(mod) :: any).start, {
+		foot = Vector3.new(wx, wy, wz),
+		karts = function()
+			local out = {}
+			for _, k in MatchRunner.karts() do
+				if k.pos then
+					table.insert(out, { id = k.id, position = k.pos, alive = k.alive })
+				end
+			end
+			return out
+		end,
+		damage = function(victimId: any, attackerId: any, amount: number, word: string)
+			return MatchRunner.damage(victimId, attackerId, amount, string.lower(word))
+		end,
+		push = function(id: any, impulse: Vector3)
+			local info = infos[id]
+			if not info then
+				return
+			end
+			if info.player then
+				local hh = crane
+				if hh then
+					hh.kick(info.player, impulse)
+				end
+			else
+				local body = bodyOf(info)
+				if body and not body.Anchored then
+					body.AssemblyLinearVelocity += impulse
+				end
+			end
+		end,
+	})
+	if ok then
+		crane = h
+	else
+		warn("[Match] crane: " .. tostring(h))
+	end
+end
+
+-- The arena's fire pits (FirePitServer, shared/FirePits): started once, the flare clock restarts
+-- at each round's start. The server burns the karts on a pit; nothing is pushed.
+local function startFirePits()
+	local mod = script.Parent:FindFirstChild("FirePitServer")
+	local _, t = arena()
+	if firePits or not (mod and mod:IsA("ModuleScript") and t) then
+		return
+	end
+	local spots: { Vector3 } = {}
+	for _, p in FirePits.SPOTS do
+		local x, z = ArenaData.at(p :: any)
+		local wx, wy, wz = TrackData.toWorld(t, true, x, ArenaData.groundAt(p :: any), z)
+		table.insert(spots, Vector3.new(wx, wy, wz))
+	end
+	local ok, h = pcall((require(mod) :: any).start, {
+		spots = spots,
+		karts = function()
+			local out = {}
+			for _, k in MatchRunner.karts() do
+				if k.pos then
+					table.insert(out, { id = k.id, position = k.pos, alive = k.alive })
+				end
+			end
+			return out
+		end,
+		damage = function(victimId: any, attackerId: any, amount: number, word: string)
+			return MatchRunner.damage(victimId, attackerId, amount, string.lower(word))
+		end,
+	})
+	if ok then
+		firePits = h
+	else
+		warn("[Match] fire pits: " .. tostring(h))
+	end
+end
+
+-- WeaponServer tells us what its weapons did (GunShot, RocketBoom, MineBoom): they light kegs.
+function MatchRunner.weaponFx(kind: string, data: any)
+	local h = barrels
+	if h and phase == "playing" then
+		h.weaponFx(kind, data)
+	end
+end
+
+-- The arena's rolling Toxic Drums (RollBarrelServer, shared/RollBarrels): started once, every drum
+-- back home and still at each round's start. Karts shove them; they never hurt anyone.
+local function startRollBarrels()
+	local mod = script.Parent:FindFirstChild("RollBarrelServer")
+	local _, t = arena()
+	if rollDrums or not (mod and mod:IsA("ModuleScript") and t) then
+		return
+	end
+	local spots: { Vector3 } = {}
+	for _, p in RollBarrels.SPOTS do
+		local x, z = ArenaData.at(p :: any)
+		local wx, wy, wz = TrackData.toWorld(t, true, x, ArenaData.groundAt(p :: any), z)
+		table.insert(spots, Vector3.new(wx, wy, wz))
+	end
+	local ok, h = pcall((require(mod) :: any).start, {
+		spots = spots,
+		karts = function()
+			local out = {}
+			for _, k in MatchRunner.karts() do
+				if k.pos then
+					table.insert(out, { id = k.id, position = k.pos, alive = k.alive })
+				end
+			end
+			return out
+		end,
+		-- solid (wall, tree, cover, bumper...) or not flat (hill, ramp) at this world spot?
+		blocked = function(pos: Vector3): boolean
+			local lx, _, lz = TrackData.toLocal(t, true, pos.X, pos.Y, pos.Z)
+			local px, py =
+				lx / ArenaData.K + ArenaData.PIC / 2, lz / ArenaData.K + ArenaData.PIC / 2
+			return not ArenaData.clear(px, py, 4) or ArenaData.groundAt({ px, py }) >= 0.01
+		end,
+	})
+	if ok then
+		rollDrums = h
+	else
+		warn("[Match] rolling barrels: " .. tostring(h))
 	end
 end
 
@@ -802,6 +1161,35 @@ local function startRound()
 	if boxes then
 		pcall(boxes.reset)
 	end
+	startCrates()
+	if crates then
+		pcall(crates.reset)
+	end
+	local C = special()
+	if C and C.reset then
+		pcall(C.reset) -- every special starts empty
+	end
+	startBarrels()
+	if barrels then
+		pcall(barrels.reset)
+	end
+	startCrane()
+	if crane then
+		pcall(crane.reset)
+	end
+	startFirePits()
+	if firePits then
+		pcall(firePits.reset)
+	end
+	startWrenches()
+	if wrenches then
+		pcall(wrenches.reset)
+	end
+	startRollBarrels()
+	if rollDrums then
+		pcall(rollDrums.reset)
+	end
+	startBurningYard()
 	log(
 		`round {round} start: {#list} players + {#m.list - #list} bots, ends in {MatchRunner.MATCH_SECS} s`
 	)
@@ -1045,6 +1433,15 @@ local function tick()
 				freeze(info, false)
 			end
 			place(info, spawnFor(k.id))
+		end
+	end
+	-- every live kart carries the starter Gun (boxes only charge the special now)
+	local W = weapons()
+	if W and W.starter then
+		for _, k in m.list do
+			if k.alive then
+				pcall(W.starter, k.id, t)
+			end
 		end
 	end
 	for _, k in m.list do

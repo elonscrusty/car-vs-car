@@ -84,6 +84,27 @@ function LobbyBuilder.build(): Built
 	folder.Name = "Lobby"
 	folder.Parent = workspace
 
+	if SpawnLobby.GARAGE then
+		-- carter 10-30: no plots, no street, no lake or hills in Smash: the garage hall stands on one
+		-- wide field, and that is the whole lobby (the arena is its own place)
+		local plaza = LobbyLayout.PLAZA
+		local originZ = plaza.maxZ - 36
+		slab(
+			folder,
+			"Field",
+			{ minX = -260, maxX = 260, minZ = originZ - 260, maxZ = originZ + 260 },
+			-0.15,
+			2,
+			GRASS
+		)
+		local origin = Vector3.new(0, 0, originZ)
+		local at = CFrame.lookAt(origin, origin + Vector3.new(0, 0, 1))
+		SpawnLobby.build(folder, at)
+		local only: Built = { prompts = {}, signs = {}, spawn = SpawnLobby.spawnCFrame(at) }
+		LobbyPerf.apply(folder)
+		return only
+	end
+
 	-- grass a hair under the plots' floors so they never flicker, the light footpaths, the dark
 	-- road on top (the spawn lobby is SpawnLobby's; water, shore, hills: LobbyWater, scenery)
 	slab(folder, "Grass", LobbyLayout.ground(), -0.05, 2, GRASS)
@@ -212,7 +233,7 @@ function LobbyBuilder.build(): Built
 		text.Size = UDim2.fromScale(1, 1)
 		text.BackgroundTransparency = 1
 		-- (Smash: the UI's chunky font with a navy outline, auditor cheap tells #4)
-		text.Font = if SMASH then Enum.Font.FredokaOne else Enum.Font.GothamBlack
+		text.Font = if SMASH then Enum.Font.Oswald else Enum.Font.Oswald
 		text.TextScaled = true
 		text.TextColor3 = Color3.new(1, 1, 1)
 		if SMASH then

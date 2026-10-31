@@ -9,10 +9,11 @@ local Match = {}
 Match.HEALTH = 100
 Match.HIT = 34 -- a rocket hit, gun burst or mine: 3 hits = a smash (carter's default)
 Match.RESPAWN = 3 -- seconds smashed before you're back (automatic)
-Match.SHIELD = 2 -- seconds of spawn bubble after a respawn (and at the round's start)
-Match.LENGTH = 180 -- a round: 3:00
-Match.BREAK = 12 -- ROUND OVER, the winner's kart, "New Round Starting In 12"
-Match.MAX = 8 -- karts in a round (players + bots)
+Match.SHIELD = 2 -- seconds of spawn bubble after a respawn
+Match.START_SHIELD = 4 -- the bubble when a kart joins a round: lasts past the 3-2-1-GO
+Match.LENGTH = 120 -- a round: 2:00 (carter 10-31 "addicting" pick: shorter = one more)
+Match.BREAK = 8 -- ROUND OVER, the winner's kart, then "PLAY AGAIN 8" (was 12)
+Match.MAX = 6 -- karts in a round (players + bots)
 
 -- Coins for a round: by place, plus each smash (FINISH-JOBS: 1st/2nd/3rd + per smash).
 Match.PLACE_COINS = { 50, 30, 20 }
@@ -60,6 +61,7 @@ export type Kart = {
 	respawnAt: number?, -- set while smashed
 	smashes: number,
 	deaths: number,
+	streak: number, -- smashes since it was last smashed (the fire from 3: StreakFire)
 	order: number, -- join order (the last tie-break)
 	lastBy: number?, -- who smashed it last (the killer cam)
 	hitBy: number?, -- who hurt it last, and when (bots leave a rookie's kill to the rookie)
@@ -107,10 +109,11 @@ function Match.add(m: State, id: number, name: string, human: boolean, now: numb
 		human = human,
 		health = Match.HEALTH,
 		alive = true,
-		shieldUntil = now + Match.SHIELD,
+		shieldUntil = now + Match.START_SHIELD,
 		respawnAt = nil,
 		smashes = 0,
 		deaths = 0,
+		streak = 0,
 		order = m.joined,
 		lastBy = nil,
 		lastWeapon = nil,
@@ -174,11 +177,13 @@ function Match.damage(
 	k.alive = false
 	k.respawnAt = now + Match.RESPAWN
 	k.deaths += 1
+	k.streak = 0
 	k.lastBy = if attackerId ~= victimId then attackerId else nil
 	k.lastWeapon = weapon
 	local by = if attackerId and attackerId ~= victimId then m.karts[attackerId] else nil
 	if by then
 		by.smashes += 1
+		by.streak += 1
 	end
 	return took, true
 end
@@ -192,6 +197,18 @@ function Match.due(m: State, now: number): { Kart }
 		end
 	end
 	return out
+end
+
+-- Mend a kart by `share` (0..1) of its full health (a wrench). Returns the health given back, or 0
+-- when the kart is smashed, already full or the share is junk.
+function Match.heal(m: State, id: number, share: number): number
+	local k = m.karts[id]
+	if not k or not k.alive or not finite(share) or share <= 0 or k.health >= Match.HEALTH then
+		return 0
+	end
+	local give = math.min(Match.HEALTH * share, Match.HEALTH - k.health)
+	k.health += give
+	return give
 end
 
 -- Back in: full health and the bubble.

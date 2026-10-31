@@ -27,7 +27,7 @@ function BigCount.new(): BigCount
 	label.Position = UDim2.fromScale(0.5, 0.3)
 	label.Size = UDim2.fromScale(0.8, 0.5)
 	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.LuckiestGuy
+	label.Font = Enum.Font.RobotoCondensed
 	label.TextScaled = true
 	label.TextTransparency = 1
 	label.Parent = gui

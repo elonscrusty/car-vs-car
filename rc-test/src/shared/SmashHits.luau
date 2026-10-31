@@ -66,6 +66,8 @@ local WEAPON_OF: { [string]: string } = {
 	FreezeShot = "freeze",
 	FreezeHit = "freeze",
 	Shatter = "freeze",
+	FlameBurst = "flame",
+	FlameTick = "flame",
 }
 
 -- The weapon behind kart `id` losing health at time `t` at (x, z): the newest shot near it in the
