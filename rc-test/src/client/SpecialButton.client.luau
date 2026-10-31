@@ -11,12 +11,13 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local FireSwarm = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("FireSwarm"))
+local Specials = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Specials"))
 
 local player = Players.LocalPlayer
 
 local TICKS = 16
 local OFF = Color3.fromRGB(50, 54, 70)
-local ON = Color3.fromRGB(255, 130, 30)
+local ON = Color3.fromRGB(255, 130, 30) -- (per special: Specials.LOOKS)
 local FULL = Color3.fromRGB(255, 205, 40)
 local FACE = Color3.fromRGB(20, 22, 32)
 local GAP = 0.3 -- seconds between asks from this client
@@ -119,6 +120,7 @@ UserInputService.InputBegan:Connect(function(input: InputObject, processed: bool
 end)
 
 local shown = -1
+local shownWord = ""
 local wasFull = false
 RunService.RenderStepped:Connect(function()
 	local name = player:GetAttribute("SpecialName")
@@ -128,15 +130,20 @@ RunService.RenderStepped:Connect(function()
 	end
 	local f = FireSwarm.fill(player:GetAttribute("SpecialReadyAt"), workspace:GetServerTimeNow())
 	local full = f >= 1
+	local look = Specials.look(name)
+	if look.word ~= shownWord then
+		shownWord = look.word
+		shown = -1 -- (a new special: repaint the ring)
+		ON = Color3.fromRGB(look.on[1], look.on[2], look.on[3])
+		FULL = Color3.fromRGB(look.full[1], look.full[2], look.full[3])
+	end
 	local lit = if full then TICKS else math.floor(f * TICKS)
 	if lit ~= shown or full ~= wasFull then
 		shown = lit
 		for i, t in ticks do
 			t.BackgroundColor3 = if full then FULL elseif i <= lit then ON else OFF
 		end
-		button.Text = if full
-			then FireSwarm.WORD
-			else string.format("SPECIAL %d%%", math.floor(f * 100))
+		button.Text = if full then look.word else string.format("SPECIAL %d%%", math.floor(f * 100))
 	end
 	wasFull = full
 	-- ready: a gentle pulse so you notice it
