@@ -4,13 +4,17 @@
 -- turn gold when it is ready. Tap it (or G, or a gamepad's L2) to ask the server through the
 -- SpecialFire remote; the server's own timer is the real gate. It shows only in a match, and only
 -- while the player's SpecialName attribute names a special (server/WeaponServer sets SpecialName
--- and SpecialReadyAt). Sits above the pink FIRE button on the right edge.
+-- and SpecialReadyAt). Sits just left of the pink FIRE button, middles lined up (carter 10-31:
+-- above it, it sat on FIRE and DRIFT).
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
-local FireSwarm = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("FireSwarm"))
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local FireSwarm = require(Shared:WaitForChild("FireSwarm"))
+local UiScreens = require(Shared:WaitForChild("UiScreens"))
+local Base = require(script.Parent:WaitForChild("Ui"):WaitForChild("Base"))
 
 local player = Players.LocalPlayer
 
@@ -32,9 +36,29 @@ local holder = Instance.new("Frame")
 holder.Name = "Holder"
 holder.BackgroundTransparency = 1
 holder.AnchorPoint = Vector2.new(1, 0.5)
-holder.Position = UDim2.fromScale(0.98, 0.6)
 holder.Size = UDim2.fromOffset(92, 92) -- a thumb-sized tap (48 px and up)
 holder.Parent = gui
+
+-- Just left of FIRE: the same safe area as the HUD, FIRE's spot from UiScreens (the phone or the
+-- PC layout), then FIRE's real side (it keeps square, so the smaller of its two scales wins).
+gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
+local SIDE_GAP = 16 -- px between the two buttons (FIRE's ring sticks out 8)
+local function fit()
+	local size = gui.AbsoluteSize
+	if size.X <= 0 or size.Y <= 0 then
+		return
+	end
+	local W, H = Base.W, Base.H
+	local fp = UiScreens.piece(if Base.phone() then "matchTouch" else "match", "Fire")
+	local side = math.min(fp.w / W * size.X, fp.h / H * size.Y)
+	local right = (fp.x + fp.w) / W * size.X
+	local bottom = (fp.y + fp.h) / H * size.Y
+	holder.Position =
+		UDim2.fromOffset(math.floor(right - side - SIDE_GAP), math.floor(bottom - side / 2))
+end
+gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
+player:GetAttributeChangedSignal("PhoneUi"):Connect(fit) -- (the HUD picks its layout the same way)
+fit()
 
 local scale = Instance.new("UIScale")
 scale.Parent = holder
