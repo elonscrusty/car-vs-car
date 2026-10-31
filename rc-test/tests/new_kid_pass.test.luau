@@ -7,7 +7,7 @@
 -- (The old pretend kid slid with instant turns through walls: it passed while Studio's thumb
 -- came 8th.) Against the real bots (ArenaBots: easy on a rookie) and the real weapons, it must
 -- get 2+ smashes and a top-5 place, and be smashed 1-3 times itself (some chaos), but never in
--- the first 30 s, in 16 of 20 seeded first matches (20, not 10: one seed swinging can't flip it).
+-- the first 30 s, in 14 of 20 seeded first matches (20, not 10: one seed swinging can't flip it).
 -- And no cliff after the rookie matches (auditor R9-3): the same kid in a later match, against
 -- full bots, still makes the top half with 3+ smashes in 12 of 20.
 local H = require("./harness")
@@ -19,7 +19,8 @@ local test, eq, truthy = H.test, H.eq, H.truthy
 print("Car VS Car SMASH: a no-skill new kid's first match")
 
 local KID = 601
-local RUNS, NEED = 20, 16
+-- (NEED 14 since the health wrenches, carter 10-31: a kid that mends is smashed a bit less)
+local RUNS, NEED = 20, 14
 local BEAT = 0.05
 local PING = 0.1 -- s: the FIRE press reaches the server this late (a phone on wifi)
 local CAM_LAG = 0.2 -- s: FIRE aims where the chase camera looks, a little behind the nose
@@ -261,7 +262,7 @@ local function firstMatch(seed: number, matches: number?): (number, number, { nu
 end
 
 test(
-	"a no-skill kid's first match: 2+ smashes, top 5 and smashed 1-3 times (never in the first 30 s) in 16 of 20 runs",
+	"a no-skill kid's first match: 2+ smashes, top 5 and smashed 1-3 times (never in the first 30 s) in 14 of 20 runs",
 	function()
 		local good, early = 0, 0
 		for seed = 1, RUNS do
@@ -324,7 +325,7 @@ test(
 )
 
 test(
-	"a seasoned kid (11th match, the sharpest bots): top 4 in about 4 of 5, 1st in at most about 4 of 5, smashed 4-8 times",
+	"a seasoned kid (11th match, the sharpest bots): top 4 in about 4 of 5, 1st in at most about 4 of 5, smashed 3.5-8 times",
 	function()
 		local top4, wins, hurt = 0, 0, 0
 		for seed = 1, RUNS do
@@ -360,6 +361,7 @@ test(
 		-- The sim kid now sees boxes across cliffs and takes the ramps (test thumb #1007), so it won 14 of 20
 		-- (7 before). The ceiling still catches bots that stopped fighting back; top 4 and smashes taken guard the rest.
 		truthy(wins >= 4 and wins <= 16, `1st in {wins} of {RUNS}`)
-		truthy(avg >= 4 and avg <= 8, `smashed {avg} times a match`)
+		-- (3.5 since the health wrenches, carter 10-31: the kid mends, so it is smashed a little less)
+		truthy(avg >= 3.5 and avg <= 8, `smashed {avg} times a match`)
 	end
 )
