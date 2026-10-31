@@ -29,7 +29,7 @@ local M = {}
 
 function M.play(kind: Buzz.Kind)
 	local now = os.clock()
-	if not Buzz.ready(last, now, player:GetAttribute(Buzz.ATTR) == true) then
+	if not Buzz.ready(last, now, player:GetAttribute(Buzz.ATTR) == false) then
 		return
 	end
 	last = now

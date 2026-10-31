@@ -8,7 +8,6 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local HapticService = game:GetService("HapticService")
 local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -103,22 +102,6 @@ local function aim(): Vector3?
 	return look.Unit
 end
 
--- BUZZ (Settings): a short controller rumble on each shot (a phone can't be told to buzz)
-local function buzz()
-	if attr("Buzz") == false then
-		return
-	end
-	pcall(function()
-		local pad = Enum.UserInputType.Gamepad1
-		if HapticService:IsVibrationSupported(pad) then
-			HapticService:SetMotor(pad, Enum.VibrationMotor.Small, 0.4)
-			task.delay(0.08, function()
-				pcall(HapticService.SetMotor, HapticService, pad, Enum.VibrationMotor.Small, 0)
-			end)
-		end
-	end)
-end
-
 local lastFire = 0
 local function fire()
 	if not inMatch() then
@@ -129,7 +112,6 @@ local function fire()
 		return
 	end
 	lastFire = now
-	buzz()
 	local remote = ReplicatedStorage:FindFirstChild(FIRE_REMOTE)
 	if remote and remote:IsA("RemoteEvent") then
 		remote:FireServer(aim())

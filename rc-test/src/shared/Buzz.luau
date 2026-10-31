@@ -6,7 +6,7 @@ local Buzz = {}
 Buzz.HIT = { strength = 0.35, seconds = 0.05 } -- you took a hit
 Buzz.SMASH = { strength = 0.8, seconds = 0.12 } -- you smashed a kart
 Buzz.GAP = 0.08 -- seconds between buzzes (a gun burst is many hits: one buzz, not a hum)
-Buzz.ATTR = "BuzzOff" -- player attribute: true = the Settings off switch
+Buzz.ATTR = "Buzz" -- player attribute set by Settings: false = buzz is off
 
 export type Kind = { strength: number, seconds: number }
 
