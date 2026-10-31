@@ -52,7 +52,7 @@ local SPARK = Color3.fromRGB(255, 216, 96)
 local Q_FILL = Color3.fromRGB(255, 251, 230)
 local Q_EDGE = Color3.fromRGB(255, 106, 0)
 local Q_DEPTH = Color3.fromRGB(122, 42, 0)
-local HALO_BITS = 16
+local HALO_BITS = 8
 
 export type KartInfo = { id: any, position: Vector3, alive: boolean }
 
@@ -245,11 +245,11 @@ local function build(i: number, spot: Vector3, parent: Instance, sc: number): Mo
 	part(
 		m,
 		"Beam",
-		Vector3.new(14, 3.6, 3.6) * sc,
+		Vector3.new(14, 2.4, 2.4) * sc,
 		CFrame.new(spot + Vector3.new(0, 7 * sc, 0)) * CFrame.Angles(0, 0, math.rad(90)),
 		BEAM,
 		true,
-		0.88
+		0.92
 	).Shape =
 		Enum.PartType.Cylinder
 
