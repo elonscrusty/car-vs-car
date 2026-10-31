@@ -13,8 +13,10 @@ local ArenaCam = {}
 -- "way too far back"; 10 studs at 32 deg, the kart half way down the lower half: "way better,
 -- keep it". Phones and big screens use the same numbers.
 ArenaCam.DISTANCE = 10 -- studs from the kart to the camera (~7 kart lengths)
-ArenaCam.PITCH = 32 -- degrees the camera looks down at the kart
-ArenaCam.FOV = 60 -- vertical field of view, degrees
+-- PC only (carter 10-31, "make PC play more fun"): a wider, a bit higher view so karts coming show
+-- sooner. The phone camera (PHONE_*) is untouched.
+ArenaCam.PITCH = 35 -- degrees the camera looks down at the kart
+ArenaCam.FOV = 70 -- vertical field of view, degrees
 ArenaCam.FOV_FAST = 5 -- a little wider at top speed
 ArenaCam.KART_LOW = 0.5 -- the kart sits this far below the screen's middle (of the half screen)
 -- look-ahead: the view leans this many seconds ahead along where the kart is going, up to
