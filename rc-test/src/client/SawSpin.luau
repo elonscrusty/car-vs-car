@@ -4,6 +4,9 @@
 -- Idle: a slow turn so the blades always look alive. Revved: the server sent "SawRev"
 -- { owner, seconds } (WeaponFx forwards it), the blades whirl until the time is up, then ease
 -- back down. The server decides every cut; this only draws.
+local RunService = game:GetService("RunService")
+local Debris = game:GetService("Debris")
+
 local SawSpin = {}
 
 SawSpin.IDLE = 3 -- radians a second
@@ -48,12 +51,79 @@ function SawSpin.revving(modelName: string): boolean
 	return (revUntil[modelName] or 0) > os.clock()
 end
 
+-- ===== sparks: "Orange Shower" (carter's pick, 10-31): little neon chips thrown up and ahead =====
+SawSpin.CHIPS = 14
+local SCALE = 0.25 -- RC size (TrackData.RC_SCALE)
+local COLORS = {
+	Color3.fromRGB(255, 170, 40),
+	Color3.fromRGB(255, 225, 90),
+	Color3.fromRGB(255, 120, 20),
+}
+type Chip = { part: Part, vel: Vector3, age: number, life: number, size: number }
+local chips: { Chip } = {}
+local conn: RBXScriptConnection? = nil
+
+local function stepChips(dt: number)
+	for i = #chips, 1, -1 do
+		local c = chips[i]
+		c.age += dt
+		if c.age >= c.life or c.part.Parent == nil then
+			c.part:Destroy()
+			table.remove(chips, i)
+			continue
+		end
+		c.vel += Vector3.new(0, -16 * SCALE * 4 * dt, 0)
+		c.part.Position += c.vel * dt
+		c.part.Size = Vector3.one * c.size * (0.4 + 0.6 * (1 - c.age / c.life))
+	end
+	if #chips == 0 and conn then
+		conn:Disconnect()
+		conn = nil
+	end
+end
+
+local function burst(at: Vector3)
+	for _ = 1, SawSpin.CHIPS do
+		local size = (0.08 + math.random() * 0.08) * SCALE * 4
+		local p = Instance.new("Part")
+		p.Name = "SawChip"
+		p.Size = Vector3.one * size
+		p.Position = at
+		p.Color = COLORS[math.random(1, #COLORS)]
+		p.Material = Enum.Material.Neon
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = false
+		p.Parent = workspace
+		local life = 0.45 + math.random() * 0.4
+		Debris:AddItem(p, life + 0.5)
+		local k = SCALE * 4
+		local sx = (math.random() - 0.5) * 5 * k
+		local sz = (math.random() - 0.5) * 5 * k
+		local vel = Vector3.new(sx, (2.5 + math.random() * 4.5) * k, sz)
+		table.insert(chips, {
+			part = p,
+			vel = vel,
+			age = 0,
+			life = life,
+			size = size,
+		})
+	end
+	if not conn then
+		conn = RunService.RenderStepped:Connect(stepChips)
+	end
+end
+
 function SawSpin.handle(kind: string, data: any)
 	if type(data) ~= "table" then
 		return
 	end
 	if kind == "SawRev" and data.owner ~= nil and type(data.seconds) == "number" then
 		revUntil["Car_" .. tostring(data.owner)] = os.clock() + math.clamp(data.seconds, 0, 10)
+	elseif kind == "SawHit" and typeof(data.position) == "Vector3" then
+		burst(data.position)
 	end
 end
 
