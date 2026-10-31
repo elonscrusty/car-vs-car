@@ -52,11 +52,7 @@ end
 -- ===== sparks: "Orange Shower" (carter's pick, 10-31): little neon chips thrown up and ahead =====
 SawSpin.CHIPS = 14
 local SCALE = 0.25 -- RC size (TrackData.RC_SCALE)
-local COLORS = {
-	Color3.fromRGB(255, 170, 40),
-	Color3.fromRGB(255, 225, 90),
-	Color3.fromRGB(255, 120, 20),
-}
+local COLORS = { { 255, 170, 40 }, { 255, 225, 90 }, { 255, 120, 20 } }
 type Chip = { part: Part, vel: Vector3, age: number, life: number, size: number }
 local chips: { Chip } = {}
 local conn: RBXScriptConnection? = nil
@@ -87,7 +83,8 @@ local function burst(at: Vector3)
 		p.Name = "SawChip"
 		p.Size = Vector3.one * size
 		p.Position = at
-		p.Color = COLORS[math.random(1, #COLORS)]
+		local c = COLORS[math.random(1, #COLORS)]
+		p.Color = Color3.fromRGB(c[1], c[2], c[3])
 		p.Material = Enum.Material.Neon
 		p.Anchored = true
 		p.CanCollide = false
