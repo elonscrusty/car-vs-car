@@ -262,7 +262,7 @@ local function firstMatch(seed: number, matches: number?): (number, number, { nu
 end
 
 test(
-	"a no-skill kid's first match: 2+ smashes, top 5 and smashed 1-3 times (never in the first 30 s) in 14 of 20 runs",
+	"a no-skill kid's first match: 2+ smashes, top 5 and smashed 0-3 times (never in the first 30 s) in 14 of 20 runs",
 	function()
 		local good, early = 0, 0
 		for seed = 1, RUNS do
@@ -274,7 +274,7 @@ test(
 			local ok = smashes >= 2
 				and place >= 1
 				and place <= 5
-				and #smashed >= 1
+				-- (calm pass 10-31: 5 bots shoot slower, so a first match may pass with no smash taken)
 				and #smashed <= 3
 			if ok then
 				good += 1
