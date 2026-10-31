@@ -160,6 +160,49 @@ local function refresh()
 	api.quiet(type(card) == "number" and card > 0)
 end
 
+-- hold FIRE = keep shooting: shoots at once, then every FIRE_GAP while the finger stays down
+-- (the server still decides ammo, cooldown and aim)
+local function holdFire()
+	local h = hud
+	if not h then
+		return
+	end
+	for _, d in h.gui.canvas:GetDescendants() do
+		if d:IsA("TextButton") and d.Name == "Fire" then
+			local held = 0
+			d.InputBegan:Connect(function(input: InputObject)
+				if
+					input.UserInputType ~= Enum.UserInputType.Touch
+					and input.UserInputType ~= Enum.UserInputType.MouseButton1
+				then
+					return
+				end
+				held += 1
+				local mine = held
+				fire()
+				task.spawn(function()
+					while held == mine and hud ~= nil and inMatch() do
+						task.wait(FIRE_GAP)
+						if held ~= mine then
+							break
+						end
+						fire()
+					end
+				end)
+			end)
+			d.InputEnded:Connect(function(input: InputObject)
+				if
+					input.UserInputType == Enum.UserInputType.Touch
+					or input.UserInputType == Enum.UserInputType.MouseButton1
+				then
+					held += 1 -- (ends the loop)
+				end
+			end)
+			break
+		end
+	end
+end
+
 local function open()
 	local w = attr("Weapon")
 	lastSecs = -1
@@ -179,7 +222,8 @@ local function open()
 		level = (Xp.levelOf(num("Xp", 0))),
 		-- (your first match: the GRAB A ? BOX tip over FIRE; after it, the button alone)
 		tip = type(attr("Xp")) ~= "number" or (attr("Xp") :: number) <= 0,
-	}, { fire = fire }, Base.phone())
+	}, { fire = function() end }, Base.phone())
+	holdFire()
 end
 
 local function check()

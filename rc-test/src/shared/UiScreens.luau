@@ -458,7 +458,7 @@ local LIST: { Screen } = {
 			p("Health", 248, 32, 260, 38, { anchor = "t" }),
 			-- the short flash words (STUCK - BACK TO START...), under the health bar
 			p("Words", 228, 74, 300, 30, { anchor = "t" }),
-			button("Fire", 618, 252, 116, 116, "danger", "FIRE", { anchor = "br" }),
+			button("Fire", 592, 226, 142, 142, "danger", "FIRE", { anchor = "br" }),
 		},
 	},
 }
