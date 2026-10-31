@@ -176,10 +176,10 @@ HudLayout.SPOTS = {
 		s.leftOf = "Gas"
 		return s
 	end)(),
-	spot("Drift", "drive", "Controls", BR, { 0.97, 0, 0.58, 0 }, { 0, 0, 0.22, 0 }, true), -- big RESET on rocks
+	spot("Drift", "drive", "Controls", BR, { 0.97, 0, 0.53, 0 }, { 0, 0, 0.22, 0 }, true), -- big RESET on rocks
 	-- Car VS Car: the big BOOST thumb button, left of DRIFT (Cvc.client)
 	(function()
-		local s = spot("Boost", "drive", "Cvc", BR, { 0, 0, 0.58, 0 }, { 0, 0, 0.2, 0 }, true)
+		local s = spot("Boost", "drive", "Cvc", BR, { 0, 0, 0.53, 0 }, { 0, 0, 0.2, 0 }, true)
 		s.leftOf = "Drift"
 		return off(s, not CVC)
 	end)(),
