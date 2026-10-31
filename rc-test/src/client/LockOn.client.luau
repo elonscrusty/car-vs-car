@@ -89,7 +89,10 @@ RunService.RenderStepped:Connect(function(dt: number)
 			local a, b = m.bars[corner * 2 + 1], m.bars[corner * 2 + 2]
 			-- one arm along each side of the corner
 			a.CFrame = spin * turn * CFrame.new(size - ARM / 2, 0, size)
-			b.CFrame = spin * turn * CFrame.new(size, 0, size - ARM / 2) * CFrame.Angles(0, math.pi / 2, 0)
+			b.CFrame = spin
+				* turn
+				* CFrame.new(size, 0, size - ARM / 2)
+				* CFrame.Angles(0, math.pi / 2, 0)
 		end
 	end
 end)
