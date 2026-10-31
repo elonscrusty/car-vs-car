@@ -687,6 +687,11 @@ local function startBoxes()
 			return out
 		end,
 		charge = function(id: any, amount: number): number?
+			-- the box also fills the SPECIAL button's move (Fire Swarm) by the same share
+			local W = weapons()
+			if W and W.chargeSpecial then
+				pcall(W.chargeSpecial, id, amount)
+			end
 			if C == nil or C.add == nil then
 				return nil
 			end
