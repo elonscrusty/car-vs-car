@@ -293,6 +293,26 @@ local function kart(id: any, x: number, z: number, alive: boolean?)
 	}
 end
 
+test("server rockets: the chased kart is marked, then cleared", function()
+	local Rockets = Flight.weapon("Rockets", Weapons)
+	local me, bot = kart(1, 0, 0), kart(-1, 0, -60)
+	local ctx = fakeCtx({ me, bot })
+	local marks: { [any]: number } = {}
+	local ever = false
+	function ctx.mark(id: any, on: boolean)
+		marks[id] = (marks[id] or 0) + (if on then 1 else -1)
+		ever = ever or on
+	end
+	truthy(Rockets.fire(me, AHEAD, ctx))
+	for _ = 1, 120 do
+		ctx.t += 1 / 60
+		Rockets.step(ctx, 1 / 60)
+	end
+	eq(Flight.count("Rockets"), 0)
+	truthy(ever)
+	eq(marks[-1], 0)
+end)
+
 test("server rockets: fire, fly, hit, damage goes to the match with who and what", function()
 	local Rockets = Flight.weapon("Rockets", Weapons)
 	local me, bot = kart(1, 0, 0), kart(-1, 0, -60)
