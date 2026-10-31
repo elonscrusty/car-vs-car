@@ -4,7 +4,8 @@
 local HapticService = game:GetService("HapticService")
 local Players = game:GetService("Players")
 
-local Buzz = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Buzz"))
+local Buzz =
+	require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Buzz"))
 
 local player = Players.LocalPlayer
 local last = -math.huge

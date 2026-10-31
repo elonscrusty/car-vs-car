@@ -306,7 +306,8 @@ function ArenaLifeFx.start()
 					continue
 				end
 				local up = m:GetAttribute("Up") == true
-				b.sparkle.Rate = ArenaLife.sparkles(up, (b.body.Position - eye).Magnitude) * fxLevel()
+				b.sparkle.Rate = ArenaLife.sparkles(up, (b.body.Position - eye).Magnitude)
+					* fxLevel()
 			end
 		end
 	end)
