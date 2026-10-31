@@ -67,6 +67,8 @@ local function save(player: Player, uid: number)
 			shadows = s.shadows,
 			names = s.names,
 			camera = s.camera,
+			buttons = s.buttons,
+			buzz = s.buzz,
 		}, { uid })
 	end)
 	inFlight -= 1
@@ -99,6 +101,8 @@ local function join(player: Player)
 	player:SetAttribute("SetShadows", use.shadows)
 	player:SetAttribute("SetNames", use.names)
 	player:SetAttribute("SetCamera", use.camera)
+	player:SetAttribute("SetButtons", use.buttons)
+	player:SetAttribute("SetBuzz", use.buzz)
 	player:SetAttribute("SetLoaded", true)
 end
 
