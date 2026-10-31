@@ -293,7 +293,7 @@ local function kart(id: any, x: number, z: number, alive: boolean?)
 	}
 end
 
-test("server rockets: the chased kart is marked while a rocket flies, cleared on the boom", function()
+test("server rockets: the chased kart is marked, then cleared", function()
 	local Rockets = Flight.weapon("Rockets", Weapons)
 	local me, bot = kart(1, 0, 0), kart(-1, 0, -60)
 	local ctx = fakeCtx({ me, bot })
