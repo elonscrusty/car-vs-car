@@ -9,7 +9,8 @@ local Match = {}
 Match.HEALTH = 100
 Match.HIT = 34 -- a rocket hit, gun burst or mine: 3 hits = a smash (carter's default)
 Match.RESPAWN = 3 -- seconds smashed before you're back (automatic)
-Match.SHIELD = 2 -- seconds of spawn bubble after a respawn (and at the round's start)
+Match.SHIELD = 2 -- seconds of spawn bubble after a respawn
+Match.START_SHIELD = 4 -- the bubble when a kart joins a round: lasts past the 3-2-1-GO
 Match.LENGTH = 120 -- a round: 2:00 (carter 10-31 "addicting" pick: shorter = one more)
 Match.BREAK = 8 -- ROUND OVER, the winner's kart, then "PLAY AGAIN 8" (was 12)
 Match.MAX = 6 -- karts in a round (players + bots)
@@ -108,7 +109,7 @@ function Match.add(m: State, id: number, name: string, human: boolean, now: numb
 		human = human,
 		health = Match.HEALTH,
 		alive = true,
-		shieldUntil = now + Match.SHIELD,
+		shieldUntil = now + Match.START_SHIELD,
 		respawnAt = nil,
 		smashes = 0,
 		deaths = 0,

@@ -84,7 +84,7 @@ test("Match streak: smashes in a row count up and being smashed starts it over",
 	for i = 1, 3 do
 		Match.add(m, i, `P{i}`, true, 0)
 	end
-	local now = Match.SHIELD + 1
+	local now = Match.START_SHIELD + 1
 	local function smash(victim: number, by: number)
 		for _ = 1, 3 do
 			Match.damage(m, victim, by, Match.HIT, now)
