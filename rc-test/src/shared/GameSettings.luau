@@ -44,7 +44,9 @@ function GameSettings.clean(t: any): Settings
 		shadows = if type(src.shadows) == "boolean" then src.shadows else d.shadows,
 		names = if type(src.names) == "boolean" then src.names else d.names,
 		camera = if src.camera == "fixed" then "fixed" else "follow",
-		buttons = if src.buttons == "small" or src.buttons == "large" then src.buttons else "medium",
+		buttons = if src.buttons == "small" or src.buttons == "large"
+			then src.buttons
+			else "medium",
 		buzz = if type(src.buzz) == "boolean" then src.buzz else d.buzz,
 	}
 end

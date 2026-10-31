@@ -214,8 +214,8 @@ local function open()
 		shadows = state.shadows,
 		names = state.names,
 		camera = state.camera,
-				buttons = state.buttons,
-				buzz = state.buzz,
+		buttons = state.buttons,
+		buzz = state.buzz,
 	}, {
 		set = function(key: string, value: any)
 			local t: { [string]: any } = {
