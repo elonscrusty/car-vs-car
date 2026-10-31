@@ -195,9 +195,9 @@ test("smash juice: shake is capped, decays, and never jitters on a 30 fps phone"
 	eq(roll, SmashJuice.MAX_ROLL)
 	local small = SmashJuice.tilt(0.12, 1, 0, 0)
 	truthy(small < 0.05, "a tiny trauma barely moves the screen (trauma squared)")
-	-- a nudge you can see now (hit shake C): about 1/3 of a degree or more, right on the hit
+	-- a nudge you can see (hit shake C, shake halved 10-31): about 1/6 of a degree or more, right on the hit
 	local nudgeShake = SmashJuice.tilt(SmashJuice.feel("hit", 10).trauma, 1, 0, 0)
-	truthy(nudgeShake > 0.25, "a nudge is seen")
+	truthy(nudgeShake > 0.12, "a nudge is seen")
 	-- and it is calm again within a second
 	local nudgeT = SmashJuice.feel("hit", 10).trauma
 	eq(SmashJuice.decay(nudgeT, 1), 0)

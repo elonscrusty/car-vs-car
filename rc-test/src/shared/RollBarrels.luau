@@ -29,9 +29,6 @@ RollBarrels.SPOTS = {
 	{ 60, 105 },
 	{ 100, 165 },
 	{ 145, 115 },
-	{ 50, 165 }, -- (batch 10-30: the last three moved off the fire pits and crates)
-	{ 100, 105 },
-	{ 30, 120 },
 } :: { { number } }
 
 export type Drum = {

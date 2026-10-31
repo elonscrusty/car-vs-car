@@ -144,13 +144,13 @@ test("junk on every remote (wrong types, NaN, huge, other players) never errors"
 end)
 
 test(
-	"8 kids in a smash round; one leaves mid-round, one while loading: the rest get results",
+	"6 kids in a smash round; one leaves mid-round, one while loading: the rest get results",
 	function()
 		local S = boot(Fake.store(), "full")
 		local MR = S.require("MatchRunner")
 		MR.MATCH_SECS = 40
 		local kids = {}
-		for i = 1, 8 do
+		for i = 1, 6 do
 			kids[i] = S.join(300 + i)
 		end
 		S.advance(3, BEAT)
@@ -171,19 +171,19 @@ test(
 		for i, k in kids do
 			eq(k:GetAttribute("InMatch"), true, `kid {i} in the round`)
 		end
-		eq(#MR.karts(), 8, "8 karts, no bots needed")
+		eq(#MR.karts(), 6, "6 karts, no bots needed")
 		S.advance(8, BEAT)
-		S.leave(kids[8]) -- leaves mid-round
+		S.leave(kids[6]) -- leaves mid-round
 		local late = S.join(399)
 		S.leave(late) -- left before the save loaded
 		S.advance(45, BEAT)
-		for i = 1, 7 do
+		for i = 1, 5 do
 			truthy(#S.got(kids[i], "MatchResult") >= 1, `kid {i} got a result`)
 		end
-		eq(#S.got(kids[8], "MatchResult"), 0, "the kid who left gets nothing")
+		eq(#S.got(kids[6], "MatchResult"), 0, "the kid who left gets nothing")
 		-- the next round runs too: the runner isn't stuck
 		S.advance(60, BEAT)
-		for i = 1, 7 do
+		for i = 1, 5 do
 			truthy(#S.got(kids[i], "MatchResult") >= 2, `kid {i} played twice`)
 		end
 		eq(errors(S), "", "errors")

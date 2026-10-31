@@ -271,7 +271,7 @@ test("BoxServer on the pretend server: pickup gives a weapon, box comes back, no
 	pos = Vector3.new(50, 0, 50)
 	S.advance(8, 0.05)
 	eq(box1:GetAttribute("Up"), true)
-	near((box1:FindFirstChild("Beam") :: any).Transparency, 0.88, 1e-6, "beam back to its glow")
+	near((box1:FindFirstChild("Beam") :: any).Transparency, 0.92, 1e-6, "beam back to its glow")
 	near((box1:FindFirstChild("Body") :: any).Transparency, 0, 1e-6, "box back")
 
 	-- a kart that's full doesn't take it

@@ -75,7 +75,7 @@ ArenaBrain.EASY = { gap = 0.8, react = 0.3, speed = 0.8 }
 ArenaBrain.LINE_UP = 0.7 -- armed and this far into the weapon's range: slow down to aim
 ArenaBrain.SAW_KEEP = 0.6 -- s a target can slip out of a fair shot and still count as seen
 ArenaBrain.TOKENS = 1 -- bots allowed to hunt the same player at once
-ArenaBrain.FIRE_GAP = 0.6 -- s between a bot's shots (WeaponServer has the real cooldown)
+ArenaBrain.FIRE_GAP = 1.0 -- s between a bot's shots (WeaponServer has the real cooldown)
 ArenaBrain.STUCK_CHECK = 0.5 -- s: how often progress is checked
 ArenaBrain.STUCK_MOVE = 1.5 -- big units: less than this in a check while driving = no progress
 ArenaBrain.BACK_TIME = 0.8 -- s of backing up once stuck

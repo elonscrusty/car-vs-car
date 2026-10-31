@@ -122,12 +122,9 @@ local function onGun(data: any)
 	if not a or not b then
 		return
 	end
-	beam(a, b, SUNNY, 0.25, 0.08)
+	beam(a, b, SUNNY, 0.18, 0.08)
 	flash(a, SUNNY, 0.8, 1.6, 0.06)
-	if data.hit == true then
-		flash(b, WHITE, 0.6, 2, 0.1)
-		chips(b, SUNNY, 2, 0.4, 3)
-	end
+	-- (calm pass 10-31: one shot look = tracer + muzzle flash; the hit is shown by the hit numbers)
 	sound("gun", data, a)
 end
 
