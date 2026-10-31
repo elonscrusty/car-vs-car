@@ -31,6 +31,7 @@ local Barrels = require(ReplicatedStorage.Shared.Barrels)
 local Crane = require(ReplicatedStorage.Shared.Crane)
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local FirePits = require(ReplicatedStorage.Shared.FirePits)
+local Wrenches = require(ReplicatedStorage.Shared.Wrenches)
 local BotPaints = require(ReplicatedStorage.Shared.BotPaints)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
 local Match = require(ReplicatedStorage.Shared.Match)
@@ -91,6 +92,7 @@ local crates: any = nil -- CrateServer's handle (the breakable crates in the are
 local barrels: any = nil -- BarrelServer's handle (the dynamite kegs in the arena)
 local crane: any = nil -- CraneServer's handle (the swinging crane ball in the arena)
 local firePits: any = nil -- FirePitServer's handle (the burning patches in the arena)
+local wrenches: any = nil -- WrenchServer's handle (the health wrenches in the arena)
 local burningYard: any = nil -- BurningYardServer's handle (burning piles, towers, beacons: looks only)
 local rollDrums: any = nil -- RollBarrelServer's handle (the rolling Toxic Drums)
 local ArenaBots: any = nil
@@ -760,6 +762,61 @@ local function startBurningYard()
 	end
 end
 
+-- The arena's health wrenches (WrenchServer, shared/Wrenches): started once, every wrench up at
+-- each round's start. A hurt kart on one gets 40% back. The server decides; nothing is pushed.
+local function startWrenches()
+	local mod = script.Parent:FindFirstChild("WrenchServer")
+	local _, t = arena()
+	if wrenches or not (mod and mod:IsA("ModuleScript") and t) then
+		return
+	end
+	local spots: { Vector3 } = {}
+	for _, p in Wrenches.SPOTS do
+		local x, z = ArenaData.at(p :: any)
+		local wx, wy, wz = TrackData.toWorld(t, true, x, ArenaData.groundAt(p :: any), z)
+		table.insert(spots, Vector3.new(wx, wy, wz))
+	end
+	local ok, h = pcall((require(mod) :: any).start, {
+		spots = spots,
+		karts = function()
+			local out = {}
+			local m = state
+			for _, k in MatchRunner.karts() do
+				local mk = m and m.karts[k.id]
+				if k.pos and mk then
+					table.insert(out, {
+						id = k.id,
+						position = k.pos,
+						alive = k.alive,
+						hurt = mk.health < Match.HEALTH,
+					})
+				end
+			end
+			return out
+		end,
+		heal = function(kartId: any, share: number): boolean
+			local m = state
+			if not m or phase ~= "playing" or type(kartId) ~= "number" then
+				return false
+			end
+			if Match.heal(m, kartId, share) <= 0 then
+				return false
+			end
+			local info = infos[kartId]
+			local k = m.karts[kartId]
+			if info and k then
+				setAttr(info, "Health", k.health)
+			end
+			return true
+		end,
+	})
+	if ok then
+		wrenches = h
+	else
+		warn("[Match] wrenches: " .. tostring(h))
+	end
+end
+
 -- WeaponServer tells us what its weapons did (GunShot, RocketBoom, MineBoom): they break crates.
 function MatchRunner.crateFx(kind: string, data: any)
 	local h = crates
@@ -1123,6 +1180,10 @@ local function startRound()
 	startFirePits()
 	if firePits then
 		pcall(firePits.reset)
+	end
+	startWrenches()
+	if wrenches then
+		pcall(wrenches.reset)
 	end
 	startRollBarrels()
 	if rollDrums then
