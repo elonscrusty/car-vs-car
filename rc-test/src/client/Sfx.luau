@@ -260,6 +260,11 @@ function Sfx.bump(at: Vector3?)
 	play("bump", 0.9 + math.random() * 0.2, nil, at)
 end
 
+-- the announcer's big word (rare): one short stinger
+function Sfx.announce()
+	play("announce")
+end
+
 -- a kart got smashed: the Big Boom (carter's pick). The boom, the crash and the metal crunch hit
 -- together, the crowd goes "oooh", and a small second pop lands with the fire's second pop (0.42 s).
 function Sfx.smash(at: Vector3?)

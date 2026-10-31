@@ -20,6 +20,7 @@ local TweenService = game:GetService("TweenService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local SmashJuice = require(Shared:WaitForChild("SmashJuice"))
+local Announcer = require(Shared:WaitForChild("Announcer"))
 local Ui = script.Parent:WaitForChild("Ui")
 local Base = require(Ui:WaitForChild("Base"))
 local Icons = require(Ui:WaitForChild("Icons"))
@@ -585,6 +586,7 @@ function SmashFx.start()
 	)
 
 	local myStreak = SmashJuice.streak()
+	local announcer = Announcer.new()
 
 	local function onFeed(attacker: unknown, victim: unknown, weapon: unknown)
 		local at = os.clock()
@@ -594,7 +596,8 @@ function SmashFx.start()
 		end
 		local reduced = Base.reduced()
 		if f.attacker and f.attacker.me and not f.victim.me then
-			local word2 = myStreak:smash(at)
+			local shout = announcer:shout(at, true, myStreak:smash(at), myStreak.run)
+			local word2 = if shout then shout.text else nil
 			card.Visible = false
 			showWord(you, SmashJuice.popWord(f.weapon), secs(SmashJuice.WORDS_SECONDS), 0.3)
 			showWord(name, SmashJuice.shortName(f.victim.name), secs(SmashJuice.WORDS_SECONDS), 1.4)
@@ -612,6 +615,9 @@ function SmashFx.start()
 				.. "!"
 				.. (if word2 then " + " .. word2 .. " + confetti" else "")
 			Sfx.smash()
+			if shout and shout.sound then
+				Sfx.announce()
+			end
 		elseif f.victim.me then
 			myStreak:reset()
 			you.Visible = false
@@ -638,6 +644,13 @@ function SmashFx.start()
 		else
 			-- someone else's smash: heard from where it happened
 			-- (no kart found → no sound, so far-off smashes never play at full volume)
+			local shout = announcer:shout(at, false, nil, 0)
+			if shout then
+				showWord(streak, shout.text, secs(SmashJuice.STREAK_SECONDS), 1.5)
+				if shout.sound then
+					Sfx.announce()
+				end
+			end
 			local where = pivotOf(kartOf(f.victim))
 				or (f.attacker and pivotOf(kartOf(f.attacker :: SmashJuice.Side)))
 			if where then
