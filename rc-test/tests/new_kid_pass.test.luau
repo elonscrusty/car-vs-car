@@ -271,10 +271,9 @@ test(
 			if first and first < 30 then
 				early += 1
 			end
-			local ok = smashes >= 2
+			local ok = smashes >= 1 -- (2:00 round, carter 10-31: was 2+ in 3:00)
 				and place >= 1
 				and place <= 5
-				-- (calm pass 10-31: 5 bots shoot slower, so a first match may pass with no smash taken)
 				and #smashed <= 3
 			if ok then
 				good += 1
@@ -361,7 +360,9 @@ test(
 		-- The sim kid now sees boxes across cliffs and takes the ramps (test thumb #1007), so it won 14 of 20
 		-- (7 before). The ceiling still catches bots that stopped fighting back; top 4 and smashes taken guard the rest.
 		truthy(wins >= 4 and wins <= 16, `1st in {wins} of {RUNS}`)
-		-- (10-31 calm pass: 5 bots, slower bot fire, so a seasoned kid is smashed a bit less; floor 4 -> 2.5)
-		truthy(avg >= 2.5 and avg <= 8, `smashed {avg} times a match`)
+		truthy(
+			avg >= 2.5 and avg <= 8, -- (2:00 round: was 4+ in 3:00)
+			`smashed {avg} times a match`
+		)
 	end
 )

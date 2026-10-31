@@ -20,7 +20,7 @@ local Match = sibling("Match")
 
 local MatchEnd = {}
 
-MatchEnd.AUTO = 12 -- the break between rounds when the server sends no nextAt
+MatchEnd.AUTO = 8 -- the break between rounds when the server sends no nextAt
 MatchEnd.MAX_ROWS = 12 -- a match has at most 12 karts
 MatchEnd.MAX_NAME = 20
 
@@ -227,7 +227,7 @@ end
 -- "NEXT ROUND 12"
 
 function MatchEnd.countWords(left: number): string
-	return if left > 0 then `NEXT ROUND {left}` else "GO!"
+	return if left > 0 then `PLAY AGAIN {left}` else "GO!"
 end
 
 return MatchEnd
