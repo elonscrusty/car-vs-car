@@ -26,6 +26,8 @@ Weapons.DEFS = {
 	Freeze = { ammo = 2, cooldown = 0.8, word = "FREEZE", icon = "freeze" },
 	-- click-on weapons row (server/weapons/Flame; its icon is Icons.flame, its sound the "flame" cue)
 	Flame = { ammo = 3, cooldown = 1.4, word = "FLAME", icon = "flame" },
+	-- SAW row (server/weapons/Saw, the Road Saw car's buzzsaw: a rev lasts Saw.REV seconds)
+	Saw = { ammo = 3, cooldown = 1, word = "SAW", icon = "saw" },
 } :: { [string]: Def }
 -- Every kart's own weapon (carter 10-29: the Roof Gatling is the starter on every car; boxes
 -- charge the special instead of handing out weapons). An empty kart gets a fresh clip this many
@@ -34,7 +36,7 @@ Weapons.STARTER = "Gun"
 Weapons.STARTER_RELOAD = 2
 
 -- the order boxes and screens list them in (GUNMINE adds Gun, Mine, Freeze)
-Weapons.NAMES = { "Rockets", "Nuke", "Gun", "Mine", "Freeze", "Flame" }
+Weapons.NAMES = { "Rockets", "Nuke", "Gun", "Mine", "Freeze", "Flame", "Saw" }
 
 -- aim: at most this far (degrees) from where the kart faces; more is turned back to the edge
 Weapons.MAX_AIM_DEG = 30
@@ -59,6 +61,7 @@ Weapons.FEED = {
 	Freeze = "freeze ray",
 	Flame = "flame",
 	FireSwarm = "fire swarm", -- the special (shared/FireSwarm)
+	Saw = "buzzsaw",
 } :: { [string]: string }
 function Weapons.feedWord(name: string): string
 	return Weapons.FEED[name] or string.lower(name)

@@ -397,6 +397,14 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 		end
 		wheels[i] = w
 	end
+	-- blades (a SpinAxis attribute, model space) turn about that axis, seen from the body
+	local spinAxes: { [Instance]: Vector3 } = {}
+	for _, d in copy:GetDescendants() do
+		local axis = d:GetAttribute("SpinAxis")
+		if d:IsA("BasePart") and typeof(axis) == "Vector3" and axis.Magnitude > 1e-3 then
+			spinAxes[d] = body.CFrame:VectorToObjectSpace(axis).Unit
+		end
+	end
 	-- turn it so its nose points where the car drives
 	copy:PivotTo(copy:GetPivot() * CFrame.Angles(0, math.pi, 0))
 	-- size it so its tyres are as big as the driving wheels
@@ -445,6 +453,7 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 	-- a toy car's other parts ride on its body (a Meshy model's are dropped, as before)
 	local extras: { [BasePart]: CFrame } = {}
 	local rims: { [BasePart]: { wheel: BasePart, rel: CFrame } } = {}
+	local spins: { [BasePart]: Vector3 } = {}
 	if copy:GetAttribute("Extras") == true then
 		local keep: { [Instance]: boolean } = { [body] = true }
 		for i, w in wheels do
@@ -464,6 +473,9 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 		for _, d in copy:GetDescendants() do
 			if d:IsA("BasePart") and not keep[d] then
 				extras[d] = body.CFrame:ToObjectSpace(d.CFrame)
+				if spinAxes[d] then
+					spins[d] = spinAxes[d]
+				end
 				d.Parent = folder
 			end
 		end

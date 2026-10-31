@@ -15,6 +15,7 @@ local TweenService = game:GetService("TweenService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Weapons = require(Shared:WaitForChild("Weapons"))
 local Sfx = require(script.Parent:WaitForChild("Sfx"))
+local SawSpin = require(script.Parent:WaitForChild("SawSpin"))
 
 local remote = ReplicatedStorage:WaitForChild(Weapons.FX_REMOTE) :: RemoteEvent
 
@@ -332,6 +333,8 @@ remote.OnClientEvent:Connect(function(kind: unknown, data: unknown)
 		if swarm and type(swarm.handle) == "function" then
 			swarm.handle(kind, data)
 		end
+	elseif string.sub(kind, 1, 3) == "Saw" then
+		SawSpin.handle(kind, data) -- the Road Saw's blades whirl (client/SawSpin)
 	else
 		forward(kind, data)
 	end

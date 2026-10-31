@@ -45,6 +45,7 @@ SmashJuice.WEAPONS = {
 	mine = { verb = "blown up", thing = "mine", mine = "SMASHED" },
 	freeze = { verb = "shattered", thing = "freeze ray", mine = "SHATTERED" },
 	flame = { verb = "burned", thing = "flamethrower", mine = "SMASHED" },
+	buzzsaw = { verb = "sawed up", thing = "buzzsaw", mine = "SAWED UP" },
 	bump = { verb = "bumped out", thing = "bump", mine = "SMASHED" },
 } :: { [string]: WeaponWords }
 -- the server's feed words and other spellings, to the rows above
