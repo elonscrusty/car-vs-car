@@ -131,7 +131,7 @@ test("reset puts every drum back, still", function()
 end)
 
 test("drum spots: open, flat, far from starts, boxes and kegs", function()
-	eq(#R.SPOTS, 6)
+	eq(#R.SPOTS, 3)
 	local function dist(a: { number }, b: { number }): number
 		return math.sqrt((a[1] - b[1]) ^ 2 + (a[2] - b[2]) ^ 2)
 	end

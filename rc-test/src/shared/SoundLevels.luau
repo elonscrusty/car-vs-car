@@ -22,7 +22,7 @@ local SoundLevels = {
 	-- Smash arena (positional ones fade with distance; your own are full)
 	PICKUP = 0.4, -- you grabbed a "?" box
 	ROCKET = 0.5, -- a rocket launches
-	BOOM = 0.7, -- a rocket or mine goes off
+	BOOM = 0.5, -- a rocket or mine goes off
 	GUN = 0.25, -- one machine-gun shot (bursts repeat it)
 	GUN_GAP = 0.09, -- seconds between gun shot sounds (a real shot file: fewer overlaps, no mud)
 	MINE = 0.4, -- a mine is dropped
@@ -31,7 +31,7 @@ local SoundLevels = {
 	BUMP = 0.4, -- two karts bump (bumps hurt too, carter 10-28)
 	FREEZE = 0.45, -- freeze shot, a kart freezing, the ice shattering
 	FLAME = 0.5, -- the Flame Nozzle's burst: one smooth roar, no ticking (carter 10-30)
-	SMASH = 0.75, -- a kart got smashed (the crash)
+	SMASH = 0.55, -- a kart got smashed (the crash)
 	SMASH_BOOM = 0.7, -- the deep boom under it (carter picked "1 Big Boom", 10-29)
 	SMASH_METAL = 0.55, -- the metal crunch
 	SMASH_CROWD = 0.45, -- the crowd "oooh"

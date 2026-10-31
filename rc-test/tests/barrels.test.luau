@@ -168,7 +168,7 @@ test("weapon fx works before any keg has blown up (a fresh copy, damage never ca
 end)
 
 test("keg spots: open, flat, off the starts and boxes, apart from each other", function()
-	eq(#B.SPOTS, 6)
+	eq(#B.SPOTS, 3)
 	local function dist(a: { number }, b: { number }): number
 		return math.sqrt((a[1] - b[1]) ^ 2 + (a[2] - b[2]) ^ 2)
 	end

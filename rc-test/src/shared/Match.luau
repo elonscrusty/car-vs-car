@@ -12,7 +12,7 @@ Match.RESPAWN = 3 -- seconds smashed before you're back (automatic)
 Match.SHIELD = 2 -- seconds of spawn bubble after a respawn (and at the round's start)
 Match.LENGTH = 180 -- a round: 3:00
 Match.BREAK = 12 -- ROUND OVER, the winner's kart, "New Round Starting In 12"
-Match.MAX = 8 -- karts in a round (players + bots)
+Match.MAX = 6 -- karts in a round (players + bots)
 
 -- Coins for a round: by place, plus each smash (FINISH-JOBS: 1st/2nd/3rd + per smash).
 Match.PLACE_COINS = { 50, 30, 20 }
