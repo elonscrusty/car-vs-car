@@ -13,6 +13,7 @@ local RunService = game:GetService("RunService")
 
 local Weapons = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Weapons"))
 local FireSwarm = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("FireSwarm"))
+local Specials = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Specials"))
 
 local WeaponServer = {}
 
@@ -679,18 +680,15 @@ function WeaponServer.start(opts: { match: any? }?)
 		end
 	end
 	if folder then
-		local m = folder:FindFirstChild(FireSwarm.NAME)
-		if m and m:IsA("ModuleScript") then
-			local ok, mod = pcall(require, m)
-			if ok and type(mod) == "table" and type(mod.fire) == "function" then
-				specials[FireSwarm.NAME] = mod :: any
-			else
-				warn(
-					"[WeaponServer] special "
-						.. FireSwarm.NAME
-						.. " did not load: "
-						.. tostring(mod)
-				)
+		for name in Specials.LOOKS do
+			local m = folder:FindFirstChild(name)
+			if m and m:IsA("ModuleScript") then
+				local ok, mod = pcall(require, m)
+				if ok and type(mod) == "table" and type(mod.fire) == "function" then
+					specials[name] = mod :: any
+				else
+					warn("[WeaponServer] special " .. name .. " did not load: " .. tostring(mod))
+				end
 			end
 		end
 	end
@@ -743,13 +741,20 @@ function WeaponServer.start(opts: { match: any? }?)
 	end)
 	RunService.Heartbeat:Connect(function(dt: number)
 		cacheKarts, cacheModels = nil, nil
-		-- every player's kart in a match gets the special (a car-by-car choice comes later)
+		-- every player's kart in a match gets its car's one special (shared/Specials)
 		grantAt -= dt
-		if grantAt <= 0 and specials[FireSwarm.NAME] then
+		if grantAt <= 0 then
 			grantAt = 1
 			for _, k in allKarts() do
-				if k.alive and specialOf[k.id] == nil and playerOf(k.id) ~= nil then
-					WeaponServer.setSpecial(k.id, FireSwarm.NAME)
+				local p = if k.alive and specialOf[k.id] == nil then playerOf(k.id) else nil
+				if p ~= nil then
+					local name = Specials.forCar(p:GetAttribute("RacerCar"))
+					if specials[name] == nil then
+						name = Specials.DEFAULT
+					end
+					if specials[name] ~= nil then
+						WeaponServer.setSpecial(k.id, name)
+					end
 				end
 			end
 		end
