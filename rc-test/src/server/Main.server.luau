@@ -274,7 +274,10 @@ local function setSign(slotIndex: number)
 			slots[slotIndex].label,
 			owner ~= nil and not LobbyPlots.isOpen(slotIndex)
 		)
-	lobby.signs[slotIndex].Text = text
+	local sign = lobby.signs[slotIndex]
+	if sign then -- the Garage Hub lobby has no plot signs
+		sign.Text = text
+	end
 	local arch = archNames[slotIndex]
 	if arch then
 		arch.Text = text
