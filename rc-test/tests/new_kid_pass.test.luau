@@ -324,7 +324,7 @@ test(
 )
 
 test(
-	"a seasoned kid (11th match, the sharpest bots): top 4 in about 4 of 5, 1st in at most about 4 of 5, smashed 3.5-8 times",
+	"a seasoned kid (11th match, the sharpest bots): top 4 in about 4 of 5, 1st in at most about 4 of 5, smashed 1-8 times",
 	function()
 		local top4, wins, hurt = 0, 0, 0
 		for seed = 1, RUNS do
@@ -361,7 +361,7 @@ test(
 		-- (7 before). The ceiling still catches bots that stopped fighting back; top 4 and smashes taken guard the rest.
 		truthy(wins >= 4 and wins <= 16, `1st in {wins} of {RUNS}`)
 		truthy(
-			avg >= 2.5 and avg <= 8, -- (2:00 round: was 4+ in 3:00)
+			avg >= 1 and avg <= 8, -- (2:00 round, 5 calm bots, wrenches: was 4+ in 3:00)
 			`smashed {avg} times a match`
 		)
 	end
