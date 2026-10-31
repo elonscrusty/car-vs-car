@@ -25,6 +25,7 @@ local ExhaustFx = require(script.Parent.ExhaustFx)
 local FireDrake = require(script.Parent.FireDrake)
 local Garage = require(ReplicatedStorage.Shared.Garage)
 local KartMesh = require(script.Parent.KartMesh)
+local SawSpin = require(script.Parent.SawSpin)
 local ToyCars = require(ReplicatedStorage.Shared.ToyCars)
 local Tuning = require(ReplicatedStorage.Shared.Tuning)
 
@@ -47,6 +48,7 @@ type Shown = {
 	looks: { Instance }, -- its SurfaceAppearance, if any, taken off while tinted
 	extras: { [BasePart]: CFrame }, -- a toy car's cab, roof, wing and lights, seen from its body
 	rims: { [BasePart]: { wheel: BasePart, rel: CFrame } }, -- an imported kart's RimFL..: they turn with their wheel
+	spins: { [BasePart]: Vector3 }, -- an extra with a SpinAxis (the Road Saw's blades), the axis seen from the body
 }
 
 -- "toy:<car id>": the same toy car the plot shows for that car (Garage.toyCar: its colour and
@@ -361,6 +363,14 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 		end
 		wheels[i] = w
 	end
+	-- blades (a SpinAxis attribute, model space) turn about that axis, seen from the body
+	local spinAxes: { [Instance]: Vector3 } = {}
+	for _, d in copy:GetDescendants() do
+		local axis = d:GetAttribute("SpinAxis")
+		if d:IsA("BasePart") and typeof(axis) == "Vector3" and axis.Magnitude > 1e-3 then
+			spinAxes[d] = body.CFrame:VectorToObjectSpace(axis).Unit
+		end
+	end
 	-- turn it so its nose points where the car drives
 	copy:PivotTo(copy:GetPivot() * CFrame.Angles(0, math.pi, 0))
 	-- size it so its tyres are as big as the driving wheels
@@ -409,6 +419,7 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 	-- a toy car's other parts ride on its body (a Meshy model's are dropped, as before)
 	local extras: { [BasePart]: CFrame } = {}
 	local rims: { [BasePart]: { wheel: BasePart, rel: CFrame } } = {}
+	local spins: { [BasePart]: Vector3 } = {}
 	if copy:GetAttribute("Extras") == true then
 		local keep: { [Instance]: boolean } = { [body] = true }
 		for i, w in wheels do
@@ -424,6 +435,9 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 		for _, d in copy:GetDescendants() do
 			if d:IsA("BasePart") and not keep[d] then
 				extras[d] = body.CFrame:ToObjectSpace(d.CFrame)
+				if spinAxes[d] then
+					spins[d] = spinAxes[d]
+				end
 				d.Parent = folder
 			end
 		end
@@ -466,6 +480,7 @@ local function show(car: RCCar.Car, name: string, src: Model): Shown?
 		looks = looks,
 		extras = extras,
 		rims = rims,
+		spins = spins,
 	}
 end
 
@@ -533,8 +548,18 @@ function CarSkin.new()
 		end
 		if cur then
 			cur.body.CFrame = car.body.CFrame * cur.offset
+			-- (a blade is the same all round its axis, so it turns about its own middle)
+			local spin = if next(cur.spins) then SawSpin.angle(car.model) else 0
 			for p, rel in cur.extras do
-				p.CFrame = cur.body.CFrame * rel
+				local axis = cur.spins[p]
+				if axis then
+					p.CFrame = cur.body.CFrame
+						* CFrame.new(rel.Position)
+						* CFrame.fromAxisAngle(axis, spin)
+						* rel.Rotation
+				else
+					p.CFrame = cur.body.CFrame * rel
+				end
 			end
 			for p, r in cur.rims do
 				p.CFrame = r.wheel.CFrame * r.rel
