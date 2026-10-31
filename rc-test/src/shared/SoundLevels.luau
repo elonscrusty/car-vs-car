@@ -36,6 +36,7 @@ local SoundLevels = {
 	SMASH_METAL = 0.55, -- the metal crunch
 	SMASH_CROWD = 0.45, -- the crowd "oooh"
 	SMASH_POP = 0.4, -- the small second pop (with the fire's second pop at 0.42 s)
+	ANNOUNCE = 0.5, -- the announcer's stinger on a big word (rare)
 	RESPAWN = 0.4, -- you are back in
 	SHIELD = 0.35, -- the shield goes up
 	MATCH = 0.8, -- match start (3-2-1-GO) and the end horn
