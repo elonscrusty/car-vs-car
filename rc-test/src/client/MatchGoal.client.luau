@@ -1,7 +1,7 @@
 --!strict
--- The tiny match goal (carter 10-31 pick 3): a small pill low on the left edge in a match, "SMASH 3"
+-- The tiny match goal (carter 10-31 pick 3): a small pill on the left edge, under the kill list / scoreboard and above the stick in a match, "SMASH 3"
 -- with a thin bar. Its own ScreenGui under the HUD, so it never covers a button. Words come from
--- shared/MatchGoal. Looks only. (Position not checked in Studio yet: waits for the batch play.)
+-- shared/MatchGoal. Looks only. (Spot checked against the HUD pieces in tests/match_goal.test; not seen in Studio yet.)
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -23,9 +23,9 @@ gui.Parent = player:WaitForChild("PlayerGui")
 
 local pill = Instance.new("Frame")
 pill.Name = "Pill"
-pill.AnchorPoint = Vector2.new(0, 0.5)
-pill.Position = UDim2.new(0, 10, 0.34, 0)
-pill.Size = UDim2.fromOffset(112, 34)
+pill.AnchorPoint = Vector2.new(0, 0)
+pill.Position = UDim2.new(0, MatchGoal.PILL.x, MatchGoal.PILL.top, 0)
+pill.Size = UDim2.fromOffset(MatchGoal.PILL.w, MatchGoal.PILL.h)
 pill.BackgroundColor3 = INK
 pill.BackgroundTransparency = 0.25
 pill.BorderSizePixel = 0
@@ -59,10 +59,11 @@ fill.BorderSizePixel = 0
 fill.Parent = track
 
 local function inMatch(): boolean
-	local ends = player:GetAttribute("MatchEndsAt")
-	return player:GetAttribute("InMatch") == true
-		and type(ends) == "number"
-		and ends > workspace:GetServerTimeNow() - 1
+	return MatchGoal.live(
+		player:GetAttribute("InMatch"),
+		player:GetAttribute("MatchEndsAt"),
+		workspace:GetServerTimeNow()
+	)
 end
 
 local function refresh()
@@ -76,3 +77,14 @@ for _, name in { "Smashes", "InMatch", "MatchEndsAt" } do
 	player:GetAttributeChangedSignal(name):Connect(refresh)
 end
 refresh()
+-- (the server keeps InMatch on through the break between rounds: no attribute changes when the
+-- clock runs out, so look at the clock a few times a second)
+task.spawn(function()
+	while true do
+		task.wait(0.25)
+		local on = inMatch()
+		if gui.Enabled ~= on then
+			refresh()
+		end
+	end
+end)

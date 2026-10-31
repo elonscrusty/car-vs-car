@@ -15,6 +15,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local FireSwarm = require(Shared:WaitForChild("FireSwarm"))
 local UiScreens = require(Shared:WaitForChild("UiScreens"))
 local Base = require(script.Parent:WaitForChild("Ui"):WaitForChild("Base"))
+local MatchGoal = require(Shared:WaitForChild("MatchGoal"))
 local Specials = require(Shared:WaitForChild("Specials"))
 
 local player = Players.LocalPlayer
@@ -43,6 +44,11 @@ holder.Parent = gui
 -- Just left of FIRE: the same safe area as the HUD, FIRE's spot from UiScreens (the phone or the
 -- PC layout), then FIRE's real side (it keeps square, so the smaller of its two scales wins).
 gui.ScreenInsets = Enum.ScreenInsets.CoreUISafeInsets
+local function btnScale(): number
+	local v = player:GetAttribute("BtnScale")
+	return if type(v) == "number" and v == v then math.clamp(v, 0.5, 1.5) else 1
+end
+local baseScale = 1 -- the Settings BUTTONS size (the one UIScale below also carries the pulse)
 local SIDE_GAP = 16 -- px between the two buttons (FIRE's ring sticks out 8)
 local function fit()
 	local size = gui.AbsoluteSize
@@ -54,11 +60,18 @@ local function fit()
 	local side = math.min(fp.w / W * size.X, fp.h / H * size.Y)
 	local right = (fp.x + fp.w) / W * size.X
 	local bottom = (fp.y + fp.h) / H * size.Y
-	holder.Position =
-		UDim2.fromOffset(math.floor(right - side - SIDE_GAP), math.floor(bottom - side / 2))
+	-- Settings BUTTONS: FIRE grows or shrinks around its middle (BtnScale), so its left edge moves
+	-- by half the change; this button keeps the same gap and takes the same size
+	local k = btnScale()
+	holder.Position = UDim2.fromOffset(
+		math.floor(right - side / 2 - side * k / 2 - SIDE_GAP),
+		math.floor(bottom - side / 2)
+	)
+	baseScale = k
 end
 gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
 player:GetAttributeChangedSignal("PhoneUi"):Connect(fit) -- (the HUD picks its layout the same way)
+player:GetAttributeChangedSignal("BtnScale"):Connect(fit)
 fit()
 
 local scale = Instance.new("UIScale")
@@ -107,7 +120,12 @@ pad.PaddingTop, pad.PaddingBottom = UDim.new(0.25, 0), UDim.new(0.25, 0)
 pad.Parent = button
 
 local function inMatch(): boolean
-	return player:GetAttribute("InMatch") == true
+	-- (the server keeps InMatch on through the break between rounds: the clock ends it for us)
+	return MatchGoal.live(
+		player:GetAttribute("InMatch"),
+		player:GetAttribute("MatchEndsAt"),
+		workspace:GetServerTimeNow()
+	)
 end
 
 local lastAsk = 0
@@ -171,5 +189,5 @@ RunService.RenderStepped:Connect(function()
 	end
 	wasFull = full
 	-- ready: a gentle pulse so you notice it
-	scale.Scale = if full then 1 + 0.05 * math.sin(os.clock() * 7) else 1
+	scale.Scale = baseScale * (if full then 1 + 0.05 * math.sin(os.clock() * 7) else 1)
 end)

@@ -48,6 +48,14 @@ function EdgeArrow.place(
 	return { x = cx + dx * k, y = cy + dy * k, angle = angle, inside = inside }
 end
 
+-- Phone: the lowest y a chevron may sit at on the RIGHT edge (screen px, h = the screen height).
+-- Below it is the DRIFT button, whose top is 0.54 - 0.22 = 0.32 of the screen height (the controls
+-- gui covers the whole screen), then FIRE; either would hide the chevron. 22 px = half a chevron
+-- and a gap.
+function EdgeArrow.rightCeiling(h: number): number
+	return 0.32 * h - 22
+end
+
 -- a target behind the camera (z < 0 in view space): mirror it through the middle so the
 -- arrow points the way to turn
 function EdgeArrow.behind(w: number, h: number, sx: number, sy: number): (number, number)

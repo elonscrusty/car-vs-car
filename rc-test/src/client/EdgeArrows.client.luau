@@ -7,7 +7,9 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local EdgeArrow = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("EdgeArrow"))
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local EdgeArrow = require(Shared:WaitForChild("EdgeArrow"))
+local MatchGoal = require(Shared:WaitForChild("MatchGoal")) -- (MatchGoal.live: still in a running match)
 
 local player = Players.LocalPlayer
 local myCar = "Car_" .. player.UserId
@@ -108,7 +110,14 @@ end
 local lastAt = 0
 RunService.RenderStepped:Connect(function()
 	local cam = workspace.CurrentCamera
-	if not cam or player:GetAttribute("InMatch") ~= true then
+	if
+		not cam
+		or not MatchGoal.live(
+			player:GetAttribute("InMatch"),
+			player:GetAttribute("MatchEndsAt"),
+			workspace:GetServerTimeNow()
+		)
+	then
 		hideFrom(1)
 		return
 	end
@@ -136,6 +145,11 @@ RunService.RenderStepped:Connect(function()
 			sx, sy = EdgeArrow.behind(size.X, size.Y, sx, sy)
 		end
 		local spot = EdgeArrow.place(size.X, size.Y, sx, sy, side, top, side, bottom)
+		-- phone: the right edge below this line is the DRIFT / FIRE / SPECIAL thumb buttons, which
+		-- would hide the chevron, so it stays above them (EdgeArrow.rightCeiling)
+		if phone and spot.x > size.X / 2 then
+			spot.y = math.min(spot.y, EdgeArrow.rightCeiling(size.Y))
+		end
 		if v.Z >= 0 and onScreen and spot.inside then
 			continue
 		end

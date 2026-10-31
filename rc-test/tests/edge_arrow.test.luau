@@ -68,4 +68,13 @@ test("edge arrows: nearer is stronger, always calm", function()
 	truthy(EdgeArrow.strength(0) <= 0.9 + 1e-6 and EdgeArrow.strength(1000) >= 0.45 - 1e-6)
 end)
 
+test("edge arrows: on a phone the right edge stays above DRIFT, inside the top inset", function()
+	for _, size in { { 667, 375 }, { 844, 390 }, { 932, 430 } } do
+		local ceiling = EdgeArrow.rightCeiling(size[2])
+		local driftTop = 0.32 * size[2] -- (Controls: DRIFT bottom 0.54, side 0.22 of the height)
+		truthy(ceiling + 15 < driftTop, `chevron reaches DRIFT at {size[1]}x{size[2]}`)
+		truthy(ceiling >= 74, `no room under the top bar at {size[1]}x{size[2]}`) -- (phone top inset)
+	end
+end)
+
 return nil
