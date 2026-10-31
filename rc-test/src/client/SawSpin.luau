@@ -4,9 +4,7 @@
 -- Idle: a slow turn so the blades always look alive. Revved: the server sent "SawRev"
 -- { owner, seconds } (WeaponFx forwards it), the blades whirl until the time is up, then ease
 -- back down. The server decides every cut; this only draws.
-local RunService = game:GetService("RunService")
-local Debris = game:GetService("Debris")
-
+-- (services are fetched when a spark is drawn, so Lune tests can load this file)
 local SawSpin = {}
 
 SawSpin.IDLE = 3 -- radians a second
@@ -98,7 +96,7 @@ local function burst(at: Vector3)
 		p.CastShadow = false
 		p.Parent = workspace
 		local life = 0.45 + math.random() * 0.4
-		Debris:AddItem(p, life + 0.5)
+		game:GetService("Debris"):AddItem(p, life + 0.5)
 		local k = SCALE * 4
 		local sx = (math.random() - 0.5) * 5 * k
 		local sz = (math.random() - 0.5) * 5 * k
@@ -112,7 +110,7 @@ local function burst(at: Vector3)
 		})
 	end
 	if not conn then
-		conn = RunService.RenderStepped:Connect(stepChips)
+		conn = game:GetService("RunService").RenderStepped:Connect(stepChips)
 	end
 end
 
