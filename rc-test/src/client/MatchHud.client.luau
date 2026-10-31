@@ -203,7 +203,8 @@ local function showHints()
 			return
 		end
 		local info = TweenInfo.new(1)
-		TweenService:Create(label, info, { TextTransparency = 1, BackgroundTransparency = 1 }):Play()
+		TweenService:Create(label, info, { TextTransparency = 1, BackgroundTransparency = 1 })
+			:Play()
 		task.delay(1.1, function()
 			if hintToken == me then
 				hideHints()
@@ -387,8 +388,7 @@ UserInputService.InputBegan:Connect(function(input: InputObject, processed: bool
 	if input.KeyCode == Enum.KeyCode.F or input.KeyCode == Enum.KeyCode.ButtonR2 then
 		fire()
 	elseif
-		input.UserInputType == Enum.UserInputType.MouseButton1
-		and UserInputService.MouseEnabled
+		input.UserInputType == Enum.UserInputType.MouseButton1 and UserInputService.MouseEnabled
 	then
 		mouseHeld = true
 		fire()
