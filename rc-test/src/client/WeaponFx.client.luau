@@ -5,7 +5,8 @@
 --   RocketTurn   { id, pos, dir }  it bent toward a kart: carry on from the new spot
 --   RocketBoom   { id, kind, pos, quiet? }  it blew up there (quiet = match over, just vanish)
 -- Gun and mine kinds go to client/WeaponFxGunMine (the GUNMINE row's file) when it is there.
--- Shockwave, ShockHit and Knock (the Ice Viper's special) go to client/ShockwaveFx.
+-- Shockwave, ShockHit and Knock (the Ice Viper's special) go to client/ShockwaveFx;
+-- the Swarm kinds (the Fire Swarm special) go to client/WeaponFxSwarm.
 -- Look rule: low-poly, SmoothPlastic + Neon, no text.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -279,6 +280,7 @@ end
 
 -- the gun and mine row's drawing (its own file, so we never edit the same one)
 local gunMine: any = nil
+local swarm: any = nil
 local function forward(kind: string, data: any)
 	if gunMine == nil then
 		local m = script.Parent:FindFirstChild("WeaponFxGunMine")
@@ -317,6 +319,19 @@ remote.OnClientEvent:Connect(function(kind: unknown, data: unknown)
 		onRocket(kind, data)
 	elseif kind == "Shockwave" or kind == "ShockHit" or kind == "Knock" then
 		forwardShock(kind, data)
+	elseif string.sub(kind, 1, 5) == "Swarm" then
+		-- the Fire Swarm special's drawing (its own file)
+		if swarm == nil then
+			local m = script.Parent:FindFirstChild("WeaponFxSwarm")
+			local ok, mod = false, nil
+			if m and m:IsA("ModuleScript") then
+				ok, mod = pcall(require, m)
+			end
+			swarm = if ok then mod else false
+		end
+		if swarm and type(swarm.handle) == "function" then
+			swarm.handle(kind, data)
+		end
 	else
 		forward(kind, data)
 	end

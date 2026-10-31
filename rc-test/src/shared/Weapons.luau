@@ -58,6 +58,7 @@ Weapons.FEED = {
 	Mine = "mine",
 	Freeze = "freeze ray",
 	Flame = "flame",
+	FireSwarm = "fire swarm", -- the special (shared/FireSwarm)
 } :: { [string]: string }
 function Weapons.feedWord(name: string): string
 	return Weapons.FEED[name] or string.lower(name)
