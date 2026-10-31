@@ -5,6 +5,7 @@
 --   MUSIC / SOUNDS: two SoundGroups every sound is put in (sounds named "Music" in the music one)
 --   SHADOWS: Lighting.GlobalShadows on this screen
 --   NAME TAGS: other players' names and league badges over their heads
+--   BUTTONS: S / M / L (attribute BtnScale, read by MatchHud); BUZZ: controller rumble (attribute Buzz)
 --   CAMERA: FOLLOW or FIXED (player attribute CamFixed, read by ChaseCamera)
 -- The server keeps them (SettingsServer: RemoteEvent SaveSettings, one send each SAVE_GAP s;
 -- the saved ones come once, on the attributes SetMusic, SetSfx, SetShadows, SetNames, SetCamera and
@@ -122,6 +123,8 @@ local function apply()
 	sfxGroup.Volume = state.sfx
 	Lighting.GlobalShadows = state.shadows
 	player:SetAttribute("CamFixed", state.camera == "fixed")
+	player:SetAttribute("BtnScale", GameSettings.BUTTON_SCALE[state.buttons] or 1)
+	player:SetAttribute("Buzz", state.buzz)
 	if state.names then
 		for hum, was in hidden do
 			hidden[hum] = nil
@@ -154,6 +157,8 @@ local function fromServer()
 		shadows = player:GetAttribute("SetShadows"),
 		names = player:GetAttribute("SetNames"),
 		camera = player:GetAttribute("SetCamera"),
+		buttons = player:GetAttribute("SetButtons"),
+		buzz = player:GetAttribute("SetBuzz"),
 	})
 	apply()
 end
@@ -181,6 +186,8 @@ local function send()
 				shadows = state.shadows,
 				names = state.names,
 				camera = state.camera,
+				buttons = state.buttons,
+				buzz = state.buzz,
 			})
 		end
 	end)
@@ -207,6 +214,8 @@ local function open()
 		shadows = state.shadows,
 		names = state.names,
 		camera = state.camera,
+		buttons = state.buttons,
+		buzz = state.buzz,
 	}, {
 		set = function(key: string, value: any)
 			local t: { [string]: any } = {
@@ -215,6 +224,8 @@ local function open()
 				shadows = state.shadows,
 				names = state.names,
 				camera = state.camera,
+				buttons = state.buttons,
+				buzz = state.buzz,
 			}
 			t[key] = value
 			state = GameSettings.clean(t)

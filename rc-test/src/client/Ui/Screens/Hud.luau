@@ -1240,7 +1240,20 @@ function Hud.match(
 			dim.Visible = not has
 		end
 		setWeapon(data.weapon, data.ammo)
+		-- BUTTONS (Settings): FIRE grows or shrinks around its own middle
+		fireSpot.AnchorPoint = Vector2.new(0.5, 0.5)
+		fireSpot.Position = UDim2.new(
+			fireSpot.Position.X.Scale + fireSpot.Size.X.Scale / 2,
+			0,
+			fireSpot.Position.Y.Scale + fireSpot.Size.Y.Scale / 2,
+			0
+		)
+		local fireScale = Instance.new("UIScale")
+		fireScale.Parent = fireSpot
 		return {
+			setButtonScale = function(v: number)
+				fireScale.Scale = math.clamp(v, 0.5, 1.5)
+			end,
 			setPlace = setPlace,
 			setClock = setClock,
 			setHealth = setHealth,
