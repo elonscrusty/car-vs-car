@@ -19,6 +19,7 @@ local OFF: { [string]: boolean } = {
 	friends = true, -- let others drive your plot (plot racing is gone)
 	quick = true, -- QUICK RACE on a free plot (plot racing is gone)
 	looks = not Features.STARS, -- plot looks were bought with stars
+	carbuttons = (Features :: any).SMASH == true, -- CAM / VIEW / SMOKE: not in a SMASH match (one ability button)
 }
 
 function StageGate.shows(name: string): boolean

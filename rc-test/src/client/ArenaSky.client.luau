@@ -7,6 +7,7 @@ local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ArenaData = require(ReplicatedStorage.Shared.ArenaData)
+local FrostYard = require(ReplicatedStorage.Shared.FrostYard)
 local TrackData = require(ReplicatedStorage.Shared.TrackData)
 local LobbySky = require(script.Parent.LobbySky)
 
@@ -23,8 +24,14 @@ local function inArena(p: Vector3): boolean
 		and p.Y < 80
 end
 
+-- Frosty Yard (shared/FrostYard) only cools the colours: same light, bluer air and shade.
+local function frosty(): boolean
+	return workspace:GetAttribute(FrostYard.ATTR) == FrostYard.FROST
+end
+
 local effects: { Instance } = {}
 local clouds: Clouds? = nil
+local coldNow = false -- which look the effects under the camera were made for
 local saved: { [string]: any }? = nil -- the light from before the arena, put back on the way out
 
 local function on(camera: Camera)
@@ -57,9 +64,12 @@ local function on(camera: Camera)
 			(Lighting :: any)[key] = value
 		end
 	end
-	Lighting.Ambient = rgb(ArenaData.ambient)
-	Lighting.OutdoorAmbient = rgb(ArenaData.outdoorAmbient)
-	Lighting.ColorShift_Top = rgb(ArenaData.colorShiftTop)
+	local cold = frosty()
+	Lighting.Ambient = rgb(if cold then FrostYard.sky.ambient else ArenaData.ambient)
+	Lighting.OutdoorAmbient =
+		rgb(if cold then FrostYard.sky.outdoorAmbient else ArenaData.outdoorAmbient)
+	Lighting.ColorShift_Top =
+		rgb(if cold then FrostYard.sky.colorShiftTop else ArenaData.colorShiftTop)
 	local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
 	if atmosphere then
 		local a = ArenaData.atmosphere
@@ -67,8 +77,8 @@ local function on(camera: Camera)
 		atmosphere.Offset = a.Offset
 		atmosphere.Haze = a.Haze
 		atmosphere.Glare = a.Glare
-		atmosphere.Color = rgb(a.color)
-		atmosphere.Decay = rgb(a.decay)
+		atmosphere.Color = rgb(if cold then FrostYard.sky.atmosphereColor else a.color)
+		atmosphere.Decay = rgb(if cold then FrostYard.sky.atmosphereDecay else a.decay)
 	end
 	if not clouds or not clouds.Parent then
 		clouds = Instance.new("Clouds")
@@ -77,6 +87,13 @@ local function on(camera: Camera)
 		clouds.Density = ArenaData.clouds.Density
 		clouds.Parent = workspace.Terrain
 	end
+	if #effects == 2 and effects[1].Parent == camera and cold ~= coldNow then
+		-- the look changed while over the arena: tint again
+		effects[1]:Destroy()
+		effects[2]:Destroy()
+		effects = {}
+	end
+	coldNow = cold
 	if #effects == 0 or effects[1].Parent ~= camera then
 		for _, e in effects do
 			e:Destroy()
@@ -87,7 +104,10 @@ local function on(camera: Camera)
 		cc.Brightness = c.Brightness
 		cc.Contrast = c.Contrast
 		cc.Saturation = c.Saturation
-		cc.TintColor = rgb(c.tint)
+		cc.TintColor = rgb(if cold then FrostYard.sky.tint else c.tint)
+		if cold then
+			cc.Saturation = FrostYard.sky.saturation
+		end
 		local bloom = Instance.new("BloomEffect")
 		bloom.Name = "ArenaBloom"
 		bloom.Intensity = ArenaData.bloom.Intensity

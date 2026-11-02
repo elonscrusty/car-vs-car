@@ -85,14 +85,17 @@ SoundCues.MUST = {
 	"mine",
 	"freezeShot",
 	"freeze",
+	"flame",
 	"shatter",
 	"hit",
 	"bump",
 	"smash",
+	"announce",
 	"respawn",
 	"shield",
 	"matchStart",
 	"matchEnd",
+	"tap",
 }
 
 SoundCues.ACTIONS = {
@@ -202,6 +205,8 @@ SoundCues.ACTIONS = {
 		gap = 0.05,
 		volume = L.FREEZE,
 	},
+	-- a Flame Nozzle burst: one long low whoosh (a single slow note, so no ticking; carter 10-30)
+	flame = { id = "rbxassetid://9114329395", notes = { 0.4 }, gap = 0, volume = L.FLAME },
 	-- the ice bursts (and the kart is smashed): a bright glassy run down
 	shatter = {
 		id = "rbxassetid://9114855870",
@@ -225,6 +230,36 @@ SoundCues.ACTIONS = {
 		notes = { 0.4, 1.5, 2, 2.67 },
 		gap = 0.06,
 		volume = L.SMASH,
+	},
+	-- the Big Boom (carter picked it, 10-29): the deep boom, a metal crunch, the crowd "oooh" and a
+	-- small second pop play together with the crash above (Sfx.smash times them)
+	smashBoom = {
+		id = "rbxassetid://9125401226",
+		pitch = 0.8,
+		notes = { 0.3, 0.25 },
+		gap = 0.06,
+		volume = L.SMASH_BOOM,
+	},
+	smashMetal = {
+		id = "rbxassetid://9113500221",
+		pitch = 0.9,
+		notes = { 1.2, 0.8 },
+		gap = 0.05,
+		volume = L.SMASH_METAL,
+	},
+	smashCrowd = {
+		id = "rbxassetid://9114360486",
+		pitch = 0.9,
+		notes = { 1, 1.25, 1.5 },
+		gap = 0.1,
+		volume = L.SMASH_CROWD,
+	},
+	smashPop = {
+		id = "rbxassetid://9125401226",
+		pitch = 1.3,
+		notes = { 0.5 },
+		gap = 0,
+		volume = L.SMASH_POP,
 	},
 	-- you are back in the arena: three notes up
 	respawn = {
@@ -278,6 +313,17 @@ SoundCues.ACTIONS = {
 		volume = L.DING,
 	},
 	spark = { id = "rbxassetid://9116911070", notes = { 2.5 }, gap = 0, volume = L.SPARK },
+	-- any button tapped: a soft round click (carter picked A "Soft click" 10-30)
+	-- the announcer's big word (FIRST SMASH!, DOUBLE SMASH!, UNSTOPPABLE!): a bright two-note
+	-- stinger on a checked sound. No voice clip has a checked id yet, so this is the placeholder.
+	announce = {
+		id = "rbxassetid://9120686092",
+		pitch = 1.3,
+		notes = { 1.5, 2 },
+		gap = 0.08,
+		volume = L.ANNOUNCE,
+	},
+	tap = { id = "rbxassetid://16480568294", pitch = 1.15, notes = { 2 }, gap = 0, volume = L.TAP },
 } :: { [string]: Cue }
 
 -- the cue for an action (nil if there is none)

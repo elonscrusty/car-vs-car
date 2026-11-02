@@ -46,6 +46,7 @@ local Windows = require(Screens:WaitForChild("Windows"))
 local Shop = require(Screens:WaitForChild("Shop"))
 local Smash = require(Screens:WaitForChild("Smash"))
 local KitWindows = require(Screens:WaitForChild("KitWindows"))
+local CrateReel = require(Screens:WaitForChild("CrateReel"))
 
 local player = Players.LocalPlayer
 local pgui = player:WaitForChild("PlayerGui")
@@ -294,6 +295,7 @@ end
 
 local crateChoice = 1
 local wantReveal = false -- a crate was asked for: its car shows the moment it comes
+local lastCrate = "basic" -- the kind of that crate (the opening show dresses itself by it)
 
 -- Ask the server for crate `kind` (free: one you were given); back: the window to go back to
 -- when there's no room or not enough coins.
@@ -315,6 +317,7 @@ local function buyCrate(kind: string, back: () -> ())
 		if CvcState.crates > 0 then
 			buyingUntil = os.clock() + 3
 			wantReveal = true
+			lastCrate = kind
 			ask("open")
 		end
 		return
@@ -328,6 +331,7 @@ local function buyCrate(kind: string, back: () -> ())
 	else
 		buyingUntil = os.clock() + 3
 		wantReveal = true
+		lastCrate = kind
 		Sfx.buy()
 		ask("buy", kind)
 	end
@@ -1099,10 +1103,6 @@ local function openCustomize()
 	end
 end
 -- SMASH: the pad in the world starts a match, so the SMASH! button says where it is
-local function smashHow()
-	info("power", "SMASH!", "Drive onto the SMASH! pad to play!")
-end
-
 -- a phone's Smash lobby (carter 10-29: too cluttered): MENU + SMASH! and the coins; the other
 -- buttons live in the MENU window (Smash.menu)
 local PHONE_LOBBY = SMASH and Base.phone()
@@ -1248,7 +1248,7 @@ plotActions = {
 				if n < #League.NAMES then "Get top 3 to move up!" else "Top league!"
 			)
 		end,
-	race = if SMASH then smashHow else join,
+	race = join, -- (Smash too: carter 10-30, "queue from the button, not just standing on the pad")
 	Settings = function()
 		local ev = ReplicatedStorage:FindFirstChild("OpenSettings")
 		if ev and ev:IsA("BindableEvent") then
@@ -1603,22 +1603,26 @@ local function revealNote(id: string): string
 end
 
 local function reveal(id: string, rarity: string)
-	Sfx.crate(table.find(CarCatalog.RARITY_ORDER, rarity) or 1)
 	if SMASH then
-		KitWindows.reveal({
-			id = id,
-			rarity = UiTheme.rarityId(rarity),
-			note = revealNote(id),
-			again = CvcState.crates > 0 or num("Coins") >= (Crates.price("basic") or math.huge),
-		}, {
-			cool = Screen.closeOver,
-			again = function()
-				Screen.closeOver()
-				openCrates()
-			end,
-		})
+		-- the opening show first (spinning reel), then the card
+		CrateReel.play({ id = id, rarity = rarity, kind = lastCrate }, function()
+			Sfx.crate(table.find(CarCatalog.RARITY_ORDER, rarity) or 1)
+			KitWindows.reveal({
+				id = id,
+				rarity = UiTheme.rarityId(rarity),
+				note = revealNote(id),
+				again = CvcState.crates > 0 or num("Coins") >= (Crates.price("basic") or math.huge),
+			}, {
+				cool = Screen.closeOver,
+				again = function()
+					Screen.closeOver()
+					openCrates()
+				end,
+			})
+		end)
 		return
 	end
+	Sfx.crate(table.find(CarCatalog.RARITY_ORDER, rarity) or 1)
 	-- its starting bars, as on the garage card ("20/70")
 	local car = CvcState.fresh(id)
 	local stats = {}

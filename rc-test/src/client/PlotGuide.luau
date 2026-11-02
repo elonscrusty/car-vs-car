@@ -81,7 +81,7 @@ function PlotGuide.new(): PlotGuide
 	line.BackgroundColor3 = Color3.fromRGB(30, 30, 34)
 	line.BackgroundTransparency = 0.25
 	line.TextColor3 = COLOR
-	line.Font = Enum.Font.LuckiestGuy
+	line.Font = Enum.Font.Oswald
 	line.TextScaled = true
 	line.Parent = gui
 	local corner = Instance.new("UICorner")

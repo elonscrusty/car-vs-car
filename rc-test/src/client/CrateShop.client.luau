@@ -56,7 +56,7 @@ local function text(
 	l.Size = UDim2.fromScale(w, h)
 	l.BackgroundColor3 = fill or Color3.new()
 	l.BackgroundTransparency = if fill then 0 else 1
-	l.Font = Enum.Font.LuckiestGuy
+	l.Font = Enum.Font.Oswald
 	l.TextScaled = true
 	l.TextColor3 = color
 	l.Text = t

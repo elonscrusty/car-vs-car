@@ -39,7 +39,7 @@ local function label(board: BasePart, top: string, bottom: string, one: boolean?
 		l.BackgroundTransparency = 1
 		l.Position = UDim2.fromScale(0.03, y)
 		l.Size = UDim2.fromScale(0.94, h)
-		l.Font = Enum.Font.GothamBlack
+		l.Font = Enum.Font.Oswald
 		l.TextScaled = true
 		l.TextColor3 = color
 		l.TextStrokeTransparency = 0.4
@@ -202,7 +202,7 @@ function PlotGarageBuilder.start()
 			l.BackgroundTransparency = 1
 			l.Position = UDim2.fromScale(0.04, 0.1)
 			l.Size = UDim2.fromScale(0.92, 0.8)
-			l.Font = Enum.Font.FredokaOne
+			l.Font = Enum.Font.Oswald
 			l.TextScaled = true
 			l.TextColor3 = Color3.fromRGB(255, 95, 180) -- a neon sign: pink, a white edge
 			l.TextStrokeTransparency = 0
@@ -236,7 +236,7 @@ function PlotGarageBuilder.start()
 				local l = Instance.new("TextLabel")
 				l.BackgroundTransparency = 1
 				l.Size = UDim2.fromScale(1, 1)
-				l.Font = Enum.Font.FredokaOne
+				l.Font = Enum.Font.Oswald
 				l.TextScaled = true
 				l.TextColor3 = Color3.fromRGB(255, 210, 63)
 				l.Text = tostring(i)

@@ -49,7 +49,7 @@ end)
 test("arena life: client is cheap and only runs in a match", function()
 	local src = fs.readFile("src/client/ArenaLifeFx.luau")
 	truthy(string.find(src, 'player:GetAttribute("InMatch") == true', 1, true) ~= nil, "in a match")
-	truthy(string.find(src, "r.dust:Emit(n)", 1, true) ~= nil, "kart dust by hand, by speed")
+	truthy(string.find(src, "r.dust:Emit(", 1, true) ~= nil, "kart dust by hand, by speed")
 	truthy(
 		string.find(src, 'GetAttributeChangedSignal("Up")', 1, true) ~= nil,
 		"taken box: off at once"

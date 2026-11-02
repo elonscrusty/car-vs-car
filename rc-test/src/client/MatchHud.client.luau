@@ -7,6 +7,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -60,11 +61,39 @@ local function karts(): number
 	return if count > 0 then count else DEFAULT_KARTS
 end
 
--- aim: where the camera looks, flat (the server keeps it within 30 deg of the kart's nose)
+-- aim: where the camera looks, flat (the server keeps it within 30 deg of the kart's nose).
+-- On a PC with a mouse the gun points at the mouse instead (carter 10-31): the mouse ray is cut
+-- with the flat ground at the kart's height. No auto-aim: it is only where the mouse is.
+local function mouseAimOn(): boolean
+	if not UserInputService.MouseEnabled then
+		return false
+	end
+	local last = UserInputService:GetLastInputType()
+	return last == Enum.UserInputType.MouseMovement
+		or last == Enum.UserInputType.MouseButton1
+		or last == Enum.UserInputType.MouseButton2
+		or last == Enum.UserInputType.MouseWheel
+		or last == Enum.UserInputType.Keyboard
+end
+
 local function aim(): Vector3?
 	local cam = workspace.CurrentCamera
 	if not cam then
 		return nil
+	end
+	if mouseAimOn() then
+		local m = UserInputService:GetMouseLocation()
+		local ray = cam:ViewportPointToRay(m.X, m.Y)
+		local focus = cam.Focus.Position
+		if math.abs(ray.Direction.Y) > 1e-3 then
+			local t = (focus.Y - ray.Origin.Y) / ray.Direction.Y
+			if t > 0 then
+				local flat = (ray.Origin + ray.Direction * t - focus) * Vector3.new(1, 0, 1)
+				if flat.Magnitude > 1 then
+					return flat.Unit
+				end
+			end
+		end
 	end
 	local look = cam.CFrame.LookVector * Vector3.new(1, 0, 1)
 	if look.Magnitude < 1e-3 then
@@ -130,7 +159,62 @@ end
 
 local hud: Screen.Handle? = nil
 local lastSecs = -1 -- (the clock's last shown second)
+-- PC key hints: small, bottom middle, shown 20 s from the start of each match, then fade out
+local HINT_SECONDS = 20
+local hintGui: ScreenGui? = nil
+local hintToken = 0
+local function hideHints()
+	hintToken += 1
+	if hintGui then
+		hintGui:Destroy()
+		hintGui = nil
+	end
+end
+local function showHints()
+	hideHints()
+	if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
+		return
+	end
+	local me = hintToken
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "KeyHints"
+	gui.ResetOnSpawn = false
+	gui.IgnoreGuiInset = true
+	gui.DisplayOrder = 5
+	local label = Instance.new("TextLabel")
+	label.AnchorPoint = Vector2.new(0.5, 1)
+	label.Position = UDim2.new(0.5, 0, 1, -10)
+	label.Size = UDim2.fromOffset(560, 24)
+	label.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
+	label.BackgroundTransparency = 0.45
+	label.TextColor3 = Color3.fromRGB(240, 240, 240)
+	label.TextTransparency = 0.1
+	label.Font = Enum.Font.Roboto
+	label.TextSize = 14
+	label.Text = "W A S D drive    SPACE drift    CLICK fire (aim with mouse)    G special"
+	label.Parent = gui
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = label
+	gui.Parent = player:WaitForChild("PlayerGui")
+	hintGui = gui
+	task.delay(HINT_SECONDS, function()
+		if hintToken ~= me or not label.Parent then
+			return
+		end
+		local info = TweenInfo.new(1)
+		TweenService:Create(label, info, { TextTransparency = 1, BackgroundTransparency = 1 })
+			:Play()
+		task.delay(1.1, function()
+			if hintToken == me then
+				hideHints()
+			end
+		end)
+	end)
+end
+
 local function close()
+	hideHints()
 	if hud then
 		hud.close()
 		hud = nil
@@ -158,6 +242,50 @@ local function refresh()
 	-- (a how-to card up: SmashHowTo; the tip over FIRE would say the same)
 	local card = attr("HowToCard")
 	api.quiet(type(card) == "number" and card > 0)
+	api.setButtonScale(num("BtnScale", 1))
+end
+
+-- hold FIRE = keep shooting: shoots at once, then every FIRE_GAP while the finger stays down
+-- (the server still decides ammo, cooldown and aim)
+local function holdFire()
+	local h = hud
+	if not h then
+		return
+	end
+	for _, d in h.gui.canvas:GetDescendants() do
+		if d:IsA("TextButton") and d.Name == "Fire" then
+			local held = 0
+			d.InputBegan:Connect(function(input: InputObject)
+				if
+					input.UserInputType ~= Enum.UserInputType.Touch
+					and input.UserInputType ~= Enum.UserInputType.MouseButton1
+				then
+					return
+				end
+				held += 1
+				local mine = held
+				fire()
+				task.spawn(function()
+					while held == mine and hud ~= nil and inMatch() do
+						task.wait(FIRE_GAP)
+						if held ~= mine then
+							break
+						end
+						fire()
+					end
+				end)
+			end)
+			d.InputEnded:Connect(function(input: InputObject)
+				if
+					input.UserInputType == Enum.UserInputType.Touch
+					or input.UserInputType == Enum.UserInputType.MouseButton1
+				then
+					held += 1 -- (ends the loop)
+				end
+			end)
+			break
+		end
+	end
 end
 
 local function open()
@@ -179,7 +307,14 @@ local function open()
 		level = (Xp.levelOf(num("Xp", 0))),
 		-- (your first match: the GRAB A ? BOX tip over FIRE; after it, the button alone)
 		tip = type(attr("Xp")) ~= "number" or (attr("Xp") :: number) <= 0,
-	}, { fire = fire }, Base.phone())
+	}, { fire = function() end }, Base.phone())
+	holdFire()
+	if not Base.phone() then
+		showHints()
+	end
+	if hud then
+		hud.api.setButtonScale(num("BtnScale", 1))
+	end
 end
 
 local function check()
@@ -205,6 +340,7 @@ for _, name in
 		"MatchEndsAt",
 		"InMatch",
 		"HowToCard",
+		"BtnScale",
 	}
 do
 	player:GetAttributeChangedSignal(name):Connect(check)
@@ -291,13 +427,30 @@ end)
 -- the Studio-only test thumb presses this same FIRE (client/TestThumb)
 TestThumb.onFire(fire)
 
--- keyboard F and a gamepad's R2 fire too (the button is the phone's)
+-- keyboard F, a gamepad's R2 and the left mouse button fire too (the button is the phone's).
+-- Hold the left mouse button to keep shooting.
+local mouseHeld = false
 UserInputService.InputBegan:Connect(function(input: InputObject, processed: boolean)
 	if processed then
 		return
 	end
 	if input.KeyCode == Enum.KeyCode.F or input.KeyCode == Enum.KeyCode.ButtonR2 then
 		fire()
+	elseif
+		input.UserInputType == Enum.UserInputType.MouseButton1 and UserInputService.MouseEnabled
+	then
+		mouseHeld = true
+		fire()
+	end
+end)
+UserInputService.InputEnded:Connect(function(input: InputObject)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		mouseHeld = false
+	end
+end)
+RunService.Heartbeat:Connect(function()
+	if mouseHeld then
+		fire() -- (fire() keeps its own gap)
 	end
 end)
 

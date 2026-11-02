@@ -23,7 +23,7 @@ local function label(parent: Instance, text: string, pos: UDim2, size: UDim2, co
 	l.BackgroundTransparency = 1
 	l.Position = pos
 	l.Size = size
-	l.Font = Enum.Font.GothamBlack
+	l.Font = Enum.Font.Roboto
 	l.TextScaled = true
 	l.TextColor3 = color
 	l.TextStrokeTransparency = 0

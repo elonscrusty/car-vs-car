@@ -15,10 +15,17 @@ local RunService = game:GetService("RunService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local ArenaLife = require(Shared:WaitForChild("ArenaLife"))
 local Weapons = require(Shared:WaitForChild("Weapons"))
+local FxLevel = require(Shared:WaitForChild("FxLevel"))
 
 local player = Players.LocalPlayer
 
 local ArenaLifeFx = {}
+
+-- 1, or less on a slow screen (client/FxLevel)
+local function fxLevel(): number
+	local v = workspace:GetAttribute("FxLevel")
+	return if type(v) == "number" then v else 1
+end
 
 local K = Weapons.KART
 local SMOKE = "rbxasset://textures/particles/smoke_main.dds"
@@ -139,6 +146,7 @@ local function boxRig(m: Instance)
 	local function update()
 		e.Rate = if inMatch
 			then ArenaLife.sparkles(m:GetAttribute("Up") == true, (body.Position - eyeAt).Magnitude)
+				* fxLevel()
 			else 0
 	end
 	boxes[m] = {
@@ -206,7 +214,7 @@ function ArenaLifeFx.spark(at: Vector3)
 	end
 	local p, e = sparks()
 	p.CFrame = CFrame.new(at)
-	e:Emit(ArenaLife.SPARK_BITS)
+	e:Emit(FxLevel.count(ArenaLife.SPARK_BITS, fxLevel()))
 end
 
 -- ===== the loop =====
@@ -282,11 +290,11 @@ function ArenaLifeFx.start()
 			local n
 			n, r.owedDust = ArenaLife.owe(r.owedDust, ArenaLife.dust(speed, dist), dt)
 			if n > 0 then
-				r.dust:Emit(n)
+				r.dust:Emit(FxLevel.count(n, fxLevel()))
 			end
 			n, r.owedPuff = ArenaLife.owe(r.owedPuff, ArenaLife.puffs(speed, dist), dt)
 			if n > 0 then
-				r.puff:Emit(n)
+				r.puff:Emit(FxLevel.count(n, fxLevel()))
 			end
 		end
 		-- the boxes' sparkles: on or off 4 times a second
@@ -299,6 +307,7 @@ function ArenaLifeFx.start()
 				end
 				local up = m:GetAttribute("Up") == true
 				b.sparkle.Rate = ArenaLife.sparkles(up, (b.body.Position - eye).Magnitude)
+					* fxLevel()
 			end
 		end
 	end)

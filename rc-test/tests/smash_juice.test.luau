@@ -23,6 +23,49 @@ test("smash juice: the words from carter's video", function()
 	eq(SmashJuice.deathLine("", "Huy"), "You were bumped out by Huy's bump")
 end)
 
+test("smash juice: the wrecked card has a verb, a tag and a weapon badge", function()
+	local r = SmashJuice.wreck("gun", "CheriBibi")
+	eq(r.verb, "MOWED DOWN!")
+	eq(r.tag, "by CheriBibi's machine gun")
+	eq(r.icon, "gun")
+	eq(SmashJuice.wreck("rocket", "Zed").verb, "SMASHED!")
+	eq(SmashJuice.wreck("rocket", "Zed").icon, "rocket")
+	eq(SmashJuice.wreck("mine", "Ava").verb, "BLOWN UP!")
+	eq(SmashJuice.wreck("freeze ray", "Huy").verb, "SHATTERED!")
+	eq(SmashJuice.wreck("freeze ray", "Huy").icon, "freeze")
+	eq(SmashJuice.wreck("bump", "Huy").icon, "burst")
+	-- the arena got you: no one to blame
+	local fell = SmashJuice.wreck("bump", nil)
+	eq(fell.verb, "YOU FELL OUT!")
+	eq(fell.tag, "no one to blame")
+	-- a killer who left: the weapon still names itself
+	eq(SmashJuice.wreck("rocket", nil).tag, "by a rocket")
+	eq(SmashJuice.wreck("mine", nil).tag, "by a mine")
+end)
+
+test("smash juice: the match start shows 3, 2, 1, GO! then nothing", function()
+	eq(SmashJuice.startStep(-0.1), nil)
+	eq(SmashJuice.startStep(0), "3")
+	eq(SmashJuice.startStep(0.99), "3")
+	eq(SmashJuice.startStep(1), "2")
+	eq(SmashJuice.startStep(2.5), "1")
+	eq(SmashJuice.startStep(3), "GO!")
+	eq(SmashJuice.startStep(3 + SmashJuice.START_GO_SECONDS - 0.01), "GO!")
+	eq(SmashJuice.startStep(3 + SmashJuice.START_GO_SECONDS), nil)
+	-- looks only: the client file never touches the server or the cars
+	local src = fs.readFile("src/client/MatchStart.luau")
+	truthy(string.find(src, "MatchRound", 1, true), "starts on the round number")
+	truthy(string.find(src, "InMatch", 1, true), "only when you are in the round")
+	truthy(not string.find(src, "FireServer", 1, true), "no asks to the server")
+	local start = fs.readFile("src/client/SmashFxStart.client.luau")
+	truthy(string.find(start, "MatchStart", 1, true), "something starts it")
+	-- ROUND OVER! plays first, then the between-rounds screen opens (a newer result wins)
+	local sEnd = fs.readFile("src/client/SmashEnd.client.luau")
+	truthy(string.find(sEnd, "MatchStart.roundOver()", 1, true), "the end screen waits for it")
+	truthy(string.find(sEnd, "SmashJuice.ROUND_OVER_SECONDS", 1, true), "and for how long")
+	truthy(SmashJuice.ROUND_OVER_SECONDS < 2.5, "a short wait before the podium")
+end)
+
 test("smash juice: long names are cut so they fit a phone", function()
 	eq(SmashJuice.shortName("Botty"), "Botty")
 	eq(SmashJuice.shortName("BottyMcBotface"), "BottyMcBotface")
@@ -116,11 +159,22 @@ test("smash juice: hits shake by damage; reduced motion keeps words, not shake",
 	truthy(mine.punch > 0 and mine.slow > 0 and mine.confetti > 0)
 	eq(SmashJuice.feel("hit", 0).trauma, 0)
 	truthy(SmashJuice.feel("mySmash", 5).confetti <= 48, "confetti pool is 48")
-	truthy(SmashJuice.feel("mySmash", 99).trauma <= 0.6)
+	truthy(SmashJuice.feel("mySmash", 99).trauma <= SmashJuice.MAX_TRAUMA)
 	local calm = SmashJuice.feel("mySmash", 3, true)
 	eq(calm.trauma, 0)
 	eq(calm.punch, 0)
+	eq(calm.kick, 0)
+	eq(calm.lift, 0)
+	eq(calm.twist, 0)
+	local calmHit = SmashJuice.feel("hit", 40, true)
+	eq(calmHit.trauma + calmHit.punch + calmHit.kick + calmHit.lift + calmHit.twist, 0)
 	truthy(calm.confetti > 0, "confetti stays")
+	-- hit shake C: a rocket shoves harder than a nudge and pops the zoom in; a nudge only shoves;
+	-- being smashed pulls the view out; your smash dips the camera
+	truthy(rocket.kick > nudge.kick and rocket.twist > nudge.twist)
+	eq(nudge.punch, 0)
+	truthy(rocket.punch > 0 and smashed.punch < 0 and smashed.kick > rocket.kick)
+	truthy(mine.lift < 0 and mine.kick == 0)
 	truthy(SmashJuice.feel("boom", 10).trauma > SmashJuice.feel("boom", 50).trauma)
 	eq(SmashJuice.feel("boom", 200).trauma, 0)
 	-- the empty feel is fresh every time (no shared table to change by mistake)
@@ -137,8 +191,29 @@ test("smash juice: shake is capped, decays, and never jitters on a 30 fps phone"
 	eq(SmashJuice.noiseHz(60), SmashJuice.NOISE_HZ)
 	local p = SmashJuice.tilt(1, 1, 0, 0)
 	eq(p, SmashJuice.MAX_DEGREES)
+	local _, _, roll = SmashJuice.tilt(1, 0, 0, 1)
+	eq(roll, SmashJuice.MAX_ROLL)
 	local small = SmashJuice.tilt(0.12, 1, 0, 0)
-	truthy(small < 0.05, "a nudge barely moves the screen (trauma squared)")
+	truthy(small < 0.05, "a tiny trauma barely moves the screen (trauma squared)")
+	-- a nudge you can see (hit shake C, shake halved 10-31): about 1/6 of a degree or more, right on the hit
+	local nudgeShake = SmashJuice.tilt(SmashJuice.feel("hit", 10).trauma, 1, 0, 0)
+	truthy(nudgeShake > 0.12, "a nudge is seen")
+	-- and it is calm again within a second
+	local nudgeT = SmashJuice.feel("hit", 10).trauma
+	eq(SmashJuice.decay(nudgeT, 1), 0)
+	-- the shove: starts at full push, wobbles back past 0 once, gone after KICK_SECONDS
+	eq(SmashJuice.kickAt(0), 1)
+	truthy(SmashJuice.kickAt(0.06) < 1)
+	local low = 0
+	for i = 1, 60 do
+		low = math.min(low, SmashJuice.kickAt(i / 100))
+	end
+	truthy(low < 0 and low > -0.5, "one wobble back the other way, smaller")
+	eq(SmashJuice.kickAt(SmashJuice.KICK_SECONDS), 0)
+	eq(SmashJuice.kickAt(-1), 0)
+	-- zoom out (being smashed): below 0 holds, then returns
+	eq(SmashJuice.punchAt(-5, 0.06, SmashJuice.PUNCH_IN + 0.03), -5)
+	eq(SmashJuice.punchAt(-5, 0.06, 5), 0)
 	-- the zoom: in, hold, back to 0
 	eq(SmashJuice.punchAt(8, 0.18, 0), 0)
 	eq(SmashJuice.punchAt(8, 0.18, SmashJuice.PUNCH_IN + 0.1), 8)
@@ -214,6 +289,53 @@ test(
 					truthy(
 						not UiScreens.overlap(r :: any, h :: any),
 						`{spot} covers {h.name} (top bar {inset.top})`
+					)
+				end
+			end
+			-- ROUND OVER! and Time's up!
+			for spot, at in SmashJuice.ROUND_OVER do
+				local r = {
+					x = (D.phoneW - at.w * D.phoneW) / 2,
+					y = (at.y - at.h / 2) * D.phoneH,
+					w = at.w * D.phoneW,
+					h = at.h * D.phoneH,
+				}
+				for _, h in hud do
+					truthy(
+						not UiScreens.overlap(r :: any, h :: any),
+						`round over {spot} covers {h.name} (top bar {inset.top})`
+					)
+				end
+			end
+			-- the match start: the giant number and GET READY!
+			for spot, at in SmashJuice.START do
+				local r = {
+					x = (D.phoneW - at.w * D.phoneW) / 2,
+					y = (at.y - at.h / 2) * D.phoneH,
+					w = at.w * D.phoneW,
+					h = at.h * D.phoneH,
+				}
+				for _, h in hud do
+					truthy(
+						not UiScreens.overlap(r :: any, h :: any),
+						`start {spot} covers {h.name} (top bar {inset.top})`
+					)
+				end
+			end
+			-- the wrecked card: verb, tag, and the ring with its BACK IN words on the left
+			for spot, at in SmashJuice.WRECK do
+				local ring = at.h * D.phoneH
+				local rw = if at.w > 0 then at.w * D.phoneW else ring * 1.9
+				local r = {
+					x = (D.phoneW - rw) / 2 - (if at.w > 0 then 0 else ring * 0.45),
+					y = (at.y - at.h / 2) * D.phoneH,
+					w = rw,
+					h = ring,
+				}
+				for _, h in hud do
+					truthy(
+						not UiScreens.overlap(r :: any, h :: any),
+						`wreck {spot} covers {h.name} (top bar {inset.top})`
 					)
 				end
 			end

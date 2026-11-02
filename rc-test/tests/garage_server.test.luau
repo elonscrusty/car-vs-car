@@ -1,7 +1,7 @@
 --!nocheck
 -- GarageServer on the pretend server (tests/fakeroblox.luau) with Features.SMASH on, as phase 3
--- runs it: no training, a new kid owns a starter kart from the first second, the plot shows the
--- karts (Garage / RacerCar for the showroom), and picks, crates and leftover training asks
+-- runs it: no training, a new kid owns a starter kart from the first second, the lobby has no
+-- plots (Garage Hub), and picks, crates and leftover training asks
 -- from old screens never error.
 local H = require("./harness")
 local Fake = require("./fakeroblox")
@@ -50,15 +50,12 @@ test("a new kid owns the starter kart from the first second", function()
 	truthy(#cars >= 1 and #cars[#cars][3].garage == 1, "the screens got the kart")
 end)
 
-test("the plot shows the karts for the showroom", function()
-	local m = plot()
-	truthy(m, "the kid has a plot")
-	eq(m:GetAttribute("Garage"), CarStats.STARTERS[1])
-	eq(m:GetAttribute("RacerCar"), CarStats.STARTERS[1])
-	eq(m:GetAttribute("Stations"), nil, "no training on the plot")
+test("the Garage Hub lobby has no plots (carter 10-30)", function()
+	eq(plot(), nil, "no plot for the kid")
+	eq(#S.workspace.Plots:GetChildren(), 0, "no plots at all")
 end)
 
-test("a crate adds a kart; PICK THIS KART swaps the turntable", function()
+test("a crate adds a kart; PICK THIS KART swaps the kart you play with", function()
 	data.coins = 100000
 	S.send(kid, "Garage", "buy", "basic")
 	S.advance(1, BEAT)
@@ -67,9 +64,7 @@ test("a crate adds a kart; PICK THIS KART swaps the turntable", function()
 	S.send(kid, "Garage", "racer", second.uid)
 	S.advance(1, BEAT)
 	eq(data.racer, second.uid)
-	local m = plot()
-	eq(m:GetAttribute("RacerCar"), second.id)
-	eq(#string.split(m:GetAttribute("Garage"), ","), 2)
+	eq(kid:GetAttribute("RacerCar"), second.id)
 end)
 
 test("leftover training asks and junk change nothing and never error", function()

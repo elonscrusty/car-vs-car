@@ -25,12 +25,26 @@ local props: { Prop } = {}
 local kart: Model? = nil
 local lookedAt = -math.huge
 
+-- a prop with a "Dress" attribute (the tyre walls) fades its dressing folder along with it
+local function dressTo(part: BasePart, value: number)
+	local name = part:GetAttribute("Dress")
+	local dress = if type(name) == "string" and arena then arena:FindFirstChild(name) else nil
+	if dress then
+		for _, d in dress:GetDescendants() do
+			if d:IsA("BasePart") then
+				d.LocalTransparencyModifier = value
+			end
+		end
+	end
+end
+
 local function restore(part: BasePart)
 	local was = before[part]
 	before[part] = nil
 	-- only put it back if it still shows our fade (nobody else changed it meanwhile)
 	if was and SeeKart.ours(part.LocalTransparencyModifier) then
 		part.LocalTransparencyModifier = was
+		dressTo(part, was)
 	end
 end
 
@@ -106,10 +120,12 @@ RunService:BindToRenderStep("SeeKart", Enum.RenderPriority.Camera.Value + 4, fun
 						-- another script put it back to solid while it still blocks: fade again
 						if m < SeeKart.FADE - 1e-3 then
 							part.LocalTransparencyModifier = SeeKart.FADE
+							dressTo(part, SeeKart.FADE)
 						end
 					elseif not SeeKart.hiddenAlready(m) and fader:add(part, now) then
 						before[part] = m
 						part.LocalTransparencyModifier = SeeKart.FADE
+						dressTo(part, SeeKart.FADE)
 					end
 				end
 			end

@@ -58,8 +58,8 @@ test(
 	"a car stand for every plot, drift / race pads (Car VS Car: one SMASH! portal), shops and a garage",
 	function()
 		truthy(#S.STANDS >= #TrackData.order, "stands")
-		-- (Car VS Car Smash: one SMASH! portal pad, and the crate shop in the race shop's spot)
-		eq(#S.PADS, if Features.CVC then 1 else 2)
+		-- (Car VS Car Smash: three match pads, and the crate shop in the race shop's spot)
+		eq(#S.PADS, if S.SMASH then 3 elseif Features.CVC then 1 else 2)
 		local kinds: { [string]: boolean } = {}
 		for _, pad in S.PADS do
 			kinds[pad.kind] = true

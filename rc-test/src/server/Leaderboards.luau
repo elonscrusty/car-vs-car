@@ -110,7 +110,7 @@ local function text(parent: Instance, size: UDim2, pos: UDim2, color: Color3): T
 	t.BackgroundTransparency = 1
 	t.Size = size
 	t.Position = pos
-	t.Font = Enum.Font.LuckiestGuy
+	t.Font = Enum.Font.Oswald
 	t.TextScaled = true
 	t.TextColor3 = color
 	t.Text = ""
@@ -455,7 +455,7 @@ local function paintBadge(player: Player)
 		g.Parent = head
 		label = Instance.new("TextLabel")
 		label.Size = UDim2.fromScale(1, 1)
-		label.Font = Enum.Font.LuckiestGuy
+		label.Font = Enum.Font.Oswald
 		label.TextScaled = true
 		label.TextColor3 = WHITE
 		label.TextStrokeColor3 = INK

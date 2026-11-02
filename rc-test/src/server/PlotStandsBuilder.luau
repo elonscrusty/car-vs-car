@@ -30,7 +30,7 @@ local function label(board: BasePart, top: string, bottom: string)
 		l.BackgroundTransparency = 1
 		l.Position = UDim2.fromScale(0.03, y)
 		l.Size = UDim2.fromScale(0.94, h)
-		l.Font = Enum.Font.GothamBlack
+		l.Font = Enum.Font.Oswald
 		l.TextScaled = true
 		l.TextColor3 = color
 		l.Text = text

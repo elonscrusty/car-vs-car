@@ -102,6 +102,30 @@ test(
 	end
 )
 
+test("starter: empty hands get the Gun at once, then a fresh clip after the reload", function()
+	local S, kid, WS = setup()
+	truthy(WS.starter(201, 0), "first time: at once")
+	eq(kid:GetAttribute("Weapon"), Weapons.STARTER)
+	eq(WS.starter(201, 0.1), false, "already holding it")
+	local clip = Weapons.DEFS[Weapons.STARTER].ammo
+	for _ = 1, clip do
+		S.advance(Weapons.DEFS[Weapons.STARTER].cooldown + 0.05, 0.05)
+		truthy(WS.fire(201, AHEAD), "a shot")
+	end
+	eq((WS.holding(201)), "", "clip empty")
+	eq(WS.starter(201, 10), false, "the reload starts")
+	eq(WS.starter(201, 10 + Weapons.STARTER_RELOAD - 0.1), false, "still reloading")
+	truthy(WS.starter(201, 10 + Weapons.STARTER_RELOAD), "fresh clip")
+	-- a box weapon is kept, never swapped back to the Gun
+	truthy(WS.give(201, "Rockets"))
+	eq(WS.starter(201, 20), false)
+	eq((WS.holding(201)), "Rockets")
+	-- a smashed kart drops it; after the respawn it has the Gun again at once
+	WS.drop(201)
+	truthy(WS.starter(201, 30))
+	eq(#S.errors, 0)
+end)
+
 test("a smashed kart can't fire; drop and reset empty the hands", function()
 	local S, kid, WS, hurt, karts = setup()
 	WS.give(201, "Rockets")

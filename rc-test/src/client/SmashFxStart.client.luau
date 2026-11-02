@@ -4,3 +4,5 @@
 local SmashFx = require(script.Parent:WaitForChild("SmashFx"))
 
 SmashFx.start()
+require(script.Parent:WaitForChild("SmashSparks")).start()
+require(script.Parent:WaitForChild("MatchStart")).start()

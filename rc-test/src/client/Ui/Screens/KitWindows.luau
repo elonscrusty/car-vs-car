@@ -1273,7 +1273,7 @@ local function slider(
 	b.Destroying:Connect(stop)
 end
 
--- data: { music: 0..1, sfx: 0..1, shadows: boolean, names: boolean }
+-- data: { music: 0..1, sfx: 0..1, shadows, names, buzz: boolean, camera: "follow"|"fixed", buttons: "small"|"medium"|"large" }
 -- actions: set(key, value), close()
 function KitWindows.settings(data: { [string]: any }, actions: Screen.Actions?): Screen.Handle
 	return Screen.open("settings", "window", true, function(g)
@@ -1289,33 +1289,89 @@ function KitWindows.settings(data: { [string]: any }, actions: Screen.Actions?):
 		local sp = { w = 400, h = bp.h }
 		local op = { w = bp.w - sp.w - 16, h = bp.h }
 		local left = Kit.navyPanel(body, "Sliders", 0, 0, sp.w, sp.h)
+		-- (four rows of 74: a word, then a 44 px control)
+		local STEP = 74
 		for i, row in { { "music", "MUSIC" }, { "sfx", "SOUNDS" } } do
-			local y = 30 + (i - 1) * 120
+			local y = 6 + (i - 1) * STEP
 			Base.text(
 				left,
 				"Word" .. i,
 				20,
 				y,
 				sp.w - 40,
-				32,
+				26,
 				row[2],
 				{ stroke = 3.5, align = "l", z = 5 }
 			)
 			slider(
 				left,
 				16,
-				y + 40,
+				y + 28,
 				sp.w - 32,
-				56,
+				44,
 				if type(data[row[1]]) == "number" then data[row[1]] else 1,
 				function(v)
 					set(row[1], v)
 				end
 			)
 		end
+		-- two rows of choices, the picked button gold: CAMERA, BUTTONS (the FIRE button's size)
+		local choices = {
+			{
+				key = "camera",
+				word = "CAMERA",
+				default = "follow",
+				list = { { "follow", "FOLLOW" }, { "fixed", "FIXED" } },
+			},
+			{
+				key = "buttons",
+				word = "BUTTONS",
+				default = "medium",
+				list = { { "small", "SMALL" }, { "medium", "MEDIUM" }, { "large", "BIG" } },
+			},
+		}
+		for r, ch in choices do
+			local y = 6 + (r + 1) * STEP
+			Base.text(
+				left,
+				ch.word .. "Word",
+				20,
+				y,
+				sp.w - 40,
+				26,
+				ch.word,
+				{ stroke = 3.5, align = "l", z = 5 }
+			)
+			local btns: { [string]: TextButton } = {}
+			local n = #ch.list
+			local w = (sp.w - 32 - 12 * (n - 1)) / n
+			local have = data[ch.key]
+			local cur = if have == nil then ch.default else have
+			for i, row in ch.list do
+				local id = row[1]
+				local btn = Kit.button(
+					left,
+					ch.word .. id,
+					16 + (i - 1) * (w + 12),
+					y + 28,
+					w,
+					44,
+					if cur == id then "gold" else "white",
+					row[2],
+					{ z = 5 }
+				)
+				btns[id] = btn
+				btn.Activated:Connect(function()
+					for other, b in btns do
+						Kit.setTone(b, if other == id then "gold" else "white")
+					end
+					set(ch.key, id)
+				end)
+			end
+		end
 		local right = Kit.navyPanel(body, "Toggles", sp.w + 16, 0, op.w, op.h)
-		for i, row in { { "shadows", "SHADOWS" }, { "names", "NAME TAGS" } } do
-			local y = 24 + (i - 1) * 100
+		for i, row in { { "shadows", "SHADOWS" }, { "names", "NAME TAGS" }, { "buzz", "BUZZ" } } do
+			local y = 10 + (i - 1) * 98
 			local key = row[1]
 			local state = data[key] ~= false
 			-- (the whole row is the tap: the switch alone is under 44 px tall)

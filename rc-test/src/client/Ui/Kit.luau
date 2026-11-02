@@ -871,8 +871,14 @@ function Kit.side(
 	local io: { [string]: any } = iconOpts or {}
 	io.z = 5
 	-- (in the middle of the tile, over its word: it poked out of the top, carter 10-28)
-	local ic = Icons.make(holder, icon, (s - 40) / 2, 5, 40, io)
-	Base.text(holder, "Word", -8, s - 14, s + 16, 22, word, { stroke = 4, z = 7 })
+	-- (carter 10-30: icon centred in the space above a dark name plate)
+	local zone = s - 20
+	local isz = zone - 8
+	local ic = Icons.make(holder, icon, (s - isz) / 2, 4, isz, io)
+	local plate = Base.fill(holder, "Plate", 0, s - 20, s, 20, INK, 6)
+	plate.BackgroundTransparency = 0.15
+	Base.corner(plate, C.slot)
+	Base.text(holder, "Word", 0, s - 20, s, 20, word, { stroke = 3, z = 7 })
 	-- (26 round, its number 18 tall: 14 px on a phone, carter 10-29)
 	local dot = Base.fill(holder, "Dot", s - 16, -10, 26, 26, Base.color("danger"), 8)
 	Base.corner(dot)

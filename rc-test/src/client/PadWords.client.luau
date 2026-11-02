@@ -53,9 +53,16 @@ local function smallText(base: BasePart): string
 	-- and cleared after each race)
 	-- SMASH!: in the queue for the next round (MatchRunner.join sets MatchQueued)
 	if base:GetAttribute("PlotType") == "smash" then
-		return if Players.LocalPlayer:GetAttribute("MatchQueued") == true
-			then "YOU'RE IN!"
-			else "STAND HERE"
+		-- once you're in, the time to the match (workspace NextMatchAt, server time)
+		if Players.LocalPlayer:GetAttribute("MatchQueued") == true then
+			local at = workspace:GetAttribute("NextMatchAt")
+			if type(at) == "number" then
+				local left = math.max(0, math.ceil(at - workspace:GetServerTimeNow()))
+				return string.format("YOU'RE IN! %d:%02d", left // 60, left % 60)
+			end
+			return "YOU'RE IN!"
+		end
+		return "STAND HERE"
 	end
 	if base:GetAttribute("PlotType") == "race" then
 		return if Players.LocalPlayer:GetAttribute("RaceJoined") == true
