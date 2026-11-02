@@ -95,7 +95,7 @@ local function make(): Chevron
 	q.Position = UDim2.fromOffset(half, half)
 	q.Size = UDim2.fromOffset(SIZE, SIZE)
 	q.Text = "?"
-	q.Font = Enum.Font.FredokaOne
+	q.Font = Enum.Font.Oswald
 	q.TextSize = 20
 	q.ZIndex = 5
 	q.Parent = root
