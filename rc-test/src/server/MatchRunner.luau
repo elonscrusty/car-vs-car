@@ -31,6 +31,7 @@ local Barrels = require(ReplicatedStorage.Shared.Barrels)
 local Crane = require(ReplicatedStorage.Shared.Crane)
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local FirePits = require(ReplicatedStorage.Shared.FirePits)
+local FrostYard = require(ReplicatedStorage.Shared.FrostYard)
 local Wrenches = require(ReplicatedStorage.Shared.Wrenches)
 local BotPaints = require(ReplicatedStorage.Shared.BotPaints)
 local LobbyLayout = require(ReplicatedStorage.Shared.LobbyLayout)
@@ -95,6 +96,9 @@ local firePits: any = nil -- FirePitServer's handle (the burning patches in the 
 local wrenches: any = nil -- WrenchServer's handle (the health wrenches in the arena)
 local burningYard: any = nil -- BurningYardServer's handle (burning piles, towers, beacons: looks only)
 local rollDrums: any = nil -- RollBarrelServer's handle (the rolling Toxic Drums)
+local frostYard: any = nil -- FrostYardServer's handle (the snow look + ice patches, swapped per round)
+local lookNow: string? = nil -- the arena look of the round that just started ("yard" or "frost")
+local lookRun = 0 -- how many rounds in a row it has been on
 local ArenaBots: any = nil
 local lastLeave: { [Player]: number } = {}
 
@@ -762,6 +766,41 @@ local function startBurningYard()
 	end
 end
 
+-- The second arena, Frosty Yard (FrostYardServer, shared/FrostYard): built once, then each round picks
+-- the sunny junkyard or the snow look (never one look more than MAX_RUN rounds in a row). The snow
+-- look has the ice patches (the one new danger: a kart on ice slides).
+local function startFrost()
+	local mod = script.Parent:FindFirstChild("FrostYardServer")
+	local _, t = arena()
+	if frostYard or not (mod and mod:IsA("ModuleScript") and t) then
+		return
+	end
+	local ok, h = pcall((require(mod) :: any).start, {
+		unit = ArenaData.K * TrackData.RC_SCALE,
+		at = function(x: number, y: number): Vector3
+			local ax, az = ArenaData.at({ x, y })
+			local wx, wy, wz = TrackData.toWorld(t, true, ax, ArenaData.groundAt({ x, y }), az)
+			return Vector3.new(wx, wy, wz)
+		end,
+	})
+	if ok then
+		frostYard = h
+	else
+		warn("[Match] frosty yard: " .. tostring(h))
+	end
+end
+
+local function pickLook()
+	startFrost()
+	if not frostYard then
+		return
+	end
+	local pick = FrostYard.next(lookNow, lookRun, math.random())
+	lookRun = if pick == lookNow then lookRun + 1 else 1
+	lookNow = pick
+	pcall(frostYard.setTheme, pick, burningYard and burningYard.folder)
+end
+
 -- The arena's health wrenches (WrenchServer, shared/Wrenches): started once, every wrench up at
 -- each round's start. A hurt kart on one gets 40% back. The server decides; nothing is pushed.
 local function startWrenches()
@@ -1190,6 +1229,7 @@ local function startRound()
 		pcall(rollDrums.reset)
 	end
 	startBurningYard()
+	pickLook()
 	log(
 		`round {round} start: {#list} players + {#m.list - #list} bots, ends in {MatchRunner.MATCH_SECS} s`
 	)
